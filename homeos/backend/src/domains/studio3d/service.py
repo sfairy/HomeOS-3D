@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from . import cleanup as cleanup_service
 from . import draft_repository
+from ...panel.asset_refs import validate_assets
 from ...platform.core.models import Project, ProjectDraft
 from ...schemas import Studio3DDraftUpdate
 
@@ -38,7 +39,11 @@ def get_draft(database: Session) -> dict:
     return {"revision": snapshot.revision, "scene": snapshot.scene, "updatedAt": snapshot.updated_at}
 
 
-def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate) -> dict:
+def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, catalog=None) -> dict:
+    # 户型图里的图片引用（``user:`` / ``studio3d:``）必须先校验存在：草稿一旦写进去，
+    # 后续删除 / 覆盖图片时它就会成为「删除不掉的引用」，而用户其实只是选了一张已删的图。
+    if catalog is not None:
+        validate_assets(catalog, payload.scene)
     scene_json = draft_repository.encode_scene(payload.scene)
     database.commit()
     database.execute(text("BEGIN IMMEDIATE"))

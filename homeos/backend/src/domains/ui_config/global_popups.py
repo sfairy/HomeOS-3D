@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from ...platform.core.models import GlobalCustomPopupState
@@ -16,13 +17,26 @@ def global_popup_state(database: Session) -> GlobalCustomPopupState:
         database.flush()
     return state
 
-def global_popups(database: Session) -> list[dict]:
+def global_popups(database: Session, *, require_readable: bool = False) -> list[dict]:
+    """读取全局组合弹窗列表。
+
+    ``require_readable=True`` 时把「存储内容不是合法 JSON 数组」当成错误抛出 409：
+    删除 / 覆盖图片前必须证明弹窗里没有引用它，读不出来时按「可能引用」处理，
+    否则一次坏配置就能把仍在使用中的图片删掉（0.8.1 的修复点）。
+    """
     state = global_popup_state(database)
     try:
         value = json.loads(state.popups_json)
-    except (TypeError, json.JSONDecodeError):
+        if not isinstance(value, list):
+            raise ValueError('global popups must be an array')
+    except (TypeError, ValueError) as error:
+        if require_readable:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='无法核对全局组合弹窗的图片引用，请先恢复弹窗配置后再删除或覆盖。',
+            ) from error
         value = []
-    return value if isinstance(value, list) else []
+    return value
 
 def popup_reference_ids(value) -> set[str]:
     result = set()

@@ -108,6 +108,10 @@ class HAConnectorService(
         self._history_cache: OrderedDict[tuple[str, str, int], tuple[float, list[dict[str, Any]]]] = OrderedDict()
         self._history_fetches: dict[tuple[str, str, int], asyncio.Task[list[dict[str, Any]]]] = {}
         self._history_cache_lock = asyncio.Lock()
+        # 历史缓存的「代」：每次作废（停连 / 换连接）自增。进行中的查询带着发起时的代，
+        # 回来发现代变了就只把结果交给调用方、不写回缓存 —— 否则一次换连接后旧连接的数据
+        # 会重新灌进新缓存，图表显示上一台 HA 的历史。
+        self._history_generation = 0
         self._translation_cache: OrderedDict[tuple[str, str, tuple[str, ...]], tuple[float, dict[str, str]]] = OrderedDict()
         self._translation_lock = asyncio.Lock()
         self._initial_sync_logged = False
@@ -234,6 +238,10 @@ class HAConnectorService(
             await asyncio.gather(*registry_tasks, return_exceptions = True)
         history_tasks = list(self._history_fetches.values())
         self._history_fetches.clear()
+        # 先作废缓存再取消任务：在飞的查询即使没被取消干净，也会因「代」不符而不写回。
+        async with self._history_cache_lock:
+            self._history_generation += 1
+            self._history_cache.clear()
         for task in history_tasks:
             task.cancel()
         if history_tasks:

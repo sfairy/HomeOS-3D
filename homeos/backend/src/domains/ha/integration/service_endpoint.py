@@ -289,7 +289,16 @@ class HAEndpointMixin(HAConnectorHost):
                 return list(cached[1])
             fetch = self._history_fetches.get(cache_key)
             if fetch is None:
-                fetch = asyncio.create_task(self._fetch_and_cache_history(connection, entity_id, start_time, cache_key), name = f'ha-history-{entity_id}')
+                fetch = asyncio.create_task(
+                    self._fetch_and_cache_history(
+                        connection,
+                        entity_id,
+                        start_time,
+                        cache_key,
+                        self._history_generation,
+                    ),
+                    name = f'ha-history-{entity_id}',
+                )
                 self._history_fetches[cache_key] = fetch
                 fetch.add_done_callback(lambda completed, key = cache_key: self._discard_history_fetch(key, completed))
         return list(await asyncio.shield(fetch))
@@ -298,10 +307,20 @@ class HAEndpointMixin(HAConnectorHost):
         if self._history_fetches.get(cache_key) is fetch:
             self._history_fetches.pop(cache_key, None)
 
-    async def _fetch_and_cache_history(self, connection: HAConnection, entity_id: str, start_time: str, cache_key: tuple[str, str, int]) -> list[dict[str, Any]]:
+    async def _fetch_and_cache_history(
+        self,
+        connection: HAConnection,
+        entity_id: str,
+        start_time: str,
+        cache_key: tuple[str, str, int],
+        generation: int,
+    ) -> list[dict[str, Any]]:
         async with self._history_semaphore:
             history = await (await self.client_for(connection)).fetch_history(entity_id, start_time)
         async with self._history_cache_lock:
+            # 代不符：这次查询来自已经作废的缓存周期（停连 / 换连接），结果只回给调用方。
+            if generation != self._history_generation:
+                return list(history)
             self._history_cache[cache_key] = (time.monotonic(), list(history))
             _, max_size = self._history_cache_limits()
             while len(self._history_cache) > max_size:

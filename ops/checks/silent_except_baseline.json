@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 555,
+  "total": 553,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/license.py": 3,
@@ -36,7 +36,7 @@
     "homeos-store/backend/src/security/security.py": 1,
     "homeos-store/backend/src/security/setup_guard.py": 4,
     "homeos/backend/src/api/agent.py": 1,
-    "homeos/backend/src/api/assets.py": 10,
+    "homeos/backend/src/api/assets.py": 9,
     "homeos/backend/src/api/backups.py": 5,
     "homeos/backend/src/api/channels.py": 1,
     "homeos/backend/src/api/earthquake.py": 2,
@@ -176,7 +176,6 @@
     "homeos/backend/src/domains/system/ops/upstream.py": 2,
     "homeos/backend/src/domains/system/ops/weather_alerts.py": 1,
     "homeos/backend/src/domains/system/service.py": 5,
-    "homeos/backend/src/domains/ui_config/global_popups.py": 1,
     "homeos/backend/src/domains/ui_config/layout_secrets.py": 1,
     "homeos/backend/src/domains/ui_config/static_assets.py": 2,
     "homeos/backend/src/domains/weather/linkage.py": 2,

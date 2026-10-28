@@ -198,6 +198,8 @@ SMALLCAR_EXTRA_FIELDS = frozenset(
         'batteryEntityId',
         'chargingEntityId',
         'tirePressure',
+        # 0.8.1：车辆标签与车模共用点击开关（`clickAction` 只在开关打开时生效）。
+        'interactionEnabled',
     }
 )
 #: 电脑：电源实体 + 自定义屏幕图（用户上传素材）。
@@ -246,6 +248,9 @@ DEVICE_FLAG_FIELDS = ('visible', 'hiddenClickable', 'buttonHidden')
 DEVICE_CLICK_ACTIONS = ('focus', 'focus-panel', 'panel')
 #: 家电点击动作（默认面板档）。
 DEVICE_CLICK_ACTION_ENUM = EnumSpec('clickAction', DEVICE_CLICK_ACTIONS, 'focus-panel')
+#: 车辆点击动作（0.8.1）：多一个「不响应点击」，且是默认值 —— 与 `carClickAction` 同口径。
+VEHICLE_CLICK_ACTIONS = ('none', *DEVICE_CLICK_ACTIONS)
+VEHICLE_CLICK_ACTION_ENUM = EnumSpec('clickAction', VEHICLE_CLICK_ACTIONS, 'none')
 #: 汽车卡片三项数值边界。
 SMALLCAR_CARD_BOUNDS: tuple[tuple[str, float, float], ...] = (
     ('cardScale', 0.5, 3),
@@ -263,13 +268,12 @@ TIRE_PRESSURE_FIELDS = frozenset({'enabled', 'mode', 'fontSize', 'opacity', 'whe
 TIRE_PRESSURE_MODES = ('compact', 'named')
 TIRE_PRESSURE_MODE_ENUM = EnumSpec('mode', TIRE_PRESSURE_MODES, 'compact')
 #: 四个轮位的键（左前 / 右前 / 左后 / 右后）。
-TIRE_PRESSURE_WHEEL_KEYS = frozenset({'fl', 'fr', 'rl', 'rr'})
+TIRE_PRESSURE_WHEEL_KEYS = frozenset({'fl', 'fr', 'rl', 'rr', 'front', 'rear'})
 TIRE_PRESSURE_SENSOR = re.compile(r'sensor\.[a-z0-9_]+')
-#: 字号与背景不透明度边界（与前端输入框一致）。
-TIRE_PRESSURE_BOUNDS: tuple[tuple[str, float, float], ...] = (
-    ('fontSize', 8, 40),
-    ('opacity', 0.1, 1),
-)
+#: 字号与背景不透明度边界（0.8.1）：字号只要求 > 0（不设上限，与卡片字号同口径），
+#: 不透明度是 0–1 闭区间。
+TIRE_PRESSURE_POSITIVE_FIELDS = ('fontSize',)
+TIRE_PRESSURE_UNIT_FIELDS = ('opacity',)
 #: 状态灯文案与附加控制标签上限。
 STATUS_STATE_TEXT_LIMIT = 120
 EXTRA_CONTROL_TEXT_LIMIT = 120
@@ -496,6 +500,9 @@ def _validate_smallcar_bindings(
             fail()
     if not ctx.numbers_within(item, SMALLCAR_CARD_BOUNDS):
         fail()
+    # 0.8.1：`interactionEnabled` 是点击开关本身，必须是布尔（缺省视为关闭）。
+    if 'interactionEnabled' in item and type(item['interactionEnabled']) is not bool:
+        fail()
     # 字号不设上限（9-32 夹紧会把放大后的读数裁掉），只要求为正数。
     if 'cardFontSize' in item and not ctx.positive_number(item['cardFontSize']):
         fail()
@@ -529,8 +536,18 @@ def _validate_tire_pressure(ctx: ValidationContext, item: dict, fail) -> None:
         fail()
     if not ctx.enum(tire_pressure, TIRE_PRESSURE_MODE_ENUM):
         fail()
-    if not ctx.numbers_within(tire_pressure, TIRE_PRESSURE_BOUNDS):
-        fail()
+    # 样式值：字号 > 0（无上限），不透明度 0–1；非数值或非有限值一律拒。
+    for style_key in (*TIRE_PRESSURE_POSITIVE_FIELDS, *TIRE_PRESSURE_UNIT_FIELDS):
+        if style_key not in tire_pressure:
+            continue
+        style_value = tire_pressure[style_key]
+        if type(style_value) not in (int, float) or not math.isfinite(style_value):
+            fail()
+        elif style_key in TIRE_PRESSURE_POSITIVE_FIELDS:
+            if style_value <= 0:
+                fail()
+        elif not 0 <= style_value <= 1:
+            fail()
     wheels = tire_pressure.get('wheels', {})
     if not isinstance(wheels, dict) or set(wheels) - TIRE_PRESSURE_WHEEL_KEYS:
         fail()
@@ -598,7 +615,10 @@ def _validate_device_item(
         fail()
     if not ctx.flag_fields(item, DEVICE_FLAG_FIELDS):
         fail()
-    if not ctx.enum(item, DEVICE_CLICK_ACTION_ENUM):
+    # 车辆的点击动作多一档「none」，两版对 `clickAction` 的默认值也不同。
+    if not ctx.enum(
+        item, VEHICLE_CLICK_ACTION_ENUM if model_type == 'smallcar' else DEVICE_CLICK_ACTION_ENUM
+    ):
         fail()
     if not ctx.icon(item, MDI_ICON_LOOSE_PATTERN):
         fail()

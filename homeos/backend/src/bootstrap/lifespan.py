@@ -78,6 +78,7 @@ from ..platform.core.database import Database
 from ..platform.core.distributed_lock import DistributedLockService
 from ..platform.core.log import configure_app_logging
 from ..platform.core.observability import EventLoopLagMonitor
+from ..platform.core.resource_publication import recover_resource_publications
 from ..platform.core.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
 from ..realtime.domain_events import DomainEventBridge
 from ..realtime.gateway import RealtimeGateway
@@ -411,6 +412,9 @@ async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> No
     startup.recovery_required = await asyncio.to_thread(
         recover_interrupted_restore, app_settings
     )
+    # 目录级发布（导图 / 用户素材）的崩溃收尾：改名死在两次 os.replace 之间时，日志文件
+    # 还在磁盘上。必须早于建库（数据库可能引用这些目录）与素材目录扫描。
+    await asyncio.to_thread(recover_resource_publications, app_settings)
     # 建库 + 迁移是纯同步 IO（SQLite 建表、执行迁移脚本、完整性校验），旧实现直接在
     # 事件循环里跑：迁移条数多的版本会把整个 loop 卡住，此时连 /health 都读不到，
     # 前端看到的「后端未就绪」窗口被无谓拉长。下放线程池后 loop 仍可响应。

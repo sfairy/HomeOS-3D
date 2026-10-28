@@ -96,3 +96,6 @@ ops/checks/studio/material-slot-repair-plan.json
 
 # 材质探针的 PNG / JSON 产物（`probe:materials` / `probe:pillar` 每次重跑即覆盖）
 .tmp-viewer/
+
+# 版本移植过程的中间产物（反混淆副本、差异清单缓存）；真源在 源代码/，不要提交
+.port-cache/

@@ -567,6 +567,28 @@ class HAClient:
         event_types: tuple[str, ...],
         start_id: int = 100,
         required_event_types: set[str] | None = None,
+        timeout: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """订阅若干事件类型，返回握手期间已经推过来的事件。
+
+        ``timeout``（0.8.1）：等 HA 回 ``result`` 的超时。反代挂住 WebSocket 时
+        ``recv`` 会一直不返回，调用方会卡在「连接中」而不报错 —— 给了超时就能变成
+        一条明确的失败原因，让重连逻辑接手。
+        """
+        try:
+            async with asyncio.timeout(timeout):
+                return await HAClient._subscribe_events(
+                    websocket, event_types, start_id, required_event_types
+                )
+        except TimeoutError as error:
+            raise HAClientError('Home Assistant 实时状态订阅确认超时。') from error
+
+    @staticmethod
+    async def _subscribe_events(
+        websocket,
+        event_types: tuple[str, ...],
+        start_id: int,
+        required_event_types: set[str] | None,
     ) -> list[dict[str, Any]]:
         required = required_event_types if required_event_types is not None else set(event_types)
         pending = {}

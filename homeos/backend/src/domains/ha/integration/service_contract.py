@@ -30,6 +30,7 @@ class HAConnectorHost:
     _history_cache: Any = None
     _history_cache_lock: Any = None
     _history_fetches: Any = None
+    _history_generation: Any = None
     _history_semaphore: Any = None
     _http_pool: Any = None
     _incremental_flushed_at: Any = None

@@ -28,6 +28,7 @@ from ..domains.ui_config.global_popups import (
     strip_document_popups,
 )
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
+from ..panel.asset_refs import validate_assets
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..platform.core.db_exec import run_db
@@ -43,32 +44,13 @@ def require_project_write(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许修改仪表盘。')
 
 
-def document_asset_ids(value) -> set[str]:
-    result = set()
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if isinstance(item, str) and key.lower().endswith('assetid') and item.startswith(('builtin:', 'user:')):
-                result.add(item)
-                continue
-            result.update(document_asset_ids(item))
-    elif isinstance(value, list):
-        for item in value:
-            result.update(document_asset_ids(item))
-    return result
-
-
 def validate_document_assets(request: Request, document: dict) -> set[str]:
-    catalog = request.app.state.asset_catalog
-    user_asset_ids = set()
-    for asset_id in document_asset_ids(document):
-        if not catalog.asset_exists(asset_id):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail={
-                'code': 'ASSET_MISSING',
-                'message': f'仪表盘引用的图片已不存在：{asset_id}'})
-        if not asset_id.startswith('user:'):
-            continue
-        user_asset_ids.add(asset_id)
-    return user_asset_ids
+    """校验文档引用的图片仍存在，返回其中的可变素材 id（``user:`` / ``studio3d:``）。
+
+    实体在 ``panel.asset_refs``（0.8.1 把仪表盘 / 户型图 / 弹窗三处引用收敛到一处），
+    这里只保留「从 request 取 catalog」这一层绑定。
+    """
+    return validate_assets(request.app.state.asset_catalog, document)
 
 
 def serialize_document(document: object) -> str:

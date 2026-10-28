@@ -39,7 +39,13 @@ def update_studio3d_draft(
     database: DatabaseSession,
     _user: LicensedUser,
 ) -> dict:
-    updated = service.save_draft(database, request.app.state.settings, _user, payload)
+    updated = service.save_draft(
+        database,
+        request.app.state.settings,
+        _user,
+        payload,
+        catalog=request.app.state.asset_catalog,
+    )
     request.app.state.global_log.append(
         "success", "3D户型图编辑器", "配置", f"3D 户型图草稿已保存（修订 {updated['revision']}）"
     )

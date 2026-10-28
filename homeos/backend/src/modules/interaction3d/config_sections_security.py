@@ -51,6 +51,9 @@ ALARM_FIELDS = frozenset(
         'focusCamera',
         'cardWidth',
         'labelMode',
+        'positionMode',
+        'fixedX',
+        'fixedY',
     }
 )
 #: 告警类型枚举（缺字段即不合规，因此默认值取空串）。
@@ -71,17 +74,23 @@ ALARM_SECONDARY_PATTERN = re.compile(r'binary_sensor\.[a-z0-9_]+')
 ALARM_BATTERY_PATTERN = re.compile(r'sensor\.[a-z0-9_]+')
 #: 工作状态实体。
 ALARM_WORK_STATE_PATTERN = re.compile(r'(?:sensor|binary_sensor)\.[a-z0-9_]+')
-#: 告警卡片数值字段边界（``size`` 是卡片基准尺寸 100..600，与摄像头不同）。
+#: 告警卡片数值字段边界（0.8.1：``size`` 改用「只要求正数」，与图标尺寸同口径）。
 ALARM_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (
     ('x', -1_000_000, 1_000_000),
     ('y', -1_000_000, 1_000_000),
     ('height', 0, 20),
-    ('size', 100, 600),
     ('opacity', 0, 1),
     ('cardWidth', 80, 480),
 )
-#: 告警卡片「只要求为正数」的字段（字号不设上限：放大字号是用户明确意图）。
-ALARM_SIZE_FIELDS = ('iconSize', 'hitSize', 'fontSize')
+#: 告警卡片「只要求为正数」的字段（字号 / 基准尺寸都不设上限：放大是用户明确意图）。
+ALARM_SIZE_FIELDS = ('size', 'iconSize', 'hitSize', 'fontSize')
+#: 告警标签在画面中的定位方式：跟随 3D 位置，或固定到仪表盘画面（0..100 百分比）。
+ALARM_POSITION_MODE = EnumSpec('positionMode', ('follow', 'fixed'), 'follow')
+#: 固定定位的坐标边界（百分比）。
+ALARM_POSITION_BOUNDS: tuple[tuple[str, float, float], ...] = (
+    ('fixedX', 0, 100),
+    ('fixedY', 0, 100),
+)
 #: 告警卡片开关字段。
 ALARM_FLAG_FIELDS = ('visible', 'overlay', 'buttonHidden', 'hiddenClickable')
 
@@ -120,16 +129,15 @@ CAMERA_FIT = EnumSpec('fit', ('fill', 'contain'), 'contain')
 CAMERA_ENTITY_PATTERN = re.compile(r'camera\.[a-z0-9_]+')
 #: go2rtc 地址长度上限。
 MAX_GO2RTC_URL_LENGTH = 2048
-#: 摄像头数值字段边界（高度可负：贴附天花板的机位）。
+#: 摄像头数值字段边界（高度可负：贴附天花板的机位；尺寸字段 0.8.1 起只要求正数）。
 CAMERA_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (
     ('x', -1_000_000, 1_000_000),
     ('y', -1_000_000, 1_000_000),
     ('height', -1000, 1000),
-    ('size', 1, 1000),
-    ('iconSize', 1, 1000),
-    ('hitSize', 1, 1000),
     ('backgroundOpacity', 0, 1),
 )
+#: 摄像头「只要求为正数」的尺寸字段：上限由前端画布约束，服务端不再卡死区间。
+CAMERA_SIZE_FIELDS = ('size', 'iconSize', 'fontSize', 'hitSize')
 #: 摄像头开关字段。
 CAMERA_FLAG_FIELDS = ('visible', 'buttonHidden')
 
@@ -246,9 +254,11 @@ class SecuritySectionValidator:
         model_id = alarm.get('modelId', '')
         if not ctx.enum(alarm, ALARM_THEME) or (model_id and not ctx.text(model_id)):
             ctx.fail()
-        if not ctx.enum(alarm, ALARM_LABEL_MODE):
+        if not ctx.enum(alarm, ALARM_LABEL_MODE) or not ctx.enum(alarm, ALARM_POSITION_MODE):
             ctx.fail()
-        if not ctx.numbers_within(alarm, ALARM_NUMBER_BOUNDS):
+        if not ctx.numbers_within(alarm, ALARM_NUMBER_BOUNDS) or not ctx.numbers_within(
+            alarm, ALARM_POSITION_BOUNDS
+        ):
             ctx.fail()
         if not ctx.positive_fields(alarm, ALARM_SIZE_FIELDS) or not ctx.flag_fields(alarm, ALARM_FLAG_FIELDS):
             ctx.fail()
@@ -295,7 +305,7 @@ class SecuritySectionValidator:
                 ctx.fail()
         if not ctx.numbers_within(camera, CAMERA_NUMBER_BOUNDS):
             ctx.fail()
-        if not ctx.positive_fields(camera, ('fontSize',)) or not ctx.flag_fields(camera, CAMERA_FLAG_FIELDS):
+        if not ctx.positive_fields(camera, CAMERA_SIZE_FIELDS) or not ctx.flag_fields(camera, CAMERA_FLAG_FIELDS):
             ctx.fail()
         ctx.validate_camera(camera.get('focusCamera'))
 

@@ -66,7 +66,7 @@ def _aware(value: datetime) -> datetime:
 
 
 def authenticate_session(
-    request: Request, response: Response, session: Session
+    request: Request, response: Response, session: Session, *, refresh: bool = True
 ) -> User | None:
     """HTTP 请求唯一的 DB 会话入口：解析 + 滑动续期 + 回写 Cookie。
 
@@ -80,6 +80,10 @@ def authenticate_session(
 
     不用 ``session_store.resolve_login_session`` 是因为那个函数不返回「是否续期」
     的信号，而这里必须知道该不该补 ``Set-Cookie``；两处阈值与判定保持同源常量。
+
+    ``refresh=False`` 只做校验、不续期，也不写 ``Set-Cookie``：长连接（摄像头流、
+    媒体代理）逐帧复检若照常续期，一条一直开着的流就能把会话无限延长，吊销要等
+    流自己断开才生效。
     """
     settings = _settings(request)
     token = request.cookies.get(settings.cookie_name, "")
@@ -102,7 +106,7 @@ def authenticate_session(
         session.commit()
         return None
     max_age = settings.session_max_age_seconds
-    if now - _aware(record.last_seen_at) >= timedelta(seconds=LAST_SEEN_REFRESH_SECONDS):
+    if refresh and now - _aware(record.last_seen_at) >= timedelta(seconds=LAST_SEEN_REFRESH_SECONDS):
         record.last_seen_at = now
         record.expires_at = now + timedelta(seconds=max_age)
         session.commit()

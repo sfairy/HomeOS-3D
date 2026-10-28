@@ -48,12 +48,14 @@ from ..dependencies import (
     authenticated_short_lived_viewer,
     licensed_viewer,
     require_license_feature,
+    require_viewer_asset,
     require_viewer_user_asset,
     viewer_user_asset_ids,
 )
 from ..domains.license import features as feature_codes
 from ..domains.ui_config.global_popups import global_popups
 from ..modules.interaction3d.studio_draft_scene import read_current_studio_draft
+from ..panel.asset_refs import saved_project_documents
 from ..platform.core.asset_paths import (
     UPLOAD_CONTENT_TYPES,
     UPLOAD_IMAGE_SUFFIXES,
@@ -65,7 +67,7 @@ from ..platform.core.atomic_write import (
     ensure_private_dir,
     restrict_private_file,
 )
-from ..platform.core.models import Project, ProjectDraft
+from ..platform.core.models import Project
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 
 router = APIRouter(prefix = '/assets', tags = [
@@ -857,9 +859,8 @@ def read_studio3d_export(folder_name: str, filename: str, request: Request, view
     if path is None:
         raise HTTPException(status_code = 404, detail = '导出图片不存在。')
     with request.app.state.database.session_factory() as database:
-        allowed = viewer_user_asset_ids(database, viewer, prefixes = ('studio3d:',))
-    if allowed is not None and f'studio3d:{folder}/{name}' not in allowed:
-        raise HTTPException(status_code = 403, detail = '该图片不属于当前中控仪表盘。')
+        # 导图素材的读取侧校验与「删除 / 覆盖」共用同一份白名单（0.8.1 收敛）。
+        require_viewer_asset(database, viewer, f'studio3d:{folder}/{name}')
     media_type = 'image/webp' if path.suffix.lower() == '.webp' else 'image/png'
     response = FileResponse(path, media_type = media_type)
     response.headers['Cache-Control'] = 'private, no-cache'
@@ -877,15 +878,14 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
         full_asset_id = f'user:{asset_id}'
         projects = {item.id: item.name for item in database.scalars(select(Project))}
         usages = []
-        for draft in database.scalars(select(ProjectDraft)):
-            try:
-                document = json.loads(draft.document_json)
-            except (TypeError, json.JSONDecodeError):
-                continue
+        # 逐条枚举「已提交的引用方」：读不出来的草稿直接 409（证明不了安全就不能删）。
+        for project_id, document in saved_project_documents(database):
             if not document_uses_asset(document, full_asset_id):
                 continue
-            usages.append(projects.get(draft.project_id, draft.project_id))
-        if document_uses_asset({ 'customPopups': global_popups(database) }, full_asset_id):
+            usages.append(projects.get(project_id, project_id))
+        if document_uses_asset(
+            {'customPopups': global_popups(database, require_readable=True)}, full_asset_id
+        ):
             usages.append('全局组合弹窗')
         if usages:
             raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': f'图片正在被仪表盘“{"、".join(usages)}”使用，请先替换或移除后再删除。', 'projects': usages })

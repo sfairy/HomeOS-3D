@@ -18,6 +18,7 @@ content-length / content-encoding —— 这里会改写响应体（流式透传
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import traceback
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
@@ -36,6 +37,11 @@ from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_vi
 from ..domains.ha.integration.client import HAClientError
 from ..domains.ha.integration.connection_query import active_connection
 from ..domains.ha.integration.crypto import CredentialCipherError
+from ..domains.ha.integration.media_access import (
+    authorize_media,
+    check_media_access,
+    remember_hls,
+)
 from ..domains.license import features as feature_codes
 from ..platform.core.database import Database
 
@@ -66,6 +72,9 @@ REQUEST_HEADERS_TO_DROP = {
     'true-client-ip',
     'cf-connecting-ip',
     'transfer-encoding',
+    # 前端用它声明「这条 MJPEG 要按帧透传」：属于本服务与浏览器之间的协议头，
+    # 不能转给 HA（HA 不认识，某些反代还会因未知头拒绝请求）。
+    'x-hb-camera-stream',
     'proxy-authorization',
 }
 RESPONSE_HEADERS_TO_DROP = {
@@ -219,8 +228,16 @@ def versioned_image_proxy_cache_control(path: str, query: str, status_code: int)
     return None
 
 
-def camera_snapshot_cache_key(base_url: str, path: str) -> str:
-    return f'{base_url.rstrip("/")}{path}'
+def camera_snapshot_cache_key(base_url: str, path: str, access_token: str = '') -> str:
+    """快照缓存键：同一路径在**换令牌**后必须失效。
+
+    HA 的访问令牌决定「同一实体看到什么」（不同账号的摄像头权限可能不同），只按 URL
+    做键会让换令牌后仍命中旧账号的画面。令牌只以 sha256 形式进入键，不落明文。
+    """
+    key = f'{base_url.rstrip("/")}{path}'
+    if not access_token:
+        return key
+    return f'{key}|{hashlib.sha256(access_token.encode()).hexdigest()}'
 
 
 def _remember_camera_snapshot(key: str, content: bytes, content_type: str) -> None:
@@ -510,7 +527,7 @@ def _path_requires_camera_license(path: str) -> bool:
     )
 
 
-async def proxy_http(request: Request) -> Response:
+async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Response:
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体资源不存在。')
     if _path_requires_camera_license(request.url.path):
@@ -525,6 +542,9 @@ async def proxy_http(request: Request) -> Response:
     connection = await asyncio.to_thread(load_active_connection, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+    # 入口授权：解析实体 + 校验查看者可见性。SQLite 查询放线程池，别卡事件循环。
+    if viewer is not None:
+        await asyncio.to_thread(authorize_media, request, connection, viewer)
     try:
         client_config = await request.app.state.studio_ha.client_for(connection)
     except (HAClientError, CredentialCipherError) as error:
@@ -539,7 +559,13 @@ async def proxy_http(request: Request) -> Response:
     target = f'{client_config.base_url}{proxy_path}'
     stream_response = request.url.path.startswith('/api/camera_proxy_stream/')
     snapshot_request = request.method == 'GET' and request.url.path.startswith('/api/camera_proxy/')
-    snapshot_key = camera_snapshot_cache_key(client_config.base_url, request.url.path) if snapshot_request else ''
+    snapshot_key = (
+        camera_snapshot_cache_key(
+            client_config.base_url, request.url.path, client_config.access_token
+        )
+        if snapshot_request
+        else ''
+    )
     if snapshot_request:
         cached = camera_snapshot_cache.get(snapshot_key)
         if cached is not None:
@@ -586,12 +612,30 @@ async def proxy_http(request: Request) -> Response:
             for name, value in upstream.headers.items()
             if name.lower() not in RESPONSE_HEADERS_TO_DROP
         }
+        # 持续复检：Cookie 失效 / 换账号 / 换连接都在这里拦下，且**不续期会话**。
+        if not await asyncio.to_thread(check_media_access, request, load_active_connection):
+            with CancelScope(shield=True):
+                await upstream.aclose()
+                if owns_client:
+                    await client.aclose()
+            raise HTTPException(status_code=403, detail='媒体访问权限已变更。')
         cache_control = versioned_image_proxy_cache_control(request.url.path, request.url.query, upstream.status_code)
         if cache_control:
             response_headers['cache-control'] = cache_control
         if 'location' in response_headers:
             response_headers['location'] = rewrite_location(response_headers['location'], client_config.base_url)
         if stream_response:
+            content_type = response_headers.get('content-type', '')
+            if (
+                request.headers.get('x-hb-camera-stream') == 'frames'
+                and content_type.lower().startswith('multipart/x-mixed-replace')
+            ):
+                # 浏览器 / 反代对 multipart 的解析差异很大：按帧透传时把真实类型放进
+                # 自定义头，响应体改成不透明字节流，由前端自己切帧。缓存也必须关掉，
+                # 否则中间层会缓存「第一帧之后就没内容」的截断响应。
+                response_headers['x-hb-camera-content-type'] = content_type
+                response_headers['content-type'] = 'application/octet-stream'
+                response_headers['cache-control'] = 'no-store'
             return LicensedCameraStreamingResponse(
                 request, upstream, client, status_code=upstream.status_code, headers=response_headers
             )
@@ -660,6 +704,8 @@ async def camera_hls_stream(
     stream_url = rewrite_location(stream_url, client.base_url)
     if not allowed_media_proxy_path(stream_url.split('?', 1)[0]):
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail='Home Assistant 返回了无效的摄像头流地址。')
+    # 片段路径里没有实体 id：把「令牌 → 实体」记进有界能力表，后续片段请求靠它校验。
+    remember_hls(request, connection, entity_id, stream_url)
     return JSONResponse({'url': stream_url})
 
 
@@ -669,6 +715,6 @@ async def camera_hls_stream(
 @router.api_route('/api/media_player_proxy/{path:path}', methods=['GET', 'HEAD'])
 @router.api_route('/api/hls/{path:path}', methods=['GET', 'HEAD'])
 async def proxy_home_assistant_media(
-    request: Request, _viewer: ShortLivedLicensedViewer
+    request: Request, viewer: ShortLivedLicensedViewer
 ) -> Response:
-    return await proxy_http(request)
+    return await proxy_http(request, viewer)
