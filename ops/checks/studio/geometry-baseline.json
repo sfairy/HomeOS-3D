@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T09:06:44.693Z",
+  "generatedAt": "2026-10-28T15:41:40.556Z",
   "note": "几何基线：只含可复算的指纹（世界包围盒 / 三角面 / 材质名），供 check:geometry 比对",
   "models": {
     "bookcase": {
@@ -643,7 +643,7 @@
         1.14,
         0.5
       ],
-      "triangles": 2840,
+      "triangles": 2350,
       "materials": [
         "basin-candidate-body",
         "basin-candidate-accent",
@@ -1679,7 +1679,7 @@
       "size": [
         0.45,
         2.8,
-        0.45
+        0.225
       ],
       "triangles": 384,
       "materials": [
@@ -3824,7 +3824,7 @@
         0.98,
         0.6
       ],
-      "triangles": 856,
+      "triangles": 696,
       "materials": [
         "garden-outdoor-sink-garden-base",
         "garden-outdoor-sink-garden-light",
@@ -4801,7 +4801,7 @@
     "tv_standard": {
       "size": [
         1.5,
-        0.57041,
+        0.84398,
         0.05036
       ],
       "triangles": 300,
@@ -4813,7 +4813,7 @@
     "tv_tabletop": {
       "size": [
         1.5,
-        0.874,
+        0.87397,
         0.16001
       ],
       "triangles": 912,
@@ -4844,8 +4844,8 @@
     "tv_mobile": {
       "size": [
         1.5,
-        0.89702,
-        0.30001
+        1.54998,
+        0.55003
       ],
       "triangles": 1244,
       "materials": [

@@ -233,7 +233,7 @@
     {
       "index": 42,
       "conditionSha256": "02e1aff975818f2999a9e04a002dbfdb1d688f0bee10e276b33f67dc6fe89086",
-      "bodySha256": "e5c7e3c7603139a2abbd1d91b69a5addd3ecf30da60a5f6c7e0031492b990679"
+      "bodySha256": "ec5b8400cd1a66543e0abd256f1ea29b243771ecf0c2591a46e7dc7ee2d8e490"
     },
     {
       "index": 43,
@@ -346,6 +346,14 @@
       "was": "min(wallOpacity * 1.75, 0.55)",
       "now": "wallOpacity（闭合盒子叠两层，等价于墙的膜厚 1-(1-a)²）",
       "reason": "柱体配墙对色：方柱是 DoubleSide 闭合盒、异形柱（GLB）是单面实体，两者要落到同一浓度才能和墙同色；旧公式两层叠成 0.80，比墙（0.59）浓一截。分派条件未改。"
+    },
+    {
+      "branch": 42,
+      "group": "media-bath",
+      "field": "bodySha256",
+      "was": "computeTelevisionProportions(modelItem, height6)",
+      "now": "computeTelevisionProportions(modelItem, width6, height6)",
+      "reason": "0.8.1 电视面板改由宽度定 16:9（width × 9/16 / 0.94），函数签名多一个宽度参数；media-bath 的 tv 分支只是把已有的 width6 传进去，分派条件与布局意图不变。"
     }
   ]
 }

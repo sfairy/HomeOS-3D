@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T09:06:43.683Z",
+  "generatedAt": "2026-10-28T15:41:37.702Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -652,8 +652,8 @@
       "draco": false
     },
     "家居/卫浴用品/台盆-lite.glb": {
-      "bytes": 16296,
-      "triangles": 2840,
+      "bytes": 18460,
+      "triangles": 2350,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -680,8 +680,8 @@
       "draco": true
     },
     "家居/卫浴用品/台盆.glb": {
-      "bytes": 130168,
-      "triangles": 2840,
+      "bytes": 105948,
+      "triangles": 2350,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
@@ -6548,8 +6548,8 @@
       "draco": false
     },
     "庭院/设施/户外水槽台-lite.glb": {
-      "bytes": 5364,
-      "triangles": 856,
+      "bytes": 6228,
+      "triangles": 696,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -6570,8 +6570,8 @@
       "draco": true
     },
     "庭院/设施/户外水槽台.glb": {
-      "bytes": 20356,
-      "triangles": 856,
+      "bytes": 17828,
+      "triangles": 696,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
@@ -10290,8 +10290,8 @@
       "draco": true
     },
     "家居/建筑与交通/四分之一圆柱-lite.glb": {
-      "bytes": 4272,
-      "triangles": 132,
+      "bytes": 4640,
+      "triangles": 204,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -10311,7 +10311,7 @@
       "draco": true
     },
     "家居/建筑与交通/四分之一圆柱.glb": {
-      "bytes": 15396,
+      "bytes": 14440,
       "triangles": 204,
       "extensionsUsed": [],
       "images": 0,
@@ -10410,8 +10410,8 @@
       "draco": false
     },
     "家居/建筑与交通/半圆柱-lite.glb": {
-      "bytes": 4944,
-      "triangles": 240,
+      "bytes": 5608,
+      "triangles": 384,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -10431,7 +10431,7 @@
       "draco": true
     },
     "家居/建筑与交通/半圆柱.glb": {
-      "bytes": 25184,
+      "bytes": 24192,
       "triangles": 384,
       "extensionsUsed": [],
       "images": 0,
@@ -14109,8 +14109,8 @@
       "draco": false
     },
     "电器/影音设备/移动电视-lite.glb": {
-      "bytes": 8268,
-      "triangles": 1144,
+      "bytes": 8980,
+      "triangles": 1244,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -14131,7 +14131,7 @@
       "draco": true
     },
     "电器/影音设备/移动电视.glb": {
-      "bytes": 8832,
+      "bytes": 8964,
       "triangles": 1244,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14153,8 +14153,8 @@
       "draco": true
     },
     "电器/影音设备/标准电视-lite.glb": {
-      "bytes": 1872,
-      "triangles": 266,
+      "bytes": 2072,
+      "triangles": 300,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -14170,7 +14170,7 @@
       "draco": true
     },
     "电器/影音设备/标准电视.glb": {
-      "bytes": 2088,
+      "bytes": 2028,
       "triangles": 300,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14187,8 +14187,8 @@
       "draco": true
     },
     "电器/影音设备/桌面电视-lite.glb": {
-      "bytes": 5884,
-      "triangles": 828,
+      "bytes": 6428,
+      "triangles": 912,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -14207,7 +14207,7 @@
       "draco": true
     },
     "电器/影音设备/桌面电视.glb": {
-      "bytes": 6444,
+      "bytes": 6360,
       "triangles": 912,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
