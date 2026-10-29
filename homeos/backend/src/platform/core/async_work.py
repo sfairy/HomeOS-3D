@@ -41,7 +41,17 @@ async def durable_work(function: Any, *args: Any, **kwargs: Any) -> Any:
                     # 屏蔽作用域里理论上不会到这里；真到了就继续等，绝不放走线程。
                     LOGGER.debug('屏蔽取消的作用域里再次收到取消，继续等待 worker 结束')
                     continue
+                except Exception:
+                    # worker 自己失败了：``shield`` 会把它的异常直接抛出来。跳出循环，
+                    # 交给下面统一消费 —— 这里抛出去会把取消换成写入异常。
+                    LOGGER.warning('已提交的后台写入在取消后失败', exc_info=True)
+                    break
             # 取出结果：worker 里抛的异常在这里被消费掉，避免
-            # 「Task exception was never retrieved」掩盖真正的取消原因。
-            worker.result()
+            # 「Task exception was never retrieved」掩盖真正的取消原因，也避免把
+            # ``CancelledError`` 换成写入异常（调用方是主动取消的，它需要看到取消）。
+            # 但失败不能丢：记日志，排查半截文件时还有线索。
+            try:
+                worker.result()
+            except Exception:
+                LOGGER.warning('已提交的后台写入在取消后失败', exc_info=True)
         raise

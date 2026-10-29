@@ -17,8 +17,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from copy import deepcopy
 
+from fastapi import HTTPException, status
+
+from . import draft_repository
 from ...modules.interaction3d.access import module_components, scene_snapshot_file
 from ...modules.interaction3d.device import GENERIC_DEVICE_COLLECTIONS
 
@@ -259,3 +263,103 @@ def confirmation_token(revision, scene, documents, impacts):
     return hashlib.sha256(
         json.dumps([revision, scene, documents, impacts], sort_keys=True, separators=(',', ':')).encode()
     ).hexdigest()
+
+
+#: 交互配置里 ``sceneId`` 的格式：32 位小写十六进制（与 ``access.is_scene_id`` 一致）。
+BINDING_SCENE_ID = re.compile('[a-f0-9]{32}')
+
+
+def _binding_reference_map(document):
+    """文档里所有「交互项 → 绑定的户型身份」，键为 ``(sceneId, (floorId, kind, id))``。
+
+    值与 ``identities()`` 同构，因此可以直接和「当前户型图的身份集合」求差；
+    ``label`` 只用于错误文案，取交互项自己的 label / id。
+    """
+    result = {}
+    for _, component in module_components(document or {}):
+        properties = component.get('properties') or {}
+        scene_id = properties.get('sceneId') or ''
+        if not isinstance(scene_id, str) or BINDING_SCENE_ID.fullmatch(scene_id) is None:
+            continue
+        for parts in COLLECTIONS:
+            _, items = collection(properties, parts)
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                key = (scene_id, tuple(binding_key(item, parts)))
+                result[key] = item.get('label') or item.get('id') or ''
+    return result
+
+
+def new_binding_references(document, previous=None):
+    """``document`` 里**新出现**的绑定引用：``[(sceneId, key, label)]``。
+
+    只检查新增身份是刻意的：普通保存会带上历史遗留的失效绑定（删过的模型），
+    全部重校验会让「任何一次保存」都失败。真正需要拦的是撤销 / 粘贴 / 复制把已经
+    删掉的模型、楼层、灯组、门又绑回来。
+    """
+    before = _binding_reference_map(previous)
+    return [
+        (scene_id, key, label)
+        for (scene_id, key), label in _binding_reference_map(document).items()
+        if (scene_id, key) not in before
+    ]
+
+
+def _binding_conflict(message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={'code': 'STUDIO3D_BINDING_CONFLICT', 'message': message},
+    )
+
+
+def _current_binding_identities(database):
+    """当前户型图草稿里的绑定身份；没有草稿返回 ``None``。
+
+    读不出来（草稿损坏）不能当成「没有草稿」放行 —— 那就是「证明不了就不许写」。
+    """
+    try:
+        snapshot = draft_repository.read_snapshot(database)
+    except HTTPException as error:
+        raise _binding_conflict(
+            '无法核对最新户型，请先打开户型绘制检查，再保存新增或复制的 3D 配置。'
+        ) from error
+    if snapshot is None:
+        return None
+    return identities(snapshot.scene)
+
+
+def require_current_binding_references(settings, database, references) -> None:
+    """新增绑定必须存在于**当前**户型图，否则 409 ``STUDIO3D_BINDING_CONFLICT``。
+
+    只有「组件自己保存过场景快照」的引用才校验：快照文件缺失说明这份配置来自更早的
+    版本，没有可对照的数据，按上游口径跳过而不是误杀。
+    """
+    if not references:
+        return
+    sources = {}
+    current_ids = None
+    for scene_id, key, label in references:
+        if scene_id not in sources:
+            snapshot = None
+            path = scene_snapshot_file(settings, scene_id)
+            if path is not None:
+                try:
+                    snapshot = json.loads(path.read_text(encoding='utf-8'))
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                    # 快照读不出来就当「没有可对照数据」放行，但必须留痕：
+                    # 否则用户看到的只是「保存成功」，实际绑定从没被校验过。
+                    logger.warning('3D 交互场景快照无法解析，跳过绑定校验：%s', path, exc_info=True)
+                    snapshot = None
+            sources[scene_id] = snapshot if isinstance(snapshot, dict) else None
+        if sources[scene_id] is None:
+            continue
+        if current_ids is None:
+            current_ids = _current_binding_identities(database)
+            if current_ids is None:
+                return
+        if key not in current_ids:
+            raise _binding_conflict(
+                f'户型已更新，‘{label}’关联的模型或楼层已不存在。'
+                '请重新配置，或先在户型绘制中撤销删除。'
+            )

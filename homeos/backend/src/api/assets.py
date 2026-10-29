@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import logging
@@ -61,6 +60,7 @@ from ..platform.core.asset_paths import (
     UPLOAD_IMAGE_SUFFIXES,
     user_asset_file,
 )
+from ..platform.core.async_work import durable_work
 from ..platform.core.atomic_write import (
     PRIVATE_DIR_MODE,
     atomic_write_text,
@@ -643,6 +643,14 @@ class AssetCatalog:
             return self.builtin_asset_exists(asset_id)
         if asset_id.startswith('studio3d:'):
             self._load_user()
+            separator = asset_id.find('/', len('studio3d:'))
+            if separator > 0 and self.studio3d_exports_root is not None:
+                # 0.8.1：导出素材除了在目录里登记过，还必须能落到磁盘上的真实文件，
+                # 否则「登记的 id 已经删了、磁盘上还有同名文件」会互相掩护。
+                folder_name = asset_id[len('studio3d:') : separator]
+                filename = asset_id[separator + 1 :]
+                if studio3d_export_file(self.studio3d_exports_root, folder_name, filename) is not None:
+                    return True
             with self.mutation_lock:
                 return asset_id in self._user_items
         return False
@@ -795,8 +803,9 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         if not has_content:
             raise HTTPException(status_code = 422, detail = '请选择需要上传的图片。')
         try:
-            # Pillow/HEIF 解码放到线程池，避免阻塞事件循环。
-            dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, path)
+            # Pillow/HEIF 解码放到线程池，避免阻塞事件循环；用 durable_work 而不是
+            # to_thread：客户端断开时线程仍在写这个目录，直接放弃等待会留下半写素材。
+            dimensions = await durable_work(validate_uploaded_image, suffix, path)
         except ValueError as error:
             raise HTTPException(status_code = 422, detail = str(error)) from error
         path = _finalize_normalized_upload(path, suffix)

@@ -20,6 +20,7 @@ from ..dependencies import (
     require_viewer_project,
 )
 from ..domains.license import features as feature_codes
+from ..domains.studio3d.cleanup import new_binding_references, require_current_binding_references
 from ..domains.ui_config.global_popups import (
     clear_popup_references,
     global_popup_state,
@@ -42,6 +43,19 @@ router = APIRouter(prefix='/projects', tags=['projects'])
 def require_project_write(request: Request) -> None:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_PROJECTS_WRITE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许修改仪表盘。')
+
+
+def require_current_bindings(request: Request, database: DatabaseSession, document: dict, previous: dict | None = None) -> None:
+    """新增的 3D 绑定必须能在当前户型图里找到对应身份（0.8.1 的 409 守卫）。
+
+    撤销 / 粘贴 / 复制会把「已经从户型里删掉的模型或楼层」重新绑回来；这里只拦**新出现**
+    的绑定，历史遗留的失效绑定不阻断普通保存（否则一次保存都过不去）。
+    """
+    references = new_binding_references(document, previous)
+    if not references:
+        return
+    with request.app.state.asset_catalog.mutation_lock:
+        require_current_binding_references(request.app.state.settings, database, references)
 
 
 def validate_document_assets(request: Request, document: dict) -> set[str]:
@@ -214,6 +228,8 @@ def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: R
     document = hydrate_document_popups(database, json.loads(source_draft.document_json))
     require_interaction3d_changes(request, document, database=database)
     validate_document_assets(request, document)
+    # 复制出来的仪表盘同样要把 3D 绑定带过去：目标户型已经删掉的模型不许再绑回来。
+    require_current_bindings(request, database, document)
     document['projectId'] = duplicate_id
     document['name'] = body.name
     document = validate_panel_document(document)
@@ -440,12 +456,14 @@ def update_project_draft(project_id: str, body: ProjectDraftUpdate, request: Req
         validate_camera_source_addresses(document)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    previous_document = hydrate_document_popups(database, json.loads(draft.document_json))
     require_interaction3d_changes(
         request,
         document,
-        hydrate_document_popups(database, json.loads(draft.document_json)),
+        previous_document,
         database = database,
     )
+    require_current_bindings(request, database, document, previous_document)
     user_asset_ids = validate_document_assets(request, document)
     if document['projectId'] != project_id:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文档 projectId 与项目不匹配。')

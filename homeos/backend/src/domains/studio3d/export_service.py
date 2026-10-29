@@ -6,8 +6,9 @@
    512MB 包的复制会让同一时刻的草稿 GET/PUT、导出、删除全部排队 —— 一个进程内
    RLock 被磁盘 I/O 占住，是「导出时保存转圈」的直接原因。现在锁内只判冲突、建
    staging，拷贝在锁外做，最后再进锁做一次原子交换；
-2. 交换是原子的。覆盖导出时先把旧目录 os.replace 到 .previous-*，替换失败再换回来，
-   用户不会看到「半个新目录」；
+2. 交换是原子的。覆盖导出交给 platform.core.resource_publication：先写恢复日志，
+   再把旧目录换成 .previous-<token>、staging 换成 target —— 进程死在两次改名之间也能
+   在下次启动时按日志换回来，不会出现「导出包凭空消失」；
 3. 删除前要扫全部引用面。导出图片被数据库里的项目草稿、全局弹窗、草稿场景和级联
    归档同时引用；只扫其中一处就会出现「删掉图片后项目里全是破图」。
 """
@@ -29,7 +30,12 @@ from sqlalchemy.orm import Session
 
 from . import draft_repository
 from ..ui_config.global_popups import global_popups
-from ...platform.core.models import Project, ProjectDraft
+from ...panel.asset_refs import saved_project_documents
+from ...platform.core.models import Project
+from ...platform.core.resource_publication import (
+    recover_export_replacements,
+    replace_export_directory,
+)
 from ...platform.core.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 
 MAX_EXPORT_ARCHIVE_BYTES = MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
@@ -160,6 +166,8 @@ def store_export_package(
     root = request.app.state.settings.studio3d_exports_dir
     target = root / name
     with _storage_lock:
+        # 上一次覆盖在两次改名之间崩过：先按日志收尾，否则后面会把 .previous-* 当孤儿。
+        recover_export_replacements(root)
         if target.exists() and not overwrite:
             raise _folder_exists(name)
         # 结果里的 overwritten 取「交换前」的状态：交换后 target 必然存在。
@@ -210,26 +218,32 @@ def _extract_package(temporary_archive: Path, staging: Path, entries: list[zipfi
 
 
 def _swap_staging_into_place(staging: Path, target: Path) -> None:
-    if not target.exists():
-        os.replace(staging, target)
-        return
-    backup = target.parent / f".previous-{uuid4().hex}"
-    os.replace(target, backup)
-    try:
-        os.replace(staging, target)
-    except Exception:
-        os.replace(backup, target)
-        raise
-    shutil.rmtree(backup, ignore_errors=True)
+    # 不再自己「两次 os.replace」：没有恢复日志的话，进程死在改名的中间态就只剩下
+    # .previous-*，重启后既找不回旧版也不会清理，导出包相当于永久丢失。
+    replace_export_directory(staging, target)
 
 
 def _register_export_assets(request: Request, name: str, target: Path, entries: list[zipfile.ZipInfo]) -> None:
     catalog = getattr(request.app.state, "asset_catalog", None)
     if catalog is None:
         return
-    for entry in entries:
-        if Path(entry.filename).suffix.lower() in {".png", ".webp"}:
-            catalog.register_studio3d_export(name, target / entry.filename)
+    # 与草稿保存共用同一把锁：注册新导出素材的原子单位是「整批文件」，
+    # 不做的话并发草稿校验可以看见半批素材。
+    with catalog.mutation_lock:
+        for entry in entries:
+            if Path(entry.filename).suffix.lower() in {".png", ".webp"}:
+                catalog.register_studio3d_export(name, target / entry.filename)
+
+
+def export_in_use(usages: list[str]) -> HTTPException:
+    return HTTPException(
+        status_code = status.HTTP_409_CONFLICT,
+        detail = {
+            'code': 'STUDIO3D_EXPORT_IN_USE',
+            'message': f'该文件夹中的图片正在被“{'、'.join(usages)}”使用，请先替换或移除后再删除。',
+            'projects': usages,
+        },
+    )
 
 
 def scan_usages(database: Session, name: str) -> list[str]:
@@ -237,9 +251,10 @@ def scan_usages(database: Session, name: str) -> list[str]:
     prefix = f"studio3d:{name}/"
     usages: list[str] = []
     project_names = {project.id: project.name for project in database.scalars(select(Project)).all()}
-    for draft in database.scalars(select(ProjectDraft)).all():
-        if _document_uses_asset_prefix(_decode_document(draft.document_json), prefix):
-            usages.append(project_names.get(draft.project_id, draft.project_id))
+    # 读不出来的仪表盘草稿一律 409：证明不了「没引用」就不能覆盖或删除。
+    for project_id, document in saved_project_documents(database):
+        if _document_uses_asset_prefix(document, prefix):
+            usages.append(project_names.get(project_id, project_id))
     if _document_uses_asset_prefix({"customPopups": global_popups(database)}, prefix):
         usages.append("全局组合弹窗")
     scene = _draft_scene(database)
@@ -251,47 +266,35 @@ def scan_usages(database: Session, name: str) -> list[str]:
 
 
 def _draft_scene(database: Session) -> dict:
-    """草稿场景；无行或损坏时按空场景处理。"""
+    """草稿场景；没有草稿按空场景处理，**读不出来则拒绝**。"""
     try:
         snapshot = draft_repository.read_snapshot(database)
-    except HTTPException:
-        # 草稿损坏不应让「删除图片」变成不可操作：跳过该项扫描，其它引用面照旧拦截。
-        return {}
+    except HTTPException as error:
+        # 与仪表盘草稿同一口径：读不出引用面就无法证明安全，必须让调用方先恢复草稿。
+        raise HTTPException(
+            status_code = status.HTTP_409_CONFLICT,
+            detail = '无法核对户型图的图片引用，请先恢复草稿后再删除或覆盖。',
+        ) from error
     return snapshot.scene if snapshot is not None else {}
-
-
-def _decode_document(raw) -> dict:
-    try:
-        value = json.loads(raw) if raw else {}
-    except (TypeError, ValueError):
-        return {}
-    return value if isinstance(value, dict) else {}
 
 
 def delete_export_folder(request: Request, database: Session, name: str) -> None:
     settings = request.app.state.settings
     usages = scan_usages(database, name)
     if usages:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "STUDIO3D_EXPORT_IN_USE",
-                "message": f"该文件夹中的图片正在被“{'、'.join(usages)}”使用，请先替换或移除后再删除。",
-                "folderName": name,
-                "projects": usages,
-            },
-        )
+        raise export_in_use(usages)
     root = settings.studio3d_exports_dir.resolve()
     target = (root / name).resolve()
     if not target.is_relative_to(root) or target.parent != root:
         raise HTTPException(422, "导出文件夹名称无效。")
+    catalog = getattr(request.app.state, "asset_catalog", None)
     with _storage_lock:
         if not target.is_dir():
             raise HTTPException(404, "导图文件夹不存在。")
         discarded = root / f".deleted-{uuid4().hex}"
         os.replace(target, discarded)
-        catalog = getattr(request.app.state, "asset_catalog", None)
         if catalog is not None:
-            catalog.remove_studio3d_folder(name)
+            with catalog.mutation_lock:
+                catalog.remove_studio3d_folder(name)
         shutil.rmtree(discarded, ignore_errors=True)
     request.app.state.global_log.append("success", "图片管理", "删除", f"已删除自动导图文件夹：{name}")

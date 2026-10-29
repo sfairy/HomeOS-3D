@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -42,17 +43,21 @@ def get_draft(database: Session) -> dict:
 def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, catalog=None) -> dict:
     # 户型图里的图片引用（``user:`` / ``studio3d:``）必须先校验存在：草稿一旦写进去，
     # 后续删除 / 覆盖图片时它就会成为「删除不掉的引用」，而用户其实只是选了一张已删的图。
-    if catalog is not None:
-        validate_assets(catalog, payload.scene)
-    scene_json = draft_repository.encode_scene(payload.scene)
-    database.commit()
-    database.execute(text("BEGIN IMMEDIATE"))
-    try:
-        updated = _save_draft_locked(database, settings, user, payload, scene_json)
-    except Exception:
-        database.rollback()
-        raise
-    return updated
+    #
+    # 校验与写入必须共用素材目录的 mutation lock：否则「校验通过」与「提交草稿」之间
+    # 可以插进一次删除，草稿里就留下指向不存在图片的 assetId。
+    lock = catalog.mutation_lock if catalog is not None else nullcontext()
+    with lock:
+        if catalog is not None:
+            validate_assets(catalog, payload.scene)
+        scene_json = draft_repository.encode_scene(payload.scene)
+        database.commit()
+        database.execute(text("BEGIN IMMEDIATE"))
+        try:
+            return _save_draft_locked(database, settings, user, payload, scene_json)
+        except Exception:
+            database.rollback()
+            raise
 
 
 def _save_draft_locked(database: Session, settings, user, payload: Studio3DDraftUpdate, scene_json: str) -> dict:
