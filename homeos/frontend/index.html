@@ -57,6 +57,9 @@
 
     <!-- 机身外壳重置（margin / overflow / 背景）写在 /static/spa-shell.css 里。
          外壳页 CSP 是 `style-src 'self'`，行内 <style> 会被浏览器拦下，别挪回这里。 -->
+    <!-- 3D 户型图编辑器首屏加载遮罩样式。全局挂一张（1.7KB）：遮罩标记在 <body> 里，
+         没有这张表它在 `/3d-studio` 首帧就是一块无样式的纯文本。 -->
+    <link rel="stylesheet" href="/static/3d-studio/studio-loading.css">
 </head>
 
 <body>
@@ -76,6 +79,25 @@
             <button type="button" class="homeos-boot-overlay__action" id="homeos-boot-overlay-reload" hidden>重新加载</button>
         </div>
     </div>
+    <!-- 3D 户型图编辑器首屏加载遮罩（默认 hidden，仅 `/3d-studio` 生效）。
+         为什么在 #app 之外：户型模型与渲染器要几秒才准备好，这段时间 Vue 还没挂载；
+         放在 #app 里会在挂载瞬间被清空。文案/重试按钮的 DOM 契约由
+         static/3d-studio/studio-loading.js 驱动（`window.homeosStudioStartup`）。 -->
+    <section id="studio-loading" class="studio-loading" hidden aria-label="正在准备户型" aria-live="polite">
+        <div class="studio-loading-content">
+            <div class="studio-loading-mark" aria-hidden="true"></div>
+            <p class="studio-loading-brand">HOMEOS · 3D STUDIO</p>
+            <h1 data-loading-title>正在准备你的户型</h1>
+            <p class="studio-loading-detail" data-loading-detail>正在载入编辑器…</p>
+            <div class="studio-loading-actions">
+                <button type="button" data-loading-retry hidden>重新加载</button>
+                <a href="/">返回首页</a>
+            </div>
+        </div>
+    </section>
+    <!-- 必须是 body 里的经典脚本（不是 module）：它要早于 /src/main.ts 执行，
+         才能在入口 chunk 下载期间就把遮罩亮出来。 -->
+    <script src="/static/3d-studio/studio-loading.js"></script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
 </body>

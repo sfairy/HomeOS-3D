@@ -79,6 +79,7 @@ import VSkeleton from './components/common/base/VSkeleton.vue'
 import VEmptyState from './components/common/base/VEmptyState.vue'
 import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
 import { swipeClose } from './directives/swipe-close'
+import { studioStartupReady } from '@/shared/utils/ui/studio-startup'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
 // `services/api/csrf.ts#installFetchCsrf()`，覆盖 studio 遗留的裸 fetch 写请求。
@@ -148,6 +149,10 @@ router.afterEach((to, _from, failure) => {
     document.documentElement.style.removeProperty('--editor-viewport-scale')
     document.documentElement.style.removeProperty('--editor-layout-height')
   }
+  // 3D 编辑器首屏遮罩（/static/3d-studio/studio-loading.js）只服务创作页：
+  // 导航到别的路由（含「未登录被守卫送回 /login」）必须立刻收起，否则它会整屏盖住目标页，
+  // 直到 60s 超时才露出一句「准备时间较长」。
+  if (to.name !== 'studio') studioStartupReady()
 })
 
 // 注册跨层桥接处理器（将非 Vue 模块的回调桥接到 Pinia store）

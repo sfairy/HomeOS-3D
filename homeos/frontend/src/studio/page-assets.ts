@@ -118,9 +118,36 @@ export const PAGE_ASSETS = {
 } as const;
 
 const MANAGED_ATTR = "data-spa-managed";
-// 用 href 后缀而不是全等：入口里的 href 可能带查询串或片段，全等匹配会落空。
-// 后缀匹配把受管样式表锚定在 SPA 外壳样式之后，两种环境下顺序都成立。
-const ANCHOR_SELECTOR = 'link[href$="/static/spa-shell.css"]';
+// 用 href 匹配而不是全等：入口里的 href 可能带查询串（构建期补的 `?v=`）或片段，
+// 全等匹配会落空。包含匹配把受管样式表锚定在 SPA 外壳样式之后，两种环境下顺序都成立。
+const ANCHOR_SELECTOR = 'link[href*="/static/spa-shell.css"]';
+
+/**
+ * 把 `href` 归一化成「只比路径」的形式。
+ *
+ * 构建期会给外壳里**非哈希**的 `/static/**` 引用补 `?v=<构建 revision>`（见
+ * frontend/vite.config.ts 的 `writeResourceVersion`）。`PAGE_ASSETS` 里的清单是裸路径，
+ * 若继续用全等比较，预装好的样式表会被判成「不在期望集合里」→ 摘掉重挂一次，
+ * 首帧闪烁连同二次下载一起回来。比较只取 `?` / `#` 之前的部分。
+ */
+function hrefKey(href: string): string {
+  const cut = href.search(/[?#]/);
+  return cut === -1 ? href : href.slice(0, cut);
+}
+
+/**
+ * 当前外壳的资源版本查询串（如 `?v=f1422416e0cb9c82`），没有则空串。
+ *
+ * 从 `spa-shell.css` 那条链接上取：它是 index.html 里必定存在、且构建期一定会被打上
+ * revision 的稳定 URL。运行时新挂的样式表沿用同一个查询串 —— 同一份 CSS 全站只有一个
+ * URL，否则「预装的那张」和「运行时挂的那张」会被浏览器当成两份资源。
+ */
+function shellRevisionQuery(): string {
+  const href =
+    document.head.querySelector<HTMLLinkElement>(ANCHOR_SELECTOR)?.getAttribute("href") || "";
+  const cut = href.indexOf("?");
+  return cut === -1 ? "" : href.slice(cut);
+}
 /**
  * 锚点缺失时的兜底落点：第一张**非受管**样式表（即 Vite 打包进来的那张）。
  *
@@ -186,11 +213,15 @@ function isInPlace(
 /** 让受管样式表按 `urls` 的顺序、紧跟在 SPA 外壳样式之后挂载（已在位则一条 DOM 变更都不产生）。 */
 function applyStylesheets(urls: readonly string[]): void {
   const anchor = document.head.querySelector(ANCHOR_SELECTOR);
-  const desired = new Set(urls);
+  const revision = shellRevisionQuery();
+  // 期望集合按**路径**比对，并带上外壳的 revision：预装的 `<link>` 已经带 `?v=`，
+  // 裸路径比对会把它们判成多余、摘掉再挂（首帧闪烁 + 二次下载）。
+  const desired = new Set(urls.map((url) => hrefKey(url)));
+  const targetHref = (url: string) => (revision ? `${url}${revision}` : url);
   for (const el of [
     ...document.head.querySelectorAll<HTMLLinkElement>(`link[${MANAGED_ATTR}]`),
   ]) {
-    if (!desired.has(el.getAttribute("href") || "")) el.remove();
+    if (!desired.has(hrefKey(el.getAttribute("href") || ""))) el.remove();
   }
   /**
    * 兜底边界：`spa-shell.css` 不在（精简入口 / 独立页）时插到第一张非受管样式表**之前**，
@@ -205,21 +236,17 @@ function applyStylesheets(urls: readonly string[]): void {
    */
   let cursor: Element | null = anchor;
   for (const url of urls) {
-    // 预装表可能已在 index.html 中（同 href）；复用节点，避免重复 <link> 与二次下载闪烁。
-    let el =
-      document.head.querySelector<HTMLLinkElement>(
-        `link[${MANAGED_ATTR}][href="${url}"]`,
-      ) ||
-      document.head.querySelector<HTMLLinkElement>(
-        `link[rel="stylesheet"][href="${url}"]`,
-      );
+    const href = targetHref(url);
+    // 预装表可能已在 index.html 中；复用节点（按路径匹配，忽略 `?v=`），避免重复
+    // <link> 与二次下载闪烁。
+    let el = findStylesheetLink(hrefKey(url));
     if (!el) {
       el = document.createElement("link");
       el.rel = "stylesheet";
       // 必须写 attribute 而不是 IDL 的 `el.href`：后者会被解析成**绝对 URL**，于是
       // 上面的 querySelector 与 `desired.has(getAttribute('href'))` 两条（都用声明里的
       // 相对路径比对）下一轮全部落空 —— 表会被判成「不在期望集合里」反复摘掉重挂。
-      el.setAttribute("href", url);
+      el.setAttribute("href", href);
     }
     el.setAttribute(MANAGED_ATTR, "css");
     if (!isInPlace(el, cursor, boundary)) {
@@ -229,6 +256,19 @@ function applyStylesheets(urls: readonly string[]): void {
     }
     cursor = el;
   }
+}
+
+/**
+ * 按**路径**找一张已在 `<head>` 里的样式表（忽略 `?v=` 等查询串）。
+ *
+ * `querySelector` 的属性选择器只能全等比对，而构建期补的 revision 让 `href` 变成
+ * `…css?v=abcd1234`；这里遍历一遍按路径比，数量级是个位数，代价可以忽略。
+ */
+function findStylesheetLink(path: string): HTMLLinkElement | null {
+  for (const el of document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')) {
+    if (hrefKey(el.getAttribute("href") || "") === path) return el;
+  }
+  return null;
 }
 
 function setMeta(id: string, attr: "content", value: string): void {
@@ -303,11 +343,7 @@ export function ensurePageAssets(
   if (typeof document === "undefined" || !assets) return Promise.resolve();
 
   const pending = assets.stylesheets
-    .map((url) =>
-      document.head.querySelector<HTMLLinkElement>(
-        `link[${MANAGED_ATTR}][href="${url}"]`,
-      ),
-    )
+    .map((url) => findStylesheetLink(hrefKey(url)))
     .filter((el): el is HTMLLinkElement => Boolean(el) && !isStylesheetReady(el!));
 
   if (pending.length === 0) return Promise.resolve();

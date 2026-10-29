@@ -114,7 +114,10 @@ _AUTH_PAGE_PATHS = frozenset(
 _AUTH_STYLESHEET_LINK_RE = re.compile(
     r"\s*<link\b(?=[^>]*\brel=\"stylesheet\")(?=[^>]*\bhref=\"(?:"
     + "|".join(re.escape(path) for path in AUTH_SCENE_STYLESHEET_PATHS)
-    + r")\")[^>]*>"
+    # ``(?:\?[^"]*)?``：构建期会给稳定 URL 补 ``?v=<revision>``（见
+    # ``platform/core/frontend_resources.py``）。不放宽的话，升级后外壳里的四片
+    # 会从「可剥离」变成「永远剥不掉」，已登录页会白白加载整片认证场景样式。
+    + r")(?:\?[^\"]*)?\")[^>]*>"
 )
 
 #: 品牌字 Orbitron 的 preload（`<link rel="preload" as="font">`，见 frontend/index.html）。

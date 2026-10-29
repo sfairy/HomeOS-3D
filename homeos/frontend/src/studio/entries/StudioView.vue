@@ -15,6 +15,10 @@ import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
 import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
 import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
 import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
+import {
+  studioStartupFail,
+  studioStartupPhase,
+} from "@/shared/utils/ui/studio-startup";
 
 const WORKFLOW_STEPS = [
   { id: "background", label: "导入底图" },
@@ -58,11 +62,20 @@ function jumpStep(step: string) {
 
 onMounted(async () => {
   floorplanStore.bindFacade();
-  await import("@app/3d-studio/stage-startup");
-  const studio = await import("@app/3d-studio/authoring/lifecycle");
-  if (disposed) return;
-  studio.bootStudio();
-  teardownStudio = studio.teardownStudio;
+  // 界面顶栏已经挂上，但 3D 那半边还没影子：遮罩文案从这里开始接管，直到 boot 自己
+  // 走完「准备模型 → 读取户型 → 构建户型 → 准备预览」四段并把遮罩撤掉。
+  // 动态 import 的失败不归 boot 管（boot 还没跑），所以单独接在 try 里交给遮罩。
+  try {
+    studioStartupPhase("正在准备户型模型…");
+    await import("@app/3d-studio/stage-startup");
+    const studio = await import("@app/3d-studio/authoring/lifecycle");
+    if (disposed) return;
+    studio.bootStudio();
+    teardownStudio = studio.teardownStudio;
+  } catch (error) {
+    studioStartupFail(error instanceof Error ? error.message : undefined);
+    return;
+  }
   floorplanStore.command({
     type: "setLibraryCollapsed",
     collapsed: floorplanStore.libraryCollapsed,

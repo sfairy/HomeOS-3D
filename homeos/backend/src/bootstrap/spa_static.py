@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from ..api.assets import read_builtin_asset
 from ..config import Settings
 from ..domains.license import features as feature_codes
+from ..platform.core.frontend_resources import frontend_resource_url
 from ..platform.core.frontend_static import (
     APPLE_TOUCH_ICON_PATHS,
     BACKGROUNDS_MOUNT_PREFIX,
@@ -131,12 +132,23 @@ def page_preload_stylesheets(path: str) -> tuple[str, ...]:
     return ()
 
 
-def _inject_preload_stylesheets(html: str, urls: tuple[str, ...]) -> str:
-    """把首屏样式表以 ``rel=preload`` 注入外壳 ``<head>``（不激活、不改变挂载顺序）。"""
+def _inject_preload_stylesheets(
+    html: str, urls: tuple[str, ...], frontend_dir: Path | None = None
+) -> str:
+    """把首屏样式表以 ``rel=preload`` 注入外壳 ``<head>``（不激活、不改变挂载顺序）。
+
+    这些样式表是 ``/static/**`` 下的**稳定 URL**（``studio.css`` / ``renderer.css`` …），
+    URL 不随内容变化。给了 ``frontend_dir`` 时给每条补上构建期 ``?v=``，升级后 URL 变化，
+    浏览器不必先回源协商就能拿到新内容；没走构建（清单不存在）时原样输出。
+    """
     if not urls:
         return html
+    hrefs = (
+        (frontend_resource_url(frontend_dir, url) if frontend_dir is not None else url)
+        for url in urls
+    )
     tags = "".join(
-        f'<link rel="preload" as="style" href="{html_escape(url)}">' for url in urls
+        f'<link rel="preload" as="style" href="{html_escape(href)}">' for href in hrefs
     )
     if "</head>" in html:
         return html.replace("</head>", f"{tags}</head>", 1)
@@ -434,7 +446,9 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
             if not is_auth_page_path(request.url.path):
                 html = strip_auth_scene_assets(html)
             html = _inject_preload_stylesheets(
-                html, page_preload_stylesheets(request.url.path)
+                html,
+                page_preload_stylesheets(request.url.path),
+                request.app.state.settings.frontend_dir,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 

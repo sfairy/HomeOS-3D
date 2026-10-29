@@ -1,8 +1,13 @@
 /* knip: used by PWA runtime; frontend/src/shared/utils/core/pwa-update.ts navigator.serviceWorker.register('/sw.js'), backend spa-fallback middleware serves /sw.js, shared embed fallback whitelist includes /sw.js — 静态 PWA SW 文件非 ESM import 所以 knip 漏识别 */
 /* HomeOS Service Worker：离线壳缓存 + 非哈希静态资源 */
 // 版本号变更即代表「旧缓存整体作废」：activate 会删掉非当前名的所有缓存。
-const CACHE_SHELL = 'homeos-shell-v7'
-const CACHE_STATIC = 'homeos-static-v5'
+//
+// 版本不再手写：构建收尾把下面的占位符替换成构建期资源哈希（见 frontend/vite.config.ts
+// 的 writeResourceVersion）。这样「换了产物但忘了改版本号」不再可能发生 —— 那正是
+// 「升级后混用旧缓存资源」的直接成因。开发态（占位符未被替换）退化成固定名字。
+const BUILD_REVISION = '__HOMEOS_RESOURCE_REVISION__'
+const CACHE_SHELL = `homeos-shell-${BUILD_REVISION}`
+const CACHE_STATIC = `homeos-static-${BUILD_REVISION}`
 const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
 /** 由 SW 接管的静态资源前缀：只有稳定 URL 的可替换素材。
  *  `/static/assets/` 是内容哈希产物，由 HTTP 缓存（no-cache + ETag）负责，见 fetch 处理器。 */

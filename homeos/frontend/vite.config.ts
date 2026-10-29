@@ -5,6 +5,7 @@ import { defineConfig, createLogger, type Plugin, type UserConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
@@ -191,6 +192,98 @@ function mirrorPublicDirIntoStaging(): void {
 }
 
 /** SPA 唯一入口（`SPA_ENTRY` 与商店共用，见 ops/vite/build-helpers.ts）。 */
+
+/**
+ * 构建期资源版本清单：`resource-version.json`（16 位小写十六进制内容哈希）。
+ *
+ * 为什么需要它：Vite 打出来的 chunk 自带内容哈希，URL 变了内容才变，缓存天然安全。
+ * 但还有一批**稳定 URL** —— `core/stage.css`、各路由首屏样式表、`static/*.css`、外壳
+ * 引用的经典脚本 —— 它们的 URL 不随内容变化。后端把这些 URL 拼进 HTML 时只能靠
+ * `ETag` 回源协商，一旦中间层（Service Worker / 共享缓存 / 代理）拿旧响应顶回来，
+ * 就会出现「新外壳 + 旧资源」混跑（症状是页面白屏或交互脚本半残）。
+ *
+ * 机制：本函数算出唯一的 revision，然后
+ *   1. 写 `resource-version.json` —— 后端 `platform/core/frontend_resources.py` 读它，
+ *      给拼出来的 URL 补 `?v=<revision>`；
+ *   2. 给外壳 HTML 里**非哈希**的 `/static/**` 引用补同一个 `?v=`（与后端拼的完全一致，
+ *      同一份文件全站只有一个 URL）；
+ *   3. 把 `sw.js` 的缓存名换成 `…-<revision>`：升级后旧壳缓存整体作废。
+ *
+ * 哈希口径：路径 + 文本类文件内容（js/css/html/json）+ 其它文件的尺寸。GLB 之类的二进制
+ * 只取尺寸 —— 它们有 60MB+，逐字节哈希会把构建尾巴拖长，而这类文件换内容几乎必然换尺寸。
+ */
+const RESOURCE_VERSION_FILE = 'resource-version.json'
+/** 构建输入里按**内容**参与哈希的扩展名（稳定 URL 的 CSS/JS 尺寸不变也要换 revision）。 */
+const RESOURCE_VERSION_TEXT_EXTENSIONS = /\.(?:js|css|html|json)$/
+/** 不参与哈希、也不参与改写的产物（本函数自己写的、体积分析报告、Vite 内部清单）。 */
+const RESOURCE_VERSION_SKIP = new Set([RESOURCE_VERSION_FILE, 'bundle-stats.html'])
+/** `sw.js` 里被替换的版本占位符。开发态原样保留，命名退化为固定值、不影响功能。 */
+const RESOURCE_VERSION_TOKEN = '__HOMEOS_RESOURCE_REVISION__'
+
+function computeResourceRevision(): string {
+  const hash = crypto.createHash('sha256')
+  const relatives = walkFiles(outDir)
+    .map((file) => file.slice(outDir.length + 1).replace(/\\/g, '/'))
+    .filter((rel) => !RESOURCE_VERSION_SKIP.has(rel) && !rel.startsWith('.vite/'))
+    .sort()
+  for (const rel of relatives) {
+    hash.update(rel)
+    hash.update('\0')
+    if (RESOURCE_VERSION_TEXT_EXTENSIONS.test(rel)) {
+      hash.update(fs.readFileSync(resolve(outDir, rel)))
+    } else {
+      hash.update(String(fs.statSync(resolve(outDir, rel)).size))
+    }
+    hash.update('\n')
+  }
+  return hash.digest('hex').slice(0, 16)
+}
+
+/**
+ * 给外壳 HTML 里的稳定 URL 补 `?v=`。
+ *
+ * 只改**非哈希**引用：`/static/assets/**`（Vite chunk，名里自带内容哈希）与
+ * `/static/vendor/**`（路径里带库版本）保持原样 —— 给它们再叠一层 `?v=` 只会让同一个
+ * 文件出现两个 URL，正是上游 0.8.1 缓存混用的成因。
+ */
+function stampShellResourceUrls(html: string, revision: string): string {
+  return html.replace(
+    /(src|href)=(["'])(\/static\/[^"'?]+)(\?[^"']*)?(["'])/g,
+    (match: string, attr: string, open: string, path: string, _query: string, close: string) => {
+      if (path.startsWith('/static/assets/') || path.startsWith('/static/vendor/')) return match
+      return `${attr}=${open}${path}?v=${revision}${close}`
+    },
+  )
+}
+
+function writeResourceVersion(): void {
+  const revision = computeResourceRevision()
+  fs.mkdirSync(outDir, { recursive: true })
+  fs.writeFileSync(
+    resolve(outDir, RESOURCE_VERSION_FILE),
+    `${JSON.stringify({ revision, note: '构建期内容哈希：后端据此给稳定 URL 补 ?v=，SW 缓存名随之变化。' }, null, 2)}\n`,
+    'utf8',
+  )
+  const htmlPath = resolve(outDir, SPA_ENTRY)
+  if (fs.existsSync(htmlPath)) {
+    const html = fs.readFileSync(htmlPath, 'utf8')
+    const stamped = stampShellResourceUrls(html, revision)
+    if (stamped !== html) fs.writeFileSync(htmlPath, stamped, 'utf8')
+  }
+  const swPath = resolve(outDir, 'sw.js')
+  if (fs.existsSync(swPath)) {
+    const source = fs.readFileSync(swPath, 'utf8')
+    // 缺占位符就别「静默跳过」：缓存名会退化成固定值，升级后旧壳缓存不会作废 ——
+    // 这正是本机制要消灭的病，所以让构建直接失败，而不是把问题留到线上。
+    if (!source.includes(RESOURCE_VERSION_TOKEN)) {
+      throw new Error(
+        `sw.js 缺少资源版本占位符 ${RESOURCE_VERSION_TOKEN}：SW 缓存名将退化为固定值，升级后会混用旧缓存`,
+      )
+    }
+    fs.writeFileSync(swPath, source.split(RESOURCE_VERSION_TOKEN).join(revision), 'utf8')
+  }
+}
+
 const isProduction = process.env.NODE_ENV === 'production'
 /** 开发代理目标：127.0.0.1 避免 Windows 下 localhost → IPv6 导致 ECONNREFUSED */
 const backendDevTarget = 'http://127.0.0.1:8801'
@@ -405,6 +498,9 @@ function finalizeBuildPlugin(): Plugin {
     mirrorPublicDirIntoStaging()
     await writeClassicIifeBundles(outDir)
     updatePublicStaticManifest()
+    // 资源版本必须在白名单之后：`public-static.json` 也要参与哈希，revision 才是「整个
+    // 产物」的指纹。它写进 staging，随后随 publish 一起上线。
+    writeResourceVersion()
     await publishStagingToLive()
   }
 
@@ -618,7 +714,18 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     vendorResolvePlugin(),
     runtimeUrlExternalPlugin(),
     runtimeVendorAssetPlugin(),
-    vue(),
+    // `includeAbsolute: false` 是必须的，不是洁癖。
+    //
+    // `@vitejs/plugin-vue` 默认把模板里的**根绝对 URL** 也当成资源引用
+    // （dev 下 `includeAbsolute: !!config.base`，base 恒为 `/` → true；build 下无条件 true），
+    // 于是 `<img src="/static/assets/icons/*.svg">` 被编译成
+    // `import _imports_0 from "/static/assets/icons/*.svg?import"`。
+    // build 里它最终还能落回 URL 字符串，但 dev 下这条 import 是一个**真实的模块请求**：
+    // 它先被 `rootAssetsPlugin` 的 `/static/**` 中间件按磁盘文件直读（`image/svg+xml`），
+    // 浏览器随即报 `Failed to load module script: Expected a JavaScript-or-Wasm module
+    // script but the server responded with a MIME type of "image/svg+xml"`。
+    // 这些路径本来就该原样保留（public 下的稳定 URL），不参与模块图。
+    vue({ template: { transformAssetUrls: { includeAbsolute: false } } }),
     tailwindcss(),
   ]
   if (analyzeBundle) {

@@ -77,6 +77,28 @@ function resolveRootAssetsFile(urlPath: string): string | null {
   return null
 }
 
+/**
+ * `public/static/**` 里**确实存在**的同一路径：dev 下直接读盘下发，不再交给 Vite。
+ *
+ * 为什么不能 `next()` 让 Vite 自己伺服：Vite 8 在启动时把 public 目录**拍平成一份路径集合**
+ * （`publicFiles`，见 `src/node/publicDir.ts`），之后只靠文件监听把新增/删除同步进去。
+ * 这份集合一旦落后于磁盘（进程跑久了监听丢事件；新建文件落在启动之后也会如此），
+ * 已在 public 里的文件就会被判成「不存在」：`servePublicMiddleware` 直接放行，
+ * 请求落进 SPA 回退拿到 `index.html`（`text/html`），`<script>`/`<link>` 加载随之报
+ * `net::ERR_ABORTED 404`。表现为「文件明明在，dev 端口就是 404」，只有重启 Vite 才好。
+ *
+ * 所以这里对 public 命中的 `/static/**` 一律直读磁盘（与根 `assets/` 同一策略，兼顾热替换），
+ * 让 dev 端口的 `/static/**` 不依赖 Vite 内部那份可能过期的清单。
+ */
+function resolvePublicStaticFile(urlPath: string): string | null {
+  const prefix = DEV_BUILD_OUTPUT_PREFIXES.find((item) => urlPath.startsWith(item))
+  if (!prefix) return null
+  const rel = decodeURIComponent(urlPath.slice(prefix.length))
+  if (!rel || rel.includes('..') || rel.includes('\0') || path.isAbsolute(rel)) return null
+  const file = path.join(PUBLIC_DIR, prefix.slice(1), rel)
+  return fs.existsSync(file) && fs.statSync(file).isFile() ? file : null
+}
+
 /** 构建产物请求的解析结果：命中文件、确认缺失（应回 404）、或与构建产物无关。 */
 type BuildOutputResolution =
   | { status: 'serve'; file: string }
@@ -89,8 +111,9 @@ type BuildOutputResolution =
  * 3D 舞台页由后端下发 dist 里的 index.html，因此它引用的哈希 chunk 与 IIFE 脚本都必须能在
  * dev 端口上取到；缺一则：上报器装不上、手持/平板档样式失效、舞台页整页脚本加载失败。
  *
- * 只在 `public/` 里**没有**该路径时才回退 dist，因此 `public/**`（含 vendor 图标等可热替换
- * 资源）仍由 Vite 自己伺服，不会被 dist 的旧副本盖掉；也没有把这些前缀反代给后端 ——
+ * 只在 `public/` 里**没有**该路径时才回退 dist（public 命中的请求已在
+ * `resolvePublicStaticFile` 里直读磁盘，不会走到这里），因此 `public/**`（含 vendor 图标等可热替换
+ * 资源）不会被 dist 的旧副本盖掉；也没有把这些前缀反代给后端 ——
  * 那会连带把 public 资源也换成构建副本。
  *
  * 命中不到的**脚本 / 样式**请求返回 `missing` 而不是放行：这两个前缀下不存在 SPA 路由，
@@ -103,7 +126,6 @@ function resolveDevBuildOutputFallback(urlPath: string): BuildOutputResolution {
   const rel = decodeURIComponent(urlPath.slice(prefix.length))
   if (!rel || rel.includes('..') || rel.includes('\0') || path.isAbsolute(rel)) return null
   const bucket = prefix.slice(1)
-  if (fs.existsSync(path.join(PUBLIC_DIR, bucket, rel))) return null
   const file = path.join(DIST_ROOT, bucket, rel)
   if (fs.existsSync(file) && fs.statSync(file).isFile()) return { status: 'serve', file }
   return MISSING_BUILD_OUTPUT_SUFFIXES.has(path.extname(rel).toLowerCase())
@@ -111,27 +133,83 @@ function resolveDevBuildOutputFallback(urlPath: string): BuildOutputResolution {
     : null
 }
 
+/** 单段 `Range: bytes=…` 解析；非单段 / 越界一律返回 null（按整文件下发）。 */
+function parseByteRange(
+  header: string | undefined,
+  size: number,
+): { start: number; end: number } | null {
+  if (!header || size <= 0) return null
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim())
+  if (!match) return null
+  const [, rawStart = '', rawEnd = ''] = match
+  let start: number
+  let end: number
+  if (rawStart === '') {
+    // `bytes=-N`：末尾 N 字节。
+    if (rawEnd === '') return null
+    const suffix = Number(rawEnd)
+    if (!Number.isFinite(suffix) || suffix <= 0) return null
+    start = Math.max(size - suffix, 0)
+    end = size - 1
+  } else {
+    start = Number(rawStart)
+    end = rawEnd === '' ? size - 1 : Math.min(Number(rawEnd), size - 1)
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null
+  }
+  if (start > end || start >= size) return null
+  return { start, end }
+}
+
 /** 直读磁盘响应；未命中按扩展名给 404，避免脚本请求落进 SPA 回退拿到 HTML。 */
-function serveDiskFile(res: ServerResponse, file: string): void {
+function serveDiskFile(
+  req: {
+    method?: string | undefined
+    headers?: Record<string, string | string[] | undefined> | undefined
+  },
+  res: ServerResponse,
+  file: string,
+): void {
   const ext = path.extname(file).toLowerCase()
-  const found = fs.existsSync(file) && fs.statSync(file).isFile()
+  const stat = fs.existsSync(file) ? fs.statSync(file) : null
+  const found = stat?.isFile() === true
   res.setHeader(
     'Content-Type',
     MIME[ext] || (found ? 'application/octet-stream' : 'text/plain; charset=utf-8'),
   )
-  if (!found) {
+  if (!found || !stat) {
     res.statusCode = 404
     res.end('Not Found')
     return
   }
   res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('Accept-Ranges', 'bytes')
+  const rawRange = req.headers?.range
+  const range = parseByteRange(Array.isArray(rawRange) ? rawRange[0] : rawRange, stat.size)
+  if (range) {
+    // 与大文件（GLB / 贴图）原有行为对齐：支持断点续传与媒体拖动。
+    res.statusCode = 206
+    res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${stat.size}`)
+    res.setHeader('Content-Length', String(range.end - range.start + 1))
+    if (req.method === 'HEAD') {
+      res.end()
+      return
+    }
+    fs.createReadStream(file, range).pipe(res)
+    return
+  }
+  res.setHeader('Content-Length', String(stat.size))
+  if (req.method === 'HEAD') {
+    res.end()
+    return
+  }
   fs.createReadStream(file).pipe(res)
 }
 
 /**
  * 开发态补齐三类「生产由后端伺服、dev 由 Vite 伺服」的静态文件：
  *   1. 仓库根 `assets/logo`、`assets/sounds`（生产由 ServeStatic + Docker 挂载卷托管，不写入 dist）；
- *   2. 只存在于构建产物 `dist/homeos/frontend/static/**` 的 `/static/**`
+ *   2. `public/static/**` 里存在的文件（直读磁盘，不依赖 Vite 启动时拍平的 public 清单）；
+ *   3. 只存在于构建产物 `dist/homeos/frontend/static/**` 的 `/static/**`
  *      —— 含经典 IIFE 与哈希 chunk（`static/assets/<name>-<hash>.js|css`，3D 舞台页要用）。
  */
 export default function rootAssetsPlugin(): Plugin {
@@ -140,11 +218,14 @@ export default function rootAssetsPlugin(): Plugin {
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
+        if (req.method !== 'GET' && req.method !== 'HEAD') return next()
         const urlPath = (req.url || '').split('?')[0] || ''
         const rootAsset = resolveRootAssetsFile(urlPath)
-        if (rootAsset) return serveDiskFile(res, rootAsset)
+        if (rootAsset) return serveDiskFile(req, res, rootAsset)
+        const publicFile = resolvePublicStaticFile(urlPath)
+        if (publicFile) return serveDiskFile(req, res, publicFile)
         const distFallback = resolveDevBuildOutputFallback(urlPath)
-        if (distFallback?.status === 'serve') return serveDiskFile(res, distFallback.file)
+        if (distFallback?.status === 'serve') return serveDiskFile(req, res, distFallback.file)
         if (distFallback?.status === 'missing') {
           res.statusCode = 404
           res.setHeader('Content-Type', 'text/plain; charset=utf-8')

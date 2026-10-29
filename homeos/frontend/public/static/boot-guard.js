@@ -19,6 +19,13 @@
   'use strict'
 
   var OVERLAY_ID = 'homeos-boot-overlay'
+  /**
+   * 不算「页面内容」的覆盖层：判定「#app 是否真的渲染出东西」时必须跳过它们。
+   *
+   * `studio-loading` 是 `/3d-studio` 的首屏加载遮罩（见 static/3d-studio/studio-loading.js）。
+   * 它本身就占满整屏且可见 —— 若把它当成内容，编辑器真的白屏时自愈/升级提示会被永久压住。
+   */
+  var NON_CONTENT_OVERLAY_IDS = [OVERLAY_ID, 'studio-loading']
   var READY_ATTR = 'data-homeos-ready'
   var MOUNTED_ATTR = 'data-homeos-mounted'
   var RELOAD_KEY = 'homeos:boot-auto-reload'
@@ -122,6 +129,20 @@
   }
 
   /**
+   * 3D 编辑器首屏遮罩是否正在屏幕上。
+   *
+   * 它是**有意的**占位界面（带阶段文案与重试按钮），而且会把外壳设成
+   * `visibility: hidden` —— 两件事叠加正好落进「已就绪但全黑」判据。所以两个地方都要问它：
+   * ① `hasVisibleContent()`：把它算作有效内容，免得慢启动时被误判成白屏；
+   * ② `revealOverlay()`：它已经在自己报进度了，别再揭一层 z-index 更高的「正在连接…」
+   *    把它盖住（`spa-shell.css` 的 `#homeos-boot-overlay` 是 2147483647，是本层之上）。
+   */
+  function studioOverlayVisible() {
+    var studioLoading = byId('studio-loading')
+    return !!(studioLoading && !studioLoading.hidden && isEffectivelyVisible(studioLoading))
+  }
+
+  /**
    * 「已就绪」之外还要确认**真的渲染出了可见内容**。
    *
    * 只有 ready 标记是不够的：路由解析成功、标记置位，但内容可能整片不可见 ——
@@ -129,6 +150,7 @@
    * 此时屏幕全黑且零报错，正是「闪一下正在连接，然后全黑」的成因。
    */
   function hasVisibleContent() {
+    if (studioOverlayVisible()) return true
     var candidates = []
     var app = byId('app')
     if (app) {
@@ -137,7 +159,12 @@
     // 兜底：有些页面把主体 Teleport 到 body 下（#app 只剩空壳），一并纳入判定。
     for (var j = 0; j < document.body.children.length; j++) {
       var el = document.body.children[j]
-      if (el.id === OVERLAY_ID || el.tagName === 'SCRIPT' || el.tagName === 'LINK') continue
+      if (
+        NON_CONTENT_OVERLAY_IDS.indexOf(el.id) !== -1 ||
+        el.tagName === 'SCRIPT' ||
+        el.tagName === 'LINK'
+      )
+        continue
       candidates.push(el)
     }
     for (var k = 0; k < candidates.length; k++) {
@@ -242,6 +269,10 @@
     var box = byId(OVERLAY_ID)
     if (!box) return
     if (isReady() && hasVisibleContent()) return
+    // 3D 编辑器的遮罩自带阶段文案 / 重试按钮，且**层级低于本层**（spa-shell.css 给的
+    // 2147483647 是上限值）。它一出现就说明页面已经在正常推进（不是「后端没起来」），
+    // 这时再揭「正在连接…」只会把它盖住 —— 用户看到的是一句和实际进度无关的泛泛提示。
+    if (studioOverlayVisible()) return
     overlayRevealed = true
     clearRevealTimer()
     box.classList.remove('is-deferred')

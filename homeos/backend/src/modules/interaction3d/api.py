@@ -38,6 +38,7 @@ from ...domains.ha.integration.service_call import (
 )
 from ...platform.core.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
 from ...platform.core.atomic_write import restrict_private_file
+from ...platform.core.frontend_resources import frontend_resource_url
 from ...platform.core.frontend_static import strip_auth_scene_assets
 from ...platform.core.models import HAEntity, ProjectDraft
 from ...platform.security.request_origin import require_same_origin_write
@@ -1150,10 +1151,20 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
         raise HTTPException(503, detail='前端产物尚未就绪，请稍后重试。')
     # 舞台必然已登录：认证场景四片在这里没有消费者，先剥掉再注入舞台样式。
     html = strip_auth_scene_assets(html)
+    # 舞台样式与模块入口是 ``/api/v1/modules/interaction3d/core/`` 下的稳定 URL：
+    # 走 ``frontend_resource_url`` 补上构建期 revision，升级后 URL 变化即可让浏览器
+    # 直接取新产物，不必先命中旧缓存再协商（对应「升级后混用旧缓存资源」）。
+    stage_urls = (
+        '/api/v1/modules/interaction3d/core/stage.css',
+        '/api/v1/modules/interaction3d/core/stage.js',
+    )
+    visible_stage_urls = tuple(
+        frontend_resource_url(settings.frontend_dir, url) for url in stage_urls
+    )
     html = html.replace(
         '</head>',
-        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css">'
-        '<link rel="modulepreload" href="/api/v1/modules/interaction3d/core/stage.js"></head>',
+        f'<link rel="stylesheet" href="{visible_stage_urls[0]}">'
+        f'<link rel="modulepreload" href="{visible_stage_urls[1]}"></head>',
     )
     html = html.replace(
         '<body>',

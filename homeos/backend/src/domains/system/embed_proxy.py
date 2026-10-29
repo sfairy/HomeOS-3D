@@ -47,6 +47,7 @@ from ...platform.core.embed_proxy_util import (
     validate_embed_target_url,
 )
 from ...platform.core.errors import api_error, not_found
+from ...platform.core.frontend_resources import frontend_resource_url
 from ...platform.security.cookies import is_request_secure
 
 logger = logging.getLogger("homeos.system.embed_proxy")
@@ -106,6 +107,10 @@ class EmbedProxyService:
             self._frontend_dist_path = Path("dist")
 
     # 目标解析
+    def _offline_stylesheet_url(self) -> str:
+        """离线提示页的样式表 URL（补构建期 revision，升级后不再复用旧 CSS）。"""
+        return frontend_resource_url(self._frontend_dist_path, "/static/embed-offline.css")
+
     def load_layout(self) -> dict[str, Any]:
         """读取当前工程布局（解析失败返回空布局）。"""
         try:
@@ -221,7 +226,7 @@ class EmbedProxyService:
             '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>内嵌页不可达</title>'
             # 样式必须外链：本路径受外壳页 CSP 的 `style-src 'self'` 约束，行内 <style>
             # 会被浏览器拦下（见 frontend/public/static/embed-offline.css 的说明）。
-            '<link rel="stylesheet" href="/static/embed-offline.css">'
+            f'<link rel="stylesheet" href="{self._offline_stylesheet_url()}">'
             f"</head><body><main><h1>内嵌页无法连接</h1><p>{safe_msg}</p></main></body></html>"
         )
         return HTMLResponse(content=html, status_code=502)

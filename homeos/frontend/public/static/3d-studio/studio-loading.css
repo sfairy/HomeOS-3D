@@ -1,0 +1,116 @@
+/*
+ * 3D 户型图编辑器首屏加载遮罩。
+ *
+ * 为什么是外链而不是 index.html 里的行内 <style>：外壳页 CSP 是 `style-src 'self'`，
+ * 行内样式会被浏览器直接拦下（控制台报 Refused to apply inline style），遮罩根本不会
+ * 生效。同源外链是唯一不放松 CSP 的做法。
+ *
+ * 只服务 `/3d-studio`：`#studio-loading` 默认 hidden，其它路由既不显示也不占位。
+ */
+.studio-loading[hidden] { display: none; }
+
+.studio-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  box-sizing: border-box;
+  background: #0c131b;
+  color: #e7edf5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+}
+
+/* 载入期间先把编辑器外壳藏起来：遮罩是纯色不透明的，但滚动条与首帧布局仍会露出来。 */
+.studio-starting .studio-chrome-root { visibility: hidden; }
+
+.studio-loading-content {
+  width: min(100%, 360px);
+  text-align: center;
+}
+
+.studio-loading-mark {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 26px;
+  position: relative;
+}
+
+.studio-loading-mark::before,
+.studio-loading-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid #243747;
+  border-radius: 18px;
+}
+
+.studio-loading-mark::after {
+  border-color: #ffad43 transparent transparent #ffad43;
+  animation: studio-loading-turn 1.5s linear infinite;
+  will-change: transform;
+}
+
+.studio-loading-brand {
+  color: #91a2b5;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  margin: 0 0 12px;
+}
+
+.studio-loading h1 {
+  font-size: 23px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.studio-loading-detail {
+  color: #a8b7c8;
+  font-size: 14px;
+  line-height: 1.7;
+  /* 固定最小高度：阶段文案长短不一，不占位会让整块内容在每次换文案时上下跳。 */
+  min-height: 48px;
+  margin: 0;
+}
+
+.studio-loading-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  align-items: center;
+  margin-top: 24px;
+}
+
+.studio-loading-actions a,
+.studio-loading-actions button {
+  font: inherit;
+  font-size: 13px;
+  color: #acbdcf;
+  background: transparent;
+  border: 1px solid #344656;
+  border-radius: 8px;
+  padding: 8px 16px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.studio-loading-actions a:focus-visible,
+.studio-loading-actions button:focus-visible {
+  outline: 2px solid #ffad43;
+  outline-offset: 4px;
+}
+
+.studio-loading.is-error .studio-loading-mark::after {
+  animation: none;
+  border-color: #ffad43;
+}
+
+@keyframes studio-loading-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-loading-mark::after { animation: none; }
+}
