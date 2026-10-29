@@ -160,20 +160,24 @@ def go2rtc_stream_error(value: Any) -> str:
     return f"go2rtc 无法输出视频：{reason}"
 
 
-def log_go2rtc_error(
+async def log_go2rtc_error(
     websocket: WebSocket,
     code: str,
     message: str,
     *,
     details: str | None = None,
 ) -> None:
-    """把中转故障写进全局日志：失败必须留下可检索痕迹，但不能影响断连流程。"""
+    """把中转故障写进全局日志：失败必须留下可检索痕迹，但不能影响断连流程。
+
+    走 ``append_async``：断连清理路径上的日志不能同步占住事件循环（写盘本身在日志
+    自己的线程里，这里只是把调用点挪出循环）。
+    """
     app = getattr(websocket, "app", None)
     global_log = getattr(getattr(app, "state", None), "global_log", None)
     if global_log is None:
         return
     try:
-        global_log.append(
+        await global_log.append_async(
             "error",
             "go2rtc-relay",
             "摄像头",
@@ -470,7 +474,7 @@ async def _relay_go2rtc_stream(websocket: WebSocket, target: str) -> None:
         else:
             code, message = go2rtc_connection_error(error)
         logger.debug("go2rtc 中继已关闭：%s", code, exc_info=True)
-        log_go2rtc_error(websocket, code, message, details=traceback.format_exc())
+        await log_go2rtc_error(websocket, code, message, details=traceback.format_exc())
         await _close(websocket, CLOSE_FORBIDDEN, "camera source not allowed")
 
 

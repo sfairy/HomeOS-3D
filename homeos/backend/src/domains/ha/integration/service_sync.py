@@ -246,7 +246,7 @@ class HASyncMixin(HAConnectorHost):
                     'operation': 'refreshed',
                     'counts': counts })
                 if not self._initial_sync_logged:
-                    self._log_event('success', '实体同步', f'''实体目录同步完成：{counts.get('entities', 0)} 个实体、{counts.get('devices', 0)} 个设备、{counts.get('areas', 0)} 个区域''')
+                    await self._log_event('success', '实体同步', f'''实体目录同步完成：{counts.get('entities', 0)} 个实体、{counts.get('devices', 0)} 个设备、{counts.get('areas', 0)} 个区域''')
                     self._initial_sync_logged = True
                 # 记录最近一次全量成功时刻：重连时据此决定能否跳过全量（fast reconnect）。
                 self._last_full_sync_at = time.monotonic()

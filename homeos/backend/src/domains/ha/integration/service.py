@@ -151,9 +151,14 @@ class HAConnectorService(
         self._ha_tuning_at = now
         return cfg
 
-    def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None:
+    async def _log_event(
+        self, level: str, category: str, message: str, *, details: str | None = None
+    ) -> None:
+        """把一条 HA 运行日志写进全局日志（异步：不占事件循环做写盘）。"""
         if self.event_log is not None:
-            self.event_log.append(level, 'Home Assistant', category, message, details = details)
+            await self.event_log.append_async(
+                level, 'Home Assistant', category, message, details=details
+            )
 
     @property
 

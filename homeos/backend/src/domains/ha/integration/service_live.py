@@ -94,7 +94,7 @@ class HALiveMixin(HAConnectorHost):
                     # ``subscribe_entities`` 的首帧全量 + 解码器比对补齐，
                     # 不必再付一次「建连 + get_states + 注册表 + 大事务」。
                     record_ha_counter('fast_reconnect')
-                    self._log_event('info', '连接', '快速重连：跳过全量同步，由实时状态流补齐差异')
+                    await self._log_event('info', '连接', '快速重连：跳过全量同步，由实时状态流补齐差异')
                 else:
                     await self.sync_once(connection_id)
                 await self._live_connection(connection_id)
@@ -121,7 +121,7 @@ class HALiveMixin(HAConnectorHost):
                     # 只有原因变了才入库：同一种离线每 10s 记一条，日志页同样会被刷满，
                     # 而连接状态与 last_error 已由 _safe_record_error 每轮更新。正常断开不算异常，
                     # 恢复时那条「已连接」success 已经说明了整段经过。
-                    self._log_event(
+                    await self._log_event(
                         'error' if kind == FAILURE_UNEXPECTED else 'warning',
                         '连接',
                         f'Home Assistant 连接异常：{error}',
@@ -325,7 +325,7 @@ class HALiveMixin(HAConnectorHost):
             # 真正连上才算恢复：同步成功但 WebSocket 被反代挡住时，失败原因并没有变，
             # 不该因此每轮都重新打一遍完整说明。
             self._reset_failure_state()
-            self._log_event('success', '连接', '已连接 Home Assistant，实时状态同步正常')
+            await self._log_event('success', '连接', '已连接 Home Assistant，实时状态同步正常')
             await self._notify_connection(
                 'connected', ha_version = getattr(connection, 'ha_version', None)
             )

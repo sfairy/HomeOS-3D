@@ -293,7 +293,12 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
 SHUTDOWN_TIMEOUT = 5.0
 
 
-async def _shutdown(what: str, stopper: Callable[[], Awaitable[Any]]) -> None:
+async def _shutdown(
+    what: str,
+    stopper: Callable[[], Awaitable[Any]],
+    *,
+    event_log: Any = None,
+) -> None:
     """停机一个组件：超时/异常只记日志，绝不打断停机流程。
 
     旧写法是十几段复制粘贴的 `try: await asyncio.wait_for(x.stop(), timeout=5) except
@@ -306,8 +311,28 @@ async def _shutdown(what: str, stopper: Callable[[], Awaitable[Any]]) -> None:
         await asyncio.wait_for(stopper(), SHUTDOWN_TIMEOUT)
     except TimeoutError:
         logger.warning("%s停机超时（%ss），已放弃等待", what, SHUTDOWN_TIMEOUT)
+        await _record_lifecycle_failure(
+            event_log, what, f"{what}停机超时（{SHUTDOWN_TIMEOUT}s），已放弃等待"
+        )
     except Exception as exc:
-        logger.warning("%s停机失败: %s", what, exc)
+        logger.warning("%s停机失败：%s", what, exc)
+        await _record_lifecycle_failure(event_log, what, f"{what}停机失败: {exc}")
+
+
+async def _record_lifecycle_failure(event_log: Any, what: str, message: str) -> None:
+    """生命周期故障留痕：进程日志 + 全局日志（用户能在「系统后台」里看到）。
+
+    走 ``append_async``：停机路径上写日志不能同步占住事件循环（此时其它组件正在等
+    超时，主循环被拖住会把 5s 的预算变成更长的假死）。写失败只降级成进程日志 ——
+    停机阶段的收尾日志永远不能反过来打断停机。
+    """
+    logger.warning("%s", message)
+    if event_log is None:
+        return
+    try:
+        await event_log.append_async("warning", "系统后台", "生命周期", message, context={"phase": what})
+    except Exception:
+        logger.debug("生命周期故障写入全局日志失败: %s", what, exc_info=True)
 
 
 def _pending() -> Any:
@@ -733,7 +758,10 @@ def _install_ha_reconnect_handlers(app: FastAPI, startup: _StartupContext) -> No
             ha_connector.start()
             logger.info("HA 连接配置变更，已按新地址重连")
         except Exception as exc:
-            logger.warning("HA 重连失败: %s", exc)
+            logger.warning("HA 重连失败：%s", exc)
+            await _record_lifecycle_failure(
+                getattr(app.state, "global_log", None), "HA 连接器", f"HA 重连失败: {exc}"
+            )
 
     startup.security_bus.on("SYSTEM_CONFIG_UPDATED", _on_system_config_updated)
 
@@ -1163,9 +1191,10 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
             # 平面已启动过时再调一次是安全的。
             startup.ha_connector.start()
         except Exception as exc:
-            import logging as _logging
-
-            _logging.getLogger("homeos.app").warning("HA 连接器启动失败: %s", exc)
+            logger.warning("HA 连接器启动失败：%s", exc)
+            await _record_lifecycle_failure(
+                getattr(app.state, "global_log", None), "HA 连接器", f"HA 连接器启动失败: {exc}"
+            )
 
     # 商业授权：门禁自举（公钥取回 / 状态恢复 / 续租循环）。
     await startup.license_service.start()
@@ -1179,46 +1208,51 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
     loop_lag = getattr(app.state, "loop_lag", None)
+    event_log = getattr(app.state, "global_log", None)
+
+    async def shutdown(what: str, stopper: Callable[[], Awaitable[Any]]) -> None:
+        # 统一带上全局日志：停机失败既要进进程日志，也要让用户在「系统后台」看得到。
+        await _shutdown(what, stopper, event_log=event_log)
+
     if loop_lag is not None:
-        await _shutdown("事件循环延迟采样", loop_lag.stop)
-    await _shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
-    await _shutdown("授权服务", startup.license_service.stop)
-    await _shutdown("数据库保留调度", startup.database_retention.stop_schedule)
-    await _shutdown("外部 API", startup.external_api.stop)
+        await shutdown("事件循环延迟采样", loop_lag.stop)
+    await shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
+    await shutdown("授权服务", startup.license_service.stop)
+    await shutdown("数据库保留调度", startup.database_retention.stop_schedule)
+    await shutdown("外部 API", startup.external_api.stop)
     for service, label in (
         (startup.presence, "在场检测"),
         (startup.mmwave, "毫米波"),
         (startup.away_sim, "离家模拟"),
     ):
-        await _shutdown(label, service.stop)
-    await _shutdown("家庭模式", startup.home_mode.stop)
+        await shutdown(label, service.stop)
+    await shutdown("家庭模式", startup.home_mode.stop)
     proactive = getattr(app.state, "agent_proactive", None)
     if proactive is not None:
-        await _shutdown("主动管家", proactive.stop)
-    await _shutdown("通知", startup.notification.stop)
+        await shutdown("主动管家", proactive.stop)
+    await shutdown("通知", startup.notification.stop)
     for service, label in (
         (startup.catalog_notify, "目录通知"),
         (startup.eew_poll, "地震预警轮询"),
         (startup.earthquake, "地震服务"),
         (startup.eew_leader, "地震预警主节点"),
     ):
-        await _shutdown(label, service.stop)
+        await shutdown(label, service.stop)
     for service, label in (
         (startup.weather_watch, "天气监视"),
         (startup.advisor_usage, "顾问用量"),
     ):
-        await _shutdown(label, service.stop)
-    await _shutdown("HA 连接器", startup.ha_connector.stop)
-    await _shutdown("状态汇聚", startup.state_ingress_coalesce.close)
+        await shutdown(label, service.stop)
+    await shutdown("HA 连接器", startup.ha_connector.stop)
+    await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
     # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
     from ..api.ha_proxy import close_shared_media_clients
-    await _shutdown("媒体代理连接池", close_shared_media_clients)
-    await _shutdown("事件日志刷盘", startup.event_log_service.flush)
+    await shutdown("媒体代理连接池", close_shared_media_clients)
+    await shutdown("事件日志刷盘", startup.event_log_service.flush)
     # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志
     # 会滞留在内存队列里丢掉。
-    global_log = getattr(app.state, "global_log", None)
-    if global_log is not None:
-        await _shutdown("全局日志刷盘", lambda: asyncio.to_thread(global_log.close, 5.0))
+    if event_log is not None:
+        await shutdown("全局日志刷盘", lambda: asyncio.to_thread(event_log.close, 5.0))
     startup.auto_backup.stop()
     # 调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
     # 否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -385,6 +386,36 @@ class GlobalLogStore:
             # 只置位唤醒写线程：查询路径（list_events）会合并 pending，立即可见。
             self._wake.set()
         return event
+
+    async def append_async(
+        self,
+        level: str,
+        source: str,
+        category: str,
+        message: str,
+        *,
+        context: dict[str, Any] | None = None,
+        details: str | None = None,
+        client_timestamp: str | None = None,
+    ) -> dict[str, Any]:
+        """在事件循环里安全地写一条日志（把同步写入搬到线程池）。
+
+        - 用 ``asyncio.to_thread`` 而不是 ``run_in_executor``：前者会把当前
+          ``contextvars``（``event_context`` 里的请求 id / 会话）复制进线程，日志的关联
+          字段才不会丢；
+        - 不 ``create_task``：写入已经开始就让它写完（它持有锁）。取消一个正持锁的任务会
+          留下「锁没人释放」，而下一次写入会永久等下去。
+        """
+        return await asyncio.to_thread(
+            self.append,
+            level,
+            source,
+            category,
+            message,
+            context=context,
+            details=details,
+            client_timestamp=client_timestamp,
+        )
 
     def list_events(
         self,

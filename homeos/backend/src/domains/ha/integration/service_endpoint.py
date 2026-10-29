@@ -156,7 +156,7 @@ class HAEndpointMixin(HAConnectorHost):
             if previous is not None and previous.kind != reachable.kind:
                 switched_from = previous
         if switched_from is not None:
-            self._log_event(
+            await self._log_event(
                 'warning', '连接',
                 f'Home Assistant 已从{switched_from.label}切到{reachable.label}（{reachable.base_url}）',
             )

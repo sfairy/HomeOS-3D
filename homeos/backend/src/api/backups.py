@@ -301,7 +301,7 @@ async def restore_backup(
         await gate.cleanup_job_async(directory)
         await gate.prune_rollbacks_async()
         try:
-            request.app.state.global_log.append(
+            await request.app.state.global_log.append_async(
                 "success",
                 "系统后台",
                 "备份",

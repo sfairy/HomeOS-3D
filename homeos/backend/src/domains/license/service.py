@@ -31,6 +31,7 @@ from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
 from ...config import Settings
+from ...platform.core.async_work import durable_work
 from ...platform.core.database import Database
 from ...platform.core.models import LicenseState
 
@@ -227,6 +228,9 @@ class LicenseService:
         self._heartbeat_lock = asyncio.Lock()
         self._stop = asyncio.Event()
         self._schedule_changed = asyncio.Event()
+        #: 调度循环所在的事件循环。线程侧（``_state`` 在读盘线程里跑时）要唤醒调度
+        #: 只能走 ``call_soon_threadsafe``，因此必须记住这个引用，见 :meth:`_wake_schedule`。
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._cached_instance_id = None
         self._startup_validation_pending = False
         self._process_lock = LicenseProcessLock(settings.data_dir)
@@ -257,6 +261,59 @@ class LicenseService:
     def _rate_limit_remaining(self) -> float:
         return max(0.0, self._rate_limited_until - time.monotonic())
 
+    async def _run_local(self, function, *args, **kwargs):
+        """把**只读**的授权本地 IO 丢到线程池，别让 sqlite 读 / 密钥文件读占住事件循环。
+
+        用 ``asyncio.to_thread`` 而不是 ``run_in_executor``：前者会把当前 ``contextvars``
+        复制进线程，日志里的请求关联字段才不会丢。
+        """
+        return await asyncio.to_thread(function, *args, **kwargs)
+
+    async def _run_durable(self, function, *args, **kwargs):
+        """把**会写盘**的授权本地操作丢线程，并且取消时先等这次写入跑完。
+
+        取消一个 ``to_thread`` 只是「不再等」，线程仍在写：对凭据（实例标识、激活码、
+        租约）这类文件，半截写入比失败更糟 —— 下次启动会读到一份自相矛盾的状态。
+        ``durable_work`` 保证要么完整写完、要么完全没写，再把取消抛给调用方。
+        """
+        return await durable_work(function, *args, **kwargs)
+
+    def _wake_schedule(self) -> None:
+        """唤醒调度循环（可从任意线程调用）。
+
+        原先各处直接 ``self._schedule_changed.set()``：在事件循环里没问题，但
+        ``_state()`` 在读盘线程里跑时（见 :meth:`_activation_credentials`）也会走到
+        状态记录，那里从线程 ``set()`` 一个 ``asyncio.Event`` 不属于线程安全操作，
+        极端情况下会让调度循环错过唤醒、白等到下一个心跳周期。
+        """
+        loop = self._loop
+        if loop is None or loop.is_closed():
+            # 调度循环没起来（未配置授权服务器 / 已停机）：没有谁在等，直接置位即可。
+            self._schedule_changed.set()
+            return
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError as exc:
+            # 不在事件循环里（读盘线程调用）：这是**预期**路径，不是异常。
+            logger.debug("授权调度当前不在事件循环内：%s", exc)
+            running = None
+        if running is loop:
+            self._schedule_changed.set()
+            return
+        try:
+            loop.call_soon_threadsafe(self._schedule_changed.set)
+        except RuntimeError as exc:
+            # 循环在判定之后、投递之前关掉了：退化成直接置位，不往上抛。
+            logger.debug("授权调度循环已关闭，改为直接置位唤醒：%s", exc)
+            self._schedule_changed.set()
+
+    async def _credential_snapshot(self) -> tuple[bool, str | None, str]:
+        """一次性取出激活凭据快照（``(已授权, 加密激活码, 邮箱)``）。
+
+        同一操作里只读一次：多次读盘会让「刚被并发激活改掉」的字段混进同一个决策。
+        """
+        return await self._run_durable(self._activation_credentials)
+
     BINDING_CONFIRM_THROTTLE_SECONDS = 60.0
 
     def _binding_needs_confirm(self) -> bool:
@@ -277,7 +334,7 @@ class LicenseService:
         if not force and (now - self._last_binding_confirm_at) < self.BINDING_CONFIRM_THROTTLE_SECONDS:
             return
         self._last_binding_confirm_at = now
-        if not await asyncio.to_thread(self._binding_needs_confirm):
+        if not await self._run_local(self._binding_needs_confirm):
             return
         try:
             await self.heartbeat()
@@ -440,6 +497,19 @@ class LicenseService:
     async def start(self) -> None:
         if self._task is not None and not self._task.done():
             return
+        self._loop = asyncio.get_running_loop()
+        self._prepare_start()
+        if self._endpoint_pool.configured:
+            self._stop.clear()
+            self._task = asyncio.create_task(self._heartbeat_loop(), name='license-heartbeat')
+
+    def _prepare_start(self) -> None:
+        """启动准备：拿进程锁、读取并校验本地状态、算好首次尝试时刻。
+
+        与 :meth:`_prepare_manual_retry` 共用同一套「读状态 → 校验签名租约 → 记录状态」
+        口径：两条路径给出的 status 与 pending 标记必须一致，否则会出现「启动时不重试、
+        手动重试却立刻重试」这种自相矛盾。
+        """
         self._process_lock.acquire()
         with self.database.session_factory() as database:
             state = self._state(database)
@@ -453,13 +523,10 @@ class LicenseService:
             self._record_status('STARTUP_VALIDATION_REQUIRED' if self._startup_validation_pending else state.status)
         if self._startup_validation_pending:
             self._next_attempt = time.monotonic()
-        if self._endpoint_pool.configured:
-            self._stop.clear()
-            self._task = asyncio.create_task(self._heartbeat_loop(), name='license-heartbeat')
 
     async def stop(self) -> None:
         self._stop.set()
-        self._schedule_changed.set()
+        self._wake_schedule()
         tasks = [task for task in (self._task, self._retry_task) if task is not None]
         for task in tasks:
             task.cancel()
@@ -669,7 +736,7 @@ class LicenseService:
             self._next_attempt = None
             self._error_code = None
             self._success_generation += 1
-            self._schedule_changed.set()
+            self._wake_schedule()
             return self._payload(state)
 
     async def activate(self, activation_code: str, email: str | None = None, account_name: str | None = None) -> dict:
@@ -719,11 +786,11 @@ class LicenseService:
                 self._mark_instance_conflict(str(error))
             raise
         self._record_online_success('激活')
-        self._schedule_changed.set()
+        self._wake_schedule()
         return result
 
     async def reactivate(self, account_name: str | None = None) -> dict:
-        (licensed, encrypted_activation_code, email) = await asyncio.to_thread(self._activation_credentials)
+        (licensed, encrypted_activation_code, email) = await self._credential_snapshot()
         if not licensed:
             raise LicenseClientError(
                 '当前安装尚未激活，请填写激活码完成激活。',
@@ -834,14 +901,9 @@ class LicenseService:
             if generation != self._success_generation:
                 return self.status()
             with self.database.session_factory() as database:
-                state = self._state(database)
-                if state.status == 'CLOCK_ROLLBACK':
-                    state.status = 'ACTIVE'
-                    self._validate_saved_state(state, database)
-                if state.status in {'ACTIVE', 'LEASE_EXPIRED', 'CONNECTION_WARNING'}:
-                    self._validate_saved_state(state, database)
-                if state.status in TERMINAL_STATES - {'RECOVERY_REQUIRED', 'REMOTE_REJECTED'} or not state.license_id:
-                    return self._payload(state)
+                settled = self._prepare_manual_retry(database)
+            if settled is not None:
+                return settled
             self._endpoint_pool.retry_failed()
             try:
                 await self._recover_unlocked()
@@ -851,6 +913,22 @@ class LicenseService:
             finally:
                 self._manual_retry_after = time.monotonic() + 2
             return self.status()
+
+    def _prepare_manual_retry(self, database) -> dict | None:
+        """手动重试准备：先把「时钟回拨 / 租约过期」这类可自愈状态纠回来，再校验。
+
+        终态（除可重试的两个）或从未激活时返回当前 payload —— 调用方据此直接返回，
+        不再打一发注定失败的恢复请求。
+        """
+        state = self._state(database)
+        if state.status == 'CLOCK_ROLLBACK':
+            state.status = 'ACTIVE'
+            self._validate_saved_state(state, database)
+        if state.status in {'ACTIVE', 'LEASE_EXPIRED', 'CONNECTION_WARNING'}:
+            self._validate_saved_state(state, database)
+        if state.status in TERMINAL_STATES - {'RECOVERY_REQUIRED', 'REMOTE_REJECTED'} or not state.license_id:
+            return self._payload(state)
+        return None
 
     async def _recover_unlocked(self) -> dict:
         with self.database.session_factory() as database:
@@ -944,7 +1022,7 @@ class LicenseService:
         self._startup_validation_pending = False
         self._next_attempt = None
         self._record_status('REVOKED')
-        self._schedule_changed.set()
+        self._wake_schedule()
 
     def _mark_instance_conflict(self, message: str) -> None:
         with self.database.session_factory() as database:
@@ -955,7 +1033,7 @@ class LicenseService:
         self._error_code = 'INSTANCE_MISMATCH'
         self._next_attempt = None
         self._record_status('INSTANCE_MISMATCH', message[:200])
-        self._schedule_changed.set()
+        self._wake_schedule()
 
     def _mark_binding_released(self, message: str) -> None:
         with self.database.session_factory() as database:
@@ -967,7 +1045,7 @@ class LicenseService:
         self._error_code = 'INSTANCE_CHANGED'
         self._next_attempt = None
         self._record_status('INSTANCE_CHANGED', message[:200])
-        self._schedule_changed.set()
+        self._wake_schedule()
 
     def _mark_access_expired(self, message: str) -> None:
         """授权到期：不停自动重试、不清本地授权 —— 商店侧续费后下一次心跳即恢复。"""
@@ -982,7 +1060,7 @@ class LicenseService:
         self._startup_validation_pending = False
         self._next_attempt = time.monotonic() + LICENSE_RETRY_SECONDS
         self._record_status('ACCESS_EXPIRED', message[:200])
-        self._schedule_changed.set()
+        self._wake_schedule()
 
     def _mark_failure(self, error: Exception) -> None:
         message = str(error)
@@ -1028,7 +1106,7 @@ class LicenseService:
         self._error_code = code
         self._next_attempt = time.monotonic() + delay if retry else None
         self._startup_validation_pending = False
-        self._schedule_changed.set()
+        self._wake_schedule()
 
     @staticmethod
     def _heartbeat_wait_seconds(state: LicenseState, now: datetime | None = None) -> float | None:
@@ -1355,6 +1433,14 @@ class LicenseService:
         output = {key: result[key] for key in ('status', 'errorCode', 'retryable', 'canRetry', 'retrying', 'retryAttempt', 'nextRetryAt')}
         output['displayAllowed'] = self.allows('display')
         return output
+
+    async def status_async(self) -> dict:
+        """``status()`` 的线程版：sqlite 读取与签名校验都不占事件循环。"""
+        return await self._run_local(self.status)
+
+    async def availability_async(self) -> dict:
+        """``availability()`` 的线程版：这是匿名可打的公开接口，更不能在循环里读盘。"""
+        return await self._run_local(self.availability)
 
     def _verified_access(self, state: LicenseState, feature: str | None = None) -> bool:
         """重新校验签名租约，而不是信任可变的 SQLite 状态字段。"""

@@ -190,7 +190,7 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
         raise
     finally:
         await connector.restart()
-    request.app.state.global_log.append('warning', 'Home Assistant', '连接', 'Home Assistant 连接配置已删除')
+    await request.app.state.global_log.append_async('warning', 'Home Assistant', '连接', 'Home Assistant 连接配置已删除')
 
 
 @router.post('/test')
@@ -372,7 +372,7 @@ def _update_connection_row(
         connection.encrypted_access_token = connector.cipher.encrypt(connection_input.access_token)
 
 
-def _log_connection_address_change(
+async def _log_connection_address_change(
     request: Request,
     connection_input: HAConnectionInput,
     previous_addresses: tuple[str, str | None] | None,
@@ -383,7 +383,7 @@ def _log_connection_address_change(
         return
     previous_label = addresses_label(*previous_addresses)
     current_label = addresses_label(connection.base_url, connection.external_base_url)
-    request.app.state.global_log.append(
+    await request.app.state.global_log.append_async(
         'warning',
         'Home Assistant',
         '连接',
@@ -393,18 +393,18 @@ def _log_connection_address_change(
     )
 
 
-def _log_connection_endpoint_warnings(
+async def _log_connection_endpoint_warnings(
     request: Request, test_results: list[dict[str, Any]], connection: HAConnection
 ) -> None:
     """保存成功后记录不可达备用地址与整体成功日志。"""
     if [probe_entry for probe_entry in test_results if not probe_entry['ok']]:
-        request.app.state.global_log.append(
+        await request.app.state.global_log.append_async(
             'warning',
             'Home Assistant',
             '连接',
             f'Home Assistant 连接已保存，但以下地址当前不通（将作为备用，不通时自动跳过）：{failed_endpoint_summary(test_results)}',
         )
-    request.app.state.global_log.append(
+    await request.app.state.global_log.append_async(
         'success',
         'Home Assistant',
         '连接',
@@ -445,8 +445,8 @@ async def save_connection(
 
     connection = await run_db(_persist_connection)
     await connector.restart()
-    _log_connection_address_change(request, command, previous_addresses, connection)
-    _log_connection_endpoint_warnings(request, test_results, connection)
+    await _log_connection_address_change(request, command, previous_addresses, connection)
+    await _log_connection_endpoint_warnings(request, test_results, connection)
     return {**connection_payload(connection, request), 'test': targets.tested, 'endpoints': test_results}
 
 
@@ -874,7 +874,7 @@ async def runtime_websocket(websocket: WebSocket) -> None:
     try:
         await _runtime_websocket(websocket, context)
     except Exception as error:
-        _runtime_log(
+        await _runtime_log(
             websocket,
             'error',
             f'实时连接异常：{error}',
@@ -886,7 +886,7 @@ async def runtime_websocket(websocket: WebSocket) -> None:
         event_context.reset(token)
 
 
-def _runtime_log(
+async def _runtime_log(
     websocket: WebSocket,
     level: str,
     message: str,
@@ -901,7 +901,7 @@ def _runtime_log(
             if context.get('displayId')
             else ('仪表盘编辑器' if context.get('actor') else '系统后台')
         )
-        log.append(level, source, '实时连接', message, context=context, details=details)
+        await log.append_async(level, source, '实时连接', message, context=context, details=details)
 
 
 async def _runtime_send_json(websocket: WebSocket, command: dict) -> None:
@@ -929,7 +929,7 @@ async def _runtime_close_with_log(
         'subscribe message required': '未收到有效的实体订阅消息',
         'too many entities': '订阅实体数量超过上限',
     }
-    _runtime_log(
+    await _runtime_log(
         websocket,
         'warning',
         f'实时连接已关闭：{close_explanations.get(reason, reason)}',
@@ -1048,7 +1048,7 @@ async def _runtime_subscribe_and_stream(
         try:
             await websocket.app.state.studio_ha.ensure_entity_states(entity_ids)
         except Exception:
-            _runtime_log(
+            await _runtime_log(
                 websocket,
                 'warning',
                 '实时连接初始状态补全失败，继续转发事件',
@@ -1144,14 +1144,14 @@ async def _runtime_run_until_closed(
             raise failure
     except WebSocketDisconnect as error:
         if error.code not in {1000, 1001, 1005}:
-            _runtime_log(
+            await _runtime_log(
                 websocket,
                 'warning',
                 '实时连接异常断开',
                 {**context, 'code': str(error.code), 'phase': 'disconnected'},
             )
     except TimeoutError:
-        _runtime_log(
+        await _runtime_log(
             websocket,
             'warning',
             '实时连接等待订阅超时',
@@ -1170,7 +1170,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     if viewer is None:
         return
     await websocket.accept()
-    _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
+    await _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
     subscription = _RuntimeSubscriptionState(websocket.app.state.studio_ha.state_hub.subscribe())
     # 授权与登录态在长连期间仍会变化：access_closed 记住「已经因为授权/登录问题关过连接」，
     # 之后所有发送一律短路，避免在关闭途中继续往外推数据。

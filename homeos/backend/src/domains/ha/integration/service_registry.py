@@ -244,7 +244,7 @@ class HARegistryMixin(HAConnectorHost):
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            self._log_event('error', '实体同步', f'Home Assistant 实体目录刷新失败：{error}', details = traceback.format_exc())
+            await self._log_event('error', '实体同步', f'Home Assistant 实体目录刷新失败：{error}', details = traceback.format_exc())
             LOGGER.error('Home Assistant 实体目录刷新失败\n%s', _safe_text(traceback.format_exc(), limit = 12000))
         finally:
             current = self._registry_refresh_tasks.get(connection_id)

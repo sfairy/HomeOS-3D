@@ -107,6 +107,9 @@
       } catch { /* 非法 URL / 编码：按原值继续（不因脏输入中断流程） */ }
       return normalizedPath
         .split(/[?#]/, 1)[0]
+        // 嵌入会话令牌是 43 位 base64url（与后端 embed session 长度一致），它本身就是凭证：
+        // 落进日志等于把别人家的看板入口写进自己的日志库，必须先抹掉再走其它规则。
+        .replace(/\/embed\/[A-Za-z0-9_-]{43}(?=\/|$)/g, "/embed/[session]")
         .replace(/(\/api\/hls\/)[^/]+(?:\/.*)?/gi, "$1[stream]")
         .replace(/[A-Z0-9.!#$%&'*+=^_`{|}~-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)+/gi, "[email redacted]")
         .replace(/\b(?:eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g, "[redacted]")
@@ -117,6 +120,7 @@
   }
   function redactSensitive(rawText: any, maxLength = 1000) {
     return String(rawText ?? "")
+      .replace(/\/embed\/[A-Za-z0-9_-]{43}(?=\/|$)/g, "/embed/[session]")
       .replace(
         /(\b(?:set-cookie|cookie)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\r\n]+)/gi,
         "$1[redacted]",
@@ -159,11 +163,71 @@
           ? "登录与初始化页面"
           : "仪表盘编辑器";
   }
+  /**
+   * 事件目标 / 传播路径上的节点名：window 与 document 会退化成 `[object Window]`，
+   * 元素则优先用 tagName —— 日志里要看的是「img 还是 link 挂了」，不是构造函数名。
+   */
+  function resolveEventTargetName(eventTarget: EventTarget | null | undefined) {
+    const namedTarget = eventTarget as (EventTarget & { tagName?: string }) | null | undefined;
+    return eventTarget === bridgeWindow
+      ? "window"
+      : eventTarget && eventTarget === bridgeWindow.document
+        ? "document"
+        : namedTarget
+          ? String(
+              namedTarget.tagName || Object.prototype.toString.call(namedTarget).slice(8, -1),
+            ).toLowerCase()
+          : "unknown";
+  }
   function buildEventDetails(errorEvent: ErrorEvent, eventTarget = "window") {
     const detailLines = [
       `\u4E8B\u4EF6\u7C7B\u578B\uFF1A${errorEvent.type || "error"}`,
       `\u4E8B\u4EF6\u76EE\u6807\uFF1A${eventTarget}`,
     ];
+    /**
+     * 这一批字段是 0.8.2 新增的：`error` 事件在**没有 message / filename** 时（CSP 拦下的
+     * 行内 style、被扩展改写的资源节点等）日志只剩一句「未提供异常信息」，事后无法判断
+     * 事件到底从哪来。接口名 / 是否浏览器生成 / 传播阶段 / 是否冒泡 / 传播路径 / message 与
+     * error 字段的有无，这几条组合起来足以把「谁发的、发到谁身上」定下来。
+     */
+    detailLines.push(
+      `\u4E8B\u4EF6\u63A5\u53E3\uFF1A${Object.prototype.toString.call(errorEvent).slice(8, -1)}`,
+    );
+    typeof errorEvent.isTrusted == "boolean" &&
+      detailLines.push(
+        `\u6D4F\u89C8\u5668\u751F\u6210\u4E8B\u4EF6\uFF1A${errorEvent.isTrusted ? "\u662F" : "\u5426"}`,
+      );
+    const eventPhaseLabelMap: Record<number, string> = {
+      1: "\u6355\u83B7",
+      2: "\u76EE\u6807",
+      3: "\u5192\u6CE1",
+    };
+    eventPhaseLabelMap[errorEvent.eventPhase] &&
+      detailLines.push(
+        `\u4E8B\u4EF6\u4F20\u64AD\u9636\u6BB5\uFF1A${eventPhaseLabelMap[errorEvent.eventPhase]}`,
+      );
+    typeof errorEvent.bubbles == "boolean" &&
+      detailLines.push(
+        `\u4E8B\u4EF6\u53EF\u5192\u6CE1\uFF1A${errorEvent.bubbles ? "\u662F" : "\u5426"}`,
+      );
+    if (typeof errorEvent.composedPath == "function")
+      try {
+        const composedPath = errorEvent.composedPath().slice(0, 6).map(resolveEventTargetName);
+        composedPath.length &&
+          detailLines.push(
+            `\u4E8B\u4EF6\u4F20\u64AD\u8DEF\u5F84\uFF1A${composedPath.join(" \u2192 ")}`,
+          );
+      } catch { /* composedPath 可被宿主环境拒绝（跨源 / 已销毁文档）：拿不到路径就跳过这一条 */ }
+    detailLines.push(
+      `\u9519\u8BEF\u6D88\u606F\u5B57\u6BB5\uFF1A${
+        typeof errorEvent.message == "string"
+          ? errorEvent.message
+            ? "\u6709\u5185\u5BB9"
+            : "\u7A7A"
+          : "\u672A\u63D0\u4F9B"
+      }`,
+      `\u539F\u59CB\u5F02\u5E38\u5B57\u6BB5\uFF1A${errorEvent.error == null ? "\u672A\u63D0\u4F9B" : "\u6709\u5185\u5BB9"}`,
+    );
     (bridgeWindow.document?.readyState &&
       detailLines.push(`\u9875\u9762\u72B6\u6001\uFF1A${bridgeWindow.document.readyState}`),
       bridgeWindow.document?.visibilityState &&

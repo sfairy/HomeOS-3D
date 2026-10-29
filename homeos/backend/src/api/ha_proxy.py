@@ -290,7 +290,7 @@ def _schedule_camera_snapshot_refresh(key: str, target: str, headers: Mapping[st
     return
 
 
-def _camera_stream_log(
+async def _camera_stream_log(
     request: Request,
     level: str,
     message: str,
@@ -321,7 +321,9 @@ def _camera_stream_log(
     started = getattr(state, 'camera_stream_started_at', None)
     if started is not None:
         context['durationMs'] = round((monotonic() - started) * 1000, 1)
-    log.append(level, 'Home Assistant', '摄像头', message, context=context, details=details)
+    await log.append_async(
+        level, 'Home Assistant', '摄像头', message, context=context, details=details
+    )
 
 
 async def open_licensed_camera_stream(
@@ -392,7 +394,7 @@ async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> 
     """逐帧复检授权；响应侧另外负责取消静默读取与卡住的发送。"""
     iterator = cast(_ClosableAsyncStream, upstream.aiter_raw().__aiter__())
     if not await _camera_license_allows(request):
-        _camera_stream_log(
+        await _camera_stream_log(
             request,
             'warning',
             '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
@@ -410,7 +412,7 @@ async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> 
                     await iterator.aclose()
                 break
             if not await _camera_license_allows(request):
-                _camera_stream_log(
+                await _camera_stream_log(
                     request,
                     'warning',
                     '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
@@ -422,7 +424,7 @@ async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> 
             if chunk:
                 yield chunk
     except Exception as error:
-        _camera_stream_log(
+        await _camera_stream_log(
             request,
             'error',
             f'摄像头持续传输失败：{type(error).__name__} · {error}',
@@ -485,7 +487,7 @@ class LicensedCameraStreamingResponse(StreamingResponse):
                 while await _camera_license_allows(self.request):
                     await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
                 restricted = True
-                _camera_stream_log(
+                await _camera_stream_log(
                     self.request,
                     'warning',
                     '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',

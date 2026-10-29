@@ -22,7 +22,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
@@ -76,13 +75,13 @@ async def get_status(request: Request, user: CurrentUser) -> dict[str, Any]:
         await service.confirm_binding(force=False)
     except LicenseClientError:
         pass
-    return await asyncio.to_thread(service.status)
+    return await service.status_async()
 
 
 @router.get("/availability")
 async def get_availability(request: Request) -> dict[str, Any]:
     """公开的授权可用性：脱敏状态 + 门禁布尔（匿名可读）。"""
-    payload = _service(request).availability()
+    payload = await _service(request).availability_async()
     payload.update(_gating_flags(request))
     return payload
 
