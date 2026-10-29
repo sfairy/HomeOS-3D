@@ -1,5 +1,13 @@
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.1/RoundedBoxGeometry.js";
 import { applyReviewedShells } from "../scene/studio-reviewed-shells";
+import {
+  AIRER_PLATE_HOLE_RADIUS,
+  AIRER_PLATE_WIDTH,
+  airerPlateScale,
+  singleAirerPlateHoleOffsets,
+} from "./studio-airer-plate";
+
+export { singleAirerPlateHoleOffsets };
 
 type AirerDimensionOptions = {
   elevation?: unknown;
@@ -69,6 +77,51 @@ function createSingleAirerModel(three: any, airerConfig: any, palette: any) {
     movingRack,
   );
   ((rail.rotation.z = Math.PI / 2), (rail.name = "rack-rail"));
+  // 开孔挂板：1.9 × 0.06 的圆角长条，21 个 Ø0.015 的孔，挤出 0.014 后绕 X 轴立起来。
+  // 宽度不做逐孔重排，按 width/1.9 整体缩放（上游同口径）。
+  const plateShape = new three.Shape(),
+    plateWidth = AIRER_PLATE_WIDTH,
+    plateHeight = 0.06,
+    plateCorner = 0.008;
+  (plateShape.moveTo(-plateWidth / 2 + plateCorner, -plateHeight / 2),
+    plateShape.lineTo(plateWidth / 2 - plateCorner, -plateHeight / 2),
+    plateShape.quadraticCurveTo(plateWidth / 2, -plateHeight / 2, plateWidth / 2, -plateHeight / 2 + plateCorner),
+    plateShape.lineTo(plateWidth / 2, plateHeight / 2 - plateCorner),
+    plateShape.quadraticCurveTo(plateWidth / 2, plateHeight / 2, plateWidth / 2 - plateCorner, plateHeight / 2),
+    plateShape.lineTo(-plateWidth / 2 + plateCorner, plateHeight / 2),
+    plateShape.quadraticCurveTo(-plateWidth / 2, plateHeight / 2, -plateWidth / 2, plateHeight / 2 - plateCorner),
+    plateShape.lineTo(-plateWidth / 2, -plateHeight / 2 + plateCorner),
+    plateShape.quadraticCurveTo(-plateWidth / 2, -plateHeight / 2, -plateWidth / 2 + plateCorner, -plateHeight / 2));
+  for (const holeOffset of singleAirerPlateHoleOffsets()) {
+    const holePath = new three.Path();
+    (holePath.absarc(holeOffset, 0, AIRER_PLATE_HOLE_RADIUS, 0, Math.PI * 2, true), plateShape.holes.push(holePath));
+  }
+  const plateGeometry = new three.ExtrudeGeometry(plateShape, {
+      depth: 0.014,
+      bevelEnabled: false,
+      curveSegments: 5,
+      steps: 1,
+    }),
+    platePositions = plateGeometry.attributes.position,
+    plateIndex: number[] = [];
+  // ExtrudeGeometry 是非索引几何：只把面积不为 0 的三角形写进索引，退化三角形会让
+  // 阴影/法线出现黑点。上游 `I()` 走的是同一条判定。
+  for (let vertexIndex = 0; vertexIndex < platePositions.count; vertexIndex += 3) {
+    const firstCorner = new three.Vector3().fromBufferAttribute(platePositions, vertexIndex),
+      secondCorner = new three.Vector3()
+        .fromBufferAttribute(platePositions, vertexIndex + 1)
+        .sub(firstCorner),
+      thirdCorner = new three.Vector3()
+        .fromBufferAttribute(platePositions, vertexIndex + 2)
+        .sub(firstCorner);
+    secondCorner.cross(thirdCorner).lengthSq() > 1e-20 &&
+      plateIndex.push(vertexIndex, vertexIndex + 1, vertexIndex + 2);
+  }
+  (plateGeometry.setIndex(plateIndex),
+    plateGeometry.rotateX(Math.PI / 2),
+    (plateGeometry.name = "rack-plate"));
+  const plateMesh = addMesh(plateGeometry, "body", movingRack);
+  plateMesh.scale.x = airerPlateScale(dimensions.width);
   for (const side of [-1, 1])
     addMesh(new RoundedBoxGeometry(0.05, 0.05, 0.05, 2, 0.01), "soft", movingRack).position.set(
       side * dimensions.width * 0.42,

@@ -310,6 +310,71 @@ export function createStateUpdatePlanner() {
     },
   };
 }
+/**
+ * 设备状态渲染 memo（0.8.1 `createDeviceStateMemo`）。
+ *
+ * 舞台每来一批设备状态都要重跑「外观应用」（窗帘姿态、风扇转速、充电桩灯光…），
+ * 但绝大多数批次只改动了别的实体。这里按 `key`（某个 sync 器）+ `context`（根节点 /
+ * revision / 配置对象）缓存上一次的绑定与实体 id：
+ *
+ * - context 变了 → 重新解析绑定，不能复用旧 id；
+ * - context 没变且 `states` 还是同一个对象 → 直接跳过；
+ * - context 没变时逐个比对**该设备绑定到的实体**状态，全等就跳过，并把新的 `states`
+ *   记下来（下一次比对的基准）；
+ * - 只有确实需要重绘才调 `apply(bindings)`。
+ */
+export function createDeviceStateMemo() {
+  const memoByKey = new Map<
+    object,
+    { context: unknown[]; states: unknown; bindings: unknown; ids: Set<string> }
+  >();
+  const readState = (states: unknown, entityId: string) =>
+    states instanceof Map
+      ? states.get(entityId)
+      : (states as Record<string, unknown> | null | undefined)?.[entityId];
+  return {
+    run<T>(
+      key: object,
+      context: readonly unknown[],
+      states: unknown,
+      resolveBindings: () => T,
+      apply: (bindings: T) => void,
+    ) {
+      const cached = memoByKey.get(key),
+        isSameContext = !!(
+          cached &&
+          context.length === cached.context.length &&
+          context.every((value, index) => value === cached.context[index])
+        );
+      if (isSameContext && cached.states === states) return false;
+      const bindings = isSameContext ? (cached.bindings as T) : resolveBindings(),
+        entityIdSet: Set<string> = isSameContext
+          ? cached.ids
+          : (boundEntityIds(bindings) as Set<string>);
+      if (
+        isSameContext &&
+        [...entityIdSet].every((entityId) => readState(cached.states, entityId) === readState(states, entityId))
+      ) {
+        cached.states = states;
+        return false;
+      }
+      return (
+        apply(bindings),
+        memoByKey.set(key, {
+          context: [...context],
+          states: states,
+          bindings: bindings,
+          ids: entityIdSet,
+        }),
+        true
+      );
+    },
+    invalidate() {
+      memoByKey.clear();
+    },
+  };
+}
+
 function buildStateUpdatePlan(boundBindings: any, update: any) {
   if (!update || typeof update != "object" || Array.isArray(update)) return null;
   const changedKeySet = new Set(Object.keys(update)),

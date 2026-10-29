@@ -1,4 +1,5 @@
 
+import { createDeviceStateMemo } from "./state-update-plan";
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
 import { createAnimationVisibility as createAnimationVisibility2 } from "./animation-work";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
@@ -1654,6 +1655,7 @@ export function mountStage(mountOptions: any) {
     },
     isVisible: (speakerModel: any) => animationVisibility.visible(speakerModel, { reflected: true }),
   });
+  const deviceStateMemo = createDeviceStateMemo();
   function syncStartupDeviceLayers() {
     if (ctx.startupProgress > 0) return;
     syncNasOverlay();
@@ -1667,26 +1669,49 @@ export function mountStage(mountOptions: any) {
       ctx.startupDeviceSyncSnapshot.source === document4 &&
       ctx.startupDeviceSyncSnapshot.config === ctx.options &&
       ctx.startupDeviceSyncSnapshot.states === ctx.deviceStates) ||
-      (carCharging.sync({
-        root: modelRoot4,
-        revision: environmentRevision,
-        retainedRoots: mountOptions.retainedModelRoots || [],
-        bindings: ctx.options.devices?.cars || [],
-        states: ctx.deviceStates,
-      }),
-      airerMotion.sync({
-        root: modelRoot4,
-        revision: environmentRevision,
-        bindings: collectCoverBindings().filter((airerSyncBinding) => airerSyncBinding.airer),
-        states: ctx.deviceStates,
-        preparing: true,
-      }),
-      fanMotion.sync({
-        root: modelRoot4,
-        revision: environmentRevision,
-        bindings: ctx.options.environment?.fans || [],
-        states: ctx.deviceStates,
-      }),
+      // 逐 sync 器缓存「绑定 + 其实体状态」：状态批次里只有别的实体变了就不必重跑外观。
+      // context 带上根节点 / revision / 配置对象，重建后不会误用旧绑定。
+      (deviceStateMemo.run(
+        carCharging,
+        [modelRoot4, environmentRevision, ctx.options],
+        ctx.deviceStates,
+        () => ctx.options.devices?.cars || [],
+        (carBindings: Parameters<typeof carCharging.sync>[0]["bindings"]) =>
+          carCharging.sync({
+            root: modelRoot4,
+            revision: environmentRevision,
+            retainedRoots: mountOptions.retainedModelRoots || [],
+            bindings: carBindings,
+            states: ctx.deviceStates,
+          }),
+      ),
+      deviceStateMemo.run(
+        airerMotion,
+        [modelRoot4, environmentRevision, ctx.options],
+        ctx.deviceStates,
+        () => collectCoverBindings().filter((airerSyncBinding) => airerSyncBinding.airer),
+        (airerBindings: Parameters<typeof airerMotion.sync>[0]["bindings"]) =>
+          airerMotion.sync({
+            root: modelRoot4,
+            revision: environmentRevision,
+            bindings: airerBindings,
+            states: ctx.deviceStates,
+            preparing: true,
+          }),
+      ),
+      deviceStateMemo.run(
+        fanMotion,
+        [modelRoot4, environmentRevision, ctx.options],
+        ctx.deviceStates,
+        () => ctx.options.environment?.fans || [],
+        (fanBindings: Parameters<typeof fanMotion.sync>[0]["bindings"]) =>
+          fanMotion.sync({
+            root: modelRoot4,
+            revision: environmentRevision,
+            bindings: fanBindings,
+            states: ctx.deviceStates,
+          }),
+      ),
       (ctx.startupDeviceSyncSnapshot = {
         root: modelRoot4,
         revision: sceneRevision4,

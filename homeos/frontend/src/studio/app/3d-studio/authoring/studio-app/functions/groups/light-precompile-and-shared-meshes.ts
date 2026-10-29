@@ -877,8 +877,10 @@ export function scheduleExternalPrecompile(runtime: StudioAppRuntime, initialDel
             sg2.forEach((materialToCache: any) => runtime.disposedMaterialSet.add(materialToCache as object)),
             (runtime.appCtx.externalPrecompilePassCount += 1),
             (runtime.appCtx.threeRenderer.domElement.dataset.externalPrecompileState = "ready"));
-        } catch {
-          runtime.appCtx.threeRenderer.domElement.dataset.externalPrecompileState = "fallback";
+        } catch (precompileError) {
+          // 静默回退会让「模型发黑/首帧卡顿」无从排查：上游这里会向 HABridge 报一条 warning。
+          (runtime.appCtx.threeRenderer.domElement.dataset.externalPrecompileState = "fallback"),
+            console.warn("外部模型预编译失败，已回退到逐帧编译。", precompileError);
         } finally {
           ((runtime.appCtx.isRendererUnavailable = false),
             runtime.updateExternalModelDataset(),

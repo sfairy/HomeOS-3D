@@ -36,6 +36,16 @@ const pavingOrWaterBaseSet = new Set([
     "garden-round-planter",
     "garden-large-planter",
   ]);
+//: 庭院构件的材质角色顺序（0.8.1 导出常量）：GLB 里的 `-garden-<n>` 后缀是下标。
+export const COURTYARD_ROLES = Object.freeze([
+  "base",
+  "light",
+  "dark",
+  "leaf",
+  "water",
+  "accent",
+]);
+
 export const COURTYARD_VARIANT_BASES = Object.freeze({
   "garden-tree-rounded": "garden-tree",
   "garden-tree-columnar": "garden-tree",

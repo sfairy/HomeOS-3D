@@ -1,4 +1,5 @@
 /** mountStage handler clusters — wired via explicit host from stage.ts */
+import { resolveRuntimeFloor } from "./floor-navigation";
 import { bathHeaterState as bathHeaterState2 } from "../../bath-heater/bath-heater";
 import { purifierState as purifierState2 } from "../../purifier/purifier-state";
 import { carState as carState2 } from "../../vehicle/car-state";
@@ -1616,11 +1617,8 @@ export function createHandleHostMessage(host: StageHandlersHost) {
             ),
           ));
         const floorSelection =
-          host.mountOptions.document.floors.some(
-            (configuredFloorEntry: any) => configuredFloorEntry.id === host.options.floorSelection,
-          ) || host.options.floorSelection === "all"
-            ? host.options.floorSelection
-            : host.mountOptions.document.floors[0].id;
+          resolveRuntimeFloor(host.mountOptions.document.floors, host.options.floorSelection) ||
+          host.mountOptions.document.floors[0].id;
         (host.isEditing || (floorSelection === "all" && (host.activeModule = "overview")),
           host.selectedFloorId !== floorSelection
             ? (host.stopVacuumFollow(false),

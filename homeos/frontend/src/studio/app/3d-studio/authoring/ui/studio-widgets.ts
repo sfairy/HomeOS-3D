@@ -1,3 +1,10 @@
+import {
+  editNumberText,
+  numberEditValue,
+  rememberNumberValue,
+  steppedNumber,
+} from "../studio-edit-metrics";
+
 const selectRecordsBySelect = new Map();
 let openSelectRecord: any = null;
 function closeStudioSelect(recordToClose = openSelectRecord) {
@@ -166,11 +173,30 @@ function enhanceNumberInput(numberInput: any) {
       (stepButton.className = "number-stepper-button number-stepper-" + stepDirection),
       stepButton.setAttribute("aria-label", stepLabel),
       (stepButton.title = stepLabel));
+    // 自己做算术而不是 stepUp()/stepDown()：原生实现在「输入框被清空」「值越界」
+    // 「step 非法」时会抛异常，之前直接 return false，用户点 ± 完全没反应。
+    // 空值以 min（无 min 时 0）起算，结果夹在 [min, max] 内再格式化回输入框。
     const performStep = () => {
       if (numberInput.disabled || numberInput.readOnly) return false;
       const previousInputValue = numberInput.value;
       try {
-        stepDirection === "up" ? numberInput.stepUp() : numberInput.stepDown();
+        const minimumValue = numberInput.min === "" ? -Infinity : Number(numberInput.min),
+          maximumValue = numberInput.max === "" ? Infinity : Number(numberInput.max),
+          currentValue =
+            numberInput.value === ""
+              ? Number.isFinite(minimumValue)
+                ? minimumValue
+                : 0
+              : numberEditValue(numberInput),
+          nextValue = steppedNumber(
+            currentValue,
+            Number(numberInput.step) || 1,
+            stepDirection === "up" ? 1 : -1,
+            minimumValue,
+            maximumValue,
+          );
+        if (nextValue === null) return false;
+        ((numberInput.value = editNumberText(nextValue)), rememberNumberValue(numberInput, nextValue));
       } catch {
         return false;
       }

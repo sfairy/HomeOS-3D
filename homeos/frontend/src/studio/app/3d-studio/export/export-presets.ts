@@ -1,3 +1,5 @@
+//: 新建户型时的存档数量：4 个刚好铺满一行，再多用户就得横向滚动。
+export const DEFAULT_EXPORT_PRESET_COUNT = 4;
 export const MAX_EXPORT_PRESET_COUNT = 8;
 const allowedFileKindSet = new Set([
   "background",
@@ -110,8 +112,8 @@ export function normalizeExportPreset(sourcePreset: any) {
 export function normalizeExportPresetSlots(sourceSlots: any) {
   const slotCandidates = Array.isArray(sourceSlots) ? sourceSlots : [],
     slotCount = Array.isArray(sourceSlots)
-      ? Math.max(1, Math.min(8, slotCandidates.length || 1))
-      : 4;
+      ? Math.max(1, Math.min(MAX_EXPORT_PRESET_COUNT, slotCandidates.length || 1))
+      : DEFAULT_EXPORT_PRESET_COUNT;
   return Array.from(
     {
       length: slotCount,
@@ -119,9 +121,15 @@ export function normalizeExportPresetSlots(sourceSlots: any) {
     (_slotEntry, slotIndex) => normalizeExportPreset(slotCandidates[slotIndex]),
   );
 }
-export function normalizeActiveExportPresetSlot(activeSlotInput: any, totalSlotCount = 4) {
+export function normalizeActiveExportPresetSlot(
+  activeSlotInput: unknown,
+  totalSlotCount = DEFAULT_EXPORT_PRESET_COUNT,
+) {
   const activeSlotIndex = Number(activeSlotInput),
-    boundedSlotCount = Math.max(1, Math.min(8, Number(totalSlotCount) || 4));
+    boundedSlotCount = Math.max(
+      1,
+      Math.min(MAX_EXPORT_PRESET_COUNT, Number(totalSlotCount) || DEFAULT_EXPORT_PRESET_COUNT),
+    );
   return Number.isInteger(activeSlotIndex) &&
     activeSlotIndex >= 0 &&
     activeSlotIndex < boundedSlotCount
@@ -132,3 +140,19 @@ export function exportPresetIsEmpty(candidatePreset: any, hasPendingValue = fals
   return !normalizeExportPreset(candidatePreset) && !hasPendingValue;
 }
 
+/**
+ * 存档摘要：`1920×1080 · 全楼合并 · 透视`（上游同名导出的语义）。
+ *
+ * 楼名来自调用方给的 `floorNameById`；楼层被改过名或删掉时回落「楼层已变更」，
+ * 而不是显示一个已经不存在的名字。
+ */
+export function exportPresetSummary(candidatePreset: any, floorNameById = new Map()) {
+  const normalizedPreset = normalizeExportPreset(candidatePreset);
+  if (!normalizedPreset) return "未设置";
+  const floorLabel =
+      normalizedPreset.floorMode === "all"
+        ? "全楼合并"
+        : floorNameById.get(normalizedPreset.floorId) || "楼层已变更",
+    cameraLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
+  return `${normalizedPreset.width}×${normalizedPreset.height} · ${floorLabel} · ${cameraLabel}`;
+}

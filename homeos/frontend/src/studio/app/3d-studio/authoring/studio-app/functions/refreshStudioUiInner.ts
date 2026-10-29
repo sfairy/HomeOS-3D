@@ -1,5 +1,7 @@
 import {
+  editNumberText,
   itemDimensionPolicy as itemDimensionPolicy2,
+  rememberNumberValue,
 } from "../../studio-edit-metrics";
 
 
@@ -106,6 +108,15 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
         controlValue,
         shouldClearActiveElement ? null : document.activeElement,
       ),
+    /**
+     * 数字输入框回写（0.8.1 `v1275`）：显示文本统一走 `editNumberText`（最多 6 位小数、
+     * 去掉尾随 0），同时把「显示文本 → 数值」记进 memo，± 步进才能接着算，
+     * 而不是重新解析被格式化过的字符串（0.30000000000000004 就是这么来的）。
+     */
+    setNumericControlValue = (controlElement: HTMLInputElement, numericValue: number) => {
+      setControlValue(controlElement, editNumberText(numericValue));
+      rememberNumberValue(controlElement, numericValue);
+    },
     at4 = getSelectedObject(),
     selectionCount = appCtx.selectedItems.length;
   if (
@@ -172,8 +183,8 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
           selectElement("#wall-length"),
           wallLengthMeters2(at4, getPixelsPerMeter() || 1).toFixed(2) + " m",
         ),
-        setControlValue(selectElement("#wall-height"), at4.height.toFixed(2)),
-        setControlValue(selectElement("#wall-thickness"), at4.thickness.toFixed(2)));
+        setNumericControlValue(selectElement("#wall-height"), at4.height),
+        setNumericControlValue(selectElement("#wall-thickness"), at4.thickness));
       const customWallOpacity =
         at4.opacity === null || at4.opacity === undefined
           ? null
@@ -192,9 +203,9 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
     } else {
       if (appCtx.selectedItem.kind === "window")
         ((selectElement("#selection-title").textContent = "窗户"),
-          setControlValue(selectElement("#window-width"), at4.width.toFixed(2)),
-          setControlValue(selectElement("#window-height"), at4.height.toFixed(2)),
-          setControlValue(selectElement("#window-sill"), at4.sill.toFixed(2)),
+          setNumericControlValue(selectElement("#window-width"), at4.width),
+          setNumericControlValue(selectElement("#window-height"), at4.height),
+          setNumericControlValue(selectElement("#window-sill"), at4.sill),
           (selectElement("#window-divider").value = at4.hasDivider === false ? "without" : "with"),
           syncStudioSelect2(selectElement("#window-divider")),
           setControlValue(selectElement("#window-position"), Math.round(at4.t * 100) + "%"));
@@ -213,8 +224,8 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
             } as any)[at4.doorType] || "普通平开门"),
             (selectElement("#door-type").value = at4.doorType || "solid"),
             syncStudioSelect2(selectElement("#door-type")),
-            setControlValue(selectElement("#door-width"), at4.width.toFixed(2)),
-            setControlValue(selectElement("#door-height"), at4.height.toFixed(2)),
+            setNumericControlValue(selectElement("#door-width"), at4.width),
+            setNumericControlValue(selectElement("#door-height"), at4.height),
             setControlValue(selectElement("#door-position"), Math.round(at4.t * 100) + "%"),
             (selectElement(".door-actions").hidden = at4.doorType === "frame-only"),
             (selectElement("#door-hinge").hidden = [
@@ -238,8 +249,8 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
         else {
           if (appCtx.selectedItem.kind === "railing")
             ((selectElement("#selection-title").textContent = "玻璃栏杆"),
-              setControlValue(selectElement("#railing-width"), at4.width.toFixed(2)),
-              setControlValue(selectElement("#railing-height"), at4.height.toFixed(2)),
+              setNumericControlValue(selectElement("#railing-width"), at4.width),
+              setNumericControlValue(selectElement("#railing-height"), at4.height),
               setControlValue(selectElement("#railing-position"), Math.round(at4.t * 100) + "%"));
           else {
             const itemTypeDefinition = (itemTypeCatalog as any)[at4.type],
@@ -294,13 +305,13 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               at4.type === "fan")
             ) {
               const fanDimensions = fanDimensions2(at4);
-              (setControlValue(
+              (setNumericControlValue(
                 selectElement("#fan-model-scale"),
-                String(Math.round(fanDimensions.fanScale * 100)),
+                fanDimensions.fanScale * 100,
               ),
-                setControlValue(
+                setNumericControlValue(
                   selectElement("#fan-model-height"),
-                  fanDimensions.fanHeight.toFixed(2),
+                  fanDimensions.fanHeight,
                 ));
             }
             for (const itemDimensionInput of [
@@ -534,13 +545,13 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               at4.type === "striplight" &&
                 ((selectElement("#strip-axis").value = normalizeStripAxis2(at4.stripAxis)),
                 syncStudioSelect2(selectElement("#strip-axis"))),
-              setControlValue(
+              setNumericControlValue(
                 selectElement("#item-x"),
-                (at4.x / (getPixelsPerMeter() || 1)).toFixed(2),
+                at4.x / (getPixelsPerMeter() || 1),
               ),
-              setControlValue(
+              setNumericControlValue(
                 selectElement("#item-y"),
-                (at4.y / (getPixelsPerMeter() || 1)).toFixed(2),
+                at4.y / (getPixelsPerMeter() || 1),
               ));
             const dimensionPolicy = itemDimensionPolicy2(at4.type),
               dimensionDecimals = dimensionPolicy.digits;
@@ -550,20 +561,14 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
             ])
               ((footprintInput.min = String(itemMinimumFootprint2(at4.type))),
                 (footprintInput.step = String(dimensionPolicy.widthStep)));
-            (setControlValue(selectElement("#item-width"), at4.width.toFixed(dimensionDecimals)),
+            (setNumericControlValue(selectElement("#item-width"), at4.width),
               (itemHeightLabelElement.textContent = pillarIsLying2(at4) ? "长（m）" : "高（m）"),
               (selectElement("#item-height").min = String(itemMinimumHeight2(at4.type))),
               (selectElement("#item-height").step = String(dimensionPolicy.heightStep)),
-              setControlValue(
-                selectElement("#item-height"),
-                at4.type === "rug" ? at4.height.toFixed(3) : at4.height.toFixed(dimensionDecimals),
-              ),
-              setControlValue(selectElement("#item-depth"), at4.depth.toFixed(dimensionDecimals)),
-              setControlValue(selectElement("#item-elevation"), (at4.elevation || 0).toFixed(2)),
-              setControlValue(
-                selectElement("#item-rotation"),
-                Math.round(at4.rotation * 100) / 100,
-              ));
+              setNumericControlValue(selectElement("#item-height"), at4.height),
+              setNumericControlValue(selectElement("#item-depth"), at4.depth),
+              setNumericControlValue(selectElement("#item-elevation"), at4.elevation || 0),
+              setNumericControlValue(selectElement("#item-rotation"), at4.rotation));
           }
         }
       }

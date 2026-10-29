@@ -7,6 +7,7 @@
  * `externalModelRegistry`（外部模型注册表），按参数显式传入 —— 其余依赖都是 import。
  */
 
+import { isVehicleModelType } from "../items/studio-vehicle-models";
 import { MATERIAL_STYLE_AUTO, normalizeMaterialStyle } from "../../materials/studio-material-presets";
 import { airerDimensions as airerDimensions2 } from "../items/studio-airer";
 import { clamp as clamp2, distance as distance2 } from "../../plan/geometry";
@@ -390,7 +391,7 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                   : ensureDefaultLightGroup(rawItemRecord?.lightGroup || "默认灯组").id
                 : "",
               tvScreenIndex = rawItemRecord?.type === "tv" ? ++tvScreenCount : 0,
-              vehicleChargingIndex = ["smallcar", "suv", "scooter"].includes(rawItemRecord?.type)
+              vehicleChargingIndex = isVehicleModelType(rawItemRecord?.type)
                 ? ++vehicleChargingCount
                 : 0;
             return {
@@ -512,7 +513,7 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                       : "standard",
                   }
                 : {}),
-              ...(["smallcar", "suv", "scooter"].includes(rawItemRecord?.type)
+              ...(isVehicleModelType(rawItemRecord?.type)
                 ? {
                     chargingEnabled: rawItemRecord?.chargingEnabled === true,
                     chargingLayerName: normalizeLabelText2(

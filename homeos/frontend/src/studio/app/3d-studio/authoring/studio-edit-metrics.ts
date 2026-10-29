@@ -54,3 +54,46 @@ export function itemDimensionPolicy(itemType: string, isPlanLabel = false): Item
   };
 }
 
+
+/**
+ * 数字输入框的步进与显示（0.8.1 `studio-edit-metrics` 新增）。
+ *
+ * 原生 `input.stepUp()` 在「值为空 / 越界 / step 非法」时**抛异常**，之前这里直接
+ * `return false`，用户把输入框清空后再点 ± 就完全没反应。上游改成自己做算术：
+ * 空值按 `min`（无 min 时 0）起算，结果夹在 `[min, max]` 内，再格式化回输入框。
+ */
+
+/** 记住「显示文本 → 数值」的对应关系；`display` 变了说明用户改过，不能再用缓存值。 */
+const rememberedNumberValues = new WeakMap<object, { value: number; display: string }>();
+
+/** 输入框显示用的数字文本：最多 6 位小数，去掉多余的 0。 */
+export function editNumberText(value: unknown) {
+  return String(Number(Number(value).toFixed(6)));
+}
+
+/** 在 `value` 上走 `direction` 步（`step × direction`），夹在 `[minValue, maxValue]` 内。 */
+export function steppedNumber(
+  value: number,
+  step: number,
+  direction: number,
+  minValue = -Infinity,
+  maxValue = Infinity,
+) {
+  if (!Number.isFinite(value) || !(step > 0)) return null;
+  const steppedValue = Number((value + direction * step).toFixed(12));
+  return Math.min(maxValue, Math.max(minValue, steppedValue));
+}
+
+/** 记下「当前显示文本对应哪个数值」，供下一次步进接着算（而不是重新解析被格式化过的文本）。 */
+export function rememberNumberValue(input: { value: string } | null | undefined, value: number) {
+  if (input && Number.isFinite(value))
+    rememberedNumberValues.set(input, { value: value, display: input.value });
+}
+
+/** 输入框当前值：显示文本没变过就用记住的数值，否则按用户输入重新解析。 */
+export function numberEditValue(input: { value: string } | null | undefined) {
+  const remembered = input ? rememberedNumberValues.get(input) : undefined;
+  return remembered && remembered.display === input?.value
+    ? remembered.value
+    : Number(input?.value);
+}

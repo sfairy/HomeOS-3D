@@ -4,6 +4,7 @@
  * 从 `runtime/core/stage.ts` 的 `mountStage()` 闭包切出，依赖袋 `StageRefreshDeps`。
  */
 
+import { resolveRuntimeFloor } from "./floor-navigation";
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from "../../device/generic-device-catalog";
 import { buildMetadata } from "./build-metadata";
 import { expandGroupMembers, postHostMessage } from "./_shared";
@@ -567,12 +568,10 @@ export async function adoptSceneUpdateCore(deps: StageRefreshDeps, sceneUpdateIn
       (deps.mountOptions.setFloorGap?.(deps.baseStageConfig.floorGap),
         deps.mountOptions.setUniformOverviewStack?.(deps.baseStageConfig.uniformOverviewStack));
       const floorSelection2 = deps.pendingFloorId || deps.baseStageConfig.floorSelection,
+        // 单层户型不接受 "all"：否则会停在全屋总览，用户找不到唯一的楼层。
         resolvedFloorId =
-          deps.mountOptions.document.floors.some(
-            (resolvedFloorEntry: any) => resolvedFloorEntry.id === floorSelection2,
-          ) || floorSelection2 === "all"
-            ? floorSelection2
-            : deps.mountOptions.document.floors[0].id;
+          resolveRuntimeFloor(deps.mountOptions.document.floors, floorSelection2) ||
+          deps.mountOptions.document.floors[0].id;
       (deps.pendingFloorId && (deps.pendingFloorId = resolvedFloorId),
         (deps.options = deps.buildFloorCameraConfig({
           ...deps.baseStageConfig,
