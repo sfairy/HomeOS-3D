@@ -45,7 +45,8 @@ function parseArgs(argv) {
     if (argv[i] === "--version") versions.push(argv[++i]);
     else if (argv[i] === "--only") only = argv[++i];
   }
-  return { versions: versions.length ? versions : ["0.8.0", "0.8.1"], only };
+  // 默认比对「上一次移植的基线」与「本次目标版本」。
+  return { versions: versions.length ? versions : ["0.8.1", "0.8.2"], only };
 }
 
 /**
