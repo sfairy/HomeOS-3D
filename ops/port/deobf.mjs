@@ -2,14 +2,14 @@
 /**
  * 把上游发行树（`源代码/<ver>/`）整体还原成可读副本，落到 `.port-cache/<ver>/`。
  *
- * 为什么先落盘而不是边比边还原：差异清单要跨版本对照（0.8.0 vs 0.8.1），而混淆后的
+ * 为什么先落盘而不是边比边还原：差异清单要跨版本对照（0.8.1 vs 0.8.2），而混淆后的
  * 文本连「改没改」都看不出来；先各自还原成一份稳定产物，后面的清单、遗漏复查、报告
  * 全部基于这两份副本，口径只定义一次。
  *
  * 用法：
- *   node ops/port/deobf.mjs --version 0.8.1            # 前端 JS + 后端 Python
- *   node ops/port/deobf.mjs --version 0.8.1 --only 3d-studio
- *   node ops/port/deobf.mjs --version 0.8.0 --version 0.8.1   # 两版一起跑
+ *   node ops/port/deobf.mjs --version 0.8.2            # 前端 JS + 后端 Python
+ *   node ops/port/deobf.mjs --version 0.8.2 --only 3d-studio
+ *   node ops/port/deobf.mjs --version 0.8.1 --version 0.8.2   # 两版一起跑
  *
  * 产物目录结构镜像上游：`.port-cache/<ver>/frontend/...`、`.port-cache/<ver>/backend/...`。
  * 非 JS/Python 文件（CSS/HTML/JSON/GLB）原样复制，保证副本可直接对照上游目录树。

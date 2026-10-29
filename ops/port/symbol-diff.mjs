@@ -11,7 +11,7 @@
  * 不看位置、只看有没有 —— 位置由 project-map 负责，本项目允许拆文件与改名。
  * 命中的判定：原样名 / 大驼峰 / 短横线 三种写法任一出现即算命中。
  *
- * 用法：node ops/port/symbol-diff.mjs [--version 0.8.1] [--prev 0.8.0]
+ * 用法：node ops/port/symbol-diff.mjs [--version 0.8.2] [--prev 0.8.1]
  * 产物：docs/port/<version>/symbol-gap.json
  */
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -24,8 +24,8 @@ const arg = (flag, fallback) => {
   const index = process.argv.indexOf(flag);
   return index >= 0 ? process.argv[index + 1] : fallback;
 };
-const VERSION = arg("--version", "0.8.1");
-const PREV_VERSION = arg("--prev", "0.8.0");
+const VERSION = arg("--version", "0.8.2");
+const PREV_VERSION = arg("--prev", "0.8.1");
 
 const CACHE = join(ROOT, ".port-cache");
 const FRONTEND_ROOT = join(ROOT, "homeos/frontend");

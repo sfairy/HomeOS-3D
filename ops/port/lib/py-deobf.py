@@ -11,8 +11,8 @@
 需要重建的地方必须人（或 agent）对照反汇编写，不能猜。
 
 用法：
-    python3 ops/port/lib/py-deobf.py --version 0.8.1
-    python3 ops/port/lib/py-deobf.py --version 0.8.1 --only dependencies
+    python3 ops/port/lib/py-deobf.py --version 0.8.2
+    python3 ops/port/lib/py-deobf.py --version 0.8.2 --only dependencies
 
 输出：``.port-cache/<ver>/backend/**/*.py``（镜像上游相对路径），
 不完整模块额外输出 ``<name>.das``，以及 ``.port-cache/<ver>/backend/_deobf-report.json``。

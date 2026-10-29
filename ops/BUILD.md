@@ -99,7 +99,7 @@ Vite 的 `build` 已经产出压缩产物：删注释、删类型、局部变量
 `pip install setuptools` 这类裸写法会让同一份源码随时间装出不同产物，而 `setuptools` 一收
 `setuptools.command.*` 的兼容面，就会让 `ops/docker/compile_python.py` 直接编不过。
 
-不传 `--build-arg HOMEOS_VERSION=0.8.0` 时，构建阶段会自己从 `package.json` 读版本号
+不传 `--build-arg HOMEOS_VERSION=0.8.2` 时，构建阶段会自己从 `package.json` 读版本号
 （镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ## 拉不动 Docker Hub / 要用私有仓库

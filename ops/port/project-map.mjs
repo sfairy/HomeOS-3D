@@ -18,8 +18,8 @@
  * `authoring/scene/studio-floor-lights.ts`），所以 overridden 与 structural 两张表是必需的：
  * 它们把「已移植但改名」和「确认不做」从 missing 里摘出去，剩下的 missing 才有审计价值。
  *
- * 用法：node ops/port/project-map.mjs [--version 0.8.1]
- * 产物：docs/port/0.8.1/project-map.json
+ * 用法：node ops/port/project-map.mjs [--version 0.8.2]
+ * 产物：docs/port/<version>/project-map.json
  */
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../..");
-const VERSION = process.argv.includes("--version") ? process.argv[process.argv.indexOf("--version") + 1] : "0.8.1";
+const VERSION = process.argv.includes("--version") ? process.argv[process.argv.indexOf("--version") + 1] : "0.8.2";
 
 const UPSTREAM = join(ROOT, "源代码", VERSION, "frontend");
 /** 落点相对这个目录；`src/studio/...` 与 `public/static/...` 都写在这个前缀下。 */
