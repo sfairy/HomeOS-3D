@@ -35,8 +35,8 @@ ARG CYTHON_VERSION=3.3.0
 #: pip 大版本也会改依赖解析与元数据校验口径）。
 #: 升级方式：改这里的默认值 —— 四个值都在构建日志里可见，且被
 #: 构建期 pip 工具必须写成 `name==版本`，避免随时间装出不同产物。
-ARG PIP_VERSION=26.2.1
-ARG SETUPTOOLS_VERSION=84.0.0
+ARG PIP_VERSION=26.2.2
+ARG SETUPTOOLS_VERSION=84.2.1
 
 # ─── 主应用内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
 # 只有 app 运行镜像需要它（商店不提供 HTTPS，见下方 store 阶段），所以不放进 base，

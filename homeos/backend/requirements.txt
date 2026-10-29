@@ -9,16 +9,16 @@
 # 无需额外驱动。本地开发 `pip install -r requirements.txt`。
 # 版本下限已于 2026-10 对齐 PyPI 最新稳定版（与 homeos-store 的区间取齐）。
 
-fastapi>=0.143.3
+fastapi>=0.162.0
 uvicorn[standard]>=0.54.0
 python-socketio>=5.17.0
-msgpack>=1.2.3
+msgpack>=1.2.4
 pydantic>=2.14.1
 python-multipart>=0.0.32
-sqlalchemy>=2.1.5
+sqlalchemy>=2.1.6
 httpx>=0.28.1
 # HA 实时订阅需要较新的 websockets API。
-websockets>=17.2
+websockets>=17.3
 PyJWT>=2.15.1
 argon2-cffi>=25.1.0
 pyotp>=2.10.0
@@ -29,7 +29,7 @@ qrcode>=8.2
 python-dotenv>=1.2.4
 # HA 走 SOCKS 代理时 websockets 必需（websockets 17 不再提供 extras，只能单独装）。
 # 3.x 已发布稳定版：websockets 的 SOCKS 探测用的是同一套 asyncio 接口。
-python-socks[asyncio]>=3.1.1
+python-socks[asyncio]>=3.2.0
 # 图片素材缩放/缩略图与 interaction3d 渲染缓存。
 Pillow>=13.0.0
 # HEIC/HEIF 解码（素材上传；由 Pillow 注册 opener）。

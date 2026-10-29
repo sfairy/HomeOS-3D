@@ -9,5 +9,5 @@
 # 注意：类型检查**没有** `bun run` 入口（自定义门禁已拆除）。直接跑仓库根的
 # `.venv-store/bin/basedpyright`（配置见根 pyrightconfig.json）。
 
-ruff>=0.17.1
+ruff>=0.17.3
 pyright>=1.1.414

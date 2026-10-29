@@ -4,13 +4,13 @@
 # `homeos/backend/requirements.txt` 合并解析出的精确版本 + sha256 锁，由
 # `python3 ops/ci/python_lock.py generate` 生成。改动本文件后必须重新生成锁，否则
 # 改动不会进镜像（CI 的 checks 工作流会比对指纹并拦住这种漂移）。
-fastapi>=0.143.3
+fastapi>=0.162.0
 uvicorn>=0.54.0
-sqlalchemy>=2.1.5
+sqlalchemy>=2.1.6
 cryptography>=50.0.2
 pydantic>=2.14.1
 httpx>=0.28.1
-websockets>=17.2
+websockets>=17.3
 Pillow>=13.0.0
 # 不要加 jinja2：商店页面由 backend/src/api/pages.py 直接 read_text 下发、占位符在前端填，
 # 代码里没有任何 jinja2 引用（FastAPI 只在 standard / all extras 下才需要它，
