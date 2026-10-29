@@ -239,3 +239,36 @@ test('dispose 撤掉全部代理并把 renderer.render 还原', () => {
     'dispose 后原网格必须可见，否则页面会空掉',
   )
 })
+
+test('预热只烘焙几何、不挂代理；cancelPrewarm 停止扫描', () => {
+  const harness = createHarness({
+    floors: 2,
+    batches: { getStaticRevision: () => 'rev-1', sliceMs: 100 },
+  })
+  const { batches, scene, driver } = harness
+  batches.prepare(harness.root, 'rev-1')
+  // 预热靠遍历原始网格收集候选，必须在 `begin()` 隐藏原网格之前跑。
+  batches.prewarm([harness.root], 'rev-1')
+  driver.pump()
+
+  assert.ok(batches.stats.warmScans >= 1, '应当真的扫过楼层根')
+  assert.ok(batches.stats.warmReady >= 1, '应当有分组被烘进缓存')
+  assert.equal(
+    named(scene, 'prepared-static-parts').length,
+    0,
+    '预热不能生成代理：代理只在 begin() 里按当前视锥挂载',
+  )
+
+  const scansAfterWarm = batches.stats.warmScans
+  batches.prewarm([harness.root], 'rev-2')
+  batches.cancelPrewarm()
+  driver.pump()
+  assert.equal(batches.stats.warmScans, scansAfterWarm, '取消后不应再推进扫描')
+  assert.equal(batches.stats.pending, 0, '取消后不应留下分片任务')
+
+  batches.dispose()
+  const scansAfterDispose = batches.stats.warmScans
+  batches.prewarm([harness.root], 'rev-3')
+  driver.pump()
+  assert.equal(batches.stats.warmScans, scansAfterDispose, 'dispose 后预热必须是空操作')
+})

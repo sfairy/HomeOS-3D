@@ -107,6 +107,28 @@ test('选中高亮：空选中返回 null；灯带按「非灯光」放大作用
     }),
     'items',
   )
+  // 洞口 / 排气扇的选中高亮都牵动整层。
+  assert.equal(
+    selectionPreviewScope([{ id: 'o1', kind: 'item' }], [{ id: 'o1', type: 'flooropening' }], options),
+    'all',
+  )
+  assert.equal(
+    selectionPreviewScope([{ id: 'e1', kind: 'item' }], [{ id: 'e1', type: 'exhaust-fan' }], options),
+    'all',
+  )
+  // 纯庭院选中沿用庭院档；庭院混灯光则整屏。
+  assert.equal(
+    selectionPreviewScope([{ id: 'fence', kind: 'item' }], [{ id: 'fence', type: 'sofa' }], options),
+    'architecture',
+  )
+  assert.equal(
+    selectionPreviewScope(
+      [{ id: 'fence', kind: 'item' }, { id: 'l1', kind: 'item' }],
+      [{ id: 'fence', type: 'sofa' }, { id: 'l1', type: 'spotlight' }],
+      options,
+    ),
+    'all',
+  )
 })
 
 test('历史对比：内容完全相同 → none，且键顺序不影响判定', () => {

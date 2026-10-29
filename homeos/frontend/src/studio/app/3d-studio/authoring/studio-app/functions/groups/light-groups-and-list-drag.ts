@@ -10,6 +10,8 @@ import type { ListDragRowSession } from "../../../types/studio-app-types";
 import { generateId } from "../../../ui/studio-app-helpers";
 import { resolveListDragDrop } from "../../../ui/studio-list-drag-drop";
 import { classifyLightingScope } from "../../ui/lighting-scope";
+import { itemPreviewScope, selectionPreviewScope } from "../../../scene/studio-preview-scope";
+import type { PreviewScopeOptions } from "../../../scene/studio-preview-scope";
 
 export function getLightGroups(runtime: StudioAppRuntime, ) {
   const lightGroups = runtime.appCtx.studioState.lightGroups || (runtime.appCtx.studioState.lightGroups = []);
@@ -845,52 +847,28 @@ export function getDefaultSelectionScope(runtime: StudioAppRuntime, ) {
     : "all";
 }
 
+/**
+ * 预览作用域的注入项：判定函数本身住在纯模块 `studio-preview-scope` 里，这里只负责把
+ * 「灯类集合 / 庭院判定 / 庭院作用域」这些运行时依赖喂进去。
+ */
+export function previewScopeOptions(runtime: StudioAppRuntime): PreviewScopeOptions {
+  return {
+    lightTypes: lampItemTypeSet,
+    courtyardScope: () => runtime.getDefaultSelectionScope(),
+    isCourtyardItem: (scopeItem) =>
+      Boolean(isCourtyardDrawing2(scopeItem) || isCourtyardGate2(scopeItem)),
+  };
+}
+
 export function resolvePreviewScope(runtime: StudioAppRuntime, scopeItem: any) {
-  return scopeItem?.type === "flooropening"
-    ? "all"
-    : isCourtyardDrawing2(scopeItem) || isCourtyardGate2(scopeItem)
-      ? runtime.getDefaultSelectionScope()
-      : lampItemTypeSet.has(scopeItem?.type)
-        ? "lights"
-        : "items";
+  return itemPreviewScope(scopeItem, previewScopeOptions(runtime));
 }
 
 export function classifySelectionScope(runtime: StudioAppRuntime, selectionList: any) {
-  if (
-    selectionList.length &&
-    selectionList.every((archElementSelection: any) =>
-      ["door", "window", "railing"].includes(archElementSelection.kind),
-    )
-  )
-    return "architecture";
-  if (
-    !selectionList.length ||
-    selectionList.some((nonItemSelection: any) => nonItemSelection.kind !== "item")
-  )
-    return "all";
-  const selectedIdSet = new Set(selectionList.map((selectionIdEntry: any) => selectionIdEntry.id)),
-    scopedSelectedItems = runtime.appCtx.studioState.items.filter((selectedItemRef) =>
-      selectedIdSet.has(selectedItemRef.id),
-    );
-  if (
-    !scopedSelectedItems.length ||
-    scopedSelectedItems.some((floorOpeningItem) => floorOpeningItem.type === "flooropening")
-  )
-    return "all";
-  if (
-    scopedSelectedItems.some(
-      (courtyardItem) => isCourtyardDrawing2(courtyardItem) || isCourtyardGate2(courtyardItem),
-    )
-  )
-    return scopedSelectedItems.some((lampSelectedItem) =>
-      lampItemTypeSet.has(lampSelectedItem.type),
-    )
-      ? "all"
-      : runtime.getDefaultSelectionScope();
-  const lampCount = scopedSelectedItems.filter((lampCountItem) =>
-    lampItemTypeSet.has(lampCountItem.type),
-  ).length;
-  return lampCount === scopedSelectedItems.length ? "lights" : lampCount === 0 ? "items" : "all";
+  return (
+    selectionPreviewScope(selectionList, runtime.appCtx.studioState.items, previewScopeOptions(runtime)) ??
+    "all"
+  );
 }
 
 export function getCurrentPreviewScope(runtime: StudioAppRuntime, ) {

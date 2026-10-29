@@ -170,12 +170,15 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       reusedFloors: 0,
     };
   const disposeRetainedNode = (releaseEntry: any) => {
-      (ctx.floorRetentionService?.releaseRoot?.(releaseEntry.node, {
-        dispose: true,
-      }),
-        appCtx.regionLightController?.releaseRoot?.(releaseEntry.node),
-        disposeObjectTree(releaseEntry.node));
-    },
+    // 被释放的楼层节点会从场景树里摘掉，正在扫它的预热任务必须立刻停：
+    // 否则生成器会继续遍历一棵已经 dispose 的树，把几何烘进缓存却永远不会被挂载。
+    deps.interactionBatches?.cancelPrewarm?.();
+    (ctx.floorRetentionService?.releaseRoot?.(releaseEntry.node, {
+      dispose: true,
+    }),
+      appCtx.regionLightController?.releaseRoot?.(releaseEntry.node),
+      disposeObjectTree(releaseEntry.node));
+  },
     trimRetainedFloors = (keepKeySet: any = null) => {
       keepKeySet || ctx.cacheEpoch++;
       for (const [retainedKey, retainedEntry] of retainedFloorsByKey)
@@ -1648,6 +1651,12 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             appCtx.sceneRootNode,
             appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey,
           ),
+          // 预热必须在 `begin()` 之前：`begin()` 会隐藏原始网格并挂上代理，
+          // 而预热是靠遍历原始网格来收集候选的（隐藏了就会被判定为不可见）。
+          deps.interactionBatches.prewarm(
+            collectInteractionFloorRoots(),
+            appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey,
+          ),
           deps.interactionBatches.begin(renderArgs[2]),
           (isRenderLoopPerformanceDiagnostics || isRenderStatsTest) &&
             (appCtx.threeRenderer.domElement.dataset.interactionBatchStats = JSON.stringify(
@@ -1693,6 +1702,15 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       !appCtx.pendingRuntimeSettings &&
       new URLSearchParams(window.location.search).get("interaction-batches") !== "baseline"
     );
+  }
+  /** 预热的目标：每层一个根节点（总览模式下是 `sceneRootNode` 下带 `floorId` 的子节点）。 */
+  function collectInteractionFloorRoots() {
+    const sceneRoot = appCtx.sceneRootNode;
+    if (!sceneRoot) return [];
+    const floorRoots = sceneRoot.children.filter((child: { userData?: { floorId?: unknown } }) =>
+      Boolean(child?.userData?.floorId),
+    );
+    return floorRoots.length ? floorRoots : [sceneRoot];
   }
   deps.interactionBatches = createInteractionBatches2({
     THREE: ns2,

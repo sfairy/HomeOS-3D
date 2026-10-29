@@ -17,6 +17,9 @@ import type { SceneSyncOutcome } from "../../../store/scene-sync-controller";
 import { StudioSaveStore } from "../../../store/save-store";
 import type { FlushResult, SaveStoreState } from "../../../store/save-store";
 import { refreshStepChecklist } from "../../ui/step-checklist";
+import { historyChangePreviewScope, itemPreviewScope } from "../../../scene/studio-preview-scope";
+import type { PreviewScope } from "../../../scene/studio-preview-scope";
+import { previewScopeOptions } from "./light-groups-and-list-drag";
 
 export function hideStudioReadonlyBanner(runtime: StudioAppRuntime, ): void {
   if (runtime.studioReadonlyBannerElement) runtime.studioReadonlyBannerElement.hidden = true;
@@ -460,6 +463,9 @@ export async function applyStudioHistoryDirection(runtime: StudioAppRuntime, dir
     return;
   }
   runtime.pendingHistoryScene = null;
+  // 补丁是在 `undo()` / `redo()` 内部就地应用的，所以「改前」必须提前拍快照，
+  // 否则撤销重做只能保守地整屏重建（`historyChangePreviewScope` 需要前后两份场景）。
+  const previousScene = captureHistoryScene(runtime);
   const historyResult = direction === "undo" ? historyStore.undo() : historyStore.redo();
   if (!historyResult.ok) {
     if (historyResult.reason !== "empty")
@@ -467,8 +473,19 @@ export async function applyStudioHistoryDirection(runtime: StudioAppRuntime, dir
     runtime.syncStudioHistoryFacade();
     return;
   }
-  runtime.refreshAfterHistoryChange(historyResult.entry.patch);
+  runtime.refreshAfterHistoryChange(historyResult.entry.patch, previousScene);
   runtime.syncStudioHistoryFacade();
+}
+
+/** 撤销 / 重做前的场景快照；克隆失败时返回 null，调用方退回整屏重建。 */
+function captureHistoryScene(runtime: StudioAppRuntime): Record<string, unknown> | null {
+  const scene = runtime.appCtx.studioState;
+  if (!scene) return null;
+  try {
+    return structuredClone(scene) as unknown as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 /** 补丁影响到的楼层 id（batch 递归展开），用于刷新楼层缩略图与楼层组。 */
@@ -532,8 +549,18 @@ export function canApplyHistoryPatch(runtime: StudioAppRuntime, documentPatch: D
   }
 }
 
-/** 历史补丁已就地改完文档，这里只同步运行时派生视图（活动楼层场景 / 旋转 / 预览 / 楼层组）。 */
-export function refreshAfterHistoryChange(runtime: StudioAppRuntime, documentPatch: DocumentPatch) {
+/**
+ * 历史补丁已就地改完文档，这里只同步运行时派生视图（活动楼层场景 / 旋转 / 预览 / 楼层组）。
+ *
+ * `previousScene` 是补丁应用**之前**的活动楼层场景快照。有了它就能按
+ * `historyChangePreviewScope` 精确决定重绘范围：只改备注 / 选择 → `'none'`，改了灯 → `'lights'`，
+ * 改了物品 → `'items'`；拿不到快照或判定不出来时退回 `'all'`（保守）。
+ */
+export function refreshAfterHistoryChange(
+  runtime: StudioAppRuntime,
+  documentPatch: DocumentPatch,
+  previousScene?: Record<string, unknown> | null,
+) {
   const affectedFloorIds = runtime.collectPatchFloorIds(documentPatch);
   const activeFloor = runtime.getActiveFloor();
   if (activeFloor && affectedFloorIds.has(activeFloor.id)) {
@@ -544,11 +571,29 @@ export function refreshAfterHistoryChange(runtime: StudioAppRuntime, documentPat
   (runtime.selectStudioTool("select"),
     runtime.refreshSelection(),
     runtime.refreshPreviewScene(),
-    runtime.refreshScopeItems(),
+    runtime.refreshScopeItems(resolveHistoryPreviewScope(runtime, previousScene)),
     void runtime.loadBackgroundImage(),
     runtime.syncFloorGroups(affectedFloorIds),
     runtime.renderFloorList(),
     runtime.markDocumentDirty());
+}
+
+/** 撤销 / 重做需要重绘的作用域；快照缺失或判定失败时保守返回 `'all'`。 */
+export function resolveHistoryPreviewScope(
+  runtime: StudioAppRuntime,
+  previousScene?: Record<string, unknown> | null,
+): PreviewScope {
+  const nextScene = runtime.appCtx.studioState as unknown as Record<string, unknown> | undefined;
+  if (!previousScene || !nextScene) return "all";
+  try {
+    const options = previewScopeOptions(runtime);
+    return historyChangePreviewScope(previousScene, nextScene, {
+      itemScope: (item) => itemPreviewScope(item, options),
+      selectionScope: () => runtime.getCurrentPreviewScope(),
+    });
+  } catch {
+    return "all";
+  }
 }
 
 export function validateSelectionChange(runtime: StudioAppRuntime, placementChange: any) {

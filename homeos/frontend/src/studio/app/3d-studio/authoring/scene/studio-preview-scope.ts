@@ -74,11 +74,18 @@ export function entriesPreviewScope(
   return lightItemCount === matchedItems.length ? "lights" : lightItemCount === 0 ? "items" : "all";
 }
 
+export interface SelectionScopeOptions extends Pick<PreviewScopeOptions, "lightTypes"> {
+  /** 庭院图元的判定与作用域；不传时按普通物品处理。 */
+  isCourtyardItem?: (item: SceneItemLike) => boolean;
+  courtyardScope?: () => PreviewScope;
+}
+
 export function selectionPreviewScope(
   selection: ReadonlyArray<SceneEntryLike>,
   items: ReadonlyArray<SceneItemLike>,
-  { lightTypes }: Pick<PreviewScopeOptions, "lightTypes">,
+  options: SelectionScopeOptions,
 ): PreviewScope | null {
+  const { lightTypes } = options;
   if (!selection.length) return null;
   if (
     selection.every((entry) => ["wall", ...ARCHITECTURE_ENTRY_KINDS].includes(String(entry.kind)))
@@ -88,6 +95,13 @@ export function selectionPreviewScope(
   const selectedIdSet = new Set(selection.map((entry) => entry.id)),
     matchedItems = items.filter((item) => selectedIdSet.has(item.id));
   if (!matchedItems.length) return null;
+  // 洞口与排气扇的高亮会牵动整层（墙体布尔 / 附着物），不能按类收窄。
+  if (matchedItems.some((item) => WHOLE_SCENE_ITEM_TYPES.includes(String(item.type)))) return "all";
+  // 庭院图元：混进任何非庭院物件就退回 `'all'`，全是庭院件时才用庭院档。
+  if (options.isCourtyardItem && matchedItems.some((item) => options.isCourtyardItem?.(item)))
+    return matchedItems.some((item) => lightTypes.has(String(item.type)))
+      ? "all"
+      : options.courtyardScope?.() ?? "items";
   // 灯带（`striplight`）的高亮会牵动相邻墙面，所以即使它不在 `lightTypes` 里也要计入
   // 高亮重绘（否则选中灯带时墙面高亮不刷新）。
   const highlightItems = matchedItems.filter(

@@ -508,7 +508,10 @@ export function applyPreviewTransforms(runtime: StudioAppRuntime,
   { preserveLightCache: shouldPreservePreviewLightCache, shadowRoot: previewShadowRoot }: any,
 ) {
   if (runtime.isEmbeddedStage || runtime.isEmbedStageMode || !runtime.appCtx.sceneRootNode) return false;
-  const movedTransforms = runtime.previewTransformCache.plan(runtime.appCtx.sceneRootNode, runtime.previewTransformContext());
+  const movedTransforms = runtime.previewTransformCache.planReplacements(
+    runtime.appCtx.sceneRootNode,
+    runtime.previewTransformContext(),
+  );
   if (!movedTransforms) return false;
   for (const { item: movedItem, group: movedGroup } of movedTransforms) {
     const world = worldMapper.toWorld(movedItem);
@@ -516,7 +519,7 @@ export function applyPreviewTransforms(runtime: StudioAppRuntime,
       applyItemOrientation(movedGroup, movedItem));
   }
   return (
-    runtime.previewTransformCache.commit(runtime.appCtx.sceneRootNode, movedTransforms),
+    runtime.previewTransformCache.commitReplacements(runtime.appCtx.sceneRootNode, movedTransforms),
     movedTransforms.length &&
       (runtime.setupSceneShadows(previewShadowRoot, {
         rebuildAtlas: !shouldPreservePreviewLightCache,
