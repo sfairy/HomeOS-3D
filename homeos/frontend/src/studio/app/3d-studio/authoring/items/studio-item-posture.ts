@@ -68,38 +68,138 @@ export function itemPlanFootprint(item: any) {
   };
 }
 
-/** 返回同一个物件，但把平面占位写进 width / depth，供整件级别的辅助函数使用。 */
-export function itemWithPlanFootprint(item: any) {
-  if (!itemFootprintSwapped(item)) {
+/**
+ * 平面占位 / 缩放只读到的物件字段子集。
+ *
+ * 这一族辅助函数只读 `type` / 姿态 / 摆放 / 尺寸，就用结构类型收口，不再新开宽松标注
+ * ——显式宽松类型有「只许变少」的棘轮门禁（`ops/checks/` 下的基线检查）。
+ */
+type PlanFootprintItem = {
+  type?: string;
+  pillarShape?: string;
+  pillarAxis?: string;
+  stripAxis?: string;
+  x?: number;
+  y?: number;
+  rotation?: number;
+  width?: number;
+  depth?: number;
+  height?: number;
+};
+
+/** 把「平面局部偏移」按摆放角度转到平面世界坐标（与 `rotateLocalPoint` 同口径）。 */
+function rotatePlanLocalOffset(item: PlanFootprintItem, localOffset: { x: number; y: number }) {
+  const rotationRad = ((Number(item?.rotation) || 0) * Math.PI) / 180;
+  if (!rotationRad) return { x: localOffset.x, y: localOffset.y };
+  const rotationCos = Math.cos(rotationRad),
+    rotationSin = Math.sin(rotationRad);
+  return {
+    x: localOffset.x * rotationCos - localOffset.y * rotationSin,
+    y: localOffset.x * rotationSin + localOffset.y * rotationCos,
+  };
+}
+
+/**
+ * 平面占位盒中心相对**摆放锚点**的局部偏移（米）。
+ *
+ * 半圆柱 / 四分之一圆柱的锚点是圆弧圆心（`scripts/models/recenter-pillar-arc.mjs`，
+ * 运行期 `preserveOrigin`），实体只朝 +x / +y（世界 +z）一侧长：半圆柱的占位盒中心在
+ * 直径面前半个进深处，四分之一圆柱在 +x / +y 方向各半个占位处。其余造型的锚点就是
+ * 占位中心，偏移为零。
+ *
+ * 选中框、角手柄、点选判定、框选与拖拽缩放都必须走这一份偏移，否则「框」和「形状」
+ * 差半个进深 —— 画面上就是选中后框歪在一边。
+ */
+export function itemPlanFootprintOffset(item: PlanFootprintItem) {
+  if (item?.type !== "pillar" || pillarIsLying(item)) return { x: 0, y: 0 };
+  const pillarShape = normalizePillarShape(item?.pillarShape);
+  if (pillarShape !== "semicircle" && pillarShape !== "quarter") return { x: 0, y: 0 };
+  const footprint = itemPlanFootprint(item);
+  return {
+    x: pillarShape === "quarter" ? footprint.width / 2 : 0,
+    y: footprint.depth / 2,
+  };
+}
+
+/**
+ * 平面占位盒中心（平面像素坐标 = `item.x / y` 的口径）。
+ *
+ * `item.x / y` 是**平面像素**，而偏移是**米**：这里必须乘 `pixelsPerMeter` 再相加。
+ * 少乘一次只会挪「1 像素 / 米」，框与形状就整体差半个进深 —— 手柄、点选、缩放全都
+ * 跟着错位，而且缩放时锚点会被写成框中心，每拖一次形状就跳走。
+ */
+export function itemPlanFootprintCenter(item: PlanFootprintItem, pixelsPerMeter: number) {
+  const anchorX = toFiniteNumber(item?.x, 0),
+    anchorY = toFiniteNumber(item?.y, 0),
+    localOffset = itemPlanFootprintOffset(item);
+  if (!localOffset.x && !localOffset.y) return { x: anchorX, y: anchorY };
+  const offsetScale = toFiniteNumber(pixelsPerMeter, 1) > 0 ? Number(pixelsPerMeter) : 1,
+    worldOffset = rotatePlanLocalOffset(item, localOffset);
+  return {
+    x: anchorX + worldOffset.x * offsetScale,
+    y: anchorY + worldOffset.y * offsetScale,
+  };
+}
+
+/**
+ * 返回**平面占位矩形**：宽 / 深按当前姿态换算，x / y 挪到占位盒中心。
+ *
+ * 注意 x / y 已不是摆放锚点：半圆柱 / 四分之一圆柱的锚点在圆弧圆心，占位盒整体偏出
+ * 半个进深。命中判定、框选、角手柄与拖拽缩放都按「框」工作，所以统一从这里取框。
+ */
+export function itemWithPlanFootprint(item: any, pixelsPerMeter: number) {
+  const footprint = itemPlanFootprint(item),
+    center = itemPlanFootprintCenter(item, pixelsPerMeter);
+  if (!itemFootprintSwapped(item) && center.x === item.x && center.y === item.y) {
     return item;
   }
-  const footprint = itemPlanFootprint(item);
   return {
     ...item,
     width: footprint.width,
     depth: footprint.depth,
+    x: center.x,
+    y: center.y,
   };
 }
 
-/** 把「按平面占位缩放」的结果换算回物件在当前姿态下的标准字段。 */
-export function itemFromPlanFootprintResize(item: any, resized: any) {
+/**
+ * 把「按平面占位缩放」的结果换算回物件在当前姿态下的标准字段（x / y 回到锚点）。
+ *
+ * `resized` 来自 `resizeRotatedItemFromCorner`，**只有 x / y / 宽 / 深**，没有造型与姿态
+ * 字段。所以偏移必须拿「原物件 + 新尺寸」合并后再算：直接用 `resized` 算，造型判不出来、
+ * 偏移恒为 0，锚点会被写成占位框中心 —— 半圆柱 / 四分之一圆柱每拖一次框就整体错开半个
+ * 占位（框还在原地，形状却跳走），四条角手柄也跟着离开指针。
+ */
+export function itemFromPlanFootprintResize(item: any, resized: any, pixelsPerMeter: number) {
+  // 先把「占位矩形」按当前姿态换回宽 / 深 / 高（躺姿立柱与立姿灯带的宽深要对调）。
+  let resizedItem = resized;
   if (pillarIsLying(item)) {
-
     const { height: ignoredHeight, ...rest } = resized;
-    return {
+    resizedItem = {
       ...rest,
       height: toFiniteNumber(resized?.depth, toFiniteNumber(item?.height, 0)),
       depth: toFiniteNumber(item?.depth, toFiniteNumber(resized?.depth, 0.1)),
     };
-  }
-  if (stripIsStanding(item)) {
-    return {
+  } else if (stripIsStanding(item)) {
+    resizedItem = {
       ...resized,
+      // 立姿灯带的平面「宽」就是灯带长度（`item.height`），平面「深」才是 `item.depth`；
+      // 灯的自身厚度 `item.width` 不由平面框驱动。把 height 抄回旧值会让左右拖动完全失效。
       width: toFiniteNumber(item?.width, 0),
-      height: toFiniteNumber(item?.height, 0),
+      height: toFiniteNumber(resized?.width, toFiniteNumber(item?.height, 0)),
     };
   }
-  return resized;
+  const footprintItem = { ...item, ...resizedItem },
+    localOffset = itemPlanFootprintOffset(footprintItem);
+  if (!localOffset.x && !localOffset.y) return resizedItem;
+  // `resized.x / y` 是新的占位盒中心（平面像素），减掉新占位盒的偏移（米 × ppm）才是锚点。
+  const offsetScale = toFiniteNumber(pixelsPerMeter, 1) > 0 ? Number(pixelsPerMeter) : 1,
+    worldOffset = rotatePlanLocalOffset(footprintItem, localOffset);
+  return {
+    ...resizedItem,
+    x: toFiniteNumber(resized?.x, resizedItem.x) - worldOffset.x * offsetScale,
+    y: toFiniteNumber(resized?.y, resizedItem.y) - worldOffset.y * offsetScale,
+  };
 }
 
 /** 为立柱轮廓描一段弧。 */

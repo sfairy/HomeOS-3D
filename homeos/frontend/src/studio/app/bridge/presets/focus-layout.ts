@@ -69,13 +69,29 @@ function applyHiddenState(memberElement: any, memberRecordElement: any, isHidden
       ? memberElement.removeAttribute("aria-hidden")
       : memberElement.setAttribute("aria-hidden", ariaHiddenValue));
 }
+/**
+ * 聚焦位移的距离换算：把位移折算回宿主 `zoom` **之前**的坐标系。
+ *
+ * 宿主可能带 CSS `zoom`（标题 / 统计 / 天气的放大清晰度方案）。`zoom` 会一起缩放
+ * `style.translate` 的长度基准，不折算就会按 zoom 倍多走，聚焦落点偏出组件。
+ * 抽成纯函数是为了让这条换算能被单测钉住 —— 它错了只表现为「聚焦时位置有点偏」，
+ * 光靠人眼和截图很难在回归时发现。
+ */
+export function focusTranslationDistance(
+  distance: number,
+  amount: number,
+  zoomText: string | null | undefined,
+): number {
+  const hostZoom = Math.max(0.01, Number.parseFloat(zoomText || "") || 1);
+  return (distance * amount) / hostZoom;
+}
 function applyMemberMotion(layoutState: any, motionElement: any, memberSnapshot: any, amount: any) {
   const [translateX, translateY = "0px", translateZ] = memberSnapshot.translate;
   ((motionElement.style.translate =
     "calc(" +
     translateX +
     " - " +
-    layoutState.distance * amount +
+    focusTranslationDistance(layoutState.distance, amount, motionElement.style.zoom) +
     "px) " +
     translateY +
     (translateZ ? " " + translateZ : "")),

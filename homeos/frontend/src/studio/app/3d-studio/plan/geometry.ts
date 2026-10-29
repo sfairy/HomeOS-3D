@@ -1208,6 +1208,8 @@ type PointSnapOptions = {
 type ResizeSizeLimits = {
   /** 最小边长，默认 0.1。 */
   minimumDimension?: number;
+  /** 最大边长，默认 8（与场景载荷对普通物件的收敛上限一致）。 */
+  maximumDimension?: number;
   /** 最小缩放比，默认 0。 */
   minimum?: number;
   /** 最大缩放比，默认正无穷。 */
@@ -1237,6 +1239,49 @@ export function pointInRotatedRectangle(testPoint: any, rotatedRectangle: any, s
     halfDepth = (Math.max(Number(rotatedRectangle.depth) || 0, 0) * sizeScale) / 2;
   return Math.abs(rotatedX) <= halfWidth && Math.abs(rotatedY) <= halfDepth;
 }
+/**
+ * 鼠标拖动的位移（平面像素）。
+ *
+ * 拖动是「跟手」手势：结果**不做网格量化**，松手就落在指针下的任意位置。鼠标本身只有
+ * 像素精度，再按 5cm / 1cm 步进取整只会让物件跳过光标位置、贴不上墙线和家具边 ——
+ * 键盘方向键才是按步长走的编辑动作（`studio-app` 的 keydown）。
+ *
+ * `lockAxis`（Shift）只保留位移较大的一个轴，与被锁轴无关的分量直接归零。
+ */
+export function planDragDelta(
+  startPoint: { x: number; y: number },
+  currentPoint: { x: number; y: number },
+  lockAxis = false,
+) {
+  const dragDeltaX = roundPlanLength(Number(currentPoint?.x) - Number(startPoint?.x)),
+    dragDeltaY = roundPlanLength(Number(currentPoint?.y) - Number(startPoint?.y));
+  if (!lockAxis) return { x: dragDeltaX, y: dragDeltaY };
+  return Math.abs(dragDeltaX) >= Math.abs(dragDeltaY)
+    ? { x: dragDeltaX, y: 0 }
+    : { x: 0, y: dragDeltaY };
+}
+
+/** 平面长度的浮点去尾巴精度：1e-6 像素（远细于一个像素，但足以洗掉 13.370000000000005）。 */
+const PLAN_LENGTH_PRECISION = 1e6;
+function roundPlanLength(rawLength: number) {
+  return Number.isFinite(rawLength)
+    ? Math.round(rawLength * PLAN_LENGTH_PRECISION) / PLAN_LENGTH_PRECISION + 0
+    : rawLength;
+}
+
+/**
+ * 缩放结果的取值精度：1 微米。
+ *
+ * 拖拽是像素 → 米的换算，结果天然带浮点尾巴（0.47299999999999997）。这里只去尾巴、
+ * 不量化 —— 用户拖出来的任意尺寸照原样保留，只是不会把 17 位小数写进草稿与面板。
+ */
+const RESIZE_LENGTH_PRECISION = 1e6;
+function roundResizeLength(rawLength: number) {
+  return Number.isFinite(rawLength)
+    ? Math.round(rawLength * RESIZE_LENGTH_PRECISION) / RESIZE_LENGTH_PRECISION
+    : rawLength;
+}
+
 export function resizeRotatedItemFromCorner(
   sourceRectangle: any,
   directionVector: any,
@@ -1261,14 +1306,18 @@ export function resizeRotatedItemFromCorner(
     ratioX = (directionSignX * sourceDeltaX) / referenceSpan,
     ratioY = (directionSignY * sourceDeltaY) / referenceSpan,
     minimumDimension = Math.max(Number(sizeLimits.minimumDimension) || 0.1, 1e-7),
+    maximumDimension = Math.max(
+      Number(sizeLimits.maximumDimension) || 8,
+      minimumDimension,
+    ),
     rectangleWidth = Math.max(Number(sourceRectangle.width) || minimumDimension, minimumDimension),
     rectangleDepth = Math.max(Number(sourceRectangle.depth) || minimumDimension, minimumDimension),
     rectangleHeight = Number(sourceRectangle.height),
-    // 0.7.8：拖拽缩放按家具步进吸附（Alt 时由调用方把步进降到 1mm）。
+    // 步进由调用方决定：鼠标拖拽默认不吸附（任意尺寸），按 Alt 才按家具步进取整。
     snappedWidth = rectangleWidth + snapEditDelta(ratioX - rectangleWidth, Number(sizeLimits.widthStep) || 0),
     snappedDepth = rectangleDepth + snapEditDelta(ratioY - rectangleDepth, Number(sizeLimits.depthStep) || 0);
-  let scaledWidth = clamp(snappedWidth, minimumDimension, 8),
-    scaledDepth = clamp(snappedDepth, minimumDimension, 8),
+  let scaledWidth = clamp(snappedWidth, minimumDimension, maximumDimension),
+    scaledDepth = clamp(snappedDepth, minimumDimension, maximumDimension),
     dimensionScale = 1;
   if (shouldScaleHeight) {
     const minimumScale = Math.max(Number(sizeLimits.minimum) || 0, 1e-7),
@@ -1283,6 +1332,9 @@ export function resizeRotatedItemFromCorner(
       (scaledWidth = rectangleWidth * dimensionScale),
       (scaledDepth = rectangleDepth * dimensionScale));
   }
+  // 像素 → 米的换算会留下一串浮点尾巴（0.47299999999999997），去尾巴但不量化：
+  // 任意尺寸仍然任意，只是不会把垃圾位数写进属性面板和草稿。
+  ((scaledWidth = roundResizeLength(scaledWidth)), (scaledDepth = roundResizeLength(scaledDepth)));
   const scaledHalfWidth = (directionSignX * scaledWidth * referenceSpan) / 2,
     scaledHalfDepth = (directionSignY * scaledDepth * referenceSpan) / 2,
     rectangleRotationRadians = ((Number(sourceRectangle.rotation) || 0) * Math.PI) / 180,
@@ -1301,9 +1353,9 @@ export function resizeRotatedItemFromCorner(
   return (
     Number.isFinite(rectangleHeight) &&
       rectangleHeight > 0 &&
-      (snappedRectangle.height = shouldScaleHeight
-        ? rectangleHeight * dimensionScale
-        : rectangleHeight),
+      (snappedRectangle.height = roundResizeLength(
+        shouldScaleHeight ? rectangleHeight * dimensionScale : rectangleHeight,
+      )),
     snappedRectangle
   );
 }
@@ -2064,14 +2116,47 @@ export function modelBounds(model: any) {
 }
 
 /**
- * 门扇朝室内的一侧（0.8.1 `doorInteriorSide`）。
+ * 门扇朝室内的一侧（0.8.1 `doorInteriorSide`）：贴着门洞中心往墙体法线两侧各探一点，
+ * 落在楼层闭合多边形里的一侧就是室内。
  *
- * 门在墙体上只给了「位置 + 开向（swing）」：`swing === -1` 表示朝墙的另一侧开，
- * 也就是室内侧为 -1。返回值直接写进 `userData.doorInteriorSide`，编辑器用它决定
- * 门套/把手朝向，运行时不用再反推开向。
+ * 返回值 **1 / -1 / 0**：1 表示室内在 `(-dy, dx)` 那一侧，-1 表示在另一侧，
+ * 0 表示两侧都一样（墙不在闭合房间上）或拿不到楼层多边形 —— 这时调用方要走回退路径。
+ * `lock-motion` 用它和铰链侧一起决定开门转向，所以它必须来自几何而不是 `swing`：
+ * `swing` 只是「内外翻转」的美术开关，和这面墙到底哪边是屋里没有关系。
  */
-export function doorInteriorSide(door: { swing?: number } | null | undefined) {
-  return door?.swing === -1 ? -1 : 1;
+export function doorInteriorSide(
+  wall:
+    | {
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+        thickness?: number;
+      }
+    | null
+    | undefined,
+  door: { t?: number; width?: number } | null | undefined,
+  floorPolygons: Array<Array<{ x: number; y: number }>> | null | undefined,
+  pixelsPerMeter = 1,
+) {
+  if (!wall) return 0;
+  const wallDeltaX = wall.end.x - wall.start.x,
+    wallDeltaY = wall.end.y - wall.start.y,
+    wallSpan = Math.hypot(wallDeltaX, wallDeltaY);
+  if (!(wallSpan > 1e-7) || !floorPolygons?.length) return 0;
+  const doorCenterT = clampWindowT(wall, door, pixelsPerMeter),
+    doorCenter = {
+      x: wall.start.x + wallDeltaX * doorCenterT,
+      y: wall.start.y + wallDeltaY * doorCenterT,
+    },
+    probeDistance =
+      (Math.max(0, Number(wall.thickness) || 0) / 2 + 0.1) *
+      Math.max(Number(pixelsPerMeter) || 1, 1e-7),
+    probePoint = (direction: number) => ({
+      x: doorCenter.x - (wallDeltaY / wallSpan) * probeDistance * direction,
+      y: doorCenter.y + (wallDeltaX / wallSpan) * probeDistance * direction,
+    }),
+    positiveSideInside = floorPolygons.some((polygon) => pointInPolygon(probePoint(1), polygon)),
+    negativeSideInside = floorPolygons.some((polygon) => pointInPolygon(probePoint(-1), polygon));
+  return positiveSideInside === negativeSideInside ? 0 : positiveSideInside ? 1 : -1;
 }
 
 /**

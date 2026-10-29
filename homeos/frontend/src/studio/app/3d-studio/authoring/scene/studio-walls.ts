@@ -8,7 +8,7 @@
  * 这里按函数值注入，避免重复装配盒子网格缓存。
  */
 
-import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
+import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
 import { createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder as prepareWallSideOrder2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
@@ -388,6 +388,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
   ppm: interiorPixelsPerMeter,
   toWorld: interiorToWorld,
   floorSurfaceY: interiorFloorSurfaceY,
+  floorPolygons: interiorFloorPolygons,
 }: any) {
   const yt6 = deps.backgroundSettings(),
     oe4 = typeof deps.activeFloorId == "string" ? deps.activeFloorId : "",
@@ -395,6 +396,14 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
       typeof window < "u" &&
       window.location.pathname ===
         "/api/v1/modules/interaction3d/stage.html",
+    /**
+     * 门扇朝哪边开要用「屋里在哪侧」来判断（0.8.1 `doorInteriorSide`）：
+     * 拿 `createFloorWorldMapper` 已经算好的楼层多边形，没有就按墙自己闭合一遍。
+     * 只在嵌入式舞台（运行态）需要，编辑器里门不动。
+     */
+    doorFloorPolygons = buildInteriorSceneIsEmbeddedStage
+      ? (interiorFloorPolygons ?? closedWallFloorPolygons(deps.studioState.walls, 1))
+      : [],
     resolveDoorMaterialType = (rawDoorType: any) =>
       rawDoorType === "entry" || rawDoorType === "entry-child-mother"
         ? "entry"
@@ -752,7 +761,14 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         Object.assign(
           doorGroup.userData,
           doorHingePlacement(currentDoor, buildInteriorSceneDoorWidth),
-          { doorInteriorSide: doorInteriorSide(currentDoor) },
+          {
+            doorInteriorSide: doorInteriorSide(
+              openingWall,
+              currentDoor,
+              doorFloorPolygons,
+              interiorPixelsPerMeter,
+            ),
+          },
         );
       const ne8 = deps.createSelectionRef("door", currentDoor.id),
         doorType = currentDoor.doorType || "solid",
@@ -1216,7 +1232,6 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               doorFixedHinge: true,
               doorRestRotation: 0,
               doorClosedRotation: 0,
-              doorOpenRotation: childMotherHingeSign * Math.PI * 0.42,
             }),
             (doorGroup.userData.entryDoorSign = childMotherHingeSign * childMotherSwingSign),
             (doorGroup.userData.entryDoorLeafWidth = childMotherMotherWidth),
@@ -1352,6 +1367,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         buildInteriorSceneIsEmbeddedStage &&
           ((doorGroup.userData.doorLeafWidth = foldLeafWidth),
           (doorGroup.userData.doorClosedRotation = 0),
+          // 0.8.1 会给普通门扇写开门位：拿不到楼层多边形时（开放平面）靠它定开向。
           (doorGroup.userData.doorOpenRotation = foldLeafGroup.rotation.y)),
         (doorGroup.userData.optimizationStats = {
           type: doorType === "glass" ? "door-glass" : "door-solid",

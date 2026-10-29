@@ -89,6 +89,43 @@ export function normalizeWsBatchChange(
 export type NormalizedWsBatchItem = WsDeltaChange | NormalizedWsBatchChange
 
 /**
+ * 拆出真正需要归一化的 delta 条目（连同其原始下标）。
+ * 非 delta 条目（断线补发的整包实体状态）不含增量语义，规范化只是原样透传；
+ * 把它们一起送进 Worker 只会白付整包实体的结构化克隆成本，重连补发时最容易拖到超时。
+ */
+export function splitDeltaChanges(changes: WsDeltaChange[]): {
+  deltas: WsDeltaChange[]
+  positions: number[]
+} {
+  const deltas: WsDeltaChange[] = []
+  const positions: number[] = []
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i]
+    if (!change?._delta) continue
+    deltas.push(change)
+    positions.push(i)
+  }
+  return { deltas, positions }
+}
+
+/**
+ * 把 delta 的规范化结果按原始下标写回整批，非 delta 位置保持原条目（引用不变）。
+ * 长度对不上（结果缺失）时返回 null，由调用方回退整批同步规范化。
+ */
+export function mergeNormalizedDeltas(
+  changes: WsDeltaChange[],
+  positions: number[],
+  normalized: NormalizedWsBatchItem[],
+): NormalizedWsBatchItem[] | null {
+  if (normalized.length !== positions.length) return null
+  const out = changes.slice() as NormalizedWsBatchItem[]
+  for (let i = 0; i < positions.length; i++) {
+    out[positions[i]] = normalized[i]
+  }
+  return out
+}
+
+/**
  * 同步规范化整批 WS delta。
  * 同批次内同一实体多条 delta 需依次叠加：用 overrides 记录上一条合并结果，
  * 避免后一条基于旧快照覆盖前一条（如先 state 后 brightness 时丢失 state 变更）。

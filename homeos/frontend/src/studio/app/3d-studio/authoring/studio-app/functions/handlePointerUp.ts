@@ -1,13 +1,4 @@
 import {
-  itemDimensionPolicy as itemDimensionPolicy2,
-  moveStepMeters as moveStepMeters2,
-  snapEditDelta as snapEditDelta2,
-} from "../../studio-edit-metrics";
-
-
-
-
-import {
   anchorGate as anchorGate2,
   isCourtyardGate as isCourtyardGate2,
 } from "../../../plan/courtyard-drawing";
@@ -44,6 +35,7 @@ import {
   clampWindowT as clampWindowT2,
   distance as distance2,
   itemRotationFromPointers as itemRotationFromPointers2,
+  planDragDelta as planDragDelta2,
   projectPointToSegment as projectPointToSegment2,
   resizeRotatedItemFromCorner as resizeRotatedItemFromCorner2,
 } from "../../../plan/geometry";
@@ -88,7 +80,7 @@ import type { StudioAppContext } from "../studio-app-context";
 export interface HandlePointerUpDeps { appCtx: StudioAppContext; drawMarqueeOverlay: any; eventToLocalPoint: any; getPixelsPerMeter: any; getSelectedObject: any; isSnapEnabled: any; refreshStudioView: any; renderPlanScene: any; screenToPlan: any; screenToPlanPoint: any; toggleSnapSetting: any; }
 
 export function handlePointerUp(deps: HandlePointerUpDeps, pointerUpEvent: any) {
-  const { appCtx, drawMarqueeOverlay, eventToLocalPoint, getPixelsPerMeter, getSelectedObject, isSnapEnabled, refreshStudioView, renderPlanScene, screenToPlan, screenToPlanPoint, toggleSnapSetting } = deps;
+  const { appCtx, drawMarqueeOverlay, eventToLocalPoint, getPixelsPerMeter, getSelectedObject, refreshStudioView, renderPlanScene, screenToPlan, screenToPlanPoint, toggleSnapSetting } = deps;
 
   const ya2 = eventToLocalPoint(pointerUpEvent),
     pr4 = screenToPlan(ya2);
@@ -128,18 +120,12 @@ export function handlePointerUp(deps: HandlePointerUpDeps, pointerUpEvent: any) 
     }
     if (appCtx.marqueeBox.type === "move-items") {
       if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.start) * appCtx.planView.zoom < 3) return;
-      const moveThreshold =
-          getPixelsPerMeter() *
-          moveStepMeters2({ altKey: pointerUpEvent.altKey && !appCtx.marqueeBox.copied }),
-        shouldSnapMove = isSnapEnabled() && appCtx.studioState.settings.snapGrid !== false;
-      let dragOffsetX = pr4.x - appCtx.marqueeBox.start.x,
-        dragOffsetY = pr4.y - appCtx.marqueeBox.start.y;
-      pointerUpEvent.shiftKey &&
-        (Math.abs(dragOffsetX) >= Math.abs(dragOffsetY) ? (dragOffsetY = 0) : (dragOffsetX = 0));
-      // 0.7.8：吸附对「位移」取整，而非对绝对坐标取整；Alt 时步进降到 1cm。
-      shouldSnapMove &&
-        ((dragOffsetX = snapEditDelta2(dragOffsetX, moveThreshold)),
-        (dragOffsetY = snapEditDelta2(dragOffsetY, moveThreshold)));
+      // 鼠标拖动是「跟手」手势：**不**把位移量化到 5cm / 1cm 网格，松手就落在指针下的
+      // 任意位置（鼠标本来只有像素精度，量化只会让物件跳过光标位置、贴不上墙线和家具边）。
+      // Shift 只锁轴；按步长走的编辑动作是键盘方向键（`studio-app` 的 keydown）。
+      const dragDelta = planDragDelta2(appCtx.marqueeBox.start, pr4, pointerUpEvent.shiftKey),
+        dragOffsetX = dragDelta.x,
+        dragOffsetY = dragDelta.y;
       const itemsByItemId = new Map(
         appCtx.studioState.items.map((handlePointerUpItemEntry) => [
           handlePointerUpItemEntry.id,
@@ -174,28 +160,27 @@ export function handlePointerUp(deps: HandlePointerUpDeps, pointerUpEvent: any) 
       return;
     }
     if (appCtx.marqueeBox.type === "resize-item") {
-      if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.handle) * appCtx.planView.zoom < 3) return;
+      // 死区按「拖拽起点 → 当前指针」量：`handle` 是 ±1 的方向向量，拿它当点算距离
+      // 永远大于 3px，死区等于不存在（点一下手柄就抖出 1mm 的尺寸改动）。
+      if (
+        !appCtx.marqueeBox.moved &&
+        distance2(pr4, appCtx.marqueeBox.startPointer || appCtx.marqueeBox.handle) *
+          appCtx.planView.zoom <
+          3
+      )
+        return;
       const at7 = getSelectedObject();
       if (!at7) return;
-      const itemHeightMeters = Math.max(finite2(appCtx.marqueeBox.originalItem.height, 0.05), 0.001),
-        resizeItemPolicy = itemDimensionPolicy2(appCtx.marqueeBox.originalItem.type),
-        // 风扇的宽/深步进跟随扇叶比例（0.7.8 的 0.434/0.324 × 5cm）。
-        resizeWidthStep =
-          appCtx.marqueeBox.originalItem.type === "fan" ? 0.434 * 0.05 : resizeItemPolicy.widthStep,
-        resizeDepthStep =
-          appCtx.marqueeBox.originalItem.type === "fan" ? 0.324 * 0.05 : resizeItemPolicy.depthStep,
-        resizeSnapSteps =
-          isSnapEnabled() && appCtx.studioState.settings.snapGrid !== false
-            ? {
-                widthStep: pointerUpEvent.altKey
-                  ? Math.min(0.001, resizeWidthStep)
-                  : resizeWidthStep,
-                depthStep: pointerUpEvent.altKey
-                  ? Math.min(0.001, resizeDepthStep)
-                  : resizeDepthStep,
-              }
-            : {},
-        resizeSourceItem = itemWithPlanFootprint2(appCtx.marqueeBox.originalItem),
+      const resizePixelsPerMeter = getPixelsPerMeter() || 100,
+        itemHeightMeters = Math.max(finite2(appCtx.marqueeBox.originalItem.height, 0.05), 0.001),
+        // 鼠标拖角是「跟手」手势：**不**按家具步进量化，松手就落在指针下的任意尺寸
+        // （1.473 m 这种值也要拖得出来）。0.7.8 在这里按 5cm / 5mm / 1mm 步进吸附，
+        // 尺寸永远是步长的整数倍 —— 想精确到毫米就只能去属性面板敲数字，拖不出来。
+        // 吸附开关管的是位置对齐（键盘移动 / 画布绘制），尺寸没有「对齐到墙」的含义。
+        resizeSourceItem = itemWithPlanFootprint2(
+          appCtx.marqueeBox.originalItem,
+          resizePixelsPerMeter,
+        ),
         itemMinimumFootprint = itemMinimumFootprint2(appCtx.marqueeBox.originalItem.type),
         itemResizeLimits =
           at7.type === "fan"
@@ -222,16 +207,22 @@ export function handlePointerUp(deps: HandlePointerUpDeps, pointerUpEvent: any) 
           appCtx.marqueeBox.handle,
           appCtx.marqueeBox.anchor,
           pr4,
-          getPixelsPerMeter() || 1,
+          resizePixelsPerMeter,
           pointerUpEvent.shiftKey || at7.type === "fan",
           {
             ...itemResizeLimits,
             minimumDimension: itemMinimumFootprint,
-            ...resizeSnapSteps,
           },
         );
       if (
-        (Object.assign(at7, itemFromPlanFootprintResize2(appCtx.marqueeBox.originalItem, resizedItemResult)),
+        (Object.assign(
+          at7,
+          itemFromPlanFootprintResize2(
+            appCtx.marqueeBox.originalItem,
+            resizedItemResult,
+            resizePixelsPerMeter,
+          ),
+        ),
         at7.type === "fan" &&
           Object.assign(
             at7,

@@ -370,6 +370,10 @@ export function handlePointerDown(deps: HandlePointerDownDeps, handlePointerDown
             anchor: {
               ...df3.corner!.opposite,
             },
+            // 拖拽起点的真实平面坐标：`handle` 只是 ±1 的方向向量，不能当点用。
+            startPointer: {
+              ...pr3,
+            },
             before: captureUndoSnapshot(),
             moved: false,
           }

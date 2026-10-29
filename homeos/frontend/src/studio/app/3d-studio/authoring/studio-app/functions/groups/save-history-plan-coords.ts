@@ -2,7 +2,7 @@ import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { validatePlacementChange as validatePlacementChange2 } from "../../../items/studio-placement";
 import { sceneContentBounds as sceneContentBounds2, syncCourtyardGates as syncCourtyardGates2 } from "../../../../plan/courtyard-drawing";
 import { clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons as closedWallFloorPolygons2, unclosedWallEndpoints as unclosedWallEndpoints2, wallIntersections as wallIntersections2, wallJoinExtensions as wallJoinExtensions2 } from "../../../../plan/geometry";
-import { itemPlanFootprint as itemPlanFootprint2 } from "../../../items/studio-item-posture";
+import { itemPlanFootprint as itemPlanFootprint2, itemPlanFootprintOffset as itemPlanFootprintOffset2 } from "../../../items/studio-item-posture";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { shellNotify } from "@/studio/platform/shell-chrome";
 import { getStudioFacadeState, patchStudioFacadeState } from "../../../../../../engine";
@@ -1089,6 +1089,10 @@ export function rotateLocalPoint(runtime: StudioAppRuntime, originPoint: any, lo
 export function buildHandleGeometry(runtime: StudioAppRuntime, geometryItem: any) {
   const handlePixelsPerMeter = runtime.getPixelsPerMeter() || 100,
     handleFootprint = itemPlanFootprint2(geometryItem),
+    /** 占位盒中心相对锚点的局部偏移（米 → 像素）：半圆柱 / 四分之一圆柱的锚点在圆弧圆心。 */
+    handleFootprintOffset = itemPlanFootprintOffset2(geometryItem),
+    handleCenterX = handleFootprintOffset.x * handlePixelsPerMeter,
+    handleCenterY = handleFootprintOffset.y * handlePixelsPerMeter,
     halfItemWidth = (handleFootprint.width * handlePixelsPerMeter) / 2,
     halfItemDepth = (handleFootprint.depth * handlePixelsPerMeter) / 2;
   return {
@@ -1113,20 +1117,20 @@ export function buildHandleGeometry(runtime: StudioAppRuntime, geometryItem: any
       ...handleDirections,
       point: runtime.rotateLocalPoint(
         geometryItem,
-        handleDirections.x * halfItemWidth,
-        handleDirections.y * halfItemDepth,
+        handleCenterX + handleDirections.x * halfItemWidth,
+        handleCenterY + handleDirections.y * halfItemDepth,
       ),
       opposite: runtime.rotateLocalPoint(
         geometryItem,
-        -handleDirections.x * halfItemWidth,
-        -handleDirections.y * halfItemDepth,
+        handleCenterX - handleDirections.x * halfItemWidth,
+        handleCenterY - handleDirections.y * halfItemDepth,
       ),
     })),
-    rotationStem: runtime.rotateLocalPoint(geometryItem, 0, -halfItemDepth),
+    rotationStem: runtime.rotateLocalPoint(geometryItem, handleCenterX, handleCenterY - halfItemDepth),
     rotationHandle: runtime.rotateLocalPoint(
       geometryItem,
-      0,
-      -halfItemDepth - 17 / Math.max(runtime.appCtx.planView.zoom, 0.01),
+      handleCenterX,
+      handleCenterY - halfItemDepth - 17 / Math.max(runtime.appCtx.planView.zoom, 0.01),
     ),
   };
 }

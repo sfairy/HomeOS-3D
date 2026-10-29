@@ -82,7 +82,7 @@ export function hitTestPlanItem(deps: HitTestPlanItemDeps, planHitPoint: any) {
             width: Math.max(hitCandidateItem.width, 12 / (itemPixelsPerMeter * appCtx.planView.zoom)),
             depth: Math.max(hitCandidateItem.depth, 12 / (itemPixelsPerMeter * appCtx.planView.zoom)),
           }
-        : itemWithPlanFootprint2(hitCandidateItem);
+        : itemWithPlanFootprint2(hitCandidateItem, itemPixelsPerMeter);
     if (
       isCourtyardDrawing2(hitCandidateItem)
         ? hitDrawing2(hitCandidateItem, planHitPoint, itemPixelsPerMeter, 9 / appCtx.planView.zoom)

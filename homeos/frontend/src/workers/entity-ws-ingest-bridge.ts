@@ -1,7 +1,12 @@
-/** WS 批次规范化 Worker 主线程桥：大批次 delta 合并 + old_state 拷贝移入 Worker，减轻主线程阻塞。 */
+/**
+ * WS 批次规范化 Worker 主线程桥：大批次 delta 合并 + old_state 拷贝移入 Worker，减轻主线程阻塞。
+ * 只有 delta 进 Worker；非 delta（断线补发的整包实体状态）原样透传，不白付结构化克隆。
+ */
 import type { EntitiesMap } from '@/shared/types/entity-store'
 import {
+  mergeNormalizedDeltas,
   normalizeWsBatchChangesSync,
+  splitDeltaChanges,
   type NormalizedWsBatchItem,
   type WsDeltaChange,
 } from '@/shared/entity/utils/state-delta.util'
@@ -16,6 +21,8 @@ const WORKER_COLD_TIMEOUT_MS = 8000
 /** 按条数追加超时，上限封顶 */
 const WORKER_TIMEOUT_PER_ITEM_MS = 20
 const WORKER_TIMEOUT_MAX_MS = 12_000
+/** 超时后等待迟到回传的宽限窗口：主线程长任务会让回传消息排在超时定时器之后 */
+const WORKER_TIMEOUT_GRACE_MS = 1500
 /** 连续超时后停用 Worker，避免反复告警与无效往返 */
 const WORKER_FAIL_STREAK_LIMIT = 3
 /** 连续失败降级后，周期性重试 Worker 的间隔（毫秒） */
@@ -159,47 +166,69 @@ function raceWithTimeout<T>(
   })
 }
 
+/** 宽限窗口内等一个在途请求落地：超时或抛错都收敛为 null，绝不向外抛 */
+function settleWithin<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const settled = promise.then(
+    (value) => value as T | null,
+    () => null,
+  )
+  const grace = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms)
+  })
+  return Promise.race([settled, grace]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
+
 /**
  * 记录 Worker 回退原因：偶发超时（未达连续失败阈值）按 15s 节流打 debug，
- * 达到阈值后升级为 warn，便于排查反复降级。
+ * 达到阈值后升级为 warn，便于排查反复降级。附带批次规模便于定位是真的算不动还是被拖住。
  */
-function noteWorkerFallback(err: unknown, streak: number) {
+function noteWorkerFallback(
+  err: unknown,
+  streak: number,
+  meta: { batchSize: number; deltaCount: number; timeoutMs: number },
+) {
   // 偶发超时仅 debug（已回退主线程，功能不受损）；连续失败才 WARN
   if (streak < WORKER_FAIL_STREAK_LIMIT) {
     const now = Date.now()
     if (now - lastTimeoutDebugAt < 15_000) return
     lastTimeoutDebugAt = now
-    logger.debug('[实体 WS 摄入] worker 规范化超时,本批回退主线程', err)
+    logger.debug('[实体 WS 摄入] worker 规范化超时,本批回退主线程', err, meta)
     return
   }
-  logger.warn('[实体 WS 摄入] worker 规范化失败,回退主线程', err)
+  logger.warn('[实体 WS 摄入] worker 规范化失败,回退主线程', err, meta)
 }
 
-/** 规范化 WS 批次；小批次同步，大批次走 Worker */
+/** 规范化 WS 批次；小批次同步，大批次走 Worker（只送 delta，非 delta 原样透传） */
 export async function normalizeWsBatchChanges(
   changes: WsDeltaChange[],
   entities: EntitiesMap,
 ): Promise<NormalizedWsBatchItem[]> {
   if (!changes?.length) return []
-  if (changes.length < WORKER_THRESHOLD) {
+  const { deltas, positions } = splitDeltaChanges(changes)
+  // 只有 delta 需要合并：非 delta 走 Worker 只是原样克隆往返，纯亏
+  if (deltas.length < WORKER_THRESHOLD) {
     return normalizeWsBatchChangesSync(changes, entities)
   }
 
   const api = await ensureIngestWorker()
   if (!api) return normalizeWsBatchChangesSync(changes, entities)
 
-  const snapshots = collectSnapshots(changes, entities)
-  const timeoutMs = resolveWorkerTimeoutMs(changes.length)
+  const snapshots = collectSnapshots(deltas, entities)
+  const timeoutMs = resolveWorkerTimeoutMs(deltas.length)
+  const meta = { batchSize: changes.length, deltaCount: deltas.length, timeoutMs }
+  const pending = api.normalizeBatch(deltas, snapshots)
   try {
-    const result = await raceWithTimeout(
-      api.normalizeBatch(changes, snapshots),
-      timeoutMs,
-      workerFaultSignal,
-    )
-    if (Array.isArray(result)) {
+    const result = await raceWithTimeout(pending, timeoutMs, workerFaultSignal)
+    const merged = Array.isArray(result)
+      ? mergeNormalizedDeltas(changes, positions, result)
+      : null
+    if (merged) {
       workerWarmed = true
       failStreak = 0
-      return result
+      return merged
     }
   } catch (err) {
     // 脚本级故障已由 markWorkerUnusable 立即降级，不计入超时次数（否则会误报「连续超时 3 次」）
@@ -208,8 +237,21 @@ export async function normalizeWsBatchChanges(
       workerFaultReason = null
       return normalizeWsBatchChangesSync(changes, entities)
     }
+    // 超时只说明「没在窗口内回来」：主线程自身被长任务占住时 Worker 往往早就算完，
+    // 只是回传消息排在超时定时器之后。宽限窗口内等到结果就照用，不算 Worker 故障、
+    // 也不在已经卡住的主线程上再同步重算一遍。
+    const late = await settleWithin(pending, WORKER_TIMEOUT_GRACE_MS)
+    const lateMerged = Array.isArray(late)
+      ? mergeNormalizedDeltas(changes, positions, late)
+      : null
+    if (lateMerged) {
+      workerWarmed = true
+      failStreak = 0
+      logger.debug('[实体 WS 摄入] worker 回传迟于超时窗口,已采用迟到结果', meta)
+      return lateMerged
+    }
     failStreak += 1
-    noteWorkerFallback(err, failStreak)
+    noteWorkerFallback(err, failStreak, meta)
     if (failStreak >= WORKER_FAIL_STREAK_LIMIT) {
       markWorkerUnusable()
       logger.warn(

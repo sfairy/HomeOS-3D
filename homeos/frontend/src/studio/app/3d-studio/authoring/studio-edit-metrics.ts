@@ -17,6 +17,29 @@ export function snapEditDelta(delta: number, step: number) {
   return step > 0 ? Number((Math.round(delta / step) * step).toFixed(12)) : delta;
 }
 
+/**
+ * 方向键表达的是**屏幕方向**，平面图却可以被旋转（`#rotate-plan-view` 把角度存进
+ * 草稿的 `planViewRotation`，绘制时整块画布跟着转）。
+ *
+ * 把方向键直接当平面坐标增量用，转 180° 后上下左右正好全反、转 90° 后上下变左右——
+ * 用户看到的就是「方向反了」。这里按 `screenToPlanPoint` 同一口径（`-rotation`）
+ * 把屏幕方向换回平面方向，保证按键方向和肉眼看到的移动一致。
+ */
+export function planDirectionForScreenArrow(
+  screenDirection: { x: number; y: number },
+  viewRotationDegrees: number,
+) {
+  const viewRotationRadians = (-Number(viewRotationDegrees || 0) * Math.PI) / 180,
+    cos = Math.cos(viewRotationRadians),
+    sin = Math.sin(viewRotationRadians);
+  // 旋转角都是 90° 的整数倍，cos/sin 会留下 6e-17 这样的尾巴；取到 1e-9，
+  // 免得连按方向键后坐标里堆出一串浮点垃圾（末尾 `+ 0` 顺便把 -0 归一成 0）。
+  return {
+    x: Math.round((screenDirection.x * cos - screenDirection.y * sin) * 1e9) / 1e9 + 0,
+    y: Math.round((screenDirection.x * sin + screenDirection.y * cos) * 1e9) / 1e9 + 0,
+  };
+}
+
 const SMALL_ITEM_TYPES = new Set([
   "presence",
   "smart-socket-86",

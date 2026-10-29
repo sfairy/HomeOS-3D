@@ -1,5 +1,5 @@
 import type { PanelRenderer } from "../panel-renderer";
-import { airflowLayerGeometry as airflowLayerGeometry2 } from "../geometry/transform-geometry";
+import { airflowLayerGeometry as airflowLayerGeometry2, componentHostGeometry as componentHostGeometry2 } from "../geometry/transform-geometry";
 import { componentHostZIndex as componentHostZIndex2, effectCropRectangle as effectCropRectangle2, effectCroppedLayerGeometry as effectCroppedLayerGeometry2, effectFadeDuration as effectFadeDuration2, effectReferenceImageTransform as effectReferenceImageTransform2, effectSourceDimensions as effectSourceDimensions2, normalizeIconButtonEffectComponent as normalizeIconButtonEffectComponent2 } from "../geometry/effect-geometry";
 import { componentSupportsAction } from "../renderer-helpers";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
@@ -113,28 +113,26 @@ export function renderComponent(this: PanelRenderer,
             rotation: 0,
           }
         : componentPosition,
-      componentScaleValue = Math.max(
-        0.01,
-        Math.min(5, Number(renderComponentRecord.style?.scale || 1)),
-      ),
       componentHostZIndex = baseRenderZIndex + Number(componentLayout.zIndex || 1),
       resolvedHostZIndex = componentHostZIndex2(
         renderComponentRecord,
         componentHostZIndex,
         renderParentElement === this.canvas,
-      );
+      ),
+      // `zoom` 得浏览器真支持才敢用；不支持时 helper 会退回 `transform: scale()` 的老路径。
+      supportsCssZoom =
+        typeof CSS !== "undefined" &&
+        typeof CSS.supports === "function" &&
+        CSS.supports("zoom", "1");
     (Object.assign(componentHostElement.style, {
-      left: (componentLayout.x || 0) + "px",
-      top: (componentLayout.y || 0) + "px",
-      width: (componentLayout.width || 100) + "px",
-      height: (componentLayout.height || 100) + "px",
+      // 放大组件（标题 / 统计 / 天气）改由 CSS `zoom` 承担，文字才不会被位图拉伸糊掉；
+      // 宿主自身的 zIndex 仍走 componentHostZIndex，与几何无关。
+      ...componentHostGeometry2(renderComponentRecord, componentLayout, {
+        editable: this.options.editable === true,
+        layoutIsFill: isFillLayoutMode,
+        supportsZoom: supportsCssZoom,
+      }),
       zIndex: String(resolvedHostZIndex),
-      transform:
-        "rotate(" +
-        (componentLayout.rotation || 0) +
-        "deg) scale(" +
-        (isFillLayoutMode ? 1 : componentScaleValue) +
-        ")",
     }),
       componentHostElement.style.setProperty("--hb-component-z", String(resolvedHostZIndex)),
       (componentHostElement.hidden = renderComponentRecord.style?.visible === false),

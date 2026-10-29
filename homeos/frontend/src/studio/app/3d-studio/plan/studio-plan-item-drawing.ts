@@ -15,7 +15,7 @@ import { doorMaterialPartRolesForType, doorPlanMaterialRoleFor } from "../materi
 import { drawTrackedText as drawTrackedText2 } from "./studio-plan-drawing";
 import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2, kelvinToRgbHex as kelvinToRgbHex2 } from "../loaders/studio-normalization";
 import { isTurntableRoundTable } from "../authoring/ui/studio-app-helpers";
-import { itemPlanFootprint as itemPlanFootprint2, normalizePillarShape as normalizePillarShape2, pillarIsLying as pillarIsLying2, stripIsStanding as stripIsStanding2, tracePillarPlanPath as tracePillarPlanPath2 } from "../authoring/items/studio-item-posture";
+import { itemPlanFootprint as itemPlanFootprint2, itemPlanFootprintOffset as itemPlanFootprintOffset2, normalizePillarShape as normalizePillarShape2, pillarIsLying as pillarIsLying2, stripIsStanding as stripIsStanding2, tracePillarPlanPath as tracePillarPlanPath2 } from "../authoring/items/studio-item-posture";
 import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from "../authoring/items/item-catalog";
 import { normalizePlanLabelColor } from "../authoring/scene/studio-scene-payload";
 
@@ -346,24 +346,11 @@ export function drawDoor(
           cap: "butt",
         },
       ));
-    const hingeSign = doorRecord.hinge === "right" ? -1 : 1,
-
-
-      handleFaceOffset =
-        Math.max(
-          (xo3.wall.thickness * (getPixelsPerMeter() || 100)) / 2,
-          6 / planView.zoom,
-        ) * (doorRecord.swing === -1 ? -1 : 1);
+    const hingeSign = doorRecord.hinge === "right" ? -1 : 1;
     (drawPointMarker(
       {
-        x:
-          xo3.center.x +
-          xo3.unit.x * doorRecord.width * hingeSign * 0.34 +
-          rollerNormalVector.x * handleFaceOffset,
-        y:
-          xo3.center.y +
-          xo3.unit.y * doorRecord.width * hingeSign * 0.34 +
-          rollerNormalVector.y * handleFaceOffset,
+        x: xo3.center.x + xo3.unit.x * doorRecord.width * hingeSign * 0.34,
+        y: xo3.center.y + xo3.unit.y * doorRecord.width * hingeSign * 0.34,
       },
       doorColor,
       ne2 ? 3 : 2,
@@ -1899,6 +1886,17 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
     }
   }
   if (ne3) {
+    // 选中框 / 角标记 / 旋转箭头都画在**占位盒**上：半圆柱与四分之一圆柱的锚点在圆弧圆心，
+    // 实体只朝 +x / +y 一侧长，占位盒整体偏出半个进深（见 `itemPlanFootprintOffset`）；
+    // 框不跟着偏就会和形状错开半个进深 —— 看起来就是「选中后框歪在一边」。
+    const footprintOffset = itemPlanFootprintOffset2(planItem),
+      footprintPixelScale = (getPixelsPerMeter() || 0) * planView.zoom;
+    planCanvasRenderer.save();
+    (footprintOffset.x || footprintOffset.y) &&
+      planCanvasRenderer.translate(
+        footprintOffset.x * footprintPixelScale,
+        footprintOffset.y * footprintPixelScale,
+      );
     ((planCanvasRenderer.strokeStyle = "rgba(255, 157, 46, .9)"),
       (planCanvasRenderer.lineWidth = 1),
       planCanvasRenderer.setLineDash([5, 3]),
@@ -1944,6 +1942,7 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
       planCanvasRenderer.arc(0, arrowTipY, 4, 0, Math.PI * 2),
       planCanvasRenderer.fill(),
       planCanvasRenderer.stroke());
+    planCanvasRenderer.restore();
   }
   planCanvasRenderer.restore();
 }

@@ -89,17 +89,42 @@ import { PenLine, Shapes, ToggleRight, PencilRuler, CloudUpload } from '@lucide/
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
+import { useChromeStore } from '@/stores/chrome.store'
+import { logger } from '@/shared/utils/core/logger'
 
 const router = useRouter()
+const chrome = useChromeStore()
+
+/**
+ * 跳创作面路由，并把「静默失败」变成可见反馈。
+ *
+ * 这两条路由都是懒加载的一次性重包：导航失败有多种不报错的形态 ——
+ * 守卫 `return false` 中止（`router.push` 不 reject，只 resolve 一个 failure 对象）、
+ * 动态 import 失败且自动刷新预算已用尽（`lazyView` 直接抛错）、构建产物换 hash 后旧页面
+ * 取不到 chunk。三者对用户都表现为「点了没反应」，所以这里显式记日志并给提示条，
+ * 免得把「加载失败」误判成「按钮坏了」。
+ */
+async function navigateTo(path, label) {
+  logger.warn(`[布局入口] 打开${label}`, path)
+  try {
+    const failure = await router.push(path)
+    if (!failure) return
+    logger.warn(`[布局入口] 打开${label}被路由拦截`, failure)
+    chrome.notify(`${label}未能打开，请刷新页面后重试`, 'warning')
+  } catch (error) {
+    logger.warn(`[布局入口] 打开${label}失败`, error)
+    chrome.notify(`${label}加载失败，请刷新页面后重试`, 'error')
+  }
+}
 
 /** 打开仪表盘编辑器（管理员专属路由，守卫层二次校验角色）。 */
 function openDashboardEditor() {
-  router.push('/studio/editor')
+  void navigateTo('/studio/editor', '仪表盘编辑器')
 }
 
 /** 打开 3D 户型图绘制工具（管理员专属路由）。 */
 function openFloorplanStudio() {
-  router.push('/3d-studio')
+  void navigateTo('/3d-studio', '3D 户型图绘制')
 }
 
 // 创作流程步骤：进入编辑器 → 编辑 / 绘制 → 保存后总览展示

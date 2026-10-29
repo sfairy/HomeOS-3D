@@ -7,7 +7,7 @@ import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../../../../
 import { clamp as clamp2, distance as distance2, pointInRotatedRectangle as pointInRotatedRectangle2 } from "../../../../plan/geometry";
 import { syncControlValue as syncControlValue2 } from "../../../ui/ui-controls";
 import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2 } from "../../../../loaders/studio-normalization";
-import { itemPlanFootprint as itemPlanFootprint2, itemWithPlanFootprint as itemWithPlanFootprint2 } from "../../../items/studio-item-posture";
+import { itemPlanFootprint as itemPlanFootprint2, itemPlanFootprintCenter as itemPlanFootprintCenter2, itemWithPlanFootprint as itemWithPlanFootprint2 } from "../../../items/studio-item-posture";
 import { materialSlabLabel } from "../../../ui/studio-app-helpers";
 import { normalizeMaterialSurfaceOverrides } from "../../../scene/studio-scene-payload";
 import { isPointInBounds } from "../../scene/bounds";
@@ -120,6 +120,7 @@ export function marqueeDelta(runtime: StudioAppRuntime, marqueeStartPoint: any, 
       cos2 = Math.cos(itemRotationRad),
       sin2 = Math.sin(itemRotationRad),
       itemBoundsFootprint = itemPlanFootprint2(itemBoundsRecord),
+      itemBoundsCenter = itemPlanFootprintCenter2(itemBoundsRecord, scenePixelsPerMeter),
       halfWidthPx = (itemBoundsFootprint.width * scenePixelsPerMeter) / 2,
       halfDepthPx = (itemBoundsFootprint.depth * scenePixelsPerMeter) / 2,
       itemCornerPoints = [
@@ -128,15 +129,16 @@ export function marqueeDelta(runtime: StudioAppRuntime, marqueeStartPoint: any, 
         [halfWidthPx, halfDepthPx],
         [-halfWidthPx, halfDepthPx],
       ].map(([cornerLocalX, cornerLocalY]) => ({
-        x: itemBoundsRecord.x + cornerLocalX * cos2 - cornerLocalY * sin2,
-        y: itemBoundsRecord.y + cornerLocalX * sin2 + cornerLocalY * cos2,
+        // 角点按**占位盒中心**算：半圆柱 / 四分之一圆柱的锚点在圆弧圆心，不在框中心。
+        x: itemBoundsCenter.x + cornerLocalX * cos2 - cornerLocalY * sin2,
+        y: itemBoundsCenter.y + cornerLocalX * sin2 + cornerLocalY * cos2,
       }));
-    (isPointInBounds(itemBoundsRecord, ry2) ||
+    (isPointInBounds(itemBoundsCenter, ry2) ||
       itemCornerPoints.some((cornerPoint) => isPointInBounds(cornerPoint, ry2)) ||
       marqueeCorners.some((cornerTestPoint) =>
         pointInRotatedRectangle2(
           cornerTestPoint,
-          itemWithPlanFootprint2(itemBoundsRecord),
+          itemWithPlanFootprint2(itemBoundsRecord, scenePixelsPerMeter),
           scenePixelsPerMeter,
         ),
       )) &&

@@ -1,5 +1,6 @@
 import {
   moveStepMeters as moveStepMeters2,
+  planDirectionForScreenArrow,
 } from "./studio-edit-metrics";
 import {
   courtyardPlanColor as courtyardPlanColor2,
@@ -1828,7 +1829,7 @@ const toolHelpMessages = {
     ],
     select: [
       "选择工具",
-      "移动时 Shift 锁轴；缩放时 Shift 等比例；Option/Alt 拖动复制；⌘/Ctrl+C、V 复制粘贴",
+      "移动时 Shift 锁轴；缩放时 Shift 等比例、拖多少就是多少（任意尺寸）；Option/Alt 拖动复制；⌘/Ctrl+C、V 复制粘贴",
     ],
     pan: ["平移画布", "按住左键拖动即可平移画布；滚轮缩放；中键或按住空格拖动同样可平移"],
     scale: ["参考线工具", "依次单击两个端点；按住 Shift 强制锁定水平或垂直轴线"],
@@ -4157,14 +4158,21 @@ if (
               .map((selectedItemEntry: any) => selectedItemEntry.id);
       if (selectedItemIds.length) {
         windowKeyDownEvent.preventDefault();
-        const elementSnapshotBeforeMove = captureUndoSnapshot(),
+        // 方向键说的是「屏幕上」的上下左右，而平面图可以被旋转（`#rotate-plan-view`
+        // 会把角度写进草稿的 `planViewRotation`）。直接把方向键当平面坐标增量，转
+        // 180° 后上下左右正好全反，转 90° 后上下变左右 —— 这就是「方向反了」的根因。
+        const nudgedPlanDirection = planDirectionForScreenArrow(
+            arrowKeyDirections,
+            appCtx.planView.rotation,
+          ),
+          elementSnapshotBeforeMove = captureUndoSnapshot(),
           nudgeStep =
             moveStepMeters2(windowKeyDownEvent) * (getPixelsPerMeter() || 1),
           selectedItemIdSet = new Set(selectedItemIds);
         for (const movedSceneItem of appCtx.studioState.items)
           selectedItemIdSet.has(movedSceneItem.id) &&
-            ((movedSceneItem.x += arrowKeyDirections.x * nudgeStep),
-            (movedSceneItem.y += arrowKeyDirections.y * nudgeStep),
+            ((movedSceneItem.x += nudgedPlanDirection.x * nudgeStep),
+            (movedSceneItem.y += nudgedPlanDirection.y * nudgeStep),
             selectedItemIds.length === 1 &&
               isCourtyardGate2(movedSceneItem) &&
               anchorGate2(
