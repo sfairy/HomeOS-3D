@@ -1,5 +1,5 @@
 {
-  "total": 17315,
+  "total": 17312,
   "files": {
     "homeos/frontend/src/studio/app/3d-studio/authoring/boot/studio-boot.ts": 13,
     "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/living.ts": 1,
@@ -422,9 +422,9 @@
     "homeos/frontend/src/studio/runtime/core/stage/layers-sync.ts": 76,
     "homeos/frontend/src/studio/runtime/core/stage/lighting.ts": 16,
     "homeos/frontend/src/studio/runtime/core/stage/navigation-drag.ts": 15,
-    "homeos/frontend/src/studio/runtime/core/stage/refresh.ts": 111,
+    "homeos/frontend/src/studio/runtime/core/stage/refresh.ts": 110,
     "homeos/frontend/src/studio/runtime/core/stage/stage-context.ts": 47,
-    "homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts": 52,
+    "homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts": 51,
     "homeos/frontend/src/studio/runtime/core/state-update-plan.ts": 17,
     "homeos/frontend/src/studio/runtime/cover/cover-feedback.ts": 38,
     "homeos/frontend/src/studio/runtime/cover/cover-group-panel.ts": 9,
@@ -453,7 +453,7 @@
     "homeos/frontend/src/studio/runtime/fan/fan-state.ts": 14,
     "homeos/frontend/src/studio/runtime/light/light-color-picker.ts": 17,
     "homeos/frontend/src/studio/runtime/light/light-state.ts": 62,
-    "homeos/frontend/src/studio/runtime/light/light-stream.ts": 10,
+    "homeos/frontend/src/studio/runtime/light/light-stream.ts": 9,
     "homeos/frontend/src/studio/runtime/nas/nas-status.ts": 31,
     "homeos/frontend/src/studio/runtime/panels/camera-extra-panel.ts": 7,
     "homeos/frontend/src/studio/runtime/panels/compound-extra-panel.ts": 17,
