@@ -440,3 +440,287 @@ export function createFloatingLayout({
   };
   return layout;
 }
+
+/** 缩放空间：`transform` 容器里「视口坐标 ↔ 容器布局坐标」的换算（0.8.1 `editorFloatingSpace`）。 */
+export interface FloatingSpace {
+  /** 视口坐标 → 容器布局坐标。 */
+  point(left: number, top: number): { left: number; top: number };
+  /** 视口矩形 → 容器布局矩形。 */
+  rect(rect: FloatingRect): FloatingRect;
+  scaleX: number;
+  scaleY: number;
+  bounds: FloatingRect;
+}
+
+export interface FloatingSpaceMeasurement {
+  originLeft: number;
+  originTop: number;
+  scaleX: number;
+  scaleY: number;
+  bounds: FloatingRect;
+}
+
+/** 纯换算（无 DOM 读取），供 `editorFloatingSpace` 与单测共用。 */
+export function floatingSpaceFrom({
+  originLeft,
+  originTop,
+  scaleX,
+  scaleY,
+  bounds,
+}: FloatingSpaceMeasurement): FloatingSpace {
+  const safeScaleX = ratio(scaleX),
+    safeScaleY = ratio(scaleY);
+  return {
+    point: (left, top) => ({
+      left: (left - originLeft) / safeScaleX,
+      top: (top - originTop) / safeScaleY,
+    }),
+    rect: (rect) => ({
+      left: (rect.left - originLeft) / safeScaleX,
+      top: (rect.top - originTop) / safeScaleY,
+      right: (rect.right - originLeft) / safeScaleX,
+      bottom: (rect.bottom - originTop) / safeScaleY,
+      width: rect.width / safeScaleX,
+      height: rect.height / safeScaleY,
+    }),
+    scaleX: safeScaleX,
+    scaleY: safeScaleY,
+    bounds,
+  };
+}
+
+function ratio(value: unknown, fallback = 1) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallback;
+}
+
+/**
+ * 找到浮层所在的缩放容器（最近一个有 `transform`/`contain` 的祖先），
+ * 把它的可视区换算成视口坐标的边界。
+ *
+ * 为什么不能直接用 `getBoundingClientRect()`：容器缩放到 0.6 时，锚点矩形
+ * 已经是缩放后的尺寸，而菜单是按 CSS 像素（布局像素）排版的，两者差一个
+ * `rect.width / offsetWidth`。只有把这个比例和容器原点一起带出来，
+ * 菜单才能既不偏移也不变形。
+ */
+export function editorFloatingSpace(element: HTMLElement): FloatingSpace {
+  const ownerDocument = element.ownerDocument || globalThis.document,
+    view = ownerDocument.defaultView,
+    visualViewport = view?.visualViewport,
+    viewportLeft = visualViewport?.offsetLeft || 0,
+    viewportTop = visualViewport?.offsetTop || 0,
+    viewportWidth = ratio(visualViewport?.width || view?.innerWidth, 1024),
+    viewportHeight = ratio(visualViewport?.height || view?.innerHeight, 768);
+  let originLeft = 0,
+    originTop = 0,
+    scaleX = 1,
+    scaleY = 1,
+    container: (FloatingRect & { clipX: boolean; clipY: boolean }) | null = null;
+  for (
+    let ancestor = element.parentElement;
+    ancestor;
+    ancestor = ancestor.parentElement
+  ) {
+    const styles = view?.getComputedStyle?.(ancestor),
+      transformed = [
+        styles?.transform,
+        styles?.translate,
+        styles?.scale,
+        styles?.rotate,
+        styles?.perspective,
+        styles?.filter,
+      ].some((value) => value && value !== "none") ||
+        /paint|layout|strict|content/.test(styles?.contain || "");
+    if (transformed) {
+      const rect = ancestor.getBoundingClientRect(),
+        ancestorScaleX = ratio(rect.width / ratio(ancestor.offsetWidth), 1),
+        ancestorScaleY = ratio(rect.height / ratio(ancestor.offsetHeight), 1);
+      ((scaleX = ancestorScaleX),
+        (scaleY = ancestorScaleY),
+        (originLeft = rect.left + (ancestor.clientLeft - ancestor.scrollLeft) * ancestorScaleX),
+        (originTop = rect.top + (ancestor.clientTop - ancestor.scrollTop) * ancestorScaleY),
+        (container = {
+          left: rect.left + ancestor.clientLeft * ancestorScaleX,
+          top: rect.top + ancestor.clientTop * ancestorScaleY,
+          right: 0,
+          bottom: 0,
+          width: ancestor.clientWidth * ancestorScaleX,
+          height: ancestor.clientHeight * ancestorScaleY,
+          clipX: styles?.overflowX !== "visible",
+          clipY: styles?.overflowY !== "visible",
+        }));
+      break;
+    }
+    // 顶层（`<dialog>` / popover）之后就不再往外找了：再往外是页面本身。
+    if (
+      ancestor.matches(":modal") ||
+      (typeof (ancestor as HTMLElement & { showPopover?: () => void }).showPopover ===
+        "function" &&
+        ancestor.matches(":popover-open"))
+    )
+      break;
+  }
+  let left = viewportLeft,
+    top = viewportTop,
+    right = viewportLeft + viewportWidth,
+    bottom = viewportTop + viewportHeight;
+  if (container?.clipX) {
+    left = Math.max(left, container.left);
+    right = Math.min(right, container.left + container.width);
+  }
+  if (container?.clipY) {
+    top = Math.max(top, container.top);
+    bottom = Math.min(bottom, container.top + container.height);
+  }
+  return floatingSpaceFrom({
+    originLeft,
+    originTop,
+    scaleX,
+    scaleY,
+    bounds: { left, top, right, bottom, width: right - left, height: bottom - top },
+  });
+}
+
+export interface ScaledPopupPlacementInput {
+  anchorRect: FloatingRect;
+  bounds: FloatingViewport;
+  /** 锚点的视觉缩放（`rect.width / offsetWidth`）。 */
+  scaleX?: number;
+  scaleY?: number;
+  minWidth?: number;
+  maxHeight?: number;
+  /** 菜单内容高度（布局像素，未缩放）。 */
+  menuHeight?: number;
+  margin?: number;
+  gap?: number;
+}
+
+export interface ScaledPopupPlacement {
+  left: number;
+  top: number;
+  /** 布局宽度（写进 `style.width`，视觉宽度 = width × scaleX）。 */
+  width: number;
+  /** 布局最大高度（写进 `style.maxHeight`）。 */
+  maxHeight: number;
+  above: boolean;
+}
+
+/**
+ * 缩放下拉菜单的定位（0.8.1 `createScaledPopupMenu` 的几何部分，纯函数）。
+ *
+ * 与 `clampFloatingRect` 的区别：这里的输入输出都是**布局像素**，`bounds`
+ * 与 `anchorRect` 是视口坐标，`scaleX/scaleY` 把两者换算一遍。缩放容器里
+ * 直接用 `clampFloatingRect` 会把菜单排成「锚点视觉宽」再被 CSS 缩放一次，
+ * 结果是 0.6 倍弹窗里菜单只有 0.36 倍宽。
+ */
+export function scaledPopupPlacement({
+  anchorRect,
+  bounds,
+  scaleX = 1,
+  scaleY = 1,
+  minWidth = 1,
+  maxHeight = 320,
+  menuHeight = 0,
+  margin = 10,
+  gap = 5,
+}: ScaledPopupPlacementInput): ScaledPopupPlacement | null {
+  const safeScaleX = ratio(scaleX),
+    safeScaleY = ratio(scaleY),
+    marginX = Math.min(margin * safeScaleX, (bounds.right - bounds.left) / 4),
+    marginY = Math.min(margin * safeScaleY, (bounds.bottom - bounds.top) / 4),
+    left = bounds.left + marginX,
+    top = bounds.top + marginY,
+    right = bounds.right - marginX,
+    bottom = bounds.bottom - marginY;
+  if (right <= left || bottom <= top) return null;
+  if (
+    anchorRect.bottom < top ||
+    anchorRect.top > bottom ||
+    anchorRect.right < left ||
+    anchorRect.left > right
+  )
+    return null;
+  const width = Math.min(
+      Math.max(anchorRect.width / safeScaleX, minWidth),
+      (right - left) / safeScaleX,
+    ),
+    scaledMenuHeight = Math.min(maxHeight, Math.max(0, menuHeight)) * safeScaleY,
+    spaceBelow = Math.max(0, bottom - anchorRect.bottom - gap * safeScaleY),
+    spaceAbove = Math.max(0, anchorRect.top - top - gap * safeScaleY),
+    above = spaceBelow < scaledMenuHeight && spaceAbove > spaceBelow,
+    available = Math.min(bottom - top, above ? spaceAbove : spaceBelow),
+    height = Math.min(scaledMenuHeight, available),
+    placementLeft = Math.max(left, Math.min(anchorRect.left, right - width * safeScaleX)),
+    placementTop = Math.max(
+      top,
+      Math.min(
+        above ? anchorRect.top - gap * safeScaleY - height : anchorRect.bottom + gap * safeScaleY,
+        bottom - height,
+      ),
+    );
+  return {
+    left: placementLeft,
+    top: placementTop,
+    width,
+    maxHeight: Math.min(maxHeight, available / safeScaleY),
+    above,
+  };
+}
+
+export interface ScaledPopupMenuOptions {
+  minWidth?: number;
+  maxHeight?: number;
+  margin?: number;
+  gap?: number;
+}
+
+/**
+ * 把缩放容器里的下拉菜单摆到锚点旁边并补上缩放（0.8.1 `createScaledPopupMenu`）。
+ *
+ * 返回 `false` 表示锚点已不可见（弹窗关闭 / 后台标签页 / 脱离 DOM），
+ * 调用方应把浮层收起。
+ */
+export function positionScaledPopupMenu(
+  anchor: HTMLElement,
+  panel: HTMLElement,
+  { minWidth = 1, maxHeight = 320, margin = 10, gap = 5 }: ScaledPopupMenuOptions = {},
+): boolean {
+  if (!hideIfFloatingUnavailable(anchor, panel)) return false;
+  const ownerDocument = anchor.ownerDocument || globalThis.document,
+    view = ownerDocument.defaultView,
+    anchorRect = anchor.getBoundingClientRect(),
+    anchorScaleX = ratio(anchorRect.width / ratio(anchor.offsetWidth), 1),
+    anchorScaleY = ratio(anchorRect.height / ratio(anchor.offsetHeight), 1),
+    inTopLayer =
+      typeof (panel as HTMLElement & { showPopover?: () => void }).showPopover === "function" &&
+      panel.matches(":popover-open"),
+    space = inTopLayer ? null : editorFloatingSpace(panel),
+    placement = scaledPopupPlacement({
+      anchorRect,
+      bounds: space?.bounds ?? (floatingViewport(view) as FloatingRect),
+      scaleX: anchorScaleX,
+      scaleY: anchorScaleY,
+      minWidth,
+      maxHeight,
+      menuHeight:
+        panel.scrollHeight + Math.max(0, panel.offsetHeight - panel.clientHeight),
+      margin,
+      gap,
+    });
+  if (!placement) {
+    panel.hidden = true;
+    panel.dataset.side = "";
+    return false;
+  }
+  const point = space ? space.point(placement.left, placement.top) : placement;
+  panel.style.width = `${placement.width}px`;
+  panel.style.minWidth = "0";
+  panel.style.maxHeight = `${placement.maxHeight}px`;
+  panel.style.transform = `scale(${anchorScaleX / (space?.scaleX || 1)},${anchorScaleY / (space?.scaleY || 1)})`;
+  panel.style.transformOrigin = "0 0";
+  panel.style.left = `${point.left}px`;
+  panel.style.top = `${point.top}px`;
+  panel.dataset.side = placement.above ? "top" : "bottom";
+  applyFloatingColorVariables(panel, anchor, ownerDocument);
+  return true;
+}

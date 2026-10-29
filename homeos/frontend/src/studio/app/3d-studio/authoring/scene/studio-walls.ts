@@ -11,7 +11,7 @@
 import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
-import { createWallSideMaterial as createWallSideMaterial2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
+import { createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder as prepareWallSideOrder2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
 import { WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from "../../materials/studio-wall-finish";
 import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
 import { finite as finite2 } from "../../loaders/studio-normalization";
@@ -264,6 +264,9 @@ function buildWallBandMesh(deps: StudioWallsDeps,
       wallBandOptions.lightOccluder && wallBandMesh.layers.set(deps.lampsLayerIndex),
       (wallBandMesh.receiveShadow = isWallBandOpaque),
       (wallBandMesh.renderOrder = wallBandOptions.renderOrder ?? 4),
+      // 半透明合并墙带：每帧按相机侧重排三角形顺序（0.8.1 只在创作态启用，
+      // 运行态舞台沿用 0.8.0 的固定顺序）。
+      deps.isEmbedStageMode || prepareWallSideOrder2(ns2, wallBandMesh),
       deps.sceneRootNode.add(wallBandMesh));
   }
 }

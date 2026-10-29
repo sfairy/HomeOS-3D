@@ -191,6 +191,8 @@ export async function openSecurityEditor({
       ),
     findSelectedFloor = () =>
       sceneMetadata?.floors.find((candidateFloor: any) => candidateFloor.id === selectedFloorId),
+    /** 选择器说明里的楼层名（上游 `v105()?.name`，缺失时回落「未知楼层」）。 */
+    selectedFloorName = () => String(findSelectedFloor()?.name ?? "").trim() || "未知楼层",
     getFloorDoorModels = () => doorModels(findSelectedFloor() || {}),
     getCandidateModelId = (candidateModel: any) => candidateModel?.modelId || candidateModel?.id || "";
   function normalizeDoorModelIds() {
@@ -379,6 +381,10 @@ export async function openSecurityEditor({
       title: "选择安防类别",
       kicker: "SECURITY CATEGORY",
       unit: "模型",
+      description:
+        "当前楼层：" +
+        selectedFloorName() +
+        "。已配置表示已添加到 3D 交互；报警卡片无需模型，只显示已配置数量。",
       selectedId: getSecurityCategory(),
       emptyMessage: "当前楼层没有可选类别。",
       sections: [{ options: categoryChoices }],
@@ -417,6 +423,16 @@ export async function openSecurityEditor({
       title: "选择" + getKindLabel(),
       kicker: "CONFIGURED ITEMS",
       unit: getKindLabel(),
+      description:
+        "当前楼层：" +
+        selectedFloorName() +
+        "。选择已配置项继续编辑。最后点击“保存配置”应用修改。",
+      summary: configurationProgress({
+        ready: !!findSelectedFloor(),
+        requiresModel: !isAlarmKindValue(securityKind),
+        models: getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>,
+        bindings: itemsInSelectedFloor,
+      }),
       selectedId: selectedItemId,
       emptyMessage: "当前楼层还没有配置" + getKindLabel() + "。",
       sections: [
@@ -1541,7 +1557,7 @@ export async function openSecurityEditor({
           currentModelPresent ||
             associateChoices.unshift({
               id: selectedItem.modelId || "",
-              label: selectedItem.modelId ? "原模型已移除，请重新选择" : "未关联模型（保留原人在路线）",
+              label: selectedItem.modelId ? "原模型已移除，请重新选择" : "未关联模型（保留原有人物路线）",
               wrapLabel: true,
               disabled: true,
               state: "missing" as const,
@@ -1553,6 +1569,18 @@ export async function openSecurityEditor({
             title: "关联" + getKindLabel() + "模型",
             kicker: "MODEL SELECTION",
             unit: "模型",
+            description:
+              "当前楼层：" +
+              selectedFloorName() +
+              "。选择新的关联模型，已占用的模型不可重复关联。最后点击“保存配置”应用修改。",
+            summary: configurationProgress({
+              ready: !!findSelectedFloor(),
+              requiresModel: !isAlarmKindValue(securityKind),
+              models: allFloorModels,
+              bindings: (securityBindingsForKind(securityKind) as ReadonlyArray<SecurityChoiceRecord>).filter(
+                (boundItem) => boundItem.floorId === selectedFloorId,
+              ),
+            }),
             selectedId: selectedItem.modelId || "",
             emptyMessage: "当前楼层没有可选模型。",
             sections: [{ options: associateChoices }],
@@ -1592,7 +1620,7 @@ export async function openSecurityEditor({
                   (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
                 ) || selectedItem,
               )
-            : "未关联模型（保留原人在路线）",
+            : "未关联模型（保留原有人物路线）",
           openAssociateModelPicker,
         ),
         (currentContainerElement = bindingSectionElement),
@@ -1786,6 +1814,25 @@ export async function openSecurityEditor({
             },
             0.1,
           ));
+        // 0.8.1 新增：门扇动作的「预览开门 / 预览关门」按钮对。
+        // 只驱动场景里的门扇动画，不调用任何锁服务，所以文案必须说清楚。
+        if (isHingeDoor || isDoubleDoor || isSlidingDoor || doorType === "roller-shutter") {
+          const previewGridElement = createElement("div", "i3d-security-grid i3d-lock-motion-grid");
+          for (const [previewButtonLabel, previewOpen] of [
+            ["预览开门", true],
+            ["预览关门", false],
+          ] as const) {
+            const previewButtonElement = createButton(previewButtonLabel, () => {
+              editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), previewOpen);
+            });
+            ((previewButtonElement.disabled = !isAccessAllowed),
+              previewGridElement.append(previewButtonElement));
+          }
+          motionGridElement.append(
+            previewGridElement,
+            createElement("p", "i3d-note", "仅预览门扇动作，不控制真实门锁。"),
+          );
+        }
         const appearanceSectionElement = createSectionHeading("标签外观"),
           appearanceGridElement = createElement(
             "div",

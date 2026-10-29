@@ -360,6 +360,11 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             title: "选择" + (editorHost.isDeviceKind ? "当前设备" : "当前" + editorHost.kindLabel + "按钮"),
             kicker: "CONFIGURED ITEMS",
             unit: editorHost.kindLabel,
+            // 上游三条 picker 共用同一句说明：楼层 + 该模式的操作提示 + 保存动作。
+            description:
+              "当前楼层：" +
+              (String(currentFloorRecord?.name ?? "").trim() || "未知楼层") +
+              "。选择已配置项继续编辑。最后点击“保存配置”应用修改。",
             selectedId: currentItemId,
             summary: configurationProgress({ requiresModel: false, bindings: floorItems }),
             emptyMessage: "当前楼层还没有配置对象。",
@@ -581,6 +586,18 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 title: "关联" + editorHost.kindLabel + "模型",
                 kicker: "MODEL SELECTION",
                 unit: "模型",
+                description:
+                  "当前楼层：" +
+                  (String(
+                    (
+                      editorHost.sceneMetadata.floors as ReadonlyArray<Record<string, unknown>>
+                    ).find((floorProbe) => floorProbe.id === editorHost.floorSelection)?.name ?? "",
+                  ).trim() || "未知楼层") +
+                  "。选择新的关联模型，已占用的模型不可重复关联。最后点击“保存配置”应用修改。",
+                summary: configurationProgress({
+                  requiresModel: true,
+                  bindings: floorModelCandidates.map((candidateEntry) => candidateEntry.model),
+                }),
                 selectedId: currentModelKey,
                 emptyMessage: "当前楼层没有可选模型。",
                 sections: [{ options: pickerChoices }],

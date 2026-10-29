@@ -3,6 +3,7 @@ import type { PanelRenderer } from "../panel-renderer";
 import { clickFocusedElement, mixHexColor } from "../renderer-helpers";
 import { climateControlStructureKey as climateControlStructureKey2, climateEffectMode as climateEffectMode2, climateIsPoweredOn as climateIsPoweredOn2, climateIsRunning as climateIsRunning2, climateModeIcon as climateModeIcon2, climateModeLabel as climateModeLabel2, climateOperationModeValues as climateOperationModeValues2, climateOptionPresentation as climateOptionPresentation2, climatePowerCommand as climatePowerCommand2, climatePresentationMode as climatePresentationMode2, climateSwingModeLabel as climateSwingModeLabel2, normalizeClimateCapabilities as normalizeClimateCapabilities2, reconcileClimateTargetTemperature as reconcileClimateTargetTemperature2 } from "../controls/climate";
 import { randomUuid as randomUuid2 } from "../../shared/util/random-id";
+import { positionScaledPopupMenu } from "../../shared/util/editor-floating-layout";
 
 export function createClimateDetailsControls(this: PanelRenderer, 
     climateDetailsEntityId: any,
@@ -547,27 +548,14 @@ export function createClimateDetailsControls(this: PanelRenderer,
             },
             positionSelectMenu = () => {
               if (!isSelectMenuOpen() && selectMenuElement.hidden) return;
-              const triggerBounds = selectTriggerButton.getBoundingClientRect(),
-                innerWidth2 = window.innerWidth,
-                innerHeight2 = window.innerHeight,
-                menuWidth = Math.min(
-                  Math.max(triggerBounds.width, 190),
-                  Math.max(190, innerWidth2 - 20),
-                );
-              ((selectMenuElement.style.width = menuWidth + "px"),
-                (selectMenuElement.style.maxHeight =
-                  Math.min(360, Math.max(120, innerHeight2 - 20)) + "px"));
-              const menuHeight = Math.min(selectMenuElement.scrollHeight || 0, 360),
-                selectSpaceBelow = innerHeight2 - triggerBounds.bottom - 10,
-                selectSpaceAbove = triggerBounds.top - 10,
-                menuTop =
-                  selectSpaceBelow < Math.min(menuHeight, 180) &&
-                  selectSpaceAbove > selectSpaceBelow
-                    ? Math.max(10, triggerBounds.top - menuHeight - 5)
-                    : Math.min(innerHeight2 - menuHeight - 10, triggerBounds.bottom + 5);
-              ((selectMenuElement.style.left =
-                Math.max(10, Math.min(triggerBounds.left, innerWidth2 - menuWidth - 10)) + "px"),
-                (selectMenuElement.style.top = Math.max(10, menuTop) + "px"));
+              // 缩放弹窗里菜单要按锚点的视觉缩放反向补偿，并夹在可视区内
+              // （0.8.1 `createScaledPopupMenu` 同款几何）。
+              positionScaledPopupMenu(selectTriggerButton, selectMenuElement, {
+                minWidth: 190,
+                maxHeight: 360,
+                margin: 10,
+                gap: 5,
+              });
             },
             openSelectMenu = () => {
               (isSelectMenuOpen() &&

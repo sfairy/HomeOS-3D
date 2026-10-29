@@ -26,6 +26,8 @@ const {
   claimFloatingLayout,
   releaseFloatingLayout,
   FLOATING_COLOR_VARIABLES,
+  floatingSpaceFrom,
+  scaledPopupPlacement,
 } = await import(moduleUrl)
 
 const viewport = { left: 0, top: 0, right: 800, bottom: 600 }
@@ -181,4 +183,97 @@ test('FLOATING_COLOR_VARIABLES：覆盖床/气候强调色透传', () => {
   assert.ok(FLOATING_COLOR_VARIABLES.includes('--hb-bed-accent'))
   assert.ok(FLOATING_COLOR_VARIABLES.includes('--hb-climate-accent'))
   assert.ok(FLOATING_COLOR_VARIABLES.includes('--hb-climate-accent-soft'))
+})
+
+test('floatingSpaceFrom：视口坐标按容器缩放换算回布局坐标', () => {
+  const space = floatingSpaceFrom({
+    originLeft: 40,
+    originTop: 10,
+    scaleX: 0.5,
+    scaleY: 0.5,
+    bounds: { left: 40, top: 10, right: 440, bottom: 310, width: 400, height: 300 },
+  })
+  assert.deepEqual(space.point(140, 110), { left: 200, top: 200 })
+  assert.deepEqual(space.rect(anchorRect(60, 20, 40, 100)), {
+    left: 0,
+    top: 100,
+    right: 200,
+    bottom: 140,
+    width: 200,
+    height: 40,
+  })
+  assert.equal(space.scaleX, 0.5)
+  assert.equal(space.scaleY, 0.5)
+})
+
+test('floatingSpaceFrom：非法缩放回退为 1（避免除零）', () => {
+  const space = floatingSpaceFrom({
+    originLeft: 0,
+    originTop: 0,
+    scaleX: 0,
+    scaleY: Number.NaN,
+    bounds: viewport,
+  })
+  assert.equal(space.scaleX, 1)
+  assert.equal(space.scaleY, 1)
+  assert.deepEqual(space.point(12, 34), { left: 12, top: 34 })
+})
+
+test('scaledPopupPlacement：0.6 缩放时宽度按视觉宽度反算，不留 0.36 倍菜单', () => {
+  // 锚点布局宽 190，缩放后视觉宽 114。
+  const placement = scaledPopupPlacement({
+    anchorRect: anchorRect(100, 38, 200, 114),
+    bounds: viewport,
+    scaleX: 0.6,
+    scaleY: 0.6,
+    minWidth: 190,
+    maxHeight: 320,
+    menuHeight: 200,
+    margin: 10,
+    gap: 5,
+  })
+  assert.ok(placement)
+  assert.equal(placement.width, 190)
+  assert.equal(placement.left, 200)
+  assert.equal(placement.top, 100 + 38 + 3)
+})
+
+test('scaledPopupPlacement：下方空间不足时向上翻转并压住最大高度', () => {
+  const placement = scaledPopupPlacement({
+    anchorRect: anchorRect(560, 30, 100, 120),
+    bounds: viewport,
+    scaleX: 1,
+    scaleY: 1,
+    maxHeight: 320,
+    menuHeight: 320,
+    margin: 8,
+    gap: 5,
+  })
+  assert.ok(placement)
+  assert.equal(placement.above, true)
+  assert.equal(placement.top, 560 - 5 - placement.maxHeight)
+})
+
+test('scaledPopupPlacement：锚点完全在可视区外返回 null（调用方收起菜单）', () => {
+  assert.equal(
+    scaledPopupPlacement({
+      anchorRect: anchorRect(700, 30, 100, 120),
+      bounds: { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 },
+      maxHeight: 320,
+      menuHeight: 120,
+    }),
+    null,
+  )
+})
+
+test('scaledPopupPlacement：菜单不超过可用宽度', () => {
+  const placement = scaledPopupPlacement({
+    anchorRect: anchorRect(100, 30, 700, 300),
+    bounds: viewport,
+    maxHeight: 200,
+    menuHeight: 100,
+    margin: 10,
+  })
+  assert.ok(placement)
+  assert.ok(placement.left + placement.width <= 790 + 1e-9)
 })

@@ -217,6 +217,15 @@ export function openDeviceCategoryPicker(
     title: environmentCategory ? "选择环境类别" : "选择设备类别",
     kicker: environmentCategory ? "ENVIRONMENT CATEGORY" : "DEVICE CATEGORY",
     unit: "模型",
+    // 上游 `v386`：类别页要说明「已配置/未配置」的含义，否则用户不知道点进去会怎样。
+    description:
+      "当前楼层：" +
+      (String(
+        (
+          (editorHost.sceneMetadata?.floors || []) as ReadonlyArray<Record<string, unknown>>
+        ).find((floorProbe) => floorProbe.id === editorHost.floorSelection)?.name ?? "",
+      ).trim() || "未知楼层") +
+      "。已配置表示已添加到 3D 交互，未配置表示尚未添加。",
     selectedId: editorHost.deviceKind,
     emptyMessage: "当前楼层没有可选类别。",
     sections: categorySections.map((categorySection) => ({

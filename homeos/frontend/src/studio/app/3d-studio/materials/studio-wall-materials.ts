@@ -262,102 +262,310 @@ export function setWallGradientHeight(threeModule: any, meshGeometry: any, axis:
   meshGeometry.setAttribute("hbWallHeight", new threeModule.BufferAttribute(heightBuffer, 1));
 }
 
-/** 侧序排序只依赖材质标识、透明度和层级序号。 */
-type WallSideMaterial = { uuid?: string; transparent?: boolean };
-type WallSideEntry = { mesh: WallSideMesh; wallSideIndex: number };
-type WallSideMesh = {
-  material?: WallSideMaterial | WallSideMaterial[];
-  userData?: { wallSideIndex?: number; [key: string]: unknown };
-  renderOrder: number;
-  getWorldPosition?: (target: { x: number; y: number; z: number }) => {
-    x: number;
-    y: number;
-    z: number;
-  };
-  getWorldDirection?: (target: { x: number; y: number; z: number }) => {
-    x: number;
-    y: number;
-    z: number;
-  };
+/** 墙面侧序用到的 three 构造器/常量（只列用到的成员，避免把整包 three 类型引进材质层）。 */
+type WallSideThreeApi = {
+  Vector3: new () => WallSideVector;
+  Vector4: new (x?: number, y?: number, z?: number, w?: number) => WallSideVector;
+  Matrix4: new () => WallSideMatrix;
+  BufferAttribute: new (array: Float32Array | Uint16Array | Uint32Array, itemSize: number) => WallSideIndexAttribute;
+  DynamicDrawUsage: unknown;
+  DoubleSide: number;
+  BackSide: number;
+};
+type WallSideVector = {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  fromBufferAttribute(attribute: WallSidePositionAttribute, index: number): WallSideVector;
+  sub(vector: WallSideVector): WallSideVector;
+  cross(vector: WallSideVector): WallSideVector;
+  dot(vector: WallSideVector): number;
+  copy(vector: WallSideVector): WallSideVector;
+  set(x: number, y: number, z: number, w: number): WallSideVector;
+  applyMatrix4(matrix: WallSideMatrix): WallSideVector;
+  multiplyScalar(scale: number): WallSideVector;
+  equals(vector: WallSideVector): boolean;
+};
+type WallSideMatrix = {
+  elements: ArrayLike<number>;
+  equals(matrix: WallSideMatrix): boolean;
+  copy(matrix: WallSideMatrix): WallSideMatrix;
+  invert(): WallSideMatrix;
+};
+type WallSideIndexAttribute = {
+  array: Float32Array | Uint16Array | Uint32Array;
+  byteLength: number;
+  needsUpdate: boolean;
+  setUsage(usage: unknown): WallSideIndexAttribute;
+};
+type WallSidePositionAttribute = {
+  count: number;
+  version: number;
+  isInterleavedBufferAttribute?: boolean;
+  getX(index: number): number;
+  getY(index: number): number;
+  getZ(index: number): number;
+};
+type WallSideCamera = {
+  matrixWorld: WallSideMatrix;
+  projectionMatrixInverse: WallSideMatrix;
+  isOrthographicCamera?: boolean;
+};
+type WallSideSideMaterial = {
+  isMeshPhysicalMaterial?: boolean;
+  transparent?: boolean;
+  normalMap?: unknown;
+  bumpMap?: unknown;
+  displacementMap?: unknown;
+  wireframe?: boolean;
+  side?: number;
+  forceSinglePass?: boolean;
+};
+type WallSideGroup = { materialIndex: number; start: number; count: number };
+type WallSideOrderGeometry = {
+  index: unknown;
+  attributes: { position: WallSidePositionAttribute };
+  groups: WallSideGroup[];
+  drawRange: { start: number; count: number };
+  setIndex(index: unknown): void;
+  addEventListener(type: "dispose", listener: () => void): void;
+  removeEventListener(type: "dispose", listener: () => void): void;
+};
+type WallSideOrderMesh = {
+  geometry: WallSideOrderGeometry;
+  material?: WallSideSideMaterial[];
+  userData: Record<string, unknown>;
+  matrixWorld: WallSideMatrix;
+  onBeforeRender?: (
+    renderer: unknown,
+    scene: unknown,
+    camera: WallSideCamera,
+    geometry: WallSideOrderGeometry,
+    material: WallSideSideMaterial,
+    group?: WallSideGroup,
+  ) => void;
+};
+type WallSideOrderStats = { sorts: number; checks: number; bytes: number };
+type WallSideCameraSpace = {
+  world: WallSideMatrix;
+  projection: WallSideMatrix;
+  point: WallSideVector;
+  ready: boolean;
 };
 
-/** 每面墙体侧面的材质签名；材质一变就要重排（透明度会改变绘制顺序需求）。 */
-const wallSideOrderSignatures = new WeakMap<object, { materialUuid: string; transparent: boolean; index: number }>();
+/** 相机空间的缓存键：默认就是相机本身（上游 `M2` 的同义实现）。 */
+const wallSideCameraSpaces = new WeakMap<object, WallSideCameraSpace>();
 
 /**
  * 墙面侧序（0.8.1 `prepareWallSideOrder`）。
  *
- * 半透明墙体互相遮挡时，先后顺序决定「哪面墙看起来在前面」。这里按相机点把墙面
- * 分成正面/背面两组，背面先画、正面后画，组内保持稳定索引（`wallSideIndex`）：
+ * 合并后的墙带把左右两侧的三角形放在**同一个 geometry** 里；半透明时谁先画由
+ * 相机决定，而三角形顺序是固定的 —— 站到墙背面看，近侧的墙会被远侧的墙挡住，
+ * 表现为「墙面一层雾」。上游的做法是每帧按相机侧写重排 index buffer：
  *
- * - **动态索引**：第一次见到的墙面写入 `userData.wallSideIndex`，之后沿用，避免
- *   帧间抖动导致 z-fighting 闪一下；
- * - **材质变更回退**：材质 uuid 或 `transparent` 变化时整组重排（透明度切换会
- *   改变是否参与深度写入，旧顺序不再成立）；
- * - 没有相机点时按索引奇偶分组，保证纯排序也可预测。
+ * - 用三角形平面方程判断该面朝向相机还是背向相机；
+ * - 背向的先写、朝向的后写（半透明走 back-to-front）；
+ * - 相机位置没变且朝向集合没变时直接返回，只有真正需要时才 `needsUpdate`；
+ * - 只要进入重排就必须同时把材质的 `forceSinglePass` 打开（否则 three 会再画一遍
+ *   背面，重排就失去意义），离开时恢复。
+ *
+ * 返回 `null` 表示这个网格不满足条件（不透明 / 非合并墙带 / 已有索引），调用方
+ * 不需要记录状态。
  */
 export function prepareWallSideOrder(
-  wallSideMeshes: WallSideMesh[],
-  cameraPoint?: { x: number; y: number; z: number } | null,
-  { baseRenderOrder = 2 }: { baseRenderOrder?: number } = {},
-) {
-  const meshes = (Array.isArray(wallSideMeshes) ? wallSideMeshes : []).filter(Boolean),
-    stats = { front: 0, back: 0, materialChanges: 0, indexed: 0 };
-  if (!meshes.length) return { ordered: [] as WallSideMesh[], stats, fallback: false };
-  const frontGroup: WallSideEntry[] = [],
-    backGroup: WallSideEntry[] = [];
-  let fallback = false;
-  meshes.forEach((mesh, meshIndex) => {
-    const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material,
-      materialUuid = String(material?.uuid ?? ""),
-      materialTransparent = material?.transparent === true,
-      signature = wallSideOrderSignatures.get(mesh),
-      materialChanged =
-        !!signature &&
-        (signature.materialUuid !== materialUuid || signature.transparent !== materialTransparent);
-    if (materialChanged) stats.materialChanges += 1;
-    const wallSideIndex =
-      materialChanged || !Number.isFinite(mesh.userData?.wallSideIndex ?? NaN)
-        ? meshIndex
-        : Number(mesh.userData?.wallSideIndex);
-    const meshUserData = mesh.userData ?? (mesh.userData = {});
-    if (materialChanged || meshUserData.wallSideIndex !== wallSideIndex) {
-      meshUserData.wallSideIndex = wallSideIndex;
-      stats.indexed += 1;
+  threeApi: WallSideThreeApi,
+  mesh: WallSideOrderMesh,
+  sorter: (
+    mesh: WallSideOrderMesh,
+    camera: WallSideCamera,
+    renderer: unknown,
+  ) => WallSideCamera = (_mesh, camera) => camera,
+): WallSideOrderStats | null {
+  const geometry = mesh.geometry,
+    sideMaterial = mesh.material?.[1],
+    positionAttribute = geometry?.attributes?.position,
+    sideGroup = geometry?.groups?.find((group) => group.materialIndex === 1);
+  if (
+    !mesh.userData.hbMergeWallBand ||
+    !sideMaterial?.isMeshPhysicalMaterial ||
+    !sideMaterial.transparent ||
+    sideMaterial.side !== threeApi.DoubleSide ||
+    sideMaterial.forceSinglePass ||
+    geometry.index ||
+    !positionAttribute ||
+    positionAttribute.isInterleavedBufferAttribute ||
+    !sideGroup ||
+    sideGroup.start % 3 ||
+    sideGroup.count % 3 ||
+    sideGroup.start + sideGroup.count > positionAttribute.count
+  )
+    return null;
+  const positionVersion = positionAttribute.version,
+    triangleCount = sideGroup.count / 3,
+    groupStart = sideGroup.start,
+    groupEnd = groupStart + sideGroup.count;
+  let planeCoefficients = new Float64Array(triangleCount * 4),
+    frontFacing = new Uint8Array(triangleCount);
+  const firstCorner = new threeApi.Vector3(),
+    edgeA = new threeApi.Vector3(),
+    edgeB = new threeApi.Vector3();
+  for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+    const vertexStart = groupStart + triangleIndex * 3,
+      coefficientStart = triangleIndex * 4;
+    (firstCorner.fromBufferAttribute(positionAttribute, vertexStart),
+      edgeA.fromBufferAttribute(positionAttribute, vertexStart + 1).sub(firstCorner),
+      edgeB.fromBufferAttribute(positionAttribute, vertexStart + 2).sub(firstCorner),
+      edgeA.cross(edgeB),
+      (planeCoefficients[coefficientStart] = edgeA.x),
+      (planeCoefficients[coefficientStart + 1] = edgeA.y),
+      (planeCoefficients[coefficientStart + 2] = edgeA.z),
+      (planeCoefficients[coefficientStart + 3] = -edgeA.dot(firstCorner)));
+  }
+  const indexArray =
+      positionAttribute.count > 65535
+        ? new Uint32Array(positionAttribute.count)
+        : new Uint16Array(positionAttribute.count);
+  for (let index = 0; index < indexArray.length; index++) indexArray[index] = index;
+  const indexAttribute = new threeApi.BufferAttribute(indexArray, 1).setUsage(
+    threeApi.DynamicDrawUsage,
+  );
+  geometry.setIndex(indexAttribute);
+  const previousOnBeforeRender = mesh.onBeforeRender,
+    worldToLocal = new threeApi.Matrix4(),
+    cameraPoint = new threeApi.Vector4(1 / 0, 1 / 0, 1 / 0, 1 / 0),
+    lastCameraPoint = new threeApi.Vector4(1 / 0, 1 / 0, 1 / 0, 1 / 0),
+    stats: WallSideOrderStats = {
+      sorts: 0,
+      checks: 0,
+      bytes: indexArray.byteLength + planeCoefficients.byteLength + frontFacing.byteLength,
+    };
+  let firstRun = true,
+    reordered = false,
+    disposed = false;
+
+  function restoreOrder(material: WallSideSideMaterial) {
+    if (((material.forceSinglePass = false), reordered)) {
+      for (let index = groupStart; index < groupEnd; index++) indexArray[index] = index;
+      indexAttribute.needsUpdate = true;
     }
-    wallSideOrderSignatures.set(mesh, {
-      materialUuid,
-      transparent: materialTransparent,
-      index: wallSideIndex,
-    });
-    let isFront: boolean;
-    if (cameraPoint && mesh.getWorldPosition && mesh.getWorldDirection) {
-      const centerTarget = { x: 0, y: 0, z: 0 },
-        directionTarget = { x: 0, y: 0, z: 0 },
-        center = mesh.getWorldPosition(centerTarget) || centerTarget,
-        direction = mesh.getWorldDirection(directionTarget) || { x: 0, y: 0, z: 1 },
-        dot =
-          (cameraPoint.x - center.x) * direction.x +
-          (cameraPoint.y - center.y) * direction.y +
-          (cameraPoint.z - center.z) * direction.z;
-      isFront = dot >= 0;
-    } else {
-      fallback = true;
-      isFront = wallSideIndex % 2 === 1;
+    ((reordered = false), (firstRun = true));
+  }
+
+  function handleBeforeRender(
+    this: unknown,
+    renderer: unknown,
+    scene: unknown,
+    camera: WallSideCamera,
+    renderedGeometry: WallSideOrderGeometry,
+    material: WallSideSideMaterial,
+    group?: WallSideGroup,
+  ) {
+    previousOnBeforeRender?.call(mesh, renderer, scene, camera, renderedGeometry, material, group);
+    if (disposed || group?.materialIndex !== 1) return;
+    if (
+      renderedGeometry !== geometry ||
+      geometry.index !== indexAttribute ||
+      geometry.attributes.position !== positionAttribute ||
+      positionAttribute.version !== positionVersion ||
+      group.start !== groupStart ||
+      group.count !== groupEnd - groupStart ||
+      geometry.drawRange.start !== 0 ||
+      geometry.drawRange.count !== 1 / 0 ||
+      !material.isMeshPhysicalMaterial ||
+      !material.transparent ||
+      material.normalMap ||
+      material.bumpMap ||
+      material.displacementMap ||
+      material.wireframe ||
+      (material.side !== threeApi.DoubleSide && material.side !== threeApi.BackSide)
+    ) {
+      restoreOrder(material);
+      return;
     }
-    (isFront ? frontGroup : backGroup).push({
-      mesh,
-      wallSideIndex,
-    });
-    isFront ? (stats.front += 1) : (stats.back += 1);
-  });
-  const ordered = [...backGroup, ...frontGroup];
-  ordered.forEach((entry, orderIndex) => {
-    entry.mesh.renderOrder = baseRenderOrder + orderIndex;
-  });
-  return {
-    ordered: ordered.map((entry) => entry.mesh),
-    stats,
-    fallback,
-  };
+    const cameraSpaceKey = sorter(mesh, camera, renderer);
+    let cameraSpace = wallSideCameraSpaces.get(cameraSpaceKey);
+    if (!cameraSpace) {
+      ((cameraSpace = {
+        world: new threeApi.Matrix4(),
+        projection: new threeApi.Matrix4(),
+        point: new threeApi.Vector4(),
+        ready: false,
+      }),
+        wallSideCameraSpaces.set(cameraSpaceKey, cameraSpace));
+    }
+    if (
+      !cameraSpace.ready ||
+      !cameraSpace.world.equals(cameraSpaceKey.matrixWorld) ||
+      !cameraSpace.projection.equals(cameraSpaceKey.projectionMatrixInverse)
+    ) {
+      (cameraSpace.world.copy(cameraSpaceKey.matrixWorld),
+        cameraSpace.projection.copy(cameraSpaceKey.projectionMatrixInverse),
+        (cameraSpace.ready = true),
+        cameraSpace.point
+          .set(0, 0, 1, 0)
+          .applyMatrix4(cameraSpaceKey.projectionMatrixInverse)
+          .applyMatrix4(cameraSpaceKey.matrixWorld),
+        cameraSpaceKey.isOrthographicCamera
+          ? cameraSpace.point.multiplyScalar(-1)
+          : cameraSpace.point.w && cameraSpace.point.multiplyScalar(1 / cameraSpace.point.w));
+    }
+    cameraPoint
+      .copy(cameraSpace.point)
+      .applyMatrix4(worldToLocal.copy(mesh.matrixWorld).invert());
+    if (
+      !Number.isFinite(cameraPoint.x) ||
+      !Number.isFinite(cameraPoint.y) ||
+      !Number.isFinite(cameraPoint.z) ||
+      !Number.isFinite(cameraPoint.w)
+    ) {
+      restoreOrder(material);
+      return;
+    }
+    if (((material.forceSinglePass = true), (reordered = true), !firstRun && lastCameraPoint.equals(cameraPoint)))
+      return;
+    (lastCameraPoint.copy(cameraPoint), stats.checks++);
+    let facingChanged = firstRun,
+      backFacingCount = 0;
+    for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+      const coefficientStart = triangleIndex * 4,
+        isFrontFacing =
+          planeCoefficients[coefficientStart] * cameraPoint.x +
+            planeCoefficients[coefficientStart + 1] * cameraPoint.y +
+            planeCoefficients[coefficientStart + 2] * cameraPoint.z +
+            planeCoefficients[coefficientStart + 3] * cameraPoint.w >
+          0
+            ? 1
+            : 0;
+      (isFrontFacing !== frontFacing[triangleIndex] && (facingChanged = true),
+        (frontFacing[triangleIndex] = isFrontFacing),
+        isFrontFacing || backFacingCount++);
+    }
+    if (((firstRun = false), !facingChanged)) return;
+    let backWrite = groupStart,
+      frontWrite = groupStart + backFacingCount * 3;
+    for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
+      let writeIndex = frontFacing[triangleIndex] ? frontWrite : backWrite;
+      const sourceIndex = groupStart + triangleIndex * 3;
+      ((indexArray[writeIndex++] = sourceIndex),
+        (indexArray[writeIndex++] = sourceIndex + 1),
+        (indexArray[writeIndex] = sourceIndex + 2),
+        frontFacing[triangleIndex] ? (frontWrite += 3) : (backWrite += 3));
+    }
+    ((indexAttribute.needsUpdate = true), stats.sorts++);
+  }
+
+  function handleDispose() {
+    ((disposed = true),
+      mesh.onBeforeRender === handleBeforeRender &&
+        (mesh.onBeforeRender = previousOnBeforeRender),
+      geometry.removeEventListener("dispose", handleDispose),
+      sideMaterial && (sideMaterial.forceSinglePass = false),
+      (planeCoefficients = new Float64Array(0)),
+      (frontFacing = new Uint8Array(0)));
+  }
+
+  ((mesh.onBeforeRender = handleBeforeRender),
+    geometry.addEventListener("dispose", handleDispose));
+  return stats;
 }

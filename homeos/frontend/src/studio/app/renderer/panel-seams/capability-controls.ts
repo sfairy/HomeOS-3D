@@ -3,6 +3,7 @@ import type { PanelRenderer } from "../panel-renderer";
 import { clickFocusedElement, createSwitchVisual } from "../renderer-helpers";
 import { climateModeLabel as climateModeLabel2, resolveClimateDeviceType as resolveClimateDeviceType2 } from "../controls/climate";
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../shared/util/range-progress";
+import { positionScaledPopupMenu } from "../../shared/util/editor-floating-layout";
 
 export function createCapabilityDetailsControls(this: PanelRenderer, 
     capabilityEntityId: any,
@@ -140,33 +141,13 @@ export function createCapabilityDetailsControls(this: PanelRenderer,
             },
             syncSelectState = () => {
               if (!isBedSelectMenuOpen() && bedSelectMenu.hidden) return;
-              const selectTriggerRect = bedSelectTriggerButton.getBoundingClientRect(),
-                innerWidth = window.innerWidth,
-                innerHeight = window.innerHeight,
-                bedSelectMenuWidth = Math.min(
-                  Math.max(selectTriggerRect.width, 150),
-                  Math.max(150, innerWidth - 20),
-                );
-              ((bedSelectMenu.style.width = bedSelectMenuWidth + "px"),
-                (bedSelectMenu.style.maxHeight =
-                  Math.min(306, Math.max(96, innerHeight - 20)) + "px"));
-              const bedSelectMenuHeight = Math.min(bedSelectMenu.scrollHeight || 0, 306),
-                menuSpaceBelow = innerHeight - selectTriggerRect.bottom - 10,
-                menuSpaceAbove = selectTriggerRect.top - 10,
-                bedSelectMenuTop =
-                  menuSpaceBelow < Math.min(bedSelectMenuHeight, 160) &&
-                  menuSpaceAbove > menuSpaceBelow
-                    ? Math.max(10, selectTriggerRect.top - bedSelectMenuHeight - 5)
-                    : Math.min(
-                        innerHeight - bedSelectMenuHeight - 10,
-                        selectTriggerRect.bottom + 5,
-                      );
-              ((bedSelectMenu.style.left =
-                Math.max(
-                  10,
-                  Math.min(selectTriggerRect.left, innerWidth - bedSelectMenuWidth - 10),
-                ) + "px"),
-                (bedSelectMenu.style.top = Math.max(10, bedSelectMenuTop) + "px"));
+              // 与气候下拉同一套缩放定位：0.6 倍弹窗里菜单保持视觉宽度并夹在可视区。
+              positionScaledPopupMenu(bedSelectTriggerButton, bedSelectMenu, {
+                minWidth: 150,
+                maxHeight: 306,
+                margin: 10,
+                gap: 5,
+              });
             },
             closeBedSelectMenu = () => {
               (isBedSelectMenuOpen() &&
