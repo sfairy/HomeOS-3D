@@ -55,7 +55,7 @@ from ..dependencies import (
 from ..domains.license import features as feature_codes
 from ..domains.ui_config.global_popups import global_popups
 from ..modules.interaction3d.studio_draft_scene import read_current_studio_draft
-from ..panel.asset_refs import saved_project_documents
+from ..panel.asset_refs import saved_project_documents, studio_asset_ids
 from ..platform.core.asset_paths import (
     UPLOAD_CONTENT_TYPES,
     UPLOAD_IMAGE_SUFFIXES,
@@ -890,7 +890,7 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
         if usages:
             raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': f'图片正在被仪表盘“{"、".join(usages)}”使用，请先替换或移除后再删除。', 'projects': usages })
         studio_draft = read_current_studio_draft(database) or { }
-        if document_uses_asset(studio_draft.get('scene') or { }, full_asset_id):
+        if full_asset_id in studio_asset_ids(studio_draft.get('scene') or { }):
             raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': '图片正在被户型图绘制使用，请先替换或移除后再删除。' })
         path.unlink()
         catalog.remove_user(full_asset_id)

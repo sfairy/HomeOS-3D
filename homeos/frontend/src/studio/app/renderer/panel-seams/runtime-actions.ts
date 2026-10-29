@@ -314,8 +314,35 @@ export async function dispatchAction(self: PanelRenderer, toggleComponentRecord:
       self.navigate(toggleActionRecord.target);
     }
   }
-export async function callEntityService(self: PanelRenderer, serviceDomain: any, serviceName: any, serviceEntityId: any, servicePayload: Record<string, any> = {}) {
+
+export async function callEntityService(
+  self: PanelRenderer,
+  serviceDomain: string,
+  serviceName: string,
+  serviceEntityId: string,
+  servicePayload: Record<string, unknown> = {},
+) {
+  await requestHAControl(serviceDomain, serviceName, serviceEntityId, servicePayload);
+}
+const HA_CONTROL_TIMEOUT_MS = 15000;
+
+/**
+ * 渲染器弹窗里的所有 HA 控制请求都从这里走（0.8.1 `requestHAControl`）：
+ * 统一超时 + `timedOut` 标记 + 文案，避免每个面板各写一套 fetch。
+ */
+export async function requestHAControl(
+  serviceDomain: string,
+  serviceName: string,
+  serviceEntityId: string,
+  servicePayload: Record<string, unknown> = {},
+) {
+    const controlAbortController = new AbortController(),
+      controlTimeoutId = window.setTimeout(
+        () => controlAbortController.abort("timeout"),
+        HA_CONTROL_TIMEOUT_MS,
+      );
     const serviceRequestInit: RequestInit & { hbLogContext?: ComponentPayload } = {
+      signal: controlAbortController.signal,
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -334,7 +361,28 @@ export async function callEntityService(self: PanelRenderer, serviceDomain: any,
         phase: "device-control",
       },
     };
-    const serviceResponse = await fetch("/api/v1/ha/services/call", serviceRequestInit);
+    let serviceResponse: Response;
+    try {
+      serviceResponse = await fetch("/api/v1/ha/services/call", serviceRequestInit);
+    } catch (controlError: unknown) {
+      const isTimedOut =
+          controlError instanceof Error &&
+          controlError.name === "AbortError" &&
+          controlAbortController.signal.reason === "timeout",
+        controlFailure: Error & { timedOut?: boolean } = new Error(
+          isTimedOut
+            ? "请求超时，请检查设备状态。"
+            : controlError instanceof Error
+              ? controlError.message || "实体操作失败。"
+              : "实体操作失败。",
+        );
+      throw (
+        (controlFailure.timedOut = isTimedOut),
+        window.HomeOSLog?.linkError?.(controlFailure, undefined) || controlFailure
+      );
+    } finally {
+      window.clearTimeout(controlTimeoutId);
+    }
     if (!serviceResponse.ok) {
       const serviceErrorBody = await serviceResponse.json().catch(() => ({})),
         error = new Error(

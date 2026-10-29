@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ..dependencies import DatabaseSession, LicensedUser
 from ..domains.studio3d import export_service, service
+from ..panel.asset_refs import studio_asset_ids
 from ..platform.core.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 from ..schemas import Studio3DDraftUpdate
 
@@ -29,7 +30,10 @@ router = APIRouter(prefix="/studio3d", tags=["studio3d"])
 
 @router.get("")
 def get_studio3d_draft(database: DatabaseSession, _user: LicensedUser) -> dict:
-    return service.get_draft(database)
+    draft = service.get_draft(database)
+    # 场景里引用的可变素材（user: / studio3d:）：素材管理据此标记「使用中」。
+    draft['assetIds'] = sorted(studio_asset_ids(draft.get('scene') or {}))
+    return draft
 
 
 @router.put("")

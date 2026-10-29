@@ -92,6 +92,81 @@ export function cameraRequestBudget(): CameraRequestBudget {
     createCameraRequestBudget(DEFAULT_REQUEST_SLOTS));
 }
 
+const STREAM_BUDGET_SYMBOL = Symbol.for("ha-bridge.camera-stream-budget");
+
+export type CameraStreamLease = { release: () => void };
+
+interface QueuedStream {
+  priority: number;
+  sequence: number;
+  resolve: (lease: CameraStreamLease) => void;
+  reject: (reason: unknown) => void;
+  signal?: AbortSignal;
+  started: boolean;
+  cancel?: () => void;
+}
+
+/**
+ * 摄像头**长连接**预算：MJPEG 与 HLS 这类一直占着连接的路数，最多同时 2 路。
+ *
+ * 和请求预算分开的原因：请求是「拿到就还」，流是「看完才还」。如果共用，
+ * 两路 MJPEG 就会永久占满池子，所有快照轮询都饿死。
+ * 优先级高的（当前可见摄像头）先拿 slot；被拒绝的流留在队列里，等前面释放后重排。
+ */
+export function createCameraStreamBudget(maxConcurrent = DEFAULT_REQUEST_SLOTS) {
+  let activeCount = 0,
+    sequence = 0;
+  const pendingQueue: QueuedStream[] = [];
+  const pump = () => {
+    pendingQueue.sort(
+      (leftStream, rightStream) =>
+        rightStream.priority - leftStream.priority || leftStream.sequence - rightStream.sequence,
+    );
+    while (activeCount < maxConcurrent && pendingQueue.length) {
+      const nextStream = pendingQueue.shift()!;
+      (nextStream.started = true),
+        activeCount++,
+        nextStream.cancel && nextStream.signal?.removeEventListener("abort", nextStream.cancel);
+      let isReleased = false;
+      nextStream.resolve({
+        release() {
+          if (isReleased) return;
+          ((isReleased = true), activeCount--, pump());
+        },
+      });
+    }
+  };
+  return (priority = 0, signal?: AbortSignal): Promise<CameraStreamLease> => {
+    if (signal?.aborted) return Promise.reject(signal.reason);
+    return new Promise<CameraStreamLease>((resolve, reject) => {
+      const queuedStream: QueuedStream = {
+        priority: Number.isFinite(priority) ? priority : 0,
+        sequence: sequence++,
+        resolve,
+        reject,
+        signal,
+        started: false,
+      };
+      ((queuedStream.cancel = () => {
+        if (queuedStream.started) return;
+        const queuedIndex = pendingQueue.indexOf(queuedStream);
+        queuedIndex >= 0 && pendingQueue.splice(queuedIndex, 1), reject(signal?.reason);
+      }),
+        signal?.addEventListener("abort", queuedStream.cancel, { once: true }),
+        pendingQueue.push(queuedStream),
+        pump());
+    });
+  };
+}
+
+/** 取（或建）同源共享的摄像头流预算。 */
+export function cameraStreamBudget() {
+  const budgetHost = sharedBudgetHost();
+  return ((budgetHost[STREAM_BUDGET_SYMBOL] as
+    | ReturnType<typeof createCameraStreamBudget>
+    | undefined) ||= createCameraStreamBudget(DEFAULT_REQUEST_SLOTS));
+}
+
 /** 用预算包住一次摄像头 HTTP 请求。 */
 export function withCameraHttpSlot<Result>(
   run: () => Promise<Result>,

@@ -8,7 +8,8 @@ import {
 } from "@/shared/camera/composables/useGo2RtcMseTransport";
 import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle } from "@/shared/camera/hls-loader";
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from "./_shared";
-import { withCameraHttpSlot } from "@runtime/camera/camera-budget";
+import { cameraStreamBudget, withCameraHttpSlot } from "@runtime/camera/camera-budget";
+import { createCameraMjpegStream } from "@runtime/camera/camera-mjpeg";
 
 /**
  * Studio 侧复用共享的 go2rtc MSE 实现（`shared/camera/composables/useGo2RtcMseTransport`），
@@ -447,6 +448,8 @@ export function mountCameraMedia({
   let isPageHidden = document.visibilityState === "hidden";
   // go2rtc MSE：传输本体与视觉状态机都由共享实现负责，这里只持有句柄以便释放。
   let go2rtcTransport: Go2RtcMseTransportHandle | null = null;
+  let legacyMjpegStream: ReturnType<typeof createCameraMjpegStream> | null = null;
+  let legacyStreamLease: { release: () => void } | null = null;
   const cameraVisualState = createCameraVisualState(
     legacyContainerElement,
     onVisualStateChange,
@@ -473,6 +476,10 @@ export function mountCameraMedia({
     clearTransportTimers();
     go2rtcTransport?.dispose();
     go2rtcTransport = null;
+    legacyMjpegStream?.dispose();
+    legacyMjpegStream = null;
+    legacyStreamLease?.release();
+    legacyStreamLease = null;
     hlsPlayer?.destroy();
     hlsPlayer = null;
     cameraVideoElement.pause();
@@ -578,8 +585,37 @@ export function mountCameraMedia({
     cameraVideoElement.load();
     cameraVideoElement.remove();
     legacyContainerElement.prepend(fallbackImageElement);
-    // 快照 URL 不带 query，避免缓存失效
-    fallbackImageElement.src = mjpegStreamUrl();
+    // 先走帧协议：服务端返回 `x-hb-camera-stream: frames` 时逐帧替换 objectURL，
+    // 拿不到就回退原生 `<img>` 吃 multipart。快照 URL 不带 query，避免缓存失效。
+    fallbackImageElement.removeAttribute("src");
+    legacyMjpegStream?.dispose();
+    legacyMjpegStream = null;
+    legacyStreamLease?.release();
+    legacyStreamLease = null;
+    const mjpegStream = createCameraMjpegStream({
+      url: mjpegStreamUrl(),
+      onFrame(objectUrl) {
+        if (isTransportDisposed || probeGeneration !== transportGeneration) return;
+        fallbackImageElement.src = objectUrl;
+      },
+      onFallback() {
+        if (isTransportDisposed || probeGeneration !== transportGeneration) return;
+        fallbackImageElement.src = mjpegStreamUrl();
+      },
+      onError(message) {
+        if (isTransportDisposed || probeGeneration !== transportGeneration) return;
+        reportTransportUnavailable(message);
+      },
+    });
+    legacyMjpegStream = mjpegStream;
+    void cameraStreamBudget()(isPageHidden ? 0 : 1).then((streamLease) => {
+      if (isTransportDisposed || probeGeneration !== transportGeneration) {
+        streamLease.release();
+        return;
+      }
+      legacyStreamLease = streamLease;
+      void mjpegStream.start();
+    });
     armLegacyFrameWatch(probeGeneration);
   };
 

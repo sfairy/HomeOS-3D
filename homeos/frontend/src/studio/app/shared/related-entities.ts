@@ -222,8 +222,46 @@ export function relatedPopupContext(
         }
   );
 }
+/**
+ * 旧版配置：`relatedEntities` 曾是裸数组（或挂在 `relatedEntityIds` 上）。
+ * 0.8.1 统一成 `{ mode, entityIds }`，但已落盘的组件仍可能是旧形状，
+ * 这里集中还原成去重后的 id 列表；没有旧配置时返回 null（区别于「显式空选」）。
+ */
+type LegacyRelatedEntityConfig = {
+  properties?: { relatedEntities?: unknown; relatedEntityIds?: unknown };
+  relatedEntities?: unknown;
+  relatedEntityIds?: unknown;
+};
+
+export function legacyRelatedEntityIds(componentConfig: unknown) {
+  const config = (componentConfig || {}) as LegacyRelatedEntityConfig,
+    legacyConfig =
+      config.properties?.relatedEntities ??
+      config.relatedEntities ??
+      config.properties?.relatedEntityIds ??
+      config.relatedEntityIds,
+    legacyEntityIds =
+      legacyConfig && typeof legacyConfig === "object"
+        ? (legacyConfig as { entityIds?: unknown }).entityIds
+        : undefined;
+  const legacyList = Array.isArray(legacyConfig)
+    ? legacyConfig
+    : Array.isArray(legacyEntityIds)
+      ? legacyEntityIds
+      : null;
+  return legacyList === null
+    ? null
+    : [
+        ...new Set(
+          legacyList.map((entityId) => String(entityId || "").trim()).filter(Boolean),
+        ),
+      ];
+}
 export function selectedRelatedEntityIds(componentConfig: any) {
   const relatedConfig = componentConfig?.properties?.relatedEntities;
+  const legacyIds = legacyRelatedEntityIds(componentConfig);
+  if (legacyIds !== null && (Array.isArray(relatedConfig) || !relatedConfig?.mode))
+    return legacyIds;
   return relatedConfig?.mode !== RELATED_ENTITY_MODE_SELECTED ||
     !Array.isArray(relatedConfig.entityIds)
     ? null

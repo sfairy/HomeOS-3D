@@ -51,6 +51,19 @@ def document_asset_ids(value: Any) -> set[str]:
     return result
 
 
+def studio_asset_ids(value: Any) -> set[str]:
+    """户型图场景引用的可回收素材（``user:`` / ``studio3d:``）。
+
+    3D 场景与仪表盘文档共用同一套素材目录：删除图片前除了扫仪表盘草稿，
+    还要把当前户型图场景算进来，否则「场景里正在用的图」会被当成孤儿删掉。
+    """
+    return {
+        asset_id
+        for asset_id in document_asset_ids(value)
+        if asset_id.startswith(MUTABLE_ASSET_PREFIXES)
+    }
+
+
 def validate_assets(catalog: Any, document: Any) -> set[str]:
     """校验 ``document`` 引用的图片都存在；返回其中的可变素材 id。
 

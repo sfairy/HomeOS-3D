@@ -3,6 +3,7 @@ import { trimSharedGeometryCache as trimSharedGeometryCache2 } from "../../../st
 import { MAX_CAMERA_POLAR_ANGLE as MAX_CAMERA_POLAR_ANGLE2, constrainCameraPosition as constrainCameraPosition2 } from "../../../scene/studio-camera-constraints";
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { OrbitControls as OrbitControls2 } from "/static/vendor/three/0.186.1/OrbitControls.js";
+import { createStudioOrbitControls } from "../../../studio-orbit-controls";
 import { clamp as clamp2 } from "../../../../plan/geometry";
 import { MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2, exportPresetIsEmpty as exportPresetIsEmpty2, normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2, normalizeExportPreset as normalizeExportPreset2, normalizeExportPresetSlots as normalizeExportPresetSlots2 } from "../../../../export/export-presets";
 import { syncControlValue as syncControlValue2 } from "../../../ui/ui-controls";
@@ -175,11 +176,17 @@ export function storeFixedCameraView(runtime: StudioAppRuntime, cameraViewSnapsh
 }
 
 export function createOrbitControls(runtime: StudioAppRuntime, orbitCamera: any) {
-  const orbitControlsHandle = new OrbitControls2(orbitCamera, runtime.appCtx.threeRenderer.domElement);
-  ((orbitControlsHandle.touchDragThreshold = runtime.isEmbeddedStage ? 8 : 0),
-    (orbitControlsHandle.enableDamping = true),
-    (orbitControlsHandle.rotateSmoothing = 8),
-    (orbitControlsHandle.rotateSmoothingThreshold = 0.000001),
+  const orbitControlsHandle = createStudioOrbitControls(
+    OrbitControls2,
+    orbitCamera,
+    runtime.appCtx.threeRenderer.domElement,
+    {
+      touchDragThreshold: runtime.isEmbeddedStage ? 8 : 0,
+      rotateSmoothing: 8,
+      rotateSmoothingThreshold: 0.000001,
+    },
+  );
+  ((orbitControlsHandle.enableDamping = true),
     (orbitControlsHandle.dampingFactor = 0.22),
     (orbitControlsHandle.minDistance = 2),
     (orbitControlsHandle.maxDistance = 100),

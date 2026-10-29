@@ -41,10 +41,12 @@ export function supportsCarTires(modelType: string | undefined | null): boolean 
   return modelType === "smallcar" || modelType === "suv" || modelType === "scooter";
 }
 
-/** 车型对应的轮位表；未知车型返回空表（调用方据此跳过整段胎压）。 */
-export function carTireWheels(modelType: string | undefined | null): readonly CarTireWheel[] {
+/** 车型对应的轮位表；未知车型返回 undefined（调用方据此跳过整段胎压）。 */
+export function carTireWheels(
+  modelType: string | undefined | null,
+): readonly CarTireWheel[] | undefined {
   if (modelType === "scooter") return SCOOTER_TIRE_WHEELS;
-  return modelType === "smallcar" || modelType === "suv" ? CAR_TIRE_WHEELS : [];
+  return modelType === "smallcar" || modelType === "suv" ? CAR_TIRE_WHEELS : undefined;
 }
 
 /** 车型切换（四轮 ↔ 双轮）后清掉不属于新轮位表的键，避免旧绑定跟着车型漂移。
@@ -55,7 +57,9 @@ export function retargetCarTires(
 ): CarTireConfig {
   if (!supportsCarTires(modelType)) return tires;
   const nextWheels: Record<string, string> = {},
-    allowedKeys = new Set(carTireWheels(modelType).map((wheelEntry) => wheelEntry.key));
+    allowedKeys = new Set(
+      (carTireWheels(modelType) ?? []).map((wheelEntry) => wheelEntry.key),
+    );
   for (const [wheelKey, wheelEntityId] of Object.entries(tires.wheels ?? {}))
     allowedKeys.has(wheelKey) && (nextWheels[wheelKey] = wheelEntityId);
   return {
@@ -108,7 +112,10 @@ export function carTireEntities(
   if (modelType != null && !supportsCarTires(modelType)) return [];
   /** 拿到车型就按车型取轮位；拿不到（订阅侧尚未收到元数据）就把两套轮位都算上，宁多订不漏订。 */
   const wheelCatalog =
-    modelType != null ? carTireWheels(modelType) : [...CAR_TIRE_WHEELS, ...SCOOTER_TIRE_WHEELS];
+    (modelType != null ? carTireWheels(modelType) : undefined) ?? [
+      ...CAR_TIRE_WHEELS,
+      ...SCOOTER_TIRE_WHEELS,
+    ];
   return wheelCatalog
     .map((wheelEntry) => item.tirePressure?.wheels?.[wheelEntry.key])
     .filter(
@@ -144,14 +151,15 @@ function carTireWheelPoints(THREE: any, bounds: any, wheel: CarTireWheel) {
   const size = bounds.getSize(new THREE.Vector3()),
     center = bounds.getCenter(new THREE.Vector3()),
     isTwoWheeler = wheel.side === 0,
-    localWheelSide = isTwoWheeler ? wheel.labelSide * 0.46 : wheel.side * 0.46,
+    // 两轮车的轮子在车身中线上：锚点必须用包围盒中心 x，
+    // 左右偏移只体现在引线外侧（labelSide），否则前轮会被推到车身一侧。
     anchor = new THREE.Vector3(
-      center.x + localWheelSide * size.x,
+      isTwoWheeler ? center.x : center.x + wheel.side * 0.46 * size.x,
       bounds.min.y + size.y * (isTwoWheeler ? 0.16 : 0.2),
-      center.z + wheel.front * size.z * (isTwoWheeler ? 0.36 : 0.32),
+      center.z + wheel.front * size.z * (isTwoWheeler ? 0.35 : 0.32),
     ),
     outside = anchor.clone();
-  outside.x += (isTwoWheeler ? wheel.labelSide * 0.5 : wheel.side * 0.12) * size.x;
+  outside.x += (isTwoWheeler ? wheel.labelSide * 0.6 : wheel.side * 0.12) * size.x;
   outside.y += size.y * 0.08;
   return { anchor, outside };
 }
@@ -315,7 +323,7 @@ export function createCarTires({ THREE, container }: { THREE: any; container: an
       const wantedKeySet = new Set<string>();
       for (const tireBinding of bindings) {
         if (!carTireEntities(tireBinding, tireBinding.modelType).length) continue;
-        for (const wheelEntry of carTireWheels(tireBinding.modelType)) {
+        for (const wheelEntry of carTireWheels(tireBinding.modelType) ?? []) {
           const wheelEntityId = tireBinding.tirePressure.wheels?.[wheelEntry.key];
           if (!wheelEntityId) continue;
           const tireKey = recordKey(tireBinding) + ":" + wheelEntry.key;

@@ -13,7 +13,7 @@ const MODULE = fileURLToPath(
   new URL('../../../../homeos/frontend/src/studio/runtime/camera/camera-budget.ts', import.meta.url),
 )
 
-const { createCameraRequestBudget } = await import(MODULE)
+const { createCameraRequestBudget, createCameraStreamBudget } = await import(MODULE)
 
 function deferred() {
   let resolve, reject
@@ -115,4 +115,54 @@ test('已 abort 的信号不会起跑', async () => {
     }, abortedController.signal),
   )
   assert.equal(started, false)
+})
+
+test('流预算：2 路长连接，释放后推进队列', async () => {
+  const budget = createCameraStreamBudget(2)
+  const firstLease = await budget(1)
+  const secondLease = await budget(1)
+  let thirdAcquired = false
+  const thirdPromise = budget(1).then((lease) => {
+    thirdAcquired = true
+    return lease
+  })
+  await Promise.resolve()
+  assert.equal(thirdAcquired, false)
+  firstLease.release()
+  const thirdLease = await thirdPromise
+  assert.equal(thirdAcquired, true)
+  secondLease.release()
+  thirdLease.release()
+})
+
+test('流预算：高优先级先拿 slot，释放后可重复挂号', async () => {
+  const budget = createCameraStreamBudget(1)
+  const blockingLease = await budget(0)
+  let lowPriorityLease = null
+  const lowPriorityPromise = budget(0).then((lease) => (lowPriorityLease = lease))
+  let highPriorityLease = null
+  const _highPriorityPromise = budget(10).then((lease) => (highPriorityLease = lease))
+  await Promise.resolve()
+  blockingLease.release()
+  // 两路都在排队时，priority=10 的那路先拿到。
+  await Promise.resolve()
+  assert.equal(highPriorityLease !== null, true)
+  assert.equal(lowPriorityLease, null)
+  highPriorityLease.release()
+  await lowPriorityPromise
+  assert.equal(lowPriorityLease !== null, true)
+  lowPriorityLease.release()
+})
+
+test('流预算：排队期间 abort 直接拒绝且不占 slot', async () => {
+  const budget = createCameraStreamBudget(1)
+  const blockingLease = await budget(0)
+  const controller = new AbortController()
+  const queuedPromise = budget(0, controller.signal)
+  await Promise.resolve()
+  controller.abort(new Error('cancelled-stream'))
+  await assert.rejects(queuedPromise)
+  blockingLease.release()
+  const nextLease = await budget(0)
+  nextLease.release()
 })

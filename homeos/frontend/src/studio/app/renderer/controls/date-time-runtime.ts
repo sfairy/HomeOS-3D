@@ -24,16 +24,49 @@ export function formatLocalDate(options: any, referenceDate = new Date()) {
     ? dateText
     : dateText + " 星期" + "日一二三四五六"[referenceDate.getDay()];
 }
+const CHINESE_DIGITS: Readonly<Record<string, number>> = {
+  一: 1,
+  二: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  七: 7,
+  八: 8,
+  九: 9,
+};
+
+/**
+ * 解析农历日：`Intl` 的 chinese calendar 会输出「初一」「十二」「廿三」「三十」
+ * 这类中文数字，直接 `Number()` 是 NaN。也兼容少数实现输出阿拉伯数字。
+ */
+export function parseChineseLunarDay(dayText: unknown) {
+  if (typeof dayText === "number") return Number.isInteger(dayText) ? dayText : NaN;
+  if (typeof dayText !== "string") return NaN;
+  const normalizedDayText = dayText.trim();
+  if (/^\d+$/.test(normalizedDayText)) return Number(normalizedDayText);
+  if (!normalizedDayText) return NaN;
+  if (normalizedDayText === "初十") return 10;
+  if (normalizedDayText === "二十" || normalizedDayText === "廿十") return 20;
+  if (normalizedDayText === "三十") return 30;
+  const prefix = normalizedDayText[0],
+    digit = CHINESE_DIGITS[normalizedDayText[1]];
+  if (!digit) return NaN;
+  return prefix === "初" ? digit : prefix === "十" ? 10 + digit : prefix === "廿" ? 20 + digit : NaN;
+}
+
 export function formatLunarDate(targetDate = new Date()) {
   try {
     const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
+      // 显示数字固定为拉丁数字：否则部分浏览器会把「初七」再套一次本地化数字。
+      numberingSystem: "latn",
       month: "long",
       day: "numeric",
     });
     if (lunarFormatter.resolvedOptions().calendar !== "chinese") return "";
     const parts = lunarFormatter.formatToParts(targetDate),
       monthText = parts.find((part) => part.type === "month")?.value,
-      dayNumber = Number(parts.find((dayPart) => dayPart.type === "day")?.value);
+      dayNumber = parseChineseLunarDay(parts.find((dayPart) => dayPart.type === "day")?.value);
     if (!monthText || !Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 30) return "";
     const dayText =
       dayNumber === 10

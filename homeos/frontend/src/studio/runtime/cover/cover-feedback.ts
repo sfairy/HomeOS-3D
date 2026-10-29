@@ -1,3 +1,12 @@
+/**
+ * 三次 Hermite 切线缓动（两端切线为 0，等价 smoothstep）。
+ * 单独导出便于测试：窗帘、电机、梦幻帘共用同一条曲线。
+ */
+export function coverEaseTangent(progress: number) {
+  const clampedProgress = Math.max(0, Math.min(1, Number(progress) || 0));
+  return clampedProgress * clampedProgress * (3 - 2 * clampedProgress);
+}
+
 export function createCoverFeedback({
   now: now = () => performance.now(),
   smoothingTime: smoothingTime = 180,
@@ -13,6 +22,11 @@ export function createCoverFeedback({
    * 两分钟后回落「在线」对用户来说仍然及时。
    */
   stallTimeout: stallTimeoutMs = 120000,
+  /**
+   * 拖动上报节流（ms）：窗帘与电机共用。指针移动事件远高于渲染帧率，
+   * 每个事件都改 draft 会让卡片/3D 每帧重建；50ms（≈20Hz）足够跟手。
+   */
+  reportInterval: reportIntervalMs = 50,
 }: {
   now?: () => number;
   smoothingTime?: number;
@@ -22,6 +36,7 @@ export function createCoverFeedback({
   scope?: string;
   wallNow?: () => number;
   stallTimeout?: number;
+  reportInterval?: number;
 } = {}) {
   const feedbackByEntityId = new Map(),
     readLastUpdated = (state: any) => Date.parse(state.raw?.last_updated ?? state.raw?.updatedAt ?? ""),
@@ -138,7 +153,12 @@ export function createCoverFeedback({
         start: startedAt,
         duration: durationMs = smoothingTime,
       } = trackedEntry.motion,
-      motionProgress = Math.max(0, Math.min(1, (timeMs - startedAt) / durationMs));
+      linearProgress = Math.max(0, Math.min(1, (timeMs - startedAt) / durationMs)),
+      // 切线曲线：起止速度为 0 的三次 Hermite（smoothstep），
+      // 窗帘与电机共用，避免线性动画在启动/停止瞬间「顿一下」。
+      motionProgress = commandPreview
+        ? coverEaseTangent(linearProgress)
+        : linearProgress;
     return (
       (trackedEntry.position = fromPosition + (toPosition - fromPosition) * motionProgress),
       motionProgress === 1 && (trackedEntry.motion = null),
@@ -496,6 +516,35 @@ export function createCoverFeedback({
     draftEntry &&
       (draftEntry.draft = Number.isFinite(position) ? Math.max(0, Math.min(100, position)) : null);
   }
+  /**
+   * 拖动上报：与 `preview` 同一语义，但按 `reportInterval` 节流。
+   * 清空（null）永远立即生效，否则松手后最后一帧会被节流吞掉，轨道停在半路。
+   */
+  function report(draftEntityId: string, position: number | null, timeMs = now()) {
+    const draftEntry = feedbackByEntityId.get(draftEntityId);
+    if (!draftEntry) return false;
+    const nextPosition =
+      position !== null && Number.isFinite(position)
+        ? Math.max(0, Math.min(100, position))
+        : null;
+    if (
+      nextPosition !== null &&
+      draftEntry.lastReportAt !== undefined &&
+      timeMs - draftEntry.lastReportAt < reportIntervalMs
+    )
+      return false;
+    return (
+      (draftEntry.lastReportAt = timeMs),
+      (draftEntry.draft = nextPosition),
+      true
+    );
+  }
+  /** 卡片首帧查询：没有缓存时回退到调用方给的初始状态，行为等同于 read。 */
+  function probe<T>(probeEntityId: string, fallbackState: T): T {
+    return feedbackByEntityId.has(probeEntityId)
+      ? read(probeEntityId, fallbackState)
+      : fallbackState;
+  }
   return {
     sync: sync,
     begin: begin,
@@ -506,6 +555,8 @@ export function createCoverFeedback({
     nextDelay: nextDelay,
     retain: retain,
     preview: preview,
+    report: report,
+    probe: probe,
     clear: () => feedbackByEntityId.clear(),
   };
 }
