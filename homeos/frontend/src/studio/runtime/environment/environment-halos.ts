@@ -11,6 +11,7 @@ const OUTLINE_MODEL_TYPES: ReadonlySet<string> = new Set([
   "airer",
   "fan",
   "ceiling-fan",
+  "exhaust-fan",
   "storagewaterheater",
   "gaswaterheater",
   "airpurifier",
@@ -54,17 +55,55 @@ function outlineHull(hullInput: any) {
 }
 /** 轮廓点：屏幕坐标对（x, y）。 */
 type OutlinePoint = [number, number];
+/** 投影后的轮廓点：`[x, y, ndcZ]`，第三项只用来判断是否在相机背后。 */
+type OutlinePointTuple = [number, number, number];
 
-/** 需要「有序轮廓」的模型：它们的剪影是凹的，凸包会把开口/叶片抹平。 */
-const ORDERED_OUTLINE_TYPES: ReadonlySet<string> = new Set([
-  "curtainCloth",
-  "dreamBlades",
-  "rotor",
-]);
+/** 轮廓节点：只用到这里几个字段，`three` 的实例在运行时才有完整类型。 */
+type OutlineNode = {
+  isMesh?: boolean;
+  geometry?: {
+    userData?: Record<string, Record<string, unknown>>;
+    attributes?: { position?: unknown };
+  };
+  updateWorldMatrix?: (updateParents: boolean, updateChildren: boolean) => void;
+  matrixWorld?: unknown;
+  traverse?: (visit: (node: unknown) => void) => void;
+};
 
-/** 该模型类型是否需要有序（凹）轮廓而非凸包。 */
-export function outlineUsesOrderedContour(modelType: unknown) {
-  return ORDERED_OUTLINE_TYPES.has(String(modelType ?? ""));
+/**
+ * 几何自带的「有序轮廓」顶点顺序（0.8.1 的 `ordered` 分支）。
+ *
+ * 帘布与梦幻帘的剪影是**凹**的：凸包会把帘布开口、梦幻帘叶片之间的缝一起抹平，
+ * 极角排序也修不好（叶片本身是非凸四边形，按角度排会连线穿模）。
+ * 这两类几何在建的时候就写了轮廓顺序，所以直接按顶点索引连：
+ *
+ * - `curtainCloth`：上沿 0..segments 一路向右，再沿下沿倒着回来，闭合成一条帘布轮廓；
+ * - `dreamBlades`：每片叶子是一个四边面，顶点顺序 `0,1,3,2` 才成环。
+ *
+ * 判定依据是**几何 userData**，不是模型类型 —— 早期实现拿 `environmentModelType`
+ * 去比 `"curtainCloth"`，而模型类型只会是 `"curtain"`，整条分支从来没命中过。
+ */
+export function orderedContourPointIndices(
+  geometryUserData: Record<string, Record<string, unknown>> | null | undefined,
+): number[][] | null {
+  const cloth = geometryUserData?.["curtainCloth"],
+    clothSegments = Number(cloth?.segments);
+  if (cloth && Number.isFinite(clothSegments) && clothSegments >= 0) {
+    const ringCount = clothSegments + 1;
+    return [
+      [
+        ...Array.from({ length: ringCount }, (_unused, ringIndex) => ringIndex),
+        ...Array.from({ length: ringCount }, (_unused, ringIndex) => 2 * ringCount - 1 - ringIndex),
+      ],
+    ];
+  }
+  const blades = geometryUserData?.["dreamBlades"],
+    bladeCount = Number(blades?.count);
+  if (blades && Number.isFinite(bladeCount) && bladeCount > 0)
+    return Array.from({ length: bladeCount }, (_unused, bladeIndex) =>
+      [0, 1, 3, 2].map((cornerOffset) => bladeIndex * 4 + cornerOffset),
+    );
+  return null;
 }
 
 /**
@@ -74,7 +113,8 @@ export function outlineUsesOrderedContour(modelType: unknown) {
  * SVG 重绘成为瓶颈，而肉眼看不出 0.45px 内的差别。误差用平方距离比较，省掉开方。
  */
 export function simplifyOutline(points: OutlinePoint[], epsilon = 0.45): OutlinePoint[] {
-  if (!Array.isArray(points) || points.length <= 3) return (points || []).slice();
+  // 上游从 5 个点起才简化：四边形以内做 RDP 只会把形状削没。
+  if (!Array.isArray(points) || points.length < 5) return (points || []).slice();
   const epsilonSquared = epsilon * epsilon,
     squaredSegmentDistance = (
       point: OutlinePoint,
@@ -122,25 +162,6 @@ export function simplifyOutline(points: OutlinePoint[], epsilon = 0.45): Outline
   simplifyRange(0, points.length - 1, keptIndices);
   keptIndices.push(points.length - 1);
   return keptIndices.sort((leftIndex, rightIndex) => leftIndex - rightIndex).map((pointIndex) => points[pointIndex]);
-}
-
-/**
- * 有序轮廓：按质心极角把点排成一圈（0.8.1 用于帘布/梦幻帘/扫地机风机）。
- * 凸包会把这些模型的内凹剪影抹平，极角排序能保住扇叶/帘布的开口。
- */
-export function orderedOutline(points: OutlinePoint[]): OutlinePoint[] {
-  if (!Array.isArray(points) || points.length <= 3) return (points || []).slice();
-  let centerX = 0,
-    centerY = 0;
-  for (const outlinePoint of points) ((centerX += outlinePoint[0]), (centerY += outlinePoint[1]));
-  ((centerX /= points.length), (centerY /= points.length));
-  return points
-    .slice()
-    .sort(
-      (leftPoint, rightPoint) =>
-        Math.atan2(leftPoint[1] - centerY, leftPoint[0] - centerX) -
-        Math.atan2(rightPoint[1] - centerY, rightPoint[0] - centerX),
-    );
 }
 
 export function createScreenOutlines({
@@ -458,21 +479,71 @@ export function createScreenOutlines({
     if (renderKey === cachedRenderKey) return;
     ((cachedRenderKey = renderKey),
       svgElement.setAttribute("viewBox", "0 0 " + widthPx + " " + heightPx));
-    const projectedVector = new three.Vector3(),
-      outlinePathString = outlineEntries
-        .map((outlineRecord) => {
-          const projectedPoints = outlineRecord.points.map(
-            (screenPoint: any) => (
-              projectedVector
-                .copy(screenPoint)
-                .applyMatrix4(outlineRecord.model.matrixWorld)
-                .project(outlineRecord.camera),
-              [
-                ((projectedVector.x + 1) * widthPx) / 2,
-                ((1 - projectedVector.y) * heightPx) / 2,
-                projectedVector.z,
-              ]
+    const projectedVector = new three.Vector3();
+    /** 世界坐标点 → 屏幕坐标（z 仍保留，用来剔掉相机背后的点）。 */
+    const projectToScreen = (worldPoint: unknown, projectionCamera: unknown) => {
+      projectedVector.copy(worldPoint).project(projectionCamera);
+      return [
+        ((projectedVector.x + 1) * widthPx) / 2,
+        ((1 - projectedVector.y) * heightPx) / 2,
+        projectedVector.z,
+      ] as OutlinePointTuple;
+    };
+    /** 几何自带顺序的轮廓（帘布 / 梦幻帘）：按索引连，不做凸包也不做简化。 */
+    const resolveOrderedContours = (
+      outlineModel: unknown,
+      projectionCamera: unknown,
+    ): OutlinePointTuple[][] | null => {
+      let orderedContours: OutlinePointTuple[][] | null = null;
+      (outlineModel as OutlineNode).traverse?.((traversedNode: unknown) => {
+        if (orderedContours) return;
+        const traversedModel = traversedNode as OutlineNode,
+          contourIndices = orderedContourPointIndices(traversedModel.geometry?.userData),
+          positionAttribute =
+            contourIndices && traversedModel.isMesh && traversedModel.geometry?.attributes?.position;
+        if (!contourIndices || !positionAttribute) return;
+        traversedModel.updateWorldMatrix?.(true, false);
+        orderedContours = contourIndices.map((contourPointIndices) =>
+          contourPointIndices.map((pointIndex) =>
+            projectToScreen(
+              new three.Vector3()
+                .fromBufferAttribute(positionAttribute, pointIndex)
+                .applyMatrix4(traversedModel.matrixWorld),
+              projectionCamera,
             ),
+          ),
+        );
+      });
+      return orderedContours;
+    };
+    const orderedContoursByModel = new Map<unknown, OutlinePointTuple[][] | null>();
+    const outlinePathString = outlineEntries
+        .map((outlineRecord) => {
+          // 帘布 / 梦幻帘：几何里写了轮廓顺序，凸包与极角排序都会把开口抹掉。
+          let orderedContours = orderedContoursByModel.get(outlineRecord.model);
+          if (orderedContours === undefined)
+            (orderedContours = resolveOrderedContours(outlineRecord.model, outlineRecord.camera)),
+              orderedContoursByModel.set(outlineRecord.model, orderedContours);
+          if (orderedContours) {
+            if (orderedContours.some((contourPoints) =>
+              contourPoints.some((projectedPoint) => projectedPoint[2] < -1 || projectedPoint[2] > 1),
+            ))
+              return "";
+            return orderedContours
+              .filter((contourPoints) => contourPoints.length > 2)
+              .map(
+                (contourPoints) =>
+                  "M" +
+                  contourPoints
+                    .map((contourPoint) => contourPoint[0].toFixed(1) + "," + contourPoint[1].toFixed(1))
+                    .join("L") +
+                  "Z",
+              )
+              .join("");
+          }
+          const projectedPoints = outlineRecord.points.map(
+            (screenPoint: any) =>
+              projectToScreen(screenPoint.clone().applyMatrix4(outlineRecord.model.matrixWorld), outlineRecord.camera),
           );
           if (
             projectedPoints.some(
@@ -480,13 +551,8 @@ export function createScreenOutlines({
             )
           )
             return "";
-          const outlineType =
-              outlineRecord.model.userData?.environmentModelType ||
-              outlineRecord.model.userData?.modelType,
-            simplifiedPoints = simplifyOutline(projectedPoints),
-            hullPoints = outlineUsesOrderedContour(outlineType)
-              ? orderedOutline(simplifiedPoints)
-              : outlineHull(simplifiedPoints);
+          const simplifiedPoints = simplifyOutline(projectedPoints),
+            hullPoints = outlineHull(simplifiedPoints);
           return hullPoints.length > 2
             ? "M" +
                 hullPoints

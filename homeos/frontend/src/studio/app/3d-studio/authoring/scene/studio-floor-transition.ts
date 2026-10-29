@@ -76,7 +76,9 @@ export function createFloorTransition({
             )
               return;
             const originalMaterial = sceneNode.material,
-              isBackground = sceneNode.userData?.exportRole === "background",
+              // 背景板与网格都属于「地面层」：它们必须在透射内容之前画，
+              // 否则楼层滑动时会被玻璃/水面盖住半帧（0.8.1 一起处理这两类）。
+              isBackground = ["background", "grid"].includes(sceneNode.userData?.exportRole),
               cloneGroundMaterial = (material: any) => {
                 const clonedMaterial = material.clone();
                 return (
@@ -96,7 +98,14 @@ export function createFloorTransition({
                   isBackground && (clonedMaterial.transmission = 0),
                   clonedMaterial
                 );
-              };
+              },
+              originalMaterials = Array.isArray(originalMaterial)
+                ? originalMaterial
+                : [originalMaterial],
+              originalRenderOrder = sceneNode.renderOrder;
+            // 地面层整体压到渲染队列最前：`-1e8` 是「比任何常规 renderOrder 都靠前」
+            // 的哨兵值，退出时必须写回原值，否则下一次过渡会在早已压低的序上继续叠加。
+            isBackground && (sceneNode.renderOrder = -100000000 + originalRenderOrder);
             ((sceneNode.material = Array.isArray(originalMaterial)
               ? originalMaterial.map(cloneGroundMaterial)
               : cloneGroundMaterial(originalMaterial)),
@@ -104,13 +113,16 @@ export function createFloorTransition({
                 node: sceneNode,
                 followsFloor: sceneNode.userData.exportRole === "contact-shadow",
                 original: originalMaterial,
+                renderOrder: originalRenderOrder,
+                // 过渡期把 background/grid 的 transmission 关掉，退出时按原值恢复：
+                // 不记这一组，墙面玻璃会在楼层切完以后一直是「不透射」的。
+                backgroundBeforeTransmission: isBackground
+                  ? originalMaterials.map((sourceMaterial) => sourceMaterial.transmission)
+                  : undefined,
                 materials: Array.isArray(sceneNode.material)
                   ? sceneNode.material
                   : [sceneNode.material],
-                opacity: (Array.isArray(originalMaterial)
-                  ? originalMaterial
-                  : [originalMaterial]
-                ).map((sourceMaterial) => sourceMaterial.opacity),
+                opacity: originalMaterials.map((sourceMaterial) => sourceMaterial.opacity),
               }));
           }),
           record

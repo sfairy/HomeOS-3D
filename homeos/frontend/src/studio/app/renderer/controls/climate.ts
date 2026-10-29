@@ -625,6 +625,24 @@ export function climateDeviceLabel(deviceLabelType: any) {
       : "空调";
 }
 
+/**
+ * 气候弹窗标题（0.8.1 `climateDialogTitle`）。
+ *
+ * 历史遗留：浴霸卡片的默认标签被存成了「空调」，早期只靠「标签非空就用标签」，
+ * 于是浴霸弹窗一直显示「空调」。判到「浴霸 + 标签恰好是空调」时才改用兜底
+ * （设备名 → 类型中文名），其它情况仍尊重用户自己起的标签。
+ */
+export function climateDialogTitle(
+  deviceLabel: unknown,
+  deviceName: unknown = "",
+  deviceLabelType = "air-conditioner",
+) {
+  const trimmedLabel = String(deviceLabel || "").trim(),
+    fallbackLabel = String(deviceName || "").trim() || climateDeviceLabel(deviceLabelType);
+  if (!trimmedLabel) return fallbackLabel;
+  return deviceLabelType === "bath-heater" && trimmedLabel === "空调" ? fallbackLabel : trimmedLabel;
+}
+
 export function climatePowerCommand(
   commandEntityId: any,
   commandState: any,

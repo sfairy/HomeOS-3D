@@ -1,3 +1,11 @@
+/**
+ * 扫地机地图能不能用（0.8.1 `vacuumMapAvailable`）。
+ *
+ * 这里的三道校验都是**否决**：标定点数不足 3、坐标不是有限数、三点共线（行列式≈0）
+ * 都意味着地图无法与机器人坐标对齐，继续加载只会得到一张错位的图。
+ * 早期实现把这三处写成了 `return true`（等于永不判坏），于是「标定坏了」的户型
+ * 会一直显示一张歪的地图，而不是退回「地图暂不可用」。
+ */
 export function vacuumMapAvailable(stateEntry: any) {
   const entityState =
     stateEntry && Object.hasOwn(stateEntry, "newState") ? stateEntry.newState : stateEntry;
@@ -7,17 +15,11 @@ export function vacuumMapAvailable(stateEntry: any) {
   )
     return false;
   const stateAttributes = entityState.attributes || {};
-  // 首次地图校准尚未生成时仍允许加载地图/机器人位置（空标定不直接判不可用）
-  if (stateAttributes.is_empty === true || stateAttributes.empty_map === true) {
-    const hasRobotPosition =
-      stateAttributes.vacuum_position != null ||
-      stateAttributes.robot_position != null ||
-      stateAttributes.position != null;
-    if (!hasRobotPosition) return false;
-  }
+  // 空地图（还没建图）直接不可用：此时请求到的图片一定是空白页。
+  if (stateAttributes.is_empty === true || stateAttributes.empty_map === true) return false;
   if (Object.hasOwn(stateAttributes, "calibration_points")) {
     const calibrationPoints = stateAttributes.calibration_points;
-    if (!Array.isArray(calibrationPoints) || calibrationPoints.length < 3) return true;
+    if (!Array.isArray(calibrationPoints) || calibrationPoints.length < 3) return false;
     const [firstCalibration, secondCalibration, thirdCalibration] = calibrationPoints;
     for (const coordinateSpace of ["map", "vacuum"]) {
       if (
@@ -27,17 +29,36 @@ export function vacuumMapAvailable(stateEntry: any) {
             Number.isFinite(calibrationPoint?.[coordinateSpace]?.y),
         )
       )
-        return true;
+        return false;
       const barycentricDeterminant =
         (secondCalibration[coordinateSpace].x - firstCalibration[coordinateSpace].x) *
           (thirdCalibration[coordinateSpace].y - firstCalibration[coordinateSpace].y) -
         (secondCalibration[coordinateSpace].y - firstCalibration[coordinateSpace].y) *
           (thirdCalibration[coordinateSpace].x - firstCalibration[coordinateSpace].x);
-      if (Math.abs(barycentricDeterminant) < 1e-9) return true;
+      if (Math.abs(barycentricDeterminant) < 1e-9) return false;
     }
   }
   return true;
 }
+
+/**
+ * 现在是否**值得发起**一次地图请求（0.8.1 `vacuumMapRequestable`）。
+ *
+ * 与 `vacuumMapAvailable` 的唯一差别：`calibration_points: null` 表示「首次校准还没生成」，
+ * 这时地图本身是能看的，只是不能用来做坐标换算 —— 把该字段摘掉再判可用即可。
+ * 少了这条，新装机器在第一次校准前会一直空白。
+ */
+export function vacuumMapRequestable(stateEntry: Parameters<typeof vacuumMapAvailable>[0]) {
+  const entityState =
+    stateEntry && Object.hasOwn(stateEntry, "newState") ? stateEntry.newState : stateEntry;
+  if (entityState?.attributes?.calibration_points === null) {
+    const { calibration_points: _unusableCalibration, ...requestableAttributes } =
+      entityState.attributes;
+    return vacuumMapAvailable({ ...entityState, attributes: requestableAttributes });
+  }
+  return vacuumMapAvailable(stateEntry);
+}
+
 export function vacuumMapSource(sourceEntityId: string, cacheBustTimestamp: string | number = Date.now()) {
   return /^(camera|image)\.[a-z0-9_]+$/.test(sourceEntityId || "")
     ? "/api/" +
@@ -76,7 +97,7 @@ export function createVacuumMapImageLoader({
           (loadingImage.src = ""),
           (loadingImage = null)));
     },
-    shouldLoadImage = () => !isDisposed && isActive() && vacuumMapAvailable(getState()),
+    shouldLoadImage = () => !isDisposed && isActive() && vacuumMapRequestable(getState()),
     scheduleRefresh = (delayMs: any) => {
       (clearTimeout(retryTimerId),
         (retryTimerId = setTimeout(() => {

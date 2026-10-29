@@ -37,6 +37,7 @@ export const {
   climateModeIcon,
   climateSwingModeLabel,
   climateOptionPresentation,
+  climateDialogTitle,
 } = climateRendererModule;
 function purifierSpeedLevels(percentageStep: any) {
   const step = haNumber(percentageStep);

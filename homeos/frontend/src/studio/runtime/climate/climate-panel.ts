@@ -3,6 +3,7 @@ import {
   climateState as climateState2,
   climateControl as climateControl2,
   climatePowerControl as climatePowerControl2,
+  climateDialogTitle as climateDialogTitle2,
   climateModeLabel as climateModeLabel2,
   climateSwingModeLabel as climateSwingModeLabel2,
   createClimateModeHistory as createClimateModeHistory2,
@@ -729,7 +730,11 @@ export function createClimatePanel({
                   ? "风扇控制"
                   : "空调控制",
     ),
-      (titleElement.textContent = activeItem.label || deviceState.name || "空调"),
+      (titleElement.textContent = climateDialogTitle2(
+        activeItem.label,
+        deviceState.name,
+        activeItem.climateType,
+      )),
       (titleElement.title = titleElement.textContent),
       (statusElement.textContent = viewModel.editing
         ? "控制预览"

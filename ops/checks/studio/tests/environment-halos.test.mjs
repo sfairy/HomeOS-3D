@@ -17,7 +17,7 @@ const moduleUrl = fileURLToPath(
     import.meta.url,
   ),
 )
-const { simplifyOutline, orderedOutline, outlineUsesOrderedContour } = await import(moduleUrl)
+const { simplifyOutline, orderedContourPointIndices } = await import(moduleUrl)
 
 test('simplifyOutline：共线中点被削掉，端点保留', () => {
   const square = [
@@ -38,20 +38,27 @@ test('simplifyOutline：共线中点被削掉，端点保留', () => {
 
 test('simplifyOutline：0.45 容差内外的分界', () => {
   // 偏移 0.3 < 0.45：视为共线；偏移 1 > 0.45：必须保留。
+  // 用 5 个点：上游从 5 个点起才简化，4 点以内一律原样返回（四边形削一下就没形了）。
   const nearLine = [
     [0, 0],
     [3, 0.3],
     [7, 0.2],
-    [10, 0],
+    [10, 0.1],
+    [20, 0],
   ]
   const offLine = [
     [0, 0],
     [3, 0.3],
     [5, 1],
     [10, 0],
+    [20, 0],
   ]
   assert.equal(simplifyOutline(nearLine).length, 2)
-  assert.equal(simplifyOutline(offLine).length, 3)
+  // 凸起的 [5,1] 偏离基线 1px > 0.45：必须留在结果里（具体保留几个取决于后续分段，
+  // 这里只断言「拐点没被削掉」）。
+  const offLineResult = simplifyOutline(offLine)
+  assert.ok(offLineResult.length > 2)
+  assert.ok(offLineResult.some((point) => point[0] === 5 && point[1] === 1))
 })
 
 test('simplifyOutline：少于四个点原样返回且不改入参', () => {
@@ -66,32 +73,26 @@ test('simplifyOutline：少于四个点原样返回且不改入参', () => {
   assert.deepEqual(simplifyOutline([]), [])
 })
 
-test('orderedOutline：按质心极角排序，保留全部点', () => {
-  const concave = [
-    [0, 0],
-    [10, 0],
-    [10, 10],
-    [5, 2], // 凹口：凸包会把它削掉
-    [0, 10],
-  ]
-  const ordered = orderedOutline(concave)
-  assert.equal(ordered.length, concave.length)
-  assert.deepEqual(
-    new Set(ordered.map((point) => point.join(','))),
-    new Set(concave.map((point) => point.join(','))),
-  )
-  const center = concave.reduce(
-    (accumulator, point) => [accumulator[0] + point[0] / concave.length, accumulator[1] + point[1] / concave.length],
-    [0, 0],
-  )
-  const angles = ordered.map((point) => Math.atan2(point[1] - center[1], point[0] - center[0]))
-  for (let index = 1; index < angles.length; index += 1)
-    assert.ok(angles[index - 1] <= angles[index], `${angles[index - 1]} > ${angles[index]}`)
-})
+test('有序轮廓只认几何 userData：帘布按上沿去、下沿回的顺序闭合成一条', () => {
+  // 模型类型是 `curtain` 不代表能有序连；决定权在几何上（早期实现拿类型去比
+  // `curtainCloth`，永远不命中，所以帘布一直退化成凸包）。
+  assert.equal(orderedContourPointIndices({}), null)
+  assert.equal(orderedContourPointIndices({ environmentModelType: 'curtainCloth' }), null)
 
-test('有序轮廓类型：帘布 / 梦幻帘 / 风机，其余走凸包', () => {
-  for (const type of ['curtainCloth', 'dreamBlades', 'rotor'])
-    assert.equal(outlineUsesOrderedContour(type), true, type)
-  for (const type of ['curtain', 'fan', 'door', undefined, ''])
-    assert.equal(outlineUsesOrderedContour(type), false, String(type))
+  const clothIndices = orderedContourPointIndices({ curtainCloth: { segments: 3 } })
+  assert.equal(clothIndices.length, 1, '一块帘布是一条闭合轮廓')
+  // segments=3 → 每侧 4 个点：上沿 0,1,2,3，下沿 7,6,5,4；顶点总数 2*(segments+1)
+  assert.deepEqual(clothIndices[0], [0, 1, 2, 3, 7, 6, 5, 4])
+  assert.equal(new Set(clothIndices[0]).size, clothIndices[0].length, '轮廓不能重复取点')
+
+  // 梦幻帘：每片叶子一个四边面，顺序必须是 0,1,3,2 才成环（0,1,2,3 会交叉）。
+  const bladeIndices = orderedContourPointIndices({ dreamBlades: { count: 2 } })
+  assert.equal(bladeIndices.length, 2)
+  assert.deepEqual(bladeIndices[0], [0, 1, 3, 2])
+  assert.deepEqual(bladeIndices[1], [4, 5, 7, 6])
+
+  // 两种标记同时存在时帘布优先（一块帘布不会又是叶片）。
+  assert.deepEqual(orderedContourPointIndices({ curtainCloth: { segments: 1 }, dreamBlades: { count: 1 } })[0], [
+    0, 1, 3, 2,
+  ])
 })

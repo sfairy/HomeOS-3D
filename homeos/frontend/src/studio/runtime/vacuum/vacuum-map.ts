@@ -1,10 +1,15 @@
 const { vacuumStatus: resolveVacuumStatus } = await (import("@app/renderer/controls/vacuum-runtime")),
   {
     vacuumMapAvailable: N,
+    vacuumMapRequestable: R,
     vacuumMapSource: resolveVacuumMapSource,
     createVacuumMapImageLoader: $,
   } = await (import("@app/renderer/vacuum-map-state"));
-export { N as vacuumMapAvailable, $ as createVacuumMapImageLoader };
+export {
+  N as vacuumMapAvailable,
+  R as vacuumMapRequestable,
+  $ as createVacuumMapImageLoader,
+};
 export function vacuumMapIdentity(mapEntityEntry: any, vacuumEntityEntry: any) {
   const mapIdentityAttributes = (mapEntityEntry?.newState || mapEntityEntry)?.attributes || {},
     vacuumIdentityAttributes = (vacuumEntityEntry?.newState || vacuumEntityEntry)?.attributes || {},
@@ -258,7 +263,8 @@ export function createVacuumMaps(sceneHost: any, requestRender: any) {
           : 5000));
       const visibleItems = items.filter(
           (candidateItem: any) =>
-            N((syncStates as any)[candidateItem.map?.entityId]) &&
+            // 用 requestable：首次校准未生成时地图本身仍可渲染（0.8.1 口径）。
+            R((syncStates as any)[candidateItem.map?.entityId]) &&
             candidateItem.visible !== false &&
             candidateItem.modelAvailable !== false &&
             candidateItem.map?.visible !== false &&
