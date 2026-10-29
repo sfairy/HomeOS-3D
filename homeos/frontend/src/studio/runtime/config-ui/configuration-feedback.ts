@@ -184,7 +184,10 @@ export function createConfigurationFeedback({
       saveAndExitButton.className = "primary";
       dialogElement.append(headingElement, noteElement, actionsElement);
       dialogElement.addEventListener("cancel", (cancelEvent: Event) => {
+        // `cancel` 会继续冒泡到外层弹窗（配置/安防编辑器本身也是一个 dialog），
+        // 不拦住就会「关掉未保存提示的同时把整个配置弹窗一起关了」。
         cancelEvent.preventDefault();
+        cancelEvent.stopPropagation();
         if (!isSaving) closeUnsavedDialog();
       });
       ownerDocument.body.append(dialogElement);

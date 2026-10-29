@@ -430,6 +430,23 @@ button:disabled {
     grid-template-columns: 0 minmax(320px, 1fr) 0 !important;
   }
 }
+/*
+ * 1080 以下（小笔记本、竖屏平板分屏）：三栏再怎么压也会挤掉画布。
+ * 这里给 shell 一个地板宽并让容器自己横向滚动，而不是继续压缩中间画布。
+ */
+@media (max-width: 1080px) {
+  .studio-shell {
+    min-width: 980px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .workspace-stage,
+  .details-panel,
+  .library-panel {
+    min-width: 0;
+  }
+}
 .panel-surface {
   border: 1px solid var(--line);
   border-radius: 15px;

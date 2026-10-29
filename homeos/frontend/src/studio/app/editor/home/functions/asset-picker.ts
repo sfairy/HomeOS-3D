@@ -4,6 +4,7 @@ import { clampNumber as clampNumber2 } from "../../editor-utils";
 import { TOGGLE_ENTITY_DOMAINS as TOGGLE_ENTITY_DOMAINS2 } from "../../../shared/action-rules";
 import { updateRelatedPopup } from "../../home-related-popup";
 import { findComponent as findComponent2 } from "../../component-tree";
+import { positionFloatingMenu } from "../../../shared/util/editor-floating-layout";
 
 export interface AssetPickerDeps {
   editorCtx: EditorContext;
@@ -96,78 +97,32 @@ export interface AssetPickerDeps {
 
 export function positionLightStatisticsIconMenu(deps: AssetPickerDeps) {
   if (deps.lightStatisticsIconMenuElement.hidden) return;
-  const parentBoundsRef = deps.lightStatisticsIconButtonElement.parentElement.getBoundingClientRect(),
-    relatedPopupStateValue = 5,
-    relatedPopupStateConfig = 8,
-    availableSizeRef =
-      window.innerHeight -
-      parentBoundsRef.bottom -
-      relatedPopupStateValue -
-      relatedPopupStateConfig,
-    measuredBoundsEntry = parentBoundsRef.top - relatedPopupStateValue - relatedPopupStateConfig,
-    relatedPopupElementValue = availableSizeRef >= 250 || availableSizeRef >= measuredBoundsEntry,
-    clampedLowerRef = Math.max(
-      150,
-      Math.min(390, relatedPopupElementValue ? availableSizeRef : measuredBoundsEntry),
-    );
-  ((deps.lightStatisticsIconMenuElement.style.left =
-    clampNumber2(
-      parentBoundsRef.left,
-      relatedPopupStateConfig,
-      Math.max(
-        relatedPopupStateConfig,
-        window.innerWidth - parentBoundsRef.width - relatedPopupStateConfig,
-      ),
-    ) + "px"),
-    (deps.lightStatisticsIconMenuElement.style.top = relatedPopupElementValue
-      ? parentBoundsRef.bottom + relatedPopupStateValue + "px"
-      : Math.max(
-          relatedPopupStateConfig,
-          parentBoundsRef.top - clampedLowerRef - relatedPopupStateValue,
-        ) + "px"),
-    (deps.lightStatisticsIconMenuElement.style.width = parentBoundsRef.width + "px"),
-    (deps.lightStatisticsIconMenuElement.style.maxHeight = clampedLowerRef + "px"),
-    (deps.lightStatisticsIconOptionsElement.style.maxHeight =
-      Math.max(90, clampedLowerRef - 57) + "px"));
+  positionFloatingMenu({
+    anchor: deps.lightStatisticsIconButtonElement.parentElement || deps.lightStatisticsIconButtonElement,
+    panel: deps.lightStatisticsIconMenuElement,
+    optionsElement: deps.lightStatisticsIconOptionsElement,
+    optionsReserve: 57,
+    optionsMinHeight: 90,
+    maxHeight: 390,
+    gap: 5,
+  });
 }
 
 export function positionLightStatisticsEntityMenu(deps: AssetPickerDeps) {
   if (deps.lightStatisticsEntityMenuElement.hidden) return;
-  const targetBoundsValue = deps.lightStatisticsEntityButtonElement.getBoundingClientRect(),
-    relatedPopupStateRef = 5,
-    relatedPopupStateEntry = 8,
-    availableSizeEntry = Math.min(
-      targetBoundsValue.width,
-      window.innerWidth - relatedPopupStateEntry * 2,
+  positionFloatingMenu({
+    anchor: deps.lightStatisticsEntityButtonElement,
+    panel: deps.lightStatisticsEntityMenuElement,
+    optionsElement: deps.lightStatisticsEntityOptionsElement,
+    optionsReserve: 58,
+    optionsMinHeight: 90,
+    maxHeight: 430,
+    maxWidth: Math.min(
+      deps.lightStatisticsEntityButtonElement.getBoundingClientRect().width,
+      window.innerWidth - 16,
     ),
-    availableSizeRecord =
-      window.innerHeight - targetBoundsValue.bottom - relatedPopupStateRef - relatedPopupStateEntry,
-    measuredBoundsRecord = targetBoundsValue.top - relatedPopupStateRef - relatedPopupStateEntry,
-    relatedPopupElementConfig =
-      availableSizeRecord >= 250 || availableSizeRecord >= measuredBoundsRecord,
-    clampedLowerEntry = Math.max(
-      150,
-      Math.min(430, relatedPopupElementConfig ? availableSizeRecord : measuredBoundsRecord),
-    );
-  ((deps.lightStatisticsEntityMenuElement.style.left =
-    clampNumber2(
-      targetBoundsValue.left,
-      relatedPopupStateEntry,
-      Math.max(
-        relatedPopupStateEntry,
-        window.innerWidth - availableSizeEntry - relatedPopupStateEntry,
-      ),
-    ) + "px"),
-    (deps.lightStatisticsEntityMenuElement.style.top = relatedPopupElementConfig
-      ? targetBoundsValue.bottom + relatedPopupStateRef + "px"
-      : Math.max(
-          relatedPopupStateEntry,
-          targetBoundsValue.top - clampedLowerEntry - relatedPopupStateRef,
-        ) + "px"),
-    (deps.lightStatisticsEntityMenuElement.style.width = availableSizeEntry + "px"),
-    (deps.lightStatisticsEntityMenuElement.style.maxHeight = clampedLowerEntry + "px"),
-    (deps.lightStatisticsEntityOptionsElement.style.maxHeight =
-      Math.max(90, clampedLowerEntry - 58) + "px"));
+    gap: 5,
+  });
 }
 
 export function resolveEntityPickerConfig(deps: AssetPickerDeps, componentType = "image") {
@@ -789,40 +744,15 @@ export function probeAssetNaturalSize(deps: AssetPickerDeps, probedComponent: an
 
 export function positionImageAssetMenu(deps: AssetPickerDeps) {
   if (deps.imageAssetMenuElement.hidden) return;
-  const targetBoundsConfig = deps.imageAssetButtonElement.getBoundingClientRect(),
-    imageAssetMenuMarginPx = 5,
-    positionImageAssetGapPx = 8,
-    availableSizePath =
-      window.innerHeight -
-      targetBoundsConfig.bottom -
-      imageAssetMenuMarginPx -
-      positionImageAssetGapPx,
-    measuredBoundsKey =
-      targetBoundsConfig.top - imageAssetMenuMarginPx - positionImageAssetGapPx,
-    positionAssetLargePreviewState =
-      availableSizePath >= 260 || availableSizePath >= measuredBoundsKey,
-    clampedLowerRecord = Math.max(
-      150,
-      Math.min(470, positionAssetLargePreviewState ? availableSizePath : measuredBoundsKey),
-    );
-  ((deps.imageAssetMenuElement.style.left =
-    clampNumber2(
-      targetBoundsConfig.left,
-      positionImageAssetGapPx,
-      Math.max(
-        positionImageAssetGapPx,
-        window.innerWidth - targetBoundsConfig.width - positionImageAssetGapPx,
-      ),
-    ) + "px"),
-    (deps.imageAssetMenuElement.style.width = targetBoundsConfig.width + "px"),
-    (deps.imageAssetMenuElement.style.maxHeight = clampedLowerRecord + "px"),
-    (deps.imageAssetOptionsElement.style.maxHeight = Math.max(80, clampedLowerRecord - 150) + "px"),
-    (deps.imageAssetMenuElement.style.top = positionAssetLargePreviewState
-      ? targetBoundsConfig.bottom + imageAssetMenuMarginPx + "px"
-      : Math.max(
-          positionImageAssetGapPx,
-          targetBoundsConfig.top - clampedLowerRecord - imageAssetMenuMarginPx,
-        ) + "px"));
+  positionFloatingMenu({
+    anchor: deps.imageAssetButtonElement,
+    panel: deps.imageAssetMenuElement,
+    optionsElement: deps.imageAssetOptionsElement,
+    optionsReserve: 150,
+    optionsMinHeight: 80,
+    maxHeight: 470,
+    gap: 8,
+  });
 }
 
 export function positionAssetLargePreview(deps: AssetPickerDeps, hoveredOptionElement: any, assetMenuElement = deps.imageAssetMenuElement) {

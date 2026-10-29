@@ -668,3 +668,43 @@ export function onAssetOptionsClick(deps: StyleApplyDeps, assetOptionsClickEvent
   }
 }
 
+
+/** 样式应用会话需要清理的 5 张 baseline 缓存（0.8.1 同款集合）。 */
+export interface StyleApplyBaselineMaps {
+  airConditionerBaselineByComponentId: Map<unknown, unknown>;
+  iconButtonBaselineByComponentId: Map<unknown, unknown>;
+  iconButtonEffectBaselineByComponentId: Map<unknown, unknown>;
+  navigationButtonSavedSettingsByComponentId: Map<unknown, unknown>;
+  panelFrameBaselineByComponentId: Map<unknown, unknown>;
+}
+
+export interface StyleApplyBaselineDeps extends StyleApplyBaselineMaps {
+  editorCtx: EditorContext;
+}
+
+/**
+ * 结束一次样式应用会话：清空 baseline 缓存、关掉脉冲并关闭对话框。
+ *
+ * baseline 缓存按 componentId 存「上次看到的样式」；切项目/切页面后同一个 id 可能
+ * 指向别的控件，不清就会把差异算错（表现为「什么都没改也显示已修改」）。
+ */
+export function resetStyleApplyBaselines(
+  deps: StyleApplyBaselineDeps,
+  dialogElement?: HTMLDialogElement | null,
+) {
+  for (const baselineMap of [
+    deps.airConditionerBaselineByComponentId,
+    deps.iconButtonBaselineByComponentId,
+    deps.iconButtonEffectBaselineByComponentId,
+    deps.navigationButtonSavedSettingsByComponentId,
+    deps.panelFrameBaselineByComponentId,
+  ])
+    baselineMap?.clear?.();
+  deps.editorCtx.appliedStyleRecord = null;
+  const pulseTimeouts = deps.editorCtx.styleApplyPulseByButton;
+  if (pulseTimeouts) {
+    for (const pulseTimeout of pulseTimeouts.values()) window.clearTimeout(pulseTimeout);
+    pulseTimeouts.clear();
+  }
+  dialogElement?.open && dialogElement.close();
+}

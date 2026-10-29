@@ -1,3 +1,12 @@
+import { USER_IMAGE_HINT } from "../../shared/user-image-upload";
+
+/** 工具条只关心这三个字段；`user-image-upload` 的完整状态由上传模块持有。 */
+interface AssetUploaderState {
+  busy?: boolean;
+  error?: string;
+  refreshFailed?: boolean;
+}
+
 function editorAssetFolders(assets: { folder?: string }[] = []) {
   return [...new Set((assets || []).map((asset) => asset.folder).filter(Boolean))].sort(
     (folderName, otherFolderName) => folderName!.localeCompare(otherFolderName!, "zh-CN"),
@@ -16,6 +25,9 @@ export function createEditorAssetToolbar({
   getUploadInput: getUploadInput,
   canDeleteFolder: canDeleteFolder,
   onDeleteFolder: onDeleteFolder,
+  getUploaderState: getUploaderState,
+  subscribeUploader: subscribeUploader,
+  retryUploadRefresh: retryUploadRefresh,
 }: any) {
   return function (state: any, { toolbar: toolbarElement, controller: controller }: any) {
     const sourceTabsElement = ownerDocument.createElement("div");
@@ -67,28 +79,66 @@ export function createEditorAssetToolbar({
     ((uploadButton.type = "button"),
       (uploadButton.className = "asset-upload-button"),
       (uploadButton.textContent = "上传"),
-      uploadButton.addEventListener("click", () => getUploadInput(state).click()),
-      toolbarElement.append(sourceTabsElement, folderRowElement, uploadButton),
-      (controller.syncAssetToolbar = () => {
-        const activeSourceId = getSource(state);
-        for (const tabButton of sourceTabsElement.querySelectorAll("[data-editor-asset-source]"))
-          tabButton.classList.toggle(
-            "active",
-            tabButton.dataset.editorAssetSource === activeSourceId,
-          );
-        const currentFolders = editorAssetFolders(getAssets(activeSourceId)),
-          currentFolderName = getFolder(state);
-        (folderSelectElement.replaceChildren(
-          ...currentFolders.map(
-            (mappedFolderName) =>
-              new Option(mappedFolderName === "." ? "根目录" : mappedFolderName, mappedFolderName),
-          ),
-        ),
-          (folderSelectElement.value = currentFolderName),
-          (folderRowElement.hidden = !currentFolders.length),
-          (deleteFolderButton.hidden = !canDeleteFolder?.(activeSourceId, currentFolderName)),
-          (uploadButton.hidden = activeSourceId !== "user"));
+      uploadButton.setAttribute("title", USER_IMAGE_HINT),
+      uploadButton.addEventListener("click", () => getUploadInput(state).click()));
+    // 上传口径与失败反馈统一来自 `user-image-upload`：提示语、busy 禁用、
+    // 「图已传上去但目录没刷新」时的重试入口都在这里呈现。
+    const uploadHintElement = ownerDocument.createElement("p");
+    ((uploadHintElement.className = "asset-upload-hint"),
+      (uploadHintElement.textContent = USER_IMAGE_HINT));
+    const uploadStatusElement = ownerDocument.createElement("p");
+    ((uploadStatusElement.className = "asset-upload-status"),
+      uploadStatusElement.setAttribute("role", "status"),
+      (uploadStatusElement.hidden = true));
+    const retryUploadButton = ownerDocument.createElement("button");
+    ((retryUploadButton.type = "button"),
+      (retryUploadButton.className = "asset-upload-retry"),
+      (retryUploadButton.textContent = "重试刷新"),
+      retryUploadButton.addEventListener("click", () => {
+        void retryUploadRefresh?.();
       }),
-      controller.syncAssetToolbar());
+      (retryUploadButton.hidden = true));
+    const syncUploaderState = (uploaderState: AssetUploaderState | null = getUploaderState?.()) => {
+      (uploadButton.disabled = Boolean(uploaderState?.busy)),
+        (uploadStatusElement.hidden = !uploaderState?.error),
+        (uploadStatusElement.textContent = uploaderState?.error || ""),
+        (retryUploadButton.hidden = !uploaderState?.refreshFailed);
+    };
+    toolbarElement.append(
+      sourceTabsElement,
+      folderRowElement,
+      uploadButton,
+      uploadHintElement,
+      uploadStatusElement,
+      retryUploadButton,
+    );
+    controller.syncAssetToolbar = () => {
+      const activeSourceId = getSource(state);
+      for (const tabButton of sourceTabsElement.querySelectorAll("[data-editor-asset-source]"))
+        tabButton.classList.toggle(
+          "active",
+          tabButton.dataset.editorAssetSource === activeSourceId,
+        );
+      const currentFolders = editorAssetFolders(getAssets(activeSourceId)),
+        currentFolderName = getFolder(state);
+      (folderSelectElement.replaceChildren(
+        ...currentFolders.map(
+          (mappedFolderName) =>
+            new Option(mappedFolderName === "." ? "根目录" : mappedFolderName, mappedFolderName),
+        ),
+      ),
+        (folderSelectElement.value = currentFolderName),
+        (folderRowElement.hidden = !currentFolders.length),
+        (deleteFolderButton.hidden = !canDeleteFolder?.(activeSourceId, currentFolderName)),
+        (uploadButton.hidden = activeSourceId !== "user"),
+        (uploadHintElement.hidden = activeSourceId !== "user"),
+        (uploadStatusElement.hidden = activeSourceId !== "user" || !getUploaderState?.()?.error),
+        (retryUploadButton.hidden =
+          activeSourceId !== "user" || !getUploaderState?.()?.refreshFailed));
+    };
+    // 每次重建工具条都换新 DOM：旧的订阅必须先退掉，否则会一直往已摘除的节点写状态。
+    controller.uploadUnsubscribe?.();
+    controller.uploadUnsubscribe = subscribeUploader?.(syncUploaderState);
+    (controller.syncAssetToolbar(), syncUploaderState());
   };
 }

@@ -88,6 +88,8 @@ export interface EditorContext {
   deviceButtonApplyFeedbackTimeoutId: any;
   cameraApplyFeedbackTimeoutId: any;
   airConditionerApplyFeedbackTimeoutId: any;
+  /** 样式应用脉冲：一个按钮只保留一个 timeout（0.8.1 同款 Map，替代 8 个字段）。 */
+  styleApplyPulseByButton: Map<Element, number> | null;
   appliedStyleRecord: any;
   imageAlignSourceComponentId: any;
   selectedComponentIdsSet: any;
@@ -194,6 +196,7 @@ export function createEditorContext(): EditorContext {
     deviceButtonApplyFeedbackTimeoutId: null,
     cameraApplyFeedbackTimeoutId: null,
     airConditionerApplyFeedbackTimeoutId: null,
+    styleApplyPulseByButton: null,
     appliedStyleRecord: null,
     imageAlignSourceComponentId: null,
     selectedComponentIdsSet: undefined,

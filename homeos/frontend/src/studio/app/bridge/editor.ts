@@ -455,13 +455,47 @@ type PopupPresetConfig = {
       await requestInteraction3dAccess();
       const readyView = await ensureEditorView();
       if (!readyView) return null;
-      const { chooseConfigurationFloor } = await import(
+      const { chooseConfigurationFloor, currentConfigurationFloors } = await import(
         "/api/v1/modules/interaction3d/editor/configuration-floor.js"
       );
-      const editingFloorId = await chooseConfigurationFloor(
-        (readyView as any)?.metadata?.floors || [],
-        { document, signal: inspectorAbortController.signal },
-      );
+      // 先刷新楼层：别的窗口可能刚存过户型（增删楼层），直接用编辑器视图里的
+      // `metadata.floors` 会让用户选到一个已经不存在的楼层。
+      const readyViewMetadata = readyView as {
+          metadata?: { floors?: { id: string; name?: string }[]; syncKey?: string };
+          syncKey?: string;
+        },
+        metadataFloors = readyViewMetadata?.metadata?.floors || [];
+      let configurationFloors = metadataFloors;
+      if (typeof properties.sceneId === "string" && properties.sceneId) {
+        try {
+          configurationFloors = (
+            await currentConfigurationFloors({
+              sceneId: properties.sceneId,
+              projectId: editorOptions.document?.projectId || "",
+              since: readyViewMetadata?.syncKey || readyViewMetadata?.metadata?.syncKey || "",
+              metadataFloors,
+              signal: inspectorAbortController.signal,
+            })
+          ).floors;
+        } catch (floorRefreshError) {
+          if (inspectorAbortController.signal.aborted) return null;
+          // 刷新失败不直接挡住配置入口：有旧列表就退回去，并明确告诉用户可能不是最新的。
+          if (!metadataFloors.length) {
+            viewStatusElement.hidden = false;
+            viewStatusElement.textContent =
+              floorRefreshError instanceof Error && floorRefreshError.message
+                ? floorRefreshError.message
+                : "读取最新楼层失败，请稍后重试。";
+            return null;
+          }
+          viewStatusElement.hidden = false;
+          viewStatusElement.textContent = "读取最新楼层失败，已使用当前户型楼层。";
+        }
+      }
+      const editingFloorId = await chooseConfigurationFloor(configurationFloors, {
+        document,
+        signal: inspectorAbortController.signal,
+      });
       // 选楼层期间检查器可能已被关掉/切到别的组件：此时直接放弃本次入口。
       if (
         inspectorAbortController.signal.aborted ||

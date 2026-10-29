@@ -10,7 +10,21 @@
 
 import { DEFAULT_BUTTON_SIZE } from "@app/bridge/presets/button-icon-size";
 import { genericDeviceProfile as genericDeviceProfile2 } from "../../../device/generic-device-catalog";
-import { createDeviceCategoryRow } from "./device-category-dialog";
+import { resolveDeviceCategoryProfile } from "./device-category-choices";
+import {
+  ENVIRONMENT_CATEGORY_LABELS,
+  bindPickerRow,
+  openDeviceCategoryPicker,
+} from "./picker-row";
+import { openConfigurationPicker, type ConfigurationChoice } from "../../configuration-picker";
+import {
+  USER_IMAGE_ACCEPT,
+  fetchUserImageJson,
+  imageUploadError,
+  isUserImageFile,
+  uploadUserImage,
+} from "@app/shared/user-image-upload";
+import { configurationProgress } from "../../configuration-progress";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { bathEffectEditor as bathEffectEditor2 } from "../../../bath-heater/bath-heater-editor";
 import { carChargingMappingError as carChargingMappingError2, carClickAction as carClickAction2, carState as carState2, standardCarBindings as standardCarBindings2 } from "../../../vehicle/car-state";
@@ -46,6 +60,16 @@ interface NasMetricEntry {
   group: string;
   columns?: number;
   rows?: number;
+}
+
+/** 选择器里读到的条目 / 模型字段（配置编辑器内部形状）。 */
+interface PickerChoiceRecord {
+  id?: string;
+  label?: string;
+  icon?: string;
+  modelId?: string;
+  floorId?: string;
+  name?: string;
 }
 
 export interface PanelAssemblyDeps {
@@ -146,6 +170,17 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
     renderStatusRuleSection,
     saveButtonElement,
   } = deps;
+  // 列表型下拉统一走弹窗选择器（上游 0.8.1 `v516`）；短枚举继续用 `createSelectRow`。
+  const createPickerRow = bindPickerRow(editorHost, createSettingRow);
+  /**
+   * 设备类别 / 环境类别选择器（上游 `v386`）；进度与分组在 `picker-row` 里统一算。
+   */
+  function openCategoryPicker(environmentCategory: boolean) {
+    openDeviceCategoryPicker(editorHost, {
+      environmentCategory,
+      onPicked: (pickedDeviceCategory: string) => switchEditorKind(pickedDeviceCategory),
+    });
+  }
       ((editorHost.refreshEffectSettings = () => {}),
         (editorHost.bathEffectEditorHandle = () => {}),
         (editorHost.redrawBathEffects = () => {}),
@@ -180,34 +215,22 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             },
           ),
           editorHost.isDeviceKind &&
-            createDeviceCategoryRow(
-              editorHost,
-              currentContainer,
-              "设备类别",
-              editorHost.deviceKind,
-              (pickedDeviceCategory: any) => {
-                pickedDeviceCategory !== editorHost.deviceKind && switchEditorKind(pickedDeviceCategory);
-              },
-              createSettingRow,
-            ),
+            createPickerRow({
+              rowContainer: currentContainer,
+              rowLabel: "设备类别",
+              currentLabel: resolveDeviceCategoryProfile(editorHost.deviceKind).label,
+              onOpen: () => openCategoryPicker(false),
+            }),
           editorHost.includes &&
-            createSelectRow(
-              currentContainer,
-              "环境类别",
-              [
-                ["climate", "空调/浴霸"],
-                ["cover", "窗帘"],
-                ["fan", "风扇 / 吊扇"],
-                ["exhaust-fan", "排气扇"],
-                ["purifier", "空气净化器"],
-                ["temperature-humidity", "环境标签"],
-              ],
-              editorHost.deviceKind,
-              (pickedEnvironmentCategory: any) => {
-                pickedEnvironmentCategory !== editorHost.deviceKind &&
-                  switchEditorKind(pickedEnvironmentCategory);
-              },
-            ),
+            createPickerRow({
+              rowContainer: currentContainer,
+              rowLabel: "环境类别",
+              currentLabel:
+                ENVIRONMENT_CATEGORY_LABELS.find(
+                  ([environmentKind]) => environmentKind === editorHost.deviceKind,
+                )?.[1] || "",
+              onOpen: () => openCategoryPicker(true),
+            }),
           editorHost.isVacuumMode &&
             createSelectRow(
               currentContainer,
@@ -318,6 +341,82 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
           curtainGroupOptions = editorHost.selectedCurtainGroupId
             ? curtainGroupEntryId2(editorHost.findCurtainGroupOf(editorHost.selectedCurtainGroupId))
             : editorHost.describeGroupFieldValue();
+        /** 当前设备 / 当前按钮选择器（上游 `v516`）：列出本层已配置条目并标出模型是否还在。 */
+        function openCurrentItemPicker() {
+          const optionsDocument: Document = editorHost.editorDialogElement.ownerDocument,
+            currentItemId = editorHost.describeGroupFieldValue(),
+            currentFloorRecord = (
+              editorHost.sceneMetadata.floors as ReadonlyArray<Record<string, unknown>>
+            ).find((floorProbe) => floorProbe.id === editorHost.floorSelection),
+            floorModelRecords = (currentFloorRecord
+              ? (editorHost.usesModelBinding
+                  ? currentFloorRecord[editorHost.collectionKey]
+                  : currentFloorRecord.groups) || []
+              : []) as ReadonlyArray<PickerChoiceRecord>,
+            pickerGeneration = ++editorHost.pickerGeneration;
+          editorHost.pickerHandle?.close();
+          const pickerHandle = openConfigurationPicker({
+            document: optionsDocument,
+            title: "选择" + (editorHost.isDeviceKind ? "当前设备" : "当前" + editorHost.kindLabel + "按钮"),
+            kicker: "CONFIGURED ITEMS",
+            unit: editorHost.kindLabel,
+            selectedId: currentItemId,
+            summary: configurationProgress({ requiresModel: false, bindings: floorItems }),
+            emptyMessage: "当前楼层还没有配置对象。",
+            sections: [
+              {
+                options: (floorItems as ReadonlyArray<PickerChoiceRecord>).map((itemOptionEntry) => {
+                  const isCurtainGroupOption =
+                      editorHost.isCoverMode &&
+                      (editorHost.getCurtainGroupList() as ReadonlyArray<PickerChoiceRecord>).some(
+                        (groupProbe) => curtainGroupEntryId2(groupProbe) === itemOptionEntry.id,
+                      ),
+                    hasModel = floorModelRecords.some(
+                      (modelProbe) => modelProbe.id === itemOptionEntry.modelId,
+                    );
+                  return {
+                    id: String(itemOptionEntry.id),
+                    label: itemOptionEntry.label || editorHost.kindLabel,
+                    icon: itemOptionEntry.icon || editorHost.defaultIcon,
+                    wrapLabel: true,
+                    state: isCurtainGroupOption || !editorHost.usesModelBinding || hasModel
+                      ? ("configured" as const)
+                      : ("missing" as const),
+                    detail: isCurtainGroupOption
+                      ? "已配置 · 双层窗帘组合"
+                      : editorHost.isTemperatureHumidityMode
+                        ? "已配置 · 环境标签"
+                        : !editorHost.usesModelBinding || hasModel
+                          ? "已配置 · " + editorHost.describeItem(
+                              floorModelRecords.find(
+                                (modelProbe) => modelProbe.id === itemOptionEntry.modelId,
+                              ) || itemOptionEntry,
+                            )
+                          : editorHost.kindLabel + "缺失 · 可重新关联或删除",
+                  };
+                }),
+              },
+            ],
+            async onSelect(pickedItemId: string) {
+              if (
+                editorHost.isDisposed ||
+                !editorHost.isAccessAllowed ||
+                pickerGeneration !== editorHost.pickerGeneration
+              )
+                throw new Error("该配置已变更，请重新选择。");
+              ((editorHost.text = pickedItemId),
+                (editorHost.selectedCurtainGroupId = ""),
+                refreshEditorPreview(),
+                renderPanel());
+            },
+            onClose() {
+              editorHost.pickerHandle === pickerHandle && (editorHost.pickerHandle = null);
+            },
+          });
+          editorHost.isDisposed || !editorHost.isAccessAllowed || pickerGeneration !== editorHost.pickerGeneration
+            ? pickerHandle.close()
+            : (editorHost.pickerHandle = pickerHandle);
+        }
         // 「当前按钮」的初值必须和 `editorHost.text` 一起定：上面这一兜底会改写 text
         // （换楼层 / 条目被删 / 预览里选中的是别层设备），而下拉拿不到匹配项时会静默退回
         // 第一项 —— 看着就是「选中的灯被默认值顶掉了」。所以值在兜底之后再取一次。
@@ -325,20 +424,15 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
           !editorHost.selectedCurtainGroupId &&
           (editorHost.text = floorItems[0]?.id || ""),
           floorItems.length &&
-            createSelectRow(
-              lightHeadingElement,
-              editorHost.isDeviceKind ? "当前设备" : "当前按钮",
-              floorItems.map((itemOptionEntry: any) => [itemOptionEntry.id, itemOptionEntry.label]),
-              editorHost.describeGroupFieldValue(),
-              (pickedItemId: any) => {
-                (editorHost.pickerGeneration++,
-                  editorHost.pickerHandle?.close(),
-                  (editorHost.text = pickedItemId),
-                  (editorHost.selectedCurtainGroupId = ""),
-                  refreshEditorPreview(),
-                  renderPanel());
-              },
-            ));
+            createPickerRow({
+              rowContainer: lightHeadingElement,
+              rowLabel: editorHost.isDeviceKind ? "当前设备" : "当前按钮",
+              currentLabel:
+                floorItems.find(
+                  (itemProbe: any) => itemProbe.id === editorHost.describeGroupFieldValue(),
+                )?.label || "",
+              onOpen: openCurrentItemPicker,
+            }));
         const activeCurtainGroup =
           editorHost.isCoverMode &&
           editorHost.getCurtainGroupList().find(
@@ -429,43 +523,79 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             createSettingRow(nameRowElement, "名称", nameInputElement),
             editorHost.usesModelBinding)
           ) {
-            const flatMap2 = editorHost.sceneMetadata.floors
-                .filter((candidateFloorProbe: any) => candidateFloorProbe.id === editorHost.floorSelection)
-                .flatMap((candidateFloor: any) =>
-                  (candidateFloor[editorHost.collectionKey] || [])
-                    .filter(
-                      (candidateModel: any) =>
-                        !editorHost.getItemList().some(
-                          (existingModelProbe: any) =>
-                            existingModelProbe !== vector &&
-                            existingModelProbe.floorId === candidateFloor.id &&
-                            existingModelProbe.modelId === candidateModel.id,
-                        ),
-                    )
-                    .map((modelCandidateEntry: any) => ({
-                      floor: candidateFloor,
-                      model: modelCandidateEntry,
-                      key: candidateFloor.id + "/" + modelCandidateEntry.id,
-                    })),
+            const floorModelCandidates = (
+                editorHost.sceneMetadata.floors as ReadonlyArray<Record<string, unknown>>
+              )
+                .filter((candidateFloorProbe) => candidateFloorProbe.id === editorHost.floorSelection)
+                .flatMap((candidateFloor) =>
+                  (
+                    (candidateFloor[editorHost.collectionKey] || []) as ReadonlyArray<PickerChoiceRecord>
+                  ).map((modelCandidateEntry) => ({
+                    floor: candidateFloor,
+                    model: modelCandidateEntry,
+                    key: String(candidateFloor.id) + "/" + String(modelCandidateEntry.id),
+                  })),
                 ),
               currentModelKey = vector.floorId + "/" + vector.modelId,
-              some = flatMap2.some((candidateKeyProbe: any) => candidateKeyProbe.key === currentModelKey),
-              modelSelectOptions = flatMap2.map((modelKeyEntry: any) => [
-                modelKeyEntry.key,
-                editorHost.describeItem(modelKeyEntry.model),
-              ]);
-            (some || modelSelectOptions.unshift([currentModelKey, "原模型已移除，请重新选择"]),
-              createSelectRow(
-                nameRowElement,
-                "关联" + editorHost.kindLabel + "模型",
-                modelSelectOptions,
-                currentModelKey,
-                (pickedModelKey: any) => {
-                  const matchedModel = flatMap2.find(
+              currentModelPresent = floorModelCandidates.some(
+                (candidateKeyProbe) => candidateKeyProbe.key === currentModelKey,
+              ),
+              occupiedModelKeys = new Set(
+                (editorHost.getItemList() as ReadonlyArray<PickerChoiceRecord>)
+                  .filter(
+                    (occupiedItemProbe) =>
+                      occupiedItemProbe !== vector && occupiedItemProbe.floorId === editorHost.floorSelection,
+                  )
+                  .map((occupiedItemProbe) => occupiedItemProbe.floorId + "/" + occupiedItemProbe.modelId),
+              ),
+              associateModelLabel = "关联" + editorHost.kindLabel + "模型";
+            /** 关联模型选择器（上游 `v475('associate')`）：已占用模型禁用，当前项标「当前关联」。 */
+            function openAssociateModelPicker() {
+              const pickerGeneration = ++editorHost.pickerGeneration,
+                pickerChoices: ConfigurationChoice[] = floorModelCandidates.map((modelKeyEntry) => {
+                  const isCurrentModel = modelKeyEntry.key === currentModelKey,
+                    isOccupied = !isCurrentModel && occupiedModelKeys.has(modelKeyEntry.key);
+                  return {
+                    id: modelKeyEntry.key,
+                    label: editorHost.describeItem(modelKeyEntry.model),
+                    icon: modelKeyEntry.model.icon || editorHost.defaultIcon,
+                    wrapLabel: true,
+                    disabled: isOccupied,
+                    state: isCurrentModel || isOccupied ? "configured" : "remaining",
+                    detail: isCurrentModel ? "当前关联" : isOccupied ? "已配置" : "未配置 · 点击选择",
+                  };
+                });
+              currentModelPresent ||
+                pickerChoices.unshift({
+                  id: currentModelKey,
+                  label: "原模型已移除，请重新选择",
+                  icon: editorHost.defaultIcon,
+                  wrapLabel: true,
+                  disabled: true,
+                  state: "missing",
+                  detail: "原模型已移除",
+                });
+              editorHost.pickerHandle?.close();
+              const pickerHandle = openConfigurationPicker({
+                document: editorHost.editorDialogElement.ownerDocument,
+                title: "关联" + editorHost.kindLabel + "模型",
+                kicker: "MODEL SELECTION",
+                unit: "模型",
+                selectedId: currentModelKey,
+                emptyMessage: "当前楼层没有可选模型。",
+                sections: [{ options: pickerChoices }],
+                async onSelect(pickedModelKey: string) {
+                  const matchedModel = floorModelCandidates.find(
                     (matchedModelCandidate: any) => matchedModelCandidate.key === pickedModelKey,
                   );
-                  !matchedModel ||
-                    pickedModelKey === currentModelKey ||
+                  if (
+                    editorHost.isDisposed ||
+                    !editorHost.isAccessAllowed ||
+                    pickerGeneration !== editorHost.pickerGeneration
+                  )
+                    throw new Error("该配置已变更，请重新选择。");
+                  if (!matchedModel) throw new Error("该模型已变更，请重新选择。");
+                  pickedModelKey === currentModelKey ||
                     ((vector.floorId = matchedModel.floor.id),
                     (vector.modelId = matchedModel.model.id),
                     delete vector.focusCamera,
@@ -473,8 +603,27 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     refreshEditorPreview(),
                     renderPanel());
                 },
-              ),
-              some ||
+                onClose() {
+                  editorHost.pickerHandle === pickerHandle && (editorHost.pickerHandle = null);
+                },
+              });
+              editorHost.isDisposed || !editorHost.isAccessAllowed || pickerGeneration !== editorHost.pickerGeneration
+                ? pickerHandle.close()
+                : (editorHost.pickerHandle = pickerHandle);
+            }
+            (createPickerRow({
+              rowContainer: nameRowElement,
+              rowLabel: associateModelLabel,
+              currentLabel: currentModelPresent
+                ? editorHost.describeItem(
+                    floorModelCandidates.find(
+                      (candidateKeyProbe: any) => candidateKeyProbe.key === currentModelKey,
+                    )?.model,
+                  )
+                : "原模型已移除，请重新选择",
+              onOpen: openAssociateModelPicker,
+            }),
+              currentModelPresent ||
                 currentContainer.append(
                   editorHost.createElement(
                     "p",
@@ -915,8 +1064,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               posterAssetStatusElement = editorHost.createElement("p", "i3d-note", emptyStatusText),
               posterAssetUploadInput = editorHost.createElement("input");
             ((posterAssetUploadInput.type = "file"),
-              (posterAssetUploadInput.accept =
-                "image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,image/gif,image/bmp,image/tiff,image/avif,image/heic,image/heif,image/x-icon,.png,.jpg,.jpeg,.webp,.svg,.gif,.bmp,.tif,.tiff,.ico,.avif,.heic,.heif"),
+              (posterAssetUploadInput.accept = USER_IMAGE_ACCEPT),
               (posterAssetUploadInput.hidden = true),
               posterAssetUploadInput.setAttribute("aria-label", uploadAriaLabel));
             let isPosterUploading = false;
@@ -939,35 +1087,16 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 isPosterUploading = true;
                 refreshPosterAssetUi();
                 try {
-                  const uploadResponse = await fetch("/api/v1/assets/user", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    body: selectedFile,
-                    headers: {
-                      "Content-Type": selectedFile.type || "application/octet-stream",
-                      "X-File-Name": encodeURIComponent(selectedFile.name),
-                    },
-                  });
-                  const uploadPayload = await uploadResponse.json().catch(() => ({}));
-                  if (!uploadResponse.ok)
-                    throw new Error(
-                      uploadPayload.detail ||
-                        uploadPayload.message ||
-                        uploadPayload.error ||
-                        "图片上传失败，请重试。",
-                    );
-                  const uploadedAssetId = String(
-                    uploadPayload.assetId || uploadPayload.data?.assetId || "",
-                  )
-                    .trim()
-                    .toLowerCase();
-                  if (!/^user:[0-9a-f]{32}$/.test(uploadedAssetId))
-                    throw new Error("图片上传结果无效，请重试。");
-                  vector.screenImage = { assetId: uploadedAssetId };
+                  if (!isUserImageFile(selectedFile))
+                    throw new Error("仅支持 PNG、JPG、WebP、SVG 等图片格式。");
+                  vector.screenImage = {
+                    assetId: await uploadUserImage(selectedFile, {
+                      request: fetchUserImageJson,
+                    }),
+                  };
                   refreshEditorPreview();
                 } catch (uploadError: any) {
-                  posterAssetStatusElement.textContent =
-                    uploadError?.message || "图片上传失败，请重试。";
+                  posterAssetStatusElement.textContent = imageUploadError(uploadError);
                   isPosterUploading = false;
                   return;
                 }
@@ -1601,7 +1730,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 }),
                 createSettingRow(tireSectionElement, "显示胎压", tireShowInput));
               // 0.8.0 行顺序：显示胎压 → 轮位胎压实体 → 胎压显示方式 → 胎压字号（px） → 背景不透明度。
-              for (const tireWheel of carTireWheelsFor(carModelType)) {
+              for (const tireWheel of carTireWheelsFor(carModelType) ?? []) {
                 const tireWheelValue = tireConfig.wheels[tireWheel.key] || "",
                   tireWheelRowOptions = [...tireWheelOptions];
                 // 失效实体插在「未绑定」之后（0.8.0 用 splice(1, 0, …)），不顶到列表首位。

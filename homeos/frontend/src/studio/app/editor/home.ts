@@ -37,6 +37,8 @@ import {
   relatedPopupContext as relatedPopupContext2,
 } from "../shared/related-entities";
 import { createButtonSound as createButtonSound2 } from "../shared/sound-effects";
+import { createUserImageUploader } from "../shared/user-image-upload";
+import type { UserImageUploadState } from "../shared/user-image-upload";
 import { ensureRegistryComponents as ensureRegistryComponents2 } from "../renderer/registry";
 import {
   deferHiddenEditorDialogs as deferHiddenEditorDialogs2,
@@ -146,7 +148,7 @@ import { collectPageComponentBounds as collectPageComponentBoundsImpl, alignSele
 import { actionDraftDocument as actionDraftDocumentImpl, targetPageCandidate as targetPageCandidateImpl, buttonVisibilityDraftDocument as buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent as titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument as titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError as lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent as lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument as imageEntityDraftDocumentImpl, openAssetPicker as openAssetPickerImpl, assetIdToDelete as assetIdToDeleteImpl, folderDocumentNode as folderDocumentNodeImpl, closeDeletePopupDialog as closeDeletePopupDialogImpl, documentSource as documentSourceImpl, popupId as popupIdImpl, triggerKey as triggerKeyImpl, findDiagramPreviewFrame as findDiagramPreviewFrameImpl, lightInputElement as lightInputElementImpl, cancelRemovesComponent as cancelRemovesComponentImpl, lightingPayload as lightingPayloadImpl, lightFieldElement as lightFieldElementImpl, openLightingPanel as openLightingPanelImpl, lightInputNode as lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick as onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick as onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove as applyLightingPanelDragMoveImpl, type LightingPanelDeps } from "./home/functions/lighting-panel";
 import { bindFloorplanAutoDiagramControls } from "./home/functions/floorplan-auto-diagram-wiring";
 import { closeAutoDiagramDialog as closeAutoDiagramDialogImpl, settleAutoDiagramDialog as settleAutoDiagramDialogImpl, cancelRemoveDraftDocument as cancelRemoveDraftDocumentImpl, bindMessageSection as bindMessageSectionImpl, onWindowMessage as onWindowMessageImpl, exportSpliceError as exportSpliceErrorImpl, collectPageImages as collectPageImagesImpl, createImageAlignOption as createImageAlignOptionImpl, openImageAlignDialog as openImageAlignDialogImpl, applyAirConditionerPreviewState as applyAirConditionerPreviewStateImpl, airflowSectionEvent as airflowSectionEventImpl, previewSyncEventName as previewSyncEventNameImpl, onCoverSettingsKindClick as onCoverSettingsKindClickImpl, coverKindDraftDocument as coverKindDraftDocumentImpl, navigationSavedPropertyKey as navigationSavedPropertyKeyImpl, previewDateResize as previewDateResizeImpl, previewWeatherComponentResize as previewWeatherComponentResizeImpl, setNavigationPreviewState as setNavigationPreviewStateImpl, applyNavigationPreviewState as applyNavigationPreviewStateImpl, syncNavigationPreviewFromElement as syncNavigationPreviewFromElementImpl, navigationPropertyNameFromElement as navigationPropertyNameFromElementImpl, resolveComponentStyleValue as resolveComponentStyleValueImpl, collectChangedLineChartStyleKeys as collectChangedLineChartStyleKeysImpl, formatLineChartStyleValue as formatLineChartStyleValueImpl, resolveNavigationStyleValue as resolveNavigationStyleValueImpl, type NavigationPreviewDeps } from "./home/functions/navigation-preview";
-import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKeysImpl, onNavigationStyleApplyCancelButtonClick as onNavigationStyleApplyCancelButtonClickImpl, onNavigationStyleApplyConfirmButtonClick as onNavigationStyleApplyConfirmButtonClickImpl, collectChangedAirConditionerStyleKeys as collectChangedAirConditionerStyleKeysImpl, formatAirConditionerStyleValue as formatAirConditionerStyleValueImpl, resolveAirConditionerStyleValue as resolveAirConditionerStyleValueImpl, collectChangedIconButtonEffectStyleKeys as collectChangedIconButtonEffectStyleKeysImpl, formatIconButtonEffectStyleValue as formatIconButtonEffectStyleValueImpl, normalizeSensorKind as normalizeSensorKindImpl, formatSensorKindLabel as formatSensorKindLabelImpl, resolvePresenceSensorStyleKeys as resolvePresenceSensorStyleKeysImpl, styleTargetCheckbox as styleTargetCheckboxImpl, appliedStylePropertyKey as appliedStylePropertyKeyImpl, onNavigationIconCopyButtonClick as onNavigationIconCopyButtonClickImpl, navigationIconCopyError as navigationIconCopyErrorImpl, resolveCameraStyleValue as resolveCameraStyleValueImpl, collectChangedCameraStyleKeys as collectChangedCameraStyleKeysImpl, formatCameraStyleValue as formatCameraStyleValueImpl, resolvePanelFrameStyleValue as resolvePanelFrameStyleValueImpl, collectChangedPanelFrameStyleKeys as collectChangedPanelFrameStyleKeysImpl, formatPanelFrameStyleValue as formatPanelFrameStyleValueImpl, entryStateRecord as entryStateRecordImpl, areStyleValuesEqual as areStyleValuesEqualImpl, onImageAssetUploadButtonClick as onImageAssetUploadButtonClickImpl, onAssetOptionsClick as onAssetOptionsClickImpl, type StyleApplyDeps } from "./home/functions/style-apply";
+import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKeysImpl, onNavigationStyleApplyCancelButtonClick as onNavigationStyleApplyCancelButtonClickImpl, onNavigationStyleApplyConfirmButtonClick as onNavigationStyleApplyConfirmButtonClickImpl, collectChangedAirConditionerStyleKeys as collectChangedAirConditionerStyleKeysImpl, formatAirConditionerStyleValue as formatAirConditionerStyleValueImpl, resolveAirConditionerStyleValue as resolveAirConditionerStyleValueImpl, collectChangedIconButtonEffectStyleKeys as collectChangedIconButtonEffectStyleKeysImpl, formatIconButtonEffectStyleValue as formatIconButtonEffectStyleValueImpl, normalizeSensorKind as normalizeSensorKindImpl, formatSensorKindLabel as formatSensorKindLabelImpl, resolvePresenceSensorStyleKeys as resolvePresenceSensorStyleKeysImpl, styleTargetCheckbox as styleTargetCheckboxImpl, appliedStylePropertyKey as appliedStylePropertyKeyImpl, onNavigationIconCopyButtonClick as onNavigationIconCopyButtonClickImpl, navigationIconCopyError as navigationIconCopyErrorImpl, resolveCameraStyleValue as resolveCameraStyleValueImpl, collectChangedCameraStyleKeys as collectChangedCameraStyleKeysImpl, formatCameraStyleValue as formatCameraStyleValueImpl, resolvePanelFrameStyleValue as resolvePanelFrameStyleValueImpl, collectChangedPanelFrameStyleKeys as collectChangedPanelFrameStyleKeysImpl, formatPanelFrameStyleValue as formatPanelFrameStyleValueImpl, entryStateRecord as entryStateRecordImpl, areStyleValuesEqual as areStyleValuesEqualImpl, onImageAssetUploadButtonClick as onImageAssetUploadButtonClickImpl, onAssetOptionsClick as onAssetOptionsClickImpl, resetStyleApplyBaselines, type StyleApplyDeps } from "./home/functions/style-apply";
 import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "./home/functions/style-dialogs";
 import { titleButtonMenuDeps as titleButtonMenuDepsImpl, loadNavigationIconOptions as loadNavigationIconOptionsImpl, positionTitleButtonIconMenu as positionTitleButtonIconMenuImpl, stopHoverScroll as stopHoverScrollImpl, iconTooltipElementValue as iconTooltipElementValueImpl, inspectorSyncDeps as inspectorSyncDepsImpl, syncComponentActionControls as syncComponentActionControlsImpl, applyTransformToInspector as applyTransformToInspectorImpl, previewModeForIcon as previewModeForIconImpl, sharedReferenceId as sharedReferenceIdImpl, nudgeDeps as nudgeDepsImpl, nudgeDeltaX as nudgeDeltaXImpl, clickPopupListOption as clickPopupListOptionImpl, onPopupListContextmenu as onPopupListContextmenuImpl, openEntityCopyBackupPicker as openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker as openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker as openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick as onPopupModuleCancelButtonClickImpl, type CopyBackupPickersDeps } from "./home/functions/copy-backup-pickers";
 import { onPopupModuleClimateDeviceTypeClick as onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder as selectAssetFolderImpl, popupModuleTypeValue as popupModuleTypeValueImpl, requestDeleteUserAsset as requestDeleteUserAssetImpl, requestDeleteAssetFolder as requestDeleteAssetFolderImpl, refreshAssetPickers as refreshAssetPickersImpl, scaleDraftDocument as scaleDraftDocumentImpl, cancelDeletePopupDialog as cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick as onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput as onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState as saturationPointerMoveEventStateImpl, mutationRecord as mutationRecordImpl, type AssetManagementDeps } from "./home/functions/asset-management";
@@ -1208,6 +1210,10 @@ const {
       editorPickerClearAction: createEditorEntityPickerOption,
     },
   }),
+  userImageUploader = createUserImageUploader({
+    request: (uploadPath, uploadOptions) => requestJson(uploadPath, uploadOptions),
+    onCatalogUpdated: () => reloadAssetCatalog({ refreshInspector: false }),
+  }),
   editorAssetMatcher = createEditorAssetMatcher2({
     getImageSource: () => editorCtx.imageAssetFolder,
     getImageFolder: () => editorCtx.imageAssetFolderState,
@@ -1239,6 +1245,10 @@ const {
       canDeleteAssetFolder(deleteSourceKey, folderToDelete),
     onDeleteFolder: (removedSourceKey: any, removedFolderName: any) =>
       requestDeleteAssetFolder(removedSourceKey, removedFolderName),
+    getUploaderState: () => userImageUploader.state,
+    subscribeUploader: (uploadListener: (uploadState: UserImageUploadState) => void) =>
+      userImageUploader.subscribe(uploadListener),
+    retryUploadRefresh: () => userImageUploader.retryRefresh(),
   });
 function popupInspectorsDeps(): PopupInspectorsDeps {
   return {
@@ -5088,10 +5098,23 @@ const navigationStyleApplyTargetDeps = () => ({ navigationStyleApplyTargetsEleme
       navigationStyleApplyDialogElement.close();
   }),
   navigationStyleApplyDialogElement.addEventListener("close", () => {
-    editorCtx.appliedStyleRecord = null;
+    // 结束会话：清 5 张 baseline，避免下次打开沿用旧控件快照。
+    resetStyleApplyBaselines(
+      {
+        editorCtx,
+        airConditionerBaselineByComponentId,
+        iconButtonBaselineByComponentId,
+        iconButtonEffectBaselineByComponentId,
+        navigationButtonSavedSettingsByComponentId,
+        panelFrameBaselineByComponentId,
+      },
+      navigationStyleApplyDialogElement,
+    );
   }),
   navigationStyleApplyConfirmElement.addEventListener("click", () => {
-    const templateItemElementState = editorCtx.appliedStyleRecord?.sourceId,
+    // 会话守卫：异步写入回来时若已经切项目，就不能再对旧控件打脉冲/改选中态。
+    const styleApplySessionProjectId = editorCtx.activeProject?.projectId,
+      templateItemElementState = editorCtx.appliedStyleRecord?.sourceId,
       isImageAssetMenuHiddenState = editorCtx.appliedStyleRecord?.type,
       mappedItemsMode = [
         ...navigationStyleApplyPropertiesElement.querySelectorAll(
@@ -5231,14 +5254,25 @@ const navigationStyleApplyTargetDeps = () => ({ navigationStyleApplyTargetsEleme
             }
           }
       }).then(() => {
+        if (editorCtx.activeProject?.projectId !== styleApplySessionProjectId) return;
         if (isImageAssetMenuHiddenState === "flow-line") {
-          const flowLineApplyStyleElement = findElement("#flow-line-apply-style");
-          (window.clearTimeout(editorCtx.coverMotorDirectionValue),
+          const flowLineApplyStyleElement = findElement("#flow-line-apply-style"),
+            stylePulseByButton = (editorCtx.styleApplyPulseByButton ??= new Map()),
+            previousFlowPulse = flowLineApplyStyleElement
+              ? stylePulseByButton.get(flowLineApplyStyleElement)
+              : undefined;
+          (previousFlowPulse && window.clearTimeout(previousFlowPulse),
             flowLineApplyStyleElement?.classList.add("applied"),
-            (editorCtx.coverMotorDirectionValue = window.setTimeout(() => {
-              (flowLineApplyStyleElement?.classList.remove("applied"),
-                editorCtx.selectedComponentId === templateItemElementState && coverMotorButtonElement());
-            }, 1800)));
+            flowLineApplyStyleElement &&
+              stylePulseByButton.set(
+                flowLineApplyStyleElement,
+                window.setTimeout(() => {
+                  (stylePulseByButton.delete(flowLineApplyStyleElement),
+                    flowLineApplyStyleElement.classList.remove("applied"),
+                    editorCtx.selectedComponentId === templateItemElementState &&
+                      coverMotorButtonElement());
+                }, 1800),
+              ));
           return;
         }
         if (isImageAssetMenuHiddenState === "percentage-bar") {
@@ -5263,45 +5297,19 @@ const navigationStyleApplyTargetDeps = () => ({ navigationStyleApplyTargetsEleme
                           )
                         ? iconButtonApplyStyleElement
                         : navigationApplyStyleElement;
-        (isImageAssetMenuHiddenState === "panel-frame"
-          ? window.clearTimeout(editorCtx.panelFrameApplyFeedbackTimeoutId)
-          : isImageAssetMenuHiddenState === "camera"
-            ? window.clearTimeout(editorCtx.cameraApplyFeedbackTimeoutId)
-            : isImageAssetMenuHiddenState === "title-button"
-              ? window.clearTimeout(editorCtx.titleButtonApplyFeedbackTimeoutId)
-              : isImageAssetMenuHiddenState === "air-conditioner"
-                ? window.clearTimeout(editorCtx.airConditionerApplyFeedbackTimeoutId)
-                : isImageAssetMenuHiddenState === "line-chart"
-                  ? window.clearTimeout(editorCtx.lineChartApplyFeedbackTimeoutId)
-                  : isImageAssetMenuHiddenState === "icon-button-effect"
-                    ? window.clearTimeout(editorCtx.effectApplyFeedbackTimeoutId)
-                    : ["icon-button", "device-button", "presence-sensor"].includes(
-                          isImageAssetMenuHiddenState,
-                        )
-                      ? window.clearTimeout(editorCtx.deviceButtonApplyFeedbackTimeoutId)
-                      : window.clearTimeout(editorCtx.navigationApplyFeedbackTimeoutId),
-          $c2.classList.add("applied"));
-        const hoveredAssetState = window.setTimeout(() => {
-          ($c2.classList.remove("applied"),
-            editorCtx.selectedComponentId === templateItemElementState && coverMotorButtonElement());
-        }, 1800);
-        isImageAssetMenuHiddenState === "panel-frame"
-          ? (editorCtx.panelFrameApplyFeedbackTimeoutId = hoveredAssetState)
-          : isImageAssetMenuHiddenState === "camera"
-            ? (editorCtx.cameraApplyFeedbackTimeoutId = hoveredAssetState)
-            : isImageAssetMenuHiddenState === "title-button"
-              ? (editorCtx.titleButtonApplyFeedbackTimeoutId = hoveredAssetState)
-              : isImageAssetMenuHiddenState === "air-conditioner"
-                ? (editorCtx.airConditionerApplyFeedbackTimeoutId = hoveredAssetState)
-                : isImageAssetMenuHiddenState === "line-chart"
-                  ? (editorCtx.lineChartApplyFeedbackTimeoutId = hoveredAssetState)
-                  : isImageAssetMenuHiddenState === "icon-button-effect"
-                    ? (editorCtx.effectApplyFeedbackTimeoutId = hoveredAssetState)
-                    : ["icon-button", "device-button", "presence-sensor"].includes(
-                          isImageAssetMenuHiddenState,
-                        )
-                      ? (editorCtx.deviceButtonApplyFeedbackTimeoutId = hoveredAssetState)
-                      : (editorCtx.navigationApplyFeedbackTimeoutId = hoveredAssetState);
+        {
+          const stylePulseByButton = (editorCtx.styleApplyPulseByButton ??= new Map()),
+            previousPulse = stylePulseByButton.get($c2);
+          (previousPulse && window.clearTimeout(previousPulse), $c2.classList.add("applied"));
+          stylePulseByButton.set(
+            $c2,
+            window.setTimeout(() => {
+              (stylePulseByButton.delete($c2),
+                $c2.classList.remove("applied"),
+                editorCtx.selectedComponentId === templateItemElementState && coverMotorButtonElement());
+            }, 1800),
+          );
+        }
       }));
   }),
   navigationIconButtonElement.addEventListener("click", () => {
@@ -5896,6 +5904,7 @@ function assetManagementDeps(): AssetManagementDeps {
     get selectedComponentIdsFromDom() { return selectedComponentIdsFromDom; },
     get setComponentsRotation() { return setComponentsRotation; },
     get syncAssetFolderOptions() { return syncAssetFolderOptions; },
+    get userImageUploader() { return userImageUploader; },
   };
   assetManagementDepsCache = assetManagementDepsValue;
   return assetManagementDepsValue;

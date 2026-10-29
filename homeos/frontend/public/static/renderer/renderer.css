@@ -1992,6 +1992,27 @@
   padding: 0 28px 14px;
   box-sizing: border-box;
 }
+/*
+ * 扫地机弹窗在矮视口/多扩展控制时会顶出屏幕：给内容一个独立滚动体，
+ * 高度由 `vacuum-details` 按当前版式写进 `--i3d-popup-content-height`。
+ */
+.hb-entity-details-dialog.vacuum-details {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.i3d-vacuum-popup-body {
+  min-height: 0;
+  max-height: var(--i3d-popup-content-height, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.i3d-vacuum-popup-body > .hb-vacuum-details-layout {
+  min-height: 0;
+}
 .hb-vacuum-details-overview {
   display: grid;
   min-width: 0;

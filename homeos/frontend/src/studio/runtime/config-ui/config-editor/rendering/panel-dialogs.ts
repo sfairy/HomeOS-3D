@@ -13,8 +13,9 @@
 
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
-import { createDeviceCategoryRow } from "./device-category-dialog";
-import { configurationSummary } from "../../configuration-picker";
+import { openConfigurationPicker } from "../../configuration-picker";
+import { bindPickerRow, openDeviceCategoryPicker } from "./picker-row";
+import { resolveDeviceCategoryProfile } from "./device-category-choices";
 import { configurationProgress } from "../../configuration-progress";
 import { createCurtainGroup as createCurtainGroup2, curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { randomUuid as randomUuid2 } from "@app/shared/util/random-id";
@@ -68,8 +69,18 @@ export interface PanelDialogsDeps {
   listChangedFields: (changedItem: any) => any[][];
 }
 
-interface AddDialogProgressHost {
-  sceneMetadata?: { floors?: ReadonlyArray<Record<string, unknown>> } | null;
+/** 选择器里读到的条目 / 模型字段（配置编辑器内部形状）。 */
+interface PickerChoiceRecord {
+  id?: string;
+  label?: string;
+  icon?: string;
+  modelId?: string;
+  floorId?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+interface AddDialogProgressHost {  sceneMetadata?: { floors?: ReadonlyArray<Record<string, unknown>> } | null;
   floorSelection?: string;
   collectionKey: string;
   modelIdKey: string;
@@ -104,179 +115,175 @@ function currentConfigurationProgress(editorHost: AddDialogProgressHost) {
   });
 }
 
-export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {  // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { editorHost, closeAddDialog, createSelectRow, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
+/**
+ * 新增条目选择器（上游 `v475('add')`）：0.8.1 起不再是自建 `i3d-add-dialog`，
+ * 改用统一的 `openConfigurationPicker`；已配置的模型留在列表里但禁用，
+ * 失败的文案写回弹窗而不是关窗。
+ */
+export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
+  // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
+  const { editorHost, createSelectRow, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
+  if (
+    editorHost.isDisposed ||
+    !editorHost.isAccessAllowed ||
+    editorHost.isCameraEditing ||
+    editorHost.isCameraCommandPending ||
+    editorHost.isRangeEditorOpen ||
+    editorHost.addDialogState
+  )
+    return;
+  if (editorHost.isVacuumShortcutMode) {
+    openVacuumRoomPicker(deps, addDialogTriggerEvent?.currentTarget || addDialogTriggerEvent?.target);
+    return;
+  }
+  const addableModels = listAddableModels() as ReadonlyArray<{ key: string }>,
+    addableModelKeySet = new Set(addableModels.map((addableModelEntry) => addableModelEntry.key)),
+    currentFloorRecord = (
+      editorHost.sceneMetadata?.floors as ReadonlyArray<Record<string, unknown>> | undefined
+    )?.find((floorProbe) => floorProbe.id === editorHost.floorSelection),
+    floorModelList = (currentFloorRecord
+      ? (editorHost.usesModelBinding
+          ? currentFloorRecord[editorHost.collectionKey]
+          : currentFloorRecord.groups) || []
+      : []) as ReadonlyArray<PickerChoiceRecord>,
+    pickerUnit = editorHost.usesModelBinding ? editorHost.kindLabel : "灯组",
+    configuredModelKeySet = new Set(
+      (editorHost.getItemList() as ReadonlyArray<PickerChoiceRecord>).map((configuredItemProbe) =>
+        JSON.stringify([configuredItemProbe.floorId, configuredItemProbe[editorHost.modelIdKey as string]]),
+      ),
+    );
+  let selectedModelKind = "air-conditioner";
+  const pickerControlsElement = editorHost.createElement("div"),
+    createPickerRow = bindPickerRow(editorHost, createSettingRow);
+  editorHost.isDeviceKind &&
+    createPickerRow({
+      rowContainer: pickerControlsElement,
+      rowLabel: "设备类别",
+      currentLabel: resolveDeviceCategoryProfile(editorHost.deviceKind).label,
+      onOpen: () =>
+        openDeviceCategoryPicker(editorHost, {
+          environmentCategory: false,
+          onPicked: (pickedDeviceKind: string) => switchEditorKind(pickedDeviceKind, true),
+        }),
+    });
+  editorHost.deviceKind === "climate" &&
+    createSelectRow(
+      pickerControlsElement,
+      "设备类型",
+      [
+        ["air-conditioner", "空调"],
+        ["bath-heater", "浴霸"],
+      ],
+      selectedModelKind,
+      (addDialogModelLabel: any) => {
+        selectedModelKind = addDialogModelLabel;
+      },
+    );
+  const pickerChoices = floorModelList.map((floorModelEntry) => {
+      const modelKey = JSON.stringify([currentFloorRecord?.id, floorModelEntry.id]),
+        isConfigured = configuredModelKeySet.has(modelKey) || !addableModelKeySet.has(modelKey);
+      return {
+        id: modelKey,
+        label: editorHost.describeItem(floorModelEntry),
+        icon: floorModelEntry.icon || editorHost.defaultIcon,
+        wrapLabel: true,
+        disabled: isConfigured,
+        state: isConfigured ? ("configured" as const) : ("remaining" as const),
+        detail: isConfigured ? "已配置" : "未配置 · 点击选择",
+      };
+    }),
+    addGeneration = ++editorHost.pickerGeneration;
+  editorHost.pickerHandle?.close();
+  let isAdding = false;
+  const pickerHandle = openConfigurationPicker({
+    document: editorHost.editorDialogElement.ownerDocument,
+    title: editorHost.isDeviceKind ? "添加设备" : "添加" + editorHost.kindLabel,
+    kicker: "MODEL SELECTION",
+    unit: pickerUnit,
+    description:
+      (currentFloorRecord?.name ? "当前楼层：" + currentFloorRecord.name + "。" : "") +
+      "已配置的对象不可重复添加；名称后显示户型备注。最后点击“保存配置”应用修改。",
+    summary: currentConfigurationProgress(editorHost),
+    controls: pickerControlsElement,
+    emptyMessage: "本层没有" + pickerUnit + "，请先在 3D 户型图中添加。",
+    sections: [{ options: pickerChoices }],
+    async onSelect(chosenModelKey: string) {
       if (
+        isAdding ||
         editorHost.isDisposed ||
         !editorHost.isAccessAllowed ||
         editorHost.isCameraEditing ||
         editorHost.isCameraCommandPending ||
         editorHost.isRangeEditorOpen ||
-        editorHost.addDialogState
+        addGeneration !== editorHost.pickerGeneration
       )
-        return;
-      if (editorHost.isVacuumShortcutMode) {
-        openVacuumRoomPicker(deps, addDialogTriggerEvent?.currentTarget || addDialogTriggerEvent?.target);
-        return;
-      }
-      const addableModels = listAddableModels();
-      if (!addableModels.length) return;
-      (editorHost.pickerGeneration++, editorHost.pickerHandle?.close());
-      const addDialogElement = editorHost.createElement("dialog", "settings-dialog i3d-add-dialog");
-      ((editorHost.addDialogState = addDialogElement),
-        addDialogElement.setAttribute(
-          "aria-label",
-          editorHost.isDeviceKind ? "添加设备" : "添加" + editorHost.kindLabel + "按钮",
-        ));
-      const addDialogHeadingElement = editorHost.createElement("div", "dialog-heading"),
-        addDialogTitleWrapperElement = editorHost.createElement("div");
-      addDialogTitleWrapperElement.append(
-        editorHost.createElement("span", "", "ADD BUTTON"),
-        editorHost.createElement("h2", "", editorHost.isDeviceKind ? "添加设备" : "添加" + editorHost.kindLabel + "按钮"),
-      );
-      const addDialogCloseButton = editorHost.createButton("×", closeAddDialog);
-      ((addDialogCloseButton.className = "icon-button"),
-        addDialogCloseButton.setAttribute("aria-label", "关闭添加按钮窗口"),
-        addDialogHeadingElement.append(addDialogTitleWrapperElement, addDialogCloseButton));
-      const addDialogBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
-        addDialogErrorElement = editorHost.createElement("p", "i3d-error");
-      (addDialogErrorElement.setAttribute("role", "status"),
-        // 当前楼层的配置进度：模型库（可配置总量）对比已添加条目，少了模型记「缺失」。
-        addDialogBodyElement.append(
-          configurationSummary(currentConfigurationProgress(editorHost), {
-            document: editorHost.editorDialogElement.ownerDocument,
-            unit: editorHost.kindLabel,
-          }),
-        ),
-        editorHost.isDeviceKind &&
-          createDeviceCategoryRow(
-            editorHost,
-            addDialogBodyElement,
-            "设备类型",
-            editorHost.deviceKind,
-            (pickedDeviceKind: any) => {
-              pickedDeviceKind !== editorHost.deviceKind && switchEditorKind(pickedDeviceKind, true);
-            },
-            createSettingRow,
-          ));
-      let selectedModelKind = "air-conditioner";
-      editorHost.deviceKind === "climate" &&
-        createSelectRow(
-          addDialogBodyElement,
-          "设备类型",
-          [
-            ["air-conditioner", "空调"],
-            ["bath-heater", "浴霸"],
-          ],
-          selectedModelKind,
-          (addDialogModelLabel: any) => {
-            selectedModelKind = addDialogModelLabel;
-          },
+        throw new Error("该配置已变更，请重新选择。");
+      isAdding = true;
+      try {
+        await requestInteraction3dAccess2();
+        if (
+          editorHost.isDisposed ||
+          !editorHost.isAccessAllowed ||
+          addGeneration !== editorHost.pickerGeneration
+        )
+          throw new Error("该配置已变更，请重新选择。");
+        const chosenModel = listAddableModels().find(
+          (modelCandidateMatch: any) => modelCandidateMatch.key === chosenModelKey,
         );
-      const modelSelectElement = createSelectRow(
-        addDialogBodyElement,
-        editorHost.usesModelBinding ? "关联" + editorHost.kindLabel + "模型" : "关联灯组",
-        addableModels.map((addableModelEntry: any) => [
-          addableModelEntry.key,
-          editorHost.describeItem(addableModelEntry.group),
-        ]),
-        addableModels[0].key,
-        () => {
-          addDialogErrorElement.textContent = "";
-        },
-      );
-      modelSelectElement.setAttribute(
-        "aria-label",
-        editorHost.usesModelBinding ? "关联" + editorHost.kindLabel + "模型" : "关联灯组",
-      );
-      const addDialogActionsElement = editorHost.createElement("div", "dialog-actions");
-      let isAdding = false;
-      const confirmAddButton = editorHost.createButton("确定添加", async () => {
-        if (isAdding || editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.addDialogState !== addDialogElement) return;
-        ((isAdding = true),
-          (confirmAddButton.disabled = true),
-          (modelSelectElement.disabled = true),
-          (addDialogErrorElement.textContent = ""));
-        const chosenModelKey = modelSelectElement.value;
-        try {
-          if (
-            (await requestInteraction3dAccess2(),
-            editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.addDialogState !== addDialogElement)
-          )
-            return;
-          const chosenModel = listAddableModels().find(
-            (modelCandidateMatch: any) => modelCandidateMatch.key === chosenModelKey,
-          );
-          if (!chosenModel) throw new Error("该对象已添加或不再可用，请关闭窗口后重新选择。");
-          const newItem = {
-            id: randomUuid2(),
-            floorId: chosenModel.floor.id,
-            [editorHost.modelIdKey]: chosenModel.group.id,
-            entityId: "",
-            label: editorHost.describeItem(chosenModel.group),
-            ...(editorHost.usesModelBinding
-              ? {}
-              : {
-                  x: chosenModel.group.x,
-                  y: chosenModel.group.y,
-                  height: chosenModel.group.height ?? chosenModel.floor.wallHeight ?? 2.8,
-                  fadeDuration: 0.3,
-                }),
-            ...(editorHost.isCoverMode
-              ? {
-                  coverDirection: "auto",
-                  curtainFabric: "cloth",
-                  unboundPosition: 0,
-                }
+        if (!chosenModel) throw new Error("该对象已添加或不再可用，请重新选择。");
+        const newItem = {
+          id: randomUuid2(),
+          floorId: chosenModel.floor.id,
+          [editorHost.modelIdKey]: chosenModel.group.id,
+          entityId: "",
+          label: editorHost.describeItem(chosenModel.group),
+          ...(editorHost.usesModelBinding
+            ? {}
+            : {
+                x: chosenModel.group.x,
+                y: chosenModel.group.y,
+                height: chosenModel.group.height ?? chosenModel.floor.wallHeight ?? 2.8,
+                fadeDuration: 0.3,
+              }),
+          ...(editorHost.isCoverMode
+            ? {
+                coverDirection: "auto",
+                curtainFabric: "cloth",
+                unboundPosition: 0,
+              }
+            : {}),
+          size: DEFAULT_BUTTON_SIZE,
+          iconSize: buttonIconSize(DEFAULT_BUTTON_SIZE),
+          visible: true,
+          icon:
+            editorHost.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
+              ? "mdi:ceiling-fan"
+              : editorHost.defaultIcon,
+          clickAction: editorHost.usesStatusPanel ? "focus-panel" : "focus",
+          ...(editorHost.deviceKind === "climate" ? { climateType: selectedModelKind } : {}),
+          ...(editorHost.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
+            ? { visualMode: "ceiling" }
+            : editorHost.deviceKind === "fan"
+              ? { visualMode: "tower" }
               : {}),
-            size: DEFAULT_BUTTON_SIZE,
-            iconSize: buttonIconSize(DEFAULT_BUTTON_SIZE),
-            visible: true,
-            icon:
-              editorHost.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
-                ? "mdi:ceiling-fan"
-                : editorHost.defaultIcon,
-            clickAction: editorHost.usesStatusPanel ? "focus-panel" : "focus",
-            ...(editorHost.deviceKind === "climate" ? { climateType: selectedModelKind } : {}),
-            ...(editorHost.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
-              ? { visualMode: "ceiling" }
-              : editorHost.deviceKind === "fan"
-                ? { visualMode: "tower" }
-                : {}),
-          };
-          (editorHost.usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
-            editorHost.getItemList().push(newItem),
-            (editorHost.text = newItem.id),
-            closeAddDialog(),
-            refreshEditorPreview(),
-            renderPanel());
-        } catch (addItemError: any) {
-          editorHost.addDialogState === addDialogElement &&
-            (addDialogErrorElement.textContent = addItemError.message);
-        } finally {
-          ((isAdding = false),
-            (confirmAddButton.disabled = false),
-            (modelSelectElement.disabled = false));
-        }
-      });
-      ((confirmAddButton.className = "primary"),
-        addDialogActionsElement.append(editorHost.createButton("取消", closeAddDialog), confirmAddButton),
-        addDialogBodyElement.append(
-          editorHost.createElement(
-            "p",
-            "i3d-note",
-            "添加后可继续设置" + editorHost.kindLabel + "按钮，最后点击“保存配置”完成保存。",
-          ),
-          addDialogErrorElement,
-          addDialogActionsElement,
-        ),
-        addDialogElement.append(addDialogHeadingElement, addDialogBodyElement),
-        document.body.append(addDialogElement),
-        addDialogElement.addEventListener("cancel", (addDialogCancelEvent: any) => {
-          (addDialogCancelEvent.preventDefault(), closeAddDialog());
-        }),
-        addDialogElement.showModal());
-    }
+        };
+        (editorHost.usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
+          editorHost.getItemList().push(newItem),
+          (editorHost.text = newItem.id),
+          refreshEditorPreview(),
+          renderPanel());
+      } finally {
+        isAdding = false;
+      }
+    },
+    onClose() {
+      editorHost.pickerHandle === pickerHandle && (editorHost.pickerHandle = null);
+    },
+  });
+  editorHost.isDisposed || !editorHost.isAccessAllowed || addGeneration !== editorHost.pickerGeneration
+    ? pickerHandle.close()
+    : (editorHost.pickerHandle = pickerHandle);
+}
 
 export async function openVacuumRoomPicker(deps: PanelDialogsDeps, roomPickerTriggerEvent: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。

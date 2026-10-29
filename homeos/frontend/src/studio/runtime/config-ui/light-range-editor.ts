@@ -1543,6 +1543,7 @@ function mountRangeFormControls(editorRootElement: any) {
       addTrackedListener(nativeSelect, "change", () => syncCustomSelect(selectEntryModel)));
   }
   function stepNumberInput(numberInputElement: any, stepDirection: any) {
+    if (!numberInputElement?.isConnected) return false;
     if (numberInputElement.disabled || numberInputElement.readOnly) return false;
     const valueBeforeStep = numberInputElement.value;
     try {
@@ -1605,10 +1606,14 @@ function mountRangeFormControls(editorRootElement: any) {
               (stopStepperRepeat = null));
           }),
             (holdDelayTimerId = formWindow.setTimeout(() => {
-              holdIntervalId = formWindow.setInterval(
-                () => stepNumberInput(numberInput, stepperDirection),
-                55,
-              );
+              holdIntervalId = formWindow.setInterval(() => {
+                // 输入框在按住期间被重绘移除时停表，避免对着游离节点反复 stepUp。
+                if (!numberInput.isConnected) {
+                  stopStepperRepeat?.();
+                  return;
+                }
+                stepNumberInput(numberInput, stepperDirection);
+              }, 55);
             }, 320)));
           try {
             stepperButton.setPointerCapture(stepperPointerDownEvent.pointerId);

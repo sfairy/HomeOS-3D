@@ -28,6 +28,8 @@ import { normalizeTemperatureHumidity as normalizeTemperatureHumidity2, DEFAULT_
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { randomUuid as randomUuid2 } from "@app/shared/util/random-id";
+import { bindPickerRow } from "./picker-row";
+import { openConfigurationPicker } from "../../configuration-picker";
 
 /**
  * 面板分区渲染需要的外部句柄（**只读**：`e` 只被读属性 / 写它自己的字段，不重新绑定）。
@@ -926,6 +928,7 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
 export function renderExtraControlsSection(deps: PanelSectionsDeps) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
   const { editorHost, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, openLabelBatchApplyDialog } = deps;
+      const createPickerRow = bindPickerRow(editorHost, createSettingRow);
       const labelListSectionElement = createConfigSection("环境标签列表"),
         labelListRowElement = createConfigRow(labelListSectionElement),
         floorLabelList = editorHost.getItemList().filter(
@@ -964,15 +967,52 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
           ),
         ),
         floorLabelList.length &&
-          createSelectRow(
-            labelListSectionElement,
-            "当前环境标签",
-            floorLabelList.map((labelOption: any) => [labelOption.id, labelOption.label || "环境标签"]),
-            editorHost.text,
-            (pickedLabelId: any) => {
-              ((editorHost.text = pickedLabelId), refreshEditorPreview(), renderPanel());
+          createPickerRow({
+            rowContainer: labelListSectionElement,
+            rowLabel: "当前环境标签",
+            currentLabel:
+              floorLabelList.find((labelOption: any) => labelOption.id === editorHost.text)?.label ||
+              "环境标签",
+            onOpen: () => {
+              const pickerGeneration = ++editorHost.pickerGeneration;
+              editorHost.pickerHandle?.close();
+              const pickerHandle = openConfigurationPicker({
+                document: editorHost.editorDialogElement.ownerDocument,
+                title: "选择当前环境标签",
+                kicker: "CONFIGURED ITEMS",
+                unit: "环境标签",
+                selectedId: editorHost.text,
+                emptyMessage: "当前楼层还没有环境标签。",
+                sections: [
+                  {
+                    options: floorLabelList.map((labelOption: any) => ({
+                      id: labelOption.id,
+                      label: labelOption.label || "环境标签",
+                      icon: "mdi:thermometer",
+                      wrapLabel: true,
+                      detail: "已配置 · 环境标签",
+                    })),
+                  },
+                ],
+                async onSelect(pickedLabelId: string) {
+                  if (
+                    editorHost.isDisposed ||
+                    !editorHost.isAccessAllowed ||
+                    pickerGeneration !== editorHost.pickerGeneration
+                  )
+                    throw new Error("该配置已变更，请重新选择。");
+                  pickerGeneration === editorHost.pickerGeneration &&
+                    ((editorHost.text = pickedLabelId), refreshEditorPreview(), renderPanel());
+                },
+                onClose() {
+                  editorHost.pickerHandle === pickerHandle && (editorHost.pickerHandle = null);
+                },
+              });
+              editorHost.isDisposed || !editorHost.isAccessAllowed || pickerGeneration !== editorHost.pickerGeneration
+                ? pickerHandle.close()
+                : (editorHost.pickerHandle = pickerHandle);
             },
-          ));
+          }));
       const selectedFloorLabel = floorLabelList.find((matchedLabel: any) => matchedLabel.id === editorHost.text);
       if (!selectedFloorLabel) {
         editorHost.panelElement.append(

@@ -1,5 +1,6 @@
 /* 资源管理（文件夹/删除、弹窗模块、会话、颜色选择器） */
 import type { EditorContext } from "../editor-context";
+import type { UserImageUploader } from "../../../shared/user-image-upload";
 import { EDITOR_PICKER_PAGE_SIZES as EDITOR_PICKER_PAGE_SIZES2 } from "../../picker/editor-picker-pagination";
 import { findCustomPopup as findCustomPopup2 } from "../../editor-document-management";
 import { findComponent as findComponent2 } from "../../component-tree";
@@ -75,6 +76,7 @@ export interface AssetManagementDeps {
   selectedComponentIdsFromDom: any;
   setComponentsRotation: any;
   syncAssetFolderOptions: any;
+  userImageUploader: UserImageUploader;
 }
 
 export function onPopupModuleClimateDeviceTypeClick(deps: AssetManagementDeps, climateDeviceTypeClickEvent: any) {
@@ -198,41 +200,18 @@ export async function popupModuleTypeValue(deps: AssetManagementDeps, popupModul
   const popupModuleTypeEntry = [...(popupModuleTypeConfig || [])];
   if (!popupModuleTypeEntry.length) return;
   const Rf2 =
-    popupModuleTypeRef === "image" ? deps.imageAssetUploadButtonElement : deps.ibeAssetUploadElement;
-  Rf2.disabled = true;
-  const popupModuleTypeRecord: any[] = [];
-  try {
-    for (const popupModuleTypeName of popupModuleTypeEntry) {
-      if (!/\.(png|jpe?g|webp|svg)$/i.test(popupModuleTypeName.name)) {
-        popupModuleTypeRecord.push(
-          popupModuleTypeName.name + "：仅支持 PNG、JPG、JPEG、WebP 和 SVG",
-        );
-        continue;
-      }
+      popupModuleTypeRef === "image" ? deps.imageAssetUploadButtonElement : deps.ibeAssetUploadElement,
+    uploadResult = await (async () => {
+      Rf2.disabled = true;
       try {
-        await deps.requestJson("/assets/user", {
-          method: "POST",
-
-          timeoutMs: 120000,
-          body: popupModuleTypeName,
-          headers: {
-            "Content-Type": popupModuleTypeName.type || "application/octet-stream",
-            "X-File-Name": encodeURIComponent(popupModuleTypeName.name),
-          },
-        });
-      } catch (caughtErrorCount: any) {
-        popupModuleTypeRecord.push(popupModuleTypeName.name + "：" + caughtErrorCount.message);
+        return await deps.userImageUploader.upload(popupModuleTypeEntry, popupModuleTypeRef);
+      } finally {
+        Rf2.disabled = false;
       }
-    }
-    (await deps.reloadAssetCatalog({
-      refreshInspector: false,
-    }),
-      deps.runCopyLower(popupModuleTypeRef, "user"),
-      popupModuleTypeRecord.length &&
-        deps.handleOperationError(new Error(popupModuleTypeRecord.join("\n"))));
-  } finally {
-    Rf2.disabled = false;
-  }
+    })();
+  if (uploadResult.uploadedAssetIds.length) deps.runCopyLower(popupModuleTypeRef, "user");
+  uploadResult.errors.length &&
+    deps.handleOperationError(new Error(uploadResult.errors.join("\n")));
 }
 
 export function requestDeleteUserAsset(deps: AssetManagementDeps, assetId: any) {

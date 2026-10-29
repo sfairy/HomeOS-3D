@@ -5,7 +5,13 @@
  * 主题完全脱节；二是面板缩放到 0.6 倍时点击热区跟着缩，选项很难点中。这里把
  * `<select>` 换成 `button[role=combobox] + [role=listbox]`，同时保留原
  * `<select>` 作为数据源（`change` 事件照旧派发），调用方无需改代码。
+ *
+ * 定位/缩放/可见性守卫统一交给 `editor-floating-layout`（0.8.1 同款）。
  */
+import {
+  createFloatingLayout,
+  type FloatingLayout,
+} from "./editor-floating-layout";
 
 /** 同一个页面里多个 picker 的 id 计数器（`aria-controls` 需要唯一 id）。 */
 let pickerSeed = 0;
@@ -13,8 +19,6 @@ let pickerSeed = 0;
 /** 下拉菜单最小/最大宽度（像素）：太窄点不中，太宽会盖住整个弹窗。 */
 const MIN_MENU_WIDTH = 70;
 const MAX_MENU_WIDTH = 320;
-/** 估算的菜单项高度（没有布局时的兜底）。 */
-const FALLBACK_OPTION_HEIGHT = 40;
 /** 菜单最大高度（像素）。 */
 const MAX_MENU_HEIGHT = 280;
 /** 双键快速输入（type-ahead）的合并窗口（毫秒）。 */
@@ -29,6 +33,7 @@ type PickerOptions = {
   choices: HTMLButtonElement[];
   signature?: string;
   wasHidden?: boolean;
+  layout?: FloatingLayout;
 };
 
 /**
@@ -39,9 +44,7 @@ type PickerOptions = {
  */
 export function createPopupPickers(hostElement: any, createElement: any) {
   const ownerDocument = hostElement.ownerDocument || globalThis.document;
-  const view = ownerDocument.defaultView;
   let active: PickerOptions | null = null;
-  let frameId: any = null;
   let typeAheadText = "";
   let typeAheadAt = 0;
 
@@ -49,8 +52,7 @@ export function createPopupPickers(hostElement: any, createElement: any) {
     if (!active) return;
     const current = active;
     active = null;
-    if (frameId != null) view?.cancelAnimationFrame?.(frameId);
-    frameId = null;
+    current.layout?.stop();
     try {
       current.menu.hidePopover?.();
     } catch {
@@ -82,111 +84,14 @@ export function createPopupPickers(hostElement: any, createElement: any) {
     close(true);
   }
 
-  /** 每帧跟随锚点定位：弹窗可能正在缩放 / 拖拽，静态定位会错位。 */
+  /**
+   * 定位交给 `editor-floating-layout`：容器内 clamp、上下翻转、缩放补偿与
+   * `[hidden]` / `[inert]` / `dialog:not([open])` / `visibilitychange` 守卫都在那里。
+   * 返回 `false` 时浮层已经关闭（`onDismiss`）。
+   */
   function position() {
     if (!active) return;
-    const { element, menu } = active;
-    const rect = element.getBoundingClientRect();
-    if (
-      element.disabled ||
-      ownerDocument.hidden ||
-      element.isConnected === false ||
-      (element.getClientRects && !element.getClientRects().length)
-    ) {
-      close();
-      return;
-    }
-    const styles = view?.getComputedStyle?.(element);
-    if (
-      styles?.visibility === "hidden" ||
-      hostElement.closest?.('[hidden], [aria-hidden="true"], [inert]')
-    ) {
-      close();
-      return;
-    }
-    // 弹窗用 transform 缩放，菜单挂在 body 上以后要手动乘回缩放比。
-    const layoutWidth = element.offsetWidth || rect.width || 1;
-    const layoutHeight = element.offsetHeight || rect.height || 1;
-    const scaleX = rect.width / layoutWidth || 1;
-    const scaleY = rect.height / layoutHeight || 1;
-    const stageRect = hostElement.closest?.(".interaction3d-stage")?.getBoundingClientRect();
-    const viewport = view?.visualViewport;
-    const boundsLeft = Math.max(viewport?.offsetLeft || 0, stageRect?.left || 0) + 8;
-    const boundsTop = Math.max(viewport?.offsetTop || 0, stageRect?.top || 0) + 8;
-    const boundsRight =
-      Math.min(
-        (viewport?.offsetLeft || 0) + (viewport?.width || view?.innerWidth || 1024),
-        stageRect?.right ?? Infinity,
-      ) - 8;
-    const boundsBottom =
-      Math.min(
-        (viewport?.offsetTop || 0) + (viewport?.height || view?.innerHeight || 768),
-        stageRect?.bottom ?? Infinity,
-      ) - 8;
-    if (
-      boundsRight <= boundsLeft ||
-      boundsBottom <= boundsTop ||
-      rect.bottom < boundsTop ||
-      rect.top > boundsBottom
-    ) {
-      close();
-      return;
-    }
-    menu.dataset.theme =
-      hostElement.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
-    const availableWidth = Math.min(
-      Math.max(layoutWidth, MAX_MENU_WIDTH),
-      (boundsRight - boundsLeft) / scaleX,
-    );
-    Object.assign(menu.style, {
-      width: "max-content",
-      minWidth: `${Math.min(Math.max(layoutWidth, MIN_MENU_WIDTH), availableWidth)}px`,
-      maxWidth: `${availableWidth}px`,
-    });
-    const menuWidth = Math.min(
-      menu.offsetWidth || Math.max(layoutWidth, MIN_MENU_WIDTH),
-      availableWidth,
-    );
-    Object.assign(menu.style, {
-      width: `${menuWidth}px`,
-      transform: `scale(${scaleX},${scaleY})`,
-      transformOrigin: "0 0",
-    });
-    const desiredHeight =
-      Math.min(
-        MAX_MENU_HEIGHT,
-        (menu.scrollHeight || active.choices.length * FALLBACK_OPTION_HEIGHT + 12) + 2,
-      ) * scaleY;
-    const spaceBelow = Math.max(
-      0,
-      boundsBottom - (rect.bottom ?? rect.top + rect.height) - 4 * scaleY,
-    );
-    const spaceAbove = Math.max(0, rect.top - boundsTop - 4 * scaleY);
-    const flip = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
-    const space = Math.min(boundsBottom - boundsTop, flip ? spaceAbove : spaceBelow);
-    const menuHeight = Math.min(desiredHeight, space);
-    Object.assign(menu.style, {
-      maxHeight: `${Math.min(MAX_MENU_HEIGHT, space / scaleY)}px`,
-      left: `${Math.max(boundsLeft, Math.min(rect.left, boundsRight - menuWidth * scaleX))}px`,
-      top: `${Math.max(
-        boundsTop,
-        Math.min(
-          flip ? rect.top - 4 * scaleY - menuHeight : (rect.bottom ?? rect.top + rect.height) + 4 * scaleY,
-          boundsBottom - menuHeight,
-        ),
-      )}px`,
-    });
-    if (styles?.font) menu.style.font = styles.font;
-    menu.style.setProperty(
-      "--i3d-climate-accent",
-      styles?.getPropertyValue("--i3d-climate-accent") || "#73c8ff",
-    );
-  }
-
-  function followAnchor() {
-    frameId = null;
-    position();
-    if (active) frameId = view?.requestAnimationFrame?.(followAnchor) ?? null;
+    if (!active.layout?.position()) close();
   }
 
   /** 把 roving tabindex 移到第 `index` 项，并把它滚进可视区。 */
@@ -221,12 +126,15 @@ export function createPopupPickers(hostElement: any, createElement: any) {
     typeAheadAt = 0;
     (ownerDocument.body || picker.picker).append(picker.menu);
     picker.menu.hidden = false;
+    picker.menu.dataset.theme =
+      hostElement.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
     picker.element.setAttribute("aria-expanded", "true");
     try {
       picker.menu.showPopover?.();
     } catch {
       /* 没有 Popover API 时 hidden 已经足够 */
     }
+    picker.layout?.start();
     if (position(), !active) return;
     ownerDocument.addEventListener?.("pointerdown", onPointerDown, true);
     ownerDocument.addEventListener?.("scroll", onScroll, true);
@@ -236,7 +144,6 @@ export function createPopupPickers(hostElement: any, createElement: any) {
       picker,
       selectedIndex < 0 ? (fromEnd ? picker.choices.length - 1 : 0) : selectedIndex,
     );
-    followAnchor();
   }
 
   function create(
@@ -337,6 +244,24 @@ export function createPopupPickers(hostElement: any, createElement: any) {
       }
     });
     picker.append(element, menu);
+    options.layout = createFloatingLayout({
+      anchor: element,
+      panel: menu,
+      document: ownerDocument,
+      container: () => hostElement.closest?.(".interaction3d-stage") || hostElement.closest?.("dialog"),
+      minWidth: MIN_MENU_WIDTH,
+      maxWidth: MAX_MENU_WIDTH,
+      maxHeight: MAX_MENU_HEIGHT,
+      minWidthFromAnchor: true,
+      measureContentWidth: true,
+      gap: 4,
+      margin: 8,
+      scaleToAnchor: true,
+      inheritFont: true,
+      onDismiss: () => {
+        if (active === options) close();
+      },
+    });
     return options;
   }
 

@@ -44,6 +44,9 @@ export function showVacuumDetails(this: PanelRenderer,
       vacuumHeading.append(vacuumTitleRow, vacuumCloseButton));
     const vacuumLayout = document.createElement("div");
     vacuumLayout.className = "hb-vacuum-details-layout";
+    // 内容滚动体：矮视口/多扩展控制时只滚内容，标题栏保持可见（见 renderer.css）。
+    const vacuumPopupBody = document.createElement("div");
+    vacuumPopupBody.className = "i3d-vacuum-popup-body";
     const vacuumOverviewSection = document.createElement("section");
     vacuumOverviewSection.className = "hb-vacuum-details-overview";
     const vacuumVisualElement = document.createElement("div");
@@ -407,7 +410,8 @@ export function showVacuumDetails(this: PanelRenderer,
       vacuumWarningNote = document.createElement("p");
     ((vacuumWarningNote.className = "hb-vacuum-details-warning"),
       vacuumControlsSection.append(vacuumWarningNote),
-      vacuumLayout.append(vacuumOverviewSection, vacuumControlsSection),
+      vacuumPopupBody.append(vacuumOverviewSection, vacuumControlsSection),
+      vacuumLayout.append(vacuumPopupBody),
       vacuumCard.append(vacuumHeading, vacuumLayout),
       waterHeaterExtensionControls2 &&
         (vacuumCard.append(waterHeaterExtensionControls2),
@@ -703,7 +707,11 @@ export function showVacuumDetails(this: PanelRenderer,
         ((vacuumDialog.style.top = renderedTop + "px"),
           (vacuumDialog.style.right = popupPlacement.right * scaleX + "px"),
           (vacuumDialog.style.transform = "scale(" + renderedScaleX + "," + renderedScaleY + ")"),
-          (vacuumDialog.style.maxHeight = "none"));
+          (vacuumDialog.style.maxHeight = "none"),
+          vacuumDialog.style.setProperty(
+            "--i3d-popup-content-height",
+            Math.max(180, Math.round(sourceHeight2 * 0.56 - 150)) + "px",
+          ));
       };
       ((vacuumDialog.resizeInteraction3d = resizeVacuumDialog),
         (vacuumResizeObserver = new ResizeObserver(resizeVacuumDialog)),

@@ -30,6 +30,27 @@ const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId", "battery2EntityId
     ["fontSize", "文字大小"],
     ["labelMode", "标签显示"],
   ];
+const SECURITY_CATEGORY_CHOICES: ReadonlyArray<readonly [string, string]> = [
+  ["camera", "摄像头"],
+  ["presence", "人体传感器"],
+  ["lock", "门"],
+  ["moisture", "水浸"],
+  ["smoke", "烟雾"],
+  ["gas", "天然气"],
+];
+/** 安防面板里读到的条目 / 模型字段（只声明用到的面，避免新增宽松类型）。 */
+interface SecurityChoiceRecord {
+  id?: string;
+  label?: string;
+  name?: string;
+  entityId?: string;
+  modelId?: string;
+  floorId?: string;
+  kind?: string;
+  icon?: string;
+  hinge?: string;
+  [key: string]: unknown;
+}
 import { mountInteraction3d } from "../core/runtime";
 import { openPresenceEditor } from "../presence/presence-editor";
 import { randomUuid } from "@app/shared/util/random-id";
@@ -39,6 +60,8 @@ import {
 } from "@app/bridge/bridge";
 import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/presets/preview-layout";
 import { createConfigurationFeedback } from "../config-ui/configuration-feedback";
+import { openConfigurationPicker } from "../config-ui/configuration-picker";
+import { configurationProgress } from "../config-ui/configuration-progress";
 import { domElement } from "@app/shared/util/dom-factory";
 export async function openSecurityEditor({
   component: component,
@@ -284,6 +307,260 @@ export async function openSecurityEditor({
       currentContainerElement.append(labelElement),
       selectElement
     );
+  }
+  function createPickerField(
+    labelText: string,
+    currentLabel: string,
+    onOpen: (trigger: HTMLButtonElement) => void,
+    disabled = false,
+  ) {
+    const triggerButton = createElement("button") as HTMLButtonElement,
+      labelElement = createElement("label");
+    return (
+      (triggerButton.type = "button"),
+      (triggerButton.className = "i3d-picker-button"),
+      triggerButton.setAttribute("aria-haspopup", "dialog"),
+      triggerButton.setAttribute("aria-label", labelText),
+      (triggerButton.title = currentLabel || ""),
+      (triggerButton.disabled = disabled),
+      triggerButton.append(createElement("span", "", currentLabel)),
+      triggerButton.addEventListener("click", () => {
+        triggerButton.disabled || onOpen(triggerButton);
+      }),
+      labelElement.append(createElement("span", "", labelText), triggerButton),
+      currentContainerElement.append(labelElement),
+      triggerButton
+    );
+  }
+  /** 目标安防类别在当前楼层的模型库（`getFloorModelList` 只能取当前类别，这里按 kind 取）。 */
+  function floorModelListForSecurityKind(targetKind: string): ReadonlyArray<SecurityChoiceRecord> {
+    return targetKind === "lock"
+      ? (getFloorDoorModels() as ReadonlyArray<SecurityChoiceRecord>).filter(
+          (doorModel) => doorModel.doorType !== "frame-only",
+        )
+      : targetKind === "presence"
+        ? findSelectedFloor()?.presenceSensors || []
+        : isAlarmKindValue(targetKind)
+          ? []
+          : findSelectedFloor()?.[targetKind === "camera" ? "cameras" : "presenceSensors"] || [];
+  }
+  /** 目标安防类别的已配置条目（报警类按 `kind` 过滤，卡片与分类一一对应）。 */
+  function securityBindingsForKind(targetKind: string): ReadonlyArray<SecurityChoiceRecord> {
+    return targetKind === "lock"
+      ? draftProperties.security.locks
+      : targetKind === "camera"
+        ? draftProperties.security.cameras
+        : targetKind === "presence"
+          ? draftProperties.security.presenceSensors
+          : (draftProperties.security.alarms as ReadonlyArray<SecurityChoiceRecord>).filter(
+              (alarmItem) => (alarmItem.kind || "smoke") === targetKind,
+            );
+  }
+  /**
+   * 安防类别选择器（上游 `v287`）：每类带当前楼层的配置进度，报警类只显示已配置卡片数。
+   */
+  function openSecurityCategoryPicker() {
+    const categoryPickerGeneration = ++pickerGeneration,
+      categoryChoices = SECURITY_CATEGORY_CHOICES.map(([categoryKind, categoryLabel]) => ({
+        id: categoryKind,
+        label: categoryLabel,
+        wrapLabel: true,
+        progress: configurationProgress({
+          requiresModel: !isAlarmKindValue(categoryKind),
+          models: floorModelListForSecurityKind(categoryKind),
+          bindings: securityBindingsForKind(categoryKind),
+          modelKey: getCandidateModelId,
+          bindingKey: (bindingItem: SecurityChoiceRecord) => bindingItem?.modelId,
+        }),
+      }));
+    activePickerHandle?.close();
+    const categoryPickerHandle = openConfigurationPicker({
+      document,
+      title: "选择安防类别",
+      kicker: "SECURITY CATEGORY",
+      unit: "模型",
+      selectedId: getSecurityCategory(),
+      emptyMessage: "当前楼层没有可选类别。",
+      sections: [{ options: categoryChoices }],
+      async onSelect(nextSecurityKind: string) {
+        if (
+          isDisposed ||
+          !isAccessAllowed ||
+          categoryPickerGeneration !== pickerGeneration
+        )
+          throw new Error("该配置已变更，请重新选择。");
+        stopAlarmPreview();
+        setSecurityCategory(nextSecurityKind);
+        selectedItemId = "";
+        syncEditorRuntime();
+        renderPanel();
+      },
+      onClose() {
+        activePickerHandle === categoryPickerHandle && (activePickerHandle = null);
+      },
+    });
+    isDisposed || !isAccessAllowed || categoryPickerGeneration !== pickerGeneration
+      ? categoryPickerHandle.close()
+      : (activePickerHandle = categoryPickerHandle);
+  }
+  /** 已配置列表选择器（上游 `v328`，kicker `CONFIGURED ITEMS`）。 */
+  function openSecurityItemPicker(itemsInSelectedFloor: ReadonlyArray<SecurityChoiceRecord>) {
+    const itemPickerGeneration = ++pickerGeneration,
+      floorModelList = getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>,
+      modelLabelOf = (boundItem: SecurityChoiceRecord) =>
+        floorModelList.find(
+          (modelProbe) => getCandidateModelId(modelProbe) === boundItem?.modelId,
+        )?.name || getKindLabel();
+    activePickerHandle?.close();
+    const itemPickerHandle = openConfigurationPicker({
+      document,
+      title: "选择" + getKindLabel(),
+      kicker: "CONFIGURED ITEMS",
+      unit: getKindLabel(),
+      selectedId: selectedItemId,
+      emptyMessage: "当前楼层还没有配置" + getKindLabel() + "。",
+      sections: [
+        {
+          options: itemsInSelectedFloor.map((floorItem) => {
+            const hasModel =
+              isAlarmKindValue(securityKind) ||
+              floorModelList.some(
+                (modelProbe) => getCandidateModelId(modelProbe) === floorItem.modelId,
+              );
+            return {
+              id: String(floorItem.id),
+              label: floorItem.label || floorItem.entityId || getKindLabel(),
+              wrapLabel: true,
+              state: hasModel ? ("configured" as const) : ("missing" as const),
+              detail: hasModel
+                ? isAlarmKindValue(securityKind)
+                  ? "已配置 · 报警卡片"
+                  : "已配置 · " + modelLabelOf(floorItem)
+                : getKindLabel() + "缺失 · 可重新关联或删除",
+            };
+          }),
+        },
+      ],
+      async onSelect(nextSelectedItemId: string) {
+        if (
+          isDisposed ||
+          !isAccessAllowed ||
+          itemPickerGeneration !== pickerGeneration
+        )
+          throw new Error("该配置已变更，请重新选择。");
+        nextSelectedItemId !== selectedItemId && stopAlarmPreview();
+        selectedItemId = nextSelectedItemId;
+        syncEditorRuntime();
+        renderPanel();
+      },
+      onClose() {
+        activePickerHandle === itemPickerHandle && (activePickerHandle = null);
+      },
+    });
+    isDisposed || !isAccessAllowed || itemPickerGeneration !== pickerGeneration
+      ? itemPickerHandle.close()
+      : (activePickerHandle = itemPickerHandle);
+  }
+  /**
+   * 待添加模型选择器（上游 `v475('add')`）：已配置的模型留在列表里禁用；
+   * 新增项按 `kind` 初始化（门 / 摄像头 / 人体传感器的字段集不同）。
+   */
+  function openSecurityAddPicker() {
+    const addPickerGeneration = ++pickerGeneration,
+      floorModelList = getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>,
+      boundModelIdSet = new Set(
+        (getCollection() as ReadonlyArray<SecurityChoiceRecord>)
+          .filter((boundItem) => boundItem.floorId === selectedFloorId)
+          .map((boundItem) => boundItem.modelId),
+      );
+    activePickerHandle?.close();
+    const addPickerHandle = openConfigurationPicker({
+      document,
+      title: "添加" + getKindLabel(),
+      kicker: "MODEL SELECTION",
+      unit: getKindLabel(),
+      emptyMessage: "本层没有" + getKindLabel() + "模型，请先在 3D 户型图绘制中增加模型。",
+      sections: [
+        {
+          options: floorModelList.map((floorModel) => {
+            const floorModelId = getCandidateModelId(floorModel),
+              isBound = boundModelIdSet.has(floorModelId);
+            return {
+              id: floorModelId,
+              label: floorModel.name || getKindLabel(),
+              wrapLabel: true,
+              disabled: isBound,
+              state: isBound ? ("configured" as const) : ("remaining" as const),
+              detail: isBound ? "已配置" : "未配置 · 点击选择",
+            };
+          }),
+        },
+      ],
+      async onSelect(chosenModelId: string) {
+        if (isDisposed || !isAccessAllowed || addPickerGeneration !== pickerGeneration)
+          throw new Error("该配置已变更，请重新选择。");
+        const addableModel = (getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>).find(
+          (addableModelMatch) => getCandidateModelId(addableModelMatch) === chosenModelId,
+        );
+        if (
+          !addableModel ||
+          (getCollection() as ReadonlyArray<SecurityChoiceRecord>).some(
+            (existingItemProbe) =>
+              existingItemProbe.floorId === selectedFloorId &&
+              existingItemProbe.modelId === getCandidateModelId(addableModel),
+          )
+        )
+          throw new Error("该对象已添加或不再可用，请重新选择。");
+        const newItem = {
+          id: randomUuid(),
+          floorId: selectedFloorId,
+          modelId: getCandidateModelId(addableModel),
+          entityId: "",
+          label: addableModel.name || getKindLabel(),
+          ...(securityKind === "lock"
+            ? {
+                openAngle: 80,
+                openDirection: 1,
+                duration: 0.7,
+                hinge: addableModel.hinge === "right" ? "right" : "left",
+                size: DEFAULT_BUTTON_SIZE,
+                fontSize: CARD_TEXT_SIZE_PX,
+                labelMode: "always",
+                icon: "mdi:door-closed",
+              }
+            : securityKind === "camera"
+              ? {
+                  size: DEFAULT_BUTTON_SIZE,
+                  visible: true,
+                  icon: "mdi:cctv",
+                  // 与原版一致：新摄像头默认按原始比例出画，可在面板里切「压缩 16:9」。
+                  fit: "contain",
+                }
+              : {
+                  route: [] as any[],
+                  routeClosed: false,
+                  size: 1,
+                  speed: 0.45,
+                  displayDuration: 0,
+                  character: "traveler",
+                  color: "cyan",
+                  clickToFocus: false,
+                  hitPadding: 8,
+                }),
+        };
+        (getCollection().push(newItem),
+          (selectedItemId = newItem.id),
+          expandedDisclosureKeySet.delete("add:" + getSecurityCategory() + ":" + selectedFloorId),
+          markPropertiesDirty(),
+          renderPanel());
+      },
+      onClose() {
+        activePickerHandle === addPickerHandle && (activePickerHandle = null);
+      },
+    });
+    isDisposed || !isAccessAllowed || addPickerGeneration !== pickerGeneration
+      ? addPickerHandle.close()
+      : (activePickerHandle = addPickerHandle);
   }
   function createNumberField(
     fieldLabel: any,
@@ -726,25 +1003,10 @@ export async function openSecurityEditor({
             renderPanel());
         },
       ),
-      createSelectField(
+      createPickerField(
         "安防类别",
-        [
-          ["camera", "摄像头"],
-          ["presence", "人体传感器"],
-          ["lock", "门"],
-          ["moisture", "水浸"],
-          ["smoke", "烟雾"],
-          ["gas", "天然气"],
-        ],
-        getSecurityCategory(),
-        (nextSecurityKind: any) => {
-          (closeActivePicker(),
-            stopAlarmPreview(),
-            setSecurityCategory(nextSecurityKind),
-            (selectedItemId = ""),
-            syncEditorRuntime(),
-            renderPanel());
-        },
+        SECURITY_CATEGORY_CHOICES.find(([categoryKind]) => categoryKind === getSecurityCategory())?.[1] || "",
+        openSecurityCategoryPicker,
       ));
     const itemsInSelectedFloor = getItemList().filter(
       (floorBoundItem: any) => floorBoundItem.floorId === selectedFloorId,
@@ -808,98 +1070,25 @@ export async function openSecurityEditor({
     const modelListSectionElement = createSectionHeading("模型列表");
     ((modelListSectionElement.className += " i3d-security-model-list"),
       (currentContainerElement = modelListSectionElement));
-    (createSelectField(
+    (createPickerField(
         getKindLabel() + "列表",
-        itemsInSelectedFloor.map((itemOption: any) => [
-          itemOption.id,
-          itemOption.label || itemOption.entityId || getKindLabel(),
-        ]),
-        selectedItemId,
-        (nextSelectedItemId: any) => {
-          (closeActivePicker(),
-            (selectedItemId = nextSelectedItemId),
-            syncEditorRuntime(),
-            renderPanel());
-        },
+        itemsInSelectedFloor.find((itemOption: any) => itemOption.id === selectedItemId)?.label ||
+          itemsInSelectedFloor.find((itemOption: any) => itemOption.id === selectedItemId)?.entityId ||
+          getKindLabel(),
+        () => openSecurityItemPicker(itemsInSelectedFloor),
+        !itemsInSelectedFloor.length,
       ),
       (currentContainerElement = createDisclosure(
         "添加" + getKindLabel(),
         "add:" + getSecurityCategory() + ":" + selectedFloorId,
         modelListSectionElement,
       )));
-    const addableModelList = getFloorModelList().filter(
-        (modelProbe: any) =>
-          !getCollection().some(
-            (boundItemProbe: any) =>
-              boundItemProbe.floorId === selectedFloorId &&
-              boundItemProbe.modelId === getCandidateModelId(modelProbe),
-          ),
-      ),
-      addModelSelectElement = createSelectField(
-        "待添加" + getKindLabel() + "模型",
-        addableModelList.map((modelOption: any) => [getCandidateModelId(modelOption), modelOption.name]),
-        getCandidateModelId(addableModelList[0]),
-        () => {},
-      ),
-      addItemButtonElement = createButton("添加" + getKindLabel(), () => {
-        const addableModel = getFloorModelList().find(
-          (addableModelMatch: any) =>
-            getCandidateModelId(addableModelMatch) === addModelSelectElement.value,
-        );
-        if (
-          !addableModel ||
-          getCollection().some(
-            (existingItemProbe: any) =>
-              existingItemProbe.floorId === selectedFloorId &&
-              existingItemProbe.modelId === getCandidateModelId(addableModel),
-          )
-        )
-          return;
-        const newItem = {
-          id: randomUuid(),
-          floorId: selectedFloorId,
-          modelId: getCandidateModelId(addableModel),
-          entityId: "",
-          label: addableModel.name || getKindLabel(),
-          ...(securityKind === "lock"
-            ? {
-                openAngle: 80,
-                openDirection: 1,
-                duration: 0.7,
-                hinge: addableModel.hinge === "right" ? "right" : "left",
-                size: DEFAULT_BUTTON_SIZE,
-                fontSize: CARD_TEXT_SIZE_PX,
-                labelMode: "always",
-                icon: "mdi:door-closed",
-              }
-            : securityKind === "camera"
-              ? {
-                  size: DEFAULT_BUTTON_SIZE,
-                  visible: true,
-                  icon: "mdi:cctv",
-                  // 与原版一致：新摄像头默认按原始比例出画，可在面板里切「压缩 16:9」。
-                  fit: "contain",
-                }
-              : {
-                  route: [] as any[],
-                  routeClosed: false,
-                  size: 1,
-                  speed: 0.45,
-                  displayDuration: 0,
-                  character: "traveler",
-                  color: "cyan",
-                  clickToFocus: false,
-                  hitPadding: 8,
-                }),
-        };
-        (getCollection().push(newItem),
-          (selectedItemId = newItem.id),
-          expandedDisclosureKeySet.delete("add:" + getSecurityCategory() + ":" + selectedFloorId),
-          markPropertiesDirty(),
-          renderPanel());
-      });
-    ((addItemButtonElement.disabled = !addableModelList.length),
-      currentContainerElement.append(addItemButtonElement),
+    (createPickerField(
+      "添加" + getKindLabel(),
+      "选择" + getKindLabel() + "模型",
+      openSecurityAddPicker,
+      !getFloorModelList().length,
+    ),
       getFloorModelList().length ||
         currentContainerElement.append(
           createElement(
@@ -1321,38 +1510,90 @@ export async function openSecurityEditor({
       const nameFieldElement = createElement("label");
       (nameFieldElement.append(createElement("span", "", "名称"), nameInputElement),
         currentContainerElement.append(nameFieldElement));
-      const modelChoices = getFloorModelList().filter(
-          (modelCandidate: any) =>
-            !getCollection().some(
+      const allFloorModels = getFloorModelList(),
+        occupiedModelIdSet = new Set(
+          getCollection()
+            .filter(
               (otherBoundItem: any) =>
-                otherBoundItem !== selectedItem &&
-                otherBoundItem.floorId === selectedFloorId &&
-                otherBoundItem.modelId === getCandidateModelId(modelCandidate),
-            ),
+                otherBoundItem !== selectedItem && otherBoundItem.floorId === selectedFloorId,
+            )
+            .map((otherBoundItem: any) => otherBoundItem.modelId),
         ),
-        modelOptionList = modelChoices.map((availableModel: any) => [
-          getCandidateModelId(availableModel),
-          modelChoiceLabel(availableModel),
-        ]);
-      if (
-        (modelChoices.some(
+        currentModelPresent = allFloorModels.some(
           (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
-        ) ||
-          modelOptionList.unshift([
-            selectedItem.modelId || "",
-            selectedItem.modelId ? "原模型已移除，请重新选择" : "未关联模型（保留原人在路线）",
-          ]),
-        createSelectField(
+        ),
+        /** 关联模型选择器（上游 `v475('associate')`）：已占用模型禁用，当前项标「当前关联」。 */
+        openAssociateModelPicker = () => {
+          const associatePickerGeneration = ++pickerGeneration,
+            associateChoices = allFloorModels.map((availableModel: any) => {
+              const availableModelId = getCandidateModelId(availableModel),
+                isCurrentModel = availableModelId === selectedItem.modelId,
+                isOccupied = !isCurrentModel && occupiedModelIdSet.has(availableModelId);
+              return {
+                id: availableModelId,
+                label: modelChoiceLabel(availableModel),
+                wrapLabel: true,
+                disabled: isOccupied,
+                state: isCurrentModel || isOccupied ? ("configured" as const) : ("remaining" as const),
+                detail: isCurrentModel ? "当前关联" : isOccupied ? "已配置" : "未配置 · 点击选择",
+              };
+            });
+          currentModelPresent ||
+            associateChoices.unshift({
+              id: selectedItem.modelId || "",
+              label: selectedItem.modelId ? "原模型已移除，请重新选择" : "未关联模型（保留原人在路线）",
+              wrapLabel: true,
+              disabled: true,
+              state: "missing" as const,
+              detail: selectedItem.modelId ? "原模型已移除" : "未关联模型",
+            });
+          activePickerHandle?.close();
+          const associatePickerHandle = openConfigurationPicker({
+            document,
+            title: "关联" + getKindLabel() + "模型",
+            kicker: "MODEL SELECTION",
+            unit: "模型",
+            selectedId: selectedItem.modelId || "",
+            emptyMessage: "当前楼层没有可选模型。",
+            sections: [{ options: associateChoices }],
+            async onSelect(nextModelId: string) {
+              if (
+                isDisposed ||
+                !isAccessAllowed ||
+                associatePickerGeneration !== pickerGeneration ||
+                findSelectedItem() !== selectedItem
+              )
+                throw new Error("该配置已变更，请重新选择。");
+              if (!nextModelId) throw new Error("该模型已变更，请重新选择。");
+              nextModelId === selectedItem.modelId ||
+                ((selectedItem.modelId = nextModelId),
+                (securityKind === "camera" || securityKind === "lock") &&
+                  delete selectedItem.focusCamera,
+                markPropertiesDirty(),
+                renderPanel());
+            },
+            onClose() {
+              activePickerHandle === associatePickerHandle && (activePickerHandle = null);
+            },
+          });
+          isDisposed ||
+          !isAccessAllowed ||
+          associatePickerGeneration !== pickerGeneration ||
+          findSelectedItem() !== selectedItem
+            ? associatePickerHandle.close()
+            : (activePickerHandle = associatePickerHandle);
+        };
+      if (
+        (createPickerField(
           "关联" + getKindLabel() + "模型",
-          modelOptionList,
-          selectedItem.modelId || "",
-          (nextModelId: any) => {
-            (nextModelId ? (selectedItem.modelId = nextModelId) : delete selectedItem.modelId,
-              (securityKind === "camera" || securityKind === "lock") &&
-                delete selectedItem.focusCamera,
-              markPropertiesDirty(),
-              renderPanel());
-          },
+          selectedItem.modelId
+            ? modelChoiceLabel(
+                allFloorModels.find(
+                  (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
+                ) || selectedItem,
+              )
+            : "未关联模型（保留原人在路线）",
+          openAssociateModelPicker,
         ),
         (currentContainerElement = bindingSectionElement),
         securityKind === "lock")

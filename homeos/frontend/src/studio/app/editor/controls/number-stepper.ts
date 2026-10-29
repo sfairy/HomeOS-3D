@@ -9,8 +9,8 @@
 import { clampNumber as clampNumber2 } from "../editor-utils";
 
 function stepNumberInput(changedPagePathElement: any, stepDelta: any) {
-  if (!changedPagePathElement || changedPagePathElement.disabled || changedPagePathElement.readOnly)
-    return false;
+  if (!changedPagePathElement || !changedPagePathElement.isConnected) return false;
+  if (changedPagePathElement.disabled || changedPagePathElement.readOnly) return false;
   const dashboardName = changedPagePathElement.value;
   try {
     stepDelta > 0 ? changedPagePathElement.stepUp() : changedPagePathElement.stepDown();
@@ -96,6 +96,11 @@ export function formatLastSeen(
             isPairingsEmptyElement = false,
             setTimeout = window.setTimeout(() => {
               setTimeout = window.setInterval(() => {
+                // 元素在按住期间被切片/重绘移除时必须停表，否则定时器对着游离节点空转。
+                if (!formatDisplayTokenExpiryElement.isConnected) {
+                  pairingsEmptyElementHandler();
+                  return;
+                }
                 np2 = stepNumberInput(formatDisplayTokenExpiryElement, displayDevice) || np2;
               }, 55);
             }, 320);
@@ -104,6 +109,7 @@ export function formatLastSeen(
               ((isPairingsEmptyElement = true),
               window.clearTimeout(setTimeout),
               window.clearInterval(setTimeout),
+              window.removeEventListener("blur", pairingsEmptyElementHandler),
               pairingsEmptyElement.removeEventListener("pointerup", pairingsEmptyElementHandler),
               pairingsEmptyElement.removeEventListener(
                 "pointercancel",
@@ -129,6 +135,8 @@ export function formatLastSeen(
           try {
             pairingsEmptyElement.setPointerCapture(pairingsEmptyElementValue.pointerId);
           } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
+          // 按住后切走窗口不会派发 pointerup，必须靠 blur 收尾，否则间隔会一直跑。
+          window.addEventListener("blur", pairingsEmptyElementHandler);
         }),
         pairingsEmptyElement
       );
@@ -163,4 +171,19 @@ export function formatLastSeen(
           ));
       }));
   }
+}
+
+/**
+ * 切片/重绘后清理「已增强」集合里已脱离文档的输入。
+ *
+ * `WeakSet` 不会自己剔除已卸载的元素（只保证不阻止回收），宿主每次切片后把旧输入
+ * 传进来即可；返回清理条数，便于宿主在调试面板里显示。
+ */
+export function disposeDetached(deps: NumberStepperDeps, inputs: Iterable<HTMLElement>) {
+  let disposedCount = 0;
+  for (const detachedInput of inputs)
+    !detachedInput?.isConnected &&
+      deps.enhancedNumberInputsSet.delete(detachedInput) &&
+      (disposedCount += 1);
+  return disposedCount;
 }

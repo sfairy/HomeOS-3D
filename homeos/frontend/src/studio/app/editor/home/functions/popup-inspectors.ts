@@ -7,6 +7,7 @@ import { type CustomPopupEditorContext, renderCustomPopupEditor as renderCustomP
 import { syncTimeInspector as syncTimeInspectorExternal } from "../../home-time-inspector";
 import { syncWeatherInspector as syncWeatherInspectorExternal } from "../../home-weather-inspector";
 import { renderEntityOptionButtons } from "./entity-option-list";
+import { positionFloatingMenu } from "../../../shared/util/editor-floating-layout";
 
 export interface PopupInspectorsDeps {
   editorCtx: EditorContext;
@@ -197,40 +198,15 @@ export function syncImageAssetSelection(deps: PopupInspectorsDeps, imageComponen
 
 export function positionEffectAssetMenu(deps: PopupInspectorsDeps) {
   if (deps.ibeAssetMenuElement.hidden) return;
-  const matchedAsset = deps.ibeAssetButtonElement.getBoundingClientRect(),
-    effectAssetMenuMarginPx = 5,
-    positionEffectAssetGapPx = 8,
-    availableSizeText =
-      window.innerHeight -
-      matchedAsset.bottom -
-      effectAssetMenuMarginPx -
-      positionEffectAssetGapPx,
-    measuredBoundsPath =
-      matchedAsset.top - effectAssetMenuMarginPx - positionEffectAssetGapPx,
-    renderEffectAssetOptionsState =
-      availableSizeText >= 260 || availableSizeText >= measuredBoundsPath,
-    clampedLowerName = Math.max(
-      150,
-      Math.min(470, renderEffectAssetOptionsState ? availableSizeText : measuredBoundsPath),
-    );
-  ((deps.ibeAssetMenuElement.style.left =
-    clampNumber2(
-      matchedAsset.left,
-      positionEffectAssetGapPx,
-      Math.max(
-        positionEffectAssetGapPx,
-        window.innerWidth - matchedAsset.width - positionEffectAssetGapPx,
-      ),
-    ) + "px"),
-    (deps.ibeAssetMenuElement.style.width = matchedAsset.width + "px"),
-    (deps.ibeAssetMenuElement.style.maxHeight = clampedLowerName + "px"),
-    (deps.ibeAssetOptionsElement.style.maxHeight = Math.max(80, clampedLowerName - 150) + "px"),
-    (deps.ibeAssetMenuElement.style.top = renderEffectAssetOptionsState
-      ? matchedAsset.bottom + effectAssetMenuMarginPx + "px"
-      : Math.max(
-          positionEffectAssetGapPx,
-          matchedAsset.top - clampedLowerName - effectAssetMenuMarginPx,
-        ) + "px"));
+  positionFloatingMenu({
+    anchor: deps.ibeAssetButtonElement,
+    panel: deps.ibeAssetMenuElement,
+    optionsElement: deps.ibeAssetOptionsElement,
+    optionsReserve: 150,
+    optionsMinHeight: 80,
+    maxHeight: 470,
+    gap: 8,
+  });
 }
 
 export function renderEffectAssetOptions(deps: PopupInspectorsDeps, effectAssetSearchQuery = "") {
@@ -389,29 +365,20 @@ export function positionPopupEntityMenu(deps: PopupInspectorsDeps, triggerConfig
     entityMenuElementElement = triggerConfigElement?.querySelector("[data-popup-entity-menu]");
   if (!popupEntityButtonPanel || !entityMenuElementElement || entityMenuElementElement.hidden)
     return;
-  const targetBoundsRef = popupEntityButtonPanel.getBoundingClientRect(),
-    availableSizeCount = Math.min(targetBoundsRef.width, window.innerWidth - 16),
-    availableSizeIndex = Math.min(340, window.innerHeight - 16);
-  ((entityMenuElementElement.style.width = availableSizeCount + "px"),
-    (entityMenuElementElement.style.maxHeight = availableSizeIndex + "px"));
-  const popupEntityOptionsElement = entityMenuElementElement.querySelector(
-    "[data-popup-entity-options]",
-  );
-  popupEntityOptionsElement &&
-    (popupEntityOptionsElement.style.maxHeight = Math.max(120, availableSizeIndex - 58) + "px");
-  const availableSizeTotal = clampNumber2(
-      targetBoundsRef.left,
-      8,
-      window.innerWidth - availableSizeCount - 8,
+  const optionsElement = entityMenuElementElement.querySelector("[data-popup-entity-options]");
+  positionFloatingMenu({
+    anchor: popupEntityButtonPanel,
+    panel: entityMenuElementElement,
+    optionsElement,
+    optionsReserve: 58,
+    optionsMinHeight: 120,
+    maxHeight: 340,
+    maxWidth: Math.min(
+      popupEntityButtonPanel.getBoundingClientRect().width,
+      window.innerWidth - 16,
     ),
-    clampedUpperState = Math.min(entityMenuElementElement.scrollHeight, availableSizeIndex),
-    popupEntityButton = targetBoundsRef.bottom + 5,
-    entityMenuElement =
-      popupEntityButton + clampedUpperState <= window.innerHeight - 8
-        ? popupEntityButton
-        : Math.max(8, targetBoundsRef.top - clampedUpperState - 5);
-  ((entityMenuElementElement.style.left = availableSizeTotal + "px"),
-    (entityMenuElementElement.style.top = entityMenuElement + "px"));
+    gap: 5,
+  });
 }
 
 export function timeFitComponent(deps: PopupInspectorsDeps, timeFitProperties: any, timeProperties = timeFitProperties?.properties || {}) {
