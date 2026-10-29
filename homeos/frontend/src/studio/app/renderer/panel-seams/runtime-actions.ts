@@ -4,6 +4,7 @@ import { componentSupportsAction } from "../renderer-helpers";
 import { coverToggleServiceForComponent as coverToggleServiceForComponent2 } from "../controls/cover-runtime";
 import { entityToggleCommand as entityToggleCommand2 } from "../entity-power";
 import { isVirtualEntityId as isVirtualEntityId2 } from "../../shared/virtual-entities";
+import { interaction3dControlTimeout } from "../../shared/util/control-timeout";
 import type { PanelRenderer } from "../panel-renderer";
 
 export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, actionOptions: any) {
@@ -324,11 +325,15 @@ export async function callEntityService(
 ) {
   await requestHAControl(serviceDomain, serviceName, serviceEntityId, servicePayload);
 }
-const HA_CONTROL_TIMEOUT_MS = 15000;
 
 /**
  * 渲染器弹窗里的所有 HA 控制请求都从这里走（0.8.1 `requestHAControl`）：
  * 统一超时 + `timedOut` 标记 + 文案，避免每个面板各写一套 fetch。
+ *
+ * 超时不是固定值：`ai_task` / `assist_satellite.ask_question` / `update.install`
+ * 要等模型或固件，固定 15 秒会在设备还在干活时就报失败；红外/射频学习更是
+ * 随「等待时长 × 指令条数 × 相位」线性增长（算法与后端 `_remote_learning_timeout` 一致）。
+ * 所以预算统一交给 `interaction3dControlTimeout`，这里只负责按预算 abort。
  */
 export async function requestHAControl(
   serviceDomain: string,
@@ -336,11 +341,16 @@ export async function requestHAControl(
   serviceEntityId: string,
   servicePayload: Record<string, unknown> = {},
 ) {
-    const controlAbortController = new AbortController(),
-      controlTimeoutId = window.setTimeout(
-        () => controlAbortController.abort("timeout"),
-        HA_CONTROL_TIMEOUT_MS,
-      );
+  const controlTimeoutMs = interaction3dControlTimeout({
+      domain: serviceDomain,
+      service: serviceName,
+      data: servicePayload,
+    }),
+    controlAbortController = new AbortController(),
+    controlTimeoutId = window.setTimeout(
+      () => controlAbortController.abort("timeout"),
+      controlTimeoutMs,
+    );
     const serviceRequestInit: RequestInit & { hbLogContext?: ComponentPayload } = {
       signal: controlAbortController.signal,
       method: "POST",
@@ -371,7 +381,7 @@ export async function requestHAControl(
           controlAbortController.signal.reason === "timeout",
         controlFailure: Error & { timedOut?: boolean } = new Error(
           isTimedOut
-            ? "请求超时，请检查设备状态。"
+            ? "请求超时，请检查设备状态后再操作。"
             : controlError instanceof Error
               ? controlError.message || "实体操作失败。"
               : "实体操作失败。",

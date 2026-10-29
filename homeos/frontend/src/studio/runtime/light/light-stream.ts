@@ -51,6 +51,11 @@ const TERMINAL_CLOSE_CODES = [4400, 4401, 4403];
 const FIRST_RESPONSE_TIMEOUT_MS = 12000;
 /** 稳态心跳超时：服务端每 15s 左右会推 ping，65s 没有任何消息即视为断链。 */
 const HEARTBEAT_TIMEOUT_MS = 65000;
+/**
+ * 单条连接最多订阅的实体数：后端 `MAX_RUNTIME_ENTITIES` 就是这个数，
+ * 超过会被 `close(4400)` 且该码不重试。上游 0.8.1 按这个粒度分片。
+ */
+const MAX_SUBSCRIBE_ENTITIES = 1000;
 
 export function createLightStream({
   onStates: onStates = () => {},
@@ -158,18 +163,24 @@ export function createLightStream({
     notify && invalidatedEntityIds.length && onInvalidate(invalidatedEntityIds);
   }
 
-  /** 按当前 `wantedEntityIds` 新建一条 pending 连接。 */
+  /**
+   * 按当前 `wantedEntityIds` 新建一条 pending 连接。
+   *
+   * 一条连接最多订阅 `MAX_SUBSCRIBE_ENTITIES` 个实体：后端在这个数上直接
+   * `close(4400, 'too many entities')`，而 4400 属于**不重试**的终态码 ——
+   * 大户型一旦超过，整片灯光会永久停在 unavailable。上游按 `ceil(n/1000)` 拆流，
+   * 这里保持同样的分片，只是把 N 条 socket 收进同一个「槽」：
+   * 槽仍然是一个交接单位（全部 chunk 收到 snapshot 才晋升），心跳与失败也是整槽判定。
+   */
   function openPendingSlot() {
     if (isDisposed || !isStreamActive || !wantedEntityIds.length || pendingSlot) return;
-    let nextSocket: WebSocket;
-    try {
-      nextSocket = createSocket(
-        typeof resolveSocketUrl == "function" ? resolveSocketUrl() : resolveSocketUrl,
-      );
-    } catch {
-      scheduleReconnect();
-      return;
-    }
+    const chunkEntityIds: string[][] = [];
+    for (
+      let chunkStart = 0;
+      chunkStart < wantedEntityIds.length;
+      chunkStart += MAX_SUBSCRIBE_ENTITIES
+    )
+      chunkEntityIds.push(wantedEntityIds.slice(chunkStart, chunkStart + MAX_SUBSCRIBE_ENTITIES));
     const slot: StreamSlot = {
       ids: [...wantedEntityIds],
       stateById: new Map(),
@@ -180,19 +191,24 @@ export function createLightStream({
     pendingSlot = slot;
     // 每个槽只管自己的心跳；重连退避是全流共享的（`reconnectTimerId`），
     // 否则两个槽各退避一份，交接期会出现两倍频率的重连。
-    let slotHeartbeatTimerId: any = null;
+    let slotHeartbeatTimerId: any = null,
+      readyChunkCount = 0;
+    const chunkSockets: WebSocket[] = [],
+      chunkListenerCleanups: Array<() => void> = [];
     const clearSlotTimers = () => {
       (slotHeartbeatTimerId !== null && clearTimer(slotHeartbeatTimerId),
         (slotHeartbeatTimerId = null));
     };
     const slotIsAlive = () => !isDisposed && isStreamActive && !slot.closed;
     slot.closeSocket = () => {
-      (clearSlotTimers(), removeSocketListeners());
-      try {
-        nextSocket.close();
-      } catch {
-        // 清理期关闭失败无需处理：socket 可能已经没有底层连接。
-      }
+      clearSlotTimers();
+      for (const cleanupChunkListeners of chunkListenerCleanups) cleanupChunkListeners();
+      for (const chunkSocket of chunkSockets)
+        try {
+          chunkSocket.close();
+        } catch {
+          // 清理期关闭失败无需处理：socket 可能已经没有底层连接。
+        }
     };
 
     function slotFailed(closeCode = 0) {
@@ -220,78 +236,104 @@ export function createLightStream({
         (slotHeartbeatTimerId = setTimer(() => slotFailed(), heartbeatTimeoutMs)));
     }
 
-    const socketHandlers: Record<string, (event: any) => void> = {
-      open() {
-        if (!slotIsAlive()) return;
-        try {
-          nextSocket.send(JSON.stringify({ type: "subscribe", entityIds: slot.ids }));
-        } catch {
-          slotFailed();
-        }
-      },
-      message(messageEvent: any) {
-        if (!slotIsAlive()) return;
-        let messagePayload;
-        try {
-          messagePayload = JSON.parse(messageEvent.data);
-        } catch {
-          return;
-        }
-        if (!messagePayload || typeof messagePayload != "object") return;
-        if (messagePayload.type === "resync_required") {
-          // 与上游一致：重同步会失效一次，但立刻新建连接，不等退避。
-          (slotFailed(), cancelReconnect(), openPendingSlot());
-          return;
-        }
-        if (messagePayload.type === "snapshot" && Array.isArray(messagePayload.states)) {
-          const snapshotStatesByEntityId = new Map<string, any>();
-          for (const snapshotState of messagePayload.states)
-            slot.ids.includes(snapshotState?.entityId) &&
-              typeof snapshotState.state == "string" &&
-              snapshotStatesByEntityId.set(snapshotState.entityId, structuredClone(snapshotState));
-          (slot.stateById = snapshotStatesByEntityId),
-            (slot.ready = true),
-            (reconnectAttempt = 0),
-            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
-          // 晋升：旧 active 交完班才退役，交接期两边都在，但 active 的值优先。
-          if (pendingSlot === slot) {
-            const previousActiveSlot = activeSlot;
-            ((activeSlot = slot), (pendingSlot = null));
-            retireSlot(previousActiveSlot);
-          }
-          emitStates();
-          return;
-        }
-        if (!slot.ready) return;
-        if (messagePayload.type === "state_removed" && slot.ids.includes(messagePayload.entityId)) {
-          (slot.stateById.delete(messagePayload.entityId),
-            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
-            emitPatch(messagePayload.entityId));
-          return;
-        }
-        if (messagePayload.type === "state_changed" && slot.ids.includes(messagePayload.entityId)) {
-          if (typeof messagePayload.state != "string") return;
-          (slot.stateById.set(messagePayload.entityId, structuredClone(messagePayload)),
-            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
-            emitPatch(messagePayload.entityId));
-          return;
-        }
-        messagePayload.type === "ping" && scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
-      },
-      close(closeEvent: any) {
-        slotFailed(closeEvent?.code ?? 0);
-      },
-      error() {
-        slotFailed();
-      },
-    };
-    function removeSocketListeners() {
-      for (const [handlerName, handler] of Object.entries(socketHandlers))
-        nextSocket.removeEventListener(handlerName, handler);
+    /** 一个分片收到 snapshot：凑齐全部分片才算整槽 ready，然后晋升。 */
+    function chunkSnapshotReady() {
+      readyChunkCount += 1;
+      if (readyChunkCount < chunkEntityIds.length) {
+        scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
+        return;
+      }
+      (slot.ready = true), (reconnectAttempt = 0), scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
+      // 晋升：旧 active 交完班才退役，交接期两边都在，但 active 的值优先。
+      if (pendingSlot === slot) {
+        const previousActiveSlot = activeSlot;
+        ((activeSlot = slot), (pendingSlot = null));
+        retireSlot(previousActiveSlot);
+      }
+      emitStates();
     }
 
-    for (const [handlerName, handler] of Object.entries(socketHandlers))
-      nextSocket.addEventListener(handlerName, handler);
+    function connectChunk(chunkIds: string[]) {
+      let chunkSocket: WebSocket;
+      try {
+        chunkSocket = createSocket(
+          typeof resolveSocketUrl == "function" ? resolveSocketUrl() : resolveSocketUrl,
+        );
+      } catch {
+        scheduleReconnect();
+        return false;
+      }
+      chunkSockets.push(chunkSocket);
+      const socketHandlers: Record<string, (event: any) => void> = {
+        open() {
+          if (!slotIsAlive()) return;
+          try {
+            chunkSocket.send(JSON.stringify({ type: "subscribe", entityIds: chunkIds }));
+          } catch {
+            slotFailed();
+          }
+        },
+        message(messageEvent: any) {
+          if (!slotIsAlive()) return;
+          let messagePayload;
+          try {
+            messagePayload = JSON.parse(messageEvent.data);
+          } catch {
+            return;
+          }
+          if (!messagePayload || typeof messagePayload != "object") return;
+          if (messagePayload.type === "resync_required") {
+            // 与上游一致：重同步会失效一次，但立刻新建连接，不等退避。
+            (slotFailed(), cancelReconnect(), openPendingSlot());
+            return;
+          }
+          if (messagePayload.type === "snapshot" && Array.isArray(messagePayload.states)) {
+            for (const snapshotState of messagePayload.states)
+              chunkIds.includes(snapshotState?.entityId) &&
+                typeof snapshotState.state == "string" &&
+                slot.stateById.set(snapshotState.entityId, structuredClone(snapshotState));
+            chunkSnapshotReady();
+            return;
+          }
+          if (!slot.ready) return;
+          if (messagePayload.type === "state_removed" && slot.ids.includes(messagePayload.entityId)) {
+            (slot.stateById.delete(messagePayload.entityId),
+              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
+              emitPatch(messagePayload.entityId));
+            return;
+          }
+          if (messagePayload.type === "state_changed" && slot.ids.includes(messagePayload.entityId)) {
+            if (typeof messagePayload.state != "string") return;
+            (slot.stateById.set(messagePayload.entityId, structuredClone(messagePayload)),
+              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
+              emitPatch(messagePayload.entityId));
+            return;
+          }
+          messagePayload.type === "ping" && scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
+        },
+        close(closeEvent: any) {
+          slotFailed(closeEvent?.code ?? 0);
+        },
+        error() {
+          slotFailed();
+        },
+      };
+      const cleanupChunkListeners = () =>
+        chunkListenerCleanups.push(() => {
+          for (const [handlerName, handler] of Object.entries(socketHandlers))
+            chunkSocket.removeEventListener(handlerName, handler);
+        });
+      for (const [handlerName, handler] of Object.entries(socketHandlers))
+        chunkSocket.addEventListener(handlerName, handler);
+      cleanupChunkListeners();
+      return true;
+    }
+
+    if (chunkEntityIds.some((chunkIds) => !connectChunk(chunkIds))) {
+      // 有一条分片连不上：整槽不能用（凑不齐 snapshot 会一直卡住），直接按失败处理。
+      slotFailed();
+      return;
+    }
     scheduleHeartbeatTimeout(FIRST_RESPONSE_TIMEOUT_MS);
   }
 

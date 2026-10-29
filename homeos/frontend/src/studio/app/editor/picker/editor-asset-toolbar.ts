@@ -1,8 +1,10 @@
 import { USER_IMAGE_HINT } from "../../shared/user-image-upload";
 
-/** 工具条只关心这三个字段；`user-image-upload` 的完整状态由上传模块持有。 */
+/** 工具条只关心这几个字段；`user-image-upload` 的完整状态由上传模块持有。 */
 interface AssetUploaderState {
   busy?: boolean;
+  /** 进度 / 结果摘要：「正在上传 2/5：a.png。关闭窗口后会继续上传。」 */
+  message?: string;
   error?: string;
   refreshFailed?: boolean;
 }
@@ -99,9 +101,13 @@ export function createEditorAssetToolbar({
       }),
       (retryUploadButton.hidden = true));
     const syncUploaderState = (uploaderState: AssetUploaderState | null = getUploaderState?.()) => {
+      // 进度与失败共用一行状态位：有错误时错误优先（用户此刻只需要知道为什么没传上），
+      // 否则显示「正在上传 x/n…关闭窗口后会继续上传」这类过程信息。
+      const uploaderStatusText = uploaderState?.error || uploaderState?.message || "";
       (uploadButton.disabled = Boolean(uploaderState?.busy)),
-        (uploadStatusElement.hidden = !uploaderState?.error),
-        (uploadStatusElement.textContent = uploaderState?.error || ""),
+        (uploadStatusElement.hidden = !uploaderStatusText),
+        (uploadStatusElement.textContent = uploaderStatusText),
+        (uploadStatusElement.classList.toggle("is-error", Boolean(uploaderState?.error))),
         (retryUploadButton.hidden = !uploaderState?.refreshFailed);
     };
     toolbarElement.append(

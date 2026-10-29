@@ -278,3 +278,55 @@ test('dispose 之后不再建连接，也不回调失效', () => {
   assert.equal(harness.sockets.length, socketsBeforeDispose)
   assert.equal(harness.invalidatedBatches.length, 0)
 })
+
+test('实体数超过单条连接上限时按 1000 拆流，且全部分片 ready 才晋升', () => {
+  const harness = createHarness()
+  harness.stream.setActive(true)
+  const entityIds = Array.from({ length: 1500 }, (_, index) => `light.l${index}`)
+  harness.stream.configure(entityIds)
+
+  // 后端 MAX_RUNTIME_ENTITIES = 1000，超了会 close(4400) 且该码不重试 —— 必须拆成两条。
+  assert.equal(harness.sockets.length, 2)
+  for (const socket of harness.sockets) socket.open()
+  const subscribedIdCounts = harness.sockets.map((socket) => socket.sent.at(-1).entityIds.length)
+  assert.deepEqual(subscribedIdCounts, [1000, 500])
+  const subscribedIds = harness.sockets.flatMap((socket) => socket.sent.at(-1).entityIds)
+  assert.equal(new Set(subscribedIds).size, 1500, '分片之间不能重复订阅')
+
+  // 订阅集合是字典序排过的，所以别假设某个 id 落在哪个分片 —— 按实际订阅内容取。
+  const firstChunkId = harness.sockets[0].sent.at(-1).entityIds[0]
+  const secondChunkId = harness.sockets[1].sent.at(-1).entityIds[0]
+  harness.sockets[0].deliver({
+    type: 'snapshot',
+    states: [{ entityId: firstChunkId, state: 'on' }],
+  })
+  // 只到了一个分片：不能晋升，否则另一个分片的实体会一直是 unavailable。
+  assert.deepEqual(harness.lastStates(), {})
+
+  harness.sockets[1].deliver({
+    type: 'snapshot',
+    states: [{ entityId: secondChunkId, state: 'off' }],
+  })
+  assert.equal(harness.lastStates()[firstChunkId].state, 'on')
+  assert.equal(harness.lastStates()[secondChunkId].state, 'off')
+})
+
+test('任一分片断连即整槽失败，旧槽继续供数', () => {
+  const harness = createHarness()
+  harness.stream.setActive(true)
+  const entityIds = Array.from({ length: 1200 }, (_, index) => `light.l${index}`)
+  harness.stream.configure(entityIds)
+  for (const socket of harness.sockets) socket.open()
+  for (const socket of harness.sockets)
+    socket.deliver({ type: 'snapshot', states: [{ entityId: 'light.l0', state: 'on' }] })
+
+  const socketCountBeforeChange = harness.sockets.length
+  harness.stream.configure(entityIds.slice(0, 1100))
+  const handoverSockets = harness.sockets.slice(socketCountBeforeChange)
+  assert.equal(handoverSockets.length, 2)
+  handoverSockets[0].open()
+  handoverSockets[0].close()
+
+  // 旧槽没收到过 handover，仍按旧值供数；新槽被整体丢弃。
+  assert.equal(harness.lastStates()['light.l0'].state, 'on')
+})

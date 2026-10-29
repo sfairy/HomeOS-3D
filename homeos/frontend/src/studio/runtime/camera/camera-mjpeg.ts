@@ -183,10 +183,20 @@ export function createCameraMjpegStream({
         signal: controller.signal,
         cache: "no-store",
         credentials: "same-origin",
-        headers: { Accept: "multipart/x-mixed-replace, image/jpeg" },
+        headers: {
+          // 帧协议开关：后端只有看到这个头才会把 multipart 改写成不透明字节流，
+          // 并在响应里回填 `x-hb-camera-content-type`（见后端 `ha_proxy` 的 frame 分支）。
+          // 不发这个头，服务端永远走「原样透传」，逐帧解码路径就成了死代码。
+          "X-HB-Camera-Stream": "frames",
+          Accept: "multipart/x-mixed-replace, image/jpeg",
+        },
       });
       if (!response.ok) throw new CameraMjpegError("network");
-      const boundary = parseMultipartBoundary(response.headers.get("content-type"));
+      // 帧模式下 `content-type` 已被改成 `application/octet-stream`，
+      // 真正的图片流类型放在自定义头里；普通反向代理没有这个头，回落到原生 `content-type`。
+      const boundary = parseMultipartBoundary(
+        response.headers.get("x-hb-camera-content-type") || response.headers.get("content-type"),
+      );
       if (!boundary || !response.body) {
         // 服务端没有开帧协议：立刻释放这路请求，交给原生图片流。
         controller.abort();

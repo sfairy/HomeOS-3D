@@ -275,7 +275,11 @@ class HALiveMixin(HAConnectorHost):
         try:
             if client.use_subscribe_entities:
                 buffered_events = await client.subscribe_events(
-                    websocket, registry_event_types, required_event_types = set(registry_event_types)
+                    websocket,
+                    registry_event_types,
+                    required_event_types = set(registry_event_types),
+                    # 反代把 WS 挂住时 ``recv`` 不会返回：不给超时就会永远停在「连接中」。
+                    timeout = self.settings.ha_request_timeout_seconds,
                 )
                 try:
                     buffered_events += await client.subscribe_entities(websocket)
@@ -286,7 +290,11 @@ class HALiveMixin(HAConnectorHost):
                     record_ha_counter('subscribe_entities_fallback')
                     LOGGER.warning('HA 不支持 subscribe_entities，降级为 subscribe_events：%s', error)
                     buffered_events += await client.subscribe_events(
-                        websocket, ('state_changed',), start_id = 140, required_event_types = {'state_changed'}
+                        websocket,
+                        ('state_changed',),
+                        start_id = 140,
+                        required_event_types = {'state_changed'},
+                        timeout = self.settings.ha_request_timeout_seconds,
                     )
                     decoder = None
                 # 影子订阅独立 try：它只是诊断用的第二条 state_changed 订阅。挂掉时若走到
@@ -295,13 +303,22 @@ class HALiveMixin(HAConnectorHost):
                 if decoder is not None and client.subscribe_entities_shadow:
                     try:
                         buffered_events += await client.subscribe_events(
-                            websocket, ('state_changed',), start_id = 120, required_event_types = {'state_changed'}
+                            websocket,
+                            ('state_changed',),
+                            start_id = 120,
+                            required_event_types = {'state_changed'},
+                            timeout = self.settings.ha_request_timeout_seconds,
                         )
                         shadow = ShadowStateTracker()
                     except HAClientError as error:
                         LOGGER.warning('HA 压缩状态影子订阅失败，继续使用压缩流：%s', error)
             else:
-                buffered_events = await client.subscribe_events(websocket, LIVE_EVENT_TYPES, required_event_types={'state_changed'})
+                buffered_events = await client.subscribe_events(
+                    websocket,
+                    LIVE_EVENT_TYPES,
+                    required_event_types={'state_changed'},
+                    timeout = self.settings.ha_request_timeout_seconds,
+                )
             await self._run_database(self._mark_connected, connection_id)
             self._connected = True
             self._runtime_error = None
