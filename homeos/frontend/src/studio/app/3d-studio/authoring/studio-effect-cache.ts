@@ -52,11 +52,11 @@ export function createEffectCache({
     uniforms: {
       colorMap: { value: null },
       depthMap: { value: null },
+      cacheSize: { value: new three.Vector2(1, 1) },
     },
-    vertexShader:
-      "varying vec2 cacheUv; void main(){cacheUv=position.xy*.5+.5;gl_Position=vec4(position,1.);}",
+    vertexShader: "void main(){gl_Position=vec4(position,1.);}",
     fragmentShader:
-      "uniform sampler2D colorMap; uniform sampler2D depthMap; varying vec2 cacheUv; void main(){gl_FragColor=texture2D(colorMap,cacheUv);gl_FragDepth=texture2D(depthMap,cacheUv).r;}",
+      "uniform sampler2D colorMap; uniform sampler2D depthMap; uniform vec2 cacheSize; void main(){vec2 cacheUv=gl_FragCoord.xy/cacheSize;gl_FragColor=texture2D(colorMap,cacheUv);gl_FragDepth=texture2D(depthMap,cacheUv).r;}",
   });
   const fullscreenMesh = new three.Mesh(fullscreenGeometry, fullscreenMaterial);
   ((fullscreenMesh.frustumCulled = false), fullscreenScene.add(fullscreenMesh));
@@ -143,6 +143,8 @@ export function createEffectCache({
     (clear(),
       (renderTarget = new three.WebGLRenderTarget(drawingBufferSize.x, drawingBufferSize.y, {
         samples: sampleCount,
+        // 与画布的 antialias 保持一致：画布开了 MSAA 而缓存没开，回放边缘会明显发硬。
+        antialias: webglRenderer.getContext?.()?.getContextAttributes?.()?.antialias === true,
         depthBuffer: true,
         stencilBuffer: false,
         colorSpace: webglRenderer.outputColorSpace,
@@ -247,6 +249,8 @@ export function createEffectCache({
       webglRenderer.outputColorSpace,
       camera.layers.mask,
       background?.layers?.mask,
+      background?.uuid || "",
+      ...webglRenderer.getViewport(new three.Vector4()).toArray(),
     ] as number[];
     if (!matchesCameraKey(previousCameraKey, cameraKey)) isCacheValid = false;
 
@@ -264,7 +268,8 @@ export function createEffectCache({
       );
       (isDynamicObject(visibleNode) ||
       visibleNode.userData.environmentEffect ||
-      materials.some((material: any) => material.transmission) ||
+      // transparent 才是「必须逐帧重绘」的判据：transmission 材质可能完全不透明。
+      materials.some((material: any) => material.transparent) ||
       !visibleNode.isMesh ||
       visibleNode.isSkinnedMesh
         ? effectEntries

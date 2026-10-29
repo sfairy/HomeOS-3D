@@ -12,9 +12,11 @@ function beginStageStartup({
     import("/api/v1/modules/interaction3d/core/stage.js"),
   createCache: createCache = createScenePersistentCache,
 } = {}) {
+  const configuredStagePath = (env as { HABridgeEmbed?: { path?: unknown } }).HABridgeEmbed?.path;
   if (
-    env.location?.pathname !==
-    "/api/v1/modules/interaction3d/stage.html"
+    env.location?.pathname !== "/api/v1/modules/interaction3d/stage.html" &&
+    // 嵌入方可用 HABridgeEmbed.path 指定舞台入口；两者都不匹配就不启动预热。
+    (!configuredStagePath || env.location?.pathname !== configuredStagePath)
   )
     return null;
   const searchParams = new URLSearchParams(env.location.search),

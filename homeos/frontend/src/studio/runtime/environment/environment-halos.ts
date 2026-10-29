@@ -52,6 +52,97 @@ function outlineHull(hullInput: any) {
     ...buildHullSide(sortedPoints.reverse()).slice(0, -1),
   ];
 }
+/** 轮廓点：屏幕坐标对（x, y）。 */
+type OutlinePoint = [number, number];
+
+/** 需要「有序轮廓」的模型：它们的剪影是凹的，凸包会把开口/叶片抹平。 */
+const ORDERED_OUTLINE_TYPES: ReadonlySet<string> = new Set([
+  "curtainCloth",
+  "dreamBlades",
+  "rotor",
+]);
+
+/** 该模型类型是否需要有序（凹）轮廓而非凸包。 */
+export function outlineUsesOrderedContour(modelType: unknown) {
+  return ORDERED_OUTLINE_TYPES.has(String(modelType ?? ""));
+}
+
+/**
+ * RDP 折线简化（0.8.1 `simplifyOutline`，容差 0.45²）。
+ *
+ * 描边点来自几何顶点投影，动辄上千个：直接连成 path 会让每帧的字符串拼接和
+ * SVG 重绘成为瓶颈，而肉眼看不出 0.45px 内的差别。误差用平方距离比较，省掉开方。
+ */
+export function simplifyOutline(points: OutlinePoint[], epsilon = 0.45): OutlinePoint[] {
+  if (!Array.isArray(points) || points.length <= 3) return (points || []).slice();
+  const epsilonSquared = epsilon * epsilon,
+    squaredSegmentDistance = (
+      point: OutlinePoint,
+      startPoint: OutlinePoint,
+      endPoint: OutlinePoint,
+    ) => {
+      const segmentX = endPoint[0] - startPoint[0],
+        segmentY = endPoint[1] - startPoint[1];
+      const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+      let ratio = 0;
+      lengthSquared > 0 &&
+        (ratio = Math.max(
+          0,
+          Math.min(
+            1,
+            ((point[0] - startPoint[0]) * segmentX + (point[1] - startPoint[1]) * segmentY) /
+              lengthSquared,
+          ),
+        ));
+      const closestX = startPoint[0] + ratio * segmentX,
+        closestY = startPoint[1] + ratio * segmentY,
+        deltaX = point[0] - closestX,
+        deltaY = point[1] - closestY;
+      return deltaX * deltaX + deltaY * deltaY;
+    },
+    simplifyRange = (startIndex: number, endIndex: number, keptIndices: number[]) => {
+      if (endIndex <= startIndex + 1) return;
+      let farthestIndex = -1,
+        farthestDistance = epsilonSquared;
+      for (let pointIndex = startIndex + 1; pointIndex < endIndex; pointIndex += 1) {
+        const distanceToSegment = squaredSegmentDistance(
+          points[pointIndex],
+          points[startIndex],
+          points[endIndex],
+        );
+        distanceToSegment > farthestDistance &&
+          ((farthestDistance = distanceToSegment), (farthestIndex = pointIndex));
+      }
+      if (farthestIndex < 0) return;
+      (simplifyRange(startIndex, farthestIndex, keptIndices),
+        keptIndices.push(farthestIndex),
+        simplifyRange(farthestIndex, endIndex, keptIndices));
+    },
+    keptIndices = [0];
+  simplifyRange(0, points.length - 1, keptIndices);
+  keptIndices.push(points.length - 1);
+  return keptIndices.sort((leftIndex, rightIndex) => leftIndex - rightIndex).map((pointIndex) => points[pointIndex]);
+}
+
+/**
+ * 有序轮廓：按质心极角把点排成一圈（0.8.1 用于帘布/梦幻帘/扫地机风机）。
+ * 凸包会把这些模型的内凹剪影抹平，极角排序能保住扇叶/帘布的开口。
+ */
+export function orderedOutline(points: OutlinePoint[]): OutlinePoint[] {
+  if (!Array.isArray(points) || points.length <= 3) return (points || []).slice();
+  let centerX = 0,
+    centerY = 0;
+  for (const outlinePoint of points) ((centerX += outlinePoint[0]), (centerY += outlinePoint[1]));
+  ((centerX /= points.length), (centerY /= points.length));
+  return points
+    .slice()
+    .sort(
+      (leftPoint, rightPoint) =>
+        Math.atan2(leftPoint[1] - centerY, leftPoint[0] - centerX) -
+        Math.atan2(rightPoint[1] - centerY, rightPoint[0] - centerX),
+    );
+}
+
 export function createScreenOutlines({
   THREE: three,
   container: containerElement,
@@ -273,7 +364,9 @@ export function createScreenOutlines({
   function resolveSilhouettePoints(targetModel: any) {
     const geometry = targetModel.geometry,
       vacuumMobileRoot = targetModel.userData?.vacuumMobileRoot,
-      outlineRevision = targetModel.userData?.environmentOutlineRevision;
+      outlineRevision = targetModel.userData?.environmentOutlineRevision,
+      // 位置版本必须参与缓存键：只改位置不改几何时旧轮廓会留在原地。
+      silhouettePose = `${outlineRevision ?? ""}:${targetModel.position?.version ?? 0}`;
     if (isEditorSelection && targetModel.userData?.environmentModelType === "door")
       return computeSilhouettePoints(targetModel);
     const cachedEntry = pointsByModel.get(targetModel);
@@ -281,7 +374,7 @@ export function createScreenOutlines({
       cachedEntry &&
       cachedEntry.geometry === geometry &&
       cachedEntry.mobile === vacuumMobileRoot &&
-      cachedEntry.pose === outlineRevision
+      cachedEntry.pose === silhouettePose
     )
       return cachedEntry.points;
     const silhouettePoints = computeSilhouettePoints(targetModel);
@@ -289,7 +382,7 @@ export function createScreenOutlines({
       pointsByModel.set(targetModel, {
         geometry: geometry,
         mobile: vacuumMobileRoot,
-        pose: outlineRevision,
+        pose: silhouettePose,
         points: silhouettePoints,
       }),
       silhouettePoints
@@ -351,6 +444,8 @@ export function createScreenOutlines({
             ":" +
             (entryForKey.model.userData?.environmentOutlineRevision ?? "") +
             ":" +
+            (entryForKey.model.position?.version ?? 0) +
+            ":" +
             entryForKey.model.uuid +
             ":" +
             (entryForKey.model.geometry?.uuid || "") +
@@ -385,7 +480,13 @@ export function createScreenOutlines({
             )
           )
             return "";
-          const hullPoints = outlineHull(projectedPoints);
+          const outlineType =
+              outlineRecord.model.userData?.environmentModelType ||
+              outlineRecord.model.userData?.modelType,
+            simplifiedPoints = simplifyOutline(projectedPoints),
+            hullPoints = outlineUsesOrderedContour(outlineType)
+              ? orderedOutline(simplifiedPoints)
+              : outlineHull(simplifiedPoints);
           return hullPoints.length > 2
             ? "M" +
                 hullPoints

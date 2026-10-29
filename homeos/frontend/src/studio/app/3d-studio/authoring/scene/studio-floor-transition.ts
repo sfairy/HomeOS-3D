@@ -76,14 +76,24 @@ export function createFloorTransition({
             )
               return;
             const originalMaterial = sceneNode.material,
+              isBackground = sceneNode.userData?.exportRole === "background",
               cloneGroundMaterial = (material: any) => {
                 const clonedMaterial = material.clone();
                 return (
                   (clonedMaterial.onBeforeCompile = material.onBeforeCompile),
                   (clonedMaterial.customProgramCacheKey =
                     material.customProgramCacheKey.bind(material)),
-                  (clonedMaterial.transparent = true),
+                  // 背景板保持不透明：它铺满全屏，一旦进透明队列就会和地面抢排序，
+                  // 楼层滑动时闪一下黑。背景的淡出改为在 CustomBlending 里算。
+                  (clonedMaterial.transparent = !isBackground),
                   (clonedMaterial.depthWrite = false),
+                  !isBackground &&
+                    ((clonedMaterial.blending = three.CustomBlending),
+                    (clonedMaterial.blendSrc = three.SrcAlphaFactor),
+                    (clonedMaterial.blendDst = three.OneMinusSrcAlphaFactor),
+                    (clonedMaterial.blendEquation = three.AddEquation)),
+                  // 背景若带 transmission，透明队列会跳过它，先记下原值再关掉过渡。
+                  isBackground && (clonedMaterial.transmission = 0),
                   clonedMaterial
                 );
               };
@@ -116,7 +126,17 @@ export function createFloorTransition({
   }
   function restoreGroundMaterials(floorRecord: any) {
     for (const groundEntry of floorRecord.ground) {
-      groundEntry.node.material = groundEntry.original;
+      (groundEntry.node.material = groundEntry.original),
+        (groundEntry.node.renderOrder = groundEntry.renderOrder);
+      const restoredMaterials = Array.isArray(groundEntry.original)
+        ? groundEntry.original
+        : [groundEntry.original];
+      groundEntry.backgroundBeforeTransmission?.forEach(
+        (transmission: unknown, materialIndex: number) => {
+          typeof transmission === "number" &&
+            (restoredMaterials[materialIndex].transmission = transmission);
+        },
+      );
       for (const disposableMaterial of groundEntry.materials) disposableMaterial.dispose();
     }
     floorRecord.ground = [];

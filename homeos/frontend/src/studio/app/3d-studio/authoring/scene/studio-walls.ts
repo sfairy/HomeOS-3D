@@ -8,7 +8,7 @@
  * 这里按函数值注入，避免重复装配盒子网格缓存。
  */
 
-import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
+import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
 import { createWallSideMaterial as createWallSideMaterial2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
@@ -744,8 +744,14 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           currentDoor.width,
           wallLengthMeters2(openingWall, interiorPixelsPerMeter),
         ),
-        buildInteriorSceneDoorHeight = Math.min(currentDoor.height, openingWall.height),
-        ne8 = deps.createSelectionRef("door", currentDoor.id),
+        buildInteriorSceneDoorHeight = Math.min(currentDoor.height, openingWall.height);
+      buildInteriorSceneIsEmbeddedStage &&
+        Object.assign(
+          doorGroup.userData,
+          doorHingePlacement(currentDoor, buildInteriorSceneDoorWidth),
+          { doorInteriorSide: doorInteriorSide(currentDoor) },
+        );
+      const ne8 = deps.createSelectionRef("door", currentDoor.id),
         doorType = currentDoor.doorType || "solid",
         isSolidDoorLeaf = doorType === "solid" || doorType === "frame-only",
 

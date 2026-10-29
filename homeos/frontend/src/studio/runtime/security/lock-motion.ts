@@ -211,13 +211,27 @@ export function createLockMotion(options: any) {
                   ? applyRollerTranslation(doorMesh, target.value)
                   : (doorMesh.rotation.y = target.value),
               (shouldRedraw = true))),
-          hingePivot && !doorMesh.userData?.doorFixedHinge)
+          hingePivot)
         ) {
-          const leafWidth = Number(
-            doorParent.userData?.doorLeafWidth ?? doorParent.userData?.entryDoorLeafWidth ?? 0.8,
-          );
-          doorMesh.position.x =
-            ((matchedDoorModel.hinge === "right" ? 1 : -1) * Math.abs(leafWidth)) / 2;
+          // 0.8.1：铰链位置/镜像由几何侧写入（hingeX / hingeScaleX），
+          // 只有老模型才回退到按门扇宽推算。
+          const hingeX = Number(
+              doorMesh.userData?.hingeX ?? doorParent.userData?.hingeX ?? NaN,
+            ),
+            hingeScaleX = Number(
+              doorMesh.userData?.hingeScaleX ?? doorParent.userData?.hingeScaleX ?? NaN,
+            ),
+            leafWidth = Number(
+              doorParent.userData?.doorLeafWidth ?? doorParent.userData?.entryDoorLeafWidth ?? 0.8,
+            );
+          Number.isFinite(hingeX)
+            ? (doorMesh.position.x = hingeX)
+            : doorMesh.userData?.doorFixedHinge ||
+              (doorMesh.position.x =
+                ((matchedDoorModel.hinge === "right" ? 1 : -1) * Math.abs(leafWidth)) / 2);
+          Number.isFinite(hingeScaleX) &&
+            hingeScaleX !== 0 &&
+            (doorMesh.scale.x = Math.abs(doorMesh.scale.x || 1) * Math.sign(hingeScaleX));
         }
         target && (trackedMotion.target = target.value);
         const current =

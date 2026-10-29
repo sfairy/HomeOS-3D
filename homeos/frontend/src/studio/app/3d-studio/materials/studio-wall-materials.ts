@@ -37,7 +37,7 @@ export function createWallSideMaterial(
 
 
             "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
-              (isWarmWood ? "0.92" : "0.85") +
+              (isWarmWood ? "0.92" : "0.70") +
               ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
               (isWarmWood ? "0.0" : "0.65") +
               " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>",
@@ -46,7 +46,7 @@ export function createWallSideMaterial(
 
 
       (material.customProgramCacheKey = () =>
-        isWarmWood ? "hb-wall-warm-clean-v1" : "hb-wall-height-gradient-v4")),
+        isWarmWood ? "hb-wall-warm-clean-v1" : "hb-wall-height-gradient-v3")),
     material
   );
 }
@@ -260,4 +260,104 @@ export function setWallGradientHeight(threeModule: any, meshGeometry: any, axis:
     );
   }
   meshGeometry.setAttribute("hbWallHeight", new threeModule.BufferAttribute(heightBuffer, 1));
+}
+
+/** 侧序排序只依赖材质标识、透明度和层级序号。 */
+type WallSideMaterial = { uuid?: string; transparent?: boolean };
+type WallSideEntry = { mesh: WallSideMesh; wallSideIndex: number };
+type WallSideMesh = {
+  material?: WallSideMaterial | WallSideMaterial[];
+  userData?: { wallSideIndex?: number; [key: string]: unknown };
+  renderOrder: number;
+  getWorldPosition?: (target: { x: number; y: number; z: number }) => {
+    x: number;
+    y: number;
+    z: number;
+  };
+  getWorldDirection?: (target: { x: number; y: number; z: number }) => {
+    x: number;
+    y: number;
+    z: number;
+  };
+};
+
+/** 每面墙体侧面的材质签名；材质一变就要重排（透明度会改变绘制顺序需求）。 */
+const wallSideOrderSignatures = new WeakMap<object, { materialUuid: string; transparent: boolean; index: number }>();
+
+/**
+ * 墙面侧序（0.8.1 `prepareWallSideOrder`）。
+ *
+ * 半透明墙体互相遮挡时，先后顺序决定「哪面墙看起来在前面」。这里按相机点把墙面
+ * 分成正面/背面两组，背面先画、正面后画，组内保持稳定索引（`wallSideIndex`）：
+ *
+ * - **动态索引**：第一次见到的墙面写入 `userData.wallSideIndex`，之后沿用，避免
+ *   帧间抖动导致 z-fighting 闪一下；
+ * - **材质变更回退**：材质 uuid 或 `transparent` 变化时整组重排（透明度切换会
+ *   改变是否参与深度写入，旧顺序不再成立）；
+ * - 没有相机点时按索引奇偶分组，保证纯排序也可预测。
+ */
+export function prepareWallSideOrder(
+  wallSideMeshes: WallSideMesh[],
+  cameraPoint?: { x: number; y: number; z: number } | null,
+  { baseRenderOrder = 2 }: { baseRenderOrder?: number } = {},
+) {
+  const meshes = (Array.isArray(wallSideMeshes) ? wallSideMeshes : []).filter(Boolean),
+    stats = { front: 0, back: 0, materialChanges: 0, indexed: 0 };
+  if (!meshes.length) return { ordered: [] as WallSideMesh[], stats, fallback: false };
+  const frontGroup: WallSideEntry[] = [],
+    backGroup: WallSideEntry[] = [];
+  let fallback = false;
+  meshes.forEach((mesh, meshIndex) => {
+    const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material,
+      materialUuid = String(material?.uuid ?? ""),
+      materialTransparent = material?.transparent === true,
+      signature = wallSideOrderSignatures.get(mesh),
+      materialChanged =
+        !!signature &&
+        (signature.materialUuid !== materialUuid || signature.transparent !== materialTransparent);
+    if (materialChanged) stats.materialChanges += 1;
+    const wallSideIndex =
+      materialChanged || !Number.isFinite(mesh.userData?.wallSideIndex ?? NaN)
+        ? meshIndex
+        : Number(mesh.userData?.wallSideIndex);
+    const meshUserData = mesh.userData ?? (mesh.userData = {});
+    if (materialChanged || meshUserData.wallSideIndex !== wallSideIndex) {
+      meshUserData.wallSideIndex = wallSideIndex;
+      stats.indexed += 1;
+    }
+    wallSideOrderSignatures.set(mesh, {
+      materialUuid,
+      transparent: materialTransparent,
+      index: wallSideIndex,
+    });
+    let isFront: boolean;
+    if (cameraPoint && mesh.getWorldPosition && mesh.getWorldDirection) {
+      const centerTarget = { x: 0, y: 0, z: 0 },
+        directionTarget = { x: 0, y: 0, z: 0 },
+        center = mesh.getWorldPosition(centerTarget) || centerTarget,
+        direction = mesh.getWorldDirection(directionTarget) || { x: 0, y: 0, z: 1 },
+        dot =
+          (cameraPoint.x - center.x) * direction.x +
+          (cameraPoint.y - center.y) * direction.y +
+          (cameraPoint.z - center.z) * direction.z;
+      isFront = dot >= 0;
+    } else {
+      fallback = true;
+      isFront = wallSideIndex % 2 === 1;
+    }
+    (isFront ? frontGroup : backGroup).push({
+      mesh,
+      wallSideIndex,
+    });
+    isFront ? (stats.front += 1) : (stats.back += 1);
+  });
+  const ordered = [...backGroup, ...frontGroup];
+  ordered.forEach((entry, orderIndex) => {
+    entry.mesh.renderOrder = baseRenderOrder + orderIndex;
+  });
+  return {
+    ordered: ordered.map((entry) => entry.mesh),
+    stats,
+    fallback,
+  };
 }

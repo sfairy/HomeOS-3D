@@ -746,12 +746,12 @@ export function mountStage(mountOptions: any) {
               readCoverFeedback(previewCoverBinding),
             )) ||
             (previewPosition === null
-              ? (dreamTiltFeedback.preview(previewCoverKey, null),
-                coverFeedback.preview(previewCoverKey, null))
+              ? (dreamTiltFeedback.report(previewCoverKey, null),
+                coverFeedback.report(previewCoverKey, null))
               : (previewCoverBinding.coverKind === "dream"
                   ? dreamTiltFeedback
                   : coverFeedback
-                ).preview(previewCoverKey, previewPosition),
+                ).report(previewCoverKey, previewPosition),
             syncCoverIconStates(),
             wakeSceneBackground()),
           readCoverFeedback(previewCoverBinding)

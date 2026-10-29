@@ -1,3 +1,9 @@
+import * as THREE from "three";
+
+type ThreeObject3D = InstanceType<typeof THREE.Object3D>;
+type ThreeMesh = InstanceType<typeof THREE.Mesh>;
+type ThreeVector3 = InstanceType<typeof THREE.Vector3>;
+
 export function prepareVehicleChargeGeometry(threeModule: any, rootObject: any) {
   rootObject.updateMatrixWorld(true);
   const bounds = new threeModule.Box3().setFromObject(rootObject),
@@ -142,4 +148,106 @@ export function applyVehicleFinish(
       +(options.warmWood === true)),
     material
   );
+}
+
+/**
+ * SUV 顶棚玻璃（0.8.1 `prepareSuvRoofGlass`）。
+ *
+ * SUV 的 GLB 把顶棚做成车身的一部分（`suv-base`），于是从俯视角度看不到玻璃。
+ * 这里把车身顶上朝上的三角面挑出来，单独生成一张 `suv-roof-glass` 网格：
+ *
+ * - 只取 `y > 1.5` 且法线 `y > 0.5` 的面（顶面，不含侧面/前挡）；
+ * - 排除 `|x| < 0.11 && -1.53 < z < -1.23`（行李架/天线开孔，盖住会穿模）；
+ * - 材质名容错 `suv-base` / `suv-glass`，找不到玻璃材质就跳过（不改车身）。
+ *
+ * 顶点先转到世界坐标挑面，再转回模板局部坐标系，避免 SUV 模板自身的
+ * 位置/旋转把顶棚挪走。
+ */
+export function prepareSuvRoofGlass(threeModule: typeof THREE, rootObject: ThreeObject3D) {
+  if (!threeModule || !rootObject?.traverse || !rootObject?.updateMatrixWorld) return null;
+  rootObject.updateMatrixWorld(true);
+  const baseMeshes: ThreeMesh[] = [],
+    glassCandidates: ThreeMesh[] = [];
+  rootObject.traverse((object3d: ThreeObject3D) => {
+    const mesh = object3d as ThreeMesh;
+    if (!mesh.isMesh) return;
+    const meshMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material,
+      materialName = String(meshMaterial?.name || ""),
+      meshName = String(mesh.name || ""),
+      identifier = `${meshName} ${materialName}`.toLowerCase();
+    if (/suv-glass|(?:^|[\s_-])glass(?:$|[\s_-])/.test(identifier)) glassCandidates.push(mesh);
+    if (/suv-base|suv-body|(?:^|[\s_-])body(?:$|[\s_-])/.test(identifier)) baseMeshes.push(mesh);
+  });
+  const glassSourceMesh = glassCandidates[0],
+    glassSourceMaterial = Array.isArray(glassSourceMesh?.material)
+      ? glassSourceMesh.material[0]
+      : glassSourceMesh?.material;
+  if (!baseMeshes.length || !glassSourceMaterial) return null;
+
+  const worldVertex = new threeModule.Vector3(),
+    worldNormal = new threeModule.Vector3(),
+    normalMatrix = new threeModule.Matrix3(),
+    inverseRootMatrix = new threeModule.Matrix4().copy(rootObject.matrixWorld).invert(),
+    roofPositions: number[] = [];
+  const isExcludedRoofPoint = (x: number, z: number) =>
+    Math.abs(x) < 0.11 && z > -1.53 && z < -1.23;
+  for (const baseMesh of baseMeshes) {
+    const geometry = baseMesh.geometry,
+      positionAttribute = geometry?.attributes?.position,
+      normalAttribute = geometry?.attributes?.normal;
+    if (!positionAttribute || !normalAttribute) continue;
+    normalMatrix.getNormalMatrix(baseMesh.matrixWorld);
+    const indexAttribute = geometry.index,
+      triangleCount = Math.floor(
+        (indexAttribute ? indexAttribute.count : positionAttribute.count) / 3,
+      );
+    for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex += 1) {
+      const triangleVertices: ThreeVector3[] = [],
+        triangleWorld: ThreeVector3[] = [];
+      let keepTriangle = true;
+      for (let cornerIndex = 0; cornerIndex < 3; cornerIndex += 1) {
+        const vertexIndex = indexAttribute
+          ? indexAttribute.getX(triangleIndex * 3 + cornerIndex)
+          : triangleIndex * 3 + cornerIndex;
+        (worldVertex.fromBufferAttribute(positionAttribute, vertexIndex).applyMatrix4(baseMesh.matrixWorld),
+          worldNormal
+            .fromBufferAttribute(normalAttribute, vertexIndex)
+            .applyMatrix3(normalMatrix)
+            .normalize(),
+          triangleWorld.push(worldVertex.clone()));
+        if (worldVertex.y <= 1.5 || worldNormal.y <= 0.5) keepTriangle = false;
+        triangleVertices.push(worldVertex.clone().applyMatrix4(inverseRootMatrix));
+      }
+      if (!keepTriangle) continue;
+      const centerWorld = new threeModule.Vector3(
+        (triangleWorld[0].x + triangleWorld[1].x + triangleWorld[2].x) / 3,
+        (triangleWorld[0].y + triangleWorld[1].y + triangleWorld[2].y) / 3,
+        (triangleWorld[0].z + triangleWorld[1].z + triangleWorld[2].z) / 3,
+      );
+      if (isExcludedRoofPoint(centerWorld.x, centerWorld.z)) continue;
+      for (const roofVertex of triangleVertices) roofPositions.push(roofVertex.x, roofVertex.y, roofVertex.z);
+    }
+  }
+  if (!roofPositions.length) return null;
+  const roofGeometry = new threeModule.BufferGeometry();
+  roofGeometry.setAttribute(
+    "position",
+    new threeModule.Float32BufferAttribute(roofPositions, 3),
+  );
+  roofGeometry.computeVertexNormals();
+  const roofMaterial = glassSourceMaterial.clone
+      ? glassSourceMaterial.clone()
+      : glassSourceMaterial,
+    roofGlassMesh = new threeModule.Mesh(roofGeometry, roofMaterial);
+  ((roofGlassMesh.name = "suv-roof-glass"),
+    (roofGlassMesh.material.name = "suv-roof-glass"),
+    (roofGlassMesh.material.transparent = true),
+    (roofGlassMesh.material.opacity = Math.max(0.08, Math.min(0.5, roofGlassMesh.material.opacity ?? 0.28))),
+    (roofGlassMesh.material.depthWrite = false),
+    (roofGlassMesh.material.needsUpdate = true),
+    (roofGlassMesh.renderOrder = (glassSourceMesh.renderOrder || 0) + 1),
+    (roofGlassMesh.castShadow = false),
+    (roofGlassMesh.receiveShadow = false),
+    rootObject.add(roofGlassMesh));
+  return roofGlassMesh;
 }

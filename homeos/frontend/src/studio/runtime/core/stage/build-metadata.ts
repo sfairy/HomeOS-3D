@@ -54,6 +54,8 @@ export function buildMetadata(
             remark: normalizeModelRemark(doorModel.remark),
             doorType: doorModel.doorType,
             doorLabel: doorModel.doorLabel,
+            // 0.8.1：开合方向随模型进舞台元数据，运行时按铰链侧算旋转方向。
+            hinge: doorModel.hinge === "right" ? "right" : "left",
           }));
         return {
           id: metadataFloorItem.id,
@@ -218,7 +220,8 @@ export function buildMetadata(
                 ? {
                     height:
                       (Number(fanMetadataItem.elevation) || 0) -
-                      (Number(fanMetadataItem.height) || 0.28) / 2,
+                      // 吊扇机身高度默认 0.306（0.8.1），普通风扇仍是 0.28。
+                      (Number(fanMetadataItem.height) || 0.306) / 2,
                   }
                 : {}),
               name:

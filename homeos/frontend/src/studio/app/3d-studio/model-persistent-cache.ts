@@ -6,7 +6,7 @@ import { createCacheLogger, executeTaskWithTimeout } from "./cache-shared";
 const MODEL_CACHE_DB_NAME = "homeos-templates",
   TEMPLATE_STORE = "templates",
   METADATA_STORE = "metadata",
-  MAX_TEMPLATE_COUNT = 80,
+  MAX_TEMPLATE_COUNT = 256,
   MAX_TOTAL_BYTES = 64 * 1024 * 1024,
   MAX_TEMPLATE_BYTES = 8 * 1024 * 1024;
 export function createModelPersistentCache({
@@ -205,6 +205,12 @@ export function createModelPersistentCache({
           }),
       ));
   }
+  function disposeCache() {
+    ((isDisabled = true),
+      cachedConnection?.close(),
+      (cachedConnection = null),
+      (openPromise = null));
+  }
   return (
     log(isAvailable() ? "enabled" : "unavailable"),
     isAvailable() && openDatabase(),
@@ -220,6 +226,7 @@ export function createModelPersistentCache({
     {
       restore: restore,
       schedule: schedule,
+      dispose: disposeCache,
       stats: () => ({
         ...stats,
       }),

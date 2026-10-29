@@ -1,6 +1,7 @@
 import { COURTYARD_MODELS, courtyardPalette } from "../plan/courtyard-models";
 import {
   prepareVehicleChargeGeometry,
+  prepareSuvRoofGlass,
   applyVehicleFinish,
 } from "../authoring/items/studio-vehicle-models";
 import { decorateWarmFloor } from "../authoring/scene/studio-scene-style";
@@ -491,6 +492,7 @@ export function createExternalModelManager({
       loadedItemType === "sideboard" && repairSideboardGlassDoor(threeNamespace, templateScene),
       ["suv", "scooter"].includes(loadedItemType) &&
         prepareVehicleChargeGeometry(threeNamespace, templateScene),
+      loadedItemType === "suv" && prepareSuvRoofGlass(threeNamespace, templateScene),
       loadedItemType === "smallcar")
     ) {
       const smoothedGeometryByOriginal = new Map();

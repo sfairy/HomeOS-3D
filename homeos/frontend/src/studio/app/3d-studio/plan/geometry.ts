@@ -192,8 +192,8 @@ export function localSpotShadowSettings(
     usesWideShadowMap = fixtureType === "ceilinglight" && clampedAngleDeg >= 140;
   return {
     mapSize: usesWideShadowMap ? 512 : 256,
-    radius: usesWideShadowMap ? 1.25 : 1,
-    blurSamples: usesWideShadowMap ? 8 : 4,
+    radius: usesWideShadowMap ? 2 : 1.75,
+    blurSamples: usesWideShadowMap ? 12 : 12,
     normalBias: 0.018,
     wideCeilingLight: usesWideShadowMap,
     range: shadowRange,
@@ -2060,5 +2060,33 @@ export function modelBounds(model: any) {
     maxY: Math.max(maxY, minY + 1),
     width: Math.max(maxX - minX, 1),
     height: Math.max(maxY - minY, 1),
+  };
+}
+
+/**
+ * 门扇朝室内的一侧（0.8.1 `doorInteriorSide`）。
+ *
+ * 门在墙体上只给了「位置 + 开向（swing）」：`swing === -1` 表示朝墙的另一侧开，
+ * 也就是室内侧为 -1。返回值直接写进 `userData.doorInteriorSide`，编辑器用它决定
+ * 门套/把手朝向，运行时不用再反推开向。
+ */
+export function doorInteriorSide(door: { swing?: number } | null | undefined) {
+  return door?.swing === -1 ? -1 : 1;
+}
+
+/**
+ * 门铰链的横向位置与镜像系数（0.8.1 `hingeX` / `hingeScaleX`）。
+ *
+ * 右铰门的枢纽在 +x、左铰门在 -x；`hingeScaleX` 用 ±1 表示门扇是否镜像，
+ * 供 `lock-motion` 在不重算几何的情况下把铰链链到正确一侧。
+ */
+export function doorHingePlacement(
+  door: { hinge?: string } | null | undefined,
+  leafWidth: number,
+) {
+  const hingeSign = door?.hinge === "right" ? 1 : -1;
+  return {
+    hingeX: (hingeSign * Math.abs(Number(leafWidth) || 0)) / 2,
+    hingeScaleX: hingeSign,
   };
 }

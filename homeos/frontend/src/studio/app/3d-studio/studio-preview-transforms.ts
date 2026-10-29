@@ -6,7 +6,7 @@
 export function createPreviewTransformCache() {
   const capturedByRoot = new WeakMap(),
     committedByPlan = new WeakMap(),
-    ignoredKeys = new Set(["x", "y", "rotation"]);
+    ignoredKeys = new Set(["x", "y", "rotation", "remark"]);
   function captureEntry(item: any, isEligible: any, isSelected: any) {
     if (!item || typeof item != "object" || typeof item.id != "string" || !item.id) return null;
     const x = item.x,
@@ -122,6 +122,9 @@ export function createPreviewTransformCache() {
     capture: capture,
     plan: plan,
     commit: commit,
+    // 0.8.1 命名：plan 产出的是「组替换清单」，commit 推进基线。
+    planReplacements: plan,
+    commitReplacements: commit,
     clear: (root: any) => capturedByRoot.delete(root),
   };
 }

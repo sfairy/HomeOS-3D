@@ -9,6 +9,16 @@ import { stableModelTextureKey } from "../model-texture-cache";
 /** 持久缓存实例（由 stage-startup 注入）。 */
 type ContactShadowPersistentCache = ReturnType<typeof createContactShadowPersistentCache>;
 
+/** 平面扫描只关心 caster 的几何/材质，缓存表也只需要对象身份。 */
+type SurfaceCaster = { material?: unknown };
+type SurfaceLevel = { height: number; top: number };
+type SurfaceLevelsMemoEntry = {
+  floorBaseY: number;
+  levelLimit: number;
+  meshes: SurfaceCaster[];
+  levels: SurfaceLevel[];
+};
+
 function findUserFieldInAncestors(startObject: any, userFieldKey: any) {
   for (let ancestorObject = startObject; ancestorObject; ancestorObject = ancestorObject.parent)
     if (ancestorObject.userData?.[userFieldKey] !== undefined)
@@ -164,6 +174,8 @@ export function createContactShadowController({
       receivers: 0,
       surfaceCaptures: 0,
       surfacePasses: 0,
+      surfaceScans: 0,
+      surfaceReuses: 0,
       testedCasters: 0,
       culledCasters: 0,
       cacheHits: 0,
@@ -196,7 +208,9 @@ export function createContactShadowController({
     isEntranceTransition = false,
     bakeGeneration = 0,
     isSyncEnabled = true;
-  const pendingSurfaceBakesByFloorId = new Map();
+  const pendingSurfaceBakesByFloorId = new Map(),
+    // 平面高度扫描 memo：key 取首个 caster，值里再核对整组对象是否同一批。
+    surfaceLevelsMemo = new WeakMap<SurfaceCaster, SurfaceLevelsMemoEntry>();
   function disposePendingSurfaceBakes(floorIdFilter: any = null) {
     for (const [surfaceBakeFloorId, surfaceBakeEntry] of pendingSurfaceBakesByFloorId)
       if (!floorIdFilter || floorIdFilter.has(surfaceBakeFloorId))
@@ -509,6 +523,43 @@ export function createContactShadowController({
       }
     );
   }
+  /**
+   * 平面高度扫描的 memo：同一批 caster 的顶点扫描每层只做一次。
+   * 扫描是顶点级的（模型越复杂越贵），但落地高度只跟 caster 集合、地面高度、
+   * 层数上限有关；这三项没变就直接复用上一次结果。
+   */
+  function resolveSurfaceLevels(
+    casterMeshes: SurfaceCaster[],
+    floorBaseY: number,
+  ): SurfaceLevel[] {
+    const memoKey = casterMeshes[0];
+    if (!memoKey) return [];
+    const cachedLevels = surfaceLevelsMemo.get(memoKey);
+    if (
+      cachedLevels &&
+      cachedLevels.floorBaseY === floorBaseY &&
+      cachedLevels.levelLimit === settings.maxSurfaceLevels &&
+      cachedLevels.meshes.length === casterMeshes.length &&
+      cachedLevels.meshes.every((memoMesh, meshIndex) => memoMesh === casterMeshes[meshIndex])
+    ) {
+      stats.surfaceReuses++;
+      return cachedLevels.levels;
+    }
+    const levels = computeSurfaceLevels(
+      THREE,
+      casterMeshes,
+      floorBaseY,
+      settings.maxSurfaceLevels,
+    );
+    (stats.surfaceScans++,
+      surfaceLevelsMemo.set(memoKey, {
+        floorBaseY: floorBaseY,
+        levelLimit: settings.maxSurfaceLevels,
+        meshes: [...casterMeshes],
+        levels: levels,
+      }));
+    return levels;
+  }
   function* bakeSurfaceLevels(
     surfaceEntry: any,
     casterMeshes: any,
@@ -519,7 +570,7 @@ export function createContactShadowController({
     fallbackMaterial: any,
     refreshCasterVisibility: any,
   ) {
-    const $e2 = computeSurfaceLevels(THREE, casterMeshes, floorBaseY, settings.maxSurfaceLevels),
+    const $e2: SurfaceLevel[] = resolveSurfaceLevels(casterMeshes, floorBaseY),
       levelHeights = $e2.map((surfaceLevel) => surfaceLevel.height);
     if (((surfaceEntry.uniforms.plan2SurfaceOpacity.value = 0), !levelHeights.length)) {
       (surfaceEntry.surface?.dispose(),

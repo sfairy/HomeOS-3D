@@ -191,12 +191,18 @@ export function createScenePersistentCache({
         }),
     );
   }
+  function disposeCache() {
+    ((isDisabled = true),
+      entryByKey.clear(),
+      preloadByKey.clear(),
+      currentDatabase?.close(),
+      (currentDatabase = null),
+      (openPromise = null));
+  }
   return (
     env.addEventListener?.(
       "pagehide",
-      () => {
-        ((isDisabled = true), preloadByKey.clear(), currentDatabase?.close());
-      },
+      disposeCache,
       {
         once: true,
       },
@@ -205,6 +211,7 @@ export function createScenePersistentCache({
       preload: preload,
       peek: (peekKey: any) => preloadByKey.get(peekKey) || null,
       schedule: schedule,
+      dispose: disposeCache,
       whenIdle: () => idleChain,
       stats: () => ({
         ...stats,
