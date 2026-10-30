@@ -430,10 +430,26 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
         wakeStudio());
     }
   } catch (frameDriverError: any) {
-    ((selectElement("#webgl-message").hidden = false),
-      window.HomeOSLog?.error!(frameDriverError, {
-        phase: "studio-webgl-init",
-      })!,
+    // 3D 初始化失败（真机上最常见的是 WebView 只给到 WebGL1，或根本没拿到 WebGL 上下文）。
+    // 必须同时做两件事，否则用户只会看到整块空白：
+    // 1) 在本 iframe 内露出 #webgl-message；
+    // 2) 通过 type:"error" 通知宿主走 failSceneLoad —— 舞台 iframe 在 presented 之前是
+    //    opacity:0 的，只做 (1) 用户依然一片空白。
+    const webglMessageElement = selectElement("#webgl-message") as HTMLElement | null;
+    if (webglMessageElement) webglMessageElement.hidden = false;
+    if (window.parent !== window) {
+      window.parent.postMessage(
+        {
+          channel: "hb-i3d-v1",
+          type: "error",
+          message: `3D 画面初始化失败：${frameDriverError?.message || "WebGL 上下文不可用"}`,
+        },
+        window.location.origin,
+      );
+    }
+    (window.HomeOSLog?.error!(frameDriverError, {
+      phase: "studio-webgl-init",
+    })!,
       console.error(frameDriverError));
   }
 

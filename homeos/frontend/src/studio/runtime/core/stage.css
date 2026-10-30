@@ -301,8 +301,28 @@ body.interaction3d-stage {
 }
 .interaction3d-stage .studio-shell > :not(.details-panel),
 .interaction3d-stage .details-panel > :not(.preview-card),
-.interaction3d-stage .preview-card > :not(#preview-3d) {
+.interaction3d-stage .preview-card > :not(#preview-3d):not(#webgl-message) {
   display: none !important;
+}
+/* WebGL 初始化失败时必须让人看见。
+   此前 #webgl-message 既没有独立样式，又被上面那条 display:none !important 一并隐藏，
+   于是「建不出 3D 上下文」在真机上只表现为整块空白（App/WebView 尤其常见）。
+   舞台 iframe 在 presented 之前还是透明的，外层提示由 type:"error" 消息负责。 */
+.interaction3d-stage #webgl-message {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: #e6edf3;
+  background: rgba(10, 14, 18, 0.78);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.interaction3d-stage #webgl-message[hidden] {
+  display: none;
 }
 .interaction3d-stage .details-panel,
 .interaction3d-stage .preview-card,
