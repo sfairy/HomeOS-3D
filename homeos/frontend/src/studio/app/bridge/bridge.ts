@@ -284,7 +284,11 @@ export function renderInteraction3d(
         const pendingElement = document.createElement("div");
         ((pendingElement.className = "i3d-access-pending"),
           pendingElement.setAttribute("role", "status"),
-          pendingElement.setAttribute("aria-label", "正在准备 3D 户型"),
+          pendingElement.setAttribute("aria-label", accessState.message || "正在准备 3D 户型"),
+          // 旧实现只写了 aria-label：可视区域完全空白，授权校验失败/超时/暂停时用户只看到
+          // 一块透明区域，既不知道在等什么，也分不清是网络、授权还是 WebView 的问题。
+          // 把状态原话写进占位层，异常时这行字就是现场唯一线索（也顺带可被肉眼取证）。
+          (pendingElement.textContent = accessState.message || "正在准备 3D 户型…"),
           syncInteraction3dUiScale(hostElement),
           hostElement.replaceChildren(pendingElement));
       }

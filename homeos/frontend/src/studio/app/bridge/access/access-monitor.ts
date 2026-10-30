@@ -60,6 +60,11 @@ export function createAccessMonitor({
         (refreshTimer = setTimer(refreshGrant, Math.min(30000, Math.max(100, remainingMs / 2)))));
     } catch (grantError: any) {
       if (requestGeneration !== generation || !subscriberSet.size || isSuspended) return;
+      // 瞬时失败（网络抖动 / App 冷启动时 WebView 还在预热 / 后端刚重启）要尽快重试：
+      // 旧实现一律等 30s，安卓套壳里首屏这次请求一旦失手，3D 区域就会空白半分钟，
+      // 用户只会看到「3D 没出来」。401/403 是确定性结论，保持长间隔避免刷接口。
+      const isDeterministicFailure =
+        grantError?.status === 401 || grantError?.status === 403;
       (clearTimer(expiryTimer),
         publishState(
           grantError?.status === 403
@@ -77,7 +82,7 @@ export function createAccessMonitor({
                     : "连接暂时中断，正在重新验证…",
               },
         ),
-        (refreshTimer = setTimer(refreshGrant, 30000)));
+        (refreshTimer = setTimer(refreshGrant, isDeterministicFailure ? 30000 : 5000)));
     }
   }
   return {
