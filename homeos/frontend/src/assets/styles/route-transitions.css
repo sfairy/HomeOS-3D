@@ -79,7 +79,11 @@
   overflow: hidden;
 }
 
-@media (pointer: coarse), (hover: none) {
+/* 触控判定必须包含 any-pointer: coarse：iPad + 妙控键盘 / Surface 这类混合设备的
+   主指针是 fine 且能 hover，旧的 (pointer: coarse) 不命中，整屏 0.42s 水平滑动的
+   route-fade 会照常上演 —— 两个页面各带一整套 filter/blend 场景同时在场，就是平板端
+   切换时那次明显的闪。any-pointer 只要存在粗指针就成立，与主指针无关。 */
+@media (pointer: coarse), (any-pointer: coarse), (hover: none) {
   .route-fade-enter-active,
   .route-fade-leave-active {
     transition: none !important;

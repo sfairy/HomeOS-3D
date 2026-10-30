@@ -300,15 +300,43 @@
   /**
    * 覆盖层延迟揭示：快路径（常见冷开 < 此值）只见深色底 → 入户页，不再闪「正在连接」。
    * 慢路径（后端冷启动 / chunk 慢）到期后仍未就绪才露出提示，保留原兜底语义。
+   *
+   * 这个值必须盖住「页面已经画好、但 <html data-homeos-ready> 还没置位」的窗口：
+   * 路由守卫首屏要等后端探测 / 授权查询，几百毫秒很常见。只要早一步露出，不透明的
+   * 覆盖层就会把已经可见的页面整屏盖住，ready 到达后再淡出 —— 用户看到的是
+   * 「页面出现 → 发黑 → 再出现」，这才是手机上最刺眼的那次闪。
    */
-  var SHOW_DELAY_MS = 450
+  var SHOW_DELAY_MS = 1200
+  /**
+   * 已经露出的覆盖层至少停留这么久再撤：否则「盖上 → 立刻淡出」与不盖没有区别，
+   * 还平白多一次整屏合成。ready 若在揭示后很快到达，由 hide() 排队等待剩余时长。
+   */
+  var MIN_VISIBLE_MS = 500
   var revealTimer = null
+  var revealFadeRaf = null
+  var hideTimer = null
+  var revealedAt = 0
   var overlayRevealed = false
 
   function clearRevealTimer() {
     if (revealTimer != null) {
       window.clearTimeout(revealTimer)
       revealTimer = null
+    }
+  }
+
+  function clearHideTimer() {
+    if (hideTimer != null) {
+      window.clearTimeout(hideTimer)
+      hideTimer = null
+    }
+  }
+
+  function prefersReducedMotion() {
+    try {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    } catch (e) {
+      return false
     }
   }
 
@@ -321,12 +349,41 @@
     // 2147483647 是上限值）。它一出现就说明页面已经在正常推进（不是「后端没起来」），
     // 这时再揭「正在连接…」只会把它盖住 —— 用户看到的是一句和实际进度无关的泛泛提示。
     if (studioOverlayVisible()) return
+    if (overlayRevealed) {
+      // 升级 / 自愈路径会在首次揭示之后再次调用：此时只做「确保可见」，
+      // 不能再走一遍入场，否则已经站住的整屏面板会重新从透明淡入一次。
+      clearHideTimer()
+      if (revealFadeRaf != null) {
+        window.cancelAnimationFrame(revealFadeRaf)
+        revealFadeRaf = null
+      }
+      box.classList.remove('is-deferred')
+      box.classList.remove('is-leaving')
+      box.removeAttribute('data-leaving')
+      box.hidden = false
+      return
+    }
     overlayRevealed = true
+    revealedAt = Date.now()
     clearRevealTimer()
-    box.classList.remove('is-deferred')
+    clearHideTimer()
     box.classList.remove('is-leaving')
     box.removeAttribute('data-leaving')
     box.hidden = false
+    // hidden 与 is-deferred 必须**分两帧**摘：hidden 去掉的那一帧元素已是
+    // display:flex + opacity:0（is-deferred 给 transparent + 180ms transition），
+    // 下一帧再摘 is-deferred 才开始真正的淡入。同一个任务里全摘，
+    // 浏览器只会合成「display:none → 全不透明」，也就是整屏一下子盖上。
+    revealFadeRaf = window.requestAnimationFrame(function () {
+      revealFadeRaf = null
+      try {
+        // 读一次布局，确保 opacity:0 的那一帧真的参与过样式计算。
+        void box.offsetHeight
+      } catch (e) {
+        /* ignore */
+      }
+      box.classList.remove('is-deferred')
+    })
   }
 
   function armDeferredOverlay() {
@@ -353,13 +410,24 @@
       return
     }
     if (box.hidden || box.dataset.leaving === '1') return
-    var reduceMotion = false
-    try {
-      reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    } catch (e) {
-      /* ignore */
+    // 刚露出还没站满最短时长：排一次延后隐藏，别再让「盖上 - 撤掉」发生在几帧内。
+    if (revealedAt) {
+      var remaining = MIN_VISIBLE_MS - (Date.now() - revealedAt)
+      if (remaining > 0) {
+        if (hideTimer == null) {
+          hideTimer = window.setTimeout(function () {
+            hideTimer = null
+            hide()
+          }, remaining)
+        }
+        return
+      }
     }
-    if (reduceMotion) {
+    if (revealFadeRaf != null) {
+      window.cancelAnimationFrame(revealFadeRaf)
+      revealFadeRaf = null
+    }
+    if (prefersReducedMotion()) {
       box.hidden = true
       box.classList.add('is-deferred')
       return
@@ -444,6 +512,8 @@
     var box = byId(OVERLAY_ID)
     if (!box) return
     escalated = true
+    // 升级态要立刻可见：取消可能排着的「最短可见后再隐藏」。
+    clearHideTimer()
     revealOverlay()
     box.setAttribute('data-state', 'failed')
     var titleEl = byId(OVERLAY_ID + '-title')

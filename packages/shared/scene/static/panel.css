@@ -45,12 +45,25 @@
  * 变一次模糊、变一次色，正是入户页最刺眼的那一下。
  *
  * 改成让**媒体查询本身**决定：触摸设备从第 0 帧起就没有 blur，不依赖任何 JS 时序。
- * 判定条件用 `(hover: hover) and (pointer: fine)`：桌面是真有精度指针且能 hover 的设备；
- * 触屏笔记本的触摸态、iPad、手机都落不进这一档。 */
+ * 判定条件用 (hover: hover) and (pointer: fine)：桌面是真有精度指针且能 hover 的设备；
+ * 纯触屏笔记本、iPad、手机都落不进这一档。
+ *
+ * 但只看主指针不够：iPad + 妙控键盘 / Surface 这类**混合输入**设备的主指针是 fine、
+ * 也能 hover，于是上面那档照样命中 —— 手指一碰屏幕，实时毛玻璃就逐帧重算，滚动就闪。
+ * 紧跟其后的 any-pointer: coarse 块负责把这类设备关掉（只要存在粗指针就成立）。 */
 @media (hover: hover) and (pointer: fine) {
   .hos-page .hos-panel {
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
+  }
+}
+
+/* 混合输入设备兜底：与上一档同特异性、写在后面，故命中时覆盖为 none。
+ * 从第 0 帧生效，不依赖 JS 先挂 .hos-touch；纯触屏设备本来就不命中上一档，无副作用。 */
+@media (any-pointer: coarse) {
+  .hos-page .hos-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 
@@ -1914,9 +1927,9 @@
 /* ===== 触摸档（frozen / ambient）：坞体玻璃降级为实底 =====
    只作用于触摸设备：桌面浏览器实测不闪，玻璃是这套页面的质感，不该白扣。
 
-   这里只换**底色**（半透明玻璃 → 实底），不再写 `backdrop-filter: none` ——
-   实时模糊已经由文件开头那条 `@media (hover: hover) and (pointer: fine)` 从第 0 帧起就
-   不落在触摸设备上，事后补一条 none 只会增加一条要维持同步的重复规则。
+   这里只换**底色**（半透明玻璃 → 实底）。实时模糊由文件开头那两条媒体查询从第 0 帧起
+   决定（(hover: hover) and (pointer: fine) 给桌面，any-pointer: coarse 把混合输入设备
+   关掉），不依赖 html.hos-touch 这类 JS 时序；这里再补 none 只会多一条要同步的重复规则。
 
    档位来源见 `scene.css` 的「动效档位」段：`<html data-hos-motion>` 由 JS 首帧前算定、
    会话内只降不升。以前这里有两份（媒体查询一份 + `html.hos-touch` 一份，因为 iPad 接了

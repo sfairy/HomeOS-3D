@@ -477,10 +477,10 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
         window.location.origin,
       );
     }
-    (window.HomeOSLog?.error!(frameDriverError, {
+    window.HomeOSLog?.error?.(frameDriverError, {
       phase: "studio-webgl-init",
-    })!,
-      console.error(frameDriverError));
+    });
+    console.error(frameDriverError);
   }
 
 }

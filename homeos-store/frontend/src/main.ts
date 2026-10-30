@@ -10,6 +10,7 @@ import {
   needsAdminStyles,
   nextFrame,
   waitForDeferredStyles,
+  waitForEntrySettled,
 } from "@store/shared/utils/styles-ready";
 import "@store/shared/scene/scene-depth";
 
@@ -51,14 +52,17 @@ window.addEventListener("unhandledrejection", (event) => {
 await router.isReady();
 
 /**
- * 揭遮罩的三个前置条件，缺一都会让用户看见「半成品 → 成品」的重排：
+ * 揭遮罩的四个前置条件，缺一都会让用户看见「半成品 → 成品」的重排：
  *
  * 1. **首屏样式已一次性揭幕**（`index.html` 的原子切 `all`，见 styles-ready.ts）；
  * 2. 首屏是后台时，`admin.css` 已就位 —— 它是 App.vue 在挂载时才注入的，后台登录屏
  *    的 `.admin-*` 与坞体配色都靠它；不等就会先画一帧裸 DOM；
- * 3. 再等一个渲染帧，让上面两件事的样式计算真正落到屏幕上。
+ * 3. 再等一个渲染帧，让上面两件事的样式计算真正落到屏幕上；
+ * 4. 入户面板（.hos-panel.hos-rise）的入场过渡已收敛（见 waitForEntrySettled）——
+ *    否则遮罩消失与面板淡入 / 上移同帧叠加，仍是一次可见的闪。
  *
- * 两处等待都带 3s 硬上限：样式 404 / 网关拦截时宁可带旧样式渲染，也不能把首屏锁死。
+ * 样式与后台表等 3s、面板收敛等 320ms 都是硬上限：样式 404 / 网关拦截时宁可带旧
+ * 样式渲染，也不能把首屏锁死。
  */
 await waitForDeferredStyles();
 if (needsAdminStyles(location.pathname)) await ensureAdminStylesheet();
@@ -68,4 +72,6 @@ app.mount("#app");
 // 首屏路由已落到 DOM 后再揭掉占位壳，避免空 #app 闪帧。
 await nextTick();
 await nextFrame();
+// 面板入场也收敛后再撤壳：遮罩消失与淡入同帧叠加，看起来仍是一次闪。
+await waitForEntrySettled();
 document.getElementById("store-boot-shell")?.remove();

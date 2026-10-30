@@ -19,10 +19,10 @@
   function isTouchProfile() {
     var coarsePointer = window.matchMedia('(pointer: coarse)').matches
     var noHover = window.matchMedia('(hover: none)').matches
-    // iPadOS 装在 Mac 上：platform 报 Mac，但触点数 > 1，按手持档处理。
-    var iPadInDisguise =
-      navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '')
-    return coarsePointer || noHover || iPadInDisguise
+    // 多触点即按手持档（同 touch-profile.ts）：iPad + 妙控键盘 / Surface 的主指针是
+    // fine 且能 hover，只看媒体查询会把混合设备判成桌面（full 档），手指一碰就逐帧重算。
+    var multiTouch = (navigator.maxTouchPoints || 0) > 1
+    return coarsePointer || noHover || multiTouch
   }
 
   function prefersReducedMotion() {

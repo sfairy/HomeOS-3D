@@ -49,10 +49,13 @@ function isTouchProfile(): boolean {
   if (typeof window === 'undefined') return false
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches
   const noHover = window.matchMedia('(hover: none)').matches
-  // iPadOS 装在 Mac 上：platform 报 Mac，但触点数 > 1，按手持档处理。
-  const iPadInDisguise =
-    navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '')
-  return coarsePointer || noHover || iPadInDisguise
+  // 只要存在多触点就按手持档：iPad + 妙控键盘 / Surface 的主指针是 fine 且能 hover，
+  // 只看媒体查询会把这类混合设备判成桌面（full 档：全特效 + 实时毛玻璃），
+  // 手指一碰屏幕就逐帧重算 —— 这是平板端闪烁的一大来源。原先只特判了 iPad 伪装 Mac，
+  // 漏掉了 Windows 触摸本 / 安卓平板 + 外接键鼠；改成统一的触点数判据。
+  // 判据只决定「是否触摸」，档位仍按宽度分 ambient / frozen，桌面（0 触点）照旧 full。
+  const multiTouch = (navigator.maxTouchPoints || 0) > 1
+  return coarsePointer || noHover || multiTouch
 }
 
 /** 按判据算出「这一刻」应当用的档位（不含只降不升的约束）。 */

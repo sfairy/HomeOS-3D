@@ -11,6 +11,8 @@
  *
  * 现在 `main.ts` 等这里的 promise（带硬上限），再揭遮罩；`admin.css` 也走同一套门控：
  * 后台第一屏依赖它上色，而它是 App.vue 动态注入的。
+ *
+ * 揭遮罩还有第 4 个前置条件：入户面板的入场过渡已收敛（见 waitForEntrySettled）。
  */
 
 /** 内联脚本置位的就绪属性（`html[data-styles-ready="1"]`）。 */
@@ -76,6 +78,28 @@ export function nextFrame(): Promise<void> {
     return new Promise<void>((resolve) => window.setTimeout(resolve, 0));
   }
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+/**
+ * 等入户面板的入场过渡收敛（EntryShell 的 .hos-panel.hos-rise，约 180ms）。
+ *
+ * 这是揭掉 #store-boot-shell 的第 4 个前置条件：遮罩一撤，用户看到的第一帧就该是
+ * **最终态**。若在面板还处于 @starting-style 的 opacity:0 / translate(0,6px) 时撤壳，
+ * 首屏会再演一次「面板整体淡入 + 上移」—— 与遮罩消失叠在一起，就是商店登录 / 注册
+ * 那一下闪。判定直接读 computed opacity，不绑定具体过渡时长与实现细节。
+ *
+ * 没有面板（非入户页）或没有 document 时立即 resolve；超时也 resolve，**永不 reject**：
+ * 首屏不能因为一段入场动画把遮罩锁死。
+ */
+export async function waitForEntrySettled(maxMs = 320): Promise<void> {
+  if (typeof document === "undefined") return;
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const panel = document.querySelector<HTMLElement>(".hos-panel");
+    if (!panel) return;
+    if (Number.parseFloat(getComputedStyle(panel).opacity) >= 0.99) return;
+    await nextFrame();
+  }
 }
 
 /**
