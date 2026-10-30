@@ -29,6 +29,8 @@ class SubscriptionIndexMixin:
     sio: socketio.AsyncServer
     #: 已收到全量基线的 sid（未就绪前不参与增量广播）。
     _baseline_ready: set[str]
+    #: 已完成订阅索引的 sid（用于区分「无订阅」与「索引尚未建立」）。
+    _indexed_sids: set[str]
     #: 域 → sids（不含「不限域」的订阅者）。
     _sub_domain_sids: dict[str, set[str]]
     #: 订阅时不限域（收到全部实体变更）的 sids。
@@ -58,6 +60,7 @@ class SubscriptionIndexMixin:
         return session
 
     def _unindex_subscription(self, sid: str) -> None:
+        self._indexed_sids.discard(sid)
         domains = self._sid_sub_domains.pop(sid, None)
         self._sub_wildcard_sids.discard(sid)
         if domains:
@@ -82,6 +85,7 @@ class SubscriptionIndexMixin:
         pinned = as_set(pinned_raw, require_dot=True) or set()
         self._sid_sub_domains[sid] = domains
         self._sid_pinned[sid] = pinned
+        self._indexed_sids.add(sid)
         if domains is None:
             self._sub_wildcard_sids.add(sid)
         else:
@@ -115,8 +119,9 @@ class SubscriptionIndexMixin:
             if bucket:
                 candidates |= bucket
         if not candidates:
-            # 索引尚未建立时保守退回全量，避免漏推。
-            return set(self._baseline_ready)
+            # 只回退「基线就绪但还没建索引」的连接；已索引的连接确实没有匹配订阅，
+            # 再全量广播只会放大每条变更的序列化与发送成本。
+            return set(self._baseline_ready) - self._indexed_sids
         return candidates & self._baseline_ready
 
     async def _on_update_subscription(self, sid: str, message: Any = None) -> dict[str, Any]:

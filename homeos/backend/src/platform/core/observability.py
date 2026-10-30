@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import hashlib
+import hmac
 import math
 import os
 import threading
@@ -664,7 +665,8 @@ def decide_metrics_access(
         else ""
     )
     provided = bearer or (query_token or "")
-    return "allow" if provided == token else "unauthorized"
+    # 常数时间比较：虽然 token 泄漏面很小，但这是认证判定，不能留下时序侧信道。
+    return "allow" if hmac.compare_digest(provided, token) else "unauthorized"
 
 
 # 请求 ID 生成

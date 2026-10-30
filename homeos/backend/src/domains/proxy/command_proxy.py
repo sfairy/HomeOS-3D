@@ -147,9 +147,10 @@ class CommandProxyService:
                     logger.debug("幂等键命中，复用首次结果: %s", idempotency_key)
                     return {**existing.result, "replayed": True}
                 # 首次请求还在下发中：如实返回 pending，让调用方稍后再查，而不是伪造成功。
+                # success=False 是契约的一部分：这条命令没有执行完成，调用方不能按成功处理。
                 logger.debug("幂等键命中，首次命令仍在下发: %s", idempotency_key)
                 return {
-                    "success": True,
+                    "success": False,
                     "pending": True,
                     "message_id": f"idem-{idempotency_key}",
                     "timestamp": _iso_now(),

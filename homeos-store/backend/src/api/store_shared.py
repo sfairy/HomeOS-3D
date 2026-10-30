@@ -195,6 +195,13 @@ def _assert_purpose_allowed(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。"
             )
+        return
+
+    # schema 已用正则限制 purpose，但内部调用/未来新端点不能依赖“外层恰好校验过”：
+    # 未知用途没有任何消费路径，写入只会留下无法验证的记录。
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="不支持的发码用途。"
+    )
 def _check_verification_code(
     session, *, email: str, purpose: str, code: str
 ) -> EmailVerification:

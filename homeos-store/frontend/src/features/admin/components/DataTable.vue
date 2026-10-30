@@ -132,9 +132,9 @@ function goto(direction: "first" | "prev" | "next" | "last") {
 }
 
 /** 供父组件在改完筛选后手动重置页码再拉一次。 */
-function search() {
+async function search(): Promise<void> {
   offset.value = 0;
-  void reload();
+  await reload();
 }
 
 defineExpose({ reload, search });

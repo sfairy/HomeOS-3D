@@ -22,7 +22,14 @@ export function bindEntitySocketLifecycle(
     actions,
   } = ctx
 
-  const clearSyncTimers = () => clearEntitySocketSyncTimers(sync)
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  const clearSyncTimers = () => {
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+    clearEntitySocketSyncTimers(sync)
+  }
 
   /**
    * 本页是否已有一份可信基线：已完成过一次 WS 全量同步（而不是只靠 IndexedDB 缓存 hydrate）。
@@ -130,7 +137,8 @@ export function bindEntitySocketLifecycle(
       // 「已恢复」必须等全量同步完成：initial_states 到达或 REST 回退成功后才会收起横幅。
       // 4s 兜底仅处理「服务端已推完但事件漏记」的边角；未收到全量前保持重连横幅，
       // 避免用户在实体状态未对齐窗口内看到误导性的「已连接」。
-      setTimeout(() => {
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null
         if (socket.connected && refs.totalCount.value > 0 && sync.initialStatesReceived) {
           actions.clearHaDisconnectDebounce()
           actions.setConnected(true)

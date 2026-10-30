@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import os
 import socket
 import ssl
 from urllib.parse import urlsplit
@@ -93,10 +94,21 @@ def resolve_host(host: str) -> tuple[bool, str, tuple[str, ...]]:
     return True, "解析到 " + "、".join(addresses), addresses
 
 
+def _allow_private_probes() -> bool:
+    """本地 mock 诊断的显式逃生门；默认拦截 loopback/私网，避免诊断变内网探针。"""
+    return (os.getenv("STORE_NET_PROBE_ALLOW_PRIVATE", "") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def _blocked_probe_reason(host: str) -> str:
     text = (host or "").strip().strip("[]").lower()
     if not text:
         return ""
+    blocked_networks = _BLOCKED_NETWORKS if _allow_private_probes() else _PRIVATE_NETWORKS
 
     def blocked(value: str) -> bool:
         try:
@@ -108,7 +120,7 @@ def _blocked_probe_reason(host: str) -> str:
             address = mapped
         return any(
             address.version == network.version and address in network
-            for network in _BLOCKED_NETWORKS
+            for network in blocked_networks
         )
 
     if blocked(text):
@@ -123,6 +135,18 @@ def _blocked_probe_reason(host: str) -> str:
     return ""
 
 
+def _request_http(
+    method: str, url: str, *, timeout: float, trust_env: bool
+) -> httpx.Response:
+    return httpx.request(
+        method,
+        url,
+        timeout=timeout,
+        follow_redirects=False,
+        trust_env=trust_env,
+    )
+
+
 def probe_http(
     url: str,
     *,
@@ -130,6 +154,10 @@ def probe_http(
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> tuple[bool, str]:
     """探测一个 http(s) 地址是否可达。返回 ``(是否可达, 说明文案)``。
+
+    代理环境变量里出现 httpx 解析不了的写法时（真实踩过：``NO_PROXY="...,::1,[::1]"``），
+    ``httpx.request`` 在构造临时客户端阶段就抛 ``InvalidURL``。后台「自检」按钮不该因此
+    变成 500，这里降级为 ``trust_env=False`` 重试一次；代理正常工作时行为不变。
     """
     target = (url or "").strip()
     if not target:
@@ -138,12 +166,17 @@ def probe_http(
     if blocked:
         return False, blocked
     try:
-        response = httpx.request(
-            method,
-            target,
-            timeout=timeout,
-            follow_redirects=False,
-        )
+        response = _request_http(method, target, timeout=timeout, trust_env=True)
+    except httpx.InvalidURL as error:
+        logger.warning("网络探测的代理环境变量异常，降级为直连重试：%s", error)
+        try:
+            response = _request_http(method, target, timeout=timeout, trust_env=False)
+        except httpx.HTTPError as inner:
+            logger.info("网络探测直连重试失败：%s: %s", inner.__class__.__name__, inner)
+            return False, f"连接失败：{inner.__class__.__name__}: {inner}"
+        except ValueError as inner:
+            logger.info("网络探测直连重试地址不合法：%s", inner)
+            return False, f"地址不合法：{inner}"
     except httpx.HTTPError as error:
         return False, f"连接失败：{error.__class__.__name__}: {error}"
     except ValueError as error:

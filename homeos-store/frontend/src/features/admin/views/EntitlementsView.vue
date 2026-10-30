@@ -215,8 +215,7 @@ void catalog.load().catch((error) => {
   <section class="admin-panel active" data-domain="data">
     <PanelHead
       title="功能权益"
-      titleHtml="功能权益"
-      desc="客户端按 <code>feature_code</code> 判断功能开关；这张表过去在后台完全看不到"
+      desc="客户端按 feature_code 判断功能开关；这张表过去在后台完全看不到"
       domain="数据"
     >
       <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>

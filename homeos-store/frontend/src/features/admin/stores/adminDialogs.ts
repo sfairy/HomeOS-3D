@@ -21,6 +21,8 @@ export const useAdminDialogsStore = defineStore("adminDialogs", () => {
   let purgeResolver: ((value: number | null) => void) | null = null;
 
   function askAdjust(target: AdjustTarget) {
+    // 同 confirm.ts：覆盖 resolver 前先把旧的按“取消”收敛，避免旧 await 永久悬挂。
+    adjustResolver?.(null);
     adjust.value = target;
     return new Promise<{ delta: number; frozenDelta: number; note: string } | null>((resolve) => {
       adjustResolver = resolve;
@@ -34,6 +36,8 @@ export const useAdminDialogsStore = defineStore("adminDialogs", () => {
   }
 
   function askPurge(request: PurgeRequest) {
+    // 同上：重复打开时旧请求按“取消”收敛。
+    purgeResolver?.(null);
     purge.value = request;
     return new Promise<number | null>((resolve) => {
       purgeResolver = resolve;

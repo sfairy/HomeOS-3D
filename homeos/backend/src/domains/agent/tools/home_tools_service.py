@@ -258,7 +258,7 @@ class HomeToolsService(
         if name == "get_calendar":
             return self._get_calendar()
         if name == "list_scenes":
-            return await self._list_scenes_detailed()
+            return await self._list_scenes_detailed(actor)
         if name == "list_home_modes":
             return {"modes": await self._list_mode_names()}
         if name == "set_light_brightness":

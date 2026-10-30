@@ -171,14 +171,20 @@ class HomeOSFacadeMixin:
         payload: dict[str, Any] | None = None,
         timeout_ms: int = 10_000,
     ) -> Any:
-        del timeout_ms
         if entity_id is None:
             raise BusinessException(ErrorCode.VALIDATION_FAILED, "缺少实体 ID")
         data = dict(payload or {})
         # homeos 侧 ``_rest_payload`` 会把 ``return_response`` 塞进 payload（原生栈在那里把它
         # 挪到查询串）。这里同样取出，否则它会被当成 service_data 的多余键发给 HA 而 400。
         return_response = data.pop("return_response", False) is True
-        return await self.call_service(domain, service, entity_id, data, return_response)
+        try:
+            async with asyncio.timeout(max(int(timeout_ms), 1) / 1000):
+                return await self.call_service(domain, service, entity_id, data, return_response)
+        except TimeoutError as exc:
+            raise BusinessException(
+                ErrorCode.EXTERNAL_ERROR,
+                f"Home Assistant REST 调用超时（{timeout_ms}ms）。",
+            ) from exc
 
     # 状态 / 注册表
     async def fetch_all_states(self) -> list[dict[str, Any]]:
@@ -279,9 +285,15 @@ class HomeOSFacadeMixin:
 
     async def resync_from_ha(self, timeout_ms: int = 120_000) -> dict[str, Any]:
         """重新同步 HA 全量目录/状态（对齐 homeos ``resync_from_ha`` 返回结构）。"""
-        del timeout_ms
         self._require_connected()
-        counts = await self._host.sync_once(reconciled=True)
+        try:
+            async with asyncio.timeout(max(int(timeout_ms), 1) / 1000):
+                counts = await self._host.sync_once(reconciled=True)
+        except TimeoutError as exc:
+            raise BusinessException(
+                ErrorCode.EXTERNAL_ERROR,
+                f"Home Assistant 全量同步超时（{timeout_ms}ms）。",
+            ) from exc
         state_store = getattr(self, "_state_store", None)
         store_count = state_store.get_count() if state_store is not None else 0
         return {

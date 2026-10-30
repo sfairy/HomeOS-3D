@@ -278,7 +278,7 @@ class SecurityLinkageService:
                         await self._home_mode.deactivate()
                         logger.info("安防撤防：已退出家庭模式")
                     elif decision["action"] == "activate":
-                        await self._home_mode.activate(
+                        result = await self._home_mode.activate(
                             decision["modeId"],
                             {"source": "security", "reason": f"安防模式 {mode}"},
                         )
@@ -290,11 +290,20 @@ class SecurityLinkageService:
                             ),
                             "",
                         )
-                        logger.info(
-                            "安防：%s，已联动家庭模式「%s」",
-                            security_mode_label(mode),
-                            mode_name or decision["modeId"],
-                        )
+                        # activate 的业务失败返回 success=False（HA 未连接/联动被拦截/
+                        # 动作失败回滚），不会抛异常；不检查就会把失败记成成功日志。
+                        if isinstance(result, dict) and result.get("success") is False:
+                            self._log_linkage_failure(
+                                "linkage_home_mode_failed",
+                                f"安防联动家庭模式失败: {result.get('error') or '未知原因'}",
+                                mode,
+                            )
+                        else:
+                            logger.info(
+                                "安防：%s，已联动家庭模式「%s」",
+                                security_mode_label(mode),
+                                mode_name or decision["modeId"],
+                            )
             except Exception as exc:
                 self._log_linkage_failure(
                     "linkage_home_mode_failed", f"安防联动家庭模式失败: {exc}", mode

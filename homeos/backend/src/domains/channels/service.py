@@ -62,6 +62,17 @@ class ChannelsService:
         self._providers: dict[str, Any] = {}
 
     # 生命周期
+    async def stop(self) -> None:
+        """停机关闭各通道的 HTTP 客户端（WebPush / 企微），避免连接池泄漏。"""
+        for provider in (self._webpush, self._wecom):
+            close = getattr(provider, "close", None)
+            if close is None:
+                continue
+            try:
+                await close()
+            except Exception as exc:
+                logger.warning("关闭消息通道失败: %s", exc)
+
     def start(self) -> None:
         """模块初始化：注册各通道消息回调（Email/WebPush 为出站，企微为入站）。"""
         self._providers[getattr(self._email, "name", "email")] = self._email

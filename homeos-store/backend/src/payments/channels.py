@@ -66,6 +66,14 @@ def provider_label(name: str) -> str:
 
 def enabled_channel_names(setting: StoreSetting | None, settings: StoreSettings) -> tuple[str, ...]:
     """当前**启用**的渠道列表（顺序即前台展示顺序）。空 = 一个都没启用 → 拒绝建单。
+
+    后台没勾任何渠道时回退到部署级配置（站点 payment_provider 列 > 环境变量
+    STORE_PAYMENT_PROVIDER）：全新部署可以只按 README 用环境变量配支付
+    （STORE_PAYMENT_PROVIDER=alipay + 一套 STORE_ALIPAY_*），此时库里的
+    payment_channels_json 还是默认的 []。不回退的话下单会报「尚未配置支付渠道」，
+    与 README 的配置说明和 resolve_provider 自己的报错文案自相矛盾 —— 凭证合并
+    （payments.credentials）已是「站点优先、env 兜底」，渠道开关必须同一口径。
+    要彻底停用支付请用 payment_enabled=false（后台支付总开关），不要靠清空渠道。
     """
     raw = _json_array(getattr(setting, "payment_channels_json", "")) if setting else []
     names: list[str] = []
@@ -73,7 +81,16 @@ def enabled_channel_names(setting: StoreSetting | None, settings: StoreSettings)
         name = normalize_provider_name(str(item))
         if name in PROVIDER_NAMES and name not in names:
             names.append(name)
-    return tuple(names)
+    if names:
+        return tuple(names)
+    for candidate in (
+        getattr(setting, "payment_provider", "") if setting else "",
+        getattr(settings, "payment_provider", ""),
+    ):
+        name = normalize_provider_name(str(candidate or ""))
+        if name in PROVIDER_NAMES:
+            return (name,)
+    return ()
 
 
 def default_channel_name(

@@ -155,7 +155,9 @@ class EntityAreaEnrichmentService:
         self._index = {}
         self._index_at = 0.0
         self._load_gen += 1
-        self._inflight = None
+        # 不丢弃在途任务：_load_index 发现 generation 变化会原地重拉，
+        # 这样既不会出现「invalidate 后立刻再起一份全量拉取」，也不会让调用方
+        # 拿到被取消的 shield。
 
     # 事件处理器（对齐 Nest @OnEvent(HA_ENTITY_REGISTRY_UPDATED / INITIAL_STATES)）
     def on_entity_registry_updated(self, _payload: Any = None) -> None:
@@ -253,28 +255,31 @@ class EntityAreaEnrichmentService:
         ]
 
     async def _load_index(self) -> dict[str, dict[str, str]]:
-        gen = self._load_gen
-        try:
-            registry, areas, devices = await asyncio.gather(
-                self._fetch_entity_registry(),
-                self._fetch_areas(),
-                self._fetch_registry("config/device_registry/list"),
-            )
-            if gen != self._load_gen:
+        while True:
+            gen = self._load_gen
+            try:
+                registry, areas, devices = await asyncio.gather(
+                    self._fetch_entity_registry(),
+                    self._fetch_areas(),
+                    self._fetch_registry("config/device_registry/list"),
+                )
+                if gen != self._load_gen:
+                    # 拉取期间被 invalidate：不要返回已失效的快照，原地重拉一次。
+                    continue
+                area_name_by_id = build_area_name_map(areas)
+                device_area_by_id = build_device_area_map(devices)
+                self._index = build_entity_area_index(registry, area_name_by_id, device_area_by_id)
+                self._index_at = time.monotonic() * 1000
+                if self._index:
+                    logger.debug("实体区域索引已加载: %s 条", len(self._index))
                 return self._index
-            area_name_by_id = build_area_name_map(areas)
-            device_area_by_id = build_device_area_map(devices)
-            self._index = build_entity_area_index(registry, area_name_by_id, device_area_by_id)
-            self._index_at = time.monotonic() * 1000
-            if self._index:
-                logger.debug("实体区域索引已加载: %s 条", len(self._index))
-        except Exception as exc:
-            if gen != self._load_gen:
+            except Exception as exc:
+                if gen != self._load_gen:
+                    continue
+                logger.warning("实体区域索引加载失败: %s", exc)
+                self._index = {}
+                self._index_at = time.monotonic() * 1000
                 return self._index
-            logger.warning("实体区域索引加载失败: %s", exc)
-            self._index = {}
-            self._index_at = time.monotonic() * 1000
-        return self._index
 
     def _load_areas_from_catalog(self) -> list[dict[str, str]]:
         """从 3D ``ha_areas`` 表读取区域清单（连接器的注册表同步结果）。"""

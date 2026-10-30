@@ -24,6 +24,13 @@ export function createEntityTransport(deps: EntityTransportDeps) {
   let currentSync: EntitySocketSyncState | null = null
   /** IndexedDB 缓存 hydrate 标记：首连必做；重连仅在内存空/stale 时重做 */
   let hydratedOnce = false
+  /**
+   * 在途连接 Promise：connect() 是异步的（首连要先 await hydrate），
+   * 入口的 socket 去重挡不住并发调用，这里用单飞 Promise 保证同一时刻只建一次连。
+   */
+  let connectPromise: Promise<void> | null = null
+  /** 连接世代：disconnect() 递增；在途 connect() 在 await 之后据此放弃建连 */
+  let connectEpoch = 0
 
   /**
    * 建立 Socket.IO 连接。
@@ -37,11 +44,32 @@ export function createEntityTransport(deps: EntityTransportDeps) {
    * 7. bindEntitySocketHandlers 绑定所有事件处理器
    * 8. onTransportReady 通知上层（递增 wsTransportEpoch）
    */
-  async function connect(): Promise<void> {
-    if (deps.isAuthenticated && !deps.isAuthenticated()) return
+  function connect(): Promise<void> {
+    if (deps.isAuthenticated && !deps.isAuthenticated()) return Promise.resolve()
     // connected / active（握手或 polling→websocket 升级中）均视为已有会话，勿拆掉
-    if (socket?.connected || socket?.active) return
+    if (socket?.connected || socket?.active) return Promise.resolve()
+    // 已有在途连接：复用同一个 Promise，勿拆掉
+    if (connectPromise) return connectPromise
 
+    const epoch = connectEpoch
+    const run = doConnect(epoch)
+    connectPromise = run
+    void run
+      .finally(() => {
+        if (connectPromise === run) connectPromise = null
+      })
+      .catch(() => {
+        /* 连接失败仍由 connect() 调用方感知；这里只负责清在途标记 */
+      })
+    return run
+  }
+
+  /**
+   * 真正执行建连。epoch 是进入时的连接世代：
+   * hydrate 可能耗时（IndexedDB），期间若发生 disconnect() / 登出，则放弃本次建连，
+   * 避免建出一个「已登出仍在连」的 socket。
+   */
+  async function doConnect(epoch: number): Promise<void> {
     if (socket) {
       socket.removeAllListeners()
       socket.disconnect()
@@ -63,6 +91,10 @@ export function createEntityTransport(deps: EntityTransportDeps) {
       })
       hydratedOnce = true
     }
+    // hydrate 期间可能已 disconnect()（登出 / bfcache 冻结）：本次建连作废
+    if (epoch !== connectEpoch) return
+    if (deps.isAuthenticated && !deps.isAuthenticated()) return
+
     if (!cacheHydrated || deps.totalCount.value < 50) {
       startParallelPreload().catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : String(e)
@@ -120,6 +152,10 @@ export function createEntityTransport(deps: EntityTransportDeps) {
    * - 标记 connected=false
    */
   function disconnect(): void {
+    // 递增世代并清在途标记：在 await hydrate 的 connect() 会据此放弃建连；
+    // 紧随其后的 connect()（reconnectForAuthChange / refreshEntitiesFromServer）能立刻重新发起。
+    connectEpoch += 1
+    connectPromise = null
     if (deps.persistCacheDirty?.()) {
       deps.persistEntityCacheNow().catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : String(e)

@@ -11,6 +11,7 @@ import asyncio
 import logging
 import smtplib
 import ssl
+import time
 from email.message import EmailMessage
 from html import escape
 from typing import Any
@@ -21,6 +22,10 @@ logger = logging.getLogger("homeos.channels.email")
 
 #: 默认发信主题
 DEFAULT_SUBJECT = "HomeOS 通知"
+
+#: SMTP 状态缓存：避免每次 /channels/status 都真实建连 + login；失败结果缓存更短。
+EMAIL_STATUS_TTL_SECONDS = 30.0
+EMAIL_STATUS_ERROR_TTL_SECONDS = 10.0
 
 
 def escape_html(text: str) -> str:
@@ -43,6 +48,7 @@ class EmailService:
         #: 运行时 SMTP 配置（reload 后填充）
         self._smtp: dict[str, Any] = {}
         self._message_handler: MessageHandler | None = None
+        self._status_cache: tuple[float, dict[str, Any]] | None = None
 
     # 事件绑定
     def bind_events(self) -> None:
@@ -60,6 +66,7 @@ class EmailService:
     # 配置加载
     async def reload(self) -> None:
         """重新加载 Email 通道配置并初始化 SMTP 传输器。"""
+        self._status_cache = None
         cfg = await self._channel_config.get_email_config()
         self._enabled = bool(cfg and cfg.enabled)
 
@@ -153,11 +160,23 @@ class EmailService:
         }
         if not self._smtp:
             return {**base, "configured": False}
+        now = time.monotonic()
+        if self._status_cache is not None:
+            checked_at, cached = self._status_cache
+            ttl = (
+                EMAIL_STATUS_ERROR_TTL_SECONDS
+                if cached.get("error")
+                else EMAIL_STATUS_TTL_SECONDS
+            )
+            if now - checked_at < ttl:
+                return dict(cached)
         try:
             await asyncio.to_thread(self._verify_sync)
-            return {**base, "configured": True}
+            result = {**base, "configured": True}
         except Exception as exc:
-            return {**base, "configured": False, "error": str(exc)}
+            result = {**base, "configured": False, "error": str(exc)}
+        self._status_cache = (now, result)
+        return dict(result)
 
     # ChannelProvider
     def on_message(self, handler: MessageHandler) -> None:

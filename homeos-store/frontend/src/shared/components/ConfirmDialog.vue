@@ -21,6 +21,9 @@ const describedBy = computed(() =>
   opts.value.detail ? `${ids.value.message} ${ids.value.detail}` : ids.value.message,
 );
 
+/** 静态调用点里会用 <b>/<code> 强调；去掉标签后用纯文本渲染，既保留文案又消除 v-html。 */
+const detailText = computed(() => String(opts.value.detail || "").replace(/<[^>]*>/g, ""));
+
 const icon = computed(() => {
   if (opts.value.icon) return opts.value.icon;
   if (tone.value === "success") return "?";
@@ -71,10 +74,9 @@ watch(
         <div class="confirm-dialog__icon">{{ icon }}</div>
         <h2 :id="ids.title">{{ opts.title || "确认操作" }}</h2>
         <p :id="ids.message">{{ opts.message }}</p>
-        <!-- v-html 是刻意保留的：admin 侧的 detail 全部是源码里的静态字面量
-             （如「会<b>退回冻结积分</b>」），没有任何用户输入拼进去，因此不存在注入面；
-             换成插值反而会丢掉强调语气。 -->
-        <div v-if="opts.detail" :id="ids.detail" class="confirm-dialog__impact" v-html="opts.detail"></div>
+        <!-- 不再用 v-html：即使当前调用点全是静态字面量，未来把 detail 换成
+             请求数据/用户输入时就会直接变成注入面。强调语气可用 CSS 表达。 -->
+        <div v-if="opts.detail" :id="ids.detail" class="confirm-dialog__impact">{{ detailText }}</div>
       </div>
       <div class="confirm-dialog__actions">
         <button class="hb-button hb-button--secondary hb-button--sm" type="button" @click="store.settle(false)">

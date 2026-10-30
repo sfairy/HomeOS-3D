@@ -729,6 +729,14 @@ async def _finalize_home_mode_activation(
     executed = count_verified(results, True)
     unverified = count_verified(results, None)
     snapshot_missing = list(activation.snapshot_missing)
+    # 同组旧模式的设备恢复可能部分失败（HA 抖动/实体不可达）。提交仍应成功，
+    # 但失败必须可见：旧模式已停用、快照按 incomplete 保留，用户要能知道
+    # 「原来那套模式没完全退干净」，否则只能看到新模式已激活。
+    displaced_incomplete = [
+        str(item.get("name") or item.get("id") or "?")
+        for item in activation.displaced_modes
+        if (activation.conflict_restore.get(item.get("id")) or {}).get("incomplete")
+    ]
     await deps.emit_home_mode_event(
         "homeMode.activated",
         {
@@ -740,6 +748,7 @@ async def _finalize_home_mode_activation(
             "verifiedCount": executed,
             "unverifiedCount": unverified,
             "snapshotIncomplete": bool(snapshot_missing),
+            "displacedRestoreIncomplete": displaced_incomplete,
             "retried": len(retry_results) > 0,
         },
     )
@@ -747,6 +756,15 @@ async def _finalize_home_mode_activation(
     deps.log(f"模式 {mode['name']} 激活完成: {final_success}/{len(results)} 成功")
     if unverified:
         deps.warn(f"模式 {mode['name']} 有 {unverified} 个设备已下发但状态未确认")
+    if displaced_incomplete:
+        deps.warn(
+            f"模式 {mode['name']} 已激活，但原模式 {('、'.join(displaced_incomplete))} 的设备状态未能完整恢复"
+        )
+        await deps.notify(
+            "warning",
+            f"模式 {mode['name']} 已激活，但原模式 {('、'.join(displaced_incomplete))} 的设备状态未能完整恢复，请检查 HA 连接",
+            "home-mode",
+        )
     if snapshot_missing:
         await deps.notify(
             "warning",
@@ -791,6 +809,7 @@ async def _finalize_home_mode_activation(
         "unverifiedCount": unverified,
         "snapshotIncomplete": bool(snapshot_missing),
         "snapshotMissing": snapshot_missing,
+        "displacedRestoreIncomplete": displaced_incomplete,
     }
 
 
@@ -850,8 +869,14 @@ async def activate_home_mode(
         )
         bad_request(api_error("HOME_MODE_LINKAGE_BLOCKED", arbiter.get("reason")))
 
-    ha_status = await deps.get_ha_status()
-    if not ha_status.get("connected"):
+    # 仲裁器已 acquire：这之后任何异常都必须自己释放/走拒绝分支，否则 claim 会一直
+    # 占着 TTL（低优先级联动被静默拦截）。HA 状态读取异常等同于「不可用」。
+    try:
+        ha_status = await deps.get_ha_status()
+    except Exception as exc:
+        deps.warn(f"读取 Home Assistant 连接状态失败，按未连接处理: {exc}")
+        ha_status = {}
+    if not (ha_status or {}).get("connected"):
         return await _reject_home_mode_without_ha(deps, mode, trigger, len(entity_configs))
 
     incoming_group = mode.get("exclusiveGroup") or "default"

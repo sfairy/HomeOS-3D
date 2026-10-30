@@ -4682,6 +4682,7 @@ export function mountStage(mountOptions: any) {
         (ctx.moduleTabsAnimation = null),
         cancelGhostAnimation(),
         document.removeEventListener("visibilitychange", syncVacuumMap),
+        window.removeEventListener("message", handleHostMessage),
         vacuumMaps.dispose(),
         vacuumMotion.dispose(),
         presenceScene.dispose(),

@@ -290,7 +290,9 @@ def run_migrations(
                     _stamp_baseline(connection, app)
                     adopted = True
                     log.warning("检测到未版本化的旧库，已接管为基线：%s", database_path)
-                else:
+                elif normalized_mode != "check":
+                    # check 模式承诺「只读探测、不写库」：这里若写基线，一个只做健康检查的
+                    # 进程会改动业务数据库。留给下面的 pending 分支抛 MigrationPending。
                     _stamp_baseline(connection, app)
             else:
                 for version, (name, checksum) in applied.items():

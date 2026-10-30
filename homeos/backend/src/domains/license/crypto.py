@@ -222,7 +222,10 @@ class LeaseVerifier:
             actual_sha256 = hashlib.sha256(key_data).hexdigest()
             if not hmac.compare_digest(actual_sha256, expected_fingerprint):
                 raise LicenseCryptoError('授权公钥指纹与正式发布版本不匹配。')
-        key = serialization.load_pem_public_key(key_data)
+        try:
+            key = serialization.load_pem_public_key(key_data)
+        except (TypeError, ValueError) as error:
+            raise LicenseCryptoError('授权公钥格式无效。') from error
         if not isinstance(key, Ed25519PublicKey):
             raise LicenseCryptoError('授权公钥必须是 Ed25519。')
         try:

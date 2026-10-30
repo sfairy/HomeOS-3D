@@ -259,7 +259,18 @@ class MoviePilotProxyService:
 
 #: 不应转发的请求头（避免干扰目标服务）
 FORWARD_HEADER_EXCLUDE = frozenset(
-    {"host", "connection", "content-length", "content-encoding", "transfer-encoding"}
+    {
+        "host",
+        "connection",
+        "content-length",
+        "content-encoding",
+        "transfer-encoding",
+        # HomeOS 的会话凭据不转发给上游：MoviePilot 是管理员配置的独立服务，
+        # 一旦该地址被指向被攻破/恶意的 LAN 主机，Cookie 就是可直接复用的登录态。
+        "cookie",
+        "authorization",
+        "proxy-authorization",
+    }
 )
 
 

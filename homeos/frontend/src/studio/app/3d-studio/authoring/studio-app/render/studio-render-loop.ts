@@ -605,6 +605,19 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             (ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180))));
   }
   function hasActiveLightTransition() {
+    if (!appCtx.sceneRootNode || !appCtx.threeScene) {
+      // 回收顺序里 renderer/scene 可能已被置空：此时绝不能继续 setupSceneShadows，
+      // 只把定时器与过渡表收干净，避免 SPA 内离开 /3d-studio 时读空 sceneRootNode。
+      ctx.reflectionPassCounter && cancelAnimationFrame(ctx.reflectionPassCounter);
+      ctx.overviewTimeoutHandle !== null && window.clearTimeout(ctx.overviewTimeoutHandle);
+      ctx.presentationHandle !== null && window.clearTimeout(ctx.presentationHandle);
+      ctx.reflectionPassCounter = 0;
+      ctx.overviewTimeoutHandle = null;
+      ctx.presentationHandle = null;
+      lightTransitionsByLight.clear();
+      ctx.isViewTransitioning = false;
+      return;
+    }
     (onLightsChanged(),
       ctx.reflectionPassCounter && cancelAnimationFrame(ctx.reflectionPassCounter),
       ctx.overviewTimeoutHandle !== null && window.clearTimeout(ctx.overviewTimeoutHandle),
@@ -624,6 +637,9 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       ctx.lightRecordsByItemKey.clear(),
       appCtx.prewarmState === controlsRestoreOptions && (appCtx.prewarmState = null));
   }
+  // 暴露给 bootStudio 的 innerCleanup：SPA 内卸载时先结算灯光过渡，再释放 renderer。
+  (appCtx as { settleLightTransitions?: () => void }).settleLightTransitions =
+    hasActiveLightTransition;
   const weakMap = new WeakMap();
   function applyLightEffects(
     lightEffectEntries: any,

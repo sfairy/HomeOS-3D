@@ -193,7 +193,8 @@ class NotificationDispatchHelper:
             with self._session_factory() as session:
                 record = session.get(Notification, notification_id)
                 if record is not None:
-                    record.delivered_at = datetime.now(UTC)
+                    # 与 gateway_broadcasts._mark_notification_delivered 保持同一口径：naive UTC。
+                    record.delivered_at = datetime.now(UTC).replace(tzinfo=None)
                     session.commit()
         except Exception as exc:
             logger.debug("标记通知投递时间失败: %s", exc)

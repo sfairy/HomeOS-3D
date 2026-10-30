@@ -231,6 +231,12 @@ class SecurityPanelService:
         if not isinstance(zones, list) or not zones:
             if not confirm_clear:
                 bad_request(api_error("SECURITY_ZONES_CLEAR_REQUIRES_CONFIRM"))
+            # 布防中清空防区 = 布防面板从此「有布防状态、无任何传感器」：布防永远不再告警。
+            # _arm_inner 已明确拒绝零防区布防，这里必须守住同一不变量，否则可从配置接口绕过。
+            if self._mode != "disarmed":
+                # 错误码表（platform/core/errors.py）不在本次改动范围，用本地化文案拒绝；
+                # 语义与 _arm_inner 的 SECURITY_ZONE_REQUIRED 一致：不允许存在零防区布防。
+                bad_request("布防中不能清空全部防区，请先撤防")
             self._zones = []
             self.state_helper.persist_panel_state()
             self._bus.emit_soon(
@@ -393,11 +399,16 @@ class SecurityPanelService:
             and not opts.get("force")
             and not zone_selection_changed
         ):
+            # 同模式短路也必须刷新人工锁：用户再次手动布防是在重申"我还在家/别自动改"，
+            # 若沿用第一次的时间戳，manualArmLockSec=60 分钟时第二次操作后可能只剩 1 分钟锁。
+            self._apply_manual_lock(opts)
             return {
                 "success": True,
                 "mode": mode,
                 "zoneCount": sum(1 for z in self._zones if z.get("armed")),
                 "actions": {"executed": 0, "failed": 0, "failedItems": []},
+                "unverifiedItems": [],
+                "unverifiedCount": 0,
                 "skipped": True,
             }
 
@@ -461,6 +472,8 @@ class SecurityPanelService:
                 "compensated": compensation["restored"],
                 "compensationFailures": compensation["failedItems"],
                 "irreversibleItems": action_result.get("irreversibleItems") or [],
+                "unverifiedItems": action_result.get("unverifiedItems") or [],
+                "unverifiedCount": action_result.get("unverified") or 0,
             }
 
         for zone in self._zones:
@@ -509,6 +522,8 @@ class SecurityPanelService:
             "appliedCount": action_result["executed"],
             "failedItems": action_result["failedItems"],
             "irreversibleItems": action_result.get("irreversibleItems") or [],
+            "unverifiedItems": action_result.get("unverifiedItems") or [],
+            "unverifiedCount": action_result.get("unverified") or 0,
         }
 
     async def disarm(self, opts: dict[str, Any] | None = None) -> dict[str, Any]:

@@ -537,6 +537,18 @@ class HAClient:
 
     async def command(self, websocket, message_id: int, command_type: str, **payload) -> Any:
         await websocket.send(json.dumps({'id': message_id, 'type': command_type, **payload}))
+        try:
+            async with asyncio.timeout(self.timeout):
+                return await self._read_command_result(websocket, message_id, command_type)
+        except TimeoutError as error:
+            # 反代/HA 挂住时 recv 会一直不返回；与 _call_websocket_operation 保持同一超时口径。
+            raise HAClientError(
+                f'Home Assistant 命令 {command_type} 超时（{self.timeout:g}s）。'
+            ) from error
+
+    async def _read_command_result(
+        self, websocket, message_id: int, command_type: str
+    ) -> Any:
         while True:
             try:
                 message = json.loads(await websocket.recv())

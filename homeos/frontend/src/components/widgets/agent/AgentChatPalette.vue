@@ -60,7 +60,9 @@ const HISTORY_MESSAGE_LIMIT = 40
 function readHistory(): StoredSession[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem(HISTORY_KEY)
+    // 历史含对话正文：用 sessionStorage 限本标签页生命周期，关闭标签页即清除，
+    // 避免共享设备上长期留明文记录。
+    const raw = window.sessionStorage.getItem(HISTORY_KEY)
     const parsed = raw ? JSON.parse(raw) : null
     if (!Array.isArray(parsed)) return []
     return parsed
@@ -97,7 +99,7 @@ function readHistory(): StoredSession[] {
 function writeHistory(sessions: StoredSession[]): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(sessions.slice(0, HISTORY_LIMIT)))
+    window.sessionStorage.setItem(HISTORY_KEY, JSON.stringify(sessions.slice(0, HISTORY_LIMIT)))
   } catch {
     // 隐私模式 / 配额用尽：历史只保留在内存
   }

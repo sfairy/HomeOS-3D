@@ -114,6 +114,11 @@ def validate_app_config_section(
     """按分区名分发校验；收集错误后抛出 :class:`AppConfigValidationError`。"""
     errors: list[FieldError] = []
     validator = _SECTION_VALIDATORS.get(section)
+    if validator is None and section not in _ARRAY_SECTIONS:
+        # 未知分区没有消费方，静默接受只会让配置“看起来保存成功”，实际永不生效。
+        raise AppConfigValidationError(
+            [{"section": section, "key": "*", "message": "未知配置分区"}]
+        )
     if validator is not None:
         if section in ("pricing", "security"):
             validator(section, partial, errors, context)
@@ -127,6 +132,14 @@ _ARRAY_SECTIONS = {"voiceCommands"}
 
 def validate_app_config_partial(partial: dict[str, Any], context: dict[str, Any] | None = None) -> None:
     """校验 PUT /system/config 各分区 partial。"""
+    from ..defaults import DEFAULT_APP_CONFIG
+
+    allowed = set(DEFAULT_APP_CONFIG) | _ARRAY_SECTIONS
+    unknown = [section for section in partial if section not in allowed]
+    if unknown:
+        raise AppConfigValidationError(
+            [{"section": section, "key": "*", "message": "未知配置分区"} for section in unknown]
+        )
     for section, val in partial.items():
         if val is None:
             continue

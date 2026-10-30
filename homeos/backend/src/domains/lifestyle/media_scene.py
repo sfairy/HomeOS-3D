@@ -36,11 +36,15 @@ class MediaSceneService:
             return
         for player, playlist in stored.items():
             items = (playlist or {}).get("items") if isinstance(playlist, dict) else None
-            if items:
-                self._playlists[player] = {
-                    "items": items,
-                    "index": (playlist.get("index") or 0),
-                }
+            if (
+                isinstance(items, list)
+                and items
+                and all(isinstance(item, dict) for item in items)
+            ):
+                index = playlist.get("index", 0)
+                if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(items):
+                    index = 0
+                self._playlists[str(player)] = {"items": items, "index": index}
 
     async def _persist_playlists(self) -> None:
         out = {
@@ -225,7 +229,18 @@ class MediaSceneService:
         playlist = self._playlists.get(player)
         if playlist is None:
             return {"ok": False, "error": "无播放列表"}
-        item = playlist["items"][playlist["index"]]
+        items = playlist.get("items")
+        index = playlist.get("index")
+        if (
+            not isinstance(items, list)
+            or not items
+            or not all(isinstance(item, dict) for item in items)
+            or not isinstance(index, int)
+            or isinstance(index, bool)
+            or not 0 <= index < len(items)
+        ):
+            return {"ok": False, "error": "播放列表配置无效"}
+        item = items[index]
         result = await self._safe(
             "media_player",
             "play_media",

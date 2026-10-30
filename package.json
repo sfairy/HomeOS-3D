@@ -61,6 +61,8 @@
     "test:home-mode": "node ops/lib/py.mjs -m unittest discover -s ops/checks/home_mode/tests -v",
     "test:frontend": "node --test \"ops/checks/frontend/tests/**/*.test.mjs\"",
     "test:security": "node ops/lib/py.mjs -m unittest discover -s ops/checks/security/tests -v",
+    "test:shared": "node ops/lib/py.mjs -m unittest discover -s ops/checks/shared/tests -v",
+    "test:store": "node ops/lib/py.mjs -m unittest discover -s ops/checks/store/tests -v",
     "test:auth-nav": "node --test \"ops/checks/auth/tests/**/*.test.mjs\"",
     "audit:materials": "bun ops/checks/studio/audit_glb_materials.mjs",
     "check:materials": "bun ops/checks/studio/audit_glb_materials.mjs --check",

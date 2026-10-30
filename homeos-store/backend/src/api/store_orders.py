@@ -382,6 +382,11 @@ def create_order(
     order_type, license_action = _resolve_order_action(
         product, is_addon=is_addon, is_upgrade=not is_addon and target_license is not None
     )
+    # 只解析一次：Order.payment_provider 与真正建单渠道必须来自同一次读取，
+    # 否则运营在两次调用之间改后台配置会让订单记录的渠道与实际支付渠道不一致。
+    chosen = _resolve_requested_channel(setting, body, request) or default_channel_name(
+        setting, request.app.state.settings
+    )
     moment = utcnow()
     order = Order(
         order_no=new_order_no(account.email, now=moment),
@@ -401,10 +406,7 @@ def create_order(
         coupon_code=coupon.code if coupon is not None else None,
         status="pending",
         fulfillment_mode=product.fulfillment_mode,
-        payment_provider=(
-            _resolve_requested_channel(setting, body, request)
-            or default_channel_name(setting, request.app.state.settings)
-        ),
+        payment_provider=chosen,
         expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
     )
     session.add(order)
@@ -414,7 +416,6 @@ def create_order(
     if amount <= 0:
         return _complete_free_order(session, request, background, order, setting)
 
-    chosen = _resolve_requested_channel(setting, body, request)
     return _open_channel_payment(request, session, order, setting, product, chosen)
 
 

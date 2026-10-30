@@ -61,6 +61,8 @@ def _too_many_requests(message: str) -> StarletteHTTPException:
 
 #: MCP 客户端标识最大长度
 MAX_CLIENT_ID_LENGTH = 64
+#: 客户端限流记录的客户端数上限：clientId 来自请求头，必须防止无界内存增长
+MAX_TRACKED_CLIENTS = 4096
 
 
 def normalize_client_id(raw: Any) -> str:
@@ -250,12 +252,18 @@ class McpGatewayService:
         except ValueError:
             window = 60.0
         now = time.monotonic()
-        hits = [stamp for stamp in self._client_hits.get(client_id, []) if now - stamp < window]
+        # 先 pop 再写回，使字典顺序成为「最近使用」顺序，便于超限时淘汰最久未用项
+        hits = [stamp for stamp in self._client_hits.pop(client_id, []) if now - stamp < window]
         if len(hits) >= limit:
             self._client_hits[client_id] = hits
             raise _too_many_requests(f"MCP 客户端 {client_id} 请求过于频繁，请稍后再试")
         hits.append(now)
         self._client_hits[client_id] = hits
+        while len(self._client_hits) > MAX_TRACKED_CLIENTS:
+            oldest = next(iter(self._client_hits))
+            if oldest == client_id:
+                break
+            self._client_hits.pop(oldest, None)
 
     def _read_env_map(self, name: str) -> dict[str, Any]:
         """读取 JSON 对象型环境变量；格式非法时按未配置处理（不让坏配置锁死网关）。"""

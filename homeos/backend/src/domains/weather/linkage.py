@@ -115,9 +115,21 @@ class WeatherAutoLinkageService:
         if not mode_id:
             return False
         try:
-            await self._home_mode.activate(
+            result = await self._home_mode.activate(
                 mode_id, {"source": "weather_linkage", "reason": reason}
             )
+            # 家庭模式激活的业务失败是「返回 success=False」而不是抛异常（HA 未连接、
+            # 联动仲裁拦截、设备动作失败回滚……）。以前无条件 return True，会把失败
+            # 记成「已自动执行安全联动」并占掉 120 分钟冷却键，红色预警当天不再重试。
+            if isinstance(result, dict) and result.get("success") is False:
+                error = str(result.get("error") or "未知原因")
+                logger.warning("天气联动:家庭模式激活失败 %s(%s): %s", mode_id, reason, error)
+                schedule_security_event(
+                    self._session_factory,
+                    "linkage_weather_mode_failed",
+                    f"天气联动家庭模式失败 [{mode_id}]: {error}",
+                )
+                return False
             logger.info("天气联动:已激活家庭模式 %s(%s)", mode_id, reason)
             return True
         except Exception as exc:

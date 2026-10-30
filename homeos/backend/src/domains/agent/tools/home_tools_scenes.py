@@ -116,8 +116,11 @@ class HomeToolsScenesMixin(HomeToolsHost):
 
     # 场景 / 脚本
 
-    async def _list_scenes_detailed(self) -> dict[str, Any]:
-        """list_scenes 工具实现：列出 HA 侧 scene.* / script.* 清单。"""
+    async def _list_scenes_detailed(self, actor: AgentActor | None = None) -> dict[str, Any]:
+        """list_scenes 工具实现：列出 HA 侧 scene.* / script.* 清单（走读 ACL）。"""
+        denied = self._read_denied(actor)
+        if denied is not None:
+            return denied
         gate = await self._scene_voice_gate()
         ha_scenes = [
             {
@@ -141,6 +144,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
             }
             for e in self._state_store.get_all()
             if str(e.get("entity_id") or "").startswith(("scene.", "script."))
+            and self._may_read(str(e.get("entity_id") or ""), actor)
         ]
         ha_scenes.sort(key=lambda item: item["name"])
         return {"ha_scenes": ha_scenes}

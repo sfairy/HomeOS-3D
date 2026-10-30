@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..domains.logs.global_log import event_context, format_log_context, safe_context
+from ..platform.security.client_address import resolve_client_address_from_request
 from ..platform.security.login_limiter import retry_after_headers
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
@@ -94,7 +95,11 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
         if not hasattr(store, 'client_limiter'):
             store.client_limiter = ClientLogLimiter()
         limiter = store.client_limiter
-    peer = request.client.host if request.client else 'unknown'
+    # 匿名上报按可信代理解析后的真实客户端分桶：直接用 TCP 对端地址时，
+    # 经镜像内置回环反代部署的客户端会共享同一个桶（30 条/分钟），
+    # 一个页面刷屏就会让所有人的上报被 429 拦截。无法判定客户端时退化为全局桶。
+    address = resolve_client_address_from_request(request)
+    peer = address.ip if address.per_client and address.ip else 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
         raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers=retry_after_headers(60))
 

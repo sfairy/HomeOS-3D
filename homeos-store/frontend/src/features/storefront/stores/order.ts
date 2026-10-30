@@ -302,13 +302,16 @@ export const useOrderStore = defineStore("order", () => {
   }
 
   async function createOrder(productId: string, payload: Record<string, unknown>) {
-    const accountPayload = await api<{ orders?: StoreOrder[] }>("/account");
-    const pending = (accountPayload.orders || []).find((item) => item.status === "pending");
-    if (pending) {
-      showPendingOrder(pending);
-      return null;
-    }
+    // 预检请求（/account）也必须在 try 里：它失败时（网络抖动、会话刚过期、5xx）之前会
+    // 从 try 之外直接抛出，既不弹提示也不进 409 的待支付复查分支；调用方 ItemView.submit
+    // 只记日志，用户点「支付」后看不到任何反馈。现在预检失败同样走统一提示。
     try {
+      const accountPayload = await api<{ orders?: StoreOrder[] }>("/account");
+      const pending = (accountPayload.orders || []).find((item) => item.status === "pending");
+      if (pending) {
+        showPendingOrder(pending);
+        return null;
+      }
       const order = await api<StoreOrder>("/orders", {
         method: "POST",
         body: JSON.stringify({ productId, ...payload }),

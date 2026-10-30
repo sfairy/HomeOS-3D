@@ -85,6 +85,7 @@ export interface CreateStudioRendererDeps { appCtx: StudioAppContext; beginMotio
 export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
   const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, setupSceneShadows, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
 
+  let disposeRendererEvents: (() => void) | null = null;
   const previewViewportElement = selectElement("#preview-3d");
   /**
    * 创建 WebGL 渲染器，失败时逐步降级。
@@ -99,7 +100,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       { antialias: false, alpha: true, powerPreference: "default" },
       { antialias: false, alpha: true },
     ] as const;
-    let lastError: any = null;
+    let lastError: unknown = null;
     for (let index = 0; index < attempts.length; index += 1) {
       try {
         const renderer = new ns2.WebGLRenderer(attempts[index] as any);
@@ -110,7 +111,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
           })!;
         }
         return renderer;
-      } catch (rendererError: any) {
+      } catch (rendererError: unknown) {
         lastError = rendererError;
         window.HomeOSLog?.warn?.(rendererError, {
           phase: "studio-webgl-attempt",
@@ -394,6 +395,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
           );
         },
       });
+      const rendererDomElement = appCtx.threeRenderer.domElement;
+      let rendererEventsDisposed = false;
       const wakeStudio = () => appCtx.lightingScheduler.wake(),
         handlePageVisibility = () => {
           lastStatsPublishMs = performance.now();
@@ -414,7 +417,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
             appCtx.isHighDetailQuality && appCtx.isEnvironmentLoading && scheduleLightPrecompile());
         },
         ev2 = bindFrameDriver(handlePageVisibility);
-      appCtx.threeRenderer.domElement.addEventListener("hb-i3d-parent-visibility", handleParentVisibility);
+      rendererDomElement.addEventListener("hb-i3d-parent-visibility", handleParentVisibility);
       for (const visibilityEventName of [
         "pointerdown",
         "pointermove",
@@ -424,42 +427,45 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
         "keydown",
         "keyup",
       ])
-        appCtx.threeRenderer.domElement.addEventListener(visibilityEventName, wakeStudio, {
+        rendererDomElement.addEventListener(visibilityEventName, wakeStudio, {
           passive: true,
         });
-      (document.addEventListener("visibilitychange", handlePageVisibility),
-        window.addEventListener(
-          "pagehide",
-          () => {
-            (ev2(),
-              appCtx.lightingScheduler.dispose(),
-              document.removeEventListener("visibilitychange", handlePageVisibility),
-              appCtx.lightPrecompileController?.dispose?.(),
-              appCtx.regionLightController?.dispose(),
-              appCtx.contactShadowController?.dispose(),
-              appCtx.threeRenderer.domElement.removeEventListener(
-                "hb-i3d-parent-visibility",
-                handleParentVisibility,
-              ));
-            for (const removeEventName of [
-              "pointerdown",
-              "pointermove",
-              "pointerup",
-              "pointercancel",
-              "wheel",
-              "keydown",
-              "keyup",
-            ])
-              appCtx.threeRenderer.domElement.removeEventListener(removeEventName, wakeStudio);
-          },
-          {
-            once: true,
-          },
-        ),
-        handlePageVisibility(),
-        wakeStudio());
+      document.addEventListener("visibilitychange", handlePageVisibility);
+      disposeRendererEvents = () => {
+        if (rendererEventsDisposed) return;
+        rendererEventsDisposed = true;
+        ev2();
+        document.removeEventListener("visibilitychange", handlePageVisibility);
+        rendererDomElement.removeEventListener("hb-i3d-parent-visibility", handleParentVisibility);
+        for (const removeEventName of [
+          "pointerdown",
+          "pointermove",
+          "pointerup",
+          "pointercancel",
+          "wheel",
+          "keydown",
+          "keyup",
+        ])
+          rendererDomElement.removeEventListener(removeEventName, wakeStudio);
+        try {
+          appCtx.lightingScheduler?.dispose?.();
+          appCtx.lightPrecompileController?.dispose?.();
+          appCtx.regionLightController?.dispose?.();
+          appCtx.contactShadowController?.dispose?.();
+        } catch {
+          /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失 */
+        }
+      };
+      // 整页卸载（pagehide）与 SPA 内显式回收都会走到同一个清理函数，重复调用是幂等的。
+      window.addEventListener("pagehide", disposeRendererEvents, { once: true });
+      handlePageVisibility();
+      wakeStudio();
     }
-  } catch (frameDriverError: any) {
+  } catch (frameDriverError: unknown) {
+    const frameDriverMessage =
+      frameDriverError instanceof Error
+        ? frameDriverError.message
+        : String(frameDriverError ?? "");
     // 3D 初始化失败（真机上最常见的是 WebView 只给到 WebGL1，或根本没拿到 WebGL 上下文）。
     // 必须同时做两件事，否则用户只会看到整块空白：
     // 1) 在本 iframe 内露出 #webgl-message；
@@ -472,7 +478,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
         {
           channel: "hb-i3d-v1",
           type: "error",
-          message: `3D 画面初始化失败：${frameDriverError?.message || "WebGL 上下文不可用"}`,
+          message: `3D 画面初始化失败：${frameDriverMessage || "WebGL 上下文不可用"}`,
         },
         window.location.origin,
       );
@@ -483,4 +489,5 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
     console.error(frameDriverError);
   }
 
+  return disposeRendererEvents;
 }

@@ -440,12 +440,11 @@ def parse_wolfx_message(msg: dict[str, Any]) -> EewRawMessage | None:
         _first_present(msg, "originTime", "origin_time", "OriginTime"),
         type_lower,
     )
-    latitude = read_number(
-        _pick((msg, "latitude"), (msg, "Latitude"), (hypocenter, "latitude"))
-    )
-    longitude = read_number(
-        _pick((msg, "longitude"), (msg, "Longitude"), (hypocenter, "longitude"))
-    )
+    # 坐标必须显式存在且有限：read_number 会把缺失值降级成 0，让「没有坐标的报文」
+    # 被当成赤道/本初子午线附近的真实震中参与距离/烈度计算（多数情况下只会被距离
+    # 阈值过滤，但这是错误数据而不是「远震」）。
+    latitude = _num(_pick((msg, "latitude"), (msg, "Latitude"), (hypocenter, "latitude")))
+    longitude = _num(_pick((msg, "longitude"), (msg, "Longitude"), (hypocenter, "longitude")))
     magnitude = read_number(
         _first_present(msg, "magnitude", "Magnitude", "mag", "Magunitude")
     )
@@ -453,6 +452,8 @@ def parse_wolfx_message(msg: dict[str, Any]) -> EewRawMessage | None:
     depth = 0.0 if depth_raw is None else read_number(depth_raw)
 
     if not (math.isfinite(origin_time) and origin_time > 0):
+        return None
+    if not (math.isfinite(latitude) and math.isfinite(longitude)):
         return None
     if abs(latitude) > 90 or abs(longitude) > 180:
         return None

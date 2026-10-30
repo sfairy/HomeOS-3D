@@ -70,7 +70,13 @@ def b64url_decode(encoded: Any) -> bytes:
     """
     if not isinstance(encoded, str):
         raise TypeError(f'需要字符串，实际是 {type(encoded).__name__}')
-    return base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4))
+    # 用 b64decode(altchars='-_', validate=True) 而不是 urlsafe_b64decode：后者没有
+    # validate 参数（新版本也没有），非法字符会被静默丢弃（"abc@" 解成 b'abc'），
+    # 与上面 docstring「非法编码抛 ValueError」的契约不符。binascii.Error 是 ValueError
+    # 子类，各端的 ValueError → 400 翻译保持不变。
+    return base64.b64decode(
+        encoded + '=' * (-len(encoded) % 4), altchars=b'-_', validate=True
+    )
 
 
 def canonical_json_bytes(document: Mapping[str, Any]) -> bytes:

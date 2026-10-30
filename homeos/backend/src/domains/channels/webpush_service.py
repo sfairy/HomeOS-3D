@@ -343,6 +343,19 @@ class PushSubscription:
         }
 
 
+def _valid_webpush_keys(p256dh: str, auth: str) -> bool:
+    """校验订阅密钥的 base64url 形状：P-256 未压缩点 65 字节、auth 16 字节。"""
+    if not p256dh or not auth:
+        return False
+    try:
+        point = base64.urlsafe_b64decode(p256dh + "=" * (-len(p256dh) % 4))
+        secret = base64.urlsafe_b64decode(auth + "=" * (-len(auth) % 4))
+    except (TypeError, ValueError):
+        logger.info("WebPush 订阅密钥不是合法 base64url，拒绝注册")
+        return False
+    return len(point) == 65 and point[0] == 0x04 and len(secret) == 16
+
+
 class WebPushService:
     """WebPush 通道服务：VAPID 推送 + 订阅持久化 + 热重载。"""
 
@@ -504,7 +517,7 @@ class WebPushService:
         """注册订阅：endpoint/keys 校验 → 内存缓存 → DB upsert。"""
         p256dh = str((keys or {}).get("p256dh") or "")
         auth = str((keys or {}).get("auth") or "")
-        if not is_safe_webpush_endpoint(endpoint) or not p256dh or not auth:
+        if not is_safe_webpush_endpoint(endpoint) or not _valid_webpush_keys(p256dh, auth):
             bad_request(api_error("CHANNEL_WEBPUSH_ENDPOINT_INVALID"))
 
         subscription = PushSubscription(
@@ -737,10 +750,12 @@ class WebPushService:
 
     async def send_test(self, endpoint: str | None = None) -> dict[str, int]:
         """测试推送：向全部或指定 endpoint 发送。"""
-        before = len(self._subscriptions)
-        await self.send_text(endpoint or "", "这是一条 HomeOS 测试推送")
-        sent = (1 if endpoint in self._subscriptions else 0) if endpoint else before
-        return {"sent": sent}
+        outcome = await self.send_text(endpoint or "", "这是一条 HomeOS 测试推送")
+        # 用 send_text 的真实投递结果，而不是「订阅还在不在」推断：发送失败
+        # （VAPID 未就绪 / 全部 410 / 退避中）时不能再给用户报“已发送”。
+        delivered = int(outcome.get("delivered") or 0) if isinstance(outcome, dict) else 0
+        attempted = int(outcome.get("attempted") or 0) if isinstance(outcome, dict) else 0
+        return {"sent": delivered, "delivered": delivered, "attempted": attempted}
 
     async def close(self) -> None:
         await self._http.aclose()

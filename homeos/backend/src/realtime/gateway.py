@@ -72,6 +72,8 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         #: 已收到全量基线的 sid。未就绪前不参与 ``state_changed_batch`` 广播：
         # 全量快照生成前的增量已包含在快照里，再以 delta 下发只会被前端丢弃并告警。
         self._baseline_ready: set[str] = set()
+        #: 已完成订阅索引的 sid：空候选只回退「未索引」的基线连接，不再无差别全量。
+        self._indexed_sids: set[str] = set()
         #: 订阅索引：域 / 钉选 → sid，广播时先收窄候选再做精确过滤。
         self._sub_domain_sids: dict[str, set[str]] = {}
         self._sub_wildcard_sids: set[str] = set()
@@ -87,6 +89,12 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         #: engineio 的无界写队列里继续灌水，形成正反馈；同一轮背压内只提示一次，
         #: 待该连接恢复正常（不再背压）后清除，下次真正背压时再提示。
         self._resync_pending: set[str] = set()
+        #: 正在握手（``_on_connect`` 尚未返回）的 sid。``connect``/``disconnect`` 各自跑在
+        #: 独立 task 里，客户端「连上就断」时断连清理可能先于登记跑完；这些集合用来识别
+        #: 这种交错，避免死 sid 被重新登记后永久参与广播。
+        self._connecting: set[str] = set()
+        #: 握手期间收到断连的 sid（tombstone，只存活到该次 ``_on_connect`` 收尾）。
+        self._closed_sids: set[str] = set()
         #: 广播分桶的一次性房间序号（同可见集的连接共用一个临时房间，只序列化一次）。
         self._batch_room_seq = 0
         #: 授权终态监听器只注册一次。注册时机只能是首次 connect：__init__ 跑在 lifespan

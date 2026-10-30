@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from fastapi import Request, Response
 
+from .client_address import resolve_client_address_from_request
 from .csrf import CSRF_COOKIE, generate_csrf_token
 
 CookieSecureMode = str  # 'true' | 'false' | 'auto'
@@ -28,6 +29,11 @@ def get_cookie_secure_mode() -> CookieSecureMode:
 def is_request_secure(request: Request) -> bool:
     if request.url.scheme == "https":
         return True
+    # X-Forwarded-Proto 是客户端可伪造的头：只有 TCP 对端确实是可信代理时才采信。
+    # 否则直连客户端发一个 ``X-Forwarded-Proto: https`` 就能让本应 Secure 的 Cookie
+    # 变成非 Secure（或反过来让 http 部署写 Secure 后浏览器不回传）。
+    if not resolve_client_address_from_request(request).via_proxy:
+        return False
     proto = request.headers.get("x-forwarded-proto", "")
     first = proto.split(",")[0].strip().lower() if proto else ""
     return first == "https"

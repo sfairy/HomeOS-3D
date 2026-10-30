@@ -31,6 +31,7 @@ from .zones import (
     security_mode_label,
     should_zone_alarm_in_mode,
 )
+from ..proxy.verification import describe_service_verification
 from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
@@ -333,6 +334,9 @@ class SecurityLinkageHelper:
                 "failedItems": [],
                 "appliedItems": [],
                 "irreversibleItems": [],
+                "unverifiedItems": [],
+                "verified": 0,
+                "unverified": 0,
             }
 
         status = await self._ha.get_status()
@@ -347,24 +351,68 @@ class SecurityLinkageHelper:
                 ],
                 "appliedItems": [],
                 "irreversibleItems": [],
+                "unverifiedItems": [],
+                "verified": 0,
+                "unverified": len(actions),
             }
 
         executed = 0
         failed = 0
+        verified_count = 0
+        unverified_count = 0
         failed_items: list[dict[str, Any]] = []
         applied_items: list[dict[str, Any]] = []
         irreversible_items: list[dict[str, Any]] = []
+        unverified_items: list[dict[str, Any]] = []
         for act in actions:
             entity_id = str(act.get("entity_id") or "").strip()
             service = str(act.get("service") or "").strip()
             if not entity_id or not service:
                 continue
             domain = act.get("domain") or get_entity_domain(entity_id)
+            service_data = act.get("service_data") or {}
             try:
-                await self._ha.call_service(
-                    domain, service, entity_id, act.get("service_data") or {}
+                response = await self._ha.call_service(
+                    domain, service, entity_id, service_data
                 )
+                verification = await self._verify_action(
+                    str(domain), service, entity_id, service_data, response
+                )
+                if verification.get("verified") is False:
+                    # HA 对「实体离线 / 被跳过」也可能回 200；状态明确不一致时绝不能记成功。
+                    failed += 1
+                    message = (
+                        f"设备状态未按预期变化（{verification.get('reason') or 'state_mismatch'}）"
+                    )
+                    failed_items.append({"entity_id": entity_id, "message": message})
+                    logger.warning("%s 联动失败 [%s]: %s", label, entity_id, message)
+                    schedule_security_event(
+                        self._session_factory,
+                        failure_event_type,
+                        f"{label} 联动失败 [{entity_id}]: {message}",
+                        entity_id=entity_id,
+                    )
+                    continue
                 executed += 1
+                if verification.get("verified") is True:
+                    verified_count += 1
+                elif verification.get("supported"):
+                    unverified_count += 1
+                    unverified_items.append(
+                        {
+                            "entity_id": entity_id,
+                            "domain": domain,
+                            "service": service,
+                            "reason": verification.get("reason"),
+                        }
+                    )
+                    schedule_security_event(
+                        self._session_factory,
+                        "linkage_action_unverified",
+                        f"{label} 联动结果未能确认 [{entity_id}]: "
+                        f"{verification.get('reason') or 'unverified'}",
+                        entity_id=entity_id,
+                    )
                 inverse = build_inverse_action(str(domain), service, entity_id)
                 if inverse is None:
                     irreversible_items.append(
@@ -391,7 +439,47 @@ class SecurityLinkageHelper:
             "failedItems": failed_items,
             "appliedItems": applied_items,
             "irreversibleItems": irreversible_items,
+            "unverifiedItems": unverified_items,
+            "verified": verified_count,
+            "unverified": unverified_count,
         }
+
+    async def _verify_action(
+        self,
+        domain: str,
+        service: str,
+        entity_id: str,
+        service_data: dict[str, Any],
+        response: Any,
+    ) -> dict[str, Any]:
+        """按可推导目标校验服务调用是否真的落到设备上（三态）。"""
+        verification = describe_service_verification(
+            domain, service, entity_id, service_data, response
+        )
+        if not verification.get("supported") or verification.get("verified") is not None:
+            return verification
+        # 响应里没有目标实体：等一个状态回推再读一次，仍读不到就如实标「未确认」。
+        await asyncio.sleep(0.25)
+        try:
+            state = await self._ha.fetch_entity_state(entity_id)
+        except Exception as exc:
+            logger.debug("读取联动目标状态失败 [%s]: %s", entity_id, exc)
+            return verification
+        if not state:
+            return verification
+        return describe_service_verification(
+            domain,
+            service,
+            entity_id,
+            service_data,
+            [
+                {
+                    "entity_id": entity_id,
+                    "state": state.get("state"),
+                    "attributes": state.get("attributes") or {},
+                }
+            ],
+        )
 
     async def compensate_applied_actions(
         self, applied_items: list[dict[str, Any]], label: str

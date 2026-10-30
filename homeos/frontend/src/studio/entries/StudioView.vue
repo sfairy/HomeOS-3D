@@ -1,9 +1,31 @@
+<script lang="ts">
+/**
+ * 卸载顺序：上一次 studio 的异步 teardown（flush 未保存改动 + 释放渲染器）可能与下一次
+ * 进入并发。teardownStudio 返回 Promise，Vue 的 onBeforeUnmount 不会等待；这里把它串成
+ * 一条串行链，下一次 onMounted 先等链尾，避免新实例 boot 与旧实例回收交错（旧实例
+ * finally 里的 resetStudioFacade 会把新实例的 facade 清掉）。
+ */
+let pendingStudioTeardown: Promise<void> = Promise.resolve();
+
+function scheduleStudioTeardown(
+  teardown: (() => Promise<void> | void) | null | undefined,
+): Promise<void> {
+  if (!teardown) return pendingStudioTeardown;
+  pendingStudioTeardown = pendingStudioTeardown.then(() =>
+    Promise.resolve(teardown()).catch((error: unknown) => {
+      window.HomeOSLog?.error?.(error, { phase: "studio-view-teardown" });
+    }),
+  );
+  return pendingStudioTeardown;
+}
+</script>
+
 <script setup lang="ts">
 /**
  * Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ 既有 DOM 契约供 bootStudio 操作。
  */
 import { computed, onBeforeUnmount, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
 import {
   STUDIO_SHORTCUT_ROWS,
@@ -47,8 +69,17 @@ const rootClass = computed(() => [
   floorplanStore.planFocus ? "sc-shell--plan-focus" : "",
 ]);
 
-let teardownStudio: (() => void) | null = null;
+let teardownStudio: (() => Promise<void> | void) | null = null;
+let embeddedResizeFrame = 0;
+let facadeBound = false;
 let disposed = false;
+
+onBeforeRouteLeave(() => {
+  // SPA 内返回不会触发 beforeunload；dirty 时先让用户确认，避免 teardown 的异步 flush
+  // 失败后只留一条日志、编辑静默丢失。
+  if (!floorplanStore.dirty) return true;
+  return window.confirm("户型还有未保存的修改，确定离开吗？");
+});
 
 function goBack() {
   router.push("/studio/editor").catch(() => {
@@ -61,12 +92,17 @@ function jumpStep(step: string) {
 }
 
 onMounted(async () => {
-  floorplanStore.bindFacade();
   // 界面顶栏已经挂上，但 3D 那半边还没影子：遮罩文案从这里开始接管，直到 boot 自己
   // 走完「准备模型 → 读取户型 → 构建户型 → 准备预览」四段并把遮罩撤掉。
   // 动态 import 的失败不归 boot 管（boot 还没跑），所以单独接在 try 里交给遮罩。
   try {
     studioStartupPhase("正在准备户型模型…");
+    // 上一次 studio 的异步回收必须先结束：它会 resetStudioFacade 并释放全局监听，
+    // 与新实例的 bindFacade/bootStudio 交错时会把新实例的 facade 清掉。
+    await pendingStudioTeardown;
+    if (disposed) return;
+    floorplanStore.bindFacade();
+    facadeBound = true;
     await import("@app/3d-studio/stage-startup");
     const studio = await import("@app/3d-studio/authoring/lifecycle");
     if (disposed) return;
@@ -83,7 +119,8 @@ onMounted(async () => {
   floorplanStore.command({ type: "setPlanFocus", focus: floorplanStore.planFocus });
   // 嵌入舞台：壳层裁成全屏后再催一次 resize，避免首帧按错误视口框相机
   if (!showCreatorChrome.value) {
-    requestAnimationFrame(() => {
+    embeddedResizeFrame = requestAnimationFrame(() => {
+      embeddedResizeFrame = 0;
       window.dispatchEvent(new Event("resize"));
     });
   }
@@ -91,10 +128,16 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
-  floorplanStore.unbindFacade();
+  if (embeddedResizeFrame) cancelAnimationFrame(embeddedResizeFrame);
+  embeddedResizeFrame = 0;
+  if (facadeBound) {
+    facadeBound = false;
+    floorplanStore.unbindFacade();
+  }
   const dispose = teardownStudio;
   teardownStudio = null;
-  dispose?.();
+  // onBeforeUnmount 是同步的：异步回收交给模块级串行链，失败只记日志；下一次挂载前会等它。
+  void scheduleStudioTeardown(dispose);
 });
 </script>
 

@@ -128,6 +128,10 @@ export function schedulePoll(
     }, stagger)
   }
   return () => {
+    // 必须比对回调身份：同 key 在这之后被重新注册（例如挂载了第二个使用同一显式 key
+    // 的小组件）时，旧订阅的取消只能移除自己那一份，不能把新任务的 job 一起删掉，
+    // 否则新任务会在无人察觉的情况下永久停止轮询。
+    if (jobs.get(key)?.fn !== fn) return
     jobs.delete(key)
     if (jobs.size === 0) stopTick()
   }

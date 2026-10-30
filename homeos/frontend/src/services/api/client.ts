@@ -131,23 +131,40 @@ let csrfRefreshPromise: Promise<void> | null = null
  * 暴露为全局可复用入口：router 里的系统初始化 / refreshSession 也必须走这同一个 Promise，
  * 避免跟首次突变请求的 bootstrap 并发触发两次 set-cookie，造成 header 与 cookie 不一致的 403。
  */
+function beginCsrfRefresh(): Promise<void> {
+  const tracked = apiClient
+    .get('/setup/status', {
+      skipAuthRedirect: true,
+      _csrfBootstrap: true,
+    } as RetryableAxiosRequestConfig)
+    .then(() => undefined)
+    .catch((refreshError) => {
+      logger.warn('[API 客户端] CSRF 令牌刷新失败', refreshError)
+      return undefined
+    })
+    .finally(() => {
+      if (csrfRefreshPromise === tracked) csrfRefreshPromise = null
+    })
+  return tracked
+}
+
 function refreshCsrfToken(forceReset = false): Promise<void> {
-  if (forceReset) clearCsrfCookie()
-  if (!csrfRefreshPromise) {
-    csrfRefreshPromise = apiClient
-      .get('/setup/status', {
-        skipAuthRedirect: true,
-        _csrfBootstrap: true,
-      } as RetryableAxiosRequestConfig)
-      .then(() => undefined)
-      .catch((refreshError) => {
-        logger.warn('[API 客户端] CSRF 令牌刷新失败', refreshError)
-        return undefined
-      })
+  if (forceReset) {
+    // 必须先清 cookie 再发新请求；但不能复用清 cookie 之前发出的在途 Promise ——
+    // 那次 GET 可能带着旧 cookie 被后端判定“已有效”而不下发新 Set-Cookie，
+    // 客户端清空后就永久少了 CSRF 头。这里等旧请求落定后再强制发一次。
+    clearCsrfCookie()
+    const previous = csrfRefreshPromise
+    const tracked = (previous ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => beginCsrfRefresh())
       .finally(() => {
-        csrfRefreshPromise = null
+        if (csrfRefreshPromise === tracked) csrfRefreshPromise = null
       })
+    csrfRefreshPromise = tracked
+    return tracked
   }
+  if (!csrfRefreshPromise) csrfRefreshPromise = beginCsrfRefresh()
   return csrfRefreshPromise
 }
 

@@ -8,6 +8,7 @@ const order = useOrderStore();
 const confirm = useConfirmStore();
 const dialog = ref<HTMLDialogElement | null>(null);
 const now = ref(Date.now());
+const refreshing = ref(false);
 const TITLE_ID = "payment-dialog-title";
 const SCAN_ID = "payment-dialog-scan";
 const NOTE_ID = "payment-dialog-note";
@@ -56,9 +57,15 @@ async function cancel() {
 }
 
 async function refresh() {
-  await order.pollOrder(current.value?.orderNo || "", current.value?.lookupToken, {
-    reconcile: true,
-  });
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await order.pollOrder(current.value?.orderNo || "", current.value?.lookupToken, {
+      reconcile: true,
+    });
+  } finally {
+    refreshing.value = false;
+  }
 }
 </script>
 
@@ -114,7 +121,15 @@ async function refresh() {
     </div>
     <div class="hb-dialog__foot hb-dialog__foot--split">
       <button type="button" class="hb-button hb-button--secondary" @click="cancel">取消支付</button>
-      <button type="button" class="hb-button hb-button--primary" @click="refresh">我已完成支付</button>
+      <button
+        type="button"
+        class="hb-button hb-button--primary"
+        :disabled="refreshing"
+        :aria-busy="refreshing ? 'true' : 'false'"
+        @click="refresh"
+      >
+        {{ refreshing ? "确认中…" : "我已完成支付" }}
+      </button>
     </div>
   </dialog>
 </template>

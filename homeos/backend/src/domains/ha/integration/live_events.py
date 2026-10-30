@@ -170,8 +170,12 @@ class LiveStateEventQueue:
             self._unkeyed += 1
             key = f'__unkeyed_{self._unkeyed}'
         if len(self._pending) >= self._max_pending:
+            # 丢最旧而不是丢新到：全量对账补得回旧状态，但用户刚触发的这一条
+            # 如果被丢掉，墙屏会停在上一帧直到下一轮对账。
+            oldest = next(iter(self._pending), None)
+            if oldest is not None:
+                self._pending.pop(oldest, None)
             self._dropped += 1
-            return
         self._pending[key] = dict(change)
 
     async def flush(self) -> None:

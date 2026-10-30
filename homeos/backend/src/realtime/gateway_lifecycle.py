@@ -56,6 +56,9 @@ class ConnectionLifecycleMixin:
     _sessions: dict[str, dict[str, Any]]
     _license_listener_registered: bool
     _loop: asyncio.AbstractEventLoop | None
+    #: 正在握手（_on_connect 未返回）的 sid；断连清理早于登记时用来留 tombstone。
+    _connecting: set[str]
+    _closed_sids: set[str]
 
     if TYPE_CHECKING:
         # 由 RealtimeGateway 提供：
@@ -241,6 +244,26 @@ class ConnectionLifecycleMixin:
 
     # ------------------------------------------------------------------ 握手
     async def _on_connect(self, sid: str, environ: dict[str, Any], auth: Any) -> None:
+        """握手入口：标记「正在握手」，并把握手期间断连的 sid 统一收尾清理。
+
+        connect / disconnect 处理函数各自跑在独立 task 里（engineio 对每个消息都走
+        start_background_task），所以客户端「连上就断」时 _on_disconnect 完全可能先于
+        这里的登记动作跑完。若之后 connect 继续把 sid 写进 connected / _baseline_ready /
+        订阅索引 / 会话镜像，清理不会再有第二次机会 —— 该 sid 会成为永久死 sid，参与之后
+        的每一次广播。_closed_sids 就是这个交错窗口的墓碑。
+        """
+        self._connecting.add(sid)
+        try:
+            await self._establish_connection(sid, environ, auth)
+        finally:
+            self._connecting.discard(sid)
+            if sid in self._closed_sids:
+                self._closed_sids.discard(sid)
+                # 登记动作可能已经跑过（断连清理早于登记）：按断连路径再清一次。
+                # _on_disconnect 是幂等的，正常情况这里是 no-op。
+                await self._on_disconnect(sid)
+
+    async def _establish_connection(self, sid: str, environ: dict[str, Any], auth: Any) -> None:
         from socketio.exceptions import ConnectionRefusedError as SocketConnectionRefusedError
 
         cookie_header = environ.get("HTTP_COOKIE")
@@ -307,13 +330,13 @@ class ConnectionLifecycleMixin:
             filter_entities_by_access(self.state_store.get_all(), user),
             list(ws_cfg.critical_domains),
         )
-        # 等待期内客户端可能已经断开。connect / disconnect 处理函数各自跑在独立 task 里
-        # （engineio 对每个消息都 ``start_background_task``，见
-        # ``engineio/async_server.py`` 的 ``_trigger_event(run_async=True)``），所以
-        # ``_on_disconnect`` 完全可能已经跑完并清理过一遍；此刻若继续登记，sid 会被永久
-        # 留在 ``_baseline_ready`` 与订阅索引里，而 ``_session_for`` 对缺失会话是 fail-open
-        # （视作无订阅限制），于是每个死 sid 都会参与之后的每一次广播，候选集与内存只增不减。
-        # 这里到下面两个登记动作之间没有 await，asyncio 是协作式的，不会再有交错窗口。
+        # 等待期内客户端可能已经断开：connect / disconnect 处理函数各自跑在独立 task 里
+        # （engineio 对每个消息都走 start_background_task），所以 _on_disconnect 完全可能
+        # 已经跑完并清理过一遍；此刻若继续登记，sid 会被永久留在 _baseline_ready 与订阅
+        # 索引里，而 _session_for 对缺失会话是 fail-open（视作无订阅限制），于是每个死 sid
+        # 都会参与之后的每一次广播，候选集与内存只增不减。
+        # 这里覆盖「等待期断开」；握手更早阶段（鉴权线程 / 授权查询等 await）的断开由
+        # _on_connect 的 finally 通过 _closed_sids 墓碑兜底清理。
         if sid not in self.connected:
             return
         # 快照已生成：此刻起该 sid 才有「基线」。
@@ -388,6 +411,11 @@ class ConnectionLifecycleMixin:
         return closed
 
     async def _on_disconnect(self, sid: str, reason: Any = None) -> None:
+        if sid in self._connecting:
+            # 握手还没返回：登记动作可能尚未执行，这次清理会漏掉之后才写入的
+            # connected / _baseline_ready / 订阅索引 / 会话镜像。留 tombstone 让
+            # _on_connect 的 finally 在握手结束时再按断连路径清一次。
+            self._closed_sids.add(sid)
         self.connected.discard(sid)
         self._baseline_ready.discard(sid)
         self._resync_pending.discard(sid)

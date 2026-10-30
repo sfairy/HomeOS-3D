@@ -17,6 +17,7 @@ from fastapi import Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from .client_address import client_ip_from_request
 from .cookies import resolve_session_cookie_secure
 from ..core.models import LoginSession, User
 
@@ -46,7 +47,9 @@ def create_login_session(
     调用方负责 ``session.commit()``（与业务写入放在同一事务里）。
     """
     token = new_session_token()
-    ip_address = request.client.host if request.client else ""
+    # 来源 IP 必须与限流/MCP 共用同一份可信代理判据：反代部署下直接取 TCP 对端
+    # 会把每条会话都记成代理地址，审计失去意义。
+    ip_address = client_ip_from_request(request) or ""
     session.add(
         LoginSession(
             id_hash=session_token_hash(token),

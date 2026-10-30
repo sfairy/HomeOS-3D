@@ -23,7 +23,7 @@ from .api import pages as pages_api
 from .api import setup as setup_api
 from .api import store as store_api
 from .api import wechat as wechat_api
-from .config import PROJECT_ROOT, StoreSettings, load_settings
+from .config import PROJECT_ROOT, StoreSettings, _warn_order_ttl_against_qr, load_settings
 from .core.bootstrap import ensure_default_products, ensure_default_settings
 from .core.console_log import configure_console_logging
 from .core.database import Database
@@ -41,6 +41,7 @@ from .ops import incidents
 from .ops.appearance import AppearanceStore
 from .ops.site_settings import get_setting
 from .payments import resolve_provider
+from .payments.channels import enabled_channel_names
 from .payments.sweeper import (
     configure_sweep_loop,
     mark_sweep_loop_stopped,
@@ -242,6 +243,11 @@ def _open_database(settings: StoreSettings) -> Database:
     with database.session() as session:
         ensure_default_settings(session)
         ensure_default_products(session)
+        # 环境变量未设、但后台站点配置选了支付宝时，也要给出 TTL 过短告警。
+        setting = get_setting(session)
+        enabled = enabled_channel_names(setting, settings)
+        if "alipay" in enabled and (settings.payment_provider or "").strip().lower() != "alipay":
+            _warn_order_ttl_against_qr(settings, enabled_providers=enabled)
     return database
 
 

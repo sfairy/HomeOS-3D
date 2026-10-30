@@ -799,11 +799,18 @@ def _scan_ha_bindings(
 def _scan_env_sensor_map(
     app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
-    for room_id, env_sensor_room in (app_config_raw.get("envSensorMap") or {}).items():
+    # 配置可能被历史数据/手工编辑写成非 dict：这里抛 AttributeError 会中断
+    # scan_layout_and_system 里整个 app_config 扫描分支，导致其余系统配置引用
+    # （人员/TTS/媒体/充电桩/能耗回路）全部从索引里消失，解绑时找不到引用。
+    raw_map = app_config_raw.get("envSensorMap")
+    if not isinstance(raw_map, dict):
+        return
+    for room_id, env_sensor_room in raw_map.items():
         paths = _reference_paths(env_sensor_room, entity_id)
         if not paths:
             continue
-        room_label = env_sensor_room.get("label") or room_id
+        room_label = env_sensor_room.get("label") if isinstance(env_sensor_room, dict) else None
+        room_label = room_label or room_id
         _push(
             items,
             {

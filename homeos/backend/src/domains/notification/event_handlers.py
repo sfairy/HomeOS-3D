@@ -14,6 +14,7 @@ from ..alerts.messages import format_security_alarm_message
 from ..earthquake.state import format_eew_notify_message
 from ..earthquake.types import eew_catalog_cooldown_key
 from ..ha.config.ha_filters import HaStateChangeRouter
+from ...platform.core.background import spawn_background
 
 logger = logging.getLogger("homeos.notification.events")
 
@@ -444,9 +445,12 @@ def _fire_and_forget(awaitable: Awaitable[Any]) -> None:
             logger.warning("通知异步任务失败: %s", exc)
 
     try:
-        asyncio.get_running_loop().create_task(_run())
+        asyncio.get_running_loop()
     except RuntimeError:
         return
+    # 用 spawn_background 持有强引用：裸 create_task 的返回值无人保存，任务可能在
+    # 执行途中被 GC（RUF006），导致离线/低电量/规则评估被静默丢弃。
+    spawn_background(_run())
 
 
 __all__ = ["NotificationEventHandlersHelper"]

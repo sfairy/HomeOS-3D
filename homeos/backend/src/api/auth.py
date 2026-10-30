@@ -39,6 +39,10 @@ from ..domains.store import (
 from ..platform.core.db_exec import run_db
 from ..platform.core.deps import get_session
 from ..platform.core.models import LoginSession, User
+from ..platform.security.client_address import (
+    client_ip_from_request,
+    resolve_client_address_from_request,
+)
 from ..platform.security.cookies import ensure_csrf_cookie
 from ..platform.security.limiter import rate_limit
 from ..platform.security.login_limiter import LoginAttemptLimiter, retry_after_headers
@@ -70,8 +74,26 @@ def public_user(user: User) -> UserResponse:
 
 
 def request_metadata(request: Request) -> tuple[str, str]:
-    ip_address = request.client.host if request.client else ""
+    """审计用的来源 IP 与 UA（IP 必须走可信代理判据，见 ``_login_limiter_keys``）。"""
+    ip_address = client_ip_from_request(request) or ""
     return (ip_address[:64], request.headers.get("user-agent", "")[:512])
+
+
+def _login_limiter_keys(request: Request, account_lower: str) -> tuple[str, ...]:
+    """登录尝试限流键：按（客户端 IP）与（客户端 IP + 账号）双桶计数。
+
+    地址解析必须走 ``platform.security.client_address``（先验 TCP 对端是否可信、
+    再回退转发链）。此前直接用 ``request.client.host``：镜像内置反代就在同容器回环上，
+    于是所有客户端都是 127.0.0.1 —— 任意来源失败 5 次就打满 ``ip:127.0.0.1`` 桶，
+    600 秒内所有人（即使密码正确）都只拿到 429，等于一个零成本的全局登录拒绝服务。
+
+    判不出客户端地址时（可信代理解析不到任何转发头）**不建 IP 桶**：那个桶是全局的，
+    同样能被任意失败请求打满；只保留按账号的桶，针对性爆破仍然受限。
+    """
+    address = resolve_client_address_from_request(request)
+    if address.per_client and address.ip:
+        return (f"ip:{address.ip}", f"account:{address.ip}:{account_lower}")
+    return (f"account:{account_lower}",)
 
 
 def _session_max_age(request: Request) -> int:
@@ -463,8 +485,7 @@ def login(
     require_same_origin_write(request)
     account = payload.username.strip()
     account_lower = account.lower()
-    (ip_address, _user_agent) = request_metadata(request)
-    limiter_keys = (f"ip:{ip_address}", f"account:{ip_address}:{account_lower}")
+    limiter_keys = _login_limiter_keys(request, account_lower)
     limiter: LoginAttemptLimiter = request.app.state.login_limiter
     retry_after = max(limiter.retry_after(key) for key in limiter_keys)
     if any(limiter.blocked(key) for key in limiter_keys):

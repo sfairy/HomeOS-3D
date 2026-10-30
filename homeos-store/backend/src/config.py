@@ -609,10 +609,19 @@ def _validate_verification_window_config(settings: StoreSettings) -> None:
 ALIPAY_ORDER_TTL_FLOOR_SECONDS = 300
 
 
-def _warn_order_ttl_against_qr(settings: StoreSettings) -> None:
+def _warn_order_ttl_against_qr(
+    settings: StoreSettings, *, enabled_providers: tuple[str, ...] = ()
+) -> None:
     """支付宝收款下，订单 TTL 太短会给每一笔支付制造人工复核。
+
+    ``enabled_providers`` 用于启动后拿到 DB 站点配置再复查一次：只读环境变量会漏掉
+    “后台选了支付宝、env 没设”的部署。
     """
-    if (settings.payment_provider or "").strip().lower() != "alipay":
+    providers = {
+        str(item or "").strip().lower() for item in enabled_providers if str(item or "").strip()
+    }
+    providers.add((settings.payment_provider or "").strip().lower())
+    if "alipay" not in providers:
         return
     ttl = int(settings.order_ttl_seconds or 0)
     if ttl >= ALIPAY_ORDER_TTL_FLOOR_SECONDS:

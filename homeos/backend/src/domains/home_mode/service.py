@@ -214,10 +214,18 @@ class HomeModeService:
         self._timer = asyncio.create_task(self._time_trigger_loop(), name="home-mode-time-triggers")
 
     def _load_active_mode_row(self) -> dict[str, Any] | None:
-        """读取当前激活模式（同步；由 :meth:`start` 放进线程池）。"""
+        """读取当前激活模式（同步；由 :meth:`start` 放进线程池）。
+
+        多互斥组会同时存在多条激活记录；排序必须与 :meth:`get_active_modes` 一致
+        （priority 降序、sort_order 升序），否则重启后指针对齐的是「另一条」激活模式，
+        无参 :meth:`deactivate` 会和前端展示的主模式错位。
+        """
         with self._session_factory() as session:
             active = session.execute(
-                select(HomeMode).where(HomeMode.is_active.is_(True)).limit(1)
+                select(HomeMode)
+                .where(HomeMode.is_active.is_(True))
+                .order_by(HomeMode.priority.desc(), HomeMode.sort_order.asc())
+                .limit(1)
             ).scalar_one_or_none()
         return mode_to_dict(active) if active is not None else None
 
@@ -675,11 +683,12 @@ class HomeModeService:
         return self.get_active_modes()
 
     def _find_first_active(self) -> dict[str, Any] | None:
+        # 与 get_active_modes 的排序保持一致：无参停用优先锁定 UI 展示的主模式。
         with self._session_factory() as session:
             mode = session.execute(
                 select(HomeMode)
                 .where(HomeMode.is_active.is_(True))
-                .order_by(HomeMode.sort_order.asc())
+                .order_by(HomeMode.priority.desc(), HomeMode.sort_order.asc())
                 .limit(1)
             ).scalar_one_or_none()
         return mode_to_dict(mode) if mode is not None else None

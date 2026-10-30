@@ -1,3 +1,24 @@
+<script lang="ts">
+/**
+ * 与 StudioView 同因：teardownEditor 是异步的（先 flush 未保存改动再释放），Vue 的
+ * onBeforeUnmount 不会等待；把多次挂载/卸载串成一条链，下一次挂载先等链尾，避免旧实例
+ * finally 里的 resetEditorFacade 清掉新实例的 facade。
+ */
+let pendingEditorTeardown: Promise<void> = Promise.resolve();
+
+function scheduleEditorTeardown(
+  teardown: (() => Promise<void> | void) | null | undefined,
+): Promise<void> {
+  if (!teardown) return pendingEditorTeardown;
+  pendingEditorTeardown = pendingEditorTeardown.then(() =>
+    Promise.resolve(teardown()).catch((error: unknown) => {
+      window.HomeOSLog?.error?.(error, { phase: "editor-view-teardown" });
+    }),
+  );
+  return pendingEditorTeardown;
+}
+</script>
+
 <script setup lang="ts">
 /**
  * Vue 壳层（顶栏 / 分栏折叠 / 缩放 / 快捷键）+ 既有 DOM 契约供 bootEditor 操作。
@@ -40,7 +61,8 @@ const rootStyle = computed(() => ({
   "--sc-canvas-zoom": String(editorStore.canvasZoom),
 }));
 
-let teardownEditor: (() => void) | null = null;
+let teardownEditor: (() => Promise<void> | void) | null = null;
+let facadeBound = false;
 let disposed = false;
 
 function goBack() {
@@ -56,7 +78,11 @@ function openFloorplan() {
 }
 
 onMounted(async () => {
+  // 上一次编辑器的异步回收先结束，避免与新实例的 boot 交错。
+  await pendingEditorTeardown;
+  if (disposed) return;
   editorStore.bindFacade();
+  facadeBound = true;
   document.documentElement.style.setProperty("--sc-canvas-zoom", String(editorStore.canvasZoom));
   // hls.min.js 不再在编辑器引导阶段阻塞加载：相机预览创建播放器前由
   // @/shared/camera/hls-loader 按需加载，无摄像头页面完全不下发该脚本。
@@ -74,10 +100,19 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
-  editorStore.unbindFacade();
+  if (facadeBound) {
+    facadeBound = false;
+    editorStore.unbindFacade();
+  }
+  // canvasZoom 是全局 document 级副作用（CSS 变量 + 两个容器的 class），卸载时必须收回，
+  // 否则离开编辑器后仪表盘预览仍带着编辑器的缩放比例与 class。
+  document.documentElement.style.removeProperty("--sc-canvas-zoom");
+  document.getElementById("editor-canvas")?.classList.remove("sc-canvas-zoom");
+  document.getElementById("dashboard-preview")?.classList.remove("sc-canvas-zoom");
   const dispose = teardownEditor;
   teardownEditor = null;
-  dispose?.();
+  // onBeforeUnmount 是同步的：异步回收交给模块级串行链，失败只记日志；下一次挂载前会等它。
+  void scheduleEditorTeardown(dispose);
 });
 
 watch(

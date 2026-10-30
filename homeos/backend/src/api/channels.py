@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import xml.etree.ElementTree as ET
 from typing import Any
 
@@ -21,7 +22,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 
 from ..dependencies import license_feature
-from ..domains.channels.wecom_crypto import compute_msg_signature, decrypt_wecom
+from ..domains.channels.wecom_crypto import compute_msg_signature, decrypt_wecom, sha1
 from ..domains.license import features as feature_codes
 from ..platform.security.auth_context import require_user
 
@@ -168,6 +169,40 @@ def _text(body: str, status_code: int = 200) -> Response:
     return Response(content=body, status_code=status_code, media_type="text/html")
 
 
+# 企微回调重放防护：时间戳窗口 + MsgId 去重。单进程单事件循环内的同步 check+insert
+# 之间没有 await，天然无竞态；进程重启后缓存清空（企微本身只做有限次重试，可接受）。
+_WECOM_CALLBACK_TTL_SECONDS = 300
+_WECOM_REPLAY_CACHE_MAX = 4096
+_wecom_replay_seen: dict[str, float] = {}
+
+
+def _timestamp_is_stale(timestamp: str | None) -> bool:
+    """回调 timestamp 必须是可解析的 Unix 秒且落在允许窗口内。"""
+    try:
+        created_at = int(str(timestamp or ""))
+    except ValueError:
+        logger.debug("企微回调 timestamp 非法: %r", timestamp)
+        return True
+    return abs(time.time() - created_at) > _WECOM_CALLBACK_TTL_SECONDS
+
+
+def _wecom_callback_replayed(key: str) -> bool:
+    """记录并判断回调是否重复；返回 True 表示应直接回 success 不再处理。"""
+    now = time.monotonic()
+    cutoff = now - _WECOM_CALLBACK_TTL_SECONDS
+    while _wecom_replay_seen:
+        oldest_key, seen_at = next(iter(_wecom_replay_seen.items()))
+        if seen_at >= cutoff:
+            break
+        _wecom_replay_seen.pop(oldest_key, None)
+    if key in _wecom_replay_seen:
+        return True
+    if len(_wecom_replay_seen) >= _WECOM_REPLAY_CACHE_MAX:
+        _wecom_replay_seen.pop(next(iter(_wecom_replay_seen)), None)
+    _wecom_replay_seen[key] = now
+    return False
+
+
 def _xml_field(raw_body: str, *names: str) -> dict[str, str]:
     """从企微回调 XML 中提取首个命名字段（缺失即不返回该键）。"""
     out: dict[str, str] = {}
@@ -222,6 +257,9 @@ async def handle_callback(
     token, aes_key = security.get("token"), security.get("aesKey")
     if not token or not aes_key:
         return _text("配置缺失", 500)
+    if _timestamp_is_stale(timestamp):
+        logger.warning("企微回调时间戳过期或非法: %r", timestamp)
+        return _text("禁止访问", 403)
     try:
         raw_body = (await request.body()).decode("utf-8", errors="replace")
         if not raw_body:
@@ -234,7 +272,12 @@ async def handle_callback(
         if not _signature_matches(local, msg_signature):
             return _text("禁止访问", 403)
         decrypted_xml = str(decrypt_wecom(str(aes_key), encrypt)["msg"])
-        inner = _xml_field(decrypted_xml, "FromUserName", "Content", "MsgType")
+        inner = _xml_field(decrypted_xml, "FromUserName", "Content", "MsgType", "MsgId")
+        msg_id = inner.get("MsgId", "")
+        replay_key = f"mid:{msg_id}" if msg_id else f"sig:{sha1(f'{timestamp}:{nonce}:{msg_signature}')}"
+        if _wecom_callback_replayed(replay_key):
+            logger.info("忽略重复的企微回调: %s", replay_key)
+            return _text("success")
         if inner.get("MsgType") == "text" and inner.get("FromUserName") and inner.get("Content"):
             import asyncio
 

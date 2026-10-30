@@ -1231,6 +1231,9 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     if proactive is not None:
         await shutdown("主动管家", proactive.stop)
     await shutdown("通知", startup.notification.stop)
+    channels_service = getattr(app.state, "channels_service", None)
+    if channels_service is not None:
+        await shutdown("消息通道", channels_service.stop)
     for service, label in (
         (startup.catalog_notify, "目录通知"),
         (startup.eew_poll, "地震预警轮询"),

@@ -12,11 +12,9 @@
 
 /** 闸门回落的目标：与前台 `requiresAuth` 的落点一致（同一个登录页、同一套表单）。
  *
- * 导出是**有意的**：`scripts/_store_admin_guard_smoke.mjs` 断言它就是前台登录页，
- * 「闸门改道到别处」这种回归只能靠这条对账发现（私有常量时冒烟只能重抄一遍字面量，
- * 于是两边一起改错也没人知道）。
+ * 导出供路由/检查脚本引用，避免登录落点被改成字面量后无人察觉。
  */
-const STORE_LOGIN_PATH = "/user/authentication/login";
+export const STORE_LOGIN_PATH = "/user/authentication/login";
 
 /** 放行（`true`）或改道（`replace` 为 true 时不往历史里塞一条，避免「后退」回不去）。 */
 type GuardResult = true | { path: string; replace: true };

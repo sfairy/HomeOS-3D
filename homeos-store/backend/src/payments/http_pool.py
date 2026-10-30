@@ -20,9 +20,12 @@ httpx 的顶层便捷函数每次都会新建并关闭一个临时客户端 —�
 from __future__ import annotations
 
 import atexit
+import logging
 import threading
 
 import httpx
+
+logger = logging.getLogger("src.payments")
 
 #: 与各 provider 原本的字面量超时保持一致。
 DEFAULT_TIMEOUT_SECONDS = 15.0
@@ -31,17 +34,37 @@ _client: httpx.Client | None = None
 _lock = threading.Lock()
 
 
+def _build_client(*, trust_env: bool) -> httpx.Client:
+    return httpx.Client(
+        timeout=DEFAULT_TIMEOUT_SECONDS,
+        limits=httpx.Limits(max_keepalive_connections=8, max_connections=16),
+        trust_env=trust_env,
+    )
+
+
 def shared_client() -> httpx.Client:
-    """进程级客户端（懒加载 + 双检锁）；线程安全，可被 FastAPI 线程池并发使用。"""
+    """进程级客户端（懒加载 + 双检锁）；线程安全，可被 FastAPI 线程池并发使用。
+
+    代理环境变量（HTTP_PROXY/NO_PROXY）里有 httpx 解析不了的写法时（真实踩过：
+    ``NO_PROXY="...,::1,[::1]"``，httpx 在 ``Client(...)`` 构造阶段就抛
+    ``InvalidURL``），每次支付调用都会变成未捕获的 500，而不是带文案的 PaymentError。
+    代理正常工作时仍走 ``trust_env=True``（有意保留对代理的支持），只在构造失败时
+    降级为直连并告警 —— 直连失败会退化成 ``httpx.HTTPError``，由 provider 转成
+    PaymentError，管理员/顾客看到的是可读错误而不是 500。
+    """
     global _client
     client = _client
     if client is None:
         with _lock:
             if _client is None:
-                created = httpx.Client(
-                    timeout=DEFAULT_TIMEOUT_SECONDS,
-                    limits=httpx.Limits(max_keepalive_connections=8, max_connections=16),
-                )
+                try:
+                    created = _build_client(trust_env=True)
+                except httpx.InvalidURL as error:
+                    logger.warning(
+                        "支付 HTTP 客户端构造失败（代理环境变量异常），本进程降级为直连：%s",
+                        error,
+                    )
+                    created = _build_client(trust_env=False)
                 atexit.register(created.close)
                 _client = created
             client = _client

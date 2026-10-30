@@ -23,6 +23,14 @@ def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
     return {str(row[1]) for row in connection.execute(f'PRAGMA table_info("{table}")')}
 
 
+def _email_not_null(connection: sqlite3.Connection, table: str) -> bool:
+    """email 列是否 NOT NULL（决定空串该转 NULL 还是用部分索引排除）。"""
+    for row in connection.execute(f'PRAGMA table_info("{table}")'):
+        if str(row[1]) == "email":
+            return bool(row[3])
+    return False
+
+
 def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
     return (
         connection.execute(
@@ -56,7 +64,12 @@ def normalize_email_column(
         f"SELECT id, email FROM {table} WHERE email IS NOT NULL AND trim(email) != ''"  # noqa: S608
     ).fetchall()
     normalized: dict[str, str] = {}
+    updates: list[tuple[str, object]] = []
     for row_id, email in rows:
+        # 归一化口径必须与上面的重复检测完全一致：SQLite 的 lower() 只折叠 ASCII，
+        # 直接用它 UPDATE 会让非 ASCII 大写邮箱（如 "Ü@X.com"）检测成 "ü@x.com"、
+        # 写回却仍是 "Ü@x.com"，两条读路径（Python 小写 vs DB 值）从此对不上。
+        # 统一用 Python 的 str.strip().lower() 的结果写回，逐行更新。
         value = str(email).strip().lower()
         previous = normalized.get(value)
         if previous is not None and previous != str(row_id):
@@ -65,9 +78,24 @@ def normalize_email_column(
                 f"{previous} 与 {row_id} 都映射到 {value}"
             )
         normalized[value] = str(row_id)
+        if str(email) != value:
+            updates.append((value, row_id))
+    if updates:
+        connection.executemany(
+            f"UPDATE {table} SET email = ? WHERE id = ?",  # noqa: S608
+            updates,
+        )
+    if _email_not_null(connection, table):
+        # NOT NULL 列不能把空串转 NULL；只对非空邮箱建唯一索引，空串（损坏/占位数据）
+        # 不参与唯一性。否则两行空串会让整次迁移在 CREATE UNIQUE INDEX 处失败，应用起不来。
+        connection.execute(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table}(email) "
+            "WHERE trim(email) != ''"
+        )
+        return
+    # 可空列：空串统一转 NULL（SQLite 唯一索引允许多个 NULL），再建全列唯一索引。
     connection.execute(
-        f"UPDATE {table} SET email = lower(trim(email)) "  # noqa: S608
-        "WHERE email IS NOT NULL AND email <> lower(trim(email))"
+        f"UPDATE {table} SET email = NULL WHERE email IS NOT NULL AND trim(email) = ''"  # noqa: S608
     )
     connection.execute(
         f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table}(email)"

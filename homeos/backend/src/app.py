@@ -30,6 +30,8 @@ from .bootstrap.studio_shell import install as install_studio_shell
 from .config import Settings, load_settings
 from .platform.core.database import Database
 from .platform.core.observability import decide_metrics_access, format_homeos_prometheus_metrics
+from .platform.core.proxy_env import repair_no_proxy_env
+from .platform.security.client_address import client_ip_from_request
 
 #: 健康检查 DB 探针缓存 TTL：/health 为公开端点，避免高频轮询击穿连接。
 DB_PROBE_TTL_SECONDS = 3.0
@@ -114,7 +116,7 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
         decision = decide_metrics_access(
             metrics_token=app_settings.metrics_token,
             is_production=app_settings.is_production,
-            remote_address=request.client.host if request.client else None,
+            remote_address=client_ip_from_request(request),
             authorization_header=request.headers.get("authorization"),
             query_token=request.query_params.get("token"),
         )
@@ -143,6 +145,9 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    # 必须在任何 httpx 客户端构造之前完成：lifespan 启动期 WebPush/WeCom
+    # 会建立常驻客户端，坏 NO_PROXY（如含 "[::1]"）会让整个进程启动失败。
+    repair_no_proxy_env()
     app_settings = settings or load_settings()
     version = load_app_version()
 

@@ -20,6 +20,8 @@ MAX_SESSIONS = 200
 SESSION_TTL_MS = 10 * 60_000
 #: 单会话保留的历史条数上限（与 LLM 上下文截取上限一致）
 MAX_TURNS = 16
+#: 「已尝试回填」会话 id 的记忆上限：仅用于避免重复查库，不能无界增长
+MAX_LOADED_SESSIONS = MAX_SESSIONS * 4
 
 
 @dataclass
@@ -64,6 +66,10 @@ class AgentSessionStoreService:
         if self._session_factory is None or session_id in self._loaded:
             return None
         self._loaded.add(session_id)
+        if len(self._loaded) > MAX_LOADED_SESSIONS:
+            # 会话 id 来自客户端，不能无界累积；超限整体清空（最坏退化为多查一次库）
+            self._loaded.clear()
+            self._loaded.add(session_id)
         try:
             with self._session_factory() as session:
                 rows = list(
@@ -151,6 +157,8 @@ class AgentSessionStoreService:
                 oldest_key = next(iter(self._sessions), None)
                 if oldest_key:
                     self._sessions.pop(oldest_key, None)
+                    # 淘汰后必须允许再次从数据库回填，否则历史记录会永久丢失
+                    self._loaded.discard(oldest_key)
                     logger.info("会话数量超限,淘汰最久未使用会话: %s", oldest_key)
             entry = AgentSessionEntry(history=[], last_at=_now_ms())
             self._sessions[session_id] = entry
@@ -171,6 +179,7 @@ class AgentSessionStoreService:
         if not session_id:
             return
         self._sessions.pop(session_id, None)
+        self._loaded.discard(session_id)
         if self._session_factory is None:
             return
         try:
@@ -197,9 +206,11 @@ class AgentSessionStoreService:
         ]
         for session_id in expired:
             self._sessions.pop(session_id, None)
+            self._loaded.discard(session_id)
 
 
 __all__ = [
+    "MAX_LOADED_SESSIONS",
     "MAX_SESSIONS",
     "MAX_TURNS",
     "SESSION_TTL_MS",

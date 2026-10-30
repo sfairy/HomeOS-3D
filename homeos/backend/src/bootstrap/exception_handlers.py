@@ -152,6 +152,10 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
                 trace_id=trace_id,
                 detail=raw_detail,
             ),
+            # 异常自带的响应头必须透传：限流 429 的 ``Retry-After``、401 的
+            # ``WWW-Authenticate`` 都只从这里出去。此前统一信封丢掉了它们，
+            # 客户端只能盲目重试（登录限流分支已经写好了 Retry-After 却发不出去）。
+            headers=dict(exc.headers) if getattr(exc, "headers", None) else None,
         )
 
     @app.exception_handler(RequestValidationError)

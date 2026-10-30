@@ -2351,8 +2351,12 @@ function beginLightingPreviewDeps(): BeginLightingPreviewDeps {
 const minCameraNear = 0.02,
   maxCameraNear = 0.6,
   cameraNearFactor = 0.01;
+let disposeStudioRendererEvents: (() => void) | null = null;
 function createStudioRenderer(...args: any[]): any {
-  return (createStudioRendererImpl as any)(createStudioRendererDeps(), ...args);
+  const studioRendererCleanup = (createStudioRendererImpl as any)(createStudioRendererDeps(), ...args);
+  disposeStudioRendererEvents =
+    typeof studioRendererCleanup === "function" ? (studioRendererCleanup as () => void) : null;
+  return studioRendererCleanup;
 }
 function createStudioRendererDeps(): CreateStudioRendererDeps {
   return {
@@ -4678,6 +4682,17 @@ startupStudio(studioBootDeps());
     gardenGateSnapCandidate = null
     shouldForceEffectFrame = false
     shouldTrimSharedGeometry = false
+    // createStudioRenderer 在 document / canvas 上登记的可见性与指针监听原先只挂在 pagehide
+    // 上（整页卸载才触发）；SPA 内路由切换不会触发 pagehide，不显式摘掉的话监听闭包会把整个
+    // appCtx 一起留住，并在真 pagehide 时打到已经释放的渲染器上（清空前也拿不到 domElement）。
+    try {
+      // 灯光过渡的定时器/句柄也在渲染循环里；必须在 sceneRootNode/renderer 置空之前结算。
+      (appCtx as { settleLightTransitions?: () => void }).settleLightTransitions?.()
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    try {
+      disposeStudioRendererEvents?.()
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    disposeStudioRendererEvents = null
     try {
       appCtx.orbitControls?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }

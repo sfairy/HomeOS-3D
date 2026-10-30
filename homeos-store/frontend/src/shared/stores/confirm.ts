@@ -22,6 +22,9 @@ export const useConfirmStore = defineStore("confirm", () => {
   let resolver: ((value: boolean) => void) | null = null;
 
   function confirm(next: ConfirmOptions = {}): Promise<boolean> {
+    // 上一次确认还没结算就再次打开（键盘连按 / 两个入口同时触发）时，先按“取消”
+    // 收敛旧的 Promise：否则它被下面的覆盖丢弃，调用方的 await 永久悬挂。
+    resolver?.(false);
     options.value = next;
     open.value = true;
     return new Promise<boolean>((resolve) => {
