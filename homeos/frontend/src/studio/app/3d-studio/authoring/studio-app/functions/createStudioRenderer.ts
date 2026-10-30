@@ -86,15 +86,45 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
   const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, setupSceneShadows, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
 
   const previewViewportElement = selectElement("#preview-3d");
+  /**
+   * 创建 WebGL 渲染器，失败时逐步降级。
+   *
+   * 华为 ArkWeb（com.huawei.webview）等设备上，`antialias` + `powerPreference:"high-performance"`
+   * 的组合可能直接拿不到上下文，而同一台机器的浏览器却正常 —— 表现为「App 里 3D 整块空白」。
+   * 逐级降级能把这类设备救回来，也让失败点更早暴露：三次都失败才抛给外层错误处理。
+   */
+  function createRendererWithFallback() {
+    const attempts = [
+      { antialias: true, alpha: true, powerPreference: "high-performance" },
+      { antialias: false, alpha: true, powerPreference: "default" },
+      { antialias: false, alpha: true },
+    ] as const;
+    let lastError: any = null;
+    for (let index = 0; index < attempts.length; index += 1) {
+      try {
+        const renderer = new ns2.WebGLRenderer(attempts[index] as any);
+        if (index > 0) {
+          window.HomeOSLog?.warn?.("3D 渲染器已降级创建", {
+            phase: "studio-webgl-fallback",
+            attempt: index,
+          })!;
+        }
+        return renderer;
+      } catch (rendererError: any) {
+        lastError = rendererError;
+        window.HomeOSLog?.warn?.(rendererError, {
+          phase: "studio-webgl-attempt",
+          attempt: index,
+        })!;
+      }
+    }
+    throw lastError || new Error("无法创建 WebGL 渲染器");
+  }
   try {
     ((appCtx.threeScene = new ns2.Scene()),
       (appCtx.threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.05, 200)),
       appCtx.threeCamera.layers.enable(lampsLayerIndex),
-      (appCtx.threeRenderer = new ns2.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        powerPreference: "high-performance",
-      })),
+      (appCtx.threeRenderer = createRendererWithFallback()),
       // 0.8.1：非嵌入舞台（= 编辑态）才追踪上下文资源；嵌入舞台用的是宿主页面共享的渲染上下文。
       isEmbedStageMode ||
         (appCtx.contextResources = createContextResourceTracker(appCtx.threeRenderer)),

@@ -18,6 +18,54 @@
 (function () {
   'use strict'
 
+  /**
+   * 启动期错误记录器（供真机排障读取）。
+   *
+   * 动机：「3D 区域一片空白」至少有三种成因 —— 入口 chunk 加载失败、模块求值期抛错、
+   * 渲染器创建失败。三者在画面上完全一致，而 release 包既不能 `chrome://inspect`，
+   * 真机现场也常常拿不到 logcat。
+   *
+   * 这里按发生顺序把最早的错误留在 `window.__hosBootErrors` 上（原生侧读一次即可定性）。
+   * 资源加载失败用捕获阶段监听：script/link 的 error 不冒泡，只有捕获能拿到，
+   * 那条恰好是「模块没下载下来」的唯一线索。
+   */
+  var BOOT_ERRORS_KEY = '__hosBootErrors'
+  var BOOT_ERROR_LIMIT = 12
+  window[BOOT_ERRORS_KEY] = window[BOOT_ERRORS_KEY] || []
+  function recordBootError(kind, detail, extra) {
+    try {
+      var list = window[BOOT_ERRORS_KEY]
+      if (!list || list.length >= BOOT_ERROR_LIMIT) return
+      list.push({
+        kind: kind,
+        detail: String(detail == null ? '' : detail).slice(0, 300),
+        extra: String(extra == null ? '' : extra).slice(0, 160),
+      })
+    } catch (_error) {
+      // 记录器自身绝不能成为新的故障点。
+    }
+  }
+  window.addEventListener(
+    'error',
+    function (event) {
+      var target = event && event.target
+      if (target && target !== window && (target.src || target.href)) {
+        recordBootError('resource', target.src || target.href, target.tagName)
+        return
+      }
+      recordBootError(
+        'error',
+        (event && event.message) || 'error',
+        ((event && event.filename) || '') + ':' + ((event && event.lineno) || 0),
+      )
+    },
+    true,
+  )
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event && event.reason
+    recordBootError('rejection', (reason && (reason.message || reason)) || 'unknown')
+  })
+
   var OVERLAY_ID = 'homeos-boot-overlay'
   /**
    * 不算「页面内容」的覆盖层：判定「#app 是否真的渲染出东西」时必须跳过它们。
