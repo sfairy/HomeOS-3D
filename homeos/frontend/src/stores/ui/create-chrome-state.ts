@@ -11,6 +11,7 @@
  */
 import { ref } from 'vue'
 import type { NotifyType } from '@/shared/types/notify'
+import { createNotifyCoalescer } from '@/shared/utils/ui/notify-coalesce.util'
 
 /** 单条 Toast 通知的数据结构 */
 interface UiNotification {
@@ -22,7 +23,18 @@ interface UiNotification {
   type: NotifyType
   /** 自动关闭时长（毫秒），<=0 表示不自动关闭 */
   duration: number
+  /** 同一提示被合并的次数（1 表示只推了一次）；渲染为 ×N 徽标 */
+  count?: number
 }
+
+/**
+ * 同时可见的 Toast 上限。
+ *
+ * 批量操作会让「一条手势 → N 条提示」同时在场（如一次关 12 盏灯全部失败）。合并器处理
+ * 同文案，这里兜住「文案各不相同」的情形（如 12 个不同设备名），超限按最旧优先回收，
+ * 否则右侧竖列能把整屏遮住、也挡住用户要继续点的控件。
+ */
+const NOTIFY_MAX_VISIBLE = 5
 
 /** 确认对话框状态；resolve 由调用方 await 持有，关闭时回填布尔结果 */
 interface ConfirmState {
@@ -111,6 +123,8 @@ export function createUIChromeState() {
 
   // Toast 通知队列
   const notifications = ref<UiNotification[]>([])
+  // 同文案重复推送的合并器（批量操作 / 批量失败时避免刷屏）
+  const notifyCoalescer = createNotifyCoalescer()
   // 当前激活的确认对话框状态（同时仅允许一个）
   const activeConfirm = ref<ConfirmState | null>(null)
   // 当前激活的输入对话框状态（同时仅允许一个）
@@ -199,14 +213,44 @@ export function createUIChromeState() {
   }
   /**
    * 推送一条 Toast 通知。
+   *
+   * 同一条 (type, message) 在合并窗口内重复推送时不再新起卡片，而是累加到已有卡片上的
+   * ×N 徽标：批量操作（一次关十几盏灯）与批量失败（HA 断连、乐观更新超时回滚）都是
+   * 「一条手势 → N 条相同提示」，逐条 push 会把右侧堆成一堵墙。
+   *
    * @param message 通知正文
    * @param type 通知类型，默认 'info'
    * @param duration 自动关闭时长（毫秒），默认 3000；<=0 则常驻直至手动移除
    */
   function notify(message: string, type: NotifyType = 'info', duration = 3000): void {
+    const merged = notifyCoalescer.hit(type, message)
+    if (merged) {
+      const target = notifications.value.find((item) => item.id === merged.id)
+      if (target) {
+        // 只更新 count（独立徽标、aria-hidden 渲染），不改 message：
+        // message 变化会让 assertive live region 重新播报，合并 12 条等于连念 12 次。
+        target.count = merged.count
+        if (duration > 0) startNotificationTimer(target.id, duration)
+        return
+      }
+      // 卡片已被移除但记录还在：清掉记录，按新建处理，避免合并到不存在的卡片
+      notifyCoalescer.forget(merged.id)
+    }
     const id = Math.random().toString(36).substring(2, 11)
     notifications.value.push({ id, message, type, duration })
+    notifyCoalescer.remember(type, message, id)
     if (duration > 0) startNotificationTimer(id, duration)
+    trimNotifications()
+  }
+
+  /** 按上限回收最旧的 Toast（最旧优先）。 */
+  function trimNotifications(): void {
+    while (notifications.value.length > NOTIFY_MAX_VISIBLE) {
+      const removed = notifications.value.shift()
+      if (!removed) return
+      clearNotificationTimer(removed.id)
+      notifyCoalescer.forget(removed.id)
+    }
   }
   /**
    * 按 ID 移除一条通知。
@@ -214,6 +258,7 @@ export function createUIChromeState() {
    */
   function removeNotification(id: string): void {
     clearNotificationTimer(id)
+    notifyCoalescer.forget(id)
     notifications.value = notifications.value.filter((n) => n.id !== id)
   }
 

@@ -1,6 +1,7 @@
 /** 实体状态更新核心逻辑（从 entities.store 抽离） */
-import { attrValueEquals, getEntityDomain } from '@homeos/shared'
+import { getEntityDomain } from '@homeos/shared'
 import type { Ref } from 'vue'
+import { optimisticExpectationSatisfied } from '@/stores/entities/optimistic-expectation.util'
 import type { OptimisticEntry } from '@/stores/entities/entity-store-optimistic.util'
 import type {
   EntitiesMap,
@@ -71,28 +72,22 @@ function finalizeMergedEntity(mergedNew: HaEntityState | null | undefined): HaEn
 /**
  * B4: 复合值递归浅比较已下沉到 @homeos/shared 的 attrValueEquals（前端乐观匹配与后端共享同一真相源）。
  * 维护点统一到 packages/shared/src/entity/attr-value-equals.util.ts，避免两处实现漂移。
+ * 乐观匹配本身见 entity-store-optimistic.util 的 optimisticExpectationSatisfied。
  */
 
 /**
  * B4: 判断服务端推送是否与乐观预测一致。
  * expected 为预测的 state/attributes 并集；任一期望字段未被推送命中即视为未确认，
  * 保留乐观标记由 TTL 回滚兜底，避免无关推送提前终结乐观保护。
+ *
+ * 判定实现下沉到 ``optimisticExpectationSatisfied``：与「建立乐观态之前的短路」共用
+ * 同一份真相源，避免两处判据漂移（一边允许跳过、另一边却认为未确认）。
  */
 function optimisticPushMatches(
   entry: OptimisticEntry | undefined,
   mergedNew: HaEntityState | null | undefined,
 ): boolean {
-  const expected = entry?.expected
-  if (!expected) return true
-  if (expected.state !== undefined && mergedNew?.state !== expected.state) return false
-  const expectedAttrs = expected.attributes
-  if (expectedAttrs) {
-    const curAttrs = mergedNew?.attributes || {}
-    for (const key of Object.keys(expectedAttrs)) {
-      if (!attrValueEquals(curAttrs[key], expectedAttrs[key])) return false
-    }
-  }
-  return true
+  return optimisticExpectationSatisfied(entry?.expected, mergedNew)
 }
 
 /**

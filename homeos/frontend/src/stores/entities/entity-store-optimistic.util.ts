@@ -7,6 +7,10 @@
  */
 import { toRaw } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
+import {
+  optimisticExpectationSatisfied,
+  OPTIMISTIC_TIMEOUT_MESSAGE,
+} from '@/stores/entities/optimistic-expectation.util'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/shared/types/entity-store'
 
@@ -195,7 +199,8 @@ export function predictOptimistic(
 // ── entity-store-optimistic.util ──
 export interface OptimisticEntry {
   backup: HaEntityState | null
-  timer: ReturnType<typeof setTimeout>
+  /** TTL 定时器（由 armTtl 建立 / 重排；未布防时为 null） */
+  timer: ReturnType<typeof setTimeout> | null
   /** 乐观预测期望（state/attributes 并集）：用于 WS 推送确认时判断是否与预测一致（B4） */
   expected?: OptimisticPrediction
 }
@@ -269,32 +274,72 @@ export function createEntityOptimisticState({
     emitStateListeners(entityId, merged, existingEntity)
     bumpEntityStateRevision(entityId)
 
-    // TTL 到期仍未收到服务端（WS）确认：回滚到最后一次确认的服务端状态，
-    // 与字段说明「超时后等待服务端确认」一致，避免长期展示未确认的预测态
-    const timer = setTimeout(() => {
-      const c = entities[entityId]
-      if (c && c._optimistic) {
-        const prev: HaEntityState = { ...toRaw(c) }
-        if (backup) {
-          entities[entityId] = backup
-          patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: backup }])
-          patchProjectionsFromChanges([{ entity_id: entityId }], entities)
-          emitStateListeners(entityId, backup, prev)
-        } else {
-          // 与 rollbackOptimistic 语义统一：无备份（乐观新建实体）时删除实体，
-          // 而非仅剥离乐观标记残留幽灵实体，避免派生索引与实体表不一致
-          delete entities[entityId]
-          patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: null }])
-          emitStateListeners(entityId, null, prev)
-        }
-        bumpEntityStateRevision(entityId)
-        useChromeStore().notify('未生效，已恢复', 'warning')
-        // 备份是「乐观写入前」的旧值，可能已被其他推送刷新；回滚后异步拉一次真值校正
-        refreshAfterRollback(entityId)
-      }
+    optimisticState.set(entityId, { backup, timer: null, expected })
+    armTtl(entityId)
+  }
+
+  /**
+   * 为某实体的乐观态（重新）布一个 TTL 定时器。
+   *
+   * 定时器从「命令真正下发完成」重新起算，而不是从点击时刻：云端设备（小米 /
+   * Yeelight）一次往返常见 2–5s，再叠 6s 确认窗口，从点击计时的预算会被往返吃掉。
+   */
+  function armTtl(entityId: string): void {
+    const entry = optimisticState.get(entityId)
+    if (!entry) return
+    if (entry.timer) clearTimeout(entry.timer)
+    entry.timer = setTimeout(() => expireOptimistic(entityId), optimisticTtlMs())
+  }
+
+  /** 命令下发返回后调用：把乐观确认窗口改成从「响应到达」起算 */
+  function touchOptimistic(entityId: string): void {
+    if (!optimisticState.has(entityId)) return
+    armTtl(entityId)
+  }
+
+  /**
+   * TTL 到期：仍未收到服务端确认。
+   *
+   * 先做一次「目标态是否已达成」的兜底判定 —— 已达成时只收标记、不报警。否则回滚到
+   * 最后一次确认的服务端状态并提示「未收到设备确认」，提示文案与「下发失败」严格区分：
+   * 超时只代表**没等到确认**，不代表命令没生效。
+   */
+  function expireOptimistic(entityId: string): void {
+    const entry = optimisticState.get(entityId)
+    const c = entities[entityId]
+    if (!c || !c._optimistic) {
       optimisticState.delete(entityId)
-    }, optimisticTtlMs())
-    optimisticState.set(entityId, { backup, timer, expected })
+      return
+    }
+    if (optimisticExpectationSatisfied(entry?.expected, c)) {
+      // 目标态已达成：静默收标记，不弹「未收到确认」
+      const settled: HaEntityState = { ...toRaw(c) }
+      delete settled._optimistic
+      entities[entityId] = settled
+      patchDerivedChanges([{ entity_id: entityId, oldEntity: c, newEntity: settled }])
+      patchProjectionsFromChanges([{ entity_id: entityId }], entities)
+      bumpEntityStateRevision(entityId)
+      optimisticState.delete(entityId)
+      return
+    }
+    const prev: HaEntityState = { ...toRaw(c) }
+    if (entry?.backup) {
+      entities[entityId] = entry.backup
+      patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: entry.backup }])
+      patchProjectionsFromChanges([{ entity_id: entityId }], entities)
+      emitStateListeners(entityId, entry.backup, prev)
+    } else {
+      // 与 rollbackOptimistic 语义统一：无备份（乐观新建实体）时删除实体，
+      // 而非仅剥离乐观标记残留幽灵实体，避免派生索引与实体表不一致
+      delete entities[entityId]
+      patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: null }])
+      emitStateListeners(entityId, null, prev)
+    }
+    bumpEntityStateRevision(entityId)
+    useChromeStore().notify(OPTIMISTIC_TIMEOUT_MESSAGE, 'warning')
+    // 备份是「乐观写入前」的旧值，可能已被其他推送刷新；回滚后异步拉一次真值校正
+    refreshAfterRollback(entityId)
+    optimisticState.delete(entityId)
   }
 
   function clearOptimistic(entityId: string): void {
@@ -342,6 +387,7 @@ export function createEntityOptimisticState({
     clearOptimistic,
     rollbackOptimistic,
     rollbackAllOptimistic,
+    touchOptimistic,
     optimisticState,
   }
 }

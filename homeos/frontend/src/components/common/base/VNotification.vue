@@ -34,6 +34,11 @@
         >
           <span class="icon" aria-hidden="true" v-html="getIcon(notif.type)" />
           <span class="message">{{ notif.message }}</span>
+          <!-- 合并次数徽标：批量操作产生的同文案提示只保留一张卡片，次数在这里累加。
+               aria-hidden 是必须的：message 不变才能不触发 assertive 区重复播报。 -->
+          <span v-if="(notif.count ?? 1) > 1" class="notification-item__count" aria-hidden="true">
+            ×{{ notif.count }}
+          </span>
           <button
             type="button"
             class="notification-item__close"

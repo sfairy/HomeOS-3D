@@ -448,6 +448,7 @@ export const useEntitiesStore = defineStore('entities', () => {
     clearOptimistic,
     rollbackOptimistic,
     rollbackAllOptimistic,
+    touchOptimistic,
     optimisticState,
   } = createEntityOptimisticState({
     entities,
@@ -539,6 +540,10 @@ export const useEntitiesStore = defineStore('entities', () => {
     isAuthenticated: () => useAuthStore().isAuthenticated,
     isHaConnected: () => connected.value,
     callDedupWindowMs: callDedupWindow,
+    // REST 也是「确认」的一条来源：拿到真值就结清乐观态（含「目标态本来就满足」的不变分支）
+    optimisticState,
+    clearOptimistic,
+    touchOptimistic,
   })
   /** 页面隐藏 / 即将卸载时立即持久化缓存，降低 30s 节流窗口内崩溃丢变更风险 */
   function flushEntityCacheIfDirty() {

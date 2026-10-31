@@ -11,11 +11,14 @@
  * - isEntityCallPending：查询实体是否处于服务调用中（按钮 loading 态）
  * - refreshEntityAfterService：服务调用后 REST 拉取最新实体状态，按 state + 时间戳
  * 判断是否真实变化以避免无意义覆盖；同步维护派生索引与投影
+ * - 乐观确认：预测与现值相同（如对已关的灯再下 turn_off）时**不建立**乐观态，避免
+ * 等一个永远不会来的 `state_changed`；REST 真值与后端 verified=true 同样是确认来源
  */
 import { reactive } from 'vue'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { randomUUID } from '@/shared/utils/core/random-uuid.util'
 import { predictOptimistic } from '@/stores/entities/entity-store-optimistic.util'
+import { optimisticExpectationSatisfied } from '@/stores/entities/optimistic-expectation.util'
 import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
 import {
   blockDangerousHaServiceWhenOffline,
@@ -70,6 +73,41 @@ export function createEntityActions(deps: EntityActionsDeps) {
     pendingEntityIds.add(entityId)
   }
 
+  /**
+   * 结清乐观态：清 TTL 定时器 + 摘掉 `_optimistic` 标记（保留当前展示值）。
+   *
+   * 为什么要显式结清而不是靠「覆盖实体时顺手丢掉 _optimistic」：覆盖只在
+   * 「state / 时间戳真的变了」时发生，而「目标态本来就已经满足」恰好是**不变**的那条
+   * 分支 —— 旧实现在那里直接 return，乐观标记与 TTL 定时器全都留着，到期必弹误报。
+   *
+   * @param entityId 实体 ID
+   */
+  function settleOptimistic(entityId: string): void {
+    if (!deps.optimisticState?.has(entityId)) return
+    deps.clearOptimistic?.(entityId)
+    const current = deps.entities[entityId]
+    if (current?._optimistic) {
+      const settled: HaEntityState = { ...current }
+      delete settled._optimistic
+      deps.entities[entityId] = settled
+    }
+  }
+
+  /**
+   * REST 确认：拿到的服务端真值与乐观预测一致时，结清乐观态（REST 与 WS 推送一样是
+   * 确认来源）。
+   *
+   * @param entityId 实体 ID
+   * @param fetched REST 拿到的服务端状态
+   */
+  function confirmOptimisticFromRest(entityId: string, fetched: HaEntityState): void {
+    const entry = deps.optimisticState?.get(entityId)
+    if (!entry) return
+    // 预测未达成（例如服务端明确回报了别的状态）时不结清，交给 TTL 回滚 / 后续推送
+    if (!optimisticExpectationSatisfied(entry.expected, fetched)) return
+    settleOptimistic(entityId)
+  }
+
   /** 减少实体 pending 引用计数，归零时从 pendingEntityIds 移除 */
   function removePendingEntity(entityId: string) {
     const next = (pendingEntityRefCount.get(entityId) || 1) - 1
@@ -101,6 +139,8 @@ export function createEntityActions(deps: EntityActionsDeps) {
       const fetched = (await fetchEntityById(entityId, { refresh: true })) as
         HaEntityState | null | undefined
       if (!fetched?.entity_id || fetched.entity_id !== entityId) return
+      // REST 拿到的就是服务端真值，它同样构成「确认」——不止 WS 推送算。
+      confirmOptimisticFromRest(entityId, fetched)
       const prev = deps.entities[entityId] ?? null
       // 原 prev?.attributes === fetched.attributes 是对象引用比较恒 false → 每次都覆盖；
       // 改为按 state + last_changed/last_updated 判断是否真实变化，未变化则跳过覆盖
@@ -108,6 +148,9 @@ export function createEntityActions(deps: EntityActionsDeps) {
         const prevStamp = prev.last_updated ?? prev.last_changed
         const nextStamp = fetched.last_updated ?? fetched.last_changed
         if (prev.state === fetched.state && prevStamp && nextStamp && prevStamp === nextStamp) {
+          // 「没有变化」正是「目标态已满足」的样子（例如对已经关掉的灯再下发 turn_off：
+          // HA 不发 state_changed，REST 也返回同一份状态）。旧实现在这里直接 return，
+          // 把这次确认信号整个丢掉，_optimistic 留在缓存上，TTL 到期必然误报一次。
           return
         }
       }
@@ -179,7 +222,10 @@ export function createEntityActions(deps: EntityActionsDeps) {
         serviceData,
         deps.entities[entityId],
       )
-      if (predicted) {
+      // 预测与现值相同 = 这一次调用**没有可等的东西**（典型：批量「全部关闭」里那些
+      // 本来就关着的灯）。HA 不会为「状态没变」推 state_changed，若照样建立乐观态，
+      // TTL 到期必然误报一次「未收到确认」。这里直接跳过乐观写入。
+      if (predicted && !optimisticExpectationSatisfied(predicted, deps.entities[entityId])) {
         deps.applyOptimistic(entityId, predicted)
         didOptimistic = true
       }
@@ -214,6 +260,12 @@ export function createEntityActions(deps: EntityActionsDeps) {
         if (skipped && didOptimistic) deps.rollbackOptimistic(entityId)
         const verifyFailed = payload?.verified === false
         if (verifyFailed && didOptimistic) deps.rollbackOptimistic(entityId)
+        // 响应已返回、且后端确认（verified !== false）：确认窗口从这一刻起算，
+        // 而不是从点击时刻 —— 云端设备的往返本来就吃掉了预算。
+        if (didOptimistic && !skipped && !verifyFailed) deps.touchOptimistic?.(entityId)
+        // 后端后置校验已明确看到目标态（verified=true）时无需再等 WS 推送：
+        // 再等一轮只会把「确认」拖成一次假的超时告警。
+        if (didOptimistic && payload?.verified === true) settleOptimistic(entityId)
         if (!quiet && payload) {
           if (payload.pending) {
             // 首次请求仍在下发中：结果未知，不能报「已生效」。
@@ -240,7 +292,8 @@ export function createEntityActions(deps: EntityActionsDeps) {
         if (didOptimistic) deps.rollbackOptimistic(entityId)
         pendingCalls.delete(dedupKey)
         if (!quiet) {
-          if (didOptimistic) useChromeStore().notify('未生效，已恢复', 'warning')
+          // 与「超时未确认」严格区分：这里命令**没有下发成功**，设备根本没收到指令。
+          if (didOptimistic) useChromeStore().notify('指令下发失败，已恢复', 'error')
           const err = e as { response?: { data?: unknown } }
           deps.logger.error('服务调用失败', err.response?.data || e)
         }

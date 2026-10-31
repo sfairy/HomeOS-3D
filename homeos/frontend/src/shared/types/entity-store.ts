@@ -356,6 +356,12 @@ export interface EntityActionsDeps {
   patchDerivedChanges?: (changes: EntityPatch[]) => void
   /** 投影增量 patch（REST 回填覆盖缓存时同步维护） */
   patchProjectionsFromChanges?: (changes: Array<{ entity_id: string }>) => void
+  /** 乐观态表：REST 确认时据此判定预测是否已达成（只用到 expected 字段） */
+  optimisticState?: Map<string, { expected?: OptimisticPrediction }>
+  /** 结清某实体的乐观态（清 TTL 定时器 + 记录） */
+  clearOptimistic?: (entityId: string) => void
+  /** 命令下发返回后重排 TTL：确认窗口从响应到达起算，而非点击时刻 */
+  touchOptimistic?: (entityId: string) => void
 }
 
 /** 乐观更新依赖 */

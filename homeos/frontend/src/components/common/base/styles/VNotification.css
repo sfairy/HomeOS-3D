@@ -72,6 +72,19 @@
   flex-grow: 1;
 }
 
+/** 合并次数徽标：说明这条提示代表 N 次相同事件（批量操作 / 批量失败）。
+    纯视觉信息 —— 文案已完整表达语义，读屏不必重复计数（模板里 aria-hidden）。 */
+.notification-item__count {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: var(--premium-fs-caption, 12px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
 /** 关闭按钮 ×：默认低透明度，hover / 键盘聚焦时增强。
     从原来的 <span class="close-hint"> 换成真按钮：可聚焦、有 aria-label，
     键盘与读屏都能命中，且点击区域不再依赖整卡点击。 */
