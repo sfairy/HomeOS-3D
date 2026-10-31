@@ -26,7 +26,7 @@ sys.path.insert(0, str(SHARED_ROOT))
 
 import httpx
 from src.ops import net_probe
-from src.payments import http_pool
+from src.payments.common import http_pool
 
 BAD_NO_PROXY = "192.168.31.53,.local,localhost,127.0.0.1,::1,[::1]"
 

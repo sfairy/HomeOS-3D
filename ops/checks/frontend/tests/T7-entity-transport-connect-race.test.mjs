@@ -66,12 +66,12 @@ const FAKE_MODULES = {
       return socket
     }
   `,
-  '@/composables/entity/socket.util': `
+  '@/composables/entity/ws/socket.util': `
     export function buildEntitySocketUrl() { return 'http://stub.invalid' }
     export function buildEntitySocketAuth() { return {} }
     export function buildEntitySocketOptions() { return {} }
   `,
-  '@/composables/entity/ws-bind': `
+  '@/composables/entity/ws/ws-bind': `
     export function bindEntitySocketHandlers() {
       globalThis.__T7_TRANSPORT_STUB.bindCalls += 1
     }

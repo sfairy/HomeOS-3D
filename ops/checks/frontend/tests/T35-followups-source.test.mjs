@@ -33,7 +33,7 @@ test("T7-003 聊天历史不再用长期 localStorage", () => {
 });
 
 test("T7-004 reconnect 4s 兜底 timer 纳入统一清理", () => {
-  const source = read("homeos/frontend/src/composables/entity/ws-bind-lifecycle.ts");
+  const source = read("homeos/frontend/src/composables/entity/ws/ws-bind-lifecycle.ts");
   assert.match(source, /reconnectTimer/);
   assert.match(source, /clearTimeout\(reconnectTimer\)/);
 });

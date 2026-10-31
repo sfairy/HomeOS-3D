@@ -24,8 +24,8 @@ sys.path.insert(0, str(BACKEND_ROOT))
 sys.path.insert(0, str(SHARED_ROOT))
 
 from src.payments import resolve_provider
-from src.payments.base import PaymentError
-from src.payments.channels import (
+from src.payments.common.base import PaymentError
+from src.payments.common.channels import (
     default_channel_name,
     enabled_channel_names,
 )

@@ -13,7 +13,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 sys.path.insert(0, str(SHARED_ROOT))
 
 from fastapi import HTTPException
-from src.api.store_shared import _assert_purpose_allowed
+from src.api.store.shared import _assert_purpose_allowed
 from src.config import _warn_order_ttl_against_qr, load_settings
 
 
