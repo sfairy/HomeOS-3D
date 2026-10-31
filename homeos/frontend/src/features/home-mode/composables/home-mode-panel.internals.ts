@@ -148,16 +148,23 @@ export function useHomeModePanel() {
     applyTemplate: editor.applyTemplate,
   })
 
+  /** 离开设置页时丢弃家庭模式草稿：新建的整块删掉，已有的重读覆盖。 */
+  function discardPendingHomeModeDrafts(): void {
+    const drafts = editor.drafts.value
+    const tabs = [...editor.modeTabs.value]
+    const isNewDraft = (tab: (typeof tabs)[number]): boolean => drafts[tab.id]?.isNew === true
+    tabs
+      .filter(isNewDraft)
+      .forEach((tab) => editor.removeDraft(tab.id, editor.resolveTabAfterRemove(tab.id)))
+    tabs.filter((tab) => !isNewDraft(tab)).forEach((tab) => editor.refreshDraftFromMode(tab.id))
+  }
+
   // 第三参数：确认离开设置页后真正丢弃家庭模式草稿（自定义模式整块删掉，已有模式重读）
-  useRegisterSettingsTabPending('home-mode', () => derived.anyModeDraftDirty.value, () => {
-    for (const tab of [...editor.modeTabs.value]) {
-      if (editor.drafts.value[tab.id]?.isNew) {
-        editor.removeDraft(tab.id, editor.resolveTabAfterRemove(tab.id))
-      } else {
-        editor.refreshDraftFromMode(tab.id)
-      }
-    }
-  })
+  useRegisterSettingsTabPending(
+    'home-mode',
+    () => derived.anyModeDraftDirty.value,
+    discardPendingHomeModeDrafts,
+  )
 
   const handlers = createHomeModePanelHandlers({
     chrome,

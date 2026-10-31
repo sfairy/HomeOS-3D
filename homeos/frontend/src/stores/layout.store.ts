@@ -144,6 +144,20 @@ export const useLayoutStore = defineStore('layout', () => {
   })
 
   /**
+   * 删掉基线里不存在的顶层键（``Object.assign`` 只覆盖不删除）。
+   * 不做这一步的话，本次新增的字段（新嵌入页、新安防模式…）会残留，
+   * 快照已经回滚而内容没有，pending 计数永远归不了零。
+   */
+  function deleteKeysMissingFrom(
+    target: Record<string, unknown>,
+    baseline: Record<string, unknown>,
+  ): void {
+    for (const key of Object.keys(target)) {
+      if (!(key in baseline)) delete target[key]
+    }
+  }
+
+  /**
    * 用 source 覆盖 layoutConfig（导入备份 / 撤销到历史快照场景）。
    * 临时抑制 dirty 跟踪，避免覆盖过程被误标脏；applyTabletDefaultPerformanceMode 修正平板性能模式。
    * @param source 布局对象或 JSON 字符串
@@ -152,13 +166,7 @@ export const useLayoutStore = defineStore('layout', () => {
     setSuppressDirtyTracking(true)
     try {
       const baseline = typeof source === 'string' ? JSON.parse(source) : clonePlain(source)
-      // Object.assign 只覆盖不删除：取消后「本次新增的字段」（新嵌入页、新安防模式…）
-      // 会残留在 layoutConfig 里，快照已经回滚而内容没有，pending 计数永远归不了零。
-      // 先删掉基线里不存在的键，再做覆盖，才是真正回到上次保存的状态。
-      const target = layoutConfig as unknown as Record<string, unknown>
-      for (const key of Object.keys(target)) {
-        if (!(key in baseline)) delete target[key]
-      }
+      deleteKeysMissingFrom(layoutConfig as unknown as Record<string, unknown>, baseline)
       Object.assign(layoutConfig, baseline)
       applyTabletDefaultPerformanceMode(layoutConfig)
       layoutDirty.value = false

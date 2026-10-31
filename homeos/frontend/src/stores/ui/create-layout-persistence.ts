@@ -138,14 +138,24 @@ function normalizeDisplayBackdropUrl(raw: unknown): string | undefined {
   return String(raw ?? '').trim() || undefined
 }
 
+/** 取字符串字段：优先传给服务端的值，其次默认值，都没有时给空串。 */
+function pickSensorText(
+  src: Record<string, unknown>,
+  defaults: Record<string, unknown>,
+  key: string,
+): string {
+  return String(src[key] ?? defaults[key] ?? '')
+}
+
 function sanitizeStatsSensors(raw: Record<string, unknown> | null | undefined) {
   const defaults = getDefaultLayout().statsSensors
+  const defaultMap = defaults as unknown as Record<string, unknown>
   const src = raw || {}
   return {
-    lights: String(src.lights ?? defaults.lights ?? ''),
-    climates: String(src.climates ?? defaults.climates ?? ''),
-    battery: String(src.battery ?? defaults.battery ?? ''),
-    offline: String(src.offline ?? defaults.offline ?? ''),
+    lights: pickSensorText(src, defaultMap, 'lights'),
+    climates: pickSensorText(src, defaultMap, 'climates'),
+    battery: pickSensorText(src, defaultMap, 'battery'),
+    offline: pickSensorText(src, defaultMap, 'offline'),
     energySources: {
       ...defaults.energySources,
       ...((src.energySources as object) || {}),
@@ -392,6 +402,75 @@ export function createLayoutPersistence({
     }
   }
   /**
+   * 把一次成功的加载结果应用到本地状态。
+   *
+   * 独立成函数是为了让在途请求的 IIFE 只剩「取数 + 错误分级」，避免一个几百行的匿名
+   * 箭头函数把成功路径埋在中间（也让长度 / 圈复杂度棘轮不必为它让步）。
+   * 竞态保护留在调用点：requestId 与方案都未变化才算有效响应。
+   * @param payload 接口返回的 data.data
+   * @param profile 发起请求时的方案 ID
+   */
+  function applyLoadedProjectPayload(
+    payload: { layout?: unknown; layoutParseError?: boolean; updatedAt?: string } | undefined,
+    profile: string,
+  ): void {
+    // JSON 损坏容错：提示用户并回退空布局
+    if (payload?.layoutParseError) {
+      notify('布局配置 JSON 已损坏，已回退为空布局。请重新配置。', 'error', 8000)
+    }
+    if (payload?.layout) {
+      const { layout: merged } = applyLayoutFromRaw(payload.layout as Record<string, unknown>)
+      Object.assign(layoutConfig, merged)
+    }
+    // 记录本次读取的版本：保存时回传，用于检测期间是否有别的终端写过
+    loadedUpdatedAt = String(payload?.updatedAt ?? '').trim() || null
+
+    isConfigLoaded.value = true
+    applyTabletDefaultPerformanceMode(layoutConfig)
+    void setActiveProject(profile).catch((e: unknown) => {
+      const caughtMessage = e instanceof Error ? e.message : String(e)
+      logger.warn(`同步激活方案失败: ${caughtMessage}`)
+    })
+    if (onAfterLoad) void onAfterLoad()
+    // 布局加载完成后同步一次远程访问地址给原生端（外网漫游取回入口）
+    void syncServerAccessToNative(String(layoutConfig.externalUrl ?? ''))
+  }
+
+  /**
+   * 加载失败的错误分级（401 / 未激活 / 其他）。
+   *
+   * 只有「其他」才把异常继续向上抛：App.vue 的 watch 是 fire-and-forget，抛出会变成
+   * unhandledrejection 被 client-log 当成前端异常上报；401 已由 api-client 统一处理
+   * （清登录态 + 跳登录页），这里只安静降级。
+   * @param err 捕获到的异常
+   * @param requestId 本次请求的序号（过期请求的错误直接丢弃）
+   */
+  function handleLoadConfigError(err: unknown, requestId: number): void {
+    if (requestId !== loadConfigRequestId) return
+    if (isLicenseInactiveError(err)) {
+      logger.debug('商业授权未激活,跳过 UI 配置加载')
+      isConfigLoaded.value = false
+      return
+    }
+    if (isUnauthorizedError(err)) {
+      logger.debug('登录状态已失效，跳过 UI 配置加载（已交由认证流程处理）')
+      isConfigLoaded.value = false
+      applyTabletDefaultPerformanceMode(layoutConfig)
+      return
+    }
+    logger.error('加载UI配置失败', err)
+    notify(
+      `加载配置失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`,
+      'error',
+    )
+    // 加载失败时不标记已加载：避免 dirty watch 生效后用户基于空配置编辑并保存覆盖服务端真实配置。
+    // 仅应用默认性能模式以保证 UI 可用，但 isConfigLoaded 保持 false 阻止自动保存。
+    isConfigLoaded.value = false
+    applyTabletDefaultPerformanceMode(layoutConfig)
+    throw err
+  }
+
+  /**
    * 加载当前方案的布局配置。
    * 关键路径，包含多重保护：
    * - 200ms 防抖：合并快速连续调用
@@ -439,58 +518,9 @@ export function createLayoutPersistence({
             if (requestId !== loadConfigRequestId || activeProfileId.value !== profileAtStart) {
               return
             }
-
-            // JSON 损坏容错：提示用户并回退空布局
-            if (res.data?.data?.layoutParseError) {
-              notify('布局配置 JSON 已损坏，已回退为空布局。请重新配置。', 'error', 8000)
-            }
-
-            const layout = res.data?.data?.layout
-            if (layout) {
-              const { layout: merged } = applyLayoutFromRaw(layout as Record<string, unknown>)
-              Object.assign(layoutConfig, merged)
-            }
-            // 记录本次读取的版本：保存时回传，用于检测期间是否有别的终端写过
-            loadedUpdatedAt = String(res.data?.data?.updatedAt ?? '').trim() || null
-
-            isConfigLoaded.value = true
-            applyTabletDefaultPerformanceMode(layoutConfig)
-            void setActiveProject(profileAtStart).catch((e: unknown) => {
-              const caughtMessage = e instanceof Error ? e.message : String(e)
-              logger.warn(`同步激活方案失败: ${caughtMessage}`)
-            })
-            if (onAfterLoad) void onAfterLoad()
-            // 布局加载完成后同步一次远程访问地址给原生端（外网漫游取回入口）
-            void syncServerAccessToNative(String(layoutConfig.externalUrl ?? ''))
+            applyLoadedProjectPayload(res.data?.data, profileAtStart)
           } catch (err) {
-            // 竞态保护：过期请求的错误不抛出
-            if (requestId !== loadConfigRequestId) return
-            if (isLicenseInactiveError(err)) {
-              logger.debug('商业授权未激活,跳过 UI 配置加载')
-              isConfigLoaded.value = false
-              return
-            }
-            if (isUnauthorizedError(err)) {
-              // 401 已由 api-client 统一处理（清登录态 + 跳登录页）：
-              // 这里不再弹「加载配置失败」，也不把 Promise 抛给调用方——
-              // App.vue 的 watch 是 fire-and-forget，抛出会变成 unhandledrejection，
-              // 被 client-log 当成前端异常上报（用户看到的就是一条红色的
-              // 「加载UI配置失败 / Uncaught (in promise) AxiosError」）。
-              logger.debug('登录状态已失效，跳过 UI 配置加载（已交由认证流程处理）')
-              isConfigLoaded.value = false
-              applyTabletDefaultPerformanceMode(layoutConfig)
-              return
-            }
-            logger.error('加载UI配置失败', err)
-            notify(
-              `加载配置失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`,
-              'error',
-            )
-            // 加载失败时不标记已加载：避免 dirty watch 生效后用户基于空配置编辑并保存覆盖服务端真实配置。
-            // 仅应用默认性能模式以保证 UI 可用，但 isConfigLoaded 保持 false 阻止自动保存。
-            isConfigLoaded.value = false
-            applyTabletDefaultPerformanceMode(layoutConfig)
-            throw err
+            handleLoadConfigError(err, requestId)
           } finally {
             // 仅当当前请求仍为最新时才重置加载状态
             if (requestId === loadConfigRequestId) {
