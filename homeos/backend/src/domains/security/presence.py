@@ -403,6 +403,7 @@ class PresenceService:
         was_home = prev.get("atHome") if prev else None
         self._person_aggregates[member_id] = {"name": name, "atHome": at_home}
         self._mark_dirty()
+        self._track_away_start(member_id, at_home)
 
         if not emit_events or was_home is None or was_home == at_home:
             return
@@ -414,10 +415,23 @@ class PresenceService:
         if at_home:
             logger.info("🏠 %s 已到家", name)
             self._everyone_left_emitted = False
-            self._away_confirmations.pop(member_id, None)
         else:
             logger.info("🚶 %s 已离家", name)
-            self._away_confirmations[member_id] = time.time() * 1000
+
+    def _track_away_start(self, member_id: str, at_home: bool) -> None:
+        """维护「这位成员从什么时候开始不在家」。
+
+        不能只在观察到 home→away **跃迁**时记录：启动 / KV 被清空后第一份聚合值的
+        ``was_home`` 是 ``None``，跃迁分支直接返回 —— 于是一个「全员早就不在家」的
+        进程永远算不出 ``latest_away``，``presence.everyoneLeft``（以及挂在它上面的
+        自动布防、离家模拟）要等到真有人回来再离开一次才会触发。
+
+        用 ``setdefault``：已有起点就沿用，重复刷新会把阈值判定无限推后。
+        """
+        if at_home:
+            self._away_confirmations.pop(member_id, None)
+            return
+        self._away_confirmations.setdefault(member_id, time.time() * 1000)
 
     def confirm_home(self) -> None:
         self._everyone_left_emitted = False

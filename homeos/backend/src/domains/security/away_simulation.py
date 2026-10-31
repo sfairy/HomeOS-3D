@@ -416,8 +416,14 @@ class AwaySimulationService:
 
     def _is_active_hour(self) -> bool:
         hour = self._local_parts()["hour"]
-        if self._active_start_hour <= self._active_end_hour:
+        # 起止相同 = 「全天窗口」（对齐 alerts/dnd.py 的同一约定）。少了这条，
+        # 20:00–20:00 会算成 20 ≤ h < 20 —— 恒为 False，模拟一次都不执行，
+        # 用户却以为「离家模式在工作」。
+        if self._active_start_hour == self._active_end_hour:
+            return True
+        if self._active_start_hour < self._active_end_hour:
             return self._active_start_hour <= hour < self._active_end_hour
+        # 跨零点：20 → 6 表示 20–23 与 0–5
         return hour >= self._active_start_hour or hour < self._active_end_hour
 
     def _should_toggle_light(self) -> bool:

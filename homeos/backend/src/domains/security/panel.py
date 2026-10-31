@@ -29,6 +29,7 @@ from .zones import (
     security_mode_label,
     should_zone_alarm_in_mode,
 )
+from ...platform.core.background import spawn_background
 from ...platform.core.errors import api_error, bad_request
 from ...platform.core.models import SecurityEvent
 
@@ -625,14 +626,16 @@ class SecurityPanelService:
         )
         logger.warning("🆘 紧急求助触发: %s", action)
 
-        asyncio.get_running_loop().create_task(self._run_emergency())
-
+        # 同步置位再排队：裸 create_task 既不持强引用（可能被 GC，连带把警笛/灯光序列
+        # 一起丢掉），又让「状态标志在协程里才置位」留下同一 tick 内两次调用都回
+        # ``queued: true`` 的窗口 —— 而冷却时间已经记上了，用户的重试会被挡掉。
+        self._emergency_running = True
+        spawn_background(self._run_emergency())
         return {"success": True, "action": action, "queued": True}
 
     async def _run_emergency(self) -> None:
-        if self._emergency_running:
-            return
-        self._emergency_running = True
+        # ``_emergency_running`` 已经由 ``trigger_emergency`` 在调度前同步置位，
+        # 这里再判一次只会让任务立刻返回、一条动作都不执行；这里只负责收尾清标志。
         try:
             await self.emergency_runner.run_emergency_actions()
         except Exception as exc:

@@ -22,6 +22,15 @@ from ...platform.core.background import spawn_background
 
 logger = logging.getLogger("homeos.security.linkage")
 
+#: 这些来源的 ``security.modeChanged`` 不再反向驱动家庭模式（避免回路）。
+#:
+#: ``home-mode-rollback`` 必须在内：家庭模式激活失败后会用这个来源回滚安防面板，而
+#: ``HomeModeService.activate()`` 全程持有 ``_transition_lock``。若回滚事件再被联动
+#: 处理成 ``home_mode.deactivate()``，同一个任务会二次进入不可重入的 ``asyncio.Lock``
+#: —— 请求永久挂起、锁永不释放，之后所有激活/退出（手动、存在感应、日历、定时）全部
+#: 卡死到进程重启。回滚只是「撤销刚做的那一步」，本就不该触发新的联动。
+NON_LINKAGE_SOURCES = frozenset({"emergency", "home-mode", "home-mode-rollback"})
+
 
 class SecurityLinkageService:
     def __init__(
@@ -262,7 +271,7 @@ class SecurityLinkageService:
         # emergency / home-mode 触发的安防切换不再反向驱动家庭模式（避免回路），
         # 但离家模拟的启停仍要跟随最终模式 —— 之前整段 return 会让「家庭模式联动布防
         # 离家」永远不启用模拟，或撤防后模拟一直亮着灯。
-        if source not in ("emergency", "home-mode"):
+        if source not in NON_LINKAGE_SOURCES:
             try:
                 links = await self._load_security_mode_links()
                 explicit_link = bool(str(links.get(mode) or "").strip())
