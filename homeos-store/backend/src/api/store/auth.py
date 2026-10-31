@@ -8,12 +8,12 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, or_, select
 
-from .admin_shared import _drop_account_sessions
-from .store_catalog import (
+from ..admin.shared import _drop_account_sessions
+from .catalog import (
     _account_license_state,
     _has_used_trial,
 )
-from .store_shared import (
+from .shared import (
     LOGIN_IP_MAX_ATTEMPTS,
     _check_verification_code,
     _clear_session_cookies,
@@ -28,26 +28,26 @@ from .store_shared import (
     _set_session_cookies,
     logger,
 )
-from ..commerce import referrals
-from ..config import StoreSettings
-from ..core.deps import AuthedAccount, CurrentAccount, DbSession
-from ..core.models import (
+from ...commerce import referrals
+from ...config import StoreSettings
+from ...core.deps import AuthedAccount, CurrentAccount, DbSession
+from ...core.models import (
     Account,
     AccountSession,
     ReferralWallet,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     ChangePasswordRequest,
     LoginRequest,
     PasswordResetRequest,
     RegisterRequest,
 )
-from ..core.serializers import (
+from ...core.serializers import (
     account_state_payload,
 )
-from ..security import password_gate
-from ..security.request_security import resolve_client_ip
-from ..security.security import (
+from ...security import password_gate
+from ...security.request_security import resolve_client_ip
+from ...security.security import (
     hash_password,
     normalize_referral_code,
     token_hash,

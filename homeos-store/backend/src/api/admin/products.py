@@ -8,29 +8,29 @@ import secrets
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import or_, select
 
-from ..commerce import catalog
-from ..core.deps import AdminAccount, DbSession, SettingsDep
-from ..core.models import (
+from ...commerce import catalog
+from ...core.deps import AdminAccount, DbSession, SettingsDep
+from ...core.models import (
     Product,
     ProductImage,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     AdminProductPatch,
     AdminProductRequest,
 )
-from ..core.serializers import (
+from ...core.serializers import (
     json_list,
     list_json,
 )
-from ..ops import features
-from ..security.security import (
+from ...ops import features
+from ...security.security import (
     utcnow,
 )
 
 logger = logging.getLogger("src.admin")
 
 
-from .admin_shared import (
+from .shared import (
     _admin_actor,
     _admin_product_context,
     _audit,
@@ -41,7 +41,7 @@ from .admin_shared import (
     _product_or_404,
     _safe_image_target,
 )
-from .store_products_cache import mark_products_changed
+from ..store.products_cache import mark_products_changed
 
 router = APIRouter()
 

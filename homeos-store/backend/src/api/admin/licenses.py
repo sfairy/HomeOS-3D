@@ -8,29 +8,29 @@ from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, or_, select
 
-from ..api.store_catalog import (
+from ..store.catalog import (
     _license_meta,
 )
-from ..commerce import fulfill
-from ..core.deps import AdminAccount, DbSession, SettingsDep
-from ..core.models import (
+from ...commerce import fulfill
+from ...core.deps import AdminAccount, DbSession, SettingsDep
+from ...core.models import (
     Account,
     Customer,
     DeviceBinding,
     License,
     Order,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     AdminLicenseRequest,
     AdminOrderActionRequest,
 )
-from ..core.serializers import (
+from ...core.serializers import (
     json_list,
     license_payload,
     list_json,
 )
-from ..ops import site_settings as site_config
-from ..security.security import (
+from ...ops import site_settings as site_config
+from ...security.security import (
     activation_code_hint,
     iso_z,
     utcnow,
@@ -39,7 +39,7 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-from .admin_shared import (
+from .shared import (
     _admin_actor,
     _audit,
     _cooldown,

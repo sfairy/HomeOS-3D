@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal, select
 
-from .store_shared import _customer_for, _set_session_cookies
+from .store.shared import _customer_for, _set_session_cookies
 from ..core.deps import DbSession
 from ..core.models import Account, AccountSession
 from ..core.schemas import StrongPassword

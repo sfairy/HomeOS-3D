@@ -17,14 +17,14 @@ from fastapi.staticfiles import StaticFiles
 from homeos_shared.single_process import assert_single_process
 
 from . import __version__
-from .api import admin as admin_api
-from .api import alipay as alipay_api
-from .api import appearance as appearance_api
-from .api import license as license_api
 from .api import pages as pages_api
 from .api import setup as setup_api
-from .api import store as store_api
-from .api import wechat as wechat_api
+from .api.admin import appearance as appearance_api
+from .api.admin import routes as admin_api
+from .api.payments import alipay as alipay_api
+from .api.payments import license as license_api
+from .api.payments import wechat as wechat_api
+from .api.store import routes as store_api
 from .config import PROJECT_ROOT, StoreSettings, _warn_order_ttl_against_qr, load_settings
 from .core.bootstrap import ensure_default_products, ensure_default_settings
 from .core.console_log import configure_console_logging

@@ -9,9 +9,9 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from ..licensing.crypto import LicenseServerError
-from ..security.limiter import SlidingWindowLimiter
-from ..security.request_security import resolve_client_ip
+from ...licensing.crypto import LicenseServerError
+from ...security.limiter import SlidingWindowLimiter
+from ...security.request_security import resolve_client_ip
 
 logger = logging.getLogger("src.license.api")
 

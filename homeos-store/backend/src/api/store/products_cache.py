@@ -23,9 +23,9 @@ from typing import Any
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
-from .store_catalog import _bundled_map, _image_map, _product_stats
-from ..core.models import Product
-from ..core.serializers import product_payload
+from .catalog import _bundled_map, _image_map, _product_stats
+from ...core.models import Product
+from ...core.serializers import product_payload
 
 #: 在 Session.info 里标记「本次事务改过商品目录」，提交后统一失效。
 _DIRTY_KEY = "store_products_cache_dirty"

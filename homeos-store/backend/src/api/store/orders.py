@@ -9,7 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from .store_catalog import (
+from .catalog import (
     ACCOUNT_ORDER_PAGE_SIZE,
     _account_license_state,
     _account_orders,
@@ -23,38 +23,38 @@ from .store_catalog import (
     _reconcile_payments,
     _resolve_upgrade_target,
 )
-from .store_shared import (
+from .shared import (
     _base_url,
     _customer_for,
     _require_verified,
     close_order_channel_best_effort,
     logger,
 )
-from ..commerce import coupons, delivery, fulfill
-from ..commerce.expiry import expire_stale_orders
-from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
-from ..core.models import (
+from ...commerce import coupons, delivery, fulfill
+from ...commerce.expiry import expire_stale_orders
+from ...core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
+from ...core.models import (
     License,
     Order,
     Product,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     CreateOrderRequest,
 )
-from ..core.serializers import (
+from ...core.serializers import (
     is_sold_out,
     order_payload,
 )
-from ..ops import site_settings as site_config
-from ..payments import (
+from ...ops import site_settings as site_config
+from ...payments import (
     default_channel_name,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
     provider_label,
 )
-from ..payments.base import PaymentError
-from ..security.security import (
+from ...payments.base import PaymentError
+from ...security.security import (
     new_order_no,
     new_token,
     token_matches,

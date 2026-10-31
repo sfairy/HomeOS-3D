@@ -11,21 +11,21 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..commerce import coupons, fulfill, money, referrals
-from ..commerce.expiry import expire_stale_orders
-from ..commerce.order_status import (
+from ...commerce import coupons, fulfill, money, referrals
+from ...commerce.expiry import expire_stale_orders
+from ...commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
-from ..commerce.order_status import (
+from ...commerce.order_status import (
     ORDER_ATTENTION_STATUSES,
     ORDER_STATUS_CHOICES,
     ORDER_STATUS_LABELS,
 )
-from ..commerce.order_status import (
+from ...commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from ..core.deps import AdminAccount, DbSession, SettingsDep
-from ..core.models import (
+from ...core.deps import AdminAccount, DbSession, SettingsDep
+from ...core.models import (
     Account,
     DeviceBinding,
     Entitlement,
@@ -35,14 +35,14 @@ from ..core.models import (
     ReferralWallet,
     ReferralWithdrawal,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     AdminLicensePatch,
     AdminWalletAdjustRequest,
 )
-from ..ops import features, incidents
-from ..ops import site_settings as site_config
-from ..payments.sweeper import sweep_status
-from ..security.security import (
+from ...ops import features, incidents
+from ...ops import site_settings as site_config
+from ...payments.sweeper import sweep_status
+from ...security.security import (
     iso_z,
     utcnow,
 )
@@ -50,20 +50,18 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-from . import (
-    admin_accounts,
-    admin_bindings,
-    admin_compliance,
-    admin_coupons,
-    admin_entitlements,
-    admin_licenses,
-    admin_ops,
-    admin_orders,
-    admin_products,
-    admin_settings,
-    admin_withdrawals,
-)
-from .admin_shared import (
+from . import accounts as admin_accounts
+from . import bindings as admin_bindings
+from . import compliance as admin_compliance
+from . import coupons as admin_coupons
+from . import entitlements as admin_entitlements
+from . import licenses as admin_licenses
+from . import ops as admin_ops
+from . import orders as admin_orders
+from . import products as admin_products
+from . import settings as admin_settings
+from . import withdrawals as admin_withdrawals
+from .shared import (
     _OVERVIEW_WINDOWS,
     OVERVIEW_EXPIRING_DAYS,
     PAID_MONEY_STATUSES,

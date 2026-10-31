@@ -10,17 +10,20 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from . import store_auth, store_orders, store_referrals, telemetry
-from .admin_shared import _drop_account_sessions
-from .store_catalog import (
+from .. import telemetry
+from ..admin.shared import _drop_account_sessions
+from . import auth as store_auth
+from . import orders as store_orders
+from . import referrals as store_referrals
+from .catalog import (
     _center_payload,
     _evaluate_coupon_limited,
     _product_item,
     _product_or_404,
     _release_snapshot_conflict,
 )
-from .store_products_cache import etag_matches, get_products_payload
-from .store_shared import (
+from .products_cache import etag_matches, get_products_payload
+from .shared import (
     MAX_VERIFICATION_SENDS_PER_HOUR,
     _assert_purpose_allowed,
     _check_verification_code,
@@ -32,11 +35,11 @@ from .store_shared import (
     _require_verified,
     logger,
 )
-from ..commerce import delivery
-from ..config import StoreSettings
-from ..core.database import Database
-from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
-from ..core.models import (
+from ...commerce import delivery
+from ...config import StoreSettings
+from ...core.database import Database
+from ...core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
+from ...core.models import (
     Account,
     Customer,
     DeviceBinding,
@@ -46,7 +49,7 @@ from ..core.models import (
     Order,
     Product,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     ChangeEmailRequest,
     CouponPreviewRequest,
     LabelRequest,
@@ -55,13 +58,13 @@ from ..core.schemas import (
     VerifyCodeRequest,
     VerifyEmailRequest,
 )
-from ..core.serializers import device_release_policy
-from ..ops import features, incidents, mail_settings, mailer
-from ..ops import site_settings as site_config
-from ..security import password_gate
-from ..security.limiter import SlidingWindowLimiter
-from ..security.request_security import request_origin
-from ..security.security import (
+from ...core.serializers import device_release_policy
+from ...ops import features, incidents, mail_settings, mailer
+from ...ops import site_settings as site_config
+from ...security import password_gate
+from ...security.limiter import SlidingWindowLimiter
+from ...security.request_security import request_origin
+from ...security.security import (
     code_hash,
     is_valid_email,
     new_code_salt,

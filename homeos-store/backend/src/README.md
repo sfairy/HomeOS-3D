@@ -134,6 +134,8 @@ homeos-store/
 ├── backend/src/            # 后端包名 src（PYTHONPATH=backend）
 │   ├── run.py app.py config.py
 │   └── core/ security/ commerce/ payments/ licensing/ ops/ api/
+│       # api/ 下按入口面分组：admin/（/store-admin/v1/*）、store/（/store/v1/*）、
+│       # payments/（渠道回调 + 授权激活）；pages / setup / telemetry / page_shell 留根
 ├── data/                   # 运行时（不入库）
 ├── keys/local/             # 授权私钥（不入库）
 ├── frontend/               # index.html / src / public / vite.config.ts

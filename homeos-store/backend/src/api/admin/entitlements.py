@@ -7,24 +7,24 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import and_, or_, select
 
-from ..core.deps import AdminAccount, DbSession
-from ..core.models import (
+from ...core.deps import AdminAccount, DbSession
+from ...core.models import (
     Entitlement,
     License,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     AdminEntitlementPatch,
     AdminEntitlementRequest,
 )
-from ..ops import features
-from ..security.security import (
+from ...ops import features
+from ...security.security import (
     utcnow,
 )
 
 logger = logging.getLogger("src.admin")
 
 
-from .admin_shared import (
+from .shared import (
     _admin_actor,
     _audit,
     _entitlement_payload,

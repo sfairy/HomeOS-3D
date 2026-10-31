@@ -7,16 +7,16 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import or_, select
 
-from ..core.deps import AdminAccount, DbSession
-from ..core.models import (
+from ...core.deps import AdminAccount, DbSession
+from ...core.models import (
     DeviceBinding,
     DeviceReleaseEvent,
     License,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     AdminOrderActionRequest,
 )
-from ..security.security import (
+from ...security.security import (
     iso_z,
     utcnow,
 )
@@ -24,7 +24,7 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-from .admin_shared import (
+from .shared import (
     _admin_actor,
     _audit,
     _count_rows,

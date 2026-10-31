@@ -7,18 +7,18 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, or_, select
 
-from ..core.deps import AdminAccount, DbSession
-from ..core.models import (
+from ...core.deps import AdminAccount, DbSession
+from ...core.models import (
     Account,
     Customer,
     License,
     Order,
     ReferralLedger,
 )
-from ..core.schemas import (
+from ...core.schemas import (
     AdminAccountPatch,
 )
-from ..security.security import (
+from ...security.security import (
     PASSWORD_POLICY_MESSAGE,
     hash_password,
     is_password_policy_compliant,
@@ -31,7 +31,7 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-from .admin_shared import (
+from .shared import (
     _account_payload,
     _admin_actor,
     _audit,
