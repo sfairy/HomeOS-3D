@@ -57,13 +57,17 @@
               class="list-page__tabs device-detail-view__tabs"
               role="tablist"
               :aria-label="'设备详情视图'"
+              @keydown="onDetailTabKeydown"
             >
               <button
                 v-for="tab in detailTabs"
+                :id="`device-detail-tab-${tab.id}`"
                 :key="tab.id"
                 type="button"
                 role="tab"
                 :aria-selected="detailTab === tab.id"
+                :aria-controls="`device-detail-panel-${tab.id}`"
+                :tabindex="detailTab === tab.id ? 0 : -1"
                 :class="['list-page__tab', detailTab === tab.id && 'list-page__tab--on']"
                 @click="setDetailTab(tab.id)"
               >
@@ -74,7 +78,13 @@
           </div>
 
           <div class="list-page__panel-body device-detail-view__panel-body">
-            <div v-show="detailTab === 'overview'" class="device-detail-view__tab-stack">
+            <div
+              v-show="detailTab === 'overview'"
+              :id="`device-detail-panel-overview`"
+              class="device-detail-view__tab-stack"
+              role="tabpanel"
+              :aria-labelledby="`device-detail-tab-overview`"
+            >
               <DeviceOverviewPanel
                 :entity-id="entityId"
                 :visible="detailTab === 'overview'"
@@ -88,25 +98,52 @@
               />
             </div>
 
-            <div v-show="detailTab === 'history'" class="device-detail-view__tab-stack">
+            <div
+              v-show="detailTab === 'history'"
+              :id="`device-detail-panel-history`"
+              class="device-detail-view__tab-stack"
+              role="tabpanel"
+              :aria-labelledby="`device-detail-tab-history`"
+            >
               <DeviceStateHistoryPanel :entity-id="entityId" :visible="detailTab === 'history'" />
             </div>
 
-            <div v-show="detailTab === 'refs'" class="device-detail-view__tab-stack">
+            <div
+              v-show="detailTab === 'refs'"
+              :id="`device-detail-panel-refs`"
+              class="device-detail-view__tab-stack"
+              role="tabpanel"
+              :aria-labelledby="`device-detail-tab-refs`"
+            >
               <DeviceEntityReferencesPanel :entity-id="entityId" :visible="detailTab === 'refs'" />
             </div>
 
-            <div v-show="detailTab === 'usage'" class="device-detail-view__tab-stack">
+            <div
+              v-show="detailTab === 'usage'"
+              :id="`device-detail-panel-usage`"
+              class="device-detail-view__tab-stack"
+              role="tabpanel"
+              :aria-labelledby="`device-detail-tab-usage`"
+            >
               <DeviceUsageStats :entity-id="entityId" :visible="detailTab === 'usage'" />
             </div>
 
-            <div v-show="detailTab === 'analytics'" class="device-detail-view__tab-stack">
+            <div
+              v-show="detailTab === 'analytics'"
+              :id="`device-detail-panel-analytics`"
+              class="device-detail-view__tab-stack"
+              role="tabpanel"
+              :aria-labelledby="`device-detail-tab-analytics`"
+            >
               <DeviceAnalyticsPanel :entity-id="entityId" :visible="detailTab === 'analytics'" />
             </div>
 
             <div
               v-show="detailTab === 'attrs' && attrTotalCount > 0"
+              id="device-detail-panel-attrs"
               class="device-detail-view__tab-stack"
+              role="tabpanel"
+              aria-labelledby="device-detail-tab-attrs"
             >
               <DeviceAttrsPanel :entries="attrEntries" :total-count="attrTotalCount" />
             </div>
@@ -131,6 +168,7 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick } from 'vue'
 import { ChevronLeft, Cpu } from '@lucide/vue'
 import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
 import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
@@ -180,6 +218,27 @@ const {
   copyId,
   hydrateEntity,
 } = useDeviceDetailView()
+
+/** WAI-ARIA Tabs：左右方向键循环、Home/End 直达首尾，并同步路由 query。 */
+function onDetailTabKeydown(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  const tabs = detailTabs.value
+  if (!tabs.length) return
+  const current = Math.max(
+    0,
+    tabs.findIndex((tab) => tab.id === detailTab.value),
+  )
+  let next = current
+  if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length
+  else if (event.key === 'ArrowRight') next = (current + 1) % tabs.length
+  else if (event.key === 'Home') next = 0
+  else next = tabs.length - 1
+  event.preventDefault()
+  const target = tabs[next]
+  if (!target) return
+  setDetailTab(target.id)
+  nextTick(() => document.getElementById(`device-detail-tab-${target.id}`)?.focus())
+}
 </script>
 
 <style>

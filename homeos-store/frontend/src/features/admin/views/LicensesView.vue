@@ -6,6 +6,7 @@ import type { AdminTabItem } from "@store/features/admin/composables/useAdminTab
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
 import { useRefreshOn } from "@store/features/admin/stores/adminRefresh";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import RowMenu from "@store/features/admin/components/RowMenu.vue";
 import { adminApi } from "@store/shared/api/http";
@@ -264,22 +265,21 @@ async function removeLicense(license: License) {
       <button class="hb-button hb-button--primary hb-button--sm" @click="openIssue">手动签发</button>
     </PanelHead>
 
-    <div class="admin-tabs" role="tablist" aria-label="激活码分区">
-      <button
-        v-for="tab in tabs.filter((item) => !item.hidden)"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="激活码分区"
+      panel-id-prefix="licenses"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'list'"
+      :id="'licenses-tabpanel-list'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'licenses-tab-list'"
+    >
       <div class="panel-toolbar">
         <input
           v-model="keyword"
@@ -364,7 +364,14 @@ async function removeLicense(license: License) {
       </DataTable>
     </div>
 
-    <div v-show="active === 'issue'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="issueOpen"
+      v-show="active === 'issue'"
+      :id="'licenses-tabpanel-issue'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'licenses-tab-issue'"
+    >
       <div v-if="issueOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">手动签发激活码</h3>
@@ -416,7 +423,14 @@ async function removeLicense(license: License) {
       </div>
     </div>
 
-    <div v-show="active === 'patch'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="patchOpen"
+      v-show="active === 'patch'"
+      :id="'licenses-tabpanel-patch'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'licenses-tab-patch'"
+    >
       <div v-if="patchOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">修正授权 <span class="mono">{{ patchingCode }}</span></h3>

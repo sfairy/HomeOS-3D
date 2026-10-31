@@ -150,7 +150,14 @@ function onProviderChange() {
 </script>
 
 <template>
-  <div v-show="active === 'payment'" class="admin-tab-pane" role="tabpanel" data-tone="lumen">
+  <div
+    v-show="active === 'payment'"
+    id="settings-tabpanel-payment"
+    class="admin-tab-pane"
+    role="tabpanel"
+    aria-labelledby="settings-tab-payment"
+    data-tone="lumen"
+  >
     <div class="hb-check-group admin-grid__full">
       <span class="admin-hint"><strong>启用的支付方式</strong>（勾几个，顾客就能看到几个）</span>
       <label class="hb-check"><input v-model="form.paymentChannelAlipay" type="checkbox" /> 支付宝</label>
@@ -193,7 +200,14 @@ function onProviderChange() {
     </label>
   </div>
 
-  <div v-show="active === 'alipay'" class="admin-tab-pane" role="tabpanel" data-tone="cool">
+  <div
+    v-show="active === 'alipay'"
+    id="settings-tabpanel-alipay"
+    class="admin-tab-pane"
+    role="tabpanel"
+    aria-labelledby="settings-tab-alipay"
+    data-tone="cool"
+  >
     <h4 class="admin-grid__section">凭据与自检</h4>
     <p class="admin-hint admin-grid__full">
       留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。
@@ -281,7 +295,14 @@ function onProviderChange() {
     </div>
   </div>
 
-  <div v-show="active === 'wechat'" class="admin-tab-pane" role="tabpanel" data-tone="cool">
+  <div
+    v-show="active === 'wechat'"
+    id="settings-tabpanel-wechat"
+    class="admin-tab-pane"
+    role="tabpanel"
+    aria-labelledby="settings-tab-wechat"
+    data-tone="cool"
+  >
     <h4 class="admin-grid__section">凭据与自检</h4>
     <p class="admin-hint admin-grid__full">
       留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。

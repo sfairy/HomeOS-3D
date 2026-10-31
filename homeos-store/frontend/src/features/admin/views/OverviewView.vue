@@ -448,9 +448,21 @@ onMounted(load);
       <button class="hb-button hb-button--secondary hb-button--sm" :disabled="loading" @click="load">刷新</button>
     </PanelHead>
 
-    <AdminTabs label="概览分区" :tabs="tabs" :active="active" @pick="pick" />
+    <AdminTabs
+      label="概览分区"
+      panel-id-prefix="overview"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div class="admin-tab-pane" :hidden="active !== 'dashboard'" role="tabpanel">
+    <div
+      id="overview-tabpanel-dashboard"
+      class="admin-tab-pane"
+      :hidden="active !== 'dashboard'"
+      role="tabpanel"
+      aria-labelledby="overview-tab-dashboard"
+    >
       <div class="hb-card">
         <div class="hb-card__head">
           <h3>营收</h3>
@@ -512,7 +524,13 @@ onMounted(load);
       </div>
     </div>
 
-    <div class="admin-tab-pane" :hidden="active !== 'risk'" role="tabpanel">
+    <div
+      id="overview-tabpanel-risk"
+      class="admin-tab-pane"
+      :hidden="active !== 'risk'"
+      role="tabpanel"
+      aria-labelledby="overview-tab-risk"
+    >
       <div class="hb-card">
         <div class="hb-card__body">
           <div class="setting-row">
@@ -616,7 +634,13 @@ onMounted(load);
       </div>
     </div>
 
-    <div class="admin-tab-pane" :hidden="active !== 'tools'" role="tabpanel">
+    <div
+      id="overview-tabpanel-tools"
+      class="admin-tab-pane"
+      :hidden="active !== 'tools'"
+      role="tabpanel"
+      aria-labelledby="overview-tab-tools"
+    >
       <div class="hb-card">
         <div class="hb-card__body">
           <div class="setting-row">

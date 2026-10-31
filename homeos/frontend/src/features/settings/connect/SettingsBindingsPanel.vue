@@ -310,16 +310,22 @@ const {
   pendingCount: pendingChanges,
   takeSnapshot: takeLayoutSnapshot,
   confirmAndRevert,
+  revertSilently,
 } = useSettingsPendingChanges({
   snapshot: initialLayoutConfig,
   current: () => liveBindingsLayoutSlice(layoutStore.layoutConfig),
   ready: () => layoutStore.isConfigLoaded,
+  applyBaseline: (baseline) => {
+    applyBindingsLayoutSlice(layoutStore.layoutConfig, baseline)
+    afterLayoutCancelSync(layoutStore.layoutConfig)
+  },
 })
 
 const { securityCameras, addCamera, removeCamera, toggleDoorbellCam, setDefaultCamera } =
   useHaBindings(layoutConfig)
 
-useRegisterSettingsTabPending('bindings', () => pendingChanges.value > 0)
+// 第三参数：确认离开后真正回滚绑定切片，避免草稿留在 keep-alive 里
+useRegisterSettingsTabPending('bindings', () => pendingChanges.value > 0, revertSilently)
 
 function snapshotConfig() {
   takeLayoutSnapshot(pickBindingsLayoutSlice(layoutStore.layoutConfig))

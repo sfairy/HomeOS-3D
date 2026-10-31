@@ -56,7 +56,20 @@ onBeforeUnmount(() => setAdminStylesheet(false));
     :class="{ show: storeToast.visible, 'is-err': storeToast.tone === 'err' }"
     :role="storeToast.tone === 'err' ? 'alert' : 'status'"
     :aria-live="storeToast.tone === 'err' ? 'assertive' : 'polite'"
+    @mouseenter="storeToast.pause"
+    @mouseleave="storeToast.resume"
+    @focusin="storeToast.pause"
+    @focusout="storeToast.resume"
   >
-    {{ storeToast.message }}
+    <span class="hb-toast__message">{{ storeToast.message }}</span>
+    <button
+      v-if="storeToast.visible"
+      type="button"
+      class="hb-toast__close"
+      aria-label="关闭提示"
+      @click="storeToast.hide"
+    >
+      <span aria-hidden="true">×</span>
+    </button>
   </div>
 </template>

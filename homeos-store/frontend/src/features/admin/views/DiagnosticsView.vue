@@ -6,6 +6,7 @@ import { useRoute, useRouter } from "vue-router";
 import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/types/store";
@@ -325,22 +326,26 @@ function clearCouponFilter() {
       <button class="hb-button hb-button--secondary hb-button--sm" @click="reloadAll">刷新</button>
     </PanelHead>
 
-    <div class="admin-tabs" role="tablist" aria-label="诊断数据分区">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="诊断数据分区"
+      panel-id-prefix="diagnostics"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-if="visitedTabs.has('sessions')" v-show="active === 'sessions'" class="admin-block admin-tab-pane" role="tabpanel">
+
+
+
+    <div
+      v-if="visitedTabs.has('sessions')"
+      v-show="active === 'sessions'"
+      id="diagnostics-tabpanel-sessions"
+      class="admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-sessions"
+    >
+    <div class="admin-block">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">登录会话</h3>
@@ -387,8 +392,7 @@ function clearCouponFilter() {
         </template>
       </DataTable>
     </div>
-
-    <div v-if="visitedTabs.has('sessions')" v-show="active === 'sessions'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div class="admin-block">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">客户端会话</h3>
@@ -434,8 +438,25 @@ function clearCouponFilter() {
         </template>
       </DataTable>
     </div>
+    </div>
+    <div
+      v-else
+      id="diagnostics-tabpanel-sessions"
+      class="admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-sessions"
+      hidden
+    ></div>
 
-    <div v-if="visitedTabs.has('tokens')" v-show="active === 'tokens'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div
+      v-if="visitedTabs.has('tokens')"
+      v-show="active === 'tokens'"
+      id="diagnostics-tabpanel-tokens"
+      class="admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-tokens"
+    >
+    <div class="admin-block">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">设备找回令牌</h3>
@@ -479,8 +500,58 @@ function clearCouponFilter() {
         </template>
       </DataTable>
     </div>
-
-    <div v-if="visitedTabs.has('logs')" v-show="active === 'logs'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div class="admin-block">
+      <div class="admin-block__head">
+        <div>
+          <h3 class="admin-block-title">设备解绑历史</h3>
+          <p class="admin-block__hint">
+            自助解绑的冷却判定读的是「每条授权最近一次解绑时间」，所以清理时每条授权的最新一条永远保留。
+          </p>
+        </div>
+        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('device-release-events')">
+          清理历史…
+        </button>
+      </div>
+      <DataTable
+        ref="releaseEventTable"
+        path="/device-release-events"
+        :columns="COLUMNS.releaseEvents"
+        empty-text="暂无解绑历史"
+      >
+        <template #default="{ items }">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="index">
+            <td class="nowrap">{{ dt(row.createdAt) }}</td>
+            <td class="nowrap mono">
+              <span v-if="row.codeHint" :title="String(row.codeHint)">{{ row.codeHint }}</span>
+              <template v-else>—</template>
+            </td>
+            <td class="mono">
+              <span v-if="row.instanceId" :title="String(row.instanceId)">{{ row.instanceId }}</span>
+              <template v-else>—</template>
+            </td>
+            <td class="nowrap">{{ row.source }}</td>
+          </tr>
+        </template>
+      </DataTable>
+    </div>
+    </div>
+    <div
+      v-else
+      id="diagnostics-tabpanel-tokens"
+      class="admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-tokens"
+      hidden
+    ></div>
+    <div
+      v-if="visitedTabs.has('logs')"
+      v-show="active === 'logs'"
+      id="diagnostics-tabpanel-logs"
+      class="admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-logs"
+    >
+    <div class="admin-block">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">登录尝试</h3>
@@ -511,8 +582,7 @@ function clearCouponFilter() {
         </template>
       </DataTable>
     </div>
-
-    <div v-if="visitedTabs.has('logs')" v-show="active === 'logs'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div class="admin-block">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">邮箱验证码</h3>
@@ -552,43 +622,23 @@ function clearCouponFilter() {
         </template>
       </DataTable>
     </div>
-
-    <div v-if="visitedTabs.has('tokens')" v-show="active === 'tokens'" class="admin-block admin-tab-pane" role="tabpanel">
-      <div class="admin-block__head">
-        <div>
-          <h3 class="admin-block-title">设备解绑历史</h3>
-          <p class="admin-block__hint">
-            自助解绑的冷却判定读的是「每条授权最近一次解绑时间」，所以清理时每条授权的最新一条永远保留。
-          </p>
-        </div>
-        <button class="hb-button hb-button--secondary hb-button--sm" @click="purge('device-release-events')">
-          清理历史…
-        </button>
-      </div>
-      <DataTable
-        ref="releaseEventTable"
-        path="/device-release-events"
-        :columns="COLUMNS.releaseEvents"
-        empty-text="暂无解绑历史"
-      >
-        <template #default="{ items }">
-          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="index">
-            <td class="nowrap">{{ dt(row.createdAt) }}</td>
-            <td class="nowrap mono">
-              <span v-if="row.codeHint" :title="String(row.codeHint)">{{ row.codeHint }}</span>
-              <template v-else>—</template>
-            </td>
-            <td class="mono">
-              <span v-if="row.instanceId" :title="String(row.instanceId)">{{ row.instanceId }}</span>
-              <template v-else>—</template>
-            </td>
-            <td class="nowrap">{{ row.source }}</td>
-          </tr>
-        </template>
-      </DataTable>
     </div>
-
-    <div v-if="visitedTabs.has('redeem')" v-show="active === 'redeem'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div
+      v-else
+      id="diagnostics-tabpanel-logs"
+      class="admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-logs"
+      hidden
+    ></div>
+    <div
+      v-if="visitedTabs.has('redeem')"
+      v-show="active === 'redeem'"
+      id="diagnostics-tabpanel-redeem"
+      class="admin-block admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-redeem"
+    >
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">
@@ -652,5 +702,13 @@ function clearCouponFilter() {
         </template>
       </DataTable>
     </div>
+    <div
+      v-else
+      id="diagnostics-tabpanel-redeem"
+      class="admin-block admin-tab-pane"
+      role="tabpanel"
+      aria-labelledby="diagnostics-tab-redeem"
+      hidden
+    ></div>
   </section>
 </template>

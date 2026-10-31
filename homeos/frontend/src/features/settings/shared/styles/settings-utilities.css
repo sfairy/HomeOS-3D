@@ -1,5 +1,5 @@
 /* 响应式 + Tailwind 排版映射 + 导航编辑器 */
-@media (min-width: 1400px) {
+@media (min-width: 1440px) {
   .settings-page-inset {
     padding-left: 2.5rem;
     padding-right: 2.5rem;
@@ -154,7 +154,7 @@
   background: rgba(251, 191, 36, 0.08);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
 }
 
 /* ── 基础设置 · 顶栏导航标签编辑器 ── */

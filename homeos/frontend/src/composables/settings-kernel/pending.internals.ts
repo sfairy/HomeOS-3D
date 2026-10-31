@@ -92,6 +92,59 @@ export function resumeGlobalPendingChanges() {
 const pendingByTab = reactive<Record<string, boolean>>({})
 
 /**
+ * 全局布局未保存项数（由设置页写入）。
+ * 供方案切换 / 危险操作提示使用：切方案会重新拉取布局，未保存改动直接丢失。
+ */
+export const globalLayoutPendingCount = ref(0)
+
+/**
+ * 各独立保存 Tab 的「静默丢弃草稿」函数。
+ *
+ * 设置页的离开确认写着「这些修改将丢失」，就必须真的丢：只清全局布局、
+ * 把面板草稿留在 keep-alive 里，用户回到该 Tab 会看到改动还在、待保存角标也还在，
+ * 那句提示就成了谎话；更糟的是草稿会跟着下一次保存被写进库。
+ * 面板自己知道草稿怎么回滚（快照 / 重新读 store / 重新拉接口），由它注册进来。
+ */
+type DraftResetFn = () => void
+const draftResetByTab = new Map<string, DraftResetFn>()
+
+/** 注册某 Tab 的草稿丢弃函数（重复注册以最后一次为准） */
+export function registerSettingsTabDraftReset(tabId: string, fn: DraftResetFn) {
+  draftResetByTab.set(tabId, fn)
+}
+
+/** 注销某 Tab 的草稿丢弃函数（面板卸载时调用） */
+export function unregisterSettingsTabDraftReset(tabId: string) {
+  draftResetByTab.delete(tabId)
+}
+
+/**
+ * 真正丢弃指定 Tab 的草稿。
+ * @returns true = 已执行回滚；false = 该 Tab 没有注册回滚（面板可能已卸载）
+ */
+export function resetSettingsTabDraft(tabId: string): boolean {
+  const fn = draftResetByTab.get(tabId)
+  if (!fn) return false
+  try {
+    fn()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 丢弃全部已注册 Tab 的草稿（离开设置页 / 退出登录） */
+export function resetAllSettingsTabDrafts(): void {
+  for (const fn of draftResetByTab.values()) {
+    try {
+      fn()
+    } catch {
+      /* 单个面板回滚失败不应挡住其它面板 */
+    }
+  }
+}
+
+/**
  * 设置指定 Tab 的未保存状态
  * 
  * 功能描述：标记或清除某个独立保存 Tab 的未保存更改状态。
@@ -137,11 +190,18 @@ export function getIndependentPendingTabIds() {
  * 非独立 Tab（如 general / access）注册后，切 Tab 时也会被 hasUnsavedForCurrentTab 感知。
  * @param {string} tabId
  * @param {import('vue').MaybeRefOrGetter<boolean>} pendingSource
+ * @param {() => void} [revertSilently] 静默丢弃草稿（设置页确认离开后调用）
  */
-export function useRegisterSettingsTabPending(tabId: string, pendingSource: MaybeRefOrGetter<boolean> | (() => boolean)) {
+export function useRegisterSettingsTabPending(
+  tabId: string,
+  pendingSource: MaybeRefOrGetter<boolean> | (() => boolean),
+  revertSilently?: () => void,
+) {
   function readPending() {
     return typeof pendingSource === 'function' ? pendingSource() : !!unref(pendingSource)
   }
+
+  if (revertSilently) registerSettingsTabDraftReset(tabId, revertSilently)
 
   watch(
     () => readPending(),
@@ -149,7 +209,10 @@ export function useRegisterSettingsTabPending(tabId: string, pendingSource: Mayb
     { immediate: true },
   )
 
-  onScopeDispose(() => setSettingsTabPending(tabId, false))
+  onScopeDispose(() => {
+    setSettingsTabPending(tabId, false)
+    if (revertSilently) unregisterSettingsTabDraftReset(tabId)
+  })
 }
 
 // ── settings-cancel-sync.util ──
@@ -165,6 +228,11 @@ interface SettingsHubPendingOptions<TCurrent = unknown> {
   ready?: () => boolean
   label?: string
   fieldKeys?: string[] | null
+  /**
+   * 把基线写回数据源（草稿回滚）。给了才支持「静默丢弃」：
+   * 设置页确认离开 / 切 Tab 时调用，保证「这些修改将丢失」不是空话。
+   */
+  applyBaseline?: (baseline: unknown) => void
 }
 
 interface SettingsHubMountOptions {
@@ -239,6 +307,7 @@ export function useSettingsPendingChanges(options: SettingsHubPendingOptions) {
     label = '{n} 项已修改',
     fieldKeys = null,
     ready = () => true,
+    applyBaseline,
   } = options
   const pendingCount = ref(0)
   const paused = ref(false)
@@ -284,6 +353,19 @@ export function useSettingsPendingChanges(options: SettingsHubPendingOptions) {
 
   function pause() {
     paused.value = true
+  }
+
+  /**
+   * 静默回滚到基线（不弹确认）：供设置页确认「离开」后真正丢弃草稿。
+   * 没配置 `applyBaseline` 时返回 false —— 宁可说「丢弃不了」，也不要假装丢了。
+   */
+  function revertSilently(): boolean {
+    if (!applyBaseline) return false
+    const baseline = parseSnapshot()
+    if (baseline == null) return false
+    applyBaseline(baseline)
+    pendingCount.value = 0
+    return true
   }
 
   function resume() {
@@ -341,6 +423,7 @@ export function useSettingsPendingChanges(options: SettingsHubPendingOptions) {
     recompute,
     pause,
     resume,
+    revertSilently,
     parseSnapshot,
     confirmAndRevert,
   }

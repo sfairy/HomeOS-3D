@@ -513,7 +513,7 @@
   opacity: 1;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .rec-insight__head {
     flex-direction: column;
     align-items: stretch;

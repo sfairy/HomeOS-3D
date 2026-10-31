@@ -1240,30 +1240,6 @@
   pointer-events: none;
 }
 
-.agent-dock-preview__avatar {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  color: #7dd3fc;
-  background: linear-gradient(160deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(125, 211, 252, 0.5);
-  box-shadow:
-    0 6px 16px rgba(2, 6, 23, 0.5),
-    0 0 0 4px rgba(56, 189, 248, 0.1);
-  transition:
-    left 0.12s ease,
-    top 0.12s ease;
-}
-
-.agent-dock-preview__avatar svg {
-  width: 14px;
-  height: 14px;
-}
-
 .agent-dock-preview__hint {
   margin: 8px 0 0;
   font-size: 0.7rem;
@@ -1409,7 +1385,7 @@
   min-height: 104px;
 }
 
-@container settings-scroll (min-width: 860px) {
+@container settings-scroll (min-width: 900px) {
   .agent-cred-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch;
@@ -1501,7 +1477,7 @@
   padding-top: 6px;
   border-radius: 8px;
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.08);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.22);
 }
@@ -1512,31 +1488,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  /* 百分比换算到「内缩 15px」的可用区域，四边留白，贴边也不会被裁掉 */
-  left: calc(15px + (100% - 30px) * var(--dock-x, 50) / 100);
-  top: calc(15px + (100% - 30px) * var(--dock-y, 60) / 100);
+  width: 34px;
+  height: 34px;
+  /* 百分比换算到「内缩 17px」的可用区域，四边留白，贴边也不会被裁掉 */
+  left: calc(17px + (100% - 34px) * var(--dock-x, 50) / 100);
+  top: calc(17px + (100% - 34px) * var(--dock-y, 60) / 100);
   transform: translate(-50%, -50%);
-  border-radius: 50%;
-  color: #fff;
-  background: radial-gradient(
-    circle at 35% 30%,
-    rgba(var(--page-accent-rgb), 0.95) 0%,
-    rgba(var(--page-accent-rgb), 0.55) 100%
-  );
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.55);
-  box-shadow:
-    0 0 0 3px rgba(var(--page-accent-rgb), 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.4);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.55));
   transition:
     left 0.12s ease,
     top 0.12s ease;
-}
-
-.agent-dock-preview__avatar svg {
-  width: 14px;
-  height: 14px;
 }
 
 .agent-dock-preview__hint {
@@ -1576,7 +1537,7 @@
   }
 }
 
-@container settings-scroll (min-width: 860px) {
+@container settings-scroll (min-width: 900px) {
   .agent-companion-layout {
     grid-template-columns: minmax(0, 1fr) 264px;
     gap: 18px;
@@ -1601,7 +1562,7 @@
   min-width: 0;
 }
 
-@container settings-scroll (min-width: 1180px) {
+@container settings-scroll (min-width: 1200px) {
   .agent-split {
     grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
     gap: 0;

@@ -62,6 +62,58 @@ export function hexToRgbChannels(
   return `${rgb.r}, ${rgb.g}, ${rgb.b}`
 }
 
+/** `#RRGGBB` 颜色的 WCAG 相对亮度；非法输入返回 null。 */
+export function relativeLuminance(hex: string | null | undefined): number | null {
+  const rgb = hexToRgb(normalizeHexColor(hex) || hex || '')
+  if (!rgb) return null
+  const channel = (value: number) => {
+    const c = value / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
+}
+
+/** 两个 `#RRGGBB` 颜色的 WCAG 对比度（1–21）；任一非法输入返回 null。 */
+export function contrastRatio(
+  foreground: string | null | undefined,
+  background: string | null | undefined,
+): number | null {
+  const a = relativeLuminance(foreground)
+  const b = relativeLuminance(background)
+  if (a === null || b === null) return null
+  const [light, dark] = a > b ? [a, b] : [b, a]
+  return (light + 0.05) / (dark + 0.05)
+}
+
+/** 强调色在深色画布上的最低对比度（非文本控件 / 焦点环，WCAG 1.4.11）。 */
+export const ACCENT_MIN_SURFACE_CONTRAST = 3
+/** 强调色本身作为文字、或强调底上的文字所需的最低对比度（WCAG 1.4.3）。 */
+export const ACCENT_MIN_TEXT_CONTRAST = 4.5
+
+/**
+ * 把后台 `ui.accentColor` 收敛到可读范围。
+ *
+ * 强调色同时被用作深色画布上的文字/边框和按钮底色（按钮文字是 `--hos-fg-on-accent`），
+ * 单一颜色必须同时满足两侧对比度；否则导航高亮、选中态和主按钮会不可读。
+ * 非法或过暗的颜色回落到系统蓝，并在调用侧给出一次警告，不静默接受不可读配置。
+ */
+export function resolveReadableAccent(
+  accent: string | null | undefined,
+  fallback = '#0A84FF',
+  canvas = '#070a0f',
+  onAccent = '#041018',
+): string {
+  const normalized = normalizeHexColor(accent)
+  if (!normalized) return normalizeHexColor(fallback) ?? fallback
+  const surface = contrastRatio(normalized, canvas)
+  const text = contrastRatio(normalized, onAccent)
+  if (surface === null || text === null) return normalizeHexColor(fallback) ?? fallback
+  if (surface < ACCENT_MIN_SURFACE_CONTRAST || text < ACCENT_MIN_TEXT_CONTRAST) {
+    return normalizeHexColor(fallback) ?? fallback
+  }
+  return normalized
+}
+
 /**
  * 十六进制色 → rgba 字符串（供渐变 colorStops 使用）。
  *

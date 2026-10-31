@@ -340,7 +340,7 @@ onMounted(() => {
   color: #fff;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .settings-overview-strip {
     grid-template-columns: 1fr;
   }

@@ -156,7 +156,7 @@
   transform: translateX(100%);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .notification-drawer-handle {
     display: block;
   }

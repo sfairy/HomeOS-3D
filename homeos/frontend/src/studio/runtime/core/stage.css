@@ -112,13 +112,13 @@
   border-radius: 8px;
   background: #ffffff04;
   color: #9eaba5;
-  font-size: 10px;
+  font-size: 11px;
   /* 芯片内是「名称 + 数值」，两者都保持单行不折行。 */
   white-space: nowrap;
 }
 .interaction3d-stage .i3d-lock-detail-name {
   color: #7f9187;
-  font-size: 10px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -187,7 +187,7 @@
 .interaction3d-stage .i3d-device-panel .i3d-nas-meta {
   margin-left: auto;
   color: #7f9187;
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 .interaction3d-stage .i3d-device-panel .i3d-extra-grid {
@@ -853,7 +853,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-slider-legend small {
   color: #7e7b76;
-  font-size: 10px;
+  font-size: 11px;
 }
 .interaction3d-stage .i3d-light-presets {
   display: grid;
@@ -889,7 +889,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-light-preset small {
   color: #7e898f;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
 }
@@ -1423,7 +1423,7 @@ body.interaction3d-stage.is-background-hidden,
 .plan2-range-editor .p2r-compact-caption {
   display: none;
 }
-@container (max-width:620px) {
+@container (max-width:600px) {
   .plan2-range-editor .p2r-top {
     right: 12px;
     top: 8px;
@@ -1750,7 +1750,7 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-tv-error {
   margin: 6px 0 0;
   color: #efb078;
-  font-size: 10px;
+  font-size: 11px;
 }
 .i3d-tv-error:empty {
   display: none;
@@ -3620,7 +3620,7 @@ body.interaction3d-stage.is-background-hidden,
   flex: none;
   margin: 0 0 0 auto;
   color: var(--i3d-popup-muted) !important;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   white-space: nowrap;
 }

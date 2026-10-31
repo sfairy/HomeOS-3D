@@ -170,7 +170,7 @@
                   class="settings-field agent-cred-input"
                   :type="showApiKey ? 'text' : 'password'"
                   autocomplete="off"
-                  placeholder="留空则使用环境变量或演示模式"
+                  placeholder="留空则沿用已保存的密钥（更换请粘贴新密钥）"
                 />
                 <button
                   type="button"
@@ -456,7 +456,7 @@
           orb-class="agent-orb--model"
           eyebrow="仪表盘入口"
           title="悬浮伴侣"
-          :description="'贴边停靠的小管家入口：点开对话、长按说话、按住可拖到画面任意位置。关闭只是收起入口，不影响巡检与家规。'"
+          :description="'机甲小管家入口：单击换灵感指令、长按直接说话、双击开对话视窗，按住可拖到画面任意位置。关闭只是收起入口，不影响巡检与家规。'"
         />
 
         <div class="agent-model-body">
@@ -557,7 +557,7 @@
                       '--dock-y': companionYPercent,
                     }"
                   >
-                    <Bot />
+                    <AgentMechaAvatar mode="sleep" :is-active="false" />
                   </span>
                 </div>
                 <p class="agent-dock-preview__hint">
@@ -1051,6 +1051,7 @@ import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'
 import SettingsAgentPoliciesSection from './SettingsAgentPoliciesSection.vue'
 import SettingsAgentSchedulesSection from './SettingsAgentSchedulesSection.vue'
 import SettingsAgentDiagnosticsSection from './SettingsAgentDiagnosticsSection.vue'
+import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
 import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'agent' } })
@@ -1123,7 +1124,8 @@ const {
   chatPlaceholder,
 } = useSettingsAgentPanel(props)
 
-useRegisterSettingsTabPending('agent', () => pending.value > 0)
+// 第三个参数 = 静默丢弃草稿：设置页确认「离开」后调用，别让提示变成空话
+useRegisterSettingsTabPending('agent', () => pending.value > 0, resetDraft)
 /**
  * 已打开过的区段：家规 / 计划任务挂载即请求接口，未访问过就不挂载，
  * 避免每次进入智能管家都白打两个请求；打开后保持挂载以留住表单草稿。

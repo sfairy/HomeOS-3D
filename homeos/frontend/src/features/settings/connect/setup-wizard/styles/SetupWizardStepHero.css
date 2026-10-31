@@ -130,7 +130,7 @@
   border: var(--hos-hairline) solid var(--sw-hero-border);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .sw-step-hero {
     flex-direction: column;
     align-items: flex-start;

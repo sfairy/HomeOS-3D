@@ -1,13 +1,20 @@
 /**
- * FPS 智能档位：连续低于 45fps 自动 medium，高于 55fps 持续 30s 恢复 high
+ * FPS 智能档位：连续低于 45fps 自动 medium，高于 55fps 持续 30s 恢复
+ *
+ * 只写运行时自动档位，不写 `layoutConfig.performanceMode`：
+ * 布局是多终端共享的，把本机帧率逼出来的档位存进去会同步给其它设备，
+ * 并让「未保存的更改」检测把自动降档当成用户编辑。
  */
 import { registerSmartPerfTick } from '@/shared/utils/perf/adaptive-perf.util'
 import { isPerformanceModeUserSet } from '@/shared/utils/perf/tablet-default-perf.util'
-import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
+import {
+  clearAutoPerformanceMode,
+  getAutoPerformanceMode,
+  setAutoPerformanceMode,
+} from '@/shared/utils/perf/runtime-perf-mode.util'
 
 let teardown: (() => void) | null = null
 let autoDowngraded = false
-let savedMode: string | null = null
 
 type LayoutConfigForSmartPerf = {
   smartPerformanceMode?: boolean
@@ -21,18 +28,15 @@ function onSmartPerfTick({ lowStreak, highStreak }: { lowStreak: number; highStr
   const layout = getLayoutConfig?.()
   if (!layout?.smartPerformanceMode || isPerformanceModeUserSet()) return
 
-  if (lowStreak >= 135 && layout.performanceMode === 'high') {
-    savedMode = 'high'
-    layout.performanceMode = 'medium'
+  if (lowStreak >= 135 && (layout.performanceMode || 'high') === 'high') {
+    setAutoPerformanceMode('medium')
     autoDowngraded = true
-    applyGlassEffectDocument(layout.glassEffect, layout.performanceMode)
     return
   }
 
-  if (autoDowngraded && highStreak >= 1800 && layout.performanceMode === 'medium') {
-    layout.performanceMode = savedMode || 'high'
+  if (autoDowngraded && highStreak >= 1800 && getAutoPerformanceMode() === 'medium') {
+    clearAutoPerformanceMode()
     autoDowngraded = false
-    applyGlassEffectDocument(layout.glassEffect, layout.performanceMode)
   }
 }
 
@@ -50,7 +54,6 @@ export function setupSmartPerformanceMode(
     registerSmartPerfTick(null as unknown as Parameters<typeof registerSmartPerfTick>[0])
     getLayoutConfig = null
     autoDowngraded = false
-    savedMode = null
     teardown = null
   }
   return teardown

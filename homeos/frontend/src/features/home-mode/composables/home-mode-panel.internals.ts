@@ -7,6 +7,7 @@ import { useHomeModes } from './useHomeModes'
 import { useChromeStore } from '@/stores/chrome.store'
 import { buildHomeModeRecommendations } from '@/shared/recommend/utils/home-mode-recommend.util'
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
+import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { computed } from 'vue'
 import { useHomeModeEditor } from './editor.internals'
 import { useHomeModePanelContext } from './home-mode-panel-context.internals'
@@ -145,6 +146,17 @@ export function useHomeModePanel() {
     addAction: editor.addAction,
     addTrigger: editor.addTrigger,
     applyTemplate: editor.applyTemplate,
+  })
+
+  // 第三参数：确认离开设置页后真正丢弃家庭模式草稿（自定义模式整块删掉，已有模式重读）
+  useRegisterSettingsTabPending('home-mode', () => derived.anyModeDraftDirty.value, () => {
+    for (const tab of [...editor.modeTabs.value]) {
+      if (editor.drafts.value[tab.id]?.isNew) {
+        editor.removeDraft(tab.id, editor.resolveTabAfterRemove(tab.id))
+      } else {
+        editor.refreshDraftFromMode(tab.id)
+      }
+    }
   })
 
   const handlers = createHomeModePanelHandlers({

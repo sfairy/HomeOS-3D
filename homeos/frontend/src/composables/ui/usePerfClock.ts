@@ -26,6 +26,8 @@ function delayUntilAligned(intervalMs: number): number {
  * @param options.forceIntervalMs 覆盖性能档位间隔（屏保显示秒时强制 1s）
  * @returns now 当前时间 ref；perfMode/refreshInterval/showSeconds 计算属性；start/stop 控制
  */
+import { resolveEffectivePerformanceMode } from '@/shared/utils/perf/runtime-perf-mode.util'
+
 export function usePerfClock({
   autoStart = true,
   forceIntervalMs,
@@ -39,7 +41,9 @@ export function usePerfClock({
   let running = false
   let visHandler: (() => void) | null = null
 
-  const perfMode = computed(() => layoutStore.layoutConfig.performanceMode || 'high')
+  const perfMode = computed(() =>
+    resolveEffectivePerformanceMode(layoutStore.layoutConfig.performanceMode),
+  )
   const refreshInterval = computed(() => {
     if (typeof forceIntervalMs === 'number' && forceIntervalMs > 0) return forceIntervalMs
     if (perfMode.value === 'low') return 60000

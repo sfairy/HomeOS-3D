@@ -70,7 +70,7 @@
   box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .hos-degrade-banner {
     flex-wrap: wrap;
   }

@@ -69,7 +69,7 @@
 }
 
 .sun-countdown {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--hos-text-secondary);
   font-variant-numeric: tabular-nums;
@@ -364,7 +364,7 @@
 }
 
 .sun-card--embedded .sun-time-label {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
 }
 
@@ -373,7 +373,7 @@
 }
 
 .sun-card--embedded .sun-countdown {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sun-card--embedded .sun-time-col--center {
@@ -425,7 +425,7 @@
 .sun-card--embedded .sun-person-avatar {
   width: 20px;
   height: 20px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sun-card--embedded .sun-person-name {
@@ -433,5 +433,5 @@
 }
 
 .sun-card--embedded .sun-person-status {
-  font-size: 10px;
+  font-size: 12px;
 }

@@ -280,7 +280,7 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .eew-slide-track {
     --track-h: 54px;
     --handle: 46px;

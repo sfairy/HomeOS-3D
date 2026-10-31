@@ -1,4 +1,5 @@
 /** 毛玻璃渲染策略：native（实时 blur）| static（伪毛玻璃）| auto（触屏/static） */
+import { resolveEffectivePerformanceMode } from '@/shared/utils/perf/runtime-perf-mode.util'
 
 /**
  * 检测当前环境是否为粗指针（触屏设备）。触屏通常不具备实时 blur 性能。
@@ -67,12 +68,15 @@ type LayoutConfigForGlass = {
   performanceMode?: string
 } | null
 
-/** 启动全局 glass 策略同步（config + layout performanceMode） */
+/** 启动全局 glass 策略同步（config + 生效性能档位） */
 export function setupGlassEffectSync(getLayoutConfig: (() => LayoutConfigForGlass) | null | undefined) {
   teardown?.()
   const sync = () => {
     const layout = typeof getLayoutConfig === 'function' ? getLayoutConfig() : null
-    applyGlassEffectDocument(layout?.glassEffect, layout?.performanceMode)
+    applyGlassEffectDocument(
+      layout?.glassEffect,
+      resolveEffectivePerformanceMode(layout?.performanceMode),
+    )
   }
   sync()
   teardown = () => {

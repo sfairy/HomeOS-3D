@@ -1160,7 +1160,7 @@
   scrollbar-gutter: stable;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .device-overview__info-main {
     grid-template-columns: 1fr;
   }
@@ -1715,7 +1715,7 @@
   word-break: break-word;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .device-attrs-tab__row {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -1725,7 +1725,7 @@
 /* 窄屏收敛：以下网格原先只有固定列数（4 列 KPI / 2 列分析面板），640px 以下既不换行也不
    降列，靠 minmax(0, 1fr) 把四张卡片各挤到 ~70px —— 指标标题先断字、数值再看不清。
    与 .dev-metric-grid / .device-analytics__kpi-strip 既有的 900px 降列保持同一套「先 2 后 1」口径。 */
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .dev-analytics-grid {
     grid-template-columns: 1fr;
     gap: 10px;

@@ -1065,7 +1065,7 @@
   border-color: rgba(var(--page-accent-secondary-rgb), 0.22);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .ard-impact-chips {
     padding-left: 0;
   }
@@ -1102,7 +1102,7 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .ard-status-band,
   .ard-body {
     padding-left: 16px;
@@ -1374,7 +1374,7 @@
   margin-top: 0;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .arv-body {
     padding-left: 16px;
     padding-right: 16px;
@@ -1525,7 +1525,7 @@
   margin-top: 14px;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .alert-eew-coord-fields {
     grid-template-columns: 1fr;
   }
@@ -1677,7 +1677,7 @@
 
 .alert-eew-city-block__label {
   margin: 0 0 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1810,7 +1810,7 @@
 .alert-eew-drill__sim {
   padding: 2px 6px;
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #fecaca;
@@ -1820,7 +1820,7 @@
 
 .alert-eew-drill__preview-eyebrow {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1858,7 +1858,7 @@
   justify-content: space-between;
   width: 100%;
   gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   color: var(--hos-text-secondary);
 }
@@ -1908,7 +1908,7 @@
 }
 
 .alert-eew-drill__seg-sub {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--hos-text-secondary);
 }
@@ -1947,7 +1947,7 @@
 .alert-eew-drill__checks li {
   padding: 3px 8px;
   border-radius: var(--hos-radius-pill);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.04);
@@ -1968,7 +1968,7 @@
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--hos-text-secondary);
 }
@@ -2018,7 +2018,7 @@
   transform: none;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .alert-eew-drill__foot {
     flex-direction: column;
     align-items: stretch;

@@ -38,10 +38,18 @@ export function useSecurityModes() {
     pendingCount: pendingChanges,
     takeSnapshot: takeSecuritySnapshot,
     confirmAndRevert,
+    revertSilently,
   } = useSettingsPendingChanges({
     snapshot: initialSecurityConfig,
     current: () => liveSecurityModesLayoutSlice(layoutStore.layoutConfig),
     ready: () => layoutStore.isConfigLoaded,
+    applyBaseline: (baseline) => {
+      applySecurityModesLayoutSlice(
+        layoutStore.layoutConfig,
+        baseline as ReturnType<typeof pickSecurityModesLayoutSlice>,
+      )
+      afterLayoutCancelSync(layoutStore.layoutConfig)
+    },
   })
 
   function snapshotSecurityConfig() {
@@ -414,6 +422,7 @@ export function useSecurityModes() {
     cancelSecurityChanges,
     pendingChanges,
     snapshotSecurityConfig,
+    revertSecurityDraft: revertSilently,
   }
 }
 

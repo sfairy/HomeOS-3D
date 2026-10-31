@@ -614,7 +614,7 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
   align-items: center;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   /* 手机走 /m；此处覆盖近方形小窗 / DevTools，必须保留顶栏 Tab */
   .tab-bar {
     flex-wrap: nowrap;
@@ -737,7 +737,7 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
 /* 手机 (<640px)：顶栏保留 Tab（图标），主导航不再走已删除的底栏 */
 
 /* 横屏窄窗 */
-@media (max-width: 639px) and (orientation: landscape) {
+@media (max-width: 640px) and (orientation: landscape) {
   .tab-bar {
     flex-wrap: nowrap;
     padding: 2px 8px;

@@ -46,7 +46,7 @@
   border-left-color: rgba(var(--page-accent-secondary-rgb), 0.75) !important;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .link-glance-band {
     padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 12px;
   }

@@ -163,7 +163,7 @@
   border-color: rgba(var(--page-accent-rgb), 0.32);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
 
   .voice-status-body {
     padding: 10px 16px 16px;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSiteStore } from "@store/shared/stores/site";
 import { useCatalogStore } from "@store/features/storefront/stores/catalog";
@@ -18,15 +18,42 @@ const toast = useStoreToast();
 const route = useRoute();
 const router = useRouter();
 const mobileNavOpen = ref(false);
+const navRef = ref<HTMLElement | null>(null);
+const toggleRef = ref<HTMLButtonElement | null>(null);
+
+function closeMobileNav(restoreFocus = false) {
+  mobileNavOpen.value = false;
+  if (restoreFocus) nextTick(() => toggleRef.value?.focus());
+}
 
 function toggleMobileNav() {
   mobileNavOpen.value = !mobileNavOpen.value;
 }
 
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!mobileNavOpen.value) return;
+  const target = event.target as Node | null;
+  if (!target) return;
+  if (navRef.value?.contains(target) || toggleRef.value?.contains(target)) return;
+  closeMobileNav();
+}
+
+function onNavEscape() {
+  if (!mobileNavOpen.value) return;
+  closeMobileNav(true);
+}
+
+watch(mobileNavOpen, (open) => {
+  if (!open) return;
+  nextTick(() => {
+    navRef.value?.querySelector<HTMLElement>("a[href]")?.focus();
+  });
+});
+
 watch(
   () => route.fullPath,
   () => {
-    mobileNavOpen.value = false;
+    closeMobileNav();
   },
 );
 
@@ -64,6 +91,7 @@ watch(maintenance, (enabled) => {
 });
 
 onMounted(async () => {
+  document.addEventListener("pointerdown", onDocumentPointerDown);
   await site.load();
   if (site.announcement) toast.show(site.announcement);
   if (site.maintenanceMode) {
@@ -89,28 +117,56 @@ onMounted(async () => {
   }
   document.body.classList.remove("hb-store-loading");
 });
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", onDocumentPointerDown);
+});
 </script>
 
 <template>
   <div class="hb-store-shell">
-    <header class="hb-topbar">
+    <header class="hb-topbar" @keydown.esc="onNavEscape">
       <div class="hb-container hb-topbar__inner">
-        <RouterLink class="hb-brand" to="/" aria-label="HomeOS 授权中心 首页">
+        <RouterLink class="hb-brand" to="/">
           <span class="hb-brand-mark">
             <img class="hb-store-brand-mark" :src="site.logoUrl" alt="" />
           </span>
           <span class="hb-brand__text"><strong>HomeOS</strong><small>授权服务中心</small></span>
         </RouterLink>
-        <nav id="navbarNav" class="hb-nav" :class="{ 'mobile-open': mobileNavOpen }" aria-label="主导航">
-          <RouterLink class="hb-nav__link" :class="{ active: navActive === 'home' }" data-hb-nav="home" to="/">首页</RouterLink>
-          <RouterLink class="hb-nav__link" :class="{ active: navActive === 'purchase' }" data-hb-nav="purchase" to="/products">购买授权</RouterLink>
+        <nav
+          id="navbarNav"
+          ref="navRef"
+          class="hb-nav"
+          :class="{ 'mobile-open': mobileNavOpen }"
+          aria-label="主导航"
+        >
+          <RouterLink
+            class="hb-nav__link"
+            :class="{ active: navActive === 'home' }"
+            :aria-current="storePage === 'home' ? 'page' : undefined"
+            data-hb-nav="home"
+            to="/"
+          >首页</RouterLink>
+          <RouterLink
+            class="hb-nav__link"
+            :class="{ active: navActive === 'purchase' }"
+            :aria-current="storePage === 'products' ? 'page' : undefined"
+            data-hb-nav="purchase"
+            to="/products"
+          >购买授权</RouterLink>
           <RouterLink v-slot="{ navigate }" to="/#home-capability" custom>
             <a class="hb-nav__link hb-nav__link--anchor" data-hb-nav="capability" href="/#home-capability" @click="navigate">能力</a>
           </RouterLink>
           <RouterLink v-slot="{ navigate }" to="/#home-journey" custom>
             <a class="hb-nav__link hb-nav__link--anchor" data-hb-nav="deploy" href="/#home-journey" @click="navigate">部署</a>
           </RouterLink>
-          <RouterLink class="hb-nav__link hb-auth-only" :class="{ active: navActive === 'referrals' }" data-hb-nav="referrals" to="/user/referrals">邀请有礼</RouterLink>
+          <RouterLink
+            class="hb-nav__link hb-auth-only"
+            :class="{ active: navActive === 'referrals' }"
+            :aria-current="storePage === 'referrals' ? 'page' : undefined"
+            data-hb-nav="referrals"
+            to="/user/referrals"
+          >邀请有礼</RouterLink>
           <RouterLink v-if="isAdmin" class="hb-nav__link" data-hb-nav="admin" to="/admin">管理后台</RouterLink>
         </nav>
         <div class="hb-topbar__actions">
@@ -121,17 +177,24 @@ onMounted(async () => {
             aria-label="联系客服"
             title="联系客服"
           >
-            <i class="fa-duotone fa-regular fa-envelope"></i>
+            <i class="fa-duotone fa-regular fa-envelope" aria-hidden="true"></i>
           </a>
-          <RouterLink class="hb-button hb-button--secondary hb-button--sm hb-auth-only" :class="{ active: navActive === 'account' }" to="/user/dashboard/index"><i class="fa-duotone fa-regular fa-user"></i> 我的账号</RouterLink>
-          <RouterLink class="hb-button hb-button--primary hb-button--sm hb-guest-only" to="/user/authentication/login"><i class="fa-duotone fa-regular fa-right-to-bracket"></i> 登录</RouterLink>
+          <RouterLink
+            class="hb-button hb-button--secondary hb-button--sm hb-auth-only"
+            :class="{ active: navActive === 'account' }"
+            :aria-current="storePage === 'account' ? 'page' : undefined"
+            to="/user/dashboard/index"
+          ><i class="fa-duotone fa-regular fa-user" aria-hidden="true"></i> 我的账号</RouterLink>
+          <RouterLink class="hb-button hb-button--primary hb-button--sm hb-guest-only" to="/user/authentication/login"><i class="fa-duotone fa-regular fa-right-to-bracket" aria-hidden="true"></i> 登录</RouterLink>
           <button
+            ref="toggleRef"
             class="hb-store-nav-toggle"
             type="button"
-            aria-label="展开导航"
+            aria-controls="navbarNav"
+            :aria-label="mobileNavOpen ? '收起导航' : '展开导航'"
             :aria-expanded="mobileNavOpen ? 'true' : 'false'"
             @click="toggleMobileNav"
-          ><i class="fa-duotone fa-regular fa-bars"></i></button>
+          ><i class="fa-duotone fa-regular fa-bars" aria-hidden="true"></i></button>
         </div>
       </div>
     </header>

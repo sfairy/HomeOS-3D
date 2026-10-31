@@ -5,6 +5,7 @@ import { computed, reactive, ref } from "vue";
 import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import RowMenu from "@store/features/admin/components/RowMenu.vue";
 import FeaturePicker from "@store/features/admin/components/FeaturePicker.vue";
@@ -314,22 +315,21 @@ void catalog.load().catch((error) => {
       </button>
     </PanelHead>
 
-    <div class="admin-tabs" role="tablist" aria-label="商品分区">
-      <button
-        v-for="tab in tabs.filter((item) => !item.hidden)"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="商品分区"
+      panel-id-prefix="products"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'list'"
+      :id="'products-tabpanel-list'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'products-tab-list'"
+    >
       <div class="panel-toolbar">
         <input
           v-model="keyword"
@@ -402,7 +402,14 @@ void catalog.load().catch((error) => {
       </DataTable>
     </div>
 
-    <div v-show="active === 'form'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="editorOpen"
+      v-show="active === 'form'"
+      :id="'products-tabpanel-form'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'products-tab-form'"
+    >
       <div v-if="editorOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">{{ title }}</h3>

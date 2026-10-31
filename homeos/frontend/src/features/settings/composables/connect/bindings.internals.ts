@@ -221,14 +221,23 @@ function useSettingsAccountBindingsHub(
     pendingCount: pendingChanges,
     takeSnapshot: takeLayoutSnapshot,
     confirmAndRevert,
+    revertSilently: revertLayoutSilently,
     runHubMount,
   } = useSettingsHubPending({
     snapshot: initialLayoutConfig,
     current: () => liveLifeAccountsLayoutSlice(layoutStore.layoutConfig),
     ready: () => layoutStore.isConfigLoaded,
+    applyBaseline: (baseline) => {
+      applyLifeAccountsLayoutSlice(
+        layoutStore.layoutConfig,
+        baseline as ReturnType<typeof pickLifeAccountsLayoutSlice>,
+      )
+      afterLayoutCancelSync(layoutStore.layoutConfig)
+    },
   })
 
-  useRegisterSettingsTabPending(options.settingsTabId, () => pendingChanges.value > 0)
+  // 第三参数：确认离开后真正回滚布局切片草稿
+  useRegisterSettingsTabPending(options.settingsTabId, () => pendingChanges.value > 0, revertLayoutSilently)
 
   function snapshotConfig() {
     takeLayoutSnapshot(pickLifeAccountsLayoutSlice(layoutStore.layoutConfig))

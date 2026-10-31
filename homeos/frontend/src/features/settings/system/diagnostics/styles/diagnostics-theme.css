@@ -545,7 +545,7 @@
   color: var(--set-text-secondary);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .diag-config-health__gaps {
     grid-template-columns: 1fr;
   }
@@ -596,7 +596,7 @@
   text-decoration: none;
 }
 
-@container settings-scroll (max-width: 520px) {
+@container settings-scroll (max-width: 480px) {
 }
 
 /* ── 告警条 ── */
@@ -726,13 +726,13 @@
   gap: 10px;
 }
 
-@container settings-scroll (min-width: 560px) {
+@container settings-scroll (min-width: 600px) {
   .diag-service-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@container settings-scroll (min-width: 880px) {
+@container settings-scroll (min-width: 900px) {
   .diag-service-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -882,7 +882,7 @@
   gap: 12px;
 }
 
-@container settings-scroll (min-width: 560px) {
+@container settings-scroll (min-width: 600px) {
   .diag-gauge-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -966,7 +966,7 @@
   gap: 10px;
 }
 
-@container settings-scroll (max-width: 780px) {
+@container settings-scroll (max-width: 768px) {
   .diag-perf-hero {
     grid-template-columns: 1fr;
   }
@@ -1269,7 +1269,7 @@
 }
 
 
-@container settings-scroll (min-width: 860px) {
+@container settings-scroll (min-width: 900px) {
 }
 
 
@@ -1592,7 +1592,7 @@
   gap: 12px;
 }
 
-@container settings-scroll (min-width: 860px) {
+@container settings-scroll (min-width: 900px) {
   .diag-export-guides {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

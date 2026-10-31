@@ -11,6 +11,11 @@ import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { downloadBlob } from '@/shared/utils/core/misc.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import type { NotifyType } from '@/shared/types/notify'
+import {
+  getIndependentPendingTabIds,
+  globalLayoutPendingCount,
+} from '@/composables/settings-kernel/pending.internals'
+import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
 import { ref } from 'vue'
 
 // ── useAppConfigBackup ──
@@ -93,9 +98,20 @@ export function useProfileManagement() {
   async function switchToProfile(id: string) {
     if (!authStore.isAuthenticated) return
     const name = id === 'default' ? '默认系统方案' : id
+    // switchProfile 会重新拉取整份布局：未保存的全局布局改动与独立保存页的草稿都会丢失，
+    // 确认框必须点名这件事，否则用户只会看到「切换后页面可能需要重新加载」。
+    const pendingTabs = getIndependentPendingTabIds()
+    const layoutPending = globalLayoutPendingCount.value
+    const pendingParts: string[] = []
+    if (layoutPending > 0) pendingParts.push(`全局布局 ${layoutPending} 项`)
+    if (pendingTabs.length) pendingParts.push(`「${pendingTabs.map((t) => tabLabel(t)).join('、')}」`)
+    const pendingHint = pendingParts.length
+      ? `\n\n注意：当前有未保存的更改（${pendingParts.join('、')}），切换方案后这些修改将丢失。`
+      : ''
     const confirmed = await chrome.confirm(
-      `确定要切换到方案 "${name}" 吗？切换后页面可能需要重新加载。`,
+      `确定要切换到方案 "${name}" 吗？切换后页面可能需要重新加载。${pendingHint}`,
       '切换显示方案',
+      pendingParts.length ? { type: 'danger', confirmText: '丢弃并切换', cancelText: '留在当前方案' } : undefined,
     )
     if (confirmed) {
       try {

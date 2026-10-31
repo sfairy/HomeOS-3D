@@ -355,7 +355,7 @@
   outline: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .params-shell {
     flex-direction: column;
   }
@@ -369,7 +369,7 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .params-inline-head {
     flex-direction: column;
     align-items: stretch;

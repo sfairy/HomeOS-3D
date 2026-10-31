@@ -11,6 +11,7 @@ const refresh = useAdminRefreshStore();
 const toast = useToastStore();
 
 const dialog = ref<HTMLDialogElement | null>(null);
+const submitting = ref(false);
 const delta = ref("0");
 const frozen = ref("0");
 const note = ref("");
@@ -32,6 +33,7 @@ watch(
 );
 
 async function submit() {
+  if (submitting.value) return;
   const target = dialogs.adjust;
   if (!target) return;
   const deltaValue = Number(delta.value || 0);
@@ -45,6 +47,7 @@ async function submit() {
     toast.push("余额与冻结金额不能同时为 0。", "danger");
     return;
   }
+  submitting.value = true;
   try {
     const result = await adminApi<{ balance?: unknown }>(
       `/referral-wallets/${target.accountId}/adjust`,
@@ -58,6 +61,8 @@ async function submit() {
     refresh.bump("accounts", "ledger", "overview");
   } catch (error) {
     toast.push(errorMessage(error, "调账失败"), "danger");
+  } finally {
+    submitting.value = false;
   }
 }
 </script>
@@ -66,14 +71,17 @@ async function submit() {
   <dialog
     ref="dialog"
     class="confirm-dialog"
+    aria-labelledby="adjust-dialog-title"
+    aria-describedby="adjust-dialog-desc"
     @cancel.prevent="dialogs.settleAdjust(null)"
     @click="($event.target === dialog) && dialogs.settleAdjust(null)"
   >
+    <form @submit.prevent="submit">
     <div class="confirm-dialog__body">
-      <div class="confirm-dialog__icon">¥</div>
-      <h2>人工调账</h2>
+      <div class="confirm-dialog__icon" aria-hidden="true">¥</div>
+      <h2 id="adjust-dialog-title">人工调账</h2>
       <p>账号 <span class="mono">{{ dialogs.adjust?.label }}</span></p>
-      <div class="confirm-dialog__impact">
+      <div id="adjust-dialog-desc" class="confirm-dialog__impact">
         调账一律写入积分账本，余额与流水在同一个事务里更新，不会出现「改了余额对不上流水」。
         备注必填，它是这笔变动唯一能被后人读懂的解释。
       </div>
@@ -89,7 +97,10 @@ async function submit() {
     </div>
     <div class="confirm-dialog__actions">
       <button class="hb-button hb-button--secondary hb-button--sm" type="button" @click="dialogs.settleAdjust(null)">取消</button>
-      <button class="hb-button hb-button--warning hb-button--sm" type="button" @click="submit">确认调账</button>
+      <button class="hb-button hb-button--warning hb-button--sm" type="submit" :disabled="submitting">
+        {{ submitting ? "提交中…" : "确认调账" }}
+      </button>
     </div>
+    </form>
   </dialog>
 </template>

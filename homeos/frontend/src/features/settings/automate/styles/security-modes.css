@@ -74,7 +74,7 @@
   box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 1440px) {
   .settings-page-inset--tabs .sm-modes-tabs-head.settings-orch-dock--toolbar {
     border-radius: var(--hos-radius-panel, 20px);
   }
@@ -412,7 +412,7 @@
   flex: 1;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .sm-actions-head {
     flex-direction: column;
     align-items: stretch;

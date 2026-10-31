@@ -141,6 +141,12 @@ export function useAlertRulesPanelRuleEditor(options: {
     editingBaseline.value = null
   }
 
+  /** 静默把规则编辑浮层回滚到基线（离开设置页时用，不弹确认） */
+  function revertEditingDraft() {
+    if (!editing.value || !editingBaseline.value) return
+    editing.value = clonePlain(editingBaseline.value) as AlertRuleEditForm
+  }
+
   async function cancelEditingChanges() {
     if (!editingDirty.value || !editing.value || !editingBaseline.value) return
     const ok = await options.confirm('确定放弃未保存的更改？此操作不可撤销。', '放弃更改', {
@@ -149,7 +155,7 @@ export function useAlertRulesPanelRuleEditor(options: {
       cancelText: '继续编辑',
     })
     if (!ok) return
-    editing.value = clonePlain(editingBaseline.value) as AlertRuleEditForm
+    revertEditingDraft()
     options.notify('已取消修改', 'info')
   }
 
@@ -245,6 +251,7 @@ export function useAlertRulesPanelRuleEditor(options: {
     openEdit,
     closeEditing,
     cancelEditingChanges,
+    revertEditingDraft,
     levelClass,
   }
 }

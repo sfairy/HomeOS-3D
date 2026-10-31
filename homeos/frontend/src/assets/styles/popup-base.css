@@ -71,7 +71,7 @@
 
 /* ---- 中等视口（481-700px）：弹窗宽度自适应 90vw，避免横向溢出 ----
    注意：实体弹窗挂载于缩放画布，视口宽度为 CSS 像素而非画布坐标，此处按真实视口判断 */
-@media (max-width: 700px) and (min-width: 481px) {
+@media (max-width: 720px) and (min-width: 480px) {
   .popup-shell,
   .popup-shell--wide,
   .popup-shell--narrow {

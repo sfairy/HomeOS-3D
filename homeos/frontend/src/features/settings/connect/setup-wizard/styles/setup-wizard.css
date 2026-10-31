@@ -283,7 +283,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .sw-stat-grid {
     grid-template-columns: 1fr;
   }
@@ -304,7 +304,7 @@
   overflow: hidden;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .sw-workspace {
     padding: 14px 14px 16px;
   }
@@ -840,7 +840,7 @@
   gap: 12px;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .sw-env-sensor-grid {
     grid-template-columns: 1fr;
   }
@@ -1493,7 +1493,7 @@
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .sw-presence__roster--split {
     grid-template-columns: 1fr;
   }

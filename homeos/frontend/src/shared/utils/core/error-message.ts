@@ -132,6 +132,17 @@ export function isUnauthorizedError(error: unknown): boolean {
 }
 
 /**
+ * 判断错误是否为 409 版本冲突（乐观锁拒绝写入）。
+ * 用于布局保存：`expectedUpdatedAt` 与服务端 `updatedAt` 不一致说明别的终端先写过。
+ */
+export function isConflictError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const e = error as AxiosLikeError & { status?: number }
+  const status = e.response?.status ?? e.status
+  return status === 409
+}
+
+/**
  * 从任意错误中提取面向用户的可读消息。
  * 优先级：后端业务文案 > 后端不可达提示 > 本地化后的 message > 未知错误。
  * @param error 任意错误

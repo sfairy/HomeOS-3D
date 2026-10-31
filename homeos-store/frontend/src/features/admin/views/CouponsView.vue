@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import RowMenu from "@store/features/admin/components/RowMenu.vue";
 import { adminApi } from "@store/shared/api/http";
@@ -238,22 +239,21 @@ async function removeCoupon(coupon: Coupon) {
       <button class="hb-button hb-button--primary hb-button--sm" @click="openEditor(null)">新增优惠码</button>
     </PanelHead>
 
-    <div class="admin-tabs" role="tablist" aria-label="优惠码分区">
-      <button
-        v-for="tab in tabs.filter((item) => !item.hidden)"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="优惠码分区"
+      panel-id-prefix="coupons"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'list'"
+      :id="'coupons-tabpanel-list'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'coupons-tab-list'"
+    >
       <div class="panel-toolbar">
         <input v-model="keyword" class="hb-input" aria-label="优惠码或说明关键字" placeholder="码 / 说明" />
         <select v-model="status" class="hb-select" aria-label="按优惠码状态筛选">
@@ -313,7 +313,14 @@ async function removeCoupon(coupon: Coupon) {
       </DataTable>
     </div>
 
-    <div v-show="active === 'form'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="editorOpen"
+      v-show="active === 'form'"
+      :id="'coupons-tabpanel-form'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'coupons-tab-form'"
+    >
       <div v-if="editorOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">{{ title }}</h3>

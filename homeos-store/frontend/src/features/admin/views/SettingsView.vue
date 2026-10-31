@@ -398,13 +398,45 @@ async function save() {
     <div class="hb-card">
       <div class="hb-card__body">
         <form id="settings-form" @submit.prevent="save">
-          <AdminTabs label="站点配置分区" :tabs="TABS" :active="active" @pick="pick" />
-          <SitePanel v-show="active === 'site'" :form="form" />
+          <AdminTabs
+            label="站点配置分区"
+            panel-id-prefix="settings"
+            :tabs="TABS"
+            :active="active"
+            @pick="pick"
+          />
+          <SitePanel
+            v-show="active === 'site'"
+            id="settings-tabpanel-site"
+            role="tabpanel"
+            aria-labelledby="settings-tab-site"
+            :form="form"
+          />
           <PaymentsPanel :form="form" :ph="ph" :saved="saved" :active="active" />
-          <MailPanel v-show="active === 'mail'" :form="form" :ph="ph" :saved="saved" />
-          <InvitePanel v-show="active === 'invite'" :form="form" :ph="ph" />
+          <MailPanel
+            v-show="active === 'mail'"
+            id="settings-tabpanel-mail"
+            role="tabpanel"
+            aria-labelledby="settings-tab-mail"
+            :form="form"
+            :ph="ph"
+            :saved="saved"
+          />
+          <InvitePanel
+            v-show="active === 'invite'"
+            id="settings-tabpanel-invite"
+            role="tabpanel"
+            aria-labelledby="settings-tab-invite"
+            :form="form"
+            :ph="ph"
+          />
         </form>
-        <PaletteSettings v-show="active === 'palette'" />
+        <PaletteSettings
+          v-show="active === 'palette'"
+          id="settings-tabpanel-palette"
+          role="tabpanel"
+          aria-labelledby="settings-tab-palette"
+        />
       </div>
     </div>
   </section>

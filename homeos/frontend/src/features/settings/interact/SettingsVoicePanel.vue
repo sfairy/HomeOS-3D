@@ -260,12 +260,15 @@ const {
   pendingCount: pendingChanges,
   takeSnapshot,
   confirmAndRevert,
+  revertSilently,
 } = useSettingsPendingChanges({
   snapshot: initialVoiceConfig,
   current: voiceConfigCurrent,
+  applyBaseline: applyVoiceBaseline,
 })
 
-useRegisterSettingsTabPending('voice', () => pendingChanges.value > 0)
+// 第三参数：离开设置页 / 切 Tab 确认后真正回滚草稿
+useRegisterSettingsTabPending('voice', () => pendingChanges.value > 0, revertSilently)
 
 function snapshotVoiceConfig() {
   takeSnapshot(voiceConfigCurrent())
@@ -383,17 +386,20 @@ async function onTestDailyAdvisor() {
   }
 }
 
+/** 把基线快照写回语音草稿（取消 / 静默丢弃共用） */
+function applyVoiceBaseline(baseline) {
+  const b = baseline || {}
+  voice.value = { ...b.voice }
+  ttsMediaPlayerIds.value = [...(b.ttsMediaPlayerIds || [])]
+  speakCooldownMin.value = b.speakCooldownMin
+  tipCooldownHours.value = b.tipCooldownHours
+  voiceCommands.value = [...(b.voiceCommands || [])]
+  syncDailyFromVoice()
+  saveTip.value = ''
+}
+
 async function cancelVoiceChanges() {
-  await confirmAndRevert(chrome, (baseline) => {
-    const b = baseline || {}
-    voice.value = { ...b.voice }
-    ttsMediaPlayerIds.value = [...(b.ttsMediaPlayerIds || [])]
-    speakCooldownMin.value = b.speakCooldownMin
-    tipCooldownHours.value = b.tipCooldownHours
-    voiceCommands.value = [...(b.voiceCommands || [])]
-    syncDailyFromVoice()
-    saveTip.value = ''
-  })
+  await confirmAndRevert(chrome, applyVoiceBaseline)
 }
 
 async function onSave() {

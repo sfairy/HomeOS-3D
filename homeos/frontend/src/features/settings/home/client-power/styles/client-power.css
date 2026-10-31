@@ -775,7 +775,7 @@
   margin: 0;
   padding: 1px 7px;
   border-radius: var(--hos-radius-pill);
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -826,7 +826,7 @@
 
 .charge-device-card__hint {
   margin: -4px 0 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #fcd34d;
   line-height: 1.4;
@@ -869,7 +869,7 @@
 }
 
 .charge-option__text small {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
   color: var(--set-text-secondary);
 }

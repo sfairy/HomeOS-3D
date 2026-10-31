@@ -152,6 +152,13 @@ export const useLayoutStore = defineStore('layout', () => {
     setSuppressDirtyTracking(true)
     try {
       const baseline = typeof source === 'string' ? JSON.parse(source) : clonePlain(source)
+      // Object.assign 只覆盖不删除：取消后「本次新增的字段」（新嵌入页、新安防模式…）
+      // 会残留在 layoutConfig 里，快照已经回滚而内容没有，pending 计数永远归不了零。
+      // 先删掉基线里不存在的键，再做覆盖，才是真正回到上次保存的状态。
+      const target = layoutConfig as unknown as Record<string, unknown>
+      for (const key of Object.keys(target)) {
+        if (!(key in baseline)) delete target[key]
+      }
       Object.assign(layoutConfig, baseline)
       applyTabletDefaultPerformanceMode(layoutConfig)
       layoutDirty.value = false

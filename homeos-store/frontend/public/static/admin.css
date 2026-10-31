@@ -2794,3 +2794,133 @@ body {
   #panel-licenses .hb-table { min-width: 700px; }
   #panel-withdrawals .hb-table { min-width: 680px; }
 }
+
+/* 表格横向可发现性：提示只在真的溢出时由 DataTable 渲染。 */
+.table-scroll-hint {
+  margin: 8px 2px 0;
+  color: var(--hb-fg-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.table-wrap:focus-visible {
+  outline: 2px solid var(--a-tint);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  /* 窄屏固定首列，横向滑动时仍能对照行首身份。 */
+  .table-wrap .hb-table th:first-child,
+  .table-wrap .hb-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--hb-bg-elev-2);
+  }
+
+  .table-wrap .hb-table thead th:first-child {
+    z-index: 3;
+  }
+}
+
+/* 窄屏后台导航：默认收起为顶部一行，按钮展开，避免 14 个入口占满首屏。 */
+.admin-mobile-nav-toggle {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .admin-side {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .admin-side:not(.mobile-nav-open) .admin-nav {
+    display: none;
+  }
+
+  .admin-side.mobile-nav-open {
+    max-height: 72vh;
+    overflow-y: auto;
+  }
+
+  .admin-side.mobile-nav-open .admin-nav {
+    display: flex;
+  }
+
+  .admin-side__foot {
+    display: none;
+  }
+
+  .admin-mobile-nav-toggle {
+    display: inline-flex;
+  }
+}
+
+/* 后台轻提示：可暂停/可关闭（SI-06）。 */
+.admin-toast__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.admin-toast__message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.admin-toast__close {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: -3px -7px -3px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.72;
+}
+.admin-toast__close:hover,
+.admin-toast__close:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* 配色对比度检查（HV-04） */
+.admin-palette-contrast {
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+  padding: 12px 14px;
+  background: var(--a-surface-2);
+}
+.admin-palette-contrast__list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-palette-contrast__list li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+}
+.admin-palette-contrast__list strong {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.admin-palette-contrast__swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--a-line);
+  border-radius: 5px;
+}
+.admin-palette-contrast__warn {
+  color: var(--hb-danger-text);
+  font-weight: 650;
+}

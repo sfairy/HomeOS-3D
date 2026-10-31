@@ -6,7 +6,10 @@
        （排在当前播报之后才念），与「立即打断」的意图相反。分区域后各档互不覆盖。
        区域常驻是硬要求：内容变化只在**已存在**的 live region 内才会被播报；
        空档零高度，不产生布局跳动。 -->
-  <div class="notification-container">
+  <div
+    class="notification-container"
+    :class="{ 'notification-container--below-topbar': placement === 'below-topbar' }"
+  >
     <div
       v-for="band in notificationBands"
       :key="band.live"
@@ -57,6 +60,15 @@
 import { computed } from 'vue'
 
 import { useChromeStore } from '@/stores/chrome.store'
+
+defineProps({
+  /**
+   * 通知堆叠位置。
+   * `top`：贴在所属壳层顶部（独立页/无顶栏场景）；
+   * `below-topbar`：主壳顶栏下方，避免遮挡导航与全局操作。
+   */
+  placement: { type: String, default: 'top' },
+})
 
 const chrome = useChromeStore()
 

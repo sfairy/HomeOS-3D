@@ -27,6 +27,7 @@ function scheduleStudioTeardown(
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
+import { useChromeStore } from "@/stores/chrome.store";
 import {
   STUDIO_SHORTCUT_ROWS,
   StudioShortcutsOverlay,
@@ -54,6 +55,7 @@ const WORKFLOW_STEPS = [
 const route = useRoute();
 const router = useRouter();
 const floorplanStore = useStudioFloorplanStore();
+const chrome = useChromeStore();
 
 /** 舞台 iframe / 自动导图嵌入态：不挂创作顶栏，避免步骤条叠进 3D 画布 */
 const showCreatorChrome = computed(
@@ -74,11 +76,17 @@ let embeddedResizeFrame = 0;
 let facadeBound = false;
 let disposed = false;
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   // SPA 内返回不会触发 beforeunload；dirty 时先让用户确认，避免 teardown 的异步 flush
   // 失败后只留一条日志、编辑静默丢失。
+  // 用全局 chrome.confirm 而不是 window.confirm：后者样式不可控、不继承设计令牌，
+  // 也无法被键盘/读屏一致地操作。需要保存时选「继续编辑」，再点顶栏保存。
   if (!floorplanStore.dirty) return true;
-  return window.confirm("户型还有未保存的修改，确定离开吗？");
+  return await chrome.confirm(
+    "户型还有未保存的修改。选择「继续编辑」可返回保存；选择「放弃修改并离开」将丢失本次修改。",
+    "离开户型绘制？",
+    { confirmText: "放弃修改并离开", cancelText: "继续编辑", type: "danger" },
+  );
 });
 
 function goBack() {
@@ -214,6 +222,12 @@ onBeforeUnmount(() => {
         </button>
       </template>
     </StudioTopBar>
+
+    <!-- 小屏可用性提示：编辑器以桌面三栏 + 画布为主，窄屏不隐藏功能，但先说明限制，
+         避免用户在手机上反复尝试拖拽后才判断「是不是坏了」。仅创作壳显示，嵌入舞台不显示。 -->
+    <p v-if="showCreatorChrome" class="studio-mobile-hint" role="note">
+      户型绘制为桌面优先：小屏可查看与微调，复杂编辑建议在 1024px 以上的屏幕完成。
+    </p>
 
     <StudioShortcutsOverlay
       v-if="showCreatorChrome"

@@ -138,6 +138,14 @@
             </div>
           </button>
         </div>
+        <p
+          v-if="autoDowngradeMode"
+          class="settings-note-box mt-4 sys-hint-note leading-relaxed"
+        >{{
+          '当前终端因设备能力或帧率回落自动降为' +
+          (autoDowngradeMode === 'low' ? '低功耗模式' : '均衡性能') +
+          '（只影响这台终端，不会写入共享布局）；点选任一档位可固定为本机设置。'
+        }}</p>
         <p class="settings-note-box mt-6 sys-hint-note leading-relaxed">
           {{ '通知、安防、能源等系统阈值在' }}
           <button
@@ -253,6 +261,11 @@ import { useChromeStore } from '@/stores/chrome.store'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
 import { markPerformanceModeUserSet } from '@/shared/utils/perf/tablet-default-perf.util'
+import {
+  autoPerformanceModeRef,
+  clearAutoPerformanceMode,
+  resolveEffectivePerformanceMode,
+} from '@/shared/utils/perf/runtime-perf-mode.util'
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
@@ -274,15 +287,29 @@ const { pendingCount: pendingChanges, takeSnapshot } = useSettingsPendingChanges
   ready: () => layoutStore.isConfigLoaded,
 })
 
-// 配置加载完成后取初始快照
+// 配置（重新）加载完成时重拍基线：面板可能先于 loadConfig 挂载（硬刷新 /settings），
+// 若只在首次非空时拍快照，切方案 / 重新加载后基线会停在旧配置上，被误判成「待保存」。
 watch(
   () => layoutStore.isConfigLoaded,
   (loaded) => {
-    if (loaded && !initialLayoutConfig.value) {
-      takeSnapshot(layoutStore.layoutConfig)
-    }
+    if (loaded) takeSnapshot(layoutStore.layoutConfig)
   },
   { immediate: true },
+)
+
+// 任意来源保存成功后 layoutDirty 归位：同步基线，让「已同步」状态不至于一直停在「待保存」。
+// 延后一拍再拍快照：保存调用方可能在 await 返回后做收尾写入（密钥回填占位等），
+// 立刻拍快照会把这部分收尾当成新的未保存项。
+watch(
+  () => layoutStore.layoutDirty,
+  (dirty) => {
+    if (dirty || !layoutStore.isConfigLoaded) return
+    void nextTick(() => {
+      if (!layoutStore.layoutDirty && layoutStore.isConfigLoaded) {
+        takeSnapshot(layoutStore.layoutConfig)
+      }
+    })
+  },
 )
 
 // 子导航区段配置
@@ -394,21 +421,37 @@ useSettingsHubRouteSection(generalSection, generalSubnavSections, {
   activeTab: () => props.activeTab,
 })
 
-// 毛玻璃效果与性能模式变化时重新应用
+// 毛玻璃效果与生效性能档位变化时重新应用（自动降档也要跟着走）
 watch(
-  () => [layoutConfig.value.glassEffect, layoutConfig.value.performanceMode],
+  () => [
+    layoutConfig.value.glassEffect,
+    layoutConfig.value.performanceMode,
+    autoPerformanceModeRef.value,
+  ],
   () =>
-    applyGlassEffectDocument(layoutConfig.value.glassEffect, layoutConfig.value.performanceMode),
+    applyGlassEffectDocument(
+      layoutConfig.value.glassEffect,
+      resolveEffectivePerformanceMode(layoutConfig.value.performanceMode),
+    ),
   { immediate: true },
 )
 
-// 性能模式按钮样式（高亮当前模式）
+/** 自动降档是否正在生效（设备能力 / 帧率回落），用于提示「显示的不是保存值」 */
+const autoDowngradeMode = computed(() => {
+  const auto = autoPerformanceModeRef.value
+  if (!auto) return null
+  return auto === resolveEffectivePerformanceMode(layoutConfig.value.performanceMode) ? auto : null
+})
+
+// 性能模式按钮样式：高亮「当前实际生效」的档位，自动降档时用户也能看出真实开销
 function perfBtnClass(mode) {
-  const active = (layoutConfig.value.performanceMode || 'high') === mode
+  const active = resolveEffectivePerformanceMode(layoutConfig.value.performanceMode) === mode
   return ['settings-choice-btn', active && 'settings-choice-btn--active']
 }
 
 function setPerformanceMode(mode) {
+  // 手动选档即声明「本机不再跟随自动降档」
+  clearAutoPerformanceMode()
   layoutConfig.value.performanceMode = mode
   markPerformanceModeUserSet()
 }

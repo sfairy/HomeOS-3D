@@ -47,6 +47,22 @@ def _iso(value: datetime | None) -> str | None:
     return value.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
+def _parse_iso_utc(value: Any) -> datetime | None:
+    """解析客户端回传的时间戳（ISO8601，允许 ``Z`` / 无时区），失败返回 None。"""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
 class UiConfigService:
     def __init__(
         self,
@@ -110,11 +126,11 @@ class UiConfigService:
         return profiles if isinstance(profiles, dict) else {}
 
     def get_config(self, project_id: str = "default") -> dict[str, Any]:
-        """获取项目配置（不存在时返回 ``{projectId, layout: {}}``）。"""
+        """获取项目配置（不存在时返回 ``{projectId, layout: {}, updatedAt: None}``）。"""
         with self._session_factory() as session:
             config = self._find(session, project_id)
             if config is None:
-                return {"projectId": project_id, "layout": {}}
+                return {"projectId": project_id, "layout": {}, "updatedAt": None}
             return self._record(config)
 
     def get_config_for_api(self, project_id: str) -> dict[str, Any]:
@@ -321,16 +337,38 @@ class UiConfigService:
         self._emit_config_updated()
         return result
 
+    @staticmethod
+    def _assert_expected_updated_at(expected: Any, current: datetime) -> None:
+        """校验布局保存的乐观锁；不一致抛 409（CONFLICT）。
+
+        比较用毫秒精度的 ISO 字符串：库里可能是微秒精度，而对外契约（``_iso``）只到毫秒，
+        直接比 datetime 会把所有请求都判成冲突。
+        """
+        if not isinstance(expected, str) or not expected.strip():
+            return
+        expected_at = _parse_iso_utc(expected)
+        if expected_at is None:
+            return
+        if _iso(current) != _iso(expected_at):
+            raise BusinessException(ErrorCode.CONFLICT, api_error("UI_CONFIG_CONFLICT"))
+
     async def save_config_from_body(self, project_id: str, body: dict[str, Any]) -> dict[str, Any]:
-        layout_raw, parse_error = self.parse_layout_field((body or {}).get("layout"))
+        body = body or {}
+        # 缺 layout 不能当成「保存空布局」：早期客户端 / 手写请求漏字段时，整份方案会被
+        # 静默清空（且没有版本历史可回滚）。确实要清空必须显式传 ``{"layout": {}}``。
+        if "layout" not in body or body.get("layout") is None or body.get("layout") == "":
+            bad_request(api_error("UI_CONFIG_LAYOUT_REQUIRED"))
+        layout_raw, parse_error = self.parse_layout_field(body.get("layout"))
         if parse_error:
             bad_request(api_error("UI_CONFIG_DATA_INVALID"))
 
         existing_layout: Any = None
+        existing_updated_at: datetime | None = None
         with self._session_factory() as session:
             config = self._find(session, project_id)
             if config is not None:
                 existing_layout = config.layout
+                existing_updated_at = config.updated_at
         if config is None:
             active_profile_id = str(self._profiles().get("activeProfileId") or "").strip()
             if active_profile_id and active_profile_id != project_id:
@@ -339,9 +377,21 @@ class UiConfigService:
                     if active_row is not None and active_row.layout:
                         existing_layout = active_row.layout
 
+        # 乐观锁：客户端带上 expectedUpdatedAt（读取时拿到的 updatedAt）且库里已被别人改过，
+        # 直接 409 —— 多终端同时改布局时，静默 LWW 会让先保存的那台设备的改动凭空消失。
+        # 首次创建（库里还没有该方案）不做校验。
+        if existing_updated_at is not None:
+            self._assert_expected_updated_at(body.get("expectedUpdatedAt"), existing_updated_at)
+
         merged_layout = merge_layout_secrets_on_save(layout_raw, existing_layout)
         result = self.save_config(project_id, merged_layout)
-        return {"success": True, "data": result}
+        # 保存响应同样脱敏：明文密钥不该回传给浏览器（前端并不消费这份 layout，
+        # 但响应会出现在 devtools / 反代日志里）。
+        stored = result.get("layout") if isinstance(result, dict) else None
+        data = dict(result) if isinstance(result, dict) else {}
+        if isinstance(stored, dict):
+            data["layout"] = mask_layout(stored)
+        return {"success": True, "data": data}
 
     async def delete_profile_safe(self, project_id: str) -> dict[str, Any]:
         self.delete_profile(project_id)

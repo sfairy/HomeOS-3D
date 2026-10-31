@@ -63,7 +63,12 @@ export function useConnectionPanel(activeTab: () => string) {
     handleEntitySyncBanner,
   } = entities
 
-  useRegisterSettingsTabPending('connection', () => pendingChanges.value > 0)
+  // 第三参数：确认离开后从 store 重新读取 HA 配置，丢弃凭证草稿
+  useRegisterSettingsTabPending('connection', () => pendingChanges.value > 0, () => {
+    snapshotHaConfigFromStore()
+    testResult.value = null
+    saveFeedback.value = null
+  })
 
   const connSections = computed(() => connTabs.value)
 

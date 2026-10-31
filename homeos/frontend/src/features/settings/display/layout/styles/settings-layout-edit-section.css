@@ -225,7 +225,7 @@
 
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .layout-edit-hero__body {
     flex-direction: column;
     align-items: stretch;

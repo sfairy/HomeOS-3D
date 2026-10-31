@@ -50,7 +50,7 @@
   border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
-@container settings-scroll (min-width: 960px) {
+@container settings-scroll (min-width: 900px) {
 }
 
 /* ── Hub 紧凑统计 / 顶栏（语音、告警、诊断等复用） ── */
@@ -533,7 +533,7 @@
   pointer-events: none;
 }
 
-@media (max-width: 639px), (pointer: coarse) {
+@media (max-width: 640px), (pointer: coarse) {
   .settings-range-field__stepper {
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     grid-template-rows: 44px;

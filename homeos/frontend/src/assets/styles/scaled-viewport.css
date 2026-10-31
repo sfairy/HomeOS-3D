@@ -189,7 +189,7 @@
 }
 
 /* 移动设备等比缩放：下拉高度由 JS 画布单位 maxHeight 控制，避免 55vh 与画布坐标混用导致裁切/错位 */
-@media (max-width: 639px) and (orientation: landscape) {
+@media (max-width: 640px) and (orientation: landscape) {
   .viewport-frame { height: 100vh; height: 100dvh; }
 }
 

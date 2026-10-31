@@ -70,7 +70,7 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .hm-preset-sidebar {
     max-height: min(24vh, 180px);
   }

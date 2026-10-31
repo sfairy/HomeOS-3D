@@ -833,7 +833,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 }
 .i3d-appearance-editor .i3d-drag-hint {
   color: var(--muted, #89949d);
-  font-size: 10px;
+  font-size: 11px;
 }
 .i3d-appearance-editor button {
   min-height: 24px;
@@ -853,7 +853,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .i3d-appearance-body h4 {
   margin: 0 0 6px;
   color: var(--muted, #89949d);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 .i3d-appearance-grid {
@@ -868,7 +868,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   gap: 4px;
   min-width: 0;
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
 }
 .i3d-appearance-grid input {
   height: 26px;
@@ -886,7 +886,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .i3d-appearance-body section > p {
   margin: 6px 0 0;
   color: var(--muted, #89949d);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
 }
 .i3d-appearance-body > button {
@@ -894,7 +894,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 }
 .i3d-appearance-editor .i3d-note {
   margin: 7px 0 0;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
 }
 .i3d-appearance-editor .i3d-error {
@@ -905,7 +905,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .i3d-appearance-editor .i3d-error:empty {
   display: none;
 }
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .i3d-editor .i3d-editor-body {
     grid-template-columns: minmax(0, 1fr) 220px;
   }
@@ -989,10 +989,10 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   margin: 0;
   white-space: nowrap;
 }
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .i3d-editor .i3d-button-visibility-row > label {
     gap: 0;
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1298,7 +1298,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .i3d-vacuum-room-list button:first-of-type {
   width: 100%;
 }
-@media (max-width: 650px) {
+@media (max-width: 640px) {
   .i3d-vacuum-map-body {
     grid-template-columns: minmax(0, 1fr) 210px;
   }
@@ -1345,7 +1345,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   font-size: 13px;
   min-width: 32px;
 }
-@media (max-width: 650px) {
+@media (max-width: 640px) {
   .i3d-vacuum-map-body {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(220px, 1fr) minmax(0, 1fr);
@@ -2494,7 +2494,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   margin-left: auto;
   flex: none;
   color: var(--hos-color-accent);
-  font-size: 10px;
+  font-size: 11px;
 }
 .i3d-device-category-dialog .i3d-note {
   margin: 0;
@@ -2518,7 +2518,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-@media (min-width: 601px) and (max-width: 1199px) {
+@media (min-width: 600px) and (max-width: 1200px) {
   .i3d-device-category-options {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -2571,7 +2571,7 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   flex-basis: 100%;
   min-width: 0;
   color: var(--muted, #89949d);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }

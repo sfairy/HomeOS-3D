@@ -12,6 +12,25 @@
   min-height: 100dvh;
 }
 
+/* 小屏提示：默认不占位，窄屏在顶栏下显示一条说明。
+   不阻断操作，也不做「只读降级」——3D 画布仍可查看与微调。 */
+.studio-mobile-hint {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .studio-mobile-hint {
+    display: block;
+    margin: 0;
+    padding: 8px 14px;
+    border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+    background: var(--hos-bg-elev-1);
+    color: var(--hos-fg-2);
+    font-size: var(--hos-fs-3);
+    line-height: 1.5;
+  }
+}
+
 /* 废除整页 transform scale：壳层自适应，画布独立 letterbox */
 html.editor-viewport-fit body {
   transform: none !important;
@@ -56,7 +75,7 @@ html.editor-viewport-fit body {
 .sc-topbar__eyebrow {
   margin: 0;
   color: var(--hos-fg-3);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -306,7 +325,7 @@ html.editor-viewport-fit body {
   border-radius: 50%;
   background: var(--hos-bg-tint-3);
   font-style: normal;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .sc-workflow__step.is-active {
@@ -620,7 +639,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   z-index: 45;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1200px) {
   /*
    * `3d-studio/studio.css` 的 body 曾锁 `min-width: 1180px` + `overflow: hidden`，
    * 窄屏下右侧详情栏被裁且不可达。两份样式表的加载顺序按构建产物可能互换，

@@ -649,7 +649,7 @@
   min-height: 200px;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .list-page {
     padding: 12px;
   }

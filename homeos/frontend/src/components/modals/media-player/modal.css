@@ -597,7 +597,7 @@
 }
 
 /* ---- 窄屏回退为竖向布局 ---- */
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .media-modal {
     min-height: 0;
     max-height: min(94vh, 680px) !important;

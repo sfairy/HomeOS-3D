@@ -40,6 +40,9 @@ class TerminalBindingDto(StrictModel):
 
 class SaveProjectConfigDto(StrictModel):
     layout: str | dict[str, Any] | None = None
+    #: 乐观锁：客户端读取该方案时的 updatedAt。带上它且与库里不一致时返回 409，
+    #: 避免多终端并发改布局时后写方静默覆盖先写方（与系统配置的 expectedUpdatedAt 一致）。
+    expectedUpdatedAt: str | None = None
 
 class ImportAllConfigsDto(StrictModel):
     configs: list[dict[str, Any]] | None = None

@@ -25,6 +25,7 @@ import { normalizeWholeHomeOff } from '@/shared/constants/whole-home-off'
 import { logger } from '@/shared/utils/core/logger'
 import {
   getApiErrorMessage,
+  isConflictError,
   isLicenseInactiveError,
   isUnauthorizedError,
 } from '@/shared/utils/core/error-message'
@@ -258,6 +259,12 @@ export function createLayoutPersistence({
   /** 在途期间再次调用时合并：结束后用最新 layoutConfig 再存一次 */
   let saveConfigNeedsResave = false
   let saveConfigQueuedSilent = true
+  /**
+   * 当前方案的布局版本（服务端 `updatedAt`）。
+   * 保存时作为 `expectedUpdatedAt` 回传做乐观锁：两个终端同时改布局时，
+   * 后写的一方会被 409 拒绝，而不是静默把先写方的整份快照覆盖掉。
+   */
+  let loadedUpdatedAt: string | null = null
 
   /**
    * 将远端布局与默认值深度合并，确保所有字段存在且结构合法。
@@ -443,6 +450,8 @@ export function createLayoutPersistence({
               const { layout: merged } = applyLayoutFromRaw(layout as Record<string, unknown>)
               Object.assign(layoutConfig, merged)
             }
+            // 记录本次读取的版本：保存时回传，用于检测期间是否有别的终端写过
+            loadedUpdatedAt = String(res.data?.data?.updatedAt ?? '').trim() || null
 
             isConfigLoaded.value = true
             applyTabletDefaultPerformanceMode(layoutConfig)
@@ -522,6 +531,21 @@ export function createLayoutPersistence({
    * @returns 是否保存成功（最终一次写入的结果）
    */
   async function saveConfig(silent = false): Promise<boolean> {
+    // 配置尚未加载完成（首屏 / 切换方案 / 上次加载失败）：layoutConfig 还是默认值或旧方案，
+    // 此时写库会用这份「假数据」整份覆盖服务端布局。统一在入口拦下，
+    // 避免每个调用点各写一遍 isConfigLoaded 判断（漏一个就等于给了破窗）。
+    if (!isConfigLoaded.value) {
+      if (!isConfigLoading.value) void loadConfig()
+      if (!silent) {
+        notify(
+          isConfigLoading.value
+            ? '布局仍在加载中，请稍后再保存'
+            : '布局尚未加载完成，已重新拉取配置，请稍后再保存',
+          'warning',
+        )
+      }
+      return false
+    }
     // 在途：合并排队，结束后若仍需再存则递归（避免复用旧快照丢更新）
     if (saveConfigInFlight) {
       saveConfigNeedsResave = true
@@ -540,6 +564,8 @@ export function createLayoutPersistence({
 
     saveConfigInFlight = (async () => {
       let lastOk = false
+      /** 本轮是否撞上 409：结束后要重新拉取最新布局，避免拿着过期版本反复失败 */
+      let conflictDetected = false
       try {
         do {
           const runSilent = saveConfigQueuedSilent
@@ -549,7 +575,15 @@ export function createLayoutPersistence({
             // 方案必然配对；但 await 期间用户可能切走方案，所以保存后的副作用必须再核对。
             const targetProfileId = activeProfileId.value
             const layout = cloneLayoutForApi(layoutConfig)
-            await saveProject(targetProfileId, { layout })
+            // 乐观锁：带上读取时的版本；服务端发现已被别人改过会返回 409
+            const expectedUpdatedAt = loadedUpdatedAt
+            const response = await saveProject(targetProfileId, {
+              layout,
+              ...(expectedUpdatedAt ? { expectedUpdatedAt } : {}),
+            })
+            // 服务端返回新版本号，后续保存以此为基线
+            loadedUpdatedAt =
+              String(response?.data?.data?.updatedAt ?? '').trim() || loadedUpdatedAt
             if (activeProfileId.value !== targetProfileId) {
               // 保存期间切换了方案：这次写入落在旧方案上，已不属于「当前」状态。
               // 若继续执行下面的副作用，会把新方案刚载入的干净状态标成已保存
@@ -567,6 +601,20 @@ export function createLayoutPersistence({
             layoutDirty.value = false
             lastOk = true
           } catch (err) {
+            if (isConflictError(err)) {
+              // 乐观锁拒绝：别的终端已经写过这份方案。整份快照无法合并，
+              // 继续说「保存成功」或强行覆盖都会抹掉对方的改动 —— 报错并重新拉取。
+              logger.warn('布局保存版本冲突（其他终端已修改）')
+              notify(
+                '该方案已在其他终端被修改，本次修改未保存；已重新加载最新布局，请确认后重试',
+                'error',
+                9000,
+              )
+              lastOk = false
+              saveConfigNeedsResave = false
+              conflictDetected = true
+              break
+            }
             logger.error('保存UI配置失败', err)
             notify(
               `保存布局失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`,
@@ -578,6 +626,12 @@ export function createLayoutPersistence({
             break
           }
         } while (saveConfigNeedsResave)
+        if (conflictDetected) {
+          // 冲突后把版本号 / 布局拉回服务端最新，用户刷新视角后可重新编辑再保存
+          void Promise.resolve(loadConfig()).catch(() => {
+            /* 重新加载失败会由 loadConfig 自己提示 */
+          })
+        }
         return lastOk
       } finally {
         saveConfigInFlight = null

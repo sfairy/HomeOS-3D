@@ -289,7 +289,7 @@
 }
 
 /* ---- 窄屏适配：缩小模式卡片，配合 flex-wrap 提高单行容纳量 ---- */
-@media (max-width: 380px) {
+@media (max-width: 360px) {
   .mode-card {
     width: 60px;
     height: 60px;

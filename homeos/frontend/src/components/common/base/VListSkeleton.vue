@@ -46,7 +46,7 @@ defineProps({
 }
 
 /* 触控/窄屏下减少行数带来的高度浪费 */
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .v-list-skeleton__row:nth-child(n + 4) {
     display: none;
   }

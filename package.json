@@ -72,6 +72,8 @@
     "test:studio": "bun test ops/checks/studio/tests/ && node ops/lib/py.mjs -m unittest discover -s ops/checks/studio/tests -v",
     "test:home-mode": "node ops/lib/py.mjs -m unittest discover -s ops/checks/home_mode/tests -v",
     "test:frontend": "node --test \"ops/checks/frontend/tests/**/*.test.mjs\"",
+    "audit:uiux:a11y": "node ops/checks/frontend/audit-uiux-axe.mjs",
+    "audit:uiux:visual": "node ops/checks/frontend/audit-uiux-visual.mjs",
     "test:security": "node ops/lib/py.mjs -m unittest discover -s ops/checks/security/tests -v",
     "test:shared": "node ops/lib/py.mjs -m unittest discover -s ops/checks/shared/tests -v",
     "test:store": "node ops/lib/py.mjs -m unittest discover -s ops/checks/store/tests -v",

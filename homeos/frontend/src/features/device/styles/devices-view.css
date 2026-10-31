@@ -125,7 +125,7 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .devices-view__hero-toolbar {
     gap: 8px;
   }
@@ -145,5 +145,20 @@
 
   .devices-view__mode-chips::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* 窄屏：视图切换不再横向滚动。只有两枚按钮，换行铺满比「裁掉一半 + 无提示」
+   更容易发现；域筛选仍保留左右箭头（数量不定，换行会把首屏推得过高）。 */
+@media (max-width: 640px) {
+  .devices-view__mode-chips {
+    flex-wrap: wrap;
+    overflow: visible;
+    row-gap: 6px;
+  }
+
+  .devices-view__mode-chips .list-page__chip--btn {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
   }
 }

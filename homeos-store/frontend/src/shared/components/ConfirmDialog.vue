@@ -24,10 +24,10 @@ const describedBy = computed(() =>
 /** 静态调用点里会用 <b>/<code> 强调；去掉标签后用纯文本渲染，既保留文案又消除 v-html。 */
 const detailText = computed(() => String(opts.value.detail || "").replace(/<[^>]*>/g, ""));
 
-const icon = computed(() => {
-  if (opts.value.icon) return opts.value.icon;
-  if (tone.value === "success") return "?";
-  return "!";
+const iconKind = computed(() => {
+  if (tone.value === "success") return "success";
+  if (tone.value === "danger" || tone.value === "warning") return "warning";
+  return "info";
 });
 
 const confirmBtnClass = computed(() => {
@@ -69,9 +69,17 @@ watch(
     :aria-describedby="describedBy"
     @cancel.prevent="store.settle(false)"
   >
+    <form class="confirm-dialog__form" method="dialog" @submit.prevent="store.settle(true)">
     <template v-if="variant === 'admin'">
       <div class="confirm-dialog__body">
-        <div class="confirm-dialog__icon">{{ icon }}</div>
+        <div class="confirm-dialog__icon" aria-hidden="true">
+          <span v-if="opts.icon">{{ opts.icon }}</span>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <template v-if="iconKind === 'success'"><path d="m20 6-11 11-5-5" /></template>
+            <template v-else-if="iconKind === 'warning'"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></template>
+            <template v-else><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></template>
+          </svg>
+        </div>
         <h2 :id="ids.title">{{ opts.title || "确认操作" }}</h2>
         <p :id="ids.message">{{ opts.message }}</p>
         <!-- 不再用 v-html：即使当前调用点全是静态字面量，未来把 detail 换成
@@ -82,7 +90,7 @@ watch(
         <button class="hb-button hb-button--secondary hb-button--sm" type="button" @click="store.settle(false)">
           {{ opts.cancelLabel || "取消" }}
         </button>
-        <button :class="confirmBtnClass" type="button" @click="store.settle(true)">
+        <button :class="confirmBtnClass" type="submit">
           {{ opts.confirmLabel || "确认" }}
         </button>
       </div>
@@ -100,10 +108,11 @@ watch(
         <button type="button" class="hb-button hb-button--secondary" @click="store.settle(false)">
           {{ opts.cancelLabel || "取消" }}
         </button>
-        <button type="button" :class="confirmBtnClass" @click="store.settle(true)">
+        <button type="submit" :class="confirmBtnClass">
           {{ opts.confirmLabel || "确定" }}
         </button>
       </div>
     </template>
+    </form>
   </dialog>
 </template>

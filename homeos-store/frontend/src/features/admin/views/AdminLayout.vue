@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SceneStage from "@store/shared/components/SceneStage.vue";
 import DeckTiles from "@store/shared/components/DeckTiles.vue";
@@ -110,7 +110,21 @@ const openGroups = reactive<Record<string, boolean>>(
 
 const pwForm = reactive({ oldPassword: "", newPassword: "", confirmPassword: "" });
 const pwError = ref("");
+const pwSubmitting = ref(false);
 const pwDialog = ref<HTMLDialogElement | null>(null);
+const mobileNavOpen = ref(false);
+const navToggleRef = ref<HTMLButtonElement | null>(null);
+
+function closeMobileNav(restoreFocus = false) {
+  if (!mobileNavOpen.value) return;
+  mobileNavOpen.value = false;
+  if (restoreFocus) void nextTick(() => navToggleRef.value?.focus());
+}
+
+watch(
+  () => route.fullPath,
+  () => { mobileNavOpen.value = false; },
+);
 
 const activePage = computed(() => String(route.params.page || "overview"));
 const activePanel = computed(() => PANELS[activePage.value] || null);
@@ -145,6 +159,7 @@ async function logout() {
 }
 
 async function submitPassword() {
+  if (pwSubmitting.value) return;
   pwError.value = "";
   if (!pwForm.oldPassword) {
     pwError.value = "请输入当前密码。";
@@ -162,6 +177,7 @@ async function submitPassword() {
     pwError.value = "新密码与当前密码相同。";
     return;
   }
+  pwSubmitting.value = true;
   try {
     await api("/auth/change-password", {
       method: "POST",
@@ -178,6 +194,8 @@ async function submitPassword() {
     pwForm.confirmPassword = "";
   } catch (error) {
     pwError.value = errorMessage(error, "修改失败，请稍后重试。");
+  } finally {
+    pwSubmitting.value = false;
   }
 }
 
@@ -284,13 +302,13 @@ onBeforeUnmount(() => {
     </template>
   </EntryShell>
 
-  <div v-else class="admin-shell">
-    <aside class="admin-side">
+  <div v-else class="admin-shell" @keydown.esc="closeMobileNav(true)">
+    <aside class="admin-side" :class="{ 'mobile-nav-open': mobileNavOpen }">
       <div class="brand">
         <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg" alt="" /></span>
         <div class="brand__text"><strong>HomeOS</strong><small>授权商店后台</small></div>
       </div>
-      <nav class="admin-nav">
+      <nav id="admin-nav" class="admin-nav" aria-label="后台主导航">
         <div
           v-for="group in GROUPS"
           :key="group.key"
@@ -298,18 +316,26 @@ onBeforeUnmount(() => {
           :class="{ open: openGroups[group.key] }"
           :data-domain="group.domain"
         >
-          <button class="nav-group__toggle" type="button" :aria-expanded="openGroups[group.key]" @click="toggleGroup(group.key)">
+          <button
+            :id="`admin-nav-group-${group.key}`"
+            class="nav-group__toggle"
+            type="button"
+            :aria-expanded="openGroups[group.key]"
+            :aria-controls="`admin-nav-items-${group.key}`"
+            @click="toggleGroup(group.key)"
+          >
             <span class="nav-group__text">{{ group.label }}</span>
             <span class="nav-badge nav-group__badge"></span>
-            <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6" /></svg>
+            <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8.4 10.2 3.6 3.6 3.6-3.6" /></svg>
           </button>
-          <div class="nav-group__items">
+          <div :id="`admin-nav-items-${group.key}`" class="nav-group__items">
             <div class="nav-group__items-inner">
               <RouterLink
                 v-for="item in group.items"
                 :key="item.page"
                 class="nav-link"
                 :class="{ active: activePage === item.page }"
+                :aria-current="activePage === item.page ? 'page' : undefined"
                 :to="`/admin/${item.page}`"
               >
                 <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -324,7 +350,7 @@ onBeforeUnmount(() => {
       </nav>
       <div class="admin-side__foot">
         <div class="who">
-          <span class="who__avatar">{{ admin.initial }}</span>
+          <span class="who__avatar" aria-hidden="true">{{ admin.initial }}</span>
           <span class="who__email">{{ admin.email }}</span>
         </div>
       </div>
@@ -333,13 +359,29 @@ onBeforeUnmount(() => {
     <main class="admin-main">
       <header class="admin-topbar">
         <div class="admin-topbar__left">
-          <span class="who__avatar">{{ admin.initial }}</span>
+          <button
+            ref="navToggleRef"
+            class="admin-mobile-nav-toggle hb-button hb-button--ghost hb-button--sm"
+            type="button"
+            :aria-expanded="mobileNavOpen"
+            aria-controls="admin-nav"
+            @click="mobileNavOpen = !mobileNavOpen"
+          >
+            {{ mobileNavOpen ? "收起菜单" : "后台菜单" }}
+          </button>
+          <span class="who__avatar" aria-hidden="true">{{ admin.initial }}</span>
           <span class="admin-topbar__email">{{ admin.email }}</span>
           <span class="admin-topbar__tz">时间按 {{ localZoneLabel() }} 显示</span>
         </div>
         <div class="admin-topbar__right">
           <button class="hb-button hb-button--ghost hb-button--sm" @click="pwDialog?.showModal()">修改密码</button>
-          <RouterLink class="hb-button hb-button--ghost hb-button--sm" to="/" target="_blank" rel="noreferrer">查看商店</RouterLink>
+          <RouterLink
+            class="hb-button hb-button--ghost hb-button--sm"
+            to="/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="查看商店（新窗口打开）"
+          >查看商店</RouterLink>
           <button class="hb-button hb-button--ghost hb-button--sm" @click="logout">退出登录</button>
         </div>
       </header>
@@ -361,11 +403,18 @@ onBeforeUnmount(() => {
       </section>
     </main>
 
-    <dialog ref="pwDialog" class="confirm-dialog" @cancel.prevent="pwDialog?.close()">
+    <dialog
+      ref="pwDialog"
+      class="confirm-dialog"
+      aria-labelledby="pw-dialog-title"
+      aria-describedby="pw-dialog-desc"
+      @cancel.prevent="pwDialog?.close()"
+    >
+      <form @submit.prevent="submitPassword">
       <div class="confirm-dialog__body">
-        <div class="confirm-dialog__icon">🔒</div>
-        <h2>修改密码</h2>
-        <p>改密后会踢掉其它设备上的登录会话，只保留当前这个。</p>
+        <div class="confirm-dialog__icon" aria-hidden="true">🔒</div>
+        <h2 id="pw-dialog-title">修改密码</h2>
+        <p id="pw-dialog-desc">改密后会踢掉其它设备上的登录会话，只保留当前这个。</p>
         <label class="hb-field">
           <span>当前密码</span>
           <input v-model="pwForm.oldPassword" class="hb-input" type="password" autocomplete="current-password" placeholder="请输入当前密码" />
@@ -378,12 +427,15 @@ onBeforeUnmount(() => {
           <span>确认新密码</span>
           <input v-model="pwForm.confirmPassword" class="hb-input" type="password" autocomplete="new-password" placeholder="再次输入新密码" />
         </label>
-        <div v-if="pwError" class="admin-alert">{{ pwError }}</div>
+        <div v-if="pwError" class="admin-alert" role="alert">{{ pwError }}</div>
       </div>
       <div class="confirm-dialog__actions">
         <button class="hb-button hb-button--secondary hb-button--sm" type="button" @click="pwDialog?.close()">取消</button>
-        <button class="hb-button hb-button--primary hb-button--sm" type="button" @click="submitPassword">确认修改</button>
+        <button class="hb-button hb-button--primary hb-button--sm" type="submit" :disabled="pwSubmitting">
+          {{ pwSubmitting ? "修改中…" : "确认修改" }}
+        </button>
       </div>
+      </form>
     </dialog>
   </div>
 

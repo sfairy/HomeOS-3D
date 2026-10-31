@@ -103,7 +103,7 @@
 /* 时长不再另立一套（原 0.25s）：合并到全局唯一的 .fade-*（modal-theme.css），
    本组件 <Transition name="fade"> 照常生效，只是与全站淡化节奏一致。 */
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .config-actions {
     width: 100%;
     justify-content: flex-start;

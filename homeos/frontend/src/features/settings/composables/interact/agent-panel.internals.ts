@@ -492,8 +492,10 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     saving.value = true
     saveTip.value = ''
     try {
-      if (!layoutStore.layoutConfig) {
-        throw new Error('布局未加载，请稍后重试')
+      // 布局未加载完成时 layoutConfig 还是默认值：此时保存会把默认的 provider / model
+      // 写回服务端（apiKey 虽然会被后端密钥兜底保留，其它字段仍会被静默覆盖）。
+      if (!layoutStore.isConfigLoaded) {
+        throw new Error('布局尚未加载完成，请稍后再保存')
       }
       layoutStore.layoutConfig.agentConfig = {
         provider: agentDraft.provider,
@@ -505,6 +507,10 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
         apiBase: agentDraft.apiBase,
         model: agentDraft.model,
         language: agentDraft.language,
+        // 只用于本地展示「密钥已就绪」，后端保存时会 pop 掉；一起写入是为了避免保存瞬间
+        // layoutConfig.agentConfig 少一个字段、被全局快照记成「未保存」。
+        apiKeyConfigured:
+          Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true,
         systemPrompt: agentDraft.systemPrompt || '',
         mcpGatewaySecret: agentDraft.mcpGatewaySecret || '',
         mcpActorUserId: agentDraft.mcpActorUserId || '',
@@ -606,8 +612,21 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     },
   )
 
+  /**
+   * 布局加载完成 = 配置真源可用（硬刷新 / 切换显示方案 / 断线后重载）。
+   * 面板可能先于 loadConfig 挂载，此时 readAgent() 读到的是默认值；
+   * 不重读草稿的话，界面会显示默认配置（保存还会把默认值写回服务端）。
+   * 切方案同理：旧方案留下的草稿绝不能跟着存进新方案。
+   */
+  watch(
+    () => layoutStore.isConfigLoaded,
+    (loaded) => {
+      if (loaded) resetDraft()
+    },
+    { immediate: true },
+  )
+
   onMounted(() => {
-    resetDraft()
     void refreshPing()
     void refreshChannelStatus()
   })

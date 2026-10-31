@@ -30,8 +30,8 @@
       >
         <slot />
       </div>
-      <!-- 全局通知组件（toast 等） -->
-      <VNotification />
+      <!-- 全局通知组件（toast 等）；主壳传 below-topbar，避免遮挡顶栏导航与全局操作 -->
+      <VNotification :placement="notificationPlacement" />
     </div>
   </div>
 </template>
@@ -60,6 +60,8 @@ const props = defineProps({
   pageMaxWidth: { type: Number, default: null },
   /** 独立全屏页（如部件构建器）强制整页等比缩放，不受用户缩放偏好影响 */
   forceScaling: { type: Boolean, default: false },
+  /** 全局通知位置：top（默认）| below-topbar（主壳顶栏下方） */
+  notificationPlacement: { type: String, default: 'top' },
 })
 
 const layoutStore = useLayoutStore()

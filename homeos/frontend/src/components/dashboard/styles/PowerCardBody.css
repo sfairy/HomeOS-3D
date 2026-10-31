@@ -119,7 +119,7 @@
   margin-top: 1px;
 }
 
-@media (max-width: 639px), (pointer: coarse), (hover: none) {
+@media (max-width: 640px), (pointer: coarse), (hover: none) {
   .power-card__icon-wrap {
     width: 28px;
     height: 28px;

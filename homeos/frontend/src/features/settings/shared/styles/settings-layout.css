@@ -154,7 +154,7 @@
   margin-left: 6px;
   padding: 2px 8px;
   border-radius: var(--hos-radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: rgba(251, 191, 36, 0.95);
@@ -506,7 +506,7 @@
 .sidebar-dirty-tray__title {
   flex: 1;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.04em;
   color: rgba(253, 230, 138, 0.92);
@@ -520,7 +520,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   color: #1c1917;
   background: #fbbf24;
@@ -962,7 +962,7 @@
 
 .sidebar-footer__hint {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   font-weight: 600;
   color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
@@ -1188,7 +1188,7 @@
   display: flex;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .settings-main__copy {
     display: flex;
   }
@@ -1639,7 +1639,7 @@ input.settings-field {
 .settings-page-stack > *:nth-child(6) { animation-delay: 0.18s; }
 .settings-page-stack > *:nth-child(n+7) { animation-delay: 0.21s; }
 
-@container settings-scroll (min-width: 960px) {
+@container settings-scroll (min-width: 900px) {
   .settings-page-stack:not(.settings-page-stack--single) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1653,7 +1653,7 @@ input.settings-field {
   }
 }
 
-@container settings-scroll (min-width: 1400px) {
+@container settings-scroll (min-width: 1440px) {
   .settings-page-stack.settings-page-stack--triple {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1878,3 +1878,48 @@ input.settings-field {
   }
 }
 
+
+/* ══ ≤900px：设置侧栏改为覆盖式抽屉 ══
+ * 260px 固定侧栏在 390px 视口会把主内容压到约 130px；这里让侧栏脱离布局、
+ * 默认移出视口，由「导航」按钮/遮罩/Esc 控制，主内容始终占满宽度。
+ */
+@media (max-width: 900px) {
+  .settings-shell--compact .settings-sidebar--desktop {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(86vw, 320px);
+    min-width: 0;
+    max-width: none;
+    height: 100%;
+    z-index: 30;
+    /* 抽屉浮在内容之上，必须自带不透明底色：桌面态靠设置壳的底，
+       直接覆盖时半透明会让下面的设置内容透上来。 */
+    background-color: var(--hos-bg-elev-1);
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: none;
+    transition: transform 0.24s ease, opacity 0.24s ease;
+  }
+
+  .settings-shell--compact-nav-open .settings-sidebar--desktop {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  }
+
+  .settings-shell--compact .settings-main {
+    width: 100%;
+  }
+
+  .settings-nav-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    padding: 0;
+    border: 0;
+    background: rgba(2, 4, 8, 0.6);
+    cursor: pointer;
+  }
+}

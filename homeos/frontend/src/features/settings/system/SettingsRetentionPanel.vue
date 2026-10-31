@@ -212,7 +212,8 @@ const batchValid = computed(() => {
   return Number.isInteger(batchDaysValue) && batchDaysValue >= 1 && batchDaysValue <= 365
 })
 
-useRegisterSettingsTabPending('retention', () => dirty.value)
+// 第三参数：确认离开后按服务端策略重建草稿（真正的丢弃，而不是只清角标）
+useRegisterSettingsTabPending('retention', () => dirty.value, buildDraft)
 
 /** 表格行：策略 + 估算数据量合并 */
 const rows = computed(() =>

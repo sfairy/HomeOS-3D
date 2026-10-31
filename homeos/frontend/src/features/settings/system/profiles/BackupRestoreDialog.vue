@@ -427,7 +427,7 @@ defineExpose({ open, close })
 }
 .hos-backup-dialog__heading span {
   color: #f2a20d;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.15em;
 }
@@ -457,7 +457,7 @@ defineExpose({ open, close })
 }
 .hos-backup-dialog__guide {
   color: #89949d;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .hos-backup-dialog__guide p {
@@ -480,7 +480,7 @@ defineExpose({ open, close })
   border-radius: 3px;
   color: #7f8a91;
   background: transparent;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 .hos-backup-dialog__tabs button:hover {
@@ -501,7 +501,7 @@ defineExpose({ open, close })
   display: grid;
   gap: 7px;
   color: #b7c0c6;
-  font-size: 11px;
+  font-size: 12px;
 }
 .hos-backup-dialog__form input:not([type='checkbox']) {
   width: 100%;
@@ -524,7 +524,7 @@ defineExpose({ open, close })
 }
 .hos-backup-dialog__form small {
   color: #89949d;
-  font-size: 11px;
+  font-size: 12px;
 }
 .hos-backup-dialog__confirm {
   display: flex !important;
@@ -542,7 +542,7 @@ defineExpose({ open, close })
   border-radius: 5px;
   color: #aeb8bf;
   background: #151b20;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   white-space: pre-line;
   overflow-wrap: anywhere;
@@ -579,7 +579,7 @@ defineExpose({ open, close })
   border-radius: 5px;
   color: #aeb8bf;
   background: #151b20;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .hos-backup-dialog__message.success {

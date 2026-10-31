@@ -101,12 +101,18 @@ export function useAlertRulesPanelDnd(options: { alertSection: Ref<string> }) {
     }
   }
 
-  function cancelDndChanges() {
-    if (!dndDirty.value || !dndSettings.value) return
+  /** 静默回滚免打扰草稿（离开设置页 / 切 Tab 确认后调用，不弹提示） */
+  function revertDndDraft() {
+    if (!dndSettings.value) return
     dndForm.value = {
       dndStart: dndSettings.value.dndStart,
       dndEnd: dndSettings.value.dndEnd,
     }
+  }
+
+  function cancelDndChanges() {
+    if (!dndDirty.value || !dndSettings.value) return
+    revertDndDraft()
     chrome.notify('已取消修改', 'info')
   }
 
@@ -146,6 +152,7 @@ export function useAlertRulesPanelDnd(options: { alertSection: Ref<string> }) {
     loadDndSettings,
     saveDnd,
     cancelDndChanges,
+    revertDndDraft,
     dndHourTitle,
     dndTimelineAria,
   }

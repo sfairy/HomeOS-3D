@@ -177,7 +177,7 @@
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
-@media (max-width: 980px) {
+@media (max-width: 1024px) {
   .eq-analytics__charts {
     grid-template-columns: 1fr;
     grid-template-rows: auto;

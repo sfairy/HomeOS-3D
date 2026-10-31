@@ -696,7 +696,7 @@ async function send(raw?: string) {
 
 .acp-history__title {
   margin: 2px 6px 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--hos-text-secondary);
@@ -732,7 +732,7 @@ async function send(raw?: string) {
 
 .acp-history__time {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--hos-text-secondary);
 }
 
@@ -770,7 +770,7 @@ async function send(raw?: string) {
   flex-shrink: 0;
   padding: 1px 7px;
   border-radius: var(--hos-radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
   border: 1px solid currentColor;
   color: var(--hos-text-secondary);
@@ -915,7 +915,7 @@ async function send(raw?: string) {
 
 .acp-bubble__name {
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--hos-text-secondary);
@@ -942,7 +942,7 @@ async function send(raw?: string) {
 .acp-bubble__tools {
   margin: 6px 0 0;
   padding: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--hos-text-secondary);
 }
@@ -1110,7 +1110,7 @@ async function send(raw?: string) {
   display: flex;
   gap: 14px;
   padding: 8px 16px 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--hos-text-secondary);
 }
 
@@ -1120,6 +1120,6 @@ async function send(raw?: string) {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 </style>

@@ -1630,3 +1630,40 @@ html.hb-auth-hint .hb-guest-only {
     grid-template-columns: 1fr;
   }
 }
+
+/* 轻提示：可暂停/可关闭（SI-06）。 */
+.hb-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.hb-toast.is-visible,
+.hb-toast.show {
+  pointer-events: auto;
+}
+.hb-toast__message {
+  flex: 1 1 auto;
+}
+.hb-toast__close {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: -2px -6px -2px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.72;
+}
+.hb-toast__close:hover,
+.hb-toast__close:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}

@@ -213,9 +213,10 @@ const {
   saveSecurityLayout,
   cancelSecurityChanges,
   pendingChanges,
+  revertSecurityDraft,
 } = useSecurityModes()
 
-useRegisterSettingsTabPending('security-modes', () => pendingChanges.value > 0)
+useRegisterSettingsTabPending('security-modes', () => pendingChanges.value > 0, revertSecurityDraft)
 
 const activeModeLabel = computed(() => {
   const tab = orchTabs.value.find((t) => t.id === activeSmTab.value)

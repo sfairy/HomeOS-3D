@@ -85,7 +85,7 @@
   border-radius: var(--hos-radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .life-indices__pill em {
@@ -180,7 +180,7 @@
 }
 
 .life-indices__live-chip span {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--hos-text-secondary);
@@ -196,7 +196,7 @@
 .life-indices__live-chip em {
   margin-left: 2px;
   font-style: normal;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--hos-text-secondary);
 }
@@ -266,7 +266,7 @@
 }
 
 .life-indices__spot-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -388,7 +388,7 @@
 .life-indices__attention-desc {
   grid-column: 2;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--hos-text-secondary);
   display: -webkit-box;
@@ -443,7 +443,7 @@
 
 .life-indices__group-head em {
   font-style: normal;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--hos-text-secondary);
 }
 
@@ -498,7 +498,7 @@
 }
 
 .life-indices__card-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--hos-text-secondary);
@@ -512,7 +512,7 @@
 
 .life-indices__card-desc {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--hos-text-secondary);
   display: -webkit-box;
@@ -570,7 +570,7 @@
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .life-indices__spotlight {
     grid-template-columns: 1fr;
   }

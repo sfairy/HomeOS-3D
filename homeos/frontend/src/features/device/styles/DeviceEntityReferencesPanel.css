@@ -181,7 +181,7 @@ a.device-refs-panel__link:hover {
   color: var(--page-accent, #38bdf8);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .device-refs-panel__link {
     align-items: flex-start;
     flex-direction: column;

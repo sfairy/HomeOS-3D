@@ -128,7 +128,7 @@
   color: var(--link-ink-mute, var(--set-text-label));
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .hm-sec-matrix__legend {
     display: none;
   }

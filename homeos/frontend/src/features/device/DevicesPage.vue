@@ -96,18 +96,13 @@
                   type="button"
                   :class="[
                     'devices-view__select-all',
-                    selectedIds.length === filtered.length &&
-                      filtered.length > 0 &&
-                      'devices-view__select-all--active',
+                    allFilteredSelected && 'devices-view__select-all--active',
                   ]"
+                  :aria-pressed="allFilteredSelected"
                   @click="toggleSelectAll"
                 >
                   <component
-                    :is="
-                      selectedIds.length === filtered.length && filtered.length > 0
-                        ? CheckSquare
-                        : Square
-                    "
+                    :is="allFilteredSelected ? CheckSquare : Square"
                     class="w-4 h-4"
                   />
                   <span>{{ '全选' }}</span>
@@ -126,7 +121,7 @@
                   <div
                     ref="domainTabsTrackRef"
                     class="list-page__tabs devices-view__domain-tabs"
-                    role="tablist"
+                    role="group"
                     :aria-label="'设备域筛选'"
                     @scroll="updateDomainTabsScroll"
                   >
@@ -135,9 +130,7 @@
                       :key="d.id"
                       :ref="(el) => setDomainTabRef(d.id, el)"
                       type="button"
-                      role="tab"
-                      :id="`devices-tab-${d.id}`"
-                      :aria-selected="activeDomain === d.id"
+                      :aria-pressed="activeDomain === d.id"
                       :class="['list-page__tab', activeDomain === d.id && 'list-page__tab--on']"
                       @click="activeDomain = d.id"
                     >
@@ -282,6 +275,12 @@ const {
   openDetail,
   toggleEntity,
 } = useDevicesView()
+
+const allFilteredSelected = computed(
+  () =>
+    filtered.value.length > 0 &&
+    filtered.value.every((item) => selectedIds.value.includes(item.entity_id)),
+)
 
 // 列表滚动容器：库分页切换后回到列表顶部，避免停留在空位。
 const listViewportRef = ref<HTMLElement | null>(null)

@@ -3,7 +3,7 @@
   顶部含保存/取消按钮与版本号。搜索、分组展开等逻辑由 useSettingsSidebar 提供。
 -->
 <template>
-  <aside class="settings-sidebar">
+  <aside ref="rootRef" class="settings-sidebar">
     <div class="sidebar-header px-4 pt-6 pb-4">
       <div class="sidebar-header__row">
         <div class="sidebar-brand">
@@ -77,7 +77,7 @@
       </div>
     </div>
 
-    <nav class="flex-1 px-3 overflow-y-auto pb-2">
+    <nav class="flex-1 px-3 overflow-y-auto pb-2" aria-label="设置导航">
       <template v-if="isSearchMode">
         <p v-if="!searchResults.length" class="sidebar-search-empty">{{ '无匹配设置项' }}</p>
         <button
@@ -89,6 +89,7 @@
             `sidebar-group--${item.groupId}`,
             activeTab === item.id && 'sidebar-tab--active',
           ]"
+          :aria-current="activeTab === item.id ? 'page' : undefined"
           @click="handleNavigate(item.id, item.groupId)"
         >
           <component :is="item.icon" class="w-4 h-4 shrink-0" />
@@ -129,12 +130,15 @@
           :class="['sidebar-group', `sidebar-group--${group.id}`]"
         >
           <button
+            :id="`settings-group-header-${group.id}`"
             type="button"
             :class="[
               'sidebar-group-header',
               isGroupActive(group) && 'sidebar-group-header--active',
               isExpanded(group.id) && 'sidebar-group-header--open',
             ]"
+            :aria-expanded="isExpanded(group.id)"
+            :aria-controls="`settings-group-${group.id}`"
             @click="toggleGroup(group.id)"
           >
             <component :is="group.icon" class="w-[18px] h-[18px] shrink-0 opacity-70" />
@@ -152,8 +156,12 @@
           </button>
 
           <div
+            :id="`settings-group-${group.id}`"
             class="sidebar-submenu"
             :class="isExpanded(group.id) ? 'sidebar-submenu--open' : 'sidebar-submenu--closed'"
+            role="group"
+            :aria-labelledby="`settings-group-header-${group.id}`"
+            :inert="isExpanded(group.id) ? undefined : ''"
           >
             <div class="sidebar-submenu-inner">
               <button
@@ -164,6 +172,7 @@
                   'sidebar-tab sidebar-tab--child',
                   activeTab === tab.id && 'sidebar-tab--active',
                 ]"
+                :aria-current="activeTab === tab.id ? 'page' : undefined"
                 @click="handleNavigate(tab.id, group.id)"
               >
                 <component :is="tab.icon" class="w-4 h-4 shrink-0" />
@@ -183,11 +192,11 @@
 
     <div class="sidebar-footer">
       <div v-if="showSave" class="sidebar-footer__inner">
-        <p class="sidebar-footer__hint">
+        <p id="sidebar-footer-save-hint" class="sidebar-footer__hint">
           {{
             usesIndependentSave
-              ? '本页请在面板内保存，侧栏「保存所有配置」不会写入此页。'
-              : '房间、语音、联动编排等页请在面板内保存。'
+              ? '本页改动请用面板底部的保存按钮提交；侧栏只管理布局相关配置。'
+              : '侧栏只保存布局相关配置；房间、语音、联动编排等请在各自面板内保存。'
           }}
         </p>
         <div v-if="pendingChanges > 0 && !usesIndependentSave" class="sidebar-footer__pending">
@@ -210,11 +219,13 @@
             type="button"
             :disabled="saving || pendingChanges === 0"
             class="sidebar-footer__save-btn"
+            aria-describedby="sidebar-footer-save-hint"
+            :title="'保存导航、页面框架等布局配置（不含各面板内的独立保存项）'"
             @click="$emit('save')"
           >
             <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
             <Save v-else class="w-4 h-4" />
-            <span>{{ saving ? '同步中...' : '保存所有配置' }}</span>
+            <span>{{ saving ? '同步中...' : '保存布局配置' }}</span>
           </button>
         </div>
       </div>
@@ -260,7 +271,7 @@
 </template>
 
 <script setup>
-import { computed, toRef } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { Loader2, Save, ChevronDown, PanelLeftClose, Search, X, LogOut, KeyRound } from '@lucide/vue'
 import { useSettingsSidebar } from '@/features/settings/shared/layout/useSettingsSidebar'
 
@@ -274,6 +285,8 @@ const props = defineProps({
   searchQuery: { type: String, default: '' },
   appVersion: { type: String, default: '' },
 })
+
+const rootRef = ref(null)
 
 const emit = defineEmits([
   'navigate',
@@ -314,4 +327,32 @@ function jumpToPending(tabId) {
   const group = props.groups.find((g) => g.tabs.some((t) => t.id === tabId))
   onNavigate(tabId, group?.id || '', emit)
 }
+
+/** 抽屉打开时优先落到当前设置项，避免移动端一打开就弹出搜索键盘。 */
+function focusFirstControl() {
+  const root = rootRef.value
+  if (!root) return
+  const target =
+    root.querySelector('.sidebar-tab--active') ||
+    root.querySelector('.sidebar-tab') ||
+    root.querySelector('.sidebar-group-header')
+  target?.focus()
+}
+
+/** 抽屉 Tab 循环所需的可见可聚焦元素；收起分组与禁用按钮不在其中。 */
+function getFocusableElements() {
+  const root = rootRef.value
+  if (!root) return []
+  return Array.from(
+    root.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter(
+    (el) =>
+      !el.closest('[inert]') &&
+      (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0),
+  )
+}
+
+defineExpose({ focusFirstControl, getFocusableElements })
 </script>

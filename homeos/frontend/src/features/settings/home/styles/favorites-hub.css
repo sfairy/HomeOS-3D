@@ -14,7 +14,7 @@
   margin-top: 16px;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .fav-overview {
     grid-template-columns: 1fr;
   }

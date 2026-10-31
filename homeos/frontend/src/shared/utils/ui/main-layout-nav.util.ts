@@ -255,7 +255,7 @@ export function capBarItemsForViewport<T>(
   width: number,
 ): { barItems: T[]; dropdownItems: T[] } {
   if (width > COMPACT_NAV_VIEWPORT_MAX) return menu
-  const max = width <= 639 ? COMPACT_NAV_BAR_MAX_NARROW : COMPACT_NAV_BAR_MAX_TABLET
+  const max = width <= 640 ? COMPACT_NAV_BAR_MAX_NARROW : COMPACT_NAV_BAR_MAX_TABLET
   if (menu.barItems.length <= max) return menu
   return {
     barItems: menu.barItems.slice(0, max),

@@ -27,6 +27,58 @@ const hexInvalid = ref(false);
 const hexFocused = ref(false);
 const previewKeys = new Set<string>();
 
+const COLOR_LABELS: Record<string, string> = {
+  accent: "主控色",
+  lumen: "暖光",
+  aura: "极光紫",
+  eco: "薄荷",
+};
+
+function parseHexLike(value: string): [number, number, number] | null {
+  const text = value.trim();
+  const hex = normalizeHex(text);
+  if (hex) {
+    return [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)) as [number, number, number];
+  }
+  const match = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(text);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function relativeLuminance(rgb: [number, number, number]): number {
+  const [r, g, b] = rgb.map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(foreground: string, background: string): number | null {
+  const fg = parseHexLike(foreground);
+  const bg = parseHexLike(background);
+  if (!fg || !bg) return null;
+  const a = relativeLuminance(fg);
+  const b = relativeLuminance(bg);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+const contrastChecks = computed(() => {
+  const root = getComputedStyle(document.documentElement);
+  const background = root.getPropertyValue("--hb-surface-raised").trim() || "#16263c";
+  const items = CONFIGURABLE.map((name) => {
+    const color = tokens.value[`--hb-${name}`] || root.getPropertyValue(`--hb-${name}`).trim();
+    const ratio = contrastRatio(color, background);
+    return {
+      name,
+      label: COLOR_LABELS[name] || name,
+      color,
+      ratio,
+      low: ratio !== null && ratio < 3,
+    };
+  });
+  return { background, items };
+});
+
 const tokens = computed(() =>
   resolveTokens({ presetId: draft.value.preset, accentColor: draft.value.accent || undefined }),
 );
@@ -249,6 +301,20 @@ onBeforeUnmount(() => {
     </div>
     <div class="admin-palette-preview admin-grid__full" aria-hidden="true">
       <span v-for="name in CONFIGURABLE" :key="name" :style="{ '--sw': tokens[`--hb-${name}`] }"></span>
+    </div>
+    <div class="admin-palette-contrast admin-grid__full">
+      <p class="admin-hint">
+        对比度检查：相对面板底色 <code>{{ contrastChecks.background }}</code>。非文本色块建议 ≥ 3:1，
+        正文文字建议 ≥ 4.5:1；低于阈值时保存仍会生效，但请先确认实际可读性。
+      </p>
+      <ul class="admin-palette-contrast__list">
+        <li v-for="item in contrastChecks.items" :key="item.name">
+          <span class="admin-palette-contrast__swatch" :style="{ background: item.color }" aria-hidden="true"></span>
+          <span>{{ item.label }}</span>
+          <strong>{{ item.ratio === null ? "无法计算" : `${item.ratio.toFixed(2)}:1` }}</strong>
+          <span v-if="item.low" class="admin-palette-contrast__warn">低于 3:1</span>
+        </li>
+      </ul>
     </div>
     <p
       class="admin-inline-msg admin-grid__full"

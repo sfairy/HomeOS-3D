@@ -295,7 +295,10 @@ export function useDevicesView() {
   }
 
   function toggleSelectAll() {
-    if (selectedIds.value.length === filtered.value.length && filtered.value.length > 0) {
+    const allSelected =
+      filtered.value.length > 0 &&
+      filtered.value.every((device) => selectedIds.value.includes(device.entity_id))
+    if (allSelected) {
       selectedIds.value = []
     } else {
       selectedIds.value = filtered.value.map((device) => device.entity_id)

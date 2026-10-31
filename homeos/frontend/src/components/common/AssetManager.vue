@@ -217,7 +217,7 @@ function setSearchInput(el: Element | ComponentPublicInstance | null) {
 }
 
 .asset-drop-hint__meta {
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(220, 234, 255, 0.6);
 }
 

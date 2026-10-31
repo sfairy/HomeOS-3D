@@ -441,7 +441,7 @@
 .el-record-filter__feedback--err { color: #fca5a5; }
 .el-record-filter__feedback--warn { color: #fde68a; }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .el-record-filter__mode-segments {
     grid-template-columns: 1fr;
   }

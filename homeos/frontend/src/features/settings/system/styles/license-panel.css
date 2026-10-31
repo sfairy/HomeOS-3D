@@ -320,7 +320,7 @@
   word-break: break-all;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .license-account__row {
     grid-template-columns: 1fr;
     gap: 4px;

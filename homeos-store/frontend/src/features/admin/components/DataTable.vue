@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 
@@ -67,7 +67,22 @@ const total = ref(0);
 const offset = ref(0);
 const loading = ref(false);
 const error = ref("");
+const wrap = ref<HTMLElement | null>(null);
+const overflowing = ref(false);
 let seq = 0;
+let tableObserver: ResizeObserver | null = null;
+let hintSeq = 0;
+const hintId = `table-scroll-hint-${++hintSeq}`;
+
+function measureOverflow() {
+  const node = wrap.value;
+  overflowing.value = Boolean(node && node.scrollWidth > node.clientWidth + 1);
+}
+
+async function measureSoon() {
+  await nextTick();
+  measureOverflow();
+}
 
 const pages = computed(() => Math.max(1, Math.ceil(total.value / props.pageSize)));
 const page = computed(() => Math.floor(offset.value / props.pageSize) + 1);
@@ -121,7 +136,25 @@ watch(paramsKey, () => {
   void reload(true);
 });
 
-onMounted(() => reload());
+onMounted(() => {
+  void reload();
+  void measureSoon();
+  if (typeof ResizeObserver !== "undefined" && wrap.value) {
+    tableObserver = new ResizeObserver(measureOverflow);
+    tableObserver.observe(wrap.value);
+  }
+  window.addEventListener("resize", measureOverflow);
+});
+
+onBeforeUnmount(() => {
+  tableObserver?.disconnect();
+  window.removeEventListener("resize", measureOverflow);
+});
+
+watch(
+  () => items.value.length,
+  () => void measureSoon(),
+);
 
 function goto(direction: "first" | "prev" | "next" | "last") {
   if (direction === "first") offset.value = 0;
@@ -141,7 +174,14 @@ defineExpose({ reload, search });
 </script>
 
 <template>
-  <div class="table-wrap" :class="{ 'is-busy': loading }" :aria-busy="loading ? 'true' : 'false'">
+  <div
+    ref="wrap"
+    class="table-wrap"
+    :class="{ 'is-busy': loading, 'is-scrollable': overflowing }"
+    :aria-busy="loading ? 'true' : 'false'"
+    :tabindex="overflowing ? 0 : undefined"
+    :aria-describedby="overflowing ? hintId : undefined"
+  >
     <table class="hb-table" :aria-label="caption ? undefined : tableLabel">
       <caption v-if="caption" class="hb-table__caption">{{ caption }}</caption>
       <thead>
@@ -181,6 +221,9 @@ defineExpose({ reload, search });
       </tbody>
     </table>
   </div>
+  <p v-if="overflowing" :id="hintId" class="table-scroll-hint">
+    表格可横向滚动，首列已固定；也可聚焦表格后用左右方向键查看。
+  </p>
   <nav class="admin-pager" aria-label="分页">
     <span class="admin-pager__info" aria-live="polite">
       第 {{ page }}/{{ pages }} 页 · 显示 {{ from }}–{{ to }} / 共 {{ total }} 条

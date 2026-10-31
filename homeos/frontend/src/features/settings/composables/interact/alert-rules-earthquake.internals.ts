@@ -34,10 +34,17 @@ export function useAlertRulesEarthquake() {
     pendingLabel: earthquakePendingLabel,
     takeSnapshot: snapshotEarthquake,
     confirmAndRevert: confirmEarthquakeRevert,
+    revertSilently: revertEarthquakeSilently,
   } = useSettingsHubPending({
     snapshot: initialEarthquakeSnapshot,
     current: earthquakeLayoutCurrent,
     ready: () => layoutStore.isConfigLoaded,
+    applyBaseline: (baseline) => {
+      applyEarthquakeLayoutSlice(
+        layoutStore.layoutConfig,
+        baseline as ReturnType<typeof pickEarthquakeLayoutSlice>,
+      )
+    },
   })
 
   async function cancelEarthquakeChanges() {
@@ -79,5 +86,6 @@ export function useAlertRulesEarthquake() {
     snapshotEarthquakeFromStore,
     saveEarthquake,
     cancelEarthquakeChanges,
+    revertEarthquakeDraft: revertEarthquakeSilently,
   }
 }

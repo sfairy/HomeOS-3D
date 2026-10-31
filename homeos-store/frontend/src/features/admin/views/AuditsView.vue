@@ -3,6 +3,7 @@
 
 import { computed, ref } from "vue";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/types/store";
@@ -108,22 +109,21 @@ async function purge() {
       <button class="hb-button hb-button--secondary hb-button--sm" @click="reload">刷新</button>
     </PanelHead>
 
-    <div class="admin-tabs" role="tablist" aria-label="审计日志分区">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="审计日志分区"
+      panel-id-prefix="audits"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'list'"
+      :id="'audits-tabpanel-list'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'audits-tab-list'"
+    >
       <DataTable ref="table" path="/audit-logs" :columns="COLUMNS" empty-text="暂无审计记录">
         <template #default="{ items }">
           <tr v-for="item in asListItems<AuditItem>(items)" :key="item.id">
@@ -151,7 +151,13 @@ async function purge() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'purge'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'purge'"
+      :id="'audits-tabpanel-purge'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'audits-tab-purge'"
+    >
       <div class="danger-zone">
         <h3>批量清理</h3>
         <p>

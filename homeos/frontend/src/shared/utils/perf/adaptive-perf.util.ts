@@ -10,6 +10,12 @@ import {
   onConfigChange,
 } from '@/shared/utils/config/frontend-config'
 import { registerAdaptiveFpsTick, startFpsScheduler, bindFpsSchedulerVisibilityPause } from '@/shared/utils/perf/fps-scheduler.util'
+import {
+  getAutoPerformanceMode,
+  normalizePerfMode,
+  resolveEffectivePerformanceMode,
+  setAutoPerformanceMode,
+} from '@/shared/utils/perf/runtime-perf-mode.util'
 
 type AdaptiveConfigKey = 'rebuildDebounceMs' | 'rebuildChunkSize'
 type AdaptiveConfigBaseline = Pick<FrontendSection, AdaptiveConfigKey>
@@ -60,6 +66,8 @@ export function probeDeviceProfile() {
 
 function updateAdaptiveTier(tier: string, _reason: string): void {
   adaptiveTier.value = tier
+  // 自动降档只影响本终端渲染，绝不写进共享布局（否则会被当成未保存的更改并落库）
+  setAutoPerformanceMode(tier)
 }
 
 /**
@@ -147,12 +155,16 @@ function buildPerfSuggestions(entityCount: number): string[] {
 }
 
 export function resolvePerfShellClass(userMode: string | undefined): string {
-  const mode = userMode || 'high'
-  if (mode === 'low' || mode === 'medium') return `perf-${mode}`
-  if (adaptiveTier.value === 'medium' || adaptiveTier.value === 'low') {
-    return `perf-adaptive perf-${adaptiveTier.value}`
+  const saved = normalizePerfMode(userMode)
+  const effective = resolveEffectivePerformanceMode(saved)
+  if (effective === 'high') return 'perf-high'
+  // 用户自己选的档位是「保存的意图」，直接给静态 class；
+  // 自动降档是临时状态，给 perf-adaptive 前缀，便于样式/排查区分来源。
+  const auto = getAutoPerformanceMode()
+  if (auto && effective === auto && effective !== saved) {
+    return `perf-adaptive perf-${effective}`
   }
-  return 'perf-high'
+  return `perf-${effective}`
 }
 
 export function startFpsAdaptiveMonitor() {

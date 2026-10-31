@@ -1639,7 +1639,7 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .home-mode-panel .hm-template-grid { grid-template-columns: 1fr; }
   /* 上下文胶囊在 900px 档降到 2 列，但每列 min 148px：容器窄到 ~316px 以下（小屏 + 面板内边距）
      两列就撑破面板宽度。640px 以下直接单列，与 hm-template-grid 同一口径。 */
@@ -1651,7 +1651,7 @@
 }
 
 /* 手机窄屏：标题/页脚/动作网格/日志卡片与底部保存条 */
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .home-mode-panel .hm-editor-head--compact .hm-editor-head__title-row {
     flex-wrap: wrap;
     row-gap: 4px;

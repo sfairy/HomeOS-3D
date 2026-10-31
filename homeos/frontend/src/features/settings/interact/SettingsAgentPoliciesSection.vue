@@ -376,7 +376,7 @@ onMounted(() => {
   margin-left: 6px;
   padding: 0 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .agent-policy-tag[data-tone='on'] {

@@ -2,13 +2,18 @@
   <div
     class="settings-shell"
     :class="{
-      'settings-shell--sidebar-collapsed': sidebarCollapsed && showSettingsNav,
+      'settings-shell--sidebar-collapsed': !isCompactSettings && sidebarCollapsed && showSettingsNav,
+      'settings-shell--compact': isCompactSettings,
+      'settings-shell--compact-nav-open': isCompactSettings && showSettingsNav && compactNavOpen,
       'settings-shell--no-sidebar': !showSettingsNav,
     }"
+    @keydown="onSettingsShellKeydown"
   >
     <SettingsSidebar
       v-if="showSettingsNav"
+      ref="settingsSidebarRef"
       class="settings-sidebar--desktop"
+      :inert="isCompactSettings && !compactNavOpen"
       :groups="navGroups"
       :active-tab="resolvedTab"
       :saving="saving"
@@ -25,9 +30,24 @@
       @change-password="changePasswordDialog?.open()"
     />
 
-    <main class="settings-main">
+    <button
+      v-if="isCompactSettings && compactNavOpen"
+      type="button"
+      class="settings-nav-backdrop"
+      tabindex="-1"
+      :aria-label="'关闭设置导航'"
+      @click="closeCompactNav()"
+    />
+
+    <div
+      ref="settingsMainRef"
+      class="settings-main"
+      tabindex="-1"
+      :inert="isCompactSettings && compactNavOpen"
+    >
       <button
-        v-if="sidebarCollapsed && showSettingsNav"
+        v-if="isNavHidden"
+        ref="reopenButtonRef"
         type="button"
         class="settings-sidebar-reopen"
         :title="'显示导航'"
@@ -62,7 +82,7 @@
              藏起来的，组件还在，按钮却点不到 —— 那会让「改密码 / 退出」在设置里彻底没有入口。
              这里补一组等价图标按钮（同一套 handler），推到行尾，与复制链接分开。 -->
         <div
-          v-if="sidebarCollapsed"
+          v-if="isNavHidden"
           class="settings-breadcrumb__account"
           role="group"
           aria-label="账号"
@@ -102,7 +122,7 @@
         <p>程序开发：方长鑫</p>
         <p class="settings-main__copy-ver">HomeOS v{{ appVersion }}</p>
       </footer>
-    </main>
+    </div>
 
     <!-- 仪表板编辑模式退出确认（非设置表单离开守卫；设置离开见 confirmLeaveIfDirty） -->
     <ExitEditConfirmDialog />
@@ -119,7 +139,16 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/loc
  * 系统设置页面 — 薄壳入口
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css
  */
-import { computed, ref, watch, defineAsyncComponent, onMounted, onBeforeUnmount } from 'vue'
+import {
+  computed,
+  nextTick,
+  ref,
+  watch,
+  defineAsyncComponent,
+  onMounted,
+  onBeforeUnmount,
+  onScopeDispose,
+} from 'vue'
 import { PanelLeft, ChevronRight, Link2, KeyRound, LogOut } from '@lucide/vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
@@ -127,7 +156,11 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
-import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
+import {
+  resetAllSettingsTabDrafts,
+  resetSettingsTabDraft,
+  useSettingsPendingChanges,
+} from '@/composables/settings-kernel/pending.internals'
 import SettingsSidebar from './shared/layout/SettingsSidebar.vue'
 import SettingsOverviewStrip from './shared/layout/SettingsOverviewStrip.vue'
 import {
@@ -144,6 +177,7 @@ import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,
   isSettingsTabPending,
+  globalLayoutPendingCount,
 } from '@/composables/settings-kernel/pending.internals'
 import {
   registerGlobalLayoutPendingSnapshot,
@@ -194,14 +228,88 @@ function readSidebarCollapsed() {
 
 const sidebarCollapsed = ref(readSidebarCollapsed())
 const settingsSearchQuery = ref('')
+const settingsSidebarRef = ref(null)
+const settingsMainRef = ref(null)
+const reopenButtonRef = ref(null)
+
+// 900px 以下侧栏改为覆盖式抽屉：固定 260px 侧栏会把主内容压到约 130px，
+// 而手动折叠状态来自 localStorage，首次进入窄屏时不会自动收起。
+const compactMediaQuery =
+  typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
+const isCompactSettings = ref(compactMediaQuery?.matches ?? false)
+const compactNavOpen = ref(false)
+
+function openCompactNav() {
+  if (!showSettingsNav.value) return
+  compactNavOpen.value = true
+  nextTick(() => settingsSidebarRef.value?.focusFirstControl?.())
+}
+
+function closeCompactNav({ restoreFocus = true } = {}) {
+  if (!compactNavOpen.value) return
+  compactNavOpen.value = false
+  if (restoreFocus) nextTick(() => reopenButtonRef.value?.focus())
+}
 
 function toggleSidebar() {
+  if (isCompactSettings.value) {
+    if (compactNavOpen.value) closeCompactNav()
+    else openCompactNav()
+    return
+  }
   sidebarCollapsed.value = !sidebarCollapsed.value
   try {
     writeLocalStorage(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed.value ? '1' : '0')
   } catch {
     /* 忽略 */
   }
+}
+
+/** 抽屉打开时把 Tab 焦点圈在侧栏首尾，别漏到被 inert 的主内容。 */
+function trapCompactNavFocus(event) {
+  const items = settingsSidebarRef.value?.getFocusableElements?.() ?? []
+  if (!items.length) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement
+  if (!items.includes(active)) {
+    event.preventDefault()
+    ;(event.shiftKey ? last : first).focus()
+    return
+  }
+  if (event.shiftKey && active === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+/** Esc 关闭抽屉；Tab 交给焦点循环处理。 */
+function onSettingsShellKeydown(event) {
+  if (!isCompactSettings.value || !compactNavOpen.value) return
+  if (event.key === 'Escape') {
+    event.stopPropagation()
+    closeCompactNav()
+    return
+  }
+  if (event.key === 'Tab') trapCompactNavFocus(event)
+}
+
+function onCompactMediaChange(event) {
+  const next = event.matches
+  if (next === isCompactSettings.value) return
+  const focusWasInSidebar = settingsSidebarRef.value?.$el?.contains(document.activeElement)
+  isCompactSettings.value = next
+  compactNavOpen.value = false
+  nextTick(() => {
+    if (next) {
+      if (focusWasInSidebar) reopenButtonRef.value?.focus()
+    } else if (focusWasInSidebar) {
+      settingsSidebarRef.value?.focusFirstControl?.()
+    }
+  })
 }
 
 // 功能码明细（``GET /license/status`` 的 featureAccess）：只用于侧栏与落地页显隐，
@@ -211,6 +319,12 @@ const licenseFeatureAccess = useLicenseFeatureAccess()
 const navGroups = computed(() => buildNavGroups(licenseFeatureAccess.value))
 
 const showSettingsNav = computed(() => countNavTabs(navGroups.value) >= 1)
+
+const isNavHidden = computed(
+  () =>
+    showSettingsNav.value &&
+    (isCompactSettings.value ? !compactNavOpen.value : sidebarCollapsed.value),
+)
 
 const resolvedTab = computed(() => {
   const explicit = route.query.tab
@@ -251,6 +365,18 @@ const {
 
 // 注册全局暂停/恢复函数，供首装向导等场景使用
 registerGlobalPendingPause(pausePendingChanges, resumePendingChanges)
+
+// 对外暴露全局布局脏计数：方案切换等「会重拉布局」的操作据此提醒，避免静默丢弃草稿
+watch(
+  pendingChanges,
+  (n) => {
+    globalLayoutPendingCount.value = n
+  },
+  { immediate: true },
+)
+onScopeDispose(() => {
+  globalLayoutPendingCount.value = 0
+})
 
 function describeUnsavedChanges() {
   const independent = getIndependentPendingTabIds()
@@ -331,9 +457,27 @@ async function confirmLeaveCurrentTabIfDirty() {
   )
 }
 
+/**
+ * 真正放弃全局布局的未保存改动：回到上次保存的基线并重拍快照。
+ *
+ * 只弹确认框不回滚是「假放弃」：这些改动仍留在 layoutConfig 里，之后任意自动保存
+ * （悬浮伴侣拖动、收藏、地震向导…）都会把它们写进库，而且每次切页都会再弹一次
+ * 同样的「全局布局有 N 项未保存的更改」。
+ */
+function discardGlobalLayoutChanges() {
+  if (pendingChanges.value <= 0) return
+  const baseline = initialLayoutConfig.value
+  if (!baseline) return
+  layoutStore.revertLayoutConfig(baseline)
+  snapshotLayoutConfig(layoutStore.layoutConfig)
+}
+
 function isOnSettingsRoute() {
   return route.name === 'settings' || route.path === '/settings'
 }
+
+/** 已单独确认过「放弃改动」的导航（退出登录）：跳过路由离开守卫，避免二次确认 */
+let skipLeaveGuard = false
 
 /**
  * 侧栏账号条的「退出」。
@@ -354,17 +498,46 @@ async function handleLogout() {
     cancelText: '留在设置',
   })
   if (!confirmed) return
-  await authStore.logout()
-  await router.replace('/login')
+  // 退出登录的确认框已经把「未保存改动会丢失」说清楚：这里真正回滚，
+  // 并跳过路由离开守卫，避免刚确认过退出又弹一次「未保存的更改」。
+  resetAllSettingsTabDrafts()
+  discardGlobalLayoutChanges()
+  skipLeaveGuard = true
+  try {
+    await authStore.logout()
+    await router.replace('/login')
+  } finally {
+    skipLeaveGuard = false
+  }
 }
 
 async function navigateTab(tabId) {
-  if (tabId === resolvedTab.value) return
+  if (tabId === resolvedTab.value) {
+    if (isCompactSettings.value) closeCompactNav({ restoreFocus: false })
+    return
+  }
+  // 只有「确实为当前页报过未保存」才做丢弃：没弹确认就回滚等于背着用户丢数据
+  // （例如全局布局因其它面板变脏、而当前独立页自己并不脏）。
+  const hadUnsaved = hasUnsavedForCurrentTab()
   const ok = await confirmLeaveCurrentTabIfDirty()
   if (!ok) return
+  if (hadUnsaved) {
+    // 确认框说「离开后这些修改将丢失」，就得真的丢。
+    // - 独立保存页：草稿活在 keep-alive 面板里，交给面板自己回滚（它最清楚自己那份基线），
+    //   否则回到该 Tab 还能看到改动与待保存角标（甚至被下一次自动保存写进库）。
+    // - 其余页：改动直接落在全局 layoutConfig 上，回滚到本页基线。
+    if (INDEPENDENT_SAVE_TABS.has(resolvedTab.value)) {
+      resetSettingsTabDraft(resolvedTab.value)
+    } else {
+      discardGlobalLayoutChanges()
+    }
+  }
   settingsSearchQuery.value = ''
+  const wasCompact = isCompactSettings.value
+  if (wasCompact) closeCompactNav({ restoreFocus: false })
   // 显式 path，避免仅改 query 时与站外路由竞态
-  router.push({ path: '/settings', query: { tab: tabId } })
+  await router.push({ path: '/settings', query: { tab: tabId } })
+  if (wasCompact) nextTick(() => settingsMainRef.value?.focus())
 }
 
 // 记录最近访问的设置面板，供「最近使用」首页快捷直达
@@ -372,11 +545,21 @@ watch(
   resolvedTab,
   (tab) => {
     if (tab) recordSettingsTabVisit(tab)
+    if (isCompactSettings.value && compactNavOpen.value) closeCompactNav({ restoreFocus: false })
   },
   { immediate: true },
 )
 
-onBeforeRouteLeave(async () => confirmLeaveIfDirty())
+onBeforeRouteLeave(async () => {
+  if (skipLeaveGuard) return true
+  const ok = await confirmLeaveIfDirty()
+  // 离开设置页时同样真正回滚，避免「已确认放弃」的改动被后续自动保存写进库
+  if (ok) {
+    resetAllSettingsTabDrafts()
+    discardGlobalLayoutChanges()
+  }
+  return ok
+})
 
 /** 刷新/关页：有未保存更改时触发浏览器原生离开确认 */
 function onSettingsBeforeUnload(e) {
@@ -385,11 +568,19 @@ function onSettingsBeforeUnload(e) {
   e.returnValue = ''
 }
 
+function syncCompactSettings() {
+  if (!compactMediaQuery) return
+  isCompactSettings.value = compactMediaQuery.matches
+}
+
 onMounted(() => {
+  syncCompactSettings()
+  compactMediaQuery?.addEventListener('change', onCompactMediaChange)
   window.addEventListener('beforeunload', onSettingsBeforeUnload)
 })
 
 onBeforeUnmount(() => {
+  compactMediaQuery?.removeEventListener('change', onCompactMediaChange)
   window.removeEventListener('beforeunload', onSettingsBeforeUnload)
 })
 
@@ -459,10 +650,18 @@ registerGlobalLayoutPendingSnapshot((source) => {
 
 // 任意来源的保存/重置都会把 layoutDirty 归位，此时以当前 layoutConfig 重拍快照，
 // 使 pendingChanges 基线与「已保存状态」对齐，避免站外保存后残留陈旧快照导致误判。
+// 用 nextTick 延后一拍：保存调用方会在 await 返回后做收尾写入（例如把密钥回填成
+// 脱敏占位、补 apiKeyConfigured）。若在归位的同时立刻拍快照，会拍到「保存中途」的
+// 状态，收尾写入反而变成新的待保存项（典型症状：保存完立刻提示「全局布局有 1 项未保存」）。
 watch(
   () => layoutStore.layoutDirty,
   (dirty) => {
-    if (!dirty && layoutStore.isConfigLoaded) snapshotLayoutConfig(layoutStore.layoutConfig)
+    if (dirty || !layoutStore.isConfigLoaded) return
+    void nextTick(() => {
+      if (!layoutStore.layoutDirty && layoutStore.isConfigLoaded) {
+        snapshotLayoutConfig(layoutStore.layoutConfig)
+      }
+    })
   },
 )
 

@@ -5,6 +5,7 @@ import { computed, reactive, ref } from "vue";
 import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import RowMenu from "@store/features/admin/components/RowMenu.vue";
 import FeaturePicker from "@store/features/admin/components/FeaturePicker.vue";
@@ -222,22 +223,21 @@ void catalog.load().catch((error) => {
       <button class="hb-button hb-button--primary hb-button--sm" @click="openCreate">手工补权益</button>
     </PanelHead>
 
-    <div class="admin-tabs" role="tablist" aria-label="功能权益分区">
-      <button
-        v-for="tab in tabs.filter((item) => !item.hidden)"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="功能权益分区"
+      panel-id-prefix="entitlements"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'list'"
+      :id="'entitlements-tabpanel-list'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'entitlements-tab-list'"
+    >
       <div class="panel-toolbar">
         <input
           v-model="feature"
@@ -301,7 +301,14 @@ void catalog.load().catch((error) => {
       </DataTable>
     </div>
 
-    <div v-show="active === 'create'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="createOpen"
+      v-show="active === 'create'"
+      :id="'entitlements-tabpanel-create'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'entitlements-tab-create'"
+    >
       <div v-if="createOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">手工补一条权益</h3>
@@ -353,7 +360,14 @@ void catalog.load().catch((error) => {
       </div>
     </div>
 
-    <div v-show="active === 'patch'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="patchOpen"
+      v-show="active === 'patch'"
+      :id="'entitlements-tabpanel-patch'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'entitlements-tab-patch'"
+    >
       <div v-if="patchOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">改期 / 开关 <span class="mono">{{ patchLabel }}</span></h3>

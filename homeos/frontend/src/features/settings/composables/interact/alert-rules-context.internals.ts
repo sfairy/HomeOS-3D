@@ -92,9 +92,18 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
     pendingCount: voiceAlertsPending,
     takeSnapshot: snapshotVoiceAlerts,
     confirmAndRevert: confirmVoiceAlertsRevert,
+    revertSilently: revertVoiceAlertsSilently,
   } = useSettingsHubPending({
     snapshot: initialVoiceAlertsSnapshot,
     current: voiceAlertsCurrent,
+    applyBaseline: (baseline) => {
+      const b = (baseline as VoiceAlertsSnapshot) || ({} as VoiceAlertsSnapshot)
+      Object.assign(voice.value, b.voice)
+      ttsMediaPlayerId.value = b.ttsMediaPlayerId
+      speakCooldownMin.value = b.speakCooldownMin
+      Object.assign(builtinStyleState, b.builtinStyleState)
+      voiceSaveTip.value = ''
+    },
   })
 
   const {
@@ -104,6 +113,7 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
     snapshotEarthquakeFromStore,
     saveEarthquake,
     cancelEarthquakeChanges,
+    revertEarthquakeDraft,
   } = useAlertRulesEarthquake()
 
   const customAlertSpeechModes = computed(() => getCustomAlertSpeechModes())
@@ -205,12 +215,24 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
     if (unref(activeTabSource) === 'alerts') initPanel()
   })
 
+  /**
+   * 静默丢弃本页全部草稿（离开设置页 / 切 Tab 确认后调用）。
+   * 四个独立草稿源（免打扰 / 规则编辑浮层 / 语音告警 / 地震预警）各回各的基线。
+   */
+  function revertAllAlertDrafts() {
+    revertVoiceAlertsSilently()
+    revertEarthquakeDraft()
+    dndPanel.revertDndDraft()
+    ruleEditor.revertEditingDraft()
+  }
+
   onBeforeUnmount(() => {
     if (voiceSaveTipTimer) clearTimeout(voiceSaveTipTimer)
   })
 
   return {
     route,
+    revertAllAlertDrafts,
     entitiesStore,
     layoutStore,
     authStore,

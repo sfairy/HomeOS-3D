@@ -147,7 +147,7 @@
   color: rgba(255, 255, 255, 0.82);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .presence-toolbar__mode {
     flex: 1 1 100%;
     order: 3;

@@ -7,8 +7,8 @@
  */
 import type { AgentCompanionConfig } from '@/shared/types/layout'
 
-/** 圆脸直径（px），与 AgentCompanion.vue 的样式保持一致 */
-export const AGENT_COMPANION_FACE_SIZE = 56
+/** 机器人直径（px），与 AgentCompanion.vue 的 .companion-root / .companion-trigger 一致 */
+export const AGENT_COMPANION_FACE_SIZE = 66
 /** 离屏最小间距（px） */
 export const AGENT_COMPANION_EDGE_GAP = 14
 /** 旧版垂直停靠高度的允许区间（与设置页滑块一致） */

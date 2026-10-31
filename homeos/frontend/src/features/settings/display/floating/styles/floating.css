@@ -608,7 +608,7 @@
   text-align: left;
 }
 
-@media (max-width: 639px), (pointer: coarse) {
+@media (max-width: 640px), (pointer: coarse) {
   .afh-size-stepper {
     width: 100%;
   }
@@ -1006,7 +1006,7 @@
   transform: translateX(-8px);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .afh-card__head {
     flex-direction: column;
     align-items: stretch;

@@ -71,14 +71,23 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
     pendingCount: envPendingChanges,
     takeSnapshot: takeEnvSnapshot,
     confirmAndRevert,
+    revertSilently: revertEnvSilently,
     runHubMount,
   } = useSettingsHubPending({
     snapshot: sharedEnvSnapshot,
     current: () => sensorMap.value,
     ready: () => sharedEnvSnapshot.value != null,
+    applyBaseline: (baseline) => {
+      const next = clonePlain(baseline || {})
+      for (const key of Object.keys(sensorMap.value)) {
+        delete sensorMap.value[key]
+      }
+      Object.assign(sensorMap.value, next)
+    },
   })
 
-  useRegisterSettingsTabPending(tabId, () => envPendingChanges.value > 0)
+  // 第三参数：确认离开后真正回滚房间映射草稿
+  useRegisterSettingsTabPending(tabId, () => envPendingChanges.value > 0, revertEnvSilently)
 
   const bindingsEnvTabs = computed(() => [
     {

@@ -121,9 +121,13 @@ function useClientPowerConfig() {
     pendingCount: clientPowerPendingCount,
     takeSnapshot: snapshotClientPower,
     confirmAndRevert,
+    revertSilently: revertClientPowerSilently,
   } = useSettingsHubPending({
     snapshot: initialClientPowerSnapshot,
     current: () => config.value,
+    applyBaseline: (baseline) => {
+      config.value = normalizeConfig({ clientPower: baseline } as Partial<SystemConfig>)
+    },
   })
 
   // 对当前配置生成快照（用于待保存计数与回退基线）
@@ -360,6 +364,7 @@ function useClientPowerConfig() {
     refreshStatus,
     save,
     cancelChanges,
+    revertClientPowerSilently,
     addClientFromPending,
     removeClient,
     addEmptyClient,
@@ -392,9 +397,14 @@ export function useClientPowerPanel() {
     dismissAllOfflinePending,
     clientPowerPendingCount,
     cancelChanges,
+    revertClientPowerSilently,
   } = configState
 
-  useRegisterSettingsTabPending('smart-charge', () => clientPowerPendingCount.value > 0)
+  useRegisterSettingsTabPending(
+    'smart-charge',
+    () => clientPowerPendingCount.value > 0,
+    revertClientPowerSilently,
+  )
 
   const displayDeps = {
     config,

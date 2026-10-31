@@ -202,7 +202,7 @@ defineExpose({ open, close })
 }
 
 .change-password__eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   color: #7c8aa5;
 }

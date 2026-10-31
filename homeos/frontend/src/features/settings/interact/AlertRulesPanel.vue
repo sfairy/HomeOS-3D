@@ -600,7 +600,7 @@ const {
   insertTemplateVar,
 } = panel
 
-useRegisterSettingsTabPending('alerts', () => hasPendingChanges.value)
+useRegisterSettingsTabPending('alerts', () => hasPendingChanges.value, panel.revertAllAlertDrafts)
 
 /** 规则编辑浮层的最外层节点与面板：焦点陷阱管面板，背景隔离要的是整层（含遮罩）。 */
 const editOverlayRef = ref(null)

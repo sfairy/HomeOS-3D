@@ -258,6 +258,8 @@ API_ERROR: dict[str, str | _F] = {
     "SYSTEM_INVALID_LAYOUT": "无效的布局配置",
     # ui-config (data/project/profile)
     "UI_CONFIG_DATA_INVALID": "无效的配置数据",
+    "UI_CONFIG_LAYOUT_REQUIRED": "缺少 layout 字段：保存空布局请显式传 {}",
+    "UI_CONFIG_CONFLICT": "该方案已在其他终端被修改，请刷新后重试",
     "UI_CONFIG_FILE_REQUIRED": "没有上传文件",
     "UI_CONFIG_PATH_REQUIRED": "需要提供路径",
     "UI_CONFIG_PROJECT_ID_REQUIRED": "projectId 不能为空",

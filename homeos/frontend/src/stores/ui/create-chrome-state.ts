@@ -34,7 +34,7 @@ interface UiNotification {
  * 同文案，这里兜住「文案各不相同」的情形（如 12 个不同设备名），超限按最旧优先回收，
  * 否则右侧竖列能把整屏遮住、也挡住用户要继续点的控件。
  */
-const NOTIFY_MAX_VISIBLE = 5
+const NOTIFY_MAX_VISIBLE = 3
 
 /** 确认对话框状态；resolve 由调用方 await 持有，关闭时回填布尔结果 */
 interface ConfirmState {

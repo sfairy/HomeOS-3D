@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
+import AdminTabs from "@store/features/admin/components/AdminTabs.vue";
 import DataTable from "@store/features/admin/components/DataTable.vue";
 import RowMenu from "@store/features/admin/components/RowMenu.vue";
 import { adminApi } from "@store/shared/api/http";
@@ -174,22 +175,21 @@ async function removeAccount(account: Account) {
       domain="授权"
     />
 
-    <div class="admin-tabs" role="tablist" aria-label="账号分区">
-      <button
-        v-for="tab in tabs.filter((item) => !item.hidden)"
-        :key="tab.key"
-        class="admin-tabs__tab"
-        type="button"
-        role="tab"
-        :aria-selected="tab.key === active ? 'true' : 'false'"
-        :tabindex="tab.key === active ? 0 : -1"
-        @click="pick(tab.key)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+    <AdminTabs
+      label="账号分区"
+      panel-id-prefix="accounts"
+      :tabs="tabs"
+      :active="active"
+      @pick="pick"
+    />
 
-    <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-show="active === 'list'"
+      :id="'accounts-tabpanel-list'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'accounts-tab-list'"
+    >
       <div class="panel-toolbar">
         <input v-model="keyword" class="hb-input" aria-label="账号、邮箱或邀请码关键字" placeholder="账号 / 邮箱 / 邀请码" />
         <select v-model="role" class="hb-select" aria-label="按角色筛选">
@@ -243,7 +243,14 @@ async function removeAccount(account: Account) {
       </DataTable>
     </div>
 
-    <div v-show="active === 'form'" class="admin-tab-pane" role="tabpanel">
+    <div
+      v-if="editorOpen"
+      v-show="active === 'form'"
+      :id="'accounts-tabpanel-form'"
+      class="admin-tab-pane"
+      role="tabpanel"
+      :aria-labelledby="'accounts-tab-form'"
+    >
       <div v-if="editorOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title">编辑账号 <span class="mono">{{ draft.username || draft.email }}</span></h3>

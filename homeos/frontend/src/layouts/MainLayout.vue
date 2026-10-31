@@ -60,6 +60,10 @@ import { useEarthquakeBootstrap } from '@/features/earthquake'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import { setDerivedRoutePath } from '@/shared/entity/utils/derived-route.util'
 import { resolvePerfShellClass } from '@/shared/utils/perf/adaptive-perf.util'
+import {
+  autoPerformanceModeRef,
+  resolveEffectivePerformanceMode,
+} from '@/shared/utils/perf/runtime-perf-mode.util'
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import { useViewportTier } from '@/shared/utils/layout/viewport-tier.util'
@@ -374,7 +378,7 @@ watch(
 // 校验 teleport-target 容器是否被外部代码误清空，必要时重建（防御性 HA 集成处理）
 useTeleportTargetGuard()
 
-// 性能自适应：根据 layoutConfig.performanceMode 解析需要附加到 app-shell 的 class
+// 性能自适应：根据「保存的档位 + 本终端自动降档」解析需要附加到 app-shell 的 class
 // （如降低 backdrop-filter、关闭装饰性动画与模糊层等）
 const perfShellClass = computed(() => resolvePerfShellClass(layoutStore.layoutConfig.performanceMode))
 
@@ -408,13 +412,18 @@ watch(
 // 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费
 useViewportTier()
 
-// 玻璃拟态开关随配置变化：性能模式降级时强制关闭毛玻璃，避免低端设备掉帧
+// 玻璃拟态开关随配置变化：性能模式降级时强制关闭毛玻璃，避免低端设备掉帧。
+// 自动降档（设备能力 / 帧率回落）只在运行时生效，这里同样要跟着它走。
 watch(
-  () => [layoutStore.layoutConfig.glassEffect, layoutStore.layoutConfig.performanceMode],
+  () => [
+    layoutStore.layoutConfig.glassEffect,
+    layoutStore.layoutConfig.performanceMode,
+    autoPerformanceModeRef.value,
+  ],
   () =>
     applyGlassEffectDocument(
       layoutStore.layoutConfig.glassEffect,
-      layoutStore.layoutConfig.performanceMode,
+      resolveEffectivePerformanceMode(layoutStore.layoutConfig.performanceMode),
     ),
   { immediate: true },
 )
@@ -425,6 +434,7 @@ watch(
     <!-- 无障碍跳转链接：键盘用户跳过顶栏直达主内容 -->
     <a href="#main-content" class="skip-link">{{ '跳到主内容' }}</a>
     <ScaledViewport
+      notification-placement="below-topbar"
       :frame-style="navFrameStyle"
       :shell-class="[perfShellClass, { 'app-shell--light-backdrop': showLightBackdrop }]"
     >

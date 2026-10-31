@@ -5,7 +5,6 @@
 /** 家庭模式面板派生状态 */
 import { computed, ref } from 'vue'
 import { CalendarDays, Link2, Radio, Users, Zap } from '@lucide/vue'
-import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import type { ActionTemplate, ModeActionDraft } from './draft.internals'
 import type { useHomeModeEditor } from './editor.internals'
 import type { useHomeModePanelContext } from './home-mode-panel-context.internals'
@@ -55,8 +54,6 @@ const anyModeDraftDirty = computed(() => modeTabs.value.some((tab) => isTabDirty
 const pendingModeChanges = computed(
   () => modeTabs.value.filter((tab) => isTabDirty(tab.id)).length,
 )
-
-useRegisterSettingsTabPending('home-mode', () => anyModeDraftDirty.value)
 
 const displayModeTabs = computed(() =>
   modeTabs.value.map((tab) => {

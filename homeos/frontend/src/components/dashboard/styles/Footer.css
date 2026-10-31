@@ -170,7 +170,7 @@
   --ef-accent: #2dd4bf;
 }
 
-@media (max-width: 639px), (pointer: coarse), (hover: none) {
+@media (max-width: 640px), (pointer: coarse), (hover: none) {
   .power-panel {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
