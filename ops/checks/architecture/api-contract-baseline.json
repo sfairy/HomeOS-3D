@@ -1,0 +1,331 @@
+{
+  "description": "两个后端的 API 契约覆盖率棘轮：逐文件统计 operations / response_model / status_code，任一计数下降即失败",
+  "rules": "只认装饰器或 add_api_route 上显式声明的 response_model= / status_code=",
+  "totals": {
+    "operations": 436,
+    "response_model": 9,
+    "status_code": 27
+  },
+  "files": {
+    "homeos/backend/src/api/advisor_usage.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/agent.py": {
+      "operations": 19,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/assets.py": {
+      "operations": 8,
+      "response_model": 3,
+      "status_code": 2
+    },
+    "homeos/backend/src/api/auth.py": {
+      "operations": 8,
+      "response_model": 5,
+      "status_code": 6
+    },
+    "homeos/backend/src/api/backups.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 4
+    },
+    "homeos/backend/src/api/channels.py": {
+      "operations": 8,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/client_power.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/earthquake.py": {
+      "operations": 9,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/entities.py": {
+      "operations": 8,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/events.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/global_logs.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 3
+    },
+    "homeos/backend/src/api/ha/proxy.py": {
+      "operations": 1,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/ha/routes.py": {
+      "operations": 16,
+      "response_model": 0,
+      "status_code": 1
+    },
+    "homeos/backend/src/api/ha/webrtc.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/home_mode.py": {
+      "operations": 17,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/icons.py": {
+      "operations": 1,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/license.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/mcp.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 1
+    },
+    "homeos/backend/src/api/notification.py": {
+      "operations": 13,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/projects.py": {
+      "operations": 10,
+      "response_model": 1,
+      "status_code": 4
+    },
+    "homeos/backend/src/api/proxy/command_proxy.py": {
+      "operations": 1,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/proxy/embed_proxy.py": {
+      "operations": 14,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/proxy/moviepilot_proxy.py": {
+      "operations": 21,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/public_config.py": {
+      "operations": 1,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/security.py": {
+      "operations": 7,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/security_panel.py": {
+      "operations": 11,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/studio3d.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 2
+    },
+    "homeos/backend/src/api/system/backup.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/system/config.py": {
+      "operations": 9,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/system/core.py": {
+      "operations": 11,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/system/lifestyle.py": {
+      "operations": 7,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/system/ops.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 1
+    },
+    "homeos/backend/src/api/system/setup.py": {
+      "operations": 9,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/ui_config.py": {
+      "operations": 22,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/api/voice.py": {
+      "operations": 8,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/app.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/bootstrap/spa_static.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos/backend/src/modules/interaction3d/api.py": {
+      "operations": 13,
+      "response_model": 0,
+      "status_code": 2
+    },
+    "homeos-store/backend/src/api/admin/accounts.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/appearance.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/bindings.py": {
+      "operations": 3,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/compliance.py": {
+      "operations": 13,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/coupons.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/entitlements.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/licenses.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/ops.py": {
+      "operations": 9,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/orders/listing.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/orders/mutations.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/orders/refund.py": {
+      "operations": 1,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/orders/settlement.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/products.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/routes.py": {
+      "operations": 8,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/settings.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/admin/withdrawals.py": {
+      "operations": 3,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/pages.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/payments/alipay.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/payments/license.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/payments/wechat.py": {
+      "operations": 1,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/setup.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 1
+    },
+    "homeos-store/backend/src/api/store/auth.py": {
+      "operations": 6,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/store/orders.py": {
+      "operations": 5,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/store/referrals.py": {
+      "operations": 4,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/api/store/routes.py": {
+      "operations": 15,
+      "response_model": 0,
+      "status_code": 0
+    },
+    "homeos-store/backend/src/app.py": {
+      "operations": 2,
+      "response_model": 0,
+      "status_code": 0
+    }
+  }
+}
