@@ -37,7 +37,7 @@ from .models_engagement import (
     StoreSetting,
     _id,
 )
-from ..core.database import Base
+from .persistence.database import Base
 from ..security.security import utcnow
 
 

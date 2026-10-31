@@ -12,7 +12,7 @@ from sqlalchemy import select, update
 
 from ...commerce import fulfill
 from ...config import StoreSettings
-from ...core.database import Database
+from ...core.persistence.database import Database
 from ...core.models import Order, utcnow
 from ...ops import incidents
 from ...ops import site_settings as site_config

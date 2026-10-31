@@ -11,7 +11,7 @@ import logging
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..core.database import Database
+from ..core.persistence.database import Database
 from ..core.models import License, Order, utcnow
 from ..core.timeutil import format_local
 from ..ops import incidents, mailer

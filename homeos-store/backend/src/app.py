@@ -28,8 +28,8 @@ from .api.store import routes as store_api
 from .config import PROJECT_ROOT, StoreSettings, _warn_order_ttl_against_qr, load_settings
 from .core.bootstrap import ensure_default_products, ensure_default_settings
 from .core.console_log import configure_console_logging
-from .core.database import Database
-from .core.schema import prepare_schema
+from .core.persistence.database import Database
+from .core.persistence.schema import prepare_schema
 from .licensing import keys
 from .licensing.crypto import (
     KeyGeneration,

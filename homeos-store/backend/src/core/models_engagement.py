@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..core.database import Base
+from .persistence.database import Base
 from ..security.security import new_uuid, utcnow
 
 

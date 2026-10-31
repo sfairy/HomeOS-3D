@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from ..config import StoreSettings
+from ...config import StoreSettings
 
 BUSY_TIMEOUT_SECONDS = 5
 

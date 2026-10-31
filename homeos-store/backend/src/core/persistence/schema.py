@@ -18,14 +18,14 @@ from homeos_shared.schema_core import (
 from homeos_shared.schema_migrate import run_migrations
 
 from .migrations import MIGRATIONS
-from ..config import StoreSettings
+from ...config import StoreSettings
 
 LOGGER = logging.getLogger(__name__)
 
 
 def _metadata() -> MetaData:
     # 纯副作用导入：把模型注册到 Base.metadata。pyright 的忽略要写在名字所在行。
-    from . import (  # noqa: F401
+    from .. import (  # noqa: F401
         models,  # pyright: ignore[reportUnusedImport]
         models_engagement,  # pyright: ignore[reportUnusedImport]
     )

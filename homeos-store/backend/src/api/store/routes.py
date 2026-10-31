@@ -37,7 +37,7 @@ from .shared import (
 )
 from ...commerce import delivery
 from ...config import StoreSettings
-from ...core.database import Database
+from ...core.persistence.database import Database
 from ...core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from ...core.models import (
     Account,

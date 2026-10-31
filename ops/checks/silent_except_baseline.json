@@ -16,7 +16,7 @@
     "homeos-store/backend/src/config.py": 1,
     "homeos-store/backend/src/core/console_log.py": 1,
     "homeos-store/backend/src/core/env.py": 1,
-    "homeos-store/backend/src/core/migrations.py": 1,
+    "homeos-store/backend/src/core/persistence/migrations.py": 1,
     "homeos-store/backend/src/core/serializers.py": 2,
     "homeos-store/backend/src/core/timeutil.py": 1,
     "homeos-store/backend/src/ops/appearance.py": 3,

@@ -138,6 +138,7 @@ homeos-store/
 │       # payments/（渠道回调 + 授权激活）；pages / setup / telemetry / page_shell 留根
 │       # payments/ 下再分 alipay/ wechat/（各 provider + signing）与 common/（base、渠道注册表、
 │       # 凭据、http_pool、pem、reconcile、refunds、settlement、sweeper、urls）
+│       # core/persistence/：database / migrations / schema（ORM 模型仍在 core/models.py）
 ├── data/                   # 运行时（不入库）
 ├── keys/local/             # 授权私钥（不入库）
 ├── frontend/               # index.html / src / public / vite.config.ts
