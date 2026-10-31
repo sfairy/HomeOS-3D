@@ -1,38 +1,38 @@
 import {
   moveStepMeters as moveStepMeters2,
   planDirectionForScreenArrow,
-} from "./studio-edit-metrics";
+} from "../studio-edit-metrics";
 import {
   courtyardPlanColor as courtyardPlanColor2,
-} from "../plan/courtyard-plan";
+} from "../../plan/courtyard-plan";
 
 
 import {
   buildingFootprints as buildingFootprints2,
   anchorGate as anchorGate2,
   isCourtyardGate as isCourtyardGate2,
-} from "../plan/courtyard-drawing";
-import { createCourtyardDrawingEditor as createCourtyardDrawingEditor2 } from "../plan/courtyard-drawing-editor";
+} from "../../plan/courtyard-drawing";
+import { createCourtyardDrawingEditor as createCourtyardDrawingEditor2 } from "../../plan/courtyard-drawing-editor";
 
 
-import { resolveDoorPartMaterials } from "./studio-app/materials/door-materials";
-import { runStudioRenderLoop as runStudioRenderLoopImpl, type StudioRenderDeps } from "./studio-app/render/studio-render-loop";
-import { handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps } from "./studio-app/functions/handlePointerUp";
-import { refreshStudioUiInner as refreshStudioUiInnerImpl, type RefreshStudioUiInnerDeps } from "./studio-app/functions/refreshStudioUiInner";
-import { handlePointerDown as handlePointerDownImpl, type HandlePointerDownDeps } from "./studio-app/functions/handlePointerDown";
-import { applyToolSetting as applyToolSettingImpl, type ApplyToolSettingDeps } from "./studio-app/functions/applyToolSetting";
-import { createStudioRenderer as createStudioRendererImpl, type CreateStudioRendererDeps } from "./studio-app/functions/createStudioRenderer";
-import { buildStudioScene as buildStudioSceneImpl, type BuildStudioSceneDeps } from "./studio-app/functions/buildStudioScene";
-import { generateExportBundle as generateExportBundleImpl, type GenerateExportBundleDeps } from "./studio-app/functions/generateExportBundle";
-import { refreshStudioView as refreshStudioViewImpl, type RefreshStudioViewDeps } from "./studio-app/functions/refreshStudioView";
-import { openExportPanel as openExportPanelImpl, type OpenExportPanelDeps } from "./studio-app/functions/openExportPanel";
-import { beginLightingPreview as beginLightingPreviewImpl, type BeginLightingPreviewDeps } from "./studio-app/functions/beginLightingPreview";
-import { publishRenderStats as publishRenderStatsImpl, type PublishRenderStatsDeps } from "./studio-app/functions/publishRenderStats";
-import { addLightModel as addLightModelImpl, type AddLightModelDeps } from "./studio-app/functions/addLightModel";
-import { applyLoadedDraft as applyLoadedDraftImpl, type ApplyLoadedDraftDeps } from "./studio-app/functions/applyLoadedDraft";
-import { createSceneItem as createSceneItemImpl, type CreateSceneItemDeps } from "./studio-app/functions/createSceneItem";
-import { acquireRenderSurface as acquireRenderSurfaceImpl, type AcquireRenderSurfaceDeps } from "./studio-app/functions/acquireRenderSurface";
-import { hitTestPlanItem as hitTestPlanItemImpl, type HitTestPlanItemDeps } from "./studio-app/functions/hitTestPlanItem";
+import { resolveDoorPartMaterials } from "./materials/door-materials";
+import { runStudioRenderLoop as runStudioRenderLoopImpl, type StudioRenderDeps } from "./render/studio-render-loop";
+import { handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps } from "./functions/handlePointerUp";
+import { refreshStudioUiInner as refreshStudioUiInnerImpl, type RefreshStudioUiInnerDeps } from "./functions/refreshStudioUiInner";
+import { handlePointerDown as handlePointerDownImpl, type HandlePointerDownDeps } from "./functions/handlePointerDown";
+import { applyToolSetting as applyToolSettingImpl, type ApplyToolSettingDeps } from "./functions/applyToolSetting";
+import { createStudioRenderer as createStudioRendererImpl, type CreateStudioRendererDeps } from "./functions/createStudioRenderer";
+import { buildStudioScene as buildStudioSceneImpl, type BuildStudioSceneDeps } from "./functions/buildStudioScene";
+import { generateExportBundle as generateExportBundleImpl, type GenerateExportBundleDeps } from "./functions/generateExportBundle";
+import { refreshStudioView as refreshStudioViewImpl, type RefreshStudioViewDeps } from "./functions/refreshStudioView";
+import { openExportPanel as openExportPanelImpl, type OpenExportPanelDeps } from "./functions/openExportPanel";
+import { beginLightingPreview as beginLightingPreviewImpl, type BeginLightingPreviewDeps } from "./functions/beginLightingPreview";
+import { publishRenderStats as publishRenderStatsImpl, type PublishRenderStatsDeps } from "./functions/publishRenderStats";
+import { addLightModel as addLightModelImpl, type AddLightModelDeps } from "./functions/addLightModel";
+import { applyLoadedDraft as applyLoadedDraftImpl, type ApplyLoadedDraftDeps } from "./functions/applyLoadedDraft";
+import { createSceneItem as createSceneItemImpl, type CreateSceneItemDeps } from "./functions/createSceneItem";
+import { acquireRenderSurface as acquireRenderSurfaceImpl, type AcquireRenderSurfaceDeps } from "./functions/acquireRenderSurface";
+import { hitTestPlanItem as hitTestPlanItemImpl, type HitTestPlanItemDeps } from "./functions/hitTestPlanItem";
 import {
   sceneCacheDescriptor as sceneCacheDescriptorImpl, checkModelInUse as checkModelInUseImpl, collectScenePayload as collectScenePayloadImpl, collectSelectedFloors as collectSelectedFloorsImpl,
   scheduleModelLoadFlush as scheduleModelLoadFlushImpl, loadModelsForTypes as loadModelsForTypesImpl, preloadDefaultModels as preloadDefaultModelsImpl, requestSceneRender as requestSceneRenderImpl,
@@ -48,7 +48,7 @@ import {
   getScreenLightGroups as getScreenLightGroupsImpl, getChargingLightGroups as getChargingLightGroupsImpl, getOrderedFloorList as getOrderedFloorListImpl, floorElevationFor as floorElevationForImpl,
   composeLightGroupKey as composeLightGroupKeyImpl, collectLampEntries as collectLampEntriesImpl, listLightGroupRows as listLightGroupRowsImpl, listScreenRows as listScreenRowsImpl,
   listChargingRows as listChargingRowsImpl, syncScreenLayers as syncScreenLayersImpl, syncChargingLayers as syncChargingLayersImpl, pushUndoEntry as pushUndoEntryImpl,
-} from "./studio-app/functions/groups/scene-payload-and-floors";
+} from "./functions/groups/scene-payload-and-floors";
 import {
   getLightGroups as getLightGroupsImpl, syncLightGroupSelect as syncLightGroupSelectImpl, hideLightGroupActionMenu as hideLightGroupActionMenuImpl, showLightGroupActionMenu as showLightGroupActionMenuImpl,
   deleteLightGroup as deleteLightGroupImpl, uniqueLightGroupName as uniqueLightGroupNameImpl, duplicateLightGroup as duplicateLightGroupImpl, clearLightGroupDropIndicator as clearLightGroupDropIndicatorImpl,
@@ -63,7 +63,7 @@ import {
   classifySelectionScope as classifySelectionScopeImpl, getCurrentPreviewScope as getCurrentPreviewScopeImpl, getPreviewScopeSelection as getPreviewScopeSelectionImpl, setPreviewScope as setPreviewScopeImpl,
   markWallsChanged as markWallsChangedImpl, rebuildWallIndex as rebuildWallIndexImpl, getPixelsPerMeter as getPixelsPerMeterImpl, historyUndoDepth as historyUndoDepthImpl,
   historyRedoDepth as historyRedoDepthImpl, isStudioDraftReadonly as isStudioDraftReadonlyImpl, downloadStudioLocalCopy as downloadStudioLocalCopyImpl, renderStudioReadonlyBanner as renderStudioReadonlyBannerImpl,
-} from "./studio-app/functions/groups/light-groups-and-list-drag";
+} from "./functions/groups/light-groups-and-list-drag";
 import {
   hideStudioReadonlyBanner as hideStudioReadonlyBannerImpl, applyStudioSaveState as applyStudioSaveStateImpl, getStudioSaveStore as getStudioSaveStoreImpl, syncDraftPayloadAfterSave as syncDraftPayloadAfterSaveImpl,
   recordSaveConflictFromServer as recordSaveConflictFromServerImpl, settleStudioSaveResult as settleStudioSaveResultImpl, waitForStudioInteractionIdle as waitForStudioInteractionIdleImpl, flushStudioSaveOnce as runStudioSaveOnceImpl,
@@ -82,7 +82,7 @@ import {
   resizePlanStage as resizePlanStageImpl, buildSnapIndex as buildSnapIndexImpl, closedWallLoops as closedWallLoopsImpl, computeWallIntersections as computeWallIntersectionsImpl,
   computeSurfaceExclusions as computeSurfaceExclusionsImpl, computeWallPolygons as computeWallPolygonsImpl, wallWindowSpan as wallWindowSpanImpl, drawRailing as drawRailingImpl,
   rotateLocalPoint as rotateLocalPointImpl, buildHandleGeometry as buildHandleGeometryImpl,
-} from "./studio-app/functions/groups/save-history-plan-coords";
+} from "./functions/groups/save-history-plan-coords";
 import {
   hitTestHandle as hitTestHandleImpl, boundsFromCorners as boundsFromCornersImpl, marqueeDelta as marqueeDeltaImpl, updateMarqueeOverlay as updateMarqueeOverlayImpl,
   drawMarqueeOverlay as drawMarqueeOverlayImpl, renderPlanScene as renderPlanSceneImpl, getSelectedObject as getSelectedObjectImpl, getPanelRatioLimits as getPanelRatioLimitsImpl,
@@ -96,7 +96,7 @@ import {
   materialEditModelType as materialEditModelTypeImpl, selectedMaterialEditTarget as selectedMaterialEditTargetImpl, materialSameModelPeerRecords as materialSameModelPeerRecordsImpl, commitItemMaterialEdit as commitItemMaterialEditImpl,
   setItemMaterialOverride as setItemMaterialOverrideImpl, setItemMaterialStyle as setItemMaterialStyleImpl, resetItemMaterialAll as resetItemMaterialAllImpl, setItemMaterialSurfaceOverride as setItemMaterialSurfaceOverrideImpl,
   readStoredCustomMaterialStyles as readStoredCustomMaterialStylesImpl, loadCustomMaterialStyles as loadCustomMaterialStylesImpl, ensureCustomMaterialStylesLoaded as ensureCustomMaterialStylesLoadedImpl, writeStoredCustomMaterialStyles as writeStoredCustomMaterialStylesImpl,
-} from "./studio-app/functions/groups/selection-and-material-ui";
+} from "./functions/groups/selection-and-material-ui";
 import {
   saveCurrentItemMaterialStyle as saveCurrentItemMaterialStyleImpl, deleteCustomMaterialStyle as deleteCustomMaterialStyleImpl, applyMaterialToSameModelItems as applyMaterialToSameModelItemsImpl, refreshScopeItems as refreshScopeItemsImpl,
   setDrawingToolGroupOpen as setDrawingToolGroupOpenImpl, closeDrawingToolGroups as closeDrawingToolGroupsImpl, syncDrawingToolGroupStates as syncDrawingToolGroupStatesImpl, selectStudioTool as selectStudioToolImpl,
@@ -111,7 +111,7 @@ import {
   recordFrameTime as recordFrameTimeImpl, getPreviewSyncMode as getPreviewSyncModeImpl, refreshPreviewSync as refreshPreviewSyncImpl, syncCameraModeControls as syncCameraModeControlsImpl,
   syncCameraViewControls as syncCameraViewControlsImpl, syncCameraFocalLengthControl as syncCameraFocalLengthControlImpl, applyCameraFocalLength as applyCameraFocalLengthImpl, requestStudioRender as requestStudioRenderImpl,
   computeRenderPixelRatio as computeRenderPixelRatioImpl,
-} from "./studio-app/functions/groups/materials-lighting-camera";
+} from "./functions/groups/materials-lighting-camera";
 import {
   updateRenderStatsHud as updateRenderStatsHudImpl, pushBoundedSample as pushBoundedSampleImpl, computeAverage as computeAverageImpl, computePercentile as computePercentileImpl,
   roundToDigits as roundToDigitsImpl, ensureDiagnosticsHud as ensureDiagnosticsHudImpl, beginMotionMeasurement as beginMotionMeasurementImpl, endMotionMeasurement as endMotionMeasurementImpl,
@@ -125,7 +125,7 @@ import {
   awaitNextFramePair as awaitNextFramePairImpl, captureFramePixels as captureFramePixelsImpl, rerenderScene as rerenderSceneImpl, ensureRenderReady as ensureRenderReadyImpl,
   waitForIdleFrame as waitForIdleFrameImpl, scheduleStudioRender as scheduleStudioRenderImpl, discardLightingEdit as discardLightingEditImpl, resetPlanInteraction as resetPlanInteractionImpl,
   endStudioGesture as endStudioGestureImpl, disposeShadowAtlas as disposeShadowAtlasImpl, prepareShadowAtlas as prepareShadowAtlasImpl, isEffectCacheReady as isEffectCacheReadyImpl,
-} from "./studio-app/functions/groups/render-stats-and-frame-loop";
+} from "./functions/groups/render-stats-and-frame-loop";
 import {
   setShadowFreeze as setShadowFreezeImpl, updateShadowState as updateShadowStateImpl, handleOrbitStart as handleOrbitStartImpl, handleOrbitChange as handleOrbitChangeImpl,
   handleOrbitEnd as handleOrbitEndImpl, refreshFloorControls as refreshFloorControlsImpl, captureCameraView as captureCameraViewImpl, storeFixedCameraView as storeFixedCameraViewImpl,
@@ -137,7 +137,7 @@ import {
   handleCanvasSizeInput as handleCanvasSizeInputImpl, openExportDialog as openExportDialogImpl, renderExportPresetSlots as renderExportPresetSlotsImpl, buildExportPreset as buildExportPresetImpl,
   importCameraPreset as importCameraPresetImpl, applyExportPreset as applyExportPresetImpl, selectExportPresetSlot as selectExportPresetSlotImpl, saveExportPreset as saveExportPresetImpl,
   syncExportControls as syncExportControlsImpl, formatPresetLabel as formatPresetLabelImpl, makeUniquePresetName as makeUniquePresetNameImpl,
-} from "./studio-app/functions/groups/shadow-camera-export-presets";
+} from "./functions/groups/shadow-camera-export-presets";
 import {
   saveAsNewPreset as saveAsNewPresetImpl, closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl, closePresetDeleteDialog as closePresetDeleteDialogImpl,
   openPresetDeleteDialog as openPresetDeleteDialogImpl, confirmDeletePreset as confirmDeletePresetImpl, ensureSceneRendered as ensureSceneRenderedImpl, prepareFreeCameraCapture as prepareFreeCameraCaptureImpl,
@@ -152,7 +152,7 @@ import {
   drawDoor as drawDoorImpl, drawCourtyardArea as drawCourtyardAreaImpl, renderExportLayers as renderExportLayersImpl, addArchitectureMesh as addArchitectureMeshImpl,
   addWindowFrames as addWindowFramesImpl, buildRugGeometry as buildRugGeometryImpl, createRugMaterial as createRugMaterialImpl, addRugMeshes as addRugMeshesImpl,
   mergeMeshesByType as mergeMeshesByTypeImpl, configureLightSourcePreview as configureLightSourcePreviewImpl,
-} from "./studio-app/functions/groups/export-flow-and-scene-build";
+} from "./functions/groups/export-flow-and-scene-build";
 import {
   addStripLightPreview as addStripLightPreviewImpl, applyAccentEmissive as applyAccentEmissiveImpl, planLabelAccentColor as planLabelAccentColorImpl, createPlanLabel as createPlanLabelImpl,
   collectLightSourceSpecs as collectLightSourceSpecsImpl, countMaterialTextures as countMaterialTexturesImpl, findMaxMaterialTextures as findMaxMaterialTexturesImpl, getMaxTextureUnits as getMaxTextureUnitsImpl,
@@ -160,7 +160,7 @@ import {
   collectSharedMaterials as collectSharedMaterialsImpl, updateExternalModelDataset as updateExternalModelDatasetImpl, planLightPrecompileBatches as planLightPrecompileBatchesImpl, shouldSuspendSceneWork as shouldSuspendSceneWorkImpl,
   shouldDeferSceneWork as shouldDeferSceneWorkImpl, scheduleLightPrecompile as scheduleLightPrecompileImpl, scheduleExternalPrecompile as scheduleExternalPrecompileImpl, requestSceneRebuild as requestSceneRebuildImpl,
   getSceneContentBounds as getSceneContentBoundsImpl, computeCourtyardBounds as computeCourtyardBoundsImpl, createFloorMaterial as createFloorMaterialImpl,
-} from "./studio-app/functions/groups/light-precompile-and-shared-meshes";
+} from "./functions/groups/light-precompile-and-shared-meshes";
 import {
   buildCourtyardFoundation as buildCourtyardFoundationImpl, buildGroundShadow as buildGroundShadowImpl, getPreviewFloorMode as getPreviewFloorModeImpl, updateFloorPreviewButtons as updateFloorPreviewButtonsImpl,
   setPreviewFloor as setPreviewFloorImpl, rebuildFloorLayers as rebuildFloorLayersImpl, waitForSceneRevision as waitForSceneRevisionImpl, waitForSceneReady as waitForSceneReadyImpl,
@@ -169,7 +169,7 @@ import {
   buildArchitectureLayer as buildArchitectureLayerImpl, buildItemsLayer as buildItemsLayerImpl, buildLightsLayer as buildLightsLayerImpl, buildFloorAtIndex as buildFloorAtIndexImpl,
   buildLayerForFloor as buildLayerForFloorImpl, isDescendantOfRoot as isDescendantOfRootImpl, computeSceneBounds as computeSceneBoundsImpl, computeSceneExtent as computeSceneExtentImpl,
   updateCameraView as updateCameraViewImpl, axisLockedDistance as axisLockedDistanceImpl, formatMeasurement as formatMeasurementImpl,
-} from "./studio-app/functions/groups/scene-layers-and-floor-build";
+} from "./functions/groups/scene-layers-and-floor-build";
 import {
   updateSnapIndicator as updateSnapIndicatorImpl, toggleSnapSetting as toggleSnapSettingImpl, schedulePointerMove as schedulePointerMoveImpl, handlePointerMove as handlePointerMoveImpl,
   cancelPointerDrag as cancelPointerDragImpl, scheduleDragUpdate as scheduleDragUpdateImpl, handleCanvasWheel as handleCanvasWheelImpl, finishPointerDrag as finishPointerDragImpl,
@@ -180,8 +180,8 @@ import {
   closeOpenPopovers as closeOpenPopoversImpl, applyLightGroupRename as applyLightGroupRenameImpl, createLightGroup as createLightGroupImpl, collectLightTargetInputs as collectLightTargetInputsImpl,
   syncLightTargetGroups as syncLightTargetGroupsImpl, buildLightGroupList as buildLightGroupListImpl, postBridgeState as postBridgeStateImpl, postBridgeFloors as postBridgeFloorsImpl,
   waitForStageReady as waitForStageReadyImpl, jumpWorkflowStep as jumpWorkflowStepImpl,
-} from "./studio-app/functions/groups/pointer-input-and-tools";
-import type { StudioAppRuntime } from "./studio-app/runtime/studio-app-runtime";
+} from "./functions/groups/pointer-input-and-tools";
+import type { StudioAppRuntime } from "./runtime/studio-app-runtime";
 let planPainter: any = null,
   gardenGateItemType = "garden-gate",
   gardenGateSnapCandidate: any = null;
@@ -211,12 +211,12 @@ import {
   materialStyleGroupFor,
   materialStyleLabel,
   normalizeMaterialStyle,
-} from "../materials/studio-material-presets";
+} from "../../materials/studio-material-presets";
 
 
-import { createLoadTiming as createLoadTiming2 } from "../../bridge/scene/load-timing";
-import { stageStartup as stageStartup2 } from "../stage-startup";
-import { createPreviewTransformCache } from "../studio-preview-transforms";
+import { createLoadTiming as createLoadTiming2 } from "../../../bridge/scene/load-timing";
+import { stageStartup as stageStartup2 } from "../../stage-startup";
+import { createPreviewTransformCache } from "../../studio-preview-transforms";
 
 
 const stageLoadTiming = createLoadTiming2("stage");
@@ -231,47 +231,47 @@ stageLoadTiming("module-ready");
 
 import {
   createRenderCache as createRenderCache2,
-} from "../../bridge/scene/render-cache";
-import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../shared/util/range-progress";
+} from "../../../bridge/scene/render-cache";
+import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../../shared/util/range-progress";
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { GLTFLoader as GLTFLoader2 } from "/static/vendor/three/0.186.1/GLTFLoader.js";
-import { SameOriginDRACOLoader as SameOriginDRACOLoader2 } from "../export/draco-loader";
-import { createModelAssetLoader as createModelAssetLoader2 } from "../loaders/model-asset-loader";
+import { SameOriginDRACOLoader as SameOriginDRACOLoader2 } from "../../export/draco-loader";
+import { createModelAssetLoader as createModelAssetLoader2 } from "../../loaders/model-asset-loader";
 
 
 import {
   clamp as clamp2,
   distance as distance2,
-} from "../plan/geometry";
+} from "../../plan/geometry";
 
 
 import {
   normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
   normalizeExportPresetSlots as normalizeExportPresetSlots2,
-} from "../export/export-presets";
+} from "../../export/export-presets";
 import {
   initializeNumberInputs as initializeNumberInputs2,
   initializeStudioSelects as initializeStudioSelects2,
-} from "./ui/studio-widgets";
+} from "../ui/studio-widgets";
 import {
   createExternalModelManager as createExternalModelManager2,
   ALL_ITEM_MODELS as ALL_ITEM_MODELS2,
-} from "../loaders/studio-external-models";
+} from "../../loaders/studio-external-models";
 import {
   createPlanDrawingTools as createPlanDrawingTools2,
-} from "../plan/studio-plan-drawing";
+} from "../../plan/studio-plan-drawing";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   finite as finite2,
   normalizeBaseLighting as normalizeBaseLighting2,
   normalizeFullRotation as normalizeFullRotation2,
   normalizeLabelText as normalizeLabelText2,
-} from "../loaders/studio-normalization";
+} from "../../loaders/studio-normalization";
 
 
-import { itemTypeCatalog, lampItemTypeSet, stairItemTypeSet } from "./items/item-catalog";
-import { installLibraryNameScroll } from "./items/studio-model-library";
-import { defaultViewSettings } from "./scene/studio-view-settings";
+import { itemTypeCatalog, lampItemTypeSet, stairItemTypeSet } from "../items/item-catalog";
+import { installLibraryNameScroll } from "../items/studio-model-library";
+import { defaultViewSettings } from "../scene/studio-view-settings";
 window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
@@ -280,40 +280,40 @@ import {
   patchStudioFacadeState,
   registerStudioCommandHandler,
   resetStudioFacade,
-} from '../../../engine';
+} from '../../../../engine';
 import type {
   StudioControlElement,
-} from './types/studio-app-types';
+} from '../types/studio-app-types';
 import {
   generateId,
-} from './ui/studio-app-helpers';
+} from '../ui/studio-app-helpers';
 import {
   lightPropertyFields,
   normalizeLightPropertyValue,
   formatLightPropertyValue,
-} from './lights/studio-app-light-data';
-import { createStudioDocument } from "./scene/studio-scene-payload";
-import { normalizeStudioDocument } from "./scene/studio-document-payload";
+} from '../lights/studio-app-light-data';
+import { createStudioDocument } from "../scene/studio-scene-payload";
+import { normalizeStudioDocument } from "../scene/studio-document-payload";
 
 
-import { startupStudio } from "./boot/studio-boot";
+import { startupStudio } from "../boot/studio-boot";
 import {
   StudioDocumentStore,
   applyDocumentPatch,
-} from "./store/document-store";
-import { StudioHistoryStore } from "./store/history-store";
-import { StudioSceneSyncController } from "./store/scene-sync-controller";
-import { StudioSaveStore } from "./store/save-store";
-import { createStudioDraftRepository } from "./store/studio-draft-repository";
+} from "../store/document-store";
+import { StudioHistoryStore } from "../store/history-store";
+import { StudioSceneSyncController } from "../store/scene-sync-controller";
+import { StudioSaveStore } from "../store/save-store";
+import { createStudioDraftRepository } from "../store/studio-draft-repository";
 
 
-import { createStudioAppContext } from "./studio-app/studio-app-context";
+import { createStudioAppContext } from "./studio-app-context";
 import {
   type StudioStaticItemMeshesDeps,
-} from "./items/studio-static-item-meshes";
-import { addCylinderMesh } from "./studio-app/scene/cylinder-mesh";
-import { doorPartThemeColor } from "./studio-app/materials/door-theme";
-import { refreshStepChecklist } from "./studio-app/ui/step-checklist";
+} from "../items/studio-static-item-meshes";
+import { addCylinderMesh } from "./scene/cylinder-mesh";
+import { doorPartThemeColor } from "./materials/door-theme";
+import { refreshStepChecklist } from "./ui/step-checklist";
 
 
 let disposeActiveStudio: (() => void) | null = null;
@@ -343,7 +343,7 @@ export function bootStudio(): void {
     get MATERIAL_STYLE_CUSTOM_STORAGE_KEY() { return MATERIAL_STYLE_CUSTOM_STORAGE_KEY; },
     get StudioApiError() { return StudioApiError; },
     get activateListDrag() { return activateListDrag; },
-    get activeDoorType() { return activeDoorType as keyof typeof import("./scene/studio-scene-payload").doorTypeCatalog; },
+    get activeDoorType() { return activeDoorType as keyof typeof import("../scene/studio-scene-payload").doorTypeCatalog; },
     get activeToolLabel() { return activeToolLabel; },
     get addLightModel() { return addLightModel; },
     get adjustFrameSize() { return adjustFrameSize; },

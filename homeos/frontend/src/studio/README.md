@@ -72,7 +72,8 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 `cache/`（几何 / 场景 / 模型三张持久化缓存的实现与共用内核 `cache-shared`，外加 `model-template-codec`）。
 
 **新代码必须从域文件夹 import**（`./scene/…`、`./items/…` …）—— 不要新增平铺的 `studio-*.ts`。
-平铺兼容转发桩已整批删除，`authoring/` 现只剩 `studio-app.ts`、`lifecycle.ts` 与少量仍属顶层的构件。
+平铺兼容转发桩已整批删除，`authoring/` 现只剩 `lifecycle.ts` 与少量仍属顶层的构件；
+编排宿主 `studio-app.ts` 已并入域文件夹成为 `studio-app/boot.ts`（`bootStudio` / `teardownStudio`）。
 
 ## 6. 面板编辑器 / 渲染器（`app/editor/`、`app/renderer/`）
 
@@ -143,8 +144,8 @@ ESLint 对 `app/shared/**` 与 `platform/**` 亦有同等强制；规则 6 由
 utils；UI 侧只依赖 `@/components`、`@/composables`、`@/stores`、`@/shared` 等。改名只在文档层面
 消歧；物理改名会打断公网 URL，需同步后端 manifest 与 allowlist。
 
-`studio-app.ts` / `home.ts` 的拆分目标：编排宿主变小，代码进**域文件夹**，不要新增平铺的
-`*-foo.ts`。`items/item-model/` 是模板（分支按原链顺序进族，顺序不可重排）；改动后跑
+`studio-app/boot.ts` / `home/lifecycle/boot.ts` 的拆分目标：编排宿主变小，代码进**域文件夹**，不要新增平铺的
+`*-foo.ts`（面板编辑器的生命周期宿主已落在 `home/lifecycle/`，3D 创作宿主已落在 `studio-app/`）。`items/item-model/` 是模板（分支按原链顺序进族，顺序不可重排）；改动后跑
 `bun run check:studio-split`，门禁不全绿不得继续。
 
 ## 12. 该改哪里

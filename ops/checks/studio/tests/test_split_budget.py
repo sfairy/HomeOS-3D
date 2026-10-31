@@ -101,10 +101,10 @@ class SplitBudgetTest(unittest.TestCase):
 
 
     def test_phase3_forwarder_ratchet_blocks_handwritten_wrappers(self) -> None:
-        """`editor/home.ts` 手写转发包装的计数棘轮：0 是基线，加回来即红。"""
+        """`editor/home/lifecycle/boot.ts` 手写转发包装的计数棘轮：0 是基线，加回来即红。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = make_fixture(Path(tmp))
-            home = root / "homeos/frontend/src/studio/app/editor/home.ts"
+            home = root / "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts"
             home.parent.mkdir(parents=True, exist_ok=True)
             home.write_text(
                 "function requestJson(...args: any[]): ReturnType<typeof requestJsonImpl> "

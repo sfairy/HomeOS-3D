@@ -22,7 +22,7 @@ const read = (relativePath) =>
 const renderer = read(
   'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createStudioRenderer.ts',
 )
-const studioApp = read('homeos/frontend/src/studio/app/3d-studio/authoring/studio-app.ts')
+const studioApp = read('homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts')
 const studioView = read('homeos/frontend/src/studio/entries/StudioView.vue')
 const editorView = read('homeos/frontend/src/studio/entries/EditorView.vue')
 
