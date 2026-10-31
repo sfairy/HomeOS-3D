@@ -489,6 +489,27 @@ function acquireBuildLockSync(): number {
 function finalizeBuildPlugin(): Plugin {
   let buildLockFd: number | null = null
   let finalized = false
+  let authEntry: { entry: string; js: string[]; css: string[] } | null = null
+
+  /**
+   * 认证入口清单：服务端只给认证页注入这些预载标签，非认证页不加载。
+   *
+   * 不依赖 .vite/manifest.json：本项目的根 manifest.json 是 PWA 清单，且 Rolldown
+   * 构建未必产出可依赖的清单；从 bundle 直接捕获 facadeModuleId 更可控。
+   */
+  function writeAuthEntryManifest(): void {
+    if (!authEntry || authEntry.js.length === 0 || !authEntry.entry) {
+      throw new Error('认证入口 chunk 未捕获到；请检查 src/views/auth/entry.ts 是否仍被路由引用。')
+    }
+    if (authEntry.css.length === 0) {
+      throw new Error('认证入口没有捕获到 CSS；非认证页拆包后认证页会缺样式，构建中止。')
+    }
+    fs.writeFileSync(
+      resolve(outDir, 'auth-entry.json'),
+      JSON.stringify(authEntry, null, 2) + '\n',
+      'utf8',
+    )
+  }
 
   async function tryFinalize(): Promise<void> {
     if (finalized) return
@@ -497,6 +518,7 @@ function finalizeBuildPlugin(): Plugin {
     finalized = true
     mirrorPublicDirIntoStaging()
     await writeClassicIifeBundles(outDir)
+    writeAuthEntryManifest()
     updatePublicStaticManifest()
     // 资源版本必须在白名单之后：`public-static.json` 也要参与哈希，revision 才是「整个
     // 产物」的指纹。它写进 staging，随后随 publish 一起上线。
@@ -511,7 +533,52 @@ function finalizeBuildPlugin(): Plugin {
       if (!isClientBuildEnvironment(this)) return
       cleanStaleStagingDirs()
       finalized = false
+      authEntry = null
       buildLockFd = acquireBuildLockSync()
+    },
+    generateBundle(_options, bundle) {
+      if (!isClientBuildEnvironment(this)) return
+      /**
+       * Rolldown 会把「入口的动态 import」和「App.vue 错误遮罩对 LicenseRecoveryView 的动态
+       * import」并进同一个 views-auth chunk（facadeModuleId 为 null）。因此不能只看 facade，
+       * 还要看 chunk 的 moduleIds 是否含本入口；两种形态都要兼容。
+       */
+      const isAuthEntryChunk = (item: (typeof bundle)[string]): boolean => {
+        if (item.type !== 'chunk') return false
+        const facade = item.facadeModuleId?.replace(/\\/g, '/')
+        if (facade?.endsWith('/src/views/auth/entry.ts')) return true
+        const moduleIds = (item as { moduleIds?: string[] }).moduleIds ?? []
+        return moduleIds.some((id) => id.replace(/\\/g, '/').endsWith('/src/views/auth/entry.ts'))
+      }
+      const authChunk = Object.values(bundle).find(isAuthEntryChunk)
+      if (!authChunk || authChunk.type !== 'chunk') {
+        const candidates = Object.values(bundle)
+          .filter((item) => item.type === 'chunk')
+          .map((item) => item.facadeModuleId ?? item.fileName)
+          .filter((id) => id.includes('/auth/') || id.includes('auth'))
+          .slice(0, 20)
+        throw new Error(
+          '未找到 src/views/auth/entry.ts 对应的产物 chunk，认证入口拆包失败。候选：' +
+            (candidates.length > 0 ? candidates.join(', ') : '无 auth 相关 chunk'),
+        )
+      }
+      const js = new Set<string>()
+      const css = new Set<string>()
+      const visit = (fileName: string): void => {
+        if (js.has(fileName)) return
+        const chunk = bundle[fileName]
+        if (!chunk || chunk.type !== 'chunk') return
+        js.add(fileName)
+        const meta = (chunk as { viteMetadata?: { importedCss?: Iterable<string> } }).viteMetadata
+        for (const cssFile of meta?.importedCss ?? []) css.add(cssFile)
+        for (const imported of chunk.imports) visit(imported)
+      }
+      visit(authChunk.fileName)
+      authEntry = {
+        entry: '/' + authChunk.fileName.replace(/\\/g, '/'),
+        js: [...js].map((fileName) => '/' + fileName.replace(/\\/g, '/')),
+        css: [...css].map((fileName) => '/' + fileName.replace(/\\/g, '/')),
+      }
     },
     buildEnd(error) {
       // 未产出时可能不会走 writeBundle；失败路径释放锁。
@@ -993,12 +1060,11 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
               { name: 'lucide', test: /node_modules[\\/]@lucide[\\/]vue/, priority: 30 },
               { name: 'charts', test: /node_modules[\\/]echarts/, priority: 28 },
               { name: 'hls', test: /node_modules[\\/]hls\.js/, priority: 28 },
-              {
-                // 认证页位于 `views/auth/`（Login / Register / License / LicenseRecovery）。
-                name: 'views-auth',
-                test: /src[\\/]views[\\/]auth[\\/]/,
-                priority: 26,
-              },
+              // 认证页不再建命名组。`views-auth` 组会把「命中 auth 视图的整条子图」并进同
+              // 一个 chunk，而这条子图里含 `stores/auth.store`——App.vue 静态使用该 store，于是
+              // 入口反过来静态 import 整个 views-auth chunk，认证页拆包当场失效（index.html
+              // 会重新 modulepreload 全部认证视图，P0-1 收益归零）。让 Rolldown 按动态入口
+              // 自然切分，入口只静态拉 auth store，认证视图留在懒 chunk 里。
               {
                 name: 'vendor-misc',
                 test: /node_modules/,

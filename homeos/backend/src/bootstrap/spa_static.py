@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import re
 from html import escape as html_escape
 from pathlib import Path
@@ -28,11 +30,14 @@ from ..platform.core.frontend_static import (
     SERVICE_WORKER_PATH,
     SOUNDS_MOUNT_PREFIX,
     STATIC_MOUNT_PREFIX,
+    is_auth_entry_page_path,
     is_auth_page_path,
     is_frontend_static_path,
     strip_auth_scene_assets,
 )
 from ..platform.security.session_store import resolve_login_session
+
+logger = logging.getLogger(__name__)
 
 #: 需要按「能力」判定授权状态的页面路径 → 能力名。
 _PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
@@ -150,6 +155,80 @@ def _inject_preload_stylesheets(
     tags = "".join(
         f'<link rel="preload" as="style" href="{html_escape(href)}">' for href in hrefs
     )
+    if "</head>" in html:
+        return html.replace("</head>", f"{tags}</head>", 1)
+    return f"{tags}{html}"
+
+
+#: 认证入口清单（构建期由 Vite 从 auth entry chunk 的 imports / importedCss 生成）。
+_AUTH_ENTRY_FILE = "auth-entry.json"
+_auth_entry_cache: dict[str, Any] = {"path": None, "fingerprint": None, "payload": None}
+
+
+def _read_auth_entry(frontend_dir: Path) -> dict[str, list[str]] | None:
+    """读取 auth-entry.json；按 (path, mtime_ns, size) 缓存。
+
+    文件缺失（dev / 未拆包）时返回 None，路由仍按 lazy import 工作。
+    """
+    path = frontend_dir / _AUTH_ENTRY_FILE
+    try:
+        stat = path.stat()
+    except OSError:
+        logger.warning("认证入口清单不可读：%s", path, exc_info=True)
+        return None
+    fingerprint = (stat.st_mtime_ns, stat.st_size)
+    if (
+        _auth_entry_cache["path"] == str(path)
+        and _auth_entry_cache["fingerprint"] == fingerprint
+    ):
+        return _auth_entry_cache["payload"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        logger.warning("认证入口清单解析失败：%s", path, exc_info=True)
+        return None
+    if not isinstance(payload, dict):
+        return None
+    js = [str(item) for item in payload.get("js", []) if str(item).startswith("/static/")]
+    css = [str(item) for item in payload.get("css", []) if str(item).startswith("/static/")]
+    parsed = {"js": js, "css": css} if js else None
+    _auth_entry_cache.update(
+        {"path": str(path), "fingerprint": fingerprint, "payload": parsed}
+    )
+    return parsed
+
+
+def _auth_entry_tags(payload: dict[str, list[str]], existing_html: str = "") -> str:
+    """生成认证入口的 modulepreload / stylesheet 标签。
+
+    ``existing_html`` 里已经存在的 URL 跳过：auth-entry.json 的 js 闭包包含外壳入口
+    及其静态依赖（认证视图会 import 外壳里的 auth store 等模块），这些 chunk 已由
+    Vite 写进 index.html 的 modulepreload；重复注入只会让认证页多背一份标签体积。
+    这里按完整 ``href="…"`` 判重，不能按裸路径判——路径也会出现在 ``__vite__mapDeps``
+    内联脚本里，按裸路径判会漏掉真正需要预载的认证 chunk。
+    """
+
+    def missing(url: str) -> bool:
+        return f'href="{html_escape(url)}"' not in existing_html
+
+    modules = "".join(
+        f'<link rel="modulepreload" crossorigin href="{html_escape(url)}">'
+        for url in payload["js"]
+        if missing(url)
+    )
+    styles = "".join(
+        f'<link rel="stylesheet" href="{html_escape(url)}">'
+        for url in payload["css"]
+        if missing(url)
+    )
+    return modules + styles
+
+
+def _inject_auth_entry(html: str, payload: dict[str, list[str]]) -> str:
+    """把认证入口预载注入 </head>；只应由认证入口页调用。"""
+    tags = _auth_entry_tags(payload, html)
+    if not tags:
+        return html
     if "</head>" in html:
         return html.replace("</head>", f"{tags}</head>", 1)
     return f"{tags}{html}"
@@ -450,6 +529,10 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
                 page_preload_stylesheets(request.url.path),
                 request.app.state.settings.frontend_dir,
             )
+        if is_auth_entry_page_path(request.url.path):
+            auth_entry = _read_auth_entry(request.app.state.settings.frontend_dir)
+            if auth_entry is not None:
+                html = _inject_auth_entry(html, auth_entry)
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     @app.get("/", include_in_schema=False)

@@ -88,4 +88,7 @@ test "$store_line" -lt "$home_line"
 test -f dist/homeos/frontend/index.html
 test -f dist/homeos-store/frontend/index.html
 
+# 认证入口拆包（P0-1）：清单、落盘、匿名白名单、外壳不反向引用，四件事一起断言。
+node ops/ci/verify_auth_entry.mjs
+
 echo "前端产物构建与结构断言通过。"

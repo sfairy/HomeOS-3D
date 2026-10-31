@@ -19,11 +19,6 @@ import {
 } from './license-gate'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
 import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from '@/studio'
-import LoginView from '@/views/auth/LoginView.vue'
-import RegisterView from '@/views/auth/RegisterView.vue'
-import ResetPasswordView from '@/views/auth/ResetPasswordView.vue'
-import LicenseView from '@/views/auth/LicenseView.vue'
-import LicenseRecoveryView from '@/views/auth/LicenseRecoveryView.vue'
 import { prefetchStoreLinks } from '@/shared/utils/store-links.util'
 import { rememberLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
 import { getSystemInitialized, setSystemInitialized } from './system-init.state'
@@ -45,38 +40,39 @@ async function fetchSetupStatusWithBootRetry(auth: ReturnType<typeof useAuthStor
 
 const routes: RouteRecordRaw[] = [
   {
-    // 登录页：同步入主包，避免冷开再等 lazy chunk 造成空壳一闪。
+    // 登录页：认证入口由服务端在认证页外壳里预载，冷开仍先拿到认证 chunk；
+    // 非认证页不再为它付首屏字节。
     path: '/login',
     name: 'login',
-    component: LoginView,
+    component: lazyView(() => import('@/views/auth/entry').then((m) => m.LoginView)),
     meta: { assets: STUDIO_ASSETS.login },
   },
   {
     // 注册页（首次部署零用户时的唯一入口：账号 + 密码 + 邮箱 + 验证码）
     path: '/register',
     name: 'register',
-    component: RegisterView,
+    component: lazyView(() => import('@/views/auth/entry').then((m) => m.RegisterView)),
     meta: { assets: STUDIO_ASSETS.register },
   },
   {
     // 找回本机密码：未登录 / 未激活时都要能进（邮箱验证码由商店代发）
     path: '/reset-password',
     name: 'reset-password',
-    component: ResetPasswordView,
+    component: lazyView(() => import('@/views/auth/entry').then((m) => m.ResetPasswordView)),
     meta: { assets: STUDIO_ASSETS.login },
   },
   {
     // 商业授权激活
     path: '/activate',
     name: 'activation',
-    component: LicenseView,
+    component: lazyView(() => import('@/views/auth/entry').then((m) => m.LicenseView)),
     meta: { assets: STUDIO_ASSETS.license },
   },
   {
     // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
     path: '/license-recovery',
     name: 'license-recovery',
-    component: LicenseRecoveryView,
+    component: lazyView(() => import('@/views/auth/entry').then((m) => m.LicenseRecoveryView)),
     meta: { assets: STUDIO_ASSETS.licenseRecovery },
   },
   // ── 3D Studio 视图 ──

@@ -229,38 +229,13 @@ export function bootDisplayBoot(): void {
         }
     return hasPending;
   }
-  /**
-   * 探测浏览器是否可用 WebGL。
-   * 展示页的 3D 户型是总览的视觉主体，但 GPU / 驱动 / 远程桌面环境可能拿不到 WebGL 上下文；
-   * 此时 Interaction3D 运行时永远不会把 host 标记为就绪，splash 只能干等到超时。
-   * 提前探测并给出「先进入仪表盘」，让顶栏 / 侧边栏 / 底部 dock 仍可用。
-   *
-   * 必须只认 WebGL2：three.js 0.163 起已移除 WebGL1 支持，只拿到 WebGL1 上下文时
-   * 舞台里的 `new WebGLRenderer()` 会直接抛错，而那个错误提示在 iframe 内部（`.is-ready`
-   * 之前 opacity 为 0），用户在总览上只会看到一块透明空白。旧实现 `webgl2 || webgl`
-   * 把这种情况误判成「可用」，于是连这句提示都不给。
-   */
-  function isWebglAvailable() {
-    try {
-      const probeCanvas = document.createElement("canvas");
-      const webglContext = probeCanvas.getContext("webgl2");
-      if (!webglContext) return false;
-      const loseContext = (webglContext as WebGLRenderingContext).getExtension?.("WEBGL_lose_context");
-      loseContext?.loseContext?.();
-      return true;
-    } catch {
-      return false;
-    }
-  }
   function handleReady(readyShellElement: any) {
     if (splashPhase !== SPLASH_PHASE_LOADING) return;
-    if (!isWebglAvailable()) {
-      showError(
-        new Error("当前设备未启用 WebGL2，3D 户型无法渲染。可先进入仪表盘使用其他功能。"),
-        true,
-      );
-      return;
-    }
+    // 不在这里同步创建 WebGL2 探测上下文。getContext("webgl2") 在软件渲染/远程桌面/
+    // 驱动初始化慢的设备上会阻塞主线程数秒（实测 headless Edge 下 2.3–2.7s），
+    // 把首屏 LCP 一起拖住。舞台 iframe 创建失败时，runtime 会通过 `type:"error"`
+    // 消息给宿主的 3D host 加 `.is-load-error`；下面的 poll 会在等待阶段捕获并给出
+    // 「重新加载 / 先进入仪表盘」，因此不需要在关键路径上提前探测。
     ((shellElement = readyShellElement),
       (splashPhase = "waiting"),
       logBootPhase("document-ready"),

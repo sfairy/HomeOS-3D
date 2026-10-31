@@ -133,9 +133,28 @@ _AUTH_FONT_PRELOAD_LINK_RE = re.compile(
 
 
 def is_auth_page_path(path: str) -> bool:
-    """页面是否属于需要认证场景样式的入户路由（精确匹配，避免 `/` 误伤）。"""
+    """页面是否属于需要认证场景样式的入户路由（精确匹配，避免 / 误伤）。"""
     normalized = path.rstrip("/") or "/"
     return normalized in _AUTH_PAGE_PATHS or normalized.startswith("/setup/")
+
+
+#: 需要认证入口 chunk 的页面。/setup 不在其中：它是初始化向导，走独立视图，
+#: 加载 Login/Register/License 的整个入口只会增加首屏字节。
+_AUTH_ENTRY_PAGE_PATHS = frozenset(
+    {
+        "/login",
+        "/register",
+        "/reset-password",
+        "/activate",
+        "/license-recovery",
+    }
+)
+
+
+def is_auth_entry_page_path(path: str) -> bool:
+    """页面是否需要服务端预载认证入口 chunk（entry.ts）。"""
+    normalized = path.rstrip("/") or "/"
+    return normalized in _AUTH_ENTRY_PAGE_PATHS
 
 
 def strip_auth_scene_assets(html: str) -> str:

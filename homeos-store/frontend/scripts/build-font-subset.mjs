@@ -1,0 +1,178 @@
+#!/usr/bin/env node
+/**
+ * 从完整 Font Awesome CSS 生成 store 实际使用的图标子集。
+ *
+ * 背景：font.min.css 完整版约 193KB，但 store 前端只用到约 50 个 fa-* 图标；
+ * 每个图标一条
+ *   .fa-xxx{--fa:"…"}
+ * 规则。图标规则只提供 CSS 变量，删掉未用图标的规则不影响基础排版/动画/字体声明。
+ *
+ * 口径：
+ * - 完整源文件保存在 font/font-awesome.css，不进入 public，不会被 Vite 拷贝到 dist；
+ * - 扫描 src 下全部 vue/ts/js/mjs 与 index.html 中的 fa-* token（含动态字符串）；
+ * - 保留所有非图标规则（字体、尺寸、旋转、动画、@media、@keyframes、无障碍）；
+ * - 图标规则只要 selector 里有一个被使用的图标类就整条保留（兼容别名，如 fa-video,fa-video-camera）；
+ * - --check（默认）只校验生成结果；--write 重新生成。
+ * - 图标字体二进制子集 font-subset.woff2 与 CSS 一起发布；--check 会校验它存在且小于完整字体。
+ *   本脚本不生成字体二进制（避免把 fontTools/brotli 变成构建依赖）；二进制由 pyftsubset
+ *   一次性生成后入库，生成口径见 docs/perf/2026-10-31-dual-project-performance.md。
+ *
+ * 新增图标后跑：node homeos-store/frontend/scripts/build-font-subset.mjs --write
+ * 门禁：bun run check:font-subset
+ */
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { gzipSync } from 'node:zlib';
+
+const FRONTEND = path.resolve(import.meta.dirname, '..');
+const FULL_CSS = path.join(FRONTEND, 'font', 'font-awesome.css');
+const OUTPUT = path.join(FRONTEND, 'public', 'static', 'font.min.css');
+const FONT_DIR = path.join(FRONTEND, 'public', 'static', 'fonts');
+const FULL_FONT = path.join(FONT_DIR, 'font.woff2');
+const SUBSET_FONT = path.join(FONT_DIR, 'font-subset.woff2');
+const SOURCE_DIR = path.join(FRONTEND, 'src');
+const INDEX_HTML = path.join(FRONTEND, 'index.html');
+const WRITE = process.argv.includes('--write');
+const FULL_FONT_SRC =
+  'src:url(../fonts/font.woff2) format("woff2"),url(../fonts/font.ttf) format("truetype")';
+const SUBSET_FONT_SRC =
+  'src:url(../fonts/font-subset.woff2) format("woff2"),' +
+  'url(../fonts/font.woff2) format("woff2"),url(../fonts/font.ttf) format("truetype")';
+
+const ICON_TOKEN = /fa-[a-z0-9-]+/g;
+const ICON_CLASS = /\.(fa-[a-z0-9-]+)/g;
+const ICON_RULE = /--fa:/;
+
+function fail(message) {
+  console.error('[font-subset] ' + message);
+  process.exit(1);
+}
+
+/** 极简 CSS 顶层规则扫描：保留 @media/@keyframes 的嵌套块。 */
+function topLevelRules(css) {
+  const rules = [];
+  let index = 0;
+  while (index < css.length) {
+    while (index < css.length && /\s/.test(css[index])) index += 1;
+    if (index >= css.length) break;
+    const start = index;
+    let depth = 0;
+    for (; index < css.length; index += 1) {
+      const char = css[index];
+      if (char === '{') depth += 1;
+      else if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          index += 1;
+          break;
+        }
+      }
+    }
+    if (depth !== 0) fail('CSS 大括号不平衡，拒绝生成');
+    const block = css.slice(start, index);
+    const brace = block.indexOf('{');
+    if (brace === -1) fail('CSS 规则缺少 {，拒绝生成');
+    rules.push({
+      block,
+      prelude: block.slice(0, brace).trim(),
+      body: block.slice(brace + 1, -1),
+    });
+  }
+  return rules;
+}
+
+function classesInSelector(prelude) {
+  return [...prelude.matchAll(ICON_CLASS)].map((match) => match[1]);
+}
+
+function walk(dir) {
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...walk(full));
+    else if (/\.(vue|ts|js|mjs|html)$/.test(entry.name)) files.push(full);
+  }
+  return files;
+}
+
+const files = [...walk(SOURCE_DIR), INDEX_HTML];
+const used = new Set();
+for (const file of files) {
+  const text = readFileSync(file, 'utf8');
+  for (const match of text.matchAll(ICON_TOKEN)) used.add(match[0]);
+}
+
+const fullCss = readFileSync(FULL_CSS, 'utf8');
+const fullRules = topLevelRules(fullCss);
+const fullIcons = new Set();
+for (const rule of fullRules) {
+  if (ICON_RULE.test(rule.body) && !rule.prelude.startsWith('@')) {
+    for (const name of classesInSelector(rule.prelude)) fullIcons.add(name);
+  }
+}
+
+const kept = [];
+const keptIcons = new Set();
+let droppedRules = 0;
+for (const rule of fullRules) {
+  if (rule.prelude.startsWith('@') || !ICON_RULE.test(rule.body)) {
+    kept.push(rule.block);
+    continue;
+  }
+  const classes = classesInSelector(rule.prelude);
+  if (classes.some((name) => used.has(name))) {
+    kept.push(rule.block);
+    for (const name of classes) keptIcons.add(name);
+  } else {
+    droppedRules += 1;
+  }
+}
+
+const missing = [...used].filter((name) => fullIcons.has(name) && !keptIcons.has(name));
+if (missing.length > 0) {
+  fail('以下图标在源码里使用、但子集里缺失：' + missing.sort().join(', '));
+}
+
+if (!existsSync(SUBSET_FONT)) {
+  fail('缺少字体子集 ' + path.relative(process.cwd(), SUBSET_FONT));
+}
+const fullFontBytes = statSync(FULL_FONT).size;
+const subsetFontBytes = statSync(SUBSET_FONT).size;
+if (subsetFontBytes === 0 || subsetFontBytes >= fullFontBytes) {
+  fail(
+    '字体子集大小异常：' + subsetFontBytes + 'B，完整字体 ' + fullFontBytes + 'B；' +
+      '请重新生成 font-subset.woff2',
+  );
+}
+
+const banner =
+  '/* generated by homeos-store/frontend/scripts/build-font-subset.mjs; ' +
+  'source: font/font-awesome.css; do not edit */\n';
+const sourceOutput = banner + kept.join('');
+if (!sourceOutput.includes(FULL_FONT_SRC)) {
+  fail('未找到 @font-face 的完整字体 src，无法切换为字体子集');
+}
+const output = sourceOutput.replace(FULL_FONT_SRC, SUBSET_FONT_SRC);
+const bytes = Buffer.byteLength(output);
+const gzip = gzipSync(output).length;
+const current = readFileSync(OUTPUT, 'utf8');
+
+console.log(
+  '[font-subset] used=' + used.size + ' icons=' + keptIcons.size +
+    ' rules=' + kept.length + '/' + fullRules.length +
+    ' dropped=' + droppedRules + ' bytes=' + bytes + ' gzip=' + gzip +
+    ' font=' + subsetFontBytes + 'B/' + fullFontBytes + 'B',
+);
+
+if (WRITE) {
+  if (current !== output) writeFileSync(OUTPUT, output);
+  console.log('[font-subset] 已写入 ' + path.relative(process.cwd(), OUTPUT));
+} else if (current !== output) {
+  fail(
+    path.relative(process.cwd(), OUTPUT) +
+      ' 与源不一致；请运行 node homeos-store/frontend/scripts/build-font-subset.mjs --write',
+  );
+} else {
+  console.log('[font-subset] 校验通过');
+}

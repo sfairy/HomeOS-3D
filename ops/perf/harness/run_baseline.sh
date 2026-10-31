@@ -8,6 +8,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LABEL="${1:?用法: run_baseline.sh <label>}"
 PERF_ROOT="${HOMEOS_PERF_ROOT:-/tmp/homeos-perf}"
+# 子进程（Python perf_common 用 tempfile.gettempdir()）与 Node 侧必须看同一个根：
+# 只设 shell 变量会让 macOS 上 Python 写到 /var/folders/...、Node 仍读 /tmp/homeos-perf，
+# 结果是 before 采到一半在 env.json 处 ENOENT。导出后三方统一。
+export HOMEOS_PERF_ROOT="${PERF_ROOT}"
 HARNESS="${ROOT}/ops/perf/harness"
 DIST="${ROOT}/dist"
 RESULT_DIR="${PERF_ROOT}/results/${LABEL}"

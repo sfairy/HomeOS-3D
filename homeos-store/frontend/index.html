@@ -32,6 +32,9 @@
        正文/UI 字体在 scene/fonts.css 里是 `optional`（慢网用系统字，不闪字宽）。 -->
   <link rel="preload" href="/store-static/scene/fonts/orbitron-700-latin.woff2" as="font"
     type="font/woff2" crossorigin>
+  <!-- 图标字体二进制子集（9.6KB，完整字体 634KB）：preload 让图标在延迟样式应用前就开始取。 -->
+  <link rel="preload" href="/store-static/fonts/font-subset.woff2" as="font"
+    type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/store-static/font.min.css" media="print" data-defer-style>
   <link rel="stylesheet" href="/store-static/scene/fonts.css" media="print" data-defer-style>
   <link rel="stylesheet" href="/store-static/scene/page.css" media="print" data-defer-style>
