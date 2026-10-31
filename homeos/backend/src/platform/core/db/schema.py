@@ -32,8 +32,8 @@ LOGGER = logging.getLogger("homeos.platform.core.schema")
 
 
 def _metadata() -> MetaData:
+    from . import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base
-    from .. import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
 
     return Base.metadata
 
