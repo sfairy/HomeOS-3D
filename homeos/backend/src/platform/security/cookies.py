@@ -109,9 +109,13 @@ def is_lan_origin(origin: str) -> bool:
 def is_origin_allowed(origin: str, allowed_origins: list[str]) -> bool:
     if origin in allowed_origins:
         return True
+    # 显式白名单一旦配置，就只认白名单：此时再放行任意私网 / `.local` 来源，
+    # 等于让同网段的任意页面携带凭据跨源读写（CORS 会回写
+    # `Access-Control-Allow-Credentials: true`）。仅当白名单为空（客户机默认
+    # 部署）才走局域网兜底，避免把「没配域名」误判成「拒绝一切」。
     if not allowed_origins:
         return is_lan_origin(origin)
-    return is_lan_origin(origin)
+    return False
 
 
 # Cookie 写入 / 清除

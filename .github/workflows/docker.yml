@@ -87,9 +87,9 @@ jobs:
   # model / build / infra）。这里调用而不是内联复制，避免两处漂移。
   # 调用时 checks 的 build job 会把前端产物传成 frontend-app / frontend-store 制品 ——
   # 前端与 CPU 架构无关，全流水线只该构建一次，再由下面的矩阵按项目取用。
-  # checks.yml 自己只挂在手动 dispatch 上（push / PR 不再触发），但 `uses:` 调用一定会跑，
-  # 发版路径不依赖任何自动触发器；那边也不再按 event_name 门控制品上传，所以下面的
-  # download 不会因为「调用方事件类型」不同而落空。
+  # checks.yml 现在同时挂在 push(main) / pull_request / 手动 dispatch 上；作为可复用工作流
+  # 被这里调用时，`uses:` 一定会跑，发版路径不依赖调用方事件类型；那边也不按 event_name
+  # 门控制品上传，所以下面的 download 不会因为「调用方事件类型」不同而落空。
   checks:
     uses: ./.github/workflows/checks.yml
 

@@ -81,10 +81,16 @@ const GATE_GROUPS = {
     { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
     { name: 'check:scene', ...bun('run', 'check:scene') },
     { name: 'check:any', ...bun('run', 'check:any') },
+    { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
     { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
     { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
     { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
+    // 四个结构性棘轮：WS 鉴权、商店路由契约、Python 复杂度、新增文件格式。
+    { name: 'check:ws-auth', ...bun('run', 'check:ws-auth') },
+    { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
+    { name: 'check:complexity', ...bun('run', 'check:complexity') },
+    { name: 'check:python-format', ...bun('run', 'check:python-format') },
   ],
   test: [
     { name: 'test:frontend', ...bun('run', 'test:frontend') },
@@ -96,6 +102,9 @@ const GATE_GROUPS = {
     { name: 'test:security', ...bun('run', 'test:security') },
     { name: 'test:shared', ...bun('run', 'test:shared') },
     { name: 'test:store', ...bun('run', 'test:store') },
+    // 产品包自身的最小回归：从 0 到 1 的入口，后续新用例按包放进去。
+    { name: 'test:homeos-backend', ...bun('run', 'test:homeos-backend') },
+    { name: 'test:store-backend', ...bun('run', 'test:store-backend') },
     { name: 'test:auth-nav', ...bun('run', 'test:auth-nav') },
     { name: 'check:frontend-deps', ...bun('run', 'check:frontend-deps') },
     { name: 'check:backend-deps', ...bun('run', 'check:backend-deps') },

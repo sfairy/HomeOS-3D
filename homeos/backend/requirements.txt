@@ -36,3 +36,5 @@ Pillow>=13.0.0
 pillow-heif>=1.8.1
 # api/ha.py 的跨线程调度。
 anyio>=4.15.1
+# 不可信 XML（企微回调、SVG 上传）统一用 defusedxml 解析，关闭 DTD/实体能力。
+defusedxml>=0.7.1

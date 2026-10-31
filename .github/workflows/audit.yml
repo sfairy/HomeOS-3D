@@ -1,0 +1,80 @@
+name: Dependency Audit
+
+# 依赖漏洞审计（P1-07）。
+#
+# 为什么不塞进 Checks：bun audit / pip-audit 都要访问 registry 与 OSV，结果受上游数据更新
+# 影响；把它放进每次 push 的门禁会让「今天没改代码却突然红」变成常态，最后大家学会忽略红灯。
+# 这里改成**定时 + 手动**，失败仍然发红（GitHub 会通知默认分支），但不阻塞日常合并。
+#
+# 覆盖范围：
+# - JS：bun audit --production，只看会进产物的依赖；
+# - Python：pip-audit 扫 requirements.lock（镜像真正安装的 48 个精确 pin）。
+#
+# 结果以 JSON 制品保留，便于对比「这周新增了哪条 CVE」。
+
+on:
+  schedule:
+    # 每周一 03:17 UTC（北京时间 11:17），避开整点拥堵。
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+
+      - name: Cache bun install cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install JS deps
+        run: bun install --frozen-lockfile
+
+      - name: Audit JS production dependencies
+        run: |
+          set -o pipefail
+          bun audit --production --json | tee audit-js.json
+
+      - name: Check dependency licenses
+        run: node ops/checks/check_dependency_licenses.mjs
+
+      - name: Install pip-audit and detect-secrets
+        run: |
+          pip install pip-audit "detect-secrets==1.5.0"
+
+      - name: Audit Python lock
+        run: pip-audit -r requirements.lock --format json --output audit-python.json
+
+      # 基线记录的是已 triage 的误报（公钥指纹、邀请码字母表等）；新增命中会让这一步失败。
+      - name: Scan for committed secrets
+        run: |
+          set -o pipefail
+          git ls-files -z -- homeos/backend homeos-store/backend homeos/frontend/src \
+            homeos-store/frontend/src packages ops .github \
+            | xargs -0 -n 200 detect-secrets-hook --baseline .secrets.baseline
+
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-audit
+          path: |
+            audit-js.json
+            audit-python.json
+          retention-days: 30
+          if-no-files-found: warn

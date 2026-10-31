@@ -21,6 +21,14 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 > 包内一律用**相对导入**（当前全仓绝对 `src.`/`app.` 导入为 0）。跨项目共享走稳定包名
 > `homeos_shared`，不受这里的改名影响。
 
+## 必须单进程
+
+`run.py` 单 worker。不要 `--workers N`，也不要多实例共享同一数据目录：配色快照、进程内限流、巡检状态都在内存里。跨进程安全的限流（登录失败等）走数据库。
+
+启动时 `create_app()` 会调 `homeos_shared.single_process.assert_single_process()` 校验
+`WEB_CONCURRENCY` / `UVICORN_WORKERS` / `GUNICORN_WORKERS` / `HOMEOS_WORKERS` / `STORE_WORKERS`
+等变量；只要有一个配置成 >1（或 `auto`）就直接拒绝启动，而不是等到限流失效才发现。
+
 ## 目录职责
 
 | 目录 | 职责 |

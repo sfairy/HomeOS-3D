@@ -1,0 +1,30 @@
+{
+  "description": "homeos 后端全部 WebSocket 路由及其 handler 内鉴权调用；新增/删除路由必须改这里",
+  "routes": [
+    {
+      "file": "api/go2rtc.py",
+      "function": "go2rtc_websocket",
+      "path": "/ws"
+    },
+    {
+      "file": "api/ha.py",
+      "function": "runtime_websocket",
+      "path": "/ws/runtime"
+    },
+    {
+      "file": "api/ws_proxy.py",
+      "function": "ha_webrtc_ws",
+      "path": "/ha/webrtc-ws"
+    },
+    {
+      "file": "api/ws_proxy.py",
+      "function": "embed_proxy_ws_root",
+      "path": "/embed-proxy/{embed_id}"
+    },
+    {
+      "file": "api/ws_proxy.py",
+      "function": "embed_proxy_ws",
+      "path": "/embed-proxy/{embed_id}/{sub_path:path}"
+    }
+  ]
+}

@@ -191,6 +191,62 @@ function mirrorPublicDirIntoStaging(): void {
   fs.cpSync(publicDir, outDir, { recursive: true, force: true })
 }
 
+/**
+ * 剥掉 CSS 注释（保留字符串里的内容与 `/*!` 许可声明）。public/static 下的 .css 是
+ * 手写文档，注释占首屏样式体积的 ~39%（gzip）：例如 fonts.css 的字体策略说明、
+ * scene.css 的分区注释。这些注释只在源码里有用，构建产物不需要；但 `/*!` 是第三方
+ * 资产常见的许可声明，必须原样保留，否则会把许可信息从产物里删掉。
+ */
+function stripCssComments(css: string): string {
+  let out = ''
+  let i = 0
+  while (i < css.length) {
+    const ch = css[i]
+    if (ch === '"' || ch === "'") {
+      const quote = ch
+      out += ch
+      i += 1
+      while (i < css.length) {
+        const current = css[i]
+        out += current
+        i += 1
+        if (current === '\\' && i < css.length) {
+          out += css[i]
+          i += 1
+          continue
+        }
+        if (current === quote) break
+      }
+      continue
+    }
+    if (ch === '/' && css[i + 1] === '*') {
+      const end = css.indexOf('*/', i + 2)
+      if (end < 0) {
+        // 未闭合的样式表按原样保留剩余内容，避免构建期吞掉文件尾部。
+        out += css.slice(i)
+        break
+      }
+      const comment = css.slice(i, end + 2)
+      // `/*!` 是压缩器保留许可声明的约定；替换掉会把第三方许可从产物里删除。
+      out += comment.startsWith('/*!') ? comment : ' '
+      i = end + 2
+      continue
+    }
+    out += ch
+    i += 1
+  }
+  return out
+}
+
+function stripStagingCssComments(): void {
+  for (const file of walkFiles(resolve(outDir, 'static'))) {
+    if (!file.endsWith('.css')) continue
+    const original = fs.readFileSync(file, 'utf8')
+    const stripped = stripCssComments(original)
+    if (stripped !== original) fs.writeFileSync(file, stripped)
+  }
+}
+
 /** SPA 唯一入口（`SPA_ENTRY` 与商店共用，见 ops/vite/build-helpers.ts）。 */
 
 /**
@@ -496,6 +552,7 @@ function finalizeBuildPlugin(): Plugin {
     if (!fs.existsSync(indexPath)) return
     finalized = true
     mirrorPublicDirIntoStaging()
+    stripStagingCssComments()
     await writeClassicIifeBundles(outDir)
     updatePublicStaticManifest()
     // 资源版本必须在白名单之后：`public-static.json` 也要参与哈希，revision 才是「整个

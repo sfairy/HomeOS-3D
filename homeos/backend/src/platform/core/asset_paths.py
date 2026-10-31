@@ -16,6 +16,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from .errors import api_error, bad_request
+from ..security.xml_safe import safe_fromstring
 from ...config import PROJECT_ROOT, REPO_ROOT, WORKSPACE_ROOT
 
 #: 允许上传的图片扩展名。
@@ -231,7 +232,7 @@ def sanitize_uploaded_svg(raw: bytes) -> bytes:
         # DOCTYPE / ENTITY 先拦掉，XXE 与实体膨胀随之封死。
         bad_request("SVG 不允许包含文档类型或实体声明。")
     try:
-        root = ElementTree.fromstring(raw)  # noqa: S314
+        root = safe_fromstring(raw)
     except ElementTree.ParseError:
         bad_request("SVG 文件已损坏或无法解析。")
     if _xml_local_name(root.tag) != "svg":

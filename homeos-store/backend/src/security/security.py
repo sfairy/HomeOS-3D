@@ -110,6 +110,11 @@ def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def log_fingerprint(secret: str) -> str:
+    """日志里使用的不可逆指纹：同一凭据可串联排障，又不会泄露明文。"""
+    return token_hash(secret)[:12]
+
+
 def token_matches(candidate: str | None, expected: str | None) -> bool:
     """恒定时间比较两个令牌；任一为空即 ``False``。
     """

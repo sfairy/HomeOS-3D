@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import logging
 import time
-import xml.etree.ElementTree as ET
 from typing import Any
+from xml.etree.ElementTree import ParseError
 
 from fastapi import Depends, Query, Request
 from fastapi.responses import Response
@@ -25,6 +25,7 @@ from ..dependencies import license_feature
 from ..domains.channels.wecom_crypto import compute_msg_signature, decrypt_wecom, sha1
 from ..domains.license import features as feature_codes
 from ..platform.security.auth_context import require_user
+from ..platform.security.xml_safe import safe_fromstring
 
 logger = logging.getLogger("homeos.api.channels")
 
@@ -207,8 +208,8 @@ def _xml_field(raw_body: str, *names: str) -> dict[str, str]:
     """从企微回调 XML 中提取首个命名字段（缺失即不返回该键）。"""
     out: dict[str, str] = {}
     try:
-        root = ET.fromstring(raw_body)  # noqa: S314 - 企微回调 XML 体积受限且经 msg_signature 校验
-    except ET.ParseError:
+        root = safe_fromstring(raw_body)
+    except ParseError:
         return out
     node = root
     wanted = set(names)

@@ -19,6 +19,8 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 
+from ..platform.security.xml_safe import safe_fromstring
+
 logger = logging.getLogger("homeos.api.assets")
 
 
@@ -367,9 +369,10 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
     lowered = source.lower()
     if b'<!doctype' in lowered or b'<!entity' in lowered:
         raise ValueError('SVG 不允许包含文档类型或实体声明。')
-    # DOCTYPE / ENTITY 已在上方拦截，XXE 与实体膨胀均已封堵；解析不接受外部实体或网络访问。
+    # DOCTYPE / ENTITY 已在上方拦截；这里再用 defusedxml 兜底，防止未来放宽文本检查时
+    # 重新引入 XXE 或实体膨胀。
     try:
-        root = ElementTree.fromstring(source)  # noqa: S314
+        root = safe_fromstring(source)
     except ElementTree.ParseError as error:
         raise ValueError('SVG 文件已损坏或无法解析。') from error
     if xml_local_name(root.tag) != 'svg':

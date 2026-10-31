@@ -13,18 +13,18 @@ name: Checks
 # CI 直写 `python3 ops/...`、`package.json` 写 `.venv-store/bin/python ...`，两套解释器与
 # 依赖集，于是「本机绿、干净检出红」只能靠下一次 dispatch 才发现。
 #
-# 触发（2026-10-26 起**只手动**）：
+# 触发：
+# - push 到 main / 任何 pull_request：常规门禁（2026-10-31 起；此前只手动，导致
+#   `8d3be3e7` / 2026-10-10 那类「本机绿、干净检出红」只能等发版才暴露）。
 # - workflow_dispatch：Actions 页面 Run workflow。
 # - workflow_call：docker.yml 发版前复用同一份检查，并取用 build job 的前端制品。
-#
-# 代价必须写清楚：push / PR 不跑任何检查，`8d3be3e7` / 2026-10-10 那类「本机绿、干净检出红」
-# 的问题不会在推送时亮红灯，只会等到下一次有人点 Run workflow（或发版被 docker.yml 调起）
-# 才暴露。若哪天觉得太晚，把 `push: branches: [main]` 与 `pull_request:` 两段加回 `on:`
-# 即可 —— 下面五个 job 都不依赖触发方式，加回来即自动生效。
 #
 # 本地等价入口：`bun run gate`（默认 static + test + model）、`bun run gate:build`、
 # `bun run gate:infra`；`node ops/gates.mjs --list` 打印完整清单。
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_call:
   workflow_dispatch:
 
@@ -48,7 +48,11 @@ jobs:
       # 让 ops/gates.mjs 走 CI 口径：ciOnly 步骤参与、缺工具即失败。
       HOMEOS_GATE_CONTEXT: ci
     steps:
+      # fetch-depth: 2 —— check:python-format 要 diff 出「新增的 .py」，
+      # 默认浅克隆只有 1 个 commit，脚本会显式 SKIP（不静默通过，但门禁等于没跑）。
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -109,7 +113,9 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install backend deps for unit tests
-        run: pip install -r homeos/backend/requirements.txt
+        run: |
+          pip install -r homeos/backend/requirements.txt
+          pip install -r homeos-store/backend/requirements.txt
 
       - name: Test gates
         run: bun run gate:test

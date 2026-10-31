@@ -8,6 +8,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LABEL="${1:?用法: run_baseline.sh <label>}"
 PERF_ROOT="${HOMEOS_PERF_ROOT:-/tmp/homeos-perf}"
+# 必须导给子进程：Python 的 perf_common 默认用 tempfile.gettempdir()（macOS 是
+# /var/folders/.../T），Node 的 bench_frontend / bench_3d 默认 /tmp。不统一就会
+# 出现"setup_env 写 A、前端脚本读 B"的 ENOENT。
+export HOMEOS_PERF_ROOT="${PERF_ROOT}"
 HARNESS="${ROOT}/ops/perf/harness"
 DIST="${ROOT}/dist"
 RESULT_DIR="${PERF_ROOT}/results/${LABEL}"

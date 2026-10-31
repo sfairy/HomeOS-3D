@@ -27,6 +27,8 @@
 用法：
     python3 ops/ci/python_lock.py verify      # CI 与本地都能跑，不联网
     python3 ops/ci/python_lock.py generate    # 重新生成（需要 uv 与网络）
+    python3 ops/ci/python_lock.py generate --upgrade-package certifi  # 只升级某个安全补丁
+    python3 ops/ci/python_lock.py generate --upgrade                     # 全部依赖升到最新
 """
 
 from __future__ import annotations
@@ -226,13 +228,21 @@ def verify() -> int:
     return 0
 
 
-def generate() -> int:
+def generate(upgrade: bool = False, upgrade_packages: list[str] | None = None) -> int:
     uv = shutil.which("uv")
     if uv is None:
         print("[python-lock] 需要 uv：pip install uv（或见 https://docs.astral.sh/uv/）")
         return 1
 
-    command = [uv, *UV_FLAGS, f"--output-file={LOCK_PATH.name}", *INPUTS]
+    # 默认行为是「保留已有 pin」：uv 在输出文件已存在时会把它们当偏好，这样做增量
+    # 重建不会顺带把 starlette 之类的依赖跳到新小版本。安全补丁需要显式升级。
+    upgrade_flags: list[str] = []
+    if upgrade:
+        upgrade_flags.append("--upgrade")
+    for package in upgrade_packages or []:
+        upgrade_flags.extend(("--upgrade-package", package))
+
+    command = [uv, *UV_FLAGS, *upgrade_flags, f"--output-file={LOCK_PATH.name}", *INPUTS]
     print("[python-lock] " + " ".join(command))
     result = subprocess.run(command, cwd=REPO_ROOT, check=False)
     if result.returncode != 0:
@@ -249,8 +259,18 @@ def generate() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("action", choices=("verify", "generate"), nargs="?", default="verify")
+    parser.add_argument("--upgrade", action="store_true", help="generate 时把所有依赖升到最新")
+    parser.add_argument(
+        "--upgrade-package",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="generate 时只升级指定依赖（可重复；用于安全补丁）",
+    )
     args = parser.parse_args()
-    return verify() if args.action == "verify" else generate()
+    if args.action == "verify":
+        return verify()
+    return generate(upgrade=args.upgrade, upgrade_packages=args.upgrade_package)
 
 
 if __name__ == "__main__":

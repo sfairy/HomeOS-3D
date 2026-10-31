@@ -31,6 +31,7 @@ from ..licensing.crypto import (
 from ..ops import site_settings as site_config
 from ..security.security import (
     iso_z,
+    log_fingerprint,
     new_token,
     new_uuid,
     token_hash,
@@ -139,8 +140,13 @@ class LicenseAuthority:
                 recovery_token=recovery_token,
                 generation=generation,
             )
+            # 激活码是长期凭据：日志只留不可逆指纹（sha256 前 12 位），
+            # 便于按同一码串联排障，又不会把明文写进日志聚合系统。
             logger.info(
-                "激活成功 code=%s instance=%s version=%s", code, instance_id, client_version
+                "激活成功 code_fp=%s instance=%s version=%s",
+                log_fingerprint(code),
+                instance_id,
+                client_version,
             )
             return response
 

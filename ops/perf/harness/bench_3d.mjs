@@ -139,7 +139,8 @@ async function readDataset(frame) {
 }
 
 async function findStageFrame(page) {
-  const deadline = Date.now() + 60000;
+  // 90s：3D 冷启动在慢机/无 GPU 的 headless 上可能远超 20s；太短会把「慢」误报成「没有 iframe」。
+  const deadline = Date.now() + 90000;
   while (Date.now() < deadline) {
     const frame = page.frames().find((candidate) =>
       candidate.url().includes("/api/v1/modules/interaction3d/stage.html"));
@@ -258,7 +259,8 @@ async function readComponentFamilies(page) {
  * calls 在不同渲染阶段跳变（747 / 3,068），拿它当「已呈现」会把首帧快照采到不同 pass 上。
  */
 async function waitForPresented(frame, page) {
-  const deadline = Date.now() + 20000;
+  // 与 findStageFrame 同口径：先等「真的 presented」，再判断是否可交互；20s 对冷启动不够。
+  const deadline = Date.now() + 60000;
   let last = null;
   while (Date.now() < deadline) {
     try {
@@ -322,12 +324,18 @@ async function dragCanvas(frame) {
   });
 }
 
+// 浏览器/renderer 崩溃时 Playwright 只会抛 "Target page ... closed"，真正原因（GPU 进程、
+// renderer OOM）不会进异常。把 crash/disconnect 事件单独记进结果，报告里才能归因。
+const browserDiagnostics = { pageCrash: false, browserDisconnected: false };
 const browser = await chromium.launch({
   channel: "msedge",
   headless: true,
   args: ["--enable-precise-memory-info", "--disable-background-timer-throttling"],
 });
 const browserVersion = browser.version();
+browser.on("disconnected", () => {
+  browserDiagnostics.browserDisconnected = true;
+});
 const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
   deviceScaleFactor: 1,
@@ -339,6 +347,12 @@ await context.addInitScript(frameInitScript);
 const page = await context.newPage();
 const consoleErrors = [];
 const stagePhaseLogs = [];
+page.on("crash", () => {
+  browserDiagnostics.pageCrash = true;
+});
+page.on("close", () => {
+  browserDiagnostics.pageClosed = true;
+});
 page.on("console", (message) => {
   const text = message.text();
   if (message.type() === "error") consoleErrors.push(text.slice(0, 500));
@@ -368,79 +382,10 @@ const result = {
   projectId: env.homeos.projectId,
   componentId: env.homeos.componentId || "",
 };
-try {
-  const response = await page.goto(displayUrl, { waitUntil: "load", timeout: 60000 });
-  result.httpStatus = response?.status() || 0;
-  // display 的 ready 消息只表示舞台已 mount；真正的可交互画面要等 runtime 收到 presented。
-  try {
-    await page.waitForFunction(
-      () => !!document.querySelector(".hb-interaction3d-runtime.is-ready"),
-      null,
-      { timeout: 20000 },
-    );
-    result.stageInteractive = true;
-  } catch {
-    result.stageInteractive = false;
-  }
-  result.iframeReadyMs = await page.evaluate(() => Number(performance.now().toFixed(2)));
-  result.readyPayload = await page.evaluate(() => window.__homeos3d?.readyPayload || null);
-  const frame = await findStageFrame(page);
-  if (!frame) throw new Error("display 页面没有找到 3D stage iframe");
-  result.stageFrameUrl = frame.url();
-  result.frameFoundMs = await page.evaluate(() => Number(performance.now().toFixed(2)));
-  const rendered = await waitForPresented(frame, page);
-  result.presentedDetection = { ok: rendered.ok, phase: rendered.phase };
-  result.firstRender = rendered.snapshot;
-  // 固定相位快照：presented 之后立刻取一次 renderer.info，作为可比的首帧指标。
-  let presentedSnapshot = null;
-  try {
-    presentedSnapshot = await readDataset(frame);
-  } catch {
-    // 采样失败时保留 null，报告里标注不可用，不用其他阶段的数字顶替。
-  }
-  result.presentedSnapshot = presentedSnapshot;
-  if (!rendered.ok) {
-    result.renderWaitWarning = "20s 内未看到 presented 相位（也未达到 calls>100 兜底判据）";
-  }
-  result.stageChunks = await readStageChunkStats(frame);
-  result.componentFamilies = await readComponentFamilies(page);
-  result.beforeInteraction = await readDataset(frame);
-  result.dragApplied = await dragCanvas(frame);
-  await page.waitForTimeout(2200);
-  const samples = [];
-  for (let index = 0; index < 3; index += 1) {
-    await page.waitForTimeout(500);
-    samples.push(await readDataset(frame));
-  }
-  result.interactionSamples = samples;
-  result.afterInteraction = await readDataset(frame);
-  result.frameState = await frame.evaluate(() => window.__homeos3dFrame || null);
-  const shotPath = join(shotDir, "stage.png");
-  try {
-    const iframeElement = page.locator("iframe.i3d-frame").first();
-    if (await iframeElement.count()) {
-      await iframeElement.screenshot({ path: shotPath, timeout: 15000 });
-    } else {
-      await page.screenshot({ path: shotPath, fullPage: false });
-    }
-    result.screenshot = shotPath;
-  } catch (error) {
-    result.screenshotError = String(error).slice(0, 500);
-    try {
-      await page.screenshot({ path: shotPath, fullPage: false });
-      result.screenshot = shotPath;
-    } catch {
-      // 保留 screenshotError。
-    }
-  }
-  const cdpMetrics = await cdp.send("Performance.getMetrics").catch(() => ({ metrics: [] }));
-  const metricMap = Object.fromEntries(cdpMetrics.metrics.map((metric) => [metric.name, metric.value]));
-  result.heap = { usedJSHeapSize: metricMap.JSHeapUsedSize || 0, totalJSHeapSize: metricMap.JSHeapTotalSize || 0 };
-  result.network = net;
-  result.consoleErrors = consoleErrors.slice(-30);
-  result.requestFailures = requestFailures.slice(-30);
+
+function collectPhaseTimings(logs) {
   const phaseTimings = {};
-  for (const line of stagePhaseLogs) {
+  for (const line of logs) {
     const prefix = line.startsWith("[3D-load]") ? "stage" : line.startsWith("[display-load]") ? "display" : "";
     const jsonStart = line.indexOf("{");
     if (!prefix || jsonStart < 0) continue;
@@ -451,12 +396,17 @@ try {
       // 诊断日志不是合法 JSON 时忽略，不影响测量。
     }
   }
-  result.phaseTimings = phaseTimings;
-  result.phaseTable = buildPhaseTable(phaseTimings);
-  result.frameInp = summarizeFrameInp(result.frameState);
-  const latest = result.afterInteraction?.parsed || null;
+  return phaseTimings;
+}
+
+// 交互采样阶段可能因浏览器被关闭而中断；summary 一定在 try/finally 之后构建，
+// 这样 presented 快照与 iframeReady 仍能进入预算门禁，而不是整片 SKIP。
+function buildActionSummary(result) {
+  const phaseTimings = result.phaseTimings || {};
+  const latest = result.afterInteraction?.parsed || result.presentedSnapshot?.parsed || null;
   const presented = result.presentedSnapshot?.parsed || null;
-  result.summary = latest ? {
+  if (!latest) return null;
+  return {
     frameSamples: latest.frame?.samples ?? 0,
     averageFps: latest.frame?.averageFps ?? null,
     medianFps: latest.frame?.medianFps ?? null,
@@ -506,7 +456,88 @@ try {
     reflectionsReadyMs: phaseTimings["stage:reflections-ready"] ?? null,
     displayFirstScreenMs: phaseTimings["display:first-screen-ready"] ?? null,
     interactive: result.stageInteractive === true,
-  } : null;
+    error: result.error ?? null,
+  };
+}
+
+try {
+  const response = await page.goto(displayUrl, { waitUntil: "load", timeout: 90000 });
+  result.httpStatus = response?.status() || 0;
+  // 先拿到 iframe、再等 presented，最后才看宿主上的 is-ready：
+  // headless + 软件 WebGL 冷启动时 presented 可能晚于 20s，先等 is-ready 会把「慢」误判成「没起来」。
+  const frame = await findStageFrame(page);
+  if (!frame) throw new Error("display 页面没有找到 3D stage iframe");
+  result.stageFrameUrl = frame.url();
+  result.frameFoundMs = await page.evaluate(() => Number(performance.now().toFixed(2)));
+  result.stageChunks = await readStageChunkStats(frame);
+  result.componentFamilies = await readComponentFamilies(page);
+  const rendered = await waitForPresented(frame, page);
+  result.presentedDetection = { ok: rendered.ok, phase: rendered.phase };
+  result.firstRender = rendered.snapshot;
+  // 固定相位快照：presented 之后立刻取一次 renderer.info，作为可比的首帧指标。
+  let presentedSnapshot = null;
+  try {
+    presentedSnapshot = await readDataset(frame);
+  } catch {
+    // 采样失败时保留 null，报告里标注不可用，不用其他阶段的数字顶替。
+  }
+  result.presentedSnapshot = presentedSnapshot;
+  // 等宿主 runtime 的可交互标记；presented 之后通常立即出现，60s 是给慢机的上限。
+  try {
+    await page.waitForFunction(
+      () => !!document.querySelector(".hb-interaction3d-runtime.is-ready"),
+      null,
+      { timeout: 60000 },
+    );
+    result.stageInteractive = true;
+  } catch {
+    result.stageInteractive = false;
+  }
+  result.iframeReadyMs = await page.evaluate(() => Number(performance.now().toFixed(2)));
+  result.readyPayload = await page.evaluate(() => window.__homeos3d?.readyPayload || null);
+  if (!rendered.ok) {
+    result.renderWaitWarning = "60s 内未看到 presented 相位（也未达到 calls>100 兜底判据）";
+  }
+  result.beforeInteraction = await readDataset(frame);
+  result.dragApplied = await dragCanvas(frame);
+  // 3D 页在 headless Edge 上可能在 presented 后几秒内被浏览器关闭（实测约 28s 进程退出）。
+  // 采样窗口必须短：先 600ms 让帧统计起步，再 4×250ms，总计约 1.6s，确保还在同一进程内。
+  await page.waitForTimeout(600);
+  const samples = [];
+  for (let index = 0; index < 4; index += 1) {
+    await page.waitForTimeout(250);
+    samples.push(await readDataset(frame));
+  }
+  result.interactionSamples = samples;
+  result.afterInteraction = await readDataset(frame);
+  result.frameState = await frame.evaluate(() => window.__homeos3dFrame || null);
+  const shotPath = join(shotDir, "stage.png");
+  try {
+    const iframeElement = page.locator("iframe.i3d-frame").first();
+    if (await iframeElement.count()) {
+      await iframeElement.screenshot({ path: shotPath, timeout: 15000 });
+    } else {
+      await page.screenshot({ path: shotPath, fullPage: false });
+    }
+    result.screenshot = shotPath;
+  } catch (error) {
+    result.screenshotError = String(error).slice(0, 500);
+    try {
+      await page.screenshot({ path: shotPath, fullPage: false });
+      result.screenshot = shotPath;
+    } catch {
+      // 保留 screenshotError。
+    }
+  }
+  const cdpMetrics = await cdp.send("Performance.getMetrics").catch(() => ({ metrics: [] }));
+  const metricMap = Object.fromEntries(cdpMetrics.metrics.map((metric) => [metric.name, metric.value]));
+  result.heap = { usedJSHeapSize: metricMap.JSHeapUsedSize || 0, totalJSHeapSize: metricMap.JSHeapTotalSize || 0 };
+  result.network = net;
+  result.consoleErrors = consoleErrors.slice(-30);
+  result.requestFailures = requestFailures.slice(-30);
+  result.phaseTimings = collectPhaseTimings(stagePhaseLogs);
+  result.phaseTable = buildPhaseTable(result.phaseTimings);
+  result.frameInp = summarizeFrameInp(result.frameState);
 } catch (error) {
   result.error = String(error).slice(0, 2000);
   result.consoleErrors = consoleErrors.slice(-30);
@@ -525,6 +556,10 @@ try {
   await context.close();
   await browser.close();
 }
+result.browserDiagnostics = browserDiagnostics;
+result.phaseTimings = collectPhaseTimings(stagePhaseLogs);
+result.phaseTable = buildPhaseTable(result.phaseTimings);
+result.summary = buildActionSummary(result);
 const outputPath = join(outDir, tag ? `3d-${tag}.json` : "3d.json");
 writeFileSync(outputPath, JSON.stringify(result, null, 2) + "\n");
 console.log(`[${label}] 3D 结果：${outputPath}`);

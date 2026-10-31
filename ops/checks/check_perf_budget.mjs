@@ -77,7 +77,18 @@ if (!three) {
   process.exit(0);
 }
 
-const summary = three.summary || {};
+const rawSummary = three.summary || {};
+const presented = three.presentedSnapshot?.parsed || null;
+// 旧版 bench_3d 在交互采样中断时不会写 summary，但顶层 iframeReadyMs 与
+// presentedSnapshot 仍存在。这里做最小兜底，避免「有数据却整片 SKIP」。
+const summary = {
+  iframeReadyMs: three.iframeReadyMs ?? null,
+  presentedCalls: presented?.render?.calls ?? null,
+  renderCalls: presented?.render?.calls ?? null,
+  componentFamilyCount: three.componentFamilies?.count ?? null,
+  ...rawSummary,
+};
+const runError = typeof three.error === "string" && three.error ? three.error : null;
 const failures = [];
 const skipped = [];
 const rows = [];
@@ -102,6 +113,18 @@ for (const [metric, limit] of Object.entries(budget.threeD.max || {})) {
 }
 for (const [metric, limit] of Object.entries(budget.threeD.min || {})) {
   check(metric, summary[metric], limit, 'min');
+}
+
+// 3D 采样没跑完（浏览器崩溃 / stage 未交互）时不能因为 summary 缺字段就整片 SKIP：
+// 那会把 iframeReady 26s 之类的真实回退藏成“预算通过”。
+if (runError) {
+  const actual = runError.replace(/\s+/g, " ").slice(0, 160);
+  rows.push({ metric: "3d.runError", actual, limit: "无错误", mode: "max", ok: false });
+  failures.push({ metric: "3d.runError", actual, limit: "无错误", mode: "max" });
+}
+if (summary.interactive === false) {
+  rows.push({ metric: "stageInteractive", actual: false, limit: true, mode: "min", ok: false });
+  failures.push({ metric: "stageInteractive", actual: false, limit: true, mode: "min" });
 }
 
 if (contracts) {

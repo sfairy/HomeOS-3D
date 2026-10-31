@@ -127,6 +127,26 @@ def _env_cookie_secure_mode() -> str:
     )
 
 
+def transport_security_error(base_url: str, cookie_secure_mode: str) -> str | None:
+    """检查显式 base_url 与 Cookie Secure 策略是否自相矛盾。
+
+    ``STORE_COOKIE_SECURE=true`` 的语义是“全站只走 HTTPS”。若同时显式把
+    ``STORE_BASE_URL`` 写成 ``http://``，浏览器会丢弃带 Secure 的会话 Cookie，
+    表现为“登录成功但立刻掉线”；支付回调地址也会生成 http 链接。这类配置错误
+    在启动时直接失败，比上线后排查 Cookie 为什么消失便宜得多。
+
+    只看显式 base_url：未配置时 public_base_url 会用本机 http 兜底，但那只是
+    给日志/本地访问用的展示地址，不代表浏览器实际入口。
+    """
+    if cookie_secure_mode == "true" and base_url.strip().lower().startswith("http://"):
+        return (
+            f"STORE_COOKIE_SECURE=true 表示全站 HTTPS，但 STORE_BASE_URL={base_url!r} 是 http："
+            "浏览器会丢弃 Secure 会话 Cookie（登录态无法保持），支付回调也会生成 http 地址。"
+            "请把 STORE_BASE_URL 改成 https，或把 STORE_COOKIE_SECURE 设为 auto。"
+        )
+    return None
+
+
 #: 数值环境变量的类型参数。刻意不用 PEP 695 的 ``def f[T](...)``：Cython 3.2 无法解析
 #: 方括号形式，构建加密后端时会以 CompileError 中断（改用传统 TypeVar，同 ``pagination.py``）。
 _NumberT = TypeVar("_NumberT", int, float)
@@ -591,6 +611,9 @@ def _validate_settings(settings: StoreSettings) -> None:
             "「租约已过期」，看起来像网络正常但功能时有时无。"
         )
     _validate_verification_window_config(settings)
+    transport_error = transport_security_error(settings.base_url, settings.cookie_secure_mode)
+    if transport_error:
+        raise ValueError(transport_error)
 
 
 def _validate_verification_window_config(settings: StoreSettings) -> None:

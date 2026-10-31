@@ -29,7 +29,7 @@ from ..platform.core.observability import (
 )
 from ..platform.core.upload_limits import PATH_BODY_LIMIT_OVERRIDES
 from ..platform.security.body_limit import BodyLimitMiddleware
-from ..platform.security.cookies import is_https_deploy_mode
+from ..platform.security.cookies import is_https_deploy_mode, is_request_secure
 from ..platform.security.cors import CorsMiddleware
 from ..platform.security.csrf import CsrfMiddleware
 
@@ -205,6 +205,11 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # HSTS 只在"浏览器确实走 HTTPS"时下发：除显式 `COOKIE_SECURE=true` 外，
+        # 还要认可信代理送来的 `X-Forwarded-Proto: https`（auto 模式的正常部署形态）。
+        # 明文 HTTP 下发 HSTS 会让浏览器把该主机钉死，是比漏发更糟的故障。
+        secure_transport = is_https_deploy_mode() or is_request_secure(Request(scope))
+
         async def send_wrapper(message: Any) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
@@ -216,7 +221,7 @@ class SecurityHeadersMiddleware:
                 headers.setdefault("X-XSS-Protection", "0")
                 headers.setdefault("Referrer-Policy", "no-referrer")
                 headers.setdefault("Cross-Origin-Resource-Policy", "cross-origin")
-                if is_https_deploy_mode():
+                if secure_transport:
                     headers.setdefault(
                         "Strict-Transport-Security",
                         "max-age=15552000; includeSubDomains",

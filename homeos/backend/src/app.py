@@ -16,6 +16,8 @@ import time
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
+from homeos_shared.single_process import assert_single_process
+
 from . import load_app_version
 from .bootstrap.exception_handlers import iso_timestamp, register_exception_handlers
 from .bootstrap.lifespan import create_lifespan
@@ -145,6 +147,8 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    # 限流桶/会话状态都在进程内：多 worker 会静默放大配额，启动即拒绝。
+    assert_single_process("HomeOS 后端")
     # 必须在任何 httpx 客户端构造之前完成：lifespan 启动期 WebPush/WeCom
     # 会建立常驻客户端，坏 NO_PROXY（如含 "[::1]"）会让整个进程启动失败。
     repair_no_proxy_env()
