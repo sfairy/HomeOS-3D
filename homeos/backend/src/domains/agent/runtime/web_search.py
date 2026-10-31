@@ -26,7 +26,7 @@ from collections.abc import Mapping
 from typing import Any
 from urllib.parse import quote
 
-from ..system.ops.upstream import UpstreamResponse, fetch_raw
+from ...system.ops.upstream import UpstreamResponse, fetch_raw
 
 logger = logging.getLogger("homeos.agent.web_search")
 

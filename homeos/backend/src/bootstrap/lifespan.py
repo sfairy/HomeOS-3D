@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     # 仅用于 `_StartupContext.agent_service` 的注解：智能管家域的 14 个服务模块
     # 是 import diet 里最重的一串（`src.api.agent` 累计约 40 ms），改为在
     # `_build_agent_domain` 内部导入，让 `import src.app` 不再替启动期付这份钱。
-    from ..domains.agent.service import AgentService
+    from ..domains.agent.runtime.service import AgentService
 
 from ..domains.app_config import AppConfigBackupService, AppConfigService
 from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
@@ -864,18 +864,18 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     """构造智能管家域：LLM 工具调用 / 快路径 / 命令缓存 / 会话记忆 + MCP 网关。"""
     # 智能管家域的服务模块在此按需导入：它们是启动期最重的一串 import，
     # 放在阶段内导入可让 `import src.app` 只付「应用骨架」的钱。
-    from ..domains.agent.area_service import AgentAreaService
-    from ..domains.agent.budget import AgentBudgetService
-    from ..domains.agent.command_cache import CommandCacheService
-    from ..domains.agent.config_service import AgentConfigService
-    from ..domains.agent.fast_path import FastPathService
-    from ..domains.agent.lang_template_service import LangTemplateService
     from ..domains.agent.mcp.mcp_service import McpGatewayService
-    from ..domains.agent.memory_store import AgentMemoryService
+    from ..domains.agent.memory.command_cache import CommandCacheService
+    from ..domains.agent.memory.memory_store import AgentMemoryService
+    from ..domains.agent.memory.session_store import AgentSessionStoreService
+    from ..domains.agent.memory.short_term_memory import AgentShortTermMemoryService
+    from ..domains.agent.policy.budget import AgentBudgetService
     from ..domains.agent.providers.resolving_llm_provider import ResolvingLlmProvider
-    from ..domains.agent.service import AgentService
-    from ..domains.agent.session_store import AgentSessionStoreService
-    from ..domains.agent.short_term_memory import AgentShortTermMemoryService
+    from ..domains.agent.runtime.area_service import AgentAreaService
+    from ..domains.agent.runtime.config_service import AgentConfigService
+    from ..domains.agent.runtime.fast_path import FastPathService
+    from ..domains.agent.runtime.lang_template_service import LangTemplateService
+    from ..domains.agent.runtime.service import AgentService
     from ..domains.agent.tools.home_tools_service import HomeToolsService
 
     app_config = startup.app_config
@@ -982,13 +982,13 @@ def _build_agent_automation(
     时序与诊断订阅状态变更总线，写库全在后台任务里；调度器 / 看门狗只先拿工具服务，
     通知服务在下一阶段就绪后再 ``bind_notification`` 并 ``start``。
     """
-    from ..domains.agent.diagnostics import AgentDiagnosticsService
-    from ..domains.agent.env_context import HomeEnvironmentContextService
-    from ..domains.agent.policy import AgentPolicyService
-    from ..domains.agent.scheduler import AgentSchedulerService
-    from ..domains.agent.timeline import AgentTimelineService
-    from ..domains.agent.watchdog import AgentWatchdogService
-    from ..domains.agent.web_search import AgentWebSearchService
+    from ..domains.agent.memory.timeline import AgentTimelineService
+    from ..domains.agent.policy.policy import AgentPolicyService
+    from ..domains.agent.policy.scheduler import AgentSchedulerService
+    from ..domains.agent.policy.watchdog import AgentWatchdogService
+    from ..domains.agent.runtime.diagnostics import AgentDiagnosticsService
+    from ..domains.agent.runtime.env_context import HomeEnvironmentContextService
+    from ..domains.agent.runtime.web_search import AgentWebSearchService
 
     session_factory = app.state.database.session_factory
 
@@ -1054,7 +1054,7 @@ def _build_agent_automation(
 async def _build_channels_and_notification(app: FastAPI, startup: _StartupContext) -> None:
     """构造消息通道域、客户端电量联动、通知域与实体反向引用。"""
     # 主动管家依赖智能管家域的 home_tools / agent_config，故在本阶段内导入。
-    from ..domains.agent.proactive import AgentProactiveService
+    from ..domains.agent.policy.proactive import AgentProactiveService
 
     app_config = startup.app_config
 

@@ -60,6 +60,8 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 `agent` `alerts` `app_config` `awareness` `backup` `channels` `client_power` `earthquake` `home_exec`
 `home_mode` `license` `lifestyle` `logs` `notification` `proxy` `retention` `security` `setup`
 `state_store` `store` `studio3d` `system` `ui_config` `weather`，外加两段式的 `ha/{integration,config}`。
+`agent/` 内部按 `memory/{会话,长记忆,时序}`、`policy/{家规,看门狗,预算,计划任务}`、
+`runtime/{主循环,快路径,工具,i18n}` 三簇分包，`tools/` `providers/` `mcp/` 保持原样。
 
 > **命名约定**：平台能力收在 `platform/`、业务域收在 `domains/`，同名双义已消除：
 > `platform/security` = 传输层，`domains/security` = 家庭安防业务域；`domains/ha/integration`（集成）与

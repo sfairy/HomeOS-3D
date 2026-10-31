@@ -13,8 +13,8 @@ from typing import Any
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
-from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
-from ..tool_i18n import localize_tool_schemas
+from ..runtime.agent_actor import AGENT_CONTROL_TOOLS, AgentActor
+from ..runtime.tool_i18n import localize_tool_schemas
 from ....config import environment_is_production_from
 from ....platform.core.db_exec import run_db
 from ....platform.core.json_field import read_json_object
@@ -347,7 +347,7 @@ class McpGatewayService:
             return localize_tool_schemas(self._tools.get_tool_schemas(), lang)
 
         async def call_smart_home(message: str) -> dict[str, Any]:
-            from ..service import AgentChatOptions
+            from ..runtime.service import AgentChatOptions
 
             if scopes is not None and "control" not in scopes:
                 raise _forbidden(f"MCP 客户端 {resolved_client} 只有只读作用域，禁止执行自然语言控制")

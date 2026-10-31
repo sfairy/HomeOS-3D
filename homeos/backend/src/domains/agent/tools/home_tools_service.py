@@ -29,11 +29,11 @@ from .tool_args_validator import (
     sanitize_service_data,
     validate_entity_id,
 )
-from ..agent_actor import (
+from ..runtime.agent_actor import (
     AGENT_CONTROL_TOOLS,
     AgentActor,
 )
-from ..config_service import AgentConfigService
+from ..runtime.config_service import AgentConfigService
 from ...proxy.command_proxy_auth import assert_command_proxy_authorized
 from ....platform.core.json_field import object_field
 from ....platform.security.entity_access import (

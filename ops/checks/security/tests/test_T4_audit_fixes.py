@@ -25,8 +25,8 @@ BACKEND_ROOT = Path(__file__).resolve().parents[4] / "homeos" / "backend"
 sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.domains.agent.mcp.mcp_service import MAX_TRACKED_CLIENTS, McpGatewayService
-from src.domains.agent.service import AgentService
-from src.domains.agent.session_store import (
+from src.domains.agent.runtime.service import AgentService
+from src.domains.agent.memory.session_store import (
     MAX_LOADED_SESSIONS,
     MAX_SESSIONS,
     AgentSessionEntry,

@@ -217,8 +217,8 @@ class VoiceService:
     async def _agent_fallback(
         self, text: str, user: dict[str, Any] | None, room: str | None = None
     ) -> dict[str, Any]:
-        from ..agent.agent_actor import AgentActor
-        from ..agent.service import AgentChatOptions
+        from ..agent.runtime.agent_actor import AgentActor
+        from ..agent.runtime.service import AgentChatOptions
 
         owner = (user or {}).get("userId") or "anon"
         room_label = str(room or "").strip()

@@ -16,7 +16,7 @@ from .home_tools_primitives import (
     _s,
     logger,
 )
-from ..agent_actor import AgentActor
+from ..runtime.agent_actor import AgentActor
 from ....platform.core.db_exec import run_db
 from ....platform.core.entity_domain import get_entity_domain
 from ....platform.core.json_field import object_field

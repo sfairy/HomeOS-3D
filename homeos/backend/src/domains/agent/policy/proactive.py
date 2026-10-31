@@ -20,7 +20,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from .config_service import AgentConfigService, AgentProactiveConfig
+from ..runtime.config_service import AgentConfigService, AgentProactiveConfig
 
 logger = logging.getLogger("homeos.agent.proactive")
 

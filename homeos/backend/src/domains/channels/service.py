@@ -89,7 +89,7 @@ class ChannelsService:
         """
         if channel != "wecom":
             return None
-        from ..agent.agent_actor import AgentActor
+        from ..agent.runtime.agent_actor import AgentActor
 
         cfg = await self._channel_config.get_wecom_config()
         user_id = str((cfg.bound_home_os_user_id if cfg else "") or "").strip()
@@ -256,7 +256,7 @@ class ChannelsService:
 
     @staticmethod
     def _build_options(actor: Any) -> Any:
-        from ..agent.service import AgentChatOptions
+        from ..agent.runtime.service import AgentChatOptions
 
         return AgentChatOptions(actor=actor, entry="wecom")
 

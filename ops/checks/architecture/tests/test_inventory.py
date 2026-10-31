@@ -31,7 +31,7 @@ class ModuleGroupingTest(unittest.TestCase):
         self.assertEqual(inventory.backend_module_for("api/system/backup.py"), "api.system")
         self.assertEqual(inventory.backend_module_for("api/__init__.py"), "api")
         self.assertEqual(
-            inventory.backend_module_for_dotted("src.domains.agent.service"), "domains.agent"
+            inventory.backend_module_for_dotted("src.domains.agent.runtime.service"), "domains.agent"
         )
         self.assertEqual(
             inventory.frontend_module_for("features/settings/index.ts"), "features.settings"

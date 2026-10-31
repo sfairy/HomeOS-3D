@@ -17,7 +17,7 @@ from sqlalchemy import select
 
 from .home_tools_base import HomeToolsHost
 from .home_tools_primitives import _error_message, _s, logger
-from ..agent_actor import AgentActor
+from ..runtime.agent_actor import AgentActor
 from ...client_power.energy_meter import business_day_key, business_month_key
 from ....platform.core.db_exec import run_db
 from ....platform.core.models import EnergyUsageDaily, EventLog, Notification

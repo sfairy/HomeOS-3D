@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from .router import NestRouter
 from ..dependencies import license_feature
-from ..domains.agent.agent_actor import AgentActor
+from ..domains.agent.runtime.agent_actor import AgentActor
 from ..domains.license import features as feature_codes
 from ..platform.core.errors import BusinessException, ErrorCode
 from ..platform.security.auth_context import require_user
@@ -208,7 +208,7 @@ async def chat(
     user: dict[str, Any] = Depends(rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)),
 ):
     """自然语言对话 / 控制（支持 sessionId 实现连续对话）。"""
-    from ..domains.agent.service import AgentChatOptions
+    from ..domains.agent.runtime.service import AgentChatOptions
 
     result = await _service(request).chat(
         dto.message,
@@ -225,7 +225,7 @@ async def chat_stream(
     user: dict[str, Any] = Depends(rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)),
 ):
     """流式对话（SSE：token / tool / done / error）。"""
-    from ..domains.agent.service import AgentChatOptions
+    from ..domains.agent.runtime.service import AgentChatOptions
 
     actor = _actor_from_user(user)
     history = _normalized_history(dto)

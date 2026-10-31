@@ -24,12 +24,12 @@ from typing import Any
 
 from sqlalchemy import select
 
-from .config_service import AgentConfigService, AgentProactiveConfig
 from .policy import AUTO_CLOSE_DOMAINS
 from .proactive import in_quiet_hours
-from ...platform.core.db_exec import run_db
-from ...platform.core.json_field import object_field
-from ...platform.core.models import DeviceUsageStat
+from ..runtime.config_service import AgentConfigService, AgentProactiveConfig
+from ....platform.core.db_exec import run_db
+from ....platform.core.json_field import object_field
+from ....platform.core.models import DeviceUsageStat
 
 logger = logging.getLogger("homeos.agent.watchdog")
 

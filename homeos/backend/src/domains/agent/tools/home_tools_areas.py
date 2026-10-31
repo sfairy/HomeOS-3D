@@ -16,7 +16,7 @@ from .home_tools_primitives import (
     _s,
     logger,
 )
-from ..agent_actor import AgentActor
+from ..runtime.agent_actor import AgentActor
 from ....platform.core.entity_domain import get_entity_domain
 from ....platform.core.ha_service_catalog import agent_service_allowed
 from ....platform.security.entity_access import is_entity_allowed

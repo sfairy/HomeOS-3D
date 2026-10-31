@@ -16,33 +16,33 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .agent_actor import AgentActor
 from .batch_ops import BatchOperationService, build_undo_calls
-from .budget import AgentBudgetService
-from .command_cache import CommandCacheService
 from .config_service import AgentConfigService
 from .fast_path import FastPathService
 from .lang_template_service import LangTemplateService
-from .memory_store import AgentMemoryService, parse_memory_command
-from .pricing import LlmPricing, resolve_pricing
-from .pricing import estimate_cost_cny as _estimate_cost_with_pricing
-from .providers.llm_provider_interface import (
+from .tool_i18n import agent_text, localize_tool_schemas
+from ..memory.command_cache import CommandCacheService
+from ..memory.memory_store import AgentMemoryService, parse_memory_command
+from ..memory.session_store import AgentSessionStoreService
+from ..memory.short_term_memory import AgentShortTermMemoryService
+from ..policy.budget import AgentBudgetService
+from ..policy.pricing import LlmPricing, resolve_pricing
+from ..policy.pricing import estimate_cost_cny as _estimate_cost_with_pricing
+from ..providers.llm_provider_interface import (
     LlmChatOptions,
     LlmChatResult,
     LlmMessage,
     LlmProvider,
     LlmToolCall,
 )
-from .session_store import AgentSessionStoreService
-from .short_term_memory import AgentShortTermMemoryService
-from .tool_i18n import agent_text, localize_tool_schemas
-from .tools.home_tools_service import HomeToolsService
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.errors import BusinessException, ErrorCode, api_error
-from ...platform.security.entity_access import is_entity_allowed
+from ..tools.home_tools_service import HomeToolsService
+from ....platform.core.entity_domain import get_entity_domain
+from ....platform.core.errors import BusinessException, ErrorCode, api_error
+from ....platform.security.entity_access import is_entity_allowed
 
 logger = logging.getLogger("homeos.agent.service")
 
 #: 输入 token 单价：未命中缓存的（元 / 百万 token）
-#: 保留这些常量只为兼容旧的直连调用；真实计费请使用 :mod:`domains.agent.pricing`。
+#: 保留这些常量只为兼容旧的直连调用；真实计费请使用 :mod:`domains.agent.policy.pricing`。
 RATE_INPUT_MISS_CNY = 2.0
 #: 输入 token 单价：命中缓存的（更便宜）
 RATE_INPUT_HIT_CNY = 0.5

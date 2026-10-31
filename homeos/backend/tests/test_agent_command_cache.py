@@ -22,7 +22,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.domains.agent.command_cache import (
+from src.domains.agent.memory.command_cache import (
     HIT_PERSIST_EVERY,
     CommandCacheService,
 )

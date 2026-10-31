@@ -19,9 +19,9 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...platform.core.db_exec import run_db
-from ...platform.core.json_field import parse_json_array, read_json_object
-from ...platform.core.models import AgentPolicyRule
+from ....platform.core.db_exec import run_db
+from ....platform.core.json_field import parse_json_array, read_json_object
+from ....platform.core.models import AgentPolicyRule
 
 logger = logging.getLogger("homeos.agent.policy")
 
@@ -407,7 +407,7 @@ def actor_snapshot(actor: Any) -> dict[str, Any]:
 
 def actor_from_snapshot(snapshot: Any) -> Any:
     """从快照还原 ``AgentActor``；空快照返回 None（控制类工具会因此被拒绝）。"""
-    from .agent_actor import AgentActor
+    from ..runtime.agent_actor import AgentActor
 
     data = snapshot if isinstance(snapshot, dict) else {}
     if not data.get("userId") and not data.get("username"):

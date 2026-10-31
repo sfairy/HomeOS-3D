@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from ...platform.core.json_field import object_field
+from ....platform.core.json_field import object_field
 
 logger = logging.getLogger("homeos.agent.env_context")
 
