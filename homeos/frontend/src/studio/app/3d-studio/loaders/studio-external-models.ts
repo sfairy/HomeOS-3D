@@ -19,15 +19,15 @@ import {
   repairSideboardGlassDoor,
 } from "../materials/studio-cabinet-back";
 import { finite } from "./studio-normalization";
-import { createModelPersistentCache } from "../model-persistent-cache";
-import { modelTemplateKey, captureModelTemplateBounds } from "../model-template-codec";
+import { createModelPersistentCache } from "../cache/model-persistent-cache";
+import { modelTemplateKey, captureModelTemplateBounds } from "../cache/model-template-codec";
 import { modelPlacementBounds } from "./model-placement-bounds";
 import {
   messageOfPreviewError,
   reportPreviewIssue,
   statusOfPreviewError,
 } from "./preview-diagnostics";
-import { prepareModelTextures } from "../model-texture-cache";
+import { prepareModelTextures } from "../cache/model-texture-cache";
 import { releaseModelAsset } from "./model-asset-loader";
 import { DECOR_MODELS, DECOR_THEMES } from "../authoring/items/decor-models";
 import {

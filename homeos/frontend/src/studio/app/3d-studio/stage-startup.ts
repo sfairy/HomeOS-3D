@@ -1,11 +1,11 @@
-import { createGeometryPersistentCache } from "./geometry-persistent-cache";
+import { createGeometryPersistentCache } from "./cache/geometry-persistent-cache";
 import { createContactShadowPersistentCache } from "./plan/contact-shadow-persistent-cache";
 import { contactShadowPreparationKey } from "./plan/contact-shadow-cache-scope";
 import { createReflectionPersistentCache } from "./reflection/reflection-persistent-cache";
 import {
   createScenePersistentCache,
   scenePreparationKey,
-} from "./scene-persistent-cache";
+} from "./cache/scene-persistent-cache";
 function beginStageStartup({
   env: env = globalThis,
   loadModule: loadModule = () =>

@@ -8,7 +8,7 @@
  */
 
 import { ensureRegistryComponents } from "../../../renderer/registry";
-import { prepareSceneDocument as prepareSceneDocument2 } from "../../scene-persistent-cache";
+import { prepareSceneDocument as prepareSceneDocument2 } from "../../cache/scene-persistent-cache";
 import { stageStartup as stageStartup2 } from "../../stage-startup";
 import {
   studioStartupActive,

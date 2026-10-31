@@ -22,7 +22,7 @@ import {
 import { buildStaticMaterialKey } from "../../../materials/studio-static-material-key";
 
 
-import { validGeometryLoops as validGeometryLoops2 } from "../../../geometry-persistent-cache";
+import { validGeometryLoops as validGeometryLoops2 } from "../../../cache/geometry-persistent-cache";
 
 
 

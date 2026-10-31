@@ -2498,19 +2498,47 @@
       "gt80": 2,
       "max": 12
     },
+    "homeos/frontend/src/studio/app/3d-studio/cache/geometry-persistent-cache.ts": {
+      "functions": 40,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 10
+    },
+    "homeos/frontend/src/studio/app/3d-studio/cache/model-persistent-cache.ts": {
+      "functions": 34,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 16
+    },
+    "homeos/frontend/src/studio/app/3d-studio/cache/model-template-codec.ts": {
+      "functions": 23,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 2,
+      "max": 18
+    },
+    "homeos/frontend/src/studio/app/3d-studio/cache/model-texture-cache.ts": {
+      "functions": 20,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 0,
+      "max": 23
+    },
+    "homeos/frontend/src/studio/app/3d-studio/cache/scene-persistent-cache.ts": {
+      "functions": 36,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
     "homeos/frontend/src/studio/app/3d-studio/export/export-utils.ts": {
       "functions": 8,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
       "max": 11
-    },
-    "homeos/frontend/src/studio/app/3d-studio/geometry-persistent-cache.ts": {
-      "functions": 40,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 10
     },
     "homeos/frontend/src/studio/app/3d-studio/loaders/model-asset-loader.ts": {
       "functions": 17,
@@ -2652,27 +2680,6 @@
       "gt80": 1,
       "max": 19
     },
-    "homeos/frontend/src/studio/app/3d-studio/model-persistent-cache.ts": {
-      "functions": 34,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 16
-    },
-    "homeos/frontend/src/studio/app/3d-studio/model-template-codec.ts": {
-      "functions": 23,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 2,
-      "max": 18
-    },
-    "homeos/frontend/src/studio/app/3d-studio/model-texture-cache.ts": {
-      "functions": 20,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 0,
-      "max": 23
-    },
     "homeos/frontend/src/studio/app/3d-studio/plan/background-import.ts": {
       "functions": 15,
       "gt10": 3,
@@ -2798,13 +2805,6 @@
       "gt15": 1,
       "gt80": 3,
       "max": 25
-    },
-    "homeos/frontend/src/studio/app/3d-studio/scene-persistent-cache.ts": {
-      "functions": 36,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
     },
     "homeos/frontend/src/studio/app/3d-studio/stage-startup.ts": {
       "functions": 4,

@@ -1,4 +1,4 @@
-import { scenePreparationKey } from "../scene-persistent-cache";
+import { scenePreparationKey } from "../cache/scene-persistent-cache";
 
 /** 接触阴影烘焙算法的版本指纹：算法变化时让已有快照整体失效。 */
 export const CONTACT_SHADOW_ALGORITHM_REVISION =

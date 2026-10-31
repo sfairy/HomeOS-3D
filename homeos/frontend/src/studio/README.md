@@ -68,7 +68,8 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 | `studio-app/` | 拆分后的闭包函数域（`functions/groups/`、`render/`、`scene/`、`ui/`、`runtime/`、`materials/`）与两个 context 类型 |
 
 `authoring/` 之外，`app/3d-studio/` 顶层还有一批同级创作域：
-`plan/`（平面图真实体）、`materials/`、`export/`、`loaders/`（模型加载）、`reflection/`（反射呈现）。
+`plan/`（平面图真实体）、`materials/`、`export/`、`loaders/`（模型加载）、`reflection/`（反射呈现）、
+`cache/`（几何 / 场景 / 模型三张持久化缓存的实现与共用内核 `cache-shared`，外加 `model-template-codec`）。
 
 **新代码必须从域文件夹 import**（`./scene/…`、`./items/…` …）—— 不要新增平铺的 `studio-*.ts`。
 平铺兼容转发桩已整批删除，`authoring/` 现只剩 `studio-app.ts`、`lifecycle.ts` 与少量仍属顶层的构件。

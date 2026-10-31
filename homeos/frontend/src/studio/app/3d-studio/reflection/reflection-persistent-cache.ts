@@ -4,7 +4,7 @@ import {
   preloadCacheEntries,
   restoreCacheEntries,
   writeCacheRecord,
-} from "../cache-shared";
+} from "../cache/cache-shared";
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
 const REFLECTION_CACHE_VERSION = "20260930-v1";

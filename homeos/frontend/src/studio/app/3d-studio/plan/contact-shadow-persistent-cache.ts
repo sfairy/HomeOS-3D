@@ -4,7 +4,7 @@ import {
   preloadCacheEntries,
   restoreCacheEntries,
   writeCacheRecord,
-} from "../cache-shared";
+} from "../cache/cache-shared";
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
 const CONTACT_SHADOW_CACHE_VERSION = "20261022-v1";

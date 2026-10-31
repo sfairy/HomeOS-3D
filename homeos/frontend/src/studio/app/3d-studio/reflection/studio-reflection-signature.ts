@@ -1,4 +1,4 @@
-import { stableModelTextureKey } from "../model-texture-cache";
+import { stableModelTextureKey } from "../cache/model-texture-cache";
 
 /**
  * 反射场景签名：把「场景图 + 材质 + 相机 + 环境」压成一个字符串。

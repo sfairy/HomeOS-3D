@@ -4,7 +4,7 @@ import {
   restoreContactShadowSnapshot,
 } from "./contact-shadow-persistent-cache";
 import { createContactShadowPoseResolver } from "./studio-contact-shadow-pose";
-import { stableModelTextureKey } from "../model-texture-cache";
+import { stableModelTextureKey } from "../cache/model-texture-cache";
 
 /** 持久缓存实例（由 stage-startup 注入）。 */
 type ContactShadowPersistentCache = ReturnType<typeof createContactShadowPersistentCache>;
