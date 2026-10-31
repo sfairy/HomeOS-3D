@@ -1,32 +1,34 @@
-"""运营后台的 orders 资源组。
+"""后台退款全流程。
+
+这里的真正难点不是「调一次渠道 API」，而是**渠道侧已经退出去了钱、本地却没能记账**
+之后会发生什么。整条链路被拆成可单独阅读的阶段：
+
+``_plan_refund`` → ``_open_refund_record`` → ``_attempt_channel_refund`` →
+``_claim_refund_settlement`` → ``_apply_refund_order_state`` → ``_audit_refund``
+
+每个阶段的进入条件、幂等号口径、以及「结果未知」时的文案都写在各自的 docstring 里。
+改任何一个阶段之前先读 ``_claim_refund_settlement``：它是唯一能产生「钱已退、账没记」
+的出口，也是所有 409 文案的来源。
 """
+
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime  # noqa: F401  # 供类型读者参考 payload 时间字段
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
-from sqlalchemy import delete, or_, select, update
+from fastapi import APIRouter, HTTPException, Request, status
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from ...commerce import coupons, delivery, fulfill, money, referrals
-from ...commerce.order_status import (
-    FAILURE_MARKABLE_STATUSES as ORDER_FAILURE_MARKABLE_STATUSES,
-)
-from ...commerce.order_status import (
-    FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
-)
-from ...commerce.order_status import (
+from ..shared import _admin_actor, _audit
+from ....commerce import coupons, fulfill, money, referrals
+from ....commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from ...commerce.order_status import (
-    order_status_label,
-    refundable_cents,
-)
-from ...core.deps import AdminAccount, DbSession, order_or_404
-from ...core.models import (
+from ....commerce.order_status import order_status_label, refundable_cents
+from ....core.deps import AdminAccount, DbSession, order_or_404
+from ....core.models import (
     DeviceBinding,
     Entitlement,
     License,
@@ -37,326 +39,23 @@ from ...core.models import (
     RecoveryToken,
     StoreSetting,
 )
-from ...core.schemas import (
-    AdminOrderActionRequest,
-    AdminOrderReviewRequest,
-)
-from ...core.serializers import (
-    order_payload,
-)
-from ...ops import incidents
-from ...ops import site_settings as site_config
-from ...payments import PROVIDER_NAMES, normalize_provider_name
-from ...payments.common import refunds
-from ...payments.common.base import PaymentError
-from ...payments.common.channels import provider_label
-from ...payments.common.reconcile import RECONCILE_LOOKBACK_HOURS, channel_still_payable
-from ...payments.common.refunds import (
+from ....core.schemas import AdminOrderActionRequest
+from ....core.serializers import order_payload
+from ....ops import incidents
+from ....ops import site_settings as site_config
+from ....payments import PROVIDER_NAMES, normalize_provider_name
+from ....payments.common import refunds
+from ....payments.common.base import PaymentError
+from ....payments.common.refunds import (
     claim_refund_amount,
     record_refund_audit,
     refund_lock,
 )
-from ...security.security import (
-    iso_z,
-    new_uuid,
-    utcnow,
-)
+from ....security.security import new_uuid, utcnow
 
 logger = logging.getLogger("src.admin")
 
-
-from .shared import (
-    _FULFILLABLE_STATUS_TEXT,
-    _admin_actor,
-    _audit,
-    _naive_utc,
-    _page,
-)
-from ..store.shared import close_order_channel_best_effort
-
 router = APIRouter()
-
-
-@router.get("/orders")
-def admin_list_orders(
-    session: DbSession,
-    _admin: AdminAccount,
-    status_filter: str | None = None,
-    keyword: str | None = None,
-    needs_review: bool | None = None,
-    date_from: datetime | None = None,
-    date_to: datetime | None = None,
-    limit: int = 100,
-    offset: int = 0,
-) -> dict:
-    """订单列表（分页 + 筛选）。过期收尾由支付巡检负责，列表读路径不再同步过期。
-    """
-    base = select(Order)
-    wanted = [part.strip() for part in (status_filter or "").split(",") if part.strip()]
-    if wanted:
-        base = base.where(Order.status.in_(wanted))
-    if keyword:
-        like = f"%{keyword.strip()}%"
-        base = base.where(
-            or_(Order.order_no.like(like), Order.email.like(like), Order.product_name.like(like))
-        )
-    if needs_review:
-        base = base.where(Order.needs_review.is_(True))
-    start = _naive_utc(date_from)
-    if start is not None:
-        base = base.where(Order.created_at >= start)
-    end = _naive_utc(date_to)
-    if end is not None:
-        base = base.where(Order.created_at <= end)
-    return _page(
-        session,
-        base,
-        (Order.created_at.desc(),),
-        limit=limit,
-        offset=offset,
-        render=lambda row: {
-            **order_payload(row),
-            "channelPayable": channel_still_payable(row),
-            "paymentProvider": row.payment_provider or "",
-            "paymentProviderLabel": provider_label(row.payment_provider),
-        },
-    )
-
-
-def _fulfill_with_failure_state(
-    session: Session,
-    *,
-    order: Order,
-    setting: StoreSetting,
-    actor: str,
-    on_fulfilled: Callable[[str], None] | None = None,
-) -> dict:
-    """履约并处理失败：抛异常时把订单标记为 fulfillment_failed 而不是 500。
-
-    ``on_fulfilled`` 在**履约成功**时被调用，用来把发码邮件排到响应之后。
-    失败的路径不调用它：那种情况下本来就没有码可发。
-    """
-    try:
-        with session.begin_nested():
-            fulfill.fulfill_order(session, order=order, setting=setting)
-    except Exception as error:
-        reason = str(error).strip() or error.__class__.__name__
-        previous = (
-            session.execute(
-                select(Order.review_note).where(Order.id == order.id)
-            ).scalar_one_or_none()
-            or ""
-        )
-        note = f"履约失败：{reason[:230]}"
-        if previous and note not in previous:
-            keep = max(0, 255 - len(note) - 1)
-            note = f"{previous[:keep]}｜{note}"
-        session.execute(
-            update(Order)
-            .where(Order.id == order.id)
-            .where(Order.status.in_(ORDER_FAILURE_MARKABLE_STATUSES))
-            .values(
-                status="fulfillment_failed",
-                fulfilled_at=None,
-                needs_review=True,
-                review_note=note[:255],
-            )
-            .execution_options(synchronize_session=False)
-        )
-        session.flush()
-        _audit(session, actor, "order.fulfill_failed", order.order_no, reason[:200])
-        logger.exception("后台履约失败 order=%s", order.order_no)
-        session.refresh(order)
-        return order_payload(order)
-    session.refresh(order)
-    _audit(session, actor, "order.fulfill", order.order_no)
-    if on_fulfilled is not None:
-        on_fulfilled(order.id)
-    return order_payload(order)
-
-
-def _delivery_scheduler(request: Request, background: BackgroundTasks):
-    """把「发码邮件」排到响应之后执行。
-
-    必须等到响应之后：DbSession 的提交发生在响应发出之前，而后台任务在响应之后运行，
-    这样发信看到的一定是已经落库的授权；反过来（在请求里直接发）会让邮件与授权共用
-    同一个未提交事务，既可能发出一个「还不存在」的授权，也会把 SMTP 的秒级等待塞进
-    持锁的写事务里。
-    """
-    database = request.app.state.database
-
-    def schedule(order_id: str) -> None:
-        background.add_task(delivery.notify_license_issued, database, order_id=order_id)
-
-    return schedule
-
-
-@router.post("/orders/{order_no}/mark-paid")
-def admin_mark_paid(
-    order_no: str,
-    request: Request,
-    session: DbSession,
-    background: BackgroundTasks,
-    admin: AdminAccount,
-) -> dict:
-    """人工补记：把订单放行（发码），但**不计入营收**。
-    """
-    return _manual_payment(
-        session,
-        order_no,
-        admin=admin,
-        manual_settlement=True,
-        on_fulfilled=_delivery_scheduler(request, background),
-    )
-
-
-@router.post("/orders/{order_no}/settle-offline")
-def admin_settle_offline(
-    order_no: str,
-    request: Request,
-    session: DbSession,
-    background: BackgroundTasks,
-    admin: AdminAccount,
-) -> dict:
-    """线下收款入账：人工确认这笔钱**已经收到**（转账/现金），计入营收。
-    """
-    return _manual_payment(
-        session,
-        order_no,
-        admin=admin,
-        manual_settlement=False,
-        on_fulfilled=_delivery_scheduler(request, background),
-    )
-
-
-def _manual_payment(
-    session: Session,
-    order_no: str,
-    *,
-    admin: AdminAccount,
-    manual_settlement: bool,
-    on_fulfilled: Callable[[str], None] | None = None,
-) -> dict:
-    """``mark-paid`` / ``settle-offline`` 的共用实现。
-    """
-    setting = site_config.get_setting(session)
-    order = order_or_404(session, order_no)
-    if order.status == "fulfilled":
-        return order_payload(order)
-    if order.status not in ORDER_FULFILLABLE_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"订单状态为{order_status_label(order.status)}，无法标记支付；"
-                f"只有{_FULFILLABLE_STATUS_TEXT}的订单可以标记支付。"
-            ),
-        )
-    result = session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .where(Order.status.in_(ORDER_FULFILLABLE_STATUSES))
-        .values(
-            status="paid",
-            paid_at=order.paid_at or utcnow(),
-            payment_provider=order.payment_provider or "manual",
-            manual_settlement=manual_settlement,
-        )
-        .execution_options(synchronize_session=False)
-    )
-    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
-        session.refresh(order)
-        logger.info("标记支付重复提交，已忽略 order=%s status=%s", order.order_no, order.status)
-        return order_payload(order)
-    session.refresh(order)
-    _audit(
-        session,
-        _admin_actor(admin),
-        "order.mark_paid" if manual_settlement else "order.settle_offline",
-        order.order_no,
-        "" if manual_settlement else "人工确认已收到钱（线下），计入营收",
-    )
-    if order.fulfillment_mode != "manual":
-        return _fulfill_with_failure_state(
-            session,
-            order=order,
-            setting=setting,
-            actor=_admin_actor(admin),
-            on_fulfilled=on_fulfilled,
-        )
-    session.refresh(order)
-    return order_payload(order)
-
-
-@router.post("/orders/{order_no}/fulfill")
-def admin_fulfill(
-    order_no: str,
-    request: Request,
-    session: DbSession,
-    background: BackgroundTasks,
-    admin: AdminAccount,
-) -> dict:
-    setting = site_config.get_setting(session)
-    order = order_or_404(session, order_no)
-    if order.status == "fulfilled":
-        return order_payload(order)
-    if order.status not in ORDER_FULFILLABLE_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"订单状态为{order_status_label(order.status)}，不能履约；"
-                f"只有{_FULFILLABLE_STATUS_TEXT}的订单可以履约。"
-            ),
-        )
-    if order.paid_at is None:
-        session.execute(
-            update(Order)
-            .where(Order.id == order.id)
-            .where(Order.paid_at.is_(None))
-            .values(paid_at=utcnow(), manual_settlement=True)
-            .execution_options(synchronize_session=False)
-        )
-        session.refresh(order)
-    return _fulfill_with_failure_state(
-        session,
-        order=order,
-        setting=setting,
-        actor=_admin_actor(admin),
-        on_fulfilled=_delivery_scheduler(request, background),
-    )
-
-
-@router.post("/orders/{order_no}/review")
-def admin_review_order(
-    order_no: str, payload: AdminOrderReviewRequest, session: DbSession, admin: AdminAccount
-) -> dict:
-    """把订单的「待复核」标记清掉（人工已处理）。
-    """
-    order = order_or_404(session, order_no)
-    if order.status == "pending":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="订单尚未支付，没有需要处理的复核事项。",
-        )
-    if not order.needs_review:
-        return order_payload(order)
-
-    previous = (order.review_note or "").strip()
-    note = (payload.note or "").strip()
-    stamp = utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    order.needs_review = False
-    order.review_note = (
-        f"{previous}｜{stamp} 已处理：{note}" if note else f"{previous}｜{stamp} 已处理"
-    )[:255]
-    session.flush()
-    _audit(
-        session,
-        _admin_actor(admin),
-        "order.review",
-        order.order_no,
-        note[:200] or "标记为已处理",
-    )
-    session.refresh(order)
-    return order_payload(order)
 
 
 @router.post("/orders/{order_no}/refund")
@@ -413,8 +112,7 @@ def _plan_refund(
     note: str,
     offline_requested: bool,
 ) -> _RefundPlan:
-    """校验可退余额与本次退款金额，并算出幂等号与线下 / 免费订单口径。
-    """
+    """校验可退余额与本次退款金额，并算出幂等号与线下 / 免费订单口径。"""
     total_cents = max(0, int(order.amount_cents or 0))
     refunded_cents = max(0, int(order.refund_amount_cents or 0))
     remaining_cents = refundable_cents(total_cents, refunded_cents)
@@ -448,9 +146,7 @@ def _plan_refund(
         forced_offline = "免费订单无渠道交易"
     offline_refund = bool(offline_requested) or bool(forced_offline)
     if forced_offline and not offline_requested:
-        logger.warning(
-            "退款按线下处理 order=%s：%s（未走任何支付渠道）", order.order_no, forced_offline
-        )
+        logger.warning("退款按线下处理 order=%s：%s（未走任何支付渠道）", order.order_no, forced_offline)
         refund_reason = f"{refund_reason}｜{forced_offline}，按线下退款记账"[:255]
 
     return _RefundPlan(
@@ -471,8 +167,7 @@ def _open_refund_record(
     plan: _RefundPlan,
     operator: str,
 ) -> OrderRefund:
-    """线下退款先做幂等查重，再建一条 ``failed`` 状态的占位流水。
-    """
+    """线下退款先做幂等查重，再建一条 ``failed`` 状态的占位流水。"""
     if plan.offline:
         existing = refunds.refund_by_request_no(session, plan.out_request_no)
         if existing is not None:
@@ -505,8 +200,7 @@ def _attempt_channel_refund(
     plan: _RefundPlan,
     refund: OrderRefund,
 ) -> _RefundAttempt:
-    """走渠道退款（线下 / 免费订单跳过），返回本次实际退出的金额与流水状态。
-    """
+    """走渠道退款（线下 / 免费订单跳过），返回本次实际退出的金额与流水状态。"""
     if plan.amount_cents <= 0 or plan.offline:
         return _RefundAttempt(
             settled_cents=plan.amount_cents,
@@ -550,8 +244,7 @@ def _invoke_refund_provider(
     setting: StoreSetting,
     plan: _RefundPlan,
 ) -> _RefundAttempt:
-    """调用渠道退款，并处理「成功 / 失败 / 结果未知」三条出口。
-    """
+    """调用渠道退款，并处理「成功 / 失败 / 结果未知」三条出口。"""
     provider = _refund_provider(
         request.app.state.resolve_payment_provider,
         order=order,
@@ -621,8 +314,7 @@ def _finalize_unchanged_refund(
     attempt: _RefundAttempt,
     refund: OrderRefund,
 ) -> dict:
-    """渠道确认「没有新增资金变动」时的收尾：流水记成 0 元成功并返回订单。
-    """
+    """渠道确认「没有新增资金变动」时的收尾：流水记成 0 元成功并返回订单。"""
     no_change_detail = (attempt.detail or "渠道确认本次无新增资金变动。")[:255]
     refund.detail = no_change_detail
     if attempt.ledger_booked:
@@ -661,12 +353,9 @@ def _claim_refund_settlement(
     attempt: _RefundAttempt,
     refund: OrderRefund,
 ) -> int:
-    """把本次退款金额累加到订单上；抢单失败时登记待人工核对并抛 409。
-    """
+    """把本次退款金额累加到订单上；抢单失败时登记待人工核对并抛 409。"""
     cumulative_cents = plan.refunded_cents + attempt.settled_cents
-    if not claim_refund_amount(
-        session, order, seen_cents=plan.refunded_cents, add_cents=attempt.settled_cents
-    ):
+    if not claim_refund_amount(session, order, seen_cents=plan.refunded_cents, add_cents=attempt.settled_cents):
         session.rollback()
         conflict_detail = (
             f"{attempt.detail} 本地记账冲突：累计值已不是 ¥{money.format_centi(plan.refunded_cents)}，"
@@ -693,11 +382,7 @@ def _claim_refund_settlement(
             plan.out_request_no,
             attempt.settled_cents,
         )
-        ledger_note = (
-            ""
-            if ledger_recorded
-            else "（退款流水行也没能写入，已计入「入账异常」，请优先处理）"
-        )
+        ledger_note = "" if ledger_recorded else "（退款流水行也没能写入，已计入「入账异常」，请优先处理）"
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
@@ -789,8 +474,7 @@ def _audit_refund(
     booking: _RefundBooking,
     note: str,
 ) -> None:
-    """写退款审计：金额、累计、渠道单号与奖励扣回都收在同一条里。
-    """
+    """写退款审计：金额、累计、渠道单号与奖励扣回都收在同一条里。"""
     _audit(
         session,
         actor,
@@ -838,9 +522,7 @@ def _refund_order(
     refund = _open_refund_record(session, order, refund_plan, _admin_actor(admin))
     attempt = _attempt_channel_refund(session, request, order, setting, refund_plan, refund)
     if attempt.settled_cents <= 0 and not refund_plan.free_order:
-        return _finalize_unchanged_refund(
-            session, order, _admin_actor(admin), refund_plan, attempt, refund
-        )
+        return _finalize_unchanged_refund(session, order, _admin_actor(admin), refund_plan, attempt, refund)
 
     cumulative_cents = _claim_refund_settlement(session, order, refund_plan, attempt, refund)
     booking = _apply_refund_order_state(session, order, refund_plan, cumulative_cents)
@@ -850,37 +532,26 @@ def _refund_order(
 
 
 def _revoke_order_entitlements(session, order: Order) -> None:
-    """收回订单产生的激活码与权益（全额退款时调用）。
-    """
+    """收回订单产生的激活码与权益（全额退款时调用）。"""
     if (
         order.license_action in {"upgrade", "patch"}
         and order.license_id
         and (order.license_state_before_json or "").strip()
     ):
         license = session.get(License, order.license_id)
-        if license is not None and fulfill.revert_license_change(
-            session, order=order, license=license
-        ):
+        if license is not None and fulfill.revert_license_change(session, order=order, license=license):
             session.flush()
             return
 
     for license in session.scalars(select(License).where(License.order_id == order.id)):
         license.active = False
         license.revoked_at = utcnow()
-        for binding in session.scalars(
-            select(DeviceBinding).where(DeviceBinding.license_id == license.id)
-        ):
+        for binding in session.scalars(select(DeviceBinding).where(DeviceBinding.license_id == license.id)):
             binding.active = False
             binding.released_at = utcnow()
-            session.execute(
-                delete(LicenseSession).where(LicenseSession.binding_id == binding.id)
-            )
-            session.execute(
-                delete(RecoveryToken).where(RecoveryToken.binding_id == binding.id)
-            )
-    for entitlement in session.scalars(
-        select(Entitlement).where(Entitlement.license_id == order.license_id)
-    ):
+            session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
+            session.execute(delete(RecoveryToken).where(RecoveryToken.binding_id == binding.id))
+    for entitlement in session.scalars(select(Entitlement).where(Entitlement.license_id == order.license_id)):
         if entitlement.product_id != order.product_id:
             continue
         if fulfill.has_other_live_grant(
@@ -905,116 +576,8 @@ def _offline_refund_reason(order: Order) -> str:
 
 
 def _refund_provider(resolver, *, order: Order, setting):
-    """按**订单下单时**的渠道退款，而不是当前站点配置的渠道。
-    """
+    """按**订单下单时**的渠道退款，而不是当前站点配置的渠道。"""
     order_provider = normalize_provider_name(order.payment_provider)
     if order_provider in PROVIDER_NAMES:
         return resolver(setting, name=order_provider)
     return resolver(setting)
-
-
-@router.get("/orders/{order_no}/refunds")
-def admin_list_order_refunds(
-    order_no: str, session: DbSession, _admin: AdminAccount
-) -> dict:
-    """某张订单的退款流水（含被渠道拒绝的尝试）。
-    """
-    order = order_or_404(session, order_no)
-    rows = session.scalars(
-        select(OrderRefund)
-        .where(OrderRefund.order_id == order.id)
-        .order_by(OrderRefund.created_at.desc())
-    ).all()
-    total_cents = int(order.amount_cents or 0)
-    refunded_cents = int(order.refund_amount_cents or 0)
-    return {
-        "orderNo": order.order_no,
-        "amountCents": total_cents,
-        "refundedCents": refunded_cents,
-        "refundableCents": max(0, total_cents - refunded_cents),
-        "items": [
-            {
-                "id": row.id,
-                "amountCents": int(row.amount_cents or 0),
-                "status": row.status,
-                "offline": bool(row.offline),
-                "tradeNo": row.trade_no,
-                "outRequestNo": row.out_request_no,
-                "reason": row.reason,
-                "detail": row.detail,
-                "operator": row.operator,
-                "createdAt": iso_z(row.created_at),
-            }
-            for row in rows
-        ],
-    }
-
-
-@router.post("/orders/{order_no}/cancel")
-def admin_cancel(
-    order_no: str,
-    payload: AdminOrderActionRequest,
-    request: Request,
-    session: DbSession,
-    admin: AdminAccount,
-) -> dict:
-    order = order_or_404(session, order_no)
-    if order.status != "pending":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
-
-    channel_closed = close_order_channel_best_effort(
-        request,
-        session,
-        order,
-        log_context="后台取消订单时",
-        already_paid_detail="该订单已有付款记录，无法取消；请改用退款流程。",
-    )
-
-    product = session.get(Product, order.product_id) if order.product_id else None
-    if not fulfill.close_pending_order(session, order=order, product=product):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
-        )
-    if channel_closed:
-        order.channel_closed_at = utcnow()
-    session.flush()
-    _audit(session, _admin_actor(admin), "order.cancel", order.order_no, payload.note)
-    session.refresh(order)
-    return order_payload(order)
-
-
-@router.delete("/orders/{order_no}")
-def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -> dict:
-    """删除订单（用于清理测试单 / 垃圾单）。
-    """
-    order = order_or_404(session, order_no)
-
-    if order.status not in {"cancelled", "expired"}:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"状态为 {order.status} 的订单不能删除；待支付请先取消，已支付请走退款。",
-        )
-    if order.license_id:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="该订单已关联授权，不能删除；如需收回授权请使用退款。",
-        )
-    if order.license_state_before_json:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="该订单改动过一张已有授权（升级/增量包），不能删除；如需还原请使用退款。",
-        )
-    if channel_still_payable(order):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "该订单的支付宝交易尚未确认关闭，用户手上那个旧二维码仍可能被付款；"
-                "删除会让一笔延迟到账的付款失去凭证。请等对账巡检关单后再删除"
-                f"（下单后 {RECONCILE_LOOKBACK_HOURS} 小时内巡检会持续重试）。"
-            ),
-        )
-
-    session.delete(order)
-    session.flush()
-    _audit(session, _admin_actor(admin), "order.delete", order_no, f"状态 {order.status}")
-    return {"orderNo": order_no, "deleted": True}
