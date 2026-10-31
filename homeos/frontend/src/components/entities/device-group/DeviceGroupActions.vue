@@ -1,16 +1,7 @@
 <template>
-  <!-- 批量执行结果容器：仅在存在结果时渲染 -->
-  <div v-if="result" class="dgm-exec-result">
-    <!-- 顶部汇总条：根据整体成功状态切换样式（成功为绿色，失败为红色） -->
-    <div
-      class="dgm-exec-summary"
-      :class="result.success ? 'dgm-exec-summary--ok' : 'dgm-exec-summary--fail'"
-    >
-      {{ result.executed }}/{{ result.total }} 成功
-      <span class="dgm-exec-service">{{ result.service }}</span>
-    </div>
-    <!-- 失败项列表：仅当存在失败项时显示，并提供重试按钮 -->
-    <div v-if="failedItems.length" class="dgm-exec-failures">
+  <!-- 批量执行失败明细：成功/失败汇总已上移到批量工具条（紧跟「全部关闭」），这里只保留失败项与重试 -->
+  <div v-if="failedItems.length" class="dgm-exec-result">
+    <div class="dgm-exec-failures">
       <div v-for="item in failedItems" :key="item.entity_id" class="dgm-exec-fail-item">
         <span>{{ item.entity_id }}</span>
         <span class="dgm-exec-fail-err">{{ item.error || '失败' }}</span>
@@ -23,7 +14,7 @@
 </template>
 
 <script setup>
-/** - 展示批量服务调用的执行汇总（成功/失败数量、对应服务名） */
+/** - 展示批量服务调用失败明细，并提供「重试失败项」入口 */
 import { computed } from 'vue'
 
 /**

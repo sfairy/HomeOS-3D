@@ -24,6 +24,22 @@
         <Power class="w-3.5 h-3.5" />
         {{ '全部关闭' }}
       </button>
+      <!--
+        操作提示：紧跟「全部关闭」之后显示，避免额外占一行。
+        执行中先占位提示「执行中…」，结束后换成成功/失败汇总 —— 中间不留空档，
+        用户不会因为「点了没反应」而误以为功能失效。
+      -->
+      <span v-if="executing" class="dgm-batch-result dgm-batch-result--pending">
+        {{ '执行中…' }}
+      </span>
+      <span
+        v-else-if="result"
+        class="dgm-batch-result"
+        :class="result.success ? 'dgm-batch-result--ok' : 'dgm-batch-result--fail'"
+      >
+        {{ result.executed }}/{{ result.total }} {{ '成功' }}
+        <span class="dgm-batch-result-service">{{ result.service }}</span>
+      </span>
     </div>
     <!-- 批量状态统计：显示「已开启/运行中」数量与总数 -->
     <div class="dgm-batch-stat">
@@ -47,6 +63,7 @@ import { Power } from '@lucide/vue'
  * @property {number} total - 实体总数
  * @property {boolean} offOnly - 是否仅显示关闭按钮（climate 域为 true）
  * @property {string} statLabel - 统计标签文案，如「已开启」「运行中」
+ * @property {Object|null} result - 最近一次批量执行结果，存在时在「全部关闭」后展示成功汇总
  */
 defineProps({
   show: { type: Boolean, default: false },
@@ -55,6 +72,7 @@ defineProps({
   total: { type: Number, default: 0 },
   offOnly: { type: Boolean, default: false },
   statLabel: { type: String, default: '已开启' },
+  result: { type: Object, default: null },
 })
 
 /**

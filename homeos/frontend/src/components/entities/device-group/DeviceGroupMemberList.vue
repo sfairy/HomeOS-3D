@@ -7,6 +7,7 @@
       :total="entityIds.length"
       :off-only="false"
       :stat-label="domain === 'climate' ? '运行中' : '已开启'"
+      :result="batchExecResult"
       @toggle="(on) => emit('batch-toggle', on)"
     />
     <DeviceGroupActions

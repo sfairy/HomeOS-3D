@@ -1053,7 +1053,9 @@ button.dgm-light-card:focus-visible {
 .dgm-batch-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .dgm-batch-btn {
@@ -1141,23 +1143,34 @@ button.dgm-light-card:focus-visible {
   border: var(--hos-hairline) solid var(--premium-border);
 }
 
-.dgm-exec-summary {
+/* 批量执行结果摘要：跟在「全部关闭」按钮后面，与按钮同排 */
+.dgm-batch-result {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 6px 12px;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
   font-size: var(--premium-fs-caption);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.dgm-exec-summary--ok { color: #6ee7b7; }
-.dgm-exec-summary--fail { color: #fb7185; }
+.dgm-batch-result--ok { color: #6ee7b7; }
+.dgm-batch-result--fail { color: #fb7185; }
+.dgm-batch-result--pending { color: var(--hos-text-secondary); }
 
-.dgm-exec-service {
-  margin-left: 8px;
+.dgm-batch-result-service {
+  margin-left: 6px;
   font-size: var(--premium-fs-micro);
   font-weight: 500;
   color: var(--hos-text-secondary);
   font-family: ui-monospace, monospace;
 }
 
-.dgm-exec-failures { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.dgm-exec-failures { display: flex; flex-direction: column; gap: 4px; }
 
 .dgm-exec-fail-item {
   display: flex;
