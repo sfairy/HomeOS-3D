@@ -17,12 +17,17 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.security.security import (
+    PBKDF2_ALGORITHM,
+    PBKDF2_ITERATIONS,
+    hash_password,
     is_valid_email,
     log_fingerprint,
+    needs_rehash,
     new_order_no,
     normalize_email,
     normalize_username,
     token_hash,
+    verify_password,
 )
 from src.security.setup_guard import SetupGuard, token_fingerprint
 
@@ -119,3 +124,57 @@ class SetupMarkerTest(unittest.TestCase):
         self.assertEqual(token_fingerprint("abc"), token_fingerprint("abc"))
         self.assertNotEqual(token_fingerprint("abc"), token_fingerprint("abd"))
 
+
+class PasswordHashTest(unittest.TestCase):
+    """口令哈希的参数与兼容性。
+
+    这些用例守着两件容易在升级时被破坏的事：
+    1. 存量哈希（旧迭代次数）必须**仍然能验证通过** —— 否则升级一次就是把所有老账号锁死；
+    2. 新哈希必须用当前参数，且 `needs_rehash` 能识别出需要就地升级的旧哈希。
+    """
+
+    def test_new_hash_uses_current_parameters(self) -> None:
+        encoded = hash_password("correct horse battery staple")
+        scheme, algorithm, iterations, salt_b64, digest_b64 = encoded.split("$")
+        self.assertEqual(scheme, "pbkdf2")
+        self.assertEqual(algorithm, PBKDF2_ALGORITHM)
+        self.assertEqual(int(iterations), PBKDF2_ITERATIONS)
+        self.assertTrue(salt_b64)
+        self.assertTrue(digest_b64)
+
+    def test_roundtrip_rejects_wrong_password(self) -> None:
+        encoded = hash_password("s3cret-passphrase")
+        self.assertTrue(verify_password("s3cret-passphrase", encoded))
+        self.assertFalse(verify_password("s3cret-passphras", encoded))
+        self.assertFalse(verify_password("", encoded))
+
+    def test_legacy_lower_iteration_hash_still_verifies(self) -> None:
+        import base64
+        import hashlib
+        import secrets
+
+        salt = secrets.token_bytes(16)
+        legacy_iterations = 240_000
+        digest = hashlib.pbkdf2_hmac(PBKDF2_ALGORITHM, b"legacy-secret", salt, legacy_iterations)
+        legacy = "$".join(
+            (
+                "pbkdf2",
+                PBKDF2_ALGORITHM,
+                str(legacy_iterations),
+                base64.b64encode(salt).decode("ascii"),
+                base64.b64encode(digest).decode("ascii"),
+            )
+        )
+        self.assertTrue(verify_password("legacy-secret", legacy))
+        self.assertTrue(needs_rehash(legacy))
+        self.assertFalse(needs_rehash(hash_password("legacy-secret")))
+
+    def test_malformed_and_absurd_hashes_fail_closed(self) -> None:
+        self.assertFalse(verify_password("x", ""))
+        self.assertFalse(verify_password("x", None))
+        self.assertFalse(verify_password("x", "not-a-hash"))
+        self.assertFalse(verify_password("x", "argon2$argon2id$3$c2FsdA==$ZGlnZXN0"))
+        # 迭代次数为 0/负数/超大：一律拒绝，避免被库里的坏数据拖成 CPU 热点。
+        for iterations in ("0", "-1", "99999999999", "abc"):
+            encoded = f"pbkdf2${PBKDF2_ALGORITHM}${iterations}$c2FsdA==$ZGlnZXN0"
+            self.assertFalse(verify_password("x", encoded), iterations)

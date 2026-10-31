@@ -49,6 +49,7 @@ from ...security import password_gate
 from ...security.request_security import resolve_client_ip
 from ...security.security import (
     hash_password,
+    needs_rehash,
     normalize_referral_code,
     token_hash,
     utcnow,
@@ -189,6 +190,12 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
     if not ok:
         _note_login_failure(session, _login_scopes(request, account_key.lower()))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码不正确。")
+
+    # 迭代次数升级后，存量账号的哈希仍停在旧参数上。这里是唯一同时握着明文口令与
+    # 已通过校验的账号的时机：就地重算一次，用户无感，_create_session 的 commit 一并落库。
+    if account is not None and needs_rehash(account.password_hash):
+        account.password_hash = hash_password(payload.password)
+        logger.info("口令哈希已按当前参数升级 account_id=%s", account.id)
 
     password_gate.clear(session, account_scope)
     if ip_scope:
