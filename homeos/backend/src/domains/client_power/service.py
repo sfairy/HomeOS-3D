@@ -23,7 +23,7 @@ from .types import (
 from ..app_config.pricing import is_peak_time
 from ..app_config.service import APP_CONFIG_UPDATED
 from ..security.layout import schedule_security_event
-from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
+from ...platform.core.db.runtime_kv import load_runtime_kv, persist_runtime_kv
 
 logger = logging.getLogger("homeos.client_power")
 

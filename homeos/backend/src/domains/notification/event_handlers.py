@@ -14,7 +14,7 @@ from ..alerts.messages import format_security_alarm_message
 from ..earthquake.state import format_eew_notify_message
 from ..earthquake.types import eew_catalog_cooldown_key
 from ..ha.config.ha_filters import HaStateChangeRouter
-from ...platform.core.background import spawn_background
+from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.notification.events")
 

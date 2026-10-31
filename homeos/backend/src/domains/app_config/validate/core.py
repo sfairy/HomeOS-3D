@@ -6,7 +6,7 @@ import math
 import re
 from typing import Any
 
-from ....platform.core.errors import ConfigValidationError
+from ....platform.core.http.errors import ConfigValidationError
 
 FieldError = dict[str, str]
 

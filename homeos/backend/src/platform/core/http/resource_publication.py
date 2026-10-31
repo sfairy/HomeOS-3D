@@ -30,7 +30,7 @@ import shutil
 from pathlib import Path
 from uuid import uuid4
 
-from .atomic_write import PRIVATE_FILE_MODE
+from ..runtime.atomic_write import PRIVATE_FILE_MODE
 
 LOGGER = logging.getLogger(__name__)
 

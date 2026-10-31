@@ -48,9 +48,9 @@ from zipfile import ZipFile
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-from ...platform.core.async_work import durable_work as _durable_work
-from ...platform.core.schema import prepare_schema
-from ...platform.core.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
+from ...platform.core.db.schema import prepare_schema
+from ...platform.core.http.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
+from ...platform.core.runtime.async_work import durable_work as _durable_work
 from ...platform.security.login_limiter import LoginAttemptLimiter
 
 logger = logging.getLogger("homeos.backup.business")
@@ -289,8 +289,8 @@ def _validate_database_file(path: Path) -> None:
 
 
 def _required_tables() -> set[str]:
-    from ...platform.core import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
-    from ...platform.core.database import Base
+    from ...platform.core.db import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
+    from ...platform.core.db.database import Base
 
     return set(Base.metadata.tables)
 

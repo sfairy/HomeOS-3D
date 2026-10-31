@@ -29,9 +29,9 @@ from .zones import (
     security_mode_label,
     should_zone_alarm_in_mode,
 )
-from ...platform.core.background import spawn_background
-from ...platform.core.errors import api_error, bad_request
-from ...platform.core.models import SecurityEvent
+from ...platform.core.db.models import SecurityEvent
+from ...platform.core.http.errors import api_error, bad_request
+from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.security.panel")
 
@@ -675,7 +675,7 @@ class SecurityPanelService:
         return await asyncio.to_thread(self._ack_events_blocking, event_ids, actor)
 
     def _ack_events_blocking(self, event_ids: list[str], actor: str | None) -> int:
-        from ...platform.core.models import utc_now
+        from ...platform.core.db.models import utc_now
 
         normalized = sorted({str(event_id).strip() for event_id in event_ids if str(event_id).strip()})
         if not normalized:

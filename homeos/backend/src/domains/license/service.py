@@ -31,9 +31,9 @@ from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
 from ...config import Settings
-from ...platform.core.async_work import durable_work
-from ...platform.core.database import Database
-from ...platform.core.models import LicenseState
+from ...platform.core.db.database import Database
+from ...platform.core.db.models import LicenseState
+from ...platform.core.runtime.async_work import durable_work
 
 # 事件日志是可选的：由 GlobalLogStore 注入；未注入时授权服务只做本地状态记录，
 # 不阻塞任何流程。

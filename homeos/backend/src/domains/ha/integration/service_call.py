@@ -33,10 +33,10 @@ from .crypto import CredentialCipherError
 from ...license import features as feature_codes
 from ...proxy.command_proxy import build_service_call_dto, dispatch_service_call
 from ...proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
-from ....platform.core.database import Database
-from ....platform.core.errors import BusinessException
-from ....platform.core.ha_service_catalog import ALLOWED_SERVICES, TOGGLE_ENTITY_DOMAINS
-from ....platform.core.models import HAConnection, HAEntity
+from ....platform.core.db.database import Database
+from ....platform.core.db.models import HAConnection, HAEntity
+from ....platform.core.ha.ha_service_catalog import ALLOWED_SERVICES, TOGGLE_ENTITY_DOMAINS
+from ....platform.core.http.errors import BusinessException
 
 
 class ServiceCallPayload(Protocol):

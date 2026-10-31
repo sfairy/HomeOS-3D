@@ -12,8 +12,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ..platform.core.app_config import load_raw_config
-from ..platform.core.json_field import object_field
+from ..platform.core.db.json_field import object_field
+from ..platform.core.runtime.app_config import load_raw_config
 from ..platform.security.entity_access import WS_PUSH_CRITICAL_DOMAINS
 
 logger = logging.getLogger("homeos.realtime.ws_config")

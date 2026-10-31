@@ -21,7 +21,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from .observability import record_db_query
+from ..runtime.observability import record_db_query
 
 #: 写锁等待毫秒数（HA 状态批量写入与业务写入并发时的削峰阈值）。
 SQLITE_BUSY_TIMEOUT_MS = 5000

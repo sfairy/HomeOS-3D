@@ -33,13 +33,13 @@ from ...app_config.pricing import (
     time_period_label,
 )
 from ...app_config.service import APP_CONFIG_UPDATED
-from ....platform.core.circuit_breaker import CircuitBreaker
-from ....platform.core.icalendar import (
+from ....platform.core.runtime.circuit_breaker import CircuitBreaker
+from ....platform.core.runtime.icalendar import (
     get_upcoming_away_events,
     is_away_during_calendar,
     parse_icalendar,
 )
-from ....platform.core.zoned_time import zoned_date_parts
+from ....platform.core.runtime.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.system.ops.external_api")
 

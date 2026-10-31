@@ -15,7 +15,7 @@ from typing import Any
 
 from .watch import LEVEL_PRIORITY, alert_dedup_key
 from ..security.layout import schedule_security_event
-from ...platform.core.entity_domain import get_entity_domain
+from ...platform.core.entity.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.weather.linkage")
 

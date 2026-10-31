@@ -17,7 +17,7 @@ from typing import Any
 
 from .bus import LocalEventBus
 from .mmwave import MmWavePresenceService
-from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
+from ...platform.core.db.runtime_kv import load_runtime_kv, persist_runtime_kv
 
 logger = logging.getLogger("homeos.security.presence")
 

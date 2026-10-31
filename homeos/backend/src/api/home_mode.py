@@ -14,8 +14,8 @@ from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
-from ..platform.core.db_exec import run_db
-from ..platform.core.pagination import parse_crud_pagination
+from ..platform.core.db.db_exec import run_db
+from ..platform.core.db.pagination import parse_crud_pagination
 from ..platform.security.auth_context import require_user
 
 router = NestRouter(

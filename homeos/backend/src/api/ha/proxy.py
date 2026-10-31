@@ -43,7 +43,7 @@ from ...domains.ha.integration.media_access import (
     remember_hls,
 )
 from ...domains.license import features as feature_codes
-from ...platform.core.database import Database
+from ...platform.core.db.database import Database
 
 router = APIRouter(include_in_schema=False)
 ALLOWED_MEDIA_PROXY_PREFIXES = (

@@ -33,8 +33,8 @@ from typing import Any
 from sqlalchemy import select
 
 from .client import HAClientError
-from ....platform.core.errors import BusinessException, ErrorCode, api_error
-from ....platform.core.models import HAConnection
+from ....platform.core.db.models import HAConnection
+from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.ha.facade")
 

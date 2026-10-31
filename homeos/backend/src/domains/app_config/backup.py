@@ -18,7 +18,7 @@ from .validate import (
     validate_app_config_partial,
     validate_app_config_replace_import,
 )
-from ...platform.core.errors import api_error, bad_request
+from ...platform.core.http.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.app_config.backup")
 

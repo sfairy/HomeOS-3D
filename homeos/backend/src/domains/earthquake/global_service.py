@@ -34,7 +34,7 @@ from .feeds import (
 )
 from .geo import haversine_distance_km
 from .place_localize import PlaceLocalizeDeps, enrich_usgs_places_with_chinese
-from ...platform.core.errors import BusinessException, ErrorCode
+from ...platform.core.http.errors import BusinessException, ErrorCode
 
 logger = logging.getLogger("homeos.earthquake.global")
 

@@ -13,7 +13,7 @@ from collections import deque
 from datetime import UTC, datetime
 from typing import Any
 
-from ..platform.core.json_field import object_field
+from ..platform.core.db.json_field import object_field
 
 #: 最近变更环形缓冲容量（``stateStore.maxRecentChanges`` 默认值，与 Nest 一致）。
 _RECENT_CHANGES_MAX = 3000
@@ -364,8 +364,8 @@ def filter_entities_by_query(
     controllable: bool = False,
 ) -> list[dict[str, Any]]:
     """按状态 / 区域 / 可控性过滤实体并排序（对齐 Nest ``filterEntitiesByQuery``）。"""
-    from ..platform.core.controllable import is_controllable_entity_id
-    from ..platform.core.entity_area import entity_matches_area_filter
+    from ..platform.core.entity.controllable import is_controllable_entity_id
+    from ..platform.core.entity.entity_area import entity_matches_area_filter
 
     result = entities
     if controllable:

@@ -30,9 +30,9 @@ from .bootstrap.router_registry import register_routers
 from .bootstrap.spa_static import mount_spa_static, register_page_asset_routes, signed_in
 from .bootstrap.studio_shell import install as install_studio_shell
 from .config import Settings, load_settings
-from .platform.core.database import Database
-from .platform.core.observability import decide_metrics_access, format_homeos_prometheus_metrics
-from .platform.core.proxy_env import repair_no_proxy_env
+from .platform.core.db.database import Database
+from .platform.core.http.proxy_env import repair_no_proxy_env
+from .platform.core.runtime.observability import decide_metrics_access, format_homeos_prometheus_metrics
 from .platform.security.client_address import client_ip_from_request
 
 #: 健康检查 DB 探针缓存 TTL：/health 为公开端点，避免高频轮询击穿连接。

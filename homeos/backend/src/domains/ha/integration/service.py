@@ -37,10 +37,10 @@ from ...logs.global_log import (
     event_context,
 )
 from ....config import Settings
-from ....platform.core.app_config import load_raw_config
-from ....platform.core.database import Database
-from ....platform.core.models import HAConnection
-from ....platform.core.observability import record_ha_counter
+from ....platform.core.db.database import Database
+from ....platform.core.db.models import HAConnection
+from ....platform.core.runtime.app_config import load_raw_config
+from ....platform.core.runtime.observability import record_ha_counter
 
 
 class HAConnectorService(

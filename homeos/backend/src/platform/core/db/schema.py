@@ -23,17 +23,17 @@ from homeos_shared.schema_core import (
 from homeos_shared.schema_migrate import run_migrations
 
 from .migrations import MIGRATIONS
-from ...config import Settings
+from ....config import Settings
 
 # 名字必须落在 ``homeos`` 树下：控制台 handler 与运行日志缓冲只挂在这棵树与 uvicorn 上，
-# 用 ``__name__``（``src.platform.core.schema``）会一路传播到没有 handler 的 root，
+# 用 ``__name__``（``src.platform.core.db.schema``）会一路传播到没有 handler 的 root，
 # 最终被 ``logging.lastResort`` 丢掉 —— INFO 级的迁移进度就这样整段消失。
 LOGGER = logging.getLogger("homeos.platform.core.schema")
 
 
 def _metadata() -> MetaData:
-    from . import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base
+    from .. import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
 
     return Base.metadata
 

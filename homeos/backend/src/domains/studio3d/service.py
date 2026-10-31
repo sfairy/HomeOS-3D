@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from . import cleanup as cleanup_service
 from . import draft_repository
 from ...panel.asset_refs import validate_assets
-from ...platform.core.models import Project, ProjectDraft
+from ...platform.core.db.models import Project, ProjectDraft
 from ...schemas import Studio3DDraftUpdate
 
 

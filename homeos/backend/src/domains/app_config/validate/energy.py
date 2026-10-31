@@ -11,7 +11,7 @@ from .core import (
     validate_entity_id_list,
     validate_optional_entity_id,
 )
-from ....platform.core.zoned_time import normalize_home_mode_time_at
+from ....platform.core.runtime.zoned_time import normalize_home_mode_time_at
 
 
 def _clock_to_minutes(raw: str) -> int | None:

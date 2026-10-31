@@ -14,8 +14,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .json_field import object_field
-from .models import SystemConfig
+from ..db.json_field import object_field
+from ..db.models import SystemConfig
 
 
 def load_raw_config(session: Session) -> dict[str, Any]:

@@ -1,7 +1,7 @@
 """HomeOS Python 后端包。
 
 - ``src.config``         运行期不可变配置（env 装配）
-- ``src.platform.core.*`` 数据库、模型、错误、可观测性
+- ``src.platform.core.{db,http,entity,ha,runtime}.*`` 数据库、错误、实体语义、HA 协议面、运行时
 - ``src.domains.*``      业务域（含 ``ha/{integration,config}``）
 - ``src.app``            FastAPI 应用工厂（lifespan / 中间件 / 路由 / 静态资源）
 - ``src.run``            uvicorn 启动入口
@@ -45,7 +45,7 @@ def _register_shared_python_root() -> Path | None:
 _register_shared_python_root()
 
 from .env import load_env_files
-from .platform.core.log import configure_app_logging
+from .platform.core.runtime.log import configure_app_logging
 
 # 与 Nest ``import 'dotenv/config'`` 对齐：进程启动即装载 .env，
 # 保证任何子模块读取 os.environ 之前生效。

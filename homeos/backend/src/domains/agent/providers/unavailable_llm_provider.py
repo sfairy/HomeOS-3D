@@ -9,7 +9,7 @@ from .llm_provider_interface import (
     LlmProvider,
     LlmToolSchema,
 )
-from ....platform.core.errors import BusinessException, ErrorCode, api_error
+from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 
 class UnavailableLlmProvider(LlmProvider):

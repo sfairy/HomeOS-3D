@@ -11,8 +11,8 @@ from .router import NestRouter
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
 from ..domains.security.service import resolve_events_limit
-from ..platform.core.errors import bad_request
-from ..platform.core.pagination import parse_bounded_limit
+from ..platform.core.db.pagination import parse_bounded_limit
+from ..platform.core.http.errors import bad_request
 from ..platform.security.auth_context import require_user
 
 router = NestRouter(

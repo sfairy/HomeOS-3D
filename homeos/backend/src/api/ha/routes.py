@@ -42,9 +42,9 @@ from ...domains.ha.integration.service_call import (
 )
 from ...domains.license import features as feature_codes
 from ...domains.logs.global_log import event_context
-from ...platform.core.database import Database
-from ...platform.core.db_exec import run_db
-from ...platform.core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
+from ...platform.core.db.database import Database
+from ...platform.core.db.db_exec import run_db
+from ...platform.core.db.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ...platform.security.session_store import session_token_hash
 from ...schemas import (
     HABrowseMediaRequest,

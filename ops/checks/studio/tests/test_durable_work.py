@@ -22,7 +22,7 @@ BACKEND_ROOT = REPO_ROOT / "homeos" / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.platform.core.async_work import durable_work
+from src.platform.core.runtime.async_work import durable_work
 
 
 class DurableWorkTest(unittest.IsolatedAsyncioTestCase):

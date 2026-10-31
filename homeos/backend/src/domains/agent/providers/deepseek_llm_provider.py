@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from ....platform.core.errors import BusinessException, ErrorCode, api_error
+from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.agent.llm.deepseek")
 

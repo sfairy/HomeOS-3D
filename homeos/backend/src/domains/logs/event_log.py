@@ -25,20 +25,20 @@ from ..client_power.energy_meter import (
     compute_meter_delta,
     is_meter_reset,
 )
-from ...platform.core.app_config import load_raw_config
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.models import (
+from ...platform.core.db.models import (
     EnergyCandidateEntity,
     EnergyUsageDaily,
     EnergyUsageMonthly,
     EventLog,
 )
-from ...platform.core.retention import (
+from ...platform.core.db.retention import (
     DEFAULT_OPS,
     build_event_log_public_meta,
     clamp_event_log_query_hours,
     resolve_event_log_retention_days,
 )
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.runtime.app_config import load_raw_config
 from ...platform.security.entity_access import is_entity_allowed
 
 logger = logging.getLogger("homeos.event_log")

@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.errors import api_error, forbidden
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.http.errors import api_error, forbidden
 from ...platform.security.entity_access import is_entity_allowed
 
 

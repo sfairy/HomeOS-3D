@@ -19,7 +19,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[4] / "homeos" / "backend"
 sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.domains.security.panel import SecurityPanelService
-from src.platform.core.errors import BusinessException
+from src.platform.core.http.errors import BusinessException
 
 
 class FakeBus:

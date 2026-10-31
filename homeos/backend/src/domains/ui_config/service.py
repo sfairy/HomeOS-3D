@@ -26,15 +26,15 @@ from .layout_secrets import (
     merge_layout_secrets_on_save,
 )
 from .static_assets import UiConfigStaticAssetService
-from ...platform.core.asset_paths import get_ui_assets_dir
-from ...platform.core.errors import (
+from ...platform.core.db.json_field import read_json_object, to_input_json
+from ...platform.core.db.models import ProjectConfig
+from ...platform.core.http.asset_paths import get_ui_assets_dir
+from ...platform.core.http.errors import (
     BusinessException,
     ErrorCode,
     api_error,
     bad_request,
 )
-from ...platform.core.json_field import read_json_object, to_input_json
-from ...platform.core.models import ProjectConfig
 
 logger = logging.getLogger("homeos.ui_config")
 

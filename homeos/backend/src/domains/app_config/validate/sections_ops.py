@@ -265,7 +265,7 @@ def _validate_other(section: str, payload: dict[str, Any], errors: list[FieldErr
                     break
 
 def _validate_retention(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
-    from ....platform.core.retention import RETENTION_DAYS_MAX, RETENTION_DAYS_MIN, RETENTION_TABLE_KEYS
+    from ....platform.core.db.retention import RETENTION_DAYS_MAX, RETENTION_DAYS_MIN, RETENTION_TABLE_KEYS
 
     for key in RETENTION_TABLE_KEYS:
         if key in payload:

@@ -15,7 +15,7 @@ import httpx
 
 from .types import ChannelMessage, MessageHandler
 from .wecom_utils import markdown_to_wecom_text, split_wecom_text
-from ...platform.core.errors import BusinessException, ErrorCode, api_error
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.channels.wecom")
 

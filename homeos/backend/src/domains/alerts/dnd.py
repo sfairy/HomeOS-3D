@@ -12,7 +12,7 @@ import math
 from datetime import UTC, datetime
 from typing import Any
 
-from ...platform.core.zoned_time import zoned_date_parts
+from ...platform.core.runtime.zoned_time import zoned_date_parts
 
 #: 缺省 DND 窗口（与 AppConfig notification 默认值对齐）。
 DEFAULT_DND_START = 22

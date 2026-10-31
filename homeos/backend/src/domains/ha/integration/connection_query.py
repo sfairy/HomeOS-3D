@@ -11,8 +11,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ....platform.core.database import Database
-from ....platform.core.models import HAConnection
+from ....platform.core.db.database import Database
+from ....platform.core.db.models import HAConnection
 
 
 def active_connection(database: Session) -> HAConnection | None:

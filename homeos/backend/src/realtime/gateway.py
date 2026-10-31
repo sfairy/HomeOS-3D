@@ -45,7 +45,7 @@ from .ws_payloads import (
     resync_suggested_payload,
     visibility_cache_for,
 )
-from ..platform.core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
+from ..platform.core.runtime.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 
 _SERVER_TOKEN = "server"
 

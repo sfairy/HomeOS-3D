@@ -21,7 +21,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from src.domains.home_mode.service import HomeModeService
-from src.platform.core.models import HomeMode
+from src.platform.core.db.models import HomeMode
 
 
 def build_service() -> tuple[HomeModeService, Any]:

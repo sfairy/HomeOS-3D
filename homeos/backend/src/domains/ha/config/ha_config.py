@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from ..integration.crypto import CredentialCipher, CredentialCipherError
 from ..integration.endpoints import ENDPOINT_EXTERNAL
-from ....platform.core.models import HAConnection
+from ....platform.core.db.models import HAConnection
 
 
 @dataclass(frozen=True)

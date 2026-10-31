@@ -29,8 +29,8 @@ from src.domains.app_config.constants import CONFIG_MASK_PLACEHOLDER
 from src.domains.ui_config import service as ui_service
 from src.domains.ui_config.layout_secrets import merge_layout_secrets_on_save
 from src.domains.ui_config.service import UiConfigService, _iso
-from src.platform.core.errors import BusinessException, ErrorCode
-from src.platform.core.models import ProjectConfig
+from src.platform.core.db.models import ProjectConfig
+from src.platform.core.http.errors import BusinessException, ErrorCode
 
 MASK = CONFIG_MASK_PLACEHOLDER
 

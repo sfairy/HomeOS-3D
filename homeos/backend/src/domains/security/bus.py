@@ -11,7 +11,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from ...platform.core.background import spawn_background
+from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.security.events")
 

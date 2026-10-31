@@ -15,7 +15,7 @@ from typing import Any
 from urllib.parse import quote, urlparse
 
 from .upstream import UpstreamResponse, fetch_raw
-from ....platform.core.errors import (
+from ....platform.core.http.errors import (
     BusinessException,
     ErrorCode,
     api_error,

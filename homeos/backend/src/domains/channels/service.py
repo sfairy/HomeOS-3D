@@ -14,7 +14,7 @@ from typing import Any
 from .mock_guide import MOCK_AGENT_CONFIG_GUIDE
 from .reply import format_channel_reply
 from .types import ChannelMessage
-from ...platform.core.json_field import read_json_object
+from ...platform.core.db.json_field import read_json_object
 
 logger = logging.getLogger("homeos.channels.service")
 
@@ -109,7 +109,7 @@ class ChannelsService:
         )
 
     async def _find_user(self, user_id: str) -> Any:
-        from ...platform.core.models import User
+        from ...platform.core.db.models import User
 
         def _query() -> Any:
             from sqlalchemy import select

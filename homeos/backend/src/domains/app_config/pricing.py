@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from ...platform.core.zoned_time import zoned_date_parts
+from ...platform.core.runtime.zoned_time import zoned_date_parts
 
 TimePeriod = Literal["peak", "valley", "flat"]
 

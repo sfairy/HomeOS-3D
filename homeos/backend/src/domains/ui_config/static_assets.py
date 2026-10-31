@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from ...platform.core.asset_paths import (
+from ...platform.core.http.asset_paths import (
     ALLOWED_IMAGE_EXTS,
     get_backgrounds_dir,
     get_icons_dir,
@@ -24,7 +24,7 @@ from ...platform.core.asset_paths import (
     sanitize_uploaded_svg,
     save_hidden_assets,
 )
-from ...platform.core.errors import api_error, bad_request
+from ...platform.core.http.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.ui_config.assets")
 

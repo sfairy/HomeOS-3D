@@ -18,7 +18,7 @@ from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
 from .errors import api_error, bad_request
-from ..security.cookies import is_lan_origin
+from ...security.cookies import is_lan_origin
 
 #: 静态资源扩展名 → MIME 类型（对齐 ``STATIC_MIME``）
 STATIC_MIME: dict[str, str] = {

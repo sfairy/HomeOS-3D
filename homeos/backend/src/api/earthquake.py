@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from .router import NestRouter
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
-from ..platform.core.errors import BusinessException, ErrorCode
+from ..platform.core.http.errors import BusinessException, ErrorCode
 from ..platform.security.auth_context import require_user
 
 logger = logging.getLogger("homeos.earthquake.api")

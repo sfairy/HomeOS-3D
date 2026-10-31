@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from ....platform.core.entity_domain import get_entity_domain
+from ....platform.core.entity.entity_domain import get_entity_domain
 
 ColdPathConsumer = Literal[
     "automation",

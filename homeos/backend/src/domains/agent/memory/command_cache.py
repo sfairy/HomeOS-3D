@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from ....platform.core.models import AgentCommandCacheRow
+from ....platform.core.db.models import AgentCommandCacheRow
 
 logger = logging.getLogger("homeos.agent.command_cache")
 

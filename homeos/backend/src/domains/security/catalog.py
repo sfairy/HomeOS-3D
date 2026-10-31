@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...platform.core.entity_area import resolve_entity_area as _resolve_entity_area_core
+from ...platform.core.entity.entity_area import resolve_entity_area as _resolve_entity_area_core
 
 #: 默认房间目录的 ``inferKeywords``（顺序与 shared/room/catalog.ts 一致）。
 DEFAULT_ROOM_INFER_KEYWORDS: list[tuple[str, list[str]]] = [

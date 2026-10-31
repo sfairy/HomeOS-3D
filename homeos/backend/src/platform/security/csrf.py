@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import Request
 from starlette.responses import JSONResponse
 
-from ..core.errors import api_error, resolve_api_error_code
+from ..core.http.errors import api_error, resolve_api_error_code
 
 #: CSRF token 在 Cookie / 请求头中的名字（与 Nest 一致）。
 CSRF_COOKIE = "csrf_token"

@@ -16,7 +16,7 @@ from .service_support import (
 )
 from ..display_precision import apply_sensor_display_precision
 from ...logs.global_log import _safe_text
-from ....platform.core.models import (
+from ....platform.core.db.models import (
     HAArea,
     HADevice,
     HAEntity,

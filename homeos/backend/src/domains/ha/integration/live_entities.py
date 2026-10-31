@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from .service_support import LOGGER
-from ....platform.core.observability import record_ha_counter
+from ....platform.core.runtime.observability import record_ha_counter
 
 #: 压缩键（与 HA ``homeassistant.const.COMPRESSED_STATE_*`` 一致）。
 _KEY_STATE = 's'

@@ -16,7 +16,7 @@ from typing import Any
 
 from .geo import haversine_distance_km, is_valid_home_coordinate
 from .types import EewRawMessage
-from ...platform.core.json_field import object_field
+from ...platform.core.db.json_field import object_field
 
 # ── CENC feed ──────────────────────────────────────────────────────────
 WOLFX_CENC_EQ_LIST_URL = "https://api.wolfx.jp/cenc_eqlist.json"

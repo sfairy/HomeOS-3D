@@ -18,8 +18,8 @@ from .home_tools_primitives import (
 )
 from .tool_args_validator import extract_domain
 from ..runtime.agent_actor import AgentActor
-from ....platform.core.ha_service_catalog import agent_service_allowed
-from ....platform.core.json_field import object_field
+from ....platform.core.db.json_field import object_field
+from ....platform.core.ha.ha_service_catalog import agent_service_allowed
 from ....platform.security.entity_access import is_entity_allowed
 
 

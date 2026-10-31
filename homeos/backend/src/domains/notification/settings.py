@@ -15,7 +15,7 @@ from typing import Any
 
 from .config import merge_notification_settings
 from ..alerts.dnd import DEFAULT_DND_END, DEFAULT_DND_START, current_hour_in, is_dnd_active
-from ...platform.core.models import User
+from ...platform.core.db.models import User
 
 logger = logging.getLogger("homeos.notification.settings")
 

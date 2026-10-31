@@ -31,7 +31,7 @@ from .service_support import (
     classify_disconnect_reason,
 )
 from ...logs.global_log import _safe_text
-from ....platform.core.observability import record_ha_counter, record_ha_sync_latency
+from ....platform.core.runtime.observability import record_ha_counter, record_ha_sync_latency
 
 #: HA 注册表事件 → 进程内事件名（区域索引与语音快路径缓存据此失效）。
 _REGISTRY_EVENT_NAMES = {

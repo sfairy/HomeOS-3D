@@ -11,7 +11,7 @@ import math
 from fastapi import HTTPException
 
 from .capabilities import attribute_number, feature_flags, string_options
-from ...platform.core import ha_errors
+from ...platform.core.ha import ha_errors
 
 # 允许透传的服务 → 该服务唯一允许出现的参数名。
 # 表里没有的服务，以及夹带其它参数（如同时给 temperature 与 hvac_mode）的请求一律拒绝。

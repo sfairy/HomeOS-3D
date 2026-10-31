@@ -18,7 +18,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from ..platform.core.models import User
+from ..platform.core.db.models import User
 from ..platform.security.login_limiter import retry_after_headers
 from ..platform.security.passwords import verify_password
 from ..platform.security.session_store import session_token_hash

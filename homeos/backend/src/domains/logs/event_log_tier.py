@@ -12,7 +12,7 @@ import json
 import random
 from typing import Any
 
-from ...platform.core.entity_domain import get_entity_domain
+from ...platform.core.entity.entity_domain import get_entity_domain
 
 TIER_FULL_DOMAINS = frozenset(
     {

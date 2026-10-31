@@ -24,11 +24,11 @@ from ..app_config.room_meta import (
 )
 from ..app_config.rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
 from ..security.config import load_home_timezone
-from ...platform.core.background import spawn_background
-from ...platform.core.db_exec import run_db
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.models import DeviceUsageStat
-from ...platform.core.zoned_time import zoned_date_parts
+from ...platform.core.db.db_exec import run_db
+from ...platform.core.db.models import DeviceUsageStat
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.runtime.background import spawn_background
+from ...platform.core.runtime.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.awareness.advisor_usage")
 

@@ -9,8 +9,8 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from ...platform.core.background import spawn_awaitable, spawn_background
-from ...platform.core.json_field import object_field
+from ...platform.core.db.json_field import object_field
+from ...platform.core.runtime.background import spawn_awaitable, spawn_background
 
 logger = logging.getLogger("homeos.state_store.entity_area")
 
@@ -289,7 +289,7 @@ class EntityAreaEnrichmentService:
         try:
             from sqlalchemy import select
 
-            from ...platform.core.models import HAArea
+            from ...platform.core.db.models import HAArea
 
             with factory() as session:
                 rows = session.execute(

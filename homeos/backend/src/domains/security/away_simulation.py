@@ -19,10 +19,10 @@ from sqlalchemy import select
 from .bus import LocalEventBus
 from .config import load_home_timezone
 from .layout import schedule_security_event
-from ...platform.core.db_exec import run_db
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.models import AwayPatternBucket
-from ...platform.core.zoned_time import zoned_date_parts
+from ...platform.core.db.db_exec import run_db
+from ...platform.core.db.models import AwayPatternBucket
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.runtime.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.security.away_sim")
 
@@ -122,7 +122,7 @@ class AwaySimulationService:
         await self._bus.emit(AWAY_SIM_SYNC_EVENT, {"enabled": True, **self._state_payload()})
 
     def _load_persisted_state(self) -> Any:
-        from ...platform.core.runtime_kv import load_runtime_kv
+        from ...platform.core.db.runtime_kv import load_runtime_kv
 
         with self._session_factory() as session:
             return load_runtime_kv(session, AWAY_SIM_RUNTIME_KEY)
@@ -140,7 +140,7 @@ class AwaySimulationService:
         }
 
     async def _persist_state(self) -> None:
-        from ...platform.core.runtime_kv import persist_runtime_kv
+        from ...platform.core.db.runtime_kv import persist_runtime_kv
 
         payload = {"enabled": self._enabled, **self._state_payload()}
         try:

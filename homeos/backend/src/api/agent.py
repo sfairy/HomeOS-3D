@@ -14,7 +14,7 @@ from .router import NestRouter
 from ..dependencies import license_feature
 from ..domains.agent.runtime.agent_actor import AgentActor
 from ..domains.license import features as feature_codes
-from ..platform.core.errors import BusinessException, ErrorCode
+from ..platform.core.http.errors import BusinessException, ErrorCode
 from ..platform.security.auth_context import require_user
 from ..platform.security.limiter import rate_limit_authenticated
 

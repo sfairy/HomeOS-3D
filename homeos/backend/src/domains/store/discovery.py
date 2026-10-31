@@ -36,7 +36,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from ...platform.core.hostnames import authority, browser_reachable, direct_port_host
+from ...platform.core.http.hostnames import authority, browser_reachable, direct_port_host
 
 logger = logging.getLogger("homeos.store_discovery")
 

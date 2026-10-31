@@ -25,7 +25,7 @@ from fastapi import Depends, Request
 from homeos_shared.rate_limit import SlidingWindowLimiter, resolve_limiter_key
 
 from .client_address import resolve_client_address_from_request
-from ..core.errors import BusinessException, ErrorCode
+from ..core.http.errors import BusinessException, ErrorCode
 
 #: 不同 (limit, ttl) 组合各持一个限流器；key 表上限按组合独立计算。
 _LIMITERS: dict[tuple[int, float], SlidingWindowLimiter] = {}

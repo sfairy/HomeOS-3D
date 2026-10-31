@@ -8,9 +8,9 @@ from typing import Any
 from sqlalchemy import select
 
 from .zombie_scan import build_alive_entity_id_set, should_skip_zombie_scan
-from ...platform.core.db_exec import run_db
-from ...platform.core.json_field import object_field
-from ...platform.core.models import AlertRule, ProjectConfig
+from ...platform.core.db.db_exec import run_db
+from ...platform.core.db.json_field import object_field
+from ...platform.core.db.models import AlertRule, ProjectConfig
 
 logger = logging.getLogger("homeos.system.device_management")
 

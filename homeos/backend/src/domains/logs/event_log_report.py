@@ -40,7 +40,7 @@ from ..client_power.energy_meter import (
     business_day_key,
     resolve_business_timezone,
 )
-from ...platform.core.models import (
+from ...platform.core.db.models import (
     DeviceUsageStat,
     EnergyCandidateEntity,
     EnvironmentRecord,

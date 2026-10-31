@@ -38,7 +38,7 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 | `api/ha/` | HA 入口面：`routes.py`（`/api/v1/ha/*` 与 runtime 状态流）、`proxy.py`（媒体代理）、`webrtc.py`（WebRTC 信令） |
 | `api/proxy/` | 反代与转发：`command_proxy` / `embed_proxy` / `moviepilot_proxy` / `ws_proxy` / `go2rtc`；业务逻辑仍在 `domains/proxy/` |
 | `bootstrap/` | 装配：`app.py` 的创建、中间件、异常处理、lifespan、SPA 静态、路由注册表 |
-| `platform/core/` | 跨切面基础设施：数据库与建库、锁、分页、时区、日志、错误类型 |
+| `platform/core/` | 跨切面基础设施（按簇分包）：`db/`（数据库、迁移、ORM、分页、保留期）、`http/`（DI、错误码、静态资源、反代工具）、`entity/`（实体 id / 区域 / 引用语义）、`ha/`（HA 错误与服务目录）、`runtime/`（日志、可观测性、后台任务、锁、配置读取） |
 | `platform/security/` | **传输层安全**：cookie / csrf / cors / 限流 / 会话存储 |
 | `domains/` | **业务域**（见下）。按域分包，是后端的主体 |
 | `domains/ha/integration/` | **Home Assistant 集成**：连接、协议、加密、控制池、状态中枢 |

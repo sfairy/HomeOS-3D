@@ -16,7 +16,7 @@ from ..security.config import (
     load_frontend_config,
     load_home_timezone,
 )
-from ...platform.core.app_config import load_raw_config, merge_raw_config_section
+from ...platform.core.runtime.app_config import load_raw_config, merge_raw_config_section
 
 #: 通知分区完整默认值（逐条对齐 backend/src/shared/app-config/defaults.ts）。
 DEFAULT_NOTIFICATION_CONFIG: dict[str, Any] = {

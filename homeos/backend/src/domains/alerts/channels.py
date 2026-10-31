@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 # 转出（非本地定义）：列入 ``__all__`` 即视为有意重导出。
-from ...platform.core.numbers import resolve_notification_fetch_limit
+from ...platform.core.runtime.numbers import resolve_notification_fetch_limit
 
 # ``resolve_notification_fetch_limit`` 直接从共享实现转出：该口径原先在本模块与
 # ``domains.security.config`` 各写一份（连默认值 100/500 都重复），非法值处理已经漂移。

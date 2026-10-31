@@ -16,8 +16,8 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from .errors import api_error, bad_request
-from ..security.xml_safe import safe_fromstring
-from ...config import PROJECT_ROOT, REPO_ROOT, WORKSPACE_ROOT
+from ...security.xml_safe import safe_fromstring
+from ....config import PROJECT_ROOT, REPO_ROOT, WORKSPACE_ROOT
 
 #: 允许上传的图片扩展名。
 ALLOWED_IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"})

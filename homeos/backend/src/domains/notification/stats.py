@@ -18,7 +18,7 @@ from ..alerts.sources import (
     build_notification_source_db_filter,
     normalize_notification_source,
 )
-from ...platform.core.json_field import parse_json_array
+from ...platform.core.db.json_field import parse_json_array
 
 ALERT_LEVELS = ("info", "warn", "danger")
 
@@ -75,7 +75,7 @@ def build_notification_source_conditions(
     filter_key: str,
 ) -> ColumnElement[bool] | None:
     """把 source 过滤键转换为 SQLAlchemy where 条件（对齐 ``prismaNotificationSourceWhere``）。"""
-    from ...platform.core.models import Notification
+    from ...platform.core.db.models import Notification
 
     spec: NotificationSourceDbFilter | None = build_notification_source_db_filter(filter_key)
     if not spec:

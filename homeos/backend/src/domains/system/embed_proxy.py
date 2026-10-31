@@ -25,7 +25,7 @@ from fastapi import Request
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 
 from .ops.upstream import EMBED_TIMEOUT
-from ...platform.core.embed_proxy_util import (
+from ...platform.core.http.embed_proxy_util import (
     EMBED_PROXY_SKIP_REQUEST_HEADERS,
     EMBED_PROXY_STRIP_RESPONSE_HEADERS,
     STATIC_MIME,
@@ -46,8 +46,8 @@ from ...platform.core.embed_proxy_util import (
     url_origin,
     validate_embed_target_url,
 )
-from ...platform.core.errors import api_error, not_found
-from ...platform.core.frontend_resources import frontend_resource_url
+from ...platform.core.http.errors import api_error, not_found
+from ...platform.core.http.frontend_resources import frontend_resource_url
 from ...platform.security.cookies import is_request_secure
 
 logger = logging.getLogger("homeos.system.embed_proxy")

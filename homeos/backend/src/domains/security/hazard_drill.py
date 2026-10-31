@@ -17,7 +17,7 @@ from .layout import (
     parse_hazard_layout_bindings,
     schedule_security_event,
 )
-from ...platform.core.entity_domain import get_entity_domain
+from ...platform.core.entity.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.security.drill")
 

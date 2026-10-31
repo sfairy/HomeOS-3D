@@ -6,7 +6,7 @@
  *
  * 1. `homeos/frontend/vite.config.ts` 写 `resource-version.json` + 替换 `sw.js` 的占位符；
  * 2. `homeos/frontend/public/sw.js` 提供占位符（没被替换时退化成固定缓存名）；
- * 3. `homeos/backend/src/platform/core/frontend_resources.py` 读同一个文件名、同一套 16 位十六进制。
+ * 3. `homeos/backend/src/platform/core/http/frontend_resources.py` 读同一个文件名、同一套 16 位十六进制。
  *
  * 所以这里断言的不是「实现怎么写」，而是「三处说的是同一件事」：文件名、占位符字面量、
  * revision 口径。真正跑一次构建的断言在 `03-migration-report.md` 的验收记录里。
@@ -21,7 +21,7 @@ const read = (relativePath) =>
 
 const swSource = read('homeos/frontend/public/sw.js')
 const viteConfig = read('homeos/frontend/vite.config.ts')
-const backendSource = read('homeos/backend/src/platform/core/frontend_resources.py')
+const backendSource = read('homeos/backend/src/platform/core/http/frontend_resources.py')
 const shellHtml = read('homeos/frontend/index.html')
 
 const TOKEN = '__HOMEOS_RESOURCE_REVISION__'

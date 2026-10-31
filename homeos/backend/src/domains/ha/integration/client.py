@@ -20,7 +20,7 @@ import httpx
 from .control_pool import HAControlConfiguration, HAControlPool
 from .errors import endpoint_failure_reason
 from .http_pool import HAHttpClientPool, HAHttpConfiguration
-from ....platform.core import ha_errors
+from ....platform.core.ha import ha_errors
 
 
 def _websockets():

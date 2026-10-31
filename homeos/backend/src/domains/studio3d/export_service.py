@@ -31,12 +31,12 @@ from sqlalchemy.orm import Session
 from . import draft_repository
 from ..ui_config.global_popups import global_popups
 from ...panel.asset_refs import saved_project_documents
-from ...platform.core.models import Project
-from ...platform.core.resource_publication import (
+from ...platform.core.db.models import Project
+from ...platform.core.http.resource_publication import (
     recover_export_replacements,
     replace_export_directory,
 )
-from ...platform.core.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
+from ...platform.core.http.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 
 MAX_EXPORT_ARCHIVE_BYTES = MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 MAX_EXPORT_EXPANDED_BYTES = 1073741824

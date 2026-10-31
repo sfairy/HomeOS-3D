@@ -20,7 +20,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
-from .errors import BusinessException, ErrorCode, api_error
+from ..http.errors import BusinessException, ErrorCode, api_error
 
 T = TypeVar("T")
 

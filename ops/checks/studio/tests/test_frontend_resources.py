@@ -23,7 +23,7 @@ BACKEND_ROOT = REPO_ROOT / "homeos" / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.platform.core import frontend_resources as resources
+from src.platform.core.http import frontend_resources as resources
 
 REVISION = "0123456789abcdef"
 

@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .presets import resolve_action_kind  # noqa: F401  (保持模块语义对齐，供调用方复用)  # pyright: ignore[reportUnusedImport]
-from ...platform.core.zoned_time import (
+from ...platform.core.runtime.zoned_time import (
     date_from_zoned_wall_clock,
     home_mode_minute_key,
     normalize_home_mode_time_at,

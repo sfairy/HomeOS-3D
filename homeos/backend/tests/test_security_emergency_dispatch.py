@@ -21,7 +21,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from src.domains.security import panel as panel_module
 from src.domains.security.panel import SecurityPanelService
-from src.platform.core import background
+from src.platform.core.runtime import background
 
 
 class _ConfigStub:

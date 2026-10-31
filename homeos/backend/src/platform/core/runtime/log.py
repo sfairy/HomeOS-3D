@@ -24,13 +24,13 @@ from homeos_shared.uvicorn_messages import (
     localize_uvicorn_message,
 )
 
-from .access_log_noise import (
+from .observability import get_trace_id
+from .status_log_dedupe import StatusLogDedupeFilter
+from ..http.access_log_noise import (
     MODE_OFF,
     install_http_access_log_filter,
     install_websocket_handshake_log_filter,
 )
-from .observability import get_trace_id
-from .status_log_dedupe import StatusLogDedupeFilter
 
 #: Nest ``verbose`` 级别：低于 ``DEBUG``，与 Nest ``LogLevel`` 一一对应
 _VERBOSE = 5

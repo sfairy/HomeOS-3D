@@ -36,9 +36,9 @@ from ..domains.store import (
     VerificationPurpose,
     verification_client_from_settings,
 )
-from ..platform.core.db_exec import run_db
-from ..platform.core.deps import get_session
-from ..platform.core.models import LoginSession, User
+from ..platform.core.db.db_exec import run_db
+from ..platform.core.db.models import LoginSession, User
+from ..platform.core.http.deps import get_session
 from ..platform.security.client_address import (
     client_ip_from_request,
     resolve_client_address_from_request,

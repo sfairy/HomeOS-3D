@@ -72,7 +72,7 @@ Vite 的 `build` 已经产出压缩产物：删注释、删类型、局部变量
 - **没有任何明文 `.py`**：后端包之外，`dist/` 里也不含构建期脚本
   （Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。
   全新库由后端按 ORM 元数据建：启动期先跑迁移注册表（空库上是 no-op），再由 `prepare_schema`
-  （主应用 `backend/src/platform/core/schema.py`、商店 `backend/src/core/schema.py`）补建结构并校验。
+  （主应用 `backend/src/platform/core/db/schema.py`、商店 `backend/src/core/schema.py`）补建结构并校验。
 
 ### strip 掉调试信息，但保留异常行号
 

@@ -73,13 +73,13 @@ from ..domains.system.jobs import JobRegistryService
 from ..domains.system.ops import ExternalApiService, MoviePilotProxyService
 from ..domains.ui_config import UiConfigService
 from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
-from ..platform.core import schema
-from ..platform.core.database import Database
-from ..platform.core.distributed_lock import DistributedLockService
-from ..platform.core.log import configure_app_logging
-from ..platform.core.observability import EventLoopLagMonitor
-from ..platform.core.resource_publication import recover_resource_publications
-from ..platform.core.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
+from ..platform.core.db import schema
+from ..platform.core.db.database import Database
+from ..platform.core.http.resource_publication import recover_resource_publications
+from ..platform.core.runtime.distributed_lock import DistributedLockService
+from ..platform.core.runtime.log import configure_app_logging
+from ..platform.core.runtime.observability import EventLoopLagMonitor
+from ..platform.core.runtime.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
 from ..realtime.domain_events import DomainEventBridge
 from ..realtime.gateway import RealtimeGateway
 from ..realtime.state_store import StateStore

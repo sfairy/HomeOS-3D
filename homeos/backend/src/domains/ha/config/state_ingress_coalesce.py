@@ -9,10 +9,10 @@ import time
 from typing import Any
 
 from ...app_config.defaults import DEFAULT_APP_CONFIG
-from ....platform.core.app_config import load_raw_config
-from ....platform.core.background import spawn_awaitable
-from ....platform.core.entity_domain import get_entity_domain
-from ....platform.core.observability import record_ha_sync_latency
+from ....platform.core.entity.entity_domain import get_entity_domain
+from ....platform.core.runtime.app_config import load_raw_config
+from ....platform.core.runtime.background import spawn_awaitable
+from ....platform.core.runtime.observability import record_ha_sync_latency
 
 logger = logging.getLogger("homeos.state_ingress_coalesce")
 

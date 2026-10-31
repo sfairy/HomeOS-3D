@@ -20,10 +20,10 @@ from typing import Any
 from sqlalchemy import func, select
 
 from .bindings_gaps import collect_binding_gaps
-from ...platform.core.db_exec import run_db
-from ...platform.core.errors import api_error, bad_request
-from ...platform.core.json_field import object_field, read_json_object
-from ...platform.core.models import Project, ProjectConfig, SecurityEvent
+from ...platform.core.db.db_exec import run_db
+from ...platform.core.db.json_field import object_field, read_json_object
+from ...platform.core.db.models import Project, ProjectConfig, SecurityEvent
+from ...platform.core.http.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.setup.wizard")
 

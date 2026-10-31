@@ -30,7 +30,7 @@ HomeOS 采用中间件式严格门禁，因此「哪些路径必须在未激活�
 
 from __future__ import annotations
 
-from ...platform.core.frontend_static import (
+from ...platform.core.http.frontend_static import (
     FRONTEND_ASSET_SUFFIXES,
     FRONTEND_STATIC_MOUNT_PREFIXES,
     FRONTEND_STATIC_ROOT_FILES,

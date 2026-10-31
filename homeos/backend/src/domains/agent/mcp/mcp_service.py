@@ -16,9 +16,9 @@ from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_jso
 from ..runtime.agent_actor import AGENT_CONTROL_TOOLS, AgentActor
 from ..runtime.tool_i18n import localize_tool_schemas
 from ....config import environment_is_production_from
-from ....platform.core.db_exec import run_db
-from ....platform.core.json_field import read_json_object
-from ....platform.core.models import User
+from ....platform.core.db.db_exec import run_db
+from ....platform.core.db.json_field import read_json_object
+from ....platform.core.db.models import User
 from ....platform.security.auth_context import resolve_restrictions
 
 logger = logging.getLogger("homeos.agent.mcp")

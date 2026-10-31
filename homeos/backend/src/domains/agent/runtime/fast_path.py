@@ -11,7 +11,7 @@ from .area_service import AgentAreaService
 from .config_service import AgentConfigService
 from .lang_template_service import LangTemplateService
 from ..tools.high_risk_denylist import SceneVoiceControlGate, is_scene_voice_allowed
-from ....platform.core.entity_domain import get_entity_domain
+from ....platform.core.entity.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.agent.fast_path")
 

@@ -8,7 +8,7 @@ import math
 import re
 from typing import Any
 
-from ....platform.core.errors import BusinessException
+from ....platform.core.http.errors import BusinessException
 
 logger = logging.getLogger("homeos.agent.home_tools")
 

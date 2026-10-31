@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from .entity_access import resolve_entity_restrictions
 from .session_store import resolve_login_session
-from ..core.errors import api_error
+from ..core.http.errors import api_error
 
 logger = logging.getLogger("homeos.platform.security.ws_auth")
 

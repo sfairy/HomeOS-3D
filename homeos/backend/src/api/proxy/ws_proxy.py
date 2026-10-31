@@ -24,12 +24,12 @@ from ...domains.proxy.ws_proxy import (
     resolve_ha_base_url,
     verify_embed_ws_auth,
 )
-from ...platform.core.embed_proxy_util import (
+from ...platform.core.http.embed_proxy_util import (
     build_embed_upstream_url,
     get_embed_upstream_origin,
     strip_homeos_cookies,
 )
-from ...platform.core.errors import BusinessException
+from ...platform.core.http.errors import BusinessException
 
 logger = logging.getLogger("homeos.api.ws-proxy")
 

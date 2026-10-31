@@ -25,7 +25,7 @@ BACKEND_ROOT = REPO_ROOT / "homeos" / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.platform.core import resource_publication as publication
+from src.platform.core.http import resource_publication as publication
 
 TOKEN = "0123456789abcdef0123456789abcdef"
 OTHER_TOKEN = "fedcba9876543210fedcba9876543210"

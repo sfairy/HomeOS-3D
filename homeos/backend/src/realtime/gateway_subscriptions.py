@@ -98,7 +98,7 @@ class SubscriptionIndexMixin:
         self, changes: list[dict[str, Any]], critical_domains: set[str]
     ) -> set[str]:
         """按域/钉选收窄广播候选；含 critical 域时退回全量 baseline（语义不变）。"""
-        from ..platform.core.entity_domain import get_entity_domain
+        from ..platform.core.entity.entity_domain import get_entity_domain
 
         if not self._baseline_ready:
             return set()

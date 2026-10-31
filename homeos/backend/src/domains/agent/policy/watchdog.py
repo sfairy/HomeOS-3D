@@ -27,9 +27,9 @@ from sqlalchemy import select
 from .policy import AUTO_CLOSE_DOMAINS
 from .proactive import in_quiet_hours
 from ..runtime.config_service import AgentConfigService, AgentProactiveConfig
-from ....platform.core.db_exec import run_db
-from ....platform.core.json_field import object_field
-from ....platform.core.models import DeviceUsageStat
+from ....platform.core.db.db_exec import run_db
+from ....platform.core.db.json_field import object_field
+from ....platform.core.db.models import DeviceUsageStat
 
 logger = logging.getLogger("homeos.agent.watchdog")
 

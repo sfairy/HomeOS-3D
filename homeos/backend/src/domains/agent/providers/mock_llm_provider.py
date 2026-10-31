@@ -12,7 +12,7 @@ from .llm_provider_interface import (
     LlmToolCall,
     LlmToolSchema,
 )
-from ....platform.core.entity_domain import get_entity_domain
+from ....platform.core.entity.entity_domain import get_entity_domain
 
 #: 控制意图：开 / 关 / 调节等关键词（中英文）
 _CONTROL_INTENT = re.compile(

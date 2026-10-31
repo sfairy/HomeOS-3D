@@ -18,7 +18,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from ....platform.core.models import AgentMemoryRow
+from ....platform.core.db.models import AgentMemoryRow
 
 logger = logging.getLogger("homeos.agent.memory")
 

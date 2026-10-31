@@ -14,7 +14,7 @@ from typing import Any
 
 from sqlalchemy import delete, func, select
 
-from ...platform.core.models import Notification
+from ...platform.core.db.models import Notification
 
 logger = logging.getLogger("homeos.notification.prune")
 

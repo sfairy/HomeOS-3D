@@ -34,7 +34,7 @@ from src.domains.security.panel_helpers import (
     SecurityEmergencyRunnerHelper,
     normalize_security_emergency,
 )
-from src.platform.core.errors import BusinessException
+from src.platform.core.http.errors import BusinessException
 
 
 class FakeBus:

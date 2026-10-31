@@ -29,8 +29,7 @@ from .service_support import (
 from ..display_precision import apply_sensor_display_precision
 from ...logs.global_log import _safe_text
 from ...ui_config.global_popups import global_popups
-from ....platform.core.entity_refs import document_entity_ids
-from ....platform.core.models import (
+from ....platform.core.db.models import (
     HAArea,
     HAConnection,
     HADevice,
@@ -39,7 +38,8 @@ from ....platform.core.models import (
     ProjectDraft,
     utc_now,
 )
-from ....platform.core.observability import record_ha_counter, record_ha_sync_latency
+from ....platform.core.entity.entity_refs import document_entity_ids
+from ....platform.core.runtime.observability import record_ha_counter, record_ha_sync_latency
 
 #: 单次 ``IN (...)`` 参数上限：SQLite 旧版本变量上限 999，取 400 留出其余条件的位置。
 _SQL_IN_CHUNK = 400

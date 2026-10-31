@@ -15,6 +15,15 @@ from unittest import mock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from src.domains.agent.memory.timeline import (
+    SOURCE_AUTOMATION,
+    SOURCE_EXTERNAL,
+    SOURCE_MANUAL,
+    AgentTimelineService,
+)
+from src.domains.agent.policy.policy import AgentPolicyService
+from src.domains.agent.policy.scheduler import AgentSchedulerService
+from src.domains.agent.policy.watchdog import AgentWatchdogService
 from src.domains.agent.runtime.agent_actor import AgentActor
 from src.domains.agent.runtime.config_service import AgentProactiveConfig
 from src.domains.agent.runtime.diagnostics import (
@@ -24,21 +33,12 @@ from src.domains.agent.runtime.diagnostics import (
     KIND_RECOVERED,
     AgentDiagnosticsService,
 )
-from src.domains.agent.policy.policy import AgentPolicyService
-from src.domains.agent.policy.scheduler import AgentSchedulerService
-from src.domains.agent.memory.timeline import (
-    SOURCE_AUTOMATION,
-    SOURCE_EXTERNAL,
-    SOURCE_MANUAL,
-    AgentTimelineService,
-)
+from src.domains.agent.runtime.web_search import AgentWebSearchService, _is_public_address
 from src.domains.agent.tools.home_tools_schemas import build_home_tool_schemas
 from src.domains.agent.tools.home_tools_service import HomeToolsService
-from src.domains.agent.policy.watchdog import AgentWatchdogService
-from src.domains.agent.runtime.web_search import AgentWebSearchService, _is_public_address
-from src.platform.core.database import Base
-from src.platform.core.migrations import _add_agent_automation_actor_columns
-from src.platform.core.models import AgentPolicyRule, AgentTaskExecutionLog
+from src.platform.core.db.database import Base
+from src.platform.core.db.migrations import _add_agent_automation_actor_columns
+from src.platform.core.db.models import AgentPolicyRule, AgentTaskExecutionLog
 
 AUTOMATION_TOOLS = [
     "query_device_timeline",

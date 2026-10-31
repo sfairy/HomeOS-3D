@@ -28,7 +28,7 @@ from .service_support import (
     LOGGER,
     TRANSLATION_CACHE_SECONDS,
 )
-from ....platform.core.models import HAConnection
+from ....platform.core.db.models import HAConnection
 
 
 class HAEndpointMixin(HAConnectorHost):

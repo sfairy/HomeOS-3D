@@ -32,8 +32,8 @@ from .zones import (
     should_zone_alarm_in_mode,
 )
 from ..proxy.verification import describe_service_verification
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
+from ...platform.core.db.runtime_kv import load_runtime_kv, persist_runtime_kv
+from ...platform.core.entity.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.security.panel")
 

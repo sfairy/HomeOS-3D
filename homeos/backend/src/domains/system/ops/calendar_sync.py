@@ -13,7 +13,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from ....platform.core.icalendar import is_away_during_calendar
+from ....platform.core.runtime.icalendar import is_away_during_calendar
 
 
 @dataclass

@@ -9,7 +9,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-from ....platform.core.observability import record_ha_counter
+from ....platform.core.runtime.observability import record_ha_counter
 
 #: 状态值本身没有语义的"服务型实体"：常态 ``unknown`` 不等于掉线。
 #:

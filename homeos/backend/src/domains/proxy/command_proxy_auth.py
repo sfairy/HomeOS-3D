@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from ...platform.core.errors import api_error, bad_request, forbidden
+from ...platform.core.http.errors import api_error, bad_request, forbidden
 from ...platform.security.entity_access import is_entity_allowed
 
 _MEDIA_PATTERNS = (

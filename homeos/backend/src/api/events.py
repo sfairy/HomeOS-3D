@@ -10,7 +10,7 @@ from fastapi import Depends, Query, Request
 from .router import NestRouter
 from ..dependencies import require_license_feature
 from ..domains.license import features as feature_codes
-from ..platform.core.errors import forbidden
+from ..platform.core.http.errors import forbidden
 from ..platform.security.auth_context import require_user
 from ..platform.security.entity_access import is_entity_allowed, resolve_entity_restrictions
 

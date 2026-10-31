@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-from ...platform.core.atomic_write import atomic_write_bytes
+from ...platform.core.runtime.atomic_write import atomic_write_bytes
 
 MAX_ENTRY_BYTES = 10485760
 MAX_PIXELS = 2097152

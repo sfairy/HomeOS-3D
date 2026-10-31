@@ -29,8 +29,8 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from sqlalchemy import delete, select
 
 from .types import MessageHandler
-from ...platform.core.errors import api_error, bad_request
-from ...platform.core.models import WebPushSubscription
+from ...platform.core.db.models import WebPushSubscription
+from ...platform.core.http.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.channels.webpush")
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.json_field import object_field
+from ...platform.core.db.json_field import object_field
+from ...platform.core.entity.entity_domain import get_entity_domain
 
 #: 每类采样上限，避免响应体过大
 SAMPLE_LIMIT = 8

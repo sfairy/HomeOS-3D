@@ -24,8 +24,8 @@ from typing import Any
 from ..alerts.channels import resolve_lan_channels
 from ..alerts.dnd import is_dnd_active_now
 from ..alerts.sources import is_life_safety_notification
-from ...platform.core.background import spawn_background
-from ...platform.core.models import Notification
+from ...platform.core.db.models import Notification
+from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.notification.dispatch")
 

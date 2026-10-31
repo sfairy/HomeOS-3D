@@ -15,7 +15,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from ....platform.core.json_field import object_field
+from ....platform.core.db.json_field import object_field
 
 logger = logging.getLogger("homeos.agent.diagnostics")
 

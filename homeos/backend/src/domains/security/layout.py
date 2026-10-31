@@ -11,10 +11,10 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...platform.core.app_config import load_raw_config
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.json_field import object_field
-from ...platform.core.models import ProjectConfig, SecurityEvent
+from ...platform.core.db.json_field import object_field
+from ...platform.core.db.models import ProjectConfig, SecurityEvent
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.runtime.app_config import load_raw_config
 
 logger = logging.getLogger("homeos.security")
 
@@ -303,7 +303,7 @@ def _schedule_persist(
         logger.debug("无事件循环，审计事件 %s 改为同步写入", event_type)
         persist_security_event(session_factory, event_type, detail, **kwargs)
         return
-    from ...platform.core.background import spawn_awaitable
+    from ...platform.core.runtime.background import spawn_awaitable
 
     spawn_awaitable(
         asyncio.to_thread(persist_security_event, session_factory, event_type, detail, **kwargs)

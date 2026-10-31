@@ -15,8 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from ..api.assets import read_builtin_asset
 from ..config import Settings
 from ..domains.license import features as feature_codes
-from ..platform.core.frontend_resources import frontend_resource_url
-from ..platform.core.frontend_static import (
+from ..platform.core.http.frontend_resources import frontend_resource_url
+from ..platform.core.http.frontend_static import (
     APPLE_TOUCH_ICON_PATHS,
     BACKGROUNDS_MOUNT_PREFIX,
     FAVICON_PATH,
@@ -284,7 +284,7 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
     只读，用户上传落到 ``<data_dir>/ui-assets`` 并优先命中。这样上传覆盖默认图、删除默认
     素材都不再改动随包目录（否则升级 / 重建镜像后改动会被回滚）。
     """
-    from ..platform.core.asset_paths import (
+    from ..platform.core.http.asset_paths import (
         UPLOAD_CONTENT_TYPES,
         get_backgrounds_dir,
         get_icons_dir,

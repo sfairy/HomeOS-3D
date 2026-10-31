@@ -80,7 +80,7 @@ class BackendDepsGateTest(unittest.TestCase):
             root = Path(tmp)
             (root / "domains" / "ha").mkdir(parents=True)
             (root / "domains" / "ha" / "bad.py").write_text(
-                "from src.platform.core.entity_domain import get_entity_domain\nimport src.platform.core\n",
+                "from src.platform.core.entity.entity_domain import get_entity_domain\nimport src.platform.core\n",
                 encoding="utf-8",
             )
             result = run_gate(root)

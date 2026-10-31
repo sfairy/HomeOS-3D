@@ -24,10 +24,10 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from ....platform.core.background import spawn_background
-from ....platform.core.db_exec import run_db
-from ....platform.core.json_field import read_json_object
-from ....platform.core.models import AgentContextTimeline
+from ....platform.core.db.db_exec import run_db
+from ....platform.core.db.json_field import read_json_object
+from ....platform.core.db.models import AgentContextTimeline
+from ....platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.agent.timeline")
 

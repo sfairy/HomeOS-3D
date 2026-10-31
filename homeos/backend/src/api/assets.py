@@ -57,19 +57,19 @@ from ..domains.license import features as feature_codes
 from ..domains.ui_config.global_popups import global_popups
 from ..modules.interaction3d.studio_draft_scene import read_current_studio_draft
 from ..panel.asset_refs import saved_project_documents, studio_asset_ids
-from ..platform.core.asset_paths import (
+from ..platform.core.db.models import Project
+from ..platform.core.http.asset_paths import (
     UPLOAD_CONTENT_TYPES,
     UPLOAD_IMAGE_SUFFIXES,
     user_asset_file,
 )
-from ..platform.core.async_work import durable_work
-from ..platform.core.atomic_write import (
+from ..platform.core.runtime.async_work import durable_work
+from ..platform.core.runtime.atomic_write import (
     PRIVATE_DIR_MODE,
     atomic_write_text,
     ensure_private_dir,
     restrict_private_file,
 )
-from ..platform.core.models import Project
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 
 router = APIRouter(prefix = '/assets', tags = [

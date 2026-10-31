@@ -35,8 +35,8 @@ from ..providers.llm_provider_interface import (
     LlmToolCall,
 )
 from ..tools.home_tools_service import HomeToolsService
-from ....platform.core.entity_domain import get_entity_domain
-from ....platform.core.errors import BusinessException, ErrorCode, api_error
+from ....platform.core.entity.entity_domain import get_entity_domain
+from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 from ....platform.security.entity_access import is_entity_allowed
 
 logger = logging.getLogger("homeos.agent.service")

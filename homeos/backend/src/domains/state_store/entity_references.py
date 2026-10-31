@@ -15,7 +15,7 @@ from contextlib import AbstractContextManager
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict
 
-from ...platform.core.json_field import object_field
+from ...platform.core.db.json_field import object_field
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -477,7 +477,7 @@ def build_entity_references_inverted_index(
     超出的告警规则 / 家庭模式里的引用根本不会被发现 —— 删除实体后留下悬挂引用，而且
     没有任何提示。配置表规模由用户配置决定（几十~几百行），全量扫描的代价可以忽略。
     """
-    from ...platform.core.models import AlertRule, HomeMode
+    from ...platform.core.db.models import AlertRule, HomeMode
 
     with session_factory() as session:
         alerts = session.query(AlertRule).all()
@@ -987,7 +987,7 @@ def _ok(action: str, message: str | None = None, layout_touched: bool = False) -
 
 
 def _unlink_home_mode(deps: EntityReferencesDeps, mode_id: str, entity_id: str) -> UnlinkResult:
-    from ...platform.core.models import HomeMode
+    from ...platform.core.db.models import HomeMode
 
     with deps["session_factory"]() as session:
         stored_mode = session.get(HomeMode, mode_id)
@@ -1028,7 +1028,7 @@ def _unlink_home_mode(deps: EntityReferencesDeps, mode_id: str, entity_id: str) 
 
 
 def _unlink_alert_rule(deps: EntityReferencesDeps, rule_id: str) -> UnlinkResult:
-    from ...platform.core.models import AlertRule
+    from ...platform.core.db.models import AlertRule
 
     delete_alert_rule = deps.get("delete_alert_rule")
     if delete_alert_rule is not None:
@@ -1514,7 +1514,7 @@ class EntityReferencesService:
         }
 
     def _load_layout(self) -> dict[str, Any]:
-        from ...platform.core.models import ProjectConfig
+        from ...platform.core.db.models import ProjectConfig
 
         with self._session_factory() as session:
             project_config_row = (

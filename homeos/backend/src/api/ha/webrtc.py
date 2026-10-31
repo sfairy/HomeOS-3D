@@ -100,7 +100,7 @@ def _load_custom_ice_servers(database_manager) -> list[dict[str, Any]]:
     日志里一个字都没有，只能靠猜。
     """
     try:
-        from ...platform.core.app_config import load_raw_config
+        from ...platform.core.runtime.app_config import load_raw_config
 
         with database_manager.session_factory() as database:
             raw = load_raw_config(database)

@@ -18,7 +18,7 @@ from typing import Any
 from .bus import LocalEventBus
 from .layout import load_active_project_layout, schedule_security_event
 from .zones import resolve_home_mode_link_for_security_change, security_mode_label
-from ...platform.core.background import spawn_background
+from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.security.linkage")
 

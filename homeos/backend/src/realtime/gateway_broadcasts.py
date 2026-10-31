@@ -119,8 +119,8 @@ class BroadcastMixin:
 
     async def _mark_notification_delivered(self, notification_id: str, channels: list[str]) -> None:
         """通知送达回写（失败留痕；对齐 ``markNotificationDelivered`` 的"不阻断投递"语义）。"""
-        from ..platform.core.json_field import parse_json_array
-        from ..platform.core.models import Notification
+        from ..platform.core.db.json_field import parse_json_array
+        from ..platform.core.db.models import Notification
 
         def _write() -> None:
             database = self.app.state.database

@@ -10,7 +10,7 @@
  * 依赖：仅 Node 内置（fetch），需要后端在跑；`/metrics` 生产环境需 `METRICS_TOKEN`，
  * 用 `--token=xxx` 或 `HOMEOS_METRICS_TOKEN` 传入。
  *
- * 指标口径（backend/src/platform/core/observability.py）：
+ * 指标口径（backend/src/platform/core/runtime/observability.py）：
  *   homeos_ha_sync_latency_ms{stage,quantile}  五段管线延迟 p50/p99/max
  *   homeos_ha_events_total{event}              recv / reconnect / fast_reconnect /
  *                                              queue_dropped / resync / reconcile /

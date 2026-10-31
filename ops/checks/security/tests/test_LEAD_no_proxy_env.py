@@ -21,7 +21,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[4] / "homeos" / "backend"
 sys.path.insert(0, str(BACKEND_ROOT))
 
 import httpx
-from src.platform.core.proxy_env import normalize_no_proxy, repair_no_proxy_env
+from src.platform.core.http.proxy_env import normalize_no_proxy, repair_no_proxy_env
 
 
 class NormalizeNoProxyTests(unittest.TestCase):

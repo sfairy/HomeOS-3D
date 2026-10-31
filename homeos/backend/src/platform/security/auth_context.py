@@ -25,9 +25,9 @@ from .session_store import (
     session_token_hash,
     set_session_cookie,
 )
-from ..core.deps import get_session
-from ..core.errors import unauthorized
-from ..core.models import LoginSession, User
+from ..core.db.models import LoginSession, User
+from ..core.http.deps import get_session
+from ..core.http.errors import unauthorized
 
 WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 

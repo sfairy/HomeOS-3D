@@ -19,9 +19,9 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ....platform.core.db_exec import run_db
-from ....platform.core.json_field import parse_json_array, read_json_object
-from ....platform.core.models import AgentPolicyRule
+from ....platform.core.db.db_exec import run_db
+from ....platform.core.db.json_field import parse_json_array, read_json_object
+from ....platform.core.db.models import AgentPolicyRule
 
 logger = logging.getLogger("homeos.agent.policy")
 

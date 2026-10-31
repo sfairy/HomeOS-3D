@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.json_field import object_field
+from ...platform.core.db.json_field import object_field
+from ...platform.core.entity.entity_domain import get_entity_domain
 
 #: 支持 turn_on / turn_off 的域（默认分支可用）；其余域无此服务，跳过恢复。
 #:

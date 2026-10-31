@@ -32,7 +32,7 @@ from ....dependencies import (
     revalidate_viewer,
     viewer_scope_revision,
 )
-from ....platform.core.models import HAConnection
+from ....platform.core.db.models import HAConnection
 
 #: 复检被拒只留一条可查的线索：不记 URL / 令牌，只记拒绝原因。
 LOGGER = logging.getLogger(__name__)

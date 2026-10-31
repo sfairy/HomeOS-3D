@@ -22,8 +22,8 @@ from starlette.concurrency import run_in_threadpool
 from ..dependencies import DatabaseSession, LicensedUser
 from ..domains.studio3d import export_service, service
 from ..panel.asset_refs import studio_asset_ids
-from ..platform.core.async_work import durable_work
-from ..platform.core.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
+from ..platform.core.http.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
+from ..platform.core.runtime.async_work import durable_work
 from ..schemas import Studio3DDraftUpdate
 
 router = APIRouter(prefix="/studio3d", tags=["studio3d"])

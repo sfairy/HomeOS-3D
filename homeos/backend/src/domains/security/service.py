@@ -13,9 +13,9 @@ import httpx
 
 from .config import load_security_config, parse_optional_int
 from ..ha.config.ha_config import load_active_ha_endpoints
-from ...platform.core.app_config import load_raw_config
-from ...platform.core.json_field import object_field
-from ...platform.core.models import ProjectConfig
+from ...platform.core.db.json_field import object_field
+from ...platform.core.db.models import ProjectConfig
+from ...platform.core.runtime.app_config import load_raw_config
 
 logger = logging.getLogger("homeos.security.service")
 

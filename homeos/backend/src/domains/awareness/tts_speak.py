@@ -18,7 +18,7 @@ import json
 import logging
 from typing import Any
 
-from ...platform.core.errors import api_error, bad_request
+from ...platform.core.http.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.awareness.tts")
 

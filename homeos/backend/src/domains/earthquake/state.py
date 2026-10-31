@@ -20,7 +20,7 @@ from .geo import compute_s_wave_countdown, is_eew_simulation_event_id, normalize
 from .threshold import evaluate_local_quake_thresholds
 from .types import EarthquakeAlertPayload, EarthquakeRuntimeConfig
 from ..notification.push_time import format_time_only
-from ...platform.core.models import EarthquakeAlertHistory
+from ...platform.core.db.models import EarthquakeAlertHistory
 
 logger = logging.getLogger("homeos.earthquake")
 

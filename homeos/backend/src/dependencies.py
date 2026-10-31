@@ -13,8 +13,8 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .platform.core.errors import unauthorized
-from .platform.core.models import GlobalCustomPopupState, ProjectDraft, User
+from .platform.core.db.models import GlobalCustomPopupState, ProjectDraft, User
+from .platform.core.http.errors import unauthorized
 from .platform.security.auth_context import authenticate_session
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from .capabilities import attribute_number, attributes_of, feature_flags
-from ...platform.core import ha_errors
+from ...platform.core.ha import ha_errors
 
 COVER_SERVICES = {
     'open_cover': 1,

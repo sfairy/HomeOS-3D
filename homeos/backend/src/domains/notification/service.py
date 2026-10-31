@@ -39,8 +39,8 @@ from ..alerts.sources import is_life_safety_notification  # noqa: F401  # pyrigh
 from ..app_config.rooms import resolve_room_label_from_ha_areas
 from ..ha.config.ha_config import ha_connection_configured
 from ..ha.config.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
-from ...platform.core.background import spawn_background
-from ...platform.core.models import Notification
+from ...platform.core.db.models import Notification
+from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.notification")
 

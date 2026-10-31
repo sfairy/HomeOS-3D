@@ -11,11 +11,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ...platform.core.app_config import load_raw_config
+from ...platform.core.runtime.app_config import load_raw_config
 
 # 通知拉取条数 clamp 与 ``domains.alerts.channels`` 共用同一实现（原为两份拷贝）。
 # 转出（非本地定义）：列入 ``__all__`` 即视为有意重导出。
-from ...platform.core.numbers import resolve_notification_fetch_limit
+from ...platform.core.runtime.numbers import resolve_notification_fetch_limit
 
 #: 安防分区默认值（逐条对齐 backend/src/shared/app-config/defaults.ts）。
 DEFAULT_SECURITY_CONFIG: dict[str, Any] = {

@@ -35,7 +35,7 @@ from ..runtime.agent_actor import (
 )
 from ..runtime.config_service import AgentConfigService
 from ...proxy.command_proxy_auth import assert_command_proxy_authorized
-from ....platform.core.json_field import object_field
+from ....platform.core.db.json_field import object_field
 from ....platform.security.entity_access import (
     is_entity_allowed,
     resolve_entity_restrictions,

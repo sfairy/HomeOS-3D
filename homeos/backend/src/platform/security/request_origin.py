@@ -15,8 +15,8 @@ from urllib.parse import urlsplit
 
 from fastapi import Request
 
-from ..core.errors import RequestRejected
-from ..core.hostnames import browser_reachable
+from ..core.http.errors import RequestRejected
+from ..core.http.hostnames import browser_reachable
 
 _REJECTION = "此操作只允许从当前应用页面发起。"
 

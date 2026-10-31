@@ -24,7 +24,7 @@ from .voice_commands import (
     plan_voice_commands,
 )
 from ..proxy.command_proxy_auth import assert_command_proxy_authorized
-from ...platform.core.errors import BusinessException, ErrorCode, api_error, bad_request, forbidden
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error, bad_request, forbidden
 
 logger = logging.getLogger("homeos.awareness.voice_command")
 

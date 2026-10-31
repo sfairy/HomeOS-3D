@@ -17,9 +17,9 @@ from typing import Any
 
 from .command_proxy_auth import is_dangerous_ha_control
 from .verification import describe_service_verification
-from ...platform.core.app_config import load_raw_config
-from ...platform.core.errors import BusinessException, ErrorCode, api_error, bad_request
-from ...platform.core.json_field import object_field
+from ...platform.core.db.json_field import object_field
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error, bad_request
+from ...platform.core.runtime.app_config import load_raw_config
 
 logger = logging.getLogger("homeos.command_proxy")
 

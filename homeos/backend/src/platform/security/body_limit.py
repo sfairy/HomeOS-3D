@@ -22,7 +22,7 @@ from typing import Any
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from ..core.errors import ErrorCode, api_error
+from ..core.http.errors import ErrorCode, api_error
 
 logger = logging.getLogger("homeos.platform.security.body_limit")
 

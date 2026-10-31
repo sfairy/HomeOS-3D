@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.errors import api_error, not_found
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.http.errors import api_error, not_found
 
 # 安防布防模式枚举（对齐 @homeos/shared security-map）。
 SECURITY_ARMING_MODES = ("armed_home", "armed_away", "armed_night", "disarmed")

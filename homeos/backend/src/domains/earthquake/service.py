@@ -690,7 +690,7 @@ class EarthquakeService:
     def _find_catalog_history(self, event_id: str) -> bool:
         from sqlalchemy import select as _select
 
-        from ...platform.core.models import EarthquakeAlertHistory
+        from ...platform.core.db.models import EarthquakeAlertHistory
 
         with self._session_factory() as session:
             row = session.execute(

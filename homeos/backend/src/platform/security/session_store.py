@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from .client_address import client_ip_from_request
 from .cookies import resolve_session_cookie_secure
-from ..core.models import LoginSession, User
+from ..core.db.models import LoginSession, User
 
 #: 活跃时间刷新阈值：低于此间隔不写库，避免只读请求产生写放大。
 LAST_SEEN_REFRESH_SECONDS = 300

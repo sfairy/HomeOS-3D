@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .router import NestRouter
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
-from ..platform.core.errors import bad_request
+from ..platform.core.http.errors import bad_request
 from ..platform.security.auth_context import require_user
 
 router = NestRouter(

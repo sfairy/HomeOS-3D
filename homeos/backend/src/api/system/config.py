@@ -27,9 +27,9 @@ from ...domains.app_config.room_meta import (
     resolve_voice_rooms,
 )
 from ...domains.license import features as feature_codes
-from ...platform.core.errors import api_error, bad_request
-from ...platform.core.pagination import parse_page_limit
-from ...platform.core.retention import RETENTION_TABLE_KEYS
+from ...platform.core.db.pagination import parse_page_limit
+from ...platform.core.db.retention import RETENTION_TABLE_KEYS
+from ...platform.core.http.errors import api_error, bad_request
 from ...platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])

@@ -32,8 +32,8 @@ from ..modules.interaction3d.access import require_document_changes as require_i
 from ..panel.asset_refs import validate_assets
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
-from ..platform.core.db_exec import run_db
-from ..platform.core.models import GlobalCustomPopupState, Project, ProjectDraft
+from ..platform.core.db.db_exec import run_db
+from ..platform.core.db.models import GlobalCustomPopupState, Project, ProjectDraft
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 

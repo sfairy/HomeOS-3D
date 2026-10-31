@@ -24,8 +24,8 @@ from ..home_exec.execute_action_sequence import execute_action_sequence
 from ..home_exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
 from ..proxy.verification import describe_service_verification
 from ..security.entity_execute_acl import assert_entity_targets_execute_authorized
-from ...platform.core.entity_domain import get_entity_domain
-from ...platform.core.errors import api_error, bad_request, not_found
+from ...platform.core.entity.entity_domain import get_entity_domain
+from ...platform.core.http.errors import api_error, bad_request, not_found
 
 logger = logging.getLogger("homeos.home_mode")
 

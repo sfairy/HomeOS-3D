@@ -36,11 +36,11 @@ from ...domains.ha.integration.service_call import (
     execute_service_call,
     ha_entity_conditions,
 )
-from ...platform.core.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
-from ...platform.core.atomic_write import restrict_private_file
-from ...platform.core.frontend_resources import frontend_resource_url
-from ...platform.core.frontend_static import strip_auth_scene_assets
-from ...platform.core.models import HAEntity, ProjectDraft
+from ...platform.core.db.models import HAEntity, ProjectDraft
+from ...platform.core.http.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
+from ...platform.core.http.frontend_resources import frontend_resource_url
+from ...platform.core.http.frontend_static import strip_auth_scene_assets
+from ...platform.core.runtime.atomic_write import restrict_private_file
 from ...platform.security.request_origin import require_same_origin_write
 from ...schemas import HAServiceCallRequest
 
