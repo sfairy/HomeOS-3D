@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 551,
+  "total": 549,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/license.py": 3,
@@ -61,7 +61,7 @@
     "homeos/backend/src/bootstrap/studio_shell.py": 2,
     "homeos/backend/src/config.py": 3,
     "homeos/backend/src/domains/agent/command_cache.py": 2,
-    "homeos/backend/src/domains/agent/config_service.py": 4,
+    "homeos/backend/src/domains/agent/config_service.py": 2,
     "homeos/backend/src/domains/agent/fast_path.py": 2,
     "homeos/backend/src/domains/agent/mcp/mcp_protocol.py": 2,
     "homeos/backend/src/domains/agent/mcp/mcp_service.py": 4,
