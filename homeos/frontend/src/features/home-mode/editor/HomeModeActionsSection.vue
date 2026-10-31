@@ -363,7 +363,7 @@ import {
   ChevronDown,
   Settings,
 } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
 import { useHomeModeActionsSection } from '../composables/editor.internals'
 import {

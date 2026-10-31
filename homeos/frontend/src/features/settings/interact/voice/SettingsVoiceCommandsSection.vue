@@ -190,7 +190,7 @@ import { Plus, Trash2, Mic, MessageSquare, Server, Target, Sparkles, Monitor } f
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 
 const voiceCommands = defineModel('voiceCommands', { type: Array, default: () => [] })
 

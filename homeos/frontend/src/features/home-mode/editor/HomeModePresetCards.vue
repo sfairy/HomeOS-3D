@@ -111,7 +111,7 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
 import { Zap, Clock, Loader2, Sparkles, ChevronDown } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/shared/home-mode'
 import { collectPresetActionTags } from '@/shared/home-mode'

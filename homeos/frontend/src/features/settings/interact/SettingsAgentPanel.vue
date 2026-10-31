@@ -1037,7 +1037,7 @@ import {
   User,
 } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'

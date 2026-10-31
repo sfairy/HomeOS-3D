@@ -275,7 +275,7 @@ import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.v
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import AccountListEditor from './AccountListEditor.vue'
 import EntityAccountListEditor from './EntityAccountListEditor.vue'
 import MultiAccountListEditor from './MultiAccountListEditor.vue'

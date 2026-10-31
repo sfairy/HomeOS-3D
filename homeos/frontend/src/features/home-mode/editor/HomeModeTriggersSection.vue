@@ -191,7 +191,7 @@
 import { ref, computed, nextTick } from 'vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { Clock, Plus, Trash2 } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
 import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../composables/editor.internals'

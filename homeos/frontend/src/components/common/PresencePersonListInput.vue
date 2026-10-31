@@ -179,12 +179,12 @@
  *    - 每名人员可编辑名称、绑定用户 ID、在线判定实体集合；
  *    - 通过 statusMap 渲染在家/离家状态徽标；
  *    - embedded 模式精简工具栏，适用于嵌入式表单。
- *  依赖：@lucide/vue 图标，components/common/EntityMultiSelect，
+ *  依赖：@lucide/vue 图标，components/common/entity-multi-select/EntityMultiSelect.vue，
  *    shared/presence/composables/usePresencePersonListInput。
  */
 import { Radio, Trash2, UserPlus, UserRound, ChevronLeft, ChevronRight } from '@lucide/vue'
 import './styles/presence-person-list-input.css'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import { usePresencePersonListInput } from '@/shared/presence/composables/usePresencePersonListInput'
 
 const props = defineProps({

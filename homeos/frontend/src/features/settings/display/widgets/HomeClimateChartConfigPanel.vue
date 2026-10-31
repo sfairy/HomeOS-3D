@@ -99,7 +99,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import { climateEntityBaseName } from '@/components/widgets/climate/home-climate-chart/echarts.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import {

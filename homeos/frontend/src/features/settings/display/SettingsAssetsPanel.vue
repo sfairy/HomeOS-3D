@@ -170,7 +170,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { storeToRefs } from 'pinia'
 
 const AssetManagerModal = defineAsyncComponent(
-  () => import('@/components/common/AssetManagerModal.vue'),
+  () => import('@/components/common/asset-manager/AssetManagerModal.vue'),
 )
 const AssetPickerModal = defineAsyncComponent(
   () => import('@/components/common/AssetPickerModal.vue'),

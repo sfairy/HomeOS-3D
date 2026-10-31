@@ -121,5 +121,5 @@ const {
 </script>
 
 <style>
-@import './entity-multi-select/styles/entity-multi-select.css';
+@import './styles/entity-multi-select.css';
 </style>

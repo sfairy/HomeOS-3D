@@ -5,7 +5,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Eye, EyeOff, Palette, Zap } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import { useDraftObjectField } from '@/features/settings/shared/composables/hub-ui.internals'
 import { AFH_THEMES } from '@/features/settings/display/composables/layout-floating.internals'
 import {

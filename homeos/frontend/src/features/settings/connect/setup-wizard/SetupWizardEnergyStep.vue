@@ -7,8 +7,8 @@
 <script setup>
 import { computed } from 'vue'
 import { Gauge, GitBranch, AlertTriangle } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
 
 const meterEntityId = defineModel('meterEntityId', { type: String, default: '' })

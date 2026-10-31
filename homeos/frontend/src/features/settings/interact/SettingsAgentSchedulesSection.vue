@@ -173,7 +173,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { CalendarClock } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'

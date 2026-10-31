@@ -71,7 +71,7 @@ import { Cloud, CloudSun, CloudOff, Database, LineChart, Sun, Wind } from '@luci
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 
 const weatherEntityId = defineModel('weatherEntityId', { type: String, default: '' })
 

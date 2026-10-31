@@ -77,7 +77,7 @@ import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportT
 import { useEscLayer } from '@/composables/ui/useEscStack'
 import { isLicenseFeatureGranted } from '@/router/license-gate'
 import { getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
-import Screensaver from '@/components/common/Screensaver.vue'
+import Screensaver from '@/components/common/screensaver/Screensaver.vue'
 // 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。
 const FloatingHub = defineAsyncComponent(() => import('@/components/shell/FloatingHub.vue'))
 const RightSidebar = defineAsyncComponent(() => import('@/components/dashboard/RightSidebar.vue'))

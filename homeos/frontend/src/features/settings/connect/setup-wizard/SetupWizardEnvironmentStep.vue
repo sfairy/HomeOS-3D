@@ -12,7 +12,7 @@
 import { inject } from 'vue'
 import { Sparkles, Loader2 } from '@lucide/vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'
 import { SETUP_WIZARD_ENV_STEP_KEY } from './context'

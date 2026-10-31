@@ -57,7 +57,7 @@ import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 
 // 异步加载 AssetManager，避免首屏打包体积过大
-const AssetManager = defineAsyncComponent(() => import('@/components/common/AssetManager.vue'))
+const AssetManager = defineAsyncComponent(() => import('@/components/common/asset-manager/AssetManager.vue'))
 
 const props = defineProps({
   /** 是否打开 */

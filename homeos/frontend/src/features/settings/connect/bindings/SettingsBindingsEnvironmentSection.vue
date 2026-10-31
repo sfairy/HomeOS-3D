@@ -318,7 +318,7 @@ import { Sparkles, Trash2, Leaf, Loader2 } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import RoomReferenceBadges from '@/features/settings/home/RoomReferenceBadges.vue'
 import { getQuickRuleFields } from '@/features/settings/shared/composables/env-sensor-map.internals'
 import {

@@ -370,7 +370,7 @@ import {
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import FooterIconPicker from '@/components/common/FooterIconPicker.vue'
 import FooterColorPicker from './FooterColorPicker.vue'
 import { useLayoutStore } from '@/stores/layout.store'

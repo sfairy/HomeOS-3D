@@ -18,7 +18,7 @@ import {
   ListFilter,
   Save,
 } from '@lucide/vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import { useRecommendInsight } from '@/shared/recommend/composables/useRecommendInsight'
 import { formatCount, hoursLabel } from '@/shared/events/utils/events-display.util'

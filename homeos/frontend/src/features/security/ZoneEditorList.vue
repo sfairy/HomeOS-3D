@@ -228,7 +228,7 @@
 import { computed, onMounted, nextTick } from 'vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { X, Map, Sparkles, Plus } from '@lucide/vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
 import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
 import { useSecurityZoneEditorList } from '@/features/security/composables/useSecurityZoneEditorList'

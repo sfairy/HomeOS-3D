@@ -8,7 +8,7 @@
 -->
 <script setup>
 import { Plus, Trash2, Bell, Radio } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import SetupWizardPresencePanel from './SetupWizardPresencePanel.vue'
 
 const doorbellList = defineModel('doorbellList', { type: Array, default: () => [] })

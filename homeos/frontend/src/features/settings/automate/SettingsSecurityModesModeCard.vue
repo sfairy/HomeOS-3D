@@ -237,7 +237,7 @@
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { computed, ref } from 'vue'
 import { Zap, Plus, Layers, Trash2 } from '@lucide/vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntitiesStore } from '@/stores/entities.store'

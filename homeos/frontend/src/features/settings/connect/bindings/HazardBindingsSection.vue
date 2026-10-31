@@ -191,7 +191,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { Flame, Zap, PlayCircle } from '@lucide/vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import HazardBindingStatusPanel from '@/features/settings/connect/bindings/HazardBindingStatusPanel.vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useHazardBindingsSection } from '@/features/settings/automate/composables/security-modes-extras.internals'

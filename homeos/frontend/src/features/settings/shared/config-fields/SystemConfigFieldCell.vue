@@ -121,8 +121,8 @@
 <script setup>
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { computed, ref, watch } from 'vue'
-import EntityInput from '@/components/common/EntityInput.vue'
-import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
+import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import SystemConfigNestedObjectEditor from '@/features/settings/shared/config-fields/SystemConfigNestedObjectEditor.vue'
 import {
   haEntityDomainFilter,

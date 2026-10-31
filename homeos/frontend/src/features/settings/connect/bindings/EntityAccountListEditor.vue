@@ -60,7 +60,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import { syncEntityAccounts } from '@/shared/energy/utils/account.util'
 import { useBindingAccountListEditor } from './useBindingAccountListEditor'
 

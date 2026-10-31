@@ -187,7 +187,7 @@ import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.v
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
-import EntityInput from '@/components/common/EntityInput.vue'
+import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import VoiceSpeechComposer from '@/features/settings/interact/voice/SpeechComposer.vue'
 import { getEntityTtsQuickDomains } from '@/shared/constants/voice-alert-catalog'
 import { useAlertRulesSection } from './context'
