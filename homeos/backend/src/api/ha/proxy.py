@@ -18,32 +18,43 @@ content-length / content-encoding —— 这里会改写响应体（流式透传
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import traceback
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
-from typing import Any, Protocol, cast
 from urllib.parse import parse_qs, parse_qsl, urlencode
 
 import httpx
-from anyio import CancelScope, create_task_group, move_on_after
+from anyio import CancelScope
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.requests import ClientDisconnect
-from starlette.types import Message, Send
 
-from ...dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
+from .media_stream import (
+    CAMERA_SNAPSHOT_CACHE_TTL_SECONDS,
+    LicensedCameraStreamingResponse,
+    _camera_license_allows,
+    _camera_snapshot_response,
+    _remember_camera_snapshot,
+    _schedule_camera_snapshot_refresh,
+    _shared_media_client,
+    camera_snapshot_cache,
+    camera_snapshot_cache_key,
+    camera_snapshot_refreshes,
+    close_shared_media_clients,
+    load_active_connection,
+    load_authorized_camera_connection,
+    open_licensed_camera_stream,
+)
+from ...dependencies import ShortLivedLicensedViewer, ViewerPrincipal
 from ...domains.ha.integration.client import HAClientError
-from ...domains.ha.integration.connection_query import active_connection
 from ...domains.ha.integration.crypto import CredentialCipherError
 from ...domains.ha.integration.media_access import (
     authorize_media,
     check_media_access,
     remember_hls,
 )
-from ...domains.license import features as feature_codes
-from ...platform.core.db.database import Database
+
+__all__ = ['close_shared_media_clients', 'router']
 
 router = APIRouter(include_in_schema=False)
 ALLOWED_MEDIA_PROXY_PREFIXES = (
@@ -84,91 +95,6 @@ RESPONSE_HEADERS_TO_DROP = {
     'content-encoding',
     'transfer-encoding',
 }
-CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
-CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
-# 摄像头长连的授权复检间隔（秒）：逐帧复检太贵，但一次授权失效必须尽快掐断，
-# 否则一份过期授权能靠一条已建立的流无限看下去。
-CAMERA_STREAM_LICENSE_CHECK_SECONDS = 1
-
-# 摄像头授权判定的进程内 TTL 缓存：逐帧 `to_thread(allows)` 会把线程池打满，而授权状态
-# 本身允许秒级延迟。TTL 与长连复检间隔一致，因此「授权失效多久掐断」的最坏延迟不变。
-_camera_license_cache: dict[int, tuple[float, bool]] = {}
-
-
-async def _camera_license_allows(request: Request) -> bool:
-    """带 TTL 的摄像头授权判定，合并同进程内并发流的复检。"""
-    service = getattr(request.app.state, 'license_service', None)
-    if service is None:
-        # 无许可服务时 fail-closed：摄像头属于安防增量，不能默开放行。
-        return False
-    cache_key = id(service)
-    now = monotonic()
-    cached = _camera_license_cache.get(cache_key)
-    if cached is not None and now - cached[0] < CAMERA_STREAM_LICENSE_CHECK_SECONDS:
-        return cached[1]
-    # 摄像头实时流属于安防增量模块，不能只用基础 ``api`` 码放行（否则 base 租约可绕过
-    # ``/security*`` 的 ``module.security`` 门禁直接拉 HLS/快照）。
-    allowed = bool(await asyncio.to_thread(service.allows, feature_codes.FEATURE_SECURITY))
-    _camera_license_cache[cache_key] = (now, allowed)
-    return allowed
-
-
-@dataclass
-class CameraSnapshotCacheEntry:
-    """一张已缓存的摄像头快照：字节内容、媒体类型与写入时刻（monotonic）。"""
-
-    content: bytes
-    content_type: str
-    created_at: float
-
-
-camera_snapshot_cache: dict[str, CameraSnapshotCacheEntry] = {}
-camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
-
-#: 快照 / 短请求共享的连接池。
-#:
-#: ``hb_live=1`` 时墙屏每秒拉一帧，原来「每请求新建 ``AsyncClient``」等于每秒一次
-#: TCP + TLS 握手，HA 侧还会积一堆 TIME_WAIT。这里按 TLS 校验参数复用 keep-alive；
-#: 长连接的流式分支（camera_proxy_stream）仍然每请求独立 client —— 一条 MJPEG 流会
-#: 长期占住连接，放进共享池只会把池子撑爆。
-_SHARED_CLIENT_LIMITS = httpx.Limits(
-    max_connections=16,
-    max_keepalive_connections=8,
-    keepalive_expiry=30.0,
-)
-_shared_clients: dict[Any, httpx.AsyncClient] = {}
-
-
-def _shared_media_client(verify_tls: Any) -> httpx.AsyncClient:
-    """取（或惰性创建）按 TLS 参数分组的共享 client。
-
-    单事件循环模型：本模块的创建点在协程里，没有跨线程竞争。
-    """
-    client = _shared_clients.get(verify_tls)
-    if client is None or client.is_closed:
-        client = httpx.AsyncClient(
-            verify=verify_tls,
-            # 不设 client 级超时：每条请求各自带 timeout（快照很短、流式要无限）。
-            timeout=None,  # noqa: S113 - 逐请求超时，client 级必须为空
-            follow_redirects=False,
-            limits=_SHARED_CLIENT_LIMITS,
-        )
-        _shared_clients[verify_tls] = client
-    return client
-
-
-async def close_shared_media_clients() -> None:
-    """停机时关闭共享 client（连接池不关会在退出时留下未关闭的传输层警告）。"""
-    clients = list(_shared_clients.values())
-    _shared_clients.clear()
-    for client in clients:
-        try:
-            await client.aclose()
-        except Exception:
-            # 停机阶段没有补救动作：继续关下一个。
-            pass
-
-
 def upstream_path(request: Request) -> str:
     """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。
 
@@ -228,295 +154,6 @@ def versioned_image_proxy_cache_control(path: str, query: str, status_code: int)
     return None
 
 
-def camera_snapshot_cache_key(base_url: str, path: str, access_token: str = '') -> str:
-    """快照缓存键：同一路径在**换令牌**后必须失效。
-
-    HA 的访问令牌决定「同一实体看到什么」（不同账号的摄像头权限可能不同），只按 URL
-    做键会让换令牌后仍命中旧账号的画面。令牌只以 sha256 形式进入键，不落明文。
-    """
-    key = f'{base_url.rstrip("/")}{path}'
-    if not access_token:
-        return key
-    return f'{key}|{hashlib.sha256(access_token.encode()).hexdigest()}'
-
-
-def _remember_camera_snapshot(key: str, content: bytes, content_type: str) -> None:
-    """写入快照缓存；超限时按创建时间淘汰最旧一条，防止长期运行把内存吃满。"""
-    if key not in camera_snapshot_cache and len(camera_snapshot_cache) >= CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES:
-        oldest_key = min(camera_snapshot_cache, key=lambda item: camera_snapshot_cache[item].created_at)
-        camera_snapshot_cache.pop(oldest_key, None)
-    camera_snapshot_cache[key] = CameraSnapshotCacheEntry(content=content, content_type=content_type or 'image/jpeg', created_at=monotonic())
-
-
-def _camera_snapshot_response(entry: CameraSnapshotCacheEntry) -> Response:
-    return Response(content=entry.content, media_type=entry.content_type, headers={'cache-control': 'private, no-store'})
-
-
-def load_active_connection(database_manager: Database):
-    with database_manager.session_factory() as database:
-        connection = active_connection(database)
-        if connection is not None:
-            database.expunge(connection)
-        return connection
-
-
-def load_authorized_camera_connection(database_manager: Database, viewer: ViewerPrincipal, entity_id: str):
-    with database_manager.session_factory() as database:
-        require_viewer_entity(database, viewer, entity_id)
-        connection = active_connection(database)
-        if connection is not None:
-            database.expunge(connection)
-        return connection
-
-
-async def _refresh_camera_snapshot(key: str, target: str, headers: Mapping[str, str], verify_tls: bool, timeout: float) -> None:
-    try:
-        # 后台刷新同样走共享池：这是 hb_live 墙屏最频繁的一条路径。
-        upstream = await _shared_media_client(verify_tls).get(target, headers=dict(headers), timeout=timeout)
-        if 200 <= upstream.status_code < 300 and upstream.content:
-            _remember_camera_snapshot(key, upstream.content, upstream.headers.get('content-type', 'image/jpeg'))
-    except httpx.HTTPError:
-        return
-    finally:
-        camera_snapshot_refreshes.pop(key, None)
-
-
-def _schedule_camera_snapshot_refresh(key: str, target: str, headers: Mapping[str, str], verify_tls: bool, timeout: float) -> None:
-    existing = camera_snapshot_refreshes.get(key)
-    if existing and not existing.done():
-        return
-    task = asyncio.create_task(_refresh_camera_snapshot(key, target, headers, verify_tls, timeout))
-    camera_snapshot_refreshes[key] = task
-    return
-
-
-async def _camera_stream_log(
-    request: Request,
-    level: str,
-    message: str,
-    code: str,
-    *,
-    details: str | None = None,
-) -> None:
-    """终止性事件只记一次，绝不记录画面、URL 或凭据。"""
-    log = getattr(request.app.state, 'global_log', None)
-    if log is None:
-        return
-    state = getattr(request, 'state', request)
-    recorded = getattr(state, 'camera_stream_log_codes', None)
-    if recorded is None:
-        recorded = set()
-        # Starlette 的 ``State`` 是动态属性容器：类型系统看不到运行期挂上去的键，
-        # 直接 `.attr = …` 会被判成「类上不存在该属性」，因此显式走 setattr。
-        setattr(state, 'camera_stream_log_codes', recorded)  # noqa: B010 - State 只支持动态属性
-    if code in recorded:
-        return
-    recorded.add(code)
-    context: dict[str, Any] = {}
-    context.update(getattr(state, 'log_context', {}) or {})
-    context.update({'phase': 'camera-stream', 'code': code})
-    path = getattr(getattr(request, 'url', None), 'path', '')
-    if path.startswith('/api/camera_proxy_stream/'):
-        context.update({'path': path, 'entityId': path.rsplit('/', 1)[-1]})
-    started = getattr(state, 'camera_stream_started_at', None)
-    if started is not None:
-        context['durationMs'] = round((monotonic() - started) * 1000, 1)
-    await log.append_async(
-        level, 'Home Assistant', '摄像头', message, context=context, details=details
-    )
-
-
-async def open_licensed_camera_stream(
-    request: Request, client: httpx.AsyncClient, upstream_request: httpx.Request
-) -> httpx.Response:
-    """许可失效或观看端掉线时，终止一条静默的上游流。"""
-
-    async def wait_for_disconnect() -> None:
-        while True:
-            message = await request.receive()
-            if message['type'] == 'http.disconnect':
-                return
-
-    pending = asyncio.create_task(client.send(upstream_request, stream=True))
-    disconnected = asyncio.create_task(wait_for_disconnect())
-    try:
-        while True:
-            if pending.done():
-                break
-            if disconnected.done():
-                disconnected.result()
-                raise ClientDisconnect()
-            if not await _camera_license_allows(request):
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        'code': 'LICENSE_RESTRICTED',
-                        'message': '当前授权状态不允许读取摄像头。',
-                    },
-                )
-            await asyncio.wait(
-                {pending, disconnected},
-                timeout=CAMERA_STREAM_LICENSE_CHECK_SECONDS,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            if pending.done():
-                break
-        result = pending.result()
-    except BaseException:
-        # 上游可能已经建连：shield 住取消域，把连接收干净再往上抛。
-        with CancelScope(shield=True):
-            pending.cancel()
-            settled = (await asyncio.gather(pending, return_exceptions=True))[0]
-            if not isinstance(settled, BaseException):
-                await settled.aclose()
-        raise
-    with CancelScope(shield=True):
-        disconnected.cancel()
-        await asyncio.gather(disconnected, return_exceptions=True)
-    return result
-
-
-class _ClosableAsyncStream(Protocol):
-    """比 ``AsyncIterator`` 多一个 ``aclose`` 的异步流。
-
-    ``httpx.Response.aiter_raw()`` 声明返回 ``AsyncIterator[bytes]``，但运行期是异步生成器，
-    确实支持 ``aclose()``；本函数依赖这一点来在取消域里提前收干净上游连接，因此把契约写出来。
-    """
-
-    def __aiter__(self) -> AsyncIterator[bytes]: ...
-
-    def __anext__(self) -> Any: ...
-
-    async def aclose(self) -> None: ...
-
-
-async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> AsyncIterator[bytes]:
-    """逐帧复检授权；响应侧另外负责取消静默读取与卡住的发送。"""
-    iterator = cast(_ClosableAsyncStream, upstream.aiter_raw().__aiter__())
-    if not await _camera_license_allows(request):
-        await _camera_stream_log(
-            request,
-            'warning',
-            '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
-            'CAMERA_STREAM_LICENSE_RESTRICTED',
-        )
-        with CancelScope(shield=True):
-            await iterator.aclose()
-        return
-    try:
-        while True:
-            try:
-                chunk = await anext(iterator)
-            except StopAsyncIteration:
-                with CancelScope(shield=True):
-                    await iterator.aclose()
-                break
-            if not await _camera_license_allows(request):
-                await _camera_stream_log(
-                    request,
-                    'warning',
-                    '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
-                    'CAMERA_STREAM_LICENSE_RESTRICTED',
-                )
-                with CancelScope(shield=True):
-                    await iterator.aclose()
-                return
-            if chunk:
-                yield chunk
-    except Exception as error:
-        await _camera_stream_log(
-            request,
-            'error',
-            f'摄像头持续传输失败：{type(error).__name__} · {error}',
-            'CAMERA_STREAM_ERROR',
-            details=traceback.format_exc(),
-        )
-        raise
-    finally:
-        with CancelScope(shield=True):
-            await iterator.aclose()
-
-
-class LicensedCameraStreamingResponse(StreamingResponse):
-    """在开始迭代之前、以及下游发送卡住期间，都持有上游连接的所有权。"""
-
-    def __init__(
-        self,
-        request: Request,
-        upstream: httpx.Response,
-        client: httpx.AsyncClient,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(licensed_camera_stream(request, upstream), **kwargs)
-        self.request = request
-        self.upstream = upstream
-        self.client = client
-        state = getattr(request, 'state', request)
-        # 同上：``State`` 的键只能动态挂载。
-        setattr(state, 'camera_stream_started_at', monotonic())  # noqa: B010 - State 只支持动态属性
-
-    async def stream_response(self, send: Send) -> None:
-        failure: BaseException | None = None
-        restricted = False
-        started = False
-        finished = False
-
-        async def track_send(message: Message) -> None:
-            nonlocal started, finished
-            await send(message)
-            if message['type'] == 'http.response.start':
-                started = True
-            elif message['type'] == 'http.response.body' and not message.get('more_body', False):
-                finished = True
-
-        async with create_task_group() as tasks:
-
-            async def deliver() -> None:
-                nonlocal failure
-                try:
-                    await super(LicensedCameraStreamingResponse, self).stream_response(track_send)
-                except Exception as error:
-                    failure = error
-                tasks.cancel_scope.cancel()
-
-            async def monitor_license() -> None:
-                nonlocal restricted
-                # 复用 `_camera_license_allows` 的进程内 TTL 缓存：原先这里每轮直接
-                # `to_thread(allows)` 两次（线程池跳 + license_state 查询），N 路摄像头
-                # 就是每秒 2N 次；现在多路流共享同一份判定，检查次数与流数解耦。
-                while await _camera_license_allows(self.request):
-                    await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
-                restricted = True
-                await _camera_stream_log(
-                    self.request,
-                    'warning',
-                    '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
-                    'CAMERA_STREAM_LICENSE_RESTRICTED',
-                )
-                tasks.cancel_scope.cancel()
-
-            tasks.start_soon(deliver)
-            tasks.start_soon(monitor_license)
-        if failure is not None:
-            raise failure
-        if restricted and started and not finished:
-            # 授权已失效但画面还没收尾：补一个空 body 结束响应，别把连接吊死。
-            with move_on_after(CAMERA_STREAM_LICENSE_CHECK_SECONDS):
-                await send({'type': 'http.response.body', 'body': b'', 'more_body': False})
-
-    async def __call__(self, scope, receive, send) -> None:
-        try:
-            await super().__call__(scope, receive, send)
-        finally:
-            with CancelScope(shield=True):
-                # ``body_iterator`` 由基类按 ``AsyncContentStream`` 声明（协议里没有 aclose），
-                # 但这里传入的是异步生成器，必须显式关闭才不会留下未收尾的帧读取协程。
-                body_stream = cast(_ClosableAsyncStream, self.body_iterator)
-                await body_stream.aclose()
-                await self.upstream.aclose()
-                await self.client.aclose()
-
-
 def _path_requires_camera_license(path: str) -> bool:
     """摄像头相关媒体代理一律要求 ``module.security``（含快照 / HLS / image）。"""
     return path.startswith(
@@ -529,125 +166,261 @@ def _path_requires_camera_license(path: str) -> bool:
     )
 
 
-async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Response:
+@dataclass(frozen=True)
+class _MediaRequestKind:
+    """一次媒体代理请求的三种形态：事件流 / 快照 / 普通资源。"""
+
+    stream: bool
+    snapshot: bool
+    snapshot_key: str
+
+
+async def _guard_media_request(request: Request) -> None:
+    """入口守卫：只放行白名单路径，摄像头类路径额外要求 ``module.security``。"""
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体资源不存在。')
-    if _path_requires_camera_license(request.url.path):
-        if not await _camera_license_allows(request):
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    'code': 'LICENSE_RESTRICTED',
-                    'message': '当前授权状态不允许读取摄像头。',
-                },
-            )
+    if _path_requires_camera_license(request.url.path) and not await _camera_license_allows(request):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                'code': 'LICENSE_RESTRICTED',
+                'message': '当前授权状态不允许读取摄像头。',
+            },
+        )
+
+
+async def _proxy_connection(request: Request, viewer: ViewerPrincipal | None):
+    """取活动连接并做入口授权（解析实体 + 校验查看者可见性）。
+
+    SQLite 查询放线程池，别卡事件循环。
+    """
     connection = await asyncio.to_thread(load_active_connection, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
-    # 入口授权：解析实体 + 校验查看者可见性。SQLite 查询放线程池，别卡事件循环。
     if viewer is not None:
         await asyncio.to_thread(authorize_media, request, connection, viewer)
+    return connection
+
+
+async def _proxy_client_config(request: Request, connection):
+    """取 HA 客户端配置；凭据解不开 / 客户端不可用统一映射成 502。"""
     try:
-        client_config = await request.app.state.studio_ha.client_for(connection)
+        return await request.app.state.studio_ha.client_for(connection)
     except (HAClientError, CredentialCipherError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
-        ) from error
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+
+
+def _proxy_headers(request: Request, client_config) -> dict[str, str]:
+    """转发给 HA 的请求头：沿用白名单头，再用连接凭据覆盖授权与编码。"""
     headers = upstream_request_headers(request.headers)
-    access_token = client_config.access_token
-    headers['authorization'] = f'Bearer {access_token}'
+    headers['authorization'] = f'Bearer {client_config.access_token}'
     headers['accept-encoding'] = 'identity'
-    proxy_path = upstream_path(request)
-    target = f'{client_config.base_url}{proxy_path}'
-    stream_response = request.url.path.startswith('/api/camera_proxy_stream/')
-    snapshot_request = request.method == 'GET' and request.url.path.startswith('/api/camera_proxy/')
-    snapshot_key = (
-        camera_snapshot_cache_key(
-            client_config.base_url, request.url.path, client_config.access_token
-        )
-        if snapshot_request
-        else ''
-    )
-    if snapshot_request:
-        cached = camera_snapshot_cache.get(snapshot_key)
-        if cached is not None:
-            live_map = parse_qs(request.url.query).get('hb_live') == ['1']
-            ttl = 1 if live_map else CAMERA_SNAPSHOT_CACHE_TTL_SECONDS
-            if monotonic() - cached.created_at >= ttl:
-                _schedule_camera_snapshot_refresh(snapshot_key, f'{client_config.base_url}{request.url.path}', headers, client_config.verify_tls, client_config.timeout)
-                if live_map:
-                    pending = camera_snapshot_refreshes.get(snapshot_key)
-                    if pending is not None:
-                        await asyncio.shield(pending)
-                    refreshed = camera_snapshot_cache.get(snapshot_key)
-                    if refreshed is None or refreshed is cached:
-                        raise HTTPException(status_code=502, detail='实时地图暂时无法刷新。')
-                    cached = refreshed
-            return _camera_snapshot_response(cached)
-    # 流式分支必须独占 client：一条 MJPEG 流会长期占住连接，不能塞进共享池。
-    # 快照 / 图片 / HLS 片段都是短请求，复用 keep-alive 省掉每秒一次的握手。
-    if stream_response:
-        client = httpx.AsyncClient(
-            verify=client_config.verify_tls,
-            # MJPEG 流本来就不该被总时长掐断：超时由观看端断开/任务取消来收尾。
-            timeout=None,  # noqa: S113 - 流式分支，见上
-            follow_redirects=False,
-        )
-        owns_client = True
-    else:
-        client = _shared_media_client(client_config.verify_tls)
-        owns_client = False
-    try:
-        upstream_request = client.build_request(
-            request.method,
-            target,
-            headers=headers,
-            timeout=None if stream_response else client_config.timeout,
-        )
-        upstream = (
-            await open_licensed_camera_stream(request, client, upstream_request)
-            if stream_response
-            else await client.send(upstream_request, stream=False)
-        )
-        response_headers = {
-            name: value
-            for name, value in upstream.headers.items()
-            if name.lower() not in RESPONSE_HEADERS_TO_DROP
-        }
-        # 持续复检：Cookie 失效 / 换账号 / 换连接都在这里拦下，且**不续期会话**。
-        if not await asyncio.to_thread(check_media_access, request, load_active_connection):
-            with CancelScope(shield=True):
-                await upstream.aclose()
-                if owns_client:
-                    await client.aclose()
-            raise HTTPException(status_code=403, detail='媒体访问权限已变更。')
-        cache_control = versioned_image_proxy_cache_control(request.url.path, request.url.query, upstream.status_code)
-        if cache_control:
-            response_headers['cache-control'] = cache_control
-        if 'location' in response_headers:
-            response_headers['location'] = rewrite_location(response_headers['location'], client_config.base_url)
-        if stream_response:
-            content_type = response_headers.get('content-type', '')
-            if (
-                request.headers.get('x-hb-camera-stream') == 'frames'
-                and content_type.lower().startswith('multipart/x-mixed-replace')
-            ):
-                # 浏览器 / 反代对 multipart 的解析差异很大：按帧透传时把真实类型放进
-                # 自定义头，响应体改成不透明字节流，由前端自己切帧。缓存也必须关掉，
-                # 否则中间层会缓存「第一帧之后就没内容」的截断响应。
-                response_headers['x-hb-camera-content-type'] = content_type
-                response_headers['content-type'] = 'application/octet-stream'
-                response_headers['cache-control'] = 'no-store'
-            return LicensedCameraStreamingResponse(
-                request, upstream, client, status_code=upstream.status_code, headers=response_headers
+    return headers
+
+
+def _classify_media_request(request: Request, client_config) -> _MediaRequestKind:
+    """按路径区分事件流、快照与普通资源，并算出快照缓存键。"""
+    path = request.url.path
+    stream = path.startswith('/api/camera_proxy_stream/')
+    snapshot = request.method == 'GET' and path.startswith('/api/camera_proxy/')
+    return _MediaRequestKind(
+        stream=stream,
+        snapshot=snapshot,
+        snapshot_key=(
+            camera_snapshot_cache_key(
+                client_config.base_url, path, client_config.access_token
             )
-        content = upstream.content
-        if snapshot_request and 200 <= upstream.status_code < 300 and content:
-            _remember_camera_snapshot(snapshot_key, content, upstream.headers.get('content-type', 'image/jpeg'))
+            if snapshot
+            else ''
+        ),
+    )
+
+
+async def _cached_snapshot(
+    request: Request,
+    client_config,
+    kind: _MediaRequestKind,
+    headers: dict[str, str],
+) -> Response | None:
+    """命中快照缓存时直接返回；过期则触发后台刷新，``hb_live`` 额外等待刷新结果。
+
+    ``hb_live`` 是「实时地图」用的口径：它不能拿一张 30 秒前的图充数，所以过期后
+    必须等这一次刷新真的落地；等不到就 502，而不是把旧图当新图返回。
+    """
+    cached = camera_snapshot_cache.get(kind.snapshot_key)
+    if cached is None:
+        return None
+    live_map = parse_qs(request.url.query).get('hb_live') == ['1']
+    ttl = 1 if live_map else CAMERA_SNAPSHOT_CACHE_TTL_SECONDS
+    if monotonic() - cached.created_at < ttl:
+        return _camera_snapshot_response(cached)
+
+    _schedule_camera_snapshot_refresh(
+        kind.snapshot_key,
+        f'{client_config.base_url}{request.url.path}',
+        headers,
+        client_config.verify_tls,
+        client_config.timeout,
+    )
+    if not live_map:
+        # 普通快照可以先把旧图给出去，刷新在后台完成。
+        return _camera_snapshot_response(cached)
+
+    pending = camera_snapshot_refreshes.get(kind.snapshot_key)
+    if pending is not None:
+        await asyncio.shield(pending)
+    refreshed = camera_snapshot_cache.get(kind.snapshot_key)
+    if refreshed is None or refreshed is cached:
+        raise HTTPException(status_code=502, detail='实时地图暂时无法刷新。')
+    return _camera_snapshot_response(refreshed)
+
+
+def _media_client(client_config, stream: bool) -> tuple[httpx.AsyncClient, bool]:
+    """流式分支必须独占 client：一条 MJPEG 流会长期占住连接，不能塞进共享池。
+
+    快照 / 图片 / HLS 片段都是短请求，复用 keep-alive 省掉每秒一次的握手。
+    返回 ``(client, owns_client)``，由调用方决定谁负责关闭。
+    """
+    if stream:
+        return (
+            httpx.AsyncClient(
+                verify=client_config.verify_tls,
+                # MJPEG 流本来就不该被总时长掐断：超时由观看端断开/任务取消来收尾。
+                timeout=None,  # noqa: S113 - 流式分支，见上
+                follow_redirects=False,
+            ),
+            True,
+        )
+    return _shared_media_client(client_config.verify_tls), False
+
+
+async def _dispatch_upstream(
+    request: Request,
+    client: httpx.AsyncClient,
+    target: str,
+    headers: dict[str, str],
+    client_config,
+    stream: bool,
+) -> httpx.Response:
+    """把请求发给 HA。流式分支走带授权的专用开口，其余直接 send。"""
+    upstream_request = client.build_request(
+        request.method,
+        target,
+        headers=headers,
+        timeout=None if stream else client_config.timeout,
+    )
+    if stream:
+        return await open_licensed_camera_stream(request, client, upstream_request)
+    return await client.send(upstream_request, stream=False)
+
+
+async def _ensure_media_access(
+    request: Request,
+    upstream: httpx.Response,
+    client: httpx.AsyncClient,
+    owns_client: bool,
+) -> None:
+    """持续复检：Cookie 失效 / 换账号 / 换连接都在这里拦下，且**不续期会话**。
+
+    拦下时必须先把上游与独占 client 关掉再抛 403 —— 否则一条已经打开的 MJPEG 流
+    会永远挂在 HA 侧。
+    """
+    if await asyncio.to_thread(check_media_access, request, load_active_connection):
+        return
+    with CancelScope(shield=True):
         await upstream.aclose()
         if owns_client:
             await client.aclose()
-        return Response(content=content, status_code=upstream.status_code, headers=response_headers)
+    raise HTTPException(status_code=403, detail='媒体访问权限已变更。')
+
+
+def _response_headers(request: Request, upstream: httpx.Response, client_config) -> dict[str, str]:
+    """过滤上游响应头，并补上缓存策略与重写后的 ``location``。"""
+    response_headers = {
+        name: value
+        for name, value in upstream.headers.items()
+        if name.lower() not in RESPONSE_HEADERS_TO_DROP
+    }
+    cache_control = versioned_image_proxy_cache_control(
+        request.url.path, request.url.query, upstream.status_code
+    )
+    if cache_control:
+        response_headers['cache-control'] = cache_control
+    if 'location' in response_headers:
+        response_headers['location'] = rewrite_location(
+            response_headers['location'], client_config.base_url
+        )
+    return response_headers
+
+
+def _apply_frame_passthrough(request: Request, response_headers: dict[str, str]) -> None:
+    """按帧透传时改写 content-type 并禁用缓存。
+
+    浏览器 / 反代对 multipart 的解析差异很大：按帧透传时把真实类型放进
+    自定义头，响应体改成不透明字节流，由前端自己切帧。缓存也必须关掉，
+    否则中间层会缓存「第一帧之后就没内容」的截断响应。
+    """
+    content_type = response_headers.get('content-type', '')
+    if request.headers.get('x-hb-camera-stream') != 'frames':
+        return
+    if not content_type.lower().startswith('multipart/x-mixed-replace'):
+        return
+    response_headers['x-hb-camera-content-type'] = content_type
+    response_headers['content-type'] = 'application/octet-stream'
+    response_headers['cache-control'] = 'no-store'
+
+
+async def _buffered_media_response(
+    request: Request,
+    upstream: httpx.Response,
+    client: httpx.AsyncClient,
+    owns_client: bool,
+    kind: _MediaRequestKind,
+    response_headers: dict[str, str],
+) -> Response:
+    """非流式收尾：必要时把快照写进缓存，关闭上游与独占 client，返回完整响应体。"""
+    content = upstream.content
+    if kind.snapshot and 200 <= upstream.status_code < 300 and content:
+        _remember_camera_snapshot(
+            kind.snapshot_key, content, upstream.headers.get('content-type', 'image/jpeg')
+        )
+    await upstream.aclose()
+    if owns_client:
+        await client.aclose()
+    return Response(content=content, status_code=upstream.status_code, headers=response_headers)
+
+
+async def proxy_http(request: Request, viewer: ViewerPrincipal | None) -> Response:
+    await _guard_media_request(request)
+    connection = await _proxy_connection(request, viewer)
+    client_config = await _proxy_client_config(request, connection)
+    headers = _proxy_headers(request, client_config)
+    kind = _classify_media_request(request, client_config)
+    if kind.snapshot:
+        cached_response = await _cached_snapshot(request, client_config, kind, headers)
+        if cached_response is not None:
+            return cached_response
+
+    target = f'{client_config.base_url}{upstream_path(request)}'
+    client, owns_client = _media_client(client_config, kind.stream)
+    try:
+        upstream = await _dispatch_upstream(
+            request, client, target, headers, client_config, kind.stream
+        )
+        await _ensure_media_access(request, upstream, client, owns_client)
+        response_headers = _response_headers(request, upstream, client_config)
+        if kind.stream:
+            _apply_frame_passthrough(request, response_headers)
+            return LicensedCameraStreamingResponse(
+                request,
+                upstream,
+                client,
+                status_code=upstream.status_code,
+                headers=response_headers,
+            )
+        return await _buffered_media_response(
+            request, upstream, client, owns_client, kind, response_headers
+        )
     except ClientDisconnect:
         # 观看端已经走了：上游不能因为没人接收而一直挂着。
         if owns_client:
