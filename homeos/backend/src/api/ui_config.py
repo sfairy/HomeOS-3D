@@ -142,7 +142,7 @@ async def get_config(
     request: Request,
     _user: dict[str, Any] = Depends(require_user),
 ):
-    return _service(request).get_config_for_api(projectId)
+    return await _service(request).get_config_for_api(projectId)
 
 @router.post("/project/{projectId}")
 async def save_config(

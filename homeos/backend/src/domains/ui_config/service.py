@@ -9,14 +9,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import threading
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
 from .layout_secrets import (
     mask_layout,
@@ -57,10 +60,29 @@ def _parse_iso_utc(value: Any) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(text)
     except ValueError:
+        logger.warning("时间戳不是合法 ISO8601，已按无效处理: %r", text)
         return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return parsed.astimezone(UTC)
+
+
+def _parse_expected_updated_at(value: Any) -> datetime | None:
+    """解析布局乐观锁版本号。
+
+    - 空值 / 未提供 → ``None``（不校验，兼容旧客户端）；
+    - 给了但解析不出来 → 400，**不能**静默降级成「不校验」：一个拼错的版本号会让
+      本应 409 的并发覆盖变成静默 LWW，正是乐观锁要防的事。
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    parsed = _parse_iso_utc(text)
+    if parsed is None:
+        bad_request(api_error("UI_CONFIG_DATA_INVALID"))
+    return parsed
 
 
 class UiConfigService:
@@ -78,6 +100,10 @@ class UiConfigService:
             ui_assets_root or get_ui_assets_dir()
         )
         self._event_bus = event_bus
+        #: ``profiles`` 段的读-改-写互斥。``terminalBindings`` 是**整表替换**（删除绑定也要
+        #: 整表写回），两台终端同时绑定时，后写方会拿自己那份旧快照覆盖先写方，绑定凭空消失。
+        #: 单副本部署（single-process 门禁）下进程内锁就够；临界区只有内存读改写 + 一次落库。
+        self._profiles_lock = threading.Lock()
 
     # 内部工具
     def _emit_config_updated(self) -> None:
@@ -133,10 +159,14 @@ class UiConfigService:
                 return {"projectId": project_id, "layout": {}, "updatedAt": None}
             return self._record(config)
 
-    def get_config_for_api(self, project_id: str) -> dict[str, Any]:
-        """API：获取项目配置（含已解析 layout；敏感字段脱敏）。"""
+    async def get_config_for_api(self, project_id: str) -> dict[str, Any]:
+        """API：获取项目配置（含已解析 layout；敏感字段脱敏）。
+
+        SQLite 读放到线程池：这个路由跑在事件循环上，同步查询会在慢查询 / WAL 检查点 /
+        写事务等待时把整个进程的其它请求一起卡住。
+        """
         try:
-            data = self.get_config(project_id)
+            data = await asyncio.to_thread(self.get_config, project_id)
             layout, parse_error = self.parse_layout_field(data.get("layout"))
             return {
                 "success": True,
@@ -217,6 +247,20 @@ class UiConfigService:
 
         return {"success": True, "data": {"profileId": "default", "source": "default"}}
 
+    @staticmethod
+    def _merge_binding(existing: dict[str, Any] | None, config: dict[str, Any]) -> dict[str, Any]:
+        """把本次写入合并进已有绑定：``label`` 缺省时保留旧值，``boundBy`` 只在首次写入时定。"""
+        if existing is None:
+            if config["label"] is None:
+                config.pop("label", None)
+            return config
+        merged = {**existing, **config}
+        if config["label"] is None:
+            merged.pop("label", None)
+        if config["boundBy"] is None:
+            merged["boundBy"] = existing.get("boundBy")
+        return merged
+
     async def upsert_terminal_binding(
         self, body: dict[str, Any], bound_by_user_id: str | None = None
     ) -> dict[str, Any]:
@@ -228,11 +272,6 @@ class UiConfigService:
             bad_request(api_error("UI_CONFIG_PROFILE_ID_REQUIRED"))
         self._assert_profile_exists(profile_id)
 
-        profiles = self._profiles()
-        bindings = [dict(binding) for binding in (profiles.get("terminalBindings") or [])]
-        index = next(
-            (i for i, binding in enumerate(bindings) if binding.get("clientId") == client_id), None
-        )
         config = {
             "clientId": client_id,
             "profileId": profile_id,
@@ -240,22 +279,20 @@ class UiConfigService:
             "boundBy": bound_by_user_id,
             "updatedAt": datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         }
-        if index is not None:
-            merged = {**bindings[index], **config}
-            if config["boundBy"] is None:
-                merged["boundBy"] = bindings[index].get("boundBy")
-            if config["label"] is None:
-                merged.pop("label", None)
-            bindings[index] = merged
-            result = merged
-        else:
-            if config["label"] is None:
-                config.pop("label", None)
-            bindings.append(config)
-            result = config
-
-        self._app_config.update({"profiles": {"terminalBindings": bindings}})
-        return {"success": True, "data": result}
+        # 读整表 → 改一条 → 写整表：必须互斥，否则两台终端同时绑定会互相覆盖
+        with self._profiles_lock:
+            bindings = [dict(binding) for binding in (self._profiles().get("terminalBindings") or [])]
+            index = next(
+                (i for i, binding in enumerate(bindings) if binding.get("clientId") == client_id),
+                None,
+            )
+            merged = self._merge_binding(bindings[index] if index is not None else None, config)
+            if index is None:
+                bindings.append(merged)
+            else:
+                bindings[index] = merged
+            self._app_config.update({"profiles": {"terminalBindings": bindings}})
+        return {"success": True, "data": merged}
 
     async def bind_self_terminal(
         self, body: dict[str, Any], caller: dict[str, Any] | None = None
@@ -276,11 +313,14 @@ class UiConfigService:
         client_id = str(client_id_raw or "").strip()
         if not client_id:
             bad_request(api_error("UI_CONFIG_CLIENT_ID_REQUIRED"))
-        profiles = self._profiles()
-        bindings = [
-            binding for binding in (profiles.get("terminalBindings") or []) if binding.get("clientId") != client_id
-        ]
-        self._app_config.update({"profiles": {"terminalBindings": bindings}})
+        # 同样按整表替换写回：与 upsert 共用一把锁，避免「刚解绑又被别人的旧快照写回」
+        with self._profiles_lock:
+            bindings = [
+                binding
+                for binding in (self._profiles().get("terminalBindings") or [])
+                if binding.get("clientId") != client_id
+            ]
+            self._app_config.update({"profiles": {"terminalBindings": bindings}})
         return {"success": True, "removed": client_id}
 
     # 方案存在性
@@ -338,19 +378,116 @@ class UiConfigService:
         return result
 
     @staticmethod
-    def _assert_expected_updated_at(expected: Any, current: datetime) -> None:
-        """校验布局保存的乐观锁；不一致抛 409（CONFLICT）。
+    def _version_window(expected: datetime) -> tuple[datetime, datetime]:
+        """把客户端版本号还原成「库里可能取值」的毫秒区间 ``[lo, lo + 1ms)``。
 
-        比较用毫秒精度的 ISO 字符串：库里可能是微秒精度，而对外契约（``_iso``）只到毫秒，
-        直接比 datetime 会把所有请求都判成冲突。
+        对外契约（``_iso``）只到毫秒，库里是微秒：客户端回传的必然是
+        ``floor(X, 1ms)``，因此 ``X`` 落在该区间内即视为同一版本。
+        直接拿 datetime 相等比较会把所有请求都判成冲突。
         """
-        if not isinstance(expected, str) or not expected.strip():
-            return
-        expected_at = _parse_iso_utc(expected)
-        if expected_at is None:
-            return
-        if _iso(current) != _iso(expected_at):
-            raise BusinessException(ErrorCode.CONFLICT, api_error("UI_CONFIG_CONFLICT"))
+        naive = expected.astimezone(UTC).replace(tzinfo=None)
+        lo = naive.replace(microsecond=(naive.microsecond // 1000) * 1000)
+        return lo, lo + timedelta(milliseconds=1)
+
+    def _load_layout_for_secret_backfill(self, project_id: str) -> Any:
+        """取「保存时要用来回填密钥」的旧 layout（字符串或对象）。
+
+        - 目标方案已存在 → 用它自己的旧 layout（同方案的占位符回填）；
+        - 目标方案不存在但正要新建 → 沿用**当前激活方案**的 layout，让「以当前布局另存为
+          新方案」（前端 ``createProfile``）复制出来的方案仍带着 Agent / 通道密钥。
+          注意这与 ``import_all_configs`` 的口径不同：那条路径导入的是外部备份里的
+          **全新** profile，回落到激活方案会把密钥写进不属于它的配置，所以那里禁止回落。
+        """
+        with self._session_factory() as session:
+            config = self._find(session, project_id)
+            if config is not None:
+                return config.layout
+        active_profile_id = str(self._profiles().get("activeProfileId") or "").strip()
+        if not active_profile_id or active_profile_id == project_id:
+            return None
+        with self._session_factory() as session:
+            active_row = self._find(session, active_profile_id)
+            if active_row is not None and active_row.layout:
+                return active_row.layout
+        return None
+
+    def save_config_checked(
+        self,
+        project_id: str,
+        layout: Any,
+        *,
+        expected_updated_at: datetime | None = None,
+    ) -> dict[str, Any]:
+        """带版本校验的保存：**校验与写入在同一个事务里**完成。
+
+        旧实现是「先开一个 session 读 updated_at，比对通过后再开另一个 session 写」，
+        两个 session 之间别的终端可以提交，读-比-写因此不是原子的（TOCTOU）：两个终端
+        同时通过校验、后写方静默覆盖先写方，乐观锁等于没生效。
+
+        这里改成单条条件 UPDATE：``WHERE projectId=? AND updatedAt IN [版本, 版本+1ms)``，
+        ``rowcount == 0`` 才是冲突。行不存在时走条件 INSERT，并发下另一方先建成功会撞
+        ``projectId`` 唯一约束 → 同样按 409 处理，不再静默改成「更新别人刚建的行」。
+        """
+        layout_json = json.dumps(to_input_json(layout, {}), ensure_ascii=False)
+        now = datetime.now(UTC)
+        with self._session_factory() as session:
+            if expected_updated_at is None:
+                result = session.execute(
+                    update(ProjectConfig)
+                    .where(ProjectConfig.project_id == project_id)
+                    .values(layout=layout_json, updated_at=now)
+                    .execution_options(synchronize_session=False)
+                )
+            else:
+                lo, hi = self._version_window(expected_updated_at)
+                result = session.execute(
+                    update(ProjectConfig)
+                    .where(ProjectConfig.project_id == project_id)
+                    .where(ProjectConfig.updated_at >= lo)
+                    .where(ProjectConfig.updated_at < hi)
+                    .values(layout=layout_json, updated_at=now)
+                    .execution_options(synchronize_session=False)
+                )
+            if not result.rowcount:
+                session.rollback()
+                return self._create_if_absent(project_id, layout_json, now)
+            session.commit()
+            config = self._find(session, project_id)
+            if config is None:  # pragma: no cover - 刚更新过的行不会消失（非并发删除）
+                raise BusinessException(ErrorCode.CONFIG_ERROR, api_error("UI_CONFIG_LOAD_FAILED"))
+            result_payload = self._record(config)
+
+        self._emit_config_updated()
+        return result_payload
+
+    def _create_if_absent(self, project_id: str, layout_json: str, now: datetime) -> dict[str, Any]:
+        """条件 UPDATE 没打到行时的收尾：确实不存在才 INSERT，否则就是版本冲突。"""
+        with self._session_factory() as session:
+            if self._find(session, project_id) is not None:
+                raise BusinessException(ErrorCode.CONFLICT, api_error("UI_CONFIG_CONFLICT"))
+            session.add(
+                ProjectConfig(
+                    project_id=project_id,
+                    layout=layout_json,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            try:
+                session.commit()
+            except IntegrityError as exc:
+                # 另一个终端在这几毫秒里先建成功了：它刚写的内容不该被我们静默覆盖
+                session.rollback()
+                raise BusinessException(
+                    ErrorCode.CONFLICT, api_error("UI_CONFIG_CONFLICT")
+                ) from exc
+            config = self._find(session, project_id)
+            if config is None:  # pragma: no cover - 刚插入的行不会消失
+                raise BusinessException(ErrorCode.CONFIG_ERROR, api_error("UI_CONFIG_LOAD_FAILED"))
+            result = self._record(config)
+
+        self._emit_config_updated()
+        return result
 
     async def save_config_from_body(self, project_id: str, body: dict[str, Any]) -> dict[str, Any]:
         body = body or {}
@@ -361,30 +498,13 @@ class UiConfigService:
         layout_raw, parse_error = self.parse_layout_field(body.get("layout"))
         if parse_error:
             bad_request(api_error("UI_CONFIG_DATA_INVALID"))
+        expected = _parse_expected_updated_at(body.get("expectedUpdatedAt"))
 
-        existing_layout: Any = None
-        existing_updated_at: datetime | None = None
-        with self._session_factory() as session:
-            config = self._find(session, project_id)
-            if config is not None:
-                existing_layout = config.layout
-                existing_updated_at = config.updated_at
-        if config is None:
-            active_profile_id = str(self._profiles().get("activeProfileId") or "").strip()
-            if active_profile_id and active_profile_id != project_id:
-                with self._session_factory() as session:
-                    active_row = self._find(session, active_profile_id)
-                    if active_row is not None and active_row.layout:
-                        existing_layout = active_row.layout
-
-        # 乐观锁：客户端带上 expectedUpdatedAt（读取时拿到的 updatedAt）且库里已被别人改过，
-        # 直接 409 —— 多终端同时改布局时，静默 LWW 会让先保存的那台设备的改动凭空消失。
-        # 首次创建（库里还没有该方案）不做校验。
-        if existing_updated_at is not None:
-            self._assert_expected_updated_at(body.get("expectedUpdatedAt"), existing_updated_at)
-
+        existing_layout = self._load_layout_for_secret_backfill(project_id)
         merged_layout = merge_layout_secrets_on_save(layout_raw, existing_layout)
-        result = self.save_config(project_id, merged_layout)
+        result = self.save_config_checked(
+            project_id, merged_layout, expected_updated_at=expected
+        )
         # 保存响应同样脱敏：明文密钥不该回传给浏览器（前端并不消费这份 layout，
         # 但响应会出现在 devtools / 反代日志里）。
         stored = result.get("layout") if isinstance(result, dict) else None
