@@ -5,7 +5,7 @@ import DeckTiles from "@store/shared/components/DeckTiles.vue";
 import EntryShell from "@homeos/shared/components/EntryShell.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { fromResponse } from "@store/shared/api/error";
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 import { sessionPersisted } from "@store/shared/stores/session";
 import { reportBestEffort, runBestEffort } from "@store/shared/utils/best-effort";
 import {

@@ -14,7 +14,7 @@ import { useSiteStore } from "@store/shared/stores/site";
 import { useStoreToast } from "@store/shared/stores/toast";
 import { useCooldown } from "@store/features/storefront/composables/useCooldown";
 import { clearInvite, readInvite } from "@store/features/storefront/utils/invite";
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 
 const props = defineProps<{ mode: string }>();
 const router = useRouter();

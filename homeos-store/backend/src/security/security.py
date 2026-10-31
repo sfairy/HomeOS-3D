@@ -10,6 +10,13 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 
+from homeos_shared.password_policy import (
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_POLICY_MESSAGE,
+    is_password_policy_compliant,
+)
+
 from ..core.timeutil import aware_now
 
 PBKDF2_ITERATIONS = 240_000
@@ -62,25 +69,9 @@ def hash_password(password: str) -> str:
     )
 
 
-#: 口令策略长度上下界（与主应用 ``platform/security/passwords.py`` 同口径）。
-PASSWORD_MIN_LENGTH = 8
-PASSWORD_MAX_LENGTH = 128
-
-#: 口令策略提示文案：主应用与商店**逐字一致**，前端也照这一句提示。
-PASSWORD_POLICY_MESSAGE = "密码至少 8 位，且须同时包含字母和数字"
-
-
-def is_password_policy_compliant(password: str) -> bool:
-    """口令是否满足统一策略：8–128 位，且同时包含 ASCII 字母与 ASCII 数字。
-
-    与 ``homeos/backend/src/platform/security/passwords.py`` 的实现逐条对齐：字母只认
-    ASCII（避免全角字母被当成「有字母」），数字同样只认 ASCII（与前端 ``[0-9]`` 一致）。
-    """
-    if not password or not (PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH):
-        return False
-    has_letter = any(ch.isalpha() and ch.isascii() for ch in password)
-    has_digit = any(ch.isdigit() and ch.isascii() for ch in password)
-    return has_letter and has_digit
+#: 口令策略（长度上下界 / 提示文案 / 判据）的真源在 ``homeos_shared.password_policy``，
+#: 与主应用 ``platform/security/passwords.py`` 共用同一份；本模块只做 re-export，
+#: 调用点继续 ``from .security import is_password_policy_compliant``。
 
 
 def verify_password(password: str, encoded: str | None) -> bool:

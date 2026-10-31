@@ -90,7 +90,7 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   PASSWORD_POLICY_MESSAGE,
   isPasswordPolicyCompliant,
-} from '@/shared/utils/core/password.util'
+} from '@homeos/shared/security/password-policy'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 

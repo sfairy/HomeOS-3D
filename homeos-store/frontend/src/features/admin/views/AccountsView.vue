@@ -15,7 +15,7 @@ import { useToastStore } from "@store/shared/stores/toast";
 import { useConfirmStore } from "@store/shared/stores/confirm";
 import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
 import { num } from "@store/features/admin/utils/format";
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 
 interface Account {
   id: string;

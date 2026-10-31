@@ -21,7 +21,7 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   PASSWORD_POLICY_MESSAGE,
   isPasswordPolicyCompliant,
-} from '@/shared/utils/core/password.util'
+} from '@homeos/shared/security/password-policy'
 
 const authStore = useAuthStore()
 const chrome = useChromeStore()

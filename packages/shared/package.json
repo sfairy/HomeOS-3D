@@ -18,6 +18,7 @@
     "./components/entry-step": "./src/components/entry-step.ts",
     "./scene/scene-values": "./src/scene/scene-values.ts",
     "./scene/touch-profile": "./src/scene/touch-profile.ts",
+    "./security/password-policy": "./src/security/password-policy.ts",
     "./utils/clipboard": "./src/utils/clipboard.ts"
   },
   "scripts": {

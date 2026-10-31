@@ -13,7 +13,7 @@ import { api, onAdminUnauthorized } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 import { localZoneLabel } from "@store/features/admin/utils/format";
 import { useToastStore } from "@store/shared/stores/toast";
-import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@homeos/shared/security/password-policy";
 
 interface NavItem {
   page: string;
@@ -86,20 +86,20 @@ const toast = useToastStore();
 
 /** 面板按 `:page` 懒加载；未知 page 渲染空白。 */
 const PANELS: Record<string, Component> = {
-  overview: defineAsyncComponent(() => import("./OverviewView.vue")),
-  products: defineAsyncComponent(() => import("./ProductsView.vue")),
-  orders: defineAsyncComponent(() => import("./OrdersView.vue")),
-  licenses: defineAsyncComponent(() => import("./LicensesView.vue")),
-  bindings: defineAsyncComponent(() => import("./BindingsView.vue")),
-  coupons: defineAsyncComponent(() => import("./CouponsView.vue")),
-  withdrawals: defineAsyncComponent(() => import("./WithdrawalsView.vue")),
-  accounts: defineAsyncComponent(() => import("./AccountsView.vue")),
-  settings: defineAsyncComponent(() => import("./SettingsView.vue")),
-  audits: defineAsyncComponent(() => import("./AuditsView.vue")),
-  entitlements: defineAsyncComponent(() => import("./EntitlementsView.vue")),
-  ledger: defineAsyncComponent(() => import("./LedgerView.vue")),
-  customers: defineAsyncComponent(() => import("./CustomersView.vue")),
-  diagnostics: defineAsyncComponent(() => import("./DiagnosticsView.vue")),
+  overview: defineAsyncComponent(() => import("../views/OverviewView.vue")),
+  products: defineAsyncComponent(() => import("../views/ProductsView.vue")),
+  orders: defineAsyncComponent(() => import("../views/OrdersView.vue")),
+  licenses: defineAsyncComponent(() => import("../views/LicensesView.vue")),
+  bindings: defineAsyncComponent(() => import("../views/BindingsView.vue")),
+  coupons: defineAsyncComponent(() => import("../views/CouponsView.vue")),
+  withdrawals: defineAsyncComponent(() => import("../views/WithdrawalsView.vue")),
+  accounts: defineAsyncComponent(() => import("../views/AccountsView.vue")),
+  settings: defineAsyncComponent(() => import("../views/SettingsView.vue")),
+  audits: defineAsyncComponent(() => import("../views/AuditsView.vue")),
+  entitlements: defineAsyncComponent(() => import("../views/EntitlementsView.vue")),
+  ledger: defineAsyncComponent(() => import("../views/LedgerView.vue")),
+  customers: defineAsyncComponent(() => import("../views/CustomersView.vue")),
+  diagnostics: defineAsyncComponent(() => import("../views/DiagnosticsView.vue")),
 };
 
 const loginEmail = ref("");

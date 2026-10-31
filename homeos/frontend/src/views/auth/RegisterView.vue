@@ -18,7 +18,7 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   PASSWORD_POLICY_MESSAGE,
   isPasswordPolicyCompliant,
-} from '@/shared/utils/core/password.util'
+} from '@homeos/shared/security/password-policy'
 import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
 import { rememberActivationEmail } from '@/shared/utils/auth/activation-email.util'
 import { resolveStoreLinks } from '@/shared/utils/store-links.util'

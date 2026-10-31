@@ -180,6 +180,7 @@ import Overview from '@/features/security/Overview.vue'
 | 共享 SFC | `@homeos/shared/components/{SceneStage,PasswordField,EntryShell}.vue` | 两侧逐字同构的展示件，旧副本已删。本应用的 `shared/components/auth/AuthShell.vue` 只是 `EntryShell` 的薄转发（五个调用方零改动） |
 | 入户步骤轨道 | `@homeos/shared/components/entry-step` | `EntryStep` 类型（抬头 / 标题 / 步骤轨道），本应用注册流程与商店登录、初始化三屏共用 |
 | 剪贴板内核 | `@homeos/shared/utils/clipboard` | 纯拷贝（安全上下文走 Clipboard API，HTTP 降级 `execCommand`）；提示文案留各应用 |
+| 口令策略 | `@homeos/shared/security/password-policy` | `isPasswordPolicyCompliant` / `PASSWORD_POLICY_MESSAGE` / 长短界；**Python 真源是 `packages/shared-py/homeos_shared/password_policy.py`**，两侧前端与两个后端共 4 个调用面判据必须一致 |
 | 场景静态资源 | `packages/shared/scene/static`（静态树，非 JS 子路径） | 4 个 CSS + 自托管字体；`bun run --cwd packages/shared sync:scene` 铺到两个 `public/`，该目录**不入库** |
 
 **子路径解析到 `src/`，bare 入口解析到 `dist/`。** 子路径改完即时生效、不必 build；只有消费 bare
