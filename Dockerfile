@@ -232,7 +232,7 @@ COPY --chown=homeos:homeos dist/homeos/frontend /app/dist
 # REPO_ROOT/assets → PROJECT_ROOT/assets」。镜像里 PROJECT_ROOT=/app，所以不设 env 时实例
 # 目录也正是 /app/assets；这里显式钉住 HOMEOS_ASSETS_DIR，让 entrypoint 与后端读同一份
 # 环境变量，不给「两边各推一次」留漂移空间。
-COPY --chown=homeos:homeos homeos/assets /app/assets-default
+COPY --chown=homeos:homeos homeos/assets-default /app/assets-default
 RUN mkdir -p /app/assets \
     && chown homeos:homeos /app/assets \
     && test -f /app/assets-default/logo/logo.svg \

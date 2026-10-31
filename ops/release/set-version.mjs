@@ -2,8 +2,8 @@
 /**
  * 统一产品版本号：把仓库里所有「版本槽位」一次改到同一版本，并自检不遗漏。
  *
- *   bun homeos/scripts/set-version.mjs 0.7.2              # 改写 + 自检
- *   bun homeos/scripts/set-version.mjs 0.7.2 --check      # 只自检，不改写（CI 可用）
+ *   bun ops/release/set-version.mjs 0.7.2              # 改写 + 自检
+ *   bun ops/release/set-version.mjs 0.7.2 --check      # 只自检，不改写（CI 可用）
  *
  * 面向「指定语义化版本、全仓库对齐」。
  *
@@ -24,9 +24,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
-const HOMEOS_ROOT = path.resolve(SCRIPT_DIR, '..')
-/** 仓库根（`homeos/` 的上一级；合并进 HomeOS-3D 后 monorepo 根）。 */
-const REPO_ROOT = path.resolve(HOMEOS_ROOT, '..')
+/** 仓库根（`ops/release/` 的上两级）。 */
+const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..')
 
 /** 三段式版本号；用前后 lookaround 排除 IP（`0.0.0.0`）与四段日期版本。 */
 const VER = String.raw`(?<![\d.])\d+\.\d+\.\d+(?![\d.])`
@@ -340,7 +339,7 @@ const flags = new Set(rest.filter((arg) => arg.startsWith('--')))
 if (!rawVersion || flags.has('--help')) {
   console.log(
     [
-      '用法: bun homeos/scripts/set-version.mjs <版本> [--check] [--dry-run]',
+      '用法: bun ops/release/set-version.mjs <版本> [--check] [--dry-run]',
       '',
       '  <版本>        目标版本，形如 0.7.2',
       '  --check       只自检不改写（发现任何遗漏即非零退出）',

@@ -6,8 +6,19 @@ import type { Plugin } from 'vite'
 
 const HERE = fileURLToPath(new URL('.', import.meta.url))
 
-/** 仓库根 assets/（与后端 ServeStatic 同源；dev 直读磁盘便于热替换） */
-const ROOT_ASSETS = path.resolve(HERE, '../assets')
+/**
+ * 可替换素材的候选根目录，按优先级排列（与后端 ``asset_paths`` 同序）：
+ *   1. 工作区 ``assets/``：compose 把仓库根 ``./assets`` 挂到容器 ``/app/assets``，
+ *      dev 也读同一份实例目录，现场替换的图 / 音效立刻生效；
+ *   2. 仓库 ``homeos/assets``：素材搬家（``homeos/assets`` → ``homeos/assets-default``）前的旧位置；
+ *   3. 随包种子 ``homeos/assets-default``：镜像里由 entrypoint 铺入实例目录，dev 没有
+ *      entrypoint，直接当兜底层 —— 少了这层 ``/logo/*``、``/sounds/*`` 会整类 404。
+ */
+const ROOT_ASSET_DIRS = [
+  path.resolve(HERE, '../../assets'),
+  path.resolve(HERE, '../assets'),
+  path.resolve(HERE, '../assets-default'),
+]
 
 /** Vite publicDir：dev 下 `/static/**` 的首选来源（与生产 dist 无关）。 */
 const PUBLIC_DIR = path.resolve(HERE, 'public')
@@ -70,9 +81,15 @@ function resolveRootAssetsFile(urlPath: string): string | null {
   for (const prefix of ['/logo/', '/sounds/'] as const) {
     if (!urlPath.startsWith(prefix)) continue
     const rel = decodeURIComponent(urlPath.slice(prefix.length))
-    if (!rel || rel.includes('..') || path.isAbsolute(rel)) return null
+    if (!rel || rel.includes('..') || rel.includes('\0') || path.isAbsolute(rel)) return null
     const dir = prefix === '/logo/' ? 'logo' : 'sounds'
-    return path.join(ROOT_ASSETS, dir, rel)
+    for (const base of ROOT_ASSET_DIRS) {
+      const file = path.join(base, dir, rel)
+      if (fs.existsSync(file)) return file
+    }
+    // 各层都没有：退回首选的实例目录路径，让 serveDiskFile 按扩展名回 404，
+    // 而不是放行给 SPA 回退拿 index.html。
+    return path.join(ROOT_ASSET_DIRS[0]!, dir, rel)
   }
   return null
 }

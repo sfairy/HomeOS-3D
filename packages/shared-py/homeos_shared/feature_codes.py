@@ -1,6 +1,6 @@
 """功能码目录加载（两端共用）。
 
-真源是仓库根 ``ops/check/feature_codes.json``。开发态优先读磁盘；发行镜像没有 ``ops/``，
+真源是仓库根 ``ops/contracts/feature_codes.json``。开发态优先读磁盘；发行镜像没有 ``ops/``，
 回退到本模块内嵌的 ``EMBEDDED_CATALOG``（须与 JSON 逐字段一致）。
 
 判定语义（``granted`` / 租约展开）与商店运营展示（``feature_catalog_payload``）仍留在
@@ -13,7 +13,7 @@ import json
 import os
 from pathlib import Path
 
-#: 内嵌副本（与 ``ops/check/feature_codes.json`` 逐字段一致）。
+#: 内嵌副本（与 ``ops/contracts/feature_codes.json`` 逐字段一致）。
 _CATALOG_JSON = """
 {
   "version": 1,
@@ -201,7 +201,7 @@ EMBEDDED_CATALOG: dict = json.loads(_CATALOG_JSON)
 
 
 def find_catalog_file(*, start: Path | None = None) -> Path | None:
-    """定位 ``ops/check/feature_codes.json``。
+    """定位 ``ops/contracts/feature_codes.json``。
 
     优先 ``HOMEOS_FEATURE_CODES_PATH``；否则从 ``start``（默认本文件）逐级上溯。
     """
@@ -212,7 +212,7 @@ def find_catalog_file(*, start: Path | None = None) -> Path | None:
             return candidate
     anchor = (start or Path(__file__)).resolve()
     for parent in [anchor, *anchor.parents]:
-        candidate = parent / "ops" / "check" / "feature_codes.json"
+        candidate = parent / "ops" / "contracts" / "feature_codes.json"
         if candidate.is_file():
             return candidate
     return None

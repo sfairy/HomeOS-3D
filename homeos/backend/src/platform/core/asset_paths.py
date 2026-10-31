@@ -2,7 +2,8 @@
 ``http-security/path.util.ts`` 的 SVG 消毒子集）。
 
 目录解析顺序：单项环境变量（``ICONS_DIR`` 等）→ ``HOMEOS_ASSETS_DIR``（实例目录，容器里
-跟宿主机 ``./assets`` bind mount）→ 仓库 ``assets/<name>`` → ``backend/assets/<name>``。
+跟宿主机 ``./assets`` bind mount）→ 工作区 ``assets/<name>`` → 仓库 ``assets/<name>`` →
+随包默认素材 ``assets-default/<name>`` → ``backend/assets/<name>``。
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from .errors import api_error, bad_request
-from ...config import PROJECT_ROOT, REPO_ROOT
+from ...config import PROJECT_ROOT, REPO_ROOT, WORKSPACE_ROOT
 
 #: 允许上传的图片扩展名。
 ALLOWED_IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"})
@@ -61,33 +62,48 @@ UPLOAD_CONTENT_TYPES = {
 #: 用户素材目录名（32 位十六进制），同时是防目录穿越的第一道形状校验。
 ASSET_ID = re.compile("^[0-9a-f]{32}$")
 
-#: 仓库级资源目录（monorepo 开发态）。
+#: 工作区级资源目录（monorepo 开发态的**实例目录**）：compose 把仓库根的 ``./assets``
+#: bind mount 到容器 ``/app/assets``，源码态它就是 ``homeos/`` 的上一层那份 ``assets/``。
+_WORKSPACE_ASSETS = WORKSPACE_ROOT / "assets"
+
+#: 仓库级资源目录（``homeos/assets``，素材搬家前的旧位置；保留兼容）。
 _REPO_ASSETS = REPO_ROOT / "assets"
+
+#: 随包默认素材种子（镜像里由 entrypoint 铺入实例目录；源码态没有 entrypoint，
+#: 直接作为兜底层 —— 否则开发态 ``/backgrounds``、``/icons`` 会整类 404）。
+_DEFAULT_ASSETS = REPO_ROOT / "assets-default"
 
 #: 后端本级资源目录（生产态 / 独立部署）。
 _LOCAL_ASSETS = PROJECT_ROOT / "assets"
 
 
-def _assets_root() -> Path:
-    """素材根目录。
+def _asset_roots() -> tuple[Path, ...]:
+    """实例素材根候选：``HOMEOS_ASSETS_DIR`` 优先，其次工作区 / 仓库 ``assets/``。
 
-    优先级：``HOMEOS_ASSETS_DIR``（容器里的实例目录，跟宿主机 ``./assets`` bind mount）→
-    仓库 ``assets/``（monorepo 开发态）→ 后端本级 ``assets/``（独立部署）。
-
-    容器镜像里只装了种子 ``/app/assets-default``，实例目录由 entrypoint 首次启动铺入，
-    所以这里读不到就真是「没素材」，不要再去猜别的路径。
+    显式配了 ``HOMEOS_ASSETS_DIR`` 就只认它（容器口径：entrypoint 负责铺种子）；
+    源码态没有该变量，按「实例目录 → 旧仓库目录」顺序取实际存在的那些。
     """
     override = os.getenv("HOMEOS_ASSETS_DIR", "").strip()
     if override:
-        return Path(override).expanduser()
-    return _REPO_ASSETS if _REPO_ASSETS.is_dir() else _LOCAL_ASSETS
+        return (Path(override).expanduser(),)
+    return tuple(
+        candidate
+        for candidate in (_WORKSPACE_ASSETS, _REPO_ASSETS)
+        if candidate.is_dir()
+    )
 
 
 def _asset_dir(env_name: str, default_name: str) -> Path:
     override = os.getenv(env_name, "").strip()
     if override:
         return Path(override).expanduser()
-    return _assets_root() / default_name
+    # 逐层找「确实有这个子目录」的根：实例目录常常只放了被替换过的那几类，
+    # 其余类目必须回落到随包种子，而不是整类 404。
+    for root in (*_asset_roots(), _DEFAULT_ASSETS):
+        candidate = root / default_name
+        if candidate.is_dir():
+            return candidate
+    return _LOCAL_ASSETS / default_name
 
 
 def get_icons_dir() -> Path:

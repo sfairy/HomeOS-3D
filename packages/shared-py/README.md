@@ -29,7 +29,7 @@ packages/shared-py/
     ├── client_ip.py         ← 可信代理链 → 真实客户端地址（安全判据，两侧共用）
     ├── rate_limit.py        ← 有界滑动窗口限流器（内存上限 + 淘汰）
     ├── license_transport.py ← 授权传输的协议参数（PROTOCOL / HKDF info / AAD / base64url / 规范 JSON）
-    └── feature_codes.py     ← 能力码目录加载（内嵌副本 + 读 `ops/check/feature_codes.json`）
+    └── feature_codes.py     ← 能力码目录加载（内嵌副本 + 读 `ops/contracts/feature_codes.json`）
 ```
 
 模块清单以 `ls packages/shared-py/homeos_shared/` 为准。

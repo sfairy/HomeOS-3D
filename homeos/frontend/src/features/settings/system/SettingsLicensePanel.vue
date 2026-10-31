@@ -102,7 +102,7 @@
       <SettingsCard v-show="section === 'features'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '功能码与权益' }}</h3>
-          <span class="license-card__hint">{{ '功能码目录与授权商店同源（ops/check/feature_codes.json）' }}</span>
+          <span class="license-card__hint">{{ '功能码目录与授权商店同源（ops/contracts/feature_codes.json）' }}</span>
         </div>
 
         <!-- 概览条：先给「开了多少 / 还剩多久」的结论，再往下看明细 -->

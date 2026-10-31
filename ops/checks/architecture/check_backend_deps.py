@@ -2,7 +2,7 @@
 """后端依赖方向门禁（只读）。
 
 把 `homeos/backend/src/README.md` 里用自然语言写的依赖方向约定，变成可执行的检查。
-前端同样的约定有两道门禁（ESLint `no-restricted-imports` + `scripts/check-frontend-deps.mjs`），
+前端同样的约定有两道门禁（ESLint `no-restricted-imports` + `ops/checks/frontend/check_frontend_deps.mjs`），
 后端此前一道都没有 —— 本脚本补上这个缺口。
 
 五条规则（B1/B2/B3 取自 README「依赖方向（约定）」一节；B4/B5 是结构不变量）：

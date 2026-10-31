@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-GATE = Path(__file__).resolve().parents[4] / "homeos" / "frontend" / "scripts" / "check-frontend-deps.mjs"
+GATE = Path(__file__).resolve().parents[4] / "ops" / "checks" / "frontend" / "check_frontend_deps.mjs"
 NODE = shutil.which("node")
 NODE_BIN: str = NODE or "node"
 

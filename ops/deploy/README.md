@@ -373,7 +373,7 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 
 ## 9. 替换 UI 素材（图标 / 背景图 / 音效 / Logo）
 
-随包的默认素材（`homeos/assets`）在镜像里是**种子**，compose 把仓库根的 `./assets` bind mount 到
+随包的默认素材（`homeos/assets-default`）在镜像里是**种子**，compose 把仓库根的 `./assets` bind mount 到
 容器 `/app/assets` 作为**实例目录**。替换素材不用重建镜像、不用进容器：
 
 ```bash

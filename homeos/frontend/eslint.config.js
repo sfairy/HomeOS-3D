@@ -22,7 +22,7 @@ const APP_FILES = ['src/**/*.{js,ts,vue}', 'scripts/**/*.{js,ts,mjs}']
 const APP_IGNORES = ['src/studio/**']
 
 /**
- * 域边界（与 scripts/check-frontend-deps.mjs 同规则）。
+ * 域边界（与 ops/checks/frontend/check_frontend_deps.mjs 同规则）。
  *
  * 自动枚举 `src/features/` 下的域，为每个域生成「禁止深引用别的域」的规则 —— 新增域无需改这里。
  * **权威清单是那个脚本**（它带白名单与过期检测）；这里只提前给编辑器反馈。
@@ -134,7 +134,7 @@ export default [
     },
   },
   // shared 是 DAG 的底：共享域被 stores/constants/composables/utils 反向依赖，
-  // 自己不得回头依赖上层（与 check-frontend-deps.mjs 同规则）。
+  // 自己不得回头依赖上层（与 ops/checks/frontend/check_frontend_deps.mjs 同规则）。
   {
     files: ['src/shared/**/*.{js,ts,vue}'],
     ignores: [...APP_IGNORES],
@@ -163,7 +163,7 @@ export default [
   // 注：根级 `src/utils/` 已在 P2 utils 收尾批清零（全部并入 `src/shared/`），
   // 原先针对它的「叶子层禁止回指 composables/stores/components」独立块随之删除 ——
   // 上面 `src/shared/**` 那块已覆盖同一约束（且更严），留着只会是永不命中的死配置。
-  // 「叶子消费者不得 import shared 域 barrel」这条规则**只在** scripts/check-frontend-deps.mjs 里
+  // 「叶子消费者不得 import shared 域 barrel」这条规则**只在** ops/checks/frontend/check_frontend_deps.mjs 里
   // 实现（用 `/^@\/shared\/[^/]+$/` 精确匹配）。ESLint 的 group 是 gitignore 语义，`@/shared/<域>`
   // 不带通配符也会连 `@/shared/<域>/utils/x` 一起命中，写在这里只会产生假阳性。
   // studio：仅 unused-imports（不套风格规则；类型由 typecheck 把关）

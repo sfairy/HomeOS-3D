@@ -349,7 +349,7 @@ class Settings:
         return self.data_dir / "hardware-fallback-id"
 
     def _keys_dir(self) -> Path:
-        """授权公钥目录：显式覆盖 > APP_CLIENT_KEYS_DIR > backend/keys/client > 仓库根 keys/。"""
+        """授权公钥目录：显式覆盖 > APP_CLIENT_KEYS_DIR > backend/keys/client > backend/keys > 工作区根 keys/（monorepo 根）。"""
         if self.client_keys_dir_override is not None:
             return self.client_keys_dir_override
         local = self.project_root / "keys" / "client"
@@ -358,7 +358,7 @@ class Settings:
         bare = self.project_root / "keys"
         if bare.is_dir():
             return bare
-        shared = REPO_ROOT / "keys"
+        shared = WORKSPACE_ROOT / "keys"
         return shared if shared.is_dir() else local
 
     @property

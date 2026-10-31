@@ -2,7 +2,7 @@
  * home-mode（家居模式）域根 barrel —— 域的唯一对外出口。
  *
  * 域内细节（`composables/` `components/` `editor/`）不外借：跨域引用只允许
- * `import ... from '@/features/home-mode'`（门禁见 scripts/check-frontend-deps.mjs
+ * `import ... from '@/features/home-mode'`（门禁见 ops/checks/frontend/check_frontend_deps.mjs
  * 与 eslint.config.js 的域边界规则）。
  *
  * ## 本域为什么成立（而不是并回 settings）

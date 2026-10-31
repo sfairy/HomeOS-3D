@@ -11,7 +11,7 @@ interface FeatureLabelEntry {
   group: FeatureGroup
 }
 
-/** 功能码展示表（顺序与真源 `ops/check/feature_codes.json` 一致；供 featureLabel 解析）。 */
+/** 功能码展示表（顺序与真源 `ops/contracts/feature_codes.json` 一致；供 featureLabel 解析）。 */
 const FEATURE_LABELS: Record<string, FeatureLabelEntry> = {
   api: { label: '接口访问', group: 'base' },
   assets: { label: '素材资源', group: 'base' },

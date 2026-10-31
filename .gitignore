@@ -60,7 +60,7 @@ backups/*
 !backups/.gitkeep
 
 # 容器部署的 UI 素材实例目录（compose 把 ./assets bind mount 到 /app/assets）。
-# 镜像内置的默认素材是仓库里的 homeos/assets（构建进 /app/assets-default），
+# 镜像内置的默认素材是仓库里的 homeos/assets-default（构建进 /app/assets-default），
 # 这里是**运行期副本**：管理员会在现场替换图标 / 背景图 / 音效 / Logo，
 # 属主与内容都随机器而变，所以只保留目录占位，不跟踪内容。
 assets/*

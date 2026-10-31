@@ -135,7 +135,7 @@ const GATE_GROUPS = {
       name: 'shellcheck',
       cmd: 'shellcheck',
       args: [
-        'homeos/deploy/run-backend.sh',
+        'ops/deploy/run-backend.sh',
         'ops/ci/build_frontend_verify.sh',
         'ops/ci/caddy_validate.sh',
         'ops/deploy/preflight.sh',

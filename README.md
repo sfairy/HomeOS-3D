@@ -75,21 +75,31 @@
 ```text
 HomeOS/
 ├── homeos/                        # 主应用：backend/（FastAPI，包名 src）+ frontend/（Vue + studio）
-│   ├── backend/src/               # api / domains（ha、license、security、studio3d…）/ platform / realtime
-│   └── frontend/
-│       ├── src/                   # views / features / components / composables / stores / shared / studio
-│       ├── src/studio/            # 3D 创作、面板编辑器 / 渲染器、实时舞台（runtime/）
-│       ├── scripts/models/        # 模型库工具（重建、目录归位、契约与名字索引生成）
-│       └── public/static/3d-studio/models/   # 模型库：336 个 id / 672 个 GLB（31 MB）
+│   ├── backend/src/               # api / domains / platform / realtime / panel / modules / bootstrap
+│   ├── frontend/
+│   │   ├── src/                   # views / features / components / composables / stores / shared / studio
+│   │   ├── src/studio/            # 3D 创作、面板编辑器 / 渲染器、实时舞台（runtime/）
+│   │   ├── scripts/models/        # 模型库工具（重建、目录归位、契约与名字索引生成）
+│   │   └── public/static/3d-studio/models/   # 模型库：336 个 id / 672 个 GLB（31 MB）
+│   ├── assets-default/            # 随镜像烘焙的默认 UI 素材（镜像内 /app/assets-default）
+│   ├── data/                      # 源码态运行时数据（不入库；容器内 /data）
+│   ├── scripts/run.mjs            # TS 侧 prep / typecheck / build 编排（其余脚本已上移到 ops/）
+│   └── README.md                  # 主应用目录、命令与边界
 ├── homeos-store/                  # 授权商店：backend/（commerce / licensing / payments）+ frontend/
+│   ├── frontend/scripts/stage-plan.mjs   # 首屏 3D 舞台示意图生成
+│   ├── data/ keys/local/          # 源码态运行时数据 + 开发态授权密钥
+│   └── README.md                  # 商店目录、命令与边界
 ├── packages/shared/               # @homeos/shared 前端共享契约包；scene/static 是场景 CSS / 字体的唯一真源
 ├── packages/shared-py/            # homeos_shared Python 共享包（构建期各自内联进 .so）
 ├── ops/
 │   ├── gates.mjs / lib/py.mjs     # 门禁编排（唯一清单）+ Python 解释器统一入口
 │   ├── dev.mjs / build.py / ports.mjs   # 本地联调 / 构建 / 端口唯一真源
-│   ├── deploy/                    # 部署手册、公网接入、穿透、preflight.sh、入口配置示例
-│   ├── checks/                    # 架构、3D 模型（资产 / 几何 / 材质 / 槽位）、体积预算、回归用例
-│   ├── perf/                      # 性能口径 / harness / 阈值（不存日期报告）
+│   ├── contracts/                 # 能力码目录唯一真源（feature_codes.json）
+│   ├── checks/                    # 架构、3D 模型、体积预算、前端 / 后端边界门禁与回归用例
+│   ├── release/                   # set-version.mjs（全仓版本槽位对齐）
+│   ├── dev/                       # clean-local.mjs（本地构建缓存清理）
+│   ├── deploy/                    # 部署手册、公网接入、穿透、preflight.sh、run-backend.sh
+│   ├── perf/                      # 性能口径 / harness / 阈值 / HA 基线采样
 │   └── ci/ docker/ caddy/ vite/   # 容器入口、Caddyfile、Vite 辅助、CI 脚本
 ├── assets/                        # 运行期可替换 UI 素材（compose bind mount 到 /app/assets）
 ├── backups/                       # 备份包落点（compose bind mount 到 /data/backups）

@@ -1,6 +1,6 @@
 """功能码（能力码）的主应用判定面。
 
-码目录的**唯一真源是仓库根的 ``ops/check/feature_codes.json``**；加载与内嵌副本在
+码目录的**唯一真源是仓库根的 ``ops/contracts/feature_codes.json``**；加载与内嵌副本在
 ``homeos_shared.feature_codes``（商店同一份）。本模块只负责主应用侧派生：
 
 1. ``FEATURE_*`` 各码的字面量（调用方一律引用常量，不再写字面串）；

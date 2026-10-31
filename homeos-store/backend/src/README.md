@@ -121,7 +121,7 @@ PYTHONPATH=homeos-store/backend node ops/lib/py.mjs -m src.run
 | 订单 | 仅未支付且无授权可删；已付走退款 |
 | 「标记支付」 | 人工放行，**不计入营收**；「线下收款入账」才计入 |
 
-能力码目录唯一出处：`ops/check/feature_codes.json`（与主应用 `domains/license/features.py` 的 `BASE_FEATURES` 对齐，靠评审保证）。新增能力先改主应用再补这里。
+能力码目录唯一出处：`ops/contracts/feature_codes.json`（与主应用 `domains/license/features.py` 的 `BASE_FEATURES` 对齐，靠评审保证）。新增能力先改主应用再补这里。
 
 ## 目录结构
 

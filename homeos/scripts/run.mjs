@@ -1,27 +1,27 @@
 /**
- * 根目录任务入口：收敛 shared / typecheck / build。
+ * homeos 项目任务入口：收敛 shared / typecheck / build。
  *
  * 主后端为 Python（backend/，FastAPI）；本入口只做 TypeScript 侧类型检查与前端构建。
  * Python 的类型检查不在本入口内，见 tasks.typecheck 上方的说明；ruff 这类语言级检查
  * 归仓库根的门禁编排（`bun run gate:static` → `lint:py`），不在这个入口重复一遍。
  *
  * 用法：
- *   bun scripts/run.mjs <shared|prep|typecheck|build|build:frontend>
+ *   bun homeos/scripts/run.mjs <shared|prep|typecheck|build|build:frontend>
  *
  * 环境变量：
  *   HOMEOS_PREP_DONE=1  跳过 prep（CI 已先跑过 prep 时可设）
  */
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
-import { REPO_ROOT } from './lib/repo.mjs'
+import { REPO_ROOT } from '../../ops/lib/repo.mjs'
 
 const task = String(process.argv[2] || '').trim()
 
 /**
  * `@homeos/shared` 契约包已上移到 monorepo 根（`packages/shared`），不再是 `homeos/` 的一部分：
- * 它的 build / lint / typecheck 调度归**根 package.json**，这里只委托（cwd 取上一级）。
+ * 它的 build / lint / typecheck 调度归**根 package.json**，这里只委托（cwd 取仓库根）。
  */
-const MONOREPO_ROOT_CWD = '..'
+const MONOREPO_ROOT_CWD = '.'
 
 function run(command, args, cwd = REPO_ROOT) {
   const result = spawnSync(command, args, {
@@ -74,14 +74,14 @@ const tasks = {
   typecheck() {
     prep()
     bunRun('typecheck:shared', MONOREPO_ROOT_CWD)
-    bunRun('typecheck', 'frontend')
+    bunRun('typecheck', 'homeos/frontend')
   },
   'build:frontend'() {
-    bunRun('build', 'frontend')
+    bunRun('build', 'homeos/frontend')
   },
   build() {
     prep()
-    bunRun('build', 'frontend')
+    bunRun('build', 'homeos/frontend')
   },
 }
 

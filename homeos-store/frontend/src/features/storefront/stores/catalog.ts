@@ -34,7 +34,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     return map;
   });
 
-  /** 增量模块（`group === "module"`），顺序沿用 `ops/check/feature_codes.json`。 */
+  /** 增量模块（`group === "module"`），顺序沿用 `ops/contracts/feature_codes.json`。 */
   const moduleFeatures = computed(() =>
     features.value.filter((item) => item.group === "module"),
   );

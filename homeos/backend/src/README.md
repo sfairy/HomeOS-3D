@@ -104,7 +104,7 @@ node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --json
   `homeos_shared.schema_migrate`，注册表在本包 `platform/core/migrations.py`（每条迁移必须幂等：
   空库先由 ORM 建出最新结构，再执行全部迁移，因此迁移在空库上要能安全 no-op）。**迁移失败必须让
   启动失败**，绝不空库重建或跳过版本；也没有 down migration，回滚 = 恢复迁移前快照 + 旧镜像。
-- **能力码**：真源为 `ops/check/feature_codes.json`；与 `homeos-store` 对齐靠评审，新增能力先改主应用再补商店。
+- **能力码**：真源为 `ops/contracts/feature_codes.json`；与 `homeos-store` 对齐靠评审，新增能力先改主应用再补商店。
 
 ## 本地启动
 

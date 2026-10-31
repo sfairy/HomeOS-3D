@@ -10,7 +10,7 @@
  * 墙统一切到 0.62m 高——墙越高，身后被挡住的地面越多（0.62m 会挡住约 1.24m 进深），
  * 小房间就只剩一条缝了。
  *
- * 用法：node homeos-store/frontend/tools/stage-plan.mjs
+ * 用法：node homeos-store/frontend/scripts/stage-plan.mjs
  * 产物：homeos-store/frontend/public/static/media/stage-plan.svg
  *      终端同时打印设备锚点的百分比坐标，贴回 content/home.ts 的 STAGE.anchors。
  */

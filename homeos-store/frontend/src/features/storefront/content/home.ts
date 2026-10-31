@@ -409,7 +409,7 @@ export const STAGE = {
     },
   ] satisfies StageModuleFrame[],
   planImage: "/store-static/media/stage-plan.svg",
-  /** 坐标由 tools/stage-plan.mjs 从同一份平面数据算出，改户型时重新跑一遍即可。 */
+  /** 坐标由 frontend/scripts/stage-plan.mjs 从同一份平面数据算出，改户型时重新跑一遍即可。 */
   anchors: [
     { id: "light", module: "light", label: "主灯", x: 35.7, y: 46.35 },
     { id: "climate", module: "environment", label: "空调", x: 43.92, y: 77.79 },

@@ -15,7 +15,7 @@
  * 6. 根入口不得深引 `@/studio/**`；
  * 7. 禁止 `import Foo from '@/features/<域>'` 默认导入。
  *
- * 用法：node scripts/check-frontend-deps.mjs [--root <src目录>] [--alias <前缀>=<替换>]...
+ * 用法：node ops/checks/frontend/check_frontend_deps.mjs [--root <src目录>] [--alias <前缀>=<替换>]...
  *
  * `--root` / `--alias` 用于把同一套规则套到另一个前端（当前是 `homeos-store`）。
  * 后者的路径别名是 `@store/*`，与 `@/` 不同 —— 不显式声明别名的话，门禁会把所有
@@ -27,7 +27,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
-const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, '..', 'src')
+const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..', 'homeos', 'frontend', 'src')
 const ROOT_INDEX = process.argv.indexOf('--root')
 const ROOT = ROOT_INDEX > -1 ? path.resolve(process.argv[ROOT_INDEX + 1]) : DEFAULT_ROOT
 const SOURCE_EXTS = new Set(['.ts', '.tsx', '.mts', '.vue', '.js', '.mjs'])

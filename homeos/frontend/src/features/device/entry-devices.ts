@@ -7,6 +7,6 @@
  * 按页拆 entry（`entry-devices` / `entry-device-detail`）才能保住边界。
  *
  * 门禁：`views/**` 只允许 `@/features/<域>` 或 `@/features/<域>/entry(-<page>)`，
- * 见 scripts/check-frontend-deps.mjs 的 isFeatureEntry。
+ * 见 ops/checks/frontend/check_frontend_deps.mjs 的 isFeatureEntry。
  */
 export { default as DevicesPage } from './DevicesPage.vue'

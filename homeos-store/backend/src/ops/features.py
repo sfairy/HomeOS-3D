@@ -1,6 +1,6 @@
 """客户端能力码目录（中文名 + 说明）—— 商店运营展示面。
 
-**唯一真源是仓库根的 ``ops/check/feature_codes.json``**：加载与内嵌副本在
+**唯一真源是仓库根的 ``ops/contracts/feature_codes.json``**：加载与内嵌副本在
 ``homeos_shared.feature_codes``（主应用同一份）。本模块只派生商店后台下拉 / 商品种子
 需要的结构。
 """

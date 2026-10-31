@@ -3,9 +3,9 @@
  * 并支持与上一次采样做回归对比。
  *
  * 用法：
- *   bun scripts/ha-pipeline-baseline.mjs                       # 打印当前基线
- *   bun scripts/ha-pipeline-baseline.mjs --save baseline.json  # 存一份基线
- *   bun scripts/ha-pipeline-baseline.mjs --diff baseline.json  # 和基线对比（p99 恶化 >25% 报警）
+ *   bun ops/perf/ha-pipeline-baseline.mjs                       # 打印当前基线
+ *   bun ops/perf/ha-pipeline-baseline.mjs --save baseline.json  # 存一份基线
+ *   bun ops/perf/ha-pipeline-baseline.mjs --diff baseline.json  # 和基线对比（p99 恶化 >25% 报警）
  *
  * 依赖：仅 Node 内置（fetch），需要后端在跑；`/metrics` 生产环境需 `METRICS_TOKEN`，
  * 用 `--token=xxx` 或 `HOMEOS_METRICS_TOKEN` 传入。

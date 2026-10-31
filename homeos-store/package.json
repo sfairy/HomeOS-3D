@@ -11,6 +11,7 @@
     "dev": "bun run --cwd ../packages/shared sync:scene && vite --config frontend/vite.config.ts",
     "build": "bun run --cwd ../packages/shared sync:scene && vite build --config frontend/vite.config.ts",
     "typecheck": "node ../ops/lib/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
+    "stage-plan": "node frontend/scripts/stage-plan.mjs",
     "lint": "eslint . --fix",
     "lint:ci": "eslint . --max-warnings 0 && node ../ops/lib/check-css-syntax.mjs frontend/src",
     "check:css": "node ../ops/lib/check-css-syntax.mjs frontend/src"
