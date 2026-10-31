@@ -86,9 +86,11 @@ const GATE_GROUPS = {
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
     { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
     { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
-    // 四个结构性棘轮：WS 鉴权、商店路由契约、Python 复杂度、新增文件格式。
+    // 六个结构性棘轮：WS 鉴权、商店路由契约、API 契约覆盖率、文件规模、Python 复杂度、新增文件格式。
     { name: 'check:ws-auth', ...bun('run', 'check:ws-auth') },
     { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
+    { name: 'check:api-contract', ...bun('run', 'check:api-contract') },
+    { name: 'check:file-size', ...bun('run', 'check:file-size') },
     { name: 'check:complexity', ...bun('run', 'check:complexity') },
     { name: 'check:python-format', ...bun('run', 'check:python-format') },
   ],
