@@ -109,6 +109,7 @@ import Overview from '@/features/security/Overview.vue'
 | `diagnostics` | `features/settings/system/diagnostics/` |
 | `setup` | `components/setup/`（接入引导横幅） |
 | `settings` | `features/settings/` |
+| `system-config` | `features/settings/system/system-config/`（配置**工作区**：搜索 / 校验 / 面板壳）；字段**编辑器**件在 `shared/config-fields/`，两者刻意不同名 |
 
 `shared/status/` 因此叫 `status` 而不叫 `system` / `diagnostics`：它装的是**本机状态**这类
 只读查询（安装引导进度 + 健康诊断）。

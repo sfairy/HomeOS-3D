@@ -52,8 +52,8 @@
 import { computed } from 'vue'
 import { Search } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
-import SystemConfigFieldCell from '@/features/settings/shared/system-config/SystemConfigFieldCell.vue'
-import { groupSearchResultsBySection } from '@/features/settings/shared/system-config/field-groups.util'
+import SystemConfigFieldCell from '@/features/settings/shared/config-fields/SystemConfigFieldCell.vue'
+import { groupSearchResultsBySection } from '@/features/settings/shared/config-fields/field-groups.util'
 
 const props = defineProps({
   results: { type: Array, required: true },

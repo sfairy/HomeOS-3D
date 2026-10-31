@@ -123,13 +123,13 @@ import HosSelect from '@/components/common/base/HosSelect.vue'
 import { computed, ref, watch } from 'vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
-import SystemConfigNestedObjectEditor from '@/features/settings/shared/system-config/SystemConfigNestedObjectEditor.vue'
+import SystemConfigNestedObjectEditor from '@/features/settings/shared/config-fields/SystemConfigNestedObjectEditor.vue'
 import {
   haEntityDomainFilter,
   systemConfigCellClass,
   systemConfigSelectOptions,
 } from '@/shared/utils/config/system-config/field.util'
-import { getNestedObjectEditorKind } from '@/features/settings/shared/system-config/nested-editor.util'
+import { getNestedObjectEditorKind } from '@/features/settings/shared/config-fields/nested-editor.util'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
 import { parseOptionalNumber } from '@/shared/utils/core/misc.util'
 const props = defineProps({

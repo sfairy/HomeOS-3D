@@ -75,8 +75,8 @@
 import { Search, SlidersHorizontal } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import { sectionMeta } from '@/composables/config/system-config-core.internals'
-import SystemConfigFieldCell from '@/features/settings/shared/system-config/SystemConfigFieldCell.vue'
-import SystemConfigSectionDock from '@/features/settings/shared/system-config/SystemConfigSectionDock.vue'
+import SystemConfigFieldCell from '@/features/settings/shared/config-fields/SystemConfigFieldCell.vue'
+import SystemConfigSectionDock from '@/features/settings/shared/config-fields/SystemConfigSectionDock.vue'
 
 defineProps({
   section: { type: Object, required: true },

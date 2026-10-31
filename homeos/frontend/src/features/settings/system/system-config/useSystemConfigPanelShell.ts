@@ -1,6 +1,6 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { Ref } from 'vue'
-import { buildGroupedFieldEntries } from '@/features/settings/shared/system-config/field-groups.util'
+import { buildGroupedFieldEntries } from '@/features/settings/shared/config-fields/field-groups.util'
 
 type ConfigField = { value: unknown; isMasked?: boolean }
 type InputFieldEntry = { key: string; value?: unknown; isMasked?: boolean }

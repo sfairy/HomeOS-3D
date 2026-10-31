@@ -1175,19 +1175,19 @@
       "gt80": 0,
       "max": 14
     },
+    "homeos/frontend/src/features/settings/shared/config-fields/nested-editor.util.ts": {
+      "functions": 9,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
     "homeos/frontend/src/features/settings/shared/layout/useSettingsSidebar.ts": {
       "functions": 22,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 10
-    },
-    "homeos/frontend/src/features/settings/shared/system-config/nested-editor.util.ts": {
-      "functions": 9,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 11
     },
     "homeos/frontend/src/features/settings/system/SettingsFamilyPanel.vue": {
       "functions": 10,

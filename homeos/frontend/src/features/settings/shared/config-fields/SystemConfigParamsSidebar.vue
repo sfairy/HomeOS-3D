@@ -142,7 +142,7 @@
 import { RouterLink } from 'vue-router'
 import { Search, X, ChevronDown } from '@lucide/vue'
 import { SECTION_LINK_LABELS, DELEGATED_PANEL_LINKS, DELEGATED_ACTION_ITEMS, DELEGATED_COUNT, useSystemConfigParamsSidebar } from '@/features/settings/system/composables/system-config-sidebar.internals'
-import MediaPlaylistSettingsModal from '@/features/settings/shared/system-config/MediaPlaylistSettingsModal.vue'
+import MediaPlaylistSettingsModal from '@/features/settings/shared/config-fields/MediaPlaylistSettingsModal.vue'
 
 const delegatedPanelLinks = DELEGATED_PANEL_LINKS
 const delegatedActionItems = DELEGATED_ACTION_ITEMS
