@@ -71,7 +71,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { CircleSlash, LayoutGrid, Unlink } from '@lucide/vue'
 import PowerCardBody from '@/components/dashboard/PowerCardBody.vue'
-import { useDashboardFooter } from '@/composables/ui/useDashboardFooter'
+import { useDashboardFooter } from '@/composables/ui/shell/useDashboardFooter'
 import { formatMissingAccountBindingHint } from '@/shared/constants/account-binding-meta'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 

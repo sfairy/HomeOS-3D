@@ -87,8 +87,8 @@
 import { ArrowUpFromLine, Square, ArrowDownToLine } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
-import { defineEntityPopupProps } from '@/composables/entity/useEntityPopupBase'
-import { useCoverControlPopup } from '@/composables/entity/useCoverControlPopup'
+import { defineEntityPopupProps } from '@/composables/entity/popup/useEntityPopupBase'
+import { useCoverControlPopup } from '@/composables/entity/popup/useCoverControlPopup'
 
 const props = defineProps(defineEntityPopupProps())
 

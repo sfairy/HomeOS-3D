@@ -80,7 +80,7 @@
 import { ref, computed, defineAsyncComponent, watch } from 'vue'
 import { X, Images, Sparkles, MousePointer2 } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useEscLayer } from '@/composables/ui/useEscStack'
 import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'

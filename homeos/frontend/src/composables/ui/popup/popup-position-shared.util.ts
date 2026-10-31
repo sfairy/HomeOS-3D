@@ -5,7 +5,7 @@ import {
   getTeleportShellRect,
   getTeleportLiveScale,
   shouldUseTeleportCanvasCoords,
-} from '@/composables/ui/popup-position-dropdown.util'
+} from '@/composables/ui/popup/popup-position-dropdown.util'
 import type { PopupPlacementBounds } from '@/shared/utils/ui/popup-placement.util'
 
 /** 读取 #teleport-target 在定位坐标系中的尺寸（缩放时 shell 大于设计稿 content 区） */

@@ -30,7 +30,7 @@ import {
   fetchEntityById,
 } from '@/shared/entity/utils/cold-fetch.util'
 import { getPendingListenerCount, getStateListenerStats } from '@/shared/entity/utils/state-listener'
-import { applyEntityStateUpdate } from '@/composables/entity/state-update'
+import { applyEntityStateUpdate } from '@/composables/entity/ws/state-update'
 import type { WsDeltaChange } from '@/shared/entity/utils/state-delta.util'
 import {
   shouldNotifyStateChange,

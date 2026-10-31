@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   PASSWORD_POLICY_MESSAGE,

@@ -169,8 +169,8 @@
 import { Sun, Power } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
-import { defineEntityPopupProps } from '@/composables/entity/useEntityPopupBase'
-import { useLightControlPopup } from '@/composables/entity/useLightControlPopup'
+import { defineEntityPopupProps } from '@/composables/entity/popup/useEntityPopupBase'
+import { useLightControlPopup } from '@/composables/entity/popup/useLightControlPopup'
 import '@/assets/styles/popup-base.css'
 import './styles/LightControlPopup.css'
 

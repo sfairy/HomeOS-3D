@@ -70,9 +70,9 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue'
 import { X } from '@lucide/vue'
-import { useEntityPopupAnchor } from '@/composables/entity/useEntityPopupAnchor'
+import { useEntityPopupAnchor } from '@/composables/entity/popup/useEntityPopupAnchor'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 
 // 关闭 inheritAttrs，attrs 由 passthroughAttrs 手动透传到 wrapper
 defineOptions({ inheritAttrs: false })

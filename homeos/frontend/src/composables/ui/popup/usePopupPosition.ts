@@ -5,7 +5,7 @@ export {
   expandDropdownMaxHeight,
   viewportPointToPopupAnchor,
   measureDropdownFitWidth,
-} from '@/composables/ui/popup-position-dropdown.util'
+} from '@/composables/ui/popup/popup-position-dropdown.util'
 
-export { usePopupPosition } from '@/composables/ui/popup-position-percent.composable'
-export { useFixedPopupPosition } from '@/composables/ui/popup-position-fixed.composable'
+export { usePopupPosition } from '@/composables/ui/popup/popup-position-percent.composable'
+export { useFixedPopupPosition } from '@/composables/ui/popup/popup-position-fixed.composable'

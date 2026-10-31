@@ -5,7 +5,7 @@ import {
   getPopupPlacementBounds,
   resolvePopupNumeric,
   type PopupNumericInput,
-} from '@/composables/ui/popup-position-shared.util'
+} from '@/composables/ui/popup/popup-position-shared.util'
 import { pickPopupPlacementDirection } from '@/shared/utils/ui/popup-placement.util'
 
 /**

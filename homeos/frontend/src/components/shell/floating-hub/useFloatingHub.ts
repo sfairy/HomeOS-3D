@@ -13,7 +13,7 @@ import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { viewportPointToPopupAnchor } from '@/composables/ui/usePopupPosition'
+import { viewportPointToPopupAnchor } from '@/composables/ui/popup/usePopupPosition'
 import { usePerfClock } from '@/composables/ui/usePerfClock'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
 import {

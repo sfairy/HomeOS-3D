@@ -66,7 +66,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { useEscLayer } from '@/composables/ui/useEscStack'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 const chrome = useChromeStore()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending

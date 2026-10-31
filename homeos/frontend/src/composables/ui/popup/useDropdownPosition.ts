@@ -5,12 +5,12 @@ import {
   buildDropdownFixedStyle,
   expandDropdownMaxHeight,
   measureDropdownFitWidth,
-} from '@/composables/ui/usePopupPosition'
-import { collectOverflowScrollParents, getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
-import type { DropdownPosition } from '@/composables/ui/popup-position-dropdown.util'
+} from '@/composables/ui/popup/usePopupPosition'
+import { collectOverflowScrollParents, getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
+import type { DropdownPosition } from '@/composables/ui/popup/popup-position-dropdown.util'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
-import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 
 /** 数值型选项：可为常量或取值函数（支持响应式） */
 type NumericOpt = number | (() => number)

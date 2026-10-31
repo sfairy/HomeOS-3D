@@ -5,7 +5,7 @@ import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lu
 import {
   useEntityPopupBase,
   type EntityPopupBaseProps,
-} from '@/composables/entity/useEntityPopupBase'
+} from '@/composables/entity/popup/useEntityPopupBase'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
 import { clampInRange } from '@/shared/utils/ui/progress-bar.util'

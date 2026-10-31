@@ -6,7 +6,7 @@
  * 单独成文件的原因：这条判据同时被三处使用，且必须能脱离运行时单测
  * （实体 store 的乐观模块会 import Vue 与 chrome store，node --test 拉不起来）：
  * 1. `callService` 建立乐观态**之前**的短路；
- * 2. WS 推送到达时的确认判定（`composables/entity/state-update.ts`）；
+ * 2. WS 推送到达时的确认判定（`composables/entity/ws/state-update.ts`）；
  * 3. TTL 到期时的兜底判定 + REST 确认。
  *
  * 三者共用同一份真相源，避免出现「一处认为可跳过、另一处却认为未确认」的漂移。

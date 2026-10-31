@@ -141,7 +141,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useAreaOptions } from '@/composables/entity/useAreaOptions'
 import { copyTextWithNotify } from '@/services/notify'
 import { batchAssignEntityArea } from '@/services/api/entities'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 
 // 当前选中的实体 ID 数组；为空时整个工具栏不渲染。

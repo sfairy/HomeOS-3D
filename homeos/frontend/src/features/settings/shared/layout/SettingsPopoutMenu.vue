@@ -34,11 +34,11 @@ import {
   rectToDropdownPosition,
   buildDropdownFixedStyle,
   viewportPointToPopupAnchor,
-} from '@/composables/ui/usePopupPosition'
+} from '@/composables/ui/popup/usePopupPosition'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
-import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
-import { getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
+import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
+import { getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
 import { clampNum as clamp } from '@/shared/utils/core/misc.util'
 
 const props = defineProps({

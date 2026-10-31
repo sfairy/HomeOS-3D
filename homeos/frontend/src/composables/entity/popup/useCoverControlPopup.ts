@@ -6,7 +6,7 @@ import {
   useEntityPopupBase,
   useEntityPopupHeader,
   type EntityPopupBaseProps,
-} from '@/composables/entity/useEntityPopupBase'
+} from '@/composables/entity/popup/useEntityPopupBase'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
 import {
   coverHasPositionControl,

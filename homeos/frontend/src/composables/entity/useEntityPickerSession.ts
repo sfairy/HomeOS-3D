@@ -3,7 +3,7 @@ import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { fetchEntities } from '@/services/api/entities'
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
+import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 import { collectIndexedEntityIds } from '@/shared/entity/utils/derived.util'
 import { getLargeEntityThreshold } from '@/shared/utils/config/frontend-config'
 

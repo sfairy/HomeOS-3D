@@ -21,9 +21,9 @@ import { logger } from '@/shared/utils/core/logger'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { DEFAULT_BRAND_LOGO_URL } from '@/shared/utils/layout/nav-tabs.util'
 import { mainLayoutIconMap } from '@/shared/utils/ui/main-layout-nav.util'
-import { useMainLayoutNavMenu } from '@/composables/ui/useMainLayoutNavMenu'
-import { useMainLayoutDoorbell } from '@/composables/ui/useMainLayoutDoorbell'
-import { useMainLayoutWeatherNav } from '@/composables/ui/useMainLayoutWeatherNav'
+import { useMainLayoutNavMenu } from '@/composables/ui/shell/useMainLayoutNavMenu'
+import { useMainLayoutDoorbell } from '@/composables/ui/shell/useMainLayoutDoorbell'
+import { useMainLayoutWeatherNav } from '@/composables/ui/shell/useMainLayoutWeatherNav'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 
 /** 主布局壳层：导航、HA 状态、儿童模式、门铃。聚合各子 composable 的状态与操作。 */

@@ -272,8 +272,8 @@
 import { Fan, Power, Minus, Plus, Thermometer } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
-import { defineEntityPopupProps } from '@/composables/entity/useEntityPopupBase'
-import { useClimateControlPopup } from '@/composables/entity/useClimateControlPopup'
+import { defineEntityPopupProps } from '@/composables/entity/popup/useEntityPopupBase'
+import { useClimateControlPopup } from '@/composables/entity/popup/useClimateControlPopup'
 
 const props = defineProps(defineEntityPopupProps())
 

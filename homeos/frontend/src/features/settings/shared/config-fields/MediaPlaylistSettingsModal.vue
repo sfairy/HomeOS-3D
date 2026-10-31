@@ -51,7 +51,7 @@ import { computed, ref } from 'vue'
 import { X } from '@lucide/vue'
 import MediaPlaylistWidget from '@/components/widgets/media/PlaylistWidget.vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 
 const props = defineProps({
   open: { type: Boolean, default: false },

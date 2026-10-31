@@ -7,7 +7,7 @@ import {
   getActiveSubscribeDomains,
   collectWsPinnedEntityIds,
 } from '@/shared/entity/utils/ws-subscription'
-import { resolveActivePopupEntityId } from '@/composables/entity/active-popup-entity'
+import { resolveActivePopupEntityId } from '@/composables/entity/popup/active-popup-entity'
 
 /** 构建前端 Socket.IO 连接参数（从 entities.store 抽离） */
 export function buildEntitySocketUrl(): string | undefined {

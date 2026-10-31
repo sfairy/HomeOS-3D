@@ -52,7 +52,7 @@ import {
   DASHBOARD_FOOTER_COLOR_ACCENT,
 } from '@/shared/constants/dashboard-footer'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
+import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 
 // 颜色 key → 中文标签映射
 const COLOR_LABELS = {

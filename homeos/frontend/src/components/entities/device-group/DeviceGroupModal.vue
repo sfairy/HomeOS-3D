@@ -140,13 +140,13 @@ import { useLayoutStore } from '@/stores/layout.store'
 import {
   getDomainMap,
   getEntityFromStore,
-} from '@/composables/entity/useDeviceGroupMembers'
-import { useDeviceGroupBatch } from '@/composables/entity/useDeviceGroupBatch'
-import { useDeviceGroupEntityIds } from '@/composables/entity/useDeviceGroupEntityIds'
+} from '@/composables/entity/device-group/useDeviceGroupMembers'
+import { useDeviceGroupBatch } from '@/composables/entity/device-group/useDeviceGroupBatch'
+import { useDeviceGroupEntityIds } from '@/composables/entity/device-group/useDeviceGroupEntityIds'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import { useDeviceGroupOffline } from '@/composables/entity/useDeviceGroupOffline'
+import { useDeviceGroupOffline } from '@/composables/entity/device-group/useDeviceGroupOffline'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import DeviceGroupBatteryPanel from '@/components/entities/device-group/DeviceGroupBatteryPanel.vue'
 import DeviceGroupMemberList from '@/components/entities/device-group/DeviceGroupMemberList.vue'
 import DeviceGroupOfflinePanel from '@/components/entities/device-group/DeviceGroupOfflinePanel.vue'

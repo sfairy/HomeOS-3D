@@ -8,7 +8,7 @@ import {
 } from '@/shared/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
-import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
+import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
 
 /**
  * 主布局导航菜单 composable。

@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** 设置：嵌入页 Hub */
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
+import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'

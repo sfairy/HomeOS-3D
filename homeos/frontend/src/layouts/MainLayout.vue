@@ -26,7 +26,7 @@ import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
-import { useTeleportTargetGuard } from '@/composables/ui/useTeleportTargetGuard'
+import { useTeleportTargetGuard } from '@/composables/ui/shell/useTeleportTargetGuard'
 import EntityControlHost from '@/components/entities/EntityControlHost.vue'
 import ScaledViewport from '@/layouts/ScaledViewport.vue'
 import { AlertOverlay as EarthquakeAlertOverlay, CencBulletinCard } from '@/features/earthquake'
@@ -54,7 +54,7 @@ import HaStatusDegradeBanner from '@/components/common/HaStatusDegradeBanner.vue
 const NotificationDrawer = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.NotificationDrawer),
 )
-import { useMainLayoutChrome } from '@/composables/ui/useMainLayoutChrome'
+import { useMainLayoutChrome } from '@/composables/ui/shell/useMainLayoutChrome'
 import { useEntityWsSubscriptionSync } from '@/composables/entity/useEntityWsSubscriptionSync'
 import { useEarthquakeBootstrap } from '@/features/earthquake'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
@@ -72,11 +72,11 @@ import {
   rectToDropdownPosition,
   viewportPointToPopupAnchor,
   measureDropdownFitWidth,
-} from '@/composables/ui/popup-position-dropdown.util'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+} from '@/composables/ui/popup/popup-position-dropdown.util'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { useEscLayer } from '@/composables/ui/useEscStack'
 import { isLicenseFeatureGranted } from '@/router/license-gate'
-import { getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
+import { getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
 import Screensaver from '@/components/common/Screensaver.vue'
 // 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。
 const FloatingHub = defineAsyncComponent(() => import('@/components/shell/FloatingHub.vue'))

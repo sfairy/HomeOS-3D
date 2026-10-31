@@ -4,7 +4,7 @@
  */
 /** entity WebSocket：连接 / 断线 / 重连生命周期 */
 import type { EntitySocketHandlerContext, EntitySocketSyncState } from '@/shared/types/entity-store'
-import { refreshEntitySocketAuth } from '@/composables/entity/socket.util'
+import { refreshEntitySocketAuth } from '@/composables/entity/ws/socket.util'
 import { clearEntitySocketSyncTimers } from '@/shared/entity/utils/ws-sync'
 import type { Socket } from 'socket.io-client'
 

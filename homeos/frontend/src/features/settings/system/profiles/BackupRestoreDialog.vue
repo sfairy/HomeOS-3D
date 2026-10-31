@@ -181,7 +181,7 @@ import {
   navigateAfterRestore,
   resolvePostRestoreDestination,
 } from '@/shared/utils/core/post-restore.util'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 
 const props = defineProps({
   /** 未保存/保存中时禁止导出；设置页默认允许。 */

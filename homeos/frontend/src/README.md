@@ -131,10 +131,11 @@ import Overview from '@/features/security/Overview.vue'
 | 设备页外壳 | `views/{DevicesView,DeviceDetailView}.vue` → `features/device/entry-devices.ts` / `entry-device-detail.ts` |
 | 家庭模式触发日志页 | `views/ModeTriggerLogsView.vue` → `features/home-mode/entry.ts` → `ModeTriggerLogsPage.vue` |
 | 内嵌网页页 | `views/EmbedView.vue` → `features/embed/entry.ts` → `EmbedPage.vue`（`/embed/movie-pilot` 与 `/embed/:id` 共用） |
-| 设备 / 实体 hooks | `composables/{device,entity}/` |
+| 设备 / 实体 hooks | `composables/{device,entity}/`；`entity/` 下按簇分子包：`ws/`（socket 与 ws-bind 链）、`popup/`（弹窗壳与各控制弹窗）、`device-group/`（批量 / 成员 / 离线），其余选择与投影 hooks 留根 |
+| 界面 hooks | `composables/ui/`；子包 `popup/`（定位与互斥下拉）、`screensaver/`（屏保生命周期与布局）、`shell/`（主壳层导航 / 门铃 / teleport / 微件面板），通用原语（`useClickOutside` / `useFocusTrap` / `useEscStack` 等）留根 |
 | 设备 / 实体纯函数 | `shared/{device,entity}/utils/`（含 `entity/utils/control/` 与 `popup-registry.util` 纯判定） |
 | 事件 / 通知域 | `features/{events,notifications}/`（各 4 个 `View*` 组件 + 样式，具名 barrel 前缀 `Events*` / `Notifications*`） |
-| 事件 / 通知纯逻辑 | `shared/{events,notifications}/utils/`：`dnd.util` 被 `composables/widget/useNotificationCenter`、`ws-sync.util` 被 `composables/entity/ws-bind` 反向依赖，**不能进 features** |
+| 事件 / 通知纯逻辑 | `shared/{events,notifications}/utils/`：`dnd.util` 被 `composables/widget/useNotificationCenter`、`ws-sync.util` 被 `composables/entity/ws/ws-bind` 反向依赖，**不能进 features** |
 | 安防 hooks | `features/security/composables/`（跨域经域根 barrel）；带 store 依赖的 `useSecurityPanelStatus` 在 `composables/security/`（`components/` 要它，而 `components` 禁 import `@/features/**`） |
 | 安防纯函数 | `shared/security/utils/`（`panel-arm`、`panel-layout`、`panel-zones-bootstrap`、`zones-api`）+ `features/security/utils/`（域内自用） |
 | 跨域纯常量 / 纯类型池 | `shared/constants/`、`shared/types/`（叶子池：不得 import 域 barrel，也不得反向依赖 stores/composables） |

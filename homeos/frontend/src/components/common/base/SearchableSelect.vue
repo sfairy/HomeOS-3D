@@ -85,7 +85,7 @@
 import { ref, computed, nextTick, watch } from 'vue'
 import { X, ChevronDown } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
+import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 import { currentScale } from '@/composables/ui/useScaling'
 
 /** 组件 Props 定义 */

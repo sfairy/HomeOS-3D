@@ -92,7 +92,7 @@
 import { ref, computed, watch, nextTick, useSlots, onUpdated } from 'vue'
 import { ChevronDown, Check, Search } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
+import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 import { entitySelectHint } from '@/shared/entity/utils/select.util'
 import './styles/hos-select.css'
 

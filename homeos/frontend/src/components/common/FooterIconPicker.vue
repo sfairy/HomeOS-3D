@@ -56,7 +56,7 @@ import { computed, ref } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import { DASHBOARD_FOOTER_ICONS } from '@/shared/constants/dashboard-footer'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
+import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 
 const props = defineProps({
   /** 当前选中的 emoji，v-model 绑定值 */

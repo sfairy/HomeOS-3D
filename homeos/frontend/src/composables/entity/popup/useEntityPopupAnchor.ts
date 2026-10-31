@@ -1,7 +1,7 @@
 /** 统一输出弹窗 style、popupClass、箭头 style。 */
 import { computed } from 'vue'
-import { useFixedPopupPosition, usePopupPosition } from '@/composables/ui/usePopupPosition'
-import type { PopupNumericInput } from '@/composables/ui/popup-position-shared.util'
+import { useFixedPopupPosition, usePopupPosition } from '@/composables/ui/popup/usePopupPosition'
+import type { PopupNumericInput } from '@/composables/ui/popup/popup-position-shared.util'
 
 /** 弹窗锚点 props：anchorX/Y 为像素锚点，xPct/yPct 为百分比锚点 */
 interface EntityPopupAnchorProps {

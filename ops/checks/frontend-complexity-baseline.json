@@ -300,6 +300,20 @@
       "gt80": 1,
       "max": 12
     },
+    "homeos/frontend/src/composables/entity/device-group/useDeviceGroupBatch.ts": {
+      "functions": 28,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/composables/entity/device-group/useDeviceGroupClimate.ts": {
+      "functions": 21,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
     "homeos/frontend/src/composables/entity/entity-input.internals.ts": {
       "functions": 4,
       "gt10": 2,
@@ -307,12 +321,33 @@
       "gt80": 0,
       "max": 44
     },
-    "homeos/frontend/src/composables/entity/state-update.ts": {
-      "functions": 10,
-      "gt10": 3,
-      "gt15": 2,
+    "homeos/frontend/src/composables/entity/popup/useClimateControlPopup.ts": {
+      "functions": 36,
+      "gt10": 0,
+      "gt15": 0,
       "gt80": 1,
-      "max": 25
+      "max": 6
+    },
+    "homeos/frontend/src/composables/entity/popup/useLightControlPopup.ts": {
+      "functions": 50,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/composables/entity/popup/useMediaPlayerControls.ts": {
+      "functions": 55,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 8
+    },
+    "homeos/frontend/src/composables/entity/popup/useMediaPlayerModalDisplay.ts": {
+      "functions": 11,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
     },
     "homeos/frontend/src/composables/entity/useAreaOptions.ts": {
       "functions": 10,
@@ -320,27 +355,6 @@
       "gt15": 0,
       "gt80": 1,
       "max": 4
-    },
-    "homeos/frontend/src/composables/entity/useClimateControlPopup.ts": {
-      "functions": 36,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/composables/entity/useDeviceGroupBatch.ts": {
-      "functions": 28,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/composables/entity/useDeviceGroupClimate.ts": {
-      "functions": 21,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
     },
     "homeos/frontend/src/composables/entity/useEntityInput.ts": {
       "functions": 59,
@@ -363,27 +377,6 @@
       "gt80": 1,
       "max": 5
     },
-    "homeos/frontend/src/composables/entity/useLightControlPopup.ts": {
-      "functions": 50,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/composables/entity/useMediaPlayerControls.ts": {
-      "functions": 55,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 8
-    },
-    "homeos/frontend/src/composables/entity/useMediaPlayerModalDisplay.ts": {
-      "functions": 11,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
     "homeos/frontend/src/composables/entity/usePaginatedEntityList.ts": {
       "functions": 12,
       "gt10": 1,
@@ -398,21 +391,28 @@
       "gt80": 1,
       "max": 8
     },
-    "homeos/frontend/src/composables/entity/ws-bind-domain.ts": {
+    "homeos/frontend/src/composables/entity/ws/state-update.ts": {
+      "functions": 10,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 25
+    },
+    "homeos/frontend/src/composables/entity/ws/ws-bind-domain.ts": {
       "functions": 18,
       "gt10": 2,
       "gt15": 1,
       "gt80": 1,
       "max": 16
     },
-    "homeos/frontend/src/composables/entity/ws-bind-ha-sync.ts": {
+    "homeos/frontend/src/composables/entity/ws/ws-bind-ha-sync.ts": {
       "functions": 22,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
       "max": 15
     },
-    "homeos/frontend/src/composables/entity/ws-bind-lifecycle.ts": {
+    "homeos/frontend/src/composables/entity/ws/ws-bind-lifecycle.ts": {
       "functions": 10,
       "gt10": 0,
       "gt15": 0,
@@ -447,54 +447,89 @@
       "gt80": 1,
       "max": 9
     },
-    "homeos/frontend/src/composables/ui/popup-position-dropdown.util.ts": {
+    "homeos/frontend/src/composables/ui/popup/popup-position-dropdown.util.ts": {
       "functions": 10,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
       "max": 28
     },
-    "homeos/frontend/src/composables/ui/popup-position-fixed.composable.ts": {
+    "homeos/frontend/src/composables/ui/popup/popup-position-fixed.composable.ts": {
       "functions": 7,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
       "max": 26
     },
-    "homeos/frontend/src/composables/ui/screensaver-clock-weather.internals.ts": {
+    "homeos/frontend/src/composables/ui/popup/useDropdownPosition.ts": {
+      "functions": 19,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
+    "homeos/frontend/src/composables/ui/screensaver/screensaver-clock-weather.internals.ts": {
       "functions": 22,
       "gt10": 2,
       "gt15": 1,
       "gt80": 0,
       "max": 17
     },
-    "homeos/frontend/src/composables/ui/screensaver-layout.internals.ts": {
+    "homeos/frontend/src/composables/ui/screensaver/screensaver-layout.internals.ts": {
       "functions": 14,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
       "max": 14
     },
-    "homeos/frontend/src/composables/ui/screensaver-lifecycle.internals.ts": {
+    "homeos/frontend/src/composables/ui/screensaver/screensaver-lifecycle.internals.ts": {
       "functions": 55,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 8
     },
-    "homeos/frontend/src/composables/ui/useDashboardFooter.ts": {
+    "homeos/frontend/src/composables/ui/screensaver/useScreensaver.ts": {
+      "functions": 4,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 1
+    },
+    "homeos/frontend/src/composables/ui/shell/useDashboardFooter.ts": {
       "functions": 25,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
       "max": 39
     },
-    "homeos/frontend/src/composables/ui/useDropdownPosition.ts": {
-      "functions": 19,
+    "homeos/frontend/src/composables/ui/shell/useMainLayoutChrome.ts": {
+      "functions": 32,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 7
+    },
+    "homeos/frontend/src/composables/ui/shell/useMainLayoutDoorbell.ts": {
+      "functions": 19,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 20
+    },
+    "homeos/frontend/src/composables/ui/shell/useMainLayoutNavMenu.ts": {
+      "functions": 14,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 2
+    },
+    "homeos/frontend/src/composables/ui/shell/useMainLayoutWeatherNav.ts": {
+      "functions": 6,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 10
     },
     "homeos/frontend/src/composables/ui/useEchartsHost.ts": {
       "functions": 18,
@@ -510,34 +545,6 @@
       "gt80": 1,
       "max": 4
     },
-    "homeos/frontend/src/composables/ui/useMainLayoutChrome.ts": {
-      "functions": 32,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
-    },
-    "homeos/frontend/src/composables/ui/useMainLayoutDoorbell.ts": {
-      "functions": 19,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 20
-    },
-    "homeos/frontend/src/composables/ui/useMainLayoutNavMenu.ts": {
-      "functions": 14,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 2
-    },
-    "homeos/frontend/src/composables/ui/useMainLayoutWeatherNav.ts": {
-      "functions": 6,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 10
-    },
     "homeos/frontend/src/composables/ui/usePerfClock.ts": {
       "functions": 13,
       "gt10": 0,
@@ -551,13 +558,6 @@
       "gt15": 0,
       "gt80": 1,
       "max": 4
-    },
-    "homeos/frontend/src/composables/ui/useScreensaver.ts": {
-      "functions": 4,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 1
     },
     "homeos/frontend/src/composables/ui/useSwiperDraggable.ts": {
       "functions": 13,

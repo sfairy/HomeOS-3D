@@ -140,10 +140,10 @@ import {
   CircleCheck,
   TriangleAlert,
 } from '@lucide/vue'
-import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
-import { viewportPointToPopupAnchor } from '@/composables/ui/usePopupPosition'
-import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
-import { getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
+import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
+import { viewportPointToPopupAnchor } from '@/composables/ui/popup/usePopupPosition'
+import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
+import { getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
 import type { DeviceListItem } from '@/shared/types/device'
 import { copyTextWithNotify } from '@/services/notify'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'

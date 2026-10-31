@@ -1,7 +1,7 @@
 /** 灯光控制弹窗组合式函数模块。 */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useLiveEntity } from '@/composables/entity/useLiveEntity'
-import { useEntityPopupHeader } from '@/composables/entity/useEntityPopupBase'
+import { useEntityPopupHeader } from '@/composables/entity/popup/useEntityPopupBase'
 import { useHaEntityService } from '@/composables/entity/useHaEntityService'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
 import { fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'

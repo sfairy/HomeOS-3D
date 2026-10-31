@@ -4,8 +4,8 @@ import {
   buildEntitySocketAuth,
   buildEntitySocketOptions,
   buildEntitySocketUrl,
-} from '@/composables/entity/socket.util'
-import { bindEntitySocketHandlers } from '@/composables/entity/ws-bind'
+} from '@/composables/entity/ws/socket.util'
+import { bindEntitySocketHandlers } from '@/composables/entity/ws/ws-bind'
 import { createEntitySocketSyncState } from '@/shared/entity/utils/ws-sync'
 import { handleEntityFallbackFailure } from '@/shared/entity/utils/sync-failure.util'
 import type { EntitySocketSyncState, EntityTransportDeps } from '@/shared/types/entity-store'
