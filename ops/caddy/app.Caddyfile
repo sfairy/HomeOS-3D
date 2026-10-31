@@ -93,7 +93,7 @@
 		# 必须用 hostport，不能写 {host}：{host} 等价于 {http.request.host}，Caddy 会做
 		# net.SplitHostPort 把端口摘掉。于是上游收到的 Host 是「192.168.1.20」，而浏览器
 		# 发来的 Origin 是「https://192.168.1.20:8803」—— 应用的来源校验按 netloc 逐字比对
-		# （platform/security/request_origin.py、api/ha.py 的 WebSocket 校验），
+		# （platform/security/request_origin.py、api/ha/routes.py 的 WebSocket 校验），
 		# 结果是 8803 入口下写操作 / HA / go2rtc 实时通道 403，而 8801 与 443 都正常。
 		header_up Host {http.request.hostport}
 		header_up X-Real-IP {remote_host}

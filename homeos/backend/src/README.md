@@ -35,6 +35,8 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 |------|------|
 | `api/` | 路由层（FastAPI `NestRouter`）。只做参数校验与编排，业务在 `domains/` |
 | `api/system/` | `/api/v1/system/*` 的 6 个路由模块（backup/config/core/lifestyle/ops/setup）；按前缀收拢的子包，不改变注册顺序 |
+| `api/ha/` | HA 入口面：`routes.py`（`/api/v1/ha/*` 与 runtime 状态流）、`proxy.py`（媒体代理）、`webrtc.py`（WebRTC 信令） |
+| `api/proxy/` | 反代与转发：`command_proxy` / `embed_proxy` / `moviepilot_proxy` / `ws_proxy` / `go2rtc`；业务逻辑仍在 `domains/proxy/` |
 | `bootstrap/` | 装配：`app.py` 的创建、中间件、异常处理、lifespan、SPA 静态、路由注册表 |
 | `platform/core/` | 跨切面基础设施：数据库与建库、锁、分页、时区、日志、错误类型 |
 | `platform/security/` | **传输层安全**：cookie / csrf / cors / 限流 / 会话存储 |

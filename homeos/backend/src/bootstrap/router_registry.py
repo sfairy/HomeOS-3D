@@ -14,22 +14,22 @@ from ..api.backups import router as backups_router
 from ..api.channels import router as channels_router
 from ..api.channels import wecom_router as channels_wecom_router
 from ..api.client_power import router as client_power_router
-from ..api.command_proxy import router as command_proxy_router
+from ..api.proxy.command_proxy import router as command_proxy_router
 from ..api.earthquake import router as earthquake_router
-from ..api.embed_proxy import router as embed_proxy_router
+from ..api.proxy.embed_proxy import router as embed_proxy_router
 from ..api.entities import router as entities_router
 from ..api.events import router as events_router
 from ..api.global_logs import router as global_logs_router
-from ..api.go2rtc import router as go2rtc_router
-from ..api.ha import router as ha_router
-from ..api.ha import runtime_router
-from ..api.ha_proxy import router as ha_proxy_router
-from ..api.ha_webrtc import router as ha_webrtc_router
+from ..api.proxy.go2rtc import router as go2rtc_router
+from ..api.ha.routes import router as ha_router
+from ..api.ha.routes import runtime_router
+from ..api.ha.proxy import router as ha_proxy_router
+from ..api.ha.webrtc import router as ha_webrtc_router
 from ..api.home_mode import router as home_mode_router
 from ..api.icons import router as icons_router
 from ..api.license import router as license_router
 from ..api.mcp import router as mcp_router
-from ..api.moviepilot_proxy import router as moviepilot_proxy_router
+from ..api.proxy.moviepilot_proxy import router as moviepilot_proxy_router
 from ..api.notification import router as notification_router
 from ..api.projects import router as projects_router
 from ..api.public_config import router as public_config_router
@@ -44,7 +44,7 @@ from ..api.system.ops import router as system_ops_router
 from ..api.system.setup import router as system_setup_router
 from ..api.ui_config import router as ui_config_router
 from ..api.voice import router as voice_router
-from ..api.ws_proxy import router as ws_proxy_router
+from ..api.proxy.ws_proxy import router as ws_proxy_router
 from ..modules.interaction3d.api import router as interaction3d_router
 
 API_PREFIX = "/api/v1"

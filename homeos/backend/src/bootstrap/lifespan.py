@@ -1365,7 +1365,7 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     await shutdown("HA 连接器", startup.ha_connector.stop)
     await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
     # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
-    from ..api.ha_proxy import close_shared_media_clients
+    from ..api.ha.proxy import close_shared_media_clients
     await shutdown("媒体代理连接池", close_shared_media_clients)
     await shutdown("事件日志刷盘", startup.event_log_service.flush)
     # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志

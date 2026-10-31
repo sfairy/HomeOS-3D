@@ -8,7 +8,7 @@ Nest 在 ``main.ts`` 的 HTTP server 上挂了两条 raw ``upgrade`` 处理器�
 - ``/api/v1/embed-proxy/<embedId>/*``：HTTPS 父页 iframe 内嵌 HTTP 站点的 WebSocket
   同源反代，复用 HTTP 侧 Cookie Path 设计，转发内嵌站会话 Cookie / Origin / 子协议。
 
-本模块提供鉴权判定与双向桥接；FastAPI WebSocket 路由在 :mod:`src.api.ws_proxy` 中挂载。
+本模块提供鉴权判定与双向桥接；FastAPI WebSocket 路由在 :mod:`src.api.proxy.ws_proxy` 中挂载。
 """
 
 from __future__ import annotations

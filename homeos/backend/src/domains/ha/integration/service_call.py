@@ -1,7 +1,7 @@
 """HA 服务调用（``/ha/services/call``）的**唯一执行出口**（原先整段住在 ``api/ha.py``）。
 
 为什么下沉到域内：``api/ha.py`` 与 3D 增量模块（``modules/interaction3d/api.py``）都要下发
-HA 服务调用。原先 3D 模块直接 ``from ...api.ha import call_service`` 复用路由处理函数 ——
+HA 服务调用。原先 3D 模块直接 ``from ...api.ha.routes import call_service`` 复用路由处理函数 ——
 ``modules → api`` 是反向依赖（路由层是入口，不是库），而且复用的是一个**带 FastAPI 依赖注入
 签名**的处理函数，等于把 HTTP 层当成业务库用。
 

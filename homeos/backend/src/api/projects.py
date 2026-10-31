@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from .go2rtc import validate_camera_source_addresses
+from .proxy.go2rtc import validate_camera_source_addresses
 from ..dependencies import (
     DatabaseSession,
     LicensedUser,

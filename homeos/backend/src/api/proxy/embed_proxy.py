@@ -12,8 +12,8 @@ from typing import Any
 
 from fastapi import Depends, Request
 
-from .router import NestRouter
-from ..platform.security.auth_context import require_user
+from ..router import NestRouter
+from ...platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/embed-proxy", tags=["display"])
 

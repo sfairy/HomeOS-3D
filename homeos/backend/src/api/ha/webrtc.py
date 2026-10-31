@@ -17,11 +17,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from .ha_proxy import _camera_license_allows
-from ..dependencies import ShortLivedLicensedViewer
-from ..domains.ha.integration.client import HAClientError
-from ..domains.ha.integration.connection_query import active_connection
-from ..domains.ha.integration.crypto import CredentialCipherError
+from .proxy import _camera_license_allows
+from ...dependencies import ShortLivedLicensedViewer
+from ...domains.ha.integration.client import HAClientError
+from ...domains.ha.integration.connection_query import active_connection
+from ...domains.ha.integration.crypto import CredentialCipherError
 
 logger = logging.getLogger('homeos.ha_webrtc')
 
@@ -100,7 +100,7 @@ def _load_custom_ice_servers(database_manager) -> list[dict[str, Any]]:
     日志里一个字都没有，只能靠猜。
     """
     try:
-        from ..platform.core.app_config import load_raw_config
+        from ...platform.core.app_config import load_raw_config
 
         with database_manager.session_factory() as database:
             raw = load_raw_config(database)
