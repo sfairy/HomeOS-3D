@@ -26,9 +26,9 @@ from ...core.models import Order
 from ...ops import incidents
 from ...ops import site_settings as site_config
 from ...payments import normalize_provider_name
-from ...payments import wechat as wechat_module
-from ...payments.base import PaymentError
-from ...payments.settlement import settle_paid_order
+from ...payments.wechat import provider as wechat_module
+from ...payments.common.base import PaymentError
+from ...payments.common.settlement import settle_paid_order
 
 logger = logging.getLogger("src.api.wechat")
 

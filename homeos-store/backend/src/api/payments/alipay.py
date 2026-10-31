@@ -17,10 +17,10 @@ from ...core.deps import DbSession
 from ...core.models import Order
 from ...ops import incidents
 from ...ops import site_settings as site_config
-from ...payments.alipay import cents_from_yuan, public_key_error
-from ...payments.base import PaymentError
-from ...payments.reconcile import reconcile_channel_order
-from ...payments.settlement import settle_paid_order
+from ...payments.alipay.provider import cents_from_yuan, public_key_error
+from ...payments.common.base import PaymentError
+from ...payments.common.reconcile import reconcile_channel_order
+from ...payments.common.settlement import settle_paid_order
 from ...security.limiter import SlidingWindowLimiter
 from ...security.request_security import resolve_client_ip
 from ...security.security import token_matches

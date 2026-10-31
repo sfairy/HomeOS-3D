@@ -32,6 +32,7 @@ const DEV_BASE = "/";
 
 function htmlInputs(): Record<string, string> {
   const full = path.join(storeRoot, SPA_ENTRY);
+  console.error("[DEBUG] storeRoot=", storeRoot, "full=", full, "exists=", fs.existsSync(full));
   return fs.existsSync(full) ? { index: full } : {};
 }
 

@@ -10,13 +10,13 @@ from uuid import uuid4
 
 import httpx
 
-from .channels import display_name_for
-from .http_pool import DEFAULT_TIMEOUT_SECONDS
-from .http_pool import request as http_request
-from ..commerce import money
-from ..config import StoreSettings
-from ..core.models import Order, StoreSetting
-from ..ops.net_probe import (
+from ..common.channels import display_name_for
+from ..common.http_pool import DEFAULT_TIMEOUT_SECONDS
+from ..common.http_pool import request as http_request
+from ...commerce import money
+from ...config import StoreSettings
+from ...core.models import Order, StoreSetting
+from ...ops.net_probe import (
     LEVEL_FAIL,
     LEVEL_PASS,
     LEVEL_SKIP,
@@ -25,7 +25,7 @@ from ..ops.net_probe import (
     host_from_url,
     probe_tls,
 )
-from ..payments.base import (
+from ..common.base import (
     CloseResult,
     PaymentError,
     PaymentIntent,
@@ -668,7 +668,7 @@ class AlipayProvider:
 
         raise PaymentError(f"支付宝关单失败（{code}）：{detail}")
 
-from .alipay_signing import (
+from .signing import (
     ResponseSignatureInvalid,
     ResponseSignatureMissing,
     _callback_check,

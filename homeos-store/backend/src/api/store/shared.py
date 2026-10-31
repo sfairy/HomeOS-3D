@@ -18,7 +18,7 @@ from ...core.models import (
     EmailVerification,
 )
 from ...ops import site_settings as site_config
-from ...payments.base import PaymentError
+from ...payments.common.base import PaymentError
 from ...security import password_gate
 from ...security.limiter import SlidingWindowLimiter
 from ...security.request_security import resolve_client_ip, secure_cookies_required

@@ -136,6 +136,8 @@ homeos-store/
 │   └── core/ security/ commerce/ payments/ licensing/ ops/ api/
 │       # api/ 下按入口面分组：admin/（/store-admin/v1/*）、store/（/store/v1/*）、
 │       # payments/（渠道回调 + 授权激活）；pages / setup / telemetry / page_shell 留根
+│       # payments/ 下再分 alipay/ wechat/（各 provider + signing）与 common/（base、渠道注册表、
+│       # 凭据、http_pool、pem、reconcile、refunds、settlement、sweeper、urls）
 ├── data/                   # 运行时（不入库）
 ├── keys/local/             # 授权私钥（不入库）
 ├── frontend/               # index.html / src / public / vite.config.ts

@@ -43,8 +43,8 @@ from .ops import incidents
 from .ops.appearance import AppearanceStore
 from .ops.site_settings import get_setting
 from .payments import resolve_provider
-from .payments.channels import enabled_channel_names
-from .payments.sweeper import (
+from .payments.common.channels import enabled_channel_names
+from .payments.common.sweeper import (
     configure_sweep_loop,
     mark_sweep_loop_stopped,
     sweep_round,

@@ -53,7 +53,7 @@
 import EntityMultiSelectTrigger from '@/components/common/entity-multi-select/EntityMultiSelectTrigger.vue'
 import EntityMultiSelectDropdown from '@/components/common/entity-multi-select/EntityMultiSelectDropdown.vue'
 import { useEntityMultiSelect } from '@/components/common/entity-multi-select/useEntityMultiSelect'
-import './entity-multi-select/styles/entity-multi-select-dropdown.css'
+import './styles/entity-multi-select-dropdown.css'
 
 const props = defineProps({
   /** 绑定的 entity_id 数组（v-model） */

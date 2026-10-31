@@ -24,9 +24,9 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.x509 import load_pem_x509_certificate
 
-from .pem import load_private_key as _parse_private_key
-from .pem import load_public_key as _parse_public_key
-from .pem import strip_wrapping as _strip_wrapping
+from ..common.pem import load_private_key as _parse_private_key
+from ..common.pem import load_public_key as _parse_public_key
+from ..common.pem import strip_wrapping as _strip_wrapping
 
 
 class WeChatPaymentError(RuntimeError):

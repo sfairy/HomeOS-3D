@@ -10,14 +10,14 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select, update
 
-from ..commerce import fulfill
-from ..config import StoreSettings
-from ..core.database import Database
-from ..core.models import Order, utcnow
-from ..ops import incidents
-from ..ops import site_settings as site_config
-from ..payments.reconcile import SweepResult, reconcile_due_orders
-from ..security.security import iso_z
+from ...commerce import fulfill
+from ...config import StoreSettings
+from ...core.database import Database
+from ...core.models import Order, utcnow
+from ...ops import incidents
+from ...ops import site_settings as site_config
+from .reconcile import SweepResult, reconcile_due_orders
+from ...security.security import iso_z
 
 logger = logging.getLogger("src.payments.sweeper")
 
@@ -272,7 +272,7 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
     if recovered:
         logger.warning("支付巡检：履约失败订单已自动补发 %d 笔", recovered)
 
-    from ..commerce import delivery
+    from ...commerce import delivery
 
     delivered = delivery.sweep_undelivered(database, limit=max(1, int(settings.payment_sweep_batch or 25)))
     if delivered:

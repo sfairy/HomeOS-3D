@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 from ..config import StoreSettings
-from ..payments.alipay import AlipayProvider
-from ..payments.base import PaymentError, PaymentIntent, PaymentProvider
-from ..payments.channels import (
+from .alipay.provider import AlipayProvider
+from .common.base import PaymentError, PaymentIntent, PaymentProvider
+from .common.channels import (
     CHANNEL_LABELS,
     PROVIDER_NAMES,
     default_channel_name,
@@ -18,13 +18,13 @@ from ..payments.channels import (
     normalize_provider_name,
     provider_label,
 )
-from ..payments.credentials import (
+from .common.credentials import (
     alipay_credentials_summary,
     merge_alipay_settings,
     merge_wechat_settings,
     wechat_credentials_summary,
 )
-from ..payments.wechat import WeChatPayProvider
+from .wechat.provider import WeChatPayProvider
 
 __all__ = [
     "CHANNEL_LABELS",

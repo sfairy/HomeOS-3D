@@ -70,10 +70,10 @@ import ScreensaverBackground from '@/components/common/screensaver/Background.vu
 import ScreensaverBrand from '@/components/common/screensaver/Brand.vue'
 import ScreensaverClockPanel from '@/components/common/screensaver/ClockPanel.vue'
 import ScreensaverWeatherPanel from '@/components/common/screensaver/WeatherPanel.vue'
-import './screensaver/base.css'
-import './screensaver/clock.css'
-import './screensaver/weather.css'
-import './screensaver/responsive.css'
+import './base.css'
+import './clock.css'
+import './weather.css'
+import './responsive.css'
 // 屏保后台 idle 样式（html[data-screensaver-idle] 暂停被遮挡层动画），随组件按需加载
 import '@/assets/styles/screensaver-idle.css'
 

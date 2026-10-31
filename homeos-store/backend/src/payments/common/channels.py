@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 
-from ..config import StoreSettings
-from ..core.models import StoreSetting
+from ...config import StoreSettings
+from ...core.models import StoreSetting
 
 PROVIDER_NAMES: tuple[str, ...] = ("alipay", "wechat")
 

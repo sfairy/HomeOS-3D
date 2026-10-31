@@ -36,7 +36,7 @@ from ...core.serializers import (
 )
 from ...ops import incidents
 from ...ops import site_settings as site_config
-from ...payments.reconcile import (
+from ...payments.common.reconcile import (
     reconcile_channel_order,
     reconcile_pending_orders_bounded,
 )

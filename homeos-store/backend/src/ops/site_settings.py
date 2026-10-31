@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 
 from ..config import StoreSettings
 from ..core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
-from ..payments.channels import (
+from ..payments.common.channels import (
     default_channel_name,
     display_name_for,
     enabled_channel_names,
 )
-from ..payments.credentials import merge_alipay_settings, merge_wechat_settings
-from ..payments.wechat import WeChatPayProvider
+from ..payments.common.credentials import merge_alipay_settings, merge_wechat_settings
+from ..payments.wechat.provider import WeChatPayProvider
 from ..security.security import iso, utcnow
 
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"

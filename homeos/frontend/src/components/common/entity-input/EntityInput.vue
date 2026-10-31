@@ -68,7 +68,7 @@ import { ref } from 'vue'
 import { X } from '@lucide/vue'
 import { useEntityInput } from '@/composables/entity/useEntityInput'
 import EntityInputDropdown from '@/components/common/entity-input/EntityInputDropdown.vue'
-import './entity-input/index.css'
+import './index.css'
 
 const props = defineProps({
   /** 绑定的 entity_id 字符串（v-model） */

@@ -94,4 +94,4 @@ useBackgroundInert(rootRef, isActive, '素材管理器')
 useBodyScrollLock(isActive, '素材管理器')
 </script>
 
-<style scoped src="./asset-manager/styles/asset-manager.css"></style>
+<style scoped src="./styles/asset-manager.css"></style>

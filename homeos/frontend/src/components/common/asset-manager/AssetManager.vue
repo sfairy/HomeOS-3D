@@ -88,9 +88,9 @@ import AssetManagerHeader from './AssetManagerHeader.vue'
 import AssetManagerBody from './AssetManagerBody.vue'
 import VFolderCreateModal from '../base/VFolderCreateModal.vue'
 import { MAX_UPLOAD_FILES, useAssetManager } from './useAssetManager'
-import './asset-manager/styles/asset-manager.css'
-import './asset-manager/styles/asset-manager-header.css'
-import './asset-manager/styles/asset-manager-body.css'
+import './styles/asset-manager.css'
+import './styles/asset-manager-header.css'
+import './styles/asset-manager-body.css'
 
 const props = defineProps({
   /** 初始路径（相对资源根目录） */

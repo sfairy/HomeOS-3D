@@ -26,10 +26,10 @@ from ...payments import (
     is_known_provider,
     normalize_provider_name,
 )
-from ...payments import urls as payment_urls
-from ...payments import wechat_signing as signing
-from ...payments.base import PaymentError
-from ...payments.credentials import (
+from ...payments.common import urls as payment_urls
+from ...payments.wechat import signing
+from ...payments.common.base import PaymentError
+from ...payments.common.credentials import (
     alipay_credentials_summary,
     resolve_secret_input,
     validate_callback_url,

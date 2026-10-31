@@ -53,7 +53,7 @@ from ...payments import (
     normalize_provider_name,
     provider_label,
 )
-from ...payments.base import PaymentError
+from ...payments.common.base import PaymentError
 from ...security.security import (
     new_order_no,
     new_token,
