@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-from ..config import StoreSettings
 from .alipay.provider import AlipayProvider
 from .common.base import PaymentError, PaymentIntent, PaymentProvider
 from .common.channels import (
@@ -25,6 +24,7 @@ from .common.credentials import (
     wechat_credentials_summary,
 )
 from .wechat.provider import WeChatPayProvider
+from ..config import StoreSettings
 
 __all__ = [
     "CHANNEL_LABELS",

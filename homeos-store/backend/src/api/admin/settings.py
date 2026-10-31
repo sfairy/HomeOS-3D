@@ -27,7 +27,6 @@ from ...payments import (
     normalize_provider_name,
 )
 from ...payments.common import urls as payment_urls
-from ...payments.wechat import signing
 from ...payments.common.base import PaymentError
 from ...payments.common.credentials import (
     alipay_credentials_summary,
@@ -38,6 +37,7 @@ from ...payments.common.credentials import (
     validate_public_key_text,
     wechat_credentials_summary,
 )
+from ...payments.wechat import signing
 from ...security.security import (
     is_valid_email,
     normalize_email,

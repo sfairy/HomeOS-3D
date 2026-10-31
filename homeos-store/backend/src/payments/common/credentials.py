@@ -5,9 +5,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from ..wechat.signing import api_v3_key_error
-from ...config import StoreSettings
-from ...core.models import StoreSetting
 from ..alipay.provider import (
     PaymentError,
     private_key_error,
@@ -16,6 +13,9 @@ from ..alipay.provider import (
     validate_gateway_url,
 )
 from ..wechat.provider import WeChatPayProvider
+from ..wechat.signing import api_v3_key_error
+from ...config import StoreSettings
+from ...core.models import StoreSetting
 from ...security.secret_fields import (
     MASK_PREFIX,
     is_masked_secret,

@@ -20,9 +20,6 @@ from uuid import uuid4
 
 import httpx
 
-from ..common.channels import display_name_for
-from ..common.http_pool import request as http_request
-from ..common.urls import callback_url_check
 from .signing import (
     WeChatPaymentError,
     api_v3_key_error,
@@ -36,11 +33,14 @@ from .signing import (
     sign,
     verify_notification,
 )
+from ..common.base import CloseResult, PaymentError, PaymentIntent, RefundResult
+from ..common.channels import display_name_for
+from ..common.http_pool import request as http_request
+from ..common.urls import callback_url_check
 from ...commerce import money
 from ...config import StoreSettings
 from ...core.models import Order, StoreSetting
 from ...ops.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url
-from ..common.base import CloseResult, PaymentError, PaymentIntent, RefundResult
 
 logger = logging.getLogger("src.payments.wechat")
 

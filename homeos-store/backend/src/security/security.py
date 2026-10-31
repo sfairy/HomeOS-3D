@@ -19,6 +19,36 @@ from homeos_shared.password_policy import (
 
 from ..core.timeutil import aware_now
 
+__all__ = [
+    "PASSWORD_MAX_LENGTH",
+    "PASSWORD_MIN_LENGTH",
+    "PASSWORD_POLICY_MESSAGE",
+    "activation_code_hint",
+    "code_hash",
+    "hash_password",
+    "is_password_policy_compliant",
+    "is_valid_email",
+    "iso",
+    "iso_micro",
+    "iso_z",
+    "log_fingerprint",
+    "naive_utc",
+    "new_activation_code",
+    "new_code_salt",
+    "new_order_no",
+    "new_referral_code",
+    "new_token",
+    "new_uuid",
+    "new_verification_code",
+    "normalize_email",
+    "normalize_referral_code",
+    "normalize_username",
+    "token_hash",
+    "token_matches",
+    "utcnow",
+    "verify_password",
+]
+
 PBKDF2_ITERATIONS = 240_000
 PBKDF2_ALGORITHM = "sha256"
 

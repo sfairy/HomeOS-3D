@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, or_, select
 
-from ..admin.shared import _drop_account_sessions
 from .catalog import (
     _account_license_state,
     _has_used_trial,
@@ -28,6 +27,7 @@ from .shared import (
     _set_session_cookies,
     logger,
 )
+from ..admin.shared import _drop_account_sessions
 from ...commerce import referrals
 from ...config import StoreSettings
 from ...core.deps import AuthedAccount, CurrentAccount, DbSession

@@ -10,8 +10,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from .. import telemetry
-from ..admin.shared import _drop_account_sessions
 from . import auth as store_auth
 from . import orders as store_orders
 from . import referrals as store_referrals
@@ -35,9 +33,10 @@ from .shared import (
     _require_verified,
     logger,
 )
+from .. import telemetry
+from ..admin.shared import _drop_account_sessions
 from ...commerce import delivery
 from ...config import StoreSettings
-from ...core.persistence.database import Database
 from ...core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from ...core.models import (
     Account,
@@ -49,6 +48,7 @@ from ...core.models import (
     Order,
     Product,
 )
+from ...core.persistence.database import Database
 from ...core.schemas import (
     ChangeEmailRequest,
     CouponPreviewRequest,

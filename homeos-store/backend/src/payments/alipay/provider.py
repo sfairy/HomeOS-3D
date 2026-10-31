@@ -10,6 +10,12 @@ from uuid import uuid4
 
 import httpx
 
+from ..common.base import (
+    CloseResult,
+    PaymentError,
+    PaymentIntent,
+    RefundResult,
+)
 from ..common.channels import display_name_for
 from ..common.http_pool import DEFAULT_TIMEOUT_SECONDS
 from ..common.http_pool import request as http_request
@@ -24,12 +30,6 @@ from ...ops.net_probe import (
     check_result,
     host_from_url,
     probe_tls,
-)
-from ..common.base import (
-    CloseResult,
-    PaymentError,
-    PaymentIntent,
-    RefundResult,
 )
 
 logger = logging.getLogger("src.payments.alipay")
