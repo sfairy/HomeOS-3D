@@ -99,3 +99,6 @@ ops/checks/studio/material-slot-repair-plan.json
 
 # 版本移植过程的中间产物（反混淆副本、差异清单缓存）；真源在 源代码/，不要提交
 .port-cache/
+
+# 临时探针脚本（一次性性能/行为验证，用完即删）
+.tmp-probe/
