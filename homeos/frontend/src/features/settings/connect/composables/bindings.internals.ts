@@ -35,7 +35,7 @@ import {
   applyLifeAccountsLayoutSlice,
   liveLifeAccountsLayoutSlice,
   pickLifeAccountsLayoutSlice,
-} from "../../display/composables/layout-dashboard.internals"
+} from '../../display/composables/layout-dashboard.internals'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'

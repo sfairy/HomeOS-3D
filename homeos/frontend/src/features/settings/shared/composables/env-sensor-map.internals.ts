@@ -17,7 +17,7 @@ import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 import { invalidateSharedFetchPrefix } from '@/shared/utils/core/poll-scheduler'
-import { ENV_IAQ_CACHE_PREFIX } from "../../shared/composables/env-iaq.constants"
+import { ENV_IAQ_CACHE_PREFIX } from '@/features/settings/shared/composables/env-iaq.constants'
 import type { HaAreaRef } from '@homeos/shared'
 import { buildRoomListFromHaAreas, filterEnvSensorMapToKnownAreas } from '@homeos/shared'
 import { computed, ref } from 'vue'

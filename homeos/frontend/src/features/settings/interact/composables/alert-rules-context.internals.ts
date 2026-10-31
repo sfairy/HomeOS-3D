@@ -15,7 +15,7 @@ import {
 } from '@/shared/constants/alert-rule-presets'
 import { sliderTrackStyle } from '@/shared/utils/ui/progress-bar.util'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
-import { useVoiceAlertsEditor } from "../../interact/composables/voice.internals"
+import { useVoiceAlertsEditor } from '@/features/settings/interact/composables/voice.internals'
 import { useAlertRulesPanelDnd } from '@/features/settings/interact/composables/alert-rules-dnd.internals'
 import { useAlertRulesEarthquake } from '@/features/settings/interact/composables/alert-rules-earthquake.internals'
 import { useAlertRulesCrud } from '@/features/settings/interact/composables/alert-rules-crud.internals'

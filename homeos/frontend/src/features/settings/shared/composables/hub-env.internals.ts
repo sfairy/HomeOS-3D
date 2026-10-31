@@ -3,7 +3,7 @@
  * @module frontend/src/views
  */
 /** rooms / env-health Hub */
-import { getEnvSensorFields, useEnvSensorMap } from "../../shared/composables/env-sensor-map.internals"
+import { getEnvSensorFields, useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map.internals'
 import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import { useEntitiesStore } from '@/stores/entities.store'

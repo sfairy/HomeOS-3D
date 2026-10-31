@@ -18,7 +18,7 @@ import {
 } from '@/shared/widget/utils/panel-widget-height.util'
 import type { Ref } from 'vue'
 import { computed, reactive, ref } from 'vue'
-import { confirmRemoveWidget, useWidgetEditorState } from "../../display/composables/layout-dashboard.internals"
+import { confirmRemoveWidget, useWidgetEditorState } from '@/features/settings/display/composables/layout-dashboard.internals'
 
 // ── usePanelWidgets ──
 function cfgStr(cfg: Record<string, unknown> | undefined, rawConfig: string): string {

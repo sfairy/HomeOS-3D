@@ -18,7 +18,7 @@ import { cloneHubTabsDraft, hasConfigurableTabs, serializeHubTabsConfig } from '
 import { FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/shared/utils/registry/widget-catalog'
 import type { Ref } from 'vue'
 import { computed, reactive, ref, watch } from 'vue'
-import { useWidgetEditorState } from "../../display/composables/layout-dashboard.internals"
+import { useWidgetEditorState } from '@/features/settings/display/composables/layout-dashboard.internals'
 import { useFloatingAfhActions } from '@/features/settings/display/composables/layout-floating-afh-actions.internals'
 
 // ── useFloatingWidgets ──

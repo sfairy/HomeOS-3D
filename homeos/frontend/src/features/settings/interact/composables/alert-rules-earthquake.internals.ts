@@ -6,7 +6,7 @@
 import { afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { applyEarthquakeLayoutSlice, type pickEarthquakeLayoutSlice } from "../../display/composables/layout-dashboard.internals"
+import { applyEarthquakeLayoutSlice, type pickEarthquakeLayoutSlice } from '../../display/composables/layout-dashboard.internals'
 import { createDefaultEarthquakeConfig } from '@/shared/types/earthquake'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { ref } from 'vue'
