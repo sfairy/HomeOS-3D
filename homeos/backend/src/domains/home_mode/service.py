@@ -278,7 +278,13 @@ class HomeModeService:
         self._home_timezone = tz.strip() if isinstance(tz, str) and tz.strip() else None
 
     def on_config_updated(self, sections: list[str] | None = None) -> None:
-        if sections and "homeMode" not in sections:
+        """``app.config.updated`` 热更新：重算 homeMode / security / ops 三份缓存。
+
+        三段都要看：``_home_timezone`` 来自 ``ops.homeTimezone``、``_security_cfg`` 来自
+        ``security``（联动去重要用），只认 ``homeMode`` 会让改时区 / 改联动开关后仍按
+        启动时的旧值跑 —— 定时触发器最多偏 8 小时，而且没有日志可查。
+        """
+        if sections and not ({"homeMode", "security", "ops"} & set(sections)):
             return
         self._load_config()
         self._runtime_logs.trim_to_limits()

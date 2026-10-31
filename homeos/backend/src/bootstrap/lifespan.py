@@ -841,6 +841,12 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
     await home_mode.start()
     app.state.home_mode = home_mode
     startup.home_mode = home_mode
+    # 配置热更新：homeMode / security / ops 三段都影响家庭模式（定时触发器要用
+    # ``ops.homeTimezone``，联动去重要用 ``security``）。不订阅的话这些值只在
+    # ``start()`` 读一次，改完时区 / 开关必须重启才生效。
+    security_bus.on("app.config.updated", home_mode.on_config_updated)
+    # presence 的成员跟踪同样吃 ``security`` 段（person 实体、阈值），一并订阅。
+    security_bus.on("app.config.updated", startup.presence.on_config_updated)
 
     # 跨模块联动：presence / calendar / 安防模式 → 家庭模式 + 离家模拟
     security_linkage = SecurityLinkageService(

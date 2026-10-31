@@ -396,6 +396,12 @@ class _ActivationContext:
     displaced_modes: list[dict[str, Any]] = field(default_factory=list)
     #: 旧模式设备快照的恢复结果（中止时要用它判断能否回放旧模式）。
     conflict_restore: dict[str, HomeModeSnapshotOutcome] = field(default_factory=dict)
+    #: 触发元信息（`source` / `reason` / `actor`），联动去重按来源过滤时要用。
+    meta: dict[str, Any] | None = None
+    #: 已走过中止流程（避免异常兜底再回滚一次）。
+    aborted: bool = False
+    #: ④ 提交已完成。提交之后即便收尾记录失败也不能再把设备滚回去。
+    committed: bool = False
 
 
 def _trigger_log_payload(
@@ -578,8 +584,11 @@ async def _retry_failed_home_mode_actions(
 async def _reject_home_mode_without_ha(
     deps: Any, mode: dict[str, Any], trigger: _ModeTriggerContext, total_actions: int
 ) -> HomeModeActivateResult:
-    """HA 未连接时释放仲裁、记录日志并返回拒绝结果。"""
-    deps.linkage_arbiter.release()
+    """HA 未连接时记录日志并返回拒绝结果。
+
+    不在这里释放仲裁：本次 claim 由 ``activate_home_mode`` 的 ``finally`` 按 token 释放，
+    免得两次释放之间别的来源重新占用后被顺手抹掉。
+    """
     deps.warn("Home Assistant 未连接,拒绝激活家庭模式")
     deps.push_trigger_log(
         _trigger_log_payload(trigger, trigger.raw_reason or "手动切换", False)
@@ -625,7 +634,12 @@ async def _reassert_displaced_modes(
 async def _abort_failed_activation(
     deps: Any, state: HomeModeActivateState, activation: _ActivationContext
 ) -> HomeModeActivateResult:
-    """动作失败超过阈值：回滚快照、撤销激活、回放被顶掉的旧模式并记录失败历史。"""
+    """动作失败超过阈值：回滚快照、撤销激活、回放被顶掉的旧模式并记录失败历史。
+
+    异常兜底路径也会走这里（见 ``_rollback_interrupted_activation``），所以先打
+    ``aborted`` 标记：回滚本身再抛异常时，外层不会再进来回滚第二遍。
+    """
+    activation.aborted = True
     mode = activation.mode
     trigger = activation.trigger
     snapshot = activation.snapshot
@@ -869,8 +883,41 @@ async def activate_home_mode(
         )
         bad_request(api_error("HOME_MODE_LINKAGE_BLOCKED", arbiter.get("reason")))
 
-    # 仲裁器已 acquire：这之后任何异常都必须自己释放/走拒绝分支，否则 claim 会一直
-    # 占着 TTL（低优先级联动被静默拦截）。HA 状态读取异常等同于「不可用」。
+    # 仲裁器已 acquire：这之后的**任何**异常与取消都必须自己释放 claim 并回滚已执行的动作。
+    # 否则 claim 会一直占着 TTL（低优先级联动被静默拦截 15–30 分钟），设备停在半执行状态，
+    # 既没有快照回滚也没有触发日志 —— 和「什么都没发生」无法区分。
+    claim_token = arbiter.get("token")
+    activation = _ActivationContext(
+        mode=mode,
+        trigger=trigger,
+        snapshot={},
+        results=[],
+        retry_results=[],
+        meta=meta,
+    )
+    try:
+        return await _run_home_mode_activation(state, deps, activation, entity_configs)
+    except BaseException:
+        if not (activation.committed or activation.aborted):
+            await _rollback_interrupted_activation(state, deps, activation)
+        raise
+    finally:
+        # 提交成功后保留 claim（与改动前一致：手动激活后给一个不被低优先级联动覆盖的窗口）；
+        # 其余路径（被拒 / 中止 / 异常 / 取消）都要把 claim 还回去。
+        if not activation.committed:
+            deps.linkage_arbiter.release(claim_token)
+
+
+async def _run_home_mode_activation(
+    state: HomeModeActivateState,
+    deps: Any,
+    activation: _ActivationContext,
+    entity_configs: list[dict[str, Any]],
+) -> HomeModeActivateResult:
+    """②③④ 三个阶段；异常不在这里吞，交给 ``activate_home_mode`` 统一回滚。"""
+    mode = activation.mode
+    trigger = activation.trigger
+    # HA 状态读取异常等同于「不可用」。
     try:
         ha_status = await deps.get_ha_status()
     except Exception as exc:
@@ -879,40 +926,85 @@ async def activate_home_mode(
     if not (ha_status or {}).get("connected"):
         return await _reject_home_mode_without_ha(deps, mode, trigger, len(entity_configs))
 
-    incoming_group = mode.get("exclusiveGroup") or "default"
+    await _prepare_activation_snapshot(deps, activation, entity_configs)
+    await _execute_activation_actions(deps, activation, entity_configs)
+
+    final_success = sum(1 for result in activation.results if result.get("success"))
+    failed_count = len(activation.results) - final_success
+    failed_ratio = (failed_count / len(activation.results)) if activation.results else 0.0
+    if activation.results and (
+        final_success == 0 or failed_ratio >= MODE_ACTIVATION_FAILURE_RATIO
+    ):
+        return await _abort_failed_activation(deps, state, activation)
+
+    # ④ 提交：动作达到阈值才算「激活」。提交失败同样要回滚设备并回放旧模式。
+    try:
+        await deps.switch_active_group(
+            activation.displaced_modes,
+            activation.conflict_restore,
+            trigger.mode_id,
+            activation.snapshot,
+        )
+    except Exception as exc:
+        deps.warn(f"模式 {mode['name']} 切换提交失败,回滚设备: {exc}")
+        return await _abort_failed_activation(deps, state, activation)
+
+    # 提交即定案：此后收尾失败也不能再把设备滚回去。
+    activation.committed = True
+    state.set_active_mode_id(trigger.mode_id)
+    return await _finalize_safely(deps, activation, final_success)
+
+
+async def _prepare_activation_snapshot(
+    deps: Any, activation: _ActivationContext, entity_configs: list[dict[str, Any]]
+) -> None:
+    """② 预快照：先恢复同组旧模式的设备，再采集本轮目标设备快照。
+
+    旧模式此时**不**在 DB 停用、快照也不清 —— 那是第 ④ 阶段提交才做的事。
+    """
+    group = activation.mode.get("exclusiveGroup") or "default"
     active_modes = await deps.list_active_modes()
     conflicting_modes = [
         active
         for active in active_modes
-        if active["id"] != mode_id and (active.get("exclusiveGroup") or "default") == incoming_group
+        if active["id"] != activation.trigger.mode_id
+        and (active.get("exclusiveGroup") or "default") == group
     ]
-    # ② 预快照：恢复同组旧模式的设备，再采集本轮目标快照
+    activation.displaced_modes = list(conflicting_modes)
     # 先把旧模式的设备恢复到「进入该模式之前」的状态，让新动作从干净状态开始。
-    # 但**不**在 DB 里停用旧模式、也不清它们的快照 —— 那是 ④ 提交才做的事。
-    conflict_restore: dict[str, HomeModeSnapshotOutcome] = {}
     for active in conflicting_modes:
-        conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
+        activation.conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
 
     snapshot, snapshot_missing = await _collect_device_snapshot(deps, entity_configs)
     if snapshot_missing:
         # 采集不到 = 这些设备一旦被本次激活改过就恢复不回去，必须留痕并带给前端。
         deps.warn(
-            f"模式 {mode['name']} 有 {len(snapshot_missing)} 个设备未采集到快照，"
+            f"模式 {activation.mode['name']} 有 {len(snapshot_missing)} 个设备未采集到快照，"
             f"停用后将无法恢复: {', '.join(snapshot_missing[:5])}"
         )
         snapshot[SNAPSHOT_MISSING_KEY] = snapshot_missing
+    activation.snapshot = snapshot
+    activation.snapshot_missing = snapshot_missing
 
-    # ③ 执行：安防先行且串行，其余设备走开环序列 + 一次失败重试
-    deps.log(f"正在激活模式: {mode['name']}")
 
+async def _execute_activation_actions(
+    deps: Any, activation: _ActivationContext, entity_configs: list[dict[str, Any]]
+) -> None:
+    """③ 执行：安防串行且先行，其余设备走开环序列 + 一次失败重试（安防不重试）。"""
+    deps.log(f"正在激活模式: {activation.mode['name']}")
     sec_cfg = deps.get_security_config()
-    configs_to_run = filter_home_mode_actions_for_linkage_dedupe(entity_configs, meta, sec_cfg)
+    configs_to_run = filter_home_mode_actions_for_linkage_dedupe(
+        entity_configs, activation.meta, sec_cfg
+    )
 
     # 安防切换必须串行且先行：并发/夹在设备动作里时，最终模式取决于最后一次 set_mode，
     # 而且一旦后续设备动作触发整体回滚，房子会停在「模式已切、设备已回滚」的错位状态。
     security_configs = [c for c in configs_to_run if resolve_action_kind(c) == "security"]
     device_configs = [c for c in configs_to_run if resolve_action_kind(c) != "security"]
-    previous_security_mode = (
+    # 先记「本次要动几条安防、动之前是什么模式」：这两项要在执行前定下来，
+    # 中途异常时兜底回滚才知道是否需要把面板还原。
+    activation.security_action_count = len(security_configs)
+    activation.previous_security_mode = (
         await deps.get_security_mode() if security_configs else None
     )
     security_results: list[dict[str, Any]] = []
@@ -925,6 +1017,7 @@ async def activate_home_mode(
         "milliseconds",
     )
     results = [*security_results, *device_results]
+    activation.results = results
     ordered_configs = [*security_configs, *device_configs]
 
     failed_indices = [idx for idx, result in enumerate(results) if not result.get("success")]
@@ -937,37 +1030,46 @@ async def activate_home_mode(
         for idx in run.failed_indices
         if resolve_action_kind(ordered_configs[idx]) != "security"
     ]
-    retry_results = await _retry_failed_home_mode_actions(deps, mode["name"], run)
-
-    final_success = sum(1 for result in results if result.get("success"))
-
-    activation = _ActivationContext(
-        mode=mode,
-        trigger=trigger,
-        snapshot=snapshot,
-        results=results,
-        retry_results=retry_results,
-        previous_security_mode=previous_security_mode,
-        security_action_count=len(security_configs),
-        displaced_modes=list(conflicting_modes),
-        conflict_restore=conflict_restore,
-        snapshot_missing=snapshot_missing,
+    activation.retry_results = await _retry_failed_home_mode_actions(
+        deps, activation.mode["name"], run
     )
 
-    failed_count = len(results) - final_success
-    failed_ratio = (failed_count / len(results)) if results else 0.0
-    if results and (final_success == 0 or failed_ratio >= MODE_ACTIVATION_FAILURE_RATIO):
-        return await _abort_failed_activation(deps, state, activation)
 
-    # ④ 提交：动作达到阈值才算「激活」。提交失败同样要回滚设备并回放旧模式。
+async def _finalize_safely(
+    deps: Any, activation: _ActivationContext, final_success: int
+) -> HomeModeActivateResult:
+    """④ 收尾记录。已经提交的激活不该因为写日志 / 通知失败而变成 500。"""
     try:
-        await deps.switch_active_group(conflicting_modes, conflict_restore, mode_id, snapshot)
+        return await _finalize_home_mode_activation(deps, activation, final_success)
     except Exception as exc:
-        deps.warn(f"模式 {mode['name']} 切换提交失败,回滚设备: {exc}")
-        return await _abort_failed_activation(deps, state, activation)
+        deps.warn(f"模式 {activation.mode['name']} 已激活，但收尾记录失败: {exc}")
+        return {
+            "success": True,
+            "modeId": activation.trigger.mode_id,
+            "modeName": activation.mode["name"],
+            "active": True,
+            "executed": final_success,
+            "total": len(activation.results),
+        }
 
-    state.set_active_mode_id(mode_id)
-    return await _finalize_home_mode_activation(deps, activation, final_success)
+
+async def _rollback_interrupted_activation(
+    state: HomeModeActivateState, deps: Any, activation: _ActivationContext
+) -> None:
+    """异常 / 取消兜底：回滚已执行的设备与安防动作，并留下失败触发日志。
+
+    取消（客户端断开、进程收尾）也要走这里：半执行的设备动作不会自己回滚，而 claim
+    一旦留着，低优先级联动会被静默拦截 15–30 分钟。
+    """
+    try:
+        # shield：外层被取消时仍然让回滚跑完，否则磁盘上会留下半执行状态。
+        await asyncio.shield(_abort_failed_activation(deps, state, activation))
+    except asyncio.CancelledError:
+        deps.warn(
+            f"模式 {activation.mode['name']} 激活被取消，回滚未完成，请手动检查设备状态与联动仲裁"
+        )
+    except Exception as exc:
+        deps.warn(f"模式 {activation.mode['name']} 激活异常后回滚失败: {exc}")
 
 
 async def deactivate_home_mode(

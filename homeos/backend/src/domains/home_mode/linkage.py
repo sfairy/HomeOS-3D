@@ -42,13 +42,24 @@ def _now_ms() -> int:
 class HomeModeLinkageArbiter:
     def __init__(self) -> None:
         self._claim: dict[str, Any] | None = None
+        self._seq = 0
 
     def get_claim(self) -> dict[str, Any] | None:
         self._prune()
         return self._claim
 
-    def release(self) -> None:
-        self._claim = None
+    def release(self, token: int | None = None) -> None:
+        """释放仲裁。
+
+        ``token`` 为空时无条件清空（旧的调用口径）；给了 token 则只在**当前** claim
+        仍属于它时才清 —— 长任务中途异常回滚时，别的来源可能已经重新占用了仲裁，
+        无条件清空会把别人的 claim 顺手抹掉，让下一次不该被拦的低优先级联动溜过去。
+        """
+        if token is None or self._claim is None:
+            self._claim = None
+            return
+        if self._claim.get("token") == token:
+            self._claim = None
 
     def try_acquire(
         self,
@@ -72,13 +83,16 @@ class HomeModeLinkageArbiter:
         claim_ttl = claim_ttl_ms if claim_ttl_ms is not None else DEFAULT_CLAIM_TTL_MS
         user_locked = _is_user_driven_source(src)
         ttl = max(claim_ttl, manual_lock) if user_locked else claim_ttl
+        self._seq += 1
         self._claim = {
             "source": src,
             "priority": priority,
             "until": timestamp + ttl,
             "userLocked": user_locked,
+            #: 本次占用的凭据；``release(token)`` 据此确认「要还的是不是自己的 claim」。
+            "token": self._seq,
         }
-        return {"ok": True}
+        return {"ok": True, "token": self._seq}
 
     def _prune(self, now: int | None = None) -> None:
         timestamp = now if now is not None else _now_ms()
