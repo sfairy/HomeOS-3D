@@ -74,7 +74,7 @@ test("后台 AdminTabs：roving tabindex、面板关联和方向键", () => {
 test("后台通知与弹窗：live region 与可访问名称", () => {
   const toast = read("homeos-store/frontend/src/shared/components/AdminToastHost.vue");
   assert.ok(toast.includes('aria-live="polite"'));
-  const layout = read("homeos-store/frontend/src/features/admin/views/AdminLayout.vue");
+  const layout = read("homeos-store/frontend/src/features/admin/layouts/AdminLayout.vue");
   assert.ok(layout.includes('aria-labelledby="pw-dialog-title"'));
   assert.ok(layout.includes("submitPassword"));
 });

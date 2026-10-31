@@ -1,7 +1,7 @@
 /**
  * admin 域根 barrel —— 域的唯一对外出口（跨域只经本 barrel，禁深引用）。
  *
- * 后台这一片（`views/` 15 个面板 + `components/` 9 个子块 + 4 个 store + `useAdminTabs`）
+ * 后台这一片（`views/` 15 个面板 + `layouts/` 宿主布局 + `components/` 9 个子块 + 4 个 store + `useAdminTabs`）
  * 是完整的一域：跨域只能 `import { … } from "@store/features/admin"`，域内细节不外借。
  *
  * 这里**刻意只导出跨域真正用到的成员**，不做「整域再导出」：

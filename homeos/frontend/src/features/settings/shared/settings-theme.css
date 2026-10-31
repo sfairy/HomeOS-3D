@@ -1,5 +1,5 @@
 /* 设置页样式聚合入口 */
-@import '../styles/settings-hub-patterns.css';
+@import './styles/settings-hub-patterns.css';
 @import './styles/bindings-theme.css';
 @import './styles/settings-tokens.css';
 @import './styles/settings-layout.css';

@@ -14,7 +14,7 @@ const ItemView = () => import("@store/features/storefront/views/ItemView.vue");
 const AccountView = () => import("@store/features/storefront/views/AccountView.vue");
 const ReferralsView = () => import("@store/features/storefront/views/ReferralsView.vue");
 
-const AdminLayout = () => import("@store/features/admin/views/AdminLayout.vue");
+const AdminLayout = () => import("@store/features/admin/layouts/AdminLayout.vue");
 const SetupView = () => import("@store/views/SetupView.vue");
 
 /** 需要在挂载前就确认登录态的页面：`meta.requiresAuth`。 */
