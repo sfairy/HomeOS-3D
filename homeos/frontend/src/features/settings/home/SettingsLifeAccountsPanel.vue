@@ -71,7 +71,7 @@ import { RouterLink } from 'vue-router'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsBindingsAccountSection from '@/features/settings/connect/bindings/SettingsBindingsAccountSection.vue'
-import { useSettingsLifeAccountsHub } from '@/features/settings/composables/connect/bindings.internals'
+import { useSettingsLifeAccountsHub } from '@/features/settings/connect/composables/bindings.internals'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({ activeTab: { type: String, default: 'life-accounts' } })

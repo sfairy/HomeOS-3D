@@ -22,7 +22,7 @@ import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import { useRecommendInsight } from '@/shared/recommend/composables/useRecommendInsight'
 import { formatCount, hoursLabel } from '@/shared/events/utils/events-display.util'
-import { useEventLogRecordFilter } from '@/features/settings/composables/connect/event-log-record-filter.util'
+import { useEventLogRecordFilter } from '@/features/settings/connect/composables/event-log-record-filter.util'
 
 const {
   enabled,

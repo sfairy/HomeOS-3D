@@ -162,7 +162,7 @@ import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.v
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
-import { useFavoritesHub } from '@/features/settings/composables/hub-ui.internals'
+import { useFavoritesHub } from '@/features/settings/shared/composables/hub-ui.internals'
 import { ChevronRight, Layers, Monitor, Star, Zap } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
 import { DEVICES_ROUTES } from '@/shared/device/utils/devices-route.util'

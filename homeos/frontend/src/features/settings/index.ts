@@ -1,7 +1,7 @@
 /**
  * settings 域根 barrel —— 域的唯一对外出口。
  *
- * 域内细节（`composables/` `shared/` `connect/` `display/` …）不外借：跨域引用只允许
+ * 域内细节（`shared/` `connect/` `display/` … 及各面板的 `composables/`）不外借：跨域引用只允许
  * `import ... from '@/features/settings'`（门禁见 ops/checks/frontend/check_frontend_deps.mjs 与
  * eslint.config.js 的域边界规则）。
  *
@@ -11,4 +11,4 @@
  */
 
 // 由 features/security 跨域使用（环境传感器字段映射）
-export { useEnvSensorMap } from './composables/env-sensor-map.internals'
+export { useEnvSensorMap } from './shared/composables/env-sensor-map.internals'

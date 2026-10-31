@@ -10,7 +10,7 @@ import { inject } from 'vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import WidgetConfigShell from './WidgetConfigShell.vue'
 import WidgetConfigFooter from './WidgetConfigFooter.vue'
-import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/composables/display/layout-panel-widgets.internals'
+import { WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/display/composables/layout-panel-widgets.internals'
 
 defineProps({
   quickButtonOptions: { type: Array, required: true },

@@ -163,8 +163,8 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
-import { useWholeHomeOffSection } from '@/features/settings/composables/automate/security-modes-extras.internals'
-import { useWholeHomeOffRecommend } from '@/features/settings/composables/automate/security-modes-extras.internals'
+import { useWholeHomeOffSection } from '@/features/settings/automate/composables/security-modes-extras.internals'
+import { useWholeHomeOffRecommend } from '@/features/settings/automate/composables/security-modes-extras.internals'
 
 const { wholeHomeOff, entityDomains, domainCards, enabledDomainCount } = useWholeHomeOffSection()
 

@@ -13,7 +13,7 @@ import HomeClimateChartConfigPanel from './HomeClimateChartConfigPanel.vue'
 import WidgetConfigQuickActions from './WidgetConfigQuickActions.vue'
 import WidgetConfigForms from './WidgetConfigForms.vue'
 import { isWeatherHubWidgetType } from '@/shared/utils/registry/weather-hub-options'
-import { widgetHasConfigPanel, isHubTabsOnlyConfig, hubTabSetFor, widgetConfigBtnLabel, widgetConfigDescription, WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/composables/display/layout-panel-widgets.internals'
+import { widgetHasConfigPanel, isHubTabsOnlyConfig, hubTabSetFor, widgetConfigBtnLabel, widgetConfigDescription, WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/display/composables/layout-panel-widgets.internals'
 
 const widgetConfig = inject(WIDGET_PANEL_CONFIG_KEY)
 

@@ -507,7 +507,7 @@ import SettingsPageShell from '@/components/common/settings-page-shell/SettingsP
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
-import { useAlertRulesPanel } from '@/features/settings/composables/interact/alert-rules.internals'
+import { useAlertRulesPanel } from '@/features/settings/interact/composables/alert-rules.internals'
 import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import AlertRulesInboxSection from './alert-rules/AlertRulesInboxSection.vue'

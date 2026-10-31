@@ -154,12 +154,12 @@ import SettingsSecurityModesModeCard from '@/features/settings/automate/Settings
 import SettingsSecurityModesLinkageSection from '@/features/settings/automate/SettingsSecurityModesLinkageSection.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { Download, Upload, Loader2, Shield, ListChecks, Save, Radio } from '@lucide/vue'
-import { useSecurityModes } from '@/features/settings/composables/automate/security-modes-core.internals'
+import { useSecurityModes } from '@/features/settings/automate/composables/security-modes-core.internals'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
 import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'security-modes' } })

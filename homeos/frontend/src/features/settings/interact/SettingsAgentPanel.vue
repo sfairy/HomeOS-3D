@@ -1046,7 +1046,7 @@ import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubn
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import { useSettingsAgentPanel } from '@/features/settings/composables/interact/agent-panel.internals'
+import { useSettingsAgentPanel } from '@/features/settings/interact/composables/agent-panel.internals'
 import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'
 import SettingsAgentPoliciesSection from './SettingsAgentPoliciesSection.vue'
 import SettingsAgentSchedulesSection from './SettingsAgentSchedulesSection.vue'

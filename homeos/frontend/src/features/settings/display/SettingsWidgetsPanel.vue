@@ -49,8 +49,8 @@ import { computed, provide } from 'vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import WidgetsHubSection from './widgets/WidgetsHubSection.vue'
 import { useLayoutConfigRef } from '@/composables/ui/useLayoutConfigRef'
-import { usePanelWidgets } from '@/features/settings/composables/display/layout-panel-widgets.internals'
-import { useQuickButtonConfig, toggleWidgetVisible, WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/composables/display/layout-panel-widgets.internals'
+import { usePanelWidgets } from '@/features/settings/display/composables/layout-panel-widgets.internals'
+import { useQuickButtonConfig, toggleWidgetVisible, WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/display/composables/layout-panel-widgets.internals'
 
 defineProps({ activeTab: { type: String, default: 'widgets' } })
 

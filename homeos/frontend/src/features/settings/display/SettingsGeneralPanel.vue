@@ -250,7 +250,7 @@ import SettingsWholeHomeOffSection from '@/features/settings/display/SettingsWho
 import SettingsScreensaverSection from '@/features/settings/display/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/display/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/display/layout/SettingsLayoutFooterSection.vue'
-import { useDashboardFooterEditor } from '@/features/settings/composables/display/layout-dashboard.internals'
+import { useDashboardFooterEditor } from '@/features/settings/display/composables/layout-dashboard.internals'
 import { useScaling } from '@/composables/ui/useScaling'
 import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import {
@@ -268,7 +268,7 @@ import {
 } from '@/shared/utils/perf/runtime-perf-mode.util'
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
-import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
 import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'general' } })

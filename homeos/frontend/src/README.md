@@ -105,7 +105,7 @@ import Overview from '@/features/security/Overview.vue'
 
 | 名字 | 已有归属（**不要重名**） |
 | --- | --- |
-| `system` | `features/settings/system/`、`features/settings/composables/system/`、`components/widgets/system/` |
+| `system` | `features/settings/system/`（含 `composables/`）、`components/widgets/system/` |
 | `diagnostics` | `features/settings/system/diagnostics/` |
 | `setup` | `components/setup/`（接入引导横幅） |
 | `settings` | `features/settings/` |
@@ -208,6 +208,17 @@ import Overview from '@/features/security/Overview.vue'
 `views/SettingsView.vue` 是 7 行路由适配器；真正的页面（`SettingsPage.vue`）、面板 / 导航都在
 `features/settings/` 下，经 `features/settings/entry.ts` 暴露。该域体量最大，**跨域只导出真实被
 取用的成员**，全量 barrel 会把整个设置面板拖进任何引用方的 chunk。
+
+**面板自持 hooks**：每个面板域把它的 hooks 收在自己的 `composables/` 下（
+`<panel>/composables/*.internals.ts`），与面板组件同层 —— 改一个面板只动一棵子树。
+被**多个面板**共用的 hooks 放 `shared/composables/`（`hub-ui` / `hub-env` / `hub-favorites` /
+`hub-backup-orchestrator` / `env-sensor-map*` / `env-iaq.constants`）。
+
+**跨面板引用**（同一 feature 内，不算域外引用）：`display/SettingsWholeHomeOffSection.vue` →
+`../automate/composables/security-modes-extras.internals`、`connect/SettingsBindingsPanel.vue` →
+`../display/composables/layout-dashboard.internals`、`home/SettingsLifeAccountsPanel.vue` →
+`../connect/composables/bindings.internals`。新增跨面板引用前先判断：这是「真正的共用」还是
+「面板放错了位置」——前者应下沉到 `shared/composables/`。
 
 ## 8. Studio
 

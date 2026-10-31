@@ -867,292 +867,40 @@
       "gt80": 0,
       "max": 13
     },
-    "homeos/frontend/src/features/settings/composables/automate/presence-linkage.internals.ts": {
+    "homeos/frontend/src/features/settings/automate/composables/presence-linkage.internals.ts": {
       "functions": 19,
       "gt10": 1,
       "gt15": 0,
       "gt80": 2,
       "max": 11
     },
-    "homeos/frontend/src/features/settings/composables/automate/security-modes-core.internals.ts": {
+    "homeos/frontend/src/features/settings/automate/composables/security-modes-core.internals.ts": {
       "functions": 38,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
       "max": 20
     },
-    "homeos/frontend/src/features/settings/composables/automate/security-modes-emergency.internals.ts": {
+    "homeos/frontend/src/features/settings/automate/composables/security-modes-emergency.internals.ts": {
       "functions": 23,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 7
     },
-    "homeos/frontend/src/features/settings/composables/automate/security-modes-hazard.internals.ts": {
+    "homeos/frontend/src/features/settings/automate/composables/security-modes-hazard.internals.ts": {
       "functions": 32,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 10
     },
-    "homeos/frontend/src/features/settings/composables/automate/security-modes-linkage.internals.ts": {
+    "homeos/frontend/src/features/settings/automate/composables/security-modes-linkage.internals.ts": {
       "functions": 27,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
       "max": 11
-    },
-    "homeos/frontend/src/features/settings/composables/connect/bindings-account.internals.ts": {
-      "functions": 25,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
-    },
-    "homeos/frontend/src/features/settings/composables/connect/bindings-recommend.internals.ts": {
-      "functions": 12,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 10
-    },
-    "homeos/frontend/src/features/settings/composables/connect/bindings.internals.ts": {
-      "functions": 28,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 16
-    },
-    "homeos/frontend/src/features/settings/composables/connect/connection-credentials.internals.ts": {
-      "functions": 20,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 9
-    },
-    "homeos/frontend/src/features/settings/composables/connect/connection-display.internals.ts": {
-      "functions": 10,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 8
-    },
-    "homeos/frontend/src/features/settings/composables/connect/connection-entities.internals.ts": {
-      "functions": 8,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 5
-    },
-    "homeos/frontend/src/features/settings/composables/connect/connection.internals.ts": {
-      "functions": 5,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 1
-    },
-    "homeos/frontend/src/features/settings/composables/connect/event-log-record-filter.util.ts": {
-      "functions": 32,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 9
-    },
-    "homeos/frontend/src/features/settings/composables/connect/setup-wizard-core.internals.ts": {
-      "functions": 35,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 17
-    },
-    "homeos/frontend/src/features/settings/composables/connect/setup-wizard-env.internals.ts": {
-      "functions": 17,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 9
-    },
-    "homeos/frontend/src/features/settings/composables/connect/setup-wizard-presence.internals.ts": {
-      "functions": 13,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
-    },
-    "homeos/frontend/src/features/settings/composables/display/layout-dashboard-embeds.internals.ts": {
-      "functions": 29,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 4
-    },
-    "homeos/frontend/src/features/settings/composables/display/layout-dashboard.internals.ts": {
-      "functions": 26,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/features/settings/composables/display/layout-floating-afh-actions.internals.ts": {
-      "functions": 11,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 19
-    },
-    "homeos/frontend/src/features/settings/composables/display/layout-floating.internals.ts": {
-      "functions": 17,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 1,
-      "max": 22
-    },
-    "homeos/frontend/src/features/settings/composables/display/layout-panel-widgets.internals.ts": {
-      "functions": 33,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 8
-    },
-    "homeos/frontend/src/features/settings/composables/env-sensor-map-util.internals.ts": {
-      "functions": 20,
-      "gt10": 8,
-      "gt15": 3,
-      "gt80": 0,
-      "max": 21
-    },
-    "homeos/frontend/src/features/settings/composables/env-sensor-map.internals.ts": {
-      "functions": 26,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/features/settings/composables/hub-env.internals.ts": {
-      "functions": 31,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
-    },
-    "homeos/frontend/src/features/settings/composables/hub-favorites.internals.ts": {
-      "functions": 22,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 15
-    },
-    "homeos/frontend/src/features/settings/composables/hub-ui.internals.ts": {
-      "functions": 15,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 14
-    },
-    "homeos/frontend/src/features/settings/composables/interact/agent-panel-chat.internals.ts": {
-      "functions": 32,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 10
-    },
-    "homeos/frontend/src/features/settings/composables/interact/agent-panel-helpers.internals.ts": {
-      "functions": 6,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 16
-    },
-    "homeos/frontend/src/features/settings/composables/interact/agent-panel.internals.ts": {
-      "functions": 44,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 2,
-      "max": 26
-    },
-    "homeos/frontend/src/features/settings/composables/interact/alert-rules-condition.internals.ts": {
-      "functions": 10,
-      "gt10": 2,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 15
-    },
-    "homeos/frontend/src/features/settings/composables/interact/alert-rules-context.internals.ts": {
-      "functions": 21,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 5
-    },
-    "homeos/frontend/src/features/settings/composables/interact/alert-rules-crud.internals.ts": {
-      "functions": 6,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 11
-    },
-    "homeos/frontend/src/features/settings/composables/interact/alert-rules-dnd.internals.ts": {
-      "functions": 15,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 5
-    },
-    "homeos/frontend/src/features/settings/composables/interact/alert-rules-editor.internals.ts": {
-      "functions": 21,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 19
-    },
-    "homeos/frontend/src/features/settings/composables/interact/voice-alerts.internals.ts": {
-      "functions": 22,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/features/settings/composables/interact/voice-commands.internals.ts": {
-      "functions": 11,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 6
-    },
-    "homeos/frontend/src/features/settings/composables/interact/voice-config.internals.ts": {
-      "functions": 36,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 22
-    },
-    "homeos/frontend/src/features/settings/composables/system/access-panel.internals.ts": {
-      "functions": 14,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 9
-    },
-    "homeos/frontend/src/features/settings/composables/system/system-config-panel-io.internals.ts": {
-      "functions": 14,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 7
-    },
-    "homeos/frontend/src/features/settings/composables/system/system-config-panel.internals.ts": {
-      "functions": 45,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 9
-    },
-    "homeos/frontend/src/features/settings/composables/system/system-config-sidebar.internals.ts": {
-      "functions": 28,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 9
     },
     "homeos/frontend/src/features/settings/connect/SetupWizardPanel.vue": {
       "functions": 4,
@@ -1160,6 +908,118 @@
       "gt15": 0,
       "gt80": 0,
       "max": 12
+    },
+    "homeos/frontend/src/features/settings/connect/composables/bindings-account.internals.ts": {
+      "functions": 25,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
+    "homeos/frontend/src/features/settings/connect/composables/bindings-recommend.internals.ts": {
+      "functions": 12,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 10
+    },
+    "homeos/frontend/src/features/settings/connect/composables/bindings.internals.ts": {
+      "functions": 28,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 16
+    },
+    "homeos/frontend/src/features/settings/connect/composables/connection-credentials.internals.ts": {
+      "functions": 20,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/features/settings/connect/composables/connection-display.internals.ts": {
+      "functions": 10,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 8
+    },
+    "homeos/frontend/src/features/settings/connect/composables/connection-entities.internals.ts": {
+      "functions": 8,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 5
+    },
+    "homeos/frontend/src/features/settings/connect/composables/connection.internals.ts": {
+      "functions": 5,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 1
+    },
+    "homeos/frontend/src/features/settings/connect/composables/event-log-record-filter.util.ts": {
+      "functions": 32,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/features/settings/connect/composables/setup-wizard-core.internals.ts": {
+      "functions": 35,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 17
+    },
+    "homeos/frontend/src/features/settings/connect/composables/setup-wizard-env.internals.ts": {
+      "functions": 17,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/features/settings/connect/composables/setup-wizard-presence.internals.ts": {
+      "functions": 13,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
+    "homeos/frontend/src/features/settings/display/composables/layout-dashboard-embeds.internals.ts": {
+      "functions": 29,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 4
+    },
+    "homeos/frontend/src/features/settings/display/composables/layout-dashboard.internals.ts": {
+      "functions": 26,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/features/settings/display/composables/layout-floating-afh-actions.internals.ts": {
+      "functions": 11,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 19
+    },
+    "homeos/frontend/src/features/settings/display/composables/layout-floating.internals.ts": {
+      "functions": 17,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 22
+    },
+    "homeos/frontend/src/features/settings/display/composables/layout-panel-widgets.internals.ts": {
+      "functions": 33,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 8
     },
     "homeos/frontend/src/features/settings/home/client-power/internals.ts": {
       "functions": 65,
@@ -1196,12 +1056,124 @@
       "gt80": 0,
       "max": 11
     },
+    "homeos/frontend/src/features/settings/interact/composables/agent-panel-chat.internals.ts": {
+      "functions": 32,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 10
+    },
+    "homeos/frontend/src/features/settings/interact/composables/agent-panel-helpers.internals.ts": {
+      "functions": 6,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 16
+    },
+    "homeos/frontend/src/features/settings/interact/composables/agent-panel.internals.ts": {
+      "functions": 44,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 2,
+      "max": 26
+    },
+    "homeos/frontend/src/features/settings/interact/composables/alert-rules-condition.internals.ts": {
+      "functions": 10,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 15
+    },
+    "homeos/frontend/src/features/settings/interact/composables/alert-rules-context.internals.ts": {
+      "functions": 21,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 5
+    },
+    "homeos/frontend/src/features/settings/interact/composables/alert-rules-crud.internals.ts": {
+      "functions": 6,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 11
+    },
+    "homeos/frontend/src/features/settings/interact/composables/alert-rules-dnd.internals.ts": {
+      "functions": 15,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 5
+    },
+    "homeos/frontend/src/features/settings/interact/composables/alert-rules-editor.internals.ts": {
+      "functions": 21,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 19
+    },
+    "homeos/frontend/src/features/settings/interact/composables/voice-alerts.internals.ts": {
+      "functions": 22,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/features/settings/interact/composables/voice-commands.internals.ts": {
+      "functions": 11,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/features/settings/interact/composables/voice-config.internals.ts": {
+      "functions": 36,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 22
+    },
     "homeos/frontend/src/features/settings/interact/voice/SettingsVoiceSttSection.vue": {
       "functions": 11,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
       "max": 11
+    },
+    "homeos/frontend/src/features/settings/shared/composables/env-sensor-map-util.internals.ts": {
+      "functions": 20,
+      "gt10": 8,
+      "gt15": 3,
+      "gt80": 0,
+      "max": 21
+    },
+    "homeos/frontend/src/features/settings/shared/composables/env-sensor-map.internals.ts": {
+      "functions": 26,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/features/settings/shared/composables/hub-env.internals.ts": {
+      "functions": 31,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
+    "homeos/frontend/src/features/settings/shared/composables/hub-favorites.internals.ts": {
+      "functions": 22,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 15
+    },
+    "homeos/frontend/src/features/settings/shared/composables/hub-ui.internals.ts": {
+      "functions": 15,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 14
     },
     "homeos/frontend/src/features/settings/shared/layout/useSettingsSidebar.ts": {
       "functions": 22,
@@ -1230,6 +1202,34 @@
       "gt15": 0,
       "gt80": 0,
       "max": 11
+    },
+    "homeos/frontend/src/features/settings/system/composables/access-panel.internals.ts": {
+      "functions": 14,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/features/settings/system/composables/system-config-panel-io.internals.ts": {
+      "functions": 14,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 7
+    },
+    "homeos/frontend/src/features/settings/system/composables/system-config-panel.internals.ts": {
+      "functions": 45,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/features/settings/system/composables/system-config-sidebar.internals.ts": {
+      "functions": 28,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
     },
     "homeos/frontend/src/features/settings/system/diagnostics/internals.ts": {
       "functions": 16,

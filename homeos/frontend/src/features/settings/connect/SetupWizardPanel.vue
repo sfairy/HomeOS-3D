@@ -150,7 +150,7 @@ import SetupWizardDashboardStep from '@/features/settings/connect/setup-wizard/S
 import SetupWizardCompleteStep from '@/features/settings/connect/setup-wizard/SetupWizardCompleteStep.vue'
 import SetupWizardNavigation from '@/features/settings/connect/setup-wizard/SetupWizardNavigation.vue'
 import { SETUP_WIZARD_ENV_STEP_KEY } from '@/features/settings/connect/setup-wizard/context'
-import { useSetupWizardPanel } from '@/features/settings/composables/connect/setup-wizard.internals'
+import { useSetupWizardPanel } from '@/features/settings/connect/composables/setup-wizard.internals'
 
 const props = defineProps({
   activeTab: { type: String, default: 'setup-wizard' },

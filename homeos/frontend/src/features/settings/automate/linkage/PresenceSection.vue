@@ -19,7 +19,7 @@
 import { Home, MapPin, RefreshCw, Save, Users } from '@lucide/vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsPresenceEntitiesSection from '@/features/settings/automate/SettingsPresenceEntitiesSection.vue'
-import { usePresenceEntitiesDisplay } from '@/features/settings/composables/automate/presence-linkage.internals'
+import { usePresenceEntitiesDisplay } from '@/features/settings/automate/composables/presence-linkage.internals'
 
 // 入参：加载/保存态、自动模式、人员预览、是否隐藏标题
 const props = defineProps({

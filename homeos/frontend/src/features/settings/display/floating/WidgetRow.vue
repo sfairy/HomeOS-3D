@@ -5,7 +5,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Settings as SettingsIcon, Trash2, Eye, EyeOff } from '@lucide/vue'
-import { clampPct, formatPct, getAfhTypeTone, getFloatingCategoryLabel } from '@/features/settings/composables/display/layout-floating.internals'
+import { clampPct, formatPct, getAfhTypeTone, getFloatingCategoryLabel } from '@/features/settings/display/composables/layout-floating.internals'
 import FloatingWidgetEditor from './WidgetEditor.vue'
 import './styles/floating.css'
 

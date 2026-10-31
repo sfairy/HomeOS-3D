@@ -279,7 +279,7 @@ import EntityInput from '@/components/common/EntityInput.vue'
 import AccountListEditor from './AccountListEditor.vue'
 import EntityAccountListEditor from './EntityAccountListEditor.vue'
 import MultiAccountListEditor from './MultiAccountListEditor.vue'
-import { useBindingsAccountSection } from '@/features/settings/composables/connect/bindings.internals'
+import { useBindingsAccountSection } from '@/features/settings/connect/composables/bindings.internals'
 
 const props = defineProps({
   categoryTabs: { type: Array, default: () => [] },

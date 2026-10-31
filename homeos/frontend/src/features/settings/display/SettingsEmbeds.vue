@@ -258,7 +258,7 @@ import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { Globe, Layout, MonitorPlay, Plus, ChevronDown, Copy } from '@lucide/vue'
-import { useSettingsEmbeds } from '@/features/settings/composables/display/layout-dashboard.internals'
+import { useSettingsEmbeds } from '@/features/settings/display/composables/layout-dashboard.internals'
 import { useLayoutStore } from '@/stores/layout.store'
 
 const props = defineProps({ activeTab: { type: String, default: 'embeds' } })

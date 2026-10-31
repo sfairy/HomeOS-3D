@@ -8,7 +8,7 @@
  * 本文件即 security 域的「公共面」：所有跨域可用的组件 / composable / 纯函数在此登记。
  * 由 P2 试点迁移建立；`utils/security` compat barrel 已在 P2 utils 收尾批清除，
  * 域外调用方（`components/widgets/security/PanelWidget.vue`、
- * `features/settings/composables/display/layout-floating.internals.ts`）改走共享面
+ * `features/settings/display/composables/layout-floating.internals.ts`）改走共享面
  * `@/shared/security/utils/*` —— 因为 `components/` 不许 import `@/features/**`，
  * 这 4 个纯函数必须落在 shared 侧才够得着。
  * `useSecurityPanelStatus` 带 store 依赖（`@/stores/auth.store`），进不了 `shared/`，故它的

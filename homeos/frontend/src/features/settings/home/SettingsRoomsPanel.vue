@@ -140,8 +140,8 @@ import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubn
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsBindingsEnvironmentSection from '@/features/settings/connect/bindings/SettingsBindingsEnvironmentSection.vue'
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'
-import { useSettingsEnvHub } from '@/features/settings/composables/hub-ui.internals'
-import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
+import { useSettingsEnvHub } from '@/features/settings/shared/composables/hub-ui.internals'
+import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({ activeTab: { type: String, default: 'rooms' } })

@@ -192,7 +192,7 @@ import VoiceSpeechComposer from '@/features/settings/interact/voice/SpeechCompos
 import { getEntityTtsQuickDomains } from '@/shared/constants/voice-alert-catalog'
 import { useAlertRulesSection } from './context'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useAlertRulesRecommend } from '@/features/settings/composables/interact/alert-rules.internals'
+import { useAlertRulesRecommend } from '@/features/settings/interact/composables/alert-rules.internals'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 const entitiesStore = useEntitiesStore()

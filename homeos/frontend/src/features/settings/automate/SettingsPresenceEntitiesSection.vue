@@ -19,7 +19,7 @@
  */
 import { Loader2, Home, MapPin, RefreshCw, Save, Sparkles } from '@lucide/vue'
 import PresencePersonListInput from '@/components/common/PresencePersonListInput.vue'
-import { usePresenceEntitiesDisplay } from '@/features/settings/composables/automate/presence-linkage.internals'
+import { usePresenceEntitiesDisplay } from '@/features/settings/automate/composables/presence-linkage.internals'
 
 // 入参：加载/保存中、自动模式、人员预览、是否隐藏统计、是否嵌入
 const props = defineProps({
