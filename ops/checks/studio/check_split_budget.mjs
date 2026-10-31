@@ -46,8 +46,8 @@ const FAMILY_ORDER = [
 const targets = [
   { id: 'item-model-entry', phase: 1, max: 600, kind: 'file', rel: ITEM_MODEL_ENTRY },
   { id: 'item-model-family', phase: 1, max: 1000, kind: 'dir', rel: ITEM_MODEL_DIR },
-  { id: 'studio-app', phase: 2, max: 8000, kind: 'file', rel: '3d-studio/authoring/studio-app/boot.ts' },
-  { id: 'editor-home', phase: 3, max: 7400, kind: 'file', rel: 'editor/home/lifecycle/boot.ts' },
+  { id: 'studio-app', phase: 2, max: 4200, kind: 'file', rel: '3d-studio/authoring/studio-app/boot.ts' },
+  { id: 'editor-home', phase: 3, max: 5400, kind: 'file', rel: 'editor/home/lifecycle/boot.ts' },
   // 手写转发包装（`function x(...args: any[]) { return (xImpl as any)(deps(), ...args) }`）
   // 已改成 `bindDeps(deps)({ x: xImpl })` 表。它们不是行数问题，而是把 deps 首参错位 /
   // 参数个数写错全用 `as any` 盖住 —— 所以单独按「命中数」守，不许再加回来。

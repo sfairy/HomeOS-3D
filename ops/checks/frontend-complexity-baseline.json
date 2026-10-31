@@ -1,9 +1,9 @@
 {
   "totals": {
-    "functions": 25081,
+    "functions": 25094,
     "gt10": 1274,
     "gt15": 700,
-    "gt80": 840
+    "gt80": 850
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/RowMenu.vue": {
@@ -2226,11 +2226,11 @@
       "max": 18
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts": {
-      "functions": 1334,
-      "gt10": 5,
-      "gt15": 5,
-      "gt80": 7,
-      "max": 56
+      "functions": 1252,
+      "gt10": 3,
+      "gt15": 3,
+      "gt80": 5,
+      "max": 51
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/acquireRenderSurface.ts": {
       "functions": 3,
@@ -2435,12 +2435,47 @@
       "gt80": 9,
       "max": 62
     },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/runtime/auto-diagram-messages.ts": {
+      "functions": 3,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 2,
+      "max": 35
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/runtime/global-shortcuts.ts": {
+      "functions": 15,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 2,
+      "max": 53
+    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/studio-app-context.ts": {
       "functions": 1,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 1
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/export-dialog-wiring.ts": {
+      "functions": 15,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 3
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/model-drag-drop.ts": {
+      "functions": 29,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 6
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/tool-option-wiring.ts": {
+      "functions": 28,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 8
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-context-resources.ts": {
       "functions": 12,
@@ -3205,12 +3240,47 @@
       "gt80": 1,
       "max": 21
     },
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/asset-dialog-wiring.ts": {
+      "functions": 51,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 3,
+      "max": 38
+    },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts": {
-      "functions": 1107,
-      "gt10": 29,
-      "gt15": 23,
-      "gt80": 14,
+      "functions": 951,
+      "gt10": 21,
+      "gt15": 17,
+      "gt80": 7,
+      "max": 43
+    },
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/canvas-marquee.ts": {
+      "functions": 5,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/floorplan-messages.ts": {
+      "functions": 31,
+      "gt10": 3,
+      "gt15": 3,
+      "gt80": 4,
       "max": 63
+    },
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/inspector-contexts.ts": {
+      "functions": 11,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 1
+    },
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/navigation-style-wiring.ts": {
+      "functions": 63,
+      "gt10": 4,
+      "gt15": 2,
+      "gt80": 3,
+      "max": 19
     },
     "homeos/frontend/src/studio/app/editor/inspectors/flow-line-inspector.ts": {
       "functions": 21,

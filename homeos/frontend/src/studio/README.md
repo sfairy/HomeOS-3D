@@ -66,6 +66,8 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 | `ui/` | 微件、历史、纯函数助手（如 `studio-export-layers`） |
 | `types/` | 共享的 studio-app 类型 |
 | `studio-app/` | 拆分后的闭包函数域（`functions/groups/`、`render/`、`scene/`、`ui/`、`runtime/`、`materials/`）与两个 context 类型 |
+| `studio-app/boot.ts` | 编排宿主（`bootStudio` / `teardownStudio`）：只保留状态装配、域函数转发与卸载期资源释放 |
+| `studio-app/ui/`、`studio-app/runtime/` | 引导体的语句级切片，与 `home/lifecycle/` 同构（deps 袋注入、正文逐字搬出）：`model-drag-drop`（模型库拖放建物）、`tool-option-wiring`（工具面板选项）、`export-dialog-wiring`（导出弹窗）、`global-shortcuts`（全局键盘 / 窗口消息短路）、`auto-diagram-messages`（自动导图 iframe 桥接） |
 
 `authoring/` 之外，`app/3d-studio/` 顶层还有一批同级创作域：
 `plan/`（平面图真实体）、`materials/`、`export/`、`loaders/`（模型加载）、`reflection/`（反射呈现）、
@@ -91,7 +93,8 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 | `net/` | 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩 |
 | `picker/` | 取数弹层 |
 | `selection/` | 选中组件方向键微调 |
-| `home/` | `bootEditor` 拆出的域（`editor-context.ts`、`elements/`、`functions/`） |
+| `home/` | `bootEditor` 拆出的域（`editor-context.ts`、`elements/`、`functions/`、`lifecycle/`） |
+| `home/lifecycle/` | 引导体语句级切片：`boot.ts` 只留状态装配与卸载，事件注册按「一段可独立搬运的处理序列」外置为 `floorplan-messages`（户型图 iframe 回传消息）/ `canvas-marquee`（框选 + 尺寸观察器）/ `navigation-style-wiring`（套用样式入口与共享引用表）/ `asset-dialog-wiring`（资源与项目弹窗）/ `inspector-contexts`（四份检查器上下文）。依赖经单个 deps 袋注入，正文与搬出前逐字一致 |
 | `boot.ts` | 生命周期 |
 
 `app/renderer/` 的域文件夹：`controls/`（控件渲染）、`flow-line/`（流线绘制）、`geometry/`（几何计算）、
@@ -147,6 +150,13 @@ utils；UI 侧只依赖 `@/components`、`@/composables`、`@/stores`、`@/share
 `studio-app/boot.ts` / `home/lifecycle/boot.ts` 的拆分目标：编排宿主变小，代码进**域文件夹**，不要新增平铺的
 `*-foo.ts`（面板编辑器的生命周期宿主已落在 `home/lifecycle/`，3D 创作宿主已落在 `studio-app/`）。`items/item-model/` 是模板（分支按原链顺序进族，顺序不可重排）；改动后跑
 `bun run check:studio-split`，门禁不全绿不得继续。
+
+两个宿主的「语句级切片」约定（`home/lifecycle/*` 与 `studio-app/{ui,runtime}/*`）：把一段连续、可整块搬运的
+事件注册序列原样移出，函数只收一个 `deps` 袋（`Record<string, any>`）+ 逐字保留的正文；deps 名单靠 tsc 的
+`Cannot find name` 反推，**不许**改写正文语义。约束有三条：正文里不得给闭包 `let` 赋值（要么改成对象 /
+Map 属性，要么在调用点用 `get/set` 访问器代理，如 `planPainter`、`studioSaveStore`）；拆出的模块不得
+被宿主后续语句反向引用（需要共享就返回句柄，如 `bindCanvasMarquee` 返回 `workspaceResizeObserver`）；
+拆分预算随之下降——`ops/checks/studio/check_split_budget.mjs` 里 `editor-home` 5400 行、`studio-app` 4200 行。
 
 ## 12. 该改哪里
 

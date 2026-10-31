@@ -274,6 +274,11 @@ import { installLibraryNameScroll } from "../items/studio-model-library";
 import { defaultViewSettings } from "../scene/studio-view-settings";
 window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
+import { bindToolOptionWiring } from "./ui/tool-option-wiring";
+import { bindAutoDiagramMessages } from "./runtime/auto-diagram-messages";
+import { bindExportDialogWiring } from "./ui/export-dialog-wiring";
+import { bindModelDragDrop } from "./ui/model-drag-drop";
+import { bindGlobalShortcuts } from "./runtime/global-shortcuts";
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
 import { navigateInShell } from '@/studio/platform/shell-navigation';
 import {
@@ -3167,308 +3172,42 @@ for (const assetToolbarDragButton of itemTypeButtons)
       });
       createSceneItem(assetToolbarDragButton.dataset.itemType, pr5);
     }));
-(planStageElement.addEventListener("dragenter", (assetDragEnterEvent: any) => {
-  [...assetDragEnterEvent.dataTransfer.types].includes("application/x-homeos-item") &&
-    planStageElement.classList.add("dragging-item");
-}),
-  planStageElement.addEventListener("dragover", (assetDragOverEvent: any) => {
-    [...assetDragOverEvent.dataTransfer.types].includes("application/x-homeos-item") &&
-      (assetDragOverEvent.preventDefault(),
-      (assetDragOverEvent.dataTransfer.dropEffect = "copy"),
-      planStageElement.classList.add("dragging-item"));
-  }),
-  planStageElement.addEventListener("dragleave", (assetDragLeaveEvent: any) => {
-    planStageElement.contains(assetDragLeaveEvent.relatedTarget) ||
-      planStageElement.classList.remove("dragging-item");
-  }),
-  planStageElement.addEventListener("drop", (assetDropEvent: any) => {
-    (assetDropEvent.preventDefault(), planStageElement.classList.remove("dragging-item"));
-    const data = assetDropEvent.dataTransfer.getData("application/x-homeos-item");
-    data && createSceneItem(data, screenToPlan(eventToLocalPoint(assetDropEvent)));
-  }),
-  (planPainter = createCourtyardDrawingEditor2({
-    canvas: planCanvasElement,
-    toolbar: document.querySelector(".plan-toolbar"),
-    inspector: selectionInspectorElement,
-    scene: () => appCtx.studioState,
-    selected: () => (appCtx.selectedItem?.kind === "item" ? getSelectedObject() : null),
-    point: (pointerPlanPoint: any) => screenToPlan(eventToLocalPoint(pointerPlanPoint)),
-    screen: planToScreen,
-    ppm: () => getPixelsPerMeter() || 100,
-    zoom: () => appCtx.planView.zoom,
-    feedback: (toolFeedback: any) => {
-      ((snapIndicatorElement.textContent = toolFeedback?.kind
-        ? "吸附：" + toolFeedback.label
-        : isSnapEnabled()
-          ? "吸附：自由"
-          : "吸附：关闭"),
-        toolFeedback?.point &&
-          (cursorPositionElement.textContent =
-            "X " +
-            (toolFeedback.point.x / (getPixelsPerMeter() || 100)).toFixed(2) +
-            " m · Y " +
-            (toolFeedback.point.y / (getPixelsPerMeter() || 100)).toFixed(2) +
-            " m"));
-    },
-    snap: axisLockedDistance,
-    snapping: isSnapEnabled,
-    calibrated: ensureCalibrationReady,
-    panning: () => appCtx.isMiddleButtonPanning,
-    planColor: (courtyardPlanColor: any) => courtyardPlanColor2(courtyardPlanColor, itemTypeCatalog),
-    buildings: () =>
-      buildingFootprints2(
-        appCtx.studioState.walls,
-        closedWallLoops(getPixelsPerMeter()),
-        getPixelsPerMeter(),
-      ),
-    clone: captureUndoSnapshot,
-    snapshot: deselectAll,
-    push: applyPlacementChange,
-    changed: markDocumentDirty,
-    refresh: () => refreshScopeItems(getDefaultSelectionScope()),
-    draw: refreshStudioView,
-    interactionEnded: handleInteractionEnded,
-    select: (selectedToolItem: any) => selectSceneObject("item", selectedToolItem),
-    isSelected: (toolSelectionItem: any) => createSelectionRef("item", toolSelectionItem),
-    id: () => generateId("courtyard"),
-    setTool: selectStudioTool,
-    toast: showToast,
-  })),
-  planCanvasElement.addEventListener("pointerdown", handlePointerDown),
-  planCanvasElement.addEventListener("pointermove", handlePointerMove),
-  planCanvasElement.addEventListener("pointerup", handlePointerRelease),
-  planCanvasElement.addEventListener("pointercancel", handlePointerRelease),
-  planCanvasElement.addEventListener("contextmenu", (canvasMenuEvent: any) =>
-    canvasMenuEvent.preventDefault(),
-  ),
-  planCanvasElement.addEventListener(
-    "wheel",
-    (canvasPointerEvent: any) => {
-      (canvasPointerEvent.preventDefault(), handleCanvasWheel(canvasPointerEvent));
-    },
-    {
-      passive: false,
-    },
-  ),
-  selectElement("#fit-view").addEventListener("click", resetView),
-  selectElement("#rotate-plan-view").addEventListener("click", rotatePlanView),
-  selectElement("#zoom-in").addEventListener("click", () => zoomByScale(1.18)),
-  selectElement("#zoom-out").addEventListener("click", () => zoomByScale(1 / 1.18)),
-  selectElement("#reset-camera").addEventListener("click", updateCameraView),
-  saveCameraViewButton.addEventListener("click", saveCameraView),
-  fixedCameraViewButton.addEventListener("click", applyCameraSnapshot),
-  saveOverviewViewButton.addEventListener("click", saveCameraView),
-  fixedOverviewViewButton.addEventListener("click", applyCameraSnapshot),
-  exportSaveViewButton.addEventListener("click", saveCameraView),
-  selectElement("#open-export").addEventListener("click", openExportPanel),
-  selectElement("#export-close").addEventListener("click", () => {
-    appCtx.isInteractionLocked || exportDialogElement.close();
-  }),
-  exportDialogElement.addEventListener("cancel", (exportDialogCancelEvent: any) => {
-    (exportDialogCancelEvent.preventDefault(), appCtx.isInteractionLocked || exportDialogElement.close());
-  }),
-  exportDialogElement.addEventListener("close", restorePreviewAfterExport),
-  selectElement("#export-overwrite-close").addEventListener("click", () =>
-    resolveOverwriteChoice("cancel"),
-  ),
-  selectElement("#export-overwrite-cancel").addEventListener("click", () =>
-    resolveOverwriteChoice("cancel"),
-  ),
-  selectElement("#export-overwrite-rename").addEventListener("click", () =>
-    resolveOverwriteChoice("rename"),
-  ),
-  selectElement("#export-overwrite-confirm").addEventListener("click", () =>
-    resolveOverwriteChoice("overwrite"),
-  ),
-  exportOverwriteDialogElement.addEventListener("cancel", (overwriteDialogCancelEvent: any) => {
-    (overwriteDialogCancelEvent.preventDefault(), resolveOverwriteChoice("cancel"));
-  }));
+bindModelDragDrop({
+  appCtx, applyCameraSnapshot, applyPlacementChange, axisLockedDistance, buildingFootprints2,
+  captureUndoSnapshot, closedWallLoops, courtyardPlanColor2, createCourtyardDrawingEditor2, createSceneItem,
+  createSelectionRef, cursorPositionElement, deselectAll, ensureCalibrationReady, eventToLocalPoint,
+  exportDialogElement, exportOverwriteDialogElement, exportSaveViewButton, fixedCameraViewButton,
+  fixedOverviewViewButton, generateId, getDefaultSelectionScope, getPixelsPerMeter, getSelectedObject,
+  handleCanvasWheel, handleInteractionEnded, handlePointerDown, handlePointerMove, handlePointerRelease,
+  isSnapEnabled, itemTypeCatalog, markDocumentDirty, openExportPanel, planCanvasElement, planStageElement,
+  planToScreen, refreshScopeItems, refreshStudioView, resetView, resolveOverwriteChoice,
+  restorePreviewAfterExport, rotatePlanView, saveCameraView, saveCameraViewButton, saveOverviewViewButton,
+  screenToPlan, selectElement, selectSceneObject, selectStudioTool, selectionInspectorElement, showToast,
+  snapIndicatorElement, updateCameraView, zoomByScale,
+  get planPainter() { return planPainter; },
+  set planPainter(nextPlanPainter) { planPainter = nextPlanPainter; },
+});
 const closeExportCompleteDialog = () => {
   exportCompleteDialogElement.open && exportCompleteDialogElement.close();
 };
-(selectElement("#export-complete-close").addEventListener("click", closeExportCompleteDialog),
-  selectElement("#export-complete-confirm").addEventListener("click", closeExportCompleteDialog),
-  exportPresetSlotsElement.addEventListener("click", (presetSlotClickEvent: any) => {
-    const closestPresetSlotButton = presetSlotClickEvent.target.closest(
-      "[data-export-preset-slot]",
-    );
-    closestPresetSlotButton &&
-      selectExportPresetSlot(Number(closestPresetSlotButton.dataset.exportPresetSlot));
-  }),
-  exportPresetAddButton.addEventListener("click", saveAsNewPreset),
-  exportPresetRenameButton.addEventListener("click", openPresetRenameDialog),
-  exportPresetDeleteButton.addEventListener("click", openPresetDeleteDialog),
-  selectElement("#export-preset-rename-close").addEventListener("click", closePresetRenameDialog),
-  selectElement("#export-preset-rename-cancel").addEventListener("click", closePresetRenameDialog),
-  exportPresetRenameDialogElement.addEventListener("cancel", (presetRenameDialogCancelEvent: any) => {
-    (presetRenameDialogCancelEvent.preventDefault(), closePresetRenameDialog());
-  }),
-  exportPresetRenameFormElement.addEventListener("submit", (presetRenameSubmitEvent: any) => {
-    presetRenameSubmitEvent.preventDefault();
-    const presetRenameSubmitEventExportPresetSlots = normalizeExportPresetSlots2(
-        appCtx.studioProject?.exportPresets,
-      ),
-      activePresetSlotIndex = normalizeActiveExportPresetSlot2(
-        appCtx.studioProject?.activeExportPresetSlot,
-        presetRenameSubmitEventExportPresetSlots.length,
-      ),
-      activePresetSlotIndexActivePresetSlot =
-        presetRenameSubmitEventExportPresetSlots[activePresetSlotIndex];
-    if (!activePresetSlotIndexActivePresetSlot) {
-      closePresetRenameDialog();
-      return;
-    }
-    const ja7 = formatPresetLabel(activePresetSlotIndexActivePresetSlot, activePresetSlotIndex),
-      hf3 = makeUniquePresetName(exportPresetRenameInputElement.value, activePresetSlotIndex);
-    ((activePresetSlotIndexActivePresetSlot.name = hf3),
-      (appCtx.studioProject.exportPresets = presetRenameSubmitEventExportPresetSlots),
-      closePresetRenameDialog(),
-      renderExportPresetSlots(),
-      markDocumentDirty(),
-      hf3 !== ja7 && showToast("已重命名为“" + hf3 + "”。", "success"));
-  }),
-  selectElement("#export-preset-delete-close").addEventListener("click", closePresetDeleteDialog),
-  selectElement("#export-preset-delete-cancel").addEventListener("click", closePresetDeleteDialog),
-  exportPresetDeleteDialogElement.addEventListener("cancel", (presetDeleteDialogCancelEvent: any) => {
-    (presetDeleteDialogCancelEvent.preventDefault(), closePresetDeleteDialog());
-  }),
-  exportPresetDeleteFormElement.addEventListener("submit", (exportDeleteSubmitEvent: any) => {
-    (exportDeleteSubmitEvent.preventDefault(), confirmDeletePreset());
-  }),
-  exportDialogElement.addEventListener("input", (exportDialogInputEvent: any) => {
-    exportDialogInputEvent.target?.closest?.("#export-preset-slots") || syncExportControls();
-  }),
-  exportDialogElement.addEventListener("change", (exportDialogChangeEvent: any) => {
-    exportDialogChangeEvent.target?.closest?.("#export-preset-slots") || syncExportControls();
-  }),
-  exportDialogElement.addEventListener("click", (exportDialogClickEvent: any) => {
-    exportDialogClickEvent.target?.closest?.(
-      "[data-camera-view], [data-camera-mode], [data-camera-rotate-top]",
-    ) && syncExportControls();
-  }),
-  exportWidthInput.addEventListener("input", () => handleCanvasSizeInput("width")),
-  exportHeightInput.addEventListener("input", () => handleCanvasSizeInput("height")),
-  exportWidthInput.addEventListener("change", () => handleCanvasSizeInput("width", true)),
-  exportHeightInput.addEventListener("change", () => handleCanvasSizeInput("height", true)),
-  exportLockRatioInput.addEventListener("change", () => {
-    const { width: viewportPixelWidth, height: viewportPixelHeight } =
-      stateViewportAspectGetCanvasSize();
-    (exportLockRatioInput.checked && (appCtx.exportAspectRatio = viewportPixelWidth / viewportPixelHeight),
-      refreshCanvasSizeUi());
-  }),
-  selectElement("#export-use-fixed").addEventListener("click", openExportDialog),
-  exportFloorSelectElement.addEventListener("change", () =>
-    selectPreviewFloor(exportFloorSelectElement.value),
-  ),
-  exportPackageButton.addEventListener("click", generateExportBundle));
-window.addEventListener("message", (bridgeMessageEvent) => {
-  if (
-    !isAutoDiagramEmbed ||
-    bridgeMessageEvent.origin !== window.location.origin ||
-    bridgeMessageEvent.source !== window.parent
-  )
-    return;
-  const data2 = bridgeMessageEvent.data;
-  if (!(!data2 || data2.componentId !== autoDiagramComponentId)) {
-    if (data2.type === "homeos-floorplan-auto-diagram-floor") {
-      if (data2.command === "set-floor") {
-        const bridgeFloorRecord = appCtx.studioProject.floors.find(
-            (bridgeFloor: any) => bridgeFloor.id === data2.value,
-          ),
-          bridgeFloorId =
-            data2.value === "all" && appCtx.studioProject.floors.length > 1
-              ? "all"
-              : bridgeFloorRecord?.id || getActiveFloor()?.id || appCtx.activeFloorId;
-        (selectPreviewFloor(bridgeFloorId), postBridgeFloors());
-      }
-      return;
-    }
-    if (data2.type === "homeos-floorplan-auto-diagram-base-lighting") {
-      data2.command === "request-state"
-        ? ((baseLightControlsElement.hidden = true),
-          applyBaseLighting(appCtx.studioProject.baseLighting),
-          postBridgeState("ready"))
-        : data2.command === "preview"
-          ? ((baseLightControlsElement.hidden = true),
-            applyBaseLighting(data2.lighting),
-            postBridgeState("preview"))
-          : data2.command === "reset"
-            ? ((baseLightControlsElement.hidden = true),
-              applyBaseLighting(DEFAULT_BASE_LIGHTING2),
-              postBridgeState("preview"))
-            : data2.command === "save"
-              ? ((baseLightControlsElement.hidden = true),
-                applyBaseLighting(data2.lighting),
-                confirmLightingDialog(),
-                postBridgeState("saved"))
-              : data2.command === "cancel" || data2.command === "close"
-                ? (openLightingDialog(), postBridgeState("cancelled"))
-                : saveBaseLightingEdit();
-      return;
-    }
-    if (data2.type === "homeos-floorplan-auto-diagram-camera") {
-      const ut6 = cameraSettings();
-      if (data2.command === "restore") {
-        const bridgeCameraState = data2.value || {};
-        ((ut6.cameraMode =
-          bridgeCameraState.mode === "perspective" ? "perspective" : "orthographic"),
-          (ut6.cameraView = bridgeCameraState.view === "top" ? "top" : "free"),
-          (ut6.cameraTopRotation =
-            (((Math.round(finite2(bridgeCameraState.topRotation, 0) / 90) * 90) % 360) + 360) %
-            360),
-          (ut6.cameraFocalLength = clamp2(finite2(bridgeCameraState.focalLength, 50), 18, 120)),
-          bridgeCameraState.snapshot
-            ? applyCameraState(
-                bridgeCameraState.snapshot,
-                bridgeCameraState.snapshot.viewportAspect,
-              )
-            : (setCameraMode(ut6.cameraMode, {
-                preserveView: true,
-              }),
-              setCameraView(ut6.cameraView, {
-                force: true,
-              }),
-              applyCameraFocalLength()));
-      } else
-        data2.command === "set-view"
-          ? ((ut6.cameraView = data2.value === "top" ? "top" : "free"),
-            setCameraView(ut6.cameraView))
-          : data2.command === "set-mode"
-            ? ((ut6.cameraMode = data2.value === "perspective" ? "perspective" : "orthographic"),
-              setCameraMode(ut6.cameraMode))
-            : data2.command === "rotate-top"
-              ? ((ut6.cameraView = "top"),
-                (ut6.cameraTopRotation = (getCameraTopRotation() + 90) % 360),
-                setCameraView("top", {
-                  force: true,
-                }))
-              : data2.command === "set-focal-length" &&
-                ((ut6.cameraFocalLength = clamp2(
-                  finite2(data2.value, getCameraFocalLength()),
-                  18,
-                  120,
-                )),
-                applyCameraFocalLength());
-      refreshSceneRender();
-      return;
-    }
-    if (data2.type === "homeos-floorplan-auto-diagram-generate" && !appCtx.isInteractionLocked) {
-      for (const bridgeCameraStateExportFileCheckbox of exportDialogElement.querySelectorAll(
-        "input[data-export-file]",
-      ))
-        bridgeCameraStateExportFileCheckbox.checked = true;
-      ((exportFolderNameInput.value = String(data2.folderName || "").trim()),
-        (exportWidthInput.value = String(
-          Math.round(clamp2(finite2(data2.width, exportWidthInput.value), 320, 4096)),
-        )),
-        (exportHeightInput.value = String(
-          Math.round(clamp2(finite2(data2.height, exportHeightInput.value), 320, 4096)),
-        )),
-        (exportLockRatioInput.checked = true),
-        refreshCanvasSizeUi(),
-        generateExportBundle());
-    }
-  }
+bindExportDialogWiring({
+  appCtx, closeExportCompleteDialog, closePresetDeleteDialog, closePresetRenameDialog, confirmDeletePreset,
+  exportDialogElement, exportFloorSelectElement, exportHeightInput, exportLockRatioInput, exportPackageButton,
+  exportPresetAddButton, exportPresetDeleteButton, exportPresetDeleteDialogElement,
+  exportPresetDeleteFormElement, exportPresetRenameButton, exportPresetRenameDialogElement,
+  exportPresetRenameFormElement, exportPresetRenameInputElement, exportPresetSlotsElement, exportWidthInput,
+  formatPresetLabel, generateExportBundle, handleCanvasSizeInput, makeUniquePresetName, markDocumentDirty,
+  normalizeActiveExportPresetSlot2, normalizeExportPresetSlots2, openExportDialog, openPresetDeleteDialog,
+  openPresetRenameDialog, refreshCanvasSizeUi, renderExportPresetSlots, saveAsNewPreset, selectElement,
+  selectExportPresetSlot, selectPreviewFloor, showToast, stateViewportAspectGetCanvasSize, syncExportControls
+});
+bindAutoDiagramMessages({
+  DEFAULT_BASE_LIGHTING2, appCtx, applyBaseLighting, applyCameraFocalLength, applyCameraState,
+  autoDiagramComponentId, baseLightControlsElement, cameraSettings, clamp2, confirmLightingDialog,
+  exportDialogElement, exportFolderNameInput, exportHeightInput, exportLockRatioInput, exportWidthInput,
+  finite2, generateExportBundle, getActiveFloor, getCameraFocalLength, getCameraTopRotation, isAutoDiagramEmbed,
+  openLightingDialog, postBridgeFloors, postBridgeState, refreshCanvasSizeUi, refreshSceneRender,
+  saveBaseLightingEdit, selectPreviewFloor, setCameraMode, setCameraView
 });
 for (const previewSyncMenuRow of previewSyncControls)
   previewSyncMenuRow.addEventListener("click", () => {
@@ -3851,210 +3590,18 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   'input[name="fridge-style"]',
 ))
   lightingOptionInputFridgeStyleInput.addEventListener("change", () => applyToolSetting("item"));
-(selectElement("#stair-direction").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#tv-mount-style").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#storage-section").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#pillar-shape").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#pillar-axis").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#pipeline-dispenser-style").addEventListener("change", () =>
-    applyToolSetting("item"),
-  ),
-  selectElement("#strip-axis").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#mural-style").addEventListener("change", () => applyToolSetting("item")),
-  selectElement("#featurewall-style").addEventListener("change", () => applyToolSetting("item")),
-
-  materialSlotListElement.addEventListener("input", (materialColorInputEvent: any) => {
-    const materialColorInput = materialColorInputEvent.target.closest("[data-material-slot-color]"),
-      materialSlotRow = materialColorInput?.closest(".material-slot"),
-      materialHexInput = materialSlotRow?.querySelector("[data-material-slot-hex]");
-    materialHexInput &&
-      materialColorInput &&
-      ((materialHexInput.value = String(materialColorInput.value).toLowerCase()),
-      materialHexInput.classList.remove("is-invalid"));
-
-    const materialSurfaceRange = materialColorInputEvent.target.closest(
-      "[data-material-slot-surface-key]",
-    );
-    if (materialSurfaceRange) {
-      const materialSurfaceOutput = materialSurfaceRange
-        .closest(".material-slot-surface-field")
-        ?.querySelector("output");
-      materialSurfaceOutput &&
-        (materialSurfaceOutput.textContent = Number(materialSurfaceRange.value).toFixed(2));
-      /* 拖拽时轨道上的金色段要跟着圆点走，否则读数变了、填充还停在旧位置。 */
-      syncHtmlRangeProgress2(materialSurfaceRange);
-    }
-  }),
-  materialSlotListElement.addEventListener("change", (materialSlotChangeEvent: any) => {
-    const materialColorInput = materialSlotChangeEvent.target.closest(
-      "[data-material-slot-color]",
-    );
-    if (materialColorInput) {
-      setItemMaterialOverride(
-        materialColorInput.dataset.materialSlotColor,
-        materialColorInput.value,
-      );
-      return;
-    }
-
-    const materialHexInput = materialSlotChangeEvent.target.closest("[data-material-slot-hex]");
-    if (materialHexInput) {
-      const hexColorValue = String(materialHexInput.value).trim().toLowerCase(),
-        normalizedHexValue = /^[0-9a-f]{6}$/.test(hexColorValue)
-          ? "#" + hexColorValue
-          : hexColorValue;
-      if (!/^#[0-9a-f]{6}$/.test(normalizedHexValue)) {
-
-        const materialRowColorInput =
-          materialHexInput
-            .closest(".material-slot-variant")
-            ?.querySelector("[data-material-slot-color]") ||
-          materialHexInput
-            .closest(".material-slot")
-            ?.querySelector("[data-material-slot-color]");
-        (materialHexInput.classList.add("is-invalid"),
-          materialRowColorInput &&
-            (materialHexInput.value = String(materialRowColorInput.value).toLowerCase()));
-        return;
-      }
-      (materialHexInput.classList.remove("is-invalid"),
-        (materialHexInput.value = normalizedHexValue),
-        setItemMaterialOverride(materialHexInput.dataset.materialSlotHex, normalizedHexValue));
-      return;
-    }
-    const materialSurfaceRange = materialSlotChangeEvent.target.closest(
-      "[data-material-slot-surface-key]",
-    );
-    materialSurfaceRange &&
-      setItemMaterialSurfaceOverride(
-        materialSurfaceRange.dataset.materialSlotSurfaceName,
-        materialSurfaceRange.dataset.materialSlotSurfaceKey,
-        Number(materialSurfaceRange.value),
-      );
-  }),
-  materialSlotListElement.addEventListener("click", (materialSlotClickEvent: any) => {
-    const materialResetButton = materialSlotClickEvent.target.closest("[data-material-slot-reset]");
-    if (materialResetButton) {
-      setItemMaterialOverride(materialResetButton.dataset.materialSlotReset, "");
-      return;
-    }
-    const materialSurfaceResetButton = materialSlotClickEvent.target.closest(
-      "[data-material-slot-surface-reset]",
-    );
-    if (materialSurfaceResetButton) {
-
-      const surfaceResetSlotName = materialSurfaceResetButton.dataset.materialSlotSurfaceReset;
-      setItemMaterialSurfaceOverride(surfaceResetSlotName, "roughness", null);
-      setItemMaterialSurfaceOverride(surfaceResetSlotName, "metalness", null);
-      return;
-    }
-    const materialSurfaceToggle = materialSlotClickEvent.target.closest(
-      "[data-material-slot-surface-toggle]",
-    );
-    if (!materialSurfaceToggle) return;
-
-    const surfaceToggleSlotName = materialSurfaceToggle.dataset.materialSlotSurfaceToggle;
-    appCtx.expandedMaterialSurfaceSlots.has(surfaceToggleSlotName)
-      ? appCtx.expandedMaterialSurfaceSlots.delete(surfaceToggleSlotName)
-      : appCtx.expandedMaterialSurfaceSlots.add(surfaceToggleSlotName);
-    const materialSlotRow = materialSurfaceToggle.closest(".material-slot"),
-      materialSurfacePanel = materialSlotRow?.querySelector("[data-material-slot-surface]"),
-      isSurfaceExpanded = appCtx.expandedMaterialSurfaceSlots.has(surfaceToggleSlotName);
-    (materialSurfaceToggle.setAttribute("aria-expanded", String(isSurfaceExpanded)),
-      materialSurfacePanel && (materialSurfacePanel.hidden = !isSurfaceExpanded));
-  }),
-  materialStyleStripElement.addEventListener("click", (materialStyleClickEvent: any) => {
-    const materialStyleChip = materialStyleClickEvent.target.closest("[data-material-style-id]");
-    materialStyleChip &&
-      setItemMaterialStyle(materialStyleChip.dataset.materialStyleId);
-  }),
-  materialStyleDeleteButton.addEventListener("click", () => {
-    const materialEditTarget = selectedMaterialEditTarget(),
-      selectedModelType = materialEditModelType(
-        materialEditTarget?.record,
-        materialEditTarget?.kind,
-      ),
-      selectedStyle = normalizeMaterialStyle(
-        selectedModelType,
-        materialEditTarget?.record?.materialStyle,
-      );
-    selectedStyle.startsWith("custom:") && deleteCustomMaterialStyle(selectedStyle);
-  }),
-  materialResetAllButton.addEventListener("click", () => resetItemMaterialAll()),
-
-  materialSavePresetButton.addEventListener("click", () => {
-    const materialEditTarget = selectedMaterialEditTarget(),
-      modelType = materialEditModelType(materialEditTarget?.record, materialEditTarget?.kind);
-    if (!materialEditTarget || !materialStyleGroupFor(modelType)) return;
-    (materialPresetNameInput &&
-      (materialPresetNameInput.value = materialStyleLabel(
-        modelType,
-        materialEditTarget.record.materialStyle,
-      )),
-      materialPresetDialogElement?.showModal(),
-      materialPresetNameInput?.focus(),
-      materialPresetNameInput?.select());
-  }),
-  materialPresetFormElement.addEventListener("submit", () => {
-    const presetLabel = String(materialPresetNameInput?.value || "").trim();
-    presetLabel && saveCurrentItemMaterialStyle(presetLabel.slice(0, 16));
-  }),
-  materialPresetCancelButton.addEventListener("click", () =>
-    materialPresetDialogElement?.close(),
-  ),
-  materialApplySameButton.addEventListener("click", () => {
-    const peerCount = materialSameModelPeerCount(selectedMaterialEditTarget());
-    if (!peerCount) return;
-    (materialApplyCountElement &&
-      (materialApplyCountElement.textContent = peerCount + " 件同类物件"),
-      materialApplyDialogElement?.showModal());
-  }),
-  materialApplyFormElement.addEventListener("submit", () => {
-    materialApplyDialogElement?.close();
-    applyMaterialToSameModelItems();
-  }),
-  materialApplyCancelButton.addEventListener("click", () => materialApplyDialogElement?.close()),
-  inspectorGroupsElement.forEach((inspectorGroupElement) => {
-    const inspectorGroupHeader = inspectorGroupElement.querySelector(
-      ".inspector-group-header",
-    );
-    inspectorGroupHeader?.addEventListener("click", () =>
-      toggleInspectorGroup(inspectorGroupElement),
-    );
-  }),
-  shoeCabinetMirrorButton.addEventListener("click", () => {
-    const shoeCabinetElement = getSelectedObject();
-    !shoeCabinetElement ||
-      appCtx.selectedItem?.kind !== "item" ||
-      shoeCabinetElement.type !== "shoecabinet" ||
-      (deselectAll(),
-      (shoeCabinetElement.shoeCabinetMirrored = shoeCabinetElement.shoeCabinetMirrored !== true),
-      refreshScopeItems(resolvePreviewScope(shoeCabinetElement)),
-      markDocumentDirty());
-  }),
-  selectionInspectorElement.addEventListener("submit", (optionsSubmitEvent: any) =>
-    optionsSubmitEvent.preventDefault(),
-  ),
-  selectElement("#door-hinge").addEventListener("click", () => {
-    const doorElement = getSelectedObject();
-    !doorElement ||
-      appCtx.selectedItem?.kind !== "door" ||
-      ["double", "roller-shutter", "frame-only"].includes(doorElement.doorType) ||
-      (deselectAll(),
-      (doorElement.hinge = doorElement.hinge === "right" ? "left" : "right"),
-      refreshScopeItems("architecture"),
-      markDocumentDirty());
-  }),
-  selectElement("#door-swing").addEventListener("click", () => {
-    const swingDoorElement = getSelectedObject();
-    !swingDoorElement ||
-      appCtx.selectedItem?.kind !== "door" ||
-      ["sliding-glass", "frame-only"].includes(swingDoorElement.doorType) ||
-      (deselectAll(),
-      (swingDoorElement.swing = swingDoorElement.swing === -1 ? 1 : -1),
-      refreshScopeItems("architecture"),
-      markDocumentDirty());
-  }));
+bindToolOptionWiring({
+  appCtx, applyMaterialToSameModelItems, applyToolSetting, deleteCustomMaterialStyle, deselectAll,
+  getSelectedObject, inspectorGroupsElement, markDocumentDirty, materialApplyCancelButton,
+  materialApplyCountElement, materialApplyDialogElement, materialApplyFormElement, materialApplySameButton,
+  materialEditModelType, materialPresetCancelButton, materialPresetDialogElement, materialPresetFormElement,
+  materialPresetNameInput, materialResetAllButton, materialSameModelPeerCount, materialSavePresetButton,
+  materialSlotListElement, materialStyleDeleteButton, materialStyleGroupFor, materialStyleLabel,
+  materialStyleStripElement, normalizeMaterialStyle, refreshScopeItems, resetItemMaterialAll,
+  resolvePreviewScope, saveCurrentItemMaterialStyle, selectElement, selectedMaterialEditTarget,
+  selectionInspectorElement, setItemMaterialOverride, setItemMaterialStyle, setItemMaterialSurfaceOverride,
+  shoeCabinetMirrorButton, syncHtmlRangeProgress2, toggleInspectorGroup
+});
 for (const rotateControlButton of document.querySelectorAll<StudioControlElement>("[data-rotate]"))
   rotateControlButton.addEventListener("click", () => {
     const rotatePlacedElement = getSelectedObject();
@@ -4075,268 +3622,17 @@ for (const rotateControlButton of document.querySelectorAll<StudioControlElement
       refreshScopeItems(resolvePreviewScope(rotatePlacedElement)),
       markDocumentDirty());
   });
-if (
-  (window.addEventListener("keydown", (windowKeyDownEvent) => {
-    if (isEmbeddedStage || windowKeyDownEvent.defaultPrevented || exportDialogElement.open) return;
-    if (windowKeyDownEvent.key === "Escape" && !snapSettingsPanel.hidden) {
-      setSnapSettingsOpen(false);
-      return;
-    }
-    if (
-      windowKeyDownEvent.key === "Escape" &&
-      drawingToolSections.some((drawingToolSection) => drawingToolSection.classList.contains("open"))
-    ) {
-      closeDrawingToolGroups();
-      return;
-    }
-    const open =
-      windowKeyDownEvent.target instanceof HTMLInputElement ||
-      windowKeyDownEvent.target instanceof HTMLTextAreaElement ||
-      scaleDialogElement.open;
-    if (
-      (windowKeyDownEvent.code === "Space" &&
-        !open &&
-        ((appCtx.isMiddleButtonPanning = true), windowKeyDownEvent.preventDefault()),
-      windowKeyDownEvent.key.toLowerCase() === "s" &&
-        !open &&
-        ((appCtx.isSnapTemporarilyOff = true), updateSnapIndicator(), refreshStudioView()),
-      open)
-    )
-      return;
-    windowKeyDownEvent.key === "Shift" &&
-      !appCtx.marqueeBox &&
-      (appCtx.activeToolName === "scale" || appCtx.activeToolName === "wall") &&
-      ((appCtx.isForceSnapDisabled = true), updateSnapIndicator(), refreshStudioView());
-    const ctrlKey = windowKeyDownEvent.metaKey || windowKeyDownEvent.ctrlKey;
-    const keyLowerStudio = windowKeyDownEvent.key.toLowerCase();
-    if (ctrlKey && keyLowerStudio === "z") {
-      (windowKeyDownEvent.preventDefault(),
-        windowKeyDownEvent.shiftKey ? void redoStudioHistory() : void undoStudioHistory());
-      return;
-    }
-    if (ctrlKey && keyLowerStudio === "y" && !windowKeyDownEvent.shiftKey) {
-      (windowKeyDownEvent.preventDefault(), void redoStudioHistory());
-      return;
-    }
-    if (ctrlKey && keyLowerStudio === "d") {
-      (windowKeyDownEvent.preventDefault(), duplicateSelection());
-      return;
-    }
-    // mirrorSelection / rotateSelection 虽名误导，语义实为 copy / paste
-    if (ctrlKey && keyLowerStudio === "c" && !windowKeyDownEvent.shiftKey) {
-      (windowKeyDownEvent.preventDefault(), mirrorSelection());
-      return;
-    }
-    if (ctrlKey && keyLowerStudio === "v" && !windowKeyDownEvent.shiftKey) {
-      (windowKeyDownEvent.preventDefault(), rotateSelection());
-      return;
-    }
-    if (windowKeyDownEvent.key === "Delete" || windowKeyDownEvent.key === "Backspace") {
-      (windowKeyDownEvent.preventDefault(), clearSelection());
-      return;
-    }
-    const arrowKeyDirections = {
-      ArrowLeft: {
-        x: -1,
-        y: 0,
-      },
-      ArrowRight: {
-        x: 1,
-        y: 0,
-      },
-      ArrowUp: {
-        x: 0,
-        y: -1,
-      },
-      ArrowDown: {
-        x: 0,
-        y: 1,
-      },
-    }[windowKeyDownEvent.key];
-    if (arrowKeyDirections && !ctrlKey) {
-      const selectedItemIds =
-        appCtx.selectedItem?.kind === "item"
-          ? [appCtx.selectedItem.id]
-          : appCtx.selectedItems
-              .filter((selectedHistoryEntry: any) => selectedHistoryEntry.kind === "item")
-              .map((selectedItemEntry: any) => selectedItemEntry.id);
-      if (selectedItemIds.length) {
-        windowKeyDownEvent.preventDefault();
-        // 方向键说的是「屏幕上」的上下左右，而平面图可以被旋转（`#rotate-plan-view`
-        // 会把角度写进草稿的 `planViewRotation`）。直接把方向键当平面坐标增量，转
-        // 180° 后上下左右正好全反，转 90° 后上下变左右 —— 这就是「方向反了」的根因。
-        const nudgedPlanDirection = planDirectionForScreenArrow(
-            arrowKeyDirections,
-            appCtx.planView.rotation,
-          ),
-          elementSnapshotBeforeMove = captureUndoSnapshot(),
-          nudgeStep =
-            moveStepMeters2(windowKeyDownEvent) * (getPixelsPerMeter() || 1),
-          selectedItemIdSet = new Set(selectedItemIds);
-        for (const movedSceneItem of appCtx.studioState.items)
-          selectedItemIdSet.has(movedSceneItem.id) &&
-            ((movedSceneItem.x += nudgedPlanDirection.x * nudgeStep),
-            (movedSceneItem.y += nudgedPlanDirection.y * nudgeStep),
-            selectedItemIds.length === 1 &&
-              isCourtyardGate2(movedSceneItem) &&
-              anchorGate2(
-                movedSceneItem,
-                appCtx.studioState.items,
-                getPixelsPerMeter(),
-                24 / appCtx.planView.zoom,
-              ));
-        if (!validateSelectionChange(elementSnapshotBeforeMove)) {
-          refreshScopeItems(getCurrentPreviewScope());
-          return;
-        }
-        (applyPlacementChange(elementSnapshotBeforeMove),
-          refreshScopeItems(getCurrentPreviewScope()),
-          markDocumentDirty());
-        return;
-      }
-    }
-    if (windowKeyDownEvent.key === "Escape") {
-      if (
-        appCtx.activeToolName === "courtyard-gate" ||
-        appCtx.activeToolName === "flooropening" ||
-        appCtx.marqueeBox?.type === "draw-flooropening"
-      ) {
-        if ((windowKeyDownEvent.preventDefault(), appCtx.marqueeBox?.type === "draw-flooropening")) {
-          try {
-            planCanvasElement.releasePointerCapture(appCtx.marqueeBox.pointerId);
-          } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
-          ((appCtx.marqueeBox = null), endStudioGesture());
-        }
-        selectStudioTool("select");
-        return;
-      }
-      if (appCtx.alignmentState) {
-        (windowKeyDownEvent.preventDefault(), cancelFloorAlign());
-        return;
-      }
-      (hideLightGroupActionMenu(), resetCameraView());
-      const ao8 = getPreviewScopeSelection();
-      (refreshSelection(), refreshStudioUi(), refreshStudioView(), setPreviewScope(ao8));
-    }
-  }),
-  window.addEventListener("keyup", (windowKeyUpEvent) => {
-    (windowKeyUpEvent.code === "Space" && (appCtx.isMiddleButtonPanning = false),
-      windowKeyUpEvent.key.toLowerCase() === "s" &&
-        ((appCtx.isSnapTemporarilyOff = false), updateSnapIndicator(), refreshStudioView()),
-      windowKeyUpEvent.key === "Shift" &&
-        ((appCtx.isForceSnapDisabled = false), updateSnapIndicator(), refreshStudioView()));
-  }),
-  window.addEventListener("blur", () => {
-    ((appCtx.isMiddleButtonPanning = false),
-      (appCtx.isForceSnapDisabled = false),
-      (appCtx.isSnapTemporarilyOff = false));
-  }),
-  window.addEventListener("online", () => {
-    ((appCtx.saveRetryDueAt = 0), studioSaveStore?.setOnline(true), scheduleAutosave(0));
-  }),
-  window.addEventListener("offline", () => {
-    (studioSaveStore?.setOnline(false),
-      window.clearTimeout(appCtx.autosaveTimeoutId),
-      (appCtx.autosaveTimeoutId = null));
-  }),
-  window.addEventListener("pagehide", () => {
-    ((appCtx.isPageSuspended = true),
-      window.clearTimeout(appCtx.autosaveTimeoutId),
-      (appCtx.autosaveTimeoutId = null),
-      // pagehide 用 keepalive PUT 尽力而为；不乐观推进 revision，下次 GET 为准。
-      !isEmbeddedStage && !appCtx.isLeavingStudio && studioSaveStore?.flushOnPageHide());
-  }),
-  window.addEventListener("pageshow", () => {
-    ((appCtx.isPageSuspended = false), (appCtx.isLeavingStudio = false), scheduleAutosave());
-  }),
-  window.addEventListener("beforeunload", (beforeUnloadEvent) => {
-    isEmbeddedStage ||
-      appCtx.isLeavingStudio ||
-      !hasUnsavedChanges() ||
-      (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = ""));
-  }),
-  document.addEventListener("visibilitychange", () => {
-    (document.hidden || refreshSceneRender(), scheduleAutosave());
-  }),
-  new URLSearchParams(window.location.search).has("model-export"))
-) {
-  window.__homeosExportFurnitureJson = (furnitureExportType, exportOverrides: Record<string, any> = {}) => {
-    const furnitureDefinition = (itemTypeCatalog as any)[furnitureExportType];
-    if (!furnitureDefinition) throw new Error("Unknown furniture type: " + furnitureExportType);
-    const furnitureExportItem = {
-        id: "offline-export-" + furnitureExportType,
-        type: furnitureExportType,
-        width: furnitureDefinition.width,
-        height: furnitureDefinition.height,
-        depth: furnitureDefinition.depth,
-        elevation: furnitureDefinition.elevation || 0,
-        rotation: 0,
-        curtainPosition: "split",
-        roundTableTurntable: false,
-        stairDirection: "right",
-        shoeCabinetMirrored: false,
-        tvMountStyle: "standard",
-        screenEnabled: true,
-        offlineModelExport: true,
-        ...exportOverrides,
-      },
-      vu4 = buildItemModel(furnitureExportItem);
-    ((vu4.name = "homeos-v1-" + furnitureExportType), vu4.updateMatrixWorld(true));
-    const jSON = vu4.toJSON();
-    return (disposeObjectTree(vu4), jSON);
-  };
-  const modelExportType = new URLSearchParams(window.location.search).get("model-export");
-  if (modelExportType && modelExportType !== "1") {
-    const modelExportPresets =
-        {
-          curtain_left: {
-            type: "curtain",
-            curtainPosition: "left",
-          },
-          curtain_right: {
-            type: "curtain",
-            curtainPosition: "right",
-          },
-          curtain_split: {
-            type: "curtain",
-            curtainPosition: "split",
-          },
-          rounddiningtable_turntable: {
-            type: "rounddiningtable",
-            roundTableTurntable: true,
-          },
-          tv_standard: {
-            type: "tv",
-            tvMountStyle: "standard",
-          },
-          tv_tabletop: {
-            type: "tv",
-            tvMountStyle: "tabletop",
-          },
-          tv_mobile: {
-            type: "tv",
-            tvMountStyle: "mobile",
-          },
-        }[modelExportType] || {},
-      resolvedExportType = modelExportPresets.type || modelExportType;
-    requestAnimationFrame(() => {
-      try {
-        const exportPayloadField = document.createElement("textarea");
-        ((exportPayloadField.id = "homeos-model-export"), (exportPayloadField.hidden = true));
-        const exportPayloadJson = JSON.stringify(
-          window.__homeosExportFurnitureJson!(resolvedExportType, modelExportPresets),
-        );
-        ((exportPayloadField.value = exportPayloadJson),
-          (exportPayloadField.textContent = exportPayloadJson),
-          document.body.append(exportPayloadField),
-          (document.documentElement.dataset.modelExportReady = modelExportType));
-      } catch (exportError: any) {
-        document.documentElement.dataset.modelExportError =
-          exportError?.message || String(exportError);
-      }
-    });
-  }
-}
+bindGlobalShortcuts({
+  anchorGate2, appCtx, applyPlacementChange, buildItemModel, cancelFloorAlign, captureUndoSnapshot,
+  clearSelection, closeDrawingToolGroups, disposeObjectTree, drawingToolSections, duplicateSelection,
+  endStudioGesture, exportDialogElement, getCurrentPreviewScope, getPixelsPerMeter, getPreviewScopeSelection,
+  hasUnsavedChanges, hideLightGroupActionMenu, isCourtyardGate2, isEmbeddedStage, itemTypeCatalog,
+  markDocumentDirty, mirrorSelection, moveStepMeters2, planCanvasElement, planDirectionForScreenArrow,
+  redoStudioHistory, refreshSceneRender, refreshScopeItems, refreshSelection, refreshStudioUi,
+  refreshStudioView, resetCameraView, rotateSelection, scaleDialogElement, scheduleAutosave, selectStudioTool,
+  setPreviewScope, setSnapSettingsOpen, snapSettingsPanel, get studioSaveStore() { return studioSaveStore; }, undoStudioHistory,
+  updateSnapIndicator, validateSelectionChange
+});
 const materialTestType = new URLSearchParams(window.location.search).get("material-test");
 materialTestType &&
   (async () => {
