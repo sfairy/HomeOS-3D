@@ -35,11 +35,33 @@ USGS_MAX_INGEST_PER_ROUND = 3
 USGS_SEEN_MAX = 80
 
 
+#: 复用的 HTTP 客户端。每轮都新建 AsyncClient 等于每 18 秒重新握手 TLS，连接池完全用不上
+#: （两个 EEW 源 + USGS 兜底每分钟要建好几条新连接）。懒加载：不在模块导入时绑定事件循环，
+#: 单测 / 多事件循环场景也不会踩到「client 属于另一个 loop」。
+_shared: httpx.AsyncClient | None = None
+
+
+def _shared_client() -> httpx.AsyncClient:
+    global _shared
+    if _shared is None or _shared.is_closed:
+        _shared = httpx.AsyncClient(timeout=12.0)
+    return _shared
+
+
+async def close_shared_client() -> None:
+    """释放共享连接（随服务 stop 调用；没建过就是空操作）。"""
+    global _shared
+    client, _shared = _shared, None
+    if client is not None and not client.is_closed:
+        await client.aclose()
+
+
 async def _fetch_json(url: str, timeout_ms: int = 12_000) -> Any:
-    async with httpx.AsyncClient(timeout=timeout_ms / 1000) as client:
-        response = await client.get(url, headers={"Accept": "application/json"})
-        response.raise_for_status()
-        return response.json()
+    response = await _shared_client().get(
+        url, headers={"Accept": "application/json"}, timeout=timeout_ms / 1000
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def poll_failure_text(error: Exception) -> str:
@@ -95,6 +117,8 @@ class EewPollService:
                 pass
         self._task = None
         self._usgs_task = None
+        # 共享连接随服务一起收掉：进程关停时不让 httpx 留下未关闭的 Socket
+        await close_shared_client()
 
     async def _dual_loop(self) -> None:
         try:
@@ -236,4 +260,4 @@ class EewPollService:
             logger.warning("USGS 地震数据兜底拉取失败：%s（每分钟自动重试）", message)
 
 
-__all__ = ["CENC_EEW_URL", "SC_EEW_URL", "EewPollService"]
+__all__ = ["CENC_EEW_URL", "SC_EEW_URL", "EewPollService", "close_shared_client"]

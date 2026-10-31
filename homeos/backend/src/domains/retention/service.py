@@ -3,7 +3,7 @@
 当前实现聚焦「数据保留」设置面板所需的读取接口与一次性清理：
 - 各表保留策略（配置键 / 物理表名 / 中文显示名 / 生效保留天数）；
 - 最近一次清理统计（RuntimeKv 持久化）；
-- 各表估算行数（SQLite COUNT）；
+- 各表估算行数（sqlite_stat1 / MAX(rowid)，不做全表 COUNT）；
 - 按表更新保留天数；
 - :meth:`DatabaseRetentionService.run_cleanup` 分批删除 5 张业务表的历史记录。
 
@@ -44,6 +44,12 @@ RETENTION_STATS_STORAGE_ID = "retention-last-cleanup"
 DB_MAINTENANCE_LOCK_KEY = "db-maintenance"
 #: 维护锁 TTL（30 分钟，覆盖整轮清理）。
 DB_MAINTENANCE_LOCK_TTL_MS = 30 * 60_000
+
+#: 单表单轮最多删多少批：写入方持续产生「已过保留期」的行时，删除循环否则永不返回，
+#: 会把维护锁一直占着、面板也永远拿不到结果。
+_MAX_DELETE_BATCHES = 10_000
+#: 单表单轮清理的时间上限（秒）：到点先在批次之间收尾，剩下的留给下一轮。
+_DELETE_TIME_BUDGET = 120.0
 
 _RETENTION_MODELS: dict[str, Any] = {
     "eventLog": (EventLog, "event_logs"),
@@ -276,15 +282,39 @@ class DatabaseRetentionService:
         return self._last_cleanup_stats
 
     def estimate_table_rows(self) -> dict[str, int]:
+        """估算各保留表的行数。
+
+        ``SELECT COUNT(*)`` 在 SQLite 上是全表扫：几十万行就是几百毫秒，还会和写入抢锁，
+        而这里只是面板展示的估算值。优先读 ``sqlite_stat1``（ANALYZE 的产物，O(1)），
+        没有再退回 ``MAX(rowid)``（rowid 主键上的 O(1) 查找，删除留空洞只会高估）。
+        """
         result = dict.fromkeys(RETENTION_TABLE_KEYS, 0)
         with self._session_factory() as session:
             for key, (_model, table) in _RETENTION_MODELS.items():
-                try:
-                    row = session.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar()  # noqa: S608 - table 来自内部常量
-                    result[key] = int(row or 0)
-                except Exception as exc:
-                    logger.debug("估算 %s 行数失败: %s", key, exc)
+                result[key] = self._estimate_rows(session, table)
         return result
+
+    @staticmethod
+    def _estimate_rows(session: Any, table: str) -> int:
+        """单表行数估算：``sqlite_stat1`` → ``MAX(rowid)`` → 0。"""
+        try:
+            # sqlite_stat1.stat 形如 "120000 3 1"（行数 + 各索引平均重复数），取第一段
+            row = session.execute(
+                text('SELECT stat FROM sqlite_stat1 WHERE tbl = :table LIMIT 1'),
+                {"table": table},
+            ).first()
+            if row is not None and row[0]:
+                return int(str(row[0]).split()[0])
+        except Exception as exc:
+            logger.debug("读取 sqlite_stat1 失败(%s): %s", table, exc)
+        try:
+            row = session.execute(
+                text(f'SELECT MAX(rowid) FROM "{table}"')  # noqa: S608 - table 来自内部常量
+            ).scalar()
+            return int(row or 0)
+        except Exception as exc:
+            logger.debug("估算 %s 行数失败: %s", table, exc)
+            return 0
 
     def update_retention_policies(self, days: dict[str, Any]) -> list[dict[str, Any]]:
         self._app_config.update({"retention": days})
@@ -414,12 +444,17 @@ class DatabaseRetentionService:
                 logger.warning("EventLog ANALYZE 失败: %s", exc)
 
     def _delete_batched(self, model: Any, cutoff: datetime, batch_size: int) -> int:
-        """分批删除 ``createdAt < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。"""
+        """分批删除 ``createdAt < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。
+
+        有批次与时限双上限：``while True`` 只有在「写入方不停产生过期行」或子查询打不中行
+        时才会一直转，那会把维护锁和清理线程一起长期占住。到上限就先收尾，剩下的留待下一轮。
+        """
         table = model.__table__
         created_col = table.c["createdAt"]
         rowid = literal_column("rowid")
         total = 0
-        while True:
+        deadline = time.monotonic() + _DELETE_TIME_BUDGET
+        for _batch in range(_MAX_DELETE_BATCHES):
             subquery = (
                 select(rowid).select_from(table).where(created_col < cutoff).limit(batch_size)
             )
@@ -430,7 +465,21 @@ class DatabaseRetentionService:
                 count = result.rowcount or 0
             total += count
             if count < batch_size:
-                break
+                return total
+            if time.monotonic() > deadline:
+                logger.warning(
+                    "清理 %s 达到时间上限(%.0fs)，本轮删除 %s 行后停止",
+                    table.name,
+                    _DELETE_TIME_BUDGET,
+                    total,
+                )
+                return total
+        logger.warning(
+            "清理 %s 达到批次上限(%s)，本轮删除 %s 行后停止",
+            table.name,
+            _MAX_DELETE_BATCHES,
+            total,
+        )
         return total
 
 
