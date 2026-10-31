@@ -20,35 +20,35 @@
       "gt80": 1,
       "max": 8
     },
-    "homeos-store/frontend/src/features/admin/views/CouponsView.vue": {
+    "homeos-store/frontend/src/features/admin/views/catalog/CouponsView.vue": {
       "functions": 13,
       "gt10": 2,
       "gt15": 0,
       "gt80": 0,
       "max": 11
     },
-    "homeos-store/frontend/src/features/admin/views/OverviewView.vue": {
+    "homeos-store/frontend/src/features/admin/views/ops/OverviewView.vue": {
       "functions": 26,
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,
       "max": 17
     },
-    "homeos-store/frontend/src/features/admin/views/ProductsView.vue": {
+    "homeos-store/frontend/src/features/admin/views/catalog/ProductsView.vue": {
       "functions": 18,
       "gt10": 2,
       "gt15": 0,
       "gt80": 0,
       "max": 13
     },
-    "homeos-store/frontend/src/features/admin/views/SettingsView.vue": {
+    "homeos-store/frontend/src/features/admin/views/ops/SettingsView.vue": {
       "functions": 17,
       "gt10": 2,
       "gt15": 1,
       "gt80": 1,
       "max": 48
     },
-    "homeos-store/frontend/src/features/admin/views/settings/MailPanel.vue": {
+    "homeos-store/frontend/src/features/admin/views/ops/settings/MailPanel.vue": {
       "functions": 19,
       "gt10": 2,
       "gt15": 1,

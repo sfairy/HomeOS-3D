@@ -10,17 +10,17 @@ import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 import { useToastStore } from "@store/shared/stores/toast";
 import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import InvitePanel from "@store/features/admin/views/settings/InvitePanel.vue";
-import MailPanel from "@store/features/admin/views/settings/MailPanel.vue";
-import PaletteSettings from "@store/features/admin/views/settings/PaletteSettings.vue";
-import PaymentsPanel from "@store/features/admin/views/settings/PaymentsPanel.vue";
-import SitePanel from "@store/features/admin/views/settings/SitePanel.vue";
+import InvitePanel from "@store/features/admin/views/ops/settings/InvitePanel.vue";
+import MailPanel from "@store/features/admin/views/ops/settings/MailPanel.vue";
+import PaletteSettings from "@store/features/admin/views/ops/settings/PaletteSettings.vue";
+import PaymentsPanel from "@store/features/admin/views/ops/settings/PaymentsPanel.vue";
+import SitePanel from "@store/features/admin/views/ops/settings/SitePanel.vue";
 import {
   asText,
   type SettingsForm,
   type SettingsPayload,
   type SettingsPlaceholders,
-} from "@store/features/admin/views/settings/types";
+} from "@store/features/admin/views/ops/settings/types";
 
 const TABS: AdminTabItem[] = [
   { key: "site", label: "站点信息", tone: "accent" },

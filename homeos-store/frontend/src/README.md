@@ -8,7 +8,7 @@
 | 路径 | 职责 |
 | --- | --- |
 | `features/storefront/` | 前台商店域：路由页（`views/`）、支付 / 待支付弹窗（`components/`）、首页七幕（`components/home/`）、`catalog` / `order` store、首页文案与聚合（`content/home.ts` / `composables/useHomeView.ts`）、域内 `utils` |
-| `features/admin/` | 运营后台域：15 个面板（`views/`，含 `views/settings/`）、宿主布局（`layouts/AdminLayout.vue`）、表格与弹窗子块（`components/`）、4 个 store（`admin` / `adminDialogs` / `adminRefresh` / `featureCatalog`）、`useAdminTabs` |
+| `features/admin/` | 运营后台域：14 个面板按业务对象分四簇（`views/catalog` 商品与权益、`views/settlement` 订单与结算、`views/accounts` 账号与授权、`views/ops` 概览/审计/诊断/设置含 `ops/settings/`）、宿主布局（`layouts/AdminLayout.vue`）、表格与弹窗子块（`components/`）、4 个 store（`admin` / `adminDialogs` / `adminRefresh` / `featureCatalog`）、`useAdminTabs` |
 | `shared/` | 跨域 + 宿主级：HTTP 客户端与错误口径（`api/http.ts` / `api/error.ts`）、共享领域类型（`types/store.ts`）、四个 pinia store（`session` / `site` / `toast` / `confirm`）、共享 UI（`SceneStage` / `DeckTiles` / `AdminToastHost` / `ConfirmDialog`）、纯函数（`utils/`）、场景壳助手（`scene/`） |
 | `router/` | 路由表与后台闸门（组合根） |
 | `views/SetupView.vue` | 首次初始化页（宿主级页面，与 `App.vue` / `main.ts` 同层） |

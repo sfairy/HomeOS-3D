@@ -86,20 +86,20 @@ const toast = useToastStore();
 
 /** 面板按 `:page` 懒加载；未知 page 渲染空白。 */
 const PANELS: Record<string, Component> = {
-  overview: defineAsyncComponent(() => import("../views/OverviewView.vue")),
-  products: defineAsyncComponent(() => import("../views/ProductsView.vue")),
-  orders: defineAsyncComponent(() => import("../views/OrdersView.vue")),
-  licenses: defineAsyncComponent(() => import("../views/LicensesView.vue")),
-  bindings: defineAsyncComponent(() => import("../views/BindingsView.vue")),
-  coupons: defineAsyncComponent(() => import("../views/CouponsView.vue")),
-  withdrawals: defineAsyncComponent(() => import("../views/WithdrawalsView.vue")),
-  accounts: defineAsyncComponent(() => import("../views/AccountsView.vue")),
-  settings: defineAsyncComponent(() => import("../views/SettingsView.vue")),
-  audits: defineAsyncComponent(() => import("../views/AuditsView.vue")),
-  entitlements: defineAsyncComponent(() => import("../views/EntitlementsView.vue")),
-  ledger: defineAsyncComponent(() => import("../views/LedgerView.vue")),
-  customers: defineAsyncComponent(() => import("../views/CustomersView.vue")),
-  diagnostics: defineAsyncComponent(() => import("../views/DiagnosticsView.vue")),
+  overview: defineAsyncComponent(() => import("../views/ops/OverviewView.vue")),
+  products: defineAsyncComponent(() => import("../views/catalog/ProductsView.vue")),
+  orders: defineAsyncComponent(() => import("../views/settlement/OrdersView.vue")),
+  licenses: defineAsyncComponent(() => import("../views/accounts/LicensesView.vue")),
+  bindings: defineAsyncComponent(() => import("../views/accounts/BindingsView.vue")),
+  coupons: defineAsyncComponent(() => import("../views/catalog/CouponsView.vue")),
+  withdrawals: defineAsyncComponent(() => import("../views/settlement/WithdrawalsView.vue")),
+  accounts: defineAsyncComponent(() => import("../views/accounts/AccountsView.vue")),
+  settings: defineAsyncComponent(() => import("../views/ops/SettingsView.vue")),
+  audits: defineAsyncComponent(() => import("../views/ops/AuditsView.vue")),
+  entitlements: defineAsyncComponent(() => import("../views/catalog/EntitlementsView.vue")),
+  ledger: defineAsyncComponent(() => import("../views/settlement/LedgerView.vue")),
+  customers: defineAsyncComponent(() => import("../views/accounts/CustomersView.vue")),
+  diagnostics: defineAsyncComponent(() => import("../views/ops/DiagnosticsView.vue")),
 };
 
 const loginEmail = ref("");
