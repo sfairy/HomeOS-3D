@@ -245,15 +245,23 @@ function computeResourceRevision(): string {
  * 只改**非哈希**引用：`/static/assets/**`（Vite chunk，名里自带内容哈希）与
  * `/static/vendor/**`（路径里带库版本）保持原样 —— 给它们再叠一层 `?v=` 只会让同一个
  * 文件出现两个 URL，正是上游 0.8.1 缓存混用的成因。
+ *
+ * 标了 `data-no-version` 的标签不参与改写。目前只有品牌字 Orbitron 的 preload 用它：
+ * 字体真源是 CSS 里的 `url('./fonts/orbitron-700-latin.woff2')`，CSS 不经过这道改写。
+ * 如果 preload 被补上 `?v=`，同一个字体就会有两个 URL（preload 一个、CSS 一个），
+ * 浏览器会报 `preloaded but not used` 并真的下载两遍。
  */
 function stampShellResourceUrls(html: string, revision: string): string {
-  return html.replace(
-    /(src|href)=(["'])(\/static\/[^"'?]+)(\?[^"']*)?(["'])/g,
-    (match: string, attr: string, open: string, path: string, _query: string, close: string) => {
-      if (path.startsWith('/static/assets/') || path.startsWith('/static/vendor/')) return match
-      return `${attr}=${open}${path}?v=${revision}${close}`
-    },
-  )
+  return html.replace(/<(?:link|script)\b[^>]*>/g, (tag: string) => {
+    if (tag.includes('data-no-version')) return tag
+    return tag.replace(
+      /(src|href)=(["'])(\/static\/[^"'?]+)(\?[^"']*)?(["'])/g,
+      (match: string, attr: string, open: string, path: string, _query: string, close: string) => {
+        if (path.startsWith('/static/assets/') || path.startsWith('/static/vendor/')) return match
+        return `${attr}=${open}${path}?v=${revision}${close}`
+      },
+    )
+  })
 }
 
 function writeResourceVersion(): void {

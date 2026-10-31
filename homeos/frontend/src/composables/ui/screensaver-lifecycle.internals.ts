@@ -353,8 +353,11 @@ function bindChargerSwitchWake(opts: {
       unsubWakeSwitch = () => {}
       lastSwitchState = null
       if (!id) return
-      void entitiesStore.ensureEntity(id).then((ent) => {
+      // 走批量接口：唤醒开关可能已从 HA 删除，单条 GET 会以 404 刷屏；
+      // 批量接口把缺失计入 missing 且始终 200。
+      void entitiesStore.ensureEntities([id]).then((list) => {
         if (wakeSwitchEntityId.value !== id) return
+        const ent = list[0]
         lastSwitchState = ent?.state ?? entitiesStore.entities[id]?.state ?? null
         resubscribeWakeSwitch()
       })

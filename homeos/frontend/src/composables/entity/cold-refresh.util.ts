@@ -1,4 +1,4 @@
-/** 与活跃投影 ID，批量调用 ensureEntity 补全缓存，保证用户可见区域的数据可用。 */
+/** 与活跃投影 ID，批量调用 ensureEntities 补全缓存，保证用户可见区域的数据可用。 */
 import { collectPinnedEntityIds } from '@/shared/entity/utils/ws-subscription'
 import { getActiveProjectionIds } from '@/stores/entities/entity-projection'
 import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
@@ -6,9 +6,9 @@ import { logger } from '@/shared/utils/core/logger'
 
 const MAX_ENSURE = 120
 
-/** 实体存储接口约束：需提供 ensureEntity 方法。 */
+/** 实体存储接口约束：需提供 ensureEntities 批量方法。 */
 interface EntitiesEnsureStore {
-  ensureEntity: (id: string) => Promise<unknown>
+  ensureEntities: (ids: string[]) => Promise<unknown>
 }
 
 type LayoutSubscriptionConfig = Parameters<typeof collectPinnedEntityIds>[0]
@@ -19,10 +19,11 @@ type LayoutSubscriptionConfig = Parameters<typeof collectPinnedEntityIds>[0]
  * 流程：
  * 1. 读取冷实体按需拉取开关，未开启则直接返回。
  * 2. 合并 pinned 实体 ID 与活跃投影 ID，去重。
- * 3. 截取前 MAX_ENSURE 条，并发调用 ensureEntity 补全。
- * 4. 单条失败仅记录警告，不阻断其他实体补全。
+ * 3. 截取前 MAX_ENSURE 条，一次批量调用 ensureEntities 补全（缺失实体记入 missing，
+ *    不产生逐条 404 与刷屏日志）。
+ * 4. 整批失败仅记录警告，不阻断后续回退流程。
  *
- * @param entitiesStore 实体存储对象，需提供 ensureEntity 方法。
+ * @param entitiesStore 实体存储对象，需提供 ensureEntities 方法。
  * @param layoutConfig 布局订阅配置。
  */
 export async function refreshPinnedEntitiesAfterStale(
@@ -36,12 +37,9 @@ export async function refreshPinnedEntitiesAfterStale(
   if (!ids.size) return
 
   const batch = [...ids].slice(0, MAX_ENSURE)
-  await Promise.all(
-    batch.map((id) =>
-      entitiesStore.ensureEntity(id).catch((err) => {
-        logger.warn('[实体冷刷新] ensureEntity 失败', id, err)
-        return null
-      }),
-    ),
-  )
+  try {
+    await entitiesStore.ensureEntities(batch)
+  } catch (err) {
+    logger.warn('[实体冷刷新] ensureEntities 失败', batch.length, err)
+  }
 }

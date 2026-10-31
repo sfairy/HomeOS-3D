@@ -85,3 +85,19 @@ test('只给稳定 URL 加 ?v=，内容哈希产物保持原样', () => {
   assert.ok(stampBody.includes("path.startsWith('/static/assets/')"))
   assert.ok(stampBody.includes("path.startsWith('/static/vendor/')"))
 })
+
+test('Orbitron preload 带 data-no-version：字体真源是裸 URL，补 ?v= 会下载两遍', () => {
+  assert.match(
+    shellHtml,
+    /<link[^>]*rel="preload"[^>]*orbitron-700-latin\.woff2[^>]*data-no-version/,
+    'preload 必须带 data-no-version，否则构建期会补出第二个字体 URL',
+  )
+  const stampBody = viteConfig.slice(
+    viteConfig.indexOf('function stampShellResourceUrls'),
+    viteConfig.indexOf('function writeResourceVersion'),
+  )
+  assert.ok(
+    stampBody.includes("tag.includes('data-no-version')"),
+    'stampShellResourceUrls 必须整条跳过 data-no-version 标签，否则属性无效',
+  )
+})

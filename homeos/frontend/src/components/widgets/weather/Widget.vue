@@ -178,11 +178,13 @@ watch(
     const m = String(eid || '').match(/^weather\.(.+)$/)
     if (!m) return
     const station = m[1]
-    void Promise.all([
-      entitiesStore.ensureEntity(`sensor.${station}_aqi`),
-      entitiesStore.ensureEntity(`sensor.${station}_pm25`),
-      entitiesStore.ensureEntity(`sensor.${station}_clothing`),
-      entitiesStore.ensureEntity(`binary_sensor.${station}_warning`),
+    // 一次批量补全：单条 GET 对不存在的实体各产生一个 404，批量接口把缺失记入
+    // missing 并始终 200，且只发一个请求（冷刷新时同理）。
+    void entitiesStore.ensureEntities([
+      `sensor.${station}_aqi`,
+      `sensor.${station}_pm25`,
+      `sensor.${station}_clothing`,
+      `binary_sensor.${station}_warning`,
     ])
   },
   { immediate: true },

@@ -43,7 +43,7 @@
          已登录的非入户页 / 3D 舞台由服务端 `strip_auth_scene_assets` 把它和四片一起摘掉，
          否则浏览器会报「preloaded but not used」—— 别把这条 preload 当全局资产用。 -->
     <link rel="preload" href="/static/auth/scene/fonts/orbitron-700-latin.woff2" as="font"
-        type="font/woff2" crossorigin>
+        type="font/woff2" crossorigin data-no-version>
     <link rel="stylesheet" href="/static/auth/scene/fonts.css" data-spa-managed="css">
     <link rel="stylesheet" href="/static/auth/scene/page.css" data-spa-managed="css">
     <link rel="stylesheet" href="/static/auth/scene/scene.css" data-spa-managed="css">

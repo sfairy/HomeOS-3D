@@ -1,6 +1,6 @@
 /** 实体、事件与服务调用 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost, apiDelete } from './client'
+import { apiGet, apiPost, apiDelete, type ApiRequestConfig } from './client'
 import type {
   EntityReferencesResponse,
   EntityReferenceUnlinkRequest,
@@ -126,16 +126,47 @@ export interface HaHistoryResult {
   points: HaHistoryPoint[]
 }
 
-/** 获取单个实体的 HA 历史数据。 */
+/** HA 历史结果缓存时长：与后端 30s 结果缓存对齐，避免同一挂载周期内重复拉取。 */
+const HA_HISTORY_CACHE_TTL_MS = 30_000
+
+/** key = entityId|hours；at=0 表示仍在途。 */
+const haHistoryCache = new Map<
+  string,
+  { at: number; promise: ReturnType<typeof apiGet<HaHistoryResult>> }
+>()
+
+/**
+ * 获取单个实体的 HA 历史数据。
+ *
+ * 同一 entityId+hours 在 TTL 内复用同一 Promise：图表的多个 watch（配置、连接、
+ * 可见性）可能在短时间内各触发一次 fetchData，若只靠 apiGet 的在途去重，第二次
+ * 会在第一次 resolve 后才发出，仍产生重复请求。失败不缓存，下一次调用立即重试。
+ */
 export function fetchHaHistory(
   entityId: string,
   hours: number,
-  config?: AxiosRequestConfig,
+  config?: ApiRequestConfig,
 ) {
-  return apiGet<HaHistoryResult>('/ha/history', {
+  const key = `${entityId}|${hours}`
+  const cached = haHistoryCache.get(key)
+  if (config?.dedupe !== false && cached && (cached.at === 0 || Date.now() - cached.at < HA_HISTORY_CACHE_TTL_MS)) {
+    return cached.promise
+  }
+  const promise = apiGet<HaHistoryResult>('/ha/history', {
     ...config,
     params: { ...config?.params, entityId, hours },
-  })
+  }).then(
+    (res) => {
+      haHistoryCache.set(key, { at: Date.now(), promise })
+      return res
+    },
+    (err) => {
+      if (haHistoryCache.get(key)?.promise === promise) haHistoryCache.delete(key)
+      throw err
+    },
+  )
+  haHistoryCache.set(key, { at: 0, promise })
+  return promise
 }
 
 /** 重试已丢弃的 HA 命令（队列重投）。 */

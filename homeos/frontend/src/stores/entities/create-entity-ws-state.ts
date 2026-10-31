@@ -100,7 +100,7 @@ interface EntityWsStateDeps {
   getStateUpdateDeps: () => EntityStateUpdateDeps
   ingestEntitySnapshot: (entity: HaEntityState) => void
   isAuthenticated: () => boolean
-  getEnsureEntity: () => (entityId: string) => Promise<HaEntityState | null>
+  getEnsureEntities: () => (entityIds: string[]) => Promise<HaEntityState[]>
   initStatesBatchSize: () => number
   largeEntityThreshold: () => number
   cachePersistBridge: EntityCachePersistBridge
@@ -474,7 +474,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     try {
       const layout = useLayoutStore()
       void refreshPinnedEntitiesAfterStale(
-        { ensureEntity: deps.getEnsureEntity() },
+        { ensureEntities: deps.getEnsureEntities() },
         layout.layoutConfig,
       )
     } catch (err) {
