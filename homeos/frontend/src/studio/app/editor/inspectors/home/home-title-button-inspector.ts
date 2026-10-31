@@ -1,6 +1,6 @@
 /** Title button inspector sync */
-import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "./editor-utils";
-import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
+import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "../../editor-utils";
+import { setInspectorToggle as setInspectorToggle2 } from "../basic";
 
 interface TitleButtonInspectorContext {
   /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构），由

@@ -8,7 +8,7 @@ import { roundField as roundField2, clone as clone2 } from "../../editor-utils";
 import { patchEditorFacadeState } from "../../../../engine";
 import { applyEditorZoomCss } from "../../editor-canvas-navigation";
 import { recoveryStorageKey as recoveryStorageKey2, documentSignature as documentSignature2 } from "../../editor-history";
-import { clearCoverMotorDirectionValueById } from "../../home-cover-motor-inspector";
+import { clearCoverMotorDirectionValueById } from "../../inspectors/home/home-cover-motor-inspector";
 import { nasProfiles as nasProfiles2, reconcileNasDocument as reconcileNasDocument2 } from "../../../bridge/catalog/nas-catalog";
 import { rememberEditorProject as rememberEditorProject2, restoredEditorProject as restoredEditorProject2 } from "../../editor-document-management";
 import { guardInteraction3dChanges as guardInteraction3dChanges2 } from "../../../bridge/editor";

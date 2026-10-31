@@ -1,6 +1,6 @@
 /** 图标按钮 / 设备按钮 / 人在传感器检查器 sync（context 注入）。 */
-import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "./editor-utils";
-import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
+import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "../../editor-utils";
+import { setInspectorToggle as setInspectorToggle2 } from "../basic";
 
 export interface IconButtonInspectorContext {
   activeProject: any;

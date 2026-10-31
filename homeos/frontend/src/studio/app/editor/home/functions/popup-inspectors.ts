@@ -1,11 +1,11 @@
 /* 弹窗检查器（资源选项、弹窗/时间/天气检查器） */
 import type { EditorContext } from "../editor-context";
 import { clampNumber as clampNumber2, roundField as roundField2, normalizedFontWeight as normalizedFontWeight2 } from "../../editor-utils";
-import { fitInspectorComponentToDimensions as fitInspectorComponentToDimensions2, inspectorComponentMetrics as inspectorComponentMetrics2 } from "../../editor-basic-inspectors";
+import { fitInspectorComponentToDimensions as fitInspectorComponentToDimensions2, inspectorComponentMetrics as inspectorComponentMetrics2 } from "../../inspectors/basic";
 import { timeComponentDimensions as timeComponentDimensions2, dateComponentDimensions as dateComponentDimensions2, weatherComponentDimensions as weatherComponentDimensions2 } from "../../component-templates";
 import { type CustomPopupEditorContext, renderCustomPopupEditor as renderCustomPopupEditorExternal, syncCustomPopupStage as syncCustomPopupStageExternal } from "../../home-custom-popup-editor";
-import { syncTimeInspector as syncTimeInspectorExternal } from "../../home-time-inspector";
-import { syncWeatherInspector as syncWeatherInspectorExternal } from "../../home-weather-inspector";
+import { syncTimeInspector as syncTimeInspectorExternal } from "../../inspectors/home/home-time-inspector";
+import { syncWeatherInspector as syncWeatherInspectorExternal } from "../../inspectors/home/home-weather-inspector";
 import { renderEntityOptionButtons } from "./entity-option-list";
 import { positionFloatingMenu } from "../../../shared/util/editor-floating-layout";
 

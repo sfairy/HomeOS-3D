@@ -1,7 +1,7 @@
 /** NavigationInspector — context 注入 */
-import { clampNumber as clampNumber2, roundField as roundField2 } from "./editor-utils";
-import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
-import { resolveSceneControlMode as resolveSceneControlMode2 } from "../renderer/scene-mode";
+import { clampNumber as clampNumber2, roundField as roundField2 } from "../../editor-utils";
+import { setInspectorToggle as setInspectorToggle2 } from "../basic";
+import { resolveSceneControlMode as resolveSceneControlMode2 } from "../../../renderer/scene-mode";
 
 export interface NavigationInspectorContext {
   activeProject: any;

@@ -1,5 +1,5 @@
 /** LineChartInspector — context 注入 */
-import { clampNumber as clampNumber2, roundField as roundField2 } from "./editor-utils";
+import { clampNumber as clampNumber2, roundField as roundField2 } from "../../editor-utils";
 
 export interface LineChartInspectorContext {
   activeProject: any;

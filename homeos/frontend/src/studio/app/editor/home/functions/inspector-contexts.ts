@@ -1,11 +1,11 @@
 /* 检查器上下文（标题/灯光/摄像/扫地机/窗帘电机、弹窗模块、资源目录） */
 import type { EditorContext } from "../editor-context";
-import { syncTitleButtonInspector as syncTitleButtonInspectorExternal } from "../../home-title-button-inspector";
-import { syncLightStatisticsInspector as syncLightStatisticsInspectorExternal } from "../../home-light-statistics-inspector";
+import { syncTitleButtonInspector as syncTitleButtonInspectorExternal } from "../../inspectors/home/home-title-button-inspector";
+import { syncLightStatisticsInspector as syncLightStatisticsInspectorExternal } from "../../inspectors/home/home-light-statistics-inspector";
 import { findComponent as findComponent2 } from "../../component-tree";
-import { syncCameraInspector as syncCameraInspectorExternal } from "../../home-camera-inspector";
-import { syncVacuumMapInspector as syncVacuumMapInspectorExternal } from "../../home-vacuum-map-inspector";
-import { type CoverMotorInspectorContext, coverMotorButtonElement as coverMotorButtonElementSync, collectChangedCoverMotorStyleKeys as runExtraLocalCover } from "../../home-cover-motor-inspector";
+import { syncCameraInspector as syncCameraInspectorExternal } from "../../inspectors/home/home-camera-inspector";
+import { syncVacuumMapInspector as syncVacuumMapInspectorExternal } from "../../inspectors/home/home-vacuum-map-inspector";
+import { type CoverMotorInspectorContext, coverMotorButtonElement as coverMotorButtonElementSync, collectChangedCoverMotorStyleKeys as runExtraLocalCover } from "../../inspectors/home/home-cover-motor-inspector";
 import { setBuiltinAssetVersions as setBuiltinAssetVersions2 } from "../../../renderer/panel-renderer";
 import { nasProfiles as nasProfiles2, reconcileNasDocument as reconcileNasDocument2 } from "../../../bridge/catalog/nas-catalog";
 import { documentSignature as documentSignature2, editorDocumentFrameSignature as editorDocumentFrameSignature2, editorComponentEntries as editorComponentEntries2, editorComponentStructure as editorComponentStructure2 } from "../../editor-history";

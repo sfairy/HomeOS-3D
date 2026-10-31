@@ -1,20 +1,20 @@
 /** Inspector router + cover motor helpers. */
 import {
   renderFlowLineInspector as renderFlowLineInspector2,
-} from "./inspectors/flow-line-inspector";
+} from "../flow-line-inspector";
 import {
   normalizeFlowLine as normalizeFlowLine2,
   FLOW_LINE_FIELDS as FLOW_LINE_FIELDS2,
-} from "../shared/flow-line-model";
-import { renderInteraction3dInspector as renderInteraction3dInspector2 } from "../bridge/editor";
-import { findComponent as findComponent2 } from "./component-tree";
-import { componentLabel as componentLabel2 } from "./editor-component-collections";
+} from "../../../shared/flow-line-model";
+import { renderInteraction3dInspector as renderInteraction3dInspector2 } from "../../../bridge/editor";
+import { findComponent as findComponent2 } from "../../component-tree";
+import { componentLabel as componentLabel2 } from "../../editor-component-collections";
 import {
   clampNumber as clampNumber2,
   roundField as roundField2,
-} from "./editor-utils";
-import { setInspectorToggle as setInspectorToggle2, iconButtonEffectInspectorLayer as iconButtonEffectInspectorLayer2 } from "./editor-basic-inspectors";
-import { renderPercentageBarInspector as renderPercentageBarInspector2 } from "./inspectors/percentage-bar-inspector";
+} from "../../editor-utils";
+import { setInspectorToggle as setInspectorToggle2, iconButtonEffectInspectorLayer as iconButtonEffectInspectorLayer2 } from "../basic";
+import { renderPercentageBarInspector as renderPercentageBarInspector2 } from "../percentage-bar-inspector";
 
 export interface CoverMotorInspectorContext {
   [key: string]: any;

@@ -4,7 +4,7 @@ import {
   percentageBarSeries as percentageBarSeries2,
   PERCENTAGE_BAR_LIMIT as PERCENTAGE_BAR_LIMIT2,
 } from "../../shared/percentage-bar-model";
-import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "../editor-basic-inspectors";
+import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "./basic";
 import type { DomControl } from "@app/shared/util/dom-control";
 import { domElement } from "@app/shared/util/dom-factory";
 const inspectorStateByHost = new WeakMap<any, any>(),

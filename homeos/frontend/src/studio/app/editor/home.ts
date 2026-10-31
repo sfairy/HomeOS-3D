@@ -98,16 +98,16 @@ import { setupEventLogWallInspector } from "./home-event-log-wall";
 import { setupPanelFrameInspector } from "./home-panel-frame";
 import {
   type IconButtonInspectorContext,
-} from "./home-icon-button-inspector";
+} from "./inspectors/home/home-icon-button-inspector";
 import {
   type NavigationInspectorContext,
-} from "./home-navigation-inspector";
+} from "./inspectors/home/home-navigation-inspector";
 import {
   type LineChartInspectorContext,
-} from "./home-line-chart-inspector";
+} from "./inspectors/home/home-line-chart-inspector";
 import {
   type AirConditionerInspectorContext,
-} from "./home-air-conditioner-inspector";
+} from "./inspectors/home/home-air-conditioner-inspector";
 
 
 import { setupRelatedPopup } from "./home-related-popup";

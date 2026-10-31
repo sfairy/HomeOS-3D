@@ -82,7 +82,7 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 | `bindings/` | 宿主 DOM 事件注册（语句级切片：依赖按 getter 惰性注入） |
 | `controls/` | 检查器表单控件（数字输入 ± 步进器增强） |
 | `copy-backup/` | 备份 / 复制对话框装配与执行 |
-| `inspectors/` | 流程线 / 百分比条检查器 |
+| `inspectors/` | 检查器域：`basic.ts`（`setInspectorToggle` / `inspectorComponentMetrics` 等共用原语）、`home/`（11 个 `home-*` 面板检查器：空调 / 摄像头 / 窗帘电机 / 图标按钮 / 灯光统计 / 折线图 / 导航 / 时间 / 标题按钮 / 扫地机地图 / 天气）、`flow-line` / `percentage-bar` 两个独立检查器 |
 | `menus/` | 标题按钮图标菜单（定位 / 悬停滚动 / 图标选项装载） |
 | `metadata/` | 导航 / 样式属性元数据表（纯数据）与透视常量 |
 | `navigation-style-apply/` | 导航「套用到其它控件」弹窗 |

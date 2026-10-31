@@ -1,9 +1,9 @@
 /* 编辑器壳层与弹层控制（视口、下拉、实体/颜色选择器、错误提示） */
 import type { EditorContext } from "../editor-context";
-import { syncIconButtonInspector as syncIconButtonInspectorExternal } from "../../home-icon-button-inspector";
-import { syncNavigationInspector as syncNavigationInspectorExternal } from "../../home-navigation-inspector";
-import { syncLineChartInspector as syncLineChartInspectorExternal } from "../../home-line-chart-inspector";
-import { syncAirConditionerInspector as syncAirConditionerInspectorExternal } from "../../home-air-conditioner-inspector";
+import { syncIconButtonInspector as syncIconButtonInspectorExternal } from "../../inspectors/home/home-icon-button-inspector";
+import { syncNavigationInspector as syncNavigationInspectorExternal } from "../../inspectors/home/home-navigation-inspector";
+import { syncLineChartInspector as syncLineChartInspectorExternal } from "../../inspectors/home/home-line-chart-inspector";
+import { syncAirConditionerInspector as syncAirConditionerInspectorExternal } from "../../inspectors/home/home-air-conditioner-inspector";
 import { requestJson as requestJsonCore } from "../../net/request-json";
 import { formatLastSeen as formatLastSeenCore } from "../../controls/number-stepper";
 import { normalizedHexColor as normalizedHexColor2, rgbToHsv as rgbToHsv2, hsvToRgb255 as hsvToRgb2, rgbToHex as rgbToHex2, clampNumber as clampNumber2 } from "../../editor-utils";

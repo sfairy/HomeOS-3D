@@ -3058,27 +3058,6 @@
       "gt80": 0,
       "max": 13
     },
-    "homeos/frontend/src/studio/app/editor/home-air-conditioner-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 65
-    },
-    "homeos/frontend/src/studio/app/editor/home-camera-inspector.ts": {
-      "functions": 17,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 2,
-      "max": 30
-    },
-    "homeos/frontend/src/studio/app/editor/home-cover-motor-inspector.ts": {
-      "functions": 24,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 172
-    },
     "homeos/frontend/src/studio/app/editor/home-custom-popup-editor.ts": {
       "functions": 78,
       "gt10": 1,
@@ -3093,34 +3072,6 @@
       "gt80": 1,
       "max": 11
     },
-    "homeos/frontend/src/studio/app/editor/home-icon-button-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 113
-    },
-    "homeos/frontend/src/studio/app/editor/home-light-statistics-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 30
-    },
-    "homeos/frontend/src/studio/app/editor/home-line-chart-inspector.ts": {
-      "functions": 3,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 28
-    },
-    "homeos/frontend/src/studio/app/editor/home-navigation-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 66
-    },
     "homeos/frontend/src/studio/app/editor/home-panel-frame.ts": {
       "functions": 7,
       "gt10": 3,
@@ -3134,34 +3085,6 @@
       "gt15": 1,
       "gt80": 2,
       "max": 16
-    },
-    "homeos/frontend/src/studio/app/editor/home-time-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 15
-    },
-    "homeos/frontend/src/studio/app/editor/home-title-button-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 44
-    },
-    "homeos/frontend/src/studio/app/editor/home-vacuum-map-inspector.ts": {
-      "functions": 1,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 13
-    },
-    "homeos/frontend/src/studio/app/editor/home-weather-inspector.ts": {
-      "functions": 2,
-      "gt10": 1,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 17
     },
     "homeos/frontend/src/studio/app/editor/home.ts": {
       "functions": 1107,
@@ -3295,6 +3218,83 @@
       "gt15": 2,
       "gt80": 1,
       "max": 20
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-air-conditioner-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 65
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-camera-inspector.ts": {
+      "functions": 17,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 2,
+      "max": 30
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-cover-motor-inspector.ts": {
+      "functions": 24,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 172
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-icon-button-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 113
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-light-statistics-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 30
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-line-chart-inspector.ts": {
+      "functions": 3,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 28
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-navigation-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 66
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-time-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 15
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-title-button-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 44
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-vacuum-map-inspector.ts": {
+      "functions": 1,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 13
+    },
+    "homeos/frontend/src/studio/app/editor/inspectors/home/home-weather-inspector.ts": {
+      "functions": 2,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 17
     },
     "homeos/frontend/src/studio/app/editor/inspectors/inspector-sync.ts": {
       "functions": 21,
