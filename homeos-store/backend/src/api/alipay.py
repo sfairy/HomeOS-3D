@@ -126,6 +126,9 @@ def _settle_alipay_notification(
             order.order_no,
             notification.trade_status,
         )
+        # 先落库、后回 success：依赖注入的 session 在 FastAPI ≥0.106 是在**响应发出之后**
+        # 才提交，先 ack 后提交会给进程崩溃留一个「支付宝认为已通知、本地仍 pending」的窗口。
+        session.commit()
         return PlainTextResponse("success")
     expected = int(order.amount_cents or 0)
     actual = cents_from_yuan(notification.total_amount)
@@ -150,6 +153,9 @@ def _settle_alipay_notification(
         request.app.state.database,
         order_id=order.id,
     )
+    # 同上：先提交入账与发码，再给支付宝回 success。微信回调已经是这个顺序
+    # （``with database.session()`` + 注释「先落库、后回 SUCCESS」），这里对齐。
+    session.commit()
     return PlainTextResponse("success")
 
 

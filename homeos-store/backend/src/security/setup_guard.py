@@ -119,9 +119,15 @@ class SetupGuard:
 
     def _is_ours(self, token: str) -> bool:
         """盘上这枚令牌是否**有证据**说明是本商店生成的。
+
+        比较用 :func:`secrets.compare_digest`：这是「令牌派生指纹」的等值判断，普通 ``==``
+        会按首个不同字节提前返回，给本地攻击者留下逐字节试探的时间侧信道（成本很低，
+        没理由留着）。
         """
         fingerprint = self._fingerprint_on_disk()
-        return bool(fingerprint) and fingerprint == token_fingerprint(token)
+        if not fingerprint:
+            return False
+        return secrets.compare_digest(fingerprint, token_fingerprint(token))
 
     def _mark_generated(self, token: str) -> None:
         """写下「这份令牌是我们生成的」这个事实（连同指纹）。"""

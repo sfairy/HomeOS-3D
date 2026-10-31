@@ -223,7 +223,7 @@ def _flush_order_with_retry(session, order: Order, account: AuthedAccount) -> No
         # 订单号撞车：换一个号重试。撞号是服务端随机数的事，与顾客的请求频率无关，
         # 不能报成「请求过于频繁」。
         logger.warning("订单号 %s 冲突，重新生成后重试", order.order_no)
-        order.order_no = new_order_no(account.email)
+        order.order_no = new_order_no()
         outcome = _flush_order(session, order)
     if outcome == "pending":
         session.rollback()
@@ -389,7 +389,7 @@ def create_order(
     )
     moment = utcnow()
     order = Order(
-        order_no=new_order_no(account.email, now=moment),
+        order_no=new_order_no(now=moment),
         lookup_token=new_token(24),
         account_id=account.id,
         customer_id=_customer_for(session, account).id,

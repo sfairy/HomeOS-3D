@@ -152,15 +152,19 @@ def code_hash(code: str, salt: str = "") -> str:
     return hashlib.sha256(f"{salt}\x1f{text}".encode()).hexdigest()
 
 
-def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
-    """生成订单号：``HOMEOS-<本地时间14位>-<邮箱前缀>-<随机6位>``。
+def new_order_no(*, now: datetime | None = None) -> str:
+    """生成订单号：``HOMEOS-<本地时间14位>-<随机8位>``（固定 30 字符）。
+
+    - **不再带邮箱前缀**：订单号会进日志、发货邮件和支付网关，把邮箱本地部分写进去等于
+      把 PII 散到所有下游；
+    - **固定长度 30**：旧格式中间的邮箱前缀长度随邮箱变化（最长 64），一方面可能撑破
+      ``orders.orderNo`` 的 ``String(64)``，另一方面订单号会直接当微信 ``out_trade_no``
+      用（只接受 6–32 字符），长邮箱用户的支付请求会被网关直接拒绝。
+
+    随机段 8 位十六进制（4 字节）：同一秒内碰撞概率可忽略，真撞了靠唯一约束重试。
     """
     moment = now or aware_now()
-    local_prefix = "".join(ch for ch in (prefix_email or "").split("@")[0] if ch.isalnum())
-    if not local_prefix:
-        local_prefix = "customer"
-    suffix = secrets.token_hex(6)
-    return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}-{suffix}"
+    return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(4)}"
 
 
 _EMAIL_RE = re.compile(

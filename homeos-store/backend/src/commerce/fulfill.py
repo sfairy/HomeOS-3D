@@ -40,6 +40,10 @@ _LICENSE_SNAPSHOT_FIELDS = (
     "validity_days",
     "issuance_source",
     "access_started_at",
+    # 升级会就地覆写 feature_codes_json（见 upgrade_license_in_place）。漏了它，
+    # revert_license_change 只还原商品与价格，客户退款后仍留着升级版的功能码，
+    # 而 features_for 只要快照非空就优先快照、不会按商品重新推导 → 权益泄漏。
+    "feature_codes_json",
 )
 
 _LICENSE_MOMENT_FIELDS = frozenset({"access_started_at", "access_expires_at"})
