@@ -31,6 +31,7 @@ import EntityControlHost from '@/components/entities/EntityControlHost.vue'
 import ScaledViewport from '@/layouts/ScaledViewport.vue'
 import { AlertOverlay as EarthquakeAlertOverlay, CencBulletinCard } from '@/features/earthquake'
 import AgentChatPalette from '@/components/widgets/agent/AgentChatPalette.vue'
+import AgentCompanion from '@/components/shell/AgentCompanion.vue'
 /** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求（媒体全屏已挂 App 根） */
 const loadShellOverlays = () => import('@/layouts/shell-overlays')
 const DoorbellAlertModal = defineAsyncComponent(() =>
@@ -730,6 +731,9 @@ watch(
           @close="chrome.closeEntityControl()"
         />
         <Screensaver />
+        <!-- AI 悬浮伴侣：贴边停靠的小管家入口（点开对话 / 长按说话）。
+             放在 teleport-target 之前，让对话面板与抽屉天然盖过它。 -->
+        <AgentCompanion v-if="showAgentChrome" />
         <!-- 智能管家对话面板（认证 + module.agent） -->
         <AgentChatPalette
           v-if="showAgentChrome"

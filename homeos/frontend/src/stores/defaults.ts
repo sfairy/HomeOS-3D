@@ -147,6 +147,10 @@ function createDefaultLayout(): UILayoutConfig {
       mcpActorUserId: '',
       // 场景语音控制默认全禁（fail-closed）：需在设置中显式启用并勾选场景
       sceneVoiceControl: { enabled: false, allow: [] },
+      // 联网搜索默认开启：后两级搜索源无需密钥，关闭后工具直接返回未启用
+      webSearchEnabled: true,
+      // AI 悬浮伴侣：默认贴左边停靠，点开对话、长按说话
+      companion: { enabled: true, side: 'left', topPercent: 60 },
       // 主动管家默认关闭：避免升级后突然开始推送；开关与频控在设置页配置
       proactive: {
         enabled: false,
@@ -158,6 +162,13 @@ function createDefaultLayout(): UILayoutConfig {
         minEnergyKwh: 1,
         forecastSlots: 4,
         forecastPopThreshold: 0.6,
+        // 看门狗与自动关停默认关闭：只提醒，不动设备
+        watchdogEnabled: false,
+        motionIdleMinutes: 20,
+        idleDeviceMinutes: 60,
+        idleSwitchMinutes: 120,
+        autoCloseEnabled: false,
+        maxAutoCloseDevices: 3,
       },
       // Agent 专属设备白名单：空 = 不额外限制（仍受用户 ACL 约束）
       deviceAllowlist: [],

@@ -47,7 +47,7 @@ def _num(value: Any) -> float | None:
     return None
 
 
-def _in_quiet_hours(cfg: AgentProactiveConfig, now: datetime) -> bool:
+def in_quiet_hours(cfg: AgentProactiveConfig, now: datetime) -> bool:
     """免打扰时段判定：支持跨夜（22 → 7）与全天（start == end）。"""
     start, end = cfg.quiet_start, cfg.quiet_end
     if start == end:
@@ -109,7 +109,7 @@ class AgentProactiveService:
             task.cancel()
             try:
                 await task
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError, Exception:
                 pass
 
     async def _loop(self) -> None:
@@ -158,7 +158,7 @@ class AgentProactiveService:
             return {"ok": True, "skipped": "disabled", "sent": False, "signals": []}
 
         moment = now or self._clock()
-        if _in_quiet_hours(cfg, moment):
+        if in_quiet_hours(cfg, moment):
             return {"ok": True, "skipped": "quiet_hours", "sent": False, "signals": []}
         if self._notification is not None:
             try:
@@ -257,11 +257,7 @@ class AgentProactiveService:
         daily = energy.get("daily")
         if today is None or today < cfg.min_energy_kwh or not isinstance(daily, list):
             return ""
-        rows = [
-            item
-            for item in daily
-            if isinstance(item, dict) and _num(item.get("kwh")) is not None
-        ]
+        rows = [item for item in daily if isinstance(item, dict) and _num(item.get("kwh")) is not None]
         # daily 按日期升序；最后一行若就是今天，则不参与均值（部分日会拉低均值）
         if rows and abs(float(_num(rows[-1].get("kwh")) or 0.0) - today) < 1e-6:
             rows = rows[:-1]
@@ -310,5 +306,6 @@ class AgentProactiveService:
 __all__ = [
     "PROACTIVE_SOURCE",
     "AgentProactiveService",
+    "in_quiet_hours",
     "is_away_mode",
 ]

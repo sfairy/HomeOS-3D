@@ -27,6 +27,7 @@ import {
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { useChromeStore } from '@/stores/chrome.store'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
@@ -125,6 +126,8 @@ const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending
 
 const router = useRouter()
+// 对话面板只「消费」悬浮伴侣留下的一条待发送消息，不负责打开/关闭自己
+const chrome = useChromeStore()
 const storedSessions = readHistory()
 const sessionId = ref(storedSessions[0]?.id || `ui-agent-${Date.now().toString(36)}`)
 const input = ref('')
@@ -203,6 +206,16 @@ watch(
       return
     }
     stopListen()
+  },
+)
+// 悬浮伴侣长按说话后留下的消息：取一条发一条，发完立刻清空，
+// 保证「面板被别处打开」时不会莫名冒出一条旧语音。
+watch(
+  () => chrome.pendingAgentPrompt,
+  (text) => {
+    if (!text) return
+    chrome.clearAgentPrompt()
+    void nextTick(() => send(text))
   },
 )
 useFocusTrap(rootRef, openRef)

@@ -1,10 +1,17 @@
 /** 智能管家设置面板组合式函数（SettingsAgentPanel.vue 逻辑抽取）。 */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
+  Activity,
+  BellRing,
+  Bot,
+  CalendarClock,
   CircleCheck,
   Languages,
   MessageCircle,
   MessageSquare,
+  ScrollText,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Wrench,
   Zap,
@@ -24,6 +31,7 @@ import {
 import { useAgentPanelChat } from '@/features/settings/composables/interact/agent-panel-chat.internals'
 import { useAgentModelStats } from '@/features/settings/composables/interact/agent-panel-stats.internals'
 import type {
+  AgentCompanionConfig,
   AgentConfig,
   AgentProactiveConfig,
   ChannelConfig,
@@ -37,6 +45,11 @@ import {
   isAgentSecretMasked,
   toneFromAgentClass,
 } from '@/features/settings/composables/interact/agent-panel-helpers.internals'
+import {
+  normalizeAgentCompanion,
+  resolveAgentCompanionPosition,
+  resolveAgentCompanionStageSize,
+} from '@/shared/utils/layout/agent-companion.util'
 
 type ChannelDraft = {
   email: NonNullable<ChannelConfig['email']>
@@ -44,22 +57,52 @@ type ChannelDraft = {
   wecom: NonNullable<ChannelConfig['wecom']>
 }
 
+/** 看门狗字段兜底（区间与后端 AgentConfigService 的夹紧保持一致） */
+function readWatchdog(
+  raw: Partial<AgentProactiveConfig>,
+  defaults: AgentProactiveConfig,
+): Pick<
+  AgentProactiveConfig,
+  | 'watchdogEnabled'
+  | 'motionIdleMinutes'
+  | 'idleDeviceMinutes'
+  | 'idleSwitchMinutes'
+  | 'autoCloseEnabled'
+  | 'maxAutoCloseDevices'
+> {
+  const int = (value: unknown, fallback: number, min: number, max: number) => {
+    const n = Number(value)
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback
+  }
+  return {
+    watchdogEnabled: raw.watchdogEnabled === true,
+    motionIdleMinutes: int(raw.motionIdleMinutes, defaults.motionIdleMinutes, 1, 1440),
+    idleDeviceMinutes: int(raw.idleDeviceMinutes, defaults.idleDeviceMinutes, 1, 1440),
+    idleSwitchMinutes: int(raw.idleSwitchMinutes, defaults.idleSwitchMinutes, 1, 1440),
+    autoCloseEnabled: raw.autoCloseEnabled === true,
+    maxAutoCloseDevices: int(raw.maxAutoCloseDevices, defaults.maxAutoCloseDevices, 1, 20),
+  }
+}
+
 
 /** 智能管家设置面板：聚合模型配置草稿、通知渠道、管家对话与连通性检测，供 SettingsAgentPanel.vue 使用 */
-export function useSettingsAgentPanel(props: { activeTab: string }) {
-  const layoutStore = useLayoutStore()
+export function useSettingsAgentPanel(props: { activeTab: string }) {  const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
   const showApiKey = ref(false)
   /** 已配置密钥时默认展示「已加密存储」；点「更换」后进入明文输入 */
   const editingApiKey = ref(false)
   const section = ref('model')
   const subnavSections = [
-    { id: 'model', label: '模型配置' },
-    { id: 'scene-voice', label: '场景语音' },
-    { id: 'device-scope', label: '设备范围' },
-    { id: 'proactive', label: '主动管家' },
-    { id: 'channels', label: '消息通道' },
-    { id: 'chat', label: '对话' },
+    { id: 'model', label: '模型配置', icon: Sparkles },
+    { id: 'scene-voice', label: '场景语音', icon: ShieldAlert },
+    { id: 'device-scope', label: '设备范围', icon: ShieldCheck },
+    { id: 'companion', label: '悬浮伴侣', icon: Bot },
+    { id: 'proactive', label: '主动管家', icon: BellRing },
+    { id: 'policies', label: '家规', icon: ScrollText },
+    { id: 'schedules', label: '计划任务', icon: CalendarClock },
+    { id: 'diagnostics', label: '诊断日志', icon: Activity },
+    { id: 'channels', label: '消息通道', icon: MessageSquare },
+    { id: 'chat', label: '对话', icon: MessageCircle },
   ]
 
   const providerPresets = AGENT_PROVIDER_PRESETS
@@ -101,7 +144,13 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
         1,
         Math.max(0, num(raw.forecastPopThreshold, d.forecastPopThreshold)),
       ),
+      ...readWatchdog(raw, d),
     }
+  }
+
+  /** 悬浮伴侣草稿：这里只做展示配置，关掉只是收起入口，不影响后端能力 */
+  function readCompanion(): AgentCompanionConfig {
+    return normalizeAgentCompanion(layoutStore.layoutConfig?.agentConfig?.companion)
   }
 
   /** Agent 专属设备白名单：非法项丢弃，空列表 = 不额外限制 */
@@ -122,6 +171,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
       ...(layoutStore.layoutConfig?.agentConfig || {}),
       sceneVoiceControl: readSceneVoiceControl(),
       proactive: readProactive(),
+      companion: readCompanion(),
       deviceAllowlist: readDeviceAllowlist(),
     }
   }
@@ -144,6 +194,9 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
       wecom: { ...base.wecom, ...(cur?.wecom || {}) },
     }
   }
+
+  /** 用户是否已动过悬浮伴侣表单：动过就不再被异步到达的布局覆盖 */
+  const companionTouched = ref(false)
 
   const agentDraft = reactive<AgentConfig>(readAgent())
   const channelDraft = reactive<ChannelDraft>(readChannels())
@@ -202,6 +255,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     modelStatReadyValClass,
     modelStatDetail,
     usageTodayLabel,
+    modelUsagePercent,
   } = useAgentModelStats({ pending, pingInfo, providerLabel })
 
   /**
@@ -240,6 +294,114 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     },
   })
   const deviceAllowlistCount = computed(() => deviceAllowlist.value.length)
+
+  /** 联网搜索开关（默认开启：后两级搜索源无需密钥；关闭后工具直接返回未启用） */
+  const webSearchEnabled = computed<boolean>({
+    get: () => agentDraft.webSearchEnabled !== false,
+    set: (enabledValue) => {
+      agentDraft.webSearchEnabled = enabledValue === true
+    },
+  })
+
+  /**
+   * 悬浮伴侣当前值：没动过表单就读布局里的真实值，动过就读草稿。
+   * 面板可能先于布局加载挂载（硬刷新 /settings），只读草稿会显示成默认值，
+   * 和仪表盘上实际停靠的位置对不上。
+   */
+  function effectiveCompanion(): AgentCompanionConfig {
+    return companionTouched.value ? normalizeAgentCompanion(agentDraft.companion) : readCompanion()
+  }
+
+  /** 改一项就把整份配置写回草稿：夹紧规则统一走 normalizeAgentCompanion */
+  function patchCompanion(patch: Partial<AgentCompanionConfig>): void {
+    companionTouched.value = true
+    agentDraft.companion = normalizeAgentCompanion({ ...effectiveCompanion(), ...patch })
+  }
+
+  /** 悬浮伴侣开关：写入草稿，保存时随 agentConfig 一起落库 */
+  const companionEnabled = computed<boolean>({
+    get: () => effectiveCompanion().enabled,
+    set: (enabledValue) => patchCompanion({ enabled: enabledValue === true }),
+  })
+
+  /** 落点坐标系（整页等比缩放时是壳层尺寸而不是窗口尺寸） */
+  function companionViewport() {
+    const stage = resolveAgentCompanionStageSize()
+    return {
+      viewportWidth: stage.width,
+      viewportHeight: stage.height,
+      panelPosition: layoutStore.layoutConfig?.panelPosition,
+      panelWidth: Number(layoutStore.layoutConfig?.rightPanelWidth) || 0,
+    }
+  }
+
+  /** 当前落点：自由位置优先，旧版停靠配置回退 */
+  function effectiveCompanionPosition() {
+    return resolveAgentCompanionPosition(effectiveCompanion(), companionViewport())
+  }
+
+  /** 是否已经拖过 / 自定义过位置（决定设置页是否提示「恢复默认停靠」） */
+  const companionPositionCustomized = computed(() => {
+    const cfg = effectiveCompanion()
+    return cfg.xPercent != null && cfg.yPercent != null
+  })
+
+  /** 水平位置：改一轴时把另一轴也落成数字，避免只存了一半的自由位置 */
+  const companionXPercent = computed<number>({
+    get: () => Math.round(effectiveCompanionPosition().xPercent),
+    set: (value) =>
+      patchCompanion({
+        xPercent: Number(value),
+        yPercent: effectiveCompanionPosition().yPercent,
+      }),
+  })
+
+  /** 垂直位置：0% 贴顶、100% 贴底，与仪表盘拖动共用同一坐标 */
+  const companionYPercent = computed<number>({
+    get: () => Math.round(effectiveCompanionPosition().yPercent),
+    set: (value) =>
+      patchCompanion({
+        xPercent: effectiveCompanionPosition().xPercent,
+        yPercent: Number(value),
+      }),
+  })
+
+  /** 恢复默认停靠：清掉自由位置，回到左侧 60% 的旧版停靠口径 */
+  function resetCompanionPosition(): void {
+    companionTouched.value = true
+    const defaults = getDefaultLayout().agentConfig!.companion!
+    agentDraft.companion = {
+      enabled: effectiveCompanion().enabled,
+      side: defaults.side,
+      topPercent: defaults.topPercent,
+    }
+  }
+
+  /** 主动管家 + 看门狗：保存前的夹紧快照（保持 saveConfig 线性） */
+  function buildProactivePayload(): AgentProactiveConfig {
+    const raw = agentDraft.proactive
+    const int = (value: unknown, fallback: number, min: number, max: number) => {
+      const n = Number(value)
+      return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback
+    }
+    return {
+      enabled: raw?.enabled === true,
+      intervalSeconds: Math.max(60, Number(raw?.intervalSeconds) || 900),
+      cooldownSeconds: Math.max(60, Number(raw?.cooldownSeconds) || 1800),
+      quietStart: Math.min(23, Math.max(0, Number(raw?.quietStart) || 0)),
+      quietEnd: Math.min(23, Math.max(0, Number(raw?.quietEnd) || 0)),
+      energyMultiplier: Math.max(1, Number(raw?.energyMultiplier) || 1.5),
+      minEnergyKwh: Math.max(0, Number(raw?.minEnergyKwh) || 0),
+      forecastSlots: Math.min(12, Math.max(1, Number(raw?.forecastSlots) || 4)),
+      forecastPopThreshold: Math.min(1, Math.max(0, Number(raw?.forecastPopThreshold) || 0.6)),
+      watchdogEnabled: raw?.watchdogEnabled === true,
+      motionIdleMinutes: int(raw?.motionIdleMinutes, 20, 1, 1440),
+      idleDeviceMinutes: int(raw?.idleDeviceMinutes, 60, 1, 1440),
+      idleSwitchMinutes: int(raw?.idleSwitchMinutes, 120, 1, 1440),
+      autoCloseEnabled: raw?.autoCloseEnabled === true,
+      maxAutoCloseDevices: int(raw?.maxAutoCloseDevices, 3, 1, 20),
+    }
+  }
 
   /** 主动管家草稿：readAgent 已补全默认值，这里只做非空断言供模板 v-model 使用 */
   const proactive = computed(() => {
@@ -304,6 +466,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
 
   function resetDraft() {
     Object.assign(agentDraft, readAgent())
+    companionTouched.value = false
     const ch = readChannels()
     Object.assign(channelDraft.email, ch.email)
     Object.assign(channelDraft.webpush, ch.webpush)
@@ -355,20 +518,11 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
             .filter(Boolean),
         },
         // 主动管家：保留完整频控参数；back-end 默认关闭，只有 enabled===true 才巡检
-        proactive: {
-          enabled: agentDraft.proactive?.enabled === true,
-          intervalSeconds: Math.max(60, Number(agentDraft.proactive?.intervalSeconds) || 900),
-          cooldownSeconds: Math.max(60, Number(agentDraft.proactive?.cooldownSeconds) || 1800),
-          quietStart: Math.min(23, Math.max(0, Number(agentDraft.proactive?.quietStart) || 0)),
-          quietEnd: Math.min(23, Math.max(0, Number(agentDraft.proactive?.quietEnd) || 0)),
-          energyMultiplier: Math.max(1, Number(agentDraft.proactive?.energyMultiplier) || 1.5),
-          minEnergyKwh: Math.max(0, Number(agentDraft.proactive?.minEnergyKwh) || 0),
-          forecastSlots: Math.min(12, Math.max(1, Number(agentDraft.proactive?.forecastSlots) || 4)),
-          forecastPopThreshold: Math.min(
-            1,
-            Math.max(0, Number(agentDraft.proactive?.forecastPopThreshold) || 0.6),
-          ),
-        },
+        proactive: buildProactivePayload(),
+        // 联网搜索：默认开启；关闭后 web_search 工具直接返回未启用
+        webSearchEnabled: webSearchEnabled.value,
+        // 悬浮伴侣：与 agentConfig 同一次保存，避免改完位置又被旧 payload 覆盖
+        companion: effectiveCompanion(),
         // Agent 专属设备白名单：空 = 不额外限制；后端与用户 ACL 取交集
         deviceAllowlist: (agentDraft.deviceAllowlist ?? [])
           .map((id) => String(id ?? '').trim())
@@ -481,10 +635,16 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     isMockProvider,
     languageLabel,
     sceneVoiceEnabled,
+    companionEnabled,
+    companionXPercent,
+    companionYPercent,
+    companionPositionCustomized,
+    resetCompanionPosition,
     sceneVoiceAllow,
     sceneVoiceAllowCount,
     deviceAllowlist,
     deviceAllowlistCount,
+    webSearchEnabled,
     proactive,
     setProactiveMinutes,
     setProactivePercent,
@@ -497,6 +657,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     modelStatReadyValClass,
     modelStatDetail,
     usageTodayLabel,
+    modelUsagePercent,
     applyPreset,
     resetDraft,
     saveConfig,

@@ -36,6 +36,26 @@
   }
 }
 
+/* 可选：宽屏也保持单行（子导航项多于一屏时），激活项由脚本滚到中间 */
+.settings-hub-subnav--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-padding-inline: 4px;
+}
+
+.settings-hub-subnav--scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-hub-subnav--scroll .settings-hub-subnav__btn {
+  flex-shrink: 0;
+  scroll-snap-align: center;
+}
+
 .settings-hub-subnav__btn {
   display: inline-flex;
   align-items: center;

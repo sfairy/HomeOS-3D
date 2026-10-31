@@ -207,11 +207,35 @@ export interface AgentConfig {
   sceneVoiceControl?: SceneVoiceControl
   /** 主动管家：定时巡检设备离线 / 能耗 / 天气 / 离家异常（默认关闭） */
   proactive?: AgentProactiveConfig
+  /** 允许智能管家联网搜索（默认开启；关闭后 web_search 工具直接返回未启用） */
+  webSearchEnabled?: boolean
   /**
    * Agent 专属设备白名单（空 = 不额外限制）。
    * 支持 `light` / `light.` / `light.living_room`，与登录用户 ACL 取交集。
    */
   deviceAllowlist?: string[]
+  /**
+   * AI 悬浮伴侣：贴边停靠的小管家入口，点开对话、长按说话。
+   * 只影响前端入口的展现，不改变后端任何能力开关。
+   */
+  companion?: AgentCompanionConfig
+}
+
+/** AI 悬浮伴侣停靠配置 */
+export interface AgentCompanionConfig {
+  /** 是否显示悬浮伴侣（默认开启） */
+  enabled: boolean
+  /** 旧版停靠的屏幕侧边：仅在未保存自由位置时作为默认落点 */
+  side: 'left' | 'right'
+  /** 旧版垂直停靠高度（百分比，15-85 之间夹紧） */
+  topPercent: number
+  /**
+   * 自由摆放的水平中心位置（视口百分比 0-100）。
+   * 与 `yPercent` 同时存在时优先于 `side` / `topPercent`；由画面拖动直接写入。
+   */
+  xPercent?: number
+  /** 自由摆放的垂直中心位置（视口百分比 0-100） */
+  yPercent?: number
 }
 
 /** 主动管家配置 */
@@ -233,6 +257,18 @@ export interface AgentProactiveConfig {
   forecastSlots: number
   /** 降水概率提醒阈值（0-1） */
   forecastPopThreshold: number
+  /** 看门狗：无人空转巡检总开关（默认关闭） */
+  watchdogEnabled: boolean
+  /** 房间无人超过多少分钟才认为真的离开 */
+  motionIdleMinutes: number
+  /** 有人体存在判定时，设备开启超过多少分钟视为空转 */
+  idleDeviceMinutes: number
+  /** 没有占用传感器时，开关类设备的常开阈值 */
+  idleSwitchMinutes: number
+  /** 命中家规时是否允许自动关停（默认关闭，仅低危域） */
+  autoCloseEnabled: boolean
+  /** 单次巡检最多自动关停的设备数 */
+  maxAutoCloseDevices: number
 }
 
 /** HA 场景 / 脚本语音控制允许清单 */

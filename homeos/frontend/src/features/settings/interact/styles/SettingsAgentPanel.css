@@ -1151,3 +1151,1105 @@
   font-size: var(--set-fs-micro, 12px);
   color: var(--hos-text-secondary);
 }
+
+/* 悬浮伴侣：交互方式说明用中性色（不是警示），与 hint 的琥珀色区分开 */
+.agent-companion-usage {
+  margin: 10px var(--agent-inset-x) 0;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--hos-text-secondary);
+}
+
+/* 悬浮伴侣：水平 / 垂直位置滑块 */
+.agent-range {
+  width: 100%;
+  accent-color: var(--hos-color-accent, #38bdf8);
+}
+
+/* 悬浮伴侣：拖动说明 + 恢复默认停靠 */
+.agent-companion-position-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px var(--agent-inset-x) 0;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.agent-companion-position-actions .agent-band-hint {
+  margin: 0;
+}
+
+/* 悬浮伴侣：画面位置预览（视口百分比 → 缩略图坐标） */
+.agent-dock-preview {
+  margin: 14px var(--agent-inset-x) 0;
+  padding: 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.18) 100%);
+}
+
+.agent-dock-preview--off {
+  opacity: 0.55;
+}
+
+.agent-dock-preview__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agent-dock-preview__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+}
+
+.agent-dock-preview__meta {
+  font-size: 0.7rem;
+  color: var(--hos-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-dock-preview__screen {
+  position: relative;
+  height: 132px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: var(--hos-hairline) solid rgba(148, 163, 184, 0.22);
+  background:
+    radial-gradient(circle at 22% 18%, rgba(56, 189, 248, 0.16), transparent 58%),
+    rgba(8, 13, 25, 0.72);
+}
+
+.agent-dock-preview__stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
+}
+
+.agent-dock-preview__avatar {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  color: #7dd3fc;
+  background: linear-gradient(160deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  box-shadow:
+    0 6px 16px rgba(2, 6, 23, 0.5),
+    0 0 0 4px rgba(56, 189, 248, 0.1);
+  transition:
+    left 0.12s ease,
+    top 0.12s ease;
+}
+
+.agent-dock-preview__avatar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.agent-dock-preview__hint {
+  margin: 8px 0 0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--hos-text-muted);
+}
+
+/* ── 家规 / 计划任务 / 诊断日志 · 统一列表行 ── */
+.agent-sched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-sched-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.18) 100%);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.agent-sched-row:hover {
+  border-color: rgba(var(--page-accent-rgb), 0.28);
+  background: linear-gradient(
+    155deg,
+    rgba(var(--page-accent-rgb), 0.08) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.agent-sched-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.agent-sched-row__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.agent-sched-row__meta {
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+  word-break: break-word;
+}
+
+.agent-sched-row__err {
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.45;
+  color: #fda4af;
+  word-break: break-word;
+}
+
+.agent-sched-row__side {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .agent-sched-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-sched-row__side {
+    justify-content: flex-start;
+  }
+}
+
+/* ── 子导航：10 个分区单行滚动，选中项由脚本滚到中间 ── */
+.agent-hub-subnav {
+  gap: 4px;
+  padding: 5px;
+}
+
+.agent-hub-subnav .settings-hub-subnav__btn {
+  gap: 5px;
+  padding: 0 10px;
+  font-size: var(--set-fs-micro, 12px);
+}
+
+.agent-hub-subnav .settings-hub-subnav__btn svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.8;
+}
+
+.agent-hub-subnav .settings-hub-subnav__btn--active svg {
+  opacity: 1;
+}
+
+/* ── 通用区段卡片：统一 18px 内衬，避免「卡片 padding + body padding」双缩进 ── */
+.agent-scene-voice-workspace.settings-card--static {
+  padding: 16px var(--agent-inset-x) 18px;
+}
+
+.agent-scene-voice-workspace .agent-model-body {
+  padding: 10px 0 2px;
+}
+
+.agent-scene-voice-workspace .agent-band-hint {
+  margin-inline: 0;
+}
+
+.agent-scene-voice-workspace .agent-scene-toggle {
+  margin-inline: 0;
+}
+
+/* ── 模型配置 · 凭据 / 提示双栏（容器够宽时并排，避免纵向过长） ── */
+.agent-cred-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.agent-cred-grid > .agent-cred-panel {
+  margin-top: 0;
+}
+
+.agent-cred-grid .agent-cred-textarea {
+  min-height: 104px;
+}
+
+@container settings-scroll (min-width: 860px) {
+  .agent-cred-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+/* ── 悬浮伴侣 · 表单 + 停靠预览 ── */
+.agent-companion-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.agent-companion-fields {
+  min-width: 0;
+}
+
+.agent-range {
+  width: 100%;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  accent-color: var(--module-accent-agent);
+  cursor: pointer;
+}
+
+.agent-range:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.agent-dock-preview {
+  padding: 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.16);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--page-accent-rgb), 0.07) 0%,
+    rgba(0, 0, 0, 0.24) 100%
+  );
+  transition: opacity 0.2s ease;
+}
+
+.agent-dock-preview--off {
+  opacity: 0.5;
+}
+
+.agent-dock-preview__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agent-dock-preview__title {
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--set-text-secondary);
+}
+
+.agent-dock-preview__meta {
+  font-size: var(--set-fs-micro, 12px);
+  color: var(--hos-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-dock-preview__screen {
+  position: relative;
+  height: 128px;
+  border-radius: 12px;
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgba(var(--page-accent-rgb), 0.12) 0%, transparent 65%),
+    rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+}
+
+.agent-dock-preview__stage {
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
+  border-radius: 8px;
+  border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.agent-dock-preview__avatar {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  /* 百分比换算到「内缩 15px」的可用区域，四边留白，贴边也不会被裁掉 */
+  left: calc(15px + (100% - 30px) * var(--dock-x, 50) / 100);
+  top: calc(15px + (100% - 30px) * var(--dock-y, 60) / 100);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  color: #fff;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(var(--page-accent-rgb), 0.95) 0%,
+    rgba(var(--page-accent-rgb), 0.55) 100%
+  );
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.55);
+  box-shadow:
+    0 0 0 3px rgba(var(--page-accent-rgb), 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  transition:
+    left 0.12s ease,
+    top 0.12s ease;
+}
+
+.agent-dock-preview__avatar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.agent-dock-preview__hint {
+  margin: 8px 0 0;
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+}
+
+/* 位置操作条：说明文案 + 恢复默认停靠 */
+.agent-companion-position-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.agent-companion-position-actions .agent-band-hint {
+  margin: 0;
+  color: var(--hos-text-secondary);
+}
+
+@media (max-width: 720px) {
+  .agent-companion-position-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-companion-position-actions .settings-btn-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@container settings-scroll (min-width: 860px) {
+  .agent-companion-layout {
+    grid-template-columns: minmax(0, 1fr) 264px;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 720px) {
+  .agent-dock-preview {
+    display: none;
+  }
+}
+
+/* ── 家规 / 计划任务 · 表单 + 列表双栏（容器够宽时分栏，避免长页来回滚） ── */
+.agent-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.agent-split__main,
+.agent-split__side {
+  min-width: 0;
+}
+
+@container settings-scroll (min-width: 1180px) {
+  .agent-split {
+    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+    gap: 0;
+    align-items: start;
+  }
+
+  .agent-split__main {
+    padding-right: 22px;
+  }
+
+  .agent-split__side {
+    padding-left: 22px;
+    border-left: var(--hos-hairline) solid var(--premium-border);
+  }
+
+  .agent-split__main > .agent-section-gap:first-child,
+  .agent-split__side > .agent-section-gap:first-child {
+    margin-top: 0;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   智能管家 · 双栏工作台（表单 + 常驻状态栏）
+   目标：拉开层级、压掉纵向长度、把默认控件换成有质感的开关 / 滑杆
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 标题层级：眉标收敛字距，标题降到 600 级，避免整页都在「喊」 ── */
+.agent-hub .settings-card-intro__eyebrow {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.agent-hub .settings-card-intro__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.agent-hub .settings-section-eyebrow {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.agent-hub .settings-section-title {
+  font-weight: 600;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.agent-hub .settings-form-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--hos-text-secondary);
+}
+
+/* 表单节奏：行距更紧一点，一屏能看完更多字段 */
+.agent-hub .settings-form-grid {
+  gap: 10px 14px;
+}
+
+.agent-hub .agent-band-hint {
+  margin: 5px 0 0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+}
+
+.agent-hub .agent-band-hint--meta {
+  color: var(--hos-text-muted, rgba(255, 255, 255, 0.45));
+}
+
+/* 字段块：标签 → 控件 → 说明，统一 6px 呼吸 */
+.agent-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── 工作台栅格 ── */
+.agent-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.agent-workbench__main,
+.agent-workbench__rail {
+  min-width: 0;
+}
+
+.agent-workbench__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  order: -1;
+}
+
+@container settings-scroll (min-width: 900px) {
+  .agent-workbench {
+    grid-template-columns: minmax(0, 1fr) 264px;
+    gap: 22px;
+  }
+
+  .agent-workbench__rail {
+    order: 0;
+    position: sticky;
+    top: 2px;
+  }
+}
+
+/* ── 状态栏卡片 ── */
+.agent-rail-card {
+  padding: 11px 12px 12px;
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%),
+    rgba(10, 15, 26, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.agent-rail-card__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.agent-rail-card__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: var(--module-accent-agent, #7dd3fc);
+  background: rgba(var(--page-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.2);
+}
+
+.agent-rail-card__icon svg {
+  width: 11px;
+  height: 11px;
+}
+
+.agent-rail-card__icon--warn {
+  color: var(--set-warn, #fbbf24);
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.24);
+}
+
+.agent-rail-card__eyebrow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--set-text-faint);
+  text-transform: uppercase;
+}
+
+.agent-rail-card__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.01em;
+}
+
+/* 状态芯片 */
+.agent-rail-chip {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: var(--hos-hairline) solid transparent;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.agent-rail-chip--emerald {
+  color: #6ee7b7;
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.26);
+}
+
+.agent-rail-chip--amber {
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.26);
+}
+
+.agent-rail-chip--sky {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.26);
+}
+
+.agent-rail-chip--rose {
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.26);
+}
+
+.agent-rail-chip--violet {
+  color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.14);
+  border-color: rgba(167, 139, 250, 0.28);
+}
+
+/* 键值行 */
+.agent-rail-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 10px 0 0;
+}
+
+.agent-rail-kv__row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.agent-rail-kv__row dt {
+  color: var(--set-text-faint);
+  white-space: nowrap;
+}
+
+.agent-rail-kv__row dd {
+  margin: 0;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-rail-kv__ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 额度进度 */
+.agent-rail-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.agent-rail-meter__track {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.agent-rail-meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(var(--page-accent-rgb), 0.55), rgba(var(--page-accent-rgb), 0.95));
+  transition: width 0.35s ease;
+}
+
+.agent-rail-meter__label {
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  color: var(--hos-text-muted, rgba(255, 255, 255, 0.45));
+  font-variant-numeric: tabular-nums;
+}
+
+/* 说明 / 警告文字 */
+.agent-rail-text {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+}
+
+.agent-rail-note {
+  margin-top: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 0.66rem;
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.035);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+}
+
+.agent-rail-note--warn {
+  color: rgba(252, 211, 77, 0.92);
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+/* 侧栏主按钮 */
+.agent-rail-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 11px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.32);
+  background: linear-gradient(160deg, rgba(var(--page-accent-rgb), 0.2), rgba(var(--page-accent-rgb), 0.08));
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.agent-rail-cta:hover:not(:disabled) {
+  border-color: rgba(var(--page-accent-rgb), 0.5);
+  background: linear-gradient(160deg, rgba(var(--page-accent-rgb), 0.3), rgba(var(--page-accent-rgb), 0.12));
+}
+
+.agent-rail-cta:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.agent-rail-cta__spin {
+  animation: agent-rail-spin 0.9s linear infinite;
+}
+
+@keyframes agent-rail-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 竖向流程 */
+.agent-rail-steps {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-rail-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 17px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.agent-rail-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 19px;
+  bottom: -7px;
+  width: 1px;
+  background: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02));
+}
+
+.agent-rail-steps__dot {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--module-accent-agent, #7dd3fc);
+  background: rgba(var(--page-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.24);
+}
+
+.agent-rail-steps__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-top: 1px;
+}
+
+.agent-rail-steps__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.agent-rail-steps__meta {
+  overflow: hidden;
+  font-size: 0.62rem;
+  color: var(--set-text-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 侧栏大数字 */
+.agent-rail-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.94);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-rail-metric span {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--set-text-faint);
+}
+
+.agent-rail-list {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+}
+
+.agent-rail-list li {
+  position: relative;
+  padding-left: 11px;
+}
+
+.agent-rail-list li::before {
+  content: '';
+  position: absolute;
+  top: 0.5em;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(var(--page-accent-rgb), 0.6);
+}
+
+.agent-rail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--module-accent-agent, #7dd3fc);
+  text-decoration: none;
+}
+
+.agent-rail-link:hover {
+  text-decoration: underline;
+}
+
+/* ── 开关：默认复选框 → 药丸开关（右侧对齐） ── */
+.agent-hub .agent-scene-toggle {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 10px 0 0;
+  padding: 10px 12px 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.028);
+  border: var(--hos-hairline) solid var(--premium-border);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.agent-hub .agent-scene-toggle:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.agent-hub .agent-scene-toggle--on {
+  border-color: rgba(var(--page-accent-rgb), 0.26);
+  background: linear-gradient(100deg, rgba(var(--page-accent-rgb), 0.09), rgba(255, 255, 255, 0.02));
+}
+
+.agent-hub .agent-scene-toggle::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.18s ease;
+}
+
+.agent-hub .agent-scene-toggle--on::before {
+  background: rgba(var(--page-accent-rgb), 0.75);
+}
+
+.agent-hub .agent-scene-toggle > input.settings-checkbox {
+  order: 2;
+  flex: 0 0 auto;
+  margin: 1px 0 0 auto;
+  width: 34px;
+  height: 19px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 药丸开关的圆钮：input 是替换元素，伪元素不渲染，改由 label 绘制 */
+.agent-hub .agent-scene-toggle::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+}
+
+.agent-hub .agent-scene-toggle > input.settings-checkbox:checked {
+  background: rgba(var(--page-accent-rgb), 0.9);
+  border-color: rgba(var(--page-accent-rgb), 0.9);
+  box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.12);
+}
+
+.agent-hub .agent-scene-toggle:has(> input.settings-checkbox:checked)::after {
+  transform: translateX(-15px);
+  background: #fff;
+}
+
+.agent-hub .agent-scene-toggle > input.settings-checkbox:focus-visible {
+  outline: 2px solid rgba(var(--page-accent-rgb), 0.6);
+  outline-offset: 2px;
+}
+
+.agent-hub .agent-scene-toggle > input.settings-checkbox:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.agent-hub .agent-scene-toggle__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.agent-hub .agent-scene-toggle__desc {
+  margin-top: 3px;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+}
+
+/* ── 滑杆：细轨 + 发光圆钮 ── */
+.agent-hub .agent-range {
+  width: 100%;
+  height: 18px;
+  margin: 6px 0 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agent-hub .agent-range::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(var(--page-accent-rgb), 0.55), rgba(255, 255, 255, 0.09));
+}
+
+.agent-hub .agent-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(var(--page-accent-rgb), 0.95);
+  box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.14), 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agent-hub .agent-range:active::-webkit-slider-thumb {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 5px rgba(var(--page-accent-rgb), 0.18), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.agent-hub .agent-range::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.agent-hub .agent-range::-moz-range-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(var(--page-accent-rgb), 0.7);
+}
+
+.agent-hub .agent-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(var(--page-accent-rgb), 0.95);
+  box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.14);
+}
+
+.agent-hub .agent-range:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 停靠预览：融进侧栏卡片，不再自带外边距 */
+.agent-workbench__rail .agent-dock-preview {
+  margin: 0;
+  padding: 11px 12px 12px;
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%),
+    rgba(10, 15, 26, 0.4);
+}
+
+.agent-workbench__rail .agent-dock-preview__screen {
+  height: 118px;
+}
+
+.agent-hub .agent-companion-position-actions {
+  margin-inline: 0;
+}
+
+/* 小屏：侧栏沉到底部时不吸顶 */
+@media (max-width: 720px) {
+  .agent-workbench__rail {
+    position: static;
+  }
+}

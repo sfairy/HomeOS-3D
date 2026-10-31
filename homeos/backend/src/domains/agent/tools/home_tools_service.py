@@ -10,6 +10,7 @@ from typing import Any
 
 from .high_risk_denylist import SceneVoiceControlGate
 from .home_tools_areas import HomeToolsAreasMixin
+from .home_tools_automation import AUTOMATION_TOOL_NAMES, HomeToolsAutomationMixin
 from .home_tools_base import HomeToolsHost
 from .home_tools_entities import HomeToolsEntitiesMixin
 from .home_tools_insights import HomeToolsInsightsMixin
@@ -46,6 +47,7 @@ class HomeToolsService(
     HomeToolsAreasMixin,
     HomeToolsScenesMixin,
     HomeToolsInsightsMixin,
+    HomeToolsAutomationMixin,
     HomeToolsHost,
 ):
     """家居工具集服务：get_tool_schemas 供 LLM 选择，execute 为统一执行入口。"""
@@ -73,6 +75,36 @@ class HomeToolsService(
         self._session_factory = session_factory
         self._external_api = external_api
         self._agent_config = agent_config
+
+    # 自动化族延迟绑定
+
+    def bind_automation(
+        self,
+        *,
+        scheduler: Any = None,
+        policy: Any = None,
+        timeline: Any = None,
+        diagnostics: Any = None,
+        web_search: Any = None,
+        watchdog: Any = None,
+    ) -> None:
+        """注入自动化族依赖（装配层两阶段构造，避免与调度器 / 看门狗循环依赖）。"""
+        self._scheduler = scheduler
+        self._policy = policy
+        self._timeline = timeline
+        self._diagnostics = diagnostics
+        self._web_search_service = web_search
+        self._watchdog = watchdog
+
+    def _mark_manual_control(self, entity_id: str, actor: Any = None) -> None:
+        """记录本进程刚下发的控制命令，供时序服务把随后的翻转归因为手动操作。"""
+        timeline = self._timeline
+        if timeline is None or not entity_id:
+            return
+        try:
+            timeline.mark_local_control(entity_id, actor)
+        except Exception:
+            logger.debug("记录本地控制标记失败: %s", entity_id, exc_info=True)
 
     # 场景语音白名单闸门 / ACL
 
@@ -138,7 +170,6 @@ class HomeToolsService(
 
     # 读路径 ACL / 服务白名单
     @staticmethod
-
     def _read_restrictions(actor: AgentActor | None) -> list[str] | None:
         """读路径实体可见性（与 WS 推送 / HTTP 读接口同一模型）。
 
@@ -161,8 +192,11 @@ class HomeToolsService(
             return True
         return is_entity_allowed(entity_id, restrictions)
 
-    @staticmethod
+    def may_read_entity(self, entity_id: str, actor: AgentActor | None = None) -> bool:
+        """读路径可见性判定（供 API / 诊断日志复用同一份 ACL 口径）。"""
+        return self._may_read(entity_id, actor)
 
+    @staticmethod
     def _service_whitelist_error(domain: str, service: str) -> dict[str, Any]:
         """服务白名单拒绝结果（与 HTTP /ha/services/call 同一份目录）。"""
         return {
@@ -261,17 +295,22 @@ class HomeToolsService(
             return await self._list_scenes_detailed(actor)
         if name == "list_home_modes":
             return {"modes": await self._list_mode_names()}
-        if name == "set_light_brightness":
-            return await self._set_light_brightness(args, actor)
-        if name == "set_cover_position":
-            return await self._set_cover_position(args, actor)
-        if name == "media_control":
-            return await self._media_control(args, actor)
+        device_ops = {
+            "set_light_brightness": self._set_light_brightness,
+            "set_cover_position": self._set_cover_position,
+            "media_control": self._media_control,
+        }
+        device_op = device_ops.get(name)
+        if device_op is not None:
+            return await device_op(args, actor)
         if name == "query_camera":
             return self._query_camera(_s(args.get("entity_id")), actor)
+        if name in AUTOMATION_TOOL_NAMES:
+            return await self._automation_dispatch(name, args, actor)
         return {"error": f"未知工具: {name}"}
 
     # 搜索 / 查询
+
 
 __all__ = [
     "MAX_ATTRIBUTE_VALUE_LENGTH",

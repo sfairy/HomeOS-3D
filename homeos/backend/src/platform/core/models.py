@@ -764,3 +764,141 @@ class AgentMemoryRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
+
+
+# 智能管家自动化（家规 / 计划任务 / 执行日志 / 设备时序）
+class AgentPolicyRule(Base):
+    """智能管家「家规」：房间/设备长期无人时提醒或自动关停。
+
+    ``action_tool`` / ``action_args`` 与计划任务共用同一套工具执行入口，
+    执行期仍走实体 ACL 与高危 denylist，规则本身不携带任何绕过能力。
+    """
+
+    __tablename__ = "agent_policy_rules"
+    __table_args__ = (
+        Index("agent_policy_rules_enabled_idx", "enabled"),
+        Index("agent_policy_rules_area_idx", "areaId"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    #: watchdog（无人空转）是目前唯一类型，保留字段便于后续扩展
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="watchdog")
+    area_id: Mapped[str | None] = mapped_column("areaId", String(128), nullable=True)
+    area_name: Mapped[str] = mapped_column("areaName", String(128), nullable=False, default="")
+    target_domains: Mapped[str] = mapped_column(
+        "targetDomains", Text, nullable=False, default="[]"
+    )
+    #: 无人多少分钟后命中；0 表示沿用全局配置
+    idle_minutes: Mapped[int] = mapped_column("idleMinutes", Integer, nullable=False, default=0)
+    auto_close: Mapped[bool] = mapped_column("autoClose", Boolean, nullable=False, default=False)
+    action_tool: Mapped[str] = mapped_column("actionTool", String(64), nullable=False, default="")
+    action_args: Mapped[str] = mapped_column("actionArgs", Text, nullable=False, default="{}")
+    #: 创建者快照（userId / username / restrictions），执行期用于 ACL
+    actor: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    #: 最后一次修改者快照（userId / username），仅用于审计展示；执行权限仍取创建者
+    updated_by: Mapped[str] = mapped_column("updatedBy", Text, nullable=False, default="{}")
+    last_triggered_at: Mapped[datetime | None] = mapped_column(
+        "lastTriggeredAt", DateTime, nullable=True
+    )
+    trigger_count: Mapped[int] = mapped_column("triggerCount", Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        "createdAt", DateTime, nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
+class AgentScheduledTask(Base):
+    """智能管家计划任务：一次性延迟 / 周期 cron，到点执行一个白名单动作。"""
+
+    __tablename__ = "agent_scheduled_tasks"
+    __table_args__ = (
+        Index("agent_scheduled_tasks_enabled_idx", "enabled"),
+        Index("agent_scheduled_tasks_nextRunAt_idx", "nextRunAt"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    #: ONCE / RECURRING
+    schedule_type: Mapped[str] = mapped_column(
+        "scheduleType", String(16), nullable=False, default="ONCE"
+    )
+    run_at: Mapped[datetime | None] = mapped_column("runAt", DateTime, nullable=True)
+    cron: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    action_tool: Mapped[str] = mapped_column("actionTool", String(64), nullable=False, default="")
+    action_args: Mapped[str] = mapped_column("actionArgs", Text, nullable=False, default="{}")
+    #: 前置条件：{"entityId": "...", "expectedState": "on"}，已满足则跳过本次
+    precondition: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    actor: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    #: 最后一次修改者快照（userId / username），仅用于审计展示；执行权限仍取创建者
+    updated_by: Mapped[str] = mapped_column("updatedBy", Text, nullable=False, default="{}")
+    last_run_at: Mapped[datetime | None] = mapped_column("lastRunAt", DateTime, nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column("nextRunAt", DateTime, nullable=True)
+    last_status: Mapped[str] = mapped_column("lastStatus", String(16), nullable=False, default="")
+    last_error: Mapped[str] = mapped_column("lastError", Text, nullable=False, default="")
+    run_count: Mapped[int] = mapped_column("runCount", Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        "createdAt", DateTime, nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
+class AgentTaskExecutionLog(Base):
+    """计划任务执行日志：每次 tick 的结果，保留期由调度服务清理。"""
+
+    __tablename__ = "agent_task_execution_logs"
+    __table_args__ = (
+        Index("agent_task_execution_logs_task_idx", "taskId", "startedAt"),
+        Index("agent_task_execution_logs_startedAt_idx", "startedAt"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[str] = mapped_column("taskId", String(36), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        "startedAt", DateTime, nullable=False, default=utc_now
+    )
+    finished_at: Mapped[datetime | None] = mapped_column("finishedAt", DateTime, nullable=True)
+    #: success / skipped / failed
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="")
+    message: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    result: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
+
+class AgentContextTimeline(Base):
+    """设备状态翻转时序：用于「这段时间为什么变了」的归因与时长统计。"""
+
+    __tablename__ = "agent_context_timeline"
+    __table_args__ = (
+        Index("agent_context_timeline_entity_idx", "entityId", "changedAt"),
+        Index("agent_context_timeline_area_idx", "areaId", "changedAt"),
+        Index("agent_context_timeline_changedAt_idx", "changedAt"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
+    domain: Mapped[str] = mapped_column(String(64), nullable=False)
+    area_id: Mapped[str] = mapped_column("areaId", String(128), nullable=False, default="")
+    area_name: Mapped[str] = mapped_column("areaName", String(128), nullable=False, default="")
+    old_state: Mapped[str | None] = mapped_column("oldState", Text, nullable=True)
+    new_state: Mapped[str | None] = mapped_column("newState", Text, nullable=True)
+    changed_at: Mapped[datetime] = mapped_column("changedAt", DateTime, nullable=False)
+    #: 下一次翻转时结算；为空表示该状态仍在持续
+    ended_at: Mapped[datetime | None] = mapped_column("endedAt", DateTime, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(
+        "durationSeconds", Integer, nullable=True
+    )
+    #: MANUAL_APP / HA_AUTOMATION / EXTERNAL_DEVICE
+    trigger_source: Mapped[str] = mapped_column(
+        "triggerSource", String(32), nullable=False, default=""
+    )
+    actor: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    context: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    peer_snapshot: Mapped[str] = mapped_column("peerSnapshot", Text, nullable=False, default="{}")

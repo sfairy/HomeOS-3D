@@ -6,6 +6,14 @@
 import { computed, type Ref } from 'vue'
 import type { AgentPingResult } from '@/services/api/agent'
 
+type AgentUsageToday = NonNullable<AgentPingResult['usageToday']>
+
+/** 今日 token 预算使用率（0-100）；未配置预算时返回 null，侧栏进度条据此隐藏 */
+function usagePercentOf(usage: AgentUsageToday | null | undefined): number | null {
+  const budget = usage?.dailyTokenBudget ?? 0
+  return budget > 0 && usage ? Math.round((usage.totalTokens / budget) * 100) : null
+}
+
 export function useAgentModelStats(opts: {
   pending: Ref<number>
   pingInfo: Ref<AgentPingResult | null>
@@ -70,6 +78,9 @@ export function useAgentModelStats(opts: {
     return parts.join(' · ')
   })
 
+  /** 今日 token 预算使用率（0-100；未配置预算时为 null，用于侧栏进度条） */
+  const modelUsagePercent = computed(() => usagePercentOf(pingInfo.value?.usageToday))
+
   return {
     modelStatProvider,
     modelStatReadyLabel,
@@ -77,5 +88,6 @@ export function useAgentModelStats(opts: {
     modelStatReadyValClass,
     modelStatDetail,
     usageTodayLabel,
+    modelUsagePercent,
   }
 }

@@ -114,6 +114,12 @@ export function createUIChromeState() {
   const isDoorbellModalOpen = ref(false)
   // 智能管家对话弹层（首页卡片 / 悬浮按钮均可唤起）
   const isAgentChatOpen = ref(false)
+  /**
+   * 待发送给智能管家的消息（悬浮伴侣长按说话后写入）。
+   * 对话面板消费一次即清空 —— 用「一次性队列」而不是给面板加 props，
+   * 面板在别处被打开时也不会残留上一条语音。
+   */
+  const pendingAgentPrompt = ref('')
   // 设置页解锁标志（需通过 PIN 或手势解锁后才能进入设置）
   const isSettingsUnlocked = ref(false)
   // 升级提示弹窗开关
@@ -189,6 +195,18 @@ export function createUIChromeState() {
   /** 关闭智能管家对话弹层 */
   function closeAgentChat(): void {
     isAgentChatOpen.value = false
+  }
+
+  /** 带着一条待发送消息打开管家对话（悬浮伴侣语音松手后调用） */
+  function queueAgentPrompt(text: string): void {
+    const message = String(text || '').trim()
+    if (!message) return
+    pendingAgentPrompt.value = message
+    isAgentChatOpen.value = true
+  }
+  /** 对话面板取走消息后清空，避免重复发送 */
+  function clearAgentPrompt(): void {
+    pendingAgentPrompt.value = ''
   }
 
   /** 解锁设置页（允许进入设置） */
@@ -432,6 +450,9 @@ export function createUIChromeState() {
     isAgentChatOpen,
     openAgentChat,
     closeAgentChat,
+    pendingAgentPrompt,
+    queueAgentPrompt,
+    clearAgentPrompt,
     isSettingsUnlocked,
     unlockSettings,
     lockSettings,

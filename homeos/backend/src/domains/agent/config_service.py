@@ -87,6 +87,48 @@ class AgentProactiveConfig:
     #: 未来多少个预报时段内降水概率超阈值则提醒
     forecast_slots: int = 4
     forecast_pop_threshold: float = 0.6
+    #: 看门狗（无人空转巡检）总开关，默认关闭
+    watchdog_enabled: bool = False
+    #: 房间无人超过多少分钟才认为真的离开
+    motion_idle_minutes: int = 20
+    #: 无人体存在传感器时，设备开启超过多少分钟视为空转
+    idle_device_minutes: int = 60
+    #: 没有运动传感器时，开关类设备的常开阈值
+    idle_switch_minutes: int = 120
+    #: 命中家规时是否允许自动关停（默认关闭）
+    auto_close_enabled: bool = False
+    #: 单次巡检最多自动关停的设备数
+    max_auto_close_devices: int = 3
+
+
+def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
+    """把配置值夹到 ``[minimum, maximum]``；不可解析时回退默认值。"""
+    try:
+        number = int(float(value))
+    except (TypeError, ValueError):
+        logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
+        return default
+    return max(minimum, min(maximum, number))
+
+
+def _clamp_float(value: Any, default: float, minimum: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
+        return default
+    return max(minimum, number)
+
+
+def _coerce_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in ("true", "1", "yes", "on"):
+        return True
+    if text in ("false", "0", "no", "off"):
+        return False
+    return default
 
 
 def is_mock_allowed(env: Mapping[str, str] | None = None) -> bool:
@@ -303,37 +345,47 @@ class AgentConfigService:
         if env_enabled in ("true", "false"):
             enabled = env_enabled == "true"
 
-        def _int(name: str, key: str, default: int, minimum: int, maximum: int) -> int:
-            value = raw.get(key, self._env_get(name))
-            try:
-                number = int(float(value))
-            except (TypeError, ValueError):
-                return default
-            return max(minimum, min(maximum, number))
-
-        def _float(name: str, key: str, default: float, minimum: float) -> float:
-            value = raw.get(key, self._env_get(name))
-            try:
-                number = float(value)
-            except (TypeError, ValueError):
-                return default
-            return max(minimum, number)
+        def _value(name: str, key: str) -> Any:
+            return raw.get(key, self._env_get(name))
 
         return AgentProactiveConfig(
             enabled=enabled,
-            interval_seconds=_int("AGENT_PROACTIVE_INTERVAL_SECONDS", "intervalSeconds", 900, 60, 86400),
-            cooldown_seconds=_int("AGENT_PROACTIVE_COOLDOWN_SECONDS", "cooldownSeconds", 1800, 60, 86400),
-            quiet_start=_int("AGENT_PROACTIVE_QUIET_START", "quietStart", 22, 0, 23),
-            quiet_end=_int("AGENT_PROACTIVE_QUIET_END", "quietEnd", 7, 0, 23),
-            energy_multiplier=_float(
-                "AGENT_PROACTIVE_ENERGY_MULTIPLIER", "energyMultiplier", 1.5, 1.0
+            interval_seconds=_clamp_int(_value("AGENT_PROACTIVE_INTERVAL_SECONDS", "intervalSeconds"), 900, 60, 86400),
+            cooldown_seconds=_clamp_int(_value("AGENT_PROACTIVE_COOLDOWN_SECONDS", "cooldownSeconds"), 1800, 60, 86400),
+            quiet_start=_clamp_int(_value("AGENT_PROACTIVE_QUIET_START", "quietStart"), 22, 0, 23),
+            quiet_end=_clamp_int(_value("AGENT_PROACTIVE_QUIET_END", "quietEnd"), 7, 0, 23),
+            energy_multiplier=_clamp_float(_value("AGENT_PROACTIVE_ENERGY_MULTIPLIER", "energyMultiplier"), 1.5, 1.0),
+            min_energy_kwh=_clamp_float(_value("AGENT_PROACTIVE_MIN_ENERGY_KWH", "minEnergyKwh"), 1.0, 0.0),
+            forecast_slots=_clamp_int(_value("AGENT_PROACTIVE_FORECAST_SLOTS", "forecastSlots"), 4, 1, 12),
+            forecast_pop_threshold=_clamp_float(
+                _value("AGENT_PROACTIVE_FORECAST_POP", "forecastPopThreshold"), 0.6, 0.0
             ),
-            min_energy_kwh=_float("AGENT_PROACTIVE_MIN_ENERGY_KWH", "minEnergyKwh", 1.0, 0.0),
-            forecast_slots=_int("AGENT_PROACTIVE_FORECAST_SLOTS", "forecastSlots", 4, 1, 12),
-            forecast_pop_threshold=_float(
-                "AGENT_PROACTIVE_FORECAST_POP", "forecastPopThreshold", 0.6, 0.0
+            watchdog_enabled=_coerce_bool(_value("AGENT_WATCHDOG_ENABLED", "watchdogEnabled"), False),
+            motion_idle_minutes=_clamp_int(
+                _value("AGENT_WATCHDOG_MOTION_IDLE_MINUTES", "motionIdleMinutes"), 20, 1, 1440
             ),
+            idle_device_minutes=_clamp_int(
+                _value("AGENT_WATCHDOG_IDLE_DEVICE_MINUTES", "idleDeviceMinutes"), 60, 1, 1440
+            ),
+            idle_switch_minutes=_clamp_int(
+                _value("AGENT_WATCHDOG_IDLE_SWITCH_MINUTES", "idleSwitchMinutes"), 120, 1, 1440
+            ),
+            auto_close_enabled=_coerce_bool(_value("AGENT_WATCHDOG_AUTO_CLOSE", "autoCloseEnabled"), False),
+            max_auto_close_devices=_clamp_int(_value("AGENT_WATCHDOG_MAX_AUTO_CLOSE", "maxAutoCloseDevices"), 3, 1, 20),
         )
+
+    async def get_web_search_enabled(self) -> bool:
+        """联网搜索开关（layout.agentConfig.webSearchEnabled，默认开启）。
+
+        默认开启是因为搜索是只读能力且后两级搜索源无需密钥；关掉后 LLM 侧
+        仍能看到 ``web_search`` 工具，但调用会返回「已在设置中关闭」。
+        """
+        try:
+            agent = self._read_agent_config()
+        except Exception:
+            return True
+        raw = agent.get("webSearchEnabled") if isinstance(agent, dict) else None
+        return raw is not False
 
     # 内部工具
     def resolve_active_project_id(self) -> str:
@@ -356,7 +408,8 @@ class AgentConfigService:
             if row is None or not row.layout:
                 return {}
             return read_json_object(row.layout, {})
-        except Exception:
+        except Exception as exc:
+            logger.warning("读取激活项目布局失败,按空配置处理: %s", exc)
             return {}
 
     def _read_agent_config(self) -> dict[str, Any]:

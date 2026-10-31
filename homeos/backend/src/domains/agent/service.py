@@ -494,6 +494,7 @@ class AgentService:
         budget: AgentBudgetService | None = None,
         audit_log: Any | None = None,
         memory: AgentMemoryService | None = None,
+        env_context: Any | None = None,
     ) -> None:
         self._llm = llm
         self._tools = tools
@@ -509,6 +510,8 @@ class AgentService:
         self._audit_log = audit_log
         #: 长期记忆（别名 / 偏好）；None 表示未启用
         self._memory = memory
+        #: 家庭环境上下文（当前时间 / 天气 / 日出日落）；None 表示不注入
+        self._env_context = env_context
         #: 批量操作确认 / 撤销（纯内存，按会话隔离）
         self._batch_ops = BatchOperationService()
 
@@ -1628,6 +1631,16 @@ class AgentService:
         cfg = await self._agent_config.get_config()
         custom = (cfg.system_prompt or "").strip()
         base = self._L.system_prompt if not custom else f"{self._L.system_prompt}\n\n【用户自定义补充】\n{custom}"
+        # 家庭环境（时间 / 天气 / 日出日落）：模型没有时钟，相对时间指令全靠这段。
+        env_context = self._env_context
+        if env_context is not None:
+            try:
+                env_text = env_context.build(self._lang_code())
+            except Exception:
+                logger.debug("生成家庭环境上下文失败", exc_info=True)
+                env_text = ""
+            if env_text:
+                base = f"{base}\n\n{env_text}"
         if ctx is not None:
             room = str(ctx.options.room or "").strip() if ctx.options else ""
             if room:

@@ -179,7 +179,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             )
             return {"success": False, "blocked": True, "message": auth.get("message")}
         try:
-            return await self._command_proxy.call_service(
+            result = await self._command_proxy.call_service(
                 {
                     "domain": actual_domain,
                     "service": service,
@@ -189,6 +189,10 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             )
         except Exception as exc:
             return {"success": False, "message": _error_message(exc, "控制失败")}
+        # 下发成功后打一个短标记：随后的状态翻转归因为「手动操作」而不是外部设备
+        if not (isinstance(result, dict) and result.get("success") is False):
+            self._mark_manual_control(entity_id, actor)
+        return result
 
     async def _set_light_brightness(
         self,

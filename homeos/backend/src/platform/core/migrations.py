@@ -398,6 +398,26 @@ def _add_security_event_audit_columns(
             connection.execute(ddl)
 
 
+def _add_agent_automation_actor_columns(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """家规 / 计划任务增加 ``updatedBy``：审计需要知道「谁改的」。
+
+    权限仍取创建者快照（``actor``），这一列只服务于展示与追溯。
+    全新库由 create_all 直接建出含该列的表，这里对缺表静默跳过。
+    """
+    for table in ('agent_policy_rules', 'agent_scheduled_tasks'):
+        if not _table_exists(connection, table):
+            continue
+        if 'updatedBy' in _columns(connection, table):
+            continue
+        ddl = (
+            f'ALTER TABLE {table} ADD COLUMN "updatedBy" '
+            "TEXT NOT NULL DEFAULT '{}'"
+        )
+        connection.execute(ddl)
+
+
 MIGRATIONS = (
     Migration(1, "users-email-normalize-unique", "h0002-v1", _normalize_users_email),
     Migration(2, "sessions-user-expires-index", "h0003-v1", _index_sessions_user_expires),
@@ -411,4 +431,5 @@ MIGRATIONS = (
     Migration(10, "drop-studio-sync-pending", "h0010-v1", _drop_legacy_sync_pending),
     Migration(11, "ha-entities-display-precision", "h0011-v1", _add_ha_entity_display_precision),
     Migration(12, "security-event-audit-fields", "h0012-v1", _add_security_event_audit_columns),
+    Migration(13, "agent-automation-actor-columns", "h0013-v1", _add_agent_automation_actor_columns),
 )

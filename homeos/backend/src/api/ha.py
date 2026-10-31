@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 import traceback
@@ -767,13 +768,32 @@ async def call_service(
     # 校验与下发全部住在 ``domains/ha/integration/service_call.py``（唯一出口）：
     # HTTP 语义只在这一行转换，状态码与 detail 文案保持字节级不变。
     try:
-        return await execute_service_call(
+        result = await execute_service_call(
             request,
             command,
             access_check=lambda database, entity_id: require_viewer_entity(database, viewer, entity_id),
         )
     except ServiceCallRejected as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    _mark_agent_local_control(request, command.entity_id)
+    return result
+
+
+def _mark_agent_local_control(request: Request, entity_id: str) -> None:
+    """把 App / 网页下发的控制标记成「手动操作」。
+
+    智能管家时序服务据此把随后的状态翻转归因为 ``MANUAL_APP``，而不是外部设备；
+    时序服务未装配（关闭 / 精简部署）时静默跳过。
+    """
+    if not entity_id:
+        return
+    timeline = getattr(request.app.state, 'agent_timeline', None)
+    marker = getattr(timeline, 'mark_local_control', None)
+    if not callable(marker):
+        return
+    # 归因属旁路观测：失败不能影响控制结果
+    with contextlib.suppress(Exception):
+        marker(entity_id)
 
 
 @router.post('/media/browse')

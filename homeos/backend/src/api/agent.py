@@ -205,9 +205,7 @@ async def ping(
 async def chat(
     dto: ChatDto,
     request: Request,
-    user: dict[str, Any] = Depends(
-        rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)
-    ),
+    user: dict[str, Any] = Depends(rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)),
 ):
     """自然语言对话 / 控制（支持 sessionId 实现连续对话）。"""
     from ..domains.agent.service import AgentChatOptions
@@ -224,9 +222,7 @@ async def chat(
 async def chat_stream(
     dto: ChatDto,
     request: Request,
-    user: dict[str, Any] = Depends(
-        rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)
-    ),
+    user: dict[str, Any] = Depends(rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)),
 ):
     """流式对话（SSE：token / tool / done / error）。"""
     from ..domains.agent.service import AgentChatOptions
@@ -250,9 +246,7 @@ async def chat_stream(
                 result = await service.chat(
                     dto.message,
                     history,
-                    AgentChatOptions(
-                        actor=actor, session_id=dto.sessionId, on_progress=on_progress
-                    ),
+                    AgentChatOptions(actor=actor, session_id=dto.sessionId, on_progress=on_progress),
                 )
                 queue.put_nowait(_frame("done", result.to_dict()))
             except Exception as exc:
@@ -280,3 +274,238 @@ async def chat_stream(
             "Connection": "keep-alive",
         },
     )
+
+
+# --- 自动化：家规 / 计划任务 / 巡检 / 诊断 -------------------------------------
+# 这些表由设置页直接 CRUD（不进布局保存），与对话里 LLM 调用的工具共用同一套服务，
+# 因此两边的冲突检测、权限与执行日志天然一致。
+
+
+class PolicyDto(BaseModel):
+    """家规写入请求（字段与 ``AgentPolicyService`` 的 payload 对齐）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Any = None
+    description: Any = None
+    enabled: Any = None
+    areaId: Any = None
+    areaName: Any = None
+    targetDomains: Any = None
+    idleMinutes: Any = None
+    autoClose: Any = None
+    forceOverride: Any = None
+
+
+class ScheduleDto(BaseModel):
+    """计划任务写入请求。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Any = None
+    enabled: Any = None
+    scheduleType: Any = None
+    runAt: Any = None
+    delayMinutes: Any = None
+    time: Any = None
+    cron: Any = None
+    timezone: Any = None
+    actionTool: Any = None
+    actionArgs: Any = None
+    precondition: Any = None
+
+
+class ToggleDto(BaseModel):
+    """启停请求：``enabled`` 省略表示取反。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: Any = None
+
+
+def _policy(request: Request) -> Any:
+    service = getattr(request.app.state, "agent_policy", None)
+    if service is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "家规服务未启用")
+    return service
+
+
+def _scheduler(request: Request) -> Any:
+    service = getattr(request.app.state, "agent_scheduler", None)
+    if service is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "计划任务未启用")
+    return service
+
+
+def _writable_fields(dto: BaseModel) -> dict[str, Any]:
+    """只取显式传入的字段，避免未填字段被当成「清空」。"""
+    return {key: value for key, value in dto.model_dump().items() if value is not None}
+
+
+@router.get("/policies")
+async def list_policies(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """列出家规（最新在前）。"""
+    del user
+    return {"items": await _policy(request).list_rules()}
+
+
+@router.post("/policies")
+async def create_policy(
+    dto: PolicyDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """创建家规；与既有规则冲突且未强制覆盖时返回 ``ok=false`` + ``conflicts``。"""
+    payload = _writable_fields(dto)
+    force_override = bool(payload.pop("forceOverride", False))
+    return await _policy(request).create_rule(payload, _actor_from_user(user), force_override=force_override)
+
+
+@router.put("/policies/{policy_id}")
+async def update_policy(
+    policy_id: str,
+    dto: PolicyDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """更新家规（只改传入字段）。"""
+    payload = _writable_fields(dto)
+    force_override = bool(payload.pop("forceOverride", False))
+    return await _policy(request).update_rule(
+        policy_id, payload, force_override=force_override, actor=_actor_from_user(user)
+    )
+
+
+@router.post("/policies/{policy_id}/toggle")
+async def toggle_policy(
+    policy_id: str,
+    request: Request,
+    dto: ToggleDto | None = None,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """启用 / 停用家规。"""
+    enabled = None if dto is None or dto.enabled is None else bool(dto.enabled)
+    return await _policy(request).toggle_rule(policy_id, enabled, actor=_actor_from_user(user))
+
+
+@router.delete("/policies/{policy_id}")
+async def delete_policy(
+    policy_id: str,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """删除家规。"""
+    return await _policy(request).delete_rule(policy_id, actor=_actor_from_user(user))
+
+
+@router.get("/schedules")
+async def list_schedules(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """列出计划任务。"""
+    del user
+    return {"items": await _scheduler(request).list_tasks()}
+
+
+@router.get("/schedules/logs")
+async def list_schedule_logs(
+    request: Request,
+    taskId: str = "",
+    limit: int = 20,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """查询计划任务执行日志（最新在前）。"""
+    del user
+    return {"items": await _scheduler(request).list_logs(taskId, limit)}
+
+
+@router.post("/schedules")
+async def create_schedule(
+    dto: ScheduleDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """创建计划任务（一次性 / 周期）。"""
+    return await _scheduler(request).create_task(_writable_fields(dto), _actor_from_user(user))
+
+
+@router.put("/schedules/{task_id}")
+async def update_schedule(
+    task_id: str,
+    dto: ScheduleDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """更新计划任务（只改传入字段，会重算下次执行时间）。"""
+    return await _scheduler(request).update_task(task_id, _writable_fields(dto), actor=_actor_from_user(user))
+
+
+@router.post("/schedules/{task_id}/toggle")
+async def toggle_schedule(
+    task_id: str,
+    request: Request,
+    dto: ToggleDto | None = None,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """启用 / 停用计划任务。"""
+    enabled = None if dto is None or dto.enabled is None else bool(dto.enabled)
+    return await _scheduler(request).toggle_task(task_id, enabled, actor=_actor_from_user(user))
+
+
+@router.delete("/schedules/{task_id}")
+async def delete_schedule(
+    task_id: str,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """删除计划任务。"""
+    return await _scheduler(request).delete_task(task_id, actor=_actor_from_user(user))
+
+
+@router.post("/patrol/run")
+async def run_patrol(
+    request: Request,
+    autoClose: bool | None = None,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """手动执行一次主动巡检（返回检测信号与自动关停结果）。
+
+    ``autoClose`` 省略表示跟随「主动管家」里的自动关停总开关；
+    显式传 ``false`` 表示本次只检查不动设备。
+    """
+    watchdog = getattr(request.app.state, "agent_watchdog", None)
+    if watchdog is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "看门狗未启用")
+    return await watchdog.run_once(actor=_actor_from_user(user), auto_close=autoClose)
+
+
+@router.get("/diagnostics")
+async def list_diagnostics(
+    request: Request,
+    category: str = "",
+    level: str = "",
+    kind: str = "",
+    search: str = "",
+    limit: int = 50,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """查询诊断日志（离线 / 恢复 / 低电量 / 连接），按实体可见性过滤。"""
+    diagnostics = getattr(request.app.state, "agent_diagnostics", None)
+    if diagnostics is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "诊断日志未启用")
+    actor = _actor_from_user(user)
+    tools = getattr(request.app.state, "home_tools", None)
+    may_read = getattr(tools, "may_read_entity", None)
+    items = diagnostics.query(
+        level=level,
+        category=category,
+        kind=kind,
+        search=search,
+        limit=limit,
+        may_read=(lambda entity_id: may_read(entity_id, actor)) if callable(may_read) else None,
+    )
+    return {"items": items}

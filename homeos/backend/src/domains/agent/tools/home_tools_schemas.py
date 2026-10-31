@@ -132,7 +132,7 @@ def _room_and_mode_schemas() -> list[LlmToolSchema]:
             description=(
                 '触发 Home Assistant 的场景（scene.*）或脚本（script.*）。当用户说"执行回家场景"'
                 '"运行××脚本""激活××模式"，且 list_scenes 返回的 ha_scenes 中存在对应项时使用。'
-                "出于安全考虑，只有用户在\"场景语音控制\"允许清单中显式勾选过的场景 / 脚本才能执行；"
+                '出于安全考虑，只有用户在"场景语音控制"允许清单中显式勾选过的场景 / 脚本才能执行；'
                 "未授权时会被拦截，需如实告知用户去设置里勾选，不要改用控制设备绕开限制。"
                 "可用 entity_id 精确指定，或只给名称由系统解析。"
             ),
@@ -177,7 +177,7 @@ def _status_and_scene_schemas() -> list[LlmToolSchema]:
         LlmToolSchema(
             name="get_home_status",
             description=(
-                '获取全屋整体状态概览：当前家庭模式、实体总数、开灯数、开启中的设备、'
+                "获取全屋整体状态概览：当前家庭模式、实体总数、开灯数、开启中的设备、"
                 '门窗/窗帘状态、安防状态、平均温湿度、今日用电。当用户问"家里现在什么状态"'
                 '"整体情况怎么样""家里有没有异常"时使用。无需参数。'
             ),
@@ -384,4 +384,213 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
         *_status_and_scene_schemas(),
         *_device_detail_schemas(),
         *_insight_schemas(),
+        *_automation_schemas(),
+    ]
+
+
+def _automation_schemas() -> list[LlmToolSchema]:
+    """自动化族：设备时序 / 主动巡检 / 诊断日志 / 家规 / 计划任务 / 联网搜索。"""
+    return [
+        LlmToolSchema(
+            name="query_device_timeline",
+            description=(
+                "查询设备状态翻转时序：某设备最近何时被打开/关闭、持续多久、由谁触发"
+                "（手动 App / HA 自动化 / 外部设备）。回答“空调用几小时了”“灯什么时候开的”时使用。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "entity_id": {
+                        "type": "string",
+                        "description": "设备实体 ID，如 light.living_room；与 area_id 二选一",
+                    },
+                    "area_id": {
+                        "type": "string",
+                        "description": "区域 ID 或房间名，如 客厅；按房间查全部设备的翻转记录",
+                    },
+                    "hours": {
+                        "type": "number",
+                        "description": "回溯小时数，默认 24，最大 1440",
+                        "minimum": 1,
+                        "maximum": 1440,
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "最多返回多少条翻转记录，默认 20，最大 100",
+                        "minimum": 1,
+                        "maximum": 100,
+                    },
+                },
+            },
+        ),
+        LlmToolSchema(
+            name="run_proactive_patrol",
+            description=(
+                "立即执行一次主动巡检：检查无人房间的常开设备与能耗浪费。"
+                "自动关停默认关闭，只有用户开启且家规允许时才会关灯/关风扇等低危设备。"
+            ),
+            parameters={"type": "object", "properties": {}},
+        ),
+        LlmToolSchema(
+            name="query_system_logs",
+            description=("查询系统诊断日志：设备离线/恢复、低电量、连接异常。回答“哪些设备掉线了”“谁电量低”时使用。"),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "description": "诊断类型过滤：设备离线 / 恢复 / 低电量 / 连接异常",
+                        "enum": [
+                            "DEVICE_OFFLINE",
+                            "DEVICE_RECOVERED",
+                            "LOW_BATTERY",
+                            "CONNECTIVITY",
+                        ],
+                    },
+                    "search": {"type": "string", "description": "按设备、区域或消息关键字过滤"},
+                    "level": {
+                        "type": "string",
+                        "description": "日志级别过滤，如 warning / error",
+                        "enum": ["info", "success", "warning", "error"],
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "最多返回条数，默认 20，最大 50",
+                        "minimum": 1,
+                        "maximum": 50,
+                    },
+                },
+            },
+        ),
+        LlmToolSchema(
+            name="manage_user_policy",
+            description=(
+                "管理用户家规：创建 / 列出 / 启用停用 / 删除。家规描述“无人多久后关闭哪些设备”。"
+                "创建时会检测与既有规则的冲突，冲突需用户确认后用 forceOverride 覆盖。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "create 新建 / list 列出 / toggle 启停 / delete 删除",
+                        "enum": ["create", "list", "toggle", "delete"],
+                    },
+                    "name": {"type": "string", "description": "家规名称（create 必填）"},
+                    "description": {"type": "string", "description": "家规说明"},
+                    "area": {
+                        "type": "string",
+                        "description": "目标区域名称或 ID；留空表示全屋",
+                    },
+                    "domains": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "目标设备域，仅支持 light / switch / fan / climate",
+                    },
+                    "idle_minutes": {
+                        "type": "number",
+                        "description": "无人后多少分钟触发，默认 30",
+                        "minimum": 1,
+                        "maximum": 1440,
+                    },
+                    "auto_close": {
+                        "type": "boolean",
+                        "description": "是否自动关闭命中的低危设备，默认 false（仅提醒）",
+                    },
+                    "rule_id": {"type": "string", "description": "toggle / delete 时的家规 ID"},
+                    "force_override": {
+                        "type": "boolean",
+                        "description": "检测到冲突时是否强制写入",
+                    },
+                },
+                "required": ["action"],
+            },
+        ),
+        LlmToolSchema(
+            name="schedule_task",
+            description=(
+                "创建计划任务（一次性或周期）。动作只能是 control_device / activate_scene / "
+                "activate_home_mode；执行时会重新校验权限与高危拦截。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "任务名称，如「睡前关客厅灯」"},
+                    "schedule_type": {
+                        "type": "string",
+                        "description": "ONCE（一次性）或 RECURRING（周期，默认每天）",
+                        "enum": ["ONCE", "RECURRING"],
+                    },
+                    "delay_minutes": {
+                        "type": "number",
+                        "description": "一次性任务：多少分钟后执行（与 run_at 二选一）",
+                        "minimum": 1,
+                        "maximum": 43200,
+                    },
+                    "run_at": {
+                        "type": "string",
+                        "description": "一次性任务：执行时间，ISO 或「YYYY-MM-DD HH:MM」",
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "周期任务：每天几点执行，形如 22:00",
+                    },
+                    "cron": {
+                        "type": "string",
+                        "description": "周期任务：5 段 cron 表达式，如 0 22 * * *",
+                    },
+                    "entity_id": {"type": "string", "description": "要控制的设备实体 ID"},
+                    "domain": {
+                        "type": "string",
+                        "description": "设备域，留空时按 entity_id 前缀推断",
+                    },
+                    "service": {
+                        "type": "string",
+                        "description": "服务名，如 turn_off / turn_on / set_temperature",
+                    },
+                    "service_data": {"type": "object", "description": "服务附加参数"},
+                    "expected_state": {
+                        "type": "string",
+                        "description": "可选前置状态：设备已是该状态时跳过本次执行（如 off）",
+                    },
+                },
+                "required": ["name", "entity_id", "service"],
+            },
+        ),
+        LlmToolSchema(
+            name="list_scheduled_tasks",
+            description="列出已创建的计划任务及其下次执行时间、最近执行结果。",
+            parameters={"type": "object", "properties": {}},
+        ),
+        LlmToolSchema(
+            name="cancel_scheduled_task",
+            description="删除计划任务。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "计划任务 ID"},
+                    "name": {"type": "string", "description": "或按任务名称关键词删除"},
+                },
+            },
+        ),
+        LlmToolSchema(
+            name="web_search",
+            description=(
+                "联网搜索（受用户开关与域名白名单约束）。查天气、新闻、常识或家政技巧时使用；"
+                "只返回网页摘要，不要把搜索结果当作设备状态。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "搜索关键词"},
+                    "count": {
+                        "type": "integer",
+                        "description": "返回结果数，默认 5，最大 8",
+                        "minimum": 1,
+                        "maximum": 8,
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
     ]

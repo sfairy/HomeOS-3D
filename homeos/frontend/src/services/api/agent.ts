@@ -1,5 +1,5 @@
 /** 智能代理与消息通道 REST API 封装 */
-import { apiGet, apiPost } from './client'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
 import { withCsrf } from './csrf'
 
 /** 代理心跳检测结果 */
@@ -367,4 +367,281 @@ export function agentChatStream(
 export async function channelsStatus() {
   const channelsResponse = await apiGet<ChannelsStatusResult>('/channels/status')
   return channelsResponse.data
+}
+
+// --- 自动化：家规 / 计划任务 / 巡检 / 诊断 ------------------------------------
+// 这些数据由设置页独立即时 CRUD（不进布局保存），与对话里 LLM 调用的工具
+// 共用同一套后端服务，因此冲突检测、权限与执行日志天然一致。
+
+/** 家规：房间长期无人时提醒 / 自动关停低危设备 */
+/** 写入者快照（只用于展示「谁改的」，不参与权限判定） */
+export interface AgentActorSnapshot {
+  userId?: string | null
+  username?: string | null
+}
+
+export interface AgentPolicyRule {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  /** 规则类型（当前只有 watchdog 空转巡检） */
+  kind: string
+  /** 目标区域；空字符串表示全屋 */
+  areaId: string
+  areaName: string
+  /** 目标设备域（light / switch / fan / climate） */
+  targetDomains: string[]
+  /** 无人多少分钟后命中；0 表示沿用主动管家全局阈值 */
+  idleMinutes: number
+  /** 命中后是否自动关停（仍受主动管家总开关约束） */
+  autoClose: boolean
+  actionTool: string
+  actionArgs: Record<string, unknown>
+  /** 最后一次修改者（userId / username）；空对象表示由系统写入 */
+  updatedBy: AgentActorSnapshot
+  lastTriggeredAt: string | null
+  triggerCount: number
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+/** 家规冲突项（同区域 + 设备域重叠） */
+export interface AgentPolicyConflict {
+  ruleId: string
+  ruleName: string
+  overlapDomains: string[]
+  reason: string
+}
+
+/** 家规写入请求（``forceOverride`` 仅在确认覆盖冲突时传 true） */
+export interface AgentPolicyPayload {
+  name?: string
+  description?: string
+  enabled?: boolean
+  areaId?: string
+  areaName?: string
+  targetDomains?: string[]
+  idleMinutes?: number
+  autoClose?: boolean
+  forceOverride?: boolean
+}
+
+/** 家规写入结果 */
+export interface AgentPolicyWriteResult {
+  ok: boolean
+  message?: string
+  rule?: AgentPolicyRule
+  conflicts?: AgentPolicyConflict[]
+}
+
+/** 计划任务：一次性或周期执行一个设备动作 */
+export interface AgentScheduledTask {
+  id: string
+  name: string
+  enabled: boolean
+  scheduleType: 'ONCE' | 'RECURRING'
+  /** 一次性任务的执行时间（ISO） */
+  runAt: string | null
+  /** 周期任务的 cron 表达式 */
+  cron: string
+  timezone: string
+  actionTool: string
+  actionArgs: Record<string, unknown>
+  /** 前置条件（如 ``{ expectedState: {...} }``，已满足则跳过） */
+  precondition: Record<string, unknown>
+  lastRunAt: string | null
+  nextRunAt: string | null
+  /** success / skipped / failed；空字符串表示还没跑过 */
+  lastStatus: string
+  lastError: string
+  runCount: number
+  /** 最后一次修改者（userId / username）；空对象表示由系统写入 */
+  updatedBy: AgentActorSnapshot
+  createdAt: string | null
+}
+
+/** 计划任务执行日志 */
+export interface AgentScheduleLog {
+  id: string
+  taskId: string
+  startedAt: string | null
+  finishedAt: string | null
+  status: string
+  message: string
+  result: Record<string, unknown>
+}
+
+/** 计划任务写入请求 */
+export interface AgentSchedulePayload {
+  name?: string
+  enabled?: boolean
+  scheduleType?: 'ONCE' | 'RECURRING'
+  /** 一次性任务：ISO 时间 */
+  runAt?: string
+  /** 一次性任务：多少分钟后执行 */
+  delayMinutes?: number
+  /** 周期任务：每天 HH:MM */
+  time?: string
+  /** 周期任务：5 段 cron 表达式 */
+  cron?: string
+  timezone?: string
+  actionTool?: string
+  actionArgs?: Record<string, unknown>
+  precondition?: Record<string, unknown>
+}
+
+/** 计划任务写入结果 */
+export interface AgentScheduleWriteResult {
+  ok: boolean
+  message?: string
+  task?: AgentScheduledTask
+}
+
+/** 巡检关停动作 */
+export interface AgentPatrolAction {
+  entityId: string
+  name: string
+  areaId: string
+  ok: boolean
+  message: string
+  ruleIds: string[]
+}
+
+/** 手动巡检结果 */
+export interface AgentPatrolResult {
+  ok: boolean
+  /** disabled：看门狗未开启时整次跳过 */
+  skipped?: string
+  sent?: boolean
+  message?: string
+  /** 人类可读的告警信号 */
+  signals: string[]
+  /** 实际执行的自动关停动作 */
+  actions: AgentPatrolAction[]
+  /** 本轮判定的无人区域 */
+  areas: Array<{ id: string; name: string; idleMinutes: number | null }>
+}
+
+/** 诊断日志条目（离线 / 恢复 / 低电量 / 连接） */
+export interface AgentDiagnosticEvent {
+  id: string
+  level: string
+  message: string
+  timestamp: string | null
+  /** offline / recovered / low_battery / connectivity */
+  kind: string
+  entityId: string
+  context: Record<string, unknown>
+}
+
+/** 列出家规（最新在前）。 */
+export async function listAgentPolicies() {
+  const response = await apiGet<{ items: AgentPolicyRule[] }>('/agent/policies')
+  return response.data?.items ?? []
+}
+
+/** 创建家规；冲突且未强制覆盖时返回 `ok=false` + `conflicts`。 */
+export async function createAgentPolicy(payload: AgentPolicyPayload) {
+  const response = await apiPost<AgentPolicyWriteResult>('/agent/policies', payload)
+  return response.data
+}
+
+/** 更新家规（只改传入字段）。 */
+export async function updateAgentPolicy(policyId: string, payload: AgentPolicyPayload) {
+  const response = await apiPut<AgentPolicyWriteResult>(
+    `/agent/policies/${encodeURIComponent(policyId)}`,
+    payload,
+  )
+  return response.data
+}
+
+/** 启用 / 停用家规；省略 `enabled` 表示取反。 */
+export async function toggleAgentPolicy(policyId: string, enabled?: boolean) {
+  const response = await apiPost<AgentPolicyWriteResult>(
+    `/agent/policies/${encodeURIComponent(policyId)}/toggle`,
+    enabled === undefined ? {} : { enabled },
+  )
+  return response.data
+}
+
+/** 删除家规。 */
+export async function deleteAgentPolicy(policyId: string) {
+  const response = await apiDelete<{ ok: boolean; message?: string }>(
+    `/agent/policies/${encodeURIComponent(policyId)}`,
+  )
+  return response.data
+}
+
+/** 列出计划任务。 */
+export async function listAgentSchedules() {
+  const response = await apiGet<{ items: AgentScheduledTask[] }>('/agent/schedules')
+  return response.data?.items ?? []
+}
+
+/** 创建计划任务（一次性 / 周期）。 */
+export async function createAgentSchedule(payload: AgentSchedulePayload) {
+  const response = await apiPost<AgentScheduleWriteResult>('/agent/schedules', payload)
+  return response.data
+}
+
+/** 更新计划任务（会重算下次执行时间）。 */
+export async function updateAgentSchedule(taskId: string, payload: AgentSchedulePayload) {
+  const response = await apiPut<AgentScheduleWriteResult>(
+    `/agent/schedules/${encodeURIComponent(taskId)}`,
+    payload,
+  )
+  return response.data
+}
+
+/** 启用 / 停用计划任务；省略 `enabled` 表示取反。 */
+export async function toggleAgentSchedule(taskId: string, enabled?: boolean) {
+  const response = await apiPost<AgentScheduleWriteResult>(
+    `/agent/schedules/${encodeURIComponent(taskId)}/toggle`,
+    enabled === undefined ? {} : { enabled },
+  )
+  return response.data
+}
+
+/** 删除计划任务。 */
+export async function deleteAgentSchedule(taskId: string) {
+  const response = await apiDelete<{ ok: boolean; message?: string }>(
+    `/agent/schedules/${encodeURIComponent(taskId)}`,
+  )
+  return response.data
+}
+
+/** 查询计划任务执行日志（最新在前）。 */
+export async function listAgentScheduleLogs(taskId = '', limit = 20) {
+  const response = await apiGet<{ items: AgentScheduleLog[] }>('/agent/schedules/logs', {
+    params: { taskId, limit },
+  })
+  return response.data?.items ?? []
+}
+
+/**
+ * 手动执行一次主动巡检。
+ *
+ * @param autoClose 省略表示跟随「主动管家」自动关停总开关；`false` 表示只检查不动设备。
+ */
+export async function runAgentPatrol(autoClose?: boolean) {
+  const query = autoClose === undefined ? '' : `?autoClose=${autoClose ? 'true' : 'false'}`
+  const response = await apiPost<AgentPatrolResult>(`/agent/patrol/run${query}`)
+  return response.data
+}
+
+/** 查询诊断日志（离线 / 恢复 / 低电量 / 连接），按实体可见性过滤。 */
+export async function listAgentDiagnostics(
+  options: { category?: string; level?: string; kind?: string; search?: string; limit?: number } = {},
+) {
+  const response = await apiGet<{ items: AgentDiagnosticEvent[] }>('/agent/diagnostics', {
+    params: {
+      category: options.category ?? '',
+      level: options.level ?? '',
+      kind: options.kind ?? '',
+      search: options.search ?? '',
+      limit: options.limit ?? 50,
+    },
+  })
+  return response.data?.items ?? []
 }

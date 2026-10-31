@@ -903,6 +903,10 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     )
     app.state.home_tools = home_tools
 
+    # 自动化族（时序 / 诊断 / 家规 / 联网搜索 / 计划任务 / 看门狗）单独装配：
+    # 服务多、依赖交叉，拆出去避免把本函数撑成「什么都装」的长函数。
+    env_context = _build_agent_automation(app, startup, app_config, agent_config, home_tools)
+
     fast_path = FastPathService(
         agent_area,
         startup.state_store,
@@ -943,6 +947,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         app.state.agent_budget,
         app.state.global_log,
         memory=agent_memory,
+        env_context=env_context,
     )
     app.state.agent_service = agent_service
     startup.agent_service = agent_service
@@ -957,6 +962,87 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         is_production=startup.app_settings.is_production,
         lang_templates=lang_templates,
     )
+
+
+def _build_agent_automation(
+    app: FastAPI,
+    startup: _StartupContext,
+    app_config: Any,
+    agent_config: Any,
+    home_tools: Any,
+) -> Any:
+    """装配智能管家自动化族，返回环境上下文服务（供系统提示注入）。
+
+    时序与诊断订阅状态变更总线，写库全在后台任务里；调度器 / 看门狗只先拿工具服务，
+    通知服务在下一阶段就绪后再 ``bind_notification`` 并 ``start``。
+    """
+    from ..domains.agent.diagnostics import AgentDiagnosticsService
+    from ..domains.agent.env_context import HomeEnvironmentContextService
+    from ..domains.agent.policy import AgentPolicyService
+    from ..domains.agent.scheduler import AgentSchedulerService
+    from ..domains.agent.timeline import AgentTimelineService
+    from ..domains.agent.watchdog import AgentWatchdogService
+    from ..domains.agent.web_search import AgentWebSearchService
+
+    session_factory = app.state.database.session_factory
+
+    agent_timeline = AgentTimelineService(
+        session_factory,
+        startup.state_store,
+        enrichment=app.state.entity_area,
+        event_bus=startup.security_bus,
+    )
+    agent_timeline.bind_events()
+    app.state.agent_timeline = agent_timeline
+
+    agent_diagnostics = AgentDiagnosticsService(
+        app.state.global_log,
+        startup.state_store,
+        event_bus=startup.security_bus,
+    )
+    agent_diagnostics.bind_events()
+    app.state.agent_diagnostics = agent_diagnostics
+
+    agent_policy = AgentPolicyService(session_factory)
+    app.state.agent_policy = agent_policy
+
+    # 家庭时区 / 天气 / 日出日落：注入系统提示，也给 cron 任务用作默认时区
+    env_context = HomeEnvironmentContextService(startup.state_store, app_config)
+    app.state.agent_env_context = env_context
+
+    agent_web_search = AgentWebSearchService(env=os.environ)
+    app.state.agent_web_search = agent_web_search
+
+    agent_scheduler = AgentSchedulerService(
+        session_factory,
+        tools=home_tools,
+        jobs=app.state.jobs,
+        timezone_provider=env_context.timezone_name,
+    )
+    app.state.agent_scheduler = agent_scheduler
+
+    agent_watchdog = AgentWatchdogService(
+        home_tools,
+        agent_config,
+        areas=app.state.entity_area,
+        state_store=startup.state_store,
+        timeline=agent_timeline,
+        policy=agent_policy,
+        presence=startup.presence,
+        session_factory=session_factory,
+        jobs=app.state.jobs,
+    )
+    app.state.agent_watchdog = agent_watchdog
+
+    home_tools.bind_automation(
+        scheduler=agent_scheduler,
+        policy=agent_policy,
+        timeline=agent_timeline,
+        diagnostics=agent_diagnostics,
+        web_search=agent_web_search,
+        watchdog=agent_watchdog,
+    )
+    return env_context
 
 
 async def _build_channels_and_notification(app: FastAPI, startup: _StartupContext) -> None:
@@ -1038,6 +1124,19 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
     )
     await proactive.start()
     app.state.agent_proactive = proactive
+
+    # 计划任务 / 看门狗：依赖通知服务（失败告警 / 空转提醒），在通知就绪后才启动
+    agent_scheduler = getattr(app.state, "agent_scheduler", None)
+    if agent_scheduler is not None:
+        agent_scheduler.bind_notification(notification)
+        await _start_services(agent_scheduler.start())
+    agent_watchdog = getattr(app.state, "agent_watchdog", None)
+    if agent_watchdog is not None:
+        agent_watchdog.bind_notification(notification)
+        presence_service = getattr(app.state, "presence", None)
+        if presence_service is not None:
+            agent_watchdog.bind_presence(presence_service)
+        await _start_services(agent_watchdog.start())
 
     # 实体反向引用：布局 / 家庭模式 / 告警规则 / 系统配置 的「哪些功能引用了该实体」
     alert_rule_watch_index = AlertRuleWatchIndex()
@@ -1205,6 +1304,16 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
 
 
+async def _shutdown_agent_automation(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
+    """停止看门狗与计划任务（先停巡检，避免停机过程中再触发设备控制）。"""
+    for service, label in (
+        (getattr(app.state, "agent_watchdog", None), "看门狗"),
+        (getattr(app.state, "agent_scheduler", None), "计划任务"),
+    ):
+        if service is not None:
+            await shutdown(label, service.stop)
+
+
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
     loop_lag = getattr(app.state, "loop_lag", None)
@@ -1230,6 +1339,7 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     proactive = getattr(app.state, "agent_proactive", None)
     if proactive is not None:
         await shutdown("主动管家", proactive.stop)
+    await _shutdown_agent_automation(app, shutdown)
     await shutdown("通知", startup.notification.stop)
     channels_service = getattr(app.state, "channels_service", None)
     if channels_service is not None:
