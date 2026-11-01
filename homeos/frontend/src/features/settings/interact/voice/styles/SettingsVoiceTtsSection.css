@@ -265,7 +265,7 @@
   }
 }
 
-@container settings-scroll (max-width: 880px) {
+@container settings-scroll (max-width: 900px) {
   .vox-columns {
     grid-template-columns: 1fr;
   }
