@@ -17,13 +17,6 @@ logger = logging.getLogger("homeos.state_store.entity_area")
 #: 区域索引缓存有效期（毫秒）。
 ENTITY_AREA_CACHE_MS = 30_000
 
-#: 公开配置等待区域索引的旧上限（毫秒）。
-#:
-#: 自 ``GET /system/config/public`` 改为「预热只放后台」后已不再使用：
-#: 该响应体的 ``haAreas`` 直接读本地 ``ha_areas`` 表，不依赖这份索引，
-#: 每次固定等 2s 只会拖慢登录与 3D 首屏。保留常量仅为兼容既有导出。
-PUBLIC_CONFIG_AREA_WAIT_MS = 2_000
-
 
 def build_area_name_map(areas: list[dict[str, Any]]) -> dict[str, str]:
     out: dict[str, str] = {}
@@ -424,7 +417,6 @@ def _iso_now() -> str:
 
 __all__ = [
     "ENTITY_AREA_CACHE_MS",
-    "PUBLIC_CONFIG_AREA_WAIT_MS",
     "EntityAreaEnrichmentService",
     "build_area_name_map",
     "build_device_area_map",

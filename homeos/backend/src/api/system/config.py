@@ -118,9 +118,8 @@ async def get_public_config(request: Request):
     """获取公开系统配置。
 
     区域索引预热一律放后台：索引只用于给实体补全 ``area_id``，本响应体里的
-    ``haAreas`` / ``roomMeta`` 直接读本地 ``ha_areas`` 表。旧实现固定等
-    ``PUBLIC_CONFIG_AREA_WAIT_MS``（2s），HA 注册表慢时每个页面（含 3D 交互图）
-    的启动都被硬生生拖 2s，收益为零。
+    ``haAreas`` / ``roomMeta`` 直接读本地 ``ha_areas`` 表。旧实现固定等 2s，
+    HA 注册表慢时每个页面（含 3D 交互图）的启动都被硬生生拖 2s，收益为零。
     """
     enrichment = getattr(request.app.state, "entity_area", None)
     if enrichment is not None:
