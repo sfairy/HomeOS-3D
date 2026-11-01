@@ -1,16 +1,33 @@
 <template>
   <!-- HosSelect 自定义选择器组件：支持搜索、分组、键盘导航、Teleport 弹出层 -->
   <div ref="wrapRef" :class="['hos-select', rootClass]">
-    <!-- 选择器触发按钮：点击展开/收起下拉面板 -->
+    <!-- 选择器触发按钮：点击展开/收起下拉面板。
+         按 WAI-ARIA 1.2 的 button-combobox 模式声明：键盘焦点留在触发按钮上，
+         用 `aria-activedescendant` 指向当前高亮项，而不是把焦点搬进列表里。
+         注意 `aria-label` 必须显式给：`role="combobox"` 的可访问名只认作者标注，
+         不再从按钮文字内容推导 —— 缺了它，空值/图标化时 `button-name` 是 axe critical。 -->
     <button
       type="button"
+      ref="triggerRef"
       :id="id || undefined"
       :class="triggerClass"
       :disabled="disabled"
       :title="title"
-      :aria-expanded="open"
+      role="combobox"
+      :aria-expanded="open ? 'true' : 'false'"
       aria-haspopup="listbox"
+      :aria-controls="panelId"
+      :aria-activedescendant="open && !searchable ? activeOptionId : undefined"
+      :aria-label="title || selectedLabel || placeholderText"
       @click.stop="toggle"
+      @keydown.down.prevent="onTriggerArrow(1)"
+      @keydown.up.prevent="onTriggerArrow(-1)"
+      @keydown.enter.prevent="onTriggerEnter"
+      @keydown.space.prevent="onTriggerEnter"
+      @keydown.esc.prevent="close"
+      @keydown.home.prevent="onTriggerEdge('first')"
+      @keydown.end.prevent="onTriggerEdge('last')"
+      @keydown.tab="close"
     >
       <span class="hos-select__value">{{ selectedLabel || placeholderText }}</span>
       <ChevronDown class="hos-select__chev" :class="{ 'hos-select__chev--open': open }" />
@@ -21,12 +38,15 @@
       <Transition name="hos-select-drop">
         <div
           v-if="open"
+          :id="panelId"
           ref="dropdownRef"
           :class="['hos-select__panel', placement === 'top' && 'hos-select__panel--top']"
           :style="dropdownStyle"
           role="listbox"
+          :aria-label="title || undefined"
         >
-          <!-- 搜索框：可搜索时显示，支持键盘上下导航和回车选择 -->
+          <!-- 搜索框：可搜索时显示，支持键盘上下导航和回车选择。
+               可搜索模式下焦点在这里，所以 combobox 语义也挂在这里。 -->
           <div v-if="searchable" class="hos-select__search-wrap">
             <Search class="hos-select__search-icon" aria-hidden="true" />
             <input
@@ -34,36 +54,49 @@
               v-model="query"
               type="text"
               class="hos-select__search"
+              role="combobox"
+              aria-autocomplete="list"
+              :aria-expanded="open ? 'true' : 'false'"
+              :aria-controls="panelId"
+              :aria-activedescendant="activeOptionId"
+              :aria-label="title || placeholderText"
               :placeholder="searchPlaceholderText"
               autocomplete="off"
               @keydown.down.prevent="moveDown"
               @keydown.up.prevent="moveUp"
               @keydown.enter.prevent="selectActive"
               @keydown.escape.prevent="close"
+              @keydown.tab="close"
             />
           </div>
 
-          <!-- 选项列表：支持分组显示、选中状态、激活高亮 -->
-          <div v-if="visibleOptions.length" class="hos-select__list">
+          <!-- 选项列表：支持分组显示、选中状态、激活高亮。
+               选项不进 Tab 序列（`tabindex="-1"`），键盘完全交给上面的触发按钮 / 搜索框，
+               这是 combobox 模式的关键：Tab 一次就离开整个控件，不是逐个选项走。 -->
+          <div v-if="visibleOptions.length" class="hos-select__list" role="presentation">
             <template v-for="(opt, idx) in visibleOptions" :key="`${opt.value}-${idx}`">
               <!-- 分组标签：当选项有分组且与上一个分组不同时显示 -->
               <div
                 v-if="opt.group && (idx === 0 || visibleOptions[idx - 1].group !== opt.group)"
                 class="hos-select__group-label"
+                role="presentation"
               >
                 {{ opt.group }}
               </div>
               <button
                 type="button"
+                :id="optionId(idx)"
                 role="option"
-                :aria-selected="isSelected(opt)"
+                tabindex="-1"
+                :data-active-option="idx === activeIdx ? 'true' : undefined"
+                :aria-selected="isSelected(opt) ? 'true' : 'false'"
                 :disabled="opt.disabled"
                 :class="[
                   'hos-select__item',
                   isSelected(opt) && 'hos-select__item--selected',
                   idx === activeIdx && 'hos-select__item--active',
                 ]"
-                @mousedown.prevent="pick(opt)"
+                @click="pick(opt)"
                 @mouseenter="activeIdx = idx"
               >
                 <div class="hos-select__item-main">
@@ -89,7 +122,7 @@
 
 <script setup>
 /** HosSelect - 自定义选择器组件 */
-import { ref, computed, watch, nextTick, useSlots, onUpdated } from 'vue'
+import { ref, computed, watch, nextTick, useId, useSlots, onUpdated } from 'vue'
 import { ChevronDown, Check, Search } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
@@ -161,12 +194,28 @@ const wrapRef = ref(null)
 const dropdownRef = ref(null)
 /** 搜索输入框 ref，用于自动聚焦 */
 const searchRef = ref(null)
+/** 触发按钮 ref：面板关闭后把焦点还给它（见 close） */
+const triggerRef = ref(null)
 /** 下拉面板是否展开 */
 const open = ref(false)
 /** 当前搜索关键词 */
 const query = ref('')
 /** 当前键盘导航激活的选项索引 */
 const activeIdx = ref(0)
+
+/**
+ * 面板 / 选项的 id 前缀。
+ *
+ * 用 `useId()` 而不是固定字符串：同一个页面里往往有十几个 HosSelect，
+ * 固定 id 会让 `aria-controls` / `aria-activedescendant` 全部指向第一个实例的选项。
+ */
+const panelId = useId()
+/** 第 idx 个选项的 DOM id（combobox 的 `aria-activedescendant` 靠它定位高亮项）。 */
+function optionId(idx) {
+  return `${panelId}-opt-${idx}`
+}
+/** 当前高亮项 id：面板收起时不指向任何东西。 */
+const activeOptionId = computed(() => (open.value ? optionId(activeIdx.value) : undefined))
 
 /**
  * 下拉面板定位逻辑
@@ -369,8 +418,14 @@ function openPanel() {
 
 /** 关闭下拉面板并清空搜索关键词 */
 function close() {
+  // 键盘用户在搜索框里按 Enter 选中后，搜索框会随面板一起卸载 ——
+  // 焦点会掉到 <body>，下一次按 Tab 得从页面开头重来。这里把焦点还给触发按钮。
+  const active = document.activeElement
+  const focusWasInPanel =
+    !!dropdownRef.value && active instanceof HTMLElement && dropdownRef.value.contains(active)
   open.value = false
   query.value = ''
+  if (focusWasInPanel) triggerRef.value?.focus?.()
 }
 
 /** 切换下拉面板展开/收起状态 */
@@ -392,11 +447,57 @@ function pick(opt) {
 function moveDown() {
   if (!visibleOptions.value.length) return
   activeIdx.value = Math.min(activeIdx.value + 1, visibleOptions.value.length - 1)
+  scrollActiveIntoView()
 }
 
 /** 键盘向上导航：激活索引 -1，不小于 0 */
 function moveUp() {
   activeIdx.value = Math.max(activeIdx.value - 1, 0)
+  scrollActiveIntoView()
+}
+
+/**
+ * 把高亮项滚进可视区。
+ *
+ * 用 `block: 'nearest'`：元素本来就可见时是 no-op，只有被面板高度裁掉才滚，
+ * 且只滚最近的滚动祖先 —— 不会像默认 `start` 那样把整页翻一下。
+ */
+function scrollActiveIntoView() {
+  nextTick(() => {
+    const el = dropdownRef.value?.querySelector('[data-active-option="true"]')
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  })
+}
+
+/** 触发按钮上按上下键：收起时先展开（展开会定位到当前选中项），展开后继续移动 */
+function onTriggerArrow(dir) {
+  if (!open.value) {
+    openPanel()
+    return
+  }
+  if (dir > 0) moveDown()
+  else moveUp()
+}
+
+/** 触发按钮上按 Enter / Space：收起时展开；已展开且有搜索框时把焦点交给搜索框 */
+function onTriggerEnter() {
+  if (!open.value) {
+    openPanel()
+    return
+  }
+  if (searchable.value) {
+    searchRef.value?.focus()
+    return
+  }
+  selectActive()
+}
+
+/** 触发按钮上按 Home / End：跳到首项 / 末项 */
+function onTriggerEdge(edge) {
+  if (!open.value) openPanel()
+  if (!visibleOptions.value.length) return
+  activeIdx.value = edge === 'first' ? 0 : visibleOptions.value.length - 1
+  scrollActiveIntoView()
 }
 
 /** 键盘回车选择：选中当前激活的选项 */

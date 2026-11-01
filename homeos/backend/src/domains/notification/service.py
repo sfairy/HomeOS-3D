@@ -380,8 +380,7 @@ class NotificationService:
             self._ha_outage_alarmed = True
             sent = await self.notify(
                 "warn",
-                f"HA 连接已中断超过 {int(HA_OUTAGE_GRACE_SECONDS // 60)} 分钟，"
-                "自动化、告警与安防联动当前不可用",
+                f"HA 连接已中断超过 {int(HA_OUTAGE_GRACE_SECONDS // 60)} 分钟，自动化、告警与安防联动当前不可用",
                 HA_SOURCE,
                 opts={"bypassDnd": True},
             )
@@ -418,9 +417,7 @@ class NotificationService:
             return False
         return str(entity.get("state")) in ("unavailable", "unknown")
 
-    async def check_low_battery(
-        self, entity_id: str, friendly_name: str, level: float
-    ) -> None:
+    async def check_low_battery(self, entity_id: str, friendly_name: str, level: float) -> None:
         cfg = self._cfg()
         if cfg.get("globalNotifyEnabled") is False or cfg.get("lowBatteryNotifyEnabled") is False:
             return
@@ -471,14 +468,11 @@ class NotificationService:
         filtered = [
             record
             for record in records
-            if not record.get("entityId")
-            or is_entity_allowed_by_restrictions(record["entityId"], restrictions)
+            if not record.get("entityId") or is_entity_allowed_by_restrictions(record["entityId"], restrictions)
         ]
         return filtered[:limit]
 
-    async def get_notifications_by_sources(
-        self, sources: list[str], limit: int = 30
-    ) -> list[dict[str, Any]]:
+    async def get_notifications_by_sources(self, sources: list[str], limit: int = 30) -> list[dict[str, Any]]:
         if not sources:
             return []
 
@@ -512,9 +506,7 @@ class NotificationService:
                 base = combine_conditions(Notification.created_at >= since, source_condition)
                 base_conditions = [base] if base is not None else []
                 total = int(
-                    session.execute(
-                        select(sa_func.count()).select_from(Notification).where(*base_conditions)
-                    ).scalar()
+                    session.execute(select(sa_func.count()).select_from(Notification).where(*base_conditions)).scalar()
                     or 0
                 )
                 unread = int(
@@ -544,14 +536,10 @@ class NotificationService:
                 level_rows = [
                     (str(row[0]), int(row[1]))
                     for row in session.execute(
-                        select(Notification.level, sa_func.count())
-                        .where(*base_conditions)
-                        .group_by(Notification.level)
+                        select(Notification.level, sa_func.count()).where(*base_conditions).group_by(Notification.level)
                     ).all()
                 ]
-                bucket_expr = sa_func.substr(
-                    Notification.created_at, 1, 13 if granularity == "hour" else 10
-                )
+                bucket_expr = sa_func.substr(Notification.created_at, 1, 13 if granularity == "hour" else 10)
                 time_rows = [
                     (row[0], int(row[1]))
                     for row in session.execute(
@@ -584,16 +572,29 @@ class NotificationService:
 
         await asyncio.to_thread(_update)
 
+    async def delete(self, notification_id: str) -> bool:
+        """删除单条通知（前端点 × 的落地动作）。
+
+        此前只有「全清」与「标记已读」两个端点，于是前端点 × 只能改 ``read``，
+        条目原地不动 —— 用户视角是「通知永远关不掉」。返回是否真的删掉了一行，
+        供路由区分 404 与成功。
+        """
+
+        def _delete() -> bool:
+            with self._session_factory() as session:
+                row = session.get(Notification, notification_id)
+                if row is None:
+                    return False
+                session.delete(row)
+                session.commit()
+                return True
+
+        return await asyncio.to_thread(_delete)
+
     async def mark_all_as_read(self) -> dict[str, Any]:
         def _update() -> int:
             with self._session_factory() as session:
-                rows = (
-                    session.execute(
-                        select(Notification).where(Notification.read.is_(False))
-                    )
-                    .scalars()
-                    .all()
-                )
+                rows = session.execute(select(Notification).where(Notification.read.is_(False))).scalars().all()
                 for row in rows:
                     row.read = True
                 session.commit()
@@ -605,9 +606,7 @@ class NotificationService:
     async def clear_all(self) -> dict[str, Any]:
         def _clear() -> int:
             with self._session_factory() as session:
-                count = int(
-                    session.execute(select(func.count()).select_from(Notification)).scalar() or 0
-                )
+                count = int(session.execute(select(func.count()).select_from(Notification)).scalar() or 0)
                 session.execute(delete(Notification))
                 session.commit()
                 return count
@@ -622,11 +621,7 @@ class NotificationService:
 
         def _clear() -> int:
             with self._session_factory() as session:
-                rows = (
-                    session.execute(select(Notification).where(Notification.source.in_(sources)))
-                    .scalars()
-                    .all()
-                )
+                rows = session.execute(select(Notification).where(Notification.source.in_(sources))).scalars().all()
                 for row in rows:
                     session.delete(row)
                 session.commit()
@@ -647,14 +642,10 @@ class NotificationService:
     async def add_rule(self, rule: dict[str, Any]) -> dict[str, Any]:
         return await self._rules_helper.add_rule(rule)
 
-    async def update_rule(
-        self, rule_id: str, partial: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    async def update_rule(self, rule_id: str, partial: dict[str, Any]) -> dict[str, Any] | None:
         return await self._rules_helper.update_rule(rule_id, partial)
 
-    def test_condition(
-        self, condition: str, state: str, attributes: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def test_condition(self, condition: str, state: str, attributes: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._rules_helper.test_condition(condition, state, attributes)
 
     async def delete_rule(self, rule_id: str) -> dict[str, Any]:
@@ -673,9 +664,7 @@ class NotificationService:
     ) -> dict[str, Any]:
         return await self._settings_helper.update_settings(settings, user_id)
 
-    async def update_user_preferences(
-        self, user_id: str, settings: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def update_user_preferences(self, user_id: str, settings: dict[str, Any]) -> dict[str, Any]:
         return await self._settings_helper.update_user_preferences(user_id, settings)
 
     # 状态变更入口（冷路径）

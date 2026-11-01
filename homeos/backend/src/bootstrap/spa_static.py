@@ -90,12 +90,11 @@ def signed_in(request: Request) -> bool:
         return False
     try:
         with database.session_factory() as session:
-            return (
-                resolve_login_session(
-                    session, token, max_age_seconds=settings.jwt_expires_in_seconds
-                )
-                is not None
-            )
+            # 会话口径必须与 ``authenticate_session`` 一致（``session_max_age_seconds``）：
+            # 这里传的是 **滑动续期** 的时长，不是令牌有效期。此前误传
+            # ``jwt_expires_in_seconds``（1 天），每次加载静态资源都把服务端会话从 30 天
+            # 截成「最后一次静态请求 + 1 天」，而 Cookie 仍是 30 天 —— 用户隔天被要求重新登录。
+            return resolve_login_session(session, token, max_age_seconds=settings.session_max_age_seconds) is not None
     except Exception:
         return False
 
@@ -132,9 +131,7 @@ def page_preload_stylesheets(path: str) -> tuple[str, ...]:
     return ()
 
 
-def _inject_preload_stylesheets(
-    html: str, urls: tuple[str, ...], frontend_dir: Path | None = None
-) -> str:
+def _inject_preload_stylesheets(html: str, urls: tuple[str, ...], frontend_dir: Path | None = None) -> str:
     """把首屏样式表以 ``rel=preload`` 注入外壳 ``<head>``（不激活、不改变挂载顺序）。
 
     这些样式表是 ``/static/**`` 下的**稳定 URL**（``studio.css`` / ``renderer.css`` …），
@@ -143,13 +140,8 @@ def _inject_preload_stylesheets(
     """
     if not urls:
         return html
-    hrefs = (
-        (frontend_resource_url(frontend_dir, url) if frontend_dir is not None else url)
-        for url in urls
-    )
-    tags = "".join(
-        f'<link rel="preload" as="style" href="{html_escape(href)}">' for href in hrefs
-    )
+    hrefs = ((frontend_resource_url(frontend_dir, url) if frontend_dir is not None else url) for url in urls)
+    tags = "".join(f'<link rel="preload" as="style" href="{html_escape(href)}">' for href in hrefs)
     if "</head>" in html:
         return html.replace("</head>", f"{tags}</head>", 1)
     return f"{tags}{html}"
@@ -316,7 +308,9 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
             # 随包默认素材（背景图 84 KB、图标几 KB）只在发版时变，重复打开仪表盘不必每次
             # 回源校验；用户上传层仍走 no-cache，覆盖 / 隐藏能立即生效。
             response.headers["Cache-Control"] = (
-                f"private, max-age={_BUILTIN_ASSET_MAX_AGE}" if resolved.is_relative_to(_builtin) else "private, no-cache"
+                f"private, max-age={_BUILTIN_ASSET_MAX_AGE}"
+                if resolved.is_relative_to(_builtin)
+                else "private, no-cache"
             )
             return response
 
@@ -466,9 +460,7 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
             raise HTTPException(status_code=404)
         # 静态产物路径未挂载 / 文件缺失时也绝不能回 index.html（否则 shared-*.js 报 Strict MIME）。
         path = request.url.path
-        if is_frontend_static_path(path) or Path(path).suffix.lower() in (
-            _SPA_FALLBACK_ASSET_SUFFIXES
-        ):
+        if is_frontend_static_path(path) or Path(path).suffix.lower() in (_SPA_FALLBACK_ASSET_SUFFIXES):
             raise HTTPException(status_code=404)
         return await _spa_shell(request)
 

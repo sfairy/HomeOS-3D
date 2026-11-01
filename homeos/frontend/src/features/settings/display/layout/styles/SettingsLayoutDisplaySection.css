@@ -12,6 +12,11 @@
   color: var(--premium-accent-violet, #818cf8);
 }
 
+/* 缩放开关的「窗口过窄」提示：用令牌而非硬编码，跟随高对比度档 */
+.ldp-c-warn {
+  color: var(--hos-color-warning-text, #ffd07a);
+}
+
 .ldp-scale-badge {
   border-color: rgba(99, 102, 241, 0.2);
 }

@@ -3,8 +3,10 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "@store/shared/api/http";
+import { onStoreUnauthorized } from "@store/shared/api/http";
 import type { StoreLicense, StoreOrder, StoreAccount, StoreProduct } from "@store/shared/types/store";
 import { logAndIgnore } from "@store/shared/utils/best-effort";
+import { useStoreToast } from "@store/shared/stores/toast";
 
 interface AccountPayload {
   account?: StoreAccount;
@@ -24,6 +26,7 @@ interface AccountPayload {
 }
 
 export const useSessionStore = defineStore("session", () => {
+  const toast = useStoreToast();
   const account = ref<StoreAccount | null>(null);
   const hasLicense = ref(false);
   const hasTemporaryLicense = ref(false);
@@ -70,6 +73,8 @@ export const useSessionStore = defineStore("session", () => {
     }
     ordersLoaded.value = orders.value.length;
     ordersTotal.value = Number(payload.ordersTotal ?? orders.value.length);
+    // 重新拿到账号数据 = 会话是好的：允许下一次失效再提示一次
+    expiredNotified = false;
     syncAuthHint();
   }
 
@@ -89,6 +94,20 @@ export const useSessionStore = defineStore("session", () => {
   let loading: Promise<AccountPayload> | null = null;
   /** 登出 / 会话失效时自增：在途请求回来后若 epoch 变了，绝不能再写回旧账号数据。 */
   let sessionEpoch = 0;
+  /** 「会话已失效」提示是否已经发过：多个接口同时 401 时只提示一次。 */
+  let expiredNotified = false;
+
+  // 任何「只有登录才能成功」的前台接口回了 401/403，都说明服务端会话已经没了。
+  // 之前只有 StoreLayout 首屏探针与路由守卫会处理，SPA 内切页后没人再探测，
+  // 账号中心就一直拿内存里的旧数据渲染「已登录」，解绑 / 提现只会各弹一条错误 toast。
+  onStoreUnauthorized(() => {
+    // 游客态的 401 是正常的（未登录时受保护接口本来就拒绝），不当作会话失效
+    if (!account.value) return;
+    resetSession();
+    if (expiredNotified) return;
+    expiredNotified = true;
+    toast.show("登录状态已失效，请重新登录。", "err");
+  });
 
   async function loadOnce() {
     const epoch = sessionEpoch;

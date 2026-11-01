@@ -50,7 +50,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
             # meta.actor 必须是 dict：activate_home_mode 会用它做实体级 ACL
             # （entity_execute_acl.assert_entity_targets_execute_authorized 调 actor.get(...)）。
             # 传 AgentActor 数据类会 AttributeError，导致模式切换必然失败。
-            await self._home_mode.activate(
+            result = await self._home_mode.activate(
                 mode["id"],
                 {
                     "source": "agent",
@@ -58,13 +58,33 @@ class HomeToolsScenesMixin(HomeToolsHost):
                     "actor": actor.to_auth_user(),
                 },
             )
-            return {"success": True, "mode": {"id": mode["id"], "name": mode["name"]}}
+            # 激活失败是**返回字段**（``HomeModeActivateResult.success``），不是异常：
+            # 执行项失败 / 安防联动未生效都在这里体现。此前丢弃返回值后无条件回
+            # ``success: True``，助手会把「没切」说成「已切换」，计划任务也会记成功。
+            if isinstance(result, dict) and result.get("success") is False:
+                executed = result.get("executed")
+                total = result.get("total")
+                progress = f"（{executed}/{total} 项成功）" if total else ""
+                return {
+                    "success": False,
+                    "message": f"家庭模式「{mode['name']}」切换未完成{progress}"
+                    + ("，请检查设备状态后重试。" if total else "。"),
+                    "failedItems": result.get("failedItems") or [],
+                }
+            payload: dict[str, Any] = {
+                "success": True,
+                "mode": {"id": mode["id"], "name": mode["name"]},
+            }
+            if isinstance(result, dict):
+                # 部分实现（幂等命中 / 已激活）会带回这些字段，透传给上游便于解释。
+                for key in ("executed", "total", "retried", "alreadyActive"):
+                    if key in result:
+                        payload[key] = result[key]
+            return payload
         except Exception as exc:
             return {"success": False, "message": _error_message(exc, "模式切换失败")}
 
-    async def _resolve_mode_by_name_or_id(
-        self, name_or_id: str
-    ) -> dict[str, str] | None:
+    async def _resolve_mode_by_name_or_id(self, name_or_id: str) -> dict[str, str] | None:
         """按名称（精确 / 包含）或 ID 解析家庭模式。"""
         try:
             direct = await run_db(self._home_mode.find_one, name_or_id)
@@ -87,9 +107,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
         try:
             with self._session_factory() as session:
                 rows = session.execute(
-                    select(HomeMode.id, HomeMode.name)
-                    .where(HomeMode.name.ilike(f"%{query}%"))
-                    .limit(5)
+                    select(HomeMode.id, HomeMode.name).where(HomeMode.name.ilike(f"%{query}%")).limit(5)
                 ).all()
             return [{"id": str(row[0]), "name": str(row[1])} for row in rows]
         except Exception as exc:
@@ -105,13 +123,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
 
     def _query_mode_names(self) -> list[str]:
         with self._session_factory() as session:
-            names = (
-                session.execute(
-                    select(HomeMode.name).order_by(HomeMode.sort_order.asc()).limit(20)
-                )
-                .scalars()
-                .all()
-            )
+            names = session.execute(select(HomeMode.name).order_by(HomeMode.sort_order.asc()).limit(20)).scalars().all()
         return [str(name) for name in names]
 
     # 场景 / 脚本
@@ -127,11 +139,9 @@ class HomeToolsScenesMixin(HomeToolsHost):
                 "entity_id": str(e.get("entity_id") or ""),
                 "name": str(
                     _or(
-                        (
-                            (e.get("attributes") or {})
-                            if isinstance(e.get("attributes"), dict)
-                            else {}
-                        ).get("friendly_name"),
+                        ((e.get("attributes") or {}) if isinstance(e.get("attributes"), dict) else {}).get(
+                            "friendly_name"
+                        ),
                         e.get("entity_id"),
                     )
                 ),
@@ -167,9 +177,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
             }
 
         candidates = [
-            e
-            for e in self._state_store.get_all()
-            if str(e.get("entity_id") or "").startswith(("scene.", "script."))
+            e for e in self._state_store.get_all() if str(e.get("entity_id") or "").startswith(("scene.", "script."))
         ]
 
         hit = self._match_scene_entity(candidates, query, explicit_id)
@@ -180,11 +188,9 @@ class HomeToolsScenesMixin(HomeToolsHost):
                 "available_scenes": [
                     str(
                         _or(
-                            (
-                                (e.get("attributes") or {})
-                                if isinstance(e.get("attributes"), dict)
-                                else {}
-                            ).get("friendly_name"),
+                            ((e.get("attributes") or {}) if isinstance(e.get("attributes"), dict) else {}).get(
+                                "friendly_name"
+                            ),
                             e.get("entity_id"),
                         )
                     )
@@ -230,7 +236,6 @@ class HomeToolsScenesMixin(HomeToolsHost):
             return {"success": False, "message": _error_message(exc, "场景执行失败")}
 
     @staticmethod
-
     def _match_scene_entity(
         candidates: list[dict[str, Any]],
         query: str,
@@ -240,17 +245,11 @@ class HomeToolsScenesMixin(HomeToolsHost):
 
         def name_of(entity: dict[str, Any]) -> str:
             attributes = object_field(entity, "attributes")
-            return str(
-                _or((attributes or {}).get("friendly_name"), entity.get("entity_id"))
-            ).lower()
+            return str(_or((attributes or {}).get("friendly_name"), entity.get("entity_id"))).lower()
 
         if explicit_id:
             exact = next(
-                (
-                    e
-                    for e in candidates
-                    if str(e.get("entity_id") or "").lower() == explicit_id.lower()
-                ),
+                (e for e in candidates if str(e.get("entity_id") or "").lower() == explicit_id.lower()),
                 None,
             )
             if exact is not None:
@@ -259,9 +258,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
             return None
         lower = query.lower()
         # 1) 实体 ID / friendly_name 精确匹配
-        exact = next(
-            (e for e in candidates if str(e.get("entity_id") or "").lower() == lower), None
-        )
+        exact = next((e for e in candidates if str(e.get("entity_id") or "").lower() == lower), None)
         if exact is None:
             exact = next((e for e in candidates if name_of(e) == lower), None)
         if exact is not None:

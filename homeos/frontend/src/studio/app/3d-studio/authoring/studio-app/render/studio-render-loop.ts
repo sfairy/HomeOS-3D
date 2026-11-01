@@ -21,6 +21,11 @@ import { overviewFloorId as overviewFloorId2 } from "../../scene/studio-overview
 import { createFloorTransition as createFloorTransition2 } from "../../scene/studio-floor-transition";
 import { createGroundReflections as createGroundReflections2 } from "../../../reflection/studio-ground-reflections";
 import { createMotionPresentation as createMotionPresentation2 } from "../../scene/studio-motion-presentation";
+import {
+  applyOrbitControlSettingsTo,
+  createRenderLoopTeardown,
+  syncViewOffsetFor,
+} from "./render-loop-lifecycle";
 
 import { transformSceneCamera as transformSceneCamera2 } from "../../../../bridge/scene/scene-frame";
 import { normalizeGroundReflection as normalizeGroundReflection2 } from "../../../../bridge/scene/reflection-settings";
@@ -875,38 +880,9 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           ? (ctx.reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled))
           : ht4 && (ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 100))));
   }
-  function syncViewOffset() {
-    appCtx.threeRenderer.getSize(projectedScreenPoint);
-    const viewOffsetWidth = Math.max(projectedScreenPoint.x || 1, 1),
-      viewOffsetHeight = Math.max(projectedScreenPoint.y || 1, 1),
-      viewOffsetSignature =
-        viewOffsetWidth + "/" + viewOffsetHeight + "/" + ctx.stereoSampleIndex + "/" + appCtx.threeCamera.uuid;
-    if (viewOffsetSignature === ctx.lastViewOffsetSignature) {
-      syncSnapshotCamera();
-      return;
-    }
-    ((ctx.lastViewOffsetSignature = viewOffsetSignature),
-      ctx.stereoSampleIndex
-        ? appCtx.threeCamera.setViewOffset(
-            viewOffsetWidth,
-            viewOffsetHeight,
-            (viewOffsetWidth * ctx.stereoSampleIndex) / 2,
-            0,
-            viewOffsetWidth,
-            viewOffsetHeight,
-          )
-        : appCtx.threeCamera.clearViewOffset(),
-      syncSnapshotCamera());
-  }
-  function applyOrbitControlSettings() {
-    ((appCtx.orbitControls.enablePan = ctx.shouldEnablePan),
-      (appCtx.orbitControls.enableZoom = ctx.shouldEnableZoom),
-      ctx.cameraViewMode === "horizontal" &&
-        (appCtx.orbitControls.minPolarAngle = appCtx.orbitControls.maxPolarAngle = appCtx.orbitControls.getPolarAngle()),
-      ctx.cameraViewMode === "vertical" &&
-        (appCtx.orbitControls.minAzimuthAngle = appCtx.orbitControls.maxAzimuthAngle =
-          appCtx.orbitControls.getAzimuthalAngle()));
-  }
+  const syncViewOffset = () =>
+    syncViewOffsetFor(appCtx, ctx, projectedScreenPoint, syncSnapshotCamera);
+  const applyOrbitControlSettings = () => applyOrbitControlSettingsTo(appCtx, ctx);
   function planToWorldForFloor(
     runStudioRenderLoopTargetFloorId: any,
     targetPlanX: any,
@@ -1793,7 +1769,17 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       syncViewOffset(),
       appCtx.threeCamera.updateMatrixWorld());
   }
+  const teardownRenderLoop = createRenderLoopTeardown({
+    state: ctx,
+    appCtx,
+    groundReflections,
+    progressListeners: progressListenerSet,
+    subsystems: [startupPresentation, groundReflections, overviewDetail, deps.interactionBatches],
+    releaseInteractionBatches: () => ((deps.interactionBatches = null), undefined),
+  });
   return {
+    /** 显式回收本次渲染循环持有的资源（SPA 路由切换不触发 pagehide）。 */
+    dispose: teardownRenderLoop,
     reportLifecycle(lifecycleEvent: any, lifecycleDetail: any) {
       emitRuntimeDiagnostic(lifecycleEvent, lifecycleDetail);
     },

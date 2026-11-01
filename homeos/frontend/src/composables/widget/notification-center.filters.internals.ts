@@ -56,15 +56,17 @@ function isLowBatteryNotification(notification: NotificationCenterItem): boolean
 
 /**
  * 合并远程 + 本地通知，按时间倒序；同时间戳时远程排在本地前面。
+ *
+ * 返回值**保留原对象引用**（不克隆）：通知中心是「单一数据源 = 实体 store 的
+ * remoteNotifications」，点击/已读/删除都直接改 store 里那一条。早期实现把每条
+ * ``{...notification}`` 克隆进合并列表，于是合并出来的 ``read`` 与 store 里的是两份，
+ * 按引用修改（``notification.read = true``）永远落不到数据源上，UI 也不会重算。
  */
 export function mergeNotificationLists(
   remote: NotificationCenterItem[],
-  local: NotificationCenterItem[],
+  local: NotificationCenterItem[] = [],
 ): NotificationCenterItem[] {
-  const merged: NotificationCenterItem[] = [
-    ...remote.map((notification) => ({ ...notification, read: notification.read || false })),
-    ...local,
-  ]
+  const merged: NotificationCenterItem[] = [...remote, ...local]
   merged.sort((left, right) => {
     const leftTime =
       Date.parse(left.createdAt || left.time || '') || (typeof left.id === 'number' ? left.id : 0)

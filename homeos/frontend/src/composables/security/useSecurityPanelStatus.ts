@@ -93,11 +93,14 @@ async function refresh(force = false) {
   } catch (e) {
     const status = (e as { response?: { status?: number } })?.response?.status
     if (status === 404) {
-      // 404 表示后端未启用安防面板，静默处理
-      ready.value = false
+      // 404 表示后端未启用安防面板，静默处理。
+      if (!ready.value) ready.value = false
       error.value = ''
     } else {
-      ready.value = false
+      // 注意：**不要**把已就绪的 ready 打回 false。ready 的语义是「已完成首次加载、
+      // 后端区域列表已经是权威数据源」，区域配置页据此决定是否还能回退布局。
+      // 一次轮询抖动就打回未就绪，会让页面重新拿（可能已过期的）布局做 bootstrap，
+      // 用户随后保存就把已删除的区域又「复活」了。
       error.value = '安防面板状态不可用，请稍后重试'
     }
   } finally {

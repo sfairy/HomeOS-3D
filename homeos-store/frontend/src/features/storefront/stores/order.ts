@@ -117,7 +117,65 @@ export const useOrderStore = defineStore("order", () => {
     pendingTimer = null;
   }
 
+  /** 终态订单的提示文案（履约方式 / 服务端标签的优先级与旧实现一致）。 */
+  function nonPendingLabel(order: StoreOrder): string {
+    if (order.status === "fulfilled") {
+      return order.orderType === "addon" ? "增量包已开通" : "激活码已生成，请到账号中心查看";
+    }
+    if (order.status === "paid" && order.fulfillmentMode === "manual") {
+      return "支付成功，等待管理员发卡";
+    }
+    return order.statusLabel || STATUS_LABELS[order.status || ""] || "订单已提交";
+  }
+
+  /** 已终结的订单：提示 + 刷新账号数据（新激活码不在 store 里，必须重新拉）+ 回账号中心。 */
+  function finishSettlement(label: string, refreshReason: string, markDone: boolean) {
+    if (markDone) statusDone.value = true;
+    toast.show(label);
+    void session.load().catch(logAndIgnore(refreshReason));
+    window.setTimeout(() => {
+      window.location.assign("/user/dashboard/index");
+    }, 800);
+  }
+
+  /**
+   * 下单响应直接就是终态（免费单已开通 / 人工履约 / 已关闭）时的收尾。
+   *
+   * 两条都做：刷新账号数据（新激活码不在 store 里，必须重新拉）与给出与真实状态一致的提示。
+   */
+  function settleNonPendingOrder(order: StoreOrder) {
+    const label = nonPendingLabel(order);
+    currentOrder.value = order;
+    paymentStatus.value = label;
+    paymentOpen.value = false;
+    stopPolling();
+    if (order.status === "fulfilled") {
+      finishSettlement(label, "免费订单开通后刷新账号数据", true);
+      return;
+    }
+    if (order.status === "paid") {
+      finishSettlement(label, "订单已支付后刷新账号数据", false);
+      return;
+    }
+    // 发货失败必须显式报错（后端在 202 响应里带 ``error``），只改状态不提示等于让用户
+    // 以为卡在"等待支付"。
+    const failure =
+      order.status === "expired" ||
+      order.status === "payment_failed" ||
+      order.status === "fulfillment_failed";
+    // 后端在失败响应里带 ``error``（如「已支付但发货失败」）；有它就用它，比状态标签具体。
+    const reason = typeof order.error === "string" ? order.error : "";
+    toast.show(reason || label, failure ? "err" : undefined);
+  }
+
   async function showPayment(order: StoreOrder) {
+    // 已经不再等付款的订单不该弹二维码：0 元 / 100% 抵扣的订单服务端**已经**履约并发卡
+    // （payload 里只有 ``payment.type = "free"``，没有 qrCode），失败单也已经关闭。
+    // 旧实现照样走到这里，一句「该订单暂无可用付款二维码」把已开通说成失败。
+    if (order.status && order.status !== "pending") {
+      settleNonPendingOrder(order);
+      return;
+    }
     if (!order.payment?.qrCode) {
       toast.show("该订单暂无可用付款二维码。", "err");
       return;

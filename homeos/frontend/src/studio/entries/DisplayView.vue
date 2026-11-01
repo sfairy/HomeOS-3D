@@ -131,20 +131,44 @@ function yieldToPaint(): Promise<void> {
   });
 }
 
+/**
+ * 引导代次（epoch）。
+ *
+ * `onActivated` 与 `watch(bootKey)` 都会调 `startDisplay()`，而这条链里有两个 await
+ * （`ensureModules()` / `yieldToPaint()`）。守卫只看 `isUnmounted / isInactive / 路由名`，
+ * 拦不住「前一次卡在 await 时第二次已经进来」：前一次恢复后三个条件全成立，
+ * 会再执行一遍 `bootDisplay()` —— 于是双渲染循环 + 双全局监听，帧率直接减半，
+ * 而 `teardownDisplay()` 只对得上其中一次。
+ *
+ * 每次 `startDisplay()` 领一个号，`stopDisplay()` 让所有在途代次作废；
+ * 每个 await 之后都要重新对号。
+ */
+let bootEpoch = 0;
+
 /** 引导顺序即依赖顺序：splash 契约 → 预取 → 展示页 → 安装引导（读 `display-booting` 类）。 */
 async function startDisplay(): Promise<void> {
+  const epoch = ++bootEpoch;
   const loaded = await ensureModules();
-  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
+  if (!isCurrentEpoch(epoch)) return;
   loaded.bootDisplayBoot();
   loaded.bootDisplayStartup();
   // splash / 外壳先上屏，再开始重量级的 3D 引导：把一条数秒的长任务拆成两段。
   await yieldToPaint();
-  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
+  if (!isCurrentEpoch(epoch)) return;
   loaded.bootDisplay();
   loaded.bootAppleInstallGuide();
 }
 
+/** 该代次是否仍然有效：代次未被后来者顶掉，且页面仍处于「应该展示」的状态。 */
+function isCurrentEpoch(epoch: number): boolean {
+  return (
+    epoch === bootEpoch && !isUnmounted && !isInactive && isDisplayRouteName(route.name)
+  );
+}
+
 function stopDisplay(): void {
+  // 作废所有在途代次：拆掉运行时之后，任何还挂在 await 上的引导都不得继续往下走。
+  bootEpoch++;
   if (!modules) return;
   modules.teardownAppleInstallGuide();
   modules.teardownDisplay();

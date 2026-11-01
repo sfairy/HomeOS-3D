@@ -11,6 +11,7 @@ import { computed } from 'vue'
 import { Users, RefreshCw, Loader2, ExternalLink, ChevronRight } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
 
 const props = defineProps({
   presenceMembers: { type: Array, default: () => [] },
@@ -57,15 +58,11 @@ function memberName(m) {
 }
 
 function memberLastSeen(m) {
+  // 相对时间文案的唯一权威实现在 locale-format.util：这里曾手写一份同样的分级，
+  // 两份实现的边界（<60s / <1h / <1d）一旦漂移，同一份数据在两个页面显示不同。
   const raw = m?.lastSeen
   if (!raw || typeof raw !== 'string') return ''
-  const t = Date.parse(raw)
-  if (Number.isNaN(t)) return ''
-  const diff = Date.now() - t
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return `${Math.floor(diff / 86_400_000)} 天前`
+  return formatRelativeFromNow(raw, '')
 }
 </script>
 

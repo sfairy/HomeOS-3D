@@ -5,7 +5,7 @@
  * 版式由 AuthShell 统一（场景壳 + 面板 + 步骤轨道），这里只管表单与提交；
  * 提交走 Pinia 的 auth store。
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import { useStoreLinks } from '@/composables/auth/useStoreLinks'
 import SceneStage from '@/components/common/SceneStage.vue'
@@ -45,6 +45,23 @@ const submitting = ref(false)
 const errorMessage = ref('')
 
 /**
+ * 提交失败后哪个字段接管焦点。
+ *
+ * 登录接口只回一条笼统的「账号或密码错误」——分不清是谁错，所以按**能确定的顺序**挑：
+ * 空字段一定是错的那一个；两个都填了就把两个都标成 `aria-invalid`（服务端拒绝的是这一对），
+ * 焦点回到账号框，让键盘用户从第一个可疑处开始改。
+ */
+const invalidField = ref<'' | 'account' | 'password' | 'credentials'>('')
+
+/** 错误文案的稳定 id：字段用 `aria-describedby` 指向它，读屏才会念出「为什么错」。 */
+const ERROR_ID = 'login-form-error'
+
+/** 用 id 取节点而非模板 ref：`PasswordField` 内部才是真正的 `<input>`，外面拿不到组件实例上的元素。 */
+function focusField(field: 'account' | 'password'): void {
+  document.getElementById(field === 'account' ? 'login-account' : 'login-password')?.focus()
+}
+
+/**
  * 步骤轨道跟着页面使命走，而不是写死「回访」。
  *
  * 零用户时这一页其实在讲「开通」，主按钮也是「创建本机唯一账号」；此时还挂着
@@ -72,7 +89,9 @@ function loginDestination(): string {
 async function onSubmit(): Promise<void> {
   if (submitting.value) return
   errorMessage.value = ''
+  invalidField.value = ''
   submitting.value = true
+  let focusTarget: 'account' | 'password' | '' = ''
   try {
     await authStore.login(account.value.trim(), password.value)
     // 整页跳转而非原地换路由：会话由服务端 HttpOnly Cookie 承载，
@@ -80,8 +99,20 @@ async function onSubmit(): Promise<void> {
     window.location.assign(loginDestination())
   } catch (caughtError) {
     errorMessage.value = getApiErrorMessage(caughtError, '登录失败。')
+    const target = !account.value.trim() ? 'account' : !password.value ? 'password' : 'credentials'
+    invalidField.value = target
+    focusTarget = target === 'password' ? 'password' : 'account'
   } finally {
     submitting.value = false
+  }
+
+  // 焦点必须在这之后移：提交期间两个框都是 `disabled`，对 disabled 元素调 focus() 是空操作，
+  // 等 `submitting` 复位、`disabled` 摘掉再聚焦，焦点才真的落得下。
+  if (focusTarget) {
+    // 先让 `role="alert"` 与 `aria-describedby` 落进 DOM，再移焦点：
+    // 顺序反过来的话，读屏在元素还没关联到错误文案时就把名字念完了。
+    await nextTick()
+    focusField(focusTarget)
   }
 }
 </script>
@@ -112,7 +143,7 @@ async function onSubmit(): Promise<void> {
     </div>
 
     <form id="login-form" class="hos-form" @submit.prevent="onSubmit">
-      <p v-if="errorMessage" id="message" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
+      <p v-if="errorMessage" :id="ERROR_ID" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
 
       <div class="hos-field">
         <div class="hos-label-row"><label for="login-account">账号或邮箱</label></div>
@@ -122,14 +153,18 @@ async function onSubmit(): Promise<void> {
         <div class="hos-control">
           <input id="login-account" name="account" v-model="account" :disabled="submitting"
             placeholder="用户名 / 邮箱" autocomplete="username" inputmode="email"
-            autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="255" required>
+            autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="255" required
+            :aria-invalid="invalidField === 'account' || invalidField === 'credentials' ? 'true' : undefined"
+            :aria-describedby="errorMessage ? ERROR_ID : undefined">
         </div>
       </div>
 
       <div class="hos-field">
         <div class="hos-label-row"><label for="login-password">密码</label></div>
-        <PasswordField id="login-password" v-model="password" autocomplete="current-password"
-          placeholder="输入密码" />
+        <PasswordField id="login-password" name="password" v-model="password" autocomplete="current-password"
+          placeholder="输入密码" :disabled="submitting"
+          :invalid="invalidField === 'password' || invalidField === 'credentials'"
+          :describedby="errorMessage ? ERROR_ID : ''" />
       </div>
 
       <div class="hos-actions">

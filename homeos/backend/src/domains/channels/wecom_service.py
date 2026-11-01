@@ -16,6 +16,7 @@ import httpx
 from .types import ChannelMessage, MessageHandler
 from .wecom_utils import markdown_to_wecom_text, split_wecom_text
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
+from ...platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.channels.wecom")
 
@@ -62,7 +63,7 @@ class WecomService:
             self._channel_config.invalidate_cache()
             await self.reload()
 
-        self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+        subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     async def start(self) -> None:
         """模块初始化：执行首次配置加载。"""
@@ -77,11 +78,7 @@ class WecomService:
             logger.debug("企业微信通道未启用，已跳过")
             self._clear_state()
             return
-        missing = [
-            label
-            for label, value in (("企业 ID", cfg.corp_id), ("应用 Secret", cfg.corp_secret))
-            if not value
-        ]
+        missing = [label for label, value in (("企业 ID", cfg.corp_id), ("应用 Secret", cfg.corp_secret)) if not value]
         if missing:
             logger.warning(
                 "企业微信通道已启用但缺少%s，暂不投递；在「系统设置 → 通知通道」补全后会自动生效",
@@ -93,15 +90,13 @@ class WecomService:
         self._corp_secret = cfg.corp_secret
         try:
             self._agent_id = int(cfg.agent_id or 0)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             self._agent_id = 0
         self._callback_token = cfg.callback_token
         self._aes_key = cfg.callback_aes_key
         self._api_proxy = cfg.api_proxy
         self._allowed_users = (
-            [item.strip() for item in cfg.allowed_users.split(",") if item.strip()]
-            if cfg.allowed_users
-            else []
+            [item.strip() for item in cfg.allowed_users.split(",") if item.strip()] if cfg.allowed_users else []
         )
         self._allowed_users_lower = {item.lower() for item in self._allowed_users}
         self._access_token = None
@@ -237,7 +232,7 @@ class WecomService:
             expires_in = data.get("expires_in") or 7200
             try:
                 expires_seconds = int(expires_in)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 expires_seconds = 7200
             self._token_expires_at = time.time() * 1000 + expires_seconds * 1000
             return self._access_token
@@ -281,9 +276,7 @@ class WecomService:
                     target_url = f"{target_url}?{original.query}"
             except Exception as exc:
                 logger.error("无效的 API URL:%s,%s", url, exc)
-        return await self._http.request(
-            method, target_url, json=json_body, headers=headers
-        )
+        return await self._http.request(method, target_url, json=json_body, headers=headers)
 
     async def close(self) -> None:
         await self._http.aclose()

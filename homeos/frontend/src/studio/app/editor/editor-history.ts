@@ -94,8 +94,10 @@ export function documentSignature(documentToSign: any): any {
       return (
         (!actionCopy.data || !Object.keys(actionCopy.data).length) && delete actionCopy.data,
         actionCopy.type !== "navigate" && delete actionCopy.target,
-        delete actionCopy.domain,
-        delete actionCopy.service,
+        // ``domain`` / ``service`` **不能**剥：签名同时用于「脏判定 + 去重」，
+        // 剥掉之后「只改动作域/服务」的编辑与会话开头的签名完全相同，
+        // ``projectSummary`` 的 ``if (currentDocument === editHistoryEntry) return`` 会直接早退
+        // —— 文档不落、不进 undo、不置脏，切页时静默丢失。
         canonicalizeForSignature(actionCopy)
       );
     },

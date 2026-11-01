@@ -162,8 +162,11 @@ export function createEntityActions(deps: EntityActionsDeps) {
       // 传入实体 ID：粒度化递增该实体/域的版本号
       deps.bumpEntityStateRevision?.(entityId)
       // 状态同步仅更新缓存，不派发监听器（避免与乐观更新 / WS 回显重复）
-    } catch {
+    } catch (error) {
       /* REST 回退失败时依赖 WS / 乐观态 */
+      // 但必须留下痕迹：这条路径失败时界面上不会有任何反馈（乐观态随后由 TTL 静默回滚），
+      // 排查「点了没反应 / 状态自己跳回去」只能靠这行日志。
+      deps.logger.debug(`服务后 REST 刷新状态失败 ${entityId}:`, error)
     }
   }
 

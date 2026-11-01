@@ -153,7 +153,7 @@
 }
 
 .settings-btn-ghost--danger:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: var(--premium-accent-red);
   box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.18);
 }

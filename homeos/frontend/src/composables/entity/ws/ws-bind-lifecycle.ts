@@ -23,10 +23,23 @@ export function bindEntitySocketLifecycle(
   } = ctx
 
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  /**
+   * 服务端主动断开（``io server disconnect``）后的重连计数。
+   *
+   * 该分支下 socket.io **不会**自动重连，必须手工 ``socket.connect()``；原实现立刻重连、
+   * 不设上限，于是后端滚动重启 / 反复拒绝握手时会变成一条**同步忙循环**：连上→被踢→
+   * 立刻连上，浏览器与后端都被拖住，控制台每秒刷屏。这里按指数退避（上限 30s）重试。
+   */
+  let serverDisconnectAttempt = 0
+  let serverReconnectTimer: ReturnType<typeof setTimeout> | null = null
   const clearSyncTimers = () => {
     if (reconnectTimer !== null) {
       clearTimeout(reconnectTimer)
       reconnectTimer = null
+    }
+    if (serverReconnectTimer !== null) {
+      clearTimeout(serverReconnectTimer)
+      serverReconnectTimer = null
     }
     clearEntitySocketSyncTimers(sync)
   }
@@ -40,6 +53,8 @@ export function bindEntitySocketLifecycle(
 
   socket.on('connect', () => {
     logger.info('WebSocket 已连接到 HomeOS 后端')
+    // 连接恢复即清零退避，避免一次长时间抖动把后续重连永久钉在 30s。
+    serverDisconnectAttempt = 0
     // 断线重连时服务端只做 state_replay 增量回放，不会再发 initial_states。
     // 这里若把「已收到全量」无条件重置为 false，之后所有 delta 增量都会被
     // filterDeltaBeforeFullSync 丢掉，实体状态永久冻结在断线前的快照，
@@ -100,7 +115,20 @@ export function bindEntitySocketLifecycle(
       refs.reconnecting.value = true
       actions.setConnected(false)
       refreshEntitySocketAuth(socket, track.lastSocketEventAt, track.lastEventId)
-      socket.connect()
+      // 指数退避：1s、2s、4s … 上限 30s。没有上限的立即重连会让后端限流/重启期间变成
+      // 忙循环（socket.io 在该分支不会自动重连，所有重试都来自这里）。
+      const attempt = (serverDisconnectAttempt += 1)
+      const delay = Math.min(30_000, 1_000 * 2 ** Math.min(attempt - 1, 5))
+      clearSyncTimers()
+      serverReconnectTimer = setTimeout(() => {
+        serverReconnectTimer = null
+        if (socket.connected) {
+          serverDisconnectAttempt = 0
+          return
+        }
+        logger.info(`服务端主动断开后重连 (第 ${attempt} 次, 等待 ${delay}ms)`)
+        socket.connect()
+      }, delay)
       return
     }
     actions.setConnected(false)

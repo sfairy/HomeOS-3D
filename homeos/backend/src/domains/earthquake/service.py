@@ -47,6 +47,7 @@ from .types import (
 from .wolfx_ws import WolfxWsClient
 from ..ha.config.ha_config import load_active_ha_endpoints
 from ..security.layout import load_active_project_layout
+from ...platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.earthquake")
 
@@ -120,7 +121,7 @@ class EarthquakeService:
     # 生命周期
     async def start(self) -> None:
         if self._bus is not None:
-            self._bus.on(SYSTEM_CONFIG_UPDATED_EVENT, self._on_system_config_updated)
+            subscribe_config_updates(self._bus, self._on_system_config_updated)
             self._bus.on(LAYOUT_CONFIG_UPDATED_EVENT, self._on_layout_config_updated)
         if self._leader is not None:
             self._leader.set_callbacks(
@@ -156,10 +157,7 @@ class EarthquakeService:
 
     def _can_connect(self) -> bool:
         return (
-            not self._destroyed
-            and self._leader is not None
-            and self._leader.is_eew_leader()
-            and self._runtime.enabled
+            not self._destroyed and self._leader is not None and self._leader.is_eew_leader() and self._runtime.enabled
         )
 
     def _on_system_config_updated(self, _payload: Any = None) -> None:
@@ -247,8 +245,7 @@ class EarthquakeService:
                     )
                 elif nxt.enabled:
                     logger.warning(
-                        "EEW 已启用但未配置家庭坐标，无法按距离/烈度筛选地震；"
-                        "请在「警报规则 → 地震预警」中设置"
+                        "EEW 已启用但未配置家庭坐标，无法按距离/烈度筛选地震；请在「警报规则 → 地震预警」中设置"
                     )
                 else:
                     logger.debug("EEW 未启用，跳过家庭坐标检查")
@@ -394,9 +391,7 @@ class EarthquakeService:
     def record_source_poll(self, source_id: str, result: dict[str, Any]) -> None:
         self._diagnostics.record_poll(source_id, result)
 
-    def enqueue_process_eew(
-        self, eew: EewRawMessage, opts: dict[str, Any] | None = None
-    ) -> None:
+    def enqueue_process_eew(self, eew: EewRawMessage, opts: dict[str, Any] | None = None) -> None:
         prev = self._process_chain
 
         async def _run() -> None:
@@ -415,9 +410,7 @@ class EarthquakeService:
         except RuntimeError:
             self._process_chain = None
 
-    async def process_eew(
-        self, eew: EewRawMessage, opts: dict[str, Any] | None = None
-    ) -> None:
+    async def process_eew(self, eew: EewRawMessage, opts: dict[str, Any] | None = None) -> None:
         opts = opts or {}
         cfg = await self.ensure_runtime_config()
         if not cfg.enabled and not opts.get("skipEnabledCheck"):
@@ -427,9 +420,7 @@ class EarthquakeService:
 
         if eew.event_id in self._dismissed_event_ids:
             logger.info("[已关闭] 忽略 eventId=%s", eew.event_id)
-            self._diagnostics.record_filter(
-                {"source": source_label, "reason": "事件已关闭", "eventId": eew.event_id}
-            )
+            self._diagnostics.record_filter({"source": source_label, "reason": "事件已关闭", "eventId": eew.event_id})
             return
 
         dedupe = await self._load_dedupe_state()
@@ -438,9 +429,7 @@ class EarthquakeService:
 
         if kind == "skip":
             message = str(eval_result.get("message") or "")
-            self._diagnostics.record_filter(
-                {"source": source_label, "reason": message, "eventId": eew.event_id}
-            )
+            self._diagnostics.record_filter({"source": source_label, "reason": message, "eventId": eew.event_id})
             if message.startswith("⚠️"):
                 logger.warning("%s", message)
             else:
@@ -452,9 +441,7 @@ class EarthquakeService:
         if kind == "suppress_duplicate":
             await self._update_dedupe_state(eval_result["nextDedupe"])
             message = str(eval_result.get("message") or "")
-            self._diagnostics.record_filter(
-                {"source": source_label, "reason": message, "eventId": eew.event_id}
-            )
+            self._diagnostics.record_filter({"source": source_label, "reason": message, "eventId": eew.event_id})
             logger.info("%s", message)
             return
 
@@ -479,9 +466,7 @@ class EarthquakeService:
         self._latest_alert_payload = alert_payload
         self._latest_alert_time = _now_ms()
         try:
-            await asyncio.to_thread(
-                append_alert_history_prisma, self._session_factory, alert_payload
-            )
+            await asyncio.to_thread(append_alert_history_prisma, self._session_factory, alert_payload)
         except Exception as exc:
             logger.warning("EEW 历史写入数据库失败: %s", exc)
 
@@ -522,9 +507,7 @@ class EarthquakeService:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
-        self._dedupe_clear_handle = loop.call_later(
-            DEDUPE_CLEAR_DELAY_MS / 1000, self._clear_dedupe_state
-        )
+        self._dedupe_clear_handle = loop.call_later(DEDUPE_CLEAR_DELAY_MS / 1000, self._clear_dedupe_state)
 
     def _clear_dedupe_state(self) -> None:
         logger.info("[去重] 已清除 activeEventId=%s", self._active_event_id)
@@ -646,9 +629,7 @@ class EarthquakeService:
             logger.warning("目录震情去重查询失败,继续写入: %s", exc)
 
         distance = round(gate["distanceKm"] * 10) / 10
-        countdown = round(
-            compute_s_wave_countdown(distance, float(item.get("originTime") or 0), _now_ms()) * 10
-        ) / 10
+        countdown = round(compute_s_wave_countdown(distance, float(item.get("originTime") or 0), _now_ms()) * 10) / 10
         intensity = item.get("intensity")
         payload = EarthquakeAlertPayload(
             eventId=event_id,
@@ -667,9 +648,7 @@ class EarthquakeService:
         )
 
         try:
-            await asyncio.to_thread(
-                append_alert_history_prisma, self._session_factory, payload
-            )
+            await asyncio.to_thread(append_alert_history_prisma, self._session_factory, payload)
         except Exception as exc:
             logger.warning("目录震情写入本地预警失败: %s", exc)
             return False
@@ -694,17 +673,13 @@ class EarthquakeService:
 
         with self._session_factory() as session:
             row = session.execute(
-                _select(EarthquakeAlertHistory.id).where(
-                    EarthquakeAlertHistory.event_id == event_id
-                )
+                _select(EarthquakeAlertHistory.id).where(EarthquakeAlertHistory.event_id == event_id)
             ).scalar_one_or_none()
             return row is not None
 
     async def get_alert_history(self, limit: int = 30) -> dict[str, Any]:
         try:
-            pg_items = await asyncio.to_thread(
-                load_alert_history_prisma, self._session_factory, limit
-            )
+            pg_items = await asyncio.to_thread(load_alert_history_prisma, self._session_factory, limit)
             return {"items": pg_items, "total": len(pg_items), "source": "postgres"}
         except Exception as exc:
             logger.warning("EEW 历史读取数据库失败: %s", exc)
@@ -779,9 +754,7 @@ class EarthquakeService:
                 "wolfxConnected": wolfx_connected,
                 "scActive": self._runtime.enabled and is_leader,
                 "cencActive": self._runtime.enabled and is_leader,
-                "usgsActive": self._runtime.enabled
-                and is_leader
-                and self.should_use_usgs_backup(60_000),
+                "usgsActive": self._runtime.enabled and is_leader and self.should_use_usgs_backup(60_000),
             }
         )
 

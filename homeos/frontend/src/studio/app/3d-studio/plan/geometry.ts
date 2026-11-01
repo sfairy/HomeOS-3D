@@ -1,8 +1,8 @@
 import { snapEditDelta } from "../authoring/studio-edit-metrics";
+import { clamp } from "./geometry-clamp";
 
-export function clamp(rawValue: any, minValue: any, maxValue: any) {
-  return Math.min(maxValue, Math.max(minValue, rawValue));
-}
+export { clamp } from "./geometry-clamp";
+
 export function spotLightBrightnessResponse(lightType = "downlight", rawBrightness = 0) {
   const normalizedBrightness = clamp(Number(rawBrightness) || 0, 0, 1),
     squaredBrightness = normalizedBrightness * normalizedBrightness;

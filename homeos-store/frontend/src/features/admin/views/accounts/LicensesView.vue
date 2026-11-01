@@ -14,9 +14,10 @@ import { asListItems, errorMessage } from "@store/shared/types/store";
 import { useToastStore } from "@store/shared/stores/toast";
 import { useConfirmStore } from "@store/shared/stores/confirm";
 import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
-import { d, dt, utcInput } from "@store/features/admin/utils/format";
+import { d, dt } from "@store/features/admin/utils/format";
 import { LICENSE_SOURCE } from "@store/features/admin/utils/vocab";
 import { copyText } from "@store/shared/utils/clipboard";
+import { buildLicensePatch, parseDaysInput } from "@store/features/admin/views/accounts/licenses-patch";
 
 interface License {
   activationCodeId: string;
@@ -146,6 +147,17 @@ function closePatch() {
 }
 
 async function submitIssue() {
+  // 空 = 取商品默认；填了就必须是正整数，否则 `Number("abc")` 会变成 NaN，
+  // 序列化成 null 又悄悄退回默认值，操作者以为设了天数其实没设。
+  let validityDays: number | null = null;
+  if (issue.validityDays.trim()) {
+    const days = parseDaysInput(issue.validityDays);
+    if (!days) {
+      toast.push("有效期必须是不小于 1 的整数，留空则取商品默认。", "danger");
+      return;
+    }
+    validityDays = days;
+  }
   issuing.value = true;
   try {
     const result = await adminApi<IssueResult>("/licenses", {
@@ -153,7 +165,7 @@ async function submitIssue() {
       body: JSON.stringify({
         email: issue.email.trim(),
         productId: issue.productId,
-        validityDays: issue.validityDays ? Number(issue.validityDays) : null,
+        validityDays,
       }),
     });
     issueResult.value = result;
@@ -181,15 +193,12 @@ function issueTarget(): string {
 }
 
 async function submitPatch() {
-  if (patch.extendDays && (patch.accessExpiresAt || patch.permanent)) {
-    toast.push("「续期天数」与「新的到期时间 / 永久有效」不能同时提交，请二选一。", "danger");
+  const built = buildLicensePatch(patch);
+  if (!built.ok) {
+    toast.push(built.message, "danger");
     return;
   }
-  const payload: Record<string, unknown> = { userLabel: patch.userLabel.trim() };
-  if (patch.extendDays) payload.extendDays = Number(patch.extendDays);
-  if (patch.permanent) payload.accessExpiresAt = null;
-  else if (patch.accessExpiresAt) payload.accessExpiresAt = utcInput(patch.accessExpiresAt);
-  if (patch.validityDays) payload.validityDays = Number(patch.validityDays);
+  const payload = built.payload;
   patching.value = true;
   try {
     const result = await adminApi<{ accessExpiresAt?: string | null }>(`/licenses/${patch.licenseId}`, {

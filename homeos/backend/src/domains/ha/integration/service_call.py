@@ -17,8 +17,6 @@ HA 服务调用。原先 3D 模块直接 ``from ...api.ha.routes import call_ser
 from __future__ import annotations
 
 import asyncio
-import math
-import re
 import traceback
 from collections.abc import Callable
 from typing import Any, Protocol
@@ -35,7 +33,10 @@ from ...proxy.command_proxy import build_service_call_dto, dispatch_service_call
 from ...proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 from ....platform.core.db.database import Database
 from ....platform.core.db.models import HAConnection, HAEntity
-from ....platform.core.ha.ha_service_catalog import ALLOWED_SERVICES, TOGGLE_ENTITY_DOMAINS
+from ....platform.core.ha.service_payload_rules import (
+    ServicePayloadRejected,
+    validate_service_payload,
+)
 from ....platform.core.http.errors import BusinessException
 
 
@@ -61,9 +62,6 @@ _UNPROCESSABLE = 422
 _CONFLICT = 409
 _NOT_FOUND = 404
 _BAD_GATEWAY = 502
-
-#: TTS / 播放组里出现的"设备"必须是媒体实体。
-MEDIA_PLAYER_PATTERN = re.compile(r'media_player\.[a-z0-9_]+')
 
 
 class ServiceCallRejected(Exception):
@@ -97,7 +95,7 @@ def ha_entity_conditions(
     conditions: list[ColumnElement[bool]] = [
         HAEntity.connection_id == connection_id,
         HAEntity.entity_id == entity_id,
-        HAEntity.sync_status == 'active',
+        HAEntity.sync_status == "active",
     ]
     if domain is not None:
         conditions.append(HAEntity.domain == domain)
@@ -128,9 +126,7 @@ def load_ha_entity_context(
         entity_exists = (
             database.scalar(
                 select(HAEntity.id).where(
-                    *ha_entity_conditions(
-                        connection.id, entity_id, domain=domain, enabled_only=enabled_only
-                    )
+                    *ha_entity_conditions(connection.id, entity_id, domain=domain, enabled_only=enabled_only)
                 )
             )
             is not None
@@ -140,76 +136,22 @@ def load_ha_entity_context(
 
 
 def _validate_service_call(payload: ServiceCallPayload) -> None:
-    """白名单 + 参数字段 + 灯光参数 + 域匹配（全部为原先 ``call_service`` 的顺序与文案）。"""
-    allowed_fields = ALLOWED_SERVICES.get((payload.domain, payload.service))
-    if allowed_fields is None:
-        raise ServiceCallRejected(_FORBIDDEN, '该 Home Assistant 服务不在允许列表中。')
-    unknown_fields = set(payload.data) - allowed_fields
-    if unknown_fields:
-        unknown = ', '.join(sorted(unknown_fields))
-        raise ServiceCallRejected(_UNPROCESSABLE, f'服务参数不允许：{unknown}')
-    if payload.domain == 'light' and payload.service == 'turn_on':
-        color_fields = {'white', 'hs_color', 'rgb_color', 'rgbw_color', 'rgbww_color', 'xy_color', 'color_temp_kelvin'} & set(payload.data)
-        if len(color_fields) > 1:
-            raise ServiceCallRejected(_UNPROCESSABLE, '一次灯光指令只能指定一种颜色或色温。')
-        if 'white' in payload.data:
-            white = payload.data['white']
-            if not (isinstance(white, bool) or (isinstance(white, int) and 0 <= white <= 255)):
-                raise ServiceCallRejected(_UNPROCESSABLE, '白光亮度参数无效。')
-        for field, bounds in (
-            ('hs_color', (360, 100)),
-            ('rgb_color', (255, 255, 255)),
-            ('rgbw_color', (255, 255, 255, 255)),
-            ('rgbww_color', (255, 255, 255, 255, 255)),
-            ('xy_color', (1, 1)),
-        ):
-            if field not in payload.data:
-                continue
-            values = payload.data[field]
-            if (
-                not isinstance(values, list)
-                or len(values) != len(bounds)
-                or any(
-                    isinstance(v, bool)
-                    or not isinstance(v, (int, float))
-                    or not math.isfinite(v)
-                    or not (0 <= v <= bound)
-                    for v, bound in zip(values, bounds, strict=True)
-                )
-            ):
-                raise ServiceCallRejected(_UNPROCESSABLE, f'灯光颜色参数无效：{field}')
-    # 播放组：``group_members`` 只能是媒体实体，且不能把自身加进去（HA 会静默忽略，
-    # 前端却会显示"已加入"，所以在这里直接拒）。
-    if 'group_members' in payload.data:
-        members = payload.data['group_members']
-        if (
-            not isinstance(members, list)
-            or any(not isinstance(member, str) or not MEDIA_PLAYER_PATTERN.fullmatch(member) for member in members)
-        ):
-            raise ServiceCallRejected(_UNPROCESSABLE, '播放组成员必须是媒体实体。')
-        if payload.entity_id in members:
-            raise ServiceCallRejected(_UNPROCESSABLE, '不能把当前设备加入它自己的播放组。')
-    # TTS 的播放设备必须是媒体实体（否则 HA 端会报"找不到实体"）。
-    if 'media_player_entity_id' in payload.data:
-        speaker = payload.data['media_player_entity_id']
-        if not isinstance(speaker, str) or not MEDIA_PLAYER_PATTERN.fullmatch(speaker):
-            raise ServiceCallRejected(_UNPROCESSABLE, '请选择播放设备。')
-    # AI 任务附件：只校验形状，不下载（下载在 client 的 ``generate_image`` 链路里）。
-    if 'attachments' in payload.data:
-        attachments = payload.data['attachments']
-        if not isinstance(attachments, list) or any(
-            not isinstance(item, dict)
-            or set(item) - {'media_content_id', 'media_content_type'}
-            or not isinstance(item.get('media_content_id'), str)
-            or not item['media_content_id']
-            for item in attachments
-        ):
-            raise ServiceCallRejected(_UNPROCESSABLE, '附件参数无效。')
-    entity_domain = payload.entity_id.partition('.')[0]
-    if payload.domain == 'homeassistant' and payload.service == 'toggle' and entity_domain not in TOGGLE_ENTITY_DOMAINS:
-        raise ServiceCallRejected(_UNPROCESSABLE, '该实体类型不支持切换动作。')
-    if payload.domain != 'homeassistant' and entity_domain != payload.domain:
-        raise ServiceCallRejected(_UNPROCESSABLE, '服务域与实体域不匹配。')
+    """白名单 + 参数字段 + 灯光参数 + 域匹配。
+
+    实现在 ``platform/core/ha/service_payload_rules.py``，与命令代理出口（``/services/call``
+    / 语音 / 管家工具）共用同一份判据。这里只负责把领域异常翻回本模块原有的
+    ``ServiceCallRejected``（状态码与文案逐字不变，前端与冒烟脚本依赖它们）。
+    """
+    try:
+        validate_service_payload(
+            payload.domain,
+            payload.service,
+            payload.data,
+            payload.entity_id,
+            policy="http",
+        )
+    except ServicePayloadRejected as rejected:
+        raise ServiceCallRejected(rejected.status_code, rejected.detail) from rejected
 
 
 async def execute_service_call(
@@ -223,10 +165,8 @@ async def execute_service_call(
     ``request`` 是 Starlette ``Request``（只读 ``app.state`` / 写 ``state``），
     故不引 FastAPI 类型 —— 但保持与原先相同的诊断日志与状态码语义。
     """
-    if not await asyncio.to_thread(
-        request.app.state.license_service.allows, feature_codes.FEATURE_HA_CONTROL
-    ):
-        raise ServiceCallRejected(_FORBIDDEN, '当前授权不允许控制 Home Assistant。')
+    if not await asyncio.to_thread(request.app.state.license_service.allows, feature_codes.FEATURE_HA_CONTROL):
+        raise ServiceCallRejected(_FORBIDDEN, "当前授权不允许控制 Home Assistant。")
     _validate_service_call(payload)
     connection, entity_exists = await asyncio.to_thread(
         load_ha_entity_context,
@@ -235,16 +175,16 @@ async def execute_service_call(
         access_check,
     )
     if connection is None:
-        raise ServiceCallRejected(_CONFLICT, '请先配置 Home Assistant 连接。')
+        raise ServiceCallRejected(_CONFLICT, "请先配置 Home Assistant 连接。")
     if not entity_exists:
-        raise ServiceCallRejected(_NOT_FOUND, '实体不存在、已禁用或已失联。')
+        raise ServiceCallRejected(_NOT_FOUND, "实体不存在、已禁用或已失联。")
     # 与 ``/services/call`` 共用实体级白名单（当前恒为空 → 恒放行）。
     await assert_command_proxy_authorized(
         {
-            'domain': payload.domain,
-            'service': payload.service,
-            'entity_id': payload.entity_id,
-            'service_data': payload.data,
+            "domain": payload.domain,
+            "service": payload.service,
+            "entity_id": payload.entity_id,
+            "service_data": payload.data,
         },
         None,
         RegistryTargetResolver(request),
@@ -261,47 +201,43 @@ async def execute_service_call(
                 idempotency_key=payload.idempotency_key,
             ),
         )
-        result = envelope.get('data') if isinstance(envelope, dict) else envelope
+        result = envelope.get("data") if isinstance(envelope, dict) else envelope
         # 后置校验结果必须跟着响应回前端：此前这里只取 ``data`` 就返回，把
         # ``verified`` / ``verification`` / ``skipped`` / ``pending`` 全部丢掉了 ——
         # 于是 3D 面板走的本接口永远「看起来成功」，和 `/services/call` 的行为不一致。
         verification_fields = {
             key: envelope[key]
-            for key in ('verified', 'verification', 'skipped', 'pending', 'replayed')
+            for key in ("verified", "verification", "skipped", "pending", "replayed")
             if isinstance(envelope, dict) and key in envelope
         }
     except (BusinessException, HAClientError, CredentialCipherError) as error:
         request.state.diagnostic_error_logged = True
         request.app.state.global_log.append(
-            'error',
-            '仪表盘编辑器',
-            '设备操作',
-            f'操作失败：{payload.entity_id} · {payload.domain}.{payload.service} · {error}',
+            "error",
+            "仪表盘编辑器",
+            "设备操作",
+            f"操作失败：{payload.entity_id} · {payload.domain}.{payload.service} · {error}",
             context={
-                'entityId': payload.entity_id,
-                'service': f'{payload.domain}.{payload.service}',
-                'status': _BAD_GATEWAY,
+                "entityId": payload.entity_id,
+                "service": f"{payload.domain}.{payload.service}",
+                "status": _BAD_GATEWAY,
             },
             details=traceback.format_exc(),
         )
         raise ServiceCallRejected(_BAD_GATEWAY, str(error)) from error
     request.app.state.global_log.append(
-        'success' if verification_fields.get('verified') is not False else 'warning',
-        '仪表盘编辑器',
-        '设备操作',
-        f'操作成功：{payload.entity_id} · {payload.domain}.{payload.service}'
-        + ('（已下发，状态未确认）' if verification_fields.get('verified') is False else ''),
+        "success" if verification_fields.get("verified") is not False else "warning",
+        "仪表盘编辑器",
+        "设备操作",
+        f"操作成功：{payload.entity_id} · {payload.domain}.{payload.service}"
+        + ("（已下发，状态未确认）" if verification_fields.get("verified") is False else ""),
         context={
-            'entityId': payload.entity_id,
-            'service': f'{payload.domain}.{payload.service}',
-            **(
-                {'verified': False}
-                if verification_fields.get('verified') is False
-                else {}
-            ),
+            "entityId": payload.entity_id,
+            "service": f"{payload.domain}.{payload.service}",
+            **({"verified": False} if verification_fields.get("verified") is False else {}),
         },
     )
-    return {'ok': True, 'result': result, **verification_fields}
+    return {"ok": True, "result": result, **verification_fields}
 
 
 __all__ = ["ServiceCallPayload", "ServiceCallRejected", "execute_service_call", "load_ha_entity_context"]

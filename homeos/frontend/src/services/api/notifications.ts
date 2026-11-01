@@ -39,6 +39,11 @@ export function markAllNotificationsRead(config?: AxiosRequestConfig) {
   return apiPost('/notifications/read-all', undefined, config)
 }
 
+/** 删除单条通知（前端点 × 的落地动作）。 */
+export function deleteNotification(id: string | number, config?: AxiosRequestConfig) {
+  return apiDelete(`/notifications/${id}`, config)
+}
+
 /** 清空全部通知。 */
 export function clearNotifications(config?: AxiosRequestConfig) {
   return apiPost('/notifications/clear', undefined, config)

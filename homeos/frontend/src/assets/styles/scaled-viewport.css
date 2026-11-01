@@ -25,6 +25,18 @@
   transition: background 1.5s ease;
 }
 
+/*
+ * 缩放到下限（MIN_SCALE）后的兜底：此时 shell 比视口大，`overflow: hidden` 会把四周内容
+ * 直接裁掉。改为可滚动 + 左上对齐，让用户能滚到被挤出去的部分。
+ * 只在真的触底时挂上（ScaledViewport 计算 scaleClamped），正常缩放仍是铺满无滚动。
+ */
+.viewport-frame--scrollable {
+  overflow: auto;
+  justify-content: flex-start;
+  align-items: flex-start;
+  overscroll-behavior: contain;
+}
+
 .viewport-frame::before {
   content: '';
   position: absolute;
@@ -47,8 +59,7 @@
 }
 
 .viewport-frame--static-glow::before {
-  animation: none;
-  opacity: 0.85;
+  animation: none;  opacity: 0.85;
 }
 
 @media (prefers-reduced-motion: reduce) {

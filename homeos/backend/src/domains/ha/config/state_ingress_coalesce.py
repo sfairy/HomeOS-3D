@@ -26,9 +26,7 @@ _CONFIG_TTL_MS = 5_000
 DEFAULT_COALESCE_DOMAINS: tuple[str, ...] = ("sensor",)
 
 #: 必须保留瞬时边沿的域：即使配置显式把它们写进合并域，也不参与微窗口合并。
-EDGE_SENSITIVE_DOMAINS: frozenset[str] = frozenset(
-    {"binary_sensor", "lock", "alarm_control_panel", "valve", "siren"}
-)
+EDGE_SENSITIVE_DOMAINS: frozenset[str] = frozenset({"binary_sensor", "lock", "alarm_control_panel", "valve", "siren"})
 
 
 class StateIngressCoalesceService:
@@ -98,6 +96,11 @@ class StateIngressCoalesceService:
             return
         # 同步过滤只影响「是否推给客户端」，不能在这里丢事件：隐藏/禁用的烟感
         # 依然必须触发告警。过滤放在广播层（bootstrap._run_state_change_effects）。
+        if event.get("removed"):
+            # 删除事件不参与微窗口合并：覆盖式合并只保留末态，一次「删了又出现」会在
+            # 窗口内被抹成其中一种，而两者语义完全不同（前者要清缓存，后者要建缓存）。
+            self._emit_now([event])
+            return
 
         cfg = self._cfg()
         ha_cfg = cfg["ha"]
@@ -113,11 +116,7 @@ class StateIngressCoalesceService:
         if not ha_cfg.get("ingressCoalesceEnabled", True):
             self._emit_now([event])
             return
-        if (
-            domain in EDGE_SENSITIVE_DOMAINS
-            or domain not in coalesce_domains
-            or domain in critical_domains
-        ):
+        if domain in EDGE_SENSITIVE_DOMAINS or domain not in coalesce_domains or domain in critical_domains:
             self._emit_now([event])
             return
 
@@ -143,7 +142,7 @@ class StateIngressCoalesceService:
         window_ms = self._cfg()["ha"].get("ingressCoalesceWindowMs", 8)
         try:
             window_ms = float(window_ms)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             window_ms = 8.0
         loop = self._loop
         if loop is None or loop.is_closed():
@@ -163,7 +162,7 @@ class StateIngressCoalesceService:
         # 合并窗口停留时长：入队 → flush。这是「为了让同一实体只发一帧」刻意加的延迟，
         # 单独成段统计，才能区分「设定的窗口」和「事件循环排不上队造成的额外停留」。
         for entry in self._pending.values():
-            record_ha_sync_latency('ingress_coalesce_dwell', max(0.0, now_ms - entry["enqueued_at"]))
+            record_ha_sync_latency("ingress_coalesce_dwell", max(0.0, now_ms - entry["enqueued_at"]))
         batch = [entry["event"] for entry in self._pending.values()]
         self._pending.clear()
         self.flush_count += 1

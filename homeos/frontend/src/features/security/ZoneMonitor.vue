@@ -63,7 +63,15 @@
       >
         <header class="szm-card__head">
           <label class="szm-card__check">
-            <input type="checkbox" :checked="isSelected(zone.id)" @change="toggleSelect(zone.id)" />
+            <!-- 外层 <label> 里没有任何文本（卡片标题在 <h4>，不在 label 内），
+                 读屏拿到的可访问名是空串 —— axe 的 label 规则直接判 critical。
+                 用 aria-label 给逐个区域补名，不要靠包一层空 label。 -->
+            <input
+              type="checkbox"
+              :aria-label="`选择 ${zone.name} 区域`"
+              :checked="isSelected(zone.id)"
+              @change="toggleSelect(zone.id)"
+            />
           </label>
           <div class="szm-card__title-wrap">
             <h4 class="szm-card__title">{{ zone.name }}</h4>

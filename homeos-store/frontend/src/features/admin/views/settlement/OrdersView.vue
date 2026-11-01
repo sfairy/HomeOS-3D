@@ -9,6 +9,7 @@ import { adminApi } from "@store/shared/api/http";
 import { asListItems, errorMessage } from "@store/shared/types/store";
 import { useToastStore } from "@store/shared/stores/toast";
 import { useConfirmStore } from "@store/shared/stores/confirm";
+import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
 import { useAdminRefreshStore } from "@store/features/admin/stores/adminRefresh";
 import { dayEndUtc, dayStartUtc, dt, money } from "@store/features/admin/utils/format";
 import { LICENSE_ACTION, ORDER_TYPE } from "@store/features/admin/utils/vocab";
@@ -27,6 +28,10 @@ interface AdminOrder {
   orderType?: string;
   licenseAction?: string;
   amountCents: number;
+  /** 累计已退金额（后端 order_payload 的 refundAmountCents） */
+  refundAmountCents?: number;
+  /** 剩余可退金额（后端算好的可退余额，已被「已退」扣减） */
+  refundableCents?: number;
   paymentProvider?: string;
   paymentProviderLabel?: string;
   status?: string;
@@ -47,6 +52,7 @@ const COLUMNS = [
   { key: "productName", label: "商品" },
   { key: "orderType", label: "类型" },
   { key: "amountCents", label: "金额", nowrap: true },
+  { key: "refund", label: "已退 / 可退", nowrap: true },
   { key: "provider", label: "支付渠道", nowrap: true },
   { key: "status", label: "状态", nowrap: true },
   { key: "createdAt", label: "创建", nowrap: true },
@@ -56,6 +62,7 @@ const COLUMNS = [
 const route = useRoute();
 const toast = useToastStore();
 const confirm = useConfirmStore();
+const dialogs = useAdminDialogsStore();
 const refresh = useAdminRefreshStore();
 
 const table = ref<InstanceType<typeof DataTable> | null>(null);
@@ -248,25 +255,37 @@ async function fulfill(order: AdminOrder) {
 async function refund(order: AdminOrder) {
   const provider = String(order.paymentProvider || "").toLowerCase();
   const offline = !["alipay", "wechat"].includes(provider);
-  const ok = await confirm.confirm({
-    title: offline ? "订单退款（线下）" : "订单退款",
-    message: `确认对订单 ${order.orderNo} 退款？`,
-    detail: offline
-      ? "该订单在支付渠道侧没有可退交易（人工标记支付 / 未记录下单渠道 / 历史失效渠道）：" +
-        "系统不会（也无法）把钱退回去。确认后按<b>线下退款</b>记账 —— 请先自行在渠道外把钱退给用户。" +
-        "同时会<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。"
-      : "将同时<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。",
-    confirmLabel: offline ? "确认已线下退款" : "确认退款",
+  const totalCents = Number(order.amountCents || 0);
+  const refundedCents = Number(order.refundAmountCents || 0);
+  const refundable = Number(order.refundableCents ?? Math.max(0, totalCents - refundedCents));
+  // 金额必须由操作者确认：后端在 amountCents 缺省时按「可退余额」全额退款，
+  // 固定发 {note} 等于把部分退款能力藏起来，每次点退款都是全额。
+  const decision = await dialogs.askRefund({
+    orderNo: order.orderNo,
+    totalCents,
+    refundedCents,
+    refundableCents: refundable,
+    offline,
   });
-  if (!ok) return;
-  await runAction(order, "refund", offline ? "按线下退款记账" : "退款");
+  if (!decision) return;
+  await runAction(order, "refund", offline ? "按线下退款记账" : "退款", {
+    // 免费订单（0 元）不传金额：schema 要求 amountCents > 0，后端自己按 0 元处理
+    ...(decision.amountCents > 0 ? { amountCents: decision.amountCents } : {}),
+    offline,
+    note: decision.note || (offline ? "后台线下退款" : "后台操作"),
+  });
 }
 
-async function runAction(order: AdminOrder, action: string, label: string) {
+async function runAction(
+  order: AdminOrder,
+  action: string,
+  label: string,
+  extra: Record<string, unknown> = {},
+) {
   try {
     await adminApi(`/orders/${order.orderNo}/${action}`, {
       method: "POST",
-      body: JSON.stringify({ note: "后台操作" }),
+      body: JSON.stringify({ note: "后台操作", ...extra }),
     });
     toast.push(`订单已${label}`);
     refresh.bump("overview");
@@ -333,6 +352,11 @@ loadMeta();
             {{ ORDER_TYPE[order.orderType || ""] || order.orderType }} · {{ LICENSE_ACTION[order.licenseAction || ""] || order.licenseAction }}
           </td>
           <td class="nowrap">{{ money(order.amountCents) }}</td>
+          <td class="nowrap">
+            <span v-if="(order.refundAmountCents || 0) > 0">已退 {{ money(order.refundAmountCents || 0) }}</span>
+            <span v-else>—</span>
+            <span> · 可退 {{ money(order.refundableCents ?? 0) }}</span>
+          </td>
           <td class="nowrap">
             <span
               v-if="order.paymentProvider"

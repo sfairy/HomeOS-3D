@@ -16,6 +16,7 @@ from .types import (
     WebPushChannelConfig,
     WecomChannelConfig,
 )
+from ...platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.channels.config")
 
@@ -26,7 +27,7 @@ CACHE_MS = 30_000
 def _int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
 
 
@@ -77,9 +78,7 @@ def parse_wecom_config(raw: Any) -> WecomChannelConfig | None:
         callback_aes_key=_str(raw.get("callbackAesKey")),
         api_proxy=raw.get("apiProxy") if isinstance(raw.get("apiProxy"), str) else None,
         allowed_users=raw.get("allowedUsers") if isinstance(raw.get("allowedUsers"), str) else None,
-        bound_home_os_user_id=(
-            raw.get("boundHomeOsUserId") if isinstance(raw.get("boundHomeOsUserId"), str) else None
-        ),
+        bound_home_os_user_id=(raw.get("boundHomeOsUserId") if isinstance(raw.get("boundHomeOsUserId"), str) else None),
     )
 
 
@@ -104,7 +103,7 @@ class ChannelConfigService:
             logger.debug("检测到配置更新，正在使通道配置缓存失效")
             self.invalidate_cache()
 
-        self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+        subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     # layout 读取
     async def get_layout(self) -> dict[str, Any] | None:

@@ -93,9 +93,10 @@ function kindLabel(entry: LedgerEntry): string {
       <input
         v-model="accountId"
         class="hb-input"
+        aria-label="账号 ID"
         placeholder="账号 ID（从「账号」页的『查看积分流水』带上）"
       />
-      <select v-model="kind" class="hb-select">
+      <select v-model="kind" class="hb-select" aria-label="流水类型">
         <option value="">全部类型</option>
         <option v-for="item in kinds" :key="item.value" :value="item.value">{{ item.label }}</option>
       </select>

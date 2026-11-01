@@ -5,7 +5,8 @@ import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { notifyError } from '@/services/notify'
 import { resolveHaEntityPicture } from '@/shared/utils/ha/media-url.util'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
-import { progressFillStyle, clampInRange } from '@/shared/utils/ui/progress-bar.util'
+import { progressFillStyle } from '@/shared/utils/ui/progress-bar.util'
+import { volumeLevelFromPercent, volumeLevelToPercent } from '@/shared/entity/utils/control/media-player-control-core'
 import type { HaEntityState } from '@/shared/types/entity-store'
 
 /** 媒体播放器数据源：可为 entity_id 字符串、实体对象、null/undefined */
@@ -247,9 +248,9 @@ export function useMediaPlayerControls(
       notifyError(e, '媒体控制')
     }
   }
-  // 音量源：volume_level(0-1) → 0-100
-  const volumeSource = computed(() =>
-    clampInRange((Number(attrs.value.volume_level) || 0) * 100, 0, 100, 0),
+  // 音量源：volume_level(0-1) → 0-100（与属性展示、乐观写入共用同一份口径）
+  const volumeSource = computed(
+    () => volumeLevelToPercent(attrs.value.volume_level) ?? 0,
   )
   // 音量滑块：拖拽本地值与提交解耦，释放时调用 volume_set
   const {
@@ -261,7 +262,7 @@ export function useMediaPlayerControls(
     onChange: onVolumeChange,
     commit: commitVolume,
   } = useSliderCommit(volumeSource, {
-    onCommit: (val: number) => callMedia('volume_set', { volume_level: val / 100 }),
+    onCommit: (val: number) => callMedia('volume_set', { volume_level: volumeLevelFromPercent(val) }),
     track: () => ({
       min: 0,
       max: 100,

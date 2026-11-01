@@ -81,10 +81,15 @@ export function bindEntitySocketDomainEvents(
     (data: { automationId?: string; name?: string; success?: boolean; timestamp?: string }) => {
       const name = data?.name || data?.automationId || '自动化'
       logger.info(`自动化已执行: ${name}`)
+      // ``success`` 必须显式判真：旧实现把 undefined 也当成成功，于是只要事件里没有这个
+      // 字段（当前后端就是）就无条件弹「已执行」—— 失败时同样弹成功，属于会误导用户的
+      // 假成功提示。未知结果只记日志，不打扰用户。
       if (data?.success === false) {
         void actions.appNotify(`自动化「${name}」执行失败`, 'warning')
-      } else {
+      } else if (data?.success === true) {
         void actions.appNotify(`自动化「${name}」已执行`, 'info')
+      } else {
+        logger.debug?.(`自动化「${name}」执行结果未知（payload 无 success 字段）`)
       }
     },
   )

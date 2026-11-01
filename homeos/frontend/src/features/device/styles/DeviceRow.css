@@ -55,10 +55,12 @@
 }
 
 .device-row__battery--medium {
-  color: #fbbf24;
+  /* 电量中/低走语义 token：--hos-color-warning-text / -danger-text 已按暗底调过亮度，
+     直接写 #fbbf24 / #f87171 在浅色主题里会偏亮到读不出。 */
+  color: var(--hos-color-warning-text);
 }
 .device-row__battery--low {
-  color: #f87171;
+  color: var(--hos-color-danger-text);
 }
 
 .device-row__toggle {
@@ -77,7 +79,8 @@
     rgba(var(--dev-accent-rgb, 56, 189, 248), 0.25),
     rgba(94, 92, 230, 0.2)
   );
-  color: #fff;
+  /* 前景色走 --hos-on-accent：铺在强调色渐变上的图标，换主题时对比度自动跟着变。 */
+  color: var(--hos-on-accent);
   cursor: pointer;
   flex-shrink: 0;
   transition:

@@ -7,6 +7,7 @@ import EntryShell from "@homeos/shared/components/EntryShell.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import AdjustDialog from "@store/features/admin/components/AdjustDialog.vue";
 import PurgeDialog from "@store/features/admin/components/PurgeDialog.vue";
+import RefundDialog from "@store/features/admin/components/RefundDialog.vue";
 import PanelHead from "@store/features/admin/components/PanelHead.vue";
 import { useAdminStore } from "@store/features/admin/stores/admin";
 import { api, onAdminUnauthorized } from "@store/shared/api/http";
@@ -128,6 +129,24 @@ watch(
 
 const activePage = computed(() => String(route.params.page || "overview"));
 const activePanel = computed(() => PANELS[activePage.value] || null);
+
+/**
+ * 当前面板的中文名，用作页面 h1。
+ *
+ * 为什么需要：14 个后台面板的标题都由 `PanelHead` 渲染成 `<h2>`，而整个后台没有
+ * 任何 `<h1>`（grep 为空）。读屏和文档大纲因此都从 h2 起跳，跳过了页面标题。
+ * 这里补一个「每路由一个」的 sr-only h1，`PanelHead` 保持 h2 不动 —— 层级 1→2→3
+ * 一次成立，也不用改 14 个面板的模板。
+ * 没有 route.meta.title 可用，所以直接复用左侧导航里已有的 label，避免两处文案漂移。
+ */
+const activePageLabel = computed(() => {
+  const page = activePage.value;
+  for (const group of GROUPS) {
+    const hit = group.items.find((item) => item.page === page);
+    if (hit) return hit.label;
+  }
+  return "后台管理";
+});
 
 /**
  * `:page` 是个未注册的名字（手打 URL、老书签、面板改名后残留的链接）。
@@ -279,12 +298,14 @@ onBeforeUnmount(() => {
         <div class="hos-label-row"><label for="admin-login-password">密码</label></div>
         <PasswordField
           id="admin-login-password"
+          name="password"
           v-model="loginPassword"
           placeholder="请输入密码"
           required
+          :describedby="admin.loginError ? 'admin-login-error' : ''"
         />
       </div>
-      <p v-if="admin.loginError" class="hos-msg is-err" role="alert">{{ admin.loginError }}</p>
+      <p v-if="admin.loginError" id="admin-login-error" class="hos-msg is-err" role="alert">{{ admin.loginError }}</p>
       <div class="hos-actions">
         <button class="hos-btn-primary" type="submit">登录后台</button>
       </div>
@@ -357,6 +378,8 @@ onBeforeUnmount(() => {
     </aside>
 
     <main class="admin-main">
+      <!-- 每个路由一个 sr-only h1，建立 1→2(→3) 的标题层级；见 activePageLabel 的注释 -->
+      <h1 class="admin-sr-only">{{ activePageLabel }}</h1>
       <header class="admin-topbar">
         <div class="admin-topbar__left">
           <button
@@ -443,4 +466,20 @@ onBeforeUnmount(() => {
        这里只补后台独有的两个带输入弹窗，避免同一实例被挂两遍。 -->
   <AdjustDialog />
   <PurgeDialog />
+  <RefundDialog />
 </template>
+
+<style scoped>
+/* 只在无障碍树里存在的 h1：视觉隐藏但保留给读屏与文档大纲 */
+.admin-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+</style>

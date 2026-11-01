@@ -13,6 +13,13 @@ export interface WsDeltaChange {
   changed_at?: string
   old_state?: HaEntityState | null
   new_state?: HaEntityState | null
+  /**
+   * 实体已被 HA 删除（服务端 ``removed: true`` 且 ``new_state=null``）。
+   *
+   * 必须显式区分：``new_state`` 为空也可能是「这条 delta 没带完整状态」，
+   * 那种情况要合并缓存，而删除必须清缓存 —— 混为一谈会让幽灵实体永久残留。
+   */
+  removed?: boolean
   /** HomeOS 入站 epoch ms，用于 E2E apply 延迟 */
   _pipelineTs?: number
 }
@@ -56,11 +63,25 @@ export function mergeWsStateChange(
   return {
     ...existing,
     state: change.state !== undefined ? change.state : existing.state,
+    // delta 也要推进时间戳：否则缓存里的 ``last_updated`` 永远停在最后一次整包同步，
+    // 既让「最近更新」显示不动，也让 ``isStaleState`` 失去比较基准（永远判不出陈旧）。
+    ...deltaTimestamps(existing, change),
     attributes: {
       ...attributes,
       ...(change.changed_attributes || {}),
     },
   }
+}
+
+/** delta 时间戳推进：状态值真的变了才动 ``last_changed``（HA 语义）。 */
+function deltaTimestamps(
+  existing: HaEntityState,
+  change: WsDeltaChange,
+): Pick<HaEntityState, 'last_updated' | 'last_changed'> | Record<string, never> {
+  const at = change.changed_at
+  if (typeof at !== 'string' || !at) return {}
+  const stateChanged = change.state !== undefined && change.state !== existing.state
+  return stateChanged ? { last_updated: at, last_changed: at } : { last_updated: at }
 }
 
 /** 将 WS batch 条目规范化为 applyEntityStateUpdate 所需的 old/new 结构 */
@@ -87,6 +108,50 @@ export function normalizeWsBatchChange(
 }
 
 export type NormalizedWsBatchItem = WsDeltaChange | NormalizedWsBatchChange
+
+/**
+ * 解析 HA 时间戳（``2026-11-01T00:00:00.123456+00:00``）为 epoch ms。
+ *
+ * 为什么不直接 ``Date.parse``：HA 的时间戳带**微秒**（6 位小数），而 ECMAScript 只规定
+ * 到毫秒，Safari 等引擎会直接返回 ``Invalid Date``。先截到 3 位再交给 ``Date.parse``，
+ * 各引擎行为才一致。
+ */
+export function parseHaTimestamp(value: unknown): number | null {
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (!text) return null
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:?\d{2})?$/.exec(text)
+  if (!match) {
+    const fallback = Date.parse(text)
+    return Number.isFinite(fallback) ? fallback : null
+  }
+  const [, base, fraction = '', zone = 'Z'] = match
+  const millis = Number(`${fraction}000`.slice(0, 3))
+  const parsed = Date.parse(`${base}.${String(millis).padStart(3, '0')}${zone}`)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * 判断一条推送是否**陈旧**（比本地已有的状态更旧）。
+ *
+ * WS 增量、断线补发的整包、启动分片三路可能乱序到达：一条先发出、后到达的 delta 会把
+ * 新状态写回旧值，而之后没有任何机制能自愈（HA 只在真正变化时才推送，界面会一直停在
+ * 错误状态，直到用户手动刷新）。因此凡是「按时间戳可比较」的写入都必须先过这一关。
+ *
+ * 缺时间戳（``changed_at`` 为空）时**不判定**陈旧：宁可多合并一次，也不能因为字段缺失
+ * 把真实更新丢掉。
+ */
+export function isStaleState(
+  changedAt: string | null | undefined,
+  existing: HaEntityState | null | undefined,
+): boolean {
+  if (!existing) return false
+  const incoming = parseHaTimestamp(changedAt)
+  if (incoming === null) return false
+  const current = parseHaTimestamp(existing.last_updated ?? existing.last_changed)
+  if (current === null) return false
+  return incoming < current
+}
 
 /**
  * 拆出真正需要归一化的 delta 条目（连同其原始下标）。

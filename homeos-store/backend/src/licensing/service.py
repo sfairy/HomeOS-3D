@@ -1,5 +1,4 @@
-"""授权服务器业务逻辑：激活、心跳续租、租约恢复。
-"""
+"""授权服务器业务逻辑：激活、心跳续租、租约恢复。"""
 
 from __future__ import annotations
 
@@ -11,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..config import StoreSettings
 from ..core.models import (
+    Account,
     Customer,
     DeviceBinding,
     DeviceReleaseEvent,
@@ -106,16 +106,14 @@ class LicenseAuthority:
         with self.database.session() as session:
             now = utcnow()
             self.consume_nonce(session, payload, scope="activate", now=now)
-            license = session.scalars(
-                select(License).where(License.activation_code == code)
-            ).first()
+            license = session.scalars(select(License).where(License.activation_code == code)).first()
             customer = session.get(Customer, license.customer_id) if license is not None else None
             if license is None or customer is None or (customer.email or "").strip().lower() != email:
                 raise LicenseServerError(
                     "激活码或邮箱不正确，请核对购买授权时收到的信息后重试。",
                     status_code=404,
                 )
-            self.assert_usable(license, now)
+            self.assert_usable(license, now, session=session)
 
             binding = self.ensure_binding(
                 session,
@@ -205,7 +203,7 @@ class LicenseAuthority:
                     revoked=True,
                     code="INSTANCE_MISMATCH",
                 )
-            self.assert_usable(license, now)
+            self.assert_usable(license, now, session=session)
 
             row.expires_at = now + timedelta(seconds=self.session_ttl_seconds)
             row.last_used_at = now
@@ -246,9 +244,7 @@ class LicenseAuthority:
             floor = self.reported_lease_sequence(payload)
             record = session.get(RecoveryToken, token_hash(token))
             if record is None or record.expires_at <= now:
-                raise LicenseServerError(
-                    "租约恢复凭证已失效，请重新激活。", status_code=401
-                )
+                raise LicenseServerError("租约恢复凭证已失效，请重新激活。", status_code=401)
             binding = session.get(DeviceBinding, record.binding_id)
             license = session.get(License, record.license_id)
             if binding is None or license is None:
@@ -262,7 +258,7 @@ class LicenseAuthority:
                 )
             if not binding.is_live:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True, code="BINDING_RELEASED")
-            self.assert_usable(license, now)
+            self.assert_usable(license, now, session=session)
 
             recovery_token, rotated = self.rotate_recovery_if_stale(
                 session,
@@ -272,9 +268,7 @@ class LicenseAuthority:
                 license=license,
                 now=now,
             )
-            session_token, session_id = self.rotate_session(
-                session, license=license, binding=binding, now=now
-            )
+            session_token, session_id = self.rotate_session(session, license=license, binding=binding, now=now)
             binding.last_heartbeat_at = now
             binding.last_ip = ip
             if client_version:
@@ -303,9 +297,7 @@ class LicenseAuthority:
     def session_ttl_seconds(self) -> int:
         return max(3600, int(self.settings.lease_ttl_seconds))
 
-    def consume_nonce(
-        self, session: Session, payload: dict, *, scope: str, now: datetime
-    ) -> None:
+    def consume_nonce(self, session: Session, payload: dict, *, scope: str, now: datetime) -> None:
         """受理一个一次性随机数；这个随机数以前出现过就直接拒绝。
 
         授权请求的信封是自包含的（临时公钥 + 密文 + IV 全在里面），截获之后可以原样重发：
@@ -330,9 +322,7 @@ class LicenseAuthority:
         self._maybe_cleanup_nonces(session, now)
         if session.get(LicenseNonce, key) is not None:
             logger.info("授权请求随机数被重放 scope=%s", scope)
-            raise LicenseServerError(
-                NONCE_REPLAY_DETAIL, status_code=409, code="NONCE_REPLAY"
-            )
+            raise LicenseServerError(NONCE_REPLAY_DETAIL, status_code=409, code="NONCE_REPLAY")
         session.add(
             LicenseNonce(
                 id_hash=key,
@@ -369,21 +359,29 @@ class LicenseAuthority:
                 code="LEASE_SEQUENCE_MISSING",
             )
         if raw < 0:
-            raise LicenseServerError(
-                "授权请求的租约序号无效。", status_code=422, code="LEASE_SEQUENCE_INVALID"
-            )
+            raise LicenseServerError("授权请求的租约序号无效。", status_code=422, code="LEASE_SEQUENCE_INVALID")
         return raw
 
-    def assert_usable(self, license: License, now: datetime) -> None:
+    def assert_usable(self, license: License, now: datetime, *, session: Session | None = None) -> None:
         """授权是否可继续使用。
 
         「已停用/已吊销」按确认吊销处理（客户端清本地授权、停止自愈）；「到期」只给
         ``ACCESS_EXPIRED``：授权还在，续费即恢复，不能被客户端当成吊销。
         """
         if not license.active or license.revoked_at is not None:
-            raise LicenseServerError(
-                "客户授权或激活码已停用。", status_code=403, revoked=True
-            )
+            raise LicenseServerError("客户授权或激活码已停用。", status_code=403, revoked=True)
+        # 封号必须对**已装客户端**生效：后台「停用账号」此前只清 Web 会话
+        # （``_drop_account_sessions``），而 activate / heartbeat / recover 三条链路
+        # 从不读 ``Account.is_active`` —— 封号只让当事人看不到网页，客户端照常续期。
+        if session is not None and license.account_id:
+            account = session.get(Account, license.account_id)
+            if account is None or not account.is_active:
+                raise LicenseServerError(
+                    "该授权所属账号已被停用。",
+                    status_code=403,
+                    revoked=True,
+                    code="ACCOUNT_DISABLED",
+                )
         if license.access_expires_at is not None and license.access_expires_at <= now:
             # 到期 ≠ 吊销：给独立码且不带 revoked 语义。客户端对 REVOKED 的处理是
             # 「授权没了、重试无用」并停止自动恢复，续费同一份授权也不会自愈；到期应当
@@ -395,8 +393,7 @@ class LicenseAuthority:
             )
 
     def last_release_at(self, session: Session, license_id: str) -> datetime | None:
-        """该授权**最近一次解绑**的时刻（自助与后台强制解绑都计入）。
-        """
+        """该授权**最近一次解绑**的时刻（自助与后台强制解绑都计入）。"""
         return session.execute(
             select(DeviceReleaseEvent.created_at)
             .where(DeviceReleaseEvent.license_id == license_id)
@@ -404,11 +401,8 @@ class LicenseAuthority:
             .limit(1)
         ).scalar_one_or_none()
 
-    def release_remaining_seconds(
-        self, session: Session, license_id: str, now: datetime
-    ) -> int:
-        """距该授权**下一次可以解绑**还有多少秒（0 = 现在就可以）。
-        """
+    def release_remaining_seconds(self, session: Session, license_id: str, now: datetime) -> int:
+        """距该授权**下一次可以解绑**还有多少秒（0 = 现在就可以）。"""
         last = self.last_release_at(session, license_id)
         if last is None:
             return 0
@@ -417,17 +411,12 @@ class LicenseAuthority:
         return int(max(0, (allowed - now).total_seconds()))
 
     def _prune_expired_credentials(self, session: Session, binding_id: str, now: datetime) -> None:
-        """删掉这个绑定上**已经过期**的会话与恢复凭证。
-        """
+        """删掉这个绑定上**已经过期**的会话与恢复凭证。"""
         session.execute(
-            delete(LicenseSession).where(
-                LicenseSession.binding_id == binding_id, LicenseSession.expires_at <= now
-            )
+            delete(LicenseSession).where(LicenseSession.binding_id == binding_id, LicenseSession.expires_at <= now)
         )
         session.execute(
-            delete(RecoveryToken).where(
-                RecoveryToken.binding_id == binding_id, RecoveryToken.expires_at <= now
-            )
+            delete(RecoveryToken).where(RecoveryToken.binding_id == binding_id, RecoveryToken.expires_at <= now)
         )
 
     def revoke_binding_credentials(self, session: Session, binding_id: str) -> int:
@@ -435,15 +424,9 @@ class LicenseAuthority:
 
         避免仅 ``binding.active=False`` 后，旧实例在心跳宽限期内仍持有效 ``LicenseSession``。
         """
-        sessions = session.execute(
-            delete(LicenseSession).where(LicenseSession.binding_id == binding_id)
-        )
-        tokens = session.execute(
-            delete(RecoveryToken).where(RecoveryToken.binding_id == binding_id)
-        )
-        return int(getattr(sessions, "rowcount", 0) or 0) + int(
-            getattr(tokens, "rowcount", 0) or 0
-        )
+        sessions = session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding_id))
+        tokens = session.execute(delete(RecoveryToken).where(RecoveryToken.binding_id == binding_id))
+        return int(getattr(sessions, "rowcount", 0) or 0) + int(getattr(tokens, "rowcount", 0) or 0)
 
     def rotate_recovery_if_stale(
         self,
@@ -455,8 +438,7 @@ class LicenseAuthority:
         license: License,
         now: datetime,
     ) -> tuple[str, bool]:
-        """必要时换一枚恢复凭证，返回 ``(要发给客户端的凭证, 是否轮换过)``。
-        """
+        """必要时换一枚恢复凭证，返回 ``(要发给客户端的凭证, 是否轮换过)``。"""
         self._prune_expired_credentials(session, binding.id, now)
         age = (now - (record.created_at or now)).total_seconds()
         if age < RECOVERY_TOKEN_ROTATE_AFTER_SECONDS:
@@ -544,14 +526,10 @@ class LicenseAuthority:
         binding.activated_at = now
         binding.released_at = None
         binding.last_heartbeat_at = now
-        stale_sessions = session.scalars(
-            select(LicenseSession).where(LicenseSession.binding_id == binding.id)
-        ).all()
+        stale_sessions = session.scalars(select(LicenseSession).where(LicenseSession.binding_id == binding.id)).all()
         for stale in stale_sessions:
             session.delete(stale)
-        stale_recoveries = session.scalars(
-            select(RecoveryToken).where(RecoveryToken.binding_id == binding.id)
-        ).all()
+        stale_recoveries = session.scalars(select(RecoveryToken).where(RecoveryToken.binding_id == binding.id)).all()
         for stale in stale_recoveries:
             session.delete(stale)
         if stale_sessions or stale_recoveries:
@@ -568,8 +546,7 @@ class LicenseAuthority:
     def open_session(
         self, session: Session, *, license: License, binding: DeviceBinding, now: datetime
     ) -> tuple[str, str, str]:
-        """开一份新会话（激活路径），并把这份绑定上的旧凭据清干净。
-        """
+        """开一份新会话（激活路径），并把这份绑定上的旧凭据清干净。"""
         self._prune_expired_credentials(session, binding.id, now)
         session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
         session.execute(delete(RecoveryToken).where(RecoveryToken.binding_id == binding.id))
@@ -599,8 +576,7 @@ class LicenseAuthority:
     def rotate_session(
         self, session: Session, *, license: License, binding: DeviceBinding, now: datetime
     ) -> tuple[str, str]:
-        """恢复路径的换会话。
-        """
+        """恢复路径的换会话。"""
         self._prune_expired_credentials(session, binding.id, now)
         session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
         session_token = new_token(32)
@@ -675,11 +651,7 @@ class LicenseAuthority:
 
                 license.feature_codes_json = list_json(snapshot)
         features.update(snapshot)
-        live = (
-            entitlements
-            if entitlements is not None
-            else self._live_entitlements(session, license, now)
-        )
+        live = entitlements if entitlements is not None else self._live_entitlements(session, license, now)
         for entitlement in live:
             features.add(entitlement.feature_code)
         if not features:
@@ -690,14 +662,10 @@ class LicenseAuthority:
         return sorted(features)
 
     @staticmethod
-    def _live_entitlements(
-        session: Session, license: License, now: datetime
-    ) -> list[Entitlement]:
+    def _live_entitlements(session: Session, license: License, now: datetime) -> list[Entitlement]:
         """该授权上此刻生效的权益（``active`` 且落在起止窗口内）。"""
         live: list[Entitlement] = []
-        for entitlement in session.scalars(
-            select(Entitlement).where(Entitlement.license_id == license.id)
-        ):
+        for entitlement in session.scalars(select(Entitlement).where(Entitlement.license_id == license.id)):
             if not entitlement.active:
                 continue
             if entitlement.starts_at is not None and entitlement.starts_at > now:
@@ -723,16 +691,10 @@ class LicenseAuthority:
         到达的日期。
         """
         payloads: list[dict] = []
-        live = (
-            entitlements
-            if entitlements is not None
-            else self._live_entitlements(session, license, now)
-        )
+        live = entitlements if entitlements is not None else self._live_entitlements(session, license, now)
         for entitlement in live:
             expires_at = entitlement.expires_at
-            if license.access_expires_at is not None and (
-                expires_at is None or license.access_expires_at < expires_at
-            ):
+            if license.access_expires_at is not None and (expires_at is None or license.access_expires_at < expires_at):
                 expires_at = license.access_expires_at
             payloads.append(
                 {
@@ -762,19 +724,13 @@ class LicenseAuthority:
                 "type": license.product_type,
                 "expiresAt": iso_z(license.access_expires_at) if license.access_expires_at else None,
             }
-        live = (
-            entitlements
-            if entitlements is not None
-            else self._live_entitlements(session, license, now)
-        )
+        live = entitlements if entitlements is not None else self._live_entitlements(session, license, now)
         for entitlement in live:
             name = entitlement.product_name or license.product_name
             if not name or name in seen:
                 continue
             expires_at = entitlement.expires_at
-            if license.access_expires_at is not None and (
-                expires_at is None or license.access_expires_at < expires_at
-            ):
+            if license.access_expires_at is not None and (expires_at is None or license.access_expires_at < expires_at):
                 expires_at = license.access_expires_at
             seen[name] = {
                 "name": name,
@@ -816,21 +772,13 @@ class LicenseAuthority:
             "instanceId": binding.instance_id,
             "product": signer.product,
             "keyId": signer.key_id,
-            "features": self.features_for(
-                session, license, now, entitlements=live_entitlements
-            ),
+            "features": self.features_for(session, license, now, entitlements=live_entitlements),
             # 结构化权益与商品：客户端据此展示「哪个功能到哪天」并在本地算最早截止时间。
-            "entitlements": self.entitlements_for(
-                session, license, now, entitlements=live_entitlements
-            ),
-            "products": self.products_for(
-                session, license, now, entitlements=live_entitlements
-            ),
+            "entitlements": self.entitlements_for(session, license, now, entitlements=live_entitlements),
+            "products": self.products_for(session, license, now, entitlements=live_entitlements),
             "leaseSequence": sequence,
             "issuedAt": iso_z(now),
-            "expiresAt": iso_z(
-                now + timedelta(seconds=max(300, int(self.settings.lease_ttl_seconds)))
-            ),
+            "expiresAt": iso_z(now + timedelta(seconds=max(300, int(self.settings.lease_ttl_seconds)))),
         }
         response = {
             "signedLease": signer.sign(lease_payload),

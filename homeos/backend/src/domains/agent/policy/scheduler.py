@@ -20,17 +20,42 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import delete, select
 
 from .policy import actor_from_snapshot, actor_label, actor_snapshot, touch_editor
+from .scheduler_time import (
+    cron_trigger,
+    delay_minutes,
+    next_cron_run,
+    normalize_cron,
+    now_naive,
+    parse_iso,
+)
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import read_json_object
 from ....platform.core.db.models import AgentScheduledTask, AgentTaskExecutionLog
 from ....platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.agent.scheduler")
+
+
+def _task_result_ok(result: dict[str, Any]) -> bool:
+    """计划任务的「动作是否真的生效」判定。
+
+    有 ``verification.verified == False`` 时不能记成功：HA 收下了请求但设备状态没变
+    （``unavailable`` / 服务被忽略 / 状态不符）。此前只读 ``success``，于是这类任务写
+    ``status=success`` 且不发失败通知 —— 用户以为定时开关照常执行，其实设备一直没动。
+
+    ``verified is None``（无法校验）保持原有宽松口径：查询类工具与异步设备都会落到这里，
+    把「未知」当失败会每天刷一堆假告警。
+    """
+    if result.get("verified") is False:
+        return False
+    if bool(result.get("success")):
+        return True
+    return not result.get("error") and not result.get("blocked") and "success" not in result
+
 
 #: tick 间隔（秒）
 TICK_SECONDS = 10
@@ -46,122 +71,6 @@ PRUNE_INTERVAL_SECONDS = 3600
 MAX_NAME_CHARS = 128
 #: 允许被计划任务调用的工具：只放开控制类动作，避免把任意工具挂到定时器上
 ALLOWED_ACTION_TOOLS = frozenset({"control_device"})
-#: cron 允许的字符集（挡住注入式的怪异表达式）
-_CRON_ALLOWED = set("0123456789*/-,? ")
-#: 一次性任务最长延迟（分钟）：一年，挡住明显写错的超大值
-MAX_DELAY_MINUTES = 60 * 24 * 365
-
-
-def _now_naive() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
-def _parse_iso(raw: Any) -> datetime | None:
-    """解析 ISO / ``YYYY-MM-DD HH:MM`` 时间并统一成 UTC naive。"""
-    if isinstance(raw, datetime):
-        moment = raw
-    elif isinstance(raw, str) and raw.strip():
-        text = raw.strip().replace("Z", "+00:00")
-        if "T" not in text and " " in text:
-            text = text.replace(" ", "T", 1)
-        try:
-            moment = datetime.fromisoformat(text)
-        except ValueError:
-            logger.debug("ISO 时间格式非法: %s", text)
-            return None
-    else:
-        return None
-    if moment.tzinfo is not None:
-        moment = moment.astimezone(UTC).replace(tzinfo=None)
-    return moment
-
-
-def _localize(moment: datetime, timezone_name: str) -> datetime:
-    """把 UTC naive 解释成家庭本地时区（用于 cron 计算）。"""
-    aware = moment.replace(tzinfo=UTC)
-    tz = _zone(timezone_name)
-    return aware.astimezone(tz) if tz is not None else aware
-
-
-def _zone(timezone_name: str) -> ZoneInfo | None:
-    name = str(timezone_name or "").strip()
-    if not name:
-        return None
-    try:
-        return ZoneInfo(name)
-    except ZoneInfoNotFoundError, ValueError:
-        logger.debug("时区不可用，回退 UTC: %s", name)
-        return None
-
-
-def _cron_trigger(cron: str, timezone_name: str) -> Any:
-    """构造 CronTrigger；表达式非法时抛 ValueError（由调用方转成用户可读错误）。"""
-    text = " ".join(str(cron or "").split())
-    if not text or set(text) - _CRON_ALLOWED:
-        raise ValueError("cron 表达式不合法（需 5 段：分 时 日 月 周）")
-    from apscheduler.triggers.cron import CronTrigger
-
-    tz = _zone(timezone_name) or UTC
-    return CronTrigger.from_crontab(text, timezone=tz)
-
-
-def _next_cron_run(cron: str, timezone_name: str, after: datetime) -> datetime | None:
-    """按 cron 计算下一次执行（UTC naive）；非法表达式返回 None。"""
-    try:
-        trigger = _cron_trigger(cron, timezone_name)
-    except Exception as exc:
-        logger.info("cron 表达式无法解析: %s (%s)", cron, exc)
-        return None
-    start = _localize(after, timezone_name)
-    try:
-        nxt = trigger.get_next_fire_time(None, start)
-    except Exception as exc:  # pragma: no cover - APScheduler 内部异常
-        logger.debug("计算下次执行失败: %s", exc)
-        return None
-    if nxt is None:
-        return None
-    return nxt.astimezone(UTC).replace(tzinfo=None)
-
-
-def _delay_minutes(value: Any) -> float | None:
-    """把 ``delayMinutes`` 解析成夹紧后的分钟数；缺失或不可解析时返回 ``None``。
-
-    显式挡掉 ``None`` / ``bool``：前者 ``float()`` 会抛 ``TypeError``，后者会被当成
-    0 / 1 分钟这种「看起来合法其实不是用户本意」的值。
-    """
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        minutes = float(value)
-    except TypeError, ValueError:
-        logger.debug("delayMinutes 不是数字: %r", value)
-        return None
-    return max(0.0, min(MAX_DELAY_MINUTES, minutes))
-
-
-def _normalize_cron(payload: dict[str, Any]) -> str:
-    """把 ``HH:MM`` 这类日常写法规范成 cron；已经是 5 段则原样返回。"""
-    raw = str(payload.get("cron") or "").strip()
-    if not raw:
-        # 允许只用 time 字段表达「每天这个点」
-        raw = str(payload.get("time") or "").strip()
-    if not raw:
-        run_at = _parse_iso(payload.get("runAt"))
-        if run_at is not None:
-            local = run_at
-            return f"{local.minute} {local.hour} * * *"
-        return ""
-    if ":" in raw and " " not in raw:
-        hour_text, minute_text = raw.split(":", 1)
-        try:
-            hour = int(hour_text)
-            minute = int(minute_text)
-        except ValueError as exc:
-            raise ValueError("时间需形如 HH:MM 或 5 段 cron") from exc
-        if not (0 <= hour <= 23 and 0 <= minute <= 59):
-            raise ValueError("时间超出范围（00:00 ~ 23:59）")
-        return f"{minute} {hour} * * *"
-    return " ".join(raw.split())
 
 
 def serialize_task(row: AgentScheduledTask) -> dict[str, Any]:
@@ -332,22 +241,22 @@ class AgentSchedulerService:
         run_at: datetime | None = None
         if schedule_type == "RECURRING":
             try:
-                cron = _normalize_cron(payload)
-                _cron_trigger(cron, timezone_name)
+                cron = normalize_cron(payload)
+                cron_trigger(cron, timezone_name)
             except Exception as exc:
                 logger.info("周期任务表达式不合法: %s", exc)
                 return {"ok": False, "message": str(exc)}
-            next_run = _next_cron_run(cron, timezone_name, _now_naive())
+            next_run = next_cron_run(cron, timezone_name, now_naive())
             if next_run is None:
                 return {"ok": False, "message": "cron 表达式无法计算下次执行时间"}
         else:
-            run_at = _parse_iso(payload.get("runAt"))
+            run_at = parse_iso(payload.get("runAt"))
             if run_at is None:
-                delay = _delay_minutes(payload.get("delayMinutes"))
+                delay = delay_minutes(payload.get("delayMinutes"))
                 if delay is None:
                     logger.info("一次性任务缺少 runAt / delayMinutes: %r", payload.get("delayMinutes"))
                     return {"ok": False, "message": "一次性任务需要 runAt 或 delayMinutes"}
-                run_at = _now_naive() + timedelta(minutes=delay)
+                run_at = now_naive() + timedelta(minutes=delay)
             next_run = run_at
         with self._session_factory() as session:
             count = len(list(session.execute(select(AgentScheduledTask.id)).scalars()))
@@ -399,25 +308,38 @@ class AgentSchedulerService:
         if row.schedule_type == "RECURRING":
             if "cron" in payload or "time" in payload or "runAt" in payload:
                 try:
-                    row.cron = _normalize_cron(payload)
-                    _cron_trigger(row.cron, timezone_name)
+                    row.cron = normalize_cron(payload)
+                    cron_trigger(row.cron, timezone_name)
                 except Exception as exc:
                     logger.info("更新周期任务表达式失败: %s", exc)
                     return {"ok": False, "message": str(exc)}
             row.run_at = None
-            row.next_run_at = _next_cron_run(row.cron, timezone_name, _now_naive())
+            # 与创建路径一致：算不出下次触发就必须报错。
+            # `0 0 31 2 *` 这类「语法合法但永不成立」的表达式过去会静默写入
+            # next_run_at=None 并回 ok:True，任务从此再也不会执行，用户却以为改成功了。
+            next_run = next_cron_run(row.cron, timezone_name, now_naive())
+            if next_run is None:
+                return {
+                    "ok": False,
+                    "message": "cron 表达式无法计算下次执行时间（例如 2 月 31 日这类永不成立的日期）",
+                }
+            row.next_run_at = next_run
             return None
         if "runAt" in payload:
-            parsed = _parse_iso(payload.get("runAt"))
+            parsed = parse_iso(payload.get("runAt"))
             if parsed is None:
                 return {"ok": False, "message": "runAt 时间格式不合法"}
             row.run_at = parsed
         elif "delayMinutes" in payload:
             # 与创建路径同一套解析 / 夹紧，避免「PUT 改延迟」被静默忽略
-            delay = _delay_minutes(payload.get("delayMinutes"))
+            delay = delay_minutes(payload.get("delayMinutes"))
             if delay is None:
                 return {"ok": False, "message": "delayMinutes 不是有效数字"}
-            row.run_at = _now_naive() + timedelta(minutes=delay)
+            row.run_at = now_naive() + timedelta(minutes=delay)
+        if row.run_at is None:
+            # 更新成 ONCE 但既没给 runAt 也没给 delayMinutes（例如从 cron 切过来）：
+            # 过去会把 run_at/next_run_at 一起写成 None 并回 ok:True，任务直接变成死任务。
+            return {"ok": False, "message": "一次性任务需要 runAt 或 delayMinutes"}
         row.cron = ""
         row.next_run_at = row.run_at
         return None
@@ -458,7 +380,7 @@ class AgentSchedulerService:
                 if not row.enabled:
                     row.next_run_at = None
                 elif row.next_run_at is None:
-                    row.next_run_at = self._compute_next(row, _now_naive())
+                    row.next_run_at = self._compute_next(row, now_naive())
             touch_editor(row, actor)
             session.commit()
             session.refresh(row)
@@ -479,7 +401,18 @@ class AgentSchedulerService:
             if row is None:
                 return {"ok": False, "message": "计划任务不存在"}
             row.enabled = (not bool(row.enabled)) if enabled is None else bool(enabled)
-            row.next_run_at = self._compute_next(row, _now_naive()) if row.enabled else None
+            if not row.enabled:
+                row.next_run_at = None
+            else:
+                next_run = self._compute_next(row, now_naive())
+                if next_run is None:
+                    # 启用一个算不出下次触发的任务（cron 永不成立 / 一次性任务没有时间）
+                    # 只会得到一个永远不跑的「已启用」任务，这里直接拒绝并保持原状。
+                    return {
+                        "ok": False,
+                        "message": "任务的下次执行时间无法计算（cron 表达式不成立或缺少 runAt），无法启用",
+                    }
+                row.next_run_at = next_run
             touch_editor(row, actor)
             session.commit()
             session.refresh(row)
@@ -517,7 +450,7 @@ class AgentSchedulerService:
     @staticmethod
     def _compute_next(row: AgentScheduledTask, after: datetime) -> datetime | None:
         if row.schedule_type == "RECURRING":
-            return _next_cron_run(row.cron or "", row.timezone or "", after)
+            return next_cron_run(row.cron or "", row.timezone or "", after)
         return row.run_at
 
     async def _recover_next_runs(self) -> None:
@@ -529,7 +462,7 @@ class AgentSchedulerService:
     def _recover_sync(self) -> None:
         if self._session_factory is None:
             return
-        now = _now_naive()
+        now = now_naive()
         with self._session_factory() as session:
             rows = list(
                 session.execute(select(AgentScheduledTask).where(AgentScheduledTask.enabled.is_(True))).scalars()
@@ -550,7 +483,7 @@ class AgentSchedulerService:
         if self._session_factory is None:
             return []
         await self._maybe_prune_logs()
-        due = await run_db(self._due_tasks, _now_naive())
+        due = await run_db(self._due_tasks, now_naive())
         results: list[dict[str, Any]] = []
         for task in due:
             task_id = str(task.get("id") or "")
@@ -563,6 +496,44 @@ class AgentSchedulerService:
                 self._running.discard(task_id)
         return results
 
+    def _claim_sync(self, task_id: str, now: datetime) -> dict[str, Any] | None:
+        """执行前复核：任务仍存在、仍启用、仍到期时返回**最新**参数快照，否则 ``None``。
+
+        ``tick`` 是先快照 ``enabled=1`` 的任务再逐个 ``await`` 执行的。期间用户完全可能
+        把任务停用、改动作参数或改 cron，而旧实现会拿快照里的旧参数照跑一遍，事后
+        ``_finish_sync`` 也不复查 —— 「停用后还执行了一次」「改参后仍按旧参数执行」。
+        这里在真正调用工具前重读一次行，同时保证拿到的是修改后的参数。
+        """
+        if self._session_factory is None:
+            return None
+        with self._session_factory() as session:
+            row = session.execute(select(AgentScheduledTask).where(AgentScheduledTask.id == task_id)).scalars().first()
+            if row is None or not bool(row.enabled):
+                return None
+            # 仍须到期：同一进程用 _running 去重，但手动 tick 与后台 tick 可能交错，
+            # 上一轮已经把 next_run_at 推到未来的任务不能再跑一次。
+            if row.next_run_at is None or row.next_run_at > now:
+                return None
+            return {
+                "id": row.id,
+                "name": row.name,
+                "scheduleType": row.schedule_type,
+                "cron": row.cron,
+                "timezone": row.timezone,
+                "runAt": row.run_at,
+                "actionTool": row.action_tool,
+                "actionArgs": read_json_object(row.action_args, {}),
+                "precondition": read_json_object(row.precondition, {}),
+                "actor": read_json_object(row.actor, {}),
+            }
+
+    async def _claim_task(self, task_id: str) -> dict[str, Any] | None:
+        try:
+            return await run_db(self._claim_sync, task_id, now_naive())
+        except Exception as exc:
+            logger.warning("复核计划任务状态失败: %s", exc)
+            return None
+
     # 日志保留
     async def _maybe_prune_logs(self) -> None:
         """每小时最多清理一次过期执行日志（首轮启动即清）。"""
@@ -570,7 +541,7 @@ class AgentSchedulerService:
         if self._last_prune_at and now - self._last_prune_at < PRUNE_INTERVAL_SECONDS:
             return
         self._last_prune_at = now
-        cutoff = _now_naive() - timedelta(days=LOG_RETENTION_DAYS)
+        cutoff = now_naive() - timedelta(days=LOG_RETENTION_DAYS)
         try:
             removed = await run_db(self._prune_logs_sync, cutoff)
         except Exception:
@@ -618,7 +589,18 @@ class AgentSchedulerService:
 
     async def _execute_task(self, task: dict[str, Any]) -> dict[str, Any]:
         task_id = str(task.get("id") or "")
-        started_at = _now_naive()
+        # 快照可能已过期：执行前重读一次，停用/删除/改期的一律不跑，改参的用新参数跑。
+        claimed = await self._claim_task(task_id)
+        if claimed is None:
+            logger.info("计划任务 %s 已停用、已删除或已改期，跳过本轮执行", task_id)
+            return {
+                "taskId": task_id,
+                "name": task.get("name"),
+                "status": "skipped",
+                "message": "任务已停用、已删除或已改期，跳过本次执行",
+            }
+        task = claimed
+        started_at = now_naive()
         action_tool = str(task.get("actionTool") or "")
         action_args = task.get("actionArgs")
         action_args = action_args if isinstance(action_args, dict) else {}
@@ -640,16 +622,14 @@ class AgentSchedulerService:
             else:
                 raw = await self._tools.execute(action_tool, action_args, actor)
                 result = raw if isinstance(raw, dict) else {"raw": raw}
-                ok = bool(result.get("success")) or (
-                    not result.get("error") and not result.get("blocked") and "success" not in result
-                )
+                ok = _task_result_ok(result)
                 status = "success" if ok else "failed"
                 message = str(result.get("message") or result.get("error") or "")[:500]
         except Exception as exc:
             logger.warning("执行计划任务失败: %s", task.get("name"), exc_info=True)
             status = "failed"
             message = str(exc)[:500]
-        finished_at = _now_naive()
+        finished_at = now_naive()
         try:
             await run_db(
                 self._finish_sync,
@@ -704,8 +684,15 @@ class AgentSchedulerService:
             row.last_status = info["status"]
             row.last_error = info["message"] if info["status"] == "failed" else ""
             row.run_count = int(row.run_count or 0) + 1
-            if row.schedule_type == "RECURRING":
-                row.next_run_at = _next_cron_run(row.cron or "", row.timezone or "", info["finished_at"])
+            if not bool(row.enabled):
+                # 执行期间被停用：日志照写（动作确实发生过），但不要再排下一次，
+                # 否则「停用」会被 _finish 悄悄排回一个未来的 next_run_at。
+                row.next_run_at = None
+            elif row.schedule_type == "RECURRING":
+                next_run = next_cron_run(row.cron or "", row.timezone or "", info["finished_at"])
+                if next_run is None:
+                    logger.warning("周期任务 %s 的 cron 无法计算下次执行时间: %r", task_id, row.cron)
+                row.next_run_at = next_run
             else:
                 # 一次性任务：执行完即停用，避免被反复重跑
                 row.enabled = False

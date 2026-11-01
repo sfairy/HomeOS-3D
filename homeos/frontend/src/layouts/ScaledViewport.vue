@@ -3,7 +3,14 @@
   <!-- 外层 frame：承载边框微光（高帧率时显示）与外部样式注入 -->
   <div
     class="viewport-frame"
-    :class="[frameClass, { 'viewport-frame--static-glow': pauseViewportGlow }]"
+    :class="[
+      frameClass,
+      {
+        'viewport-frame--static-glow': pauseViewportGlow,
+        // 缩放到下限后内容必然超出视口，必须让 frame 可滚动，否则四周被裁掉
+        'viewport-frame--scrollable': scalingOn && scaleClamped,
+      },
+    ]"
     :style="mergedFrameStyle"
   >
     <!-- 背景层插槽（如壁纸/视频背景），位于 app-shell 之下 -->
@@ -103,6 +110,7 @@ const {
   contentStyle,
   scalingOn,
   scale,
+  scaleClamped,
   isResizing,
 } = useScaling(resolvedMaxWidth, { forceScaling: toRef(props, 'forceScaling') })
 

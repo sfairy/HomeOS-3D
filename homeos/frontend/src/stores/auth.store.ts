@@ -237,20 +237,31 @@ export const useAuthStore = defineStore('auth', () => {
    * 刷新当前会话
    *
    * ``GET /auth/me`` 同时是会话保活入口：服务端在 ``lastSeenAt`` 超过阈值时滑动续期。
-   * 未认证时跳过；401 时静默返回（由 401 流程统一处理），避免重复弹窗。
+   *
+   * 返回值是「本次是否真的拿到了 200」：
+   * - 旧实现把 401 当成功静默 ``return``，于是 ``schedulePoll('auth:session-refresh')`` 永远
+   *   成功、``client.ts`` 的「无感刷新后重试一次」也永远认为刷新成功，多打一轮后落进 401
+   *   熔断；用户全程收不到过期提示，界面停在"看起来已登录、其实全 401"的僵尸态。
+   * - 非 401（网络抖动 / 502）不登出，但也必须回答 false —— 这才叫"这次没刷新成功"。
    */
-  async function refreshSession(): Promise<void> {
-    if (!isAuthenticated.value) return
+  async function refreshSession(): Promise<boolean> {
+    if (!isAuthenticated.value) return false
     try {
       const res = await getMe({ skipAuthRedirect: true })
       syncAuthFromResponse(res.data)
+      return true
     } catch (e: unknown) {
       const status =
         e && typeof e === 'object' && 'response' in e
           ? (e as { response?: { status?: number } }).response?.status
           : undefined
-      if (status === 401) return
+      if (status === 401) {
+        // 会话确实失效：走统一登出（清用户态 + 断开 WS + 停保活），由 401 流程负责跳转。
+        handleUnauthorized()
+        return false
+      }
       logger.debug('会话刷新失败（非 401），沿用当前登录态', e)
+      return false
     }
   }
 

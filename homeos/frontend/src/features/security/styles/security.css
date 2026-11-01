@@ -130,7 +130,7 @@
 
 
 .sec-mode-btn--active {
-  color: #fff;
+  color: var(--hos-on-accent);
   background: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 14%, rgba(0, 0, 0, 0));
   border-color: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 38%, rgba(0, 0, 0, 0));
   box-shadow: 0 4px 20px color-mix(in srgb, var(--mode-accent, var(--page-accent)) 12%, rgba(0, 0, 0, 0));
@@ -494,7 +494,7 @@
 .sz-zone-field__select:focus {
   border-color: rgba(var(--page-accent-rgb), 0.38);
   background: rgba(0, 0, 0, 0.36);
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.08);
 }
 
@@ -934,7 +934,7 @@
 }
 
 .sov-pill--on.sov-pill--danger {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
   border-color: rgba(var(--set-danger-rgb), 0.4);
   background: rgba(var(--set-danger-rgb), 0.12);
 }
@@ -1024,7 +1024,7 @@
 }
 
 .sov-sensor-card--alert .sov-sensor-card__state {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
   font-weight: 700;
 }
 
@@ -1202,7 +1202,7 @@
 }
 
 .sec-segment-btn--active {
-  color: #fff;
+  color: var(--hos-on-accent);
   background:
     radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 70%),
     rgba(255, 255, 255, 0.1);
@@ -1473,7 +1473,7 @@
 }
 
 .sec-dash-chip--alert {
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
   background: rgba(var(--set-danger-rgb), 0.12);
   border-color: rgba(var(--set-danger-rgb), 0.28);
 }
@@ -1484,7 +1484,7 @@
 }
 
 .sec-dash-chip--on {
-  color: #fff;
+  color: var(--hos-on-accent);
   border-color: rgba(var(--page-accent-rgb), 0.45);
   background:
     radial-gradient(ellipse at 50% 0%, rgba(var(--page-accent-rgb), 0.2) 0%, transparent 70%),
@@ -1593,7 +1593,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
   font-size: var(--premium-fs-micro);
   font-weight: 800;
   white-space: nowrap;
@@ -1715,7 +1715,7 @@
   display: block;
   font-size: var(--premium-fs-body);
   font-weight: 800;
-  color: #fff;
+  color: var(--hos-on-accent);
   line-height: 1.2;
   min-width: 0;
   overflow: hidden;
@@ -1735,7 +1735,7 @@
 }
 
 .sec-dash-status-meta--warn {
-  color: #fbbf24;
+  color: var(--hos-color-warning-text);
   white-space: normal;
 }
 
@@ -1818,7 +1818,7 @@
 }
 
 .sec-dash-mode-btn--active {
-  color: #fff;
+  color: var(--hos-on-accent);
   border-color: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 45%, rgba(0, 0, 0, 0));
   background:
     radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--mode-accent, var(--page-accent)) 22%, rgba(0, 0, 0, 0)) 0%, transparent 70%),
@@ -1887,7 +1887,7 @@
   background:
     radial-gradient(ellipse at 50% 0%, rgba(var(--set-danger-rgb), 0.32) 0%, transparent 65%),
     linear-gradient(165deg, rgba(var(--set-danger-rgb), 0.3), rgba(var(--set-danger-rgb), 0.12));
-  color: #fff;
+  color: var(--hos-on-accent);
   box-shadow:
     0 0 0 1px rgba(var(--set-danger-rgb), 0.22),
     0 4px 18px rgba(var(--set-danger-rgb), 0.24);
@@ -2542,7 +2542,7 @@
 }
 
 .szm-stat--armed .szm-stat__val {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-stat--alert {
@@ -2551,7 +2551,7 @@
 }
 
 .szm-stat--alert .szm-stat__val {
-  color: #fcd34d;
+  color: var(--hos-color-warning-text);
 }
 
 .szm-select-bar {
@@ -2755,13 +2755,13 @@
 .szm-badge--perimeter {
   border-color: rgba(56, 189, 248, 0.35);
   background: rgba(56, 189, 248, 0.1);
-  color: #7dd3fc;
+  color: var(--hos-color-info-text);
 }
 
 .szm-badge--interior {
   border-color: rgba(167, 139, 250, 0.35);
   background: rgba(167, 139, 250, 0.1);
-  color: #c4b5fd;
+  color: var(--hos-color-info-text);
 }
 
 .szm-badge--all {
@@ -2773,7 +2773,7 @@
 .szm-badge--armed {
   border-color: rgba(var(--set-danger-rgb), 0.4);
   background: rgba(var(--set-danger-rgb), 0.12);
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-badge--idle {
@@ -2801,7 +2801,7 @@
 }
 
 .szm-card__metrics .is-alert {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-metric-link {
@@ -2817,7 +2817,7 @@
 }
 
 .szm-metric-link.is-alert:hover {
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-card__metrics .is-offline {
@@ -2885,7 +2885,7 @@
 }
 
 .szm-sensor-row.is-alert .szm-sensor-row__state {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-sensor-row.is-offline .szm-sensor-row__state {

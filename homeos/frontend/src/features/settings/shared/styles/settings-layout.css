@@ -1432,7 +1432,7 @@ input.settings-field {
   border-color: var(--premium-border-open);
   background: var(--premium-glass-bg-open);
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
 }
 
 /* 显式 focus-visible：键盘导航时使用可见焦点环 */

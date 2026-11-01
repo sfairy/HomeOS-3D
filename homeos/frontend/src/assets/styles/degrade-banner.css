@@ -66,7 +66,7 @@
 }
 
 .hos-degrade-banner__retry:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35);
 }
 

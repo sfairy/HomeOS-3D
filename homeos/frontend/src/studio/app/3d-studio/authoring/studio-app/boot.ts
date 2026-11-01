@@ -319,23 +319,38 @@ import {
 import { addCylinderMesh } from "./scene/cylinder-mesh";
 import { doorPartThemeColor } from "./materials/door-theme";
 import { refreshStepChecklist } from "./ui/step-checklist";
+import { clearStudioDocumentResidue, releaseStudioRenderer } from "./render/studio-render-release";
 
 
 let disposeActiveStudio: (() => void) | null = null;
 /** teardown 前置落盘钩子（boot 闭包内注册；dispose 在闭包外执行，必须经此暴露）。 */
 let flushActiveStudioSave: (() => Promise<void>) | null = null;
+/** 本次引导创建的渲染循环句柄：SPA 路由切换不触发 `pagehide`，只能在这里登记回收。 */
+let activeStudioRenderLoop: { dispose?: () => void } | null = null;
 
 /**
- * 引导户型图绘制（重复调用会先回收上一次）。
+ * 引导户型图绘制。
  *
  * 由 `StudioView.vue` 在 `onMounted` 调用、`onBeforeUnmount` 调 `teardownStudio()`。
  * 原实现以顶层 `startupStudio()` 收尾、顶层直读 DOM 契约 —— 一次性引导，视图只能整页
  * 跳转。现在整包搬入本函数内：DOM 契约、three.js 场景与全部模块状态按次重建，
  * 卸载时释放渲染器/缓存写入器/观察者与文档级残留。
+ *
+ * 同一时刻只允许一个活动实例：上一实例的回收是异步的（需先落盘），无法在此同步等待，
+ * 所以重复调用会被拒绝并打日志，调用方必须先 `await teardownStudio()`。
  */
 export function bootStudio(): void {
+  // 守卫：上一实例的回收是异步的（要等落盘），无法在本同步函数里等待完成，因此直接
+  // 拒绝二次引导。旧实现会覆盖 ``disposeActiveStudio``，导致前一个实例的 WebGL 上下文、
+  // requestAnimationFrame 循环、170+ 全局监听永久泄漏，且两套渲染循环同时驱动同一画布。
+  if (disposeActiveStudio) {
+    console.error('[studio] bootStudio 重复调用被拒绝：上一实例尚未 teardownStudio()。');
+    return;
+  }
   const scope = createLegacyScope('studio-app');
-  const innerCleanup = scope.executeInLegacyScope(() => {
+  let innerCleanup: (() => void) | null = null;
+  try {
+    innerCleanup = scope.executeInLegacyScope(() => {
   const studioRuntime: StudioAppRuntime = {
     get appCtx() { return appCtx; },
     get DRAWING_LIGHT_NOTICE_THRESHOLD() { return DRAWING_LIGHT_NOTICE_THRESHOLD; },
@@ -3775,7 +3790,9 @@ if (instanceTestType) {
   initializeNumberInputs2(),
   syncBaseLightingControls());
 function runStudioRenderLoop(): any {
-  return runStudioRenderLoopImpl(renderLoopDeps());
+  const studioRenderLoop = runStudioRenderLoopImpl(renderLoopDeps());
+  activeStudioRenderLoop = studioRenderLoop;
+  return studioRenderLoop;
 }
 function renderLoopDeps(): StudioRenderDeps {
   return {
@@ -3943,6 +3960,21 @@ startupStudio(studioBootDeps());
     window.clearTimeout(appCtx.exportPreviewTimeoutId)
     window.clearTimeout(appCtx.previewShieldTimeoutId)
     window.clearTimeout(appCtx.modelLoadTimeoutId)
+    // 灯光淡入（lightCaptureFrameId）与灯光淡出/缓存预热（cacheWarmFrameId）的帧步进
+    // 会自行续约：句柄只存在 appCtx 上，不在这里取消就会在实例回收后继续对着已释放的
+    // scene 出帧，并每帧调一次 renderStudioFrame（旧的渲染器已被 dispose）。
+    if (appCtx.lightCaptureFrameId) cancelAnimationFrame(appCtx.lightCaptureFrameId)
+    appCtx.lightCaptureFrameId = 0
+    if (appCtx.cacheWarmFrameId) cancelAnimationFrame(appCtx.cacheWarmFrameId)
+    appCtx.cacheWarmFrameId = 0
+    window.clearTimeout(appCtx.deferredRenderTimeoutId)
+    appCtx.deferredRenderTimeoutId = null
+    window.clearTimeout(appCtx.precompileDebounceId)
+    appCtx.precompileDebounceId = null
+    window.clearTimeout(appCtx.precompileTimeoutId)
+    appCtx.precompileTimeoutId = null
+    window.clearTimeout(appCtx.shadowPrepareTimeoutId)
+    appCtx.shadowPrepareTimeoutId = null
     // 尺寸观察者与 three.js 资源
     try {
       appCtx.resizeObserverInstance?.disconnect?.()
@@ -3986,61 +4018,25 @@ startupStudio(studioBootDeps());
       (appCtx as { settleLightTransitions?: () => void }).settleLightTransitions?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
+      // 入场演示 / 地面反射探针 / 总览细节 / 交互批次 + 渲染循环自管的 RAF 与定时器：
+      // 原先只挂在 pagehide 上，SPA 路由切换时会整批漏掉，必须早于 renderer.dispose()。
+      (activeStudioRenderLoop?.dispose?.(), (activeStudioRenderLoop = null))
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    try {
       disposeStudioRendererEvents?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     disposeStudioRendererEvents = null
-    try {
-      appCtx.orbitControls?.dispose?.()
-    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    try {
-      // 0.8.1：还原 EventDispatcher 补丁并清空登记表，必须早于 renderer.dispose()。
-      appCtx.contextResources?.dispose?.()
-    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    appCtx.contextResources = null
-    try {
-      appCtx.threeRenderer?.dispose?.()
-    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    try {
-      appCtx.threeRenderer?.forceContextLoss?.()
-    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    appCtx.threeRenderer = null
-    appCtx.threeScene = null
-    appCtx.threeCamera = null
-    appCtx.orbitControls = null
-    appCtx.sceneRootNode = null
-    // 文档级残留（嵌入式 stage 的 body 类与诊断用 dataset）
-    document.body.classList.remove('auto-diagram-embedded')
-    document.documentElement.classList.remove('list-drag-active')
-    const documentDataset = document.documentElement.dataset
-    for (const datasetKey of [
-      'lightRenderCache',
-      'renderStatsTest',
-      'performanceDiagnostics',
-      'modelExportReady',
-      'modelExportError',
-      'materialTestStage',
-      'materialTestStats',
-      'materialTestReady',
-      'materialTestError',
-      'instanceTestStats',
-      'instanceTestReady',
-      'instanceTestError',
-      'effectCacheStats',
-      'interactionBatchStats',
-      'shadowReceiverTrial',
-    ]) {
-      delete documentDataset[datasetKey]
-    }
-    // 挂在 window 上的内部契约（`__homeosStudioModuleVersion` 是模块求值期写入的
-    // 版本标记，不随本次引导产生，因此这里不动它）。
-    const windowContract: any = window
-    delete windowContract.__homeosWallRuntimeProfile
-    delete windowContract.__homeosDeferExternalModel
-    delete windowContract.__homeosReleasingDeferredModels
-    delete windowContract.__homeosExportFurnitureJson
-    delete windowContract.externalModelLoadsDeferred
+    releaseStudioRenderer(appCtx)
+    clearStudioDocumentResidue()
   };
-  });
+    });
+  } catch (error) {
+    // 引导中途抛错时 ``disposeActiveStudio`` 还没登记，若不在此收尾，本次已登记的全局
+    // 监听/定时器/观察器将永久泄漏，且 facade 停留在半初始化状态。
+    scope.dispose();
+    resetStudioFacade();
+    throw error;
+  }
 
   disposeActiveStudio = async () => {
     try {

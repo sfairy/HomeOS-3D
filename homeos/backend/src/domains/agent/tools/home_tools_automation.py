@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any
 
@@ -280,7 +281,10 @@ class HomeToolsAutomationMixin(HomeToolsHost):
         getter = getattr(self._agent_config, "get_web_search_enabled", None)
         if callable(getter):
             try:
-                enabled = bool(await getter())
+                # 该开关的读取口在不同装配下可能是同步方法，也可能返回可等待对象；
+                # 无条件 ``await`` 会在同步实现上抛 TypeError 并被下面的 except 吞掉。
+                enabled_value = getter()
+                enabled = bool(await enabled_value if inspect.isawaitable(enabled_value) else enabled_value)
             except Exception as exc:
                 logger.debug("读取联网搜索开关失败，按开启处理: %s", exc)
                 enabled = True

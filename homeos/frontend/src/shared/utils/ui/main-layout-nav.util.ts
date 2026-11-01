@@ -242,10 +242,28 @@ export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLay
   return { barItems, dropdownItems }
 }
 
-/** 紧凑视口顶栏最多展示的 Tab 数（其余进「更多」，避免隐式横向滚动） */
-const COMPACT_NAV_BAR_MAX_NARROW = 4
-const COMPACT_NAV_BAR_MAX_TABLET = 5
-const COMPACT_NAV_VIEWPORT_MAX = 1024
+/** 超过这个宽度不再收纳：一行放得下全部 Tab，且文字标签恢复显示 */
+const COMPACT_NAV_VIEWPORT_MAX = 1280
+
+/**
+ * 按视口宽度分档决定顶栏可见 Tab 数。
+ *
+ * 为什么不是一个固定档：单 Tab 约 48px（仅图标）或 91px（带文字），「更多」约 59px；
+ * 再加上品牌 / 模式切换器 / 操作按钮 / 内边距与间距，每多一个 Tab 就要多一份宽度。
+ * 旧实现 ≤640 一律给 4 个、>1024 完全不收纳 —— 结果 390px 下整行需要 570px（溢出 183px），
+ * 1100~1200px 下「事件 / 通知」两个 Tab 被裁进隐式横向滚动，两种宽度下入口都不可达。
+ *
+ * 档位由「该宽度下是否真的放得下」反推（按每档最窄边界验算）：
+ *   360 → 1 Tab  480 → 2  640 → 3  1100 → 4  1280 → 5
+ * 低于 360px 只保留 1 个 Tab + 「更多」。
+ */
+const COMPACT_NAV_TIERS: ReadonlyArray<{ maxWidth: number; maxTabs: number }> = [
+  { maxWidth: 360, maxTabs: 1 },
+  { maxWidth: 480, maxTabs: 2 },
+  { maxWidth: 640, maxTabs: 3 },
+  { maxWidth: 1100, maxTabs: 4 },
+  { maxWidth: 1280, maxTabs: 5 },
+]
 
 /**
  * 窄屏/平板紧凑档把溢出的顶栏 Tab 收到「更多」，避免 overflow-x 隐式滚动。
@@ -255,7 +273,8 @@ export function capBarItemsForViewport<T>(
   width: number,
 ): { barItems: T[]; dropdownItems: T[] } {
   if (width > COMPACT_NAV_VIEWPORT_MAX) return menu
-  const max = width <= 640 ? COMPACT_NAV_BAR_MAX_NARROW : COMPACT_NAV_BAR_MAX_TABLET
+  const tier = COMPACT_NAV_TIERS.find((t) => width <= t.maxWidth)
+  const max = tier ? tier.maxTabs : menu.barItems.length
   if (menu.barItems.length <= max) return menu
   return {
     barItems: menu.barItems.slice(0, max),

@@ -589,7 +589,7 @@ watch(
           <div v-if="showNotificationChrome" class="notify-anchor">
             <button
               type="button"
-              class="icon-btn icon-btn--notify"
+              class="icon-btn icon-btn--notify icon-btn--keep"
               :class="{ 'icon-btn--active': showNotificationDrawer }"
               :title="
                 notificationUnread > 0 ? `通知中心（${notificationUnread} 条未读）` : '通知中心'
@@ -610,7 +610,7 @@ watch(
           <button
             v-if="showWholeHomeOff"
             type="button"
-            class="icon-btn"
+            class="icon-btn icon-btn--keep"
             :disabled="haControlBlocked"
             :title="haControlBlocked ? 'HA 未就绪，暂不可全屋关闭' : '全屋关闭'"
             :aria-label="haControlBlocked ? 'HA 未就绪，暂不可全屋关闭' : '全屋关闭'"
@@ -622,7 +622,7 @@ watch(
             <button
               v-if="isSettingsLocked"
               type="button"
-              class="icon-btn"
+              class="icon-btn icon-btn--keep"
               :title="'设置'"
               :aria-label="'设置'"
               @click="onSettingsClick"
@@ -637,7 +637,7 @@ watch(
             >
               <a
                 :href="href"
-                class="icon-btn"
+                class="icon-btn icon-btn--keep"
                 :title="'设置'"
                 :aria-label="'设置'"
                 @click="navigate"

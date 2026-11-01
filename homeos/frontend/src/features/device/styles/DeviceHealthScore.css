@@ -1,8 +1,7 @@
 .device-health {
-  --dhs-ok: #34d399;
-  --dhs-warn: #fbbf24;
-  --dhs-bad: #f87171;
-  --dhs-info: #7dd3fc;
+  /* 四个私有色变量已删除，改用 canonical 语义令牌。
+     语义色一律成对使用：`-text` 用于文字（按暗底提亮过），裸色用于背景/光晕。
+     换主题时不用再回到这个文件逐个改。 */
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -74,13 +73,13 @@
 }
 
 .device-health__score-glow--ok {
-  background: var(--dhs-ok);
+  background: var(--hos-color-success);
 }
 .device-health__score-glow--warn {
-  background: var(--dhs-warn);
+  background: var(--hos-color-warning);
 }
 .device-health__score-glow--bad {
-  background: var(--dhs-bad);
+  background: var(--hos-color-danger);
 }
 
 .device-health__score-ring {
@@ -249,16 +248,16 @@
 }
 
 .device-health__factor--good {
-  color: var(--dhs-ok);
+  color: var(--hos-color-success-text);
 }
 .device-health__factor--warn {
-  color: var(--dhs-warn);
+  color: var(--hos-color-warning-text);
 }
 .device-health__factor--bad {
-  color: var(--dhs-bad);
+  color: var(--hos-color-danger-text);
 }
 .device-health__factor--info {
-  color: var(--dhs-info);
+  color: var(--hos-color-info-text);
 }
 
 .device-health__meta {
@@ -303,13 +302,13 @@
 
 .device-health__tip--ok {
   align-items: center;
-  background: rgba(52, 211, 153, 0.07);
-  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.2);
+  background: var(--hos-color-success-soft);
+  border: var(--hos-hairline) solid var(--hos-color-success-line);
 }
 
 .device-health__tip--warn {
-  background: rgba(251, 191, 36, 0.06);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.18);
+  background: var(--hos-color-warning-soft);
+  border: var(--hos-hairline) solid var(--hos-color-warning-line);
 }
 
 .device-health__tip-icon {
@@ -319,11 +318,11 @@
 
 .device-health__tip--ok .device-health__tip-icon {
   margin-top: 0;
-  color: var(--dhs-ok);
+  color: var(--hos-color-success-text);
 }
 
 .device-health__tip--warn .device-health__tip-icon {
-  color: var(--dhs-warn);
+  color: var(--hos-color-warning-text);
 }
 
 .device-health__tip-body {
@@ -335,7 +334,7 @@
   display: block;
   font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--dhs-warn);
+  color: var(--hos-color-warning-text);
   margin-bottom: 2px;
 }
 
@@ -366,11 +365,11 @@
 }
 
 .dhs-c-success {
-  color: var(--set-success, #6ee7b7);
+  color: var(--hos-color-success-text);
 }
 .dhs-c-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 .dhs-c-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }

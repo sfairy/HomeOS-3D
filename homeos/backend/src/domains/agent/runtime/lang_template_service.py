@@ -7,6 +7,7 @@ from typing import Any
 
 from .config_service import AgentConfigService
 from .lang_templates import LangTemplate, get_lang_template
+from ....platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.agent.lang_template")
 
@@ -28,7 +29,7 @@ class LangTemplateService:
             def on_system_config_updated(_payload: Any = None) -> Any:
                 return self.refresh()
 
-            self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+            subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     @property
     def current(self) -> LangTemplate:

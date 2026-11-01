@@ -150,13 +150,15 @@ async function onSubmit(): Promise<void> {
       <div class="hos-row-2">
         <div class="hos-field">
           <div class="hos-label-row"><label for="reset-password">新密码</label></div>
-          <PasswordField id="reset-password" v-model="password" autocomplete="new-password"
-            placeholder="至少 8 位，含字母与数字" :minlength="8" />
+          <PasswordField id="reset-password" name="password" v-model="password" autocomplete="new-password"
+            placeholder="至少 8 位，含字母与数字" :minlength="8" :disabled="submitting"
+            :describedby="errorMessage ? 'message' : ''" />
         </div>
         <div class="hos-field">
           <div class="hos-label-row"><label for="reset-confirm">确认新密码</label></div>
-          <PasswordField id="reset-confirm" v-model="passwordConfirmation" autocomplete="new-password"
-            placeholder="请再次输入新密码" :minlength="8" />
+          <PasswordField id="reset-confirm" name="password_confirmation" v-model="passwordConfirmation"
+            autocomplete="new-password" placeholder="请再次输入新密码" :minlength="8" :disabled="submitting"
+            :describedby="errorMessage ? 'message' : ''" />
         </div>
       </div>
 

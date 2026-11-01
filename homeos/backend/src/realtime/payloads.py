@@ -58,8 +58,7 @@ def _compute_state_diff(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "changed": changed,
         "removed": removed,
-        "stateChanged": (event.get("old_state") or {}).get("state")
-        != (event.get("new_state") or {}).get("state"),
+        "stateChanged": (event.get("old_state") or {}).get("state") != (event.get("new_state") or {}).get("state"),
     }
 
 
@@ -78,7 +77,7 @@ def _fingerprint_attributes(attrs: dict[str, Any] | None) -> str:
 def _stable_json(value: Any) -> str:
     try:
         return json.dumps(value, ensure_ascii=False, sort_keys=False, separators=(",", ":"))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return str(value)
 
 
@@ -111,6 +110,31 @@ def _build_cache_key(event: dict[str, Any]) -> str:
     return key
 
 
+def _build_delta_payload(
+    event: dict[str, Any],
+    state: Any,
+    changed_attrs: dict[str, Any] | None,
+    removed_attrs: list[str] | None,
+    pipeline_ts: float | None,
+) -> dict[str, Any]:
+    """构造增量载荷：``_delta`` 表达「只带变更字段」，客户端据此合并而非整条替换。"""
+    payload: dict[str, Any] = {
+        "entity_id": event.get("entity_id"),
+        "old_state": None,
+        "new_state": None,
+        "changed_at": event.get("changed_at"),
+        "_delta": True,
+        "state": state,
+    }
+    if changed_attrs:
+        payload["changed_attributes"] = changed_attrs
+    if removed_attrs:
+        payload["removed_attributes"] = removed_attrs
+    if pipeline_ts is not None:
+        payload["_pipelineTs"] = pipeline_ts
+    return payload
+
+
 def to_ws_state_change_payload(event: dict[str, Any]) -> dict[str, Any]:
     pipeline_ts = event.get("pipeline_ts") if isinstance(event.get("pipeline_ts"), (int, float)) else None
     base: dict[str, Any] = {
@@ -119,6 +143,11 @@ def to_ws_state_change_payload(event: dict[str, Any]) -> dict[str, Any]:
         "new_state": event.get("new_state"),
         "changed_at": event.get("changed_at"),
     }
+    # 删除事件：``new_state`` 为 None。必须显式标记，否则客户端无法区分
+    # 「实体被删了」和「这条 delta 没带完整状态」（后者应合并而不是删除）。
+    if event.get("removed"):
+        base["removed"] = True
+        return base
     if pipeline_ts is not None:
         base["_pipelineTs"] = pipeline_ts
 
@@ -149,41 +178,16 @@ def to_ws_state_change_payload(event: dict[str, Any]) -> dict[str, Any]:
     new_count = len(new_state.get("attributes") or {})
 
     if delta_attr_count > 0 and delta_attr_count < min(old_count, new_count) * 0.6:
-        payload: dict[str, Any] = {
-            "entity_id": event.get("entity_id"),
-            "old_state": None,
-            "new_state": None,
-            "changed_at": event.get("changed_at"),
-            "_delta": True,
-            "state": new_state.get("state"),
-        }
-        if changed_attrs:
-            payload["changed_attributes"] = changed_attrs
-        if removed_attrs:
-            payload["removed_attributes"] = removed_attrs
-        if pipeline_ts is not None:
-            payload["_pipelineTs"] = pipeline_ts
-        return payload
+        return _build_delta_payload(
+            event, new_state.get("state"), changed_attrs, removed_attrs, pipeline_ts
+        )
 
     if diff["stateChanged"] and delta_attr_count <= 8:
-        payload = {
-            "entity_id": event.get("entity_id"),
-            "old_state": None,
-            "new_state": None,
-            "changed_at": event.get("changed_at"),
-            "_delta": True,
-            "state": new_state.get("state"),
-        }
-        if changed_attrs:
-            payload["changed_attributes"] = changed_attrs
-        if removed_attrs:
-            payload["removed_attributes"] = removed_attrs
-        if pipeline_ts is not None:
-            payload["_pipelineTs"] = pipeline_ts
-        return payload
+        return _build_delta_payload(
+            event, new_state.get("state"), changed_attrs, removed_attrs, pipeline_ts
+        )
 
     return base
-
 
 
 def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[float, int]:
@@ -205,7 +209,7 @@ def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[f
     if last_event_id_raw:
         try:
             last_event_id = int(str(last_event_id_raw), 10)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             last_event_id = 0
     return (since_ms if not math.isnan(since_ms) else 0.0), last_event_id
 

@@ -82,6 +82,7 @@ const GATE_GROUPS = {
     { name: 'check:scene', ...bun('run', 'check:scene') },
     { name: 'check:any', ...bun('run', 'check:any') },
     { name: 'check:frontend-complexity', ...bun('run', 'check:frontend-complexity') },
+    { name: 'check:styles', ...bun('run', 'check:styles') },
     { name: 'check:silent-except', ...bun('run', 'check:silent-except') },
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
     { name: 'check:python-lock', ...bun('run', 'check:python-lock') },

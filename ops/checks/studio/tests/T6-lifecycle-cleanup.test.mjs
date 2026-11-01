@@ -23,6 +23,10 @@ const renderer = read(
   'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createStudioRenderer.ts',
 )
 const studioApp = read('homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts')
+// 渲染器/文档残留的释放体已从 boot.ts 拆到独立模块，顺序契约要同时钉住两处。
+const studioRelease = read(
+  'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-release.ts',
+)
 const studioView = read('homeos/frontend/src/studio/entries/StudioView.vue')
 const editorView = read('homeos/frontend/src/studio/entries/EditorView.vue')
 
@@ -74,10 +78,17 @@ test('studio-app 的显式回收调用 renderer 清理函数，且早于 rendere
   )
   const callIndex = studioApp.indexOf('disposeStudioRendererEvents?.()')
   assert.ok(callIndex > 0, 'innerCleanup 必须调用 disposeStudioRendererEvents')
-  const orbitIndex = studioApp.indexOf('appCtx.orbitControls?.dispose?.()')
+  const releaseIndex = studioApp.indexOf('releaseStudioRenderer(appCtx)')
   assert.ok(
-    orbitIndex > callIndex,
-    'renderer 清理必须在 orbitControls/renderer.dispose 之前（监听闭包仍持有 appCtx）',
+    releaseIndex > callIndex,
+    'renderer 清理必须在 releaseStudioRenderer 之前（监听闭包仍持有 appCtx）',
+  )
+  const orbitIndex = studioRelease.indexOf('appCtx.orbitControls?.dispose?.()')
+  const rendererIndex = studioRelease.indexOf('appCtx.threeRenderer?.dispose?.()')
+  assert.ok(orbitIndex > 0 && rendererIndex > orbitIndex, 'releaseStudioRenderer 必须先摘 orbitControls 再释放 renderer')
+  assert.ok(
+    studioRelease.indexOf('appCtx.contextResources?.dispose?.()') < rendererIndex,
+    'contextResources 必须早于 renderer.dispose（EventDispatcher 补丁要在 renderer 还在时还原）',
   )
   assert.ok(
     studioApp.includes('disposeStudioRendererEvents = null'),

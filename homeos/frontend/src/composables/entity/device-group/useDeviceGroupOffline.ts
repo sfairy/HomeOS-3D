@@ -4,6 +4,7 @@ import { computed, type Ref } from 'vue'
 import { Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'
 import { computeOfflineCriticalSet, splitOfflineEntityIds } from '@/shared/device/utils/group-offline.util'
 import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/shared/device/utils/group-battery.util'
+import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
 import type {
   DeviceGroupEntitiesStoreLike,
   DeviceGroupUiStoreLike,
@@ -99,13 +100,9 @@ export function useDeviceGroupOffline(
   /** 取实体 last_changed 的相对时间文案（刚刚 / N 分钟前 / N 小时前 / N 天前）。 */
   function timeAgo(eid: string) {
     const e = getEntity(eid)
-    if (!e?.last_changed) return '无记录'
-    const diff = Math.floor((Date.now() - new Date(e.last_changed).getTime()) / 60000)
-    if (diff < 1) return '刚刚'
-    if (diff < 60) return `${diff} 分钟前`
-    const h = Math.floor(diff / 60)
-    if (h < 24) return `${h} 小时前`
-    return `${Math.floor(h / 24)} 天前`
+    // 收敛到 ``formatRelativeFromNow``：这里此前是一份手写副本，跨过 30 天时永远回
+    // 「N 天前」，而权威实现会退回本地短日期；两份实现迟早会继续漂移。
+    return formatRelativeFromNow(e?.last_changed, '无记录')
   }
   /** 按电量取色阶（<=20 红 / <=50 橙 / 其余绿）。 */
   function batteryColor(v: number) {

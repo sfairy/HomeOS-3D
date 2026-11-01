@@ -255,16 +255,19 @@
   gap: 10px;
   min-height: 44px;
   padding: 0 16px;
-  background: rgba(220, 38, 38, 0.15);
-  border-bottom: 1px solid rgba(248, 113, 113, 0.35);
+  /* HA 告警条整条原先写死 rgba(220,38,38,…)/#fecaca —— 语义色改走令牌：
+     danger-soft 做底、danger-line 做描边、danger-text 做文字，
+     浅色主题下这三者会一起翻转，不会出现「深红底 + 浅红字」在浅色主题里糊成一片。 */
+  background: var(--hos-color-danger-soft);
+  border-bottom: 1px solid var(--hos-color-danger-line);
   font-size: var(--premium-fs-caption);
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
   flex-shrink: 0;
 }
 .ha-status-bar--info {
-  background: rgba(59, 130, 246, 0.12);
-  border-bottom-color: rgba(147, 197, 253, 0.35);
-  color: #bfdbfe;
+  background: var(--hos-color-info-soft);
+  border-bottom-color: var(--hos-color-info-line);
+  color: var(--hos-color-info-text);
 }
 .ha-status-bar__text { flex: 1; }
 
@@ -627,7 +630,8 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
     /* 0 1 auto：窄屏也允许品牌区收缩（长站点标题走省略号），否则导航 Tab 被挤出顶栏 */
     flex: 0 1 auto;
     min-width: 0;
-    max-width: 42vw;
+    /* 品牌区只保留 logo 级别宽度：42vw 在 390px 下仍占 164px，和「更多」按钮抢预算 */
+    max-width: 64px;
     justify-content: flex-start;
     padding: 0 2px;
     margin-right: 0;
@@ -635,19 +639,61 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
     border-right: none;
   }
 
-  .tab-bar__mode-switcher {
+  /* 模式切换器（在家/离家/睡眠）保留功能但收成图标：整块 ~229px 是顶栏预算最大占用方，
+     直接 display:none 会让这个功能变成不可达，所以只压掉文字标签。
+     用 .tab-bar 前缀把特异性提到 (0,3,0)：另一处定义在 tab-bar-mode-switcher.css 的
+     `.tab-bar__mode-switcher.home-mode-switcher`(0,2,0)，单类选择器压不过它。 */
+  .tab-bar .tab-bar__mode-switcher.home-mode-switcher {
     padding-right: 0;
     margin-right: 0;
     border-right: none;
   }
 
   .tab-bar__title { font-size: var(--premium-fs-caption); font-weight: 700; }
-  .tab-bar__nav-wrap { display: flex; min-width: 0; }
+
+  /* 给导航一个真实宽度地板：这是「更多」兜底 Tab 能被点到的前提。
+     低于 180px 时「更多」自身也会落进被裁区域，双保险同时失效。 */
+  .tab-bar__nav-wrap {
+    display: flex;
+    flex: 1 1 auto;
+    /* 160px 是「更多」兜底 Tab 能被点到的下限：
+       品牌 64 + 操作区 112 + 内边距 16 + 间距 12 = 204，390px 下留给导航 186px。 */
+    min-width: 160px;
+  }
+
   .tab-bar__tab-label { display: none; }
-  .tab-bar__actions { gap: 2px; }
-  .tab-bar__actions .icon-btn {
-    width: 44px;
-    height: 44px;
+
+  .tab-bar__actions {
+    /* 允许收缩：原 flex-shrink:0 + 5×44px 是裁切的主因之一 */
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  /* 操作区只保留「全屋关闭 / 通知 / 设置」这三个高频或应急项，其余下沉，
+     避免操作区吃掉导航预算。用显式类而非 nth-child：后续插入新按钮不会错位。
+     特异性提到 (0,3,0)：本文件 @media (max-width:1024px) 块排在 640 块之后，
+     其中的 `.tab-bar__actions .icon-btn`(0,2,0) 会把这里的尺寸覆盖掉。 */
+  .tab-bar .tab-bar__actions .icon-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .tab-bar .tab-bar__actions .icon-btn:not(.icon-btn--keep) {
+    display: none;
+  }
+
+  /* 模式切换器收成图标：标签隐藏后整块从 ~229px 降到 ~60px */
+  .tab-bar .tab-bar__mode-switcher .home-mode-switcher__label {
+    display: none;
+  }
+
+  .tab-bar .tab-bar__mode-switcher .home-mode-switcher__btn {
+    padding: 4px;
+    gap: 0;
+    min-height: 36px;
   }
 
   .logo-wrapper {
@@ -669,6 +715,27 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
   .floorplan-area { width: 100%; }
 }
 
+/* 极窄（<480px）：品牌 logo 让位给导航。
+   这一档的预算是 内边距 24 + 模式切换器 54 + 操作区 108 + 间距 18 = 204px，
+   390px 下只剩 186px 给导航；再留着 64px 的品牌区就装不下 2 个 Tab + 「更多」。 */
+@media (max-width: 480px) {
+  .tab-bar {
+    gap: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .tab-bar__brand {
+    display: none;
+  }
+
+  /* 这一档导航下限可以更低：分档只给 1~2 个 Tab（1 Tab +「更多」约 107px），
+     保留 160 会在 340px 这类极窄窗口把操作区挤出去。 */
+  .tab-bar__nav-wrap {
+    min-width: 110px;
+  }
+}
+
 .toast-enter-active, .toast-leave-active { transition: all .35s var(--ease-spring); }
 .toast-enter-from { opacity: 0; transform: translateY(-16px); }
 .toast-leave-to { opacity: 0; transform: translateY(-8px); }
@@ -680,20 +747,37 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
    响应式布局适配 — 移动端 / 平板
    ══════════════════════════════════════════════════════════ */
 
+/* 顶栏 Tab 文字在 ≤1280px 统一隐藏，只留图标。
+   为什么阈值一路开到 1280：带文字时单个 Tab 约 91px，
+   768px 下 4 个 Tab +「更多」需 423px 而导航只有 397px、1100px 下 5 个需 486px 而只有 368px，
+   「事件 / 通知」会被裁进无提示的横向滚动区（与本轮 P0 同形）。
+   文字在 aria-label、title 与「更多」菜单里仍然完整可达。 */
+@media (max-width: 1280px) {
+  .tab-bar__tab-label {
+    display: none;
+  }
+}
+
 /* 平板紧凑 (640–1024px)：顶栏进一步压缩，保留完整 Tab + 侧栏 */
 @media (min-width: 640px) and (max-width: 1024px) {
+  /* 品牌区（logo + 站名）在平板档占 193px，与模式切换器一起把导航压到 52px。
+     收成 logo 宽度后，导航能拿回 ~150px。 */
+  .tab-bar__brand {
+    max-width: 44px;
+    flex: 0 0 auto;
+  }
+
+  .tab-bar__title {
+    display: none;
+  }
+
   .tab-bar__tab {
     padding: 5px 8px;
     font-size: var(--premium-fs-micro);
     gap: 4px;
   }
 
-  .tab-bar__tab-label {
-    max-width: 4.5em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  /* 平板档统一用图标导航：见下方 @media (max-width: 1280px) 的统一说明。 */
 
   .tab-bar__mode-switcher .home-mode-switcher__btn {
     padding: 5px 10px;

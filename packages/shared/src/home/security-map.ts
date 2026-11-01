@@ -169,10 +169,9 @@ export function resolveHomeModeLinkForSecurityChange(input: {
     if (target) {
       return { action: 'activate', modeId: target.id };
     }
-    if (mode === 'disarmed' && allowNameFallback) {
-      return { action: 'deactivate' };
-    }
-    return { action: 'none' };
+    // 绑定 id 指向的家庭模式已被删除：继续走名称回退，而不是直接 none。
+    // 删除家庭模式时没有任何地方清理 securityModeLinks，留一个死 id 就等于把
+    // 「安防 → 家庭模式」整条链路永久静默关掉，界面上却仍显示已绑定。
   }
 
   if (!allowNameFallback) return { action: 'none' };

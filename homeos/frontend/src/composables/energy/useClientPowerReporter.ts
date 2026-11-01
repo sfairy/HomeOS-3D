@@ -124,12 +124,10 @@ async function postReport({
       return
     }
     if (retryAuth && axios.isAxiosError(err) && err.response?.status === 401) {
-      try {
-        await useAuthStore().refreshSession()
-        reporting = false
-        await postReport({ refreshStatic, retryAuth: false })
-        return
-      } catch {
+      // refreshSession 已经不再用抛异常表达失败（401 时它内部登出并返回 false），
+      // 这里必须看返回值，否则会话已失效还会再打一轮注定 401 的上报。
+      const refreshed = await useAuthStore().refreshSession()
+      if (!refreshed) {
         stopReporter()
         logger.warn(
           '客户端系统上报未授权,已停止上报;请使用相同 URL 协议重新登录(建议使用 https://:8803).',
@@ -137,6 +135,9 @@ async function postReport({
         )
         return
       }
+      reporting = false
+      await postReport({ refreshStatic, retryAuth: false })
+      return
     }
 
     reportFailStreak += 1

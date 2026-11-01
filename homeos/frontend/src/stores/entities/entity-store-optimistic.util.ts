@@ -12,6 +12,7 @@ import {
   OPTIMISTIC_TIMEOUT_MESSAGE,
 } from '@/stores/entities/optimistic-expectation.util'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import { lightBrightnessFromPct } from '@/shared/entity/utils/control/light-control-core'
 import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/shared/types/entity-store'
 
 /**
@@ -58,8 +59,10 @@ export function predictOptimistic(
       if (service === 'turn_off') state = 'off'
       else if (service === 'turn_on') {
         state = 'on'
+        // 百分比 → 0–255 的唯一口径（含上下夹取）；旧实现这里硬编码 ``* 2.55``，
+        // 与 ``lightBrightnessFromPct`` 的 min=1 语义不一致，且 pct 越界会写出非法 brightness。
         if (sd.brightness_pct != null)
-          attrs.brightness = Math.round(Number(sd.brightness_pct) * 2.55)
+          attrs.brightness = lightBrightnessFromPct(Number(sd.brightness_pct))
         if (sd.brightness != null) attrs.brightness = sd.brightness
         if (sd.color_temp_kelvin != null) attrs.color_temp_kelvin = sd.color_temp_kelvin
         if (sd.color_temp != null) {
@@ -382,11 +385,29 @@ export function createEntityOptimisticState({
     return ids.length
   }
 
+  /**
+   * 静默丢弃全部乐观态（不写回备份、不派发通知）。
+   *
+   * 用于「整表清空」：账号切换 / 登出时 ``entities`` 已经被清掉，此时若让 TTL 到期或
+   * 反向回滚把 ``entry.backup`` 写回去，上一账号的实体（含 ``rgb_color`` / ``hvac_modes``
+   * 这些属性）就会出现在新账号的实体表里，而且没有任何后续推送会纠正它。
+   * 关键是**连定时器一起清**：只清 Map 不清 ``timer`` 的话，定时器仍会在新会话触发。
+   */
+  function discardAllOptimistic(): number {
+    const count = optimisticState.size
+    for (const entry of optimisticState.values()) {
+      if (entry.timer) clearTimeout(entry.timer)
+    }
+    optimisticState.clear()
+    return count
+  }
+
   return {
     applyOptimistic,
     clearOptimistic,
     rollbackOptimistic,
     rollbackAllOptimistic,
+    discardAllOptimistic,
     touchOptimistic,
     optimisticState,
   }

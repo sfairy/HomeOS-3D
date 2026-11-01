@@ -198,6 +198,7 @@ export const useEntitiesStore = defineStore('entities', () => {
   const cachePersistBridge: EntityCachePersistBridge = {
     cancelPersistCacheTimer: () => {},
     persistEntityCacheNow: async () => {},
+    clearPersistedEntityCacheForLogout: async () => false,
   }
   // 初始加载就绪桥接：初始为空实现，在 createEntityInitHelpers 返回后被回填
   const initLoadReadyBridge: EntityInitLoadReadyBridge = { markEntityLoadReady: () => {} }
@@ -256,6 +257,14 @@ export const useEntitiesStore = defineStore('entities', () => {
     return buildEntityCacheKey(auth.user, auth.accessUser())
   }
 
+  /**
+   * 整表清空的附加清理钩子。
+   *
+   * 乐观态与脏实体集合都在 `clearAllEntities` **之后**才构造（依赖注入顺序），
+   * 所以用钩子回填而不是直接引用 —— 直接引用会命中 TDZ。
+   */
+  let onClearAuxState: () => void = () => undefined
+
   /** 清空内存实体与派生索引 */
   function clearAllEntities() {
     // 通过响应式代理删除，确保已渲染的 computed（部件 / 热点等）能感知清空
@@ -267,6 +276,10 @@ export const useEntitiesStore = defineStore('entities', () => {
     clearProjections()
     totalCount.value = 0
     loading.value = false
+    // 乐观态 / 脏实体必须一起清：只清 entities 的话，乐观 TTL 到期会把
+    // ``entry.backup``（上一账号实体的深拷贝，含 rgb_color / hvac_modes）写回新会话，
+    // 而脏实体集合会把上一账号的 id 带进下一次增量持久化。
+    onClearAuxState()
   }
 
   // WS 状态机实例：在下方 createEntityWsState 调用中赋值（提升变量以让 setConnected 提前引用）
@@ -277,6 +290,8 @@ export const useEntitiesStore = defineStore('entities', () => {
     persistEntityCacheNow,
     schedulePersistEntityCache,
     markEntityCacheDirty,
+    clearDirtyEntities,
+    clearPersistedEntityCacheForLogout,
     hydrateFromEntityCache,
     isPersistCacheDirty,
   } = createEntityCacheHelpers({
@@ -299,6 +314,7 @@ export const useEntitiesStore = defineStore('entities', () => {
   // 回填缓存持久化桥接，供 createEntityWsState 在断开连接 / 页面隐藏时调用
   cachePersistBridge.cancelPersistCacheTimer = cancelPersistCacheTimer
   cachePersistBridge.persistEntityCacheNow = persistEntityCacheNow
+  cachePersistBridge.clearPersistedEntityCacheForLogout = clearPersistedEntityCacheForLogout
 
   // 乐观更新须在 buildStateUpdateDeps 之前声明（getStateUpdateDeps 延迟求值）
   const optimisticRef: {
@@ -430,6 +446,8 @@ export const useEntitiesStore = defineStore('entities', () => {
     onStateChanged,
     remoteNotifications,
     addRemoteNotification,
+    removeRemoteNotification,
+    restoreRemoteNotification,
     clearRemoteNotifications,
     fetchEntitiesFallback,
     connect,
@@ -448,6 +466,7 @@ export const useEntitiesStore = defineStore('entities', () => {
     clearOptimistic,
     rollbackOptimistic,
     rollbackAllOptimistic,
+    discardAllOptimistic,
     touchOptimistic,
     optimisticState,
   } = createEntityOptimisticState({
@@ -466,6 +485,11 @@ export const useEntitiesStore = defineStore('entities', () => {
   optimisticRef.optimisticState = optimisticState
   optimisticRef.clearOptimistic = clearOptimistic
   optimisticRef.rollbackAllOptimistic = rollbackAllOptimistic
+  // 整表清空时连带丢掉乐观态（含 TTL 定时器）与脏实体标记
+  onClearAuxState = () => {
+    discardAllOptimistic()
+    clearDirtyEntities()
+  }
 
   /**
    * 根据 entity_id 获取实体状态
@@ -570,7 +594,12 @@ export const useEntitiesStore = defineStore('entities', () => {
 
   // 权限（ACL restrictions）变化后强制重拉实体全量：
   // 若仅靠 shouldAcceptEntitySnapshot 的 quiet 拒绝，权限收紧后已无权查看的陈旧实体将残留
+  //
+  // 指纹**只在拉取成功之后**记账：此前在 ``if (!connected.value) return`` 之前就写，
+  // 于是「权限在断线/后台冻结期间变化」这一次被永久消费掉 —— 重连后指纹相同，
+  // 不会再补拉全量，与「空快照短路」叠成一条完整失效链（幽灵实体长期残留）。
   let lastAccessFingerprint = ''
+  let accessFingerprintPending = ''
   watch(
     () => {
       const auth = useAuthStore()
@@ -578,11 +607,36 @@ export const useEntitiesStore = defineStore('entities', () => {
     },
     (fingerprint) => {
       if (fingerprint === lastAccessFingerprint) return
-      lastAccessFingerprint = fingerprint
-      if (!connected.value) return
-      void fetchEntitiesFallback('实体权限变更', { force: true, quiet: true })
+      if (!connected.value) {
+        // 记「待处理」而不是「已处理」：重连时（见下方 connect 监听）再比对一次。
+        accessFingerprintPending = fingerprint
+        return
+      }
+      void fetchEntitiesFallback('实体权限变更', { force: true, quiet: true }).then(
+        () => {
+          lastAccessFingerprint = fingerprint
+          if (accessFingerprintPending === fingerprint) accessFingerprintPending = ''
+        },
+      )
     },
   )
+
+  // 重连后补偿「断线期间被吞掉的权限变更」：断线的那一刻 watch 只记了 pending，
+  // 不在这里补一次的话，这次权限收紧永远等不到下一次 restrictions 变化。
+  watch(connected, (isConnected) => {
+    if (!isConnected || !accessFingerprintPending) return
+    if (accessFingerprintPending === lastAccessFingerprint) {
+      accessFingerprintPending = ''
+      return
+    }
+    const fingerprint = accessFingerprintPending
+    void fetchEntitiesFallback('实体权限变更(重连补拉)', { force: true, quiet: true }).then(
+      () => {
+        lastAccessFingerprint = fingerprint
+        if (accessFingerprintPending === fingerprint) accessFingerprintPending = ''
+      },
+    )
+  })
 
   /** 手动从服务端重新拉取实体（设置页「刷新实体」） */
   async function refreshEntitiesFromServer() {
@@ -656,6 +710,8 @@ export const useEntitiesStore = defineStore('entities', () => {
     onHomeModeEvent,
     remoteNotifications,
     addRemoteNotification,
+    removeRemoteNotification,
+    restoreRemoteNotification,
     clearRemoteNotifications,
     batteryDevices,
     offlineDevices,

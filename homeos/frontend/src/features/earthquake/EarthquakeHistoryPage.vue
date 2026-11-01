@@ -195,7 +195,7 @@
               </div>
             </header>
 
-            <div class="earthquake-history-view__cards">
+            <div class="earthquake-history-view__cards" v-scroll-region="'地震历史列表'">
               <template v-for="(row, idx) in pageSlots" :key="row ? rowKey(row) : `empty-${idx}`">
                 <div
                   v-if="row"

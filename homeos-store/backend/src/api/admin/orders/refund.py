@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime  # noqa: F401  # 供类型读者参考 payload 时间字段
 
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import delete, select
@@ -219,6 +218,11 @@ def _attempt_channel_refund(
                 "请先用**相同的金额**重试那一笔，或到渠道后台确认后再操作，不要改成别的金额。"
             ),
         )
+    # ``open_refund_gate`` 自己开独立事务写 ``running`` 闸门，所以这里的 commit 唯一作用是
+    # 把「请求前半段」的挂起写入落库 —— 是个**隐式契约**：任何调用方在调渠道前顺手写了别的
+    # 业务数据，都会在「渠道还没答应」时被一起提交（退款失败也回滚不了那些写入）。
+    # 与其依赖调用顺序，不如让违反契约这件事在日志里可见。
+    _warn_on_unrelated_pending_writes(session)
     session.commit()
     gate, _gate_row = refunds.open_refund_gate(session, refund)
     if gate == "settled":
@@ -235,6 +239,21 @@ def _attempt_channel_refund(
             detail=f"该笔退款（幂等号 {plan.out_request_no}）正在处理中，请稍后刷新订单再看结果。",
         )
     return _invoke_refund_provider(session, request, order, setting, plan)
+
+
+def _warn_on_unrelated_pending_writes(session: Session) -> None:
+    """在「调渠道前提交」处检查是否有无关的挂起写入。
+
+    正常调用链只应挂着本笔退款相关的行；出现别的模型说明有人在前半段顺手写了业务数据，
+    那些写入即将被**提前**提交（渠道失败也回滚不了）。
+    """
+    allowed = (Order, OrderRefund)
+    pending = [obj for obj in (*session.new, *session.dirty) if not isinstance(obj, allowed)]
+    if pending:
+        logger.warning(
+            "退款前置提交将带上无关的挂起写入：%s",
+            ", ".join(sorted({type(obj).__name__ for obj in pending})),
+        )
 
 
 def _invoke_refund_provider(
@@ -328,7 +347,12 @@ def _finalize_unchanged_refund(
         )
     else:
         refund.status = "succeeded"
-        refund.amount_cents = 0
+        # 不覆盖 ``amount_cents``：它是**申请金额**。渠道确认「本次无新增资金变动」时
+        # 实际退出 0 元，写成 0 会把「没申请过退款」和「申请了但渠道退了 0」抹成同一行，
+        # 事后核对退款账目只能靠猜。实际退出金额记进 detail。
+        refund.detail = (
+            f"{no_change_detail}（实际退出 ¥{money.format_centi(0)}，申请 ¥{money.format_centi(plan.amount_cents)}）"
+        )[:255]
         refund.trade_no = attempt.trade_no
         session.add(refund)
     session.flush()

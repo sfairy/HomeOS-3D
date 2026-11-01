@@ -20,7 +20,8 @@ export type ChromeStore = ReturnType<typeof useChromeStore>
 /** Tab / section / context pill 派生 */
 export function createHomeModePanelDerived(d: {
   modeTabs: HomeModeTabs
-  activeMode: HomeModesApi['activeMode']
+  /** 全部激活模式 id：多互斥组同时激活时，每个已激活模式的标签都要标成「生效中」。 */
+  activeModeIds: HomeModesApi['activeModeIds']
   isTabDirty: HomeModeEditor['isTabDirty']
   activeDraft: HomeModeEditor['activeDraft']
   triggerLogs: HomeModeContextApi['triggerLogs']
@@ -34,7 +35,7 @@ export function createHomeModePanelDerived(d: {
 }) {
   const {
     modeTabs,
-    activeMode,
+    activeModeIds,
     isTabDirty,
     activeDraft,
     triggerLogs,
@@ -57,7 +58,8 @@ const pendingModeChanges = computed(
 
 const displayModeTabs = computed(() =>
   modeTabs.value.map((tab) => {
-    const isLive = activeMode.value?.id === tab.id
+    // 多互斥组可同时激活：按全部激活 id 判定，否则另一个组的标签页看起来像没在生效。
+    const isLive = activeModeIds.value.includes(String(tab.id))
     const dirty = isTabDirty(tab.id)
     return {
       ...tab,

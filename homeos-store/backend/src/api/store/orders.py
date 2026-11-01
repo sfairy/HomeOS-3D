@@ -1,5 +1,5 @@
-"""商店接口的 orders 资源组。
-"""
+"""商店接口的 orders 资源组。"""
+
 from __future__ import annotations
 
 import json
@@ -54,6 +54,7 @@ from ...payments import (
     provider_label,
 )
 from ...payments.common.base import PaymentError
+from ...payments.common.settlement import _mark_fulfillment_failed
 from ...security.security import (
     new_order_no,
     new_token,
@@ -105,8 +106,7 @@ def list_orders(
     limit: int = ACCOUNT_ORDER_PAGE_SIZE,
     offset: int = 0,
 ) -> dict:
-    """账号中心的订单列表（分页）。
-    """
+    """账号中心的订单列表（分页）。"""
     _require_verified(account)
     size = max(1, min(int(limit or ACCOUNT_ORDER_PAGE_SIZE), 100))
     skip = max(0, int(offset or 0))
@@ -127,8 +127,7 @@ def list_orders(
 
 
 def _assert_store_open(setting) -> None:
-    """维护模式与支付开关的闸门：任一不满足就按「暂时不可用」拒绝下单。
-    """
+    """维护模式与支付开关的闸门：任一不满足就按「暂时不可用」拒绝下单。"""
     if setting.maintenance_mode:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -142,8 +141,7 @@ def _assert_store_open(setting) -> None:
 
 
 def _assert_no_pending_order(session, account: AuthedAccount) -> None:
-    """一个账号同时只允许一笔待支付订单。
-    """
+    """一个账号同时只允许一笔待支付订单。"""
     pending = session.scalars(
         select(Order)
         .where(Order.account_id == account.id)
@@ -166,8 +164,7 @@ def _resolve_target_license(
     target_license_id: str,
     upgrade_license_id: str | None,
 ) -> License | None:
-    """解析本单要挂靠 / 升级的主授权（增量包、试用、升级三种形态各有一道闸门）。
-    """
+    """解析本单要挂靠 / 升级的主授权（增量包、试用、升级三种形态各有一道闸门）。"""
     if is_addon:
         selected_id = (target_license_id or "").strip()
         if not selected_id:
@@ -214,8 +211,7 @@ def _resolve_order_action(product, *, is_addon: bool, is_upgrade: bool) -> tuple
 
 
 def _flush_order_with_retry(session, order: Order, account: AuthedAccount) -> None:
-    """落库待支付订单；订单号撞唯一键时换号重试，其余结果各自给出明确响应。
-    """
+    """落库待支付订单；订单号撞唯一键时换号重试，其余结果各自给出明确响应。"""
     outcome = _flush_order(session, order)
     for _ in range(_ORDER_NO_ATTEMPTS - 1):
         if outcome != "retry":
@@ -248,8 +244,7 @@ def _reserve_stock_and_coupon(
     account: AuthedAccount,
     discount: int,
 ) -> None:
-    """先占库存、再核销优惠码（顺序不可颠倒，理由见下）。
-    """
+    """先占库存、再核销优惠码（顺序不可颠倒，理由见下）。"""
     # 顺序很重要：**先占库存，再核销优惠码**。
     # 反过来的话，「库存不足 → 409」这条最常走的失败路径会在已经扣掉一个优惠码名额
     # **之后**才抛出：请求级会话虽然会回滚，但名额计数是 `UPDATE … SET count = count + 1`
@@ -262,10 +257,8 @@ def _reserve_stock_and_coupon(
             coupons.redeem_coupon(session, order, coupon, account, discount)
         except coupons.CouponUnavailable as error:
             # 核销失败在这里同样是干净的：整个请求回滚，上面刚占的库存一起释放
-            #（`reserve_stock` 与优惠码都在同一个请求级事务里）。
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
-            ) from error
+            # （`reserve_stock` 与优惠码都在同一个请求级事务里）。
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 def _complete_free_order(
@@ -289,7 +282,29 @@ def _complete_free_order(
     )
     session.flush()
     if order.fulfillment_mode != "manual":
-        fulfill.fulfill_order(session, order=order, setting=setting)
+        # 与另外三条入账路径（支付宝 / 微信 / 人工确认）对齐：履约失败必须落
+        # ``fulfillment_failed`` + ``needs_review``，而不是抛穿成裸 500 让整笔事务回滚。
+        # 回滚会让订单回到 ``pending``，而**没有**任何失败标记 —— 前端看到「没有付款码」
+        # 会让用户重试，重试又签一张激活码。
+        try:
+            fulfill.fulfill_order(session, order=order, setting=setting)
+        except Exception as exc:
+            logger.exception("0 元订单履约失败 order=%s", order.order_no)
+            _mark_fulfillment_failed(session, order_id=order.id, error=exc)
+            session.commit()
+            # 失败态是用 core UPDATE 写的（synchronize_session=False），
+            # 内存里的 order 还是 paid，必须刷新后再序列化给前端。
+            session.refresh(order)
+            # 形状保持「订单对象 + 附加错误字段」：前端 ``api<StoreOrder>('/orders')``
+            # 直接按订单读，包一层 ``{order: ...}`` 会让它把整包当成订单（status 读不到）。
+            return JSONResponse(
+                {
+                    **order_payload(order),
+                    "error": "已支付但发货失败，请联系客服或等待人工处理。",
+                    "needsReview": True,
+                },
+                status_code=status.HTTP_202_ACCEPTED,
+            )
     session.refresh(order)
     background.add_task(
         delivery.notify_license_issued,
@@ -316,9 +331,7 @@ def _open_channel_payment(
         fulfill.release_order_effects(session, order=order, product=product)
         session.flush()
         logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
-        ) from error
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
     try:
         intent = provider.create_payment(
@@ -331,9 +344,7 @@ def _open_channel_payment(
         order.status = "payment_failed"
         fulfill.release_order_effects(session, order=order, product=product)
         session.flush()
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
-        ) from error
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
     order.payment_payload_json = json.dumps(intent.payload, ensure_ascii=False)
     session.flush()
@@ -373,9 +384,7 @@ def create_order(
     discount = 0
     coupon_code = (body.coupon_code or "").strip()
     if coupon_code:
-        coupon, discount = _evaluate_coupon_limited(
-            session, account=account, product=product, code=coupon_code
-        )
+        coupon, discount = _evaluate_coupon_limited(session, account=account, product=product, code=coupon_code)
 
     original_amount = int(product.price_cents or 0)
     amount = max(0, original_amount - discount)
@@ -430,9 +439,8 @@ def get_order(
     order = order_or_404(session, order_no)
 
     order_token = request.headers.get("x-order-token")
-    authorized = (
-        (account is not None and order.account_id == account.id)
-        or token_matches(order_token, order.lookup_token)
+    authorized = (account is not None and order.account_id == account.id) or token_matches(
+        order_token, order.lookup_token
     )
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
@@ -447,25 +455,19 @@ def get_order(
 
 
 @router.post("/orders/{order_no}/cancel")
-def cancel_order(
-    order_no: str, request: Request, session: DbSession, account: CurrentAccount
-) -> dict:
-    """买家自助取消待支付订单：关掉渠道侧收款码，归还库存预留与优惠码名额。
-    """
+def cancel_order(order_no: str, request: Request, session: DbSession, account: CurrentAccount) -> dict:
+    """买家自助取消待支付订单：关掉渠道侧收款码，归还库存预留与优惠码名额。"""
     order = order_or_404(session, order_no)
 
     order_token = request.headers.get("x-order-token")
-    authorized = (
-        (account is not None and order.account_id == account.id)
-        or token_matches(order_token, order.lookup_token)
+    authorized = (account is not None and order.account_id == account.id) or token_matches(
+        order_token, order.lookup_token
     )
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作该订单。")
 
     if order.status != "pending":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
 
     channel_closed = close_order_channel_best_effort(
         request,
@@ -477,16 +479,12 @@ def cancel_order(
 
     product = session.get(Product, order.product_id) if order.product_id else None
     if not fulfill.close_pending_order(session, order=order, product=product):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。")
     if channel_closed:
         order.channel_closed_at = utcnow()
     session.flush()
     session.refresh(order)
-    logger.info(
-        "用户取消待支付订单 订单号=%s 渠道已关=%s", order.order_no, channel_closed
-    )
+    logger.info("用户取消待支付订单 订单号=%s 渠道已关=%s", order.order_no, channel_closed)
     return order_payload(order)
 
 

@@ -175,6 +175,10 @@ class _TriggerDeps:
     async def get_active_mode(self):
         return None
 
+    async def get_active_modes(self):
+        # 触发器优先级按「互斥组」比较：新契约要拿到全部激活记录，而不只是全局主模式。
+        return []
+
     async def request_activate(self, mode_id: str, meta: dict[str, Any] | None = None):
         self.activated.append(mode_id)
         return {"success": True}

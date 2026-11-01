@@ -51,6 +51,13 @@ import type { NotifyType } from '@/shared/types/notify'
 export interface EntityCachePersistBridge {
   cancelPersistCacheTimer: () => void
   persistEntityCacheNow: () => Promise<void>
+  /**
+   * 删除上一个账号写下的实体缓存分片（登出 / 账号切换）。
+   *
+   * 必须由 cacheHelpers 提供「最近一次真写过的那份 key」：走到登出回调时 auth 已被清空，
+   * 用当前 key 算出来的是 ``anonymous|…``，等于什么都没清。
+   */
+  clearPersistedEntityCacheForLogout: () => Promise<boolean>
 }
 
 /**
@@ -250,6 +257,8 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     emitStateListeners,
     onStateChanged,
     addRemoteNotification,
+    removeRemoteNotification,
+    restoreRemoteNotification,
     clearRemoteNotifications,
   } = createEntitySubscriptionHelpers({ logger: deps.logger, perfStats: deps.perfStats })
 
@@ -591,6 +600,11 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     deps.entitiesCacheSavedAt.value = null
     deps.cancelPersistCacheTimer()
     deps.clearAllEntities()
+    // 登出（而不是登录）才清 IDB 分片：共享墙面板换人时，上一账号的实体名/状态/属性
+    // 仍能从 ``homeos_entity_cache`` 读出来；同时避免「用户 × 限制组合」的分片只增不减。
+    if (!deps.isAuthenticated?.()) {
+      void deps.cachePersistBridge.clearPersistedEntityCacheForLogout()
+    }
     disconnect()
     connect()
   }
@@ -609,6 +623,8 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     onStateChanged,
     remoteNotifications,
     addRemoteNotification,
+    removeRemoteNotification,
+    restoreRemoteNotification,
     clearRemoteNotifications,
     fetchEntitiesFallback,
     connect,

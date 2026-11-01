@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { Play, Power } from '@lucide/vue'
 import HomeModePresetSidebar from './HomeModePresetSidebar.vue'
 import HomeModeBasicSection from './HomeModeBasicSection.vue'
@@ -12,9 +13,11 @@ const batchDomain = defineModel('batchDomain', { type: String, required: true })
 const batchService = defineModel('batchService', { type: String, required: true })
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 
-defineProps({
+const props = defineProps({
   activeTab: { type: String, required: true },
   activeMode: { type: Object, default: null },
+  /** 全部激活模式 id（多互斥组可同时激活） */
+  activeModeIds: { type: Array, default: () => [] },
   activeDraftDirty: { type: Boolean, default: false },
   sectionTabs: { type: Array, required: true },
   showPresetSidebar: { type: Boolean, default: false },
@@ -43,6 +46,10 @@ defineProps({
   /** 设置页嵌入：保存走壳层，页脚仅保留运行态操作 */
   embedded: { type: Boolean, default: false },
 })
+
+const activeTabIsLive = computed(() =>
+  (props.activeModeIds || []).map(String).includes(String(props.activeTab)),
+)
 
 const emit = defineEmits([
   'apply-template',
@@ -87,7 +94,7 @@ const emit = defineEmits([
             <div class="hm-editor-head__identity">
               <div class="hm-editor-head__title-row">
                 <h3 class="hm-editor-head__title">{{ activeDraft.name || '此模式' }}</h3>
-                <span v-if="activeMode?.id === activeTab" class="hm-editor-head__live">
+                <span v-if="activeTabIsLive" class="hm-editor-head__live">
                   <span class="hm-editor-head__live-dot" />{{ '激活中' }}
                 </span>
                 <span v-if="activeDraft.isNew || activeDraftDirty" class="hm-editor-head__draft">{{
@@ -215,11 +222,11 @@ const emit = defineEmits([
               <Play class="w-3.5 h-3.5" /> {{ '立即激活' }}
             </button>
             <button
-              v-if="activeMode?.id === activeTab && !activeDraft.isNew"
+              v-if="activeTabIsLive && !activeDraft.isNew"
               type="button"
               class="hm-toolbar-btn hm-toolbar-btn--danger"
               :disabled="acting"
-              @click="emit('deactivate')"
+              @click="emit('deactivate', activeTab)"
             >
               <Power class="w-3.5 h-3.5" /> {{ '退出模式' }}
             </button>

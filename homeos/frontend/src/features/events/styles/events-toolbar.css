@@ -102,7 +102,7 @@
 
 .events-view__select:focus-visible,
 .events-view__select:focus {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: var(--page-accent-border);
   box-shadow: 0 0 0 3px var(--page-accent-glow);
 }

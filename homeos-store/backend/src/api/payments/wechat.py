@@ -86,11 +86,12 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
 
         if not provider.is_configured(settings):
             incidents.note("wechat.config", error="回调到达时微信支付凭据未配置完整")
-            return _fail("微信支付凭据未配置完整，无法验签", status_code=200, quiet=True)
+            # 必须非 200：这是「我方暂时无法处理」，不是「已签收」。回 200 会让微信
+            # 停止重推 —— 凭据缺失/填错的窗口期内到达的真实支付通知就永久丢了，
+            # 订单随后被 expire_stale_orders 置为 expired 并释放库存与优惠码。
+            return _fail("微信支付凭据未配置完整，无法验签", status_code=503)
 
-        notification = provider.verify_notification(
-            settings, headers=dict(request.headers), body=body
-        )
+        notification = provider.verify_notification(settings, headers=dict(request.headers), body=body)
         if not notification.ok:
             return _fail(f"回调不可信：{notification.reason}", quiet=True)
 
@@ -100,9 +101,7 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
         if effective.wechat_app_id and notification.app_id != effective.wechat_app_id:
             return _fail(f"appid 不匹配：收到 {notification.app_id or '（空）'}")
 
-        order = session.scalars(
-            select(Order).where(Order.order_no == notification.out_trade_no)
-        ).first()
+        order = session.scalars(select(Order).where(Order.order_no == notification.out_trade_no)).first()
         if order is None:
             return _fail(f"找不到订单 out_trade_no={notification.out_trade_no}")
 

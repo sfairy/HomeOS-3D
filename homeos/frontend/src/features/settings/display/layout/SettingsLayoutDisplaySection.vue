@@ -16,12 +16,21 @@
           <button
             type="button"
             :class="['settings-btn-accent shrink-0', scalingEnabled && 'settings-btn-ghost']"
+            :disabled="scalingTooNarrow"
+            :title="scalingTooNarrow ? '当前窗口过窄（<768px），整页等比缩放会把字缩到不可读' : ''"
             @click="$emit('toggle-scaling')"
           >
             {{ scalingEnabled ? '关闭缩放' : '开启缩放' }}
           </button>
         </template>
       </SettingsCardIntro>
+      <p
+        v-if="scalingTooNarrow"
+        class="mt-3 text-xs ldp-c-warn leading-relaxed"
+        role="note"
+      >
+        当前窗口宽 {{ viewportW }}px，低于 768px 不建议开启整页等比缩放：内容会被缩到最小比例并需要横竖滚动。
+      </p>
       <div v-if="scalingEnabled" class="mt-4 flex flex-wrap items-center gap-3">
         <div
           class="flex items-center gap-1.5 bg-black/40 border ldp-scale-badge rounded-lg px-3 py-1.5"
@@ -158,13 +167,14 @@ import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.v
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
+import { computed } from 'vue'
 import { SETTINGS_RANGE_STEP } from '@/shared/utils/settings/range-steps.util'
 import { useLayoutStore } from '@/stores/layout.store'
 
 const layoutStore = useLayoutStore()
 const layoutConfig = layoutStore.layoutConfig
 
-defineProps({
+const props = defineProps({
   scalingEnabled: { type: Boolean, default: false },
   scale: { type: Number, default: 1 },
   activeDesignWidth: { type: Number, required: true },
@@ -175,6 +185,13 @@ defineProps({
   screenHint: { type: Number, required: true },
   screenHeightHint: { type: Number, required: true },
 })
+
+/**
+ * 过小屏幕不建议开启：1366 宽的设计稿在 768px 以下会被压到 MIN_SCALE 下限，
+ * 横竖两个方向都必须滚动才能看全，体验比流式布局差。
+ * 只拦「开启」——已经开启的用户在窄窗口里仍要能关掉。
+ */
+const scalingTooNarrow = computed(() => !props.scalingEnabled && props.viewportW < 768)
 
 defineEmits(['toggle-scaling', 'apply-width-preset', 'auto-match-resolution'])
 </script>

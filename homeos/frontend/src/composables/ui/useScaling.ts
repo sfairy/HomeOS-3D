@@ -50,6 +50,18 @@ function writeStoredScaling(value: boolean) {
 }
 
 /**
+ * 缩放系数下限。
+ *
+ * 为什么需要：`scale` 只保证「完整显示」，没有下限。1366×1024 的设计稿在 390px 宽的
+ * 手机视口上算得 scale ≈ 0.285，正文 12px 被缩到 3.4px —— 整页变成一条无法阅读的细线。
+ * 壁挂平板开启该开关时同样会掉到这个区间。
+ *
+ * 取值依据：0.72 时正文 12px → 8.6px，配合 system-ui 仍是「小但可辨」的下限；
+ * 再低就不可读了。触底后内容会超出视口，由 `.viewport-frame--scrollable` 提供滚动。
+ */
+const MIN_SCALE = 0.72
+
+/**
  * viewport-fit contain：完整显示内容区，扩展 shell 使缩放后精确铺满视口（无外部留边）。
  * 限制 scale 上限为 1：只缩小不放大，避免高分辨率屏幕上内容被放大导致布局失调。
  *
@@ -57,7 +69,7 @@ function writeStoredScaling(value: boolean) {
  * @param vh 视口高度
  * @param contentW 内容区（设计稿）宽度
  * @param contentH 内容区（设计稿）高度
- * @returns {{ scale, shellW, shellH, contentW, contentH }}
+ * @returns {{ scale, shellW, shellH, contentW, contentH, clamped }}
  */
 function computeViewportLayout(vw: number, vh: number, contentW: number, contentH: number) {
   // 取宽高比中较小的缩放系数，保证内容完整显示（contain）
@@ -65,6 +77,9 @@ function computeViewportLayout(vw: number, vh: number, contentW: number, content
   // 限制 scale 上限为 1：只缩小不放大
   // 原因：屏幕比设计稿大时，放大内容会导致字体/间距过大，布局失调
   scale = Math.min(scale, 1)
+  // 下限：低于 MIN_SCALE 时宁可让内容溢出并允许滚动，也不把字缩到不可读
+  const clamped = scale < MIN_SCALE
+  if (clamped) scale = MIN_SCALE
   return {
     scale,
     // shell 尺寸 = 视口尺寸 / 缩放系数，使 scale(shell) 后恰好铺满视口
@@ -72,6 +87,7 @@ function computeViewportLayout(vw: number, vh: number, contentW: number, content
     shellH: vh / scale,
     contentW,
     contentH,
+    clamped,
   }
 }
 
@@ -219,6 +235,8 @@ export function useScaling(
   )
   // 当前缩放系数（未开启缩放时为 1）
   const scale = computed(() => viewportLayout.value?.scale ?? 1)
+  // 缩放是否已触底（触底后内容超出视口，需要外层可滚动）
+  const scaleClamped = computed(() => viewportLayout.value?.clamped ?? false)
   // 是否正在 resize 节流中（供 UI 添加过渡动画）
   const isResizing = ref(false)
   // shell 容器样式：未开启缩放时 100% 占满；否则按 shellW/shellH + scale 变换
@@ -232,7 +250,8 @@ export function useScaling(
       width: `${layout.shellW}px`,
       height: `${layout.shellH}px`,
       transform: `scale(${layout.scale})`,
-      transformOrigin: 'center center',
+      // 触底时 frame 改为可滚动 + 左上对齐，缩放原点必须同步到左上，否则内容整体偏出可视区
+      transformOrigin: layout.clamped ? 'top left' : 'center center',
       flexShrink: '0',
     }
   })
@@ -269,6 +288,7 @@ export function useScaling(
     scalingEnabled,
     scalingOn,
     scale,
+    scaleClamped,
     isResizing,
     vw,
     vh,

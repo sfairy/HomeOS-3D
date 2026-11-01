@@ -186,8 +186,10 @@ def localize_http_exception_message(message: str, status: int, error_name: str =
         return HTTP_MESSAGE_TEXTS["conflict"]
     if status == 408 or _HTTP_MESSAGE_PATTERNS["timeout"].search(text):
         return HTTP_MESSAGE_TEXTS["timeout"]
-    if status >= 500 or _HTTP_MESSAGE_PATTERNS["internalServerError"].search(text) or re.fullmatch(
-        r"internal error", text, re.IGNORECASE
+    if (
+        status >= 500
+        or _HTTP_MESSAGE_PATTERNS["internalServerError"].search(text)
+        or re.fullmatch(r"internal error", text, re.IGNORECASE)
     ):
         return HTTP_MESSAGE_TEXTS["internalServerError"]
     if _HTTP_MESSAGE_PATTERNS["csrf"].search(text):
@@ -208,7 +210,9 @@ API_ERROR: dict[str, str | _F] = {
     "AUTH_SESSION_EXPIRED": "会话已失效，请重新登录",
     # access / guards
     "ACCESS_ENTITY_DENIED": "当前账户无权操作该设备",
-    "TARGET_LABEL_UNRESOLVED": lambda ids: f"未能通过标签 ID（{ids}）解析到实体，请改用 entity_id，或确认 HA 实体已打上对应标签",
+    "TARGET_LABEL_UNRESOLVED": lambda ids: (
+        f"未能通过标签 ID（{ids}）解析到实体，请改用 entity_id，或确认 HA 实体已打上对应标签"
+    ),
     "ACCESS_ENTITY_FORBIDDEN": "无权访问该实体",
     "ACCESS_LOGIN_REQUIRED": "需要登录用户",
     # config / backup
@@ -241,7 +245,9 @@ API_ERROR: dict[str, str | _F] = {
     "VOICE_STT_NOT_CONFIGURED": "未配置 STT 实体，请在设置 → 语音中配置 STT 实体或确保 HA 已启用 STT 集成",
     "VOICE_STT_NO_TEXT": "HA STT 未返回识别文本",
     "VOICE_STT_FAILED": lambda detail: f"HA 语音识别失败: {detail}",
-    "VOICE_HA_CONVERSATION_FAILED": lambda status, detail: f"HA 对话接口 HTTP {status}{f': {detail}' if detail else ''}",
+    "VOICE_HA_CONVERSATION_FAILED": lambda status, detail: (
+        f"HA 对话接口 HTTP {status}{f': {detail}' if detail else ''}"
+    ),
     "VOICE_HOMEOS_TARGET_MISSING": "未配置 HomeOS 目标 ID",
     "VOICE_HOME_MODE_FAILED": lambda detail: detail or "家庭模式激活失败",
     "VOICE_UNKNOWN_COMMAND_TYPE": "未知 HomeOS 语音命令类型",
@@ -251,6 +257,7 @@ API_ERROR: dict[str, str | _F] = {
     "HOME_MODE_PRESET_ACTIONS_EMPTY": "预设动作为空，请检查实体映射",
     "HOME_MODE_PRESET_NOT_FOUND": "预设不存在",
     "HOME_MODE_LINKAGE_BLOCKED": lambda reason: f"家庭模式联动已拦截：{reason}" if reason else "家庭模式联动已拦截",
+    "HOME_MODE_RESTORE_INCOMPLETE": lambda name: f"模式「{name}」停用未完成（部分设备恢复失败），请先重试恢复后再删除",
     # system
     "SYSTEM_CONFIG_NOT_FOUND": "未找到系统配置",
     "SYSTEM_INVALID_API_PATH": "无效的 API 路径",
@@ -292,7 +299,9 @@ API_ERROR: dict[str, str | _F] = {
     "EMBED_URL_LOCALHOST": "内嵌地址不能使用 localhost 或 127.0.0.1",
     "EMBED_URL_LAN_ONLY": "内嵌反代仅允许局域网地址",
     "EMBED_MOVIEPILOT_URL_MISSING": "MoviePilot 内嵌地址未配置",
-    "EMBED_UPSTREAM_UNREACHABLE": lambda url: f"无法连接内嵌目标 {url}。请确认该服务在线，且本机/容器网络可达该局域网地址",
+    "EMBED_UPSTREAM_UNREACHABLE": lambda url: (
+        f"无法连接内嵌目标 {url}。请确认该服务在线，且本机/容器网络可达该局域网地址"
+    ),
     "EMBED_UPSTREAM_TIMEOUT": lambda url: f"连接内嵌目标 {url} 超时。请确认该服务在线，且本机/容器网络可达该局域网地址",
     "SECURITY_SENSOR_ENTITY_INVALID": lambda sid: f"传感器 entity_id 格式无效: {sid}",
     "MOVIEPILOT_URL_NOT_CONFIGURED": "MoviePilot URL 未在仪表板设置中配置",
@@ -306,7 +315,9 @@ API_ERROR: dict[str, str | _F] = {
     "WECOM_DECRYPT_FAILED": lambda detail: f"企业微信消息解密失败: {detail}",
     "CHANNEL_WEBPUSH_ENDPOINT_INVALID": "WebPush 订阅地址无效（须为 https 公网推送服务地址）",
     "LOCK_BUSY": "资源正在被其他同步任务占用，请稍后重试",
-    "BACKUP_SCHEMA_TOO_NEW": lambda payload_version, current_version: f"备份 schema {payload_version} 高于当前 {current_version}",
+    "BACKUP_SCHEMA_TOO_NEW": lambda payload_version, current_version: (
+        f"备份 schema {payload_version} 高于当前 {current_version}"
+    ),
     "HA_STATE_RESYNC_FAILED": lambda detail: f"HA 状态同步失败: {detail or '未知错误'}",
     "UI_CONFIG_LOAD_FAILED": lambda detail: f"无法加载配置。请确认已执行数据库初始化：{detail}",
 }

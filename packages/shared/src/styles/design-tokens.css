@@ -217,6 +217,13 @@
     inset 0 2px 8px rgba(0, 0, 0, 0.32);
   --hos-shadow-accent: 0 0 0 1px var(--hos-color-accent-line),
     0 12px 32px -16px rgba(var(--hos-color-accent-rgb), 0.6);
+  /* 强调色表面的**前景色**：铺在 accent 底色上的文字/图标用它。
+     审计发现多处按钮自己写 `color: #fff`；白字在浅色 accent（如 #0A84FF）上对比度只有
+     3.1:1，达不到正文 4.5:1。统一走这个令牌，换强调色时对比度跟着一起变。 */
+  --hos-on-accent: #ffffff;
+  /* 强调色的「自发光」：只有需要把元素从暗底上提亮时才用（选中态、活跃指示器）。
+     和 --hos-shadow-accent 的区别是它不带描边、只发光，尺寸也统一在这里。 */
+  --hos-shadow-glow: 0 0 12px rgba(var(--hos-color-accent-rgb), 0.45);
 
   /* ══ 12. 焦点环（键盘可见性唯一口径） ═══════════════════════ */
   --hos-focus-color: var(--hos-color-accent);

@@ -399,7 +399,7 @@
 }
 .i3d-extra-card .i3d-extra-drag:focus,
 .i3d-extra-card .i3d-extra-resize:focus {
-  outline: none !important;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow: none;
 }
 .i3d-extra-card .i3d-extra-drag {

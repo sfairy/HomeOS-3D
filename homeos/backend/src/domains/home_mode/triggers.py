@@ -48,7 +48,9 @@ class HomeModeTriggersState:
     #: occurrence 集合所属的自然日（跨天时清空，避免无界增长）。
     time_occurrence_day: str = ""
     calendar_away: bool = False
-    pre_away_mode_id: str | None = None
+    #: 日历外出**开始时**还处于激活态的模式 id 集合（可能跨多个互斥组）。
+    #: 只记内存指针会漏掉「另一个互斥组同时激活」的模式，外出结束后它就永远留在激活态。
+    pre_away_mode_ids: list[str] = field(default_factory=list)
 
 
 def _read_json_array(raw: Any, *, mode_id: str = "") -> list[Any]:
@@ -90,9 +92,7 @@ def mark_home_mode_trigger_fired(cooldown_map: dict[str, int], key: str) -> None
     cooldown_map[key] = int(time.time() * 1000)
 
 
-def prune_home_mode_trigger_cooldown(
-    cooldown_map: dict[str, int], max_age_ms: int = 24 * 3600_000
-) -> None:
+def prune_home_mode_trigger_cooldown(cooldown_map: dict[str, int], max_age_ms: int = 24 * 3600_000) -> None:
     import time
 
     cutoff = int(time.time() * 1000) - max_age_ms
@@ -116,9 +116,7 @@ def parse_home_mode_trigger_bindings(
                 continue
             if trigger.get("enabled") is False:
                 continue
-            if trigger["type"] in ("lock_unlock", "state") and not str(
-                trigger.get("entityId") or ""
-            ).strip():
+            if trigger["type"] in ("lock_unlock", "state") and not str(trigger.get("entityId") or "").strip():
                 # 历史配置里可能有解绑后残留的空 entityId：留着会被状态事件当成通配符，
                 # 在加载绑定这一步就丢掉，比在每次事件里判空更稳。
                 logger.warning(
@@ -127,11 +125,7 @@ def parse_home_mode_trigger_bindings(
                     trigger["type"],
                 )
                 continue
-            bindings.append(
-                HomeModeTriggerBinding(
-                    mode_id=mode["id"], mode_name=mode["name"], trigger=trigger
-                )
-            )
+            bindings.append(HomeModeTriggerBinding(mode_id=mode["id"], mode_name=mode["name"], trigger=trigger))
     return bindings
 
 
@@ -159,7 +153,11 @@ async def _fire_triggered_home_mode(
     reason: str,
     meta: dict[str, Any] | None = None,
 ) -> None:
-    if deps.get_active_mode_id() == binding.mode_id:
+    # 「本次模式是否已在激活态」必须读库：多互斥组下内存指针只指向其中一个，
+    # 拿指针判断会把「另一个组里已经激活的同名模式」当成未激活，于是反复走一遍
+    # 激活流程（幂等但空转、还会占掉冷却），日历 / 在场链路也会据此误判。
+    active_modes = await deps.get_active_modes()
+    if any(str(mode.get("id")) == binding.mode_id for mode in active_modes):
         return
     key = f"{binding.mode_id}:{binding.trigger.get('type')}:{reason}"
     if not can_fire_home_mode_trigger(state.trigger_cooldown, key, deps.get_trigger_cooldown_ms()):
@@ -167,14 +165,21 @@ async def _fire_triggered_home_mode(
     incoming = await deps.find_mode(binding.mode_id)
     if not incoming:
         return
-    active = await deps.get_active_mode()
-    if active and active["id"] != binding.mode_id:
-        same_group = (incoming.get("exclusiveGroup") or "default") == (
-            active.get("exclusiveGroup") or "default"
-        )
+    incoming_group = incoming.get("exclusiveGroup") or "default"
+    # 只在**同一个互斥组**里比优先级：全局主模式可能属于另一个组，拿它当对手会让
+    # 「同组互斥 + 优先级让位」在多互斥组下完全失效（低优先级模式直接顶掉同组高优先级）。
+    active = next(
+        (
+            mode
+            for mode in active_modes
+            if mode["id"] != binding.mode_id and (mode.get("exclusiveGroup") or "default") == incoming_group
+        ),
+        None,
+    )
+    if active is not None:
         incoming_priority = incoming.get("priority")
         active_priority = active.get("priority")
-        if same_group and (50 if incoming_priority is None else incoming_priority) <= (
+        if (50 if incoming_priority is None else incoming_priority) <= (
             50 if active_priority is None else active_priority
         ):
             # 已评估但按优先级让位，同样消费冷却，避免每个状态变更都重复查库。
@@ -225,9 +230,7 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
         hour, minute = (int(item) for item in at.split(":", 1))
         # 用「现在是否已过 occurrence」而不是「分钟是否恰好相等」：后者在事件循环被阻塞
         # 或服务重启跨过该分钟时会永久漏触发（当天再也不会补）。
-        due_at = date_from_zoned_wall_clock(
-            timezone_name, parts["year"], parts["month"], parts["day"], hour, minute
-        )
+        due_at = date_from_zoned_wall_clock(timezone_name, parts["year"], parts["month"], parts["day"], hour, minute)
         delay = now - due_at
         if delay < timedelta(0) or delay > timedelta(minutes=TIME_TRIGGER_GRACE_MINUTES):
             continue
@@ -238,9 +241,7 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
     state.last_time_trigger_minute = minute_key
 
 
-async def handle_home_mode_state_trigger(
-    state: HomeModeTriggersState, deps: Any, event: dict[str, Any]
-) -> None:
+async def handle_home_mode_state_trigger(state: HomeModeTriggersState, deps: Any, event: dict[str, Any]) -> None:
     if not deps.is_leader():
         return
     entity_id = event.get("entity_id")
@@ -267,11 +268,7 @@ async def handle_home_mode_state_trigger(
                     trigger,
                 )
                 continue
-            if (
-                bound_lock == entity_id
-                and str(entity_id or "").startswith("lock.")
-                and new_state == "unlocked"
-            ):
+            if bound_lock == entity_id and str(entity_id or "").startswith("lock.") and new_state == "unlocked":
                 await _fire_triggered_home_mode(state, deps, binding, f"lock_unlock:{entity_id}")
             continue
         if trigger_type == "state" and trigger.get("entityId") == entity_id:
@@ -282,9 +279,7 @@ async def handle_home_mode_state_trigger(
             await _fire_triggered_home_mode(state, deps, binding, f"state:{entity_id}→{new_state}")
 
 
-async def handle_home_mode_presence_arrive(
-    state: HomeModeTriggersState, deps: Any, data: dict[str, Any]
-) -> None:
+async def handle_home_mode_presence_arrive(state: HomeModeTriggersState, deps: Any, data: dict[str, Any]) -> None:
     if not deps.is_leader():
         return
     if not data.get("atHome"):
@@ -292,56 +287,66 @@ async def handle_home_mode_presence_arrive(
     for binding in state.trigger_bindings:
         if binding.trigger.get("type") != "arrive_home":
             continue
-        await _fire_triggered_home_mode(
-            state, deps, binding, f"arrive_home:{data.get('name') or 'member'}"
+        await _fire_triggered_home_mode(state, deps, binding, f"arrive_home:{data.get('name') or 'member'}")
+
+
+async def _activate_calendar_away_mode(state: HomeModeTriggersState, deps: Any, away_mode: dict[str, Any]) -> None:
+    deps.log(f"日历外出事件触发,激活模式: {away_mode['name']}")
+    await _fire_triggered_home_mode(
+        state,
+        deps,
+        HomeModeTriggerBinding(
+            mode_id=away_mode["id"],
+            mode_name=away_mode["name"],
+            trigger={"type": "calendar_away", "enabled": True},
+        ),
+        "calendar_away",
+        {"source": "calendar", "reason": "日历外出事件"},
+    )
+
+
+async def _restore_modes_after_away(state: HomeModeTriggersState, deps: Any, away_id: str, away_name: str) -> None:
+    """日历外出结束：先退出外出模式，再恢复先前激活的模式。
+
+    顺序不能反：① 先前模式在同一个互斥组时会顶掉外出模式，但快照回放顺序被打乱；
+    ② 先前模式在**另一个**组时根本顶不掉，外出模式从此一直激活。
+    """
+    deps.log(f"日历外出结束,退出模式: {away_name}")
+    await deps.request_deactivate(away_id)
+    for restore_id in [mid for mid in state.pre_away_mode_ids if mid and mid != away_id]:
+        restore_mode = await deps.find_mode(restore_id)
+        if not restore_mode:
+            continue
+        deps.log(f"日历外出结束,恢复先前模式: {restore_mode['name']}")
+        await deps.request_activate(
+            restore_mode["id"],
+            {"source": "calendar", "reason": "日历外出结束，恢复先前模式"},
         )
 
 
-async def handle_home_mode_calendar_away(
-    state: HomeModeTriggersState, deps: Any, data: dict[str, Any]
-) -> None:
+async def handle_home_mode_calendar_away(state: HomeModeTriggersState, deps: Any, data: dict[str, Any]) -> None:
     if not deps.is_leader():
         return
     away = bool(data.get("away"))
+    # 激活态必须读库（可跨互斥组）：内存指针只指向「优先级最高的那一个」，
+    # 用它判「是否已激活 / 该退哪一个」会让另一个组的外部模式残留（退出后仍占着激活态）。
+    active_ids = {str(mode.get("id")) for mode in await deps.get_active_modes()}
     if away and not state.calendar_away:
-        state.pre_away_mode_id = deps.get_active_mode_id()
+        state.pre_away_mode_ids = sorted(active_ids)
     state.calendar_away = away
     away_mode = resolve_calendar_away_mode(state.cached_modes)
     if away_mode is None:
         if not away:
-            state.pre_away_mode_id = None
+            state.pre_away_mode_ids = []
         return
+    away_id = str(away_mode["id"])
     try:
         if away:
-            if deps.get_active_mode_id() != away_mode["id"]:
-                deps.log(f"日历外出事件触发,激活模式: {away_mode['name']}")
-                await _fire_triggered_home_mode(
-                    state,
-                    deps,
-                    HomeModeTriggerBinding(
-                        mode_id=away_mode["id"],
-                        mode_name=away_mode["name"],
-                        trigger={"type": "calendar_away", "enabled": True},
-                    ),
-                    "calendar_away",
-                    {"source": "calendar", "reason": "日历外出事件"},
-                )
-        else:
-            if deps.get_active_mode_id() == away_mode["id"]:
-                pre_id = state.pre_away_mode_id
-                pre_mode = (
-                    await deps.find_mode(pre_id) if pre_id and pre_id != away_mode["id"] else None
-                )
-                if pre_mode:
-                    deps.log(f"日历外出结束,恢复先前模式: {pre_mode['name']}")
-                    await deps.request_activate(
-                        pre_mode["id"],
-                        {"source": "calendar", "reason": "日历外出结束，恢复先前模式"},
-                    )
-                else:
-                    deps.log(f"日历外出结束,停用模式: {away_mode['name']}")
-                    await deps.request_deactivate()
-            state.pre_away_mode_id = None
+            if away_id not in active_ids:
+                await _activate_calendar_away_mode(state, deps, away_mode)
+        elif away_id in active_ids:
+            await _restore_modes_after_away(state, deps, away_id, away_mode["name"])
+            state.pre_away_mode_ids = []
     except Exception as exc:
         deps.warn(f"日历联动模式失败: {exc}")
 

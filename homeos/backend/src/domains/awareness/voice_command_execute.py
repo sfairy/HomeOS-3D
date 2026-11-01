@@ -119,7 +119,8 @@ async def _run_voice_actions(
             errors.append(f"{action.get('entityId')}: {denied}")
             continue
         try:
-            await deps.command_proxy.call_service(dto)
+            # 语音计划由 LLM 产出，与管家工具同一口径（服务键白名单）。
+            await deps.command_proxy.call_service(dto, policy="agent")
         except Exception as exc:
             errors.append(f"{action.get('entityId')}: {exc}")
     return errors, skipped

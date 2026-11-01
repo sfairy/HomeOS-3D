@@ -193,7 +193,11 @@ function list(value: string): string[] {
 async function save() {
   const payload = {
     name: draft.name.trim(),
-    productCode: draft.productCode.trim() || null,
+    // 空商品码必须发 ``""`` 而不是 ``null``：后端 ``product_code`` 是 ``str``（PATCH 才是
+    // ``str | None``），``null`` 直接吃 422「Input should be a valid string」，而且这个
+    // 422 挂在必填字段上，用户只能看到一条看不懂的报错。发 ``""`` 后由后端按既有规则
+    // 回落 ``homeos``（新建与清空都会走到那里）。
+    productCode: draft.productCode.trim(),
     productType: draft.productType,
     priceCents: Number(draft.priceCents || 0),
     originalPriceCents: numberOrNull(draft.originalPriceCents),

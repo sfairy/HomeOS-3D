@@ -8,6 +8,7 @@ import os
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
@@ -21,6 +22,10 @@ if TYPE_CHECKING:
     # `_build_agent_domain` 内部导入，让 `import src.app` 不再替启动期付这份钱。
     from ..domains.agent.runtime.service import AgentService
 
+from .ha_state_effects import (
+    _apply_initial_snapshot,
+    _run_state_change_effects,
+)
 from ..domains.app_config import AppConfigBackupService, AppConfigService
 from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
 from ..domains.backup import AutoBackupService, ServerBackupService
@@ -76,6 +81,7 @@ from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
 from ..platform.core.db import schema
 from ..platform.core.db.database import Database
 from ..platform.core.http.resource_publication import recover_resource_publications
+from ..platform.core.runtime.config_events import subscribe as subscribe_config_updates
 from ..platform.core.runtime.distributed_lock import DistributedLockService
 from ..platform.core.runtime.log import configure_app_logging
 from ..platform.core.runtime.observability import EventLoopLagMonitor
@@ -106,86 +112,6 @@ async def _start_services(*starts: Awaitable[Any]) -> None:
         await start
 
 
-def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
-    """把单条 HA 状态变更落到 L1（同步热路径）。
-
-    旧状态缺失时从本地 L1 补全，保证副作用消费者拿到完整变更。
-    """
-    entity_id = change.get("entity_id")
-    if not entity_id:
-        return
-    if change.get("old_state") is None:
-        previous = store.get(str(entity_id))
-        if previous is not None:
-            # 就地补全：下游（安防边沿判定、通知规则、家庭模式触发）都在同一个 dict 上做
-            # 「旧态 → 新态」比较，只改局部变量会让它们全部看到 old_state=None。
-            change["old_state"] = previous
-    store.apply_change(str(entity_id), change.get("new_state"), change.get("changed_at"))
-
-
-async def _run_state_change_effects(
-    app: FastAPI,
-    gateway: Any,
-    store: Any,
-    change: dict[str, Any],
-    *,
-    broadcast: bool = True,
-) -> dict[str, Any] | None:
-    """冷路径副作用：家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。
-
-    批量调用时传 ``broadcast=False``，由调用方把整批变更一次性交给网关，
-    避免每个实体各开一轮广播（每轮都会重算订阅与可见性并逐连接 emit）。
-    """
-    entity_id = change.get("entity_id")
-    if not entity_id:
-        return None
-    _apply_state_change(app, gateway, store, change)
-    home_mode = getattr(app.state, "home_mode", None)
-    if home_mode is not None:
-        try:
-            await home_mode.handle_state_trigger(
-                {
-                    "entity_id": entity_id,
-                    "old_state": change.get("old_state"),
-                    "new_state": change.get("new_state"),
-                }
-            )
-        except Exception:  # 冷路径副作用互不隔离：单个失败不能带塌其余副作用
-            logger.warning("家庭模式状态触发失败: entity=%s", entity_id, exc_info=True)
-    for attr in ("mmwave", "presence", "frigate", "security_panel"):
-        service = getattr(app.state, attr, None)
-        if service is None:
-            continue
-        try:
-            await service.handle_state_change(change)
-        except Exception:  # 同上：安防域各自独立，失败只影响自身判定
-            logger.warning("%s 状态变更处理失败: entity=%s", attr, entity_id, exc_info=True)
-    notification = getattr(app.state, "notification", None)
-    if notification is not None:
-        # 冷路径副作用：设备健康检查（离线/低电量）与告警规则边沿求值。
-        for handler in (
-            notification.handle_state_change,
-            notification.handle_alert_rule_state_change,
-        ):
-            try:
-                handler(change)
-            except Exception:  # 同上：两个 handler 相互独立
-                logger.warning(
-                    "通知 %s 处理状态变更失败: entity=%s", handler.__name__, entity_id, exc_info=True
-                )
-    advisor_usage = getattr(app.state, "advisor_usage", None)
-    if advisor_usage is not None:
-        try:
-            advisor_usage.track_usage(change)
-        except Exception:  # 用量统计属旁路观测，失败不得阻断状态广播
-            logger.debug("顾问用量统计失败: entity=%s", entity_id, exc_info=True)
-    if broadcast:
-        sync_filter = getattr(app.state, "entity_sync_filter", None)
-        if sync_filter is None or sync_filter.is_entity_syncable(str(entity_id)):
-            await gateway.broadcast_state_changed_batch([change])
-    return change
-
-
 def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
     """HA 状态监听：全量快照写入 L1 内存；增量变更经事件总线路由。
 
@@ -197,24 +123,7 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
         bus = getattr(app.state, "security_bus", None)
         sync_filter = getattr(app.state, "entity_sync_filter", None)
         if kind == "initial":
-            entities = [
-                entity for entity in (payload or []) if isinstance(entity, dict) and entity.get("entity_id")
-            ]
-            broadcast_entities = entities
-            if sync_filter is not None:
-                broadcast_entities = sync_filter.filter_syncable_states(entities)
-            # L1 必须收全量：隐藏/禁用只是展示策略，安全实体仍需要基线来做边沿判定。
-            store.set_all(entities)
-            app.state.ha_entity_count = len(broadcast_entities)
-            presence = getattr(app.state, "presence", None)
-            if presence is not None:
-                try:
-                    presence.seed_from_state_store()
-                except Exception:  # 在场推断预热属 best-effort，失败不阻断初始快照
-                    logger.warning("在场推断初始播种失败", exc_info=True)
-            if bus is not None:
-                # 广播全量事件
-                await bus.emit("ha.initial_states", {"entities": broadcast_entities})
+            await _apply_initial_snapshot(app, store, payload, bus, sync_filter)
             return
         event = payload if isinstance(payload, dict) else {}
         raw_data = event.get("data")
@@ -227,6 +136,8 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
             "new_state": data.get("new_state"),
             "changed_at": event.get("time_fired") or data.get("last_changed"),
         }
+        if data.get("removed"):
+            change["removed"] = True
         if bus is None:
             # 事件总线尚未装配（启动早期）：直接走本地副作用路径
             await _run_state_change_effects(app, gateway, store, change)
@@ -256,9 +167,7 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
             result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
             if result is None:
                 continue
-            if sync_filter is not None and not sync_filter.is_entity_syncable(
-                str(change.get("entity_id"))
-            ):
+            if sync_filter is not None and not sync_filter.is_entity_syncable(str(change.get("entity_id"))):
                 # 隐藏实体照样走安防/自动化副作用，只是不推给客户端。
                 continue
             applied.append(result)
@@ -278,8 +187,10 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         broadcast_entities = entities
         if sync_filter is not None:
             broadcast_entities = sync_filter.filter_syncable_states(entities)
-        # 同 _listener：L1 收全量，仅广播按展示过滤。
-        store.set_all(entities)
+        # 这里**不能**再 ``store.set_all``：本事件的载荷已按展示过滤，而 L1 的写入是
+        # 监听器（``_make_state_listener``）用**未过滤**全量做的。旧实现在这里再写一次
+        # 过滤后的子集，等于把「L1 收全量、仅广播按展示过滤」这条约定静默推翻 ——
+        # 隐藏/禁用的安防实体随即从 L1 消失，边沿判定永远拿到 ``old_state=None``。
         app.state.ha_entity_count = len(broadcast_entities)
 
     return {
@@ -287,7 +198,6 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         "ha.state_changed.batch": _handle_state_changed_batch,
         "ha.initial_states": _handle_initial_states,
     }
-
 
 
 SHUTDOWN_TIMEOUT = 5.0
@@ -311,9 +221,7 @@ async def _shutdown(
         await asyncio.wait_for(stopper(), SHUTDOWN_TIMEOUT)
     except TimeoutError:
         logger.warning("%s停机超时（%ss），已放弃等待", what, SHUTDOWN_TIMEOUT)
-        await _record_lifecycle_failure(
-            event_log, what, f"{what}停机超时（{SHUTDOWN_TIMEOUT}s），已放弃等待"
-        )
+        await _record_lifecycle_failure(event_log, what, f"{what}停机超时（{SHUTDOWN_TIMEOUT}s），已放弃等待")
     except Exception as exc:
         logger.warning("%s停机失败：%s", what, exc)
         await _record_lifecycle_failure(event_log, what, f"{what}停机失败: {exc}")
@@ -415,9 +323,7 @@ def _make_voice_rest_config(app: FastAPI) -> Callable[[], Awaitable[dict[str, An
 
         def _load() -> dict[str, Any]:
             with app.state.database.session_factory() as session:
-                endpoints_now = load_active_ha_endpoints(
-                    session, cipher=app.state.studio_ha.cipher
-                )
+                endpoints_now = load_active_ha_endpoints(session, cipher=app.state.studio_ha.cipher)
             return {"haUrl": endpoints_now.ha_url_primary, "token": endpoints_now.token}
 
         return await asyncio.to_thread(_load)
@@ -434,9 +340,7 @@ async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> No
     app_settings = startup.app_settings
     app_settings.data_dir.mkdir(parents=True, exist_ok=True)
     # 必须早于建库：先回滚中断的还原，避免在半还原的结构上继续建表。
-    startup.recovery_required = await asyncio.to_thread(
-        recover_interrupted_restore, app_settings
-    )
+    startup.recovery_required = await asyncio.to_thread(recover_interrupted_restore, app_settings)
     # 目录级发布（导图 / 用户素材）的崩溃收尾：改名死在两次 os.replace 之间时，日志文件
     # 还在磁盘上。必须早于建库（数据库可能引用这些目录）与素材目录扫描。
     await asyncio.to_thread(recover_resource_publications, app_settings)
@@ -481,9 +385,7 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     await studio3d_plane.install(app, app_settings, app.state.database)
 
     # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
-    database_retention = DatabaseRetentionService(
-        app.state.database.session_factory, app_config, jobs=app.state.jobs
-    )
+    database_retention = DatabaseRetentionService(app.state.database.session_factory, app_config, jobs=app.state.jobs)
     database_retention.start()
     await database_retention.start_schedule()
     app.state.database_retention = database_retention
@@ -601,9 +503,7 @@ def _register_ha_event_handlers(app: FastAPI, startup: _StartupContext) -> None:
                 await security_bus.emit("ha.disconnected", {})
             elif status == "reconnecting":
                 app.state.ha_reconnect_attempt = payload.get("attempt")
-                await security_bus.emit(
-                    "ha.reconnecting", {"attempt": payload.get("attempt")}
-                )
+                await security_bus.emit("ha.reconnecting", {"attempt": payload.get("attempt")})
 
         studio_connector.set_connection_listener(_on_connector_connection)
 
@@ -631,9 +531,7 @@ def _build_security_services(app: FastAPI, startup: _StartupContext) -> None:
         jobs=app.state.jobs,
     )
     startup.presence = presence
-    security_service = SecurityService(
-        app.state.database.session_factory, cipher=app.state.studio_ha.cipher
-    )
+    security_service = SecurityService(app.state.database.session_factory, cipher=app.state.studio_ha.cipher)
     startup.security_service = security_service
     away_sim = AwaySimulationService(
         app.state.database.session_factory, startup.ha_connector, security_bus, security_config.get
@@ -647,13 +545,9 @@ def _build_security_services(app: FastAPI, startup: _StartupContext) -> None:
         security_config,
     )
     startup.security_panel = security_panel
-    frigate = FrigateService(
-        app.state.database.session_factory, security_bus, security_panel, security_config.get
-    )
+    frigate = FrigateService(app.state.database.session_factory, security_bus, security_panel, security_config.get)
     startup.frigate = frigate
-    hazard_drill = HazardDrillService(
-        app.state.database.session_factory, security_bus, startup.ha_connector
-    )
+    hazard_drill = HazardDrillService(app.state.database.session_factory, security_bus, startup.ha_connector)
     startup.hazard_drill = hazard_drill
 
     app.state.security_bus = security_bus
@@ -743,9 +637,7 @@ def _install_ha_reconnect_handlers(app: FastAPI, startup: _StartupContext) -> No
 
     async def _on_system_config_updated(_payload: Any = None) -> None:
         endpoints_now = _endpoint_loader(app)
-        fingerprint = "|".join(
-            [endpoints_now.ha_url_primary, endpoints_now.ha_url_fallback, endpoints_now.token]
-        )
+        fingerprint = "|".join([endpoints_now.ha_url_primary, endpoints_now.ha_url_fallback, endpoints_now.token])
         if fingerprint == fingerprint_state["value"]:
             return
         fingerprint_state["value"] = fingerprint
@@ -759,11 +651,39 @@ def _install_ha_reconnect_handlers(app: FastAPI, startup: _StartupContext) -> No
             logger.info("HA 连接配置变更，已按新地址重连")
         except Exception as exc:
             logger.warning("HA 重连失败：%s", exc)
-            await _record_lifecycle_failure(
-                getattr(app.state, "global_log", None), "HA 连接器", f"HA 重连失败: {exc}"
-            )
+            await _record_lifecycle_failure(getattr(app.state, "global_log", None), "HA 连接器", f"HA 重连失败: {exc}")
 
-    startup.security_bus.on("SYSTEM_CONFIG_UPDATED", _on_system_config_updated)
+    subscribe_config_updates(startup.security_bus, _on_system_config_updated)
+
+
+async def _reconcile_away_sim_with_panel(startup: _StartupContext) -> None:
+    """启动时把「离家模拟」与面板真实模式对齐。
+
+    模拟的运行态是持久化的：上次在 armed_away 时开启，进程重启后会恢复成 enabled。
+    若这次启动时面板是 disarmed / armed_home，模拟会继续随机开关灯与窗帘（家里其实有人）
+    —— 只有下一次模式变化才会被 ``_on_security_mode_changed`` 关掉，而那时可能已经过去
+    几个小时，正是「度假防盗」最该可信的场景里制造假象。
+    """
+    cfg = startup.security_config.get()
+    if not cfg.get("linkAwaySimOnArmAway"):
+        # 模拟由用户独立开关（不跟随布防）：启动时不做对账。
+        return
+    try:
+        enabled = bool(startup.away_sim.get_status().get("enabled"))
+    except Exception as exc:
+        logger.warning("读取离家模拟状态失败，跳过启动对账: %s", exc)
+        return
+    if not enabled:
+        return
+    mode = startup.security_panel.get_mode()
+    if mode == "armed_away":
+        return
+    try:
+        await startup.away_sim.disable()
+    except Exception as exc:
+        logger.warning("启动对账关闭离家模拟失败: %s", exc)
+        return
+    logger.info("启动对账：面板为 %s，已关闭离家模拟", mode)
 
 
 def _publish_security_services(app: FastAPI, startup: _StartupContext) -> None:
@@ -789,52 +709,62 @@ async def _start_security_services(app: FastAPI, startup: _StartupContext) -> No
     )
 
 
+async def _home_mode_set_security_mode(app: FastAPI, mode: str, source: str) -> bool:
+    """家庭模式 → 安防：切换成功与否必须如实回报（失败不能让家庭模式记成已切换）。"""
+    # 家庭模式驱动安防时仍要求 ``module.security``，避免只买场景模式绕过安防门禁。
+    license_service = getattr(app.state, "license_service", None)
+    if license_service is not None and not license_service.allows(feature_codes.FEATURE_SECURITY):
+        return False
+    panel = getattr(app.state, "security_panel", None)
+    if panel is None:
+        # 面板未挂载时安防动作**没有发生**：此前返回 True 会让家庭模式把「安防已切换」
+        # 记成成功，实际警报状态一动不动。宁可如实报失败（安防服务总是随启动发布，
+        # 这条分支只在安防域被裁掉时才会走到）。
+        logger.warning("家庭模式请求切换安防，但安防面板未启动：mode=%s", mode)
+        return False
+    # set_mode 是 async，必须 await：bool(coroutine) 恒为 True，会让安防动作看似成功。
+    result = await panel.set_mode(mode, source)
+    if not isinstance(result, dict):
+        return bool(result)
+    if result.get("success"):
+        return True
+    # 撤防 fail-open：联动降级时 success 可能为 False，但 mode 已提交。
+    return mode == "disarmed" and result.get("mode") == "disarmed"
+
+
+def _home_mode_get_security_mode(app: FastAPI) -> str | None:
+    panel = getattr(app.state, "security_panel", None)
+    return None if panel is None else panel.get_mode()
+
+
+async def _home_mode_presence_changed(home_mode: Any, payload: Any = None) -> None:
+    if isinstance(payload, dict):
+        await home_mode.handle_presence_arrive(payload)
+
+
+async def _home_mode_everyone_left(home_mode: Any, _payload: Any = None) -> None:
+    # 事件无参，触发器只看「全员离家」这个事实。
+    await home_mode.handle_everyone_left()
+
+
+async def _home_mode_calendar_away(home_mode: Any, payload: Any = None) -> None:
+    if isinstance(payload, dict):
+        await home_mode.handle_calendar_away(payload)
+
+
 async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
     """构造并启动家庭模式服务，以及跨模块安全联动。"""
     security_bus = startup.security_bus
-
-    # 家庭模式：CRUD / 激活 / 触发器 / 预设 / 运行日志
-    async def _emit_home_mode_event(name: str, payload: dict[str, Any]) -> None:
-        # 走统一事件总线：本进程分发（WS fan-out）
-        await security_bus.emit(name, payload)
-
-    async def _set_security_mode(mode: str, source: str) -> bool:
-        # 家庭模式驱动安防时仍要求 ``module.security``，避免只买场景模式绕过安防门禁。
-        license_service = getattr(app.state, "license_service", None)
-        if license_service is not None and not license_service.allows(
-            feature_codes.FEATURE_SECURITY
-        ):
-            return False
-        panel = getattr(app.state, "security_panel", None)
-        if panel is None:
-            # 面板未挂载时安防动作**没有发生**：此前返回 True 会让家庭模式把「安防已切换」
-            # 记成成功，实际警报状态一动不动。宁可如实报失败（安防服务总是随启动发布，
-            # 这条分支只在安防域被裁掉时才会走到）。
-            logger.warning("家庭模式请求切换安防，但安防面板未启动：mode=%s", mode)
-            return False
-        # set_mode 是 async，必须 await：bool(coroutine) 恒为 True，会让安防动作看似成功。
-        result = await panel.set_mode(mode, source)
-        if isinstance(result, dict):
-            if result.get("success"):
-                return True
-            # 撤防 fail-open：联动降级时 success 可能为 False，但 mode 已提交。
-            return mode == "disarmed" and result.get("mode") == "disarmed"
-        return bool(result)
-
-    def _get_security_mode() -> str | None:
-        panel = getattr(app.state, "security_panel", None)
-        if panel is None:
-            return None
-        return panel.get_mode()
 
     home_mode = HomeModeService(
         app.state.database.session_factory,
         startup.ha_connector,
         startup.state_store,
-        set_security_mode=_set_security_mode,
-        get_security_mode=_get_security_mode,
+        set_security_mode=partial(_home_mode_set_security_mode, app),
+        get_security_mode=partial(_home_mode_get_security_mode, app),
         is_away_simulated_entity=startup.away_sim.contains_entity,
-        emit_event=_emit_home_mode_event,
+        # 走统一事件总线：本进程分发（WS fan-out）
+        emit_event=security_bus.emit,
         is_leader=lambda: True,
         jobs=app.state.jobs,
     )
@@ -858,6 +788,14 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
         startup.security_config.get,
     )
     app.state.security_linkage = security_linkage
+
+    # 家庭模式触发器接线：presence / calendar 事件此前只被安防联动订阅，导致编辑器里
+    # 可选的「有人到家 / 全员离家 / 日历离家」三类触发器永远是死配置（选了也不会触发）。
+    security_bus.on("presence.changed", partial(_home_mode_presence_changed, home_mode))
+    security_bus.on("presence.everyoneLeft", partial(_home_mode_everyone_left, home_mode))
+    security_bus.on("calendar.awayChanged", partial(_home_mode_calendar_away, home_mode))
+
+    await _reconcile_away_sim_with_panel(startup)
 
 
 async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
@@ -1113,7 +1051,9 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
         event_bus=startup.security_bus,
         cooldown_service=startup.cooldown,
         channels_service=channels_service,  # Phase 6：Email / WebPush / 企微 外部通知
-        ha_areas_provider=lambda: (app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []),
+        ha_areas_provider=lambda: (
+            app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []
+        ),
         state_store=startup.state_store,  # 设备离线告警需复查实体状态 / HA 连接
     )
     notification.bind_events()
@@ -1166,9 +1106,7 @@ async def _build_awareness_and_events(app: FastAPI, startup: _StartupContext) ->
     app.state.tts_speak = tts_speak
     startup.security_bus.on("app.config.updated", tts_speak.on_config_updated)
     # 数据保留：ops 变更时热更新清理周期 / 首次延迟
-    startup.security_bus.on(
-        "app.config.updated", startup.database_retention.on_config_updated
-    )
+    startup.security_bus.on("app.config.updated", startup.database_retention.on_config_updated)
 
     # 领域事件 → WS 客户端广播（对齐 ws-push domain-events helper 全量事件集）
     domain_events = DomainEventBridge(startup.security_bus, startup.gateway, tts_speak)
@@ -1366,6 +1304,7 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
     # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
     from ..api.ha.proxy import close_shared_media_clients
+
     await shutdown("媒体代理连接池", close_shared_media_clients)
     await shutdown("事件日志刷盘", startup.event_log_service.flush)
     # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import time
 from collections import deque
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -73,13 +74,58 @@ class StateStore:
     def get(self, entity_id: str) -> dict[str, Any] | None:
         return self._states.get(entity_id)
 
-    def set_all(self, entities: list[dict[str, Any]]) -> None:
-        self._states = {
-            str(entity["entity_id"]): entity for entity in entities if entity.get("entity_id")
-        }
+    def set_all(
+        self,
+        entities: list[dict[str, Any]],
+        *,
+        preserve: Iterable[str] | None = None,
+    ) -> None:
+        """用一份全量快照重建 L1。
+
+        ``preserve`` 是「取这份快照期间本地又收到过更新」的实体集合（
+        ``StateHub.StateFetchChanges.changed``）。对它们的处理必须区别对待，否则周期对账
+        会把窗口内的实时更新整体回退成快照时刻的旧值，而且**不广播、不 resync** ——
+        用户看到的就是「设备状态每隔几分钟自己跳回一次」。
+
+        规则（三条都要，缺一条就会丢一种更新）：
+        1. 快照里**有**、``preserve`` 命中 → 保留内存里的值（内存的更新）。
+        2. 快照里**有**、内存时间戳更新（对账窗口之外也可能发生）→ 同样保留内存值。
+        3. 快照里**没有**、``preserve`` 命中 → 保留：这是窗口内新出现的实体，
+           快照是它出现之前的。
+        其余（含快照里没有、也不在 ``preserve`` 的）按「快照即权威」删除 ——
+        周期对账同时也是实体删除的兜底路径。
+        """
+        preserve_ids = {str(item) for item in (preserve or ())}
+        previous = self._states
+        next_states: dict[str, dict[str, Any]] = {}
+        for entity in entities:
+            entity_id = str(entity.get("entity_id") or "")
+            if not entity_id:
+                continue
+            existing = previous.get(entity_id)
+            if existing is not None and (entity_id in preserve_ids or _is_newer_than(existing, entity)):
+                next_states[entity_id] = existing
+            else:
+                next_states[entity_id] = entity
+        for entity_id, existing in previous.items():
+            if entity_id not in next_states and entity_id in preserve_ids:
+                next_states[entity_id] = existing
+        self._states = next_states
         self._ha_synced = True
         self._last_synced_at = _iso_now()
         self._last_state_change_at = time.time() * 1000
+
+    def remove(self, entity_id: str, changed_at: str | None = None) -> dict[str, Any] | None:
+        """删除单个实体（HA ``state_changed`` 且 ``new_state=None``）。
+
+        返回删除前的状态；实体本来就不存在时返回 ``None`` 且**不**写环形缓冲 ——
+        否则每次重复的删除事件都会塞一条空变更，把真正需要回放的增量挤出缓冲。
+        """
+        previous = self._states.get(entity_id)
+        if previous is None:
+            return None
+        self.apply_change(entity_id, None, changed_at)
+        return previous
 
     # ---- 增量 ----
     def apply_change(
@@ -117,11 +163,17 @@ class StateStore:
         return self._change_seq
 
     def is_replay_truncated(self, since_ms: float, last_event_id: int) -> bool:
-        """请求的 replay 起点是否已被环形缓冲淘汰（此时增量不可信，应建议全量 resync）。
+        """请求的 replay 起点是否已不可信（此时增量会被漏发，应强制全量 resync）。
 
+        - ``last_event_id`` **超前**于本进程已产生的最大 id：``_change_seq`` 是进程内自增
+          计数，重启后从 0 开始。客户端跨重连保留旧游标（例如 1200），新进程只有几十条
+          记录时增量过滤会把**所有**记录剔掉，而调用方见 ``replayed`` 就不再发全量 ——
+          实体表从此永久停在重启前的状态（且界面毫无异常）。
         - ``last_event_id`` 早于当前保留的最旧记录：中间变更已被丢弃；
         - ``since_ms`` 早于最旧记录的变更时刻：同上（时间窗已滚出缓冲）。
         """
+        if last_event_id and last_event_id > self._change_seq:
+            return True
         if not self._recent:
             # 缓冲为空但已有变更历史，说明早期变更全部被淘汰
             return self._change_seq > 0
@@ -141,12 +193,8 @@ class StateStore:
         if entity_id and new_state:
             prev = self._states.get(entity_id)
             if prev:
-                incoming_ts = _parse_iso_ms(
-                    str(new_state.get("last_updated") or new_state.get("last_changed") or "")
-                )
-                prev_ts = _parse_iso_ms(
-                    str(prev.get("last_updated") or prev.get("last_changed") or "")
-                )
+                incoming_ts = _parse_iso_ms(str(new_state.get("last_updated") or new_state.get("last_changed") or ""))
+                prev_ts = _parse_iso_ms(str(prev.get("last_updated") or prev.get("last_changed") or ""))
                 if incoming_ts and prev_ts and incoming_ts < prev_ts:
                     return False
         self.apply_change(entity_id, new_state, event.get("changed_at"))
@@ -189,9 +237,7 @@ class StateStore:
             if last_fresh_ms > 0 and time.time() * 1000 - last_fresh_ms < threshold:
                 return {"stale": False, "syncedAt": self._last_synced_at}
             disconnected_ms = (
-                time.time() * 1000 - self._ha_disconnected_at
-                if self._ha_disconnected_at
-                else threshold + 1
+                time.time() * 1000 - self._ha_disconnected_at if self._ha_disconnected_at else threshold + 1
             )
             if disconnected_ms >= threshold:
                 return {
@@ -251,9 +297,7 @@ class StateStore:
             if state_value in ("unavailable", "unknown"):
                 unavailable.append(entity_id)
                 continue
-            raw_updated = (
-                state.get("last_updated") or state.get("lastUpdated") or state.get("updatedAt")
-            )
+            raw_updated = state.get("last_updated") or state.get("lastUpdated") or state.get("updatedAt")
             updated_ms = _parse_iso_ms(str(raw_updated or ""))
             if updated_ms and now - updated_ms >= self._stale_threshold_ms:
                 stale.append(entity_id)
@@ -291,14 +335,30 @@ def _parse_iso_ms(value: str | None) -> float:
     try:
         text = value.replace("Z", "+00:00")
         return datetime.fromisoformat(text).timestamp() * 1000
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0.0
 
 
+def _updated_ms(entity: dict[str, Any]) -> float:
+    raw = entity.get("last_updated") or entity.get("last_changed")
+    return _parse_iso_ms(str(raw or ""))
+
+
+def _is_newer_than(candidate: dict[str, Any], reference: dict[str, Any]) -> bool:
+    """``candidate`` 的时间戳是否严格晚于 ``reference``。
+
+    任一侧没有可用时间戳时返回 ``False``：无法判新旧就按快照权威走，
+    不拿「缺字段」当「更新」的凭据，否则一份缺 ``last_updated`` 的快照会永久盖住内存。
+    """
+    candidate_ms = _updated_ms(candidate)
+    reference_ms = _updated_ms(reference)
+    if not candidate_ms or not reference_ms:
+        return False
+    return candidate_ms > reference_ms
+
+
 # 实体查询工具（对齐 Nest ``state-store/internals.ts``）
-def slice_entities_by_cursor(
-    entities: list[dict[str, Any]], cursor: str | None, limit: int
-) -> dict[str, Any]:
+def slice_entities_by_cursor(entities: list[dict[str, Any]], cursor: str | None, limit: int) -> dict[str, Any]:
     """按 entity_id 稳定排序后做游标分页（cursor 为上一页最后一条 entity_id）。"""
     ordered = sorted(entities, key=lambda e: str(e.get("entity_id") or ""))
     total = len(ordered)
@@ -307,9 +367,7 @@ def slice_entities_by_cursor(
     start_idx = 0
     marker = str(cursor or "").strip()
     if marker:
-        idx = next(
-            (i for i, e in enumerate(ordered) if str(e.get("entity_id") or "") > marker), -1
-        )
+        idx = next((i for i, e in enumerate(ordered) if str(e.get("entity_id") or "") > marker), -1)
         start_idx = idx if idx >= 0 else total
 
     page = ordered[start_idx : start_idx + safe_limit]
@@ -376,19 +434,11 @@ def filter_entities_by_query(
     elif status == "offline":
         result = [e for e in result if _is_unavailable(e)]
     elif status == "low_battery":
-        result = [
-            e for e in result if (level := _battery_level(e)) is not None and level <= 20
-        ]
+        result = [e for e in result if (level := _battery_level(e)) is not None and level <= 20]
 
     area_filter = str(area or "").strip()
     if area_filter:
-        result = [
-            e
-            for e in result
-            if entity_matches_area_filter(
-                object_field(e, "attributes"), area_filter
-            )
-        ]
+        result = [e for e in result if entity_matches_area_filter(object_field(e, "attributes"), area_filter)]
 
     effective_sort = sort or "name_asc"
     if effective_sort == "name_asc":
@@ -400,4 +450,3 @@ def filter_entities_by_query(
     if effective_sort == "last_changed":
         return sorted(result, key=lambda e: _parse_iso_ms(str(e.get("last_changed") or "")), reverse=True)
     return result
-

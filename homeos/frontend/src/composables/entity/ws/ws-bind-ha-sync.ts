@@ -119,7 +119,14 @@ export function bindEntitySocketHaSync(
     refs.entitiesStale.value = true
     const rolled = actions.rollbackAllOptimistic?.() ?? 0
     if (rolled > 0) logger.info(`背压重同步前已回滚 ${rolled} 条乐观更新`)
-    // 优先增量 / 服务端 resync；冷却内不全量连环 REST（由 fetchEntitiesFallback 内部去重）。
+    // ``replay_truncated`` 的语义是「你的游标不可信」（环形缓冲已淘汰，或游标来自上一个
+    // 进程）—— 增量必然有洞，只有整包快照能收敛。走软重同步会拿同一个坏游标再试一次。
+    if (data?.reason === 'replay_truncated') {
+      void actions.fetchEntitiesFallback?.('增量游标失效，强制全量', { force: true })
+      return
+    }
+    // 其余（背压 / 增量过大）：优先增量 / 服务端 resync；冷却内不全量连环 REST
+    // （由 fetchEntitiesFallback 内部去重）。
     void (async () => {
       const soft = await actions.requestSoftResync?.('服务端背压建议重同步')
       if (soft) return

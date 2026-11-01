@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -24,7 +25,7 @@ def load_raw_config(session: Session) -> dict[str, Any]:
         return {}
     try:
         data = json.loads(row.data)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -39,6 +40,9 @@ def write_raw_config_section(session_factory, section: str, value: dict[str, Any
         raw = load_raw_config(session)
         raw[section] = value
         row.data = json.dumps(raw, ensure_ascii=False)
+        # 必须推进版本号：``AppConfigService._persist`` 用 ``expected_updated_at`` 做 CAS，
+        # 外部写者不推进的话并发检测恒通过 —— 它会把这次写入整表盖掉还返回成功。
+        row.updated_at = datetime.now(UTC)
         session.commit()
 
 

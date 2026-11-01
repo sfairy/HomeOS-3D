@@ -352,7 +352,7 @@
 .params-validation-banner__item:focus-visible {
   background: rgba(248, 113, 113, 0.12);
   color: var(--set-text-primary);
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
 }
 
 @media (max-width: 900px) {

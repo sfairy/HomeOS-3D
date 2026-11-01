@@ -307,7 +307,14 @@ async function submitRelease() {
 async function payOrder(item: StoreOrder) {
   const payload = await api<{ orders?: StoreOrder[] }>("/account");
   const fresh = (payload.orders || []).find((o) => o.orderNo === item.orderNo);
-  if (fresh) await order.showPayment(fresh);
+  if (!fresh) {
+    // 订单可能已被后台删除 / 归档：不能静默什么都不做，用户会以为按钮坏了。
+    toast.show("这笔订单已不存在，请刷新页面后重试。", "err");
+    await refresh();
+    return;
+  }
+  // showPayment 会先判状态：已支付 / 已完成 / 已关闭的订单不会再把付款码弹出来。
+  await order.showPayment(fresh);
 }
 
 async function archiveOrder(item: StoreOrder) {

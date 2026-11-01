@@ -19,6 +19,7 @@
     "DELETE /api/v1/logs",
     "DELETE /api/v1/modes/{mode_id}",
     "DELETE /api/v1/notifications/rules/{rule_id}",
+    "DELETE /api/v1/notifications/{notification_id}",
     "DELETE /api/v1/projects/{project_id}",
     "DELETE /api/v1/studio3d/exports",
     "DELETE /api/v1/system/backup/files",

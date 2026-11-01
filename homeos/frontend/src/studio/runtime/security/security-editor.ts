@@ -63,6 +63,7 @@ import { createConfigurationFeedback } from "../config-ui/configuration-feedback
 import { openConfigurationPicker } from "../config-ui/configuration-picker";
 import { configurationProgress } from "../config-ui/configuration-progress";
 import { domElement } from "@app/shared/util/dom-factory";
+import { normalizeSecurityDraftProperties } from "@app/shared/util/security-draft";
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
@@ -72,15 +73,13 @@ export async function openSecurityEditor({
   editorView: initialEditorView = null,
   editingFloorId = "",
 }: any) {
-  await requestInteraction3dAccess();
-  const draftProperties = structuredClone(component.properties || {});
-  draftProperties.security = {
-    ...draftProperties.security,
-    locks: draftProperties.security?.locks || [],
-    cameras: draftProperties.security?.cameras || [],
-    presenceSensors: draftProperties.security?.presenceSensors || [],
-    alarms: draftProperties.security?.alarms || [],
-  };
+  // 授权结果必须**接住**：旧实现只 ``await`` 不看返回值，真正的判定全靠后面的订阅回调，
+  // 而面板在订阅之前就已经渲染并挂上了运行时 —— 「打开弹窗到首帧 access 事件」之间
+  // 安防控件是可操作的（添加/删除摄像头、锁、报警，进相机编辑，甚至发起一次保存）。
+  // 对安防这种强控制面，默认值必须是「拒绝」。
+  const initialAccess = await requestInteraction3dAccess();
+  const initialAccessAllowed = initialAccess?.allowed === true;
+  const draftProperties = normalizeSecurityDraftProperties(component.properties);
   const createElement = (tagName: any, className = "", textContent = "") =>
       domElement(document, tagName, className, textContent),
     createButton = (buttonLabel: any, onClick: any) => {
@@ -129,7 +128,9 @@ export async function openSecurityEditor({
     selectedItemId = "",
     editorRuntime: any = null,
     isDisposed = false,
-    isAccessAllowed = true,
+    // fail-closed：首个 access 事件（或上面那次请求）到达前一律按「无权限」渲染。
+    // 旧值是 ``true``，于是首帧即放行。
+    isAccessAllowed = initialAccessAllowed,
     isSaving = false,
     isCameraEditing = false,
     editingShowAllLabels = false,
@@ -154,10 +155,10 @@ export async function openSecurityEditor({
   const previouslyFocusedElement = document.activeElement,
     deviceEntitiesByItemId = new Map();
   let renderedPanelSignature = "";
-  const isAlarmKindValue = (value: any) =>
+  const isAlarmKindValue = (value: string) =>
       value === "moisture" || value === "smoke" || value === "gas",
     getSecurityCategory = () => securityKind,
-    setSecurityCategory = (nextCategory: any) => {
+    setSecurityCategory = (nextCategory: string) => {
       securityKind = nextCategory;
     },
     getCollectionKey = () =>
@@ -2739,12 +2740,11 @@ export async function openSecurityEditor({
     document.head.append(styleSheetLinkElement),
     document.body.append(editorDialogElement),
     editorDialogElement.showModal(),
+    // 订阅必须先于首次渲染与运行时挂载，否则第一帧就是在「不知道有没有权限」时画出来的。
+    (unsubscribeAccessChange = subscribeInteraction3dAccess(handleAccessState)),
     renderPanel(),
     updatePreviewSize(),
-
-
-    (unsubscribeAccessChange = subscribeInteraction3dAccess(handleAccessState)),
-    mountEditorRuntime(),
+    isAccessAllowed && mountEditorRuntime(),
     {
       close: closeEditor,
     }

@@ -189,12 +189,13 @@
 .events-view__clear-btn,
 .notifications-view__clear-btn {
   flex-shrink: 0;
-  color: rgba(252, 165, 165, 0.85);
+  /* 清空按钮是破坏性动作：走 danger 语义令牌而不是硬编码的浅红。 */
+  color: var(--hos-color-danger-text);
 }
 
 .events-view__clear-btn:hover:not(:disabled),
 .notifications-view__clear-btn:hover:not(:disabled) {
-  color: #fca5a5;
+  color: var(--hos-color-danger);
 }
 
 .events-view__field,
@@ -221,4 +222,64 @@
   height: 12px;
   color: var(--page-accent);
   flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   断点：双栏在窄视口下退化为单栏
+   ──────────────────────────────────────────────────────────
+   原文件 0 条 @media。而这里固定写成
+   `minmax(0, 1.15fr) minmax(320px, 0.85fr)` —— 右栏的地板 320px 加上 gap 16
+   在 640px 以下必然把内容挤出容器，`overflow: hidden` 的父级又把它裁掉，
+   于是右栏（事件流 / 通知列表）整块不可见。
+   三档与 /earthquake-history 的既有断点保持一致。
+   ══════════════════════════════════════════════════════════ */
+
+@media (max-width: 1280px) {
+  .events-view__layout,
+  .notifications-view__layout {
+    /* 中屏收一点右栏地板，先保住两栏并存 */
+    grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* 平板及以下：单栏堆叠，并让内容区自己滚动（父级是 overflow:hidden） */
+  .events-view__content,
+  .notifications-view__content {
+    overflow-y: auto;
+  }
+
+  .events-view__layout,
+  .notifications-view__layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    align-items: start;
+  }
+
+  /* 堆叠后 height:100% 会把每块拉到内容区高度，反而撑出空白与溢出 */
+  .events-view__analytics,
+  .notifications-view__analytics,
+  .events-view__stream,
+  .notifications-view__stream {
+    height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .events-view__layout,
+  .notifications-view__layout {
+    gap: 10px;
+  }
+
+  .events-view__stream,
+  .notifications-view__stream {
+    padding: 10px;
+    border-radius: var(--hos-radius-card);
+  }
+
+  .events-view__stream-title,
+  .notifications-view__stream-title {
+    font-size: var(--premium-fs-body-sm);
+  }
 }

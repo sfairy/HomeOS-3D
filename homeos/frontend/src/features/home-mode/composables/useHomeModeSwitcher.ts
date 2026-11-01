@@ -71,13 +71,23 @@ export function useHomeModeSwitcher() {
     fetchActive,
   } = useHomeModes()
 
-  // 多个互斥组可以同时激活：header 显示全部激活模式名，而不是被最后一个覆盖。
+  // 多个互斥组可以同时激活：header 只显示「主模式 +N」而不是把名字拼到被截断，
+  // 完整列表放进 title（拼成「睡眠模式 · 回家模式」后按钮会被截断成「睡眠模式·…」，
+  // 看起来像只有一个模式在生效）。
   const activeLabels = computed(() =>
     activeModes.value.map((m) => m.name).filter((name): name is string => !!name),
   )
-  const label = computed(() =>
-    activeLabels.value.length > 0 ? activeLabels.value.join(' · ') : '日常',
-  )
+  const activeModeIds = computed(() => activeModes.value.map((m) => String(m.id)))
+  const label = computed(() => {
+    const names = activeLabels.value
+    if (names.length === 0) return '日常'
+    if (names.length === 1) return names[0]
+    return `${names[0]} +${names.length - 1}`
+  })
+  const activeLabelTitle = computed(() => {
+    const names = activeLabels.value
+    return names.length > 1 ? names.join(' · ') : ''
+  })
   const modeIcon = computed(() => resolveHomeModeIcon(activeMode.value?.icon, Home))
   const presenceHome = ref<Record<string, unknown> | null>(null)
   const modeContext = ref<{ calendarAway: boolean; triggerLogs: unknown[] }>({
@@ -139,15 +149,69 @@ export function useHomeModeSwitcher() {
     }
   }
 
-  async function selectMode(mode: { id: string | number; name?: string }) {
-    open.value = false
-    if (activeModes.value.some((m) => m.id === String(mode.id))) {
-      useChromeStore().notify('已是当前模式', 'info')
+  /** 其它互斥组的模式名（拼进「只保留它」的确认文案）。 */
+  function coexistNames(others: Array<{ name?: string }>): string {
+    const names = others.map((m) => m.name).filter((name): name is string => !!name)
+    return names.length ? names.join('、') : `${others.length} 个模式`
+  }
+
+  /** 依次退出其它模式；任一失败即停（半恢复状态会叠加，后端已保留该模式的快照可重试）。 */
+  async function exitOthers(others: Array<{ id: string | number }>): Promise<boolean> {
+    for (const other of others) {
+      const result = await deactivate(other.id)
+      if (!result || (result as { success?: boolean }).success === false) return false
+    }
+    return true
+  }
+
+  /** 退出单个模式（确认 → deactivate → 触感反馈 → 刷新上下文）。 */
+  async function exitSingleMode(targetId: string, modeName: string): Promise<void> {
+    const ok = await useChromeStore().confirm(
+      `「${modeName}」正在生效中。要退出这个模式并按激活前快照还原设备吗？`,
+      '模式已激活',
+      { type: 'danger', confirmText: '退出模式' },
+    )
+    if (!ok) return
+    const result = await deactivate(targetId)
+    if (result) hapticAlert()
+    loadModeContext()
+  }
+
+  /**
+   * 点已激活项：让它成为唯一生效模式（多互斥组并存时的单选化）；
+   * 只有它自己生效时等价于退出（切换开关语义）。
+   */
+  async function makeExclusive(targetId: string, modeName: string): Promise<void> {
+    const others = activeModes.value.filter((m) => String(m.id) !== targetId)
+    if (others.length === 0) {
+      await exitSingleMode(targetId, modeName)
       return
     }
-    const label = mode.name || String(mode.id)
     const ok = await useChromeStore().confirm(
-      `确定激活「${label}」？将按该模式动作联动设备，并保留激活前快照以便退出时还原。`,
+      `「${modeName}」正在生效中，同时还激活着：${coexistNames(others)}。` +
+        `要让「${modeName}」成为唯一生效的模式吗？将退出其它模式并按激活前快照还原设备。`,
+      '模式已激活',
+      { type: 'danger', confirmText: '只保留它', cancelText: '取消' },
+    )
+    if (!ok) return
+    if (await exitOthers(others)) hapticAlert()
+    loadModeContext()
+  }
+
+  async function selectMode(mode: { id: string | number; name?: string }) {
+    open.value = false
+    const targetId = String(mode.id)
+    const modeName = mode.name || targetId
+    // 多个互斥组可以同时激活：菜单口头是「切换模式」，语义仍是单选 ——
+    // 之前这里直接提示「已是当前模式」并 return，用户看着只高亮了睡眠模式，
+    // 点回家模式既没有反应也没有解释（回家模式其实靠另一个互斥组一直生效）。
+    // 现在：点已激活项 = 让它成为唯一生效模式；只有它自己生效时 = 退出它（切换开关语义）。
+    if (activeModeIds.value.includes(targetId)) {
+      await makeExclusive(targetId, modeName)
+      return
+    }
+    const ok = await useChromeStore().confirm(
+      `确定激活「${modeName}」？将按该模式动作联动设备，并保留激活前快照以便退出时还原。`,
       '激活家庭模式',
       { type: 'danger', confirmText: '确认激活' },
     )
@@ -228,7 +292,9 @@ export function useHomeModeSwitcher() {
     modes,
     activeMode,
     activeModes,
+    activeModeIds,
     activeLabels,
+    activeLabelTitle,
     loading,
     acting,
     label,

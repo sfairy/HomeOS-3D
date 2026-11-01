@@ -15,6 +15,7 @@ from ...app_config.mask import is_masked_value
 from ....config import environment_is_production_from
 from ....platform.core.db.json_field import read_json_object
 from ....platform.core.db.models import ProjectConfig
+from ....platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.agent.config")
 
@@ -105,7 +106,7 @@ def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
     """把配置值夹到 ``[minimum, maximum]``；不可解析时回退默认值。"""
     try:
         number = int(float(value))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
         return default
     return max(minimum, min(maximum, number))
@@ -114,7 +115,7 @@ def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
 def _clamp_float(value: Any, default: float, minimum: float) -> float:
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
         return default
     return max(minimum, number)
@@ -176,7 +177,7 @@ class AgentConfigService:
             logger.debug("检测到配置更新，正在使 Agent 配置缓存失效")
             self.invalidate_cache()
 
-        self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+        subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     # 缓存
     def invalidate_cache(self) -> None:
@@ -284,9 +285,7 @@ class AgentConfigService:
                 [
                     str(item if item is not None else "").strip()
                     for item in raw_allow
-                    if str(item if item is not None else "")
-                    .strip()
-                    .startswith(("scene.", "script."))
+                    if str(item if item is not None else "").strip().startswith(("scene.", "script."))
                 ]
                 if isinstance(raw_allow, list)
                 else []
@@ -401,9 +400,7 @@ class AgentConfigService:
         try:
             with self._session_factory() as session:
                 row = session.execute(
-                    select(ProjectConfig).where(
-                        ProjectConfig.project_id == self.resolve_active_project_id()
-                    )
+                    select(ProjectConfig).where(ProjectConfig.project_id == self.resolve_active_project_id())
                 ).scalar_one_or_none()
             if row is None or not row.layout:
                 return {}

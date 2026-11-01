@@ -20,6 +20,7 @@ import { ChevronDown, Loader2 } from '@lucide/vue'
  * @property {boolean} loading - 是否处于加载态（加载时禁用按钮）
  * @property {boolean} acting - 是否正在执行模式切换操作（展示旋转图标）
  * @property {string} label - 按钮展示的文案
+ * @property {string} labelTitle - 悬浮提示（多互斥组同时激活时列出全部模式名）
  * @property {Object|Function} modeIcon - 当前模式图标组件或渲染函数
  */
 defineProps({
@@ -27,6 +28,7 @@ defineProps({
   loading: { type: Boolean, required: true },
   acting: { type: Boolean, required: true },
   label: { type: String, required: true },
+  labelTitle: { type: String, default: '' },
   modeIcon: { type: [Object, Function], required: true },
 })
 
@@ -38,7 +40,9 @@ const emit = defineEmits(['toggle'])
 </script>
 
 <template>
-  <!-- 触发按钮：根据激活态切换样式，加载时禁用，点击冒泡阻止后派发 toggle -->
+  <!-- 触发按钮：根据激活态切换样式，加载时禁用，点击冒泡阻止后派发 toggle。
+       390px 下 CSS 会隐藏 `.home-mode-switcher__label`，按钮只剩图标 —— 可访问名
+       必须由 `aria-label` 兜底，否则 axe `button-name` 直接 critical。 -->
   <button
     type="button"
     class="home-mode-switcher__btn"
@@ -46,6 +50,8 @@ const emit = defineEmits(['toggle'])
       'home-mode-switcher__btn--active': !!activeMode,
     }"
     :disabled="loading"
+    :title="labelTitle || undefined"
+    :aria-label="label"
     @click.stop="emit('toggle')"
   >
     <component :is="modeIcon" class="home-mode-switcher__icon w-3.5 h-3.5 shrink-0" />

@@ -31,6 +31,8 @@ export function createHomeModePanelHandlers(deps: {
   cancelBatch: HomeModeEditor['cancelBatch']
   modeTabs: HomeModeTabs
   activeMode: HomeModesApi['activeMode']
+  /** 全部激活模式 id（多互斥组可同时激活） */
+  activeModeIds: HomeModesApi['activeModeIds']
   activate: HomeModesApi['activate']
   deactivate: HomeModesApi['deactivate']
   loadContext: HomeModeContextApi['loadContext']
@@ -59,6 +61,7 @@ export function createHomeModePanelHandlers(deps: {
     cancelBatch,
     modeTabs,
     activeMode,
+    activeModeIds,
     activate,
     deactivate,
     loadContext,
@@ -110,21 +113,35 @@ async function switchTab(nextId: string) {
   cancelBatch()
 }
 
+/** 激活前先处理未保存修改：返回 ``false`` 表示用户取消或保存后仍脏，不能继续激活。 */
+async function ensureSavedBeforeActivate(): Promise<boolean> {
+  if (!activeDraftDirty.value) return true
+  const ok = await chrome.confirm(
+    '当前模式有未保存的修改。激活将使用已保存的配置，是否先保存再激活？',
+    '未保存的修改',
+    { confirmText: '先保存', cancelText: '取消', type: 'warning' },
+  )
+  if (!ok) return false
+  await handleSave()
+  return !activeDraftDirty.value
+}
+
+/** 「多模式并存」提示：激活只影响当前 Tab，其它互斥组的模式不会被退出。 */
+function coexistNote(): string {
+  const othersCount = activeModeIds.value.filter((id) => id !== String(activeTab.value)).length
+  return othersCount
+    ? ` 当前还有 ${othersCount} 个模式同时生效，激活后将一并保持生效。`
+    : ''
+}
+
 async function handleActivate() {
   if (activeDraft.value?.isNew) return
-  if (activeDraftDirty.value) {
-    const ok = await chrome.confirm(
-      '当前模式有未保存的修改。激活将使用已保存的配置，是否先保存再激活？',
-      '未保存的修改',
-      { confirmText: '先保存', cancelText: '取消', type: 'warning' },
-    )
-    if (!ok) return
-    await handleSave()
-    if (activeDraftDirty.value) return
-  }
+  if (!(await ensureSavedBeforeActivate())) return
   const modeName = activeDraft.value?.name || activeMode.value?.name || '当前模式'
+  // 多互斥组可同时激活：这里只激活当前 Tab 的模式，不会退出其它组 —— 必须让用户
+  // 知道激活后仍是「多模式并存」，否则会像首页菜单那样以为自己在做单选切换。
   const ok = await chrome.confirm(
-    `确定激活「${modeName}」？将按该模式动作联动设备，并保留激活前快照以便退出时还原。`,
+    `确定激活「${modeName}」？将按该模式动作联动设备，并保留激活前快照以便退出时还原。${coexistNote()}`,
     '激活家庭模式',
     { type: 'danger', confirmText: '确认激活' },
   )
@@ -135,15 +152,32 @@ async function handleActivate() {
   }
 }
 
-async function handleDeactivate() {
-  const modeName = activeMode.value?.name || '当前模式'
+/** 标签页展示名（去掉「当前」标记的 ` *` 后缀）。 */
+function tabDisplayName(targetId: string): string {
+  const label = String(modeTabs.value.find((tab) => tab.id === targetId)?.label || '当前模式')
+  return label.replace(/ \*$/, '')
+}
+
+/** 退出确认里的模式名：主模式用草稿/激活态名称，其它互斥组的模式只能查标签页。 */
+function deactivateModeName(targetId: string, isPrimary: boolean): string {
+  if (!isPrimary) return tabDisplayName(targetId)
+  return activeDraft.value?.name || activeMode.value?.name || '当前模式'
+}
+
+async function handleDeactivate(modeId?: string) {
+  // 多互斥组可同时激活：从「另一个组」的标签页退出时必须退这一个，
+  // 无参 deactivate() 退的是内存指针指向的主模式，会把用户没在看的那个退掉。
+  const targetId = String(modeId || activeMode.value?.id || '')
+  if (!targetId) return
+  const isPrimary = targetId === String(activeMode.value?.id || '')
+  const modeName = deactivateModeName(targetId, isPrimary)
   const ok = await chrome.confirm(
     `确定退出「${modeName}」？将尝试按激活前快照还原设备状态。`,
     '退出家庭模式',
     { type: 'danger', confirmText: '确认退出' },
   )
   if (!ok) return
-  const result = await deactivate()
+  const result = await deactivate(targetId)
   if (result) {
     await loadContext({ scope: 'runtime' })
   }
@@ -283,8 +317,10 @@ async function handleDelete() {
   const deletedId = activeTab.value
   const nextTabId = resolveTabAfterRemove(deletedId)
   try {
-    if (!draft.isNew && activeMode.value?.id === deletedId) {
-      await deactivate()
+    // 只要是激活态就要先退（可能属于另一个互斥组，不是主模式）；退出不完整时
+    // 后端会拒绝删除并保留快照，这里必须让它抛出去，而不是把恢复依据删掉。
+    if (!draft.isNew && activeModeIds.value.includes(deletedId)) {
+      await deactivate(deletedId)
     }
     await deleteMode(deletedId)
     removeDraft(deletedId, nextTabId)

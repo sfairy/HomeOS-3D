@@ -276,11 +276,11 @@ async function submit() {
         <div class="hos-row-2">
           <div class="hos-field">
             <div class="hos-label-row"><label for="password">密码</label></div>
-            <PasswordField id="password" v-model="password" placeholder="至少 8 位，含字母与数字" autocomplete="new-password" :minlength="8" />
+            <PasswordField id="password" name="password" v-model="password" placeholder="至少 8 位，含字母与数字" autocomplete="new-password" :minlength="8" :disabled="submitting" :describedby="errorText ? 'setup-error' : ''" />
           </div>
           <div class="hos-field">
             <div class="hos-label-row"><label for="confirm-password">确认密码</label></div>
-            <PasswordField id="confirm-password" v-model="confirmPassword" placeholder="再次输入密码" autocomplete="new-password" :minlength="8" />
+            <PasswordField id="confirm-password" name="password_confirmation" v-model="confirmPassword" placeholder="再次输入密码" autocomplete="new-password" :minlength="8" :disabled="submitting" :describedby="errorText ? 'setup-error' : ''" />
           </div>
         </div>
         <div class="hos-field">
@@ -314,7 +314,7 @@ async function submit() {
             }}
           </p>
         </div>
-        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <p v-if="errorText" id="setup-error" class="hos-msg is-err" role="alert">{{ errorText }}</p>
         <div class="hos-actions">
           <button class="hos-btn-primary" type="submit" :disabled="submitting">
             {{ submitting ? "正在创建…" : "创建管理员" }}

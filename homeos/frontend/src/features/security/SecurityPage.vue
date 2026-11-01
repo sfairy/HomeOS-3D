@@ -66,7 +66,7 @@
         </div>
       </div>
 
-      <div class="list-page__panel-body security-hub__panel-body">
+      <div class="list-page__panel-body security-hub__panel-body" v-scroll-region="'安防面板'">
         <!-- ====== 总览（仪表盘） ====== -->
         <div
           v-if="secTab === 'overview'"

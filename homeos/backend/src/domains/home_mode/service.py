@@ -54,6 +54,7 @@ def seconds_until_next_minute(now: datetime | None = None) -> float:
     remaining = 60.0 - current.second - current.microsecond / 1_000_000
     return max(0.5, remaining)
 
+
 HOME_MODE_DEFAULT_CONFIG: dict[str, Any] = {
     "triggerCooldownMs": 60_000,
     "applyMaxRetries": 2,
@@ -85,7 +86,7 @@ def _parse_json(raw: Any, fallback: Any) -> Any:
         return raw
     try:
         return json.loads(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return fallback
 
 
@@ -129,7 +130,7 @@ def _coerce_int_field(fields: dict[str, Any], key: str, default: int) -> int:
         bad_request(f"{key} 须为整数")
     try:
         return int(str(raw).strip()) if isinstance(raw, str) else int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         bad_request(f"{key} 须为整数")
     return default
 
@@ -158,6 +159,7 @@ class HomeModeService:
     `_HomeModeDeps` 是服务给出的窄接口（见其 docstring），不是第二条入口。
     状态真源只有一处：`_active_mode_id` + `HomeMode` 表。
     """
+
     def __init__(
         self,
         session_factory,
@@ -187,17 +189,13 @@ class HomeModeService:
         self._active_mode_id: str | None = None
         self._timer: asyncio.Task | None = None
         self._transition_lock = asyncio.Lock()
-        self._runtime_logs = HomeModeRuntimeLogStore(
-            session_factory, self._runtime_limits
-        )
+        self._runtime_logs = HomeModeRuntimeLogStore(session_factory, self._runtime_limits)
         self._trigger_state = HomeModeTriggersState()
         self._home_mode_cfg: dict[str, Any] = dict(HOME_MODE_DEFAULT_CONFIG)
         self._security_cfg: dict[str, Any] = dict(SECURITY_DEFAULT_CONFIG)
         self._home_timezone: str | None = None
         self._deps = _HomeModeDeps(self)
-        self._activate_state = HomeModeActivateState(
-            lambda: self._active_mode_id, self._set_active_mode_id
-        )
+        self._activate_state = HomeModeActivateState(lambda: self._active_mode_id, self._set_active_mode_id)
 
     # 生命周期
     def _set_active_mode_id(self, mode_id: str | None) -> None:
@@ -265,9 +263,7 @@ class HomeModeService:
         # 先绑定再判类型：重复 `raw.get(K)` 时收窄不会传递到第二次读取，类型里会一直挂着 None，
         # 字典解包因此被判成「可能不是映射」。
         home_mode_source = raw.get("homeMode")
-        home_mode: dict[str, Any] = (
-            home_mode_source if isinstance(home_mode_source, dict) else {}
-        )
+        home_mode: dict[str, Any] = home_mode_source if isinstance(home_mode_source, dict) else {}
         security_source = raw.get("security")
         security: dict[str, Any] = security_source if isinstance(security_source, dict) else {}
         self._home_mode_cfg = {**HOME_MODE_DEFAULT_CONFIG, **home_mode}
@@ -306,21 +302,13 @@ class HomeModeService:
 
     def _load_mode_dicts(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
-            modes = (
-                session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()))
-                .scalars()
-                .all()
-            )
+            modes = session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc())).scalars().all()
         return [mode_to_dict(mode) for mode in modes]
 
     # CRUD
     def find_all(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
-            modes = (
-                session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(200))
-                .scalars()
-                .all()
-            )
+            modes = session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(200)).scalars().all()
         return [mode_to_dict(mode) for mode in modes]
 
     def find_all_paginated(self, page: int = 1, page_size: int = 50) -> dict[str, Any]:
@@ -330,10 +318,7 @@ class HomeModeService:
             total = int(session.execute(select(func.count()).select_from(HomeMode)).scalar() or 0)
             rows = (
                 session.execute(
-                    select(HomeMode)
-                    .order_by(HomeMode.sort_order.asc())
-                    .offset((page - 1) * page_size)
-                    .limit(page_size)
+                    select(HomeMode).order_by(HomeMode.sort_order.asc()).offset((page - 1) * page_size).limit(page_size)
                 )
                 .scalars()
                 .all()
@@ -354,9 +339,7 @@ class HomeModeService:
 
     def _find_mode_by_name(self, name: str) -> dict[str, Any] | None:
         with self._session_factory() as session:
-            mode = session.execute(
-                select(HomeMode).where(HomeMode.name == name).limit(1)
-            ).scalar_one_or_none()
+            mode = session.execute(select(HomeMode).where(HomeMode.name == name).limit(1)).scalar_one_or_none()
         return mode_to_dict(mode) if mode is not None else None
 
     def _count_modes(self) -> int:
@@ -415,9 +398,7 @@ class HomeModeService:
             icon=fields.get("icon") or "home",
             config=json.dumps(fields.get("config") or [], ensure_ascii=False),
             triggers=(
-                json.dumps(fields["triggers"], ensure_ascii=False)
-                if fields.get("triggers") is not None
-                else None
+                json.dumps(fields["triggers"], ensure_ascii=False) if fields.get("triggers") is not None else None
             ),
             sort_order=_coerce_int_field(fields, "sortOrder", 0),
             exclusive_group=fields.get("exclusiveGroup") or "default",
@@ -457,9 +438,7 @@ class HomeModeService:
                 mode.config = json.dumps(fields["config"] or [], ensure_ascii=False)
             if "triggers" in fields:
                 mode.triggers = (
-                    json.dumps(fields["triggers"], ensure_ascii=False)
-                    if fields["triggers"] is not None
-                    else None
+                    json.dumps(fields["triggers"], ensure_ascii=False) if fields["triggers"] is not None else None
                 )
             if "sortOrder" in fields:
                 mode.sort_order = _coerce_int_field(fields, "sortOrder", 0)
@@ -476,7 +455,11 @@ class HomeModeService:
         if mode is None:
             not_found(api_error("HOME_MODE_NOT_FOUND"))
         if mode.get("isActive") or self._active_mode_id == mode_id:
-            await self.deactivate(mode_id)
+            outcome = await self.deactivate(mode_id)
+            # 停用未完成（restoreIncomplete）时模式仍是激活态、快照仍保留：此时删行会把
+            # 唯一的恢复依据（快照）和重试入口一起删掉，设备停在半恢复状态且无从补救。
+            if isinstance(outcome, dict) and outcome.get("restoreIncomplete"):
+                bad_request(api_error("HOME_MODE_RESTORE_INCOMPLETE", mode.get("name") or mode_id))
         mode_snapshot = await run_db(self._delete_mode_row, mode_id)
         await self.reload_trigger_bindings()
         return mode_snapshot
@@ -509,9 +492,9 @@ class HomeModeService:
 
     async def reorder(self, order_entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         order_by_id = {
-            str(entry.get('id')): _coerce_int_field(entry, "sortOrder", 0)
+            str(entry.get("id")): _coerce_int_field(entry, "sortOrder", 0)
             for entry in order_entries
-            if isinstance(entry, dict) and entry.get('id')
+            if isinstance(entry, dict) and entry.get("id")
         }
         if order_by_id:
             # 一次性 IN 查询取回全部目标模式：逐条 `session.get` 会让拖拽排序 N 个模式
@@ -522,9 +505,7 @@ class HomeModeService:
 
     def _apply_reorder(self, order_by_id: dict[str, int]) -> None:
         with self._session_factory() as session:
-            modes = session.execute(
-                select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))
-            ).scalars()
+            modes = session.execute(select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))).scalars()
             for mode in modes:
                 target = order_by_id.get(str(mode.id))
                 if target is not None:
@@ -557,9 +538,7 @@ class HomeModeService:
     def get_presets(self) -> list[dict[str, Any]]:
         entity_ids = [entity["entity_id"] for entity in self._state_store.get_all()]
         with self._session_factory() as session:
-            mode_pairs = (
-                session.execute(select(HomeMode.id, HomeMode.name).limit(200)).all()
-            )
+            mode_pairs = session.execute(select(HomeMode.id, HomeMode.name).limit(200)).all()
         existing = [{"id": mode_id, "name": mode_name} for mode_id, mode_name in mode_pairs]
         return presets_module.enrich_home_mode_presets(entity_ids, existing)
 
@@ -567,9 +546,7 @@ class HomeModeService:
         self, preset_id: str, entity_overrides: dict[str, str] | None = None, merge: bool = False
     ) -> dict[str, Any]:
         entity_ids = [entity["entity_id"] for entity in self._state_store.get_all()]
-        plan = presets_module.build_home_mode_preset_install_plan(
-            preset_id, entity_ids, entity_overrides or {}
-        )
+        plan = presets_module.build_home_mode_preset_install_plan(preset_id, entity_ids, entity_overrides or {})
         preset = plan["preset"]
         existing_dict = await run_db(self._find_mode_by_name, str(preset["name"]))
 
@@ -609,9 +586,7 @@ class HomeModeService:
         return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
 
     # 激活 / 停用
-    async def activate(
-        self, mode_id: str, meta: dict[str, Any] | None = None
-    ) -> HomeModeActivateResult:
+    async def activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> HomeModeActivateResult:
         async with self._transition_lock:
             return await activate_home_mode(self._activate_state, self._deps, mode_id, meta)
 
@@ -638,11 +613,7 @@ class HomeModeService:
         return self._runtime_logs.clear_execution_history()
 
     def get_mode_context(self) -> dict[str, Any]:
-        last = (
-            self._runtime_logs.find_execution_by_mode_id(self._active_mode_id)
-            if self._active_mode_id
-            else None
-        )
+        last = self._runtime_logs.find_execution_by_mode_id(self._active_mode_id) if self._active_mode_id else None
         return {
             "calendarAway": self._trigger_state.calendar_away,
             "activeModeId": self._active_mode_id,
@@ -715,9 +686,7 @@ class HomeModeService:
                 values: dict[str, Any] = {"is_active": False}
                 if outcome and not outcome.get("incomplete"):
                     values["device_snapshot"] = None
-                session.execute(
-                    update(HomeMode).where(HomeMode.id == active["id"]).values(**values)
-                )
+                session.execute(update(HomeMode).where(HomeMode.id == active["id"]).values(**values))
             session.execute(
                 update(HomeMode)
                 .where(HomeMode.id == mode_id)
@@ -756,9 +725,7 @@ class HomeModeService:
         except Exception as exc:
             logger.warning("家庭模式通知发送失败: %s", exc)
 
-    async def _call_service(
-        self, domain: str, service: str, entity_id: str, data: dict[str, Any]
-    ) -> Any:
+    async def _call_service(self, domain: str, service: str, entity_id: str, data: dict[str, Any]) -> Any:
         return await self._ha_connector.call_service(domain, service, entity_id, data)
 
     async def _fetch_entity_state(self, entity_id: str) -> dict[str, Any] | None:
@@ -804,6 +771,7 @@ class HomeModeService:
         result = self._emit_event(name, payload)
         if asyncio.iscoroutine(result):
             await result
+
 
 class _HomeModeDeps:
     """激活 / 触发编排所需依赖集合（对齐 actions.internals / triggers.internals 的 deps）。
@@ -860,13 +828,19 @@ class _HomeModeDeps:
     async def get_active_mode(self) -> dict[str, Any] | None:
         return await run_db(self._service.get_active)
 
+    async def get_active_modes(self) -> list[dict[str, Any]]:
+        """全部激活模式（可跨互斥组）。
+
+        触发器优先级必须按「同组」比较：只用 ``get_active_mode()``（全局主模式）时，
+        多互斥组下目标组的真实对手常被漏掉，让位逻辑会整个失效。
+        """
+        return await run_db(self._service.get_active_modes)
+
     def get_active_mode_id(self) -> str | None:
         return self._service.get_active_mode_id()
 
     # 执行 / 集成
-    async def call_service(
-        self, domain: str, service: str, entity_id: str, data: dict[str, Any]
-    ) -> Any:
+    async def call_service(self, domain: str, service: str, entity_id: str, data: dict[str, Any]) -> Any:
         return await self._service._call_service(domain, service, entity_id, data)
 
     async def fetch_entity_state(self, entity_id: str) -> dict[str, Any] | None:
@@ -923,6 +897,10 @@ class _HomeModeDeps:
         """触发器路径请求激活：回调进服务的 `activate`（那里有转换锁与同组互斥编排）。"""
         return await self._service.activate(mode_id, meta)
 
-    async def request_deactivate(self) -> Any:
-        """触发器路径请求停用：回调进服务的 `deactivate`。"""
-        return await self._service.deactivate()
+    async def request_deactivate(self, mode_id: str | None = None) -> Any:
+        """触发器路径请求停用：回调进服务的 `deactivate`。
+
+        ``mode_id`` 必须显式传给「只退某一个组」的调用方：不传会退回内存指针指向的
+        主模式（多互斥组下常常是另一个组），把不该退的模式退掉、该退的却还留着。
+        """
+        return await self._service.deactivate(mode_id)

@@ -9,6 +9,7 @@ import type {
 import { getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
 import { setPollTickMs } from '@/shared/utils/core/poll-scheduler'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { isStaleState } from '@/shared/entity/utils/state-delta.util'
 import { applyAdaptiveFrontendPerf } from '@/shared/utils/perf/adaptive-perf.util'
 import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'
@@ -271,8 +272,13 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
     for (let i = 0; i < sorted.length; i++) {
       const entity = sorted[i]
       if (!deps.entityVisible(entity.entity_id!)) continue
-      const had = Boolean(deps.entities[entity.entity_id!])
-      deps.entities[entity.entity_id!] = entity
+      const previous = deps.entities[entity.entity_id!]
+      const had = Boolean(previous)
+      // 启动分片是**快照**：chunk 生成早于 WS 增量时，直接覆盖会把刚到的新状态写回旧值，
+      // 而且之后没有任何推送会来纠正它（HA 只在真正变化时才发）。
+      if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
+        deps.entities[entity.entity_id!] = entity
+      }
       if (!had) visibleAdded++
       const name = getEntityDisplayName(entity.entity_id!, entity)
       if (name) deps.friendlyNamesMap[entity.entity_id!] = name
@@ -317,13 +323,34 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
    * @param opts fromCache / force / reason / deferredRemainder
    * @returns 完成的 Promise（供调用方串行队列等待）
    */
+  /** 权限（ACL/restrictions）版本是否与上次接受的全量快照不同。 */
+  function restrictionsChanged(): boolean {
+    return (
+      typeof deps.restrictionsVersion === 'function' &&
+      deps.restrictionsVersion() !== lastAcceptedRestrictionsVersion
+    )
+  }
+
+  /** 记下本次快照对应的权限版本（无版本钩子时是空操作）。 */
+  function markRestrictionsAccepted(): void {
+    if (typeof deps.restrictionsVersion === 'function') {
+      lastAcceptedRestrictionsVersion = deps.restrictionsVersion()
+    }
+  }
+
   function initStates(entityList: HaEntityState[], opts: EntityInitOptions = {}): Promise<void> {
     const { fromCache = false, force = false, reason = '', deferredRemainder = null } = opts
     if (force && !fromCache) {
       initStatesBatchToken++
     }
     if (!entityList || !entityList.length) {
-      if (deps.totalCount.value === 0) deps.clearAllEntities()
+      // 空快照也是**权威结论**：服务端说「你可见 0 个实体」（ACL 收紧到零 / 实体全被禁用）。
+      // 旧实现只在内存本来就空时才清空，于是权限被收回的账号会一直留着旧实体表 —— 设备名、
+      // 状态、属性都还能看到，派生索引与统计也继续算这些幽灵实体。
+      // 判据是「权限版本变了没有」：版本没变还返回空，多半是网络抖动/上游空包，不清空。
+      const changed = restrictionsChanged()
+      if (deps.totalCount.value === 0 || changed) deps.clearAllEntities()
+      if (changed) markRestrictionsAccepted()
       markEntityLoadReady()
       return Promise.resolve()
     }
@@ -331,21 +358,17 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
     const incomingVisible = countVisibleEntities(sortedList)
     // 权限（ACL/restrictions）变化后的首个全量快照强制接受并记录版本，
     // 保证 fetchEntitiesFallback 预检查与 initStates 二次判断在权限收紧场景下均放行
-    const restrictionsChanged =
-      typeof deps.restrictionsVersion === 'function' &&
-      deps.restrictionsVersion() !== lastAcceptedRestrictionsVersion
+    const permissionsChanged = restrictionsChanged()
     if (
       !shouldAcceptEntitySnapshot(incomingVisible, {
-        force: force || restrictionsChanged,
+        force: force || permissionsChanged,
         fromCache,
         reason,
       })
     ) {
       return Promise.resolve()
     }
-    if (restrictionsChanged && typeof deps.restrictionsVersion === 'function') {
-      lastAcceptedRestrictionsVersion = deps.restrictionsVersion()
-    }
+    if (permissionsChanged) markRestrictionsAccepted()
 
     const finishInit = (fromCacheFlag: boolean, scheduleDeferred = true): void => {
       markEntityLoadReady()

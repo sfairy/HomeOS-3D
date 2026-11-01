@@ -16,10 +16,18 @@ export { shouldZoneAlarmInMode }
  *
  * @param mode 当前布防模式
  * @param zoneType 区域类型（perimeter/interior/all）
+ * @param armed 该区域是否实际处于布防状态（未勾选布防时为 false）
  * @returns 提示文案，说明该区域在当前模式下是否参与告警
  */
-export function zoneModeHint(mode: string, zoneType: SecurityZoneType | undefined) {
+export function zoneModeHint(
+  mode: string,
+  zoneType: SecurityZoneType | undefined,
+  armed = true,
+) {
   if (mode === 'disarmed') return '撤防中 · 不触发告警'
+  // 「模式允许」不等于「实际参与」：选择性布防时没被勾选的区域不会告警，
+  // 只按 mode×zoneType 给「参与告警」会把用户骗了。
+  if (!armed) return '未布防 · 不参与告警'
   if (shouldZoneAlarmInMode(mode, zoneType)) {
     if (mode === 'armed_away') return '外出模式 · 参与告警'
     if (mode === 'armed_home') return '居家模式 · 参与告警'

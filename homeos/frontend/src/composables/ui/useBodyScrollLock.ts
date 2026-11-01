@@ -1,5 +1,5 @@
 /** - 给"打开即锁滚动"的浮层提供统一的加锁 / 解锁入口。 */
-import { onMounted, onUnmounted, watch, type Ref } from 'vue'
+import { onActivated, onDeactivated, onMounted, onUnmounted, watch, type Ref } from 'vue'
 
 /** 当前持有锁的浮层数量；0 表示未锁。 */
 let lockCount = 0
@@ -142,6 +142,12 @@ export function useBodyScrollLock(
   })
 
   watch(() => active.value, sync)
+
+  // keep-alive：pinned 面板被切走时只触发 deactivated（不会 unmount），若此时浮层开着，
+  // onUnmounted 的兜底释放永远等不到 —— lockCount 残留，返回后整页滚不动。切走即释放，
+  // 切回来按当前可见状态重新取锁。
+  onActivated(() => sync(active.value))
+  onDeactivated(() => sync(false))
 
   onUnmounted(() => {
     if (release) {

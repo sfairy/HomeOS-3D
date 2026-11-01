@@ -43,6 +43,8 @@
     "update:any-baseline": "node ops/checks/check_any_baseline.mjs --update",
     "check:frontend-complexity": "node ops/checks/check_frontend_complexity.mjs --check",
     "update:frontend-complexity-baseline": "node ops/checks/check_frontend_complexity.mjs --update",
+    "check:styles": "node ops/checks/check_hardcoded_styles.mjs",
+    "update:styles-baseline": "node ops/checks/check_hardcoded_styles.mjs --update",
     "check:licenses": "node ops/checks/check_dependency_licenses.mjs",
     "check:silent-except": "node ops/lib/py.mjs ops/checks/check_silent_except.py",
     "check:async-db": "node ops/lib/py.mjs ops/checks/check_async_db.py",

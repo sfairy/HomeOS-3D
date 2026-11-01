@@ -285,9 +285,13 @@ async function submitWithdraw() {
       </section>
 
       <section class="hb-panel">
-        <div class="referral-history-tabs" role="tablist" aria-label="积分明细与提现记录">
-          <button type="button" class="hb-button" :class="kind === 'ledger' ? 'hb-button--primary' : 'hb-button--secondary'" @click="switchHistory('ledger')">积分明细</button>
-          <button type="button" class="hb-button" :class="kind === 'withdrawals' ? 'hb-button--primary' : 'hb-button--secondary'" @click="switchHistory('withdrawals')">提现记录</button>
+        <!-- 这两个按钮是「积分明细 / 提现记录」的筛选器，不控制 tabpanel：
+             role="tablist" 要求子元素是 role="tab" 且必须有 tabpanel，
+             这里两者都不成立，axe 判 aria-required-children (critical)。
+             按真实语义改成一组切换按钮 + aria-pressed。 -->
+        <div class="referral-history-tabs" role="group" aria-label="积分明细与提现记录">
+          <button type="button" class="hb-button" :class="kind === 'ledger' ? 'hb-button--primary' : 'hb-button--secondary'" :aria-pressed="kind === 'ledger'" @click="switchHistory('ledger')">积分明细</button>
+          <button type="button" class="hb-button" :class="kind === 'withdrawals' ? 'hb-button--primary' : 'hb-button--secondary'" :aria-pressed="kind === 'withdrawals'" @click="switchHistory('withdrawals')">提现记录</button>
         </div>
         <div>
           <div v-if="items.length" class="referral-table-wrap">

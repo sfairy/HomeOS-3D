@@ -15,6 +15,7 @@ import {
   zoneModeHint,
   isSensorAlertState,
   type ArmingMode,
+  type SecurityZoneType,
 } from '@/features/security/utils/zone-mode.util'
 import {
   classifySecurityBinarySensor,
@@ -53,33 +54,55 @@ export function useSecurityZoneMonitor(
 
     // 模式缺省为撤防
     const mode = currentMode.value || 'disarmed'
-    return (liveZones.value || []).map((zone) => {
-      // 从布局配置补充 roomId/zoneType
-      const layout = layoutById.value.get(zone.id)
-      const roomId = layout?.roomId || zone.roomId || ''
-      const roomLabel = roomOptions.value.find((r) => r.id === roomId)?.label || ''
-      const zoneType = zone.zoneType || layout?.zoneType || 'all'
-      const sensors = buildSensorRows(zone.sensors || [])
-      const alertCount = sensors.filter((s) => s.alert).length
-      const offlineCount = sensors.filter((s) => s.offline).length
-      // 判定当前模式下该区域类型是否会触发告警
-      const activeInMode = shouldZoneAlarmInMode(mode as ArmingMode, zoneType)
-
-      return {
-        ...zone,
-        roomId,
-        roomLabel,
-        zoneType,
-        zoneTypeLabel: zoneTypeLabel(zoneType),
-        modeHint: zoneModeHint(mode, zoneType),
-        activeInMode,
-        sensors,
-        alertCount,
-        offlineCount,
-        sensorTotal: sensors.length,
-      }
-    })
+    return (liveZones.value || []).map((zone) => enrichZone(zone, mode as ArmingMode))
   })
+
+  /** 房间标签（布局配置优先，查不到时留空）。 */
+  function roomLabelOf(roomId: string): string {
+    return roomOptions.value.find((r) => r.id === roomId)?.label || ''
+  }
+
+  /**
+   * 「当前模式参与」必须同时满足：该区域本次被布防 且 区域类型在当前模式下会告警。
+   * 只看 mode×zoneType 会把「选择性布防时没勾选的区域」也算成参与，与卡片上的
+   * 「未布防」徽标自相矛盾。布局草稿没有 armed 字段（后端状态尚未加载），
+   * 此时不能当成「未布防」，否则首屏会闪一下「0 个区域参与告警」。
+   */
+  function zoneActiveInMode(
+    mode: ArmingMode,
+    zoneType: SecurityZoneType,
+    armedKnown: boolean,
+    armed: boolean,
+  ): boolean {
+    return shouldZoneAlarmInMode(mode, zoneType) && (!armedKnown || armed)
+  }
+
+  /** 单个区域的富化：布局补全 + 传感器行 + 计数 + 模式提示。 */
+  function enrichZone(
+    zone: SecurityZoneDraft & { armed?: boolean; sensors?: string[] },
+    mode: ArmingMode,
+  ) {
+    // 从布局配置补充 roomId/zoneType
+    const layout = layoutById.value.get(zone.id)
+    const roomId = layout?.roomId || zone.roomId || ''
+    const zoneType = zone.zoneType || layout?.zoneType || 'all'
+    const armedKnown = typeof zone.armed === 'boolean'
+    const armed = zone.armed === true
+    const sensors = buildSensorRows(zone.sensors || [])
+    return {
+      ...zone,
+      roomId,
+      roomLabel: roomLabelOf(roomId),
+      zoneType,
+      zoneTypeLabel: zoneTypeLabel(zoneType),
+      modeHint: zoneModeHint(mode, zoneType as SecurityZoneType, armedKnown ? armed : true),
+      activeInMode: zoneActiveInMode(mode, zoneType, armedKnown, armed),
+      sensors,
+      alertCount: sensors.filter((s) => s.alert).length,
+      offlineCount: sensors.filter((s) => s.offline).length,
+      sensorTotal: sensors.length,
+    }
+  }
 
   // 区域汇总：总数、已布防数、告警数、当前模式激活数
   const summary = computed(() => {

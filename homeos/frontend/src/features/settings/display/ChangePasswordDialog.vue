@@ -6,11 +6,11 @@
 -->
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
-    <dialog ref="dialogRef" class="change-password" aria-labelledby="change-password-title" @cancel="onCancel" @close="onClose">
+    <dialog ref="dialogRef" class="change-password" :aria-labelledby="titleId" @cancel="onCancel" @close="onClose">
       <div class="change-password__head">
         <div>
           <span class="change-password__eyebrow">SECURITY</span>
-          <h2 id="change-password-title">修改密码</h2>
+          <h2 :id="titleId">修改密码</h2>
         </div>
         <button type="button" class="change-password__close" aria-label="关闭修改密码" :disabled="busy" @click="close">
           ×
@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 
 import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
@@ -100,6 +100,16 @@ const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
+
+/**
+ * 标题 id 必须**每个实例唯一**。
+ *
+ * 审计实测 `/settings` 的 DOM 里同时存在 2 个 `id="change-password-title"`：`<Teleport>`
+ * 的内容在 keep-alive 失活的组件里不会被卸载，页面来回切换就会留下上一份"影子 dialog"。
+ * 固定 id 在那时会指向错误的标题 —— 用 `useId()` 让每份实例各带各的 id。
+ */
+const titleId = useId()
+
 const currentPassword = ref('')
 const newPassword = ref('')
 const newPasswordConfirmation = ref('')
@@ -255,7 +265,7 @@ defineExpose({ open, close })
 }
 
 .change-password__field input:focus {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: rgba(56, 189, 248, 0.7);
 }
 

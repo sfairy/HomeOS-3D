@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 
@@ -71,8 +71,15 @@ const wrap = ref<HTMLElement | null>(null);
 const overflowing = ref(false);
 let seq = 0;
 let tableObserver: ResizeObserver | null = null;
-let hintSeq = 0;
-const hintId = `table-scroll-hint-${++hintSeq}`;
+/**
+ * 「可横向滚动」提示的 id，供表格的 `aria-describedby` 引用。
+ *
+ * 原来用模块级自增计数器（`table-scroll-hint-${++hintSeq}`），同一个页面渲染
+ * 两个 DataTable 时没问题，但 `/admin/diagnostics`@390 实测出现了重复的
+ * `table-scroll-hint-1` —— 模块被拆进不同 chunk 各自带一份计数器时就会撞车。
+ * 改用 `useId()`：唯一性由 Vue 运行时保证，不依赖模块单例。
+ */
+const hintId = `table-scroll-hint-${useId().replace(/[^\w-]/g, "")}`;
 
 function measureOverflow() {
   const node = wrap.value;

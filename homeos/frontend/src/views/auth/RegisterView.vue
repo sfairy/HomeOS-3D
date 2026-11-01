@@ -230,17 +230,19 @@ async function onSubmit(): Promise<void> {
       <div class="hos-row-2">
         <div class="hos-field">
           <div class="hos-label-row"><label for="register-password">密码</label></div>
-          <PasswordField id="register-password" v-model="password" autocomplete="new-password"
-            placeholder="至少 8 位，含字母与数字" :minlength="8" />
+          <PasswordField id="register-password" name="password" v-model="password" autocomplete="new-password"
+            placeholder="至少 8 位，含字母与数字" :minlength="8" :disabled="submitting"
+            :describedby="mismatch ? 'register-mismatch' : errorMessage ? 'message' : ''" />
         </div>
         <div class="hos-field">
           <div class="hos-label-row"><label for="register-confirm">确认密码</label></div>
-          <PasswordField id="register-confirm" v-model="passwordConfirmation" autocomplete="new-password"
-            placeholder="请再次输入密码" :minlength="8" />
+          <PasswordField id="register-confirm" name="password_confirmation" v-model="passwordConfirmation"
+            autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" :disabled="submitting"
+            :invalid="mismatch" :describedby="mismatch ? 'register-mismatch' : errorMessage ? 'message' : ''" />
         </div>
       </div>
 
-      <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
+      <p v-if="mismatch" id="register-mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
 
       <div class="hos-actions">
         <button class="hos-btn-primary" type="submit" :disabled="submitting">

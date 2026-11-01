@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 
 from homeos_shared.single_process import assert_single_process
 
@@ -69,8 +70,7 @@ logger = logging.getLogger("src")
 
 
 def _ensure_license_keys(settings: StoreSettings) -> None:
-    """确保商店密钥存在；默认密钥目录下还校验仓库根 keys/ 公钥镜像。
-    """
+    """确保商店密钥存在；默认密钥目录下还校验仓库根 keys/ 公钥镜像。"""
     default_keys_dir = (PROJECT_ROOT / "keys" / "local").resolve()
     using_default = settings.license_keys_dir.resolve() == default_keys_dir
     key_preparation_hint = (
@@ -80,33 +80,22 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         "容器部署则由 ops/docker/start_store.py 启动时完成同样的准备。"
     )
 
-    missing_signing = (
-        not settings.private_key_path.exists() or not settings.public_key_path.exists()
-    )
+    missing_signing = not settings.private_key_path.exists() or not settings.public_key_path.exists()
     missing_transport = (
-        not settings.transport_private_key_path.exists()
-        or not settings.transport_public_key_path.exists()
+        not settings.transport_private_key_path.exists() or not settings.transport_public_key_path.exists()
     )
     if using_default and (missing_signing or missing_transport):
         raise RuntimeError(f"缺少商店授权密钥（{settings.license_keys_dir}）。{key_preparation_hint}")
 
     if missing_signing:
-        result = keys.generate_ed25519(
-            keys.KeyPairPaths(settings.private_key_path, settings.public_key_path)
-        )
+        result = keys.generate_ed25519(keys.KeyPairPaths(settings.private_key_path, settings.public_key_path))
         # 首启生成属于正常流程（不是「有问题」），用 INFO：WARNING 会被巡检与告警按「需要人看」处理
-        logger.info(
-            "已生成授权签名密钥对：%s（sha256=%s）", result.public_path, result.sha256
-        )
+        logger.info("已生成授权签名密钥对：%s（sha256=%s）", result.public_path, result.sha256)
     if missing_transport:
         result = keys.generate_x25519(
-            keys.KeyPairPaths(
-                settings.transport_private_key_path, settings.transport_public_key_path
-            )
+            keys.KeyPairPaths(settings.transport_private_key_path, settings.transport_public_key_path)
         )
-        logger.info(
-            "已生成授权传输密钥对：%s（sha256=%s）", result.public_path, result.sha256
-        )
+        logger.info("已生成授权传输密钥对：%s（sha256=%s）", result.public_path, result.sha256)
 
     if not using_default:
         return
@@ -122,9 +111,7 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
                 f"客户端公钥镜像缺失：{mirror}。商店密钥与仓库根 keys/ 必须逐字节一致。{key_preparation_hint}"
             )
         if source.read_bytes() != mirror.read_bytes():
-            raise RuntimeError(
-                f"客户端公钥镜像与商店密钥不一致：{mirror}。{key_preparation_hint}"
-            )
+            raise RuntimeError(f"客户端公钥镜像与商店密钥不一致：{mirror}。{key_preparation_hint}")
 
 
 def _load_retired_generation(settings: StoreSettings) -> KeyGeneration | None:
@@ -195,8 +182,7 @@ def _retired_at(settings: StoreSettings) -> datetime:
 
 
 def build_key_registry(settings: StoreSettings):
-    """按当前密钥组装密钥环（在用代 + 仍在窗口内的退役代）。
-    """
+    """按当前密钥组装密钥环（在用代 + 仍在窗口内的退役代）。"""
     retired = _load_retired_generation(settings)
     return KeyRegistry(
         KeyGeneration(
@@ -274,8 +260,7 @@ def _make_payment_sweep_loop(runtime: _StoreRuntime):
     database = runtime.database
 
     async def _payment_sweep_loop() -> None:
-        """后台支付巡检循环。
-        """
+        """后台支付巡检循环。"""
         interval = int(settings.payment_sweep_interval_seconds or 0)
         generation = configure_sweep_loop(interval)
         if interval <= 0:
@@ -310,9 +295,7 @@ def _make_lifespan(runtime: _StoreRuntime):
         # 降噪要在下面那行启动日志之前生效：首装时引导密钥横幅紧随其后，只打印一次，
         # 而客户机轮询与健康检查几秒就能把它顶出 docker logs 的可见范围。
         install_access_log_filters()
-        logger.info(
-            "服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
-        )
+        logger.info("服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir)
         with database.session() as session:
             if not setup_api.admin_exists(session):
                 setup_guard.ensure_token()
@@ -347,8 +330,7 @@ def _install_write_guard(app: FastAPI, runtime: _StoreRuntime) -> None:
 
     @app.middleware("http")
     async def require_same_origin_for_writes(request: Request, call_next):
-        """改状态的商店/后台请求必须同源（CSRF 第二道闸）。
-        """
+        """改状态的商店/后台请求必须同源（CSRF 第二道闸）。"""
         path = request.url.path
         if not getattr(app.state, "proxy_warning_logged", False) and forwarded_headers_present(request):
             if not trusted_proxies:
@@ -359,11 +341,7 @@ def _install_write_guard(app: FastAPI, runtime: _StoreRuntime) -> None:
                 )
         callback_paths = frozenset({alipay_api.NOTIFY_PATH, wechat_api.NOTIFY_PATH})
         guarded = path.startswith(("/store/v1/", "/store-admin/v1/")) and path not in callback_paths
-        if (
-            guarded
-            and request.method not in {"GET", "HEAD", "OPTIONS"}
-            and not same_origin_request(request)
-        ):
+        if guarded and request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin_request(request):
             return JSONResponse(
                 {"detail": "跨站请求已被拒绝（来源校验未通过）。"},
                 status_code=403,
@@ -377,8 +355,7 @@ def _install_security_headers(app: FastAPI) -> None:
 
     @app.middleware("http")
     async def attach_security_headers(request: Request, call_next):
-        """给所有响应补上安全头。
-        """
+        """给所有响应补上安全头。"""
         request.state.csp_nonce = new_csp_nonce()
         response = await call_next(request)
         for name, value in security_headers(request).items():
@@ -392,8 +369,7 @@ def _make_provider_resolver(runtime: _StoreRuntime):
     database = runtime.database
 
     def resolve_payment_provider(setting=None, *, name: str | None = None):
-        """解析支付渠道。
-        """
+        """解析支付渠道。"""
         if setting is None:
             with database.session() as lookup:
                 setting = get_setting(lookup)
@@ -454,16 +430,36 @@ def _install_healthz(app: FastAPI, runtime: _StoreRuntime) -> None:
 def _install_exception_handler(app: FastAPI) -> None:
     """注册未处理异常的统一出口。"""
 
+    @app.exception_handler(IntegrityError)
+    async def integrity_error(request: Request, error: IntegrityError) -> Response:
+        """唯一约束冲突 → 409，而不是 500。
+
+        注册 / 改邮箱都是「先 select 查重 → 再 flush 插入」，两步之间没有锁：并发两次
+        同邮箱时后者会撞唯一索引。修前这个 ``IntegrityError`` 一路冒到 ``Exception``
+        处理器变成「服务器内部错误，请稍后重试」，用户看到的是故障而不是「这个邮箱已被注册」，
+        而且日志里每天都是一堆被当成 bug 的 500。
+        """
+        logger.warning(
+            "唯一约束冲突（并发写入）：%s %s",
+            request.method,
+            request.url.path,
+            exc_info=error,
+        )
+        response = JSONResponse(
+            {"detail": "该信息已被占用（可能刚刚由其他请求创建），请刷新后重试。"},
+            status_code=409,
+        )
+        for name, value in security_headers(request).items():
+            response.headers.setdefault(name, value)
+        return response
+
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, error: Exception) -> Response:
-        """未处理异常统一出口（按调用方想要的格式回答）。
-        """
+        """未处理异常统一出口（按调用方想要的格式回答）。"""
         logger.exception("未处理的异常：%s", error)
         if prefers_html(request):
             request.state.csp_nonce = new_csp_nonce()
-            response: Response = HTMLResponse(
-                error_page_html(), status_code=500, headers={"Cache-Control": "no-store"}
-            )
+            response: Response = HTMLResponse(error_page_html(), status_code=500, headers={"Cache-Control": "no-store"})
             for name, value in security_headers(request).items():
                 response.headers.setdefault(name, value)
             return response

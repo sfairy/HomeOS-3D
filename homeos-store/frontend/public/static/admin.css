@@ -2536,6 +2536,14 @@ body {
   color: var(--hb-danger-text);
 }
 
+/* 弹窗内联校验提示（例如退款金额超出可退余额） */
+.confirm-dialog__warn {
+  margin: 8px 0 0;
+  color: var(--hb-danger-text);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
 .confirm-dialog__actions {
   display: flex;
   padding: 20px 24px 22px;

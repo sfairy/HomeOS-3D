@@ -39,6 +39,24 @@ class HazardDrillService:
         bindings = parse_hazard_layout_bindings(layout)
         label = _HAZARD_LABELS.get(kind, "安全")
 
+        bound_ids = (
+            bindings.smoke_entity_ids
+            if kind == "smoke"
+            else bindings.gas_entity_ids
+            if kind == "gas"
+            else bindings.leak_entity_ids
+        )
+        if not bound_ids:
+            # 先校验绑定再消费冷却：顺序反了的话，一次「未绑定」的失败点击会白白吃掉
+            # 冷却窗口，用户配好绑定后立刻重试仍被 5 秒冷却挡回。
+            return {
+                "success": False,
+                "drillMode": True,
+                "kind": kind,
+                "sceneTriggered": False,
+                "message": f"未绑定{label}传感器，请先在集成绑定中配置后再演习",
+            }
+
         now = time.monotonic()
         last = self._last_run_at.get(kind)
         if last is not None and now - last < DRILL_COOLDOWN_SECONDS:
@@ -51,22 +69,6 @@ class HazardDrillService:
                 "message": f"{label}演习过于频繁，请稍后再试",
             }
         self._last_run_at[kind] = now
-
-        bound_ids = (
-            bindings.smoke_entity_ids
-            if kind == "smoke"
-            else bindings.gas_entity_ids
-            if kind == "gas"
-            else bindings.leak_entity_ids
-        )
-        if not bound_ids:
-            return {
-                "success": False,
-                "drillMode": True,
-                "kind": kind,
-                "sceneTriggered": False,
-                "message": f"未绑定{label}传感器，请先在集成绑定中配置后再演习",
-            }
 
         await self._bus.emit(
             "security.alarm",
@@ -88,9 +90,7 @@ class HazardDrillService:
         scene_ids = bindings.emergency_scene_ids
         for scene_id in scene_ids:
             try:
-                await self._ha.call_service(
-                    get_entity_domain(scene_id) or "scene", "turn_on", scene_id, {}
-                )
+                await self._ha.call_service(get_entity_domain(scene_id) or "scene", "turn_on", scene_id, {})
             except Exception as exc:
                 logger.warning("演习触发紧急场景失败 [%s]: %s", scene_id, exc)
 
@@ -99,8 +99,7 @@ class HazardDrillService:
             self._session_factory,
             "hazard_drill",
             (
-                f"{label}演习（一次性）：通知 + {len(scene_ids)} 个紧急场景，"
-                f"{len(bound_ids)} 个绑定实体，未关阀/排风"
+                f"{label}演习（一次性）：通知 + {len(scene_ids)} 个紧急场景，{len(bound_ids)} 个绑定实体，未关阀/排风"
                 if scene_ids
                 else f"{label}演习（一次性）：仅通知，未配置紧急场景，未关阀/排风"
             ),
@@ -115,11 +114,9 @@ class HazardDrillService:
             "boundCount": len(bound_ids),
             "sceneTriggered": len(scene_ids) > 0,
             "message": (
-                f"已触发{label}演习：通知 + {len(scene_ids)} 个紧急场景"
-                f"（{len(bound_ids)} 个绑定实体，未关阀/排风）"
+                f"已触发{label}演习：通知 + {len(scene_ids)} 个紧急场景（{len(bound_ids)} 个绑定实体，未关阀/排风）"
                 if scene_ids
-                else f"已触发{label}演习通知"
-                f"（{len(bound_ids)} 个绑定实体，未配置紧急场景，未关阀/排风）"
+                else f"已触发{label}演习通知（{len(bound_ids)} 个绑定实体，未配置紧急场景，未关阀/排风）"
             ),
         }
 

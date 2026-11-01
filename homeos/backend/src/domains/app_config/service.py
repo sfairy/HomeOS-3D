@@ -43,6 +43,7 @@ from .validate import (
 from ...platform.core.db.models import SystemConfig
 from ...platform.core.db.runtime_kv import load_runtime_kv, persist_runtime_kv
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error, bad_request
+from ...platform.core.runtime.config_events import CONFIG_UPDATED
 from ...platform.core.runtime.zoned_time import zoned_date_parts  # noqa: F401 - 供调用方复用  # pyright: ignore[reportUnusedImport]
 
 logger = logging.getLogger("homeos.app_config")
@@ -64,14 +65,17 @@ def _migrate_ha_heartbeat(connector: dict[str, Any]) -> bool:
     """
     if not all(connector.get(key) == value for key, value in LEGACY_HA_HEARTBEAT.items()):
         return False
-    connector.update({
-        "wsPingIntervalMs": 15_000,
-        "wsPongTimeoutMs": 10_000,
-        "wsHeartbeatMaxMisses": 2,
-    })
+    connector.update(
+        {
+            "wsPingIntervalMs": 15_000,
+            "wsPongTimeoutMs": 10_000,
+            "wsHeartbeatMaxMisses": 2,
+        }
+    )
     return True
 
-APP_CONFIG_UPDATED = "app.config.updated"
+
+APP_CONFIG_UPDATED = CONFIG_UPDATED
 
 
 def _deep_merge(target: dict[str, Any], source: dict[str, Any]) -> None:
@@ -103,6 +107,17 @@ def _iso(datetime_value: datetime | None) -> str | None:
     if datetime_value.tzinfo is None:
         return datetime_value.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
     return datetime_value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _as_naive_utc(value: datetime) -> datetime:
+    """统一成 naive UTC，用于比较。
+
+    ``system_configs.updatedAt`` 是 ``DateTime``（无时区）：SQLite 读回来是 naive，
+    而写入侧一律 ``datetime.now(UTC)``（aware）。直接比会抛
+    ``can't compare offset-naive and offset-aware datetimes`` —— 这个异常会被外层
+    ``except`` 吞掉，表现得像"没有外部写入"，正好把双写问题藏起来。
+    """
+    return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo is not None else value
 
 
 def _parse_iso(value: str) -> datetime:
@@ -199,12 +214,25 @@ class AppConfigService:
         self._config_updated_at = None
         self._load()
 
+    def _sync_external_writes(self, *, stale_only: bool = True) -> None:
+        """吸收数据库里由旁路写者提交的分区（失败不影响主流程）。
+
+        ``stale_only=True`` 时按 ``updated_at`` 短路，避免每次写配置都多读一行。
+        """
+        try:
+            if stale_only:
+                self.reload_from_db_if_stale()
+            else:
+                self.reload_from_db()
+        except Exception as exc:  # 读库失败不该让保存直接报 500
+            logger.warning("同步外部配置写入失败，按内存快照继续: %s: %s", type(exc).__name__, exc)
+
     def reload_from_db_if_stale(self) -> bool:
         with self._session_factory() as session:
             row = session.get(SystemConfig, "default")
             if row is None:
                 return False
-            if self._config_updated_at and row.updated_at <= self._config_updated_at:
+            if self._config_updated_at and _as_naive_utc(row.updated_at) <= _as_naive_utc(self._config_updated_at):
                 return False
             raw = json.loads(row.data) if row.data else {}
             if not isinstance(raw, dict):
@@ -235,9 +263,7 @@ class AppConfigService:
         if not (self._config.get("ops") or {}).get("configAuditPersistEnabled"):
             return
         try:
-            persist_runtime_kv(
-                self._session_factory, CONFIG_AUDIT_STORAGE_ID, self._audit_log[: self._get_max_audit()]
-            )
+            persist_runtime_kv(self._session_factory, CONFIG_AUDIT_STORAGE_ID, self._audit_log[: self._get_max_audit()])
         except Exception as exc:
             logger.warning("持久化配置审计失败: %s", exc)
 
@@ -310,11 +336,7 @@ class AppConfigService:
     def _merge_partial_config(self, cfg: dict[str, Any], partial: dict[str, Any]) -> None:
         for section_key, section_patch in partial.items():
             if isinstance(section_patch, dict):
-                patch = (
-                    normalize_pricing_patch(section_patch)
-                    if section_key == "pricing"
-                    else section_patch
-                )
+                patch = normalize_pricing_patch(section_patch) if section_key == "pricing" else section_patch
                 if not isinstance(cfg.get(section_key), dict):
                     cfg[section_key] = {}
                 nested_keys = CONFIG_REPLACE_NESTED_FIELDS.get(section_key, ())
@@ -451,6 +473,9 @@ class AppConfigService:
         self._persist_audit_log()
 
     def update(self, partial: dict[str, Any], expected_updated_at: str | None = None) -> None:
+        # 旁路写者（通知设置走 ``merge_raw_config_section``）可能刚改过某个分区：
+        # 先按库刷新，再在最新快照上合并，避免用启动时的旧值把它盖回去。
+        self._sync_external_writes(stale_only=True)
         before = copy.deepcopy(self._config)
         stripped = strip_masked_placeholders(partial)
         changed_sections = list(stripped.keys())
@@ -468,16 +493,14 @@ class AppConfigService:
         if rest:
             self._merge_partial_config(cfg, rest)
         if "clientPower" in changed_sections:
-            restore_client_power_report_tokens(
-                self._config.get("clientPower"), before.get("clientPower")
-            )
+            restore_client_power_report_tokens(self._config.get("clientPower"), before.get("clientPower"))
             if _ensure_client_power_report_tokens(self._config["clientPower"]):
                 logger.info("已为客户端充放电策略自动生成 reportToken")
         self._migrate_missing_sections()
         self._push_audit(self._collect_changes(before, self._config, changed_sections))
         self._bump_generation()
         try:
-            self._persist(expected_updated_at)
+            self._persist(expected_updated_at, changed_sections)
         except Exception:
             self._config = copy.deepcopy(before)
             self._migrate_missing_sections()
@@ -486,9 +509,7 @@ class AppConfigService:
         self._emit(changed_sections)
 
     def replace_all(self, next_config: dict[str, Any]) -> dict[str, Any]:
-        merged = apply_import_replace_preserving_secrets(
-            next_config, self._config
-        )
+        merged = apply_import_replace_preserving_secrets(next_config, self._config)
         self._config = copy.deepcopy(merged)
         self._migrate_missing_sections()
         self._bump_generation()
@@ -521,17 +542,33 @@ class AppConfigService:
                 for s in sections
             ]
         )
+        self._sync_external_writes(stale_only=True)
         if section:
             self._config[section] = copy.deepcopy(DEFAULT_APP_CONFIG[section])
         else:
             self._config = copy.deepcopy(DEFAULT_APP_CONFIG)
         self._bump_generation()
-        self._persist()
+        # 单分区 reset 只覆盖该分区：其它分区可能刚被旁路写入（通知设置等），
+        # 整表写回会把它们退回内存快照。
+        self._persist(sections=sections if section else None)
         self._emit(sections)
         return self.get_all()
 
     # 持久化
-    def _persist(self, expected_updated_at: str | None = None) -> None:
+    def _persist(
+        self,
+        expected_updated_at: str | None = None,
+        sections: list[str] | None = None,
+    ) -> None:
+        """落库。
+
+        ``sections`` 为本次**真正改动**的分区；``None`` 表示「整表就是权威」（如导入替换）。
+
+        为什么不能整行覆盖：``SystemConfig`` 只有一个 ``default`` 行，但写它的不止本服务 ——
+        全屋通知设置走 ``notification/settings.py`` → ``merge_raw_config_section`` 直接改
+        ``notification`` 分区。整行回写会用**启动时**的内存快照把那次写入悄悄盖掉。
+        所以这里以「库里的当前内容」为基底，只覆盖本次改动过的分区。
+        """
         now = datetime.now(UTC)
         with self._session_factory() as session:
             row = session.get(SystemConfig, "default")
@@ -541,13 +578,44 @@ class AppConfigService:
             elif expected_updated_at:
                 expected = _parse_iso(expected_updated_at)
                 if row.updated_at != expected:
-                    raise BusinessException(
-                        ErrorCode.CONFLICT, "配置已被他人修改，请刷新后重试"
-                    )
-            row.data = json.dumps(self._config, ensure_ascii=False)
+                    raise BusinessException(ErrorCode.CONFLICT, "配置已被他人修改，请刷新后重试")
+            if sections is None:
+                data = dict(self._config)
+            else:
+                data = self._row_dict(row)
+                changed = list(sections)
+                for section in changed:
+                    if section in self._config:
+                        data[section] = self._config[section]
+                # 未改动但库里没有的分区（首次启动 / 新增分区）也补上，
+                # 否则默认值要等下一次全量写入才落地。
+                for section in DEFAULT_APP_CONFIG:
+                    data.setdefault(section, copy.deepcopy(self._config.get(section)))
+            row.data = json.dumps(data, ensure_ascii=False)
             row.updated_at = now
             session.commit()
+        if sections is not None:
+            # 外部写者刚写下的分区要进内存，否则下次 update 又会拿旧值覆盖它。
+            self._adopt_sections_from(data, keep=sections)
         self._config_updated_at = now
+
+    @staticmethod
+    def _row_dict(row: SystemConfig) -> dict[str, Any]:
+        """解析库里那行 ``data``；坏 JSON 按空表处理（与 ``load_raw_config`` 同口径）。"""
+        try:
+            parsed = json.loads(row.data or "{}")
+        except (TypeError, ValueError) as exc:
+            logger.warning("system_configs.data 不是合法 JSON，按空表处理: %s", exc)
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    def _adopt_sections_from(self, data: dict[str, Any], *, keep: list[str]) -> None:
+        """把库里（非本次改动）的分区吸收进内存快照，避免下次整表写回旧值。"""
+        kept = set(keep)
+        for section, value in data.items():
+            if section in kept or section not in DEFAULT_APP_CONFIG:
+                continue
+            self._config[section] = copy.deepcopy(value)
 
     def _emit(self, sections: list[str]) -> None:
         if self._event_bus is None:

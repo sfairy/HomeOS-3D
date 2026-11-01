@@ -54,6 +54,14 @@ export function createEntityCacheHelpers(deps: EntityCacheDeps) {
   let persistCacheDirty = false
   // 脏实体 ID 集合（增量分片写入路径使用）
   let dirtyEntityIds = new Set<string>()
+  /**
+   * 最近一次真正写过 / 读过的缓存隔离键。
+   *
+   * 登出时 ``deps.currentEntityCacheKey()`` 已经变成 ``anonymous|…``（auth 先清空再通知），
+   * 用它去清分片等于什么都没清 —— 上一账号的实体名/状态/属性仍躺在 IDB 里，
+   * 共享墙面板换人可直接读出（隐私残留），且每个「用户 × 限制组合」的分片只增不减。
+   */
+  let lastWrittenCacheKey: string | null = null
   /** 上次缓存持久化成功时间戳，用于最小写入间隔节流（0 表示尚未写入过） */
   let lastPersistAt = 0
 
@@ -117,7 +125,9 @@ export function createEntityCacheHelpers(deps: EntityCacheDeps) {
       const byDomain = collectEntitiesForPersist()
       if (!byDomain) return
       // 分片增量写入：仅重写有变更的域分片（或全量路径下重写全部分片）
-      const ok = await saveEntityCacheShards(deps.currentEntityCacheKey(), byDomain)
+      const cacheKey = deps.currentEntityCacheKey()
+      lastWrittenCacheKey = cacheKey
+      const ok = await saveEntityCacheShards(cacheKey, byDomain)
       if (ok) {
         deps.entitiesCacheSavedAt.value = Date.now()
         lastPersistAt = Date.now()
@@ -136,6 +146,33 @@ export function createEntityCacheHelpers(deps: EntityCacheDeps) {
     }
     persistCacheTimer = null
     persistCacheDirty = false
+  }
+
+  /**
+   * 丢弃全部脏实体标记（整表清空 / 账号切换时调用）。
+   *
+   * 不清的话，下一个账号第一次增量持久化会带着上一账号的 id 去算「脏域」，
+   * 于是写出若干「空数组分片」——分片层把空数组解释成「删除该域」，会把新账号
+   * 尚未落盘的分片一起删掉。
+   */
+  function clearDirtyEntities() {
+    dirtyEntityIds = new Set<string>()
+    persistCacheDirty = false
+  }
+
+  /**
+   * 登出 / 账号切换：删掉上一个账号写下的实体缓存分片。
+   *
+   * 键用「最近一次真写过的那份」而不是当前的 ``currentEntityCacheKey()`` ——
+   * 走到这里时 auth 已经清空，当前键是 ``anonymous|…``。
+   */
+  async function clearPersistedEntityCacheForLogout(): Promise<boolean> {
+    const cacheKey = lastWrittenCacheKey
+    lastWrittenCacheKey = null
+    dirtyEntityIds = new Set<string>()
+    persistCacheDirty = false
+    if (!cacheKey) return false
+    return clearEntityCache(cacheKey)
   }
 
   /**
@@ -224,6 +261,8 @@ export function createEntityCacheHelpers(deps: EntityCacheDeps) {
     buildEntityCacheKey,
     clearEntityCache,
     cancelPersistCacheTimer,
+    clearDirtyEntities,
+    clearPersistedEntityCacheForLogout,
     persistEntityCacheNow,
     schedulePersistEntityCache,
     hydrateFromEntityCache,

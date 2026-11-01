@@ -22,9 +22,7 @@ from ....platform.core.ha.ha_service_catalog import agent_service_allowed
 from ....platform.security.entity_access import is_entity_allowed
 
 
-def _allowed_sensor_entry(
-    entity_id: str, reading: str, restrictions: Any
-) -> dict[str, str] | None:
+def _allowed_sensor_entry(entity_id: str, reading: str, restrictions: Any) -> dict[str, str] | None:
     """按读路径 ACL 过滤传感器：看不到的传感器不返回，避免间接泄露状态。"""
     if not entity_id or not reading:
         return None
@@ -40,26 +38,18 @@ class HomeToolsAreasMixin(HomeToolsHost):
         """列出所有房间。"""
         try:
             areas = await self._area_service.find_all()
-            return {
-                "areas": [
-                    {"id": a.id, "name": a.name, "icon": a.icon} for a in (areas or [])
-                ]
-            }
+            return {"areas": [{"id": a.id, "name": a.name, "icon": a.icon} for a in (areas or [])]}
         except Exception as exc:
             return {"error": f"房间列表加载失败: {_error_message(exc)}"}
 
-    async def _resolve_named_area(
-        self, area_id_or_name: str
-    ) -> tuple[Any, dict[str, Any] | None]:
+    async def _resolve_named_area(self, area_id_or_name: str) -> tuple[Any, dict[str, Any] | None]:
         """按 id / 名称解析房间；加载失败返回错误载荷，未命中返回 ``(None, None)``。"""
         try:
             area = await self._area_service.find_one(area_id_or_name)
         except Exception as exc:
             # 不能把「读取失败」当成「房间不存在」：否则磁盘 / 锁错误会被 Agent 讲成
             # 「你房间名写错了」，并给出一份误导性的可用房间列表。
-            logger.warning(
-                "按 id 解析房间失败，回退名称匹配: %s (%s)", area_id_or_name, _error_message(exc)
-            )
+            logger.warning("按 id 解析房间失败，回退名称匹配: %s (%s)", area_id_or_name, _error_message(exc))
             area = None
         # 精确 / 模糊名称匹配兜底
         if area is None:
@@ -69,11 +59,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 return None, {"error": f"房间列表加载失败: {_error_message(exc)}"}
             lower = area_id_or_name.lower().strip()
             area = next(
-                (
-                    a
-                    for a in areas
-                    if str(a.name).lower() == lower or lower in str(a.name).lower()
-                ),
+                (a for a in areas if str(a.name).lower() == lower or lower in str(a.name).lower()),
                 None,
             )
             if area is not None:
@@ -83,9 +69,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
                     logger.debug("房间详情加载失败，退回列表字段: %s (%s)", area.id, _error_message(exc))
         return area, None
 
-    def _collect_area_devices(
-        self, area: Any, restrictions: Any
-    ) -> list[dict[str, Any]]:
+    def _collect_area_devices(self, area: Any, restrictions: Any) -> list[dict[str, Any]]:
         """采集房间内实体的当前状态快照（按读路径 ACL 过滤）。"""
         devices: list[dict[str, Any]] = []
         for ae in area.entities or []:
@@ -94,7 +78,9 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 continue
             entity = self._state_store.get(entity_id)
             attributes = (
-                entity.get("attributes") if isinstance(entity, dict) and isinstance(entity.get("attributes"), dict) else {}
+                entity.get("attributes")
+                if isinstance(entity, dict) and isinstance(entity.get("attributes"), dict)
+                else {}
             )
             devices.append(
                 {
@@ -118,15 +104,11 @@ class HomeToolsAreasMixin(HomeToolsHost):
             if isinstance(room_stats, dict) and room_stats.get("temp"):
                 te = self._state_store.get(str(room_stats["temp"]))
                 if te:
-                    temp = _allowed_sensor_entry(
-                        str(room_stats["temp"]), _s(te.get("state")), restrictions
-                    )
+                    temp = _allowed_sensor_entry(str(room_stats["temp"]), _s(te.get("state")), restrictions)
             if isinstance(room_stats, dict) and room_stats.get("humidity"):
                 he = self._state_store.get(str(room_stats["humidity"]))
                 if he:
-                    humidity = _allowed_sensor_entry(
-                        str(room_stats["humidity"]), _s(he.get("state")), restrictions
-                    )
+                    humidity = _allowed_sensor_entry(str(room_stats["humidity"]), _s(he.get("state")), restrictions)
         except Exception:  # 温湿度是可选补充信息，缺失不影响区域摘要
             pass
         return temp, humidity
@@ -154,9 +136,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
             )
         return temp, humidity
 
-    async def _get_area_snapshot(
-        self, area_id_or_name: str, actor: AgentActor | None = None
-    ) -> dict[str, Any]:
+    async def _get_area_snapshot(self, area_id_or_name: str, actor: AgentActor | None = None) -> dict[str, Any]:
         """获取房间内所有设备的当前状态快照。
 
         温度 / 湿度传感器来源优先级：布局 mobileRoomStats → AppConfig 的 envSensorMap。
@@ -183,9 +163,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
             "sensors": {"temperature": temp, "humidity": humidity},
         }
 
-    def _resolve_env_sensors(
-        self, area_id: str, area_name: str
-    ) -> dict[str, dict[str, str] | None]:
+    def _resolve_env_sensors(self, area_id: str, area_name: str) -> dict[str, dict[str, str] | None]:
         """从 AppConfig 的 envSensorMap 解析房间的温湿度传感器（area_id → label → key）。"""
         try:
             mapping = self._app_config.get("envSensorMap") or {}
@@ -202,9 +180,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 if label and (label == lower_name or lower_name in label or label in lower_name):
                     by_label = row
                     break
-            by_key = next(
-                (row for key, row in entries if str(key).lower() == lower_name), None
-            )
+            by_key = next((row for key, row in entries if str(key).lower() == lower_name), None)
             entry = by_id if isinstance(by_id, dict) else (by_label or by_key)
             if not isinstance(entry, dict):
                 return {"temp": None, "humidity": None}
@@ -280,11 +256,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
             area = next((a for a in areas if str(a.name).lower() == lower), None)
         if area is None:
             area = next(
-                (
-                    a
-                    for a in areas
-                    if lower in str(a.name).lower() or str(a.name).lower() in lower
-                ),
+                (a for a in areas if lower in str(a.name).lower() or str(a.name).lower() in lower),
                 None,
             )
 
@@ -309,9 +281,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
         if domain:
             return [eid for eid in entity_ids if eid.startswith(f"{domain}.")]
         # 空 domain（“打开书房所有设备”）仅放行安全域，避免误触 switch / cover / 插座等潜在危险设备
-        return [
-            eid for eid in entity_ids if get_entity_domain(eid) in SAFE_BULK_CONTROL_DOMAINS
-        ]
+        return [eid for eid in entity_ids if get_entity_domain(eid) in SAFE_BULK_CONTROL_DOMAINS]
 
     async def _execute_area_entity(
         self,
@@ -366,7 +336,8 @@ class HomeToolsAreasMixin(HomeToolsHost):
                     "service": service,
                     "entity_id": entity_id,
                     "service_data": service_data,
-                }
+                },
+                policy="agent",
             )
             return {"entity_id": entity_id, "ok": bool((response or {}).get("success"))}
         except Exception as exc:
@@ -406,9 +377,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
             return {"room": area.name, "affected": 0, "total": 0, "results": [], "snapshot": []}
 
         snapshot = self._snapshot_entities(entity_ids)
-        scene_voice = (
-            await self._scene_voice_gate() if domain in ("scene", "script") else None
-        )
+        scene_voice = await self._scene_voice_gate() if domain in ("scene", "script") else None
         command_context = {"serviceData": service_data, "sceneVoice": scene_voice}
         results: list[dict[str, Any]] = [
             await self._execute_area_entity(entity_id, domain, service, actor, command_context)

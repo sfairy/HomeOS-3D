@@ -30,6 +30,19 @@ import {
 } from "../device/generic-device-catalog";
 import { domElement } from "@app/shared/util/dom-factory";
 import { modelChoiceLabel } from "@app/shared/model-remarks";
+/** 走通用设备目录的 kind（含 nas / 电视 / 音箱等没有 HA domain 的种类）。 */
+function isCatalogDeviceKind(kind: string): boolean {
+  return (
+    kind === "airer" ||
+    kind === "water-heater" ||
+    kind === "devices" ||
+    kind === "nas" ||
+    kind === "television" ||
+    kind === "speaker" ||
+    GENERIC_DEVICE_KINDS2.includes(kind)
+  );
+}
+
 export async function openInteraction3dEditor({
   component: component,
   document: documentApi,
@@ -42,8 +55,11 @@ export async function openInteraction3dEditor({
   vacuumId: vacuumId = "",
   editingFloorId: editingFloorId = "",
 }: any) {
-  (await requestInteraction3dAccess2(),
-    pickers?.loadEntities && (entities = await pickers.loadEntities()));
+  // 接住授权结果（旧实现丢弃返回值，靠订阅回调兜底）：默认值必须是「拒绝」，
+  // 否则从打开弹窗到首帧 access 事件之间，面板控件是可操作的。
+  const initialAccessState = await requestInteraction3dAccess2();
+  const initialAccessAllowed = initialAccessState?.allowed === true;
+  pickers?.loadEntities && (entities = await pickers.loadEntities());
   const includes = [
     "environment",
     "climate",
@@ -54,14 +70,7 @@ export async function openInteraction3dEditor({
     "temperature-humidity",
   ].includes(deviceKind);
   deviceKind === "environment" && (deviceKind = "climate");
-  const isDeviceKind =
-    deviceKind === "airer" ||
-    deviceKind === "water-heater" ||
-    deviceKind === "devices" ||
-    deviceKind === "nas" ||
-    deviceKind === "television" ||
-    deviceKind === "speaker" ||
-    GENERIC_DEVICE_KINDS2.includes(deviceKind);
+  const isDeviceKind = isCatalogDeviceKind(deviceKind);
   deviceKind === "devices" && (deviceKind = "nas");
   let isVacuumShortcutMode: any,
     isVacuumMode: any,
@@ -251,7 +260,8 @@ export async function openInteraction3dEditor({
     sceneMetadata: any = null,
     editorRuntime: any = null,
     isDisposed = false,
-    isAccessAllowed = true,
+    // fail-closed：首个 access 事件（或上面那次请求）到达前一律按「无权限」渲染。
+    isAccessAllowed = initialAccessAllowed,
     floorSelection =
       editingFloorId ||
       (structuredClone2.floorSelection !== "all" ? structuredClone2.floorSelection : "");
@@ -731,5 +741,7 @@ export async function openInteraction3dEditor({
   (renderPanel(),
     editorDialogElement.showModal(),
     document.dispatchEvent(new Event("hb-i3d-preview-scope")),
-    syncPreviewSize());
+    syncPreviewSize(),
+    // 挂载运行时同样受授权门禁约束：此前无条件挂载，等于给未授权会话装了一个可操作运行时。
+    isAccessAllowed && !editorRuntime && mountEditorRuntime());
 }

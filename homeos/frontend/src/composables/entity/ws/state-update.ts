@@ -15,6 +15,7 @@ import type {
   ResolveListenerOldStateArgs,
 } from '@/shared/types/entity-store'
 import {
+  isStaleState,
   mergeWsStateChange,
   normalizeWsBatchChange,
   type WsDeltaChange,
@@ -144,6 +145,121 @@ interface EntityChangeOutcome {
   countDelta: -1 | 0 | 1
 }
 
+/**
+ * 删除事件的落库结果：清缓存 + 递减总数 + 派发一次「新态为空」的监听通知。
+ *
+ * 派发通知是必要的：看板/设备卡片都按「实体还在不在」决定要不要继续渲染，
+ * 不通知的话它们会持有一份已经不在 store 里的 id，直到下一次全量重建。
+ */
+function removalOutcome(
+  deps: EntityStateUpdateDeps,
+  entityId: string,
+  cached: HaEntityState | null,
+): EntityChangeOutcome | null {
+  if (deps.optimisticState.has(entityId)) deps.clearOptimistic(entityId)
+  delete deps.entities[entityId]
+  deps.markEntityCacheDirty?.(entityId)
+  const notifyPayload: EntityStateListenerPayload | null = cached
+    ? { entity_id: entityId, new_state: null, old_state: cached }
+    : null
+  return {
+    entityId,
+    mergedNew: null,
+    notifyPayload,
+    derivedPatch: deps.patchDerivedChanges
+      ? { entity_id: entityId, oldEntity: cached, newEntity: null }
+      : null,
+    countDelta: cached ? -1 : 0,
+  }
+}
+
+/**
+ * Worker 预规范化路径（``_delta`` 已剥离）下，``new_state`` 基于入队时快照计算；
+ * 若该实体此刻存在挂起乐观更新，改以 live cached 属性为底叠加透传的 ``changed_attributes``，
+ * 避免用旧快照覆盖并发乐观写入的未变更属性（极窄竞态，仅乐观态实体走此分支）。
+ */
+function overlayAttributesOnOptimistic(
+  cached: HaEntityState | null,
+  data: WsDeltaChange,
+  mergedNew: HaEntityState,
+): HaEntityState {
+  const attrs = { ...(cached?.attributes || {}), ...data.changed_attributes }
+  // delta 携带的删除属性同样生效，避免从缓存回填时复活已删除的属性
+  if (Array.isArray(data.removed_attributes)) {
+    for (const key of data.removed_attributes) delete attrs[key]
+  }
+  return finalizeMergedEntity({ ...mergedNew, attributes: attrs }) as HaEntityState
+}
+
+/**
+ * 乐观态结算：与预测一致（或对应 service 确认）才清除乐观标记；否则按字段合并 ——
+ * 无关推送（同实体的周期性属性上报）不再提前终结 TTL，由乐观 TTL 回滚兜底。
+ */
+function reconcileOptimistic(
+  deps: EntityStateUpdateDeps,
+  entityId: string,
+  cached: HaEntityState | null,
+  mergedNew: HaEntityState | null,
+): HaEntityState | null {
+  if (!deps.optimisticState.has(entityId)) return mergedNew
+  const entry = deps.optimisticState.get(entityId)
+  if (optimisticPushMatches(entry, mergedNew)) {
+    deps.clearOptimistic(entityId)
+    return mergedNew
+  }
+  return mergeUnconfirmedOptimistic(cached, mergedNew, entry?.expected)
+}
+
+/** 落库：有值写缓存；空值视为删除（HA 侧实体被删/禁用），并先撤掉乐观态避免回滚复活。 */
+function writeEntityState(
+  deps: EntityStateUpdateDeps,
+  entityId: string,
+  mergedNew: HaEntityState | null,
+): void {
+  if (mergedNew) {
+    deps.entities[entityId] = mergedNew
+    return
+  }
+  // 必须先撤掉乐观态。否则乐观 TTL 到期回滚时会把缓存的旧值写回来 —— 幽灵实体
+  // 从「删掉」变成「过几秒自己又出现」，而且之后没有任何推送会再纠正它。
+  if (deps.optimisticState.has(entityId)) deps.clearOptimistic(entityId)
+  delete deps.entities[entityId]
+}
+
+/** 监听器载荷：``shouldNotify`` 判定 + 旧态解析，与单条/批量路径共用。 */
+function buildNotifyPayload(
+  deps: EntityStateUpdateDeps,
+  raw: WsDeltaChange,
+  data: WsDeltaChange,
+  cached: HaEntityState | null,
+  cachedOld: string | undefined,
+  mergedNew: HaEntityState | null,
+): EntityStateListenerPayload | null {
+  const haReportedChange = deps.haStateChanged(data.old_state, mergedNew)
+  const shouldNotify = deps.shouldNotifyStateChange({
+    cached,
+    cachedOld,
+    newStateValue: mergedNew?.state,
+    oldState: data.old_state,
+    newState: mergedNew,
+    changedAttributes: raw?._delta ? raw.changed_attributes : data?.changed_attributes,
+  })
+  if (!shouldNotify) return null
+  const oldForListener = deps.resolveListenerOldState({
+    haReportedChange,
+    oldState: data.old_state,
+    cached,
+  })
+  return { entity_id: data.entity_id, new_state: mergedNew, old_state: oldForListener }
+}
+
+function entityCountDelta(cached: HaEntityState | null, mergedNew: HaEntityState | null): -1 | 0 | 1 {
+  const hadEntity = Boolean(cached)
+  const hasEntity = Boolean(mergedNew)
+  if (!hadEntity && hasEntity) return 1
+  return hadEntity && !hasEntity ? -1 : 0
+}
+
 function applyEntityChange(
   deps: EntityStateUpdateDeps,
   raw: WsDeltaChange,
@@ -152,80 +268,48 @@ function applyEntityChange(
   if (!data?.entity_id || !deps.entityVisible(data.entity_id)) return null
 
   const cached = deps.entities[data.entity_id] || null
+  // 删除事件先于一切合并逻辑处理：``new_state`` 为空会让后面的乐观分支走进
+  // ``mergeUnconfirmedOptimistic``（它拿 cached 当底），把「删掉」变成「什么都没发生」。
+  // 服务端对删除显式标 ``removed``；把「非 delta 且 new_state 为空」也算删除，是因为
+  // 那是服务端唯一会发出的空态载荷（增量 delta 一律带 ``_delta``）。
+  if (raw?.removed === true || (!raw?._delta && data.new_state === null)) {
+    return removalOutcome(deps, data.entity_id, cached)
+  }
+  // 乱序保护：先发出、后到达的推送不能把新状态写回旧值。丢掉整条（连同其属性级变更）
+  // 是对的 —— 本地已有一条**更新**的完整状态，它必然包含了这条旧推送的全部信息。
+  if (isStaleState(data.changed_at ?? raw.changed_at, cached)) return null
   const cachedOld = cached?.state
   const hadOptimistic =
     deps.optimisticState.size > 0 && deps.optimisticState.has?.(data.entity_id)
   let mergedNew = finalizeMergedEntity(
     raw?._delta ? mergeWsStateChange(cached, raw) : data.new_state,
   )
-  // Worker 预规范化路径（_delta 已剥离）下，new_state 基于入队时快照计算；
-  // 若该实体此刻存在挂起乐观更新，改以 live cached 属性为底叠加透传的 changed_attributes，
-  // 避免用旧快照覆盖并发乐观写入的未变更属性（极窄竞态，仅乐观态实体走此分支）。
   if (!raw?._delta && hadOptimistic && data?.changed_attributes && mergedNew) {
-    const attrs = { ...(cached?.attributes || {}), ...data.changed_attributes }
-    // delta 携带的删除属性同样生效，避免从缓存回填时复活已删除的属性
-    if (Array.isArray(data.removed_attributes)) {
-      for (const key of data.removed_attributes) delete attrs[key]
-    }
-    mergedNew = finalizeMergedEntity({
-      ...mergedNew,
-      attributes: attrs,
-    })
+    mergedNew = overlayAttributesOnOptimistic(cached, data, mergedNew)
   }
-  const newStateValue = mergedNew?.state
-  // 仅当推送与预测一致（或对应 service 确认）时才清除乐观标记；
-  // 无关推送（如同实体的周期性属性上报）不再提前终结 TTL，由乐观 TTL 回滚兜底
-  if (deps.optimisticState.has(data.entity_id)) {
-    const entry = deps.optimisticState.get(data.entity_id)
-    if (optimisticPushMatches(entry, mergedNew)) {
-      deps.clearOptimistic(data.entity_id)
-    } else {
-      // 未确认：字段级合并（预测字段保持乐观值，其余字段照常落地），
-      // 由乐观 TTL 回滚 + 到期 REST 校正兜底，而不是把整条推送丢掉
-      mergedNew = mergeUnconfirmedOptimistic(cached, mergedNew, entry?.expected)
-    }
-  }
-
-  if (mergedNew) {
-    deps.entities[data.entity_id] = mergedNew
-  } else {
-    delete deps.entities[data.entity_id]
-  }
+  mergedNew = reconcileOptimistic(deps, data.entity_id, cached, mergedNew)
+  writeEntityState(deps, data.entity_id, mergedNew)
   deps.markEntityCacheDirty?.(data.entity_id)
 
-  const haReportedChange = deps.haStateChanged(data.old_state, mergedNew)
-  const shouldNotify = deps.shouldNotifyStateChange({
+  const notifyPayload = buildNotifyPayload(
+    deps,
+    raw,
+    data,
     cached,
     cachedOld,
-    newStateValue,
-    oldState: data.old_state,
-    newState: mergedNew,
-    changedAttributes: raw?._delta ? raw.changed_attributes : data?.changed_attributes,
-  })
-
-  let notifyPayload: EntityStateListenerPayload | null = null
-  if (shouldNotify) {
-    const oldForListener = deps.resolveListenerOldState({
-      haReportedChange,
-      oldState: data.old_state,
-      cached,
-    })
-    notifyPayload = {
-      entity_id: data.entity_id,
-      new_state: mergedNew,
-      old_state: oldForListener,
-    }
-  }
-
-  const hadEntity = Boolean(cached)
-  const hasEntity = Boolean(mergedNew)
-  const countDelta = !hadEntity && hasEntity ? 1 : hadEntity && !hasEntity ? -1 : 0
-
+    mergedNew,
+  )
   const derivedPatch: EntityPatch | null = deps.patchDerivedChanges
     ? { entity_id: data.entity_id, oldEntity: cached, newEntity: mergedNew || null }
     : null
 
-  return { entityId: data.entity_id, mergedNew, notifyPayload, derivedPatch, countDelta }
+  return {
+    entityId: data.entity_id,
+    mergedNew,
+    notifyPayload,
+    derivedPatch,
+    countDelta: entityCountDelta(cached, mergedNew),
+  }
 }
 
 export function applyEntityStateUpdate(deps: EntityStateUpdateDeps, data: WsDeltaChange): void {

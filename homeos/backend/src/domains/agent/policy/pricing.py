@@ -118,11 +118,7 @@ def estimate_cost_cny(
     miss_tokens = max(0, int(prompt_tokens) - int(cached_tokens))
     cached = max(0, int(cached_tokens))
     out = max(0, int(completion_tokens))
-    cost = (
-        miss_tokens * rate.input_miss_cny
-        + cached * rate.input_hit_cny
-        + out * rate.output_cny
-    ) / 1_000_000
+    cost = (miss_tokens * rate.input_miss_cny + cached * rate.input_hit_cny + out * rate.output_cny) / 1_000_000
     # 对齐 JS Math.round(x * 1e6) / 1e6
     import math
 

@@ -9,6 +9,7 @@ import { registerNotificationRefreshHandler } from '@/shared/utils/bridge/store-
 import {
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
   clearNotifications,
   fetchNotifications,
   fetchNotificationSettings,
@@ -20,7 +21,6 @@ import { getMaxRemoteNotifications } from '@/shared/utils/config/frontend-config
 import { logger } from '@/shared/utils/core/logger'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import type { RemoteNotificationPayload } from '@/shared/types/entity-store'
 import {
   applyNotifyPrefs,
   buildSourceFilters,
@@ -51,14 +51,16 @@ export function useNotificationCenter() {
   const entitiesStore = useEntitiesStore()
   const authStore = useAuthStore()
   const router = useRouter()
-  // entitiesStore 上可能挂载 addRemoteNotification 方法（用于回填远程通知）
-  type EntitiesNotifyApi = {
-    addRemoteNotification?: (data: RemoteNotificationPayload) => void
-  }
-  const notifyApi = entitiesStore as typeof entitiesStore & EntitiesNotifyApi
 
-  /** 本地通知列表（不含远程） */
-  const localNotifications = ref<NotificationItem[]>([])
+  /**
+   * 远程通知列表：**唯一数据源**（实体 store）。
+   *
+   * 早期这里还有一份 `localNotifications`，与 store 的 remoteNotifications 各存一份，
+   * 增删改必须两处同步（dismiss 就漏过一处）。本地那份从来没有人写入（恒为空数组），
+   * 却让每个写路径都要维护两份快照与两套回滚 —— 已删除，统一只改 store。
+   */
+  const remoteList = computed(() => entitiesStore.remoteNotifications || [])
+
   /** 免打扰（DND）原始配置 */
   const dndSettings = ref<unknown>(null)
   /** 解析后的通知偏好（控制是否展示离线/低电量/紧急等） */
@@ -153,12 +155,9 @@ export function useNotificationCenter() {
     activeSource.value = tabs[next].key
     filterRefs.value[next]?.focus?.()
   }
-  // 全部通知（远程 + 本地合并，按时间倒序）
+  // 全部通知（唯一数据源 = 实体 store 的远程通知列表，按时间倒序）
   const allNotifications = computed(() =>
-    mergeNotificationLists(
-      (entitiesStore.remoteNotifications || []) as NotificationItem[],
-      localNotifications.value,
-    ),
+    mergeNotificationLists(remoteList.value as NotificationItem[]),
   )
 
   // 应用偏好后的通知列表（不含级别/来源过滤）
@@ -242,79 +241,73 @@ export function useNotificationCenter() {
     return null
   }
   /**
-   * 点击通知：标记为已读（远程 + 本地）并跳转到对应路由。
+   * 点击通知：标记为已读并跳转到对应路由。
    * @param {NotificationItem} notification  被点击的通知项
    */
   async function onNotificationClick(notification: NotificationItem) {
     if (!notification.read) {
-      const remote = entitiesStore.remoteNotifications?.find((remoteNotification) => remoteNotification.id === notification.id)
-      if (remote) {
-        try {
-          await markNotificationRead(notification.id)
-          remote.read = true
-        } catch (error) {
-          logger.debug('标记通知为已读失败', error)
-        }
-      }
+      // 合并列表保留的是 store 里的同一个对象，这一行就是对数据源的唯一一次乐观更新
       notification.read = true
-      const local = localNotifications.value.find((localNotification) => localNotification.id === notification.id)
-      if (local) local.read = true
+      try {
+        await markNotificationRead(notification.id)
+      } catch (error) {
+        // 回滚改的是同一个对象，不需要再按 id 找回 store 那份（早期两份快照各写一次，
+        // 一处漏改就出现「点了已读、刷新又变未读」）
+        notification.read = false
+        logger.debug('标记通知为已读失败', error)
+      }
     }
     const route = resolveNotificationLink(notification)
     if (route) router.push(route)
   }
 
   /**
-   * 关闭（移除）指定通知：远程调用标记已读，本地从列表中过滤掉。
+   * 关闭（移除）指定通知：乐观移除，DELETE 失败再按原位置回滚。
+   *
+   * 早期实现只对远程通知「标记已读」，而列表来自 ``mergeNotificationLists(remote, local)``
+   * —— 远程那一路不会 filter，于是点 × 之后条目原地不动，条目**永远关不掉**，只能等
+   * 「清空全部」。这里改成：先乐观移除（即时反馈），调用 DELETE 失败再按快照恢复。
    * @param {string | number} id  通知 ID
    */
   async function dismiss(id: string | number) {
-    const remote = entitiesStore.remoteNotifications?.find((notification) => notification.id === id)
-    if (remote) {
-      const prevRead = remote.read
-      try {
-        await markNotificationRead(id)
-        remote.read = true
-      } catch (error) {
-        // 失败回滚已读状态并提示
-        remote.read = prevRead
-        notifyError(error, '关闭通知')
-        return
-      }
+    // 摘除与回插都走 store 的 action：通知列表只有 store 一个写入方，composable 不再
+    // 直接 splice 数组（早期 compose 直接改数组，回滚越界、期间被重新推送回来时会插重复项）。
+    const removed = entitiesStore.removeRemoteNotification(id)
+    if (!removed) return
+    try {
+      await deleteNotification(id)
+    } catch (error) {
+      entitiesStore.restoreRemoteNotification(removed.entry, removed.index)
+      notifyError(error, '关闭通知')
     }
-    localNotifications.value = localNotifications.value.filter((notification) => notification.id !== id)
   }
 
   /**
-   * 一键标记全部通知为已读（本地 + 远程）。
-   * 失败时回滚到调用前的状态。
+   * 一键标记全部通知为已读。
+   * 失败时按 id 回滚到调用前的已读状态。
    */
   async function markAllRead() {
-    const prevLocal = localNotifications.value.map((notification) => ({ ...notification }))
-    const prevRemoteRead = new Map(
-      (entitiesStore.remoteNotifications || []).map((notification) => [notification.id, notification.read]),
+    const prevRead = new Map(
+      remoteList.value.map((notification) => [notification.id, Boolean(notification.read)]),
     )
+    const list = remoteList.value
+    for (const notification of list) notification.read = true
     try {
       await markAllNotificationsRead()
-      localNotifications.value.forEach((notification) => {
-        notification.read = true
-      })
-      for (const notification of entitiesStore.remoteNotifications || []) {
-        notification.read = true
-      }
     } catch (error) {
-      // 失败回滚：恢复本地通知与远程已读状态
-      localNotifications.value = prevLocal
-      for (const notification of entitiesStore.remoteNotifications || []) {
-        if (prevRemoteRead.has(notification.id)) notification.read = prevRemoteRead.get(notification.id)!
+      // 只按 id 恢复「调用前那批」的已读状态：整体替换数组会把 await 期间新到达的
+      // 通知一起抹掉。
+      for (const notification of list) {
+        const previous = prevRead.get(notification.id)
+        if (previous !== undefined) notification.read = previous
       }
       notifyError(error, '标记已读')
     }
   }
 
   /**
-   * 清空全部通知：先确认，再清本地与 store，最后调用远程清空接口；
-   * 失败时回滚本地与远程通知列表。
+   * 清空全部通知：先确认，再清 store，最后调用远程清空接口；
+   * 失败时按快照回滚。
    */
   async function clearAll() {
     const chrome = useChromeStore()
@@ -324,17 +317,14 @@ export function useNotificationCenter() {
       { confirmText: '清空', cancelText: '取消', type: 'danger' },
     )
     if (!ok) return
-    const prevLocal = [...localNotifications.value]
-    const prevRemote = [...(entitiesStore.remoteNotifications || [])]
-    localNotifications.value = []
+    const prevRemote = [...remoteList.value]
     entitiesStore.clearRemoteNotifications()
     try {
       await clearNotifications()
     } catch (error) {
-      // 失败回滚：恢复本地与远程通知
-      localNotifications.value = prevLocal
-      for (const notification of prevRemote) {
-        notifyApi.addRemoteNotification?.(notification)
+      // 失败回滚：addRemoteNotification 是 unshift，倒序回填才能还原原有时间顺序
+      for (const notification of [...prevRemote].reverse()) {
+        entitiesStore.addRemoteNotification(notification)
       }
       notifyError(error, '清空通知')
     }
@@ -352,7 +342,7 @@ export function useNotificationCenter() {
       const res = await fetchNotifications({ limit: getMaxRemoteNotifications() })
       if (res.data && Array.isArray(res.data)) {
         for (const notification of res.data) {
-          notifyApi.addRemoteNotification?.(notification)
+          entitiesStore.addRemoteNotification(notification)
         }
       }
     } catch (error) {

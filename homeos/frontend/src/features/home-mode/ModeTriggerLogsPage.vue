@@ -88,7 +88,7 @@
     <ModeLogsAnalyticsRail :analytics="analytics" />
 
     <section class="list-page__panel">
-      <div class="list-page__panel-body">
+      <div class="list-page__panel-body" v-scroll-region="'模式变更日志'">
         <ApiQueryState
           :loading="loading"
           :error="error"

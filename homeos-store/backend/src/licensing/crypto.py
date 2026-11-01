@@ -62,8 +62,7 @@ REVOCATION_CODE = "REVOKED"
 
 
 class LicenseServerError(Exception):
-    """授权端点错误。``revoked`` 为真时表示这是客户端的「确认吊销」语义。
-    """
+    """授权端点错误。``revoked`` 为真时表示这是客户端的「确认吊销」语义。"""
 
     def __init__(
         self,
@@ -192,6 +191,7 @@ class LeaseSigner:
         signature = self._private.sign(payload_bytes)
         return f"{b64url_encode(payload_bytes)}.{b64url_encode(signature)}"
 
+
 @dataclass(frozen=True)
 class KeyGeneration:
     """一代密钥：一对传输密钥 + 一对签名密钥，两者成对轮换。
@@ -213,10 +213,6 @@ class KeyGeneration:
     @property
     def transport_key_id(self) -> str:
         return self.transport.key_id
-
-    @property
-    def lease_key_id(self) -> str:
-        return self.signer.key_id
 
 
 #: 退役代的默认接收窗口：30 天。窗口内旧客户端照常续租（可用），窗口一过就只认新代，
@@ -263,8 +259,7 @@ class KeyRegistry:
         self._retired = tuple(
             generation
             for generation in retired
-            if generation.retired_at is not None
-            and generation.transport_key_id != active.transport_key_id
+            if generation.retired_at is not None and generation.transport_key_id != active.transport_key_id
         )
         if self._retired:
             logger.info(

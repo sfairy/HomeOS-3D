@@ -26,8 +26,8 @@ from .panel_helpers import (
 from .zones import (
     SECURITY_ARMING_MODES,
     normalize_zone_type,
+    resolve_zone_armed_on_save,
     security_mode_label,
-    should_zone_alarm_in_mode,
 )
 from ...platform.core.db.models import SecurityEvent
 from ...platform.core.http.errors import api_error, bad_request
@@ -36,9 +36,7 @@ from ...platform.core.runtime.background import spawn_background
 logger = logging.getLogger("homeos.security.panel")
 
 #: 区域传感器只接受这几类实体域；``foo.bar`` / ``foo..bar`` / 带空白的 ID 一律拒绝。
-_SENSOR_ENTITY_RE = re.compile(
-    r"^(binary_sensor|sensor|lock|alarm_control_panel)\.[a-z0-9_]+\Z"
-)
+_SENSOR_ENTITY_RE = re.compile(r"^(binary_sensor|sensor|lock|alarm_control_panel)\.[a-z0-9_]+\Z")
 
 
 class SecurityConfigProvider:
@@ -179,9 +177,7 @@ class SecurityPanelService:
             )
             return
         if result.get("executed"):
-            logger.warning(
-                "重启后已重放布防联动：%s，%s 条", security_mode_label(self._mode), result["executed"]
-            )
+            logger.warning("重启后已重放布防联动：%s，%s 条", security_mode_label(self._mode), result["executed"])
         self._linkage_replay_done = True
 
     def get_mode(self) -> str:
@@ -209,14 +205,10 @@ class SecurityPanelService:
             # 配置写错只会少一层保护：明确告警，避免以为人工锁已生效。
             logger.warning("manualArmLockSec 非法，按 0 处理（人工锁未启用）: %s", exc)
             lock_sec = 0.0
-        self._manual_lock_until = (
-            int(time.time() * 1000) + int(lock_sec * 1000) if lock_sec > 0 else 0
-        )
+        self._manual_lock_until = int(time.time() * 1000) + int(lock_sec * 1000) if lock_sec > 0 else 0
 
     # 区域配置
-    async def configure_zones(
-        self, zones: list[dict[str, Any]] | None, *, confirm_clear: bool = False
-    ) -> None:
+    async def configure_zones(self, zones: list[dict[str, Any]] | None, *, confirm_clear: bool = False) -> None:
         """覆盖式配置区域。
 
         - 空数组必须显式 ``confirmClear``：一次误传 ``[]`` 不能把全屋防区静默删光。
@@ -226,9 +218,7 @@ class SecurityPanelService:
         async with self._transition_lock:
             self._configure_zones_locked(zones, confirm_clear=confirm_clear)
 
-    def _configure_zones_locked(
-        self, zones: list[dict[str, Any]] | None, *, confirm_clear: bool
-    ) -> None:
+    def _configure_zones_locked(self, zones: list[dict[str, Any]] | None, *, confirm_clear: bool) -> None:
         if not isinstance(zones, list) or not zones:
             if not confirm_clear:
                 bad_request(api_error("SECURITY_ZONES_CLEAR_REQUIRES_CONFIRM"))
@@ -240,9 +230,7 @@ class SecurityPanelService:
                 bad_request("布防中不能清空全部防区，请先撤防")
             self._zones = []
             self.state_helper.persist_panel_state()
-            self._bus.emit_soon(
-                "security.zonesConfigured", {"count": 0, "zones": [], "timestamp": _iso_now()}
-            )
+            self._bus.emit_soon("security.zonesConfigured", {"count": 0, "zones": [], "timestamp": _iso_now()})
             self._bus.emit_soon(
                 "security.modeChanged",
                 {
@@ -286,20 +274,11 @@ class SecurityPanelService:
                 }
             )
 
-        previous_armed = {str(z.get("id")): bool(z.get("armed")) for z in self._zones}
-        mode_armed = self._mode != "disarmed"
+        previous = {str(z.get("id")): z for z in self._zones}
         self._zones = [
             {
                 **zone,
-                # 新模式区继承当前布防状态，但内部区在居家/夜间模式下不参与告警。
-                "armed": bool(
-                    mode_armed
-                    and (
-                        previous_armed.get(zone["id"])
-                        if zone["id"] in previous_armed
-                        else should_zone_alarm_in_mode(self._mode, zone["zoneType"])
-                    )
-                ),
+                "armed": resolve_zone_armed_on_save(self._mode, zone["zoneType"], previous.get(zone["id"])),
             }
             for zone in normalized
         ]
@@ -368,6 +347,24 @@ class SecurityPanelService:
         for name, payload in events:
             await self._bus.emit(name, payload)
 
+    def _resolve_target_zones(self, zone_ids: list[str] | None) -> list[dict[str, Any]]:
+        """解析本次布防的目标区域；显式指定了 ID 时，失效 ID 必须报错而不是静默丢弃。
+
+        部分 ID 失效（区域刚被删/改名）不能静默丢弃：前端是按请求 ID 乐观更新 UI 的，
+        静默丢弃会让界面显示「已布防」，后端却根本没这个区域。
+        """
+        if not self._zones:
+            # 0 区域布防 = 只点亮一盏「已布防」的灯，全屋没有任何传感器参与告警。
+            bad_request(api_error("SECURITY_ZONE_REQUIRED"))
+        requested_ids = [str(item).strip() for item in (zone_ids or []) if str(item or "").strip()]
+        if not requested_ids:
+            return list(self._zones)
+        known_ids = {str(z.get("id")) for z in self._zones}
+        unknown_ids = [zone_id for zone_id in requested_ids if zone_id not in known_ids]
+        if unknown_ids:
+            bad_request(api_error("SECURITY_ZONE_NOT_FOUND") + f"：{','.join(unknown_ids)}")
+        return [z for z in self._zones if str(z.get("id")) in requested_ids]
+
     async def _arm_inner(
         self,
         mode: str,
@@ -379,14 +376,7 @@ class SecurityPanelService:
             # 0 区域布防 = 只点亮一盏「已布防」的灯，全屋没有任何传感器参与告警。
             bad_request(api_error("SECURITY_ZONE_REQUIRED"))
 
-        requested_ids = [str(item).strip() for item in (zone_ids or []) if str(item or "").strip()]
-        target_zones = (
-            [z for z in self._zones if str(z.get("id")) in requested_ids]
-            if requested_ids
-            else list(self._zones)
-        )
-        if requested_ids and not target_zones:
-            bad_request(api_error("SECURITY_ZONE_NOT_FOUND"))
+        target_zones = self._resolve_target_zones(zone_ids)
 
         target_ids = {str(z.get("id")) for z in target_zones}
         armed_ids = {str(z.get("id")) for z in self._zones if z.get("armed")}
@@ -425,9 +415,7 @@ class SecurityPanelService:
             # 紧急求助自动布防只跳过声光域：门锁/水阀这类安全动作用户仍然期望执行。
             skip_domains = _normalize_domains(opts.get("skipActionDomains"))
             if skip_domains:
-                action_result = await self.linkage_helper.execute_security_mode_actions(
-                    mode, skip_domains=skip_domains
-                )
+                action_result = await self.linkage_helper.execute_security_mode_actions(mode, skip_domains=skip_domains)
             else:
                 action_result = await self.linkage_helper.execute_security_mode_actions(mode)
 
@@ -535,12 +523,8 @@ class SecurityPanelService:
         await self._emit_deferred(events)
         return result
 
-    async def _disarm_inner(
-        self, opts: dict[str, Any], events: list[tuple[str, dict[str, Any]]]
-    ) -> dict[str, Any]:
-        if self._mode == "disarmed" and opts.get("skipActionsIfSameMode", True) and not opts.get(
-            "force"
-        ):
+    async def _disarm_inner(self, opts: dict[str, Any], events: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]:
+        if self._mode == "disarmed" and opts.get("skipActionsIfSameMode", True) and not opts.get("force"):
             return {
                 "success": True,
                 "mode": "disarmed",
@@ -621,9 +605,7 @@ class SecurityPanelService:
         self._last_emergency_at = now
 
         await self._bus.emit("security.emergency", {"action": action, "timestamp": _iso_now()})
-        self.state_helper.schedule_security_event(
-            "emergency", f"紧急求助: {action}", source=source, actor=actor
-        )
+        self.state_helper.schedule_security_event("emergency", f"紧急求助: {action}", source=source, actor=actor)
         logger.warning("🆘 紧急求助触发: %s", action)
 
         # 同步置位再排队：裸 create_task 既不持强引用（可能被 GC，连带把警笛/灯光序列
@@ -649,9 +631,7 @@ class SecurityPanelService:
         # 查库会把实时推送/设备控制的调度一起顶住。
         return await asyncio.to_thread(self._get_events_blocking, event_type, limit)
 
-    def _get_events_blocking(
-        self, event_type: str | None, limit: Any
-    ) -> list[dict[str, Any]]:
+    def _get_events_blocking(self, event_type: str | None, limit: Any) -> list[dict[str, Any]]:
         with self._session_factory() as session:
             from .config import load_frontend_config, load_notification_config
 
@@ -660,9 +640,7 @@ class SecurityPanelService:
                 load_frontend_config(session),
                 load_notification_config(session),
             )
-            statement = select(SecurityEvent).order_by(SecurityEvent.created_at.desc()).limit(
-                fetch_limit
-            )
+            statement = select(SecurityEvent).order_by(SecurityEvent.created_at.desc()).limit(fetch_limit)
             if event_type:
                 statement = statement.where(SecurityEvent.type == event_type)
             rows = session.execute(statement).scalars().all()
@@ -708,7 +686,7 @@ def _event_to_dict(row: SecurityEvent) -> dict[str, Any]:
 
     try:
         zones = json.loads(row.zones) if row.zones else []
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         zones = []
     created = row.created_at
     ack_at = getattr(row, "ack_at", None)
@@ -722,9 +700,7 @@ def _event_to_dict(row: SecurityEvent) -> dict[str, Any]:
         "source": getattr(row, "source", None),
         "actor": getattr(row, "actor", None),
         "ackAt": (
-            ack_at.strftime("%Y-%m-%dT%H:%M:%S.") + f"{ack_at.microsecond // 1000:03d}Z"
-            if ack_at is not None
-            else None
+            ack_at.strftime("%Y-%m-%dT%H:%M:%S.") + f"{ack_at.microsecond // 1000:03d}Z" if ack_at is not None else None
         ),
         "createdAt": (
             created.strftime("%Y-%m-%dT%H:%M:%S.") + f"{created.microsecond // 1000:03d}Z"

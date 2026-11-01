@@ -24,11 +24,22 @@ function buildHomeModePanelApi(parts: {
   context: ReturnType<typeof useHomeModePanelContext>
   handlers: ReturnType<typeof createHomeModePanelHandlers>
   activeMode: unknown
+  activeModeIds: unknown
   saving: unknown
   acting: unknown
 }) {
-  const { loading, modesLoadError, editor, derived, context, handlers, activeMode, saving, acting } =
-    parts
+  const {
+    loading,
+    modesLoadError,
+    editor,
+    derived,
+    context,
+    handlers,
+    activeMode,
+    activeModeIds,
+    saving,
+    acting,
+  } = parts
   return {
     loading,
     modesLoadError,
@@ -36,6 +47,7 @@ function buildHomeModePanelApi(parts: {
     displayModeTabs: derived.displayModeTabs,
     activeTab: editor.activeTab,
     activeMode,
+    activeModeIds,
     activeDraft: editor.activeDraft,
     activeDraftDirty: editor.activeDraftDirty,
     anyModeDraftDirty: derived.anyModeDraftDirty,
@@ -98,6 +110,48 @@ function buildHomeModePanelApi(parts: {
 }
 
 // ── useHomeModePanel ──
+
+/** 面板动作接线：运行时 hooks + 编辑器 / 派生数据 → 统一的 handlers 集合。 */
+function createPanelHandlers(
+  runtime: ReturnType<typeof useHomeModes>,
+  editor: ReturnType<typeof useHomeModeEditor>,
+  derived: ReturnType<typeof createHomeModePanelDerived>,
+  context: ReturnType<typeof useHomeModePanelContext>,
+  chrome: ReturnType<typeof useChromeStore>,
+  touchOrchCounts: () => void,
+  runSave: ReturnType<typeof useSettingsSave>['runSave'],
+) {
+  return createHomeModePanelHandlers({
+    chrome,
+    activeDraft: editor.activeDraft,
+    anyModeDraftDirty: derived.anyModeDraftDirty,
+    resolveTabAfterRemove: editor.resolveTabAfterRemove,
+    removeDraft: editor.removeDraft,
+    activeTab: editor.activeTab,
+    refreshDraftFromMode: editor.refreshDraftFromMode,
+    activeDraftDirty: editor.activeDraftDirty,
+    activeSection: derived.activeSection,
+    cancelBatch: editor.cancelBatch,
+    modeTabs: editor.modeTabs,
+    activeMode: runtime.activeMode,
+    activeModeIds: runtime.activeModeIds,
+    activate: runtime.activate,
+    deactivate: runtime.deactivate,
+    loadContext: context.loadContext,
+    modes: runtime.modes,
+    fetchModes: runtime.fetchModes,
+    touchOrchCounts,
+    seedDefaults: runtime.seedDefaults,
+    createDraft: editor.createDraft,
+    validateModeDraft: editor.validateModeDraft,
+    buildSaveBody: editor.buildSaveBody,
+    runSave,
+    createMode: runtime.createMode,
+    updateMode: runtime.updateMode,
+    deleteMode: runtime.deleteMode,
+  })
+}
+
 export function useHomeModePanel() {
   const chrome = useChromeStore()
   const refreshOrchOverview = null as (() => void) | null
@@ -106,36 +160,20 @@ export function useHomeModePanel() {
   }
 
   const { saving, runSave } = useSettingsSave()
-  const {
-    modes,
-    activeMode,
-    loading: loadingModes,
-    loadError: modesLoadError,
-    acting,
-    fetchModes,
-    activate,
-    deactivate,
-    seedDefaults,
-    createMode,
-    updateMode,
-    deleteMode,
-  } = useHomeModes({ autoSeed: false })
-
-  const editor = useHomeModeEditor(modes)
+  const runtime = useHomeModes({ autoSeed: false })
+  const editor = useHomeModeEditor(runtime.modes)
   const context = useHomeModePanelContext({
-    modes,
-    fetchModes,
-    createMode,
+    modes: runtime.modes,
+    fetchModes: runtime.fetchModes,
+    createMode: runtime.createMode,
     activeTab: editor.activeTab,
     chrome,
     touchOrchCounts,
   })
-
-  const loading = computed(() => loadingModes.value && modes.value.length === 0)
-
+  const loading = computed(() => runtime.loading.value && runtime.modes.value.length === 0)
   const derived = createHomeModePanelDerived({
     modeTabs: editor.modeTabs,
-    activeMode,
+    activeModeIds: runtime.activeModeIds,
     isTabDirty: editor.isTabDirty,
     activeDraft: editor.activeDraft,
     triggerLogs: context.triggerLogs,
@@ -166,45 +204,19 @@ export function useHomeModePanel() {
     discardPendingHomeModeDrafts,
   )
 
-  const handlers = createHomeModePanelHandlers({
-    chrome,
-    activeDraft: editor.activeDraft,
-    anyModeDraftDirty: derived.anyModeDraftDirty,
-    resolveTabAfterRemove: editor.resolveTabAfterRemove,
-    removeDraft: editor.removeDraft,
-    activeTab: editor.activeTab,
-    refreshDraftFromMode: editor.refreshDraftFromMode,
-    activeDraftDirty: editor.activeDraftDirty,
-    activeSection: derived.activeSection,
-    cancelBatch: editor.cancelBatch,
-    modeTabs: editor.modeTabs,
-    activeMode,
-    activate,
-    deactivate,
-    loadContext: context.loadContext,
-    modes,
-    fetchModes,
-    touchOrchCounts,
-    seedDefaults,
-    createDraft: editor.createDraft,
-    validateModeDraft: editor.validateModeDraft,
-    buildSaveBody: editor.buildSaveBody,
-    runSave,
-    createMode,
-    updateMode,
-    deleteMode,
-  })
+  const handlers = createPanelHandlers(runtime, editor, derived, context, chrome, touchOrchCounts, runSave)
 
   return buildHomeModePanelApi({
     loading,
-    modesLoadError,
+    modesLoadError: runtime.loadError,
     editor,
     derived,
     context,
     handlers,
-    activeMode,
+    activeMode: runtime.activeMode,
+    activeModeIds: runtime.activeModeIds,
     saving,
-    acting,
+    acting: runtime.acting,
   })
 }
 

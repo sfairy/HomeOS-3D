@@ -77,7 +77,7 @@
             </div>
           </div>
 
-          <div class="list-page__panel-body device-detail-view__panel-body">
+          <div class="list-page__panel-body device-detail-view__panel-body" v-scroll-region="'设备详情'">
             <div
               v-show="detailTab === 'overview'"
               :id="`device-detail-panel-overview`"
@@ -237,7 +237,30 @@ function onDetailTabKeydown(event: KeyboardEvent) {
   const target = tabs[next]
   if (!target) return
   setDetailTab(target.id)
-  nextTick(() => document.getElementById(`device-detail-tab-${target.id}`)?.focus())
+  // 焦点必须在这个 Tab 仍然存在于 DOM 时再给：setDetailTab 里 router.replace({query}) 会触发
+  // 重渲染，单个 nextTick 有时抢在这次替换之前，focus 落到随后被替换掉的节点上，
+  // 最终 activeElement 变成 <body>（键盘用户彻底丢失位置）。
+  // 实测还发现：focus 成功后节点仍会被替换一次，所以必须「设完再校验」，而不能只重试一次。
+  nextTick(() => focusDetailTab(target.id))
+}
+
+/**
+ * 给详情 Tab 设置焦点，并跨帧校验是否真的落下。
+ *
+ * @param tabId 目标 Tab 的 id
+ * @param frames 剩余校验帧数（约 8 帧 ≈ 130ms，足够覆盖一次路由 replace 引发的重渲染）
+ */
+function focusDetailTab(tabId: string, frames = 8) {
+  const el = document.getElementById(`device-detail-tab-${tabId}`)
+  if (el?.isConnected && document.activeElement !== el) el.focus()
+  if (frames > 0) {
+    requestAnimationFrame(() => {
+      const still = document.getElementById(`device-detail-tab-${tabId}`)
+      // 只在焦点确实丢了的时候补，避免和用户后续的 Tab 操作抢焦点
+      if (!still || document.activeElement === still) return
+      if (document.activeElement === document.body) focusDetailTab(tabId, frames - 1)
+    })
+  }
 }
 </script>
 

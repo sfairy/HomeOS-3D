@@ -151,11 +151,12 @@ let disposeActiveEditor: (() => void) | null = null;
  * 引导仪表盘编辑器（重复调用会先回收上一次）。
  *
  * 由 `EditorView.vue` 在 `onMounted` 调用、`onBeforeUnmount` 调 `teardownEditor()`。
- * 原实现是「模块求值即执行的一次性引导脚本」（顶层直接读 DOM 契约、起定时器、注册全局
- * 监听）——ESM 只求值一次，卸载后回到同一文档必然白屏，所以视图只能整页跳转。现在整包
- * 搬入本函数内：每次挂载重新采集 DOM 契约与全部模块状态，卸载时统一回收。
+ * 原实现是「模块求值即执行的一次性引导脚本」（顶层直接读 DOM 契约、起定时器、注册全局监听）——
+ * ESM 只求值一次，卸载后回到同一文档必然白屏。现在整包搬入本函数：每次挂载重建全部状态，卸载统一回收。
  */
 export function bootEditor(): void {
+  // 守卫置顶：旧实现直到末尾才覆盖 ``disposeActiveEditor``，旧实例的监听/定时器/渲染器彻底失去回收路径。
+  teardownEditor();
   const scope = createLegacyScope('editor-home');
   const innerCleanup = scope.executeInLegacyScope(() => {
   const editorCtx = createEditorContext();
@@ -1130,7 +1131,6 @@ function workspaceHistoryDeps(): WorkspaceHistoryDeps {
     get writeError() { return writeError; },
   };
 }
-
 
 
 

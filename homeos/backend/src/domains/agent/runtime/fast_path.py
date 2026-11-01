@@ -12,6 +12,7 @@ from .config_service import AgentConfigService
 from .lang_template_service import LangTemplateService
 from ..tools.high_risk_denylist import SceneVoiceControlGate, is_scene_voice_allowed
 from ....platform.core.entity.entity_domain import get_entity_domain
+from ....platform.core.runtime.config_events import CONFIG_UPDATED, LEGACY_CONFIG_UPDATED
 
 logger = logging.getLogger("homeos.agent.fast_path")
 
@@ -34,7 +35,8 @@ SCENE_CATEGORY_SUFFIX = re.compile(r"(场景|模式|脚本|scene|script|mode)\s*
 
 #: 配置 / 区域 / 实体注册表变更事件名（与 Nest HOMEOS_EVENTS / HA 事件对齐）
 _AREA_CACHE_INVALIDATION_EVENTS = (
-    "SYSTEM_CONFIG_UPDATED",
+    CONFIG_UPDATED,
+    LEGACY_CONFIG_UPDATED,
     "area.updated",
     "ha.entity_registry_updated",
     "ha.device_registry_updated",
@@ -55,9 +57,7 @@ _BRIGHTNESS_SET = re.compile(
 #: 灯光亮度相对调整：「调亮一点 / 太暗了」
 _BRIGHTNESS_REL = re.compile(r"(调亮|亮一点|亮一些|太暗了|调暗|暗一点|暗一些|太亮了)")
 #: 色温绝对值：「色温调到 4000K」
-_COLOR_TEMP_SET = re.compile(
-    r"(?:色温)?(?:调到|设为|设置|调成|调至)\s*(?P<value>\d{3,5})\s*[kK]\s*$"
-)
+_COLOR_TEMP_SET = re.compile(r"(?:色温)?(?:调到|设为|设置|调成|调至)\s*(?P<value>\d{3,5})\s*[kK]\s*$")
 #: 色温相对调整：「暖一点 / 冷一点」
 _COLOR_TEMP_REL = re.compile(r"(调暖|暖一点|暖一些|调冷|冷一点|冷一些)")
 #: 窗帘位置：「窗帘开到 30% / 打开一半」
@@ -76,9 +76,7 @@ _MEDIA_ACTIONS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"(上一首|上一曲|上一集)"), "previous"),
 )
 #: 媒体音量绝对值：「音量调到 40%」
-_MEDIA_VOLUME = re.compile(
-    r"音量(?:调到|设为|设置|调成|调至|开到)?\s*(?P<value>\d{1,3})\s*%?"
-)
+_MEDIA_VOLUME = re.compile(r"音量(?:调到|设为|设置|调成|调至|开到)?\s*(?P<value>\d{1,3})\s*%?")
 #: 媒体音量相对调整：「音量调大 / 小一点」
 _MEDIA_VOLUME_REL = re.compile(r"音量(调大|大一点|大一些|调小|小一点|小一些)")
 #: 风扇百分比：「风扇调到 60%」
@@ -186,8 +184,7 @@ class FastPathService:
                 (
                     domain_kw
                     for domain_kw in self._L.domain_keywords
-                    if any(kw in before for kw in domain_kw.keywords)
-                    and domain_kw.domain == "climate"
+                    if any(kw in before for kw in domain_kw.keywords) and domain_kw.domain == "climate"
                 ),
                 None,
             )
@@ -491,9 +488,7 @@ class FastPathService:
             }
         return None
 
-    async def _try_parse_fan(
-        self, cleaned: str, original_text: str, hints: list[str] | None
-    ) -> dict[str, Any] | None:
+    async def _try_parse_fan(self, cleaned: str, original_text: str, hints: list[str] | None) -> dict[str, Any] | None:
         """风扇风速（百分比 / 档位 / 相对调整）。"""
         if "风扇" not in cleaned and "风速" not in cleaned and "风量" not in cleaned:
             return None
@@ -603,9 +598,7 @@ class FastPathService:
             "summary": f"温度调到 {value}°C",
         }
 
-    def _parse_pronoun_control(
-        self, target: str, is_on: bool, hints: list[str] | None
-    ) -> dict[str, Any] | None:
+    def _parse_pronoun_control(self, target: str, is_on: bool, hints: list[str] | None) -> dict[str, Any] | None:
         """「把它关掉」：用最近一次控制目标解析指代（仅唯一目标时命中）。"""
         cleaned = target.strip().strip("的").strip()
         if cleaned not in _PRONOUN_TARGETS:
@@ -649,16 +642,12 @@ class FastPathService:
     ) -> dict[str, Any] | None:
         """房间未匹配时：全屋兜底或全局精确设备名。"""
         if explicit_all or self._L.whole_home.search(rest):
-            logger.info(
-                '快路径命中(全屋fallback): "%s" → 全屋/%s/%s', original_text, domain, service
-            )
+            logger.info('快路径命中(全屋fallback): "%s" → 全屋/%s/%s', original_text, domain, service)
             return {"kind": "room", "service": service, "roomName": "全屋", "domain": domain}
         if len(target) >= 3:
             global_exact = await self._find_device_globally(target, domain)
             if global_exact:
-                logger.info(
-                    '快路径命中(全局设备): "%s" → %s/%s', original_text, global_exact, service
-                )
+                logger.info('快路径命中(全局设备): "%s" → %s/%s', original_text, global_exact, service)
                 return {"kind": "device", "service": service, "entityId": global_exact}
         return None
 
@@ -678,9 +667,7 @@ class FastPathService:
             return None
 
         if not explicit_all:
-            exact_hits = [
-                device for device in devices if device["name"] and device["name"] == target
-            ]
+            exact_hits = [device for device in devices if device["name"] and device["name"] == target]
             if len(exact_hits) == 1:
                 logger.info(
                     '快路径命中(精确设备): "%s" → %s/%s',
@@ -745,9 +732,7 @@ class FastPathService:
 
         # 按关键词匹配设备域；多域命中（"灯和空调"这种）交给 LLM
         hit_domains = [
-            domain_kw
-            for domain_kw in self._L.domain_keywords
-            if any(kw in rest for kw in domain_kw.keywords)
+            domain_kw for domain_kw in self._L.domain_keywords if any(kw in rest for kw in domain_kw.keywords)
         ]
         distinct = {domain_kw.domain for domain_kw in hit_domains}
         if len(distinct) == 0:
@@ -761,9 +746,7 @@ class FastPathService:
 
         # 显式"所有"且无具体目标 → 全屋控制
         if explicit_all and len(target) == 0:
-            logger.info(
-                '快路径命中(全屋): "%s" → 全屋/%s/%s', original_text, domain_kw.domain, service
-            )
+            logger.info('快路径命中(全屋): "%s" → 全屋/%s/%s', original_text, domain_kw.domain, service)
             return {
                 "kind": "room",
                 "service": service,
@@ -794,9 +777,7 @@ class FastPathService:
             explicit_all=explicit_all,
         )
 
-    async def try_parse(
-        self, text: str, hints: list[str] | None = None
-    ) -> dict[str, Any] | None:
+    async def try_parse(self, text: str, hints: list[str] | None = None) -> dict[str, Any] | None:
         """尝试用规则解析用户文本为工具调用。
 
         解析顺序：场景 / 脚本（白名单内）→ 设温度 / 温度相对调整 → 灯光亮度 / 色温
@@ -853,9 +834,7 @@ class FastPathService:
         if not looks_like_scene_intent(text):
             return None
         candidates = [
-            e
-            for e in self._state_store.get_all()
-            if str(e.get("entity_id") or "").startswith(("scene.", "script."))
+            e for e in self._state_store.get_all() if str(e.get("entity_id") or "").startswith(("scene.", "script."))
         ]
         if not candidates:
             return None
@@ -955,9 +934,7 @@ class FastPathService:
 
     async def _get_areas_with_entities(self) -> list[Any]:
         """带实体的房间缓存（事件失效 + 60s TTL 双保险）。"""
-        if self._area_entities_cache is None or self._area_cache_expired(
-            self._area_entities_cache_loaded_at
-        ):
+        if self._area_entities_cache is None or self._area_cache_expired(self._area_entities_cache_loaded_at):
             generation = self._area_cache_generation
             try:
                 loaded = await self._area_service.find_all()
@@ -989,11 +966,7 @@ class FastPathService:
         areas = await self._get_areas_with_entities()
         full = next((a for a in areas if a.id == room_id), None)
         entities = (full.entities if full is not None else None) or []
-        ids = [
-            str(ae.entity_id)
-            for ae in entities
-            if str(ae.entity_id).startswith(f"{domain}.")
-        ]
+        ids = [str(ae.entity_id) for ae in entities if str(ae.entity_id).startswith(f"{domain}.")]
         out: list[dict[str, str]] = []
         for entity_id in ids:
             entity = self._state_store.get(entity_id)

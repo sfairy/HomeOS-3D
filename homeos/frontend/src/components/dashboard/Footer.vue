@@ -53,7 +53,7 @@
       </VEmptyState>
     </div>
     <!-- 正常态：渲染可见项卡片 -->
-    <div v-else class="power-panel__body">
+    <div v-else class="power-panel__body" v-scroll-region="{ label: '首页状态卡片', axis: 'both' }">
       <div
         v-for="item in visibleItems"
         :key="item.id"

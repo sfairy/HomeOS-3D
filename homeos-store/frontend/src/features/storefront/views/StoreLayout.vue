@@ -54,6 +54,7 @@ watch(
   () => route.fullPath,
   () => {
     closeMobileNav();
+    probeSessionAfterNavigation();
   },
 );
 
@@ -80,6 +81,36 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 const requiresAuth = computed(() => ["account", "referrals"].includes(storePage.value));
+
+/**
+ * 切页时的会话复探。
+ *
+ * 首屏探针只在 StoreLayout 挂载时跑一次，SPA 内切页不会重跑：服务端会话过期 /
+ * 被踢下线后，账号中心仍然拿内存里的旧数据渲染「已登录」，直到用户点某个按钮才
+ * 收到一条 401 toast。这里在进入需要登录的页面时补一次轻量探测（节流 60s），
+ * 401 由 `onStoreUnauthorized` 统一清态并提示。
+ */
+const AUTH_PROBE_INTERVAL_MS = 60_000;
+let lastAuthProbeAt = 0;
+
+function probeSessionAfterNavigation() {
+  if (!requiresAuth.value) return;
+  if (!session.account) return;
+  const now = Date.now();
+  if (now - lastAuthProbeAt < AUTH_PROBE_INTERVAL_MS) return;
+  lastAuthProbeAt = now;
+  void session.load().catch(logAndIgnore("切页会话复探 /account"));
+}
+
+/** 首屏探针是否已经有结论：结论之前的 `account === null` 不代表「会话失效」。 */
+const authSettled = ref(false);
+
+watch([() => session.account, requiresAuth], ([current, needAuth]) => {
+  // 会话在页面里失效（401 广播 → resetSession）后要回到登录页，
+  // 否则账号中心会停在一堆空卡片上，用户看不出自己已经掉线。
+  if (!authSettled.value || !needAuth || current) return;
+  router.replace("/user/authentication/login");
+});
 
 watch(storePage, (page) => {
   const section = PAGE_TITLES[page] || "";
@@ -111,6 +142,7 @@ onMounted(async () => {
     // 但必须留痕 —— 否则「会话过期」与「网络抖动」在日志里长得一模一样。
     await session.fetchMe().catch(logAndIgnore("会话探针 /auth/me"));
   }
+  authSettled.value = true;
   if (requiresAuth.value && !session.account) {
     router.replace("/user/authentication/login");
     return;

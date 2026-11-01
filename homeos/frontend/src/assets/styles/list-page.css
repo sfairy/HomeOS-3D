@@ -637,7 +637,7 @@
 }
 
 .list-page__input:focus {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 45%, rgba(0, 0, 0, 0));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 12%, rgba(0, 0, 0, 0));
 }

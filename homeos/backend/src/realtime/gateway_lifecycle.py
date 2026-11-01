@@ -80,9 +80,7 @@ class ConnectionLifecycleMixin:
         def _session_for(self, sid: str) -> dict[str, Any]: ...
 
     # ------------------------------------------------------------------ 首推
-    async def _emit_connect_state_replay(
-        self, sid: str, user: Any, auth_fields: dict[str, Any]
-    ) -> str:
+    async def _emit_connect_state_replay(self, sid: str, user: Any, auth_fields: dict[str, Any]) -> str:
         """按 since / lastEventId 下发增量回放。
 
         返回：
@@ -114,9 +112,7 @@ class ConnectionLifecycleMixin:
         if len(replay) > REPLAY_ONLY_MAX_CHANGES:
             # 增量比全量还大时全量更划算（压缩率与分片大小都更可控）。
             logger.info("state_replay 变更过多(%d),退回全量快照 sid=%s", len(replay), sid)
-            await self.sio.emit(
-                "resync_suggested", resync_suggested_payload("replay_too_large"), to=sid
-            )
+            await self.sio.emit("resync_suggested", resync_suggested_payload("replay_too_large"), to=sid)
             return "resync"
         # 即使回放为空也要下发：客户端靠这条消息判定「基线已补齐」（服务端返回
         # replayed 后不会再发 initial_states），漏发会让前端一直停在未同步状态。
@@ -131,6 +127,10 @@ class ConnectionLifecycleMixin:
                             "old_state": None,
                             "new_state": record["new_state"],
                             "changed_at": ms_to_iso(record["at"]),
+                            # 回放里 ``new_state is None`` 就是「该实体已被删除」：
+                            # 不带标记的话客户端会把它当成一条空 delta 合并掉，
+                            # 幽灵实体只能等下一次全量才消失。
+                            **({"removed": True} if record["new_state"] is None else {}),
                         }
                     )
                     for record in replay
@@ -161,7 +161,7 @@ class ConnectionLifecycleMixin:
             except Exception:
                 # 前端已经收到 sync_error 提示，但服务端此前一个字都没记 ——
                 # 初态下发失败（多半是序列化或 socket 异常）只能靠客户端现象反推。
-                logger.warning('初态下发失败：sid=%s entities=%d', sid, len(entities), exc_info=True)
+                logger.warning("初态下发失败：sid=%s entities=%d", sid, len(entities), exc_info=True)
                 await self.sio.emit(
                     "sync_error",
                     {
@@ -179,9 +179,7 @@ class ConnectionLifecycleMixin:
             to=sid,
         )
 
-    async def _emit_initial_states(
-        self, sid: str, entities: list[dict[str, Any]], chunk_size: int
-    ) -> None:
+    async def _emit_initial_states(self, sid: str, entities: list[dict[str, Any]], chunk_size: int) -> None:
         chunk_size = max(1, int(chunk_size))
         total = len(entities)
         # 按实体规模自适应 Socket.IO 帧缓冲（对齐 Nest applyEntityCountBufferTuning）
@@ -238,9 +236,7 @@ class ConnectionLifecycleMixin:
         engineio = getattr(self.sio, "eio", None)
         if engineio is not None and getattr(engineio, "max_http_buffer_size", None) != target:
             engineio.max_http_buffer_size = target
-            logger.info(
-                "Socket.IO 帧缓冲已按实体数 %s 调整为 %sMB", count, round(target / 1024 / 1024)
-            )
+            logger.info("Socket.IO 帧缓冲已按实体数 %s 调整为 %sMB", count, round(target / 1024 / 1024))
 
     # ------------------------------------------------------------------ 握手
     async def _on_connect(self, sid: str, environ: dict[str, Any], auth: Any) -> None:
@@ -268,9 +264,7 @@ class ConnectionLifecycleMixin:
 
         cookie_header = environ.get("HTTP_COOKIE")
         # DB 会话 Cookie（homeos-3d LoginSession）为唯一登录凭证。
-        session_token = extract_auth_token_from_cookie(
-            cookie_header, self.settings.cookie_name
-        )
+        session_token = extract_auth_token_from_cookie(cookie_header, self.settings.cookie_name)
         token = session_token
         if not token:
             raise SocketConnectionRefusedError("auth required")
@@ -349,9 +343,7 @@ class ConnectionLifecycleMixin:
             auth_fields.get("pinnedEntityIds"),
         )
 
-        await self._finish_connect_sync(
-            sid, user, auth_fields, entities, ws_cfg.replay_chunk_size
-        )
+        await self._finish_connect_sync(sid, user, auth_fields, entities, ws_cfg.replay_chunk_size)
 
     # ------------------------------------------------------------------ 授权终态
     def _watch_license(self, service: Any) -> None:
@@ -380,12 +372,10 @@ class ConnectionLifecycleMixin:
         if loop is None or loop.is_closed():
             return
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self.disconnect_all(reason=f"license_{status.lower()}"), loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self.disconnect_all(reason=f"license_{status.lower()}"), loop)
         except RuntimeError:
             # 事件循环已关闭（进程正在退出）：没有需要保护的连接了。
-            logger.debug('授权终态断开连接时事件循环已关闭，跳过（进程退出中）', exc_info=True)
+            logger.debug("授权终态断开连接时事件循环已关闭，跳过（进程退出中）", exc_info=True)
             return
         future.add_done_callback(self._log_disconnect_all_result)
 

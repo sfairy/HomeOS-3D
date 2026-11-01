@@ -82,6 +82,19 @@ export function createSecurityOverviewActions(opts: {
   const armZoneSelection = ref<string[]>([])
   const emergencyBusy = ref(false)
   const lastEmergencyAt = ref(0)
+
+  // 区域被删除 / 重建后，残留的选择项会让布防请求带上不存在的 id（后端会明确报错）。
+  // 以区域 id 串作为依赖，避免数组身份变化导致每次刷新都重算。
+  watch(
+    () => (zones.value || []).map((zone) => zone.id).join('\0'),
+    () => {
+      const known = new Set((zones.value || []).map((zone) => zone.id))
+      const pruned = armZoneSelection.value.filter((id) => known.has(id))
+      if (pruned.length !== armZoneSelection.value.length) {
+        armZoneSelection.value = pruned
+      }
+    },
+  )
   const sensorCooldownSec = ref<number | null>(null)
   const presenceSummary = ref('')
 

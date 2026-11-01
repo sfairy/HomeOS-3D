@@ -43,7 +43,10 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(12, 14, 22, 0.98);
+  /* 表头吸顶时必须是不透明底，否则下面的行会透上来。
+     原先写死 rgba(12,14,22,0.98)：这个色只在暗底成立，换主题就是一块脏斑。
+     改用一级抬升实底色（顶栏/侧栏同一层）。 */
+  background: var(--hos-bg-elev-1);
   padding: 10px 12px;
   text-align: left;
   font-size: var(--hos-fs-2);
@@ -57,7 +60,7 @@
 .mode-logs-view__table td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-1);
   vertical-align: top;
 }
 

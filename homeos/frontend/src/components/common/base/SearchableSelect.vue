@@ -25,7 +25,7 @@
         type="button"
         class="ss-clear"
         :aria-label="clearLabel"
-        @mousedown.prevent="clear"
+        @click="clear"
       >
         <X class="w-3.5 h-3.5" />
       </button>
@@ -33,7 +33,7 @@
         type="button"
         class="ss-toggle"
         :aria-label="toggleLabel"
-        @mousedown.prevent="toggleDropdown"
+        @click="toggleDropdown"
       >
         <ChevronDown class="w-4 h-4" :class="{ 'ss-toggle--open': showDropdown }" />
       </button>
@@ -62,9 +62,10 @@
               :key="`${opt.value}-${idx}`"
               type="button"
               role="option"
-              :aria-selected="opt.value === modelValue"
+              tabindex="-1"
+              :aria-selected="opt.value === modelValue ? 'true' : 'false'"
               :class="['ss-item', idx === activeIdx && 'ss-item--active']"
-              @mousedown.prevent="select(opt)"
+              @click="select(opt)"
               @mouseenter="activeIdx = idx"
             >
               <div class="ss-item-main">
@@ -82,7 +83,7 @@
 
 <script setup>
 /** SearchableSelect - 可搜索的下拉选择组件 */
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, useId, watch } from 'vue'
 import { X, ChevronDown } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
@@ -146,9 +147,10 @@ const activeIdx = ref(0)
 
 /**
  * 实例级唯一后缀：listbox / option 的 id 必须成对且全局唯一，
- * 同一表单可能同时挂多个选择器，因此拼一个随机后缀而不是写死字符串。
+ * 同一表单可能同时挂多个选择器，因此拼一个唯一后缀而不是写死字符串。
+ * 用 `useId()` 而非 `Math.random()`：随机值在每次渲染都不稳定，且不利于调试定位。
  */
-const uid = `ss-${Math.random().toString(36).slice(2, 9)}`
+const uid = `ss-${useId().replace(/[^\w-]/g, '')}`
 /** listbox 的 id，供输入框 aria-controls 引用 */
 const listId = computed(() => `${uid}-list`)
 /** 列表可访问名：沿用占位文案（placeholder 是「选择什么」的语义来源）。
@@ -289,6 +291,9 @@ function select(opt) {
   emit('update:modelValue', opt.value)
   emit('select', opt.value)
   closeDropdown()
+  // 选项按钮被点中后会拿到焦点，收起面板即被卸载 —— 焦点会掉到 <body>。
+  // 这是输入框型 combobox，选完应该回到输入框继续用键盘。
+  inputRef.value?.focus()
 }
 
 /** 清除选择：清空 v-model、触发 select 事件、关闭下拉 */
@@ -296,6 +301,9 @@ function clear() {
   emit('update:modelValue', '')
   emit('select', '')
   closeDropdown()
+  // 点击清除按钮会把焦点从输入框拿走（`@click` 不再像旧的 `@mousedown.prevent` 那样拦截），
+  // 选完还留在原地继续输入才符合预期。
+  inputRef.value?.focus()
 }
 
 /** 键盘向下导航：未展开时先展开，激活索引 +1 */

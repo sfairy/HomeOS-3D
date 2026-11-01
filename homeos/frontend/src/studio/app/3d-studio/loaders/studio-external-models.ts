@@ -43,7 +43,8 @@ import {
 } from "../materials/studio-model-material-roles";
 import { groupVehicleMaterialSlots } from "../materials/studio-material-slot-groups";
 import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
-import { canonicalExternalMaterialName, legacyExternalMaterialName } from "../materials/legacy-material-aliases";
+import { canonicalExternalMaterialName } from "../materials/legacy-material-aliases";
+import { isPlainRecord, normalizeTemplateSlotNames } from "./studio-external-model-material";
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from "../materials/material-pipeline";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
 import { ensureSceneBoxUvs } from "../materials/studio-box-uv";
@@ -368,6 +369,15 @@ export function createExternalModelManager({
         inflightLoadsByItemType.clear(),
         restorePromisesByItemType.clear(),
         restoreEligibleByItemType.clear());
+      // 这两张 Map 才是真正持有 GPU 资源的地方：已准备的 GLTF 模板（几何 + 贴图）
+      // 与按签名共享的调色板材质。只清「状态集合」不清它们 = 没释放任何东西，
+      // 而且下次进入 studio 会拿到上一轮的模板（跨项目脏读）。
+      for (const preparedTemplate of preparedTemplatesByItemType.values())
+        releaseModelAsset(preparedTemplate);
+      preparedTemplatesByItemType.clear();
+      for (const cachedMaterial of materialCacheBySignature.values())
+        cachedMaterial?.dispose?.();
+      materialCacheBySignature.clear();
     }
   }
   (lifecycleTarget?.addEventListener?.("online", retryPendingModels),
@@ -1947,34 +1957,6 @@ export function createExternalModelManager({
       "wireframeLinejoin",
       "wireframeLinewidth",
     ]);
-/**
- * 把模板里的材质名换回**旧名**（只在别名表命中时）。
- *
- * 背景：GLB 槽位按契约改名后，本文件下游 30 处历史分支仍按旧名/下标取色
- * （`material-<n>`、`M03_Pewter_Shine`、`B-1`、`cabinet-material-0`…），
- * 别名表 `legacy-material-aliases.generated.ts` 与改名同源生成。这里在模板入库前
- * 单点归一，所有读取点（取色分支 / 车辆收尾 / 检查面板）看到的都是旧名，
- * 行为与改名前一模一样；别名表为空时这是 no-op。
- *
- * 注意：这里**只**处理有别名（真正改过名）的材质，未改名模型连大小写都不动。
- */
-function normalizeTemplateSlotNames(templateScene: any, itemType: string): void {
-  templateScene?.traverse?.((node: any) => {
-    if (!node?.material) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    for (const material of materials) {
-      const legacy = legacyExternalMaterialName(material?.name, itemType);
-      if (legacy && legacy !== material.name) material.name = legacy;
-    }
-  });
-}
-
-/** 普通字面量对象（调色板 / 覆盖表这类）：交给签名函数逐键展开。 */
-function isPlainRecord(recordValue: any): boolean {
-  if (!recordValue || typeof recordValue != "object" || Array.isArray(recordValue)) return false;
-  const recordPrototype = Object.getPrototypeOf(recordValue);
-  return recordPrototype === Object.prototype || recordPrototype === null;
-}
 function normalizeMaterialValue(materialValue: any): any {
     return materialValue === undefined
       ? "undefined"

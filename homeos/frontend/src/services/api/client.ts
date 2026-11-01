@@ -245,6 +245,23 @@ const getRetryDelayMs = () => getFrontendConfig().apiRetryDelayMs ?? 1000
 const getRetryMax = () => getFrontendConfig().apiRetryMax
 
 /**
+ * 连续 401 熔断计数：返回 ``true`` 表示本次 401 应进入「熔断」提示分支。
+ *
+ * 只统计**时间窗内**的连续失败；窗口外的第一条 401 重新计数。
+ */
+function shouldTripUnauthorizedCircuit(): boolean {
+  const now = Date.now()
+  const windowExpired =
+    !unauthorizedFailureWindowStartedAt || now - unauthorizedFailureWindowStartedAt > UNAUTHORIZED_FAILURE_WINDOW_MS
+  if (windowExpired) {
+    unauthorizedFailureWindowStartedAt = now
+    unauthorizedFailureCount = 0
+  }
+  unauthorizedFailureCount += 1
+  return unauthorizedFailureCount > UNAUTHORIZED_FAILURE_LIMIT
+}
+
+/**
  * 响应拦截器：处理 401 会话过期、403 CSRF 失效与 5xx/网络错误重试。
  * 错误处理顺序：
  * 1) 401：登录/刷新/激活/许可证接口直接拒绝；其余先会话刷新重试一次，再触发全局登出/跳转登录；
@@ -286,13 +303,19 @@ apiClient.interceptors.response.use(
         return Promise.reject(error)
       }
       // 连续 401 熔断，避免凭据轮换时刷新/登出循环刷屏。
-      const now = Date.now()
-      if (!unauthorizedFailureWindowStartedAt || now - unauthorizedFailureWindowStartedAt > UNAUTHORIZED_FAILURE_WINDOW_MS) {
-        unauthorizedFailureWindowStartedAt = now
-        unauthorizedFailureCount = 0
-      }
-      unauthorizedFailureCount += 1
-      if (unauthorizedFailureCount > UNAUTHORIZED_FAILURE_LIMIT) {
+      if (shouldTripUnauthorizedCircuit()) {
+        // 熔断只管**提示频率**，不能把登出也一起熔断：此前这里直接 return，于是凭据轮换 /
+        // 后端重启后界面仍显示已登录、所有请求持续 401，既不跳登录页也不清本地用户态，
+        // 用户只能手动刷新页面。
+        if (!isHandling401) {
+          isHandling401 = true
+          runUnauthorizedHandler()
+          runNavigateToLogin()
+          setTimeout(() => {
+            isHandling401 = false
+          }, 1000)
+        }
+        const now = Date.now()
         if (now - lastUnauthorizedToastAt >= UNAUTHORIZED_TOAST_COOLDOWN_MS) {
           lastUnauthorizedToastAt = now
           appNotify('登录状态已失效，请重新登录', 'warning', UNAUTHORIZED_TOAST_COOLDOWN_MS)

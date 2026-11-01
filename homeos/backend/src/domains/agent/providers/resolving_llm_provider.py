@@ -15,6 +15,7 @@ from .llm_provider_interface import (
 from .mock_llm_provider import MockLlmProvider
 from .unavailable_llm_provider import UnavailableLlmProvider
 from ..runtime.config_service import AgentConfigService, is_mock_allowed
+from ....platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.agent.resolving_llm")
 
@@ -37,7 +38,7 @@ class ResolvingLlmProvider:
             def on_system_config_updated(_payload: Any = None) -> Any:
                 return self.refresh()
 
-            self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+            subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     # LlmProvider 接口
     @property

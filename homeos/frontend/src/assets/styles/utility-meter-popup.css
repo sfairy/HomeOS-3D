@@ -67,7 +67,7 @@
 .um-account-select:focus {
   background: rgba(255, 255, 255, 0.07);
   border-color: color-mix(in srgb, var(--um-accent) 35%, rgba(0, 0, 0, 0));
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
 }
 
 .um-balance {

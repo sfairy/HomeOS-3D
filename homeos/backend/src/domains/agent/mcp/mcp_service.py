@@ -28,7 +28,7 @@ def _js_stringify(value: Any) -> str:
     """对齐 JS ``JSON.stringify``（紧凑分隔符、不转义中文）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return ""
 
 
@@ -37,7 +37,7 @@ def _safe_equal_string(left: str, right: str) -> bool:
     try:
         buf_a = left.encode()
         buf_b = right.encode()
-    except (UnicodeEncodeError, AttributeError):
+    except UnicodeEncodeError, AttributeError:
         return False
     if len(buf_a) != len(buf_b):
         return False
@@ -111,6 +111,8 @@ class McpGatewayService:
         self._key_reminder_logged = False
         #: 「白名单未配置」告警同样只输出一次（非生产放行分支）。
         self._allowlist_warning_logged = False
+        #: 「白名单已配置但取不到客户端 IP」告警只输出一次（非生产放行分支）。
+        self._unknown_ip_warning_logged = False
         #: 客户端维度限流窗口（clientId → 时间戳列表）
         self._client_hits: dict[str, list[float]] = {}
 
@@ -136,13 +138,13 @@ class McpGatewayService:
         非生产环境未配置白名单时放行（本地开发便利），但仍打一条告警：这个分支曾经因为
         ``NODE_ENV`` 在容器里从未设置而**在生产里也生效**，静默地把网关敞开。告警让
         「以为配了、其实没配」在日志里可见。
+
+        取不到客户端 IP（代理没透传）时按同一口径处理：生产 fail-closed，非生产放行并告警。
         """
         allow = self._resolve_ip_allowlist()
         if not allow:
             if self._is_production:
-                raise _forbidden(
-                    "生产环境必须配置 MCP_GATEWAY_ALLOW_IPS（逗号分隔的 IP 或网段前缀）"
-                )
+                raise _forbidden("生产环境必须配置 MCP_GATEWAY_ALLOW_IPS（逗号分隔的 IP 或网段前缀）")
             if not self._allowlist_warning_logged:
                 self._allowlist_warning_logged = True
                 logger.warning(
@@ -152,6 +154,19 @@ class McpGatewayService:
             return
         normalized = (ip or "").strip()
         normalized = normalized.removeprefix("::ffff:")
+        if not normalized:
+            # 白名单已配置但取不到客户端 IP：判据不明。
+            # 生产 fail-closed（不能拿「不知道」当「匹配」），非生产与「白名单为空」
+            # 分支保持同一口径（开发便利），否则同一个函数里会出现两套相反的默认值。
+            if self._is_production:
+                raise _forbidden("无法解析 MCP 网关客户端 IP，拒绝访问")
+            if not self._unknown_ip_warning_logged:
+                self._unknown_ip_warning_logged = True
+                logger.warning(
+                    "MCP 网关无法解析客户端 IP（代理未透传 X-Forwarded-For？）："
+                    "非生产环境跳过 IP 白名单校验。生产环境会直接拒绝。"
+                )
+            return
         matched = False
         for entry in allow:
             candidate = entry.strip()
@@ -173,9 +188,7 @@ class McpGatewayService:
         layout_key = await self._agent_config.get_mcp_gateway_secret()
         expected = env_key or layout_key
         if not expected:
-            raise _unauthorized(
-                "MCP 网关未配置密钥：请设置环境变量 MCP_GATEWAY_SECRET 或 agentConfig.mcpGatewaySecret"
-            )
+            raise _unauthorized("MCP 网关未配置密钥：请设置环境变量 MCP_GATEWAY_SECRET 或 agentConfig.mcpGatewaySecret")
         if not api_key or not _safe_equal_string(api_key, expected):
             raise _unauthorized("MCP 网关密钥无效")
         if len(expected) < 16:
@@ -218,9 +231,7 @@ class McpGatewayService:
             )
 
     # JSON-RPC 入口
-    def _resolve_client_id(
-        self, body: dict[str, Any], ip_address: str | None, header_client_id: str | None
-    ) -> str:
+    def _resolve_client_id(self, body: dict[str, Any], ip_address: str | None, header_client_id: str | None) -> str:
         """确定 MCP 客户端标识：请求头 → initialize.clientInfo.name → IP。
 
         同一 NAT 后面的多个 Agent 过去都落在 ``mcp:<ip>``，会共享会话上下文；
@@ -272,7 +283,7 @@ class McpGatewayService:
             return {}
         try:
             parsed = json.loads(raw)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.warning("%s 不是合法 JSON，已忽略", name)
             return {}
         return parsed if isinstance(parsed, dict) else {}
@@ -374,11 +385,7 @@ class McpGatewayService:
                 raise _forbidden(f"MCP 客户端 {resolved_client} 只有只读作用域，禁止调用控制工具 {name}")
             actor = await self.resolve_mcp_actor()
             tool_result = await self._tools.execute(name, args, actor)
-            is_error = bool(
-                isinstance(tool_result, dict)
-                and "error" in tool_result
-                and tool_result.get("error")
-            )
+            is_error = bool(isinstance(tool_result, dict) and "error" in tool_result and tool_result.get("error"))
             return {"text": _js_stringify(tool_result), "isError": is_error}
 
         async def read_resource(uri: str) -> dict[str, Any]:

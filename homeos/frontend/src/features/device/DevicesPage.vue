@@ -157,6 +157,7 @@
             <div
               ref="listViewportRef"
               class="list-page__panel-body devices-view__list-viewport"
+              v-scroll-region="'设备列表'"
             >
               <ApiQueryState
                 :loading="useRestList && restLoading && !filtered.length"

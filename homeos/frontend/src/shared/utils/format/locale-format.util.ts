@@ -170,6 +170,43 @@ export function formatDurationMs(ms: number | null | undefined): string {
 
 
 /**
+ * 相对时间档位：``withinMs`` 是该档的上界（毫秒），命中即用 ``label`` 生成文案。
+ *
+ * 所有「多久以前」都过同一套档位引擎，差别只在档位表与兜底文案 —— 这样两处分级不会
+ * 再各自漂移（历史上 `useDeviceGroupOffline` 跨 30 天永远回「N 天前」，
+ * `AlertRulesEarthquakeConnPanel` 连秒级档都没有，同一份数据在不同页面显示不同）。
+ */
+type RelativeTimeTier = { withinMs: number; label: (elapsedMs: number) => string }
+
+/** 分钟级档位：设备在线/掉线、访客记录、成员最后在线等通用场景。 */
+const MINUTE_RELATIVE_TIERS: readonly RelativeTimeTier[] = [
+  { withinMs: 60_000, label: () => '刚刚' },
+  { withinMs: 3_600_000, label: (ms) => `${Math.floor(ms / 60_000)} 分钟前` },
+  { withinMs: 86_400_000, label: (ms) => `${Math.floor(ms / 3_600_000)} 小时前` },
+  { withinMs: 30 * 86_400_000, label: (ms) => `${Math.floor(ms / 86_400_000)} 天前` },
+]
+
+/**
+ * 秒级档位：地震预警 / 通道拉取心跳这类「刚刚发生」的场景。
+ *
+ * 这类记录的时间差本身就是要传达的信息（15 秒和 3 分钟是完全不同的紧急度），
+ * 所以首档细到秒；超过 1 天则交回绝对时刻（由 ``absolute`` 决定），而不是「N 天前」。
+ */
+const SECOND_RELATIVE_TIERS: readonly RelativeTimeTier[] = [
+  { withinMs: 15_000, label: () => '刚刚' },
+  { withinMs: 60_000, label: (ms) => `${Math.floor(ms / 1000)} 秒前` },
+  { withinMs: 3_600_000, label: (ms) => `${Math.floor(ms / 60_000)} 分钟前` },
+  { withinMs: 86_400_000, label: (ms) => `${Math.floor(ms / 3_600_000)} 小时前` },
+]
+
+/** 解析时间输入为毫秒时间戳；空值与非法时间返回 ``null``（禁止 NaN 漏到展示层）。 */
+function parseTimestampMs(iso: DateInput): number | null {
+  if (!iso) return null
+  const ts = new Date(iso as string | number | Date).getTime()
+  return Number.isNaN(ts) ? null : ts
+}
+
+/**
  * 相对当前时刻的「多久以前」文案（设备在线/掉线、访客记录、成员最后在线等通用场景）。
  *
  * 分级：< 1 分钟 → 刚刚；< 1 小时 → N 分钟前；< 24 小时 → N 小时前；
@@ -180,16 +217,32 @@ export function formatDurationMs(ms: number | null | undefined): string {
  * @returns 相对时间文案
  */
 export function formatRelativeFromNow(iso: DateInput, emptyText = '—'): string {
-  if (!iso) return emptyText
-  const ts = new Date(iso).getTime()
-  if (Number.isNaN(ts)) return emptyText
-  const ms = Date.now() - ts
-  if (ms < 60_000) return '刚刚'
-  const mins = Math.floor(ms / 60_000)
-  if (mins < 60) return `${mins} 分钟前`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} 小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} 天前`
-  return new Date(ts).toLocaleDateString('zh-CN')
+  const ts = parseTimestampMs(iso)
+  if (ts === null) return emptyText
+  const elapsedMs = Date.now() - ts
+  const tier = MINUTE_RELATIVE_TIERS.find((candidate) => elapsedMs < candidate.withinMs)
+  return tier ? tier.label(elapsedMs) : new Date(ts).toLocaleDateString('zh-CN')
+}
+
+/**
+ * 秒级相对时间（地震预警、通道心跳）：与 :func:`formatRelativeFromNow` 同一套档位引擎。
+ *
+ * @param iso 时间输入（Date / ISO 字符串 / 毫秒时间戳）
+ * @param options.emptyText 空值与非法时间的占位文案（默认「—」）
+ * @param options.absolute 超出 24 小时（或时间在未来）时使用的绝对时刻文案；
+ *   缺省回落到本地短日期。传空字符串表示该场景不需要绝对时刻。
+ * @returns 相对时间文案
+ */
+export function formatRelativeSecondsFromNow(
+  iso: DateInput,
+  options: { emptyText?: string; absolute?: (timestampMs: number) => string } = {},
+): string {
+  const { emptyText = '—', absolute } = options
+  const ts = parseTimestampMs(iso)
+  if (ts === null) return emptyText
+  const elapsedMs = Date.now() - ts
+  const tier = elapsedMs >= 0 ? SECOND_RELATIVE_TIERS.find((c) => elapsedMs < c.withinMs) : null
+  if (tier) return tier.label(elapsedMs)
+  // 传了 absolute 就以它为准（哪怕返回空串：调用方明确表示该场景不要绝对时刻）。
+  return absolute ? absolute(ts) : new Date(ts).toLocaleDateString('zh-CN')
 }

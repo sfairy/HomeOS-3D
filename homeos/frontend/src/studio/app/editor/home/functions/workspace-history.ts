@@ -646,13 +646,13 @@ export async function initialPagePath(deps: WorkspaceHistoryDeps, loadProjects: 
 export async function projectSummary(deps: WorkspaceHistoryDeps, 
   applyDocumentChange: any,
   updatedDocument = deps.pageSelectElement.value,
-  { recordHistory: targetPagePath = true, expectedSignature: shouldRecordHistory = null }: any = {},
-) {
+  { recordHistory = true, expectedSignature = null }: any = {}) {
+  // 旧解构把 boolean 命名成「目标页路径」、签名命名成「是否记历史」：调用方传 `{ expectedSignature: "…" }` 时被当成布尔用，单调校验失效。
   if (!deps.editorCtx.activeProject) throw new Error("请先选择仪表盘。");
   const projectId = deps.editorCtx.activeProject.projectId,
     Ie3 = deps.editorCtx.componentScopeState,
     document2 = deps.editorCtx.activeProject.document,
-    currentDocument = shouldRecordHistory ?? documentSignature2(document2),
+    currentDocument = expectedSignature ?? documentSignature2(document2),
     updatedSignature = () => {
       if (documentSignature2(deps.editorCtx.activeProject.document) !== currentDocument)
         throw new Error("等待期间产生了新编辑，已保留最新内容，请重试刚才的操作。");
@@ -674,7 +674,7 @@ export async function projectSummary(deps: WorkspaceHistoryDeps,
     ...deps.editorCtx.activeProject,
     document: clone2(applyDocumentChange),
   }),
-    targetPagePath && (deps.refreshDirtyState(deps.historyState.undo, hl2), (deps.historyState.redo = [])));
+    recordHistory && (deps.refreshDirtyState(deps.historyState.undo, hl2), (deps.historyState.redo = [])));
   const matchingProject = deps.editorCtx.projects.find(
     (candidateProject: any) => candidateProject.id === deps.editorCtx.activeProject.projectId,
   );

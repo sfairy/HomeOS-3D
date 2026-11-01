@@ -31,6 +31,7 @@ from sqlalchemy import delete, select
 from .types import MessageHandler
 from ...platform.core.db.models import WebPushSubscription
 from ...platform.core.http.errors import api_error, bad_request
+from ...platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.channels.webpush")
 
@@ -107,7 +108,7 @@ def parse_retry_after(value: str | None, *, now: float | None = None) -> float |
         pass
     try:
         parsed = parsedate_to_datetime(text)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if parsed is None:
         return None
@@ -350,7 +351,7 @@ def _valid_webpush_keys(p256dh: str, auth: str) -> bool:
     try:
         point = base64.urlsafe_b64decode(p256dh + "=" * (-len(p256dh) % 4))
         secret = base64.urlsafe_b64decode(auth + "=" * (-len(auth) % 4))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.info("WebPush 订阅密钥不是合法 base64url，拒绝注册")
         return False
     return len(point) == 65 and point[0] == 0x04 and len(secret) == 16
@@ -383,7 +384,7 @@ class WebPushService:
             self._channel_config.invalidate_cache()
             await self.reload()
 
-        self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+        subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     async def start(self) -> None:
         """模块初始化：加载配置并从 DB 恢复订阅（对齐 ``onModuleInit``）。"""
@@ -520,9 +521,7 @@ class WebPushService:
         if not is_safe_webpush_endpoint(endpoint) or not _valid_webpush_keys(p256dh, auth):
             bad_request(api_error("CHANNEL_WEBPUSH_ENDPOINT_INVALID"))
 
-        subscription = PushSubscription(
-            endpoint=endpoint, p256dh=p256dh, auth=auth, user_agent=user_agent, label=label
-        )
+        subscription = PushSubscription(endpoint=endpoint, p256dh=p256dh, auth=auth, user_agent=user_agent, label=label)
         self._subscriptions[endpoint] = subscription
         try:
             row = await asyncio.to_thread(self._upsert_row, subscription)
@@ -577,9 +576,7 @@ class WebPushService:
     def on_message(self, handler: MessageHandler) -> None:
         self._message_handler = handler
 
-    async def send_text(
-        self, to: str | int, text: str, title: str | None = None
-    ) -> dict[str, int]:
+    async def send_text(self, to: str | int, text: str, title: str | None = None) -> dict[str, int]:
         """发送文本推送；``to`` 为空表示广播给全部订阅者。
 
         返回 ``{"attempted": n, "delivered": m}``：调用方据此判断「是否真的送达」，
@@ -615,9 +612,7 @@ class WebPushService:
             },
             ensure_ascii=False,
         ).encode()
-        results = await asyncio.gather(
-            *(self._send_one(sub, payload) for sub in targets), return_exceptions=True
-        )
+        results = await asyncio.gather(*(self._send_one(sub, payload) for sub in targets), return_exceptions=True)
         delivered = sum(1 for item in results if item is True)
         return {"attempted": len(targets), "delivered": delivered}
 
@@ -641,9 +636,7 @@ class WebPushService:
         """
         remaining = self._backoff_remaining(sub.endpoint)
         if remaining > 0:
-            logger.warning(
-                "WebPush 订阅仍在退避中(%.0fs),跳过本次投递: %s", remaining, sub.endpoint[:60]
-            )
+            logger.warning("WebPush 订阅仍在退避中(%.0fs),跳过本次投递: %s", remaining, sub.endpoint[:60])
             return False
         try:
             # 投递前再解析一次：注册期的字面检查挡不住 DNS rebinding，这里是最后一道门。
@@ -651,9 +644,7 @@ class WebPushService:
             if not allowed:
                 logger.error("跳过 WebPush 投递（%s）：%s", reason, sub.endpoint[:80])
                 return False
-            body, _ = await asyncio.to_thread(
-                encrypt_webpush_payload, payload, sub.p256dh, sub.auth
-            )
+            body, _ = await asyncio.to_thread(encrypt_webpush_payload, payload, sub.p256dh, sub.auth)
             authorization = await asyncio.to_thread(
                 build_vapid_authorization,
                 sub.endpoint,
@@ -682,9 +673,7 @@ class WebPushService:
                     logger.error("发送 WebPush 失败(连接失败): %s", exc)
                     self._set_endpoint_backoff(sub.endpoint, RETRY_MAX_DELAY_SECONDS)
                     return False
-                logger.warning(
-                    "WebPush 连接失败,%.1fs 后重试(第 %s 次): %s", delay, attempt + 1, sub.endpoint[:60]
-                )
+                logger.warning("WebPush 连接失败,%.1fs 后重试(第 %s 次): %s", delay, attempt + 1, sub.endpoint[:60])
                 await asyncio.sleep(delay)
                 waited += delay
                 continue

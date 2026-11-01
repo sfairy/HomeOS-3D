@@ -51,7 +51,7 @@
 
 
 .focus-ring:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow:
     0 0 0 2px var(--bg-viewport, #000),
     0 0 0 4px var(--accent, #0A84FF);

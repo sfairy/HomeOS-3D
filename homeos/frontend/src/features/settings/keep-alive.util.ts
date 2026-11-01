@@ -1,4 +1,11 @@
-/** 设置面板 keep-alive 缓存上限（非固定页 LRU 上限；固定页见 INCLUDE） */
+/**
+ * 设置面板 keep-alive 的**防御性**缓存上限。
+ *
+ * 注意实际生效的缓存集合完全由 ``SETTINGS_KEEP_ALIVE_INCLUDE`` 决定：只有下面的固定页
+ * 会进 ``<keep-alive include>``，非固定页切换即重建、从不入缓存。也就是说当前上限 8
+ * 永远不会被触发（固定页只有 4 个），它只保证「将来固定页变多」时缓存不会无限增长 ——
+ * 早先的注释写成「非固定页 LRU 上限」，与实现相反。
+ */
 export const SETTINGS_KEEP_ALIVE_MAX = 8
 
 /**

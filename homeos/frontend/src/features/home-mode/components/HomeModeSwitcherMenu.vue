@@ -33,6 +33,8 @@ defineProps({
   modes: { type: Array, required: true },
   /** 当前激活的模式 */
   activeMode: { type: [Object, null], default: null },
+  /** 全部激活模式 id（多互斥组可同时激活；菜单必须把每一项都标为已激活） */
+  activeModeIds: { type: Array, required: true },
   /** 模式上下文（含触发日志等） */
   modeContext: { type: Object, required: true },
   /** 菜单 DOM 注册回调 */
@@ -64,7 +66,7 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
             :key="m.id"
             type="button"
             class="home-mode-switcher__item"
-            :class="{ 'home-mode-switcher__item--active': activeMode?.id === m.id }"
+            :class="{ 'home-mode-switcher__item--active': activeModeIds.includes(String(m.id)) }"
             @click="emit('select-mode', m)"
           >
             <component
@@ -73,7 +75,7 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
             />
             <span class="home-mode-switcher__item-label">{{ m.name }}</span>
             <Check
-              v-if="activeMode?.id === m.id"
+              v-if="activeModeIds.includes(String(m.id))"
               class="home-mode-switcher__item-check"
               aria-hidden="true"
             />
@@ -85,7 +87,7 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
             @click="emit('toggle-off')"
           >
             <Power class="w-3.5 h-3.5" />
-            <span>{{ '退出当前模式' }}</span>
+            <span>{{ activeModeIds.length > 1 ? '退出主模式' : '退出当前模式' }}</span>
           </button>
           <div v-if="modeContext.triggerLogs?.length" class="home-mode-switcher__logs">
             <div class="home-mode-switcher__logs-title">{{ '最近触发' }}</div>

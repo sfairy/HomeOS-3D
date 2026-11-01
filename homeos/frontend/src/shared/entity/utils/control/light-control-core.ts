@@ -61,12 +61,24 @@ export function lightSupportsColorTemp(modes: unknown): boolean {
   return modes.some((mode) => String(mode).includes('color_temp'))
 }
 
+/** brightness 0–255 → 百分比（0–100，四舍五入）。
+
+属性展示（``attr-format`` 的 brightness 行）与滑块/乐观预测共用这一份口径：
+此前三处各写一遍，其中两处漏了 0–255 夹取，属性里偶尔出现的越界值会显示成
+``-12%`` / ``118%``。
+*/
+export function brightnessToPercent(brightness: unknown): number | null {
+  const value = Number(brightness)
+  if (!Number.isFinite(value)) return null
+  return Math.round((Math.min(255, Math.max(0, value)) / 255) * 100)
+}
+
 /** brightness 0–255 → 百分比；关灯且无 brightness 时返回 1（避免滑块归零） */
 export function lightBrightnessPct(
   state: string | undefined,
   brightness: unknown,
 ): number {
-  if (brightness != null) return Math.round((Number(brightness) / 255) * 100)
+  if (brightness != null) return brightnessToPercent(brightness) ?? 0
   return state === 'on' ? 100 : 1
 }
 

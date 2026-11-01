@@ -189,17 +189,38 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const loadError = ref('')
 const activeMode = ref(null)
+/** 全部激活模式（多互斥组可同时激活；只读 activeMode 会让另一组「隐形激活」）。 */
+const activeModeList = computed(() => {
+  const raw = activeMode.value
+  const list = raw?.activeModes
+  if (Array.isArray(list) && list.length) {
+    return list
+      .map((item) => ({ id: item?.id, name: item?.name }))
+      .filter((item) => Boolean(item.name))
+  }
+  const single = raw?.activeMode ?? raw
+  return single?.id ? [{ id: single.id, name: single.name }] : []
+})
 const notifySettings = ref(null)
 let familyLoaded = false
 
 const activeModeName = computed(() => {
-  const m = activeMode.value?.mode
-  return m?.name || activeMode.value?.name || '未激活'
+  const names = activeModeList.value.map((item) => item.name).filter(Boolean)
+  if (!names.length) return '未激活'
+  if (names.length === 1) return names[0]
+  return `${names[0]} +${names.length - 1}`
 })
+
+const activeModeFullName = computed(() =>
+  activeModeList.value.map((item) => item.name).filter(Boolean).join(' · '),
+)
 
 const isModeActive = computed(() => activeModeName.value !== '未激活')
 
 const activeModeHint = computed(() => {
+  if (activeModeList.value.length > 1) {
+    return `当前同时激活：${activeModeFullName.value}`
+  }
   if (activeMode.value?.lastActivation?.executedAt) {
     return `最近切换：${formatShortDateTime(activeMode.value.lastActivation.executedAt)}`
   }
@@ -262,7 +283,9 @@ async function load(options = {}) {
       fetchActiveHomeMode(),
       fetchNotificationSettings(),
     ])
-    activeMode.value = modeRes.data?.activeMode ?? modeRes.data ?? null
+    // 必须保留整个响应：`activeModes` 才是全部激活模式，只取 `activeMode`
+    // 会把多互斥组里另一个组的激活模式吞掉（界面上看起来只有一个在生效）。
+    activeMode.value = modeRes.data ?? null
     notifySettings.value = notifyRes.data
     familyLoaded = true
     loadError.value = ''

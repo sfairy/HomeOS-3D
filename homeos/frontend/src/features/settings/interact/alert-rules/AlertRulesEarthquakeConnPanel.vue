@@ -96,7 +96,10 @@ import { Loader2, Radio } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import type { EarthquakeStatusPayload } from '@/services/api/earthquake'
-import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
+import {
+  formatLocaleString,
+  formatRelativeSecondsFromNow,
+} from '@/shared/utils/format/locale-format.util'
 
 const props = defineProps<{
   loading?: boolean
@@ -139,13 +142,12 @@ function formatTsFull(ts: number | null | undefined) {
 }
 
 function formatTsRel(ts: number | null | undefined) {
+  // `<= 0` 是「没有记录」的哨兵值（后端用 0 表示从未拉取成功），不能当成 1970 年算成「N 天前」。
   if (ts == null || !Number.isFinite(ts) || ts <= 0) return '—'
-  const diff = Date.now() - ts
-  if (diff < 0) return formatTsFull(ts) || '—'
-  if (diff < 15_000) return '刚刚'
-  if (diff < 60_000) return `${Math.floor(diff / 1000)} 秒前`
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return formatTsFull(ts) || '—'
+  // 秒级相对时间只有一份权威实现（locale-format.util 的档位引擎）：这里此前手写了
+  // 一套同样的分级，且没有「N 天前」档 —— 同一份数据在预警记录与通道面板里显示不同。
+  return formatRelativeSecondsFromNow(ts, {
+    absolute: (timestampMs) => formatTsFull(timestampMs) || '—',
+  })
 }
 </script>

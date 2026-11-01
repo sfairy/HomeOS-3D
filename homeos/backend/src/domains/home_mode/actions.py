@@ -49,7 +49,8 @@ def _read_actions(raw: Any) -> list[dict[str, Any]]:
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.warning("家庭模式 actions 字段不是合法 JSON: %s", exc)
             bad_request(api_error("HOME_MODE_CONFIG_PARSE_FAILED"))
         if isinstance(parsed, list):
             return parsed
@@ -64,7 +65,7 @@ def _read_snapshot(raw: Any) -> dict[str, Any]:
         try:
             parsed = json.loads(raw)
             return parsed if isinstance(parsed, dict) else {}
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return {}
     return {}
 
@@ -79,23 +80,21 @@ def filter_home_mode_actions_for_linkage_dedupe(
     reason = str((meta or {}).get("reason") or "")
     if source == "security":
         return [c for c in entity_configs if resolve_action_kind(c) != "security"]
-    if source == "trigger" and reason == "all_leave" and (
-        sec_cfg.get("autoArmOnEveryoneLeft") or sec_cfg.get("autoUpgradeToAwayOnEveryoneLeft")
+    if (
+        source == "trigger"
+        and reason == "all_leave"
+        and (sec_cfg.get("autoArmOnEveryoneLeft") or sec_cfg.get("autoUpgradeToAwayOnEveryoneLeft"))
     ):
         return [
             c
             for c in entity_configs
-            if resolve_action_kind(c) != "security"
-            or str(c.get("entity_id") or "").strip() != "armed_away"
+            if resolve_action_kind(c) != "security" or str(c.get("entity_id") or "").strip() != "armed_away"
         ]
-    if source == "trigger" and reason.startswith("arrive_home") and sec_cfg.get(
-        "autoDisarmOnFirstHome"
-    ):
+    if source == "trigger" and reason.startswith("arrive_home") and sec_cfg.get("autoDisarmOnFirstHome"):
         return [
             c
             for c in entity_configs
-            if resolve_action_kind(c) != "security"
-            or str(c.get("entity_id") or "").strip() != "armed_home"
+            if resolve_action_kind(c) != "security" or str(c.get("entity_id") or "").strip() != "armed_home"
         ]
     if source in ("weather_linkage", "energy_linkage"):
         return [c for c in entity_configs if resolve_action_kind(c) != "security"]
@@ -153,9 +152,7 @@ def count_verified(results: list[dict[str, Any]], expected: bool | None) -> int:
     return count
 
 
-async def _execute_home_mode_action(
-    deps: Any, action: dict[str, Any]
-) -> dict[str, Any]:
+async def _execute_home_mode_action(deps: Any, action: dict[str, Any]) -> dict[str, Any]:
     kind = resolve_action_kind(action)
     ref = str(action.get("entity_id") or "").strip()
     if not ref:
@@ -182,9 +179,7 @@ async def _execute_home_mode_action(
         service = action.get("service") or "turn_on"
         service_data = action.get("service_data") or {}
         response = await deps.call_service(domain, service, ref, service_data)
-        verification = await _verify_action_outcome(
-            deps, domain, service, ref, service_data, response
-        )
+        verification = await _verify_action_outcome(deps, domain, service, ref, service_data, response)
         result: dict[str, Any] = {
             "entity_id": ref,
             "service": f"{domain}.{service}",
@@ -207,9 +202,7 @@ async def _execute_home_mode_action(
         }
 
 
-async def _restore_entity_from_snapshot(
-    deps: Any, entity_id: str, snapshot: dict[str, Any]
-) -> None:
+async def _restore_entity_from_snapshot(deps: Any, entity_id: str, snapshot: dict[str, Any]) -> None:
     calls = build_snapshot_restore_calls(entity_id, snapshot)
 
     semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
@@ -229,18 +222,14 @@ def _snapshot_state_matches(current: dict[str, Any] | None, snap: dict[str, Any]
     )
 
 
-async def _restore_entity_from_snapshot_if_not_changed(
-    deps: Any, entity_id: str, snap: dict[str, Any]
-) -> str:
+async def _restore_entity_from_snapshot_if_not_changed(deps: Any, entity_id: str, snap: dict[str, Any]) -> str:
     """把实体恢复到快照状态；返回 ``unchanged``（已一致）/ ``restored``（已回写）。"""
     try:
         current = await deps.fetch_entity_state(entity_id)
     except Exception:
         # 读不到当前状态时按「与快照不一致」处理，会照常回写一次 —— 但这样一来
         # 「恢复条数」里就混进了「其实没查成功」的条目，必须有日志可对账。
-        logger.warning(
-            '恢复快照前读取实体当前状态失败，按需要回写处理: %s', entity_id, exc_info=True
-        )
+        logger.warning("恢复快照前读取实体当前状态失败，按需要回写处理: %s", entity_id, exc_info=True)
         current = None
     if _snapshot_state_matches(current, snap):
         return "unchanged"
@@ -305,9 +294,7 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
         async def _run(entity_id: str, snap: dict[str, Any]) -> None:
             async with semaphore:
                 try:
-                    results.append(
-                        await _restore_entity_from_snapshot_if_not_changed(deps, entity_id, snap)
-                    )
+                    results.append(await _restore_entity_from_snapshot_if_not_changed(deps, entity_id, snap))
                 except Exception as exc:
                     # 恢复失败必须与「本就一致」区分开，否则会误判回滚完整而丢弃快照。
                     deps.warn(f"恢复设备 {entity_id} 到快照失败: {exc}")
@@ -330,7 +317,7 @@ async def _fetch_entity_state(deps: Any, entity_id: str) -> dict[str, Any] | Non
     try:
         return await deps.fetch_entity_state(entity_id)
     except Exception:
-        logger.debug('读取实体状态失败: %s', entity_id, exc_info=True)
+        logger.debug("读取实体状态失败: %s", entity_id, exc_info=True)
         return None
 
 
@@ -404,9 +391,7 @@ class _ActivationContext:
     committed: bool = False
 
 
-def _trigger_log_payload(
-    trigger: _ModeTriggerContext, event_reason: Any, success: bool
-) -> dict[str, Any]:
+def _trigger_log_payload(trigger: _ModeTriggerContext, event_reason: Any, success: bool) -> dict[str, Any]:
     """构造 push_trigger_log 的触发日志负载。"""
     return {
         "modeId": trigger.mode_id,
@@ -454,6 +439,8 @@ class HomeModeActivateResult(TypedDict, total=False):
     unverifiedCount: int
     snapshotIncomplete: bool
     snapshotMissing: list[str]
+    # 同互斥组旧模式设备恢复不完整时的模式名列表（提交仍成功，但必须让调用方可见）。
+    displacedRestoreIncomplete: list[str]
     failedRestoreEntities: list[str]
     message: str
     error: str
@@ -516,9 +503,7 @@ def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> Home
     }
 
 
-async def _collect_device_snapshot(
-    deps: Any, entity_configs: list[dict[str, Any]]
-) -> tuple[dict[str, Any], list[str]]:
+async def _collect_device_snapshot(deps: Any, entity_configs: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
     """并发采集动作目标实体的当前状态，作为回滚快照。
 
     返回 ``(snapshot, missing)``：``missing`` 是没采集到状态的实体 —— 它们一旦被本次激活
@@ -551,9 +536,7 @@ async def _collect_device_snapshot(
     return snapshot, sorted(set(missing))
 
 
-async def _retry_failed_home_mode_actions(
-    deps: Any, mode_name: str, run: _ActionRunState
-) -> list[dict[str, Any]]:
+async def _retry_failed_home_mode_actions(deps: Any, mode_name: str, run: _ActionRunState) -> list[dict[str, Any]]:
     """按配置次数串行重试失败动作（原地更新 run.results），返回重试成功的条目。"""
     retry_results: list[dict[str, Any]] = []
     if not run.failed_indices:
@@ -590,9 +573,7 @@ async def _reject_home_mode_without_ha(
     免得两次释放之间别的来源重新占用后被顺手抹掉。
     """
     deps.warn("Home Assistant 未连接,拒绝激活家庭模式")
-    deps.push_trigger_log(
-        _trigger_log_payload(trigger, trigger.raw_reason or "手动切换", False)
-    )
+    deps.push_trigger_log(_trigger_log_payload(trigger, trigger.raw_reason or "手动切换", False))
     deps.record_execution(
         _home_mode_execution_record(
             trigger,
@@ -610,9 +591,7 @@ async def _reject_home_mode_without_ha(
     }
 
 
-async def _reassert_displaced_modes(
-    deps: Any, activation: _ActivationContext
-) -> list[str]:
+async def _reassert_displaced_modes(deps: Any, activation: _ActivationContext) -> list[str]:
     """激活中止后，把被顶掉的旧模式重新落到设备上。
 
     两阶段提交里旧模式**从未在 DB 里被停用**（is_active 保持不变、device_snapshot 未清），
@@ -667,8 +646,7 @@ async def _abort_failed_activation(
     if displaced_incomplete:
         await deps.notify(
             "warning",
-            f"模式 {mode['name']} 激活失败后，{'、'.join(displaced_incomplete)} 的设备状态未能完整回放，"
-            "请检查 HA 连接",
+            f"模式 {mode['name']} 激活失败后，{'、'.join(displaced_incomplete)} 的设备状态未能完整回放，请检查 HA 连接",
             "home-mode",
         )
 
@@ -676,9 +654,7 @@ async def _abort_failed_activation(
     # 不回滚就会出现「家庭模式激活失败、灯已还原，但房子已经撤防」。
     if activation.security_action_count and activation.previous_security_mode:
         try:
-            restored_security = await deps.set_security_mode(
-                activation.previous_security_mode, "home-mode-rollback"
-            )
+            restored_security = await deps.set_security_mode(activation.previous_security_mode, "home-mode-rollback")
         except Exception as exc:
             restored_security = False
             deps.warn(f"回滚安防模式失败: {exc}")
@@ -691,7 +667,14 @@ async def _abort_failed_activation(
             )
 
     if state.get_active_mode_id() == trigger.mode_id:
-        state.set_active_mode_id(None)
+        # 多互斥组：另一个组可能仍有激活模式，指针不能简单清空，要按 DB 重算，
+        # 否则后续无参停用 / 上下文展示会丢失「另一个组」的激活目标。
+        try:
+            remaining = await deps.find_first_active()
+            remaining_id = remaining["id"] if remaining else None
+        except Exception:
+            remaining_id = None
+        state.set_active_mode_id(None if remaining_id == trigger.mode_id else remaining_id)
     deps.linkage_arbiter.release()
 
     failed_items = [
@@ -706,9 +689,7 @@ async def _abort_failed_activation(
             trigger,
             event_reason,
             False,
-            _ExecutionOutcome(
-                total=len(results), executed=applied_count, failed_items=failed_items
-            ),
+            _ExecutionOutcome(total=len(results), executed=applied_count, failed_items=failed_items),
         )
     )
     return {
@@ -749,7 +730,7 @@ async def _finalize_home_mode_activation(
     displaced_incomplete = [
         str(item.get("name") or item.get("id") or "?")
         for item in activation.displaced_modes
-        if (activation.conflict_restore.get(item.get("id")) or {}).get("incomplete")
+        if (activation.conflict_restore.get(str(item.get("id") or "")) or {}).get("incomplete")
     ]
     await deps.emit_home_mode_event(
         "homeMode.activated",
@@ -771,9 +752,7 @@ async def _finalize_home_mode_activation(
     if unverified:
         deps.warn(f"模式 {mode['name']} 有 {unverified} 个设备已下发但状态未确认")
     if displaced_incomplete:
-        deps.warn(
-            f"模式 {mode['name']} 已激活，但原模式 {('、'.join(displaced_incomplete))} 的设备状态未能完整恢复"
-        )
+        deps.warn(f"模式 {mode['name']} 已激活，但原模式 {('、'.join(displaced_incomplete))} 的设备状态未能完整恢复")
         await deps.notify(
             "warning",
             f"模式 {mode['name']} 已激活，但原模式 {('、'.join(displaced_incomplete))} 的设备状态未能完整恢复，请检查 HA 连接",
@@ -801,9 +780,7 @@ async def _finalize_home_mode_activation(
             trigger,
             event_reason,
             all_ok,
-            _ExecutionOutcome(
-                total=len(results), executed=final_success, failed_items=failed_items or None
-            ),
+            _ExecutionOutcome(total=len(results), executed=final_success, failed_items=failed_items or None),
         )
     )
 
@@ -871,16 +848,17 @@ async def activate_home_mode(
     )
 
     hm_cfg = deps.get_home_mode_config()
+    # ``arbiterSource``：联动来源与仲裁来源可以不同。典型例子是「用户在安防面板上
+    # 手动布防 → 联动激活家庭模式」：``source`` 仍是 security（决定动作去重与日志），
+    # 但仲裁维度必须按 manual 计算，否则会被家庭模式自己的 userLocked 锁挡住。
     arbiter = deps.linkage_arbiter.try_acquire(
-        (meta or {}).get("source"),
+        (meta or {}).get("arbiterSource") or (meta or {}).get("source"),
         claim_ttl_ms=max(1, int(hm_cfg.get("linkageClaimTtlMin") or 15)) * 60_000,
         manual_lock_ms=max(0, int(hm_cfg.get("manualLockTtlMin") or 30)) * 60_000,
     )
     if not arbiter.get("ok"):
         deps.warn(f"家庭模式激活被联动仲裁拦截: {arbiter.get('reason')}")
-        deps.push_trigger_log(
-            _trigger_log_payload(trigger, trigger.raw_reason or arbiter.get("reason"), False)
-        )
+        deps.push_trigger_log(_trigger_log_payload(trigger, trigger.raw_reason or arbiter.get("reason"), False))
         bad_request(api_error("HOME_MODE_LINKAGE_BLOCKED", arbiter.get("reason")))
 
     # 仲裁器已 acquire：这之后的**任何**异常与取消都必须自己释放 claim 并回滚已执行的动作。
@@ -932,9 +910,7 @@ async def _run_home_mode_activation(
     final_success = sum(1 for result in activation.results if result.get("success"))
     failed_count = len(activation.results) - final_success
     failed_ratio = (failed_count / len(activation.results)) if activation.results else 0.0
-    if activation.results and (
-        final_success == 0 or failed_ratio >= MODE_ACTIVATION_FAILURE_RATIO
-    ):
+    if activation.results and (final_success == 0 or failed_ratio >= MODE_ACTIVATION_FAILURE_RATIO):
         return await _abort_failed_activation(deps, state, activation)
 
     # ④ 提交：动作达到阈值才算「激活」。提交失败同样要回滚设备并回放旧模式。
@@ -967,8 +943,7 @@ async def _prepare_activation_snapshot(
     conflicting_modes = [
         active
         for active in active_modes
-        if active["id"] != activation.trigger.mode_id
-        and (active.get("exclusiveGroup") or "default") == group
+        if active["id"] != activation.trigger.mode_id and (active.get("exclusiveGroup") or "default") == group
     ]
     activation.displaced_modes = list(conflicting_modes)
     # 先把旧模式的设备恢复到「进入该模式之前」的状态，让新动作从干净状态开始。
@@ -993,9 +968,7 @@ async def _execute_activation_actions(
     """③ 执行：安防串行且先行，其余设备走开环序列 + 一次失败重试（安防不重试）。"""
     deps.log(f"正在激活模式: {activation.mode['name']}")
     sec_cfg = deps.get_security_config()
-    configs_to_run = filter_home_mode_actions_for_linkage_dedupe(
-        entity_configs, activation.meta, sec_cfg
-    )
+    configs_to_run = filter_home_mode_actions_for_linkage_dedupe(entity_configs, activation.meta, sec_cfg)
 
     # 安防切换必须串行且先行：并发/夹在设备动作里时，最终模式取决于最后一次 set_mode，
     # 而且一旦后续设备动作触发整体回滚，房子会停在「模式已切、设备已回滚」的错位状态。
@@ -1004,9 +977,7 @@ async def _execute_activation_actions(
     # 先记「本次要动几条安防、动之前是什么模式」：这两项要在执行前定下来，
     # 中途异常时兜底回滚才知道是否需要把面板还原。
     activation.security_action_count = len(security_configs)
-    activation.previous_security_mode = (
-        await deps.get_security_mode() if security_configs else None
-    )
+    activation.previous_security_mode = await deps.get_security_mode() if security_configs else None
     security_results: list[dict[str, Any]] = []
     for config in security_configs:
         security_results.append(await _execute_home_mode_action(deps, config))
@@ -1021,23 +992,13 @@ async def _execute_activation_actions(
     ordered_configs = [*security_configs, *device_configs]
 
     failed_indices = [idx for idx, result in enumerate(results) if not result.get("success")]
-    run = _ActionRunState(
-        configs=ordered_configs, results=results, failed_indices=failed_indices
-    )
+    run = _ActionRunState(configs=ordered_configs, results=results, failed_indices=failed_indices)
     # 安防动作不进入并发重试：多条 security 动作并发重试会让最终模式无法预测。
-    run.failed_indices = [
-        idx
-        for idx in run.failed_indices
-        if resolve_action_kind(ordered_configs[idx]) != "security"
-    ]
-    activation.retry_results = await _retry_failed_home_mode_actions(
-        deps, activation.mode["name"], run
-    )
+    run.failed_indices = [idx for idx in run.failed_indices if resolve_action_kind(ordered_configs[idx]) != "security"]
+    activation.retry_results = await _retry_failed_home_mode_actions(deps, activation.mode["name"], run)
 
 
-async def _finalize_safely(
-    deps: Any, activation: _ActivationContext, final_success: int
-) -> HomeModeActivateResult:
+async def _finalize_safely(deps: Any, activation: _ActivationContext, final_success: int) -> HomeModeActivateResult:
     """④ 收尾记录。已经提交的激活不该因为写日志 / 通知失败而变成 500。"""
     try:
         return await _finalize_home_mode_activation(deps, activation, final_success)
@@ -1065,9 +1026,7 @@ async def _rollback_interrupted_activation(
         # shield：外层被取消时仍然让回滚跑完，否则磁盘上会留下半执行状态。
         await asyncio.shield(_abort_failed_activation(deps, state, activation))
     except asyncio.CancelledError:
-        deps.warn(
-            f"模式 {activation.mode['name']} 激活被取消，回滚未完成，请手动检查设备状态与联动仲裁"
-        )
+        deps.warn(f"模式 {activation.mode['name']} 激活被取消，回滚未完成，请手动检查设备状态与联动仲裁")
     except Exception as exc:
         deps.warn(f"模式 {activation.mode['name']} 激活异常后回滚失败: {exc}")
 
@@ -1117,9 +1076,7 @@ async def deactivate_home_mode(
     restore_incomplete = bool(restore_outcome["incomplete"])
 
     active_modes = await deps.list_active_modes()
-    group_ids = [
-        m["id"] for m in active_modes if (m.get("exclusiveGroup") or "default") == group
-    ]
+    group_ids = [m["id"] for m in active_modes if (m.get("exclusiveGroup") or "default") == group]
     if group_ids and not restore_incomplete:
         await deps.clear_group_active(group_ids, restore_outcome["incomplete"])
 
@@ -1129,9 +1086,7 @@ async def deactivate_home_mode(
         deps.linkage_arbiter.release()
 
     # 多互斥组可同时激活：前端据此只移除本条，而不是清空所有激活标记。
-    remaining_active_ids = [
-        m["id"] for m in await deps.list_active_modes() if m["id"] != prev_mode_id
-    ]
+    remaining_active_ids = [m["id"] for m in await deps.list_active_modes() if m["id"] != prev_mode_id]
 
     # 恢复不完整时「已停用」是假象：模式仍是激活态、快照仍保留，用户可重试恢复。
     if restore_incomplete:
@@ -1206,7 +1161,7 @@ async def deactivate_home_mode(
         }
     )
     suffix = f";仍激活: {still_active['name']}" if still_active else ""
-    deps.log(f"模式组\"{group}\"已停用({mode['name']}),{restored_message}{suffix}")
+    deps.log(f'模式组"{group}"已停用({mode["name"]}),{restored_message}{suffix}')
     return {
         "success": True,
         "modeId": prev_mode_id,

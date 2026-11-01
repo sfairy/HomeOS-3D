@@ -68,12 +68,21 @@ async function continuePayment() {
       `/orders/${encodeURIComponent(target.orderNo || "")}?reconcile=1`,
       { headers: target.lookupToken ? { "X-Order-Token": target.lookupToken } : {} },
     )) as StoreOrder;
-    order.closePendingOrder();
-    if (refreshed.payment?.qrCode) {
+    const status = String(refreshed.status || "");
+    // 先看状态，再看二维码：`payment.qrCode` 在 paid / cancelled / expired 之后仍留在
+    // 载荷里（建单时写入的），只判「有没有二维码」会把已结清的订单重新弹出可扫的付款码。
+    if (!status || status === "pending") {
+      if (!refreshed.payment?.qrCode) {
+        toast.show("这笔订单暂时没有可用的付款二维码，请稍后刷新重试。", "err");
+        return;
+      }
+      order.closePendingOrder();
       await order.showPayment(refreshed);
-    } else {
-      toast.show("这笔订单暂时没有可用的付款二维码，请刷新后重试。", "err");
+      return;
     }
+    // 终态（已支付 / 已完成 / 已关闭 / 已过期）：交给 showPayment 统一收尾并给出准确文案
+    order.closePendingOrder();
+    await order.showPayment(refreshed);
   } catch (error) {
     toast.show(errorMessage(error), "err");
   } finally {

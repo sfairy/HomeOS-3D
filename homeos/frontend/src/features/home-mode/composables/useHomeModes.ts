@@ -13,7 +13,7 @@
  *
  * 所以本文件不适用「避免全局状态」这条规范 —— 改成工厂函数等于改语义，不是重构。
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   fetchHomeModes,
   fetchActiveHomeMode,
@@ -57,6 +57,8 @@ interface UseHomeModesOptions {
 const modes = ref<HomeModeRow[]>([])
 const activeModes = ref<HomeModeRow[]>([])
 const activeMode = ref<HomeModeRow | null>(null)
+/** 全部激活模式 id（多互斥组可同时激活）：菜单 / 编辑器标「激活中」都不能只看主模式。 */
+const activeModeIds = computed(() => activeModes.value.map((mode) => String(mode.id)))
 const loading = ref(false)
 const loadError = ref<string>('')
 const acting = ref(false)
@@ -83,9 +85,13 @@ function applyActiveModes(list: HomeModeRow[]) {
 
 /** `home_mode_activated`：刷新激活列表，并按失败设备数选提示语气。 */
 function handleModeActivated(data: HomeModeWsPayload) {
-  fetchActive()
+  void fetchActive()
   if (data.modeId) {
-    syncModesActiveFlags(data.modeId)
+    // 不能只把 data.modeId 标为激活：多互斥组下其它组仍然是激活态，
+    // 单值同步会把它们刷成未激活（菜单里只剩一个模式高亮，与 header 的复合标签不一致）。
+    const ids = new Set(activeModes.value.map((mode) => mode.id))
+    ids.add(String(data.modeId))
+    syncModesActiveFlags([...ids])
   }
   if (!data.modeName) return
   const total = data.totalCount ?? 0
@@ -150,9 +156,9 @@ async function fetchModes(options: { silent?: boolean } = {}) {
   try {
     const { data } = await fetchHomeModes()
     modes.value = normalizeCrudListResponse(data).rows as HomeModeRow[]
-    if (activeMode.value?.id) {
-      syncModesActiveFlags(activeMode.value.id)
-    }
+    // 激活标记必须以「全部激活模式」为准：只同步主模式会把其它互斥组的激活态刷成 false，
+    // 菜单/设置页看起来像被退出了，实际它们仍在生效。
+    syncModesActiveFlags(activeModes.value.map((mode) => mode.id))
   } catch (e) {
     if (showLoading || modes.value.length === 0) {
       modes.value = []
@@ -328,6 +334,7 @@ export function useHomeModes(options: UseHomeModesOptions = {}) {
     modes,
     activeMode,
     activeModes,
+    activeModeIds,
     loading,
     loadError,
     acting,

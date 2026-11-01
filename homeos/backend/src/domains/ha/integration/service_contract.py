@@ -94,6 +94,8 @@ class HAConnectorHost:
     _reconnect_max_backoff: Any = None
     _reconcile: Any = None
     _cancel_reconcile: Any = None
+    # 跨 mixin：定义在 ``HASyncMixin``，由 ``HALiveMixin`` 的热路径回调。
+    _apply_removed_states: Any = None
     _record_error: Any = None
     _reset_failure_state: Any = None
     _run: Any = None

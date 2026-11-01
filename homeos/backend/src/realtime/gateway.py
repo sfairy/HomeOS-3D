@@ -123,11 +123,11 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         # 通道判成「Not an accepted origin」，表现为面板连上又掉、状态不刷新。
         # 只比 netloc（主机 + 端口）：scheme 在隧道 / 内置 HTTPS 两条链路上不可靠，
         # 跨站页面无法把自己的 Origin 写成目标主机，所以这不削弱 CSRF 面。
-        host = str((environ or {}).get('HTTP_HOST') or '').strip()
+        host = str((environ or {}).get("HTTP_HOST") or "").strip()
         if not host:
             return False
         try:
-            return (urlsplit(origin).netloc or '').casefold() == host.casefold()
+            return (urlsplit(origin).netloc or "").casefold() == host.casefold()
         except ValueError:
             return False
 
@@ -177,7 +177,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         except Exception:
             # 读库失败就沿用上一次已生效的配置；但要留痕，否则「配置改了不生效」
             # 会表现成前端状态字段全是旧的，而日志里毫无线索。
-            logger.warning('读取 stateStore 配置失败，本次沿用上次配置', exc_info=True)
+            logger.warning("读取 stateStore 配置失败，本次沿用上次配置", exc_info=True)
             return
         self.state_store.apply_config(
             max_recent_changes=cfg.max_recent_changes,
@@ -201,20 +201,30 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         """当前在线 Socket.IO 客户端数（对齐 Nest ``WsPushGateway.getClientCount``）。"""
         return len(self.connected)
 
+    def _log_state_changes(self, event_log: Any, changes: list[dict[str, Any]]) -> None:
+        """事件日志流水线：与 WS 广播共用同一批冷批变更（内存缓冲，不阻塞本协程）。
+
+        删除事件不进事件日志：日志表按「状态样本」建模，``new_state=None`` 存不进也
+        没有分析价值（实体没了，历史样本仍应留在日志里供回溯）。
+        """
+        loggable = [change for change in changes if not change.get("removed")]
+        if not loggable:
+            return
+        try:
+            event_log.handle_state_change_batch({"changes": loggable})
+        except Exception:  # 事件日志批量落库失败不能带塌 WS 广播
+            logger.warning(
+                "事件日志批量落库失败（本批 %d 条状态变更未入事件日志，WS 广播继续）",
+                len(loggable),
+                exc_info=True,
+            )
+
     async def broadcast_state_changed_batch(self, changes: list[dict[str, Any]]) -> None:
         if not changes:
             return
-        # 事件日志流水线：与 WS 广播共用同一批冷批变更（内存缓冲，不阻塞本协程）。
         event_log = getattr(self.app.state, "event_log", None)
         if event_log is not None:
-            try:
-                event_log.handle_state_change_batch({"changes": changes})
-            except Exception:  # 事件日志批量落库失败不能带塌 WS 广播
-                logger.warning(
-                    '事件日志批量落库失败（本批 %d 条状态变更未入事件日志，WS 广播继续）',
-                    len(changes),
-                    exc_info=True,
-                )
+            self._log_state_changes(event_log, changes)
         started = time.monotonic()
         ws_cfg = self._ws_config()
         self._apply_state_config()
@@ -285,9 +295,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                 ),
                 return_exceptions=True,
             )
-            for ((_indices, _pinned), bucket_sids), result in zip(
-                buckets.items(), results, strict=False
-            ):
+            for ((_indices, _pinned), bucket_sids), result in zip(buckets.items(), results, strict=False):
                 if isinstance(result, Exception):
                     # 单个连接发送失败（连接刚断、序列化异常等）不能让整轮广播中断，
                     # 否则后面所有订阅者都会漏掉这一批变更。
@@ -335,7 +343,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             for sid in ready:
                 try:
                     await self.sio.enter_room(sid, room)
-                except (KeyError, ValueError):
+                except KeyError, ValueError:
                     # 期间断开的连接：跳过即可，不能让整桶推送失败。
                     continue
                 joined.append(sid)
@@ -345,7 +353,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             for sid in joined:
                 try:
                     await self.sio.leave_room(sid, room)
-                except (KeyError, ValueError):
+                except KeyError, ValueError:
                     continue
 
     def _next_batch_room(self) -> str:
@@ -378,14 +386,13 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             except Exception:
                 return False
             # ``getattr`` 拿到的是 ``object``，先收窄再与阈值比较，避免误把非数值当 0/大数。
-            return (
-                isinstance(pending, int) and pending > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
-            )
+            return isinstance(pending, int) and pending > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
         transport = getattr(eio_socket, "transport", None)
         buffer = getattr(transport, "write_buffer", None)
         if isinstance(buffer, list):
             return len(buffer) > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
         return False
+
 
 def create_realtime_gateway(app: Any) -> RealtimeGateway:
     return RealtimeGateway(app)

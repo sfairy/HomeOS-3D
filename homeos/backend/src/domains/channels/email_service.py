@@ -17,6 +17,7 @@ from html import escape
 from typing import Any
 
 from .types import MessageHandler
+from ...platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.channels.email")
 
@@ -61,7 +62,7 @@ class EmailService:
             self._channel_config.invalidate_cache()
             await self.reload()
 
-        self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
+        subscribe_config_updates(self._event_bus, on_system_config_updated)
 
     # 配置加载
     async def reload(self) -> None:
@@ -163,11 +164,7 @@ class EmailService:
         now = time.monotonic()
         if self._status_cache is not None:
             checked_at, cached = self._status_cache
-            ttl = (
-                EMAIL_STATUS_ERROR_TTL_SECONDS
-                if cached.get("error")
-                else EMAIL_STATUS_TTL_SECONDS
-            )
+            ttl = EMAIL_STATUS_ERROR_TTL_SECONDS if cached.get("error") else EMAIL_STATUS_TTL_SECONDS
             if now - checked_at < ttl:
                 return dict(cached)
         try:

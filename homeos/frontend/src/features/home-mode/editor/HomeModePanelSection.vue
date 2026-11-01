@@ -37,6 +37,7 @@ const {
   displayModeTabs,
   activeTab,
   activeMode,
+  activeModeIds,
   activeDraft,
   activeDraftDirty,
   pendingModeChanges,
@@ -183,6 +184,7 @@ onScopeDispose(() => setHomeModePanelBridge(null))
         v-model:batch-service="batchService"
         :active-tab="activeTab"
         :active-mode="activeMode"
+        :active-mode-ids="activeModeIds"
         v-model:active-draft="activeDraft"
         :active-draft-dirty="activeDraftDirty"
         :section-tabs="sectionTabs"

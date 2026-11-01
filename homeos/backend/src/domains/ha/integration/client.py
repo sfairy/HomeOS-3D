@@ -20,6 +20,7 @@ import httpx
 from .control_pool import HAControlConfiguration, HAControlPool
 from .errors import endpoint_failure_reason
 from .http_pool import HAHttpClientPool, HAHttpConfiguration
+from .service_idempotency import _service_call_retry_safe
 from ....platform.core.ha import ha_errors
 
 
@@ -43,7 +44,6 @@ LOGGER = logging.getLogger("homeos.ha_rest")
 
 
 class HAClientError(RuntimeError):
-
     pass
 
 
@@ -69,33 +69,29 @@ def normalize_base_url(value: str) -> str:
     http/https 且带主机名；不接受账号密码、查询串与锚点 —— 这些字段一旦混进基地址，
     后续拼接出来的 URL 会静默指向别处。
     """
-    candidate = value.strip().rstrip('/')
+    candidate = value.strip().rstrip("/")
     try:
         parsed = urlparse(candidate)
         port = parsed.port
     except ValueError as error:
-        raw = '地址或端口格式不正确；IPv6 地址请放在方括号内。'
+        raw = "地址或端口格式不正确；IPv6 地址请放在方括号内。"
         raise HAClientError(raw) from error
-    if (
-        any(c.isspace() for c in candidate)
-        or '\\' in candidate
-        or (port is not None and not 1 <= port <= 65535)
-    ):
+    if any(c.isspace() for c in candidate) or "\\" in candidate or (port is not None and not 1 <= port <= 65535):
         raise HAClientError(ha_errors.address_invalid_port())
-    if parsed.scheme not in {'http', 'https'} or not parsed.hostname:
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HAClientError(ha_errors.address_not_url())
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise HAClientError(ha_errors.address_has_credentials())
-    path = parsed.path.rstrip('/')
-    return urlunparse((parsed.scheme, parsed.netloc, path, '', '', ''))
+    path = parsed.path.rstrip("/")
+    return urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
 
 
 def websocket_url(base_url: str) -> str:
     """由 REST 基地址推出 WebSocket 端点：同主机端口，协议换 ws/wss，路径加 ``/api/websocket``。"""
     parsed = urlparse(base_url)
-    scheme = 'wss' if parsed.scheme == 'https' else 'ws'
+    scheme = "wss" if parsed.scheme == "https" else "ws"
     path = f"{parsed.path.rstrip('/')}/api/websocket"
-    return urlunparse((scheme, parsed.netloc, path, '', '', ''))
+    return urlunparse((scheme, parsed.netloc, path, "", "", ""))
 
 
 def is_ipv6_literal(base_url: str) -> bool:
@@ -157,7 +153,7 @@ def bypass_environment_proxy(base_url: str) -> bool:
         return False
     if is_ipv6_literal(base_url):
         return True
-    if hostname.lower() == 'localhost' or hostname.lower().endswith(('.local', '.lan')):
+    if hostname.lower() == "localhost" or hostname.lower().endswith((".local", ".lan")):
         return True
     try:
         address = ip_address(hostname)
@@ -190,25 +186,25 @@ class HASnapshot:
 #: 这些动作在 HA 里只有 WS 命令、没有同名服务；0.7.8 把它们统一收进
 #: :meth:`HAClient.call_service`，于是前端不需要知道"这个服务其实走 WS"。
 WEBSOCKET_OPERATIONS: dict[tuple[str, str], str] = {
-    ('calendar', 'delete_event'): 'calendar/event/delete',
-    ('calendar', 'update_event'): 'calendar/event/update',
-    ('todo', 'move_item'): 'todo/item/move',
-    ('update', 'release_notes'): 'update/release_notes',
-    ('media_player', 'search_media'): 'media_player/search_media',
-    ('wake_word', 'info'): 'wake_word/info',
-    ('stt', 'info'): 'stt/engine/list',
-    ('radio_frequency', 'info'): 'radio_frequency/list',
+    ("calendar", "delete_event"): "calendar/event/delete",
+    ("calendar", "update_event"): "calendar/event/update",
+    ("todo", "move_item"): "todo/item/move",
+    ("update", "release_notes"): "update/release_notes",
+    ("media_player", "search_media"): "media_player/search_media",
+    ("wake_word", "info"): "wake_word/info",
+    ("stt", "info"): "stt/engine/list",
+    ("radio_frequency", "info"): "radio_frequency/list",
 }
 #: 需要 ``?return_response`` 的服务：HA 只对列表里的服务返回响应体。
 RESPONSE_SERVICES = frozenset(
     {
-        ('todo', 'get_items'),
-        ('ai_task', 'generate_data'),
-        ('ai_task', 'generate_image'),
-        ('weather', 'get_forecasts'),
-        ('calendar', 'get_events'),
-        ('conversation', 'process'),
-        ('assist_satellite', 'ask_question'),
+        ("todo", "get_items"),
+        ("ai_task", "generate_data"),
+        ("ai_task", "generate_image"),
+        ("weather", "get_forecasts"),
+        ("calendar", "get_events"),
+        ("conversation", "process"),
+        ("assist_satellite", "ask_question"),
     }
 )
 #: 慢服务统一超时（秒）：AI 生成、语音提问、固件安装都可能跑几十秒。
@@ -216,42 +212,9 @@ SLOW_SERVICE_TIMEOUT = 115
 #: 生成图片允许回传的最大字节数（再大就不是"预览"了）。
 GENERATED_IMAGE_MAX_BYTES = 4194304
 #: 生成图片允许的 MIME。
-GENERATED_IMAGE_TYPES = frozenset({'image/gif', 'image/png', 'image/jpeg', 'image/webp'})
+GENERATED_IMAGE_TYPES = frozenset({"image/gif", "image/png", "image/jpeg", "image/webp"})
 #: 生成图片 URL 只允许 HA 自己的相对路径（防 SSRF / 路径穿越）。
-GENERATED_IMAGE_PREFIXES = ('/ai_task/', '/media/', '/api/ai_task/')
-
-
-#: 动作型服务：每次执行都会改变状态，传输层失败后重放可能把用户意图反转。
-_NON_IDEMPOTENT_SERVICES = frozenset({
-    'play_pause',
-    'media_play_pause',
-    'next',
-    'previous',
-    'next_track',
-    'previous_track',
-    'shuffle_set',
-    'cycle',
-    'increase_speed',
-    'decrease_speed',
-    'open_cover',
-    'close_cover',
-    'stop_cover',
-    'lock',
-    'unlock',
-    'open',
-    'close',
-})
-
-
-def _service_call_retry_safe(domain: str, service: str) -> bool:
-    """该服务在 HA 层面是否幂等（重复下发不会产生额外副作用）。
-
-    只有幂等调用才允许在传输层失败后重放一次。``toggle`` / ``play_pause`` 等动作型
-    服务每次执行都会改变状态，重放会把「开」变「关」，因此一律不重试。
-    """
-    if service in _NON_IDEMPOTENT_SERVICES:
-        return False
-    return not service.startswith('toggle')
+GENERATED_IMAGE_PREFIXES = ("/ai_task/", "/media/", "/api/ai_task/")
 
 
 def _remote_learning_timeout(data: dict[str, Any]) -> float:
@@ -260,17 +223,16 @@ def _remote_learning_timeout(data: dict[str, Any]) -> float:
     与前端 ``control-timeout.ts`` 同一套算法（前端用来决定"按钮转圈多久"，
     后端用来决定"HTTP 请求等多久"），差一个常数就出现"前端已超时、后端还在等"。
     """
-    wait = data.get('timeout')
+    wait = data.get("timeout")
     if not isinstance(wait, (int, float)) or isinstance(wait, bool) or not math.isfinite(wait) or wait <= 0:
         wait = 60
-    commands = data.get('command')
+    commands = data.get("command")
     count = max(1, min(64, len(commands))) if isinstance(commands, list) else 1
-    phases = 2 if data.get('command_type') == 'rf' else 1
+    phases = 2 if data.get("command_type") == "rf" else 1
     return min(60, wait) * count * phases + 15
 
 
 class HAClient:
-
     def __init__(
         self,
         base_url: str,
@@ -315,8 +277,8 @@ class HAClient:
     @property
     def headers(self) -> dict[str, str]:
         return {
-            'Authorization': f'Bearer {self.access_token}',
-            'Content-Type': 'application/json',
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
         }
 
     @property
@@ -346,13 +308,11 @@ class HAClient:
         ) as client:
             yield client
 
-    async def test_connection(
-        self, *, include_temperature_unit: bool = False
-    ) -> dict[str, Any]:
+    async def test_connection(self, *, include_temperature_unit: bool = False) -> dict[str, Any]:
         try:
             async with self._http_client() as client:
                 response = await client.get(
-                    f'{self.base_url}/api/config',
+                    f"{self.base_url}/api/config",
                     headers=self.headers,
                     timeout=self.timeout,
                 )
@@ -361,9 +321,9 @@ class HAClient:
                     config = response.json()
                 except ValueError as error:
                     raise HAClientError(
-                        '该地址返回了网页或无效数据，请填写 Home Assistant 服务地址，并检查反向代理登录限制。'
+                        "该地址返回了网页或无效数据，请填写 Home Assistant 服务地址，并检查反向代理登录限制。"
                     ) from error
-                if not isinstance(config, dict) or not config.get('version'):
+                if not isinstance(config, dict) or not config.get("version"):
                     raise HAClientError(ha_errors.address_not_home_assistant())
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
@@ -372,11 +332,11 @@ class HAClient:
         except (httpx.HTTPError, ValueError) as error:
             raise HAClientError(ha_errors.unreachable(error)) from error
         return {
-            'version': str(config.get('version', '')),
-            'locationName': str(config.get('location_name', 'Home Assistant')),
-            'timeZone': str(config.get('time_zone', '')),
+            "version": str(config.get("version", "")),
+            "locationName": str(config.get("location_name", "Home Assistant")),
+            "timeZone": str(config.get("time_zone", "")),
             **(
-                {'temperatureUnit': (config.get('unit_system') or {}).get('temperature')}
+                {"temperatureUnit": (config.get("unit_system") or {}).get("temperature")}
                 if include_temperature_unit
                 else {}
             ),
@@ -408,7 +368,7 @@ class HAClient:
             try:
                 async with self._http_client() as client:
                     response = await client.get(
-                        f'{self.base_url}/api/states',
+                        f"{self.base_url}/api/states",
                         headers=self.headers,
                         timeout=self.timeout,
                     )
@@ -420,13 +380,13 @@ class HAClient:
                     return [
                         item
                         for item in payload
-                        if isinstance(item, dict) and str(item.get('entity_id') or '') in wanted
+                        if isinstance(item, dict) and str(item.get("entity_id") or "") in wanted
                     ]
             except HAClientError:
                 raise
             except (httpx.HTTPError, ValueError) as error:
                 # 回退成功时没有用户可操作的信息；真失败会在下面聚合成一行 WARNING。
-                LOGGER.debug('批量拉取 /api/states 失败，回退逐实体：%s', error)
+                LOGGER.debug("批量拉取 /api/states 失败，回退逐实体：%s", error)
 
         semaphore = asyncio.Semaphore(8)
         async with self._http_client() as client:
@@ -436,7 +396,7 @@ class HAClient:
                 async with semaphore:
                     try:
                         response = await client.get(
-                            f'{self.base_url}/api/states/{quote(entity_id, safe="")}',
+                            f"{self.base_url}/api/states/{quote(entity_id, safe='')}",
                             headers=self.headers,
                             timeout=self.timeout,
                         )
@@ -469,18 +429,16 @@ class HAClient:
             # 逐实体刷 WARNING 会在大批量实体时刷满控制台（一次 400 条），这里压成一行：
             # 列前三个实体 + 总数 + 一句原因，逐实体明细留在 DEBUG。
             causes = {reason.__cause__ or reason for _, reason in failed}
-            detail = (
-                endpoint_failure_reason(next(iter(causes))) if len(causes) == 1 else '原因不一，详见 DEBUG 日志'
-            )
-            sample = '、'.join(entity_id for entity_id, _ in failed[:3])
-            count = f' 等 {len(failed)} 个实体' if len(failed) > 3 else ''
-            LOGGER.warning('拉取 Home Assistant 实体状态失败，已跳过%s%s（%s）', sample, count, detail)
+            detail = endpoint_failure_reason(next(iter(causes))) if len(causes) == 1 else "原因不一，详见 DEBUG 日志"
+            sample = "、".join(entity_id for entity_id, _ in failed[:3])
+            count = f" 等 {len(failed)} 个实体" if len(failed) > 3 else ""
+            LOGGER.warning("拉取 Home Assistant 实体状态失败，已跳过%s%s（%s）", sample, count, detail)
             for entity_id, reason in failed:
-                LOGGER.debug('实体状态拉取失败：%s（%s）', entity_id, reason)
+                LOGGER.debug("实体状态拉取失败：%s（%s）", entity_id, reason)
         return states
 
     def _ssl_context(self):
-        if not websocket_url(self.base_url).startswith('wss://'):
+        if not websocket_url(self.base_url).startswith("wss://"):
             return None
         # verify_tls=False 是用户在高级设置中针对自签名证书的显式选择，默认路径使用 create_default_context。
         return ssl.create_default_context() if self.verify_tls else ssl._create_unverified_context()  # noqa: S323
@@ -488,16 +446,20 @@ class HAClient:
     async def _authenticate(self, websocket) -> None:
         try:
             required = json.loads(await websocket.recv())
-            if not isinstance(required, dict) or required.get('type') != 'auth_required':
-                raise HAProtocolError('Home Assistant WebSocket 未返回鉴权请求。')
-            await websocket.send(json.dumps({
-                'type': 'auth',
-                'access_token': self.access_token,
-            }))
+            if not isinstance(required, dict) or required.get("type") != "auth_required":
+                raise HAProtocolError("Home Assistant WebSocket 未返回鉴权请求。")
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "auth",
+                        "access_token": self.access_token,
+                    }
+                )
+            )
             result = json.loads(await websocket.recv())
         except (json.JSONDecodeError, _websockets().WebSocketException) as error:
-            raise HAClientError(f'Home Assistant WebSocket 鉴权失败：{error}') from error
-        if not isinstance(result, dict) or result.get('type') != 'auth_ok':
+            raise HAClientError(f"Home Assistant WebSocket 鉴权失败：{error}") from error
+        if not isinstance(result, dict) or result.get("type") != "auth_ok":
             raise HAAuthError(ha_errors.websocket_token_invalid())
 
     async def connect_websocket(self):
@@ -515,17 +477,16 @@ class HAClient:
         except ImportError as error:
             # 命中 SOCKS 代理但环境缺 python-socks（见 bypass_environment_proxy 的说明）。
             raise HAClientError(
-                '当前环境通过 SOCKS 代理连接 Home Assistant，但缺少 python-socks 依赖；'
-                '内网地址应直连，请检查代理设置。'
+                "当前环境通过 SOCKS 代理连接 Home Assistant，但缺少 python-socks 依赖；内网地址应直连，请检查代理设置。"
             ) from error
         except (OSError, TimeoutError, _websockets().WebSocketException) as error:
-            if 'message too big' in str(error).lower() or '1009' in str(error):
+            if "message too big" in str(error).lower() or "1009" in str(error):
                 maximum_mb = self.websocket_max_size_bytes // 1048576
                 raise HAProtocolError(
-                    f'Home Assistant 返回的单条数据超过 {maximum_mb} MB，'
-                    '请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。'
+                    f"Home Assistant 返回的单条数据超过 {maximum_mb} MB，"
+                    "请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。"
                 ) from error
-            raise HAClientError(f'无法建立 Home Assistant WebSocket：{error}') from error
+            raise HAClientError(f"无法建立 Home Assistant WebSocket：{error}") from error
 
         try:
             async with asyncio.timeout(self.timeout):
@@ -536,42 +497,36 @@ class HAClient:
         return websocket
 
     async def command(self, websocket, message_id: int, command_type: str, **payload) -> Any:
-        await websocket.send(json.dumps({'id': message_id, 'type': command_type, **payload}))
+        await websocket.send(json.dumps({"id": message_id, "type": command_type, **payload}))
         try:
             async with asyncio.timeout(self.timeout):
                 return await self._read_command_result(websocket, message_id, command_type)
         except TimeoutError as error:
             # 反代/HA 挂住时 recv 会一直不返回；与 _call_websocket_operation 保持同一超时口径。
-            raise HAClientError(
-                f'Home Assistant 命令 {command_type} 超时（{self.timeout:g}s）。'
-            ) from error
+            raise HAClientError(f"Home Assistant 命令 {command_type} 超时（{self.timeout:g}s）。") from error
 
-    async def _read_command_result(
-        self, websocket, message_id: int, command_type: str
-    ) -> Any:
+    async def _read_command_result(self, websocket, message_id: int, command_type: str) -> Any:
         while True:
             try:
                 message = json.loads(await websocket.recv())
             except _websockets().WebSocketException as error:
                 if (
-                    getattr(error, 'code', None) == 1009
-                    or 'message too big' in str(error).lower()
-                    or '1009' in str(error)
+                    getattr(error, "code", None) == 1009
+                    or "message too big" in str(error).lower()
+                    or "1009" in str(error)
                 ):
                     maximum_mb = self.websocket_max_size_bytes // 1048576
                     raise HAProtocolError(
-                        f'Home Assistant 命令 {command_type} 返回的单条数据超过 {maximum_mb} MB，'
-                        '请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。'
+                        f"Home Assistant 命令 {command_type} 返回的单条数据超过 {maximum_mb} MB，"
+                        "请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。"
                     ) from error
-                raise HAClientError(
-                    f'Home Assistant 命令 {command_type} 连接中断：{error}'
-                ) from error
-            if message.get('id') != message_id:
+                raise HAClientError(f"Home Assistant 命令 {command_type} 连接中断：{error}") from error
+            if message.get("id") != message_id:
                 continue
-            if message.get('type') != 'result' or not message.get('success'):
-                error = message.get('error') or {}
-                raise HAClientError(str(error.get('message') or f'HA 命令 {command_type} 执行失败。'))
-            return message.get('result')
+            if message.get("type") != "result" or not message.get("success"):
+                error = message.get("error") or {}
+                raise HAClientError(str(error.get("message") or f"HA 命令 {command_type} 执行失败。"))
+            return message.get("result")
 
     @staticmethod
     async def subscribe_events(
@@ -589,11 +544,9 @@ class HAClient:
         """
         try:
             async with asyncio.timeout(timeout):
-                return await HAClient._subscribe_events(
-                    websocket, event_types, start_id, required_event_types
-                )
+                return await HAClient._subscribe_events(websocket, event_types, start_id, required_event_types)
         except TimeoutError as error:
-            raise HAClientError('Home Assistant 实时状态订阅确认超时。') from error
+            raise HAClientError("Home Assistant 实时状态订阅确认超时。") from error
 
     @staticmethod
     async def _subscribe_events(
@@ -606,26 +559,30 @@ class HAClient:
         pending = {}
         for message_id, event_type in enumerate(event_types, start=start_id):
             pending[message_id] = event_type
-            await websocket.send(json.dumps({
-                'id': message_id,
-                'type': 'subscribe_events',
-                'event_type': event_type,
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "id": message_id,
+                        "type": "subscribe_events",
+                        "event_type": event_type,
+                    }
+                )
+            )
         buffered_events = []
         while pending:
             message = json.loads(await websocket.recv())
-            if message.get('type') == 'event':
+            if message.get("type") == "event":
                 buffered_events.append(message)
                 continue
-            message_id = message.get('id')
+            message_id = message.get("id")
             if message_id not in pending:
                 continue
             event_type = pending.pop(message_id)
-            if message.get('type') != 'result' or not message.get('success'):
+            if message.get("type") != "result" or not message.get("success"):
                 if event_type not in required:
                     continue
-                error = message.get('error') or {}
-                raise HAClientError(str(error.get('message') or f'订阅 HA 事件 {event_type} 失败。'))
+                error = message.get("error") or {}
+                raise HAClientError(str(error.get("message") or f"订阅 HA 事件 {event_type} 失败。"))
         return buffered_events
 
     async def subscribe_entities(self, websocket, start_id: int = 200) -> list[dict[str, Any]]:
@@ -638,31 +595,31 @@ class HAClient:
         因此这里只需要等到 ``result``；把期间读到的 ``event`` 消息一并带回即可。
         """
         message_id = start_id
-        await websocket.send(json.dumps({'id': message_id, 'type': 'subscribe_entities'}))
+        await websocket.send(json.dumps({"id": message_id, "type": "subscribe_entities"}))
         buffered_events: list[dict[str, Any]] = []
         while True:
             try:
                 message = json.loads(await websocket.recv())
             except _websockets().WebSocketException as error:
-                raise HAClientError(f'订阅 HA 压缩状态流中断：{error}') from error
+                raise HAClientError(f"订阅 HA 压缩状态流中断：{error}") from error
             except (TypeError, ValueError) as error:
-                raise HAProtocolError('订阅 HA 压缩状态流时收到非法 JSON。') from error
+                raise HAProtocolError("订阅 HA 压缩状态流时收到非法 JSON。") from error
             if not isinstance(message, dict):
                 continue
-            if message.get('type') == 'event':
+            if message.get("type") == "event":
                 buffered_events.append(message)
                 continue
-            if message.get('id') != message_id:
+            if message.get("id") != message_id:
                 continue
-            if message.get('type') != 'result' or not message.get('success'):
-                error = message.get('error') or {}
-                raise HAClientError(str(error.get('message') or '订阅 HA 压缩状态流失败。'))
+            if message.get("type") != "result" or not message.get("success"):
+                error = message.get("error") or {}
+                raise HAClientError(str(error.get("message") or "订阅 HA 压缩状态流失败。"))
             return buffered_events
 
     async def fetch_all_states(self) -> list[dict[str, Any]]:
         websocket = await self.connect_websocket()
         try:
-            states = await self.command(websocket, 1, 'get_states')
+            states = await self.command(websocket, 1, "get_states")
             return [item for item in (states or []) if isinstance(item, dict)]
         finally:
             await websocket.close()
@@ -670,12 +627,12 @@ class HAClient:
     async def fetch_snapshot(self) -> HASnapshot:
         websocket = await self.connect_websocket()
         try:
-            states = await self.command(websocket, 1, 'get_states')
+            states = await self.command(websocket, 1, "get_states")
             optional_results = []
             for message_id, command_type in (
-                (2, 'config/entity_registry/list'),
-                (3, 'config/device_registry/list'),
-                (4, 'config/area_registry/list'),
+                (2, "config/entity_registry/list"),
+                (3, "config/device_registry/list"),
+                (4, "config/area_registry/list"),
             ):
                 try:
                     optional_results.append(await self.command(websocket, message_id, command_type))
@@ -705,9 +662,9 @@ class HAClient:
         results = []
         try:
             for message_id, command_type in (
-                (2, 'config/entity_registry/list'),
-                (3, 'config/device_registry/list'),
-                (4, 'config/area_registry/list'),
+                (2, "config/entity_registry/list"),
+                (3, "config/device_registry/list"),
+                (4, "config/area_registry/list"),
             ):
                 try:
                     results.append(await self.command(websocket, message_id, command_type))
@@ -725,7 +682,7 @@ class HAClient:
     async def fetch_entity_translations(
         self,
         integrations: set[str] | list[str] | tuple[str, ...],
-        language: str = 'zh-Hans',
+        language: str = "zh-Hans",
     ) -> dict[str, str]:
         requested = sorted({str(item).strip() for item in integrations if str(item).strip()})
         websocket = await self.connect_websocket()
@@ -733,15 +690,16 @@ class HAClient:
         try:
             try:
                 component_result = await self.command(
-                    websocket, 1, 'frontend/get_translations',
-                    language=language, category='entity_component',
+                    websocket,
+                    1,
+                    "frontend/get_translations",
+                    language=language,
+                    category="entity_component",
                 )
             except HAClientError:
                 component_result = {}
             component_payload = (
-                component_result.get('resources', component_result)
-                if isinstance(component_result, dict)
-                else {}
+                component_result.get("resources", component_result) if isinstance(component_result, dict) else {}
             )
             for key, value in component_payload.items():
                 if isinstance(key, str) and isinstance(value, str):
@@ -749,12 +707,16 @@ class HAClient:
             for message_id, integration in enumerate(requested, start=2):
                 try:
                     result = await self.command(
-                        websocket, message_id, 'frontend/get_translations',
-                        language=language, category='entity', integration=integration,
+                        websocket,
+                        message_id,
+                        "frontend/get_translations",
+                        language=language,
+                        category="entity",
+                        integration=integration,
                     )
                 except HAClientError:
                     continue
-                payload = result.get('resources', result) if isinstance(result, dict) else {}
+                payload = result.get("resources", result) if isinstance(result, dict) else {}
                 for key, value in payload.items():
                     if isinstance(key, str) and isinstance(value, str):
                         resources[key] = value
@@ -804,6 +766,9 @@ class HAClient:
         ``return_response`` 供**只返回响应型**服务使用（如 ``weather.get_forecasts``）：
         HA 要求以 ``?return_response`` 查询参数发起，缺失时直接回 HTTP 400。注意它必须是
         查询参数而非 body 字段，否则会被当成 service_data 的多余键而校验失败。
+        调用方显式传 ``True`` 与 ``RESPONSE_SERVICES`` 名册是**或**关系：名册只是省事的
+        默认值，第三方集成注册的服务不在名册里，过去显式传 ``True`` 会被静默忽略、
+        请求照样 400。
 
         0.7.8 起还兜住三类"非标准 REST"的服务：
 
@@ -815,28 +780,26 @@ class HAClient:
         """
         operation = WEBSOCKET_OPERATIONS.get((domain, service))
         if operation is not None:
-            return await self._call_websocket_operation(
-                operation, domain, service, entity_id, data
-            )
-        if (domain, service) == ('calendar', 'list_events'):
+            return await self._call_websocket_operation(operation, domain, service, entity_id, data)
+        if (domain, service) == ("calendar", "list_events"):
             # 日历查询在 HA 里是 REST 端点（``/api/calendars/<entity>``），不是服务。
             async with self._control_http_client() as client:
-                response = await client.get(
-                    f'{self.base_url}/api/calendars/{entity_id}', params=data
-                )
+                response = await client.get(f"{self.base_url}/api/calendars/{entity_id}", params=data)
                 response.raise_for_status()
                 return response.json()
         payload = {**data}
         # ``conversation.process`` 认的是 ``agent_id`` 而不是 ``entity_id``。
-        payload['agent_id' if domain == 'conversation' else 'entity_id'] = entity_id
-        suffix = '?return_response' if (domain, service) in RESPONSE_SERVICES else ''
-        url = f'{self.base_url}/api/services/{domain}/{service}{suffix}'
+        payload["agent_id" if domain == "conversation" else "entity_id"] = entity_id
+        suffix = "?return_response" if return_response or (domain, service) in RESPONSE_SERVICES else ""
+        url = f"{self.base_url}/api/services/{domain}/{service}{suffix}"
         timeout: float = self.timeout
-        if domain == 'ai_task' or (domain == 'assist_satellite' and service == 'ask_question') or (
-            domain == 'update' and service == 'install'
+        if (
+            domain == "ai_task"
+            or (domain == "assist_satellite" and service == "ask_question")
+            or (domain == "update" and service == "install")
         ):
             timeout = max(self.timeout, SLOW_SERVICE_TIMEOUT)
-        if (domain, service) == ('remote', 'learn_command'):
+        if (domain, service) == ("remote", "learn_command"):
             timeout = max(self.timeout, _remote_learning_timeout(data))
         # 重试循环里 ``result`` 只在成功分支赋值；用显式标记让「循环结束但没赋值」
         # 成为可判定的失败路径（静态检查也能看到），而不是疑似未绑定变量。
@@ -853,25 +816,19 @@ class HAClient:
                         response = await client.post(url, json=payload, timeout=timeout)
                         response.raise_for_status()
                         result = response.json()
-                        if (domain, service) == ('ai_task', 'generate_image'):
+                        if (domain, service) == ("ai_task", "generate_image"):
                             result = await self._inline_generated_image(client, result)
                         assigned = True
                     break
                 except (httpx.ConnectError, httpx.RemoteProtocolError) as transport_error:
                     if attempt == 0 and _service_call_retry_safe(domain, service):
-                        LOGGER.debug(
-                            'HA 服务调用复用了已断开的连接，重试一次：%s.%s', domain, service
-                        )
+                        LOGGER.debug("HA 服务调用复用了已断开的连接，重试一次：%s.%s", domain, service)
                         continue
-                    raise HAClientError(
-                        f'Home Assistant 服务调用失败：{transport_error}'
-                    ) from transport_error
+                    raise HAClientError(f"Home Assistant 服务调用失败：{transport_error}") from transport_error
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
                 raise HAAuthError(ha_errors.token_invalid()) from error
-            raise HAClientError(
-                f'Home Assistant 服务调用返回 HTTP {error.response.status_code}。'
-            ) from error
+            raise HAClientError(f"Home Assistant 服务调用返回 HTTP {error.response.status_code}。") from error
         except TimeoutError as error:
             raise HAClientError(ha_errors.operation_timeout()) from error
         except (httpx.HTTPError, ValueError) as error:
@@ -896,20 +853,19 @@ class HAClient:
         """执行一条 HA WebSocket 命令，并保留 REST 通道的错误语义。"""
         # ``calendar.update_event`` 的 ``start``/``end`` 在 WS 命令里叫
         # ``dtstart``/``dtend``；两者同时出现说明前端传了两套时间，直接拒。
-        if (domain, service) == ('calendar', 'update_event') and isinstance(data.get('event'), dict):
-            event = data['event']
-            if 'start' in event or 'end' in event:
-                if 'dtstart' in event or 'dtend' in event:
-                    raise HAClientError('日程时间字段重复，请检查输入。')
+        if (domain, service) == ("calendar", "update_event") and isinstance(data.get("event"), dict):
+            event = data["event"]
+            if "start" in event or "end" in event:
+                if "dtstart" in event or "dtend" in event:
+                    raise HAClientError("日程时间字段重复，请检查输入。")
                 data = {
                     **data,
-                    'event': {
-                        {'start': 'dtstart', 'end': 'dtend'}.get(key, key): value
-                        for key, value in event.items()
+                    "event": {
+                        {"start": "dtstart", "end": "dtend"}.get(key, key): value for key, value in event.items()
                     },
                 }
         # ``stt`` / ``radio_frequency`` 的列表命令返回整张表，需要按实体筛出一行。
-        scoped = domain not in {'stt', 'radio_frequency'}
+        scoped = domain not in {"stt", "radio_frequency"}
         websocket = await self.connect_websocket()
         try:
             async with asyncio.timeout(self.timeout):
@@ -917,7 +873,7 @@ class HAClient:
                     websocket,
                     1,
                     operation,
-                    **({'entity_id': entity_id} if scoped else {}),
+                    **({"entity_id": entity_id} if scoped else {}),
                     **data,
                 )
         except TimeoutError as error:
@@ -926,7 +882,7 @@ class HAClient:
             await websocket.close()
         if scoped:
             return result
-        key = 'providers' if domain == 'stt' else 'transmitters'
+        key = "providers" if domain == "stt" else "transmitters"
         rows = result.get(key, []) if isinstance(result, dict) else []
         return next(
             (
@@ -934,9 +890,9 @@ class HAClient:
                 for row in rows
                 if isinstance(row, dict)
                 and (
-                    row.get('engine_id') == entity_id.partition('.')[2]
-                    if domain == 'stt'
-                    else row.get('entity_id') == entity_id
+                    row.get("engine_id") == entity_id.partition(".")[2]
+                    if domain == "stt"
+                    else row.get("entity_id") == entity_id
                 )
             ),
             {},
@@ -949,71 +905,71 @@ class HAClient:
         带着 HA 令牌去取，等于把令牌暴露给页面。这里在服务端取回（限 4 MiB、
         只接受图片 MIME），转成 base64 塞回响应。
         """
-        generated = result.get('service_response', {}) if isinstance(result, dict) else {}
-        image_url = generated.pop('url', None) if isinstance(generated, dict) else None
+        generated = result.get("service_response", {}) if isinstance(result, dict) else {}
+        image_url = generated.pop("url", None) if isinstance(generated, dict) else None
         if (
             not isinstance(image_url, str)
             or not image_url.startswith(GENERATED_IMAGE_PREFIXES)
-            or '..' in image_url
-            or '\\' in image_url
+            or ".." in image_url
+            or "\\" in image_url
         ):
-            raise HAClientError('Home Assistant 未返回可读取的生成图片。')
-        async with client.stream('GET', f'{self.base_url}{image_url}') as picture:
+            raise HAClientError("Home Assistant 未返回可读取的生成图片。")
+        async with client.stream("GET", f"{self.base_url}{image_url}") as picture:
             picture.raise_for_status()
-            mime = picture.headers.get('content-type', '').split(';')[0].strip().lower()
+            mime = picture.headers.get("content-type", "").split(";")[0].strip().lower()
             if mime not in GENERATED_IMAGE_TYPES:
-                raise HAClientError('生成结果不是可显示的图片。')
+                raise HAClientError("生成结果不是可显示的图片。")
             content = bytearray()
             async for chunk in picture.aiter_bytes():
                 content.extend(chunk)
                 if len(content) > GENERATED_IMAGE_MAX_BYTES:
-                    raise HAClientError('生成图片超过预览大小限制。')
-        generated['image'] = f'data:{mime};base64,' + base64.b64encode(content).decode('ascii')
+                    raise HAClientError("生成图片超过预览大小限制。")
+        generated["image"] = f"data:{mime};base64," + base64.b64encode(content).decode("ascii")
         return result
 
     async def browse_media(
         self,
         entity_id: str,
-        media_content_id: str = 'media-source://',
+        media_content_id: str = "media-source://",
         media_content_type: str | None = None,
     ) -> Any:
         """浏览 Home Assistant 中某个媒体播放器实体的媒体源。"""
-        payload = {'media_content_id': media_content_id}
+        payload = {"media_content_id": media_content_id}
         websocket = await self.connect_websocket()
         try:
-            return await self.command(websocket, 1, 'media_source/browse_media', **payload)
+            return await self.command(websocket, 1, "media_source/browse_media", **payload)
         finally:
             await websocket.close()
 
     async def browse_player_media(
         self,
         entity_id: str,
-        media_content_id: str = '',
+        media_content_id: str = "",
         media_content_type: str | None = None,
     ) -> Any:
         """使用集成自带的媒体库；content id 为空时请求其根目录。"""
-        payload = {'entity_id': entity_id}
+        payload = {"entity_id": entity_id}
         if media_content_id:
-            payload['media_content_id'] = media_content_id
+            payload["media_content_id"] = media_content_id
         if media_content_type:
-            payload['media_content_type'] = media_content_type
+            payload["media_content_type"] = media_content_type
         websocket = await self.connect_websocket()
         try:
-            return await self.command(websocket, 1, 'media_player/browse_media', **payload)
+            return await self.command(websocket, 1, "media_player/browse_media", **payload)
         finally:
             await websocket.close()
 
     async def fetch_history(self, entity_id: str, start_time: str) -> list[dict[str, Any]]:
-        encoded_start = quote(start_time, safe='')
+        encoded_start = quote(start_time, safe="")
         params = {
-            'filter_entity_id': entity_id,
-            'no_attributes': '1',
-            'significant_changes_only': '1',
+            "filter_entity_id": entity_id,
+            "no_attributes": "1",
+            "significant_changes_only": "1",
         }
         try:
             async with self._http_client() as client:
                 response = await client.get(
-                    f'{self.base_url}/api/history/period/{encoded_start}',
+                    f"{self.base_url}/api/history/period/{encoded_start}",
                     params=params,
                     headers=self.headers,
                     timeout=self.timeout,
@@ -1021,9 +977,7 @@ class HAClient:
                 response.raise_for_status()
                 payload = response.json()
         except httpx.HTTPStatusError as error:
-            raise HAClientError(
-                f'Home Assistant 历史数据返回 HTTP {error.response.status_code}。'
-            ) from error
+            raise HAClientError(f"Home Assistant 历史数据返回 HTTP {error.response.status_code}。") from error
         except (httpx.HTTPError, ValueError) as error:
             raise HAClientError(ha_errors.history_fetch_failed(error)) from error
         if not isinstance(payload, list) or not payload or not isinstance(payload[0], list):

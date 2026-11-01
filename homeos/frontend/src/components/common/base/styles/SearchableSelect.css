@@ -70,6 +70,16 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* 触控下把两个尾部按钮抬到 44×44：它们是输入框右侧的独立可点控件，
+   32px 宽在手指下容易把「清除」敲成「展开」。鼠标端仍是 32px，不改密度。 */
+@media (pointer: coarse) {
+  .ss-clear,
+  .ss-toggle {
+    min-width: var(--hos-touch-min);
+    width: var(--hos-touch-min);
+  }
+}
+
 .ss-toggle--open {
   transform: rotate(180deg);
 }

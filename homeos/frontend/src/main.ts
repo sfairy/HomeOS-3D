@@ -79,6 +79,7 @@ import VSkeleton from './components/common/base/VSkeleton.vue'
 import VEmptyState from './components/common/base/VEmptyState.vue'
 import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
 import { swipeClose } from './directives/swipe-close'
+import { scrollRegion } from './directives/scroll-region'
 import { studioStartupReady } from '@/shared/utils/ui/studio-startup'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
@@ -104,6 +105,8 @@ app.component('VSkeleton', VSkeleton)
 app.component('VEmptyState', VEmptyState)
 app.component('VPanelSkeleton', VPanelSkeleton)
 app.directive('swipe-close', swipeClose)
+// 可滚动容器的键盘可达性（审计 H-I02）：溢出时才挂 tabindex/role/aria-label。
+app.directive('scroll-region', scrollRegion)
 app.use(createPinia())
 app.use(router)
 
@@ -163,8 +166,9 @@ registerSessionRefreshHandler(async () => {
   const auth = useAuthStore()
   if (!auth.isAuthenticated) return false
   try {
-    await auth.refreshSession()
-    return auth.isAuthenticated
+    // 以「本次是否真拿到 200」为准：401 时 refreshSession 内部已登出，
+    // 返回 isAuthenticated 会让调用方误以为刷新成功并重试一轮。
+    return await auth.refreshSession()
   } catch {
     return false
   }
@@ -194,6 +198,19 @@ registerAuthChangeHandler(() => {
     void import('./stores/earthquake.store').then(({ useEarthquakeStore }) => {
       useEarthquakeStore().reset()
     })
+    // HA 连接快照里带着 ``baseUrl``：摄像头快照 / HLS 用它拼绝对 URL。不清的话，
+    // 下一个登录者首帧会请求到上一个账号的 HA 主机（可能是内网另一台设备）。
+    void import('./stores/ha-connection.store').then(({ useHaConnectionStore }) => {
+      useHaConnectionStore().reset()
+    })
+    // 授权可用性快照同样按会话失效：它是路由守卫写进模块级单例的，激活页在 setup 顶层
+    // 同步读它来画首帧。不清的话，下一个登录者（或本机换了授权）首帧会画出**上一个会话**
+    // 的授权状态 —— 已激活/未激活、到期时间都可能是别人的。
+    void import('./shared/utils/auth/license-probe.util').then(
+      ({ forgetLicenseAvailability }) => {
+        forgetLicenseAvailability()
+      },
+    )
   })
 })
 // 桥接通知消息到 Chrome store 的 notify

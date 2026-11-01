@@ -1,5 +1,7 @@
 /** 实体属性值友好格式化工具 */
 import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS } from '@/shared/constants/climate-labels'
+import { brightnessToPercent } from '@/shared/entity/utils/control/light-control-core'
+import { volumeLevelToPercent } from '@/shared/entity/utils/control/media-player-control-core'
 import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
 
 const MEASUREMENT_ATTR_KEYS = new Set([
@@ -69,6 +71,14 @@ const DEGREE_ATTR_KEYS = new Set([
   'course',
   'bearing',
 ])
+
+/** 绝对色温（开尔文）与相对色温 / 灯具色温边界（mired）的分组：口径不同，单位也不同。 */
+const KELVIN_ATTR_KEYS = new Set([
+  'color_temp_kelvin',
+  'min_color_temp_kelvin',
+  'max_color_temp_kelvin',
+])
+const MIRED_ATTR_KEYS = new Set(['color_temp', 'min_mireds', 'max_mireds'])
 
 const TIME_KEY_RE =
   /(^|_)(time|timestamp|epoch|ts|datetime)$|(^|_)(last|next|update|create|current)_(time|at|timestamp)$|_at$|^time$|时间|时间戳|时刻|^(next_dawn|next_dusk|next_midnight|next_noon|next_rising|next_setting|rising|setting|last_changed|last_updated|last_triggered|last_seen)$/i
@@ -378,12 +388,15 @@ function formatSpecialNumber(
   if (!Number.isFinite(value)) return null
 
   if (key === 'brightness') {
-    const pct = Math.round((Math.min(255, Math.max(0, value)) / 255) * 100)
-    return `${pct}%`
+    // 与滑块 / 乐观预测共用 ``brightnessToPercent``：三处各写一遍时夹取口径会漂移。
+    const pct = brightnessToPercent(value)
+    return pct === null ? null : `${pct}%`
   }
   if (key === 'volume_level') {
-    const pct = Math.round(Math.min(1, Math.max(0, value)) * 100)
-    return `${pct}%`
+    // 与音量滑块 / 乐观预测共用 ``volumeLevelToPercent``：三处各写一遍时
+    // 有的夹取、有的连取整都没有，同一条音量会在不同界面显示成不同百分比。
+    const pct = volumeLevelToPercent(value)
+    return pct === null ? null : `${pct}%`
   }
   if (PERCENT_ATTR_KEYS.has(key)) {
     return `${Math.round(value)}%`
@@ -395,13 +408,8 @@ function formatSpecialNumber(
     if (value <= 0) return '未设置'
     return `${formatPlainNumber(value)} 小时`
   }
-  if (key === 'color_temp') return `${Math.round(value)} mired`
-  if (key === 'color_temp_kelvin' || key === 'min_color_temp_kelvin' || key === 'max_color_temp_kelvin') {
-    return `${Math.round(value)} K`
-  }
-  if (key === 'min_mireds' || key === 'max_mireds') {
-    return `${Math.round(value)} mired`
-  }
+  if (KELVIN_ATTR_KEYS.has(key)) return `${Math.round(value)} K`
+  if (MIRED_ATTR_KEYS.has(key)) return `${Math.round(value)} mired`
   if (DURATION_SEC_KEYS.has(key)) {
     // filter_hours_used 常为小时
     if (key === 'filter_hours_used') return `${formatPlainNumber(value)} 小时`

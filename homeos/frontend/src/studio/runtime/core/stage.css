@@ -1157,7 +1157,7 @@ body.interaction3d-stage.is-background-hidden,
   pointer-events: none;
 }
 .interaction3d-stage .i3d-marker:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
 }
 .interaction3d-stage .i3d-module-tabs {
   position: absolute;

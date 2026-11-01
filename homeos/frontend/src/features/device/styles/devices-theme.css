@@ -2127,7 +2127,7 @@
 
 .device-filter__select:focus,
 .device-filter__select.hos-select__trigger--open {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: var(--page-accent, #38bdf8);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-accent, #38bdf8) 12%, rgba(0, 0, 0, 0));
 }

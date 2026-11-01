@@ -1170,7 +1170,7 @@ html[data-glass-effect="static"] .popup-shell {
   contain-intrinsic-size: 0 120px;
 }
 .focus-ring:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.15);
 }
 
@@ -1200,7 +1200,7 @@ html[data-glass-effect="static"] .popup-shell {
 }
 
 .icon-btn:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.15);
 }
 

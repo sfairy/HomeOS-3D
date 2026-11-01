@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCatalogStore } from "@store/features/storefront/stores/catalog";
 import { useSessionStore } from "@store/shared/stores/session";
@@ -25,6 +25,42 @@ const order = useOrderStore();
 const site = useSiteStore();
 const confirm = useConfirmStore();
 const toast = useStoreToast();
+
+/**
+ * 目录加载超时兜底。
+ *
+ * `catalog.loaded` 只在 /products 成功返回后置 true；网络失败时它永远为 false，
+ * 模板的「正在加载商品…」就会一直转圈。给一个有界等待，超时后改为可重试的失败提示。
+ */
+const CATALOG_TIMEOUT_MS = 12000;
+const catalogTimedOut = ref(false);
+let catalogTimer: ReturnType<typeof setTimeout> | undefined;
+onMounted(() => {
+  if (catalog.loaded) return;
+  catalogTimer = setTimeout(() => (catalogTimedOut.value = true), CATALOG_TIMEOUT_MS);
+});
+onBeforeUnmount(() => {
+  if (catalogTimer) clearTimeout(catalogTimer);
+});
+watch(
+  () => catalog.loaded,
+  (isLoaded) => {
+    if (!isLoaded) return;
+    if (catalogTimer) clearTimeout(catalogTimer);
+    catalogTimedOut.value = false;
+  },
+);
+
+/** 超时后重试：清掉超时标记并重新拉一次目录（失败只记录，仍由超时分支兜底） */
+async function retryCatalogLoad() {
+  catalogTimedOut.value = false;
+  try {
+    await catalog.ensureLoaded();
+  } catch (error) {
+    reportBestEffort("storefront/item 重新加载商品目录失败", error);
+    catalogTimedOut.value = true;
+  }
+}
 
 const coupon = ref("");
 const couponState = ref<"idle" | "checking" | "valid" | "invalid" | "error">("idle");
@@ -312,7 +348,22 @@ async function share() {
 <template>
   <main class="hb-store-main" data-store-page="item">
     <div class="hb-container">
-      <section v-if="!product || unavailable" class="hb-empty">
+      <!-- 目录还没加载完时不能判「已下架」：product 来自异步 catalog，首帧必为 null。
+           旧写法把「加载中」和「真的下架」混成一个分支，慢网下会闪 2 秒的假「商品不可购买」。 -->
+      <section v-if="!catalog.loaded && !catalogTimedOut" class="hb-empty" aria-busy="true" aria-live="polite">
+        <span><i class="fa-duotone fa-regular fa-spinner fa-spin"></i></span>
+        <strong>正在加载商品…</strong>
+        <p>商品信息加载中，请稍候。</p>
+      </section>
+
+      <section v-else-if="!catalog.loaded" class="hb-empty">
+        <span><i class="fa-duotone fa-regular fa-triangle-exclamation"></i></span>
+        <strong>商品信息加载失败</strong>
+        <p>没能取到商品目录，请检查网络后刷新页面重试。</p>
+        <button class="hb-button hb-button--secondary" type="button" @click="retryCatalogLoad">重新加载</button>
+      </section>
+
+      <section v-else-if="!product || unavailable" class="hb-empty">
         <span><i class="fa-duotone fa-regular fa-box-open"></i></span>
         <strong>商品不可购买</strong>
         <p>该商品可能已下架或链接已失效，请返回商品列表重新选择。</p>

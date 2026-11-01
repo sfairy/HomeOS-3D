@@ -36,9 +36,11 @@ const {
   menuTeleportDisabled,
   modes,
   activeMode,
+  activeModeIds,
   loading,
   acting,
   label,
+  activeLabelTitle,
   modeIcon,
   presenceHome,
   modeContext,
@@ -92,6 +94,7 @@ function registerMenuRef(el) {
       :loading="loading"
       :acting="acting"
       :label="label"
+      :label-title="activeLabelTitle"
       :mode-icon="modeIcon"
       @toggle="toggleMenuOpen"
     />
@@ -105,6 +108,7 @@ function registerMenuRef(el) {
       :loading="loading"
       :modes="modes"
       :active-mode="activeMode"
+      :active-mode-ids="activeModeIds"
       :mode-context="modeContext"
       :register-menu-ref="registerMenuRef"
       @select-mode="selectMode"

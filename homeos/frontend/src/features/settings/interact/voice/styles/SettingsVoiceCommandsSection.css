@@ -126,7 +126,7 @@
 }
 
 .voice-cmd-card__delete:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: rgba(var(--hos-color-danger-rgb), 0.5);
   box-shadow: 0 0 0 3px rgba(var(--hos-color-danger-rgb), 0.18);
 }

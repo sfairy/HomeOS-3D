@@ -277,7 +277,7 @@ async function submitForget() {
 
     <template v-if="mode === 'login'">
       <form class="hos-form" @submit.prevent="submitLogin">
-        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <p v-if="errorText" id="store-login-error" class="hos-msg is-err" role="alert">{{ errorText }}</p>
         <div class="hos-field">
           <div class="hos-label-row"><label for="store-login-account">账号或邮箱</label></div>
           <div class="hos-control">
@@ -296,7 +296,13 @@ async function submitForget() {
             <label for="store-login-password">密码</label>
             <RouterLink class="hos-hint" to="/user/authentication/forget">忘记密码？</RouterLink>
           </div>
-          <PasswordField id="store-login-password" v-model="login.password" />
+          <PasswordField
+            id="store-login-password"
+            v-model="login.password"
+            name="password"
+            :disabled="submitting"
+            :describedby="errorText ? 'store-login-error' : ''"
+          />
         </div>
         <div class="hos-actions">
           <button class="hos-btn-primary" type="submit" :disabled="submitting">
@@ -309,7 +315,7 @@ async function submitForget() {
 
     <template v-else-if="mode === 'forget'">
       <form class="hos-form" @submit.prevent="submitForget">
-        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <p v-if="errorText" id="store-forget-error" class="hos-msg is-err" role="alert">{{ errorText }}</p>
         <div class="hos-field">
           <div class="hos-label-row"><label for="store-forget-email">注册邮箱</label></div>
           <div class="hos-control">
@@ -333,14 +339,16 @@ async function submitForget() {
         <div class="hos-row-2">
           <div class="hos-field">
             <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
-            <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
+            <PasswordField id="store-forget-password" name="password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" :disabled="submitting"
+              :describedby="mismatch ? 'store-forget-mismatch' : errorText ? 'store-forget-error' : ''" />
           </div>
           <div class="hos-field">
             <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
-            <PasswordField id="store-forget-confirm" v-model="forget.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
+            <PasswordField id="store-forget-confirm" name="password_confirmation" v-model="forget.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" :disabled="submitting"
+              :invalid="mismatch" :describedby="mismatch ? 'store-forget-mismatch' : errorText ? 'store-forget-error' : ''" />
           </div>
         </div>
-        <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
+        <p v-if="mismatch" id="store-forget-mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
         <div class="hos-actions">
           <button class="hos-btn-primary" type="submit" :disabled="submitting">
             {{ submitting ? "重置中…" : "重置密码" }}
@@ -352,7 +360,7 @@ async function submitForget() {
 
     <template v-else>
       <form class="hos-form" @submit.prevent="submitRegister">
-        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <p v-if="errorText" id="store-register-error" class="hos-msg is-err" role="alert">{{ errorText }}</p>
         <div class="hos-row-id">
           <div class="hos-field">
             <div class="hos-label-row"><label for="store-register-username">账号</label></div>
@@ -403,14 +411,16 @@ async function submitForget() {
         <div class="hos-row-2">
           <div class="hos-field">
             <div class="hos-label-row"><label for="store-register-password">密码</label></div>
-            <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
+            <PasswordField id="store-register-password" name="password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" :disabled="submitting"
+              :describedby="mismatch ? 'store-register-mismatch' : errorText ? 'store-register-error' : ''" />
           </div>
           <div class="hos-field">
             <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
-            <PasswordField id="store-register-confirm" v-model="register.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
+            <PasswordField id="store-register-confirm" name="password_confirmation" v-model="register.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" :disabled="submitting"
+              :invalid="mismatch" :describedby="mismatch ? 'store-register-mismatch' : errorText ? 'store-register-error' : ''" />
           </div>
         </div>
-        <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
+        <p v-if="mismatch" id="store-register-mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
         <div class="hos-actions">
           <button class="hos-btn-primary" type="submit" :disabled="submitting">
             {{ submitting ? "注册中…" : "注册" }}

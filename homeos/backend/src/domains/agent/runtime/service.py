@@ -35,6 +35,7 @@ from ..providers.llm_provider_interface import (
     LlmToolCall,
 )
 from ..tools.home_tools_service import HomeToolsService
+from ...proxy.command_proxy import is_control_success
 from ....platform.core.entity.entity_domain import get_entity_domain
 from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 from ....platform.security.entity_access import is_entity_allowed
@@ -68,9 +69,7 @@ MAX_ROUNDS = 8
 #: 控制类工具（会真实改变设备状态），需要审计留痕
 CONTROL_TOOL_NAMES = frozenset({"control_device", "control_room", "activate_scene"})
 #: 审计时需要打码的参数字段（凭证类，绝不能进日志）
-SENSITIVE_ARG_KEYS = frozenset(
-    {"code", "pin", "password", "passwd", "token", "secret", "apikey", "api_key", "key"}
-)
+SENSITIVE_ARG_KEYS = frozenset({"code", "pin", "password", "passwd", "token", "secret", "apikey", "api_key", "key"})
 #: 入口标识 → 中文标签（写入 global_log 便于人读）
 ENTRY_LABELS = {
     "web": "网页",
@@ -110,7 +109,7 @@ def _js_stringify(value: Any) -> str:
     """对齐 JS ``JSON.stringify``（紧凑分隔符、不转义中文）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return ""
 
 
@@ -152,9 +151,7 @@ def _trim_messages(messages: list[LlmMessage], budget: int) -> list[LlmMessage]:
     # 清理失去归属的 tool 回填消息：其 assistant(tool_calls) 已被裁掉时，
     # tool_call_id 无法在上游关联，会直接 400。
     dropped = body[: len(body) - len(kept)]
-    dropped_call_ids = {
-        call.id for message in dropped if message.tool_calls for call in message.tool_calls
-    }
+    dropped_call_ids = {call.id for message in dropped if message.tool_calls for call in message.tool_calls}
     while kept and kept[0].role == "tool" and kept[0].tool_call_id in dropped_call_ids:
         kept.pop(0)
 
@@ -211,9 +208,7 @@ def estimate_cost_cny(
     pricing: LlmPricing | None = None,
 ) -> float:
     """按传入单价（缺省 DeepSeek）估算本次对话成本（人民币），保留 6 位小数。"""
-    return _estimate_cost_with_pricing(
-        prompt_tokens, cached_tokens, completion_tokens, pricing
-    )
+    return _estimate_cost_with_pricing(prompt_tokens, cached_tokens, completion_tokens, pricing)
 
 
 @dataclass
@@ -438,10 +433,7 @@ def _intersect_restrictions(
                         _add(entry)
             continue
         # 前缀（如 ``light.living_.``）：用户侧同前缀或更宽 domain 才保留
-        if any(
-            entry in (item, domain, f"{domain}.") or item.startswith(entry)
-            for entry in base
-        ):
+        if any(entry in (item, domain, f"{domain}.") or item.startswith(entry) for entry in base):
             _add(item)
     return merged or ["__none__"]
 
@@ -633,9 +625,7 @@ class AgentService:
         # 短时记忆（45s / 2 轮）追加在末尾：保证上一轮管家的反问句紧邻当前输入
         effective_history = self._merge_short_term_history(effective_history, session_id)
         state = {"short_term_reset": False}
-        result = await self._chat_internal(
-            user_message, effective_history, scoped_options, state
-        )
+        result = await self._chat_internal(user_message, effective_history, scoped_options, state)
         # 记录本轮上下文（清除记忆口令除外），供后续指令补全实体 / 意图
         if session_id and user_message.strip() != self._L.clear_memory:
             session_summary = self._build_session_summary(result)
@@ -658,9 +648,7 @@ class AgentService:
         """合并「长会话历史」与「短时记忆」，避免最近两轮重复出现。"""
         if not session_id:
             return history
-        recent = [
-            {"role": t.role, "content": t.content} for t in self._short_term.get_history(session_id)
-        ]
+        recent = [{"role": t.role, "content": t.content} for t in self._short_term.get_history(session_id)]
         if not recent:
             return history
         # 短时记忆已是历史末尾连续后缀 → 无需重复追加
@@ -766,9 +754,7 @@ class AgentService:
             self._batch_ops.clear_pending(key)
             record = self._batch_ops.pop_undo(key)
             if record is None:
-                return self._empty_system_reply(
-                    self._t("没有可撤销的批量操作。", "There is no batch action to undo.")
-                )
+                return self._empty_system_reply(self._t("没有可撤销的批量操作。", "There is no batch action to undo."))
             return await self._restore_undo(ctx, record.snapshot, record.summary)
 
         pending = self._batch_ops.pop_pending(key)
@@ -789,10 +775,7 @@ class AgentService:
         """批量操作确认提示（语音可朗读）。"""
         if self._L.lang == "zh":
             return f"这是批量操作：{summary}。确定执行吗？回复「确认」执行，或回复「取消」。"
-        return (
-            f"This is a batch action: {summary}. "
-            "Reply “确认” to proceed or “取消” to cancel."
-        )
+        return f"This is a batch action: {summary}. Reply “确认” to proceed or “取消” to cancel."
 
     def _describe_fast_action(self, fast: dict[str, Any]) -> str:
         """把快路径结果压缩成一句可朗读的批量描述。"""
@@ -818,15 +801,15 @@ class AgentService:
             elif name == "control_device":
                 parts.append(str(args.get("entity_id") or "设备"))
             elif name == "activate_scene":
-                parts.append(
-                    f"场景 {args.get('scene') or args.get('sceneName') or args.get('entity_id')}"
-                )
+                parts.append(f"场景 {args.get('scene') or args.get('sceneName') or args.get('entity_id')}")
             else:
                 parts.append(name)
         joined = "、".join(parts[:6])
         return f"{joined} 等 {len(parts)} 项" if len(parts) > 6 else joined
 
-    def _stage_batch(self, ctx: _ChatRunContext, calls: list[tuple[str, dict[str, Any]]], summary: str) -> AgentChatResponse:
+    def _stage_batch(
+        self, ctx: _ChatRunContext, calls: list[tuple[str, dict[str, Any]]], summary: str
+    ) -> AgentChatResponse:
         """暂存批量计划并返回确认提示。"""
         self._batch_ops.stage(self._batch_key(ctx), calls, summary)
         total_ms = _now_ms() - ctx.start_ms
@@ -907,9 +890,7 @@ class AgentService:
         """按执行前快照反向恢复（一次性）。"""
         calls = build_undo_calls(snapshot)
         if not calls:
-            return self._empty_system_reply(
-                self._t("这批操作没有可恢复的开关或亮度状态。", "Nothing can be restored.")
-            )
+            return self._empty_system_reply(self._t("这批操作没有可恢复的开关或亮度状态。", "Nothing can be restored."))
         s0 = _now_ms()
         ok_count = 0
         for tool_name, tool_args in calls:
@@ -1016,11 +997,7 @@ class AgentService:
         """递归给凭证字段打码（覆盖 service_data 内嵌 ``code`` 等情况）。"""
         if isinstance(value, dict):
             return {
-                str(key): (
-                    "***"
-                    if str(key).strip().lower() in SENSITIVE_ARG_KEYS
-                    else AgentService._redact(item)
-                )
+                str(key): ("***" if str(key).strip().lower() in SENSITIVE_ARG_KEYS else AgentService._redact(item))
                 for key, item in value.items()
             }
         if isinstance(value, list):
@@ -1064,9 +1041,7 @@ class AgentService:
             label = ENTRY_LABELS.get(entry, entry)
             target = self._audit_target(name, args)
             actor = ctx.actor
-            who = (
-                str(actor.username or actor.user_id or "未绑定身份") if actor else "未绑定身份"
-            )
+            who = str(actor.username or actor.user_id or "未绑定身份") if actor else "未绑定身份"
             self._audit_log.append(
                 level,
                 "智能管家",
@@ -1107,18 +1082,10 @@ class AgentService:
                 timeout=TOOL_TIMEOUT_SECONDS,
             )
         except TimeoutError:
-            result = {
-                "error": agent_text(
-                    "tool_timeout", self._lang_code(), seconds=TOOL_TIMEOUT_SECONDS
-                )
-            }
+            result = {"error": agent_text("tool_timeout", self._lang_code(), seconds=TOOL_TIMEOUT_SECONDS)}
             logger.warning("工具执行超时: %s", name)
         except Exception as exc:
-            result = {
-                "error": agent_text(
-                    "tool_error", self._lang_code(), detail=str(exc) or "unknown"
-                )
-            }
+            result = {"error": agent_text("tool_error", self._lang_code(), detail=str(exc) or "unknown")}
         elapsed = _now_ms() - started
         self._audit_control(ctx, name, payload, result, elapsed)
         return result
@@ -1171,14 +1138,10 @@ class AgentService:
                 scope = self._memory_scope(ctx)
                 if action == "forget":
                     removed = self._memory.forget(scope, key)
-                    return self._empty_system_reply(
-                        f"已经忘记「{key}」。" if removed else f"我没有记住过「{key}」。"
-                    )
+                    return self._empty_system_reply(f"已经忘记「{key}」。" if removed else f"我没有记住过「{key}」。")
                 kind = "preference" if action == "preference" else "alias"
                 if not self._memory.remember(scope, key, value, kind):
-                    return self._empty_system_reply(
-                        agent_text("alias_too_short", self._lang_code())
-                    )
+                    return self._empty_system_reply(agent_text("alias_too_short", self._lang_code()))
                 if kind == "preference":
                     return self._empty_system_reply("好的，我记住您的偏好了。")
                 return self._empty_system_reply(f"记住了：「{key}」就是「{value}」。")
@@ -1230,9 +1193,7 @@ class AgentService:
         outcome = self._record_tool_result(ctx, cached.tool_name, cached.tool_args, tool_result)
         if not outcome.applied:
             # 缓存执行失败：设备可能已变更，删除过期缓存后降级到快路径 / LLM
-            logger.warning(
-                '缓存失败(设备可能已变更),删除过期缓存,降级→快路径/LLM: "%s"', ctx.user_message
-            )
+            logger.warning('缓存失败(设备可能已变更),删除过期缓存,降级→快路径/LLM: "%s"', ctx.user_message)
             self._cmd_cache.delete(ctx.user_message, ctx.actor.user_id if ctx.actor else None)
             # 轨迹里已经写进了这次失败调用：回滚掉，避免响应里出现「没执行却报成功」的 chip。
             ctx.tool_trace.pop()
@@ -1267,9 +1228,7 @@ class AgentService:
         if not query_fast:
             return None
         s0 = _now_ms()
-        snap = await self._call_tool(
-            ctx, "get_area_snapshot", {"area_id": query_fast["roomName"]}
-        )
+        snap = await self._call_tool(ctx, "get_area_snapshot", {"area_id": query_fast["roomName"]})
         ctx.tool_ms = _now_ms() - s0
         sensors = (snap or {}).get("sensors") or {}
         if query_fast["type"] == "temperature" and _sensor_value(sensors.get("temperature")):
@@ -1286,11 +1245,7 @@ class AgentService:
         sensors: dict[str, Any],
     ) -> AgentChatResponse:
         """构造温度 / 湿度查询的固定回复（provider=fast-query）。"""
-        template = (
-            self._L.temp_reply_template
-            if sensor_kind == "temperature"
-            else self._L.humidity_reply_template
-        )
+        template = self._L.temp_reply_template if sensor_kind == "temperature" else self._L.humidity_reply_template
         return AgentChatResponse(
             reply=template.replace("{room}", query_fast["roomName"]).replace(
                 "{value}", _sensor_value(sensors.get(sensor_kind))
@@ -1320,9 +1275,7 @@ class AgentService:
         )
         fast_text = ctx.user_message
         if self._memory is not None:
-            fast_text = self._memory.expand(
-                fast_text, self._memory.alias_map(self._memory_scope(ctx))
-            )
+            fast_text = self._memory.expand(fast_text, self._memory.alias_map(self._memory_scope(ctx)))
         fast = await self._fast_path.try_parse(fast_text, hints)
         if not fast:
             return None
@@ -1344,9 +1297,7 @@ class AgentService:
             self._cmd_cache.try_auto_correct(
                 ctx.user_message, tool_name, tool_args, ctx.actor.user_id if ctx.actor else None
             )
-            self._cmd_cache.set(
-                ctx.user_message, tool_name, tool_args, True, ctx.actor.user_id if ctx.actor else None
-            )
+            self._cmd_cache.set(ctx.user_message, tool_name, tool_args, True, ctx.actor.user_id if ctx.actor else None)
             # 快路径是独立完整的指令执行，成功后重置短时记忆，杜绝跨意图污染
             if ctx.session_id:
                 self._short_term.clear(ctx.session_id)
@@ -1367,9 +1318,7 @@ class AgentService:
     async def _run_llm_tool_loop(self, ctx: _ChatRunContext) -> _LlmLoopResult:
         """兜底 LLM 链路：构造首轮消息并跑 tool-calling 多轮循环。"""
         messages = await self._build_llm_messages(ctx.history, ctx.user_message, ctx)
-        tool_schemas: list[Any] = localize_tool_schemas(
-            self._tools.get_tool_schemas(), self._lang_code()
-        )
+        tool_schemas: list[Any] = localize_tool_schemas(self._tools.get_tool_schemas(), self._lang_code())
         # 进度回调与轮次无关：循环外解析一次（同时避免闭包延迟绑定）
         on_progress = ctx.options.on_progress if ctx.options else None
         loop = _LlmLoopResult()
@@ -1398,17 +1347,15 @@ class AgentService:
             calls = _filter_effective_calls(chat_result.tool_calls)
             # 多设备 / 整房间批量控制：暂停执行，先向用户确认
             control_calls = [call for call in calls if call.name in CONTROL_TOOL_NAMES]
-            if control_calls and len(control_calls) == len(calls) and (
-                len(control_calls) >= 2 or control_calls[0].name == "control_room"
+            if (
+                control_calls
+                and len(control_calls) == len(calls)
+                and (len(control_calls) >= 2 or control_calls[0].name == "control_room")
             ):
-                plan = [
-                    (call.name, dict(call.arguments or {})) for call in control_calls
-                ]
+                plan = [(call.name, dict(call.arguments or {})) for call in control_calls]
                 summary = self._describe_plan(plan)
                 self._batch_ops.stage(self._batch_key(ctx), plan, summary)
-                logger.info(
-                    "LLM 批量计划待确认: session=%s calls=%s", ctx.session_id, len(plan)
-                )
+                logger.info("LLM 批量计划待确认: session=%s calls=%s", ctx.session_id, len(plan))
                 loop.reply = self._batch_confirm_prompt(summary)
                 loop.speak = True
                 loop.outcome = "answer"
@@ -1439,14 +1386,8 @@ class AgentService:
         内容里若自带闭合标签会提前结束区块、把后续文字伪造成区块外的指令，因此必须
         先把闭合标签转义成普通文本（大小写与空白变体一并处理）。
         """
-        safe_content = re.sub(
-            r"</\s*tool_result\s*>", r"<\\/tool_result>", content, flags=re.IGNORECASE
-        )
-        return (
-            '<tool_result trust="untrusted_data">\n'
-            f"{safe_content}\n"
-            "</tool_result>"
-        )
+        safe_content = re.sub(r"</\s*tool_result\s*>", r"<\\/tool_result>", content, flags=re.IGNORECASE)
+        return f'<tool_result trust="untrusted_data">\n{safe_content}\n</tool_result>'
 
     async def _build_llm_messages(
         self,
@@ -1474,13 +1415,11 @@ class AgentService:
         """调用一次 LLM 并累计 token / 耗时；返回 None 表示已触发 prompt token 硬上限。"""
         l0 = _now_ms()
         chat_opts = (
-            LlmChatOptions(on_token=lambda text: on_progress({"type": "token", "text": text}))
-            if on_progress
-            else None
+            LlmChatOptions(on_token=lambda text: on_progress({"type": "token", "text": text})) if on_progress else None
         )
         try:
             chat_result: LlmChatResult = await self._llm.chat(messages, tool_schemas, chat_opts)
-        except (BusinessException, StarletteHTTPException):
+        except BusinessException, StarletteHTTPException:
             # 业务 / HTTP 异常透传，其余包装为 LLM 上游错误
             raise
         except Exception as exc:
@@ -1524,9 +1463,7 @@ class AgentService:
             tool_result = await self._call_tool(ctx, call.name, call.arguments or {})
             ctx.tool_ms += _now_ms() - s0
             # 截断大工具结果后再回填 LLM 上下文，防止实体状态 / 日志撑爆 prompt
-            outcome = self._record_tool_result(
-                ctx, call.name, call.arguments, tool_result, truncate=True
-            )
+            outcome = self._record_tool_result(ctx, call.name, call.arguments, tool_result, truncate=True)
             _emit_tool_progress(on_progress, call, outcome.serialized)
             messages.append(
                 LlmMessage(
@@ -1647,7 +1584,7 @@ class AgentService:
                 if self._L.lang == "en":
                     base = (
                         f"{base}\n\n[Current voice room] {room}. "
-                        "When the user omits the room (e.g. \"turn on the light\"), "
+                        'When the user omits the room (e.g. "turn on the light"), '
                         "prefer this room; never control devices in other rooms unless explicitly asked."
                     )
                 else:
@@ -1676,9 +1613,7 @@ class AgentService:
             usage=_empty_usage(),
         )
 
-    def _match_query_fast_path(
-        self, text: str
-    ) -> dict[str, str] | None:
+    def _match_query_fast_path(self, text: str) -> dict[str, str] | None:
         """匹配查询快路径（温度 / 湿度询问）。
 
         房间描述需先剥离「现在 / 当前 / 请问」等噪声词：否则「现在几度」会把时间词
@@ -1715,20 +1650,16 @@ class AgentService:
         if not response or response.get("error"):
             return False
         if name == "control_device":
-            return response.get("success") is True
-        # 细粒度控制工具：内部同样复用 _control_device，结果带 success
+            return is_control_success(response)
+        # 细粒度控制工具：内部同样复用 _control_device，结果带 success + verification
         if name in ("set_light_brightness", "set_cover_position", "media_control"):
-            return response.get("success") is True
+            return is_control_success(response)
         # HA 场景 / 脚本：activate_scene 返回 { success, entity_id, ... }
         if name == "activate_scene":
-            return response.get("success") is True and response.get("blocked") is not True
+            return is_control_success(response) and response.get("blocked") is not True
         if name == "control_room":
             total = response.get("total")
-            return (
-                _is_number(total)
-                and total > 0
-                and response.get("affected") == total
-            )
+            return _is_number(total) and total > 0 and response.get("affected") == total
         return False
 
     @staticmethod

@@ -170,10 +170,7 @@ class AgentBudgetService:
                 token_budget=cfg.daily_token_budget,
                 cost_budget_cny=cfg.daily_cost_budget_cny,
             )
-        if (
-            cfg.daily_cost_budget_cny > 0
-            and usage.cost_cny >= cfg.daily_cost_budget_cny
-        ):
+        if cfg.daily_cost_budget_cny > 0 and usage.cost_cny >= cfg.daily_cost_budget_cny:
             return BudgetDecision(
                 allowed=False,
                 reason="cost",

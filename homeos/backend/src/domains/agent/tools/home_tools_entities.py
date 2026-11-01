@@ -95,10 +95,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             "total_whitelisted": len(whitelist),
         }
         if not matched:
-            result["hint"] = (
-                f'HomeOS 已配置的设备中未找到匹配"{query}"的设备。'
-                "请将设备绑定到房间或加入常用监控列表。"
-            )
+            result["hint"] = f'HomeOS 已配置的设备中未找到匹配"{query}"的设备。请将设备绑定到房间或加入常用监控列表。'
         result["entities"] = matched
         return result
 
@@ -145,11 +142,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_data = args.get("service_data")
         service_data = raw_data if isinstance(raw_data, dict) else None
         # scene / script 内部动作无法静态审计：仅在用户白名单内才放行（automation 永久拦截）
-        scene_voice = (
-            await self._scene_voice_gate()
-            if actual_domain in ("scene", "script")
-            else None
-        )
+        scene_voice = await self._scene_voice_gate() if actual_domain in ("scene", "script") else None
         risk = is_high_risk(actual_domain, service, entity_id, service_data, scene_voice)
         if risk.get("blocked"):
             logger.warning(
@@ -174,18 +167,19 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             },
         )
         if not auth.get("ok"):
-            logger.warning(
-                "Agent ACL 拒绝: %s.%s %s (%s)", actual_domain, service, entity_id, auth.get("message")
-            )
+            logger.warning("Agent ACL 拒绝: %s.%s %s (%s)", actual_domain, service, entity_id, auth.get("message"))
             return {"success": False, "blocked": True, "message": auth.get("message")}
         try:
+            # 上游已用 ``agent_service_allowed`` 与 ``sanitize_service_data`` 校验过，
+            # 这里只复检服务键（字段口径由 sanitizer 负责，比逐服务白名单更宽）。
             result = await self._command_proxy.call_service(
                 {
                     "domain": actual_domain,
                     "service": service,
                     "entity_id": entity_id,
                     "service_data": service_data,
-                }
+                },
+                policy="agent",
             )
         except Exception as exc:
             return {"success": False, "message": _error_message(exc, "控制失败")}
@@ -203,7 +197,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_brightness = args.get("brightness")
         try:
             brightness = float(raw_brightness) if raw_brightness is not None else float("nan")
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             brightness = float("nan")
         if not entity_id.startswith("light."):
             return {"error": "entity_id 须为 light.*"}
@@ -229,7 +223,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_position = args.get("position")
         try:
             position = float(raw_position) if raw_position is not None else float("nan")
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             position = float("nan")
         if not entity_id.startswith("cover."):
             return {"error": "entity_id 须为 cover.*"}
@@ -262,7 +256,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             raw_volume = args.get("volume")
             try:
                 volume = float(raw_volume) if raw_volume is not None else 0.0
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 volume = 0.0
             if math.isnan(volume):  # NaN → 对齐 JS Number(...) || 0
                 volume = 0.0
@@ -375,18 +369,12 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
                 energy_today = await self._energy_today_kwh(actor)
 
             return {
-                "active_mode": (
-                    {"id": active.get("id"), "name": active.get("name")} if active else None
-                ),
+                "active_mode": ({"id": active.get("id"), "name": active.get("name")} if active else None),
                 "entity_count": len(entities),
                 **stats,
                 "alarm_state": alarm_state,
-                "average_temperature": (
-                    round(sum(temperatures) / len(temperatures), 1) if temperatures else None
-                ),
-                "average_humidity": (
-                    round(sum(humidities) / len(humidities), 1) if humidities else None
-                ),
+                "average_temperature": (round(sum(temperatures) / len(temperatures), 1) if temperatures else None),
+                "average_humidity": (round(sum(humidities) / len(humidities), 1) if humidities else None),
                 "energy_today_kwh": energy_today,
             }
         except Exception as exc:

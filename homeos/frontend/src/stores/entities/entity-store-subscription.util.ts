@@ -1,6 +1,6 @@
 import { logger } from '@/shared/utils/core/logger'
 /** 实体 store 状态订阅与远程通知（从 entity-store-support.ts 拆回）。 */
-import { shallowReactive } from 'vue'
+import { reactive, shallowReactive } from 'vue'
 import type {
   EntityStateListenerFn,
   EntitySubscriptionDeps,
@@ -29,7 +29,8 @@ import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
  * @returns remoteNotifications / emitStateListeners / onStateChanged / addRemoteNotification / clearRemoteNotifications
  */
 export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
-  // 远程通知列表（shallowReactive，按 id 去重后 unshift）
+  // 远程通知列表（shallowReactive，按 id 去重后 unshift）；条目本身是 reactive，
+  // 单条打已读（`entry.read = true`）能直接驱动依赖它的 computed 重算。
   const remoteNotifications = shallowReactive<RemoteNotificationEntry[]>([])
   // 监听器上限警告节流时间戳（30s 一次警告）
   let listenerLimitWarnAt = 0
@@ -68,7 +69,7 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
   function addRemoteNotification(data: RemoteNotificationPayload): void {
     const id = data.id || Date.now() + '_' + Math.random().toString(36).slice(2)
     const createdAt = data.createdAt ? String(data.createdAt) : new Date().toISOString()
-    const entry: RemoteNotificationEntry = {
+    const entry: RemoteNotificationEntry = reactive({
       id,
       level: data.level || 'info',
       message: data.message || '',
@@ -77,18 +78,18 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
       createdAt,
       read: data.read || false,
       deliveredAt: data.deliveredAt ? String(data.deliveredAt) : undefined,
-    }
+    })
     // 按 id 去重：同一通知可能经 Socket 即时推送与 REST 重新拉取（如重连刷新）多次到达，
     // 命中已存在条目则原地合并（保留已读状态等最新值），避免列表出现重复项。
     const existingIdx = remoteNotifications.findIndex((n) => n.id === id)
     if (existingIdx !== -1) {
       const existing = remoteNotifications[existingIdx]
-      remoteNotifications[existingIdx] = {
+      remoteNotifications[existingIdx] = reactive({
         ...existing,
         ...entry,
         // 合并时保留已读：推送缺省 read 时不要把已读打回未读
         read: data.read != null ? Boolean(data.read) : existing.read,
-      }
+      })
       return
     }
     remoteNotifications.unshift(entry)
@@ -100,6 +101,38 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
   /** 清空远程通知列表 */
   function clearRemoteNotifications(): void {
     remoteNotifications.length = 0
+  }
+
+  /**
+   * 按 id 摘掉一条远程通知（通知中心点 × 的唯一写入路径）。
+   *
+   * 返回被摘掉的条目与它的原始下标：调用方要调 DELETE，成功就不管，失败时用
+   * :func:`restoreRemoteNotification` 插回原位。把「摘 / 插」放在 store 里而不是让
+   * composable 直接 `splice` 数组，是为了让列表只被 store 改写 —— 否则任何新写入方
+   * 都要再写一遍边界处理，迟早漏一处（重复通知、越界回滚都出过）。
+   *
+   * @param id 通知 ID
+   * @returns 被摘掉的条目与原始下标；未命中返回 ``null``
+   */
+  function removeRemoteNotification(
+    id: string | number,
+  ): { entry: RemoteNotificationEntry; index: number } | null {
+    const index = remoteNotifications.findIndex((notification) => notification.id === id)
+    if (index < 0) return null
+    const [entry] = remoteNotifications.splice(index, 1)
+    return { entry, index }
+  }
+
+  /**
+   * 把 :func:`removeRemoteNotification` 摘掉的条目插回原下标（失败的乐观回滚）。
+   *
+   * @param entry 被摘掉的条目
+   * @param index 原始下标；越界时追加到末尾（期间可能已清空/截断列表）
+   */
+  function restoreRemoteNotification(entry: RemoteNotificationEntry, index: number): void {
+    // 期间已被重新推送回来：不要再插一条，保留先到的那份即可。
+    if (remoteNotifications.some((notification) => notification.id === entry.id)) return
+    remoteNotifications.splice(Math.min(Math.max(0, index), remoteNotifications.length), 0, entry)
   }
 
   /**
@@ -151,6 +184,8 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
     emitStateListeners,
     onStateChanged,
     addRemoteNotification,
+    removeRemoteNotification,
+    restoreRemoteNotification,
     clearRemoteNotifications,
   }
 }

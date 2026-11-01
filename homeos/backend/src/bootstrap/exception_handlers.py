@@ -87,6 +87,23 @@ def nest_error_payload(
     return payload
 
 
+def _response_headers(exc: Exception) -> dict[str, str] | None:
+    """把异常自带的响应头规整成 ``JSONResponse`` 能接受的 ``dict[str, str]``。
+
+    Starlette 的 ``HTTPException`` 允许 ``headers`` 里放 ``bytes`` 键值（ASGI 原生形态），
+    直接 ``dict(...)`` 交给 ``JSONResponse`` 会在类型上不成立、运行时也只能靠运气恰好是 str。
+    """
+    raw = getattr(exc, "headers", None)
+    if not raw:
+        return None
+    normalized: dict[str, str] = {}
+    for key, value in dict(raw).items():
+        text_key = key.decode("latin-1") if isinstance(key, bytes) else str(key)
+        text_value = value.decode("latin-1") if isinstance(value, bytes) else str(value)
+        normalized[text_key] = text_value
+    return normalized or None
+
+
 def business_exception_json(
     request: Request,
     exc: BusinessException,
@@ -155,7 +172,7 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
             # 异常自带的响应头必须透传：限流 429 的 ``Retry-After``、401 的
             # ``WWW-Authenticate`` 都只从这里出去。此前统一信封丢掉了它们，
             # 客户端只能盲目重试（登录限流分支已经写好了 Retry-After 却发不出去）。
-            headers=dict(exc.headers) if getattr(exc, "headers", None) else None,
+            headers=_response_headers(exc),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -210,9 +227,7 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
             content=nest_error_payload(
                 status=status,
                 error_code=str(ErrorCode.UNKNOWN),
-                message=_SENSITIVE_5XX_MESSAGE
-                if settings.is_production
-                else f"{type(_exc).__name__}: {_exc}",
+                message=_SENSITIVE_5XX_MESSAGE if settings.is_production else f"{type(_exc).__name__}: {_exc}",
                 error=_SENSITIVE_5XX_MESSAGE,
                 request=request,
                 trace_id=trace_id,

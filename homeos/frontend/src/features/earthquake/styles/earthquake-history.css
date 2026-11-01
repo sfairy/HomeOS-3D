@@ -151,7 +151,7 @@
 
 .earthquake-history-view__select:focus-visible,
 .earthquake-history-view__select.hos-select__trigger--open {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   border-color: color-mix(in srgb, var(--eq-accent) 35%, rgba(0, 0, 0, 0));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--eq-accent) 12%, rgba(0, 0, 0, 0));
 }
@@ -282,11 +282,16 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: repeat(8, minmax(0, 1fr));
+  /* 行数由数据决定，不写死 8。
+     改前是 `repeat(8, minmax(0,1fr))`：页大小（PAGE_SIZE = 8，见 EarthquakeHistoryPage.vue）
+     被烧进样式表，改页大小就得同时改 CSS，否则多出来的卡片直接被 `overflow: hidden` 吃掉。
+     `auto-rows` 让行跟着实际卡片数走；`minmax(56px, 1fr)` 保住可读的最小行高，
+     空间富余时仍按 fr 均分（视觉与改前的 8 等分一致）。 */
+  grid-auto-rows: minmax(56px, 1fr);
   gap: 8px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .earthquake-history-view__card {

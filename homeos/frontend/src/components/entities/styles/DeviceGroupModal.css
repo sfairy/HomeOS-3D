@@ -496,7 +496,7 @@
 }
 
 .dgm-modal-head .hos-modal-close:focus-visible {
-  outline: none;
+  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
   box-shadow:
     0 0 0 3px rgba(255, 255, 255, 0.25),
     0 4px 18px rgba(0, 0, 0, 0.3);
