@@ -312,13 +312,6 @@ class HomeOSFacadeMixin:
             "haSynced": True,
         }
 
-    # WS 生命周期钩子（连接状态由连接器自身维护，这里无需额外动作）。
-    async def on_ws_connected(self) -> None:
-        return None
-
-    def on_ws_disconnected(self) -> None:
-        return None
-
     # 连接测试
     async def test_ha_connection(self, url: str, token: str) -> dict[str, Any]:
         """兼容接口：连接测试走 ``HAClient.test_connection``（不落库、不影响活跃连接）。"""

@@ -105,8 +105,6 @@ class HomeModeRuntimeLogStore:
             self._execution_history = history[: limits["maxExecHistory"]]
 
     def _persist(self) -> None:
-        limits = self._get_limits()
-        _ = limits
         try:
             persist_runtime_kv(
                 self._session_factory,
@@ -202,12 +200,6 @@ class HomeModeRuntimeLogStore:
     def get_execution_history(self, limit: int = 30) -> list[dict[str, Any]]:
         limits = self._get_limits()
         return self._execution_history[: clamp_int(limit, 1, limits["maxExecHistory"])]
-
-    def clear_execution_history(self) -> dict[str, int]:
-        deleted = len(self._execution_history)
-        self._execution_history.clear()
-        self._schedule_persist()
-        return {"deleted": deleted}
 
     def find_execution_by_mode_id(self, mode_id: str) -> dict[str, Any] | None:
         return next((e for e in self._execution_history if e.get("modeId") == mode_id), None)

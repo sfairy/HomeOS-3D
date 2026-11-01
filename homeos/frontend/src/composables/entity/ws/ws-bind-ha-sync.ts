@@ -172,7 +172,6 @@ export function bindEntitySocketHaSync(
   socket.on(WS_CLIENT_EVENTS.INITIAL_STATES_BEGIN, (data: { count?: number }) => {
     sync.initialStatesReceived = true
     clearSyncTimers()
-    sync.chunkedEntities = null
     sync.incrementalExpected = data?.count ?? 0
     sync.incrementalReceivedCount = 0
     sync.pendingChunkApplies = 0
@@ -265,26 +264,18 @@ export function bindEntitySocketHaSync(
       return
     }
 
-    const list = sync.chunkedEntities || []
-    sync.chunkedEntities = null
-    const count = list.length || expected || 0
-    if (expected > 0 && list.length > 0 && list.length < expected * 0.9) {
-      logger.warn(`分块同步不完整 ${list.length}/${expected},改用 REST 回退`)
-      runFallbackAndMarkSynced('WebSocket 分块不完整')
-      refs.loading.value = false
-      return
-    }
-    logger.info(`已通过 WebSocket 分块同步 ${count} 个实体`)
+    // 没有增量批次可收尾（例如服务端只发了 initial_states_end）：按空批结束本次同步。
+    // 分块实体一律走 mergeInitialStatesChunk 增量合并，这里不再保留整批缓冲。
+    logger.info(`已通过 WebSocket 分块同步 ${expected} 个实体`)
     refs.entitiesStale.value = false
     refs.entitiesCacheHydrated.value = false
     actions.clearHaDisconnectDebounce()
     actions.setConnected(true)
-    actions.initStates(list, { force: true, reason: 'WebSocket initial_states_end' })
+    actions.initStates([], { force: true, reason: 'WebSocket initial_states_end' })
     refs.loading.value = false
   })
 
   socket.on(WS_CLIENT_EVENTS.SYNC_ERROR, (data: { message?: string; code?: string }) => {
-    sync.chunkedEntities = null
     logger.warn('WebSocket 全量同步失败,将使用 REST 回退', data?.message || data?.code)
     runFallbackAndMarkSynced('WebSocket sync_error')
   })

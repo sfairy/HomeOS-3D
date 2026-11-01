@@ -29,8 +29,6 @@ from ..core.db.models import LoginSession, User
 from ..core.http.deps import get_session
 from ..core.http.errors import unauthorized
 
-WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-
 
 def _settings(request: Request):
     return request.app.state.settings

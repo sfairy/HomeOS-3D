@@ -47,21 +47,6 @@ FIELDS = {
     'shuffle': 'shuffle_set',
     'repeat': 'repeat_set' }
 
-#: 只带固定参数的"无参"服务。
-NO_ARGUMENT_SERVICES = frozenset({'clear_playlist', 'join', 'unjoin', 'search_media'})
-#: 服务 → 允许的参数集合（``play_media`` 的可选参数单独处理）。
-SERVICE_FIELDS = {
-    'media_seek': {'seek_position'},
-    'volume_set': {'volume_level'},
-    'volume_mute': {'is_volume_muted'},
-    'select_source': {'source'},
-    'select_sound_mode': {'sound_mode'},
-    'shuffle_set': {'shuffle'},
-    'repeat_set': {'repeat'},
-    'join': {'group_members'},
-    'search_media': {'search_query'},
-}
-
 
 def validate_speaker_command(service, data, state):
     def fail(message='智能音响不支持此操作或参数。'):

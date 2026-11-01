@@ -82,7 +82,6 @@ export interface EntityStateListenerFlushDeps {
 export interface EntitySocketSyncState {
   initialStatesReceived: boolean // 是否已收到初始全量状态
   restFallbackTimer: ReturnType<typeof setTimeout> | null // REST 兜底拉取定时器
-  chunkedEntities: HaEntityState[] | null // 分块接收中的实体缓冲
   loadingFallbackTimer: ReturnType<typeof setTimeout> | null // 加载兜底定时器
   incrementalToken: unknown // 增量分块令牌（用于校验分块归属同一批）
   incrementalExpected: number // 本批增量分块预期总数

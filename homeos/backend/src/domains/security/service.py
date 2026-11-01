@@ -88,10 +88,6 @@ class SecurityService:
         self._cache: dict[str, Any] | None = None
         self._cache_at = 0.0
 
-    def _config_cache_ttl_ms(self) -> int:
-        with self._session_factory() as session:
-            return int(load_security_config(session).get("configCacheTtlMs") or 60_000)
-
     def _dynamic_config(self) -> dict[str, Any]:
         import os
 

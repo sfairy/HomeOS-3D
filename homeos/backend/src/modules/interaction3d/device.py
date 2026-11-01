@@ -277,8 +277,6 @@ TIRE_PRESSURE_UNIT_FIELDS = ('opacity',)
 #: 状态灯文案与附加控制标签上限。
 STATUS_STATE_TEXT_LIMIT = 120
 EXTRA_CONTROL_TEXT_LIMIT = 120
-#: 电脑屏幕图说明文字上限（前端编辑器同步校验）。
-SCREEN_IMAGE_LABEL_LIMIT = 128
 #: 充电状态里视为"没状态"的取值（大小写不敏感）。
 CHARGING_STATE_BLANK_VALUES = frozenset({'unknown', 'unavailable', 'none', 'null'})
 #: 状态灯里不允许作为匹配条件的取值（它们表示"没有状态"）。

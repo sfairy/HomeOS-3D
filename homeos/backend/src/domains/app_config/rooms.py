@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -134,16 +134,6 @@ class HaAreaRef:
 
     id: str
     name: str
-
-
-@dataclass
-class EnvSensorMapEntry:
-    """房间环境传感器映射条目（仅保留后端用到的字段）。"""
-
-    label: str | None = None
-    ha_area_id: str | None = None
-    hidden: bool = False
-    extra: dict[str, Any] = field(default_factory=dict)
 
 
 EnvSensorMap = dict[str, dict[str, Any]]

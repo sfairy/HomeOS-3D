@@ -569,8 +569,6 @@ def load_settings(**overrides) -> StoreSettings:
     return settings
 
 
-_LOOPBACK_BIND_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
-
 _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
     ("port", 1, 65535),
     ("smtp_port", 1, 65535),

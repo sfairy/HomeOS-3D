@@ -36,9 +36,7 @@ from ...platform.core.http.resource_publication import (
     recover_export_replacements,
     replace_export_directory,
 )
-from ...platform.core.http.upload_limits import MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 
-MAX_EXPORT_ARCHIVE_BYTES = MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 #: 单个成员解压后上限：累计上限挡不住「一个条目吃掉整个预算」的高压缩率 zip。
 MAX_EXPORT_ENTRY_BYTES = 67108864

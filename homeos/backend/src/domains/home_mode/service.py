@@ -43,13 +43,12 @@ from ...platform.core.runtime.app_config import load_raw_config
 
 logger = logging.getLogger("homeos.home_mode")
 
-#: 时间触发器按「分钟边界」唤醒（而不是固定 30s 轮询）：HOME_MODE 的 at=HH:MM 语义
-#: 与分钟对齐，落在边界上才能保证 60s 内必然求值一次，且不会一小时多跑 60 次。
-MAX_TIME_TRIGGER_SLEEP_SECONDS = 60.0
-
-
 def seconds_until_next_minute(now: datetime | None = None) -> float:
-    """到下一个整分钟的秒数（至少 0.5s，避免恰好卡在边界上与上一轮同分钟）。"""
+    """到下一个整分钟的秒数（至少 0.5s，避免恰好卡在边界上与上一轮同分钟）。
+
+    时间触发器按「分钟边界」唤醒而不是固定 30s 轮询：``at=HH:MM`` 语义与分钟对齐，
+    落在边界上才能保证 60s 内必然求值一次，且不会一小时多跑 60 次。
+    """
     current = now or datetime.now()
     remaining = 60.0 - current.second - current.microsecond / 1_000_000
     return max(0.5, remaining)
@@ -608,9 +607,6 @@ class HomeModeService:
 
     def get_execution_history(self, limit: int = 30) -> list[dict[str, Any]]:
         return self._runtime_logs.get_execution_history(limit)
-
-    def clear_execution_history(self) -> dict[str, int]:
-        return self._runtime_logs.clear_execution_history()
 
     def get_mode_context(self) -> dict[str, Any]:
         last = self._runtime_logs.find_execution_by_mode_id(self._active_mode_id) if self._active_mode_id else None

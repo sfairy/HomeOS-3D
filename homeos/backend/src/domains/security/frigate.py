@@ -223,14 +223,6 @@ class FrigateService:
                 break
         return out
 
-    def get_active_detections(self) -> list[dict[str, Any]]:
-        now = asyncio.get_running_loop().time() * 1000
-        active: list[dict[str, Any]] = []
-        for snapshot in self._active_detections.values():
-            if now - _parse_iso_ms(snapshot.get("timestamp")) < 60_000:
-                active.append(snapshot)
-        return active
-
     def get_camera_summary(self) -> dict[str, Any]:
         cameras = [{"name": name, **status} for name, status in self._camera_status.items()]
         return {
@@ -246,17 +238,6 @@ def _parse_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
-
-
-def _parse_iso_ms(value: Any) -> float:
-    if not value:
-        return 0.0
-    from datetime import datetime
-
-    try:
-        return datetime.fromisoformat(str(value)).timestamp() * 1000
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def _iso_now() -> str:

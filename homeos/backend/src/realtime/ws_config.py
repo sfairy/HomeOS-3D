@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -96,8 +96,3 @@ def load_state_store_config(session: Session) -> StateStoreConfig:
             merged, "maxRecentChanges", DEFAULT_STATE_STORE["maxRecentChanges"]
         ),
     )
-
-
-_default_ws_push = WsPushConfig()
-_default_state_store = StateStoreConfig()
-_ = (_default_ws_push, _default_state_store, field)

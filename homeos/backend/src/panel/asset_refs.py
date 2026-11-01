@@ -9,8 +9,8 @@
   正在使用的导图图片被当成孤儿删掉。
 - :func:`validate_assets` —— 保存前校验引用仍然存在，并返回**可变**素材（``user:`` /
   ``studio3d:``）；``builtin:`` 由发行包提供，不参与回收。
-- :func:`saved_project_documents` / :func:`referenced_asset_ids` —— 删除侧枚举所有已提交
-  的引用方。读不出来的文档一律 409（「先恢复草稿再删除」）：证明不了安全就不能删。
+- :func:`saved_project_documents` —— 删除侧枚举所有已提交的引用方。读不出来的文档一律
+  409（「先恢复草稿再删除」）：证明不了安全就不能删。
 """
 
 from __future__ import annotations
@@ -102,22 +102,3 @@ def saved_project_documents(database: Session) -> Iterator[tuple[str, dict]]:
                 detail='无法核对仪表盘的图片引用，请先恢复草稿后再删除或覆盖。',
             ) from error
         yield draft.project_id, document
-
-
-def referenced_asset_ids(
-    database: Session,
-    *,
-    scene_documents: Iterator[Any] | list[Any] | tuple[Any, ...] = (),
-) -> set[str]:
-    """所有已提交引用方（仪表盘草稿 + 全局组合弹窗 + 调用方给的户型图场景）的素材 id。"""
-    # 延迟导入：``panel`` 是叶子工具包，不在模块加载期把 UI 配置域拉起来。
-    from ..domains.ui_config.global_popups import global_popups
-
-    result = document_asset_ids(
-        {'customPopups': global_popups(database, require_readable=True)}
-    )
-    for _project_id, document in saved_project_documents(database):
-        result.update(document_asset_ids(document))
-    for scene in scene_documents:
-        result.update(document_asset_ids(scene))
-    return result

@@ -55,13 +55,6 @@ from ....platform.security.entity_access import is_entity_allowed
 
 logger = logging.getLogger("homeos.agent.service")
 
-#: 输入 token 单价：未命中缓存的（元 / 百万 token）
-#: 保留这些常量只为兼容旧的直连调用；真实计费请使用 :mod:`domains.agent.policy.pricing`。
-RATE_INPUT_MISS_CNY = 2.0
-#: 输入 token 单价：命中缓存的（更便宜）
-RATE_INPUT_HIT_CNY = 0.5
-#: 输出 token 单价（元 / 百万 token）
-RATE_OUTPUT_CNY = 3.0
 #: 单条工具结果回填 LLM 上下文的最大字符数（防止大实体状态 / 日志撑爆上下文）
 MAX_TOOL_RESULT_CHARS = 4000
 #: 工具轨迹 / 进度回调里展示的结果预览长度（前端 chip 与日志都按这个粒度看）。

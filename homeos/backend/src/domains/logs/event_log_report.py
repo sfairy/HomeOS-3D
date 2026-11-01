@@ -48,7 +48,6 @@ from ...platform.core.db.models import (
 )
 from ...platform.security.entity_access import is_entity_allowed
 
-DAY_MS = 86_400_000
 BY_ENTITY_LIMIT = 20
 
 
@@ -652,12 +651,6 @@ def _parse_time(raw: Any) -> datetime | None:
     except ValueError:
         return None
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
-
-
-def _to_ms(when: datetime) -> float:
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=UTC)
-    return when.timestamp() * 1000
 
 
 def _naive_utc(when: datetime) -> datetime:

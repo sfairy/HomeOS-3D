@@ -59,19 +59,6 @@ def _mirror_public(sync_dir: Path, source: Path | None, name: str) -> bool:
     return True
 
 
-def retire_public_mirror(sync_dir: Path, name: str) -> bool:
-    """显式撤回同步目录里的一代公钥镜像；返回是否真的删掉了。
-
-    只在调用方确认「这一代已经下线」时用（例如轮换收尾），不要挂到常规同步路径上：
-    常规同步看到来源缺失属于「不知道」，不是「不存在」。
-    """
-    target = sync_dir / name
-    if not target.exists():
-        return False
-    target.unlink()
-    return True
-
-
 def sync_client_keys(
     sync_dir: Path,
     sources: tuple[tuple[Path, str], ...],

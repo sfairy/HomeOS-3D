@@ -28,7 +28,6 @@ export function createEntitySocketSyncState(): EntitySocketSyncState {
   return {
     initialStatesReceived: false,
     restFallbackTimer: null,
-    chunkedEntities: null,
     loadingFallbackTimer: null,
     incrementalToken: null,
     incrementalExpected: 0,

@@ -27,8 +27,7 @@ logger = logging.getLogger("homeos.agent.policy")
 
 #: 规则类型（目前只有看门狗空转）
 KIND_WATCHDOG = "watchdog"
-#: 空转阈值上下限（分钟）
-MIN_IDLE_MINUTES = 1
+#: 空转阈值上限（分钟）
 MAX_IDLE_MINUTES = 1_440
 #: 单条规则最多覆盖的设备域数量
 MAX_TARGET_DOMAINS = 16

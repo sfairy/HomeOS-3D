@@ -32,9 +32,6 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from homeos_shared.http_cache import etag_matches
 
-#: 构建产物里「匿名可读静态资源」清单（vite 插件产出）。
-PUBLIC_STATIC_MANIFEST_NAME = "public-static.json"
-
 #: 应用对外暴露的页面路径（裸地址，无需登录即可拿到 SPA 外壳）。
 SPA_PAGE_PATHS = frozenset(
     {

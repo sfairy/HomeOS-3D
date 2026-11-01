@@ -56,10 +56,6 @@ ALARM_TRIGGER = 8
 ALARM_ARM_CUSTOM_BYPASS = 16
 ALARM_ARM_VACATION = 32
 
-#: 警报器音量范围。
-VOLUME_RANGE = (0, 1)
-#: 阀门位置范围。
-VALVE_POSITION_RANGE = (0, 100)
 #: 安防密码长度上限（HA 允许 1..128 个字符）。
 ALARM_CODE_LIMIT = 128
 #: 扫地机 ``send_command`` 的命令串上限、区域 id 上限。

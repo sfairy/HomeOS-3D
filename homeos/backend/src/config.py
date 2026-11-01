@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -121,19 +120,6 @@ def _environment_batches(name: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
         items = tuple(item.strip().rstrip("/") for item in servers.split("|") if item.strip())
         groups.append((label, items))
     return tuple(groups)
-
-
-def _read_package_version() -> str:
-    """从 PROJECT_ROOT / REPO_ROOT 的 package.json 读版本号（授权状态里对外暴露）。"""
-    for candidate in (PROJECT_ROOT / "package.json", REPO_ROOT / "package.json"):
-        try:
-            payload = json.loads(candidate.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        version = payload.get("version") if isinstance(payload, dict) else None
-        if isinstance(version, str) and version.strip():
-            return version.strip()
-    return ""
 
 
 def _license_required_from_env() -> bool:

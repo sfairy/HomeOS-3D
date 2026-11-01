@@ -16,8 +16,6 @@ from __future__ import annotations
 import msgpack
 from socketio import msgpack_packet
 
-_ORIGINAL_HOOK = msgpack_packet.MsgPackPacket.ext_hook
-
 
 def _ext_hook(code: int, data: bytes):
     if code == 0:

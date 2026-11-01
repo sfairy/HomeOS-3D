@@ -216,10 +216,3 @@ def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[f
 
 def should_replay_state(since_ms: float, last_event_id: int) -> bool:
     return since_ms > 0 or last_event_id > 0
-
-
-def _iso_now() -> str:
-    from datetime import UTC, datetime
-
-    now = datetime.now(UTC)
-    return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"

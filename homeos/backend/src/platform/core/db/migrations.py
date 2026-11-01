@@ -61,9 +61,7 @@ def _dedupe_active_ha_connections(connection: sqlite3.Connection, context: Migra
         "SELECT id FROM ha_connections WHERE is_active = 1 "  # noqa: S608
         f"ORDER BY {order_sql or 'rowid DESC'}, rowid DESC"
     ).fetchall()
-    if len(rows) <= 1:
-        pass
-    else:
+    if len(rows) > 1:
         keep = str(rows[0][0])
         stale = [str(row[0]) for row in rows[1:]]
         placeholders = ",".join("?" for _ in stale)
