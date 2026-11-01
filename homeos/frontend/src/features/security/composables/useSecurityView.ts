@@ -131,7 +131,6 @@ export function useSecurityView() {
   // 当前 Tab 的元信息
   const tabMeta = computed(() => SEC_TAB_META[secTab.value])
 
-  // 配置入口链接列表
   const configLinks = computed(() => [
     { label: '场景配置', to: SETTINGS_ROUTES.securityModes() },
     { label: '集成绑定', to: SETTINGS_ROUTES.bindings() },

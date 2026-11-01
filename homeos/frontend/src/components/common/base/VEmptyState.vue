@@ -4,7 +4,6 @@
     :class="['v-empty', compact && 'v-empty--compact', resolvedTone && `v-empty--${resolvedTone}`]"
     role="group"
   >
-    <!-- 图标区：优先渲染 Lucide 图标组件（iconComponent），否则渲染 emoji/字符（icon） -->
     <div v-if="iconComponent || icon" class="v-empty__icon" aria-hidden="true">
       <component :is="iconComponent" v-if="iconComponent" class="v-empty__icon-svg" />
       <template v-else>{{ icon }}</template>
@@ -15,7 +14,6 @@
       <p v-if="title" class="v-empty__title">{{ title }}</p>
       <p v-if="description" class="v-empty__desc">{{ description }}</p>
     </div>
-    <!-- 操作区插槽：放置按钮等交互元素 -->
     <div v-if="$slots.action" class="v-empty__action">
       <slot name="action" />
     </div>

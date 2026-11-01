@@ -16,7 +16,6 @@
     @touchend.stop
     v-swipe-close="innerSwipeClose ? () => $emit('close') : undefined"
   >
-    <!-- 可选关闭按钮：仅在传入 closeClass 时渲染 -->
     <button
       v-if="closeClass"
       type="button"
@@ -45,14 +44,12 @@
       @touchend.stop
       v-swipe-close="() => $emit('close')"
     >
-      <!-- 锚点箭头：仅在 fixed 锚点模式下渲染到 wrapper -->
       <div v-if="useAnchor" class="popup-arrow" :style="arrowStyle" />
       <div
         :class="innerClasses"
         :style="innerStyle"
         v-swipe-close="innerSwipeClose ? () => $emit('close') : undefined"
       >
-        <!-- 可选关闭按钮：仅在传入 closeClass 时渲染 -->
         <button
           v-if="closeClass"
           type="button"

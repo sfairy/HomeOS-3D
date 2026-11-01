@@ -39,9 +39,7 @@ export function useRecommendInsight(options: UseRecommendInsightOptions) {
       meta: options.meta?.value ?? insight.meta ?? '',
       summary: insight.summary,
       loading: options.loading.value,
-      // 是否存在可执行动作
       actionable: insight.hasActionable,
-      // 有可执行动作时才显示"应用"按钮
       showApply: insight.hasActionable,
       groups: insight.groups || [],
       banners: insight.banners || [],

@@ -86,7 +86,6 @@
         <template v-if="domain === 'climate'">
           <div class="dgm-climate-card">
             <div class="dgm-climate-head">
-              <!-- 右上角关闭按钮：点击直接关闭该 climate 实体 -->
               <button
                 type="button"
                 class="dgm-climate-off-btn dgm-climate-off-btn--sm dgm-climate-off-btn--corner"
@@ -116,7 +115,6 @@
             </div>
 
             <div class="dgm-climate-temp-zone">
-              <!-- 当前/设定温度双栏显示 -->
               <div class="dgm-climate-temp-stats">
                 <div class="dgm-climate-stat">
                   <span
@@ -137,7 +135,6 @@
                 </div>
               </div>
 
-              <!-- 设定温度加减按钮（仅当存在目标温度时显示） -->
               <div v-if="getClimateTargetTemp(eid) != null" class="dgm-climate-adjust">
                 <button
                   type="button"
@@ -171,7 +168,6 @@
               "
               class="dgm-climate-controls"
             >
-              <!-- HVAC 模式按钮组（如制热/制冷/自动） -->
               <div v-if="hvacModes(eid).length > 0" class="dgm-climate-btn-row">
                 <button
                   v-for="mode in hvacModes(eid)"
@@ -196,7 +192,6 @@
                   <span>{{ climateModeInfo(mode).label }}</span>
                 </button>
               </div>
-              <!-- 风速档位按钮组（仅当 attributes.fan_modes 存在时可点击切换） -->
               <div v-if="getEntity(eid)?.attributes?.fan_modes?.length" class="dgm-climate-btn-row">
                 <button
                   v-for="mode in getEntity(eid).attributes.fan_modes"

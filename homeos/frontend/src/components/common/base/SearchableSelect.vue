@@ -1,5 +1,4 @@
 <template>
-  <!-- SearchableSelect 可搜索选择器：输入框+下拉列表，支持搜索过滤和键盘导航 -->
   <div ref="wrapRef" class="ss-wrap">
     <div class="ss-input-row">
       <input

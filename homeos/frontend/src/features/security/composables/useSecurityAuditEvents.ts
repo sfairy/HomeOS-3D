@@ -65,7 +65,6 @@ export function useSecurityAuditEvents(
   const chrome = useChromeStore()
   // 会话内即时事件队列，最多保留 30 条
   const secSessionEvents = ref<SecSessionEvent[]>([])
-  // 后端审计事件列表
   const secDbEvents = ref<SecurityEventDisplayItem[]>([])
   // 当前过滤项：all / hazard / linkage / false_alarm_feedback / zone:{id}
   const secEventFilter = ref('all')

@@ -46,7 +46,6 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
 </script>
 
 <template>
-  <!-- HomeModeSwitcherMenu 家庭模式切换菜单：展示模式列表、触发日志 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="dropdown">
       <div

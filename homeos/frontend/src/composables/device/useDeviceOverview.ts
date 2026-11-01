@@ -20,7 +20,6 @@ export function useDeviceOverview(entityId: Ref<string>, visible: Ref<boolean>) 
   const eventsLoading = ref(false)
   // 用量报告；无 entity_id 或失败时为 null
   const usageReport = ref<DeviceUsageReport | null>(null)
-  // 最近事件列表
   const recentEvents = ref<DeviceStateHistoryEvent[]>([])
   // 最近事件总数（用于显示「还有 N 条」）
   const recentTotal = ref(0)

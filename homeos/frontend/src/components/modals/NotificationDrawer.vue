@@ -1,5 +1,4 @@
 <template>
-  <!-- NotificationDrawer 通知中心抽屉：右侧侧拉的全局通知列表 -->
   <Teleport v-if="isOpen" :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="notification-drawer">
       <div v-if="isOpen" class="notification-drawer-overlay" role="presentation" @keydown="onOverlayKeydown">

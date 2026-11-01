@@ -40,9 +40,10 @@ const emit = defineEmits(['toggle'])
 </script>
 
 <template>
-  <!-- 触发按钮：根据激活态切换样式，加载时禁用，点击冒泡阻止后派发 toggle。
-       390px 下 CSS 会隐藏 `.home-mode-switcher__label`，按钮只剩图标 —— 可访问名
-       必须由 `aria-label` 兜底，否则 axe `button-name` 直接 critical。 -->
+  <!--
+    390px 下 CSS 会隐藏 `.home-mode-switcher__label`，按钮只剩图标 —— 可访问名
+    必须由 `aria-label` 兜底，否则 axe `button-name` 直接 critical。
+  -->
   <button
     type="button"
     class="home-mode-switcher__btn"
@@ -56,7 +57,6 @@ const emit = defineEmits(['toggle'])
   >
     <component :is="modeIcon" class="home-mode-switcher__icon w-3.5 h-3.5 shrink-0" />
     <span class="home-mode-switcher__label">{{ label }}</span>
-    <!-- 操作进行中展示旋转图标，否则展示下拉箭头 -->
     <Loader2 v-if="acting" class="w-3.5 h-3.5 animate-spin opacity-60" />
     <ChevronDown v-else class="w-3.5 h-3.5 opacity-50" />
   </button>

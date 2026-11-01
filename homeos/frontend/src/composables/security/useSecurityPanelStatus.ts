@@ -42,18 +42,14 @@ const zones = shallowRef<SecurityPanelZone[]>([])
 const loading = ref(true)
 const ready = ref(false)
 const error = ref<string>('')
-// 订阅者计数，控制轮询启停
 let subscriberCount = 0
 // 轮询任务取消函数（注册到全局调度器，页面隐藏时由调度器统一暂停）
 let pollCancel: (() => void) | null = null
-// 轮询间隔：10 秒
 const POLL_MS = 10000
 
 /** 有订阅者（浮动图层 / 安防页）且页面可见时轮询 */
 function shouldPoll() {
-  // 无订阅者时停止轮询，节省资源
   if (subscriberCount <= 0) return false
-  // 页面隐藏时停止轮询，避免后台浪费
   if (typeof document !== 'undefined' && document.hidden) return false
   return true
 }
@@ -65,7 +61,6 @@ function shouldPoll() {
  */
 async function refresh(force = false) {
   const authStore = useAuthStore()
-  // 未认证时直接结束，不发请求
   if (!authStore.isAuthenticated) {
     loading.value = false
     return
@@ -116,23 +111,19 @@ async function refresh(force = false) {
 function applyModeFromSocket(data: SecurityModeSocketPayload) {
   if (data?.mode) currentMode.value = data.mode
   const list = zones.value
-  // zones 为空时无法增量更新，直接刷新
   if (!list.length) {
     void refresh(true)
     return
   }
-  // 撤防：所有区域强制 unarmed
   if (data.mode === 'disarmed') {
     zones.value = list.map((z) => ({ ...z, armed: false }))
     return
   }
-  // 带区域列表：按 Set 增量更新 armed 状态
   if (Array.isArray(data.zones)) {
     const armedSet = new Set(data.zones)
     zones.value = list.map((z) => ({ ...z, armed: armedSet.has(z.id) }))
     return
   }
-  // 既非撤防也无区域列表，回退到全量刷新
   void refresh(true)
 }
 
@@ -168,12 +159,10 @@ function stopPolling() {
 
 /** 根据订阅者数量同步轮询状态 */
 function syncPollingForSubscribers() {
-  // 无订阅者时停止
   if (subscriberCount <= 0) {
     stopPolling()
     return
   }
-  // 有订阅者时按可见性决定启停
   if (shouldPoll()) startPolling()
   else stopPolling()
 }
@@ -192,7 +181,6 @@ function onVisibilityChange() {
  */
 export function useSecurityPanelStatus() {
   const authStore = useAuthStore()
-  // 挂载时增加订阅者，绑定可见性监听
   onMounted(() => {
     subscriberCount++
     if (typeof document !== 'undefined') {
@@ -204,7 +192,6 @@ export function useSecurityPanelStatus() {
       loading.value = false
     }
   })
-  // 卸载时减少订阅者，最后一个订阅者负责解绑可见性监听
   onUnmounted(() => {
     subscriberCount--
     if (subscriberCount === 0 && typeof document !== 'undefined') {
@@ -212,7 +199,6 @@ export function useSecurityPanelStatus() {
     }
     syncPollingForSubscribers()
   })
-  // 登录态恢复后，若有订阅者则立即刷新一次
   watch(
     () => authStore.isAuthenticated,
     (ok: boolean) => {

@@ -10,7 +10,6 @@
     <div v-if="!hasError" :key="internalKey" class="error-boundary-root__content">
       <slot />
     </div>
-    <!-- 错误态：展示错误卡片与重试按钮 -->
     <div v-else class="error-boundary" role="alert">
       <div class="error-boundary__card ios-card">
         <AlertTriangle class="error-boundary__icon" aria-hidden="true" />

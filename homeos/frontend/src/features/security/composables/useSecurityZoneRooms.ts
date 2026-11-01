@@ -57,7 +57,6 @@ export function useSecurityZoneRooms() {
     ),
   )
 
-  // 未分配的传感器列表
   const unassignedSensors = computed(() => sensorsByRoom.value.get('__unassigned__')?.sensors || [])
   /**
    * 获取指定区域的传感器引用列表

@@ -34,7 +34,6 @@
         <div ref="magChartRef" class="eq-analytics__chart"></div>
       </section>
 
-      <!-- 卡片 2：距离分布（本地视角显示"距离分布"，全球视角显示"距家分布"） -->
       <section class="eq-analytics__chart-card">
         <header class="eq-analytics__chart-head">
           <span class="eq-analytics__chart-title">{{
@@ -44,7 +43,6 @@
         <div ref="distChartRef" class="eq-analytics__chart"></div>
       </section>
 
-      <!-- 卡片 3：事件时间分布，观察地震发生的时间规律 -->
       <section class="eq-analytics__chart-card">
         <header class="eq-analytics__chart-head">
           <span class="eq-analytics__chart-title">事件分布</span>
@@ -52,7 +50,6 @@
         <div ref="timeChartRef" class="eq-analytics__chart"></div>
       </section>
 
-      <!-- 卡片 4：本地视角显示"高频震中"，全球视角显示"深度分布" -->
       <section class="eq-analytics__chart-card">
         <header class="eq-analytics__chart-head">
           <span class="eq-analytics__chart-title">{{

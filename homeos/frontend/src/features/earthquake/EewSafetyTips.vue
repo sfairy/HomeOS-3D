@@ -2,9 +2,8 @@
 <template>
   <!-- 避险提示容器：紧凑模式下整体缩小，便于竖屏展示 -->
   <div class="eew-safety" :class="{ 'eew-safety--compact': compact }">
-    <!-- 逐条渲染避险卡片，使用 label 作为 key 保证稳定 -->
+    <!-- 使用 label 作为 key：同一条避险提示在重渲染时保持节点稳定 -->
     <div v-for="tip in tips" :key="tip.label" class="eew-safety-card">
-      <!-- 图标容器，按紧凑模式调整尺寸；inline style 注入背景与边框颜色 -->
       <div class="eew-safety-icon" :class="compact ? 'eew-safety-icon--sm' : ''" :style="tip.style">
         <component :is="tip.icon" class="w-5 h-5" :class="tip.iconClass" />
       </div>

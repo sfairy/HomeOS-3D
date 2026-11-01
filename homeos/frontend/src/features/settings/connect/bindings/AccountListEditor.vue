@@ -111,7 +111,6 @@ const { primaryIndex, setPrimary, removeRow } = useBindingAccountListEditor({
   createEmptyRow: () => ({ number: '', label: '' }),
 })
 
-// 户号后 4 位冲突列表
 const suffixConflicts = computed(() => findAccountSuffixConflicts(entries.value))
 
 const numberInputRefs = ref([])

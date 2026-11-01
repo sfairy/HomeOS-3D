@@ -95,10 +95,8 @@ const emit = defineEmits(['toggle'])
         role="tooltip"
         @click.stop
       >
-        <!-- 有人员数据：展示汇总头部 + 人员列表 -->
         <template v-if="showPresenceBadge && presenceMembers.length">
           <div class="presence-pop-head">
-            <!-- 状态指示球：在家用 Home 图标，离家用 MapPin 图标 -->
             <div
               :class="[
                 'presence-pop-head__orb',
@@ -117,7 +115,6 @@ const emit = defineEmits(['toggle'])
               </span>
             </div>
           </div>
-          <!-- 人员列表：根据索引取色调，根据 atHome 区分在家/离家样式 -->
           <ul class="presence-pop-list">
             <li
               v-for="(member, idx) in presenceMembers"

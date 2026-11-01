@@ -2,7 +2,6 @@
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal">
       <div v-if="isOpen" ref="rootRef" class="hos-modal-root">
-        <!-- 背景遮罩，点击关闭 -->
         <div class="hos-modal-backdrop" @click="$emit('close')" />
         <div
           ref="panelRef"
@@ -11,7 +10,6 @@
           aria-modal="true"
           aria-labelledby="asset-manager-title"
         >
-          <!-- 头部：图标 + 标题/副标题 + 关闭按钮 -->
           <div class="hos-modal-head">
             <div class="hos-modal-head-left">
               <div
@@ -33,7 +31,6 @@
             </button>
           </div>
 
-          <!-- 主体：异步加载的 AssetManager（非拾取器模式） -->
           <div
             class="hos-modal-body hos-modal-body--flush hos-modal-body--no-scroll asset-manager-modal__body"
           >
@@ -46,7 +43,6 @@
 </template>
 
 <script setup>
-/** 注意：AssetManager 以异步组件方式引入，降低首屏体积；开启 keep-alive 网关时关闭弹窗。 */
 import { defineAsyncComponent, computed, ref, watch } from 'vue'
 import { X, Images, Sparkles } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
@@ -60,13 +56,10 @@ import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 const AssetManager = defineAsyncComponent(() => import('@/components/common/asset-manager/AssetManager.vue'))
 
 const props = defineProps({
-  /** 是否打开 */
   isOpen: { type: Boolean, default: false },
   /** 资源类型：'icon' / 'background' */
   type: { type: String, default: 'background' },
-  /** 弹窗标题 */
   title: { type: String, required: true },
-  /** 副标题描述 */
   description: { type: String, default: '' },
 })
 
@@ -77,6 +70,7 @@ const teleportDisabled = computed(
   () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
 )
 
+// keep-alive 网关把宿主页冻结成快照时，弹窗的 Teleport 目标会失效：直接关闭，避免挂在失效节点上。
 watch(keepAliveTeleportDisabled, (disabled) => {
   if (disabled && props.isOpen) emit('close')
 })

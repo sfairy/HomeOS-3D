@@ -9,7 +9,6 @@
 -->
 <template>
   <div class="device-batch premium-backdrop" v-if="selectedIds.length > 0">
-    <!-- 工具栏头部：已选数量与清除按钮 -->
     <div class="device-batch__header">
       <div class="device-batch__select-info">
         <CheckSquare class="w-4 h-4 dba-icon-info" />

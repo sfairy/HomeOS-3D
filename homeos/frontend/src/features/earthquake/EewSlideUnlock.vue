@@ -2,7 +2,6 @@
 <template>
   <!-- 滑动解锁外层容器，承接 $attrs.class 用于父组件布局微调 -->
   <div class="eew-slide-wrap" :class="$attrs.class">
-    <!-- 引导文案：仅在用户已避险后操作 -->
     <p class="eew-slide-hint">确认安全后滑动解锁以关闭警报</p>
     <!--
       滑动轨道：
@@ -26,7 +25,6 @@
       <div class="eew-slide-track__glow" aria-hidden="true" />
       <!-- 已滑动填充条，宽度跟随 --progress -->
       <div class="eew-slide-fill" aria-hidden="true" />
-      <!-- 终点处的盾牌图标，提示解锁后的"安全"状态 -->
       <div class="eew-slide-end" aria-hidden="true">
         <ShieldCheck class="eew-slide-end__icon" />
       </div>

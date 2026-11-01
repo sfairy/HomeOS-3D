@@ -84,9 +84,7 @@
         <span>{{ '暂无功能引用该实体' }}</span>
       </div>
 
-      <!-- 引用主体：类型筛选按钮 + 引用列表 -->
       <div v-else class="device-refs-panel__body">
-        <!-- 类型筛选：全部 + 各引用类型按钮，显示对应计数 -->
         <div class="device-refs-panel__filters">
           <button
             type="button"
@@ -108,7 +106,6 @@
           </button>
         </div>
 
-        <!-- 引用列表：每项含类型标签、名称、详情、角色、启用状态与跳转/移除操作 -->
         <ul class="device-refs-panel__list">
           <li v-for="item in filteredItems" :key="`${item.kind}:${item.id}:${item.role}`">
             <div class="device-refs-panel__row">

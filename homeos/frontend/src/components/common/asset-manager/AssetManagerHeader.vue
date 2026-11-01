@@ -1,13 +1,10 @@
-/** 网格/列表视图切换控件，是用户与资源管理器交互的主要入口。 */
 <template>
   <div class="asset-header">
-    <!-- 左侧：类型徽标 + 面包屑导航 -->
     <div class="asset-header__left">
       <div class="asset-header__badge" :class="type === 'icon' ? '' : 'asset-header__badge--blue'">
         <Sparkles v-if="type === 'icon'" class="w-3.5 h-3.5" />
         <FolderOpen v-else class="w-3.5 h-3.5" />
       </div>
-      <!-- 面包屑：逐级展示当前路径，点击可跳转至对应层级 -->
       <template v-for="(crumb, idx) in breadcrumbs" :key="crumb.path">
         <button
           class="asset-header__crumb"
@@ -20,7 +17,6 @@
       </template>
     </div>
 
-    <!-- 右侧：搜索框、操作按钮、视图切换 -->
     <div class="asset-header__actions">
       <div class="asset-header__search">
         <Search class="asset-header__search-icon" />
@@ -33,7 +29,6 @@
           @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
           @keydown.escape="emit('update:searchQuery', '')"
         />
-        <!-- 清除搜索按钮：仅在有输入内容时显示 -->
         <button
           v-if="searchQuery"
           type="button"
@@ -57,7 +52,6 @@
         <FolderPlus class="w-4 h-4" />
       </button>
 
-      <!-- 上传按钮：图标模式仅接受 .svg 文件 -->
       <button
         type="button"
         class="asset-header__btn asset-header__btn--upload"
@@ -78,7 +72,6 @@
 
       <div class="asset-header__divider" />
 
-      <!-- 视图切换：网格 / 列表 -->
       <div class="asset-header__view-toggle">
         <button
           type="button"
@@ -131,13 +124,9 @@ defineProps<{
   setSearchInput: (el: Element | import('vue').ComponentPublicInstance | null) => void
   /** 注入文件输入 DOM 引用的回调 */
   setFileInput: (el: Element | import('vue').ComponentPublicInstance | null) => void
-  /** 跳转至指定路径 */
   navigateTo: (path: string) => void
-  /** 触发新建文件夹流程 */
   createFolder: () => void
-  /** 触发文件选择对话框 */
   triggerUpload: () => void
-  /** 文件选择后的上传处理 */
   onUpload: (e: Event) => void
 }>()
 

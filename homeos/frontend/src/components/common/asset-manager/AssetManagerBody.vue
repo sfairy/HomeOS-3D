@@ -1,4 +1,3 @@
-/** 渲染资源条目，并处理条目的点击、复制、删除等交互事件。 */
 <template>
   <div class="asset-body">
     <div v-if="loading && items.length === 0" class="asset-body__state">
@@ -55,7 +54,7 @@
       />
     </div>
 
-    <!-- 列表视图：以纵向列表形式展示条目，附带预览能力 -->
+    <!-- 列表视图 -->
     <div v-else class="asset-list">
       <AssetManagerListItem
         v-for="item in filteredItems"
@@ -81,19 +80,16 @@ import type { AssetItem } from './useAssetManager'
 
 // 组件属性：由父组件通过 useAssetManager 注入，包含渲染所需的状态与回调
 defineProps<{
-  /** 是否处于加载中 */
   loading: boolean
   /** 当前目录下全部条目（未经过滤） */
   items: AssetItem[]
   /** 经搜索过滤并排序后的条目列表 */
   filteredItems: AssetItem[]
-  /** 当前搜索关键词 */
   searchQuery: string
   /** 视图模式：grid 网格 / list 列表 */
   viewMode: 'grid' | 'list'
   /** 是否启用虚拟网格（大数据量优化） */
   useVirtualGrid: boolean
-  /** 网格列数 */
   gridColumns: number
   /** 网格行高（像素） */
   gridRowHeight: number
@@ -101,9 +97,7 @@ defineProps<{
   isPicker?: boolean
   /** 资源类型：icon 图标 / background 背景图等 */
   type: string
-  /** 判断指定条目是否可预览 */
   canPreview: (item: AssetItem) => boolean
-  /** 判断指定条目是否为图片类型 */
   isImage: (item: AssetItem) => boolean
   /** 预览失败时的回调（用于记录失败条目避免重复尝试） */
   onPreviewError: (name: string) => void
@@ -111,7 +105,6 @@ defineProps<{
   onItemClick: (item: AssetItem) => void
   /** 复制条目路径回调 */
   copyPath: (item: AssetItem) => void
-  /** 删除条目回调 */
   deleteItem: (item: AssetItem) => void
 }>()
 </script>

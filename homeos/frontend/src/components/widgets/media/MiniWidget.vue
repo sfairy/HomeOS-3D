@@ -1,6 +1,5 @@
 <template>
   <div :class="['media-mini-widget', 'widget-glass-card', !compact && 'media-mini-widget--hub']">
-    <!-- Hub 头部：仅非 compact 模式渲染，标题「多媒体」，主题色紫色 -->
     <WidgetHubHeader
       v-if="!compact"
       v-model="activeTab"
@@ -13,7 +12,6 @@
       /></template>
     </WidgetHubHeader>
 
-    <!-- 播放器 Tab：多播放器水平滑动列表 -->
     <template v-if="activeTab === 'player'">
       <VEmptyState
         v-if="!playerIds.length"

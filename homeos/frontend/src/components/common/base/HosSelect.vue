@@ -1,11 +1,11 @@
 <template>
-  <!-- HosSelect 自定义选择器组件：支持搜索、分组、键盘导航、Teleport 弹出层 -->
   <div ref="wrapRef" :class="['hos-select', rootClass]">
-    <!-- 选择器触发按钮：点击展开/收起下拉面板。
-         按 WAI-ARIA 1.2 的 button-combobox 模式声明：键盘焦点留在触发按钮上，
-         用 `aria-activedescendant` 指向当前高亮项，而不是把焦点搬进列表里。
-         注意 `aria-label` 必须显式给：`role="combobox"` 的可访问名只认作者标注，
-         不再从按钮文字内容推导 —— 缺了它，空值/图标化时 `button-name` 是 axe critical。 -->
+    <!--
+      按 WAI-ARIA 1.2 的 button-combobox 模式声明：键盘焦点留在触发按钮上，
+      用 `aria-activedescendant` 指向当前高亮项，而不是把焦点搬进列表里。
+      注意 `aria-label` 必须显式给：`role="combobox"` 的可访问名只认作者标注，
+      不再从按钮文字内容推导 —— 缺了它，空值/图标化时 `button-name` 是 axe critical。
+    -->
     <button
       type="button"
       ref="triggerRef"
@@ -45,8 +45,7 @@
           role="listbox"
           :aria-label="title || undefined"
         >
-          <!-- 搜索框：可搜索时显示，支持键盘上下导航和回车选择。
-               可搜索模式下焦点在这里，所以 combobox 语义也挂在这里。 -->
+          <!-- 可搜索模式下焦点在输入框，所以 combobox 语义挂在这里而不是触发按钮。 -->
           <div v-if="searchable" class="hos-select__search-wrap">
             <Search class="hos-select__search-icon" aria-hidden="true" />
             <input
@@ -70,12 +69,12 @@
             />
           </div>
 
-          <!-- 选项列表：支持分组显示、选中状态、激活高亮。
-               选项不进 Tab 序列（`tabindex="-1"`），键盘完全交给上面的触发按钮 / 搜索框，
-               这是 combobox 模式的关键：Tab 一次就离开整个控件，不是逐个选项走。 -->
+          <!--
+            选项不进 Tab 序列（`tabindex="-1"`），键盘完全交给上面的触发按钮 / 搜索框，
+            这是 combobox 模式的关键：Tab 一次就离开整个控件，不是逐个选项走。
+          -->
           <div v-if="visibleOptions.length" class="hos-select__list" role="presentation">
             <template v-for="(opt, idx) in visibleOptions" :key="`${opt.value}-${idx}`">
-              <!-- 分组标签：当选项有分组且与上一个分组不同时显示 -->
               <div
                 v-if="opt.group && (idx === 0 || visibleOptions[idx - 1].group !== opt.group)"
                 class="hos-select__group-label"
@@ -101,7 +100,6 @@
               >
                 <div class="hos-select__item-main">
                   <span class="hos-select__item-label">{{ opt.label }}</span>
-                  <!-- 选项提示信息（如实体 domain） -->
                   <span v-if="opt.hint" class="hos-select__item-hint">{{ opt.hint }}</span>
                 </div>
                 <Check v-if="isSelected(opt)" class="hos-select__item-check" aria-hidden="true" />
@@ -121,7 +119,6 @@
 </template>
 
 <script setup>
-/** HosSelect - 自定义选择器组件 */
 import { ref, computed, watch, nextTick, useId, useSlots, onUpdated } from 'vue'
 import { ChevronDown, Check, Search } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
@@ -129,17 +126,13 @@ import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 import { entitySelectHint } from '@/shared/entity/utils/select.util'
 import './styles/hos-select.css'
 
-/** 组件 Props 定义 */
 const props = defineProps({
-  /** v-model 绑定值 */
   modelValue: { type: [String, Number], default: undefined },
   /** 兼容 v-bind:value 写法 */
   value: { type: [String, Number], default: undefined },
   /** 选项数组，每项可为 string/number 或 {value, label, hint, disabled, group} */
   options: { type: Array, default: null },
-  /** 未选择时的占位文本 */
   placeholder: { type: String, default: '' },
-  /** 是否禁用 */
   disabled: { type: Boolean, default: false },
   /** 是否显示为不支持状态（样式不同） */
   unsupported: { type: Boolean, default: false },
@@ -149,25 +142,18 @@ const props = defineProps({
   variant: { type: String, default: 'default' },
   /** 是否块级宽度（占满父容器） */
   block: { type: Boolean, default: false },
-  /** 是否自适应内容宽度 */
   fit: { type: Boolean, default: false },
   /** 是否可搜索：true=强制开启 / false=强制关闭 / auto=选项超过12个时自动开启 */
   searchable: { type: [Boolean, String], default: 'auto' },
-  /** 搜索框占位文本 */
   searchPlaceholder: { type: String, default: '' },
-  /** 无匹配项时的文本 */
   emptyText: { type: String, default: '' },
-  /** 触发按钮的 title 提示 */
   title: { type: String, default: '' },
-  /** 值是否强制转换为数字类型 */
   number: { type: Boolean, default: false },
   /** 下拉面板最小宽度（px） */
   minWidth: { type: Number, default: 0 },
   /** 下拉面板最大高度（px），超出滚动 */
   maxHeight: { type: Number, default: 280 },
-  /** 触发按钮的自定义 class */
   triggerClass: { type: String, default: '' },
-  /** 触发按钮的 id 属性 */
   id: { type: String, default: '' },
   /** v-model 修饰符（如 .number） */
   modelModifiers: { type: Object, default: () => ({}) },

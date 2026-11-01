@@ -1,9 +1,6 @@
 <template>
-  <!-- 批量操作工具条：仅在 show 为 true 时渲染，提供全部开启/关闭按钮与统计信息 -->
   <div v-if="show" class="dgm-batch-bar">
-    <!-- 批量按钮区：根据 offOnly 决定是否显示「全部开启」按钮 -->
     <div class="dgm-batch-actions">
-      <!-- climate 与其它域均显示开启/关闭 -->
       <button
         v-if="!offOnly"
         type="button"
@@ -14,7 +11,6 @@
         <Power class="w-3.5 h-3.5" />
         {{ '全部开启' }}
       </button>
-      <!-- 全部关闭按钮：无运行项时禁用 -->
       <button
         type="button"
         class="dgm-batch-btn dgm-batch-btn--off"
@@ -41,7 +37,6 @@
         <span class="dgm-batch-result-service">{{ result.service }}</span>
       </span>
     </div>
-    <!-- 批量状态统计：显示「已开启/运行中」数量与总数 -->
     <div class="dgm-batch-stat">
       <span class="dgm-batch-stat-num">{{ onCount }}</span>
       <span class="dgm-batch-stat-sep">/</span>
@@ -52,7 +47,6 @@
 </template>
 
 <script setup>
-/** - 提供「全部开启 / 全部关闭」批量按钮 */
 import { Power } from '@lucide/vue'
 
 /**

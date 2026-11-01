@@ -50,7 +50,6 @@
           <BarChart3 class="w-4 h-4 dus-icon-violet" />
           <span class="dev-card__title">{{ '使用统计' }}</span>
         </div>
-        <!-- 头部操作区：时间范围选择和刷新按钮 -->
         <div class="device-usage-tab__header-actions">
           <div class="dev-range">
             <button

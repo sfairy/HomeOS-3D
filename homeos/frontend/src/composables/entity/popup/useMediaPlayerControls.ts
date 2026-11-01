@@ -157,7 +157,6 @@ export function useMediaPlayerControls(
   // 媒体总时长（秒）
   const mediaDuration = computed(() => Number(attrs.value.media_duration) || 0)
   const hasProgress = computed(() => mediaDuration.value > 0)
-  // 可选音源列表
   const sourceList = computed(() =>
     Array.isArray(attrs.value.source_list) ? (attrs.value.source_list as string[]) : [],
   )

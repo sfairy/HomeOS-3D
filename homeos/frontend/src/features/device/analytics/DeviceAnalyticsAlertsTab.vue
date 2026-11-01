@@ -47,7 +47,6 @@
     </div>
     <!-- 告警主面板：上方为异常提示卡网格，无异常时展示健康横幅；下方为低活跃设备排行 -->
       <div class="device-analytics__panel device-analytics__panel--alerts">
-      <!-- 异常提示卡网格：遍历 anomalyHints 渲染每条异常，按 type 应用不同样式与跳转 tab -->
         <div v-if="summary.anomalyHints.length" class="device-analytics__alert-grid">
         <div
           v-for="(hint, idx) in summary.anomalyHints"
@@ -82,7 +81,6 @@
           </div>
         </div>
       </div>
-      <!-- 低活跃设备列表：展示切换次数 ≤ lowActivityThreshold 的实体，点击行触发筛选 -->
         <div class="dev-chart-wrap device-analytics__low-activity">
         <DeviceChartHeader
           :icon="Clock"

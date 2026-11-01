@@ -1,14 +1,11 @@
 <template>
   <div v-if="visible" class="hos-degrade-banner" role="status">
-    <!-- 离线图标：HA 未连接且非重连中 -->
     <WifiOff v-if="showOfflineIcon" class="hos-degrade-banner__icon" aria-hidden="true" />
-    <!-- 加载图标：正在重连 HA -->
     <Loader2
       v-else-if="showSpinner"
       class="hos-degrade-banner__icon hos-degrade-banner__icon--spin"
       aria-hidden="true"
     />
-    <!-- 配置图标：业务未配置 -->
     <Database
       v-else-if="configured === false"
       class="hos-degrade-banner__icon"
@@ -18,7 +15,6 @@
       <p class="hos-degrade-banner__title">{{ resolvedTitle }}</p>
       <p class="hos-degrade-banner__text">{{ resolvedMessage }}</p>
     </div>
-    <!-- 重试按钮：仅当 HA 离线/重连中且开关启用时展示 -->
     <button
       v-if="showRetryDropped"
       type="button"

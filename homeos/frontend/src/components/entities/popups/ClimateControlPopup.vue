@@ -28,7 +28,6 @@
       </template>
     </PopupHead>
 
-    <!-- 室内当前温度条：仅当存在当前温度且支持目标温度时显示 -->
     <div v-if="currentTemp != null && hasTargetTemp" class="climate-current-bar mb-4">
       <Thermometer class="w-3.5 h-3.5 shrink-0" :class="currentTempTone" />
       <span class="climate-current-bar-label">{{ '室内' }}</span>
@@ -42,7 +41,6 @@
       }}</span>
       <span class="text-xs ccp-lbl font-bold leading-normal pb-px">{{ '当前温度 °C' }}</span>
     </div>
-    <!-- 有目标温度场景：± 调节 + 滑动条 + 关闭按钮 -->
     <div v-else class="flex flex-col items-center gap-4 mb-5">
       <div class="flex items-center justify-between w-full px-1">
         <button
@@ -144,7 +142,6 @@
       </div>
     </div>
 
-    <!-- fan 域（独立风扇）：无 fan_modes 时展示开关按钮，开启时图标旋转 -->
     <div v-else-if="isFan" class="flex justify-center">
       <button
         :class="[

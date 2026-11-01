@@ -73,7 +73,6 @@
       </div>
     </div>
 
-    <!-- 加载出错：错误信息与重试按钮 -->
     <div v-else-if="error" class="device-analytics__body">
       <div class="dev-state-block dev-state-block--error">
         <AlertCircle class="w-4 h-4" />

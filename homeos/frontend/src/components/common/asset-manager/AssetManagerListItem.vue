@@ -1,6 +1,4 @@
-/** 以及复制、删除等操作按钮。条目类型支持文件与目录。 */
 <template>
-  <!-- 条目根容器：主操作（进入目录 / 选择文件）是里面那个 button，复制与删除是它的同级按钮。 -->
   <div class="asset-list-item group">
     <!--
       主操作必须是一个**真的 button**：原来整行的 @click 挂在 div 上，键盘完全到不了
@@ -15,7 +13,6 @@
       @click="emit('click')"
     >
       <div class="asset-list-item__icon">
-        <!-- 文件且可预览且为图片：显示缩略图，加载失败时回退到错误图标 -->
         <img
           v-if="item.type === 'file' && canPreview(item) && isImage(item)"
           :src="item.url"
@@ -23,21 +20,17 @@
           class="asset-list-item__thumb"
           @error="onPreviewError(item.name)"
         />
-        <!-- 目录：显示文件夹图标 -->
         <FolderOpen v-else-if="item.type === 'dir'" class="w-6 h-6 amli-icon-info" />
-        <!-- 其他文件：显示图片文件占位图标 -->
         <FileImage v-else class="w-6 h-6 amli-icon-muted" />
       </div>
 
       <div class="asset-list-item__info">
         <span class="asset-list-item__name">{{ item.name }}</span>
-        <!-- 类型标签：目录显示"文件夹"，文件显示"文件" -->
         <span class="asset-list-item__meta">{{ item.type === 'dir' ? '文件夹' : '文件' }}</span>
       </div>
     </button>
 
     <div class="asset-list-item__actions">
-      <!-- 复制按钮：仅文件且存在 URL 时显示，使用 .stop 避免冒泡触发条目点击 -->
       <button
         v-if="item.type === 'file' && item.url"
         type="button"
@@ -48,7 +41,6 @@
       >
         <Copy class="w-3 h-3" />
       </button>
-      <!-- 删除按钮：危险操作，所有条目均显示 -->
       <button
         type="button"
         class="asset-list-action-btn asset-list-action-btn--danger"
@@ -67,13 +59,9 @@ import { computed } from 'vue'
 import { FolderOpen, FileImage, Copy, Trash2 } from '@lucide/vue'
 import type { AssetItem } from './useAssetManager'
 
-// 组件属性
 const props = defineProps<{
-  /** 当前条目数据 */
   item: AssetItem
-  /** 判断条目是否可预览 */
   canPreview: (item: AssetItem) => boolean
-  /** 判断条目是否为图片类型 */
   isImage: (item: AssetItem) => boolean
   /** 预览失败回调，用于记录失败条目 */
   onPreviewError: (name: string) => void

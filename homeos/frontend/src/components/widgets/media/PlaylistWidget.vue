@@ -1,7 +1,5 @@
-/** 媒体播放列表组件 MediaPlaylistWidget */
 <template>
   <div :class="['media-playlist', variant === 'settings' && 'media-playlist--settings']">
-    <!-- 微件模式头部：标题与刷新按钮 -->
     <header v-if="variant === 'widget'" class="media-playlist__head">
       <h3>{{ '播放列表' }}</h3>
       <button
@@ -13,7 +11,6 @@
         {{ '刷新' }}
       </button>
     </header>
-    <!-- 设置模式工具栏：仅刷新按钮 -->
     <div v-else class="media-playlist__toolbar">
       <button
         type="button"
@@ -54,7 +51,6 @@
         </div>
         <VEmptyState v-else-if="!playlist" compact tone="violet" :title="'暂无活跃播放列表'" />
 
-        <!-- 曲目列表：高亮当前播放项 -->
         <ul v-if="playlist?.items?.length" class="media-playlist__list">
           <li
             v-for="(item, idx) in playlist.items"
@@ -65,7 +61,6 @@
           </li>
         </ul>
 
-        <!-- 操作按钮：开始播放 / 下一首 -->
         <div class="media-playlist__actions">
           <button
             type="button"

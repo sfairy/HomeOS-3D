@@ -47,7 +47,6 @@
         <span class="list-page__row-sub device-row__entity-id">{{ item.entity_id }}</span>
       </div>
     </button>
-    <!-- 行元信息区：房间、电量、状态标签、详情按钮、切换按钮 -->
     <div class="list-page__row-meta">
       <span v-if="item.area" class="list-page__row-area">{{ item.area.display }}</span>
       <span

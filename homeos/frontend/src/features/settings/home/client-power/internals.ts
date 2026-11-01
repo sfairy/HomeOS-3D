@@ -550,7 +550,6 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
     return row ? deviceKind(row) : 'desktop'
   }
 
-  // 已配置终端的卡片标题
   function clientCardTitle(client: { id?: string; label?: string }) {
     return buildClientCardTitle(client, clientLiveRow(client as { id: string }))
   }

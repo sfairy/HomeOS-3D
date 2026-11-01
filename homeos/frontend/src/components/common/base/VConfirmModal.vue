@@ -32,7 +32,6 @@
             <p id="hos-confirm-message">{{ chrome.activeConfirm.message }}</p>
           </div>
           <div class="hos-modal-footer">
-            <!-- 取消按钮：点击即拒绝 -->
             <button
               type="button"
               class="hos-modal-btn hos-modal-btn--ghost"
@@ -40,7 +39,6 @@
             >
               {{ chrome.activeConfirm.cancelText }}
             </button>
-            <!-- 确认按钮：danger 类型使用红色样式强调风险 -->
             <button
               type="button"
               class="hos-modal-btn"
