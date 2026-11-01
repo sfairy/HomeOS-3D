@@ -94,7 +94,6 @@
       </div>
 
       <div v-else class="device-detail-tab__panel device-detail-tab__panel--split">
-        <!-- 左侧：使用趋势图表 -->
         <div class="dev-chart-wrap device-detail-tab__chart-wrap">
           <DeviceChartHeader
             :icon="Calendar"
@@ -105,7 +104,6 @@
           />
           <div ref="chartRef" class="dev-chart-canvas device-detail-tab__canvas"></div>
         </div>
-        <!-- 右侧：每日明细表格 -->
         <div class="dev-chart-wrap device-detail-tab__table-wrap">
           <DeviceChartHeader
             :icon="List"

@@ -15,7 +15,6 @@
     aria-labelledby="device-analytics-tab-activity"
     class="device-analytics__tab-panel"
   >
-    <!-- 顶部三指标卡：最高切换次数 / 排行设备数 / 全站日均切换 -->
     <div class="dev-metric-grid device-analytics__usage-metrics device-analytics__usage-metrics--3">
       <div class="dev-metric">
         <div class="dev-metric__icon dev-metric__icon--amber"><Flame class="w-4 h-4" /></div>
@@ -39,7 +38,6 @@
         </div>
       </div>
     </div>
-    <!-- 最活跃设备高亮条：展示当前周期切换次数最多的实体，点击可触发筛选 -->
     <div v-if="topActiveDevice" class="device-analytics__highlight-bar">
       <Flame class="w-3.5 h-3.5 dad-ic-amber" />
       <span>{{ '最活跃' }}：</span>
@@ -54,7 +52,6 @@
         `${topActiveDevice.onCount} 次 · ${formatRuntime(topActiveDevice.totalRuntimeMs)}`
       }}</span>
     </div>
-    <!-- 活跃度主面板：左侧为按日切换次数热力图，右侧为设备排行表 -->
       <div class="device-analytics__panel device-analytics__panel--activity">
       <div class="dev-chart-wrap device-analytics__chart-main">
         <DeviceChartHeader

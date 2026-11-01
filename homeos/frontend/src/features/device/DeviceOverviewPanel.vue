@@ -9,7 +9,6 @@
                 entities.store、useDeviceOverview、DeviceHealthScore、各类属性格式化与状态标签工具。
 -->
 <template>
-  <!-- DeviceOverviewPanel 设备概览面板：展示设备的基本信息和状态 -->
   <div class="device-overview">
     <div class="dev-metric-grid device-overview__kpi">
       <div class="dev-metric">

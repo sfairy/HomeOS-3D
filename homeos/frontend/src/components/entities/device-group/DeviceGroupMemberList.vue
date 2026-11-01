@@ -82,7 +82,6 @@
             : '',
         ]"
       >
-        <!-- climate 卡片：温控设备专用布局（含温度调节、HVAC 模式、风速档位） -->
         <template v-if="domain === 'climate'">
           <div class="dgm-climate-card">
             <div class="dgm-climate-head">

@@ -1,5 +1,4 @@
 <template>
-  <!-- EntityMultiSelectItemList 实体候选列表：大列表走虚拟滚动，小列表保留分组渲染 -->
   <div v-if="flatItems.length" class="ems-list-body">
     <!-- 虚拟滚动：实体数超阈值时启用，避免大实例（数千实体）下拉一次性渲染全部 DOM -->
     <VirtualList
@@ -29,7 +28,6 @@
         </div>
       </template>
     </VirtualList>
-    <!-- 分组列表：实体数较少时保留域分组头 -->
     <div v-else class="ems-list">
       <div v-for="group in groupedItems" :key="group.domain" class="ems-group">
         <div v-if="showGroupHeader" class="ems-group-header">

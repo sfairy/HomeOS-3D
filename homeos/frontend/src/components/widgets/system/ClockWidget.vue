@@ -1,6 +1,5 @@
 <template>
   <div class="clock">
-    <!-- 左侧：数字时钟 + 公历日期 -->
     <div class="clock__left">
       <div class="clock__time">
         <span class="clock__time-main">{{ timeMain }}</span>
@@ -8,7 +7,6 @@
       </div>
       <div class="clock__date">{{ dateStr }}</div>
     </div>
-    <!-- 右侧：农历年份（干支纪年）+ 农历月日（含节气） -->
     <div class="clock__right">
       <div class="clock__lunar-year">{{ lunarYear }}</div>
       <div class="clock__lunar-date">{{ lunarDate }}</div>

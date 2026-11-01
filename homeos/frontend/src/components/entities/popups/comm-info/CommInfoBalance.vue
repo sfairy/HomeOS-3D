@@ -13,7 +13,6 @@ defineProps({
 </script>
 
 <template>
-  <!-- CommInfoBalance 通信信息余额：展示通信套餐余额和使用情况 -->
   <section class="comm-balance">
     <div class="comm-balance__row">
       <div class="comm-balance__primary">

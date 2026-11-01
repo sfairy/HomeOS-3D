@@ -28,7 +28,6 @@
       </button>
     </div>
 
-    <!-- 筛选表单：状态/房间/排序三下拉 + 可控设备开关 -->
     <div class="device-filter__form">
       <label class="device-filter__field">
         <span class="device-filter__label">{{ '状态' }}</span>

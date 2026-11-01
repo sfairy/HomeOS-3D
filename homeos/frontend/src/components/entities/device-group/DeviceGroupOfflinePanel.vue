@@ -1,7 +1,6 @@
 <template>
   <!-- 仅在 stats 存在时渲染（stats 由父组件通过 useDeviceGroupOffline 计算） -->
   <template v-if="stats">
-    <!-- 严重告警区：展示严重离线设备卡片网格 -->
     <div v-if="stats.critical.length > 0" class="dgm-section">
       <div class="dgm-section-head">
         <h3 class="dgm-section-title dgm-section-title--danger">{{ '严重告警' }}</h3>
@@ -9,7 +8,6 @@
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div v-for="eid in stats.critical" :key="eid" class="dgm-offline-card">
-          <!-- 顶部行：实体域标签与告警脉冲点 -->
           <div class="dgm-offline-top">
             <span class="dgm-offline-domain">{{ getEntityDomain(eid) }}</span>
             <div class="dgm-offline-glow-dot" />
@@ -19,7 +17,6 @@
           </div>
           <h3 class="dgm-offline-name">{{ getEntityDisplayName(eid, getEntity(eid)) }}</h3>
           <p class="dgm-offline-reason">{{ offlineReason(eid) }}</p>
-          <!-- 底部行：离线时长与「离线」徽标 -->
           <div class="dgm-offline-foot">
             <span class="dgm-offline-time">{{ timeAgo(eid) }}</span>
             <span class="dgm-offline-badge">{{ '离线' }}</span>
@@ -27,7 +24,6 @@
         </div>
       </div>
     </div>
-    <!-- 系统审计区：次要连接问题列表，可由用户展开/收起 -->
     <div v-if="stats.others.length > 0 && showAudit" class="dgm-section dgm-audit-section">
       <div class="dgm-audit-list">
         <div v-for="eid in stats.others" :key="eid" class="dgm-audit-item">

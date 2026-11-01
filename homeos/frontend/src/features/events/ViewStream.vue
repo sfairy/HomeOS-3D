@@ -66,7 +66,6 @@ const degradeText = computed(() => {
       </button>
     </header>
 
-    <!-- HA 连接降级横幅：区分「离线/重连」与「无事件」 -->
     <HaDegradeBanner
       v-if="connectionDegraded"
       class="shrink-0"

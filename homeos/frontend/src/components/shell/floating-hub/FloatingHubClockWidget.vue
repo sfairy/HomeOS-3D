@@ -1,5 +1,4 @@
 <template>
-  <!-- 时钟部件：展示当前时间，纯展示无交互 -->
   <div class="afh-content">
     <div class="flex items-center gap-2">
       <span class="afh-emoji">⏰</span>

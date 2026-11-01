@@ -6,7 +6,6 @@
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
-    <!-- 顶部：面包屑导航、搜索、视图切换、上传/新建文件夹 -->
     <AssetManagerHeader
       :type="type"
       :breadcrumbs="breadcrumbs"
@@ -22,7 +21,6 @@
       @update:view-mode="viewMode = $event"
     />
 
-    <!-- 主体：网格/列表视图，支持虚拟滚动 -->
     <AssetManagerBody
       :loading="loading"
       :items="items"
@@ -42,7 +40,6 @@
       :delete-item="deleteItem"
     />
 
-    <!-- 底部：当前过滤后的项目数量 -->
     <div v-if="filteredItems.length > 0" class="asset-footer">
       <span class="text-xs am-text-muted">
         {{ `${filteredItems.length} 个项目` }}
@@ -70,7 +67,6 @@
       </div>
     </div>
 
-    <!-- 新建文件夹：黑曜石深色微晶弹窗 -->
     <VFolderCreateModal
       v-model="folderModalOpen"
       :busy="folderModalBusy"

@@ -1,5 +1,4 @@
 <template>
-  <!-- PowerCardBody 能源卡片主体：展示能源使用数据和图表 -->
   <div class="power-card__icon-wrap" aria-hidden="true">
     <span class="power-card__icon">{{ item.icon }}</span>
   </div>

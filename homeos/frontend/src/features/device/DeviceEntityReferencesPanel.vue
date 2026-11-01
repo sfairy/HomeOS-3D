@@ -63,7 +63,6 @@
         {{ '扫描自动化、场景、脚本、家庭模式、告警、布局绑定等配置中对该实体的引用；可一键移除' }}
       </p>
 
-      <!-- 加载中：扫描引用动画 -->
       <div v-if="loading && !items.length" class="dev-state-block device-detail-tab__fallback">
         <RefreshCw class="w-4 h-4 animate-spin" />
         <span>{{ '扫描引用中…' }}</span>
@@ -78,7 +77,6 @@
         <button type="button" class="dev-range__btn" @click="refresh()">{{ '重试' }}</button>
       </div>
 
-      <!-- 空数据：无引用提示 -->
       <div v-else-if="!items.length" class="dev-state-block device-detail-tab__fallback">
         <Link2 class="w-4 h-4 opacity-40" />
         <span>{{ '暂无功能引用该实体' }}</span>

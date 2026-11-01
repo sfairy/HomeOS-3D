@@ -1,6 +1,5 @@
 /** - 基于 AnchoredPopupShell 渲染 media_player 域控制面板 */
 <template>
-  <!-- MediaPlayerPopup 媒体播放器弹窗：控制媒体播放器实体 -->
   <AnchoredPopupShell
     :x-pct="xPct"
     :y-pct="yPct"

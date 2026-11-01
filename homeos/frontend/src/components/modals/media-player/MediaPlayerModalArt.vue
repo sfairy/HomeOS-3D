@@ -1,5 +1,4 @@
 <template>
-  <!-- MediaPlayerModalArt 媒体弹窗封面区：展示专辑封面或逐行歌词，并提供视图切换按钮 -->
   <aside class="media-modal__art">
     <div class="media-modal__art-frame" :class="{ 'media-modal__art-frame--live': isPlaying }">
       <template v-if="viewMode === 'cover'">

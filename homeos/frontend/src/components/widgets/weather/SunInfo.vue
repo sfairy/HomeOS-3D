@@ -1,6 +1,5 @@
 <template>
   <div class="sun-card widget-glass-card" :class="{ 'sun-card--embedded': embedded }">
-    <!-- 顶部：日出日落标题与白昼时长（非 embedded 时显示） -->
     <div v-if="!embedded" class="sun-top">
       <div class="sun-icon-wrap">
         <Sunrise class="w-5 h-5 sun-icon" />
@@ -11,7 +10,6 @@
       </div>
     </div>
     <div class="sun-bar-wrap">
-      <!-- Hub 嵌入：相位 + 白昼时长 -->
       <div v-if="embedded" class="sun-embedded-meta">
         <span
           :class="['sun-phase-pill', isDay ? 'sun-phase-pill--day' : 'sun-phase-pill--night']"
@@ -36,7 +34,6 @@
           {{ isDay ? '☀️' : '🌙' }}
         </div>
       </div>
-      <!-- 日出/日落时间 -->
       <div class="sun-times">
         <div class="sun-time-col">
           <span class="sun-time">{{ sunriseTime }}</span>
@@ -53,7 +50,6 @@
       </div>
     </div>
 
-    <!-- 在家成员区域（受 Hub 配置开关控制） -->
     <div v-if="showPresence" class="sun-presence">
       <div class="sun-presence-head">
         <div class="sun-presence-head__main">
@@ -70,7 +66,6 @@
         }}</span>
       </div>
       <div v-if="presenceLoading" class="sun-presence-empty">{{ '加载人员状态…' }}</div>
-      <!-- 成员列表（按在家状态排序，在家的排在前） -->
       <div
         v-else-if="sortedMembers.length"
         class="sun-persons custom-scrollbar"

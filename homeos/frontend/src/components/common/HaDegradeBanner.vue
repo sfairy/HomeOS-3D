@@ -1,6 +1,5 @@
 <template>
   <div class="hos-degrade-banner" role="status">
-    <!-- 离线：HA 已断连且非重连中 -->
     <WifiOff
       v-if="!entitiesStore.connected && !entitiesStore.reconnecting"
       class="hos-degrade-banner__icon"
@@ -11,7 +10,6 @@
       class="hos-degrade-banner__icon hos-degrade-banner__icon--spin"
       aria-hidden="true"
     />
-    <!-- 已连接但数据过期 / 部分离线 -->
     <AlertTriangle
       v-else
       class="hos-degrade-banner__icon"

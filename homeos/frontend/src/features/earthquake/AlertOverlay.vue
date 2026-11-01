@@ -10,7 +10,6 @@
     >
       <div class="eew-pulse-bg" />
 
-      <!-- 横屏 / 大屏布局 -->
       <div v-if="!isPortrait" class="eew-landscape">
         <div class="eew-hero">
           <div

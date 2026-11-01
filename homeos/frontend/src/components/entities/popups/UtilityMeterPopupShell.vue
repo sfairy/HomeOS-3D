@@ -1,6 +1,5 @@
 /** - 为水/电/气仪表弹窗提供统一外壳样式（主题色、标题、账户切换、余额展示） */
 <template>
-  <!-- UtilityMeterPopupShell 公事业仪表弹窗外壳：仪表弹窗的通用外壳容器 -->
   <div class="um-popup" :style="themeStyle">
     <header class="um-header">
       <div class="um-header__main">

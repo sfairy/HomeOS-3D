@@ -1,5 +1,4 @@
 <template>
-  <!-- ScreensaverClockPanel 屏保时钟面板：显示当前时间和日期 -->
   <div class="ss-panel ss-panel--clock">
     <div class="ss-time-block ss-fade-1">
       <div class="ss-time-row">

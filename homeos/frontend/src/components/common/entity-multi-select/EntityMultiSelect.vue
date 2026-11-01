@@ -1,7 +1,6 @@
 /** 组合触发器（EntityMultiSelectTrigger）与下拉面板（EntityMultiSelectDropdown）， */
 <template>
   <div :ref="bindWrapRef" :class="['ems-wrap', wrapperClass]">
-    <!-- 触发器：展示已选项 chips、placeholder，点击展开下拉 -->
     <EntityMultiSelectTrigger
       :trigger-ref="bindTriggerRef"
       :show-dropdown="showDropdown"
@@ -15,7 +14,6 @@
       :input-id="inputId"
     />
 
-    <!-- 下拉面板：搜索框、域过滤菜单、实体列表（分组/虚拟滚动） -->
     <EntityMultiSelectDropdown
       :teleport-target="teleportTarget"
       :teleport-disabled="teleportDisabled"

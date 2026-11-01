@@ -3,7 +3,6 @@
  * 承载 entity/clock/metric/panel 等类型部件，编辑模式下支持拖拽
  */
 <template>
-  <!-- 单部件外壳：承载具体部件内容，编辑模式下可拖拽调整位置 -->
   <div
     :data-afh-id="widget.id"
     :class="[
@@ -21,7 +20,6 @@
     @click.stop
     @mousedown.stop
   >
-    <!-- 编辑模式拖拽手柄：仅 isAfhLocked === false 时显示，绑定拖拽起始事件 -->
     <div
       v-if="hub.layoutStore.layoutConfig.isAfhLocked === false"
       class="afh-edit-overlay"

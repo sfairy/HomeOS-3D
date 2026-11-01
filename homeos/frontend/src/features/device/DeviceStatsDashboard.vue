@@ -27,7 +27,6 @@
       </button>
     </div>
 
-    <!-- 顶部四指标卡：全部实体 / 在线 / 离线 / 低电量 -->
     <div class="dev-metric-grid dev-metric-grid--sidebar">
       <div class="dev-metric">
         <div class="dev-metric__icon">
@@ -67,7 +66,6 @@
       </div>
     </div>
 
-    <!-- 图表区：状态分布饼图 + 域分布饼图 -->
     <div class="device-stats__charts">
       <div class="dev-chart-wrap">
         <div class="dev-chart-wrap__title">

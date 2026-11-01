@@ -14,7 +14,6 @@
     aria-labelledby="device-analytics-tab-health"
     class="device-analytics__tab-panel"
   >
-    <!-- 顶部三指标卡：事件总数 / 涉及域数量 / 当前离线设备数 -->
     <div class="dev-metric-grid device-analytics__usage-metrics device-analytics__usage-metrics--3">
       <div class="dev-metric">
         <div class="dev-metric__icon dev-metric__icon--green"><Activity class="w-4 h-4" /></div>
@@ -38,7 +37,6 @@
         </div>
       </div>
     </div>
-    <!-- 健康主面板：健康趋势图 + 按域事件分布图 + 高频事件实体排行表 -->
       <div class="device-analytics__panel device-analytics__panel--health">
       <div class="dev-chart-wrap">
         <DeviceChartHeader

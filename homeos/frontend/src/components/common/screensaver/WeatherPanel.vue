@@ -1,5 +1,4 @@
 <template>
-  <!-- ScreensaverWeatherPanel 屏保天气面板：显示天气信息 -->
   <div class="ss-panel ss-panel--weather">
     <div class="ss-wx-hero ss-fade-1">
       <div v-if="ssCfg.showWeatherIcon" class="ss-weather-glyph">{{ weatherIcon }}</div>

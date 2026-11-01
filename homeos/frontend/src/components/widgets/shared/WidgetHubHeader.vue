@@ -1,6 +1,5 @@
 /** Widget Hub 头部组件 */
 <template>
-  <!-- 头部根元素：根据是否存在品牌行与 stacked 模式切换布局类 -->
   <header
     class="widget-hub-head"
     :class="{
@@ -9,22 +8,16 @@
     }"
     :style="accentStyle"
   >
-    <!-- 品牌行：仅在存在标题/元信息/图标插槽/动作插槽时渲染 -->
     <div v-if="hasBrandRow" class="widget-hub-head__row">
       <div class="widget-hub-head__left">
-        <!-- 图标插槽：由 HubPanelLayout 透传的动态图标 -->
         <slot name="icon" />
-        <!-- 标题：仅当 title 非空时渲染 -->
         <h3 v-if="title" class="widget-hub-head__title">{{ title }}</h3>
-        <!-- 元信息文本：仅当 meta 字符串非空时渲染 -->
         <span v-if="meta" class="widget-hub-head__meta">{{ meta }}</span>
-        <!-- 元信息插槽：供父组件插入自定义元信息内容 -->
         <slot name="meta" />
       </div>
-      <!-- 动作插槽：右上角操作区（如设置按钮） -->
       <slot name="actions" />
     </div>
-    <!-- Tab 子导航：仅当 tabs 非空时渲染，遵循 ARIA tablist 语义 -->
+    <!-- 这里是真 tablist（role=tab + aria-selected），不是普通按钮组 -->
     <nav v-if="tabs.length" class="widget-hub-subnav" role="tablist">
       <button
         v-for="tab in tabs"
@@ -41,7 +34,6 @@
         @click="$emit('update:modelValue', tabId(tab))"
       >
         {{ tab.label }}
-        <!-- 徽章：仅当 badge 有非空非零值时显示 -->
         <span
           v-if="tab.badge != null && tab.badge !== '' && tab.badge !== 0"
           class="widget-hub-subnav__badge"

@@ -1,6 +1,4 @@
-/** 缩放视口布局容器 */
 <template>
-  <!-- 外层 frame：承载边框微光（高帧率时显示）与外部样式注入 -->
   <div
     class="viewport-frame"
     :class="[
@@ -13,7 +11,6 @@
     ]"
     :style="mergedFrameStyle"
   >
-    <!-- 背景层插槽（如壁纸/视频背景），位于 app-shell 之下 -->
     <slot name="backdrop" />
     <!-- app-shell：实际被缩放/居中的主体，附加性能 class 与 resizing 过渡 class -->
     <div
@@ -29,7 +26,6 @@
     >
       <!-- 全局 teleport 挂载点：所有脱离文档流的浮层都会被 teleport 到这里 -->
       <div id="teleport-target" class="teleport-target" />
-      <!-- 内容容器：缩放模式下应用缩放尺寸；非缩放模式下走流式布局 -->
       <div
         class="app-shell__content"
         :class="{ 'app-shell__content--fluid': !scalingOn }"

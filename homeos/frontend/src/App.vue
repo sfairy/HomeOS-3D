@@ -25,7 +25,6 @@
       交给路由守卫送去注册、登录或激活页（见下方 `licenseRecoveryVisible`）。
     -->
     <LicenseRecoveryView v-if="licenseRecoveryVisible" />
-    <!-- 路由视图，带淡入淡出过渡动画 -->
     <ErrorBoundary v-else :title="'页面加载失败'">
       <router-view v-slot="{ Component }">
         <!--

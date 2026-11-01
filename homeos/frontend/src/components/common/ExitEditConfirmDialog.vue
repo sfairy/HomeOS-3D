@@ -18,7 +18,6 @@
           aria-labelledby="exit-edit-title"
           aria-describedby="exit-edit-desc"
         >
-          <!-- 头部：警告图标、标题、说明 -->
           <div class="hos-modal-head hos-modal-head--center">
             <div class="hos-modal-head-icon hos-modal-head-icon--round" aria-hidden="true">⚠️</div>
 
@@ -29,7 +28,6 @@
             </p>
           </div>
 
-          <!-- 底部：留在编辑 / 放弃修改 -->
           <div class="hos-modal-footer hos-modal-footer--center hos-modal-footer--split">
             <button
               type="button"

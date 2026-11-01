@@ -68,7 +68,6 @@ function registerMenuRef(el) {
 
 <template>
   <div ref="rootRef" class="home-mode-switcher">
-    <!-- 日历标记外出中：左侧展示「外出」标签 -->
     <span
       v-if="modeContext.calendarAway"
       class="home-mode-switcher__away"

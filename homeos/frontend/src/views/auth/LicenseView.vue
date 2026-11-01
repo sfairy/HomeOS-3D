@@ -82,7 +82,6 @@ const statusFailed = ref(false)
 const statusErrorCode = ref('')
 /** 在线状态：离线态与「后台读不到」要区分开，用户才知道该修网络还是等后台。 */
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
-/** 诊断块是否展开。 */
 const diagnosticsOpen = ref(false)
 
 /** 步骤轨道：首次开通（初始化 → 注册 → 激活），本页是激活这一步。 */

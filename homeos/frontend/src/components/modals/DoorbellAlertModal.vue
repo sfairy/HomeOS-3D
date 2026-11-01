@@ -13,7 +13,6 @@
         aria-modal="true"
         :aria-label="'门铃提醒'"
       >
-        <!-- 行 1：标题 + 关闭 -->
         <div class="dam-row dam-row--head">
           <div class="dam-row__title">
             <h2>{{ '发现访客按门铃' }}</h2>
@@ -24,7 +23,6 @@
           </button>
         </div>
 
-        <!-- 行 2：纯净视频 -->
         <div
           class="dam-row dam-row--video"
           @click="onStreamClick"
@@ -50,7 +48,6 @@
           </div>
         </div>
 
-        <!-- 行 3：可选开门 + 极简说明 -->
         <div class="dam-row dam-row--foot">
           <button
             v-if="doorLockEntityId"

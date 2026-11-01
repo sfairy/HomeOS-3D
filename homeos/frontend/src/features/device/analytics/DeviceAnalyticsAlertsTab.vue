@@ -14,7 +14,6 @@
     aria-labelledby="device-analytics-tab-alerts"
     class="device-analytics__tab-panel"
   >
-    <!-- 顶部四指标卡：异常提示总数 / 异常活跃数 / 可能遗忘数 / 零使用数 -->
     <div class="dev-metric-grid device-analytics__usage-metrics">
       <div class="dev-metric">
         <div class="dev-metric__icon dev-metric__icon--amber"><AlertCircle class="w-4 h-4" /></div>
@@ -45,7 +44,6 @@
         </div>
       </div>
     </div>
-    <!-- 告警主面板：上方为异常提示卡网格，无异常时展示健康横幅；下方为低活跃设备排行 -->
       <div class="device-analytics__panel device-analytics__panel--alerts">
         <div v-if="summary.anomalyHints.length" class="device-analytics__alert-grid">
         <div

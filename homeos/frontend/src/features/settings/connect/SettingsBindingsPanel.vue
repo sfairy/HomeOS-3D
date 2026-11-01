@@ -66,7 +66,6 @@
       />
     </div>
 
-    <!-- 概览：状态条在上，洞察在下 -->
     <SettingsBindingsOverviewSection
       v-show="bindingsSection === 'overview'"
       :weather-bound="!!layoutStore.layoutConfig.haConfig.weatherEntityId?.trim()"

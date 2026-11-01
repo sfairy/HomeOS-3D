@@ -28,7 +28,6 @@
           <span v-if="tab.count != null" class="list-page__tab-count">{{ tab.count }}</span>
         </button>
       </nav>
-      <!-- 工具栏操作：设备数与周期提示 chip + 范围切换 + 刷新 + 导出 -->
       <div class="device-analytics__chrome-actions">
         <span v-if="summary.totalDevices && hasData" class="device-analytics__meta-chip">
           {{ `${summary.totalDevices} 设备有记录 · ${periodLabel}` }}
@@ -65,7 +64,6 @@
       </div>
     </div>
 
-    <!-- 加载中（且无缓存）：骨架屏占位 -->
     <div v-if="loading && !hasData" class="device-analytics__body">
       <div class="device-analytics__skeleton">
         <VSkeleton v-for="i in 4" :key="`m-${i}`" variant="text" height="48px" />
@@ -81,7 +79,6 @@
       </div>
     </div>
 
-    <!-- 空数据：无统计记录提示 -->
     <div v-else-if="!hasData" class="device-analytics__body">
       <div class="dev-state-block">
         <BarChart3 class="w-5 h-5 opacity-40" />

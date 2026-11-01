@@ -1,6 +1,5 @@
 /** - 按设备域（light/climate/switch/battery/offline 等）批量展示和控制设备组 */
 <template>
-  <!-- DeviceGroupModal 设备组模态框：管理和查看设备组详情 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal" appear>
       <div v-if="isOpen" ref="rootRef" class="hos-modal-root" @click.self="$emit('close')">

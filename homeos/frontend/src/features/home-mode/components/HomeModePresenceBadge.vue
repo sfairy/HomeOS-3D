@@ -146,7 +146,6 @@ const emit = defineEmits(['toggle'])
             </li>
           </ul>
         </template>
-        <!-- 无人员数据：展示空态引导，指引用户前往全屋联动配置 -->
         <div v-else class="home-mode-switcher__presence-pop-empty">
           <Users class="w-4 h-4 shrink-0 opacity-50" />
           <span>{{ '请在设置→全屋联动配置人员' }}</span>

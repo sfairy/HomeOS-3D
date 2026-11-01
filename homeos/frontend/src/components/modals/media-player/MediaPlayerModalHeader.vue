@@ -1,5 +1,4 @@
 <template>
-  <!-- MediaPlayerModalHeader 媒体弹窗顶栏：显示设备状态、更多操作下拉与关闭按钮 -->
   <header class="media-modal__top">
     <div class="media-modal__status">
       <span class="media-modal__status-dot" :class="stateDotClass" aria-hidden="true" />

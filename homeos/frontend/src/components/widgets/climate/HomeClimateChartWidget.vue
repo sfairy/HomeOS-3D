@@ -12,7 +12,6 @@
  */
 <template>
   <div class="hcc-card widget-glass-card">
-    <!-- 图表头部：负责视图切换按钮与状态徽标 -->
     <HomeClimateChartChrome
       v-model:active-view="activeView"
       :view-options="viewOptions"

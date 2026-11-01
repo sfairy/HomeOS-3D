@@ -5,7 +5,6 @@
     <div class="eq-analytics__glow eq-analytics__glow--tl" aria-hidden="true" />
     <div class="eq-analytics__glow eq-analytics__glow--br" aria-hidden="true" />
 
-    <!-- KPI 卡片组：展示总数、平均震级、最大震级等关键指标 -->
     <div class="eq-analytics__kpis">
       <article
         v-for="cell in kpiCells"
@@ -26,7 +25,6 @@
 
     <!-- 图表网格：四张卡片分别承载不同维度的可视化 -->
     <div class="eq-analytics__charts">
-      <!-- 卡片 1：震级分布直方图 -->
       <section class="eq-analytics__chart-card">
         <header class="eq-analytics__chart-head">
           <span class="eq-analytics__chart-title">震级分布</span>

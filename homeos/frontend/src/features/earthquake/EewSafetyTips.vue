@@ -1,13 +1,11 @@
 /** - 在地震预警覆盖层中展示四条核心避险要领（保持冷静 / 躲避桌底 / 远离窗户 / 严禁电梯） */
 <template>
-  <!-- 避险提示容器：紧凑模式下整体缩小，便于竖屏展示 -->
   <div class="eew-safety" :class="{ 'eew-safety--compact': compact }">
     <!-- 使用 label 作为 key：同一条避险提示在重渲染时保持节点稳定 -->
     <div v-for="tip in tips" :key="tip.label" class="eew-safety-card">
       <div class="eew-safety-icon" :class="compact ? 'eew-safety-icon--sm' : ''" :style="tip.style">
         <component :is="tip.icon" class="w-5 h-5" :class="tip.iconClass" />
       </div>
-      <!-- 提示文案，颜色随提示等级变化 -->
       <span class="text-xs font-bold" :class="tip.textClass">{{ tip.label }}</span>
     </div>
   </div>

@@ -1,7 +1,6 @@
 <template>
   <footer v-if="showFooter" class="power-panel animate-stagger-3">
     <div v-if="hasDisplayData" class="power-panel__glow" />
-    <!-- 空态 1：未配置显示项 -->
     <div v-if="!hasEnabledItems" class="power-panel-empty">
       <VEmptyState
         :icon-component="LayoutGrid"
@@ -17,7 +16,6 @@
         </template>
       </VEmptyState>
     </div>
-    <!-- 空态 2：缺少账户用量绑定 -->
     <div
       v-else-if="needsAccountBinding && !hasAccountBinding && !hasDisplayData"
       class="power-panel-empty"
@@ -36,7 +34,6 @@
         </template>
       </VEmptyState>
     </div>
-    <!-- 空态 3：已启用项缺少实体 ID 或绑定字段 -->
     <div v-else-if="visibleItems.length === 0" class="power-panel-empty">
       <VEmptyState
         :icon-component="CircleSlash"
@@ -52,7 +49,6 @@
         </template>
       </VEmptyState>
     </div>
-    <!-- 正常态：渲染可见项卡片 -->
     <div v-else class="power-panel__body" v-scroll-region="{ label: '首页状态卡片', axis: 'both' }">
       <div
         v-for="item in visibleItems"

@@ -3,7 +3,6 @@
        skeleton="list" 时使用列表型骨架（贴合通知/告警等列表排版），默认面板型。 -->
   <VListSkeleton v-if="isLoading && !errorMessage && skeleton === 'list'" />
   <VPanelSkeleton v-else-if="isLoading && !errorMessage" />
-  <!-- 错误态：展示错误标题、描述与重试入口 -->
   <VEmptyState
     v-else-if="errorMessage"
     compact
@@ -17,7 +16,6 @@
       </button>
     </template>
   </VEmptyState>
-  <!-- 正常态：可叠加降级提示条，并通过默认插槽渲染业务内容 -->
   <template v-else>
     <div v-if="isDegraded && showDegradedBanner" class="api-query-state__degraded" role="status">
       <p>{{ degradedMessage }}</p>

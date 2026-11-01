@@ -12,7 +12,6 @@
     accent-rgb="56, 189, 248"
     @close="$emit('close')"
   >
-    <!-- 头部：标题 + HVAC 状态文案 + 模式脉冲点（cool/heat 配色） -->
     <PopupHead :title="entityName" :icon="Thermometer">
       <template #status>
         <span :class="stateColor">{{ getHvacStateLabel(liveEntity?.state) }}</span>
@@ -85,7 +84,6 @@
         />
       </div>
       <div class="flex items-center justify-end w-full px-1">
-        <!-- 关闭 HVAC：state 切到 off -->
         <button
           type="button"
           :class="[
@@ -99,7 +97,6 @@
         </button>
       </div>
     </div>
-    <!-- HVAC 模式卡片：单行等比排布（制冷/除湿/送风/制热等） -->
     <div v-if="activeHvacModes.length > 0" class="ccp-hvac-modes mb-4">
       <button
         v-for="mode in activeHvacModes"
@@ -120,7 +117,6 @@
       </button>
     </div>
 
-    <!-- 风速选择：climate 实体支持 fan_modes 时展示 -->
     <div v-if="fanModes.length > 0" class="border-t border-white/[0.05] pt-5 mt-2">
       <div class="flex items-center justify-between mb-3 px-1">
         <span class="text-xs font-bold text-white/40 tracking-widest uppercase">{{
@@ -216,7 +212,6 @@
         </div>
       </div>
     </div>
-    <!-- 摆风模式：swing_modes 存在时展示 -->
     <div v-if="swingModes.length > 0" class="border-t border-white/[0.05] pt-4 mb-2">
       <div class="flex items-center justify-between mb-3 px-1">
         <span class="text-xs font-bold text-white/40 tracking-widest uppercase">{{
@@ -238,7 +233,6 @@
       </div>
     </div>
 
-    <!-- 预设模式：preset_modes 存在且非 fan 域时展示 -->
     <div v-if="presetModes.length > 0 && !isFan" class="border-t border-white/[0.05] pt-4 mt-2">
       <div class="flex items-center justify-between mb-3 px-1">
         <span class="text-xs font-bold text-white/40 tracking-widest uppercase">{{

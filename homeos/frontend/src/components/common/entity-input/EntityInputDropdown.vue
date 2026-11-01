@@ -1,5 +1,4 @@
 <template>
-  <!-- EntityInputDropdown 实体输入下拉面板：展示实体列表，支持虚拟滚动、分组显示、域名筛选 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="ei-drop">
       <div
@@ -25,9 +24,7 @@
           @select-domain="emit('select-domain', $event)"
         />
 
-        <!-- 实体列表主体：虚拟滚动或分组列表 -->
         <div v-if="groupedItems.length > 0" class="ei-list-body">
-          <!-- 虚拟滚动列表：实体数量较多时启用，提升渲染性能 -->
           <VirtualList
             v-if="useVirtualDropdown"
             class="ei-virtual-list"
@@ -56,7 +53,6 @@
               </div>
             </template>
           </VirtualList>
-          <!-- 普通分组列表：实体数量较少时使用 -->
           <div v-else :class="['ei-grouped-list', !showDomainFilter && 'ei-grouped-list--compact']">
             <div v-for="group in groupedItems" :key="group.domain" class="ei-group">
               <div v-if="showGroupHeader" class="ei-group-header">

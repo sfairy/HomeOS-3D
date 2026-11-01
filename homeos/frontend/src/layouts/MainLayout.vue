@@ -11,7 +11,6 @@
   减少首屏请求；横屏 ≥1280px 桌面断点启用；地震/设置锁/儿童模式优先级高于普通浮层。
 -->
 <script setup>
-/** HomeOS 主布局（横屏大屏外壳）- 内部实现说明 */
 import {
   computed,
   defineAsyncComponent,
@@ -161,7 +160,6 @@ function openNotificationDrawer() {
   showNotificationDrawer.value = true
 }
 
-/** 关闭通知抽屉 */
 function closeNotificationDrawer() {
   showNotificationDrawer.value = false
 }
@@ -455,7 +453,7 @@ watch(
         :style="lightBackdropStyle"
         aria-hidden="true"
       />
-      <!-- 顶栏：品牌 + 模式切换 + 导航 Tab + 操作按钮；handleTripleClick 用于三连击触发隐藏功能 -->
+      <!-- 整个顶栏是隐藏功能的触发面（三连击），所以点击监听挂在 header 而不是某个按钮上 -->
       <header class="tab-bar" role="banner" :style="navFrameStyle" @click="handleTripleClick">
         <div class="tab-bar__brand">
           <div class="logo-wrapper">

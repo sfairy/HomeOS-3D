@@ -44,7 +44,6 @@ const playerEntitiesList = computed({
 </script>
 
 <template>
-  <!-- Hub / security -->
   <WidgetConfigShell
     v-if="variant === 'hubTabs'"
     :icon="LayoutGrid"

@@ -41,7 +41,6 @@
       @retry="loadPlaylist"
     >
       <template v-if="selectedPlayer">
-        <!-- 正在播放：当前曲目与序号 -->
         <div v-if="playlist" class="media-playlist__now">
           <span class="media-playlist__label">{{ '正在播放' }}</span>
           <span>{{ currentTitle }}</span>

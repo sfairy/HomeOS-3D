@@ -1,7 +1,6 @@
 <template>
   <!-- 仅在 stats 存在时渲染（stats 由父组件通过 useDeviceGroupOffline 计算） -->
   <template v-if="stats">
-    <!-- 低电量告警区：电量低于阈值的设备卡片网格 -->
     <div v-if="stats.critical.length > 0" class="dgm-section">
       <div class="dgm-section-head">
         <h3 class="dgm-section-title dgm-section-title--danger">{{ '低电量告警' }}</h3>
@@ -20,7 +19,6 @@
         </div>
       </div>
     </div>
-    <!-- 运行良好区：电量正常的设备卡片网格 -->
     <div v-if="stats.normal.length > 0" class="dgm-section">
       <div class="dgm-section-head">
         <h3 class="dgm-section-title dgm-section-title--ok">{{ '运行良好' }}</h3>

@@ -1,5 +1,4 @@
 <template>
-  <!-- ChecklistBanner 首装任务条：展示首装后续待办任务并跳转设置 -->
   <div v-if="showBanner && checklist" class="setup-checklist-bar" role="status">
     <span class="setup-checklist-bar__text">
       {{ `首装后续任务 ${progressText}：` }}

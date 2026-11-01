@@ -9,7 +9,6 @@
     :container-class="containerClass"
     :item-key="(row, index) => row.join('|') || index"
   >
-    <!-- 行插槽：将单行数据透传给父组件渲染 -->
     <template #default="{ item: row, index: rowIndex }">
       <slot name="row" :row="row" :row-index="rowIndex" />
     </template>

@@ -1,7 +1,6 @@
 <template>
   <div :class="['ei-wrap', wrapperClass]" ref="wrapRef">
     <div class="ei-input-row">
-      <!-- 实体 ID 输入框：支持键盘上下方向键导航、回车选中、Esc 关闭 -->
       <input
         ref="inputRef"
         :id="inputId || undefined"
@@ -26,7 +25,6 @@
         <X class="w-3 h-3" />
       </button>
     </div>
-    <!-- 下拉建议面板（域过滤、分组、虚拟滚动） -->
     <EntityInputDropdown
       :show="showDropdown"
       :teleport-target="teleportTarget"

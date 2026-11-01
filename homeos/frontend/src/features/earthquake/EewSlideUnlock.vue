@@ -1,6 +1,5 @@
 /** - 在地震预警覆盖层底部提供"滑动解锁"交互，确认用户已避险后关闭警报 */
 <template>
-  <!-- 滑动解锁外层容器，承接 $attrs.class 用于父组件布局微调 -->
   <div class="eew-slide-wrap" :class="$attrs.class">
     <p class="eew-slide-hint">确认安全后滑动解锁以关闭警报</p>
     <!--
@@ -23,7 +22,6 @@
     >
       <!-- 背景辉光，强化"接近完成"的视觉反馈 -->
       <div class="eew-slide-track__glow" aria-hidden="true" />
-      <!-- 已滑动填充条，宽度跟随 --progress -->
       <div class="eew-slide-fill" aria-hidden="true" />
       <div class="eew-slide-end" aria-hidden="true">
         <ShieldCheck class="eew-slide-end__icon" />

@@ -3,7 +3,6 @@
   展示 KPI、流水线节点、配置健康评分与缺口、连接服务卡片。数据由 useDiagnosticsSection 注入。
 -->
 <template>
-  <!-- Tab：系统健康总览 -->
   <div class="settings-hub-section diag-page">
     <div class="diag-overview-shell">
       <SettingsOrchTabs

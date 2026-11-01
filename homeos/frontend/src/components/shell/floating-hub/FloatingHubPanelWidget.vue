@@ -1,5 +1,4 @@
 <template>
-  <!-- 面板型部件容器：通过 <component :is> 动态渲染具体面板（如安防/气候/门锁中心） -->
   <div class="afh-content afh-content--panel afh-content--hub-panel">
     <component
       :is="getFloatingPanelComponent(widget.type)"

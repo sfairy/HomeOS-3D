@@ -3,7 +3,6 @@
   跳转至联动器排查。数据由 useDiagnosticsSection 注入。
 -->
 <template>
-  <!-- Tab：诊断导出 -->
   <div class="settings-hub-section diag-page">
     <template v-if="diag?.copyText">
       <div class="diag-export-shell">

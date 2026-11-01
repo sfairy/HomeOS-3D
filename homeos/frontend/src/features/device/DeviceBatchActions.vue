@@ -24,7 +24,6 @@
       </button>
     </div>
 
-    <!-- 批量操作按钮区：批量开关（含可控域时显示）/ 移动到房间（admin/adult）/ 复制 ID -->
     <div class="device-batch__actions">
       <button
         v-if="hasToggleable"

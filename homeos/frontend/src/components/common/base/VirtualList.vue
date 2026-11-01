@@ -9,7 +9,6 @@
     ]"
     :style="rootStyle"
   >
-    <!-- 虚拟模式：使用 useVirtualList 提供的 wrapper 与 list -->
     <template v-if="isVirtual">
       <div v-bind="wrapperProps">
         <div
@@ -24,7 +23,6 @@
         </div>
       </div>
     </template>
-    <!-- 静态模式：直接渲染全部条目，适用于少量数据 -->
     <template v-else>
       <div
         v-for="(data, index) in items"

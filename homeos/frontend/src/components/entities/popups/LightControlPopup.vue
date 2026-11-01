@@ -58,7 +58,6 @@
       </div>
     </div>
 
-    <!-- 色温调节区域（仅支持色温但不支持 RGB 的设备） -->
     <div v-if="hasColorTemp && !hasRgb" class="space-y-3 mb-4">
       <div class="flex justify-between items-center">
         <span class="text-xs lcp-section-label font-bold uppercase tracking-widest">{{
@@ -90,7 +89,6 @@
       </div>
     </div>
 
-    <!-- RGB 颜色选择区域（支持 RGB 的设备） -->
     <div v-if="hasRgb" class="mb-4">
       <div class="flex justify-between items-center mb-2">
         <span class="text-xs lcp-section-label font-bold uppercase tracking-widest">{{

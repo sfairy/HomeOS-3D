@@ -13,7 +13,6 @@
       <p v-if="searchQuery" class="text-xs amb-text-muted mt-1">{{ '试试其他关键词' }}</p>
     </div>
 
-    <!-- 虚拟网格视图：当数据量较大且非嵌入模式时启用，提升渲染性能 -->
     <VirtualGrid
       v-if="viewMode === 'grid' && useVirtualGrid"
       :items="filteredItems"
@@ -39,7 +38,6 @@
       </template>
     </VirtualGrid>
 
-    <!-- 普通网格视图：数据量较少或嵌入模式时使用 -->
     <div v-else-if="viewMode === 'grid'" class="asset-grid">
       <AssetGridItem
         v-for="item in filteredItems"
@@ -54,7 +52,6 @@
       />
     </div>
 
-    <!-- 列表视图 -->
     <div v-else class="asset-list">
       <AssetManagerListItem
         v-for="item in filteredItems"

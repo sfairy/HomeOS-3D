@@ -15,7 +15,6 @@
     aria-labelledby="device-analytics-tab-overview"
     class="device-analytics__tab-panel"
   >
-    <!-- 顶部四指标卡：总切换次数 / 总运行时长 / 日均切换 / 活跃设备数 -->
     <div class="dev-metric-grid device-analytics__usage-metrics">
       <div class="dev-metric">
         <div class="dev-metric__icon"><Zap class="w-4 h-4" /></div>
@@ -46,9 +45,7 @@
         </div>
       </div>
     </div>
-    <!-- 总览主面板：左侧全局趋势图，右侧上方域分布饼图、下方域使用明细表 -->
       <div class="device-analytics__panel device-analytics__panel--overview">
-      <!-- 全局趋势主图：按日聚合的切换次数折线图 -->
         <div class="dev-chart-wrap device-analytics__chart-main">
         <DeviceChartHeader
           :icon="TrendingUp"
@@ -58,7 +55,6 @@
         />
         <div :ref="bindTrendChart" class="dev-chart-canvas device-analytics__canvas"></div>
       </div>
-      <!-- 右侧侧栏：饼图 + 域使用明细表纵向堆叠 -->
         <div class="device-analytics__side-stack">
         <div class="dev-chart-wrap device-analytics__chart-side">
           <DeviceChartHeader

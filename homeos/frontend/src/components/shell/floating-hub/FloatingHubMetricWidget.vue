@@ -1,5 +1,4 @@
 <template>
-  <!-- 温度传感器：展示 temperature 属性，单位 ℃ -->
   <div v-if="widget.type === 'temp'" class="afh-content">
     <div class="flex items-center gap-2">
       <span class="afh-emoji">🌡️</span>
@@ -12,7 +11,6 @@
     </div>
   </div>
 
-  <!-- 湿度传感器：展示 humidity 属性，单位 % -->
   <div v-else-if="widget.type === 'humidity'" class="afh-content">
     <div class="flex items-center gap-2">
       <span class="afh-emoji">💧</span>
@@ -40,7 +38,6 @@
     </div>
   </div>
 
-  <!-- 电池电量：数值根据电量着色，单位 % -->
   <div v-else-if="widget.type === 'battery'" class="afh-content">
     <div class="flex items-center gap-2">
       <span class="afh-emoji">🔋</span>
@@ -63,7 +60,6 @@
     </div>
   </div>
 
-  <!-- 功率/能耗：展示 power/energy/consumption 属性，单位 W -->
   <div v-else-if="widget.type === 'power'" class="afh-content">
     <div class="flex items-center gap-2">
       <span class="afh-emoji">⚡</span>

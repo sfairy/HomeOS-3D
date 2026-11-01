@@ -1,5 +1,4 @@
 <template>
-  <!-- MediaPlayerModal 媒体播放器模态框：全屏的媒体播放控制器 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
   <Transition name="hos-modal">
     <div v-if="isOpen && entityId" ref="rootRef" class="hos-modal-root" @click.self="closeAll">

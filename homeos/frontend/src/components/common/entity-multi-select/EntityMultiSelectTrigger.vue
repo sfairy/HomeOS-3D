@@ -1,5 +1,4 @@
 <template>
-  <!-- EntityMultiSelectTrigger 多选触发器：显示已选摘要和占位符，点击展开下拉 -->
   <div class="ems-trigger-row">
     <div
       :ref="triggerRef"
