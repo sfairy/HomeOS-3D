@@ -315,8 +315,13 @@ class SecuritySectionValidator:
         """路线点：恰好 ``{x, y}`` 且两个分量都是有限数。"""
         if not isinstance(point, dict) or set(point) != ROUTE_POINT_FIELDS:
             return False
+        # 遍历 ``ROUTE_POINT_FIELDS`` 而不是写字面量 ``('x', 'y')``：Cython 会把「单字符
+        # 字符串字面量容器」的循环变量推断成 unicode 字符码，``point[axis]`` 因此变成按字符码
+        # 查表（Cython 3.3 会就这条推断告警）。换成模块级名字后不做这层推断，且字段集保持
+        # 单一来源 —— 将来加轴不会出现「形状校验放行、数值校验漏查」的分叉。
         return all(
-            self._ctx.number(point[axis], -PRESENCE_COORDINATE_MAX, PRESENCE_COORDINATE_MAX) for axis in ('x', 'y')
+            self._ctx.number(point[axis], -PRESENCE_COORDINATE_MAX, PRESENCE_COORDINATE_MAX)
+            for axis in ROUTE_POINT_FIELDS
         )
 
     def _validated_route(self, route: Any, route_closed: Any) -> list:
