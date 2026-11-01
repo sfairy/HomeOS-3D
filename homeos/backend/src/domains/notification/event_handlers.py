@@ -344,11 +344,15 @@ class NotificationEventHandlersHelper:
         )
         if not sent:
             return
+        # 0 = 不限制（配置校验允许 0–72）。旧写法 `float(... or 2)` 把 0 当成「未配置」
+        # 又改回 2 小时，等于「关掉冷却」这个选项在界面上存在、实际不生效。
+        raw_hours = self._get_other_cfg().get("tipCooldownHours")
         try:
-            tip_hours = float(self._get_other_cfg().get("tipCooldownHours") or 2)
+            tip_hours = 2.0 if raw_hours is None else float(raw_hours)
         except (TypeError, ValueError):
             tip_hours = 2.0
-        self._set_cooldown(cooldown_key, max(1, _js_round(tip_hours * 60)))
+        if tip_hours > 0:
+            self._set_cooldown(cooldown_key, max(1, _js_round(tip_hours * 60)))
 
     async def handle_client_power_low(self, event: dict[str, Any] | None) -> None:
         event = event or {}

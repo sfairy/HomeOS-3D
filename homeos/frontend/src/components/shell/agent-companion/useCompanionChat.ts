@@ -5,6 +5,7 @@
  * 替换成回复气泡；失败给一句可重试的短提示，而不是抛错到控制台让气泡卡在思考态。
  */
 import { agentChat } from '@/services/api/agent'
+import type { AgentEarcon } from '@/services/api/agent'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 
@@ -17,12 +18,21 @@ const OUTCOME_FALLBACK: Record<string, string> = {
 /** 网络 / 服务异常时的提示（与源码同一句文案） */
 const FAILURE_REPLY = '抱歉，管家连接异常，请重试。'
 
+/** 一轮原地对话的结果：正文 + 可选的播报音频 + 操作音效 */
+export interface CompanionReply {
+  reply: string
+  /** 服务端合成的音频 URL；为空表示直接用本机 / HA 播报 */
+  ttsUrl?: string
+  /** 操作音效类型（success / error / confirm）；失败路径为空 */
+  earcon?: AgentEarcon
+}
+
 /**
- * 把一条指令发给智能管家，返回可直接放进气泡的回复文本。
+ * 把一条指令发给智能管家，返回可直接放进气泡的回复文本（与可选播报音频）。
  * @param message 用户指令（已 trim，空串由调用方拦截）
  * @param timeoutMs 兜底超时：伴侣没有会话面板，卡住的请求必须自己收尾
  */
-export async function askCompanion(message: string, timeoutMs = 30_000): Promise<string> {
+export async function askCompanion(message: string, timeoutMs = 30_000): Promise<CompanionReply> {
   let timer: ReturnType<typeof setTimeout> | null = null
   try {
     const result = await Promise.race([
@@ -31,10 +41,14 @@ export async function askCompanion(message: string, timeoutMs = 30_000): Promise
         timer = setTimeout(() => reject(new Error('companion-chat-timeout')), timeoutMs)
       }),
     ])
-    return result.reply || OUTCOME_FALLBACK[result.outcome] || '好的，已为您执行。'
+    return {
+      reply: result.reply || OUTCOME_FALLBACK[result.outcome] || '好的，已为您执行。',
+      ttsUrl: result.ttsUrl,
+      earcon: result.earcon,
+    }
   } catch (caughtError) {
     logger.error('悬浮伴侣原地对话失败', caughtError)
-    return getApiErrorMessage(caughtError, FAILURE_REPLY)
+    return { reply: getApiErrorMessage(caughtError, FAILURE_REPLY), earcon: 'error' }
   } finally {
     if (timer) clearTimeout(timer)
   }

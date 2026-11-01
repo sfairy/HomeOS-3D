@@ -7,8 +7,9 @@
   用户说「撤销刚才的操作」时按快照反向执行；
 - **只读路径无感**：单设备控制与查询不会进入这里。
 
-状态保存在进程内存（与命令缓存 / 短时记忆一致）；多 worker 部署时每个 worker
-各自维护，语义等同「当前连接内的确认」，不会把 A 设备的确认套到 B 设备上。
+状态放在 :class:`~..state.store.SharedStateStore` 里（默认进程内、可切文件库）：
+多 worker 部署时，确认提示与用户的「确认」可能落在不同进程上，计划必须能互相看见，
+否则确认会丢、或更糟地在另一个 worker 上被当成「无待确认」而重新走 LLM。
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
+
+from ..state.store import MemoryStateStore, SharedStateStore
 
 logger = logging.getLogger("homeos.agent.batch_ops")
 
@@ -47,6 +50,9 @@ MAX_SESSIONS = 100
 UNDOABLE_DOMAINS = frozenset(
     {"light", "switch", "fan", "media_player", "water_heater", "cover"}
 )
+#: 共享状态命名空间
+PENDING_NAMESPACE = "agent.batch.pending"
+UNDO_NAMESPACE = "agent.batch.undo"
 
 
 def _now_ms() -> int:
@@ -61,6 +67,31 @@ class PendingBatch:
     summary: str
     created_at: int = field(default_factory=_now_ms)
 
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "calls": [[name, dict(args or {})] for name, args in self.calls],
+            "summary": self.summary,
+            "createdAt": self.created_at,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Any) -> PendingBatch | None:
+        if not isinstance(payload, dict):
+            return None
+        calls: list[tuple[str, dict[str, Any]]] = []
+        for item in payload.get("calls") or []:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                name, args = item
+                calls.append((str(name), dict(args) if isinstance(args, dict) else {}))
+        if not calls:
+            return None
+        created_at = payload.get("createdAt")
+        return cls(
+            calls=calls,
+            summary=str(payload.get("summary") or ""),
+            created_at=int(created_at) if isinstance(created_at, (int, float)) else _now_ms(),
+        )
+
 
 @dataclass
 class UndoRecord:
@@ -70,13 +101,37 @@ class UndoRecord:
     summary: str
     created_at: int = field(default_factory=_now_ms)
 
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "snapshot": [dict(item) for item in self.snapshot],
+            "summary": self.summary,
+            "createdAt": self.created_at,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Any) -> UndoRecord | None:
+        if not isinstance(payload, dict):
+            return None
+        snapshot = [dict(item) for item in payload.get("snapshot") or [] if isinstance(item, dict)]
+        if not snapshot:
+            return None
+        created_at = payload.get("createdAt")
+        return cls(
+            snapshot=snapshot,
+            summary=str(payload.get("summary") or ""),
+            created_at=int(created_at) if isinstance(created_at, (int, float)) else _now_ms(),
+        )
+
 
 class BatchOperationService:
-    """批量操作暂存 / 确认 / 撤销（纯内存）。"""
+    """批量操作暂存 / 确认 / 撤销。"""
 
-    def __init__(self) -> None:
-        self._pending: dict[str, PendingBatch] = {}
-        self._undo: dict[str, UndoRecord] = {}
+    def __init__(self, store: SharedStateStore | None = None) -> None:
+        self._store = store or MemoryStateStore()
+
+    @property
+    def shared(self) -> bool:
+        return bool(getattr(self._store, "shared", False))
 
     # 口令判定
     @staticmethod
@@ -91,35 +146,50 @@ class BatchOperationService:
     def is_undo(text: str) -> bool:
         return bool(UNDO_PATTERN.match(str(text or "").strip()))
 
+    def _make_room(self, namespace: str) -> None:
+        if self._store.count(namespace) >= MAX_SESSIONS:
+            self._store.prune(namespace, MAX_SESSIONS - 1)
+
     # 待确认计划
     def stage(self, key: str, calls: list[tuple[str, dict[str, Any]]], summary: str) -> None:
         """暂存一批调用，等下一句确认。超过上限时淘汰最旧会话。"""
         if not key or not calls:
             return
-        if len(self._pending) >= MAX_SESSIONS and key not in self._pending:
-            self._pending.pop(next(iter(self._pending)), None)
-        self._pending[key] = PendingBatch(calls=list(calls), summary=summary)
+        self._make_room(PENDING_NAMESPACE)
+        batch = PendingBatch(calls=list(calls), summary=summary)
+        self._store.set(PENDING_NAMESPACE, key, batch.to_payload(), ttl_seconds=PENDING_TTL_MS / 1000)
         logger.info("批量操作待确认: key=%s summary=%s calls=%s", key, summary, len(calls))
+
+    def _load_pending(self, key: str) -> PendingBatch | None:
+        batch = PendingBatch.from_payload(self._store.get(PENDING_NAMESPACE, key))
+        if batch is None:
+            return None
+        if _now_ms() - batch.created_at > PENDING_TTL_MS:
+            self._store.delete(PENDING_NAMESPACE, key)
+            logger.info("批量操作确认超时,已丢弃: key=%s", key)
+            return None
+        return batch
 
     def peek_pending(self, key: str) -> PendingBatch | None:
         """读取待确认计划（不删除）；过期自动清理。"""
-        pending = self._pending.get(key)
-        if pending is None:
-            return None
-        if _now_ms() - pending.created_at > PENDING_TTL_MS:
-            self._pending.pop(key, None)
-            logger.info("批量操作确认超时,已丢弃: key=%s", key)
-            return None
-        return pending
+        return self._load_pending(key)
 
     def pop_pending(self, key: str) -> PendingBatch | None:
-        pending = self.peek_pending(key)
-        if pending is not None:
-            self._pending.pop(key, None)
-        return pending
+        """取出待确认计划（一次性，跨进程原子）。"""
+        payload = self._store.mutate(
+            PENDING_NAMESPACE,
+            key,
+            lambda old: (None, old),
+            ttl_seconds=PENDING_TTL_MS / 1000,
+        )
+        batch = PendingBatch.from_payload(payload)
+        if batch is not None and _now_ms() - batch.created_at > PENDING_TTL_MS:
+            logger.info("批量操作确认超时,已丢弃: key=%s", key)
+            return None
+        return batch
 
     def clear_pending(self, key: str) -> None:
-        self._pending.pop(key, None)
+        self._store.delete(PENDING_NAMESPACE, key)
 
     # 撤销快照
     def remember_undo(
@@ -132,26 +202,30 @@ class BatchOperationService:
         cleaned = [item for item in snapshot if item.get("domain") in UNDOABLE_DOMAINS]
         if not key or not cleaned:
             return
-        if len(self._undo) >= MAX_SESSIONS and key not in self._undo:
-            self._undo.pop(next(iter(self._undo)), None)
-        self._undo[key] = UndoRecord(snapshot=cleaned, summary=summary)
+        self._make_room(UNDO_NAMESPACE)
+        record = UndoRecord(snapshot=cleaned, summary=summary)
+        self._store.set(UNDO_NAMESPACE, key, record.to_payload(), ttl_seconds=UNDO_TTL_MS / 1000)
         logger.info("已记录撤销快照: key=%s entities=%s", key, len(cleaned))
 
     def pop_undo(self, key: str) -> UndoRecord | None:
-        """取出撤销快照（一次性）；过期自动清理。"""
-        record = self._undo.get(key)
+        """取出撤销快照（一次性，跨进程原子）；过期自动清理。"""
+        payload = self._store.mutate(
+            UNDO_NAMESPACE,
+            key,
+            lambda old: (None, old),
+            ttl_seconds=UNDO_TTL_MS / 1000,
+        )
+        record = UndoRecord.from_payload(payload)
         if record is None:
             return None
         if _now_ms() - record.created_at > UNDO_TTL_MS:
-            self._undo.pop(key, None)
             logger.info("撤销快照已过期: key=%s", key)
             return None
-        self._undo.pop(key, None)
         return record
 
     def clear(self, key: str) -> None:
-        self._pending.pop(key, None)
-        self._undo.pop(key, None)
+        self._store.delete(PENDING_NAMESPACE, key)
+        self._store.delete(UNDO_NAMESPACE, key)
 
 
 def build_undo_calls(snapshot: list[dict[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
@@ -202,8 +276,10 @@ __all__ = [
     "CANCEL_PATTERN",
     "CONFIRM_PATTERN",
     "MAX_SESSIONS",
+    "PENDING_NAMESPACE",
     "PENDING_TTL_MS",
     "UNDOABLE_DOMAINS",
+    "UNDO_NAMESPACE",
     "UNDO_PATTERN",
     "UNDO_TTL_MS",
     "BatchOperationService",

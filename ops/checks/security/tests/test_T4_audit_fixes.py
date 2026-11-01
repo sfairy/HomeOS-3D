@@ -24,7 +24,12 @@ BACKEND_ROOT = Path(__file__).resolve().parents[4] / "homeos" / "backend"
 # 后端是 python -m src.run 的 src 包；只把 backend 根目录放进 path。
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.domains.agent.mcp.mcp_service import MAX_TRACKED_CLIENTS, McpGatewayService
+from src.domains.agent.mcp.mcp_service import (
+    CLIENT_RATE_NAMESPACE,
+    MAX_TRACKED_CLIENTS,
+    RATE_PRUNE_INTERVAL,
+    McpGatewayService,
+)
 from src.domains.agent.memory.session_store import (
     MAX_LOADED_SESSIONS,
     MAX_SESSIONS,
@@ -134,7 +139,10 @@ class McpClientRateMemoryTest(unittest.TestCase):
         gateway = McpGatewayService(None, None, None, None, env={})
         for index in range(MAX_TRACKED_CLIENTS + 300):
             gateway._check_client_rate(f"client-{index}")
-        self.assertLessEqual(len(gateway._client_hits), MAX_TRACKED_CLIENTS)
+        # 计数现在在共享状态里（多 worker 也共享同一份阈值），容量剪枝按固定间隔执行，
+        # 因此峰值允许短暂超出 RATE_PRUNE_INTERVAL 条 —— 但不会无界增长。
+        tracked = gateway._store.count(CLIENT_RATE_NAMESPACE)
+        self.assertLessEqual(tracked, MAX_TRACKED_CLIENTS + RATE_PRUNE_INTERVAL)
 
     def test_same_client_still_rate_limited(self) -> None:
         gateway = McpGatewayService(None, None, None, None, env={})

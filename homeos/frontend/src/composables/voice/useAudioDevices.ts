@@ -173,8 +173,11 @@ function getPreferredAudioOutputDeviceId(): string {
 
 /**
  * 将已选扬声器应用到 HTMLMediaElement（Chromium setSinkId）。
+ *
+ * 单独导出：`useServerTts` 是模块级单例（伙伴语音没有 effect scope），不能为它
+ * 再拉一份 `useAudioDevices()`，否则会重复注册 devicechange 监听。
  */
-async function applyOutputSink(el: HTMLMediaElement | null | undefined): Promise<boolean> {
+export async function applyOutputSink(el: HTMLMediaElement | null | undefined): Promise<boolean> {
   if (!el) return false
   const sinkId = getPreferredAudioOutputDeviceId()
   if (!sinkId) return false

@@ -16,11 +16,23 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import Any
 
 from ...platform.core.http.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.awareness.tts")
+
+#: 播报去重表上限：超过后先清过期项，仍然超限就丢最早的一条
+_COOLDOWN_MAX_ENTRIES = 500
+
+
+def _cooldown_key(text: str) -> str:
+    """把播报文本归一成去重键：忽略空白与标点差异，同义内容不重复出声。"""
+    return "".join(
+        ch for ch in str(text or "") if not ch.isspace() and ch not in "，。！？、,.!?;；:："
+    )[:120]
+
 
 
 class TtsSpeakService:
@@ -33,6 +45,8 @@ class TtsSpeakService:
         self._cached_tts_entity: str | bool | None = None
         #: Xiaomi Home play_text 实体缓存：mediaPlayer stem → entity_id / None
         self._cached_xiaomi_home_play_text: dict[str, str | None] = {}
+        #: 自动播报去重：归一化文本 → 上次播报的 monotonic 时刻
+        self._spoken_at: dict[str, float] = {}
 
     # 配置
     def _external(self) -> dict[str, Any]:
@@ -42,6 +56,64 @@ class TtsSpeakService:
     def _voice(self) -> dict[str, Any]:
         value = self._app_config.get("voice")
         return value if isinstance(value, dict) else {}
+
+    def _other(self) -> dict[str, Any]:
+        value = self._app_config.get("other")
+        return value if isinstance(value, dict) else {}
+
+    def enabled(self) -> bool:
+        """播报总开关：``voice.ttsEnabled`` 缺省开启（与前端 ``ttsEnabled !== false`` 同口径）。
+
+        这里必须由后端也判一次：前端的对话链路会自己看开关，但**后端发起**的
+        建议 / 告警播报（``advisor_usage._queue_speak`` → ``tts.speak`` 事件）绕开了前端，
+        不判就会出现「关掉总开关，音箱照样说话」。
+        """
+        return self._voice().get("ttsEnabled") is not False
+
+    def output_mode(self) -> str:
+        """播报输出方式：``local`` 本机 / ``ha`` 音箱 / ``auto`` 有终端在线时本机优先。"""
+        raw = str(self._voice().get("ttsOutputMode") or "ha").strip().lower()
+        return raw if raw in ("local", "ha", "auto") else "ha"
+
+    def speak_cooldown_min(self) -> float:
+        """自动播报去重窗口（分钟）；0 表示不限制。"""
+        raw = self._other().get("speakCooldownMin")
+        try:
+            return max(0.0, float(raw))
+        except (TypeError, ValueError):
+            # 配置里写成 "5分钟" 之类的脏值：按「不去重」处理，并留一条可排查的日志，
+            # 否则用户会以为去重开关失效而没有线索。
+            logger.warning("播报去重窗口配置非法，按 0（不去重）处理: %r", raw, exc_info=True)
+            return 0.0
+
+    def should_announce(self, text: str) -> tuple[bool, str]:
+        """自动播报去重：同一内容在 ``other.speakCooldownMin`` 分钟内只播一次。
+
+        返回 ``(是否放行, 跳过原因)``。计时是**进程内**的（多 worker 部署各自计时），
+        与既有的事件冷却（``notification`` 的 ``is_in_cooldown``）同级别精度 —— 目标是
+        「同一句建议不连珠炮」，不是严格的全局配额。
+        """
+        minutes = self.speak_cooldown_min()
+        key = _cooldown_key(text)
+        if minutes <= 0 or not key:
+            return True, ""
+        now = time.monotonic()
+        window = minutes * 60
+        last = self._spoken_at.get(key)
+        if last is not None and now - last < window:
+            return False, "cooldown"
+        if len(self._spoken_at) >= _COOLDOWN_MAX_ENTRIES:
+            for stale_key, at in list(self._spoken_at.items()):
+                if now - at >= window:
+                    self._spoken_at.pop(stale_key, None)
+            if len(self._spoken_at) >= _COOLDOWN_MAX_ENTRIES:
+                self._spoken_at.pop(next(iter(self._spoken_at)), None)
+        self._spoken_at[key] = now
+        return True, ""
+
+    def release_announce(self, text: str) -> None:
+        """播报失败时归还去重名额，避免一次失败把整个窗口的机会吃掉。"""
+        self._spoken_at.pop(_cooldown_key(text), None)
 
     def get_configured_media_player(self) -> str:
         """配置的默认 TTS 播报实体 ID（单个，可能为空字符串）。"""

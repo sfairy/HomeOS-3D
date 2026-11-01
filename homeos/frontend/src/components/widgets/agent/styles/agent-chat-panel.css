@@ -1,0 +1,679 @@
+/* conic-gradient 要逐帧插值，角度必须先注册成 <angle>（与 AgentCompanion 同一做法） */
+@property --acp-chroma-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes acp-chroma-flow {
+  to {
+    --acp-chroma-angle: 360deg;
+  }
+}
+
+@keyframes acp-dot-bounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes acp-fade-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes acp-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 面板外壳：贴侧边整高停靠，不铺遮罩 —— 参考实现里它是信息栏中的一块面板，不是模态 */
+.acp-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-search);
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  pointer-events: none;
+}
+
+.acp-root--left {
+  justify-content: flex-start;
+}
+
+/* 停靠进信息栏（与参考实现同形态）：根节点不再全屏定位，由栏内容器决定尺寸 */
+.acp-root--dock {
+  position: static;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  pointer-events: auto;
+}
+
+.acp-root--dock .acp-panel {
+  width: 100%;
+}
+
+.acp-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* 宽度跟随「主页右侧信息栏宽度」，与参考实现一样占满同一栏；窄屏则铺满 */
+  width: min(max(280px, var(--acp-dock-width, 300px)), 100%);
+  min-width: 0;
+  height: 100%;
+  padding: 1.5px;
+  border-radius: var(--hos-radius-panel);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.65);
+  pointer-events: auto;
+}
+
+/* 七彩外发光 + 同一条渐变描边；默认暂停，思考 / 录音时才跑（源码同口径，省电） */
+.acp-panel::before,
+.acp-panel::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  animation: acp-chroma-flow var(--acp-chroma-duration) linear infinite paused;
+}
+
+.acp-panel::before {
+  inset: -3px;
+  z-index: 1;
+  border-radius: 23px;
+  background: var(--acp-chroma);
+  filter: blur(10px);
+  opacity: 0.48;
+}
+
+.acp-panel::after {
+  inset: 0;
+  z-index: 2;
+  border: 1.5px solid transparent;
+  border-radius: var(--hos-radius-panel);
+  background:
+    linear-gradient(rgba(18, 22, 34, 0.97), rgba(18, 22, 34, 0.97)) padding-box,
+    var(--acp-chroma) border-box;
+}
+
+.acp-panel--live::before {
+  opacity: 0.75;
+  animation-play-state: running;
+}
+
+.acp-panel--live::after {
+  animation-play-state: running;
+}
+
+.acp-panel > * {
+  position: relative;
+  z-index: 3;
+}
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+.acp-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18.5px 18.5px 0 0;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.acp-head__avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+
+.acp-head__info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-head__title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.acp-head__title {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.acp-head__beta {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.16);
+  color: rgba(251, 191, 36, 0.95);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.acp-head__status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.acp-head__dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--acp-live);
+  box-shadow: 0 0 6px var(--acp-live);
+}
+
+.acp-head__dot--amber {
+  background: var(--acp-amber);
+  box-shadow: 0 0 6px var(--acp-amber);
+  animation: acp-fade-pulse var(--acp-pulse-duration) ease-in-out infinite;
+}
+
+.acp-head__dot--rose {
+  background: var(--acp-red);
+  box-shadow: 0 0 6px var(--acp-red);
+}
+
+.acp-head__dot--sky {
+  background: var(--acp-blue);
+  box-shadow: 0 0 6px var(--acp-blue);
+}
+
+.acp-head__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.acp-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition:
+    background-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard);
+}
+
+.acp-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.acp-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+/* 历史会话下拉：盖在消息区上方，不挤压面板高度 */
+.acp-history {
+  position: absolute;
+  top: 58px;
+  right: 10px;
+  left: 10px;
+  z-index: 4;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--hos-radius-card);
+  background: rgba(22, 26, 36, 0.98);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.acp-history__title {
+  margin: 2px 6px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.acp-history__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.acp-history__row:hover,
+.acp-history__row--active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.acp-history__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.acp-history__time {
+  flex: none;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------------------------------------------------------------- 消息区 */
+
+.acp-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.acp-body::-webkit-scrollbar {
+  display: none;
+}
+
+.acp-welcome {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.acp-welcome__avatar {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 6px;
+}
+
+.acp-welcome__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.acp-welcome__desc {
+  margin: 0;
+  max-width: 220px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.acp-welcome__warn {
+  color: rgba(251, 191, 36, 0.85);
+}
+
+.acp-setup {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(0, 240, 255, 0.32);
+  border-radius: var(--hos-radius-pill);
+  background: rgba(0, 240, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.acp-row {
+  display: flex;
+  width: 100%;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.acp-row--user {
+  justify-content: flex-end;
+}
+
+.acp-row--assistant {
+  justify-content: flex-start;
+}
+
+.acp-row__avatar {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.acp-row__meta {
+  padding-bottom: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  white-space: nowrap;
+  color: var(--acp-live);
+  opacity: 0.9;
+}
+
+.acp-bubble {
+  min-width: 0;
+  max-width: 82%;
+  padding: 8px 12px;
+}
+
+.acp-bubble--user {
+  border: 1px solid rgba(255, 159, 10, 0.4);
+  border-radius: 14px 14px 4px;
+  background: rgba(255, 159, 10, 0.18);
+}
+
+.acp-bubble--assistant {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(255, 255, 255, 0.06);
+  max-width: 80%;
+}
+
+.acp-bubble__text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+/* 流式生成中的光标：放在文本尾部，提示仍在输出 */
+.acp-bubble__text--streaming::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: acp-caret var(--hos-dur-base) steps(2, start) infinite;
+}
+
+.acp-bubble__tools {
+  margin: 6px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 安全拦截提示：管家判定越权 / 涉险时显式说明，避免用户误以为执行成功 */
+.acp-bubble__blocked {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: rgba(251, 191, 36, 0.9);
+}
+
+.acp-bubble__blocked-icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+}
+
+/* 思考中：三颗跳动圆点 + 七彩描边（源码 thinking-bubble 同形） */
+.acp-thinking {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  border: 1.5px solid transparent;
+  border-radius: 14px 14px 14px 4px;
+  background:
+    linear-gradient(rgba(18, 22, 34, 0.95), rgba(18, 22, 34, 0.95)) padding-box,
+    var(--acp-chroma) border-box;
+  box-shadow: 0 0 12px rgba(66, 133, 244, 0.2);
+  animation: acp-chroma-flow var(--acp-chroma-duration) linear infinite;
+}
+
+.acp-thinking__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  animation: acp-dot-bounce var(--acp-pulse-duration) ease-in-out infinite both;
+}
+
+.acp-thinking__dot:nth-child(2) {
+  animation-delay: calc(var(--hos-dur-base) * -0.8);
+}
+
+.acp-thinking__dot:nth-child(3) {
+  animation-delay: calc(var(--hos-dur-base) * -1.6);
+}
+
+/* ---------------------------------------------------------------- 快捷指令 / 输入区 */
+
+/*
+ * 快捷指令：换行铺满而不是横向滚动。
+ * 停靠栏最窄只有 280~300px，六条预设单行放不下；之前的 overflow-x: auto + 隐藏滚动条
+ * 会让后面的指令被直接裁掉（看着像「预设不全」），这里改成自动换行：300px 下两行看全，
+ * 更窄也只会多占一行，永远不会隐藏。
+ */
+.acp-chips {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 12px 6px;
+}
+
+.acp-chip {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition:
+    background-color var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard);
+}
+
+.acp-chip:hover:not(:disabled) {
+  border-color: rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--acp-cyan);
+}
+
+.acp-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.acp-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 18.5px 18.5px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* 语音模式：60px 圆环比输入行高，加大内边距避免圆环贴住底边 */
+.acp-foot--voice {
+  padding: 12px;
+}
+
+/* 键盘模式的「输入框 + 发送」整行，和左侧模式按钮同一条基线 */
+.acp-foot__form {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/**
+ * 键盘 / 麦克风切换：图标表示「切过去会变成什么」——
+ * 语音模式下显示键盘，键盘模式下显示麦克风（与源码 switchToKeyboard 同语义）。
+ */
+.acp-mode {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(0, 240, 255, 0.9);
+  cursor: pointer;
+  transition:
+    background-color var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard);
+}
+
+.acp-mode:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+  background: rgba(0, 240, 255, 0.14);
+}
+
+.acp-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.95);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  transition:
+    border-color var(--hos-dur-base) var(--hos-ease-standard),
+    box-shadow var(--hos-dur-base) var(--hos-ease-standard);
+}
+
+.acp-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 聚焦态与参考实现同形：描边换成七彩 conic，底仍是深色卡片色（padding-box） */
+.acp-input:focus {
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(20, 24, 38, 0.98), rgba(20, 24, 38, 0.98)) padding-box,
+    var(--acp-chroma) border-box;
+  box-shadow:
+    0 0 14px rgba(66, 133, 244, 0.28),
+    0 0 24px rgba(234, 67, 53, 0.1);
+  animation: acp-chroma-flow var(--acp-chroma-duration) linear infinite;
+}
+
+.acp-send {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition:
+    background-color var(--hos-dur-base) var(--hos-ease-standard),
+    color var(--hos-dur-base) var(--hos-ease-standard);
+}
+
+.acp-send:disabled {
+  cursor: default;
+}
+
+.acp-send--active:not(:disabled) {
+  background: var(--acp-cyan);
+  color: rgba(0, 0, 0, 0.85);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+}
+
+.acp-voice-err {
+  flex: none;
+  margin: 0;
+  padding: 0 12px 10px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: rgba(248, 113, 113, 0.9);
+}
+
+/* 低性能模式 / 用户偏好减少动效时，只保留静态形态 */
+@media (prefers-reduced-motion: reduce) {
+  .acp-panel::before,
+  .acp-panel::after,
+  .acp-thinking,
+  .acp-thinking__dot,
+  .acp-head__dot,
+  .acp-bubble__text--streaming::after {
+    animation: none;
+  }
+}

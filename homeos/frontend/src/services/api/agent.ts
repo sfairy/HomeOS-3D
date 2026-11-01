@@ -50,16 +50,21 @@ export interface AgentToolCallTrace {
 /** 代理对话结局 */
 export type AgentOutcome = 'answer' | 'success' | 'failed' | 'blocked'
 
+/** 操作音效类型（后端 `earcon` 字段；confirm 表示「正在等用户确认」） */
+export type AgentEarcon = 'success' | 'error' | 'confirm' | null
+
 /** 代理对话返回结果 */
 export interface AgentChatResult {
   /** 回复正文 */
   reply: string
   /** 是否需要语音播报 */
   speak: boolean
+  /** 服务端合成的音频 URL（签名 + 10 分钟有效）；为空表示走本机 / HA 播报 */
+  ttsUrl?: string
   /** 对话结局：answer(直接回答) / success(任务成功) / failed(失败) / blocked(被拦截) */
   outcome: AgentOutcome
-  /** 提示音类型：success / error / null */
-  earcon: 'success' | 'error' | null
+  /** 提示音类型：success / error / confirm / null */
+  earcon: AgentEarcon
   /** 实际使用的 LLM 供应商标识 */
   provider: string
   /** 实际使用的模型名（后端可能不返回） */
@@ -136,18 +141,48 @@ function emptyResult(partial: Partial<AgentChatResult> = {}): AgentChatResult {
   }
 }
 
+/** 服务端返回的 ``ttsUrl``：空串 / 非字符串一律当「没有」 */
+function pickTtsUrl(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined
+}
+
+/** 计时字段归一：缺字段 / 非数字一律按 0，避免气泡角标出现 NaN */
+function normalizeTiming(raw: unknown): AgentChatResult['timing'] {
+  const data = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    llmMs: Number(data.llmMs) || 0,
+    toolMs: Number(data.toolMs) || 0,
+    totalMs: Number(data.totalMs) || 0,
+  }
+}
+
+/** 用量字段归一：缺字段 / 非数字一律按 0 */
+function normalizeUsage(raw: unknown): AgentChatResult['usage'] {
+  const data = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    promptTokens: Number(data.promptTokens) || 0,
+    completionTokens: Number(data.completionTokens) || 0,
+    cachedTokens: Number(data.cachedTokens) || 0,
+    estimatedCostCNY: Number(data.estimatedCostCNY) || 0,
+  }
+}
+
 function normalizeResult(raw: unknown): AgentChatResult {
   if (!raw || typeof raw !== 'object') return emptyResult()
   const data = raw as Record<string, unknown>
   return emptyResult({
     reply: typeof data.reply === 'string' ? data.reply : '',
     speak: data.speak === true,
+    ttsUrl: pickTtsUrl(data.ttsUrl),
     outcome: (['answer', 'success', 'failed', 'blocked'] as const).includes(
       data.outcome as AgentOutcome,
     )
       ? (data.outcome as AgentOutcome)
       : 'answer',
-    earcon: data.earcon === 'success' || data.earcon === 'error' ? data.earcon : null,
+    earcon:
+      data.earcon === 'success' || data.earcon === 'error' || data.earcon === 'confirm'
+        ? data.earcon
+        : null,
     provider: typeof data.provider === 'string' ? data.provider : '',
     model: typeof data.model === 'string' ? data.model : undefined,
     rounds: typeof data.rounds === 'number' ? data.rounds : 0,
@@ -156,24 +191,8 @@ function normalizeResult(raw: unknown): AgentChatResult {
           (item) => item && typeof item === 'object' && typeof item.name === 'string',
         )
       : [],
-    timing:
-      data.timing && typeof data.timing === 'object'
-        ? {
-            llmMs: Number((data.timing as Record<string, unknown>).llmMs) || 0,
-            toolMs: Number((data.timing as Record<string, unknown>).toolMs) || 0,
-            totalMs: Number((data.timing as Record<string, unknown>).totalMs) || 0,
-          }
-        : { llmMs: 0, toolMs: 0, totalMs: 0 },
-    usage:
-      data.usage && typeof data.usage === 'object'
-        ? {
-            promptTokens: Number((data.usage as Record<string, unknown>).promptTokens) || 0,
-            completionTokens: Number((data.usage as Record<string, unknown>).completionTokens) || 0,
-            cachedTokens: Number((data.usage as Record<string, unknown>).cachedTokens) || 0,
-            estimatedCostCNY:
-              Number((data.usage as Record<string, unknown>).estimatedCostCNY) || 0,
-          }
-        : { promptTokens: 0, completionTokens: 0, cachedTokens: 0, estimatedCostCNY: 0 },
+    timing: normalizeTiming(data.timing),
+    usage: normalizeUsage(data.usage),
   })
 }
 
@@ -204,6 +223,45 @@ function parseFrame(frame: string): [string, string] {
 export async function agentPing() {
   const pingResponse = await apiGet<AgentPingResult>('/agent/ping')
   return pingResponse.data
+}
+
+/** 服务端 TTS 试听参数（省略字段表示沿用当前语音配置） */
+export interface AgentTtsPreviewOptions {
+  text?: string
+  engine?: 'edge' | 'openai'
+  voice?: string
+  rate?: number
+  pitch?: number
+  /** OpenAI 兼容接入点（草稿值：不必先保存就能试听） */
+  apiBase?: string
+  /** OpenAI 兼容密钥（草稿值；后端只用于本次合成，不落库） */
+  apiKey?: string
+  /** OpenAI 兼容模型名（草稿值） */
+  model?: string
+}
+
+/** 服务端 TTS 试听结果 */
+export interface AgentTtsPreviewResult {
+  ok: boolean
+  /** 可直接喂给 `<audio src>` 的签名 URL */
+  ttsUrl: string
+  cacheKey: string
+  exp: number
+}
+
+/** 签发一段试听音频（设置页「试听」用）。 */
+export async function previewAgentTts(options: AgentTtsPreviewOptions = {}) {
+  const response = await apiPost<AgentTtsPreviewResult>('/agent/tts/preview', {
+    ...(options.text ? { text: options.text } : {}),
+    ...(options.engine ? { engine: options.engine } : {}),
+    ...(options.voice ? { voice: options.voice } : {}),
+    ...(typeof options.rate === 'number' ? { rate: options.rate } : {}),
+    ...(typeof options.pitch === 'number' ? { pitch: options.pitch } : {}),
+    ...(options.apiBase ? { apiBase: options.apiBase } : {}),
+    ...(options.apiKey ? { apiKey: options.apiKey } : {}),
+    ...(options.model ? { model: options.model } : {}),
+  })
+  return response.data
 }
 
 /** 发送对话消息给 AI 代理。 */

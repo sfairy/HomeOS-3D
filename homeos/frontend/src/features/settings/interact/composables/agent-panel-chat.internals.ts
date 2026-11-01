@@ -4,6 +4,7 @@
  */
 /** 智能管家设置面板：对话 / 语音输入 */
 import { computed, nextTick, ref, watch, type Ref } from 'vue'
+import { useAgentSpeech } from '@/composables/voice/useAgentSpeech'
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
 import { agentChatStream, type AgentStreamHandle } from '@/services/api/agent'
@@ -31,6 +32,8 @@ export function useAgentPanelChat(opts: {
   pingInfo: Ref<AgentPingResult | null>
 }) {
   const { isMockProvider, pending, pingInfo } = opts
+  // 对话页与仪表板面板同一口径：回复回来就播报（受 `voice.ttsEnabled` 总开关约束）
+  const { speakReply } = useAgentSpeech()
 
   const chatSessionId = ref(`settings-agent-${Date.now().toString(36)}`)
   const chatInput = ref('')
@@ -110,6 +113,12 @@ export function useAgentPanelChat(opts: {
     return '（无回复）'
   }
 
+  /** 回复播报：后端只对「需要朗读」的回合置 `speak=true`（缓存/快路径命中时是静默的） */
+  function speakIfNeeded(speak: boolean, text: string, ttsUrl?: string) {
+    if (!speak || !text) return
+    void speakReply(ttsUrl, text)
+  }
+
   /** 主动停止生成：保留已收到的文本，只取消后续请求 */
   function stopChat() {
     streamHandle?.abort()
@@ -140,6 +149,8 @@ export function useAgentPanelChat(opts: {
     let finalOutcome: string | undefined
     let finalTotalMs: number | undefined
     let finalReply = ''
+    let finalTtsUrl: string | undefined
+    let finalSpeak = false
 
     try {
       const handle = agentChatStream(message, history, chatSessionId.value, {
@@ -155,6 +166,8 @@ export function useAgentPanelChat(opts: {
           finalOutcome = res.outcome
           finalTotalMs = res.timing?.totalMs
           finalReply = res.reply
+          finalTtsUrl = res.ttsUrl
+          finalSpeak = res.speak
           if (res.toolCalls?.length) {
             toolNames.length = 0
             for (const call of res.toolCalls) {
@@ -170,6 +183,8 @@ export function useAgentPanelChat(opts: {
       bubble.provider = finalProvider
       bubble.totalMs = finalTotalMs
       bubble.text = finalReply || bubble.text || fallbackReplyOf(finalOutcome)
+      // 播报放在气泡收尾之后：异步出声，不拖慢下一轮输入
+      speakIfNeeded(finalSpeak, bubble.text, finalTtsUrl)
       bubble.meta = [
         finalProvider,
         finalOutcome,

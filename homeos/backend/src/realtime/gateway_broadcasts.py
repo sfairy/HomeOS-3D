@@ -267,9 +267,19 @@ class BroadcastMixin:
         await self._emit_domain("room_presence", ws_event("room_presence", event))
 
     async def broadcast_tts_speak(self, event: DomainBroadcastEvent | dict[str, Any], tts_speak: Any) -> None:
-        """TTS 播报：调用 ``TtsSpeakService`` 选路播报，并广播播报结果。"""
-        message = event.get("message") or ""
-        result = await tts_speak.speak(message)
+        """后端发起的播报：先判定「该不该说、让谁说」，再投放并广播结果。
+
+        三条决策（顺序不能换，任何一步都不能省）：
+        1. **总开关**：``voice.ttsEnabled`` 关了就不出声。后端这条链路绕开了前端，
+           不判就会出现「关掉语音播报，音箱照样念建议」。
+        2. **冷却**：``other.speakCooldownMin`` 内同一句话只播一次，避免建议连珠炮。
+        3. **输出方式**：``local``（或 ``auto`` 且有终端在线）广播 ``delivery=client``，
+           由前端 ``speechSynthesis`` 播放；否则交给 ``TtsSpeakService`` 走 HA 音箱。
+
+        ``delivery=skipped`` 是**预期静默**，``success`` 置 ``None``：前端据此只记日志，
+        绝不弹出「自动播报失败」。
+        """
+        message = str(event.get("message") or "")
         ts = event.get("ts")
         try:
             timestamp = (
@@ -280,14 +290,46 @@ class BroadcastMixin:
             # 但留一行线索，避免「时间戳来源不一致」永远查不到。
             logger.warning('TTS 播报时间戳非法，回退到服务端当前时间 ts=%r', ts)
             timestamp = datetime.now(UTC)
+
+        delivery, reason, success, detail = await self._dispatch_tts(message, tts_speak)
+
         await self._emit_domain(
             "tts_speak",
             ws_event(
                 "tts_speak",
                 message=message,
-                success=result.get("success"),
-                detail=result.get("message"),
+                delivery=delivery,
+                reason=reason,
+                success=success,
+                detail=detail,
                 timestamp=timestamp.strftime("%Y-%m-%dT%H:%M:%S.")
                 + f"{timestamp.microsecond // 1000:03d}Z",
             ),
         )
+
+    async def _dispatch_tts(
+        self, message: str, tts_speak: Any
+    ) -> tuple[str, str, bool | None, str | None]:
+        """返回 ``(delivery, reason, success, detail)``。"""
+        if not message.strip():
+            return "skipped", "empty-message", None, None
+        if hasattr(tts_speak, "enabled") and not tts_speak.enabled():
+            logger.debug("TTS 播报跳过：语音播报总开关已关闭")
+            return "skipped", "tts-disabled", None, None
+        if hasattr(tts_speak, "should_announce"):
+            allowed, reason = tts_speak.should_announce(message)
+            if not allowed:
+                logger.debug("TTS 播报跳过：冷却期内（%s）", reason)
+                return "skipped", reason or "cooldown", None, None
+
+        mode = tts_speak.output_mode() if hasattr(tts_speak, "output_mode") else "ha"
+        if mode == "local" or (mode == "auto" and self.connected):
+            # 前端各自本机发声：无法逐个确认是否真的播了，success 保持 None（未知）
+            return "client", "", None, None
+
+        result = await tts_speak.speak(message)
+        success = bool(result.get("success"))
+        if not success and hasattr(tts_speak, "release_announce"):
+            tts_speak.release_announce(message)
+        return "ha", "", success, result.get("message")
+

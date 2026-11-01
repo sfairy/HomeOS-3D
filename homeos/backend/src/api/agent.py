@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import re
 from typing import Any
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -17,6 +19,8 @@ from ..domains.license import features as feature_codes
 from ..platform.core.http.errors import BusinessException, ErrorCode
 from ..platform.security.auth_context import require_user
 from ..platform.security.limiter import rate_limit_authenticated
+
+logger = logging.getLogger("homeos.api.agent")
 
 router = NestRouter(
     prefix="/agent",
@@ -274,6 +278,172 @@ async def chat_stream(
             "Connection": "keep-alive",
         },
     )
+
+
+# --- 服务端 TTS：试听签发 + 音频下发 -------------------------------------------
+# 音频 URL 由签名的 cacheKey + 过期时间自证（``<audio src>`` 带不了自定义头），
+# 所以 GET 音频这条路由**不做用户鉴权**，只验签；签发（preview / 对话响应）仍然要登录。
+
+#: 音频文件名：64 位十六进制 cacheKey + .mp3
+_AUDIO_FILENAME_RE = re.compile(r"^[a-f0-9]{64}\.mp3$", re.IGNORECASE)
+#: 试听文本上限（与对话 message 口径一致）
+_TTS_TEXT_MAX = 500
+#: 试听默认文本
+_TTS_PREVIEW_TEXT = "你好，我是您的智能管家，很高兴为您服务。"
+#: 配置里回传的密钥掩码占位符：拿到它们等于「用户没改」
+_MASKED_API_KEYS = frozenset({"********", "REDACTED_API_KEY"})
+
+
+class TtsPreviewDto(BaseModel):
+    """``/agent/tts/preview`` 请求体（字段全部可选，缺省走当前语音配置）。
+
+    ``apiBase / apiKey / model`` 是为「改了 OpenAI 参数还没保存就想试听」准备的：
+    它们只参与本次合成，不落库；回传掩码占位符时按「未修改」处理。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: Any = None
+    engine: Any = None
+    voice: Any = None
+    rate: Any = None
+    pitch: Any = None
+    apiBase: Any = None
+    apiKey: Any = None
+    model: Any = None
+
+
+class TtsPreviewResult(BaseModel):
+    """试听签发结果。"""
+
+    ok: bool = True
+    ttsUrl: str
+    cacheKey: str
+    exp: int
+
+
+def _tts_service(request: Request):
+    service = getattr(request.app.state, "agent_tts", None)
+    if service is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "语音合成未启用")
+    return service
+
+
+def _preview_options(service, dto: TtsPreviewDto):
+    """把请求体里显式给出的字段覆盖到当前配置上（未给字段保持配置值）。
+
+    ``enabled`` 强制为 ``True``：试听是「调音色」的工具，总开关关着也要能试 ——
+    否则用户永远没法在静音状态下确认音色改对了没有。
+    """
+    from dataclasses import replace
+
+    options = service.options()
+    engine = str(dto.engine or "").strip().lower()
+    changes: dict[str, Any] = {"enabled": True}
+    if engine in ("edge", "openai"):
+        changes["engine"] = engine
+    voice = str(dto.voice or "").strip()
+    if voice:
+        changes["voice"] = voice
+    for key in ("rate", "pitch"):
+        raw = getattr(dto, key)
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            changes[key] = int(raw)
+    api_base = str(dto.apiBase or "").strip()
+    if api_base:
+        changes["api_base"] = api_base
+    # 回传掩码占位符等于「未修改」：不能拿它去请求上游
+    api_key = str(dto.apiKey or "").strip()
+    if api_key and api_key not in _MASKED_API_KEYS:
+        changes["api_key"] = api_key
+    model = str(dto.model or "").strip()
+    if model:
+        changes["model"] = model
+    return replace(options, **changes)
+
+
+@router.post("/tts/preview", response_model=TtsPreviewResult, status_code=200)
+async def preview_tts(
+    dto: TtsPreviewDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """签发一段试听音频 URL（设置页「试听」按钮）。"""
+    del user
+    service = _tts_service(request)
+    text = str(dto.text or "").strip() or _TTS_PREVIEW_TEXT
+    if len(text) > _TTS_TEXT_MAX:
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, f"试听文本最长 {_TTS_TEXT_MAX} 字符")
+    signed = service.generate_signed_url(text, _preview_options(service, dto))
+    if signed is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "语音合成暂不可用（已熔断或未启用）")
+    return TtsPreviewResult(**signed.to_dict())
+
+
+def _parse_range(raw: str, total: int) -> tuple[int, int] | None:
+    """解析单段 ``Range: bytes=a-b``；越界或非法返回 ``None``（回 416）。"""
+    spec = raw.split("=", 1)[-1]
+    first, _, last = spec.partition("-")
+    try:
+        start = int(first) if first.strip() else 0
+        end = int(last) if last.strip() else total - 1
+    except ValueError:
+        logger.debug("Range 头里的字节区间无法解析: %r", raw)
+        return None
+    if start < 0 or start >= total or end >= total or end < start:
+        return None
+    return start, end
+
+
+def _audio_response(request: Request, audio: bytes):
+    """正常 200 或 ``Range`` 206；签名已验过，这里只管字节切片。"""
+    total = len(audio)
+    common = {"Accept-Ranges": "bytes", "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400"}
+    range_header = str(request.headers.get("range") or "").strip()
+    if not range_header:
+        return Response(content=audio, headers={**common, "Content-Length": str(total)})
+    span = _parse_range(range_header, total)
+    if span is None:
+        return Response(
+            status_code=416,
+            headers={"Content-Range": f"bytes */{total}", "Accept-Ranges": "bytes"},
+        )
+    start, end = span
+    chunk = audio[start : end + 1]
+    return Response(
+        content=chunk,
+        status_code=206,
+        headers={
+            **common,
+            "Content-Range": f"bytes {start}-{end}/{total}",
+            "Content-Length": str(len(chunk)),
+        },
+    )
+
+
+@router.get("/tts/audio/{filename}", response_class=Response)
+async def tts_audio(
+    filename: str,
+    request: Request,
+    exp: str = "",
+    sign: str = "",
+):
+    """下发合成音频（验签 + ``Range`` 支持）；首次访问时才真正合成。"""
+    from ..domains.agent.speech import TtsSynthesisError
+
+    service = _tts_service(request)
+    if not _AUDIO_FILENAME_RE.match(filename):
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, "音频文件名不合法")
+    cache_key = filename[:64].lower()
+    if not service.verify(cache_key, exp, sign):
+        raise BusinessException(ErrorCode.FORBIDDEN, "音频签名无效或已过期")
+    audio = service.cached_audio(cache_key)
+    if not audio:
+        try:
+            audio = await service.get_audio(cache_key)
+        except TtsSynthesisError as exc:
+            raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, f"语音合成失败：{exc}") from exc
+    return _audio_response(request, audio)
 
 
 # --- 自动化：家规 / 计划任务 / 巡检 / 诊断 -------------------------------------

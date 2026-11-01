@@ -245,8 +245,26 @@ def _default_profile_and_ui_sections() -> dict[str, Any]:
             "scaleBaseWidth": 1366,
             "scaleBaseHeight": 1024,
             "accentColor": "#3b82f6",
+            "agentQuickPrompts": _default_agent_quick_prompts(),
         },
     }
+
+
+def _default_agent_quick_prompts() -> list[dict[str, str]]:
+    """智能管家对话面板的快捷指令。
+
+    `label` 是按钮上的短文案（≤6 个汉字，保证 300px 停靠栏里两行放得下），
+    `prompt` 才是真正下发给管家的完整指令，`hint` 供悬浮提示与读屏使用。
+    一条对准一个智能家居支柱：灯光 / 温控 / 窗帘 / 家庭模式 / 全屋感知 / 能耗。
+    """
+    return [
+        {"label": "全关所有灯", "prompt": "把家里所有开着的灯都关掉", "hint": "灯光：一键关闭全屋照明"},
+        {"label": "空调调到25度", "prompt": "把客厅空调调到25度", "hint": "温控：设定客厅空调温度"},
+        {"label": "窗帘开一半", "prompt": "把客厅窗帘打开一半", "hint": "窗帘：按比例开合"},
+        {"label": "开启睡眠模式", "prompt": "切换到睡眠模式", "hint": "家庭模式：一键切换全屋场景"},
+        {"label": "家里什么状态", "prompt": "家里现在什么状态", "hint": "全屋感知：灯、温湿度、安防概览"},
+        {"label": "今天耗电多少", "prompt": "今天用了多少电", "hint": "能耗：今日用电统计"},
+    ]
 
 
 def _default_energy_and_frontend_sections() -> dict[str, Any]:
@@ -467,6 +485,15 @@ def _default_home_mode_and_media_sections() -> dict[str, Any]:
             "continuousConversation": False,
             "ttsEnabled": True,
             "ttsOutputMode": "ha",
+            # 服务端 TTS（智能管家播报）：引擎 / 音色 / 语速 / 音调 / OpenAI 兼容接入
+            "ttsEngine": "edge",
+            "ttsVoice": "zh-CN-XiaoxiaoNeural",
+            "ttsRate": "+0%",
+            "ttsPitch": "+0Hz",
+            "ttsFormat": "audio-24khz-48kbitrate-mono-mp3",
+            "ttsApiBase": "",
+            "ttsApiKey": "",
+            "ttsModel": "tts-1",
             "ttsAlerts": dict(DEFAULT_VOICE_ALERT_RULES),
             "ttsAlertTemplates": {},
             "customTtsAlerts": [],

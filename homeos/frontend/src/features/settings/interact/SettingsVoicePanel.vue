@@ -146,7 +146,7 @@ import { DOMAIN_SERVICES } from '@/shared/utils/registry/widget-catalog'
 import { useVoiceConfig } from '@/features/settings/interact/composables/voice.internals'
 import { useVoiceCommandEditor } from '@/features/settings/interact/composables/voice.internals'
 import { useVoiceDailyAdvisorPanel } from '@/features/settings/interact/composables/voice.internals'
-import { useTtsSpeak } from '@/composables/voice/useTtsSpeak'
+import { useSpeechPreview } from '@/composables/voice/useSpeechPreview'
 import { previewDailyAdvisor } from '@/shared/voice/utils/speech.util'
 import { logger } from '@/shared/utils/core/logger'
 import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
@@ -157,7 +157,7 @@ const props = defineProps({ activeTab: { type: String, default: 'voice' } })
 
 const entitiesStore = useEntitiesStore()
 const chrome = useChromeStore()
-const { speak } = useTtsSpeak()
+const { preview: previewSpeech } = useSpeechPreview()
 const {
   loading,
   loadError,
@@ -363,24 +363,16 @@ async function onImportPresetsReplace() {
 }
 
 async function onTestDailyAdvisor() {
-  const mode = voice.value.ttsOutputMode || 'ha'
-  const ids = ttsMediaPlayerIds.value.filter((id) => id.trim())
-  if (mode === 'ha' && ids.length === 0) {
-    chrome.notify('请先配置播报音箱', 'info')
-    return
-  }
-  if (mode === 'auto' && ids.length === 0) {
-    // 仅本机试听
-  }
   const hour = new Date().getHours()
   const text =
     hour >= 20
       ? previewDailyAdvisor('evening', dailyEveningTemplate.value)
       : previewDailyAdvisor('day', dailyDayTemplate.value)
+  const ids = ttsMediaPlayerIds.value.filter((id) => id.trim())
   testingAdvisor.value = true
   try {
-    const r = await speak(text, ids.length ? { mediaPlayers: ids } : {})
-    chrome.notify(r.ok ? '顾问问候已播报' : r.message || '播报失败', r.ok ? 'success' : 'error')
+    const r = await previewSpeech(text, voice.value, { mediaPlayers: ids })
+    chrome.notify(r.ok ? r.message : r.message || '播报失败', r.ok ? 'success' : 'error')
   } finally {
     testingAdvisor.value = false
   }
@@ -422,16 +414,10 @@ async function onSave() {
 
 async function onTestTts() {
   testTtsTip.value = ''
-  const mode = voice.value.ttsOutputMode || 'ha'
   const ids = ttsMediaPlayerIds.value.filter((id) => id.trim())
-  if (mode === 'ha' && ids.length === 0) {
-    testTtsOk.value = false
-    testTtsTip.value = '请先选择播报音箱'
-    return
-  }
   testingTts.value = true
   try {
-    const r = await speak(testTtsText.value, ids.length ? { mediaPlayers: ids } : {})
+    const r = await previewSpeech(testTtsText.value, voice.value, { mediaPlayers: ids })
     testTtsOk.value = r.ok
     testTtsTip.value = r.message
   } finally {
@@ -440,7 +426,7 @@ async function onTestTts() {
     testTtsTipTimer = setTimeout(() => {
       testTtsTip.value = ''
       testTtsTipTimer = null
-    }, 4000)
+    }, 6000)
   }
 }
 

@@ -6,6 +6,7 @@
 import type { EntitySocketHandlerContext } from '@/shared/types/entity-store'
 import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/shared/notifications/utils/ws-sync.util'
 import { refreshEnergyFromSocket } from '@/shared/utils/bridge/store-bridge'
+import { speakLocal } from '@/shared/voice/utils/local-speech.util'
 import { isEarthquakeAlertEnabled } from '@/composables/earthquake/earthquake-layout.util'
 import { useEarthquakeStore } from '@/stores/earthquake.store'
 import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'
@@ -63,14 +64,35 @@ export function bindEntitySocketDomainEvents(
     }
   })
 
-  socket.on(WS_CLIENT_EVENTS.TTS_SPEAK, (data: { message?: string; success?: boolean; detail?: string }) => {
-    if (!data?.message) return
-    if (data.success === false) {
-      const detail = data.detail || data.message || '未知错误'
-      logger.warn(`TTS 播报未成功: ${detail}`)
-      void actions.appNotify(`自动播报失败：${detail}`, 'error')
-    }
-  })
+  socket.on(
+    WS_CLIENT_EVENTS.TTS_SPEAK,
+    (data: {
+      message?: string
+      success?: boolean | null
+      detail?: string
+      delivery?: 'client' | 'ha' | 'skipped'
+      reason?: string
+    }) => {
+      if (!data?.message) return
+      // skipped：总开关关闭或落在播报冷却期内。这是**预期**的静默，不是失败，
+      // 更不能弹「自动播报失败」——那会让用户以为系统坏了。
+      if (data.delivery === 'skipped') {
+        logger.debug?.(`自动播报已跳过（${data.reason || 'unknown'}）：${data.message}`)
+        return
+      }
+      // client：服务端把「让谁说」交给本终端（local 模式，或 auto 模式且有终端在线）。
+      // 这里必须真的出声，否则 local 模式的自动播报会彻底失声。
+      if (data.delivery === 'client') {
+        void speakLocal(data.message).catch(() => false)
+        return
+      }
+      if (data.success === false) {
+        const detail = data.detail || data.message || '未知错误'
+        logger.warn(`TTS 播报未成功: ${detail}`)
+        void actions.appNotify(`自动播报失败：${detail}`, 'error')
+      }
+    },
+  )
 
   // 领域事件监听（自动化 / 安防 / 在场 / 能源 / Frigate / 房间占用）
   // payload 字段以后端 ws-push-domain-events.helper.ts 为准；后端为 Record<string,unknown>

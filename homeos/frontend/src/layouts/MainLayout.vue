@@ -55,6 +55,7 @@ const NotificationDrawer = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.NotificationDrawer),
 )
 import { useMainLayoutChrome } from '@/composables/ui/shell/useMainLayoutChrome'
+import { useDailyAdvisorGreeting } from '@/composables/voice/useDailyAdvisorGreeting'
 import { useEntityWsSubscriptionSync } from '@/composables/entity/useEntityWsSubscriptionSync'
 import { useEarthquakeBootstrap } from '@/features/earthquake'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
@@ -115,6 +116,7 @@ const {
   doorbellLabel,
   isSettingsLockOpen,
   onUnlockSuccess,
+  agentDocked,
   Settings,
   Maximize2,
   Loader2,
@@ -412,6 +414,10 @@ watch(
 // 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费
 useViewportTier()
 
+// 每日顾问问候：必须等 isConfigLoaded，否则读到的是前端默认值（dailyAdvisorSpeak=false 永不触发）。
+const { maybeGreet: maybeDailyGreet } = useDailyAdvisorGreeting()
+watch(() => layoutStore.isConfigLoaded, (loaded) => loaded && maybeDailyGreet(), { immediate: true })
+
 // 玻璃拟态开关随配置变化：性能模式降级时强制关闭毛玻璃，避免低端设备掉帧。
 // 自动降档（设备能力 / 帧率回落）只在运行时生效，这里同样要跟着它走。
 watch(
@@ -701,13 +707,24 @@ watch(
           <FloatingHub v-if="route.name === 'dashboard'" class="shell-floating-hub" />
         </main>
 
-        <!-- 右侧栏（信息面板，时钟/天气/快捷操作）：仅仪表盘路由显示，位于内容行末尾 -->
+        <!-- 右侧栏（信息面板，时钟/天气/快捷操作）：仅仪表盘路由显示，位于内容行末尾。
+             智能管家打开时用面板替换栏内部件（参考实现同形态），因此走 agent 插槽。 -->
         <RightSidebar
           v-if="route.name === 'dashboard'"
           class="shell-right-sidebar"
           :panel-position="layoutStore.layoutConfig.panelPosition || 'right'"
+          :agent-open="showAgentChat && agentDocked"
           @open-group="chrome.openGroupModal"
-        />
+        >
+          <template #agent>
+            <AgentChatPalette
+              v-if="agentDocked"
+              :open="showAgentChat"
+              docked
+              @close="showAgentChat = false"
+            />
+          </template>
+        </RightSidebar>
       </div>
 
       <!-- 仪表盘外壳（仅仪表盘路由显示）：
@@ -744,9 +761,10 @@ watch(
         <!-- AI 悬浮伴侣：贴边停靠的小管家入口（点开对话 / 长按说话）。
              放在 teleport-target 之前，让对话面板与抽屉天然盖过它。 -->
         <AgentCompanion v-if="showAgentChrome" />
-        <!-- 智能管家对话面板（认证 + module.agent） -->
+        <!-- 智能管家对话面板：仪表盘且整页缩放未触底时停靠进右侧信息栏（见上面 RightSidebar
+             的 agent 插槽）；其它情况（非仪表盘 / 窄窗缩放触底）仍以整屏浮层挂在 teleport-target。 -->
         <AgentChatPalette
-          v-if="showAgentChrome"
+          v-if="showAgentChrome && !agentDocked"
           :open="showAgentChat"
           @close="showAgentChat = false"
         />

@@ -184,9 +184,12 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { isLicenseFeatureGranted } from '@/router/license-gate'
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
+import { hapticHold, hapticTap } from '@/shared/utils/ui/haptics.util'
 import { logger } from '@/shared/utils/core/logger'
 import AgentMechaAvatar from './agent-companion/AgentMechaAvatar.vue'
-import { askCompanion } from './agent-companion/useCompanionChat'
+import { askCompanionSpoken } from './agent-companion/useCompanionSpeech'
+import { useCompanionWake } from './agent-companion/useCompanionWake'
+import { GREETING, TIPS, WAVE_WEIGHTS } from './agent-companion/companion-copy'
 import {
   AGENT_COMPANION_FACE_SIZE,
   clampCompanionPercent,
@@ -228,27 +231,6 @@ const BUBBLE_MAX_WIDTH = 300
 const BUBBLE_FLIP_TOP = 236
 /** 停止录音后多久没拿到识别结果就回到待机，避免 HUD 卡死 */
 const VOICE_SETTLE_MS = 1000
-/** 问候语（与源码 page.mascotGreeting 同文案） */
-const GREETING = '主人好！长按我直接语音控制 ~'
-
-/** 灵感指令：逐条对齐源码，顺序一致 */
-const TIPS = [
-  '关闭家里所有开启的灯',
-  '把客厅空调调至 26 度',
-  '今天和明天的天气如何？',
-  '客厅有点热，帮我开一下风扇',
-  '开启全屋睡眠模式',
-  '查看当前所有离线设备与告警',
-  '把主卧窗帘拉上一半',
-  '播放一些轻松的爵士音乐',
-  '现在的全屋总用电功率是多少',
-  '把玄关射灯调到 50% 亮度',
-  '全屋空气质量怎么样？',
-  '开启离家安防布防',
-]
-
-/** 语音波形柱的基准权重（源码同一组数字） */
-const WAVE_WEIGHTS = [0.45, 0.75, 1, 0.85, 1, 0.7, 0.4]
 
 const route = useRoute()
 const layoutStore = useLayoutStore()
@@ -485,6 +467,7 @@ function collapseToIdle() {
 function enterTips() {
   if (state.value === 'thinking' || state.value === 'listening' || state.value === 'replying') return
   if (state.value === 'tips') tipIndex.value = (tipIndex.value + 1) % TIPS.length
+  hapticTap()
   state.value = 'tips'
   setTimer('tips', closeTips, TIPS_HOLD_MS)
 }
@@ -496,6 +479,7 @@ function closeTips() {
 /** 挂载静默期结束：冒问候气泡并挥手 */
 function wakeUp() {
   if (state.value !== 'dormant') return
+  hapticTap()
   state.value = 'greeting'
   setTimer('greeting', closeGreeting, GREETING_HOLD_MS)
 }
@@ -537,6 +521,7 @@ function beginVoice() {
   discardVoice = false
   slideCancel.value = false
   spokenText.value = ''
+  hapticHold()
   state.value = 'listening'
   startListen()
   startWave()
@@ -546,7 +531,10 @@ function beginVoice() {
 function updateSlideCancel(event: PointerEvent) {
   const session = pressSession
   if (!session) return
-  slideCancel.value = event.clientY - session.startY < -CANCEL_UP_PX
+  const next = event.clientY - session.startY < -CANCEL_UP_PX
+  // 越过阈值时轻触一次：手指盖住了收音区，视觉提示看不见，靠触感确认「松手就取消」
+  if (next !== slideCancel.value) hapticTap()
+  slideCancel.value = next
 }
 
 /** 松手：取消则丢弃结果，否则交给识别流程（onFinal / settle 兜底） */
@@ -579,12 +567,20 @@ async function handleVoiceResult(text: string) {
   }
   clearTimer('settle')
   state.value = 'thinking'
-  replyText.value = await askCompanion(message)
+  replyText.value = await askCompanionSpoken(message)
   // 等待期间用户可能又开了新一轮语音 / 关了气泡，别把状态抢回来
   if (state.value !== 'thinking') return
   state.value = 'replying'
   setTimer('reply', collapseToIdle, REPLY_HOLD_MS)
 }
+
+// 唤醒词：设置里开启后才监听，识别到「唤醒词 + 指令」直接走同一轮原地对话
+useCompanionWake({
+  visible,
+  busy: () => listening.value || transcribing.value,
+  onCommand: (cmd) => void handleVoiceResult(cmd),
+  onError: (msg) => logger.warn(`伴侣唤醒词:${msg}`),
+})
 
 /* ------------------------------------------------------------------ 手势 */
 
@@ -604,6 +600,7 @@ function registerTap() {
 
 function openChat() {
   collapseToIdle()
+  hapticHold()
   chrome.openAgentChat()
 }
 

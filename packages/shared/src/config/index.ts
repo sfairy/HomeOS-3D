@@ -15,6 +15,7 @@ export type {
   SharedWebrtcConfig,
   SharedFrontendConfig,
   SharedUiConfig,
+  SharedAgentQuickPromptConfig,
   SharedScreensaverConfig,
   SharedEnvSensorMap,
   SharedEnvSensorMapEntry,

@@ -54,6 +54,20 @@ interface VoiceConfigState {
   ttsAlertTemplates: Record<string, string>
   customTtsAlerts: Array<ReturnType<typeof newCustomTtsAlert> & { speechMode?: string; speechText?: string }>
   entityTtsAlerts: Array<ReturnType<typeof newEntityTtsAlert> & { speechMode?: string; speechText?: string }>
+  /** 服务端 TTS 引擎：edge（微软神经音色）| openai（OpenAI 兼容） */
+  ttsEngine: 'edge' | 'openai'
+  /** 神经音色名 */
+  ttsVoice: string
+  /** 语速，形如 +10% */
+  ttsRate: string
+  /** 音调，形如 +2Hz */
+  ttsPitch: string
+  /** OpenAI 兼容接入点 */
+  ttsApiBase: string
+  /** OpenAI 兼容密钥（后端脱敏） */
+  ttsApiKey: string
+  /** OpenAI 兼容模型名 */
+  ttsModel: string
 }
 
 
@@ -63,6 +77,52 @@ interface VoiceConfigState {
 function normalizeTtsOutputMode(raw: unknown): 'local' | 'ha' | 'auto' {
   if (raw === 'local' || raw === 'auto') return raw
   return 'ha'
+}
+
+/** 服务端 TTS 字段的原始来源（老版本后端可能没有这些键） */
+interface ServerTtsSource {
+  ttsEngine?: unknown
+  ttsVoice?: unknown
+  ttsRate?: unknown
+  ttsPitch?: unknown
+  ttsApiBase?: unknown
+  ttsApiKey?: unknown
+  ttsModel?: unknown
+}
+
+function pickText(value: unknown, fallback: string): string {
+  const text = typeof value === 'string' ? value.trim() : ''
+  return text || fallback
+}
+
+function pickTtsEngine(value: unknown): 'edge' | 'openai' {
+  return value === 'openai' ? 'openai' : 'edge'
+}
+
+/** 把输入框出来的数字夹到后端校验允许的区间；非数字回落默认值。 */
+function clampInt(raw: unknown, min: number, max: number, fallback: number): number {
+  const value = Number(raw)
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+/**
+ * 读出服务端 TTS 配置并补齐缺省值。
+ *
+ * 单独成函数是为了把「一串 `||` 兜底」的复杂度收在这里：调用点的对象字面量
+ * 本来已经是这个文件里最复杂的函数，再挂 8 个兜底会把前端复杂度棘轮顶穿。
+ */
+function readServerTts(source: ServerTtsSource): Pick<VoiceConfigState, 'ttsEngine' | 'ttsVoice' | 'ttsRate' | 'ttsPitch' | 'ttsApiBase' | 'ttsApiKey' | 'ttsModel'> {
+  return {
+    ttsEngine: pickTtsEngine(source.ttsEngine),
+    ttsVoice: pickText(source.ttsVoice, 'zh-CN-XiaoxiaoNeural'),
+    ttsRate: pickText(source.ttsRate, '+0%'),
+    ttsPitch: pickText(source.ttsPitch, '+0Hz'),
+    ttsApiBase: pickText(source.ttsApiBase, ''),
+    // 后端回传掩码；保持原样回传，服务端靠占位符识别「未修改」
+    ttsApiKey: pickText(source.ttsApiKey, ''),
+    ttsModel: pickText(source.ttsModel, 'tts-1'),
+  }
 }
 
 /**
@@ -93,6 +153,13 @@ function defaultVoiceConfig(): VoiceConfigState {
     ttsAlertTemplates: {},
     customTtsAlerts: [],
     entityTtsAlerts: [],
+    ttsEngine: 'edge',
+    ttsVoice: 'zh-CN-XiaoxiaoNeural',
+    ttsRate: '+0%',
+    ttsPitch: '+0Hz',
+    ttsApiBase: '',
+    ttsApiKey: '',
+    ttsModel: 'tts-1',
   }
 }
 
@@ -175,6 +242,7 @@ export function useVoiceConfig() {
         ttsAlertTemplates: { ...(voiceConfig.ttsAlertTemplates || {}) } as Record<string, string>,
         customTtsAlerts: rawCustom as VoiceConfigState['customTtsAlerts'],
         entityTtsAlerts: rawEntity as VoiceConfigState['entityTtsAlerts'],
+        ...readServerTts(voiceConfig),
       }
       ttsMediaPlayerId.value = data?.external?.ttsMediaPlayerId || ''
       const rawIds = data?.external?.ttsMediaPlayerIds
@@ -256,8 +324,9 @@ export function useVoiceConfig() {
             ttsMediaPlayerIds: cleanedPlayerIds,
           },
           other: {
-            speakCooldownMin: Number(speakCooldownMin.value) || 10,
-            tipCooldownHours: Number(tipCooldownHours.value) || 2,
+            // 0 是合法值（不限制），不能用 `|| 10` 兜底 —— 那会把「关掉冷却」悄悄改回 10 分钟
+            speakCooldownMin: clampInt(speakCooldownMin.value, 0, 1440, 10),
+            tipCooldownHours: clampInt(tipCooldownHours.value, 0, 72, 2),
           },
           voiceCommands: cleanedCommands,
         })

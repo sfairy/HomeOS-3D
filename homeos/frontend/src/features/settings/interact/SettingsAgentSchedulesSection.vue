@@ -68,7 +68,7 @@
             />
             <p class="agent-band-hint mt-2">5 段：分 时 日 月 周；留空则用左边的每天时间</p>
           </div>
-          <div>
+          <div v-if="!lockedAction">
             <label class="settings-form-label mb-1.5">目标设备</label>
             <EntityMultiSelect
               v-model="form.entities"
@@ -76,7 +76,14 @@
               :max-selection="1"
             />
           </div>
-          <div>
+          <div v-if="lockedAction" class="agent-sched-locked">
+            <label class="settings-form-label mb-1.5">执行动作</label>
+            <p class="agent-sched-locked__text">{{ lockedAction }}</p>
+            <p class="agent-band-hint mt-2">
+              这条任务的目标不是设备（场景 / 家庭模式由语音创建），这里只改时间与名称。
+            </p>
+          </div>
+          <div v-if="!lockedAction">
             <label class="settings-form-label mb-1.5">动作</label>
             <HosSelect v-model="form.service" variant="settings" block :searchable="false">
               <option value="turn_off">关闭</option>
@@ -95,7 +102,7 @@
           <button
             type="button"
             class="settings-btn-accent"
-            :disabled="creating || !form.entities.length"
+            :disabled="creating || (!lockedAction && !form.entities.length)"
             @click="submit"
           >
             {{ creating ? '保存中…' : editingId ? '保存修改' : '创建任务' }}
@@ -118,7 +125,7 @@
             <div class="agent-sched-row__main">
               <span class="agent-sched-row__name">{{ task.name }}</span>
               <span class="agent-sched-row__meta">
-                {{ scheduleLabel(task) }} · 下次 {{ formatTime(task.nextRunAt) }}
+                {{ taskTargetLabel(task) }} · {{ scheduleLabel(task) }} · 下次 {{ formatTime(task.nextRunAt) }}
                 <template v-if="task.lastStatus">
                   · 上次 {{ statusLabel(task.lastStatus) }}
                 </template>
@@ -202,6 +209,12 @@ const messageOk = ref(true)
 const tasks = ref<AgentScheduledTask[]>([])
 const logs = ref<AgentScheduleLog[]>([])
 const logTaskName = ref('')
+/**
+ * 非设备任务（场景 / 家庭模式）的原始动作。
+ * 这类任务由语音创建，表单只能改名称与时间；重存时要把原动作原样带回，
+ * 否则会被写成 ``control_device`` + 空 entity_id，等于把任务改坏。
+ */
+const lockedAction = ref<{ label: string; tool: string; args: Record<string, unknown> } | null>(null)
 
 const form = reactive({
   name: '',
@@ -222,6 +235,36 @@ function scheduleLabel(task: AgentScheduledTask): string {
     return task.cron ? `周期 ${task.cron}` : '周期'
   }
   return `一次性 ${formatTime(task.runAt)}`
+}
+
+/**
+ * 场景 / 家庭模式任务的展示文案；设备任务返回 null（表单走设备选择器）。
+ *
+ * 这类任务只能由语音创建（设置页没有场景 / 模式选择器），但它们会出现在同一个列表里：
+ * 不认出来就会在「编辑 → 保存」时被改写成 ``control_device`` + 空 entity_id。
+ */
+function describeNonDeviceAction(
+  actionTool: string,
+  args: Record<string, unknown>,
+): { label: string; tool: string; args: Record<string, unknown> } | null {
+  if (actionTool === 'activate_scene') {
+    const name = String(args.scene || args.entity_id || '未命名场景')
+    return { label: `激活场景「${name}」`, tool: actionTool, args }
+  }
+  if (actionTool === 'activate_home_mode') {
+    return { label: `切换到家庭模式「${String(args.name || '未命名模式')}」`, tool: actionTool, args }
+  }
+  return null
+}
+
+/** 列表里「这条任务到底做什么」：设备动作 / 场景 / 家庭模式 */
+function taskTargetLabel(task: AgentScheduledTask): string {
+  const nonDevice = describeNonDeviceAction(task.actionTool, task.actionArgs ?? {})
+  if (nonDevice) return nonDevice.label
+  const args = task.actionArgs ?? {}
+  const entity = typeof args.entity_id === 'string' ? args.entity_id : ''
+  const service = typeof args.service === 'string' ? args.service : ''
+  return [entity, service].filter(Boolean).join(' ') || task.actionTool || '未设置动作'
 }
 
 function statusLabel(status: string): string {
@@ -267,6 +310,7 @@ function minutesUntil(runAt: string | null): number {
 
 function resetForm() {
   editingId.value = ''
+  lockedAction.value = null
   form.name = ''
   form.scheduleType = 'RECURRING'
   form.time = '22:00'
@@ -287,6 +331,7 @@ function startEdit(task: AgentScheduledTask) {
   form.delayMinutes = minutesUntil(task.runAt)
   form.entities = typeof args.entity_id === 'string' ? [args.entity_id] : []
   form.service = typeof args.service === 'string' ? args.service : 'turn_off'
+  lockedAction.value = describeNonDeviceAction(task.actionTool, args)
   message.value = ''
 }
 
@@ -318,14 +363,24 @@ function buildScheduleTiming(): Partial<AgentSchedulePayload> | null {
 
 /** 组装保存请求；缺目标设备或时间时给出提示并返回 null */
 function buildSchedulePayload(): AgentSchedulePayload | null {
-  const entityId = form.entities[0] || ''
-  if (!entityId) {
-    setMessage('请选择一个目标设备', false)
-    return null
-  }
   const timing = buildScheduleTiming()
   if (!timing) {
     setMessage('请选择每天执行时间或填写 cron', false)
+    return null
+  }
+  // 场景 / 家庭模式任务：动作原样带回，只改名称与时间
+  if (lockedAction.value) {
+    return {
+      name: form.name.trim() || lockedAction.value.label,
+      scheduleType: form.scheduleType,
+      ...timing,
+      actionTool: lockedAction.value.tool,
+      actionArgs: lockedAction.value.args,
+    }
+  }
+  const entityId = form.entities[0] || ''
+  if (!entityId) {
+    setMessage('请选择一个目标设备', false)
     return null
   }
   return {
@@ -418,5 +473,15 @@ onMounted(() => {
 }
 .agent-sched-logs {
   margin-top: 8px;
+}
+.agent-sched-locked {
+  grid-column: 1 / -1;
+}
+.agent-sched-locked__text {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--hos-surface-2, rgba(127, 127, 127, 0.08));
+  color: var(--hos-text, inherit);
 }
 </style>

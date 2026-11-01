@@ -3,12 +3,14 @@
 为什么需要
 ----------
 语音 / 悬浮层 / MCP 都是「一句话就可能触发多轮 tool-calling」的入口，一次多轮对话
-最坏会跑满 ``MAX_ROUNDS`` 轮。没有日预算时，一个反复触发的客户端（或一句被误识别的
-唤醒词）就能把当天额度烧光，而运维在界面上看不到任何迹象。
+最坏会跑满 ``MAX_ROUNDS`` 轮。没有日预算时，一个反复触发的客户端（或一句被误识别
+的唤醒词）就能把当天额度烧光，而运维在界面上看不到任何迹象。
 
 语义
 ----
-- 进程内内存计数，按自然日滚动；进程重启后归零（与命令缓存 / 会话记忆同口径）。
+- 计数放在 :class:`~..state.store.SharedStateStore`（默认进程内、可切文件库）：
+  多 worker 部署时额度是全屋共享的一份，而不是「配置值 × worker 数」。
+- 按自然日滚动；跨日自动归零。
 - token 与成本**任一**超限即判定为「预算用尽」；成本上限 0 表示不启用。
 - 只拦 LLM 兜底链路：缓存命中 / 快路径仍然可用，避免「额度用完连灯都关不了」。
 """
@@ -22,6 +24,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
+from ..state.store import MemoryStateStore, SharedStateStore
+
 logger = logging.getLogger("homeos.agent.budget")
 
 #: 默认每日 token 上限（每用户）。取值宁可宽松：目的是兜住失控循环，不是限制正常使用。
@@ -30,6 +34,8 @@ DEFAULT_DAILY_TOKEN_BUDGET = 1_000_000
 DEFAULT_DAILY_COST_BUDGET_CNY = 0.0
 #: 同时跟踪的用户上限：超出后淘汰最久未活动的记录，避免无界增长。
 MAX_TRACKED_OWNERS = 512
+#: 共享状态命名空间
+STORE_NAMESPACE = "agent.budget"
 
 
 @dataclass(frozen=True)
@@ -60,6 +66,31 @@ class DailyUsage:
     @property
     def total_tokens(self) -> int:
         return self.prompt_tokens + self.completion_tokens
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "day": self.day,
+            "promptTokens": self.prompt_tokens,
+            "completionTokens": self.completion_tokens,
+            "costCNY": self.cost_cny,
+            "llmRuns": self.llm_runs,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Any, today: str) -> DailyUsage | None:
+        """还原当天用量；跨日或结构不符时返回 None（调用方按新的一天处理）。"""
+        if not isinstance(payload, dict):
+            return None
+        day = str(payload.get("day") or "")
+        if day != today:
+            return None
+        return cls(
+            day=day,
+            prompt_tokens=int(payload.get("promptTokens") or 0),
+            completion_tokens=int(payload.get("completionTokens") or 0),
+            cost_cny=float(payload.get("costCNY") or 0.0),
+            llm_runs=int(payload.get("llmRuns") or 0),
+        )
 
 
 @dataclass(frozen=True)
@@ -115,12 +146,19 @@ def _today() -> str:
 class AgentBudgetService:
     """按用户累计当日用量并在超限时拒绝 LLM 兜底。"""
 
-    def __init__(self, env: Mapping[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        env: Mapping[str, str] | None = None,
+        store: SharedStateStore | None = None,
+    ) -> None:
         self._env = env
-        #: owner → 当天用量（dict 迭代顺序即插入顺序，用于 LRU 淘汰）
-        self._usage: dict[str, DailyUsage] = {}
+        self._store = store or MemoryStateStore()
         #: 当前生效配置（进程启动时解析一次；如需热更新可再调用 configure）
         self._config = resolve_budget_config(env)
+
+    @property
+    def shared(self) -> bool:
+        return bool(getattr(self._store, "shared", False))
 
     # 配置
     @property
@@ -135,25 +173,23 @@ class AgentBudgetService:
     def env(self) -> Mapping[str, str]:
         return self._env if self._env is not None else os.environ
 
+    @staticmethod
+    def _owner_key(owner: str) -> str:
+        return str(owner or "").strip() or "anon"
+
     # 读写
     def _usage_of(self, owner: str) -> DailyUsage:
         """取（必要时新建 / 跨日重置）某用户的当天用量。"""
-        key = str(owner or "").strip() or "anon"
+        key = self._owner_key(owner)
         today = _today()
-        usage = self._usage.get(key)
-        if usage is None or usage.day != today:
-            if usage is None and len(self._usage) >= MAX_TRACKED_OWNERS:
-                oldest = next(iter(self._usage), None)
-                if oldest is not None:
-                    self._usage.pop(oldest, None)
-            usage = DailyUsage(day=today)
-            self._usage.pop(key, None)
-            self._usage[key] = usage
-        else:
-            # 刷新 LRU 顺序：活跃用户不会被新用户挤掉
-            self._usage.pop(key, None)
-            self._usage[key] = usage
-        return usage
+        usage = DailyUsage.from_payload(self._store.get(STORE_NAMESPACE, key), today)
+        if usage is not None:
+            return usage
+        if self._store.count(STORE_NAMESPACE) >= MAX_TRACKED_OWNERS:
+            self._store.prune(STORE_NAMESPACE, MAX_TRACKED_OWNERS - 1)
+        fresh = DailyUsage(day=today)
+        self._store.set(STORE_NAMESPACE, key, fresh.to_payload())
+        return fresh
 
     def check(self, owner: str) -> BudgetDecision:
         """检查是否还允许进入 LLM 兜底链路。"""
@@ -195,12 +231,26 @@ class AgentBudgetService:
         completion_tokens: int,
         cost_cny: float,
     ) -> None:
-        """累计一次 LLM 兜底对话的用量（只统计成功的上游调用）。"""
-        usage = self._usage_of(owner)
-        usage.prompt_tokens += max(0, int(prompt_tokens))
-        usage.completion_tokens += max(0, int(completion_tokens))
-        usage.cost_cny += max(0.0, float(cost_cny))
-        usage.llm_runs += 1
+        """累计一次 LLM 兜底对话的用量（只统计成功的上游调用）。
+
+        用 ``mutate`` 做读改写：两个 worker 同时落账时不会互相覆盖（丢 token），
+        否则日预算在并发下会长期偏低，等于放宽了额度。
+        """
+        key = self._owner_key(owner)
+        today = _today()
+        prompt = max(0, int(prompt_tokens))
+        completion = max(0, int(completion_tokens))
+        cost = max(0.0, float(cost_cny))
+
+        def _apply(old: Any) -> tuple[dict[str, Any], None]:
+            usage = DailyUsage.from_payload(old, today) or DailyUsage(day=today)
+            usage.prompt_tokens += prompt
+            usage.completion_tokens += completion
+            usage.cost_cny += cost
+            usage.llm_runs += 1
+            return usage.to_payload(), None
+
+        self._store.mutate(STORE_NAMESPACE, key, _apply)
 
     def snapshot(self, owner: str) -> dict[str, Any]:
         """当天用量快照（供 ping / 设置页展示）。"""
@@ -220,15 +270,17 @@ class AgentBudgetService:
     def reset(self, owner: str | None = None) -> None:
         """清空某用户（或全部）的当天用量（运维 / 测试用）。"""
         if owner is None:
-            self._usage.clear()
+            for key, _ in self._store.entries(STORE_NAMESPACE):
+                self._store.delete(STORE_NAMESPACE, key)
             return
-        self._usage.pop(str(owner or "").strip() or "anon", None)
+        self._store.delete(STORE_NAMESPACE, self._owner_key(owner))
 
 
 __all__ = [
     "DEFAULT_DAILY_COST_BUDGET_CNY",
     "DEFAULT_DAILY_TOKEN_BUDGET",
     "MAX_TRACKED_OWNERS",
+    "STORE_NAMESPACE",
     "AgentBudgetConfig",
     "AgentBudgetService",
     "BudgetDecision",

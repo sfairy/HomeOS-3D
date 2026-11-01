@@ -1,10 +1,18 @@
-"""Agent 短时会话记忆服务（纯内存滑窗 + 短 TTL）。"""
+"""Agent 短时会话记忆服务（滑窗 + 短 TTL，可跨进程共享）。
+
+状态放在 :class:`~..state.store.SharedStateStore` 里而不是进程内字典：多 worker
+部署时，上一句可能落在 A、下一句落在 B，指代消解必须看到同一份窗口。默认仍是
+进程内实现（单进程部署与测试行为不变），装配到文件库后自动跨进程。
+"""
 
 from __future__ import annotations
 
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import Any
+
+from ..state.store import MemoryStateStore, SharedStateStore
 
 logger = logging.getLogger("homeos.agent.short_term_memory")
 
@@ -14,8 +22,10 @@ SESSION_TTL_MS = 45_000
 MAX_TURNS = 2
 #: 会话池上限
 MAX_SESSIONS = 200
-#: 池满时一次性淘汰的会话数（按插入顺序取最旧）
+#: 池满时一次性淘汰的会话数（按最近活跃取最旧）
 CLEANUP_BATCH = 30
+#: 共享状态命名空间
+STORE_NAMESPACE = "agent.short_term"
 
 
 @dataclass
@@ -37,6 +47,36 @@ class ShortTermSession:
     #: 最近一次活动时间戳（ms），用于 TTL 判定
     last_active: int = 0
 
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "messages": [{"role": m.role, "content": m.content} for m in self.messages],
+            "targets": list(self.last_targets),
+            "lastActive": self.last_active,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Any) -> ShortTermSession | None:
+        """把共享存储里的 JSON 还原成会话对象；结构不符时按缺失处理。"""
+        if not isinstance(payload, dict):
+            return None
+        raw_messages = payload.get("messages")
+        messages: list[ShortTermTurn] = []
+        for item in raw_messages if isinstance(raw_messages, list) else []:
+            if not isinstance(item, dict):
+                continue
+            role = str(item.get("role") or "")
+            content = str(item.get("content") or "")
+            if role and content:
+                messages.append(ShortTermTurn(role=role, content=content))
+        raw_targets = payload.get("targets")
+        targets = [str(eid) for eid in raw_targets if str(eid or "")] if isinstance(raw_targets, list) else []
+        last_active = payload.get("lastActive")
+        return cls(
+            messages=messages,
+            last_targets=targets,
+            last_active=int(last_active) if isinstance(last_active, (int, float)) else 0,
+        )
+
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
@@ -48,60 +88,53 @@ class AgentShortTermMemoryService:
     通过 get_history / append_turn / clear 管理「sessionId → 最近 2 轮问答」的微型滑窗。
     """
 
-    def __init__(self) -> None:
-        #: 会话表：dict 迭代顺序即插入顺序，池满时据此批量淘汰最旧会话
-        self._sessions: dict[str, ShortTermSession] = {}
+    def __init__(self, store: SharedStateStore | None = None) -> None:
+        #: 共享状态后端；缺省进程内（行为与旧实现一致）
+        self._store = store or MemoryStateStore()
+        #: namespace 前缀：同一份库被多实例共用时也能隔离（如 MCP 与对话各一份）
+        self._ns = STORE_NAMESPACE
+
+    @property
+    def shared(self) -> bool:
+        """当前是否跨进程共享（ping / 日志用）。"""
+        return bool(getattr(self._store, "shared", False))
+
+    def _ttl_seconds(self) -> float:
+        return SESSION_TTL_MS / 1000.0
+
+    def _load(self, session_id: str) -> ShortTermSession | None:
+        session = ShortTermSession.from_payload(self._store.get(self._ns, session_id))
+        if session is None:
+            return None
+        if _now_ms() - session.last_active > SESSION_TTL_MS:
+            self._store.delete(self._ns, session_id)
+            return None
+        return session
+
+    def _save(self, session_id: str, session: ShortTermSession) -> None:
+        session.last_active = _now_ms()
+        self._store.set(self._ns, session_id, session.to_payload(), ttl_seconds=self._ttl_seconds())
+
+    def _make_room(self) -> None:
+        """池满时先清过期，再按最近活跃淘汰最旧的一批。
+
+        顺序很重要——不能直接按插入顺序淘汰：整轮对话里持续活跃的那个会话
+        （例如 MCP 的 ``mcp:<ip>``）恰恰是「反问 → 用户回『打开吧』」最需要保住上下文
+        的那个，必须靠 touched_at 保住。过期条目由 store 的 TTL 自动过滤。
+        """
+        if self._store.count(self._ns) < MAX_SESSIONS:
+            return
+        removed = self._store.prune(self._ns, MAX_SESSIONS - CLEANUP_BATCH)
+        logger.info("短时会话池满(%s)，按 LRU 淘汰 %s 个最旧会话", MAX_SESSIONS, removed)
 
     def get_history(self, session_id: str = "default") -> list[ShortTermTurn]:
         """读取会话的短时历史（惰性清理过期会话）。"""
-        session = self._sessions.get(session_id)
+        session = self._load(session_id)
         if session is None:
             return []
-        now = _now_ms()
-        if now - session.last_active > SESSION_TTL_MS:
-            logger.info(
-                "短时会话超时(%ss > 45s)，自动重置: session=\"%s\"",
-                round((now - session.last_active) / 1000),
-                session_id,
-            )
-            self._sessions.pop(session_id, None)
-            return []
-        # 读取也刷新 LRU 次序：长期活跃的会话不会因为「插入得早」而被批量淘汰
-        self._touch(session_id, session)
+        # 读取也刷新活跃时间：长期活跃的会话不会因为「创建得早」而被淘汰
+        self._save(session_id, session)
         return [ShortTermTurn(role=m.role, content=m.content) for m in session.messages]
-
-    def _touch(self, session_id: str, session: ShortTermSession) -> None:
-        """把已存在的 key 移到末尾（dict 重赋值不改变迭代顺序，故需先 delete）。"""
-        self._sessions.pop(session_id, None)
-        self._sessions[session_id] = session
-
-    def _evict_if_needed(self) -> None:
-        """池满时腾出配额：先清过期会话，仍不足再按 LRU 淘汰最旧的一批。
-
-        顺序很重要——不能直接按插入顺序淘汰：dict 迭代顺序是「首次插入」而非「最近活跃」，
-        直接取前 N 个会把整轮对话里持续活跃的那个会话（例如 MCP 的 ``mcp:<ip>``）连同窗口一起删掉，
-        而它恰恰正是「反问 → 用户回『打开吧』」最需要保住上下文的会话。
-        """
-        if len(self._sessions) < MAX_SESSIONS:
-            return
-        now = _now_ms()
-        expired = 0
-        for key, session in list(self._sessions.items()):
-            if now - session.last_active > SESSION_TTL_MS:
-                self._sessions.pop(key, None)
-                expired += 1
-        if len(self._sessions) < MAX_SESSIONS:
-            logger.info("短时会话池满(%s)，清理过期会话 %s 个", MAX_SESSIONS, expired)
-            return
-        lru_keys = list(self._sessions.keys())[:CLEANUP_BATCH]
-        for key in lru_keys:
-            self._sessions.pop(key, None)
-        logger.info(
-            "短时会话池满(%s)，清过期 %s 个后仍不足，按 LRU 淘汰 %s 个最旧会话",
-            MAX_SESSIONS,
-            expired,
-            CLEANUP_BATCH,
-        )
 
     def append_turn(
         self,
@@ -116,24 +149,17 @@ class AgentShortTermMemoryService:
         if not clean_user or not clean_assistant:
             return
 
-        if len(self._sessions) >= MAX_SESSIONS:
-            self._evict_if_needed()
-
-        now = _now_ms()
-        session = self._sessions.get(session_id)
-        if session is None or now - session.last_active > SESSION_TTL_MS:
-            session = ShortTermSession(messages=[], last_active=now)
-            self._sessions[session_id] = session
-        else:
-            # 活跃会话移到末尾，保证淘汰时优先命中真正的冷会话
-            self._touch(session_id, session)
-        session.last_active = now
+        session = self._load(session_id)
+        if session is None:
+            self._make_room()
+            session = ShortTermSession()
         session.messages.append(ShortTermTurn(role="user", content=clean_user))
         session.messages.append(ShortTermTurn(role="assistant", content=clean_assistant))
 
         max_messages = MAX_TURNS * 2
         if len(session.messages) > max_messages:
             session.messages = session.messages[-max_messages:]
+        self._save(session_id, session)
 
     def clear(self, session_id: str = "default") -> None:
         """清空会话短时记忆。
@@ -141,7 +167,9 @@ class AgentShortTermMemoryService:
         用于「快路径 / 缓存命中执行成功」后重置上下文，以及用户主动清除记忆的场景，
         防止已完成的独立意图继续影响下一轮指代消解。
         """
-        if self._sessions.pop(session_id, None) is not None:
+        existed = self._store.get(self._ns, session_id) is not None
+        self._store.delete(self._ns, session_id)
+        if existed:
             logger.info('已清空短时记忆: session="%s"', session_id)
 
     def remember_targets(self, session_id: str, entity_ids: list[str]) -> None:
@@ -151,28 +179,20 @@ class AgentShortTermMemoryService:
         """
         if not session_id:
             return
-        session = self._sessions.get(session_id)
-        now = _now_ms()
-        if session is None or now - session.last_active > SESSION_TTL_MS:
-            if not entity_ids:
+        unique = list(dict.fromkeys(str(eid) for eid in entity_ids if str(eid or "").strip()))
+        session = self._load(session_id)
+        if session is None:
+            if not unique:
                 return
-            if len(self._sessions) >= MAX_SESSIONS:
-                self._evict_if_needed()
-            session = ShortTermSession(messages=[], last_active=now)
-            self._sessions[session_id] = session
-        unique = [str(eid) for eid in entity_ids if str(eid or "").strip()]
-        session.last_targets = list(dict.fromkeys(unique))
-        session.last_active = now
+            self._make_room()
+            session = ShortTermSession()
+        session.last_targets = unique
+        self._save(session_id, session)
 
     def get_last_targets(self, session_id: str) -> list[str]:
         """读取最近一次控制目标；会话过期时返回空列表。"""
-        session = self._sessions.get(session_id)
-        if session is None:
-            return []
-        if _now_ms() - session.last_active > SESSION_TTL_MS:
-            self._sessions.pop(session_id, None)
-            return []
-        return list(session.last_targets)
+        session = self._load(session_id)
+        return list(session.last_targets) if session is not None else []
 
 
 __all__ = [
@@ -180,6 +200,7 @@ __all__ = [
     "MAX_SESSIONS",
     "MAX_TURNS",
     "SESSION_TTL_MS",
+    "STORE_NAMESPACE",
     "AgentShortTermMemoryService",
     "ShortTermSession",
     "ShortTermTurn",

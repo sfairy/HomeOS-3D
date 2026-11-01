@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { fetchPublicSystemConfig } from '@/services/api/system'
 import { logger } from '@/shared/utils/core/logger'
+import { AGENT_QUICK_PROMPTS } from '@/shared/agent/constants/agent-quick-prompts'
 import type { ClientPowerWakePublic } from '@homeos/shared'
 import type {
   AppPublicConfig,
@@ -38,6 +39,9 @@ const defaults: AppPublicConfig = {
     scaleBaseWidth: 1366,
     scaleBaseHeight: 1024,
     accentColor: '#3b82f6',
+    // 管家快捷指令：配置里带了这个键就用配置（含空数组 = 关闭），缺省用内置默认。
+    // 这里显式写一份，是为了在「未登录 / 公开配置拉取失败」时面板仍有入口可用。
+    agentQuickPrompts: AGENT_QUICK_PROMPTS.map((item) => ({ ...item })),
   },
   screensaver: {
     screensaverEnabled: true,

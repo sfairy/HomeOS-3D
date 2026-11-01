@@ -69,8 +69,10 @@ LOG_RETENTION_DAYS = 90
 PRUNE_INTERVAL_SECONDS = 3600
 #: 任务名最长字符数
 MAX_NAME_CHARS = 128
-#: 允许被计划任务调用的工具：只放开控制类动作，避免把任意工具挂到定时器上
-ALLOWED_ACTION_TOOLS = frozenset({"control_device"})
+#: 允许被计划任务调用的工具：只放开控制类动作，避免把任意工具挂到定时器上。
+#: 与 ``schedule_task`` 的 schema 一一对应 —— 之前这里只放 ``control_device``，
+#: schema 却宣称支持场景与家庭模式，模型照着 schema 传参就会被这条白名单拒掉。
+ALLOWED_ACTION_TOOLS = frozenset({"control_device", "activate_scene", "activate_home_mode"})
 
 
 def serialize_task(row: AgentScheduledTask) -> dict[str, Any]:

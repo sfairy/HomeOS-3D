@@ -20,6 +20,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { getDefaultLayout } from '@/stores/defaults'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import {
@@ -38,6 +39,8 @@ import type {
   SceneVoiceControl,
 } from '@/shared/types/layout'
 import {
+  agentQuickPromptsDirty,
+  agentQuickPromptsRevert,
   AGENT_CHAT_QUICK_PROMPTS,
   AGENT_PROVIDER_PRESETS,
   AGENT_SECRET_MASK,
@@ -106,7 +109,14 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
   ]
 
   const providerPresets = AGENT_PROVIDER_PRESETS
-  const chatQuickPrompts = AGENT_CHAT_QUICK_PROMPTS
+  /** 快捷指令随 `ui.agentQuickPrompts` 热更新：设置页改完保存后这里立刻跟着变 */
+  const chatQuickPrompts = computed(() => AGENT_CHAT_QUICK_PROMPTS())
+  /** 会话空态提示：清单被用户清空时，不能再让人去「点一条预设」 */
+  const chatEmptyHint = computed(() =>
+    chatQuickPrompts.value.length
+      ? '先点一条预设执行，再追问「那把它关掉」，验证多轮理解'
+      : '直接输入指令开始对话；快捷指令已在下方「快捷指令」卡片里清空',
+  )
 
   function emptyAgent(): AgentConfig {
     return { ...getDefaultLayout().agentConfig! }
@@ -631,6 +641,20 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     void refreshChannelStatus()
   })
 
+  /**
+   * 未保存确认：layout 表单 + 快捷指令子卡（app config，另一条保存链路）。
+   * 只在这里注册一次 —— 子卡自己再按同一个 tab id 注册，两个 watch 会互相覆盖
+   * pendingByTab，出现「明明改了却提示没有未保存」。
+   */
+  useRegisterSettingsTabPending(
+    'agent',
+    () => pending.value > 0 || agentQuickPromptsDirty.value,
+    () => {
+      resetDraft()
+      agentQuickPromptsRevert.value?.()
+    },
+  )
+
   return {
     showApiKey,
     apiKeyLocked,
@@ -639,6 +663,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     subnavSections,
     providerPresets,
     chatQuickPrompts,
+    chatEmptyHint,
     agentDraft,
     channelDraft,
     channelStatus,

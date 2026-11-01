@@ -6,7 +6,6 @@ import hmac
 import json
 import logging
 import os
-import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -15,6 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
 from ..runtime.agent_actor import AGENT_CONTROL_TOOLS, AgentActor
 from ..runtime.tool_i18n import localize_tool_schemas
+from ..state.store import MemoryStateStore, SharedStateStore
 from ....config import environment_is_production_from
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import read_json_object
@@ -63,6 +63,12 @@ def _too_many_requests(message: str) -> StarletteHTTPException:
 MAX_CLIENT_ID_LENGTH = 64
 #: 客户端限流记录的客户端数上限：clientId 来自请求头，必须防止无界内存增长
 MAX_TRACKED_CLIENTS = 4096
+#: 共享状态命名空间（MCP 客户端限流）
+CLIENT_RATE_NAMESPACE = "agent.mcp.rate"
+#: 每多少次限流检查做一次容量剪枝。
+#: 每请求都数一遍 4096 行不划算（要反序列化全部记录），所以按固定间隔剪；
+#: 代价是峰值会短暂超出上限 RATE_PRUNE_INTERVAL 条，量级仍是有界的。
+RATE_PRUNE_INTERVAL = 64
 
 
 def normalize_client_id(raw: Any) -> str:
@@ -91,6 +97,7 @@ class McpGatewayService:
         server_version: str = "",
         is_production: bool | None = None,
         lang_templates: Any = None,
+        store: SharedStateStore | None = None,
     ) -> None:
         self._agent_service = agent_service
         self._tools = tools
@@ -113,8 +120,10 @@ class McpGatewayService:
         self._allowlist_warning_logged = False
         #: 「白名单已配置但取不到客户端 IP」告警只输出一次（非生产放行分支）。
         self._unknown_ip_warning_logged = False
-        #: 客户端维度限流窗口（clientId → 时间戳列表）
-        self._client_hits: dict[str, list[float]] = {}
+        #: 客户端维度限流窗口（走共享状态：多 worker 部署时阈值不被放大）
+        self._store = store or MemoryStateStore()
+        #: 限流记录容量剪枝计数（每 RATE_PRUNE_INTERVAL 次检查剪一次）
+        self._rate_prune_tick = 0
 
     @property
     def _env_map(self) -> Mapping[str, str]:
@@ -250,7 +259,11 @@ class McpGatewayService:
         return normalize_client_id(ip_address) or "anon"
 
     def _check_client_rate(self, client_id: str) -> None:
-        """客户端级限流（默认 60 次 / 60 秒，MCP_CLIENT_RATE_LIMIT 可调；0 关闭）。"""
+        """客户端级限流（默认 60 次 / 60 秒，MCP_CLIENT_RATE_LIMIT 可调；0 关闭）。
+
+        计数放在共享状态里：多 worker 时若各记一份，实际放行量是配置值 × worker 数，
+        限流形同虚设。窗口用 ``time.time()`` 而非 ``monotonic()`` —— 后者跨进程不可比。
+        """
         raw_limit = self._env_get("MCP_CLIENT_RATE_LIMIT").strip()
         try:
             limit = int(float(raw_limit)) if raw_limit else 60
@@ -262,19 +275,11 @@ class McpGatewayService:
             window = float(self._env_get("MCP_CLIENT_RATE_WINDOW_SECONDS") or 60.0)
         except ValueError:
             window = 60.0
-        now = time.monotonic()
-        # 先 pop 再写回，使字典顺序成为「最近使用」顺序，便于超限时淘汰最久未用项
-        hits = [stamp for stamp in self._client_hits.pop(client_id, []) if now - stamp < window]
-        if len(hits) >= limit:
-            self._client_hits[client_id] = hits
+        if not self._store.hit(CLIENT_RATE_NAMESPACE, client_id, limit=limit, window_seconds=window):
             raise _too_many_requests(f"MCP 客户端 {client_id} 请求过于频繁，请稍后再试")
-        hits.append(now)
-        self._client_hits[client_id] = hits
-        while len(self._client_hits) > MAX_TRACKED_CLIENTS:
-            oldest = next(iter(self._client_hits))
-            if oldest == client_id:
-                break
-            self._client_hits.pop(oldest, None)
+        self._rate_prune_tick += 1
+        if self._rate_prune_tick % RATE_PRUNE_INTERVAL == 0:
+            self._store.prune(CLIENT_RATE_NAMESPACE, MAX_TRACKED_CLIENTS)
 
     def _read_env_map(self, name: str) -> dict[str, Any]:
         """读取 JSON 对象型环境变量；格式非法时按未配置处理（不让坏配置锁死网关）。"""
@@ -414,4 +419,9 @@ class McpGatewayService:
         return await handle_mcp_json_rpc(payload or {"method": ""}, deps)
 
 
-__all__ = ["MAX_CLIENT_ID_LENGTH", "McpGatewayService", "normalize_client_id"]
+__all__ = [
+    "CLIENT_RATE_NAMESPACE",
+    "MAX_CLIENT_ID_LENGTH",
+    "McpGatewayService",
+    "normalize_client_id",
+]

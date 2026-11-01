@@ -308,7 +308,10 @@ const hasTts = computed(() => mediaEntity.value?.entity_id?.startsWith('media_pl
 const ttsText = ref('')
 
 async function speakTts() {
-  const r = await speakTtsMessage(ttsText.value, { mediaPlayer: mediaEntity.value.entity_id })
+  const r = await speakTtsMessage(ttsText.value, {
+    mediaPlayer: mediaEntity.value.entity_id,
+    manual: true,
+  })
   if (r.ok) ttsText.value = ''
   else notifyError(r.message || new Error('TTS 播报失败'), 'TTS 播报')
 }

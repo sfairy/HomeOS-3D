@@ -198,12 +198,27 @@ export type SharedFrontendConfig = {
   [key: string]: unknown
 }
 
-/** UI 缩放 / 强调色（后端 AppConfig.ui） */
+/** UI 缩放 / 强调色 / 管家快捷指令（后端 AppConfig.ui） */
 export type SharedUiConfig = {
   scaleBaseWidth?: number
   scaleBaseHeight?: number
   accentColor?: string
+  /** 智能管家快捷指令；缺省用内置默认，空数组 = 关闭快捷入口 */
+  agentQuickPrompts?: SharedAgentQuickPromptConfig[]
   [key: string]: unknown
+}
+
+/**
+ * 单条快捷指令：`label` 是按钮短文案，`prompt` 才是真正下发的指令。
+ * 两者分开是因为停靠栏最窄只有 280~300px，完整指令放不进按钮。
+ */
+export type SharedAgentQuickPromptConfig = {
+  /** 按钮上的短文案（≤ 12 字） */
+  label: string
+  /** 点击后真正发送给管家的完整指令（≤ 120 字） */
+  prompt: string
+  /** 悬浮提示 / 读屏说明（≤ 60 字，可省略） */
+  hint?: string
 }
 
 /** 锁屏 / 屏保（启用开关、空闲超时与视觉；后端 AppConfig.screensaver） */
@@ -322,6 +337,22 @@ export type SharedVoiceConfig = {
   continuousConversation?: boolean
   ttsEnabled?: boolean
   ttsOutputMode?: string
+  /** 服务端 TTS 引擎：edge（微软神经音色）| openai（OpenAI 兼容 /audio/speech） */
+  ttsEngine?: string
+  /** 神经音色名，如 zh-CN-XiaoxiaoNeural / alloy */
+  ttsVoice?: string
+  /** 语速，形如 +10% / -5% */
+  ttsRate?: string
+  /** 音调，形如 +2Hz / -2Hz（OpenAI 引擎忽略） */
+  ttsPitch?: string
+  /** 输出格式，目前固定 audio-24khz-48kbitrate-mono-mp3 */
+  ttsFormat?: string
+  /** OpenAI 兼容接入点（留空走官方） */
+  ttsApiBase?: string
+  /** OpenAI 兼容密钥（后端脱敏，前端只回传占位符） */
+  ttsApiKey?: string
+  /** OpenAI 兼容模型名，如 tts-1 */
+  ttsModel?: string
   ttsAlerts?: Record<string, unknown>
   ttsAlertTemplates?: Record<string, unknown>
   customTtsAlerts?: unknown[]

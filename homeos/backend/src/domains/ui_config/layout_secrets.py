@@ -21,6 +21,8 @@ _AGENT_SECRET_KEYS = ("apiKey", "mcpGatewaySecret")
 
 #: 含密钥的 layout 子对象路径 → 其中需要占位符回填的字段。
 #: 顺序有意义：先父段后子段，父段整段沿用后子段仍会各自做回填 / 清洗。
+#: 注：语音分区（含 ``ttsApiKey``）走 app_config 而不是 layout，脱敏由
+#: ``app_config.mask.SENSITIVE_FIELD_RE``（匹配 ``apikey``）统一处理。
 _SECRET_PATHS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("agentConfig",), _AGENT_SECRET_KEYS),
     (("channelConfig", "email"), ("smtpPassword",)),

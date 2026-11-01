@@ -3,6 +3,7 @@
  * @module frontend/src/features/settings/interact/composables
  */
 /** 智能管家设置面板：纯辅助 / 常量 */
+import { ref } from 'vue'
 
 /** 统计卡片色调（与 SettingsFlowStat.vue 的 FlowStatTone 保持对齐） */
 export type FlowStatTone =
@@ -60,7 +61,27 @@ export const AGENT_PROVIDER_PRESETS = [
   { id: 'mock', label: '演示（无密钥）', apiBase: '', model: '' },
 ]
 
-export const AGENT_CHAT_QUICK_PROMPTS = ['打开客厅灯', '现在家里温度多少', '那把它关掉']
+/**
+ * 快捷指令：与主页对话面板共用同一份来源（`ui.agentQuickPrompts`，缺省用
+ * `shared/agent/constants/agent-quick-prompts` 的内置清单）。
+ *
+ * 之前这里另有一份「打开客厅灯 / 现在家里温度多少 / 那把它关掉」的演示句子，
+ * 导致同一个管家在设置页和主页给出两套入口、文案也不一致；现在设置页只调
+ * `readAgentQuickPrompts()`，用户在设置里改完立即两边同时生效。
+ * 多轮理解的引导改为面板上的文字提示，不再靠预设凑句子。
+ */
+export { readAgentQuickPrompts as AGENT_CHAT_QUICK_PROMPTS } from '@/shared/agent/utils/quick-prompts.util'
+
+/**
+ * 快捷指令子卡（存在 app config `ui` 分区）的未保存状态与回滚入口。
+ *
+ * 为什么用模块级状态而不是 props/emits：子卡在「对话」子页里，由面板统一注册
+ * 设置页的离开确认（`useRegisterSettingsTabPending('agent', …)`）。如果子卡自己
+ * 用同一个 tab id 再注册一次，两个 watch 会互相覆盖 pendingByTab，出现「明明改了
+ * 却提示没有未保存」。让子卡只往这两个槽里写状态，注册只发生一次。
+ */
+export const agentQuickPromptsDirty = ref(false)
+export const agentQuickPromptsRevert = ref<(() => void) | null>(null)
 
 export function chatOutcomeLabel(outcome: string) {
   if (outcome === 'success') return '已执行'

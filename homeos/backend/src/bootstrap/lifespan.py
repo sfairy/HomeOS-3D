@@ -814,6 +814,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     from ..domains.agent.runtime.fast_path import FastPathService
     from ..domains.agent.runtime.lang_template_service import LangTemplateService
     from ..domains.agent.runtime.service import AgentService
+    from ..domains.agent.state.store import build_shared_store
     from ..domains.agent.tools.home_tools_service import HomeToolsService
 
     app_config = startup.app_config
@@ -864,20 +865,31 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     command_cache = CommandCacheService(app.state.database.session_factory)
     app.state.agent_command_cache = command_cache
 
-    # 会话记忆分两层：10 分钟长会话（内存 LRU + DB 持久化）+ 45s 短时滑窗（纯内存）
+    # 跨进程共享状态（短时记忆 / 批量确认 / 日预算 / MCP 限流共用一份）
+    # 默认落在 <data_dir>/agent-state.sqlite3；AGENT_STATE_BACKEND=memory 可退回进程内
+    agent_state_store = build_shared_store(startup.app_settings.data_dir, env=os.environ)
+    app.state.agent_state_store = agent_state_store
+
+    # 会话记忆分两层：10 分钟长会话（内存 LRU + DB 持久化）+ 45s 短时滑窗（共享状态）
     agent_sessions = AgentSessionStoreService(app.state.database.session_factory)
     app.state.agent_sessions = agent_sessions
-    app.state.agent_short_term = AgentShortTermMemoryService()
+    app.state.agent_short_term = AgentShortTermMemoryService(agent_state_store)
     # 长期记忆：设备 / 房间别名与用户偏好
     agent_memory = AgentMemoryService(app.state.database.session_factory)
     app.state.agent_memory = agent_memory
     # 每日用量预算（token / 成本，按登录用户累计；环境变量可调）
-    app.state.agent_budget = AgentBudgetService()
+    app.state.agent_budget = AgentBudgetService(store=agent_state_store)
 
     llm_provider = ResolvingLlmProvider(agent_config, event_bus=startup.security_bus)
     llm_provider.bind_events()
     await llm_provider.refresh()
     app.state.agent_llm_provider = llm_provider
+
+    # 服务端 TTS：对话只签 URL，浏览器取音频时才合成（详见 speech/service.py）
+    from ..domains.agent.speech import TtsService
+
+    agent_tts = TtsService(app_config, startup.app_settings.data_dir, env=os.environ)
+    app.state.agent_tts = agent_tts
 
     agent_service = AgentService(
         llm_provider,
@@ -892,6 +904,8 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         app.state.global_log,
         memory=agent_memory,
         env_context=env_context,
+        tts=agent_tts,
+        state_store=agent_state_store,
     )
     app.state.agent_service = agent_service
     startup.agent_service = agent_service
@@ -905,6 +919,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         server_version=startup.version,
         is_production=startup.app_settings.is_production,
         lang_templates=lang_templates,
+        store=agent_state_store,
     )
 
 
@@ -951,7 +966,11 @@ def _build_agent_automation(
     app.state.agent_policy = agent_policy
 
     # 家庭时区 / 天气 / 日出日落：注入系统提示，也给 cron 任务用作默认时区
-    env_context = HomeEnvironmentContextService(startup.state_store, app_config)
+    env_context = HomeEnvironmentContextService(
+        startup.state_store,
+        app_config,
+        command_proxy=app.state.command_proxy,
+    )
     app.state.agent_env_context = env_context
 
     agent_web_search = AgentWebSearchService(env=os.environ)

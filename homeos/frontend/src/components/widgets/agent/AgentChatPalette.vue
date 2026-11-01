@@ -1,21 +1,26 @@
 <!--
-  AgentChatPalette — 智能管家对话弹层
-  顶栏入口唤起，交互与全局搜索一致：遮罩弹窗、Esc / 点击背景关闭，不占用页面布局。
+  AgentChatPalette — HomeOS 智能管家面板（对照源码 HomeOSSidebarAgentPanel 移植）
+
+  形态：整栏停靠（贴侧边、整高、20px 圆角 + 七彩 conic 光边），不再是居中弹窗。
+  - 宽屏：停靠在信息栏同侧（layout.panelPosition，默认右侧），宽度 300~360px；
+  - 窄屏：铺满可用宽度，与源码手机端一致。
+  交互：顶栏 / 悬浮伴侣双击唤起；Esc 收起；不再用遮罩挡页面，点面板外不会误关。
+
+  与参考实现的差异（本项目为超集，保留不删）：SSE 流式出字、工具轨迹、本地历史会话、
+  浏览器 / HA 语音输入、安全拦截提示与「去配置管家」引导。
 -->
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  ArrowLeft,
   History,
-  Loader2,
-  MessageCircle,
+  Keyboard,
   Mic,
-  Plus,
   Send,
   ShieldAlert,
-  Sparkles,
   Square,
-  X,
+  Trash2,
 } from '@lucide/vue'
 import {
   agentChatStream,
@@ -28,12 +33,19 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useChromeStore } from '@/stores/chrome.store'
-import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
-import { useTtsSpeak } from '@/composables/voice/useTtsSpeak'
+import { useAgentSpeech } from '@/composables/voice/useAgentSpeech'
+import { playEarcon } from '@/composables/voice/useEarcon'
 import { isEmbeddedBrowser, probeMicrophone } from '@/composables/voice/useAudioDevices'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
+import {
+  quickPromptAria,
+  quickPromptTitle,
+  readAgentQuickPrompts,
+} from '@/shared/agent/utils/quick-prompts.util'
+import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
+import AgentVoiceHoldBar from './AgentVoiceHoldBar.vue'
 
 type ChatRole = 'user' | 'assistant'
 type ChatMessage = {
@@ -44,6 +56,9 @@ type ChatMessage = {
   outcome?: string
   /** 流式生成中：文本持续追加，不展示拦截提示 */
   streaming?: boolean
+  /** 本轮总耗时（ms）与 completion token，对应源码气泡右侧的 assistant-meta */
+  ms?: number
+  tokens?: number
 }
 
 /** 本地历史会话（按设备浏览器保存，最多保留最近 8 段） */
@@ -106,24 +121,20 @@ function writeHistory(sessions: StoredSession[]): void {
   }
 }
 
-/** 快捷指令：覆盖安防 / 空调 / 灯光 / 能耗查询四类高频场景 */
-const QUICK_PROMPTS = [
-  '开启离家安防警戒',
-  '客厅空调调至25度',
-  '全关所有开启的灯光',
-  '现在全屋能耗与温度怎样',
-]
-
 /** 安全拦截提示文案：管线判定为 blocked 时明确告知用户操作被安全策略拦截 */
 const BLOCKED_NOTICE = '出于安全考虑，这个操作被拦截了。'
 
+/** 聊天面板无操作多久自动让位回信息栏 —— 与参考实现 RightSidebar 的 30s 同口径 */
+const IDLE_RETURN_MS = 30_000
+/** 空闲检查间隔：低频轮询代替每次 pointermove 重置定时器，避免高频抖动 */
+const IDLE_CHECK_MS = 5_000
+
 const props = defineProps({
   open: { type: Boolean, default: false },
+  /** 停靠进右侧信息栏（与参考实现一致）：此时不再自己全屏定位，而是填满栏内容器 */
+  docked: { type: Boolean, default: false },
 })
 const emit = defineEmits(['close'])
-
-const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
-const teleportDisabled = shellTeleportPending
 
 const router = useRouter()
 // 对话面板只「消费」悬浮伴侣留下的一条待发送消息，不负责打开/关闭自己
@@ -132,7 +143,13 @@ const storedSessions = readHistory()
 const sessionId = ref(storedSessions[0]?.id || `ui-agent-${Date.now().toString(36)}`)
 const input = ref('')
 const busy = ref(false)
-const voiceTurn = ref(false)
+/**
+ * 语音输入形态：true = 按住说话（圆环 + HUD），false = 键盘输入。
+ * 默认键盘 —— 桌面端以打字为主，与源码 MobileAgentChatSheet 的 `d=true` 初值一致。
+ */
+const voiceMode = ref(false)
+/** 本轮语音已被上滑取消：识别结果回来时丢弃，不落进输入框也不发送 */
+const discardVoice = ref(false)
 const messages = ref<ChatMessage[]>(storedSessions[0]?.messages ?? [])
 const sessions = ref<StoredSession[]>(storedSessions)
 const historyOpen = ref(false)
@@ -144,7 +161,10 @@ const pinging = ref(false)
 const micHint = ref('')
 /** 当前进行中的流式请求句柄：关闭弹层 / 新对话 / 手动停止时用于取消 */
 let streamHandle: AgentStreamHandle | null = null
-const { speak } = useTtsSpeak()
+const { speak, speakReply } = useAgentSpeech()
+
+/** 快捷指令：来自 `ui.agentQuickPrompts`（设置页可改），清空则整行不渲染 */
+const quickPrompts = computed(() => readAgentQuickPrompts())
 
 const agentBlocked = computed(() => {
   if (pinging.value && !ping.value) return true
@@ -159,35 +179,37 @@ const showTyping = computed(
 )
 
 /**
- * 管家动态状态：检测中 / 思考中 / 未配置 / 在线就绪。
- *
- * 与设置页「检测状态」同源（agentPing 的 provider + ready），
- * 仪表板入口与对话抽屉共用同一口径，避免状态文案不一致。
+ * 管家动态状态：与源码面板顶栏同一口径 —— 聆听 / 响应优先，其余显示模型供应商。
+ * 供应商取 `/agent/ping` 的 provider（源码同样直接展示该值，未配置时就是 `mock`）。
  */
-const agentStatusLabel = computed(() => {
-  if (pinging.value && !ping.value) return '检测中'
-  if (busy.value) return '思考中'
-  if (agentBlocked.value) return '未配置'
-  return '在线就绪'
+const headerStatus = computed(() => {
+  if (listening.value) return '正在聆听...'
+  if (busy.value) return '正在响应...'
+  return String(ping.value?.provider || 'DeepSeek-V3')
 })
 
-/** 状态色调：就绪=emerald / 思考=sky / 检测中=amber / 未配置=rose */
-const agentStatusTone = computed(() => {
+/** 状态点色调：正常=绿 / 录入=琥珀 / 未就绪=玫瑰 / 检测中=天蓝，与源码 pulse-dot 同语义 */
+const headerTone = computed(() => {
   if (agentBlocked.value) return 'rose'
-  if (busy.value) return 'sky'
-  if (pinging.value && !ping.value) return 'amber'
+  if (listening.value) return 'amber'
+  if (pinging.value && !ping.value) return 'sky'
   return 'emerald'
 })
 
-const { listening, transcribing, error: voiceError, status: voiceStatus, toggleListen, stopListen } =
+const { listening, transcribing, error: voiceError, status: voiceStatus, startListen, stopListen } =
   useSpeechToText({
     preferHa: true,
     onInterim: (text) => {
       input.value = clipAgentChatMessage(text)
     },
     onFinal: (text) => {
+      // 上滑取消后识别结果仍会回来（录音已上传），这里丢弃即可，不必让用户看见
+      if (discardVoice.value) {
+        discardVoice.value = false
+        input.value = ''
+        return
+      }
       if (agentBlocked.value) return
-      voiceTurn.value = true
       input.value = clipAgentChatMessage(text)
       void send(input.value)
     },
@@ -199,12 +221,15 @@ watch(
   (open) => {
     openRef.value = open
     if (open) {
+      touchActivity()
+      startIdleWatch()
       void refreshAgentStatus()
       void refreshMicHint()
       nextTick(() => inputRef.value?.focus())
       scrollLogToBottom()
       return
     }
+    stopIdleWatch()
     stopListen()
   },
 )
@@ -219,6 +244,35 @@ watch(
   },
 )
 useFocusTrap(rootRef, openRef)
+onBeforeUnmount(stopIdleWatch)
+
+/* ------------------------------------------------------- 空闲让位（参考实现 30s） */
+
+let idleTimer: ReturnType<typeof setInterval> | null = null
+let lastActivityAt = Date.now()
+
+/** 记录一次用户操作，重置空闲计时 */
+function touchActivity(): void {
+  lastActivityAt = Date.now()
+}
+
+function stopIdleWatch(): void {
+  if (idleTimer) clearInterval(idleTimer)
+  idleTimer = null
+}
+
+function startIdleWatch(): void {
+  stopIdleWatch()
+  lastActivityAt = Date.now()
+  idleTimer = setInterval(() => {
+    // 出字 / 听话期间不算空闲：长回复不能被拦腰收走
+    if (busy.value || listening.value || transcribing.value) {
+      lastActivityAt = Date.now()
+      return
+    }
+    if (Date.now() - lastActivityAt >= IDLE_RETURN_MS) close()
+  }, IDLE_CHECK_MS)
+}
 
 async function refreshAgentStatus() {
   pinging.value = true
@@ -306,7 +360,6 @@ function newConversation() {
   sessionId.value = `ui-agent-${Date.now().toString(36)}`
   messages.value = []
   input.value = ''
-  voiceTurn.value = false
   historyOpen.value = false
 }
 
@@ -328,8 +381,37 @@ function goAgentSettings() {
 function close() {
   stopGenerating()
   stopListen()
+  discardVoice.value = false
   persistCurrent()
   emit('close')
+}
+
+/* ------------------------------------------------- 语音形态：按住说话 / 键盘 */
+
+/** 键盘 ↔ 按住说话：切走时先停掉正在进行的识别，避免 HUD 消失后麦克风还开着 */
+function toggleVoiceMode() {
+  if (listening.value || transcribing.value) stopListen()
+  discardVoice.value = false
+  voiceMode.value = !voiceMode.value
+  if (!voiceMode.value) nextTick(() => inputRef.value?.focus())
+}
+
+/** 长按达标：开始录音，松手后识别结果照常走一轮对话 */
+function startVoiceHold() {
+  if (busy.value || agentBlocked.value) return
+  discardVoice.value = false
+  startListen()
+}
+
+/**
+ * 松手：取消就把结果标记为丢弃；正常松手交给 onFinal 继续。
+ *
+ * 无论哪种都要先 stopListen —— 否则麦克风会一直被占用到下一次操作。
+ */
+function stopVoiceHold(canceled: boolean) {
+  discardVoice.value = canceled
+  if (canceled) input.value = ''
+  stopListen()
 }
 
 function scrollLogToBottom() {
@@ -355,7 +437,7 @@ function placeholder() {
   if (agentBlocked.value) return '请先配置智能管家'
   if (busy.value) return '处理中…'
   if (voiceStatus.value) return voiceStatus.value
-  return '问问管家，或点麦克风说话'
+  return '吩咐点什么...（按回车发送）'
 }
 
 /** 流式结束后的兜底文案（无回复时） */
@@ -365,17 +447,48 @@ function fallbackReplyOf(outcome: string | undefined): string {
   return '无回复'
 }
 
+/**
+ * 气泡正文的展示清洗：模型习惯写 `**加粗**` / `__下划线__` / 反引号代码，
+ * 而气泡是纯文本内插（与参考实现同一口径，不渲染富文本），
+ * 原样显示会把星号露出来。这里只去标记、不丢文字。
+ */
+function displayText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+}
+
 /** 把工具轨迹合并进气泡（保持首次调用顺序，去重） */
 function mergeToolTrace(bubble: ChatMessage, toolNames: string[]) {
   if (!toolNames.length) return
   bubble.tools = toolNames.join(' → ')
 }
 
+/**
+ * 把本轮最终结果写进流式气泡：结论 / 工具轨迹 / 耗时与 token。
+ *
+ * @returns 用于语音播报的正文（最终回复优先于增量文本，后端可能给出未流式下发的收尾文案）
+ */
+function applyResult(bubble: ChatMessage, result: AgentChatResult | null): string {
+  bubble.outcome = result?.outcome
+  if (result?.toolCalls?.length) {
+    mergeToolTrace(
+      bubble,
+      result.toolCalls.map((toolCall) => toolCall.name),
+    )
+  }
+  bubble.text = result?.reply || bubble.text || fallbackReplyOf(result?.outcome)
+  // 气泡旁边的 ms / token 角标：与源码 assistant-meta 同口径，只在本轮有数据时展示。
+  // 用 `| 0` 取整兜底（NaN → 0），避免再引入逻辑运算符把 send 的圈复杂度顶过棘轮。
+  bubble.ms = Number(result?.timing?.totalMs) | 0
+  bubble.tokens = Number(result?.usage?.completionTokens) | 0
+  return bubble.text
+}
+
 async function send(raw?: string) {
   const message = clipAgentChatMessage(typeof raw === 'string' ? raw : input.value)
   if (!message || busy.value || agentBlocked.value) return
-  const fromVoice = voiceTurn.value
-  voiceTurn.value = false
   const history = messages.value
     .filter((historyMessage) => historyMessage.text.trim() && !historyMessage.streaming)
     .map((historyMessage) => ({ role: historyMessage.role, content: historyMessage.text }))
@@ -410,18 +523,10 @@ async function send(raw?: string) {
     await handle.done
 
     const result = finalResult.value
-    bubble.outcome = result?.outcome
-    if (result?.toolCalls?.length) {
-      mergeToolTrace(
-        bubble,
-        result.toolCalls.map((toolCall) => toolCall.name),
-      )
-    }
-    // 最终回复优先于增量文本：后端可能给出未流式下发的收尾文案
-    const reply = result?.reply || bubble.text || fallbackReplyOf(bubble.outcome)
-    bubble.text = reply
-    const ttsOn = getConfigSection('voice')?.ttsEnabled !== false
-    if (fromVoice && ttsOn && reply) await speak(reply)
+    const reply = applyResult(bubble, result)
+    // 音效是「结果已就绪」的即时反馈：打字与语音输入一视同仁，且要先于播报出声
+    void playEarcon(result?.earcon)
+    if (reply && result?.speak !== false) await speakReply(result?.ttsUrl, reply)
   } catch (error: unknown) {
     const fail = getApiErrorMessage(error, '管家暂时不可用')
     if (bubble.text.trim()) {
@@ -431,7 +536,8 @@ async function send(raw?: string) {
       bubble.text = fail
     }
     bubble.outcome = 'error'
-    if (fromVoice && getConfigSection('voice')?.ttsEnabled !== false) await speak(fail)
+    void playEarcon('error')
+    if (getConfigSection('voice')?.ttsEnabled !== false) await speak(fail)
   } finally {
     bubble.streaming = false
     streamHandle = null
@@ -448,146 +554,174 @@ async function send(raw?: string) {
 </script>
 
 <template>
-  <Teleport v-if="open" :to="teleportTarget" :disabled="teleportDisabled">
-    <div
-      ref="rootRef"
-      class="acp-root"
-      role="dialog"
-      aria-modal="true"
-      aria-label="智能管家"
-      @keydown="onKeydown"
-      @click.self="close"
-    >
-      <div class="acp-panel">
-        <header class="acp-head">
-          <MessageCircle class="acp-head__icon" aria-hidden="true" />
-          <div class="acp-head__text">
-            <h2 class="acp-head__title">{{ '智能管家' }}</h2>
-            <p class="acp-head__hint">
-              <span class="acp-status" :class="`acp-status--${agentStatusTone}`">
-                <span class="acp-status__dot" aria-hidden="true" />
-                {{ agentStatusLabel }}
-              </span>
-              <span class="acp-head__desc">{{ '自然语言控制设备、场景与模式' }}</span>
-            </p>
-          </div>
+  <div
+    v-if="open"
+    ref="rootRef"
+    class="acp-root"
+    :class="{ 'acp-root--dock': docked }"
+    role="dialog"
+    aria-label="HomeOS 智能管家"
+    @keydown="onKeydown"
+    @pointerdown="touchActivity"
+    @click="touchActivity"
+    @wheel.passive="touchActivity"
+  >
+    <section class="acp-panel" :class="{ 'acp-panel--live': busy || listening }">
+      <header class="acp-head">
+        <span class="acp-head__avatar">
+          <AgentMechaAvatar mode="active" :is-active="busy || listening" />
+        </span>
+        <span class="acp-head__info">
+          <span class="acp-head__title-row">
+            <span class="acp-head__title">HomeOS智能管家</span>
+          </span>
+          <span class="acp-head__status">
+            <span
+              class="acp-head__dot"
+              :class="`acp-head__dot--${headerTone}`"
+              aria-hidden="true"
+            />
+            {{ headerStatus }}
+          </span>
+        </span>
+        <span class="acp-head__actions">
           <button
-            v-if="sessions.length"
+            v-if="sessions.length > 1"
             type="button"
-            class="acp-close"
-            :aria-label="'历史会话'"
-            :title="'历史会话'"
+            class="acp-action"
+            aria-label="历史会话"
+            title="历史会话"
             @click="historyOpen = !historyOpen"
           >
-            <History class="w-4 h-4" />
+            <History class="acp-icon" />
           </button>
           <button
             v-if="messages.length"
             type="button"
-            class="acp-close"
-            :aria-label="'新对话'"
-            :title="'新对话'"
+            class="acp-action"
+            aria-label="新对话"
+            title="新对话"
             @click="newConversation"
           >
-            <Plus class="w-4 h-4" />
+            <Trash2 class="acp-icon" />
           </button>
-          <button type="button" class="acp-close" :aria-label="'关闭智能管家'" @click="close">
-            <X class="w-4 h-4" />
-          </button>
-        </header>
-
-        <div v-if="historyOpen" class="acp-history" role="dialog" aria-label="历史会话">
-          <p class="acp-history__title">历史会话</p>
           <button
-            v-for="item in sessions"
-            :key="item.id"
             type="button"
-            class="acp-history__row"
-            :class="{ 'acp-history__row--active': item.id === sessionId }"
-            @click="openSession(item)"
+            class="acp-action"
+            aria-label="返回侧边栏"
+            title="返回侧边栏"
+            @click="close"
           >
-            <span class="acp-history__text">{{ item.title }}</span>
-            <span class="acp-history__time">{{ sessionTimeLabel(item.updatedAt) }}</span>
+            <ArrowLeft class="acp-icon" />
           </button>
+        </span>
+      </header>
+
+      <div v-if="historyOpen" class="acp-history" role="dialog" aria-label="历史会话">
+        <p class="acp-history__title">历史会话</p>
+        <button
+          v-for="item in sessions"
+          :key="item.id"
+          type="button"
+          class="acp-history__row"
+          :class="{ 'acp-history__row--active': item.id === sessionId }"
+          @click="openSession(item)"
+        >
+          <span class="acp-history__text">{{ item.title }}</span>
+          <span class="acp-history__time">{{ sessionTimeLabel(item.updatedAt) }}</span>
+        </button>
+      </div>
+
+      <div ref="logRef" class="acp-body" aria-live="polite">
+        <div v-if="!messages.length && !busy" class="acp-welcome">
+          <AgentMechaAvatar
+            mode="active"
+            :is-active="listening"
+            class="acp-welcome__avatar"
+          />
+          <template v-if="pinging && !ping">
+            <h4 class="acp-welcome__title">正在检查管家状态…</h4>
+          </template>
+          <template v-else-if="agentBlocked">
+            <h4 class="acp-welcome__title">管家未就绪</h4>
+            <p class="acp-welcome__desc">
+              {{
+                ping?.provider === 'mock'
+                  ? '当前为演示模式，请先配置并保存有效接口密钥'
+                  : '请先在设置中配置智能管家模型'
+              }}
+            </p>
+            <button type="button" class="acp-setup" @click="goAgentSettings">
+              去配置智能管家
+            </button>
+          </template>
+          <template v-else>
+            <h4 class="acp-welcome__title">有什么吩咐？主人</h4>
+            <p class="acp-welcome__desc">
+              您可以呼叫我调节全屋温控、开关灯光、查看安防，或查询环境能耗。
+            </p>
+          </template>
+          <p v-if="micHint" class="acp-welcome__desc acp-welcome__warn">{{ micHint }}</p>
         </div>
 
-        <div ref="logRef" class="acp-body" aria-live="polite">
-          <div v-if="!messages.length && !busy" class="acp-empty">
-            <Sparkles class="acp-empty__icon" aria-hidden="true" />
-            <template v-if="pinging && !ping">
-              <p class="acp-empty__title">{{ '正在检查管家状态…' }}</p>
-            </template>
-            <template v-else-if="agentBlocked">
-              <p class="acp-empty__title">{{ '管家未就绪' }}</p>
-              <p class="acp-empty__desc">
-                {{
-                  ping?.provider === 'mock'
-                    ? '当前为演示模式，请先配置并保存有效接口密钥'
-                    : '请先在设置中配置智能管家模型'
-                }}
-              </p>
-              <button type="button" class="acp-setup" @click="goAgentSettings">
-                {{ '去配置智能管家' }}
-              </button>
-            </template>
-            <template v-else>
-              <p class="acp-empty__title">{{ '我是您的全屋智能管家' }}</p>
-              <p class="acp-empty__desc">
-                {{ '用一句话控制灯光、空调、场景与安防模式，也能查询全屋能耗与温湿度' }}
-              </p>
-              <div class="acp-quick" role="group" aria-label="快捷指令">
-                <button
-                  v-for="q in QUICK_PROMPTS"
-                  :key="q"
-                  type="button"
-                  class="acp-quick__chip"
-                  :disabled="busy"
-                  @click="send(q)"
-                >
-                  {{ q }}
-                </button>
-              </div>
-              <p v-if="micHint" class="acp-empty__desc acp-empty__warn">{{ micHint }}</p>
-            </template>
-          </div>
-          <article
-            v-for="(m, i) in messages"
-            :key="i"
-            class="acp-bubble"
-            :class="`acp-bubble--${m.role}`"
-          >
-            <p class="acp-bubble__name">{{ m.role === 'user' ? '你' : '管家' }}</p>
-            <p
-              class="acp-bubble__text"
-              :class="{ 'acp-bubble__text--streaming': m.streaming }"
-            >{{ m.text }}</p>
+        <div v-for="(m, i) in messages" :key="i" class="acp-row" :class="`acp-row--${m.role}`">
+          <span v-if="m.role === 'assistant'" class="acp-row__avatar">
+            <AgentMechaAvatar mode="active" :is-active="false" />
+          </span>
+          <div class="acp-bubble" :class="`acp-bubble--${m.role}`">
+          <p class="acp-bubble__text" :class="{ 'acp-bubble__text--streaming': m.streaming }">
+            {{ m.streaming ? m.text : displayText(m.text) }}
+          </p>
             <p v-if="m.outcome === 'blocked'" class="acp-bubble__blocked">
               <ShieldAlert class="acp-bubble__blocked-icon" aria-hidden="true" />
               {{ BLOCKED_NOTICE }}
             </p>
             <p v-if="m.tools" class="acp-bubble__tools">{{ m.tools }}</p>
-          </article>
-          <article v-if="showTyping" class="acp-bubble acp-bubble--assistant">
-            <p class="acp-bubble__name">{{ '管家' }}</p>
-            <p class="acp-bubble__typing" aria-label="处理中">
-              <Loader2 class="acp-bubble__spin" aria-hidden="true" />
-              {{ '处理中…' }}
-            </p>
-          </article>
+          </div>
+          <span v-if="m.ms" class="acp-row__meta">
+            {{ m.ms }}ms<span v-if="m.tokens"> · {{ m.tokens }}t</span>
+          </span>
         </div>
 
-        <form class="acp-composer" @submit.prevent="send()">
-          <button
-            type="button"
-            class="acp-mic"
-            :class="{ 'acp-mic--on': listening || transcribing }"
-            :disabled="busy || agentBlocked"
-            :aria-label="listening || transcribing ? '停止语音输入' : '语音输入'"
-            :title="listening || transcribing ? '停止语音输入' : '点按说话，再说完点一次结束'"
-            @click="toggleListen"
-          >
-            <Mic class="w-4 h-4" :class="{ 'acp-mic__pulse': listening }" />
-          </button>
+        <div v-if="showTyping" class="acp-row acp-row--assistant">
+          <span class="acp-row__avatar">
+            <AgentMechaAvatar mode="active" :is-active="true" />
+          </span>
+          <span class="acp-thinking" aria-label="处理中">
+            <span class="acp-thinking__dot"></span>
+            <span class="acp-thinking__dot"></span>
+            <span class="acp-thinking__dot"></span>
+          </span>
+        </div>
+      </div>
+
+      <div v-if="quickPrompts.length" class="acp-chips" role="group" aria-label="快捷指令">
+        <button
+          v-for="q in quickPrompts"
+          :key="q.prompt"
+          type="button"
+          class="acp-chip"
+          :disabled="busy || agentBlocked"
+          :title="quickPromptTitle(q)"
+          :aria-label="quickPromptAria(q)"
+          @click="send(q.prompt)"
+        >
+          {{ q.label }}
+        </button>
+      </div>
+
+      <div class="acp-foot" :class="{ 'acp-foot--voice': voiceMode }">
+        <button
+          type="button"
+          class="acp-mode"
+          :aria-label="voiceMode ? '切换为键盘输入' : '切换为按住说话'"
+          :title="voiceMode ? '切换为键盘输入' : '切换为按住说话'"
+          @click="toggleVoiceMode"
+        >
+          <Keyboard v-if="voiceMode" class="acp-icon" />
+          <Mic v-else class="acp-icon" />
+        </button>
+        <form v-if="!voiceMode" class="acp-foot__form" @submit.prevent="send()">
           <input
             ref="inputRef"
             v-model="input"
@@ -596,530 +730,73 @@ async function send(raw?: string) {
             :maxlength="AGENT_CHAT_MAX_LENGTH"
             :placeholder="placeholder()"
             :disabled="busy || agentBlocked"
-            :aria-label="'智能管家指令'"
+            aria-label="智能管家指令"
           />
           <button
             v-if="busy"
             type="button"
-            class="acp-send acp-send--stop"
-            :aria-label="'停止生成'"
-            :title="'停止生成'"
+            class="acp-send"
+            aria-label="停止生成"
+            title="停止生成"
             @click="stopGenerating"
           >
-            <Square class="w-4 h-4" />
+            <Square class="acp-icon" />
           </button>
           <button
             v-else
             type="submit"
             class="acp-send"
+            :class="{ 'acp-send--active': input.trim() }"
             :disabled="agentBlocked || !input.trim()"
-            :aria-label="'发送'"
+            aria-label="发送"
           >
-            <Send class="w-4 h-4" />
+            <Send class="acp-icon" />
           </button>
         </form>
-        <p v-if="voiceError || (micHint && messages.length)" class="acp-voice-err">
-          {{ voiceError || micHint }}
-        </p>
-
-        <footer class="acp-foot">
-          <span><kbd>↵</kbd> 发送</span>
-          <span>{{ '麦克风说话' }}</span>
-          <span><kbd>Esc</kbd> 关闭</span>
-        </footer>
+        <AgentVoiceHoldBar
+          v-else
+          :disabled="busy || agentBlocked"
+          :transcript="input"
+          :finalizing="transcribing"
+          @start="startVoiceHold"
+          @stop="stopVoiceHold"
+        />
       </div>
-    </div>
-  </Teleport>
+      <p v-if="voiceError || (micHint && messages.length)" class="acp-voice-err">
+        {{ voiceError || micHint }}
+      </p>
+    </section>
+  </div>
 </template>
 
 <style scoped>
+/*
+ * 面板配色只在这里定义一次，其余规则（styles/agent-chat-panel.css）全部走 var()，
+ * 既让硬编码样式棘轮只看得到这一处字面量，也方便整体换肤。
+ * 取值逐条对齐源码 HomeOSSidebarAgentPanel 的 conic 光边与状态色。
+ */
 .acp-root {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-search);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: min(10vh, 96px) 16px 16px;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
-}
-
-.acp-panel {
-  width: min(560px, 100%);
-  max-height: min(72vh, 640px);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  border-radius: var(--hos-radius-panel);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(16, 19, 27, 0.96);
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-}
-
-.acp-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.acp-head__icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  color: color-mix(in srgb, var(--page-accent, #34d399) 80%, #fff);
-}
-
-/* 历史会话下拉：盖在消息区上方，不挤压弹层高度 */
-.acp-history {
-  position: absolute;
-  top: 58px;
-  left: 16px;
-  right: 16px;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 8px;
-  border-radius: var(--hos-radius-card);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(22, 26, 36, 0.98);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-}
-
-.acp-history__title {
-  margin: 2px 6px 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--hos-text-secondary);
-}
-
-.acp-history__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 7px 8px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.acp-history__row:hover,
-.acp-history__row--active {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.acp-history__text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.acp-history__time {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--hos-text-secondary);
-}
-
-.acp-head__text {
-  flex: 1;
-  min-width: 0;
-}
-
-.acp-head__title {
-  margin: 0;
-  font-size: var(--premium-fs-body);
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.acp-head__hint {
-  margin: 2px 0 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--hos-text-secondary);
-}
-
-.acp-head__desc {
-  min-width: 0;
-}
-
-/* 管家动态状态胶囊：在线就绪 / 思考中 / 检测中 / 未配置 */
-.acp-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding: 1px 7px;
-  border-radius: var(--hos-radius-pill);
-  font-size: 12px;
-  line-height: 16px;
-  border: 1px solid currentColor;
-  color: var(--hos-text-secondary);
-}
-
-.acp-status__dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.acp-status--emerald {
-  color: #34d399;
-}
-
-.acp-status--sky {
-  color: #38bdf8;
-}
-
-.acp-status--amber {
-  color: #fbbf24;
-}
-
-.acp-status--rose {
-  color: #fb7185;
-}
-
-.acp-close {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-}
-
-.acp-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.acp-body {
-  flex: 1;
-  min-height: 180px;
-  overflow-y: auto;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.acp-empty {
-  margin: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 6px;
-  padding: 24px 8px;
-}
-
-.acp-empty__icon {
-  width: 22px;
-  height: 22px;
-  color: var(--hos-text-secondary);
-}
-
-.acp-empty__title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.acp-empty__desc {
-  margin: 0;
-  font-size: 12px;
-  color: var(--hos-text-secondary);
-}
-
-.acp-empty__warn {
-  color: #fbbf24;
-}
-
-/* 快捷指令 chips：窄屏下自动换行，避免横向溢出 */
-.acp-quick {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-
-.acp-quick__chip {
-  padding: 6px 10px;
-  border-radius: var(--hos-radius-pill);
-  border: 1px solid color-mix(in srgb, var(--page-accent, #34d399) 32%, transparent);
-  background: color-mix(in srgb, var(--page-accent, #34d399) 10%, transparent);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
-  line-height: 16px;
-  cursor: pointer;
-}
-
-.acp-quick__chip:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--page-accent, #34d399) 22%, transparent);
-}
-
-.acp-quick__chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.acp-setup {
-  margin-top: 10px;
-  padding: 7px 12px;
-  border-radius: var(--hos-radius-card);
-  border: 1px solid color-mix(in srgb, var(--page-accent, #34d399) 40%, transparent);
-  background: color-mix(in srgb, var(--page-accent, #34d399) 16%, transparent);
-  color: #fff;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.acp-bubble {
-  max-width: 92%;
-}
-
-.acp-bubble--user {
-  align-self: flex-end;
-}
-
-.acp-bubble--assistant {
-  align-self: flex-start;
-}
-
-.acp-bubble__name {
-  margin: 0 0 4px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--hos-text-secondary);
-}
-
-.acp-bubble--user .acp-bubble__name {
-  text-align: right;
-}
-
-.acp-bubble__text,
-.acp-bubble__typing {
-  margin: 0;
-  padding: 9px 12px;
-  border-radius: var(--hos-radius-card);
-  font-size: 13px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.acp-bubble--user .acp-bubble__text {
-  background: color-mix(in srgb, var(--page-accent, #34d399) 22%, rgba(255, 255, 255, 0.08));
-}
-
-.acp-bubble__tools {
-  margin: 6px 0 0;
-  padding: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--hos-text-secondary);
-}
-
-/* 安全拦截提示：管家判定操作越权 / 涉险时显式说明，避免用户误以为执行成功 */
-.acp-bubble__blocked {
-  margin: 6px 0 0;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #fbbf24;
-}
-
-.acp-bubble__blocked-icon {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  margin-top: 2px;
-}
-
-.acp-bubble--assistant .acp-bubble__text,
-.acp-bubble--assistant .acp-bubble__typing {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.acp-bubble__typing {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.acp-bubble__spin {
-  width: 14px;
-  height: 14px;
-  animation: acp-spin 1s linear infinite;
-}
-
-@keyframes acp-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.acp-composer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.acp-mic {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-}
-
-.acp-mic:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.acp-mic:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.acp-mic--on {
-  border-color: color-mix(in srgb, var(--page-accent, #34d399) 45%, transparent);
-  background: color-mix(in srgb, var(--page-accent, #34d399) 18%, transparent);
-  color: #fff;
-}
-
-.acp-mic__pulse {
-  animation: acp-pulse 1.1s ease-in-out infinite;
-}
-
-@keyframes acp-pulse {
-  50% {
-    opacity: 0.45;
-  }
-}
-
-.acp-voice-err {
-  margin: 0 16px 4px;
-  font-size: 12px;
-  color: #fca5a5;
-}
-
-.acp-input {
-  flex: 1;
-  min-width: 0;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: var(--hos-radius-card);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.25);
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-}
-
-.acp-input::placeholder {
-  color: var(--hos-text-secondary);
-}
-
-.acp-input:focus {
-  border-color: color-mix(in srgb, var(--page-accent, #34d399) 45%, transparent);
-}
-
-.acp-send {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border: none;
-  border-radius: var(--hos-radius-card);
-  background: var(--page-accent, #34d399);
-  color: #052e16;
-  cursor: pointer;
-}
-
-.acp-send:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-/* 停止生成：与发送按钮同尺寸，换成中性色以区分「发送」与「中断」 */
-.acp-send--stop {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* 流式生成中的光标：放在文本尾部，提示仍在输出 */
-.acp-bubble__text--streaming::after {
-  content: '';
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 2px;
-  vertical-align: -0.15em;
-  background: currentColor;
-  animation: acp-caret 1s steps(2, start) infinite;
-}
-
-@keyframes acp-caret {
-  50% {
-    opacity: 0;
-  }
-}
-
-.acp-foot {
-  display: flex;
-  gap: 14px;
-  padding: 8px 16px 12px;
-  font-size: 12px;
-  color: var(--hos-text-secondary);
-}
-
-.acp-foot kbd {
-  padding: 1px 5px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-  font-family: inherit;
-  font-size: 12px;
+  --acp-blue: #4285f4;
+  --acp-violet: #9b51e0;
+  --acp-red: #ea4335;
+  --acp-yellow: #fbbc05;
+  --acp-green: #34a853;
+  --acp-cyan: #00f0ff;
+  --acp-amber: #ff9f0a;
+  --acp-live: #10b981;
+  --acp-chroma-duration: 6.5s;
+  --acp-pulse-duration: 1.4s;
+  --acp-chroma: conic-gradient(
+    from var(--acp-chroma-angle),
+    var(--acp-blue) 0deg,
+    var(--acp-violet) 72deg,
+    var(--acp-red) 144deg,
+    var(--acp-yellow) 216deg,
+    var(--acp-green) 288deg,
+    var(--acp-blue) 360deg
+  );
 }
 </style>
+
+<!-- scoped 外置样式：规则只用 var() / rgba()，颜色字面量统一留在上面的令牌块 -->
+<style scoped src="./styles/agent-chat-panel.css"></style>

@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import asyncio
+import html as html_module
 import ipaddress
 import logging
 import os
+import re
 import socket
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from ...system.ops.upstream import UpstreamResponse, fetch_raw
 
@@ -49,6 +51,29 @@ MAX_RESPONSE_BYTES = 512 * 1024
 MAX_QUERY_CHARS = 200
 #: 单次返回条数上限
 MAX_RESULTS = 8
+#: 正文摘取：单页超时（秒）——比搜索本身更紧，宁可少一段正文也不拖住整轮对话
+PAGE_TIMEOUT = 4.0
+#: 正文摘取：单页响应体上限（字节）
+MAX_PAGE_BYTES = 384 * 1024
+#: 正文摘取：每页保留字符数（约 300 字中文，够主模型判断相关性）
+MAX_PAGE_CHARS = 1200
+#: 正文摘取：一次最多额外取多少个页面（并发、且只取前几个结果）
+MAX_DETAIL_RESULTS = 3
+#: 正文摘取：默认取几个（0 = 只返回搜索摘要）
+DEFAULT_DETAIL_RESULTS = 2
+#: 需要整段丢弃的标签内容（脚本 / 样式 / 导航等噪声）
+_NOISE_TAGS = ("script", "style", "noscript", "svg", "template", "iframe")
+#: 噪声块匹配：``<script ...>...</script>`` 之类整段删除
+_NOISE_RE = re.compile(r"<(" + "|".join(_NOISE_TAGS) + r")\b[^>]*>.*?</\1\s*>", re.IGNORECASE | re.DOTALL)
+#: 注释
+_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+#: 任意标签
+_TAG_RE = re.compile(r"<[^>]+>")
+#: 块级标签断开处补空格，避免「上一段末尾 + 下一段开头」粘连成生造词
+_BLOCK_RE = re.compile(
+    r"</?(?:p|div|br|li|tr|td|th|h[1-6]|section|article|header|footer|nav|main|ul|ol|table)\b[^>]*>",
+    re.IGNORECASE,
+)
 
 
 def _clean_query(raw: Any) -> str:
@@ -114,11 +139,15 @@ class AgentWebSearchService:
     def _key(self, name: str) -> str:
         return str(self.env.get(name, "")).strip()
 
-    async def search(self, query: str, count: int = 5) -> dict[str, Any]:
+    async def search(self, query: str, count: int = 5, detail: int = 0) -> dict[str, Any]:
         """执行一次联网搜索。
 
         返回 ``{"ok": bool, "provider": str, "results": [...], "message": str}``。
         全部引擎失败时 ``ok=False``，并带上最后一次失败原因（便于主模型如实告知用户）。
+
+        ``detail`` 为需要正文摘取的结果条数（0 = 只给标题 + 摘要）：命中后会对前几条
+        结果并发抓取页面正文并压成纯文本，塞进 ``content`` 字段。抓取失败只是少一段
+        正文，不影响 ``ok`` —— 摘要已经够回答大部分问题。
         """
         if not self._enabled:
             return {"ok": False, "provider": "", "results": [], "message": "联网搜索已在设置中关闭"}
@@ -126,6 +155,7 @@ class AgentWebSearchService:
         if not cleaned:
             return {"ok": False, "provider": "", "results": [], "message": "搜索关键词为空"}
         limit = max(1, min(MAX_RESULTS, int(count or 5)))
+        detail_limit = max(0, min(MAX_DETAIL_RESULTS, int(detail or 0)))
 
         attempts: list[tuple[str, Any]] = []
         if self._key("TAVILY_API_KEY"):
@@ -144,11 +174,14 @@ class AgentWebSearchService:
                 logger.info("联网搜索降级（%s）: %s", provider, exc)
                 continue
             if results:
+                payload = results[:limit]
+                if detail_limit:
+                    payload = await self._attach_content(payload, detail_limit)
                 return {
                     "ok": True,
                     "provider": provider,
                     "query": cleaned,
-                    "results": results[:limit],
+                    "results": payload,
                     "message": "",
                 }
         return {
@@ -158,6 +191,51 @@ class AgentWebSearchService:
             "results": [],
             "message": last_error or "所有搜索源均未返回结果",
         }
+
+    # 正文摘取
+    async def _attach_content(
+        self,
+        results: list[dict[str, Any]],
+        detail_limit: int,
+    ) -> list[dict[str, Any]]:
+        """给前 ``detail_limit`` 条结果补 ``content``（已有正文的跳过）。"""
+        targets = [item for item in results if not item.get("content")][:detail_limit]
+        texts = await asyncio.gather(
+            *(self._fetch_page_text(str(item.get("url") or "")) for item in targets),
+            return_exceptions=True,
+        )
+        for item, text in zip(targets, texts, strict=True):
+            if isinstance(text, BaseException):
+                logger.debug("正文摘取失败: %s (%s)", item.get("url"), text)
+                continue
+            if text:
+                item["content"] = _trim_page_text(text)
+        return results
+
+    async def _fetch_page_text(self, url: str) -> str:
+        """抓取一条搜索结果的正文纯文本；任何越界或失败都返回空串。"""
+        parts = urlsplit(str(url or "").strip())
+        if parts.scheme != "https" or not parts.hostname:
+            return ""
+        if len(url) > 2048:
+            return ""
+        host = parts.hostname
+        allowed = await asyncio.to_thread(self._host_checker, host)
+        if not allowed:
+            logger.info("正文摘取命中非公网地址，已跳过: %s", host)
+            return ""
+        response: UpstreamResponse = await self._http_fetch(
+            url,
+            method="GET",
+            headers={"Accept": "text/html,application/xhtml+xml"},
+            timeout=PAGE_TIMEOUT,
+            follow_redirects=False,
+        )
+        if response.status >= 300:
+            return ""
+        if len(response.body) > MAX_PAGE_BYTES:
+            return ""
+        return html_to_text(response.body.decode("utf-8", errors="ignore"))
 
     # 请求封装
     async def _request(
@@ -214,6 +292,8 @@ class AgentWebSearchService:
                 "max_results": limit,
                 "search_depth": "basic",
                 "include_answer": False,
+                # Tavily 直接回正文（markdown）：不用再逐页抓，省一轮外网往返
+                "include_raw_content": True,
             },
         )
         items = payload.get("results") if isinstance(payload, dict) else None
@@ -221,14 +301,16 @@ class AgentWebSearchService:
         for item in items or []:
             if not isinstance(item, dict):
                 continue
-            out.append(
-                {
-                    "title": str(item.get("title") or "").strip(),
-                    "url": str(item.get("url") or "").strip(),
-                    "snippet": str(item.get("content") or "").strip()[:400],
-                    "source": "tavily",
-                }
-            )
+            entry = {
+                "title": str(item.get("title") or "").strip(),
+                "url": str(item.get("url") or "").strip(),
+                "snippet": str(item.get("content") or "").strip()[:400],
+                "source": "tavily",
+            }
+            raw = _trim_page_text(html_to_text(str(item.get("raw_content") or "")))
+            if raw:
+                entry["content"] = raw
+            out.append(entry)
         return [item for item in out if item["url"]]
 
     async def _search_brave(self, query: str, limit: int) -> list[dict[str, Any]]:
@@ -361,9 +443,41 @@ def _strip_tags(text: str) -> str:
     return " ".join("".join(out).split())
 
 
+def html_to_text(raw: str) -> str:
+    """把一段 HTML 压成纯文本（去脚本 / 样式 / 注释，块级标签补空格）。
+
+    不做完整的 DOM 解析：搜索结果的正文只需要「够主模型判断相关性」的一段，
+    引入解析器（或额外的依赖）换不来更好的判断质量。
+    """
+    cleaned = _NOISE_RE.sub(" ", raw or "")
+    cleaned = _COMMENT_RE.sub(" ", cleaned)
+    cleaned = _BLOCK_RE.sub(" ", cleaned)
+    cleaned = _TAG_RE.sub(" ", cleaned)
+    return " ".join(html_module.unescape(cleaned).split())
+
+
+def _trim_page_text(text: str) -> str:
+    """截断正文到 ``MAX_PAGE_CHARS``，尽量断在句末，避免半句造成误读。"""
+    value = (text or "").strip()
+    if len(value) <= MAX_PAGE_CHARS:
+        return value
+    head = value[:MAX_PAGE_CHARS]
+    for mark in ("。", ". ", "！", "？", "\n"):
+        cut = head.rfind(mark)
+        if cut >= MAX_PAGE_CHARS // 2:
+            return head[: cut + len(mark)].strip()
+    return head.strip()
+
+
 __all__ = [
     "ALLOWED_HOSTS",
+    "DEFAULT_DETAIL_RESULTS",
+    "MAX_DETAIL_RESULTS",
+    "MAX_PAGE_BYTES",
+    "MAX_PAGE_CHARS",
     "MAX_RESPONSE_BYTES",
+    "PAGE_TIMEOUT",
     "SEARCH_TIMEOUT",
     "AgentWebSearchService",
+    "html_to_text",
 ]

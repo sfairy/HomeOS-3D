@@ -138,7 +138,7 @@ input:-webkit-autofill:focus { transition: background-color 5000s ease-in-out 0s
  */
 /* hb-range / i3d-control-range / i3d-opacity-range：studio 灯光/窗帘/配置面板自带轨道样式，
    勿套全局蓝条默认 50% 与白点拇指（样式分别见 stage.css、runtime.css、cover-panel.css） */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range) {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range) {
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
@@ -149,7 +149,7 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
   cursor: pointer;
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-runnable-track {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range)::-webkit-slider-runnable-track {
   appearance: none;
   height: 6px;
   border-radius: var(--hos-radius-pill);
@@ -160,14 +160,14 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
     var(--track-bg, rgba(255, 255, 255, 0.04)) 100%);
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-track {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range)::-moz-range-track {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: var(--track-bg, rgba(255, 255, 255, 0.04));
   border: none;
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-progress {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range)::-moz-range-progress {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
@@ -179,7 +179,7 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
  * WebKit 滑块拖拽手柄（thumb）
  * 24x24 白色圆形 + 蓝色光晕 ring + 弹性缩放过渡
  */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range)::-webkit-slider-thumb {
   appearance: none; cursor: pointer; background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */ border: none;
   border-radius: 50%; width: 24px; height: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 0 0 4px rgba(var(--accent-rgb), 0.15);
@@ -188,10 +188,10 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
 }
 
 /** thumb 悬停：放大 1.1 倍 + 光晕扩展 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
 
 /** thumb 拖拽中：放大 1.18 倍 + 光晕进一步扩大 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):not(.vox-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
 
 /* ---- 6b. 共享紧凑滑块（设置页 / 媒体音量等） ---- */
 input[type="range"].hos-range,

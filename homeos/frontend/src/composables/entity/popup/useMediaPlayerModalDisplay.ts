@@ -106,7 +106,7 @@ export function useMediaPlayerModalDisplay(deps: MediaPlayerModalDisplayDeps) {
   async function speakTts() {
     const id = entityId.value
     if (!id || !ttsText.value.trim()) return
-    const r = await speakTtsMessage(ttsText.value, { mediaPlayer: id })
+    const r = await speakTtsMessage(ttsText.value, { mediaPlayer: id, manual: true })
     if (r.ok) ttsText.value = ''
     else notifyError(r.message || new Error('TTS 播报失败'), 'TTS 播报')
   }

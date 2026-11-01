@@ -42,7 +42,7 @@ export function useAgentModelStats(opts: {
 
   //: 计价来源文案：区分「provider 默认价」与「未知 provider 回退 DeepSeek 估算」
   const PRICING_SOURCE_LABELS: Record<string, string> = {
-    'provider-default': 'provider 默认价',
+    'provider-default': '官方价',
     'fallback-deepseek': '按 DeepSeek 估算',
     env: '环境变量指定',
   }
@@ -57,8 +57,10 @@ export function useAgentModelStats(opts: {
     if (model) parts.push(`模型 ${model}`)
     if (pricing) {
       const source = PRICING_SOURCE_LABELS[pricing.source] || pricing.source
+      // 官方价带上 provider 名：用户切到豆包后，这里必须能看出单价来自哪一家
+      const scope = pricing.source === 'provider-default' && info.provider ? `${info.provider} ` : ''
       parts.push(
-        `计价 ${source}（入 ¥${pricing.inputMissCNY}/百万 · 出 ¥${pricing.outputCNY}/百万）`,
+        `计价 ${scope}${source}（入 ¥${pricing.inputMissCNY}/百万 · 出 ¥${pricing.outputCNY}/百万）`,
       )
     }
     return parts.join(' · ')

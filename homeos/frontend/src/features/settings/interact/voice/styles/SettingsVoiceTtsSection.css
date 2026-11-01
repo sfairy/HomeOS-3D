@@ -1,107 +1,621 @@
-.voice-test-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-.voice-toggle-card {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
-  background: rgba(255, 255, 255, 0.03);
-  border: var(--hos-hairline) solid var(--premium-border);
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
-}
-.voice-toggle-card:hover {
-  border-color: rgba(var(--module-accent-voice-rgb), 0.25);
-}
-.voice-toggle-card--on {
-  border-color: rgba(var(--module-accent-voice-rgb), 0.3);
-  background: rgba(var(--module-accent-voice-rgb), 0.06);
-}
-.voice-toggle-card--on:focus-within {
-  border-color: rgba(var(--module-accent-voice-rgb), 0.45);
-}
-.voice-toggle-card__title {
-  display: block;
-  font-size: var(--premium-fs-body);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-}
-.voice-toggle-card__desc {
-  display: block;
-  font-size: var(--premium-fs-body);
-  color: var(--hos-text-secondary);
-  margin-top: 2px;
+/* 语音输出区段（播报输出）样式。
+   面板基元（.vox-panel / .vox-field / .vox-range）在 voice-form.css 里，父子组件共用；
+   这里只放本页独有的状态头、路由卡片、节流条、试听波形。
+
+   约定：不设 max-width、不居中 —— 宽度交给 SettingsCard 与页签对齐。
+   颜色只用令牌或 rgba()，动画时长只用 --hos-dur-*（硬编码样式棘轮只降不升）。 */
+
+.vox-hub {
+  --vox-accent-rgb: var(--module-accent-voice-rgb, 167, 139, 250);
 }
 
-.voice-tts-master-switch {
+.vox-shell {
+  overflow: hidden;
+}
+
+.vox-dock {
+  margin-top: 10px;
+}
+
+.vox-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ══ 状态头：开关 + 运行状态 ══ */
+.vox-status {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--set-fs-micro, 12px);
-  font-weight: 700;
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.65));
-  background: rgba(0, 0, 0, 0.22);
-  border: var(--hos-hairline) solid var(--premium-border-strong, rgba(255, 255, 255, 0.12));
-  cursor: pointer;
-}
-
-.voice-tts-master-switch:has(input:checked) {
-  color: var(--page-accent, #7eb8ff);
-  border-color: rgba(var(--page-accent-rgb, 129, 140, 248), 0.35);
-  background: rgba(var(--page-accent-rgb, 129, 140, 248), 0.12);
-}
-
-.voice-daily-block {
-  padding: 12px;
+  gap: 12px;
+  padding: 14px 16px;
   border-radius: var(--hos-radius-card);
-  background: rgba(0, 0, 0, 0.15);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(var(--vox-accent-rgb), 0.22);
+  background:
+    radial-gradient(
+      ellipse 62% 160% at 0% 50%,
+      rgba(var(--vox-accent-rgb), 0.16) 0%,
+      transparent 62%
+    ),
+    radial-gradient(ellipse 48% 140% at 100% 0%, rgba(95, 212, 255, 0.09) 0%, transparent 60%),
+    rgba(255, 255, 255, 0.02);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 18px 40px -32px rgba(var(--vox-accent-rgb), 0.9);
+  overflow: hidden;
 }
-.voice-daily-block__title {
-  font-size: var(--premium-fs-body);
+
+.vox-status--off {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.vox-status__orb {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: rgba(255, 255, 255, 0.94);
+  background: linear-gradient(
+    150deg,
+    rgba(var(--vox-accent-rgb), 0.62),
+    rgba(10, 132, 255, 0.32)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 6px 18px -8px rgba(var(--vox-accent-rgb), 0.85);
+}
+
+.vox-status__orb svg {
+  width: 18px;
+  height: 18px;
+}
+
+.vox-status__ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  border: var(--hos-hairline) solid rgba(var(--vox-accent-rgb), 0.45);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vox-status:not(.vox-status--off) .vox-status__ring {
+  opacity: 1;
+  animation: voxBreath var(--hos-dur-slower) ease-in-out infinite alternate;
+}
+
+.vox-status--off .vox-status__orb {
+  color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.vox-status__text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vox-status__eyebrow {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
   font-weight: 700;
-  color: var(--hos-text-secondary);
-  margin: 0 0 10px;
+  letter-spacing: 0.22em;
+  color: rgba(var(--vox-accent-rgb), 0.8);
 }
 
-.settings-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--module-accent-voice);
-  flex-shrink: 0;
+.vox-status__title {
+  font-size: var(--set-fs-title-sm, 15px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.93);
 }
 
-.voice-test-tip--ok {
-  color: var(--set-success);
-}
-.voice-test-tip--err {
-  color: var(--set-danger);
-}
-
-.voice-tts-flow-band__shell {
-  --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
-}
-
-.voice-field-hint {
+.vox-status__desc {
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.45;
   color: var(--hos-text-secondary);
-  margin: 0;
-}
-.voice-field-hint--warn {
-  color: var(--set-warn, #fbbf24);
-}
-.voice-field-hint--ok {
-  color: var(--set-success, #34d399);
 }
 
+.vox-status__side {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 状态胶囊 */
+.vox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: var(--hos-hairline) solid transparent;
+}
+
+.vox-pill__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.vox-pill--on {
+  color: rgba(110, 231, 183, 0.95);
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.28);
+}
+
+.vox-pill--on .vox-pill__dot {
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.9);
+}
+
+.vox-pill--off {
+  color: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 开关 */
+.vox-switch {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  width: 44px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.vox-switch__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vox-switch__track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.14);
+  transition:
+    background var(--hos-dur-base) ease,
+    border-color var(--hos-dur-base) ease,
+    box-shadow var(--hos-dur-base) ease;
+}
+
+.vox-switch__thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  transform: translateX(0);
+  transition:
+    transform var(--hos-dur-base) cubic-bezier(0.16, 1, 0.3, 1),
+    background var(--hos-dur-base) ease;
+}
+
+.vox-switch__input:checked + .vox-switch__track {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--vox-accent-rgb), 0.95),
+    rgba(10, 132, 255, 0.9)
+  );
+  border-color: rgba(var(--vox-accent-rgb), 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 4px 14px -6px rgba(var(--vox-accent-rgb), 0.9);
+}
+
+.vox-switch__input:checked + .vox-switch__track .vox-switch__thumb {
+  transform: translateX(18px);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.vox-switch__input:focus-visible + .vox-switch__track {
+  outline: 2px solid rgba(var(--vox-accent-rgb), 0.6);
+  outline-offset: 3px;
+}
+
+/* ══ 栅格：左侧路由，右侧节流 + 试听 ══ */
+.vox-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.vox-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.vox-stack > .vox-panel {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 900px) {
+  .vox-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container settings-scroll (max-width: 880px) {
+  .vox-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══ 01 输出路由：三张可选卡片 ══ */
+.vox-route {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vox-route__opt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.022);
+  color: var(--hos-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--hos-dur-base) ease,
+    background var(--hos-dur-base) ease,
+    box-shadow var(--hos-dur-base) ease,
+    transform var(--hos-dur-base) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vox-route__opt:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.vox-route__opt.is-active {
+  color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(var(--vox-accent-rgb), 0.45);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--vox-accent-rgb), 0.2) 0%,
+    rgba(95, 212, 255, 0.07) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 12px 26px -20px rgba(var(--vox-accent-rgb), 1);
+}
+
+.vox-route__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: rgba(var(--vox-accent-rgb), 0.95);
+  background: rgba(var(--vox-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--vox-accent-rgb), 0.22);
+}
+
+.vox-route__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.vox-route__opt.is-active .vox-route__icon {
+  color: rgba(255, 255, 255, 0.96);
+  background: rgba(var(--vox-accent-rgb), 0.32);
+  box-shadow: 0 0 14px -4px rgba(var(--vox-accent-rgb), 0.9);
+}
+
+.vox-route__name {
+  font-size: var(--set-fs-body-sm, 13px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.vox-route__desc {
+  font-size: 11px;
+  line-height: 1.35;
+  padding-right: 14px;
+  opacity: 0.78;
+}
+
+.vox-route__tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.vox-route__opt.is-active .vox-route__tag {
+  color: rgba(var(--vox-accent-rgb), 0.9);
+}
+
+.vox-route__check {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 12px;
+  height: 12px;
+  color: rgba(var(--vox-accent-rgb), 0.95);
+}
+
+/* ══ 02 播报节流 ══ */
+.vox-throttle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: text;
+}
+
+.vox-throttle__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vox-throttle__label {
+  font-size: var(--set-fs-body-sm, 13px);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.vox-throttle__value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.vox-throttle__input {
+  width: 58px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--vox-accent-rgb), 0.95);
+  outline: none;
+  border-radius: 4px;
+}
+
+.vox-throttle__input:focus-visible {
+  box-shadow: 0 1px 0 rgba(var(--vox-accent-rgb), 0.7);
+}
+
+/* 去掉数字输入框的上下箭头 —— 值用比例条读，不靠 spinner */
+.vox-throttle__input::-webkit-outer-spin-button,
+.vox-throttle__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.vox-throttle__input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.vox-throttle__value em {
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  color: var(--hos-text-secondary);
+}
+
+.vox-throttle__meter {
+  position: relative;
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.vox-throttle__meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--vox-accent-rgb), 0.95),
+    rgba(95, 212, 255, 0.85)
+  );
+  box-shadow: 0 0 8px rgba(var(--vox-accent-rgb), 0.55);
+  transition: width var(--hos-dur-slow) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vox-throttle__hint {
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.4;
+  color: var(--hos-text-secondary);
+}
+
+/* ══ 03 链路试听 ══ */
+.vox-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 34px;
+  padding: 0 2px;
+}
+
+.vox-wave > span {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--vox-accent-rgb), 0.75),
+    rgba(95, 212, 255, 0.35)
+  );
+  opacity: 0.4;
+  transform-origin: center;
+  transition: opacity var(--hos-dur-base) ease;
+}
+
+.vox-wave.is-live > span {
+  opacity: 0.95;
+  animation: voxWave var(--hos-dur-fast) ease-in-out infinite alternate;
+}
+
+.vox-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vox-test__input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.vox-test__btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-height-lg, 42px);
+  padding: 0 16px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--vox-accent-rgb), 0.95),
+    rgba(10, 132, 255, 0.9)
+  );
+  font-size: var(--set-fs-btn, 13px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.98);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 6px 18px -8px rgba(var(--vox-accent-rgb), 0.95);
+  transition:
+    filter var(--hos-dur-fast) ease,
+    transform var(--hos-dur-fast) ease,
+    box-shadow var(--hos-dur-fast) ease;
+}
+
+.vox-test__btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.vox-test__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.vox-test__btn:focus-visible {
+  outline: 2px solid rgba(var(--vox-accent-rgb), 0.7);
+  outline-offset: 3px;
+}
+
+.vox-test__icon {
+  width: 14px;
+  height: 14px;
+}
+
+.voice-daily-test {
+  align-self: flex-start;
+}
+
+/* ── 流程带 ── */
+.voice-tts-flow-band__shell {
+  --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
+  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+}
+
+@keyframes voxBreath {
+  from {
+    opacity: 0.25;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes voxWave {
+  from {
+    transform: scaleY(0.45);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .vox-status {
+    flex-wrap: wrap;
+  }
+
+  .vox-status__side {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .vox-route {
+    grid-template-columns: 1fr;
+  }
+
+  .vox-route__tag {
+    position: static;
+    align-self: flex-start;
+    color: rgba(255, 255, 255, 0.36);
+  }
+
+  .vox-test {
+    flex-wrap: wrap;
+  }
+
+  .vox-test__btn {
+    width: 100%;
+  }
+}

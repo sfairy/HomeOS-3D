@@ -117,6 +117,42 @@
   right: 0;
 }
 
+/**
+ * 智能管家占位态：面板带 20px 圆角 + 七彩光边，光边有 -3px 外扩与 blur，
+ * 信息栏默认的 overflow:auto 会把它裁掉，这里放开。
+ * 部件此时不渲染（v-if），所以不需要内部滚动。
+ */
+.info-panel--agent {
+  overflow: visible;
+}
+
+/**
+ * 智能管家容器：与参考实现 `.sidebar-agent-container` 同口径 ——
+ * 绝对定位铺满信息栏内容区（内边距沿用信息栏自身，面板因此和部件严丝合缝对齐）。
+ */
+.sidebar-agent-container {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  padding: inherit;
+}
+
+/** 参考实现的 slide-fade：从右滑入 20px + 渐显；时长走面板进出档 */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition:
+    opacity var(--hos-dur-slow) var(--hos-ease-spring),
+    transform var(--hos-dur-slow) var(--hos-ease-spring);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
 /** 部件包裹器：控制单个部件的宽度与 flex 高度分配 */
 .widget-wrapper {
   flex-direction: column;

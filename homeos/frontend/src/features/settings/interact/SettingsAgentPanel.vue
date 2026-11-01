@@ -932,18 +932,17 @@
               </template>
               <template v-else>
                 <p class="agent-chat-empty__title">开始对话</p>
-                <p class="agent-chat-empty__desc">
-                  先说「打开客厅灯」，再追问「那把它关掉」，验证多轮理解
-                </p>
-                <div class="agent-chat-quick">
+                <p class="agent-chat-empty__desc">{{ chatEmptyHint }}</p>
+                <div v-if="chatQuickPrompts.length" class="agent-chat-quick">
                   <button
                     v-for="prompt in chatQuickPrompts"
-                    :key="prompt"
+                    :key="prompt.prompt"
                     type="button"
                     class="agent-chat-quick__chip"
-                    @click="sendQuickPrompt(prompt)"
+                    :title="`${prompt.hint}｜发送「${prompt.prompt}」`"
+                    @click="sendQuickPrompt(prompt.prompt)"
                   >
-                    {{ prompt }}
+                    {{ prompt.label }}
                   </button>
                 </div>
               </template>
@@ -951,19 +950,20 @@
           </div>
 
           <div
-            v-if="chatLog.length && !isMockProvider"
+            v-if="chatLog.length && !isMockProvider && chatQuickPrompts.length"
             class="agent-chat-quick agent-chat-quick--inline agent-form-block"
           >
             <span class="agent-chat-quick__label">快捷指令</span>
             <button
               v-for="prompt in chatQuickPrompts"
-              :key="`inline-${prompt}`"
+              :key="`inline-${prompt.prompt}`"
               type="button"
               class="agent-chat-quick__chip"
               :disabled="chatting"
-              @click="sendQuickPrompt(prompt)"
+              :title="`${prompt.hint}｜发送「${prompt.prompt}」`"
+              @click="sendQuickPrompt(prompt.prompt)"
             >
-              {{ prompt }}
+              {{ prompt.label }}
             </button>
           </div>
 
@@ -1006,6 +1006,7 @@
           <p v-if="voiceError" class="agent-chat-voice-err">{{ voiceError }}</p>
         </div>
       </SettingsCard>
+      <SettingsAgentQuickPromptsSection />
     </section>
   </SettingsPageShell>
 </template>
@@ -1051,8 +1052,8 @@ import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'
 import SettingsAgentPoliciesSection from './SettingsAgentPoliciesSection.vue'
 import SettingsAgentSchedulesSection from './SettingsAgentSchedulesSection.vue'
 import SettingsAgentDiagnosticsSection from './SettingsAgentDiagnosticsSection.vue'
+import SettingsAgentQuickPromptsSection from './SettingsAgentQuickPromptsSection.vue'
 import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
-import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'agent' } })
 
@@ -1064,6 +1065,7 @@ const {
   subnavSections,
   providerPresets,
   chatQuickPrompts,
+  chatEmptyHint,
   agentDraft,
   channelDraft,
   channelStatus,
@@ -1124,8 +1126,6 @@ const {
   chatPlaceholder,
 } = useSettingsAgentPanel(props)
 
-// 第三个参数 = 静默丢弃草稿：设置页确认「离开」后调用，别让提示变成空话
-useRegisterSettingsTabPending('agent', () => pending.value > 0, resetDraft)
 /**
  * 已打开过的区段：家规 / 计划任务挂载即请求接口，未访问过就不挂载，
  * 避免每次进入智能管家都白打两个请求；打开后保持挂载以留住表单草稿。

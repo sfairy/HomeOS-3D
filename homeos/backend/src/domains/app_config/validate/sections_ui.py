@@ -20,6 +20,10 @@ from ..constants import (
 #: 语音命令里的 domain / service 词法：``^[a-z_][a-z0-9_]*$``（大小写不敏感）。
 _VOICE_DOMAIN_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$", re.IGNORECASE)
 
+#: 服务端 TTS 的语速 / 音调：``+10%`` / ``-5%`` / ``10``；音调同理，单位 Hz。
+_TTS_RATE_PATTERN = re.compile(r"^[+-]?\d+(?:\.\d+)?\s*%?$")
+_TTS_PITCH_PATTERN = re.compile(r"^[+-]?\d+(?:\.\d+)?\s*(?:Hz)?$", re.IGNORECASE)
+
 
 def _validate_frontend(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     if "apiTimeoutMs" in payload:
@@ -80,6 +84,66 @@ def _validate_frontend(section: str, payload: dict[str, Any], errors: list[Field
             for wk, wv in wpi.items():
                 num_in(section, f"widgetPollIntervals.{wk}", wv, 1000, 600000, errors)
 
+#: 快捷指令条数上限：面板一行三条、四行封顶，再多就不是「快捷」而是一张清单。
+AGENT_QUICK_PROMPT_MAX = 12
+#: 按钮短文案上限（字）：超过会把 300px 停靠栏的 chip 挤到第三行。
+AGENT_QUICK_PROMPT_LABEL_MAX = 12
+#: 完整指令上限（字）：与前端输入框的 500 上限留足余量，只拦明显写错的粘贴。
+AGENT_QUICK_PROMPT_TEXT_MAX = 120
+#: 悬浮提示上限（字）。
+AGENT_QUICK_PROMPT_HINT_MAX = 60
+
+
+def _validate_agent_quick_prompt_item(
+    section: str, index: int, item: Any, seen: set[str], errors: list[FieldError]
+) -> None:
+    """校验单条快捷指令；文本统一 strip 后判空 / 判长 / 判重。"""
+    key = f"agentQuickPrompts[{index}]"
+    if not isinstance(item, dict):
+        errors.append({"section": section, "key": key, "message": "须为 { label, prompt, hint } 对象"})
+        return
+    label = str(item.get("label") or "").strip()
+    prompt = str(item.get("prompt") or "").strip()
+    hint = str(item.get("hint") or "").strip()
+    if not label:
+        errors.append({"section": section, "key": f"{key}.label", "message": "按钮文案不能为空"})
+    elif len(label) > AGENT_QUICK_PROMPT_LABEL_MAX:
+        errors.append(
+            {"section": section, "key": f"{key}.label", "message": f"最多 {AGENT_QUICK_PROMPT_LABEL_MAX} 个字"}
+        )
+    if not prompt:
+        errors.append({"section": section, "key": f"{key}.prompt", "message": "下发的指令不能为空"})
+    elif len(prompt) > AGENT_QUICK_PROMPT_TEXT_MAX:
+        errors.append(
+            {"section": section, "key": f"{key}.prompt", "message": f"最多 {AGENT_QUICK_PROMPT_TEXT_MAX} 个字"}
+        )
+    elif prompt in seen:
+        errors.append({"section": section, "key": f"{key}.prompt", "message": "同一条指令重复出现"})
+    if hint and len(hint) > AGENT_QUICK_PROMPT_HINT_MAX:
+        errors.append(
+            {"section": section, "key": f"{key}.hint", "message": f"最多 {AGENT_QUICK_PROMPT_HINT_MAX} 个字"}
+        )
+    seen.add(prompt)
+
+
+def _validate_agent_quick_prompts(section: str, payload: Any, errors: list[FieldError]) -> None:
+    """校验智能管家快捷指令数组。
+
+    ``[]`` 是合法值，语义是「不要这排快捷入口」（用户在设置里关掉），而不是「没配置」：
+    字段缺省时才回落到内置默认，两者不能混为一谈。
+    """
+    if not isinstance(payload, list):
+        errors.append({"section": section, "key": "agentQuickPrompts", "message": "须为数组"})
+        return
+    if len(payload) > AGENT_QUICK_PROMPT_MAX:
+        errors.append(
+            {"section": section, "key": "agentQuickPrompts", "message": f"最多 {AGENT_QUICK_PROMPT_MAX} 条"}
+        )
+    seen: set[str] = set()
+    for index, item in enumerate(payload):
+        _validate_agent_quick_prompt_item(section, index, item, seen, errors)
+
+
 def _validate_ui(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     if "scaleBaseWidth" in payload:
         num_in(section, "scaleBaseWidth", payload["scaleBaseWidth"], 800, 7680, errors)
@@ -91,6 +155,8 @@ def _validate_ui(section: str, payload: dict[str, Any], errors: list[FieldError]
             errors.append(
                 {"section": section, "key": "accentColor", "message": "须为 #RRGGBB 格式十六进制颜色"}
             )
+    if "agentQuickPrompts" in payload:
+        _validate_agent_quick_prompts(section, payload["agentQuickPrompts"], errors)
 
 
 _SCREENSAVER_MODES = {"clock", "weather", "random"}
@@ -182,11 +248,33 @@ def validate_voice_commands_array(commands: Any, errors: list[FieldError] | None
                 errors.append({"section": "voiceCommands", "key": f"{prefix}.serviceData", "message": "须为对象"})
     return errors
 
+def _validate_voice_server_tts(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    """服务端 TTS（智能管家播报）字段校验。
+
+    这里只拦「明显写错」的值：语速/音调允许带或不带单位（``+10%`` / ``10``），
+    因为设置页滑杆和历史数据两种形态都存在；真正解析时由后端归一。
+    """
+    if "ttsEngine" in payload and payload["ttsEngine"] not in ("edge", "openai"):
+        errors.append({"section": section, "key": "ttsEngine", "message": "须为 edge | openai"})
+    if "ttsRate" in payload and not _TTS_RATE_PATTERN.match(str(payload["ttsRate"] or "").strip()):
+        errors.append({"section": section, "key": "ttsRate", "message": "须形如 +10% 或 -5%"})
+    if "ttsPitch" in payload and not _TTS_PITCH_PATTERN.match(str(payload["ttsPitch"] or "").strip()):
+        errors.append({"section": section, "key": "ttsPitch", "message": "须形如 +2Hz 或 -2Hz"})
+    if "ttsApiBase" in payload:
+        base = str(payload["ttsApiBase"] or "").strip()
+        if base and not base.startswith(("http://", "https://")):
+            errors.append({"section": section, "key": "ttsApiBase", "message": "须为 http(s) 地址"})
+    for key in ("ttsVoice", "ttsFormat", "ttsModel", "ttsApiKey"):
+        if key in payload and not isinstance(payload[key], str):
+            errors.append({"section": section, "key": key, "message": "须为字符串"})
+
+
 def _validate_voice(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     if "sttMode" in payload and payload["sttMode"] not in ("browser", "ha", "auto"):
         errors.append({"section": section, "key": "sttMode", "message": "须为 browser | ha | auto"})
     if "ttsOutputMode" in payload and payload["ttsOutputMode"] not in ("local", "ha", "auto"):
         errors.append({"section": section, "key": "ttsOutputMode", "message": "须为 local | ha | auto"})
+    _validate_voice_server_tts(section, payload, errors)
     if "dailyAdvisorSpeakHour" in payload:
         num_in(section, "dailyAdvisorSpeakHour", payload["dailyAdvisorSpeakHour"], 0, 23, errors)
     for k in ("ttsEnabled", "continuousConversation", "agentFallback"):

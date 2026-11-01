@@ -24,40 +24,49 @@
       <ChevronRight v-else class="w-3.5 h-3.5" />
     </button>
 
-    <aside v-if="!collapsed" class="info-panel">
-      <WidgetPanelSlot
-        v-for="widget in visiblePanelWidgets"
-        :key="widget.id"
-        :widget-id="widget.id"
-        :widget-type="widget.type"
-        :wrapper-class="[
-          'widget-wrapper',
-          getWidgetClass(widget.type),
-          { 'widget-wrapper--custom-h': hasCustomHeight(widget) },
-        ]"
-        :wrapper-style="getWidgetStyle(widget)"
-        v-slot="{ panelVisible }"
-      >
-        <div v-if="widget.type === 'clock'" class="info-card info-card--widget">
-          <ErrorBoundary compact fill :title="widget.type">
+    <aside v-if="!collapsed" class="info-panel" :class="{ 'info-panel--agent': agentOpen }">
+      <!-- 智能管家面板：与参考实现一致，直接替换信息栏内容（滑入 20px + 渐显），
+           槽位由主布局注入，面板自己负责内部滚动。 -->
+      <Transition name="slide-fade">
+        <div v-if="agentOpen" class="sidebar-agent-container">
+          <slot name="agent" />
+        </div>
+      </Transition>
+      <template v-if="!agentOpen">
+        <WidgetPanelSlot
+          v-for="widget in visiblePanelWidgets"
+          :key="widget.id"
+          :widget-id="widget.id"
+          :widget-type="widget.type"
+          :wrapper-class="[
+            'widget-wrapper',
+            getWidgetClass(widget.type),
+            { 'widget-wrapper--custom-h': hasCustomHeight(widget) },
+          ]"
+          :wrapper-style="getWidgetStyle(widget)"
+          v-slot="{ panelVisible }"
+        >
+          <div v-if="widget.type === 'clock'" class="info-card info-card--widget">
+            <ErrorBoundary compact fill :title="widget.type">
+              <component
+                :is="getWidgetComponent(widget.type)"
+                :config="widget.config"
+                v-bind="getWidgetProps(widget.type, widget)"
+              />
+            </ErrorBoundary>
+          </div>
+          <ErrorBoundary v-else compact fill :title="widget.type">
             <component
               :is="getWidgetComponent(widget.type)"
               :config="widget.config"
+              :panel-visible="panelVisible"
               v-bind="getWidgetProps(widget.type, widget)"
+              class="h-full min-h-0"
+              @open-group="onOpenGroup"
             />
           </ErrorBoundary>
-        </div>
-        <ErrorBoundary v-else compact fill :title="widget.type">
-          <component
-            :is="getWidgetComponent(widget.type)"
-            :config="widget.config"
-            :panel-visible="panelVisible"
-            v-bind="getWidgetProps(widget.type, widget)"
-            class="h-full min-h-0"
-            @open-group="onOpenGroup"
-          />
-        </ErrorBoundary>
-      </WidgetPanelSlot>
+        </WidgetPanelSlot>
+      </template>
     </aside>
   </div>
 </template>
@@ -82,7 +91,7 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/loc
  * 卡片高度：有自定义 cardHeight 用自定义，否则用类型预设像素。
  * 「恢复预设」与保存同一数值时主页高度一致。时钟无自定义时按内容自适应。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import WidgetPanelSlot from '@/components/dashboard/WidgetPanelSlot.vue'
@@ -140,11 +149,22 @@ const visiblePanelWidgets = computed(() =>
 
 const props = defineProps({
   panelPosition: { type: String, default: 'right' },
+  /** 智能管家面板是否占位：为 true 时用面板替换部件内容（参考实现同形态） */
+  agentOpen: { type: Boolean, default: false },
 })
 
 const emit = defineEmits<{
   (e: 'open-group', domain: string, sensors: unknown): void
 }>()
+
+/** 面板要占位时先展开：否则 aside 不渲染，用户点了「智能管家」什么也看不到 */
+watch(
+  () => props.agentOpen,
+  (open) => {
+    if (open) collapsed.value = false
+  },
+  { immediate: true },
+)
 
 function onOpenGroup(domain: string, sensors: unknown) {
   emit('open-group', domain, sensors)

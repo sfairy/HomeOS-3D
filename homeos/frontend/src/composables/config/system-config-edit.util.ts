@@ -30,6 +30,21 @@ function fieldDisplayValue(type: string, value: unknown): string | number | bool
 }
 
 /**
+ * 对象数组没有可逆的「逗号串」表单表示：渲染成 "[object Object]"、存回去就是一堆字符串。
+ * 这类字段各自有专用编辑卡（如 `ui.agentQuickPrompts`），通用表单直接跳过。
+ */
+function isObjectArrayList(value: unknown): boolean {
+  return Array.isArray(value) && value.some((item) => item !== null && typeof item === 'object')
+}
+
+/** 能安全渲染成表单控件的值：标量、字符串数组，或白名单内的 JSON 对象 */
+function isEditableFieldValue(fieldKey: string, value: unknown): boolean {
+  if (isObjectArrayList(value)) return false
+  const plainObject = !!value && typeof value === 'object'
+  return !plainObject || NESTED_JSON_FIELDS.has(fieldKey)
+}
+
+/**
  * 把 SystemConfig 转换为可编辑分节视图
  *
  * 跳过 _ 前缀字段、非对象、数组、EXCLUDED_SECTIONS 与未在字段白名单内的字段；
@@ -53,7 +68,7 @@ export function toEditableSections(
       for (const fieldKey of Object.keys(section)) {
         if (!SYSTEM_CONFIG_FIELD_KEYS.has(fieldKey)) continue
       const value = section[fieldKey]
-      if (value && typeof value === 'object' && !Array.isArray(value) && !NESTED_JSON_FIELDS.has(fieldKey)) continue
+      if (!isEditableFieldValue(fieldKey, value)) continue
       const type = inferSystemConfigFieldType(value, fieldKey)
       const isMasked = type === 'password' && (value === CONFIG_MASK || value === '********')
       fields.push({

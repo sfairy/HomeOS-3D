@@ -26,11 +26,19 @@ export interface FrontendSection {
   apiRetryDelayMs: number // API 重试间隔（毫秒）
 }
 
-/** UI 分区（缩放与强调色） */
+/** 智能管家快捷指令的单项（与后端 AppConfig.ui.agentQuickPrompts 对齐） */
+export interface AgentQuickPromptConfig {
+  label: string // 按钮短文案
+  prompt: string // 真正下发的完整指令
+  hint?: string // 悬浮提示 / 读屏说明
+}
+
+/** UI 分区（缩放、强调色与管家快捷指令） */
 interface UiSection {
   scaleBaseWidth: number // 缩放基准宽度（像素）
   scaleBaseHeight: number // 缩放基准高度（像素）
   accentColor: string // 主题强调色
+  agentQuickPrompts?: AgentQuickPromptConfig[] // 管家快捷指令；缺省用内置默认，空数组 = 关闭
 }
 
 /** 屏保分区（启用、空闲超时与视觉参数） */
@@ -91,6 +99,8 @@ interface ClientPowerWakePublicSection {
 /** 其它分区（公开） */
 interface OtherPublicSection {
   advisorTipActionsBound?: string[] // 已绑定动作的管家建议 ID 列表
+  speakCooldownMin?: number // 自动播报去重窗口（分钟）；0 表示不限制
+  tipCooldownHours?: number // 建议提示冷却（小时）；0 表示不限制
 }
 
 /** 应用公开配置（顶层聚合） */

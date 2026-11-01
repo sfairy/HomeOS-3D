@@ -509,8 +509,8 @@ def _automation_schemas() -> list[LlmToolSchema]:
         LlmToolSchema(
             name="schedule_task",
             description=(
-                "创建计划任务（一次性或周期）。动作只能是 control_device / activate_scene / "
-                "activate_home_mode；执行时会重新校验权限与高危拦截。"
+                "创建计划任务（一次性或周期）。动作三选一：控制设备（entity_id + service）、"
+                "激活场景（scene）、切换家庭模式（mode）；执行时会重新校验权限与高危拦截。"
             ),
             parameters={
                 "type": "object",
@@ -539,7 +539,7 @@ def _automation_schemas() -> list[LlmToolSchema]:
                         "type": "string",
                         "description": "周期任务：5 段 cron 表达式，如 0 22 * * *",
                     },
-                    "entity_id": {"type": "string", "description": "要控制的设备实体 ID"},
+                    "entity_id": {"type": "string", "description": "要控制的设备实体 ID（或场景实体 ID）"},
                     "domain": {
                         "type": "string",
                         "description": "设备域，留空时按 entity_id 前缀推断",
@@ -549,12 +549,14 @@ def _automation_schemas() -> list[LlmToolSchema]:
                         "description": "服务名，如 turn_off / turn_on / set_temperature",
                     },
                     "service_data": {"type": "object", "description": "服务附加参数"},
+                    "scene": {"type": "string", "description": "场景名称（与 entity_id + service 三选一）"},
+                    "mode": {"type": "string", "description": "家庭模式名称（与上面两种三选一）"},
                     "expected_state": {
                         "type": "string",
-                        "description": "可选前置状态：设备已是该状态时跳过本次执行（如 off）",
+                        "description": "可选前置状态：设备已是该状态时跳过本次执行（如 off）；只对设备控制生效",
                     },
                 },
-                "required": ["name", "entity_id", "service"],
+                "required": ["name"],
             },
         ),
         LlmToolSchema(
@@ -577,7 +579,7 @@ def _automation_schemas() -> list[LlmToolSchema]:
             name="web_search",
             description=(
                 "联网搜索（受用户开关与域名白名单约束）。查天气、新闻、常识或家政技巧时使用；"
-                "只返回网页摘要，不要把搜索结果当作设备状态。"
+                "返回标题、摘要，必要时附前几条结果的网页正文。不要把搜索结果当作设备状态。"
             ),
             parameters={
                 "type": "object",
@@ -588,6 +590,12 @@ def _automation_schemas() -> list[LlmToolSchema]:
                         "description": "返回结果数，默认 5，最大 8",
                         "minimum": 1,
                         "maximum": 8,
+                    },
+                    "detail": {
+                        "type": "integer",
+                        "description": "需要正文摘取的结果条数，默认 2；0 表示只要摘要，最大 3",
+                        "minimum": 0,
+                        "maximum": 3,
                     },
                 },
                 "required": ["query"],

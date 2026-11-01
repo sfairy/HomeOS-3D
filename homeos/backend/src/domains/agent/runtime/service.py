@@ -15,11 +15,24 @@ from typing import Any, TypeGuard
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .agent_actor import AgentActor
+from .audit import (
+    CONTROL_TOOL_NAMES,
+    OUTCOME_BLOCKED,
+    OUTCOME_FAILED,
+    OUTCOME_SUCCESS,
+    OUTCOME_UNVERIFIED,
+    audit_target,
+    control_outcome,
+    control_succeeded,
+    describe_plan,
+    is_blocked,
+)
 from .batch_ops import BatchOperationService, build_undo_calls
 from .config_service import AgentConfigService
 from .fast_path import FastPathService
 from .lang_template_service import LangTemplateService
 from .tool_i18n import agent_text, localize_tool_schemas
+from .tool_result import normalize_tool_result
 from ..memory.command_cache import CommandCacheService
 from ..memory.memory_store import AgentMemoryService, parse_memory_command
 from ..memory.session_store import AgentSessionStoreService
@@ -34,8 +47,8 @@ from ..providers.llm_provider_interface import (
     LlmProvider,
     LlmToolCall,
 )
+from ..state.store import MemoryStateStore, SharedStateStore
 from ..tools.home_tools_service import HomeToolsService
-from ...proxy.command_proxy import is_control_success
 from ....platform.core.entity.entity_domain import get_entity_domain
 from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 from ....platform.security.entity_access import is_entity_allowed
@@ -66,8 +79,15 @@ MAX_SESSION_PROMPT_TOKENS = 30_000
 MAX_SESSION_PROMPT_CHARS = 24_000
 #: LLM tool-calling 最大轮数，避免无限循环
 MAX_ROUNDS = 8
-#: 控制类工具（会真实改变设备状态），需要审计留痕
-CONTROL_TOOL_NAMES = frozenset({"control_device", "control_room", "activate_scene"})
+#: 审计结论 → (日志级别, 中文状态)。四态而不是两态：HA 收下请求却没回实体状态时
+#: （``verified is None``）单独记「已下发未确认」，既不算成功也不算失败。
+#: 判定见 :func:`.audit.control_outcome`；控制类名单也在那里，与 ACL 共用一份。
+_AUDIT_STATUS = {
+    OUTCOME_SUCCESS: ("success", "成功"),
+    OUTCOME_UNVERIFIED: ("warning", "已下发未确认"),
+    OUTCOME_FAILED: ("error", "失败"),
+    OUTCOME_BLOCKED: ("warning", "已拦截"),
+}
 #: 审计时需要打码的参数字段（凭证类，绝不能进日志）
 SENSITIVE_ARG_KEYS = frozenset({"code", "pin", "password", "passwd", "token", "secret", "apikey", "api_key", "key"})
 #: 入口标识 → 中文标签（写入 global_log 便于人读）
@@ -237,7 +257,7 @@ class AgentChatResponse:
     speak: bool = True
     #: 执行结果（answer / success / failed / blocked）
     outcome: str = "answer"
-    #: 音效提示（success / error / null）
+    #: 音效提示（success / error / confirm / null）；confirm 用于「需要用户确认」
     earcon: str | None = None
     #: 实际处理方（deepseek / mock / cache / fast-path / fast-query / system）
     provider: str = ""
@@ -251,10 +271,12 @@ class AgentChatResponse:
     timing: dict[str, int] = field(default_factory=dict)
     #: token 用量与成本估算
     usage: dict[str, Any] = field(default_factory=dict)
+    #: 服务端合成的音频 URL（签名 + 10 分钟有效）；为空表示本次不提供音频
+    tts_url: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为 HTTP 响应的 camelCase 结构（对齐 Nest 序列化）。"""
-        return {
+        payload = {
             "reply": self.reply,
             "speak": self.speak,
             "outcome": self.outcome,
@@ -266,6 +288,10 @@ class AgentChatResponse:
             "timing": self.timing,
             "usage": self.usage,
         }
+        # 只有真的签出音频时才带这个字段：老前端不看它，新前端见空即回落本机播报
+        if self.tts_url:
+            payload["ttsUrl"] = self.tts_url
+        return payload
 
 
 def _empty_usage() -> dict[str, Any]:
@@ -316,6 +342,8 @@ class _LlmLoopResult:
     reply: str = ""
     speak: bool = True
     outcome: str = "answer"
+    #: 音效提示覆盖：为空时按 outcome 推导（success / error / 无）
+    earcon: str | None = None
     rounds: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -367,6 +395,7 @@ def _result_uses_success_flag(tool_name: str) -> bool:
     return tool_name in (
         "control_device",
         "activate_scene",
+        "activate_home_mode",
         "set_light_brightness",
         "set_cover_position",
         "media_control",
@@ -487,6 +516,8 @@ class AgentService:
         audit_log: Any | None = None,
         memory: AgentMemoryService | None = None,
         env_context: Any | None = None,
+        tts: Any | None = None,
+        state_store: SharedStateStore | None = None,
     ) -> None:
         self._llm = llm
         self._tools = tools
@@ -504,8 +535,12 @@ class AgentService:
         self._memory = memory
         #: 家庭环境上下文（当前时间 / 天气 / 日出日落）；None 表示不注入
         self._env_context = env_context
-        #: 批量操作确认 / 撤销（纯内存，按会话隔离）
-        self._batch_ops = BatchOperationService()
+        #: 服务端 TTS（签发签名 URL）；None 表示不提供音频，前端走本机 / HA 播报
+        self._tts = tts
+        #: 状态后端：短时记忆 / 预算共用一份，批量确认也复用（多 worker 时一致）
+        self._state_store = state_store or MemoryStateStore()
+        #: 批量操作确认 / 撤销（按会话隔离，状态走共享后端）
+        self._batch_ops = BatchOperationService(self._state_store)
 
     @property
     def _L(self) -> Any:
@@ -626,6 +661,7 @@ class AgentService:
         effective_history = self._merge_short_term_history(effective_history, session_id)
         state = {"short_term_reset": False}
         result = await self._chat_internal(user_message, effective_history, scoped_options, state)
+        self._attach_tts(result)
         # 记录本轮上下文（清除记忆口令除外），供后续指令补全实体 / 意图
         if session_id and user_message.strip() != self._L.clear_memory:
             session_summary = self._build_session_summary(result)
@@ -639,6 +675,23 @@ class AgentService:
                     session_summary or self._build_short_term_summary(result),
                 )
         return result
+
+    def _attach_tts(self, result: AgentChatResponse) -> None:
+        """给需要朗读的回复签一个音频 URL。
+
+        TTS 是**锦上添花**：这里任何异常都只记日志。音频链路的任何问题都不该让
+        一句已经执行成功的控制指令变成错误响应。
+        """
+        tts = self._tts
+        if tts is None or not result.speak or not (result.reply or "").strip():
+            return
+        try:
+            signed = tts.generate_signed_url(result.reply)
+        except Exception:
+            logger.debug("签发 TTS 音频 URL 失败", exc_info=True)
+            return
+        if signed is not None:
+            result.tts_url = signed.tts_url
 
     def _merge_short_term_history(
         self,
@@ -789,24 +842,6 @@ class AgentService:
             return f"场景 {fast.get('sceneName')}"
         return "控制多台设备"
 
-    def _describe_plan(self, calls: list[tuple[str, dict[str, Any]]]) -> str:
-        """把 LLM 计划压缩成可朗读的批量描述。"""
-        parts: list[str] = []
-        for name, args in calls:
-            if name == "control_room":
-                parts.append(
-                    f"{args.get('room') or args.get('area_id') or '房间'}的"
-                    f"{args.get('domain') or '设备'}（{args.get('service')}）"
-                )
-            elif name == "control_device":
-                parts.append(str(args.get("entity_id") or "设备"))
-            elif name == "activate_scene":
-                parts.append(f"场景 {args.get('scene') or args.get('sceneName') or args.get('entity_id')}")
-            else:
-                parts.append(name)
-        joined = "、".join(parts[:6])
-        return f"{joined} 等 {len(parts)} 项" if len(parts) > 6 else joined
-
     def _stage_batch(
         self, ctx: _ChatRunContext, calls: list[tuple[str, dict[str, Any]]], summary: str
     ) -> AgentChatResponse:
@@ -816,7 +851,10 @@ class AgentService:
         return AgentChatResponse(
             reply=self._batch_confirm_prompt(summary),
             speak=True,
+            # 「等你确认」与「做完了 / 失败了」是三种不同反馈：确认提示用单音，
+            # 用户不看屏幕也能听出这一句是在等回复，而不是已经执行完。
             outcome="answer",
+            earcon="confirm",
             provider="fast-path",
             rounds=1,
             tool_calls=[],
@@ -955,8 +993,8 @@ class AgentService:
         return _ToolOutcome(
             serialized=serialized,
             applied=_is_applied_result(payload, by_success_flag=_result_uses_success_flag(name)),
-            control_ok=self._is_control_success(name, payload),
-            blocked=self._is_blocked(payload),
+            control_ok=control_succeeded(name, payload),
+            blocked=is_blocked(payload),
         )
 
     def _remember_targets(
@@ -1004,19 +1042,6 @@ class AgentService:
             return [AgentService._redact(item) for item in value]
         return value
 
-    @staticmethod
-    def _audit_target(name: str, args: dict[str, Any]) -> str:
-        """审计用的动作对象（实体 / 房间 / 场景）。"""
-        if name == "control_device":
-            return str(args.get("entity_id") or "")
-        if name == "control_room":
-            area = str(args.get("area_id") or args.get("room") or "")
-            domain = str(args.get("domain") or "")
-            return f"{area} {domain}".strip()
-        if name == "activate_scene":
-            return str(args.get("scene_id") or args.get("entity_id") or "")
-        return ""
-
     def _audit_control(
         self,
         ctx: _ChatRunContext,
@@ -1025,21 +1050,20 @@ class AgentService:
         result: Any,
         elapsed_ms: int,
     ) -> None:
-        """把控制类动作写入 global_log（best-effort，失败不影响主流程）。"""
+        """把控制类动作写入 global_log（best-effort，失败不影响主流程）。
+
+        结论用 :func:`control_outcome` 的四态，而不是「成功 / 失败」两态：
+        HA 收下请求但没回该实体状态时（``verified is None``）记作「已下发未确认」，
+        既不冤枉成失败，也不把「没执行」写成成功。
+        """
         if self._audit_log is None or name not in CONTROL_TOOL_NAMES:
             return
         try:
-            blocked = self._is_blocked(result)
-            ok = self._is_control_success(name, result)
-            if blocked:
-                level, status = "warning", "已拦截"
-            elif ok:
-                level, status = "success", "成功"
-            else:
-                level, status = "error", "失败"
+            outcome = control_outcome(name, result)
+            level, status = _AUDIT_STATUS[outcome]
             entry = (ctx.options.entry if ctx.options else "web") or "web"
             label = ENTRY_LABELS.get(entry, entry)
-            target = self._audit_target(name, args)
+            target = audit_target(name, args)
             actor = ctx.actor
             who = str(actor.username or actor.user_id or "未绑定身份") if actor else "未绑定身份"
             self._audit_log.append(
@@ -1052,8 +1076,9 @@ class AgentService:
                     "tool": name,
                     "target": target,
                     "user": who,
-                    "ok": ok,
-                    "blocked": blocked,
+                    "ok": outcome == OUTCOME_SUCCESS,
+                    "blocked": outcome == OUTCOME_BLOCKED,
+                    "outcome": outcome,
                     "elapsedMs": elapsed_ms,
                     # 凭证字段已打码；其余参数保留，便于复盘误控
                     "arguments": self._redact(args or {}),
@@ -1087,6 +1112,8 @@ class AgentService:
         except Exception as exc:
             result = {"error": agent_text("tool_error", self._lang_code(), detail=str(exc) or "unknown")}
         elapsed = _now_ms() - started
+        # 契约统一：补 ``ok``（失败再补 ``error``），审计与后续消费方只认这一个真值
+        result = normalize_tool_result(result)
         self._audit_control(ctx, name, payload, result, elapsed)
         return result
 
@@ -1179,7 +1206,7 @@ class AgentService:
                 reply=self._L.cache_confirm_prompt.replace("{tool}", cached.tool_name),
                 speak=True,
                 outcome="answer",
-                earcon=None,
+                earcon="confirm",
                 provider="cache",
                 rounds=0,
                 tool_calls=[],
@@ -1353,12 +1380,14 @@ class AgentService:
                 and (len(control_calls) >= 2 or control_calls[0].name == "control_room")
             ):
                 plan = [(call.name, dict(call.arguments or {})) for call in control_calls]
-                summary = self._describe_plan(plan)
+                summary = describe_plan(plan)
                 self._batch_ops.stage(self._batch_key(ctx), plan, summary)
                 logger.info("LLM 批量计划待确认: session=%s calls=%s", ctx.session_id, len(plan))
                 loop.reply = self._batch_confirm_prompt(summary)
                 loop.speak = True
                 loop.outcome = "answer"
+                # 「等你确认」用单音提示：与「已执行 / 失败」区分，不看屏幕也听得出
+                loop.earcon = "confirm"
                 return loop
             batch = await self._execute_llm_tool_batch(ctx, calls, messages, on_progress)
             # 本批控制全部成功：结束循环，标记 success
@@ -1520,8 +1549,10 @@ class AgentService:
             estimated_cost_cny,
             pricing.source,
         )
-        if loop.outcome == "success":
-            earcon: str | None = "success"
+        if loop.earcon:
+            earcon: str | None = loop.earcon
+        elif loop.outcome == "success":
+            earcon = "success"
         elif loop.outcome in ("failed", "blocked"):
             earcon = "error"
         else:
@@ -1572,7 +1603,7 @@ class AgentService:
         env_context = self._env_context
         if env_context is not None:
             try:
-                env_text = env_context.build(self._lang_code())
+                env_text = await env_context.build(self._lang_code())
             except Exception:
                 logger.debug("生成家庭环境上下文失败", exc_info=True)
                 env_text = ""
@@ -1643,35 +1674,6 @@ class AgentService:
         cleaned = _strip_de(room)
         cleaned = self._L.query_noise_pattern.sub("", cleaned)
         return cleaned.strip()
-
-    @staticmethod
-    def _is_control_success(name: str, response: dict[str, Any]) -> bool:
-        """判定一次控制调用是否成功。"""
-        if not response or response.get("error"):
-            return False
-        if name == "control_device":
-            return is_control_success(response)
-        # 细粒度控制工具：内部同样复用 _control_device，结果带 success + verification
-        if name in ("set_light_brightness", "set_cover_position", "media_control"):
-            return is_control_success(response)
-        # HA 场景 / 脚本：activate_scene 返回 { success, entity_id, ... }
-        if name == "activate_scene":
-            return is_control_success(response) and response.get("blocked") is not True
-        if name == "control_room":
-            total = response.get("total")
-            return _is_number(total) and total > 0 and response.get("affected") == total
-        return False
-
-    @staticmethod
-    def _is_blocked(response: dict[str, Any]) -> bool:
-        """判定工具结果是否包含被安全策略拦截的设备。"""
-        if not response:
-            return False
-        if response.get("blocked") is True:
-            return True
-        if isinstance(response.get("results"), list):
-            return any(isinstance(x, dict) and x.get("blocked") for x in response["results"])
-        return False
 
 
 def _sensor_value(entry: Any) -> str:

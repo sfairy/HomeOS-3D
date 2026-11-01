@@ -67,7 +67,7 @@
           <input v-model="voice.wakeWordEnabled" type="checkbox" class="settings-checkbox" />
           <div>
             <span class="voice-toggle-card__title">{{ '启用唤醒词连续聆听' }}</span>
-            <span class="voice-toggle-card__desc">{{ '仅浏览器 STT 模式支持' }}</span>
+            <span class="voice-toggle-card__desc">{{ '仅浏览器 STT 模式支持；开启后屏保与悬浮管家都可唤醒' }}</span>
           </div>
         </label>
         <label

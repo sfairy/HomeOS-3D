@@ -40,6 +40,53 @@ DEFAULT_LOG_ROWS = 20
 MAX_LOG_ROWS = 50
 
 
+def _scheduled_action(args: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any] | None]:
+    """按参数决定计划任务要执行的动作：控制设备 / 激活场景 / 切换家庭模式。
+
+    schema 一直宣称支持 ``activate_scene`` / ``activate_home_mode``，实现却写死
+    ``control_device``，于是「每晚十点切到观影模式」这类请求要么被拒、要么被执行成
+    「控制某台设备」。这里按参数分流，动作白名单（``ALLOWED_ACTION_TOOLS``）与
+    执行器（``tools.execute``）都不变 —— 到期时走的还是同一套权限与高危拦截。
+
+    返回 ``(动作工具, 动作参数, 前置条件, 错误结果)``；错误结果非 ``None`` 时直接回给模型。
+    """
+    scene = _s(args.get("scene")).strip()
+    mode = _s(args.get("mode")).strip()
+    entity_id = _s(args.get("entity_id")).strip()
+    service = _s(args.get("service")).strip()
+
+    if scene:
+        action_args: dict[str, Any] = {"scene": scene}
+        # 场景实体 ID 与场景名可能同时给（快路径解析出来的就是一对）
+        if entity_id:
+            action_args["entity_id"] = entity_id
+        return "activate_scene", action_args, {}, None
+
+    if mode:
+        return "activate_home_mode", {"name": mode}, {}, None
+
+    if not entity_id or not service:
+        return "", {}, {}, {"error": "需要 entity_id 与 service，或 scene / mode 之一"}
+
+    domain = _s(args.get("domain")).strip() or entity_id.split(".", 1)[0]
+    action_args = {"domain": domain, "service": service, "entity_id": entity_id}
+    if isinstance(args.get("service_data"), dict):
+        action_args["service_data"] = args.get("service_data")
+    # 前置状态只对设备控制有意义：场景 / 家庭模式没有可比的单实体目标态
+    expected = _s(args.get("expected_state")).strip()
+    precondition = {"entityId": entity_id, "expectedState": expected} if expected else {}
+    return "control_device", action_args, precondition, None
+
+
+def _action_label(action_tool: str, action_args: dict[str, Any]) -> str:
+    """未指定任务名时的默认名：让人在列表里一眼看出这条任务干什么。"""
+    if action_tool == "activate_scene":
+        return f"场景 {action_args.get('scene') or action_args.get('entity_id')}"
+    if action_tool == "activate_home_mode":
+        return f"家庭模式 {action_args.get('name')}"
+    return f"{action_args.get('entity_id')} {action_args.get('service')}"
+
+
 def _clamped_int(raw: Any, default: int, minimum: int, maximum: int) -> int:
     """把 LLM 传入的任意值收敛到 ``[minimum, maximum]``；布尔与非法值回退默认。"""
     if isinstance(raw, bool):
@@ -215,22 +262,9 @@ class HomeToolsAutomationMixin(HomeToolsHost):
         guard = self._requires_actor(actor)
         if guard is not None:
             return guard
-        entity_id = _s(args.get("entity_id")).strip()
-        service = _s(args.get("service")).strip()
-        if not entity_id or not service:
-            return {"error": "需要 entity_id 与 service"}
-        domain = _s(args.get("domain")).strip() or entity_id.split(".", 1)[0]
-        action_args: dict[str, Any] = {
-            "domain": domain,
-            "service": service,
-            "entity_id": entity_id,
-        }
-        if isinstance(args.get("service_data"), dict):
-            action_args["service_data"] = args.get("service_data")
-        precondition: dict[str, Any] = {}
-        expected = _s(args.get("expected_state")).strip()
-        if expected:
-            precondition = {"entityId": entity_id, "expectedState": expected}
+        action_tool, action_args, precondition, error = _scheduled_action(args)
+        if error is not None:
+            return error
         payload = {
             "name": _s(args.get("name")).strip(),
             "scheduleType": _s(args.get("schedule_type")).strip().upper() or "ONCE",
@@ -238,12 +272,12 @@ class HomeToolsAutomationMixin(HomeToolsHost):
             "runAt": args.get("run_at"),
             "time": args.get("time"),
             "cron": args.get("cron"),
-            "actionTool": "control_device",
+            "actionTool": action_tool,
             "actionArgs": action_args,
             "precondition": precondition,
         }
         if not payload["name"]:
-            payload["name"] = f"{entity_id} {service}"
+            payload["name"] = _action_label(action_tool, action_args)
         return await scheduler.create_task(payload, actor)
 
     async def _list_scheduled_tasks(self) -> dict[str, Any]:
@@ -290,7 +324,9 @@ class HomeToolsAutomationMixin(HomeToolsHost):
                 enabled = True
         search.set_enabled(enabled)
         count = _clamped_int(args.get("count"), 5, 1, 8)
-        result = await search.search(_s(args.get("query")), count)
+        # 0 表示只要标题 + 摘要；>0 时对前几条结果额外抓正文（失败不影响整体结果）
+        detail = _clamped_int(args.get("detail"), 2, 0, 3)
+        result = await search.search(_s(args.get("query")), count, detail)
         if not result.get("ok"):
             return {
                 "ok": False,

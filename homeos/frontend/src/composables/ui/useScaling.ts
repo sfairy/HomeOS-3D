@@ -16,6 +16,11 @@ export const currentScale = ref(1)
 export const activeDesignWidth = ref(1366)
 /** activeDesignHeight：响应式常量（ref / computed），取值语义见定义。 */
 export const activeDesignHeight = ref(1024)
+/**
+ * 当前缩放是否已触底（触底时内容超出视口、整页需要滚动）。
+ * 布局侧据此决定「贴栏停靠」这类依赖侧栏可见性的形态是否可用。
+ */
+export const currentScaleClamped = ref(false)
 // 是否开启等比缩放（初始化时从 localStorage 或视口判定读取）
 /** scalingEnabled：响应式常量（ref / computed），取值语义见定义。 */
 export const scalingEnabled = ref(readStoredScaling())
@@ -227,9 +232,11 @@ export function useScaling(
       const contentH = designHeight.value
       if (!scalingOn.value || !viewportLayout.value) {
         syncScaleGlobals(1, contentW, contentH)
+        currentScaleClamped.value = false
         return
       }
       syncScaleGlobals(viewportLayout.value.scale, contentW, contentH)
+      currentScaleClamped.value = viewportLayout.value.clamped
     },
     { immediate: true },
   )
