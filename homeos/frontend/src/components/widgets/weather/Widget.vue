@@ -171,18 +171,21 @@ const {
   hasWeather,
 } = useWeatherEntity(weatherEntityOverride)
 
-// 冷实体补全：约定 AQI / 生活指数 / 预警实体可能尚未进入热状态缓存
+// 冷实体补全：约定 AQI / 生活指数 / 预警实体可能尚未进入热状态缓存。
+// 走批量接口（POST /entities/batch/get）而不是四次 ensureEntity：单个补全在实体已被
+// HA 删除时会各自打一条 404（实测首页冷开 5 条 404 / 5 个多余请求），批量接口把缺失
+// ID 收进 missing 并始终返回 200。
 watch(
   weatherEid,
   (eid) => {
     const m = String(eid || '').match(/^weather\.(.+)$/)
     if (!m) return
     const station = m[1]
-    void Promise.all([
-      entitiesStore.ensureEntity(`sensor.${station}_aqi`),
-      entitiesStore.ensureEntity(`sensor.${station}_pm25`),
-      entitiesStore.ensureEntity(`sensor.${station}_clothing`),
-      entitiesStore.ensureEntity(`binary_sensor.${station}_warning`),
+    void entitiesStore.ensureEntities([
+      `sensor.${station}_aqi`,
+      `sensor.${station}_pm25`,
+      `sensor.${station}_clothing`,
+      `binary_sensor.${station}_warning`,
     ])
   },
   { immediate: true },

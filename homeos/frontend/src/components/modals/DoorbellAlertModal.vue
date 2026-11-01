@@ -111,13 +111,53 @@ useEscLayer(toRef(props, 'isOpen'), '门铃提醒', () => {
 
 const isUnlocking = ref(false)
 let doorbellAudio = null
+/** 给 `Audio` 挂上 src 并开始取流；可重复调用，已挂过就短路。 */
+let ensureDoorbellSource = null
+
+const DOORBELL_AUDIO_URL = '/sounds/doorbell.mp3'
+
+/** 首次用户交互的预热监听（卸载时要能摘掉，所以提到模块作用域外面存）。 */
+let doorbellWarmListeners = null
+
+function armDoorbellWarmOnFirstGesture() {
+  const warm = () => {
+    ensureDoorbellSource?.()
+    disarmDoorbellWarm()
+  }
+  disarmDoorbellWarm()
+  doorbellWarmListeners = warm
+  window.addEventListener('pointerdown', warm, true)
+  window.addEventListener('keydown', warm, true)
+}
+
+function disarmDoorbellWarm() {
+  if (!doorbellWarmListeners) return
+  window.removeEventListener('pointerdown', doorbellWarmListeners, true)
+  window.removeEventListener('keydown', doorbellWarmListeners, true)
+  doorbellWarmListeners = null
+}
 
 onMounted(() => {
-  doorbellAudio = new Audio('/sounds/doorbell.mp3')
-  doorbellAudio.load()
+  // 本组件挂在 MainLayout 上。之前在 onMounted 里 `new Audio(url)` 会让浏览器立刻
+  // 开始下载 37,661B 的门铃音频（实测占首页首屏编码传输的 2.9%），而门铃绝大多数
+  // 时候不会响。这里先建一个**没有 src** 的 Audio、把 preload 显式设为 none，
+  // 再把 `src` 的赋值推迟到「用户第一次触碰界面」或「真的响铃」时。
+  //
+  // 为什么是「第一次触碰」而不是纯按需：`play()` 之后才发请求会让铃声晚一拍。
+  // 首次 pointerdown / keydown 时页面早已过了首屏，这个时机预热不影响任何首屏指标。
+  doorbellAudio = new Audio()
+  doorbellAudio.preload = 'none'
+  ensureDoorbellSource = () => {
+    if (!doorbellAudio || doorbellAudio.src) return
+    doorbellAudio.src = DOORBELL_AUDIO_URL
+    doorbellAudio.load()
+  }
+  armDoorbellWarmOnFirstGesture()
 })
 
 onUnmounted(() => {
+  disarmDoorbellWarm()
+  ensureDoorbellSource = null
   if (doorbellAudio) {
     doorbellAudio.pause()
     doorbellAudio = null
@@ -128,6 +168,7 @@ watch(
   () => props.isOpen,
   (val) => {
     if (val && doorbellAudio) {
+      ensureDoorbellSource?.()
       doorbellAudio.currentTime = 0
       doorbellAudio.play().catch((e) => {
         logger.warn('[门铃] 自动播放声音受限，可能需要用户先与页面交互一次。', e)

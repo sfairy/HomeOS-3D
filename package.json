@@ -64,6 +64,8 @@
     "test:architecture": "node ops/lib/py.mjs -m unittest discover -s ops/checks/architecture/tests -v",
     "audit:architecture": "node ops/lib/py.mjs ops/checks/architecture/inventory.py --out-dir docs/architecture/inventory",
     "check:bundle-budget": "bun ops/checks/check_bundle_budget.mjs",
+    "check:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --check",
+    "generate:font-subset": "node homeos-store/frontend/scripts/build-font-subset.mjs --write",
     "check:chunk-init": "bun ops/checks/check_chunk_init_order.mjs --strict",
     "audit:perf-budget": "node ops/checks/check_perf_budget.mjs",
     "perf:baseline": "bash ops/perf/harness/run_baseline.sh before",

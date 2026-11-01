@@ -427,6 +427,7 @@ export const useEntitiesStore = defineStore('entities', () => {
     },
     isAuthenticated: () => useAuthStore().isAuthenticated,
     getEnsureEntity: () => ensureEntity,
+    getEnsureEntities: () => ensureEntities,
     initStatesBatchSize,
     largeEntityThreshold,
     cachePersistBridge,

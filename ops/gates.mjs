@@ -141,6 +141,7 @@ const GATE_GROUPS = {
     },
     { name: 'check:bundle-budget', ...bun('run', 'check:bundle-budget') },
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
+    { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
   ],
   infra: [
     {

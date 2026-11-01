@@ -19,11 +19,18 @@ import {
 } from './license-gate'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
 import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from '@/studio'
-import LoginView from '@/views/auth/LoginView.vue'
-import RegisterView from '@/views/auth/RegisterView.vue'
-import ResetPasswordView from '@/views/auth/ResetPasswordView.vue'
-import LicenseView from '@/views/auth/LicenseView.vue'
-import LicenseRecoveryView from '@/views/auth/LicenseRecoveryView.vue'
+/**
+ * 认证页按需加载。
+ *
+ * 五个视图都只在未登录路径出现，静态 import 会让 Vite 把整个认证子图
+ * （实测 128,337B raw / 40,450B gzip）挂进入口依赖图，`index.html` 的
+ * modulepreload 随即在**每一页**首屏下载它 —— 总览、3D 展示、工作室都在下载
+ * 自己永远用不到的表单代码。改成动态 import 后，该 chunk 只在导航到认证页时拉取，
+ * 首帧观感由外壳内联的认证场景骨架 + 品牌字保证（见 views/auth/entry.ts 的说明）。
+ *
+ * 五条路由共用同一个 `entry` 模块，因此登录 → 注册 → 找回密码之间不会重复下载依赖。
+ */
+const loadAuthEntry = () => import('@/views/auth/entry')
 import { prefetchStoreLinks } from '@/shared/utils/store-links.util'
 import { rememberLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
 import { getSystemInitialized, setSystemInitialized } from './system-init.state'
@@ -45,38 +52,39 @@ async function fetchSetupStatusWithBootRetry(auth: ReturnType<typeof useAuthStor
 
 const routes: RouteRecordRaw[] = [
   {
-    // 登录页：同步入主包，避免冷开再等 lazy chunk 造成空壳一闪。
+    // 登录页：认证子图整体按需加载（见上方 loadAuthEntry 说明）。
+    // 首帧底色/字形由外壳内联的认证场景保证，不依赖本 chunk 到达。
     path: '/login',
     name: 'login',
-    component: LoginView,
+    component: lazyView(async () => (await loadAuthEntry()).LoginView),
     meta: { assets: STUDIO_ASSETS.login },
   },
   {
     // 注册页（首次部署零用户时的唯一入口：账号 + 密码 + 邮箱 + 验证码）
     path: '/register',
     name: 'register',
-    component: RegisterView,
+    component: lazyView(async () => (await loadAuthEntry()).RegisterView),
     meta: { assets: STUDIO_ASSETS.register },
   },
   {
     // 找回本机密码：未登录 / 未激活时都要能进（邮箱验证码由商店代发）
     path: '/reset-password',
     name: 'reset-password',
-    component: ResetPasswordView,
+    component: lazyView(async () => (await loadAuthEntry()).ResetPasswordView),
     meta: { assets: STUDIO_ASSETS.login },
   },
   {
     // 商业授权激活
     path: '/activate',
     name: 'activation',
-    component: LicenseView,
+    component: lazyView(async () => (await loadAuthEntry()).LicenseView),
     meta: { assets: STUDIO_ASSETS.license },
   },
   {
     // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
     path: '/license-recovery',
     name: 'license-recovery',
-    component: LicenseRecoveryView,
+    component: lazyView(async () => (await loadAuthEntry()).LicenseRecoveryView),
     meta: { assets: STUDIO_ASSETS.licenseRecovery },
   },
   // ── 3D Studio 视图 ──

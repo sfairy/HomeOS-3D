@@ -127,6 +127,8 @@ export function bootDisplayBoot(): void {
     (logBootPhase(isFirstScreenReady ? "first-screen-ready" : "manual-entry"),
       clearAllTimers(),
       (splashPhase = "leaving"),
+      // 首屏已经揭幕，此刻才允许碰 GPU 驱动：诊断结果只进日志，不再影响相位机。
+      scheduleWebglDiagnostics(),
       displaySplashLookup()?.classList.remove("is-error"),
       displaySplashLookup()?.classList.add("is-complete"));
     const displaySplashActionsElement = document.getElementById("display-splash-actions");
@@ -230,15 +232,21 @@ export function bootDisplayBoot(): void {
     return hasPending;
   }
   /**
-   * 探测浏览器是否可用 WebGL。
-   * 展示页的 3D 户型是总览的视觉主体，但 GPU / 驱动 / 远程桌面环境可能拿不到 WebGL 上下文；
-   * 此时 Interaction3D 运行时永远不会把 host 标记为就绪，splash 只能干等到超时。
-   * 提前探测并给出「先进入仪表盘」，让顶栏 / 侧边栏 / 底部 dock 仍可用。
+   * 兜底提示用的 WebGL2 判据 —— **不再在 `handleReady()` 里同步调用**。
    *
-   * 必须只认 WebGL2：three.js 0.163 起已移除 WebGL1 支持，只拿到 WebGL1 上下文时
-   * 舞台里的 `new WebGLRenderer()` 会直接抛错，而那个错误提示在 iframe 内部（`.is-ready`
-   * 之前 opacity 为 0），用户在总览上只会看到一块透明空白。旧实现 `webgl2 || webgl`
-   * 把这种情况误判成「可用」，于是连这句提示都不给。
+   * 历史：本函数曾是 `handleReady()` 的第一行，属于首屏关键路径上的同步 GPU 驱动调用。
+   * 2026-10-31 在 headless Edge 上测到它单独占用 2.3–2.7s（当时的报告记为 3.28s 长任务），
+   * 因此被移除；后来为了「不空白」又在 `27b5ae46` 里加了回来。
+   * 2026-11-01 复测（同机 Edge 156、无 throttling、连续 5 次 `getContext("webgl2")`
+   * 并 `WEBGL_lose_context`）中位数 1.7ms，最大值 10.6ms —— 也就是说在这个环境里它
+   * **不再是数量级瓶颈**，但它仍然是同步驱动调用，而且在真实平板上创建/销毁上下文
+   * 的成本无法用无头浏览器外推。
+   *
+   * 现在的分工：
+   * - 首屏不再探测，等待阶段直接用舞台 runtime 回传的 `.is-load-error` 给提示
+   *   （见下方 poll 里对 `.hb-interaction3d-host` 的检查，无 WebGL 时约 1.2s 就能出提示）；
+   * - 本函数只在**首屏揭幕之后**的 idle 时段跑一次，用于把「设备确实没有 WebGL2」
+   *   这个原因写进日志/提示，不影响任何首帧指标。
    */
   function isWebglAvailable() {
     try {
@@ -252,15 +260,26 @@ export function bootDisplayBoot(): void {
       return false;
     }
   }
+  /**
+   * 首屏之后的后台探测：只记一条诊断，不改 splash 相位。
+   * 用 `requestIdleCallback` 让出主线程；没有该 API 的老内核退化为 2s 定时器。
+   */
+  function scheduleWebglDiagnostics() {
+    const run = () => {
+      const available = isWebglAvailable();
+      logBootPhase(available ? "webgl2-available" : "webgl2-unavailable");
+      if (!available) {
+        // 舞台 runtime 可能已经自己报错；这里只在它没报时补一条，避免重复提示。
+        window.HomeOSLog?.warn?.(new Error("当前设备未启用 WebGL2，3D 户型无法渲染。"), {
+          phase: "display-webgl-probe",
+        });
+      }
+    };
+    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 4000 });
+    else setTimeout(run, 2000);
+  }
   function handleReady(readyShellElement: any) {
     if (splashPhase !== SPLASH_PHASE_LOADING) return;
-    if (!isWebglAvailable()) {
-      showError(
-        new Error("当前设备未启用 WebGL2，3D 户型无法渲染。可先进入仪表盘使用其他功能。"),
-        true,
-      );
-      return;
-    }
     ((shellElement = readyShellElement),
       (splashPhase = "waiting"),
       logBootPhase("document-ready"),

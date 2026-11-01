@@ -1050,12 +1050,11 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
               { name: 'lucide', test: /node_modules[\\/]@lucide[\\/]vue/, priority: 30 },
               { name: 'charts', test: /node_modules[\\/]echarts/, priority: 28 },
               { name: 'hls', test: /node_modules[\\/]hls\.js/, priority: 28 },
-              {
-                // 认证页位于 `views/auth/`（Login / Register / License / LicenseRecovery）。
-                name: 'views-auth',
-                test: /src[\\/]views[\\/]auth[\\/]/,
-                priority: 26,
-              },
+              // 认证页**不单独建组**。曾经的 `{ name: 'views-auth', test: /src[\\/]views[\\/]auth[\\/]/ }`
+              // 把认证视图的共享依赖一起吞进来，变成入口的静态依赖：`index.html` 的
+              // modulepreload 出现 128KB 的 `views-auth-*.js`，每页都下载（gzip 40,450B）。
+              // 路由改成 `lazyView(() => import('@/views/auth/entry'))` 后认证子图天然是
+              // 独立动态 chunk，命名组反而会把它提升成静态依赖 —— 删掉后它不再进首屏。
               {
                 name: 'vendor-misc',
                 test: /node_modules/,

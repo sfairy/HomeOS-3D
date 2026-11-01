@@ -6,9 +6,15 @@ import { logger } from '@/shared/utils/core/logger'
 
 const MAX_ENSURE = 120
 
-/** 实体存储接口约束：需提供 ensureEntity 方法。 */
+/** 实体存储接口约束：需提供批量补全方法。 */
 interface EntitiesEnsureStore {
-  ensureEntity: (id: string) => Promise<unknown>
+  /**
+   * 批量冷补全（POST /entities/batch/get）。
+   *
+   * 这里必须是**批量**而不是逐条 `ensureEntity`：断线重连后 pinned + 活跃投影最多
+   * 120 个 ID，逐条发就是 120 个并行 GET，其中已被 HA 删除的还会各打一条 404。
+   */
+  ensureEntities: (ids: string[]) => Promise<unknown>
 }
 
 type LayoutSubscriptionConfig = Parameters<typeof collectPinnedEntityIds>[0]
@@ -36,12 +42,9 @@ export async function refreshPinnedEntitiesAfterStale(
   if (!ids.size) return
 
   const batch = [...ids].slice(0, MAX_ENSURE)
-  await Promise.all(
-    batch.map((id) =>
-      entitiesStore.ensureEntity(id).catch((err) => {
-        logger.warn('[实体冷刷新] ensureEntity 失败', id, err)
-        return null
-      }),
-    ),
-  )
+  try {
+    await entitiesStore.ensureEntities(batch)
+  } catch (err) {
+    logger.warn('[实体冷刷新] ensureEntities 失败', err)
+  }
 }

@@ -28,9 +28,17 @@ const primaryLabel = computed(() => {
         </h1>
         <p class="hm-hero__lead">{{ hero.lead }}</p>
 
-        <p v-if="startingPrice" class="hm-hero__price">
-          <strong>{{ startingPrice }}</strong>
-          <span>{{ hero.priceNote }}</span>
+        <p v-if="startingPrice || !loaded" class="hm-hero__price">
+          <!-- 价格要等 catalog 接口回来才知道。此前是 `v-if="startingPrice"`，
+               于是首屏第一帧没有这一块，接口一到（实测约 160ms）它就撑开 58.31px
+               （1440 视口实测），把首屏以下所有内容整体下推 —— 这一条贡献了首页
+               CLS 0.0297 里的绝大部分。这里改成「加载完成前先占位」：
+               占位用的空 `<strong>&nbsp;</strong>` 与真实价格同一个 line box
+               （同样吃 clamp(28px,3vw,36px)），所以最终像素不变、中间不再跳动。
+               目录为空时 `loaded` 已为真且无价格，整块照旧不渲染。 -->
+          <strong v-if="startingPrice">{{ startingPrice }}</strong>
+          <strong v-else aria-hidden="true">&nbsp;</strong>
+          <span v-if="startingPrice">{{ hero.priceNote }}</span>
         </p>
 
         <div class="hm-hero__actions">

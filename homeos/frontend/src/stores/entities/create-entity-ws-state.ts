@@ -108,6 +108,8 @@ interface EntityWsStateDeps {
   ingestEntitySnapshot: (entity: HaEntityState) => void
   isAuthenticated: () => boolean
   getEnsureEntity: () => (entityId: string) => Promise<HaEntityState | null>
+  /** 批量冷补全桥接：断线重连后一次 batch 请求补全 pinned/投影实体。 */
+  getEnsureEntities: () => (entityIds: string[]) => Promise<HaEntityState[]>
   initStatesBatchSize: () => number
   largeEntityThreshold: () => number
   cachePersistBridge: EntityCachePersistBridge
@@ -483,7 +485,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     try {
       const layout = useLayoutStore()
       void refreshPinnedEntitiesAfterStale(
-        { ensureEntity: deps.getEnsureEntity() },
+        { ensureEntities: deps.getEnsureEntities() },
         layout.layoutConfig,
       )
     } catch (err) {
