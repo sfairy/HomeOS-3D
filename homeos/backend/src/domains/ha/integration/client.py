@@ -824,11 +824,9 @@ class HAClient:
                     if attempt == 0 and _service_call_retry_safe(domain, service):
                         LOGGER.debug("HA 服务调用复用了已断开的连接，重试一次：%s.%s", domain, service)
                         continue
-                    raise HAClientError(f"Home Assistant 服务调用失败：{transport_error}") from transport_error
+                    raise HAClientError(ha_errors.service_call_failed(transport_error)) from transport_error
         except httpx.HTTPStatusError as error:
-            if error.response.status_code in {401, 403}:
-                raise HAAuthError(ha_errors.token_invalid()) from error
-            raise HAClientError(f"Home Assistant 服务调用返回 HTTP {error.response.status_code}。") from error
+            raise self._service_status_error(error, domain, service, entity_id) from error
         except TimeoutError as error:
             raise HAClientError(ha_errors.operation_timeout()) from error
         except (httpx.HTTPError, ValueError) as error:
@@ -841,6 +839,36 @@ class HAClient:
         if _response_reports_unavailable(result, entity_id):
             raise HAClientError(ha_errors.entity_unavailable(entity_id, domain, service))
         return result
+
+    def _service_status_error(
+        self,
+        error: httpx.HTTPStatusError,
+        domain: str,
+        service: str,
+        entity_id: str,
+    ) -> Exception:
+        """把「服务调用收到非 2xx」翻成 HomeOS 的异常，不在这里 raise。
+
+        独立成方法是为了把两个分支从 ``call_service`` 里挪出来：那条链本身已经贴着
+        复杂度基线，再加判据就会触发 ``check:complexity`` 棘轮。
+
+        401/403 归为 ``HAAuthError``（令牌问题）；其余一律 ``HAClientError``。上游 5xx
+        基本等于「某个集成在服务处理里抛了未捕获异常」——小米 / 美的这类云端集成在设备
+        超时后会 RuntimeError 一路冒到 aiohttp，HA 直接回 500，body 里没有可用信息。
+        目标实体只在这里出现，缺了这行日志就只能看到前端那句「服务调用失败」。
+        """
+        status_code = error.response.status_code
+        if status_code in {401, 403}:
+            return HAAuthError(ha_errors.token_invalid())
+        if status_code >= 500:
+            LOGGER.warning(
+                "HA 服务调用被上游拒绝：%s.%s → %s | HTTP %s",
+                domain,
+                service,
+                entity_id,
+                status_code,
+            )
+        return HAClientError(ha_errors.service_http_status(status_code))
 
     async def _call_websocket_operation(
         self,

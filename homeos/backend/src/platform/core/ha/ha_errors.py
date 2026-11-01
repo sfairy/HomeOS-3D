@@ -50,6 +50,16 @@ def http_status(status_code: int) -> str:
     return f'{URL_PREFIX} 返回 HTTP {status_code}。'
 
 
+def service_http_status(status_code: int) -> str:
+    """服务调用被 HA 以非 2xx 拒绝（401/403 会先被归为 ``token_invalid``）。
+
+    与 ``http_status`` 分开是因为这两句面向的失败不同：这句只会出现在控制通道，
+    前端提示的是「指令没下发」。上游 5xx 多半是某个集成在服务处理里抛了未捕获异常
+    （设备 / 云端超时），不是 HomeOS 侧请求写错了 —— 日志里会带实体，文案不带。
+    """
+    return f'{URL_PREFIX} 服务调用返回 HTTP {status_code}。'
+
+
 def operation_timeout() -> str:
     """单次服务调用超时。"""
     return f'{URL_PREFIX} 操作超时。'

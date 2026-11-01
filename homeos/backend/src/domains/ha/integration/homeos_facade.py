@@ -161,6 +161,16 @@ class HomeOSFacadeMixin:
                 return_response=bool(return_response),
             )
         except HAClientError as exc:
+            # 控制通道唯一出口只抛不记：异常继续往上变成 502，调用方只看到一句
+            # 「服务调用失败」。这里补上 domain / service / entity —— 上游 5xx 的 body
+            # 没有任何细节（见 ``HAClient.call_service``），这行是唯一能定位设备的线索。
+            logger.warning(
+                "HA 服务调用失败：%s.%s → %s | %s",
+                domain,
+                service,
+                entity_id or '(未指定实体)',
+                exc,
+            )
             raise BusinessException(ErrorCode.EXTERNAL_ERROR, str(exc)) from exc
 
     async def call_service_via_rest(
