@@ -106,7 +106,7 @@ def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
     """把配置值夹到 ``[minimum, maximum]``；不可解析时回退默认值。"""
     try:
         number = int(float(value))
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
         return default
     return max(minimum, min(maximum, number))
@@ -115,7 +115,7 @@ def _clamp_int(value: Any, default: int, minimum: int, maximum: int) -> int:
 def _clamp_float(value: Any, default: float, minimum: float) -> float:
     try:
         number = float(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         logger.debug("配置项不是数字，回退默认值 %s: %r", default, value)
         return default
     return max(minimum, number)

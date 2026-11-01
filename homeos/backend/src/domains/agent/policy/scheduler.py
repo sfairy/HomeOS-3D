@@ -166,7 +166,7 @@ class AgentSchedulerService:
             task.cancel()
             try:
                 await task
-            except asyncio.CancelledError, Exception:
+            except (asyncio.CancelledError, Exception):
                 logger.debug("计划任务循环已退出", exc_info=True)
 
     async def _loop(self) -> None:

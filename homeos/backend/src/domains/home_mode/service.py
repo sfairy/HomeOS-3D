@@ -85,7 +85,7 @@ def _parse_json(raw: Any, fallback: Any) -> Any:
         return raw
     try:
         return json.loads(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return fallback
 
 
@@ -129,7 +129,7 @@ def _coerce_int_field(fields: dict[str, Any], key: str, default: int) -> int:
         bad_request(f"{key} 须为整数")
     try:
         return int(str(raw).strip()) if isinstance(raw, str) else int(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         bad_request(f"{key} 须为整数")
     return default
 

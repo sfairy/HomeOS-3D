@@ -122,7 +122,7 @@ def _js_stringify(value: Any) -> str:
     """对齐 JS ``JSON.stringify``（紧凑分隔符、不转义中文）。"""
     try:
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return ""
 
 
@@ -1441,7 +1441,7 @@ class AgentService:
         )
         try:
             chat_result: LlmChatResult = await self._llm.chat(messages, tool_schemas, chat_opts)
-        except BusinessException, StarletteHTTPException:
+        except (BusinessException, StarletteHTTPException):
             # 业务 / HTTP 异常透传，其余包装为 LLM 上游错误
             raise
         except Exception as exc:

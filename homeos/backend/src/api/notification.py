@@ -119,7 +119,7 @@ def parse_optional_int(value: str | None) -> int | None:
         return None
     try:
         return int(value, 10)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
 
 

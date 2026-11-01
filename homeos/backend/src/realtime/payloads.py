@@ -77,7 +77,7 @@ def _fingerprint_attributes(attrs: dict[str, Any] | None) -> str:
 def _stable_json(value: Any) -> str:
     try:
         return json.dumps(value, ensure_ascii=False, sort_keys=False, separators=(",", ":"))
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return str(value)
 
 
@@ -209,7 +209,7 @@ def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[f
     if last_event_id_raw:
         try:
             last_event_id = int(str(last_event_id_raw), 10)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             last_event_id = 0
     return (since_ms if not math.isnan(since_ms) else 0.0), last_event_id
 

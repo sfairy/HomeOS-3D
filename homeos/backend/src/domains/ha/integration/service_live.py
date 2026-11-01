@@ -200,7 +200,7 @@ class HALiveMixin(HAConnectorHost):
         connector = self._ha_tuning()["haConnector"]
         try:
             return max(int(connector.get("reconnectBaseMs") or 0), 100) / 1000.0
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return 1.0
 
     def _reconnect_max_backoff(self) -> float:
@@ -208,7 +208,7 @@ class HALiveMixin(HAConnectorHost):
         connector = self._ha_tuning()["haConnector"]
         try:
             value = max(int(connector.get("maxReconnectDelayMs") or 0), 100) / 1000.0
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             value = 10.0
         return max(value, self._reconnect_base_backoff())
 
@@ -231,7 +231,7 @@ class HALiveMixin(HAConnectorHost):
             return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
         try:
             return max(int(raw), 0) / 1000.0
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
 
     def _can_fast_reconnect(self) -> bool:
@@ -254,7 +254,7 @@ class HALiveMixin(HAConnectorHost):
             return False
         try:
             window_ms = max(int(connector.get("fastReconnectWindowMs") or 120_000), 1_000)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             window_ms = 120_000
         return (time.monotonic() - self._last_full_sync_at) * 1000 <= window_ms
 
@@ -346,7 +346,7 @@ class HALiveMixin(HAConnectorHost):
                     continue
                 try:
                     message = json.loads(raw_message)
-                except TypeError, ValueError:
+                except (TypeError, ValueError):
                     # 单条畸形帧只丢这一条：抛出去会把整条实时连接拆掉，代价是一次全量重同步。
                     LOGGER.debug("HA 实时事件不是合法 JSON，已跳过")
                     continue

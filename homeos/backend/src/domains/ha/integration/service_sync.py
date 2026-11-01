@@ -63,7 +63,7 @@ class HASyncMixin(HAConnectorHost):
             for document_json in documents:
                 try:
                     document = json.loads(document_json)
-                except TypeError, ValueError:
+                except (TypeError, ValueError):
                     continue
                 result.update(document_entity_ids(document))
             result.update(document_entity_ids(popup_document))

@@ -343,7 +343,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             for sid in ready:
                 try:
                     await self.sio.enter_room(sid, room)
-                except KeyError, ValueError:
+                except (KeyError, ValueError):
                     # 期间断开的连接：跳过即可，不能让整桶推送失败。
                     continue
                 joined.append(sid)
@@ -353,7 +353,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             for sid in joined:
                 try:
                     await self.sio.leave_room(sid, room)
-                except KeyError, ValueError:
+                except (KeyError, ValueError):
                     continue
 
     def _next_batch_room(self) -> str:

@@ -77,7 +77,7 @@ def _function_span(path: Path, row: int) -> str:
     """返回包含 row 的最内层函数名；静态文件解析失败时用 `<module>`。"""
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except OSError, SyntaxError:
+    except (OSError, SyntaxError):
         return "<module>"
     best: tuple[int, str] | None = None
     for node in ast.walk(tree):

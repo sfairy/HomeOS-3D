@@ -335,7 +335,7 @@ def _parse_iso_ms(value: str | None) -> float:
     try:
         text = value.replace("Z", "+00:00")
         return datetime.fromisoformat(text).timestamp() * 1000
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return 0.0
 
 

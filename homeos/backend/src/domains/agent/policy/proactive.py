@@ -109,7 +109,7 @@ class AgentProactiveService:
             task.cancel()
             try:
                 await task
-            except asyncio.CancelledError, Exception:
+            except (asyncio.CancelledError, Exception):
                 pass
 
     async def _loop(self) -> None:

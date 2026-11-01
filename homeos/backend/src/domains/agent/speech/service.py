@@ -180,7 +180,7 @@ class TtsService:
             return False
         try:
             exp = int(str(exp_raw))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             logger.debug("TTS 签名里的过期时间非法: %r", exp_raw)
             return False
         if exp <= 0 or int(time.time() * 1000) > exp:

@@ -27,7 +27,7 @@ CACHE_MS = 30_000
 def _int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return default
 
 

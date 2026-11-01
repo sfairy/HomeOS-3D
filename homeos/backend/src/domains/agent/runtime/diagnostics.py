@@ -132,7 +132,7 @@ class AgentDiagnosticsService:
             return
         try:
             level = float(battery)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             logger.debug("电量字段不可解析，跳过: %s=%r", entity_id, battery)
             return
         if level > LOW_BATTERY_PERCENT:

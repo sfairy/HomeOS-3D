@@ -25,7 +25,7 @@ def load_raw_config(session: Session) -> dict[str, Any]:
         return {}
     try:
         data = json.loads(row.data)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return {}
     return data if isinstance(data, dict) else {}
 

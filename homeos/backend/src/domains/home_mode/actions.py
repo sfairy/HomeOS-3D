@@ -65,7 +65,7 @@ def _read_snapshot(raw: Any) -> dict[str, Any]:
         try:
             parsed = json.loads(raw)
             return parsed if isinstance(parsed, dict) else {}
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return {}
     return {}
 

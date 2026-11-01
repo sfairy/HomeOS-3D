@@ -77,7 +77,7 @@ def _load_json_column(raw: Any) -> Any:
         return raw
     try:
         return json.loads(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
 
 

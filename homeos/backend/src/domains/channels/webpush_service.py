@@ -108,7 +108,7 @@ def parse_retry_after(value: str | None, *, now: float | None = None) -> float |
         pass
     try:
         parsed = parsedate_to_datetime(text)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     if parsed is None:
         return None
@@ -351,7 +351,7 @@ def _valid_webpush_keys(p256dh: str, auth: str) -> bool:
     try:
         point = base64.urlsafe_b64decode(p256dh + "=" * (-len(p256dh) % 4))
         secret = base64.urlsafe_b64decode(auth + "=" * (-len(auth) % 4))
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         logger.info("WebPush 订阅密钥不是合法 base64url，拒绝注册")
         return False
     return len(point) == 65 and point[0] == 0x04 and len(secret) == 16

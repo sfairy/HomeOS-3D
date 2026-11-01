@@ -197,7 +197,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_brightness = args.get("brightness")
         try:
             brightness = float(raw_brightness) if raw_brightness is not None else float("nan")
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             brightness = float("nan")
         if not entity_id.startswith("light."):
             return {"error": "entity_id 须为 light.*"}
@@ -223,7 +223,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         raw_position = args.get("position")
         try:
             position = float(raw_position) if raw_position is not None else float("nan")
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             position = float("nan")
         if not entity_id.startswith("cover."):
             return {"error": "entity_id 须为 cover.*"}
@@ -256,7 +256,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             raw_volume = args.get("volume")
             try:
                 volume = float(raw_volume) if raw_volume is not None else 0.0
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 volume = 0.0
             if math.isnan(volume):  # NaN → 对齐 JS Number(...) || 0
                 volume = 0.0

@@ -142,7 +142,7 @@ class StateIngressCoalesceService:
         window_ms = self._cfg()["ha"].get("ingressCoalesceWindowMs", 8)
         try:
             window_ms = float(window_ms)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             window_ms = 8.0
         loop = self._loop
         if loop is None or loop.is_closed():

@@ -686,7 +686,7 @@ def _event_to_dict(row: SecurityEvent) -> dict[str, Any]:
 
     try:
         zones = json.loads(row.zones) if row.zones else []
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         zones = []
     created = row.created_at
     ack_at = getattr(row, "ack_at", None)

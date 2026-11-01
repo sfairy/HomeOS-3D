@@ -42,7 +42,7 @@ def _clamp_int(raw: Any, default: int, minimum: int, maximum: int) -> int:
         return default
     try:
         value = int(float(raw))
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         logger.debug("空转阈值不是数字，回退默认值 %s: %r", default, raw)
         return default
     return max(minimum, min(maximum, value))

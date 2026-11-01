@@ -90,7 +90,7 @@ class WecomService:
         self._corp_secret = cfg.corp_secret
         try:
             self._agent_id = int(cfg.agent_id or 0)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             self._agent_id = 0
         self._callback_token = cfg.callback_token
         self._aes_key = cfg.callback_aes_key
@@ -232,7 +232,7 @@ class WecomService:
             expires_in = data.get("expires_in") or 7200
             try:
                 expires_seconds = int(expires_in)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 expires_seconds = 7200
             self._token_expires_at = time.time() * 1000 + expires_seconds * 1000
             return self._access_token

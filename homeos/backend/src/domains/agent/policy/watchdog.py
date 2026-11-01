@@ -131,7 +131,7 @@ class AgentWatchdogService:
             task.cancel()
             try:
                 await task
-            except asyncio.CancelledError, Exception:
+            except (asyncio.CancelledError, Exception):
                 logger.debug("看门狗循环已退出", exc_info=True)
 
     async def _loop(self) -> None:
