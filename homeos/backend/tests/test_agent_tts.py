@@ -19,6 +19,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+from src.domains.agent.speech import edge_tts
 from src.domains.agent.speech import service as tts_service
 from src.domains.agent.speech.cache import TtsCacheService, compute_cache_key
 from src.domains.agent.speech.config import TtsOptions, build_tts_options
@@ -310,6 +311,51 @@ class DrmTokenTest(unittest.TestCase):
 
     def test_obfuscated_differs_from_plain(self) -> None:
         self.assertNotEqual(plain_gec_token(1_760_000_000.0), obfuscated_gec_token(1_760_000_000.0))
+
+
+class EdgeProviderResilienceTest(unittest.IsolatedAsyncioTestCase):
+    """跨境链路会偶发卡死：代理可选、失败重试一次，别让一次抖动变成 503。"""
+
+    async def test_retry_turns_one_stall_into_success(self) -> None:
+        provider = edge_tts.EdgeTtsProvider(env={})
+        calls = {"n": 0}
+
+        async def flaky(connect: object, origin: object, endpoint: str, version: str, ssml: str) -> bytes:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise TimeoutError("握手卡住")
+            return b"ID3ok"
+
+        with patch.object(provider, "_attempt", flaky), patch.object(edge_tts.asyncio, "sleep", _noop_sleep):
+            audio = await provider.synthesize("开灯", voice="zh-CN-XiaoxiaoNeural")
+        self.assertEqual(audio, b"ID3ok")
+        self.assertEqual(calls["n"], 2, "第一次卡住后应重试而不是直接失败")
+
+    async def test_exhausted_retries_raise_and_dedupe_message(self) -> None:
+        provider = edge_tts.EdgeTtsProvider(env={})
+
+        async def always_stall(*_: object) -> bytes:
+            raise TimeoutError("握手卡住")
+
+        with (
+            patch.object(provider, "_attempt", always_stall),
+            patch.object(edge_tts.asyncio, "sleep", _noop_sleep),
+            self.assertRaises(edge_tts.EdgeTtsError) as ctx,
+        ):
+            await provider.synthesize("开灯", voice="zh-CN-XiaoxiaoNeural")
+        # 重试会把同一条错误重复记下来，去重后只留一份
+        self.assertEqual(str(ctx.exception).count("握手卡住"), 1)
+
+    def test_proxy_is_passed_only_when_configured(self) -> None:
+        self.assertEqual(edge_tts.EdgeTtsProvider(env={})._connect_extra(), {})
+        self.assertEqual(
+            edge_tts.EdgeTtsProvider(env={"AGENT_TTS_EDGE_PROXY": " http://127.0.0.1:33211 "})._connect_extra(),
+            {"proxy": "http://127.0.0.1:33211"},
+        )
+
+
+async def _noop_sleep(_seconds: float) -> None:
+    """跳过重试退避，单测不必真的等。"""
 
 
 if __name__ == "__main__":

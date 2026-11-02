@@ -51,6 +51,8 @@ ENDPOINT_FALLBACK = "wss://api.msedgeservices.com/tts/cognitiveservices/websocke
 ENDPOINT_ENV = "AGENT_TTS_EDGE_ENDPOINT"
 #: 令牌版本覆盖入口（逗号分隔；缺省只用服务端当前认可的版本 2）
 VERSION_ENV = "AGENT_TTS_EDGE_GEC_VERSION"
+#: 代理覆盖入口；留空时交给 ``websockets`` 按 ``HTTPS_PROXY`` / ``ALL_PROXY`` 自行判断
+PROXY_ENV = "AGENT_TTS_EDGE_PROXY"
 
 #: 浏览器扩展的 Origin：服务端会校验它，缺了直接 403
 ORIGIN = "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
@@ -72,6 +74,12 @@ SYNTHESIS_TIMEOUT_SECONDS = 6.0
 OPEN_TIMEOUT_SECONDS = 5.0
 #: 首帧之前的静默兜底（防止云端不关闭连接也不发数据）
 FIRST_FRAME_TIMEOUT_SECONDS = 4.0
+#: 发帧超时：TLS 写同样会卡住，不能只靠外层兜底
+SEND_TIMEOUT_SECONDS = 3.0
+#: 单次合成为止的重试次数。跨境链路偶发丢包时重试一次比让整轮对话失声划算
+RETRY_ATTEMPTS = 2
+#: 重试之间的退避（秒）；用户正在等这句话，只做短退避
+RETRY_BACKOFF_SECONDS = 0.3
 
 #: 令牌版本 → 生成函数
 _GEC_GENERATORS = {
@@ -192,18 +200,27 @@ class EdgeTtsProvider:
 
         ssml = build_ssml(text, voice=voice, rate=rate, pitch=pitch, lang=lang)
         failures: list[str] = []
-        for endpoint, version in self._variants():
-            try:
-                audio = await self._attempt(connect, Origin, endpoint, version, ssml)
-            except Exception as exc:
-                failures.append(f"{endpoint}@{version}: {type(exc).__name__} {exc}")
-                logger.debug("edge-tts 候选失败 %s@%s: %s", endpoint, version, exc)
-                continue
-            if audio:
-                self._preferred = (endpoint, version)
-                return audio
-            failures.append(f"{endpoint}@{version}: 空音频")
-        raise EdgeTtsError("edge-tts 合成失败：" + "；".join(failures[:3]))
+        for attempt in range(RETRY_ATTEMPTS):
+            if attempt:
+                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+            for endpoint, version in self._variants():
+                try:
+                    audio = await self._attempt(connect, Origin, endpoint, version, ssml)
+                except Exception as exc:
+                    failures.append(f"{endpoint}@{version}: {type(exc).__name__} {exc}")
+                    logger.debug("edge-tts 候选失败 %s@%s: %s", endpoint, version, exc)
+                    continue
+                if audio:
+                    self._preferred = (endpoint, version)
+                    return audio
+                failures.append(f"{endpoint}@{version}: 空音频")
+        # 重试会把同一条错误重复记下来，去重后再截断，别让 503 的文案自己刷屏
+        raise EdgeTtsError("edge-tts 合成失败：" + "；".join(list(dict.fromkeys(failures))[:3]))
+
+    def _connect_extra(self) -> dict[str, Any]:
+        """显式配置了代理才传 ``proxy``，否则交给 ``websockets`` 读标准代理环境变量。"""
+        proxy = str(self._env.get(PROXY_ENV, "") or "").strip()
+        return {"proxy": proxy} if proxy else {}
 
     async def _attempt(self, connect: Any, origin_type: Any, endpoint: str, version: str, ssml: str) -> bytes:
         """单次尝试：握手 → 发两帧 → 收音频。"""
@@ -214,9 +231,11 @@ class EdgeTtsProvider:
                 origin=origin_type(ORIGIN),
                 open_timeout=OPEN_TIMEOUT_SECONDS,
                 max_size=None,
+                **self._connect_extra(),
             ) as socket:
-                await socket.send(_speech_config_message())
-                await socket.send(_ssml_message(ssml))
+                # TLS 写同样会卡住，单独设超时，别指望外层兜底能及时收场
+                await asyncio.wait_for(socket.send(_speech_config_message()), SEND_TIMEOUT_SECONDS)
+                await asyncio.wait_for(socket.send(_ssml_message(ssml)), SEND_TIMEOUT_SECONDS)
                 return await self._collect(socket)
 
     async def _collect(self, socket: Any) -> bytes:
@@ -246,6 +265,8 @@ __all__ = [
     "ENDPOINT_FALLBACK",
     "ENDPOINT_PRIMARY",
     "OUTPUT_FORMAT",
+    "PROXY_ENV",
+    "RETRY_ATTEMPTS",
     "USER_AGENT",
     "EdgeTtsError",
     "EdgeTtsProvider",
