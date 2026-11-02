@@ -183,6 +183,7 @@ class StateIngressCoalesceService:
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
+                logger.debug("合并队列没有可用事件循环，本批不投递")
                 loop = None
         if loop is None:
             return

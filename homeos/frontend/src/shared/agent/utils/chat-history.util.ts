@@ -79,6 +79,13 @@ function normalizeMessage(raw: unknown): AgentChatStoredMessage | null {
   }
 }
 
+/** 会话标题：优先已存的标题，其次首条用户消息前 24 字，最后兜底「对话」。 */
+function resolveSessionTitle(title: string, messages: AgentChatStoredMessage[]): string {
+  if (title) return title
+  const firstUser = messages.find((message) => message.role === 'user')
+  return firstUser?.text.slice(0, 24) || '对话'
+}
+
 function normalizeSession(raw: unknown): AgentChatSession | null {
   if (!raw || typeof raw !== 'object') return null
   const session = raw as Partial<AgentChatSession>
@@ -90,7 +97,7 @@ function normalizeSession(raw: unknown): AgentChatSession | null {
   const title = String(session.title || '').trim()
   return {
     id,
-    title: title || messages.find((message) => message.role === 'user')?.text.slice(0, 24) || '对话',
+    title: resolveSessionTitle(title, messages),
     updatedAt: Number(session.updatedAt) || Date.now(),
     messages,
   }

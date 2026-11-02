@@ -448,10 +448,12 @@ class HALiveMixin(HAConnectorHost):
                 raise
             except Exception:
                 # 连接在同步期间断掉：交给同步失败 / 收包循环去报错，这里只退出。
+                LOGGER.debug('握手期收包旁路已断开，停止旁路收帧', exc_info=True)
                 return
             try:
                 message = json.loads(raw_message)
             except (TypeError, ValueError):
+                LOGGER.debug('握手期收到非 JSON 帧，已跳过')
                 continue
             capture.received += 1
             capture.frames.append(message)

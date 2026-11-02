@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import time
 import traceback
 from collections.abc import Sequence
@@ -53,6 +54,8 @@ from ...schemas import (
     HAServiceCallRequest,
     HATestRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 runtime_router = APIRouter(tags=['runtime'])
@@ -1035,6 +1038,7 @@ def _drain_runtime_queue_now(queue: Any) -> int:
         try:
             queue.get_nowait()
         except asyncio.QueueEmpty:
+            logger.debug('实时订阅队列已空，停止排空')
             return dropped
         dropped += 1
 
@@ -1068,16 +1072,18 @@ def _runtime_queue_put(queue: Any, frame: dict) -> None:
         queue.put_nowait(frame)
         return
     except asyncio.QueueFull:
-        pass
+        logger.warning('实时订阅队列已满，丢弃最旧帧后重试')
     while True:
         try:
             queue.get_nowait()
         except asyncio.QueueEmpty:
+            logger.debug('实时订阅队列已空，停止丢弃旧帧')
             break
     try:
         queue.put_nowait(frame)
     except asyncio.QueueFull:
         # 极端情况（单帧就超过队列容量）：退化成「建议整表重拉」，绝不静默丢帧。
+        logger.warning('实时订阅队列连一帧都容不下，退化为要求整表重拉')
         record_ha_counter('resync')
         queue.put_nowait({'type': 'resync_required'})
 
@@ -1235,6 +1241,7 @@ async def _runtime_subscribe_and_stream(
             try:
                 payload = json.loads(raw_text)
             except (TypeError, ValueError):
+                logger.debug('实时连接收到非 JSON 客户端消息，已跳过')
                 continue
             if isinstance(payload, dict) and payload.get('type') == 'update_subscription':
                 await apply_subscription_update(payload)

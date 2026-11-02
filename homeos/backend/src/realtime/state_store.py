@@ -117,10 +117,7 @@ class StateStore:
                 next_states[entity_id] = existing
                 continue
             next_states[entity_id] = entity
-            if existing is None:
-                changes.append({"entity_id": entity_id, "old_state": None, "new_state": entity})
-            elif not _same_update(existing, entity):
-                changes.append({"entity_id": entity_id, "old_state": existing, "new_state": entity})
+            _record_snapshot_change(changes, entity_id, existing, entity)
         for entity_id, existing in previous.items():
             if entity_id in next_states:
                 continue
@@ -379,6 +376,22 @@ def _parse_iso_ms(value: str | None) -> float:
 def _updated_ms(entity: dict[str, Any]) -> float:
     raw = entity.get("last_updated") or entity.get("last_changed")
     return _parse_iso_ms(str(raw or ""))
+
+
+def _record_snapshot_change(
+    changes: list[dict[str, Any]],
+    entity_id: str,
+    existing: dict[str, Any] | None,
+    entity: dict[str, Any],
+) -> None:
+    """记录一个快照实体带来的变化：新增记 ``old_state=None``，同一次更新则跳过。
+
+    抽成独立函数只为把 ``set_all`` 的分支压回可读范围；判定规则与调用处完全一致。
+    """
+    if existing is None:
+        changes.append({"entity_id": entity_id, "old_state": None, "new_state": entity})
+    elif not _same_update(existing, entity):
+        changes.append({"entity_id": entity_id, "old_state": existing, "new_state": entity})
 
 
 def _is_newer_than(candidate: dict[str, Any], reference: dict[str, Any]) -> bool:

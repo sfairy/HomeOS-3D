@@ -535,12 +535,17 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
   }
 
 /**
+ * 增量订阅帧的载荷：只需实体集合，其余字段（签名 / 组件列表）由调用方自己持有。
+ */
+type RuntimeSubscriptionFrame = { entityIds: string[] };
+
+/**
  * 在**已经建立**的连接上发送增量订阅帧。
  *
  * 返回 ``false`` 表示当前没有可写连接（调用方需要退回「断开重连」）。
  * 服务端收到后只替换订阅集合，并补一份新集合的快照，不会重下整表。
  */
-function sendRuntimeSubscriptionUpdate(self: PanelRenderer, subscription: any): boolean {
+function sendRuntimeSubscriptionUpdate(self: PanelRenderer, subscription: RuntimeSubscriptionFrame): boolean {
   const socket = self.socket;
   if (!socket || socket.readyState !== WebSocket.OPEN) return false;
   try {
@@ -597,6 +602,13 @@ export function resumeRuntime(this: PanelRenderer) {
     this.connectRuntime({ force: true }));
 }
 
+/** 实时状态帧里参与「新旧判定」的字段；缺时间戳时按非陈旧处理。 */
+type RuntimeStateFrame = {
+  entityId: string;
+  updatedAt?: string | number | null;
+  lastChanged?: string | number | null;
+};
+
 /**
  * 判断一条 runtime 状态帧是否比本地已有的更旧。
  *
@@ -606,7 +618,7 @@ export function resumeRuntime(this: PanelRenderer) {
  *
  * 缺 `updatedAt` / `lastChanged` 时不判定陈旧：宁可多合并一次，也不能丢掉真实更新。
  */
-function runtimeStateFrameIsStale(self: PanelRenderer, runtimeMessage: any): boolean {
+function runtimeStateFrameIsStale(self: PanelRenderer, runtimeMessage: RuntimeStateFrame): boolean {
   const existing = self.states.get(runtimeMessage.entityId);
   if (!existing) return false;
   // 与 socket.io 侧共用同一份判据：旧帧（快照之后才到的握手期事件）一律丢弃，

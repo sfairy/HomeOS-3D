@@ -269,6 +269,7 @@ class LiveStateEventQueue:
                 # 落地失败不能杀死收包循环，下一批照常，但绝不能只留 DEBUG：
                 # 这条链是「HA 事件 → L1 / 广播」的唯一通路，静默失败的表现就是
                 # 「界面显示已连接，状态再也不刷新」，排障时日志里一个字都没有。
+                LOGGER.debug('HA 实时状态合并批次落地失败（限流告警见 _log_failure）', exc_info=True)
                 self._log_failure('HA 实时状态合并批次落地失败')
 
     def _log_failure(self, message: str) -> None:
