@@ -9,8 +9,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -352,6 +354,87 @@ class EdgeProviderResilienceTest(unittest.IsolatedAsyncioTestCase):
             edge_tts.EdgeTtsProvider(env={"AGENT_TTS_EDGE_PROXY": " http://127.0.0.1:33211 "})._connect_extra(),
             {"proxy": "http://127.0.0.1:33211"},
         )
+
+
+class EdgeHedgeTest(unittest.IsolatedAsyncioTestCase):
+    """对冲：卡住的首发不该让用户白等一整个超时（实测 16 秒）才轮到第二次。
+
+    这条链路的故障形态是「握手 / 首帧无响应」，顺序重试等于把超时翻倍。对冲在
+    短延迟后并发补发一次，取先回来的；明确拒绝（403）则不补发。
+    """
+
+    async def test_stalled_first_attempt_is_hedged_instead_of_awaited(self) -> None:
+        provider = edge_tts.EdgeTtsProvider(env={})
+        calls = {"n": 0}
+        black_hole = asyncio.Event()  # 永不 set：模拟连上就再无音讯的握手
+
+        async def attempt() -> bytes:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                await black_hole.wait()
+            return b"ID3ok"
+
+        with patch.object(edge_tts, "HEDGE_DELAY_SECONDS", 0.05):
+            started = time.monotonic()
+            audio = await provider._hedged(attempt)
+            elapsed = time.monotonic() - started
+
+        self.assertEqual(audio, b"ID3ok")
+        self.assertEqual(calls["n"], 2, "首发卡住时应并发补发一次，而不是原地等超时")
+        self.assertLess(elapsed, 1.0, f"对冲后不该等满一次超时，实际 {elapsed:.2f}s")
+
+    async def test_fast_rejection_is_not_hedged(self) -> None:
+        provider = edge_tts.EdgeTtsProvider(env={})
+        calls = {"n": 0}
+
+        async def rejected() -> bytes:
+            calls["n"] += 1
+            raise RuntimeError("上游 403")
+
+        with patch.object(edge_tts, "HEDGE_DELAY_SECONDS", 0.5), self.assertRaises(RuntimeError):
+            await provider._hedged(rejected)
+
+        self.assertEqual(calls["n"], 1, "明确拒绝不该再补发一次：同样的请求结果一样")
+
+    async def test_cancel_that_hangs_does_not_delay_the_return(self) -> None:
+        # 真实故障链：取消握手时 websockets 的 close 又卡了约 10 秒，6 秒超时被拖成 16 秒。
+        # 对冲已经拿到音频，就只该有限等待被取消的那个任务。
+        provider = edge_tts.EdgeTtsProvider(env={})
+        calls = {"n": 0}
+
+        async def attempt() -> bytes:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                try:
+                    await asyncio.sleep(30)
+                except asyncio.CancelledError:
+                    await asyncio.sleep(10)  # 取消清理同样卡住
+                    raise
+            return b"ID3ok"
+
+        with patch.object(edge_tts, "HEDGE_DELAY_SECONDS", 0.02):
+            started = time.monotonic()
+            audio = await provider._hedged(attempt)
+            elapsed = time.monotonic() - started
+
+        self.assertEqual(audio, b"ID3ok")
+        self.assertLess(elapsed, 2.0, f"不该被被取消的慢任务拖住，实际 {elapsed:.2f}s")
+
+    async def test_total_budget_caps_the_overall_wait(self) -> None:
+        provider = edge_tts.EdgeTtsProvider(env={})
+
+        async def forever(*_: object) -> bytes:
+            await asyncio.sleep(3600)
+            return b""
+
+        with (
+            patch.object(edge_tts, "TOTAL_BUDGET_SECONDS", 0.2),
+            patch.object(provider, "_attempt", forever),
+            self.assertRaises(edge_tts.EdgeTtsError) as ctx,
+        ):
+            await provider.synthesize("开灯", voice="zh-CN-XiaoxiaoNeural")
+
+        self.assertIn("总预算", str(ctx.exception))
 
 
 async def _noop_sleep(_seconds: float) -> None:

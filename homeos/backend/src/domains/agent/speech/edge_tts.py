@@ -17,6 +17,14 @@
 - 令牌：只认版本 2（``2-<Chromium 完整版本>``），版本 1 已被淘汰；
 - UA：必须 ``Chrome/<主版本>.0.0.0 … Edg/<主版本>.0.0.0``（带 ``Edg/`` 且只到主版本），
   写成完整版本号或 ``Ed/`` 都会 403 —— 与令牌版本的主版本别搞混。
+
+**慢，而不是断**：这条链路的常见故障是「握手成功但首帧再也不来」，而不是快速报错。
+顺序重试在这种情况下毫无意义 —— 用户要先白等一整个超时（实测 6 秒的超时被取消时的
+close 握手拖成 16 秒）才轮到第二次。因此：首发 ``HEDGE_DELAY_SECONDS`` 内没有结果就
+并发补发一次，取先回来的（:meth:`EdgeTtsProvider._hedged`）；整体再由
+``TOTAL_BUDGET_SECONDS`` 封顶，保证任何一个音频请求都不会挂几十秒。
+
+明确拒绝（401/403）**不**对冲：同样的请求再发一次结果一样，退避重试才有意义。
 """
 
 from __future__ import annotations
@@ -26,7 +34,7 @@ import json
 import logging
 import os
 import uuid
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from .drm import (
@@ -76,10 +84,18 @@ OPEN_TIMEOUT_SECONDS = 5.0
 FIRST_FRAME_TIMEOUT_SECONDS = 4.0
 #: 发帧超时：TLS 写同样会卡住，不能只靠外层兜底
 SEND_TIMEOUT_SECONDS = 3.0
-#: 单次合成为止的重试次数。跨境链路偶发丢包时重试一次比让整轮对话失声划算
+#: 单次合成的重试轮数。跨境链路偶发丢包时重试一次比让整轮对话失声划算
 RETRY_ATTEMPTS = 2
 #: 重试之间的退避（秒）；用户正在等这句话，只做短退避
 RETRY_BACKOFF_SECONDS = 0.3
+#: 对冲延迟：首发这么久还没结果，就并发补发一次，谁先回来用谁
+HEDGE_DELAY_SECONDS = 2.5
+#: 单个候选最多并发几次（含首发）。只补一次：再差也还有外层重试
+HEDGE_ATTEMPTS = 2
+#: 取消慢任务时的等待上限。取消握手本身也可能卡住，死等会把对冲省下的时间赔回去
+CANCEL_GRACE_SECONDS = 0.5
+#: 单次合成的总预算（跨候选 / 对冲 / 重试），保证接口不会挂着等几十秒
+TOTAL_BUDGET_SECONDS = 14.0
 
 #: 令牌版本 → 生成函数
 _GEC_GENERATORS = {
@@ -90,6 +106,39 @@ _GEC_GENERATORS = {
 
 class EdgeTtsError(RuntimeError):
     """edge-tts 合成失败（网络 / 403 / 空音频）。"""
+
+
+def _consume_exception(task: asyncio.Task[Any]) -> None:
+    """消费掉任务的异常，避免被丢弃的对冲任务刷 "Task exception was never retrieved"。"""
+    if task.cancelled():
+        return
+    task.exception()
+
+
+def _settle(task: asyncio.Task[bytes]) -> bytes | Exception:
+    """从已完成的任务里取出音频；失败时把异常交回，由调用方决定要不要再来一次。"""
+    if task.cancelled():
+        return EdgeTtsError("尝试被取消")
+    error = task.exception()
+    if error is not None:
+        # CancelledError 是 BaseException，换成普通异常，别让它穿透到 HTTP 层取消整个请求
+        return error if isinstance(error, Exception) else EdgeTtsError(str(error))
+    audio = task.result()
+    if audio:
+        return audio
+    return EdgeTtsError("空音频")
+
+
+async def _cancel_all(tasks: set[asyncio.Task[Any]]) -> None:
+    """取消仍在跑的任务，但只做有限等待。
+
+    取消时的 close 握手本身也可能卡住（实测把 6 秒的超时拖成 16 秒），死等它会把
+    对冲省下的时间又赔回去。没能在宽限期内收尾的任务交给事件循环回收。
+    """
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.wait(tasks, timeout=CANCEL_GRACE_SECONDS)
 
 
 def default_endpoints() -> tuple[str, ...]:
@@ -200,22 +249,79 @@ class EdgeTtsProvider:
 
         ssml = build_ssml(text, voice=voice, rate=rate, pitch=pitch, lang=lang)
         failures: list[str] = []
-        for attempt in range(RETRY_ATTEMPTS):
-            if attempt:
-                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
-            for endpoint, version in self._variants():
-                try:
-                    audio = await self._attempt(connect, Origin, endpoint, version, ssml)
-                except Exception as exc:
-                    failures.append(f"{endpoint}@{version}: {type(exc).__name__} {exc}")
-                    logger.debug("edge-tts 候选失败 %s@%s: %s", endpoint, version, exc)
-                    continue
-                if audio:
-                    self._preferred = (endpoint, version)
-                    return audio
-                failures.append(f"{endpoint}@{version}: 空音频")
+        try:
+            # 总预算兜住「取消握手又卡 10 秒」这类连环等待：单次超时管不住整体时长
+            async with asyncio.timeout(TOTAL_BUDGET_SECONDS):
+                for attempt in range(RETRY_ATTEMPTS):
+                    if attempt:
+                        await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+                    for endpoint, version in self._variants():
+                        try:
+                            audio = await self._hedged(
+                                # 默认参数绑定当轮的 endpoint/version：缺了会闭包捕获循环变量
+                                lambda ep=endpoint, ver=version: self._attempt(connect, Origin, ep, ver, ssml)
+                            )
+                        except Exception as exc:
+                            failures.append(f"{endpoint}@{version}: {type(exc).__name__} {exc}")
+                            logger.debug("edge-tts 候选失败 %s@%s: %s", endpoint, version, exc)
+                            continue
+                        if audio:
+                            self._preferred = (endpoint, version)
+                            return audio
+                        failures.append(f"{endpoint}@{version}: 空音频")
+        except TimeoutError as exc:
+            raise EdgeTtsError(f"edge-tts 合成超过总预算 {TOTAL_BUDGET_SECONDS}s") from exc
         # 重试会把同一条错误重复记下来，去重后再截断，别让 503 的文案自己刷屏
         raise EdgeTtsError("edge-tts 合成失败：" + "；".join(list(dict.fromkeys(failures))[:3]))
+
+    async def _hedged(self, attempt: Callable[[], Awaitable[bytes]]) -> bytes:
+        """先只发一次；``HEDGE_DELAY_SECONDS`` 内没有结果就并发补发一次，谁先回来用谁。
+
+        这条链路的故障形态是「握手 / 首帧无响应」，不是「快速报错」：只做顺序重试的话，
+        用户得先白等一整个超时（实测 16 秒）才轮到第二次。对冲把最坏等待压到
+        「对冲延迟 + 一次正常合成」。
+
+        快速报错（401/403）**不**对冲 —— 那是明确拒绝，同样的请求再发一次结果一样，
+        交给上层重试循环决定要不要退避重来。
+        """
+        in_flight: set[asyncio.Task[bytes]] = set()
+        failures: list[Exception] = []
+
+        def start() -> None:
+            task = asyncio.create_task(attempt())
+            task.add_done_callback(_consume_exception)
+            in_flight.add(task)
+
+        start()
+        hedged = False
+        try:
+            while in_flight:
+                done, _ = await asyncio.wait(
+                    in_flight,
+                    # 还没对冲过就只等一个对冲窗口，之后一直等到有人完成（由总预算兜底）
+                    timeout=None if hedged else HEDGE_DELAY_SECONDS,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in done:
+                    in_flight.discard(task)
+                    outcome = _settle(task)
+                    if isinstance(outcome, bytes):
+                        return outcome
+                    failures.append(outcome)
+                if done:
+                    continue
+                if hedged:
+                    # 两个都在冲且已过对冲窗口：不再干等，交给上层决定重试
+                    failures.append(EdgeTtsError("合成超时"))
+                    break
+                hedged = True
+                logger.debug("edge-tts 首发 %.1fs 无响应,并发补发一次", HEDGE_DELAY_SECONDS)
+                start()
+        finally:
+            await _cancel_all(in_flight)
+        if failures:
+            raise failures[-1]
+        raise EdgeTtsError("合成未产生结果")
 
     def _connect_extra(self) -> dict[str, Any]:
         """显式配置了代理才传 ``proxy``，否则交给 ``websockets`` 读标准代理环境变量。"""
@@ -264,9 +370,11 @@ class EdgeTtsProvider:
 __all__ = [
     "ENDPOINT_FALLBACK",
     "ENDPOINT_PRIMARY",
+    "HEDGE_DELAY_SECONDS",
     "OUTPUT_FORMAT",
     "PROXY_ENV",
     "RETRY_ATTEMPTS",
+    "TOTAL_BUDGET_SECONDS",
     "USER_AGENT",
     "EdgeTtsError",
     "EdgeTtsProvider",
