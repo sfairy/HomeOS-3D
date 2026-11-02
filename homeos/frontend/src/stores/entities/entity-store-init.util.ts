@@ -9,7 +9,7 @@ import type {
 import { getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
 import { setPollTickMs } from '@/shared/utils/core/poll-scheduler'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import { isStaleState } from '@/shared/entity/utils/state-delta.util'
+import { isStaleState, mergeChunkIntoNewerEntity } from '@/shared/entity/utils/state-delta.util'
 import { applyAdaptiveFrontendPerf } from '@/shared/utils/perf/adaptive-perf.util'
 import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'
@@ -276,8 +276,12 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
       const had = Boolean(previous)
       // 启动分片是**快照**：chunk 生成早于 WS 增量时，直接覆盖会把刚到的新状态写回旧值，
       // 而且之后没有任何推送会来纠正它（HA 只在真正变化时才发）。
+      // 命中「本地更新」时不整条跳过：本地可能只是 delta 合并出的半实体，
+      // 用 chunk 补全缺失属性键（state / 时间戳仍以本地为准）。
       if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
         deps.entities[entity.entity_id!] = entity
+      } else if (previous) {
+        deps.entities[entity.entity_id!] = mergeChunkIntoNewerEntity(previous, entity)
       }
       if (!had) visibleAdded++
       const name = getEntityDisplayName(entity.entity_id!, entity)

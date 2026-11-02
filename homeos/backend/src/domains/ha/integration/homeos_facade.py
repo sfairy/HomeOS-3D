@@ -203,6 +203,17 @@ class HomeOSFacadeMixin:
             return []
         return await client.fetch_all_states()
 
+    async def notify_catalog_changed(
+        self, operation: str, counts: dict[str, int] | None = None, *, connection_id: str = ""
+    ) -> None:
+        """外部（路由 / 目录维护）触发的目录变更广播。
+
+        两条通道一起发：``StateHub``（``/ws/runtime`` 墙屏）+ 事件总线（socket.io 的
+        SPA 实体列表）。只发一条就会出现「有的端看得见新设备、有的端看不见」。
+        """
+        await self._host._publish_catalog_changed(connection_id, operation, counts)
+
+
     async def fetch_entities_by_domain(self, domain: str) -> list[dict[str, Any]]:
         """按 HA 域筛选实体：优先读 ``StateHub`` 快照，空则回退全量拉取。"""
         prefix = f"{domain}."

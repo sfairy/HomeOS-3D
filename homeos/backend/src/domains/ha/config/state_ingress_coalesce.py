@@ -11,7 +11,6 @@ from typing import Any
 from ...app_config.defaults import DEFAULT_APP_CONFIG
 from ....platform.core.entity.entity_domain import get_entity_domain
 from ....platform.core.runtime.app_config import load_raw_config
-from ....platform.core.runtime.background import spawn_awaitable
 from ....platform.core.runtime.observability import record_ha_sync_latency
 
 logger = logging.getLogger("homeos.state_ingress_coalesce")
@@ -47,6 +46,9 @@ class StateIngressCoalesceService:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._cfg_cache: dict[str, Any] | None = None
         self._cfg_at = 0.0
+        #: 投递链尾：保证相邻两个合并窗口的批次按 HA 事件顺序落地（见 ``_emit_now``）。
+        self._chain: asyncio.Task[None] | None = None
+
         self.flush_count = 0
         self.merged_count = 0
 
@@ -60,6 +62,10 @@ class StateIngressCoalesceService:
             self._timer.cancel()
             self._timer = None
         self._flush_all()
+        chain = self._chain
+        self._chain = None
+        if chain is not None and not chain.done():
+            await asyncio.gather(chain, return_exceptions=True)
 
     # 配置
     def _cfg(self) -> dict[str, Any]:
@@ -172,19 +178,40 @@ class StateIngressCoalesceService:
         if not batch:
             return
         payload = {"changes": batch}
-        emit_soon = getattr(self._bus, "emit_soon", None)
-        if callable(emit_soon):
+        loop = self._loop
+        if loop is None or loop.is_closed():
             try:
-                emit_soon("ha.state_changed.batch", payload)
-                return
-            except Exception as exc:
-                logger.debug("合并批量下发失败: %s", exc)
-        emit = getattr(self._bus, "emit", None) or getattr(self._bus, "publish", None)
-        if not callable(emit):
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+        if loop is None:
             return
-        result = emit("ha.state_changed.batch", payload)
-        if inspect.isawaitable(result):
-            spawn_awaitable(result)
+        # 串行链：上一批投递完再投下一批。
+        #
+        # 旧实现用 ``emit_soon``（每次 spawn 一个任务）—— 两个相邻窗口的批次会并发
+        # dispatch：批次 A 的 handler 在 await 数据库时，批次 B 的 handler 已经开始，
+        # 于是 B 的新值可能先落库、A 的旧值后落库，L1 与广播都停在旧值上。
+        # 这里把「投递」串成一条链，跨批次顺序与 HA 事件顺序一致。
+        self._chain = loop.create_task(self._deliver_after(self._chain, payload))
+
+    async def _deliver_after(
+        self, previous: asyncio.Task[None] | None, payload: dict[str, Any]
+    ) -> None:
+        if previous is not None and not previous.done():
+            # 前一批失败不影响本批：吞掉异常只为保证顺序。
+            await asyncio.gather(previous, return_exceptions=True)
+        try:
+            emit = getattr(self._bus, "emit", None) or getattr(self._bus, "publish", None)
+            if not callable(emit):
+                return
+            result = emit("ha.state_changed.batch", payload)
+            if inspect.isawaitable(result):
+                await result
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("合并批量下发失败（%d 条）: %s", len(payload.get("changes") or []), exc)
+
 
     async def flush(self) -> None:
         """显式刷新（关机 / 测试用）。"""

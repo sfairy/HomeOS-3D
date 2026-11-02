@@ -7,11 +7,16 @@ import type { EntitySocketHandlerContext, EntitySocketSyncState, HaEntityState }
 import { handleEntityFallbackFailure } from '@/shared/entity/utils/sync-failure.util'
 import {
   clearEntitySocketSyncTimers,
+  incrementalBatchIncomplete,
+  resetChunkBaselineTracking,
   scheduleIncrementalEnd,
   waitForPendingChunkApplies,
 } from '@/shared/entity/utils/ws-sync'
 import { WS_CLIENT_EVENTS } from '@homeos/shared'
 import type { Socket } from 'socket.io-client'
+
+/** 暂存 delta 的上限：异常流量下宁可丢掉一部分（下次全量兜底），也不让内存无界增长。 */
+const MAX_PENDING_PRE_CHUNK_DELTAS = 2000
 
 /**
  * 全量同步完成前的增量过滤。
@@ -22,6 +27,10 @@ import type { Socket } from 'socket.io-client'
  * 服务端在断线重连时只做 ``state_replay`` 增量回放，不会再发 ``initial_states``，
  * 若一律丢弃，实体状态会永久冻结在断线前的快照里（只有整包推送才偶尔落地），
  * 表现为「页面数据不再实时刷新，手动刷新才恢复正常」。
+ *
+ * 分块同步进行中（``INITIAL_STATES_BEGIN`` 之后、``INITIAL_STATES_END`` 之前）有第三种情况：
+ * 实体基线就在**还没落地**的那几个 chunk 里。不能丢，也不能现在合并（会生成半实体），
+ * 于是暂存到 ``pendingPreChunkDeltas``，等对应 chunk 落地后再合并。
  */
 function filterDeltaBeforeFullSync(
   changes: Record<string, unknown>[],
@@ -30,8 +39,10 @@ function filterDeltaBeforeFullSync(
   logger: EntitySocketHandlerContext['logger'],
 ): Record<string, unknown>[] {
   if (sync.initialStatesReceived || !changes.length) return changes
+  const chunkedEntityIds = sync.chunkedEntityIds
   const applicable: Record<string, unknown>[] = []
   let dropped = 0
+  let buffered = 0
   for (const change of changes) {
     const item = change as { _delta?: boolean; entity_id?: string }
     if (!item?._delta) {
@@ -39,10 +50,19 @@ function filterDeltaBeforeFullSync(
       continue
     }
     const entityId = String(item.entity_id || '')
-    // 本地已有基线：delta 可安全合并（服务端保证 delta 与 baseline 顺序一致）
-    if (entityId && entities[entityId]) {
+    // 本地已有基线，或分块同步里该实体的 chunk 已经落地：delta 可安全合并
+    if (entityId && (entities[entityId] || chunkedEntityIds?.has(entityId))) {
       applicable.push(change)
       continue
+    }
+    // 该实体属于本批分块、但基线还没到：暂存，等 chunk 落地后再合并（比丢弃更省一次整表）
+    if (entityId && chunkedEntityIds) {
+      const pending = (sync.pendingPreChunkDeltas ??= [])
+      if (pending.length < MAX_PENDING_PRE_CHUNK_DELTAS) {
+        pending.push(change)
+        buffered++
+        continue
+      }
     }
     dropped++
   }
@@ -50,6 +70,9 @@ function filterDeltaBeforeFullSync(
     // 后端侧已避免向未就绪客户端广播增量（见 gateway._baseline_ready），此处仅作兜底，
     // 降级 debug 以免产生误导性告警。
     logger.debug?.(`全量同步完成前丢弃 ${dropped} 条 delta 增量(本地缺少该实体基线)`)
+  }
+  if (buffered > 0) {
+    logger.debug?.(`全量分块同步中暂存 ${buffered} 条 delta 增量(等对应 chunk 落地)`)
   }
   return applicable
 }
@@ -69,12 +92,49 @@ export function bindEntitySocketHaSync(
 
   const clearSyncTimers = () => clearEntitySocketSyncTimers(sync)
 
+  /**
+   * 合并分块批次中因「基线还没到」而暂存的 delta。
+   *
+   * 只放行基线已经落地（或整批已结束）的条目，其余继续挂着 —— 现在合并会生成半实体。
+   * 返回真正提交的条数。
+   */
+  const flushPendingPreChunkDeltas = (): number => {
+    const pending = sync.pendingPreChunkDeltas
+    if (!pending?.length) return 0
+    if (sync.initialStatesReceived) {
+      sync.pendingPreChunkDeltas = []
+      actions.updateStatesBatch(pending)
+      return pending.length
+    }
+    const chunkedEntityIds = sync.chunkedEntityIds
+    if (!chunkedEntityIds?.size) return 0
+    const ready: Record<string, unknown>[] = []
+    const rest: Record<string, unknown>[] = []
+    for (const change of pending) {
+      const entityId = String((change as { entity_id?: string })?.entity_id || '')
+      if (entityId && chunkedEntityIds.has(entityId)) ready.push(change)
+      else rest.push(change)
+    }
+    sync.pendingPreChunkDeltas = rest
+    if (ready.length) actions.updateStatesBatch(ready)
+    return ready.length
+  }
+
+  /** 一轮全量同步结束（成功或降级）：解除基线门禁，并放行 / 丢弃暂存的 delta。 */
+  const completeFullSync = (options: { flushPending: boolean }): void => {
+    sync.initialStatesReceived = true
+    if (options.flushPending) flushPendingPreChunkDeltas()
+    else sync.pendingPreChunkDeltas = []
+    resetChunkBaselineTracking(sync)
+  }
+
   /** WS 降级统一处理：REST 回退成功则标记已收到全量，失败走 sync-failure 兜底 */
   const runFallbackAndMarkSynced = (reason: string) =>
     actions
       .fetchEntitiesFallback(reason, { force: true })
       .then((ok: boolean) => {
-        if (ok) sync.initialStatesReceived = true
+        // REST 整包快照是权威数据：暂存 delta 已被它覆盖或更旧，直接丢弃。
+        if (ok) completeFullSync({ flushPending: false })
       })
       .catch((e: unknown) => handleEntityFallbackFailure(reason, e, refs))
 
@@ -142,21 +202,26 @@ export function bindEntitySocketHaSync(
       if (refs.lastQueueDropAt)
         refs.lastQueueDropAt.value = data?.timestamp || new Date().toISOString()
       const dropped = data?.count ?? 1
-      logger.warn(`HA 命令队列丢弃: ${dropped} 条 (${data?.reason || '未知'})`)
+      logger.warn(`HA 实时状态积压丢弃: ${dropped} 条 (${data?.reason || '未知'})`)
+      // 语义：这条事件表示「状态推送积压，本端漏掉了一些**状态**更新」，
+      // 不是「控制指令下发失败」。旧文案（「N 条控制指令未能下发，请重试」）会让用户
+      // 在设备其实已经执行成功时重复操作；这里只需要把状态重新对齐。
+      // 同理不做乐观态回滚：指令确实发出去了，回滚反而会把正确的结果抹掉。
       void actions.appNotify?.(
-        `有 ${dropped} 条控制指令未能下发（队列已满或超时），请检查 HA 连接后重试`,
+        `实时状态积压，已丢弃 ${dropped} 条更新，正在重新对齐实体状态`,
         'warning',
       )
-      // 离线队列丢弃后乐观 UI 不再可信：回滚全部预测态并标陈旧触发 REST 对齐
       refs.entitiesStale.value = true
-      const rolled = actions.rollbackAllOptimistic?.() ?? 0
-      if (rolled > 0) logger.info(`队列丢弃后已回滚 ${rolled} 条乐观更新`)
-      void actions.fetchEntitiesFallback?.('HA 命令队列丢弃', { force: true, quiet: true })
+      // 优先增量对齐（服务端有 since 游标，代价很小），失败再退回整表。
+      void (async () => {
+        const soft = await actions.requestSoftResync?.('HA 状态队列积压')
+        if (soft) return
+        void actions.fetchEntitiesFallback?.('HA 状态队列积压', { force: true, quiet: true })
+      })()
     },
   )
 
   socket.on(WS_CLIENT_EVENTS.INITIAL_STATES, (data: { entities?: HaEntityState[]; count?: number }) => {
-    sync.initialStatesReceived = true
     clearSyncTimers()
     if (sync.loadingFallbackTimer) clearTimeout(sync.loadingFallbackTimer)
     const count = data.entities?.length ?? data.count ?? 0
@@ -167,15 +232,20 @@ export function bindEntitySocketHaSync(
     actions.setConnected(true)
     actions.initStates(data.entities || [], { force: true, reason: 'WebSocket initial_states' })
     refs.loading.value = false
+    // 整包快照是权威数据：分块批次与暂存 delta 全部作废。
+    completeFullSync({ flushPending: false })
   })
 
   socket.on(WS_CLIENT_EVENTS.INITIAL_STATES_BEGIN, (data: { count?: number }) => {
-    sync.initialStatesReceived = true
+    // 注意：这里**不能**把 ``initialStatesReceived`` 置真。分块只是全量快照的切片，
+    // 一个 chunk 都没落地之前本地还没有基线，置真会让紧随其后的 delta 直接合并成
+    // 半实体（只有 state、没有属性），并且再没有任何推送会把它补全。
     clearSyncTimers()
     sync.incrementalExpected = data?.count ?? 0
     sync.incrementalReceivedCount = 0
     sync.pendingChunkApplies = 0
     sync.incrementalEndScheduled = false
+    resetChunkBaselineTracking(sync)
     sync.incrementalToken =
       actions.beginIncrementalInitialStates?.(sync.incrementalExpected) ?? null
     logger.info(`开始分块同步 initial_states(共 ${sync.incrementalExpected || '?'} 个实体)`)
@@ -194,10 +264,19 @@ export function bindEntitySocketHaSync(
       sync.incrementalReceivedCount += list.length
       const token = sync.incrementalToken
       const expected = sync.incrementalExpected
+      // 先登记本块覆盖的实体 id：紧随其后的 delta 只要命中这里就能安全合并
+      // （否则会被 filterDeltaBeforeFullSync 暂存到 chunk 落地之后）。
+      const chunkedEntityIds = (sync.chunkedEntityIds ??= new Set<string>())
+      for (const chunkEntity of list) {
+        const chunkEntityId = String(chunkEntity?.entity_id || '')
+        if (chunkEntityId) chunkedEntityIds.add(chunkEntityId)
+      }
       sync.pendingChunkApplies++
       const apply = () => {
         try {
           actions.mergeInitialStatesChunk?.(list, token, expected)
+          // chunk 落地后再放行之前暂存的 delta：此时基线已就绪，合并结果不会是半实体。
+          flushPendingPreChunkDeltas()
         } finally {
           sync.pendingChunkApplies = Math.max(0, sync.pendingChunkApplies - 1)
         }
@@ -231,7 +310,7 @@ export function bindEntitySocketHaSync(
         if (endSnapshot.token !== sync.incrementalToken) return
         const received = Math.max(endSnapshot.received, sync.incrementalReceivedCount)
         const visible = refs.totalCount.value
-        if (expected > 0 && received < expected * 0.9) {
+        if (incrementalBatchIncomplete(expected, received)) {
           if (sync.pendingChunkApplies > 0) {
             logger.warn(
               `分块渐进同步 apply 超时(仍 pending ${sync.pendingChunkApplies}),改用 REST 回退`,
@@ -243,6 +322,9 @@ export function bindEntitySocketHaSync(
           sync.incrementalExpected = 0
           sync.incrementalReceivedCount = 0
           sync.pendingChunkApplies = 0
+          // 回退到 REST 整包：暂存 delta 会被快照覆盖，先丢掉（成功后再解除门禁）。
+          sync.pendingPreChunkDeltas = []
+          resetChunkBaselineTracking(sync)
           runFallbackAndMarkSynced('WebSocket 分块渐进不完整')
           refs.loading.value = false
           return
@@ -252,6 +334,8 @@ export function bindEntitySocketHaSync(
         sync.incrementalExpected = 0
         sync.incrementalReceivedCount = 0
         sync.pendingChunkApplies = 0
+        // 整批收齐：暂存的 delta 现在都能安全合并（它们的基线已在上面落地）。
+        completeFullSync({ flushPending: true })
         actions.clearHaDisconnectDebounce()
         actions.setConnected(true)
         refs.loading.value = false
@@ -273,7 +357,30 @@ export function bindEntitySocketHaSync(
     actions.setConnected(true)
     actions.initStates([], { force: true, reason: 'WebSocket initial_states_end' })
     refs.loading.value = false
+    completeFullSync({ flushPending: true })
   })
+
+  socket.on(
+    WS_CLIENT_EVENTS.ENTITY_CATALOG_CHANGED,
+    (data: { operation?: string; counts?: Record<string, number>; timestamp?: string }) => {
+      const operation = String(data?.operation || 'updated')
+      logger.info(`实体目录已变更(${operation})`, data?.counts || {})
+      // 目录（有哪些实体 / 叫什么 / 属于哪个设备）与状态是两条数据流：
+      // 只靠状态增量的话，新设备永远进不了选择器，删掉的实体也留在列表里。
+      // 这里做一次轻量校准：优先增量（新实体会带新的 last_updated），失败再退回整表。
+      void actions.refreshEntityCatalog?.(`实体目录变更(${operation})`).catch(() => false)
+      // 墙屏 / 编辑器目录来自各自的一次性快照，用一个全局事件让它们同样校准一次。
+      try {
+        window.dispatchEvent(
+          new CustomEvent('hb-entity-catalog-changed', {
+            detail: { operation, counts: data?.counts || {} },
+          }),
+        )
+      } catch {
+        /* CustomEvent 不可用（非浏览器环境）：忽略 */
+      }
+    },
+  )
 
   socket.on(WS_CLIENT_EVENTS.SYNC_ERROR, (data: { message?: string; code?: string }) => {
     logger.warn('WebSocket 全量同步失败,将使用 REST 回退', data?.message || data?.code)
@@ -293,7 +400,8 @@ export function bindEntitySocketHaSync(
       // 否则 initialStatesReceived 永远为 false、entitiesCacheHydrated 永远为 true，
       // 连带的后果是：实体缓存不再持久化、增量被基线门禁拦掉、
       // 重连横幅卡在「正在重新连接」，只有手动刷新页面才恢复。
-      sync.initialStatesReceived = true
+      // 回放是服务端对本进程历史的权威补齐：暂存 delta 可能比回放还旧，直接作废。
+      completeFullSync({ flushPending: false })
       refs.entitiesCacheHydrated.value = false
       refs.entitiesStale.value = false
       clearSyncTimers()

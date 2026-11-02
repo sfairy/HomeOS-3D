@@ -179,13 +179,8 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
 
         await run_db(_delete_connection_row)
         await connector.state_hub.replace([])
-        await connector.state_hub.publish(
-            {
-                'type': 'entity_catalog_changed',
-                'operation': 'cleared',
-                'counts': {'entities': 0, 'devices': 0, 'areas': 0},
-            }
-        )
+        await connector.notify_catalog_changed('cleared', {'entities': 0, 'devices': 0, 'areas': 0})
+
     except Exception:
         database.rollback()
         raise
@@ -1027,6 +1022,83 @@ def _merge_runtime_state_events(events: list[dict]) -> list[dict]:
     return merged
 
 
+def _drain_runtime_queue_now(queue: Any) -> int:
+    """非阻塞清空订阅队列，返回丢掉的帧数。
+
+    握手期 / 补全期排队的帧都早于「即将下发的快照」，留着只会在快照之后被再推一遍
+    （值相同，纯浪费带宽；值更旧时甚至会把界面推回过去 —— 前端只有快照后的
+    ``last_updated`` 守卫兜底）。
+    """
+    dropped = 0
+    while True:
+        try:
+            queue.get_nowait()
+        except asyncio.QueueEmpty:
+            return dropped
+        dropped += 1
+
+
+def _diff_runtime_states(current: list[dict], previous: list[dict]) -> list[dict]:
+    """补全前后的两份 hub 快照 → 只需要下发的差异帧。
+
+    ``updatedAt`` 是 hub 里的权威更新时刻：相同即同一次更新，不必再推。旧实现直接对
+    两份完整快照做 ``!=`` 深比较，一旦有差异就整包重发（几百个实体 × 全量属性）。
+    """
+    before = {str(item.get('entityId') or ''): item for item in previous if isinstance(item, dict)}
+    changed: list[dict] = []
+    for item in current:
+        if not isinstance(item, dict):
+            continue
+        entity_id = str(item.get('entityId') or '')
+        if not entity_id:
+            continue
+        old = before.get(entity_id)
+        if old is None:
+            changed.append(item)
+            continue
+        if old.get('updatedAt') != item.get('updatedAt') or old.get('state') != item.get('state'):
+            changed.append(item)
+    return changed
+
+
+def _runtime_queue_put(queue: Any, frame: dict) -> None:
+    """往订阅队列里塞一帧（可能来自订阅增量更新），满了就丢掉最旧的再塞。"""
+    try:
+        queue.put_nowait(frame)
+        return
+    except asyncio.QueueFull:
+        pass
+    while True:
+        try:
+            queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+    try:
+        queue.put_nowait(frame)
+    except asyncio.QueueFull:
+        # 极端情况（单帧就超过队列容量）：退化成「建议整表重拉」，绝不静默丢帧。
+        record_ha_counter('resync')
+        queue.put_nowait({'type': 'resync_required'})
+
+
+async def _send_runtime_state_frames(
+    states: list[dict], subscription: _RuntimeSubscriptionState, send_licensed
+) -> bool:
+    """把一批 hub 状态按协商结果下发：能批量就一帧，否则逐条。
+
+    返回 ``False`` 表示连接已不可写（调用方应结束推送）。
+    """
+    if not states:
+        return True
+    if len(states) >= 2 and subscription.supports_state_batch:
+        return await send_licensed({'type': 'state_changed_batch', 'events': states})
+    for state in states:
+        if not await send_licensed(state):
+            return False
+    return True
+
+
+
 async def _runtime_subscribe_and_stream(
     websocket: WebSocket,
     context: dict,
@@ -1049,8 +1121,49 @@ async def _runtime_subscribe_and_stream(
     await websocket.app.state.studio_ha.add_runtime_entity_watch(entity_ids, ensure_states=False)
     subscription.watching = True
 
+    async def apply_subscription_update(payload: dict) -> None:
+        """订阅集合增量更新：不重连、不重下整包快照。
+
+        旧实现（前端）在实体集合变化时断开重连：墙屏每改一次统计/弹窗就会重下一份
+        全量快照并重建所有组件状态。这里只换订阅集合 + 补一份快照，连接与授权上下文
+        都保留。
+        """
+        raw_ids = payload.get('entityIds')
+        if not isinstance(raw_ids, list):
+            return
+        next_ids = {str(value) for value in raw_ids if isinstance(value, str)}
+        if len(next_ids) > MAX_RUNTIME_ENTITIES:
+            await close_with_log(4400, 'too many entities')
+            return
+        added = next_ids - subscription.entity_ids
+        removed = subscription.entity_ids - next_ids
+        if not added and not removed:
+            return
+        if payload.get('supportsStateBatch') is not None:
+            subscription.supports_state_batch = payload.get('supportsStateBatch') is True
+        studio_ha = websocket.app.state.studio_ha
+        subscription.entity_ids = next_ids
+        # set_subscription_entities 会顺带清空握手期残留帧：随后的快照才是权威数据。
+        studio_ha.state_hub.set_subscription_entities(subscription.queue, next_ids)
+        if removed:
+            await studio_ha.remove_runtime_entity_watch(removed)
+        if added:
+            await studio_ha.add_runtime_entity_watch(added, ensure_states=False)
+        _runtime_queue_put(
+            subscription.queue,
+            {'type': 'snapshot', 'states': await studio_ha.state_hub.snapshot(next_ids)},
+        )
+        await _runtime_log(
+            websocket,
+            'info',
+            '实时订阅已更新',
+            {**context, 'phase': 'subscribe_update', 'added': len(added), 'removed': len(removed)},
+        )
+
     async def send_updates() -> None:
         """推送初始快照，然后持续转发状态事件并保活。"""
+        # 先清握手期残留帧再取快照：快照本身已经包含它们。
+        _drain_runtime_queue_now(subscription.queue)
         initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
         if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
             return
@@ -1075,10 +1188,12 @@ async def _runtime_subscribe_and_stream(
                 {**context, 'phase': 'hydrate'},
                 details=traceback.format_exc(),
             )
+        # 补全只会「新增 / 更新」少量实体：只推差异帧，不再整包重发一份快照。
+        # 整包重发要前端整表替换 + 逐组件重绘，而差异通常只有个位数。
         hydrated_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
-        if hydrated_snapshot != initial_snapshot:
-            if not await send_licensed({'type': 'snapshot', 'states': hydrated_snapshot}):
-                return
+        changed = _diff_runtime_states(hydrated_snapshot, initial_snapshot)
+        if changed and not await _send_runtime_state_frames(changed, subscription, send_licensed):
+            return
         while True:
             try:
                 event = await asyncio.wait_for(subscription.queue.get(), timeout=25)
@@ -1107,12 +1222,25 @@ async def _runtime_subscribe_and_stream(
                     return
         return
 
-    async def receive_disconnect() -> None:
-        """另一路任务只负责感知客户端断开。"""
+    async def receive_client_messages() -> None:
+        """感知客户端断开，并处理订阅增量更新帧。"""
         while True:
             message = await websocket.receive()
             if message['type'] == 'websocket.disconnect':
                 raise WebSocketDisconnect(code=message.get('code', 1000))
+            raw_text = message.get('text')
+            if not raw_text:
+                continue
+            try:
+                payload = json.loads(raw_text)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(payload, dict) and payload.get('type') == 'update_subscription':
+                await apply_subscription_update(payload)
+
+    # 收包任务同时承担两件事：感知断开、处理订阅增量更新帧。
+    async def receive_disconnect() -> None:
+        await receive_client_messages()
 
     async def run_until_closed(operation) -> None:
         """跑一路任务，结束后取消另一路，并把真正的异常留给外层分流。"""

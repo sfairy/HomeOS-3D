@@ -146,11 +146,48 @@ export function isStaleState(
   existing: HaEntityState | null | undefined,
 ): boolean {
   if (!existing) return false
-  const incoming = parseHaTimestamp(changedAt)
-  if (incoming === null) return false
-  const current = parseHaTimestamp(existing.last_updated ?? existing.last_changed)
-  if (current === null) return false
-  return incoming < current
+  return isOlderFrameTimestamp(changedAt, existing.last_updated ?? existing.last_changed)
+}
+
+/**
+ * 两份「带时间戳的帧」谁更新：``incoming`` 是否严格早于 ``existing``。
+ *
+ * socket.io 侧比的是实体的 ``last_updated``，``/ws/runtime`` 侧比的是 hub 归一后的
+ * ``updatedAt`` / ``lastChanged`` —— 字段名不同、判据必须是同一份实现，否则两条通道
+ * 对「旧帧」的处理会出现分歧（一条丢弃、另一条把界面推回过去）。
+ *
+ * 任一侧缺时间戳时返回 ``false``：拿不到凭据就不判陈旧，宁可多合并一次也不丢真实更新。
+ */
+export function isOlderFrameTimestamp(incoming: unknown, existing: unknown): boolean {
+  const incomingMs = parseHaTimestamp(incoming)
+  if (incomingMs === null) return false
+  const existingMs = parseHaTimestamp(existing)
+  return existingMs !== null && incomingMs < existingMs
+}
+
+/**
+ * 分块快照与本地已有实体合并（chunk 比本地旧时使用）。
+ *
+ * 早期实现直接整条跳过：但本地那份可能只是**半实体** —— 它来自一条先到的 delta，
+ * 只带了 ``state`` 与变动属性，缺失的属性键永远补不回来（HA 只在变化时推送，
+ * 缺的键不会自己出现）。用 chunk 补全缺失键、保留本地的 state / 时间戳即可两全。
+ *
+ * 合并规则（逐层「本地优先、chunk 补缺」）：
+ * - 顶层字段：本地有值就用本地（``undefined`` 不算有值，让 chunk 补）；
+ * - ``attributes``：先铺 chunk 的全部属性，再盖上本地的（本地是更新的一次快照）。
+ */
+export function mergeChunkIntoNewerEntity(
+  local: HaEntityState,
+  chunk: HaEntityState,
+): HaEntityState {
+  const definedLocal = Object.fromEntries(
+    Object.entries(local).filter(([, value]) => value !== undefined),
+  ) as HaEntityState
+  return {
+    ...chunk,
+    ...definedLocal,
+    attributes: { ...(chunk.attributes || {}), ...(local.attributes || {}) },
+  }
 }
 
 /**

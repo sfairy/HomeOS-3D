@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 
+from homeos_shared.schema_core import mark_clean_shutdown
+
 from . import studio3d_plane
 from ..config import Settings
 
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
 
 from .ha_state_effects import (
     _apply_initial_snapshot,
+    _run_reconciled_change_effects,
     _run_state_change_effects,
 )
 from ..domains.app_config import AppConfigBackupService, AppConfigService
@@ -160,11 +163,19 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         if not isinstance(changes, list):
             return
         sync_filter = getattr(app.state, "entity_sync_filter", None)
+        # ``applied=True``：这批差异来自全量对账，L1 已经由 ``store.set_all`` 写完
+        # （见 ``ha_state_effects._apply_initial_snapshot``）。再走一次 ``_apply_state_change``
+        # 不会改值，却会往环形缓冲里塞一条重复记录，把真正需要回放的增量挤出去。
+        already_applied = isinstance(payload, dict) and payload.get("applied") is True
         applied: list[dict[str, Any]] = []
         for change in changes:
             if not isinstance(change, dict) or not change.get("entity_id"):
                 continue
-            result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
+            if already_applied:
+                await _run_reconciled_change_effects(app, change)
+                result = change
+            else:
+                result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
             if result is None:
                 continue
             if sync_filter is not None and not sync_filter.is_entity_syncable(str(change.get("entity_id"))):
@@ -173,6 +184,20 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
             applied.append(result)
         if applied:
             await gateway.broadcast_state_changed_batch(applied)
+
+    async def _handle_resync_suggested(payload: Any) -> None:
+        """对账差异过大 / 回放不可用：让客户端整表重拉，而不是逐条补推。"""
+        reason = str(payload.get("reason") or "resync") if isinstance(payload, dict) else "resync"
+        await gateway.broadcast_resync_suggested(reason)
+
+    async def _handle_entity_catalog_changed(payload: Any) -> None:
+        """实体目录变更（新增 / 删除 / 注册表刷新）→ 浏览器端刷新实体列表。
+
+        ``/ws/runtime`` 侧走 ``StateHub.publish``，SPA 侧走 socket.io；两条通道的消费者
+        不同，只发一条就会出现「墙屏看到新设备、网页端还在等下一次整表刷新」。
+        """
+        event = payload if isinstance(payload, dict) else {}
+        await gateway.broadcast_entity_catalog_changed(event)
 
     async def _handle_state_changed(payload: Any) -> None:
         # 单条状态变更（区域补全等本地生产者走这条）→ 复用批量路径
@@ -197,6 +222,8 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         "ha.state_changed": _handle_state_changed,
         "ha.state_changed.batch": _handle_state_changed_batch,
         "ha.initial_states": _handle_initial_states,
+        "ha.resync_suggested": _handle_resync_suggested,
+        "ha.entity_catalog_changed": _handle_entity_catalog_changed,
     }
 
 
@@ -1345,6 +1372,10 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     database = getattr(app.state, "database", None)
     if database is not None and dispose_database:
         database.dispose()
+        # 收尾真跑完（含 WAL 归并）才落「干净关闭」标记：下次启动据此只做 quick_check。
+        # dispose 被跳过时（备份线程还在跑）不落标记 —— 那种收尾本来就不算干净，
+        # 下次启动必须逐页全查。
+        mark_clean_shutdown(startup.app_settings.database_path)
 
 
 @asynccontextmanager
@@ -1359,6 +1390,54 @@ async def _startup_phase(app: FastAPI, name: str):
             phases = []
             app.state.startup_phases = phases
         phases.append((name, round((time.perf_counter() - started) * 1000.0, 2)))
+
+
+# 启动阶段在**给人看的摘要**里的中文名。英文原名仍然是 ``/metrics`` 的 ``phase`` 标签与
+# ``app.state.startup_phases`` 的内容（抓取端与面板按英文名对齐），这里只换展示形态。
+_STARTUP_PHASE_LABELS: dict[str, str] = {
+    "schema": "数据库结构",
+    "core_services": "核心服务",
+    "loop_lag_start": "事件环监控",
+    "realtime_pipeline": "实时管道",
+    "security_services_build": "安防装配",
+    "ui_system_services": "界面与系统服务",
+    "security_services_publish": "安防发布",
+    "security_services_start": "安防启动",
+    "home_mode": "家庭模式",
+    "agent_domain": "智能管家",
+    "channels_notification": "通道与通知",
+    "awareness_events": "在场与事件",
+    "weather_earthquake": "天气与地震",
+    "ha_license": "HA与授权",
+}
+
+# 摘要里最多点名几个阶段：够看出「谁拖慢了启动」，又不至于把一行日志铺成表格。
+_STARTUP_SUMMARY_TOP_N = 4
+# 占比达到这个阈值的阶段才标百分比：给占 2% 的小项标占比只是噪音。
+_STARTUP_SUMMARY_SHARE_FLOOR = 0.10
+
+
+def _format_startup_phases(phases: list[tuple[str, float]], total_ms: float) -> str:
+    """把阶段耗时压成一行中文摘要：按耗时降序、大头标占比、零碎项合并计数。
+
+    ``[('schema', 835.02), ...]`` 是 ``repr`` 直接漏进日志的样子，扫一眼读不出「哪一步慢」。
+    完整清单仍在 ``app.state.startup_phases``、``/metrics`` 与 DEBUG 日志里，
+    因此这里可以放心只留摘要；未登记中文名的阶段回落到英文原名，新增阶段不会报错。
+    """
+    if not phases:
+        return "无阶段耗时"
+    ranked = sorted(phases, key=lambda item: item[1], reverse=True)
+    head, rest = ranked[:_STARTUP_SUMMARY_TOP_N], ranked[_STARTUP_SUMMARY_TOP_N:]
+    parts: list[str] = []
+    for name, value in head:
+        part = f"{_STARTUP_PHASE_LABELS.get(name, name)} {value:.1f} ms"
+        share = value / total_ms if total_ms > 0 else 0.0
+        if share >= _STARTUP_SUMMARY_SHARE_FLOOR:
+            part += f"(占 {share:.1%})"
+        parts.append(part)
+    if rest:
+        parts.append(f"其余 {len(rest)} 项合计 {sum(value for _, value in rest):.1f} ms")
+    return f"共 {len(phases)} 个阶段,耗时降序:{' · '.join(parts)}"
 
 
 def create_lifespan(app_settings: Settings, version: str):
@@ -1402,11 +1481,14 @@ def create_lifespan(app_settings: Settings, version: str):
         async with _startup_phase(app, "ha_license"):
             await _start_ha_and_license(app, startup)
         app.state.startup_duration_ms = round((time.perf_counter() - startup_started) * 1000.0, 2)
+        startup_phases = app.state.startup_phases
         logger.info(
-            "应用启动完成: %.1f ms phases=%s",
+            "应用启动完成:%.1f ms | %s",
             app.state.startup_duration_ms,
-            app.state.startup_phases,
+            _format_startup_phases(startup_phases, app.state.startup_duration_ms),
         )
+        # 摘要只点名最慢的几项；完整阶段表在 DEBUG（与 /metrics 的 phase 标签同名，便于对齐回归）。
+        logger.debug("启动阶段原始耗时(ms):%s", startup_phases)
 
         try:
             yield

@@ -79,8 +79,8 @@ class StateStore:
         entities: list[dict[str, Any]],
         *,
         preserve: Iterable[str] | None = None,
-    ) -> None:
-        """用一份全量快照重建 L1。
+    ) -> list[dict[str, Any]]:
+        """用一份全量快照重建 L1，返回**本次真正变化**的实体集合。
 
         ``preserve`` 是「取这份快照期间本地又收到过更新」的实体集合（
         ``StateHub.StateFetchChanges.changed``）。对它们的处理必须区别对待，否则周期对账
@@ -94,10 +94,20 @@ class StateStore:
            快照是它出现之前的。
         其余（含快照里没有、也不在 ``preserve`` 的）按「快照即权威」删除 ——
         周期对账同时也是实体删除的兜底路径。
+
+        返回值的三个用途各不相同，缺一个就会留下一种「界面已连接、数据永远停在旧值」：
+
+        - **广播**：对账窗口里错过的变化只能靠它补推给已连接的客户端（否则它们要等到
+          下一次全量初态，可能永远等不到）；
+        - **回放**：变更同时写进 ``_recent`` 环形缓冲，重连客户端的 ``state_replay``
+          才能看见「对账期间变过什么」。旧实现只替换 ``_states`` 不记变更，于是回放
+          返回空列表、客户端把「什么都没变」当成「已经补齐」；
+        - **计数**：没有变化时不为每个实体写一条空记录，避免把环形缓冲挤爆。
         """
         preserve_ids = {str(item) for item in (preserve or ())}
         previous = self._states
         next_states: dict[str, dict[str, Any]] = {}
+        changes: list[dict[str, Any]] = []
         for entity in entities:
             entity_id = str(entity.get("entity_id") or "")
             if not entity_id:
@@ -105,15 +115,32 @@ class StateStore:
             existing = previous.get(entity_id)
             if existing is not None and (entity_id in preserve_ids or _is_newer_than(existing, entity)):
                 next_states[entity_id] = existing
-            else:
-                next_states[entity_id] = entity
+                continue
+            next_states[entity_id] = entity
+            if existing is None:
+                changes.append({"entity_id": entity_id, "old_state": None, "new_state": entity})
+            elif not _same_update(existing, entity):
+                changes.append({"entity_id": entity_id, "old_state": existing, "new_state": entity})
         for entity_id, existing in previous.items():
-            if entity_id not in next_states and entity_id in preserve_ids:
+            if entity_id in next_states:
+                continue
+            if entity_id in preserve_ids:
                 next_states[entity_id] = existing
+                continue
+            changes.append({"entity_id": entity_id, "old_state": existing, "new_state": None})
         self._states = next_states
         self._ha_synced = True
         self._last_synced_at = _iso_now()
         self._last_state_change_at = time.time() * 1000
+        # 「发现变化的时刻」而不是实体自带的 last_updated：环形缓冲的 ``at`` 必须单调
+        # 递增，否则 ``is_replay_truncated`` 拿 ``_recent[0].at`` 判起点会误判截断。
+        for change in changes:
+            record = self.apply_change(change["entity_id"], change["new_state"], self._last_synced_at)
+            change["changed_at"] = self._last_synced_at
+            change["id"] = record["id"]
+            if change["new_state"] is None:
+                change["removed"] = True
+        return changes
 
     def remove(self, entity_id: str, changed_at: str | None = None) -> dict[str, Any] | None:
         """删除单个实体（HA ``state_changed`` 且 ``new_state=None``）。
@@ -161,6 +188,16 @@ class StateStore:
 
     def get_latest_change_id(self) -> int:
         return self._change_seq
+
+    def get_last_full_sync_ms(self) -> float:
+        """最近一次全量同步（``set_all``）的时刻（毫秒）；从未同步过返回 ``0.0``。
+
+        重连回放要用它判断「客户端基线之后服务端是否整体重铺过一次状态」：
+        ``set_all`` 虽然把差异写进了 ``_recent``，但差异为 0 或某批记录已被环形缓冲
+        挤出时，回放会变成一个空列表 —— 客户端把它当成「已补齐」，界面就永久停在
+        基线时刻的旧值（而且毫无异常提示）。
+        """
+        return _parse_iso_ms(self._last_synced_at) or 0.0
 
     def is_replay_truncated(self, since_ms: float, last_event_id: int) -> bool:
         """请求的 replay 起点是否已不可信（此时增量会被漏发，应强制全量 resync）。
@@ -355,6 +392,22 @@ def _is_newer_than(candidate: dict[str, Any], reference: dict[str, Any]) -> bool
     if not candidate_ms or not reference_ms:
         return False
     return candidate_ms > reference_ms
+
+
+def _same_update(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    """两份状态是否代表**同一次更新**（对账后据此跳过未变化的实体）。
+
+    ``last_updated`` 是 HA 的权威更新时刻：它相同即说明值和属性都没变，不必广播、
+    也不必写回放记录。缺这个字段时退回「状态 + 属性」深比较 —— 宁可多广播一条，
+    也不要漏掉一次真实变化。
+    """
+    left_token = str(left.get("last_updated") or left.get("last_changed") or "")
+    right_token = str(right.get("last_updated") or right.get("last_changed") or "")
+    if left_token and right_token:
+        return left_token == right_token and str(left.get("state")) == str(right.get("state"))
+    return str(left.get("state")) == str(right.get("state")) and object_field(
+        left, "attributes"
+    ) == object_field(right, "attributes")
 
 
 # 实体查询工具（对齐 Nest ``state-store/internals.ts``）

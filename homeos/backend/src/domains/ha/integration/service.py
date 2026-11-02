@@ -96,6 +96,8 @@ class HAConnectorService(
         # homeos 状态监听：接收全量快照与全量增量。StateHub 只承载 3D 侧 watched
         # 子集，而 homeos 读模型与 socket.io 广播需要全部实体，所以两者分开走。
         self._state_listener: Any = None
+        #: 上一次「状态外发失败」告警的时刻（单调时钟）：限流用，避免每个事件刷一行。
+        self._notify_state_failed_at: float = 0.0
         self._known_entity_ids = set()
         self._incremental_flushed_at = { }
         self._persistent_entity_ids = set()
@@ -292,7 +294,12 @@ class HAConnectorService(
         self._state_listener = listener
 
     async def _notify_state(self, kind: str, state_update: Any) -> None:
-        """外发一次状态（失败不拖垮连接循环：状态外发是旁路，不是主链路）。"""
+        """外发一次状态（失败不拖垮连接循环：状态外发是旁路，不是主链路）。
+
+        但失败**必须**可见：这条链是「HA 事件 → L1 / StateHub / socket.io」的唯一出口，
+        静默失败的表现是「界面显示已连接，状态再也不刷新」，而日志里只有 DEBUG。
+        因此计数 + 每 60 秒一条 WARNING。
+        """
         listener = self._state_listener
         if listener is None:
             return
@@ -300,8 +307,20 @@ class HAConnectorService(
             result = listener(kind, state_update)
             if inspect.isawaitable(result):
                 await result
-        except Exception:
-            LOGGER.debug('HA 状态外发失败: %s', kind, exc_info = True)
+        except Exception as error:
+            record_ha_counter('notify_state_failed')
+            now = time.monotonic()
+            if now - self._notify_state_failed_at >= 60.0:
+                self._notify_state_failed_at = now
+                LOGGER.warning(
+                    'HA 状态外发失败（kind=%s）：%s；状态可能停在旧值，60s 内不再重复',
+                    kind,
+                    error,
+                    exc_info=True,
+                )
+            else:
+                LOGGER.debug('HA 状态外发失败: %s', kind, exc_info=True)
+
 
     async def _notify_connection(self, status: str, **extra: Any) -> None:
         """外发一次连接状态变化。

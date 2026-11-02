@@ -11,6 +11,7 @@ export const WS_CLIENT_EVENTS = {
   INITIAL_STATES_END: 'initial_states_end', // [实体同步] 全量分片结束
   STATE_CHANGED_BATCH: 'state_changed_batch', // [实体同步] 增量状态批量推送
   STATE_REPLAY: 'state_replay', // [实体同步] 状态重放
+  ENTITY_CATALOG_CHANGED: 'entity_catalog_changed', // [实体同步] 实体目录变更（新增/删除/注册表刷新）
   SYNC_ERROR: 'sync_error', // [HA连接] 同步错误
   RESYNC_SUGGESTED: 'resync_suggested', // [HA连接] 建议重新同步
   ENTITIES_STALE: 'entities_stale', // [实体同步] 实体状态过期

@@ -245,9 +245,8 @@ class HASyncMixin(HAConnectorHost):
                         (raw for raw in snapshot.states if str(raw.get("entity_id") or "") in watched),
                         invalidated=invalidated,
                     )
-                await self.state_hub.publish(
-                    {"type": "entity_catalog_changed", "operation": "refreshed", "counts": counts}
-                )
+                await self._publish_catalog_changed(connection.id, "refreshed", counts)
+
                 if not self._initial_sync_logged:
                     await self._log_event(
                         "success",

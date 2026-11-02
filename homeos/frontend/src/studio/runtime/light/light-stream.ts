@@ -32,6 +32,26 @@ interface StreamSlot {
   /** socket 已关闭 / 已被退役。 */
   closed: boolean;
   closeSocket: () => void;
+  /**
+   * 本槽的分片连接（一槽可能有多条 socket，见 `MAX_SUBSCRIBE_ENTITIES`）。
+   *
+   * 预留可变：订阅变更走 `update_subscription` 时只改这里每个分片的 `ids`，
+   * 不重建连接 —— 否则同一批实体会被新旧两条连接各快照一遍。
+   */
+  chunks: StreamChunk[];
+  /** 刷新心跳计时（建槽时注入）：增量订阅后连接仍然健康，要重新计时。 */
+  touchHeartbeat?: () => void;
+  /** 触发整槽失败（建槽时注入）。 */
+  fail?: () => void;
+}
+
+/** 槽内的一个分片连接。 */
+interface StreamChunk {
+  socket: WebSocket;
+  /** 该分片当前订阅的实体（`update_subscription` 会原地改写）。 */
+  ids: string[];
+  /** 该分片是否收到过自己的首个 snapshot。 */
+  ready: boolean;
 }
 
 export interface LightStreamOptions {
@@ -163,6 +183,58 @@ export function createLightStream({
     notify && invalidatedEntityIds.length && onInvalidate(invalidatedEntityIds);
   }
 
+  /** 按当前 `wantedEntityIds` 切分片：后端单连接上限见 `MAX_SUBSCRIBE_ENTITIES`。 */
+  function splitSubscriptionChunks(entityIds: string[]): string[][] {
+    const chunks: string[][] = [];
+    for (let chunkStart = 0; chunkStart < entityIds.length; chunkStart += MAX_SUBSCRIBE_ENTITIES)
+      chunks.push(entityIds.slice(chunkStart, chunkStart + MAX_SUBSCRIBE_ENTITIES));
+    return chunks;
+  }
+
+  /**
+   * 在**已 ready 的活跃槽**上做增量订阅，返回是否成功。
+   *
+   * 为什么不是一切换就重建连接：两槽交接虽然消灭了空窗，但订阅一变就并行建一条新连接，
+   * 同一批实体（尤其是大户型几百个灯）会被新旧两条连接重复快照 —— 服务端要重复取数、
+   * 重复序列化，墙屏每改一次统计/弹窗就付一次这个代价。
+   *
+   * 后端 `/ws/runtime` 支持 `update_subscription`：换订阅集合 + 补一份新集合的快照，
+   * 连接与授权上下文都保留，旧值在补快照到达前继续供数，空窗同样不存在。
+   *
+   * 分片数变化（实体数跨过 1000 的边界）时不走这条路：分片边界得重建，交给两槽交接。
+   */
+  function tryUpdateActiveSubscription(nextEntityIds: string[]): boolean {
+    const slot = activeSlot;
+    if (!slot || !slot.ready || slot.closed || pendingSlot) return false;
+    if (!slot.chunks.length) return false;
+    const nextChunkIds = splitSubscriptionChunks(nextEntityIds);
+    if (nextChunkIds.length !== slot.chunks.length) return false;
+    for (let chunkIndex = 0; chunkIndex < slot.chunks.length; chunkIndex++) {
+      const chunk = slot.chunks[chunkIndex];
+      chunk.ids = nextChunkIds[chunkIndex];
+      try {
+        chunk.socket.send(
+          JSON.stringify({ type: "update_subscription", entityIds: chunk.ids }),
+        );
+      } catch {
+        // 连接已经不可写：按整槽失败处理（会失效并重连），绝不退回「再建一条连接」。
+        slot.fail?.();
+        return true;
+      }
+    }
+    slot.ids = [...nextEntityIds];
+    wantedEntityIds = nextEntityIds;
+    wantedEntityIdSet = new Set(nextEntityIds);
+    // 已经不在订阅集合里的实体不能继续留在槽里：否则 emitStates 之外的地方（如
+    // emitPatch / 历史缓存）仍会读到早已退订的旧值。
+    for (const staleEntityId of [...slot.stateById.keys()])
+      wantedEntityIdSet.has(staleEntityId) || slot.stateById.delete(staleEntityId);
+    // 增量订阅后连接仍然健康：重新计心跳，别沿用旧的首帧超时。
+    slot.touchHeartbeat?.();
+    emitStates();
+    return true;
+  }
+
   /**
    * 按当前 `wantedEntityIds` 新建一条 pending 连接。
    *
@@ -174,27 +246,21 @@ export function createLightStream({
    */
   function openPendingSlot() {
     if (isDisposed || !isStreamActive || !wantedEntityIds.length || pendingSlot) return;
-    const chunkEntityIds: string[][] = [];
-    for (
-      let chunkStart = 0;
-      chunkStart < wantedEntityIds.length;
-      chunkStart += MAX_SUBSCRIBE_ENTITIES
-    )
-      chunkEntityIds.push(wantedEntityIds.slice(chunkStart, chunkStart + MAX_SUBSCRIBE_ENTITIES));
+    const chunkEntityIds = splitSubscriptionChunks(wantedEntityIds);
     const slot: StreamSlot = {
       ids: [...wantedEntityIds],
       stateById: new Map(),
       ready: false,
       closed: false,
       closeSocket: () => {},
+      chunks: [],
     };
     pendingSlot = slot;
     // 每个槽只管自己的心跳；重连退避是全流共享的（`reconnectTimerId`），
     // 否则两个槽各退避一份，交接期会出现两倍频率的重连。
     let slotHeartbeatTimerId: any = null,
       readyChunkCount = 0;
-    const chunkSockets: WebSocket[] = [],
-      chunkListenerCleanups: Array<() => void> = [];
+    const chunkListenerCleanups: Array<() => void> = [];
     const clearSlotTimers = () => {
       (slotHeartbeatTimerId !== null && clearTimer(slotHeartbeatTimerId),
         (slotHeartbeatTimerId = null));
@@ -203,9 +269,9 @@ export function createLightStream({
     slot.closeSocket = () => {
       clearSlotTimers();
       for (const cleanupChunkListeners of chunkListenerCleanups) cleanupChunkListeners();
-      for (const chunkSocket of chunkSockets)
+      for (const chunk of slot.chunks)
         try {
-          chunkSocket.close();
+          chunk.socket.close();
         } catch {
           // 清理期关闭失败无需处理：socket 可能已经没有底层连接。
         }
@@ -233,8 +299,12 @@ export function createLightStream({
 
     function scheduleHeartbeatTimeout(heartbeatTimeoutMs: number) {
       (slotHeartbeatTimerId !== null && clearTimer(slotHeartbeatTimerId),
-        (slotHeartbeatTimerId = setTimer(() => slotFailed(), heartbeatTimeoutMs)));
+        (slotHeartbeatTimerId = setTimer(() => slotFailed(0), heartbeatTimeoutMs)));
     }
+
+    // 注入给槽外（增量订阅）用的钩子：失败与心跳都由建槽的闭包管理。
+    slot.fail = () => slotFailed(0);
+    slot.touchHeartbeat = () => scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
 
     /** 一个分片收到 snapshot：凑齐全部分片才算整槽 ready，然后晋升。 */
     function chunkSnapshotReady() {
@@ -263,12 +333,13 @@ export function createLightStream({
         scheduleReconnect();
         return false;
       }
-      chunkSockets.push(chunkSocket);
+      const chunk: StreamChunk = { socket: chunkSocket, ids: chunkIds, ready: false };
+      slot.chunks.push(chunk);
       const socketHandlers: Record<string, (event: any) => void> = {
         open() {
           if (!slotIsAlive()) return;
           try {
-            chunkSocket.send(JSON.stringify({ type: "subscribe", entityIds: chunkIds }));
+            chunkSocket.send(JSON.stringify({ type: "subscribe", entityIds: chunk.ids }));
           } catch {
             slotFailed();
           }
@@ -288,10 +359,19 @@ export function createLightStream({
             return;
           }
           if (messagePayload.type === "snapshot" && Array.isArray(messagePayload.states)) {
+            // 按**当前**订阅集合过滤：`update_subscription` 之后该分片的 ids 已经换过，
+            // 用建连时冻结的那份会把新实体的快照全部丢掉。
             for (const snapshotState of messagePayload.states)
-              chunkIds.includes(snapshotState?.entityId) &&
+              chunk.ids.includes(snapshotState?.entityId) &&
                 typeof snapshotState.state == "string" &&
                 slot.stateById.set(snapshotState.entityId, structuredClone(snapshotState));
+            if (chunk.ready) {
+              // 增量订阅后的补快照：整槽已经 ready，只需要把新值刷出去，不参与晋升计数。
+              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
+              emitStates();
+              return;
+            }
+            chunk.ready = true;
             chunkSnapshotReady();
             return;
           }
@@ -369,13 +449,15 @@ export function createLightStream({
         )
       )
         return;
-      (cancelReconnect(),
-        // pending 是按旧集合建的，订阅变了就没用了；active **保留**，
-        // 它继续供交集部分的值，直到新连接拿到 snapshot。
-        (pendingSlot !== null && (retireSlot(pendingSlot), (pendingSlot = null))),
+      (cancelReconnect(), (reconnectAttempt = 0));
+      // 首选：在现有连接上增量换订阅（不新建连接、不重复快照）。
+      if (tryUpdateActiveSubscription(nextSubscribedEntityIds)) return;
+      // 退化到两槽交接（分片边界变化 / 活跃槽还没 ready）：
+      // pending 是按旧集合建的，订阅变了就没用了；active **保留**，
+      // 它继续供交集部分的值，直到新连接拿到 snapshot。
+      (pendingSlot !== null && (retireSlot(pendingSlot), (pendingSlot = null)),
         (wantedEntityIds = nextSubscribedEntityIds),
-        (wantedEntityIdSet = new Set(wantedEntityIds)),
-        (reconnectAttempt = 0));
+        (wantedEntityIdSet = new Set(wantedEntityIds)));
       if (activeSlot && !activeSlot.ids.some((activeSlotId) => wantedEntityIdSet.has(activeSlotId))) {
         (retireSlot(activeSlot), (activeSlot = null));
       }

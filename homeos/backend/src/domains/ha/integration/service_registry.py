@@ -278,10 +278,8 @@ class HARegistryMixin(HAConnectorHost):
                 entities, devices, areas = await (await self.client_for(connection)).fetch_registries()
                 counts = await self._run_database(self._apply_registry_snapshot, connection_id, entities, devices, areas)
             if counts is not None:
-                await self.state_hub.publish({
-                    'type': 'entity_catalog_changed',
-                    'operation': 'metadata_refreshed',
-                    'counts': counts })
+                await self._publish_catalog_changed(connection_id, 'metadata_refreshed', counts)
+
         except asyncio.CancelledError:
             raise
         except Exception as error:

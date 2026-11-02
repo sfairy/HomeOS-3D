@@ -19,9 +19,9 @@
       v-if="showRetryDropped"
       type="button"
       class="hos-degrade-banner__retry focus-ring"
-      @click="retryDropped"
+      @click="realignDroppedStates"
     >
-      {{ '重试指令' }}
+      {{ '重新对齐状态' }}
     </button>
     <button
       v-if="showRetry && showRetryButton"
@@ -40,7 +40,6 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { WifiOff, Loader2, Database } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
-import { retryDroppedHaCommands } from '@/services/api/entities'
 
 const props = defineProps({
   /** 自定义标题，留空则按状态自动推导 */
@@ -159,7 +158,9 @@ const resolvedMessage = computed(() => {
   }
   if (entitiesStore.entitiesStale) parts.push('实体缓存可能已过期')
   if (entitiesStore.haQueueDroppedTotal > 0) {
-    parts.push(`有 ${entitiesStore.haQueueDroppedTotal} 条控制指令未能下发`)
+    // 语义修正：这是**状态推送**积压丢弃，不代表控制指令下发失败。
+    // 旧文案「有 N 条控制指令未能下发」会让用户在设备其实已执行成功时重复操作。
+    parts.push(`实时状态积压，已丢弃 ${entitiesStore.haQueueDroppedTotal} 条更新`)
   }
   return parts.length ? parts.join('；') : '请检查 HA 连接与网络'
 })
@@ -176,17 +177,23 @@ const showRetryButton = computed(
 )
 const showRetryDropped = computed(() => entitiesStore.haQueueDroppedTotal > 0)
 
-async function retryDropped() {
+/**
+ * 状态积压丢弃后的对齐动作。
+ *
+ * 计数来自 ``ha_queue_dropped``，表示「状态推送积压丢弃」，与「控制指令下发失败」
+ * 是两件事（原先的「重试指令」按钮调用的是一个后端并不存在的 ``/ha/queue/retry``，
+ * 点下去只会 404，且把用户引向错误的操作）。这里直接做一次状态重新对齐：
+ * 服务端 resync + REST 增量，失败再退回整表。
+ */
+async function realignDroppedStates() {
   try {
-    const { data } = await retryDroppedHaCommands()
-    const retried = Number(data?.retried ?? 0)
-    const queued = Number(data?.queued ?? 0)
+    const result = await entitiesStore.refreshEntitiesFromServer()
     chrome.notify(
-      retried || queued ? `已重试 ${retried} 条，排队 ${queued} 条` : '没有可重试的指令',
-      retried || queued ? 'success' : 'info',
+      result?.count ? `已重新对齐 ${result.count} 个实体状态` : '状态对齐完成',
+      result?.ok ? 'success' : 'info',
     )
   } catch {
-    chrome.notify('重试指令失败', 'error')
+    chrome.notify('状态对齐失败，请稍后重试', 'error')
   }
 }
 

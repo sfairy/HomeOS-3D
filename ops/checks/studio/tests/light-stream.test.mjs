@@ -102,7 +102,7 @@ function createHarness() {
   }
 }
 
-test('订阅变更时旧值继续供数，不闪空', () => {
+test('订阅变更时旧值继续供数，且复用同一条连接（不重复快照）', () => {
   const harness = createHarness()
   harness.stream.setActive(true)
   harness.stream.configure(['light.a'])
@@ -126,12 +126,27 @@ test('订阅变更时旧值继续供数，不闪空', () => {
   assert.equal(harness.emittedStates.length, 1)
   assert.equal(harness.lastStates()['light.a'].state, 'on')
   assert.equal(harness.lastStates()['light.b'].state, 'unavailable')
-  // 旧连接仍在供数，新连接并行建起来 —— 这就是「双 socket」。
-  assert.equal(harness.sockets.length, 2)
+  // 增量订阅：连接不重建、不重复快照（旧实现会并行再建一条 socket）。
+  assert.equal(harness.sockets.length, 1, '订阅变更必须复用现有连接')
   assert.equal(harness.sockets[0].closed, false)
+  assert.deepEqual(harness.sockets[0].sent.at(-1), {
+    type: 'update_subscription',
+    entityIds: ['light.a', 'light.b'],
+  })
+
+  // 服务端补的新集合快照：直接合并，新实体立刻有值。
+  harness.sockets[0].deliver({
+    type: 'snapshot',
+    states: [
+      { entityId: 'light.a', state: 'off' },
+      { entityId: 'light.b', state: 'on' },
+    ],
+  })
+  assert.equal(harness.lastStates()['light.a'].state, 'off')
+  assert.equal(harness.lastStates()['light.b'].state, 'on')
 })
 
-test('新连接拿到 snapshot 才晋升，旧 socket 随即关闭', () => {
+test('分片边界变化时走两槽交接，全部分片拿到 snapshot 才晋升', () => {
   const harness = createHarness()
   harness.stream.setActive(true)
   harness.stream.configure(['light.a'])
@@ -141,28 +156,31 @@ test('新连接拿到 snapshot 才晋升，旧 socket 随即关闭', () => {
     states: [{ entityId: 'light.a', state: 'on' }],
   })
 
-  harness.stream.configure(['light.a', 'light.b'])
-  const handoverSocket = harness.sockets[1]
-  handoverSocket.open()
-  assert.deepEqual(handoverSocket.sent.at(-1), {
-    type: 'subscribe',
-    entityIds: ['light.a', 'light.b'],
-  })
+  // 跨过 1000 的分片边界（1 → 2 片）：这条路径必须重建连接，不能靠 update_subscription。
+  const wideIds = ['light.a', 'light.b']
+  for (let index = 0; index < 1100; index++) wideIds.push(`light.w${index}`)
+  harness.stream.configure(wideIds)
+  const handoverSockets = harness.sockets.slice(1)
+  assert.equal(handoverSockets.length, 2, '分片边界变化要建新连接')
+  for (const socket of handoverSockets) socket.open()
+  // 订阅集合是字典序排过的：别假设某个 id 落在哪个分片，按实际订阅内容取。
+  const secondChunkFirstId = handoverSockets[1].sent.at(-1).entityIds[0]
 
-  // 还没收到 snapshot：旧值仍然有效。
-  assert.equal(harness.lastStates()['light.a'].state, 'on')
+  // 只到了一个分片：旧值仍然有效，且旧连接不能被退役。
+  handoverSockets[0].deliver({
+    type: 'snapshot',
+    states: [{ entityId: 'light.a', state: 'off' }],
+  })
+  assert.equal(harness.lastStates()['light.a'].state, 'on', '没凑齐分片前不能晋升')
   assert.equal(harness.sockets[0].closed, false)
 
-  handoverSocket.deliver({
+  handoverSockets[1].deliver({
     type: 'snapshot',
-    states: [
-      { entityId: 'light.a', state: 'off' },
-      { entityId: 'light.b', state: 'on' },
-    ],
+    states: [{ entityId: secondChunkFirstId, state: 'on' }],
   })
 
   assert.equal(harness.lastStates()['light.a'].state, 'off')
-  assert.equal(harness.lastStates()['light.b'].state, 'on')
+  assert.equal(harness.lastStates()[secondChunkFirstId].state, 'on')
   assert.equal(harness.sockets[0].closed, true, '晋升后旧连接必须被关掉，否则会累积 socket')
 })
 
@@ -321,9 +339,11 @@ test('任一分片断连即整槽失败，旧槽继续供数', () => {
     socket.deliver({ type: 'snapshot', states: [{ entityId: 'light.l0', state: 'on' }] })
 
   const socketCountBeforeChange = harness.sockets.length
-  harness.stream.configure(entityIds.slice(0, 1100))
+  // 跨过 1000 的分片边界（2 → 3 片）：这条路径要建新连接，不能在旧连接上增量订阅。
+  const widerEntityIds = Array.from({ length: 2500 }, (_, index) => `light.l${index}`)
+  harness.stream.configure(widerEntityIds)
   const handoverSockets = harness.sockets.slice(socketCountBeforeChange)
-  assert.equal(handoverSockets.length, 2)
+  assert.equal(handoverSockets.length, 3)
   handoverSockets[0].open()
   handoverSockets[0].close()
 

@@ -98,6 +98,27 @@ class ConnectionLifecycleMixin:
         since_ms, last_event_id = parse_state_replay_params(since_raw, last_event_raw)
         if not should_replay_state(since_ms, last_event_id):
             return "none"
+        # 客户端基线之后发生过全量同步：``set_all`` 会把差异写进 ``_recent``，但
+        # 「查出 0 处差异」或「差异已被环形缓冲挤出」两种情况下回放都会是空的，
+        # 而客户端会把空回放当成「已经补齐」→ 实体表永久停在基线时刻。
+        # 只有当回放记录确实覆盖到那次全量同步的时刻，增量才可信。
+        full_sync_ms = self.state_store.get_last_full_sync_ms()
+        if full_sync_ms and since_ms and full_sync_ms > since_ms:
+            covered = any(
+                float(record["at"]) >= full_sync_ms
+                for record in self.state_store.get_recent_changes_since(since_ms, last_event_id)
+            )
+            if not covered:
+                logger.info(
+                    "state_replay 覆盖不到上次全量同步(sync=%s since=%s),建议客户端重同步 sid=%s",
+                    ms_to_iso(full_sync_ms),
+                    ms_to_iso(since_ms),
+                    sid,
+                )
+                await self.sio.emit(
+                    "resync_suggested", resync_suggested_payload("full_sync_after_since"), to=sid
+                )
+                return "resync"
         if self.state_store.is_replay_truncated(since_ms, last_event_id):
             # 环形缓冲已淘汰部分变更：此时下发增量会漏掉状态，
             # 前端已有完整快照，直接建议重同步（会回滚乐观更新并软重拉）。
@@ -218,14 +239,30 @@ class ConnectionLifecycleMixin:
         )
 
     async def _wait_for_ha_entity_sync(self, timeout_ms: int) -> None:
+        """等首轮全量同步落地（有上限），避免客户端拿到空实体表。
+
+        提前返回的三种情况，缺一个都会让「新建连接」白等满超时：
+        1. 已经同步过（``is_ha_synced``）；
+        2. 未配置 HA（永远不会同步）；
+        3. **HA 当前没连上**（``is_ha_connected`` 为假）：等满 90s 也等不到快照，
+           期间客户端只看到空列表，还会误判成「后端挂了」。
+        """
         if self.state_store.is_ha_synced():
             return
         # 未配置 HA 时不做长等待（否则每个连接都会阻塞至超时）；直接推当前缓存。
         if not self._ha_configured():
             return
+        if not self.state_store.is_ha_connected():
+            # 连接断了 / 正在重连：缓存是此刻能给的全部，先推出去，同步完成后再靠
+            # 重同步广播与增量补齐。
+            logger.debug("HA 未连接，跳过首轮同步等待，先下发缓存快照")
+            return
         deadline = asyncio.get_event_loop().time() + timeout_ms / 1000
         while asyncio.get_event_loop().time() < deadline:
             if self.state_store.is_ha_synced():
+                return
+            # 等待期间 HA 掉线：继续等只会拖住握手。
+            if not self.state_store.is_ha_connected():
                 return
             await asyncio.sleep(0.25)
 
@@ -320,6 +357,14 @@ class ConnectionLifecycleMixin:
         self._apply_state_config()
         await self._wait_for_ha_entity_sync(ws_cfg.ha_sync_wait_ms)
 
+        # 初态下发的是**全量**（仅按 ACL 过滤），增量则按「域订阅 + pinned +
+        # coldEntityOnDemand」收窄。这是刻意的口径差异，不是遗漏：
+        # - 全量是前端的实体表基线（列表 / 搜索 / 详情 / 设备页都要用），按订阅域裁剪会
+        #   让未订阅域的实体彻底消失，连 REST 按需补全的机会都没有；
+        # - 增量只推「关心的」实体是冷实体策略的本体，可见的冷实体由前端
+        #   `useEnsureVisibleEntities` / cold-refresh 按需 REST 补全；
+        # - `coldEntityOnDemand=false` 时增量侧不过滤（见 subscription.py），与全量对齐，
+        #   因此不会出现「初态有、之后永不更新」的实体。
         entities = sort_entities_by_sync_priority(
             filter_entities_by_access(self.state_store.get_all(), user),
             list(ws_cfg.critical_domains),

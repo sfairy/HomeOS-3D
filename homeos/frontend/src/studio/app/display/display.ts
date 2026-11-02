@@ -609,8 +609,20 @@ if (!hasDisplayDomContract) {
     }),
     window.addEventListener("pageshow", handleViewportPageShow));
 }
+/**
+ * 展示页对「实体目录已变更」的反应。
+ *
+ * 目录变更（HA 侧新增 / 删除实体、注册表刷新）与状态增量是两条数据流：状态推送
+ * 里不会告诉你「多了一台设备」。收到事件立刻校准一次目录，而不是等 10s 轮询；
+ * `refreshCatalog` 内部按 catalogRevision 指纹去重，重复事件几乎没有成本。
+ */
+const handleEntityCatalogChanged = () => {
+  refreshCatalog().catch(() => null);
+};
+
 let refreshIntervalId: any = null;
 if (hasDisplayDomContract) {
+  window.addEventListener("hb-entity-catalog-changed", handleEntityCatalogChanged);
   (refreshIntervalId = window.setInterval(refreshIfVisible, 10000),
     bootstrap().catch((bootstrapError) => {
       handleDisplayError(bootstrapError);
@@ -636,6 +648,7 @@ if (hasDisplayDomContract) {
     viewportObserver?.disconnect();
     viewportObserver = null;
     // 全局监听（必须与注册时同一函数引用才能命中）
+    window.removeEventListener("hb-entity-catalog-changed", handleEntityCatalogChanged);
     window.removeEventListener("pageshow", handleLifecycleResume);
     document.removeEventListener("visibilitychange", handleLifecycleResume);
     window.removeEventListener("online", handleLifecycleResume);

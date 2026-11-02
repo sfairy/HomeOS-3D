@@ -18,7 +18,18 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from ..realtime.ws_payloads import REPLAY_ONLY_MAX_CHANGES
+
 logger = logging.getLogger("homeos.app")
+
+#: 对账差异超过这个条数就不再逐条补推，改为让前端整表重拉。
+#:
+#: 逐条补推要跑完整套冷路径副作用（家庭模式 / 安防域 / 通知规则）并逐个广播，几百条
+#: 会把这个本该是「后台修复」的路径拖成一次全屋事件风暴；而且这些变化多半发生在几小时
+#: 前的断连窗口里，边沿触发重放的意义已经不大。超过阈值时直接 ``resync_suggested``，
+#: 让客户端用一次 REST 拉取拿到权威结果。
+RESYNC_BROADCAST_MAX_CHANGES = min(REPLAY_ONLY_MAX_CHANGES, 200)
+
 
 
 def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
@@ -86,25 +97,12 @@ def _fan_out_notifications(notification: Any, entity_id: Any, change: dict[str, 
             logger.warning("通知 %s 处理状态变更失败: entity=%s", handler.__name__, entity_id, exc_info=True)
 
 
-async def _run_state_change_effects(
-    app: FastAPI,
-    gateway: Any,
-    store: Any,
-    change: dict[str, Any],
-    *,
-    broadcast: bool = True,
-) -> dict[str, Any] | None:
-    """冷路径副作用：家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。
+async def _run_side_effects(app: FastAPI, entity_id: Any, change: dict[str, Any]) -> None:
+    """冷路径副作用扇出：家庭模式 / 安防域 / 通知 / 顾问用量。
 
-    批量调用时传 ``broadcast=False``，由调用方把整批变更一次性交给网关，
-    避免每个实体各开一轮广播（每轮都会重算订阅与可见性并逐连接 emit）。
+    与 L1 写入解耦：对账差异（``_run_reconciled_change_effects``）已经由 ``set_all``
+    写过 L1，只需要这一半，不能为了复用把 L1 再写一遍（那会往回放缓冲里塞重复记录）。
     """
-    entity_id = change.get("entity_id")
-    if not entity_id:
-        return None
-    if change.get("removed"):
-        return _apply_entity_removal(app, store, change)
-    _apply_state_change(app, gateway, store, change)
     home_mode = getattr(app.state, "home_mode", None)
     if home_mode is not None:
         try:
@@ -127,11 +125,46 @@ async def _run_state_change_effects(
             advisor_usage.track_usage(change)
         except Exception:  # 用量统计属旁路观测，失败不得阻断状态广播
             logger.debug("顾问用量统计失败: entity=%s", entity_id, exc_info=True)
+
+
+async def _run_reconciled_change_effects(app: FastAPI, change: dict[str, Any]) -> None:
+    """对账快照算出的差异：L1 已由 ``set_all`` 写入，这里只补副作用。
+
+    删除不参与：``_apply_entity_removal`` 的语义是「从 L1 摘掉 + 广播」，而差异里的
+    删除已经不在 L1 里了，也不该拿「消失」去喂边沿判定（见该函数 docstring）。
+    """
+    entity_id = change.get("entity_id")
+    if not entity_id or change.get("removed"):
+        return
+    await _run_side_effects(app, entity_id, change)
+
+
+async def _run_state_change_effects(
+    app: FastAPI,
+    gateway: Any,
+    store: Any,
+    change: dict[str, Any],
+    *,
+    broadcast: bool = True,
+) -> dict[str, Any] | None:
+    """冷路径副作用：家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。
+
+    批量调用时传 ``broadcast=False``，由调用方把整批变更一次性交给网关，
+    避免每个实体各开一轮广播（每轮都会重算订阅与可见性并逐连接 emit）。
+    """
+    entity_id = change.get("entity_id")
+    if not entity_id:
+        return None
+    if change.get("removed"):
+        return _apply_entity_removal(app, store, change)
+    _apply_state_change(app, gateway, store, change)
+    await _run_side_effects(app, entity_id, change)
     if broadcast:
         sync_filter = getattr(app.state, "entity_sync_filter", None)
         if sync_filter is None or sync_filter.is_entity_syncable(str(entity_id)):
             await gateway.broadcast_state_changed_batch([change])
     return change
+
 
 
 async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: Any, sync_filter: Any) -> None:
@@ -148,7 +181,9 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
     if sync_filter is not None:
         broadcast_entities = sync_filter.filter_syncable_states(entities)
     # L1 必须收全量：隐藏/禁用只是展示策略，安全实体仍需要基线来做边沿判定。
-    store.set_all(entities, preserve=preserve)
+    # 返回值是「这次对账真正改变了什么」：断连窗口里错过的变化全在这里，不补推的话
+    # 已连接的客户端会一直停在旧值上（它们不会重新拉 initial_states）。
+    diff = store.set_all(entities, preserve=preserve)
     app.state.ha_entity_count = len(broadcast_entities)
     presence = getattr(app.state, "presence", None)
     if presence is not None:
@@ -156,6 +191,20 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
             presence.seed_from_state_store()
         except Exception:  # 在场推断预热属 best-effort，失败不阻断初始快照
             logger.warning("在场推断初始播种失败", exc_info=True)
-    if bus is not None:
-        # 广播全量事件
-        await bus.emit("ha.initial_states", {"entities": broadcast_entities})
+    if bus is None:
+        return
+    changes = diff
+    if sync_filter is not None:
+        changes = [change for change in diff if sync_filter.is_entity_syncable(str(change["entity_id"]))]
+    if changes and len(changes) <= RESYNC_BROADCAST_MAX_CHANGES:
+        # ``applied=True``：L1 已由 set_all 写完，下游只补副作用与广播。
+        await bus.emit("ha.state_changed.batch", {"changes": changes, "applied": True, "reason": "resync"})
+    elif changes:
+        logger.warning(
+            "对账差异 %d 条，超过逐条补推上限（%d），改为建议客户端整表重拉",
+            len(changes),
+            RESYNC_BROADCAST_MAX_CHANGES,
+        )
+        await bus.emit("ha.resync_suggested", {"reason": "resync_too_large", "count": len(changes)})
+    # 广播全量事件
+    await bus.emit("ha.initial_states", {"entities": broadcast_entities})

@@ -48,6 +48,8 @@ class HAConnectorHost:
     _runtime_entity_watch_counts: Any = None
     _runtime_error: Any = None
     _state_listener: Any = None
+    _notify_state_failed_at: Any = None
+
     _sync_lock: Any = None
     _translation_cache: Any = None
     _translation_lock: Any = None

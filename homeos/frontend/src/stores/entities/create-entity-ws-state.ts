@@ -536,6 +536,18 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
         if (ok) deps.entitiesStale.value = false
         return ok
       },
+      /**
+       * 实体目录变更后的轻量校准。
+       *
+       * 新增实体在 REST 增量里必然出现（它们的 ``last_updated`` 是新的），所以先走增量；
+       * 「删除」与「注册表整体刷新」在增量里可能看不到（被删的实体不会再被返回），
+       * 这一步退回整表（quiet：不闪加载态，也不弹错误）。
+       */
+      refreshEntityCatalog: async (reason?: string) => {
+        const incremental = await fetchEntitiesChangedSince()
+        if (incremental) return true
+        return fetchEntitiesFallback(reason || '实体目录变更', { force: true, quiet: true })
+      },
       // WS initial_states 全量应用与增量同队列互斥
       initStates: (list, opts) => {
         void initStatesQueued(list, opts)

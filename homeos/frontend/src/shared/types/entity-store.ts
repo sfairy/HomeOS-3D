@@ -91,6 +91,19 @@ export interface EntitySocketSyncState {
   pendingChunkApplies: number
   /** 本批 INITIAL_STATES_END 是否已进入收尾（防止重叠 END 二次回退） */
   incrementalEndScheduled: boolean
+  /**
+   * 本批分块同步中「已经到达 chunk」的实体 id 集合。
+   *
+   * 分块是全量快照的切片，落地是异步 / 分片的；这段时间里到达的 delta 若直接合并，
+   * 会因为本地缺少基线而生成只有 ``state`` 的半实体（剩下的属性永远补不齐，
+   * 直到下一次整表推送）。用这个集合判断 delta 是否已有可合并的基线。
+   */
+  chunkedEntityIds?: Set<string>
+  /**
+   * 分块批次进行中、实体基线尚未到达的 delta：暂存到对应 chunk 落地后再合并。
+   * 超出上限的部分直接丢弃（等下一次全量兜底），避免异常流量把内存顶爆。
+   */
+  pendingPreChunkDeltas?: Record<string, unknown>[]
 }
 
 /** WebSocket 事件追踪（去重与顺序校验） */
@@ -139,6 +152,13 @@ interface EntitySocketActions {
   ) => Promise<boolean> // REST 兜底拉取实体
   /** 背压建议时优先增量；成功返回 true 则跳过全量 REST */
   requestSoftResync?: (reason?: string) => Promise<boolean>
+  /**
+   * 实体目录变更（HA 侧新增 / 删除实体、注册表刷新）后的轻量校准。
+   *
+   * 目录与状态是两条数据：目录决定「有哪些实体、叫什么、属于哪个设备」，
+   * 状态只决定「当前值」。只补状态的话，新设备永远不会出现在实体选择器里。
+   */
+  refreshEntityCatalog?: (reason?: string) => Promise<boolean>
   initStates: (entities: HaEntityState[], opts?: { force?: boolean; reason?: string }) => void // 初始化实体状态
   beginIncrementalInitialStates?: (expected: number) => unknown // 开始增量分块接收
   mergeInitialStatesChunk?: (list: HaEntityState[], token: unknown, expected: number) => void // 合并分块

@@ -25,6 +25,7 @@ from .ws_payloads import (
     entity_visible,
     ha_status_payload,
     iso_now,
+    resync_suggested_payload,
     ws_event,
 )
 
@@ -62,6 +63,31 @@ class BroadcastMixin:
             "ha_queue_dropped",
             ws_event("ha_queue_dropped", {"timestamp": iso_now(), **message}),
         )
+
+    async def broadcast_resync_suggested(self, reason: str = "resync") -> None:
+        """建议客户端整表软重拉（对账差异过大 / 回放不可用 / 背压）。
+
+        与逐条补推的区别：服务端放弃「把每条差异都补发一次」，只告诉客户端
+        「你的状态不可信，重新拉一遍」。前端按 ``reason`` 决定走增量还是全量。
+        """
+        await self.sio.emit("resync_suggested", resync_suggested_payload(reason))
+
+    async def broadcast_entity_catalog_changed(self, event: dict[str, Any] | None = None) -> None:
+        """实体目录变更（新增 / 删除 / 注册表刷新）：前端据此刷新实体列表与元数据。
+
+        ``/ws/runtime`` 那条通道由 ``StateHub.publish`` 承载；这里补的是 SPA 侧
+        —— 两条通道的消费者不同。此前目录变更只发 StateHub，于是网页端的实体列表
+        要等到下一次整表刷新才看到新设备，而墙屏早就显示了。
+        """
+        payload = ws_event(
+            "entity_catalog_changed",
+            {
+                "operation": str((event or {}).get("operation") or "updated"),
+                "counts": (event or {}).get("counts") or {},
+                "timestamp": iso_now(),
+            },
+        )
+        await self.sio.emit("entity_catalog_changed", payload)
 
     # ------------------------------------------------------------------ 站内通知
     async def broadcast_notification(self, event: NotificationBroadcastEvent | dict[str, Any]) -> None:

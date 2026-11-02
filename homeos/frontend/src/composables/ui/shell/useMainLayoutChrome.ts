@@ -145,11 +145,17 @@ export function useMainLayoutChrome() {
     if (!hasHAConfigured.value && !isEntitiesStale.value && !isReconnecting.value) return false
     return !isConnected.value || isEntitiesStale.value || isReconnecting.value
   })
-  /** HA 指令队列丢弃提示文案（有丢弃时显示） */
+  /**
+   * HA 实时状态积压提示文案（有丢弃时显示）。
+   *
+   * 注意语义：这条计数来自 ``ha_queue_dropped``，它说的是「**状态推送**积压丢弃」，
+   * 不是「控制指令下发失败」。写成「控制指令未能下发」会让用户在设备其实已经
+   * 执行成功时重复点击，而真正需要做的是等待状态重新对齐。
+   */
   const haQueueDropHint = computed(() => {
     const total = entitiesStore.haQueueDroppedTotal
     if (!total || total <= 0) return ''
-    return `有 ${String(total)} 条控制指令未能下发`
+    return `实时状态积压，已丢弃 ${String(total)} 条更新（正在重新对齐）`
   })
   /** HA 数据告警基础文案（按重连/断连/过期状态选择） */
   const haDataWarningTextBase = computed(() => {

@@ -19,8 +19,10 @@ import asyncio
 import contextlib
 import inspect
 import time
+from collections.abc import Mapping
 from typing import Any
 
+from .live_entities import _timestamp_from_iso
 from .service_support import LOGGER
 
 #: 合并窗口（毫秒）：比一次墙屏帧（16ms）略长，又不至于让人感觉到延迟。
@@ -29,6 +31,11 @@ LIVE_EVENT_BATCH_WINDOW_MS = 50
 LIVE_EVENT_BATCH_MAX_SIZE = 200
 #: 待合并队列上限：HA 刷屏时宁可丢最旧的推送（下一轮全量对账会补），也不让内存无界增长。
 LIVE_EVENT_PENDING_MAX = 2_000
+
+#: 落地失败的同因告警间隔（秒）。
+LIVE_EVENT_FAILURE_LOG_INTERVAL_SECONDS = 60.0
+#: 单批落地失败的最大重试次数：超过按丢弃计数并让前端软重同步。
+LIVE_EVENT_FLUSH_MAX_RETRIES = 2
 
 #: 关键控制域的专用合并窗口（毫秒）。
 #:
@@ -90,6 +97,39 @@ def live_state_change(message: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def superseded_by_snapshot(
+    change: dict[str, Any], baseline: Mapping[str, tuple[str, float | None]]
+) -> bool:
+    """握手窗口里的这条变更是否已经被随后的全量快照包含（可以丢弃）。
+
+    背景：重连时先建订阅、再跑全量同步（见 ``service_live._live_connection``），于是
+    订阅窗口内收到的帧可能**旧于**同步那一刻的快照。这些帧若照常回放，会把 L1 /
+    StateHub / 前端一起推回旧值 —— 而且 HA 只在真正变化时才发事件，没人会来纠正，
+    界面就永久停在错的值上。
+
+    判据只有一条：``last_updated`` 不晚于快照里的同名字段。相等也算包含（同一次更新）。
+
+    三种情况刻意**不**丢弃：
+    - 删除事件（``removed_entity_id``）：删除是幂等的，没有新值可比；
+    - 快照里没有这个实体：窗口内新增的实体，回放就是它的首次出现；
+    - 任一侧缺时间戳：拿不到凭据就按「新事件」处理（宁可多广播一次，不可漏更新）。
+    """
+    if change.get('removed_entity_id'):
+        return False
+    new_state = change.get('new_state')
+    if not isinstance(new_state, Mapping):
+        return False
+    entity_id = str(new_state.get('entity_id') or '')
+    seeded = baseline.get(entity_id)
+    if seeded is None:
+        return False
+    current = _timestamp_from_iso(new_state.get('last_updated') or new_state.get('last_changed'))
+    seeded_at = seeded[1]
+    if current is None or seeded_at is None:
+        return False
+    return current <= seeded_at + 1e-6
+
+
 class LiveStateEventQueue:
     """单 worker 的合并队列：``enqueue`` 同步不阻塞 recv 循环，flush 由回调落地。
 
@@ -127,6 +167,11 @@ class LiveStateEventQueue:
         self._unkeyed = 0
         self._dropped = 0
         self._task: asyncio.Task[None] | None = None
+        #: 落地失败次数与上次告警时刻（见 ``_log_failure``）。
+        self._failures = 0
+        self._failure_logged_at = 0.0
+        #: 落地失败待重试的变化：entity_id → 已重试次数（见 ``_requeue_failed``）。
+        self._flush_retries: dict[str, int] = {}
         self._closed = False
         #: 关键域入队时置位：让 worker 从「常规窗口」里立刻醒来改走短窗口。
         self._wake = asyncio.Event()
@@ -180,9 +225,13 @@ class LiveStateEventQueue:
 
     async def flush(self) -> None:
         """立刻把待处理变化交给回调（worker 继续跑）。"""
-        if self._pending:
-            await self._deliver(self._take())
-        await self._report_dropped()
+        try:
+            if self._pending:
+                await self._deliver(self._take())
+        finally:
+            # 放在 finally：落地失败时也要把「又丢了 N 条」告诉上层，
+            # 否则丢弃只发生在内存里，前端永远等不到重同步提示。
+            await self._report_dropped()
 
     async def _report_dropped(self) -> None:
         """把「又丢了 N 条」告诉上层（每次 flush 最多一次，避免刷屏）。"""
@@ -217,8 +266,20 @@ class LiveStateEventQueue:
             except asyncio.CancelledError:
                 raise
             except Exception:
-                # 落地失败不能杀死收包循环，下一批照常。
-                LOGGER.debug('HA 实时状态合并批次落地失败', exc_info = True)
+                # 落地失败不能杀死收包循环，下一批照常，但绝不能只留 DEBUG：
+                # 这条链是「HA 事件 → L1 / 广播」的唯一通路，静默失败的表现就是
+                # 「界面显示已连接，状态再也不刷新」，排障时日志里一个字都没有。
+                self._log_failure('HA 实时状态合并批次落地失败')
+
+    def _log_failure(self, message: str) -> None:
+        """落地失败告警（同一原因每 60s 一次，避免刷屏掩盖真正的首因）。"""
+        self._failures += 1
+        now = time.monotonic()
+        if now - self._failure_logged_at < LIVE_EVENT_FAILURE_LOG_INTERVAL_SECONDS:
+            LOGGER.debug('%s（累计 %d 次）', message, self._failures, exc_info=True)
+            return
+        self._failure_logged_at = now
+        LOGGER.warning('%s（累计 %d 次，60s 内不再重复）', message, self._failures, exc_info=True)
 
     async def _wait_for_batch(self) -> None:
         """等到该开批的时刻。
@@ -257,6 +318,35 @@ class LiveStateEventQueue:
     async def _deliver(self, changes: list[dict[str, Any]]) -> None:
         if not changes:
             return
-        result = self._flush(changes)
-        if inspect.isawaitable(result):
-            await result
+        try:
+            result = self._flush(changes)
+            if inspect.isawaitable(result):
+                await result
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self._requeue_failed(changes)
+            raise
+        self._flush_retries.clear()
+
+    def _requeue_failed(self, changes: list[dict[str, Any]]) -> None:
+        """落地失败：把这批变化放回队列等下一个窗口，超过重试上限才丢弃并计数。
+
+        不能静默丢掉：这批变化是「HA 已经变了、前端还不知道」的全部内容，丢了之后
+        没有任何人会发现（HA 只在真正变化时才发事件），面板就永久停在旧值上。
+        """
+        for change in changes:
+            entity_id = str(change.get('entity_id') or '')
+            if not entity_id:
+                # 没有实体 id 的变化（畸形事件）无法定位重试，按丢弃计数。
+                self._dropped += 1
+                continue
+            attempts = self._flush_retries.get(entity_id, 0) + 1
+            if attempts > LIVE_EVENT_FLUSH_MAX_RETRIES:
+                self._flush_retries.pop(entity_id, None)
+                self._dropped += 1
+                continue
+            self._flush_retries[entity_id] = attempts
+            # setdefault：重试期间同一实体又有新事件时，保留更新的那条。
+            self._pending.setdefault(entity_id, dict(change))
+

@@ -6,6 +6,7 @@ import { isVirtualEntityId as isVirtualEntityId2 } from "../../shared/virtual-en
 import { maxRuntimeEntitySubscriptions } from "../renderer-helpers";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { presenceMotionEventConfig as presenceMotionEventConfig2 } from "../registry";
+import { isOlderFrameTimestamp } from "@/shared/entity/utils/state-delta.util";
 import { relatedAirerCurrentPositionSensor as relatedAirerCurrentPositionSensor2, relatedAirerLightEntity as relatedAirerLightEntity2, relatedAirerMotorActionEntities as relatedAirerMotorActionEntities2, relatedAirerMotorSpeedSensor as relatedAirerMotorSpeedSensor2, relatedAirerPositionNumberEntity as relatedAirerPositionNumberEntity2, relatedCoverMotorReverseEntity as relatedCoverMotorReverseEntity2, relatedDeviceDomainEntity as relatedDeviceDomainEntity2, relatedDeviceEntity as relatedDeviceEntity2, relatedWaterHeaterEntities as relatedWaterHeaterEntities2 } from "../controls/cover-runtime";
 import { relatedVacuumBatteryEntity as relatedVacuumBatteryEntity2, relatedVacuumStatusEntities as relatedVacuumStatusEntities2 } from "../controls/vacuum-runtime";
 
@@ -236,17 +237,36 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
       runtimeSubscription = this.runtimeSubscription,
       isSocketConnecting = this.socket?.readyState === WebSocket.CONNECTING,
       isSocketOpen = this.socket?.readyState === WebSocket.OPEN;
-    if (
-      !isForcedConnect &&
-      runtimeSubscription &&
-      (isSocketConnecting || (isSocketOpen && runtimeSubscription.signature === entitySignature))
-    ) {
-      ((runtimeSubscription.entityIds = collectedEntityIds),
-        (runtimeSubscription.runtimeComponents = pageComponents),
-        (runtimeSubscription.signature = entitySignature),
-        isSocketOpen &&
-          this.scheduleRuntimeHydrationRetry(runtimeSubscription, this.socketGeneration));
-      return;
+    if (!isForcedConnect && runtimeSubscription) {
+      if (isSocketConnecting) {
+        // 连接还在握手：直接改本地要订阅的集合，open 回调会用最新集合发 subscribe。
+        runtimeSubscription.entityIds = collectedEntityIds;
+        runtimeSubscription.runtimeComponents = pageComponents;
+        runtimeSubscription.signature = entitySignature;
+        return;
+      }
+      if (isSocketOpen && runtimeSubscription.signature === entitySignature) {
+        // 组件引用变了但实体集合没变：只换引用，不打扰连接。
+        runtimeSubscription.entityIds = collectedEntityIds;
+        runtimeSubscription.runtimeComponents = pageComponents;
+        this.scheduleRuntimeHydrationRetry(runtimeSubscription, this.socketGeneration);
+        return;
+      }
+      if (isSocketOpen) {
+        // 实体集合变了：发增量订阅帧，连接与授权上下文都保留。
+        // 旧实现是断开 + 重连 + 重下整包快照：墙屏每改一次统计或弹窗，就会把所有
+        // 实体状态整表替换一遍、组件全部重建，还顺手丢掉乐观态与光效记忆。
+        // 服务端收到后只换订阅集合，并补一份新集合的快照（见 /ws/runtime 的
+        // apply_subscription_update）。
+        runtimeSubscription.entityIds = collectedEntityIds;
+        runtimeSubscription.runtimeComponents = pageComponents;
+        runtimeSubscription.signature = entitySignature;
+        if (sendRuntimeSubscriptionUpdate(this, runtimeSubscription)) {
+          this.scheduleRuntimeHydrationRetry(runtimeSubscription, this.socketGeneration);
+          return;
+        }
+        // 发送失败（连接刚好断开）：退化成重连，下面的逻辑会重建连接。
+      }
     }
     (runtimeSubscription?.signature !== entitySignature && (this.runtimeHydrationRetryAttempt = 0),
       this.disconnectRuntime());
@@ -389,6 +409,20 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
               (this.runtimeHydrationRetryAttempt = 0)),
             this.scheduleRuntimeHydrationRetry(runtimeSubscriptionOptions, socketGeneration));
         } else {
+          if (runtimeMessage.type === "entity_catalog_changed") {
+            // 目录变更（新增 / 删除实体、注册表刷新）：墙屏的实体元数据来自启动时的
+            // 一次性目录，不校准的话新设备永远不出现在选择器里、删掉的设备也还留着。
+            // 派发事件让展示页按 catalogRevision 重新校准（内部有指纹去重，重复帧很便宜）。
+            window.dispatchEvent?.(
+              new CustomEvent("hb-entity-catalog-changed", {
+                detail: {
+                  operation: String(runtimeMessage.operation || "updated"),
+                  counts: runtimeMessage.counts || {},
+                },
+              }),
+            );
+            return;
+          }
           if (runtimeMessage.type === "state_removed") {
             const removedEntityId = String(runtimeMessage.entityId || "");
             if (!removedEntityId) return;
@@ -501,6 +535,29 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
   }
 
 /**
+ * 在**已经建立**的连接上发送增量订阅帧。
+ *
+ * 返回 ``false`` 表示当前没有可写连接（调用方需要退回「断开重连」）。
+ * 服务端收到后只替换订阅集合，并补一份新集合的快照，不会重下整表。
+ */
+function sendRuntimeSubscriptionUpdate(self: PanelRenderer, subscription: any): boolean {
+  const socket = self.socket;
+  if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+  try {
+    socket.send(
+      JSON.stringify({
+        type: "update_subscription",
+        entityIds: subscription.entityIds,
+        supportsStateBatch: true,
+      }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 页面进入 bfcache 前主动断开实时通道（**保留**订阅参数）。
  *
  * 为什么不能交给浏览器：文档被冻结时浏览器会自己切断 WebSocket，但冻结期间既没有
@@ -541,6 +598,26 @@ export function resumeRuntime(this: PanelRenderer) {
 }
 
 /**
+ * 判断一条 runtime 状态帧是否比本地已有的更旧。
+ *
+ * `/ws/runtime` 的两路数据（握手期排队的订阅帧、快照后的差异帧）在服务端是分开取数的：
+ * 队列里的帧可能先于快照产生、后于快照到达。旧值一旦落库就没有任何机制能自愈 ——
+ * HA 只在实体真正变化时才推送，界面会一直停在错误状态直到用户手动刷新。
+ *
+ * 缺 `updatedAt` / `lastChanged` 时不判定陈旧：宁可多合并一次，也不能丢掉真实更新。
+ */
+function runtimeStateFrameIsStale(self: PanelRenderer, runtimeMessage: any): boolean {
+  const existing = self.states.get(runtimeMessage.entityId);
+  if (!existing) return false;
+  // 与 socket.io 侧共用同一份判据：旧帧（快照之后才到的握手期事件）一律丢弃，
+  // 否则界面会被推回快照之前的状态，而且之后没有任何推送会来纠正它。
+  return isOlderFrameTimestamp(
+    runtimeMessage?.updatedAt ?? runtimeMessage?.lastChanged,
+    existing.updatedAt ?? existing.lastChanged,
+  );
+}
+
+/**
  * 套用一条 `state_changed`（单条帧与批量帧共用）。
  *
  * 抽出来的目的是让服务端可以把一次场景切换的 N 条状态合并成一帧下发，而落点逻辑
@@ -548,6 +625,7 @@ export function resumeRuntime(this: PanelRenderer) {
  */
 function applyRuntimeStateEvent(self: PanelRenderer, runtimeMessage: any) {
   if (!self.optimisticStateIsConfirmed(runtimeMessage.entityId, runtimeMessage)) return;
+  if (runtimeStateFrameIsStale(self, runtimeMessage)) return;
   const previousState = self.states.get(runtimeMessage.entityId);
   const wasRemoved = self.removedRuntimeEntityIds.has(runtimeMessage.entityId);
   if (wasRemoved) {
