@@ -5,6 +5,7 @@
 /** 智能管家设置：模型就绪统计派生 */
 import { computed, type Ref } from 'vue'
 import type { AgentPingResult } from '@/services/api/agent'
+import { agentProviderLabel } from '@/shared/agent/utils/model-label.util'
 
 type AgentUsageToday = NonNullable<AgentPingResult['usageToday']>
 
@@ -22,7 +23,8 @@ export function useAgentModelStats(opts: {
   const { pending, pingInfo, providerLabel } = opts
   const modelStatProvider = computed(() => {
     if (pending.value > 0) return providerLabel.value
-    return pingInfo.value?.provider ?? providerLabel.value
+    // ping 回的是 provider id（deepseek），卡片标题要与预设同一个人读名
+    return agentProviderLabel(pingInfo.value?.provider) || providerLabel.value
   })
   const modelStatReadyLabel = computed(() => {
     if (pending.value > 0) return '待保存'

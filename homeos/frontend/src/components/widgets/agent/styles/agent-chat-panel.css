@@ -186,8 +186,15 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px;
   white-space: nowrap;
-  text-overflow: ellipsis;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* 模型名长度由用户在设置里决定（`ep-20260101-abc` 这种也合法），超宽自己省略，
+   不给顶栏撑出横向滚动条。省略号必须挂在文本元素上，flex 容器的文本节点不生效。 */
+.acp-head__status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .acp-head__dot {
@@ -309,6 +316,14 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* 历史面板底部的「新对话」：与列表项同形，用分隔线区分「动作」和「记录」 */
+.acp-history__row--new {
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0 0 8px 8px;
+  color: var(--hos-color-accent);
+}
+
 /* ---------------------------------------------------------------- 消息区 */
 
 .acp-body {
@@ -394,19 +409,10 @@
   height: 20px;
 }
 
-.acp-row__meta {
-  padding-bottom: 2px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
-  white-space: nowrap;
-  color: var(--acp-live);
-  opacity: 0.9;
-}
-
 .acp-bubble {
   min-width: 0;
   max-width: 82%;
-  padding: 8px 12px;
+  padding: 9px 12px;
 }
 
 .acp-bubble--user {
@@ -419,13 +425,15 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px 14px 14px 4px;
   background: rgba(255, 255, 255, 0.06);
-  max-width: 80%;
+  /* 比用户气泡略宽：管家的回复通常是整段说明，多两成横向空间能少折两行 */
+  max-width: 88%;
 }
 
 .acp-bubble__text {
   margin: 0;
   font-size: 12px;
-  line-height: 1.45;
+  /* 中文长段落在 12px 下 1.45 倍行距偏挤，抬到 1.6 让整段更容易扫读 */
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
   color: rgba(255, 255, 255, 0.94);
@@ -443,11 +451,57 @@
   animation: acp-caret var(--hos-dur-base) steps(2, start) infinite;
 }
 
+/* 气泡页脚：左边工具标签、右边耗时/token，淡分隔线收口，避免元信息散落在气泡外 */
+.acp-bubble__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* 工具轨迹：中文标签胶囊，换行铺满不裁切，一轮连调多个工具也看得全 */
 .acp-bubble__tools {
-  margin: 6px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}
+
+.acp-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.62);
   font-size: 10px;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.acp-tool__icon {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  opacity: 0.7;
+}
+
+/* 耗时 / token：右贴边、等宽、低对比 —— 是脚注，不该和正文抢注意力 */
+.acp-bubble__meta {
+  flex: none;
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.32);
 }
 
 /* 安全拦截提示：管家判定越权 / 涉险时显式说明，避免用户误以为执行成功 */

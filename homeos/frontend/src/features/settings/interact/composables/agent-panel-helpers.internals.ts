@@ -4,6 +4,7 @@
  */
 /** 智能管家设置面板：纯辅助 / 常量 */
 import { ref } from 'vue'
+import { AGENT_PROVIDER_LABELS } from '@/shared/agent/utils/model-label.util'
 
 /** 统计卡片色调（与 SettingsFlowStat.vue 的 FlowStatTone 保持对齐） */
 export type FlowStatTone =
@@ -51,13 +52,29 @@ export function isAgentMockProvider(opts: {
   return false
 }
 
+/** 厂商展示名与对话面板顶栏共用一张表，避免同一家在两个页面叫不同名字 */
 export const AGENT_PROVIDER_PRESETS = [
-  { id: 'deepseek', label: 'DeepSeek', apiBase: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
-  { id: 'doubao', label: '豆包', apiBase: 'https://ark.cn-beijing.volces.com/api/v3', model: '' },
-  { id: 'minimax', label: 'MiniMax', apiBase: 'https://api.minimax.chat/v1', model: '' },
-  { id: 'qwen', label: '通义千问', apiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: '' },
-  { id: 'moonshot', label: 'Moonshot', apiBase: 'https://api.moonshot.cn/v1', model: '' },
-  { id: 'custom', label: '自定义', apiBase: '', model: '' },
+  {
+    id: 'deepseek',
+    label: AGENT_PROVIDER_LABELS.deepseek,
+    apiBase: 'https://api.deepseek.com',
+    model: 'deepseek-v4-flash',
+  },
+  {
+    id: 'doubao',
+    label: AGENT_PROVIDER_LABELS.doubao,
+    apiBase: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: '',
+  },
+  { id: 'minimax', label: AGENT_PROVIDER_LABELS.minimax, apiBase: 'https://api.minimax.chat/v1', model: '' },
+  {
+    id: 'qwen',
+    label: AGENT_PROVIDER_LABELS.qwen,
+    apiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: '',
+  },
+  { id: 'moonshot', label: AGENT_PROVIDER_LABELS.moonshot, apiBase: 'https://api.moonshot.cn/v1', model: '' },
+  { id: 'custom', label: AGENT_PROVIDER_LABELS.custom, apiBase: '', model: '' },
   { id: 'mock', label: '演示（无密钥）', apiBase: '', model: '' },
 ]
 

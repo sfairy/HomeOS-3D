@@ -27,9 +27,13 @@ test("T6-010 stage 的 message 监听随 pagehide 摘除", () => {
 });
 
 test("T7-003 聊天历史不再用长期 localStorage", () => {
-  const source = read("homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue");
-  assert.match(source, /window\.sessionStorage/);
-  assert.doesNotMatch(source, /window\.localStorage\.setItem\(HISTORY_KEY/);
+  // 历史持久化已抽到 chat-history.util.ts；面板只调它，不再自己碰 storage
+  const source = read("homeos/frontend/src/shared/agent/utils/chat-history.util.ts");
+  assert.match(source, /sessionStorage/);
+  assert.doesNotMatch(source, /localStorage/);
+  const palette = read("homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue");
+  assert.doesNotMatch(palette, /localStorage/);
+  assert.match(palette, /readAgentChatSessions/);
 });
 
 test("T7-004 reconnect 4s 兜底 timer 纳入统一清理", () => {

@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   Square,
   Trash2,
+  Wrench,
 } from '@lucide/vue'
 import {
   agentChatStream,
@@ -44,6 +45,23 @@ import {
   quickPromptTitle,
   readAgentQuickPrompts,
 } from '@/shared/agent/utils/quick-prompts.util'
+import {
+  agentDurationLabel,
+  agentFootTitle,
+  agentReplyText,
+} from '@/shared/agent/utils/reply-format.util'
+import { agentModelLabel } from '@/shared/agent/utils/model-label.util'
+import {
+  AGENT_CHAT_HISTORY_LIMIT,
+  buildAgentChatSession,
+  newAgentChatSessionId,
+  readAgentChatCurrentId,
+  readAgentChatSessions,
+  writeAgentChatCurrentId,
+  writeAgentChatSessions,
+  type AgentChatSession,
+} from '@/shared/agent/utils/chat-history.util'
+import { toolLabels } from '@/shared/agent/utils/tool-label.util'
 import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
 import AgentVoiceHoldBar from './AgentVoiceHoldBar.vue'
 
@@ -59,66 +77,6 @@ type ChatMessage = {
   /** 本轮总耗时（ms）与 completion token，对应源码气泡右侧的 assistant-meta */
   ms?: number
   tokens?: number
-}
-
-/** 本地历史会话（按设备浏览器保存，最多保留最近 8 段） */
-type StoredSession = {
-  id: string
-  updatedAt: number
-  title: string
-  messages: ChatMessage[]
-}
-
-const HISTORY_KEY = 'homeos.agent.chat.history.v1'
-const HISTORY_LIMIT = 8
-const HISTORY_MESSAGE_LIMIT = 40
-
-function readHistory(): StoredSession[] {
-  if (typeof window === 'undefined') return []
-  try {
-    // 历史含对话正文：用 sessionStorage 限本标签页生命周期，关闭标签页即清除，
-    // 避免共享设备上长期留明文记录。
-    const raw = window.sessionStorage.getItem(HISTORY_KEY)
-    const parsed = raw ? JSON.parse(raw) : null
-    if (!Array.isArray(parsed)) return []
-    return parsed
-      .map((item): StoredSession | null => {
-        if (!item || typeof item !== 'object') return null
-        const id = String((item as StoredSession).id || '').trim()
-        const title = String((item as StoredSession).title || '').trim()
-        const messages = Array.isArray((item as StoredSession).messages)
-          ? ((item as StoredSession).messages as ChatMessage[])
-              .filter((message) => message && (message.role === 'user' || message.role === 'assistant') && String(message.text || '').trim())
-              .map((message) => ({
-                role: message.role,
-                text: String(message.text),
-                tools: message.tools ? String(message.tools) : undefined,
-                outcome: message.outcome ? String(message.outcome) : undefined,
-              }))
-          : []
-        if (!id || !messages.length) return null
-        return {
-          id,
-          title: title || messages.find((message) => message.role === 'user')?.text.slice(0, 24) || '对话',
-          updatedAt: Number((item as StoredSession).updatedAt) || Date.now(),
-          messages,
-        }
-      })
-      .filter((item): item is StoredSession => item !== null)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, HISTORY_LIMIT)
-  } catch {
-    return []
-  }
-}
-
-function writeHistory(sessions: StoredSession[]): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.sessionStorage.setItem(HISTORY_KEY, JSON.stringify(sessions.slice(0, HISTORY_LIMIT)))
-  } catch {
-    // 隐私模式 / 配额用尽：历史只保留在内存
-  }
 }
 
 /** 安全拦截提示文案：管线判定为 blocked 时明确告知用户操作被安全策略拦截 */
@@ -139,8 +97,12 @@ const emit = defineEmits(['close'])
 const router = useRouter()
 // 对话面板只「消费」悬浮伴侣留下的一条待发送消息，不负责打开/关闭自己
 const chrome = useChromeStore()
-const storedSessions = readHistory()
-const sessionId = ref(storedSessions[0]?.id || `ui-agent-${Date.now().toString(36)}`)
+const storedSessions = readAgentChatSessions()
+/** 只恢复「上次正在聊的那一条」；指针缺失 / 指向已删除的会话时从空白开始 */
+const initialSession =
+  storedSessions.find((item) => item.id === readAgentChatCurrentId()) ?? null
+const sessionId = ref(initialSession?.id || newAgentChatSessionId())
+if (initialSession) writeAgentChatCurrentId(initialSession.id)
 const input = ref('')
 const busy = ref(false)
 /**
@@ -150,8 +112,8 @@ const busy = ref(false)
 const voiceMode = ref(false)
 /** 本轮语音已被上滑取消：识别结果回来时丢弃，不落进输入框也不发送 */
 const discardVoice = ref(false)
-const messages = ref<ChatMessage[]>(storedSessions[0]?.messages ?? [])
-const sessions = ref<StoredSession[]>(storedSessions)
+const messages = ref<ChatMessage[]>(initialSession?.messages ?? [])
+const sessions = ref<AgentChatSession[]>(storedSessions)
 const historyOpen = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const rootRef = ref<HTMLElement | null>(null)
@@ -179,20 +141,23 @@ const showTyping = computed(
 )
 
 /**
- * 管家动态状态：与源码面板顶栏同一口径 —— 聆听 / 响应优先，其余显示模型供应商。
- * 供应商取 `/agent/ping` 的 provider（源码同样直接展示该值，未配置时就是 `mock`）。
+ * 管家动态状态：与源码面板顶栏同一口径 —— 聆听 / 响应优先，其余显示**后台设置的模型**。
+ * 文案由 `agentModelLabel` 统一产出（只认 `/agent/ping` 的 provider + model），
+ * 这里不再写死任何型号，否则换了模型界面会一直报旧名字。
  */
 const headerStatus = computed(() => {
   if (listening.value) return '正在聆听...'
   if (busy.value) return '正在响应...'
-  return String(ping.value?.provider || 'DeepSeek-V3')
+  if (!ping.value) return pinging.value ? '正在检测...' : '未连接'
+  return agentModelLabel(ping.value)
 })
 
-/** 状态点色调：正常=绿 / 录入=琥珀 / 未就绪=玫瑰 / 检测中=天蓝，与源码 pulse-dot 同语义 */
+/** 状态点色调：正常=绿 / 录入=琥珀 / 未就绪=玫瑰 / 探测中或未探测=蓝，与源码 pulse-dot 同语义 */
 const headerTone = computed(() => {
   if (agentBlocked.value) return 'rose'
   if (listening.value) return 'amber'
-  if (pinging.value && !ping.value) return 'sky'
+  // 还没拿到探测结果时不能先亮绿灯：那会和「未连接」的文案自相矛盾
+  if (!ping.value) return 'sky'
   return 'emerald'
 })
 
@@ -215,39 +180,11 @@ const { listening, transcribing, error: voiceError, status: voiceStatus, startLi
     },
   })
 
-const openRef = ref(props.open)
-watch(
-  () => props.open,
-  (open) => {
-    openRef.value = open
-    if (open) {
-      touchActivity()
-      startIdleWatch()
-      void refreshAgentStatus()
-      void refreshMicHint()
-      nextTick(() => inputRef.value?.focus())
-      scrollLogToBottom()
-      return
-    }
-    stopIdleWatch()
-    stopListen()
-  },
-)
-// 悬浮伴侣长按说话后留下的消息：取一条发一条，发完立刻清空，
-// 保证「面板被别处打开」时不会莫名冒出一条旧语音。
-watch(
-  () => chrome.pendingAgentPrompt,
-  (text) => {
-    if (!text) return
-    chrome.clearAgentPrompt()
-    void nextTick(() => send(text))
-  },
-)
-useFocusTrap(rootRef, openRef)
-onBeforeUnmount(stopIdleWatch)
-
-/* ------------------------------------------------------- 空闲让位（参考实现 30s） */
-
+/**
+ * 空闲让位：必须声明在下面那个 `immediate: true` 的 watch **之前**。
+ * 该 watch 在 setup 里同步跑一次（面板带着 open=true 挂载），会立刻调 `startIdleWatch()`；
+ * 若 `idleTimer` 的 `let` 声明写在后面，就是 TDZ —— "Cannot access 'idleTimer' before initialization"。
+ */
 let idleTimer: ReturnType<typeof setInterval> | null = null
 let lastActivityAt = Date.now()
 
@@ -273,6 +210,40 @@ function startIdleWatch(): void {
     if (Date.now() - lastActivityAt >= IDLE_RETURN_MS) close()
   }, IDLE_CHECK_MS)
 }
+
+const openRef = ref(props.open)
+watch(
+  () => props.open,
+  (open) => {
+    openRef.value = open
+    if (open) {
+      touchActivity()
+      startIdleWatch()
+      void refreshAgentStatus()
+      void refreshMicHint()
+      nextTick(() => inputRef.value?.focus())
+      scrollLogToBottom()
+      return
+    }
+    stopIdleWatch()
+    stopListen()
+  },
+  // 面板可能是**带着 open=true 挂载**的（悬浮伴侣 / 快捷键直接拉起），此时 watch
+  // 不会触发 —— 于是 ping 永远是 null，顶栏一路显示「未连接」。首次也要探测一次。
+  { immediate: true },
+)
+// 悬浮伴侣长按说话后留下的消息：取一条发一条，发完立刻清空，
+// 保证「面板被别处打开」时不会莫名冒出一条旧语音。
+watch(
+  () => chrome.pendingAgentPrompt,
+  (text) => {
+    if (!text) return
+    chrome.clearAgentPrompt()
+    void nextTick(() => send(text))
+  },
+)
+useFocusTrap(rootRef, openRef)
+onBeforeUnmount(stopIdleWatch)
 
 async function refreshAgentStatus() {
   pinging.value = true
@@ -305,29 +276,16 @@ async function refreshMicHint() {
   }
 }
 
+/** 把当前对话写进历史并更新指针（关面板 / 新对话 / 切会话前调用） */
 function persistCurrent() {
-  const snapshot = messages.value
-    .filter((message) => !message.streaming && String(message.text || '').trim())
-    .slice(-HISTORY_MESSAGE_LIMIT)
-    .map((message) => ({
-      role: message.role,
-      text: message.text,
-      tools: message.tools,
-      outcome: message.outcome,
-    }))
-  if (!snapshot.length) return
-  const title = snapshot.find((message) => message.role === 'user')?.text.slice(0, 24) || '对话'
-  const current: StoredSession = {
-    id: sessionId.value,
-    updatedAt: Date.now(),
-    title,
-    messages: snapshot,
-  }
+  const current = buildAgentChatSession(sessionId.value, messages.value)
+  if (!current) return
   sessions.value = [current, ...sessions.value.filter((item) => item.id !== current.id)].slice(
     0,
-    HISTORY_LIMIT,
+    AGENT_CHAT_HISTORY_LIMIT,
   )
-  writeHistory(sessions.value)
+  writeAgentChatSessions(sessions.value)
+  writeAgentChatCurrentId(current.id)
 }
 
 /** 历史会话时间：今天只显示时分，更早显示月日 */
@@ -344,22 +302,43 @@ function sessionTimeLabel(updatedAt: number): string {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-function openSession(session: StoredSession) {
+function openSession(session: AgentChatSession) {
   if (busy.value) return
   stopListen()
+  // 切走前先把当前这段存好，否则从历史里跳来跳去会丢掉未归档的对话
+  persistCurrent()
   sessionId.value = session.id
+  writeAgentChatCurrentId(session.id)
   messages.value = session.messages.map((message) => ({ ...message }))
   historyOpen.value = false
   scrollLogToBottom()
 }
 
+/** 清空成一个全新会话：只动内存 + 指针，历史由调用方决定留还是删 */
+function startFreshConversation() {
+  sessionId.value = newAgentChatSessionId()
+  messages.value = []
+  input.value = ''
+  writeAgentChatCurrentId(sessionId.value)
+}
+
+/** 新对话：把当前对话归档进历史，再开一条空会话（历史里还能翻回来） */
 function newConversation() {
   stopGenerating()
   stopListen()
   persistCurrent()
-  sessionId.value = `ui-agent-${Date.now().toString(36)}`
-  messages.value = []
-  input.value = ''
+  startFreshConversation()
+  historyOpen.value = false
+}
+
+/** 删除对话：连历史一起删 —— 否则关掉面板再打开会被历史兜底恢复成「没删掉」 */
+function deleteConversation() {
+  stopGenerating()
+  stopListen()
+  const removedId = sessionId.value
+  sessions.value = sessions.value.filter((item) => item.id !== removedId)
+  writeAgentChatSessions(sessions.value)
+  startFreshConversation()
   historyOpen.value = false
 }
 
@@ -445,18 +424,6 @@ function fallbackReplyOf(outcome: string | undefined): string {
   if (outcome === 'success') return '已执行'
   if (outcome === 'blocked') return '该指令未被执行。'
   return '无回复'
-}
-
-/**
- * 气泡正文的展示清洗：模型习惯写 `**加粗**` / `__下划线__` / 反引号代码，
- * 而气泡是纯文本内插（与参考实现同一口径，不渲染富文本），
- * 原样显示会把星号露出来。这里只去标记、不丢文字。
- */
-function displayText(text: string): string {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
 }
 
 /** 把工具轨迹合并进气泡（保持首次调用顺序，去重） */
@@ -575,13 +542,13 @@ async function send(raw?: string) {
           <span class="acp-head__title-row">
             <span class="acp-head__title">HomeOS智能管家</span>
           </span>
-          <span class="acp-head__status">
+          <span class="acp-head__status" :title="headerStatus">
             <span
               class="acp-head__dot"
               :class="`acp-head__dot--${headerTone}`"
               aria-hidden="true"
             />
-            {{ headerStatus }}
+            <span class="acp-head__status-text">{{ headerStatus }}</span>
           </span>
         </span>
         <span class="acp-head__actions">
@@ -599,9 +566,9 @@ async function send(raw?: string) {
             v-if="messages.length"
             type="button"
             class="acp-action"
-            aria-label="新对话"
-            title="新对话"
-            @click="newConversation"
+            aria-label="删除对话"
+            title="删除对话"
+            @click="deleteConversation"
           >
             <Trash2 class="acp-icon" />
           </button>
@@ -630,6 +597,9 @@ async function send(raw?: string) {
           <span class="acp-history__text">{{ item.title }}</span>
           <span class="acp-history__time">{{ sessionTimeLabel(item.updatedAt) }}</span>
         </button>
+        <button type="button" class="acp-history__row acp-history__row--new" @click="newConversation">
+          <span class="acp-history__text">＋ 新对话</span>
+        </button>
       </div>
 
       <div ref="logRef" class="acp-body" aria-live="polite">
@@ -648,10 +618,15 @@ async function send(raw?: string) {
               {{
                 ping?.provider === 'mock'
                   ? '当前为演示模式，请先配置并保存有效接口密钥'
-                  : '请先在设置中配置智能管家模型'
+                  : ping?.provider === 'unknown'
+                    ? '状态检测失败（登录状态或后端连接异常），稍后重试'
+                    : '请先在设置中配置智能管家模型'
               }}
             </p>
-            <button type="button" class="acp-setup" @click="goAgentSettings">
+            <button v-if="ping?.provider === 'unknown'" type="button" class="acp-setup" @click="refreshAgentStatus">
+              重新检测
+            </button>
+            <button v-else type="button" class="acp-setup" @click="goAgentSettings">
               去配置智能管家
             </button>
           </template>
@@ -669,18 +644,25 @@ async function send(raw?: string) {
             <AgentMechaAvatar mode="active" :is-active="false" />
           </span>
           <div class="acp-bubble" :class="`acp-bubble--${m.role}`">
-          <p class="acp-bubble__text" :class="{ 'acp-bubble__text--streaming': m.streaming }">
-            {{ m.streaming ? m.text : displayText(m.text) }}
-          </p>
+            <p class="acp-bubble__text" :class="{ 'acp-bubble__text--streaming': m.streaming }">
+              {{ m.streaming ? m.text : agentReplyText(m.text) }}
+            </p>
             <p v-if="m.outcome === 'blocked'" class="acp-bubble__blocked">
               <ShieldAlert class="acp-bubble__blocked-icon" aria-hidden="true" />
               {{ BLOCKED_NOTICE }}
             </p>
-            <p v-if="m.tools" class="acp-bubble__tools">{{ m.tools }}</p>
+            <div v-if="m.tools || m.ms" class="acp-bubble__foot">
+              <span v-if="m.tools" class="acp-bubble__tools">
+                <span v-for="label in toolLabels(m.tools)" :key="label" class="acp-tool">
+                  <Wrench class="acp-tool__icon" aria-hidden="true" />
+                  {{ label }}
+                </span>
+              </span>
+              <span v-if="m.ms" class="acp-bubble__meta" :title="agentFootTitle(m.ms, m.tokens || 0)">
+                {{ agentDurationLabel(m.ms) }}<template v-if="m.tokens"> · {{ m.tokens }}t</template>
+              </span>
+            </div>
           </div>
-          <span v-if="m.ms" class="acp-row__meta">
-            {{ m.ms }}ms<span v-if="m.tokens"> · {{ m.tokens }}t</span>
-          </span>
         </div>
 
         <div v-if="showTyping" class="acp-row acp-row--assistant">
