@@ -9,9 +9,12 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+import time
 import warnings
 from collections.abc import Iterable
 from contextlib import closing
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +32,56 @@ _EXPRESSION_INDEX_WARNING_RE = re.compile(r"expression-based index (\S+)$")
 
 class SchemaError(RuntimeError):
     """库文件不可用，或结构与 ORM 元数据不一致。"""
+
+
+#: 「上次干净关闭」标记的后缀。标记紧挨库文件放：路径能从库路径推导，不必再多记一份配置，
+#: 也不会因为换了数据目录而读到别处的陈旧结论。
+CLEAN_SHUTDOWN_SUFFIX = ".clean-shutdown"
+
+
+@dataclass(frozen=True, slots=True)
+class IntegrityReport:
+    """一次启动体检的结论；调用方据此写日志（本模块的 logger 不在宿主日志树下）。"""
+
+    #: 实际执行的 PRAGMA 名：``integrity_check`` 或 ``quick_check``
+    pragma: str
+    #: 体检耗时（毫秒），含外键校验与必需表核对
+    elapsed_ms: float
+    #: 上次是否干净关闭；``None`` 表示调用方显式指定了强度，没有参考标记
+    clean_shutdown: bool | None
+
+
+def clean_shutdown_marker(database_path: Path) -> Path:
+    """干净关闭标记的路径（与库同级）。"""
+    return database_path.with_name(database_path.name + CLEAN_SHUTDOWN_SUFFIX)
+
+
+def consume_clean_shutdown_marker(database_path: Path) -> bool:
+    """读走「上次干净关闭」标记：返回本次启动是否可以只做轻量体检。
+
+    **读即删**是这套机制的关键：标记只在上次停机收尾跑完后才存在，本次启动一开始就消费掉，
+    之后无论崩在启动的哪一步（含体检自己），下次都不会被误判成「干净关闭」。
+    删不掉（只读挂载等）同样当作没有标记：多付一次完整体检，好过把坏库当健康库。
+    """
+    try:
+        clean_shutdown_marker(database_path).unlink()
+    except OSError:
+        return False
+    return True
+
+
+def mark_clean_shutdown(database_path: Path) -> None:
+    """停机收尾成功后落标记（幂等）。
+
+    写失败只影响下次启动的体检强度（退化成完整校验），不影响本次退出 —— 所以这里吞掉
+    ``OSError``：停机路径上再抛异常会让「已经收尾完成」的进程以非零码退出。
+    """
+    marker = clean_shutdown_marker(database_path)
+    stamp = datetime.now(UTC).isoformat(timespec="seconds")
+    try:
+        marker.write_text(stamp + "\n", encoding="utf-8")
+    except OSError:
+        LOGGER.debug("干净关闭标记写入失败，下次启动将做完整体检:%s", marker)
 
 
 def ensure_schema(metadata: MetaData, engine: Engine) -> None:
@@ -98,15 +151,40 @@ def missing_schema_objects(engine: Engine, metadata: MetaData) -> list[str]:
     return missing
 
 
-def validate_database(database_path: Path, required_tables: Iterable[str]) -> None:
-    """校验库文件的完整性、外键约束与必需业务表。"""
+def validate_database(
+    database_path: Path,
+    required_tables: Iterable[str],
+    *,
+    integrity: str | None = None,
+) -> IntegrityReport:
+    """校验库文件的完整性、外键约束与必需业务表，返回本次体检的结论。
+
+    ``integrity`` 只决定**体检强度**，不影响外键校验与必需表核对：
+
+    - ``"full"``：``PRAGMA integrity_check`` —— 逐页校验表 B-tree 与全部索引；
+    - ``"quick"``：``PRAGMA quick_check`` —— 跳过索引一致性，耗时约为 ``full`` 的 1/4；
+    - ``None``（默认）：按「上次是否干净关闭」自动选档 —— 干净关闭走 ``quick``，
+      异常退出走 ``full``。异常退出后的首启正是最可能出现半写页 / 索引错位的时刻，
+      这一档不能省。
+
+    为什么默认不总是 ``full``：``integrity_check`` 是 O(库文件大小) 的全盘扫描（291 MB 的库
+    实测约 800 ms，占了整个启动的 80%），而每次正常重启都重扫一遍拿不到新信息。
+    """
+    if integrity not in (None, "full", "quick"):
+        raise ValueError(f"未知的完整性体检强度：{integrity}")
+    clean_shutdown: bool | None = None
+    if integrity is None:
+        clean_shutdown = consume_clean_shutdown_marker(database_path)
+        integrity = "quick" if clean_shutdown else "full"
+    pragma = "quick_check" if integrity == "quick" else "integrity_check"
     if not database_path.is_file():
         raise SchemaError(f"数据库文件不存在：{database_path}")
+    started = time.perf_counter()
     with closing(sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)) as connection:
-        integrity = connection.execute("PRAGMA integrity_check").fetchone()
-        if integrity is None or integrity[0] != "ok":
-            detail = integrity[0] if integrity else "no result"
-            raise SchemaError(f"SQLite integrity_check 失败：{detail}")
+        result = connection.execute(f"PRAGMA {pragma}").fetchone()
+        if result is None or result[0] != "ok":
+            detail = result[0] if result else "no result"
+            raise SchemaError(f"SQLite {pragma} 失败：{detail}")
         violations = connection.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
             sample = "; ".join(str(row) for row in violations[:5])
@@ -118,3 +196,8 @@ def validate_database(database_path: Path, required_tables: Iterable[str]) -> No
     missing = sorted(set(required_tables) - live_tables)
     if missing:
         raise SchemaError(f"数据库缺少业务表：{', '.join(missing)}")
+    return IntegrityReport(
+        pragma=pragma,
+        elapsed_ms=round((time.perf_counter() - started) * 1000.0, 2),
+        clean_shutdown=clean_shutdown,
+    )

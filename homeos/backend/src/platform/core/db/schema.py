@@ -15,6 +15,7 @@ import logging
 from sqlalchemy.schema import MetaData
 
 from homeos_shared.schema_core import (
+    IntegrityReport,
     SchemaError,
     ensure_schema,
     missing_schema_objects,
@@ -36,6 +37,15 @@ def _metadata() -> MetaData:
     from .database import Base
 
     return Base.metadata
+
+
+def _integrity_note(report: IntegrityReport) -> str:
+    """体检强度的一句话来历：日志里得能看出「这次到底有没有逐页全查」。"""
+    if report.clean_shutdown is None:
+        return "显式指定强度"
+    if report.clean_shutdown:
+        return "上次为干净关闭"
+    return "上次未干净关闭,故逐页全查"
 
 
 def prepare_schema(settings: Settings) -> None:
@@ -80,4 +90,7 @@ def prepare_schema(settings: Settings) -> None:
                 raise SchemaError("库结构与 ORM 元数据不一致：\n  - " + "\n  - ".join(missing))
     finally:
         database.dispose()
-    validate_database(settings.database_path, metadata.tables)
+    report = validate_database(settings.database_path, metadata.tables)
+    # 体检强度与耗时写出来：默认档位按「上次是否干净关闭」自动选，日志里必须能看出这次
+    # 是逐页全查还是轻量校验，否则「启动快了点」到底是运气还是改了档位说不清。
+    LOGGER.info("数据库完整性体检通过:%s(%s),%.1f ms", report.pragma, _integrity_note(report), report.elapsed_ms)

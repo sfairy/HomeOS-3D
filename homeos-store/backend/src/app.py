@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
+from homeos_shared.schema_core import mark_clean_shutdown
 from homeos_shared.single_process import assert_single_process
 
 from . import __version__
@@ -310,6 +311,9 @@ def _make_lifespan(runtime: _StoreRuntime):
             with contextlib.suppress(asyncio.CancelledError):
                 await sweep_task
             database.dispose()
+            # 收尾跑完才落「干净关闭」标记：下次启动只做 quick_check；没有标记（含崩溃退出）
+            # 则做完整 integrity_check。与主应用同一套机制（见 homeos_shared.schema_core）。
+            mark_clean_shutdown(settings.database_path)
 
     return lifespan
 
