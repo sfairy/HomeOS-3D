@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 549,
+  "total": 547,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/payments/license.py": 3,
@@ -60,7 +60,7 @@
     "homeos/backend/src/bootstrap/spa_static.py": 5,
     "homeos/backend/src/bootstrap/studio3d_plane.py": 1,
     "homeos/backend/src/bootstrap/studio_shell.py": 2,
-    "homeos/backend/src/config.py": 3,
+    "homeos/backend/src/config.py": 2,
     "homeos/backend/src/domains/agent/mcp/mcp_protocol.py": 2,
     "homeos/backend/src/domains/agent/mcp/mcp_service.py": 4,
     "homeos/backend/src/domains/agent/memory/command_cache.py": 2,
@@ -152,7 +152,7 @@
     "homeos/backend/src/domains/security/bus.py": 2,
     "homeos/backend/src/domains/security/config.py": 1,
     "homeos/backend/src/domains/security/cooldown.py": 1,
-    "homeos/backend/src/domains/security/frigate.py": 2,
+    "homeos/backend/src/domains/security/frigate.py": 1,
     "homeos/backend/src/domains/security/layout.py": 1,
     "homeos/backend/src/domains/security/linkage.py": 7,
     "homeos/backend/src/domains/security/mmwave.py": 2,
