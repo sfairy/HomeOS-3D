@@ -57,6 +57,7 @@ import {
 } from '../../ui/studio-app-helpers';
 import {
   lightPresetCatalog,
+  autoLightKelvin,
 } from '../../lights/studio-app-light-data';
 import { planLabelDefaultColor } from "../../scene/studio-scene-payload";
 
@@ -196,7 +197,9 @@ export function createSceneItem(deps: CreateSceneItemDeps,
                   lightSourceVisible: true,
                 }
               : {}),
-            lightTemperature: downlight3.temperature,
+            // 色温先按灯组名分档（卧室 2700 / 客厅餐厅 3000 / 厨卫书房 4000）：
+            // 建灯时"默认灯组"没有房间关键词，就还是出厂色温，不会误改。
+            lightTemperature: autoLightKelvin(sceneItemType, _a2?.name, downlight3.temperature),
             lightBrightness: downlight3.brightness,
             lightRange: downlight3.range,
             lightAngle: downlight3.angle,

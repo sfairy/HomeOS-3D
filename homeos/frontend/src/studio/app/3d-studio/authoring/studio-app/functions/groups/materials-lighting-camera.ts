@@ -8,6 +8,7 @@ import { buildCustomMaterialStyleRecord, customMaterialStyleId, materialStyleGro
 import { interactionResourcePolicy } from "../../../../studio-resource-policy";
 import { prepareBackground as prepareBackground2, loadImportedImage as loadImportedImage2, backgroundFailure as backgroundFailure2, type BackgroundImportDiagnostics } from "../../../../plan/background-import";
 import { WARM_WOOD_STYLE as WARM_WOOD_STYLE2 } from "../../../scene/studio-scene-style";
+import { applySunShadowTuning } from "../../../scene/studio-sun-shadow-tuning";
 import { withRequestTimeout as withRequestTimeout2 } from "../../../../../shared/util/request-timeout";
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { adaptiveDeviceLightBudget as adaptiveDeviceLightBudget2, adaptiveLightRenderCost as adaptiveLightRenderCost2, assessAdaptiveRenderFrames as assessAdaptiveRenderFrames2, clamp as clamp2 } from "../../../../plan/geometry";
@@ -656,6 +657,10 @@ export function refreshBaseLighting(runtime: StudioAppRuntime, ) {
     (runtime.appCtx.threeRenderer.toneMappingExposure = vn2.exposure));
 
   const intensityScale = runtime.isEmbedStageMode ? 0.5 : 1;
+  // 亮度系数判据是 `isEmbedStageMode`（舞台 + `?lighting=region`），不是 `isEmbeddedStage`：
+  // 标准舞台 URL 走 1.0，是曝光与墙面自发光一起调好的基线；换成 `isEmbeddedStage` 会把半球光/
+  // 环境光/三盏方向光整体砍半，墙直接掉成暗褐色块，开灯也补不回来。
+  const isStageSurface = runtime.isEmbeddedStage === true;
   (runtime.appCtx.hemisphereLight &&
     (runtime.appCtx.hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14606046),
     runtime.appCtx.hemisphereLight.groundColor.setHex(yt2.warmWood ? 10524035 : 2236962),
@@ -667,13 +672,7 @@ export function refreshBaseLighting(runtime: StudioAppRuntime, ) {
       (runtime.appCtx.mainDirectionalLight.color.setHex(yt2.warmWood ? 16774367 : 16053492),
       (runtime.appCtx.mainDirectionalLight.intensity = vn2.mainIntensity * intensityScale),
       runtime.positionLightFromAngles(runtime.appCtx.mainDirectionalLight, vn2.mainAzimuth, vn2.mainElevation, 18.4),
-      (runtime.appCtx.mainDirectionalLight.shadow.bias = -0.00012),
-      (runtime.appCtx.mainDirectionalLight.shadow.normalBias = 0.016),
-      (runtime.appCtx.mainDirectionalLight.shadow.radius = 1.75),
-      (runtime.appCtx.mainDirectionalLight.shadow.blurSamples = 4),
-      runtime.appCtx.isGroundShadowEnabled &&
-        ((runtime.appCtx.mainDirectionalLight.shadow.radius = 1.2), (runtime.appCtx.mainDirectionalLight.shadow.blurSamples = 8)),
-      (runtime.appCtx.mainDirectionalLight.shadow.intensity = vn2.mainShadowIntensity)),
+      applySunShadowTuning(runtime.appCtx.mainDirectionalLight, { isStageSurface, isGroundShadowEnabled: runtime.appCtx.isGroundShadowEnabled, mainShadowIntensity: vn2.mainShadowIntensity })),
     runtime.appCtx.fillDirectionalLight &&
       (runtime.appCtx.fillDirectionalLight.color.setHex(yt2.warmWood ? 14346221 : 10921638),
       (runtime.appCtx.fillDirectionalLight.intensity = vn2.fillIntensity * intensityScale),

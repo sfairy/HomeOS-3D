@@ -85,12 +85,27 @@ import { createGroundGrid } from "../../studio-app/scene/ground-grid";
 import type { StudioAppContext } from "../studio-app-context";
 export interface BuildStudioSceneDeps { appCtx: StudioAppContext; backgroundSettings: any; batchSharedMeshes: any; buildCourtyardFoundation: any; buildGroundShadow: any; buildInteriorScene: any; buildItemModel: any; buildShapesWithHoles: any; closedWallLoops: any; collectLightSourceSpecs: any; createFloorMaterial: any; createSelectionRef: any; defaultWallRuntimeProfile: any; disposeFloorScene: any; geometryCacheHandle: any; getActiveFloor: any; getPixelsPerMeter: any; getSceneContentBounds: any; isEmbedStageMode: any; isEmbeddedStage: any; mergeStaticItemMeshes: any; refreshBaseLighting: any; refreshSceneRender: any; setupSceneShadows: any; }
 
+/**
+ * 给场景根挂当前楼层号（0.8.2 的 `I.userData.regionFloorId = j`，且是无条件挂）。
+ *
+ * 分层灯光 `bind()` 用 `objectFloorId(object)` 选 UBO：墙带 / 门窗这些构件自己没有楼层
+ * 字段，只能从根上继承。不挂就等于把它们绑到空的根缓冲，射灯一盏也读不到 —— 地面亮、
+ * 墙面一片死平。此前只在区域光照那一档才挂，编辑器与标准舞台都漏了这一段。
+ */
+function bindSceneRootFloor(
+  sceneRoot: { userData: Record<string, unknown> } | null | undefined,
+  activeFloorId: unknown,
+) {
+  if (!sceneRoot || typeof activeFloorId != "string" || !activeFloorId) return;
+  sceneRoot.userData.regionFloorId = activeFloorId;
+}
+
 export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCache: preserveLightCache = false } = {}) {
   const { appCtx, backgroundSettings, batchSharedMeshes, buildCourtyardFoundation, buildGroundShadow, buildInteriorScene, buildItemModel, buildShapesWithHoles, closedWallLoops, collectLightSourceSpecs, createFloorMaterial, createSelectionRef, defaultWallRuntimeProfile, disposeFloorScene, geometryCacheHandle, getActiveFloor, getPixelsPerMeter, getSceneContentBounds, isEmbedStageMode, isEmbeddedStage, mergeStaticItemMeshes, refreshBaseLighting, refreshSceneRender, setupSceneShadows } = deps;
 
   if (
     (appCtx.contactShadowController?.invalidate(),
-    isEmbedStageMode && appCtx.sceneRootNode && (appCtx.sceneRootNode.userData.regionFloorId = appCtx.activeFloorId),
+    bindSceneRootFloor(appCtx.sceneRootNode, appCtx.activeFloorId),
     !appCtx.sceneRootNode)
   )
     return;

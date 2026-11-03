@@ -1424,7 +1424,7 @@ export function bootStudio(): void {
   isEmbedStageMode =
     isEmbeddedStage &&
     new URLSearchParams(window.location.search).get("lighting") === "region",
-  defaultWallRuntimeProfile = "shader";
+  defaultWallRuntimeProfile = "baseline";
 window.__homeosWallRuntimeProfile = defaultWallRuntimeProfile || "baseline";
 const renderCacheWriter = isEmbeddedStage
   ? createRenderCache2({

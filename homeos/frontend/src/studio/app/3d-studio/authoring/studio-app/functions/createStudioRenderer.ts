@@ -25,6 +25,11 @@ import { createMotionBuffer as createMotionBuffer2 } from "../../scene/studio-mo
 import { createBackgroundCache as createBackgroundCache2 } from "../../scene/studio-background-cache";
 import { stageStartup as stageStartup2 } from "../../../stage-startup";
 import { interactionResourcePolicy } from "../../../studio-resource-policy";
+import {
+  installLightingShaderFailsafe,
+  restoreLightingShaderChecksIfReady,
+  type LightingShaderFailsafe,
+} from "./lighting-shader-failsafe";
 
 
 
@@ -86,6 +91,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
   const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, setupSceneShadows, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
 
   let disposeRendererEvents: (() => void) | null = null;
+  /** 灯光补丁编译兜底（见 `lighting-shader-failsafe.ts`）；渲染器建好之后才注册。 */
+  let lightingShaderFailsafe: LightingShaderFailsafe | null = null;
   const previewViewportElement = selectElement("#preview-3d");
   /**
    * 创建 WebGL 渲染器，失败时逐步降级。
@@ -129,7 +136,13 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       // 0.8.1：非嵌入舞台（= 编辑态）才追踪上下文资源；嵌入舞台用的是宿主页面共享的渲染上下文。
       isEmbedStageMode ||
         (appCtx.contextResources = createContextResourceTracker(appCtx.threeRenderer)),
-      isEmbeddedStage && appCtx.threeRenderer.debug && (appCtx.threeRenderer.debug.checkShaderErrors = false),
+      // 灯光补丁的编译兜底会临时打开 checkShaderErrors（见 installLightingShaderFailsafe），
+      // 所以舞台上的 `checkShaderErrors = false` 也交给它统一管。
+      (lightingShaderFailsafe = installLightingShaderFailsafe({
+        appCtx,
+        setupSceneShadows,
+        scheduleStudioRender,
+      })),
       appCtx.threeRenderer.setPixelRatio(computeRenderPixelRatio()),
       (appCtx.threeRenderer.outputColorSpace = ns2.SRGBColorSpace),
       (appCtx.threeRenderer.toneMapping = ns2.NeutralToneMapping),
@@ -324,6 +337,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       lastMotionMs = -Infinity;
     const stepStudioFrame = (frameStepTimestamp = performance.now()) => {
       if (!appCtx.threeRenderer) return;
+      restoreLightingShaderChecksIfReady(appCtx, lightingShaderFailsafe);
       const frameStepDelta = Math.min(
         Math.max((frameStepTimestamp - lastStatsPublishMs) / 1000, 0),
         0.05,
@@ -452,6 +466,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
           appCtx.lightPrecompileController?.dispose?.();
           appCtx.regionLightController?.dispose?.();
           appCtx.contactShadowController?.dispose?.();
+          // 兜底注册的 onShaderError 闭包住整个 appCtx；不注销会在下一次引导里留着旧 handler。
+          (lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null));
         } catch {
           /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失 */
         }
@@ -487,6 +503,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       phase: "studio-webgl-init",
     });
     console.error(frameDriverError);
+    // 引导中途中止时渲染器可能已经建好：兜底 handler 也一并撤掉，避免挂到废弃上下文上。
+    (lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null));
   }
 
   return disposeRendererEvents;

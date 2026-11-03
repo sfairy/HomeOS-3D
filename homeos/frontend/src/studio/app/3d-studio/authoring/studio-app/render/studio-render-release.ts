@@ -74,6 +74,10 @@ export function clearStudioDocumentResidue(): void {
     "effectCacheStats",
     "interactionBatchStats",
     "shadowReceiverTrial",
+    // 灯光路径的诊断标记：舞台/编辑器模式、「已退回原生逐灯」的结论、锥体参数就地同步计数。
+    "stageLightingMode",
+    "lightingFallback",
+    "lightShapeSync",
   ]) {
     delete documentDataset[datasetKey];
   }

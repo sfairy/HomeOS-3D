@@ -11,6 +11,7 @@
 import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
+import { createWallTopMaterial, isWallTrialShaderEnabled } from "./studio-wall-top";
 import { createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder as prepareWallSideOrder2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
 import { WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from "../../materials/studio-wall-finish";
 import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
@@ -20,9 +21,10 @@ import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { validGeometryLoops as validGeometryLoops2 } from "../../cache/geometry-persistent-cache";
 import { windowGeometryParts as windowGeometryParts2 } from "../../plan/studio-window-geometry";
 import { collectExhaustFanOpenings } from "../items/studio-exhaust-fan";
+export { createWallTopMaterial };
 
 /** 墙体构件族的外部状态（只读：本族不写入任何外部可变绑定）。 */
-interface StudioWallsDeps {
+export interface StudioWallsDeps {
   activeFloorId: any;
   addArchitectureMesh: any;
   addWindowFrames: any;
@@ -145,48 +147,6 @@ function createHiddenBasicMaterial(deps: StudioWallsDeps) {
   return ((hiddenBasicMaterial.visible = false), hiddenBasicMaterial);
 }
 
-export function createWallTopMaterial(deps: StudioWallsDeps, 
-  wallTopBaseColor: any,
-  wallTopOpacity: any,
-  wallTopOptions: WallSurfaceMaterialOptions = {},
-) {
-  const warmWood2 = deps.backgroundSettings().warmWood && wallTopOptions.polygonOffset !== true,
-    isWallTopOpaque = wallTopOpacity >= 0.999,
-    wallTopTint = new ns2.Color(wallTopOptions.topColor ?? wallTopBaseColor);
-  isWallTrialShaderEnabled(deps) &&
-    wallTopOptions.polygonOffset !== true &&
-    wallTopTint.multiplyScalar(1.2);
-  const wallTopMaterial = new ns2.MeshStandardMaterial({
-    color: wallTopTint,
-    roughness: 0.76,
-    metalness: 0,
-    transparent: !isWallTopOpaque,
-    opacity:
-      wallTopOptions.topOpacity ??
-      (isWallTopOpaque
-        ? 1
-        : Math.min(wallTopOpacity * (warmWood2 ? 1.65 : 1.08), warmWood2 ? 0.72 : 0.42)),
-    depthWrite: wallTopOptions.depthWrite ?? isWallTopOpaque,
-    depthFunc: wallTopOptions.depthFunc ?? (isWallTopOpaque ? ns2.LessEqualDepth : ns2.LessDepth),
-    polygonOffset: wallTopOptions.polygonOffset === true,
-    polygonOffsetFactor: wallTopOptions.polygonOffsetFactor ?? -2,
-    polygonOffsetUnits: wallTopOptions.polygonOffsetUnits ?? -4,
-    side: ns2.DoubleSide,
-    emissive: wallTopOptions.emissive ?? wallTopOptions.topColor ?? wallTopBaseColor,
-    emissiveIntensity: wallTopOptions.emissiveIntensity
-      ? wallTopOptions.emissiveIntensity * 0.3
-      : warmWood2
-        ? 0.38
-
-
-        : 0.30,
-  });
-  return (
-    wallTopOptions.polygonOffset !== true && (wallTopMaterial.userData.environmentWallTop = true),
-    wallTopMaterial
-  );
-}
-
 /** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
 function cachedWallUnionLoops(deps: StudioWallsDeps, wallLoopList: any) {
   const computeUnionLoops = () => validatedUnionPolygonLoops2(wallLoopList, 1e-7);
@@ -216,7 +176,9 @@ function buildWallBandMesh(deps: StudioWallsDeps,
           }
         : wallBandOptions;
   for (const wallBandShape of ms2) {
-    const usesWallTrialShader = isWallTrialShaderEnabled(deps) && wallBandOptions.polygonOffset !== true,
+    // 转角压暗原先只给专用墙面着色器算：物理材质这条路只有墙根渐变，长墙从上到下一条
+    // 亮度带、转角没有暗边，整圈墙像折纸板。`polygonOffset`（装饰墙带）排除，避免叠加两次。
+    const usesCornerDistance = wallBandOptions.polygonOffset !== true,
       extractPoints = wallBandShape.extractPoints(1),
       buildWallBandGeometry = () => {
         const extrudedGeometry = new ns2.ExtrudeGeometry(wallBandShape, {
@@ -234,7 +196,7 @@ function buildWallBandMesh(deps: StudioWallsDeps,
             -1,
             deps.studioState.settings.wallHeight,
           ),
-          usesWallTrialShader &&
+          usesCornerDistance &&
             setWallCornerDistances2(ns2, extrudedGeometry, [
               extractPoints.shape,
               ...extractPoints.holes,
@@ -248,7 +210,7 @@ function buildWallBandMesh(deps: StudioWallsDeps,
             wallBandBaseHeight,
             wallBandTopHeight,
             deps.studioState.settings.wallHeight,
-            usesWallTrialShader,
+            usesCornerDistance,
           ], buildWallBandGeometry)
         : buildWallBandGeometry();
     const hiddenWallBandMaterial = createHiddenBasicMaterial(deps),
@@ -262,7 +224,10 @@ function buildWallBandMesh(deps: StudioWallsDeps,
     const isWallBandOpaque = wallBandOpacity >= 0.999;
     ((wallBandMesh.castShadow = wallBandOptions.castShadow === true),
       wallBandOptions.lightOccluder && wallBandMesh.layers.set(deps.lampsLayerIndex),
-      (wallBandMesh.receiveShadow = isWallBandOpaque),
+      // 墙面必须吃阴影：现实里白天的窗光、家具影、人的影子都会落在墙上，夜晚吊灯的
+      // 光被柜体挡住的那一块也靠这张阴影图。原先只在「墙不透明」时才开（默认 0.36
+      // 永远不透明不了），于是墙是唯一不接收阴影的受体，整面墙平得像贴图。
+      (wallBandMesh.receiveShadow = wallBandOptions.receiveShadow ?? true),
       (wallBandMesh.renderOrder = wallBandOptions.renderOrder ?? 4),
       // 半透明合并墙带：每帧按相机侧重排三角形顺序（0.8.1 只在创作态启用，
       // 运行态舞台沿用 0.8.0 的固定顺序）。
@@ -375,14 +340,6 @@ function createWallContactShadowMesh(deps: StudioWallsDeps, wallPolygonList: any
     deps.sceneRootNode.add(wallContactShadowMesh));
 }
 
-function isWallTrialShaderEnabled(deps: StudioWallsDeps) {
-  return (
-    deps.isEmbedStageMode &&
-    (new URLSearchParams(window.location.search).get("wall-trial") ?? deps.defaultWallRuntimeProfile)
-      .split(",")
-      .includes("shader")
-  );
-}
 
 export function buildInteriorScene(deps: StudioWallsDeps, {
   ppm: interiorPixelsPerMeter,
@@ -552,7 +509,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         depthFunc: ns2.LessEqualDepth,
         polygonOffset: true,
         emissive: yt6.accent,
-        emissiveIntensity: 0.12,
+        emissiveIntensity: 0.08,
         renderOrder: 5,
       });
       const accentTopWallFootprints = midLevelWallVolumes
@@ -567,7 +524,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         depthFunc: ns2.LessEqualDepth,
         polygonOffset: true,
         emissive: yt6.accent,
-        emissiveIntensity: 0.12,
+        emissiveIntensity: 0.08,
         topOpacity: 0.12,
         renderOrder: 6,
       });

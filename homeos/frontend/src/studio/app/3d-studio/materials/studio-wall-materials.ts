@@ -5,6 +5,37 @@ type SlicedAttribute = {
   normalized: boolean;
 };
 
+/**
+ * 墙面明暗层次的三个系数（冷色 / 暖木两档）。
+ *
+ * - `rootShade`：墙根压暗后的亮度比例（渐变从墙根 0 到 0.65 高度处恢复 1.0）；
+ * - `rootAlpha`：墙根额外加的半透明浓度（冷色补一点，避免墙根被背景吃掉）；
+ * - `cornerShade`：转角压暗强度，与 0.8.2 专用墙面着色器同一档。
+ */
+const WALL_SHADER_TONES = Object.freeze({
+  cool: { rootShade: "0.70", rootAlpha: "0.65", cornerShade: "0.28", cacheKey: "hb-wall-height-gradient-v4" },
+  warm: { rootShade: "0.92", rootAlpha: "0.0", cornerShade: "0.08", cacheKey: "hb-wall-warm-clean-v2" },
+});
+
+/**
+ * 缺 attribute 时的兜底值。
+ *
+ * three 对没绑定的 attribute 会读到 (0,0,0,1)：转角距离读成 0 就是满强度压暗，
+ * 所有没算 `hbWallCornerDistance` 的墙（缓存命中 / 装饰墙带 / 旧几何）会整体掉 28% 亮度。
+ * 100 米等价于「没有转角」；`hbWallHeight` 为 0 时只走墙根渐变的起点。
+ */
+function applyWallAttributeDefaults(
+  material: { userData: Record<string, unknown>; defaultAttributeValues?: Record<string, number[]> },
+  enhance: boolean,
+) {
+  if (!enhance || material.userData.hbDedicatedWall) return;
+  material.defaultAttributeValues = {
+    ...(material.defaultAttributeValues || {}),
+    hbWallHeight: [0],
+    hbWallCornerDistance: [100, 100],
+  };
+}
+
 export function createWallSideMaterial(
   THREE: any,
   materialParams: any,
@@ -13,10 +44,12 @@ export function createWallSideMaterial(
   isWarmWood = false,
 ) {
   const featureSet = new Set(wallFeatures.split(",")),
+    tone = isWarmWood ? WALL_SHADER_TONES.warm : WALL_SHADER_TONES.cool,
     material =
       enhance && featureSet.has("shader")
         ? createDedicatedWallMaterial(THREE, materialParams, isWarmWood)
         : new THREE.MeshPhysicalMaterial(materialParams);
+  applyWallAttributeDefaults(material, enhance);
   return (
     enhance && featureSet.has("single") && (material.forceSinglePass = true),
     enhance && featureSet.has("depth") && (material.depthWrite = true),
@@ -24,29 +57,40 @@ export function createWallSideMaterial(
       !enhance ||
       ((material.onBeforeCompile = (shaderObject: any) => {
         ((shaderObject.vertexShader =
-          "attribute float hbWallHeight; varying float vHbWallHeight;\n" +
+          "attribute float hbWallHeight; attribute vec2 hbWallCornerDistance;\n" +
+          "varying float vHbWallHeight; varying vec2 vHbWallCornerDistance;\n" +
           shaderObject.vertexShader),
           (shaderObject.vertexShader = shaderObject.vertexShader.replace(
             "#include <begin_vertex>",
-            "#include <begin_vertex>\nvHbWallHeight = hbWallHeight;",
+            "#include <begin_vertex>\nvHbWallHeight = hbWallHeight;\nvHbWallCornerDistance = hbWallCornerDistance;",
           )),
           (shaderObject.fragmentShader =
-            "varying float vHbWallHeight;\n" + shaderObject.fragmentShader),
+            "varying float vHbWallHeight; varying vec2 vHbWallCornerDistance;\n" +
+            shaderObject.fragmentShader),
           (shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
             "#include <opaque_fragment>",
 
 
             "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
-              (isWarmWood ? "0.92" : "0.70") +
+              tone.rootShade +
               ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
-              (isWarmWood ? "0.0" : "0.65") +
+              tone.rootAlpha +
               " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>",
+          )),
+          // 转角压暗：与 0.8.2 专用墙面着色器同一档（冷色 0.28 / 暖木 0.08）。
+          // 属性缺失时 `defaultAttributeValues` 给 [100,100] 兜底，等于不压暗。
+          (shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
+            "#include <opaque_fragment>",
+            "\n      float wallCornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n" +
+              "      float wallCornerShade = 1.0 - smoothstep(0.0, 0.24, wallCornerDistance);\n" +
+              "      outgoingLight *= 1.0 - " +
+              tone.cornerShade +
+              " * wallCornerShade;\n      #include <opaque_fragment>",
           )));
       }),
 
 
-      (material.customProgramCacheKey = () =>
-        isWarmWood ? "hb-wall-warm-clean-v1" : "hb-wall-height-gradient-v3")),
+      (material.customProgramCacheKey = () => tone.cacheKey)),
     material
   );
 }

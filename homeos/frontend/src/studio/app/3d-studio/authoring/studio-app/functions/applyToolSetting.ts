@@ -68,6 +68,7 @@ import { normalizePillarAxis as normalizePillarAxis2,
   normalizeStripAxis as normalizeStripAxis2,
 } from "../../items/studio-item-posture";
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, tvMountStyleSet } from "../../items/item-catalog";
+import { syncLightShapeAndRepaint } from "./light-shape-sync";
 import { STORAGE_SECTION_TYPES, storageSectionStyle } from "../../items/studio-storage-sections";
 
 
@@ -506,6 +507,9 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
   }
   (applyPlacementChange(ft9),
     pillarDepthSnapped && refreshStudioUi(false),
+    // 照射范围/光束角只存在于灯对象上，重建被推迟（手动预览）时不会有任何画面变化；
+    // 这里补一次就地同步 + 重绘，让这两个参数提交即生效（非灯具时内部直接返回 0）。
+    syncLightShapeAndRepaint(appCtx, [toolPlacedElement]),
     refreshScopeItems(yr2),
     markDocumentDirty());
 

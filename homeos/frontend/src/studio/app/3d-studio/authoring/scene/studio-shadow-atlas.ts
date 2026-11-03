@@ -8,7 +8,6 @@ import {
 import {
   createFloorLightBuffer,
   floorLightShaderPars,
-  floorLightShaderLoop,
   objectFloorId,
   type FloorLightBuffer,
   type FloorCamera,
@@ -20,6 +19,14 @@ import {
 } from "./studio-floor-lights";
 import { createShadowParameterBuffer, type ShadowParameterBuffer } from "./studio-shadow-parameters";
 import { createShadowTextureCopy, type ShadowTextureCopy } from "./studio-shadow-copy";
+import {
+  buildAtlasFragmentChunk,
+  buildAtlasVertexParsChunk,
+  buildAtlasVertexChunk,
+  patchLightsParsBegin,
+  patchLightsPhysicalPars,
+  patchLightsFragmentBegin,
+} from './studio-lighting-shader-chunks';
 
 const DEFAULT_TILE_GUTTER = 1;
 function toPositiveInt(input: any, fallback = 0) {
@@ -143,254 +150,6 @@ interface SpotShadowEntry extends FloorShadowEntry {
   /** `syncRenderLights` 复用的 `vec4`，避免每帧新建。 */
   uniformParams?: FloorVector4;
 }
-/**
- * 片元着色器里的图集采样段。
- *
- * 0.8.1 起要同时服务两条路径：
- * - 常规路径：每盏射灯一组 varying（或数据纹理）；
- * - 分层路径（`HB_FLOOR_LIGHTS`）：层数一多 varying 必然超限，参数改从 `std140` 的
- *   `UserSpotShadowParameters` 块里按灯槽位取，纹理单元只留图集本身。
- *
- * 所以整段（包括 `getUserSpotAtlasShadow`）都跟着闸门一起放宽到 `HB_FLOOR_LIGHTS`：
- * 分层路径下 `NUM_SPOT_LIGHTS` 往往是 0（灯都被楼层缓冲接管、`layers.mask` 已清零），
- * 只用 `NUM_SPOT_LIGHTS > 0` 会把这几个函数整段裁掉，分层灯光循环就编不过。
- */
-function buildAtlasFragmentChunk() {
-  return `
-#if NUM_SPOT_LIGHTS > 0 || defined(HB_FLOOR_LIGHTS)
-  uniform sampler2D userSpotShadowAtlas;
-  uniform float userSpotShadowAtlasEnabled;
-  #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT || defined(HB_FLOOR_LIGHTS)
-    varying vec4 vUserShadowWorldPosition;
-    varying vec3 vUserShadowWorldNormal;
-    #if NUM_SPOT_LIGHTS <= USER_SPOT_SHADOW_BUFFER_LIMIT
-      layout(std140) uniform UserSpotShadowParameters {
-        vec4 userSpotShadowBuffer[ USER_SPOT_SHADOW_BUFFER_LIMIT * 6 ];
-      };
-      vec4 userSpotShadowValue( int slot, int column ) {
-        return userSpotShadowBuffer[ slot * 6 + column ];
-      }
-    #else
-      uniform highp sampler2D userSpotShadowData;
-      vec4 userSpotShadowValue( int slot, int column ) {
-        return texelFetch( userSpotShadowData, ivec2( column, slot ), 0 );
-      }
-    #endif
-  #else
-    uniform vec4 userSpotShadowRect[ NUM_SPOT_LIGHTS ];
-    uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];
-    varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];
-  #endif
-
-  float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {
-    if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;
-    shadowCoord.xyz /= shadowCoord.w;
-    shadowCoord.z += shadowParams.x;
-    bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0
-      && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;
-    if ( ! inFrustum || shadowCoord.z > 1.0 ) return 1.0;
-    vec2 atlasUv = atlasRect.xy + clamp( shadowCoord.xy, 0.0, 1.0 ) * atlasRect.zw;
-    vec2 distribution = texture2D( userSpotShadowAtlas, atlasUv ).rg;
-    float mean = distribution.x;
-    // The stock VSM Chebyshev tail turns half-float depth steps from a
-    // 256px local-light map into several visible contour rings. Preserve the
-    // authored VSM blur, but use its deviation only to size one bounded edge
-    // transition. This keeps the same single texture sample and removes the
-    // long probability tail that made furniture shadows look layered.
-    float softness = clamp( abs( distribution.y ) * 0.35, 0.0007, 0.004 );
-    // A slope-scaled receiver guard keeps the newly bounded edge from
-    // exposing quantized self-shadow stripes on cabinet fronts and tabletops.
-    // It changes only the depth comparison, not the map resolution or sample
-    // count, and is capped tightly so real contact shadows stay attached.
-    // Cover the complete soft transition at equal depth, then add only a
-    // small slope allowance. This prevents the half-float map's depth bands
-    // from reappearing on large floors or through transparent glass, while
-    // keeping the allowance proportional to the authored penumbra.
-    float receiverGuard = softness + clamp( fwidth( shadowCoord.z ) * 1.5, 0.0002, 0.0015 );
-    #ifdef USE_REVERSED_DEPTH_BUFFER
-      float occludedDistance = mean - shadowCoord.z;
-    #else
-      float occludedDistance = shadowCoord.z - mean;
-    #endif
-    // The atlas contains only solid architectural occluders. Once a receiver
-    // is safely behind a wall, collapse the remaining VSM depth transition
-    // quickly instead of letting it extend through nearby cabinet backs and
-    // reveal half-float depth rows. The authored blur in atlas UV space still
-    // keeps the wall silhouette soft; this only removes light bleeding behind
-    // the blocker. Equality and the complete receiver guard remain lit.
-    float blockerTransition = max( softness * 0.5, 0.00035 );
-    float shadow = 1.0 - smoothstep(
-      receiverGuard,
-      receiverGuard + blockerTransition,
-      occludedDistance
-    );
-    return mix( 1.0, shadow, shadowParams.y );
-  }
-#endif
-`;
-}
-function buildAtlasVertexParsChunk() {
-  return `
-#if NUM_SPOT_LIGHTS > 0 || defined(HB_FLOOR_LIGHTS)
-  #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT || defined(HB_FLOOR_LIGHTS)
-    varying vec4 vUserShadowWorldPosition;
-    varying vec3 vUserShadowWorldNormal;
-  #else
-    uniform mat4 userSpotShadowMatrix[ NUM_SPOT_LIGHTS ];
-    uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];
-    varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];
-  #endif
-#endif
-`;
-}
-function buildAtlasVertexChunk() {
-  return `
-#if NUM_SPOT_LIGHTS > 0 || defined(HB_FLOOR_LIGHTS)
-  #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT || defined(HB_FLOOR_LIGHTS)
-    vUserShadowWorldPosition = worldPosition;
-    vUserShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );
-  #else
-    vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );
-    vec4 userShadowWorldPosition;
-    #pragma unroll_loop_start
-    for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {
-      userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );
-      vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;
-    }
-    #pragma unroll_loop_end
-  #endif
-#endif
-`;
-}
-/**
- * `lights_pars_begin` 的分层改动。
- *
- * 分层路径下 `NUM_SPOT_LIGHTS` / `NUM_RECT_AREA_LIGHTS` 通常是 0（灯被楼层缓冲接管），
- * 但着色器仍要能用 `SpotLight` / `RectAreaLight` 这两个结构体（`getUserFloorLight` 里构造），
- * 所以把闸门放宽到 `HB_FLOOR_*`；同时用 `#ifndef` 把「按灯数长度的 uniform 数组」挡掉，
- * 否则会变成 `uniform SpotLight spotLights[ 0 ]` 这种非法声明。
- */
-function patchLightsParsBegin(THREE: any) {
-  return THREE.ShaderChunk.lights_pars_begin
-    .replace("#if NUM_SPOT_LIGHTS > 0", "#if NUM_SPOT_LIGHTS > 0 || defined(HB_FLOOR_LIGHTS)")
-    .replace("#if NUM_RECT_AREA_LIGHTS > 0", "#if NUM_RECT_AREA_LIGHTS > 0 || defined(HB_FLOOR_AREA_LIGHTS)")
-    .replace(
-      "uniform RectAreaLight rectAreaLights[ NUM_RECT_AREA_LIGHTS ];",
-      "#ifndef HB_FLOOR_AREA_LIGHTS\nuniform RectAreaLight rectAreaLights[ NUM_RECT_AREA_LIGHTS ];\n#endif",
-    )
-    .replace(
-      "uniform SpotLight spotLights[ NUM_SPOT_LIGHTS ];",
-      "#ifndef HB_FLOOR_LIGHTS\nuniform SpotLight spotLights[ NUM_SPOT_LIGHTS ];\n#endif",
-    );
-}
-function patchLightsPhysicalPars(THREE: any) {
-  return THREE.ShaderChunk.lights_physical_pars_fragment.replaceAll(
-    "#if NUM_RECT_AREA_LIGHTS > 0",
-    "#if NUM_RECT_AREA_LIGHTS > 0 || defined(HB_FLOOR_AREA_LIGHTS)",
-  );
-}
-/** 定位灯光着色器里「聚光灯直接光」那一段分支，返回 [start, end) 半开区间。
- *
- * 不能简单截到 `#if ( NUM_DIR_LIGHTS > 0 )`：r186 的灯光链在聚光灯与平行光之间还夹了一段
- * 「太阳光」（NUM_SUN_LIGHTS），那段里同样只有一次 RE_Direct，一路截过去会让分支内的调用点
- * 计数变成 2，守卫就会误判成「three.js 改版」。因此这里先取聚光灯分支自己的
- * `#pragma unroll_loop_end` 与收尾 `#endif`，再从 `#endif` 之后找同级的下一个灯光块边界。
- *
- * @returns {{start: number, end: number} | null} 结构不匹配时返回 null，由调用方决定如何报错。
- */
-function spotLightBlockRange(lightsShader: any) {
-  const spotBlockStart = lightsShader.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )");
-  if (spotBlockStart < 0) return null;
-  const loopEnd = lightsShader.indexOf("#pragma unroll_loop_end", spotBlockStart);
-  if (loopEnd < 0) return null;
-  const spotEndif = lightsShader.indexOf("#endif", loopEnd);
-  if (spotEndif < 0) return null;
-  const nextLightBlock = lightsShader.indexOf("#if ( NUM_", spotEndif + "#endif".length);
-  return {
-    start: spotBlockStart,
-    end: nextLightBlock >= 0 ? nextLightBlock : spotEndif + "#endif".length,
-  };
-}
-function guardZeroContributionSpotLights(lightsShader: any) {
-  const blockRange = spotLightBlockRange(lightsShader),
-    directLightCall =
-      "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );",
-    spotLightBranch = blockRange ? lightsShader.slice(blockRange.start, blockRange.end) : "";
-
-  if (!blockRange || spotLightBranch.split(directLightCall).length !== 2)
-    throw new Error("当前 Three.js 聚光灯反射 Shader 与零贡献优化不兼容。");
-  const guardedCall =
-    "\n    #ifdef HB_SKIP_ZERO_SPOT_LIGHT\n      if ( dot( directLight.color, directLight.color ) > 0.0 ) {\n    #endif\n      " +
-    directLightCall +
-    "\n    #ifdef HB_SKIP_ZERO_SPOT_LIGHT\n      }\n    #endif";
-  return (
-    lightsShader.slice(0, blockRange.start) +
-    spotLightBranch.replace(directLightCall, guardedCall) +
-    lightsShader.slice(blockRange.end)
-  );
-}
-function patchLightsFragmentBegin(THREE: any) {
-  const spotShadowLoopSnippet =
-      "\n\t\t#if defined( USE_SHADOWMAP ) && ( UNROLLED_LOOP_INDEX < NUM_SPOT_LIGHT_SHADOWS )",
-    atlasShadowPatch = `
-    #if defined( USE_USER_SPOT_SHADOW_ATLAS )
-    {
-      #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT || defined(HB_FLOOR_LIGHTS)
-        // A fixed pair of interpolants avoids the per-light varying limit.
-        // Float32 data also avoids moving that limit to fragment uniforms.
-        vec4 userShadowRect = userSpotShadowValue( UNROLLED_LOOP_INDEX, 4 );
-        vec4 userShadowParams = userSpotShadowValue( UNROLLED_LOOP_INDEX, 5 );
-        mat4 userShadowMatrix = mat4( userSpotShadowValue( UNROLLED_LOOP_INDEX, 0 ), userSpotShadowValue( UNROLLED_LOOP_INDEX, 1 ),
-          userSpotShadowValue( UNROLLED_LOOP_INDEX, 2 ), userSpotShadowValue( UNROLLED_LOOP_INDEX, 3 ) );
-        // Keep the interpolated vertex normal unnormalized, preserving bias.
-        vec4 userSpotShadowCoord = userShadowMatrix *
-          ( vUserShadowWorldPosition + vec4( vUserShadowWorldNormal * userShadowParams.w, 0.0 ) );
-      #else
-        vec4 userShadowRect = userSpotShadowRect[ i ];
-        vec4 userShadowParams = userSpotShadowParams[ i ];
-        vec4 userSpotShadowCoord = vUserSpotShadowCoord[ i ];
-      #endif
-      directLight.color *= ( directLight.visible && receiveShadow )
-        ? getUserSpotAtlasShadow( userShadowRect, userShadowParams, userSpotShadowCoord )
-        : 1.0;
-    }
-    #endif
-`,
-    /**
-     * 方向光那一段的补丁。
-     *
-     * 分层阴影的方向光矩阵是在「楼层锚点空间」里算的，旋转户型 / 楼层堆叠预览时世界空间
-     * 已经变了，这里用 `userFloorSun[6..8]`（锚点旋转）把 three 自己的方向折回锚点空间，
-     * 再乘本层方向光的阴影因子。`userFloorHeader.w` 是本层方向光在 `userFloorSun` 里的槽位，
-     * 只有它对应的那一轮循环才乘阴影，别的平行光不受影响。
-     */
-    directionalPatch = `getDirectionalLightInfo( directionalLight, directLight );
-#if defined(HB_FLOOR_LIGHTS)
- directLight.direction = normalize(mat3(userFloorSun[6].xyz,userFloorSun[7].xyz,userFloorSun[8].xyz)*directLight.direction);
- if(UNROLLED_LOOP_INDEX == int(userFloorHeader.w)) directLight.color *= userFloorDirectionalShadow();
-#endif`,
-    lightsFragmentBegin = THREE.ShaderChunk.lights_fragment_begin;
-  if (!lightsFragmentBegin.includes(spotShadowLoopSnippet))
-    throw new Error("当前 Three.js 灯光 Shader 与阴影图集不兼容。");
-  if (!lightsFragmentBegin.includes("getDirectionalLightInfo( directionalLight, directLight );"))
-    throw new Error("当前 Three.js 方向光 Shader 与分层阴影不兼容。");
-  if (!lightsFragmentBegin.includes("#if ( NUM_DIR_LIGHTS > 0 )"))
-    throw new Error("当前 Three.js 平行光 Shader 与分层阴影不兼容。");
-  return guardZeroContributionSpotLights(
-    lightsFragmentBegin
-      .replace(
-        "getDirectionalLightInfo( directionalLight, directLight );",
-        "" + directionalPatch,
-      )
-      // 分层灯光的直接光循环排在 three 自己的点光/聚光灯/平行光之前：它们共用
-      // `directLight` 与 `reflectedLight`，顺序只影响加法次序，不影响结果。
-      .replace(
-        "#if ( NUM_DIR_LIGHTS > 0 )",
-        "" + floorLightShaderLoop() + "\n#if ( NUM_DIR_LIGHTS > 0 )",
-      )
-      .replace(spotShadowLoopSnippet, "" + atlasShadowPatch + spotShadowLoopSnippet),
-  );
-}
 /** 只用来触发一次渲染的临时网格（`renderDepth` 借它进 `onBeforeRender`）。 */
 interface DepthCaptureMesh {
   geometry: { setAttribute(name: string, attribute: unknown): void; dispose(): void };
@@ -446,6 +205,13 @@ export function createSpotShadowAtlasController({
 }: SpotShadowAtlasOptions = {}) {
   if (!three || !renderer || !scene || !camera)
     throw new Error("创建阴影图集时缺少 Three.js 渲染上下文。");
+  /**
+   * 灯光 shader 补丁被跳过的原因（空串表示补丁生效）。
+   *
+   * 必须在下面的 `const {…} = …` 之前声明：`patchLightsFragmentBegin` 在解构表达式里执行，
+   * 它只能通过回调把结论带出来。
+   */
+  let shaderPatchFailure = "";
   const uniforms = {
       userSpotShadowAtlas: {
         value: null as any,
@@ -495,7 +261,9 @@ export function createSpotShadowAtlasController({
       THREE: three,
       gl: glContext,
     }),
-    patchedLightsFragment = patchLightsFragmentBegin(three),
+    patchedLightsFragment = patchLightsFragmentBegin(three, (message) => {
+      shaderPatchFailure = message;
+    }),
     patchedLightsParsBegin = patchLightsParsBegin(three),
     patchedLightsPhysicalPars = patchLightsPhysicalPars(three),
     textureCopy: ShadowTextureCopy = createShadowTextureCopy(renderer),
@@ -534,6 +302,8 @@ export function createSpotShadowAtlasController({
     isBudgetAvailable = true,
     // 图集彻底失败后的回退态：分层灯光与图集一起停用，直到下一次 schedule 再试一次。
     isFallback = false,
+    // 补丁结构与当前 three 不匹配：这不是「这次建图失败」，重试也不会变好，必须永久锁死。
+    isPatchIncompatible = false,
     shadowDataTexture: any = null,
     syncedLights: any = null,
     syncedEntries: (SpotShadowEntry | undefined)[] = [],
@@ -545,6 +315,21 @@ export function createSpotShadowAtlasController({
     scratchVector = new three.Vector4();
   let lightIndex = syncBeforeRender ? createRenderLightIndex() : null,
     lastLightIndexStats = "";
+
+  // 补丁没进着色器就绝不能开分层路径：分层循环不存在，而灯又被 `layers.mask = 0` 从原生
+  // 路径里摘掉了 —— 结果是整场只剩环境光，且 three 不会报任何错。这里直接锁死在原生逐灯。
+  if (shaderPatchFailure) {
+    ((isPatchIncompatible = true),
+      (isFallback = true),
+      floorLights.setEnabled(false),
+      (renderer.domElement.dataset.lightingFallback = "shader-patch"),
+      (document.documentElement.dataset.lightingFallback = "shader-patch"),
+      console.error(`[studio-lighting] ${shaderPatchFailure}`),
+      globalThis.window?.HomeOSLog?.error?.(shaderPatchFailure, {
+        phase: "studio-lighting-patch",
+        code: "STUDIO_LIGHTING_PATCH_INCOMPATIBLE",
+      })!);
+  }
 
   /**
    * 只渲染一层方向光的阴影贴图。
@@ -1225,13 +1010,16 @@ export function createSpotShadowAtlasController({
   }
   /** 上一次回退后，新的 schedule 到了就再给分层路径一次机会。 */
   function retryFloorLightsIfFallback() {
+    // 补丁不兼容是结构性的：重试只会把已经退好的原生路径再打断一次，所以永不重试。
     isFallback &&
+      !isPatchIncompatible &&
       ((isFallback = false),
       floorLights.setEnabled(isEnabled && isBudgetAvailable),
       directionalShadow.sync(floorLights.enabled));
   }
   function schedule(scheduledRoot: any, { delay: scheduleDelay = buildDelay } = {}) {
-    if (isDisposed || !isBudgetAvailable) return 0;
+    // 补丁不匹配时不再建图：图集建出来也没人采样，反而会先把 `castShadow` 清成 false。
+    if (isDisposed || !isBudgetAvailable || isPatchIncompatible) return 0;
     if (((pendingRoot = scheduledRoot), isWebglLost)) return ((isDirty = !!scheduledRoot), 0);
     retryFloorLightsIfFallback();
     prepareRoot(scheduledRoot);
@@ -1418,7 +1206,7 @@ export function createSpotShadowAtlasController({
   function setEnabled(nextEnabled: any) {
     if (isDisposed) return;
     ((isEnabled = nextEnabled !== false),
-      floorLights.setEnabled(isEnabled && isBudgetAvailable && !isFallback),
+      floorLights.setEnabled(isEnabled && isBudgetAvailable && !isFallback && !isPatchIncompatible),
       directionalShadow.sync(floorLights.enabled),
       prepareRoot(pendingRoot),
       setAtlasEnabled(true),
@@ -1436,7 +1224,7 @@ export function createSpotShadowAtlasController({
     return isDisposed || nextBudgetAvailable === isBudgetAvailable
       ? false
       : ((isBudgetAvailable = nextBudgetAvailable),
-        floorLights.setEnabled(isEnabled && isBudgetAvailable && !isFallback),
+        floorLights.setEnabled(isEnabled && isBudgetAvailable && !isFallback && !isPatchIncompatible),
         directionalShadow.sync(floorLights.enabled),
         prepareRoot(pendingRoot),
         nextBudgetAvailable ||
@@ -1520,7 +1308,8 @@ export function createSpotShadowAtlasController({
     prepareLayout: prepareLayout,
     forgetFloor: forgetFloor,
     floorLightsEnabled: () => floorLights.enabled,
-    floorLightsAvailable: () => isBudgetAvailable && !isFallback && floorLights.available,
+    floorLightsAvailable: () =>
+      isBudgetAvailable && !isFallback && !isPatchIncompatible && floorLights.available,
     isFallback: () => isFallback,
     /** 分层面光占的纹理单元数（三线性 LTC 两张）。 */
     areaTextureUnits: () => (floorLights.capacity ? 2 : 0),

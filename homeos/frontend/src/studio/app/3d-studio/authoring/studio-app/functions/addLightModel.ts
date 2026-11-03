@@ -58,6 +58,9 @@ import {
   lightPresetCatalog,
   lightIntensityFactor,
   lightAngleLimitForType,
+  lightFluxLumens,
+  renderCandelaFromFlux,
+  renderLuminanceFromFlux,
 } from '../../lights/studio-app-light-data';
 
 
@@ -97,6 +100,10 @@ export function addLightModel(deps: AddLightModelDeps, lightModelParent: any, li
   if (isStripLight) {
     const lightRange = clamp2(finite2(lightModelItem.lightRange, downlight4.range), 0.5, 10),
       lightRangeFactor = clamp2(lightRange / downlight4.range, 0.45, 1.65),
+      // 0.8.2：灯带宽度/进深各自的默认值是 2 / 0.28 米，且统一夹在 [0.1, 8]。
+      // 此前宽度默认写成了 1m（灯带只有一半宽）且没有上限，超宽灯带会打出一整片光。
+      stripWidth = clamp2(finite2(lightModelItem.width, 2), 0.1, 8) * 0.94,
+      stripDepth = clamp2(finite2(lightModelItem.depth, 0.28), 0.1, 8) * 0.94,
       lightElevation = Math.max(finite2(lightModelItem.elevation, 2.7), 0.4),
       lightElevationFactor = clamp2(Math.max(1, Math.pow(lightElevation / 2.7, 2)), 1, 4),
       stripRollRotationDeg = normalizeFullRotation2(lightModelItem.stripRollRotation),
@@ -104,8 +111,11 @@ export function addLightModel(deps: AddLightModelDeps, lightModelParent: any, li
     lightRotationGroup.rotation.z = ns2.MathUtils.degToRad(
       normalizeFullRotation2(lightModelItem.verticalRotation),
     );
+    // 灯带亮度 = 光通量 / (π·发光面积)：越长越亮，宽度也会摊薄亮度 ——
+    // 原来是个和尺寸无关的常量 48，加长灯带亮度一点不变。
+    // `renderLuminanceFromFlux` 里含「渲染白点」标定，出厂尺寸下仍等于 48。
     const lightOnIntensity =
-      48 *
+      renderLuminanceFromFlux("striplight", lightFluxLumens.striplight, stripWidth, stripDepth) *
       (isEmbedStageMode ? lightBrightnessRatio : Math.pow(lightBrightnessRatio, 0.82)) *
       lightRangeFactor *
       lightElevationFactor *
@@ -116,8 +126,8 @@ export function addLightModel(deps: AddLightModelDeps, lightModelParent: any, li
     const rectAreaLight = new ns2.RectAreaLight(
       lightColorHex,
       eu3 ? lightOnIntensity : 0,
-      Math.max(0.1, finite2(lightModelItem.width, 1)) * 0.94,
-      Math.max(0.1, finite2(lightModelItem.depth, 0.28)) * 0.94,
+      stripWidth,
+      stripDepth,
     );
     ((rectAreaLight.visible = eu3),
       (rectAreaLight.position.y = -0.04),
@@ -129,7 +139,10 @@ export function addLightModel(deps: AddLightModelDeps, lightModelParent: any, li
       (rectAreaLight.userData.lightOnIntensity = lightOnIntensity),
       isEmbedStageMode &&
         ((rectAreaLight.userData.regionFullIntensity =
-          48 * lightRangeFactor * lightElevationFactor * lightTypeIntensityFactor),
+          renderLuminanceFromFlux("striplight", lightFluxLumens.striplight, stripWidth, stripDepth) *
+          lightRangeFactor *
+          lightElevationFactor *
+          lightTypeIntensityFactor),
         appCtx.regionLightController?.register(rectAreaLight, lightModelItem)),
       lightRollGroup.add(rectAreaLight),
       lightRotationGroup.add(lightRollGroup));
@@ -145,8 +158,16 @@ export function addLightModel(deps: AddLightModelDeps, lightModelParent: any, li
       lightAngleLimitForType(lightModelItem.type),
     ),
     spotLightCount = 1,
+    // 轴向光强 = 光通量 / 光束立体角：同一只灯收窄光束会变亮，这是现实里换反光杯的行为。
+    // 之前是写死常量（筒灯 520 / 吊灯 680），改光束角对亮度毫无影响。
+    // `renderCandelaFromFlux` 里含「渲染白点」标定与窄光束上限：出厂 48° 仍是 520 cd。
+    spotLightCandela = renderCandelaFromFlux(
+      lightModelItem.type,
+      lightFluxLumens[lightModelItem.type] ?? lightFluxLumens.downlight,
+      spotLightAngle,
+    ),
     spotLightIntensity =
-      (lightModelItem.type === "ceilinglight" ? 680 : 520) *
+      spotLightCandela *
       (isEmbedStageMode
         ? lightBrightnessRatio
         : spotLightBrightnessResponse2(lightModelItem.type, lightBrightnessRatio) *
@@ -204,8 +225,7 @@ export function addLightModel(deps: AddLightModelDeps, lightModelParent: any, li
       (spotLight.userData.prewarmShadow = isEmbeddedStage),
       (spotLight.userData.lightOnIntensity = spotLightIntensity / spotLightCount),
       isEmbedStageMode &&
-        ((spotLight.userData.regionFullIntensity =
-          (lightModelItem.type === "ceilinglight" ? 680 : 520) * lightTypeIntensityFactor),
+        ((spotLight.userData.regionFullIntensity = spotLightCandela * lightTypeIntensityFactor),
         appCtx.regionLightController?.register(spotLight, lightModelItem)));
     const spotLightTarget = new ns2.Object3D();
     (spotLightTarget.position.set(
