@@ -80,13 +80,19 @@ class NotificationEventHandlersHelper:
         self._ha_states_trustworthy = ha_states_trustworthy or (lambda: True)
 
     # 安防
+    #: 安防告警可强制指定的渠道：与 ``alerts.channels.LAN_NOTIFICATION_CHANNELS`` 的
+    #: 外部投递子集一致（``socket`` 由 ``in_app`` 派生，``tts`` 是本地播报不在此列）。
+    #: 曾漏掉 ``wecom``：通知投递层与告警规则都支持企业微信，安防告警却永远走不到它，
+    #: 只能站内 + 邮件 / WebPush —— 用户配了企微也收不到入侵与烟感告警。
+    SECURITY_ALERT_CHANNELS = ("in_app", "email", "webpush", "wecom")
+
     def _resolve_security_alert_channels(self) -> list[str] | None:
         raw = self._get_security_cfg().get("alertChannels")
         if not isinstance(raw, list) or not raw:
             return None
         forced: list[str] = []
         for channel in raw:
-            if channel in ("in_app", "email", "webpush") and channel not in forced:
+            if channel in self.SECURITY_ALERT_CHANNELS and channel not in forced:
                 forced.append(channel)
         if not forced:
             return None

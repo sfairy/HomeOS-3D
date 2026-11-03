@@ -157,14 +157,16 @@ def _validate_alert_channels(
     if not isinstance(channels, list):
         errors.append({"section": section, "key": "alertChannels", "message": "须为数组"})
         return
-    allowed_channels = {"in_app", "email", "webpush"}
+    #: 与通知投递层的外部通道子集对齐（``socket`` 由 ``in_app`` 派生，不需要单独配置）。
+    #: 曾漏掉 ``wecom``：校验层会直接 422 拒绝，导致安防告警无法走企业微信。
+    allowed_channels = {"in_app", "email", "webpush", "wecom"}
     for channel in channels:
         if not isinstance(channel, str) or channel not in allowed_channels:
             errors.append(
                 {
                     "section": section,
                     "key": "alertChannels",
-                    "message": "每项须为 in_app / email / webpush 之一",
+                    "message": "每项须为 in_app / email / webpush / wecom 之一",
                 }
             )
             break

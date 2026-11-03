@@ -292,6 +292,33 @@ class HazardFailSafeTest(unittest.TestCase):
 
         self.assertIn(("valve", "turn_off", "valve.gas_main"), ha.calls)
 
+    def test_hazard_without_old_state_still_acts(self) -> None:
+        """重启 / 首次上报只有当前值：已在危险态也必须关阀排风并告警。
+
+        旧实现在这里把「无 old_state」当成重连基线直接 return，等于重启期间正在漏气的
+        房子既不报警也不关阀，要等传感器自己复位再触发一次 —— 最需要处置的时刻被丢掉。
+        """
+        helper, ha, state, bus = build_alarm_helper()
+        helper._baseline_warmup_until = 0.0  # 明确走出启动保护窗口
+        self._run(helper, "binary_sensor.gas_leak", None, "on")
+
+        self.assertIn(("valve", "turn_off", "valve.gas_main"), ha.calls)
+        self.assertIn(("fan", "turn_on", "fan.exhaust"), ha.calls)
+        alarms = [payload for name, payload in bus.events if name == "security.alarm"]
+        self.assertEqual(len(alarms), 1)
+        self.assertTrue(alarms[0]["baseline"], "基线补发的危险告警必须可识别")
+        self.assertEqual(alarms[0]["type"], "gas_leak")
+        self.assertIn("hazard", state.kind_names())
+
+    def test_hazard_baseline_payload_marks_edge_trigger(self) -> None:
+        """有真实 off→on 边沿时 baseline=false，前端仍能区分两种来源。"""
+        helper, _ha, _state, bus = build_alarm_helper()
+        self._run(helper, "binary_sensor.gas_leak", "off", "on")
+
+        alarms = [payload for name, payload in bus.events if name == "security.alarm"]
+        self.assertEqual(len(alarms), 1)
+        self.assertFalse(alarms[0]["baseline"])
+
     def test_exit_grace_covers_all_sensor_types(self) -> None:
         now_ms = int(time.time() * 1000)
         helper, _ha, state, bus = build_alarm_helper(
@@ -412,6 +439,58 @@ class EmergencyLayoutTest(unittest.TestCase):
         _mode, _zones, opts = arm.calls[0]
         self.assertEqual(set(opts.get("skipActionDomains") or []), {"siren", "light"})
         self.assertNotIn("skipActions", opts)
+
+
+class SecurityAlertChannelTest(unittest.TestCase):
+    """D2：安防告警渠道必须与通知投递层一致 —— 配了企业微信就要真的发得出去。
+
+    旧实现把渠道白名单硬编码成 ``in_app/email/webpush``，配置校验也拒绝 ``wecom``：
+    用户在「消息通道」里启用了企业微信、在告警规则里也勾了企微，安防告警却永远只到站内。
+    """
+
+    @staticmethod
+    def _helper(alert_channels: list[str]) -> Any:
+        from src.domains.notification.event_handlers import NotificationEventHandlersHelper
+
+        async def _noop(*_args: Any, **_kwargs: Any) -> None:
+            return None
+
+        return NotificationEventHandlersHelper(
+            state_router=cast(Any, None),
+            notify=_noop,
+            is_in_cooldown=lambda _key: False,
+            set_cooldown=lambda _key, _minutes: None,
+            check_device_offline=_noop,
+            check_low_battery=_noop,
+            evaluate_rules=_noop,
+            resolve_room_label=lambda _entity_id: "",
+            get_security_cfg=lambda: {"alertChannels": alert_channels},
+            get_energy_cfg=dict,
+            get_water_cfg=dict,
+            get_iaq_cfg=dict,
+            get_other_cfg=dict,
+        )
+
+    def test_wecom_is_forwarded_to_security_alerts(self) -> None:
+        helper = self._helper(["wecom"])
+        self.assertEqual(helper._resolve_security_alert_channels(), ["wecom"])
+
+    def test_in_app_keeps_socket_derivation(self) -> None:
+        helper = self._helper(["in_app", "wecom"])
+        self.assertEqual(helper._resolve_security_alert_channels(), ["in_app", "wecom", "socket"])
+
+    def test_unknown_channel_is_still_ignored(self) -> None:
+        helper = self._helper(["telegram"])
+        self.assertIsNone(helper._resolve_security_alert_channels())
+
+    def test_app_config_validation_accepts_wecom(self) -> None:
+        from src.domains.app_config.validate import validate_app_config_section
+        from src.domains.app_config.validate.core import AppConfigValidationError
+
+        # 不抛异常即表示 wecom 通过校验（旧实现会直接 422）。
+        validate_app_config_section("security", {"alertChannels": ["in_app", "wecom"]})
+        with self.assertRaises(AppConfigValidationError):
+            validate_app_config_section("security", {"alertChannels": ["telegram"]})
 
 
 if __name__ == "__main__":

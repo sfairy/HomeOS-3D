@@ -791,9 +791,9 @@ class SecurityAlarmHelper:
                 return
         if not hazard:
             return
-        # 与入侵告警同一套基线规则：重连补发的「恢复为 on」不触发危险联动。
-        if self._is_baseline_event(entity_id, old_state, new_state):
-            return
+        baseline = self._is_baseline_event(entity_id, old_state, new_state)  # 重启 / 首次上报常无 old_state
+        if baseline:  # 已在危险态也必须动作：不按基线丢弃，否则重启期间正在漏气也不关阀
+            logger.warning("安全告警：%s 基线补发时已在危险态 %s，按真实告警处理", entity_id, new_state)
 
         now = int(time.time() * 1000)
         cooldown_ms = int(self._config_reader().get("sensorAlertCooldownSec") or 0) * 1000
@@ -832,7 +832,7 @@ class SecurityAlarmHelper:
                 "friendlyName": friendly_name,
                 "type": "smoke" if is_smoke else ("gas_leak" if is_gas else "water_leak"),
                 "autoActions": True,
-                "drillMode": False,
+                "drillMode": False, "baseline": baseline,  # 基线补发时已在危险态：告警照发，来源可区分
                 "numericThreshold": numeric_threshold,
                 "triggerValue": numeric_value,
                 "actionResults": action_results,

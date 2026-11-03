@@ -10,7 +10,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.alertBypassDnd':
     '开启后安防告警投递不受免打扰时段限制，紧急事件天然绕过 DND。推荐开启',
   'settings.systemConfig.fieldHint.alertChannels':
-    '逗号分隔告警渠道，如 in_app；紧急/布防触发/紧急求助类事件按此渠道投递',
+    '逗号分隔告警渠道，可选 in_app / email / webpush / wecom（企业微信）；紧急/布防触发/紧急求助类事件按此渠道投递',
   'settings.systemConfig.fieldHint.anomalyCooldownMin':
     '同一类型异常在此冷却时间内不会重复推送告警（能源/用水等分区各自独立）。推荐 15–60',
   'settings.systemConfig.fieldHint.apiRetryDelayMs':
