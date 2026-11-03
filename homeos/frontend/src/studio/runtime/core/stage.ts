@@ -162,6 +162,7 @@ import { selectFloorCore, openRangeEditorCore, refreshStageUiCore, adoptSceneUpd
 import { rebuildCurtainMotionCore } from "./stage/curtain-motion";
 import { bindNavigationDragCore } from "./stage/navigation-drag";
 import { createStageContext } from "./stage/stage-context";
+import { createWeatherGroundEmitter, type WeatherGroundBounds } from "./stage/weather-ground";
 
 /**
  * 注入依赖袋的 `getComputedStyle` 必须**钉死接收者**：消费者写成 `deps.getComputedStyle(el)` 时
@@ -1787,6 +1788,56 @@ export function mountStage(mountOptions: any) {
     ),
     navigationLayerElement.append(toolbarElement),
     element.append(focusVignetteElement, presentationLayerElement));
+  /**
+   * 天气地面投影：把地板矩形投影成归一化屏幕四边形发回宿主，让雨滴溅在真实地板上。
+   *
+   * 地板包围盒按 `sceneRevision` 缓存（切户型才重算），相机姿态作为指纹交给
+   * `createWeatherGroundEmitter` 自己节流，这条路径在相机滑动时每帧都会被调到。
+   */
+  let weatherGroundBoundsCache: {
+    revision: unknown;
+    root: unknown;
+    bounds: WeatherGroundBounds | null;
+  } | null = null;
+  function weatherGroundBounds(): WeatherGroundBounds | null {
+    const sceneRoot = mountOptions.modelRoot;
+    const cache = weatherGroundBoundsCache;
+    if (cache && cache.revision === mountOptions.sceneRevision && cache.root === sceneRoot)
+      return cache.bounds;
+    let bounds: WeatherGroundBounds | null = null;
+    if (sceneRoot) {
+      const box = new three.Box3().setFromObject(sceneRoot);
+      if (!box.isEmpty())
+        bounds = {
+          minX: box.min.x,
+          maxX: box.max.x,
+          minZ: box.min.z,
+          maxZ: box.max.z,
+          y: box.min.y,
+        };
+    }
+    weatherGroundBoundsCache = { revision: mountOptions.sceneRevision, root: sceneRoot, bounds };
+    return bounds;
+  }
+  const weatherGround = createWeatherGroundEmitter({
+    getBounds: weatherGroundBounds,
+    getProjector: () => {
+      const camera = mountOptions.camera;
+      if (!camera) return null;
+      return (x: number, y: number, z: number) => {
+        camera.updateMatrixWorld();
+        return new three.Vector3(x, y, z).project(camera).toArray();
+      };
+    },
+    getCameraKey: () =>
+      mountOptions.camera
+        ? mountOptions.camera.matrixWorld.elements.join(",") +
+          "|" +
+          mountOptions.camera.projectionMatrix.elements.join(",")
+        : "",
+    getViewportSize: () => ({ width: element.clientWidth, height: element.clientHeight }),
+    postMessage: postHostMessage,
+  });
   const screenOutlines = createScreenOutlines2({
       THREE: three,
       container: presentationLayerElement,
@@ -4606,7 +4657,12 @@ export function mountStage(mountOptions: any) {
   };
   const updateDevicePanel = createUpdateDevicePanel(stageHandlersHost);
   stageHandlersHost.updateDevicePanel = updateDevicePanel;
-  const renderMarkerPositions = createRenderMarkerPositions(stageHandlersHost);
+  const renderMarkerPositionsCore = createRenderMarkerPositions(stageHandlersHost);
+  /** 包一层：切楼层 / 场景刷新后地面范围会变，这里顺手把投影补发一次。 */
+  const renderMarkerPositions = (isForced = false) => {
+    weatherGround.sync();
+    return renderMarkerPositionsCore(isForced);
+  };
   stageHandlersHost.renderMarkerPositions = renderMarkerPositions;
   const pickMarkerAtPoint = createPickMarkerAtPoint(stageHandlersHost);
   stageHandlersHost.pickMarkerAtPoint = pickMarkerAtPoint;
@@ -4621,12 +4677,14 @@ export function mountStage(mountOptions: any) {
   const controls = mountOptions.controls,
     cameraChangeUnsubscribe = mountOptions.onCameraChange?.(() => {
       const cameraChanged = screenOutlines.cameraChanged();
-      (renderMarkerPositions(),
+      // 地面四边形要跟相机走，否则转视角时水花会飘离地板。
+      (weatherGround.sync(),
+        renderMarkerPositions(),
         layoutPresenceHitBoxes(),
         (cameraChanged || ctx.pageBehavior.hideIconsWhileRotating === true) && wakeSceneBackground());
     });
   cameraChangeUnsubscribe || controls.addEventListener("change", renderMarkerPositions);
-  const resizeObserver = new ResizeObserver(syncLayoutMetrics);
+  const resizeObserver = new ResizeObserver(() => (weatherGround.sync(), syncLayoutMetrics()));
   (resizeObserver.observe(element),
     resizeObserver.observe(lightPanelSection),
     resizeObserver.observe(navigationLayerElement),
@@ -4710,6 +4768,7 @@ export function mountStage(mountOptions: any) {
         lightColorPicker.dispose(),
         lightStateCache.flush(),
         sceneSync(),
+        weatherGround.dispose(),
         screenOutlines.dispose(),
         editorSelectionOutlines.dispose(),
         editorSelectionElement.remove(),

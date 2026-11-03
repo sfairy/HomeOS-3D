@@ -1,8 +1,8 @@
 {
   "totals": {
-    "functions": 25503,
-    "gt10": 1273,
-    "gt15": 697,
+    "functions": 25626,
+    "gt10": 1271,
+    "gt15": 695,
     "gt80": 849
   },
   "files": {
@@ -159,13 +159,6 @@
       "gt15": 1,
       "gt80": 1,
       "max": 16
-    },
-    "homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue": {
-      "functions": 53,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 11
     },
     "homeos/frontend/src/components/widgets/climate/home-climate-chart/echarts.util.ts": {
       "functions": 33,
@@ -602,7 +595,7 @@
       "max": 12
     },
     "homeos/frontend/src/composables/widget/useNotificationCenter.ts": {
-      "functions": 34,
+      "functions": 35,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -924,7 +917,7 @@
       "max": 10
     },
     "homeos/frontend/src/features/settings/connect/composables/bindings.internals.ts": {
-      "functions": 29,
+      "functions": 33,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -966,7 +959,7 @@
       "max": 9
     },
     "homeos/frontend/src/features/settings/connect/composables/setup-wizard-core.internals.ts": {
-      "functions": 35,
+      "functions": 46,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -1043,11 +1036,11 @@
       "max": 11
     },
     "homeos/frontend/src/features/settings/interact/composables/agent-panel-chat.internals.ts": {
-      "functions": 33,
+      "functions": 40,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
-      "max": 10
+      "max": 7
     },
     "homeos/frontend/src/features/settings/interact/composables/agent-panel-helpers.internals.ts": {
       "functions": 6,
@@ -1274,7 +1267,7 @@
       "max": 70
     },
     "homeos/frontend/src/services/api/agent.ts": {
-      "functions": 29,
+      "functions": 31,
       "gt10": 3,
       "gt15": 2,
       "gt80": 2,
@@ -1743,11 +1736,11 @@
       "max": 12
     },
     "homeos/frontend/src/stores/entities/entity-store-subscription.util.ts": {
-      "functions": 16,
-      "gt10": 1,
+      "functions": 17,
+      "gt10": 0,
       "gt15": 0,
       "gt80": 1,
-      "max": 11
+      "max": 10
     },
     "homeos/frontend/src/stores/entities/entity-store-transport.ts": {
       "functions": 14,
@@ -2149,7 +2142,7 @@
       "max": 11
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-shadow-atlas.ts": {
-      "functions": 89,
+      "functions": 82,
       "gt10": 4,
       "gt15": 3,
       "gt80": 3,
@@ -2163,9 +2156,9 @@
       "max": 16
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-walls.ts": {
-      "functions": 48,
-      "gt10": 4,
-      "gt15": 2,
+      "functions": 46,
+      "gt10": 3,
+      "gt15": 1,
       "gt80": 1,
       "max": 86
     },
@@ -2223,7 +2216,7 @@
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 30
+      "max": 29
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/applyLoadedDraft.ts": {
       "functions": 8,
@@ -2247,11 +2240,11 @@
       "max": 51
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/buildStudioScene.ts": {
-      "functions": 19,
+      "functions": 20,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 35
+      "max": 33
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createSceneItem.ts": {
       "functions": 1,
@@ -2298,7 +2291,7 @@
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/materials-lighting-camera.ts": {
       "functions": 105,
       "gt10": 8,
-      "gt15": 2,
+      "gt15": 1,
       "gt80": 1,
       "max": 20
     },
@@ -2371,6 +2364,13 @@
       "gt15": 1,
       "gt80": 1,
       "max": 27
+    },
+    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/light-shape-sync.ts": {
+      "functions": 11,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 13
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/openExportPanel.ts": {
       "functions": 7,
@@ -2681,7 +2681,7 @@
       "max": 2
     },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-wall-materials.ts": {
-      "functions": 17,
+      "functions": 18,
       "gt10": 4,
       "gt15": 3,
       "gt80": 3,

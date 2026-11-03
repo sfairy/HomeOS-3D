@@ -29,6 +29,7 @@ import {
   weatherEntityId as resolveWeatherEntityId,
   weatherEntityLabel,
   weatherEntityState,
+  WEATHER_PREVIEW_TIMEOUT_MS,
   WEATHER_PREVIEWS,
 } from "@/studio/platform/weather-settings";
 function interaction3dEntries(componentTree: any, pathSegments: any[] = [], entriesByPath = new Map()) {
@@ -1876,37 +1877,67 @@ type PopupPresetConfig = {
         editorOptions.onError?.(weatherPickerError);
       }
     }));
-  const weatherPreviewGroupElement = createElement("div", "navigation-segmented-options"),
+  const weatherPreviewSeconds = Math.round(WEATHER_PREVIEW_TIMEOUT_MS / 1000),
+    weatherPreviewNoteDefault = `仅跟随天气状态；预览 ${weatherPreviewSeconds} 秒后恢复实际天气。`,
+    // 15 个可预览天气按三列排，5 行刚好不把检查器撑高。
+    weatherPreviewGroupElement = createElement("div", "navigation-segmented-options three-columns"),
     weatherPreviewNoteElement = createElement(
       "p",
       "inspector-section-note",
-      "仅跟随天气状态；预览 12 秒后恢复实际天气。",
-    );
+      weatherPreviewNoteDefault,
+    ),
+    weatherPreviewButtonByState = new Map<string, HTMLElement>();
+  /** 按运行时回报的预览态更新高亮与说明文案；空串表示已回到真实天气。 */
+  function renderWeatherPreviewState(activePreviewState: string) {
+    for (const [previewState, previewButton] of weatherPreviewButtonByState) {
+      const isActive = previewState === activePreviewState;
+      previewButton.classList.toggle("active", isActive);
+      previewButton.setAttribute("aria-pressed", String(isActive));
+    }
+    const activePreviewLabel =
+      WEATHER_PREVIEWS.find(([previewKey]) => previewKey === activePreviewState)?.[1] || "";
+    weatherPreviewNoteElement.textContent = activePreviewLabel
+      ? `正在预览${activePreviewLabel}，${weatherPreviewSeconds} 秒后恢复实际天气。`
+      : weatherPreviewNoteDefault;
+  }
+  let weatherPreviewSubscribed = false;
+  /** 订阅一次即可；预览到期由运行时回调，面板重开也能立刻对齐当前预览态。 */
+  function bindWeatherPreviewSubscription(
+    weatherEditorView: Interaction3dEditorView | null | undefined,
+  ) {
+    if (!weatherEditorView || weatherPreviewSubscribed) return;
+    weatherPreviewSubscribed = true;
+    const unsubscribe = weatherEditorView.onWeatherPreviewChange?.(renderWeatherPreviewState);
+    if (typeof unsubscribe === "function")
+      inspectorAbortController.signal.addEventListener("abort", () => unsubscribe(), { once: true });
+  }
   (weatherPreviewGroupElement.setAttribute("role", "group"),
     weatherPreviewGroupElement.setAttribute("aria-label", "天气预览"));
   for (const [weatherPreviewState, weatherPreviewLabel] of WEATHER_PREVIEWS) {
     const weatherPreviewButton = createElement("button", "", weatherPreviewLabel);
     ((weatherPreviewButton.type = "button"),
       (weatherPreviewButton.dataset.weatherPreview = weatherPreviewState),
+      weatherPreviewButton.setAttribute("aria-pressed", "false"),
       weatherPreviewButton.addEventListener("click", async () => {
         try {
           const weatherEditorView = await ensureEditorView();
           if (!weatherEditorView) return;
+          bindWeatherPreviewSubscription(weatherEditorView);
           if (!weatherEditorView.previewWeather?.(weatherPreviewState))
             throw new Error("当前户型暂不可预览，请退出视角或范围调整后重试。");
-          weatherPreviewNoteElement.textContent =
-            "预览" + weatherPreviewLabel + "持续 12 秒，随后恢复实际天气。";
         } catch (weatherPreviewError: any) {
           editorOptions.onError?.(weatherPreviewError);
         }
       }),
+      weatherPreviewButtonByState.set(weatherPreviewState, weatherPreviewButton),
       weatherPreviewGroupElement.append(weatherPreviewButton));
   }
   const stopWeatherPreviewButton = createElement("button", "secondary-button", "结束预览");
+  // 面板重开时视图通常已就绪：就地订阅，能把仍在进行的预览态立刻画到按钮上。
+  bindWeatherPreviewSubscription(getInteraction3dEditorView(targetComponent.id));
   ((stopWeatherPreviewButton.type = "button"),
     stopWeatherPreviewButton.addEventListener("click", () => {
-      (getInteraction3dEditorView(targetComponent.id)?.closeWeatherPreview?.(),
-        (weatherPreviewNoteElement.textContent = "仅跟随天气状态；预览 12 秒后恢复实际天气。"));
+      getInteraction3dEditorView(targetComponent.id)?.closeWeatherPreview?.();
     }),
     weatherSection.append(
       weatherPreviewGroupElement,

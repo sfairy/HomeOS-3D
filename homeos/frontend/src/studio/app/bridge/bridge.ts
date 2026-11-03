@@ -35,6 +35,8 @@ export type Interaction3dEditorView = {
   closePopupLayoutPreview?: (...args: any[]) => any;
   /** 天气效果预览：返回 false 表示当前画布不满足预览条件（正在视角/范围编辑、页面隐藏等）。 */
   previewWeather?: (weatherState: string) => boolean;
+  /** 订阅预览态：回调参数是正在预览的天气键，空串表示已回到真实天气；返回取消订阅函数。 */
+  onWeatherPreviewChange?: (listener: (previewState: string) => void) => (() => void) | undefined;
   closeWeatherPreview?: (...args: any[]) => any;
   closeRangeEditor?: (...args: any[]) => any;
   /** 实例自身可调用：锁定时用它收尾。 */

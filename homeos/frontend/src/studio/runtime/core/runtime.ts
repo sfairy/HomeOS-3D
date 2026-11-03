@@ -14,6 +14,17 @@ import {
 import { cameraSourceConfigured } from "../camera/camera-status";
 import { carTireEntities, carTireModelType } from "../vehicle/car-tires";
 import { createWeatherEffects } from "../environment/weather-effects";
+import {
+  normalizeGroundQuad,
+  type WeatherGroundQuad,
+} from "../environment/weather/ground-quad";
+import {
+  WEATHER_EFFECTS,
+  WEATHER_PREVIEW_TIMEOUT_MS,
+  weatherEffectKey,
+  weatherEntityId,
+  weatherEntityState,
+} from "@/studio/platform/weather-settings";
 import { ensureInteraction3dSelectControls } from "../config-ui/select-controls";
 import { createLabelConfigPatch } from "./state-update-plan";
 
@@ -598,6 +609,8 @@ export function mountInteraction3d(
     heldKeyCodesSet = new Set(),
     hasHeldInput = () => heldPointerIdsSet.size > 0 || heldKeyCodesSet.size > 0;
   let isStageIntersecting = typeof IntersectionObserver > "u";
+  /** `refreshActivityState` 算出的「舞台真的在屏幕上」结果，供天气层等热路径读取。 */
+  let isStageOnScreenCached = false;
   function syncPreviewSuspension() {
     const topOpenPreviewDialog = [
         ...(document.querySelectorAll?.("dialog[data-i3d-preview-scope][open]") || []),
@@ -686,6 +699,7 @@ export function mountInteraction3d(
         !runtimeContext.editable &&
         !isViewEditing &&
         isStageOnScreen;
+    isStageOnScreenCached = isStageOnScreen;
     (isStageActive || (heldPointerIdsSet.clear(), heldKeyCodesSet.clear()),
       (forceRefresh ||
         isStageActive !== wasStageActive ||
@@ -1217,11 +1231,41 @@ export function mountInteraction3d(
   };
   // 天气特效层：只在「绑定了天气实体」或「编辑器正在预览某个天气态」时创建 canvas，
   // 其余情况整层不存在、不出帧（按需帧循环见 `weather-effects`）。
-  const WEATHER_PREVIEW_TIMEOUT_MS = 12000;
   let weatherEffects: any = null,
     weatherPreviewCondition = "",
     weatherPreviewTimeoutId: any = null;
-  const boundWeatherEntityId = () => String(componentProperties.weather?.entityId || "");
+  /**
+   * 舞台发来的真实地面投影（归一化屏幕四边形）。
+   * 没收到过（舞台未就绪 / 相机贴地导致投影退化）时保持 null，天气层用兜底透视带。
+   */
+  let weatherGroundQuad: WeatherGroundQuad | null = null;
+  /** 预览态订阅方（配置面板据此高亮按钮、复位说明文案）。 */
+  const weatherPreviewListeners = new Set<(previewState: string) => void>();
+  /**
+   * 绑定的天气实体 ID。
+   *
+   * 除了标准的 `weather.entityId`，还兼吃 `entity_id` 与顶层 `weatherEntityId`：
+   * 后端序列化、旧版配置、以及部分集成写进来的形状并不总是驼峰，
+   * 少读一种就会表现为「绑了实体却没有任何效果」（这正是之前的实际故障）。
+   * 取值统一走 `weatherEntityId()` 做域名与长度校验，非法值直接当未绑定。
+   */
+  const boundWeatherEntityId = () =>
+    weatherEntityId(componentProperties.weather) ||
+    weatherEntityId({ entityId: componentProperties.weatherEntityId }) ||
+    weatherEntityId({
+      entityId: (componentProperties.weather as { entity_id?: unknown } | undefined)?.entity_id,
+    });
+  /** 广播当前预览态；没有预览时传空串。 */
+  function notifyWeatherPreview() {
+    for (const listener of weatherPreviewListeners) listener(weatherPreviewCondition);
+  }
+  /**
+   * 天气层是否该出帧。
+   *
+   * 只读 `refreshActivityState` 缓存的 `isStageOnScreenCached`，不再在这里做
+   * `getBoundingClientRect` / 祖先 `getComputedStyle`：这条路径会被每条 HA 状态更新命中，
+   * 状态风暴时反复强制 reflow 的代价远高于「可见性判断晚一帧生效」。
+   */
   function weatherEffectsActive() {
     return (
       !isDisposed &&
@@ -1233,23 +1277,24 @@ export function mountInteraction3d(
       !isPageHidden &&
       document.hidden !== true &&
       isStageIntersecting &&
-      isHostActuallyVisible()
+      isStageOnScreenCached
     );
   }
   /** 同步天气态；`states` 省略时回落到当前订阅快照。 */
   function syncWeatherEffects(states: any = null) {
     if (isDisposed) return;
-    const weatherEntityId = boundWeatherEntityId();
+    const weatherTargetId = boundWeatherEntityId();
     // 没绑定、也没在预览：连 canvas 都不建，避免给不关心天气的户型带来任何开销。
-    if (!weatherEffects && !weatherEntityId && !weatherPreviewCondition) return;
+    if (!weatherEffects && !weatherTargetId && !weatherPreviewCondition) return;
     const isActive = weatherEffectsActive();
     if (!isActive && weatherPreviewCondition) closeWeatherPreview();
-    if (!weatherEffects && isActive && (weatherEntityId || weatherPreviewCondition))
-      weatherEffects = createWeatherEffects(hostElement);
+    if (!weatherEffects && isActive && (weatherTargetId || weatherPreviewCondition))
+      (weatherEffects = createWeatherEffects(hostElement)),
+        weatherEffects.setGround?.(weatherGroundQuad);
     weatherEffects?.update(
       weatherPreviewCondition
         ? { state: weatherPreviewCondition }
-        : (states ?? getCurrentStates())[weatherEntityId],
+        : weatherEntityState(states ?? getCurrentStates(), weatherTargetId),
       isActive,
     );
   }
@@ -1259,7 +1304,34 @@ export function mountInteraction3d(
     weatherPreviewTimeoutId = null;
     if (!weatherPreviewCondition) return;
     weatherPreviewCondition = "";
+    notifyWeatherPreview();
     syncWeatherEffects();
+  }
+  /**
+   * 进入预览态。合法态与可预览性都从 `WEATHER_EFFECTS` 派生：新增天气不必再改这里。
+   */
+  function previewWeather(weatherState: unknown) {
+    const previewKey = weatherEffectKey(weatherState);
+    if (
+      isDisposed ||
+      !isAuthorized ||
+      !isScenePresented ||
+      !runtimeContext.editable ||
+      isPageHidden ||
+      document.hidden ||
+      isPreviewSuspended ||
+      isRangeEditing ||
+      isViewEditing ||
+      !previewKey ||
+      !WEATHER_EFFECTS[previewKey].preview
+    )
+      return false;
+    clearTimeout(weatherPreviewTimeoutId);
+    weatherPreviewCondition = previewKey;
+    weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS);
+    notifyWeatherPreview();
+    syncWeatherEffects();
+    return true;
   }
   /**
    * 按 HA 显示精度生成 `entityId -> precision` 映射；只在变化时下发。
@@ -1626,7 +1698,9 @@ export function mountInteraction3d(
         hostElement.replaceChildren(stageFrameElement, loadingElement),
         // 天气层是 hostElement 的子节点，重载换 iframe 时会被一并清掉，同步回收控制器。
         weatherEffects?.dispose(),
-        (weatherEffects = null)),
+        (weatherEffects = null),
+        // 新舞台会重新发地面投影，旧四边形可能属于上一个户型，先清空。
+        (weatherGroundQuad = null)),
       setRangeEditingState(false),
       activeRequestsSet.forEach((staleController) => staleController.abort("stale")),
       rejectPendingEdits("户型已切换，请在新户型中重新调整视角。"),
@@ -2128,7 +2202,27 @@ export function mountInteraction3d(
       }
     }
   }
-  (window.addEventListener("message", handleStageMessage),
+  /**
+   * `weather-ground` 是相机每帧都可能发的消息，单独在监听层拦掉：
+   * `handleStageMessage` 的分支链已经到复杂度上限，不能再往里加判断。
+   */
+  function onStageMessage(messageEvent: any) {
+    const stageMessage = messageEvent?.data;
+    if (stageMessage?.channel !== "hb-i3d-v1" || stageMessage.type !== "weather-ground")
+      return handleStageMessage(messageEvent);
+    // 与 `handleStageMessage` 同一套来源校验：不能只凭 channel 就信这个四边形。
+    if (
+      isDisposed ||
+      messageEvent.origin !== location.origin ||
+      messageEvent.source !== stageFrameElement.contentWindow
+    )
+      return;
+    const nextGroundQuad = normalizeGroundQuad(stageMessage.quad);
+    if (!nextGroundQuad) return;
+    weatherGroundQuad = nextGroundQuad;
+    weatherEffects?.setGround?.(nextGroundQuad);
+  }
+  (window.addEventListener("message", onStageMessage),
     window.addEventListener("pointerdown", handleDocumentClickAway),
     window.addEventListener("keydown", handleDocumentKeyDown));
   const listenerTarget = typeof document.addEventListener === "function" ? document : window;
@@ -2272,8 +2366,10 @@ export function mountInteraction3d(
           (weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId)),
           (weatherPreviewTimeoutId = null),
           (weatherPreviewCondition = ""),
+          weatherPreviewListeners.clear(),
           weatherEffects?.dispose(),
           (weatherEffects = null),
+          (weatherGroundQuad = null),
           editSubscribersSet.clear(),
           (isRangeEditing = false),
           hostElement.classList.remove("is-range-editing"),
@@ -2288,7 +2384,7 @@ export function mountInteraction3d(
           rejectPendingEdits("户型画面已关闭，请重新调整。"),
           rejectPendingRangeRequests("户型画面已关闭，请重新调整照射范围。"),
           window.removeEventListener("resize", updatePresentationLayout),
-          window.removeEventListener("message", handleStageMessage),
+          window.removeEventListener("message", onStageMessage),
           window.removeEventListener("pointerdown", handleDocumentClickAway),
           window.removeEventListener("keydown", handleDocumentKeyDown));
         for (const removedEventName of activityEventNames)
@@ -2421,7 +2517,9 @@ export function mountInteraction3d(
                 ? "load-scene-change"
                 : "load-mode-change",
             )
-          : sendConfigUpdate());
+          : sendConfigUpdate(),
+        // 天气绑定变了要立刻重建/更新特效层，不能等到下一次 HA 状态推送或可见性变化。
+        syncWeatherEffects());
     }),
     (runtimeHandle.previewLockMotion = (lockEntityId: any, shouldOpen = true) =>
       isDisposed ||
@@ -2551,23 +2649,17 @@ export function mountInteraction3d(
     }),
     (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
     (runtimeHandle.closeWeatherPreview = closeWeatherPreview),
-    (runtimeHandle.previewWeather = (weatherState: any) =>
-      isDisposed ||
-      !isAuthorized ||
-      !isScenePresented ||
-      !runtimeContext.editable ||
-      isPageHidden ||
-      document.hidden ||
-      isPreviewSuspended ||
-      isRangeEditing ||
-      isViewEditing ||
-      !["rainy", "snowy", "lightning-rainy", "snowy-rainy"].includes(weatherState)
-        ? false
-        : (clearTimeout(weatherPreviewTimeoutId),
-          (weatherPreviewCondition = weatherState),
-          (weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS)),
-          syncWeatherEffects(),
-          true)),
+    (runtimeHandle.previewWeather = previewWeather),
+    (runtimeHandle.onWeatherPreviewChange = (listener: unknown) => {
+      if (typeof listener !== "function") return () => {};
+      const previewListener = listener as (previewState: string) => void;
+      weatherPreviewListeners.add(previewListener);
+      // 订阅即回报当前态：面板重开时仍能对上正在进行的预览。
+      previewListener(weatherPreviewCondition);
+      return () => {
+        weatherPreviewListeners.delete(previewListener);
+      };
+    }),
     (runtimeHandle.previewPopupLayout = (
       layoutKind: string,
       layoutOptions: Record<string, unknown> = {},
