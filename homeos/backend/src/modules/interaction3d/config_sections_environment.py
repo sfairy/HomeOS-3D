@@ -38,6 +38,7 @@ from .config_ctx import (
     validate_layout_widget,
 )
 from .device import validate_device_status_rules
+from .window import validate_window_bindings
 
 #: environment 分区允许出现的键。
 ENVIRONMENT_FIELDS = frozenset(
@@ -52,6 +53,7 @@ ENVIRONMENT_FIELDS = frozenset(
         'exhaustFans',
         'airers',
         'waterHeaters',
+        'windowOpeners',
     }
 )
 #: 控件身份字段：必须存在且非空。
@@ -85,6 +87,7 @@ AIR_CONDITIONER_FIELDS = frozenset(
         'deviceName',
         'climateType',
         'extraControls',
+        'extraDevices',
         'bathEffects',
     }
 )
@@ -134,6 +137,7 @@ APPLIANCE_FIELDS = frozenset(
         'focusCamera',
         'buttonHidden',
         'extraControls',
+        'extraDevices',
         'hiddenClickable',
     }
 )
@@ -390,6 +394,7 @@ class EnvironmentSectionValidator:
         self.validate_air_conditioners(environment)
         self.validate_appliances(environment)
         self.validate_curtains(environment)
+        self.validate_window_openers(environment)
         self.validate_climate_sensors(environment)
         self.validate_curtain_groups(environment)
 
@@ -641,6 +646,18 @@ class EnvironmentSectionValidator:
             self.ctx.fail()
 
     # ── 窗帘分组 ────────────────────────────────────────────────────────
+
+    # ── 开窗器（窗扇） ──────────────────────────────────────────────────
+
+    def validate_window_openers(self, environment: dict) -> None:
+        """开窗器绑定：字段白名单 / 模型身份 / 检测实体 / 默认开度。
+
+        与窗帘分开走：开窗器的 ``modelId`` 指向**窗扇**（``window:<窗>:<扇>``），
+        而不是整扇窗模型；两者的合法字段也不同（开窗器有 ``openPercent`` / ``labelMode``，
+        没有 ``coverKind`` / ``curtainFabric``）。
+        """
+        openers = environment.get('windowOpeners', [])
+        validate_window_bindings(openers)
 
     def validate_curtain_groups(self, environment: dict) -> None:
         groups = environment.get('curtainGroups', [])

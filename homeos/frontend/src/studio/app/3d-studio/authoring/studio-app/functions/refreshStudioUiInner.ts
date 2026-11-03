@@ -88,6 +88,8 @@ import {
 } from '../../lights/studio-app-light-data';
 import { normalizePlanLabelColor } from "../../scene/studio-scene-payload";
 
+import { isCustomWindow as isCustomWindow2 } from "../../../plan/window/layout";
+
 
 
 
@@ -202,7 +204,14 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
         syncStudioSelect2(selectElement("#wall-open-end-mode")));
     } else {
       if (appCtx.selectedItem.kind === "window")
-        ((selectElement("#selection-title").textContent = "窗户"),
+        ((selectElement("#selection-title").textContent = isCustomWindow2(at4)
+          ? "自定义窗户"
+          : "窗户"),
+          (selectElement("#window-customize").textContent = isCustomWindow2(at4)
+            ? "编辑自定义窗型…"
+            : "自定义窗型…"),
+          (selectElement("#window-ordinary").hidden = !isCustomWindow2(at4)),
+          (selectElement("#window-divider").disabled = isCustomWindow2(at4)),
           setNumericControlValue(selectElement("#window-width"), at4.width),
           setNumericControlValue(selectElement("#window-height"), at4.height),
           setNumericControlValue(selectElement("#window-sill"), at4.sill),

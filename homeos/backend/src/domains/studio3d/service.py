@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from . import cleanup as cleanup_service
 from . import draft_repository
+from .windows import validate_window_designs
 from ...panel.asset_refs import validate_assets
 from ...platform.core.db.models import Project, ProjectDraft
 from ...schemas import Studio3DDraftUpdate
@@ -44,23 +45,34 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
     # 户型图里的图片引用（``user:`` / ``studio3d:``）必须先校验存在：草稿一旦写进去，
     # 后续删除 / 覆盖图片时它就会成为「删除不掉的引用」，而用户其实只是选了一张已删的图。
     #
+    # 窗型设计同理：分格树 / 窗扇 id / 洞口尺寸都要在写入前校验，否则前端绘制器会在
+    # 渲染阶段抛异常，表现为整层楼消失。它只读 payload，先于素材校验跑。
+    #
     # 校验与写入必须共用素材目录的 mutation lock：否则「校验通过」与「提交草稿」之间
     # 可以插进一次删除，草稿里就留下指向不存在图片的 assetId。
     lock = catalog.mutation_lock if catalog is not None else nullcontext()
     with lock:
+        validate_window_designs(payload.scene)
         if catalog is not None:
             validate_assets(catalog, payload.scene)
         scene_json = draft_repository.encode_scene(payload.scene)
         database.commit()
         database.execute(text("BEGIN IMMEDIATE"))
         try:
-            return _save_draft_locked(database, settings, user, payload, scene_json)
+            return _save_draft_locked(database, settings, user, payload, scene_json, catalog)
         except Exception:
             database.rollback()
             raise
 
 
-def _save_draft_locked(database: Session, settings, user, payload: Studio3DDraftUpdate, scene_json: str) -> dict:
+def _save_draft_locked(
+    database: Session,
+    settings,
+    user,
+    payload: Studio3DDraftUpdate,
+    scene_json: str,
+    catalog=None,
+) -> dict:
     snapshot = draft_repository.read_snapshot(database)
     current_revision = snapshot.revision if snapshot is not None else 0
     if payload.revision != current_revision:
@@ -68,7 +80,7 @@ def _save_draft_locked(database: Session, settings, user, payload: Studio3DDraft
     previous_scene = snapshot.scene if snapshot is not None else {}
     schema_version = _schema_version(payload.scene, snapshot)
     documents, changed, archive, impacts = _plan_interaction_cleanup(
-        database, settings, previous_scene, payload.scene
+        database, settings, previous_scene, payload.scene, catalog
     )
     if impacts:
         token = cleanup_service.confirmation_token(current_revision, payload.scene, documents, impacts)
@@ -106,13 +118,16 @@ def _conflict(current_revision: int) -> HTTPException:
 
 def _confirmation_required(database: Session, token: str, impacts: list) -> HTTPException:
     names = {project.id: project.name for project in database.scalars(select(Project)).all()}
-    return HTTPException(428, {
-        "code": "STUDIO3D_INTERACTION_CONFIRMATION",
-        "token": token,
-        "message": "删除将同步移除关联的 3D 交互配置。",
-        "impacts": impacts,
-        "projects": [names.get(key, key) for key in dict.fromkeys(impact["projectId"] for impact in impacts)],
-    })
+    return HTTPException(
+        428,
+        {
+            "code": "STUDIO3D_INTERACTION_CONFIRMATION",
+            "token": token,
+            "message": "删除将同步移除关联的 3D 交互配置。",
+            "impacts": impacts,
+            "projects": [names.get(key, key) for key in dict.fromkeys(impact["projectId"] for impact in impacts)],
+        },
+    )
 
 
 def _write_snapshot(database: Session, snapshot, **values) -> bool:
@@ -144,8 +159,19 @@ def _schema_version(scene: dict, snapshot) -> int:
     return draft_repository.DEFAULT_SCHEMA_VERSION
 
 
-def _plan_interaction_cleanup(database: Session, settings, previous_scene: dict, scene: dict):
-    """只有「模型身份集合」变了才值得扫全表；返回 (documents, changed, archive, impacts)。"""
+def _plan_interaction_cleanup(
+    database: Session,
+    settings,
+    previous_scene: dict,
+    scene: dict,
+    catalog=None,
+):
+    """只有「绑定身份集合」变了才值得扫全表；返回 (documents, changed, archive, impacts)。
+
+    ``asset_exists`` 交给清理逻辑：撤消删除时要把此前摘掉的条目放回去，但被引用
+    的屏幕图片可能已经被删了 —— 那种情况下只恢复条目、丢掉失效的 ``screenImage``，
+    而不是把一条点了就 404 的配置放回用户面板。
+    """
     if cleanup_service.identities(previous_scene) == cleanup_service.identities(scene):
         return {}, {}, None, []
     archive = draft_repository.read_archive(database)
@@ -154,15 +180,16 @@ def _plan_interaction_cleanup(database: Session, settings, previous_scene: dict,
         document = _decode_document(draft.document_json)
         if document is not None:
             documents[draft.project_id] = document
-    changed, saved, impacts = cleanup_service.plan_cleanup(documents, previous_scene, scene, archive, settings)
+    asset_exists = catalog.asset_exists if catalog is not None else None
+    changed, saved, impacts = cleanup_service.plan_cleanup(
+        documents, previous_scene, scene, archive, settings, asset_exists=asset_exists
+    )
     return documents, changed, saved, impacts
 
 
 def _decode_document(raw) -> dict | None:
     try:
         value = json.loads(raw) if raw else {}
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return value if isinstance(value, dict) else None
-
-

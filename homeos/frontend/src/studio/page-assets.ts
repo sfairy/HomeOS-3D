@@ -99,7 +99,10 @@ export const PAGE_ASSETS = {
     viewport: "width=device-width,initial-scale=1",
     themeColor: "#111820",
     manifest: "/static/assets/manifest/manifest-h5.webmanifest",
-    stylesheets: ["/static/3d-studio/studio.css"],
+    stylesheets: [
+      "/static/3d-studio/studio.css",
+      "/static/3d-studio/studio-window-designer.css",
+    ],
   } satisfies PageAssets,
 
   display: {

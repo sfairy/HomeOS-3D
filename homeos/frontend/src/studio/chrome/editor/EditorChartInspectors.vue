@@ -290,6 +290,15 @@
                         </div>
                     </div>
                 </section>
+                <section class="inspector-section" id="weather-forecast-section">
+                    <h3>天气预报弹窗</h3>
+                    <div id="weather-forecast-enabled" class="navigation-segmented-options" role="group"
+                        aria-label="天气预报弹窗">
+                        <button type="button" data-weather-forecast-enabled="off" aria-pressed="true">关闭</button>
+                        <button type="button" data-weather-forecast-enabled="on" aria-pressed="false">开启</button>
+                    </div>
+                    <p class="inspector-hint">开启后，点击天气控件查看预报。<br>预报内容由天气实体提供。</p>
+                </section>
                 <section class="inspector-section">
                     <h3>显示内容</h3>
                     <div class="date-display-options">

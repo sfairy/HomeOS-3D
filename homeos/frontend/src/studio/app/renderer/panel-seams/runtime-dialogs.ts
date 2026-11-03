@@ -79,21 +79,41 @@ export function updateRuntimeDialogScale(self: PanelRenderer) {
       return;
     const dialogLayerRect = runtimeDialogScaleContext.dialogLayer.getBoundingClientRect(),
       viewportRect = self.viewport?.getBoundingClientRect(),
+      // 画布按容器尺寸等比缩放（`canvas.style.transform = scale(…)`，或展示页用 `zoom`），
+      // 于是 layer 的 `getBoundingClientRect()` 是**屏幕像素**，而 `left/top`、`offsetWidth`
+      // 是**布局像素**。两者差一个缩放系数：混用会让弹窗整体往左上角偏、并且比设计尺寸小一圈
+      // （76% 占位算出 68%）。这里先统一折回 layer 的布局坐标系再算。
+      layerLayoutWidth = Math.max(
+        1,
+        Number(
+          runtimeDialogScaleContext.dialogLayer.clientWidth || dialogLayerRect.width || 0,
+        ) || 1,
+      ),
+      layerLayoutHeight = Math.max(
+        1,
+        Number(
+          runtimeDialogScaleContext.dialogLayer.clientHeight || dialogLayerRect.height || 0,
+        ) || 1,
+      ),
+      screenPerLayoutX = dialogLayerRect.width / layerLayoutWidth,
+      screenPerLayoutY = dialogLayerRect.height / layerLayoutHeight,
       runtimeDialogViewport2 = runtimeDialogViewport({
-        layerLeft: dialogLayerRect.left,
-        layerTop: dialogLayerRect.top,
-        layerWidth:
-          dialogLayerRect.width ||
-          runtimeDialogScaleContext.dialogLayer.clientWidth ||
-          self.container.clientWidth,
-        layerHeight:
-          dialogLayerRect.height ||
-          runtimeDialogScaleContext.dialogLayer.clientHeight ||
-          self.container.clientHeight,
-        dashboardLeft: viewportRect?.left,
-        dashboardTop: viewportRect?.top,
-        dashboardWidth: viewportRect?.width,
-        dashboardHeight: viewportRect?.height,
+        layerLeft: 0,
+        layerTop: 0,
+        layerWidth: layerLayoutWidth,
+        layerHeight: layerLayoutHeight,
+        dashboardLeft: viewportRect
+          ? (viewportRect.left - dialogLayerRect.left) / screenPerLayoutX
+          : 0,
+        dashboardTop: viewportRect
+          ? (viewportRect.top - dialogLayerRect.top) / screenPerLayoutY
+          : 0,
+        dashboardWidth: viewportRect?.width
+          ? viewportRect.width / screenPerLayoutX
+          : layerLayoutWidth,
+        dashboardHeight: viewportRect?.height
+          ? viewportRect.height / screenPerLayoutY
+          : layerLayoutHeight,
       }),
       width = runtimeDialogViewport2.width,
       height = runtimeDialogViewport2.height,

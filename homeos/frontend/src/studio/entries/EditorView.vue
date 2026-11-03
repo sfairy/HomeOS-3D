@@ -299,6 +299,11 @@ watch(
                     <div class="canvas-message"><strong>请从左侧新建仪表盘。</strong></div>
                 </div>
                 <div id="custom-popup-editor" class="workspace-mode-surface custom-popup-editor" hidden></div>
+                <!--
+                  情景弹窗编辑器不在这里开宿主：0.8.4 直接把编辑器挂到 `<main class="editor-shell">`
+                  （上游 `host: document.querySelector("main")`），绝对定位铺满整个编辑器区域，
+                  连左右侧栏一起盖住。放在工作区里会只剩画布宽度，三栏（180 + 预览 + 300）挤爆。
+                -->
             </div>
         </section>
         <aside

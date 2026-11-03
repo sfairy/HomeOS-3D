@@ -128,7 +128,10 @@ export async function openPresenceEditor({
       applyButton.disabled = true;
       try {
         (await onSave(structuredClone(draftProperties)),
-          isClosed || (statusElement.textContent = "已应用到编辑器，请在退出后保存仪表盘"));
+          isClosed ||
+            (statusElement.textContent = manageBindings
+              ? "配置已应用，请保存仪表盘。"
+              : "已应用到安防窗口，请返回并保存配置。"));
       } catch (saveError: any) {
         isClosed || (statusElement.textContent = saveError.message || "保存失败，请重试。");
       } finally {

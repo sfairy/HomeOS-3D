@@ -31,6 +31,7 @@ import { carChargingMappingError as carChargingMappingError2, carClickAction as 
 import { carTireWheels as carTireWheelsFor, defaultCarTires, retargetCarTires as retargetCarTires2, supportsCarTires as supportsCarTires2 } from "../../../vehicle/car-tires";
 import { curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { deviceEntityCatalog as deviceEntityCatalog2 } from "../../device-entity-config";
+import { removeExtraDevice as removeExtraDevice2, selectableExtraEntity as selectableExtraEntity2 } from "../../../device/extra-sources";
 import { extraLabels as extraLabels2, extraTypes as extraTypes2, purifierDeviceChanged as purifierDeviceChanged2, purifierRelatedEntities as purifierRelatedEntities2 } from "../../../climate/purifier-extras";
 import { fanReverseStateOptions, fanSourceAllowed, resolveFanBindingState } from "../../../fan/fan-state";
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from "@app/bridge/definition";
@@ -1941,7 +1942,49 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             };
             const boundMeterEntityId = vector.extraControls || [];
             currentContainer = createConfigSection("附加功能");
-            const relatedEntityCatalog =
+            // 0.8.4：关联设备——一台舞台设备背后可以挂多台 HA 设备的实体。
+            const associatedExtraDevices = Array.isArray(vector.extraDevices) ? vector.extraDevices : [];
+            const extraDeviceCatalog = associatedExtraDevices.flatMap((deviceEntry: any) =>
+                deviceEntityCatalog2(
+                  editorHost.entities,
+                  deviceEntry.deviceId,
+                  editorHost.latestStates || editorHost.states,
+                )
+                  .filter(
+                    (extraDeviceEntityProbe: any) =>
+                      extraDeviceEntityProbe.entityId !== vector.entityId &&
+                      selectableExtraEntity2(extraDeviceEntityProbe),
+                  )
+                  .map((extraDeviceEntity: any) => ({
+                    ...extraDeviceEntity,
+                    sourceDeviceId: deviceEntry.deviceId,
+                  })),
+              ),
+              selectableExtraDeviceChoices = () => {
+                const remainingDevices = new Map<string, string>();
+                for (const entityEntry of editorHost.entities || []) {
+                  const candidateDeviceId = entityEntry.deviceId || entityEntry.device_id,
+                    candidateDeviceName =
+                      entityEntry.deviceName ||
+                      entityEntry.device_name ||
+                      editorHost.map?.get?.(candidateDeviceId)?.name ||
+                      editorHost.map?.get?.(candidateDeviceId)?.["name"] ||
+                      candidateDeviceId;
+                  candidateDeviceId &&
+                    candidateDeviceId !== vector.deviceId &&
+                    !associatedExtraDevices.some(
+                      (deviceEntry: any) => deviceEntry.deviceId === candidateDeviceId,
+                    ) &&
+                    !remainingDevices.has(candidateDeviceId) &&
+                    remainingDevices.set(candidateDeviceId, candidateDeviceName);
+                }
+                return [...remainingDevices].map(([deviceId, deviceName]) => ({
+                  id: deviceId,
+                  label: deviceName,
+                  detail: deviceId,
+                }));
+              },
+              relatedEntityCatalog =
                 editorHost.isGenericDeviceMode || bindingContainer
                   ? deviceEntityCatalog2(
                       editorHost.entities,
@@ -1949,8 +1992,12 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                         itemEntityMetadata?.deviceId ||
                         itemEntityMetadata?.device_id,
                       editorHost.latestStates || editorHost.states,
-                    ).filter((otherEntityProbe) => otherEntityProbe.entityId !== vector.entityId)
+                    ).filter((otherEntityProbe: any) => otherEntityProbe.entityId !== vector.entityId)
                   : purifierRelatedEntities2(editorHost.entities, vector.entityId),
+              fullRelatedEntityCatalog =
+                editorHost.isGenericDeviceMode || bindingContainer
+                  ? [...relatedEntityCatalog, ...extraDeviceCatalog]
+                  : relatedEntityCatalog,
               deviceId3 =
                 editorHost.isGenericDeviceMode || bindingContainer
                   ? vector.deviceId || itemEntityMetadata?.deviceId || itemEntityMetadata?.device_id
@@ -1984,13 +2031,39 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               extraSearchInputElement.setAttribute("aria-label", "搜索附加实体"));
             const extraControlListElement = editorHost.createElement("div", "i3d-extra-entity-list"),
               extraControlsByEntityId = new Map(),
+              // 0.8.4：状态行必须能随实时状态刷新，不能整块重建（会把勾选框焦点冲掉）。
+              extraStateLineByEntityId = new Map<string, { element: any; candidate: any }>(),
+              extraEntityStateText = (stateCandidate: any) => {
+                const stateCandidateDisabled = !!(
+                    stateCandidate.disabledBy ||
+                    stateCandidate.disabled_by ||
+                    stateCandidate.enabled === false ||
+                    ["disabled", "missing"].includes(stateCandidate.status)
+                  ),
+                  stateCandidateState =
+                    editorHost.latestStates?.[stateCandidate.entityId] ||
+                    editorHost.states?.get?.(stateCandidate.entityId) ||
+                    editorHost.states?.[stateCandidate.entityId],
+                  stateCandidateSnapshot = stateCandidateState?.newState || stateCandidateState;
+                return (
+                  (extraLabels2 as any)[extraTypes2(stateCandidate.entityId)[0]] +
+                  " · " +
+                  (stateCandidate.sourceMissing
+                    ? "实体已移除或归属已改变，可取消选择"
+                    : stateCandidateDisabled
+                      ? "已禁用或移除"
+                      : stateCandidateSnapshot?.state || "暂无状态")
+                );
+              },
               renderExtraControlList = () => {
-                (extraControlListElement.replaceChildren(), extraControlsByEntityId.clear());
+                (extraControlListElement.replaceChildren(),
+                  extraControlsByEntityId.clear(),
+                  extraStateLineByEntityId.clear());
                 const lowerCase = extraSearchInputElement.value.trim().toLowerCase(),
                   staleExtraControlList = (vector.extraControls || [])
                     .filter(
                       (extraControlProbe: any) =>
-                        !relatedEntityCatalog.some(
+                        !fullRelatedEntityCatalog.some(
                           (knownCatalogProbe: any) =>
                             knownCatalogProbe.entityId === extraControlProbe.entityId,
                         ),
@@ -1999,9 +2072,12 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       entityId: staleExtraControlEntry.entityId,
                       name: "已失效或不属于当前设备",
                       status: "missing",
+                      // 0.8.4：条目曾经属于这台（或关联）设备，现在归属变了 / 被移除，
+                      // 提示要区分「还能在别处找回」和「实体本身被禁用」。
+                      sourceMissing: true,
                     })),
                   visibleExtraControlList = [
-                    ...relatedEntityCatalog,
+                    ...fullRelatedEntityCatalog,
                     ...staleExtraControlList,
                   ].filter((visibleControlProbe) =>
                     ((visibleControlProbe.name || "") + " " + visibleControlProbe.entityId)
@@ -2016,10 +2092,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       deviceId3
                         ? lowerCase
                           ? "没有匹配的实体。"
-                          : "该设备没有其他实体。"
+                          : "此设备暂无可选实体；已有配置会保留。"
                         : editorHost.isGenericDeviceMode || bindingContainer
-                          ? "请先绑定设备，再选择弹窗内容。"
-                          : "主实体没有设备关联，无法获取所属设备实体。",
+                          ? associatedExtraDevices.length
+                            ? "没有匹配的实体。"
+                            : "先添加关联设备，再选择弹窗内容。"
+                          : (vector.extraControls || []).length
+                            ? "原设备暂不可用"
+                            : "主实体没有设备关联，无法获取所属设备实体。",
                     ),
                   );
                 for (const extraCandidateEntity of visibleExtraControlList) {
@@ -2033,11 +2113,6 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       extraCandidateEntity.enabled === false ||
                       ["disabled", "missing"].includes(extraCandidateEntity.status)
                     ),
-                    extraEntityState =
-                      editorHost.latestStates?.[extraCandidateEntity.entityId] ||
-                      editorHost.states?.get?.(extraCandidateEntity.entityId) ||
-                      editorHost.states?.[extraCandidateEntity.entityId],
-                    extraEntitySnapshot = extraEntityState?.newState || extraEntityState,
                     extraEntityRowElement = editorHost.createElement("label", "i3d-extra-entity-row"),
                     extraEntityCheckboxElement = editorHost.createElement("input");
                   ((extraEntityCheckboxElement.type = "checkbox"),
@@ -2049,10 +2124,19 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       disabled: isExtraEntityDisabled,
                     }));
                   const extraEntityDetailElement = editorHost.createElement("span");
-                  ((extraEntityDetailElement.title =
-                    (extraCandidateEntity.name || extraCandidateEntity.entityId) +
-                    "\n" +
-                    extraCandidateEntity.entityId),
+                  const extraEntityStateLineElement = editorHost.createElement(
+                    "small",
+                    "",
+                    extraEntityStateText(extraCandidateEntity),
+                  );
+                  (extraStateLineByEntityId.set(extraCandidateEntity.entityId, {
+                    element: extraEntityStateLineElement,
+                    candidate: extraCandidateEntity,
+                  }),
+                    (extraEntityDetailElement.title =
+                      (extraCandidateEntity.name || extraCandidateEntity.entityId) +
+                      "\n" +
+                      extraCandidateEntity.entityId),
                     extraEntityDetailElement.append(
                       editorHost.createElement(
                         "strong",
@@ -2060,15 +2144,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                         extraCandidateEntity.name || extraCandidateEntity.entityId,
                       ),
                       editorHost.createElement("small", "", extraCandidateEntity.entityId),
-                      editorHost.createElement(
-                        "small",
-                        "",
-                        (extraLabels2 as any)[extraTypes2(extraCandidateEntity.entityId)[0]] +
-                          " · " +
-                          (isExtraEntityDisabled
-                            ? "已禁用或移除"
-                            : extraEntitySnapshot?.state || "暂无状态"),
-                      ),
+                      extraEntityStateLineElement,
                     ),
                     extraEntityCheckboxElement.addEventListener("change", () => {
                       const currentExtraControls = vector.extraControls || [];
@@ -2079,6 +2155,10 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                               entityId: extraCandidateEntity.entityId,
                               type: extraTypes2(extraCandidateEntity.entityId)[0],
                               label: "",
+                              // 0.8.4：来自关联设备的实体要记住归属，运行时按设备名区分。
+                              ...(extraCandidateEntity.sourceDeviceId
+                                ? { sourceDeviceId: extraCandidateEntity.sourceDeviceId }
+                                : {}),
                             },
                           ]
                         : currentExtraControls.filter(
@@ -2111,6 +2191,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 }
               };
             ((extraControlsDetailsElement.className = "i3d-extra-chooser"),
+              // 0.8.4 `refreshStates`：只改状态文字，保留勾选与焦点。
+              (editorHost.refreshExtraControlStates = () => {
+                if (editorHost.isDisposed) return;
+                for (const { element: stateLineElement, candidate: stateCandidate } of
+                  extraStateLineByEntityId.values())
+                  stateLineElement.isConnected &&
+                    (stateLineElement.textContent = extraEntityStateText(stateCandidate));
+              }),
               extraSearchInputElement.addEventListener("input", renderExtraControlList),
               renderExtraControlList(),
               extraControlsDetailsElement.append(extraSearchInputElement, extraControlListElement),
@@ -2118,6 +2206,95 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               extraControlsDetailsElement.addEventListener("toggle", () => {
                 extraControlsDetailsElement.open && previewDevicePanel();
               }));
+            // 0.8.4：关联设备清单——从其它 HA 设备补实体，失效设备可整台移除。
+            if (editorHost.isGenericDeviceMode) {
+              const associatedDeviceSection = createConfigSection("关联设备（可选）"),
+                addAssociatedDeviceButton = editorHost.createButton(
+                  "添加关联设备",
+                  () => void addAssociatedDevice(),
+                ),
+                associatedDeviceRowsElement = editorHost.createElement("div");
+              let associatedDevicePickerHandle: any = null;
+              const addAssociatedDevice = async () => {
+                const deviceChoices = selectableExtraDeviceChoices();
+                if (!deviceChoices.length || editorHost.isDisposed || !editorHost.isAccessAllowed)
+                  return;
+                associatedDevicePickerHandle?.close();
+                const devicePickerGeneration = editorHost.pickerGeneration;
+                const pickerHandle = openConfigurationPicker({
+                  document: editorHost.editorDialogElement.ownerDocument,
+                  title: "添加关联设备",
+                  kicker: "DEVICE LINK",
+                  unit: "设备",
+                  description:
+                    "选择要并入本控件的 HA 设备。关联后可以在这里挑选该设备的实体作为附加功能；移除设备会连同它名下的附加功能一起移除。",
+                  selectedId: "",
+                  emptyMessage: "没有可选设备。",
+                  sections: [{ options: deviceChoices }],
+                  async onSelect(pickedDeviceId: string) {
+                    if (
+                      editorHost.isDisposed ||
+                      !editorHost.isAccessAllowed ||
+                      devicePickerGeneration !== editorHost.pickerGeneration
+                    )
+                      throw new Error("该配置已变更，请重新选择。");
+                    const pickedDeviceChoice = deviceChoices.find(
+                      (choice: any) => choice.id === pickedDeviceId,
+                    );
+                    if (!pickedDeviceChoice) throw new Error("该设备已变更，请重新选择。");
+                    ((vector.extraDevices = [
+                      ...(Array.isArray(vector.extraDevices) ? vector.extraDevices : []),
+                      { deviceId: pickedDeviceId, deviceName: pickedDeviceChoice.label },
+                    ]),
+                      refreshEditorPreview(),
+                      renderPanel());
+                  },
+                  onClose() {
+                    editorHost.pickerHandle === pickerHandle && (editorHost.pickerHandle = null);
+                  },
+                });
+                editorHost.pickerHandle = pickerHandle;
+                associatedDevicePickerHandle = pickerHandle;
+              };
+              for (const deviceEntry of associatedExtraDevices) {
+                const remainingDeviceRow = editorHost.createElement(
+                    "div",
+                    "i3d-associated-device-row",
+                  ),
+                  removeDeviceButton = editorHost.createButton("移除", () => {
+                    if (removeDeviceButton.dataset.confirm !== "true") {
+                      ((removeDeviceButton.dataset.confirm = "true"),
+                        (removeDeviceButton.textContent = "确认移除"));
+                      return;
+                    }
+                    (removeExtraDevice2(vector, deviceEntry.deviceId),
+                      refreshEditorPreview(),
+                      renderPanel());
+                  }),
+                  remainingDeviceLabel = editorHost.createElement(
+                    "span",
+                    "",
+                    deviceEntry.deviceName || deviceEntry.deviceId,
+                  );
+                (remainingDeviceLabel.title = deviceEntry.deviceId),
+                  remainingDeviceRow.append(remainingDeviceLabel, removeDeviceButton),
+                  associatedDeviceRowsElement.append(remainingDeviceRow);
+              }
+              (addAssociatedDeviceButton.setAttribute(
+                "disabled",
+                String(!selectableExtraDeviceChoices().length),
+              ),
+                associatedDeviceSection.append(
+                  associatedDeviceRowsElement,
+                  addAssociatedDeviceButton,
+                  editorHost.createElement(
+                    "p",
+                    "i3d-note",
+                    "关联设备只借用其 HA 实体，主设备仍是当前绑定的设备。找不到原设备时，它的附加功能会保留但标记为失效。",
+                  ),
+                ),
+                currentContainer.append(associatedDeviceSection));
+            }
           }
           if (isBathHeaterMode) {
             const bathAirflowSectionElement = createConfigSection("出风动画"),
@@ -2490,6 +2667,92 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               ),
             );
             fanControlSection.append(bladeSection);
+          }
+          if (editorHost.isWindowOpenerMode) {
+            currentContainer = createConfigSection("开窗器");
+            const openerSettingsRow = createConfigRow(currentContainer);
+            createSelectRow(
+              openerSettingsRow,
+              "动画来源",
+              [
+                ["auto", "自动：有位置用开窗器，无位置用窗磁"],
+                ["opener", "开窗器"],
+                ["contact", "安防窗磁"],
+              ],
+              ["auto", "opener", "contact"].includes(vector.motionSource)
+                ? vector.motionSource
+                : "auto",
+              (pickedMotionSource: any) => {
+                ((vector.motionSource = pickedMotionSource), refreshEditorPreview(), renderPanel());
+              },
+            );
+            if (vector.motionSource === "contact") {
+              const configuredWindowContacts = (editorHost.structuredClone2.environment?.security?.windows || [])
+                .filter((windowEntry: any) => windowEntry.contactEntityId);
+              configuredWindowContacts.length ||
+                currentContainer.append(
+                  editorHost.createElement("p", "i3d-note", "尚未配置窗磁，动画会保留当前姿态。"),
+                );
+            }
+            const estimateMotionRow = createConfigRow(currentContainer),
+              estimateMotionInput = editorHost.createElement("input");
+            (Object.assign(estimateMotionInput, {
+              type: "checkbox",
+              checked: vector.estimateMotion !== false,
+            }),
+              (estimateMotionInput.onchange = () => {
+                ((vector.estimateMotion = estimateMotionInput.checked),
+                  refreshEditorPreview(),
+                  renderPanel());
+              }),
+              estimateMotionRow.append(
+                editorHost.createElement("span", "", "无位置回报时显示估算动画"),
+                estimateMotionInput,
+              ));
+            createNumberRow(
+              openerSettingsRow,
+              "全行程时间（秒）",
+              Number.isFinite(vector.travelSeconds) ? vector.travelSeconds : 20,
+              5,
+              180,
+              1,
+              (pickedTravelSeconds: any) => {
+                ((vector.travelSeconds = pickedTravelSeconds), refreshEditorPreview());
+              },
+            );
+            createNumberRow(
+              openerSettingsRow,
+              "最大显示开度（%）",
+              Number.isFinite(vector.openPercent) ? vector.openPercent : 100,
+              0,
+              100,
+              1,
+              (pickedOpenPercent: any) => {
+                ((vector.openPercent = pickedOpenPercent), refreshEditorPreview());
+              },
+            );
+            currentContainer.append(
+              editorHost.createElement(
+                "p",
+                "i3d-note",
+                "位置回报优先。行程时间只用于无回报时的动画估算；动画到位不代表窗户已关好。最大显示开度只调整模型，不改变发给设备的目标。",
+              ),
+            );
+            const windowPreviewRow = editorHost.createElement("div", "i3d-security-grid i3d-lock-motion-grid");
+            for (const [windowPreviewLabel, windowPreviewOpening] of [
+              ["预览开窗", true],
+              ["预览关窗", false],
+            ] as [string, boolean][]) {
+              const windowPreviewButton = editorHost.createButton(windowPreviewLabel, () =>
+                (editorHost as any).previewWindowMotion?.(vector.id, windowPreviewOpening),
+              );
+              ((windowPreviewButton.disabled = !(editorHost as any).previewWindowMotion),
+                windowPreviewRow.append(windowPreviewButton));
+            }
+            currentContainer.append(
+              windowPreviewRow,
+              editorHost.createElement("p", "i3d-note", "预览只检查模型动作，不发送设备指令。"),
+            );
           }
           if (editorHost.isCoverMode) {
             if (!matchedCurtainGroup) {

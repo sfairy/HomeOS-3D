@@ -14,6 +14,7 @@ import { renderEntityOptionButtons } from "./entity-option-list";
 
 export interface InspectorContextsDeps {
   editorCtx: EditorContext;
+  bindingRepair?: any;
   airConditionerEntityMenuElement: any;
   airConditionerInspectorElement: any;
   airConditionerPreviewStateByComponentId: any;
@@ -520,6 +521,9 @@ export function syncVacuumMapInspector(deps: InspectorContextsDeps, vacuumMapCom
 export function buildCoverMotorInspectorContext(deps: InspectorContextsDeps): CoverMotorInspectorContext {
   return {
     activeProject: deps.editorCtx.activeProject,
+    // 0.8.4：3D 控件「检查失效配置」用的失效检查器与作用域标记。
+    bindingRepair: deps.bindingRepair,
+    get componentScopeState() { return deps.editorCtx.componentScopeState; },
     airConditionerEntityMenuElement: deps.airConditionerEntityMenuElement,
     airConditionerInspectorElement: deps.airConditionerInspectorElement,
     airConditionerPreviewStateByComponentId: deps.airConditionerPreviewStateByComponentId,

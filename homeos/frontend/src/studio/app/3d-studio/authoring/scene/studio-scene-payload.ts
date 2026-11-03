@@ -258,6 +258,15 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
             height: clamp2(finite2(rawWindow?.height, 1.35), 0.3, 20),
             sill: clamp2(finite2(rawWindow?.sill, 0.85), 0, 20),
             hasDivider: rawWindow?.hasDivider !== false,
+            // 自定义窗型（0.8.4）必须原样带过：这里只挑固定字段，少写一行就等于
+            // 「保存一次，窗型设计全部退回普通窗」——载入时被丢掉，下一次整份 PUT 就再也写不回去。
+            ...(rawWindow?.windowDesign
+              ? { windowDesign: structuredClone(rawWindow.windowDesign) }
+              : {}),
+            // 窗户备注同样是 `WindowRecord` 的正式字段（3D 里窗扇模型的显示名用它）。
+            ...(typeof rawWindow?.remark === "string" && rawWindow.remark
+              ? { remark: rawWindow.remark }
+              : {}),
           }))
           .filter((windowCandidate: any) => wallIdSet.has(windowCandidate.wallId))
       : [],

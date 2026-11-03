@@ -32,6 +32,8 @@ type CoverPanelViewModel = {
   error?: any;
   /** 实体 → HA 显示精度（`number-formats` 通道）。 */
   numberFormats?: Record<string, number>;
+  /** 开窗器专属提示（关联窗扇缺失等），由舞台下发。 */
+  windowNotice?: string;
 };
 
 export function createCoverPanel({
@@ -147,6 +149,9 @@ export function createCoverPanel({
   }
   (controlsElement.append(positionLabelElement, actionsElement),
     controlsSlotElement.append(controlsElement));
+  // 开窗器的状态提示（关联窗扇缺失 / 行程未知等），由舞台随载荷下发 `windowNotice`。
+  const windowNoticeElement = createElement("p", "i3d-note i3d-window-opener-notice");
+  windowNoticeElement.hidden = true;
   const feedbackElement = createElement("p", "i3d-cover-feedback");
   ((feedbackElement.hidden = true),
     feedbackElement.setAttribute("role", "status"),
@@ -167,6 +172,7 @@ export function createCoverPanel({
   (popupBodyElement.append(
     bladeHintElement,
     controlsSlotElement,
+    windowNoticeElement,
     feedbackElement,
     extrasPanelElement,
   ),
@@ -487,9 +493,21 @@ export function createCoverPanel({
       (nativeTiltElement.append(tiltActionsElement), popupBodyElement.append(nativeTiltElement));
     }
     nativeTiltElement.hidden = false;
-    const tiltPosition = draftTiltPosition ?? deviceState.tiltPosition;
-    ((tiltPositionOutputElement.textContent =
-      tiltPosition === null ? "未知" : Math.round(tiltPosition) + "%"),
+    // 叶片角度同样支持记忆值：设备没报 current_tilt_position 时显示「上次 N%」。
+    const tiltRemembered =
+        deviceState.tiltPosition === null ? (deviceState.tiltMemory?.position ?? null) : null,
+      tiltPosition =
+        draftTiltPosition ?? deviceState.tiltPosition ?? tiltRemembered;
+    (tiltPositionOutputElement.classList.toggle(
+      "is-remembered",
+      tiltRemembered !== null && draftTiltPosition === null,
+    ),
+      (tiltPositionOutputElement.textContent =
+        tiltPosition === null
+          ? "未知"
+          : (tiltRemembered !== null && draftTiltPosition === null ? "上次\n" : "") +
+            Math.round(tiltPosition) +
+            "%"),
       (tiltPositionSliderElement.value = String(tiltPosition ?? 0)),
       (tiltPositionSliderElement.disabled = !canAdjustSlider() || !deviceState.tiltSupported),
       applyRangeProgressCss(tiltPositionSliderElement, (tiltPosition ?? 0) + "%"),
@@ -521,6 +539,7 @@ export function createCoverPanel({
         : "尚未绑定设备";
     const isDreamCover = viewModel.item?.coverKind === "dream",
       isAirerItem = viewModel.item?.airer,
+      isWindowOpenerItem = viewModel.item?.windowOpener === true,
       // 「部分开启」只看设备实际回报的位置：设备刚报 全开/100 时，本地位置还在做收尾平滑动画，
       // 拿动画中的中间值判断会让卡片先闪一下「整体部分开启」再跳「整体已开启」。
       railReportedPosition = deviceState.position ?? presentation.position,
@@ -571,6 +590,14 @@ export function createCoverPanel({
         deviceState.available &&
         deviceState.state === "unknown" &&
         (statusElement.textContent = "升降状态未知"),
+      // 0.8.4：开窗器回报 unknown 时不猜开合，直接写「开窗状态未知」。
+      isWindowOpenerItem &&
+        !viewModel.editing &&
+        deviceState.available &&
+        (statusElement.textContent =
+          deviceState.state === "unknown"
+            ? "开窗状态未知"
+            : coverStateLabel(deviceState.state)),
       positionSliderElement.setAttribute(
         "aria-label",
         isAirerItem ? "目标升降位置" : isDreamCover ? "目标叶片角度" : "目标开合位置",
@@ -586,9 +613,18 @@ export function createCoverPanel({
           ? "反向闭合"
           : "打开"));
     // 普通帘：开合位；梦幻帘滑杆是叶片角度，轨道开合另算
+    // 设备不报位置时退回记忆值（cover-memory 客户端合进 deviceStates 的 coverMemory）：
+    // 面板显示「上次 N%」，滑杆标 is-remembered（0.8.4 口径）。
+    const rememberedPosition =
+      draftPosition !== null
+        ? null
+        : deviceState.position !== null
+          ? null
+          : ((isDreamCover ? deviceState.tiltMemory?.position : deviceState.memory?.position) ??
+            null);
     const displayPosition = isDreamCover
-      ? (draftPosition ?? resolveDreamBladePosition())
-      : resolveTargetPosition();
+      ? (draftPosition ?? resolveDreamBladePosition() ?? rememberedPosition)
+      : (resolveTargetPosition() ?? rememberedPosition);
     const railPending =
       !!pendingIntent &&
       !pendingIntent.confirmed &&
@@ -638,8 +674,26 @@ export function createCoverPanel({
               presentation.state === "opening" ||
               (visualRailPosition ?? 0) > 0))
     );
-    ((positionOutputElement.textContent =
-      displayPosition === null ? "未知" : Math.round(displayPosition) + "%"),
+    // 开窗器：舞台在载荷里带 `windowNotice`（关联窗扇缺失 / 行程不可知）；没有就整行收起。
+    ((windowNoticeElement.textContent =
+      (viewModel.item?.windowOpener && viewModel.windowNotice) || ""),
+      (windowNoticeElement.hidden = !windowNoticeElement.textContent),
+      // 位置来自「记忆值」而不是设备回报时，滑杆标成 is-remembered（0.8.4），
+      // 用户能一眼看出这是上次停的位置、不是实时读数。
+      (positionOutputElement.classList.toggle(
+        "is-remembered",
+        rememberedPosition !== null,
+      )),
+      (positionSliderElement.classList.toggle(
+        "is-remembered",
+        rememberedPosition !== null,
+      )),
+      (positionOutputElement.textContent =
+        rememberedPosition !== null
+          ? "上次\n" + Math.round(rememberedPosition) + "%"
+          : displayPosition === null
+            ? "未知"
+            : Math.round(displayPosition) + "%"),
       (positionOutputElement.title = isAirerItem
         ? "晾杆升降位置，100%为最高"
         : draftPosition !== null

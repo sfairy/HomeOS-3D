@@ -1471,8 +1471,10 @@ onBeforeUnmount(() => {
                                     step="0.05"></label><label>窗高（m）<input id="window-height" type="number" min="0.3"
                                     max="20" step="0.05"></label><label>离地（m）<input id="window-sill" type="number"
                                     min="0" max="20" step="0.05"></label><label>墙上位置<input id="window-position"
-                                    readonly></label></div> <label
-                            class="door-type-field"><span>窗框样式</span><select id="window-divider">
+                                    readonly></label></div>
+                        <div class="door-actions"><button id="window-customize" type="button">自定义窗型…</button><button
+                                id="window-ordinary" type="button" hidden>使用普通窗户</button></div>
+                        <label class="door-type-field"><span>窗框样式</span><select id="window-divider">
                                 <option value="with">显示中间分割</option>
                                 <option value="without">不显示中间分割</option>
                             </select></label>

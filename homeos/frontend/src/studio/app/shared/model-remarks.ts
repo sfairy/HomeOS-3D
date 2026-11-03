@@ -11,8 +11,8 @@
 /** 备注最长 60 字（与选择入口的单行显示宽度一致）。 */
 export const MODEL_REMARK_MAX_LENGTH = 60;
 
-/** 带备注的集合：只有「物件」和「门」支持备注。 */
-const MODEL_REMARK_COLLECTION_KEYS = ["items", "doors"] as const;
+/** 带备注的集合：物件 / 门 / 窗户（窗户还带每个窗格的 `sashRemarks`）。 */
+const MODEL_REMARK_COLLECTION_KEYS = ["items", "doors", "windows"] as const;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -36,7 +36,7 @@ export function modelChoiceLabel(model: unknown, fallbackLabel = ""): string {
 }
 
 /**
- * 去掉户型里的全部备注（`items` / `doors`）。
+ * 去掉户型里的全部备注（`items` / `doors` / `windows`，以及窗户的窗格备注）。
  *
  * 用来算「场景内容是否变了」和导出：备注变了不该触发场景重建，
  * 也不该写进给 3D 舞台的结构数据。
@@ -51,7 +51,10 @@ export function withoutModelRemarks<T>(floorConfig: T): T {
       if (!entry || typeof entry !== "object") return entry;
       // `remark` 只是被解构丢弃，落不到返回对象里。
       const { remark: _remark, ...rest } = entry as JsonRecord;
-      return rest;
+      if (collectionKey !== "windows" || !rest.windowDesign) return rest;
+      // 窗格备注同属编辑期元数据：只去掉这一层，窗型本身必须留下。
+      const { sashRemarks: _sashRemarks, ...windowDesign } = asRecord(rest.windowDesign);
+      return { ...rest, windowDesign };
     });
   }
   return stripped as T;
@@ -81,6 +84,14 @@ export function syncModelRemarks(targetConfig: unknown, sourceConfig: unknown): 
       if (!sourceRecord) continue;
       if (Object.hasOwn(sourceRecord, "remark")) record.remark = sourceRecord.remark;
       else delete record.remark;
+      // 窗格备注要跟着走：撤销/重载后窗型是新建对象，不搬就只剩默认名。
+      if (collectionKey === "windows" && record.windowDesign && sourceRecord.windowDesign) {
+        const targetDesign = asRecord(record.windowDesign),
+          sourceDesign = asRecord(sourceRecord.windowDesign);
+        if (Object.hasOwn(sourceDesign, "sashRemarks"))
+          targetDesign.sashRemarks = structuredClone(sourceDesign.sashRemarks);
+        else delete targetDesign.sashRemarks;
+      }
     }
   }
 }

@@ -4,6 +4,7 @@ import {
   popupHeightDraft,
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
+import { createCoverMemoryClient } from "../cover/cover-memory-client";
 import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/generic-device-catalog";
 import {
@@ -219,6 +220,10 @@ const BREADCRUMB_CODE_MESSAGES = Object.freeze({
   "gpu-restored": ["info", "3D 图形上下文恢复"],
   "models-loading-resumed": ["info", "3D 已展示后再次加载模型"],
   "models-completion-resumed": ["info", "3D 已展示后再次完成模型替换"],
+  // 0.8.4：分类过渡的性能采样（`category-transition-diagnostics`）。
+  // 不在这里登记就会被 `reportLifecycleEvent` 的 hasOwnProperty 门禁直接丢掉。
+  "category-transition-profile": ["info", "3D 分类过渡性能采样"],
+  "category-transition-slow": ["warning", "3D 分类过渡出现慢帧"],
 });
 function createLifecycleReporter(projectId: any, componentId: any) {
   try {
@@ -779,11 +784,23 @@ export function mountInteraction3d(
   let latestStatesByEntityId: Record<string, any> = {},
     lastPublishedStates: any = null,
     supportsStatePatches = false;
+  /**
+   * 窗帘姿态记忆（0.8.4）：后端攒「上次位置 + 补间样本」，本地状态观测按 `at` 取新合并。
+   *
+   * 没有它，HA 在 `opening` / `closing` 期间不报位置时，3D 帘布只能等到位后跳过去；
+   * 记忆拿不到时只是动画差一点，所有调用都是 best-effort。
+   */
+  const coverMemoryClient = createCoverMemoryClient({
+    projectId: runtimeContext.document?.projectId || "",
+    componentId: componentDescriptor?.id || "",
+  });
   const lightStream =
     typeof window.WebSocket == "function"
       ? createLightStream({
           onStates(incomingStates) {
-            ((latestStatesByEntityId = incomingStates), fetchClimateCapabilities());
+            ((latestStatesByEntityId = incomingStates),
+              coverMemoryClient.observe(incomingStates),
+              fetchClimateCapabilities());
             if (isPreviewSuspended) {
               // 预览挂起时 `states` 停发：历史通道原样转发整份状态（0.7.9 同款分支）。
               publishStatusHistory(incomingStates);
@@ -799,6 +816,7 @@ export function mountInteraction3d(
               ...latestStatesByEntityId,
               ...statePatch,
             };
+            coverMemoryClient.observe(statePatch, { patch: true });
             if (isPreviewSuspended) {
               publishStatusHistory(statePatch, true);
               return;
@@ -818,6 +836,10 @@ export function mountInteraction3d(
                 type: "status-history-invalidated",
                 entityIds: invalidatedEntityIds,
               });
+          },
+          onCoverMemory(entityId) {
+            // 后端攒了新样本（控制后 / HA 状态变化）：重取快照，单飞 + 40ms 合并。
+            coverMemoryClient.notifyChanged(entityId);
           },
         })
       : null;
@@ -1360,7 +1382,7 @@ export function mountInteraction3d(
     if (!lightStream || !isStageReady || isDisposed || !incomingStates) return;
     postToStageFrame({
       type: "status-history-states",
-      states: incomingStates,
+      states: coverMemoryClient.hydrate(incomingStates),
       ...(isPatch
         ? {
             patch: true,
@@ -1380,7 +1402,9 @@ export function mountInteraction3d(
     const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
     (postToStageFrame({
       type: "states",
-      states: mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null),
+      states: coverMemoryClient.hydrate(
+        mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null),
+      ),
       ...(shouldSendPatch
         ? {
             patch: true,
@@ -1995,6 +2019,7 @@ export function mountInteraction3d(
           defaultCamera),
         sendConfigUpdate(),
         isPreviewSuspended && refreshActivityState(true),
+        void coverMemoryClient.load(true),
         onReady(stageMessage.metadata)),
       stageMessage.type === "presented" &&
         stageMessage.configId === configIdCounter &&
@@ -2361,6 +2386,7 @@ export function mountInteraction3d(
           closeCameraPreview(),
           closeVacuumPopup(),
           lightStream?.dispose(),
+          coverMemoryClient.dispose(),
           securityAlarmOverlay?.dispose(),
           (securityAlarmOverlay = null),
           (weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId)),
@@ -2421,6 +2447,7 @@ export function mountInteraction3d(
               "camera",
               "presence",
               "lock",
+              "window",
               "moisture",
               "smoke",
               "gas",
@@ -2535,6 +2562,20 @@ export function mountInteraction3d(
             value: shouldOpen === false ? "closed" : "open",
           }),
           true)),
+    (runtimeHandle.previewWindowMotion = (windowEntityId: any, shouldOpen = true) =>
+      isDisposed ||
+      !isEditing ||
+      editingModuleKind !== "security" ||
+      !["window", "window-opener"].includes(editingSecurityKind) ||
+      !windowEntityId
+        ? false
+        : (postToStageFrame({
+            type: "editor-command",
+            command: "preview-window-motion",
+            id: windowEntityId,
+            value: shouldOpen === false ? "closed" : "open",
+          }),
+          true)),
     (runtimeHandle.setPageVisible = (isVisible: any) => {
       isDisposed ||
         isPageHidden === !isVisible ||
@@ -2567,6 +2608,31 @@ export function mountInteraction3d(
         (pendingResetPreviewSession = true));
     }),
     /**
+     * 借用的宿主元素：配置预览会把 `header` / 面板骨架临时挂到这里。
+     * 编辑器页挂载的是 `<dialog open>`，正好能就地切成配置弹窗（`is-borrowed-editor`）。
+     */
+    Object.defineProperty(runtimeHandle, "editorPreviewHost", {
+      get: () => hostElement,
+    }),
+    /**
+     * 能否把当前运行时借给配置预览（0.8.4 `canBorrowEditorPreview`）。
+     *
+     * 只有「同一个组件、画面已就绪、页面没被隐藏」才允许；调用方还要自己确认
+     * 户型自上次同步后没变（服务端 204）。
+     */
+    (runtimeHandle.canBorrowEditorPreview = (previewComponent: any, panelDocument: any) =>
+      !isDisposed &&
+      isScenePresented &&
+      isAuthorized &&
+      !isPageHidden &&
+      !!previewComponent &&
+      previewComponent.id === componentDescriptor?.id &&
+      (!panelDocument?.projectId ||
+        !runtimeContext?.document?.projectId ||
+        panelDocument.projectId === runtimeContext.document.projectId)),
+    /** 借用会话结束时重算一次画面布局（上游 `editorView.resize`）。 */
+    (runtimeHandle.resize = () => updatePresentationLayout(true)),
+    /**
      * 借用编辑器（0.7.8 `beginEditorPreview`）：把当前运行时临时切到"配置预览"会话。
      *
      * 编辑器页面已经把同一个户型渲染出来了，再挂一份运行时就是重复建贴图/模型。这里只换
@@ -2575,6 +2641,15 @@ export function mountInteraction3d(
      */
     (runtimeHandle.beginEditorPreview = (previewOptions: any = {}, viewportElement: any, onCancel?: any) => {
       if (isDisposed) throw new Error("3D 运行时已销毁。");
+      // 0.8.4：借用前再核一次「同一组件、同一仪表盘、画面就绪」——
+      // 池里挑中之后到真正挂载之间，编辑器可能已经切走组件或重载户型。
+      if (
+        !runtimeHandle.canBorrowEditorPreview(
+          previewOptions.component || componentDescriptor,
+          previewOptions.context?.document,
+        )
+      )
+        throw new Error("编辑器画面已变化，请重新打开配置。");
       const savedSession = {
           component: componentDescriptor,
           properties: componentProperties,
@@ -2831,6 +2906,10 @@ export function mountInteraction3d(
     }),
     Object.defineProperty(runtimeHandle, "viewEditing", {
       get: () => isViewEditing,
+    }),
+    /** 页面当前是否可见（借用预览结束后要恢复成借用前的状态）。 */
+    Object.defineProperty(runtimeHandle, "pageVisible", {
+      get: () => !isDisposed && !isPageHidden,
     }),
     Object.defineProperty(runtimeHandle, "navigationEditing", {
       get: () => isNavigationEditing,

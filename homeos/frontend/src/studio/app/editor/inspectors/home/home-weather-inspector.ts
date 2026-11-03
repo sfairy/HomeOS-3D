@@ -13,6 +13,7 @@ interface WeatherInspectorContext {
   activeProject: any;
   runExtraFallback: any;
   weatherConditionVisibleElement: any;
+  weatherForecastEnabledElement: any;
   weatherHumidityVisibleElement: any;
   weatherIconGapElement: any;
   weatherIconSizeElement: any;
@@ -47,6 +48,15 @@ export function syncWeatherInspector(ctx: WeatherInspectorContext, weatherCompon
   (ctx.runExtraFallback(weatherComponent),
     (ctx.weatherTypeElement.value = "天气"),
     (ctx.weatherLabelElement.value = availablePropertiesEntry.label || ""));
+  for (const forecastEnabledElement of ctx.weatherForecastEnabledElement.querySelectorAll(
+    "[data-weather-forecast-enabled]",
+  )) {
+    const forecastToggleActive =
+      forecastEnabledElement.dataset.weatherForecastEnabled === "on" ===
+      (availablePropertiesEntry.forecastEnabled === true);
+    (forecastEnabledElement.classList.toggle("active", forecastToggleActive),
+      forecastEnabledElement.setAttribute("aria-pressed", String(forecastToggleActive)));
+  }
   const LINE_CHART_DEFAULT_THRESHOLD_FALLBACKS = [
     [
       ctx.weatherIconVisibleElement,

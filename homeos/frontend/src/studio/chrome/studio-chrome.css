@@ -665,3 +665,8 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
     min-width: 0;
   }
 }
+
+/* 情景弹窗编辑器（0.8.4）：宿主是 `<main class="editor-shell">` 本身，编辑器绝对定位铺满整个
+   编辑器区域（连左右侧栏一起覆盖）。宿主定位来自 0.8.4 的
+   `/static/modules/interaction3d/scene-popup-editor.css` 里的 `.hb-scene-popup-editor-host`，
+   这里不再重复定义，也不再单独开一个工作区宿主节点。 */

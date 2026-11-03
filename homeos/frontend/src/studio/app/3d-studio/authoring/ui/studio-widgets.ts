@@ -130,15 +130,15 @@ export function disposeStudioSelects(rootElement: any) {
       selectRecordsBySelect.delete(enhancedSelect));
   }
 }
-export function initializeStudioSelects(containerElement = document) {
+export function initializeStudioSelects(containerElement: any = document) {
   for (const targetSelect of containerElement.querySelectorAll("select"))
     enhanceStudioSelect(targetSelect);
-  (containerElement.addEventListener("pointerdown", (pointerDownEvent) => {
+  (containerElement.addEventListener("pointerdown", (pointerDownEvent: PointerEvent) => {
     openSelectRecord &&
       !openSelectRecord.wrapper.contains(pointerDownEvent.target) &&
       closeStudioSelect();
   }),
-    containerElement.addEventListener("keydown", (keyDownEvent) => {
+    containerElement.addEventListener("keydown", (keyDownEvent: KeyboardEvent) => {
       if (keyDownEvent.key !== "Escape" || !openSelectRecord) return;
       (keyDownEvent.preventDefault(), keyDownEvent.stopPropagation());
       const openTriggerButton = openSelectRecord.trigger;

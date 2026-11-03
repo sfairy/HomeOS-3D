@@ -5,6 +5,7 @@
  */
 
 import { resolveRuntimeFloor } from "./floor-navigation";
+import { enteringFloorCategory } from "../../navigation/navigation-defaults";
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from "../../device/generic-device-catalog";
 import { buildMetadata } from "./build-metadata";
 import { expandGroupMembers, postHostMessage } from "./_shared";
@@ -129,6 +130,8 @@ export function selectFloorCore(deps: StageRefreshDeps, targetFloorId: any) {
         preserveCamera: true,
       }),
       deps.cancelMarkerDrag());
+    const previousFloorId = deps.selectedFloorId,
+      previousCategory = deps.activeModule;
     const cameraState = deps.mountOptions.cameraState(true),
       orbitCenter = deps.mountOptions.getOrbitCenter?.(),
       cameraMotionState = deps.mountOptions.getCameraMotionState?.();
@@ -155,7 +158,14 @@ export function selectFloorCore(deps: StageRefreshDeps, targetFloorId: any) {
           (deps.options.camera = deps.activeCameraPose),
           targetFloorId === "all"
             ? ((deps.activeModule = "overview"), (deps.pendingModule = ""))
-            : deps.pendingModule && ((deps.activeModule = deps.pendingModule), (deps.pendingModule = "")),
+            : deps.pendingModule
+              ? ((deps.activeModule = deps.pendingModule), (deps.pendingModule = ""))
+              : (deps.activeModule = enteringFloorCategory(
+                  deps.baseStageConfig,
+                  targetFloorId,
+                  previousCategory,
+                  previousFloorId,
+                )),
           deps.syncLockMotion(),
           deps.syncNasOverlay(),
           deps.mountOptions.restoreCamera(cameraState, cameraMotionState),

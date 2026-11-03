@@ -93,6 +93,16 @@ export function popupComponentForEntity(self: PanelRenderer, popupEntityId: any,
   }
 export function showActionPopup(self: PanelRenderer, popupComponent: any, popupActionRecord: any, { preview: isPopupPreview = false } = {}) {
     const popupSourceMode = popupActionRecord?.data?.popupSource || "current";
+    // 天气控件必须在这里就分流：否则会继续走「按实体构造弹窗」，weather 域被映射成
+    // device-button，最终弹出的是普通实体详情而不是天气预报（0.8.4 同一分支）。
+    if (
+      popupSourceMode === "current" &&
+      popupComponent?.type === "weather" &&
+      popupComponent?.properties?.forecastEnabled === true
+    ) {
+      self.showWeatherForecast(popupComponent);
+      return;
+    }
     if (popupSourceMode === "custom") {
       const customPopupRecord = (self.document?.customPopups || []).find(
         (customPopupCandidate: any) => customPopupCandidate.id === popupActionRecord.data?.popupId,

@@ -1,7 +1,7 @@
-import {
-  GENERIC_DEVICE_KINDS,
-  genericDeviceProfile,
-} from "../../device/generic-device-catalog";
+import { windowModels } from "@app/3d-studio/plan/window/window-models";
+
+
+
 
 export const postHostMessage = (hostMessage: any) =>
     window.parent.postMessage(
@@ -57,39 +57,7 @@ export function resolveMarkerIconSize(markerItem: any, markerSize: any, isVacuum
   return buttonIconSize(markerSize);
 }
 
-export function configuredModuleKinds(moduleConfigSource: Record<string, any> = {}) {
-  return [
-
-    "overview",
-    "light",
-    ...(moduleConfigSource.environment?.airConditioners?.length ||
-    moduleConfigSource.environment?.fans?.length ||
-    moduleConfigSource.environment?.airPurifiers?.length ||
-    moduleConfigSource.environment?.curtains?.length ||
-    moduleConfigSource.environment?.temperatureHumidity?.length
-      ? ["environment"]
-      : []),
-    ...(GENERIC_DEVICE_KINDS.some(
-      (metricsDeviceKindName) =>
-        moduleConfigSource.devices?.[genericDeviceProfile(metricsDeviceKindName).collection]
-          ?.length,
-    ) ||
-    moduleConfigSource.environment?.airers?.length ||
-    moduleConfigSource.environment?.waterHeaters?.length ||
-    moduleConfigSource.devices?.nas?.length ||
-    moduleConfigSource.devices?.speakers?.length ||
-    moduleConfigSource.devices?.televisions?.length
-      ? ["devices"]
-      : []),
-    ...(moduleConfigSource.devices?.vacuums?.length ? ["vacuum"] : []),
-    ...(moduleConfigSource.security?.locks?.length ||
-    moduleConfigSource.security?.cameras?.length ||
-    moduleConfigSource.security?.presenceSensors?.length ||
-    moduleConfigSource.security?.alarms?.length
-      ? ["security"]
-      : []),
-  ];
-}
+export { configuredModuleKinds } from "../../navigation/navigation-defaults";
 
 export function createStageModelIndex(mountOptions: any) {
   let indexedDocument: any,
@@ -141,6 +109,33 @@ export function createStageModelIndex(mountOptions: any) {
             modelTypes === undefined ||
             (Array.isArray(modelTypes) ? modelTypes.includes(candidateItem.type) : candidateItem.type === modelTypes),
         );
+    },
+    /**
+     * 窗扇模型：和 `.item()` 分开是因为窗扇不是 `scene.items`，而是由
+     * `windowModels()` 从每扇自定义窗的分格树现算出来的。按 `modelId` 建索引，
+     * 推开窗器时能带出它的 `legacyModels`（推拉组的历史面板）。
+     */
+    window(floorId: any, modelId: any) {
+      const floorEntry = floorEntryFor(floorId);
+      if (!floorEntry) return;
+      const windowRecords = floorEntry.floor.scene?.windows || floorEntry.floor.windowSashes,
+        walls = floorEntry.floor.scene?.walls;
+      (!floorEntry.windowIndex ||
+        floorEntry.windowRecords !== windowRecords ||
+        floorEntry.windowCount !== windowRecords?.length ||
+        floorEntry.walls !== walls ||
+        floorEntry.wallCount !== walls?.length) &&
+        ((floorEntry.windowRecords = windowRecords),
+        (floorEntry.windowCount = windowRecords?.length),
+        (floorEntry.walls = walls),
+        (floorEntry.wallCount = walls?.length),
+        (floorEntry.windowIndex = new Map(
+          windowModels(floorEntry.floor, { includeLegacy: true }).map((windowModel: any) => [
+            windowModel.modelId,
+            windowModel,
+          ]),
+        )));
+      return floorEntry.windowIndex.get(modelId);
     },
     invalidate() {
       ((indexedDocument =

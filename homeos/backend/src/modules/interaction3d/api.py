@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import Field
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
@@ -20,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from .access import access_grant, is_scene_id, module_components, require_access, scene_snapshot_file
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
+from .game_console import fetch_switch_artwork, switch_artwork_url
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
 from .studio_draft_scene import read_current_studio_draft
 from ...config import Settings
@@ -31,6 +32,7 @@ from ...dependencies import (
     require_viewer_project,
 )
 from ...domains.ha.integration.connection_query import active_connection
+from ...domains.ha.integration.cover_memory import CoverMemory, memory_axis
 from ...domains.ha.integration.service_call import (
     ServiceCallRejected,
     execute_service_call,
@@ -518,6 +520,7 @@ class _EnvironmentDeviceFlags:
     generic_device: bool
     extra_domain: bool
     is_purifier: bool
+    is_window_opener: bool
 
 
 @dataclass
@@ -554,6 +557,8 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
     # 排气扇（0.8.0）：主实体是 `switch.*` 或 `fan.*`，但语义与电风扇/净化器都不同。
     is_exhaust = command.device_kind in {'exhaust-fan', 'exhaust-fan-extra'}
     is_cover = command.domain == 'cover'
+    # 开窗器：HA 里同样是 ``cover`` 域，但绑定集合、文案与模型校验都不同。
+    is_window_opener = command.device_kind in {'window-opener', 'window-opener-extra'}
     is_water_heater = command.domain == 'water_heater' or command.device_kind == 'water-heater-extra'
     generic_device = command.device_kind == 'device-extra'
     extra_domain = command.device_kind in {
@@ -564,6 +569,7 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         'climate-extra',
         'purifier-extra',
         'water-heater-extra',
+        'window-opener-extra',
     }
     is_purifier = not (
         is_climate_extra
@@ -586,6 +592,7 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         generic_device=generic_device,
         extra_domain=extra_domain,
         is_purifier=is_purifier,
+        is_window_opener=is_window_opener,
     )
 
 
@@ -607,6 +614,8 @@ def _environment_device_name(
         return '热水器'
     if flags.generic_device:
         return '设备'
+    if flags.is_window_opener:
+        return '开窗器'
     if flags.is_cover:
         return '窗帘'
     if command.domain == 'fan' or flags.extra_domain:
@@ -628,6 +637,8 @@ def _environment_bindings_collection(
         return 'exhaustFans'
     if flags.is_water_heater:
         return 'waterHeaters'
+    if flags.is_window_opener:
+        return 'windowOpeners'
     if flags.is_cover:
         return 'curtains'
     if command.domain == 'fan' or flags.extra_domain:
@@ -710,6 +721,13 @@ def _require_environment_binding_model(
                 raise ValueError('设备绑定缺失。')
             profile = next(profile for profile, binding in scope.generic_bindings if binding is owner)
             require_device_model(owner, scene, profile['model_type'])
+        elif flags.is_window_opener:
+            from .window import require_window_model
+
+            target = owner or scope.primary
+            if target is None:
+                raise ValueError('开窗器绑定缺失。')
+            require_window_model(target, scene)
         elif flags.is_airer:
             target = owner or scope.primary
             if target is None:
@@ -777,6 +795,7 @@ def _validate_environment_command(
             state_row,
             dream=dream,
             airer=flags.is_airer,
+            window=flags.is_window_opener,
         )
     elif flags.is_exhaust:
         # 排气扇主实体：switch 只允许开关，fan 额外允许 set_percentage；其余 422。
@@ -1111,6 +1130,126 @@ async def _control_environment_device(
     if primary is not None and (flags.is_purifier or flags.is_water_heater or primary.get('climateType') == 'bath-heater') and primary.get('deviceId') and entity.device_id != primary['deviceId']:
         raise HTTPException(403, detail='主实体已不属于当前绑定设备，请重新绑定。')
     _validate_environment_command(command, name, flags, bindings, states)
+    memory, ticket = _begin_cover_memory(request, command, primary, flags)
+    try:
+        result = await call_service(command, request, database, viewer)
+    except BaseException:
+        # 下发失败就不能把「目标位置」记进历史：动画会朝一个**没发生**的位移跑，
+        # 用户看到的画面与设备真实状态相反。
+        if memory is not None:
+            memory.complete(ticket, ok=False)
+        raise
+    if memory is not None:
+        memory.complete(ticket, ok=True)
+        await _publish_cover_memory_changed(request, command.entity_id)
+    return result
+
+
+#: 命令 → 目标位置（``None`` 表示「不改变行程」：停止 / 开合 / 只调叶片）。
+_COVER_TARGET_SERVICES = {
+    'open_cover': 100.0,
+    'close_cover': 0.0,
+}
+
+
+def _cover_target(command: Interaction3dControlRequest) -> float | None:
+    """从命令里取本次下发的目标行程（0–100），取不到就返回 ``None``。"""
+    if command.service in _COVER_TARGET_SERVICES:
+        return _COVER_TARGET_SERVICES[command.service]
+    if command.service == 'set_cover_position':
+        raw = (command.data or {}).get('position')
+        # 先挡掉 ``None``：``float(None)`` 会抛 TypeError，虽被下面的 except 接住，
+        # 但那是"用异常兜底"，不是"这里本来就没有值"。分开写两者语义也更清楚。
+        if raw is None:
+            return None
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        return max(0.0, min(100.0, value))
+    return None
+
+
+def _begin_cover_memory(request: Request, command: Interaction3dControlRequest, primary: dict | None, flags) -> tuple[CoverMemory | None, str]:
+    """在下发**之前**登记这次行程（供 ``complete`` 回滚顺序）。
+
+    只用连接器持有的那一份历史：它同时被状态流（``StateHub.observe``）写入，
+    接口侧自建第二份会互相覆盖。没有连接器（单测 / 早期启动）时直接跳过。
+    """
+    if command.domain != 'cover' or primary is None:
+        return None, ''
+    memory = getattr(getattr(request.app.state, 'ha_connector', None), 'cover_memory', None)
+    if memory is None:
+        return None, ''
+    target = _cover_target(command)
+    if target is None:
+        return None, ''
+    token = uuid4().hex
+    axis = memory_axis(primary, airer=bool(getattr(flags, 'is_airer', False)))
+    memory.begin(token, command.entity_id, target=target, axis=axis)
+    return memory, token
+
+
+async def _publish_cover_memory_changed(request: Request, entity_id: str) -> None:
+    """广播「姿态历史变了」，让墙屏不必各自轮询这份快照。"""
+    hub = getattr(request.app.state, 'studio_ha', None)
+    if hub is None:
+        return
+    try:
+        await hub.state_hub.publish({'type': 'cover_memory_changed', 'entityId': entity_id})
+    except Exception:
+        LOGGER.warning('姿态历史变更广播失败：%s', entity_id, exc_info=True)
+
+
+async def _control_game_console(
+    command: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """游戏机分支：主实体 + 模型 + 能力位三重校验。
+
+    游戏机在设备档案里是"一个模型 + 一个显式主实体"，主实体域随机型不同
+    （Switch 走 nxapi 的 ``sensor.*`` presence，PlayStation 走 ``media_player.*``）。
+    因此这里不按域猜，而是**按主实体反查绑定**，再用档案里的 ``model_type``
+    校验模型是否仍在户型里。
+    """
+    if not command.project_id or not command.component_id:
+        raise HTTPException(422, detail='游戏机控制缺少主实体或模型绑定信息。')
+    if command.domain not in {'media_player', 'sensor', 'switch'}:
+        raise HTTPException(422, detail='游戏机控制缺少主实体或模型绑定信息。')
+    require_viewer_project(viewer, command.project_id)
+    properties = await component_properties_async(request, command.project_id, command.component_id)
+    devices = properties.get('devices', {}) if isinstance(properties.get('devices'), dict) else {}
+    collections = (
+        ('switchConsoles', 'switch-console'),
+        ('playstations', 'playstation'),
+    )
+    binding = None
+    model_type = ''
+    for key, candidate_type in collections:
+        for item in devices.get(key, []) or []:
+            if isinstance(item, dict) and item.get('mainEntityId') == command.entity_id:
+                binding, model_type = item, candidate_type
+                break
+        if binding is not None:
+            break
+    if binding is None:
+        raise HTTPException(403, detail='此实体未配置到当前游戏机。')
+    scene_id = properties.get('sceneId', '')
+    try:
+        from .device import require_device_model
+
+        scene = await scene_snapshot_async(request, scene_id)
+        require_device_model(binding, scene, model_type)
+    except HTTPException:
+        raise
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+    states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
+    from .game_console import validate_game_console_command
+
+    validate_game_console_command(command.service, command.data, states[0] if states else None)
     return await call_service(command, request, database, viewer)
 
 
@@ -1118,6 +1257,8 @@ async def _control_environment_device(
 async def control_light(command: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
     # 授权校验（license.allows 内部可能开库）不能占住事件循环。
     await run_in_threadpool(require_access, request)
+    if command.device_kind == 'game-console':
+        return await _control_game_console(command, request, database, viewer)
     if command.device_kind == 'speaker':
         return await _control_speaker(command, request, database, viewer)
     if command.device_kind == 'television' or command.domain == 'media_player':
@@ -1126,7 +1267,7 @@ async def control_light(command: Interaction3dControlRequest, request: Request, 
         return await _control_lock(command, request, database, viewer)
     if command.device_kind == 'computer':
         return await _control_computer_power(command, request, database, viewer)
-    if command.domain in {'fan', 'cover', 'climate', 'water_heater'} or command.device_kind in {'fan-extra', 'exhaust-fan', 'exhaust-fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
+    if command.domain in {'fan', 'cover', 'climate', 'water_heater'} or command.device_kind in {'fan-extra', 'exhaust-fan', 'exhaust-fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra', 'window-opener', 'window-opener-extra'}:
         return await _control_environment_device(command, request, database, viewer)
     if command.domain not in {'light', 'switch'} or command.service not in {'turn_on', 'turn_off'}:
         raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
@@ -1233,6 +1374,87 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
     if component is None:
         raise HTTPException(404, detail='3D 交互控件不存在。')
     return {'projectId': project_id, 'componentId': component_id, 'phase': 'authorization-shell', 'component': component}
+
+
+@router.get('/cover-memory')
+async def get_cover_memory(request: Request, database: DatabaseSession, viewer: LicensedViewer):
+    """窗帘 / 晾衣架 / 开窗器的**展示用**姿态历史（只读，绝不回灌 HA）。
+
+    运行期用它补间：HA 在 ``opening`` / ``closing`` 期间通常不报实时位置，
+    没有这份历史，3D 帘布只能到位后"跳"过去。
+    """
+    await run_in_threadpool(require_access, request)
+    connection = active_connection(database)
+    if connection is None:
+        return {'version': 1, 'scope': '', 'entries': {}}
+    memory = _cover_memory_for(request, connection)
+    snapshot = memory.snapshot()
+    # 通知墙屏「姿态历史变了」：其它终端据此重取这份快照，才不用各自盯着同一个
+    # 实体反复拉全量。事件只带实体号，按订阅集合过滤（见 StateHub 的 ENTITY_SCOPED）。
+    hub = getattr(request.app.state, 'studio_ha', None)
+    if hub is not None:
+        for entity_id in snapshot.get('entries', {}):
+            await hub.state_hub.publish({'type': 'cover_memory_changed', 'entityId': entity_id})
+    return snapshot
+
+
+def _cover_memory_for(request: Request, connection) -> CoverMemory:
+    """取共用的 CoverMemory，并把连接凭据映射成隔离作用域。
+
+    作用域取自 ``encrypted_access_token``：同一个 ``entity_id`` 在两个 HA 实例下是
+    两台完全不同的设备，历史绝不能串。
+
+    正常路径上用连接器持有的那一份 —— 状态流由它的 ``StateHub.observe`` 写历史，
+    接口若自己再建一份，两份缓存会互相覆盖对方写下的行程。只有连接器缺席（早期
+    启动阶段 / 单测）时才退回按需自建，并挂在 ``app.state`` 上复用。
+    """
+    connector = getattr(request.app.state, 'ha_connector', None)
+    memory = getattr(connector, 'cover_memory', None)
+    if memory is None:
+        memory = getattr(request.app.state, 'cover_memory', None)
+    if memory is None:
+        settings: Settings = request.app.state.settings
+        memory = CoverMemory(
+            settings.data_dir / 'modules' / 'interaction3d' / 'cover-memory' / 'history.json',
+            credential=lambda: str(getattr(connection, 'encrypted_access_token', '') or ''),
+        )
+        request.app.state.cover_memory = memory
+    memory.credential = lambda: str(getattr(connection, 'encrypted_access_token', '') or '')
+    memory.activate()
+    return memory
+
+
+@router.get('/game-image/{entity_id}/{role}')
+async def game_console_image(
+    entity_id: str,
+    role: str,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+):
+    """同源代理游戏封面（nxapi 的公开封面服务）。
+
+    为什么必须代理：封面 URL 来自第三方，直接交给浏览器等于让内网页面带着本机凭据
+    去访问外部域名；而 ``switch_artwork_url`` 已把允许的 host / 路径前缀收窄到唯一值。
+    """
+    await run_in_threadpool(require_access, request)
+    require_viewer_entity(database, viewer, entity_id)
+    connection = active_connection(database)
+    if connection is None:
+        raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
+    states = await (await request.app.state.studio_ha.client_for(connection)).fetch_states({entity_id})
+    state = next((item for item in states if item.get('entity_id') == entity_id), None)
+    url = switch_artwork_url(state, role)
+    content, media_type = await fetch_switch_artwork(url)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            # 封面在"正在玩另一个游戏"时会变，5 分钟够用，也不会长期固化错误画面。
+            'Cache-Control': 'private, max-age=300',
+            'X-Content-Type-Options': 'nosniff',
+        },
+    )
 
 
 @router.get('/{filename:path}')

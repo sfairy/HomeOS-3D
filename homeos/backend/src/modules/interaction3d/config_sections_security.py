@@ -13,12 +13,13 @@ from typing import Any
 
 from .config_ctx import MDI_ICON_PATTERN, EnumSpec, ValidationContext
 from .lock import validate_lock_bindings
+from .window import validate_window_bindings
 from ...domains.proxy.go2rtc_target import normalize_go2rtc_target
 
 # ── 白名单与判定表 ─────────────────────────────────────────────────────────
 
 #: ``security`` 分区允许出现的集合。
-SECURITY_SECTIONS = frozenset({'presenceSensors', 'cameras', 'locks', 'alarms'})
+SECURITY_SECTIONS = frozenset({'presenceSensors', 'cameras', 'locks', 'alarms', 'windows'})
 
 #: 告警卡片数量上限。
 MAX_ALARMS = 100
@@ -215,6 +216,7 @@ class SecuritySectionValidator:
         if not isinstance(security, dict) or set(security) - SECURITY_SECTIONS:
             self._ctx.fail()
         validate_lock_bindings(self._ctx, security.get('locks', []))
+        validate_window_bindings(security.get('windows', []))
         self._validate_alarms(security.get('alarms', []))
         self._validate_cameras(security.get('cameras', []))
         self._validate_presence_sensors(security.get('presenceSensors', []))
@@ -460,5 +462,5 @@ class SecuritySectionValidator:
 
 
 def validate_security_section(ctx: ValidationContext, properties: dict) -> None:
-    """security 分区校验：告警卡片、摄像头、人体感应；不合规处直接经 ``ctx.fail()`` 抛 422。"""
+    """security 分区校验：告警卡片、摄像头、人体感应、门锁与窗户；不合规处直接经 ``ctx.fail()`` 抛 422。"""
     SecuritySectionValidator(ctx).validate(properties)

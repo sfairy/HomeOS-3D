@@ -92,6 +92,8 @@ class HAConnectorHost:
     _probe_endpoint: Any = None
     _probe_endpoint_background: Any = None
     _probe_endpoints: Any = None
+    # 跨 mixin：定义在 ``HALiveMixin``，由 ``HASyncMixin`` / ``HARegistryMixin`` 通知目录变更。
+    _publish_catalog_changed: Any = None
     _reconnect_base_backoff: Any = None
     _reconnect_max_backoff: Any = None
     _reconcile: Any = None
@@ -114,6 +116,8 @@ class HAConnectorHost:
     client_for: Any = None
     ensure_entity_states: Any = None
     invalidate_endpoint: Any = None
+    # 定义在 ``HAConnectorService`` 本体（``service.py``），由 ``HALiveMixin`` 连上之后调用。
+    refresh_cover_memory_scope: Any = None
     refresh_endpoint_in_background: Any = None
     refresh_persistent_entity_ids: Any = None
     schedule_reconcile: Any = None

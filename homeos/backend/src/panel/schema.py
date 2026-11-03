@@ -14,6 +14,13 @@ IDENTIFIER = re.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$")
 #: ``more-info`` 动作的弹窗来源枚举（只有面板 schema 用它，故随 schema 同住）。
 POPUP_SOURCES = frozenset({"custom", "entity", "current"})
 
+#: 情景弹窗（``controlMode='scene'``）最多容纳的条目数。再多就不该用弹窗，该用整页控件。
+MAX_SCENE_POPUP_ITEMS = 80
+
+#: 情景弹窗条目的控件模式白名单：
+#: ``toggle`` 一键触发、``switch`` 开关、``number`` 数值、``select`` 枚举、``button`` 按下即触发。
+SCENE_POPUP_MODES = frozenset({"toggle", "switch", "number", "select", "button"})
+
 
 class ExtensibleModel(BaseModel):
 
@@ -89,6 +96,31 @@ class EntityBinding(ExtensibleModel):
         return self
 
 
+class ScenePopupItem(ExtensibleModel):
+    """情景弹窗里的一条控件。
+
+    约束三条，都是「不这样就会画出坏界面」的硬边界：
+
+    - 最多 80 条：弹窗是移动端尺寸，再多只能滚动到看不见；
+    - 标题 ≤128：与其它控件的 ``label`` 同一档；
+    - 必须绑实体：允许 ``virtual.`` 前缀（前端自造的虚拟实体，如"全部关闭"聚合项）。
+    """
+
+    id: str = Field(min_length=1, max_length=128)
+    entity_id: str = Field(alias="entityId", min_length=1, max_length=255)
+    label: str | None = Field(default=None, max_length=128)
+    mode: Literal['toggle', 'switch', 'number', 'select', 'button'] = "toggle"
+    icon: str | None = Field(default=None, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_item(self) -> ScenePopupItem:
+        if not IDENTIFIER.fullmatch(self.id):
+            raise ValueError(f"无效情景弹窗条目 ID：{self.id}")
+        if not self.entity_id.startswith("virtual.") and not valid_ha_entity_id(self.entity_id):
+            raise ValueError(f"无效实体 ID：{self.entity_id}")
+        return self
+
+
 class ComponentAction(ExtensibleModel):
 
     type: Literal['none', 'toggle', 'more-info', 'navigate'] = "none"
@@ -96,6 +128,23 @@ class ComponentAction(ExtensibleModel):
     domain: str | None = Field(default=None, max_length=64)
     service: str | None = Field(default=None, max_length=64)
     data: dict[str, Any] = Field(default_factory=dict)
+    # 控件模式：``scene`` 表示这是一组情景按钮，点开走情景弹窗而不是单实体详情。
+    control_mode: Literal['scene-mode'] | None = Field(default=None, alias="controlMode")
+    popup_enabled: bool = Field(default=False, alias="popupEnabled")
+    popup_items: list[ScenePopupItem] = Field(default_factory=list, alias="popupItems")
+
+    @model_validator(mode="after")
+    def validate_scene_popup(self) -> ComponentAction:
+        if len(self.popup_items) > MAX_SCENE_POPUP_ITEMS:
+            raise ValueError(f"情景弹窗最多 {MAX_SCENE_POPUP_ITEMS} 项。")
+        ids = [item.id for item in self.popup_items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("情景弹窗条目的 ID 不能重复。")
+        # 情景弹窗不允许嵌套弹窗：item 上没有 popup 字段，但 ``data`` 是自由的，
+        # 顺手挡住把整份 action 塞进 data 的写法，避免运行期无限递归。
+        if isinstance(self.data, dict) and "popupItems" in self.data:
+            raise ValueError("情景弹窗不支持嵌套弹窗。")
+        return self
 
 
 class CustomPopupLayout(ExtensibleModel):

@@ -25,6 +25,44 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .hb-interaction3d-runtime.is-borrowed-editor:not([open]) {
   display: none;
 }
+/* 借用时这个对话框要顶满视口：运行时画面（`.i3d-frame`）绝对定位铺在底层，
+   header / 面板走正常流叠在上层，画面区域透明可点。 */
+dialog.hb-interaction3d-runtime.is-borrowed-editor {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #101216;
+}
+dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
+  background: rgba(6, 8, 11, 0.55);
+}
+.is-borrowed-editor > header {
+  position: relative;
+  z-index: 3;
+  flex: none;
+}
+.is-borrowed-editor > .i3d-editor-body {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+.is-borrowed-editor > .i3d-editor-body > aside {
+  min-height: 0;
+  overflow: auto;
+  background: rgba(15, 17, 21, 0.92);
+}
 .is-borrowed-editor > header,
 .is-borrowed-editor > .i3d-editor-body {
   position: relative;
@@ -229,6 +267,26 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   padding: 0;
   margin: 0;
   accent-color: var(--hos-color-accent);
+}
+/* 关联设备清单（0.8.4）：每行一台附加 HA 设备，移除需要二次确认。 */
+.i3d-editor .i3d-associated-device-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line, #303840);
+}
+.i3d-editor .i3d-associated-device-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.i3d-editor .i3d-associated-device-row button {
+  width: auto;
+  flex: 0 0 auto;
 }
 .i3d-editor .i3d-extra-entity-row span {
   min-width: 0;
@@ -2690,3 +2748,22 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .i3d-indicator-unit {
   color: var(--muted, #9da8b1);
 }
+
+/* ---- 0.8.4 选择器级补丁 ---- */
+.i3d-editor aside .i3d-lock-motion-grid>label { grid-template-rows:minmax(0,1fr) auto }
+.i3d-climate-type-field { display:grid;flex:1;min-width:0;gap:6px;margin-bottom:10px;color:var(--muted,#89949d);font-size:11px }
+.i3d-config-list-row>.i3d-climate-type-field { margin-bottom:0 }
+.i3d-climate-type-options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px;border:1px solid #343d45;border-radius:4px;background:var(--field,#171d22) }
+.i3d-climate-type-options>button { min-width:0;min-height:27px;padding:0 5px;border:0;border-radius:3px;color:var(--muted,#89949d);background:transparent;font:inherit;cursor:pointer }
+.i3d-climate-type-options>button:hover { color:var(--text,#e8ecef);background:#ffffff0b }
+.i3d-climate-type-options>button[aria-pressed=true] { color:#fff4dc;background:#f2a20d29;box-shadow:inset 0 0 0 1px #f2a20d7a }
+.i3d-climate-type-options>button:focus-visible { outline:2px solid var(--accent,#f2a20d);outline-offset:-2px }
+.i3d-editor .i3d-extra-source { border-top:1px solid var(--line,#303840);margin-top:8px }
+.i3d-editor .i3d-extra-source>summary { overflow-wrap:anywhere;font-weight:500 }
+.i3d-editor .i3d-extra-pages { position:sticky;bottom:0;padding:8px 0;background:var(--panel,#171d22) }
+.i3d-editor .i3d-extra-source-actions { display:flex;flex-wrap:wrap;align-items:center;gap:8px }
+.i3d-editor .i3d-extra-remove-confirm { padding:8px;border:1px solid var(--line,#303840);border-radius:6px }
+.i3d-editor .i3d-extra-pages button { width:auto }
+.i3d-editor .i3d-extra-source-actions button { width:auto }
+.editor-paged-picker-items.entity-list.i3d-extra-device-picker { grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)) }
+.editor-paged-picker-items.i3d-extra-device-picker .inspector-entity-name-line { white-space:normal;overflow-wrap:anywhere }

@@ -3,6 +3,7 @@
 
 
 import { mountInteraction3d as mountInteraction3d2 } from "../core/runtime";
+import { acquireEditorPreview } from "../core/editor-preview";
 import {
   extraTypes as extraTypes2,
 } from "../climate/purifier-extras";
@@ -54,6 +55,7 @@ export async function openInteraction3dEditor({
   startAdding: shouldStartAdding = false,
   vacuumId: vacuumId = "",
   editingFloorId: editingFloorId = "",
+  editorView = null,
 }: any) {
   // 接住授权结果（旧实现丢弃返回值，靠订阅回调兜底）：默认值必须是「拒绝」，
   // 否则从打开弹窗到首帧 access 事件之间，面板控件是可操作的。
@@ -67,6 +69,7 @@ export async function openInteraction3dEditor({
     "exhaust-fan",
     "purifier",
     "cover",
+    "window-opener",
     "temperature-humidity",
   ].includes(deviceKind);
   deviceKind === "environment" && (deviceKind = "climate");
@@ -81,6 +84,7 @@ export async function openInteraction3dEditor({
     isClimateMode: any,
     isCoverMode: any,
     isAirerMode: any,
+    isWindowOpenerMode: any,
     isNasMode: any,
     isTemperatureHumidityMode: any,
     usesModelBinding: any,
@@ -101,6 +105,7 @@ export async function openInteraction3dEditor({
       (isSpeakerMode = deviceKind === "speaker"),
       (isGenericDeviceMode = isGenericDeviceKind2(deviceKind)),
       (isAirerMode = deviceKind === "airer"),
+      (isWindowOpenerMode = deviceKind === "window-opener"),
       (isClimateMode = ["climate", "fan", "exhaust-fan", "purifier", "water-heater"].includes(deviceKind)),
       (isCoverMode = deviceKind === "cover"),
       (isNasMode = deviceKind === "nas"),
@@ -109,6 +114,7 @@ export async function openInteraction3dEditor({
         isAirerMode ||
         isClimateMode ||
         isCoverMode ||
+        isWindowOpenerMode ||
         isNasMode ||
         isTelevisionMode ||
         isSpeakerMode ||
@@ -117,7 +123,9 @@ export async function openInteraction3dEditor({
         isVacuumShortcutMode),
       (kindLabel = isAirerMode
         ? "晾衣架"
-        : isSpeakerMode
+        : isWindowOpenerMode
+          ? "开窗器"
+          : isSpeakerMode
           ? "智能音响"
           : isTemperatureHumidityMode
             ? "环境标签"
@@ -151,7 +159,9 @@ export async function openInteraction3dEditor({
             : kindLabel),
       (collectionKey = isAirerMode
         ? "airers"
-        : isSpeakerMode
+        : isWindowOpenerMode
+          ? "windowOpeners"
+          : isSpeakerMode
           ? "speakers"
           : isGenericDeviceMode
             ? genericDeviceProfile2(deviceKind).collection
@@ -176,7 +186,9 @@ export async function openInteraction3dEditor({
                               : "airConditioners"),
       (defaultIcon = isAirerMode
         ? "mdi:hanger"
-        : isSpeakerMode
+        : isWindowOpenerMode
+          ? "mdi:window-open-variant"
+          : isSpeakerMode
           ? "mdi:speaker"
           : isGenericDeviceMode
             ? genericDeviceProfile2(deviceKind).icon
@@ -216,7 +228,7 @@ export async function openInteraction3dEditor({
           ? ["focus", "focus-panel", "panel"].includes(rawClickAction)
             ? rawClickAction
             : "focus-panel"
-          : isCoverMode || isAirerMode
+          : isCoverMode || isAirerMode || isWindowOpenerMode
             ? ["panel", "turn-on-focus", "turn-on", "turn-on-panel"].includes(rawClickAction)
               ? rawClickAction
               : "focus"
@@ -237,20 +249,29 @@ export async function openInteraction3dEditor({
         buttonElement.addEventListener("click", handleButtonClick),
         buttonElement
       );
-    },
-    editorDialogElement = createElement("dialog", "i3d-editor");
+    };
+  // 0.8.4：配置预览优先借用编辑器里已经挂好的运行时（不重建户型）；
+  // 借用不可用时退回自建弹窗，并在关窗后保留运行时 2 分钟供再次打开复用。
+  const previewHandle = await acquireEditorPreview({
+      component,
+      panelDocument: documentApi,
+      document: globalThis.document,
+      editorView: editorView || null,
+    }),
+    isBorrowedPreview = previewHandle.borrowed === true,
+    editorDialogElement = previewHandle.dialog,
+    headerElement = previewHandle.header,
+    bodyElement = previewHandle.body,
+    viewElement = previewHandle.view,
+    panelElement = createElement("aside"),
+    aspectBoxElement = previewHandle.aspect,
+    stageHostElement = previewHandle.viewport,
+    statusElement = createElement("p", "i3d-editor-status");
   (editorDialogElement.setAttribute("aria-label", "3D " + editorKindTitle + "配置"),
     editorDialogElement.setAttribute("data-i3d-preview-scope", ""),
-    (editorDialogElement.className += " i3d-unified-settings"));
-  const headerElement = createElement("header"),
-    bodyElement = createElement("div", "i3d-editor-body"),
-    viewElement = createElement("div", "i3d-editor-view"),
-    panelElement = createElement("aside"),
-    aspectBoxElement = createElement("div", "i3d-editor-aspect"),
-    stageHostElement = createElement("div", "i3d-editor-stage"),
-    statusElement = createElement("p", "i3d-editor-status");
+    editorDialogElement.classList.add("i3d-unified-settings"));
   (statusElement.setAttribute("role", "status"),
-    aspectBoxElement.append(stageHostElement),
+    aspectBoxElement.contains(stageHostElement) || aspectBoxElement.append(stageHostElement),
     viewElement.append(aspectBoxElement, statusElement));
   const errorMessageElement = createElement("p", "i3d-error");
   errorMessageElement.setAttribute("role", "status");
@@ -291,6 +312,7 @@ export async function openInteraction3dEditor({
     bathEffectEditorHandle = () => {},
     redrawBathEffects = () => {},
     refreshAirflowStatus = () => {},
+    refreshExtraControlStates = () => {},
     renderAirflowSection = () => {};
   const map = new Map(),
     findVacuumModel = () =>
@@ -338,6 +360,9 @@ export async function openInteraction3dEditor({
       createElement,
       createButton,
       editorDialogElement,
+      previewHandle,
+      isBorrowedPreview,
+      subscribeAccess: subscribeInteraction3dAccess2,
       headerElement,
       bodyElement,
       viewElement,
@@ -381,6 +406,7 @@ export async function openInteraction3dEditor({
     __gs('isClimateMode', () => isClimateMode, (value) => { isClimateMode = value; });
     __gs('isCoverMode', () => isCoverMode, (value) => { isCoverMode = value; });
     __gs('isAirerMode', () => isAirerMode, (value) => { isAirerMode = value; });
+    __gs('isWindowOpenerMode', () => isWindowOpenerMode, (value) => { isWindowOpenerMode = value; });
     __gs('isNasMode', () => isNasMode, (value) => { isNasMode = value; });
     __gs('isTemperatureHumidityMode', () => isTemperatureHumidityMode, (value) => { isTemperatureHumidityMode = value; });
     __gs('usesModelBinding', () => usesModelBinding, (value) => { usesModelBinding = value; });
@@ -416,6 +442,7 @@ export async function openInteraction3dEditor({
     __gs('bathEffectEditorHandle', () => bathEffectEditorHandle, (value) => { bathEffectEditorHandle = value; });
     __gs('redrawBathEffects', () => redrawBathEffects, (value) => { redrawBathEffects = value; });
     __gs('refreshAirflowStatus', () => refreshAirflowStatus, (value) => { refreshAirflowStatus = value; });
+    __gs('refreshExtraControlStates', () => refreshExtraControlStates, (value) => { refreshExtraControlStates = value; });
     __gs('renderAirflowSection', () => renderAirflowSection, (value) => { renderAirflowSection = value; });
   };
   __linkEditorHost();
@@ -523,7 +550,8 @@ export async function openInteraction3dEditor({
       refreshEditorPreview());
   }
   function mountEditorRuntime() {
-    editorRuntime = mountInteraction3d2(stageHostElement, {
+    const mountedRuntime = previewHandle.mount(
+      {
       component: {
         ...component,
         properties: buildRuntimeProperties(),
@@ -549,6 +577,8 @@ export async function openInteraction3dEditor({
         isDisposed ||
           ((latestStates = statusListItem),
           subEditorHandle?.syncMap?.(),
+          // 0.8.4 `refreshStates`：附加实体的状态行随实时状态刷新。
+          refreshExtraControlStates(),
           refreshEffectSettings(),
           bathEffectEditorHandle(),
           refreshAirflowStatus());
@@ -706,7 +736,12 @@ export async function openInteraction3dEditor({
             (errorMessageElement.textContent = "默认视角已记录，保存配置后生效。"));
         }
       },
-    });
+      },
+      (viewportElement: any, runtimeOptions: any) =>
+        mountInteraction3d2(viewportElement, runtimeOptions),
+    );
+    // 借用会话里运行时属于编辑器页：句柄本身才是「运行时」，`previewHandle.mount` 只回清理函数。
+    editorRuntime = isBorrowedPreview ? editorView : mountedRuntime;
   }
   accessUnsubscribe = subscribeInteraction3dAccess2((accessState: any) => {
     isDisposed ||
@@ -736,10 +771,12 @@ export async function openInteraction3dEditor({
           renderPanel(),
           editorRuntime?.setAuthorized(false),
           accessState.status === "denied" &&
-            (editorRuntime?.(), (editorRuntime = null), renderPanel())));
+            (isBorrowedPreview
+              ? previewHandle.discardRuntime()
+              : (editorRuntime?.(), (editorRuntime = null), renderPanel()))));
   });
   (renderPanel(),
-    editorDialogElement.showModal(),
+    previewHandle.show(),
     document.dispatchEvent(new Event("hb-i3d-preview-scope")),
     syncPreviewSize(),
     // 挂载运行时同样受授权门禁约束：此前无条件挂载，等于给未授权会话装了一个可操作运行时。

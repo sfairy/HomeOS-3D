@@ -17,6 +17,22 @@ import type HlsJs from 'hls.js'
 export type HlsCtor = typeof HlsJs
 
 const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.3/hls.min.js'
+/**
+ * 0.8.4：Safari / iOS 原生就能播 m3u8。命中时**完全不要**下载 620KB 的 hls.js ——
+ * 上游是 `window.Hls || video.canPlayType(mime)` 先行短路，这里把这一步单独导出，
+ * 让 `camera-media` 直接把流地址交给 `<video src>`，失败文案才统一成播放器加载失败。
+ */
+export const HLS_NATIVE_MIME = 'application/vnd.apple.mpegurl'
+
+/** 当前浏览器是否原生支持 HLS（`''` / `'maybe'` / `'probably'`，空串表示不支持）。 */
+export function canPlayNativeHls(videoElement?: HTMLVideoElement | null): boolean {
+  const probeElement = videoElement ?? document.createElement('video')
+  try {
+    return !!probeElement.canPlayType?.(HLS_NATIVE_MIME)
+  } catch {
+    return false
+  }
+}
 /** 与 public/static/vendor/hls.js/<version> 目录同步；升级时同时改版本号与脚本 URL。 */
 const HLS_SCRIPT_VERSION = '1.7.3'
 const HLS_SCRIPT_SELECTOR = `script[data-homeos-hls="${HLS_SCRIPT_VERSION}"]`
@@ -139,6 +155,8 @@ export function isExpiredStreamAddressError(payload: HlsErrorPayload | null | un
  */
 export function prefetchHlsOnIdle(): void {
   if (prefetchScheduled) return
+  // 原生支持 HLS 的浏览器永远用不到这份脚本，连预取都不该发。
+  if (canPlayNativeHls()) return
   prefetchScheduled = true
   const runPrefetch = () => {
     void ensureHls()

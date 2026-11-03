@@ -78,7 +78,9 @@ import {
 } from "../../editor-document-management";
 import {
   createRecoveryWriter as createRecoveryWriter2,
+  documentSignature as documentSignature2,
 } from "../../editor-history";
+import { hasInteractionBindings as hasInteractionBindings2 } from "../../../../runtime/navigation/binding-repair";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   normalizeBaseLighting as normalizeBaseLighting2,
@@ -145,7 +147,21 @@ import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKey
 import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "../functions/style-dialogs";
 import { titleButtonMenuDeps as titleButtonMenuDepsImpl, loadNavigationIconOptions as loadNavigationIconOptionsImpl, positionTitleButtonIconMenu as positionTitleButtonIconMenuImpl, stopHoverScroll as stopHoverScrollImpl, iconTooltipElementValue as iconTooltipElementValueImpl, inspectorSyncDeps as inspectorSyncDepsImpl, syncComponentActionControls as syncComponentActionControlsImpl, applyTransformToInspector as applyTransformToInspectorImpl, previewModeForIcon as previewModeForIconImpl, sharedReferenceId as sharedReferenceIdImpl, nudgeDeps as nudgeDepsImpl, nudgeDeltaX as nudgeDeltaXImpl, clickPopupListOption as clickPopupListOptionImpl, onPopupListContextmenu as onPopupListContextmenuImpl, openEntityCopyBackupPicker as openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker as openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker as openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick as onPopupModuleCancelButtonClickImpl, type CopyBackupPickersDeps } from "../functions/copy-backup-pickers";
 import { onPopupModuleClimateDeviceTypeClick as onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder as selectAssetFolderImpl, popupModuleTypeValue as popupModuleTypeValueImpl, requestDeleteUserAsset as requestDeleteUserAssetImpl, requestDeleteAssetFolder as requestDeleteAssetFolderImpl, refreshAssetPickers as refreshAssetPickersImpl, scaleDraftDocument as scaleDraftDocumentImpl, cancelDeletePopupDialog as cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick as onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput as onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState as saturationPointerMoveEventStateImpl, mutationRecord as mutationRecordImpl, type AssetManagementDeps } from "../functions/asset-management";
+import { createScenePopupEditor } from "../../scene-popup-editor";
+import { createBindingRepair } from "../../../../runtime/navigation/binding-repair";
+import { scenePopupEnabled as scenePopupEnabled2 } from "../../../renderer/scene-popup-model";
+import { weatherSceneStyle as weatherSceneStyle2 } from "../../../renderer/weather-forecast";
+import { openScenePopupEntityPicker, openScenePopupIconPicker } from "../functions/scene-popup-editor-wiring";
 let disposeActiveEditor: (() => void) | null = null;
+/**
+ * 0.8.4：未保存副本恢复用的「保存尝试」记录（revision + 文档指纹）。
+ *
+ * 每次保存成功前先记一笔；刷新加载项目时清空，只有点「恢复修改」时才从快照里接回来。
+ */
+let recoverySaveAttempts: any[] = [];
+function setRecoverySaveAttempts(saveAttempts: any[]): void {
+  recoverySaveAttempts = Array.isArray(saveAttempts) ? saveAttempts : [];
+}
 
 /**
  * 引导仪表盘编辑器（重复调用会先回收上一次）。
@@ -207,6 +223,7 @@ const EDITOR_DESIGN_WIDTH = 1020,
 function shellControlsDeps(): ShellControlsDeps {
   return {
     ...homeElements,
+    get scenePopupEditor() { return scenePopupEditor; },
     get airConditionerInspectorContext() { return airConditionerInspectorContext; },
     get buttonSoundController() { return buttonSoundController; },
     get closeDropdownMenu() { return closeDropdownMenu; },
@@ -253,7 +270,7 @@ const {
   deleteComponentConfirmButtonElement, deleteComponentNameElement, copyComponentPageDialogElement, copyComponentPageCloseButtonElement, copyComponentPageCancelButtonElement, copyComponentPageFormElement, copyComponentPageNameElement, copyComponentPageScopeSelectElement,
   copyComponentPageProjectFieldElement, copyComponentPageProjectSelectElement, copyComponentPageTargetLabelElement, copyComponentPageTargetElement, copyComponentScaleOptionsElement, copyComponentResolutionSummaryElement, copyComponentPageMessageElement, copyComponentPageSubmitElement,
   copyComponentSuccessDialogElement, copyComponentSuccessMessageElement, copyComponentSuccessStayElement, copyComponentSuccessGoElement, errorDialogCloseButtonElement, errorDialogCloseElement, errorDialogConfirmElement, errorDialogMessageElement,
-  recoveryDialogElement, recoveryDiscardElement, recoveryRestoreElement, undoElement, redoElement, inspectorEmptyElement, navigatorElement, imageInspectorElement,
+  recoveryDialogElement, recoveryMessageTitleElement, recoveryMessageDetailElement, recoveryDownloadElement, recoveryDiscardElement, recoveryRestoreElement, undoElement, redoElement, inspectorEmptyElement, navigatorElement, imageInspectorElement,
   imageTypeElement, imageLabelElement, imageEntityButtonElement, imageEntityMenuElement, imageEntitySearchElement, imageEntityOptionsElement, imageAssetButtonElement, imageAssetMenuElement,
   imageAssetFolderSelectElement, imageAssetSearchInputElement, imageAssetOptionsElement, imageAssetUploadButtonElement, imageAssetUploadInputElement, imageAssetUploadHintElement, imageAssetLargePreviewImageElement, imageAssetLargePreviewImageElementElement,
   imageAssetLargePreviewNameElement, globalColorPickerElement, globalColorPickerSvElement, globalColorPickerMarkerElement, globalColorPickerHueRangeInputElement, globalColorPickerSwatchElement, globalColorPickerHexTextInputElement, globalColorPickerCopyButtonElement,
@@ -318,7 +335,7 @@ const {
   datePrimaryColorElement, datePrimarySizeElement, datePrimaryWeightElement, datePrimarySpacingElement, dateLunarColorElement, dateLunarSizeElement, dateLunarWeightElement, dateLunarSpacingElement,
   dateLineGapElement, dateOpacityElement, dateLeftElement, dateTopElement, dateScaleElement, dateRotationElement, weatherInspectorElement, weatherTypeElement,
   weatherLabelElement, weatherEntityButtonElement, weatherEntityMenuElement, weatherEntitySearchElement, weatherEntityOptionsElement, weatherIconVisibleElement, weatherTemperatureVisibleElement, weatherConditionVisibleElement,
-  weatherHumidityVisibleElement, weatherIconSizeElement, weatherIconGapElement, weatherTemperatureColorElement, weatherTemperatureSizeElement, weatherTemperatureWeightElement, weatherTemperatureSpacingElement, weatherSecondaryColorElement,
+  weatherHumidityVisibleElement, weatherForecastEnabledElement, weatherIconSizeElement, weatherIconGapElement, weatherTemperatureColorElement, weatherTemperatureSizeElement, weatherTemperatureWeightElement, weatherTemperatureSpacingElement, weatherSecondaryColorElement,
   weatherSecondarySizeElement, weatherSecondaryWeightElement, weatherSecondarySpacingElement, weatherLineGapElement, weatherOpacityElement, weatherLeftElement, weatherTopElement, weatherScaleElement,
   weatherRotationElement, lineChartInspectorElement, eventLogWallInspectorElement, eventLogWallTypeElement, eventLogWallLabelElement, eventLogWallEnabledElement, eventLogWallTitleElement, eventLogWallTitleVisibleElement,
   eventLogWallTitleSizeElement, eventLogWallTitleColorElement, eventLogWallTitleAlignElement, eventLogWallMaxEntriesElement, eventLogWallDisplayDurationElement, eventLogWallWatchScopeElement, eventLogWallEntityIdsElement, eventLogWallFontSizeElement,
@@ -537,6 +554,12 @@ const {
 /** 认证跳转闩（原 `let authRedirectStarted`）：每实例一份，交给 `net/request-json` 读写。 */
 const authRedirectState = { started: false };
 const requestJsonDeps = () => ({ authRedirectState });
+/** 情景弹窗编辑器实例（0.8.4）：只在打开时存在，关闭后置空。 */
+let scenePopupEditor: any = null;
+/** 情景弹窗编辑器「预览弹窗」当前挂着的那张 dialog，用于关闭编辑器时一并收走。 */
+let scenePopupPreviewDialog: any = null;
+/** 失效配置检查器（0.8.4）：延迟创建，依赖 `requestJson` 的活绑定。 */
+let bindingRepairInstance: any = null;
 /**
  * 请求封装（P4 搬进 `net/request-json`）：超时 / 中止 / CSRF / 401-403 跳转。
  * 本身是 `async`，薄绑定只返回 Promise（不写 `async`，免得撞 `require-await`）。
@@ -991,6 +1014,7 @@ function inspectorContextsDeps(): InspectorContextsDeps {
     get buildLightStatisticsInspectorContext() { return buildLightStatisticsInspectorContext; },
     get buildTitleButtonInspectorContext() { return buildTitleButtonInspectorContext; },
     get buildVacuumMapInspectorContext() { return buildVacuumMapInspectorContext; },
+    get bindingRepair() { return workspaceHistoryDeps().bindingRepair; },
     get closePopupModuleEntityMenu() { return closePopupModuleEntityMenu; },
     get coverMotorButtonElement() { return coverMotorButtonElement; },
     get destroyDashboardPreview() { return destroyDashboardPreview; },
@@ -1070,6 +1094,13 @@ const structureVolatileTypesSet = new Set();
 function workspaceHistoryDeps(): WorkspaceHistoryDeps {
   return {
     ...homeElements,
+    // 0.8.4：保存前的失效配置检查（延迟创建，避免每个 deps 都新建请求控制器）。
+    get bindingRepair() {
+      return (bindingRepairInstance ||= createBindingRepair({
+        api: (bindingRepairPath: string, bindingRepairOptions?: any) =>
+          requestJson(bindingRepairPath, bindingRepairOptions),
+      }));
+    },
     get airConditionerBaselineByComponentId() { return airConditionerBaselineByComponentId; },
     get applyTransformToInspector() { return applyTransformToInspector; },
     get clearComponentSelection() { return clearComponentSelection; },
@@ -1080,6 +1111,7 @@ function workspaceHistoryDeps(): WorkspaceHistoryDeps {
     get dashboardPreviewElement() { return dashboardPreviewElement; },
     get discardRecoverySnapshot() { return discardRecoverySnapshot; },
     get editorCtx() { return editorCtx; },
+    get scenePopupEditor() { return scenePopupEditor; },
     get ensureEditorRenderer() { return ensureEditorRenderer; },
     get ensureEntitiesLoaded() { return ensureEntitiesLoaded; },
     get entryStateRecord() { return entryStateRecord; },
@@ -1104,6 +1136,8 @@ function workspaceHistoryDeps(): WorkspaceHistoryDeps {
     get recoverDraftConflict() { return recoverDraftConflict; },
     get RECOVERY_STORAGE_PREFIX() { return RECOVERY_STORAGE_PREFIX; },
     get recoveryWriter() { return recoveryWriter; },
+    get recoverySaveAttempts() { return recoverySaveAttempts; },
+    get setRecoverySaveAttempts() { return setRecoverySaveAttempts; },
     get refreshDirtyState() { return refreshDirtyState; },
     get refreshSoundToggle() { return refreshSoundToggle; },
     get removedComponent() { return removedComponent; },
@@ -1785,7 +1819,10 @@ function lightingPanelDeps(): LightingPanelDeps {
       componentIdsToCopy = [];
     }
     const copyTargetValue = copyComponentPageTargetElement.value,
-      isCrossProjectCopy = copyComponentPageScopeSelectElement.value === "other";
+      isCrossProjectCopy = copyComponentPageScopeSelectElement.value === "other",
+      // 检查失效配置是异步的：期间源仪表盘若被改过，再复制会把别人的修改盖回去。
+      copySourceProjectId = editorCtx.activeProject?.projectId,
+      copySourceSignature = documentSignature2(editorCtx.activeProject?.document);
     if (!(!editorCtx.activeProject || !componentIdsToCopy.length || !copyTargetValue)) {
       ((copyComponentPageSubmitElement.disabled = true),
         setSettingsMessage(copyComponentPageMessageElement, "正在复制控件…"));
@@ -1819,6 +1856,32 @@ function lightingPanelDeps(): LightingPanelDeps {
             },
           );
           if (!copiedComponents.length) throw new Error("目标页面或源控件已发生变化，请重新操作。");
+          // 0.8.4：复制前先清掉目标副本里指向不存在模型的绑定（源控件不动）。
+          let copyTargetDocument = targetProjectDraftDocument;
+          const isCopyStillCurrent = () =>
+            !!editorCtx.activeProject &&
+            editorCtx.activeProject.projectId === copySourceProjectId &&
+            copyComponentPageDialogElement.open;
+          if (hasInteractionBindings2(copiedComponents)) {
+            const repairedTarget = await workspaceHistoryDeps().bindingRepair?.prepare({
+              panelDocument: copyTargetDocument,
+              componentIds: copiedComponents.map((copiedComponentItem: any) => copiedComponentItem.id),
+              mode: "copy",
+              isCurrent: isCopyStillCurrent,
+            });
+            if (!repairedTarget || !isCopyStillCurrent()) {
+              isCopyStillCurrent() &&
+                setSettingsMessage(
+                  copyComponentPageMessageElement,
+                  "已取消复制，原配置保持不变。",
+                );
+              return;
+            }
+            // 检查期间源仪表盘被改过：再复制会把别的修改盖回去。
+            if (copySourceSignature !== documentSignature2(editorCtx.activeProject.document))
+              throw new Error("检查期间源仪表盘已有新修改，请重新复制。");
+            copyTargetDocument = repairedTarget.document || copyTargetDocument;
+          }
           const copyDraftResponse = await requestJson(
             "/projects/" + encodeURIComponent(copyTargetProjectId) + "/draft",
             {
@@ -1827,7 +1890,7 @@ function lightingPanelDeps(): LightingPanelDeps {
                 revision: editorCtx.copyTargetDraft.revision,
                 globalPopupRevision: editorCtx.copyTargetDraft.globalPopupRevision,
                 globalPopupsDirty: false,
-                document: targetProjectDraftDocument,
+                document: copyTargetDocument,
               }),
             },
           );
@@ -1877,6 +1940,31 @@ function lightingPanelDeps(): LightingPanelDeps {
           );
         if (!copiedLocalComponents.length)
           throw new Error("目标页面或源控件已发生变化，请重新操作。");
+        // 0.8.4：先清掉副本里的失效配置；期间文档又被改过就要求重新复制。
+        let localCopyDocument = localDraftDocument;
+        if (hasInteractionBindings2(copiedLocalComponents)) {
+          const isLocalCopyCurrent = () =>
+            !!editorCtx.activeProject &&
+            editorCtx.activeProject.projectId === copySourceProjectId &&
+            copyComponentPageDialogElement.open;
+          const repairedLocalCopy = await workspaceHistoryDeps().bindingRepair?.prepare({
+            panelDocument: localCopyDocument,
+            componentIds: copiedLocalComponents.map((copiedComponentItem: any) => copiedComponentItem.id),
+            mode: "copy",
+            isCurrent: isLocalCopyCurrent,
+          });
+          if (!repairedLocalCopy || !isLocalCopyCurrent()) {
+            isLocalCopyCurrent() &&
+              setSettingsMessage(
+                copyComponentPageMessageElement,
+                "已取消复制，原配置保持不变。",
+              );
+            return;
+          }
+          if (copySourceSignature !== documentSignature2(editorCtx.activeProject.document))
+            throw new Error("检查期间仪表盘已有新修改，请重新复制。");
+          localCopyDocument = repairedLocalCopy.document || localCopyDocument;
+        }
         ((editorCtx.selectedComponentId = copiedLocalComponents[0].id),
           (editorCtx.selectedComponentIdsSet = new Set(
             copiedLocalComponents.map((copiedComponentItem) => copiedComponentItem.id),
@@ -1888,7 +1976,7 @@ function lightingPanelDeps(): LightingPanelDeps {
               : copyTargetValue.replace(/^page:/, ""),
           localCopyTargetLabel =
             copyComponentPageTargetElement.selectedOptions[0]?.textContent || "目标区域";
-        if (!(await projectSummary(localDraftDocument, replace4))) return;
+        if (!(await projectSummary(localCopyDocument, replace4))) return;
         (copyComponentPageDialogElement.close(),
           showCopySuccessDialog(
             "已复制 " +
@@ -3927,6 +4015,26 @@ for (const onWeatherVisibilityClick of [
         ));
     });
   });
+weatherForecastEnabledElement.addEventListener("click", (weatherForecastEvent: any) => {
+  const weatherForecastComponentId = editorCtx.selectedComponentId,
+    weatherForecastButtonElement = weatherForecastEvent.target.closest(
+      "[data-weather-forecast-enabled]",
+    );
+  if (!weatherForecastComponentId || !weatherForecastButtonElement) return;
+  const weatherForecastEnabledValue =
+    weatherForecastButtonElement.dataset.weatherForecastEnabled === "on";
+  mutateDocument((weatherForecastDraftDocument: any) => {
+    const weatherForecastComponent = findComponent2(
+      weatherForecastDraftDocument,
+      weatherForecastComponentId,
+    )?.component;
+    weatherForecastComponent?.type === "weather" &&
+      (weatherForecastComponent.properties = {
+        ...(weatherForecastComponent.properties || {}),
+        forecastEnabled: weatherForecastEnabledValue,
+      });
+  });
+});
 attachLineChartInspectorInput({
   get lineChartInspectorElement() { return lineChartInspectorElement; },
   get removedComponent() { return removedComponent; },
@@ -4206,6 +4314,120 @@ bindNavigationStyleWiring({
           (recoveredComponentIdsState.properties.controlMode = sceneControlMode);
       });
   }));
+// ── 情景弹窗编辑器（0.8.4）：控件模式切换 + 弹窗内容编辑 ──
+function closeScenePopupEditor() {
+  scenePopupEditor?.close();
+}
+function openScenePopupEditor() {
+  const scenePopupOwnerId = editorCtx.selectedComponentId,
+    scenePopupProjectId = editorCtx.activeProject?.projectId,
+    scenePopupPagePath = pageSelectElement.value,
+    // 0.8.4 的宿主就是 `document.querySelector("main")`：编辑器绝对定位铺满整个编辑器区域，
+    // 左右侧栏一起被盖住。挂在工作区里会只剩画布宽度，三栏布局直接被挤变形。
+    scenePopupEditorHostElement = editorShellElement;
+  const resolveScenePopupOwner = () =>
+    editorCtx.activeProject?.projectId === scenePopupProjectId &&
+    editorCtx.editorMode === "edit" &&
+    pageSelectElement.value === scenePopupPagePath &&
+    editorCtx.selectedComponentId === scenePopupOwnerId
+      ? findComponent2(editorCtx.activeProject?.document, scenePopupOwnerId)?.component || null
+      : null;
+  const scenePopupOwner = resolveScenePopupOwner();
+  if (!scenePopupOwner || !scenePopupEnabled2(scenePopupOwner) || !scenePopupEditorHostElement)
+    return;
+  closeScenePopupEditor();
+  scenePopupEditor = createScenePopupEditor({
+    host: scenePopupEditorHostElement,
+    getOwner: resolveScenePopupOwner,
+    // 与 0.8.4 一致：编辑态取编辑渲染器的实时状态（仪表盘预览渲染器此时通常还没创建）。
+    states: () =>
+      editorCtx.editorRenderer?.states || editorCtx.dashboardPreviewRenderer?.states || new Map(),
+    sceneStyle: () => weatherSceneStyle2(editorCtx.activeProject?.document, currentPage()),
+    entityName: (entityId: any) => {
+      if (!entityId) return "";
+      const matchedEntity = editorCtx.entities.find(
+        (candidateEntity: any) => candidateEntity.entityId === entityId,
+      );
+      return matchedEntity ? formatEntityLabel(matchedEntity) : entityId;
+    },
+    status: () => ({
+      dirty: !!editorCtx.hasUnsavedChanges,
+      canSave: !!editorCtx.hasUnsavedChanges,
+      canUndo: historyState.undo.length > 0,
+      canRedo: historyState.redo.length > 0,
+    }),
+    change: (scenePopupMutator: (owner: any) => void) =>
+      Promise.resolve(
+        mutateDocument(
+          (workingDocument: any) => {
+            const scenePopupTarget = findComponent2(workingDocument, scenePopupOwnerId)?.component;
+            scenePopupTarget && scenePopupMutator(scenePopupTarget);
+          },
+          undefined,
+          { throwOnError: true },
+        ),
+      ) as Promise<any>,
+    undo: () => entityLoadError("undo"),
+    redo: () => entityLoadError("redo"),
+    save: () => saveDraft(),
+    preview: () => {
+      const previewOwner = resolveScenePopupOwner();
+      if (!previewOwner) return;
+      // 与 0.8.4 一致：预览弹窗必须挂在**编辑画布**的渲染器上（上游 `_i()` = ensureEditorRenderer）。
+      // 退回 `dashboardPreviewRenderer` 会把弹窗塞进隐藏的「仪表盘」面板，点了什么也看不到。
+      const previewRenderer = ensureEditorRenderer();
+      if (!previewRenderer) return;
+      const previewDialog = previewRenderer.showScenePopup(previewOwner, { preview: true });
+      if (!previewDialog) return;
+      scenePopupPreviewDialog = previewDialog;
+      scenePopupEditor?.setPreviewing(true);
+      previewDialog.addEventListener(
+        "close",
+        () => {
+          scenePopupPreviewDialog === previewDialog && (scenePopupPreviewDialog = null);
+          scenePopupEditor?.setPreviewing(false);
+        },
+        { once: true },
+      );
+    },
+    pickEntity: (triggerButton: HTMLElement, popupItem: any, onPick: any) =>
+      openScenePopupEntityPicker(
+        copyBackupPickersDeps(),
+        triggerButton,
+        popupItem.bindings?.entity?.entityId || "",
+        onPick,
+      ),
+    pickIcon: (triggerButton: HTMLElement, popupItem: any, onPick: any) =>
+      openScenePopupIconPicker(
+        copyBackupPickersDeps(),
+        triggerButton,
+        popupItem.properties.icon || "",
+        onPick,
+      ),
+    onError: handleOperationError,
+    onClose: () => {
+      scenePopupEditor = null;
+      // 预览弹窗挂在画布渲染器上，编辑器关掉时必须一起收走，否则会留下一个没人管的弹窗。
+      scenePopupPreviewDialog?.open && scenePopupPreviewDialog.close();
+      scenePopupPreviewDialog = null;
+      document.getElementById("scene-popup-contents")?.focus({ preventScroll: true });
+    },
+  });
+}
+document.getElementById("scene-popup-mode")?.addEventListener("click", (scenePopupModeEvent: any) => {
+  const popupModeButton = scenePopupModeEvent.target.closest("[data-scene-popup-enabled]");
+  if (!popupModeButton) return;
+  const popupModeOwnerId = editorCtx.selectedComponentId;
+  mutateDocument((popupModeDocument: any) => {
+    const popupModeComponent = findComponent2(popupModeDocument, popupModeOwnerId)?.component;
+    popupModeComponent?.type === "scene-mode" &&
+      (popupModeComponent.properties.popupEnabled =
+        popupModeButton.dataset.scenePopupEnabled === "true");
+  });
+});
+document
+  .getElementById("scene-popup-contents")
+  ?.addEventListener("click", () => openScenePopupEditor());
 const entityPickerHintText = "推荐去 HA 复制实体 ID，粘贴搜索。可精准选择。";
 const { deferUntilEntitiesLoaded: popupBeingRenamed }: any = createEditorPickerLifecycle2({
   getEntitiesLoaded: () => editorCtx.isAreEntitiesLoaded,
@@ -4373,7 +4595,8 @@ bindAssetDialogWiring({
   imageAssetFolderSelectElement, imageAssetMenuElement, imageAssetOptionsElement, imageAssetSearchInputElement,
   leftFolderName, loadNavigationIconOptions, measureAssetImageSize, mutateDocument, newId2,
   nextTemplateInstanceName2, pageSelectElement, positionEffectAssetMenu, positionImageAssetMenu,
-  projectSelectElement, projectSummary, recoveryDialogElement, recoveryDiscardElement, recoveryRestoreElement,
+  projectSelectElement, projectSummary, recoveryDialogElement, recoveryDiscardElement, recoveryMessageTitleElement,
+  recoveryMessageDetailElement, recoveryDownloadElement, recoveryRestoreElement, setRecoverySaveAttempts,
   redoElement, refreshAssetPickers, refreshComponentDialogScale, reloadAssetCatalog, renderComponentLists,
   renderComponentTemplates, renderEditorWorkspace, renderEffectAssetOptions, renderImageAssetOptions,
   requestJson, saveDraft, scheduleAssetPreview, selectComponent, setComponentScope, setEditorMode,

@@ -1,4 +1,12 @@
 const excludedComponentKeySet = new Set(["actions", "bindings", "position", "properties", "style"]);
+import { sha256 } from "../bridge/scene/sha256";
+/** 未保存副本的指纹：文档签名的 SHA-256（十六进制 64 位）。 */
+const RECOVERY_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
+/** `saveAttempts` 上限（上游同款：超过 16 条时保留第一条 + 最近 14 条）。 */
+const MAX_RECOVERY_SAVE_ATTEMPTS = 16;
+export function recoveryFingerprint(recoveryDocument: any) {
+  return sha256(documentSignature(recoveryDocument));
+}
 export function createRecoveryWriter(
   writeRecoverySnapshot: any,
   {
@@ -125,4 +133,92 @@ export function documentSignature(documentToSign: any): any {
 }
 export function recoveryStorageKey(storagePrefix: any, recoveryProjectId: any) {
   return "" + storagePrefix + recoveryProjectId;
+}
+/**
+ * 记录一次「保存尝试」：`{revision, fingerprint}`。
+ *
+ * 用途：刷新后只剩快照、服务器 revision 已经推进一格时，无法单靠 revision 判断
+ * 「这份快照是不是我刚保存过的那份」。指纹能证明「本机这份内容确实已经写进过服务器」，
+ * 于是可以安全地转成 `restored`（静默沿用、不再弹冲突），而不是误报冲突吓用户。
+ */
+export function recordRecoverySaveAttempt(
+  saveAttempts: any,
+  revision: any,
+  recoveryDocument: any,
+): Array<{ revision: any; fingerprint: string }> {
+  const recordedAttempt = {
+      revision: revision,
+      fingerprint: recoveryFingerprint(recoveryDocument),
+    },
+    matchingAttempts = (Array.isArray(saveAttempts) ? saveAttempts.slice(0, 16) : []).filter(
+      (attempt: any) =>
+        attempt?.revision === revision && RECOVERY_FINGERPRINT_PATTERN.test(attempt.fingerprint),
+    );
+  if (
+    matchingAttempts.some(
+      (attempt: any) => attempt.fingerprint === recordedAttempt.fingerprint,
+    )
+  )
+    return matchingAttempts;
+  return [
+    ...(matchingAttempts.length >= MAX_RECOVERY_SAVE_ATTEMPTS
+      ? [matchingAttempts[0], ...matchingAttempts.slice(-14)]
+      : matchingAttempts),
+    recordedAttempt,
+  ];
+}
+/**
+ * 刷新后判定未保存副本的四个状态（0.8.4）：
+ *
+ * - `discard`：项目/文档对不上，或内容与已保存完全一致 —— 快照没有价值，直接丢掉；
+ * - `restore`：revision 与全局弹窗版本都没变 —— 安全恢复；
+ * - `restored`：服务器 revision 正好是快照 revision + 1，指纹证明本机内容已保存成功，
+ *   只是快照没来得及清理 —— 静默沿用，不再弹「要不要恢复」；
+ * - `conflict`：服务器已被别处改过 —— 不允许直接恢复，只允许下载副本或丢弃。
+ */
+export function resolveUnsavedRecovery(
+  recovery: any,
+  loadedProject: any,
+): { status: "discard" | "restore" | "restored" | "conflict"; recovery: any } {
+  if (
+    !recovery?.document ||
+    recovery.projectId !== loadedProject?.projectId ||
+    recovery.document.projectId !== loadedProject?.document?.projectId
+  )
+    return { status: "discard", recovery: null };
+  const loadedSignature = documentSignature(loadedProject.document);
+  if (documentSignature(recovery.document) === loadedSignature)
+    return { status: "discard", recovery: null };
+  const popupRevisionMatches =
+    recovery.globalPopupRevision == null ||
+    recovery.globalPopupRevision === loadedProject.globalPopupRevision;
+  if (recovery.revision === loadedProject.revision && popupRevisionMatches)
+    return { status: "restore", recovery: recovery };
+  const candidateAttempts = (Array.isArray(recovery.saveAttempts)
+    ? recovery.saveAttempts.slice(0, 16)
+    : []
+  ).filter(
+    (attempt: any) =>
+      attempt?.revision === recovery.revision &&
+      Number.isSafeInteger(attempt.revision) &&
+      loadedProject.revision === attempt.revision + 1 &&
+      RECOVERY_FINGERPRINT_PATTERN.test(attempt.fingerprint),
+  );
+  const loadedFingerprint = candidateAttempts.length ? sha256(loadedSignature) : null;
+  return candidateAttempts.some((attempt: any) => attempt.fingerprint === loadedFingerprint)
+    ? {
+        status: "restored",
+        recovery: {
+          ...recovery,
+          revision: loadedProject.revision,
+          globalPopupRevision: loadedProject.globalPopupRevision,
+          saveAttempts: [],
+          // 已保存的那一步不该再出现在撤销栈里（撤回去等于把服务器上的内容改回旧版）。
+          undo: (Array.isArray(recovery.undo) ? recovery.undo : []).filter(
+            (historyStep: any) => historyStep?.kind !== "save",
+          ),
+          redo: [],
+        },
+      }
+    : { status: "conflict", recovery: recovery };
 }

@@ -211,7 +211,16 @@ def aware(value):
 
 class LicenseService:
 
-    def __init__(self, settings: Settings, database: Database, transport: httpx.AsyncBaseTransport | None, *, endpoint_pool: LicenseEndpointPool | None = None, event_log: EventLogLike | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        database: Database,
+        transport: httpx.AsyncBaseTransport | None,
+        *,
+        endpoint_pool: LicenseEndpointPool | None = None,
+        event_log: EventLogLike | None = None,
+        process_lock: LicenseProcessLock | None = None,
+    ) -> None:
         self.settings = settings
         self.database = database
         self.event_log = event_log
@@ -233,7 +242,10 @@ class LicenseService:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._cached_instance_id = None
         self._startup_validation_pending = False
-        self._process_lock = LicenseProcessLock(settings.data_dir)
+        #: 进程锁现在由 lifespan 在**迁移之前**拿到并贯穿整个运行期；只有当构造方
+        #: 没有传入锁（测试 / CLI 单跑）时，本服务才自己持有并负责释放。
+        self._owns_process_lock = process_lock is None
+        self._process_lock = process_lock or LicenseProcessLock(settings.data_dir)
         self._retry_task = None
         self._failures = 0
         self._next_attempt = None
@@ -497,8 +509,12 @@ class LicenseService:
     async def start(self) -> None:
         if self._task is not None and not self._task.done():
             return
+        # 进程锁的 acquire 是幂等的：lifespan 通常已经持有它，这里只兜住
+        # 「服务被单独拉起」的场景（脚本 / 测试）。
+        self._process_lock.acquire()
         self._loop = asyncio.get_running_loop()
-        self._prepare_start()
+        # 读盘 + 验签是同步 IO：丢到线程池，别在启动期占住事件循环。
+        await self._run_local(self._prepare_start)
         if self._endpoint_pool.configured:
             self._stop.clear()
             self._task = asyncio.create_task(self._heartbeat_loop(), name='license-heartbeat')
@@ -510,7 +526,6 @@ class LicenseService:
         口径：两条路径给出的 status 与 pending 标记必须一致，否则会出现「启动时不重试、
         手动重试却立刻重试」这种自相矛盾。
         """
-        self._process_lock.acquire()
         with self.database.session_factory() as database:
             state = self._state(database)
             self._validate_saved_state(state, database)
@@ -533,7 +548,11 @@ class LicenseService:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self._task = None
-        self._process_lock.release()
+        self._loop = None
+        # 锁由谁拿到就由谁释放：lifespan 传进来的锁在停机末尾统一释放，这里重复
+        # release 会被 LicenseProcessLock 的 fd 判空挡掉，但语义上不该由服务代劳。
+        if self._owns_process_lock:
+            self._process_lock.release()
 
     def _validate_saved_state(self, state: LicenseState, database) -> None:
         if not state.signed_lease or state.status in TERMINAL_STATES | {'UNACTIVATED'}:

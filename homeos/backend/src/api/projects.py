@@ -20,7 +20,11 @@ from ..dependencies import (
     require_viewer_project,
 )
 from ..domains.license import features as feature_codes
-from ..domains.studio3d.cleanup import new_binding_references, require_current_binding_references
+from ..domains.studio3d.cleanup import (
+    new_binding_references,
+    repair_binding_document,
+    require_current_binding_references,
+)
 from ..domains.ui_config.global_popups import (
     clear_popup_references,
     global_popup_state,
@@ -28,14 +32,25 @@ from ..domains.ui_config.global_popups import (
     hydrate_document_popups,
     strip_document_popups,
 )
-from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
+from ..modules.interaction3d.access import (
+    require_access as require_interaction3d_access,
+)
+from ..modules.interaction3d.access import (
+    require_document_changes as require_interaction3d_changes,
+)
 from ..panel.asset_refs import validate_assets
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import GlobalCustomPopupState, Project, ProjectDraft
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
-from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
+from ..schemas import (
+    ProjectBindingCheckRequest,
+    ProjectCreateRequest,
+    ProjectDeleteRequest,
+    ProjectDraftUpdate,
+    ProjectDuplicateRequest,
+)
 
 router = APIRouter(prefix='/projects', tags=['projects'])
 
@@ -314,6 +329,43 @@ def get_project_revision(project_id: str, database: DatabaseSession, viewer: Lic
         'revision': draft.revision,
         'globalPopupRevision': global_popup_state(database).revision,
         'updatedAt': draft.updated_at}
+
+
+@router.post('/{project_id}/binding-check')
+def check_project_bindings(
+    project_id: str,
+    payload: ProjectBindingCheckRequest,
+    request: Request,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> dict:
+    """检查调用方**工作副本**里的失效 3D 绑定，并给出只读修复提案。
+
+    三个「不」：不落库、不静默迁移旧数据、不动没被选中的组件。
+    真正保存仍走 ``PUT /{project_id}/draft``，历史、乐观锁与资产校验都留在原处。
+    """
+    require_project_write(request)
+    require_interaction3d_access(request, database=database)
+    require_interaction3d_changes(request, payload.document, database=database)
+    draft = database.get(ProjectDraft, project_id)
+    if draft is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+    document = validate_panel_document(payload.document)
+    if document.get('projectId') != project_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文档 projectId 与项目不匹配。')
+    # 与素材目录的增删共用一把锁：修复预览会按「素材是否还在」决定丢掉失效封面图，
+    # 读到的必须是同一时刻的素材目录。
+    with request.app.state.asset_catalog.mutation_lock:
+        try:
+            repaired, issues = repair_binding_document(
+                document,
+                request.app.state.settings,
+                database,
+                payload.component_ids,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    return {'document': repaired, 'issues': issues, 'revision': draft.revision}
 
 
 def _collect_removed_popup_ids(

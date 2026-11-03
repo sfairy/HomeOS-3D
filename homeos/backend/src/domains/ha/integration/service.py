@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import select
 
 from .control_pool import HAControlPool
+from .cover_memory import CoverMemory
 from .crypto import CredentialCipher
 from .endpoints import HAEndpoint
 from .homeos_facade import HomeOSFacadeMixin
@@ -63,7 +64,13 @@ class HAConnectorService(
         self.database = database
         self.event_log = event_log
         self.cipher = CredentialCipher(settings.credential_key_path)
-        self.state_hub = StateHub()
+        # 窗帘 / 晾衣架的姿态历史（只做展示补间，绝不回灌 HA）。挂在连接器上而不是
+        # 各接口里，是因为写它的只有状态流，读它的有控制接口、历史接口与墙屏。
+        self.cover_memory = CoverMemory(
+            settings.data_dir / 'modules' / 'interaction3d' / 'cover-memory' / 'history.json',
+            credential=self._active_credential,
+        )
+        self.state_hub = StateHub(observe=self._observe_states)
         self._runner = None
         # 停/起/重启必须互斥：并发 stop 与 restart 会把子任务与连接池拆成两半。
         self._lifecycle_lock = asyncio.Lock()
@@ -124,6 +131,38 @@ class HAConnectorService(
         # haConnector / other 高级参数缓存（5s TTL），供重连退避、心跳、历史缓存读取。
         self._ha_tuning_cache: dict[str, Any] | None = None
         self._ha_tuning_at = 0.0
+
+    # 窗帘姿态历史
+
+    def _active_credential(self) -> str:
+        """当前活跃连接的凭据（作用域隔离用：同一 ``entity_id`` 在别的 HA 上是另一台设备）。"""
+        try:
+            with self.database.session_factory() as database:
+                connection = database.scalar(
+                    select(HAConnection).where(HAConnection.is_active.is_(True))
+                )
+        except Exception:
+            return ''
+        return str(getattr(connection, 'encrypted_access_token', '') or '')
+
+    def _observe_states(self, states) -> None:
+        """``StateHub`` 的状态观察回调：把窗帘状态喂给姿态历史。
+
+        传入 ``source`` 的是当前连接作用域，历史据此丢弃上一轮连接迟到的状态。
+        """
+        self.cover_memory.observe_states(states, source=self.state_hub.source_key)
+
+    def refresh_cover_memory_scope(self) -> str:
+        """按当前活跃连接重新激活历史，并同步到 ``StateHub.source_key``。
+
+        连上 HA 之后（以及换连接之后）必须调用：作用域变了就要换一份历史文件视图，
+        否则新连接的墙屏会读到上一台机器的位置。
+        """
+        memory = self.cover_memory
+        memory.credential = self._active_credential
+        memory.activate()
+        self.state_hub.source_key = memory.scope
+        return memory.scope
 
     # 高级参数（haConnector / other）
 
@@ -218,6 +257,8 @@ class HAConnectorService(
         finally:
             # 无论任务收尾是否正常，连接都必须关掉，字段也要复位。
             self._connected = False
+            # 姿态历史的写盘是 2 秒节流：停机时不冲一次，最后一段行程就丢了。
+            await asyncio.to_thread(self.cover_memory.flush)
             await pool.aclose()
             await http_pool.aclose()
 

@@ -77,6 +77,7 @@ export interface PopupInspectorsDeps {
   timeTopElement: any;
   timeTypeElement: any;
   weatherConditionVisibleElement: any;
+  weatherForecastEnabledElement: any;
   weatherHumidityVisibleElement: any;
   weatherIconGapElement: any;
   weatherIconSizeElement: any;
@@ -538,6 +539,7 @@ export function buildWeatherInspectorContext(deps: PopupInspectorsDeps) {
     weatherTemperatureVisibleElement: deps.weatherTemperatureVisibleElement,
     weatherConditionVisibleElement: deps.weatherConditionVisibleElement,
     weatherHumidityVisibleElement: deps.weatherHumidityVisibleElement,
+    weatherForecastEnabledElement: deps.weatherForecastEnabledElement,
     weatherIconSizeElement: deps.weatherIconSizeElement,
     weatherIconGapElement: deps.weatherIconGapElement,
     weatherTemperatureColorElement: deps.weatherTemperatureColorElement,

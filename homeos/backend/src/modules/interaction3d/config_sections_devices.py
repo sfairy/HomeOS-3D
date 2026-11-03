@@ -54,6 +54,7 @@ TELEVISION_FIELDS = frozenset(
         'buttonHidden',
         'powerEntityId',
         'hiddenClickable',
+        'extraDevices',
         'screenImage',
     }
 )
@@ -91,6 +92,7 @@ SPEAKER_FIELDS = frozenset(
         'focusCamera',
         'buttonHidden',
         'hiddenClickable',
+        'extraDevices',
     }
 )
 SPEAKER_RULES = WidgetRules(
@@ -130,6 +132,7 @@ VACUUM_FIELDS = frozenset(
         'followCamera',
         'motionEnabled',
         'hiddenClickable',
+        'extraDevices',
         'relatedEntityIds',
         'backgroundOpacity',
     }
@@ -214,6 +217,7 @@ NAS_FIELDS = frozenset(
         'buttonHidden',
         'statusSource',
         'hiddenClickable',
+        'extraDevices',
     }
 )
 NAS_ENTITY = re.compile(r'(?:binary_sensor|switch|input_boolean)\.[a-z0-9_]+')

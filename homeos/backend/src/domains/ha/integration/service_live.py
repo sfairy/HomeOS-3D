@@ -384,6 +384,9 @@ class HALiveMixin(HAConnectorHost):
                     shadow = ShadowStateTracker()
             await self._run_database(self._mark_connected, connection_id)
             self._connected = True
+            # 连上之后按这条连接的凭据重新激活姿态历史：换了 HA 实例就得换一份历史视图，
+            # 同时把作用域同步给 StateHub，迟到的旧连接状态会被 observe 丢弃。
+            await asyncio.to_thread(self.refresh_cover_memory_scope)
             self._runtime_error = None
             # 真正连上才算恢复：同步成功但 WebSocket 被反代挡住时，失败原因并没有变，
             # 不该因此每轮都重新打一遍完整说明。

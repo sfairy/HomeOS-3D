@@ -122,6 +122,19 @@ class ProjectDraftUpdate(BaseModel):
     document: dict[str, Any]
 
 
+class ProjectBindingCheckRequest(BaseModel):
+    """「检查失效配置」的请求体：**调用方的工作副本**，不是库里的旧版本。
+
+    服务端只做只读修复预览，不落库；组件选择上限 1000，避免一次修复把整份文档
+    复制 1000 遍（每个组件都要深拷贝一份 properties）。
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+
+    document: dict[str, Any]
+    component_ids: list[str] = Field(default_factory=list, alias='componentIds', max_length=1000)
+
+
 class ProjectDuplicateRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=128)

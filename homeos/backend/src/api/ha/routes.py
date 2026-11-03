@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from anyio import CancelScope, create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func, or_, select
 
 from ...config import DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
@@ -572,6 +573,34 @@ async def list_numeric_sources(
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     return {'items': numeric_sources(states, allowed_ids)}
+
+
+@router.get('/weather/forecast')
+async def weather_forecast(
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+    entity_id: str = Query(alias='entityId', min_length=3, max_length=255),
+    forecast_type: str = Query('auto', alias='type', max_length=16),
+) -> Response:
+    """只读天气预报。
+
+    ``no-store`` 是硬要求：预报本身有有效期，任何中间层缓存都会让用户看到过期天气，
+    而"过期天气"在界面上与"实时天气"完全无法区分。
+    """
+    connection = await asyncio.to_thread(active_connection, database)
+    if connection is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
+    require_viewer_entity(database, viewer, entity_id)
+    if forecast_type not in ('auto', 'daily', 'hourly', 'twice_daily'):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail='天气预报类型无效。')
+    try:
+        payload = await request.app.state.studio_ha.fetch_weather_forecast(
+            connection, entity_id, forecast_type
+        )
+    except (HAClientError, CredentialCipherError) as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/translations')

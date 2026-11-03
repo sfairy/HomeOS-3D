@@ -61,6 +61,7 @@ from ..domains.ha.integration.service import HAConnectorService
 from ..domains.home_mode.service import HomeModeService
 from ..domains.license import LicenseService
 from ..domains.license import features as feature_codes
+from ..domains.license.process_lock import LicenseProcessLock
 from ..domains.lifestyle import MediaSceneService
 from ..domains.logs.event_log import EventLogService
 from ..domains.notification.service import NotificationService
@@ -302,6 +303,9 @@ class _StartupContext:
     app_settings: Settings
     version: str
     recovery_required: bool
+    #: 贯穿整个运行期的进程锁（同一数据目录只允许一个 HomeOS 实例）。
+    #: 由 lifespan 在迁移**之前**获取、停机末尾释放；授权服务只借用不拥有。
+    process_lock: LicenseProcessLock = _pending()
     app_config: AppConfigService = _pending()
     license_service: LicenseService = _pending()
     database_retention: DatabaseRetentionService = _pending()
@@ -411,7 +415,10 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     startup.app_config = app_config
 
     # 授权服务：构造期即做公钥自检，指纹不符直接启动失败。
-    license_service = LicenseService(app_settings, app.state.database, transport=None)
+    # 进程锁由 lifespan 传入（它已持有），因此本服务不负责释放它。
+    license_service = LicenseService(
+        app_settings, app.state.database, transport=None, process_lock=startup.process_lock
+    )
     app.state.license = license_service
     app.state.license_service = license_service
     startup.license_service = license_service
@@ -1437,6 +1444,55 @@ def _format_startup_phases(phases: list[tuple[str, float]], total_ms: float) -> 
     return f"共 {len(phases)} 个阶段,耗时降序:{' · '.join(parts)}"
 
 
+async def _run_startup_phases(app: FastAPI, startup: _StartupContext, started: float) -> None:
+    """按固定顺序装配全部服务，并在末尾打印启动摘要。
+
+    拆成独立函数是为了让 lifespan 只负责「进程锁 → 装配 → 运行 → 释放」这条主干；
+    任何阶段抛异常都能被 lifespan 的 ``finally`` 统一收尾（此前异常路径上锁不会释放）。
+    """
+    async with _startup_phase(app, "schema"):
+        await _prepare_database_schema(app, startup)
+    async with _startup_phase(app, "core_services"):
+        await _init_core_services(app, startup)
+    loop_lag = EventLoopLagMonitor()
+    app.state.loop_lag = loop_lag
+    async with _startup_phase(app, "loop_lag_start"):
+        await loop_lag.start()
+    async with _startup_phase(app, "realtime_pipeline"):
+        _install_realtime_state_pipeline(app, startup)
+        _register_ha_event_handlers(app, startup)
+    async with _startup_phase(app, "security_services_build"):
+        _build_security_services(app, startup)
+    async with _startup_phase(app, "ui_system_services"):
+        await _build_ui_and_system_services(app, startup)
+    async with _startup_phase(app, "security_services_publish"):
+        _install_ha_reconnect_handlers(app, startup)
+        _publish_security_services(app, startup)
+    async with _startup_phase(app, "security_services_start"):
+        await _start_security_services(app, startup)
+    async with _startup_phase(app, "home_mode"):
+        await _build_home_mode(app, startup)
+    async with _startup_phase(app, "agent_domain"):
+        await _build_agent_domain(app, startup)
+    async with _startup_phase(app, "channels_notification"):
+        await _build_channels_and_notification(app, startup)
+    async with _startup_phase(app, "awareness_events"):
+        await _build_awareness_and_events(app, startup)
+    async with _startup_phase(app, "weather_earthquake"):
+        await _build_weather_and_earthquake(app, startup)
+    async with _startup_phase(app, "ha_license"):
+        await _start_ha_and_license(app, startup)
+    app.state.startup_duration_ms = round((time.perf_counter() - started) * 1000.0, 2)
+    startup_phases = app.state.startup_phases
+    logger.info(
+        "应用启动完成:%.1f ms | %s",
+        app.state.startup_duration_ms,
+        _format_startup_phases(startup_phases, app.state.startup_duration_ms),
+    )
+    # 摘要只点名最慢的几项；完整阶段表在 DEBUG（与 /metrics 的 phase 标签同名，便于对齐回归）。
+    logger.debug("启动阶段原始耗时(ms):%s", startup_phases)
+
+
 def create_lifespan(app_settings: Settings, version: str):
     """构造 FastAPI lifespan 上下文管理器。"""
 
@@ -1445,51 +1501,20 @@ def create_lifespan(app_settings: Settings, version: str):
         startup_started = time.perf_counter()
         app.state.startup_phases = []
         startup = _StartupContext(app_settings=app_settings, version=version)
-        async with _startup_phase(app, "schema"):
-            await _prepare_database_schema(app, startup)
-        async with _startup_phase(app, "core_services"):
-            await _init_core_services(app, startup)
-        loop_lag = EventLoopLagMonitor()
-        app.state.loop_lag = loop_lag
-        async with _startup_phase(app, "loop_lag_start"):
-            await loop_lag.start()
-        async with _startup_phase(app, "realtime_pipeline"):
-            _install_realtime_state_pipeline(app, startup)
-            _register_ha_event_handlers(app, startup)
-        async with _startup_phase(app, "security_services_build"):
-            _build_security_services(app, startup)
-        async with _startup_phase(app, "ui_system_services"):
-            await _build_ui_and_system_services(app, startup)
-        async with _startup_phase(app, "security_services_publish"):
-            _install_ha_reconnect_handlers(app, startup)
-            _publish_security_services(app, startup)
-        async with _startup_phase(app, "security_services_start"):
-            await _start_security_services(app, startup)
-        async with _startup_phase(app, "home_mode"):
-            await _build_home_mode(app, startup)
-        async with _startup_phase(app, "agent_domain"):
-            await _build_agent_domain(app, startup)
-        async with _startup_phase(app, "channels_notification"):
-            await _build_channels_and_notification(app, startup)
-        async with _startup_phase(app, "awareness_events"):
-            await _build_awareness_and_events(app, startup)
-        async with _startup_phase(app, "weather_earthquake"):
-            await _build_weather_and_earthquake(app, startup)
-        async with _startup_phase(app, "ha_license"):
-            await _start_ha_and_license(app, startup)
-        app.state.startup_duration_ms = round((time.perf_counter() - startup_started) * 1000.0, 2)
-        startup_phases = app.state.startup_phases
-        logger.info(
-            "应用启动完成:%.1f ms | %s",
-            app.state.startup_duration_ms,
-            _format_startup_phases(startup_phases, app.state.startup_duration_ms),
-        )
-        # 摘要只点名最慢的几项；完整阶段表在 DEBUG（与 /metrics 的 phase 标签同名，便于对齐回归）。
-        logger.debug("启动阶段原始耗时(ms):%s", startup_phases)
-
+        # 进程锁必须在**迁移与装配之前**拿到：两个进程同时对同一个数据目录跑建表 /
+        # 回滚中断的还原，损坏的是用户的真实数据，而不是「第二个实例启动失败」这么轻。
+        # 顺序即约束：数据目录检查 → acquire → 装配与运行 → release。
+        process_lock = LicenseProcessLock(app_settings.data_dir)
+        process_lock.acquire()
+        startup.process_lock = process_lock
         try:
-            yield
+            await _run_startup_phases(app, startup, startup_started)
+            try:
+                yield
+            finally:
+                await _shutdown_all(app, startup)
         finally:
-            await _shutdown_all(app, startup)
+            # 放在最外层：启动阶段或停机中途抛异常，也不能把锁「带」到下一个人手里。
+            process_lock.release()
 
     return lifespan

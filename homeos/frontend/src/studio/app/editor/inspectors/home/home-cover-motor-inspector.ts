@@ -8,6 +8,7 @@ import {
 } from "../../../shared/flow-line-model";
 import { renderInteraction3dInspector as renderInteraction3dInspector2 } from "../../../bridge/editor";
 import { findComponent as findComponent2 } from "../../component-tree";
+import { documentSignature as documentSignature2 } from "../../editor-history";
 import { componentLabel as componentLabel2 } from "../../editor-component-collections";
 import {
   clampNumber as clampNumber2,
@@ -231,6 +232,35 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
         ctx.syncRendererSelection());
     },
     onError: ctx.handleOperationError,
+    // 0.8.4：检查并移除失效的 3D 绑定；文档在异步检查期间被改过就放弃写入。
+    onRepairBindings: async () => {
+      const repairProjectId = ctx.activeProject?.projectId,
+        repairScope = ctx.componentScopeState,
+        repairSignature = documentSignature2(ctx.activeProject?.document),
+        isRepairCurrent = () =>
+          repairProjectId === ctx.activeProject?.projectId && repairScope === ctx.componentScopeState,
+        repaired = await ctx.bindingRepair?.prepare({
+          panelDocument: ctx.activeProject?.document,
+          componentIds: [createdInstanceConfig.id],
+          isCurrent: isRepairCurrent,
+        });
+      if (!repaired || !isRepairCurrent()) return null;
+      if (!repaired.issues?.length) return 0;
+      const applied = await ctx.mutateDocument(
+        (repairDraft: any) => {
+          if (documentSignature2(repairDraft) !== repairSignature)
+            throw new Error("检查期间仪表盘已有新修改，已保留最新内容，请重新检查。");
+          const liveComponent = findComponent2(repairDraft, createdInstanceConfig.id)?.component,
+            repairedComponent = findComponent2(repaired.document, createdInstanceConfig.id)?.component;
+          if (!liveComponent || !repairedComponent) throw new Error("3D 控件已变化，请重新检查。");
+          liveComponent.properties = repairedComponent.properties;
+          return true;
+        },
+        ctx.pageSelectElement.value,
+        { throwOnError: true },
+      );
+      return applied && isRepairCurrent() ? repaired.issues.length : null;
+    },
     onChange: (changes: any, { replaceProperties: shouldReplaceProperties = false } = {}) =>
       ctx.mutateDocument(
         (inspectorDraft: any) => {

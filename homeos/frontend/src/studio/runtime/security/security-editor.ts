@@ -14,6 +14,9 @@ import {
 } from "@app/bridge/lock-state-runtime";
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
 import { modelChoiceLabel } from "@app/shared/model-remarks";
+import {
+  windowModels,
+} from "@app/3d-studio/plan/window/window-models";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { temperatureHumidityFloorCenter } from "@app/bridge/temperature-humidity";
 import { validateGo2rtcUrl } from "../camera/go2rtc-url";
@@ -34,6 +37,8 @@ const SECURITY_CATEGORY_CHOICES: ReadonlyArray<readonly [string, string]> = [
   ["camera", "摄像头"],
   ["presence", "人体传感器"],
   ["lock", "门"],
+  // 0.8.4：窗户作为独立安防类别（窗磁检测 + 开度显示），不再只能从开窗器侧配置。
+  ["window", "窗户"],
   ["moisture", "水浸"],
   ["smoke", "烟雾"],
   ["gas", "天然气"],
@@ -147,6 +152,7 @@ export async function openSecurityEditor({
     presenceEditorHandle: any = null,
     isPresenceEditorOpen = false,
     batchDialogHandle: any = null,
+    mergeDialogHandle: any = null,
     alarmPreviewOverlay: any = null;
   function stopAlarmPreview() {
     alarmPreviewOverlay?.dispose();
@@ -166,17 +172,21 @@ export async function openSecurityEditor({
         ? "locks"
         : securityKind === "camera"
           ? "cameras"
-          : isAlarmKindValue(securityKind)
-            ? "alarms"
-            : "presenceSensors",
+          : securityKind === "window"
+            ? "windows"
+            : isAlarmKindValue(securityKind)
+              ? "alarms"
+              : "presenceSensors",
     getKindLabel = () =>
       securityKind === "lock"
         ? "门"
         : securityKind === "camera"
           ? "摄像头"
-          : isAlarmKindValue(securityKind)
-            ? securityAlarmKindLabel(securityKind)
-            : "人体传感器",
+          : securityKind === "window"
+            ? "窗户"
+            : isAlarmKindValue(securityKind)
+              ? securityAlarmKindLabel(securityKind)
+              : "人体传感器",
     getCollection = () => draftProperties.security[getCollectionKey()],
     getItemList = () => {
       const collection = getCollection();
@@ -224,11 +234,13 @@ export async function openSecurityEditor({
   const getFloorModelList = () =>
       securityKind === "lock"
         ? getFloorDoorModels().filter((doorModel: any) => doorModel.doorType !== "frame-only")
-        : securityKind === "presence"
-          ? findSelectedFloor()?.presenceSensors || []
-          : isAlarmKindValue(securityKind)
-            ? []
-            : findSelectedFloor()?.[getCollectionKey()] || [],
+        : securityKind === "window"
+          ? windowModels(findSelectedFloor() || {})
+          : securityKind === "presence"
+            ? findSelectedFloor()?.presenceSensors || []
+            : isAlarmKindValue(securityKind)
+              ? []
+              : findSelectedFloor()?.[getCollectionKey()] || [],
     toItemKey = (configItem: any) => securityKind + ":" + configItem.id,
     buildEditorProperties = () => ({
       ...draftProperties,
@@ -341,11 +353,13 @@ export async function openSecurityEditor({
       ? (getFloorDoorModels() as ReadonlyArray<SecurityChoiceRecord>).filter(
           (doorModel) => doorModel.doorType !== "frame-only",
         )
-      : targetKind === "presence"
-        ? findSelectedFloor()?.presenceSensors || []
-        : isAlarmKindValue(targetKind)
-          ? []
-          : findSelectedFloor()?.[targetKind === "camera" ? "cameras" : "presenceSensors"] || [];
+      : targetKind === "window"
+        ? (windowModels(findSelectedFloor() || {}) as ReadonlyArray<SecurityChoiceRecord>)
+        : targetKind === "presence"
+          ? findSelectedFloor()?.presenceSensors || []
+          : isAlarmKindValue(targetKind)
+            ? []
+            : findSelectedFloor()?.[targetKind === "camera" ? "cameras" : "presenceSensors"] || [];
   }
   /** 目标安防类别的已配置条目（报警类按 `kind` 过滤，卡片与分类一一对应）。 */
   function securityBindingsForKind(targetKind: string): ReadonlyArray<SecurityChoiceRecord> {
@@ -353,11 +367,13 @@ export async function openSecurityEditor({
       ? draftProperties.security.locks
       : targetKind === "camera"
         ? draftProperties.security.cameras
-        : targetKind === "presence"
-          ? draftProperties.security.presenceSensors
-          : (draftProperties.security.alarms as ReadonlyArray<SecurityChoiceRecord>).filter(
-              (alarmItem) => (alarmItem.kind || "smoke") === targetKind,
-            );
+        : targetKind === "window"
+          ? draftProperties.security.windows
+          : targetKind === "presence"
+            ? draftProperties.security.presenceSensors
+            : (draftProperties.security.alarms as ReadonlyArray<SecurityChoiceRecord>).filter(
+                (alarmItem) => (alarmItem.kind || "smoke") === targetKind,
+              );
   }
   /**
    * 安防类别选择器（上游 `v287`）：每类带当前楼层的配置进度，报警类只显示已配置卡片数。
@@ -553,7 +569,22 @@ export async function openSecurityEditor({
                   // 与原版一致：新摄像头默认按原始比例出画，可在面板里切「压缩 16:9」。
                   fit: "contain",
                 }
-              : {
+              : securityKind === "window"
+                ? {
+                    // 窗磁只报 open/closed，开度按 `openPercent` 换算成开合动画；
+                    // 有开窗器时 `motionSource` 决定用哪一路驱动。
+                    doorEntityId: "",
+                    openPercent: 100,
+                    motionSource: "auto",
+                    size: DEFAULT_BUTTON_SIZE,
+                    fontSize: CARD_TEXT_SIZE_PX,
+                    labelMode: "always",
+                    icon: "mdi:window-closed",
+                    x: addableModel.x ?? 0,
+                    y: addableModel.y ?? 0,
+                    height: addableModel.height ?? 1.1,
+                  }
+                : {
                   route: [] as any[],
                   routeClosed: false,
                   size: 1,
@@ -665,6 +696,8 @@ export async function openSecurityEditor({
       batchDialogHandle?.close(),
       batchDialogHandle?.remove(),
       (batchDialogHandle = null),
+      mergeDialogHandle?.close(),
+      (mergeDialogHandle = null),
       editorDialogElement.close(),
       editorDialogElement.remove(),
       styleSheetLinkElement.remove(),
@@ -914,6 +947,29 @@ export async function openSecurityEditor({
             optional: true,
             compatible: (hingeCandidateItem: any) => doorTypeOf(hingeCandidateItem) === sourceDoorType,
           }));
+    } else if (securityKind === "window") {
+      // 窗户的批量项只有外观 + 开度 + 动画时长，没有门的铰链/开向。
+      (Object.assign(batchSource, {
+        icon: sourceItem.icon || "mdi:window-closed",
+        size: sourceItem.size ?? DEFAULT_BUTTON_SIZE,
+        fontSize: sourceItem.fontSize ?? CARD_TEXT_SIZE_PX,
+        labelMode: sourceItem.labelMode || "always",
+        openPercent: sourceItem.openPercent ?? 100,
+        duration: sourceItem.duration ?? 0.7,
+      }),
+        (batchFields = [
+          ["icon", "图标"],
+          ["size", "卡片大小"],
+          ["fontSize", "文字大小"],
+          ["labelMode", "标签显示"],
+        ].map(([windowFieldKey, windowFieldLabel]) => ({
+          key: windowFieldKey,
+          label: windowFieldLabel,
+        }))),
+        batchFields.push(
+          { key: "openPercent", label: "显示开度", unit: "%", optional: true },
+          { key: "duration", label: "动画时长", unit: " 秒", optional: true },
+        ));
     } else
       securityKind === "camera"
         ? (batchFields = [
@@ -999,6 +1055,91 @@ export async function openSecurityEditor({
             ));
         },
       })));
+  }
+  /**
+   * 推拉窗组的历史逐扇配置合并（上游 `_0x53c6d1`）。
+   *
+   * 老配置按面板 id 各存一条；整组滑动只有组 id 是正式身份，所以合并时必须
+   * 让用户挑一份保留（窗磁 / 电量 / 标签都在这一条里），其余重复项删除。
+   */
+  function openWindowGroupMerge(sourceWindowItem: any) {
+    if (!isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen || mergeDialogHandle)
+      return;
+    const groupModelEntry = getFloorModelList().find(
+      (modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId,
+    );
+    if (!groupModelEntry?.legacyModels) return;
+    closeActivePicker();
+    const mergeFloorId = selectedFloorId,
+      mergeCandidates = () =>
+        (draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>).filter(
+          (windowBindingItem) =>
+            windowBindingItem.floorId === mergeFloorId &&
+            (windowBindingItem.modelId === groupModelEntry.modelId ||
+              (groupModelEntry.legacyModels as ReadonlyArray<any>).some(
+                (legacyModelEntry) =>
+                  (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
+              )),
+        ),
+      mergeSnapshot = JSON.stringify(mergeCandidates());
+    let mergePickerHandle: any;
+    mergePickerHandle = openConfigurationPicker({
+      document,
+      title: "选择整组使用的配置",
+      kicker: "SLIDING WINDOW",
+      description:
+        "这组推拉窗现有 " +
+        mergeCandidates().length +
+        " 份配置。选择要保留的窗磁、电量和标签设置后，合并为一条整组配置；其他重复项将移除。点击“保存配置”后应用，也可以关闭本窗口取消。",
+      sections: [
+        {
+          options: mergeCandidates().map((windowBindingItem) => ({
+            id: String(windowBindingItem.id),
+            label: windowBindingItem.label || "窗户配置",
+            wrapLabel: true,
+            detail:
+              "窗磁：" +
+              (windowBindingItem.doorEntityId || "未绑定") +
+              "；电量：" +
+              (windowBindingItem.batteryEntityId || "未绑定"),
+          })),
+        },
+      ],
+      async onSelect(keptBindingId: string) {
+        if (
+          isDisposed ||
+          !isAccessAllowed ||
+          mergePickerHandle !== mergeDialogHandle ||
+          securityKind !== "window" ||
+          selectedFloorId !== mergeFloorId
+        )
+          return;
+        if (
+          JSON.stringify(mergeCandidates()) !== mergeSnapshot ||
+          getFloorModelList().find(
+            (modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId,
+          )?.modelId !== groupModelEntry.modelId
+        )
+          throw new Error("窗户配置已变化，请关闭后重新选择。");
+        const keptBinding = mergeCandidates().find(
+          (windowBindingItem) => String(windowBindingItem.id) === keptBindingId,
+        );
+        if (!keptBinding) return;
+        keptBinding.modelId = groupModelEntry.modelId;
+        draftProperties.security.windows = (
+          draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>
+        ).filter(
+          (windowBindingItem) =>
+            !mergeCandidates().includes(windowBindingItem) || windowBindingItem === keptBinding,
+        );
+        selectedItemId = String(keptBinding.id);
+        (markPropertiesDirty(), renderPanel());
+      },
+      onClose() {
+        mergeDialogHandle === mergePickerHandle && (mergeDialogHandle = null);
+      },
+    });
+    isDisposed || !isAccessAllowed ? mergePickerHandle.close() : (mergeDialogHandle = mergePickerHandle);
   }
   function renderPanel() {
     (panelElement.replaceChildren(),
@@ -1625,8 +1766,64 @@ export async function openSecurityEditor({
           openAssociateModelPicker,
         ),
         (currentContainerElement = bindingSectionElement),
-        securityKind === "lock")
+        securityKind === "lock" || securityKind === "window")
       ) {
+        const isWindowBinding = securityKind === "window",
+          selectedWindowModelEntry = allFloorModels.find(
+            (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
+          );
+        if (
+          isWindowBinding &&
+          selectedWindowModelEntry?.legacyModels &&
+          (draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>).some(
+            (windowBindingItem) =>
+              windowBindingItem.floorId === selectedFloorId &&
+              (selectedWindowModelEntry.legacyModels as ReadonlyArray<any>).some(
+                (legacyModelEntry) =>
+                  (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
+              ),
+          )
+        ) {
+          // 推拉组的逐扇老配置：整组只有一条正式身份，其余要去重。
+          (currentContainerElement = bindingSectionElement),
+            bindingSectionElement.append(
+              createElement(
+                "p",
+                "i3d-note",
+                "这组推拉窗保留了此前的逐扇配置。可选择一份配置供整组使用，合并前原绑定继续生效。",
+              ),
+              createButton("合并为整组配置", () => openWindowGroupMerge(selectedItem)),
+            );
+        }
+        if (isWindowBinding) {
+          // 窗磁只负责「开 / 关」，动画来源由环境 → 开窗器统一决定，这里只提示不抢配置权。
+          const boundWindowModelIdSet = new Set<any>([
+              selectedItem.modelId,
+              selectedWindowModelEntry?.modelId,
+              ...((selectedWindowModelEntry?.legacyModels as ReadonlyArray<any>) || []).map(
+                (legacyModelEntry: any) => legacyModelEntry.modelId || legacyModelEntry.id,
+              ),
+            ]),
+            boundOpenerEntry = (
+              (draftProperties.environment?.windowOpeners as ReadonlyArray<any>) || []
+            ).find(
+              (openerBindingItem: any) =>
+                openerBindingItem.floorId === selectedItem.floorId &&
+                boundWindowModelIdSet.has(openerBindingItem.modelId) &&
+                openerBindingItem.entityId,
+            );
+          boundOpenerEntry &&
+            (currentContainerElement = bindingSectionElement) &&
+            bindingSectionElement.append(
+              createElement(
+                "p",
+                "i3d-note",
+                "此窗扇已配置开窗器：" +
+                  (boundOpenerEntry.label || boundOpenerEntry.entityId) +
+                  "。窗磁保留检测，动画来源在环境 → 开窗器中统一设置。",
+              ),
+            );
+        }
         currentContainerElement = createSectionHeading("实体来源");
         const deviceButtonElement = createButton(
           selectedItem.deviceName || "选择设备",
@@ -1637,8 +1834,8 @@ export async function openSecurityEditor({
               const devicePickerHandle = await pickers.device({
                 trigger: deviceButtonElement,
                 current: selectedItem.deviceId || "",
-                deviceIcon: "mdi:door-closed",
-                title: "选择门设备",
+                deviceIcon: isWindowBinding ? "mdi:window-closed" : "mdi:door-closed",
+                title: isWindowBinding ? "选择窗户设备" : "选择门设备",
                 onSelect(pickedDevice: any) {
                   if (!(
                     isDisposed ||
@@ -1654,7 +1851,12 @@ export async function openSecurityEditor({
                       ),
                       delete selectedItem.entityId,
                       delete selectedItem.lowBatteryEntityId,
-                      delete selectedItem.tamperEntityId);
+                      delete selectedItem.tamperEntityId,
+                      // 窗户没有门的开/关事件与开合值字段，换设备时一并清掉。
+                      isWindowBinding &&
+                        (delete selectedItem.doorEventEntityId,
+                        delete selectedItem.doorOpenEntityId,
+                        delete selectedItem.doorCloseEntityId));
                     (markPropertiesDirty(), renderPanel());
                   }
                 },
@@ -1668,18 +1870,24 @@ export async function openSecurityEditor({
           },
         );
         currentContainerElement.append(deviceButtonElement);
-        const entitySlotFields = LOCK_ENTITY_FIELDS,
-          entityFieldLabels = {
-            doorEntityId: "开关门检测",
-            batteryEntityId: "锂电池",
-            battery2EntityId: "干电池（可选）",
-          } as Record<string, string>,
+        const entitySlotFields = isWindowBinding
+            ? (["doorEntityId", "batteryEntityId"] as const)
+            : LOCK_ENTITY_FIELDS,
+          entityFieldLabels = (isWindowBinding
+            ? { doorEntityId: "开关窗检测", batteryEntityId: "电量" }
+            : {
+                doorEntityId: "开关门检测",
+                batteryEntityId: "锂电池",
+                battery2EntityId: "干电池（可选）",
+              }) as Record<string, string>,
           // 选择器标题去掉「（可选）」后缀，避免出现「选择干电池（可选）实体」这种别扭文案。
-          entityFieldPickerTitles = {
-            doorEntityId: "选择开关门检测实体",
-            batteryEntityId: "选择锂电池电量实体",
-            battery2EntityId: "选择干电池电量实体",
-          } as Record<string, string>;
+          entityFieldPickerTitles = (isWindowBinding
+            ? { doorEntityId: "选择开关窗检测实体", batteryEntityId: "选择电量实体" }
+            : {
+                doorEntityId: "选择开关门检测实体",
+                batteryEntityId: "选择锂电池电量实体",
+                battery2EntityId: "选择干电池电量实体",
+              }) as Record<string, string>;
         for (const entityField of entitySlotFields) {
           const entityButtonElement = createButton(
             (entityFieldLabels as any)[entityField] +
@@ -1739,17 +1947,29 @@ export async function openSecurityEditor({
             (entityButtonElement.className = "i3d-picker-button i3d-lock-entity-picker"),
             currentContainerElement.append(entityButtonElement));
         }
-        const doorType =
-            getFloorDoorModels().find(
-              (matchedDoorModel: any) => getCandidateModelId(matchedDoorModel) === selectedItem.modelId,
-            )?.doorType || "solid",
-          motionSectionElement = createSectionHeading("门扇动作"),
+        const doorType = isWindowBinding
+            ? "window"
+            : getFloorDoorModels().find(
+                (matchedDoorModel: any) =>
+                  getCandidateModelId(matchedDoorModel) === selectedItem.modelId,
+              )?.doorType || "solid",
+          // 推拉组整体滑动，动作文案要与「单扇」区分开。
+          motionSectionElement = createSectionHeading(
+            isWindowBinding
+              ? selectedWindowModelEntry?.kind === "sliding" &&
+                selectedItem.modelId === selectedWindowModelEntry?.modelId
+                ? "推拉窗组动作"
+                : "窗扇动作"
+              : "门扇动作",
+          ),
           motionGridElement = createElement("div", "i3d-security-grid i3d-lock-motion-grid");
         (motionSectionElement.append(motionGridElement),
           (currentContainerElement = motionGridElement));
         const commitMotionChange = () => {
             (markPropertiesDirty(),
-              editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), true));
+              isWindowBinding
+                ? editorRuntime?.previewWindowMotion?.(toItemKey(selectedItem), true)
+                : editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), true));
           },
           isHingeDoor = ["solid", "entry", "entry-child-mother", "glass"].includes(doorType),
           isDoubleDoor = doorType === "double",
@@ -1805,6 +2025,18 @@ export async function openSecurityEditor({
               },
               1,
             ),
+          // 窗磁只有开/关两态，实际开合量按这里的百分比换算。
+          isWindowBinding &&
+            createNumberField(
+              "显示开度（%）",
+              selectedItem.openPercent ?? 100,
+              0,
+              100,
+              (nextOpenPercent: any) => {
+                selectedItem.openPercent = nextOpenPercent;
+              },
+              1,
+            ),
           createNumberField(
             "动画时长（秒）",
             selectedItem.duration ?? 0.7,
@@ -1820,18 +2052,26 @@ export async function openSecurityEditor({
         if (isHingeDoor || isDoubleDoor || isSlidingDoor || doorType === "roller-shutter") {
           const previewGridElement = createElement("div", "i3d-security-grid i3d-lock-motion-grid");
           for (const [previewButtonLabel, previewOpen] of [
-            ["预览开门", true],
-            ["预览关门", false],
+            [isWindowBinding ? "预览开窗" : "预览开门", true],
+            [isWindowBinding ? "预览关窗" : "预览关门", false],
           ] as const) {
             const previewButtonElement = createButton(previewButtonLabel, () => {
-              editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), previewOpen);
+              isWindowBinding
+                ? editorRuntime?.previewWindowMotion?.(toItemKey(selectedItem), previewOpen)
+                : editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), previewOpen);
             });
             ((previewButtonElement.disabled = !isAccessAllowed),
               previewGridElement.append(previewButtonElement));
           }
           motionGridElement.append(
             previewGridElement,
-            createElement("p", "i3d-note", "仅预览门扇动作，不控制真实门锁。"),
+            createElement(
+              "p",
+              "i3d-note",
+              isWindowBinding
+                ? "检测到打开时，按绘制的最大开角或滑动行程显示；检测实体不提供实际开角。预览不控制设备。"
+                : "仅预览门扇动作，不控制真实门锁。",
+            ),
           );
         }
         const appearanceSectionElement = createSectionHeading("标签外观"),
@@ -1841,44 +2081,46 @@ export async function openSecurityEditor({
           );
         (appearanceSectionElement.append(appearanceGridElement),
           (currentContainerElement = appearanceGridElement));
-        const iconPickerButtonElement = createButton(
-          selectedItem.icon || "mdi:door-closed",
-          async () => {
-            const iconPickerGeneration = ++pickerGeneration;
-            activePickerHandle?.close();
-            try {
-              const iconPickerHandle = await pickers.icon({
-                trigger: iconPickerButtonElement,
-                current: selectedItem.icon || "mdi:door-closed",
-                deviceKind: "lock",
-                onSelect(pickedIconId: any) {
-                  isDisposed ||
-                    !isAccessAllowed ||
-                    iconPickerGeneration !== pickerGeneration ||
-                    findSelectedItem() !== selectedItem ||
-                    ((selectedItem.icon = pickedIconId || "mdi:door-closed"),
-                    markPropertiesDirty(),
-                    renderPanel());
-                },
-              });
-              isDisposed || iconPickerGeneration !== pickerGeneration
-                ? iconPickerHandle?.close()
-                : (activePickerHandle = iconPickerHandle);
-            } catch (iconPickerError: any) {
-              showError(iconPickerError);
-            }
-          },
-        );
+        const lockDefaultIcon = isWindowBinding ? "mdi:window-closed" : "mdi:door-closed",
+          iconPickerButtonElement = createButton(
+            selectedItem.icon || lockDefaultIcon,
+            async () => {
+              const iconPickerGeneration = ++pickerGeneration;
+              activePickerHandle?.close();
+              try {
+                const iconPickerHandle = await pickers.icon({
+                  trigger: iconPickerButtonElement,
+                  current: selectedItem.icon || lockDefaultIcon,
+                  // 窗户沿用门的图标目录（上游同样没有单独的窗户图标集）。
+                  deviceKind: "lock",
+                  onSelect(pickedIconId: any) {
+                    isDisposed ||
+                      !isAccessAllowed ||
+                      iconPickerGeneration !== pickerGeneration ||
+                      findSelectedItem() !== selectedItem ||
+                      ((selectedItem.icon = pickedIconId || lockDefaultIcon),
+                      markPropertiesDirty(),
+                      renderPanel());
+                  },
+                });
+                isDisposed || iconPickerGeneration !== pickerGeneration
+                  ? iconPickerHandle?.close()
+                  : (activePickerHandle = iconPickerHandle);
+              } catch (iconPickerError: any) {
+                showError(iconPickerError);
+              }
+            },
+          );
         iconPickerButtonElement.className = "i3d-picker-button i3d-icon-picker-button";
         const lockIconMaskElement = createElement("i");
         lockIconMaskElement.setAttribute("aria-hidden", "true");
-        const iconId = selectedItem.icon || "mdi:door-closed";
+        const iconId = selectedItem.icon || lockDefaultIcon;
         ((lockIconMaskElement.style.maskImage =
           "url('/static/vendor/mdi/7.4.47/svg/" + iconId.slice(4) + ".svg')"),
           (lockIconMaskElement.style.webkitMaskImage = lockIconMaskElement.style.maskImage),
           (iconPickerButtonElement.textContent = ""),
           iconPickerButtonElement.append(lockIconMaskElement, createElement("span", "", iconId)),
-          iconPickerButtonElement.setAttribute("aria-label", "门图标"));
+          iconPickerButtonElement.setAttribute("aria-label", isWindowBinding ? "窗户图标" : "门图标"));
         const iconFieldElement = createElement("label");
         iconFieldElement.append(createElement("span", "", "图标"), iconPickerButtonElement);
         const currentLabelMode =
@@ -1983,8 +2225,9 @@ export async function openSecurityEditor({
             0.1,
           ));
         const doorBatchSectionElement = createSectionHeading("批量设置"),
-          doorBatchApplyButtonElement = createButton("一键应用到其他门", () =>
-            openBatchApplyDialog(selectedItem),
+          doorBatchApplyButtonElement = createButton(
+            isWindowBinding ? "一键应用到其他窗户" : "一键应用到其他门",
+            () => openBatchApplyDialog(selectedItem),
           );
         ((doorBatchApplyButtonElement.className = "i3d-batch-apply-button"),
           (doorBatchApplyButtonElement.disabled =
@@ -1996,7 +2239,9 @@ export async function openSecurityEditor({
             createElement(
               "p",
               "i3d-note",
-              "选择外观、高度或兼容门型的动作设置；保留模型、实体、坐标和视角。",
+              isWindowBinding
+                ? "选择标签外观、高度、显示开度或动画时长；保留模型、实体和坐标。"
+                : "选择外观、高度或兼容门型的动作设置；保留模型、实体、坐标和视角。",
             ),
           ));
       }
@@ -2545,7 +2790,10 @@ export async function openSecurityEditor({
             (resetFocusButtonElement.className = "i3d-focus-reset"),
             currentContainerElement.append(resetFocusButtonElement));
         }
-      } else securityKind !== "lock" && currentContainerElement.append(entityPickerButtonElement);
+      } else
+        securityKind !== "lock" &&
+          securityKind !== "window" &&
+          currentContainerElement.append(entityPickerButtonElement);
       if (securityKind === "presence") {
         if (selectedItem.modelId) {
           const waveSectionElement = createSectionHeading("感应光圈");
@@ -2603,6 +2851,7 @@ export async function openSecurityEditor({
           ));
       }
       securityKind !== "lock" &&
+        securityKind !== "window" &&
         createSectionHeading("批量设置").append(
           createButton("一键应用到其他" + getKindLabel(), () => openBatchApplyDialog(selectedItem)),
         );
@@ -2672,16 +2921,18 @@ export async function openSecurityEditor({
           if (!(isDisposed || !isAccessAllowed)) {
             if (editEvent.action === "position") {
               const positionTargetMatch =
-                /^(camera|lock|moisture|smoke|gas):(.+)$/.exec(editEvent.id || "");
+                /^(camera|lock|window|moisture|smoke|gas):(.+)$/.exec(editEvent.id || "");
               const positionKind = positionTargetMatch?.[1] || "";
               const positionTargetList =
                 positionKind === "lock"
                   ? "locks"
-                  : positionKind === "camera"
-                    ? "cameras"
-                    : isAlarmKindValue(positionKind)
-                      ? "alarms"
-                      : "";
+                  : positionKind === "window"
+                    ? "windows"
+                    : positionKind === "camera"
+                      ? "cameras"
+                      : isAlarmKindValue(positionKind)
+                        ? "alarms"
+                        : "";
               const editedPositionItem =
                 positionTargetList &&
                 draftProperties.security[positionTargetList].find(
@@ -2705,7 +2956,7 @@ export async function openSecurityEditor({
             if (
               (editEvent.action === "focus-exited" && ((isCameraEditing = false), renderPanel()),
               editEvent.action === "select" &&
-                /^(camera|presence|lock|moisture|smoke|gas):/.test(editEvent.id || ""))
+                /^(camera|presence|lock|window|moisture|smoke|gas):/.test(editEvent.id || ""))
             ) {
               const separatorIndex = editEvent.id.indexOf(":");
               const nextKind = editEvent.id.slice(0, separatorIndex);
@@ -2719,9 +2970,12 @@ export async function openSecurityEditor({
               )
                 return;
               const previewCollectionKey =
-                  ({ camera: "cameras", presence: "presenceSensors", lock: "locks" } as any)[
-                    nextKind
-                  ] || "alarms",
+                  ({
+                    camera: "cameras",
+                    presence: "presenceSensors",
+                    lock: "locks",
+                    window: "windows",
+                  } as any)[nextKind] || "alarms",
                 previewTargetList = draftProperties.security?.[previewCollectionKey] || [];
               if (
                 editEvent.previewReference === true &&

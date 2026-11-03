@@ -1,5 +1,64 @@
 import { entityPowerIsOn, entityToggleCommand } from "./entity-power";
 const switchDomainSet = new Set(["switch", "input_boolean", "light", "fan"]);
+
+/** 情景动作的去重 / 订阅总线：同一个控件连点只发一条命令，弹窗里同键的开关同步 pending。 */
+export function createSceneActionRequests() {
+  const pendingByKey = new Map<string, object>(),
+    subscribersByKey = new Map<string, Set<(state: any) => void>>();
+  let disposed = false;
+  const publish = (actionKey: string, actionState: any) => {
+    for (const subscriber of subscribersByKey.get(actionKey) || []) subscriber(actionState);
+  };
+  return {
+    isPending: (actionKey: string) => pendingByKey.has(actionKey),
+    subscribe(actionKey: string, subscriber: (state: any) => void) {
+      if (disposed) return () => {};
+      subscribersByKey.has(actionKey) || subscribersByKey.set(actionKey, new Set());
+      const subscriberSet = subscribersByKey.get(actionKey)!;
+      return (
+        subscriberSet.add(subscriber),
+        () => {
+          (subscriberSet.delete(subscriber),
+            !subscriberSet.size &&
+              subscribersByKey.get(actionKey) === subscriberSet &&
+              subscribersByKey.delete(actionKey));
+        }
+      );
+    },
+    run(actionKey: string, actionCommand: () => any) {
+      if (disposed || pendingByKey.has(actionKey)) return null;
+      const actionToken = {};
+      (pendingByKey.set(actionKey, actionToken), publish(actionKey, { pending: true, error: null }));
+      const settleAction = (actionError: any) => {
+        disposed ||
+          pendingByKey.get(actionKey) !== actionToken ||
+          (pendingByKey.delete(actionKey), publish(actionKey, { pending: false, error: actionError }));
+      };
+      let actionPromise: Promise<any>;
+      try {
+        actionPromise = Promise.resolve(actionCommand());
+      } catch (actionError) {
+        actionPromise = Promise.reject(actionError);
+      }
+      return actionPromise.then(
+        (actionResult) => (settleAction(null), actionResult),
+        (actionError) => {
+          throw (settleAction(actionError), actionError);
+        },
+      );
+    },
+    retain(activeKeys: Iterable<string>) {
+      const activeKeySet = new Set(activeKeys);
+      for (const pendingKey of pendingByKey.keys())
+        activeKeySet.has(pendingKey) || pendingByKey.delete(pendingKey);
+      for (const subscriberKey of subscribersByKey.keys())
+        activeKeySet.has(subscriberKey) || subscribersByKey.delete(subscriberKey);
+    },
+    dispose() {
+      ((disposed = true), pendingByKey.clear(), subscribersByKey.clear());
+    },
+  };
+}
 export function resolveSceneControlMode(controlMode: any, entityId = "") {
   return ["switch", "scene"].includes(controlMode)
     ? controlMode
@@ -46,7 +105,10 @@ function sceneModeCommand(
 export function bindSceneMode(hostElement: any, navigationElement: any, component: any, sceneRuntime: any) {
   const componentProperties = component.properties || {},
     boundEntityId = component.bindings?.entity?.entityId || "",
-    resolvedControlMode = resolveSceneControlMode(componentProperties.controlMode, boundEntityId);
+    resolvedControlMode = resolveSceneControlMode(componentProperties.controlMode, boundEntityId),
+    // 0.8.4：情景控件当「弹窗入口」用时，外观与交互都要让读屏 / 键盘知道点开的是弹窗。
+    isPopupEntrance =
+      componentProperties.popupEnabled === true && typeof sceneRuntime.openScenePopup == "function";
   let boundEntityState = sceneRuntime.states?.get(boundEntityId),
     previewState = sceneRuntime.previewState || "auto",
     isBusy = false,
@@ -54,6 +116,10 @@ export function bindSceneMode(hostElement: any, navigationElement: any, componen
     errorText = "",
     isDisposed = false,
     timeoutId: any = null;
+  const sceneActionRequests = sceneRuntime.sceneActionRequests,
+    sceneActionKey = sceneRuntime.sceneActionKey,
+    isActionPending = () =>
+      isDisposed || (sceneActionKey ? !!sceneActionRequests?.isPending(sceneActionKey) : isBusy);
   const runningAnimationSet = new Set<Animation>(),
     clampUnitValue = (opacityValue: any, fallbackOpacity: any) =>
       Number.isFinite(Number(opacityValue))
@@ -92,12 +158,23 @@ export function bindSceneMode(hostElement: any, navigationElement: any, componen
           ? "on"
           : "off"
         : "unavailable"),
-      hostElement.setAttribute("aria-busy", String(isBusy)),
+      hostElement.setAttribute("aria-busy", String(isActionPending())),
       hostElement.setAttribute(
         "aria-disabled",
-        String(!currentSceneState.available || isBusy || !!sceneRuntime.editable),
+        String(!currentSceneState.available || isActionPending() || !!sceneRuntime.editable),
       ),
-      (hostElement.tabIndex = sceneRuntime.editable || !currentSceneState.available ? -1 : 0),
+      (hostElement.tabIndex = isPopupEntrance
+        ? sceneRuntime.editable
+          ? -1
+          : 0
+        : sceneRuntime.editable || !currentSceneState.available
+          ? -1
+          : 0),
+      isPopupEntrance
+        ? (hostElement.classList.add("is-popup-entrance"),
+          hostElement.setAttribute("aria-haspopup", "dialog"))
+        : (hostElement.classList.remove("is-popup-entrance"),
+          hostElement.removeAttribute("aria-haspopup")),
       currentSceneState.momentary
         ? hostElement.removeAttribute("aria-pressed")
         : hostElement.setAttribute("aria-pressed", String(currentSceneState.active)),
@@ -111,7 +188,14 @@ export function bindSceneMode(hostElement: any, navigationElement: any, componen
           ? currentSceneState.available
             ? ""
             : "关联实体不可用"
-          : "请在编辑器中绑定实体")));
+          : "请在编辑器中绑定实体")),
+      sceneRuntime.onSceneStateChange?.({
+        state: currentSceneState,
+        active: isActive,
+        pending: isActionPending(),
+        flash: isPulseActive,
+        errorMessage: errorText,
+      }));
   }
   function playActivationAnimation() {
     if (!isAnimationEnabled || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
@@ -154,7 +238,15 @@ export function bindSceneMode(hostElement: any, navigationElement: any, componen
         .finally(() => runningAnimationSet.delete(iconAnimation)));
   }
   async function handleSceneModeClick(clickEvent: any) {
-    if (!sceneRuntime.editable && (clickEvent?.stopPropagation(), !(isBusy || isDisposed)))
+    if (
+      !sceneRuntime.editable &&
+      componentProperties.popupEnabled === true &&
+      sceneRuntime.openScenePopup
+    ) {
+      (clickEvent?.stopPropagation(), sceneRuntime.openScenePopup(component));
+      return;
+    }
+    if (!sceneRuntime.editable && (clickEvent?.stopPropagation(), !(isActionPending() || isDisposed)))
       try {
         const sceneCommand = sceneModeCommand(boundEntityId, boundEntityState, resolvedControlMode);
         if (
@@ -165,12 +257,21 @@ export function bindSceneMode(hostElement: any, navigationElement: any, componen
           hostElement.classList.remove("is-error"),
           syncSceneModeUi(),
           playActivationAnimation(),
-          await sceneRuntime.callEntityService(
-            sceneCommand.domain,
-            sceneCommand.service,
-            sceneCommand.entityId,
-            sceneCommand.data || {},
-          ),
+          await (sceneActionRequests && sceneActionKey
+            ? sceneActionRequests.run(sceneActionKey, () =>
+                sceneRuntime.callEntityService(
+                  sceneCommand.domain,
+                  sceneCommand.service,
+                  sceneCommand.entityId,
+                  sceneCommand.data || {},
+                ),
+              )
+            : sceneRuntime.callEntityService(
+                sceneCommand.domain,
+                sceneCommand.service,
+                sceneCommand.entityId,
+                sceneCommand.data || {},
+              )),
           isDisposed)
         )
           return;
@@ -190,12 +291,21 @@ export function bindSceneMode(hostElement: any, navigationElement: any, componen
       }
   }
   hostElement.addEventListener("click", handleSceneModeClick);
+  const sceneActionUnsubscribe =
+    sceneActionRequests && sceneActionKey
+      ? sceneActionRequests.subscribe(sceneActionKey, (actionState: any) => {
+          isDisposed ||
+            ((errorText = actionState.error?.message || ""),
+            hostElement.classList.toggle("is-error", !!actionState.error),
+            syncSceneModeUi());
+        })
+      : null;
   const sceneModeController = {
     update(nextEntityState: any, nextPreviewState = previewState) {
       ((boundEntityState = nextEntityState), (previewState = nextPreviewState), syncSceneModeUi());
     },
     destroy() {
-      ((isDisposed = true), clearTimeout(timeoutId));
+      ((isDisposed = true), sceneActionUnsubscribe?.(), clearTimeout(timeoutId));
       for (const activeAnimation of runningAnimationSet) activeAnimation.cancel();
       (runningAnimationSet.clear(), hostElement.removeEventListener("click", handleSceneModeClick));
     },

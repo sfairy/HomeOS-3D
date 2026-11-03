@@ -275,6 +275,7 @@ import { defaultViewSettings } from "../scene/studio-view-settings";
 window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 import { bindToolOptionWiring } from "./ui/tool-option-wiring";
+import { bindWindowDesignerWiring } from "./ui/window-designer-wiring";
 import { bindAutoDiagramMessages } from "./runtime/auto-diagram-messages";
 import { bindExportDialogWiring } from "./ui/export-dialog-wiring";
 import { bindModelDragDrop } from "./ui/model-drag-drop";
@@ -3616,6 +3617,10 @@ bindToolOptionWiring({
   resolvePreviewScope, saveCurrentItemMaterialStyle, selectElement, selectedMaterialEditTarget,
   selectionInspectorElement, setItemMaterialOverride, setItemMaterialStyle, setItemMaterialSurfaceOverride,
   shoeCabinetMirrorButton, syncHtmlRangeProgress2, toggleInspectorGroup
+});
+bindWindowDesignerWiring({
+  appCtx, applyPlacementChange, backgroundSettings, captureUndoSnapshot, getActiveFloor, getPixelsPerMeter,
+  getSelectedObject, isEmbeddedStage, markDocumentDirty, refreshScopeItems, selectElement, showToast
 });
 for (const rotateControlButton of document.querySelectorAll<StudioControlElement>("[data-rotate]"))
   rotateControlButton.addEventListener("click", () => {

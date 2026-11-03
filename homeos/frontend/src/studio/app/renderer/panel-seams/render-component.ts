@@ -4,6 +4,8 @@ import { componentHostZIndex as componentHostZIndex2, effectCropRectangle as eff
 import { componentSupportsAction } from "../renderer-helpers";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { renderAirConditionerAirflowLayer as renderAirConditionerAirflowLayer2, renderIconButtonEffectLayer as renderIconButtonEffectLayer2, renderRegisteredComponent as renderRegisteredComponent2 } from "../registry";
+import { weatherActionComponent } from "../weather-forecast";
+import { createSceneActionRequests } from "../scene-mode";
 
 export function renderComponent(this: PanelRenderer, 
     renderComponentRecord: any,
@@ -169,6 +171,8 @@ export function renderComponent(this: PanelRenderer,
       navigate: (componentNavigationPath: any) => this.navigate(componentNavigationPath),
       callEntityService: (...serviceCallParameters: [any, any, any, any?]) =>
         this.callEntityService(...serviceCallParameters),
+      sceneActionRequests: (this.sceneActionRequests ||= createSceneActionRequests()),
+      openScenePopup: (scenePopupRecord: any) => this.showScenePopup(scenePopupRecord),
       openCameraPreview: (cameraPreviewComponent: any, cameraPreviewWidth: any, cameraPreviewHeight: any) =>
         this.openInteraction3dCameraPreview(
           cameraPreviewComponent,
@@ -519,7 +523,9 @@ export function renderComponent(this: PanelRenderer,
                   ...(renderComponentRecord.actions || {}),
                 },
               }
-            : renderComponentRecord;
+            : renderComponentRecord.type === "weather"
+              ? weatherActionComponent(renderComponentRecord)
+              : renderComponentRecord;
       if (
         (renderComponentRecord.type === "light-statistics" &&
           componentHostElement.classList.add("hb-runtime-fitted-hit-area"),

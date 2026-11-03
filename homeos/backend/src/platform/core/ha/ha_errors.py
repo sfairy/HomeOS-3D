@@ -98,3 +98,18 @@ def history_fetch_failed(detail: object) -> str:
 def screen_state_unavailable(device_name: str) -> str:
     """交互大屏上的设备面板：实体状态不可用时给用户的话（各面板共用同一句）。"""
     return f'{device_name}状态暂不可用，请等待设备重新连接。'
+
+
+def forecast_missing() -> str:
+    """天气预报：实体已不存在（被删除或改名）。"""
+    return '天气实体当前不存在。'
+
+
+def forecast_invalid() -> str:
+    """天气预报：HA 返回的结构不是预期格式。"""
+    return '天气实体属性格式无效。'
+
+
+def forecast_unavailable() -> str:
+    """天气预报：服务调用成功但没带回 ``forecast`` 数组。"""
+    return 'Home Assistant 未返回有效的天气预报。'

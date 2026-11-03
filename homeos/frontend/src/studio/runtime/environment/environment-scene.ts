@@ -438,7 +438,12 @@ export function createEnvironmentScene({
         bindingsByModelKey.has(modelKey) || bindingsByModelKey.set(modelKey, pageBinding);
       }
     for (const meshEntry of list) {
-      const bindingForEntry = bindingsByModelKey.get(meshEntry.modelKey);
+      // 新 id 找不到时退到历史 id：老配置的材质/状态绑定不会因为窗扇 id 升级而失效。
+      const bindingForEntry =
+        bindingsByModelKey.get(meshEntry.modelKey) ||
+        (meshEntry.legacyModelKey != null
+          ? bindingsByModelKey.get(meshEntry.legacyModelKey)
+          : undefined);
       if (bindingForEntry) {
         const appliedMaterials = toArray(meshEntry.original).map((mappedMaterial) =>
           resolveVariantMaterial(mappedMaterial, bindingForEntry),
@@ -575,13 +580,21 @@ export function createEnvironmentScene({
         if (["background", "grid"].includes(exportRoleNode.userData?.exportRole)) return;
         if (exportRoleNode === value) break;
       }
-      let foundModelId, foundFloorId, modelNode;
+      let foundModelId, foundFloorId, foundLegacyModelId, modelNode;
       for (
         let ancestorNode = node;
         ancestorNode &&
         (foundModelId == null &&
           ancestorNode.userData?.environmentModelId != null &&
           ((foundModelId = ancestorNode.userData.environmentModelId), (modelNode = ancestorNode)),
+        // 0.8.4：窗扇模型 id 从 `<windowId>` 变成 `window:<windowId>:<sashId>` 后，
+        // 老配置里按旧 id 存的材质绑定还要能找到同一扇窗，否则改一次窗型材质全丢。
+        foundLegacyModelId == null &&
+          (ancestorNode.userData?.environmentLegacyModelId ??
+            ancestorNode.userData?.windowLegacyModelId) &&
+          (foundLegacyModelId =
+            ancestorNode.userData.environmentLegacyModelId ??
+            ancestorNode.userData.windowLegacyModelId),
         foundFloorId == null &&
           ancestorNode.userData?.environmentFloorId != null &&
           (foundFloorId = ancestorNode.userData.environmentFloorId),
@@ -604,6 +617,8 @@ export function createEnvironmentScene({
       ((materialEntry.modelNode = modelNode),
         (materialEntry.modelKey =
           foundModelId == null ? null : composeScopeKey(foundFloorId, foundModelId)),
+        (materialEntry.legacyModelKey =
+          foundLegacyModelId == null ? null : composeScopeKey(foundFloorId, foundLegacyModelId)),
         nextMeshEntries.push(materialEntry),
         entriesByMesh.delete(node));
       for (const entryOriginalMaterial of toArray(original))

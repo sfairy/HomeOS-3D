@@ -177,6 +177,16 @@
                                 data-navigation-preview="on">选择后</button> </div>
                     </div>
                 </section>
+                <section id="scene-popup-settings" class="inspector-section" hidden>
+                    <h3>控件模式</h3>
+                    <div id="scene-popup-mode" class="navigation-segmented-options" role="group"
+                        aria-label="情景控件模式">
+                        <button type="button" data-scene-popup-enabled="false" aria-pressed="true">单个实体</button>
+                        <button type="button" data-scene-popup-enabled="true" aria-pressed="false">弹窗模式</button>
+                    </div>
+                    <button id="scene-popup-contents" type="button" hidden>设置弹窗内容 →</button>
+                    <p id="scene-popup-hint" class="scene-mode-hint" hidden>单个实体设置不参与控制，原配置保留。</p>
+                </section>
                 <section id="scene-mode-settings" class="inspector-section" hidden>
                     <h3>控制模式</h3>
                     <div id="scene-mode-control" class="navigation-segmented-options" role="group" aria-label="控制模式">

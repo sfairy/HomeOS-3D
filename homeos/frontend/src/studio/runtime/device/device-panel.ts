@@ -6,6 +6,8 @@ import { genericDeviceProfile } from "./generic-device-catalog";
 import { resolveFridgeOpenings } from "./fridge-openings";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 import { createPopupFeedback } from "@app/shared/util/popup-feedback";
+import { gameConsoleState, isGameConsoleKind } from "./game-console-state";
+import { createGameConsoleMain } from "./game-console-panel";
 /** 电源指令等待 HA 回执的上限；超时给出「设备未响应」。 */
 const POWER_RESPONSE_TIMEOUT_MS = 14_000;
 export function createDevicePanel({ onControl: onControl, onLayout: onLayout = () => {} }: any) {
@@ -42,9 +44,12 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
     (badgeElement.hidden = true),
     headingTextElement.append(titleElement, statusElement),
     headingElement.append(headingTextElement, badgeElement, powerButton, deviceVisual.root));
+  // 游戏机主屏（0.8.4）：封面 / 账号 / 唤醒休眠 / 选源，只有主机类设备才显示。
+  const gameMainElement = document.createElement("div");
+  (gameMainElement.className = "i3d-game-main"), (gameMainElement.hidden = true);
   const bodyElement = document.createElement("div");
   ((bodyElement.className = "i3d-popup-body"),
-    bodyElement.append(extraGridElement, extraErrorElement, hintElement),
+    bodyElement.append(gameMainElement, extraGridElement, hintElement),
     rootElement.append(headingElement, bodyElement));
   // 电源键失败/超时提示统一走弹窗反馈聚合区（0.7.8 `device-panel.js`）。
   const feedbackSlot = createPopupFeedback({ element: rootElement }),
@@ -52,6 +57,7 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
       source: "power",
       label: () => titleElement.textContent || "",
     });
+  let gameConsoleMain: any = null;
   const purifierExtras = createPurifierExtras({
     element: extraGridElement,
     feedbackSlot,
@@ -147,6 +153,27 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
         clearPowerRequest(),
         (extraErrorElement.textContent = ""));
       refreshPower();
+      // 游戏机：惰性建主屏（只为主机类设备付这份开销），状态行改用它归一后的 label / 颜色。
+      const isGameConsole = isGameConsoleKind(incomingState.item.deviceKind);
+      (gameMainElement.hidden = !isGameConsole),
+        isGameConsole
+          ? ((gameConsoleMain ||= createGameConsoleMain({
+              element: gameMainElement,
+              feedbackSlot: feedbackSlot,
+              onControl: onControl,
+            })),
+            gameConsoleMain.update(incomingState),
+            gameConsoleMain.setVisible(true))
+          : gameConsoleMain?.setVisible(false);
+      if (isGameConsole) {
+        const gameConsoleView = gameConsoleState(incomingState.item, incomingState.states);
+        ((statusElement.hidden = false),
+          (statusElement.textContent = gameConsoleView.label),
+          (statusElement.style.color = gameConsoleView.color),
+          (hintElement.hidden = true));
+      }
+      ((titleElement.title = titleElement.textContent || ""),
+        (statusElement.title = statusElement.textContent || ""));
       titleElement.textContent =
         incomingState.item.label ||
         incomingState.item.deviceName ||
@@ -196,14 +223,23 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
           : null,
       });
     },
+    setVisible(nextVisible: any) {
+      (purifierExtras.setVisible?.(nextVisible),
+        gameConsoleMain?.setVisible(!!nextVisible && !gameMainElement.hidden));
+    },
+    clearFeedback() {
+      feedbackSlot.clear();
+    },
     dispose() {
-      (isDisposed = true),
+      isDisposed ||
+        ((isDisposed = true),
         clearTimeout(powerTimer),
+        gameConsoleMain?.dispose(),
         releaseExtraError(),
         feedbackSlot.dispose(),
         purifierExtras.dispose(),
         deviceVisual.dispose(),
-        rootElement.remove();
+        rootElement.remove());
     },
   };
 }

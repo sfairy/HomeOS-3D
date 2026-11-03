@@ -399,3 +399,10 @@
     )
   );
 }
+
+/* ---- 0.8.4 选择器级补丁 ---- */
+.i3d-cover-panel:is(.is-control-only-airer, .is-control-only-window) .i3d-cover-controls-slot { height:60px }
+.i3d-cover-panel:is(.is-control-only-airer, .is-control-only-window) .hb-cover-details-controls { grid-template-rows:auto;gap:0 }
+.i3d-cover-panel output.is-remembered { white-space:pre-line;font-size:14px;line-height:1.2 }
+.interaction3d-stage .i3d-light-panel.is-cover-panel.is-window-opener-panel { min-height:0;max-height:var(--i3d-control-max-height,calc((100% - 24px) / var(--i3d-control-scale,2))) }
+.is-window-opener-panel>.i3d-cover-panel { height:auto }

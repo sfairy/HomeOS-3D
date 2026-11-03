@@ -1,4 +1,5 @@
 @import "./percentage-bar.css";
+@import "./scene-popup.css";
 .hb-renderer-viewport {
   position: relative;
   flex: none;
@@ -12880,3 +12881,116 @@
   border-style: dashed;
   border-color: rgba(147, 197, 253, 0.4);
 }
+
+/* 0.8.4 天气预报弹窗（从 renderer.css 按选择器合并） */
+.hb-entity-details-dialog.weather-details {--wf-ink:#f4f5f6;--wf-copy:#bdc6cc;--wf-muted:#85929b;--wf-low:#9eacb7;--wf-edge:rgba(160,170,178,.56);--wf-rule:rgba(146,164,174,.095);--wf-track:rgba(141,159,171,.095);--wf-range-low:#9fbb9c;--wf-range-high:#d5bd82;--wf-tab-track:rgba(2,7,11,.22);--wf-selected:#303b44;--wf-chart:#bdc69d;--wf-panel:linear-gradient(145deg,#1b2228 0%,#12181d 48%,#0d1216 100%);width:760px;border-color:var(--wf-edge);border-radius:22px;color:var(--wf-ink);background:var(--wf-panel);box-shadow:0 30px 90px #000b,inset 0 1px #e2eaef13;font-family:Helvetica Neue,PingFang SC,Microsoft YaHei,sans-serif;font-weight:400;color-scheme:dark}
+.hb-entity-details-dialog.weather-details[data-weather-theme=warm-wood] {--wf-ink:#3d3b35;--wf-copy:#65665d;--wf-muted:#777a70;--wf-low:#747e76;--wf-edge:rgba(132,120,100,.3);--wf-rule:rgba(118,107,86,.12);--wf-track:rgba(134,143,120,.15);--wf-range-low:#8e9f7a;--wf-range-high:#bd9e62;--wf-tab-track:rgba(133,120,93,.06);--wf-selected:#e6e2d7;--wf-chart:#8c9c70;--wf-panel:linear-gradient(145deg,#fdfbf6 0%,#f7f3eb 48%,#efe9df 100%);box-shadow:0 30px 90px #41351f36,inset 0 1px #fffd;color-scheme:light}
+.hb-renderer-runtime-dialog-layer[data-weather-theme=warm-wood] {background:#322b1f3b;animation:none}
+.hb-weather-forecast-card {height:538px;min-height:538px;display:flex;flex-direction:column;padding:28px 50px 22px;box-sizing:border-box;overflow:hidden}
+.hb-weather-forecast-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:20px;min-height:82px;flex:none}
+.hb-weather-forecast-heading>div:first-child {display:grid;min-width:0;gap:8px}
+.hb-weather-forecast-heading>div:first-child>strong {font-size:34px;font-weight:680;letter-spacing:.025em}
+.hb-weather-forecast-heading>div:first-child>span {font-size:17px;color:var(--wf-muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.hb-weather-forecast-current {display:flex;flex:none;align-items:center;gap:16px;padding-top:12px}
+.hb-weather-forecast-current strong {font-size:52px;font-weight:300;letter-spacing:-.035em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hb-weather-forecast-icon {display:block;width:34px;height:34px;flex:none;object-fit:contain}
+.hb-weather-forecast-current .hb-weather-forecast-icon {width:64px;height:64px}
+.hb-weather-forecast-hint {flex:none;margin:4px 0 22px;color:var(--wf-copy);font-size:16px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-weather-forecast-toolbar {display:flex;align-items:center;justify-content:space-between;flex:none;gap:12px;margin-bottom:12px}
+.hb-weather-forecast-toolbar>span {font-size:14px;color:var(--wf-muted)}
+.hb-weather-forecast-tabs {display:flex;gap:3px;padding:3px;border:1px solid var(--wf-rule);border-radius:12px;background:var(--wf-tab-track)}
+.hb-weather-forecast-tabs button {padding:8px 18px;border:0;border-radius:8px;font-family:inherit;font-size:16px;font-weight:400;line-height:1.2;color:var(--wf-muted);background:transparent;cursor:pointer}
+.hb-weather-forecast-tabs button[aria-selected=true] {color:var(--wf-ink);background:var(--wf-selected)}
+.hb-weather-forecast-body {flex:1;min-height:0}
+.hb-weather-forecast-days {height:100%;display:grid;grid-template-rows:repeat(5,minmax(0,1fr))}
+.hb-weather-forecast-day {display:grid;grid-template-columns:1fr 1.55fr 3fr .7fr;gap:14px;align-items:center;min-height:0;border-bottom:1px solid var(--wf-rule)}
+.hb-weather-forecast-day:last-child {border-bottom:0}
+.hb-weather-forecast-date {display:grid;gap:2px;white-space:nowrap}
+.hb-weather-forecast-date strong {font-size:18px;font-weight:500}
+.hb-weather-forecast-date small {color:var(--wf-muted);font-size:12px}
+.hb-weather-forecast-condition {display:flex;align-items:center;gap:10px;color:var(--wf-copy);font-size:17px;white-space:nowrap}
+.hb-weather-forecast-temperatures {display:grid;grid-template-columns:58px 1fr 58px;align-items:center;gap:12px;text-align:right;font-size:20px;font-variant-numeric:tabular-nums}
+.hb-weather-forecast-low {color:var(--wf-low)}
+.hb-weather-forecast-range {height:5px;border-radius:10px;background:var(--wf-track);position:relative}
+.hb-weather-forecast-range i {position:absolute;top:0;bottom:0;border-radius:inherit;background:linear-gradient(90deg,var(--wf-range-low),var(--wf-range-high))}
+.hb-weather-forecast-rain {color:var(--wf-muted);text-align:right;white-space:nowrap;font-size:14px}
+.hb-weather-forecast-footer {display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:26px;margin-top:12px;flex:none;color:var(--wf-muted);font-size:12px}
+.hb-weather-forecast-footer>div {display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums}
+.hb-weather-forecast-footer button {width:30px;height:28px;padding:0;border:1px solid var(--wf-rule);border-radius:8px;color:var(--wf-copy);background:var(--wf-tab-track);font:20px/1 sans-serif;cursor:pointer}
+.hb-weather-forecast-footer button:disabled {opacity:.3;cursor:default}
+.hb-weather-forecast-feedback {flex:1;display:grid;place-content:center;justify-items:center;gap:18px;font-size:18px;color:var(--wf-copy);text-align:center}
+.hb-weather-forecast-feedback p {margin:0;max-width:580px;overflow-wrap:anywhere}
+.hb-weather-forecast-feedback button {border:1px solid var(--wf-edge);border-radius:10px;padding:9px 24px;font:16px sans-serif;color:var(--wf-ink);background:var(--wf-tab-track);cursor:pointer}
+.hb-weather-forecast-hours {display:flex;height:100%;flex-direction:column}
+.hb-weather-forecast-hour-heading {flex:none;margin:0;color:var(--wf-muted);font-size:14px}
+.hb-weather-forecast-plot {flex:1;min-height:0}
+.hb-weather-forecast-plot svg {width:100%;height:100%;display:block;overflow:visible}
+.hb-weather-forecast-plot text {fill:var(--wf-copy);font:17px sans-serif}
+.hb-weather-forecast-hour-labels {flex:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.hb-weather-forecast-hour-labels button {display:grid;justify-items:center;gap:6px;padding:7px 0;border:0;border-radius:8px;color:var(--wf-muted);background:transparent;font:14px sans-serif;cursor:pointer}
+.hb-weather-forecast-hour-labels button[aria-pressed=true] {color:var(--wf-ink);background:var(--wf-track)}
+.hb-weather-forecast-hour-labels .hb-weather-forecast-icon {width:26px;height:26px}
+.hb-weather-forecast-hour-detail {min-height:20px;flex:none;margin:8px 0 0;color:var(--wf-copy);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px) {
+  .hb-weather-forecast-card {padding:26px 30px 20px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-heading {min-height:68px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-heading>div:first-child>strong {font-size:max(34px,calc(16px / var(--hb-runtime-dialog-scale,1)))}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-heading>div:first-child>span,.hb-weather-forecast-hint,.hb-weather-forecast-current .hb-weather-forecast-icon,.hb-weather-forecast-toolbar>span {display:none}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-current {padding-top:0}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-toolbar {margin-bottom:8px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-tabs button {font-size:max(28px,calc(11px / var(--hb-runtime-dialog-scale,1)));padding:8px 18px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-day {grid-template-columns:1fr 70px 2fr;gap:16px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-date strong,.hb-weather-forecast-temperatures {font-size:max(28px,calc(11px / var(--hb-runtime-dialog-scale,1)))}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-date small,.hb-weather-forecast-condition span,.hb-weather-forecast-rain,.hb-weather-forecast-range {display:none}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-condition .hb-weather-forecast-icon {width:48px;height:48px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-temperatures {grid-template-columns:1fr 1fr;gap:24px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-footer {font-size:max(24px,calc(11px / var(--hb-runtime-dialog-scale,1)));min-height:30px;margin-top:8px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-footer>div {gap:10px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-footer button {width:42px;height:42px;font-size:34px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-hour-heading,.hb-weather-forecast-hour-detail {display:none}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-hour-labels button {font-size:max(25px,calc(11px / var(--hb-runtime-dialog-scale,1)));gap:4px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-hour-labels .hb-weather-forecast-icon {width:40px;height:40px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-plot text {font-size:24px}
+}
+@media (max-width:600px) {
+  .hb-weather-forecast-feedback,.hb-weather-forecast-feedback button {font-size:max(28px,calc(11px / var(--hb-runtime-dialog-scale,1)))}
+}
+
+/* ---- 0.8.4 选择器级补丁 ---- */
+#weather-forecast-section .inspector-hint { color:var(--muted,#87949d);font-size:12px;line-height:1.6;margin:10px 0 0 }

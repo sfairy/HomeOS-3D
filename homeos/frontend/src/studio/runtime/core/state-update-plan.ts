@@ -39,11 +39,12 @@ const ENVIRONMENT_COLLECTIONS = [
   "waterHeaters",
   "airers",
   "curtains",
+  "windowOpeners",
   "curtainGroups",
   "temperatureHumidity",
 ];
 
-const SECURITY_COLLECTIONS = ["cameras", "locks", "alarms"];
+const SECURITY_COLLECTIONS = ["cameras", "locks", "windows", "alarms"];
 
 /** 补丁允许落在哪些集合上。集合名来自 `devices/<collection>` 与通用设备档案。 */
 const LABEL_COLLECTIONS = new Set([

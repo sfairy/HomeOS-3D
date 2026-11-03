@@ -28,6 +28,7 @@ from .service_support import (
     LOGGER,
     TRANSLATION_CACHE_SECONDS,
 )
+from ...weather.forecast import read_weather_forecast
 from ....platform.core.db.models import HAConnection
 
 
@@ -276,6 +277,18 @@ class HAEndpointMixin(HAConnectorHost):
         except (TypeError, ValueError):
             max_size = 300
         return ttl_seconds, max_size
+
+    async def fetch_weather_forecast(
+        self, connection: HAConnection, entity_id: str, forecast_type: str
+    ) -> dict[str, Any]:
+        """读取天气预报；**不缓存**（预报的有效期由 HA 侧决定，缓存只会返回过期天气）。
+
+        超时交给 ``HAClient`` 的统一控制超时：``weather.get_forecasts`` 是只读服务，
+        但第三方集成在冷启动时可能卡十几秒，这里不再叠加额外的重试。
+        """
+        return await read_weather_forecast(
+            await self.client_for(connection), entity_id, forecast_type
+        )
 
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
         """限制并短暂缓存历史数据读取，避免图表大量并发请求 HA。"""

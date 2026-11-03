@@ -3,6 +3,7 @@ import {
   isCourtyardGate,
   syncCourtyardGates,
 } from "../../plan/courtyard-drawing";
+import { windowTopologyError } from "../../plan/window/window-scene-guard";
 import { exhaustFanInstallation } from "./studio-exhaust-fan";
 const overlapEpsilon = 0.001,
   overlapLength = (startA: any, endA: any, startB: any, endB: any) => Math.min(endA, endB) - Math.max(startA, startB);
@@ -244,6 +245,15 @@ export function restorePlacementScene(targetScene: any, sourceScene: any) {
 }
 export function validatePlacementChange(savedScene: any, draftScene: any, changePpm = 100) {
   syncCourtyardGates(draftScene.items || [], changePpm);
+  /**
+   * 自定义窗型的窗格必须还落在墙体洞口里：改墙高 / 墙长 / 窗宽高时如果越界，
+   * 画面上会漏出窗框穿墙，所以和「洞口重叠」一样按一次失败处理并整体回滚。
+   */
+  const windowLayoutError = windowTopologyError(savedScene, draftScene, changePpm);
+  if (windowLayoutError) {
+    restorePlacementScene(draftScene, savedScene);
+    return windowLayoutError;
+  }
   const conflictMessage = placementConflict(savedScene, draftScene, changePpm);
   return (conflictMessage && restorePlacementScene(draftScene, savedScene), conflictMessage);
 }

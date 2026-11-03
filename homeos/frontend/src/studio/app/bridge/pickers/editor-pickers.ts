@@ -137,6 +137,10 @@ const ENTITY_PICKER_DEVICE_WORDING: Readonly<
     title: "选择晾衣架升降实体",
     emptyText: "没有匹配的晾衣架升降实体，请检查 cover 实体及搜索条件",
   },
+  "window-opener": {
+    title: "选择开窗器实体",
+    emptyText: "没有匹配的开窗器，请检查 cover 实体及搜索条件",
+  },
   "water-heater": {
     title: "选择热水器实体",
     emptyText: "没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备",
@@ -844,9 +848,11 @@ export function createInteraction3dEditorPickers({
                         ? "mdi:robot-vacuum"
                         : resolvedDeviceKind === "television"
                           ? "mdi:television"
-                          : resolvedDeviceKind === "nas"
-                            ? "mdi:nas"
-                            : resolvedDeviceKind === "cover"
+                            : resolvedDeviceKind === "nas"
+                              ? "mdi:nas"
+                              : resolvedDeviceKind === "window-opener"
+                                ? "mdi:window-open"
+                              : resolvedDeviceKind === "cover"
                               ? "mdi:curtains"
                               : resolvedDeviceKind === "climate"
                                 ? "mdi:air-conditioner"
@@ -874,6 +880,8 @@ export function createInteraction3dEditorPickers({
                             ? "选择电视按钮图标"
                             : resolvedDeviceKind === "nas"
                               ? "选择NAS按钮图标"
+                              : resolvedDeviceKind === "window-opener"
+                                ? "选择开窗器按钮图标"
                               : resolvedDeviceKind === "cover"
                                 ? "选择窗帘按钮图标"
                                 : resolvedDeviceKind === "climate"

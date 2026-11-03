@@ -6,7 +6,7 @@ import {
   GO2RTC_TRANSPORT_NAME,
   type Go2RtcMseTransportHandle,
 } from "@/shared/camera/composables/useGo2RtcMseTransport";
-import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle } from "@/shared/camera/hls-loader";
+import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativeHls } from "@/shared/camera/hls-loader";
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from "./_shared";
 import { cameraStreamBudget, withCameraHttpSlot } from "@runtime/camera/camera-budget";
 import { createCameraMjpegStream } from "@runtime/camera/camera-mjpeg";
@@ -660,7 +660,11 @@ export function mountCameraMedia({
 
   const startHlsPlayback = async (playbackGeneration: number) => {
     // hls.js 脚本按需加载：与流地址换票并行启动，避免首帧多等一个 RTT；失败时按原逻辑走快照/MJPEG。
-    const hlsRuntimePromise = ensureHls();
+    // 0.8.4：原生能播 HLS 的浏览器（Safari / iOS）直接走 `<video src>`，不加载播放器脚本。
+    const supportsNativeHls = canPlayNativeHls(cameraVideoElement);
+    const hlsRuntimePromise = supportsNativeHls
+      ? Promise.resolve(null as HlsRuntime | null)
+      : ensureHls();
     try {
       const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId);
       if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration) return;
@@ -753,9 +757,14 @@ export function mountCameraMedia({
           switchToLegacyTransport(playbackGeneration);
         });
         player.attachMedia(cameraVideoElement);
-      } else {
+      } else if (supportsNativeHls) {
         cameraVideoElement.src = hlsSourceUrl;
         cameraVideoElement.play().catch(() => {});
+      } else {
+        // 脚本没加载出来（离线 / 被拦截）且浏览器也不支持原生 HLS：
+        // 上游在这里抛「摄像头播放器加载失败」，我们保留 MJPEG 降级但把文案带上。
+        reportTransportUnavailable("摄像头播放器加载失败");
+        switchToLegacyTransport(playbackGeneration);
       }
     } catch (hlsPlaybackError: any) {
       if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration) return;

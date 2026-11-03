@@ -6,7 +6,8 @@
 - ``manifest.json``：格式元数据 + 文件清单（sha256 / size）；
 - ``homeos.db``：``VACUUM INTO`` 生成的整库快照（全部表，含 users / license）；
 - 数据目录文件：除排除项以外的整个 ``data_dir``（含 ``secrets/`` 密钥、``assets/``、
-  ``studio3d/``、``exports/``、``modules/interaction3d/scenes`` 等）。
+  ``studio3d/``、``exports/``、``modules/interaction3d/scenes``、
+  ``modules/interaction3d/cover-memory`` 等）。
 
 ``homeos.db`` 快照会**清空历史事件 / 日志 / 时序表与运行时缓存表**的数据（保留表结构），
 见 :data:`EXCLUDED_DB_TABLES`：全量备份只承载「配置与实体目录」，不承载操作日志、
@@ -84,6 +85,18 @@ FORMAT_VERSION = 2
 EXCLUDED_TOP_DIRS = frozenset({"cache", "logs", "backup-work", "backup-recovery"})
 #: 需要整体排除的相对路径前缀
 EXCLUDED_REL_PREFIXES = ("modules/interaction3d/render-cache",)
+
+#: 0.8.4 起必须进包的业务根目录（与上游 ``ROOTS`` 对齐，便于对照审查）。
+#: 本实现打包**整个** ``data_dir``，这份清单只用来断言「别把它们误加进排除项」：
+#: ``modules/interaction3d/cover-memory`` 是窗帘/晾衣架「上次开合位置」记忆，
+#: 不是可重建缓存 —— 换机还原后用户看到的开合度必须和备份时一致。
+BACKUP_ROOTS = (
+    "assets",
+    "exports",
+    "studio3d",
+    "modules/interaction3d/scenes",
+    "modules/interaction3d/cover-memory",
+)
 
 #: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。
 #: 分三类——

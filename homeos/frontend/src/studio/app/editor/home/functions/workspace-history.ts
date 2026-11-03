@@ -7,7 +7,7 @@ import { duplicateComponent } from "../../editor-component-collections";
 import { roundField as roundField2, clone as clone2 } from "../../editor-utils";
 import { patchEditorFacadeState } from "../../../../engine";
 import { applyEditorZoomCss } from "../../editor-canvas-navigation";
-import { recoveryStorageKey as recoveryStorageKey2, documentSignature as documentSignature2 } from "../../editor-history";
+import { recoveryStorageKey as recoveryStorageKey2, documentSignature as documentSignature2, recordRecoverySaveAttempt as recordRecoverySaveAttempt2, resolveUnsavedRecovery as resolveUnsavedRecovery2 } from "../../editor-history";
 import { clearCoverMotorDirectionValueById } from "../../inspectors/home/home-cover-motor-inspector";
 import { nasProfiles as nasProfiles2, reconcileNasDocument as reconcileNasDocument2 } from "../../../bridge/catalog/nas-catalog";
 import { rememberEditorProject as rememberEditorProject2, restoredEditorProject as restoredEditorProject2 } from "../../editor-document-management";
@@ -61,7 +61,14 @@ export interface WorkspaceHistoryDeps {
   readRecoverySnapshot: any;
   recoverDraftConflict: any;
   recoveryDialogElement: any;
+  recoveryMessageTitleElement: any;
+  recoveryMessageDetailElement: any;
+  recoveryDownloadElement: any;
+  recoveryRestoreElement: any;
   recoveryWriter: any;
+  /** 0.8.4：本会话的「保存尝试」记录（revision + 文档指纹），随恢复快照一起落盘。 */
+  recoverySaveAttempts: any[];
+  setRecoverySaveAttempts: (saveAttempts: any[]) => void;
   redoElement: any;
   refreshDirtyState: any;
   refreshSoundToggle: any;
@@ -72,6 +79,8 @@ export interface WorkspaceHistoryDeps {
   renderPageSelect: any;
   renderWorkspaceResolution: any;
   requestJson: any;
+  /** 0.8.4：失效配置检查（`binding-repair`）；缺省时跳过检查。 */
+  bindingRepair?: any;
   resizeWorkspaceCanvas: any;
   retainExistingSelection: any;
   runCase: any;
@@ -330,6 +339,9 @@ export function ensureEditorRenderer(deps: WorkspaceHistoryDeps) {
       },
       onError: deps.handleOperationError,
       onRuntimeStateChange() {
+        // 0.8.4：情景弹窗编辑器开着时，把新状态推给它的弹窗预览，否则阶段预览里的
+        // 「已开启 / 已关闭 / 不可用」会一直停在打开那一刻。
+        (deps as any).scenePopupEditor?.syncStates?.();
         const runtimeSelectedComponent = deps.removedComponent();
         runtimeSelectedComponent?.type === "light-statistics" && deps.runZone(runtimeSelectedComponent);
       },
@@ -451,6 +463,9 @@ export function scheduleRecoverySnapshot(deps: WorkspaceHistoryDeps) {
   const recoveryFailureNotifiedProjectId = {
     projectId: deps.editorCtx.activeProject.projectId,
     revision: deps.editorCtx.activeProject.revision,
+    globalPopupRevision: deps.editorCtx.activeProject.globalPopupRevision,
+    // 保存尝试必须一起落盘：刷新后靠它区分「这份快照其实已经保存过」与真冲突。
+    saveAttempts: deps.recoverySaveAttempts.map((saveAttempt: any) => ({ ...saveAttempt })),
     document: deps.editorCtx.activeProject.document,
     selectedPath: deps.pageSelectElement.value,
     selectedComponentId: deps.editorCtx.selectedComponentId,
@@ -475,6 +490,8 @@ export function persistRecoverySnapshot(deps: WorkspaceHistoryDeps, recoveryStat
         JSON.stringify({
           projectId: recoveryState.projectId,
           revision: recoveryState.revision,
+          globalPopupRevision: recoveryState.globalPopupRevision,
+          saveAttempts: recoveryState.saveAttempts,
           document: recoveryState.document,
           selectedPath: recoveryState.selectedPath,
           selectedComponentId: recoveryState.selectedComponentId,
@@ -570,12 +587,21 @@ export async function historyEntry(deps: WorkspaceHistoryDeps, prunedEntry: any,
   (reconcileNasDocument2(deps.editorCtx.activeProject.document, mappedItemByIdByKey),
     (deps.editorCtx.baselineDocument = clone2(deps.editorCtx.activeProject.document)),
     (deps.editorCtx.savedDocumentSignature = documentSignature2(deps.editorCtx.activeProject.document)),
+    // 0.8.4：加载项目时清空本机会话的保存尝试；只有点「恢复修改」才从快照接回来。
+    deps.setRecoverySaveAttempts([]),
     (deps.editorCtx.recoverySnapshot = deps.readRecoverySnapshot(prunedEntry)),
     deps.editorCtx.recoverySnapshot && reconcileNasDocument2(deps.editorCtx.recoverySnapshot.document, mappedItemByIdByKey),
-    deps.editorCtx.recoverySnapshot &&
-      (deps.editorCtx.recoverySnapshot.revision !== deps.editorCtx.activeProject.revision ||
-        documentSignature2(deps.editorCtx.recoverySnapshot.document) === deps.editorCtx.savedDocumentSignature) &&
-      (deps.discardRecoverySnapshot(prunedEntry), (deps.editorCtx.recoverySnapshot = null)),
+    (() => {
+      // 0.8.4 四态：discard（无价值）/ restore（可直接恢复）/ restored（已保存但快照没清）/
+      // conflict（服务器已被别处改过，只能下载副本或丢弃）。
+      const recoveryResolution = deps.editorCtx.recoverySnapshot
+        ? resolveUnsavedRecovery2(deps.editorCtx.recoverySnapshot, deps.editorCtx.activeProject)
+        : { status: "discard" as const, recovery: null };
+      ((deps.editorCtx.recoverySnapshot = recoveryResolution.recovery),
+        (deps.editorCtx.recoveryConflict = recoveryResolution.status === "conflict"),
+        deps.editorCtx.recoverySnapshot ||
+          deps.discardRecoverySnapshot(prunedEntry));
+    })(),
     deps.clearComponentSelection(),
     deps.runExtraOld(),
     deps.writeError({
@@ -591,7 +617,15 @@ export async function historyEntry(deps: WorkspaceHistoryDeps, prunedEntry: any,
       deps.editorCtx.recoverySnapshot &&
       deps.editorCtx.activeProject?.projectId === prunedEntry &&
       !deps.recoveryDialogElement.open &&
-      deps.recoveryDialogElement.showModal());
+      ((deps.recoveryRestoreElement.hidden = deps.editorCtx.recoveryConflict),
+      (deps.recoveryDownloadElement.hidden = !deps.editorCtx.recoveryConflict),
+      (deps.recoveryMessageTitleElement.textContent = deps.editorCtx.recoveryConflict
+        ? "已保存的内容有更新，本机修改仍已保留"
+        : "检测到刷新前的编辑内容"),
+      (deps.recoveryMessageDetailElement.textContent = deps.editorCtx.recoveryConflict
+        ? "仪表盘或共享弹窗已有其他更新，无法安全地直接恢复。请先下载未保存副本以便核对；丢弃修改后将使用当前已保存的内容。"
+        : "这些修改尚未保存到仪表盘。可以继续编辑，或丢弃并使用上次已保存的内容。"),
+      deps.recoveryDialogElement.showModal()));
 }
 
 export async function initialPagePath(deps: WorkspaceHistoryDeps, loadProjects: any = null) {
@@ -731,9 +765,9 @@ export async function saveDraft(deps: WorkspaceHistoryDeps) {
   if (!deps.editorCtx.activeProject || !deps.editorCtx.hasUnsavedChanges || deps.editorCtx.isSaving || deps.historyState.busy) return;
   const projectId2 = deps.editorCtx.activeProject.projectId,
     Ie4 = deps.editorCtx.componentScopeState,
-    baselineBeforeSave = clone2(deps.editorCtx.baselineDocument),
-    draftBeforeSave = clone2(deps.editorCtx.activeProject.document),
-    draftSignatureBeforeSave = documentSignature2(draftBeforeSave),
+    baselineBeforeSave = clone2(deps.editorCtx.baselineDocument);
+  let draftBeforeSave = clone2(deps.editorCtx.activeProject.document);
+  let draftSignatureBeforeSave = documentSignature2(draftBeforeSave),
     isPopupsDirty =
       documentSignature2(draftBeforeSave.customPopups || []) !==
       documentSignature2(deps.editorCtx.baselineDocument.customPopups || []);
@@ -741,6 +775,35 @@ export async function saveDraft(deps: WorkspaceHistoryDeps) {
   try {
     // 地址框不必先失焦：保存前先本地校验，非法地址不把整份草稿发上去。
     validateGo2rtcDocument(draftBeforeSave);
+    // 0.8.4：保存前先查失效配置（模型被删/复制后残留的绑定），确认后连同清理结果一起保存。
+    if (deps.bindingRepair) {
+      const repairedDraft = await deps.bindingRepair.prepare({
+        panelDocument: draftBeforeSave,
+        mode: "repair",
+        isCurrent: () =>
+          deps.editorCtx.componentScopeState === Ie4 &&
+          deps.editorCtx.activeProject?.projectId === projectId2,
+      });
+      if (!repairedDraft) return;
+      draftBeforeSave = repairedDraft.document || draftBeforeSave;
+      draftSignatureBeforeSave = documentSignature2(draftBeforeSave);
+      isPopupsDirty =
+        documentSignature2(draftBeforeSave.customPopups || []) !==
+        documentSignature2(deps.editorCtx.baselineDocument.customPopups || []);
+      validateGo2rtcDocument(draftBeforeSave);
+    }
+    // 0.8.4：把这次「保存尝试」记进恢复快照（revision + 文档指纹）。
+    // 刷新后若服务器 revision 正好推进一格，指纹能证明本地这份内容其实已保存成功，
+    // 从而判定为 `restored` 而不是误报冲突。
+    deps.setRecoverySaveAttempts(
+      recordRecoverySaveAttempt2(
+        deps.recoverySaveAttempts,
+        deps.editorCtx.activeProject.revision,
+        draftBeforeSave,
+      ),
+    );
+    deps.scheduleRecoverySnapshot();
+    deps.recoveryWriter.flush();
     const saveResponse = await deps.requestJson("/projects/" + projectId2 + "/draft", {
       method: "PUT",
       hbLogContext: { projectId: projectId2, phase: "save-draft" },

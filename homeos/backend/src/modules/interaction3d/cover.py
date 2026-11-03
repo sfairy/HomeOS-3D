@@ -49,13 +49,24 @@ def require_curtain_model(
 
 
 def validate_cover_command(
-    service: str, data: dict, state: dict | None, *, dream: bool = False, airer: bool = False
+    service: str,
+    data: dict,
+    state: dict | None,
+    *,
+    dream: bool = False,
+    airer: bool = False,
+    window: bool = False,
 ) -> None:
     """校验一次窗帘服务调用是否被当前设备能力支持。
 
     ``data`` 按服务类型要求恰好带 ``position`` 或 ``tilt_position``，其余服务必须为空。
     晾衣架在状态 unknown 时仍允许 open/close/stop（``airer=True``）。
+
+    ``window=True`` 表示这次是**开窗器**（绑定到窗扇的 cover 实体）：能力位判定与窗帘
+    完全一致（HA 里就是 ``cover`` 域），只有文案要换成「开窗器」——否则用户在窗户面板上
+    看到「窗帘当前不支持此操作」会以为是配置错了。
     """
+    name = '开窗器' if window else '窗帘'
     required_feature = COVER_SERVICES.get(service)
     # 每类服务允许出现的参数集合是固定的：位置类带一个位置值，其余服务必须不带参数。
     if service == 'set_cover_position':
@@ -65,13 +76,13 @@ def validate_cover_command(
     else:
         fields = set()
     if required_feature is None or not isinstance(data, dict) or set(data) != fields:
-        raise HTTPException(422, detail='3D 窗帘控制不支持此服务或参数。')
+        raise HTTPException(422, detail=f'3D {name}控制不支持此服务或参数。')
     if service in ('set_cover_position', 'set_cover_tilt_position'):
         # 位置只接受 0~100 的整数：bool 是 int 子类须单独排除，浮点与字符串也一律拒绝，
         # 否则 HA 侧按各自规则截断，行程会与用户预期不一致。
         position = data['position'] if service == 'set_cover_position' else data['tilt_position']
         if not isinstance(position, int) or isinstance(position, bool) or not 0 <= position <= 100:
-            raise HTTPException(422, detail='窗帘位置必须是 0 到 100 的整数。')
+            raise HTTPException(422, detail=f'{name}位置必须是 0 到 100 的整数。')
     unknown_airer = (
         airer
         and isinstance(state, dict)
@@ -86,13 +97,13 @@ def validate_cover_command(
         '',
         'unavailable',
     ):
-        raise HTTPException(409, detail=ha_errors.screen_state_unavailable('窗帘'))
+        raise HTTPException(409, detail=ha_errors.screen_state_unavailable(name))
     if state.get('state') == 'unknown' and not unknown_airer:
         if airer:
             raise HTTPException(
                 409, detail='晾衣架升降状态未知，暂时只能上升、下降或暂停。'
             )
-        raise HTTPException(409, detail=ha_errors.screen_state_unavailable('窗帘'))
+        raise HTTPException(409, detail=ha_errors.screen_state_unavailable(name))
     attributes = attributes_of(state)
     features = feature_flags(attributes)
     # 原始能力位：用于区分「真的还没载入」与「属性结构本身不对」（负数 / 非整数）。
@@ -100,12 +111,12 @@ def validate_cover_command(
     if raw_features is None or not raw_features.is_integer() or not 0 <= raw_features <= 2147483647:
         if unknown_airer:
             return
-        raise HTTPException(409, detail='窗帘能力尚未载入，请稍后重试。')
+        raise HTTPException(409, detail=f'{name}能力尚未载入，请稍后重试。')
     # 位掩码比对：请求的服务必须出现在设备声明支持的能力位里。
     if not features & required_feature:
         if unknown_airer and required_feature in (1, 2, 4, 8):
             return
-        raise HTTPException(422, detail='窗帘当前不支持此操作。')
+        raise HTTPException(422, detail=f'{name}当前不支持此操作。')
     if dream and service in ('set_cover_position', 'set_cover_tilt_position', 'open_cover_tilt', 'close_cover_tilt'):
         # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，这里统一转成有限浮点。
         number = attribute_number
@@ -121,7 +132,7 @@ def validate_cover_command(
             return
         # 轨道还在动就别调叶片：此时行程电机与叶片电机抢状态，HA 侧结果不确定。
         if state.get('state') in ('opening', 'closing'):
-            raise HTTPException(409, detail='窗帘正在运行，请停止后再调整叶片。')
+            raise HTTPException(409, detail=f'{name}正在运行，请停止后再调整叶片。')
         # 有叶片反馈时，轨道必须停在「全开」或「全关」两端才允许调叶片：
         # 中间位置先让轨道走到端点，否则叶片与行程的配合结果不确定。
         # 实测（小米梦幻帘，supported_features=15）两端终态的实体属性：

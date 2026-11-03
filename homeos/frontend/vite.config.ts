@@ -999,6 +999,17 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
           pluginTimings: false,
         },
         output: {
+          /**
+           * 外置 id 的**输出侧改写**：`external: isRuntimeExternal` 在外层先于
+           * `vendorResolvePlugin.resolveId` 命中 `three`，rolldown 因此按**原始 id**
+           * 写 `import * as THREE from "three"` —— 裸标识符，浏览器（没有 import map）
+           * 直接抛 `Failed to resolve module specifier "three"`，整条 3D Studio 模块图
+           * 加载失败，舞台 iframe 表现为「画布一片空白、引擎连引导都没开始」。
+           *
+           * 与 `vite.runtime.config.ts` 保持同一口径：把 `three` 改写成根绝对 URL，
+           * 与 `/static/vendor/three/<版本>/*` 的随包副本对齐。
+           */
+          paths: (id) => (id === "three" ? THREE_VENDOR : id),
           entryFileNames: 'static/assets/[name]-[hash].js',
           chunkFileNames: (chunk) =>
             `static/assets/${sanitizeChunkBaseName(chunk.name)}-[hash].js`,

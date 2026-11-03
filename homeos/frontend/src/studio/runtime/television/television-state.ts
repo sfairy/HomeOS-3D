@@ -13,7 +13,7 @@ function televisionPosterAssetUrl(televisionConfig: any) {
   const assetId = televisionScreenAssetId(televisionConfig);
   return assetId ? "/api/v1/assets/user/" + assetId.slice(5) : "";
 }
-function televisionArtwork(
+export function televisionArtwork(
   artworkAttributes: {
     entity_picture_local?: any;
     entity_picture?: any;

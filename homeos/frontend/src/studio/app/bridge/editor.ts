@@ -17,6 +17,12 @@ import {
 } from "./cover";
 import { withRequestTimeout } from "../shared/util/request-timeout";
 import {
+  FLOOR_CATEGORY_CHOICES,
+  configuredModuleKinds,
+  defaultFloorCategory,
+  defaultOpeningFloor,
+} from "@runtime/navigation/navigation-defaults";
+import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
@@ -469,15 +475,16 @@ type PopupPresetConfig = {
       let configurationFloors = metadataFloors;
       if (typeof properties.sceneId === "string" && properties.sceneId) {
         try {
-          configurationFloors = (
-            await currentConfigurationFloors({
-              sceneId: properties.sceneId,
-              projectId: editorOptions.document?.projectId || "",
-              since: readyViewMetadata?.syncKey || readyViewMetadata?.metadata?.syncKey || "",
-              metadataFloors,
-              signal: inspectorAbortController.signal,
-            })
-          ).floors;
+          const currentFloors = await currentConfigurationFloors({
+            sceneId: properties.sceneId,
+            projectId: editorOptions.document?.projectId || "",
+            since: readyViewMetadata?.syncKey || readyViewMetadata?.metadata?.syncKey || "",
+            metadataFloors,
+            signal: inspectorAbortController.signal,
+          });
+          configurationFloors = currentFloors.floors;
+          // 0.8.4：记下服务端游标。配置预览借用地形（不重建户型）前要拿它验一次「没变」（204）。
+          (readyView as any).sourceSyncKey = currentFloors.syncKey || (readyView as any).sourceSyncKey || "";
         } catch (floorRefreshError) {
           if (inspectorAbortController.signal.aborted) return null;
           // 刷新失败不直接挡住配置入口：有旧列表就退回去，并明确告诉用户可能不是最新的。
@@ -744,6 +751,195 @@ type PopupPresetConfig = {
         environmentConfigButton.disabled = false;
       }
     }));
+  // 0.8.4「默认显示」：多楼层仪表的打开楼层 / 切楼层策略 / 各层默认分类。
+  // 运行时（navigation-defaults.ts）早就在读 `properties.navigationDefaults`，
+  // 缺的只是写入口 —— 没有这一段，多楼层仪表只能靠上次停留，无法配置。
+  const defaultDisplaySection = createSection("默认显示"),
+    defaultDisplayFieldsElement = createElement("div", "i3d-default-fields"),
+    defaultDisplayNoteElement = createElement("p", "inspector-section-note", ""),
+    navigationDefaultControls: any[] = [];
+  (defaultDisplaySection.firstElementChild as any) instanceof HTMLElement &&
+    ((defaultDisplaySection.firstElementChild as any).hidden = true);
+  (defaultDisplaySection.append(defaultDisplayFieldsElement, defaultDisplayNoteElement),
+    defaultDisplayFieldsElement.hidden = true);
+  const navigationDefaultsOf = () => properties.navigationDefaults || {},
+    currentFloorSwitchMode = () =>
+      navigationDefaultsOf().floorSwitch === "same" ? "same" : "remember",
+    currentDefaultFloor = (floors: any[]) => defaultOpeningFloor(floors, properties),
+    commitNavigationDefaults = async (floors: any[], defaultsPatch: any) => {
+      if (isViewEditing) return;
+      const existingDefaults = navigationDefaultsOf(),
+        nextDefaults = {
+          floor: currentDefaultFloor(floors),
+          floorSwitch: currentFloorSwitchMode(),
+          ...(Object.hasOwn(existingDefaults, "resetCategoryFromAll")
+            ? { resetCategoryFromAll: existingDefaults.resetCategoryFromAll }
+            : {}),
+          categories: Object.fromEntries(
+            floors
+              .filter((floorEntry: any) =>
+                Object.hasOwn(existingDefaults.categories || {}, floorEntry.id),
+              )
+              .map((floorEntry: any) => [
+                floorEntry.id,
+                existingDefaults.categories[floorEntry.id],
+              ]),
+          ),
+          ...defaultsPatch,
+        };
+      for (const controlElement of navigationDefaultControls) controlElement.disabled = true;
+      try {
+        await commitChange({ properties: { navigationDefaults: nextDefaults } });
+        properties.navigationDefaults = nextDefaults;
+      } catch (defaultsError: any) {
+        editorOptions.onError?.(defaultsError);
+        if (!inspectorAbortController.signal.aborted) renderNavigationDefaults(floors);
+      } finally {
+        for (const controlElement of navigationDefaultControls)
+          controlElement.disabled = isViewEditing;
+      }
+    },
+    renderNavigationDefaults = (floors: any[]) => {
+      if (inspectorAbortController.signal.aborted || !defaultDisplaySection.isConnected) return;
+      (defaultDisplayFieldsElement.replaceChildren(), (navigationDefaultControls.length = 0));
+      if (!floors.length) {
+        defaultDisplayFieldsElement.hidden = true;
+        defaultDisplayNoteElement.textContent = "载入户型后即可设置。";
+        return;
+      }
+      defaultDisplayFieldsElement.hidden = false;
+      const currentDefaults = navigationDefaultsOf(),
+        switchMode = currentFloorSwitchMode(),
+        appendSelect = (
+          labelText: any,
+          controlName: any,
+          optionEntries: ReadonlyArray<readonly [any, any]>,
+          selectedValue: any,
+          onValueChange: any,
+        ) => {
+          const selectElement = createElement("select");
+          ((selectElement as HTMLSelectElement).name = controlName);
+          (selectElement as HTMLSelectElement).disabled = isViewEditing;
+          for (const [optionValue, optionLabel] of optionEntries) {
+            const optionElement = createElement("option", "", optionLabel) as HTMLOptionElement;
+            ((optionElement.value = String(optionValue)), selectElement.append(optionElement));
+          }
+          ((selectElement as HTMLSelectElement).value = String(selectedValue),
+            createLabeledField(defaultDisplayFieldsElement, labelText, selectElement),
+            navigationDefaultControls.push(selectElement),
+            selectElement.addEventListener("change", () => {
+              (selectElement as HTMLSelectElement).disabled ||
+                onValueChange((selectElement as HTMLSelectElement).value);
+            }));
+          return selectElement;
+        };
+      if (floors.length > 1) {
+        (appendSelect(
+          "打开时显示",
+          "i3d-default-floor",
+          [["all", "全部楼层（ALL）"], ...floors.map((floorEntry: any) => [floorEntry.id, floorEntry.name || "未命名楼层"])] as ReadonlyArray<any>,
+          currentDefaultFloor(floors),
+          (nextFloor: any) => void commitNavigationDefaults(floors, { floor: nextFloor }),
+        ),
+          defaultDisplayFieldsElement.append(
+            createElement("p", "inspector-section-note", "打开或刷新时先显示这里。ALL 只显示全楼总览。"),
+          ),
+          appendSelect(
+            "切换楼层时",
+            "i3d-floor-switch",
+            [
+              ["remember", "跟随自定义"],
+              ["same", "同类型切换"],
+            ] as ReadonlyArray<any>,
+            switchMode,
+            (nextFloorSwitch: any) =>
+              void commitNavigationDefaults(floors, { floorSwitch: nextFloorSwitch }),
+          ),
+          defaultDisplayFieldsElement.append(
+            createElement(
+              "p",
+              "inspector-section-note",
+              switchMode === "same"
+                ? "单层之间切换时，继续显示当前分类。"
+                : "切到哪一层，就显示下方为它设置的分类。",
+            ),
+          ));
+        if (switchMode === "remember") {
+          const resetFromAllInput = createElement("input") as HTMLInputElement;
+          (Object.assign(resetFromAllInput, {
+            type: "checkbox",
+            name: "i3d-reset-category-from-all",
+            checked: currentDefaults.resetCategoryFromAll === true,
+            disabled: isViewEditing,
+          }),
+            resetFromAllInput.setAttribute("aria-label", "从 ALL 进入时恢复默认分类"),
+            (navigationDefaultControls.push(resetFromAllInput),
+            (createLabeledField(
+              defaultDisplayFieldsElement,
+              "从 ALL 进入时恢复默认分类",
+              resetFromAllInput,
+            ).parentElement!.className = "i3d-setting-toggle i3d-view-toggle"),
+            resetFromAllInput.addEventListener("change", () => {
+              resetFromAllInput.disabled ||
+                void commitNavigationDefaults(floors, {
+                  resetCategoryFromAll: resetFromAllInput.checked,
+                });
+            }),
+            defaultDisplayFieldsElement.append(
+              createElement(
+                "p",
+                "inspector-section-note",
+                resetFromAllInput.checked
+                  ? "从 ALL 进入单层时，使用该层默认分类。"
+                  : "经过 ALL 后，继续保留此前选择的分类。",
+              ),
+            )));
+        }
+        (defaultDisplayFieldsElement.append(
+          createElement("p", "inspector-section-note", "各层默认分类"),
+        ),
+          defaultDisplayFieldsElement.append(
+            createElement(
+              "p",
+              "inspector-section-note",
+              switchMode === "remember"
+                ? currentDefaults.resetCategoryFromAll === true
+                  ? "首次进入单层，或从 ALL 进入时使用。"
+                  : "首次进入单层时使用，之后保持当前分类。"
+                : "每次切换到该楼层时使用。",
+            ),
+          ));
+      }
+      for (const floorEntry of floors) {
+        const availableCategoryChoices = FLOOR_CATEGORY_CHOICES.filter(([categoryKind]) =>
+            configuredModuleKinds(properties, floorEntry.id).includes(categoryKind),
+          ),
+          currentCategory = defaultFloorCategory(properties, floorEntry.id);
+        appendSelect(
+          floors.length === 1 ? "打开时显示的分类" : floorEntry.name || "未命名楼层",
+          "i3d-default-category-" + floorEntry.id,
+          availableCategoryChoices,
+          currentCategory,
+          (nextCategory: any) =>
+            void commitNavigationDefaults(floors, {
+              categories: Object.fromEntries(
+                floors.map((categoryFloorEntry: any) => [
+                  categoryFloorEntry.id,
+                  categoryFloorEntry.id === floorEntry.id
+                    ? nextCategory
+                    : defaultFloorCategory(properties, categoryFloorEntry.id),
+                ]),
+              ),
+            }),
+        );
+      }
+      defaultDisplayNoteElement.textContent =
+        floors.length === 1
+          ? "刷新或重新打开后，恢复这里设置的分类。"
+          : switchMode === "same"
+            ? "本层没有同类设备时，会提示暂无设备；刷新或重开后恢复默认。"
+            : "刷新或重新打开后，恢复默认楼层和分类。";
+    };
   const viewSection = createSection("楼层视角"),
     viewFloorRowElement = createElement("div", "i3d-view-floor-row");
   viewSection.append(viewFloorRowElement);
@@ -859,7 +1055,8 @@ type PopupPresetConfig = {
     syncFloorControls = (editorViewState: any) => {
       if (!floorSelectElement.isConnected) return;
       const floors = editorViewState?.metadata?.floors || [];
-      (renderFloorNumberFields(floors),
+      (renderNavigationDefaults(floors),
+        renderFloorNumberFields(floors),
         properties.floorGap === undefined &&
           Number.isFinite(editorViewState?.metadata?.floorGap) &&
           (floorGapInput.value = String(editorViewState.metadata.floorGap)),
@@ -2685,6 +2882,51 @@ type PopupPresetConfig = {
             getInteraction3dEditorView(targetComponent.id)?.closePopupLayoutPreview?.();
         }));
   };
+  // 0.8.4：3D 控件「检查失效配置」——异步核对楼层/模型引用，只在文档未被改动时写回。
+  const appendRepairBindingsControl = () => {
+    if (!editorOptions.onRepairBindings) return;
+    const repairBindingsButton = createElement("button", "", "检查失效配置");
+    repairBindingsButton.type = "button";
+    const repairBindingsResultElement = createElement("p", "inspector-section-note");
+    (repairBindingsResultElement.setAttribute("role", "status"),
+      (repairBindingsResultElement.hidden = true),
+      (repairBindingsResultElement.dataset.bindingRepairResult = ""));
+    const setRepairBindingsResult = (resultMessage: string) => {
+      if (
+        interaction3dInspectorElement!.hidden ||
+        interaction3dInspectorElement!.dataset.componentId !== targetComponent?.id ||
+        interaction3dInspectorElement!.dataset.projectId !==
+          (editorOptions.document?.projectId || "")
+      )
+        return;
+      const liveResultElement = interaction3dInspectorElement!.querySelector(
+        "[data-binding-repair-result]",
+      );
+      if (!liveResultElement) return;
+      (liveResultElement.textContent = resultMessage);
+      ((liveResultElement as DomControl).hidden = !resultMessage);
+    };
+    repairBindingsButton.addEventListener("click", async () => {
+      repairBindingsButton.disabled = true;
+      setRepairBindingsResult("正在核对楼层和模型…");
+      try {
+        const removedBindingCount = await editorOptions.onRepairBindings();
+        setRepairBindingsResult(
+          removedBindingCount === null
+            ? "已取消，配置保持不变。"
+            : removedBindingCount
+              ? `已移除 ${removedBindingCount} 项失效配置，请点击顶部“保存”。`
+              : "没有发现失效配置。",
+        );
+      } catch (repairBindingsError: any) {
+        setRepairBindingsResult(repairBindingsError?.message || String(repairBindingsError));
+      } finally {
+        repairBindingsButton.disabled = false;
+      }
+    });
+    (interaction3dInspectorElement!.dataset.projectId = editorOptions.document?.projectId || "");
+    interaction3dInspectorElement!.append(repairBindingsButton, repairBindingsResultElement);
+  };
   (appendInspectorGroup("layout", "户型与布局", [houseSection, layoutSection, displaySection]),
     appendInspectorGroup("devices", "设备配置", [
       lightsSection,
@@ -2704,6 +2946,7 @@ type PopupPresetConfig = {
     appendInspectorGroup("popups", "弹窗大小与位置", [popupSettingsSection]),
     (behaviorSection.children[0].hidden = true),
     appendInspectorGroup("interaction", "交互行为", [behaviorSection]),
+    appendRepairBindingsControl(),
     sceneState.refresh(),
     editorOptions.enhanceControls?.(interaction3dInspectorElement),
     (interaction3dInspectorElement!.style.minHeight = previousMinHeight),

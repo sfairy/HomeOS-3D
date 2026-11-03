@@ -25,6 +25,7 @@ from .config_ctx import (
     EnumSpec,
     ValidationContext,
 )
+from .extra_sources import validate_extra_sources
 from .extra_types import EXTRA_TYPES
 
 #: 绿植类允许的模型（只有这些模型会被 ``plant`` 集合收纳）。
@@ -124,6 +125,19 @@ DEVICE_PROFILES: dict[str, dict[str, Any]] = {
         'label': '破壁机',
     },
     'microwave': {'collection': 'microwaves', 'model_type': 'microwave', 'label': '微波炉'},
+    # 游戏机：Switch 的主实体是 ``sensor.*``（nxapi presence），PlayStation 是 ``media_player.*``。
+    # 两者共用一套「唤醒 / 休眠 / 切换游戏」的主面板，差异只在实体域。
+    'switch-console': {
+        'collection': 'switchConsoles',
+        'model_type': 'switch-console',
+        'label': 'Switch 游戏机',
+    },
+    'playstation': {
+        'collection': 'playstations',
+        'model_type': 'playstation',
+        'model_types': ('playstation', 'ps5'),
+        'label': 'PlayStation',
+    },
     'coffee-machine': {
         'collection': 'coffeeMachines',
         'model_type': 'coffee-machine',
@@ -184,9 +198,13 @@ GENERIC_DEVICE_FIELDS = frozenset(
         'statusRules',
         'buttonHidden',
         'extraControls',
+        'extraDevices',
+        'mainEntityId',
         'hiddenClickable',
     }
 )
+#: 游戏机：主实体域（Switch 是 ``sensor.*``，PlayStation 是 ``media_player.*``）。
+GAME_CONSOLE_ENTITY_DOMAINS = {'switch-console': 'sensor', 'playstation': 'media_player'}
 #: 汽车多出来的电量/充电卡片字段。
 SMALLCAR_EXTRA_FIELDS = frozenset(
     {
@@ -298,7 +316,7 @@ INVERSE_OPERATOR = {
 }
 #: 一组状态值最多 64 条（前端 textarea 同口径）。
 STATUS_STATE_GROUP_LIMIT = 64
-EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId'})
+EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId', 'sourceDeviceId'})
 #: 附加控制网格档位（列 / 行）。
 GRID_SPANS: dict[str, tuple[int, ...]] = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}
 #: 附加控制里「整块面板 / 画面」两种展示类型；它们仍然绑定一个实体。
@@ -439,6 +457,31 @@ def _fail_device(profile: Mapping[str, Any], model_type: str = '') -> NoReturn:
     raise HTTPException(422, detail=f"设备配置无效，请检查{reason}。")
 
 
+def _validate_game_console_bindings(item: dict, model_type: str, fail: Callable[[], NoReturn]) -> None:
+    """游戏机必须显式指定主实体，且域要匹配机型。
+
+    Switch 走 nxapi 的 presence 传感器（``sensor.*``），PlayStation 走 ``media_player.*``；
+    留空会让运行期无从判断该调哪个服务，所以直接拒。``mainEntityId`` 也不允许与
+    ``extraControls`` 里的实体重复 —— 一次点击下发两次、乐观状态互相覆盖就是这么来的。
+    """
+    domain = GAME_CONSOLE_ENTITY_DOMAINS[model_type]
+    main = item.get('mainEntityId', '')
+    if (
+        not isinstance(main, str)
+        or not main
+        or re.fullmatch(rf'{domain}\.[a-z0-9_]+', main) is None
+        or not item.get('deviceId')
+    ):
+        fail()
+    selected = {
+        control.get('entityId')
+        for control in item.get('extraControls', []) or []
+        if isinstance(control, dict)
+    }
+    if main in selected:
+        fail()
+
+
 def validate_device_bindings(
     ctx: ValidationContext, items: Any, model_type: str = 'fridge'
 ) -> None:
@@ -453,6 +496,8 @@ def validate_device_bindings(
     for item in items:
         if not isinstance(item, dict) or set(item) - allowed_fields:
             fail()
+        if model_type in GAME_CONSOLE_ENTITY_DOMAINS:
+            _validate_game_console_bindings(item, model_type, fail)
         if model_type == 'smallcar':
             _validate_smallcar_bindings(ctx, item, fail)
         if model_type == 'computer':
@@ -672,6 +717,8 @@ def _validate_device_extras(
                 continue
             if type(extra[dimension]) is not int or extra[dimension] not in allowed:
                 fail()
+    # 多设备实体：``extraDevices`` 与 ``extraControls.sourceDeviceId`` 必须互相印证。
+    validate_extra_sources(item, fail)
     validate_device_status_rules(status_rules, fail)
     # 床与沙发不参与状态灯：模型上不画指示灯，配置里带了规则就直接拒绝，
     # 避免前端删掉 statusIndicator 后仍残留一份「看起来生效、实际不渲染」的规则。

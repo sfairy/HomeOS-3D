@@ -138,6 +138,8 @@ import { renderComponent } from "./panel-seams/render-component";
 import { showAirPurifierDetails } from "./panel-seams/air-purifier-details";
 import { showCustomPopup } from "./panel-seams/custom-popup";
 import { showEntityDetails } from "./panel-seams/entity-details";
+import { showWeatherForecast } from "./panel-seams/weather-popup";
+import { showScenePopup } from "./panel-seams/scene-popup-dialog";
 import { showPresenceDetails } from "./panel-seams/presence-details";
 import { showVacuumDetails } from "./panel-seams/vacuum-details";
 import { startComponentsScale, startComponentsRotate, startComponentMove, startDoorWindowPerspective, startAirflowMove, startAirflowScale, startAirflowRotate, startComponentScale, startComponentRotate } from "./panel-seams/transform-interaction";
@@ -252,6 +254,8 @@ export interface PanelRenderer {
   resumeRuntime(): void;
   showCustomPopup(customPopupModule: any, options?: any): any;
   showEntityDetails(entityDetailsComponent: any, options?: any): any;
+  showWeatherForecast(weatherDetailsComponent: any, options?: any): any;
+  showScenePopup(scenePopupComponent: any, options?: { preview?: boolean }): any;
   showVacuumDetails(vacuumComponent: any, options?: any): any;
   showPresenceDetails(presenceComponent: any, options?: any): any;
   showAirPurifierDetails(airPurifierComponent: any, options?: any): any;
@@ -311,6 +315,7 @@ export class PanelRenderer {
   declare componentPreviewStates: Map<any, any>;
   declare themeVariableNames: Set<string>;
   declare detailsStateSync: RendererDetailsStateSync | null;
+  declare sceneActionRequests: any;
   declare detailsDialog: any;
   declare activePopupId: string | null;
   declare activeGroupId: string | null;
@@ -1937,6 +1942,8 @@ Object.assign(PanelRenderer.prototype, {
   resumeRuntime,
   showCustomPopup,
   showEntityDetails,
+  showWeatherForecast,
+  showScenePopup,
   showPresenceDetails,
   showVacuumDetails,
   showAirPurifierDetails,

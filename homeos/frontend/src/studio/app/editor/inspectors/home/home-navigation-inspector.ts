@@ -2,6 +2,17 @@
 import { clampNumber as clampNumber2, roundField as roundField2 } from "../../editor-utils";
 import { setInspectorToggle as setInspectorToggle2 } from "../basic";
 import { resolveSceneControlMode as resolveSceneControlMode2 } from "../../../renderer/scene-mode";
+import { scenePopupEnabled as scenePopupEnabled2 } from "../../../renderer/scene-popup-model";
+
+/** 情景弹窗设置区块：0.8.4 新增，随 `scene-mode` 选中态切换。 */
+function scenePopupInspectorElements() {
+  return {
+    settingsElement: document.getElementById("scene-popup-settings"),
+    modeElement: document.getElementById("scene-popup-mode"),
+    contentsElement: document.getElementById("scene-popup-contents") as HTMLButtonElement | null,
+    hintElement: document.getElementById("scene-popup-hint"),
+  };
+}
 
 export interface NavigationInspectorContext {
   activeProject: any;
@@ -150,6 +161,26 @@ export function syncNavigationInspector(ctx: NavigationInspectorContext, compone
       : "关联实体（可选）"),
     navigationInspectorFormElement.classList.toggle("is-scene-mode", isNavigationWidthPx),
     (sceneModeControlElement.closest(".inspector-section").hidden = !isNavigationWidthPx));
+  // 0.8.4：`scene-mode` 的「控件模式」——单个实体 / 弹窗模式。
+  const { settingsElement, modeElement, contentsElement, hintElement } =
+      scenePopupInspectorElements(),
+    isPopupMode = scenePopupEnabled2(componentArg);
+  if (settingsElement) settingsElement.hidden = !isNavigationWidthPx;
+  if (modeElement)
+    for (const popupModeButtonElement of modeElement.querySelectorAll<HTMLElement>(
+      "[data-scene-popup-enabled]",
+    )) {
+      const isPopupModeButton =
+        (popupModeButtonElement.dataset.scenePopupEnabled === "true") === isPopupMode;
+      (popupModeButtonElement.classList.toggle("active", isPopupModeButton),
+        popupModeButtonElement.setAttribute("aria-pressed", String(isPopupModeButton)));
+    }
+  (contentsElement && (contentsElement.hidden = !isPopupMode),
+    hintElement && (hintElement.hidden = !isPopupMode),
+    (navigationEntityButtonElement.disabled = isPopupMode));
+  sceneModeControlElement
+    .closest(".inspector-section")
+    ?.classList.toggle("scene-popup-single-disabled", isPopupMode);
   const navigationHeightPxState = componentArg.bindings?.entity?.entityId || "",
     navigationHeightPx = resolveSceneControlMode2(
       availablePropertiesRecord.controlMode,
@@ -161,7 +192,8 @@ export function syncNavigationInspector(ctx: NavigationInspectorContext, compone
     const isPreviewState =
       navigationHeightPxElement.dataset.sceneControlMode === navigationHeightPx;
     (navigationHeightPxElement.classList.toggle("active", isPreviewState),
-      navigationHeightPxElement.setAttribute("aria-pressed", String(isPreviewState)));
+      navigationHeightPxElement.setAttribute("aria-pressed", String(isPreviewState)),
+      (navigationHeightPxElement as HTMLButtonElement).disabled = isPopupMode);
   }
   ((sceneModeHintElement.textContent =
     navigationHeightPx === "switch" ? "点击切换，状态跟随设备。" : "点击执行，轻弹反馈。"),

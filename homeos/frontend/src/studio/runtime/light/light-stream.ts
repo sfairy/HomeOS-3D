@@ -59,6 +59,12 @@ export interface LightStreamOptions {
   onPatch?: ((patch: Record<string, any>) => void) | null;
   /** 订阅态被重置（鉴权失败 / 连接失败 / 重同步）时回调：舞台据此让历史失效。 */
   onInvalidate?: (entityIds: string[]) => void;
+  /**
+   * 后端推送 `cover_memory_changed`：某实体的窗帘姿态历史变了，调用方据此重取快照。
+   *
+   * 这条通道不走 `onPatch`：记忆不是 HA 状态，塞进状态表会让舞台当成设备值重绘。
+   */
+  onCoverMemory?: (entityId?: string) => void;
   createSocket?: (socketUrl: string) => WebSocket;
   socketURL?: string | (() => string);
   setTimer?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
@@ -81,6 +87,7 @@ export function createLightStream({
   onStates: onStates = () => {},
   onPatch: onPatch = null,
   onInvalidate: onInvalidate = () => {},
+  onCoverMemory: onCoverMemory = () => {},
   createSocket: createSocket = (socketUrl) => new window.WebSocket(socketUrl),
   socketURL: resolveSocketUrl = () => {
     const endpointUrl = new URL("/api/v1/ws/runtime", location.origin);
@@ -376,6 +383,14 @@ export function createLightStream({
             return;
           }
           if (!slot.ready) return;
+          if (messagePayload.type === "cover_memory_changed") {
+            // 记忆是低频增量：只通知调用方重取，不影响状态表。
+            (onCoverMemory(
+              typeof messagePayload.entityId == "string" ? messagePayload.entityId : undefined,
+            ),
+              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS));
+            return;
+          }
           if (messagePayload.type === "state_removed" && slot.ids.includes(messagePayload.entityId)) {
             (slot.stateById.delete(messagePayload.entityId),
               scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),

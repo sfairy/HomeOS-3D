@@ -158,6 +158,8 @@ export interface StudioAppContext {
   backgroundController: any;
   isLightCachePending: boolean;
   lightingScheduler: any;
+  /** 分类过渡采样器（由舞台经 `setCategoryDiagnostics` 挂入）。 */
+  categoryDiagnostics: any;
   isDisposed: boolean;
   rendererLossHandler: any;
   rendererRestoreTimeoutId: any;
@@ -359,6 +361,7 @@ export function createStudioAppContext(): StudioAppContext {
     backgroundController: null,
     isLightCachePending: false,
     lightingScheduler: null,
+    categoryDiagnostics: null,
     isDisposed: false,
     rendererLossHandler: null,
     rendererRestoreTimeoutId: null,

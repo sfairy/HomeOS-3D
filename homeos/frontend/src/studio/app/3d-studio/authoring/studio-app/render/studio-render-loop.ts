@@ -1791,6 +1791,10 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       );
     },
     createFrameLoop: (frameLoopCallback: any) => createDemandFrameLoop2(frameLoopCallback),
+    /** 舞台把分类过渡采样器挂进来，渲染环每帧回报一次 GL 耗时。 */
+    setCategoryDiagnostics(categoryDiagnostics: any) {
+      appCtx.categoryDiagnostics = categoryDiagnostics;
+    },
     setPresentedVisible(presentedVisible: any) {
       appCtx.threeRenderer.domElement.dispatchEvent?.(
         new CustomEvent("hb-i3d-parent-visibility", {

@@ -10,6 +10,7 @@ type SecurityCollections = {
   cameras?: unknown[];
   presenceSensors?: unknown[];
   alarms?: unknown[];
+  windows?: unknown[];
 };
 
 export function normalizeSecurityDraftProperties<T extends { security?: SecurityCollections }>(
@@ -22,6 +23,7 @@ export function normalizeSecurityDraftProperties<T extends { security?: Security
     cameras: draftProperties.security?.cameras || [],
     presenceSensors: draftProperties.security?.presenceSensors || [],
     alarms: draftProperties.security?.alarms || [],
+    windows: draftProperties.security?.windows || [],
   } as T["security"];
   return draftProperties;
 }

@@ -7,6 +7,7 @@ import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { renderRegisteredComponent as renderRegisteredComponent2, vacuumMapImageSource as vacuumMapImageSource2 } from "../registry";
 import { vacuumMapAvailable as vacuumMapAvailable2 } from "../vacuum-map-state";
 import type { PanelRenderer } from "../panel-renderer";
+import { createSceneActionRequests } from "../scene-mode";
 
 export function scheduleInteraction3dPrewarm(self: PanelRenderer) {
     (clearTimeout(self.stagePrewarmTimer ?? undefined),
@@ -210,6 +211,8 @@ export function refreshRuntimeComponent(self: PanelRenderer, refreshComponentId:
         navigate: (navigationTargetPath: any) => self.navigate(navigationTargetPath),
         callEntityService: (...serviceCallArgs: [any, any, any, any?]) =>
           self.callEntityService(...serviceCallArgs),
+        sceneActionRequests: (self.sceneActionRequests ||= createSceneActionRequests()),
+        openScenePopup: (scenePopupRecord: any) => self.showScenePopup(scenePopupRecord),
         openCameraPreview: (interaction3dCameraRecord: any, cameraOptions: any, cameraCallback: any) =>
           self.openInteraction3dCameraPreview(
             interaction3dCameraRecord,

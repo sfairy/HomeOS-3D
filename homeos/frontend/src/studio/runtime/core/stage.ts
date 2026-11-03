@@ -2,6 +2,7 @@
 import { createDeviceStateMemo } from "./state-update-plan";
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
 import { createAnimationVisibility as createAnimationVisibility2 } from "./animation-work";
+import { createCategoryTransitionDiagnostics as createCategoryTransitionDiagnostics2 } from "../navigation/category-transition-diagnostics";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
 import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";
 import { createCarTires } from "../vehicle/car-tires";
@@ -53,6 +54,11 @@ import {
 import {
   doorModels as doorModels2,
 } from "../security/lock-state";
+import { createWindowMotion as createWindowMotion2 } from "../window/window-motion";
+import {
+  createWindowOpenerResolver as createWindowOpenerResolver2,
+  windowContacts as windowContacts2,
+} from "../window/window-opener";
 import { createSceneBackground as createSceneBackground2 } from "./scene-background";
 import { floorNavigationChoices as floorNavigationChoices2 } from "./floor-navigation";
 import {
@@ -163,6 +169,8 @@ import { rebuildCurtainMotionCore } from "./stage/curtain-motion";
 import { bindNavigationDragCore } from "./stage/navigation-drag";
 import { createStageContext } from "./stage/stage-context";
 import { createWeatherGroundEmitter, type WeatherGroundBounds } from "./stage/weather-ground";
+import { onPermanentPageHide } from "./page-disposal";
+import { installNativeSelectionGuard } from "./native-selection";
 
 /**
  * 注入依赖袋的 `getComputedStyle` 必须**钉死接收者**：消费者写成 `deps.getComputedStyle(el)` 时
@@ -189,7 +197,11 @@ export function mountStage(mountOptions: any) {
   const wakeSceneBackground = () => ctx.sceneBackground?.wake(),
     wakeBackgroundAnimation = () => ctx.sceneBackground?.wakeAnimation(),
     sceneBackgroundController = createSceneBackground2(mountOptions, wakeSceneBackground),
-    lockMotion = createLockMotion2(mountOptions);
+    lockMotion = createLockMotion2(mountOptions),
+    windowMotion = createWindowMotion2(mountOptions),
+    windowOpenerResolver = createWindowOpenerResolver2();
+  // 开窗器 / 窗磁解析出来的展示位置，按 `modelId:floorId` 缓存给配置面板和标记复用。
+  const windowOpenerPreviews = new Map<string, any>();
   mountOptions.setBackgroundTheme?.(sceneBackgroundController);
   const set = new Set(),
     lightSyncKeySet = new Set(),
@@ -775,7 +787,13 @@ export function mountStage(mountOptions: any) {
             !matchesSelectedFloor(coverActionBinding)
           ) {
             coverReject(
-              new Error(coverActionBinding?.airer ? "当前晾衣架不可控制。" : "当前窗帘不可控制。"),
+              new Error(
+                coverActionBinding?.windowOpener
+                  ? "当前开窗器不可控制。"
+                  : coverActionBinding?.airer
+                    ? "当前晾衣架不可控制。"
+                    : "当前窗帘不可控制。",
+              ),
             );
             return;
           }
@@ -826,7 +844,7 @@ export function mountStage(mountOptions: any) {
             )
           ) {
             (clearTimeout(coverRequestTimeoutId),
-              coverReject(new Error("只有整体完全开启或完全关闭后，才能调整叶片。")));
+              coverReject(new Error("只有确认整体完全关闭且停止后，才能调整叶片。")));
             return;
           }
           let isDreamTiltPreview = false;
@@ -2468,7 +2486,9 @@ export function mountStage(mountOptions: any) {
   const currentModuleBindings = () =>
     (ctx.activeModule === "security"
       ? collectSecurityBindings()
-      : ctx.activeModule === "light"
+      : ctx.activeModule === "window-opener"
+        ? windowOpeners()
+        : ctx.activeModule === "light"
         ? ctx.options.lights || []
         : [
             ...collectModuleBindings(),
@@ -3001,6 +3021,139 @@ export function mountStage(mountOptions: any) {
     const lockMotionPlan = buildLockMotionInput();
     mountOptions.setLockMoving?.(lockMotion.sync(lockMotionPlan.bindings, lockMotionPlan.states));
   }
+  /** 舞台里的开窗器标记：默认挂在 `window:<id>:<sash>` 上，编辑态才用裸 id 以便选中。 */
+  const windowOpeners = () =>
+    (ctx.options.environment?.windowOpeners || []).map((openerSourceEntry: any) => {
+      const openerWindowModel = stageModelIndex.window(
+        openerSourceEntry.floorId,
+        openerSourceEntry.modelId,
+      );
+      return {
+        ...openerSourceEntry,
+        id:
+          ctx.isEditing && ctx.activeModule === "window-opener"
+            ? openerSourceEntry.id
+            : "window-opener:" + openerSourceEntry.id,
+        savedBindingId: openerSourceEntry.id,
+        windowOpener: true,
+        coverKind: "window-opener",
+        deviceKind: "cover",
+        modelAvailable: !!openerWindowModel,
+        x: Number.isFinite(openerSourceEntry.x) ? openerSourceEntry.x : (openerWindowModel?.x ?? 0),
+        y: Number.isFinite(openerSourceEntry.y) ? openerSourceEntry.y : (openerWindowModel?.y ?? 0),
+        height: Number.isFinite(openerSourceEntry.height)
+          ? openerSourceEntry.height
+          : (openerWindowModel?.height ?? 1.2),
+      };
+    });
+  /**
+   * 窗扇动效的输入：窗磁（布尔）与开窗器（百分比）合并成一张绑定表。
+   *
+   * 开窗器命中的窗磁要从绑定表里摘掉：同一个窗扇不能同时被「开」和「关」两路驱动，
+   * 否则每帧目标值互相覆盖，窗扇会抖。
+   */
+  function buildWindowMotionInput() {
+    const securityWindows = ctx.options.security?.windows || [],
+      configuredOpeners = ctx.options.environment?.windowOpeners || [];
+    // 配置态只预览「当前选中的那一扇」：把它的窗磁换成临时实体，按开/关铺一帧目标值。
+    // 上游 `_0x4bda73('window')` 同口径，其余窗扇保持几何默认开度。
+    if (ctx.isEditing) {
+      windowOpenerResolver.begin(mountOptions.document?.sceneId, []);
+      windowOpenerPreviews.clear();
+      const selectedWindowPreview = ctx.selectedLockEntry;
+      if (
+        ctx.selectedSecurityKind !== "window" ||
+        !selectedWindowPreview?.id ||
+        !String(selectedWindowPreview.id).startsWith("window:")
+      )
+        return { bindings: [] as any[], states: {} as Record<string, any> };
+      const selectedWindowBinding = securityWindows.find(
+        (securityWindowItem: any) =>
+          securityWindowItem.id === String(selectedWindowPreview.id).slice("window:".length),
+      );
+      if (!selectedWindowBinding) return { bindings: [] as any[], states: {} as Record<string, any> };
+      const previewWindowEntityId =
+        selectedWindowBinding.doorEntityId || "__hb_window_motion_preview__";
+      return {
+        bindings: [
+          {
+            ...selectedWindowBinding,
+            doorSource: "sensor",
+            doorEntityId: previewWindowEntityId,
+          },
+        ],
+        states: {
+          [previewWindowEntityId]: {
+            state: selectedWindowPreview.open ? "open" : "closed",
+            available: true,
+          },
+        },
+        animateInitial: true,
+        scope: mountOptions.document?.sceneId,
+      };
+    }
+    if (!configuredOpeners.length) {
+      windowOpenerResolver.begin(mountOptions.document?.sceneId, []);
+      windowOpenerPreviews.clear();
+      return {
+        bindings: securityWindows,
+        states: ctx.deviceStates,
+        scope: mountOptions.document?.sceneId,
+      };
+    }
+    const openers = windowOpeners().filter(
+      (openerEntry: any) => openerEntry.windowOpener && openerEntry.entityId && openerEntry.modelAvailable,
+    );
+    windowOpenerResolver.begin(
+      mountOptions.document?.sceneId,
+      openers.map((openerEntry: any) => openerEntry.id),
+    );
+    windowOpenerPreviews.clear();
+    const contactBindingSet = new Set<any>(),
+      windowBindings: any[] = [];
+    for (const opener of openers) {
+      const contacts = windowContacts2(
+          opener,
+          securityWindows,
+          stageModelIndex.window(opener.floorId, opener.modelId),
+        ),
+        openerCoverState = coverState2(
+          opener.entityId,
+          (ctx.deviceStates as any)[opener.entityId],
+          { coverKind: "window-opener" },
+        ),
+        openerPreviewState = coverFeedback.read(computeCoverKey(opener), {
+          position: openerCoverState.position,
+          moving: false,
+          preview: false,
+        }) || {},
+        resolved = windowOpenerResolver.resolve(
+          opener,
+          contacts,
+          ctx.deviceStates,
+          openerCoverState,
+          openerPreviewState,
+        );
+      contacts.forEach((contact) => contactBindingSet.add(contact));
+      windowOpenerPreviews.set(opener.modelId + ":" + opener.floorId, resolved);
+      windowBindings.push({
+        ...opener,
+        doorEntityId: opener.entityId,
+        openingPosition: resolved.position,
+        directPosition: resolved.direct,
+        poseMoving: resolved.moving,
+        duration: contacts[0]?.duration ?? 0.7,
+      });
+    }
+    return {
+      bindings: [
+        ...securityWindows.filter((securityWindow: any) => !contactBindingSet.has(securityWindow)),
+        ...windowBindings,
+      ],
+      states: ctx.deviceStates,
+      scope: mountOptions.document?.sceneId,
+    };
+  }
   const lockBindings = () =>
       (ctx.options.security?.locks || [])
         .map((lockSourceEntry: any) => {
@@ -3038,6 +3191,31 @@ export function mountStage(mountOptions: any) {
             lockFilterEntry.battery2EntityId ||
             lockFilterEntry.entityId,
         ),
+    /** 安防「窗户」传感器：只有窗磁，没有开合度；点它只做高亮，控制交给开窗器/窗帘面板。 */
+    securityWindowBindings = () =>
+      (ctx.options.security?.windows || []).map((securityWindowSourceEntry: any) => {
+        const securityWindowModel = stageModelIndex.window(
+          securityWindowSourceEntry.floorId,
+          securityWindowSourceEntry.modelId,
+        );
+        return {
+          ...securityWindowSourceEntry,
+          id: "window:" + securityWindowSourceEntry.id,
+          deviceKind: "window",
+          clickAction: "none",
+          icon: securityWindowSourceEntry.icon || "mdi:window-closed",
+          modelAvailable: !!securityWindowModel,
+          x: Number.isFinite(securityWindowSourceEntry.x)
+            ? securityWindowSourceEntry.x
+            : (securityWindowModel?.x ?? 0),
+          y: Number.isFinite(securityWindowSourceEntry.y)
+            ? securityWindowSourceEntry.y
+            : (securityWindowModel?.y ?? 0),
+          height: Number.isFinite(securityWindowSourceEntry.height)
+            ? securityWindowSourceEntry.height
+            : (securityWindowModel?.height ?? 1.2),
+        };
+      }),
     labelModeOf = (labelModeEntry: any) =>
       labelModeEntry.labelMode === "hidden" ||
       labelModeEntry.labelMode === "open" ||
@@ -3123,6 +3301,7 @@ export function mountStage(mountOptions: any) {
   function collectSecurityBindings(includeAllKinds = false) {
     const securityBindingEntries = [
       ...lockBindings(),
+      ...securityWindowBindings(),
       ...securityCameraBindings(),
       ...alarmBindings(),
       ...presenceBindings().filter(
@@ -3191,6 +3370,9 @@ export function mountStage(mountOptions: any) {
       matchesBindingId(moduleBinding, bindingLookupId),
     ) ||
     lockBindings().find((lockLookupBinding: any) => lockLookupBinding.id === bindingLookupId) ||
+    securityWindowBindings().find(
+      (windowLookupBinding: any) => windowLookupBinding.id === bindingLookupId,
+    ) ||
     securityCameraBindings().find(
       (cameraLookupBinding: any) => cameraLookupBinding.id === bindingLookupId,
     ) ||
@@ -3205,6 +3387,18 @@ export function mountStage(mountOptions: any) {
       (ghostAnimation.ghost.remove(), markerLayerElement.removeAttribute("inert"));
     }
   }
+  /**
+   * 分类过渡采样：只在 `selectModule()` 的一次切换期间开启。
+   * 采样结果通过 `reportLifecycle` 上报（`category-transition-profile` / `-slow`）。
+   */
+  const categoryTransitionDiagnostics = createCategoryTransitionDiagnostics2({
+      report: (diagnosticsCode: any, diagnosticsCounts: Record<string, any>) =>
+        mountOptions.reportLifecycle?.(diagnosticsCode, diagnosticsCounts),
+    }),
+    releaseCategoryDiagnostics = () => {
+      (categoryTransitionDiagnostics.dispose(), mountOptions.setCategoryDiagnostics?.(null));
+    };
+  mountOptions.setCategoryDiagnostics?.(categoryTransitionDiagnostics);
   function reportModuleSwitch(lifecycleEventName: any, fromModuleName: any, toModuleName: any) {
     try {
       const moduleOrderEntries = [
@@ -3215,6 +3409,14 @@ export function mountStage(mountOptions: any) {
         "vacuum",
         "security",
       ];
+      // 过渡开始时开启采样，状态应用后记录 applyMs；两者都会带上 vacuum 的即时计数。
+      lifecycleEventName === "category-switch-start"
+        ? categoryTransitionDiagnostics.begin(
+            moduleOrderEntries.indexOf(fromModuleName),
+            moduleOrderEntries.indexOf(toModuleName),
+          )
+        : lifecycleEventName === "category-switch-applied" &&
+          categoryTransitionDiagnostics.applied();
       mountOptions.reportLifecycle?.(lifecycleEventName, {
         fromCategory: moduleOrderEntries.indexOf(fromModuleName),
         toCategory: moduleOrderEntries.indexOf(toModuleName),
@@ -3880,7 +4082,8 @@ export function mountStage(mountOptions: any) {
       idleIconVisibilityControl.setAvailable(isIdleRotationAvailable));
     const isFrameLoopAvailable =
       !ctx.isControlBusy && !document.hidden && (!ctx.hasPresentedOnce || ctx.isPresentedVisible);
-    (ctx.sceneBackground?.setAvailable(isFrameLoopAvailable),
+    (isFrameLoopAvailable || categoryTransitionDiagnostics.cancel(),
+      ctx.sceneBackground?.setAvailable(isFrameLoopAvailable),
       screenOutlines.setAvailable(isFrameLoopAvailable),
       editorSelectionOutlines.setAvailable(isFrameLoopAvailable),
       document.body?.classList.toggle("is-render-suspended", !isFrameLoopAvailable),
@@ -4209,7 +4412,8 @@ export function mountStage(mountOptions: any) {
             slop: getPointerSlop(stageDownEvent),
             returnCamera: ctx.idleReturnCamera,
           }),
-          (ctx.cameraMotionSnapshot = null),
+          uninstallNativeSelectionGuard(),
+        (ctx.cameraMotionSnapshot = null),
           mountOptions.endCameraMotion(),
           syncCameraInteraction(),
           wakeSceneBackground());
@@ -4394,6 +4598,7 @@ export function mountStage(mountOptions: any) {
     }));
   const stageHandlersHost: StageHandlersHost = {
     activateMarker,
+    categoryDiagnostics: categoryTransitionDiagnostics,
     markerBindings,
     selectPreviewReference,
     get activeCameraPose() { return ctx.activeCameraPose; },
@@ -4412,6 +4617,7 @@ export function mountStage(mountOptions: any) {
     brightnessSlider,
     buildFloorCameraConfig,
     buildLockMotionInput,
+    buildWindowMotionInput,
     get cachedDocumentFloorId() { return ctx.cachedDocumentFloorId; },
     set cachedDocumentFloorId(value: any) { ctx.cachedDocumentFloorId = value; },
     get cachedDocumentSource() { return ctx.cachedDocumentSource; },
@@ -4554,6 +4760,9 @@ export function mountStage(mountOptions: any) {
     lockPanel,
     map,
     markerLayerElement,
+    windowMotion,
+    windowOpeners,
+    windowOpenerPreviews,
     matchesSelectedFloor,
     mediaControlRequestsByRequestId,
     get mediaViewportSize() { return ctx.mediaViewportSize; },
@@ -4684,6 +4893,7 @@ export function mountStage(mountOptions: any) {
         (cameraChanged || ctx.pageBehavior.hideIconsWhileRotating === true) && wakeSceneBackground());
     });
   cameraChangeUnsubscribe || controls.addEventListener("change", renderMarkerPositions);
+  const uninstallNativeSelectionGuard = installNativeSelectionGuard(element);
   const resizeObserver = new ResizeObserver(() => (weatherGround.sync(), syncLayoutMetrics()));
   (resizeObserver.observe(element),
     resizeObserver.observe(lightPanelSection),
@@ -4720,18 +4930,23 @@ export function mountStage(mountOptions: any) {
       })
     : () => {};
   ((ctx.sceneBackground = mountOptions.createFrameLoop({
+    // 0.8.4：舞台帧循环按推进间隔对齐截止时间，短帧不再被 setTimeout 抖动顶到下一帧。
+    alignDeadlines: true,
     step: (frameStepTimestamp: any) =>
       mountOptions.profileFrameWork
         ? mountOptions.profileFrameWork("stage-updates", () => renderStageFrame(frameStepTimestamp))
         : renderStageFrame(frameStepTimestamp),
   })),
     syncAvailability(),
-    window.addEventListener("pagehide", () => {
-      (stateUpdatePlanner.invalidate(),
+    onPermanentPageHide(window, () => {
+      (releaseCategoryDiagnostics(),
+        stateUpdatePlanner.invalidate(),
         stageModelIndex.invalidate(),
         animationVisibility.invalidate(),
         lockMotion.dispose(),
         mountOptions.setLockMoving?.(false),
+        windowMotion.dispose(),
+        mountOptions.setWindowMoving?.(false),
         lockPanel.dispose(),
         securityAlarmOverlay.dispose(),
         sceneBackgroundController.dispose(),

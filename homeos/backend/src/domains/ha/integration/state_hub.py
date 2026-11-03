@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+import logging
+from collections.abc import Callable, Iterable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
 from ....platform.core.runtime.observability import record_ha_counter
+
+LOGGER = logging.getLogger(__name__)
 
 #: 状态值本身没有语义的"服务型实体"：常态 ``unknown`` 不等于掉线。
 #:
@@ -19,7 +22,11 @@ STATELESS_DOMAINS = frozenset(
     {'stt', 'tts', 'cover', 'notify', 'ai_task', 'infrared', 'wake_word', 'conversation', 'radio_frequency'}
 )
 #: 发布事件的类型白名单（新增 ``resync_required``：连接器要求前端整表重拉）。
-PUBLISHED_EVENT_TYPES = frozenset({'state_changed', 'state_removed', 'resync_required'})
+PUBLISHED_EVENT_TYPES = frozenset({'state_changed', 'state_removed', 'cover_memory_changed', 'resync_required'})
+
+#: 按 ``entityId`` 过滤订阅的事件类型：``cover_memory_changed`` 只带实体号，
+#: 墙屏按订阅的实体集合决定要不要重取姿态历史。
+ENTITY_SCOPED_EVENT_TYPES = frozenset({'state_changed', 'state_removed', 'cover_memory_changed'})
 
 
 @dataclass
@@ -46,7 +53,13 @@ class StateFetchChanges:
 
 class StateHub:
 
-    def __init__(self) -> None:
+    def __init__(self, *, observe: Callable[[Iterable[dict[str, Any]]], None] | None = None) -> None:
+        #: 观察回调（同步）：每次状态写入后把规范化后的状态交给它（窗帘姿态历史用）。
+        #: 刻意不是协程：它只做内存更新 + 节流写盘，不参与状态分发链路。
+        self._observe = observe
+        #: 当前状态来源的标识（连接作用域）。``CoverMemory.observe`` 用它丢弃
+        #: 上一轮连接迟到的状态 —— 换了 HA 之后旧连接的事件不该写进新连接的历史。
+        self.source_key = ''
         self._states = {}
         self._subscribers = set()
         self._subscriber_entities = {}
@@ -156,6 +169,7 @@ class StateHub:
             for changes in self._fetch_changes.values():
                 changes.replaced = True
             self._states = normalized
+        self._notify_observe(normalized.values())
         for entity_id in removed:
             await self.publish({"type": "state_removed", "entityId": entity_id})
 
@@ -180,6 +194,7 @@ class StateHub:
                 # 登记给其它窗口，避免它们随后用更旧的值覆盖。
                 self._mark_fetch_changes(set(normalized))
             self._states.update(normalized)
+        self._notify_observe(normalized.values())
 
     async def update(self, raw: dict[str, Any]) -> dict[str, Any] | None:
         normalized = self.normalize(raw)
@@ -189,8 +204,19 @@ class StateHub:
             # 登记这次写入，让进行中的取数窗口不要用更旧的返回值盖掉它。
             self._mark_fetch_changes({normalized["entityId"]})
             self._states[normalized["entityId"]] = normalized
+        self._notify_observe((normalized,))
         await self.publish(normalized)
         return normalized
+
+    def _notify_observe(self, states: Iterable[dict[str, Any]]) -> None:
+        """把状态交给观察回调；回调异常绝不能影响状态分发主链路。"""
+        observe = self._observe
+        if observe is None:
+            return
+        try:
+            observe(states)
+        except Exception:
+            LOGGER.warning('状态观察回调失败（忽略，不影响状态分发）', exc_info=True)
 
     async def snapshot(
         self, entity_ids: set[str] | None = None
@@ -269,7 +295,7 @@ class StateHub:
         event_type = payload.get("type")
         entity_id = payload.get("entityId")
         for queue in tuple(self._subscribers):
-            if event_type in {"state_changed", "state_removed"}:
+            if event_type in ENTITY_SCOPED_EVENT_TYPES:
                 subscribed_entities = self._subscriber_entities.get(queue)
                 if subscribed_entities is not None and entity_id not in subscribed_entities:
                     continue

@@ -1585,6 +1585,7 @@ export function weatherComponentDimensions(weatherOptions: Record<string, unknow
         weatherCanvasHeight = Number(weatherCanvas?.height || 1940),
         weatherProperties = {
           instanceName: weatherInstanceName,
+          forecastEnabled: false,
           iconVisible: true,
           temperatureVisible: true,
           conditionVisible: true,
@@ -1887,6 +1888,7 @@ const sceneModeDefaults = {
   instanceName: "情景模式",
   activationAnimation: "spring",
   controlMode: "scene",
+  popupEnabled: false,
 };
 (registerComponentTemplate({
   id: "scene-mode",

@@ -1,5 +1,6 @@
 /** mountStage handler clusters — wired via explicit host from stage.ts */
 import { resolveRuntimeFloor } from "./floor-navigation";
+import { markerVisibilityHint } from "./marker-visibility";
 import { bathHeaterState as bathHeaterState2 } from "../../bath-heater/bath-heater";
 import { purifierState as purifierState2 } from "../../purifier/purifier-state";
 import { carState as carState2 } from "../../vehicle/car-state";
@@ -282,7 +283,15 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
           editing: host.isEditing || !host.isControlReady,
           error: panelItem.modelAvailable
             ? coverPresentation.error || ""
-            : "窗帘模型已移除，请重新配置。",
+            : panelItem.windowOpener
+              ? "关联窗扇已移除，请重新配置。"
+              : "窗帘模型已移除，请重新配置。",
+          // 开窗器的提示单独一行（0.8.4）：模型还在但窗扇/行程信息不全时也要说清楚。
+          windowNotice: panelItem.windowOpener
+            ? panelItem.modelAvailable
+              ? ""
+              : "关联窗扇已移除，请重新配置。"
+            : "",
           numberFormats: host.numberFormats,
         });
       }
@@ -1340,6 +1349,17 @@ export function createSyncMarkers(host: StageHandlersHost) {
         }
         editingBadge.textContent = "当前";
       } else editingBadge?.remove();
+      // 0.8.4：选中标记时挂一个运行时可见性摘要（`i3d-marker-visibility-hint`）。
+      let visibilityHint = syncMarkerElement.querySelector(".i3d-marker-visibility-hint");
+      const markerVisibilityText = isMarkerSelected ? markerVisibilityHint(syncMarkerItem) : "";
+      if (markerVisibilityText) {
+        (visibilityHint ||
+          ((visibilityHint = createStageElement("span", "i3d-marker-visibility-hint")),
+          syncMarkerElement.append(visibilityHint)),
+          (visibilityHint.textContent = markerVisibilityText),
+          syncMarkerElement.setAttribute("aria-description", markerVisibilityText));
+      } else
+        (visibilityHint?.remove(), syncMarkerElement.removeAttribute("aria-description"));
     }
     // 四轮胎压：标签跟车模包围盒走，独立于 `i3d-marker` 的坐标点表。
     host.carTires.sync({
@@ -1523,14 +1543,14 @@ export function createHandleHostMessage(host: StageHandlersHost) {
             host.mountOptions.endCameraMotion()));
         const editingSecurityKind =
           data.editing === true &&
-          ["camera", "presence", "lock", "moisture", "smoke", "gas"].includes(
+          ["camera", "presence", "lock", "window", "moisture", "smoke", "gas"].includes(
             data.editingSecurityKind,
           )
             ? data.editingSecurityKind
             : "";
         ((data.resetPreviewSession === true ||
           data.editing !== true ||
-          editingSecurityKind !== "lock" ||
+          (editingSecurityKind !== "lock" && editingSecurityKind !== "window") ||
           (host.text && host.text !== (data.selectedId || ""))) &&
           (host.selectedLockEntry = null),
           (host.options = structuredClone(data.properties)),
@@ -1560,6 +1580,8 @@ export function createHandleHostMessage(host: StageHandlersHost) {
               "water-heater",
               "airer",
               "cover",
+              "window-opener",
+              "window",
               "nas",
               "television",
               "speaker",
@@ -1814,22 +1836,39 @@ export function createHandleHostMessage(host: StageHandlersHost) {
                       else {
                         if (data.type === "editor-command" && host.isEditing)
                           try {
-                            if (data.command === "preview-lock-motion") {
-                              if (host.selectedSecurityKind !== "lock") throw new Error("请先选择门。");
-                              const previewLockMarkerItem = host.findBindingById(data.id);
-                              if (
-                                previewLockMarkerItem?.deviceKind !== "lock" ||
-                                !previewLockMarkerItem.modelAvailable
-                              )
-                                throw new Error("请选择可用的门模型。");
-                              ((host.selectedLockEntry = {
-                                id: data.id,
-                                open: data.value !== "closed",
-                              }),
-                                host.wakeSceneBackground(),
-                                host.syncCameraInteraction());
-                              return;
-                            } else {
+                            if (
+                            data.command === "preview-lock-motion" ||
+                            data.command === "preview-window-motion"
+                          ) {
+                            // 门与窗共用同一条「选中项预览」通道：`id` 自带 `lock:` / `window:` 前缀，
+                            // 命令只决定要校验哪一类。开窗器分支在编辑态由 `window-opener` 类别驱动。
+                            const previewKind =
+                                data.command === "preview-window-motion" ? "window" : "lock",
+                              isWindowOpenerPreview =
+                                previewKind === "window" &&
+                                host.selectedSecurityKind === "window-opener";
+                            if (
+                              !isWindowOpenerPreview &&
+                              host.selectedSecurityKind !== previewKind
+                            )
+                              throw new Error("请先选择对应的门或窗扇。");
+                            const previewMotionBindingItem = host.findBindingById(data.id);
+                            if (
+                              (isWindowOpenerPreview
+                                ? !previewMotionBindingItem?.windowOpener ||
+                                  previewMotionBindingItem.id !== data.id
+                                : previewMotionBindingItem?.deviceKind !== previewKind) ||
+                              !previewMotionBindingItem.modelAvailable
+                            )
+                              throw new Error("请选择可用的门或窗扇模型。");
+                            ((host.selectedLockEntry = {
+                              id: data.id,
+                              open: data.value !== "closed",
+                            }),
+                              host.wakeSceneBackground(),
+                              host.syncCameraInteraction());
+                            return;
+                          } else {
                               if (data.command === "presence-top-view") {
                                 const { floorId: presenceFloorId, box: presenceViewBox } =
                                   data.value || {};
@@ -2047,6 +2086,8 @@ export function createRunFrame(host: StageHandlersHost) {
   return function runFrame(frameTimestamp: any) {
     if (host.isControlBusy || document.hidden || host.isCameraMoving || host.startupProgress === 0)
       return Infinity;
+    // 分类过渡采样：没有采样会话时返回 null，`stage()` 会直接忽略。
+    const categoryFrameStartedAt = host.categoryDiagnostics?.startFrame?.() ?? null;
     host.syncPresenceScene();
     const floorTransitionActive2 =
       host.mountOptions.floorTransitionActive || host.cameraMotionSnapshot?.owner === "floor";
@@ -2105,6 +2146,13 @@ export function createRunFrame(host: StageHandlersHost) {
         !floorTransitionActive2 &&
         host.lockMotion.tick(frameTimestamp, lightBindingFrame.bindings, lightBindingFrame.states);
     host.mountOptions.setLockMoving?.(tick5);
+    // 窗扇和门一样是「状态驱动 + 本地补间」：先解出每扇的开合目标，再让动画追上去。
+    const windowBindingFrame = host.buildWindowMotionInput();
+    !floorTransitionActive2 &&
+      host.windowMotion.tick(frameTimestamp, windowBindingFrame.bindings, windowBindingFrame.states, {
+        scope: windowBindingFrame.scope,
+        animateInitial: windowBindingFrame.animateInitial === true,
+      });
     const tick6 = !floorTransitionActive2 && host.presenceScene.tick(deltaSeconds);
     host.layoutPresenceHitBoxes();
     const tick7 = !floorTransitionActive2 && host.vacuumMotion.tick(deltaSeconds);
@@ -2147,6 +2195,7 @@ export function createRunFrame(host: StageHandlersHost) {
       (trackedVacuumItem: any) =>
         host.matchesSelectedFloor(trackedVacuumItem) && host.vacuumMotion.hasTracking(trackedVacuumItem.id),
     );
+    host.categoryDiagnostics?.stage?.(categoryFrameStartedAt, !!floorTransitionActive2);
     return (
       (host.followToggleButton.hidden =
         host.isEditing || (!host.followVacuumId && (host.activeModule !== "vacuum" || !some7))),

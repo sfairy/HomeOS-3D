@@ -11,6 +11,8 @@ import { hexToRgbOrBlack as hexToRgb2 } from "@/shared/utils/ui/color.util";
 
 export interface ShellControlsDeps {
   editorCtx: EditorContext;
+  /** 0.8.4：当前打开的情景弹窗编辑器（未打开时为空）。 */
+  scenePopupEditor?: { refresh?: () => void } | null;
   COMPONENT_DIALOG_DESIGN_HEIGHT: any;
   COMPONENT_DIALOG_DESIGN_WIDTH: any;
   COMPONENT_DIALOG_SCALE_MULTIPLIER: any;
@@ -116,6 +118,8 @@ export function syncIconButtonInspector(deps: ShellControlsDeps, iconButtonCompo
 
 export function syncNavigationInspector(deps: ShellControlsDeps, navigationComponent: any) {
   syncNavigationInspectorExternal(deps.navigationInspectorContext, navigationComponent);
+  // 0.8.4：选中的控件变了就重画情景弹窗编辑器；控件不再开弹窗则自动关闭。
+  deps.scenePopupEditor?.refresh?.();
 }
 
 export function syncLineChartInspector(deps: ShellControlsDeps, lineChartComponent: any) {

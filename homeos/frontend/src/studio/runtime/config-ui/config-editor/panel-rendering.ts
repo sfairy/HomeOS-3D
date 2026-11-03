@@ -315,6 +315,8 @@ export function attachEditorPanelRendering(editorHost: any) {
     let auxDialogElement: any = null,
       refreshBatchButtons = () => {};
                         const syncPreviewSize = () => {
+        // 借用会话里画面就是编辑器页的运行时（绝对定位铺满），不要再按比例去改容器尺寸。
+        if (editorHost.isBorrowedPreview) return;
         const previewSize = interaction3dPreviewSize2(
           editorHost.component,
           editorHost.documentApi,
@@ -337,10 +339,14 @@ export function attachEditorPanelRendering(editorHost: any) {
           editorHost.pickerGeneration++,
           editorHost.pickerHandle?.close(),
           // 共享装饰器不在这里回收：安防 / 存在感应等入口用的是同一份，关掉本弹窗不该让它失效。
-          editorHost.editorRuntime?.(),
+          // 0.8.4：预览句柄负责收尾 —— 自建弹窗保留运行时（2 分钟内重开不重建户型），
+          // 借用会话则把编辑器页的运行时原样还原。
+          editorHost.previewHandle
+            ? editorHost.previewHandle.release({ keep: true, watchAccess: editorHost.subscribeAccess })
+            : editorHost.editorRuntime?.(),
           editorHost.accessUnsubscribe?.(),
           configurationFeedback.dispose(),
-          editorHost.editorDialogElement.remove(),
+          editorHost.previewHandle || editorHost.editorDialogElement.remove(),
           editorHost.element.remove(),
           document.dispatchEvent(new Event("hb-i3d-preview-scope")));
       },
@@ -392,6 +398,7 @@ export function attachEditorPanelRendering(editorHost: any) {
     if (
       editorHost.isClimateMode ||
       editorHost.isCoverMode ||
+      editorHost.isWindowOpenerMode ||
       editorHost.isTemperatureHumidityMode ||
       editorHost.isDeviceKind ||
       editorHost.isGenericDeviceMode ||
@@ -436,7 +443,7 @@ export function attachEditorPanelRendering(editorHost: any) {
     ),
       editorHost.bodyElement.append(editorHost.viewElement, editorHost.panelElement),
       editorHost.editorDialogElement.append(editorHost.headerElement, editorHost.bodyElement),
-      document.body.append(editorHost.editorDialogElement),
+      editorHost.previewHandle || document.body.append(editorHost.editorDialogElement),
       editorHost.editorDialogElement.addEventListener("cancel", (editorCancelEvent: any) => {
         (editorCancelEvent.preventDefault(),
           configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration));

@@ -395,12 +395,19 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
     };
     {
       appCtx.lightingScheduler = createDemandFrameLoop2({
+        // 0.8.4：按推进间隔对齐截止时间（舞台侧同款），避免 setTimeout 抖动顶帧。
+        alignDeadlines: true,
         onWake() {
           const publishNowMs = performance.now();
           publishNowMs - lastStatsPublishMs > 50 && (lastStatsPublishMs = publishNowMs);
         },
         step(frameStepSeconds: any) {
+          // 分类过渡期间顺带记录 GL 帧耗时（没有采样会话时为 null，`render()` 直接忽略）。
+          const categoryFrameStartedAt = appCtx.categoryDiagnostics?.startFrame?.() ?? null;
           const frameStepResult = stepStudioFrame(frameStepSeconds);
+          appCtx.categoryDiagnostics?.render?.(categoryFrameStartedAt, {
+            calls: appCtx.threeRenderer?.info?.render?.calls ?? 0,
+          });
           return (
             (appCtx.threeRenderer.domElement.dataset.renderFrameChecks = String(
               appCtx.lightingScheduler.stats.frames,

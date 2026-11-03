@@ -6436,3 +6436,11 @@ h2 {
 #percentage-bar-inspector input[type="color"]:disabled {
   opacity: 0.35;
 }
+
+/* ---- 0.8.4 选择器级补丁 ---- */
+.binding-repair-dialog { width:min(660px,calc(var(--editor-dialog-viewport-width, 100vw) - 32px));max-height:calc(100dvh - 40px);padding:24px;box-sizing:border-box;overflow:auto }
+.binding-repair-dialog h2 { margin:0 0 16px }
+.binding-repair-dialog p { line-height:1.6 }
+.binding-repair-list { max-height:42dvh;overflow:auto;padding:12px 12px 12px 28px;background:#00000026;border-radius:8px }
+.binding-repair-list li { padding:5px 0;overflow-wrap:anywhere }
+.binding-repair-actions { display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:20px }

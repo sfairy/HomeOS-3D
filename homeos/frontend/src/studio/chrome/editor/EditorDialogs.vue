@@ -391,10 +391,11 @@
             </div>
         </div>
         <div class="settings-form">
-            <div class="recovery-message"><strong>检测到刷新前的编辑内容</strong>
-                <p>这些修改尚未保存到仪表盘。可以继续编辑，或丢弃并使用上次已保存的内容。</p>
+            <div class="recovery-message"><strong id="recovery-message-title">检测到刷新前的编辑内容</strong>
+                <p id="recovery-message-detail">这些修改尚未保存到仪表盘。可以继续编辑，或丢弃并使用上次已保存的内容。</p>
             </div>
-            <div class="dialog-actions"><button id="recovery-discard" type="button">丢弃修改</button><button
+            <div class="dialog-actions"><button id="recovery-download" type="button" hidden>下载未保存副本</button><button
+                    id="recovery-discard" type="button">丢弃修改</button><button
                     id="recovery-restore" class="primary" type="button">恢复修改</button></div>
         </div>
     </dialog>

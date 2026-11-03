@@ -20,6 +20,9 @@ import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { validGeometryLoops as validGeometryLoops2 } from "../../cache/geometry-persistent-cache";
 import { windowGeometryParts as windowGeometryParts2 } from "../../plan/studio-window-geometry";
+import { addCustomWindow } from "../../plan/window/model";
+import { isCustomWindow } from "../../plan/window/layout";
+import { windowModelId } from "../../plan/window/window-models";
 import { collectExhaustFanOpenings } from "../items/studio-exhaust-fan";
 export { createWallTopMaterial };
 
@@ -554,8 +557,80 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           wallLengthMeters2(openingWall, interiorPixelsPerMeter),
         ),
         windowSillHeight = clamp2(currentWindow.sill, 0, openingWall.height),
-        windowHeight = Math.min(currentWindow.height, openingWall.height - windowSillHeight),
-        windowParts = windowGeometryParts2(
+        windowHeight = Math.min(currentWindow.height, openingWall.height - windowSillHeight);
+      if (isCustomWindow(currentWindow)) {
+        // 自定义窗型：走向由设计里的 wallDirection 决定，朝内开就要把整组掉个头。
+        if (currentWindow.windowDesign?.wallDirection === -1) windowGroup.rotation.y += Math.PI;
+        const customWindowAccent = deps.createSelectionRef("window", currentWindow.id)
+          ? yt6.accent
+          : (yt6.windowFrame ?? yt6.furniture);
+        try {
+          addCustomWindow({
+            group: windowGroup,
+            window: currentWindow,
+            width: windowWidth,
+            height: windowHeight,
+            sill: windowSillHeight,
+            style: yt6,
+            frameColor: customWindowAccent,
+            addBoxes: deps.addArchitectureMesh,
+            // 运行态要能开合；编辑器里保持静态，减少 draw call 也避免误触。
+            animated: buildInteriorSceneIsEmbeddedStage,
+          });
+        } catch (customWindowError) {
+          // 设计不合法时整层楼不能跟着消失：退回普通窗，让用户还能选中重画。
+          console.warn("[studio] 自定义窗型构建失败，回退普通窗", currentWindow.id, customWindowError);
+          windowGroup.clear();
+          const fallbackParts = windowGeometryParts2(
+            windowWidth,
+            windowHeight,
+            windowSillHeight,
+            currentWindow.hasDivider !== false,
+          );
+          if (!fallbackParts) continue;
+          deps.addArchitectureMesh(windowGroup, fallbackParts.glass, yt6.glass, {
+            rounded: false,
+            transparent: true,
+            opacity: 0.2,
+            depthWrite: false,
+            side: ns2.DoubleSide,
+            roughness: 0.08,
+            metalness: 0.04,
+            castShadow: false,
+            renderOrder: 6,
+          });
+          deps.addArchitectureMesh(windowGroup, fallbackParts.frames, customWindowAccent, {
+            rounded: false,
+            metalness: 0.15,
+            castShadow: false,
+            receiveShadow: false,
+          });
+        }
+        if (buildInteriorSceneIsEmbeddedStage) {
+          // 运行期按窗扇绑定选中：每个可动件都要能被 `window:<id>:<sash>` 找到。
+          windowGroup.userData.windowOutline = {
+            width: windowWidth,
+            height: windowHeight,
+            sill: windowSillHeight,
+          };
+          windowGroup.traverse((windowNode: any) => {
+            if (!windowNode.userData.windowSashId) return;
+            const sashId = windowNode.userData.windowSashId;
+            const groupId = windowNode.userData.windowGroupId;
+            Object.assign(windowNode.userData, {
+              environmentModelId: windowModelId(currentWindow.id, groupId || sashId),
+              windowLegacyModelId: groupId ? windowModelId(currentWindow.id, sashId) : "",
+              environmentFloorId: oe4,
+              environmentModelType: "window",
+              editorModelId: windowModelId(currentWindow.id, groupId || sashId),
+              editorFloorId: oe4,
+            });
+          });
+        }
+        deps.sceneRootNode.add(windowGroup);
+        continue;
+      }
+      const windowParts = windowGeometryParts2(
           windowWidth,
           windowHeight,
           windowSillHeight,

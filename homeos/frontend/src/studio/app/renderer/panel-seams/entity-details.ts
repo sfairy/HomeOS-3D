@@ -11,6 +11,13 @@ import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from "../../sha
 export function showEntityDetails(this: PanelRenderer, entityDetailsComponent: any, { preview: isEntityDetailsPreview = false } = {}) {
     const detailEntityId = entityDetailsComponent.bindings?.entity?.entityId;
     if (!detailEntityId) throw new Error("该控件没有关联实体。");
+    if (
+      entityDetailsComponent.type === "weather" &&
+      entityDetailsComponent.properties?.forecastEnabled === true
+    ) {
+      this.showWeatherForecast(entityDetailsComponent, { preview: isEntityDetailsPreview });
+      return;
+    }
     const detailEntityIdText = String(detailEntityId),
       detailDeviceProfile = this.deviceProfile(detailEntityIdText);
     entityDetailsComponent = applyXiaomiDeviceProfile2(entityDetailsComponent, detailDeviceProfile);

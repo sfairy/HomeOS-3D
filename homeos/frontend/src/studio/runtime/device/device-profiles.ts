@@ -263,6 +263,25 @@ const KITCHEN_DEVICE_PROFILES: Record<string, DeviceProfile> = {
 
 /** 宠物、办公与网络设备。 */
 const OTHER_DEVICE_PROFILES: Record<string, DeviceProfile> = {
+  /**
+   * 0.8.4 主机：Switch 是 `sensor.*`（nxapi presence），PlayStation 是 `media_player.*`。
+   * 图标用 mdi 的官方品牌图标；高度取模型实测值，不参与状态灯扫描。
+   */
+  "switch-console": {
+    collection: "switchConsoles",
+    modelType: "switch-console",
+    label: "Switch 游戏机",
+    icon: "mdi:nintendo-switch",
+    height: 0.128302,
+  },
+  playstation: {
+    collection: "playstations",
+    modelType: "playstation",
+    modelTypes: Object.freeze(["playstation", "ps5"]),
+    label: "PlayStation",
+    icon: "mdi:sony-playstation",
+    height: 0.421,
+  },
   "pet-feeder": {
     collection: "petFeeders",
     modelType: "pet-feeder",

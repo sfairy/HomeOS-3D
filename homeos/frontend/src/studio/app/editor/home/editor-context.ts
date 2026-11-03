@@ -103,6 +103,8 @@ export interface EditorContext {
   copySuccessNavigationTarget: any;
   isSaving: boolean;
   recoverySnapshot: any;
+  /** 0.8.4：恢复判定为冲突（服务器已有更新）时只允许下载副本 / 丢弃，不允许直接恢复。 */
+  recoveryConflict: boolean;
   menuComponentId: any;
   editorClipboardComponentIds: string[];
   editorCanvasZoom: number;
@@ -210,6 +212,7 @@ export function createEditorContext(): EditorContext {
     copySuccessNavigationTarget: null,
     isSaving: false,
     recoverySnapshot: null,
+    recoveryConflict: false,
     menuComponentId: null,
     editorClipboardComponentIds: [],
     editorCanvasZoom: 1,

@@ -19,7 +19,8 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     imageAssetSearchInputElement, leftFolderName, loadNavigationIconOptions, measureAssetImageSize,
     mutateDocument, newId2, nextTemplateInstanceName2, pageSelectElement, positionEffectAssetMenu,
     positionImageAssetMenu, projectSelectElement, projectSummary, recoveryDialogElement, recoveryDiscardElement,
-    recoveryRestoreElement, redoElement, refreshAssetPickers, refreshComponentDialogScale, reloadAssetCatalog,
+    recoveryMessageTitleElement, recoveryMessageDetailElement, recoveryDownloadElement,
+    recoveryRestoreElement, setRecoverySaveAttempts, redoElement, refreshAssetPickers, refreshComponentDialogScale, reloadAssetCatalog,
     renderComponentLists, renderComponentTemplates, renderEditorWorkspace, renderEffectAssetOptions,
     renderImageAssetOptions, requestJson, saveDraft, scheduleAssetPreview, selectComponent, setComponentScope,
     setEditorMode, settleAutoDiagramDialog, showDashboardPreviewButtonElement, showEditorPreviewButtonElement,
@@ -269,12 +270,19 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
   undoElement.addEventListener("click", () => entityLoadError("undo")),
   redoElement.addEventListener("click", () => entityLoadError("redo")),
   recoveryRestoreElement.addEventListener("click", () => {
+    // 冲突态不允许直接恢复：服务器已有别处更新，直接盖回去会丢别人的编辑。
+    if (editorCtx.recoveryConflict) return;
     if (!editorCtx.recoverySnapshot || !editorCtx.activeProject) {
       recoveryDialogElement.close();
       return;
     }
     const Ne2 = editorCtx.recoverySnapshot;
+    // 0.8.4：恢复时把快照里记录的保存尝试接回来，后续保存继续累积指纹。
+    setRecoverySaveAttempts(
+      Array.isArray(Ne2.saveAttempts) ? clone2(Ne2.saveAttempts) : [],
+    );
     ((editorCtx.recoverySnapshot = null),
+      (editorCtx.recoveryConflict = false),
       (editorCtx.activeProject = {
         ...editorCtx.activeProject,
         document: clone2(Ne2.document),
@@ -305,9 +313,36 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
   recoveryDiscardElement.addEventListener("click", () => {
     (discardRecoverySnapshot(editorCtx.activeProject?.projectId),
       (editorCtx.recoverySnapshot = null),
+      (editorCtx.recoveryConflict = false),
+      setRecoverySaveAttempts([]),
       recoveryDialogElement.close(),
       writeError(),
       syncHistoryButtons());
+  }),
+  recoveryDownloadElement.addEventListener("click", () => {
+    // 冲突时唯一的「保底」出口：把整份未保存副本下载成 JSON，让用户自己核对。
+    const downloadedRecovery = editorCtx.recoverySnapshot;
+    if (!downloadedRecovery || downloadedRecovery.projectId !== editorCtx.activeProject?.projectId)
+      return;
+    const downloadUrl = URL.createObjectURL(
+        new Blob(
+          [
+            JSON.stringify(
+              { format: "ha-bridge-unsaved-recovery-v1", ...downloadedRecovery },
+              null,
+              2,
+            ),
+          ],
+          { type: "application/json" },
+        ),
+      ),
+      downloadLink = document.createElement("a");
+    ((downloadLink.href = downloadUrl),
+      (downloadLink.download = "HA-Bridge-未保存副本.json"),
+      document.body.append(downloadLink),
+      downloadLink.click(),
+      downloadLink.remove(),
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 0));
   }),
   recoveryDialogElement.addEventListener("cancel", (onDocumentPointerdownConfig: any) =>
     onDocumentPointerdownConfig.preventDefault(),

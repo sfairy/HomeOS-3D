@@ -327,6 +327,13 @@ export class StudioSaveStore {
       }
       return;
     }
+    // 非重试性失败（422 窗型几何 / 413 体量 / 401 / 403）之后用户**已经改了内容**：
+    // 必须放行下一次保存。否则 computeDirtyStatus() 见到 failed 就原样返回 →
+    // 自动保存不再排期、flushNow() 直接返回 fatal，header 上那句「保存失败，修改后重试」
+    // 是空话 —— 用户改多少次都不会再发一次 PUT，只有刷新页面才恢复。
+    // 没有新改动时（上面未返回的分支之外）仍保持 failed，不拿同一份坏数据反复打后端。
+    if (this.state.status === "failed")
+      this.patch({ status: "dirty", attempt: 0, lastError: null, lastErrorCategory: null });
     const firstDirtyAt = this.state.firstDirtyAt ?? this.now();
     const nextStatus = this.computeDirtyStatus();
     this.patch({ status: nextStatus, firstDirtyAt });

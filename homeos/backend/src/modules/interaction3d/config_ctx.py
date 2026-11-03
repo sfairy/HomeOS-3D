@@ -30,6 +30,7 @@ from typing import Any, NamedTuple, NoReturn
 
 from fastapi import HTTPException
 
+from .extra_sources import validate_extra_sources
 from .extra_types import EXTRA_TYPES
 
 #: 附加控制的网格档位（列 / 行）。
@@ -42,7 +43,9 @@ _EXTRA_CONTROL_TYPES = frozenset(
     {'panel', 'state', 'button', 'number', 'select', 'switch', 'picture'}
 )
 #: 附加控制的白名单字段。
-_EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId'})
+_EXTRA_CONTROL_FIELDS = frozenset(
+    {'rows', 'type', 'label', 'columns', 'entityId', 'sourceDeviceId'}
+)
 
 # ── 正则（模块级预编译：避免在每件控件上重复编译同一条模式） ────────────────────
 #: 通用实体 id：``domain.object_id``。
@@ -114,6 +117,9 @@ def validate_appliance_extras(ctx: ValidationContext, widget: dict, bound_entity
         ):
             ctx.fail()
         seen_entity_ids.add(control_entity_id)
+    # 多设备实体：``extraDevices`` 与 ``extraControls.sourceDeviceId`` 必须对得上。
+    # 放在循环之后，因为它要同时看两边；单条控制无法判断「来源是否已声明」。
+    validate_extra_sources(widget, ctx.fail)
 
 
 class EnumSpec(NamedTuple):
