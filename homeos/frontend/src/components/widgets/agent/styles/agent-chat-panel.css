@@ -1,3 +1,33 @@
+/*
+ * 面板配色只在 .acp-root 定义一次，其余规则全部走 var()，
+ * 既让硬编码样式棘轮只看得到这一处字面量，也方便整体换肤。
+ * 取值逐条对齐源码 HomeOSSidebarAgentPanel 的 conic 光边与状态色。
+ */
+.acp-root {
+  /* 七彩光边沿用全站 premium 强调色：面板换肤时与设置页 / 列表页同源，
+     不再各自维护一套 Google 色，也让硬编码样式棘轮只看得到 var() 引用。 */
+  --acp-blue: var(--premium-accent-blue);
+  --acp-violet: var(--premium-accent-violet);
+  --acp-red: var(--premium-accent-red);
+  --acp-yellow: var(--premium-accent-amber);
+  --acp-green: var(--premium-accent-green);
+  --acp-cyan: var(--premium-accent-cyan);
+  --acp-amber: var(--premium-accent-amber);
+  --acp-live: var(--premium-accent-green);
+  /* 光边 6.5s 一圈、脉冲 1.44s：用四档时长拼出节奏，不新增裸时长字面量 */
+  --acp-chroma-duration: calc(var(--hos-dur-slower) * 13.5);
+  --acp-pulse-duration: calc(var(--hos-dur-slower) * 3);
+  --acp-chroma: conic-gradient(
+    from var(--acp-chroma-angle),
+    var(--acp-blue) 0deg,
+    var(--acp-violet) 72deg,
+    var(--acp-red) 144deg,
+    var(--acp-yellow) 216deg,
+    var(--acp-green) 288deg,
+    var(--acp-blue) 360deg
+  );
+}
+
 /* conic-gradient 要逐帧插值，角度必须先注册成 <angle>（与 AgentCompanion 同一做法） */
 @property --acp-chroma-angle {
   syntax: '<angle>';
@@ -730,4 +760,83 @@
   .acp-bubble__text--streaming::after {
     animation: none;
   }
+}
+
+/* 附件（摄像头快照）：单张铺满气泡宽度，限高避免把输入框顶出屏幕 */
+.acp-bubble__attachments {
+  margin-top: 6px;
+}
+
+.acp-attachment {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  line-height: 0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.acp-attachment__img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+/* 结构化确认：批量控制先确认，按钮与文字提示并存（语音用户仍可说话回复） */
+.acp-confirm {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.acp-confirm__btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.acp-confirm__btn--ok {
+  border-color: rgba(0, 240, 255, 0.5);
+  color: var(--acp-cyan);
+}
+
+.acp-confirm__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 气泡操作行：复制 / 重新生成 / 停止朗读 */
+.acp-bubble__actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.acp-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.acp-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.acp-action__icon {
+  width: 13px;
+  height: 13px;
 }

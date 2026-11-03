@@ -40,6 +40,7 @@ from .validate import (
     normalize_pricing_patch,
     validate_app_config_partial,
 )
+from .validate.energy_roles import energy_role_errors
 from ...platform.core.db.models import SystemConfig
 from ...platform.core.db.runtime_kv import load_runtime_kv, persist_runtime_kv
 from ...platform.core.http.errors import BusinessException, ErrorCode, api_error, bad_request
@@ -142,6 +143,22 @@ class AppConfigService:
         self._section_cache: dict[str, tuple[int, Any]] = {}
         self._generation = 0
         self._loop: Any = None
+        #: 能源实体属性解析器（entity_id → attributes）；None 时跳过角色校验。
+        self._energy_attrs: Any = None
+
+    def set_energy_attrs_provider(self, resolve_attrs: Any) -> None:
+        """注入能源实体属性读取（启动时状态仓已就绪，用延迟解析避开构造顺序依赖）。"""
+        self._energy_attrs = resolve_attrs
+
+    def _validate_energy_roles(self, partial: dict[str, Any]) -> None:
+        """写库前校验能源绑定的实体角色；只检查本次改动的字段。"""
+        patch = partial.get("energy")
+        if not isinstance(patch, dict) or not patch or self._energy_attrs is None:
+            return
+        merged = {**(self._config.get("energy") or {}), **patch}
+        errors = energy_role_errors(patch, merged, self._energy_attrs)
+        if errors:
+            raise AppConfigValidationError(errors)
 
     def set_event_bus(self, event_bus: Any) -> None:
         """注入事件总线（总线在配置服务之后创建，启动时回填以便广播 ``app.config.updated``）。"""
@@ -482,6 +499,7 @@ class AppConfigService:
         if not changed_sections:
             return
         validate_app_config_partial(stripped, self._config)
+        self._validate_energy_roles(stripped)
         to_merge = dict(stripped)
         cfg = self._config
         replaced: set[str] = set()

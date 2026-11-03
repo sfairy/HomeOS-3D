@@ -20,6 +20,12 @@ from typing import Any
 from sqlalchemy import func, select
 
 from .bindings_gaps import collect_binding_gaps
+from ..client_power.energy_meter import (
+    describe_energy_entity,
+    describe_meter_scope,
+    normalize_meter_scope,
+    suggest_meter_scope,
+)
 from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.json_field import object_field, read_json_object
 from ...platform.core.db.models import Project, ProjectConfig, SecurityEvent
@@ -39,6 +45,35 @@ CHECKLIST_ITEM_IDS = ("studio3d", "favorites", "voice")
 HEALTH_CACHE_TTL_MS = 60_000
 #: 引导清单短缓存 TTL（毫秒）
 CHECKLIST_CACHE_TTL_MS = 15_000
+
+
+def _grain_source(grain: str, scope: str, scope_direct: list[str], day_id: str, month_id: str) -> str:
+    """某一粒度由谁提供：``meter`` 主表直接读、``aux`` 佐证表直接读、``derived`` 只能差分。
+
+    优先级固定为「主表口径 → 佐证表 → 差分」，与 ``_SCOPE_DIRECT_GRAINS`` 保持同一份规则；
+    新增口径时只改那张表，这里不需要再判断 ``scope == "..."``。
+    """
+    if grain in scope_direct:
+        return "meter"
+    if grain == "day" and day_id:
+        return "aux"
+    if grain == "month" and month_id:
+        return "aux"
+    return "derived"
+
+
+def _remember_energy_entity(
+    entity_id: str,
+    attributes: Any,
+    entities: dict[str, dict[str, Any]],
+    friendly_names: dict[str, str],
+) -> None:
+    """把单实体的能源类型与友好名记进校验结果（attributes 可能缺失/脏类型）。"""
+    resolved = attributes if isinstance(attributes, dict) else None
+    entities[entity_id] = describe_energy_entity(resolved)
+    name = (resolved or {}).get("friendly_name")
+    if isinstance(name, str) and name.strip():
+        friendly_names[entity_id] = name.strip()
 
 
 class SetupWizardService:
@@ -65,9 +100,7 @@ class SetupWizardService:
         try:
             with self._session_factory() as session:
                 row = session.execute(
-                    select(ProjectConfig).where(
-                        ProjectConfig.project_id == self.resolve_active_project_id()
-                    )
+                    select(ProjectConfig).where(ProjectConfig.project_id == self.resolve_active_project_id())
                 ).scalar_one_or_none()
             if row is None or not row.layout:
                 return None
@@ -86,11 +119,7 @@ class SetupWizardService:
         doorbells = ha.get("doorbells")
         if not isinstance(doorbells, list):
             return 0
-        return sum(
-            1
-            for item in doorbells
-            if isinstance(item, dict) and str(item.get("triggerEntityId") or "").strip()
-        )
+        return sum(1 for item in doorbells if isinstance(item, dict) and str(item.get("triggerEntityId") or "").strip())
 
     def _get_configured_motion_sensor(self) -> bool:
         ha = self.get_ha_config_snapshot()
@@ -156,7 +185,7 @@ class SetupWizardService:
             },
             "energy": {
                 "done": energy_done,
-                "hint": "请绑定主电表 entity_id",
+                "hint": "请绑定主电表，并选择它的清零口径（终身/年/月/日累计）",
             },
             "environment": {
                 "done": env_room_count >= ENV_ROOM_MIN,
@@ -164,11 +193,7 @@ class SetupWizardService:
             },
             "dashboard": {
                 "done": dashboard_done,
-                "hint": (
-                    None
-                    if dashboard_done
-                    else "可选：绘制 3D 户型图，或在常用设备中收藏至少 1 个实体"
-                ),
+                "hint": (None if dashboard_done else "可选：绘制 3D 户型图，或在常用设备中收藏至少 1 个实体"),
             },
             "complete": {
                 "done": bool(energy.get("learningStartedAt")),
@@ -195,31 +220,117 @@ class SetupWizardService:
             "circuitCount": sum(1 for cid in circuit_ids if str(cid or "").strip()),
             "learningPeriodDays": energy.get("learningPeriodDays", 7),
             "learningStartedAt": energy.get("learningStartedAt") or None,
+            "energy": self._build_energy_binding_status(energy),
         }
 
+    def _build_energy_binding_status(self, energy: dict[str, Any]) -> dict[str, Any]:
+        """能源绑定现状：口径、覆盖的粒度与缺什么。
+
+        只绑一个「累计电量」并不等于三档曲线都有数：日/月/年哪一档能直接读表，
+        取决于该表的清零周期；没有的粒度要么靠差分（可能因离线丢读数），
+        要么根本算不出来。这里把结论算好，前端只负责展示，不再各自猜规则。
+        """
+        meter_id = str(energy.get("meterEntityId") or "").strip()
+        scope = normalize_meter_scope(energy.get("meterScope"))
+        scope_info = describe_meter_scope(scope)
+        scope_direct = scope_info["directGrains"]
+        direct = set(scope_direct)
+        month_id = str(energy.get("monthMeterEntityId") or "").strip()
+        day_id = str(energy.get("dayMeterEntityId") or "").strip()
+        power_id = str(energy.get("mainPowerEntityId") or "").strip()
+        circuit_ids = [str(cid).strip() for cid in (energy.get("circuitEntityIds") or []) if str(cid or "").strip()]
+        # 佐证口径同样能「直接读表」：绑了日累计表，当日用量就不必靠差分。
+        # 「哪些粒度能直接读」的规则只在 client_power.energy_meter 里写一份
+        # （_SCOPE_DIRECT_GRAINS），这里只做「主表 ∪ 佐证表」的合并，不再按 scope 分支判断。
+        if day_id:
+            direct.add("day")
+        if month_id:
+            direct.add("month")
+        grains = {
+            grain: {
+                "available": grain in direct,
+                "source": _grain_source(grain, scope, scope_direct, day_id, month_id),
+            }
+            for grain in ("day", "month", "year")
+        }
+        # 缺粒度时的具体建议：优先补最细的日累计，其次月累计。
+        advice: str | None = None
+        if meter_id:
+            if not grains["day"]["available"]:
+                advice = "尚未绑定日累计表：今日用量靠读数差分，跨零点离线会缺当天数据"
+            elif not grains["month"]["available"]:
+                advice = "月总量由日行求和，若想要账单级精度可补绑月累计表"
+        return {
+            "meterEntityId": meter_id,
+            "meterScope": scope,
+            "scopeResetLabel": scope_info["resetLabel"],
+            "directGrains": sorted(direct),
+            "grains": grains,
+            "mainPowerEntityId": power_id,
+            "monthMeterEntityId": month_id,
+            "dayMeterEntityId": day_id,
+            "circuitCount": len(circuit_ids),
+            "hasRealtimePower": bool(power_id),
+            "advice": advice,
+        }
+
+    @staticmethod
+    def suggest_energy_scope(entity_ids: list[str], names: dict[str, str] | None = None) -> dict[str, str]:
+        """按 entity_id + friendly_name 猜口径，供向导在用户选完电表后预填（可手动改）。"""
+        resolved_names = names or {}
+        out: dict[str, str] = {}
+        for raw in entity_ids or []:
+            eid = str(raw or "").strip()
+            if eid:
+                out[eid] = suggest_meter_scope(eid, resolved_names.get(eid))
+        return out
+
     async def validate_entities(self, entity_ids: list[str]) -> dict[str, Any]:
-        """批量校验 entity_id 是否可用（state-store → HA 实时状态兜底）。"""
+        """批量校验 entity_id 是否可用，并返回能源类型（energy / power / other）。
+
+        ``entities`` 里的类型依据 state-store / HA 实时状态的 ``attributes`` 判定，
+        state-store 未命中时才去 HA 取一次；取不到 attributes 的实体归为 ``other``，
+        不在这里直接拒绝 —— 让前端把「绑定到哪个槽位」的语义错误显式提示给用户。
+        """
         missing: list[str] = []
-        valid: list[str] = []
+        entities: dict[str, dict[str, Any]] = {}
+        friendly_names: dict[str, str] = {}
         need_ha: list[str] = []
         for raw in entity_ids or []:
             eid = str(raw or "").strip()
             if not eid:
                 continue
-            if self._state_store.get(eid):
-                valid.append(eid)
+            state = self._state_store.get(eid)
+            if state:
+                _remember_energy_entity(eid, state.get("attributes"), entities, friendly_names)
             else:
                 need_ha.append(eid)
         for eid in need_ha:
-            try:
-                live = await self._ha_connector.fetch_entity_state(eid)
-                if isinstance(live, dict) and live.get("entity_id"):
-                    valid.append(eid)
-                else:
-                    missing.append(eid)
-            except Exception:
+            live = await self._fetch_live_entity(eid)
+            if live is None:
                 missing.append(eid)
-        return {"valid": valid, "missing": missing, "allOk": not missing}
+            else:
+                _remember_energy_entity(eid, live.get("attributes"), entities, friendly_names)
+        # 口径建议按 entity_id + friendly_name 关键词猜（「日/月/年/累计」），
+        # 猜错用户也能手动改，但省掉让普通用户理解「清零周期」的成本。
+        hints = self.suggest_energy_scope(list(entities), friendly_names)
+        for eid, info in entities.items():
+            info["suggestedScope"] = hints.get(eid, "total")
+        return {
+            "valid": list(entities),
+            "missing": missing,
+            "allOk": not missing,
+            "entities": entities,
+        }
+
+    async def _fetch_live_entity(self, entity_id: str) -> dict[str, Any] | None:
+        """回源 HA 取单实体状态；不可达或状态为空时返回 None（由调用方记为缺失）。"""
+        try:
+            live = await self._ha_connector.fetch_entity_state(entity_id)
+        except Exception as error:  # HA 单实体失败不该让整批校验报错
+            logger.debug("能源实体回源失败 %s: %s", entity_id, error)
+            return None
+        return live if isinstance(live, dict) and live.get("entity_id") else None
 
     async def complete_wizard(self, opts: dict[str, Any] | None = None) -> dict[str, Any]:
         """完成首装向导（幂等）。"""
@@ -236,15 +347,11 @@ class SetupWizardService:
         # 幂等：已完成则保留首次 learningStartedAt，避免重复调用重置能源学习期
         update: dict[str, Any] = {"learningPeriodDays": days}
         if not energy.get("learningStartedAt"):
-            update["learningStartedAt"] = (
-                datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-            )
+            update["learningStartedAt"] = datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         self._app_config.update({"energy": update})
         return {"success": True, "learningPeriodDays": days}
 
-    async def reduce_security_sensitivity(
-        self, opts: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def reduce_security_sensitivity(self, opts: dict[str, Any] | None = None) -> dict[str, Any]:
         """降低安防传感器告警灵敏度（误报反馈时调用）。"""
         options = opts or {}
         sec = self._app_config.get("security") or {}
@@ -289,10 +396,7 @@ class SetupWizardService:
         favorite_count = self._count_favorite_entities(layout)
         tts_ids = external.get("ttsMediaPlayerIds")
         voice_ready = bool(
-            (
-                isinstance(tts_ids, list)
-                and any(str(item or "").strip() for item in tts_ids)
-            )
+            (isinstance(tts_ids, list) and any(str(item or "").strip() for item in tts_ids))
             or voice.get("dailyAdvisorSpeak")
         )
 

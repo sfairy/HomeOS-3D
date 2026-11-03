@@ -9,12 +9,22 @@
  * 真正在聊的那一条：删除后指针指向一个不在历史里的新 id，重新挂载就是空白会话。
  */
 
+/** 一条回放用的附件（只用 URL，不落任何凭证） */
+export type AgentChatStoredAttachment = {
+  kind: 'image'
+  url: string
+  entityId?: string
+  name?: string
+}
+
 /** 可序列化的一条消息：只保留历史回放需要的字段 */
 export type AgentChatStoredMessage = {
   role: 'user' | 'assistant'
   text: string
   tools?: string
   outcome?: string
+  /** 摄像头快照等附件：URL 为同源地址、不含 token，可以安全写入 sessionStorage */
+  attachments?: AgentChatStoredAttachment[]
 }
 
 /** 本地历史会话（最多保留最近 8 段） */
@@ -65,17 +75,46 @@ export function writeAgentChatCurrentId(id: string): void {
   }
 }
 
+/** 可选的字符串字段：空值统一收敛成 undefined，避免脏数据写回历史 */
+function optionalText(value: unknown): string | undefined {
+  return value ? String(value) : undefined
+}
+
+/** 单条附件：只认有 URL 的图片，其余字段做字符串兜底 */
+function normalizeAttachment(
+  item: Partial<AgentChatStoredAttachment> | null,
+): AgentChatStoredAttachment | null {
+  const url = typeof item?.url === 'string' ? item.url : ''
+  if (!url) return null
+  return {
+    kind: 'image',
+    url,
+    entityId: optionalText(item?.entityId),
+    name: optionalText(item?.name),
+  }
+}
+
+/** 附件只保留可安全回放的图片 URL；脏条目逐条丢弃 */
+function normalizeAttachments(raw: unknown): AgentChatStoredAttachment[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as Array<Partial<AgentChatStoredAttachment> | null>)
+    .map(normalizeAttachment)
+    .filter((item): item is AgentChatStoredAttachment => item !== null)
+}
+
 function normalizeMessage(raw: unknown): AgentChatStoredMessage | null {
   if (!raw || typeof raw !== 'object') return null
   const message = raw as Partial<AgentChatStoredMessage>
   if (message.role !== 'user' && message.role !== 'assistant') return null
   const text = String(message.text || '')
-  if (!text.trim()) return null
+  const attachments = normalizeAttachments(message.attachments)
+  if (!text.trim() && !attachments.length) return null
   return {
     role: message.role,
     text,
-    tools: message.tools ? String(message.tools) : undefined,
-    outcome: message.outcome ? String(message.outcome) : undefined,
+    tools: optionalText(message.tools),
+    outcome: optionalText(message.outcome),
+    attachments: attachments.length ? attachments : undefined,
   }
 }
 
@@ -141,13 +180,18 @@ export function buildAgentChatSession(
   messages: ReadonlyArray<AgentChatStoredMessage & { streaming?: boolean }>,
 ): AgentChatSession | null {
   const snapshot = messages
-    .filter((message) => !message.streaming && String(message.text || '').trim())
+    .filter(
+      (message) =>
+        !message.streaming &&
+        (String(message.text || '').trim() || (message.attachments?.length ?? 0) > 0),
+    )
     .slice(-AGENT_CHAT_HISTORY_MESSAGE_LIMIT)
     .map((message) => ({
       role: message.role,
       text: message.text,
       tools: message.tools,
       outcome: message.outcome,
+      attachments: message.attachments,
     }))
   if (!snapshot.length) return null
   return {

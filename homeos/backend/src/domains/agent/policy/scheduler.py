@@ -32,6 +32,7 @@ from .scheduler_time import (
     now_naive,
     parse_iso,
 )
+from ..runtime.agent_actor import AgentActor
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import read_json_object
 from ....platform.core.db.models import AgentScheduledTask, AgentTaskExecutionLog
@@ -69,10 +70,17 @@ LOG_RETENTION_DAYS = 90
 PRUNE_INTERVAL_SECONDS = 3600
 #: 任务名最长字符数
 MAX_NAME_CHARS = 128
-#: 允许被计划任务调用的工具：只放开控制类动作，避免把任意工具挂到定时器上。
+#: 允许被计划任务调用的工具：只放开控制类动作与提醒消息，避免把任意工具挂到定时器上。
 #: 与 ``schedule_task`` 的 schema 一一对应 —— 之前这里只放 ``control_device``，
 #: schema 却宣称支持场景与家庭模式，模型照着 schema 传参就会被这条白名单拒掉。
-ALLOWED_ACTION_TOOLS = frozenset({"control_device", "activate_scene", "activate_home_mode"})
+ALLOWED_ACTION_TOOLS = frozenset(
+    {"control_device", "activate_scene", "activate_home_mode", "send_notification"}
+)
+
+#: 计划任务到点发提醒时的系统执行身份。
+#: 任务创建者可能是一个已解绑的渠道用户；提醒属于「系统到点投递」，不该因为创建者
+#: 身份缺失就静默不发。设备控制仍然要求原身份（见 ``_execute_task``）。
+SYSTEM_NOTIFY_ACTOR = AgentActor(user_id="system:agent-scheduler", username="计划任务")
 
 
 def serialize_task(row: AgentScheduledTask) -> dict[str, Any]:
@@ -618,6 +626,15 @@ class AgentSchedulerService:
             elif self._tools is None:
                 status = "failed"
                 message = "工具服务未就绪"
+            elif action_tool == "send_notification":
+                # 提醒是「系统到点投递」：创建者解绑后仍然应该送达，否则用户设的闹钟
+                # 会因为没有绑定身份而静默消失。send_notification 自身仍要求非空身份。
+                notify_actor = actor or SYSTEM_NOTIFY_ACTOR
+                raw = await self._tools.execute(action_tool, action_args, notify_actor)
+                result = raw if isinstance(raw, dict) else {"raw": raw}
+                ok = _task_result_ok(result)
+                status = "success" if ok else "failed"
+                message = str(result.get("message") or result.get("error") or "")[:500]
             elif actor is None:
                 status = "failed"
                 message = "创建者身份已失效，无法执行控制类动作"

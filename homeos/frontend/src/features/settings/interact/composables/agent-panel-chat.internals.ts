@@ -7,7 +7,12 @@ import { computed, nextTick, ref, watch, type Ref } from 'vue'
 import { useAgentSpeech } from '@/composables/voice/useAgentSpeech'
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
-import { agentChatStream, type AgentStreamHandle } from '@/services/api/agent'
+import {
+  agentChatStream,
+  type AgentChatAttachment,
+  type AgentChatConfirmation,
+  type AgentStreamHandle,
+} from '@/services/api/agent'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   chatOutcomeLabel,
@@ -15,7 +20,7 @@ import {
 } from '@/features/settings/interact/composables/agent-panel-helpers.internals'
 import type { AgentPingResult } from '@/services/api/agent'
 
-type ChatLogEntry = {
+export type ChatLogEntry = {
   role: 'user' | 'assistant'
   text: string
   meta?: string
@@ -24,6 +29,12 @@ type ChatLogEntry = {
   totalMs?: number
   /** 流式生成中：文本持续追加 */
   streaming?: boolean
+  /** 摄像头快照等附件 */
+  attachments?: AgentChatAttachment[]
+  /** 需要用户点按钮确认的批量控制 */
+  confirmation?: AgentChatConfirmation
+  /** 已点过确认/取消或已开始新一轮，按钮不再可点 */
+  confirmationAnswered?: boolean
 }
 
 export function useAgentPanelChat(opts: {
@@ -119,6 +130,58 @@ export function useAgentPanelChat(opts: {
     void speakReply(ttsUrl, text)
   }
 
+  type ChatFinal = {
+    provider: string
+    outcome?: string
+    totalMs?: number
+    reply: string
+    ttsUrl?: string
+    speak: boolean
+    attachments?: AgentChatAttachment[]
+    confirmation?: AgentChatConfirmation
+  }
+
+  /** 发给模型的历史：只保留有正文、非流式的消息，限最近 16 条 */
+  function buildChatHistory(log: ChatLogEntry[]) {
+    return log
+      .filter((entry) => entry.text.trim() && !entry.streaming)
+      .map((entry) => ({ role: entry.role, content: entry.text }))
+      .slice(-16)
+  }
+
+  /** 新一轮开始：旧确认按钮失效，避免重复点「确认」把旧批次执行两次 */
+  function expireChatConfirmations(log: ChatLogEntry[]) {
+    for (const entry of log) {
+      if (entry.confirmation && !entry.confirmationAnswered) entry.confirmationAnswered = true
+    }
+  }
+
+  /** 用最终结果里的工具轨迹覆盖流式阶段收集的顺序（同一批以服务端为准） */
+  function mergeToolNames(target: string[], calls?: Array<{ name: string }>) {
+    target.length = 0
+    for (const call of calls ?? []) {
+      if (!target.includes(call.name)) target.push(call.name)
+    }
+  }
+
+  /** 收尾：正文 / 附件 / 确认信息 / 角标一次写进气泡 */
+  function finalizeChatBubble(bubble: ChatLogEntry, final: ChatFinal, toolNames: string[]) {
+    bubble.outcome = final.outcome
+    bubble.provider = final.provider
+    bubble.totalMs = final.totalMs
+    bubble.text = final.reply || bubble.text || fallbackReplyOf(final.outcome)
+    bubble.attachments = final.attachments
+    bubble.confirmation = final.confirmation
+    bubble.meta = [
+      final.provider,
+      final.outcome,
+      `${final.totalMs ?? '?'}ms`,
+      toolNames.join(' → '),
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
   /** 主动停止生成：保留已收到的文本，只取消后续请求 */
   function stopChat() {
     streamHandle?.abort()
@@ -133,10 +196,7 @@ export function useAgentPanelChat(opts: {
     const message = clipAgentChatMessage(chatInput.value)
     if (!message || chatting.value || isMockProvider.value) return
     chatting.value = true
-    const history = chatLog.value
-      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text.trim() && !m.streaming)
-      .map((m) => ({ role: m.role, content: m.text }))
-      .slice(-16)
+    const history = buildChatHistory(chatLog.value)
     chatLog.value.push({ role: 'user', text: message })
     chatInput.value = ''
     scrollChatToBottom()
@@ -145,12 +205,8 @@ export function useAgentPanelChat(opts: {
     const bubble: ChatLogEntry = { role: 'assistant', text: '', streaming: true }
     chatLog.value.push(bubble)
     const toolNames: string[] = []
-    let finalProvider = ''
-    let finalOutcome: string | undefined
-    let finalTotalMs: number | undefined
-    let finalReply = ''
-    let finalTtsUrl: string | undefined
-    let finalSpeak = false
+    const final: ChatFinal = { provider: '', reply: '', speak: false }
+    expireChatConfirmations(chatLog.value)
 
     try {
       const handle = agentChatStream(message, history, chatSessionId.value, {
@@ -162,37 +218,23 @@ export function useAgentPanelChat(opts: {
           if (!toolNames.includes(call.name)) toolNames.push(call.name)
         },
         onDone: (res) => {
-          finalProvider = res.provider
-          finalOutcome = res.outcome
-          finalTotalMs = res.timing?.totalMs
-          finalReply = res.reply
-          finalTtsUrl = res.ttsUrl
-          finalSpeak = res.speak
-          if (res.toolCalls?.length) {
-            toolNames.length = 0
-            for (const call of res.toolCalls) {
-              if (!toolNames.includes(call.name)) toolNames.push(call.name)
-            }
-          }
+          final.provider = res.provider
+          final.outcome = res.outcome
+          final.totalMs = res.timing?.totalMs
+          final.reply = res.reply
+          final.ttsUrl = res.ttsUrl
+          final.speak = res.speak
+          final.attachments = res.attachments
+          final.confirmation = res.confirmation
+          mergeToolNames(toolNames, res.toolCalls)
         },
       })
       streamHandle = handle
       await handle.done
 
-      bubble.outcome = finalOutcome
-      bubble.provider = finalProvider
-      bubble.totalMs = finalTotalMs
-      bubble.text = finalReply || bubble.text || fallbackReplyOf(finalOutcome)
+      finalizeChatBubble(bubble, final, toolNames)
       // 播报放在气泡收尾之后：异步出声，不拖慢下一轮输入
-      speakIfNeeded(finalSpeak, bubble.text, finalTtsUrl)
-      bubble.meta = [
-        finalProvider,
-        finalOutcome,
-        `${finalTotalMs ?? '?'}ms`,
-        toolNames.join(' → '),
-      ]
-        .filter(Boolean)
-        .join(' · ')
+      speakIfNeeded(final.speak, bubble.text, final.ttsUrl)
     } catch (e: unknown) {
       const fail = getApiErrorMessage(e, '请求失败')
       bubble.text = bubble.text.trim() ? `${bubble.text}\n（${fail}）` : fail
@@ -213,6 +255,46 @@ export function useAgentPanelChat(opts: {
   function sendQuickPrompt(prompt: string) {
     if (chatting.value || isMockProvider.value) return
     chatInput.value = prompt
+    void sendChat()
+  }
+
+  /** 复制气泡正文：失败静默，不打断对话 */
+  function copyChat(entry: ChatLogEntry) {
+    const content = String(entry.text || '').trim()
+    if (!content) return
+    try {
+      void navigator.clipboard?.writeText(content)
+    } catch {
+      /* 无剪贴板权限时忽略 */
+    }
+  }
+
+  /** 重新生成：删掉最后一轮助手回复与用户提问，用同一句原话重发 */
+  function regenerateChat() {
+    if (chatting.value || isMockProvider.value) return
+    const log = chatLog.value
+    let userIndex = -1
+    for (let i = log.length - 1; i >= 0; i -= 1) {
+      if (log[i].role === 'user' && log[i].text.trim()) {
+        userIndex = i
+        break
+      }
+    }
+    if (userIndex < 0) return
+    const prompt = log[userIndex].text
+    chatLog.value = log.slice(0, userIndex)
+    chatInput.value = prompt
+    void sendChat()
+  }
+
+  /** 点击确认 / 取消按钮：等价于用户输入对应口令，走同一条批量确认链路 */
+  function answerChatConfirmation(entry: ChatLogEntry, accepted: boolean) {
+    const confirmation = entry.confirmation
+    if (!confirmation || chatting.value || isMockProvider.value) return
+    entry.confirmationAnswered = true
+    chatInput.value = clipAgentChatMessage(
+      accepted ? confirmation.confirmText : confirmation.cancelText,
+    )
     void sendChat()
   }
 
@@ -274,6 +356,9 @@ export function useAgentPanelChat(opts: {
     sendQuickPrompt,
     sendChat,
     stopChat,
+    copyChat,
+    regenerateChat,
+    answerChatConfirmation,
     voiceListening,
     voiceTranscribing,
     voiceError,

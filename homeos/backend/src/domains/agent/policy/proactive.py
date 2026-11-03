@@ -182,7 +182,7 @@ class AgentProactiveService:
 
         lang = await self._get_language()
         message = self._compose_message(signals, lang)
-        sent = await self._send(message)
+        sent = await self._send(message, self._action_prompt(signals))
         if sent:
             self._last_sent_at = time.monotonic()
         return {
@@ -291,12 +291,31 @@ class AgentProactiveService:
             return "[Butler] " + "; ".join(signals) + "."
         return "【管家提醒】" + "；".join(signals) + "。"
 
-    async def _send(self, message: str) -> bool:
+    @staticmethod
+    def _action_prompt(signals: list[str]) -> str | None:
+        """把最强的一条信号转成管家能直接执行的一句话（通知中心「让管家处理」）。
+
+        只挑「执行后能改善」的信号；离线设备 / 降雨预报这类没有可控动作的不给入口，
+        否则按钮点下去管家也只能回一句「这事我做不了」。
+        """
+        rules = (
+            ("灯", "关掉离家模式下还亮着的灯"),
+            ("门窗", "检查并关好还开着的门窗"),
+            ("门锁", "检查还没上锁的门锁"),
+            ("用电", "看看今天哪个设备最费电"),
+        )
+        for keyword, prompt in rules:
+            if any(keyword in signal for signal in signals):
+                return prompt[:120]
+        return None
+
+    async def _send(self, message: str, action_prompt: str | None = None) -> bool:
         if self._notification is None:
             logger.info("主动管家提醒(无通知服务): %s", message)
             return False
         try:
-            result = await self._notification.notify("info", message, PROACTIVE_SOURCE)
+            opts = {"actionPrompt": action_prompt} if action_prompt else None
+            result = await self._notification.notify("info", message, PROACTIVE_SOURCE, None, opts)
         except Exception:
             logger.warning("主动管家提醒发送失败", exc_info=True)
             return False

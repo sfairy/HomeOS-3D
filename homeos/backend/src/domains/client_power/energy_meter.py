@@ -1,4 +1,9 @@
-"""能耗计量读数校验、归并与业务日/月键（对齐 energy/meter.util.ts + local-date.util.ts）。"""
+"""能耗计量读数校验、归并与业务日/月键（对齐 energy/meter.util.ts + local-date.util.ts）。
+
+角色判定（电量 / 功率）与统计口径常量已下沉到 ``platform/core/energy/roles.py``：
+``domains/app_config`` 的绑定校验也要用它们，而从 app_config 反向 import 本包会成环
+（``check:backend-deps`` B4）。这里 re-export，保持既有 import 点不变。
+"""
 
 from __future__ import annotations
 
@@ -7,30 +12,102 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from ...platform.core.energy.roles import (
+    METER_SCOPES,
+    SCOPE_DAY,
+    SCOPE_MONTH,
+    SCOPE_TOTAL,
+    SCOPE_YEAR,
+    classify_energy_entity,
+    is_cumulative_energy_meter,
+    normalize_unit,
+)
+
 #: 家庭业务时区（与 ops.homeTimezone 默认一致），用于日切/月切。
 BUSINESS_TIME_ZONE = "Asia/Shanghai"
 
-_REJECT_DEVICE_CLASSES = {"power", "current", "voltage", "apparent_power"}
-_REJECT_UNITS = {"w", "kw", "mw", "va", "kva", "a", "v"}
+#: 兼容旧调用点：模块内原本的私有名现在指向平台实现
+_normalize_unit = normalize_unit
 
 
-def _normalize_unit(unit: Any) -> str:
-    return str(unit or "").lower().replace(" ", "")
+def describe_energy_entity(attrs: dict[str, Any] | None) -> dict[str, Any]:
+    """返回前端展示所需的最小实体类型描述（不泄漏整份 attributes）。"""
+    resolved = attrs or {}
+    return {
+        "kind": classify_energy_entity(resolved),
+        "deviceClass": str(resolved.get("device_class") or ""),
+        "unit": str(resolved.get("unit_of_measurement") or ""),
+    }
 
 
-def is_cumulative_energy_meter(attrs: dict[str, Any] | None) -> bool:
-    """是否为可差分累计的电量实体（排除功率/电流/电压等瞬时量）。"""
-    if not attrs:
-        return False
-    device_class = str(attrs.get("device_class") or "").lower()
-    unit = _normalize_unit(attrs.get("unit_of_measurement"))
-    if device_class in _REJECT_DEVICE_CLASSES:
-        return False
-    if unit in _REJECT_UNITS:
-        return False
-    if device_class == "energy":
-        return True
-    return unit in ("kwh", "wh", "mwh")
+# ---- 统计口径（scope）----
+#: 口径 → 该粒度能否「直接读表」（否则只能靠读数差分/求和）
+_SCOPE_DIRECT_GRAINS: dict[str, tuple[str, ...]] = {
+    SCOPE_TOTAL: (),
+    SCOPE_YEAR: ("year",),
+    SCOPE_MONTH: ("month",),
+    SCOPE_DAY: ("day",),
+}
+
+#: 口径 → 清零说明（前端/向导展示用）
+_SCOPE_RESET_LABELS: dict[str, str] = {
+    SCOPE_TOTAL: "终身累计，不清零",
+    SCOPE_YEAR: "每年 1 月 1 日清零",
+    SCOPE_MONTH: "每月 1 日清零",
+    SCOPE_DAY: "每日 0 点清零",
+}
+
+#: 实体名/entity_id 关键词 → 口径（仅作建议，用户可改；顺序即优先级）
+_SCOPE_NAME_HINTS: tuple[tuple[str, str], ...] = (
+    ("today", SCOPE_DAY),
+    ("daily", SCOPE_DAY),
+    ("today_energy", SCOPE_DAY),
+    ("日", SCOPE_DAY),
+    ("今日", SCOPE_DAY),
+    ("当天", SCOPE_DAY),
+    ("monthly", SCOPE_MONTH),
+    ("month", SCOPE_MONTH),
+    ("月", SCOPE_MONTH),
+    ("本年", SCOPE_YEAR),
+    ("yearly", SCOPE_YEAR),
+    ("annual", SCOPE_YEAR),
+    ("year", SCOPE_YEAR),
+    ("年", SCOPE_YEAR),
+    ("total", SCOPE_TOTAL),
+    ("lifetime", SCOPE_TOTAL),
+    ("累计", SCOPE_TOTAL),
+)
+
+
+def normalize_meter_scope(raw: Any) -> str:
+    """把配置值收敛到合法口径，未知值回落到 ``total``（不清零最保守）。"""
+    scope = str(raw or "").strip().lower()
+    return scope if scope in METER_SCOPES else SCOPE_TOTAL
+
+
+def suggest_meter_scope(*texts: Any) -> str:
+    """从 entity_id / friendly_name 猜口径，供向导预填（猜错也能手动改）。"""
+    haystack = " ".join(str(text or "").lower() for text in texts).strip()
+    if not haystack:
+        return SCOPE_TOTAL
+    for keyword, scope in _SCOPE_NAME_HINTS:
+        if keyword in haystack:
+            return scope
+    return SCOPE_TOTAL
+
+
+def describe_meter_scope(scope: Any) -> dict[str, Any]:
+    """口径的可读说明与「哪些粒度能直接读表」。
+
+    ``directGrains`` 之外粒度的数据只能由差分/求和得到，精度依赖设备不丢读数，
+    向导据此提示用户「接日累计当主表，跨零点离线会缺当天数据」这类取舍。
+    """
+    resolved = normalize_meter_scope(scope)
+    return {
+        "scope": resolved,
+        "resetLabel": _SCOPE_RESET_LABELS[resolved],
+        "directGrains": list(_SCOPE_DIRECT_GRAINS[resolved]),
+    }
 
 
 def reading_to_kwh(value: float, attrs: dict[str, Any] | None) -> float:
@@ -71,6 +148,16 @@ def _meter_values(old_state: Any, new_state: Any) -> tuple[float, float, dict[st
     if attrs is not None and not is_cumulative_energy_meter(attrs):
         return None
     return reading_to_kwh(old_val, attrs), reading_to_kwh(new_val, attrs), attrs
+
+
+def latest_reading_kwh(state: Any) -> float:
+    """单条状态的表底读数（kWh）；状态无效或不是累计电量表时返回 0。
+
+    供能耗聚合在「同一周期取最大读数」时使用：不复用差分口径，避免把清零前后的
+    两次读数当成一次增量。
+    """
+    values = _meter_values(state, state)
+    return max(values[1], 0.0) if values is not None else 0.0
 
 
 def is_meter_reset(old_state: Any, new_state: Any) -> bool:
@@ -119,3 +206,47 @@ def business_day_key(when: datetime, timezone_name: str | None = None) -> str:
 
 def business_month_key(when: datetime, timezone_name: str | None = None) -> str:
     return business_day_key(when, timezone_name)[:7]
+
+
+def _grain_key(when: datetime, grain: str, timezone_name: str | None) -> str:
+    """按粒度取业务键：``day`` → 2026-11-03 / ``month`` → 2026-11 / ``year`` → 2026。"""
+    day_key = business_day_key(when, timezone_name)
+    if grain == "day":
+        return day_key
+    if grain == "month":
+        return day_key[:7]
+    return day_key[:4]
+
+
+def max_reading_per_grain(
+    points: list[tuple[datetime, float]],
+    scope: Any,
+    timezone_name: str | None = None,
+    *,
+    attributes: dict[str, Any] | None = None,
+) -> dict[str, float]:
+    """口径表的权威读数：每个周期内**最大读数**即该周期用量（仅当粒度 = 口径）。
+
+    日累计 sensor 在 0 点清零、月累计在 1 日清零，所以「周期内最后一次读数」会被清零
+    冲掉（跨零点离线时尤其明显），而「周期内最大读数」不受清零时刻是否被观察到影响。
+
+    ``scope`` 与粒度不同时返回空表 —— 月累计表在 3 日的读数是「月内累计」，
+    不是「当日用量」，不能当成日数据；这类跨粒度只能走 :func:`compute_meter_delta`
+    差分，或由更细粒度的口径表直接读出。终身累计表（``total``）永远返回空表。
+    """
+    resolved = normalize_meter_scope(scope)
+    grain = resolved
+    if resolved == SCOPE_TOTAL:
+        return {}
+    per_grain: dict[str, float] = {}
+    for when, value in points:
+        key = _grain_key(when, grain, timezone_name)
+        kwh = reading_to_kwh(value, attributes)
+        if kwh > per_grain.get(key, 0.0):
+            per_grain[key] = kwh
+    return per_grain
+
+
+def scope_supports_direct_grain(scope: Any, grain: str) -> bool:
+    """该口径的表能否直接读出 ``grain`` 周期的用量（无需差分）。"""
+    return grain in _SCOPE_DIRECT_GRAINS.get(normalize_meter_scope(scope), ())

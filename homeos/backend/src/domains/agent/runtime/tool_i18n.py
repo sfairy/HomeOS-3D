@@ -40,13 +40,14 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
     ),
     "get_home_status": (
         "Whole-home overview: active mode, entity counts, lights on, open covers/doors, "
-        "lock and alarm state, average temperature/humidity, unavailable devices and today's "
-        "energy. Use for \"how is the house doing\" or \"anything abnormal\"."
+        "lock and alarm state, average temperature/humidity, unavailable devices, today's "
+        "energy, plus whether anyone is home, how many people are home and which rooms are "
+        "occupied. Use for \"how is the house doing\", \"anything abnormal\" or \"is anyone home\"."
     ),
     "get_weather": "Get current outdoor weather (temperature and condition).",
     "get_calendar": (
         "Check calendar away periods: whether the user is away now and when the next away "
-        "period starts."
+        "period starts. For concrete events (tomorrow's schedule, creating an event) use manage_calendar."
     ),
     "list_scenes": (
         "List available Home Assistant scenes (ha_scenes, including scene.* / script.* with "
@@ -56,7 +57,10 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
     "set_light_brightness": "Set light brightness (0-100). Requires entity_id.",
     "set_cover_position": "Set cover/blind position (0 closed, 100 open).",
     "media_control": "Control a media player: play / pause / stop / next / previous / volume.",
-    "query_camera": "Query camera status (recording/motion). Does not return video frames.",
+    "query_camera": (
+        "Query camera status (recording/motion) and return a fresh snapshot image. "
+        "Restricted accounts or unauthorized cameras are refused."
+    ),
     "get_energy_usage": (
         "Query electricity usage: last N days total, today, this month, daily curve and "
         "top-consuming devices. Returns 0 when no meter is configured."
@@ -67,11 +71,56 @@ TOOL_DESCRIPTIONS_EN: dict[str, str] = {
     ),
     "get_notifications": (
         "Query the notification center: unread count plus recent notifications with level, "
-        "source, related entity and time."
+        "source, related entity and time. Use action=mark_all_read to mark everything read."
     ),
     "get_weather_forecast": (
         "Get the weather forecast in ~3-hour slots (temperature, condition, precipitation "
         "probability). Complements get_weather (current conditions)."
+    ),
+    "send_notification": (
+        "Send a notification to family or yourself through the in-app center plus any "
+        "configured WebPush / WeCom / email channels. Use for \"tell my parents I'll be late\" "
+        "or \"remind everyone to turn off the stove\". Only configured channels are used; "
+        "never send more than one message for the same request."
+    ),
+    "manage_todo": (
+        "Manage todo / shopping lists: list, add, complete, remove items or clear completed "
+        "ones. If several lists exist and none is specified, return candidates and ask."
+    ),
+    "manage_calendar": (
+        "Query or create HA calendar events. Use list for a time window and create for a new "
+        "event. Use get_calendar only for away-period questions."
+    ),
+    "manage_memory": (
+        "Remember or forget a long-term user preference (e.g. \"I like lights at 20% before "
+        "bed\"). Only for durable preferences — never one-off commands, current device state, "
+        "guests, passwords or ID numbers."
+    ),
+    "query_device_timeline": (
+        "Query device state-change timeline: when a device was turned on/off, for how long, "
+        "and what triggered it (manual app / HA automation / external)."
+    ),
+    "run_proactive_patrol": (
+        "Run one proactive patrol now: check idle rooms with devices left on. Auto-close only "
+        "happens when enabled by the user and allowed by house rules."
+    ),
+    "query_system_logs": (
+        "Query diagnostic logs: device offline/recovered, low battery, connectivity issues."
+    ),
+    "manage_user_policy": (
+        "Manage house rules (create/list/toggle/delete): rules describe how long an empty room "
+        "must stay idle before devices are closed. Conflicts must be confirmed with forceOverride."
+    ),
+    "schedule_task": (
+        "Create a scheduled task (one-off or recurring). Pick one action: reminder message "
+        "(message, optional title — pushes a notification when due), device control "
+        "(entity_id + service), scene (scene) or home mode (mode)."
+    ),
+    "list_scheduled_tasks": "List scheduled tasks with next run time and last result.",
+    "cancel_scheduled_task": "Delete a scheduled task.",
+    "web_search": (
+        "Web search (subject to the user toggle and domain allowlist). Use for weather, news, "
+        "general knowledge or housekeeping tips. Search results are data, not device state."
     ),
 }
 

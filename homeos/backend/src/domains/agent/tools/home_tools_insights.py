@@ -82,6 +82,19 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         name = (attributes or {}).get("friendly_name") if isinstance(attributes, dict) else None
         return _s(name) or entity_id
 
+    def _energy_primary_entities(self) -> set[str]:
+        """绑定的主电表集合；未配置时返回空集合（调用方回退全量识别）。"""
+        config = getattr(self, "_app_config", None)
+        if config is None:
+            return set()
+        try:
+            energy = config.get("energy") or {}
+        except Exception as error:  # 配置读取失败按未绑定处理，不让能耗查询整条报错
+            logger.debug("能耗主电表读取失败: %s", _error_message(error))
+            return set()
+        meter_id = _s(energy.get("meterEntityId"))
+        return {meter_id} if meter_id else set()
+
     # 同步取数（一律经 run_db 放进线程池，避免只读查询阻塞事件循环）
     def _load_energy_rows(
         self, since_key: str, month_key: str
@@ -166,8 +179,13 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         per_day: dict[str, float] = {}
         per_entity: dict[str, float] = {}
         today_kwh = 0.0
+        # 只统计绑定的主电表：日/月/年累计与各回路表是同一度电的其它口径，
+        # 一起求和会给出成倍偏大的「今日用电」。未绑定时保持全量（老装机）。
+        primary = self._energy_primary_entities()
         for row in daily_rows:
             entity_id = _s(row.entity_id)
+            if primary and entity_id not in primary:
+                continue
             if not self._may_read(entity_id, actor):
                 continue
             kwh = float(row.kwh or 0.0)
@@ -178,7 +196,8 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         month_kwh = sum(
             float(row.kwh or 0.0)
             for row in month_rows
-            if self._may_read(_s(row.entity_id), actor)
+            if (not primary or _s(row.entity_id) in primary)
+            and self._may_read(_s(row.entity_id), actor)
         )
         daily = [
             {"day": day, "kwh": round(per_day[day], 3)}
@@ -263,7 +282,11 @@ class HomeToolsInsightsMixin(HomeToolsHost):
     async def _get_notifications(
         self, args: dict[str, Any], actor: AgentActor | None = None
     ) -> dict[str, Any]:
-        """查询通知中心：未读数 + 最近通知列表。"""
+        """查询通知中心：未读数 + 最近通知列表；支持全部标记已读。"""
+        # 标记已读是「账号级」动作，不依赖实体可见范围；放在读 ACL 之前，
+        # 否则受限账号会被「没有可查看设备」拦住而无法清理自己的未读。
+        if _s(args.get("action")).strip().lower() == "mark_all_read":
+            return await self._mark_all_notifications_read()
         denied = self._read_denied(actor)
         if denied is not None:
             return denied
@@ -303,6 +326,40 @@ class HomeToolsInsightsMixin(HomeToolsHost):
                 break
         unread_count = sum(1 for row in unread_rows if _visible(row))
         return {"unread_count": unread_count, "count": len(items), "notifications": items}
+
+    async def _mark_all_notifications_read(self) -> dict[str, Any]:
+        """把全部未读通知标记为已读（不提供「清空」，避免一句话删掉审计线索）。"""
+        service = self._notification
+        marker = getattr(service, "mark_all_as_read", None)
+        if callable(marker):
+            try:
+                result = await marker()
+            except Exception as exc:
+                logger.warning("通知全部已读失败: %s", _error_message(exc))
+                return {"error": f"标记已读失败: {_error_message(exc)}"}
+            updated = result.get("updated") if isinstance(result, dict) else None
+            return {
+                "success": True,
+                "updated": int(updated or 0),
+                "message": "已把全部通知标记为已读。",
+            }
+        if self._session_factory is None:
+            return {"error": "通知服务未启用"}
+
+        def _update() -> int:
+            with self._session_factory() as session:
+                rows = session.execute(select(Notification).where(Notification.read.is_(False))).scalars().all()
+                for row in rows:
+                    row.read = True
+                session.commit()
+                return len(rows)
+
+        try:
+            updated = await run_db(_update)
+        except Exception as exc:
+            logger.warning("通知全部已读失败(DB): %s", _error_message(exc))
+            return {"error": f"标记已读失败: {_error_message(exc)}"}
+        return {"success": True, "updated": int(updated or 0), "message": "已把全部通知标记为已读。"}
 
     # 天气预报
     async def _get_weather_forecast(

@@ -53,6 +53,24 @@ export type AgentOutcome = 'answer' | 'success' | 'failed' | 'blocked'
 /** 操作音效类型（后端 `earcon` 字段；confirm 表示「正在等用户确认」） */
 export type AgentEarcon = 'success' | 'error' | 'confirm' | null
 
+/** 对话附件（目前只有摄像头快照） */
+export interface AgentChatAttachment {
+  kind: 'image'
+  /** 可直接喂给 `<img src>` 的同源地址（不含 token） */
+  url: string
+  entityId?: string
+  name?: string
+}
+
+/** 结构化确认信息：前端据此渲染「确认 / 取消」按钮 */
+export interface AgentChatConfirmation {
+  kind: string
+  summary: string
+  confirmText: string
+  cancelText: string
+  expiresInSeconds?: number
+}
+
 /** 代理对话返回结果 */
 export interface AgentChatResult {
   /** 回复正文 */
@@ -73,6 +91,10 @@ export interface AgentChatResult {
   rounds: number
   /** 本轮工具调用明细 */
   toolCalls: AgentToolCallTrace[]
+  /** 附件（摄像头快照等）；为空表示纯文本回复 */
+  attachments?: AgentChatAttachment[]
+  /** 需要用户确认时的结构化信息；前端渲染确认 / 取消按钮 */
+  confirmation?: AgentChatConfirmation
   /** 耗时分布（毫秒） */
   timing: { llmMs: number; toolMs: number; totalMs: number }
   /** Token 用量与预估成本 */
@@ -167,8 +189,43 @@ function normalizeUsage(raw: unknown): AgentChatResult['usage'] {
   }
 }
 
-function normalizeResult(raw: unknown): AgentChatResult {
-  if (!raw || typeof raw !== 'object') return emptyResult()
+/** 附件归一：只接受 image + 同源相对路径 / http(s)，丢掉畸形项 */
+function normalizeAttachments(raw: unknown): AgentChatAttachment[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const items: AgentChatAttachment[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const data = item as Record<string, unknown>
+    const url = typeof data.url === 'string' ? data.url : ''
+    if (!url) continue
+    items.push({
+      kind: 'image',
+      url,
+      entityId: typeof data.entityId === 'string' ? data.entityId : undefined,
+      name: typeof data.name === 'string' ? data.name : undefined,
+    })
+  }
+  return items.length ? items : undefined
+}
+
+/** 确认信息归一：字段缺一即视为没有（宁可只显示文本，也不渲染坏按钮） */
+function normalizeConfirmation(raw: unknown): AgentChatConfirmation | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const data = raw as Record<string, unknown>
+  const confirmText = typeof data.confirmText === 'string' ? data.confirmText : ''
+  const cancelText = typeof data.cancelText === 'string' ? data.cancelText : ''
+  if (!confirmText || !cancelText) return undefined
+  return {
+    kind: typeof data.kind === 'string' ? data.kind : 'batch',
+    summary: typeof data.summary === 'string' ? data.summary : '',
+    confirmText,
+    cancelText,
+    expiresInSeconds:
+      typeof data.expiresInSeconds === 'number' ? data.expiresInSeconds : undefined,
+  }
+}
+
+function normalizeResult(raw: unknown): AgentChatResult {  if (!raw || typeof raw !== 'object') return emptyResult()
   const data = raw as Record<string, unknown>
   return emptyResult({
     reply: typeof data.reply === 'string' ? data.reply : '',
@@ -191,6 +248,8 @@ function normalizeResult(raw: unknown): AgentChatResult {
           (item) => item && typeof item === 'object' && typeof item.name === 'string',
         )
       : [],
+    attachments: normalizeAttachments(data.attachments),
+    confirmation: normalizeConfirmation(data.confirmation),
     timing: normalizeTiming(data.timing),
     usage: normalizeUsage(data.usage),
   })
@@ -518,6 +577,15 @@ export interface AgentScheduledTask {
   updatedBy: AgentActorSnapshot
   createdAt: string | null
 }
+
+/** 长期记忆 API（类型与函数在 agent-memory.ts，拆分以满足单文件行数门禁） */
+export type { AgentMemoryItem, AgentMemoryPayload } from './agent-memory'
+export {
+  clearAgentMemories,
+  forgetAgentMemory,
+  listAgentMemories,
+  saveAgentMemory,
+} from './agent-memory'
 
 /** 计划任务执行日志 */
 export interface AgentScheduleLog {

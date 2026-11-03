@@ -416,6 +416,21 @@ def _add_agent_automation_actor_columns(
         connection.execute(ddl)
 
 
+def _add_notification_action_prompt(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """通知增加 ``actionPrompt``：主动提醒可携带一条「让管家处理」的可执行指令。
+
+    只由系统提醒写入；用户输入与外部通道都不能写这一列，避免通知条目变成指令注入点。
+    全新库由 create_all 直接建出含该列的表。
+    """
+    if not _table_exists(connection, 'notifications'):
+        return
+    if 'actionPrompt' in _columns(connection, 'notifications'):
+        return
+    connection.execute('ALTER TABLE notifications ADD COLUMN "actionPrompt" TEXT')
+
+
 MIGRATIONS = (
     Migration(1, "users-email-normalize-unique", "h0002-v1", _normalize_users_email),
     Migration(2, "sessions-user-expires-index", "h0003-v1", _index_sessions_user_expires),
@@ -430,4 +445,5 @@ MIGRATIONS = (
     Migration(11, "ha-entities-display-precision", "h0011-v1", _add_ha_entity_display_precision),
     Migration(12, "security-event-audit-fields", "h0012-v1", _add_security_event_audit_columns),
     Migration(13, "agent-automation-actor-columns", "h0013-v1", _add_agent_automation_actor_columns),
+    Migration(14, "notification-action-prompt", "h0014-v1", _add_notification_action_prompt),
 )

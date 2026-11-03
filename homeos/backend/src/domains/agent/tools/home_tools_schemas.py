@@ -83,9 +83,7 @@ def _room_and_mode_schemas() -> list[LlmToolSchema]:
     return [
         LlmToolSchema(
             name="get_area_snapshot",
-            description=(
-                '获取某个房间内所有设备的当前状态快照，用于理解"客厅现在几度、灯开没开"这类环境感知问题。'
-            ),
+            description=('获取某个房间内所有设备的当前状态快照，用于理解"客厅现在几度、灯开没开"这类环境感知问题。'),
             parameters={
                 "type": "object",
                 "properties": {
@@ -111,8 +109,7 @@ def _room_and_mode_schemas() -> list[LlmToolSchema]:
                     "domain": {
                         "type": "string",
                         "description": (
-                            "只控制该类设备，如 light(灯)、climate(空调)、fan(风扇)；"
-                            "不填则控制房间内全部可控设备"
+                            "只控制该类设备，如 light(灯)、climate(空调)、fan(风扇)；不填则控制房间内全部可控设备"
                         ),
                     },
                     "service": {
@@ -178,16 +175,16 @@ def _status_and_scene_schemas() -> list[LlmToolSchema]:
             name="get_home_status",
             description=(
                 "获取全屋整体状态概览：当前家庭模式、实体总数、开灯数、开启中的设备、"
-                '门窗/窗帘状态、安防状态、平均温湿度、今日用电。当用户问"家里现在什么状态"'
-                '"整体情况怎么样""家里有没有异常"时使用。无需参数。'
+                "门窗/窗帘状态、安防状态、平均温湿度、今日用电，以及是否有人在家、"
+                '在家几人、哪些房间有人。当用户问"家里现在什么状态"'
+                '"整体情况怎么样""家里有没有异常""家里有人吗""哪个房间有人"时使用。无需参数。'
             ),
             parameters={"type": "object", "properties": {}},
         ),
         LlmToolSchema(
             name="get_weather",
             description=(
-                '查询室外当前天气（温度、天气状况）。当用户问"今天外面几度""外面冷吗"'
-                '"今天天气怎么样"时使用。无需参数。'
+                '查询室外当前天气（温度、天气状况）。当用户问"今天外面几度""外面冷吗""今天天气怎么样"时使用。无需参数。'
             ),
             parameters={"type": "object", "properties": {}},
         ),
@@ -195,7 +192,8 @@ def _status_and_scene_schemas() -> list[LlmToolSchema]:
             name="get_calendar",
             description=(
                 '查询日历外出安排：当前是否处于外出时段、接下来何时外出。当用户问"今天要出门吗"'
-                '"什么时候外出"时使用。无需参数。'
+                '"什么时候外出"时使用。只回答「是否外出」，具体日历事件（明天有什么安排、'
+                "帮我在日历里加一条）请用 manage_calendar。无需参数。"
             ),
             parameters={"type": "object", "properties": {}},
         ),
@@ -261,7 +259,10 @@ def _device_detail_schemas() -> list[LlmToolSchema]:
         ),
         LlmToolSchema(
             name="query_camera",
-            description="查询摄像头当前状态（是否录像/是否运动）。不返回画面。",
+            description=(
+                "查询摄像头当前状态（是否录像/是否运动）并返回一张最新快照图片。"
+                "回答「看看客厅摄像头」「门口有人吗」时使用；受限账号或未授权摄像头会被拒绝。"
+            ),
             parameters={
                 "type": "object",
                 "properties": {
@@ -281,7 +282,8 @@ def _insight_schemas() -> list[LlmToolSchema]:
             description=(
                 "查询家庭用电：近 N 天总用电、今日用电、本月用电、每日曲线与用电最多的设备。"
                 '当用户问"这个月用了多少电""今天耗电多少""哪个设备最费电"时使用。'
-                "数据来自能耗日聚合表；未配置电表时返回 0。"
+                "电表按 device_class=energy / 单位 kWh|Wh|MWh 自动发现（实体名不需要含 energy），"
+                "接入时会用 HA 统计/历史回填近 7 天；家里确实没有电量实体时才返回 0。"
             ),
             parameters={
                 "type": "object",
@@ -331,12 +333,19 @@ def _insight_schemas() -> list[LlmToolSchema]:
         LlmToolSchema(
             name="get_notifications",
             description=(
-                "查询通知中心：未读数量 + 最近通知（含级别、来源、关联设备、时间）。"
-                '当用户问"有什么通知""有没有未读消息""刚才报警了吗"时使用。'
+                "查询通知中心：未读数量 + 最近通知（含级别、来源、关联设备、时间）；"
+                "action=mark_all_read 可把全部未读标记为已读。"
+                '当用户问"有什么通知""有没有未读消息""刚才报警了吗"时使用；'
+                '说"都标记已读""清掉未读"时用 mark_all_read。'
             ),
             parameters={
                 "type": "object",
                 "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "list 查询（默认）/ mark_all_read 全部标记已读",
+                        "enum": ["list", "mark_all_read"],
+                    },
                     "limit": {
                         "type": "integer",
                         "description": "最多返回条数，1-50，默认 10",
@@ -372,6 +381,112 @@ def _insight_schemas() -> list[LlmToolSchema]:
     ]
 
 
+def _business_schemas() -> list[LlmToolSchema]:
+    """业务能力族：通知推送 / 待办清单 / 日历事件 / 偏好记忆。"""
+    return [
+        LlmToolSchema(
+            name="send_notification",
+            description=(
+                "给家人或自己发一条通知（站内 + 已配置的 WebPush / 企微 / 邮件）。"
+                '当用户说"告诉爸妈我晚点到""发消息提醒大家关火""通知一下我在忙"时使用。'
+                "只能走系统已配置的通道，不能指定手机号或链接；只发一条，不要连续刷屏。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "消息正文（1-500 字）"},
+                    "title": {"type": "string", "description": "标题（可选，最多 120 字）"},
+                    "level": {
+                        "type": "string",
+                        "description": "普通 info（默认）/ 需要强调的 warn",
+                        "enum": ["info", "warn"],
+                    },
+                    "channels": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": ["in_app", "socket", "webpush", "wecom", "email"]},
+                        "description": "投递渠道子集；不填走通知中心默认通道",
+                    },
+                },
+                "required": ["message"],
+            },
+        ),
+        LlmToolSchema(
+            name="manage_todo",
+            description=(
+                "管理待办 / 购物清单：列出条目、添加、完成、删除、清理已完成。"
+                '当用户说"把牛奶加到购物清单""购物清单还有什么""完成牛奶""删掉鸡蛋"时使用。'
+                "有多个清单且未指定时先返回候选，需追问用户。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "list 列出 / add 添加 / complete 完成 / remove 删除 / clear_completed 清理已完成",
+                        "enum": ["list", "add", "complete", "remove", "clear_completed"],
+                    },
+                    "entity_id": {"type": "string", "description": "清单实体 ID（todo.*）；只有一个清单时可省略"},
+                    "item": {"type": "string", "description": "条目内容（add / complete / remove 必填）"},
+                    "due": {
+                        "type": "string",
+                        "description": "add：截止时间，YYYY-MM-DD（全天）或 YYYY-MM-DD HH:MM（定时），可选",
+                    },
+                },
+                "required": ["action"],
+            },
+        ),
+        LlmToolSchema(
+            name="manage_calendar",
+            description=(
+                "查询或创建 HA 日历事件。list 查某段时间的安排；create 新建事件。"
+                '用户说"明天下午有什么安排""帮我加个周五下午三点的会"时使用；'
+                "只问是否外出时段请用 get_calendar。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "list 查询 / create 创建",
+                        "enum": ["list", "create"],
+                    },
+                    "entity_id": {"type": "string", "description": "日历实体 ID（calendar.*）；只有一个日历时可省略"},
+                    "summary": {"type": "string", "description": "create：事件标题"},
+                    "start": {"type": "string", "description": "开始时间（ISO 或 YYYY-MM-DD HH:MM）；list 时默认现在"},
+                    "end": {
+                        "type": "string",
+                        "description": "结束时间；list 时默认 7 天后，create 时默认开始后 1 小时",
+                    },
+                    "all_day": {"type": "boolean", "description": "create：是否全天事件"},
+                    "location": {"type": "string", "description": "create：地点（可选）"},
+                    "description": {"type": "string", "description": "create：备注（可选）"},
+                },
+                "required": ["action"],
+            },
+        ),
+        LlmToolSchema(
+            name="manage_memory",
+            description=(
+                "记住或忘记用户的长期偏好（如「我睡觉喜欢灯调到 20%」「我不喜欢空调直吹」）。"
+                "只在用户表达**长期**偏好时使用；一次性指令、设备当前状态、访客信息、"
+                "密码/证件等敏感内容不要写入。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "remember 记住 / forget 忘记",
+                        "enum": ["remember", "forget"],
+                    },
+                    "content": {"type": "string", "description": "偏好内容（<=200 字）"},
+                },
+                "required": ["action", "content"],
+            },
+        ),
+    ]
+
+
 def build_home_tool_schemas() -> list[LlmToolSchema]:
     """返回暴露给 LLM 的工具 schema 列表。
 
@@ -384,6 +499,7 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
         *_status_and_scene_schemas(),
         *_device_detail_schemas(),
         *_insight_schemas(),
+        *_business_schemas(),
         *_automation_schemas(),
     ]
 
@@ -509,8 +625,10 @@ def _automation_schemas() -> list[LlmToolSchema]:
         LlmToolSchema(
             name="schedule_task",
             description=(
-                "创建计划任务（一次性或周期）。动作三选一：控制设备（entity_id + service）、"
-                "激活场景（scene）、切换家庭模式（mode）；执行时会重新校验权限与高危拦截。"
+                "创建计划任务（一次性或周期）。四种动作选一种："
+                "①提醒消息（message/标题 title，到点推送通知，如“10 分钟后提醒我关火”）；"
+                "②控制设备（entity_id + service）；③激活场景（scene）；"
+                "④切换家庭模式（mode）。执行时会重新校验权限与高危拦截。"
             ),
             parameters={
                 "type": "object",
@@ -550,7 +668,17 @@ def _automation_schemas() -> list[LlmToolSchema]:
                     },
                     "service_data": {"type": "object", "description": "服务附加参数"},
                     "scene": {"type": "string", "description": "场景名称（与 entity_id + service 三选一）"},
-                    "mode": {"type": "string", "description": "家庭模式名称（与上面两种三选一）"},
+                    "mode": {"type": "string", "description": "家庭模式名称（与上面几种动作选一种）"},
+                    "message": {
+                        "type": "string",
+                        "description": "提醒动作：到点要推送的消息内容（1-500 字），如「该关火了」",
+                    },
+                    "title": {"type": "string", "description": "提醒动作：通知标题（可选，最多 120 字）"},
+                    "channels": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "提醒动作：投递渠道子集（in_app/socket/webpush/wecom/email），不填走默认通道",
+                    },
                     "expected_state": {
                         "type": "string",
                         "description": "可选前置状态：设备已是该状态时跳过本次执行（如 off）；只对设备控制生效",

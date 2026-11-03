@@ -25,6 +25,7 @@ from homeos_shared.uvicorn_messages import (
 )
 
 from .observability import get_trace_id
+from .shutdown_noise import install_shutdown_noise_filter
 from .status_log_dedupe import StatusLogDedupeFilter
 from ..http.access_log_noise import (
     MODE_OFF,
@@ -437,6 +438,9 @@ def configure_app_logging() -> logging.Logger:
     access_filter = install_http_access_log_filter()
     # WebSocket 握手行：uvicorn 写在 uvicorn.error 上，按「来源 IP + 路径 + 结果」折叠重复重连。
     install_websocket_handshake_log_filter()
+    # 关停期噪音：Ctrl+C 后 uvicorn 会把「lifespan 任务被取消」的堆栈当正文打成 ERROR，
+    # 看着像崩溃，其实进程已正常退出（判定见 shutdown_noise）。
+    install_shutdown_noise_filter()
     if access_filter.mode == MODE_OFF:
         # 全静默：直接抬高访问日志器级别，连格式化都省掉
         logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

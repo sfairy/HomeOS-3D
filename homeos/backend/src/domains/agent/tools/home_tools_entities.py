@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from typing import Any
 
 from .high_risk_denylist import is_high_risk
@@ -21,6 +22,100 @@ from ..runtime.agent_actor import AgentActor
 from ....platform.core.db.json_field import object_field
 from ....platform.core.ha.ha_service_catalog import agent_service_allowed
 from ....platform.security.entity_access import is_entity_allowed
+
+_OPENING_DEVICE_CLASSES = frozenset({"window", "door", "garage_door", "opening"})
+
+#: 域 + 状态 → 统计字段（简单的「开着就算数」类设备）
+_DOMAIN_COUNTERS = {
+    ("light", "on"): "lights_on",
+    ("switch", "on"): "switches_on",
+    ("cover", "open"): "covers_open",
+    ("lock", "unlocked"): "locks_unlocked",
+    ("media_player", "playing"): "media_playing",
+}
+
+
+def _as_number(value: Any) -> float | None:
+    """把 HA 的 state 收敛成数字：布尔 / 非数字字符串一律返回 None。"""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _is_open_opening(state: str, attrs: Any) -> bool:
+    """门窗类 binary_sensor 且处于打开态。"""
+    if state != "on":
+        return False
+    return _s((attrs or {}).get("device_class")).lower() in _OPENING_DEVICE_CLASSES
+
+
+def _count_domain_state(stats: dict[str, int], domain: str, state: str, attrs: Any) -> str | None:
+    """按域累加计数；alarm 面板返回状态值，其它域返回 None。"""
+    if state in ("unavailable", "unknown"):
+        stats["unavailable"] += 1
+    counter = _DOMAIN_COUNTERS.get((domain, state))
+    if counter is not None:
+        stats[counter] += 1
+        return None
+    if domain == "climate" and state not in ("", "off", "unavailable", "unknown"):
+        stats["climate_on"] += 1
+    elif domain == "alarm_control_panel":
+        return state or None
+    elif domain == "binary_sensor" and _is_open_opening(state, attrs):
+        stats["openings_open"] += 1
+    return None
+
+
+def _collect_climate_values(
+    temperatures: list[float], humidities: list[float], domain: str, state: str, attrs: Any
+) -> None:
+    """温度 / 湿度取 device_class；climate 域额外读 current_temperature。"""
+    value = _as_number(state)
+    device_class = _s((attrs or {}).get("device_class")).lower()
+    if value is not None and device_class == "temperature":
+        temperatures.append(value)
+    elif value is not None and device_class == "humidity":
+        humidities.append(value)
+    elif domain == "climate":
+        current = _as_number((attrs or {}).get("current_temperature"))
+        if current is not None:
+            temperatures.append(current)
+
+
+def _collect_entity_stats(
+    entities: list[dict[str, Any]],
+) -> tuple[dict[str, int], list[float], list[float], str | None]:
+    """遍历可见实体统计开关 / 温湿度 / 安防；返回 (stats, temperatures, humidities, alarm_state)。"""
+    stats = {
+        "lights_on": 0,
+        "switches_on": 0,
+        "covers_open": 0,
+        "locks_unlocked": 0,
+        "climate_on": 0,
+        "media_playing": 0,
+        "openings_open": 0,
+        "unavailable": 0,
+    }
+    temperatures: list[float] = []
+    humidities: list[float] = []
+    alarm_state: str | None = None
+    for entity in entities:
+        entity_id = str(entity.get("entity_id") or "")
+        domain = entity_id.split(".", 1)[0]
+        state = _s(entity.get("state")).lower()
+        attrs = object_field(entity, "attributes")
+        alarm = _count_domain_state(stats, domain, state, attrs)
+        if alarm and alarm_state is None:
+            alarm_state = alarm
+        _collect_climate_values(temperatures, humidities, domain, state, attrs)
+    return stats, temperatures, humidities, alarm_state
 
 
 class HomeToolsEntitiesMixin(HomeToolsHost):
@@ -274,7 +369,15 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
     def _query_camera(self, entity_id: str, actor: AgentActor | None = None) -> dict[str, Any]:
         if not entity_id.startswith("camera."):
             return {"error": "entity_id 须为 camera.*"}
-        return self._get_entity_state(entity_id, actor)
+        result = self._get_entity_state(entity_id, actor)
+        if not isinstance(result, dict) or result.get("error"):
+            return result
+        # 快照走同源代理（`/api/camera_proxy/<entity>`），前端直接当图片渲染；
+        # URL 不含 token，可安全写入会话存储。`hb` 参数避免浏览器复用旧帧。
+        stamp = int(time.time() * 1000)
+        result["snapshotUrl"] = f"/api/camera_proxy/{entity_id}?hb={stamp}"
+        result["snapshotAt"] = stamp
+        return result
 
     async def _get_home_status(self, actor: AgentActor | None = None) -> dict[str, Any]:
         """全屋整体状态概览：模式 / 开关统计 / 平均温湿度 / 安防 / 今日用电。
@@ -299,76 +402,13 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
                 and entity.get("entity_id")
                 and self._may_read(str(entity["entity_id"]), actor)
             ]
-
-            def _num(value: Any) -> float | None:
-                if isinstance(value, bool):
-                    return None
-                if isinstance(value, (int, float)):
-                    return float(value)
-                if isinstance(value, str):
-                    try:
-                        return float(value.strip())
-                    except ValueError:
-                        return None
-                return None
-
-            stats = {
-                "lights_on": 0,
-                "switches_on": 0,
-                "covers_open": 0,
-                "locks_unlocked": 0,
-                "climate_on": 0,
-                "media_playing": 0,
-                "openings_open": 0,
-                "unavailable": 0,
-            }
-            temperatures: list[float] = []
-            humidities: list[float] = []
-            alarm_state: str | None = None
-            for entity in entities:
-                entity_id = str(entity.get("entity_id") or "")
-                domain = entity_id.split(".", 1)[0]
-                state = _s(entity.get("state")).lower()
-                attrs = object_field(entity, "attributes")
-                if state in ("unavailable", "unknown"):
-                    # unknown 也计入：HA 重启 / 集成重载后实体常先报 unknown，
-                    # 主动管家用它判断「家里是否有设备失联」。
-                    stats["unavailable"] += 1
-                if domain == "light" and state == "on":
-                    stats["lights_on"] += 1
-                elif domain == "switch" and state == "on":
-                    stats["switches_on"] += 1
-                elif domain == "cover" and state == "open":
-                    stats["covers_open"] += 1
-                elif domain == "lock" and state == "unlocked":
-                    stats["locks_unlocked"] += 1
-                elif domain == "climate" and state not in ("", "off", "unavailable", "unknown"):
-                    stats["climate_on"] += 1
-                elif domain == "media_player" and state == "playing":
-                    stats["media_playing"] += 1
-                elif domain == "alarm_control_panel" and alarm_state is None:
-                    alarm_state = state or None
-                elif domain == "binary_sensor":
-                    device_class = _s((attrs or {}).get("device_class")).lower()
-                    if device_class in ("window", "door", "garage_door", "opening") and state == "on":
-                        stats["openings_open"] += 1
-
-                value = _num(entity.get("state"))
-                device_class = _s((attrs or {}).get("device_class")).lower()
-                if value is not None and device_class == "temperature":
-                    temperatures.append(value)
-                elif value is not None and device_class == "humidity":
-                    humidities.append(value)
-                elif domain == "climate":
-                    current = _num((attrs or {}).get("current_temperature"))
-                    if current is not None:
-                        temperatures.append(current)
+            stats, temperatures, humidities, alarm_state = _collect_entity_stats(entities)
 
             energy_today: float | None = None
             if self._session_factory is not None:
                 energy_today = await self._energy_today_kwh(actor)
 
-            return {
+            payload: dict[str, Any] = {
                 "active_mode": ({"id": active.get("id"), "name": active.get("name")} if active else None),
                 "entity_count": len(entities),
                 **stats,
@@ -377,8 +417,45 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
                 "average_humidity": (round(sum(humidities) / len(humidities), 1) if humidities else None),
                 "energy_today_kwh": energy_today,
             }
+            payload.update(await self._presence_summary(actor))
+            return payload
         except Exception as exc:
             return {"error": f"状态概览获取失败: {_error_message(exc)}"}
+
+    async def _presence_summary(self, actor: AgentActor | None) -> dict[str, Any]:
+        """在家人数 / 有人房间。
+
+        有可见范围限制的账号不返回任何占用信息：全屋概览本来就会按实体 ACL 过滤，
+        这里再补人的位置，会让受限账号借「概览」反推家庭成员行踪。
+        """
+        if self._presence is None:
+            return {}
+        if actor is not None and actor.restrictions:
+            return {}
+        try:
+            anyone_home = bool(self._presence.is_anyone_home())
+            at_home_count = int(self._presence.get_at_home_count())
+        except Exception as exc:
+            logger.debug("读取在家状态失败: %s", exc)
+            return {}
+        occupied_rooms: list[str] = []
+        try:
+            if self._area_service is not None:
+                areas = await self._area_service.find_all() or []
+                for area in areas:
+                    name = str(getattr(area, "name", "") or "")
+                    area_id = str(getattr(area, "id", "") or "")
+                    if not name:
+                        continue
+                    if self._presence.is_room_occupied(name) or (area_id and self._presence.is_room_occupied(area_id)):
+                        occupied_rooms.append(name)
+        except Exception as exc:
+            logger.debug("读取有人房间失败: %s", exc)
+        return {
+            "anyone_home": anyone_home,
+            "at_home_count": at_home_count,
+            "occupied_rooms": occupied_rooms,
+        }
 
     async def _get_weather(self) -> dict[str, Any]:
         """查询室外当前天气：优先 HA weather 实体，未配置时回退 OpenWeather。"""

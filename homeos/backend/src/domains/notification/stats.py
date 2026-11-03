@@ -51,6 +51,9 @@ def map_notification_row(row: Any) -> dict[str, Any]:
     delivered_at = iso_or_none(row.delivered_at)
     if delivered_at:
         payload["deliveredAt"] = delivered_at
+    action_prompt = getattr(row, "action_prompt", None)
+    if action_prompt:
+        payload["actionPrompt"] = action_prompt
     payload["deliveryChannels"] = delivery_channels
     return payload
 

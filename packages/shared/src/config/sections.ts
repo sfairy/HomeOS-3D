@@ -108,10 +108,32 @@ export type SharedHomeModeConfig = {
 }
 
 /** 能源分区（设置页常用字段：电表绑定、异常检测冷却与预算冷却） */
+/** 电量统计粒度：日 / 月 / 年（能源页三档曲线） */
+export type EnergyMeterGrain = 'day' | 'month' | 'year'
+
+/** 电量统计口径：传感器清零周期决定哪些粒度能直接读表、哪些只能差分 */
+export type EnergyMeterScope =
+  /** 终身累计：从装表起只增不减（最稳，日/月/年全部靠差分） */
+  | 'total'
+  /** 年累计：每年 1 月 1 日清零（年总量可直接读表） */
+  | 'year'
+  /** 月累计：每月 1 日清零（月总量可直接读表，日曲线靠差分） */
+  | 'month'
+  /** 日累计：每日 0 点清零（今日用量可直接读表，月/年靠日累计求和） */
+  | 'day'
+
 export type SharedEnergyConfig = {
-  /** 总电表 entity_id（sensor.*_energy 类实体；用于总耗与预算累计） */
+  /** 总电表 entity_id（累计电量 sensor；用于总耗与预算累计） */
   meterEntityId?: string
-  /** 回路子表 entity_id 数组（用于房间/设备级能耗分解） */
+  /** 主电表的清零周期；决定日/月/年哪一档可以直接读表（默认 total） */
+  meterScope?: EnergyMeterScope
+  /** 全屋实时功率 entity_id（W/kW；用于当前负荷与功率异常检测，累计电量无法替代） */
+  mainPowerEntityId?: string
+  /** 月累计电量 entity_id（该档的权威读数：直接读表，主电表不再按差分计月，两者不叠加） */
+  monthMeterEntityId?: string
+  /** 日累计电量 entity_id（该档的权威读数：直接读表，主电表不再按差分计日，两者不叠加） */
+  dayMeterEntityId?: string
+  /** 回路子表 entity_id 数组（电量表用于用量分解，功率表用于实时负荷/异常） */
   circuitEntityIds?: string[]
   /** 异常检测学习期天数（首次启用需采集 N 天数据才能建立稳定基线） */
   learningPeriodDays?: number

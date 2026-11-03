@@ -12,6 +12,7 @@ import json
 import random
 from typing import Any
 
+from ..client_power.energy_meter import is_cumulative_energy_meter
 from ...platform.core.entity.entity_domain import get_entity_domain
 
 TIER_FULL_DOMAINS = frozenset(
@@ -71,9 +72,28 @@ def _hints_match(text: str, hints: tuple[str, ...]) -> bool:
     return any(h in text for h in hints)
 
 
-def is_energy_related_sensor(entity_id: str) -> bool:
+def _attributes_of(*states: Any) -> dict[str, Any] | None:
+    """取首个带非空 attributes 的状态（HA 事件里的 old/new state 都可）。"""
+    for state in states:
+        if not isinstance(state, dict):
+            continue
+        attributes = state.get("attributes")
+        if isinstance(attributes, dict) and attributes:
+            return attributes
+    return None
+
+
+def is_energy_related_sensor(entity_id: str, attributes: dict[str, Any] | None = None) -> bool:
+    """是否值得入库的计量类 sensor。
+
+    优先按 attributes 判定（``device_class=energy`` / 单位 kWh|Wh|MWh），关键字只作兜底：
+    实体名是用户可改的（``sensor.zong_dian_liang``、``sensor.total_consumption`` 都很常见），
+    只认 ``energy``/``kwh`` 这类英文子串会把真实电表整条丢掉。
+    """
     if get_entity_domain(entity_id) != "sensor":
         return False
+    if is_cumulative_energy_meter(attributes):
+        return True
     text = entity_id.lower()
     if _hints_match(text, TELEMETRY_SENSOR_HINTS) and not _hints_match(text, METER_SENSOR_HINTS):
         return False
@@ -81,18 +101,28 @@ def is_energy_related_sensor(entity_id: str) -> bool:
 
 
 def is_energy_meter_entity(entity_id: str) -> bool:
+    """按 entity_id 关键字猜测电表（仅兜底，权威判定见 :func:`is_energy_meter_state`）。"""
     if get_entity_domain(entity_id) != "sensor":
         return False
     return _hints_match(entity_id.lower(), ENERGY_METER_HINTS)
 
 
-def _is_meaningful_sensor(entity_id: str) -> bool:
+def is_energy_meter_state(entity_id: str, *states: Any) -> bool:
+    """是否为电量计量实体：attributes 优先（设备类/单位），名字关键字兜底。"""
+    if get_entity_domain(entity_id) != "sensor":
+        return False
+    if is_energy_meter_entity(entity_id):
+        return True
+    return is_cumulative_energy_meter(_attributes_of(*states))
+
+
+def _is_meaningful_sensor(entity_id: str, attributes: dict[str, Any] | None = None) -> bool:
     domain = get_entity_domain(entity_id)
     text = entity_id.lower()
     if domain == "binary_sensor":
         return _hints_match(text, MEANINGFUL_BINARY_HINTS)
     if domain == "sensor":
-        return is_energy_related_sensor(entity_id)
+        return is_energy_related_sensor(entity_id, attributes)
     return False
 
 
@@ -101,6 +131,8 @@ def resolve_event_log_tier(
     *,
     enabled: bool = True,
     tier_c_sample_rate: float = 0.0,
+    old_state: Any = None,
+    new_state: Any = None,
 ) -> str:
     if not enabled:
         return "full"
@@ -112,7 +144,8 @@ def resolve_event_log_tier(
     if domain in TIER_FULL_DOMAINS:
         return "full"
     if domain in TIER_CONDITIONAL_DOMAINS:
-        return "compact" if _is_meaningful_sensor(entity_id) else "skip"
+        attributes = _attributes_of(old_state, new_state)
+        return "compact" if _is_meaningful_sensor(entity_id, attributes) else "skip"
     return "compact"
 
 
@@ -126,7 +159,9 @@ def serialize_event_log_states(event: dict[str, Any], tier: str) -> tuple[Any, A
             {"state": old_state["state"], "attributes": old_state.get("attributes")} if old_state else None,
             {"state": new_state["state"], "attributes": new_state.get("attributes")} if new_state else None,
         )
-    if is_energy_meter_entity(event.get("entity_id", "")):
+    if is_energy_meter_state(
+        event.get("entity_id", ""), event.get("old_state"), event.get("new_state")
+    ):
         def _pick(state: dict[str, Any] | None) -> dict[str, Any] | None:
             if not state:
                 return None

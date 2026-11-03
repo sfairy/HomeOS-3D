@@ -25,16 +25,16 @@ from ....platform.core.ha import ha_errors
 
 
 def _websockets():
-    """延迟导入 ``websockets``。
+    """延迟导入 ``websockets``，并确保连接丢失兜底已安装（见 ``websockets_compat``）。
 
     只有真正建立 / 复用 HA WebSocket 连接时才需要它，但模块级 import 会把它约 20 ms
     的导入链（asyncio client + exceptions + typing）算进每次冷启动；REST-only 的部署
     根本用不到。异常元组里的调用只在异常真正抛出时才求值，因此不会在热路径上反复导入
     （首次之后就是 ``sys.modules`` 字典命中）。
     """
-    import websockets
+    from ....platform.core.http.websockets_compat import guarded_websockets
 
-    return websockets
+    return guarded_websockets()
 
 
 #: 必须挂在 ``homeos`` 树下：主应用的控制台 handler 只装在 ``homeos.*`` 与 uvicorn 上，

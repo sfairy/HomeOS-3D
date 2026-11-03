@@ -22,6 +22,11 @@ import {
 } from '@/shared/entity/utils/state-listener'
 import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
 
+/** 可选字符串字段：空值收敛成 undefined，避免把空串当成有效载荷 */
+function optionalText(value: unknown): string | undefined {
+  return value ? String(value) : undefined
+}
+
 // ── entity-store-subscription.util ──
 /**
  * 实体 store 状态订阅与远程通知（从 entities.store 抽离）
@@ -77,7 +82,8 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
       time: formatLocaleTime(createdAt, { hour: '2-digit', minute: '2-digit' }),
       createdAt,
       read: data.read || false,
-      deliveredAt: data.deliveredAt ? String(data.deliveredAt) : undefined,
+      deliveredAt: optionalText(data.deliveredAt),
+      actionPrompt: optionalText(data.actionPrompt),
     })
     // 按 id 去重：同一通知可能经 Socket 即时推送与 REST 重新拉取（如重连刷新）多次到达，
     // 命中已存在条目则原地合并（保留已读状态等最新值），避免列表出现重复项。

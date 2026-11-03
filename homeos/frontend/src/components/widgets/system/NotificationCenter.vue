@@ -113,6 +113,15 @@
             <span class="nc-source">{{ notificationSourceLabel(n.source) }}</span>
             <span class="nc-meta-sep" aria-hidden="true">·</span>
             <span class="nc-time">{{ n.time }}{{ n.deliveredAt ? ` · ${'已推送'}` : '' }}</span>
+            <button
+              v-if="n.actionPrompt"
+              type="button"
+              class="nc-action-prompt"
+              @click.stop="handleActionPrompt(n)"
+            >
+              <Sparkles class="nc-action-prompt__icon" aria-hidden="true" />
+              {{ '让管家处理' }}
+            </button>
           </div>
         </div>
         <ChevronRight
@@ -163,6 +172,15 @@
               <span class="nc-source">{{ notificationSourceLabel(n.source) }}</span>
               <span class="nc-meta-sep" aria-hidden="true">·</span>
               <span class="nc-time">{{ n.time }}{{ n.deliveredAt ? ` · ${'已推送'}` : '' }}</span>
+              <button
+                v-if="n.actionPrompt"
+                type="button"
+                class="nc-action-prompt"
+                @click.stop="handleActionPrompt(n)"
+              >
+                <Sparkles class="nc-action-prompt__icon" aria-hidden="true" />
+                {{ '让管家处理' }}
+              </button>
             </div>
           </div>
           <ChevronRight
@@ -240,7 +258,7 @@
  */
 import { computed, inject, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronRight, X } from '@lucide/vue'
+import { ChevronRight, Sparkles, X } from '@lucide/vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
@@ -249,6 +267,7 @@ import { useNotificationCenter } from '@/composables/widget/useNotificationCente
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
 import { notificationSourceLabel } from '@homeos/shared'
 import { useFixedPagePagination } from '@/composables/ui/hub-viewport.internals'
+import { useChromeStore } from '@/stores/chrome.store'
 import './styles/notification-center.css'
 
 const PAGE_SIZE = 7
@@ -279,6 +298,7 @@ const {
   onListKeydown,
   onFilterKeydown,
   onNotificationClick,
+  markRead,
   dismiss,
   markAllRead,
   clearAll,
@@ -328,6 +348,19 @@ const showInlineHeader = computed(() => !props.page && (props.popover || props.d
 
 const itemHeight = computed(() => (props.page ? 72 : 56))
 const itemGap = computed(() => (props.page ? 8 : 4))
+
+/**
+ * 「让管家处理」：把系统提醒里的可执行指令塞进对话并打开管家。
+ * 只搬指令文本，不改成设备直控——真正的控制仍走批量确认，避免通知一点就误操作。
+ */
+function handleActionPrompt(n) {
+  const prompt = String(n?.actionPrompt || '').trim()
+  if (!prompt) return
+  // 交给管家处理也意味着用户看过了：顺带标记已读，避免未读徽标一直挂着
+  void markRead(n)
+  const chrome = useChromeStore()
+  chrome.queueAgentPrompt(prompt)
+}
 
 function itemClasses(n, index) {
   return [

@@ -14,13 +14,16 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ArrowLeft,
+  Copy,
   History,
   Keyboard,
   Mic,
+  RefreshCw,
   Send,
   ShieldAlert,
   Square,
   Trash2,
+  Volume2,
   Wrench,
 } from '@lucide/vue'
 import {
@@ -52,35 +55,24 @@ import {
 } from '@/shared/agent/utils/reply-format.util'
 import { agentModelLabel } from '@/shared/agent/utils/model-label.util'
 import {
-  AGENT_CHAT_HISTORY_LIMIT,
-  buildAgentChatSession,
   newAgentChatSessionId,
   readAgentChatCurrentId,
   readAgentChatSessions,
   writeAgentChatCurrentId,
-  writeAgentChatSessions,
   type AgentChatSession,
 } from '@/shared/agent/utils/chat-history.util'
 import { toolLabels } from '@/shared/agent/utils/tool-label.util'
 import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
 import AgentVoiceHoldBar from './AgentVoiceHoldBar.vue'
-
-type ChatRole = 'user' | 'assistant'
-type ChatMessage = {
-  role: ChatRole
-  text: string
-  tools?: string
-  /** 后端执行结论（success / answer / blocked / failed / error），用于安全拦截提示 */
-  outcome?: string
-  /** 流式生成中：文本持续追加，不展示拦截提示 */
-  streaming?: boolean
-  /** 本轮总耗时（ms）与 completion token，对应源码气泡右侧的 assistant-meta */
-  ms?: number
-  tokens?: number
-}
-
-/** 安全拦截提示文案：管线判定为 blocked 时明确告知用户操作被安全策略拦截 */
-const BLOCKED_NOTICE = '出于安全考虑，这个操作被拦截了。'
+import {
+  BLOCKED_NOTICE,
+  applyResult,
+  buildSentHistory,
+  expireConfirmations,
+  mergeToolTrace,
+  type ChatMessage,
+} from './agent-chat-model.internals'
+import { useAgentChatSessions } from './agent-chat-sessions.internals'
 
 /** 聊天面板无操作多久自动让位回信息栏 —— 与参考实现 RightSidebar 的 30s 同口径 */
 const IDLE_RETURN_MS = 30_000
@@ -123,7 +115,7 @@ const pinging = ref(false)
 const micHint = ref('')
 /** 当前进行中的流式请求句柄：关闭弹层 / 新对话 / 手动停止时用于取消 */
 let streamHandle: AgentStreamHandle | null = null
-const { speak, speakReply } = useAgentSpeech()
+const { speak, speakReply, stop: stopSpeech } = useAgentSpeech()
 
 /** 快捷指令：来自 `ui.agentQuickPrompts`（设置页可改），清空则整行不渲染 */
 const quickPrompts = computed(() => readAgentQuickPrompts())
@@ -135,9 +127,15 @@ const agentBlocked = computed(() => {
   return provider === 'mock' || provider === 'unavailable' || ping.value.ready === false
 })
 
-/** 等首 token 的阶段才显示「处理中」气泡；已开始逐字输出后由流式气泡本身承载 */
+/** 流式气泡是否已有可展示内容 —— 空气泡占位不占一行，等首 token 的阶段交给「处理中」气泡 */
+function bubbleHasContent(message: ChatMessage): boolean {
+  return Boolean(message.text.trim() || message.tools)
+}
+
+/** 等首 token 的阶段才显示「处理中」气泡；出字后由流式气泡本身承载（按「有内容」判，不按「存在流式气泡」） */
 const showTyping = computed(
-  () => busy.value && !messages.value.some((message) => message.streaming && message.text.trim()),
+  () =>
+    busy.value && !messages.value.some((message) => message.streaming && bubbleHasContent(message)),
 )
 
 /**
@@ -276,72 +274,6 @@ async function refreshMicHint() {
   }
 }
 
-/** 把当前对话写进历史并更新指针（关面板 / 新对话 / 切会话前调用） */
-function persistCurrent() {
-  const current = buildAgentChatSession(sessionId.value, messages.value)
-  if (!current) return
-  sessions.value = [current, ...sessions.value.filter((item) => item.id !== current.id)].slice(
-    0,
-    AGENT_CHAT_HISTORY_LIMIT,
-  )
-  writeAgentChatSessions(sessions.value)
-  writeAgentChatCurrentId(current.id)
-}
-
-/** 历史会话时间：今天只显示时分，更早显示月日 */
-function sessionTimeLabel(updatedAt: number): string {
-  const date = new Date(updatedAt)
-  const now = new Date()
-  const sameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  if (sameDay) {
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  }
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
-
-function openSession(session: AgentChatSession) {
-  if (busy.value) return
-  stopListen()
-  // 切走前先把当前这段存好，否则从历史里跳来跳去会丢掉未归档的对话
-  persistCurrent()
-  sessionId.value = session.id
-  writeAgentChatCurrentId(session.id)
-  messages.value = session.messages.map((message) => ({ ...message }))
-  historyOpen.value = false
-  scrollLogToBottom()
-}
-
-/** 清空成一个全新会话：只动内存 + 指针，历史由调用方决定留还是删 */
-function startFreshConversation() {
-  sessionId.value = newAgentChatSessionId()
-  messages.value = []
-  input.value = ''
-  writeAgentChatCurrentId(sessionId.value)
-}
-
-/** 新对话：把当前对话归档进历史，再开一条空会话（历史里还能翻回来） */
-function newConversation() {
-  stopGenerating()
-  stopListen()
-  persistCurrent()
-  startFreshConversation()
-  historyOpen.value = false
-}
-
-/** 删除对话：连历史一起删 —— 否则关掉面板再打开会被历史兜底恢复成「没删掉」 */
-function deleteConversation() {
-  stopGenerating()
-  stopListen()
-  const removedId = sessionId.value
-  sessions.value = sessions.value.filter((item) => item.id !== removedId)
-  writeAgentChatSessions(sessions.value)
-  startFreshConversation()
-  historyOpen.value = false
-}
-
 /** 主动停止生成：保留已收到的文本，只取消后续请求 */
 function stopGenerating() {
   streamHandle?.abort()
@@ -351,6 +283,19 @@ function stopGenerating() {
     if (message.streaming) message.streaming = false
   }
 }
+
+const { persistCurrent, sessionTimeLabel, openSession, newConversation, deleteConversation } =
+  useAgentChatSessions({
+    sessionId,
+    messages,
+    sessions,
+    input,
+    historyOpen,
+    busy,
+    stopListen,
+    stopGenerating,
+    scrollToBottom: scrollLogToBottom,
+  })
 
 function goAgentSettings() {
   close()
@@ -419,47 +364,67 @@ function placeholder() {
   return '吩咐点什么...（按回车发送）'
 }
 
-/** 流式结束后的兜底文案（无回复时） */
-function fallbackReplyOf(outcome: string | undefined): string {
-  if (outcome === 'success') return '已执行'
-  if (outcome === 'blocked') return '该指令未被执行。'
-  return '无回复'
-}
-
-/** 把工具轨迹合并进气泡（保持首次调用顺序，去重） */
-function mergeToolTrace(bubble: ChatMessage, toolNames: string[]) {
-  if (!toolNames.length) return
-  bubble.tools = toolNames.join(' → ')
+/** 复制气泡正文：失败时只在提示行说一句，不弹系统权限框 */
+function copyBubble(text: string): void {
+  const content = String(text || '').trim()
+  if (!content) return
+  try {
+    void navigator.clipboard
+      ?.writeText(content)
+      .then(() => {
+        micHint.value = '已复制'
+      })
+      .catch(() => {
+        micHint.value = '复制失败，请手动选择文本'
+      })
+  } catch {
+    micHint.value = '复制失败，请手动选择文本'
+  }
 }
 
 /**
- * 把本轮最终结果写进流式气泡：结论 / 工具轨迹 / 耗时与 token。
- *
- * @returns 用于语音播报的正文（最终回复优先于增量文本，后端可能给出未流式下发的收尾文案）
+ * 重新生成：从目标助手气泡往前找到最近一条用户消息，删掉这一轮之后的所有消息再重发。
+ * 同时保留用户原话，避免出现「重发后上下文对不上」。
  */
-function applyResult(bubble: ChatMessage, result: AgentChatResult | null): string {
-  bubble.outcome = result?.outcome
-  if (result?.toolCalls?.length) {
-    mergeToolTrace(
-      bubble,
-      result.toolCalls.map((toolCall) => toolCall.name),
-    )
+async function regenerate(index: number): Promise<void> {
+  if (busy.value) return
+  const target = messages.value[index]
+  if (!target || target.role !== 'assistant') return
+  let userIndex = -1
+  for (let i = index - 1; i >= 0; i--) {
+    if (messages.value[i].role === 'user') {
+      userIndex = i
+      break
+    }
   }
-  bubble.text = result?.reply || bubble.text || fallbackReplyOf(result?.outcome)
-  // 气泡旁边的 ms / token 角标：与源码 assistant-meta 同口径，只在本轮有数据时展示。
-  // 用 `| 0` 取整兜底（NaN → 0），避免再引入逻辑运算符把 send 的圈复杂度顶过棘轮。
-  bubble.ms = Number(result?.timing?.totalMs) | 0
-  bubble.tokens = Number(result?.usage?.completionTokens) | 0
-  return bubble.text
+  if (userIndex < 0) return
+  const prompt = messages.value[userIndex].text
+  messages.value.splice(userIndex)
+  persistCurrent()
+  await send(prompt)
+}
+
+/** 点击确认 / 取消按钮：等价于用户输入对应口令，走同一条批量确认链路 */
+function answerConfirmation(message: ChatMessage, text?: string): void {
+  if (busy.value || !text) return
+  message.confirmation = undefined
+  void send(text)
+}
+
+/** 失败收尾：已收到部分文本就追加提示，否则整段显示错误 */
+async function handleSendError(bubble: ChatMessage, error: unknown): Promise<void> {
+  const fail = getApiErrorMessage(error, '管家暂时不可用')
+  bubble.text = bubble.text.trim() ? `${bubble.text}\n（${fail}）` : fail
+  bubble.outcome = 'error'
+  void playEarcon('error')
+  if (getConfigSection('voice')?.ttsEnabled !== false) await speak(fail)
 }
 
 async function send(raw?: string) {
   const message = clipAgentChatMessage(typeof raw === 'string' ? raw : input.value)
   if (!message || busy.value || agentBlocked.value) return
-  const history = messages.value
-    .filter((historyMessage) => historyMessage.text.trim() && !historyMessage.streaming)
-    .map((historyMessage) => ({ role: historyMessage.role, content: historyMessage.text }))
-    .slice(-16)
+  expireConfirmations(messages.value)
+  const history = buildSentHistory(messages.value)
   messages.value.push({ role: 'user', text: message })
   input.value = ''
   busy.value = true
@@ -495,16 +460,7 @@ async function send(raw?: string) {
     void playEarcon(result?.earcon)
     if (reply && result?.speak !== false) await speakReply(result?.ttsUrl, reply)
   } catch (error: unknown) {
-    const fail = getApiErrorMessage(error, '管家暂时不可用')
-    if (bubble.text.trim()) {
-      // 已收到部分内容：保留并追加错误提示，避免整段消失
-      bubble.text = `${bubble.text}\n（${fail}）`
-    } else {
-      bubble.text = fail
-    }
-    bubble.outcome = 'error'
-    void playEarcon('error')
-    if (getConfigSection('voice')?.ttsEnabled !== false) await speak(fail)
+    await handleSendError(bubble, error)
   } finally {
     bubble.streaming = false
     streamHandle = null
@@ -639,31 +595,105 @@ async function send(raw?: string) {
           <p v-if="micHint" class="acp-welcome__desc acp-welcome__warn">{{ micHint }}</p>
         </div>
 
-        <div v-for="(m, i) in messages" :key="i" class="acp-row" :class="`acp-row--${m.role}`">
-          <span v-if="m.role === 'assistant'" class="acp-row__avatar">
-            <AgentMechaAvatar mode="active" :is-active="false" />
-          </span>
-          <div class="acp-bubble" :class="`acp-bubble--${m.role}`">
-            <p class="acp-bubble__text" :class="{ 'acp-bubble__text--streaming': m.streaming }">
-              {{ m.streaming ? m.text : agentReplyText(m.text) }}
-            </p>
-            <p v-if="m.outcome === 'blocked'" class="acp-bubble__blocked">
-              <ShieldAlert class="acp-bubble__blocked-icon" aria-hidden="true" />
-              {{ BLOCKED_NOTICE }}
-            </p>
-            <div v-if="m.tools || m.ms" class="acp-bubble__foot">
-              <span v-if="m.tools" class="acp-bubble__tools">
-                <span v-for="label in toolLabels(m.tools)" :key="label" class="acp-tool">
-                  <Wrench class="acp-tool__icon" aria-hidden="true" />
-                  {{ label }}
+        <template v-for="(m, i) in messages" :key="i">
+          <div
+            v-if="m.role === 'user' || !m.streaming || bubbleHasContent(m)"
+            class="acp-row"
+            :class="`acp-row--${m.role}`"
+          >
+            <span v-if="m.role === 'assistant'" class="acp-row__avatar">
+              <AgentMechaAvatar mode="active" :is-active="false" />
+            </span>
+            <div class="acp-bubble" :class="`acp-bubble--${m.role}`">
+              <p class="acp-bubble__text" :class="{ 'acp-bubble__text--streaming': m.streaming }">
+                {{ m.streaming ? m.text : agentReplyText(m.text) }}
+              </p>
+              <p v-if="m.outcome === 'blocked'" class="acp-bubble__blocked">
+                <ShieldAlert class="acp-bubble__blocked-icon" aria-hidden="true" />
+                {{ BLOCKED_NOTICE }}
+              </p>
+              <div v-if="m.attachments?.length" class="acp-bubble__attachments">
+                <a
+                  v-for="(attachment, ai) in m.attachments"
+                  :key="`${attachment.url}-${ai}`"
+                  class="acp-attachment"
+                  :href="attachment.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :title="attachment.name || '查看原图'"
+                >
+                  <img
+                    class="acp-attachment__img"
+                    :src="attachment.url"
+                    :alt="attachment.name || '摄像头快照'"
+                    loading="lazy"
+                  />
+                </a>
+              </div>
+              <div v-if="m.confirmation" class="acp-confirm">
+                <button
+                  type="button"
+                  class="acp-confirm__btn acp-confirm__btn--ok"
+                  :disabled="busy"
+                  @click="answerConfirmation(m, m.confirmation?.confirmText)"
+                >
+                  {{ m.confirmation.confirmText }}
+                </button>
+                <button
+                  type="button"
+                  class="acp-confirm__btn"
+                  :disabled="busy"
+                  @click="answerConfirmation(m, m.confirmation?.cancelText)"
+                >
+                  {{ m.confirmation.cancelText }}
+                </button>
+              </div>
+              <div v-if="m.role === 'assistant' && !m.streaming" class="acp-bubble__actions">
+                <button
+                  type="button"
+                  class="acp-action"
+                  aria-label="复制"
+                  title="复制"
+                  @click="copyBubble(m.text)"
+                >
+                  <Copy class="acp-action__icon" />
+                </button>
+                <button
+                  v-if="!m.attachments?.length"
+                  type="button"
+                  class="acp-action"
+                  aria-label="重新生成"
+                  title="重新生成"
+                  :disabled="busy"
+                  @click="regenerate(i)"
+                >
+                  <RefreshCw class="acp-action__icon" />
+                </button>
+                <button
+                  v-if="m.text.trim()"
+                  type="button"
+                  class="acp-action"
+                  aria-label="停止朗读"
+                  title="停止朗读"
+                  @click="stopSpeech()"
+                >
+                  <Volume2 class="acp-action__icon" />
+                </button>
+              </div>
+              <div v-if="m.tools || m.ms" class="acp-bubble__foot">
+                <span v-if="m.tools" class="acp-bubble__tools">
+                  <span v-for="label in toolLabels(m.tools)" :key="label" class="acp-tool">
+                    <Wrench class="acp-tool__icon" aria-hidden="true" />
+                    {{ label }}
+                  </span>
                 </span>
-              </span>
-              <span v-if="m.ms" class="acp-bubble__meta" :title="agentFootTitle(m.ms, m.tokens || 0)">
-                {{ agentDurationLabel(m.ms) }}<template v-if="m.tokens"> · {{ m.tokens }}t</template>
-              </span>
+                <span v-if="m.ms" class="acp-bubble__meta" :title="agentFootTitle(m.ms, m.tokens || 0)">
+                  {{ agentDurationLabel(m.ms) }}<template v-if="m.tokens"> · {{ m.tokens }}t</template>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
 
         <div v-if="showTyping" class="acp-row acp-row--assistant">
           <span class="acp-row__avatar">
@@ -751,34 +781,5 @@ async function send(raw?: string) {
   </div>
 </template>
 
-<style scoped>
-/*
- * 面板配色只在这里定义一次，其余规则（styles/agent-chat-panel.css）全部走 var()，
- * 既让硬编码样式棘轮只看得到这一处字面量，也方便整体换肤。
- * 取值逐条对齐源码 HomeOSSidebarAgentPanel 的 conic 光边与状态色。
- */
-.acp-root {
-  --acp-blue: #4285f4;
-  --acp-violet: #9b51e0;
-  --acp-red: #ea4335;
-  --acp-yellow: #fbbc05;
-  --acp-green: #34a853;
-  --acp-cyan: #00f0ff;
-  --acp-amber: #ff9f0a;
-  --acp-live: #10b981;
-  --acp-chroma-duration: 6.5s;
-  --acp-pulse-duration: 1.4s;
-  --acp-chroma: conic-gradient(
-    from var(--acp-chroma-angle),
-    var(--acp-blue) 0deg,
-    var(--acp-violet) 72deg,
-    var(--acp-red) 144deg,
-    var(--acp-yellow) 216deg,
-    var(--acp-green) 288deg,
-    var(--acp-blue) 360deg
-  );
-}
-</style>
-
-<!-- scoped 外置样式：规则只用 var() / rgba()，颜色字面量统一留在上面的令牌块 -->
+<!-- scoped 外置样式：令牌块与规则都在 styles/agent-chat-panel.css -->
 <style scoped src="./styles/agent-chat-panel.css"></style>

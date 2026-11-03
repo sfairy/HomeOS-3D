@@ -8,6 +8,8 @@ export type {
   SharedCommandProxyConfig,
   SharedHomeModeConfig,
   SharedEnergyConfig,
+  EnergyMeterGrain,
+  EnergyMeterScope,
   SharedIaqConfig,
   SharedPricingConfig,
   SharedCircadianConfig,

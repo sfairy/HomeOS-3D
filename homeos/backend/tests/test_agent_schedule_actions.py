@@ -22,7 +22,11 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from src.domains.agent.policy.scheduler import ALLOWED_ACTION_TOOLS, AgentSchedulerService
+from src.domains.agent.policy.scheduler import (
+    ALLOWED_ACTION_TOOLS,
+    SYSTEM_NOTIFY_ACTOR,
+    AgentSchedulerService,
+)
 from src.domains.agent.runtime.agent_actor import AgentActor
 from src.domains.agent.tools.home_tools_automation import _action_label, _scheduled_action
 
@@ -87,9 +91,26 @@ class ScheduledActionTest(unittest.TestCase):
 
     def test_whitelist_matches_schema(self) -> None:
         """schema 宣称的三种动作都要在白名单里，否则模型照 schema 传参必被拒。"""
-        for tool in ("control_device", "activate_scene", "activate_home_mode"):
+        for tool in ("control_device", "activate_scene", "activate_home_mode", "send_notification"):
             self.assertIn(tool, ALLOWED_ACTION_TOOLS)
         self.assertNotIn("web_search", ALLOWED_ACTION_TOOLS)
+
+    def test_message_action_is_a_reminder(self) -> None:
+        """「10 分钟后提醒我关火」必须变成通知，而不是控制某台设备。"""
+        tool, args, precondition, error = _scheduled_action({"message": "关火", "title": "厨房"})
+        self.assertIsNone(error)
+        self.assertEqual(tool, "send_notification")
+        self.assertEqual(args["message"], "关火")
+        self.assertEqual(args["title"], "厨房")
+        # 用户明确要求的时间点不能被免打扰吞掉
+        self.assertIs(args["bypass_dnd"], True)
+        self.assertEqual(precondition, {})
+
+    def test_message_is_mutually_exclusive_with_device_actions(self) -> None:
+        _, _, _, error = _scheduled_action(
+            {"message": "关火", "entity_id": "switch.stove", "service": "turn_off"}
+        )
+        self.assertIsNotNone(error)
 
 
 class SchedulerActionExecutionTest(unittest.IsolatedAsyncioTestCase):
@@ -130,6 +151,31 @@ class SchedulerActionExecutionTest(unittest.IsolatedAsyncioTestCase):
         """白名单放宽到三种动作，不等于任意工具都能挂到定时器上。"""
         created = await self._due_task("web_search", {"query": "天气"})
         self.assertFalse(created["ok"], created)
+
+    async def test_reminder_runs_without_creator_actor(self) -> None:
+        """创建者身份解绑后，提醒仍应到点送达：用系统执行体，而不是静默失败。"""
+        seen: list[object] = []
+
+        class _ActorTools:
+            async def execute(self, name: str, args: dict, actor=None) -> dict:
+                seen.append(actor)
+                return {"success": True, "message": "已发送"}
+
+        scheduler = AgentSchedulerService(self.session_factory, tools=_ActorTools(), jobs=None)
+        created = await scheduler.create_task(
+            {
+                "name": "关火提醒",
+                "scheduleType": "ONCE",
+                "runAt": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+                "actionTool": "send_notification",
+                "actionArgs": {"message": "关火", "bypass_dnd": True},
+            },
+            None,
+        )
+        self.assertTrue(created["ok"], created)
+        results = await scheduler.tick()
+        self.assertEqual([item["status"] for item in results], ["success"])
+        self.assertEqual(seen[0], SYSTEM_NOTIFY_ACTOR)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,8 @@ export interface NotificationCenterItem {
   entityId?: string
   monitorKind?: string
   deliveredAt?: string
+  /** 系统主动提醒携带的可执行指令：通知中心可一键交给管家 */
+  actionPrompt?: string
 }
 
 /** 与设置页「通知偏好」对齐的过滤开关 */

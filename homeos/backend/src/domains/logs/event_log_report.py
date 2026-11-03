@@ -8,10 +8,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any, TypedDict
 
 from sqlalchemy import func, or_, select
+
+logger = logging.getLogger("homeos.event_log")
 
 
 class ParsedStateDiff(TypedDict):
@@ -38,6 +41,7 @@ class EventLogStatsPayload(TypedDict):
 
 from ..client_power.energy_meter import (
     business_day_key,
+    reading_to_kwh,
     resolve_business_timezone,
 )
 from ...platform.core.db.models import (
@@ -379,10 +383,11 @@ class EventLogReportMixin:
         )
 
     def _resolve_energy_entity_ids(self, session, entity_ids, restrictions) -> list[str]:
-        ids = [entity_id for (entity_id,) in session.execute(select(EnergyCandidateEntity.entity_id)).all()]
-        if entity_ids:
-            wanted = set(entity_ids)
-            ids = [eid for eid in ids if eid in wanted]
+        ids = [eid for (eid,) in session.execute(select(EnergyCandidateEntity.entity_id)).all()]
+        # 未显式指定时只取主电表：白名单同时有日/月/年累计与各回路表，全量求和会重复计费。
+        primary = getattr(self, "_resolve_energy_primary_entities", set)()
+        wanted = set(entity_ids) if entity_ids else primary
+        ids = [eid for eid in ids if eid in wanted]
         if restrictions is not None:
             ids = [eid for eid in ids if is_entity_allowed(eid, restrictions)]
         return ids
@@ -406,7 +411,12 @@ class EventLogReportMixin:
         timezone_name = _resolve_ops_timezone_name(self._ops)
         rows = (
             session.execute(
-                select(EventLog.entity_id, EventLog.created_at, EventLog.state_diff)
+                select(
+                    EventLog.entity_id,
+                    EventLog.created_at,
+                    EventLog.state_diff,
+                    EventLog.new_state,
+                )
                 .where(
                     EventLog.created_at >= _naive_utc(window_start),
                     EventLog.created_at < _naive_utc(period["end"]),
@@ -419,7 +429,7 @@ class EventLogReportMixin:
         )
         # 取每 (entity, day) 末次读数，再按日序 LAG 差分
         last_by_day: dict[tuple[str, str], float] = {}
-        for entity_id, created_at, state_diff in rows:
+        for entity_id, created_at, state_diff, new_state in rows:
             if not state_diff or state_diff.startswith("attr:") or "→" not in state_diff:
                 continue
             new_part = state_diff.split("→")[-1]
@@ -427,6 +437,9 @@ class EventLogReportMixin:
                 value = float(new_part)
             except (TypeError, ValueError):
                 continue
+            # Wh / MWh 口径统一折算成 kWh：否则 Wh 电表在图表里会大 1000 倍，
+            # 与 agent（读 EnergyUsageDaily，已折算）对不上。
+            value = reading_to_kwh(value, _state_attributes(new_state))
             day = str(day_expr_value(created_at, timezone_name))[:10]
             last_by_day[(entity_id, day)] = value
         grouped: dict[str, list[tuple[str, float]]] = {}
@@ -658,6 +671,19 @@ def _naive_utc(when: datetime) -> datetime:
     if when.tzinfo is None:
         return when
     return when.astimezone(UTC).replace(tzinfo=None)
+
+
+def _state_attributes(raw_state: Any) -> dict[str, Any] | None:
+    """从事件日志存的 ``new_state`` JSON 里取 attributes（能耗报表按单位折算用）。"""
+    if not raw_state or not isinstance(raw_state, str):
+        return None
+    try:
+        payload = json.loads(raw_state)
+    except (TypeError, ValueError):
+        logger.debug("事件日志状态 JSON 解析失败，能耗单位按原值处理: %r", raw_state[:120])
+        return None
+    attributes = payload.get("attributes") if isinstance(payload, dict) else None
+    return attributes if isinstance(attributes, dict) else None
 
 
 def _full_event_row(event_log: EventLog) -> dict[str, Any]:

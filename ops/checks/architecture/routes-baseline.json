@@ -1,6 +1,7 @@
 {
   "description": "homeos 后端 OpenAPI 实际注册的 (method, path) 快照；目录迁移后必须完全一致",
   "operations": [
+    "DELETE /api/v1/agent/memories",
     "DELETE /api/v1/agent/memories/{alias}",
     "DELETE /api/v1/agent/policies/{policy_id}",
     "DELETE /api/v1/agent/schedules/{task_id}",

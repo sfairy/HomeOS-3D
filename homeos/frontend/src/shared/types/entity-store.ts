@@ -465,6 +465,7 @@ export interface RemoteNotificationEntry {
   createdAt?: string // 创建时间（ISO 字符串）
   deliveredAt?: string // 投递时间（ISO 字符串）
   read: boolean // 是否已读
+  actionPrompt?: string // 系统主动提醒携带的可执行指令（一键交给管家处理）
 }
 
 /** 远程通知载荷（WS 推送 / API 返回原始形态） */
@@ -476,6 +477,7 @@ export interface RemoteNotificationPayload {
   createdAt?: string | Date // 创建时间
   deliveredAt?: string | Date // 投递时间
   read?: boolean // 是否已读
+  actionPrompt?: string // 可执行指令（仅系统提醒会写入）
 }
 
 /** 实体订阅依赖 */

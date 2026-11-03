@@ -38,6 +38,28 @@
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.12);
 }
 
+/* 面板主电表与能耗统计不一致时的解释条：语义色全部走 token，随主题/对比度档位自适应 */
+.bind-energy-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-2);
+  line-height: var(--hos-lh-snug);
+  color: var(--hos-color-warning-text);
+  background: var(--hos-color-warning-soft);
+  border: var(--hos-hairline) solid var(--hos-color-warning-line);
+}
+
+.bind-energy-notice__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 .bind-energy-status--bound {
   background: linear-gradient(
     135deg,

@@ -36,6 +36,10 @@ const TOOL_LABELS: Record<string, string> = {
   list_scheduled_tasks: '计划列表',
   cancel_scheduled_task: '取消计划',
   manage_user_policy: '用户规则',
+  send_notification: '发送通知',
+  manage_todo: '待办清单',
+  manage_calendar: '日历事件',
+  manage_memory: '长期记忆',
   web_search: '联网搜索',
 }
 

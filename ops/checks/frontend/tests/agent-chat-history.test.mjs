@@ -59,6 +59,8 @@ const history = await import(
 
 const read = (rel) => readFileSync(join(root, rel), 'utf8')
 const PALETTE = 'homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue'
+// 会话增删改从面板拆到了这个模块（文件规模棘轮），删除逻辑的断言跟着搬家
+const SESSIONS = 'homeos/frontend/src/components/widgets/agent/agent-chat-sessions.internals.ts'
 
 function reset() {
   storage.clear()
@@ -131,16 +133,17 @@ test('挂载只恢复指针指向的会话，不再「拿历史里最新一条�
 })
 
 test('删除会话：历史里移除该条，并换成不在历史里的新 id', () => {
-  const source = read(PALETTE)
+  const source = read(SESSIONS)
   const start = source.indexOf('function deleteConversation()')
   assert.ok(start > 0, '缺少 deleteConversation')
-  const body = source.slice(start, source.indexOf('\n}\n', start))
+  const body = source.slice(start, source.indexOf('\n  }\n', start))
   // 只清内存不够：历史还在，下次挂载就会复原
   assert.match(body, /sessions\.value = sessions\.value\.filter\(\(item\) => item\.id !== removedId\)/)
   assert.match(body, /writeAgentChatSessions\(sessions\.value\)/)
   // 指针必须换新，否则关面板再打开仍会命中这条（如果只是内存清空）
   assert.match(body, /startFreshConversation\(\)/)
   // 垃圾桶按钮语义是「删除」，不再是「新对话」
-  assert.match(source, /aria-label="删除对话"/)
-  assert.match(source, /@click="deleteConversation"/)
+  const palette = read(PALETTE)
+  assert.match(palette, /aria-label="删除对话"/)
+  assert.match(palette, /@click="deleteConversation"/)
 })

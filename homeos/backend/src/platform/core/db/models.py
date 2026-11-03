@@ -38,7 +38,6 @@ def new_uuid() -> str:
     return str(uuid4())
 
 
-
 # 用户与鉴权
 class User(Base):
     __tablename__ = "users"
@@ -59,14 +58,10 @@ class User(Base):
     )
     password: Mapped[str] = mapped_column(String(512), nullable=False)
     #: 带 server_default，保证 ORM 建库与直接 INSERT 时的默认值一致。
-    is_active: Mapped[bool] = mapped_column(
-        "isActive", Boolean, nullable=False, default=True, server_default=text("1")
-    )
+    is_active: Mapped[bool] = mapped_column("isActive", Boolean, nullable=False, default=True, server_default=text("1"))
     preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_version: Mapped[int] = mapped_column("tokenVersion", Integer, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -92,9 +87,7 @@ class LoginSession(Base):
         "userId", ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime(timezone=True), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True), nullable=False, default=utc_now)
     last_seen_at: Mapped[datetime] = mapped_column(
         "lastSeenAt", DateTime(timezone=True), nullable=False, default=utc_now
     )
@@ -109,13 +102,9 @@ class ProjectConfig(Base):
     __tablename__ = "project_configs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    project_id: Mapped[str] = mapped_column(
-        "projectId", String(128), unique=True, nullable=False, default="default"
-    )
+    project_id: Mapped[str] = mapped_column("projectId", String(128), unique=True, nullable=False, default="default")
     layout: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -135,12 +124,10 @@ class Notification(Base):
     source: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
     read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     delivered_at: Mapped[datetime | None] = mapped_column("deliveredAt", DateTime, nullable=True)
-    delivery_channels: Mapped[str] = mapped_column(
-        "deliveryChannels", Text, nullable=False, default="[]"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    #: 主动提醒携带的可执行指令（「让管家处理」按钮用）：只由系统提醒写入，不接受用户输入或外部通道注入
+    action_prompt: Mapped[str | None] = mapped_column("actionPrompt", Text, nullable=True)
+    delivery_channels: Mapped[str] = mapped_column("deliveryChannels", Text, nullable=False, default="[]")
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
 
 
 class SecurityEvent(Base):
@@ -163,9 +150,7 @@ class SecurityEvent(Base):
     actor: Mapped[str | None] = mapped_column(String(255), nullable=True)
     #: 确认时间：NULL 表示未确认。确认是审计语义，不代表告警已解除。
     ack_at: Mapped[datetime | None] = mapped_column("ackAt", DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
 
 
 class EarthquakeAlertHistory(Base):
@@ -189,9 +174,7 @@ class EarthquakeAlertHistory(Base):
     max_intensity: Mapped[str | None] = mapped_column("maxIntensity", String(32), nullable=True)
     alert_kind: Mapped[str | None] = mapped_column("alertKind", String(32), nullable=True)
     source: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    saved_at: Mapped[datetime] = mapped_column(
-        "savedAt", DateTime, nullable=False, default=utc_now
-    )
+    saved_at: Mapped[datetime] = mapped_column("savedAt", DateTime, nullable=False, default=utc_now)
 
 
 class AlertRule(Base):
@@ -208,15 +191,11 @@ class AlertRule(Base):
     condition: Mapped[str] = mapped_column(Text, nullable=False)
     level: Mapped[str] = mapped_column(String(16), nullable=False, default="warn")
     channels: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    cooldown_minutes: Mapped[int] = mapped_column(
-        "cooldownMinutes", Integer, nullable=False, default=60
-    )
+    cooldown_minutes: Mapped[int] = mapped_column("cooldownMinutes", Integer, nullable=False, default=60)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     message_template: Mapped[str | None] = mapped_column("messageTemplate", Text, nullable=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -243,13 +222,9 @@ class HomeMode(Base):
     is_active: Mapped[bool] = mapped_column("isActive", Boolean, nullable=False, default=False)
     device_snapshot: Mapped[str | None] = mapped_column("deviceSnapshot", Text, nullable=True)
     sort_order: Mapped[int] = mapped_column("sortOrder", Integer, nullable=False, default=0)
-    exclusive_group: Mapped[str | None] = mapped_column(
-        "exclusiveGroup", String(64), nullable=True, default="default"
-    )
+    exclusive_group: Mapped[str | None] = mapped_column("exclusiveGroup", String(64), nullable=True, default="default")
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -282,9 +257,7 @@ class AwayPatternBucket(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     dow: Mapped[int] = mapped_column(Integer, nullable=False)
     hour: Mapped[int] = mapped_column(Integer, nullable=False)
-    light_on_prob: Mapped[float] = mapped_column(
-        "lightOnProb", Float, nullable=False, default=0.0
-    )
+    light_on_prob: Mapped[float] = mapped_column("lightOnProb", Float, nullable=False, default=0.0)
     sample_count: Mapped[int] = mapped_column("sampleCount", Integer, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
@@ -301,9 +274,7 @@ class WebPushSubscription(Base):
     auth: Mapped[str] = mapped_column(Text, nullable=False)
     user_agent: Mapped[str | None] = mapped_column("userAgent", Text, nullable=True)
     label: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -329,9 +300,7 @@ class EventLog(Base):
     old_state: Mapped[str | None] = mapped_column("oldState", Text, nullable=True)
     new_state: Mapped[str | None] = mapped_column("newState", Text, nullable=True)
     state_diff: Mapped[str | None] = mapped_column("stateDiff", String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
 
 
 class DeviceUsageStat(Base):
@@ -346,9 +315,7 @@ class DeviceUsageStat(Base):
     entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
     day: Mapped[str] = mapped_column(String(16), nullable=False)
     on_count: Mapped[int] = mapped_column("onCount", Integer, nullable=False, default=0)
-    total_runtime_ms: Mapped[int] = mapped_column(
-        "totalRuntimeMs", Integer, nullable=False, default=0
-    )
+    total_runtime_ms: Mapped[int] = mapped_column("totalRuntimeMs", Integer, nullable=False, default=0)
     last_on: Mapped[datetime | None] = mapped_column("lastOn", DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
@@ -373,9 +340,7 @@ class EnvironmentRecord(Base):
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     humidity: Mapped[float | None] = mapped_column(Float, nullable=True)
     iaq_score: Mapped[float | None] = mapped_column("iaqScore", Float, nullable=True)
-    recorded_at: Mapped[datetime] = mapped_column(
-        "recordedAt", DateTime, nullable=False, default=utc_now
-    )
+    recorded_at: Mapped[datetime] = mapped_column("recordedAt", DateTime, nullable=False, default=utc_now)
 
 
 class EnergyCandidateEntity(Base):
@@ -384,9 +349,7 @@ class EnergyCandidateEntity(Base):
     __tablename__ = "energy_candidate_entities"
 
     entity_id: Mapped[str] = mapped_column("entityId", String(255), primary_key=True)
-    first_seen_at: Mapped[datetime] = mapped_column(
-        "firstSeenAt", DateTime, nullable=False, default=utc_now
-    )
+    first_seen_at: Mapped[datetime] = mapped_column("firstSeenAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -447,9 +410,7 @@ class LicenseState(Base):
     signed_lease: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_session_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_recovery_token: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="UNACTIVATED", index=True
-    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="UNACTIVATED", index=True)
     lease_issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -480,12 +441,8 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
     slug: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    created_by: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -496,15 +453,11 @@ class ProjectDraft(Base):
 
     __tablename__ = "project_drafts"
 
-    project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
-    )
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     document_json: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_by: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
+    updated_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -571,13 +524,9 @@ class HAConnection(Base):
     active_endpoint: Mapped[str | None] = mapped_column(String(16), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     ha_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    last_connected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_connected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -587,9 +536,7 @@ class HAEntity(Base):
     """HA 实体目录（连接 × 实体唯一）。"""
 
     __tablename__ = "ha_entities"
-    __table_args__ = (
-        UniqueConstraint("connection_id", "entity_id", name="uq_ha_entities_connection_entity"),
-    )
+    __table_args__ = (UniqueConstraint("connection_id", "entity_id", name="uq_ha_entities_connection_entity"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     connection_id: Mapped[str] = mapped_column(
@@ -613,12 +560,8 @@ class HAEntity(Base):
     #: HA 侧建议的显示精度（``options.sensor.suggested_display_precision``），仅作呈现参考。
     suggested_display_precision: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sync_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", index=True)
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -626,9 +569,7 @@ class HADevice(Base):
     """HA 设备目录（连接 × 设备唯一）。"""
 
     __tablename__ = "ha_devices"
-    __table_args__ = (
-        UniqueConstraint("connection_id", "device_id", name="uq_ha_devices_connection_device"),
-    )
+    __table_args__ = (UniqueConstraint("connection_id", "device_id", name="uq_ha_devices_connection_device"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     connection_id: Mapped[str] = mapped_column(
@@ -643,12 +584,8 @@ class HADevice(Base):
     registry_metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     disabled_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     sync_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", index=True)
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -656,9 +593,7 @@ class HAArea(Base):
     """HA 区域目录（连接 × 区域唯一）。"""
 
     __tablename__ = "ha_areas"
-    __table_args__ = (
-        UniqueConstraint("connection_id", "area_id", name="uq_ha_areas_connection_area"),
-    )
+    __table_args__ = (UniqueConstraint("connection_id", "area_id", name="uq_ha_areas_connection_area"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     connection_id: Mapped[str] = mapped_column(
@@ -668,12 +603,8 @@ class HAArea(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     aliases_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     sync_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", index=True)
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -682,25 +613,15 @@ class HASyncState(Base):
 
     __tablename__ = "ha_sync_state"
 
-    connection_id: Mapped[str] = mapped_column(
-        ForeignKey("ha_connections.id", ondelete="CASCADE"), primary_key=True
-    )
+    connection_id: Mapped[str] = mapped_column(ForeignKey("ha_connections.id", ondelete="CASCADE"), primary_key=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="idle")
     phase: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_full_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_incremental_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_reconciled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    catalog_revision: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
+    last_incremental_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    catalog_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     entity_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     device_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     area_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -741,9 +662,7 @@ class AgentSessionRow(Base):
     session_id: Mapped[str] = mapped_column("sessionId", String(128), nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime(timezone=True), nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True), nullable=False, default=utc_now)
 
 
 class AgentMemoryRow(Base):
@@ -788,9 +707,7 @@ class AgentPolicyRule(Base):
     kind: Mapped[str] = mapped_column(String(32), nullable=False, default="watchdog")
     area_id: Mapped[str | None] = mapped_column("areaId", String(128), nullable=True)
     area_name: Mapped[str] = mapped_column("areaName", String(128), nullable=False, default="")
-    target_domains: Mapped[str] = mapped_column(
-        "targetDomains", Text, nullable=False, default="[]"
-    )
+    target_domains: Mapped[str] = mapped_column("targetDomains", Text, nullable=False, default="[]")
     #: 无人多少分钟后命中；0 表示沿用全局配置
     idle_minutes: Mapped[int] = mapped_column("idleMinutes", Integer, nullable=False, default=0)
     auto_close: Mapped[bool] = mapped_column("autoClose", Boolean, nullable=False, default=False)
@@ -800,13 +717,9 @@ class AgentPolicyRule(Base):
     actor: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     #: 最后一次修改者快照（userId / username），仅用于审计展示；执行权限仍取创建者
     updated_by: Mapped[str] = mapped_column("updatedBy", Text, nullable=False, default="{}")
-    last_triggered_at: Mapped[datetime | None] = mapped_column(
-        "lastTriggeredAt", DateTime, nullable=True
-    )
+    last_triggered_at: Mapped[datetime | None] = mapped_column("lastTriggeredAt", DateTime, nullable=True)
     trigger_count: Mapped[int] = mapped_column("triggerCount", Integer, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -825,9 +738,7 @@ class AgentScheduledTask(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     #: ONCE / RECURRING
-    schedule_type: Mapped[str] = mapped_column(
-        "scheduleType", String(16), nullable=False, default="ONCE"
-    )
+    schedule_type: Mapped[str] = mapped_column("scheduleType", String(16), nullable=False, default="ONCE")
     run_at: Mapped[datetime | None] = mapped_column("runAt", DateTime, nullable=True)
     cron: Mapped[str] = mapped_column(String(128), nullable=False, default="")
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="")
@@ -843,9 +754,7 @@ class AgentScheduledTask(Base):
     last_status: Mapped[str] = mapped_column("lastStatus", String(16), nullable=False, default="")
     last_error: Mapped[str] = mapped_column("lastError", Text, nullable=False, default="")
     run_count: Mapped[int] = mapped_column("runCount", Integer, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(
-        "createdAt", DateTime, nullable=False, default=utc_now
-    )
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
@@ -862,9 +771,7 @@ class AgentTaskExecutionLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[str] = mapped_column("taskId", String(36), nullable=False)
-    started_at: Mapped[datetime] = mapped_column(
-        "startedAt", DateTime, nullable=False, default=utc_now
-    )
+    started_at: Mapped[datetime] = mapped_column("startedAt", DateTime, nullable=False, default=utc_now)
     finished_at: Mapped[datetime | None] = mapped_column("finishedAt", DateTime, nullable=True)
     #: success / skipped / failed
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="")
@@ -892,13 +799,9 @@ class AgentContextTimeline(Base):
     changed_at: Mapped[datetime] = mapped_column("changedAt", DateTime, nullable=False)
     #: 下一次翻转时结算；为空表示该状态仍在持续
     ended_at: Mapped[datetime | None] = mapped_column("endedAt", DateTime, nullable=True)
-    duration_seconds: Mapped[int | None] = mapped_column(
-        "durationSeconds", Integer, nullable=True
-    )
+    duration_seconds: Mapped[int | None] = mapped_column("durationSeconds", Integer, nullable=True)
     #: MANUAL_APP / HA_AUTOMATION / EXTERNAL_DEVICE
-    trigger_source: Mapped[str] = mapped_column(
-        "triggerSource", String(32), nullable=False, default=""
-    )
+    trigger_source: Mapped[str] = mapped_column("triggerSource", String(32), nullable=False, default="")
     actor: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     context: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     peer_snapshot: Mapped[str] = mapped_column("peerSnapshot", Text, nullable=False, default="{}")

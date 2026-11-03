@@ -37,5 +37,26 @@ export function useAgentSpeech() {
     }
   }
 
-  return { speak, speakReply, stop: stopServer }
+  /**
+   * 停止当前播报：服务端音频与浏览器本机合成都要停。
+   *
+   * 只停服务端会留下「点了停止但本机还在念」的割裂感；``speechSynthesis`` 在部分环境
+   * 不存在（SSR / 旧内核），因此做存在性判断而不是直接调用。
+   */
+  function stop(): void {
+    try {
+      stopServer()
+    } catch (error) {
+      logger.debug('停止服务端播报失败', error)
+    }
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    } catch (error) {
+      logger.debug('停止本机播报失败', error)
+    }
+  }
+
+  return { speak, speakReply, stop }
 }

@@ -82,8 +82,19 @@ def _validate_energy(section: str, payload: dict[str, Any], errors: list[FieldEr
         num_in(section, "budgetAlertCooldownMin", payload["budgetAlertCooldownMin"], 30, 10080, errors)
     if "anomalyCooldownMin" in payload:
         num_in(section, "anomalyCooldownMin", payload["anomalyCooldownMin"], 1, 1440, errors)
-    if "meterEntityId" in payload:
-        validate_optional_entity_id(section, "meterEntityId", payload["meterEntityId"], errors)
+    for key in ("meterEntityId", "mainPowerEntityId", "monthMeterEntityId", "dayMeterEntityId"):
+        if key in payload:
+            validate_optional_entity_id(section, key, payload[key], errors)
+    if "meterScope" in payload:
+        # 口径常量在 platform：从 client_power 取会让 app_config → client_power → …
+        # 形成包级循环（check:backend-deps B4）
+        from ....platform.core.energy.roles import METER_SCOPES
+
+        scope = payload["meterScope"]
+        if scope not in METER_SCOPES:
+            errors.append(
+                {"section": section, "key": "meterScope", "message": "须为 total/year/month/day"}
+            )
     if "circuitEntityIds" in payload:
         validate_entity_id_list(section, "circuitEntityIds", payload["circuitEntityIds"], errors)
 

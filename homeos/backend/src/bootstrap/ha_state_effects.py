@@ -13,11 +13,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
 from fastapi import FastAPI
 
+from ..domains.logs.energy_backfill import EnergyBackfillService
 from ..realtime.ws_payloads import REPLAY_ONLY_MAX_CHANGES
 
 logger = logging.getLogger("homeos.app")
@@ -29,6 +31,26 @@ logger = logging.getLogger("homeos.app")
 #: 前的断连窗口里，边沿触发重放的意义已经不大。超过阈值时直接 ``resync_suggested``，
 #: 让客户端用一次 REST 拉取拿到权威结果。
 RESYNC_BROADCAST_MAX_CHANGES = min(REPLAY_ONLY_MAX_CHANGES, 200)
+
+
+def _schedule_energy_backfill(app: FastAPI, entities: list[dict[str, Any]]) -> None:
+    """按 attributes 发现电量实体并回填近 N 天（首次快照后按节流策略跑一次）。
+
+    放在这里而不是 ``lifespan`` 装配阶段：``lifespan`` 已被 ``check:file-size`` 棘轮
+    锁住（任何新增行都算失败），而本模块就是它的业务旁路，天然适合承载这类旁路任务。
+    服务实例懒加载并挂在 ``app.state`` 上，避免启动早期就依赖 HA 已连接。
+    """
+    try:
+        service = getattr(app.state, "energy_backfill", None)
+        if service is None:
+            service = EnergyBackfillService(
+                event_log=app.state.event_log, ha=app.state.ha_connector
+            )
+            service.bind_loop(asyncio.get_running_loop())
+            app.state.energy_backfill = service
+        service.on_full_snapshot(entities)
+    except Exception:  # 回填属旁路增强：装配失败不能影响快照落库与广播
+        logger.debug("能耗回填调度失败", exc_info=True)
 
 
 
@@ -185,6 +207,8 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
     # 已连接的客户端会一直停在旧值上（它们不会重新拉 initial_states）。
     diff = store.set_all(entities, preserve=preserve)
     app.state.ha_entity_count = len(broadcast_entities)
+    # 能耗回填：按 attributes 发现电量实体并补齐近 N 天（旁路任务 + 节流，绝不阻塞快照）。
+    _schedule_energy_backfill(app, broadcast_entities)
     presence = getattr(app.state, "presence", None)
     if presence is not None:
         try:

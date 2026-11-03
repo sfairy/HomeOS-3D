@@ -102,6 +102,9 @@ class NotificationDispatchHelper:
 
         channels = resolve_lan_channels(opts.get("channels"))
         persisted_channels = [channel for channel in channels if channel != "tts"]
+        # 只接受系统提醒写入的短指令；截断到 120 字，避免通知条目变成一大段可执行文本
+        raw_prompt = opts.get("actionPrompt")
+        action_prompt = str(raw_prompt).strip()[:120] if raw_prompt else None
         notification: dict[str, Any]
 
         if "in_app" in channels:
@@ -114,6 +117,7 @@ class NotificationDispatchHelper:
                     source,
                     persisted_channels,
                     channels,
+                    action_prompt,
                 )
             except Exception as exc:
                 logger.error("通知入库失败: %s", exc)
@@ -138,6 +142,8 @@ class NotificationDispatchHelper:
                 "createdAt": _iso_now(),
                 "channels": channels,
             }
+        if action_prompt:
+            notification["actionPrompt"] = action_prompt
 
         await self._event_bus.emit("notification.created", notification)
 
@@ -156,6 +162,7 @@ class NotificationDispatchHelper:
         source: str,
         persisted_channels: list[str],
         channels: list[str],
+        action_prompt: str | None = None,
     ) -> dict[str, Any]:
         with self._session_factory() as session:
             record = Notification(
@@ -164,6 +171,7 @@ class NotificationDispatchHelper:
                 entity_id=entity_id,
                 source=source,
                 read=False,
+                action_prompt=action_prompt,
                 delivery_channels=json.dumps(persisted_channels, ensure_ascii=False),
             )
             session.add(record)
@@ -178,6 +186,8 @@ class NotificationDispatchHelper:
                 payload["entityId"] = record.entity_id
             payload["source"] = record.source
             payload["read"] = bool(record.read)
+            if record.action_prompt:
+                payload["actionPrompt"] = record.action_prompt
             payload["createdAt"] = _fmt(record.created_at)
             if record.delivered_at is not None:
                 payload["deliveredAt"] = _fmt(record.delivered_at)

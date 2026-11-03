@@ -241,22 +241,31 @@ export function useNotificationCenter() {
     return null
   }
   /**
+   * 把一条通知标记为已读：乐观更新 + 失败回滚。
+   *
+   * 「点通知」与「让管家处理」是两条入口，但都意味着用户已经看过这条提醒；
+   * 标记逻辑只写一份，避免两处各改一半（一处漏了，刷新又变回未读）。
+   */
+  async function markRead(notification: NotificationItem) {
+    if (notification.read) return
+    // 合并列表保留的是 store 里的同一个对象，这一行就是对数据源的唯一一次乐观更新
+    notification.read = true
+    try {
+      await markNotificationRead(notification.id)
+    } catch (error) {
+      // 回滚改的是同一个对象，不需要再按 id 找回 store 那份（早期两份快照各写一次，
+      // 一处漏改就出现「点了已读、刷新又变未读」）
+      notification.read = false
+      logger.debug('标记通知为已读失败', error)
+    }
+  }
+
+  /**
    * 点击通知：标记为已读并跳转到对应路由。
    * @param {NotificationItem} notification  被点击的通知项
    */
   async function onNotificationClick(notification: NotificationItem) {
-    if (!notification.read) {
-      // 合并列表保留的是 store 里的同一个对象，这一行就是对数据源的唯一一次乐观更新
-      notification.read = true
-      try {
-        await markNotificationRead(notification.id)
-      } catch (error) {
-        // 回滚改的是同一个对象，不需要再按 id 找回 store 那份（早期两份快照各写一次，
-        // 一处漏改就出现「点了已读、刷新又变未读」）
-        notification.read = false
-        logger.debug('标记通知为已读失败', error)
-      }
-    }
+    await markRead(notification)
     const route = resolveNotificationLink(notification)
     if (route) router.push(route)
   }
@@ -428,6 +437,7 @@ export function useNotificationCenter() {
     onListKeydown,
     onFilterKeydown,
     onNotificationClick,
+    markRead,
     dismiss,
     markAllRead,
     clearAll,

@@ -825,6 +825,78 @@
   }
 }
 
+/* 附件：摄像头快照限高，避免把对话输入框顶出视口 */
+.agent-chat-bubble__attachments {
+  margin-top: 8px;
+}
+
+.agent-chat-bubble__attachment {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  line-height: 0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-chat-bubble__attachment img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+/* 结构化确认：按钮与文字提示并存，语音用户仍可直接说「确认」 */
+.agent-chat-bubble__confirm {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.agent-chat-bubble__confirm-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.agent-chat-bubble__confirm-btn--ok {
+  border-color: color-mix(in srgb, var(--set-info, var(--premium-accent-blue)) 45%, transparent);
+  color: var(--set-info, var(--premium-accent-blue));
+}
+
+.agent-chat-bubble__confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 气泡操作行：复制 / 重新生成 */
+.agent-chat-bubble__actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.agent-chat-bubble__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+}
+
+.agent-chat-bubble__action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .agent-chat-bubble__meta {
   margin-top: 8px;
   padding-top: 8px;

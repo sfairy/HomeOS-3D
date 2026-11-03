@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from .policy import AUTO_CLOSE_DOMAINS
 from .proactive import in_quiet_hours
+from ..runtime.agent_actor import AgentActor
 from ..runtime.config_service import AgentConfigService, AgentProactiveConfig
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import object_field
@@ -45,6 +46,11 @@ OCCUPIED_STATES = frozenset({"on", "detected", "occupied", "present", "open"})
 ON_STATES = frozenset({"on", "open", "playing", "heat", "cool", "auto", "heat_cool", "dry", "fan_only"})
 #: 运动 / 存在类 device_class
 MOTION_DEVICE_CLASSES = frozenset({"motion", "occupancy", "presence", "mmwave", "moving"})
+
+#: 后台自动关停的系统执行身份。
+#: 后台循环没有登录用户，但「无身份即不做自动关停」会把整个能力废掉（此前正是如此）。
+#: 用固定系统身份走与手动巡检相同的 ACL / 高危拦截路径，而不是绕过工具层直接下发。
+WATCHDOG_ACTOR = AgentActor(user_id="system:agent-watchdog", username="智能管家看门狗")
 
 
 def _interval_seconds() -> int:
@@ -188,7 +194,7 @@ class AgentWatchdogService:
     ) -> dict[str, Any]:
         """执行一次巡检。
 
-        :param actor: 手动触发时的执行身份；为空时自动关停一律不做。
+        :param actor: 执行身份；为空且允许自动关停时使用 :data:`WATCHDOG_ACTOR`。
         :param auto_close: 是否允许自动关停；``None`` 表示跟随全局配置。
         """
         cfg = await self._agent_config.get_proactive_config()
@@ -201,20 +207,26 @@ class AgentWatchdogService:
             return {"ok": True, "areas": [], "signals": [], "actions": []}
 
         signals: list[str] = []
+        signaled_areas: list[str] = []
         actions: list[dict[str, Any]] = []
         allow_close = cfg.auto_close_enabled if auto_close is None else bool(auto_close)
+        if allow_close and actor is None:
+            # 后台循环没有登录用户：用固定系统身份执行，否则「自动关停」永远被下面的
+            # actor 判定截断，配置了也不会生效。
+            actor = WATCHDOG_ACTOR
         allow_close = allow_close and actor is not None
         for area in unoccupied:
             signal, closed = await self._patrol_area(area, cfg, moment, allow_close, actor, len(actions))
             if signal:
                 signals.append(signal)
+                signaled_areas.append(str(area.get("name") or area.get("id") or ""))
             actions.extend(closed)
 
         message = ""
         sent = False
         if signals:
             message = self._compose_message(signals, cfg)
-            sent = await self._notify(message, cfg)
+            sent = await self._notify(message, cfg, action_prompt=self._auto_close_prompt(signaled_areas, actions))
         return {
             "ok": True,
             "sent": sent,
@@ -492,7 +504,7 @@ class AgentWatchdogService:
         del cfg
         return "【管家提醒】" + "；".join(signals[:3]) + "。"
 
-    async def _notify(self, message: str, cfg: AgentProactiveConfig) -> bool:
+    async def _notify(self, message: str, cfg: AgentProactiveConfig, action_prompt: str | None = None) -> bool:
         # 与主动管家同一份免打扰时段口径（支持 22 → 7 跨夜）：时段内只留信号不推送
         if in_quiet_hours(cfg, datetime.now()):
             logger.debug("看门狗提醒处于免打扰时段，已跳过推送")
@@ -509,13 +521,29 @@ class AgentWatchdogService:
         except Exception:
             logger.debug("读取免打扰状态失败,继续提醒", exc_info=True)
         try:
-            result = await self._notification.notify("info", message, WATCHDOG_SOURCE)
+            opts = {"actionPrompt": action_prompt} if action_prompt else None
+            result = await self._notification.notify("info", message, WATCHDOG_SOURCE, None, opts)
         except Exception:
             logger.warning("看门狗提醒发送失败", exc_info=True)
             return False
         if result:
             self._last_sent_at = time.monotonic()
         return bool(result)
+
+    @staticmethod
+    def _auto_close_prompt(areas: list[str], actions: list[dict[str, Any]]) -> str | None:
+        """「只提醒不自动关停」时给一条可执行指令，供通知中心一键交给管家。
+
+        已经自动关掉一部分时不提供：剩下的可能是高危域或被家规排除的设备，
+        再给「一键关掉」会绕过用户当初的配置意图。
+        """
+        if actions or not areas:
+            return None
+        names = [name for name in areas if name]
+        if not names:
+            return None
+        prompt = f"关掉{'、'.join(names[:3])}里一直开着的设备"
+        return prompt[:120]
 
 
 __all__ = ["DEFAULT_INTERVAL_SECONDS", "WATCHDOG_SOURCE", "AgentWatchdogService"]

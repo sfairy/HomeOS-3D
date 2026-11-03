@@ -17,10 +17,43 @@ from .home_tools_primitives import (
     logger,
 )
 from ..runtime.agent_actor import AgentActor
+from ...proxy.command_proxy import is_control_success
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import object_field
 from ....platform.core.db.models import HomeMode
 from ....platform.core.entity.entity_domain import get_entity_domain
+
+
+def _scene_not_found(query: str, explicit_id: str, candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    """未命中场景：附前 10 个可选项，方便模型换一个再说。"""
+    return {
+        "success": False,
+        "error": f"未找到场景「{query or explicit_id}」",
+        "available_scenes": [
+            str(_or(object_field(entity, "attributes").get("friendly_name"), entity.get("entity_id")))
+            if isinstance(object_field(entity, "attributes"), dict)
+            else str(entity.get("entity_id"))
+            for entity in candidates[:10]
+        ],
+    }
+
+
+def _scene_result_payload(result: Any, hit: dict[str, Any], entity_id: str, domain: str) -> dict[str, Any]:
+    """场景执行结果：顶层 success 取底层三态结论，verification 一并透传给调用方。"""
+    attributes = object_field(hit, "attributes")
+    payload: dict[str, Any] = {
+        "success": is_control_success(result),
+        "entity_id": entity_id,
+        "name": str(_or((attributes or {}).get("friendly_name"), entity_id)),
+        "type": domain,
+    }
+    if isinstance(result, dict):
+        for key in ("verification", "verified", "blocked", "queued", "message", "skipped"):
+            if key in result:
+                payload[key] = result[key]
+        if result.get("success") is not True and isinstance(result.get("error"), str):
+            payload["error"] = result["error"]
+    return payload
 
 
 class HomeToolsScenesMixin(HomeToolsHost):
@@ -182,21 +215,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
 
         hit = self._match_scene_entity(candidates, query, explicit_id)
         if hit is None:
-            return {
-                "success": False,
-                "error": f"未找到场景「{query or explicit_id}」",
-                "available_scenes": [
-                    str(
-                        _or(
-                            ((e.get("attributes") or {}) if isinstance(e.get("attributes"), dict) else {}).get(
-                                "friendly_name"
-                            ),
-                            e.get("entity_id"),
-                        )
-                    )
-                    for e in candidates[:10]
-                ],
-            }
+            return _scene_not_found(query, explicit_id, candidates)
 
         entity_id = str(hit.get("entity_id") or "")
         domain = get_entity_domain(entity_id) or "scene"
@@ -224,14 +243,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
             result = await self._command_proxy.call_service(
                 {"domain": domain, "service": "turn_on", "entity_id": entity_id}
             )
-            attributes = object_field(hit, "attributes")
-            return {
-                "success": True,
-                "entity_id": entity_id,
-                "name": str(_or((attributes or {}).get("friendly_name"), entity_id)),
-                "type": domain,
-                "result": result,
-            }
+            return _scene_result_payload(result, hit, entity_id, domain)
         except Exception as exc:
             return {"success": False, "message": _error_message(exc, "场景执行失败")}
 

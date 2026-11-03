@@ -6,14 +6,20 @@
 
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from typing import Any
 
 from .high_risk_denylist import SceneVoiceControlGate
 from .home_tools_areas import HomeToolsAreasMixin
 from .home_tools_automation import AUTOMATION_TOOL_NAMES, HomeToolsAutomationMixin
 from .home_tools_base import HomeToolsHost
+from .home_tools_calendar import HomeToolsCalendarMixin
 from .home_tools_entities import HomeToolsEntitiesMixin
 from .home_tools_insights import HomeToolsInsightsMixin
+from .home_tools_lists import HomeToolsListsMixin
+from .home_tools_memory import HomeToolsMemoryMixin
+from .home_tools_notify import HomeToolsNotifyMixin, _NotifyRateLimiter
 from .home_tools_primitives import (
     MAX_ATTRIBUTE_VALUE_LENGTH,
     SENSITIVE_ATTRIBUTE_KEYS,
@@ -48,6 +54,10 @@ class HomeToolsService(
     HomeToolsScenesMixin,
     HomeToolsInsightsMixin,
     HomeToolsAutomationMixin,
+    HomeToolsNotifyMixin,
+    HomeToolsListsMixin,
+    HomeToolsCalendarMixin,
+    HomeToolsMemoryMixin,
     HomeToolsHost,
 ):
     """家居工具集服务：get_tool_schemas 供 LLM 选择，execute 为统一执行入口。"""
@@ -75,6 +85,8 @@ class HomeToolsService(
         self._session_factory = session_factory
         self._external_api = external_api
         self._agent_config = agent_config
+        # 进程内发消息频控（每用户每分钟 / 每天）
+        self._notify_limiter: Any = None
 
     # 自动化族延迟绑定
 
@@ -95,6 +107,20 @@ class HomeToolsService(
         self._diagnostics = diagnostics
         self._web_search_service = web_search
         self._watchdog = watchdog
+
+    def bind_notification(self, notification: Any = None) -> None:
+        """注入通知服务（装配层在通知域就绪后绑定，用于主动推送 / 到点提醒）。"""
+        self._notification = notification
+        if self._notify_limiter is None:
+            self._notify_limiter = _NotifyRateLimiter()
+
+    def bind_presence(self, presence: Any = None) -> None:
+        """注入在场服务（全屋状态回答「有没有人 / 哪个房间有人」）。"""
+        self._presence = presence
+
+    def bind_memory(self, memory: Any = None) -> None:
+        """注入长期记忆（偏好学习工具与别名展开共用一份）。"""
+        self._memory = memory
 
     def _mark_manual_control(self, entity_id: str, actor: Any = None) -> None:
         """记录本进程刚下发的控制命令，供时序服务把随后的翻转归因为手动操作。"""
@@ -117,9 +143,7 @@ class HomeToolsService(
             cfg = await self._agent_config.get_scene_voice_control()
             if not cfg.enabled:
                 return SceneVoiceControlGate(enabled=False, allow=frozenset())
-            allow = frozenset(
-                ident for ident in (str(i or "").strip().lower() for i in cfg.allow) if ident
-            )
+            allow = frozenset(ident for ident in (str(i or "").strip().lower() for i in cfg.allow) if ident)
             return SceneVoiceControlGate(enabled=True, allow=allow)
         except Exception as exc:
             logger.warning("读取场景语音控制配置失败,按全禁处理: %s", exc)
@@ -137,8 +161,7 @@ class HomeToolsService(
                 return [
                     str(entity.get("entity_id"))
                     for entity in state_store.get_all()
-                    if entity.get("entity_id")
-                    and predicate(object_field(entity, "attributes"))
+                    if entity.get("entity_id") and predicate(object_field(entity, "attributes"))
                 ]
 
         return _Resolver()
@@ -237,77 +260,73 @@ class HomeToolsService(
 
         对控制类工具（control_device / control_room / …）先做参数安全校验与实体 ACL。
         """
-        if name in AGENT_CONTROL_TOOLS:
-            if name == "control_device":
-                id_check = validate_entity_id(_s(args.get("entity_id")))
-                if not id_check["valid"]:
-                    logger.warning("工具参数校验失败: %s", id_check.get("error"))
-                    return {"success": False, "error": id_check.get("error")}
-            # activate_scene 可选用 entity_id 精确指定；显式给出时必须格式合法，
-            # 避免把「scene 名称」误当实体 ID 拼进 service 调用
-            if name == "activate_scene" and args.get("entity_id") is not None and _s(
-                args.get("entity_id")
-            ).strip():
-                id_check = validate_entity_id(_s(args.get("entity_id")))
-                if not id_check["valid"]:
-                    logger.warning("工具参数校验失败: %s", id_check.get("error"))
-                    return {"success": False, "error": id_check.get("error")}
-            if args.get("service_data"):
-                args = {
-                    **args,
-                    "service_data": sanitize_service_data(
-                        args.get("service_data"),
-                        self._service_data_domain(name, args),
-                    ),
-                }
+        args, invalid = self._prepare_control_args(name, args)
+        if invalid:
+            return {"success": False, "error": invalid}
+        handler = self._tool_handler(name, args, actor)
+        if handler is None:
+            return {"error": f"未知工具: {name}"}
+        result = handler()
+        return await result if inspect.isawaitable(result) else result
 
-        if name == "search_entities":
-            return await self._search_entities(_s(args.get("query")), actor)
-        if name == "get_entity_state":
-            return self._get_entity_state(_s(args.get("entity_id")), actor)
-        if name == "control_device":
-            return await self._control_device(args, actor)
-        if name == "list_areas":
-            return await self._list_areas()
-        if name == "get_area_snapshot":
-            return await self._get_area_snapshot(_s(args.get("area_id")), actor)
-        if name == "control_room":
-            return await self._control_room(args, actor)
-        if name == "activate_scene":
-            return await self._activate_scene(args, actor)
-        if name == "activate_home_mode":
-            return await self._activate_home_mode(_s(args.get("name")), actor)
-        if name == "get_home_status":
-            return await self._get_home_status(actor)
-        if name == "get_weather":
-            return await self._get_weather()
-        if name == "get_weather_forecast":
-            return await self._get_weather_forecast(args, actor)
-        if name == "get_energy_usage":
-            return await self._get_energy_usage(args, actor)
-        if name == "query_events":
-            return await self._query_events(args, actor)
-        if name == "get_notifications":
-            return await self._get_notifications(args, actor)
-        if name == "get_calendar":
-            return self._get_calendar()
-        if name == "list_scenes":
-            return await self._list_scenes_detailed(actor)
-        if name == "list_home_modes":
-            return {"modes": await self._list_mode_names()}
-        device_ops = {
-            "set_light_brightness": self._set_light_brightness,
-            "set_cover_position": self._set_cover_position,
-            "media_control": self._media_control,
+    def _prepare_control_args(self, name: str, args: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+        """控制类工具的参数闸门：实体 ID 格式 + service_data 清洗（fail-closed）。"""
+        if name not in AGENT_CONTROL_TOOLS:
+            return args, None
+        if name == "control_device" or (name == "activate_scene" and _s(args.get("entity_id")).strip()):
+            # control_device 必须带合法实体 ID；activate_scene 可选用 entity_id 精确指定，
+            # 显式给出时同样要格式合法，避免把「scene 名称」误当实体 ID 拼进 service 调用
+            id_check = validate_entity_id(_s(args.get("entity_id")))
+            if not id_check["valid"]:
+                logger.warning("工具参数校验失败: %s", id_check.get("error"))
+                return args, _s(id_check.get("error"))
+        if args.get("service_data"):
+            args = {
+                **args,
+                "service_data": sanitize_service_data(
+                    args.get("service_data"),
+                    self._service_data_domain(name, args),
+                ),
+            }
+        return args, None
+
+    async def _list_home_modes_tool(self) -> dict[str, Any]:
+        """工具入口：家庭模式列表包一层 dict（与 execute 的返回契约一致）。"""
+        return {"modes": await self._list_mode_names()}
+
+    def _tool_handler(self, name: str, args: dict[str, Any], actor: AgentActor | None) -> Callable[[], Any] | None:
+        """工具名 → 无参调用闭包；返回 None 表示未知工具（表驱动，避免长 if 链）。"""
+        handlers: dict[str, Callable[[], Any]] = {
+            "search_entities": lambda: self._search_entities(_s(args.get("query")), actor),
+            "get_entity_state": lambda: self._get_entity_state(_s(args.get("entity_id")), actor),
+            "control_device": lambda: self._control_device(args, actor),
+            "list_areas": self._list_areas,
+            "get_area_snapshot": lambda: self._get_area_snapshot(_s(args.get("area_id")), actor),
+            "control_room": lambda: self._control_room(args, actor),
+            "activate_scene": lambda: self._activate_scene(args, actor),
+            "activate_home_mode": lambda: self._activate_home_mode(_s(args.get("name")), actor),
+            "get_home_status": lambda: self._get_home_status(actor),
+            "get_weather": self._get_weather,
+            "get_weather_forecast": lambda: self._get_weather_forecast(args, actor),
+            "get_energy_usage": lambda: self._get_energy_usage(args, actor),
+            "query_events": lambda: self._query_events(args, actor),
+            "get_notifications": lambda: self._get_notifications(args, actor),
+            "get_calendar": self._get_calendar,
+            "list_scenes": lambda: self._list_scenes_detailed(actor),
+            "list_home_modes": self._list_home_modes_tool,
+            "set_light_brightness": lambda: self._set_light_brightness(args, actor),
+            "set_cover_position": lambda: self._set_cover_position(args, actor),
+            "media_control": lambda: self._media_control(args, actor),
+            "query_camera": lambda: self._query_camera(_s(args.get("entity_id")), actor),
+            "send_notification": lambda: self._send_notification(args, actor),
+            "manage_todo": lambda: self._manage_todo(args, actor),
+            "manage_calendar": lambda: self._manage_calendar(args, actor),
+            "manage_memory": lambda: self._manage_memory(args, actor),
         }
-        device_op = device_ops.get(name)
-        if device_op is not None:
-            return await device_op(args, actor)
-        if name == "query_camera":
-            return self._query_camera(_s(args.get("entity_id")), actor)
-        if name in AUTOMATION_TOOL_NAMES:
-            return await self._automation_dispatch(name, args, actor)
-        return {"error": f"未知工具: {name}"}
+        handler = handlers.get(name)
+        if handler is None and name in AUTOMATION_TOOL_NAMES:
+            return lambda: self._automation_dispatch(name, args, actor)
+        return handler
 
     # 搜索 / 查询
 

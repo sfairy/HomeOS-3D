@@ -35,6 +35,11 @@
       </div>
 
       <div v-if="activeSource" :key="categoryTab" class="bind-energy-panel">
+        <p v-if="energyNotice" class="bind-energy-notice" role="note">
+          <Info class="bind-energy-notice__icon" aria-hidden="true" />
+          <span>{{ energyNotice }}</span>
+        </p>
+
         <div :class="['bind-energy-status', isConfigured && 'bind-energy-status--bound']">
           <component :is="isConfigured ? Zap : Gauge" class="bind-energy-status__icon" />
           <div class="bind-energy-status__copy">
@@ -270,7 +275,7 @@
 
 <script setup>
 import { computed, toRef } from 'vue'
-import { Anchor, ArrowRight, Gauge, GitBranch, Layers, ListTree, Sparkles, Zap } from '@lucide/vue'
+import { Anchor, ArrowRight, Gauge, GitBranch, Info, Layers, ListTree, Sparkles, Zap } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
@@ -288,6 +293,8 @@ const props = defineProps({
   activeMappableFields: { type: Array, default: () => [] },
   activeChartFields: { type: Array, default: () => [] },
   compositeEntityAttrs: { type: Array, default: () => [] },
+  /** 面板与能耗统计主电表不一致时的提示文案（空串不渲染） */
+  energyNotice: { type: String, default: '' },
 })
 
 const categoryTab = defineModel('categoryTab', { type: String, default: 'grid' })

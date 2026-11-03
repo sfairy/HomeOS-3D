@@ -59,6 +59,7 @@
       :active-mappable-fields="activeMappableFields"
       :active-chart-fields="activeChartFields"
       :composite-entity-attrs="compositeEntityAttrs"
+      :energy-notice="energyBindingNotice"
       @set-binding-mode="setBindingMode"
       @fill-default-attrs="fillDefaultAttrs"
       @infer-from-entity="inferFromEntity"
@@ -86,6 +87,7 @@ const {
   compositeEntityAttrs,
   pendingChanges,
   layoutSaving,
+  energyBindingNotice,
   setBindingMode,
   fillDefaultAttrs,
   inferFromEntity,

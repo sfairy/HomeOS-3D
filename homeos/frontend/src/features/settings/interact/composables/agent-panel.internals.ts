@@ -4,6 +4,7 @@ import {
   Activity,
   BellRing,
   Bot,
+  Brain,
   CalendarClock,
   CircleCheck,
   Languages,
@@ -104,6 +105,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     { id: 'policies', label: '家规', icon: ScrollText },
     { id: 'schedules', label: '计划任务', icon: CalendarClock },
     { id: 'diagnostics', label: '诊断日志', icon: Activity },
+    { id: 'memory', label: '长期记忆', icon: Brain },
     { id: 'channels', label: '消息通道', icon: MessageSquare },
     { id: 'chat', label: '对话', icon: MessageCircle },
   ]

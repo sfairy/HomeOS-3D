@@ -21,7 +21,10 @@ class HomeToolsHost:
     _external_api: Any = None
     _ha_connector: Any = None
     _home_mode: Any = None
+    _memory: Any = None
+    _notification: Any = None
     _policy: Any = None
+    _presence: Any = None
     _scheduler: Any = None
     _session_factory: Any = None
     _state_store: Any = None
@@ -49,6 +52,9 @@ class HomeToolsHost:
     _list_mode_names: Any = None
     _list_scenes_detailed: Any = None
     _list_scheduled_tasks: Any = None
+    _manage_calendar: Any = None
+    _manage_memory: Any = None
+    _manage_todo: Any = None
     _manage_user_policy: Any = None
     _mark_manual_control: Any = None
     _may_read: Any = None
@@ -64,6 +70,7 @@ class HomeToolsHost:
     _scene_voice_gate: Any = None
     _schedule_task: Any = None
     _search_entities: Any = None
+    _send_notification: Any = None
     _service_whitelist_error: Any = None
     _set_cover_position: Any = None
     _set_light_brightness: Any = None

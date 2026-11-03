@@ -47,6 +47,7 @@ from .drm import (
     plain_gec_token,
 )
 from .text_normalizer import build_ssml
+from ....platform.core.http.websockets_compat import install_connection_lost_guard
 
 logger = logging.getLogger("homeos.agent.tts.edge")
 
@@ -246,6 +247,11 @@ class EdgeTtsProvider:
         """把文本合成为 mp3 字节；全部候选都失败时抛 :class:`EdgeTtsError`。"""
         from websockets.asyncio.client import connect
         from websockets.typing import Origin
+
+        # 这条链路常走 ``HTTPS_PROXY``：握手超时 / 被取消时 uvloop 会在 connection_made
+        # 之前回调 connection_lost，上游会抛 AttributeError（只脏日志，不影响本函数的
+        # 失败结果）。安装幂等，放在真正用得着 websockets 的这里，不加重冷启动。
+        install_connection_lost_guard()
 
         ssml = build_ssml(text, voice=voice, rate=rate, pitch=pitch, lang=lang)
         failures: list[str] = []

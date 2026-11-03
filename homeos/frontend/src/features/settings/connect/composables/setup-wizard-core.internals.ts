@@ -12,7 +12,9 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import type { EntityValidateResult, SetupWizardStatus, SetupWizardStepId } from '@/shared/types/setup-wizard'
+import type { EnergyMeterScope, SharedEnergyConfig } from '@homeos/shared'
 import { logger } from '@/shared/utils/core/logger'
+import { seedPanelEnergyMeter } from '@/shared/energy/utils/binding-bridge.util'
 import { ensureDoorbellList } from '@/shared/utils/layout/doorbell.util'
 import { useSetupWizardEnvStep } from '@/features/settings/connect/composables/setup-wizard-env.internals'
 import { useSetupWizardPresence } from '@/features/settings/connect/composables/setup-wizard-presence.internals'
@@ -32,7 +34,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
   const STEPS = computed(() => [
     { id: 'connection', label: '连接 HA', num: 1 },
     { id: 'security', label: '安防绑定', num: 2 },
-    { id: 'energy', label: '主电表', num: 3 },
+    { id: 'energy', label: '能源绑定', num: 3 },
     { id: 'environment', label: '环境传感器', num: 4 },
     { id: 'dashboard', label: '户型与收藏', num: 5 },
     { id: 'complete', label: '完成', num: 6 },
@@ -56,6 +58,10 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
   }
 
   const meterEntityId = ref<string>('')
+  const meterScope = ref<EnergyMeterScope>('total')
+  const mainPowerEntityId = ref<string>('')
+  const monthMeterEntityId = ref<string>('')
+  const dayMeterEntityId = ref<string>('')
   const circuitEntityIds = ref<string>('')
   const motionEntityId = ref<string>('')
 
@@ -80,6 +86,28 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
   const progress = computed(() => status.value?.progress ?? 0)
   const learningDays = computed(() => status.value?.learningPeriodDays ?? 7)
   const learningStartedAt = computed(() => status.value?.learningStartedAt || null)
+  /** 后端算好的能源口径/粒度覆盖，前端只展示（旧后端可能不返回） */
+  const energyBinding = computed(() => status.value?.energy || null)
+  /** 用户是否手动改过口径：改过就不再被自动建议覆盖 */
+  const scopeTouched = ref(false)
+
+  /** 标记口径已被手动选择（供 UI 在用户点击分段控件时调用） */
+  function markScopeTouched() {
+    scopeTouched.value = true
+  }
+
+  /** 用户选了主电表后按实体名猜口径，省掉理解「清零周期」的成本 */
+  async function applySuggestedScope(entityId: string) {
+    const eid = String(entityId || '').trim()
+    if (!eid || scopeTouched.value) return
+    let info = validateResult.value?.entities?.[eid]
+    if (!info) {
+      const result = await validateEntityIds([eid]).catch(() => null)
+      info = result?.entities?.[eid]
+    }
+    const suggested = info?.suggestedScope
+    if (suggested && suggested !== meterScope.value) meterScope.value = suggested
+  }
 
   const { doorbellList, addDoorbell, removeDoorbell } = useSetupWizardDoorbells()
 
@@ -89,21 +117,42 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
       const { data } = await fetchSetupWizardStatus<SetupWizardStatus>()
       status.value = data
       motionEntityId.value = layoutStore.layoutConfig.haConfig?.motionSensorEntityId || ''
-      if (!meterEntityId.value && data?.ha) {
-        const cfg = await loadSystemConfig().catch(() => null)
-        const energy = cfg?.energy
-        meterEntityId.value = energy?.meterEntityId || ''
-        const circuits = energy?.circuitEntityIds
-        if (Array.isArray(circuits) && circuits.length) {
-          circuitEntityIds.value = circuits.join(', ')
-        }
-      }
+      // 能源绑定三项都要回填：总功率是新字段，旧配置里没有，缺省按空串处理。
+      // 只在本地为空时覆盖，避免刷新把用户正在编辑的值冲掉。
+      const cfg = await loadSystemConfig().catch(() => null)
+      await hydrateEnergyBinding(cfg?.energy)
     } catch (error) {
       logger.error('加载首装向导状态失败', error)
       notify('无法加载向导状态', false)
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * 用系统配置回填能源绑定表单。
+   *
+   * 只填空值：向导面板可能与设置页同时挂着，刷新状态时若直接覆盖，
+   * 会把用户刚选中还没保存的实体冲掉。回填完顺手校验一次类型，
+   * 让「已识别为累计电量 / 功率」在保存前就能看到。
+   */
+  async function hydrateEnergyBinding(energy: SharedEnergyConfig | undefined) {
+    meterEntityId.value ||= energy?.meterEntityId || ''
+    if (energy?.meterScope) meterScope.value = energy.meterScope
+    mainPowerEntityId.value ||= energy?.mainPowerEntityId || ''
+    monthMeterEntityId.value ||= energy?.monthMeterEntityId || ''
+    dayMeterEntityId.value ||= energy?.dayMeterEntityId || ''
+    circuitEntityIds.value ||= (energy?.circuitEntityIds || []).join(', ')
+    const bound = [
+      meterEntityId.value,
+      mainPowerEntityId.value,
+      monthMeterEntityId.value,
+      dayMeterEntityId.value,
+      ...circuitEntityIds.value.split(/[\s,;]+/),
+    ]
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+    if (bound.length) await validateEntityIds(bound)
   }
 
   async function validateEntityIds(ids: string[]): Promise<EntityValidateResult> {
@@ -176,26 +225,113 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     }
   }
 
+  /**
+   * 校验能源绑定并返回「不该保存」的原因；通过则返回 null。
+   *
+   * 类型判错是「保存成功但趋势永远算不对」的典型来源：主表填了功率会得到 0/负数曲线，
+   * 总功率填了累计电量则永远算不出实时负荷。这些必须在写库前拦住。
+   */
+  async function rejectInvalidEnergyBindings(input: {
+    meter: string
+    mainPower: string
+    monthMeter: string
+    dayMeter: string
+    ids: string[]
+  }): Promise<string | null> {
+    const validation = await validateEntityIds(input.ids)
+    if (!validation.allOk) return `以下实体未找到：${validation.missing.join(', ')}`
+    const kinds = validation.entities || {}
+    if (kinds[input.meter]?.kind === 'power') {
+      return '主电表须为累计电量（kWh/Wh），不能选功率（W）传感器'
+    }
+    if (input.mainPower && kinds[input.mainPower]?.kind === 'energy') {
+      return '总功率须为瞬时功率（W/kW），不能选累计电量传感器'
+    }
+    const auxiliary = [
+      { id: input.monthMeter, label: '月累计' },
+      { id: input.dayMeter, label: '日累计' },
+    ].find((item) => item.id && kinds[item.id]?.kind === 'power')
+    return auxiliary ? `${auxiliary.label}须为累计电量传感器，不能填功率（W）` : null
+  }
+
+  /**
+   * 读取能源绑定表单并自查「同一块表被填两次」（会重复计费）。
+   * 返回错误文案或规范化后的绑定值，供保存与校验共用。
+   */
+  function readEnergyBindingInput():
+    | { error: string }
+    | { value: { meter: string; mainPower: string; monthMeter: string; dayMeter: string; circuits: string[]; ids: string[] } } {
+    const meter = meterEntityId.value.trim()
+    const mainPower = mainPowerEntityId.value.trim()
+    const monthMeter = monthMeterEntityId.value.trim()
+    const dayMeter = dayMeterEntityId.value.trim()
+    if (!meter) return { error: '请填写主电表 entity_id' }
+    const circuits = [
+      ...new Set(
+        circuitEntityIds.value
+          .split(/[\s,;]+/)
+          .map((part) => part.trim())
+          .filter(Boolean),
+      ),
+    ]
+    if (circuits.includes(meter)) {
+      return { error: '分路不能与主电表重复，请从分路中移除主电表' }
+    }
+    if (monthMeter === meter || dayMeter === meter) {
+      return { error: '月/日累计不能与主电表填同一个实体，它们是同一块表的其它口径' }
+    }
+    const ids = [
+      ...new Set([meter, mainPower, monthMeter, dayMeter, ...circuits].filter(Boolean)),
+    ]
+    return { value: { meter, mainPower, monthMeter, dayMeter, circuits, ids } }
+  }
+
+  /**
+   * 把向导绑定的主电表同步给能耗面板（仅在面板完全没配置时）。
+   *
+   * 为什么需要：向导写的是后端聚合用的 `config.energy`，而能耗面板/弹窗读的是
+   * `layoutConfig.statsSensors.energySources.grid` —— 两套绑定互不相通，用户绑完
+   * 向导会发现面板还是空的。判定规则（含「空白面板才继承、并把默认的约定命名切成
+   * 综合实体」）集中在 `binding-bridge.util`，与绑定页共用同一份，两边各写一遍迟早会分叉。
+   */
+  async function seedPanelEnergySource(meter: string): Promise<void> {
+    if (!seedPanelEnergyMeter(layoutStore.layoutConfig.statsSensors, meter)) return
+    if (!(await layoutStore.saveLayout(true))) return
+    syncGlobalLayoutPendingSnapshot(layoutStore.layoutConfig)
+  }
+
   async function saveEnergyStep() {
     saving.value = true
     try {
-      const ids = [meterEntityId.value, ...circuitEntityIds.value.split(/[\s,;]+/)].filter(Boolean)
-      const circuits = circuitEntityIds.value
-        .split(/[\s,;]+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-      const validation = await validateEntityIds(ids)
-      if (!validation.allOk) {
-        notify(`以下实体未找到：${validation.missing.join(', ')}`, false)
+      const parsed = readEnergyBindingInput()
+      if ('error' in parsed) {
+        notify(parsed.error, false)
         return false
       }
+      const { meter, mainPower, monthMeter, dayMeter, circuits, ids } = parsed.value
+      const rejected = await rejectInvalidEnergyBindings({ ...parsed.value, ids })
+      if (rejected) {
+        notify(rejected, false)
+        return false
+      }
+      const kinds = validateResult.value?.entities || {}
+      const powerCircuitCount = circuits.filter((id) => kinds[id]?.kind === 'power').length
       await saveSystemConfig({
         energy: {
-          meterEntityId: meterEntityId.value.trim(),
+          meterEntityId: meter,
+          meterScope: meterScope.value,
+          mainPowerEntityId: mainPower,
+          monthMeterEntityId: monthMeter,
+          dayMeterEntityId: dayMeter,
           circuitEntityIds: circuits,
         },
       })
-      notify('主电表与分路已保存')
+      await seedPanelEnergySource(meter)
+      notify(
+        powerCircuitCount
+          ? `能源绑定已保存：${circuits.length} 路分路（${powerCircuitCount} 路功率）`
+          : '主电表与分路已保存',
+      )
       await refreshStatus()
       return true
     } catch (error) {
@@ -358,7 +494,15 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     message,
     messageOk,
     meterEntityId,
+    meterScope,
+    markScopeTouched,
+    applySuggestedScope,
+    scopeTouched,
+    mainPowerEntityId,
+    monthMeterEntityId,
+    dayMeterEntityId,
     circuitEntityIds,
+    energyBinding,
     motionEntityId,
     doorbellList,
     addDoorbell,

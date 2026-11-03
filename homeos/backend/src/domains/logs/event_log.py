@@ -14,16 +14,13 @@ from sqlalchemy import delete, func, select
 from .event_log_tier import (
     build_record_filter,
     get_changed_control_attr,
-    is_energy_meter_entity,
+    is_energy_meter_state,
     is_event_log_recordable,
     resolve_event_log_tier,
     serialize_event_log_states,
 )
 from ..client_power.energy_meter import (
-    business_day_key,
-    business_month_key,
-    compute_meter_delta,
-    is_meter_reset,
+    normalize_meter_scope,
 )
 from ...platform.core.db.models import (
     EnergyCandidateEntity,
@@ -63,6 +60,15 @@ from .event_log_report import (
 CLEAR_ALL_MAX_BATCHES = 500
 
 
+from .energy_aggregate import (
+    _merge_backfill_daily,
+    _merge_backfill_monthly,
+    _normalize_backfill_totals,
+    _register_backfill_candidates,
+    accumulate_energy_totals,
+)
+
+
 class EventLogService(EventLogReportMixin):
     """事件日志缓冲写入 + 查询 + 报表 + 保留清理。"""
 
@@ -72,10 +78,16 @@ class EventLogService(EventLogReportMixin):
         *,
         is_leader: Any = None,
         is_entity_syncable: Any = None,
+        energy_primary_entities: Any = None,
+        energy_bindings: Any = None,
     ) -> None:
         self._database = database
         self._is_leader = is_leader or (lambda: True)
         self._is_entity_syncable = is_entity_syncable or (lambda _entity_id: True)
+        #: 返回「应计入总耗的电表集合」；为空集合时回退到全量识别（老装机无绑定）。
+        self._energy_primary_entities = energy_primary_entities or set
+        #: 返回能源绑定全貌（主表/口径/日表/月表），决定每一档粒度的权威读数来源。
+        self._energy_bindings = energy_bindings
         self._buffer: list[dict[str, Any]] = []
         self._flush_timer: asyncio.TimerHandle | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -152,9 +164,7 @@ class EventLogService(EventLogReportMixin):
             new_s = _state_text(event.get("new_state"))
             state_diff = f"{old_s}→{new_s}"
             if old_s == new_s:
-                attr_change = get_changed_control_attr(
-                    entity_id, event.get("old_state"), event.get("new_state")
-                )
+                attr_change = get_changed_control_attr(entity_id, event.get("old_state"), event.get("new_state"))
                 if not attr_change:
                     continue
                 state_diff = f"attr:{attr_change}"
@@ -164,6 +174,8 @@ class EventLogService(EventLogReportMixin):
                 entity_id,
                 enabled=tier_cfg["enabled"],
                 tier_c_sample_rate=tier_cfg["tier_c_sample_rate"],
+                old_state=event.get("old_state"),
+                new_state=event.get("new_state"),
             )
             if tier == "skip":
                 continue
@@ -272,8 +284,12 @@ class EventLogService(EventLogReportMixin):
                         EventLog(
                             entity_id=row["entity_id"],
                             domain=get_entity_domain(row["entity_id"]) or "",
-                            old_state=None if row["old_state"] is None else json.dumps(row["old_state"], ensure_ascii=False),
-                            new_state=None if row["new_state"] is None else json.dumps(row["new_state"], ensure_ascii=False),
+                            old_state=None
+                            if row["old_state"] is None
+                            else json.dumps(row["old_state"], ensure_ascii=False),
+                            new_state=None
+                            if row["new_state"] is None
+                            else json.dumps(row["new_state"], ensure_ascii=False),
                             state_diff=row["state_diff"],
                             created_at=_naive_utc(row["created_at"]),
                         )
@@ -281,42 +297,56 @@ class EventLogService(EventLogReportMixin):
                 session.commit()
         self._apply_energy_side_effects(batch)
 
+    def _resolve_energy_primary_entities(self) -> set[str]:
+        """本次应计入总耗的电表集合；未绑定主电表时返回空集合（调用方回退全量）。"""
+        try:
+            return {str(item).strip() for item in (self._energy_primary_entities() or ()) if str(item).strip()}
+        except Exception as error:  # 配置读取失败不该带塌能耗聚合
+            logger.debug("能耗主电表读取失败，回退全量识别: %s", error)
+            return set()
+
+    def _resolve_energy_bindings(self) -> dict[str, str]:
+        """能源绑定全貌：``{primary, scope, day, month}``。
+
+        未注入 bindings 时只保留主表集合（老调用方/测试），口径按 ``total`` 处理、
+        不启用日/月权威表 —— 行为与只有主表时完全一致。
+        """
+        if self._energy_bindings is None:
+            primary = self._resolve_energy_primary_entities()
+            only = next(iter(primary)) if len(primary) == 1 else ""
+            return {"primary": only, "scope": "total", "day": "", "month": ""}
+        try:
+            raw = self._energy_bindings() or {}
+        except Exception as error:  # 配置读取失败时退回「只有主表」的保守口径
+            logger.debug("能耗绑定读取失败，按主表保守处理: %s", error)
+            raw = {}
+        return {
+            "primary": str(raw.get("primary") or "").strip(),
+            "scope": normalize_meter_scope(raw.get("scope")),
+            "day": str(raw.get("day") or "").strip(),
+            "month": str(raw.get("month") or "").strip(),
+        }
+
     def _apply_energy_side_effects(self, batch: list[dict[str, Any]]) -> None:
         energy_ids = sorted(
             {
                 row["entity_id"]
                 for row in batch
-                if is_energy_meter_entity(row["entity_id"]) and row["old_state"] and row["new_state"]
+                if is_energy_meter_state(row["entity_id"], row["old_state"], row["new_state"])
+                and row["old_state"]
+                and row["new_state"]
             }
         )
-        day_totals: dict[tuple[str, str], dict[str, float]] = {}
-        month_totals: dict[tuple[str, str], dict[str, float]] = {}
         # 日切/月切跟随家庭时区（ops.homeTimezone），与前端报表口径一致。
         timezone_name = _resolve_ops_timezone_name(self._ops)
-        reset_count: dict[str, int] = {}
-        for row in batch:
-            if not is_energy_meter_entity(row["entity_id"]):
-                continue
-            if not row["old_state"] or not row["new_state"]:
-                continue
-            if is_meter_reset(row["old_state"], row["new_state"]):
-                # 表底重置会让该区间增量等于「重置后累积量」，属预期口径，
-                # 但必须留下痕迹，避免报表出现无法解释的用电跳变时无据可查。
-                reset_count[row["entity_id"]] = reset_count.get(row["entity_id"], 0) + 1
-            delta = compute_meter_delta(row["old_state"], row["new_state"])
-            if delta <= 0:
-                continue
-            created_at = row["created_at"]
-            day = business_day_key(created_at, timezone_name)
-            month = business_month_key(created_at, timezone_name)
-            day_entry = day_totals.setdefault((row["entity_id"], day), {"kwh": 0.0, "count": 0})
-            day_entry["kwh"] += delta
-            day_entry["count"] += 1
-            month_entry = month_totals.setdefault(
-                (row["entity_id"], month), {"kwh": 0.0, "count": 0}
-            )
-            month_entry["kwh"] += delta
-            month_entry["count"] += 1
+        # 绑定了主电表就只聚它：HA 里同表的日/月/年累计与各回路电量表都算进来，
+        # 会让「今日用电」凭空翻几倍。未绑定时（老装机）保持全量识别。
+        day_totals, month_totals, reset_count = accumulate_energy_totals(
+            batch,
+            self._resolve_energy_primary_entities(),
+            self._resolve_energy_bindings(),
+            timezone_name,
+        )
         if reset_count:
             logger.info(
                 "检测到电量表底重置: %s（该区间按重置后累积量计入日/月用电）",
@@ -347,9 +377,7 @@ class EventLogService(EventLogReportMixin):
                         (row.entity_id, row.day): row
                         for row in session.scalars(
                             select(EnergyUsageDaily).where(
-                                EnergyUsageDaily.entity_id.in_(
-                                    {entity_id for entity_id, _ in day_totals}
-                                ),
+                                EnergyUsageDaily.entity_id.in_({entity_id for entity_id, _ in day_totals}),
                                 EnergyUsageDaily.day.in_({day for _, day in day_totals}),
                             )
                         )
@@ -360,12 +388,8 @@ class EventLogService(EventLogReportMixin):
                         (row.entity_id, row.month): row
                         for row in session.scalars(
                             select(EnergyUsageMonthly).where(
-                                EnergyUsageMonthly.entity_id.in_(
-                                    {entity_id for entity_id, _ in month_totals}
-                                ),
-                                EnergyUsageMonthly.month.in_(
-                                    {month for _, month in month_totals}
-                                ),
+                                EnergyUsageMonthly.entity_id.in_({entity_id for entity_id, _ in month_totals}),
+                                EnergyUsageMonthly.month.in_({month for _, month in month_totals}),
                             )
                         )
                     }
@@ -380,6 +404,11 @@ class EventLogService(EventLogReportMixin):
                         )
                         daily_rows[(entity_id, day)] = row
                         session.add(row)
+                    elif value.get("mode") == "reading":
+                        # 权威读数直接覆盖：同一周期内读数单调递增，覆盖不会丢量，
+                        # 也不会把「先差分、后补绑权威表」的当天用量叠加成两倍。
+                        row.kwh = value["kwh"]
+                        row.sample_count = max(row.sample_count, int(value["count"]))
                     else:
                         row.kwh += value["kwh"]
                         row.sample_count += int(value["count"])
@@ -394,12 +423,53 @@ class EventLogService(EventLogReportMixin):
                         )
                         monthly_rows[(entity_id, month)] = row
                         session.add(row)
+                    elif value.get("mode") == "reading":
+                        row.kwh = value["kwh"]
+                        row.sample_count = max(row.sample_count, int(value["count"]))
                     else:
                         row.kwh += value["kwh"]
                         row.sample_count += int(value["count"])
                 session.commit()
         except Exception as error:
             logger.warning("能源副作用维护失败: %s", error)
+
+    # ---- 能耗历史回填 ----
+    def ops_timezone_name(self) -> str | None:
+        """家庭业务时区（能耗日切/月切口径，取自 ``ops.homeTimezone``）。"""
+        return _resolve_ops_timezone_name(self._ops)
+
+    def apply_energy_backfill(self, totals: dict[str, dict[str, float]]) -> dict[str, int]:
+        """把历史差分算出的 (实体, 日) 用电量合并进日/月聚合表。
+
+        合并口径是「只增不减」（``max``）：实时事件链路可能已经为同一天写过一部分增量，
+        回填只负责补上漏掉的部分，重复执行不会把用电量翻倍。月份总量在日行落库后按**当月
+        全部日行**重新求和 —— 回填窗口常常只覆盖当月的一部分天，直接累加窗口内数值会把
+        月总量写小。
+        """
+        day_values = _normalize_backfill_totals(totals)
+        if not day_values:
+            return {"daily": 0, "monthly": 0, "entities": 0}
+        # 回填同样只认主电表，否则「日/月/年累计 + 各回路表」会被各写一份日行，
+        # 与实时链路口径不一致、也让报表总量重复。
+        primary_entities = self._resolve_energy_primary_entities()
+        if primary_entities:
+            day_values = {key: value for key, value in day_values.items() if key[0] in primary_entities}
+            if not day_values:
+                return {"daily": 0, "monthly": 0, "entities": 0}
+        entities = sorted({entity_id for entity_id, _ in day_values})
+        days = sorted({day for _, day in day_values})
+        months = sorted({day[:7] for day in days})
+        try:
+            with self._database.session_factory() as session:
+                _register_backfill_candidates(session, entities)
+                daily_written = _merge_backfill_daily(session, day_values, entities, days)
+                session.flush()
+                monthly_written = _merge_backfill_monthly(session, entities, months)
+                session.commit()
+        except Exception as error:
+            logger.warning("能耗历史回填落库失败: %s", error)
+            return {"daily": 0, "monthly": 0, "entities": 0}
+        return {"daily": daily_written, "monthly": monthly_written, "entities": len(entities)}
 
     # 查询
     def query_history(
@@ -418,9 +488,7 @@ class EventLogService(EventLogReportMixin):
         skip = (current_page - 1) * page_size
         with self._database.session_factory() as session:
             conditions = self._history_conditions(since, restrictions, entity_id, domain)
-            total = session.execute(
-                select(func.count()).select_from(EventLog).where(*conditions)
-            ).scalar_one()
+            total = session.execute(select(func.count()).select_from(EventLog).where(*conditions)).scalar_one()
             rows = (
                 session.execute(
                     select(EventLog)

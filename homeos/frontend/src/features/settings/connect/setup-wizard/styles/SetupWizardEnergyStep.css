@@ -2,29 +2,32 @@
 .sw-energy-panel {
   padding: 14px;
   border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid var(--sw-amber-border);
-  background: rgba(0, 0, 0, 0.16);
+  border: var(--hos-hairline) solid var(--sw-amber-border-icon);
+  background: var(--hos-bg-elev-1);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .sw-energy-panel__head {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 
 .sw-energy-panel__title {
   margin: 0;
   font-size: var(--set-fs-body-sm);
   font-weight: 800;
-  color: #fff;
+  color: var(--hos-fg-1);
 }
 
 .sw-energy-panel__sub {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro);
-  color: var(--hos-fg-2);
-  line-height: 1.4;
+  color: var(--hos-fg-body);
+  line-height: 1.45;
 }
 
 .sw-energy-panel__grid {
@@ -51,11 +54,159 @@
   gap: 6px;
   font-size: var(--set-fs-micro);
   font-weight: 700;
-  color: var(--sw-amber-text);
+  color: var(--sw-amber-light);
 }
 
 .sw-energy-field__hint {
   margin: 0;
   font-size: var(--set-fs-micro);
+  color: var(--hos-fg-body);
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* 类型识别反馈：绿=认对了槽位，红=选错角色（保存会被拦） */
+.sw-energy-field__hint.is-ok {
+  color: var(--hos-color-success-text);
+  font-weight: 600;
+}
+
+.sw-energy-field__hint.is-warn {
+  color: var(--sw-amber-text);
+}
+
+.sw-energy-field__hint.is-bad {
+  color: var(--hos-color-danger-text);
+  font-weight: 600;
+}
+
+/* 口径分段控件：一句提示说明该口径能把哪一档直接读出来 */
+.sw-energy-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--sw-amber-border);
+  background: var(--hos-bg-tint-1);
+}
+
+.sw-energy-scope__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.sw-energy-scope__title {
+  font-size: var(--set-fs-micro);
+  font-weight: 800;
+  color: var(--sw-amber-light);
+}
+
+.sw-energy-scope__reset {
+  font-size: var(--set-fs-micro);
+  color: var(--hos-fg-body);
+  line-height: 1.4;
+}
+
+.sw-energy-scope__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sw-energy-scope__option {
+  padding: 6px 14px;
+  border-radius: var(--hos-r-pill);
+  border: var(--hos-hairline) solid var(--sw-border);
+  background: var(--hos-bg-tint-1);
+  color: var(--hos-fg-body);
+  font-size: var(--set-fs-micro);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color var(--hos-dur-fast) ease,
+    border-color var(--hos-dur-fast) ease,
+    background var(--hos-dur-fast) ease;
+}
+
+.sw-energy-scope__option:hover {
+  color: var(--hos-fg-1);
+  border-color: var(--sw-amber-border-icon);
+  background: var(--sw-amber-bg);
+}
+
+/* 选中态用实心琥珀 + on-accent 深色文字：浅底浅字在暗色面板上完全读不出来 */
+.sw-energy-scope__option.is-active {
+  color: var(--hos-fg-on-accent);
+  background: var(--sw-amber);
+  border-color: var(--sw-amber-light);
+  box-shadow: 0 0 0 1px var(--sw-amber-glow);
+}
+
+.sw-energy-scope__option.is-active:hover {
+  color: var(--hos-fg-on-accent);
+  background: var(--sw-amber-light);
+}
+
+/* 粒度覆盖一览：直接读表 / 差分求和 */
+.sw-energy-grains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sw-energy-grains__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--hos-r-pill);
+  font-size: var(--set-fs-micro);
+  line-height: 1.3;
+}
+
+.sw-energy-grains__item.is-direct {
+  color: var(--hos-color-success-text);
+  border: var(--hos-hairline) solid var(--hos-color-success-line);
+  background: var(--hos-color-success-soft);
+}
+
+.sw-energy-grains__item.is-derived {
   color: var(--hos-fg-2);
+  border: var(--hos-hairline) solid var(--sw-border);
+  background: var(--hos-bg-tint-1);
+}
+
+.sw-energy-grains__grain {
+  font-weight: 800;
+  color: var(--hos-fg-1);
+}
+
+.sw-energy-grains__item.is-direct .sw-energy-grains__grain {
+  color: var(--hos-color-success-text);
+}
+
+.sw-energy-grains__state {
+  white-space: nowrap;
+}
+
+.sw-energy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--sw-amber-border);
+  background: var(--sw-amber-bg);
+  color: var(--sw-amber-text);
+  font-size: var(--set-fs-micro);
+  line-height: 1.45;
 }

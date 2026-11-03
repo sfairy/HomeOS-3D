@@ -88,9 +88,17 @@
             <SetupWizardEnergyStep
               v-else-if="stepMeta.id === 'energy'"
               v-model:meter-entity-id="meterEntityId"
+              v-model:main-power-entity-id="mainPowerEntityId"
+              v-model:month-meter-entity-id="monthMeterEntityId"
+              v-model:day-meter-entity-id="dayMeterEntityId"
               v-model:circuit-entity-ids="circuitEntityIds"
+              :meter-scope="meterScope"
+              :scope-touched="scopeTouched"
               :status="status"
               :validate-result="validateResult"
+              @update:meter-scope="meterScope = $event"
+              @touched-scope="markScopeTouched"
+              @suggest-scope="applySuggestedScope"
             />
 
             <SetupWizardEnvironmentStep
@@ -150,6 +158,7 @@ import SetupWizardDashboardStep from '@/features/settings/connect/setup-wizard/S
 import SetupWizardCompleteStep from '@/features/settings/connect/setup-wizard/SetupWizardCompleteStep.vue'
 import SetupWizardNavigation from '@/features/settings/connect/setup-wizard/SetupWizardNavigation.vue'
 import { SETUP_WIZARD_ENV_STEP_KEY } from '@/features/settings/connect/setup-wizard/context'
+import { resolveEnergyScopeOption } from '@/features/settings/connect/setup-wizard/energy-scope.options'
 import { useSetupWizardPanel } from '@/features/settings/connect/composables/setup-wizard.internals'
 
 const props = defineProps({
@@ -176,6 +185,13 @@ const {
   message,
   messageOk,
   meterEntityId,
+  meterScope,
+  markScopeTouched,
+  applySuggestedScope,
+  scopeTouched,
+  mainPowerEntityId,
+  monthMeterEntityId,
+  dayMeterEntityId,
   circuitEntityIds,
   motionEntityId,
   doorbellList,
@@ -239,7 +255,9 @@ const wizardFlowSteps = computed(() => {
     },
     {
       label: '能源计量',
-      meta: meterEntityId.value ? '已绑定' : '待配置',
+      meta: meterEntityId.value
+        ? `已绑定 · ${resolveEnergyScopeOption(meterScope.value).label}`
+        : '待配置',
       icon: Zap,
       tone: steps.energy?.done ? 'emerald' : 'amber',
     },

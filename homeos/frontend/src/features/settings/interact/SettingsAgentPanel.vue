@@ -2,10 +2,11 @@
   智能管家面板入口。通过子导航切换 model（大模型接口配置+凭据+检测）、
   scene-voice（HA 场景 / 脚本语音控制允许清单，默认全禁）、device-scope（设备白名单）、
   proactive（周期巡检 + 无人空转看门狗）、policies（家规）、schedules（计划任务）、
-  channels（消息通道，委托给 SettingsAgentChannelsSection）、chat（管家对话调试）区段。
+  diagnostics（诊断日志）、memory（长期记忆）、channels（消息通道，委托给
+  SettingsAgentChannelsSection）、chat（管家对话调试）区段。
   页头提供保存/取消；演示模式（未配置密钥）禁用对话并提示。
   家规与计划任务走独立即时 CRUD，不进布局保存，因此不参与 pending 计算。
-  子导航 10 个分区单行横滑，激活项自动居中，← / → / Home / End 可切换；
+  子导航 11 个分区单行横滑，激活项自动居中，← / → / Home / End 可切换；
   当前分区写入 ?tab=agent&section=xxx，刷新或分享链接可直达，切区段时内容区回到顶部。
 -->
 <template>
@@ -806,6 +807,11 @@
       v-show="section === 'diagnostics'"
     />
 
+    <SettingsAgentMemorySection
+      v-if="activatedSections.has('memory')"
+      v-show="section === 'memory'"
+    />
+
     <SettingsAgentChannelsSection
       v-show="section === 'channels'"
       v-model:channel-draft="channelDraft"
@@ -872,36 +878,15 @@
           />
 
           <div ref="chatLogEl" class="agent-chat-log agent-form-block" aria-live="polite">
-            <article
+            <SettingsAgentChatBubble
               v-for="(m, i) in chatLog"
               :key="i"
-              :class="['agent-chat-bubble', `agent-chat-bubble--${m.role}`]"
-            >
-              <div
-                class="agent-chat-bubble__avatar"
-                :class="m.role === 'user' ? 'agent-chat-bubble__avatar--user' : 'agent-chat-bubble__avatar--bot'"
-              >
-                <User v-if="m.role === 'user'" class="w-3.5 h-3.5" />
-                <Sparkles v-else class="w-3.5 h-3.5" />
-              </div>
-              <div class="agent-chat-bubble__main">
-                <header class="agent-chat-bubble__head">
-                  <span class="agent-chat-bubble__name">{{ m.role === 'user' ? '你' : '管家' }}</span>
-                  <span
-                    v-if="m.outcome"
-                    class="agent-chat-bubble__pill"
-                    :data-tone="chatOutcomeTone(m.outcome)"
-                  >
-                    {{ chatOutcomeLabel(m.outcome) }}
-                  </span>
-                </header>
-                <div
-                  class="agent-chat-bubble__body"
-                  :class="{ 'agent-chat-bubble__body--streaming': m.streaming }"
-                >{{ m.text }}</div>
-                <footer v-if="m.meta" class="agent-chat-bubble__meta">{{ m.meta }}</footer>
-              </div>
-            </article>
+              :message="m"
+              :busy="chatting"
+              @copy="copyChat(m)"
+              @regenerate="regenerateChat"
+              @confirm="(accepted) => answerChatConfirmation(m, accepted)"
+            />
 
             <article v-if="showChatTyping" class="agent-chat-bubble agent-chat-bubble--assistant agent-chat-bubble--typing">
               <div class="agent-chat-bubble__avatar agent-chat-bubble__avatar--bot">
@@ -1035,7 +1020,6 @@ import {
   ShieldCheck,
   Sparkles,
   Square,
-  User,
 } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
@@ -1052,6 +1036,8 @@ import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'
 import SettingsAgentPoliciesSection from './SettingsAgentPoliciesSection.vue'
 import SettingsAgentSchedulesSection from './SettingsAgentSchedulesSection.vue'
 import SettingsAgentDiagnosticsSection from './SettingsAgentDiagnosticsSection.vue'
+import SettingsAgentChatBubble from './SettingsAgentChatBubble.vue'
+import SettingsAgentMemorySection from './SettingsAgentMemorySection.vue'
 import SettingsAgentQuickPromptsSection from './SettingsAgentQuickPromptsSection.vue'
 import AgentMechaAvatar from '@/components/shell/agent-companion/AgentMechaAvatar.vue'
 
@@ -1110,8 +1096,6 @@ const {
   chatStatReadyClass,
   chatStatReadyValClass,
   chatStatRoundLabel,
-  chatOutcomeLabel,
-  chatOutcomeTone,
   sendQuickPrompt,
   applyPreset,
   resetDraft,
@@ -1119,6 +1103,9 @@ const {
   refreshPing,
   sendChat,
   stopChat,
+  copyChat,
+  regenerateChat,
+  answerChatConfirmation,
   voiceListening,
   voiceTranscribing,
   voiceError,

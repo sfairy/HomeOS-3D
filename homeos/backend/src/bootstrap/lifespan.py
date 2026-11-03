@@ -16,6 +16,12 @@ from fastapi import FastAPI
 from homeos_shared.schema_core import mark_clean_shutdown
 
 from . import studio3d_plane
+from .agent_services import build_agent_shared_state
+from .energy_wiring import (
+    make_energy_attrs_provider,
+    make_energy_bindings_provider,
+    make_energy_primary_provider,
+)
 from ..config import Settings
 
 if TYPE_CHECKING:
@@ -397,6 +403,9 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     # 应用配置（运行参数）：内存缓存 + DB 持久化 + 脱敏 + 审计
     app_config = AppConfigService(app.state.database.session_factory)
     app_config.start()
+    # 能源绑定的实体角色（累计电量 vs 瞬时功率）只能在服务端拦：前端向导之外
+    # 还有设置页 / API / 配置文件多条写入路径。
+    app_config.set_energy_attrs_provider(make_energy_attrs_provider(lambda: startup.state_store))
     app.state.app_config = app_config
     app.state.app_config_backup = AppConfigBackupService(app_config)
     startup.app_config = app_config
@@ -422,7 +431,13 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     app.state.distributed_lock = distributed_lock
     database_retention.lock = distributed_lock
     # 事件日志：订阅 HA 冷批状态变更，内存缓冲后批量落库。
-    event_log_service = EventLogService(app.state.database)
+    # 能耗聚合只认「绑定的主电表」：HA 里同一块物理表常同时暴露日/月/年累计 +
+    # 若干分路电量，全部聚合会把今日用电重复计费；没有绑定时才回退到全量识别。
+    event_log_service = EventLogService(
+        app.state.database,
+        energy_primary_entities=make_energy_primary_provider(app_config),
+        energy_bindings=make_energy_bindings_provider(app_config),
+    )
     event_log_service.bind_loop(asyncio.get_running_loop())
     app.state.event_log = event_log_service
     startup.event_log_service = event_log_service
@@ -831,17 +846,11 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     # 放在阶段内导入可让 `import src.app` 只付「应用骨架」的钱。
     from ..domains.agent.mcp.mcp_service import McpGatewayService
     from ..domains.agent.memory.command_cache import CommandCacheService
-    from ..domains.agent.memory.memory_store import AgentMemoryService
-    from ..domains.agent.memory.session_store import AgentSessionStoreService
-    from ..domains.agent.memory.short_term_memory import AgentShortTermMemoryService
-    from ..domains.agent.policy.budget import AgentBudgetService
-    from ..domains.agent.providers.resolving_llm_provider import ResolvingLlmProvider
     from ..domains.agent.runtime.area_service import AgentAreaService
     from ..domains.agent.runtime.config_service import AgentConfigService
     from ..domains.agent.runtime.fast_path import FastPathService
     from ..domains.agent.runtime.lang_template_service import LangTemplateService
     from ..domains.agent.runtime.service import AgentService
-    from ..domains.agent.state.store import build_shared_store
     from ..domains.agent.tools.home_tools_service import HomeToolsService
 
     app_config = startup.app_config
@@ -892,31 +901,11 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     command_cache = CommandCacheService(app.state.database.session_factory)
     app.state.agent_command_cache = command_cache
 
-    # 跨进程共享状态（短时记忆 / 批量确认 / 日预算 / MCP 限流共用一份）
-    # 默认落在 <data_dir>/agent-state.sqlite3；AGENT_STATE_BACKEND=memory 可退回进程内
-    agent_state_store = build_shared_store(startup.app_settings.data_dir, env=os.environ)
-    app.state.agent_state_store = agent_state_store
-
-    # 会话记忆分两层：10 分钟长会话（内存 LRU + DB 持久化）+ 45s 短时滑窗（共享状态）
-    agent_sessions = AgentSessionStoreService(app.state.database.session_factory)
-    app.state.agent_sessions = agent_sessions
-    app.state.agent_short_term = AgentShortTermMemoryService(agent_state_store)
-    # 长期记忆：设备 / 房间别名与用户偏好
-    agent_memory = AgentMemoryService(app.state.database.session_factory)
-    app.state.agent_memory = agent_memory
-    # 每日用量预算（token / 成本，按登录用户累计；环境变量可调）
-    app.state.agent_budget = AgentBudgetService(store=agent_state_store)
-
-    llm_provider = ResolvingLlmProvider(agent_config, event_bus=startup.security_bus)
-    llm_provider.bind_events()
-    await llm_provider.refresh()
-    app.state.agent_llm_provider = llm_provider
-
-    # 服务端 TTS：对话只签 URL，浏览器取音频时才合成（详见 speech/service.py）
-    from ..domains.agent.speech import TtsService
-
-    agent_tts = TtsService(app_config, startup.app_settings.data_dir, env=os.environ)
-    app.state.agent_tts = agent_tts
+    # 跨进程状态 / 记忆 / 预算 / LLM / TTS 单独装配：服务多且互相依赖，
+    # 拆出去避免把本函数撑成「什么都装」的长函数。
+    agent_memory, llm_provider, agent_tts, agent_state_store = await build_agent_shared_state(
+        app, startup, agent_config, home_tools
+    )
 
     agent_service = AgentService(
         llm_provider,
@@ -925,7 +914,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         command_cache,
         lang_templates,
         agent_config,
-        agent_sessions,
+        app.state.agent_sessions,
         app.state.agent_short_term,
         app.state.agent_budget,
         app.state.global_log,
@@ -1106,6 +1095,14 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
     await notification.start()
     app.state.notification = notification
     startup.notification = notification
+
+    # 工具层注入通知 / 在场 / 长期记忆：主动推送、全屋有人状态、偏好学习都依赖它们
+    home_tools = getattr(app.state, "home_tools", None)
+    if home_tools is not None:
+        home_tools.bind_notification(notification)
+        presence_service = getattr(app.state, "presence", None)
+        if presence_service is not None:
+            home_tools.bind_presence(presence_service)
 
     # 主动管家：定时巡检 + 简报（只读工具 → 通知中心；默认关闭，配置见 agentConfig.proactive）
     proactive = AgentProactiveService(

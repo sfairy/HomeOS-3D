@@ -454,6 +454,32 @@
   flex-wrap: wrap;
 }
 
+/* 「让管家处理」：主动提醒的一键执行入口，视觉上从正文里区分出来但不抢主文案 */
+.nc-action-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: color-mix(in srgb, var(--premium-accent-blue) 14%, transparent);
+  color: var(--set-info, var(--premium-accent-blue));
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.nc-action-prompt:hover {
+  background: color-mix(in srgb, var(--premium-accent-blue) 24%, transparent);
+}
+
+.nc-action-prompt__icon {
+  width: 11px;
+  height: 11px;
+}
+
 .nc-source {
   font-size: var(--premium-fs-micro);
   font-weight: 700;

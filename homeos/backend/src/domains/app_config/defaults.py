@@ -163,6 +163,10 @@ def _default_energy_sections() -> dict[str, Any]:
         # 能源监测配置
         "energy": {
             "meterEntityId": "",
+            "meterScope": "total",
+            "mainPowerEntityId": "",
+            "monthMeterEntityId": "",
+            "dayMeterEntityId": "",
             "circuitEntityIds": [],
             "learningPeriodDays": 7,
             "learningStartedAt": "",

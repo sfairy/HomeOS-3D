@@ -41,12 +41,15 @@ MAX_LOG_ROWS = 50
 
 
 def _scheduled_action(args: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any] | None]:
-    """按参数决定计划任务要执行的动作：控制设备 / 激活场景 / 切换家庭模式。
+    """按参数决定计划任务要执行的动作：提醒消息 / 控制设备 / 激活场景 / 切换家庭模式。
 
     schema 一直宣称支持 ``activate_scene`` / ``activate_home_mode``，实现却写死
     ``control_device``，于是「每晚十点切到观影模式」这类请求要么被拒、要么被执行成
     「控制某台设备」。这里按参数分流，动作白名单（``ALLOWED_ACTION_TOOLS``）与
     执行器（``tools.execute``）都不变 —— 到期时走的还是同一套权限与高危拦截。
+
+    ``message`` 分支是提醒：到点由调度器调用 ``send_notification`` 推一条通知。它与
+    设备 / 场景 / 模式互斥，同时出现时明确报错，避免「提醒 + 关火」被悄悄降级成其中一个。
 
     返回 ``(动作工具, 动作参数, 前置条件, 错误结果)``；错误结果非 ``None`` 时直接回给模型。
     """
@@ -54,6 +57,15 @@ def _scheduled_action(args: dict[str, Any]) -> tuple[str, dict[str, Any], dict[s
     mode = _s(args.get("mode")).strip()
     entity_id = _s(args.get("entity_id")).strip()
     service = _s(args.get("service")).strip()
+    message = _s(args.get("message")).strip()
+
+    kinds = [bool(scene), bool(mode), bool(entity_id and service), bool(message)]
+    # 只有「提醒消息」与其他动作互斥：设备/场景/模式同时给时按场景 > 模式 > 设备的既有优先级取最具体的那个
+    if message and sum(kinds) > 1:
+        return "", {}, {}, {"error": "一次只能指定一种动作：提醒消息、控制设备、激活场景或切换家庭模式"}
+
+    if message:
+        return "send_notification", _reminder_action_args(args, message), {}, None
 
     if scene:
         action_args: dict[str, Any] = {"scene": scene}
@@ -66,13 +78,32 @@ def _scheduled_action(args: dict[str, Any]) -> tuple[str, dict[str, Any], dict[s
         return "activate_home_mode", {"name": mode}, {}, None
 
     if not entity_id or not service:
-        return "", {}, {}, {"error": "需要 entity_id 与 service，或 scene / mode 之一"}
+        return "", {}, {}, {"error": "需要 message，或 entity_id 与 service，或 scene / mode 之一"}
+    return _device_action(args, entity_id, service)
 
+
+def _reminder_action_args(args: dict[str, Any], message: str) -> dict[str, Any]:
+    """提醒动作参数：标题与渠道子集都是可选的，到点强制绕过免打扰。"""
+    action_args: dict[str, Any] = {"message": message[:500], "bypass_dnd": True}
+    title = _s(args.get("title")).strip()
+    if title:
+        action_args["title"] = title[:120]
+    raw_channels = args.get("channels")
+    if isinstance(raw_channels, list):
+        channels = [str(item).strip().lower() for item in raw_channels if str(item).strip()]
+        if channels:
+            action_args["channels"] = channels
+    return action_args
+
+
+def _device_action(
+    args: dict[str, Any], entity_id: str, service: str
+) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any] | None]:
+    """设备控制动作参数 + 前置状态（场景 / 家庭模式没有单实体目标态）。"""
     domain = _s(args.get("domain")).strip() or entity_id.split(".", 1)[0]
     action_args = {"domain": domain, "service": service, "entity_id": entity_id}
     if isinstance(args.get("service_data"), dict):
         action_args["service_data"] = args.get("service_data")
-    # 前置状态只对设备控制有意义：场景 / 家庭模式没有可比的单实体目标态
     expected = _s(args.get("expected_state")).strip()
     precondition = {"entityId": entity_id, "expectedState": expected} if expected else {}
     return "control_device", action_args, precondition, None
@@ -84,6 +115,9 @@ def _action_label(action_tool: str, action_args: dict[str, Any]) -> str:
         return f"场景 {action_args.get('scene') or action_args.get('entity_id')}"
     if action_tool == "activate_home_mode":
         return f"家庭模式 {action_args.get('name')}"
+    if action_tool == "send_notification":
+        reminder = _s(action_args.get("message"))
+        return f"提醒：{reminder[:20]}"
     return f"{action_args.get('entity_id')} {action_args.get('service')}"
 
 
@@ -287,6 +321,11 @@ class HomeToolsAutomationMixin(HomeToolsHost):
         return {"tasks": await scheduler.list_tasks()}
 
     async def _cancel_scheduled_task(self, args: dict[str, Any], actor: Any = None) -> dict[str, Any]:
+        # 与创建 / 修改保持一致：删除是一次不可逆的权限操作，未绑定身份的通道不能借
+        # LLM 把别人的计划任务删掉。
+        guard = self._requires_actor(actor)
+        if guard is not None:
+            return guard
         scheduler = self._scheduler
         if scheduler is None:
             return {"error": "计划任务未启用"}

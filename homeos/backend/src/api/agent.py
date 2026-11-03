@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from .router import NestRouter
 from ..dependencies import license_feature
+from ..domains.agent.memory.memory_store import MAX_PREFERENCES
 from ..domains.agent.runtime.agent_actor import AgentActor
 from ..domains.license import features as feature_codes
 from ..platform.core.http.errors import BusinessException, ErrorCode
@@ -168,10 +169,33 @@ async def remember(
     alias = str(dto.alias or "").strip()
     value = str(dto.value or "").strip()
     kind = "preference" if dto.kind == "preference" else "alias"
+    if kind == "preference" and not alias:
+        # 偏好不需要用户自己想 key：取内容前 40 字生成稳定 key，重复表达覆盖而不是堆叠
+        alias = f"pref:{value.lower()[:40]}"
     if len(alias) < 2 or len(alias) > 80 or not value or len(value) > 200:
         raise BusinessException(ErrorCode.VALIDATION_FAILED, "别名或记忆内容不合法")
+    if kind == "preference":
+        # 与工具层同一份上限：系统提示逐条拼接，设置页也不能无限堆
+        existing = [item for item in memory.list_memories(_memory_scope(user)) if item.get("kind") == "preference"]
+        if len(existing) >= MAX_PREFERENCES and all(item.get("key") != alias.lower() for item in existing):
+            raise BusinessException(
+                ErrorCode.VALIDATION_FAILED,
+                f"偏好记忆已满（最多 {MAX_PREFERENCES} 条），请先删除一些再记新的",
+            )
     memory.remember(_memory_scope(user), alias, value, kind)
     return {"ok": True, "items": memory.list_memories(_memory_scope(user))}
+
+
+@router.delete("/memories")
+async def clear_memories(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """清空当前用户的全部长期记忆（设置页「清空全部」）。"""
+    memory = getattr(request.app.state, "agent_memory", None)
+    if memory is not None:
+        memory.clear(_memory_scope(user))
+    return {"ok": True, "items": []}
 
 
 @router.delete("/memories/{alias}")

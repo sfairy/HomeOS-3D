@@ -33,6 +33,10 @@ DEFAULT_NOTIFICATION_CONFIG: dict[str, Any] = {
 
 DEFAULT_ENERGY_CONFIG: dict[str, Any] = {
     "meterEntityId": "",
+    "meterScope": "total",
+    "mainPowerEntityId": "",
+    "monthMeterEntityId": "",
+    "dayMeterEntityId": "",
     "circuitEntityIds": [],
     "learningPeriodDays": 7,
     "learningStartedAt": "",

@@ -26,19 +26,13 @@ logger = logging.getLogger("homeos.agent.memory")
 CACHE_TTL_MS = 60_000
 #: 记住：「记住主灯就是客厅主灯」/「把主灯叫做客厅主灯」
 REMEMBER_PATTERNS = (
-    re.compile(
-        r"^(?:请)?记住[:：]?(?P<alias>[^，,。]{1,40}?)(?:就是|是|=|叫做|叫)(?P<target>[^。]{1,80})$"
-    ),
+    re.compile(r"^(?:请)?记住[:：]?(?P<alias>[^，,。]{1,40}?)(?:就是|是|=|叫做|叫)(?P<target>[^。]{1,80})$"),
     re.compile(r"^把(?P<alias>[^，,。]{1,40}?)(?:叫做|称为|记作)(?P<target>[^。]{1,80})$"),
 )
 #: 偏好：「记住我的偏好是 …」
-PREFERENCE_PATTERN = re.compile(
-    r"^(?:请)?记住[:：]?(?:我|我的)?(?:偏好|习惯)(?:是|为|[:：])?(?P<value>.+)$"
-)
+PREFERENCE_PATTERN = re.compile(r"^(?:请)?记住[:：]?(?:我|我的)?(?:偏好|习惯)(?:是|为|[:：])?(?P<value>.+)$")
 #: 忘记：「忘记主灯」/「忘掉别名 主灯」
-FORGET_PATTERN = re.compile(
-    r"^(?:请)?(?:忘记|忘掉|删除记忆)[:：]?(?:别名)?[:：]?(?P<alias>.+)$"
-)
+FORGET_PATTERN = re.compile(r"^(?:请)?(?:忘记|忘掉|删除记忆)[:：]?(?:别名)?[:：]?(?P<alias>.+)$")
 
 
 def _now_ms() -> int:
@@ -47,6 +41,11 @@ def _now_ms() -> int:
 
 def _norm(value: str) -> str:
     return str(value or "").strip().lower()
+
+
+#: 单用户偏好条数上限：系统提示会逐条拼接，模型每轮都写一条会把上下文撑爆。
+#: 工具层与设置页 API 共用这一份，避免两条写入路径各自为政。
+MAX_PREFERENCES = 50
 
 
 class AgentMemoryService:
@@ -73,13 +72,17 @@ class AgentMemoryService:
             return True
         try:
             with self._session_factory() as session:
-                row = session.execute(
-                    select(AgentMemoryRow).where(
-                        AgentMemoryRow.scope == scope,
-                        AgentMemoryRow.kind == kind,
-                        AgentMemoryRow.memory_key == key,
+                row = (
+                    session.execute(
+                        select(AgentMemoryRow).where(
+                            AgentMemoryRow.scope == scope,
+                            AgentMemoryRow.kind == kind,
+                            AgentMemoryRow.memory_key == key,
+                        )
                     )
-                ).scalars().first()
+                    .scalars()
+                    .first()
+                )
                 if row is None:
                     session.add(
                         AgentMemoryRow(
@@ -139,10 +142,7 @@ class AgentMemoryService:
         """列出某个用户的全部记忆（供设置页 / API 管理）。"""
         scope = str(scope or "").strip() or "anon"
         items = self._load(scope)
-        return [
-            {"kind": kind, "key": key, "value": value}
-            for (kind, key), value in sorted(items.items())
-        ]
+        return [{"kind": kind, "key": key, "value": value} for (kind, key), value in sorted(items.items())]
 
     # 读取 / 缓存
     def _invalidate(self, scope: str) -> None:
@@ -156,11 +156,7 @@ class AgentMemoryService:
         if self._session_factory is not None:
             try:
                 with self._session_factory() as session:
-                    rows = list(
-                        session.execute(
-                            select(AgentMemoryRow).where(AgentMemoryRow.scope == scope)
-                        ).scalars()
-                    )
+                    rows = list(session.execute(select(AgentMemoryRow).where(AgentMemoryRow.scope == scope)).scalars())
             except Exception as exc:  # pragma: no cover
                 logger.warning("长期记忆读取失败(使用内存): %s", exc)
                 rows = []
@@ -171,17 +167,11 @@ class AgentMemoryService:
 
     def alias_map(self, scope: str) -> dict[str, str]:
         """返回 ``{别名: 目标名称}``（仅 alias 类记忆）。"""
-        return {
-            key: value
-            for (kind, key), value in self._load(scope).items()
-            if kind == "alias"
-        }
+        return {key: value for (kind, key), value in self._load(scope).items() if kind == "alias"}
 
     def preference_text(self, scope: str) -> str:
         """拼出用户的偏好补充说明（注入系统提示）。"""
-        values = [
-            value for (kind, _key), value in self._load(scope).items() if kind == "preference"
-        ]
+        values = [value for (kind, _key), value in self._load(scope).items() if kind == "preference"]
         return "；".join(values)
 
     @staticmethod

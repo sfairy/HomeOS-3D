@@ -254,6 +254,10 @@ function describeNonDeviceAction(
   if (actionTool === 'activate_home_mode') {
     return { label: `切换到家庭模式「${String(args.name || '未命名模式')}」`, tool: actionTool, args }
   }
+  if (actionTool === 'send_notification') {
+    const text = String(args.message || '').trim()
+    return { label: text ? `提醒：${text}` : '提醒消息', tool: actionTool, args }
+  }
   return null
 }
 

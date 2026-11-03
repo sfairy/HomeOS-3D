@@ -15,6 +15,7 @@ from contextlib import AbstractContextManager
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict
 
+from .app_config_field_bindings import APP_CONFIG_FIELD_BINDINGS
 from ...platform.core.db.json_field import object_field
 
 if TYPE_CHECKING:
@@ -878,14 +879,6 @@ def _app_config_section(app_config_raw: dict[str, Any], section_key: str) -> dic
     return object_field(app_config_raw, section_key)
 
 
-# app_config 里的"单字段绑定"：(section, 字段, 引用 id, 名称, 跳转)。
-# 扫描与解绑**共用**这张表：两边的字段名一旦漂移，就会出现「界面提示已解绑、实际没清」。
-_APP_CONFIG_FIELD_BINDINGS = (
-    ("circadian", "weatherEntityId", "circadian-weather", "昼夜节律 · 天气", "/settings?tab=bindings"),
-    ("water", "mainValveEntityId", "water-main-valve", "用水 · 总阀", "/settings?tab=bindings"),
-    ("energy", "meterEntityId", "energy-meter", "能源 · 主电表", "/settings?tab=bindings"),
-    ("voice", "sttEntityId", "voice-stt", "语音 · STT", "/settings?tab=voice"),
-)
 # 能源分路是数组字段（同 section，但命中判定不是"字段值等于实体"）。
 _ENERGY_CIRCUIT_FIELD = ("energy", "circuitEntityIds")
 
@@ -894,7 +887,7 @@ def _scan_app_config_bindings(
     app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     """昼夜节律 / 用水 / 能源 / 语音这几个"单字段绑定"是否指向该实体。"""
-    for section_key, field_key, binding_id, display_name, settings_path in _APP_CONFIG_FIELD_BINDINGS:
+    for section_key, field_key, binding_id, display_name, settings_path in APP_CONFIG_FIELD_BINDINGS:
         if _app_config_section(app_config_raw, section_key).get(field_key) != entity_id:
             continue
         _push_system_config(items, seen, binding_id, display_name, "binding", settings_path)
@@ -1291,10 +1284,10 @@ class _UnsupportedReferenceError(Exception):
 
 
 # system_config 的"单字段绑定"移除：命中即把该字段清空。
-# 与**扫描**共用 `_APP_CONFIG_FIELD_BINDINGS`（同一份 section/字段名，两边不会漂移）。
+# 与**扫描**共用 `APP_CONFIG_FIELD_BINDINGS`（同一份 section/字段名，两边不会漂移）。
 _SYSTEM_CONFIG_CLEAR_FIELDS: dict[str, tuple[str, str]] = {
     binding_id: (section_key, field_key)
-    for section_key, field_key, binding_id, _name, _path in _APP_CONFIG_FIELD_BINDINGS
+    for section_key, field_key, binding_id, _name, _path in APP_CONFIG_FIELD_BINDINGS
 }
 # system_config 的"数组绑定"移除：命中即从数组里剔除该实体。
 _SYSTEM_CONFIG_CLEAR_LISTS: dict[str, tuple[str, str]] = {

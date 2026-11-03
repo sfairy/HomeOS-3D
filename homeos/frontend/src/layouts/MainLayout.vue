@@ -153,6 +153,10 @@ watch(showAgentChrome, (ok) => {
 watch(showNotificationChrome, (ok) => {
   if (!ok) closeNotificationDrawer()
 })
+// 从通知中心「让管家处理」直接进对话：抽屉让位，保持浮层互斥
+watch(showAgentChat, (open) => {
+  if (open && showNotificationDrawer.value) showNotificationDrawer.value = false
+})
 
 /** 打开通知抽屉：关闭智能管家，确保浮层互斥 */
 function openNotificationDrawer() {

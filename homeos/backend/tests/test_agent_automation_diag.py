@@ -101,13 +101,22 @@ class _FakePolicy:
 class _FakeNotification:
     def __init__(self) -> None:
         self.messages: list[str] = []
+        self.actions: list[str | None] = []
 
     def is_dnd_active(self) -> bool:
         return False
 
-    async def notify(self, level: str, message: str, source: str = "") -> bool:
-        del level, source
+    async def notify(
+        self,
+        level: str,
+        message: str,
+        source: str = "",
+        actor: object | None = None,
+        opts: dict[str, object] | None = None,
+    ) -> bool:
+        del level, source, actor
         self.messages.append(message)
+        self.actions.append(str(opts.get("actionPrompt")) if opts else None)
         return True
 
 
@@ -181,6 +190,8 @@ class WatchdogIdleTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["actions"], [])
         self.assertEqual(tools.control_calls(), [])
         self.assertEqual(len(notification.messages), 1)
+        # 只提醒不动手时，必须带一条可执行指令，通知中心才能一键交给管家
+        self.assertIn("客厅", notification.actions[0] or "")
 
     async def test_quiet_hours_suppress_notification_but_keep_signals(self) -> None:
         """免打扰时段内不推送，但手动巡检仍要把信号返回给调用方。"""
@@ -199,6 +210,19 @@ class WatchdogIdleTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][0], "control_device")
         self.assertEqual(calls[0][1]["service"], "turn_off")
+
+    async def test_background_run_can_auto_close_with_system_actor(self) -> None:
+        """后台 ``run_once(actor=None)`` 不能因为「没有身份」把自动关停永久关死。
+
+        看门狗只操作低危域且受家规 ``autoClose`` 约束，身份用系统执行体补齐；
+        若这次又退化成只提醒，用户会以为「自动关灯」坏了。
+        """
+        watchdog, tools, _notification = self._build(auto_close=True)
+        result = await watchdog.run_once(actor=None)
+        self.assertTrue(result["actions"])
+        calls = tools.control_calls()
+        self.assertEqual(calls[0][1]["service"], "turn_off")
+        self.assertEqual(result["actions"][0]["entityId"], "light.living")
 
     async def test_disabled_watchdog_does_nothing(self) -> None:
         watchdog, _tools, _notification = self._build(auto_close=True)
