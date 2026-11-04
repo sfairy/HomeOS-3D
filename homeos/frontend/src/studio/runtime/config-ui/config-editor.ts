@@ -301,7 +301,7 @@ export async function openInteraction3dEditor({
   // （楼层下拉、条目列表、状态规则全都按 `sceneMetadata` 渲染），选楼层也拿不到基准。
   if (isBorrowedPreview && Array.isArray(editorView?.metadata?.floors)) {
     sceneMetadata = editorView.metadata;
-    sceneMetadata.floors.some((floor: any) => floor.id === floorSelection) ||
+    sceneMetadata.floors.some((floor: { id?: string }) => floor.id === floorSelection) ||
       (floorSelection = sceneMetadata.floors[0]?.id || "");
   }
   let isRangeEditorOpen = false,
