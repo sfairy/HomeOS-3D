@@ -339,10 +339,11 @@ export function attachEditorPanelRendering(editorHost: any) {
           editorHost.pickerGeneration++,
           editorHost.pickerHandle?.close(),
           // 共享装饰器不在这里回收：安防 / 存在感应等入口用的是同一份，关掉本弹窗不该让它失效。
-          // 0.8.4：预览句柄负责收尾 —— 自建弹窗保留运行时（2 分钟内重开不重建户型），
-          // 借用会话则把编辑器页的运行时原样还原。
+          // 关窗即销毁运行时（`keep: false`）：与 0.8.2 一致，下次打开重新挂一份干净的。
+          // 池里「保留 2 分钟再复用」会把 `viewport` 清空，而运行时不会再把自己接回去 ——
+          // 复用出来的第二次打开只剩面板、没有 3D 画面，所以这里不走保留分支。
           editorHost.previewHandle
-            ? editorHost.previewHandle.release({ keep: true, watchAccess: editorHost.subscribeAccess })
+            ? editorHost.previewHandle.release({ keep: false })
             : editorHost.editorRuntime?.(),
           editorHost.accessUnsubscribe?.(),
           configurationFeedback.dispose(),

@@ -250,13 +250,15 @@ export async function openInteraction3dEditor({
         buttonElement
       );
     };
-  // 0.8.4：配置预览优先借用编辑器里已经挂好的运行时（不重建户型）；
-  // 借用不可用时退回自建弹窗，并在关窗后保留运行时 2 分钟供再次打开复用。
+  // 0.8.4 的「借用编辑器运行时」把配置弹窗改成了整屏画布 + 浮层面板，和长期使用的
+  // 模态弹窗（左侧 3D 预览 + 右侧检查器）差得太远，四个入口（灯光 / 环境 / 设备 /
+  // 扫地机）一律走自建弹窗，界面与 0.8.2 保持一致。真要重新启用，把这里改成 true
+  // 即可（借用路径还需要 `.i3d-editor` 类与 `editorView.metadata` 注入，见下面两处）。
   const previewHandle = await acquireEditorPreview({
       component,
       panelDocument: documentApi,
       document: globalThis.document,
-      editorView: editorView || null,
+      editorView: null,
     }),
     isBorrowedPreview = previewHandle.borrowed === true,
     editorDialogElement = previewHandle.dialog,
@@ -267,14 +269,10 @@ export async function openInteraction3dEditor({
     aspectBoxElement = previewHandle.aspect,
     stageHostElement = previewHandle.viewport,
     statusElement = createElement("p", "i3d-editor-status");
-  // 借用编辑器宿主时必须自己补上 `i3d-editor`：弹窗的骨架样式（表头 flex、右栏
-  // 网格与内边距、输入框 / 按钮外观）全挂在 `.i3d-editor` 上。自建弹窗在
-  // `createOwnPreview` 里创建时就带了这个类，借用的是编辑器页那个
-  // `dialog.hb-interaction3d-runtime`，没人替它加 —— 少了它表头会挤成一团、
-  // 右栏也拿不到字体与间距，看起来就像「弹窗样式坏了」。
-  isBorrowedPreview
-    ? editorDialogElement.classList.add("i3d-editor", "is-borrowed-editor")
-    : (editorDialogElement.className = "i3d-editor");
+  // 弹窗骨架样式（表头 flex、右栏网格与内边距、输入框 / 按钮外观）全挂在 `.i3d-editor`
+  // 上：自建弹窗创建时就带着这个类，借用编辑器宿主时（`dialog.hb-interaction3d-runtime`）
+  // 却没人替它加，少了它表头会挤成一团、右栏也拿不到字体与间距。
+  editorDialogElement.classList.add("i3d-editor");
   (editorDialogElement.setAttribute("aria-label", "3D " + editorKindTitle + "配置"),
     editorDialogElement.setAttribute("data-i3d-preview-scope", ""),
     editorDialogElement.classList.add("i3d-unified-settings"));
@@ -301,7 +299,7 @@ export async function openInteraction3dEditor({
   // 调用一次（舞台只在首次加载 / 重载户型时发 `ready` / `model-metadata`），所以元数据
   // 不会自己送到这里。不补这一步，`sceneMetadata` 一直是 null：画面正常、右栏却是空的
   // （楼层下拉、条目列表、状态规则全都按 `sceneMetadata` 渲染），选楼层也拿不到基准。
-  if (isBorrowedPreview && editorView?.metadata) {
+  if (isBorrowedPreview && Array.isArray(editorView?.metadata?.floors)) {
     sceneMetadata = editorView.metadata;
     sceneMetadata.floors.some((floor: any) => floor.id === floorSelection) ||
       (floorSelection = sceneMetadata.floors[0]?.id || "");
