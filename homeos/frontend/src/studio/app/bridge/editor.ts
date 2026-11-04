@@ -764,7 +764,7 @@ type PopupPresetConfig = {
     defaultDisplayFieldsElement.hidden = true);
   const navigationDefaultsOf = () => properties.navigationDefaults || {},
     currentFloorSwitchMode = () =>
-      navigationDefaultsOf().floorSwitch === "same" ? "same" : "remember",
+      navigationDefaultsOf().floorSwitch === "remember" ? "remember" : "same",
     currentDefaultFloor = (floors: any[]) => defaultOpeningFloor(floors, properties),
     commitNavigationDefaults = async (floors: any[], defaultsPatch: any) => {
       if (isViewEditing) return;
@@ -864,7 +864,7 @@ type PopupPresetConfig = {
                 : "切到哪一层，就显示下方为它设置的分类。",
             ),
           ));
-        if (switchMode === "remember") {
+        if (switchMode === "same") {
           const resetFromAllInput = createElement("input") as HTMLInputElement;
           (Object.assign(resetFromAllInput, {
             type: "checkbox",
@@ -903,10 +903,10 @@ type PopupPresetConfig = {
               "p",
               "inspector-section-note",
               switchMode === "remember"
-                ? currentDefaults.resetCategoryFromAll === true
-                  ? "首次进入单层，或从 ALL 进入时使用。"
-                  : "首次进入单层时使用，之后保持当前分类。"
-                : "每次切换到该楼层时使用。",
+                ? "每次切到该层都显示这里设置的分类。"
+                : currentDefaults.resetCategoryFromAll === true
+                  ? "新楼层没有当前分类时使用；从 ALL 进入单层时也使用。"
+                  : "新楼层没有当前分类时使用。",
             ),
           ));
       }

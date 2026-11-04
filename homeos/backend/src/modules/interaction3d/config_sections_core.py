@@ -13,10 +13,12 @@ WEATHER_ENTITY_PATTERN = 'weather\\.[a-z0-9_]{1,200}'
 
 #: ``navigationDefaults`` 允许的键。
 NAVIGATION_DEFAULT_FIELDS = frozenset({'floor', 'categories', 'floorSwitch', 'resetCategoryFromAll'})
-#: 楼层切换模式：``default`` 回首页、``same`` 保持当前分类、``remember`` 记住上次分类。
+#: 楼层切换模式：``same`` 保持当前分类（同类型切换）、``remember`` 用该层设置的分类
+#: （跟随自定义）、``default`` 为旧值，运行时按 ``same`` 处理。
 FLOOR_SWITCH_MODES = ('default', 'same', 'remember')
 #: 可选的楼层分类（与 ``navigation-defaults.js`` 的 ``FLOOR_CATEGORY_CHOICES`` 同步）。
-FLOOR_CATEGORY_CHOICES = ('light', 'environment', 'devices', 'vacuum', 'security')
+#: ``overview`` 即导航里的「3D（总览）」：没有设备配置，但舞台始终有该页签，可设为默认分类。
+FLOOR_CATEGORY_CHOICES = ('overview', 'light', 'environment', 'devices', 'vacuum', 'security')
 #: 原型污染键：来自 JSON 的 ``__proto__`` 会让 ``Object.assign`` 污染整条原型链。
 PROTOTYPE_POLLUTION_KEYS = frozenset({'__proto__', 'constructor', 'prototype'})
 
@@ -93,7 +95,7 @@ def validate_navigation_defaults(ctx: ValidationContext, properties: dict) -> No
     - ``categories`` 的键来自楼层 id，**可以**是任意字符串，但绝不能是
       ``__proto__`` / ``constructor`` / ``prototype`` —— 前端会用 ``Object.assign``
       合并这份映射，原型键会污染所有对象；
-    - ``categories`` 的值只能是五个分类之一，否则前端切到该分类时会渲染空白页；
+    - ``categories`` 的值只能是 ``FLOOR_CATEGORY_CHOICES`` 里的一类，否则前端切到该分类时会渲染空白页；
     - 条数上限 256：一个项目不会真有 256 层，超了就是脏数据。
     """
     if 'navigationDefaults' not in properties:

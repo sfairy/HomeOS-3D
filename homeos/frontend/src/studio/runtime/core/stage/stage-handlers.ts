@@ -25,6 +25,7 @@ import {
   lampIconSvgMarkup,
   postHostMessage,
 } from "./_shared";
+import { defaultFloorCategory, defaultOpeningFloor } from "../../navigation/navigation-defaults";
 import {
   temperatureHumidityReading as readTemperatureHumidity,
   temperatureHumidityEntities,
@@ -1452,6 +1453,23 @@ export function createHandleHostMessage(host: StageHandlersHost) {
           return;
         }
         host.lastAppliedConfigId = data.configId;
+        // 「默认显示」必须在首次配置时落成实际的楼层 / 分类：这两项只是写进组件属性的
+        // 配置值，舞台不读就等于没有 —— 改完刷新回来还是上次停的地方。
+        // 只在挂载后的第一份 config（且非编辑态）生效，之后交给用户的手动切换，
+        // 否则每条状态推送都会把页签拽回默认分类。
+        const openingDefaults =
+          !host.hasAutoSelectedFloors && !data.editing && !data.viewEditing
+            ? (() => {
+                const openingFloorId = defaultOpeningFloor(
+                  host.mountOptions.document.floors,
+                  data.properties,
+                );
+                return {
+                  floorId: openingFloorId,
+                  category: defaultFloorCategory(data.properties, openingFloorId || ""),
+                };
+              })()
+            : null;
         ((host.isRangeEditorOnly = data.rangeEditorOnly === true),
           (host.canEditLightRange = data.allowRangeEditing === true || data.editing === true),
           host.isRangeEditorOpen &&
@@ -1485,11 +1503,11 @@ export function createHandleHostMessage(host: StageHandlersHost) {
               JSON.stringify(data.properties.floorCameras)) &&
             ((host.pendingFloorId = ""), (host.pendingModule = "")),
           (host.baseStageConfig = structuredClone(data.properties)),
-          !host.hasAutoSelectedFloors &&
-            !data.editing &&
-            !data.viewEditing &&
+          openingDefaults &&
             ((host.hasAutoSelectedFloors = true),
-            host.mountOptions.document.floors.length > 1 && (host.pendingFloorId = "all")),
+            host.mountOptions.document.floors.length > 1 &&
+              openingDefaults.floorId &&
+              (host.pendingFloorId = openingDefaults.floorId)),
           host.pendingFloorId &&
             host.pendingFloorId !== "all" &&
             !host.mountOptions.document.floors.some(
@@ -1616,7 +1634,12 @@ export function createHandleHostMessage(host: StageHandlersHost) {
             }),
             host.cancelGhostAnimation(),
             (host.activeModule = editingModule),
-            host.sceneCacheByKey.clear()));
+            host.sceneCacheByKey.clear()),
+          // 首次打开落到配置的默认分类（「3D（总览）」也在其中，所以不能用
+          // `editingModule !== "overview"` 那套回落规则把它过滤掉）。
+          openingDefaults &&
+            host.configuredModuleKinds2.includes(openingDefaults.category) &&
+            (host.sceneCacheByKey.clear(), (host.activeModule = openingDefaults.category)));
         for (const queuedCommandEntry of host.lightGroupByKey.values())
           queuedCommandEntry.next &&
             (!host.isControlReady ||
