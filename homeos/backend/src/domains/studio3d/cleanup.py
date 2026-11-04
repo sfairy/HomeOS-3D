@@ -246,11 +246,20 @@ def current_binding_sources(settings, database, scene_ids: Iterable[str], *, str
             continue
         if is_template_scene(snapshot):
             continue
+        if not loaded:
+            current = _current_draft_scene(database)
+            loaded = True
+        scene = current
+        if scene is None:
+            # 没有可编辑草稿时退回快照自身（模型的旧版本行为）。但快照必须是
+            # ``{"scene": {"floors": [...]}}`` 的现行格式：更早版本写下的快照没有顶层
+            # ``scene``，那时没有可对照的户型数据，按「未知来源」跳过而不是误杀 ——
+            # 与「快照缺失 / 不可解析」同一口径，只有读得出来才敢判定绑定失效。
+            scene = snapshot.get("scene")
+            if not isinstance(scene, dict):
+                logger.warning("3D 交互场景快照缺少 scene（旧格式），跳过绑定校验：%s", path)
+                continue
         try:
-            if not loaded:
-                current = _current_draft_scene(database)
-                loaded = True
-            scene = current if current is not None else snapshot["scene"]
             sources[scene_id] = identities(scene)
         except (OSError, UnicodeDecodeError, ValueError, TypeError, KeyError, AttributeError) as error:
             raise HTTPException(
