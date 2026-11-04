@@ -12,7 +12,7 @@ import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, ca
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
 import { createWallTopMaterial, isWallTrialShaderEnabled } from "./studio-wall-top";
-import { buildWallCapSurface, createWallCapContext, shadeTint } from "./studio-wall-shell";
+import { createWallCapContext } from "./studio-wall-shell";
 import type { WallCapLoop } from "./studio-wall-shell";
 import { buildWallLevelLayers } from "./studio-wall-levels";
 import type { WallLevelContext, WallVolumeSlice } from "./studio-wall-levels";
