@@ -5,6 +5,7 @@ import {
   normalizeGroundReflection,
 } from "../../bridge/scene/reflection-settings";
 import { createReflectionCulling } from "./studio-reflection-culling";
+import { selectFrameCaptures } from "./studio-reflection-capture-budget";
 import { createReflectionSignature } from "./studio-reflection-signature";
 import {
   captureReflectionSnapshot,
@@ -1105,20 +1106,15 @@ export function createGroundReflections({
       return;
     /** 本轮因每帧预算被推迟的记录数：>0 时必须在收尾处继续 requestFrame。 */
     let budgetDeferredCount = 0;
-    const currentCaptureBudget = resolveCaptureBudget();
-    if (dirtyRecords.length > currentCaptureBudget) {
-      // 每帧只重捕预算内的记录，其余沿用上一帧纹理（presented 相位的 draw call 峰值
-      // 主要来自「所有记录同时变脏」）；轮转起点保证被跳过的记录下一帧排到前面。
-      const rotationStart = captureRotation % dirtyRecords.length,
-        budgetedRecords = [];
-      for (let budgetIndex = 0; budgetIndex < currentCaptureBudget; budgetIndex += 1)
-        budgetedRecords.push(
-          dirtyRecords[(rotationStart + budgetIndex) % dirtyRecords.length],
-        );
-      (budgetDeferredCount = dirtyRecords.length - budgetedRecords.length),
-        (captureRotation = (rotationStart + currentCaptureBudget) % dirtyRecords.length),
-        (dirtyRecords = budgetedRecords);
-    }
+    // 相机位姿变化时整批重捕：按预算轮转会让部分记录停在上一帧位姿，拖动时就是甩尾/拖影。
+    const captureSelection = selectFrameCaptures(dirtyRecords, {
+      budget: resolveCaptureBudget(),
+      rotation: captureRotation,
+      cameraChanged: hasCameraChanged,
+    });
+    ((budgetDeferredCount = captureSelection.deferred),
+      (captureRotation = captureSelection.rotation),
+      (dirtyRecords = captureSelection.records));
     if (
       !shouldRefresh &&
       !hasCameraChanged &&
