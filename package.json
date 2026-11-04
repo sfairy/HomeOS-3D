@@ -50,6 +50,7 @@
     "check:async-db": "node ops/lib/py.mjs ops/checks/check_async_db.py",
     "check:python-lock": "node ops/lib/py.mjs ops/ci/python_lock.py verify",
     "check:image-imports": "node ops/lib/py.mjs ops/ci/image_imports.py",
+    "check:pep758-except": "node ops/lib/py.mjs ops/checks/check_pep758_except.py",
     "check:cython": "node ops/lib/py.mjs ops/ci/cython_check.py",
     "check:frontend-deps": "bun run --cwd homeos/frontend check:deps && node ops/checks/frontend/check_frontend_deps.mjs --root homeos-store/frontend/src --alias '@store/='",
     "check:backend-deps": "node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --check",

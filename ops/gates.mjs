@@ -87,6 +87,10 @@ const GATE_GROUPS = {
     { name: 'check:async-db', ...bun('run', 'check:async-db') },
     { name: 'check:python-lock', ...bun('run', 'check:python-lock') },
     { name: 'check:image-imports', ...bun('run', 'check:image-imports') },
+    // `except A, B:`（PEP 758）在 Cython 3.3.0 里会被解析成 `except A as B:`：编译**通过**
+    // 但只捕获 A，check:cython 看不见。这条静态守卫在本地就能拦住（ruff format 会主动改成
+    // 无括号形式，所以守卫必须比 check:cython 更早、更便宜）。
+    { name: 'check:pep758-except', ...bun('run', 'check:pep758-except') },
     // 六个结构性棘轮：WS 鉴权、商店路由契约、API 契约覆盖率、文件规模、Python 复杂度、新增文件格式。
     { name: 'check:ws-auth', ...bun('run', 'check:ws-auth') },
     { name: 'check:store-routes', ...bun('run', 'check:store-routes') },
