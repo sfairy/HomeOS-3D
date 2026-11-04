@@ -147,11 +147,10 @@ import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKey
 import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "../functions/style-dialogs";
 import { titleButtonMenuDeps as titleButtonMenuDepsImpl, loadNavigationIconOptions as loadNavigationIconOptionsImpl, positionTitleButtonIconMenu as positionTitleButtonIconMenuImpl, stopHoverScroll as stopHoverScrollImpl, iconTooltipElementValue as iconTooltipElementValueImpl, inspectorSyncDeps as inspectorSyncDepsImpl, syncComponentActionControls as syncComponentActionControlsImpl, applyTransformToInspector as applyTransformToInspectorImpl, previewModeForIcon as previewModeForIconImpl, sharedReferenceId as sharedReferenceIdImpl, nudgeDeps as nudgeDepsImpl, nudgeDeltaX as nudgeDeltaXImpl, clickPopupListOption as clickPopupListOptionImpl, onPopupListContextmenu as onPopupListContextmenuImpl, openEntityCopyBackupPicker as openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker as openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker as openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick as onPopupModuleCancelButtonClickImpl, type CopyBackupPickersDeps } from "../functions/copy-backup-pickers";
 import { onPopupModuleClimateDeviceTypeClick as onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder as selectAssetFolderImpl, popupModuleTypeValue as popupModuleTypeValueImpl, requestDeleteUserAsset as requestDeleteUserAssetImpl, requestDeleteAssetFolder as requestDeleteAssetFolderImpl, refreshAssetPickers as refreshAssetPickersImpl, scaleDraftDocument as scaleDraftDocumentImpl, cancelDeletePopupDialog as cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick as onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput as onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState as saturationPointerMoveEventStateImpl, mutationRecord as mutationRecordImpl, type AssetManagementDeps } from "../functions/asset-management";
-import { createScenePopupEditor } from "../../scene-popup-editor";
 import { createBindingRepair } from "../../../../runtime/navigation/binding-repair";
-import { scenePopupEnabled as scenePopupEnabled2 } from "../../../renderer/scene-popup-model";
 import { weatherSceneStyle as weatherSceneStyle2 } from "../../../renderer/weather-forecast";
-import { openScenePopupEntityPicker, openScenePopupIconPicker } from "../functions/scene-popup-editor-wiring";
+import { bindScenePopupEditorBoot } from "./scene-popup-editor-boot";
+import { bindWeatherInspectorToggles } from "./weather-inspector-wiring";
 let disposeActiveEditor: (() => void) | null = null;
 /**
  * 0.8.4：未保存副本恢复用的「保存尝试」记录（revision + 文档指纹）。
@@ -3976,64 +3975,13 @@ for (const onDateVisibilityClick of [dateWeekdayElement, dateLunarElement])
       });
     }
   }));
-for (const onWeatherVisibilityClick of [
-  weatherIconVisibleElement,
-  weatherTemperatureVisibleElement,
-  weatherConditionVisibleElement,
-  weatherHumidityVisibleElement,
-])
-  onWeatherVisibilityClick.addEventListener("click", (weatherVisibilityEvent: any) => {
-    const weatherVisibilityComponentId = editorCtx.selectedComponentId,
-      weatherVisibilityButtonElement = weatherVisibilityEvent.target.closest("button");
-    if (!weatherVisibilityComponentId || !weatherVisibilityButtonElement) return;
-    const weatherVisibilityEntry = [
-      ["weatherIconVisible", "iconVisible"],
-      ["weatherTemperatureVisible", "temperatureVisible"],
-      ["weatherConditionVisible", "conditionVisible"],
-      ["weatherHumidityVisible", "humidityVisible"],
-    ].find(
-      ([weatherVisibilityDatasetKey]) =>
-        weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKey] !== undefined,
-    );
-    if (!weatherVisibilityEntry) return;
-    const [weatherVisibilityDatasetKeyName, weatherVisibilityPropertyName] = weatherVisibilityEntry;
-    mutateDocument((weatherVisibilityDraftDocument: any) => {
-      const weatherVisibilityComponent = findComponent2(
-        weatherVisibilityDraftDocument,
-        weatherVisibilityComponentId,
-      )?.component;
-      !weatherVisibilityComponent ||
-        weatherVisibilityComponent.type !== "weather" ||
-        ((weatherVisibilityComponent.properties = {
-          ...(weatherVisibilityComponent.properties || {}),
-          [weatherVisibilityPropertyName]:
-            weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKeyName] === "on",
-        }),
-        fitWeatherComponentToDimensions(
-          weatherVisibilityComponent,
-          weatherVisibilityComponent.properties,
-        ));
-    });
-  });
-weatherForecastEnabledElement.addEventListener("click", (weatherForecastEvent: any) => {
-  const weatherForecastComponentId = editorCtx.selectedComponentId,
-    weatherForecastButtonElement = weatherForecastEvent.target.closest(
-      "[data-weather-forecast-enabled]",
-    );
-  if (!weatherForecastComponentId || !weatherForecastButtonElement) return;
-  const weatherForecastEnabledValue =
-    weatherForecastButtonElement.dataset.weatherForecastEnabled === "on";
-  mutateDocument((weatherForecastDraftDocument: any) => {
-    const weatherForecastComponent = findComponent2(
-      weatherForecastDraftDocument,
-      weatherForecastComponentId,
-    )?.component;
-    weatherForecastComponent?.type === "weather" &&
-      (weatherForecastComponent.properties = {
-        ...(weatherForecastComponent.properties || {}),
-        forecastEnabled: weatherForecastEnabledValue,
-      });
-  });
+bindWeatherInspectorToggles({
+  visibilityElements: [weatherIconVisibleElement, weatherTemperatureVisibleElement, weatherConditionVisibleElement, weatherHumidityVisibleElement],
+  forecastEnabledElement: weatherForecastEnabledElement,
+  getSelectedComponentId: () => editorCtx.selectedComponentId,
+  mutateDocument,
+  findComponent: findComponent2,
+  fitWeatherComponent: fitWeatherComponentToDimensions,
 });
 attachLineChartInspectorInput({
   get lineChartInspectorElement() { return lineChartInspectorElement; },
@@ -4314,120 +4262,26 @@ bindNavigationStyleWiring({
           (recoveredComponentIdsState.properties.controlMode = sceneControlMode);
       });
   }));
-// ── 情景弹窗编辑器（0.8.4）：控件模式切换 + 弹窗内容编辑 ──
-function closeScenePopupEditor() {
-  scenePopupEditor?.close();
-}
-function openScenePopupEditor() {
-  const scenePopupOwnerId = editorCtx.selectedComponentId,
-    scenePopupProjectId = editorCtx.activeProject?.projectId,
-    scenePopupPagePath = pageSelectElement.value,
-    // 0.8.4 的宿主就是 `document.querySelector("main")`：编辑器绝对定位铺满整个编辑器区域，
-    // 左右侧栏一起被盖住。挂在工作区里会只剩画布宽度，三栏布局直接被挤变形。
-    scenePopupEditorHostElement = editorShellElement;
-  const resolveScenePopupOwner = () =>
-    editorCtx.activeProject?.projectId === scenePopupProjectId &&
-    editorCtx.editorMode === "edit" &&
-    pageSelectElement.value === scenePopupPagePath &&
-    editorCtx.selectedComponentId === scenePopupOwnerId
-      ? findComponent2(editorCtx.activeProject?.document, scenePopupOwnerId)?.component || null
-      : null;
-  const scenePopupOwner = resolveScenePopupOwner();
-  if (!scenePopupOwner || !scenePopupEnabled2(scenePopupOwner) || !scenePopupEditorHostElement)
-    return;
-  closeScenePopupEditor();
-  scenePopupEditor = createScenePopupEditor({
-    host: scenePopupEditorHostElement,
-    getOwner: resolveScenePopupOwner,
-    // 与 0.8.4 一致：编辑态取编辑渲染器的实时状态（仪表盘预览渲染器此时通常还没创建）。
-    states: () =>
-      editorCtx.editorRenderer?.states || editorCtx.dashboardPreviewRenderer?.states || new Map(),
-    sceneStyle: () => weatherSceneStyle2(editorCtx.activeProject?.document, currentPage()),
-    entityName: (entityId: any) => {
-      if (!entityId) return "";
-      const matchedEntity = editorCtx.entities.find(
-        (candidateEntity: any) => candidateEntity.entityId === entityId,
-      );
-      return matchedEntity ? formatEntityLabel(matchedEntity) : entityId;
-    },
-    status: () => ({
-      dirty: !!editorCtx.hasUnsavedChanges,
-      canSave: !!editorCtx.hasUnsavedChanges,
-      canUndo: historyState.undo.length > 0,
-      canRedo: historyState.redo.length > 0,
-    }),
-    change: (scenePopupMutator: (owner: any) => void) =>
-      Promise.resolve(
-        mutateDocument(
-          (workingDocument: any) => {
-            const scenePopupTarget = findComponent2(workingDocument, scenePopupOwnerId)?.component;
-            scenePopupTarget && scenePopupMutator(scenePopupTarget);
-          },
-          undefined,
-          { throwOnError: true },
-        ),
-      ) as Promise<any>,
-    undo: () => entityLoadError("undo"),
-    redo: () => entityLoadError("redo"),
-    save: () => saveDraft(),
-    preview: () => {
-      const previewOwner = resolveScenePopupOwner();
-      if (!previewOwner) return;
-      // 与 0.8.4 一致：预览弹窗必须挂在**编辑画布**的渲染器上（上游 `_i()` = ensureEditorRenderer）。
-      // 退回 `dashboardPreviewRenderer` 会把弹窗塞进隐藏的「仪表盘」面板，点了什么也看不到。
-      const previewRenderer = ensureEditorRenderer();
-      if (!previewRenderer) return;
-      const previewDialog = previewRenderer.showScenePopup(previewOwner, { preview: true });
-      if (!previewDialog) return;
-      scenePopupPreviewDialog = previewDialog;
-      scenePopupEditor?.setPreviewing(true);
-      previewDialog.addEventListener(
-        "close",
-        () => {
-          scenePopupPreviewDialog === previewDialog && (scenePopupPreviewDialog = null);
-          scenePopupEditor?.setPreviewing(false);
-        },
-        { once: true },
-      );
-    },
-    pickEntity: (triggerButton: HTMLElement, popupItem: any, onPick: any) =>
-      openScenePopupEntityPicker(
-        copyBackupPickersDeps(),
-        triggerButton,
-        popupItem.bindings?.entity?.entityId || "",
-        onPick,
-      ),
-    pickIcon: (triggerButton: HTMLElement, popupItem: any, onPick: any) =>
-      openScenePopupIconPicker(
-        copyBackupPickersDeps(),
-        triggerButton,
-        popupItem.properties.icon || "",
-        onPick,
-      ),
-    onError: handleOperationError,
-    onClose: () => {
-      scenePopupEditor = null;
-      // 预览弹窗挂在画布渲染器上，编辑器关掉时必须一起收走，否则会留下一个没人管的弹窗。
-      scenePopupPreviewDialog?.open && scenePopupPreviewDialog.close();
-      scenePopupPreviewDialog = null;
-      document.getElementById("scene-popup-contents")?.focus({ preventScroll: true });
-    },
-  });
-}
-document.getElementById("scene-popup-mode")?.addEventListener("click", (scenePopupModeEvent: any) => {
-  const popupModeButton = scenePopupModeEvent.target.closest("[data-scene-popup-enabled]");
-  if (!popupModeButton) return;
-  const popupModeOwnerId = editorCtx.selectedComponentId;
-  mutateDocument((popupModeDocument: any) => {
-    const popupModeComponent = findComponent2(popupModeDocument, popupModeOwnerId)?.component;
-    popupModeComponent?.type === "scene-mode" &&
-      (popupModeComponent.properties.popupEnabled =
-        popupModeButton.dataset.scenePopupEnabled === "true");
-  });
+bindScenePopupEditorBoot({
+  getEditorCtx: () => editorCtx,
+  getPageSelectElement: () => pageSelectElement,
+  getHostElement: () => editorShellElement,
+  getScenePopupEditor: () => scenePopupEditor,
+  setScenePopupEditor: (nextScenePopupEditor: any) => (scenePopupEditor = nextScenePopupEditor),
+  getPreviewDialog: () => scenePopupPreviewDialog,
+  setPreviewDialog: (nextPreviewDialog: any) => (scenePopupPreviewDialog = nextPreviewDialog),
+  findComponent: findComponent2,
+  mutateDocument,
+  weatherSceneStyle: weatherSceneStyle2,
+  currentPage,
+  formatEntityLabel,
+  historyState: () => historyState,
+  saveDraft,
+  entityLoadError,
+  ensureEditorRenderer,
+  handleOperationError,
+  copyBackupPickers: copyBackupPickersDeps,
 });
-document
-  .getElementById("scene-popup-contents")
-  ?.addEventListener("click", () => openScenePopupEditor());
 const entityPickerHintText = "推荐去 HA 复制实体 ID，粘贴搜索。可精准选择。";
 const { deferUntilEntitiesLoaded: popupBeingRenamed }: any = createEditorPickerLifecycle2({
   getEntitiesLoaded: () => editorCtx.isAreEntitiesLoaded,
