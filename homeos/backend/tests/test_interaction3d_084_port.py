@@ -32,14 +32,14 @@ from src.domains.ha.integration.cover_memory import (
     CoverMemory,
 )
 from src.domains.ha.integration.state_hub import StateHub
-from src.domains.studio3d.cleanup import repair_binding_document
-from src.domains.studio3d.windows import validate_window_design, validate_window_designs
-from src.domains.weather.forecast import (
+from src.domains.ha.integration.weather_forecast import (
     FORECAST_LIMITS,
     forecast_rows,
     normalize_forecast,
     read_weather_forecast,
 )
+from src.domains.studio3d.cleanup import repair_binding_document
+from src.domains.studio3d.windows import validate_window_design, validate_window_designs
 from src.modules.interaction3d.access import module_components
 from src.modules.interaction3d.config_ctx import ValidationContext
 from src.modules.interaction3d.config_sections_security import validate_security_section

@@ -18,8 +18,8 @@ import math
 from datetime import UTC, datetime
 from typing import Any
 
-from ..ha.integration.client import HAClient, HAClientError
-from ...platform.core.ha.ha_errors import forecast_invalid, forecast_missing, forecast_unavailable
+from .client import HAClient, HAClientError
+from ....platform.core.ha.ha_errors import forecast_invalid, forecast_missing, forecast_unavailable
 
 #: 预报类型 → HA ``WeatherEntityFeature`` 位。
 FORECAST_FEATURES: dict[str, int] = {

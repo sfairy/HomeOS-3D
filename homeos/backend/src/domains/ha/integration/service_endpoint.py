@@ -28,7 +28,7 @@ from .service_support import (
     LOGGER,
     TRANSLATION_CACHE_SECONDS,
 )
-from ...weather.forecast import read_weather_forecast
+from .weather_forecast import read_weather_forecast
 from ....platform.core.db.models import HAConnection
 
 
