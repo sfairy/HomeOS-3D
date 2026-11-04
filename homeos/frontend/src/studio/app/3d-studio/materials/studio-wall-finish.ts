@@ -44,7 +44,15 @@ export const WALL_SURFACE_FINISH = Object.freeze({
  * 降到 0.15 后直射/自发光接近 1:1，扇形洗墙与筒灯光斑才看得见。再往下墙根会先发黑。
  */
 export function wallEmissiveIntensity(warmWood: boolean): number {
-  return warmWood ? 0.17 : 0.15;
+  /**
+   * 0.15 → 0.11（暖木 0.17 → 0.13）。
+   *
+   * 自发光是均匀铺满整面的底色：它把「灯照区 / 背光区」直接往同一个亮度上抬。
+   * 这一轮把舞台墙面的方向光阴影与朝向补偿补上之后，原来那 0.15 会让新增的明暗
+   * 差被垫平（实测墙根先发黑的那个下限在 0.09 附近，0.11 仍在安全区内）。
+   * 若后续再调，先看 `docs/analysis/2026-11-04-wall-rendering/` 里的亮/暗比。
+   */
+  return warmWood ? 0.13 : 0.11;
 }
 
 /**

@@ -52,6 +52,8 @@ export interface CustomWindowOptions {
   selected?: string;
   /** 是否保留独立窗扇节点（要动画就必需）。 */
   animated?: boolean;
+  /** 外框深度（米）：由墙体厚度决定，缺省沿用 85mm。 */
+  frameDepth?: number;
 }
 
 /**
@@ -125,6 +127,7 @@ export function addCustomWindow(options: CustomWindowOptions): {
     frameColor = style.windowFrame ?? style.furniture,
     selected = "",
     animated = true,
+    frameDepth = 0.085,
   } = options;
   validateWindowDesign(record.windowDesign, width, height);
   const design = record.windowDesign as WindowDesign;
@@ -170,7 +173,7 @@ export function addCustomWindow(options: CustomWindowOptions): {
     renderOrder: 6,
   };
   const frameOptions = { rounded: false, metalness: 0.15, castShadow: false, receiveShadow: false };
-  const outerFrame = frameParts(width, height, 0, sill + height / 2, 0, 0.045, 0.085);
+  const outerFrame = frameParts(width, height, 0, sill + height / 2, 0, 0.045, frameDepth);
 
   /** 一片窗格的玻璃 + 内嵌边框。 */
   function addSashFrame(

@@ -163,7 +163,15 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
             once: true,
           },
         )),
-      (appCtx.threeRenderer.shadowMap.enabled = !isEmbedStageMode),
+      /**
+       * 舞台也要方向光阴影（见 `interactionResourcePolicy.stageSunShadow`）。
+       *
+       * 编辑器走 VSM 图集 + 分层方向光；舞台没有图集，但主方向光本身一直挂着
+       * `castShadow = true`，此前只是被 `shadowMap.enabled = false` 一刀关掉。
+       * 打开之后墙/地/家具才第一次互相投影 —— 这是「墙面发平」的主因。
+       */
+      (appCtx.threeRenderer.shadowMap.enabled =
+        !isEmbedStageMode || interactionResourcePolicy.stageSunShadow.enabled),
       (appCtx.threeRenderer.shadowMap.type = ns2.VSMShadowMap),
       previewViewportElement.append(appCtx.threeRenderer.domElement),
       isEmbeddedStage &&
@@ -201,7 +209,17 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       (appCtx.mainDirectionalLight = new ns2.DirectionalLight(14543103, 2.05)),
       appCtx.mainDirectionalLight.position.set(-7, 22, 6),
       (appCtx.mainDirectionalLight.castShadow = true),
-      appCtx.mainDirectionalLight.shadow.mapSize.set(2048, 2048),
+      appCtx.mainDirectionalLight.shadow.mapSize.set(
+        isEmbedStageMode ? interactionResourcePolicy.stageSunShadow.mapSize : 2048,
+        isEmbedStageMode ? interactionResourcePolicy.stageSunShadow.mapSize : 2048,
+      ),
+      isEmbedStageMode &&
+        ((appCtx.mainDirectionalLight.shadow.bias = interactionResourcePolicy.stageSunShadow.bias),
+        (appCtx.mainDirectionalLight.shadow.normalBias =
+          interactionResourcePolicy.stageSunShadow.normalBias),
+        // 静态：只在场景重建（`setupSceneShadows` 会打 needsUpdate）与交互期由
+        // `setShadowsEnabled` 放开，日常帧不重渲阴影图。
+        (appCtx.threeRenderer.shadowMap.autoUpdate = false)),
       (appCtx.mainDirectionalLight.shadow.camera.left = -20),
       (appCtx.mainDirectionalLight.shadow.camera.right = 20),
       (appCtx.mainDirectionalLight.shadow.camera.top = 20),

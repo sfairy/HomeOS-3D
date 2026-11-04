@@ -16,6 +16,7 @@ import { renderExportLayers as renderExportLayersCore, sanitizeExportName } from
 import { buildItemModel as buildItemModelCore } from "../../../items/studio-item-model";
 import { drawDoor as drawDoorCore, drawCourtyardArea as drawCourtyardAreaCore } from "../../../../plan/studio-plan-item-drawing";
 import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from "../../../scene/studio-walls";
+import { wallUnionFallbackCount } from "../../../../plan/studio-wall-union";
 
 export function saveAsNewPreset(runtime: StudioAppRuntime, ) {
   if (!runtime.appCtx.pendingRuntimeSettings || runtime.appCtx.isInteractionLocked) return;
@@ -815,7 +816,12 @@ export function expandPolygonOutward(runtime: StudioAppRuntime, polygonPointList
 
 /** 墙体构件（同族，转发见 `scene/studio-walls`）。 */
 export function buildInteriorScene(runtime: StudioAppRuntime, interiorDeps: { ppm: any; toWorld: any; floorSurfaceY: any }) {
-  return buildInteriorSceneCore(runtime.studioWallsDeps(), interiorDeps);
+  const builtWalls = buildInteriorSceneCore(runtime.studioWallsDeps(), interiorDeps),
+    diagnosticsElement = runtime.appCtx.threeRenderer?.domElement;
+  // 并集失败的次数写进 dataset，验收脚本/诊断面板不用打开控制台就能读到。
+  diagnosticsElement &&
+    (diagnosticsElement.dataset.wallUnionFallbacks = String(wallUnionFallbackCount()));
+  return builtWalls;
 }
 
 /** 物品模型总装（原 studio-app 直系声明，P4 搬进 `items/studio-item-model`，此处只转发句柄）。 */

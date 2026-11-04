@@ -12,6 +12,12 @@ import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, ca
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
 import { createWallTopMaterial, isWallTrialShaderEnabled } from "./studio-wall-top";
+import { buildWallCapSurface, createWallCapContext, shadeTint } from "./studio-wall-shell";
+import type { WallCapLoop } from "./studio-wall-shell";
+import { buildWallLevelLayers } from "./studio-wall-levels";
+import type { WallLevelContext, WallVolumeSlice } from "./studio-wall-levels";
+import { recordWallUnionFallback } from "../../plan/studio-wall-union";
+import { isWallPartVisible } from "./studio-wall-debug";
 import { createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder as prepareWallSideOrder2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
 import { WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from "../../materials/studio-wall-finish";
 import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
@@ -19,7 +25,10 @@ import { finite as finite2 } from "../../loaders/studio-normalization";
 import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { validGeometryLoops as validGeometryLoops2 } from "../../cache/geometry-persistent-cache";
-import { windowGeometryParts as windowGeometryParts2 } from "../../plan/studio-window-geometry";
+import {
+  openingFrameDepth,
+  windowGeometryParts as windowGeometryParts2,
+} from "../../plan/studio-window-geometry";
 import { addCustomWindow } from "../../plan/window/model";
 import { isCustomWindow } from "../../plan/window/layout";
 import { windowModelId } from "../../plan/window/window-models";
@@ -118,7 +127,10 @@ export function createSceneWallSideMaterial(deps: StudioWallsDeps,
         metalness: WALL_SURFACE_FINISH2.metalness,
         clearcoat: WALL_SURFACE_FINISH2.clearcoat,
         clearcoatRoughness: WALL_SURFACE_FINISH2.clearcoatRoughness,
-        transmission: isWallSideOpaque || We2 ? 0 : 0.012,
+        // 半透明只由 opacity 表达。`transmission` 哪怕只有 0.012 也会让 three 编译
+        // `USE_TRANSMISSION`、每帧多跑一遍透射采样（还要一张背景缓冲），而视觉上
+        // 与「alpha 混合」几乎没有区别 —— 编辑器里那 1.2% 的透射纯属付费看噪点。
+        transmission: 0,
         thickness: 0.1,
         ior: 1.22,
         transparent: !isWallSideOpaque,
@@ -152,10 +164,38 @@ function createHiddenBasicMaterial(deps: StudioWallsDeps) {
 
 /** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
 function cachedWallUnionLoops(deps: StudioWallsDeps, wallLoopList: any) {
-  const computeUnionLoops = () => validatedUnionPolygonLoops2(wallLoopList, 1e-7);
+  const computeUnionLoops = () => {
+    const unifiedLoops = validatedUnionPolygonLoops2(wallLoopList, 1e-7);
+    // 并集失败（输入有歧义/自交）时不再把重叠环原样丢给挤出：那会让重叠段各自
+    // 画一层双面半透明壳，叠出亮边。改成保守回退并计数（见 studio-wall-shell）。
+    return unifiedLoops.length ? unifiedLoops : recordWallUnionFallback(wallLoopList);
+  };
   return deps.geometryCacheHandle
     ? deps.geometryCacheHandle.value("wall-union", wallLoopList, computeUnionLoops, validGeometryLoops2)
     : computeUnionLoops();
+}
+
+/**
+ * 墙带的两个「按上下文补默认值」：竖向渐变的归一化基准 + 并集失败时的深度兜底。
+ *
+ * 抽出来是为了 `buildWallBandMesh` 别继续变长 —— 它已经 80 行上下，每加一个默认值
+ * 都会把圈复杂度和函数长度一起顶过门禁。
+ */
+function resolveWallBandRenderOptions(
+  deps: StudioWallsDeps,
+  wallBandOptions: WallBandOptions,
+  wallBandOpacity: number,
+  unionValid: boolean,
+) {
+  // 竖向渐变的归一化基准用**这段墙自己的高度**：以前一律读全局 `wallHeight`，
+  // 层高 2.9 的户型里画一面 2.4 米的矮墙，墙根渐变只走到 0.83，整面墙偏亮一档。
+  const heightSpan =
+      Math.max(Number(wallBandOptions.heightSpan) || 0, 0) || deps.studioState.settings.wallHeight,
+    options =
+      !unionValid && wallBandOpacity < 0.999 && wallBandOptions.depthWrite === undefined
+        ? { ...wallBandOptions, depthWrite: true, depthFunc: ns2.LessDepth }
+        : wallBandOptions;
+  return { heightSpan, options };
 }
 
 function buildWallBandMesh(deps: StudioWallsDeps, 
@@ -166,18 +206,21 @@ function buildWallBandMesh(deps: StudioWallsDeps,
   wallBandOpacity: any,
   wallBandOptions: WallBandOptions = {},
 ) {
-  if (!wallBandLoopList.length || wallBandTopHeight - wallBandBaseHeight <= 0.000001) return;
+  if (
+    !wallBandLoopList.length ||
+    wallBandTopHeight - wallBandBaseHeight <= 0.000001 ||
+    !isWallPartVisible("side")
+  )
+    return;
   const validatedWallBandLoops = cachedWallUnionLoops(deps, wallBandLoopList),
     hasValidWallBandLoops = validatedWallBandLoops.length > 0,
     ms2 = buildShapesWithHoles(deps, hasValidWallBandLoops ? validatedWallBandLoops : wallBandLoopList),
-    resolvedWallBandOptions =
-      !hasValidWallBandLoops && wallBandOpacity < 0.999 && wallBandOptions.depthWrite === undefined
-        ? {
-            ...wallBandOptions,
-            depthWrite: true,
-            depthFunc: ns2.LessDepth,
-          }
-        : wallBandOptions;
+    { heightSpan: wallBandHeightSpan, options: resolvedWallBandOptions } = resolveWallBandRenderOptions(
+      deps,
+      wallBandOptions,
+      wallBandOpacity,
+      hasValidWallBandLoops,
+    );
   for (const wallBandShape of ms2) {
     // 转角压暗原先只给专用墙面着色器算：物理材质这条路只有墙根渐变，长墙从上到下一条
     // 亮度带、转角没有暗边，整圈墙像折纸板。`polygonOffset`（装饰墙带）排除，避免叠加两次。
@@ -191,14 +234,7 @@ function buildWallBandMesh(deps: StudioWallsDeps,
           curveSegments: 1,
         });
         return (
-          setWallGradientHeight2(
-            ns2,
-            extrudedGeometry,
-            "z",
-            wallBandTopHeight,
-            -1,
-            deps.studioState.settings.wallHeight,
-          ),
+          setWallGradientHeight2(ns2, extrudedGeometry, "z", wallBandTopHeight, -1, wallBandHeightSpan),
           usesCornerDistance &&
             setWallCornerDistances2(ns2, extrudedGeometry, [
               extractPoints.shape,
@@ -212,7 +248,7 @@ function buildWallBandMesh(deps: StudioWallsDeps,
             extractPoints,
             wallBandBaseHeight,
             wallBandTopHeight,
-            deps.studioState.settings.wallHeight,
+            wallBandHeightSpan,
             usesCornerDistance,
           ], buildWallBandGeometry)
         : buildWallBandGeometry();
@@ -232,51 +268,30 @@ function buildWallBandMesh(deps: StudioWallsDeps,
       // 永远不透明不了），于是墙是唯一不接收阴影的受体，整面墙平得像贴图。
       (wallBandMesh.receiveShadow = wallBandOptions.receiveShadow ?? true),
       (wallBandMesh.renderOrder = wallBandOptions.renderOrder ?? 4),
-      // 半透明合并墙带：每帧按相机侧重排三角形顺序（0.8.1 只在创作态启用，
-      // 运行态舞台沿用 0.8.0 的固定顺序）。
-      deps.isEmbedStageMode || prepareWallSideOrder2(ns2, wallBandMesh),
+      // 半透明合并墙带：每帧按相机侧重排三角形顺序。以前只在创作态启用
+      // （`deps.isEmbedStageMode ||`），运行态舞台沿用固定顺序 —— 站在墙背面看，
+      // 近侧墙被远侧墙抢先画，整面墙糊成一层雾。函数内部已有「相机侧写没变就返回」
+      // 的短路，舞台只是多一次矩阵比较，不会每帧上传索引。
+      prepareWallSideOrder2(ns2, wallBandMesh),
       deps.sceneRootNode.add(wallBandMesh));
   }
 }
 
-function buildWallTopSurface(deps: StudioWallsDeps, 
-  wallTopLoopList: any,
-  wallTopSurfaceHeight: any,
-  wallTopSurfaceColor: any,
-  wallTopSurfaceOpacity: any,
-  wallTopSurfaceOptions: WallTopSurfaceOptions = {},
-) {
-  if (!wallTopLoopList.length) return;
-  const validatedWallTopLoops = cachedWallUnionLoops(deps, wallTopLoopList),
-    hasValidWallTopLoops = validatedWallTopLoops.length > 0,
-    ms3 = buildShapesWithHoles(deps, hasValidWallTopLoops ? validatedWallTopLoops : wallTopLoopList),
-    resolvedWallTopSurfaceOptions =
-      !hasValidWallTopLoops &&
-      wallTopSurfaceOpacity < 0.999 &&
-      wallTopSurfaceOptions.depthWrite === undefined
-        ? {
-            ...wallTopSurfaceOptions,
-            depthWrite: true,
-            depthFunc: ns2.LessDepth,
-          }
-        : wallTopSurfaceOptions;
-  for (const wallTopShape of ms3) {
-    const wallTopSurfaceGeometry = new ns2.ShapeGeometry(wallTopShape, 1),
-      fg3 = createWallTopMaterial(
-        deps, wallTopSurfaceColor,
-        wallTopSurfaceOpacity,
-        resolvedWallTopSurfaceOptions,
-      ),
-      wallTopSurfaceMesh = new ns2.Mesh(wallTopSurfaceGeometry, fg3);
-    ((wallTopSurfaceMesh.rotation.x = Math.PI / 2),
-      (wallTopSurfaceMesh.position.y = wallTopSurfaceHeight + 0.0005),
-      (wallTopSurfaceMesh.userData.reflectionRole = "wall"),
-      (wallTopSurfaceMesh.castShadow = false),
-      (wallTopSurfaceMesh.receiveShadow = false),
-      (wallTopSurfaceMesh.renderOrder = wallTopSurfaceOptions.renderOrder ?? 4),
-      deps.isEmbeddedStage && fg3.transparent && (fg3.forceSinglePass = true),
-      deps.sceneRootNode.add(wallTopSurfaceMesh));
-  }
+/** 盖面上下文：并集缓存 + 带洞形状 + 墙顶材质。顶盖与过梁底面共用同一份。 */
+function createWallCapBuilder(deps: StudioWallsDeps) {
+  return createWallCapContext(
+    deps,
+    (capLoops: WallCapLoop[][]) => {
+      const validatedLoops = cachedWallUnionLoops(deps, capLoops),
+        usesUnionLoops = validatedLoops.length > 0;
+      return {
+        shapes: buildShapesWithHoles(deps, usesUnionLoops ? validatedLoops : capLoops),
+        unionValid: usesUnionLoops,
+      };
+    },
+    (capColor: number, capOpacity: number, capOptions: WallTopSurfaceOptions) =>
+      createWallTopMaterial(deps, capColor, capOpacity, capOptions),
+  );
 }
 
 export function expandPolygonOutward(deps: StudioWallsDeps, polygonPointList: any, outwardOffset: any) {
@@ -403,7 +418,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         deps.studioState.settings.wallHeight,
       ).map((exhaustOpeningEntry) => exhaustOpeningEntry.installation.opening),
     ],
-    wallVolumes: any[] = [],
+    wallVolumes: WallVolumeSlice[] = [],
     wallVolumeKeySet = new Set(),
     iy2 = deps.computeSurfaceExclusions(interiorPixelsPerMeter);
   for (const currentWall of deps.studioState.walls) {
@@ -427,6 +442,9 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
       );
       if (!jv2) continue;
       const join5 = [
+        // 去重键必须带墙 id：以前只有「足迹 + 高度 + 不透明度」，两段共线的独立墙
+        // （比如八字墙的两个翼）会被判成同一块体，后一段直接丢掉。
+        currentWall.id,
         canonicalPolygonKey2(jv2, 4),
         wallSolidPiece.bottom.toFixed(5),
         wallSolidPiece.top.toFixed(5),
@@ -440,6 +458,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           bottom: wallSolidPiece.bottom,
           top: wallSolidPiece.top,
           opacity: wallOpacity,
+          wallHeight: currentWall.height,
         }));
     }
   }
@@ -458,81 +477,21 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
       .map((lowWallVolume) => lowWallVolume.footprint),
     interiorFloorSurfaceY + 0.0025,
   );
-  for (let wallLevelIndex = 0; wallLevelIndex < sort5.length - 1; wallLevelIndex += 1) {
-    const lowerWallLevel = sort5[wallLevelIndex],
-      upperWallLevel = sort5[wallLevelIndex + 1];
-    if (upperWallLevel - lowerWallLevel <= 0.000001) continue;
-    const midWallLevel = (lowerWallLevel + upperWallLevel) / 2,
-      midLevelWallVolumes = wallVolumes.filter(
-        (midLevelWallVolume) =>
-          midWallLevel > midLevelWallVolume.bottom - 0.000001 &&
-          midWallLevel < midLevelWallVolume.top + 0.000001,
-      ),
-      wallVolumesByOpacity = new Map();
-    for (const volumeAtMidLevel of midLevelWallVolumes) {
-      const fixed2 = volumeAtMidLevel.opacity.toFixed(4);
-      (wallVolumesByOpacity.has(fixed2) ||
-        wallVolumesByOpacity.set(fixed2, {
-          opacity: volumeAtMidLevel.opacity,
-          volumes: [] as any[],
-        }),
-        wallVolumesByOpacity.get(fixed2).volumes.push(volumeAtMidLevel));
-    }
-    for (const wallOpacityGroup of wallVolumesByOpacity.values()) {
-      buildWallBandMesh(
-        deps, wallOpacityGroup.volumes.map((groupWallVolume: any) => groupWallVolume.footprint),
-        lowerWallLevel,
-        upperWallLevel,
-        yt6.wall,
-        wallOpacityGroup.opacity,
-        {
-          castShadow: true,
-          lightOccluder: true,
-        },
-      );
-      const wallOpacityFootprints = wallOpacityGroup.volumes
-        .filter((topWallVolume: any) => Math.abs(topWallVolume.top - upperWallLevel) <= 0.000001)
-        .map((topWallVolumeEntry: any) => topWallVolumeEntry.footprint);
-      buildWallTopSurface(
-        deps, wallOpacityFootprints,
-        upperWallLevel,
-        yt6.wall,
-        wallOpacityGroup.opacity,
-        {
-          topColor: yt6.warmWood ? yt6.wallTop : yt6.wall,
-        },
-      );
-    }
-    const accentWallFootprints = midLevelWallVolumes
-      .filter((accentWallVolume) => deps.createSelectionRef("wall", accentWallVolume.wallId))
-      .map((accentWallVolumeEntry) => accentWallVolumeEntry.footprint);
-    if (accentWallFootprints.length) {
-      buildWallBandMesh(deps, accentWallFootprints, lowerWallLevel, upperWallLevel, yt6.accent, 0.28, {
-        depthWrite: false,
-        depthFunc: ns2.LessEqualDepth,
-        polygonOffset: true,
-        emissive: yt6.accent,
-        emissiveIntensity: 0.08,
-        renderOrder: 5,
-      });
-      const accentTopWallFootprints = midLevelWallVolumes
-        .filter(
-          (accentTopWallVolume) =>
-            deps.createSelectionRef("wall", accentTopWallVolume.wallId) &&
-            Math.abs(accentTopWallVolume.top - upperWallLevel) <= 0.000001,
-        )
-        .map((accentTopVolumeEntry) => accentTopVolumeEntry.footprint);
-      buildWallTopSurface(deps, accentTopWallFootprints, upperWallLevel, yt6.accent, 0.28, {
-        depthWrite: false,
-        depthFunc: ns2.LessEqualDepth,
-        polygonOffset: true,
-        emissive: yt6.accent,
-        emissiveIntensity: 0.08,
-        topOpacity: 0.12,
-        renderOrder: 6,
-      });
-    }
-  }
+  /**
+   * 按高度层画墙：每层一次性交给 `buildWallLevelLayers`（墙带 / 顶盖 / 过梁底面 /
+   * 选中高亮层都在那边）。这里只负责「层从哪来、层间顺序」。
+   */
+  const wallLevelContext: WallLevelContext = {
+    deps,
+    capBuilder: createWallCapBuilder(deps),
+    buildBand: buildWallBandMesh,
+    tint: yt6,
+    wallVolumes,
+    floorSurfaceY: interiorFloorSurfaceY,
+  };
+  sort5.slice(0, -1).forEach((lowerWallLevel, wallLevelIndex) =>
+    buildWallLevelLayers(wallLevelContext, lowerWallLevel, sort5[wallLevelIndex + 1]),
+  );
   for (const openingWall of deps.studioState.walls) {
     const openingWallDeltaX = openingWall.end.x - openingWall.start.x,
       openingWallDeltaZ = openingWall.end.y - openingWall.start.y,
@@ -574,6 +533,8 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             style: yt6,
             frameColor: customWindowAccent,
             addBoxes: deps.addArchitectureMesh,
+            // 外框深度同样按墙厚收口，否则自定义窗还是一条缝。
+            frameDepth: openingFrameDepth(openingWall.thickness),
             // 运行态要能开合；编辑器里保持静态，减少 draw call 也避免误触。
             animated: buildInteriorSceneIsEmbeddedStage,
           });
@@ -586,6 +547,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             windowHeight,
             windowSillHeight,
             currentWindow.hasDivider !== false,
+            openingWall.thickness,
           );
           if (!fallbackParts) continue;
           deps.addArchitectureMesh(windowGroup, fallbackParts.glass, yt6.glass, {
@@ -635,6 +597,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           windowHeight,
           windowSillHeight,
           currentWindow.hasDivider !== false,
+          openingWall.thickness,
         );
       if (!windowParts) continue;
       deps.addArchitectureMesh(windowGroup, windowParts.glass, yt6.glass, {
@@ -825,6 +788,11 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             }
           : {},
         doorLeafThickness = 0.065,
+        /**
+         * 门套深度按墙厚收口：以前写死 90mm，200mm 的墙两侧各漏 55mm 空腔，
+         * 门套看起来是悬在洞口里的一个 U 形框。门扇厚度不动（0.065）。
+         */
+        doorFrameDepth = openingFrameDepth(openingWall.thickness),
         doorLeafOptions = {
           rounded: false,
           metalness: 0.08,
@@ -836,7 +804,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           [
             doorLeafThickness,
             buildInteriorSceneDoorHeight,
-            0.09,
+            doorFrameDepth,
             -buildInteriorSceneDoorWidth / 2,
             buildInteriorSceneDoorHeight / 2,
             0,
@@ -844,7 +812,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           [
             doorLeafThickness,
             buildInteriorSceneDoorHeight,
-            0.09,
+            doorFrameDepth,
             buildInteriorSceneDoorWidth / 2,
             buildInteriorSceneDoorHeight / 2,
             0,
@@ -852,7 +820,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           [
             buildInteriorSceneDoorWidth + doorLeafThickness,
             doorLeafThickness,
-            0.09,
+            doorFrameDepth,
             0,
             buildInteriorSceneDoorHeight,
             0,

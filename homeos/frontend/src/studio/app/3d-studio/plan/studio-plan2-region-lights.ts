@@ -1,4 +1,5 @@
 import { fillRegionGrid, REGION_GRID_SIZE } from "./studio-region-grid";
+import { PLAN2_SUN_SHADOW_SNIPPET, plan2WallOrientationSnippet } from "./studio-plan2-wall-shading";
 
 /** 单个区域的覆盖参数； */
 type RegionLightOverride = {
@@ -573,14 +574,15 @@ export function createRegionLightController({
         const LIGHTS_FRAGMENT_END_INCLUDE = "#include <lights_fragment_end>";
         if (!shader.fragmentShader.includes(LIGHTS_FRAGMENT_END_INCLUDE))
           throw new Error("区域灯材质缺少 lights_fragment_end");
-        const sunShadowSnippet =
-          materialKind === "wall"
-            ? ""
-            : "\n          #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0\n            if (receiveShadow && plan2SunShadowStrength > 0.0 && directionalLightShadows[0].shadowIntensity > 0.0) {\n              // The studio's single shadow-casting directional light is the\n              // first shadow slot. Reuse its resident VSM map; no new capture.\n              DirectionalLightShadow plan2SunShadow = directionalLightShadows[0];\n              plan2ShadowMask = getShadow(directionalShadowMap[0], plan2SunShadow.shadowMapSize,\n                min(1.0, plan2SunShadow.shadowIntensity * plan2SunShadowStrength / 0.18),\n                plan2SunShadow.shadowBias, plan2SunShadow.shadowRadius, vDirectionalShadowCoord[0]);\n            }\n          #endif";
+        // 墙面也吃方向光阴影，并按朝向拉开区域光贡献（片段见 `studio-plan2-wall-shading`）。
+        const sunShadowSnippet = PLAN2_SUN_SHADOW_SNIPPET,
+          wallOrientationSnippet = plan2WallOrientationSnippet(sourceMaterial);
         ((shader.fragmentShader = shader.fragmentShader.replace(
           LIGHTS_FRAGMENT_END_INCLUDE,
           LIGHTS_FRAGMENT_END_INCLUDE +
-            "\nvec3 plan2ReceivingColor = mix(diffuseColor.rgb, sqrt(max(diffuseColor.rgb, vec3(0.0))), plan2AlbedoLift);\n          #ifdef HB_CAR_GLASS_FINISH\n            // Keep moderate fill on glass while avoiding the full furniture\n            // albedo lift, which exaggerates the atlas' photographed lighting.\n            plan2ReceivingColor = mix(plan2ReceivingColor, diffuseColor.rgb, hbCarGlass * 0.6);\n          #endif\n          float plan2ShadowMask = 1.0;" +
+            "\nvec3 plan2ReceivingColor = mix(diffuseColor.rgb, sqrt(max(diffuseColor.rgb, vec3(0.0))), plan2AlbedoLift);" +
+            wallOrientationSnippet +
+            "\n          #ifdef HB_CAR_GLASS_FINISH\n            // Keep moderate fill on glass while avoiding the full furniture\n            // albedo lift, which exaggerates the atlas' photographed lighting.\n            plan2ReceivingColor = mix(plan2ReceivingColor, diffuseColor.rgb, hbCarGlass * 0.6);\n          #endif\n          float plan2ShadowMask = 1.0;" +
             sunShadowSnippet +
             "\n          reflectedLight.indirectDiffuse += plan2ReceivingColor * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain * plan2ShadowMask;",
         )),
@@ -909,10 +911,7 @@ export function createRegionLightController({
         ((shouldUpdateUniforms ||= activeLightGroup.uniforms.plan2Gain.value !== gainValue),
           (activeLightGroup.uniforms.plan2Gain.value = gainValue));
         const sunShadowStrength =
-          activeLightGroup.kind === "wall"
-            ? 0
-            : clamp(coercedFiniteNumberOr(settings.sunShadowStrength, 0.6), 0, 1) *
-              motionFadeProgress;
+          clamp(coercedFiniteNumberOr(settings.sunShadowStrength, 0.6), 0, 1) * motionFadeProgress;
         ((shouldUpdateUniforms ||=
           activeLightGroup.uniforms.plan2SunShadowStrength.value !== sunShadowStrength),
           (activeLightGroup.uniforms.plan2SunShadowStrength.value = sunShadowStrength),

@@ -337,10 +337,17 @@ export function setupSceneShadows(runtime: StudioAppRuntime,
         atlasLightObject.isLight &&
           atlasLightObject.userData?.lightItemId &&
           ((atlasLightObject.castShadow = false), atlasLightObject.layers.set(30));
+        // 舞台没有射灯图集，但主方向光保留一张静态阴影图（见 studio-resource-policy
+        // 的 stageSunShadow）。场景重建后必须显式打一次 needsUpdate，否则这张图会
+        // 永远停在上一版户型上。
+        atlasLightObject.isDirectionalLight &&
+          atlasLightObject.shadow &&
+          (atlasLightObject.shadow.needsUpdate = true);
       }),
       runtime.appCtx.threeRenderer &&
         ((runtime.appCtx.threeRenderer.domElement.dataset.spotShadowMode = "region"),
-        (runtime.appCtx.threeRenderer.domElement.dataset.activeSpotShadows = "0")),
+        (runtime.appCtx.threeRenderer.domElement.dataset.activeSpotShadows = "0"),
+        (runtime.appCtx.threeRenderer.shadowMap.needsUpdate = true)),
       0
     );
   if (!shadowSetupRoot || !runtime.appCtx.threeRenderer) return 0;

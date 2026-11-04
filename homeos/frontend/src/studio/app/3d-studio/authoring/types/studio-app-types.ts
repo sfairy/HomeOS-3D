@@ -61,6 +61,8 @@ export type WallSurfaceMaterialOptions = MeshMaterialOptions;
 export type WallBandOptions = MeshMaterialOptions & {
   /** 是否把墙裙放进灯具图层，作为遮光体。 */
   lightOccluder?: boolean;
+  /** 这段墙自己的高度（米）：竖向渐变的归一化基准；缺省用全局 `settings.wallHeight`。 */
+  heightSpan?: number;
 };
 
 /** 墙顶盖面选项。 */

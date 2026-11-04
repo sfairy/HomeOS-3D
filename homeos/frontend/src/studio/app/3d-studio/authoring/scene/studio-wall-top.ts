@@ -11,6 +11,7 @@ import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 import type { WallSurfaceMaterialOptions } from "../types/studio-app-types";
 import type { StudioWallsDeps } from "./studio-walls";
+import { wallFilmOpacity } from "../../materials/studio-wall-finish";
 
 /**
  * 墙面运行时方案是否走 0.8.2 的专用墙面着色器（`?wall-trial=shader`）。
@@ -28,11 +29,17 @@ export function isWallTrialShaderEnabled(deps: StudioWallsDeps) {
   );
 }
 
-/** 墙顶半透明膜的浓度：暖木更浓一点，否则盖面会透出墙带的边。 */
-function resolveFilmOpacity(wallTopOpacity: number, warmWood: boolean) {
-  const filmScale = warmWood ? 1.65 : 1.08,
-    filmCap = warmWood ? 0.72 : 0.42;
-  return Math.min(wallTopOpacity * filmScale, filmCap);
+/**
+ * 墙顶半透明膜的浓度 —— 用墙面的**等效膜厚**，不是再乘一个经验系数。
+ *
+ * 墙面是 `DoubleSide` 的开口壳：同一像素会先后叠到近面与远面，看起来的浓度是
+ * `1-(1-a)²`；墙顶盖面是单层平面，只叠一次。以前这里写 `a * 1.08`（暖木 1.65），
+ * 在 `wallOpacity = 0.3` 时墙顶 0.32、墙面 0.51 —— **墙顶天生比墙面淡一档**，
+ * 俯视时能透过去看见壳内壁，现场就是「墙顶一层薄片 + 重影」。改成同一份
+ * `wallFilmOpacity` 后两者浓度一致，暖木也不再需要单独放大。
+ */
+function resolveFilmOpacity(wallTopOpacity: number) {
+  return wallFilmOpacity(wallTopOpacity);
 }
 
 /** 墙顶自发光：与墙面 `wallEmissiveIntensity`（0.15 / 暖木 0.17）同一档。 */
@@ -72,7 +79,7 @@ export function createWallTopMaterial(
     transparent: !isWallTopOpaque,
     opacity:
       wallTopOptions.topOpacity ??
-      (isWallTopOpaque ? 1 : resolveFilmOpacity(wallTopOpacity, warmWood)),
+      (isWallTopOpaque ? 1 : resolveFilmOpacity(wallTopOpacity)),
     side: ns2.DoubleSide,
     emissive: wallTopOptions.emissive ?? wallTopOptions.topColor ?? wallTopBaseColor,
     // 0.8.2 的 `createWallTopMaterial`：暖木 0.38 / 冷色 0.08，但那一档只对专用墙面
