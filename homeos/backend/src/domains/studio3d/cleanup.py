@@ -209,6 +209,34 @@ def is_template_scene(snapshot) -> bool:
     return isinstance(snapshot, dict) and snapshot.get(SCENE_SOURCE_KEY) == "template"
 
 
+def _binding_conflict(message: str) -> HTTPException:
+    """``STUDIO3D_BINDING_CONFLICT`` 的唯一构造点（文案由调用方给）。"""
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"code": "STUDIO3D_BINDING_CONFLICT", "message": message},
+    )
+
+
+def _load_snapshot(path, *, strict: bool) -> dict | None:
+    """读一份户型快照；读不出来时 ``strict`` 抛 409，否则记 warning 并返回 ``None``。
+
+    ``None`` 在调用方一律按「未知来源」处理（跳过校验、不允许据此做破坏性修复）。
+    """
+    try:
+        snapshot = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(snapshot, dict):
+            raise ValueError("invalid snapshot")
+    # `# fmt: skip`：括号不能省，否则 ruff format（target py314）会按 PEP 758
+    # 改写成无括号形式，而 Cython 3.3.0 会把后者按 `except A as B:` 误解析
+    # （3 个以上的异常名则直接解析失败）。守卫见 gate:infra 的 check:cython。
+    except (OSError, UnicodeDecodeError, ValueError):  # fmt: skip
+        if strict:
+            raise _binding_conflict("户型来源无法读取，未清理任何配置。请先检查或重新载入户型。") from None
+        logger.warning("3D 交互场景快照无法解析，跳过绑定校验：%s", path, exc_info=True)
+        return None
+    return snapshot
+
+
 def current_binding_sources(settings, database, scene_ids: Iterable[str], *, strict: bool = False):
     """本次保存/修复使用的「权威户型身份」：``{sceneId: set[身份] | None}``。
 
@@ -229,25 +257,8 @@ def current_binding_sources(settings, database, scene_ids: Iterable[str], *, str
         path = scene_snapshot_file(settings, scene_id)
         if path is None:
             continue
-        try:
-            snapshot = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(snapshot, dict):
-                raise ValueError("invalid snapshot")
-        # `# fmt: skip`：括号不能省，否则 ruff format（target py314）会按 PEP 758
-        # 改写成无括号形式，而 Cython 3.3.0 会把后者按 `except A as B:` 误解析
-        # （3 个以上的异常名则直接解析失败）。守卫见 gate:infra 的 check:cython。
-        except (OSError, UnicodeDecodeError, ValueError):  # fmt: skip
-            if strict:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail={
-                        "code": "STUDIO3D_BINDING_CONFLICT",
-                        "message": "户型来源无法读取，未清理任何配置。请先检查或重新载入户型。",
-                    },
-                ) from None
-            logger.warning("3D 交互场景快照无法解析，跳过绑定校验：%s", path, exc_info=True)
-            continue
-        if is_template_scene(snapshot):
+        snapshot = _load_snapshot(path, strict=strict)
+        if snapshot is None or is_template_scene(snapshot):
             continue
         if not loaded:
             current = _current_draft_scene(database)
@@ -265,13 +276,7 @@ def current_binding_sources(settings, database, scene_ids: Iterable[str], *, str
         try:
             sources[scene_id] = identities(scene)
         except (OSError, UnicodeDecodeError, ValueError, TypeError, KeyError, AttributeError) as error:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "STUDIO3D_BINDING_CONFLICT",
-                    "message": "无法核对最新户型，请先打开户型绘制检查，再保存新增或复制的 3D 配置。",
-                },
-            ) from error
+            raise _binding_conflict("无法核对最新户型，请先打开户型绘制检查，再保存新增或复制的 3D 配置。") from error
     return sources
 
 
@@ -283,13 +288,7 @@ def _current_draft_scene(database) -> dict | None:
     try:
         snapshot = draft_repository.read_snapshot(database)
     except HTTPException as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "STUDIO3D_BINDING_CONFLICT",
-                "message": "无法核对最新户型，请先打开户型绘制检查，再保存新增或复制的 3D 配置。",
-            },
-        ) from error
+        raise _binding_conflict("无法核对最新户型，请先打开户型绘制检查，再保存新增或复制的 3D 配置。") from error
     return snapshot.scene if snapshot is not None else None
 
 
@@ -363,15 +362,12 @@ def require_current_binding_references(settings, database, references) -> None:
     )
 
 
-def repair_binding_document(document, settings, database, component_ids):
-    """当前工作文档的**只读**修复提案：``(更新后的文档, 问题清单)``。
+def _interaction3d_components(document, selected: set):
+    """深度遍历文档，产出参与修复的 ``interaction3d`` 组件。
 
-    落库与历史仍归既有项目编辑器与 PUT 路由。选中一个容器就带上它的子组件；
-    未被选中的组件原样返回。旧版本留下的失效绑定也在检查范围内 —— 这正是
-    「检查失效配置」要解决的问题。
+    没有选中任何容器时全量返回；选中了容器就把它和它的子组件一起带上（容器级选中
+    的意思是「这棵树都算」），未选中的组件原样跳过。
     """
-    updated = deepcopy(document)
-    selected = set(component_ids or ())
 
     def visit(value, active):
         if isinstance(value, list):
@@ -388,7 +384,18 @@ def repair_binding_document(document, settings, database, component_ids):
         for item in value.values():
             yield from visit(item, active)
 
-    components = list(visit(updated, False))
+    yield from visit(document, False)
+
+
+def repair_binding_document(document, settings, database, component_ids):
+    """当前工作文档的**只读**修复提案：``(更新后的文档, 问题清单)``。
+
+    落库与历史仍归既有项目编辑器与 PUT 路由。选中一个容器就带上它的子组件；
+    未被选中的组件原样返回。旧版本留下的失效绑定也在检查范围内 —— 这正是
+    「检查失效配置」要解决的问题。
+    """
+    updated = deepcopy(document)
+    components = list(_interaction3d_components(updated, set(component_ids or ())))
     sources = current_binding_sources(
         settings,
         database,
@@ -427,6 +434,45 @@ def repair_binding_document(document, settings, database, component_ids):
                 }
             )
     return (updated, issues)
+
+
+def _restore_binding_entry(properties, entry, asset_exists) -> None:
+    """把一条归档绑定放回组件；封面图资产已不存在时只恢复条目、丢掉图。"""
+    parts = tuple(entry["path"])
+    parent, items = collection(properties, parts)
+    item = entry["item"]
+    if _binding_present(items, item, parts, entry["key"]):
+        return
+    restored = deepcopy(item)
+    if parts in (("devices", "computers"), ("devices", "televisions")) and asset_exists is not None:
+        image = restored.get("screenImage")
+        if (
+            isinstance(image, dict)
+            and isinstance(image.get("assetId"), str)
+            and not asset_exists(image["assetId"])
+        ):
+            restored.pop("screenImage")
+    parent[parts[-1]] = [*items, restored]
+
+
+def _restorable_curtain_group(environment, entry) -> dict | None:
+    """归档里的窗帘组现在能否重新挂上：能则返回副本，不能（成员缺失/冲突/不合法）返回 ``None``。"""
+    group = entry["item"]
+    members = environment.get("curtains", [])
+    member_ids = {item["id"] for item in members}
+    if not set(group["memberIds"]) <= member_ids:
+        return None
+    groups = environment.get("curtainGroups", [])
+    if any(g["id"] == group["id"] or set(g["memberIds"]) & set(group["memberIds"]) for g in groups):
+        return None
+    selected = [item for item in members if item["id"] in group["memberIds"]]
+    valid = len(selected) == 2 and all(
+        item.get("floorId") == group["floorId"] and item.get("coverKind") != "dream" for item in selected
+    )
+    valid = valid and not (
+        selected[0].get("entityId") and selected[0].get("entityId") == selected[1].get("entityId")
+    )
+    return deepcopy(group) if valid else None
 
 
 def plan_cleanup(documents, old_scene, new_scene, archives, settings, *, asset_exists=None):
@@ -522,40 +568,14 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings, *, asset_e
                     continue
                 if tuple(entry["key"]) not in added and entry.get("restoreFloorId") not in added_floors:
                     continue
-                parts = tuple(entry["path"])
-                parent, items = collection(properties, parts)
-                item = entry["item"]
-                if not _binding_present(items, item, parts, entry["key"]):
-                    restored = deepcopy(item)
-                    if parts in (("devices", "computers"), ("devices", "televisions")) and asset_exists is not None:
-                        image = restored.get("screenImage")
-                        if (
-                            isinstance(image, dict)
-                            and isinstance(image.get("assetId"), str)
-                            and not asset_exists(image["assetId"])
-                        ):
-                            restored.pop("screenImage")
-                    parent[parts[-1]] = [*items, restored]
+                _restore_binding_entry(properties, entry, asset_exists)
                 consumed.add(id(entry))
             for entry in list(saved_by_scope.get(tuple(scope), ())):
                 if id(entry) in consumed or entry["key"] is not None:
                     continue
-                group = entry["item"]
-                members = environment.get("curtains", [])
-                member_ids = {item["id"] for item in members}
-                if not set(group["memberIds"]) <= member_ids:
-                    continue
-                groups = environment.get("curtainGroups", [])
-                selected = [item for item in members if item["id"] in group["memberIds"]]
-                conflict = any(g["id"] == group["id"] or set(g["memberIds"]) & set(group["memberIds"]) for g in groups)
-                valid = len(selected) == 2 and all(
-                    item.get("floorId") == group["floorId"] and item.get("coverKind") != "dream" for item in selected
-                )
-                valid = valid and not (
-                    selected[0].get("entityId") and selected[0].get("entityId") == selected[1].get("entityId")
-                )
-                if valid and not conflict:
-                    environment["curtainGroups"] = [*groups, deepcopy(group)]
+                restored_group = _restorable_curtain_group(environment, entry)
+                if restored_group is not None:
+                    environment["curtainGroups"] = [*environment.get("curtainGroups", []), restored_group]
                 consumed.add(id(entry))
         if updated != document:
             output[project_id] = updated

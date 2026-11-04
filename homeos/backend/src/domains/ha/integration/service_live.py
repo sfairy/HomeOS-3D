@@ -321,43 +321,9 @@ class HALiveMixin(HAConnectorHost):
         capture_task: asyncio.Task[Any] | None = None
         try:
             if client.use_subscribe_entities:
-                buffered_events = await client.subscribe_events(
-                    websocket,
-                    registry_event_types,
-                    required_event_types=set(registry_event_types),
-                    # 反代把 WS 挂住时 ``recv`` 不会返回：不给超时就会永远停在「连接中」。
-                    timeout=self.settings.ha_request_timeout_seconds,
+                buffered_events, compressed_stream, shadow_stream = await self._subscribe_compressed_stream(
+                    client, websocket, registry_event_types
                 )
-                try:
-                    buffered_events += await client.subscribe_entities(websocket)
-                    compressed_stream = True
-                except HAClientError as error:
-                    # 旧版 HA（< 2023.3）或反代拦截了该 WS 命令：降级回 state_changed
-                    # 全量事件，绝不能让连接因为「省带宽的优化」而起不来。
-                    record_ha_counter("subscribe_entities_fallback")
-                    LOGGER.warning("HA 不支持 subscribe_entities，降级为 subscribe_events：%s", error)
-                    buffered_events += await client.subscribe_events(
-                        websocket,
-                        ("state_changed",),
-                        start_id=140,
-                        required_event_types={"state_changed"},
-                        timeout=self.settings.ha_request_timeout_seconds,
-                    )
-                # 影子订阅独立 try：它只是诊断用的第二条 state_changed 订阅。挂掉时若走到
-                # 上面的降级分支，就会变成「降级订阅 + 残留影子订阅」两条 state_changed，
-                # 每条状态被派发两次。
-                if compressed_stream and client.subscribe_entities_shadow:
-                    try:
-                        buffered_events += await client.subscribe_events(
-                            websocket,
-                            ("state_changed",),
-                            start_id=120,
-                            required_event_types={"state_changed"},
-                            timeout=self.settings.ha_request_timeout_seconds,
-                        )
-                        shadow_stream = True
-                    except HAClientError as error:
-                        LOGGER.warning("HA 压缩状态影子订阅失败，继续使用压缩流：%s", error)
             else:
                 buffered_events = await client.subscribe_events(
                     websocket,
@@ -437,6 +403,53 @@ class HALiveMixin(HAConnectorHost):
             await events.aclose()
             await self._notify_connection("disconnected")
             await websocket.close()
+
+    async def _subscribe_compressed_stream(
+        self, client, websocket, registry_event_types: tuple[str, ...]
+    ) -> tuple[list[Any], bool, bool]:
+        """建立压缩状态流订阅；返回 ``(订阅期缓冲帧, 是否压缩流, 是否影子订阅)``。
+
+        ``subscribe_entities`` 只承载状态流，注册表变更仍需单独订阅；旧版 HA（< 2023.3）
+        或反代拦截该 WS 命令时降级回 ``state_changed`` 全量事件 —— 绝不能让连接因为
+        「省带宽的优化」而起不来。
+        """
+        buffered_events = await client.subscribe_events(
+            websocket,
+            registry_event_types,
+            required_event_types=set(registry_event_types),
+            # 反代把 WS 挂住时 ``recv`` 不会返回：不给超时就会永远停在「连接中」。
+            timeout=self.settings.ha_request_timeout_seconds,
+        )
+        compressed_stream = False
+        shadow_stream = False
+        try:
+            buffered_events += await client.subscribe_entities(websocket)
+            compressed_stream = True
+        except HAClientError as error:
+            record_ha_counter("subscribe_entities_fallback")
+            LOGGER.warning("HA 不支持 subscribe_entities，降级为 subscribe_events：%s", error)
+            buffered_events += await client.subscribe_events(
+                websocket,
+                ("state_changed",),
+                start_id=140,
+                required_event_types={"state_changed"},
+                timeout=self.settings.ha_request_timeout_seconds,
+            )
+        # 影子订阅独立 try：它只是诊断用的第二条 state_changed 订阅。挂掉时若走到上面的
+        # 降级分支，就会变成「降级订阅 + 残留影子订阅」两条 state_changed，每条状态被派发两次。
+        if compressed_stream and client.subscribe_entities_shadow:
+            try:
+                buffered_events += await client.subscribe_events(
+                    websocket,
+                    ("state_changed",),
+                    start_id=120,
+                    required_event_types={"state_changed"},
+                    timeout=self.settings.ha_request_timeout_seconds,
+                )
+                shadow_stream = True
+            except HAClientError as error:
+                LOGGER.warning("HA 压缩状态影子订阅失败，继续使用压缩流：%s", error)
+        return buffered_events, compressed_stream, shadow_stream
 
     async def _capture_handshake_frames(self, websocket: Any, capture: _HandshakeCapture) -> None:
         """同步窗口的收包旁路：订阅已建立、全量快照还没落地。

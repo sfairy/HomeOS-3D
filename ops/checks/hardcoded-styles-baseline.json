@@ -1,9 +1,9 @@
 {
   "totals": {
-    "files": 367,
-    "color": 4383,
-    "duration": 1458,
-    "important": 360
+    "files": 369,
+    "color": 4433,
+    "duration": 1453,
+    "important": 362
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/PalettePanel.vue": {
@@ -423,11 +423,6 @@
     },
     "homeos/frontend/src/components/shell/floating-hub/index.css": {
       "color": 27,
-      "duration": 3,
-      "important": 0
-    },
-    "homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue": {
-      "color": 24,
       "duration": 3,
       "important": 0
     },
@@ -896,11 +891,6 @@
       "duration": 2,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/SetupWizardEnergyStep.css": {
-      "color": 1,
-      "duration": 0,
-      "important": 0
-    },
     "homeos/frontend/src/features/settings/connect/setup-wizard/styles/SetupWizardNavigation.css": {
       "color": 4,
       "duration": 2,
@@ -1054,11 +1044,6 @@
     "homeos/frontend/src/features/settings/interact/voice/styles/SettingsVoiceSttSection.css": {
       "color": 2,
       "duration": 1,
-      "important": 0
-    },
-    "homeos/frontend/src/features/settings/interact/voice/styles/SettingsVoiceTtsSection.css": {
-      "color": 3,
-      "duration": 2,
       "important": 0
     },
     "homeos/frontend/src/features/settings/interact/voice/styles/SpeechComposer.css": {
@@ -1446,6 +1431,16 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/studio/app/3d-studio/plan/window/designer-canvas.ts": {
+      "color": 16,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/3d-studio/plan/window/tutorial.ts": {
+      "color": 28,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/studio/app/display/display.ts": {
       "color": 1,
       "duration": 0,
@@ -1558,6 +1553,11 @@
     },
     "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts": {
       "color": 41,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/editor/scene-popup-editor.ts": {
+      "color": 6,
       "duration": 0,
       "important": 0
     },
@@ -1737,7 +1737,7 @@
       "important": 0
     },
     "homeos/frontend/src/studio/runtime/core/runtime.css": {
-      "color": 264,
+      "color": 279,
       "duration": 13,
       "important": 18
     },
@@ -1757,9 +1757,9 @@
       "important": 0
     },
     "homeos/frontend/src/studio/runtime/core/stage.css": {
-      "color": 547,
+      "color": 554,
       "duration": 61,
-      "important": 33
+      "important": 35
     },
     "homeos/frontend/src/studio/runtime/core/stage.ts": {
       "color": 1,
@@ -1791,6 +1791,11 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/studio/runtime/device/game-console-state.ts": {
+      "color": 4,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/studio/runtime/environment/environment-airflow.ts": {
       "color": 4,
       "duration": 0,
@@ -1806,8 +1811,13 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/runtime/environment/weather-effects.ts": {
+    "homeos/frontend/src/studio/runtime/environment/weather/colors.ts": {
       "color": 1,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/runtime/environment/weather/stars.ts": {
+      "color": 2,
       "duration": 0,
       "important": 0
     },

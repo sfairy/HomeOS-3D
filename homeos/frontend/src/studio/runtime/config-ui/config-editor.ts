@@ -267,6 +267,14 @@ export async function openInteraction3dEditor({
     aspectBoxElement = previewHandle.aspect,
     stageHostElement = previewHandle.viewport,
     statusElement = createElement("p", "i3d-editor-status");
+  // 借用编辑器宿主时必须自己补上 `i3d-editor`：弹窗的骨架样式（表头 flex、右栏
+  // 网格与内边距、输入框 / 按钮外观）全挂在 `.i3d-editor` 上。自建弹窗在
+  // `createOwnPreview` 里创建时就带了这个类，借用的是编辑器页那个
+  // `dialog.hb-interaction3d-runtime`，没人替它加 —— 少了它表头会挤成一团、
+  // 右栏也拿不到字体与间距，看起来就像「弹窗样式坏了」。
+  isBorrowedPreview
+    ? editorDialogElement.classList.add("i3d-editor", "is-borrowed-editor")
+    : (editorDialogElement.className = "i3d-editor");
   (editorDialogElement.setAttribute("aria-label", "3D " + editorKindTitle + "配置"),
     editorDialogElement.setAttribute("data-i3d-preview-scope", ""),
     editorDialogElement.classList.add("i3d-unified-settings"));
@@ -289,6 +297,15 @@ export async function openInteraction3dEditor({
   structuredClone2.environment?.temperatureHumidity &&
     (structuredClone2.environment.temperatureHumidity =
       structuredClone2.environment.temperatureHumidity.map(normalizeTemperatureHumidity2));
+  // 借用编辑器里的运行时：它早就 `ready` 过一次，配置会话换上来的新 `onReady` 不会再被
+  // 调用一次（舞台只在首次加载 / 重载户型时发 `ready` / `model-metadata`），所以元数据
+  // 不会自己送到这里。不补这一步，`sceneMetadata` 一直是 null：画面正常、右栏却是空的
+  // （楼层下拉、条目列表、状态规则全都按 `sceneMetadata` 渲染），选楼层也拿不到基准。
+  if (isBorrowedPreview && editorView?.metadata) {
+    sceneMetadata = editorView.metadata;
+    sceneMetadata.floors.some((floor: any) => floor.id === floorSelection) ||
+      (floorSelection = sceneMetadata.floors[0]?.id || "");
+  }
   let isRangeEditorOpen = false,
     subEditorHandle: any = null,
     vacuumCameraMode = "focus",

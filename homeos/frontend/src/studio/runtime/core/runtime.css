@@ -26,7 +26,9 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   display: none;
 }
 /* 借用时这个对话框要顶满视口：运行时画面（`.i3d-frame`）绝对定位铺在底层，
-   header / 面板走正常流叠在上层，画面区域透明可点。 */
+   header / 面板走正常流叠在上层，画面区域透明可点。
+   `config-editor` 会在这个宿主上补 `.i3d-editor`（表头 flex、右栏网格、控件外观都靠它），
+   所以这里要把那套「有框弹窗」的圆角与投影压掉，否则全屏时四角会被切出白边。 */
 dialog.hb-interaction3d-runtime.is-borrowed-editor {
   position: fixed;
   inset: 0;
@@ -37,6 +39,8 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor {
   margin: 0;
   padding: 0;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;

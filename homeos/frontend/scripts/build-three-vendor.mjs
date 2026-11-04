@@ -117,6 +117,9 @@ const SKIP_DIR_NAMES = new Set([
   '.venv-store',
   '.pnpm-store',
   'build',
+  // `docs/` 是本地迁移记录（`docs/` 本身在 .gitignore 里），引用的是**历史版本**，
+  // 不参与出货；扫它只会让「本机生成过迁移文档」变成一条假的版本不一致。
+  'docs',
 ])
 /** 只扫这些后缀：版本字面量只可能出现在源码 / 配置 / 构建脚本里。 */
 const SCAN_SUFFIXES = new Set(['.ts', '.tsx', '.vue', '.js', '.mjs', '.json', '.sh', '.css', '.html'])

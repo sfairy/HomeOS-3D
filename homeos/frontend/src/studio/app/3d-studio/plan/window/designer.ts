@@ -40,6 +40,7 @@ import {
   type WindowSplit,
 } from "./layout";
 import { WindowPreview, createPreviewMotion } from "./preview";
+import { drawWindowCanvas } from "./designer-canvas";
 import { openWindowTutorial } from "./tutorial";
 
 /** 窗型名称（检查器 / 窗格列表 / 提示文案共用）。 */
@@ -52,10 +53,6 @@ const WINDOW_KIND_LABELS: Record<string, string> = {
 };
 
 const CASEMENT_KINDS = ["casement", "top-hung", "bottom-hung"] as const;
-
-/** 画布留白：四周各留一圈给尺寸标注。 */
-const CANVAS_PADDING_X = 88;
-const CANVAS_PADDING_Y = 90;
 
 /** 拖动分隔线时「吸附到正中」的像素阈值。 */
 const CENTER_SNAP_PIXELS = 9;
@@ -355,223 +352,16 @@ export function openWindowDesigner({
     );
   }
 
-  function svgElement(tag: string, attributes: Record<string, string | number> = {}, text?: string) {
-    const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
-    for (const [name, attributeValue] of Object.entries(attributes))
-      element.setAttribute(name, String(attributeValue));
-    if (text !== undefined) element.textContent = text;
-    (query("drawing") as unknown as SVGSVGElement).append(element);
-    return element;
-  }
-
-  function svgText(
-    x: number,
-    y: number,
-    text: string,
-    attributes: Record<string, string | number> = {},
-  ) {
-    return svgElement(
-      "text",
-      { x, y, fill: "#a7b7c4", "font-size": 11, "text-anchor": "middle", ...attributes },
-      text,
-    );
-  }
-
-  /** 画正立面：窗格 → 开合示意 → 外框 → 分隔线（分隔线最后画，压在窗格上方便点选）。 */
+  /** 画正立面：只把当前快照交给渲染模块，缩放/偏移收回来供指针换算用。 */
   function drawCanvas(): void {
     if (!history || !dialog.open) return;
-    const drawing = query("drawing") as unknown as SVGSVGElement;
-    const bounds = drawing.getBoundingClientRect();
-    if (!bounds.width || !bounds.height) return;
-    const current = value();
-    const scale = Math.max(
-      0.1,
-      Math.min((bounds.width - CANVAS_PADDING_X) / current.width, (bounds.height - CANVAS_PADDING_Y) / current.height),
-    );
-    const offsetX = (bounds.width - current.width * scale) / 2;
-    const offsetY = (bounds.height - current.height * scale) / 2;
-    canvasScale = { scale, ox: offsetX, oy: offsetY, w: bounds.width, h: bounds.height };
-    drawing.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
-    drawing.replaceChildren();
-    svgElement("title", {}, "窗户正立面。分格可通过下方按钮选择。");
-
-    const allEntries = entries(current);
-    const leaves = allEntries.filter((entry) => !entry.node.children);
-    for (const [index, entry] of leaves.entries()) {
-      const leafNode = entry.node as WindowLeaf;
-      const x = offsetX + entry.x * scale;
-      const y = offsetY + entry.y * scale;
-      const width = entry.width * scale;
-      const height = entry.height * scale;
-      const selected = entry.node.id === selectedSashId;
-      svgElement("rect", {
-        x: x + 2,
-        y: y + 2,
-        width: Math.max(1, width - 4),
-        height: Math.max(1, height - 4),
-        fill: selected ? "#48321f" : "#18303b",
-        stroke: selected ? "#ff9d2e" : "#385966",
-        "stroke-width": selected ? 2 : 1,
-        "data-cell": entry.node.id,
-        class: "cell-shape",
-      });
-      if (leafNode.kind === "casement") {
-        // 窗扇开启示意：铰链在左就从左边画 V 形，在右就镜像。
-        const hingeLeft = leafNode.hinge === "left";
-        const hingeX = hingeLeft ? x + 7 : x + width - 7;
-        const farX = hingeLeft ? x + width - 7 : x + 7;
-        svgElement("path", {
-          d: `M ${hingeX} ${y + 7} L ${farX} ${y + height / 2} L ${hingeX} ${y + height - 7}`,
-          fill: "none",
-          stroke: selected ? "#cf8d4c" : "#6592a5",
-          "stroke-width": 1,
-          "stroke-dasharray": leafNode.swing === "out" ? "4 3" : "none",
-          "pointer-events": "none",
-        });
-      }
-      if (isHung(leafNode.kind)) {
-        const topHung = leafNode.kind === "top-hung";
-        const hingeY = topHung ? y + 7 : y + height - 7;
-        const farY = topHung ? y + height - 7 : y + 7;
-        svgElement("path", {
-          d: `M ${x + 7} ${hingeY} L ${x + width / 2} ${farY} L ${x + width - 7} ${hingeY}`,
-          fill: "none",
-          stroke: selected ? "#cf8d4c" : "#6592a5",
-          "stroke-width": 1,
-          "stroke-dasharray": leafNode.swing === "out" ? "4 3" : "none",
-          "pointer-events": "none",
-        });
-        if (width > 75 && height > 85)
-          svgText(x + width / 2, topHung ? y + 22 : y + height - 14, topHung ? "顶铰链" : "底铰链", {
-            "font-size": 10,
-            "pointer-events": "none",
-          });
-      }
-      if (leafNode.kind === "sliding") {
-        for (let panelIndex = 1; panelIndex < leafNode.count; panelIndex += 1)
-          svgElement("line", {
-            x1: x + (width * panelIndex) / leafNode.count,
-            y1: y + 5,
-            x2: x + (width * panelIndex) / leafNode.count,
-            y2: y + height - 5,
-            stroke: "#6a8a97",
-            "pointer-events": "none",
-          });
-        svgText(x + width / 2, y + height * 0.7, leafNode.slide === "right" ? "→" : "←", {
-          "font-size": 19,
-          "pointer-events": "none",
-        });
-      }
-      svgText(x + width / 2, y + height / 2 - 5, "窗格 " + (index + 1), {
-        fill: selected ? "#ffd4a7" : "#d0e5ed",
-        "pointer-events": "none",
-      });
-      if (width > 65 && height > 55)
-        svgText(
-          x + width / 2,
-          y + height / 2 + 14,
-          `${Math.round(entry.width * 1000)} × ${Math.round(entry.height * 1000)}`,
-          { "font-size": 10, "pointer-events": "none" },
-        );
-    }
-
-    svgElement("rect", {
-      x: offsetX,
-      y: offsetY,
-      width: current.width * scale,
-      height: current.height * scale,
-      fill: "none",
-      stroke: "#94a9b6",
-      "stroke-width": 4,
-      "pointer-events": "none",
+    canvasScale = drawWindowCanvas({
+      drawing: query("drawing") as unknown as SVGSVGElement,
+      record: value(),
+      selectedSashId,
+      segmentRatio,
+      drawPreview,
     });
-
-    for (const entry of allEntries.filter((candidate) => candidate.node.children)) {
-      const splitNode = entry.node as WindowSplit;
-      const x = offsetX + entry.x * scale;
-      const y = offsetY + entry.y * scale;
-      const geometry =
-        splitNode.axis === "x"
-          ? {
-              x1: x + entry.width * splitNode.ratio * scale,
-              x2: x + entry.width * splitNode.ratio * scale,
-              y1: y,
-              y2: y + entry.height * scale,
-            }
-          : {
-              x1: x,
-              x2: x + entry.width * scale,
-              y1: y + entry.height * splitNode.ratio * scale,
-              y2: y + entry.height * splitNode.ratio * scale,
-            };
-      svgElement("line", { ...geometry, stroke: "#94a9b6", "stroke-width": 4, "pointer-events": "none" });
-      if (selectedSashId === splitNode.id) {
-        const segment = windowSplitSegment(current, splitNode.id, segmentRatio);
-        if (segment)
-          svgElement("line", {
-            ...(segment.vertical
-              ? {
-                  x1: offsetX + segment.coordinate * scale,
-                  x2: offsetX + segment.coordinate * scale,
-                  y1: offsetY + segment.start * scale,
-                  y2: offsetY + segment.end * scale,
-                }
-              : {
-                  x1: offsetX + segment.start * scale,
-                  x2: offsetX + segment.end * scale,
-                  y1: offsetY + segment.coordinate * scale,
-                  y2: offsetY + segment.coordinate * scale,
-                }),
-            stroke: "#ff9d2e",
-            "stroke-width": 5,
-            "pointer-events": "none",
-          });
-      }
-      svgElement("line", {
-        ...geometry,
-        "data-split": splitNode.id,
-        class: "split-hit " + (splitNode.axis === "y" ? "horizontal" : ""),
-      });
-    }
-
-    svgText(bounds.width / 2, offsetY - 18, Math.round(current.width * 1000) + " mm");
-    svgText(bounds.width / 2, offsetY + current.height * scale + 24, "窗户正立面");
-    svgText(
-      offsetX + current.width * scale + 18,
-      bounds.height / 2,
-      String(Math.round(current.height * 1000)),
-      {
-        transform: `rotate(90 ${offsetX + current.width * scale + 18} ${bounds.height / 2})`,
-      },
-    );
-
-    if (drawPreview) {
-      const target = find(current, drawPreview.id);
-      if (target) {
-        const position = drawPreview.position;
-        const geometry =
-          drawPreview.axis === "x"
-            ? {
-                x1: offsetX + (target.x + position) * scale,
-                x2: offsetX + (target.x + position) * scale,
-                y1: offsetY + target.y * scale,
-                y2: offsetY + (target.y + target.height) * scale,
-              }
-            : {
-                x1: offsetX + target.x * scale,
-                x2: offsetX + (target.x + target.width) * scale,
-                y1: offsetY + (target.y + position) * scale,
-                y2: offsetY + (target.y + position) * scale,
-              };
-        svgElement("line", {
-          ...geometry,
-          stroke: "#ff9d2e",
-          "stroke-width": 2,
-          "stroke-dasharray": "5 4",
-          "pointer-events": "none",
-        });
-      }
-    }
   }
 
   /** 指针坐标 → 窗型本地坐标（米）。 */

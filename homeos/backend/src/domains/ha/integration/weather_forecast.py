@@ -55,6 +55,36 @@ def _number(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
+#: 顶层直接透传的数值字段：`HA 字段名 → 前端契约字段名`。
+_FORECAST_NUMBER_FIELDS: tuple[tuple[str, str], ...] = (
+    ('temperature', 'temperature'),
+    ('templow', 'templow'),
+    ('precipitation', 'precipitation'),
+    ('wind_speed', 'windSpeed'),
+)
+
+
+def _normalize_row(row: dict) -> dict[str, Any]:
+    """一条预报 → 前端契约子集；全空的条目返回空 dict（调用方负责丢弃）。"""
+    item: dict[str, Any] = {}
+    timestamp = row.get('datetime')
+    if isinstance(timestamp, str) and timestamp:
+        item['datetime'] = timestamp[:64]
+    condition = _text(row.get('condition'), 64) or _text(row.get('skycon'), 64)
+    if condition:
+        item['condition'] = condition
+    for key, field in _FORECAST_NUMBER_FIELDS:
+        number = _number(row.get(key))
+        if number is not None:
+            item[field] = number
+    probability = _number(row.get('precipitation_probability'))
+    if probability is not None:
+        item['precipitationProbability'] = probability
+    if type(row.get('is_daytime')) is bool:
+        item['isDaytime'] = row['is_daytime']
+    return item
+
+
 def normalize_forecast(rows: list[Any], forecast_type: str) -> list[dict[str, Any]]:
     """把 HA 的预报数组裁剪、归一成前端契约。
 
@@ -68,27 +98,7 @@ def normalize_forecast(rows: list[Any], forecast_type: str) -> list[dict[str, An
     for row in rows[:limit]:
         if not isinstance(row, dict):
             continue
-        item: dict[str, Any] = {}
-        timestamp = row.get('datetime')
-        if isinstance(timestamp, str) and timestamp:
-            item['datetime'] = timestamp[:64]
-        condition = _text(row.get('condition'), 64) or _text(row.get('skycon'), 64)
-        if condition:
-            item['condition'] = condition
-        for key, field in (
-            ('temperature', 'temperature'),
-            ('templow', 'templow'),
-            ('precipitation', 'precipitation'),
-            ('wind_speed', 'windSpeed'),
-        ):
-            number = _number(row.get(key))
-            if number is not None:
-                item[field] = number
-        probability = _number(row.get('precipitation_probability'))
-        if probability is not None:
-            item['precipitationProbability'] = probability
-        if type(row.get('is_daytime')) is bool:
-            item['isDaytime'] = row['is_daytime']
+        item = _normalize_row(row)
         if item:
             result.append(item)
     return result

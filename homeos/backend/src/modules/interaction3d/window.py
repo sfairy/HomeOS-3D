@@ -172,62 +172,92 @@ def require_window_model(binding: dict, scene: dict) -> None:
     )
 
 
+def _fail_window_binding() -> None:
+    """窗扇绑定不合格时的统一拒绝（422；文案不暴露具体是哪一条）。"""
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail="窗扇配置无效，请检查窗扇、检测实体及显示开度。",
+    )
+
+
+def _check_window_fields(item: dict) -> None:
+    """字段集与文本字段：不认识的键、超长文本都直接拒绝。"""
+    if set(item) - WINDOW_BINDING_FIELDS:
+        _fail_window_binding()
+    for key in WINDOW_TEXT_FIELDS:
+        value = item.get(key, "")
+        limit = 1500 if key == "modelId" else 255
+        if not isinstance(value, str) or len(value) > limit:
+            _fail_window_binding()
+
+
+def _check_window_ids(item: dict) -> None:
+    """必填 id / 楼层 / 模型号格式（``all`` 不是合法楼层）。"""
+    if not item.get("id") or not item.get("floorId") or not item.get("modelId") or item["floorId"] == "all":
+        _fail_window_binding()
+    if WINDOW_MODEL_PATTERN.fullmatch(item["modelId"]) is None:
+        _fail_window_binding()
+
+
+def _check_window_entities(item: dict) -> None:
+    """门磁 / 电量实体：给了就必须是合法 entity_id。"""
+    for key in ("doorEntityId", "batteryEntityId"):
+        value = item.get(key)
+        if not value:
+            continue
+        if not isinstance(value, str) or _ENTITY_PATTERN.fullmatch(value) is None:
+            _fail_window_binding()
+
+
+def _check_window_numbers(item: dict) -> None:
+    """数值字段必须是有限值且落在量程内（``bool`` 不算数字）。"""
+    for key, (low, high) in WINDOW_BINDING_RANGES.items():
+        if key not in item:
+            continue
+        value = item[key]
+        if type(value) not in (int, float):
+            _fail_window_binding()
+        try:
+            finite = math.isfinite(value)
+        except OverflowError:
+            finite = False
+        if not finite or not low <= value <= high:
+            _fail_window_binding()
+
+
+def _check_window_enums(item: dict) -> None:
+    """枚举 / 布尔 / 图标名：显式给了就必须合契约。
+
+    ``estimateMotion`` 显式给了就必须是布尔：字符串 ``"false"`` 在前端是真值，
+    会让"关闭位移估计"的用户得到反而更抖的动画。
+    """
+    if item.get("labelMode", "always") not in ("hidden", "always", "open"):
+        _fail_window_binding()
+    if item.get("motionSource", "auto") not in MOTION_SOURCES:
+        _fail_window_binding()
+    if "estimateMotion" in item and not isinstance(item["estimateMotion"], bool):
+        _fail_window_binding()
+    icon = item.get("icon")
+    if icon and _ICON_PATTERN.fullmatch(icon) is None:
+        _fail_window_binding()
+
+
 def validate_window_bindings(items: Any) -> None:
     """校验一组窗扇绑定（写入 3D 配置时调用）。任何一条不合格就整体拒绝。"""
-
-    def fail() -> None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="窗扇配置无效，请检查窗扇、检测实体及显示开度。",
-        )
-
     if not isinstance(items, list) or len(items) > MAX_WINDOW_BINDINGS:
-        fail()
+        _fail_window_binding()
 
     ids: set[str] = set()
     targets: set[str] = set()
     for item in items:
-        if not isinstance(item, dict) or set(item) - WINDOW_BINDING_FIELDS:
-            fail()
-        for key in WINDOW_TEXT_FIELDS:
-            value = item.get(key, "")
-            limit = 1500 if key == "modelId" else 255
-            if not isinstance(value, str) or len(value) > limit:
-                fail()
-        if not item.get("id") or not item.get("floorId") or not item.get("modelId") or item["floorId"] == "all":
-            fail()
-        if WINDOW_MODEL_PATTERN.fullmatch(item["modelId"]) is None:
-            fail()
+        if not isinstance(item, dict):
+            _fail_window_binding()
+        _check_window_fields(item)
+        _check_window_ids(item)
         if item["id"] in ids or item["modelId"] in targets:
-            fail()
+            _fail_window_binding()
         ids.add(item["id"])
         targets.add(item["modelId"])
-        for key in ("doorEntityId", "batteryEntityId"):
-            value = item.get(key)
-            if not value:
-                continue
-            if not isinstance(value, str) or _ENTITY_PATTERN.fullmatch(value) is None:
-                fail()
-        for key, (low, high) in WINDOW_BINDING_RANGES.items():
-            if key not in item:
-                continue
-            value = item[key]
-            if type(value) not in (int, float):
-                fail()
-            try:
-                finite = math.isfinite(value)
-            except OverflowError:
-                finite = False
-            if not finite or not low <= value <= high:
-                fail()
-        if item.get("labelMode", "always") not in ("hidden", "always", "open"):
-            fail()
-        if item.get("motionSource", "auto") not in MOTION_SOURCES:
-            fail()
-        # 显式给了 ``estimateMotion`` 就必须是布尔：字符串 "false" 在前端是真值，
-        # 会让"关闭位移估计"的用户得到反而更抖的动画。
-        if "estimateMotion" in item and not isinstance(item["estimateMotion"], bool):
-            fail()
-        icon = item.get("icon")
-        if icon and _ICON_PATTERN.fullmatch(icon) is None:
-            fail()
+        _check_window_entities(item)
+        _check_window_numbers(item)
+        _check_window_enums(item)

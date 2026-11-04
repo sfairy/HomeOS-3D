@@ -11,7 +11,7 @@ const OPS_JS_FILES = ['ops/**/*.{mjs,js}']
 const OPS_TS_FILES = ['ops/**/*.ts']
 const OPS_ALL_FILES = [...OPS_JS_FILES, ...OPS_TS_FILES]
 
-const OPS_IGNORES = ['ops/cleanup-reports/**']
+const OPS_IGNORES = ['ops/cleanup-reports/**', 'ops/port/tmp/**']
 
 export default [
   { ignores: ['**/node_modules/**', ...OPS_IGNORES] },

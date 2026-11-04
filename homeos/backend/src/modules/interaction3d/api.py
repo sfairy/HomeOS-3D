@@ -596,54 +596,44 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
     )
 
 
+#: 设备类型 → (错误文案里的中文名, environment 集合名)；顺序即优先级。
+#: ``None`` 表示该类型不独占集合，落到「空气净化器 / 空调」兜底。
+_ENVIRONMENT_DEVICE_KINDS: tuple[tuple[str, str, str | None], ...] = (
+    ('is_climate_extra', '空调', 'airConditioners'),
+    ('is_bath_heater', '浴霸', 'airConditioners'),
+    ('is_airer', '晾衣架', 'airers'),
+    ('is_fan', '电风扇', 'fans'),
+    ('is_exhaust', '排气扇', 'exhaustFans'),
+    ('is_water_heater', '热水器', 'waterHeaters'),
+    ('generic_device', '设备', None),
+    ('is_window_opener', '开窗器', 'windowOpeners'),
+    ('is_cover', '窗帘', 'curtains'),
+)
+
+
+def _environment_device_kind(
+    command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+) -> tuple[str, str]:
+    """设备中文名 + 绑定集合名；未识别类型按空气净化器/空调兜底。"""
+    fallback = ('空气净化器', 'airPurifiers') if command.domain == 'fan' or flags.extra_domain else ('空调', 'airConditioners')
+    for flag, label, collection in _ENVIRONMENT_DEVICE_KINDS:
+        if getattr(flags, flag):
+            return (label, collection or fallback[1])
+    return fallback
+
+
 def _environment_device_name(
     command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> str:
     """错误文案里使用的设备中文名。"""
-    if flags.is_climate_extra:
-        return '空调'
-    if flags.is_bath_heater:
-        return '浴霸'
-    if flags.is_airer:
-        return '晾衣架'
-    if flags.is_fan:
-        return '电风扇'
-    if flags.is_exhaust:
-        return '排气扇'
-    if flags.is_water_heater:
-        return '热水器'
-    if flags.generic_device:
-        return '设备'
-    if flags.is_window_opener:
-        return '开窗器'
-    if flags.is_cover:
-        return '窗帘'
-    if command.domain == 'fan' or flags.extra_domain:
-        return '空气净化器'
-    return '空调'
+    return _environment_device_kind(command, flags)[0]
 
 
 def _environment_bindings_collection(
     command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> str:
     """按设备类型选择 environment 下的绑定集合名。"""
-    if flags.is_climate_extra or flags.is_bath_heater:
-        return 'airConditioners'
-    if flags.is_airer:
-        return 'airers'
-    if flags.is_fan:
-        return 'fans'
-    if flags.is_exhaust:
-        return 'exhaustFans'
-    if flags.is_water_heater:
-        return 'waterHeaters'
-    if flags.is_window_opener:
-        return 'windowOpeners'
-    if flags.is_cover:
-        return 'curtains'
-    if command.domain == 'fan' or flags.extra_domain:
-        return 'airPurifiers'
-    return 'airConditioners'
+    return _environment_device_kind(command, flags)[1]
 
 
 def _environment_declared_bindings(
@@ -704,6 +694,25 @@ class _EnvironmentBindingScope:
     primary: dict | None
 
 
+#: 走「空调族模型校验」的设备：`(flag 名, 允许的 model_type)`，顺序即优先级。
+_ENVIRONMENT_MODEL_TYPES: tuple[tuple[str, tuple[str, ...] | str], ...] = (
+    ('is_fan', ('fan', 'ceiling-fan')),
+    ('is_exhaust', 'exhaust-fan'),
+    ('is_purifier', 'airpurifier'),
+    ('is_water_heater', ('storagewaterheater', 'gaswaterheater')),
+)
+
+
+def _model_check_bindings(scope: _EnvironmentBindingScope, owner: dict | None) -> list[dict]:
+    """校验对象：附加实体只看 owner，否则看整组声明绑定。"""
+    return [owner] if owner else scope.bindings
+
+
+def _model_check_entity_id(command: Interaction3dControlRequest, owner: dict | None) -> str:
+    """错误文案里指向的实体 id（与校验对象保持一致）。"""
+    return owner.get('entityId', '') if owner else command.entity_id
+
+
 def _require_environment_binding_model(
     command: Interaction3dControlRequest,
     scene: dict,
@@ -711,64 +720,57 @@ def _require_environment_binding_model(
     owner: dict | None = None,
 ) -> None:
     """校验绑定（含附加实体 owner）对应模型是否仍存在于户型中。"""
-    flags = scope.flags
-    bindings = scope.bindings
     try:
-        if flags.generic_device:
-            from .device import require_device_model
-
-            if owner is None:
-                raise ValueError('设备绑定缺失。')
-            profile = next(profile for profile, binding in scope.generic_bindings if binding is owner)
-            require_device_model(owner, scene, profile['model_type'])
-        elif flags.is_window_opener:
-            from .window import require_window_model
-
-            target = owner or scope.primary
-            if target is None:
-                raise ValueError('开窗器绑定缺失。')
-            require_window_model(target, scene)
-        elif flags.is_airer:
-            target = owner or scope.primary
-            if target is None:
-                raise ValueError('晾衣架绑定缺失。')
-            require_curtain_model([target], target['entityId'], scene, model_type='airer')
-        elif flags.is_fan:
-            require_air_conditioner_model(
-                [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else command.entity_id,
-                scene,
-                model_type=('fan', 'ceiling-fan'),
-            )
-        elif flags.is_exhaust:
-            require_air_conditioner_model(
-                [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else command.entity_id,
-                scene,
-                model_type='exhaust-fan',
-            )
-        elif flags.is_purifier:
-            require_air_conditioner_model(
-                [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else command.entity_id,
-                scene,
-                model_type='airpurifier',
-            )
-        elif flags.is_water_heater:
-            require_air_conditioner_model(
-                [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else command.entity_id,
-                scene,
-                model_type=('storagewaterheater', 'gaswaterheater'),
-            )
-        else:
-            (require_curtain_model if flags.is_cover else require_air_conditioner_model)(
-                [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else command.entity_id,
-                scene,
-            )
+        _require_binding_model_by_kind(command, scene, scope, owner)
     except (ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+
+
+def _require_binding_model_by_kind(
+    command: Interaction3dControlRequest,
+    scene: dict,
+    scope: _EnvironmentBindingScope,
+    owner: dict | None,
+) -> None:
+    """按设备类型分派到对应的模型校验器。"""
+    flags = scope.flags
+    if flags.generic_device:
+        from .device import require_device_model
+
+        if owner is None:
+            raise ValueError('设备绑定缺失。')
+        profile = next(profile for profile, binding in scope.generic_bindings if binding is owner)
+        require_device_model(owner, scene, profile['model_type'])
+        return
+    if flags.is_window_opener:
+        from .window import require_window_model
+
+        target = owner or scope.primary
+        if target is None:
+            raise ValueError('开窗器绑定缺失。')
+        require_window_model(target, scene)
+        return
+    if flags.is_airer:
+        target = owner or scope.primary
+        if target is None:
+            raise ValueError('晾衣架绑定缺失。')
+        require_curtain_model([target], target['entityId'], scene, model_type='airer')
+        return
+    for flag, model_type in _ENVIRONMENT_MODEL_TYPES:
+        if not getattr(flags, flag):
+            continue
+        require_air_conditioner_model(
+            _model_check_bindings(scope, owner),
+            _model_check_entity_id(command, owner),
+            scene,
+            model_type=model_type,
+        )
+        return
+    (require_curtain_model if flags.is_cover else require_air_conditioner_model)(
+        _model_check_bindings(scope, owner),
+        _model_check_entity_id(command, owner),
+        scene,
+    )
 
 
 def _validate_environment_command(
@@ -1054,6 +1056,72 @@ async def _control_lock(
     return await call_service(command, request, database, viewer)
 
 
+def _generic_device_bindings(properties: dict, flags) -> tuple[list[dict], list[tuple[dict, dict]]]:
+    """通用设备分支：摊平 ``devices`` 下各 collection，同时保留 ``(profile, binding)``。"""
+    if not flags.generic_device:
+        return [], []
+    from .device import DEVICE_PROFILES
+
+    pairs = [
+        (profile, binding)
+        for profile in DEVICE_PROFILES.values()
+        for binding in properties.get('devices', {}).get(profile['collection'], [])
+    ]
+    return [binding for _, binding in pairs], pairs
+
+
+def _valid_environment_owners(
+    command: Interaction3dControlRequest,
+    scene: dict,
+    scope: _EnvironmentBindingScope,
+    owners: list[dict],
+) -> list[dict]:
+    """附加实体逐个校验模型；一个都不合法时抛第一个错误（保留最具体的文案）。"""
+    failures: list[HTTPException] = []
+    valid: list[dict] = []
+    for owner in owners:
+        try:
+            _require_environment_binding_model(command, scene, scope, owner)
+        except HTTPException as error:
+            failures.append(error)
+        else:
+            valid.append(owner)
+    if not valid:
+        raise failures[0]
+    return valid
+
+
+def _primary_entity_mismatch(primary: dict | None, flags, entity) -> bool:
+    """主实体是否已不属于绑定设备（只对带 deviceId 的净化器/热水器/浴霸强制）。"""
+    if primary is None or not primary.get('deviceId'):
+        return False
+    if not (flags.is_purifier or flags.is_water_heater or primary.get('climateType') == 'bath-heater'):
+        return False
+    return entity.device_id != primary['deviceId']
+
+
+async def _dispatch_environment_command(
+    command: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+    primary: dict | None,
+    flags,
+) -> dict:
+    """下发命令并维护窗帘行程记忆：失败不记目标位置（否则动画会朝没发生的位移跑）。"""
+    memory, ticket = _begin_cover_memory(request, command, primary, flags)
+    try:
+        result = await call_service(command, request, database, viewer)
+    except BaseException:
+        if memory is not None:
+            memory.complete(ticket, ok=False)
+        raise
+    if memory is not None:
+        memory.complete(ticket, ok=True)
+        await _publish_cover_memory_changed(request, command.entity_id)
+    return result
+
+
 async def _control_environment_device(
     command: Interaction3dControlRequest,
     request: Request,
@@ -1067,17 +1135,9 @@ async def _control_environment_device(
         raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
     require_viewer_project(viewer, command.project_id)
     properties = await component_properties_async(request, command.project_id, command.component_id)
-    bindings = _environment_declared_bindings(properties, command, flags)
-    generic_bindings: list[tuple[dict, dict]] = []
-    if flags.generic_device:
-        from .device import DEVICE_PROFILES
-
-        generic_bindings = [
-            (profile, binding)
-            for profile in DEVICE_PROFILES.values()
-            for binding in properties.get('devices', {}).get(profile['collection'], [])
-        ]
-        bindings = [binding for _, binding in generic_bindings]
+    bindings, generic_bindings = _generic_device_bindings(properties, flags)
+    if not flags.generic_device:
+        bindings = _environment_declared_bindings(properties, command, flags)
     bindings = _filter_environment_bindings(bindings, command)
     primary = _primary_environment_binding(bindings, command, flags)
     owners = _extra_environment_owners(bindings, command, flags)
@@ -1089,21 +1149,12 @@ async def _control_environment_device(
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
 
-    valid_owners: list[dict] = []
     scope = _EnvironmentBindingScope(
         flags=flags, bindings=bindings, generic_bindings=generic_bindings, primary=primary
     )
+    valid_owners: list[dict] = []
     if flags.extra_domain:
-        failures = []
-        for owner in owners:
-            try:
-                _require_environment_binding_model(command, scene, scope, owner)
-            except HTTPException as error:
-                failures.append(error)
-            else:
-                valid_owners.append(owner)
-        if not valid_owners:
-            raise failures[0]
+        valid_owners = _valid_environment_owners(command, scene, scope, owners)
     else:
         _require_environment_binding_model(command, scene, scope)
     connection, entity = await active_connection_and_entity_async(request, command.entity_id, command.domain)
@@ -1114,35 +1165,27 @@ async def _control_environment_device(
     states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
 
     if flags.extra_domain:
-        context = _EnvironmentControlContext(
-            name=name,
-            flags=flags,
-            bindings=bindings,
-            generic_bindings=generic_bindings,
-            primary=primary,
-            valid_owners=valid_owners,
-            entity=entity,
-            states=states,
-        )
         return await _control_extra_environment_entity(
-            command, request, database, viewer, context, connection
+            command,
+            request,
+            database,
+            viewer,
+            _EnvironmentControlContext(
+                name=name,
+                flags=flags,
+                bindings=bindings,
+                generic_bindings=generic_bindings,
+                primary=primary,
+                valid_owners=valid_owners,
+                entity=entity,
+                states=states,
+            ),
+            connection,
         )
-    if primary is not None and (flags.is_purifier or flags.is_water_heater or primary.get('climateType') == 'bath-heater') and primary.get('deviceId') and entity.device_id != primary['deviceId']:
+    if _primary_entity_mismatch(primary, flags, entity):
         raise HTTPException(403, detail='主实体已不属于当前绑定设备，请重新绑定。')
     _validate_environment_command(command, name, flags, bindings, states)
-    memory, ticket = _begin_cover_memory(request, command, primary, flags)
-    try:
-        result = await call_service(command, request, database, viewer)
-    except BaseException:
-        # 下发失败就不能把「目标位置」记进历史：动画会朝一个**没发生**的位移跑，
-        # 用户看到的画面与设备真实状态相反。
-        if memory is not None:
-            memory.complete(ticket, ok=False)
-        raise
-    if memory is not None:
-        memory.complete(ticket, ok=True)
-        await _publish_cover_memory_changed(request, command.entity_id)
-    return result
+    return await _dispatch_environment_command(command, request, database, viewer, primary, flags)
 
 
 #: 命令 → 目标位置（``None`` 表示「不改变行程」：停止 / 开合 / 只调叶片）。
