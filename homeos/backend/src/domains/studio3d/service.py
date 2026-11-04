@@ -190,6 +190,10 @@ def _plan_interaction_cleanup(
 def _decode_document(raw) -> dict | None:
     try:
         value = json.loads(raw) if raw else {}
-    except TypeError, ValueError:
+    # `# fmt: skip`：括号不能省，否则 ruff format（target py314）会按 PEP 758
+    # 改写成无括号形式，而 Cython 3.3.0 会把后者按 `except TypeError as ValueError:`
+    # 误解析 —— 只捕获 TypeError 且把异常绑到名为 ValueError 的局部变量（编译通过、
+    # 语义悄悄变了）。守卫见 gate:infra 的 check:cython。
+    except (TypeError, ValueError):  # fmt: skip
         return None
     return value if isinstance(value, dict) else None

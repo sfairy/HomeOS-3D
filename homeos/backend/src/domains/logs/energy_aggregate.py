@@ -48,7 +48,11 @@ def _normalize_backfill_totals(
 ) -> dict[tuple[str, str], float]:
     """把 ``{entity: {day: kwh}}`` 摊平成 ``(entity, day) → kwh``：丢非法值、同日取最大。"""
     day_values: dict[tuple[str, str], float] = {}
-    for entity_id, per_day in (totals or {}).items():
+    # 先落到局部变量再迭代：Cython 3.3.0 会在 `(totals or {}).items()` 这种
+    # 「带 `dict[...] | None` 注解的参数 + or 兜底 + 直接 .items()」的组合上崩在
+    # AnalyseExpressionsTransform（SimpleCallNode.args 为 None），构建期直接失败。
+    backfill = totals or {}
+    for entity_id, per_day in backfill.items():
         if not isinstance(per_day, dict):
             continue
         for day, kwh in per_day.items():

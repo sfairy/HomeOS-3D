@@ -75,6 +75,15 @@ MOTION_SOURCES = ("auto", "opener", "contact")
 #: 布尔字段（其余非数值字段一律按字符串校验）。
 WINDOW_BOOLEAN_FIELDS = frozenset({"estimateMotion"})
 
+#: 需要按「字符串 + 长度」校验的字段（字段集去掉数值字段与布尔字段）。
+#:
+#: 必须落成模块级常量，不能在循环里现算：Cython 3.3.0 的 OptimizeBuiltinCalls 会把
+#: `SET - DICT.keys() - SET` 里的 `.keys()` 调用节点替换成属性访问后把 `args` 置为
+#: `None`，随后 `MethodDispatcherTransform` 对同一个节点二次派发时崩在
+#: ``TypeError: 'NoneType' object is unsliceable``（构建期直接失败）。运算符链越长
+#: 越容易命中；模块级常量顺带把每轮循环的集合运算也省掉了。
+WINDOW_TEXT_FIELDS = frozenset(WINDOW_BINDING_FIELDS) - frozenset(WINDOW_BINDING_RANGES) - WINDOW_BOOLEAN_FIELDS
+
 #: 绑定上限：再多也该拆控件了。
 MAX_WINDOW_BINDINGS = 512
 
@@ -180,7 +189,7 @@ def validate_window_bindings(items: Any) -> None:
     for item in items:
         if not isinstance(item, dict) or set(item) - WINDOW_BINDING_FIELDS:
             fail()
-        for key in WINDOW_BINDING_FIELDS - WINDOW_BINDING_RANGES.keys() - WINDOW_BOOLEAN_FIELDS:
+        for key in WINDOW_TEXT_FIELDS:
             value = item.get(key, "")
             limit = 1500 if key == "modelId" else 255
             if not isinstance(value, str) or len(value) > limit:

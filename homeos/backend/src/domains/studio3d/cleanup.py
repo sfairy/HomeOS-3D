@@ -233,7 +233,10 @@ def current_binding_sources(settings, database, scene_ids: Iterable[str], *, str
             snapshot = json.loads(path.read_text(encoding="utf-8"))
             if not isinstance(snapshot, dict):
                 raise ValueError("invalid snapshot")
-        except OSError, UnicodeDecodeError, ValueError:
+        # `# fmt: skip`：括号不能省，否则 ruff format（target py314）会按 PEP 758
+        # 改写成无括号形式，而 Cython 3.3.0 会把后者按 `except A as B:` 误解析
+        # （3 个以上的异常名则直接解析失败）。守卫见 gate:infra 的 check:cython。
+        except (OSError, UnicodeDecodeError, ValueError):  # fmt: skip
             if strict:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -486,7 +489,7 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings, *, asset_e
                 continue
             try:
                 payload = json.loads(snapshot.read_text(encoding="utf-8"))
-            except OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError:
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError):  # fmt: skip
                 logger.warning("3D 交互场景快照无法解析，跳过级联清理：%s", snapshot, exc_info=True)
                 continue
             if is_template_scene(payload):
