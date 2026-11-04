@@ -1,7 +1,6 @@
 import { WEATHER_COLOR } from "./colors";
 import type { WeatherFrame } from "./frame";
 import {
-  HAIL_PARTICLES,
   RAIN_FAR_PARTICLES,
   RAIN_MID_PARTICLES,
   RAIN_NEAR_PARTICLES,
@@ -9,6 +8,7 @@ import {
   SNOW_NEAR_PARTICLES,
   type WeatherParticle,
 } from "./particles";
+import { rainTiltRatio } from "./sprites";
 
 const TAU = Math.PI * 2;
 /** 雨丝基础长度（CSS px），随景深与 `rainScale` 放大。 */
@@ -31,8 +31,12 @@ type RainLayerConfig = {
   speed: number;
   length: number;
   alpha: number;
-  drift: number;
   tiltIndex: number;
+  /**
+   * 贴图斜率（水平位移 / 纵向高度）。横向速度必须按它算：贴图怎么斜，
+   * 雨滴就该怎么走，否则动画方向与贴图倾角互相打架。
+   */
+  tiltRatio: number;
 };
 
 function advanceAndDrawRain(
@@ -44,10 +48,13 @@ function advanceAndDrawRain(
   const sprite = frame.sprites.rainSprite(config.tiltIndex);
   if (!sprite) return;
   const drawWidth = (config.length * sprite.width) / sprite.height;
+  // 竖直位移（屏幕高度/秒）× 贴图斜率 = 水平位移（屏幕高度/秒），再换成屏幕宽度归一。
+  const driftScale = config.tiltRatio * (height / width);
   for (let index = 0; index < config.count; index++) {
     const drop = particles[index];
-    drop.y += deltaSeconds * (0.55 + drop.z * 0.75) * config.speed;
-    drop.x += deltaSeconds * config.drift * drop.z;
+    const fall = deltaSeconds * (0.55 + drop.z * 0.75) * config.speed;
+    drop.y += fall;
+    drop.x += fall * driftScale;
     if (drop.y > 1.04) {
       drop.y = -0.04;
       drop.x = Math.random();
@@ -72,33 +79,39 @@ function drawRain(frame: WeatherFrame, tiltIndex: number) {
   const speed = preset.rainSpeed || 1;
   const depth = preset.rainDepth ?? 0.5;
   const budget = frame.density * frame.quality;
-  const drift = tiltIndex * 2.4 * 0.35;
+  const tiltRatio = rainTiltRatio(tiltIndex);
   // 远：细密低透明，量大；中：主视觉；近：少量、粗、带柔焦（贴图本身是渐隐尾）。
   advanceAndDrawRain(frame, frame.particles.rainFar, {
     count: Math.min(RAIN_FAR_PARTICLES, Math.floor(rain * 260 * budget)),
     speed: speed * 0.8,
     length: (RAIN_BASE_STREAK + 8 * scale) * 0.7,
     alpha: 0.22,
-    drift: drift * 0.6,
     tiltIndex,
+    tiltRatio,
   });
   advanceAndDrawRain(frame, frame.particles.rainMid, {
     count: Math.min(RAIN_MID_PARTICLES, Math.floor(rain * 150 * budget)),
     speed,
     length: RAIN_BASE_STREAK + 16 * scale,
     alpha: 0.4,
-    drift,
     tiltIndex,
+    tiltRatio,
   });
   advanceAndDrawRain(frame, frame.particles.rainNear, {
     count: Math.min(RAIN_NEAR_PARTICLES, Math.floor(rain * 90 * depth * budget)),
     speed: speed * 1.25,
     length: RAIN_BASE_STREAK + RAIN_DEPTH_STREAK * scale,
     alpha: 0.55,
-    drift: drift * 1.4,
     tiltIndex,
+    tiltRatio,
   });
 }
+
+/** 雪花最小可见半径（CSS px）：远景雪若按 `size * z` 直接算会不足 0.5px，等于没画。 */
+const MIN_SNOW_RADIUS = 0.9;
+/** 雪花下落速度：远景慢、近景快，但整体要能在 6~18 秒内穿过画面。 */
+const SNOW_FALL_BASE = 0.045;
+const SNOW_FALL_DEPTH = 0.11;
 
 function drawSnowFlake(
   frame: WeatherFrame,
@@ -108,14 +121,14 @@ function drawSnowFlake(
 ) {
   const { ctx, width, height, deltaSeconds } = frame;
   // 雪花边落边左右飘，飘的相位由 seed 固定，同一片雪花不会跳相。
-  flake.y += deltaSeconds * (0.03 + flake.z * 0.08);
+  flake.y += deltaSeconds * (SNOW_FALL_BASE + flake.z * SNOW_FALL_DEPTH);
   flake.x += deltaSeconds * flake.z * Math.sin(frame.elapsedSeconds * 0.8 + flake.seed) * 0.03;
   if (flake.y > 1.03) {
     flake.y = -0.03;
     flake.x = Math.random();
   }
   flake.x = ((flake.x % 1) + 1) % 1;
-  const radius = flake.size * flake.z * scale;
+  const radius = Math.max(MIN_SNOW_RADIUS, flake.size * flake.z * scale);
   if (!soft) {
     ctx.globalAlpha = 0.25 + flake.z * 0.4;
     ctx.beginPath();
@@ -143,49 +156,21 @@ function drawSnow(frame: WeatherFrame) {
     drawSnowFlake(frame, frame.particles.snowNear[index], soft, scale);
 }
 
-function drawHail(frame: WeatherFrame, tiltIndex: number) {
-  const { ctx, width, height, deltaSeconds } = frame;
-  const count = Math.min(
-    HAIL_PARTICLES,
-    Math.floor((frame.preset.hail || 0) * 200 * frame.density * frame.quality),
-  );
-  const sprite = frame.sprites.rainSprite(tiltIndex);
-  for (let index = 0; index < count; index++) {
-    const stone = frame.particles.hail[index];
-    // 冰雹比雨快得多，且不带长拖尾，靠短亮条与雪花区分。
-    stone.y += deltaSeconds * (0.9 + stone.z * 1.2);
-    if (stone.y > 1.04) {
-      stone.y = -0.04;
-      stone.x = Math.random();
-    }
-    const length = 5 + stone.z * 9;
-    ctx.globalAlpha = 0.4 + stone.z * 0.5;
-    if (sprite) {
-      const drawWidth = (length * sprite.width) / sprite.height;
-      ctx.drawImage(
-        sprite,
-        stone.x * width - drawWidth / 2,
-        stone.y * height - length,
-        drawWidth,
-        length,
-      );
-    } else {
-      ctx.fillRect(stone.x * width, stone.y * height - length, 1.4, length);
-    }
-  }
-}
-
-/** 按预设渲染雨、雪、冰雹；三者可以同时出现（雨夹雪 / 冰雹伴小雨）。 */
+/**
+ * 按预设渲染雨与雪；两者可以同时出现（雨夹雪）。
+ *
+ * 这里只画「天上落下来的东西」，不动背景：没有全屏雾幕、没有整屏雨帘贴图。
+ * 冰雹不再是独立的天气种类，落地反馈里的「重水花」一并去掉。
+ */
 export function drawPrecipitation(frame: WeatherFrame) {
   const preset = frame.preset;
-  const tilt = rainTilt(Math.max(frame.windSpeed, preset.wind || 0), frame.gust);
+  const tilt = rainTilt(frame.windSpeed, frame.gust);
   const tiltIndex = tiltBucket(tilt);
   frame.ctx.save();
   frame.ctx.strokeStyle = WEATHER_COLOR;
   frame.ctx.fillStyle = WEATHER_COLOR;
   if (preset.rain) drawRain(frame, tiltIndex);
   if (preset.snow) drawSnow(frame);
-  if (preset.hail) drawHail(frame, tiltIndex);
   frame.ctx.restore();
   frame.ctx.globalAlpha = 1;
 }

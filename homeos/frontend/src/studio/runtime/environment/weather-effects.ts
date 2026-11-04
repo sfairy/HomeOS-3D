@@ -1,9 +1,12 @@
 /**
  * 3D 场景的天气特效层：一块盖在舞台上的 2D canvas。
  *
- * 渲染顺序（由远到近，再由近到全屏）：
- * 天空 → 云 → 日月星（含流星）→ 雾 → 地面（湿地 → 积雪 → 水花涟漪）
- * → 风（阵风带 / 风线 / 落叶）→ 雨雪冰雹 → 闪电 → 全屏调色与暗角。
+ * 渲染顺序：云 → 星 → 地面（湿地 → 积雪 → 水花涟漪）→ 雨雪 → 闪电。
+ *
+ * **只画物体，不碰背景**：这里没有天空渐变、没有云幕、没有雾幕，也没有全屏调色与
+ * 暗角。天气层是盖在 3D 舞台上的一层透明画布，任何全屏上色都会削弱户型、家具与
+ * 设备图标的可读性——画面里只允许出现具体的元素：雨丝、雪花、漂移的云朵、
+ * 闪动的星星，以及它们落在地板上留下的水痕。
  *
  * 要点：
  * - **按需出帧**：只有当前天气需要动效且页面可见时才起帧循环，暂停时完全不出帧
@@ -21,21 +24,17 @@ import {
   type WeatherEffectKey,
 } from "@/studio/platform/weather-settings";
 
-import { createCelestialRenderer } from "./weather/celestial";
 import { createCloudRenderer } from "./weather/clouds";
 import type { WeatherFrame } from "./weather/frame";
-import { createFogRenderer } from "./weather/fog";
-import { createGradeRenderer } from "./weather/grade";
 import { createGroundRenderer } from "./weather/ground";
 import { fallbackGroundQuad, type WeatherGroundQuad } from "./weather/ground-quad";
 import { createParticlePool, disposeParticlePool } from "./weather/particles";
 import { drawPrecipitation } from "./weather/precipitation";
 import { WEATHER_EFFECT_PRESETS, type WeatherEffectPreset } from "./weather/presets";
 import { createQualityGovernor } from "./weather/quality";
-import { createSkyRenderer } from "./weather/sky";
 import { createSpriteCache } from "./weather/sprites";
+import { createStarRenderer } from "./weather/stars";
 import { createThunderRenderer } from "./weather/thunder";
-import { createWindRenderer } from "./weather/wind";
 
 /** 设备像素比上限与「画布总像素」预算。 */
 const MAX_DEVICE_PIXEL_RATIO = 1.5;
@@ -103,14 +102,10 @@ export function createWeatherEffects(host: any) {
 
   const particles = createParticlePool();
   const sprites = createSpriteCache(doc);
-  const sky = createSkyRenderer();
   const clouds = createCloudRenderer();
-  const celestial = createCelestialRenderer();
-  const fog = createFogRenderer(doc);
+  const stars = createStarRenderer();
   const ground = createGroundRenderer();
-  const wind = createWindRenderer();
   const thunder = createThunderRenderer();
-  const grade = createGradeRenderer();
   const quality = createQualityGovernor();
   const groundDebug = isGroundDebugEnabled(win);
 
@@ -128,8 +123,12 @@ export function createWeatherEffects(host: any) {
   /** 舞台投影来的真实地面；没收到过就用兜底透视带，保证预览按钮一点就有效果。 */
   let groundQuad: WeatherGroundQuad = fallbackGroundQuad();
 
+  /** 帧循环是否在跑：定格态（减弱动效 / 停帧）下才需要手动补一帧。 */
+  let isLoopRunning = false;
+
   /** 停帧：清掉待处理的 rAF/定时器，并让下一帧重新按 0 步进起算。 */
   function suspend() {
+    isLoopRunning = false;
     loop.setAvailable(false);
     lastFrameTimestamp = null;
   }
@@ -137,6 +136,7 @@ export function createWeatherEffects(host: any) {
   /** 起帧：只在「已启用 + 有天气态 + 画布可用 + 页面可见 + 未减弱动效」时才真的出帧。 */
   function resume() {
     if (disposed || !ctx || !ready || !state || doc.hidden || reducedMotion) return;
+    isLoopRunning = true;
     loop.setAvailable(true);
     loop.wake();
   }
@@ -183,17 +183,13 @@ export function createWeatherEffects(host: any) {
       preset,
       particles,
     };
-    // 闪电强度要先算：湿地反光与全屏调色都要用它，不能等画到闪电层才知道。
+    // 闪电强度要先算：湿地反光要用它把地面提亮，不能等画到闪电层才知道。
     frame.flash = thunder.advance(frame, preset.thunder === true);
-    sky.draw(frame);
     clouds.draw(frame);
-    celestial.draw(frame);
-    fog.draw(frame);
+    stars.draw(frame);
     ground.draw(frame);
-    wind.draw(frame);
     drawPrecipitation(frame);
     thunder.draw(frame);
-    grade.draw(frame);
     if (groundDebug) strokeGroundQuad(frame);
   }
 
@@ -252,12 +248,14 @@ export function createWeatherEffects(host: any) {
       const nextState = weatherEffectKey(input);
       const nextWindSpeed = Math.min(1, weatherWindSpeed(input) / WIND_SPEED_BASE);
       const stateChanged = nextState !== state;
+      // 风只改雨丝的倾角与阵风强度、不改天气键：动效在跑时下一帧自然吃到新值，
+      // 定格态则要补一帧，否则实体风速变了画面毫无反应。
+      const windChanged = nextWindSpeed !== windSpeed;
       if (stateChanged) {
         // 换天气就重置闪电节奏，否则切到雷雨会立刻补闪一次。
         state = nextState;
         preset = nextState ? WEATHER_EFFECT_PRESETS[nextState] : null;
         thunder.reset();
-        celestial.reset();
       }
       windSpeed = nextWindSpeed;
       const wasEnabled = ready;
@@ -271,7 +269,7 @@ export function createWeatherEffects(host: any) {
       }
       // 只在「换了天气」或「刚从隐藏/禁用回到可见」时定格重绘一帧；
       // 状态风暴里同一天气反复推送不会带来重复清屏 + 重画。
-      if (stateChanged || wasEnabled !== ready) render(0);
+      if (stateChanged || wasEnabled !== ready || (windChanged && !isLoopRunning)) render(0);
       resume();
     },
     /**
@@ -281,8 +279,9 @@ export function createWeatherEffects(host: any) {
     setGround(quad: WeatherGroundQuad | null) {
       if (disposed) return;
       groundQuad = quad || fallbackGroundQuad();
-      // 立刻定格重绘一帧，避免转视角时水面「晚一拍」才贴上去。
-      if (ready && preset && ctx) render(0);
+      // 帧循环在跑时下一帧自然用新四边形重画；只有定格态（减弱动效 / 停帧）才需要
+      // 立刻补一帧。否则相机一动，每条地面投影消息都会多整屏重绘一次。
+      if (!isLoopRunning && !doc.hidden && ready && preset && ctx) render(0);
     },
     resize: measure,
     dispose() {
@@ -296,10 +295,7 @@ export function createWeatherEffects(host: any) {
       canvas.remove();
       disposeParticlePool(particles);
       sprites.clear();
-      sky.reset();
-      fog.reset();
       thunder.reset();
-      grade.reset();
       ground.reset();
       quality.reset();
     },

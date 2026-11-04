@@ -1,102 +1,101 @@
 /**
- * 云层。
+ * 云：一朵朵**漂移的白云**，只出现在「多云」。
  *
- * 分两种形态，这是「白云不是到处都有」的关键：
- * - **puff（团云）**：只有晴 / 晴间多云 / 大风 才画，几朵清晰的白云飘在蓝天里。
- * - **ceiling（云幕）**：阴 / 雨 / 雪 / 雷暴 用一整条压暗的灰蓝色带，不画白色团块——
- *   阴雨天的天空是「没有层次的一片灰」，硬画白团会像晴天漏了云进来。
+ * 这里刻意没有「云幕」形态：铺满画面宽度的灰带会把下面的户型、家具与设备状态
+ * 一起盖住，属于背景遮盖层——天气层不允许出现任何整屏填充。
+ * 所以云只有一种画法：**一张云的贴图**按不同远近、不同速度横向漂过画面，
+ * 越近的云越大越快，靠视差拉开层次。
  *
- * 两种形态都受 `overlay-caps` 的不透明度与高度上限约束：云可以看得见，
- * 但不能把下面的户型、家具与设备状态压住。
+ * 云只在画面上部活动，并且给每朵云单独限制不透明度上限，绝不下探到户型主体上。
  */
+
 import type { WeatherFrame } from "./frame";
-import { CLOUD_MAX_ALPHA, CLOUD_MAX_CENTER, clampAlpha } from "./overlay-caps";
-import type { WeatherCloudCoverage } from "./presets";
 
-type CloudShape = "none" | "puff" | "ceiling";
+/** 单朵云的不透明度上限：再高就会像一块盖在画面上的白布。 */
+const CLOUD_MAX_ALPHA = 0.62;
+/** 云朵在贴图纵向上的视觉中心（贴图里云体略偏下，绘制时要按它对齐）。 */
+const CLOUD_SPRITE_CENTER = 0.6;
+/** 云朵最大宽度（占画面宽度比例）。 */
+const CLOUD_MAX_WIDTH = 0.34;
+/** 云朵中心允许下探到画面高度的比例。 */
+const CLOUD_MAX_CENTER = 0.34;
+/** 云朵贴图颜色：接近中性白，避免在暖色场景里发黄。 */
+const CLOUD_RGB = "250,252,255";
 
-type CloudTone = {
-  shape: CloudShape;
-  /** 云体颜色 `r,g,b`。 */
-  rgb: string;
-  /** 云体浓淡；最终还会被 `CLOUD_MAX_ALPHA` 压一道。 */
-  alpha: number;
-  /** 团云朵数。 */
-  count: number;
-  /** 每秒横向漂移（画面宽度比例）。 */
-  speed: number;
-  /** 云层中心最多下探到画面高度的比例。 */
-  ceiling: number;
+type CloudLayout = {
+  /** 纵向位置（占画面高度比例，绘制前还会被 `CLOUD_MAX_CENTER` 夹一道）。 */
+  y: number;
+  /** 远近系数：越大越近（更大、更快、更不透明）。 */
+  depth: number;
+  /** 初始相位（0~1），让云朵不在同一列排队。 */
+  phase: number;
+  /** 尺寸系数（0.7~1.2），同一远近也有大有小。 */
+  size: number;
 };
 
-const CLOUD_TONES: Readonly<Record<WeatherCloudCoverage, CloudTone>> = Object.freeze({
-  none: { shape: "none", rgb: "0,0,0", alpha: 0, count: 0, speed: 0, ceiling: 0 },
-  // 晴 / 晴间多云：真正意义上的「白云」。
-  light: { shape: "puff", rgb: "252,254,255", alpha: 0.72, count: 3, speed: 0.005, ceiling: 0.16 },
-  // 多云：仍是团云，但被遮住的太阳让它偏灰一点、低一点。
-  broken: { shape: "puff", rgb: "234,240,248", alpha: 0.58, count: 4, speed: 0.009, ceiling: 0.18 },
-  // 阴：没有白团，只有一条压下来的灰幕。
-  overcast: { shape: "ceiling", rgb: "150,160,174", alpha: 0.3, count: 0, speed: 0.008, ceiling: 0.2 },
-  // 雷暴：更低更脏的青灰。
-  storm: { shape: "ceiling", rgb: "74,82,102", alpha: 0.32, count: 0, speed: 0.014, ceiling: 0.22 },
-});
+/**
+ * 固定的云朵布局。
+ *
+ * 用常量表而不是随机生成：云朵是「一直都在」的物体，每次切天气重新随机会让
+ * 云的位置整体跳一下；固定布局 + 时间相位就能做到「云一直在，只是慢慢飘」。
+ */
+const CLOUD_LAYOUT: readonly CloudLayout[] = Object.freeze([
+  { y: 0.06, depth: 0.35, phase: 0.02, size: 0.85 },
+  { y: 0.16, depth: 0.55, phase: 0.42, size: 1.05 },
+  { y: 0.1, depth: 0.72, phase: 0.66, size: 1.12 },
+  { y: 0.24, depth: 0.48, phase: 0.2, size: 0.92 },
+  { y: 0.2, depth: 0.9, phase: 0.83, size: 1.18 },
+  { y: 0.3, depth: 0.4, phase: 0.55, size: 0.8 },
+]);
 
-function drawPuffs(frame: WeatherFrame, tone: CloudTone, raster: HTMLCanvasElement, density: number) {
+function drawCloud(
+  frame: WeatherFrame,
+  sprite: HTMLCanvasElement,
+  layout: CloudLayout,
+  amount: number,
+) {
   const { ctx, width, height } = frame;
-  const count = Math.max(2, Math.round(tone.count * (0.62 + density * 0.38) * frame.quality));
-  const ceiling = Math.min(CLOUD_MAX_CENTER, tone.ceiling);
-  const baseAlpha = clampAlpha(tone.alpha * (0.7 + density * 0.3), CLOUD_MAX_ALPHA);
-  for (let index = 0; index < count; index++) {
-    // depth 决定云团大小与漂移速度：近云大而快，远云小而慢，形成视差。
-    const depth = 0.45 + ((index * 0.37) % 1) * 0.55;
-    const cloudWidth = width * (0.2 + depth * 0.18);
-    const cloudHeight = cloudWidth * 0.5625;
-    const drift =
-      ((frame.elapsedSeconds * tone.speed * (0.5 + depth) + index * 0.41) % 1.35) - 0.18;
-    // 贴图里的云体在纵向 ~0.65 处，所以按「云心」定位，别让云压到地平线以下。
-    const centerY = height * (0.03 + ((index * 0.29) % 1) * ceiling * 0.6);
-    ctx.globalAlpha = baseAlpha * (0.55 + depth * 0.45);
-    ctx.drawImage(
-      raster,
-      drift * width - cloudWidth / 2,
-      centerY - cloudHeight * 0.6,
-      cloudWidth,
-      cloudHeight,
+  const drift = (frame.preset.cloudDrift ?? 0.03) * (0.4 + layout.depth * 0.8);
+  // 相位 + 时间 → 0~1.5 的横向位置，两端各多留 0.25 屏让云「从画面外飘进来」。
+  const progress = (((frame.elapsedSeconds * drift + layout.phase) % 1.5) + 1.5) % 1.5;
+  const cloudWidth =
+    width * Math.min(CLOUD_MAX_WIDTH, (0.14 + layout.depth * 0.2) * layout.size) * (0.85 + amount * 0.15);
+  const cloudHeight = cloudWidth * (sprite.height / sprite.width);
+  const centerX = (progress - 0.25) * width;
+  const centerY =
+    height *
+    Math.min(
+      CLOUD_MAX_CENTER,
+      layout.y + layout.depth * 0.04,
     );
-  }
-}
-
-/** 云幕：顶部一整条压暗的灰带，向下淡出；不出任何白色团块。 */
-function drawCeiling(frame: WeatherFrame, tone: CloudTone, density: number) {
-  const { ctx, width, height } = frame;
-  const bandHeight = height * Math.min(CLOUD_MAX_CENTER * 1.6, tone.ceiling * 1.5);
-  const alpha = clampAlpha(tone.alpha * (0.75 + density * 0.25), CLOUD_MAX_ALPHA);
-  // 云幕本身几乎不动，只做极缓慢的左右呼吸，避免「死了」的观感。
-  const sway = Math.sin(frame.elapsedSeconds * 0.06) * width * 0.02;
-  const band = ctx.createLinearGradient(0, 0, 0, bandHeight);
-  band.addColorStop(0, `rgba(${tone.rgb},${alpha})`);
-  band.addColorStop(0.55, `rgba(${tone.rgb},${alpha * 0.55})`);
-  band.addColorStop(1, `rgba(${tone.rgb},0)`);
-  ctx.fillStyle = band;
-  ctx.fillRect(sway - 4, 0, width + 8, bandHeight);
+  ctx.globalAlpha = Math.min(CLOUD_MAX_ALPHA, 0.34 + layout.depth * 0.3) * Math.min(1, amount);
+  ctx.drawImage(
+    sprite,
+    centerX - cloudWidth / 2,
+    centerY - cloudHeight * CLOUD_SPRITE_CENTER,
+    cloudWidth,
+    cloudHeight,
+  );
 }
 
 export function createCloudRenderer() {
-  function draw(frame: WeatherFrame) {
-    const coverage = frame.preset.clouds || "none";
-    const tone = CLOUD_TONES[coverage];
-    const density = Math.min(1, frame.preset.cloudDensity ?? 1);
-    if (tone.shape === "none" || density <= 0) return;
-    const { ctx } = frame;
-    ctx.save();
-    if (tone.shape === "puff") {
-      const raster = frame.sprites.cloudSprite(coverage, tone.rgb);
-      if (raster) drawPuffs(frame, tone, raster, density);
-    } else {
-      drawCeiling(frame, tone, density);
-    }
-    ctx.restore();
-  }
-
-  return { draw, reset() {} };
+  return {
+    draw(frame: WeatherFrame) {
+      const amount = frame.preset.clouds || 0;
+      if (amount <= 0) return;
+      const sprite = frame.sprites.cloudSprite(CLOUD_RGB);
+      if (!sprite) return;
+      const { ctx } = frame;
+      ctx.save();
+      // 画质降档时少画两朵（远的先省），但不能少到「看不出有云」。
+      const qualityCount = frame.quality >= 0.8 ? CLOUD_LAYOUT.length : CLOUD_LAYOUT.length - 2;
+      const count =
+        amount >= 0.8 ? qualityCount : Math.max(2, Math.round(qualityCount * amount * 1.2));
+      for (let index = 0; index < count; index++)
+        drawCloud(frame, sprite, CLOUD_LAYOUT[index], amount);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    },
+    reset() {},
+  };
 }

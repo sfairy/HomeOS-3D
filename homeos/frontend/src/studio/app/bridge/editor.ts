@@ -32,7 +32,7 @@ import type { DomControl } from "@app/shared/util/dom-control";
 import { domElement } from "@app/shared/util/dom-factory";
 import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 import {
-  weatherEntityId as resolveWeatherEntityId,
+  boundWeatherEntityId as resolveBoundWeatherEntityId,
   weatherEntityLabel,
   weatherEntityState,
   WEATHER_PREVIEW_TIMEOUT_MS,
@@ -2021,7 +2021,9 @@ type PopupPresetConfig = {
   // 天气效果：绑一个 `weather.*` 实体让 3D 场景跟着下雨/下雪，外加「先试看」的预览组。
   // 预览只影响 3D 画面、不动配置，12 秒后自动回到真实天气（见 runtime 的 previewWeather）。
   const weatherSection = createSection("天气效果"),
-    weatherEntityId = resolveWeatherEntityId(properties.weather),
+    // 面板显示与运行时跟随必须取同一个值：只认 `weather.entityId` 时，
+    // 旧版扁平配置下按钮会显示「绑定天气实体」，而画面其实已经在跟随该实体。
+    weatherEntityId = resolveBoundWeatherEntityId(properties),
     weatherEntityRecord = (editorOptions.entities || []).find(
       (candidateWeatherEntity: any) =>
         (candidateWeatherEntity.entityId || candidateWeatherEntity.entity_id) === weatherEntityId,
@@ -2098,15 +2100,20 @@ type PopupPresetConfig = {
       : weatherPreviewNoteDefault;
   }
   let weatherPreviewSubscribed = false;
-  /** 订阅一次即可；预览到期由运行时回调，面板重开也能立刻对齐当前预览态。 */
+  /**
+   * 订阅一次即可；预览到期由运行时回调，面板重开也能立刻对齐当前预览态。
+   *
+   * 只有真的拿到取消订阅函数才算订阅成功：视图可能还没暴露该方法（旧 runtime），
+   * 提前把标志置位会让本次面板会话永远不再重试。
+   */
   function bindWeatherPreviewSubscription(
     weatherEditorView: Interaction3dEditorView | null | undefined,
   ) {
     if (!weatherEditorView || weatherPreviewSubscribed) return;
-    weatherPreviewSubscribed = true;
     const unsubscribe = weatherEditorView.onWeatherPreviewChange?.(renderWeatherPreviewState);
-    if (typeof unsubscribe === "function")
-      inspectorAbortController.signal.addEventListener("abort", () => unsubscribe(), { once: true });
+    if (typeof unsubscribe !== "function") return;
+    weatherPreviewSubscribed = true;
+    inspectorAbortController.signal.addEventListener("abort", () => unsubscribe(), { once: true });
   }
   (weatherPreviewGroupElement.setAttribute("role", "group"),
     weatherPreviewGroupElement.setAttribute("aria-label", "天气预览"));
@@ -2118,7 +2125,8 @@ type PopupPresetConfig = {
       weatherPreviewButton.addEventListener("click", async () => {
         try {
           const weatherEditorView = await ensureEditorView();
-          if (!weatherEditorView) return;
+          if (!weatherEditorView)
+            throw new Error("3D 画布尚未就绪，请等户型加载完成后再试看天气。");
           bindWeatherPreviewSubscription(weatherEditorView);
           if (!weatherEditorView.previewWeather?.(weatherPreviewState))
             throw new Error("当前户型暂不可预览，请退出视角或范围调整后重试。");

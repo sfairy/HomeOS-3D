@@ -16,7 +16,19 @@ export const RAIN_TILT_BUCKETS = [0, 10, 20, 30] as const;
 const RAIN_SPRITE_WIDTH = 40;
 const RAIN_SPRITE_HEIGHT = 96;
 
-/** 亮头 + 渐隐尾的雨丝，倾斜角随档位变化。 */
+/** 档位 → 贴图斜率（水平位移 / 纵向高度）。绘制端据此算横向漂移，动画方向才与贴图一致。 */
+export function rainTiltRatio(tiltIndex: number): number {
+  const index = Math.max(0, Math.min(RAIN_TILT_BUCKETS.length - 1, tiltIndex));
+  return RAIN_TILT_BUCKETS[index] / RAIN_SPRITE_HEIGHT;
+}
+
+/**
+ * 亮头 + 渐隐尾的雨丝，倾斜角随档位变化。
+ *
+ * 斜率必须由 `tilt` 真正决定：旧实现把 `tilt` 只当成整体平移、末点固定偏 -6px，
+ * 于是贴图永远是近乎竖直的，而粒子按倾角飞快横移，观感是「雨丝竖直下坠、
+ * 同时整片横着飘」。
+ */
 function paintRainStreak(paintCtx: CanvasRenderingContext2D, width: number, height: number, tilt: number) {
   const gradient = paintCtx.createLinearGradient(0, 0, 0, height);
   gradient.addColorStop(0, "rgba(255,246,221,0)");
@@ -24,13 +36,14 @@ function paintRainStreak(paintCtx: CanvasRenderingContext2D, width: number, heig
   gradient.addColorStop(1, "rgba(255,250,236,1)");
   paintCtx.strokeStyle = gradient;
   paintCtx.lineWidth = 3;
+  paintCtx.lineCap = "round";
   paintCtx.beginPath();
-  paintCtx.moveTo(width - tilt, 0);
-  paintCtx.lineTo(width - tilt - 6, height);
+  paintCtx.moveTo(width / 2 + tilt / 2, 0);
+  paintCtx.lineTo(width / 2 - tilt / 2, height);
   paintCtx.stroke();
 }
 
-/** 通用柔光球：近景雪花、太阳/月亮光晕、雷电辉光都用它。 */
+/** 通用柔光球：近景雪花、闪电辉光、星点都用它。 */
 function paintGlow(paintCtx: CanvasRenderingContext2D, size: number, rgb: string) {
   const radius = size / 2;
   const gradient = paintCtx.createRadialGradient(radius, radius, 0, radius, radius, radius);
@@ -41,14 +54,20 @@ function paintGlow(paintCtx: CanvasRenderingContext2D, size: number, rgb: string
   paintCtx.fillRect(0, 0, size, size);
 }
 
-/** 云团：几个重叠的径向渐变拼成一朵，取色随天气压暗。 */
+/**
+ * 一朵云：几个重叠的径向渐变团拼成，**贴图本身就是云的全部**。
+ *
+ * 关键约束：云是「一片片具体的物体」，所以只能靠这张贴图 `drawImage` 出来，
+ * 绝不能用一条铺满画面宽度的渐变带（那会变成背景遮盖层，压住户型）。
+ * 贴图四周留足透明边，避免相邻云朵相互切出硬边。
+ */
 function paintCloud(paintCtx: CanvasRenderingContext2D, width: number, height: number, rgb: string) {
   const blobs = [
-    [0.34, 0.66, 0.4],
-    [0.52, 0.56, 0.46],
-    [0.68, 0.68, 0.36],
-    [0.44, 0.74, 0.32],
-    [0.6, 0.78, 0.28],
+    [0.32, 0.62, 0.34],
+    [0.5, 0.52, 0.4],
+    [0.68, 0.64, 0.3],
+    [0.44, 0.7, 0.28],
+    [0.58, 0.72, 0.24],
   ];
   for (const [centerX, centerY, relativeRadius] of blobs) {
     const radius = width * relativeRadius * 0.5;
@@ -56,46 +75,11 @@ function paintCloud(paintCtx: CanvasRenderingContext2D, width: number, height: n
     const y = height * centerY;
     const gradient = paintCtx.createRadialGradient(x, y, 0, x, y, radius);
     gradient.addColorStop(0, `rgba(${rgb},0.92)`);
-    gradient.addColorStop(0.6, `rgba(${rgb},0.42)`);
+    gradient.addColorStop(0.6, `rgba(${rgb},0.4)`);
     gradient.addColorStop(1, `rgba(${rgb},0)`);
     paintCtx.fillStyle = gradient;
     paintCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
-}
-
-/** 横向雾带：中间厚、上下缘散开的条状贴图，拉宽后就是一层雾。 */
-function paintFogBand(paintCtx: CanvasRenderingContext2D, width: number, height: number, tint: string) {
-  const gradient = paintCtx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, `rgba(${tint},0)`);
-  gradient.addColorStop(0.45, `rgba(${tint},0.5)`);
-  gradient.addColorStop(0.62, `rgba(${tint},0.42)`);
-  gradient.addColorStop(1, `rgba(${tint},0)`);
-  paintCtx.fillStyle = gradient;
-  paintCtx.fillRect(0, 0, width, height);
-  // 左右两端再压一道，避免雾带边缘出现硬直切边。
-  const edge = paintCtx.createLinearGradient(0, 0, width, 0);
-  edge.addColorStop(0, "rgba(0,0,0,0)");
-  edge.addColorStop(0.5, "rgba(0,0,0,1)");
-  edge.addColorStop(1, "rgba(0,0,0,0)");
-  paintCtx.globalCompositeOperation = "destination-in";
-  paintCtx.fillStyle = edge;
-  paintCtx.fillRect(0, 0, width, height);
-}
-
-/** 落叶：一片带叶脉的椭圆叶子，风大时才用。 */
-function paintLeaf(paintCtx: CanvasRenderingContext2D, size: number) {
-  paintCtx.translate(size / 2, size / 2);
-  paintCtx.rotate(-0.5);
-  paintCtx.fillStyle = "rgba(198,148,74,0.9)";
-  paintCtx.beginPath();
-  paintCtx.ellipse(0, 0, size * 0.3, size * 0.14, 0, 0, Math.PI * 2);
-  paintCtx.fill();
-  paintCtx.strokeStyle = "rgba(126,92,44,0.75)";
-  paintCtx.lineWidth = 1.2;
-  paintCtx.beginPath();
-  paintCtx.moveTo(-size * 0.3, 0);
-  paintCtx.lineTo(size * 0.28, 0);
-  paintCtx.stroke();
 }
 
 export function createSpriteCache(doc: Document) {
@@ -126,18 +110,11 @@ export function createSpriteCache(doc: Document) {
     glowSprite(rgb: string) {
       return get(`glow:${rgb}`, 96, 96, (paintCtx, width) => paintGlow(paintCtx, width, rgb));
     },
-    cloudSprite(tone: string, rgb: string) {
-      return get(`cloud:${tone}`, 512, 288, (paintCtx, width, height) =>
+    /** 云朵贴图（整朵云，含透明边）。 */
+    cloudSprite(rgb: string) {
+      return get(`cloud:${rgb}`, 512, 288, (paintCtx, width, height) =>
         paintCloud(paintCtx, width, height, rgb),
       );
-    },
-    fogBandSprite(tint: string) {
-      return get(`fogband:${tint}`, 512, 160, (paintCtx, width, height) =>
-        paintFogBand(paintCtx, width, height, tint),
-      );
-    },
-    leafSprite() {
-      return get("leaf", 40, 40, (paintCtx, width) => paintLeaf(paintCtx, width));
     },
     clear() {
       sprites.clear();

@@ -22,8 +22,9 @@ import {
 import {
   WEATHER_EFFECTS,
   WEATHER_PREVIEW_TIMEOUT_MS,
+  boundWeatherEntityId,
   weatherEffectKey,
-  weatherEntityId,
+  weatherEntityIds,
   weatherEntityState,
 } from "@/studio/platform/weather-settings";
 import { ensureInteraction3dSelectControls } from "../config-ui/select-controls";
@@ -1139,9 +1140,12 @@ export function mountInteraction3d(
       ...(componentProperties.environment?.waterHeaters || []),
       ...(componentProperties.environment?.curtains || []),
       ...temperatureHumidityEntities(componentProperties.environment?.temperatureHumidity),
-      ...(componentProperties.weather?.entityId
-        ? [{ entityId: componentProperties.weather.entityId }]
-        : []),
+      // 天气实体必须按「所有可能的绑定形状」登记：只写 `weather.entityId` 时，
+      // 旧版配置（顶层 `weatherEntityId` / `weather.entity_id`）下实体不会进订阅集合，
+      // 舞台拿不到任何状态更新，画面上就是「绑了天气实体却始终没有天气」。
+      ...weatherEntityIds(componentProperties).map((weatherTrackedEntityId) => ({
+        entityId: weatherTrackedEntityId,
+      })),
       ...(componentProperties.devices?.nas || []),
       ...(componentProperties.devices?.speakers || []),
       ...(componentProperties.devices?.televisions || []),
@@ -1269,14 +1273,10 @@ export function mountInteraction3d(
    * 除了标准的 `weather.entityId`，还兼吃 `entity_id` 与顶层 `weatherEntityId`：
    * 后端序列化、旧版配置、以及部分集成写进来的形状并不总是驼峰，
    * 少读一种就会表现为「绑了实体却没有任何效果」（这正是之前的实际故障）。
-   * 取值统一走 `weatherEntityId()` 做域名与长度校验，非法值直接当未绑定。
+   * 取值统一走 platform 的 `weatherEntityIds()`（域名 / 长度校验 + 排序），
+   * 与实体订阅共用同一份清单——两处口径不一致时，状态根本不会推下来。
    */
-  const boundWeatherEntityId = () =>
-    weatherEntityId(componentProperties.weather) ||
-    weatherEntityId({ entityId: componentProperties.weatherEntityId }) ||
-    weatherEntityId({
-      entityId: (componentProperties.weather as { entity_id?: unknown } | undefined)?.entity_id,
-    });
+  const currentWeatherEntityId = () => boundWeatherEntityId(componentProperties);
   /** 广播当前预览态；没有预览时传空串。 */
   function notifyWeatherPreview() {
     for (const listener of weatherPreviewListeners) listener(weatherPreviewCondition);
@@ -1305,11 +1305,19 @@ export function mountInteraction3d(
   /** 同步天气态；`states` 省略时回落到当前订阅快照。 */
   function syncWeatherEffects(states: any = null) {
     if (isDisposed) return;
-    const weatherTargetId = boundWeatherEntityId();
+    const weatherTargetId = currentWeatherEntityId();
     // 没绑定、也没在预览：连 canvas 都不建，避免给不关心天气的户型带来任何开销。
     if (!weatherEffects && !weatherTargetId && !weatherPreviewCondition) return;
+    // 解绑（或实体 ID 变成空串）后把已经建过的 canvas 一起收掉：留着它虽然 `hidden`，
+    // 但会永久占着一个 DOM 节点 + 一份粒子池，而且下次绑定要复用一个「上一次天气」的旧层。
+    if (!weatherTargetId && !weatherPreviewCondition) {
+      (weatherEffects?.dispose(), (weatherEffects = null));
+      return;
+    }
     const isActive = weatherEffectsActive();
-    if (!isActive && weatherPreviewCondition) closeWeatherPreview();
+    // 不可见**不结束预览**：这条路径会被每次可见性重算命中（滚动、切页、其它弹窗盖上来），
+    // 在这里顺手取消预览会让「点预览按钮」在不可见的那一帧自我了断——按钮已高亮、
+    // 画面却什么都没发生。预览的收尾只交给 12 秒超时与 `setEditable` / dispose。
     if (!weatherEffects && isActive && (weatherTargetId || weatherPreviewCondition))
       (weatherEffects = createWeatherEffects(hostElement)),
         weatherEffects.setGround?.(weatherGroundQuad);
@@ -1518,6 +1526,10 @@ export function mountInteraction3d(
             ...(componentProperties.environment?.waterHeaters || []).map(
               (waterHeaterExtraEntity: any) => waterHeaterExtraEntity.entityId,
             ),
+            // `lightStream.configure` 按域白名单过滤第一参数，白名单里没有 `weather.*`：
+            // 天气实体只有走 additionalEntityIds 才会真正订阅。漏了这一步时
+            // 首帧 snapshot 与后续 patch 都不会带天气实体，天气层永远读不到状态。
+            ...weatherEntityIds(componentProperties),
           ],
         },
       ),
@@ -2689,6 +2701,9 @@ export function mountInteraction3d(
         (onLoadError = previewOptions.onLoadError || (() => {})),
         (onFocusChange = previewOptions.onFocusChange || (() => {})),
         configureStateSubscriptions(),
+        // 借画面预览会换一套组件属性：天气实体可能完全没绑 / 绑的是别的实体，
+        // 不重新同步的话，上一层天气会一直挂在借用画面上直到下一条 HA 状态到达。
+        syncWeatherEffects(),
         syncBackgroundHidden(),
         (lastConfigJson = ""),
         (lastSentConfigPayload = null),
@@ -2715,6 +2730,8 @@ export function mountInteraction3d(
           (hostElement.style.pointerEvents = savedPointerEvents),
           viewportElement?.removeAttribute?.("data-i3d-preview-scope"),
           configureStateSubscriptions(),
+          // 归还画面：天气层要跟着恢复成宿主自己的绑定（对应上面开场的同步）。
+          syncWeatherEffects(),
           syncBackgroundHidden(),
           (lastConfigJson = ""),
           (lastSentConfigPayload = null),

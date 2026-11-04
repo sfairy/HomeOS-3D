@@ -44,6 +44,9 @@ type WeatherGroundEmitterOptions = {
   postMessage: (message: WeatherGroundMessage) => void;
   now?: () => number;
   minIntervalMs?: number;
+  /** 补发定时器（默认全局 `setTimeout`）；测试注入假实现。 */
+  schedule?: (callback: () => void, delayMs: number) => any;
+  cancel?: (handle: any) => void;
 };
 
 const DEFAULT_MIN_INTERVAL_MS = 120;
@@ -56,11 +59,19 @@ export function createWeatherGroundEmitter({
   postMessage,
   now = () => performance.now(),
   minIntervalMs = DEFAULT_MIN_INTERVAL_MS,
+  schedule = (callback: () => void, delayMs: number) => setTimeout(callback, delayMs),
+  cancel = (handle: any) => clearTimeout(handle),
 }: WeatherGroundEmitterOptions) {
   let lastKey = "";
   let lastSentAt = -Infinity;
   let revision = 0;
   let disposed = false;
+  /** 被节流掉的那一帧的补发定时器。 */
+  let trailingTimer: any = null;
+
+  function clearTrailing() {
+    trailingTimer !== null && (cancel(trailingTimer), (trailingTimer = null));
+  }
 
   /** 地板四角（世界坐标）按「minX/minZ → maxX/minZ → maxX/maxZ → minX/maxZ」展开。 */
   function cornerWorldPoints(bounds: WeatherGroundBounds) {
@@ -87,29 +98,41 @@ export function createWeatherGroundEmitter({
     return points.map(toScreenPoint);
   }
 
+  /** 相机 / 尺寸变化时调用；内部自行判断是否真的需要发消息。 */
+  function sync(force = false) {
+    if (disposed) return;
+    const viewport = getViewportSize();
+    if (!(viewport.width > 0) || !(viewport.height > 0)) return;
+    const bounds = getBounds();
+    if (!bounds) return;
+    clearTrailing();
+    const cameraKey = getCameraKey();
+    const key = `${cameraKey}|${viewport.width}x${viewport.height}|${bounds.minX},${bounds.maxX},${bounds.minZ},${bounds.maxZ}`;
+    if (!force && key === lastKey) return;
+    const timestamp = now();
+    if (!force && timestamp - lastSentAt < minIntervalMs) {
+      // 节流掉的这一帧必须补发：相机停下来的最后一次变化往往正好落在窗口内，
+      // 没有补发时四边形会永久停在「停下来之前」的位置，水花/湿地就贴偏了。
+      trailingTimer = schedule(() => {
+        trailingTimer = null;
+        sync();
+      }, minIntervalMs - (timestamp - lastSentAt));
+      return;
+    }
+    const quad = projectQuad(bounds);
+    if (!quad) return;
+    lastKey = key;
+    lastSentAt = timestamp;
+    revision += 1;
+    postMessage({ type: "weather-ground", quad, revision });
+  }
+
   return {
-    /** 相机 / 尺寸变化时调用；内部自行判断是否真的需要发消息。 */
-    sync(force = false) {
-      if (disposed) return;
-      const viewport = getViewportSize();
-      if (!(viewport.width > 0) || !(viewport.height > 0)) return;
-      const bounds = getBounds();
-      if (!bounds) return;
-      const cameraKey = getCameraKey();
-      const key = `${cameraKey}|${viewport.width}x${viewport.height}|${bounds.minX},${bounds.maxX},${bounds.minZ},${bounds.maxZ}`;
-      if (!force && key === lastKey) return;
-      const timestamp = now();
-      if (!force && timestamp - lastSentAt < minIntervalMs) return;
-      const quad = projectQuad(bounds);
-      if (!quad) return;
-      lastKey = key;
-      lastSentAt = timestamp;
-      revision += 1;
-      postMessage({ type: "weather-ground", quad, revision });
-    },
+    sync,
     dispose() {
       disposed = true;
       lastKey = "";
+      clearTrailing();
     },
   };
 }

@@ -19,13 +19,13 @@ export type WeatherFrame = {
   gust: number;
   /** 自适应画质因子（0.55 / 0.8 / 1），只影响数量与可选图层。 */
   quality: number;
-  /** 当前雷电闪光强度 0~1；由雷电层在绘制前算好，湿地反光与全屏白闪共用。 */
+  /** 当前雷电闪光强度 0~1；由雷电层在绘制前算好，湿地反光据此短暂提亮。 */
   flash: number;
   /** 是否为减弱动效模式：只画定格画面，不推进生命周期。 */
   reducedMotion: boolean;
   /** 真实地面四边形（归一化屏幕坐标）；舞台没发投影时为兜底透视带。 */
   ground: WeatherGroundQuad;
-  /** 预渲染贴图缓存（雨丝、柔光、云、雾带、月、落叶）。 */
+  /** 预渲染贴图缓存（雨丝、雪花柔光球）。 */
   sprites: SpriteCache;
   preset: WeatherEffectPreset;
   particles: WeatherParticlePool;

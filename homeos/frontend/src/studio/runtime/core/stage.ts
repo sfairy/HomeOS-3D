@@ -1817,6 +1817,48 @@ export function mountStage(mountOptions: any) {
     root: unknown;
     bounds: WeatherGroundBounds | null;
   } | null = null;
+  /**
+   * 包围盒计算只需要节点上的这几个字段（`three` 本身在这里是 any，没必要为它引入类型依赖）。
+   */
+  type WeatherGroundSceneNode = {
+    isMesh?: boolean;
+    geometry?: unknown;
+    userData?: {
+      regionReceiverKind?: string;
+      exportRole?: string;
+      environmentEffect?: unknown;
+    };
+    expandByObject?: (node: WeatherGroundSceneNode) => void;
+    updateWorldMatrix?: (updateParents: boolean, updateChildren: boolean) => void;
+    traverse?: (visit: (node: WeatherGroundSceneNode) => void) => void;
+  };
+  /**
+   * 只用「地板本体」求包围盒。
+   *
+   * 旧实现直接 `Box3.setFromObject(sceneRoot)`：根节点下还挂着 260m 见方的背景地板、
+   * 网格与地面阴影层，包围盒因此扩到 ±130m。四个角投影后远远超出
+   * `QUAD_COORD_LIMIT`，被天气层整块丢弃，水花只能退回兜底梯形——画面上的表现就是
+   * 「水花没贴在地板上、湿地/积雪在地板上糊出一块方块」。
+   */
+  function collectWeatherGroundBox(sceneRoot: WeatherGroundSceneNode) {
+    const box = new three.Box3();
+    const floorBox = new three.Box3();
+    sceneRoot.updateWorldMatrix?.(true, true);
+    sceneRoot.traverse?.((traversedNode) => {
+      if (traversedNode.userData?.regionReceiverKind === "floor")
+        floorBox.expandByObject(traversedNode);
+    });
+    if (!floorBox.isEmpty()) return floorBox;
+    // 没有楼层地板网格（庭院 / 无地板户型）时退到「整棵场景减去装饰层」。
+    sceneRoot.traverse?.((sceneNode) => {
+      if (!sceneNode.isMesh || !sceneNode.geometry) return;
+      const exportRole = sceneNode.userData?.exportRole;
+      if (exportRole === "background" || exportRole === "grid" || exportRole === "outline") return;
+      if (sceneNode.userData?.environmentEffect) return;
+      box.expandByObject(sceneNode);
+    });
+    return box;
+  }
   function weatherGroundBounds(): WeatherGroundBounds | null {
     const sceneRoot = mountOptions.modelRoot;
     const cache = weatherGroundBoundsCache;
@@ -1824,7 +1866,7 @@ export function mountStage(mountOptions: any) {
       return cache.bounds;
     let bounds: WeatherGroundBounds | null = null;
     if (sceneRoot) {
-      const box = new three.Box3().setFromObject(sceneRoot);
+      const box = collectWeatherGroundBox(sceneRoot);
       if (!box.isEmpty())
         bounds = {
           minX: box.min.x,

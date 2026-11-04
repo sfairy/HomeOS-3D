@@ -1,20 +1,34 @@
 /**
- * 星空层：星点、星芒与流星。
+ * 星：晴夜里一片**会闪的星星**（含偶尔划过的流星）。
  *
- * 不做太阳、不做月亮 —— 这两个天体在 3D 场景里会抢主体，而且白天/夜里的
- * 「光源位置」会和真实户型朝向打架。晴夜的情绪交给**会闪的星**：
- * 每颗星有独立相位慢闪，最亮的一档带十字星芒与柔光晕，再加一条极淡的银河带，
- * 这样夜间画面即使只有深蓝底也不会显得空。
+ * 为什么只有星星、没有夜空渐变：天气层是盖在 3D 舞台上的透明画布，任何整屏
+ * 渐变都会把户型压暗、把设备图标糊掉。所以「夜」不靠给背景染色——画面里只多出
+ * 星点、星芒与流星这些**具体物体**，不多出任何遮盖层。
+ *
+ * 观感由三层叠出来（缺一层就会像「屏幕上的白点」）：
+ * 1. 每颗星独立的双频慢闪：两个不可通约的频率叠加，整片星空不会同步呼吸；
+ * 2. 最亮的一档额外带柔光晕，闪烁时一起明灭，真的有「眨眼」的感觉；
+ * 3. 最亮的一档再压一道十字星芒，星点才像星星而不是像素点。
  */
+
 import type { WeatherFrame } from "./frame";
 
 const TAU = Math.PI * 2;
-/** 流星：首次出现前的等待区间与飞行时长。 */
+
+/** 星点颜色：略微偏暖的白，和雨雪的暖白一致。 */
+const STAR_RGB = "255,250,232";
+
+/** 只有最亮的一档才画星芒，否则整片天空会变成「星星贴纸」。 */
+const SPARKLE_SIZE_THRESHOLD = 2;
+/** 单颗星星点的不透明度上限。 */
+const STAR_MAX_ALPHA = 0.95;
+/** 闪烁的最低亮度：压到 0 会让星星「熄掉」，看起来像掉帧。 */
+const STAR_MIN_GLOW = 0.08;
+
+/** 流星：首次出现前的等待区间、间隔与飞行时长。 */
 const METEOR_FIRST_DELAY = { min: 6, max: 11 };
 const METEOR_GAP = { min: 8, max: 14 };
 const METEOR_LIFE = 0.95;
-/** 星芒：只有最亮的一档才画，否则整片天空会变成「星星贴纸」。 */
-const SPARKLE_SIZE_THRESHOLD = 2;
 
 const RANDOM = (from: number, to: number) => from + Math.random() * (to - from);
 
@@ -35,21 +49,6 @@ function twinkle(elapsedSeconds: number, seed: number) {
   const fast = Math.sin(elapsedSeconds * 2.1 + seed * 3.1);
   const slow = Math.sin(elapsedSeconds * 0.7 + seed);
   return 0.5 + 0.32 * fast + 0.18 * slow;
-}
-
-/** 银河带：一条极淡的斜向亮带，只在星空足够强时出现。 */
-function drawStarBand(frame: WeatherFrame, strength: number) {
-  const { ctx, width, height } = frame;
-  const band = ctx.createLinearGradient(0, 0, width, height * 0.9);
-  band.addColorStop(0, "rgba(120,148,214,0)");
-  band.addColorStop(0.45, `rgba(148,172,232,${0.05 * strength})`);
-  band.addColorStop(0.62, `rgba(186,204,246,${0.04 * strength})`);
-  band.addColorStop(1, "rgba(120,148,214,0)");
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  ctx.fillStyle = band;
-  ctx.fillRect(0, 0, width, height * 0.72);
-  ctx.restore();
 }
 
 /** 十字星芒：横竖两条渐隐细线，亮度跟闪烁走。 */
@@ -77,8 +76,8 @@ function drawStars(frame: WeatherFrame, strength: number) {
     starList.length,
     Math.round(starList.length * Math.min(1.4, strength) * frame.quality),
   );
-  const starHalo = frame.sprites.glowSprite("255,250,232");
-  drawStarBand(frame, strength);
+  const starHalo = frame.sprites.glowSprite(STAR_RGB);
+  const cap = Math.min(1, strength);
   ctx.save();
   ctx.fillStyle = "#fff8e6";
   for (let index = 0; index < count; index++) {
@@ -86,20 +85,22 @@ function drawStars(frame: WeatherFrame, strength: number) {
     const glow = twinkle(frame.elapsedSeconds, star.seed);
     const x = star.x * width;
     const y = star.y * height;
-    ctx.globalAlpha = Math.max(0.08, glow * 0.95 * Math.min(1, strength));
+    ctx.globalAlpha = Math.min(STAR_MAX_ALPHA, Math.max(STAR_MIN_GLOW, glow * 0.95 * cap));
+    // 圆点而不是方块：方块在高分屏上会显出锯齿，星星立刻变成坏点。
     ctx.beginPath();
     ctx.arc(x, y, star.size * 0.6, 0, TAU);
     ctx.fill();
     if (star.size <= SPARKLE_SIZE_THRESHOLD) continue;
-    // 最亮的一档：柔光晕 + 十字星芒，闪烁时一起明灭，才有「眨眼」的观感。
     if (starHalo) {
+      // 柔光晕跟着闪烁一起明灭，这是「眨眼」感的主要来源。
       const halo = star.size * 16;
-      ctx.globalAlpha = glow * 0.4 * Math.min(1, strength);
+      ctx.globalAlpha = glow * 0.4 * cap;
       ctx.drawImage(starHalo, x - halo / 2, y - halo / 2, halo, halo);
     }
-    drawSparkle(frame, x, y, star.size * 4.2, glow * 0.5 * Math.min(1, strength));
+    drawSparkle(frame, x, y, star.size * 4.2, glow * 0.5 * cap);
   }
   ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 function drawMeteor(frame: WeatherFrame, meteor: MeteorState, enabled: boolean) {
@@ -135,7 +136,7 @@ function drawMeteor(frame: WeatherFrame, meteor: MeteorState, enabled: boolean) 
   ctx.restore();
 }
 
-export function createCelestialRenderer() {
+export function createStarRenderer() {
   const meteor: MeteorState = {
     age: METEOR_LIFE,
     x: 0,
@@ -146,9 +147,8 @@ export function createCelestialRenderer() {
 
   return {
     draw(frame: WeatherFrame) {
-      const preset = frame.preset;
-      drawStars(frame, preset.stars || 0);
-      drawMeteor(frame, meteor, preset.meteor === true);
+      drawStars(frame, frame.preset.stars || 0);
+      drawMeteor(frame, meteor, frame.preset.meteor === true);
     },
     reset() {
       meteor.age = METEOR_LIFE;

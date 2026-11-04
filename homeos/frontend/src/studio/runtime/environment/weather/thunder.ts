@@ -1,4 +1,4 @@
-import { WEATHER_COLOR, WEATHER_RGB } from "./colors";
+import { WEATHER_COLOR } from "./colors";
 import type { WeatherFrame } from "./frame";
 
 /** 首次放电前等一会儿，避免刚切到雷雨就立刻闪。 */
@@ -54,33 +54,6 @@ function flashEnvelope(elapsed: number) {
       : 0;
   const afterglow = Math.exp(-elapsed * 4) * 0.12;
   return Math.min(1, primary + returnFlash + afterglow);
-}
-
-function drawSkyGlow(frame: WeatherFrame, intensity: number, originX: number) {
-  const centerX = originX * frame.width;
-  const glow = frame.ctx.createRadialGradient(centerX, 0, 0, centerX, 0, frame.width * 0.32);
-  glow.addColorStop(0, `rgba(${WEATHER_RGB},${intensity * 0.16})`);
-  glow.addColorStop(1, `rgba(${WEATHER_RGB},0)`);
-  frame.ctx.fillStyle = glow;
-  frame.ctx.fillRect(0, 0, frame.width, frame.height);
-}
-
-/**
- * 云层被从内部点亮：顶部一团横向拉宽的高光，比单纯的天空径向光更像「云里有电」。
- */
-function drawCloudIllumination(frame: WeatherFrame, intensity: number) {
-  const centerX = frame.width * 0.5;
-  const radius = frame.width * 0.62;
-  const glow = frame.ctx.createRadialGradient(centerX, -frame.height * 0.05, 0, centerX, 0, radius);
-  glow.addColorStop(0, `rgba(${WEATHER_RGB},${intensity * 0.22})`);
-  glow.addColorStop(0.5, `rgba(${WEATHER_RGB},${intensity * 0.07})`);
-  glow.addColorStop(1, `rgba(${WEATHER_RGB},0)`);
-  frame.ctx.save();
-  frame.ctx.translate(0, frame.height * 0.06);
-  frame.ctx.scale(1.4, 0.55);
-  frame.ctx.fillStyle = glow;
-  frame.ctx.fillRect(-frame.width, 0, frame.width * 3, radius);
-  frame.ctx.restore();
 }
 
 function strokeBolt(frame: WeatherFrame, bolt: number[][], lineWidth: number) {
@@ -143,8 +116,6 @@ export function createThunderRenderer() {
     draw(frame: WeatherFrame) {
       if (intensity <= 0.004 || !bolts.length) return;
       frame.ctx.save();
-      drawCloudIllumination(frame, intensity);
-      drawSkyGlow(frame, intensity, bolts[0][0][0]);
       frame.ctx.strokeStyle = WEATHER_COLOR;
       frame.ctx.lineJoin = "round";
       frame.ctx.lineCap = "round";
