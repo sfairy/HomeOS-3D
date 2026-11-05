@@ -110,6 +110,40 @@ function placeShellPlugin(): Plugin {
   };
 }
 
+/** `index.html` 里图标字体 preload 的最终地址（与 `font.min.css` 的 `url()` 解析结果一致）。 */
+const ICON_FONT_PRELOAD_URL = "/fonts/font-subset.woff2";
+
+/**
+ * 把 `index.html` 的图标字体 preload 从 Vite 重写后的地址改回来。
+ *
+ * `font.min.css` 里的 `@font-face` 写的是相对 `url(../fonts/font-subset.woff2)`：表挂在
+ * `/store-static/`，`../fonts` 退到根，由后端单独挂载的 `/fonts` 接住。HTML 里的 preload
+ * 只能写绝对路径，于是必须写 `/fonts/font-subset.woff2`。
+ *
+ * 但 Vite 把 HTML 中以 `/` 开头的 URL 都当成 publicDir 下的资源，构建时拼上 `base`：
+ * 产出 `/store-static/fonts/font-subset.woff2`。两个路径不同 → 预载的那份没人取用
+ * （控制台报「preloaded but not used」），CSS 再照常请求一次，白白多一次往返。
+ *
+ * 这里在 `post` 阶段按 `base` 把它改回来：dev 的 base 是 `/`，这一步是空操作。
+ * 改这里之前先看 `scripts/build-font-subset.mjs` 的 `--check`（它断言同一件事）。
+ */
+function iconFontPreloadPlugin(): Plugin {
+  let base = DEV_BASE;
+  return {
+    name: "homeos-store-icon-font-preload",
+    configResolved(config) {
+      base = config.base || DEV_BASE;
+    },
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        const rebased = `${base}fonts/font-subset.woff2`;
+        return rebased === ICON_FONT_PRELOAD_URL ? html : html.split(rebased).join(ICON_FONT_PRELOAD_URL);
+      },
+    },
+  };
+}
+
 /** 场景 CSS 的四个入口（`index.html` 逐张引用，缺一张就是整页样式走样）。 */
 const SCENE_STYLES = ["fonts.css", "page.css", "scene.css", "panel.css"];
 
@@ -286,6 +320,7 @@ export default defineConfig(({ command }) => {
     // 模板里的资源一律写运行时绝对路径（/store-static/...），不参与打包解析。
     plugins: [
       vue({ template: { transformAssetUrls: false } }),
+      iconFontPreloadPlugin(),
       placeShellPlugin(),
       classicIifePlugin(),
       assertSceneStaticPlugin(),

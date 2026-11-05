@@ -32,20 +32,24 @@
        正文/UI 字体在 scene/fonts.css 里是 `optional`（慢网用系统字，不闪字宽）。 -->
   <link rel="preload" href="/store-static/scene/fonts/orbitron-700-latin.woff2" as="font"
     type="font/woff2" crossorigin>
-  <!-- 图标字体子集（50 个字形 / 9,552B，由 scripts/build-font-subset.mjs 从完整字体生成）。
+  <!-- 图标字体子集（58 个字形 / 11,248B，由 scripts/build-font-subset.mjs 从完整字体生成）。
        完整 font.woff2 634,548B 仍留在 @font-face 的 src 里兜底，但 woff2 可用时不会被请求。
        这里 preload 是为了让子集与 font.min.css 同时到达：那张表是 media=print 延后加载的，
-       不预载的话图标会在样式揭幕后再多一跳。 -->
-  <link rel="preload" href="/store-static/fonts/font-subset.woff2" as="font"
+       不预载的话图标会在样式揭幕后再多一跳。
+       **href 必须写成 CSS 里 `url(../fonts/...)` 实际解析出的 `/fonts/...`**：font.min.css
+       挂在 `/store-static/` 下，`../fonts` 退到根后被 Backend 的 `/fonts` 挂载接住。写成
+       `/store-static/fonts/...` 会变成另一个 URL —— 预载的那份没人用，CSS 再照常请求一次，
+       浏览器随即报「preloaded but not used」。 -->
+  <link rel="preload" href="/fonts/font-subset.woff2" as="font"
     type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/store-static/font.min.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/scene/fonts.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/scene/page.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/scene/scene.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/scene/panel.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/store-shell.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/store.css" media="print" data-defer-style>
-  <link rel="stylesheet" href="/store-static/store-home.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/font.min.css" media="print" data-defer-style="critical">
+  <link rel="stylesheet" href="/store-static/scene/fonts.css" media="print" data-defer-style="rest">
+  <link rel="stylesheet" href="/store-static/scene/page.css" media="print" data-defer-style="rest">
+  <link rel="stylesheet" href="/store-static/scene/scene.css" media="print" data-defer-style="rest">
+  <link rel="stylesheet" href="/store-static/scene/panel.css" media="print" data-defer-style="rest">
+  <link rel="stylesheet" href="/store-static/store-shell.css" media="print" data-defer-style="critical">
+  <link rel="stylesheet" href="/store-static/store.css" media="print" data-defer-style="rest">
+  <link rel="stylesheet" href="/store-static/store-home.css" media="print" data-defer-style="critical">
   <!-- 焦点环 / 44px 触控目标 / reduced-motion / 高对比度基线：必须排在业务样式之后，
        否则会被主题里的 outline:none 与固定高度盖掉。 -->
   <link rel="stylesheet" href="/src/styles/touch-a11y.css">
@@ -62,45 +66,96 @@
     <style>#store-boot-shell{display:none!important}</style>
   </noscript>
   <!-- CSP 的 script-src 只按 nonce 放行、没有 script-src-attr，所以不能用 onload= 内联事件。
-       揭幕策略：**等全部到位、一帧内一次切完**。
+       揭幕策略：**每组内等齐、一帧内一次切完**，分两组。
        改造前是「每张表 load 就单独 media=all」—— 8 张表各触发一次样式重算 + 重画，
        慢机型上就是肉眼可见的「先只有 theme.css 的排版，再一步步变成完整样式」。
-       现在：所有表 load/error（或 5s 硬上限）→ 同一个任务里全部切 all →
-       置 `html[data-styles-ready]`，供 main.ts 判断「可以揭掉占位壳了」。 -->
+       上一版是「8 张全齐了再一次性切」—— 没有再逐步重排，但首屏白白等了场景 / 后台
+       那 5 张与首屏无关的表（共约 220KB raw），Slow4G 下就是 1s+ 的纯等待。
+       现在按「首屏是否真的用到」分两组（`data-defer-style`）：
+         critical = font.min（图标）/ store-shell（顶栏与页脚骨架）/ store-home（首屏与档位）；
+         rest     = scene/fonts、scene/page、scene/scene、scene/panel、store。
+       critical 齐活即切 all 并置 `data-styles-ready`（main.ts 据此揭掉占位壳），
+       rest 自己再切一次并置 `data-styles-rest-ready` —— 两次都是一次性切换，不是逐张。
+       rest 这 5 张里没有重新定义任何 `--hb-*` 令牌、也没有给裸 `html` / `body` 着色
+       （`scene/page.css` 的 `:root` 只放 `--hos-*` 场景令牌，`html.hos-shell` 也只作用于
+       场景页外壳；见 `ops/checks/store/tests/store-style-chain.test.mjs`），
+       所以第二次切换不会改动整页底色，也不会推翻首屏已排好的布局。
+       `?styles=all` 回到「8 张一起揭」的基线，用于 A/B 与线上回滚。 -->
   <script nonce="{{NONCE}}">
     (function () {
-      var links = document.querySelectorAll("link[data-defer-style]");
-      var revealed = false;
-      function revealAll() {
-        if (revealed) return;
-        revealed = true;
-        // 一个任务里切完 8 张（一次样式重算 + 一次重画），再置位就绪标记。
-        for (var i = 0; i < links.length; i += 1) links[i].media = "all";
-        document.documentElement.setAttribute("data-styles-ready", "1");
-        document.dispatchEvent(new Event("hos:styles-ready"));
+      var links = [].slice.call(document.querySelectorAll("link[data-defer-style]"));
+      // 基线开关：`?styles=all` 把两组并为一次揭幕（旧行为），不改产物即可回滚。
+      var isSingleStage = false;
+      try {
+        isSingleStage = new URLSearchParams(location.search).get("styles") === "all";
+      } catch (error) {
+        isSingleStage = false;
       }
-      var pending = 0;
-      var settled = 0;
+      var critical = [];
+      var rest = [];
       for (var i = 0; i < links.length; i += 1) {
-        if (links[i].sheet) continue;
-        pending += 1;
-        var onSettled = function () {
-          settled += 1;
-          if (settled >= pending) revealAll();
-        };
-        links[i].addEventListener("load", onSettled);
-        links[i].addEventListener("error", onSettled);
+        if (!isSingleStage && links[i].getAttribute("data-defer-style") === "critical") critical.push(links[i]);
+        else rest.push(links[i]);
       }
-      if (pending === 0) revealAll();
-      // 硬上限：某张表 404 或被网关拦掉时不能把首屏永久锁死。
-      // 5s 仍给慢网留出「八张表齐活」的窗口；超时后移除未就绪的 link 再揭幕，
-      // 避免 media=all 反过来把整页渲染继续阻塞在一张永远不返回的样式表上。
-      setTimeout(function () {
-        for (var j = 0; j < links.length; j += 1) {
-          if (!links[j].sheet && links[j].parentNode) links[j].parentNode.removeChild(links[j]);
+
+      function mark(attribute, eventName) {
+        document.documentElement.setAttribute(attribute, "1");
+        document.dispatchEvent(new Event(eventName));
+      }
+
+      function reveal(list) {
+        // 一个任务里切完整组（一次样式重算 + 一次重画）。
+        for (var i = 0; i < list.length; i += 1) list[i].media = "all";
+      }
+
+      function watch(list, onReady) {
+        var pending = 0;
+        var settled = 0;
+        var isDone = false;
+        function settle() {
+          if (isDone) return;
+          isDone = true;
+          onReady();
         }
-        revealAll();
-      }, 5000);
+        function onOne() {
+          settled += 1;
+          if (settled >= pending) settle();
+        }
+        for (var i = 0; i < list.length; i += 1) {
+          if (list[i].sheet) continue;
+          pending += 1;
+          list[i].addEventListener("load", onOne);
+          list[i].addEventListener("error", onOne);
+        }
+        if (pending === 0) {
+          settle();
+          return;
+        }
+        // 硬上限：某张表 404 或被网关拦掉时不能把首屏永久锁死。
+        // 5s 仍给慢网留出「一组表齐活」的窗口；超时后移除未就绪的 link 再揭幕，
+        // 避免 media=all 反过来把整页渲染继续阻塞在一张永远不返回的样式表上。
+        setTimeout(function () {
+          for (var j = 0; j < list.length; j += 1) {
+            if (!list[j].sheet && list[j].parentNode) list[j].parentNode.removeChild(list[j]);
+          }
+          settle();
+        }, 5000);
+      }
+
+      // critical 为空 = `?styles=all` 基线：所有表都在 rest 组里，就绪标记只能由 rest 置位，
+      // 否则会提前揭掉占位壳（用户看到裸排版）。
+      var hasCritical = critical.length > 0;
+
+      watch(critical, function () {
+        if (!hasCritical) return;
+        reveal(critical);
+        mark("data-styles-ready", "hos:styles-ready");
+      });
+      watch(rest, function () {
+        reveal(rest);
+        mark("data-styles-rest-ready", "hos:styles-rest-ready");
+        if (!hasCritical) mark("data-styles-ready", "hos:styles-ready");
+      });
     })();
   </script>
   <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css` 的 <link>。

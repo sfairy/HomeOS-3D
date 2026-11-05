@@ -17,7 +17,7 @@ export const HERO = {
   eyebrow: "本机自托管 · 直连 Home Assistant",
   titleLead: "把整个家，收进一块",
   titleAccent: "3D 中控",
-  lead: "户型、灯光、空调、安防与能耗都在同一块屏里完成；家庭数据只留在自己的机器上，授权一次买断。",
+  lead: "户型、灯光、空调、安防、能耗与天气都收在同一块屏里；3D 场景里直接操作设备，家庭数据只留在自己的机器上，授权一次买断。",
   /** 起价后面那串口径，首屏与收尾 CTA 共用，避免两处文案漂移。 */
   priceNote: "起 · 买断永久 · 支付确认后自动发码",
   primaryCta: "选购授权",
@@ -51,32 +51,40 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     id: "control",
     kicker: "Control",
     label: "中控与编辑",
-    summary: "户型、编辑与墙屏",
-    blurb: "从户型图到每一盏灯：编辑、展示、交互三层共用一套页面与登录会话。",
+    summary: "绘图、排版与墙屏展示",
+    blurb: "从户型图到每一盏灯：绘图、排版、展示与三维交互共用一套页面与登录会话。",
     tone: "accent",
     icon: "fa-cube",
     cards: [
       {
         title: "3D 户型工作室",
-        description: "自建或导入户型，按楼层自动导图并回写仪表盘；墙体、材质与灯光属性可批量套用，房间自动归类。",
+        description:
+          "墙、门窗、房间与家具都在 3D 里绘制，按楼层自动导图并回写仪表盘；草稿存后端，撤销重做与属性批量套用都在同一套工具里。",
         tone: "accent",
         icon: "fa-cube",
       },
       {
         title: "可视化编辑器",
-        description: "页面、控件、实体绑定、弹窗与主题全部可拖拽配置，改完即生效，不需要碰代码。",
+        description: "页面、控件、实体绑定、弹窗与主题全部拖拽配置，改完即生效，不需要碰代码。",
         tone: "sensor",
         icon: "fa-table-columns",
       },
       {
         title: "全屏中控展示",
-        description: "为墙面平板与常亮屏准备的只读展示页，与编辑器共用登录会话，登录即可使用，不再需要配对码。",
+        description: "为墙面平板与常亮屏准备的只读展示页，与编辑器共用登录会话，登录同一账号即可上墙。",
         tone: "cool",
         icon: "fa-tv",
       },
       {
+        title: "面板微件与浮动层",
+        description: "侧栏、右侧面板与仪表盘微件可增删、排序和配置；芯片与安防 / 环境 / 门锁中心面板从浮动层直接拉起。",
+        tone: "lumen",
+        icon: "fa-sliders",
+      },
+      {
         title: "3D 交互舞台",
-        description: "把控件嵌进户型：在三维视图里直接开关灯、窗帘、空调、电视与扫地机，状态实时回流。",
+        description:
+          "把控件嵌进户型：灯、窗帘、空调、风扇、净化器、电视、音箱、晾衣架、浴霸、扫地机与门锁都能在三维视图里直接操作，状态实时回流。",
         tone: "aura",
         icon: "fa-hand-pointer",
         feature: "module.3d_interaction",
@@ -87,7 +95,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     id: "connect",
     kicker: "Connect",
     label: "连接与设备",
-    summary: "实体、房间与数据",
+    summary: "HA、设备、素材与外部数据",
     blurb: "已有 HA 环境直接接管：实体、房间、素材与外部数据在同一份快照里对齐。",
     tone: "lumen",
     icon: "fa-house-signal",
@@ -99,8 +107,15 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
         icon: "fa-plug",
       },
       {
+        title: "首装向导",
+        description:
+          "连接 HA → 安防 → 能源 → 环境 → 户型与收藏 → 学习期，六步把一台空机器带到可上墙，不用在设置里逐页找。",
+        tone: "eco",
+        icon: "fa-list-check",
+      },
+      {
         title: "设备库与健康",
-        description: "设备列表、详情、属性、引用与批量操作；健康分标出久未上报与僵尸绑定，一键清理。",
+        description: "设备列表、详情、属性、引用与批量操作；状态历史、用电统计与健康分能标出久未上报和僵尸绑定。",
         tone: "eco",
         icon: "fa-microchip",
       },
@@ -111,8 +126,15 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
         icon: "fa-images",
       },
       {
+        title: "天气与外部数据",
+        description:
+          "天气预警、天气与生活指数、分时 / 动态电价和 CalDAV 日历统一接入；日历里的「外出」标记会参与布防与模式判定。",
+        tone: "sensor",
+        icon: "fa-cloud-sun",
+      },
+      {
         title: "内嵌网页与影音",
-        description: "把外部页面嵌入仪表盘，MoviePilot 影视库可浏览与播放控制，媒体进度回流中控。",
+        description: "把外部页面嵌进顶部导航，MoviePilot 影视库可浏览与播放控制，播放列表与媒体进度回流中控。",
         tone: "heat",
         icon: "fa-photo-film",
         feature: "module.media",
@@ -123,8 +145,8 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     id: "security",
     kicker: "Security",
     label: "安防与感知",
-    summary: "布防、监控与门铃",
-    blurb: "布防、摄像头、门铃与离家模拟共享一套分区与审计口径。",
+    summary: "布防、门锁、离家与演习",
+    blurb: "布防、摄像头、门锁与离家模拟共享一套分区与审计口径。",
     tone: "eco",
     icon: "fa-shield-halved",
     cards: [
@@ -137,23 +159,31 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "摄像头与门铃",
-        description: "摄像头实时画面与门铃事件统一代理，Frigate AI 检测结果直接进入事件流。",
+        description: "摄像头实时画面与门铃事件统一代理，Frigate AI 检测按当前布防模式进入事件流。",
         tone: "cool",
         icon: "fa-video",
         feature: "module.security",
       },
       {
-        title: "离家和日历联动",
-        description: "全员离家自动布防，回家自动撤防；离家模拟按时间段随机开关灯，制造有人居住的痕迹。",
+        title: "门锁、窗磁与存在感知",
+        description: "门锁、窗磁与毫米波存在检测都作为实体接入，状态与控制进中控，也能当布防和告警的触发条件。",
+        tone: "sensor",
+        icon: "fa-door-open",
+        feature: "module.security",
+      },
+      {
+        title: "离家联动与离家模拟",
+        description:
+          "全员离家自动布防、回家自动撤防；日历外出标记直接参与判定，离家模拟按时间段随机开关灯，制造有人居住的痕迹。",
         tone: "aura",
         icon: "fa-person-walking-arrow-right",
         feature: "module.security",
       },
       {
-        title: "存在感知与演习",
-        description: "毫米波存在检测接入为占位传感器，安全演习可定时走一遍告警链路，验证配置是否真的会响。",
-        tone: "sensor",
-        icon: "fa-wave-square",
+        title: "安防演习与审计",
+        description: "安全演习按计划走一遍告警链路，验证配置是否真的会响；布防、求助与联动动作都写进审计日志。",
+        tone: "heat",
+        icon: "fa-clipboard-check",
         feature: "module.security",
       },
     ],
@@ -162,23 +192,32 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     id: "automation",
     kicker: "Automation",
     label: "场景与提醒",
-    summary: "场景、通知与预警",
+    summary: "场景、通知、免打扰与预警",
     blurb: "把「什么时候该发生什么」写清楚：场景、通知、免打扰与预警各管一段。",
     tone: "aura",
     icon: "fa-bell",
     cards: [
       {
         title: "家庭模式与动作序列",
-        description: "回家 / 离家 / 就寝等模式可编排动作序列，一键切换并记录触发日志，便于回查。",
+        description:
+          "回家 / 离家 / 就寝等模式可编排动作序列，定时、门锁、状态变化与日历外出都能当触发器，执行历史可回查。",
         tone: "aura",
         icon: "fa-house-signal",
         feature: "module.home_mode",
       },
       {
         title: "通知中心与渠道",
-        description: "站内通知、邮件、WebPush 与企业微信统一投递；告警规则可按设备、区域与等级配置。",
+        description: "站内通知、邮件、WebPush 与企业微信统一投递，未读、筛选与归档都在一个收件箱里。",
         tone: "lumen",
         icon: "fa-bell",
+        feature: "module.notifications",
+      },
+      {
+        title: "告警规则与免打扰",
+        description:
+          "按实体、条件与级别配置规则，投递渠道和冷却时长逐条设置；用水、能耗预算与设备异常也进同一套通知来源。",
+        tone: "heat",
+        icon: "fa-bullhorn",
         feature: "module.notifications",
       },
       {
@@ -189,8 +228,8 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
         feature: "module.earthquake",
       },
       {
-        title: "语音播报与气象提醒",
-        description: "TTS 把预警与通知念出来，气象预警与日历事件按重要级决定是否打断当前内容。",
+        title: "语音播报与预警联动",
+        description: "TTS 把预警与通知念出来；天气预警可联动场景与模式，实体状态变化也能挂到播报规则上。",
         tone: "cool",
         icon: "fa-volume-high",
         feature: "module.notifications",
@@ -201,7 +240,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     id: "energy",
     kicker: "Energy & AI",
     label: "能源与智能",
-    summary: "用电、费用与语音",
+    summary: "用电、电价、充电与语音",
     blurb: "看清用电、算清费用，再让语音与智能体把重复操作收成一句话。",
     tone: "heat",
     icon: "fa-bolt",
@@ -214,25 +253,40 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
         feature: "module.energy",
       },
       {
-        title: "智能充放电",
-        description: "按峰谷电价安排充电窗口，逆变器与电池状态进中控，异常时回落到手动模式。",
+        title: "分时电价与费用",
+        description: "峰段 / 谷段窗口与动态电价可配置，按当前时段换算单价，费用视图直接引用这份电价。",
         tone: "lumen",
-        icon: "fa-battery-three-quarters",
+        icon: "fa-chart-pie",
+        feature: "module.energy",
+      },
+      {
+        title: "客户端智能充电",
+        description:
+          "给墙屏、平板这类客户端按电量阈值自动开关充电器：低电量开充、到上限停充，可避开峰段，低于临界值时仍应急充电。",
+        tone: "sensor",
+        icon: "fa-battery-half",
         feature: "module.energy",
       },
       {
         title: "语音助手",
         description: "语音唤醒、识别与命令映射：常用控制不必进页面，说一句就走完同一条控制链。",
-        tone: "sensor",
+        tone: "cool",
         icon: "fa-microphone",
         feature: "module.voice",
       },
       {
         title: "AI 智能管家",
-        description: "多轮对话理解「把客厅调暗一点」这类含糊指令，结合当前场景拆成可执行动作再下发。",
+        description:
+          "多轮对话理解「把客厅调暗一点」这类含糊指令，结合当前场景拆成可执行动作；定时任务、快捷指令、记忆与渠道都能在设置里配。",
         tone: "accent",
         icon: "fa-robot",
         feature: "module.agent",
+      },
+      {
+        title: "智能顾问与使用报告",
+        description: "汇总近 7 天设备使用 Top10、能耗与环境异常提示，并列出可能忘了关的设备，提醒直接进通知中心。",
+        tone: "lumen",
+        icon: "fa-chart-line",
       },
     ],
   },
@@ -240,16 +294,16 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     id: "system",
     kicker: "System",
     label: "系统与运维",
-    summary: "备份、保留与诊断",
-    blurb: "长期跑在家里，稳定性靠的是备份、保留策略与可查的访问记录。",
+    summary: "多终端、备份、诊断与权限",
+    blurb: "长期跑在家里，稳定性靠的是多终端方案、备份、保留策略与可查的诊断。",
     tone: "cool",
     icon: "fa-database",
     cards: [
       {
-        title: "定时与加密备份",
-        description: "业务数据按计划打包备份，支持加密与异机保存；恢复前先校验包完整性。",
+        title: "多终端方案与备份",
+        description: "每个终端一套显示方案，可克隆后按房间微调；业务数据每天自动加密备份，恢复前校验并在失败时回滚。",
         tone: "cool",
-        icon: "fa-database",
+        icon: "fa-desktop",
       },
       {
         title: "数据保留与清理",
@@ -259,14 +313,20 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "访问 PIN 与家庭状态",
-        description: "敏感操作可用访问 PIN 二次确认，家庭状态与儿童模式决定哪些控件可见。",
+        description: "敏感操作可用访问 PIN 二次确认；家庭状态面板汇总当前模式、勿扰、通知与儿童模式。",
         tone: "aura",
         icon: "fa-lock",
       },
       {
-        title: "外部 API 与诊断",
-        description: "开放外部 API 供自建脚本调用，系统面板给出设备健康、僵尸绑定与访问日志。",
+        title: "运维诊断与日志",
+        description: "系统面板给出设备健康、僵尸绑定、运行日志与后台作业状态，诊断快照可复制或下载 TXT。",
         tone: "sensor",
+        icon: "fa-screwdriver-wrench",
+      },
+      {
+        title: "系统参数与集成配置",
+        description: "运行阈值、外部集成与各模块参数集中在同一套配置页，带字段级校验与改动审计。",
+        tone: "lumen",
         icon: "fa-code",
       },
     ],
@@ -434,8 +494,8 @@ export const SETUP: SetupStep[] = [
   {
     index: "03",
     title: "接家上墙",
-    description: "填 Home Assistant 地址与令牌，导入户型，墙屏登录同一账号即可用。",
-    points: ["实体与房间自动同步", "与编辑器共用登录会话"],
+    description: "填 Home Assistant 地址与令牌，用首装向导一次过完安防、能源、环境与户型；墙屏登录同一账号即可用。",
+    points: ["首装向导一次过完", "墙屏登录同一账号"],
     tone: "eco",
   },
 ];
@@ -450,7 +510,7 @@ interface AssuranceItem {
 export const ASSURANCES: AssuranceItem[] = [
   {
     title: "数据留在本机",
-    description: "家庭数据只存在你的机器上，授权校验才需要联网。",
+    description: "家庭数据只存在你的机器上，授权校验才需要联网；商店暂时不可达也能用缓存公钥离线启动。",
     icon: "fa-database",
     tone: "accent",
   },
@@ -483,7 +543,7 @@ export const FAQ: FaqEntry[] = [
   {
     question: "需要一台公网服务器吗？",
     answer:
-      "不需要。HomeOS 默认跑在自己的电脑或 NAS 上，数据落在本机；授权校验是唯一需要联网的环节，客户端会定期心跳续租。",
+      "不需要。HomeOS 默认跑在自己的电脑或 NAS 上，数据落在本机；授权校验是唯一需要联网的环节，客户端会定期心跳续租；商店暂时不可达时也会用缓存公钥离线启动。",
   },
   {
     question: "已经装了 Home Assistant，还要重新配一遍吗？",
@@ -517,5 +577,20 @@ export const FAQ: FaqEntry[] = [
     question: "支持哪些支付方式？",
     answer:
       "当前支持微信支付与支付宝扫码。具体可用渠道以结算页展示为准；待支付订单可以回账号中心继续付款，不会重复下单。",
+  },
+  {
+    question: "天气、电价与日历要另外接服务吗？",
+    answer:
+      "天气预警走 OpenWeatherMap，填自己的 API Key；电价按峰谷窗口在本机计算，也可接动态电价接口；日历用 CalDAV / ICS 地址同步。这些配置都留在本机，只在需要时向对应服务拉取数据。",
+  },
+  {
+    question: "智能充电是给电动车充电吗？",
+    answer:
+      "不是。它管的是墙屏、平板这类常驻客户端的充电器：低于阈值开充、到上限停充，可避开峰段，电量低于临界值时仍应急充电。与电动车、储能逆变器无关。",
+  },
+  {
+    question: "3D 舞台能操作哪些设备？",
+    answer:
+      "灯、窗帘、空调、风扇、净化器、电视、音箱、晾衣架、浴霸、扫地机、门锁与摄像头等；具体能操作哪些，取决于 HA 里已接入的实体和户型里绑定的设备。",
   },
 ];

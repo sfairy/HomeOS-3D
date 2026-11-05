@@ -12,7 +12,7 @@ const { moduleGroups, fullEditionHref } = useHomeView();
         <div class="hm-head__main">
           <h2 id="home-modules-title">按需增补，一次配齐</h2>
           <p>
-            基础授权已经覆盖中控、编辑、设备与系统能力；三维交互、安防、能源、语音这些按需单独加购，也可以一次买全功能版。
+            基础授权已经覆盖中控、编辑、设备与系统能力；三维交互、安防、通知、地震、能源、场景、语音、智能管家与影视这些按需单独加购，也可以一次买全功能版。
           </p>
         </div>
         <span class="hm-head__aside">增量包 · 挂到已有授权上</span>

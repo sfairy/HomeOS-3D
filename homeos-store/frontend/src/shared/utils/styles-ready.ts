@@ -3,8 +3,13 @@
  *
  * 商店的首屏样式分两段：
  *   1. `theme.css`（+ design-tokens）阻塞加载 —— 首帧只有令牌与深墨底；
- *   2. 其余 8 张业务样式表用 `media="print"` 先下载、**齐了再一次切 `all`**
- *      （见 `index.html` 的内联脚本），并置 `html[data-styles-ready]`。
+ *   2. 其余 8 张业务样式表用 `media="print"` 先下载，再分两组**各自一次性切 `all`**
+ *      （见 `index.html` 的内联脚本）：
+ *      - `critical` 组（font.min / store-shell / store-home）齐活即置位
+ *        `html[data-styles-ready]`，本模块等的就是它；
+ *      - `rest` 组（场景与后台用的 5 张）随后再切一次，置位
+ *        `html[data-styles-rest-ready]`，不参与揭壳判定 —— 它们与首屏无关，
+ *        没必要让一整屏的黑底转圈等这 220KB。
  *
  * `main.ts` 原来在 `mount` 之后一个 `nextTick` 就揭掉 `#store-boot-shell`，
  * 等于在业务样式还没到齐时就把遮罩拿掉 —— 用户看到的正是「裸排版 → 重排成完整样式」那一下。
@@ -24,12 +29,14 @@ const READY_EVENT = "hos:styles-ready";
 /**
  * 首屏样式表迟迟不到时的硬上限。
  *
- * 必须与 `index.html` 里的 8s 一致：那边超时会一次性揭幕，这边若等得更久，
+ * 必须**不小于** `index.html` 里每组的 5s 兜底：那边超时会强制揭幕，这边若等得更久，
  * 占位壳就会比样式多留一会儿（黑屏转圈），比「带旧样式渲染」更糟。
  *
  * 为什么敢等到 8s：占位壳是**不透明**的，多等一会儿用户只看到转圈；
  * 而在样式只到一半时揭幕，用户会看到「裸排版 → 重排成完整样式」两次布局。
  * 实测 Slow 3G + 4x CPU 下 8 张表约 4~5s 齐，3s 的旧上限必然踩到半套样式。
+ * 分组之后首屏只等 critical 那 3 张（约 54KB），这条上限实际只在「表 404 / 网关拦截」
+ * 的异常路径上才会被触发，留 8s 是给最慢的那批设备兜底。
  */
 const STYLES_TIMEOUT_MS = 8000;
 
