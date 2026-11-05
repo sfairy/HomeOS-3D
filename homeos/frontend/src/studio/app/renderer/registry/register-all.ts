@@ -85,7 +85,7 @@ export async function loadComponentFamilies(
     }),
   )
   // 诊断用：族是按需 chunk，光看 network 看不出「下载的是哪一族」（文件名是 shared-*），
-  // 所以把实际加载的族打点到 performance 时间线，`bench_3d.mjs` 直接读 mark 断言。
+  // 所以把实际加载的族打点到 performance 时间线，性能诊断工具可直接读这些 mark。
   for (const family of loadedNow) markComponentFamily(family)
   return loadedNow
 }

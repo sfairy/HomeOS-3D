@@ -161,7 +161,6 @@ const GATE_GROUPS = {
         'ops/ci/build_frontend_verify.sh',
         'ops/ci/caddy_validate.sh',
         'ops/deploy/preflight.sh',
-        'ops/perf/harness/run_baseline.sh',
       ],
       tools: ['shellcheck'],
       hint: 'brew install shellcheck（CI 由 lint-infra job 安装）',
