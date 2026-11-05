@@ -2952,13 +2952,20 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             !isEmbeddedStage && appCtx.contactShadowController?.isPending() && canBuildScene();
           )
             await new Promise(requestAnimationFrame)
+          let isLightCacheReady = true
           isCurrentAppInstance() &&
             (stageLoadTiming('settled-frame'),
             prepareReflectionTargets(),
             stageLoadTiming('presentation-background-ready'),
-            await waitForStageReady(),
+            (isLightCacheReady = await waitForStageReady()),
             isCurrentAppInstance() &&
-              (stageLoadTiming(isEmbedStageMode ? 'light-cache-not-required' : 'light-cache-ready'),
+              (stageLoadTiming(
+                isEmbedStageMode
+                  ? 'light-cache-not-required'
+                  : isLightCacheReady
+                    ? 'light-cache-ready'
+                    : 'light-cache-deferred',
+              ),
               stageLoadTiming('final-render-start'),
               appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
               stageLoadTiming('final-render-end'),
