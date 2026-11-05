@@ -33,10 +33,7 @@ export interface PresenceHomeMember {
  * @param selectedIds 选中的成员 ID 列表，为空则返回全量
  * @returns 过滤后的成员列表
  */
-export function filterPresenceMembers(
-  members: PresenceHomeMember[],
-  selectedIds?: string[],
-): PresenceHomeMember[] {
+export function filterPresenceMembers(members: PresenceHomeMember[], selectedIds?: string[]): PresenceHomeMember[] {
   // 未传选中 ID 时直接返回原列表，避免无谓的 Set 构建
   if (!selectedIds?.length) return members
   const set = new Set(selectedIds)

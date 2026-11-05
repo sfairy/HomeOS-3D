@@ -3,12 +3,7 @@
  * @module frontend/src/composables
  */
 import { ref, computed, watch, type ToRefs, unref } from 'vue'
-import {
-  useEchartsHost,
-  axisLineStyle,
-  splitLineStyle,
-  yMax,
-} from '@/composables/ui/useEchartsHost'
+import { useEchartsHost, axisLineStyle, splitLineStyle, yMax } from '@/composables/ui/useEchartsHost'
 import {
   buildDepthBuckets,
   buildDistanceBuckets,
@@ -102,12 +97,8 @@ export function useEarthquakeHistoryAnalytics(
   // —— 统计摘要与各维度分桶（均由 util 函数计算） ——
   const summary = computed(() => computeAnalyticsSummary(items.value, accessors.value))
   const magBuckets = computed(() => buildMagBuckets(items.value, accessors.value.getMagnitude))
-  const distBuckets = computed(() =>
-    buildDistanceBuckets(items.value, accessors.value.getDistanceKm),
-  )
-  const timeBuckets = computed(() =>
-    buildPeriodTimeBuckets(items.value, accessors.value.getTimeMs, period.value),
-  )
+  const distBuckets = computed(() => buildDistanceBuckets(items.value, accessors.value.getDistanceKm))
+  const timeBuckets = computed(() => buildPeriodTimeBuckets(items.value, accessors.value.getTimeMs, period.value))
   const depthBuckets = computed(() => buildDepthBuckets(items.value, accessors.value.getDepth))
   const topPlaces = computed(() => buildTopPlaces(items.value, accessors.value.getPlace, 5))
   /**
@@ -174,8 +165,7 @@ export function useEarthquakeHistoryAnalytics(
     borderColor: 'rgba(251, 191, 36, 0.32)',
     borderWidth: 1,
     padding: [8, 12],
-    extraCssText:
-      'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
+    extraCssText: 'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
     textStyle: { color: '#fde68a', fontSize: 12, fontWeight: 600 },
   }
 

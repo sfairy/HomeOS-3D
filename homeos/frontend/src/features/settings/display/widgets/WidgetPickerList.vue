@@ -37,8 +37,7 @@ const pickerItems = computed(() =>
 )
 
 function rowClass() {
-  const base =
-    'w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center gap-3'
+  const base = 'w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center gap-3'
   if (props.variant === 'dashboard') {
     return `${base} wpl-row--dashboard`
   }

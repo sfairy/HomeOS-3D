@@ -9,7 +9,7 @@
  * 调用场景：拼接 HA REST API 路径前统一格式，避免出现 "//api" 双斜杠。
  */
 export function normalizeHaUrl(haUrl: string | null | undefined): string {
-  return haUrl ? haUrl.replace(/\/$/, '') : '';
+  return haUrl ? haUrl.replace(/\/$/, '') : ''
 }
 
 /**
@@ -25,16 +25,11 @@ export function isLocalhostHaUrl(url: string): boolean {
   try {
     // Logic fix: URL.hostname 对 IPv6 返回带方括号的 "[::1]"（以及 IPv4 映射写法），
     // 需要剥离括号后比较，否则容器内回环地址漏检会误报"可访问"。
-    const host = new URL(url.trim()).hostname.toLowerCase().replace(/^\[|\]$/g, '');
-    return (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '::1' ||
-      host === '::ffff:127.0.0.1'
-    );
+    const host = new URL(url.trim()).hostname.toLowerCase().replace(/^\[|\]$/g, '')
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '::ffff:127.0.0.1'
   } catch {
     // URL 解析失败视为非 localhost（后续校验会报格式错误）
-    return false;
+    return false
   }
 }
 
@@ -50,24 +45,21 @@ export function isLocalhostHaUrl(url: string): boolean {
  *  2. 协议为 http / https；
  *  3. 非 localhost（除非显式 allowLocalhost）。
  */
-export function validateHaUrlForDeploy(
-  url: string,
-  options?: { allowLocalhost?: boolean },
-): string | null {
-  const trimmed = url?.trim();
-  if (!trimmed) return 'HA 地址不能为空';
+export function validateHaUrlForDeploy(url: string, options?: { allowLocalhost?: boolean }): string | null {
+  const trimmed = url?.trim()
+  if (!trimmed) return 'HA 地址不能为空'
   try {
-    const parsed = new URL(trimmed);
+    const parsed = new URL(trimmed)
     // 仅允许 http / https，防止 file:// / ws:// 等异常协议
     if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return 'HA 地址须以 http:// 或 https:// 开头';
+      return 'HA 地址须以 http:// 或 https:// 开头'
     }
   } catch {
-    return 'HA 地址格式无效';
+    return 'HA 地址格式无效'
   }
   // 容器 / 远程部署场景下 localhost 不可达，需提示用户
   if (!options?.allowLocalhost && isLocalhostHaUrl(trimmed)) {
-    return 'HA 地址不能使用 localhost 或 127.0.0.1（Docker/远程部署请使用宿主机 LAN IP 或 host.docker.internal）';
+    return 'HA 地址不能使用 localhost 或 127.0.0.1（Docker/远程部署请使用宿主机 LAN IP 或 host.docker.internal）'
   }
-  return null;
+  return null
 }

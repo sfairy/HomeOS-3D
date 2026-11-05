@@ -16,10 +16,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const modulePath = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/runtime/core/state-update-plan.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/runtime/core/state-update-plan.ts', import.meta.url),
 )
 const { createDeviceStateMemo } = await import(modulePath)
 
@@ -34,15 +31,9 @@ const bindingsFor = (calls) => () => {
 
 const run = (memo, options) => {
   const calls = options.calls
-  return memo.run(
-    options.key ?? KEY,
-    options.context ?? [1],
-    options.states,
-    bindingsFor(calls),
-    () => {
-      calls.apply += 1
-    },
-  )
+  return memo.run(options.key ?? KEY, options.context ?? [1], options.states, bindingsFor(calls), () => {
+    calls.apply += 1
+  })
 }
 
 test('首次调用必定解析并应用', () => {

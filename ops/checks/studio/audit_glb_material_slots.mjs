@@ -28,7 +28,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { collectModelVariants, listModelFiles, modelsDir, repoRoot, specsDir } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import {
+  collectModelVariants,
+  listModelFiles,
+  modelsDir,
+  repoRoot,
+  specsDir,
+} from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import { enumerateSlots } from '../../../homeos/frontend/scripts/models/lib/material-slots.mjs'
 import { modelAuditDir as docsDir } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs'
 
@@ -61,7 +67,16 @@ const { materialPbrIsReplaced } = await import(
 const round = (value, digits = 3) => (typeof value === 'number' ? Number(value.toFixed(digits)) : value)
 const hexOf = (factor) =>
   Array.isArray(factor)
-    ? '#' + factor.slice(0, 3).map((channel) => Math.round(Math.max(0, Math.min(1, channel)) * 255).toString(16).padStart(2, '0')).join('').toUpperCase()
+    ? '#' +
+      factor
+        .slice(0, 3)
+        .map((channel) =>
+          Math.round(Math.max(0, Math.min(1, channel)) * 255)
+            .toString(16)
+            .padStart(2, '0'),
+        )
+        .join('')
+        .toUpperCase()
     : null
 
 function auditModel(contract, paths) {
@@ -80,7 +95,13 @@ function auditModel(contract, paths) {
     }
   }
   const primary = variants.lite ?? variants.full
-  if (!primary) return { id: contract.id, status: 'fail', findings: findings.length ? findings : [{ rule: 'S0', detail: '没有可读变体' }], slots }
+  if (!primary)
+    return {
+      id: contract.id,
+      status: 'fail',
+      findings: findings.length ? findings : [{ rule: 'S0', detail: '没有可读变体' }],
+      slots,
+    }
 
   // 1) 覆盖
   if (primary.materialCount !== contract.expectedSlotCount) {
@@ -115,8 +136,10 @@ function auditModel(contract, paths) {
       if (liteSlot.name !== fullSlot.name) diffs.push(`名 ${liteSlot.name} ≠ ${fullSlot.name}`)
       if ((liteSlot.alphaMode ?? 'OPAQUE') !== (fullSlot.alphaMode ?? 'OPAQUE')) diffs.push('alphaMode')
       if (Boolean(liteSlot.doubleSided) !== Boolean(fullSlot.doubleSided)) diffs.push('doubleSided')
-      if (Math.abs((liteSlot.roughnessFactor ?? -1) - (fullSlot.roughnessFactor ?? -1)) > PBR_TOLERANCE) diffs.push('roughness')
-      if (Math.abs((liteSlot.metallicFactor ?? -1) - (fullSlot.metallicFactor ?? -1)) > PBR_TOLERANCE) diffs.push('metalness')
+      if (Math.abs((liteSlot.roughnessFactor ?? -1) - (fullSlot.roughnessFactor ?? -1)) > PBR_TOLERANCE)
+        diffs.push('roughness')
+      if (Math.abs((liteSlot.metallicFactor ?? -1) - (fullSlot.metallicFactor ?? -1)) > PBR_TOLERANCE)
+        diffs.push('metalness')
       if (diffs.length) drift.push(`#${index} ${diffs.join(' / ')}`)
     }
     for (const detail of drift) findings.push({ rule: 'S6', detail, severity: 'notice' })
@@ -204,7 +227,11 @@ function auditModel(contract, paths) {
 
     // 8) 几何漂移
     const expectedShare = expected?.geometryEvidence?.areaShare
-    if (typeof expectedShare === 'number' && slot.fingerprint && Math.abs(slot.fingerprint.areaShare - expectedShare) > AREA_SHARE_TOLERANCE) {
+    if (
+      typeof expectedShare === 'number' &&
+      slot.fingerprint &&
+      Math.abs(slot.fingerprint.areaShare - expectedShare) > AREA_SHARE_TOLERANCE
+    ) {
       add('S8', `面积占比 ${slot.fingerprint.areaShare} vs 契约 ${expectedShare}`)
     }
 
@@ -243,7 +270,8 @@ function main() {
   const results = targets.map((contract) => auditModel(contract, variants.get(contract.id)))
 
   const ruleCounts = {}
-  for (const model of results) for (const finding of model.findings) ruleCounts[finding.rule] = (ruleCounts[finding.rule] ?? 0) + 1
+  for (const model of results)
+    for (const finding of model.findings) ruleCounts[finding.rule] = (ruleCounts[finding.rule] ?? 0) + 1
   const failing = results.filter((model) => model.status === 'fail')
   const summary = {
     generatedAt: new Date().toISOString(),
@@ -264,7 +292,12 @@ function main() {
     if (failing.length) {
       console.error(`✗ 槽位门禁：${failing.length}/${results.length} 款不合格`)
       for (const model of failing.slice(0, 30)) {
-        console.error(`  - ${model.id}: ${model.findings.slice(0, 3).map((finding) => `${finding.rule} ${finding.detail}`).join('；')}`)
+        console.error(
+          `  - ${model.id}: ${model.findings
+            .slice(0, 3)
+            .map((finding) => `${finding.rule} ${finding.detail}`)
+            .join('；')}`,
+        )
       }
       process.exit(1)
     }
@@ -274,7 +307,8 @@ function main() {
 
   if (stdoutOnly) {
     console.log(JSON.stringify(summary, null, 2))
-    for (const model of failing.slice(0, 20)) console.log(`  - ${model.id}: ${model.findings.map((f) => `${f.rule} ${f.detail}`).join('；')}`)
+    for (const model of failing.slice(0, 20))
+      console.log(`  - ${model.id}: ${model.findings.map((f) => `${f.rule} ${f.detail}`).join('；')}`)
     return
   }
 
@@ -287,9 +321,17 @@ function main() {
   lines.push(`- 生成时间：${summary.generatedAt}`)
   lines.push(`- 规模：${summary.models} 个模型 / ${summary.slots} 个槽位；契约 ${summary.contracts} 条`)
   lines.push(`- 判定：pass ${summary.pass} / fail ${summary.fail}`)
-  lines.push(`- 问题分类：${Object.entries(ruleCounts).map(([rule, count]) => `${rule}=${count}`).join('、') || '无'}`)
+  lines.push(
+    `- 问题分类：${
+      Object.entries(ruleCounts)
+        .map(([rule, count]) => `${rule}=${count}`)
+        .join('、') || '无'
+    }`,
+  )
   lines.push('')
-  lines.push('规则：S1 契约覆盖 / S2 角色解析 / S3 命名规范 / S4 死材质 / S5 整件同角色 / S6 lite 一致 / S7 PBR 偏差 / S8 几何漂移')
+  lines.push(
+    '规则：S1 契约覆盖 / S2 角色解析 / S3 命名规范 / S4 死材质 / S5 整件同角色 / S6 lite 一致 / S7 PBR 偏差 / S8 几何漂移',
+  )
   lines.push('')
   for (const model of results) {
     if (model.status === 'pass') continue
@@ -298,7 +340,9 @@ function main() {
     lines.push('| --- | --- | --- | --- | --- |')
     for (const slot of model.slots) {
       const verdict = slot.findings.length ? slot.findings.map((f) => `${f.rule} ${f.detail}`).join('；') : 'ok'
-      lines.push(`| ${slot.index} | ${slot.name} | ${slot.role ?? '—'}（${slot.roleSource ?? '—'}） | ${slot.contractRole ?? '—'} | ${verdict} |`)
+      lines.push(
+        `| ${slot.index} | ${slot.name} | ${slot.role ?? '—'}（${slot.roleSource ?? '—'}） | ${slot.contractRole ?? '—'} | ${verdict} |`,
+      )
     }
     lines.push('')
     for (const finding of model.findings) lines.push(`- ${finding.rule}：${finding.detail}`)

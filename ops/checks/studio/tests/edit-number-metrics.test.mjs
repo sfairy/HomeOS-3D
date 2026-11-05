@@ -15,16 +15,10 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const METRICS = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-edit-metrics.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-edit-metrics.ts', import.meta.url),
 )
 const WIDGETS = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/ui/studio-widgets.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/ui/studio-widgets.ts', import.meta.url),
 )
 const INSPECTOR = fileURLToPath(
   new URL(
@@ -119,7 +113,7 @@ test('检查器数字回写统一走 editNumberText + memo', () => {
   ])
     assert.match(
       source,
-      new RegExp(`setNumericControlValue\\(\\s*selectElement\\("${field}"\\)`),
+      new RegExp(`setNumericControlValue\\(\\s*selectElement\\(["']${field}["']\\)`),
       `${field} 仍走 toFixed 回写`,
     )
 })

@@ -65,7 +65,7 @@ function parseSignedNumber(raw: unknown): number {
 /**
  * 按当前时刻与配置算出今天该说的那句话；不满足条件返回 `null`。
  */
-export function buildDailyGreeting(now = new Date()): string | null {
+function buildDailyGreeting(now = new Date()): string | null {
   const voice = getConfigSection('voice')
   if (!voice?.dailyAdvisorSpeak) return null
   if (voice.ttsEnabled === false) return null

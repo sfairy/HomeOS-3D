@@ -31,41 +31,41 @@ export const WS_CLIENT_EVENTS = {
   ROOM_PRESENCE: 'room_presence', // [人员在场] 房间级在场
   EARTHQUAKE_ALERT: 'earthquake_alert', // [地震] 地震早期预警推送（全屏）
   EARTHQUAKE_CONFIRMATION: 'earthquake_confirmation', // [地震] 台网核定速报 / 迟到确认（公报弹层）
-} as const;
+} as const
 
 /**
  * 前端 WS 客户端事件名字面量联合：从 WS_CLIENT_EVENTS 常量提取所有 string value 的类型联合，供事件回调/emit 入参类型收窄。
  */
-export type WsClientEventName = (typeof WS_CLIENT_EVENTS)[keyof typeof WS_CLIENT_EVENTS];
+export type WsClientEventName = (typeof WS_CLIENT_EVENTS)[keyof typeof WS_CLIENT_EVENTS]
 
 /**
  * HA 网关连接健康状态字面量联合：connected（在线）/ disconnected（离线）/ reconnecting（重连中）。
  * 与 ha_status 事件 payload.status 字段一一对应，前端据此渲染连接指示灯。
  */
-export type WsHaConnectionStatus = 'connected' | 'disconnected' | 'reconnecting';
+export type WsHaConnectionStatus = 'connected' | 'disconnected' | 'reconnecting'
 
 /**
  * ha_status 事件的 payload（HA 连接健康广播）。
  * 前端据此更新状态栏图标、显示重连尝试次数与下次重连延迟，并记录时间戳。
  */
 export interface WsHaStatusPayload {
-  type: 'ha_status';                   /** 事件类型标志，用于 WS 消息分发型校验 */
-  status: WsHaConnectionStatus;        /** 当前连接状态（核心字段） */
-  ha_version?: string;                 /** 连接上的 HA 版本号（成功时回传） */
-  attempt?: number;                    /** 本轮已重连次数；首次可 undefined */
-  delay?: number;                      /** 下次重连前的等待毫秒数；connected 时可省略 */
-  timestamp: string;                   /** ISO 时间字符串（服务端生成，便于前端时间线排序） */
+  type: 'ha_status' /** 事件类型标志，用于 WS 消息分发型校验 */
+  status: WsHaConnectionStatus /** 当前连接状态（核心字段） */
+  ha_version?: string /** 连接上的 HA 版本号（成功时回传） */
+  attempt?: number /** 本轮已重连次数；首次可 undefined */
+  delay?: number /** 下次重连前的等待毫秒数；connected 时可省略 */
+  timestamp: string /** ISO 时间字符串（服务端生成，便于前端时间线排序） */
 }
 
 /** 增量状态推送中的实体快照（可带 _delta 压缩字段） */
 export interface WsEntityStatePayload {
-  entity_id: string;
-  state: string;
-  attributes?: Record<string, unknown>;
-  last_changed?: string;
-  last_updated?: string;
-  _delta?: boolean;
-  changed_attributes?: string[];
+  entity_id: string
+  state: string
+  attributes?: Record<string, unknown>
+  last_changed?: string
+  last_updated?: string
+  _delta?: boolean
+  changed_attributes?: string[]
 }
 
 /**
@@ -73,7 +73,7 @@ export interface WsEntityStatePayload {
  * _delta 压缩模式下 changed_attributes 列出变动字段名，客户端可只 patch 对应 attributes。
  */
 export interface WsStateChangedBatchPayload {
-  type?: 'state_changed_batch';       /** 事件类型守卫（可省略） */
-  changes: WsEntityStatePayload[];    /** 本次批量推送的实体快照数组（至少 1 条） */
-  timestamp?: string;                 /** 服务端发送时间（可选；缺省由客户端记录接收时间） */
+  type?: 'state_changed_batch' /** 事件类型守卫（可省略） */
+  changes: WsEntityStatePayload[] /** 本次批量推送的实体快照数组（至少 1 条） */
+  timestamp?: string /** 服务端发送时间（可选；缺省由客户端记录接收时间） */
 }

@@ -32,13 +32,9 @@ const props = defineProps({
 
 const hasMembers = computed(() => props.presenceMembers.length > 0)
 
-const homeMembers = computed(() =>
-  props.presenceMembers.map((m, idx) => ({ m, idx })).filter(({ m }) => m.atHome),
-)
+const homeMembers = computed(() => props.presenceMembers.map((m, idx) => ({ m, idx })).filter(({ m }) => m.atHome))
 
-const awayMembers = computed(() =>
-  props.presenceMembers.map((m, idx) => ({ m, idx })).filter(({ m }) => !m.atHome),
-)
+const awayMembers = computed(() => props.presenceMembers.map((m, idx) => ({ m, idx })).filter(({ m }) => !m.atHome))
 
 const homeHeadline = computed(() => {
   const n = props.presenceAtHomeCount
@@ -49,9 +45,7 @@ const homeHeadline = computed(() => {
   return `${n} 人在家`
 })
 
-const showSplitRoster = computed(
-  () => homeMembers.value.length > 0 && awayMembers.value.length > 0,
-)
+const showSplitRoster = computed(() => homeMembers.value.length > 0 && awayMembers.value.length > 0)
 
 function memberName(m) {
   return String(m?.name || m?.id || '未知')

@@ -19,7 +19,11 @@
   border-radius: var(--hos-radius-card, 16px);
   border: var(--hos-hairline) solid color-mix(in srgb, var(--head-accent) 18%, var(--premium-border));
   background:
-    radial-gradient(ellipse 110% 85% at 0% 0%, color-mix(in srgb, var(--head-accent) 14%, #0a0c12) 0%, rgba(0, 0, 0, 0) 55%),
+    radial-gradient(
+      ellipse 110% 85% at 0% 0%,
+      color-mix(in srgb, var(--head-accent) 14%, #0a0c12) 0%,
+      rgba(0, 0, 0, 0) 55%
+    ),
     radial-gradient(
       ellipse 80% 60% at 100% 0%,
       rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.06) 0%,
@@ -28,9 +32,7 @@
     linear-gradient(165deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.22));
   backdrop-filter: var(--premium-blur);
   -webkit-backdrop-filter: var(--premium-blur);
-  box-shadow:
-    var(--premium-shadow),
-    var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.06));
+  box-shadow: var(--premium-shadow), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.06));
   isolation: isolate;
 }
 
@@ -55,7 +57,11 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 120% 80% at 0% 0%, color-mix(in srgb, var(--head-accent) 14%, rgba(0, 0, 0, 0)) 0%, transparent 55%),
+    radial-gradient(
+      ellipse 120% 80% at 0% 0%,
+      color-mix(in srgb, var(--head-accent) 14%, rgba(0, 0, 0, 0)) 0%,
+      transparent 55%
+    ),
     radial-gradient(
       ellipse 80% 60% at 100% 0%,
       rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.05) 0%,
@@ -94,7 +100,9 @@
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transform: translateZ(0);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s ease;
 }
 
 .premium-head--card:hover .premium-head__orb {
@@ -208,7 +216,7 @@
 }
 
 .premium-head__desc--inline::before {
-  content: '·';
+  content: "·";
   margin-right: 8px;
   color: color-mix(in srgb, var(--head-accent) 45%, rgba(255, 255, 255, 0.35));
 }
@@ -245,14 +253,6 @@
 }
 
 /* ── 侧栏 / 面板条式页头 ── */
-
-
-
-
-
-
-
-
 
 @media (max-width: 720px) {
   .premium-head__title {

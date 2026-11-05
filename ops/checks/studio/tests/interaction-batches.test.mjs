@@ -16,8 +16,10 @@ import { fileURLToPath } from 'node:url'
 
 const THREE = await import('three')
 const MODULE = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-interaction-batches.ts',
-    import.meta.url),
+  new URL(
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-interaction-batches.ts',
+    import.meta.url,
+  ),
 )
 const { createInteractionBatches } = await import(MODULE)
 
@@ -127,11 +129,7 @@ test('烘焙出的合并代理只在 render() 期间挂上，渲染前后原网�
   )
 
   renderer.render()
-  assert.deepEqual(
-    renderObservations[0],
-    [true, true],
-    '渲染期间必须看到原始网格（拾取 / 动画读的是它们）',
-  )
+  assert.deepEqual(renderObservations[0], [true, true], '渲染期间必须看到原始网格（拾取 / 动画读的是它们）')
   assert.deepEqual(
     meshes.map((mesh) => mesh.visible),
     [false, false],
@@ -156,11 +154,7 @@ test('两个楼层布局相同 → 共用一份烘焙几何（内容键不含绝
   harness.scene.updateMatrixWorld(true)
   batches.prepare(harness.root, 'r2')
   settle(harness)
-  assert.equal(
-    batches.stats.geometryAllocations,
-    1,
-    '重建后三个楼层都应命中缓存，不该再烘焙第二份几何',
-  )
+  assert.equal(batches.stats.geometryAllocations, 1, '重建后三个楼层都应命中缓存，不该再烘焙第二份几何')
   assert.ok(batches.stats.cacheHits >= 3, '每个楼层分组都应当命中几何缓存')
   batches.dispose()
 })
@@ -204,22 +198,10 @@ test('静态版本未变的帧走快速路径，代理仍然挂着', () => {
     reusedFramesAfterSettle = batches.stats.reusedFrames
 
   batches.begin(null)
-  assert.equal(
-    batches.stats.fastFrames,
-    fastFramesAfterSettle + 1,
-    '同版本再走一帧应当跳过逐网格校验',
-  )
-  assert.equal(
-    batches.stats.reusedFrames,
-    reusedFramesAfterSettle + 1,
-    '内容没变就不该重建分组',
-  )
+  assert.equal(batches.stats.fastFrames, fastFramesAfterSettle + 1, '同版本再走一帧应当跳过逐网格校验')
+  assert.equal(batches.stats.reusedFrames, reusedFramesAfterSettle + 1, '内容没变就不该重建分组')
   assert.equal(batches.stats.rebuilds, buildsAfterFirstFrame)
-  assert.equal(
-    named(scene, 'prepared-static-parts').length,
-    1,
-    '快速路径不能把代理弄丢',
-  )
+  assert.equal(named(scene, 'prepared-static-parts').length, 1, '快速路径不能把代理弄丢')
   batches.dispose()
 })
 
@@ -253,11 +235,7 @@ test('预热只烘焙几何、不挂代理；cancelPrewarm 停止扫描', () => 
 
   assert.ok(batches.stats.warmScans >= 1, '应当真的扫过楼层根')
   assert.ok(batches.stats.warmReady >= 1, '应当有分组被烘进缓存')
-  assert.equal(
-    named(scene, 'prepared-static-parts').length,
-    0,
-    '预热不能生成代理：代理只在 begin() 里按当前视锥挂载',
-  )
+  assert.equal(named(scene, 'prepared-static-parts').length, 0, '预热不能生成代理：代理只在 begin() 里按当前视锥挂载')
 
   const scansAfterWarm = batches.stats.warmScans
   batches.prewarm([harness.root], 'rev-2')

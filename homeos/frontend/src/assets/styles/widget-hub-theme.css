@@ -39,7 +39,6 @@
 
 /* 开关控制 Hub：单行头时 Tab 自适应靠右（不再用 stacked 双行） */
 
-
 .widget-hub-head__row {
   display: flex;
   align-items: center;
@@ -106,7 +105,9 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: color 0.2s, background 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s;
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -119,7 +120,8 @@
 .widget-hub-subnav__btn--active {
   color: color-mix(in srgb, var(--hub-accent, var(--hos-color-accent)) 70%, white);
   background: color-mix(in srgb, var(--hub-accent, var(--hos-color-accent)) 14%, rgba(0, 0, 0, 0));
-  box-shadow: inset 0 0 0 var(--hos-hairline) color-mix(in srgb, var(--hub-accent, var(--hos-color-accent)) 30%, rgba(0, 0, 0, 0));
+  box-shadow: inset 0 0 0 var(--hos-hairline)
+    color-mix(in srgb, var(--hub-accent, var(--hos-color-accent)) 30%, rgba(0, 0, 0, 0));
 }
 
 /* ── 平板（≤1100px）：增强 widget-hub tab 激活/非激活对比度 ── */

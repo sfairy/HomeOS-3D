@@ -28,4 +28,4 @@ export const WINDOW_DESIGNER_TEMPLATE = `<dialog class="window-designer" id="wd-
       </aside>
     </div>
     <p id="wd-notice" class="designer-notice" role="alert" hidden></p><footer class="dialog-footer"><span id="wd-draft-status" role="status">修改尚未应用</span><div><button id="wd-cancel">取消</button><button id="wd-apply" class="primary">应用窗型</button></div></footer>
-  </dialog>`;
+  </dialog>`

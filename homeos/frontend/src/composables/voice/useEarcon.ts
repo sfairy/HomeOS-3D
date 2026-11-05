@@ -11,7 +11,7 @@ import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { logger } from '@/shared/utils/core/logger'
 
 /** 音效类型：与后端 `AgentChatResponse.earcon` 对齐 */
-export type EarconKind = 'success' | 'error' | 'confirm'
+type EarconKind = 'success' | 'error' | 'confirm'
 
 /** 单个音符 */
 interface Tone {
@@ -45,8 +45,7 @@ let context: AudioContext | null = null
 function resolveContext(): AudioContext | null {
   if (context) return context
   const Ctx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!Ctx) return null
   try {
     context = new Ctx()
@@ -70,7 +69,7 @@ async function ensureRunning(ctx: AudioContext): Promise<boolean> {
 }
 
 /** 音效是否启用（跟随语音播报开关） */
-export function earconEnabled(): boolean {
+function earconEnabled(): boolean {
   return getConfigSection('voice')?.ttsEnabled !== false
 }
 
@@ -107,12 +106,4 @@ export async function playEarcon(kind: EarconKind | null | undefined): Promise<v
   } catch (error) {
     logger.debug('播放音效失败', error)
   }
-}
-
-/** 释放音频上下文（页面卸载 / 测试用） */
-export function disposeEarcon(): void {
-  const ctx = context
-  context = null
-  if (!ctx || ctx.state === 'closed') return
-  void ctx.close().catch((error) => logger.debug('关闭音频上下文失败', error))
 }

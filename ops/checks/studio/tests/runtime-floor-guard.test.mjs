@@ -15,10 +15,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const modulePath = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/runtime/core/stage/floor-navigation.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/runtime/core/stage/floor-navigation.ts', import.meta.url),
 )
 const { resolveRuntimeFloor } = await import(modulePath)
 
@@ -61,7 +58,7 @@ test('楼层条目为 null 时不抛异常', () => {
 
 test('守卫就写在 "all" 分支上（而不是事后纠正）', () => {
   const source = readFileSync(modulePath, 'utf8')
-  const allBranch = source.split('\n').find((line) => line.includes('"all"') && line.includes('return'))
+  const allBranch = source.split('\n').find((line) => line.includes("'all'") && line.includes('return'))
   assert.ok(allBranch, '找不到 "all" 的返回分支')
   assert.match(allBranch, /length\s*>\s*1/, '"all" 必须带 floors.length > 1 守卫')
 })

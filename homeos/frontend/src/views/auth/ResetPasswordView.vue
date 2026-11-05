@@ -18,10 +18,7 @@ import { AUTH_FLOW_ACCESS, renderAuthSteps } from '@/shared/utils/auth/auth-flow
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import {
-  PASSWORD_POLICY_MESSAGE,
-  isPasswordPolicyCompliant,
-} from '@homeos/shared/security/password-policy'
+import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
 
 const authStore = useAuthStore()
 const chrome = useChromeStore()
@@ -34,9 +31,7 @@ const submitting = ref(false)
 const sending = ref(false)
 const sent = ref(false)
 const errorMessage = ref('')
-const mismatch = computed(
-  () => Boolean(passwordConfirmation.value) && password.value !== passwordConfirmation.value,
-)
+const mismatch = computed(() => Boolean(passwordConfirmation.value) && password.value !== passwordConfirmation.value)
 
 /** 发码倒计时（秒）；商店会返回 resendAfter，缺省取商店默认冷却 60 秒。 */
 const cooldown = ref(0)

@@ -83,18 +83,14 @@ const iconList = computed(() =>
 )
 
 // 智能定位：根据触发器位置计算面板样式与传送目标，避免溢出视口
-const { dropdownStyle, teleportTarget, teleportDisabled, placement } = useDropdownPosition(
-  rootRef,
-  open,
-  {
-    minWidth: 248,
-    maxHeight: 280,
-    chromeHeight: 48,
-    minListHeight: 96,
-    minRowHeight: 36,
-    dropdownRef: panelRef,
-  },
-)
+const { dropdownStyle, teleportTarget, teleportDisabled, placement } = useDropdownPosition(rootRef, open, {
+  minWidth: 248,
+  maxHeight: 280,
+  chromeHeight: 48,
+  minListHeight: 96,
+  minRowHeight: 36,
+  dropdownRef: panelRef,
+})
 
 /**
  * 选中某个图标：向父级 emit 新值并关闭面板
@@ -114,9 +110,12 @@ function onCustomInput(e) {
 }
 
 // 点击触发器与面板之外的区域时关闭面板
-useClickOutside(() => [rootRef.value, panelRef.value].filter(Boolean), () => {
-  open.value = false
-})
+useClickOutside(
+  () => [rootRef.value, panelRef.value].filter(Boolean),
+  () => {
+    open.value = false
+  },
+)
 </script>
 
 <style scoped src="./styles/FooterIconPicker.css"></style>

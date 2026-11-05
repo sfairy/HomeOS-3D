@@ -13,12 +13,7 @@
  */
 import { ref, type Ref } from 'vue'
 import { activateHomeMode } from '@/services/api/home-modes'
-import {
-  fetchConfigProfiles,
-  saveProject,
-  deleteProject,
-  setActiveProject,
-} from '@/services/api/config'
+import { fetchConfigProfiles, saveProject, deleteProject, setActiveProject } from '@/services/api/config'
 import { logger } from '@/shared/utils/core/logger'
 import { writeStoredProfileId } from './create-layout-state'
 import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'

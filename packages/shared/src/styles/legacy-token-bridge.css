@@ -150,8 +150,7 @@
   --hos-surface-panel-hover: var(--hos-panel-surface-hover);
   --hos-surface-elevated: var(--hos-panel-elevated);
   --hos-surface-inset: var(--hos-shadow-inset);
-  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 2px 8px rgba(0, 0, 0, 0.32);
+  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 2px 8px rgba(0, 0, 0, 0.32);
 
   --premium-glass-bg: var(--hos-bg-tint-1);
   --premium-glass-bg-hover: var(--hos-bg-tint-2);
@@ -189,8 +188,7 @@
   --hos-shadow-card: var(--hos-shadow-2);
   --hos-shadow-card-hover: var(--hos-shadow-3);
   --premium-shadow: var(--hos-shadow-3);
-  --premium-shadow-open: 0 0 0 1px var(--hos-color-accent-faint),
-    var(--hos-shadow-3), var(--hos-shadow-inset);
+  --premium-shadow-open: 0 0 0 1px var(--hos-color-accent-faint), var(--hos-shadow-3), var(--hos-shadow-inset);
   --set-card-surface-shadow: var(--hos-shadow-2);
 
   /* ══ 7. 圆角（四档：控件 10 / 卡片 14 / 面板 20 / 容器 28） ══ */

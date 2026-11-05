@@ -11,12 +11,16 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const PROPORTIONS = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-television-proportions.ts',
-    import.meta.url),
+  new URL(
+    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-television-proportions.ts',
+    import.meta.url,
+  ),
 )
 const POSTER = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/materials/studio-television-poster.ts',
-    import.meta.url),
+  new URL(
+    '../../../../homeos/frontend/src/studio/app/3d-studio/materials/studio-television-poster.ts',
+    import.meta.url,
+  ),
 )
 
 const { computeTelevisionProportions } = await import(PROPORTIONS)
@@ -112,8 +116,12 @@ test('演示画面铺满整张画布：四条边都有内容、没有大段空�
   const painter = createRecordingPainter(canvas)
   drawTelevisionPoster(canvas, painter)
 
-  const isBackground = (box) => box.kind === 'rect' && box.x0 <= 0.5 && box.x1 >= canvas.width - 0.5 &&
-    box.y0 <= 0.5 && box.y1 >= canvas.height - 0.5
+  const isBackground = (box) =>
+    box.kind === 'rect' &&
+    box.x0 <= 0.5 &&
+    box.x1 >= canvas.width - 0.5 &&
+    box.y0 <= 0.5 &&
+    box.y1 >= canvas.height - 0.5
   const content = painter.boxes.filter((box) => !isBackground(box))
   assert.ok(content.length > 20, `绘制内容太少（${content.length} 个图元），贴图可能没画出来`)
 

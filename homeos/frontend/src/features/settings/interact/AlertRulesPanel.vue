@@ -530,23 +530,20 @@ const ALERT_CHANNEL_OPTIONS = [
 ]
 
 // 场景模板提示：点击 chip 一键填充编辑表单
-const ALERT_PRESET_HINT =
-  '点击模板即填充名称 / 实体 / 条件 / 冷却 / 消息模板；套用后请按自家实体 ID 微调。'
+const ALERT_PRESET_HINT = '点击模板即填充名称 / 实体 / 条件 / 冷却 / 消息模板；套用后请按自家实体 ID 微调。'
 
 // 消息模板占位提示与可用变量说明（变量插值语法由后端 {{key}} 解析）
 const ALERT_TEMPLATE_PLACEHOLDER = '如：{{name}} 变为 {{state}}'
 const ALERT_TEMPLATE_HINT = '支持 {{state}} {{val}} {{name}} {{unit}} 变量，点击插入：'
 
 // 外部推送标题说明：Email 主题 / WebPush 通知标题 / 企业微信标题
-const ALERT_TITLE_HINT =
-  '用于 Email 主题与 WebPush / 企业微信通知标题；留空时分别使用系统默认标题。'
+const ALERT_TITLE_HINT = '用于 Email 主题与 WebPush / 企业微信通知标题；留空时分别使用系统默认标题。'
 
 // 冷却周期说明：分钟级用于高频传感器，小时级用于低电量等慢变化场景
 const ALERT_COOLDOWN_HINT = '冷却期内同规则不重复推送；填 0 表示不限制（如门铃等事件型规则）。'
 
 // 门铃联动提示：说明模板触发后的实时画面联动能力（窄屏下需保持横向折行）
-const ALERT_DOORBELL_LINK_HINT =
-  '门铃模板触发后可联动摄像头查看实时画面；配置了门锁实体时，弹窗内支持一键开门。'
+const ALERT_DOORBELL_LINK_HINT = '门铃模板触发后可联动摄像头查看实时画面；配置了门锁实体时，弹窗内支持一键开门。'
 
 function toggleAlertChannel(id) {
   if (!editing.value) return
@@ -556,7 +553,6 @@ function toggleAlertChannel(id) {
   else list.push(id)
   editing.value.channels = list
 }
-
 
 // 告警规则面板 composable：聚合编辑/保存/各类待保存计数
 const panel = useAlertRulesPanel(toRef(props, 'activeTab'))

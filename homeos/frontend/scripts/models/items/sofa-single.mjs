@@ -31,9 +31,7 @@ const legs = legs4({
 const base = b(INNER_W, BASE_TOP - LEG_H, D - 0.16, 0, (BASE_TOP + LEG_H) / 2, 0.02)
 const seat = b(INNER_W - 0.02, SEAT_TOP - BASE_TOP, D - 0.3, 0, (SEAT_TOP + BASE_TOP) / 2, 0.03)
 const arms = merge(
-  [-1, 1].map((side) =>
-    b(ARM_W, ARM_TOP - LEG_H, D - 0.02, (side * (W - ARM_W)) / 2, (ARM_TOP + LEG_H) / 2, -0.01),
-  ),
+  [-1, 1].map((side) => b(ARM_W, ARM_TOP - LEG_H, D - 0.02, (side * (W - ARM_W)) / 2, (ARM_TOP + LEG_H) / 2, -0.01)),
 )
 const back = b(W - 0.02, H - BASE_TOP, 0.2, 0, (H + BASE_TOP) / 2, BACK_Z)
 const backCushion = transform(b(INNER_W - 0.04, 0.3, 0.14), {

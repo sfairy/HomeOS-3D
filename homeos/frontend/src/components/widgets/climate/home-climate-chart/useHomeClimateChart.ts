@@ -5,16 +5,7 @@
  * - 提供图例数据、切换、空态文案，并响应可见性、认证、WS 重连与配置变化；
  * - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
  */
-import {
-  ref,
-  computed,
-  watch,
-  onMounted,
-  onUnmounted,
-  nextTick,
-  type Ref,
-  type ComputedRef,
-} from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, type Ref, type ComputedRef } from 'vue'
 import { useScheduledPoll } from '@/shared/widget/composables/useScheduledPoll'
 import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import { useAuthStore } from '@/stores/auth.store'
@@ -34,13 +25,7 @@ import {
   type HomeClimateChartView,
 } from '@/shared/utils/registry/home-climate-chart-options'
 import { TEMP_COLORS, HUM_COLORS, MAX_CHART_RETRIES } from './constants'
-import {
-  humidityLevel,
-  temperatureLevel,
-  toCelsius,
-  type ClimateLevel,
-  type HumidityLevelKey,
-} from './climate-levels'
+import { humidityLevel, temperatureLevel, toCelsius, type ClimateLevel, type HumidityLevelKey } from './climate-levels'
 import {
   buildClimateChartOption,
   chartSeriesName,
@@ -78,10 +63,7 @@ export interface ClimateSummaryRow {
  * 读取实体当前读数。
  * `unknown` / `unavailable` / 空串都不算读数（`Number('')` 会得到 0，必须显式挡掉）。
  */
-function readEntityNumber(
-  entityId: string,
-  entities: Record<string, { state?: string } | undefined>,
-): number | null {
+function readEntityNumber(entityId: string, entities: Record<string, { state?: string } | undefined>): number | null {
   const raw = entityId ? entities[entityId]?.state : undefined
   if (raw == null || String(raw).trim() === '') return null
   const value = Number(raw)
@@ -124,13 +106,10 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
   const humiditySeries = ref<ClimateSeries[]>([])
 
   const hasEntities = computed(
-    () =>
-      hubConfig.value.temperatureEntities.length > 0 || hubConfig.value.humidityEntities.length > 0,
+    () => hubConfig.value.temperatureEntities.length > 0 || hubConfig.value.humidityEntities.length > 0,
   )
 
-  const hasSeries = computed(
-    () => temperatureSeries.value.length > 0 || humiditySeries.value.length > 0,
-  )
+  const hasSeries = computed(() => temperatureSeries.value.length > 0 || humiditySeries.value.length > 0)
 
   const hasViewSeries = computed(() => {
     if (activeView.value === 'temperature') return temperatureSeries.value.length > 0
@@ -199,11 +178,7 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
 
     const attach = (entityId: string, kind: 'temp' | 'hum') => {
       if (!entityId) return
-      const name = climateEntityBaseName(
-        entityId,
-        entitiesStore.entities,
-        hubConfig.value.entityNames,
-      )
+      const name = climateEntityBaseName(entityId, entitiesStore.entities, hubConfig.value.entityNames)
       // 同名不同实体（例如两个房间都只叫「环境」）时用实体 id 兜底，避免读数互相覆盖。
       const key = occupied[kind].has(name) ? `${name}#${entityId}` : name
       occupied[kind].add(key)
@@ -225,11 +200,7 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
         row.temperature = value
         // 分级按摄氏阈值算：传感器报 °F 时先折算，显示的仍是原始读数。
         row.temperatureLevel =
-          value == null
-            ? null
-            : temperatureLevel(
-                toCelsius(value, readEntityUnit(entityId, entitiesStore.entities)),
-              )
+          value == null ? null : temperatureLevel(toCelsius(value, readEntityUnit(entityId, entitiesStore.entities)))
       } else {
         row.humidity = value
         row.humidityLevel = humidityLevel(value)
@@ -353,9 +324,7 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
       loading.value = true
       // 单实体契约：并发拉取（服务端有并发信号量 + 30s 结果缓存承接）。单个实体失败
       // 只丢该条曲线，不让整图报错 —— 对齐原批量接口「缺席实体返回空序列」的语义。
-      const settled = await Promise.allSettled(
-        allIds.map((id) => fetchHaHistory(id, HOME_CLIMATE_CHART_HOURS)),
-      )
+      const settled = await Promise.allSettled(allIds.map((id) => fetchHaHistory(id, HOME_CLIMATE_CHART_HOURS)))
       if (isStale(token)) return
       const byId = new Map<string, HaHistoryPoint[]>()
       let firstError: unknown
@@ -368,18 +337,8 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
         }
       }
       if (byId.size === 0 && firstError !== undefined) throw firstError
-      temperatureSeries.value = mapHistorySeries(
-        tempIds,
-        byId,
-        entitiesStore.entities,
-        hubConfig.value.entityNames,
-      )
-      humiditySeries.value = mapHistorySeries(
-        humIds,
-        byId,
-        entitiesStore.entities,
-        hubConfig.value.entityNames,
-      )
+      temperatureSeries.value = mapHistorySeries(tempIds, byId, entitiesStore.entities, hubConfig.value.entityNames)
+      humiditySeries.value = mapHistorySeries(humIds, byId, entitiesStore.entities, hubConfig.value.entityNames)
       legendHidden.value = legendItems.value.map(() => false)
     } catch (e) {
       notifyError(e, '获取温湿度历史')

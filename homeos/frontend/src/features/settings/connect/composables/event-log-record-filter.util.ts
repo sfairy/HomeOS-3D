@@ -72,9 +72,7 @@ export function useEventLogRecordFilter() {
   })
 
   const domainPresets = computed(() =>
-    mode.value === 'allow_domains'
-      ? EVENT_LOG_RECORD_ALLOW_DOMAIN_PRESETS
-      : EVENT_LOG_RECORD_BLOCK_DOMAIN_PRESETS,
+    mode.value === 'allow_domains' ? EVENT_LOG_RECORD_ALLOW_DOMAIN_PRESETS : EVENT_LOG_RECORD_BLOCK_DOMAIN_PRESETS,
   )
 
   const extraDomains = computed(() => {
@@ -84,10 +82,9 @@ export function useEventLogRecordFilter() {
   })
 
   const entityDomains = computed(() => {
-    const preset = [
-      ...EVENT_LOG_RECORD_BLOCK_DOMAIN_PRESETS,
-      ...EVENT_LOG_RECORD_ALLOW_DOMAIN_PRESETS,
-    ].map((item) => item.key)
+    const preset = [...EVENT_LOG_RECORD_BLOCK_DOMAIN_PRESETS, ...EVENT_LOG_RECORD_ALLOW_DOMAIN_PRESETS].map(
+      (item) => item.key,
+    )
     const fromStore = entitiesStore.domains || []
     return [...new Set([...preset, ...fromStore])].sort()
   })
@@ -122,9 +119,7 @@ export function useEventLogRecordFilter() {
     }),
   )
 
-  const recordInsight = computed(() =>
-    mapEventLogRecordToInsight(recommendations.value, mode.value),
-  )
+  const recordInsight = computed(() => mapEventLogRecordToInsight(recommendations.value, mode.value))
 
   const perfInsight = computed(() =>
     buildEventLogPerfRecommendations(eventStats.value, statsHours.value, {
@@ -141,14 +136,10 @@ export function useEventLogRecordFilter() {
     const parts: string[] = []
     if (mode.value === 'allow_domains') {
       parts.push(
-        allowDomains.value.length
-          ? `仅记录 ${allowDomains.value.length} 个域`
-          : '未选择允许域（不写入任何记录）',
+        allowDomains.value.length ? `仅记录 ${allowDomains.value.length} 个域` : '未选择允许域（不写入任何记录）',
       )
     } else {
-      parts.push(
-        blockDomains.value.length ? `排除 ${blockDomains.value.length} 个域` : '未排除任何域',
-      )
+      parts.push(blockDomains.value.length ? `排除 ${blockDomains.value.length} 个域` : '未排除任何域')
     }
     if (blockEntityIds.value.length) {
       parts.push(`排除 ${blockEntityIds.value.length} 个实体`)
@@ -235,9 +226,7 @@ export function useEventLogRecordFilter() {
       applyPreset(rec.blockDomains.map((row) => row.domain))
     }
     if (rec.blockEntities.length) {
-      blockEntityIds.value = [
-        ...new Set([...blockEntityIds.value, ...rec.blockEntities.map((row) => row.entityId)]),
-      ]
+      blockEntityIds.value = [...new Set([...blockEntityIds.value, ...rec.blockEntities.map((row) => row.entityId)])]
     }
     feedback.value = { ok: undefined, message: '已应用推荐，请确认后保存' }
   }

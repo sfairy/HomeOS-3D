@@ -50,9 +50,7 @@ function walkFiles(root: string): string[] {
 
 function pruneStale(liveRoot: string, buildRoot: string): void {
   if (!fs.existsSync(liveRoot) || !fs.existsSync(buildRoot)) return
-  const keep = new Set(
-    walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')),
-  )
+  const keep = new Set(walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')))
   for (const file of walkFiles(liveRoot)) {
     const rel = file.slice(liveRoot.length + 1).replace(/\\/g, '/')
     if (!keep.has(rel)) fs.rmSync(file, { force: true })
@@ -69,8 +67,7 @@ function cleanStaleStagingDirs(): void {
   if (!fs.existsSync(parent)) return
   for (const name of fs.readdirSync(parent)) {
     const isStaging = name === stagingPrefix || name.startsWith(`${stagingPrefix}.`)
-    const isLock =
-      name === `${liveName}.publish.lock` || name === `${liveName}.build.lock`
+    const isLock = name === `${liveName}.publish.lock` || name === `${liveName}.build.lock`
     if (!isStaging && !isLock) continue
     if (name === `${stagingPrefix}.${process.pid}`) continue
     const full = resolve(parent, name)
@@ -156,9 +153,7 @@ async function publishStagingToLive(): Promise<void> {
     //   - ``.vite``：``manifest: true`` 会让 Vite 产出 ``outDir/.vite/manifest.json``，
     //     线上无任何消费方（后端白名单读 ``public-static.json`` 与 runtime ``manifest.json``），
     //     属构建缓存，不应进 dist。
-    const entries = fs.readdirSync(outDir).filter(
-      (name) => name !== 'modules' && name !== '.vite',
-    )
+    const entries = fs.readdirSync(outDir).filter((name) => name !== 'modules' && name !== '.vite')
     // 先资源后外壳：避免新 index 已上线却仍缺新 hash chunk。
     const ordered = [
       ...entries.filter((name) => name !== 'index.html'),
@@ -332,9 +327,7 @@ function writeResourceVersion(): void {
     // 缺占位符就别「静默跳过」：缓存名会退化成固定值，升级后旧壳缓存不会作废 ——
     // 这正是本机制要消灭的病，所以让构建直接失败，而不是把问题留到线上。
     if (!source.includes(RESOURCE_VERSION_TOKEN)) {
-      throw new Error(
-        `sw.js 缺少资源版本占位符 ${RESOURCE_VERSION_TOKEN}：SW 缓存名将退化为固定值，升级后会混用旧缓存`,
-      )
+      throw new Error(`sw.js 缺少资源版本占位符 ${RESOURCE_VERSION_TOKEN}：SW 缓存名将退化为固定值，升级后会混用旧缓存`)
     }
     fs.writeFileSync(swPath, source.split(RESOURCE_VERSION_TOKEN).join(revision), 'utf8')
   }
@@ -359,8 +352,7 @@ function isBenignProxyError(err: unknown): boolean {
   return !!code && BENIGN_PROXY_ERROR_CODES.has(code)
 }
 
-const BACKEND_UNAVAILABLE_HINT =
-  '后端暂未就绪，请先运行 bun run dev:backend，稍后刷新'
+const BACKEND_UNAVAILABLE_HINT = '后端暂未就绪，请先运行 bun run dev:backend，稍后刷新'
 
 /** 后端未就绪时返回 503 JSON，避免浏览器看到含糊的 500 Internal Server Error */
 function respondBackendUnavailable(res: unknown): void {
@@ -444,18 +436,14 @@ const customLogger = {
     const text = String(msg)
     const err = (options as { error?: unknown } | undefined)?.error
     // 配置变更触发重启时，进行中的 transform/HTML 请求会抛此错，随后会打印 server restarted
-    if (
-      text.includes('Request is outdated') ||
-      text.includes('The server is being restarted or closed')
-    ) {
+    if (text.includes('Request is outdated') || text.includes('The server is being restarted or closed')) {
       return
     }
     const benignHttpProxy =
       text.includes('http proxy error') &&
       (isBenignProxyError(err) || /ECONNREFUSED|ECONNRESET|ECONNABORTED/.test(text))
     const benignWsProxy =
-      (text.includes('ws proxy error') || text.includes('ws proxy socket error')) &&
-      isBenignProxyError(err)
+      (text.includes('ws proxy error') || text.includes('ws proxy socket error')) && isBenignProxyError(err)
     if (benignHttpProxy || benignWsProxy) {
       if (benignHttpProxy) logBenignProxyOnce(err ?? text)
       return
@@ -591,8 +579,7 @@ function finalizeBuildPlugin(): Plugin {
         await tryFinalize()
         if (!finalized) {
           const assetsDir = resolve(outDir, 'static', 'assets')
-          const hasAssets =
-            fs.existsSync(assetsDir) && fs.readdirSync(assetsDir).length > 0
+          const hasAssets = fs.existsSync(assetsDir) && fs.readdirSync(assetsDir).length > 0
           // 有产物却没有外壳 = 产物不完整（真·空构建不在这里报错）；报错内容由共用助手
           // 统一给出 outDir 实际清单 —— 缺外壳时第一个要回答的就是「目录里到底有没有东西」。
           if (hasAssets) {
@@ -741,9 +728,7 @@ function updatePublicStaticManifest(): void {
   // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。
   ;(payload as Record<string, unknown>)._prunedStaleSeed = pruned.sort()
   if (pruned.length > 0) {
-    console.warn(
-      `[homeos] 匿名白名单筛掉 ${pruned.length} 条不存在的种子条目：\n  ${pruned.join('\n  ')}`,
-    )
+    console.warn(`[homeos] 匿名白名单筛掉 ${pruned.length} 条不存在的种子条目：\n  ${pruned.join('\n  ')}`)
   }
   const revalidate = new Set<string>()
   for (const p of discovered) {
@@ -788,9 +773,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   if (analyzeBundle) {
     const { visualizer } = await import('rollup-plugin-visualizer')
     // 必须在 finalize 之前写入旁路目录，否则 publish 后 staging 已删。
-    plugins.push(
-      visualizer({ filename: resolve(outDir, 'bundle-stats.html'), gzipSize: true, open: false }),
-    )
+    plugins.push(visualizer({ filename: resolve(outDir, 'bundle-stats.html'), gzipSize: true, open: false }))
   }
   // 最后：IIFE → 匿名白名单 → 发布到线上 dist（同一 closeBundle 内串行）。
   plugins.push(finalizeBuildPlugin())
@@ -874,10 +857,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       port: 8805,
       strictPort: true,
       warmup: {
-        clientFiles: [
-          './src/components/widgets/widget-registry.ts',
-          './src/components/widgets/**/*.vue',
-        ],
+        clientFiles: ['./src/components/widgets/widget-registry.ts', './src/components/widgets/**/*.vue'],
       },
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -989,8 +969,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
          * service worker resource mismatch），在 DevTools 里刷两条噪音警告。
          * 移除后模块图仍会正常静态拉取它，懒加载 chunk 也会经 __vite__mapDeps 按需取。
          */
-        resolveDependencies: (_filename, deps) =>
-          deps.filter((dep) => !/\/(charts|hls|rolldown-runtime)-/.test(dep)),
+        resolveDependencies: (_filename, deps) => deps.filter((dep) => !/\/(charts|hls|rolldown-runtime)-/.test(dep)),
       },
       rolldownOptions: {
         // 3D Studio 运行时资源外置：three / /static/vendor/** / /api/** 不进 bundle。
@@ -1009,14 +988,12 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
            * 与 `vite.runtime.config.ts` 保持同一口径：把 `three` 改写成根绝对 URL，
            * 与 `/static/vendor/three/<版本>/*` 的随包副本对齐。
            */
-          paths: (id) => (id === "three" ? THREE_VENDOR : id),
+          paths: (id) => (id === 'three' ? THREE_VENDOR : id),
           entryFileNames: 'static/assets/[name]-[hash].js',
-          chunkFileNames: (chunk) =>
-            `static/assets/${sanitizeChunkBaseName(chunk.name)}-[hash].js`,
+          chunkFileNames: (chunk) => `static/assets/${sanitizeChunkBaseName(chunk.name)}-[hash].js`,
           // 扁平一层（不建 js/ css/ 子目录），与商店 `assets/<name>-<hash>` 同构：
           // 同名的 js 与 css 靠扩展名区分，hash 由内容决定，不会互相覆盖。
-          assetFileNames: ({ name }) =>
-            `static/assets/${sanitizeChunkBaseName(name)}-[hash][extname]`,
+          assetFileNames: ({ name }) => `static/assets/${sanitizeChunkBaseName(name)}-[hash][extname]`,
           minify: isProduction,
           /**
            * 分包策略：**只给第三方库与 entriesAware 兜底组建命名 chunk**，业务域不再并组。

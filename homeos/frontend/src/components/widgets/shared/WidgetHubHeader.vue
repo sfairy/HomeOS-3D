@@ -87,11 +87,7 @@ const slots = useSlots()
  */
 const hasBrandRow = computed(
   () =>
-    Boolean(props.title) ||
-    Boolean(props.meta) ||
-    Boolean(slots.icon) ||
-    Boolean(slots.meta) ||
-    Boolean(slots.actions),
+    Boolean(props.title) || Boolean(props.meta) || Boolean(slots.icon) || Boolean(slots.meta) || Boolean(slots.actions),
 )
 
 /**

@@ -23,12 +23,11 @@ type SliderCommitOptions = {
   parse?: (v: unknown) => number
   track?: SliderTrackOpts | (() => SliderTrackOpts) | null
   /** 回调入参使用双变（bivariant），便于调用方解构必填的 min/max/step */
-  buildTrackStyle?: {
-    bivarianceHack(
-      value: number,
-      trackOpts: SliderTrackOpts,
-    ): Record<string, string | number | undefined>
-  }['bivarianceHack'] | null
+  buildTrackStyle?:
+    | {
+        bivarianceHack(value: number, trackOpts: SliderTrackOpts): Record<string, string | number | undefined>
+      }['bivarianceHack']
+    | null
 }
 
 /**
@@ -81,8 +80,7 @@ export function useSliderCommit(
       : undefined
   function onInput(e: Event | { target?: { value?: string } } | number | string) {
     isDragging.value = true
-    const raw =
-      typeof e === 'object' && e != null && 'target' in e ? (e.target as { value?: string })?.value : e
+    const raw = typeof e === 'object' && e != null && 'target' in e ? (e.target as { value?: string })?.value : e
     localValue.value = alignToStep(parse(raw))
   }
   function commit() {
@@ -92,9 +90,7 @@ export function useSliderCommit(
   }
   function onChange(e: Event | { target?: { value?: string } } | number | string) {
     const raw =
-      typeof e === 'object' && e != null && 'target' in e
-        ? (e.target as { value?: string })?.value
-        : localValue.value
+      typeof e === 'object' && e != null && 'target' in e ? (e.target as { value?: string })?.value : localValue.value
     localValue.value = alignToStep(parse(raw))
     isDragging.value = false
     onCommit?.(localValue.value)

@@ -1,59 +1,17 @@
+import { anchorGate as anchorGate2, syncCourtyardGates as syncCourtyardGates2 } from '../../../plan/courtyard-drawing'
 
+import { airerDimensions as airerDimensions2 } from '../../items/studio-airer'
+import { setPipelineDispenserStyle } from '../../items/pipeline-dispenser'
+import { fanDimensions as fanDimensions2 } from '../../items/studio-fan'
 
-
-
-
-
-import {
-  anchorGate as anchorGate2,
-  syncCourtyardGates as syncCourtyardGates2,
-} from "../../../plan/courtyard-drawing";
-
-
-import {
-  airerDimensions as airerDimensions2,
-} from "../../items/studio-airer";
-import { setPipelineDispenserStyle } from "../../items/pipeline-dispenser";
-import {
-  fanDimensions as fanDimensions2,
-} from "../../items/studio-fan";
-
-
-
-
-import {
-  normalizeMuralArtStyle,
-  normalizeFeatureWallStyle,
-} from "../../../materials/studio-surface-textures";
-
-
-
+import { normalizeMuralArtStyle, normalizeFeatureWallStyle } from '../../../materials/studio-surface-textures'
 
 import {
   normalizeCurtainTrack as normalizeCurtainTrack2,
   curtainFootprintDepth as curtainFootprintDepth2,
-} from "../../../loaders/studio-curtain-track";
+} from '../../../loaders/studio-curtain-track'
 
-
-
-
-
-
-
-
-import {
-  clamp as clamp2,
-  clampWindowT as clampWindowT2,
-} from "../../../plan/geometry";
-
-
-
-
-
-
-
-
-
+import { clamp as clamp2, clampWindowT as clampWindowT2 } from '../../../plan/geometry'
 
 import {
   finite as finite2,
@@ -61,456 +19,414 @@ import {
   itemMinimumFootprint as itemMinimumFootprint2,
   normalizeFullRotation as normalizeFullRotation2,
   normalizeLabelText as normalizeLabelText2,
-} from "../../../loaders/studio-normalization";
-import { normalizeModelRemark as normalizeModelRemark2 } from "../../../../shared/model-remarks";
-import { normalizePillarAxis as normalizePillarAxis2,
+} from '../../../loaders/studio-normalization'
+import { normalizeModelRemark as normalizeModelRemark2 } from '../../../../shared/model-remarks'
+import {
+  normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
   normalizeStripAxis as normalizeStripAxis2,
-} from "../../items/studio-item-posture";
-import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, tvMountStyleSet } from "../../items/item-catalog";
-import { syncLightShapeAndRepaint } from "./light-shape-sync";
-import { STORAGE_SECTION_TYPES, storageSectionStyle } from "../../items/studio-storage-sections";
-
-
-import type {
-  StudioControlElement,
-} from '../../types/studio-app-types';
-
-
+} from '../../items/studio-item-posture'
 import {
-  lightPresetCatalog,
-  lightAngleLimitForType,
-} from '../../lights/studio-app-light-data';
-import { doorTypeCatalog, normalizePlanLabelColor } from "../../scene/studio-scene-payload";
+  itemTypeCatalog,
+  lampItemTypeSet,
+  openStairTypeSet,
+  roundTableTypeSet,
+  sofaMinDimensions,
+  tvMountStyleSet,
+} from '../../items/item-catalog'
+import { syncLightShapeAndRepaint } from './light-shape-sync'
+import { STORAGE_SECTION_TYPES, storageSectionStyle } from '../../items/studio-storage-sections'
 
+import type { StudioControlElement } from '../../types/studio-app-types'
 
+import { lightPresetCatalog, lightAngleLimitForType } from '../../lights/studio-app-light-data'
+import { doorTypeCatalog, normalizePlanLabelColor } from '../../scene/studio-scene-payload'
 
-
-
-
-
-
-
-import type { StudioAppContext } from "../studio-app-context";
-export interface ApplyToolSettingDeps { appCtx: StudioAppContext; applyPlacementChange: any; captureUndoSnapshot: any; getLightGroups: any; getPixelsPerMeter: any; getSelectedObject: any; isSelectionAllowed: any; itemLightSourceVisibleInput: any; itemStripRollInput: any; markDocumentDirty: any; refreshScopeItems: any; refreshStudioUi: any; resolvePreviewScope: any; selectElement: any; validateSelectionChange: any; }
+import type { StudioAppContext } from '../studio-app-context'
+export interface ApplyToolSettingDeps {
+  appCtx: StudioAppContext
+  applyPlacementChange: any
+  captureUndoSnapshot: any
+  getLightGroups: any
+  getPixelsPerMeter: any
+  getSelectedObject: any
+  isSelectionAllowed: any
+  itemLightSourceVisibleInput: any
+  itemStripRollInput: any
+  markDocumentDirty: any
+  refreshScopeItems: any
+  refreshStudioUi: any
+  resolvePreviewScope: any
+  selectElement: any
+  validateSelectionChange: any
+}
 
 export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: any) {
-  const { appCtx, applyPlacementChange, captureUndoSnapshot, getLightGroups, getPixelsPerMeter, getSelectedObject, isSelectionAllowed, itemLightSourceVisibleInput, itemStripRollInput, markDocumentDirty, refreshScopeItems, refreshStudioUi, resolvePreviewScope, selectElement, validateSelectionChange } = deps;
+  const {
+    appCtx,
+    applyPlacementChange,
+    captureUndoSnapshot,
+    getLightGroups,
+    getPixelsPerMeter,
+    getSelectedObject,
+    isSelectionAllowed,
+    itemLightSourceVisibleInput,
+    itemStripRollInput,
+    markDocumentDirty,
+    refreshScopeItems,
+    refreshStudioUi,
+    resolvePreviewScope,
+    selectElement,
+    validateSelectionChange,
+  } = deps
 
-  const toolPlacedElement = getSelectedObject();
-  if (
-    !toolPlacedElement ||
-    appCtx.selectedItem?.kind !== selectedToolName ||
-    !isSelectionAllowed(appCtx.selectedItem)
-  )
-    return;
+  const toolPlacedElement = getSelectedObject()
+  if (!toolPlacedElement || appCtx.selectedItem?.kind !== selectedToolName || !isSelectionAllowed(appCtx.selectedItem))
+    return
   const yr2 =
-      selectedToolName === "item"
+      selectedToolName === 'item'
         ? resolvePreviewScope(toolPlacedElement)
-        : ["door", "window", "railing"].includes(selectedToolName)
-          ? "architecture"
-          : "all",
-    ft9 = captureUndoSnapshot();
+        : ['door', 'window', 'railing'].includes(selectedToolName)
+          ? 'architecture'
+          : 'all',
+    ft9 = captureUndoSnapshot()
   /** 立柱切到半圆时进深被咬合过，末尾要回刷检查器里的进深输入。 */
-  let pillarDepthSnapped = false;
+  let pillarDepthSnapped = false
   // 模型备注是编辑期元数据：与几何字段同源提交，但空串要**删键**而不是留空串，
   // 否则 `withoutModelRemarks` 之外的比较（保存载荷 / 场景同步）会把「从没写过备注」
   // 和「清空过备注」当成两种不同状态。
-  if (selectedToolName === "item" || selectedToolName === "door") {
-    const modelRemarkInput = selectElement("#model-remark");
-    if (modelRemarkInput && !modelRemarkInput.closest("[hidden]")) {
-      const nextModelRemark = normalizeModelRemark2(modelRemarkInput.value);
-      modelRemarkInput.value = nextModelRemark;
-      if (nextModelRemark !== (toolPlacedElement.remark || "")) {
-        if (nextModelRemark) toolPlacedElement.remark = nextModelRemark;
-        else delete toolPlacedElement.remark;
+  if (selectedToolName === 'item' || selectedToolName === 'door') {
+    const modelRemarkInput = selectElement('#model-remark')
+    if (modelRemarkInput && !modelRemarkInput.closest('[hidden]')) {
+      const nextModelRemark = normalizeModelRemark2(modelRemarkInput.value)
+      modelRemarkInput.value = nextModelRemark
+      if (nextModelRemark !== (toolPlacedElement.remark || '')) {
+        if (nextModelRemark) toolPlacedElement.remark = nextModelRemark
+        else delete toolPlacedElement.remark
       }
     }
   }
-  if (selectedToolName === "wall")
-    ((toolPlacedElement.height = clamp2(
-      finite2(selectElement("#wall-height").value, toolPlacedElement.height),
+  if (selectedToolName === 'wall')
+    (toolPlacedElement.height = clamp2(
+      finite2(selectElement('#wall-height').value, toolPlacedElement.height),
       0.01,
       6,
     )),
       (toolPlacedElement.thickness = clamp2(
-        finite2(selectElement("#wall-thickness").value, toolPlacedElement.thickness),
+        finite2(selectElement('#wall-thickness').value, toolPlacedElement.thickness),
         0.01,
         3,
       )),
       (toolPlacedElement.opacity =
-        selectElement("#wall-opacity-mode").value === "custom"
+        selectElement('#wall-opacity-mode').value === 'custom'
           ? clamp2(
-              finite2(selectElement("#wall-opacity").value, appCtx.studioState.settings.wallOpacity * 100),
+              finite2(selectElement('#wall-opacity').value, appCtx.studioState.settings.wallOpacity * 100),
               0,
               100,
             ) / 100
           : null),
-      (toolPlacedElement.allowOpenEnd = selectElement("#wall-open-end-mode").value === "allowed"),
+      (toolPlacedElement.allowOpenEnd = selectElement('#wall-open-end-mode').value === 'allowed'),
       (appCtx.studioState.settings.wallHeight = toolPlacedElement.height),
-      (appCtx.studioState.settings.wallThickness = toolPlacedElement.thickness));
+      (appCtx.studioState.settings.wallThickness = toolPlacedElement.thickness)
   else {
-    if (selectedToolName === "window") {
-      ((toolPlacedElement.width = clamp2(
-        finite2(selectElement("#window-width").value, toolPlacedElement.width),
+    if (selectedToolName === 'window') {
+      ;(toolPlacedElement.width = clamp2(
+        finite2(selectElement('#window-width').value, toolPlacedElement.width),
         0.3,
         20,
       )),
         (toolPlacedElement.height = clamp2(
-          finite2(selectElement("#window-height").value, toolPlacedElement.height),
+          finite2(selectElement('#window-height').value, toolPlacedElement.height),
           0.3,
           20,
         )),
-        (toolPlacedElement.sill = clamp2(
-          finite2(selectElement("#window-sill").value, toolPlacedElement.sill),
-          0,
-          20,
-        )),
-        (toolPlacedElement.hasDivider = selectElement("#window-divider").value !== "without"));
+        (toolPlacedElement.sill = clamp2(finite2(selectElement('#window-sill').value, toolPlacedElement.sill), 0, 20)),
+        (toolPlacedElement.hasDivider = selectElement('#window-divider').value !== 'without')
       const toolAnchorWallRecord = appCtx.studioState.walls.find(
         (toolAnchorWall) => toolAnchorWall.id === toolPlacedElement.wallId,
-      );
+      )
       toolAnchorWallRecord &&
-        (toolPlacedElement.t = clampWindowT2(
-          toolAnchorWallRecord,
-          toolPlacedElement,
-          getPixelsPerMeter(),
-        ));
+        (toolPlacedElement.t = clampWindowT2(toolAnchorWallRecord, toolPlacedElement, getPixelsPerMeter()))
     } else {
-      if (selectedToolName === "door") {
-        ((toolPlacedElement.doorType = Object.hasOwn(
-          doorTypeCatalog,
-          selectElement("#door-type").value,
-        )
-          ? selectElement("#door-type").value
-          : "solid"),
+      if (selectedToolName === 'door') {
+        ;(toolPlacedElement.doorType = Object.hasOwn(doorTypeCatalog, selectElement('#door-type').value)
+          ? selectElement('#door-type').value
+          : 'solid'),
           (toolPlacedElement.width = clamp2(
-            finite2(selectElement("#door-width").value, toolPlacedElement.width),
+            finite2(selectElement('#door-width').value, toolPlacedElement.width),
             0.55,
             20,
           )),
           (toolPlacedElement.height = clamp2(
-            finite2(selectElement("#door-height").value, toolPlacedElement.height),
+            finite2(selectElement('#door-height').value, toolPlacedElement.height),
             1.8,
             20,
-          )));
+          ))
         const toolWindowWallRecord = appCtx.studioState.walls.find(
           (toolWindowWall) => toolWindowWall.id === toolPlacedElement.wallId,
-        );
+        )
         toolWindowWallRecord &&
-          (toolPlacedElement.t = clampWindowT2(
-            toolWindowWallRecord,
-            toolPlacedElement,
-            getPixelsPerMeter(),
-          ));
+          (toolPlacedElement.t = clampWindowT2(toolWindowWallRecord, toolPlacedElement, getPixelsPerMeter()))
       } else {
-        if (selectedToolName === "railing") {
-          ((toolPlacedElement.width = clamp2(
-            finite2(selectElement("#railing-width").value, toolPlacedElement.width),
+        if (selectedToolName === 'railing') {
+          ;(toolPlacedElement.width = clamp2(
+            finite2(selectElement('#railing-width').value, toolPlacedElement.width),
             0.3,
             20,
           )),
             (toolPlacedElement.height = clamp2(
-              finite2(selectElement("#railing-height").value, toolPlacedElement.height),
+              finite2(selectElement('#railing-height').value, toolPlacedElement.height),
               0.5,
               3,
-            )));
+            ))
           const toolDoorWallRecord = appCtx.studioState.walls.find(
             (toolDoorWall) => toolDoorWall.id === toolPlacedElement.wallId,
-          );
+          )
           toolDoorWallRecord &&
-            (toolPlacedElement.t = clampWindowT2(
-              toolDoorWallRecord,
-              toolPlacedElement,
-              getPixelsPerMeter(),
-            ));
+            (toolPlacedElement.t = clampWindowT2(toolDoorWallRecord, toolPlacedElement, getPixelsPerMeter()))
         } else {
-          const toolPpm = getPixelsPerMeter() || 1;
+          const toolPpm = getPixelsPerMeter() || 1
           if (
-            ((toolPlacedElement.x =
-              finite2(selectElement("#item-x").value, toolPlacedElement.x / toolPpm) * toolPpm),
-            (toolPlacedElement.y =
-              finite2(selectElement("#item-y").value, toolPlacedElement.y / toolPpm) * toolPpm),
-            toolPlacedElement.type === "fan" &&
+            ((toolPlacedElement.x = finite2(selectElement('#item-x').value, toolPlacedElement.x / toolPpm) * toolPpm),
+            (toolPlacedElement.y = finite2(selectElement('#item-y').value, toolPlacedElement.y / toolPpm) * toolPpm),
+            toolPlacedElement.type === 'fan' &&
               Object.assign(
                 toolPlacedElement,
                 fanDimensions2({
                   ...toolPlacedElement,
-                  fanHeight: Number(selectElement("#fan-model-height").value),
-                  fanScale: Number(selectElement("#fan-model-scale").value) / 100,
+                  fanHeight: Number(selectElement('#fan-model-height').value),
+                  fanScale: Number(selectElement('#fan-model-scale').value) / 100,
                 }),
               ),
             (toolPlacedElement.width = clamp2(
-              finite2(selectElement("#item-width").value, toolPlacedElement.width),
+              finite2(selectElement('#item-width').value, toolPlacedElement.width),
               itemMinimumFootprint2(toolPlacedElement.type),
               8,
             )),
             (toolPlacedElement.height = clamp2(
-              finite2(selectElement("#item-height").value, toolPlacedElement.height),
+              finite2(selectElement('#item-height').value, toolPlacedElement.height),
               itemMinimumHeight2(toolPlacedElement.type),
               6,
             )),
             (toolPlacedElement.depth = clamp2(
-              finite2(selectElement("#item-depth").value, toolPlacedElement.depth),
+              finite2(selectElement('#item-depth').value, toolPlacedElement.depth),
               itemMinimumFootprint2(toolPlacedElement.type),
               8,
             )),
-            toolPlacedElement.type === "sofa-l" &&
+            toolPlacedElement.type === 'sofa-l' &&
               (toolPlacedElement.sofaChaiseSide =
-                selectElement("#sofa-chaise-side").value === "left" ? "left" : "right"),
-            toolPlacedElement.type === "fan" &&
-              Object.assign(toolPlacedElement, fanDimensions2(toolPlacedElement)),
+                selectElement('#sofa-chaise-side').value === 'left' ? 'left' : 'right'),
+            toolPlacedElement.type === 'fan' && Object.assign(toolPlacedElement, fanDimensions2(toolPlacedElement)),
             (toolPlacedElement.elevation = clamp2(
-              finite2(selectElement("#item-elevation").value, toolPlacedElement.elevation || 0),
+              finite2(selectElement('#item-elevation').value, toolPlacedElement.elevation || 0),
               0,
               6,
             )),
-            toolPlacedElement.type === "airer" &&
+            toolPlacedElement.type === 'airer' &&
               Object.assign(
                 toolPlacedElement,
                 airerDimensions2({
                   ...toolPlacedElement,
-                  airerStyle:
-                    selectElement("#airer-style").value === "single" ? "single" : "double",
-                  airerExtension: Number(selectElement("#airer-extension").value),
-                  airerPreview: Number(selectElement("#airer-preview").value),
+                  airerStyle: selectElement('#airer-style').value === 'single' ? 'single' : 'double',
+                  airerExtension: Number(selectElement('#airer-extension').value),
+                  airerPreview: Number(selectElement('#airer-preview').value),
                 }),
               ),
             (toolPlacedElement.rotation =
-              toolPlacedElement.type === "striplight"
-                ? normalizeFullRotation2(
-                    selectElement("#item-rotation").value,
-                    toolPlacedElement.rotation,
-                  )
-                : finite2(selectElement("#item-rotation").value, toolPlacedElement.rotation)),
-            toolPlacedElement.type === "planlabel" &&
-              ((toolPlacedElement.title = normalizeLabelText2(
-                selectElement("#label-title").value,
-                "家庭总览",
-                24,
-              )),
+              toolPlacedElement.type === 'striplight'
+                ? normalizeFullRotation2(selectElement('#item-rotation').value, toolPlacedElement.rotation)
+                : finite2(selectElement('#item-rotation').value, toolPlacedElement.rotation)),
+            toolPlacedElement.type === 'planlabel' &&
+              ((toolPlacedElement.title = normalizeLabelText2(selectElement('#label-title').value, '家庭总览', 24)),
               (toolPlacedElement.subtitle = normalizeLabelText2(
-                selectElement("#label-subtitle").value,
-                "HOME PLAN",
+                selectElement('#label-subtitle').value,
+                'HOME PLAN',
                 36,
               )),
               (toolPlacedElement.titleSpacing = clamp2(
-                finite2(selectElement("#label-title-spacing").value, 105) / 100,
+                finite2(selectElement('#label-title-spacing').value, 105) / 100,
                 0,
                 1.8,
               )),
               (toolPlacedElement.subtitleSpacing = clamp2(
-                finite2(selectElement("#label-subtitle-spacing").value, 8) / 100,
+                finite2(selectElement('#label-subtitle-spacing').value, 8) / 100,
                 0,
                 0.6,
               )),
               (toolPlacedElement.lineLength = clamp2(
-                finite2(selectElement("#label-line-length").value, 86) / 100,
+                finite2(selectElement('#label-line-length').value, 86) / 100,
                 0.3,
                 1,
               )),
-              (toolPlacedElement.labelColor = normalizePlanLabelColor(
-                selectElement("#label-color").value,
-              )),
+              (toolPlacedElement.labelColor = normalizePlanLabelColor(selectElement('#label-color').value)),
               (toolPlacedElement.height = 0.01),
               (toolPlacedElement.elevation = 0)),
-            toolPlacedElement.type === "curtain")
+            toolPlacedElement.type === 'curtain')
           ) {
-            toolPlacedElement.curtainPosition = ["left", "right", "split"].includes(
-              selectElement("#curtain-position").value,
+            toolPlacedElement.curtainPosition = ['left', 'right', 'split'].includes(
+              selectElement('#curtain-position').value,
             )
-              ? selectElement("#curtain-position").value
-              : "split";
-            const curtainTrack = normalizeCurtainTrack2(toolPlacedElement).curtainTrack;
-            ((toolPlacedElement.curtainForm =
-              selectElement("#curtain-form").value === "roller" ? "roller" : "standard"),
+              ? selectElement('#curtain-position').value
+              : 'split'
+            const curtainTrack = normalizeCurtainTrack2(toolPlacedElement).curtainTrack
+            ;(toolPlacedElement.curtainForm =
+              selectElement('#curtain-form').value === 'roller' ? 'roller' : 'standard'),
               Object.assign(
                 toolPlacedElement,
                 normalizeCurtainTrack2({
                   curtainForm: toolPlacedElement.curtainForm,
-                  curtainTrack: selectElement("#curtain-track").value,
-                  curtainCorner: selectElement("#curtain-corner").value,
-                  curtainLeftLength: selectElement("#curtain-left-length").value,
-                  curtainRightLength: selectElement("#curtain-right-length").value,
-                  curtainMeet: selectElement("#curtain-meet").value,
-                  curtainPreview: selectElement("#curtain-preview").value,
-                  curtainFabric: selectElement("#curtain-fabric").value,
+                  curtainTrack: selectElement('#curtain-track').value,
+                  curtainCorner: selectElement('#curtain-corner').value,
+                  curtainLeftLength: selectElement('#curtain-left-length').value,
+                  curtainRightLength: selectElement('#curtain-right-length').value,
+                  curtainMeet: selectElement('#curtain-meet').value,
+                  curtainPreview: selectElement('#curtain-preview').value,
+                  curtainFabric: selectElement('#curtain-fabric').value,
                 }),
               ),
-              curtainTrack !== "straight" &&
-                toolPlacedElement.curtainTrack === "straight" &&
+              curtainTrack !== 'straight' &&
+                toolPlacedElement.curtainTrack === 'straight' &&
                 (toolPlacedElement.depth = 0.18),
-              (toolPlacedElement.depth = curtainFootprintDepth2(toolPlacedElement)));
+              (toolPlacedElement.depth = curtainFootprintDepth2(toolPlacedElement))
           }
           if (
             (roundTableTypeSet.has(toolPlacedElement.type) &&
-              (toolPlacedElement.roundTableTurntable =
-                selectElement("#round-table-turntable").value === "with"),
-            toolPlacedElement.type === "fridge" &&
+              (toolPlacedElement.roundTableTurntable = selectElement('#round-table-turntable').value === 'with'),
+            toolPlacedElement.type === 'fridge' &&
               (toolPlacedElement.fridgeStyle =
-                document.querySelector<StudioControlElement>('input[name="fridge-style"]:checked')?.value === "double"
-                  ? "double"
-                  : "standard"),
+                document.querySelector<StudioControlElement>('input[name="fridge-style"]:checked')?.value === 'double'
+                  ? 'double'
+                  : 'standard'),
             openStairTypeSet.has(toolPlacedElement.type) &&
-              (toolPlacedElement.stairDirection = ["left", "right"].includes(
-                selectElement("#stair-direction").value,
-              )
-                ? selectElement("#stair-direction").value
-                : "right"),
-            toolPlacedElement.type === "pillar" &&
+              (toolPlacedElement.stairDirection = ['left', 'right'].includes(selectElement('#stair-direction').value)
+                ? selectElement('#stair-direction').value
+                : 'right'),
+            toolPlacedElement.type === 'pillar' &&
               (() => {
-                const nextPillarShape = normalizePillarShape2(
-                    selectElement("#pillar-shape").value,
-                  ),
-                  previousPillarShape = normalizePillarShape2(toolPlacedElement.pillarShape);
-                ((toolPlacedElement.pillarShape = nextPillarShape),
-                  (toolPlacedElement.pillarAxis = normalizePillarAxis2(
-                    selectElement("#pillar-axis").value,
-                  )));
+                const nextPillarShape = normalizePillarShape2(selectElement('#pillar-shape').value),
+                  previousPillarShape = normalizePillarShape2(toolPlacedElement.pillarShape)
+                ;(toolPlacedElement.pillarShape = nextPillarShape),
+                  (toolPlacedElement.pillarAxis = normalizePillarAxis2(selectElement('#pillar-axis').value))
                 /**
                  * 刚切到「半圆」时把进深咬到半宽：真半圆的深度只能是半径，
                  * 而占位框是 width × depth 的矩形 —— 进深留在 0.45 会把半径 0.225 的
                  * 圆弧沿 Z 拉成半椭圆（深 = 直径），看上去像被压扁的桶。
                  * 只在**切入**那一下就咬合；之后手动改进深仍是半椭圆（平面轮廓与 3D 同源）。
                  */
-                if (nextPillarShape !== "semicircle" || previousPillarShape === "semicircle") return;
+                if (nextPillarShape !== 'semicircle' || previousPillarShape === 'semicircle') return
                 const snappedDepth = clamp2(
                   toolPlacedElement.width / 2,
                   itemMinimumFootprint2(toolPlacedElement.type),
                   8,
-                );
-                if (Math.abs(snappedDepth - toolPlacedElement.depth) < 0.001) return;
-                toolPlacedElement.depth = snappedDepth;
-                pillarDepthSnapped = true;
+                )
+                if (Math.abs(snappedDepth - toolPlacedElement.depth) < 0.001) return
+                toolPlacedElement.depth = snappedDepth
+                pillarDepthSnapped = true
               })(),
-            toolPlacedElement.type === "pipelinewaterpurifier" &&
-              setPipelineDispenserStyle(
-                toolPlacedElement,
-                selectElement("#pipeline-dispenser-style").value,
-              ),
-            toolPlacedElement.type === "striplight" &&
-              ((toolPlacedElement.stripAxis = normalizeStripAxis2(
-                selectElement("#strip-axis").value,
-              ))),
-            toolPlacedElement.type === "mural" &&
-              (toolPlacedElement.muralStyle = normalizeMuralArtStyle(
-                selectElement("#mural-style").value,
-              )),
-            toolPlacedElement.type === "featurewall" &&
-              (toolPlacedElement.wallStyle = normalizeFeatureWallStyle(
-                selectElement("#featurewall-style").value,
-              )),
-            toolPlacedElement.type === "tv")
+            toolPlacedElement.type === 'pipelinewaterpurifier' &&
+              setPipelineDispenserStyle(toolPlacedElement, selectElement('#pipeline-dispenser-style').value),
+            toolPlacedElement.type === 'striplight' &&
+              (toolPlacedElement.stripAxis = normalizeStripAxis2(selectElement('#strip-axis').value)),
+            toolPlacedElement.type === 'mural' &&
+              (toolPlacedElement.muralStyle = normalizeMuralArtStyle(selectElement('#mural-style').value)),
+            toolPlacedElement.type === 'featurewall' &&
+              (toolPlacedElement.wallStyle = normalizeFeatureWallStyle(selectElement('#featurewall-style').value)),
+            toolPlacedElement.type === 'tv')
           ) {
             const tvMountStyle2 = tvMountStyleSet.has(toolPlacedElement.tvMountStyle)
                 ? toolPlacedElement.tvMountStyle
-                : "standard",
-              tvMountStyleValue = tvMountStyleSet.has(selectElement("#tv-mount-style").value)
-                ? selectElement("#tv-mount-style").value
-                : "standard";
-            (tvMountStyle2 !== tvMountStyleValue && tvMountStyleValue === "mobile"
-              ? ((toolPlacedElement.height = Math.max(
-                  toolPlacedElement.height,
-                  sofaMinDimensions.height,
-                )),
-                (toolPlacedElement.depth = Math.max(
-                  toolPlacedElement.depth,
-                  sofaMinDimensions.depth,
-                )),
+                : 'standard',
+              tvMountStyleValue = tvMountStyleSet.has(selectElement('#tv-mount-style').value)
+                ? selectElement('#tv-mount-style').value
+                : 'standard'
+            tvMountStyle2 !== tvMountStyleValue && tvMountStyleValue === 'mobile'
+              ? ((toolPlacedElement.height = Math.max(toolPlacedElement.height, sofaMinDimensions.height)),
+                (toolPlacedElement.depth = Math.max(toolPlacedElement.depth, sofaMinDimensions.depth)),
                 (toolPlacedElement.elevation = 0))
-              : tvMountStyle2 === "mobile" &&
-                tvMountStyleValue !== "mobile" &&
+              : tvMountStyle2 === 'mobile' &&
+                tvMountStyleValue !== 'mobile' &&
                 Math.abs(toolPlacedElement.height - sofaMinDimensions.height) < 0.001 &&
                 Math.abs(toolPlacedElement.depth - sofaMinDimensions.depth) < 0.001 &&
                 ((toolPlacedElement.height = itemTypeCatalog.tv.height),
                 (toolPlacedElement.depth = itemTypeCatalog.tv.depth)),
-              (toolPlacedElement.tvMountStyle = tvMountStyleValue));
+              (toolPlacedElement.tvMountStyle = tvMountStyleValue)
           }
           STORAGE_SECTION_TYPES.has(toolPlacedElement.type) &&
             (toolPlacedElement.cabinetSections = storageSectionStyle({
               type: toolPlacedElement.type,
-              cabinetSections: selectElement("#storage-section").value,
-            }));
+              cabinetSections: selectElement('#storage-section').value,
+            }))
           if (lampItemTypeSet.has(toolPlacedElement.type)) {
-            const downlight5 =
-              (lightPresetCatalog as any)[toolPlacedElement.type] || lightPresetCatalog.downlight;
-            ((toolPlacedElement.verticalRotation =
-              toolPlacedElement.type === "striplight"
+            const downlight5 = (lightPresetCatalog as any)[toolPlacedElement.type] || lightPresetCatalog.downlight
+            ;(toolPlacedElement.verticalRotation =
+              toolPlacedElement.type === 'striplight'
                 ? normalizeFullRotation2(
-                    selectElement("#item-vertical-rotation").value,
+                    selectElement('#item-vertical-rotation').value,
                     toolPlacedElement.verticalRotation || 0,
                   )
                 : clamp2(
-                    finite2(
-                      selectElement("#item-vertical-rotation").value,
-                      toolPlacedElement.verticalRotation || 0,
-                    ),
+                    finite2(selectElement('#item-vertical-rotation').value, toolPlacedElement.verticalRotation || 0),
                     -90,
                     90,
                   )),
-              toolPlacedElement.type === "striplight" &&
+              toolPlacedElement.type === 'striplight' &&
                 ((toolPlacedElement.stripRollRotation = normalizeFullRotation2(
                   itemStripRollInput.value,
                   toolPlacedElement.stripRollRotation || 0,
                 )),
                 (toolPlacedElement.lightSourceVisible = itemLightSourceVisibleInput.checked)),
               (toolPlacedElement.lightGroupId = appCtx.studioState.lightGroups.some(
-                (matchingLightGroup) =>
-                  matchingLightGroup.id === selectElement("#light-group").value,
+                (matchingLightGroup) => matchingLightGroup.id === selectElement('#light-group').value,
               )
-                ? selectElement("#light-group").value
+                ? selectElement('#light-group').value
                 : getLightGroups().id),
               (toolPlacedElement.lightTemperature = clamp2(
-                finite2(selectElement("#light-temperature").value, downlight5.temperature),
+                finite2(selectElement('#light-temperature').value, downlight5.temperature),
                 2200,
                 6500,
               )),
               (toolPlacedElement.lightBrightness = clamp2(
-                finite2(selectElement("#light-brightness").value, downlight5.brightness),
+                finite2(selectElement('#light-brightness').value, downlight5.brightness),
                 0,
                 100,
               )),
               (toolPlacedElement.lightRange = clamp2(
-                finite2(selectElement("#light-range").value, downlight5.range),
+                finite2(selectElement('#light-range').value, downlight5.range),
                 0.5,
                 10,
               )),
               (toolPlacedElement.lightAngle = clamp2(
-                finite2(selectElement("#light-angle").value, downlight5.angle),
+                finite2(selectElement('#light-angle').value, downlight5.angle),
                 15,
                 lightAngleLimitForType(toolPlacedElement.type),
               )),
-              (toolPlacedElement.height = (itemTypeCatalog as any)[toolPlacedElement.type].height));
+              (toolPlacedElement.height = (itemTypeCatalog as any)[toolPlacedElement.type].height)
           } else
-            ["camera", "presence"].includes(toolPlacedElement.type) &&
+            ['camera', 'presence'].includes(toolPlacedElement.type) &&
               (toolPlacedElement.verticalRotation = clamp2(
-                finite2(
-                  selectElement("#item-vertical-rotation").value,
-                  toolPlacedElement.verticalRotation || 0,
-                ),
+                finite2(selectElement('#item-vertical-rotation').value, toolPlacedElement.verticalRotation || 0),
                 -180,
                 180,
-              ));
+              ))
         }
       }
     }
   }
   if (
-    (selectedToolName === "item" &&
-      toolPlacedElement.type.startsWith("garden-gate") &&
+    (selectedToolName === 'item' &&
+      toolPlacedElement.type.startsWith('garden-gate') &&
       (anchorGate2(toolPlacedElement, appCtx.studioState.items, getPixelsPerMeter(), 24 / appCtx.planView.zoom),
       syncCourtyardGates2(appCtx.studioState.items, getPixelsPerMeter())),
     !validateSelectionChange(ft9))
   ) {
-    (refreshStudioUi(true), refreshScopeItems(yr2));
-    return;
+    refreshStudioUi(true), refreshScopeItems(yr2)
+    return
   }
-  (applyPlacementChange(ft9),
+  applyPlacementChange(ft9),
     pillarDepthSnapped && refreshStudioUi(false),
     // 照射范围/光束角只存在于灯对象上，重建被推迟（手动预览）时不会有任何画面变化；
     // 这里补一次就地同步 + 重绘，让这两个参数提交即生效（非灯具时内部直接返回 0）。
     syncLightShapeAndRepaint(appCtx, [toolPlacedElement]),
     refreshScopeItems(yr2),
-    markDocumentDirty());
-
+    markDocumentDirty()
 }

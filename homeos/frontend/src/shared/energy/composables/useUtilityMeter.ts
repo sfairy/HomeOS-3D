@@ -7,10 +7,7 @@ import type { HaEntityState } from '@/shared/types/entity-store'
  * @param {string} prefix - CSS 类名前缀（如 'ele', 'gas', 'w'）
  * @returns {{ relLabel, relClass }}
  */
-export function useRelativeDateLabel(
-  dataDate: ComputedRef<unknown> | Ref<unknown>,
-  prefix: string,
-) {
+export function useRelativeDateLabel(dataDate: ComputedRef<unknown> | Ref<unknown>, prefix: string) {
   const relMeta = computed(() => {
     const dateValue = dataDate.value
     if (dateValue == null || dateValue === '') return { label: '', classSuffix: '' }
@@ -28,9 +25,7 @@ export function useRelativeDateLabel(
     return { label: `${daysAgo}天前`, classSuffix: 'old' }
   })
   const relLabel = computed(() => relMeta.value.label)
-  const relClass = computed(() =>
-    relMeta.value.classSuffix ? `${prefix}-rel--${relMeta.value.classSuffix}` : '',
-  )
+  const relClass = computed(() => (relMeta.value.classSuffix ? `${prefix}-rel--${relMeta.value.classSuffix}` : ''))
   return { relLabel, relClass }
 }
 /**

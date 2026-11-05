@@ -24,10 +24,7 @@ function settingsRoute(query: SettingsRouteQuery = {}) {
  * @param route 当前路由对象（含 path 与 query）
  * @returns true 表示深链已被当前路由满足
  */
-export function isDeepLinkCurrent(
-  linkTo: string,
-  route: { path: string; query: Record<string, unknown> },
-): boolean {
+export function isDeepLinkCurrent(linkTo: string, route: { path: string; query: Record<string, unknown> }): boolean {
   if (!linkTo) return false
   const qIndex = linkTo.indexOf('?')
   const path = (qIndex >= 0 ? linkTo.slice(0, qIndex) : linkTo) || '/'
@@ -56,26 +53,20 @@ export function settingsPageShareUrl(fullPath: string) {
 
 /** 常用深链 */
 export const SETTINGS_ROUTES = {
-  favorites: (section?: string) =>
-    settingsRoute({ tab: 'favorites', ...(section ? { section } : {}) }),
+  favorites: (section?: string) => settingsRoute({ tab: 'favorites', ...(section ? { section } : {}) }),
   general: (section?: string) => settingsRoute({ tab: 'general', ...(section ? { section } : {}) }),
   params: (section?: string) => settingsRoute({ tab: 'params', ...(section ? { section } : {}) }),
-  profiles: (section?: string) =>
-    settingsRoute({ tab: 'profiles', ...(section ? { section } : {}) }),
+  profiles: (section?: string) => settingsRoute({ tab: 'profiles', ...(section ? { section } : {}) }),
   orchestrator: (orchTab?: string, edit?: string) =>
     settingsRoute({
       tab: 'home-mode',
       ...(orchTab ? { orchTab } : {}),
       ...(edit ? { edit } : {}),
     }),
-  homeMode: (section?: string) =>
-    settingsRoute({ tab: 'home-mode', ...(section ? { section } : {}) }),
-  bindings: (section?: string) =>
-    settingsRoute({ tab: 'bindings', ...(section ? { section } : {}) }),
-  lifeAccounts: (section?: string) =>
-    settingsRoute({ tab: 'life-accounts', ...(section ? { section } : {}) }),
-  envHealth: (section?: string) =>
-    settingsRoute({ tab: 'rooms', ...(section ? { section } : {}) }),
+  homeMode: (section?: string) => settingsRoute({ tab: 'home-mode', ...(section ? { section } : {}) }),
+  bindings: (section?: string) => settingsRoute({ tab: 'bindings', ...(section ? { section } : {}) }),
+  lifeAccounts: (section?: string) => settingsRoute({ tab: 'life-accounts', ...(section ? { section } : {}) }),
+  envHealth: (section?: string) => settingsRoute({ tab: 'rooms', ...(section ? { section } : {}) }),
   rooms: (section?: string) =>
     settingsRoute({
       tab: 'rooms',
@@ -83,28 +74,21 @@ export const SETTINGS_ROUTES = {
     }),
   layout: (section?: string) => settingsRoute({ tab: 'layout', ...(section ? { section } : {}) }),
   alerts: (section?: string) => settingsRoute({ tab: 'alerts', ...(section ? { section } : {}) }),
-  securityModes: (section?: string) =>
-    settingsRoute({ tab: 'security-modes', ...(section ? { section } : {}) }),
+  securityModes: (section?: string) => settingsRoute({ tab: 'security-modes', ...(section ? { section } : {}) }),
   voice: (section?: string) => settingsRoute({ tab: 'voice', ...(section ? { section } : {}) }),
   agent: (section?: string) => settingsRoute({ tab: 'agent', ...(section ? { section } : {}) }),
-  diagnostics: (section?: string) =>
-    settingsRoute({ tab: 'diagnostics', ...(section ? { section } : {}) }),
-  connection: (section?: string) =>
-    settingsRoute({ tab: 'connection', ...(section ? { section } : {}) }),
-  setupWizard: (section?: string) =>
-    settingsRoute({ tab: 'setup-wizard', ...(section ? { section } : {}) }),
+  diagnostics: (section?: string) => settingsRoute({ tab: 'diagnostics', ...(section ? { section } : {}) }),
+  connection: (section?: string) => settingsRoute({ tab: 'connection', ...(section ? { section } : {}) }),
+  setupWizard: (section?: string) => settingsRoute({ tab: 'setup-wizard', ...(section ? { section } : {}) }),
   widgets: () => settingsRoute({ tab: 'widgets' }),
   assets: () => settingsRoute({ tab: 'assets' }),
   embeds: (section?: string) => settingsRoute({ tab: 'embeds', ...(section ? { section } : {}) }),
-  executionHistory: (section?: string) =>
-    settingsRoute({ tab: 'diagnostics', ...(section ? { section } : {}) }),
-  smartCharge: (section?: string) =>
-    settingsRoute({ tab: 'smart-charge', ...(section ? { section } : {}) }),
+  executionHistory: (section?: string) => settingsRoute({ tab: 'diagnostics', ...(section ? { section } : {}) }),
+  smartCharge: (section?: string) => settingsRoute({ tab: 'smart-charge', ...(section ? { section } : {}) }),
   family: () => settingsRoute({ tab: 'family' }),
   floating: () => settingsRoute({ tab: 'floating' }),
   devices: (section?: string) => settingsRoute({ tab: 'devices', ...(section ? { section } : {}) }),
-  retention: (section?: string) =>
-    settingsRoute({ tab: 'retention', ...(section ? { section } : {}) }),
+  retention: (section?: string) => settingsRoute({ tab: 'retention', ...(section ? { section } : {}) }),
   /** 通知来源 → 设置深链 */
   fromNotificationSource(src: string | null | undefined) {
     const s = String(src || '')

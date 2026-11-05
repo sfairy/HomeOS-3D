@@ -56,10 +56,7 @@ interface AdminGateDeps {
  * 3. 后台路由 → 先确认管理员会话；确认不了就切回登录屏状态并**放行**（就地显示
  *    后台那个登录屏，理由见下方注释）。
  */
-export async function resolveAdminGate(
-  to: GuardRoute,
-  deps: AdminGateDeps,
-): Promise<GuardResult> {
+export async function resolveAdminGate(to: GuardRoute, deps: AdminGateDeps): Promise<GuardResult> {
   const meta = to.meta ?? {};
   if (meta.requiresAuth === true && deps.serverAuthState() === "guest") {
     return { path: STORE_LOGIN_PATH, replace: true };

@@ -144,9 +144,7 @@ export function createStoreDerivedState(deps: EntityDerivedDeps) {
    * debounce 倍率由当前路由决定（如户型图路由需要更短的 debounce）。
    */
   function scheduleRebuildDerived(): void {
-    const debounceMs = Math.round(
-      (deps.getRebuildDebounceMs?.() ?? 80) * getRouteDerivedDebounceMultiplier(),
-    )
+    const debounceMs = Math.round((deps.getRebuildDebounceMs?.() ?? 80) * getRouteDerivedDebounceMultiplier())
     if (storeRebuildTimer) clearTimeout(storeRebuildTimer)
     storeRebuildTimer = setTimeout(() => {
       storeRebuildTimer = null

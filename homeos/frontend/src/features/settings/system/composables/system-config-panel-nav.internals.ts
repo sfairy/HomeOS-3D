@@ -39,9 +39,7 @@ export function createSystemConfigPanelNav(opts: {
       el.classList.add('params-cell--focus')
       setTimeout(() => el.classList.remove('params-cell--focus'), 2200)
     }
-    const input = el?.querySelector('input, textarea, select, button.toggle-btn') as
-      | HTMLElement
-      | null
+    const input = el?.querySelector('input, textarea, select, button.toggle-btn') as HTMLElement | null
     input?.focus({ preventScroll: true })
   }
 
@@ -62,7 +60,6 @@ export function createSystemConfigPanelNav(opts: {
     const section = route.query.section
     if (typeof section === 'string' && section) await applyParamsSection(section)
   }
-
 
   return { navigateToValidationError, applyParamsSection, applySectionFromRoute }
 }

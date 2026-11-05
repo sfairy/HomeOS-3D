@@ -26,7 +26,7 @@ export type EntityReferenceKind =
   | 'footer'
   | 'whole_home_off'
   | 'media'
-  | 'other';
+  | 'other'
 
 /**
  * 实体在引用中扮演的角色。
@@ -44,26 +44,26 @@ export type EntityReferenceRole =
   | 'display'
   | 'favorite'
   | 'config'
-  | 'reference';
+  | 'reference'
 
 /**
  * 单条反向引用记录。
  */
 export interface EntityReferenceItem {
   /** 引用来源类型 */
-  kind: EntityReferenceKind;
+  kind: EntityReferenceKind
   /** 来源功能项 ID（如自动化 ID、组件 ID） */
-  id: string;
+  id: string
   /** 来源功能项显示名 */
-  name: string;
+  name: string
   /** 该实体在来源中的角色 */
-  role: EntityReferenceRole;
+  role: EntityReferenceRole
   /** 附加说明（如触发条件摘要、模板表达式等） */
-  detail?: string;
+  detail?: string
   /** 前端深链路径（含 query） */
-  path?: string;
+  path?: string
   /** 该引用是否处于启用状态（自动化 / 组件可能被禁用） */
-  enabled?: boolean;
+  enabled?: boolean
 }
 
 /**
@@ -71,13 +71,13 @@ export interface EntityReferenceItem {
  */
 export interface EntityReferencesResponse {
   /** 查询的 entity_id */
-  entityId: string;
+  entityId: string
   /** 引用总数 */
-  total: number;
+  total: number
   /** 按 kind 分类的计数（用于分组标题） */
-  counts: Partial<Record<EntityReferenceKind, number>>;
+  counts: Partial<Record<EntityReferenceKind, number>>
   /** 引用明细列表 */
-  items: EntityReferenceItem[];
+  items: EntityReferenceItem[]
 }
 
 /**
@@ -85,11 +85,11 @@ export interface EntityReferencesResponse {
  */
 export interface EntityReferenceUnlinkRequest {
   /** 来源类型 */
-  kind: EntityReferenceKind;
+  kind: EntityReferenceKind
   /** 来源功能项 ID */
-  id: string;
+  id: string
   /** 附加说明（可选，用于日志） */
-  detail?: string;
+  detail?: string
 }
 
 /**
@@ -106,22 +106,22 @@ export type EntityReferenceUnlinkAction =
   | 'removed_item'
   | 'deleted_rule'
   | 'deleted_widget'
-  | 'updated';
+  | 'updated'
 
 /**
  * 解绑结果：包含操作是否成功、动作类型、剩余引用快照。
  */
 export interface EntityReferenceUnlinkResult {
   /** 操作的 entity_id */
-  entityId: string;
+  entityId: string
   /** 是否成功 */
-  ok: boolean;
+  ok: boolean
   /** 实际执行的动作（用于前端 toast 提示） */
-  action?: EntityReferenceUnlinkAction;
+  action?: EntityReferenceUnlinkAction
   /** 附加消息（如失败原因） */
-  message?: string;
+  message?: string
   /** 解绑后剩余的引用快照（前端可据此刷新列表而无需重新请求） */
-  remaining: EntityReferencesResponse;
+  remaining: EntityReferencesResponse
 }
 
 /**
@@ -145,7 +145,7 @@ export const ENTITY_REFERENCE_KIND_LABELS: Record<EntityReferenceKind, string> =
   whole_home_off: '全屋关闭',
   media: '影音',
   other: '其他',
-};
+}
 
 /**
  * 引用角色 → 中文标签映射（明细列表用）。
@@ -161,7 +161,7 @@ export const ENTITY_REFERENCE_ROLE_LABELS: Record<EntityReferenceRole, string> =
   favorite: '收藏',
   config: '配置',
   reference: '引用',
-};
+}
 
 /** 前端分组展示顺序 */
 export const ENTITY_REFERENCE_KIND_ORDER: EntityReferenceKind[] = [
@@ -182,7 +182,7 @@ export const ENTITY_REFERENCE_KIND_ORDER: EntityReferenceKind[] = [
   'media',
   'system_config',
   'other',
-];
+]
 
 /** 布局类引用（移除后需前端重载 layout） */
 export const LAYOUT_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind> = new Set([
@@ -193,14 +193,14 @@ export const LAYOUT_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind> = n
   'security_zone',
   'footer',
   'whole_home_off',
-]);
+])
 
 /** 系统配置类引用（移除后需强制刷新 system config） */
 export const SYSTEM_CONFIG_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind> = new Set([
   'env_sensor',
   'system_config',
   'media',
-]);
+])
 
 /** 后端 unlink 已实现的引用类型（其余仅展示，不可移除） */
 export const UNLINKABLE_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind> = new Set([
@@ -220,4 +220,4 @@ export const UNLINKABLE_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind>
   'env_sensor',
   'system_config',
   'media',
-]);
+])

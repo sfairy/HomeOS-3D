@@ -19,7 +19,7 @@
 export type SetupState = "open" | "initialized" | "unreachable";
 
 /** 一次探测的结果。字符串字段一律给空串，方便视图直接 bind。 */
-export interface SetupSnapshot {
+interface SetupSnapshot {
   state: SetupState;
   /** 远程访问时是否必须携带引导密钥（`STORE_SETUP_TOKEN`）。 */
   requiresToken: boolean;
@@ -47,7 +47,7 @@ export function peekSetupStatus(): SetupSnapshot | null {
 }
 
 /** 记下快照（探测函数与测试都会用到）。 */
-export function rememberSetupStatus(next: SetupSnapshot): SetupSnapshot {
+function rememberSetupStatus(next: SetupSnapshot): SetupSnapshot {
   snapshot = next;
   return next;
 }
@@ -78,10 +78,7 @@ export function setupTokenFromHash(hash: string | undefined): string {
  * @param token 可选的引导密钥（远程访问时必须带，否则服务端只会回「不可初始化」）
  * @param options.force 为 true 时忽略已有快照重新探测
  */
-export function probeSetupStatus(
-  token = "",
-  options: { force?: boolean } = {},
-): Promise<SetupSnapshot> {
+export function probeSetupStatus(token = "", options: { force?: boolean } = {}): Promise<SetupSnapshot> {
   if (!options.force && snapshot) return Promise.resolve(snapshot);
   if (inflight) return inflight;
   inflight = (async (): Promise<SetupSnapshot> => {

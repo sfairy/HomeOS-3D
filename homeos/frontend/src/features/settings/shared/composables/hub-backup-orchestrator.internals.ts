@@ -11,10 +11,7 @@ import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { downloadBlob } from '@/shared/utils/core/misc.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import type { NotifyType } from '@/shared/types/notify'
-import {
-  getIndependentPendingTabIds,
-  globalLayoutPendingCount,
-} from '@/composables/settings-kernel/pending.internals'
+import { getIndependentPendingTabIds, globalLayoutPendingCount } from '@/composables/settings-kernel/pending.internals'
 import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
 import { ref } from 'vue'
 
@@ -125,11 +122,9 @@ export function useProfileManagement() {
 
   async function onDeleteProfile(id: string) {
     const name = id === 'default' ? '默认系统方案' : id
-    const confirmed = await chrome.confirm(
-      `确定要彻底删除方案 "${name}" 吗？此操作不可撤销！`,
-      '危险操作',
-      { type: 'danger' },
-    )
+    const confirmed = await chrome.confirm(`确定要彻底删除方案 "${name}" 吗？此操作不可撤销！`, '危险操作', {
+      type: 'danger',
+    })
     if (confirmed && authStore.isAuthenticated) {
       try {
         await layoutStore.deleteProfile(id)

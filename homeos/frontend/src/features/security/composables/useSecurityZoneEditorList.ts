@@ -25,10 +25,7 @@ interface RoomOption {
  * @param roomOptions 房间可选项列表
  * @returns 展开状态、导航项与渲染列表
  */
-export function useSecurityZoneEditorList(
-  zones: Ref<SecurityZoneDraft[] | undefined>,
-  roomOptions: Ref<RoomOption[]>,
-) {
+export function useSecurityZoneEditorList(zones: Ref<SecurityZoneDraft[] | undefined>, roomOptions: Ref<RoomOption[]>) {
   // 区域总数
   const zoneCount = computed(() => zones.value?.length ?? 0)
   // 复用 home-mode 的展开/折叠逻辑

@@ -4,12 +4,7 @@
  * 核心判定 / 默认窗口 / 时长计算以 @homeos/shared 为唯一源；
  * 本文件保留 FE UI 辅助（格式化、预设、滑块样式、设置解析）。
  */
-import {
-  DEFAULT_DND_START,
-  DEFAULT_DND_END,
-  isDndActive,
-  dndDurationHours,
-} from '@homeos/shared'
+import { DEFAULT_DND_START, DEFAULT_DND_END, isDndActive, dndDurationHours } from '@homeos/shared'
 import { sliderTrackStyle } from '@/shared/utils/ui/progress-bar.util'
 import type { DndPreset, NotificationSettingsParsed } from '@/shared/types/alert-rules'
 

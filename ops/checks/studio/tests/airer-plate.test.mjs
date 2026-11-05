@@ -20,10 +20,7 @@ const PLATE = fileURLToPath(
   ),
 )
 const AIRER = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-airer.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-airer.ts', import.meta.url),
 )
 const {
   AIRER_PLATE_WIDTH,
@@ -41,15 +38,9 @@ test('21 个孔，左右对称，等距', () => {
   assert.equal(offsets.length % 2, 1, '孔数必须是奇数，正中才有一个孔')
   assert.equal(offsets[10], 0)
   for (let index = 0; index < offsets.length; index++) {
-    assert.ok(
-      Math.abs(offsets[index] + offsets[offsets.length - 1 - index]) < 1e-12,
-      `第 ${index} 个孔与对称孔不对称`,
-    )
+    assert.ok(Math.abs(offsets[index] + offsets[offsets.length - 1 - index]) < 1e-12, `第 ${index} 个孔与对称孔不对称`)
     if (index > 0) {
-      assert.ok(
-        Math.abs(offsets[index] - offsets[index - 1] - AIRER_PLATE_HOLE_SPACING) < 1e-12,
-        '孔间距必须恒定',
-      )
+      assert.ok(Math.abs(offsets[index] - offsets[index - 1] - AIRER_PLATE_HOLE_SPACING) < 1e-12, '孔间距必须恒定')
     }
   }
 })

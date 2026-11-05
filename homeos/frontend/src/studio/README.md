@@ -17,7 +17,7 @@
 别名：`@app` → `app/`，`@runtime` → `runtime/`。
 
 > **根代码只允许 `import ... from '@/studio'`** —— 不得直达 `@app/*`、`@runtime/*` 或 studio
-> 内部路径。强制点是 `check:frontend-deps` 的规则 6 与 ESLint；公开面见 [`index.ts`](./index.ts)
+> 内部路径。强制点是 `check:frontend-deps` 的规则 6 与 `biome.json`；公开面见 [`index.ts`](./index.ts)
 > （页面资源清单、facade 引擎、shell 导航、三个路由懒加载器）。新增导出前先自问：这是「子系统
 > 对外契约」还是「内部实现细节」？后者不加。
 
@@ -126,7 +126,7 @@ studio 是子系统，不复用应用根的通用桶名，避免同名不同义�
 5. `platform/**` 是叶子：不得 import editor、renderer 或 3d-studio
 6. **根（非 studio）→ studio 只能经 `@/studio`**（禁止 `@app/*`、`@runtime/*`、`@/studio/<内部路径>`）
 
-ESLint 对 `app/shared/**` 与 `platform/**` 亦有同等强制；规则 6 由
+`biome.json` 的 `noRestrictedImports` 对 `app/shared/**` 与 `platform/**` 亦有同等强制；规则 6 由
 `bun run check:frontend-deps` 在 CI 兜底。
 
 ## 10. Runtime 多入口

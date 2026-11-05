@@ -25,21 +25,10 @@ const DIRS = [
 ]
 
 if (allMode) {
-  DIRS.push(
-    'node_modules',
-    'homeos/frontend/node_modules',
-    'packages/shared/node_modules',
-  )
+  DIRS.push('node_modules', 'homeos/frontend/node_modules', 'packages/shared/node_modules')
 }
 
-const SKIP_WALK = new Set([
-  'node_modules',
-  'dist',
-  '.git',
-  'coverage',
-  '.vite',
-  'generated',
-])
+const SKIP_WALK = new Set(['node_modules', 'dist', '.git', 'coverage', '.vite', 'generated'])
 
 function rm(target) {
   const abs = path.join(ROOT, target)
@@ -57,7 +46,7 @@ function rm(target) {
     if (code === 'EACCES' || code === 'EBUSY' || code === 'ENOTEMPTY') {
       console.error(
         `skip ${target}/ (${code}): path is locked. On Windows stop bun/node dev servers ` +
-          `(dev:backend / dev:frontend / vite / eslint), then retry.`,
+          `(dev:backend / dev:frontend / vite / biome), then retry.`,
       )
       return 'locked'
     }
@@ -128,12 +117,7 @@ for (const d of DIRS) {
   }
 }
 
-removed += pruneEmptyDirs([
-  'homeos/backend/src',
-  'homeos/frontend/src',
-  'homeos/frontend',
-  'packages/shared/src',
-])
+removed += pruneEmptyDirs(['homeos/backend/src', 'homeos/frontend/src', 'homeos/frontend', 'packages/shared/src'])
 
 if (removed === 0 && locked === 0) {
   console.log('nothing to clean')

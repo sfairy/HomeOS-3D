@@ -48,7 +48,9 @@ export function humidityLevel(value: number | null | undefined): ClimateLevel<Hu
  * 但舒适度是按摄氏阈值算出来的。
  */
 export function toCelsius(value: number, unit: string | null | undefined) {
-  const normalized = String(unit || '').trim().toUpperCase()
+  const normalized = String(unit || '')
+    .trim()
+    .toUpperCase()
   if (normalized.includes('F') && !normalized.includes('C')) return ((value - 32) * 5) / 9
   return value
 }

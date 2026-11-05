@@ -121,6 +121,3 @@ export function parseAttrStateDiff(stateDiff: string): string | null {
   const label = ATTR_CHANGE_LABELS[key] || key
   return `${label} ${formatAttrValue(key, oldRaw)} → ${formatAttrValue(key, newRaw)}`
 }
-
-
-

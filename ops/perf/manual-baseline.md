@@ -261,7 +261,7 @@ node ops/lib/py.mjs ops/perf/harness/compare_metrics.py --before before --after 
 
 ```bash
 bun run typecheck
-bun run --cwd homeos/frontend lint:ci
+bun run lint                             # Biome（配置见根 biome.json）
 bun run lint:py                          # ruff（node ops/lib/py.mjs -m ruff check .）
 node ops/lib/py.mjs -m basedpyright      # 类型门禁（不进 CI，人工复核；见下方说明）
 node ops/lib/py.mjs ops/checks/check_async_db.py

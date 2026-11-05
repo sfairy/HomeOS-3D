@@ -183,9 +183,7 @@ async function forget(item: AgentMemoryItem) {
   saving.value = true
   try {
     await forgetAgentMemory(item.kind, item.key)
-    items.value = items.value.filter(
-      (entry) => !(entry.kind === item.kind && entry.key === item.key),
-    )
+    items.value = items.value.filter((entry) => !(entry.kind === item.kind && entry.key === item.key))
     setMessage('已删除')
   } catch (e: unknown) {
     setMessage(getApiErrorMessage(e, '删除长期记忆失败'), false)

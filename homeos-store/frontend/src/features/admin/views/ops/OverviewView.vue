@@ -35,8 +35,18 @@ interface OverviewPayload {
   };
   orderFunnel?: FunnelItem[];
   attention?: Record<string, number | undefined>;
-  lowStockProducts?: Array<{ name?: string; stockQuantity?: unknown; reservedStock?: unknown; availableStock?: unknown }>;
-  expiringLicenses?: Array<{ codeHint?: string; activationCodeId?: string; productName?: string; accessExpiresAt?: string }>;
+  lowStockProducts?: Array<{
+    name?: string;
+    stockQuantity?: unknown;
+    reservedStock?: unknown;
+    availableStock?: unknown;
+  }>;
+  expiringLicenses?: Array<{
+    codeHint?: string;
+    activationCodeId?: string;
+    productName?: string;
+    accessExpiresAt?: string;
+  }>;
   referral?: { balancePoints?: unknown; availablePoints?: unknown; frozenPoints?: unknown };
   accounts?: unknown;
   products?: unknown;
@@ -169,7 +179,10 @@ const tabs: AdminTabItem[] = [
   { key: "risk", label: "风险与待办" },
   { key: "tools", label: "维护工具" },
 ];
-const { active, pick } = useAdminTabs("overview", computed(() => tabs));
+const { active, pick } = useAdminTabs(
+  "overview",
+  computed(() => tabs),
+);
 
 const data = ref<OverviewPayload>({});
 const loading = ref(false);
@@ -264,9 +277,7 @@ const incidentsTotal = computed(() => Number(data.value.incidents?.total || 0));
 
 const revenueCards = computed<StatCard[]>(() => {
   const revenue = data.value.revenue || {};
-  const manualNote = revenue.totalManualCents
-    ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`
-    : "";
+  const manualNote = revenue.totalManualCents ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收` : "";
   return [
     {
       label: "净营收（累计）",
@@ -278,8 +289,7 @@ const revenueCards = computed<StatCard[]>(() => {
       label: REVENUE_WINDOW_LABELS[bucket.key] || bucket.key,
       value: money(bucket.netCents),
       note:
-        `${bucket.paidOrders} 单付款` +
-        (bucket.manualOrders ? ` · 人工补记 ${bucket.manualOrders} 单不计营收` : ""),
+        `${bucket.paidOrders} 单付款` + (bucket.manualOrders ? ` · 人工补记 ${bucket.manualOrders} 单不计营收` : ""),
       tone: "is-tone-amber",
     })),
   ];
@@ -304,9 +314,24 @@ const totalCards = computed<StatCard[]>(() => {
   return [
     { label: "账号", value: num(payload.accounts), note: "", tone: "is-tone-blue" },
     { label: "商品", value: num(payload.products), note: "", tone: "is-tone-violet" },
-    { label: "有效授权", value: `${num(payload.activeLicenses)}/${num(payload.licenses)}`, note: "", tone: "is-tone-accent" },
-    { label: "权限项", value: `${num(payload.activeEntitlements)}/${num(payload.entitlements)}`, note: "", tone: "is-tone-violet" },
-    { label: "待支付订单", value: num(payload.pendingOrders), note: "", tone: payload.pendingOrders ? "is-alert" : "is-tone-accent" },
+    {
+      label: "有效授权",
+      value: `${num(payload.activeLicenses)}/${num(payload.licenses)}`,
+      note: "",
+      tone: "is-tone-accent",
+    },
+    {
+      label: "权限项",
+      value: `${num(payload.activeEntitlements)}/${num(payload.entitlements)}`,
+      note: "",
+      tone: "is-tone-violet",
+    },
+    {
+      label: "待支付订单",
+      value: num(payload.pendingOrders),
+      note: "",
+      tone: payload.pendingOrders ? "is-alert" : "is-tone-accent",
+    },
     { label: "已履约订单", value: num(payload.fulfilledOrders), note: "", tone: "is-tone-emerald" },
     { label: "在线设备", value: num(payload.deviceBindings), note: "", tone: "is-tone-accent" },
     {
@@ -362,8 +387,7 @@ async function recomputeStock() {
   const ok = await confirm.confirm({
     title: "重算库存预留",
     message: "将按当前仍占用库存的订单（待支付 / 已付款）重算每个商品的预留数。",
-    detail:
-      "这是一次<b>覆盖式修正</b>：只改「预留数」这个统计值，不动库存总量，也不会改动任何订单。",
+    detail: "这是一次<b>覆盖式修正</b>：只改「预留数」这个统计值，不动库存总量，也不会改动任何订单。",
     confirmLabel: "重算",
     tone: "warning",
   });
@@ -374,9 +398,7 @@ async function recomputeStock() {
       body: JSON.stringify({}),
     });
     toast.push(
-      result.updated
-        ? `已修正 ${result.updated} 个商品的预留数：${result.detail}`
-        : "库存预留本来就是准的，无需修正",
+      result.updated ? `已修正 ${result.updated} 个商品的预留数：${result.detail}` : "库存预留本来就是准的，无需修正",
       result.updated ? "success" : "warning",
     );
     await load();
@@ -389,8 +411,7 @@ async function recomputeCoupons() {
   const ok = await confirm.confirm({
     title: "重算优惠码核销数",
     message: "将按优惠码核销记录重算每个码的「已核销」数量。",
-    detail:
-      "这是一次<b>覆盖式修正</b>：只改「已核销」这个统计值，不动优惠码本身，也不会改动任何订单。",
+    detail: "这是一次<b>覆盖式修正</b>：只改「已核销」这个统计值，不动优惠码本身，也不会改动任何订单。",
     confirmLabel: "重算",
     tone: "warning",
   });
@@ -401,9 +422,7 @@ async function recomputeCoupons() {
       body: JSON.stringify({}),
     });
     toast.push(
-      result.updated
-        ? `已修正 ${result.updated} 个优惠码的核销数：${result.detail}`
-        : "核销数本来就是准的，无需修正",
+      result.updated ? `已修正 ${result.updated} 个优惠码的核销数：${result.detail}` : "核销数本来就是准的，无需修正",
       result.updated ? "success" : "warning",
     );
     await load();
@@ -424,10 +443,10 @@ async function ackIncidents() {
   });
   if (!ok) return;
   try {
-    const result = await adminApi<{ cleared?: number; detail?: string; incidents?: Incidents }>(
-      "/incidents/ack",
-      { method: "POST", body: JSON.stringify({}) },
-    );
+    const result = await adminApi<{ cleared?: number; detail?: string; incidents?: Incidents }>("/incidents/ack", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
     toast.push(
       result.cleared ? `已清零 ${result.cleared} 次异常计数：${result.detail}` : "本来就没有异常计数",
       result.cleared ? "success" : "warning",

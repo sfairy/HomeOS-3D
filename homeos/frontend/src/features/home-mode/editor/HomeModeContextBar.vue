@@ -10,9 +10,7 @@ const props = defineProps({
 /** 嵌入设置页时默认折叠，把纵向空间留给编辑区 */
 const isDefaultCollapsed = computed(() => props.embedded)
 // DockPanel 摘要文本：将各 pill 的「标签 值」用 · 拼接
-const dockSummary = computed(() =>
-  props.contextPills.map((pill) => `${pill.label} ${pill.value}`).join(' · '),
-)
+const dockSummary = computed(() => props.contextPills.map((pill) => `${pill.label} ${pill.value}`).join(' · '))
 const emit = defineEmits(['pill-click'])
 
 // 点击带 section 的 pill 时向上透传 section 标识，用于跳转到对应分区

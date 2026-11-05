@@ -42,9 +42,7 @@
   box-sizing: border-box;
   border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid var(--hos-line-2);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 100%),
-    var(--hos-bg-tint-1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 100%), var(--hos-bg-tint-1);
   -webkit-backdrop-filter: var(--hos-blur-2);
   backdrop-filter: var(--hos-blur-2);
   box-shadow: var(--hos-shadow-3);
@@ -87,9 +85,7 @@
   border: none;
   border-radius: 0;
   border-bottom: var(--hos-hairline) solid var(--hos-line-2);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%),
-    rgba(8, 11, 18, 0.55);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%), rgba(8, 11, 18, 0.55);
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;

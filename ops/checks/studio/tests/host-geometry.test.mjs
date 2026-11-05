@@ -96,11 +96,9 @@ test('scale 被夹在 [0.01, 5]，rotation 原样透传', () => {
   assert.equal(clampedHigh.zoom, '5')
   assert.equal(clampedHigh.transform, 'rotate(30deg) scale(1)')
 
-  const clampedLow = componentHostGeometry(
-    component('title-button', { style: { scale: 0 } }),
-    position,
-    { supportsZoom: true },
-  )
+  const clampedLow = componentHostGeometry(component('title-button', { style: { scale: 0 } }), position, {
+    supportsZoom: true,
+  })
   // `scale: 0` 走的是 `|| 1` 的默认值（上游同样如此），不是夹到 0.01 —— 别在这里「顺手修好」，
   // 改了会让历史文档里 scale=0 的组件突然缩成一个点。
   assert.equal(clampedLow.zoom, '')

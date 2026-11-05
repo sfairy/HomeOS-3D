@@ -195,9 +195,7 @@ function onStreamError() {
 
 const cameraName = computed(() => {
   if (props.label) return props.label
-  return (
-    getEntityDisplayName(props.cameraId ?? '', entitiesStore.entities[props.cameraId]) || '门铃监控'
-  )
+  return getEntityDisplayName(props.cameraId ?? '', entitiesStore.entities[props.cameraId]) || '门铃监控'
 })
 
 const doorLockEntityId = computed(() => props.lockEntityId || '')
@@ -216,8 +214,7 @@ async function onOpenDoor() {
       service = canOpen ? 'open' : 'unlock'
     } else if (domain === 'button') service = 'press'
     else if (domain === 'script') service = eid.split('.')[1]
-    else if (domain === 'scene' || domain === 'input_boolean' || domain === 'switch')
-      service = 'turn_on'
+    else if (domain === 'scene' || domain === 'input_boolean' || domain === 'switch') service = 'turn_on'
     await entitiesStore.callService(domain, service, eid)
     chrome.notify(domain === 'lock' && service === 'open' ? '门锁已弹开' : '指令已发送', 'success')
     setTimeout(() => {

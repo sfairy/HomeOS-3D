@@ -47,16 +47,11 @@ interface FloorplanAutoDiagramWiringDeps {
   /** 取消「删除草稿文档」流程。 */
   cancelRemoveDraftDocument: (...args: any[]) => any
   /** 由组件位置 + 画布推算导出分辨率。 */
-  exportResolution: (
-    position: any,
-    canvas: any,
-  ) => { width: number; height: number }
+  exportResolution: (position: any, canvas: any) => { width: number; height: number }
 }
 
 /** 挂载导图控件的全部事件监听（幂等：每次 `home.ts` 模块初始化只调一次）。 */
-export function bindFloorplanAutoDiagramControls(
-  deps: FloorplanAutoDiagramWiringDeps,
-): void {
+export function bindFloorplanAutoDiagramControls(deps: FloorplanAutoDiagramWiringDeps): void {
   const {
     openStudioButton,
     viewToggleButton,
@@ -81,52 +76,51 @@ export function bindFloorplanAutoDiagramControls(
   const markPreviewing = (componentId: string) => {
     mutateDocument((draftDocument: any) => {
       const component = findComponent(draftDocument, componentId)?.component
-      if (component?.type !== "floorplan-auto-diagram") return
+      if (component?.type !== 'floorplan-auto-diagram') return
       component.properties = {
         ...(component.properties || {}),
         previewReady: true,
         previewing: true,
-        interactionMode: "position",
+        interactionMode: 'position',
       }
     })
   }
 
-  openStudioButton.addEventListener("click", () => {
+  openStudioButton.addEventListener('click', () => {
     const component = selectedComponent()
-    if (component?.type !== "floorplan-auto-diagram") return
+    if (component?.type !== 'floorplan-auto-diagram') return
     // 已经生成过但还没进入预览：只补预览标记，不重复生成。
     if (component.properties?.generated === true && component.properties?.previewing !== true) {
       markPreviewing(component.id)
       return
     }
     const studioFrame = document.querySelector<HTMLIFrameElement>(
-      '.hb-component[data-component-id="' +
-        CSS.escape(component.id) +
-        '"] .hb-floorplan-auto-diagram-preview',
+      '.hb-component[data-component-id="' + CSS.escape(component.id) + '"] .hb-floorplan-auto-diagram-preview',
     )
     if (!studioFrame?.contentWindow) {
       settleDialog(component.id)
       return
     }
-    const folderName = String(component.properties?.exportFolder || "").trim()
+    const folderName = String(component.properties?.exportFolder || '').trim()
     if (
       !folderName ||
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: 文件夹名校验：控制字符属于非法范围
       /[<>:"/\\|?*\x00-\x1f\x7f]/.test(folderName) ||
-      folderName.startsWith(".") ||
+      folderName.startsWith('.') ||
       /[. ]$/.test(folderName)
     ) {
-      status.textContent = "请先填写有效的导图文件夹名称。"
+      status.textContent = '请先填写有效的导图文件夹名称。'
       folderInput.focus()
       return
     }
     const resolution = exportResolution(component.position || {}, projectCanvas() || {})
-    status.textContent = "正在后台生成底图和灯组效果，请稍候…"
+    status.textContent = '正在后台生成底图和灯组效果，请稍候…'
     openStudioButton.disabled = true
     floorSelect.disabled = true
-    openStudioButton.textContent = "正在后台生成…"
+    openStudioButton.textContent = '正在后台生成…'
     studioFrame.contentWindow.postMessage(
       {
-        type: "homeos-floorplan-auto-diagram-generate",
+        type: 'homeos-floorplan-auto-diagram-generate',
         componentId: component.id,
         width: resolution.width,
         height: resolution.height,
@@ -136,44 +130,43 @@ export function bindFloorplanAutoDiagramControls(
     )
   })
 
-  viewToggleButton.addEventListener("click", () => {
+  viewToggleButton.addEventListener('click', () => {
     const componentId = selectedComponent()?.id
     if (!componentId) return
     mutateDocument((draftDocument: any) => {
       const component = findComponent(draftDocument, componentId)?.component
-      if (component?.type !== "floorplan-auto-diagram") return
+      if (component?.type !== 'floorplan-auto-diagram') return
       component.properties = {
         ...(component.properties || {}),
-        interactionMode:
-          component.properties?.interactionMode === "view" ? "position" : "view",
+        interactionMode: component.properties?.interactionMode === 'view' ? 'position' : 'view',
       }
     })
   })
 
-  closeButton.addEventListener("click", cancelRemoveDraftDocument)
-  laterButton.addEventListener("click", cancelRemoveDraftDocument)
-  dialog.addEventListener("cancel", (cancelEvent: Event) => {
+  closeButton.addEventListener('click', cancelRemoveDraftDocument)
+  laterButton.addEventListener('click', cancelRemoveDraftDocument)
+  dialog.addEventListener('cancel', (cancelEvent: Event) => {
     cancelEvent.preventDefault()
     cancelRemoveDraftDocument()
   })
 
-  continueButton.addEventListener("click", () => {
+  continueButton.addEventListener('click', () => {
     const componentId = dialog.dataset.componentId
     if (!componentId) return
     markPreviewing(componentId)
     closeDialog()
   })
 
-  bindingList.addEventListener("change", (changeEvent: any) => {
-    const lightGroupSelect = changeEvent.target.closest("[data-floorplan-light-group-id]")
+  bindingList.addEventListener('change', (changeEvent: any) => {
+    const lightGroupSelect = changeEvent.target.closest('[data-floorplan-light-group-id]')
     const componentId = selectedComponent()?.id
     if (!lightGroupSelect || !componentId) return
     const lightGroupId = lightGroupSelect.dataset.floorplanLightGroupId
     mutateDocument((draftDocument: any) => {
       const component = findComponent(draftDocument, componentId)?.component
-      if (!component || component.type !== "floorplan-auto-diagram") return
+      if (!component || component.type !== 'floorplan-auto-diagram') return
       component.bindings = { ...(component.bindings || {}) }
-      const bindingKey = "lightGroup:" + lightGroupId
+      const bindingKey = 'lightGroup:' + lightGroupId
       if (lightGroupSelect.value) {
         component.bindings[bindingKey] = { entityId: lightGroupSelect.value }
       } else {

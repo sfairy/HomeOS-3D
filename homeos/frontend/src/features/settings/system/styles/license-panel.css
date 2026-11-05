@@ -448,9 +448,9 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
-    'dot name'
-    '.   id'
-    'state state';
+    "dot name"
+    ".   id"
+    "state state";
   gap: 3px 8px;
   align-items: center;
   min-width: 0;
@@ -538,7 +538,10 @@
   color: var(--text-secondary, #a7b4c6);
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
 
 .license-reveal:hover {

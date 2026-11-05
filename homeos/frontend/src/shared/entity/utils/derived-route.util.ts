@@ -2,14 +2,7 @@
 import { getEntityDomain } from '@homeos/shared'
 
 /** 安全相关域集合：安全页面仅处理这些域的派生变更。 */
-const SECURITY_DOMAINS = new Set([
-  'binary_sensor',
-  'camera',
-  'lock',
-  'alarm_control_panel',
-  'device_tracker',
-  'cover',
-])
+const SECURITY_DOMAINS = new Set(['binary_sensor', 'camera', 'lock', 'alarm_control_panel', 'device_tracker', 'cover'])
 
 /**
  * Dashboard 路由下跳过派生 patch 的低优先级域。
@@ -121,10 +114,7 @@ export function filterDerivedPatchesForRoute(
  * @param domainEpochs 域纪元 Map（会被原地修改）。
  * @param changes 派生 patch 引用数组。
  */
-export function bumpDomainEpochs(
-  domainEpochs: Map<string, number>,
-  changes: DerivedPatchRef[],
-): void {
+export function bumpDomainEpochs(domainEpochs: Map<string, number>, changes: DerivedPatchRef[]): void {
   if (!changes?.length) return
   for (let i = 0; i < changes.length; i++) {
     const id = changes[i]?.entity_id

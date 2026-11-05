@@ -11,7 +11,7 @@ import {
 import type { ChatMessage } from './agent-chat-model.internals'
 
 /** 会话管理依赖：都是面板自己的 ref 与副作用，集中注入便于测试与复用 */
-export type AgentChatSessionDeps = {
+type AgentChatSessionDeps = {
   sessionId: Ref<string>
   messages: Ref<ChatMessage[]>
   sessions: Ref<AgentChatSession[]>
@@ -43,9 +43,7 @@ export function useAgentChatSessions(deps: AgentChatSessionDeps) {
     const date = new Date(updatedAt)
     const now = new Date()
     const sameDay =
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth() &&
-      date.getDate() === now.getDate()
+      date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()
     if (sameDay) {
       return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
     }

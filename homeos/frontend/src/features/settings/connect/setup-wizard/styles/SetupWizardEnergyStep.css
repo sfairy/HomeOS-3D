@@ -1,4 +1,4 @@
-@import 'setup-wizard.css';
+@import "setup-wizard.css";
 .sw-energy-panel {
   padding: 14px;
   border-radius: var(--hos-r-2);

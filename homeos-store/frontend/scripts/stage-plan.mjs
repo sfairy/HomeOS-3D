@@ -63,13 +63,13 @@ const VBH = Math.round((bounds.maxY - bounds.minY) * SCALE + PAD * 2);
 
 /** 平面坐标 → 画面坐标。 */
 function pt(x, y, z = 0) {
-  return [
-    ((x - y) * K - bounds.minX) * SCALE + PAD,
-    ((x + y) * S - z - bounds.minY) * SCALE + PAD,
-  ];
+  return [((x - y) * K - bounds.minX) * SCALE + PAD, ((x + y) * S - z - bounds.minY) * SCALE + PAD];
 }
 
-const px = (x, y, z = 0) => pt(x, y, z).map((n) => n.toFixed(2)).join(",");
+const px = (x, y, z = 0) =>
+  pt(x, y, z)
+    .map((n) => n.toFixed(2))
+    .join(",");
 const mid = (a, b) => (a + b) / 2;
 
 // ---------------------------------------------------------------- 材质
@@ -101,9 +101,7 @@ const floorMarks = [];
 const floorLines = [];
 
 function polygon(points, fill, opts = {}) {
-  const stroke = opts.stroke
-    ? ` stroke="${opts.stroke}" stroke-width="${opts.sw ?? 1}" stroke-linejoin="round"`
-    : "";
+  const stroke = opts.stroke ? ` stroke="${opts.stroke}" stroke-width="${opts.sw ?? 1}" stroke-linejoin="round"` : "";
   return `<polygon points="${points.join(" ")}" fill="${fill}"${stroke}${opts.extra ?? ""}/>`;
 }
 
@@ -436,7 +434,8 @@ function addChair(x0, x1, y0, y1, backSide) {
   shadowOf(x0, x1, y0, y1, 0);
 }
 
-function addPlant(cx, cy, r, h) {  addBox(cx - r, cx + r, cy - r, cy + r, 0, 0.26, MAT.pot);
+function addPlant(cx, cy, r, h) {
+  addBox(cx - r, cx + r, cy - r, cy + r, 0, 0.26, MAT.pot);
   const [sx, sy] = pt(cx, cy, h);
   const s = r * SCALE * 1.5;
   vol(
@@ -496,9 +495,12 @@ function addFloorLamp(cx, cy) {
   addBox(cx - 0.03, cx + 0.03, cy - 0.03, cy + 0.03, 0, 1.16, MAT.metal, { shadow: false });
   addBox(cx - 0.16, cx + 0.16, cy - 0.16, cy + 0.16, 1.16, 1.34, MAT.linen, { shadow: false });
   const [sx, sy] = pt(cx, cy, 1.24);
-  vol(cx + cy + 0.4, `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${(SCALE * 0.5).toFixed(
-    1,
-  )}" fill="url(#warmGlow)" opacity=".85"/>`);
+  vol(
+    cx + cy + 0.4,
+    `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${(SCALE * 0.5).toFixed(
+      1,
+    )}" fill="url(#warmGlow)" opacity=".85"/>`,
+  );
 }
 
 /* ---- 餐厅 ---- */
@@ -555,9 +557,7 @@ lightPool(10.6, 6.5, 1.5, "warmPool", 0.75);
 
 /* ---- 客厅 ---- */
 addBox(0.86, 3.9, 4.5, 7.94, 0.004, 0.022, MAT.rug, { shadow: false });
-floorMarks.push(
-  plane(0.98, 3.78, 4.62, 7.82, 0.026, "none", ' stroke="rgba(255,255,255,.22)" stroke-width="0.9"'),
-);
+floorMarks.push(plane(0.98, 3.78, 4.62, 7.82, 0.026, "none", ' stroke="rgba(255,255,255,.22)" stroke-width="0.9"'));
 addBox(0.08, 0.56, 5.9, 7.44, 0, 0.42, MAT.wood);
 addBox(0.08, 0.56, 5.88, 7.46, 0.42, 0.45, MAT.woodDeep, { shadow: false });
 // 电视：机身 + 亮着的屏幕。屏幕朝 +x（对着沙发），所以只画得到这一个面。
@@ -582,9 +582,7 @@ addBox(8.62, 9.06, 6.3, 7.5, 0, 0.92, MAT.wood);
 addBox(8.6, 9.08, 6.28, 7.52, 0.92, 0.96, MAT.woodDeep, { shadow: false });
 // 门口地垫：顺带把入户门的位置标出来
 addBox(7.62, 8.46, 8.16, 8.82, 0.004, 0.018, MAT.dark, { shadow: false });
-floorMarks.push(
-  plane(7.66, 8.42, 8.2, 8.78, 0.022, "none", ' stroke="rgba(255,255,255,.16)" stroke-width="0.8"'),
-);
+floorMarks.push(plane(7.66, 8.42, 8.2, 8.78, 0.022, "none", ' stroke="rgba(255,255,255,.16)" stroke-width="0.8"'));
 lightPool(8.05, 7.9, 0.9, "warmPool", 0.55);
 
 /* ---- 阳台 ---- */
@@ -670,9 +668,9 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   </defs>
 
   <!-- 背景透明：卡片自己的径向渐变透出来，图不会在卡片里留一块矩形色差。 -->
-  <ellipse cx="${(VBW * 0.5).toFixed(0)}" cy="${(VBH * 0.52).toFixed(0)}" rx="${(
-    VBW * 0.62
-  ).toFixed(0)}" ry="${(VBH * 0.72).toFixed(0)}" fill="url(#halo)"/>
+  <ellipse cx="${(VBW * 0.5).toFixed(0)}" cy="${(VBH * 0.52).toFixed(0)}" rx="${(VBW * 0.62).toFixed(
+    0,
+  )}" ry="${(VBH * 0.72).toFixed(0)}" fill="url(#halo)"/>
 
   <g filter="url(#cast)" opacity=".8">
     ${plane(-0.72, FW + 0.98, -0.56, FD + 0.72, -0.3, "#04070c")}
@@ -720,9 +718,6 @@ console.log(`aspect-ratio: ${(VBW / VBH).toFixed(3)}`);
 for (const { id, plan, label } of ANCHORS) {
   const [x, y] = pt(plan[0], plan[1], 0);
   console.log(
-    `    { id: "${id}", label: "${label}", x: ${((x / VBW) * 100).toFixed(2)}, y: ${(
-      (y / VBH) *
-      100
-    ).toFixed(2)} },`,
+    `    { id: "${id}", label: "${label}", x: ${((x / VBW) * 100).toFixed(2)}, y: ${((y / VBH) * 100).toFixed(2)} },`,
   );
 }

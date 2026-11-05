@@ -7,22 +7,19 @@ import { apiDelete, apiPost } from './client'
 
 const BACKUP_TIMEOUT_MS = 5 * 60 * 1000
 
-export function exportEncryptedBusinessBackup(
-  password: string,
-  config?: AxiosRequestConfig,
-) {
-  return apiPost('/backups/export', { password }, {
-    responseType: 'blob',
-    timeout: BACKUP_TIMEOUT_MS,
-    ...config,
-  })
+export function exportEncryptedBusinessBackup(password: string, config?: AxiosRequestConfig) {
+  return apiPost(
+    '/backups/export',
+    { password },
+    {
+      responseType: 'blob',
+      timeout: BACKUP_TIMEOUT_MS,
+      ...config,
+    },
+  )
 }
 
-export function inspectEncryptedBusinessBackup(
-  file: Blob,
-  password: string,
-  config?: AxiosRequestConfig,
-) {
+export function inspectEncryptedBusinessBackup(file: Blob, password: string, config?: AxiosRequestConfig) {
   return apiPost('/backups/inspect', file, {
     timeout: BACKUP_TIMEOUT_MS,
     ...config,

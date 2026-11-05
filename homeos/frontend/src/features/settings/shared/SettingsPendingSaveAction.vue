@@ -37,7 +37,5 @@ const props = defineProps({
 
 const emit = defineEmits(['save', 'cancel'])
 
-const pendingLabel = computed(
-  () => props.pendingLabel || '{n} 项已修改'.replace('{n}', String(props.pending)),
-)
+const pendingLabel = computed(() => props.pendingLabel || '{n} 项已修改'.replace('{n}', String(props.pending)))
 </script>

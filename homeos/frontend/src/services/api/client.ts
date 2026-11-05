@@ -200,7 +200,8 @@ apiClient.interceptors.request.use(async (config) => {
     if (!headers.get('X-CSRF-Token')) {
       logger.warn(
         '[API 客户端] CSRF 请求头仍然缺失,可能是 refreshCsrfToken 未下发 cookie,' +
-          '当前 document.cookie 含 csrf_token=' + (getCsrfToken() ? 'present' : 'absent'),
+          '当前 document.cookie 含 csrf_token=' +
+          (getCsrfToken() ? 'present' : 'absent'),
       )
     }
   }
@@ -341,12 +342,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    if (
-      error.response?.status === 403 &&
-      isCsrfInvalidError(error) &&
-      !config._csrfRetried &&
-      !config._csrfBootstrap
-    ) {
+    if (error.response?.status === 403 && isCsrfInvalidError(error) && !config._csrfRetried && !config._csrfBootstrap) {
       config._csrfRetried = true
       // forceReset=true 会先删除浏览器旧 csrf_token，强制后端 ensureCsrfCookie 重新下发新 token，
       // 避免并发 /setup/status 产生过多次 set-cookie 覆盖后 cookie 与 header 对不上。
@@ -361,8 +357,7 @@ apiClient.interceptors.response.use(
       config._retryCount = config._retryCount ?? 0
       if (config._retryCount < getRetryMax()) {
         config._retryCount += 1
-        const delay =
-          getRetryDelayMs() * Math.pow(2, config._retryCount - 1) * (0.8 + Math.random() * 0.4)
+        const delay = getRetryDelayMs() * Math.pow(2, config._retryCount - 1) * (0.8 + Math.random() * 0.4)
         await new Promise((r) => setTimeout(r, delay))
         return apiClient(config)
       }
@@ -386,7 +381,7 @@ const inflightGets = new Map<string, Promise<unknown>>()
  * @param config 请求配置；dedupe=false 可关闭去重
  * @returns Axios 响应；去重时返回与其它调用共享的 Promise
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiGet = <T = any>(url: string, config?: ApiRequestConfig) => {
   const params = config?.params
   const key = `get:${authGeneration}:${url}:${params == null ? '' : JSON.stringify(params)}`
@@ -402,19 +397,18 @@ export const apiGet = <T = any>(url: string, config?: ApiRequestConfig) => {
 }
 
 /** 发起 POST 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiPost = <T = any>(url: string, data?: unknown, config?: ApiRequestConfig) =>
   apiClient.post<T>(url, data, config)
 
 /** 发起 PUT 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiPut = <T = any>(url: string, data?: unknown, config?: ApiRequestConfig) =>
   apiClient.put<T>(url, data, config)
 
 /** 发起 DELETE 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
-export const apiDelete = <T = any>(url: string, config?: ApiRequestConfig) =>
-  apiClient.delete<T>(url, config)
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
+export const apiDelete = <T = any>(url: string, config?: ApiRequestConfig) => apiClient.delete<T>(url, config)
 
 // 为 studio 的裸 fetch 兜底注入 CSRF 头（幂等，仅同源 /api/** 变更类请求）。
 // 单 HTTP 栈：CSRF 逻辑全部收敛在本模块 + ./api/csrf，auth 视图不再持有 HTTP 细节。

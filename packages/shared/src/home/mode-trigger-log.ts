@@ -25,7 +25,7 @@ export type HomeModeTriggerLogSource =
   | 'automation'
   | 'entity'
   | 'everyone_left'
-  | 'time';
+  | 'time'
 
 /**
  * 单条家庭模式触发日志（后端落库 / 前端展示统一形态）。

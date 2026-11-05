@@ -7,18 +7,16 @@
  */
 
 /** 支持柜门结构切换的物件类型。 */
-export const STORAGE_SECTION_TYPES: ReadonlySet<string> = new Set(["wardrobe", "cabinet"]);
+export const STORAGE_SECTION_TYPES: ReadonlySet<string> = new Set(['wardrobe', 'cabinet'])
 
 /** 下拉可选值（顺序即界面顺序）。 */
-const STORAGE_SECTION_VALUES = Object.freeze(["full", "two-section"] as const);
+const STORAGE_SECTION_VALUES = Object.freeze(['full', 'two-section'] as const)
 
-type StorageSectionStyle = (typeof STORAGE_SECTION_VALUES)[number];
+type StorageSectionStyle = (typeof STORAGE_SECTION_VALUES)[number]
 
 /** 该条目当前的柜门结构；不支持的家族 / 非法值一律回落到 `full`。 */
 export function storageSectionStyle(item: any): StorageSectionStyle {
-  return STORAGE_SECTION_TYPES.has(item?.type) && item?.cabinetSections === "two-section"
-    ? "two-section"
-    : "full";
+  return STORAGE_SECTION_TYPES.has(item?.type) && item?.cabinetSections === 'two-section' ? 'two-section' : 'full'
 }
 
 /**
@@ -28,5 +26,5 @@ export function storageSectionStyle(item: any): StorageSectionStyle {
  * 直接拿来当模型键会找不到 GLB。
  */
 export function storageSectionModelType(item: any): string {
-  return storageSectionStyle(item) === "two-section" ? `${item.type}-two-section` : item.type;
+  return storageSectionStyle(item) === 'two-section' ? `${item.type}-two-section` : item.type
 }

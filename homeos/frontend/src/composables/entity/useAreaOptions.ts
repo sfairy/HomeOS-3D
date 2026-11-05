@@ -68,16 +68,13 @@ export function useAreaOptions() {
   const fallbackFromEntities = computed(() => {
     const byId = new Map<string, string>()
     const ids =
-      collectIndexedEntityIds(entitiesStore.domainEntityIndex, { domain: 'all' }) ||
-      Object.keys(entitiesStore.entities)
+      collectIndexedEntityIds(entitiesStore.domainEntityIndex, { domain: 'all' }) || Object.keys(entitiesStore.entities)
     for (const key of ids) {
       const area = resolveEntityArea(entitiesStore.entities[key]?.attributes)
       if (!area) continue
       byId.set(area.id, area.name)
     }
-    return [...byId.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'zh'))
+    return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'zh'))
   })
 
   /** 最终生效的区域集合：注册表非空时优先，否则使用回退集合。 */

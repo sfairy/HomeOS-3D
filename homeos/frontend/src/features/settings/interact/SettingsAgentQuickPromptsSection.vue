@@ -20,17 +20,11 @@ import {
   agentQuickPromptsRevert,
 } from '@/features/settings/interact/composables/agent-panel-helpers.internals'
 import { useChromeStore } from '@/stores/chrome.store'
-import {
-  isSystemConfigConflictError,
-  patchSystemConfig,
-} from '@/composables/config/system-config-core.internals'
+import { isSystemConfigConflictError, patchSystemConfig } from '@/composables/config/system-config-core.internals'
 import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
-import {
-  AGENT_QUICK_PROMPTS,
-  AGENT_QUICK_PROMPT_LIMITS,
-} from '@/shared/agent/constants/agent-quick-prompts'
+import { AGENT_QUICK_PROMPTS, AGENT_QUICK_PROMPT_LIMITS } from '@/shared/agent/constants/agent-quick-prompts'
 import { readAgentQuickPrompts } from '@/shared/agent/utils/quick-prompts.util'
 
 /** 编辑态行：`id` 只用于 v-for 的稳定 key，不写进配置 */
@@ -117,10 +111,7 @@ async function save(): Promise<void> {
     await reloadFrontendConfig()
     draft.value = toRows(readAgentQuickPrompts())
     baseline.value = fingerprint(draft.value)
-    chrome.notify(
-      rows.length ? `已保存 ${rows.length} 条快捷指令` : '已关闭对话面板的快捷指令',
-      'success',
-    )
+    chrome.notify(rows.length ? `已保存 ${rows.length} 条快捷指令` : '已关闭对话面板的快捷指令', 'success')
   } catch (error: unknown) {
     if (isSystemConfigConflictError(error)) {
       chrome.notify('配置已被其它页面修改，已刷新，请重新保存', 'warning')

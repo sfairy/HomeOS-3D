@@ -29,7 +29,14 @@ const carcass = merge([
 ])
 const fronts = merge(
   [-1, 1].map((side) =>
-    b((W - 0.18) / 2 - 0.006, BODY_TOP - PLINTH - 0.06, 0.02, (side * (W - 0.16)) / 4, (BODY_TOP + PLINTH) / 2, BODY_D / 2 - 0.03),
+    b(
+      (W - 0.18) / 2 - 0.006,
+      BODY_TOP - PLINTH - 0.06,
+      0.02,
+      (side * (W - 0.16)) / 4,
+      (BODY_TOP + PLINTH) / 2,
+      BODY_D / 2 - 0.03,
+    ),
   ),
 )
 const handles = merge(
@@ -41,19 +48,21 @@ const handles = merge(
 /** 台面：整体出挑到 780 深，两端做瀑布边（石材立板），形成「石盒子」的体量。 */
 const counter = b(W, TOP_T, D, 0, BODY_TOP + TOP_T / 2, 0)
 const stones = merge(
-  [-1, 1].map((side) =>
-    b(STONE_T, BODY_TOP + TOP_T, D, (side * (W - STONE_T)) / 2, (BODY_TOP + TOP_T) / 2, 0),
-  ),
+  [-1, 1].map((side) => b(STONE_T, BODY_TOP + TOP_T, D, (side * (W - STONE_T)) / 2, (BODY_TOP + TOP_T) / 2, 0)),
 )
 const veins = merge(
-  [-1, 0, 1].map((index) =>
-    b(0.9, 0.002, 0.012, index * 0.6, BODY_TOP + TOP_T + 0.001, -0.12 + index * 0.1),
-  ),
+  [-1, 0, 1].map((index) => b(0.9, 0.002, 0.012, index * 0.6, BODY_TOP + TOP_T + 0.001, -0.12 + index * 0.1)),
 )
 
 /** 绿植：陶盆 + 6 片叶子，最高点正好等于规格高度 1195。 */
 const potH = 0.14
-const pot = cylinder({ radiusTop: 0.075, radiusBottom: 0.06, height: potH, segments: 20, center: [0.66, BODY_TOP + TOP_T + potH / 2, 0.12] })
+const pot = cylinder({
+  radiusTop: 0.075,
+  radiusBottom: 0.06,
+  height: potH,
+  segments: 20,
+  center: [0.66, BODY_TOP + TOP_T + potH / 2, 0.12],
+})
 const stems = merge(
   [0, 1, 2, 3, 4, 5].map((index) =>
     transform(cylinder({ radiusTop: 0.006, height: 0.14, segments: 6 }), {

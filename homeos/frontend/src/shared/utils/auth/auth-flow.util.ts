@@ -19,7 +19,7 @@ interface AuthFlowStep {
 type AuthStepState = 'done' | 'current' | 'todo' | 'blocked'
 
 /** 渲染用的一步：编号、文案、状态。 */
-export interface RenderableAuthStep extends AuthFlowStep {
+interface RenderableAuthStep extends AuthFlowStep {
   /** 两位编号，例如 '01'。 */
   ordinal: string
   /** 该步在轨道上的状态。 */
@@ -48,11 +48,7 @@ export const AUTH_FLOW_ACCESS: AuthFlowStep[] = [
  * @param blocked 当前步是否「停在这里过不去」（如绑定冲突），true 时当前步用 blocked 态
  * @returns 供 AuthShell 渲染的步骤数组
  */
-export function renderAuthSteps(
-  flow: AuthFlowStep[],
-  activeKey: string,
-  blocked = false,
-): RenderableAuthStep[] {
+export function renderAuthSteps(flow: AuthFlowStep[], activeKey: string, blocked = false): RenderableAuthStep[] {
   const activeIndex = flow.findIndex((step) => step.key === activeKey)
   return flow.map((step, index) => ({
     ...step,

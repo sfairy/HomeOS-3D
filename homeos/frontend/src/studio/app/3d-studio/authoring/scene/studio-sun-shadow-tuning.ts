@@ -20,14 +20,11 @@ export function applySunShadowTuning(
     mainShadowIntensity,
   }: { isStageSurface: boolean; isGroundShadowEnabled: boolean; mainShadowIntensity: number },
 ) {
-  const sunShadow = sunLight.shadow;
-  ((sunShadow.bias = -0.00012),
+  const sunShadow = sunLight.shadow
+  ;(sunShadow.bias = -0.00012),
     (sunShadow.normalBias = 0.016),
     (sunShadow.radius = isStageSurface ? 1.75 : 3.25),
     (sunShadow.blurSamples = isStageSurface ? 4 : 12),
     isGroundShadowEnabled && ((sunShadow.radius = 1.2), (sunShadow.blurSamples = 8)),
-    (sunShadow.intensity = Math.min(
-      1,
-      mainShadowIntensity * (isGroundShadowEnabled || isStageSurface ? 1 : 1.5),
-    )));
+    (sunShadow.intensity = Math.min(1, mainShadowIntensity * (isGroundShadowEnabled || isStageSurface ? 1 : 1.5)))
 }

@@ -174,8 +174,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
       const sock = resolveSocket()
       // socket.io 在重连退避期间 connected/active 可能同时为 false，但 Manager 仍在重连流程中；
       // 读取其内部 _reconnecting 标志，避免把「重连中」误判为「已断开」而提前收起横幅。
-      const ioReconnecting =
-        (sock?.io as unknown as { _reconnecting?: boolean } | undefined)?._reconnecting === true
+      const ioReconnecting = (sock?.io as unknown as { _reconnecting?: boolean } | undefined)?._reconnecting === true
       if (sock?.connected || sock?.active || ioReconnecting) {
         reconnecting.value = true
         return
@@ -248,10 +247,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     connected.value = status
   }
   // 创建家庭模式事件注册表（监听器列表 + 订阅/退订函数）
-  const {
-    listeners: modeEventListeners,
-    onHomeModeEvent,
-  } = createEntityModeEventRegistry()
+  const { listeners: modeEventListeners, onHomeModeEvent } = createEntityModeEventRegistry()
 
   // 创建订阅助手：远程通知列表 + 状态监听器派发 + onStateChanged 订阅
   const {
@@ -308,10 +304,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   // REST 全量 / WS initial_states 全量应用与 WS 增量互斥：
   // 全量清空重建同样串行进入 wsBatchApplyTail 队列，避免重连期间 REST 清空与 WS 增量并发，
   // 导致增量在清空窗口内丢失或状态被旧快照回退（增量丢失/状态回退）
-  function initStatesQueued(
-    list: HaEntityState[],
-    opts?: EntityInitOptions,
-  ): Promise<void> {
+  function initStatesQueued(list: HaEntityState[], opts?: EntityInitOptions): Promise<void> {
     const run = wsBatchApplyTail.then(() => initStates(list, opts))
     wsBatchApplyTail = run.catch((err) => {
       deps.logger.warn('[实体 WS] 全量实体应用失败', err)
@@ -324,10 +317,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   const feLatencySamples: Array<{ stage: string; ms: number }> = []
   let feLatencyFlushTimer: ReturnType<typeof setTimeout> | null = null
 
-  function enqueueFeLatencySample(
-    stage: 'fe_critical_apply' | 'fe_sensor_apply' | 'fe_e2e_apply',
-    ms: number,
-  ) {
+  function enqueueFeLatencySample(stage: 'fe_critical_apply' | 'fe_sensor_apply' | 'fe_e2e_apply', ms: number) {
     if (!Number.isFinite(ms) || ms < 0) return
     feLatencySamples.push({ stage, ms: Math.round(ms * 100) / 100 })
     if (feLatencySamples.length > 64) feLatencySamples.splice(0, feLatencySamples.length - 64)
@@ -393,13 +383,10 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     /** 关键域：主线程同步规范化，跳过 Worker hop，压低控制反馈延迟 */
     const applyCriticalChunk = () => {
       if (!critical.length) return
-      const t0 =
-        typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+      const t0 = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
       const normalized = normalizeWsBatchChangesSync(critical, deps.entities)
       applyEntityStatesBatch(deps.getStateUpdateDeps(), normalized)
-      const ms =
-        (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) -
-        t0
+      const ms = (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - t0
       deps.perfStats.criticalApplyCount++
       deps.perfStats.lastCriticalApplyMs = Math.round(ms * 100) / 100
       enqueueFeLatencySample('fe_critical_apply', ms)
@@ -408,13 +395,10 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
 
     const applyRestChunk = async () => {
       if (!rest.length) return
-      const t0 =
-        typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+      const t0 = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
       const normalized = await normalizeWsBatchChanges(rest, deps.entities)
       applyEntityStatesBatch(deps.getStateUpdateDeps(), normalized)
-      const ms =
-        (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) -
-        t0
+      const ms = (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - t0
       deps.perfStats.lastSensorApplyMs = Math.round(ms * 100) / 100
       enqueueFeLatencySample('fe_sensor_apply', ms)
       recordFeE2eFromChanges(rest)
@@ -453,26 +437,26 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   // 创建 REST 回退助手：全量拉取 / 增量同步 / 页面可见性回退
   const { fetchEntitiesFallback, fetchEntitiesChangedSince, bindVisibilityFallbackHandler } =
     createEntityRestFallbackHelpers({
-    apiClient: deps.apiClient,
-    entities: deps.entities,
-    totalCount: deps.totalCount,
-    connected,
-    entitiesStale: deps.entitiesStale,
-    entityVisible: deps.entityVisible,
-    countVisibleEntities,
-    shouldAcceptEntitySnapshot,
-    // REST 全量写入纳入 WS 增量同一串行队列，保证互斥
-    initStates: initStatesQueued,
-    initStatesBatchSize: deps.initStatesBatchSize,
-    setConnected,
-    scheduleRebuildDerived: deps.scheduleRebuildDerived,
-    schedulePersistEntityCache: deps.schedulePersistEntityCache,
-    ingestEntitySnapshot: deps.ingestEntitySnapshot,
-    socketTrack,
-    logger: deps.logger,
-    isAuthenticated: deps.isAuthenticated,
-    ensureWsConnected: () => wsConnectBridge.ensure(),
-  })
+      apiClient: deps.apiClient,
+      entities: deps.entities,
+      totalCount: deps.totalCount,
+      connected,
+      entitiesStale: deps.entitiesStale,
+      entityVisible: deps.entityVisible,
+      countVisibleEntities,
+      shouldAcceptEntitySnapshot,
+      // REST 全量写入纳入 WS 增量同一串行队列，保证互斥
+      initStates: initStatesQueued,
+      initStatesBatchSize: deps.initStatesBatchSize,
+      setConnected,
+      scheduleRebuildDerived: deps.scheduleRebuildDerived,
+      schedulePersistEntityCache: deps.schedulePersistEntityCache,
+      ingestEntitySnapshot: deps.ingestEntitySnapshot,
+      socketTrack,
+      logger: deps.logger,
+      isAuthenticated: deps.isAuthenticated,
+      ensureWsConnected: () => wsConnectBridge.ensure(),
+    })
 
   // 绑定页面可见性回退处理器：标签页恢复可见时增量同步或全量回退
   bindVisibilityFallbackHandler()
@@ -484,10 +468,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   function onEntitiesStale() {
     try {
       const layout = useLayoutStore()
-      void refreshPinnedEntitiesAfterStale(
-        { ensureEntities: deps.getEnsureEntities() },
-        layout.layoutConfig,
-      )
+      void refreshPinnedEntitiesAfterStale({ ensureEntities: deps.getEnsureEntities() }, layout.layoutConfig)
     } catch (err) {
       deps.logger.warn('[实体 WS] 过期后刷新置顶实体失败', err)
     }
@@ -553,10 +534,8 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
         void initStatesQueued(list, opts)
       },
       beginIncrementalInitialStates,
-      mergeInitialStatesChunk: (list, token, expected) =>
-        mergeInitialStatesChunk(list, token as number, expected),
-      finishIncrementalInitialStates: (token, expected) =>
-        finishIncrementalInitialStates(token as number, expected),
+      mergeInitialStatesChunk: (list, token, expected) => mergeInitialStatesChunk(list, token as number, expected),
+      finishIncrementalInitialStates: (token, expected) => finishIncrementalInitialStates(token as number, expected),
       onEntitiesStale,
       rollbackAllOptimistic: () => deps.optimisticBridge?.rollbackAllOptimistic?.() ?? 0,
       updateStatesBatch: (changes) => {

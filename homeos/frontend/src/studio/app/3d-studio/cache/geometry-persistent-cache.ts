@@ -1,17 +1,12 @@
-import {
-  createCacheLogger,
-  executeTaskWithTimeout,
-  readCacheEntries,
-  writeCacheRecord,
-} from "./cache-shared";
+import { createCacheLogger, executeTaskWithTimeout, readCacheEntries, writeCacheRecord } from './cache-shared'
 
 /** 几何/中间结果持久缓存：把可复用的几何（墙 union、楼板开洞、家具批量网格等）落盘，热启动时直接取回。 */
-const GEOMETRY_CACHE_VERSION = "20261022-v1";
+const GEOMETRY_CACHE_VERSION = '20261022-v1'
 const MAX_ENTRY_BYTES = 8388608,
   MAX_ENTRY_COUNT = 1024,
   MAX_PERSISTED_BYTES = 33554432,
   MAX_PERSISTED_ENTRIES = 8,
-  MAX_KEY_LENGTH = 131072;
+  MAX_KEY_LENGTH = 131072
 
 /** 点是有限数、环至少 3 个点，才算合法的几何轮廓。 */
 export function validGeometryLoops(loops: any) {
@@ -23,26 +18,26 @@ export function validGeometryLoops(loops: any) {
         loop.length >= 3 &&
         loop.every((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y)),
     )
-  );
+  )
 }
 function packGeometry(geometry: any) {
   if (geometry.isInstancedBufferGeometry || Object.keys(geometry.morphAttributes).length)
-    throw Error("Unsupported geometry");
+    throw Error('Unsupported geometry')
   const packAttribute = (attribute: any) => {
     if (
       attribute.isInterleavedBufferAttribute ||
       attribute.isInstancedBufferAttribute ||
       attribute.isFloat16BufferAttribute
     )
-      throw Error("Unsupported attribute");
+      throw Error('Unsupported attribute')
     return {
       array: attribute.array.slice(),
       itemSize: attribute.itemSize,
       normalized: attribute.normalized,
       name: attribute.name,
       usage: attribute.usage,
-    };
-  };
+    }
+  }
   return {
     attributes: Object.fromEntries(
       Object.entries(geometry.attributes).map(([name, attribute]) => [name, packAttribute(attribute)]),
@@ -54,19 +49,15 @@ function packGeometry(geometry: any) {
     drawRange: {
       ...geometry.drawRange,
     },
-    box: geometry.boundingBox
-      ? [geometry.boundingBox.min.toArray(), geometry.boundingBox.max.toArray()]
-      : null,
-    sphere: geometry.boundingSphere
-      ? [geometry.boundingSphere.center.toArray(), geometry.boundingSphere.radius]
-      : null,
-  };
+    box: geometry.boundingBox ? [geometry.boundingBox.min.toArray(), geometry.boundingBox.max.toArray()] : null,
+    sphere: geometry.boundingSphere ? [geometry.boundingSphere.center.toArray(), geometry.boundingSphere.radius] : null,
+  }
 }
 function packedGeometryBytes(packedGeometry: any) {
   return Object.values(packedGeometry.attributes as Record<string, any>).reduce(
     (byteSum, attribute) => byteSum + attribute.array.byteLength,
     packedGeometry.index?.array.byteLength || 0,
-  );
+  )
 }
 function unpackGeometry(three: any, packedGeometry: any) {
   const geometry = new three.BufferGeometry(),
@@ -79,25 +70,20 @@ function unpackGeometry(three: any, packedGeometry: any) {
         packedAttribute.itemSize > 4 ||
         packedAttribute.array.length % packedAttribute.itemSize
       )
-        throw Error("Invalid geometry");
+        throw Error('Invalid geometry')
       const attribute = new three.BufferAttribute(
         packedAttribute.array.slice(),
         packedAttribute.itemSize,
         packedAttribute.normalized,
-      );
-      return (
-        (attribute.name = packedAttribute.name || ""),
-        attribute.setUsage(packedAttribute.usage),
-        attribute
-      );
-    };
+      )
+      return ((attribute.name = packedAttribute.name || ''), attribute.setUsage(packedAttribute.usage), attribute)
+    }
   try {
     for (const [attributeName, packedAttribute] of Object.entries(packedGeometry.attributes))
-      geometry.setAttribute(attributeName, unpackAttribute(packedAttribute));
-    if (!geometry.attributes.position) throw Error("Missing positions");
-    packedGeometry.index && geometry.setIndex(unpackAttribute(packedGeometry.index));
-    for (const group of packedGeometry.groups)
-      geometry.addGroup(group.start, group.count, group.materialIndex);
+      geometry.setAttribute(attributeName, unpackAttribute(packedAttribute))
+    if (!geometry.attributes.position) throw Error('Missing positions')
+    packedGeometry.index && geometry.setIndex(unpackAttribute(packedGeometry.index))
+    for (const group of packedGeometry.groups) geometry.addGroup(group.start, group.count, group.materialIndex)
     return (
       geometry.setDrawRange(packedGeometry.drawRange.start, packedGeometry.drawRange.count),
       packedGeometry.box &&
@@ -111,14 +97,14 @@ function unpackGeometry(three: any, packedGeometry: any) {
           packedGeometry.sphere[1],
         )),
       geometry
-    );
+    )
   } catch (unpackError: any) {
-    throw (geometry.dispose(), unpackError);
+    throw (geometry.dispose(), unpackError)
   }
 }
-export function createGeometryPersistentCache({ env: env = globalThis, key: key = "" } = {}) {
+export function createGeometryPersistentCache({ env: env = globalThis, key: key = '' } = {}) {
   const entryByKey = new Map(),
-    storageKey = key ? JSON.stringify([GEOMETRY_CACHE_VERSION, key]) : "";
+    storageKey = key ? JSON.stringify([GEOMETRY_CACHE_VERSION, key]) : ''
   let openPromise,
     cachedConnection: any,
     isDisposed = false,
@@ -128,7 +114,7 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
     hasPresented = false,
     idleHandle: any = null,
     preloadPromise,
-    idleChain = Promise.resolve();
+    idleChain = Promise.resolve()
   const stats = {
       hits: 0,
       misses: 0,
@@ -136,53 +122,53 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
       writes: 0,
       fallbacks: 0,
     },
-    log = createCacheLogger(env, "[3D-geometry-cache]", stats),
+    log = createCacheLogger(env, '[3D-geometry-cache]', stats),
     cloneValue = (value: any) => env.structuredClone(value),
     isAvailable = () => {
       try {
-        return !!storageKey && !isDisposed && !hasOpenFailed && !!env.indexedDB && !!env.structuredClone;
+        return !!storageKey && !isDisposed && !hasOpenFailed && !!env.indexedDB && !!env.structuredClone
       } catch {
-        return false;
+        return false
       }
-    };
+    }
   function runWithTimeout(task: any, durationMs = 1500): Promise<any> {
     return executeTaskWithTimeout(env, task, {
       duration: durationMs,
       onTimeout: () => stats.fallbacks++,
-    });
+    })
   }
   function openDatabase() {
     return isAvailable()
       ? ((openPromise ||= runWithTimeout((settleOpen: any) => {
-          const openRequest = env.indexedDB.open("homeos-architecture-geometry", 1);
-          ((openRequest.onupgradeneeded = () => {
-            (openRequest.result.createObjectStore("scenes", {
-              keyPath: "key",
+          const openRequest = env.indexedDB.open('homeos-architecture-geometry', 1)
+          ;(openRequest.onupgradeneeded = () => {
+            openRequest.result.createObjectStore('scenes', {
+              keyPath: 'key',
             }),
-              openRequest.result.createObjectStore("metadata", {
-                keyPath: "key",
-              }));
+              openRequest.result.createObjectStore('metadata', {
+                keyPath: 'key',
+              })
           }),
             (openRequest.onerror = openRequest.onblocked =
               () => {
-                ((hasOpenFailed = true), settleOpen(null));
+                ;(hasOpenFailed = true), settleOpen(null)
               }),
             (openRequest.onsuccess = () => {
               if (isDisposed || hasOpenFailed) {
-                (openRequest.result.close(), settleOpen(null));
-                return;
+                openRequest.result.close(), settleOpen(null)
+                return
               }
-              ((cachedConnection = openRequest.result),
+              ;(cachedConnection = openRequest.result),
                 (cachedConnection.onversionchange = disposeCache),
-                settleOpen(cachedConnection));
-            }));
+                settleOpen(cachedConnection)
+            })
         }, 1500)),
         openPromise)
-      : Promise.resolve(null);
+      : Promise.resolve(null)
   }
   function deleteEntry(cacheKey: any) {
-    const cachedEntry = entryByKey.get(cacheKey);
-    (cachedEntry && (totalBytes -= cachedEntry.bytes), entryByKey.delete(cacheKey));
+    const cachedEntry = entryByKey.get(cacheKey)
+    cachedEntry && (totalBytes -= cachedEntry.bytes), entryByKey.delete(cacheKey)
   }
   function storeEntry(cacheKey: any, entry: any) {
     if (
@@ -193,54 +179,57 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
         cacheKey.length > MAX_KEY_LENGTH
       )
     ) {
-      for (deleteEntry(cacheKey); entryByKey.size && (entryByKey.size >= MAX_ENTRY_COUNT || totalBytes + entry.bytes > MAX_ENTRY_BYTES);)
-        deleteEntry(entryByKey.keys().next().value);
-      (entryByKey.set(cacheKey, entry), (totalBytes += entry.bytes));
+      for (
+        deleteEntry(cacheKey);
+        entryByKey.size && (entryByKey.size >= MAX_ENTRY_COUNT || totalBytes + entry.bytes > MAX_ENTRY_BYTES);
+      )
+        deleteEntry(entryByKey.keys().next().value)
+      entryByKey.set(cacheKey, entry), (totalBytes += entry.bytes)
     }
   }
   function preload() {
     return isAvailable()
       ? ((preloadPromise ||= (async () => {
-          const openedDatabase = await openDatabase();
-          if (!openedDatabase || !isAvailable()) return;
+          const openedDatabase = await openDatabase()
+          if (!openedDatabase || !isAvailable()) return
           const storedEntries = await readCacheEntries(
             openedDatabase,
             { storageKey, version: GEOMETRY_CACHE_VERSION },
             runWithTimeout,
-          );
-          if (!isAvailable() || !storedEntries) return;
+          )
+          if (!isAvailable() || !storedEntries) return
           for (const [entryKey, entryData] of storedEntries.slice(0, MAX_ENTRY_COUNT))
-            if (!(typeof entryKey != "string" || entryByKey.has(entryKey)))
+            if (!(typeof entryKey != 'string' || entryByKey.has(entryKey)))
               try {
                 const entryBytes =
                   entryKey.length * 2 +
-                  (entryData.kind === "geometry"
+                  (entryData.kind === 'geometry'
                     ? packedGeometryBytes(entryData.data)
-                    : JSON.stringify(entryData.data).length * 2);
+                    : JSON.stringify(entryData.data).length * 2)
                 storeEntry(entryKey, {
                   ...entryData,
                   bytes: entryBytes,
-                });
+                })
               } catch {
-                stats.fallbacks++;
+                stats.fallbacks++
               }
-          stats.restores++;
+          stats.restores++
         })().catch(() => {
-          stats.fallbacks++;
+          stats.fallbacks++
         })),
         preloadPromise)
-      : Promise.resolve();
+      : Promise.resolve()
   }
   function schedulePersist() {
-    if (!hasPresented || !hasDirtyEntries || !isAvailable() || idleHandle !== null) return;
+    if (!hasPresented || !hasDirtyEntries || !isAvailable() || idleHandle !== null) return
     const flushEntries = () => {
-      ((idleHandle = null),
+      ;(idleHandle = null),
         (idleChain = idleChain
           .then(async () => {
-            const openedDatabase = await openDatabase();
-            if (!openedDatabase || !isAvailable() || !hasDirtyEntries) return;
-            hasDirtyEntries = false;
-            ((await writeCacheRecord(
+            const openedDatabase = await openDatabase()
+            if (!openedDatabase || !isAvailable() || !hasDirtyEntries) return
+            hasDirtyEntries = false
+            ;(await writeCacheRecord(
               openedDatabase,
               {
                 storageKey,
@@ -254,80 +243,85 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
             ))
               ? stats.writes++
               : ((hasOpenFailed = true), stats.fallbacks++),
-              log("stored"));
+              log('stored')
           })
           .catch(() => {
-            ((hasOpenFailed = true), stats.fallbacks++);
-          })));
-    };
+            ;(hasOpenFailed = true), stats.fallbacks++
+          }))
+    }
     idleHandle = env.requestIdleCallback
       ? env.requestIdleCallback(flushEntries, {
           timeout: 3000,
         })
-      : env.setTimeout(flushEntries, 250);
+      : env.setTimeout(flushEntries, 250)
   }
-  function resolveCachedValue(kind: any, primaryKey: any, secondaryKey: any, produce: any, serialize: any, deserialize: any) {
-    if (!isAvailable()) return produce();
-    let cacheKey;
+  function resolveCachedValue(
+    kind: any,
+    primaryKey: any,
+    secondaryKey: any,
+    produce: any,
+    serialize: any,
+    deserialize: any,
+  ) {
+    if (!isAvailable()) return produce()
+    let cacheKey
     try {
-      cacheKey = JSON.stringify([kind, primaryKey, secondaryKey]);
+      cacheKey = JSON.stringify([kind, primaryKey, secondaryKey])
     } catch {
-      return produce();
+      return produce()
     }
-    const cachedEntry = entryByKey.get(cacheKey);
+    const cachedEntry = entryByKey.get(cacheKey)
     if (cachedEntry)
       try {
-        const restoredValue = deserialize(cachedEntry.data);
-        return (stats.hits++, restoredValue);
+        const restoredValue = deserialize(cachedEntry.data)
+        return (stats.hits++, restoredValue)
       } catch {
-        (deleteEntry(cacheKey), stats.fallbacks++);
+        deleteEntry(cacheKey), stats.fallbacks++
       }
-    stats.misses++;
-    const producedValue = produce();
+    stats.misses++
+    const producedValue = produce()
     try {
-      const serializedValue = serialize(producedValue);
-      (storeEntry(cacheKey, {
+      const serializedValue = serialize(producedValue)
+      storeEntry(cacheKey, {
         kind: kind,
         data: serializedValue,
         bytes:
           cacheKey.length * 2 +
-          (kind === "geometry"
-            ? packedGeometryBytes(serializedValue)
-            : JSON.stringify(serializedValue).length * 2),
+          (kind === 'geometry' ? packedGeometryBytes(serializedValue) : JSON.stringify(serializedValue).length * 2),
       }),
         (hasDirtyEntries = true),
-        schedulePersist());
+        schedulePersist()
     } catch {
-      stats.fallbacks++;
+      stats.fallbacks++
     }
-    return producedValue;
+    return producedValue
   }
   function disposeCache() {
-    ((isDisposed = true),
+    ;(isDisposed = true),
       idleHandle !== null &&
-        (typeof env.requestIdleCallback === "function"
+        (typeof env.requestIdleCallback === 'function'
           ? env.cancelIdleCallback?.(idleHandle)
           : env.clearTimeout(idleHandle),
         (idleHandle = null)),
       entryByKey.clear(),
       (totalBytes = 0),
-      cachedConnection?.close());
+      cachedConnection?.close()
   }
   return (
-    env.addEventListener?.("pagehide", disposeCache, {
+    env.addEventListener?.('pagehide', disposeCache, {
       once: true,
     }),
     {
       preload: preload,
       dispose: disposeCache,
       value: (primaryKey: any, secondaryKey: any, produce: any, valid: any = () => true) =>
-        resolveCachedValue("value", primaryKey, secondaryKey, produce, cloneValue, (restoredValue: any) => {
-          if (!valid(restoredValue)) throw Error("Invalid geometry preparation");
-          return cloneValue(restoredValue);
+        resolveCachedValue('value', primaryKey, secondaryKey, produce, cloneValue, (restoredValue: any) => {
+          if (!valid(restoredValue)) throw Error('Invalid geometry preparation')
+          return cloneValue(restoredValue)
         }),
       geometry: (three: any, primaryKey: any, secondaryKey: any, produce: any) =>
         resolveCachedValue(
-          "geometry",
+          'geometry',
           primaryKey,
           [three.REVISION, secondaryKey],
           produce,
@@ -335,7 +329,7 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
           (packedGeometry: any) => unpackGeometry(three, packedGeometry),
         ),
       presented() {
-        ((hasPresented = true), log("presented"), schedulePersist());
+        ;(hasPresented = true), log('presented'), schedulePersist()
       },
       stats: () => ({
         ...stats,
@@ -344,5 +338,5 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
       }),
       whenIdle: () => idleChain,
     }
-  );
+  )
 }

@@ -20,16 +20,7 @@ import {
   filterSecurityEvents,
   recentLinkageFailures,
 } from '@/features/security/utils/event-display.util'
-import {
-  Shield,
-  ShieldOff,
-  ShieldCheck,
-  AlertTriangle,
-  Siren,
-  Bell,
-  WifiOff,
-  Activity,
-} from '@lucide/vue'
+import { Shield, ShieldOff, ShieldCheck, AlertTriangle, Siren, Bell, WifiOff, Activity } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { SecurityEventDisplayItem } from '@/features/security/utils/event-display.util'
 
@@ -59,9 +50,7 @@ interface SecSessionEvent {
  * @param liveZones 实时区域列表，用于生成区域过滤项
  * @returns 响应式状态与操作方法
  */
-export function useSecurityAuditEvents(
-  liveZones: Ref<Array<{ id: string; name: string }>> = ref([]),
-) {
+export function useSecurityAuditEvents(liveZones: Ref<Array<{ id: string; name: string }>> = ref([])) {
   const chrome = useChromeStore()
   // 会话内即时事件队列，最多保留 30 条
   const secSessionEvents = ref<SecSessionEvent[]>([])
@@ -100,9 +89,7 @@ export function useSecurityAuditEvents(
   // 合并会话事件与后端事件，按时间戳倒序后裁剪到上限
   const secEvents = computed(() => {
     const cap = getMaxRemoteNotifications()
-    return [...secSessionEvents.value, ...secDbEvents.value]
-      .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-      .slice(0, cap)
+    return [...secSessionEvents.value, ...secDbEvents.value].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, cap)
   })
   // 按当前过滤项过滤后的事件列表
   const displayedSecEvents = computed(() =>
@@ -121,12 +108,7 @@ export function useSecurityAuditEvents(
    * @param meta.zoneIds 关联区域 ID 列表
    * @sideEffects 在队列头部插入新事件，超过 30 条时裁剪
    */
-  function addSecEvent(
-    icon: Component,
-    label: string,
-    css: string,
-    meta?: { zoneIds?: string[] },
-  ) {
+  function addSecEvent(icon: Component, label: string, css: string, meta?: { zoneIds?: string[] }) {
     const ts = Date.now()
     const time = formatSecurityTime(ts)
     secSessionEvents.value.unshift({

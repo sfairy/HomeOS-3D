@@ -81,9 +81,7 @@ function resolveRecommendLinkTo(section: BindingsRecommendSection): string {
  * @param input 绑定推荐输入
  * @returns 推荐结果对象
  */
-export function buildBindingsRecommendations(
-  input: BindingsRecommendInput,
-): RecommendInsightResult {
+export function buildBindingsRecommendations(input: BindingsRecommendInput): RecommendInsightResult {
   const {
     entities,
     boundHazardIds,
@@ -189,9 +187,7 @@ export function buildBindingsRecommendations(
  * @param haConfig HA 配置对象
  * @returns 已绑定危险传感器 entity_id 集合
  */
-export function collectBoundHazardIds(
-  haConfig: Record<string, unknown> | null | undefined,
-): Set<string> {
+export function collectBoundHazardIds(haConfig: Record<string, unknown> | null | undefined): Set<string> {
   const ids = new Set<string>()
   const keys = ['hazardSmokeEntityIds', 'hazardGasEntityIds', 'hazardLeakEntityIds']
   const hc = haConfig || {}

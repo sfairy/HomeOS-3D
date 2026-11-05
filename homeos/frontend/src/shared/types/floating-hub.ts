@@ -126,5 +126,4 @@ export interface FloatingHubContext {
  *
  * Symbol.for 在 HMR 重载时保持同一实例，避免 inject 失败
  */
-export const FloatingHubContextKey: InjectionKey<FloatingHubContext> =
-  Symbol.for('homeos:floating-hub')
+export const FloatingHubContextKey: InjectionKey<FloatingHubContext> = Symbol.for('homeos:floating-hub')

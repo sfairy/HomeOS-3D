@@ -54,14 +54,7 @@ const between = (rng, min, max) => min + rng() * (max - min)
  * UV 球（闭合，平滑法线）。叶簇 / 花簇 / 云片都从这里长出来。
  * @param {{radius?:number,segments?:number,rings?:number,center?:number[],squash?:number[],rotateY?:number}} options
  */
-export function sphere({
-  radius = 1,
-  segments = 10,
-  rings = 7,
-  center = [0, 0, 0],
-  squash = [1, 1, 1],
-  rotateY = 0,
-}) {
+export function sphere({ radius = 1, segments = 10, rings = 7, center = [0, 0, 0], squash = [1, 1, 1], rotateY = 0 }) {
   const positions = []
   const normals = []
   const uvs = []
@@ -78,16 +71,8 @@ export function sphere({
     const nz = z / Math.max(1e-6, squash[2])
     const length = Math.hypot(nx, ny, nz) || 1
     // 先绕 Y 旋转，再落到中心
-    positions.push(
-      center[0] + wx * cosY + wz * sinY,
-      center[1] + wy,
-      center[2] - wx * sinY + wz * cosY,
-    )
-    normals.push(
-      (nx * cosY + nz * sinY) / length,
-      ny / length,
-      (-nx * sinY + nz * cosY) / length,
-    )
+    positions.push(center[0] + wx * cosY + wz * sinY, center[1] + wy, center[2] - wx * sinY + wz * cosY)
+    normals.push((nx * cosY + nz * sinY) / length, ny / length, (-nx * sinY + nz * cosY) / length)
   }
 
   const top = 0
@@ -135,15 +120,7 @@ export function sphere({
  * 两点之间的圆台（可分别关掉两端封盖）。树干、分枝、竹秆、花茎都用它。
  * @param {{from:number[],to:number[],radiusStart:number,radiusEnd?:number,segments?:number,capStart?:boolean,capEnd?:boolean}} options
  */
-export function tube({
-  from,
-  to,
-  radiusStart,
-  radiusEnd = radiusStart,
-  segments = 8,
-  capStart = true,
-  capEnd = true,
-}) {
+export function tube({ from, to, radiusStart, radiusEnd = radiusStart, segments = 8, capStart = true, capEnd = true }) {
   const axis = normalize(sub(to, from))
   const helper = Math.abs(axis[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0]
   const u = normalize(cross(helper, axis))
@@ -160,11 +137,7 @@ export function tube({
     const angle = (segment / segments) * TAU
     const cos = Math.cos(angle)
     const sin = Math.sin(angle)
-    const direction = normalize([
-      u[0] * cos + v[0] * sin,
-      u[1] * cos + v[1] * sin,
-      u[2] * cos + v[2] * sin,
-    ])
+    const direction = normalize([u[0] * cos + v[0] * sin, u[1] * cos + v[1] * sin, u[2] * cos + v[2] * sin])
     // 圆台侧面法线要带上锥度：法线向直径变小的方向倾斜。
     const slope = (radiusStart - radiusEnd) / Math.max(1e-6, Math.hypot(...sub(to, from)))
     const normal = normalize([
@@ -236,7 +209,10 @@ export function tubeChain({ points, radii, segments = 8, capStart = true, capEnd
     const tangent = normalize(sub(nextPoint, previousPoint))
     let u
     if (previousU) {
-      const projected = sub(previousU, mul(tangent, previousU[0] * tangent[0] + previousU[1] * tangent[1] + previousU[2] * tangent[2]))
+      const projected = sub(
+        previousU,
+        mul(tangent, previousU[0] * tangent[0] + previousU[1] * tangent[1] + previousU[2] * tangent[2]),
+      )
       u = normalize(projected)
     } else {
       const helper = Math.abs(tangent[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0]
@@ -254,11 +230,7 @@ export function tubeChain({ points, radii, segments = 8, capStart = true, capEnd
       const angle = (segment / segments) * TAU
       const cos = Math.cos(angle)
       const sin = Math.sin(angle)
-      const direction = normalize([
-        u[0] * cos + v[0] * sin,
-        u[1] * cos + v[1] * sin,
-        u[2] * cos + v[2] * sin,
-      ])
+      const direction = normalize([u[0] * cos + v[0] * sin, u[1] * cos + v[1] * sin, u[2] * cos + v[2] * sin])
       const normal = normalize([
         direction[0] + tangent[0] * slope,
         direction[1] + tangent[1] * slope,
@@ -342,10 +314,7 @@ export function culm({ base, top, radius, internodes = 4, segments = 6, seed = 1
   // 顶端渐尖的梢（略微外倾，竹梢不是笔直的）。
   pieces.push(
     tubeChain({
-      points: [
-        top,
-        add(top, [between(rng, -0.02, 0.02), 0.07, between(rng, -0.02, 0.02)]),
-      ],
+      points: [top, add(top, [between(rng, -0.02, 0.02), 0.07, between(rng, -0.02, 0.02)])],
       radii: [radius * 0.5, radius * 0.1],
       segments: Math.max(4, segments - 2),
     }),
@@ -382,7 +351,11 @@ export function blade({
     // 叶尖收成 0.15 倍的宽度，留一点厚度避免退化面
     const halfWidth = Math.max(0.0015, (width * (1 - t * 0.92)) / 2)
     const halfThickness = Math.max(0.0012, (thickness * (1 - t * 0.7)) / 2)
-    const tangent = normalize([0, length / segments, 2 * curve * length * t / segments + (bend * Math.PI * Math.cos(t * Math.PI) * length) / segments])
+    const tangent = normalize([
+      0,
+      length / segments,
+      (2 * curve * length * t) / segments + (bend * Math.PI * Math.cos(t * Math.PI) * length) / segments,
+    ])
     const normal = normalize(cross([1, 0, 0], tangent))
     const center = [0, y, z]
     rings.push([
@@ -421,11 +394,7 @@ export function blade({
   const capRing = (ringIndex, base, outward) => {
     const centerIndex = positions.length / 3
     const ring = rings[ringIndex]
-    const center = [
-      (ring[0][0] + ring[2][0]) / 2,
-      (ring[0][1] + ring[2][1]) / 2,
-      (ring[0][2] + ring[2][2]) / 2,
-    ]
+    const center = [(ring[0][0] + ring[2][0]) / 2, (ring[0][1] + ring[2][1]) / 2, (ring[0][2] + ring[2][2]) / 2]
     positions.push(...center)
     normals.push(0, outward > 0 ? 1 : -1, 0)
     uvs.push(0.5, 0.5)
@@ -456,11 +425,7 @@ export function blade({
     }
   }
   for (let index = 0; index < shaped.normals.length; index += 3) {
-    const normal = normalize([
-      shaped.normals[index],
-      shaped.normals[index + 1],
-      shaped.normals[index + 2],
-    ])
+    const normal = normalize([shaped.normals[index], shaped.normals[index + 1], shaped.normals[index + 2]])
     shaped.normals[index] = normal[0]
     shaped.normals[index + 1] = normal[1]
     shaped.normals[index + 2] = normal[2]
@@ -525,11 +490,7 @@ export function scatterBlobs({
     }
     const radial = between(rng, inner, 1)
     const size = baseRadius * between(rng, 1 - jitter, 1 + jitter)
-    const squash = [
-      between(rng, 0.85, 1.18),
-      flatten * between(rng, 0.82, 1.1),
-      between(rng, 0.85, 1.18),
-    ]
+    const squash = [between(rng, 0.85, 1.18), flatten * between(rng, 0.82, 1.1), between(rng, 0.85, 1.18)]
     pieces.push(
       sphere({
         radius: size,
@@ -583,11 +544,14 @@ export function flowerCluster({ center, radius, seed = 1, petals = 1 }) {
   const rng = random(seed)
   const pieces = []
   for (let index = 0; index < petals; index += 1) {
-    const offset = petals === 1 ? [0, 0, 0] : [
-      between(rng, -radius, radius) * 0.8,
-      between(rng, -radius, radius) * 0.4,
-      between(rng, -radius, radius) * 0.8,
-    ]
+    const offset =
+      petals === 1
+        ? [0, 0, 0]
+        : [
+            between(rng, -radius, radius) * 0.8,
+            between(rng, -radius, radius) * 0.4,
+            between(rng, -radius, radius) * 0.8,
+          ]
     pieces.push(
       sphere({
         radius: radius * between(rng, 0.75, 1),
@@ -672,7 +636,7 @@ export function hedgeBody({ width, height, depth, bottom = 0, count = 10, seed =
   for (let index = 0; index < Math.round(count * 0.6); index += 1) {
     const side = index % 2 === 0 ? 1 : -1
     const size = between(rng, depth * 0.09, depth * 0.14)
-      ridges.push(
+    ridges.push(
       sphere({
         radius: size,
         segments: Math.max(6, segments - 1),

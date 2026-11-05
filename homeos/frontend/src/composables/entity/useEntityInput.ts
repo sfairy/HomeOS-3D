@@ -323,8 +323,7 @@ export function useEntityInput(
   function moveUp() {
     if (useVirtualDropdown.value) {
       if (flatItems.value.length === 0) return
-      activeFlatIdx.value =
-        (activeFlatIdx.value - 1 + flatItems.value.length) % flatItems.value.length
+      activeFlatIdx.value = (activeFlatIdx.value - 1 + flatItems.value.length) % flatItems.value.length
       return
     }
     if (activeGroupIdx.value === 0 && activeItemIdx.value === 0) return

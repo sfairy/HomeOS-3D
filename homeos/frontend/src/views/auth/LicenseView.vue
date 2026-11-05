@@ -33,10 +33,7 @@ import SceneStage from '@/components/common/SceneStage.vue'
 import AuthShell from '@/shared/components/auth/AuthShell.vue'
 import StatePanel from '@/shared/components/feedback/StatePanel.vue'
 import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
-import {
-  forgetActivationEmail,
-  readActivationEmail,
-} from '@/shared/utils/auth/activation-email.util'
+import { forgetActivationEmail, readActivationEmail } from '@/shared/utils/auth/activation-email.util'
 import { useStoreLinks } from '@/composables/auth/useStoreLinks'
 
 /** 状态轮询周期：与后端租约心跳同量级，够快但不至于把授权后台打满。 */
@@ -130,9 +127,7 @@ const storeAccountUrl = computed(() => storeLinks.value.pathUrl(STORE_ACCOUNT_PA
  * 主按钮：首次购买去商品列表；续费 / 停用核对都去账号中心 —— 那里能看到自己那张授权，
  * 也是唯一能解除设备绑定、查看停用原因的地方。
  */
-const buyPrimaryUrl = computed(() =>
-  buyMode.value === 'purchase' ? storeProductsUrl.value : storeAccountUrl.value,
-)
+const buyPrimaryUrl = computed(() => (buyMode.value === 'purchase' ? storeProductsUrl.value : storeAccountUrl.value))
 const buyPrimaryLabel = computed(() => {
   if (buyMode.value === 'purchase') return '去商店购买授权'
   if (buyMode.value === 'renew') return '去商店续费'

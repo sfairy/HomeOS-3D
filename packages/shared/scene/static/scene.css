@@ -22,7 +22,6 @@
 /* 随取用点一起删掉的两条明细 —— 值抄在这里，将来想恢复时有据可查：
    它兜的就是上面那条声明，声明没了，它也没有对象。 */
 
-
 /* 天幕。四团氛围光按「家的四个方向」铺开：左上是页面色调（山背后的信号），
    另外三团刻意保持固定色相 —— 它们是「家」的客观光，不该跟着入口色变。 */
 .hos-scene__sky {
@@ -233,7 +232,7 @@
 }
 
 .hos-scene__orbit--mid::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 50%;
@@ -338,25 +337,24 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background:
-    conic-gradient(
-      from 0deg,
-      rgba(var(--hos-tone-rgb), 0.5) 0deg,
-      rgba(var(--hos-tone-rgb), 0.5) 3.5deg,
-      transparent 3.5deg,
-      transparent 90deg,
-      rgba(var(--hos-tone-rgb), 0.4) 90deg,
-      rgba(var(--hos-tone-rgb), 0.4) 93.5deg,
-      transparent 93.5deg,
-      transparent 180deg,
-      rgba(var(--hos-tone-rgb), 0.44) 180deg,
-      rgba(var(--hos-tone-rgb), 0.44) 183.5deg,
-      transparent 183.5deg,
-      transparent 270deg,
-      rgba(var(--hos-tone-rgb), 0.36) 270deg,
-      rgba(var(--hos-tone-rgb), 0.36) 273.5deg,
-      transparent 273.5deg
-    );
+  background: conic-gradient(
+    from 0deg,
+    rgba(var(--hos-tone-rgb), 0.5) 0deg,
+    rgba(var(--hos-tone-rgb), 0.5) 3.5deg,
+    transparent 3.5deg,
+    transparent 90deg,
+    rgba(var(--hos-tone-rgb), 0.4) 90deg,
+    rgba(var(--hos-tone-rgb), 0.4) 93.5deg,
+    transparent 93.5deg,
+    transparent 180deg,
+    rgba(var(--hos-tone-rgb), 0.44) 180deg,
+    rgba(var(--hos-tone-rgb), 0.44) 183.5deg,
+    transparent 183.5deg,
+    transparent 270deg,
+    rgba(var(--hos-tone-rgb), 0.36) 270deg,
+    rgba(var(--hos-tone-rgb), 0.36) 273.5deg,
+    transparent 273.5deg
+  );
   mask-image: radial-gradient(
     circle closest-side,
     transparent calc(100% - 2px),
@@ -688,7 +686,9 @@
 }
 
 .hos-scene__uplink {
-  animation: hosUplinkPulse 2.4s ease-in-out infinite, hosUplinkDash 2.8s linear infinite;
+  animation:
+    hosUplinkPulse 2.4s ease-in-out infinite,
+    hosUplinkDash 2.8s linear infinite;
 }
 
 .hos-scene__uplink-packet {
@@ -776,11 +776,7 @@
 .hos-scene__vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    ellipse 78% 72% at 36% 44%,
-    transparent 42%,
-    rgba(var(--hos-sky-deep-rgb), 0.55) 100%
-  );
+  background: radial-gradient(ellipse 78% 72% at 36% 44%, transparent 42%, rgba(var(--hos-sky-deep-rgb), 0.55) 100%);
   pointer-events: none;
 }
 
@@ -819,7 +815,7 @@
 /* 顶栏底边的一道光带。只勾左侧三分之二并向右淡出：整条拉满会把画面从上到下切一刀，
    而它要标的是「指挥条到此为止」，不是「屏幕中分」。 */
 .hos-scene__head::after {
-  content: '';
+  content: "";
   position: absolute;
   left: clamp(24px, 3.4cqw, 52px);
   right: clamp(24px, 3.4cqw, 52px);
@@ -1011,8 +1007,7 @@
   border: 1px solid rgba(var(--hos-tone-rgb), 0.32);
   /* 底板走夜空族令牌而不是写死的两个十六进制：它是场景里最亮的一块「面」，
      徽标底板会变成画面上一块不跟队形的青灰。 */
-  background:
-    linear-gradient(145deg, rgba(var(--hos-sky-high-rgb), 0.78) 0%, rgba(var(--hos-sky-deep-rgb), 0.58) 100%);
+  background: linear-gradient(145deg, rgba(var(--hos-sky-high-rgb), 0.78) 0%, rgba(var(--hos-sky-deep-rgb), 0.58) 100%);
   box-shadow:
     0 0 36px rgba(var(--hos-tone-rgb), 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -1023,12 +1018,7 @@
 .hos-scene__mark-sheen {
   position: absolute;
   inset: -20%;
-  background: linear-gradient(
-    118deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.14) 48%,
-    transparent 62%
-  );
+  background: linear-gradient(118deg, transparent 35%, rgba(255, 255, 255, 0.14) 48%, transparent 62%);
   transform: translateX(-120%) rotate(8deg);
   animation: hosMarkSheen 5.5s ease-in-out infinite;
   pointer-events: none;
@@ -1036,7 +1026,7 @@
 
 .hos-scene__mark-wrap::before,
 .hos-scene__mark-wrap::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 12px;
   height: 12px;
@@ -1103,10 +1093,8 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 0 10px rgba(var(--hos-tone-rgb), 0.45))
-    drop-shadow(0 0 36px rgba(var(--hos-tone-rgb), 0.28))
-    drop-shadow(0 0 72px rgba(var(--hos-tone-rgb), 0.14))
-    drop-shadow(0 16px 40px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 0 10px rgba(var(--hos-tone-rgb), 0.45)) drop-shadow(0 0 36px rgba(var(--hos-tone-rgb), 0.28))
+    drop-shadow(0 0 72px rgba(var(--hos-tone-rgb), 0.14)) drop-shadow(0 16px 40px rgba(0, 0, 0, 0.45));
 }
 
 .hos-scene__accent {
@@ -1115,17 +1103,12 @@
   height: 2px;
   border-radius: 999px;
   position: relative;
-  background: linear-gradient(
-    90deg,
-    var(--hos-tone),
-    rgba(var(--hb-lumen-rgb), 0.75),
-    transparent
-  );
+  background: linear-gradient(90deg, var(--hos-tone), rgba(var(--hb-lumen-rgb), 0.75), transparent);
   box-shadow: 0 0 12px rgba(var(--hos-tone-rgb), 0.45);
 }
 
 .hos-scene__accent::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 0;
@@ -1156,7 +1139,7 @@
 
 /* 标题左侧的一小段色条，与顶栏主控线同一套语言：先看到「这里有个东西」，再读它是什么。 */
 .hos-scene__title::before {
-  content: '';
+  content: "";
   display: block;
   width: clamp(48px, 5cqw, 72px);
   height: 2px;
@@ -1840,42 +1823,43 @@
 
 /* 冻结帧读数。有些层的可见性完全来自动画，停掉动画就得把读数补回来 ——
    关键帧的中点：冻的是「动画里的一帧」，不是一个比动画更亮的新配色。 */
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__stage,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__stage * {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__stage,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__stage * {
   animation: none !important;
 }
 
 /* `*` 不匹配伪元素：hex 的漂移已经搬到 ::before 上，这里必须单独点名，
    否则手持档下唯独这一层还在动（而它恰恰是白名单里唯一允许在平板继续漂的一层，
    见文件末尾 —— 这里冻的是 `frozen`，`ambient` 会在末尾解冻回来）。 */
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__hex::before {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__hex::before {
   animation: none !important;
 }
 
 /* stage 之外的装饰要逐个点名：它们与标题、徽标、档案表同处一层，吃不到上面那条兜底。 */
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__brand,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__dossier,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__dossier-dot,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__live-dot,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__mark-wrap,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__mark-sheen,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__accent::after,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__nodes i {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__brand,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__dossier,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__dossier-dot,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__live-dot,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__mark-wrap,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__mark-sheen,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__accent::after,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__nodes i {
   animation: none !important;
 }
 
 /* 冻结帧读数（续）。注意 `--stars--near` / `--mist--a` 不在这里、只在 `frozen` 档里补：
    它们的动画在 `ambient` 档被解冻，而一条 `!important` 的 opacity 会连动画一起压住
    （`!important` 声明优先于动画），补了就等于没解冻。 */
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__home {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__home {
   opacity: 1 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__motes i {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__motes i {
   opacity: 0.5 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"])
+  :is(
     .hos-scene__home-pad,
     .hos-scene__home-spill,
     .hos-scene__home-beam,
@@ -1886,58 +1870,50 @@ html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
   opacity: 0.9 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
-    .hos-scene__uplink,
-    .hos-scene__uplink-node
-  ) {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) :is(.hos-scene__uplink, .hos-scene__uplink-node) {
   opacity: 0.85 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
-    .hos-scene__uplink-packet,
-    .hos-scene__beacon-ring
-  ) {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"])
+  :is(.hos-scene__uplink-packet, .hos-scene__beacon-ring) {
   opacity: 0 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__dawn {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__dawn {
   opacity: 0.85 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__ambient {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__ambient {
   opacity: 0.7 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__horizon {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__horizon {
   opacity: 0.75 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
-    .hos-scene__orbit--outer,
-    .hos-scene__orbit--mid,
-    .hos-scene__orbit--inner
-  ) {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"])
+  :is(.hos-scene__orbit--outer, .hos-scene__orbit--mid, .hos-scene__orbit--inner) {
   opacity: 0.9 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__orbit-core {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__orbit-core {
   opacity: 0.7 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__orbit-node {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__orbit-node {
   opacity: 0.85 !important;
 }
 
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__orbit-tick {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__orbit-tick {
   opacity: 0.7 !important;
 }
 
 /* 只属于 `frozen` 的两条补读数（`ambient` 要靠动画自己给出亮度，见本节开头的说明）。 */
-html[data-hos-motion='frozen'] .hos-scene__mist--a {
+html[data-hos-motion="frozen"] .hos-scene__mist--a {
   opacity: 0.65 !important;
 }
 
-html[data-hos-motion='frozen'] .hos-scene__stars--near {
+html[data-hos-motion="frozen"] .hos-scene__stars--near {
   opacity: 0.85 !important;
 }
 
@@ -1966,19 +1942,19 @@ html[data-hos-motion='frozen'] .hos-scene__stars--near {
  * 选择器都写成 `html[data-hos-motion='ambient'] .hos-scene__stage …`：比冻结那条
  * （`html:is(…) .hos-scene__stage *`，特异性 (0,2,1)）高一级，靠特异性赢而不是靠书写顺序赢。
  */
-html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__hex::before {
+html[data-hos-motion="ambient"] .hos-scene__stage .hos-scene__hex::before {
   animation: hosHexDrift 36s linear infinite !important;
 }
 
-html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__hex--fine::before {
+html[data-hos-motion="ambient"] .hos-scene__stage .hos-scene__hex--fine::before {
   animation: hosHexDrift 48s linear infinite reverse !important;
 }
 
-html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__stars--far {
+html[data-hos-motion="ambient"] .hos-scene__stage .hos-scene__stars--far {
   animation: hosStarField 14s ease-in-out infinite !important;
 }
 
-html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__stars--near {
+html[data-hos-motion="ambient"] .hos-scene__stage .hos-scene__stars--near {
   animation: hosStarField 8s ease-in-out infinite !important;
   animation-delay: -2s;
 }

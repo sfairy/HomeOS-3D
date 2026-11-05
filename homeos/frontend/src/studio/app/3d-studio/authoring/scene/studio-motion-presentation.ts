@@ -6,26 +6,22 @@ export function createMotionPresentation({
   let isFloorActive = false,
     isCameraActive = false,
     isAdvanced = false,
-    isLiveActive = isLiveCameraEnabled;
+    isLiveActive = isLiveCameraEnabled
   function publish() {
-    (setReflections(isFloorActive || (isCameraActive && !isLiveActive && !isAdvanced)),
-      setShadows(isFloorActive));
+    setReflections(isFloorActive || (isCameraActive && !isLiveActive && !isAdvanced)), setShadows(isFloorActive)
   }
   return {
     floor(floorActive: any) {
-      ((isFloorActive = !!floorActive), isFloorActive && (isAdvanced = false), publish());
+      ;(isFloorActive = !!floorActive), isFloorActive && (isAdvanced = false), publish()
     },
     camera(cameraActive: any, { live: isLiveRequested = isLiveCameraEnabled } = {}) {
-      ((isCameraActive = !!cameraActive),
+      ;(isCameraActive = !!cameraActive),
         (isLiveActive = isLiveRequested),
         isCameraActive && (isAdvanced = false),
-        publish());
+        publish()
     },
     advance(progress: any) {
-      !(isFloorActive || isCameraActive) ||
-        isAdvanced ||
-        progress < 0.9 ||
-        ((isAdvanced = true), publish());
+      !(isFloorActive || isCameraActive) || isAdvanced || progress < 0.9 || ((isAdvanced = true), publish())
     },
-  };
+  }
 }

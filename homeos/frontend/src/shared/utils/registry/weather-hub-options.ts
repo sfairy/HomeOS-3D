@@ -40,10 +40,7 @@ export function isWeatherHubWidgetType(type: string): boolean {
 export function normalizeWeatherHubConfig(
   raw: Record<string, unknown> | undefined,
   _widgetType = 'weather',
-): Required<
-  Pick<WeatherHubConfig, 'defaultTab' | 'visibleTabs' | 'forecastDays' | 'showPresence'>
-> &
-  WeatherHubConfig {
+): Required<Pick<WeatherHubConfig, 'defaultTab' | 'visibleTabs' | 'forecastDays' | 'showPresence'>> & WeatherHubConfig {
   const visibleRaw = Array.isArray(raw?.visibleTabs) ? raw.visibleTabs.map(String) : null
   const visibleTabs = visibleRaw?.filter((id) => WEATHER_HUB_TABS.some((t) => t.id === id)) || []
 
@@ -55,9 +52,7 @@ export function normalizeWeatherHubConfig(
   }
 
   const forecastDaysRaw = Number(raw?.forecastDays)
-  const forecastDays = Number.isFinite(forecastDaysRaw)
-    ? Math.min(7, Math.max(3, Math.round(forecastDaysRaw)))
-    : 7
+  const forecastDays = Number.isFinite(forecastDaysRaw) ? Math.min(7, Math.max(3, Math.round(forecastDaysRaw))) : 7
 
   const weatherEntityId = String(raw?.weatherEntityId || '').trim()
 
@@ -75,10 +70,7 @@ export function normalizeWeatherHubConfig(
   }
 }
 
-export function cloneWeatherHubConfig(
-  raw: Record<string, unknown> | undefined,
-  widgetType = 'weather',
-) {
+export function cloneWeatherHubConfig(raw: Record<string, unknown> | undefined, widgetType = 'weather') {
   const normalized = normalizeWeatherHubConfig(raw, widgetType)
   return {
     defaultTab: normalized.defaultTab,
@@ -86,9 +78,7 @@ export function cloneWeatherHubConfig(
     forecastDays: normalized.forecastDays,
     ...(normalized.weatherEntityId ? { weatherEntityId: normalized.weatherEntityId } : {}),
     ...(normalized.showPresence === false ? { showPresence: false } : {}),
-    ...(normalized.presencePersonIds?.length
-      ? { presencePersonIds: [...normalized.presencePersonIds] }
-      : {}),
+    ...(normalized.presencePersonIds?.length ? { presencePersonIds: [...normalized.presencePersonIds] } : {}),
   }
 }
 

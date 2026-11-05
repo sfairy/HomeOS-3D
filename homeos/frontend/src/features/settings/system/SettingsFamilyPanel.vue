@@ -166,14 +166,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import {
-  Sparkles,
-  Moon,
-  Bell,
-  Check,
-  X,
-  Eye,
-} from '@lucide/vue'
+import { Sparkles, Moon, Bell, Check, X, Eye } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
@@ -194,9 +187,7 @@ const activeModeList = computed(() => {
   const raw = activeMode.value
   const list = raw?.activeModes
   if (Array.isArray(list) && list.length) {
-    return list
-      .map((item) => ({ id: item?.id, name: item?.name }))
-      .filter((item) => Boolean(item.name))
+    return list.map((item) => ({ id: item?.id, name: item?.name })).filter((item) => Boolean(item.name))
   }
   const single = raw?.activeMode ?? raw
   return single?.id ? [{ id: single.id, name: single.name }] : []
@@ -212,7 +203,10 @@ const activeModeName = computed(() => {
 })
 
 const activeModeFullName = computed(() =>
-  activeModeList.value.map((item) => item.name).filter(Boolean).join(' · '),
+  activeModeList.value
+    .map((item) => item.name)
+    .filter(Boolean)
+    .join(' · '),
 )
 
 const isModeActive = computed(() => activeModeName.value !== '未激活')
@@ -279,10 +273,7 @@ async function load(options = {}) {
     loadError.value = ''
   }
   try {
-    const [modeRes, notifyRes] = await Promise.all([
-      fetchActiveHomeMode(),
-      fetchNotificationSettings(),
-    ])
+    const [modeRes, notifyRes] = await Promise.all([fetchActiveHomeMode(), fetchNotificationSettings()])
     // 必须保留整个响应：`activeModes` 才是全部激活模式，只取 `activeMode`
     // 会把多互斥组里另一个组的激活模式吞掉（界面上看起来只有一个在生效）。
     activeMode.value = modeRes.data ?? null
@@ -293,10 +284,7 @@ async function load(options = {}) {
     const status = e?.response?.status
     logger.warn('加载家庭状态失败', e)
     if (showLoading || !familyLoaded) {
-      loadError.value =
-        status === 401
-          ? '登录已过期或未登录，请重新登录'
-          : '无法加载家庭状态，请检查网络或稍后重试'
+      loadError.value = status === 401 ? '登录已过期或未登录，请重新登录' : '无法加载家庭状态，请检查网络或稍后重试'
     }
   } finally {
     if (showLoading) loading.value = false

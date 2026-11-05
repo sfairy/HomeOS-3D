@@ -77,9 +77,7 @@ const weatherEntityId = defineModel('weatherEntityId', { type: String, default: 
 
 // 流程概览折叠态摘要文案：已绑定显示实体 id，未绑定显示提示
 const weatherFlowSummary = computed(() =>
-  weatherEntityId.value?.trim()
-    ? `已绑定 · ${weatherEntityId.value.trim()}`
-    : '尚未绑定气象实体',
+  weatherEntityId.value?.trim() ? `已绑定 · ${weatherEntityId.value.trim()}` : '尚未绑定气象实体',
 )
 
 // 流程概览步骤：HA 气象插件 → weather.* → 预报引擎 → 7 日预报 → AQI/生活指数

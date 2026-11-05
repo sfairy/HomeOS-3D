@@ -3,7 +3,7 @@
  * @module frontend/src/features/settings/interact/composables
  */
 /** 智能管家设置面板：对话 / 语音输入 */
-import { computed, nextTick, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, ref, watch, type Ref, type ComponentPublicInstance } from 'vue'
 import { useAgentSpeech } from '@/composables/voice/useAgentSpeech'
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
@@ -51,6 +51,14 @@ export function useAgentPanelChat(opts: {
   const chatting = ref(false)
   const chatLog = ref<ChatLogEntry[]>([])
   const chatLogEl = ref<HTMLElement | null>(null)
+  /**
+   * 函数式模板 ref。不用 `ref="chatLogEl"` 字符串形式：vue-tsc 不把字符串 ref 当作
+   * 对脚本变量的读取，开启 `noUnusedLocals` 后会误报「声明但未使用」。
+   * 换 `useTemplateRef('chatLogEl')` 同样报 TS6133（vue-tsc 3.3.14 实测），别改。
+   */
+  const bindChatLog = (el: Element | ComponentPublicInstance | null) => {
+    chatLogEl.value = el instanceof HTMLElement ? el : null
+  }
   /** 当前进行中的流式请求句柄：停止 / 重新发送前取消 */
   let streamHandle: AgentStreamHandle | null = null
 
@@ -61,13 +69,9 @@ export function useAgentPanelChat(opts: {
     })
   }
 
-  const chatUserRounds = computed(
-    () => chatLog.value.filter((m) => m.role === 'user').length,
-  )
+  const chatUserRounds = computed(() => chatLog.value.filter((m) => m.role === 'user').length)
 
-  const lastAssistantMessage = computed(() =>
-    [...chatLog.value].reverse().find((m) => m.role === 'assistant'),
-  )
+  const lastAssistantMessage = computed(() => [...chatLog.value].reverse().find((m) => m.role === 'assistant'))
 
   const chatStatReadyLabel = computed(() => {
     if (pending.value > 0) return '待保存'
@@ -87,9 +91,7 @@ export function useAgentPanelChat(opts: {
     return pingInfo.value.ready ? 'agent-stat-val--emerald' : 'agent-stat-val--amber'
   })
 
-  const chatStatRoundLabel = computed(() =>
-    chatUserRounds.value ? `${chatUserRounds.value} 轮` : '—',
-  )
+  const chatStatRoundLabel = computed(() => (chatUserRounds.value ? `${chatUserRounds.value} 轮` : '—'))
 
   const chatStatLastMsLabel = computed(() => {
     const ms = lastAssistantMessage.value?.totalMs
@@ -172,12 +174,7 @@ export function useAgentPanelChat(opts: {
     bubble.text = final.reply || bubble.text || fallbackReplyOf(final.outcome)
     bubble.attachments = final.attachments
     bubble.confirmation = final.confirmation
-    bubble.meta = [
-      final.provider,
-      final.outcome,
-      `${final.totalMs ?? '?'}ms`,
-      toolNames.join(' → '),
-    ]
+    bubble.meta = [final.provider, final.outcome, `${final.totalMs ?? '?'}ms`, toolNames.join(' → ')]
       .filter(Boolean)
       .join(' · ')
   }
@@ -292,9 +289,7 @@ export function useAgentPanelChat(opts: {
     const confirmation = entry.confirmation
     if (!confirmation || chatting.value || isMockProvider.value) return
     entry.confirmationAnswered = true
-    chatInput.value = clipAgentChatMessage(
-      accepted ? confirmation.confirmText : confirmation.cancelText,
-    )
+    chatInput.value = clipAgentChatMessage(accepted ? confirmation.confirmText : confirmation.cancelText)
     void sendChat()
   }
 
@@ -342,7 +337,7 @@ export function useAgentPanelChat(opts: {
     chatting,
     AGENT_CHAT_MAX_LENGTH,
     chatLog,
-    chatLogEl,
+    bindChatLog,
     chatStatReadyLabel,
     chatStatReadyClass,
     chatStatReadyValClass,

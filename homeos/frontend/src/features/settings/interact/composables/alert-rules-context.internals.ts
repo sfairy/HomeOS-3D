@@ -9,10 +9,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import type { VoiceAlertsSnapshot } from '@/shared/types/alert-rules'
-import {
-  ALERT_RULE_PRESETS,
-  ALERT_TEMPLATE_VARIABLES,
-} from '@/shared/constants/alert-rule-presets'
+import { ALERT_RULE_PRESETS, ALERT_TEMPLATE_VARIABLES } from '@/shared/constants/alert-rule-presets'
 import { sliderTrackStyle } from '@/shared/utils/ui/progress-bar.util'
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
 import { useVoiceAlertsEditor } from '@/features/settings/interact/composables/voice.internals'
@@ -20,7 +17,6 @@ import { useAlertRulesPanelDnd } from '@/features/settings/interact/composables/
 import { useAlertRulesEarthquake } from '@/features/settings/interact/composables/alert-rules-earthquake.internals'
 import { useAlertRulesCrud } from '@/features/settings/interact/composables/alert-rules-crud.internals'
 import { useAlertRulesPanelRuleEditor } from '@/features/settings/interact/composables/alert-rules-editor.internals'
-
 
 import { getAlertHubSections, getCustomAlertSpeechModes, getEntityStateOptions } from '@/shared/voice/utils/speech.util'
 import type { Ref } from 'vue'
@@ -144,16 +140,8 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
 
   const dndPanel = useAlertRulesPanelDnd({ alertSection })
 
-  const {
-    rules,
-    loading,
-    rulesLoadError,
-    loadRules,
-    saveRule,
-    testRule,
-    toggleRuleEnabled,
-    removeRule,
-  } = useAlertRulesCrud({ chrome, dndPanel, ruleEditor })
+  const { rules, loading, rulesLoadError, loadRules, saveRule, testRule, toggleRuleEnabled, removeRule } =
+    useAlertRulesCrud({ chrome, dndPanel, ruleEditor })
 
   const hasPendingChanges = computed(
     () =>
@@ -312,4 +300,3 @@ export function useAlertRulesPanelContext(activeTabSource: Ref<string | undefine
     entityStateOptions,
   }
 }
-

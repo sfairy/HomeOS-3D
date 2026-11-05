@@ -118,7 +118,8 @@ type MicProbe = {
 
 function mediaErrorName(mediaError: unknown) {
   if (mediaError instanceof DOMException && mediaError.name) return mediaError.name
-  if (mediaError && typeof mediaError === 'object' && 'name' in mediaError) return String((mediaError as { name?: string }).name || '')
+  if (mediaError && typeof mediaError === 'object' && 'name' in mediaError)
+    return String((mediaError as { name?: string }).name || '')
   return ''
 }
 
@@ -206,8 +207,7 @@ export function useAudioDevices() {
   const loading = ref(false)
   const errorTip = ref('')
   const secureContext = typeof window !== 'undefined' ? window.isSecureContext : false
-  const mediaSupported =
-    typeof navigator !== 'undefined' && !!navigator.mediaDevices?.enumerateDevices
+  const mediaSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.enumerateDevices
 
   const inputOptions = computed(() =>
     inputs.value.map((device) => ({

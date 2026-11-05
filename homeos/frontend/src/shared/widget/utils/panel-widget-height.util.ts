@@ -1,8 +1,5 @@
 /** 面板 / 侧栏微件卡片高度工具 */
-import {
-  canonicalizeWidgetType,
-  getSidebarWidgetDefaultHeight,
-} from '@/shared/utils/registry/widget-registry-meta'
+import { canonicalizeWidgetType, getSidebarWidgetDefaultHeight } from '@/shared/utils/registry/widget-registry-meta'
 
 /** 卡片高度下限（与设置页滑块对齐） */
 const PANEL_CARD_HEIGHT_MIN = 60

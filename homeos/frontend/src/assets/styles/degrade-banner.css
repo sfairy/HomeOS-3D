@@ -25,7 +25,9 @@
 }
 
 @keyframes hos-degrade-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .hos-degrade-banner__body {
@@ -66,7 +68,8 @@
 }
 
 .hos-degrade-banner__retry:focus-visible {
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
   box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35);
 }
 

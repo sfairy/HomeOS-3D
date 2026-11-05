@@ -1,88 +1,84 @@
 /** 授权状态快照，会原样交给每个订阅者。 */
 type AccessMonitorState = {
-  allowed: boolean;
-  status: string;
-  message: string;
-  deadline?: number;
-};
+  allowed: boolean
+  status: string
+  message: string
+  deadline?: number
+}
 export function createAccessMonitor({
   requestGrant: requestGrant,
   now: now = () => performance.now(),
   setTimer: setTimer = setTimeout,
   clearTimer: clearTimer = clearTimeout,
 }: any) {
-  const subscriberSet = new Set<(state: AccessMonitorState) => void>();
+  const subscriberSet = new Set<(state: AccessMonitorState) => void>()
   let generation = 0,
     refreshTimer: any,
-    expiryTimer: any;
+    expiryTimer: any
   const checkingState = () => ({
     allowed: false,
-    status: "checking",
-    message: "正在验证 3D 交互授权…",
-  });
+    status: 'checking',
+    message: '正在验证 3D 交互授权…',
+  })
   let currentState = checkingState(),
-    isSuspended = false;
+    isSuspended = false
   const publishState = (state: any) => {
-    currentState = state;
-    for (const listener of subscriberSet) listener(currentState);
-  };
+    currentState = state
+    for (const listener of subscriberSet) listener(currentState)
+  }
   function clearTimers() {
-    ((generation += 1), clearTimer(refreshTimer), clearTimer(expiryTimer));
+    ;(generation += 1), clearTimer(refreshTimer), clearTimer(expiryTimer)
   }
   async function refreshGrant() {
-    if (!subscriberSet.size || isSuspended) return;
+    if (!subscriberSet.size || isSuspended) return
     const requestGeneration = ++generation,
-      startedAt = now();
+      startedAt = now()
     try {
-      const grant = await requestGrant();
-      if (requestGeneration !== generation || !subscriberSet.size || isSuspended) return;
-      const validFor = Math.min(60000, Number(grant?.validForSeconds) * 1000);
+      const grant = await requestGrant()
+      if (requestGeneration !== generation || !subscriberSet.size || isSuspended) return
+      const validFor = Math.min(60000, Number(grant?.validForSeconds) * 1000)
       if (grant?.allowed !== true || !Number.isFinite(validFor) || validFor <= 0)
-        throw Object.assign(new Error("invalid grant"), {
+        throw Object.assign(new Error('invalid grant'), {
           status: 403,
-        });
-      const remainingMs = validFor - (now() - startedAt);
-      if (remainingMs <= 0) throw new Error("grant response arrived too late");
-      (clearTimer(expiryTimer),
+        })
+      const remainingMs = validFor - (now() - startedAt)
+      if (remainingMs <= 0) throw new Error('grant response arrived too late')
+      clearTimer(expiryTimer),
         (expiryTimer = setTimer(() => {
           publishState({
             allowed: false,
-            status: "checking",
-            message: "正在重新验证 3D 交互授权…",
-          });
+            status: 'checking',
+            message: '正在重新验证 3D 交互授权…',
+          })
         }, remainingMs)),
         publishState({
           allowed: true,
-          status: "allowed",
-          message: "",
+          status: 'allowed',
+          message: '',
           deadline: now() + remainingMs,
         }),
-        (refreshTimer = setTimer(refreshGrant, Math.min(30000, Math.max(100, remainingMs / 2)))));
+        (refreshTimer = setTimer(refreshGrant, Math.min(30000, Math.max(100, remainingMs / 2))))
     } catch (grantError: any) {
-      if (requestGeneration !== generation || !subscriberSet.size || isSuspended) return;
+      if (requestGeneration !== generation || !subscriberSet.size || isSuspended) return
       // 瞬时失败（网络抖动 / App 冷启动时 WebView 还在预热 / 后端刚重启）要尽快重试：
       // 旧实现一律等 30s，安卓套壳里首屏这次请求一旦失手，3D 区域就会空白半分钟，
       // 用户只会看到「3D 没出来」。401/403 是确定性结论，保持长间隔避免刷接口。
-      const isDeterministicFailure =
-        grantError?.status === 401 || grantError?.status === 403;
-      (clearTimer(expiryTimer),
+      const isDeterministicFailure = grantError?.status === 401 || grantError?.status === 403
+      clearTimer(expiryTimer),
         publishState(
           grantError?.status === 403
             ? {
                 allowed: false,
-                status: "denied",
-                message: "3D 交互授权不可用，请在授权信息中查看。",
+                status: 'denied',
+                message: '3D 交互授权不可用，请在授权信息中查看。',
               }
             : {
                 allowed: false,
-                status: "unavailable",
-                message:
-                  grantError?.status === 401
-                    ? "登录状态已失效，请重新登录。"
-                    : "连接暂时中断，正在重新验证…",
+                status: 'unavailable',
+                message: grantError?.status === 401 ? '登录状态已失效，请重新登录。' : '连接暂时中断，正在重新验证…',
               },
         ),
-        (refreshTimer = setTimer(refreshGrant, isDeterministicFailure ? 30000 : 5000)));
+        (refreshTimer = setTimer(refreshGrant, isDeterministicFailure ? 30000 : 5000))
     }
   }
   return {
@@ -92,22 +88,21 @@ export function createAccessMonitor({
         subscriber(currentState),
         subscriberSet.size === 1 && refreshGrant(),
         () => {
-          (subscriberSet.delete(subscriber),
-            subscriberSet.size || (clearTimers(), (currentState = checkingState())));
+          subscriberSet.delete(subscriber), subscriberSet.size || (clearTimers(), (currentState = checkingState()))
         }
-      );
+      )
     },
     suspend() {
-      ((isSuspended = true),
+      ;(isSuspended = true),
         clearTimers(),
         publishState({
           allowed: false,
-          status: "suspended",
-          message: "3D 交互已暂停，返回页面后重新验证授权。",
-        }));
+          status: 'suspended',
+          message: '3D 交互已暂停，返回页面后重新验证授权。',
+        })
     },
     resume() {
-      ((isSuspended = false), clearTimers(), publishState(checkingState()), refreshGrant());
+      ;(isSuspended = false), clearTimers(), publishState(checkingState()), refreshGrant()
     },
-  };
+  }
 }

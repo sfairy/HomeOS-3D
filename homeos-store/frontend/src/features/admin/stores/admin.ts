@@ -75,11 +75,7 @@ export const useAdminStore = defineStore("admin", () => {
 
   /** 后台登入后同步外壳登录态：商店前台复用同一份 hint，导航才不会闪成游客。 */
   function markAdminAuth(me?: MePayload | null) {
-    setAuthHint(
-      true,
-      Boolean(me?.hasPermanentLicense),
-      Boolean(me?.hasTemporaryLicense),
-    );
+    setAuthHint(true, Boolean(me?.hasPermanentLicense), Boolean(me?.hasTemporaryLicense));
     setServerAuthState("admin");
   }
 

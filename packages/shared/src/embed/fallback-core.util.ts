@@ -10,9 +10,9 @@ const HOMEOS_FRONTEND_RESOURCE_PREFIXES = [
   '/icons/',
   '/sounds/',
   '/logo/',
-] as const;
+] as const
 
-const HOMEOS_FRONTEND_ROOT_FILES = new Set(['/manifest.json', '/sw.js']);
+const HOMEOS_FRONTEND_ROOT_FILES = new Set(['/manifest.json', '/sw.js'])
 
 const STATIC_RESOURCE_EXTENSIONS = new Set([
   '.js',
@@ -34,7 +34,7 @@ const STATIC_RESOURCE_EXTENSIONS = new Set([
   '.woff2',
   '.ttf',
   '.otf',
-]);
+])
 
 /**
  * 与 HTTP 框架无关的兜底请求最小形状。
@@ -42,19 +42,19 @@ const STATIC_RESOURCE_EXTENSIONS = new Set([
  */
 export type EmbedFallbackRequestLike = {
   /** HTTP 方法（大写；缺省按 GET 处理） */
-  method?: string;
+  method?: string
   /** URL path（不含 query，如 /assets/logo.svg） */
-  path: string;
+  path: string
   /** 原始 URL（含 query，用于重定向；缺省时回退为 path） */
-  originalUrl?: string;
+  originalUrl?: string
   /** 请求头（单值或多值数组，统一取首元素做解析） */
-  headers: Record<string, string | string[] | undefined>;
-};
+  headers: Record<string, string | string[] | undefined>
+}
 
 /** 取请求头首个值（数组取首元素，空值归一为空串） */
 function headerValue(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) return value[0] || '';
-  return String(value || '');
+  if (Array.isArray(value)) return value[0] || ''
+  return String(value || '')
 }
 
 /**
@@ -62,30 +62,30 @@ function headerValue(value: string | string[] | undefined): string {
  * 命中则不应被内嵌反代兜底重定向劫持。
  */
 export function isHomeosFrontendResourcePath(urlPath: string): boolean {
-  const path = String(urlPath || '').split('?')[0];
-  if (!path.startsWith('/')) return false;
-  if (HOMEOS_FRONTEND_ROOT_FILES.has(path)) return true;
-  return HOMEOS_FRONTEND_RESOURCE_PREFIXES.some((prefix) => path.startsWith(prefix));
+  const path = String(urlPath || '').split('?')[0]
+  if (!path.startsWith('/')) return false
+  if (HOMEOS_FRONTEND_ROOT_FILES.has(path)) return true
+  return HOMEOS_FRONTEND_RESOURCE_PREFIXES.some((prefix) => path.startsWith(prefix))
 }
 
 /** 取 URL 路径扩展名（剔除 query，无扩展名或目录返回空串） */
 function pathExtname(urlPath: string): string {
-  const q = urlPath.indexOf('?');
-  const clean = q >= 0 ? urlPath.slice(0, q) : urlPath;
-  const dot = clean.lastIndexOf('.');
-  if (dot <= clean.lastIndexOf('/')) return '';
-  return clean.slice(dot).toLowerCase();
+  const q = urlPath.indexOf('?')
+  const clean = q >= 0 ? urlPath.slice(0, q) : urlPath
+  const dot = clean.lastIndexOf('.')
+  if (dot <= clean.lastIndexOf('/')) return ''
+  return clean.slice(dot).toLowerCase()
 }
 
 /** 顶层文档/子框架导航不应被内嵌反代兜底劫持 */
 export function isEmbedFallbackNavigationDest(req: EmbedFallbackRequestLike): boolean {
-  const dest = headerValue(req.headers['sec-fetch-dest']).toLowerCase();
-  if (dest === 'document' || dest === 'iframe' || dest === 'frame') return true;
+  const dest = headerValue(req.headers['sec-fetch-dest']).toLowerCase()
+  if (dest === 'document' || dest === 'iframe' || dest === 'frame') return true
   if (!dest && (req.method || 'GET').toUpperCase() === 'GET') {
-    const ext = pathExtname(req.path);
-    if (!STATIC_RESOURCE_EXTENSIONS.has(ext)) return true;
+    const ext = pathExtname(req.path)
+    if (!STATIC_RESOURCE_EXTENSIONS.has(ext)) return true
   }
-  return false;
+  return false
 }
 
 /**
@@ -93,12 +93,12 @@ export function isEmbedFallbackNavigationDest(req: EmbedFallbackRequestLike): bo
  * @returns 解码后的 embedId；未命中返回 null。解码失败时回退原始值。
  */
 export function parseEmbedIdFromReferer(referer: string): string | null {
-  const match = String(referer || '').match(/\/api\/v1\/embed-proxy\/([^/?#]+)/);
-  if (!match?.[1]) return null;
+  const match = String(referer || '').match(/\/api\/v1\/embed-proxy\/([^/?#]+)/)
+  if (!match?.[1]) return null
   try {
-    return decodeURIComponent(match[1]);
+    return decodeURIComponent(match[1])
   } catch {
-    return match[1];
+    return match[1]
   }
 }
 
@@ -107,12 +107,12 @@ export function parseEmbedIdFromReferer(referer: string): string | null {
  * @returns 解码后的 embedId；未命中返回 null。解码失败时回退原始值。
  */
 export function parseEmbedIdFromContextCookie(cookieHeader: string | undefined): string | null {
-  const match = String(cookieHeader || '').match(/(?:^|;\s*)embed_ctx__([^=;]+)=/);
-  if (!match?.[1]) return null;
+  const match = String(cookieHeader || '').match(/(?:^|;\s*)embed_ctx__([^=;]+)=/)
+  if (!match?.[1]) return null
   try {
-    return decodeURIComponent(match[1]);
+    return decodeURIComponent(match[1])
   } catch {
-    return match[1];
+    return match[1]
   }
 }
 
@@ -130,29 +130,29 @@ export function parseEmbedIdFromContextCookie(cookieHeader: string | undefined):
 export function resolveEmbedProxyFallbackRedirect(
   req: EmbedFallbackRequestLike,
 ): { embedId: string; targetUrl: string } | null {
-  if (isEmbedFallbackNavigationDest(req)) return null;
-  if (isHomeosFrontendResourcePath(req.path)) return null;
+  if (isEmbedFallbackNavigationDest(req)) return null
+  if (isHomeosFrontendResourcePath(req.path)) return null
 
-  const originalUrl = req.originalUrl || req.path;
+  const originalUrl = req.originalUrl || req.path
 
-  const refEmbedId = parseEmbedIdFromReferer(headerValue(req.headers.referer));
+  const refEmbedId = parseEmbedIdFromReferer(headerValue(req.headers.referer))
   if (refEmbedId) {
     return {
       embedId: refEmbedId,
       targetUrl: `/api/v1/embed-proxy/${refEmbedId}${originalUrl}`,
-    };
+    }
   }
 
-  const ref = headerValue(req.headers.referer);
+  const ref = headerValue(req.headers.referer)
   if (!ref) {
-    const cookieEmbedId = parseEmbedIdFromContextCookie(headerValue(req.headers.cookie));
+    const cookieEmbedId = parseEmbedIdFromContextCookie(headerValue(req.headers.cookie))
     if (cookieEmbedId) {
       return {
         embedId: cookieEmbedId,
         targetUrl: `/api/v1/embed-proxy/${cookieEmbedId}${originalUrl}`,
-      };
+      }
     }
   }
 
-  return null;
+  return null
 }

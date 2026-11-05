@@ -166,16 +166,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  AlertCircle,
-  ChevronRight,
-  Layers,
-  Link2,
-  Loader2,
-  RefreshCw,
-  Trash2,
-  Workflow,
-} from '@lucide/vue'
+import { AlertCircle, ChevronRight, Layers, Link2, Loader2, RefreshCw, Trash2, Workflow } from '@lucide/vue'
 import { useDeviceEntityReferences } from '@/composables/device/useDeviceEntityReferences'
 import {
   ENTITY_REFERENCE_KIND_LABELS,
@@ -212,9 +203,7 @@ watch(entityIdRef, () => {
 /**
  * 计算属性：当前引用中实际存在的类型，按预设顺序排列，用于渲染筛选按钮。
  */
-const presentKinds = computed(() =>
-  ENTITY_REFERENCE_KIND_ORDER.filter((kind) => (counts.value[kind] || 0) > 0),
-)
+const presentKinds = computed(() => ENTITY_REFERENCE_KIND_ORDER.filter((kind) => (counts.value[kind] || 0) > 0))
 
 // 计算属性：涉及的功能类型数，用于指标卡。
 const kindGroupCount = computed(() => presentKinds.value.length)

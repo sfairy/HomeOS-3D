@@ -68,9 +68,7 @@ async function resolve(item: Withdrawal, approve: boolean) {
   const ok = await confirm.confirm({
     title: approve ? "通过提现" : "驳回提现",
     message: approve ? "确认通过该提现申请？" : "确认驳回该提现申请？",
-    detail: approve
-      ? "将按申请金额结算，冻结积分转为已支出。"
-      : "驳回后会<b>退回冻结积分</b>到账号余额。",
+    detail: approve ? "将按申请金额结算，冻结积分转为已支出。" : "驳回后会<b>退回冻结积分</b>到账号余额。",
     tone: approve ? "success" : "danger",
     confirmLabel: approve ? "通过" : "驳回",
   });

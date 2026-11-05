@@ -12,9 +12,7 @@ export function useWeatherEntity(entityIdOverride?: MaybeRef<string | undefined>
   const layoutStore = useLayoutStore()
 
   const overrideEid = computed(() => String(unref(entityIdOverride) || '').trim())
-  const boundEid = computed(
-    () => overrideEid.value || layoutStore.layoutConfig.haConfig?.weatherEntityId?.trim() || '',
-  )
+  const boundEid = computed(() => overrideEid.value || layoutStore.layoutConfig.haConfig?.weatherEntityId?.trim() || '')
 
   const resolvedEid = computed(() => {
     if (boundEid.value && entitiesStore.entities[boundEid.value]) return boundEid.value

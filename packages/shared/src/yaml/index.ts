@@ -7,4 +7,4 @@ export {
   loadHaYaml,
   loadHaYamlObject,
   dumpHaYaml,
-} from './ha-yaml';
+} from './ha-yaml'

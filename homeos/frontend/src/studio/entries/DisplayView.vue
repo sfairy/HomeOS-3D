@@ -8,25 +8,16 @@
  * 每次挂载/切换目标都重建 DOM 契约（`:key="bootKey"`）再重新引导，卸载时回收渲染循环、
  * WebSocket、全局监听与文档级残留。
  */
-import {
-  computed,
-  nextTick,
-  onActivated,
-  onBeforeUnmount,
-  onDeactivated,
-  onMounted,
-  ref,
-  watch,
-} from "vue";
-import { useRoute } from "vue-router";
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
-const route = useRoute();
+const route = useRoute()
 
 /** 本视图负责的路由；keep-alive 失活后 `useRoute()` 会变成别的页，不能跟着改 DOM。 */
-const DISPLAY_ROUTE_NAMES = new Set(["dashboard", "display", "homeos"]);
+const DISPLAY_ROUTE_NAMES = new Set(['dashboard', 'display', 'homeos'])
 
 function isDisplayRouteName(name: unknown): boolean {
-  return DISPLAY_ROUTE_NAMES.has(String(name ?? ""));
+  return DISPLAY_ROUTE_NAMES.has(String(name ?? ''))
 }
 
 /**
@@ -36,15 +27,15 @@ function isDisplayRouteName(name: unknown): boolean {
  * 若 `bootKey` 跟着变成 `/devices`，`:key` 重挂 + watch 重引导会与失活 patch
  * 叠成 `insertBefore(null)`（ErrorBoundary「页面加载失败」）。
  */
-const frozenBootKey = ref(route.fullPath);
+const frozenBootKey = ref(route.fullPath)
 watch(
   () => ({ name: route.name, fullPath: route.fullPath }),
   ({ name, fullPath }) => {
-    if (isDisplayRouteName(name)) frozenBootKey.value = fullPath;
+    if (isDisplayRouteName(name)) frozenBootKey.value = fullPath
   },
   { immediate: true },
-);
-const bootKey = computed(() => frozenBootKey.value);
+)
+const bootKey = computed(() => frozenBootKey.value)
 
 /**
  * splash 仍由本模板渲染时为 true。
@@ -54,33 +45,33 @@ const bootKey = computed(() => frozenBootKey.value);
  * `insertBefore`。本仓库 Vue 构建不导出 `flushSync`，因此只靠 v-if 卸 vnode，
  * 命令式侧禁止再 `.remove()`。
  */
-const splashPresent = ref(true);
+const splashPresent = ref(true)
 
 /** display-boot 派发 `hb-display-splash-detach` 时调用：只改状态，由 v-if 卸 DOM。 */
 function detachSplashFromVue() {
-  splashPresent.value = false;
+  splashPresent.value = false
 }
 
 interface DisplayModules {
-  bootDisplayBoot: () => void;
-  teardownDisplayBoot: () => void;
-  bootDisplayStartup: () => void;
-  teardownDisplayStartup: () => void;
-  bootDisplay: () => void;
-  teardownDisplay: () => void;
-  bootAppleInstallGuide: () => void;
-  teardownAppleInstallGuide: () => void;
+  bootDisplayBoot: () => void
+  teardownDisplayBoot: () => void
+  bootDisplayStartup: () => void
+  teardownDisplayStartup: () => void
+  bootDisplay: () => void
+  teardownDisplay: () => void
+  bootAppleInstallGuide: () => void
+  teardownAppleInstallGuide: () => void
 }
 
-let modules: DisplayModules | null = null;
-let isUnmounted = false;
+let modules: DisplayModules | null = null
+let isUnmounted = false
 /** keep-alive 失活：禁止异步引导在后台写回已冻结的 DOM 契约。 */
-let isInactive = false;
+let isInactive = false
 /**
  * keep-alive 首次进入会先 `onMounted` 再 `onActivated`；用此标记避免双重引导。
  * 独立整屏路由不在 keep-alive 内，只有 `onMounted`。
  */
-let bootedInActiveCycle = false;
+let bootedInActiveCycle = false
 
 /**
  * 加载引导模块（只求值一次）：boot → startup → display → 安装引导。
@@ -93,13 +84,13 @@ let bootedInActiveCycle = false;
  * 文档含 HLS 摄像头组件时由 renderer 的 prewarm 路径空闲预取。
  */
 async function ensureModules(): Promise<DisplayModules> {
-  if (modules) return modules;
+  if (modules) return modules
   const [bootModule, startupModule, displayModule, guideModule] = await Promise.all([
-    import("@app/display/display-boot"),
-    import("@app/display/display-startup"),
-    import("@app/display/display"),
-    import("@app/display/apple-install-guide"),
-  ]);
+    import('@app/display/display-boot'),
+    import('@app/display/display-startup'),
+    import('@app/display/display'),
+    import('@app/display/apple-install-guide'),
+  ])
   modules = {
     bootDisplayBoot: bootModule.bootDisplayBoot,
     teardownDisplayBoot: bootModule.teardownDisplayBoot,
@@ -109,8 +100,8 @@ async function ensureModules(): Promise<DisplayModules> {
     teardownDisplay: displayModule.teardownDisplay,
     bootAppleInstallGuide: guideModule.bootAppleInstallGuide,
     teardownAppleInstallGuide: guideModule.teardownAppleInstallGuide,
-  };
-  return modules;
+  }
+  return modules
 }
 
 /**
@@ -123,12 +114,12 @@ async function ensureModules(): Promise<DisplayModules> {
  */
 function yieldToPaint(): Promise<void> {
   return new Promise<void>((resolve) => {
-    if (typeof requestAnimationFrame !== "function") {
-      setTimeout(resolve, 0);
-      return;
+    if (typeof requestAnimationFrame !== 'function') {
+      setTimeout(resolve, 0)
+      return
     }
-    requestAnimationFrame(() => setTimeout(resolve, 0));
-  });
+    requestAnimationFrame(() => setTimeout(resolve, 0))
+  })
 }
 
 /**
@@ -143,80 +134,78 @@ function yieldToPaint(): Promise<void> {
  * 每次 `startDisplay()` 领一个号，`stopDisplay()` 让所有在途代次作废；
  * 每个 await 之后都要重新对号。
  */
-let bootEpoch = 0;
+let bootEpoch = 0
 
 /** 引导顺序即依赖顺序：splash 契约 → 预取 → 展示页 → 安装引导（读 `display-booting` 类）。 */
 async function startDisplay(): Promise<void> {
-  const epoch = ++bootEpoch;
-  const loaded = await ensureModules();
-  if (!isCurrentEpoch(epoch)) return;
-  loaded.bootDisplayBoot();
-  loaded.bootDisplayStartup();
+  const epoch = ++bootEpoch
+  const loaded = await ensureModules()
+  if (!isCurrentEpoch(epoch)) return
+  loaded.bootDisplayBoot()
+  loaded.bootDisplayStartup()
   // splash / 外壳先上屏，再开始重量级的 3D 引导：把一条数秒的长任务拆成两段。
-  await yieldToPaint();
-  if (!isCurrentEpoch(epoch)) return;
-  loaded.bootDisplay();
-  loaded.bootAppleInstallGuide();
+  await yieldToPaint()
+  if (!isCurrentEpoch(epoch)) return
+  loaded.bootDisplay()
+  loaded.bootAppleInstallGuide()
 }
 
 /** 该代次是否仍然有效：代次未被后来者顶掉，且页面仍处于「应该展示」的状态。 */
 function isCurrentEpoch(epoch: number): boolean {
-  return (
-    epoch === bootEpoch && !isUnmounted && !isInactive && isDisplayRouteName(route.name)
-  );
+  return epoch === bootEpoch && !isUnmounted && !isInactive && isDisplayRouteName(route.name)
 }
 
 function stopDisplay(): void {
   // 作废所有在途代次：拆掉运行时之后，任何还挂在 await 上的引导都不得继续往下走。
-  bootEpoch++;
-  if (!modules) return;
-  modules.teardownAppleInstallGuide();
-  modules.teardownDisplay();
-  modules.teardownDisplayStartup();
-  modules.teardownDisplayBoot();
+  bootEpoch++
+  if (!modules) return
+  modules.teardownAppleInstallGuide()
+  modules.teardownDisplay()
+  modules.teardownDisplayStartup()
+  modules.teardownDisplayBoot()
 }
 
 onMounted(() => {
-  isInactive = false;
-  bootedInActiveCycle = true;
-  window.addEventListener("hb-display-splash-detach", detachSplashFromVue);
-  void startDisplay();
-});
+  isInactive = false
+  bootedInActiveCycle = true
+  window.addEventListener('hb-display-splash-detach', detachSplashFromVue)
+  void startDisplay()
+})
 
 onActivated(() => {
   // 与 onMounted 同一次进入：跳过，避免 boot×2。
-  if (bootedInActiveCycle) return;
-  isInactive = false;
-  bootedInActiveCycle = true;
-  if (!isDisplayRouteName(route.name)) return;
+  if (bootedInActiveCycle) return
+  isInactive = false
+  bootedInActiveCycle = true
+  if (!isDisplayRouteName(route.name)) return
   // 从其它 Tab 回到总览：运行时已在 deactivated 里拆掉，需重新引导。
-  splashPresent.value = true;
-  void startDisplay();
-});
+  splashPresent.value = true
+  void startDisplay()
+})
 
 onDeactivated(() => {
-  isInactive = true;
-  bootedInActiveCycle = false;
-  stopDisplay();
-});
+  isInactive = true
+  bootedInActiveCycle = false
+  stopDisplay()
+})
 
 onBeforeUnmount(() => {
-  isUnmounted = true;
-  isInactive = true;
-  bootedInActiveCycle = false;
-  window.removeEventListener("hb-display-splash-detach", detachSplashFromVue);
-  stopDisplay();
-});
+  isUnmounted = true
+  isInactive = true
+  bootedInActiveCycle = false
+  window.removeEventListener('hb-display-splash-detach', detachSplashFromVue)
+  stopDisplay()
+})
 
 watch(bootKey, async () => {
-  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
-  stopDisplay();
+  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return
+  stopDisplay()
   // 路径变化：重新挂上 splash 节点，再等 DOM 契约就绪后引导。
-  splashPresent.value = true;
-  await nextTick();
-  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
-  void startDisplay();
-});
+  splashPresent.value = true
+  await nextTick()
+  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return
+  void startDisplay()
+})
 </script>
 
 <template>

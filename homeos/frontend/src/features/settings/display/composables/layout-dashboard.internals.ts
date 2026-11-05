@@ -212,7 +212,6 @@ export async function confirmRemoveWidget(
   return chrome.confirm(body, title, confirmOptions)
 }
 
-
 export {
   pickBindingsLayoutSlice,
   liveBindingsLayoutSlice,

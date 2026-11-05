@@ -5,23 +5,21 @@
  * 关闭「非投射体」的 receiveShadow，用于定位阴影接缝与性能问题。
  */
 
-const SHADOW_TRIAL_MODES = new Set(["non-casters"]);
+const SHADOW_TRIAL_MODES = new Set(['non-casters'])
 
 type ShadowReceiverTrialStats = {
-  mode: string;
-  scope?: string;
-  triangleMetric?: string;
-  meshes: number;
-  receiveDisabled: number;
-  triangles: number;
-};
+  mode: string
+  scope?: string
+  triangleMetric?: string
+  meshes: number
+  receiveDisabled: number
+  triangles: number
+}
 
 /** 解析当前试验模式；非法/缺省返回空串（即关闭）。 */
-function shadowReceiverTrialMode(
-  search: string = globalThis.location?.search || "",
-): string {
-  const requestedMode = new URLSearchParams(search).get("shadow-receiver-trial") || "";
-  return SHADOW_TRIAL_MODES.has(requestedMode) ? requestedMode : "";
+function shadowReceiverTrialMode(search: string = globalThis.location?.search || ''): string {
+  const requestedMode = new URLSearchParams(search).get('shadow-receiver-trial') || ''
+  return SHADOW_TRIAL_MODES.has(requestedMode) ? requestedMode : ''
 }
 
 /** 三角形计数：索引数 / 3 × 实例数。 */
@@ -29,23 +27,23 @@ function triangleCount(mesh: any) {
   return (
     ((mesh.geometry?.index?.count ?? mesh.geometry?.attributes?.position?.count ?? 0) / 3) *
     (mesh.isInstancedMesh ? mesh.count : 1)
-  );
+  )
 }
 
 /** 背景、网格、轮廓、灯光预览与地面接收体不参与试验。 */
 function isExcludedReceiver(mesh: any) {
   for (let ancestor = mesh; ancestor; ancestor = ancestor.parent) {
-    const exportRole = ancestor.userData?.exportRole;
+    const exportRole = ancestor.userData?.exportRole
     if (
-      exportRole === "background" ||
-      exportRole === "grid" ||
-      exportRole === "outline" ||
-      exportRole === "light-source-preview" ||
-      ancestor.userData?.regionReceiverKind === "floor"
+      exportRole === 'background' ||
+      exportRole === 'grid' ||
+      exportRole === 'outline' ||
+      exportRole === 'light-source-preview' ||
+      ancestor.userData?.regionReceiverKind === 'floor'
     )
-      return true;
+      return true
   }
-  return false;
+  return false
 }
 
 export function applyShadowReceiverTrial(
@@ -53,28 +51,22 @@ export function applyShadowReceiverTrial(
   mode: string = shadowReceiverTrialMode(),
 ): ShadowReceiverTrialStats {
   const stats: ShadowReceiverTrialStats = {
-    mode: mode || "",
+    mode: mode || '',
     meshes: 0,
     receiveDisabled: 0,
     triangles: 0,
-  };
-  if (!rootObject || !SHADOW_TRIAL_MODES.has(mode)) return stats;
+  }
+  if (!rootObject || !SHADOW_TRIAL_MODES.has(mode)) return stats
   rootObject.traverse((sceneNode: any) => {
-    if (!sceneNode.isMesh || isExcludedReceiver(sceneNode)) return;
-    const alreadyApplied =
-      sceneNode.userData?.shadowReceiverTrial === mode && sceneNode.receiveShadow === false;
-    if (
-      !alreadyApplied &&
-      (sceneNode.castShadow !== false || sceneNode.receiveShadow !== true)
-    )
-      return;
-    ((stats.meshes += 1),
+    if (!sceneNode.isMesh || isExcludedReceiver(sceneNode)) return
+    const alreadyApplied = sceneNode.userData?.shadowReceiverTrial === mode && sceneNode.receiveShadow === false
+    if (!alreadyApplied && (sceneNode.castShadow !== false || sceneNode.receiveShadow !== true)) return
+    ;(stats.meshes += 1),
       (stats.receiveDisabled += 1),
       (stats.triangles += triangleCount(sceneNode)),
-      alreadyApplied ||
-        ((sceneNode.receiveShadow = false), (sceneNode.userData.shadowReceiverTrial = mode)));
-  });
-  return stats;
+      alreadyApplied || ((sceneNode.receiveShadow = false), (sceneNode.userData.shadowReceiverTrial = mode))
+  })
+  return stats
 }
 
 export function inspectShadowReceiverTrial(
@@ -82,21 +74,21 @@ export function inspectShadowReceiverTrial(
   mode: string = shadowReceiverTrialMode(),
 ): ShadowReceiverTrialStats {
   const stats: ShadowReceiverTrialStats = {
-    mode: SHADOW_TRIAL_MODES.has(mode) ? mode : "",
-    scope: "attached-model-root",
-    triangleMetric: "full-geometry",
+    mode: SHADOW_TRIAL_MODES.has(mode) ? mode : '',
+    scope: 'attached-model-root',
+    triangleMetric: 'full-geometry',
     meshes: 0,
     receiveDisabled: 0,
     triangles: 0,
-  };
-  if (!rootObject || !stats.mode) return stats;
+  }
+  if (!rootObject || !stats.mode) return stats
   rootObject.traverse((sceneNode: any) => {
     !sceneNode.isMesh ||
       sceneNode.userData?.shadowReceiverTrial !== mode ||
       isExcludedReceiver(sceneNode) ||
       ((stats.meshes += 1),
       (stats.receiveDisabled += sceneNode.receiveShadow === false ? 1 : 0),
-      (stats.triangles += triangleCount(sceneNode)));
-  });
-  return stats;
+      (stats.triangles += triangleCount(sceneNode)))
+  })
+  return stats
 }

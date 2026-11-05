@@ -143,7 +143,11 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaBindings } from '@/features/settings/connect/composables/bindings.internals'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { ensureDoorbellList, collectDoorbellCameraIds } from '@/shared/utils/layout/doorbell.util'
-import { applyBindingsLayoutSlice, liveBindingsLayoutSlice, pickBindingsLayoutSlice } from '@/features/settings/display/composables/layout-dashboard.internals'
+import {
+  applyBindingsLayoutSlice,
+  liveBindingsLayoutSlice,
+  pickBindingsLayoutSlice,
+} from '@/features/settings/display/composables/layout-dashboard.internals'
 import { afterLayoutCancelSync } from '@/composables/settings-kernel/pending.internals'
 import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
 import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
@@ -165,10 +169,7 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/composables/config/system-config-core.internals'
-import {
-  applyWeatherEntityIdToLayout,
-  resolveWeatherEntityId,
-} from '@/composables/config/resolve-active-profile.util'
+import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/composables/config/resolve-active-profile.util'
 
 const { load: loadSystemConfig } = useSystemConfig()
 
@@ -239,9 +240,7 @@ async function testHazardLinkage() {
       await entitiesStore.callService('scene', 'turn_on', sceneId)
     }
     chrome.notify(
-      sceneIds.length > 1
-        ? `已触发 ${sceneIds.length} 个紧急场景（测试）`
-        : '已触发紧急场景（测试）',
+      sceneIds.length > 1 ? `已触发 ${sceneIds.length} 个紧急场景（测试）` : '已触发紧急场景（测试）',
       'success',
     )
   } catch (e) {
@@ -281,13 +280,13 @@ async function loadServerBindingGaps() {
 
 onMounted(loadServerBindingGaps)
 
-const { bindingGapItems, bindingGapItemsFor, recommendationsFor, applyChip, applyAll } =
-  useBindingsRecommend(() => serverBindingGaps.value)
+const { bindingGapItems, bindingGapItemsFor, recommendationsFor, applyChip, applyAll } = useBindingsRecommend(
+  () => serverBindingGaps.value,
+)
 
 const insightsSection = computed(() => {
   const s = bindingsSection.value
-  if (s === 'weather' || s === 'cameras' || s === 'security' || s === 'overview')
-    return s
+  if (s === 'weather' || s === 'cameras' || s === 'security' || s === 'overview') return s
   return 'overview'
 })
 
@@ -320,8 +319,7 @@ const {
   },
 })
 
-const { securityCameras, addCamera, removeCamera, toggleDoorbellCam, setDefaultCamera } =
-  useHaBindings(layoutConfig)
+const { securityCameras, addCamera, removeCamera, toggleDoorbellCam, setDefaultCamera } = useHaBindings(layoutConfig)
 
 // 第三参数：确认离开后真正回滚绑定切片，避免草稿留在 keep-alive 里
 useRegisterSettingsTabPending('bindings', () => pendingChanges.value > 0, revertSilently)

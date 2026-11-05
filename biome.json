@@ -1,0 +1,300 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.5/schema.json",
+
+  "files": {
+    "includes": [
+      "homeos/frontend/src/**",
+      "homeos/frontend/scripts/**",
+      "homeos/frontend/*.ts",
+      "homeos/frontend/*.js",
+      "homeos-store/frontend/src/**",
+      "homeos-store/frontend/scripts/**",
+      "homeos-store/frontend/*.ts",
+      "homeos-store/frontend/*.js",
+      "homeos/scripts/**",
+      "packages/shared/src/**",
+      "packages/shared/scripts/**",
+      "packages/shared/scene/**",
+      "ops/**",
+      "*.ts",
+      "*.js",
+      "*.mjs",
+
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/.vite/**",
+      "!homeos/frontend/public/**",
+      "!homeos-store/frontend/public/**",
+      "!homeos/data/**",
+      "!homeos-store/data/**",
+      "!ops/cleanup-reports/**",
+      "!**/*.md",
+      "!**/*.json",
+      "!homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-field-cell.css"
+    ]
+  },
+
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSpacing": true
+    }
+  },
+
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    },
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "indentWidth": 2
+    }
+  },
+
+  "linter": {
+    "enabled": true,
+    "includes": [
+      "**",
+      "!**/*.vue",
+      "!**/*.json",
+      "!**/vite.config.ts",
+      "!**/vite-studio.ts",
+      "!**/vite.runtime.config.ts"
+    ],
+    "rules": {
+      "preset": "none",
+      "correctness": {
+        "noUnreachable": "error",
+        "noConstantCondition": "error",
+        "noSelfAssign": "error",
+        "noSwitchDeclarations": "error",
+        "noUnsafeOptionalChaining": "error",
+        "noInvalidUseBeforeDeclaration": "error",
+        "useIsNan": "error",
+        "noUnusedImports": "error",
+        "noUnusedVariables": "warn"
+      },
+      "suspicious": {
+        "noAsyncPromiseExecutor": "error",
+        "noCompareNegZero": "error",
+        "noDuplicateObjectKeys": "error",
+        "noDuplicateParameters": "error",
+        "noExplicitAny": "error",
+        "noFallthroughSwitchClause": "error",
+        "noPrototypeBuiltins": "error",
+        "noSelfCompare": "error",
+        "noUnsafeNegation": "error",
+        "noControlCharactersInRegex": "error",
+        "noRedeclare": "error",
+        "noConsole": {
+          "level": "warn",
+          "options": {
+            "allow": ["warn", "error"]
+          }
+        }
+      },
+      "style": {
+        "useImportType": "warn"
+      }
+    }
+  },
+
+  "overrides": [
+    {
+      "includes": [
+        "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
+        "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
+        "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-item-model.ts",
+        "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/**"
+      ],
+      "formatter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["homeos-store/**"],
+      "javascript": {
+        "formatter": {
+          "quoteStyle": "double",
+          "semicolons": "always"
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/studio/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noConsole": "off"
+          },
+          "style": {
+            "useImportType": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/shared/utils/core/logger.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["ops/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+
+    {
+      "includes": [
+        "homeos/frontend/src/components/**",
+        "homeos/frontend/src/stores/**",
+        "homeos/frontend/src/composables/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/views/**", "@/views/*", "@/features/**", "@/features/*"],
+                    "message": "components/stores/composables 禁止 import @/views/** 与 @/features/**；跨页常量请放 @/shared/utils/registry 或 composables"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/stores/**",
+                      "@/composables/**",
+                      "@/components/**",
+                      "@/views/**",
+                      "@/features/**",
+                      "@/layouts/**"
+                    ],
+                    "message": "shared 禁止反向依赖 stores/composables/components/views/features/layouts（会被下层反向依赖，倒置即失效）"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/studio/app/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/editor/**", "../editor/**", "../../editor/**", "@app/editor/**"],
+                    "message": "app/shared 禁止 import app/editor；下沉到 editor 或 platform"
+                  },
+                  {
+                    "group": ["**/renderer/**", "../renderer/**", "../../renderer/**", "@app/renderer/**"],
+                    "message": "app/shared 禁止 import app/renderer；下沉到 renderer 或 platform"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["homeos/frontend/src/studio/platform/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app/editor/**",
+                      "@app/renderer/**",
+                      "@app/3d-studio/**",
+                      "@app/display/**",
+                      "**/app/editor/**",
+                      "**/app/renderer/**",
+                      "**/app/3d-studio/**"
+                    ],
+                    "message": "platform 禁止 import creator/panel 应用层"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

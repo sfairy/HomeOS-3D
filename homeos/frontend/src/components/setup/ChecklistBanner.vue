@@ -40,7 +40,6 @@ const pendingItems = computed(() =>
   // 取前 3 条未完成任务，控制条目数避免溢出
   (checklist.value?.items || []).filter((i) => !i.done).slice(0, 3),
 )
-
 </script>
 
 <style scoped src="./styles/setup-banners.css"></style>

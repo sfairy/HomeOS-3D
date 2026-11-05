@@ -3,11 +3,7 @@
  * 栈 A ClimateControlPopup 与未来栈 C·D 共用。
  */
 
-import {
-  HVAC_MODE_LABELS,
-  FAN_MODE_LABELS,
-  PRESET_MODE_LABELS,
-} from '@/shared/constants/climate-labels'
+import { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS } from '@/shared/constants/climate-labels'
 
 export { HVAC_MODE_LABELS, FAN_MODE_LABELS, PRESET_MODE_LABELS }
 
@@ -49,10 +45,7 @@ export function climatePresetModeLabel(mode: string | null | undefined): string 
 }
 
 /** 从 attributes 读字符串列表（hvac_modes / fan_modes 等） */
-export function climateAttrStringList(
-  attributes: Record<string, unknown> | undefined,
-  key: string,
-): string[] {
+export function climateAttrStringList(attributes: Record<string, unknown> | undefined, key: string): string[] {
   const raw = attributes?.[key]
   return Array.isArray(raw) ? (raw as string[]) : []
 }

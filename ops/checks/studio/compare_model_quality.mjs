@@ -196,7 +196,10 @@ function measure(parsed, byteLength) {
     meshes: meshes.length,
     accessors: accessors.length,
     nodes: nodes.length,
-    nodeNames: nodes.map((node) => node.name ?? '').filter(Boolean).sort(),
+    nodeNames: nodes
+      .map((node) => node.name ?? '')
+      .filter(Boolean)
+      .sort(),
     nodeEdges: edges.sort(),
     materials: materials.length,
     materialSlots: materials.map((material) => material.name ?? ''),
@@ -224,7 +227,8 @@ function readHeadBytes(relativePath) {
  * 逐文件比对
  * ------------------------------------------------------------------ */
 
-const differs = (before, after) => (Array.isArray(before) ? JSON.stringify(before) !== JSON.stringify(after) : before !== after)
+const differs = (before, after) =>
+  Array.isArray(before) ? JSON.stringify(before) !== JSON.stringify(after) : before !== after
 
 /**
  * 已声明的槽位改名（新名 → 旧名），由 `repair_glb_material_slots.mjs --emit-generated` 生成。
@@ -234,10 +238,7 @@ const differs = (before, after) => (Array.isArray(before) ? JSON.stringify(befor
  */
 const { LEGACY_MATERIAL_ALIASES } = await import(
   pathToFileURL(
-    path.join(
-      repoRoot,
-      'homeos/frontend/src/studio/app/3d-studio/materials/legacy-material-aliases.generated.ts',
-    ),
+    path.join(repoRoot, 'homeos/frontend/src/studio/app/3d-studio/materials/legacy-material-aliases.generated.ts'),
   ).href
 )
 const declaredRenameTo = new Map(
@@ -278,8 +279,7 @@ function compareFile(relativePath) {
   const droppedExtensions = before.extensions.filter((extension) => !after.extensions.includes(extension))
   const addedExtensions = after.extensions.filter((extension) => !before.extensions.includes(extension))
   const renamedMaterials = differs(before.materialNames, after.materialNames)
-  const renameResultIsDeclared =
-    renamedMaterials && renameIsDeclared(before.materialNames, after.materialNames)
+  const renameResultIsDeclared = renamedMaterials && renameIsDeclared(before.materialNames, after.materialNames)
   const renamedNodes = differs(before.nodeNames, after.nodeNames)
   const reparentedNodes = differs(before.nodeEdges, after.nodeEdges)
   const triangleRatio = before.triangles > 0 ? after.triangles / before.triangles : 1
@@ -418,8 +418,12 @@ for (const model of models) tally[model.verdict] += 1
 
 const bytesBefore = fileReports.reduce((sum, file) => sum + (file.before?.bytes ?? 0), 0)
 const bytesAfter = fileReports.reduce((sum, file) => sum + (file.after?.bytes ?? file.bytesAfter ?? 0), 0)
-const liteBefore = fileReports.filter((file) => file.variant === 'lite').reduce((sum, file) => sum + (file.before?.bytes ?? 0), 0)
-const liteAfter = fileReports.filter((file) => file.variant === 'lite').reduce((sum, file) => sum + (file.after?.bytes ?? file.bytesAfter ?? 0), 0)
+const liteBefore = fileReports
+  .filter((file) => file.variant === 'lite')
+  .reduce((sum, file) => sum + (file.before?.bytes ?? 0), 0)
+const liteAfter = fileReports
+  .filter((file) => file.variant === 'lite')
+  .reduce((sum, file) => sum + (file.after?.bytes ?? file.bytesAfter ?? 0), 0)
 
 const summary = {
   generatedAt: new Date().toISOString(),
@@ -482,9 +486,7 @@ if (!asJson) {
   ]
   for (const model of models) {
     for (const file of model.files) {
-      const triangles = file.newFile
-        ? '新增'
-        : `${file.before.triangles} → ${file.after.triangles}`
+      const triangles = file.newFile ? '新增' : `${file.before.triangles} → ${file.after.triangles}`
       const bytes = file.newFile
         ? `新增 ${Math.round(file.bytesAfter / 1024)} KB`
         : `${Math.round(file.before.bytes / 1024)} → ${Math.round(file.after.bytes / 1024)} KB`

@@ -9,71 +9,70 @@
  * 面板只管照着渲染，不再关心底层差异。
  */
 
-import { televisionArtwork } from "../../runtime/television/television-state";
+import { televisionArtwork } from '../../runtime/television/television-state'
 
 /** 支持主机控制面板的设备类型。 */
-export const GAME_CONSOLE_KINDS = Object.freeze(["switch-console", "playstation"]);
+export const GAME_CONSOLE_KINDS = Object.freeze(['switch-console', 'playstation'])
 
 export function isGameConsoleKind(deviceKind: any): boolean {
-  return GAME_CONSOLE_KINDS.includes(deviceKind);
+  return GAME_CONSOLE_KINDS.includes(deviceKind)
 }
 
 /** HA 的哨兵值（`unknown` / `unavailable` …）一律当空串，避免渲染出「unknown」。 */
 const readText = (value: any) =>
-    typeof value === "string" &&
-    !["", "unknown", "unavailable", "none", "null"].includes(value.trim().toLowerCase())
+    typeof value === 'string' && !['', 'unknown', 'unavailable', 'none', 'null'].includes(value.trim().toLowerCase())
       ? value.trim()
-      : "",
+      : '',
   /** 读主实体状态：`states` 既可能是 Map，也可能是普通对象。 */
   readMainState = (gameConfig: any, stateSource: any) => {
     const stateEntry = stateSource?.get
       ? stateSource.get(gameConfig.mainEntityId)
-      : stateSource?.[gameConfig.mainEntityId];
-    return stateEntry?.newState || stateEntry || {};
-  };
+      : stateSource?.[gameConfig.mainEntityId]
+    return stateEntry?.newState || stateEntry || {}
+  }
 
 /** FNV-1a 32 位：给图片 URL 加内容指纹，状态变了才换 URL（浏览器缓存才不会命中旧图）。 */
 function contentHash(payload: any) {
-  const serialized = JSON.stringify(payload);
-  let hash = 0x811c9dc5;
+  const serialized = JSON.stringify(payload)
+  let hash = 0x811c9dc5
   for (let characterIndex = 0; characterIndex < serialized.length; characterIndex += 1)
-    hash = Math.imul(hash ^ serialized.charCodeAt(characterIndex), 0x01000193);
-  return (hash >>> 0).toString(36);
+    hash = Math.imul(hash ^ serialized.charCodeAt(characterIndex), 0x01000193)
+  return (hash >>> 0).toString(36)
 }
 
 const gameImageUrl = (entityId: any, role: any, versionSeed: any) =>
-  "/api/v1/modules/interaction3d/game-image/" +
+  '/api/v1/modules/interaction3d/game-image/' +
   encodeURIComponent(entityId) +
-  "/" +
+  '/' +
   role +
-  "?v=" +
-  contentHash(versionSeed);
+  '?v=' +
+  contentHash(versionSeed)
 
 /** PlayStation 的 `state` → 归一后的 `mode`。 */
 const PLAYSTATION_MODES: Record<string, string> = {
-  off: "offline",
-  standby: "offline",
-  on: "online",
-  idle: "online",
-  playing: "running",
-  paused: "running",
-  buffering: "running",
-};
+  off: 'offline',
+  standby: 'offline',
+  on: 'online',
+  idle: 'online',
+  playing: 'running',
+  paused: 'running',
+  buffering: 'running',
+}
 
 /** 归一后的 `mode` → 状态文案。 */
 const MODE_LABELS: Record<string, string> = {
-  offline: "离线",
-  online: "在线",
-  running: "运行中",
-};
+  offline: '离线',
+  online: '在线',
+  running: '运行中',
+}
 
 /** 归一后的 `mode` → 状态点颜色。 */
 const MODE_COLORS: Record<string, string> = {
-  offline: "#89929b",
-  online: "#5ca9f4",
-  running: "#43ce82",
-  unknown: "#89929b",
-};
+  offline: '#89929b',
+  online: '#5ca9f4',
+  running: '#43ce82',
+  unknown: '#89929b',
+}
 
 /**
  * 生成游戏机视图。
@@ -85,81 +84,73 @@ export function gameConsoleState(gameConfig: any, stateSource: any = {}) {
   const deviceKind = gameConfig.deviceKind,
     mainState = readMainState(gameConfig, stateSource),
     stateAttributes = mainState.attributes || {},
-    entityStateCode = String(mainState.state || "").trim(),
+    entityStateCode = String(mainState.state || '').trim(),
     hasMainEntity = !!gameConfig.mainEntityId,
     isAvailable =
       hasMainEntity &&
       mainState.available !== false &&
-      !["", "unknown", "unavailable"].includes(entityStateCode.toLowerCase());
-  let mode = "unknown",
-    title = "",
-    artwork = "",
-    avatar = "",
-    account = "",
-    platform = "",
-    hours: number | null = null;
-  if (deviceKind === "playstation") {
-    isAvailable &&
-      (mode =
-        PLAYSTATION_MODES[entityStateCode.toLowerCase()] || "unknown"),
-      mode === "running" &&
+      !['', 'unknown', 'unavailable'].includes(entityStateCode.toLowerCase())
+  let mode = 'unknown',
+    title = '',
+    artwork = '',
+    avatar = '',
+    account = '',
+    platform = '',
+    hours: number | null = null
+  if (deviceKind === 'playstation') {
+    isAvailable && (mode = PLAYSTATION_MODES[entityStateCode.toLowerCase()] || 'unknown'),
+      mode === 'running' &&
         ((title = readText(stateAttributes.media_title) || readText(stateAttributes.source)),
         (artwork = televisionArtwork(stateAttributes)),
         artwork &&
           (artwork +=
-            (artwork.includes("?") ? "&" : "?") +
-            "hb_game=" +
+            (artwork.includes('?') ? '&' : '?') +
+            'hb_game=' +
             contentHash([stateAttributes.media_content_id, title, stateAttributes.source]))),
-      (platform = "PlayStation");
-  } else if (deviceKind === "switch-console") {
+      (platform = 'PlayStation')
+  } else if (deviceKind === 'switch-console') {
     const upperState = entityStateCode.toUpperCase(),
-      gameName = readText(stateAttributes["Game Name"]);
-    (isAvailable &&
+      gameName = readText(stateAttributes['Game Name'])
+    isAvailable &&
       (mode =
-        upperState === "OFFLINE"
-          ? "offline"
-          : upperState === "INACTIVE"
-            ? "online"
-            : upperState === "PLAYING" || (upperState === "ONLINE" && gameName)
-              ? "running"
-              : upperState === "ONLINE"
-                ? "online"
-                : "unknown"),
-      (account = readText(stateAttributes["Account Name"]) || readText(stateAttributes.Name)),
+        upperState === 'OFFLINE'
+          ? 'offline'
+          : upperState === 'INACTIVE'
+            ? 'online'
+            : upperState === 'PLAYING' || (upperState === 'ONLINE' && gameName)
+              ? 'running'
+              : upperState === 'ONLINE'
+                ? 'online'
+                : 'unknown'),
+      (account = readText(stateAttributes['Account Name']) || readText(stateAttributes.Name)),
       (platform = readText(stateAttributes.Platform)),
-      mode !== "unknown" &&
+      mode !== 'unknown' &&
         readText(stateAttributes.entity_picture) &&
-        (avatar = gameImageUrl(gameConfig.mainEntityId, "avatar", [
-          stateAttributes.entity_picture,
-        ])),
-      mode === "running" &&
+        (avatar = gameImageUrl(gameConfig.mainEntityId, 'avatar', [stateAttributes.entity_picture])),
+      mode === 'running' &&
         ((title = gameName),
-        readText(stateAttributes["Game Image URL"]) &&
-          (artwork = gameImageUrl(gameConfig.mainEntityId, "game", [
-            stateAttributes["Game Image URL"],
-            title,
-          ]))));
-    const totalPlayTime = stateAttributes["Total Play Time"];
+        readText(stateAttributes['Game Image URL']) &&
+          (artwork = gameImageUrl(gameConfig.mainEntityId, 'game', [stateAttributes['Game Image URL'], title])))
+    const totalPlayTime = stateAttributes['Total Play Time']
     hours =
-      (typeof totalPlayTime == "number" ||
-        (typeof totalPlayTime == "string" && totalPlayTime.trim())) &&
+      (typeof totalPlayTime == 'number' || (typeof totalPlayTime == 'string' && totalPlayTime.trim())) &&
       Number.isFinite(Number(totalPlayTime)) &&
       Number(totalPlayTime) >= 0
         ? Number(totalPlayTime)
-        : null;
+        : null
   }
-  const isAvailableMode = isAvailable && mode !== "unknown",
-    isOn = isAvailableMode && mode !== "offline",
+  const isAvailableMode = isAvailable && mode !== 'unknown',
+    isOn = isAvailableMode && mode !== 'offline',
     supportedFeatures =
       Number.isInteger(stateAttributes.supported_features) && stateAttributes.supported_features >= 0
         ? stateAttributes.supported_features
         : 0,
     sources: string[] = Array.isArray(stateAttributes.source_list)
       ? [...new Set<string>(stateAttributes.source_list.filter((sourceEntry: any) => readText(sourceEntry)))]
-      : [];
+      : []
   return {
     kind: deviceKind,
-    entityId: gameConfig.mainEntityId || "",
+    entityId: gameConfig.mainEntityId || '',
     state: entityStateCode,
     mode: mode,
     available: isAvailableMode,
@@ -171,30 +162,19 @@ export function gameConsoleState(gameConfig: any, stateSource: any = {}) {
     platform: platform,
     hours: hours,
     sources: sources,
-    source: typeof stateAttributes.source == "string" ? stateAttributes.source : "",
+    source: typeof stateAttributes.source == 'string' ? stateAttributes.source : '',
     features: supportedFeatures,
     contentType: readText(stateAttributes.media_content_type),
     // PlayStation 的 standby 在玩家眼里就是「关机」，Switch 没有这个态。
     label: hasMainEntity
       ? isAvailableMode
-        ? mode === "offline" && deviceKind === "playstation"
-          ? "休眠 / 关闭"
+        ? mode === 'offline' && deviceKind === 'playstation'
+          ? '休眠 / 关闭'
           : MODE_LABELS[mode]
-        : "状态不可用"
-      : "尚未选择主实体",
+        : '状态不可用'
+      : '尚未选择主实体',
     color: MODE_COLORS[mode],
-  };
-}
-
-/** 舞台图标用的指示灯视图。 */
-export function gameConsoleIndicator(gameConfig: any, stateSource: any) {
-  const consoleState = gameConsoleState(gameConfig, stateSource);
-  return {
-    ...consoleState,
-    visible: !!gameConfig.mainEntityId && consoleState.available,
-    status: consoleState.mode,
-    steady: true,
-  };
+  }
 }
 
 /**
@@ -210,58 +190,32 @@ export function gameConsoleCommand(
   serviceData: Record<string, any> = {},
 ) {
   const consoleState = gameConsoleState(gameConfig, stateSource),
-    featureBit = ({ turn_on: 0x80, turn_off: 0x100, select_source: 0x800 } as Record<string, number>)[
-      service
-    ],
+    featureBit = ({ turn_on: 0x80, turn_off: 0x100, select_source: 0x800 } as Record<string, number>)[service],
     hasValidData =
-      service === "select_source"
-        ? serviceData &&
-          Object.keys(serviceData).length === 1 &&
-          consoleState.sources.includes(serviceData.source)
-        : serviceData && Object.keys(serviceData).length === 0;
+      service === 'select_source'
+        ? serviceData && Object.keys(serviceData).length === 1 && consoleState.sources.includes(serviceData.source)
+        : serviceData && Object.keys(serviceData).length === 0
   return {
     enabled:
-      consoleState.kind === "playstation" &&
+      consoleState.kind === 'playstation' &&
       consoleState.available &&
       !!(featureBit && consoleState.features & featureBit) &&
       hasValidData &&
-      (service === "turn_on" ? !consoleState.on : consoleState.on),
+      (service === 'turn_on' ? !consoleState.on : consoleState.on),
     command: {
       entityId: gameConfig.mainEntityId,
-      domain: "media_player",
+      domain: 'media_player',
       service: service,
       data: serviceData,
-      deviceKind: "game-console",
+      deviceKind: 'game-console',
     },
-  };
+  }
 }
 
 /** 主实体类型校验：PS 必须是 `media_player.*`，Switch 必须是 `sensor.*`。 */
 export function gameMainEntityAllowed(deviceKind: any, entityEntry: any): boolean {
-  const entityId = entityEntry?.entityId || entityEntry?.entity_id || "";
-  return deviceKind === "playstation"
-    ? entityId.startsWith("media_player.")
-    : deviceKind === "switch-console" && entityId.startsWith("sensor.");
-}
-
-/**
- * 从实体目录里挑默认主实体：唯一候选才自动选中，多个候选时留空让用户自己选。
- */
-export function preferredGameMainEntity(deviceKind: any, entityEntries: any[] = []): string {
-  const candidates = entityEntries.filter((entityEntry: any) =>
-      gameMainEntityAllowed(deviceKind, entityEntry),
-    ),
-    preferred =
-      deviceKind === "playstation"
-        ? candidates.filter((entityEntry: any) => entityEntry.platform === "ps4")
-        : candidates.filter(
-            (entityEntry: any) =>
-              Object.hasOwn(entityEntry.attributes || {}, "Status") ||
-              /^switch_profile_/.test(entityEntry.uniqueId || entityEntry.unique_id || ""),
-          );
-  return preferred.length === 1
-    ? preferred[0].entityId
-    : deviceKind === "playstation" && candidates.length === 1
-      ? candidates[0].entityId
-      : "";
+  const entityId = entityEntry?.entityId || entityEntry?.entity_id || ''
+  return deviceKind === 'playstation'
+    ? entityId.startsWith('media_player.')
+    : deviceKind === 'switch-console' && entityId.startsWith('sensor.')
 }

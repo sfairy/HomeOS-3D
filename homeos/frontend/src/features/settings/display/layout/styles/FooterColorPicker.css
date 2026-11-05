@@ -107,8 +107,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--hos-r-2);
-  background:
-    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.35), transparent 45%), var(--swatch);
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.35), transparent 45%), var(--swatch);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.18);
 }

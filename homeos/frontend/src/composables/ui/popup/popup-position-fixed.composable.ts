@@ -194,9 +194,6 @@ export function useFixedPopupPosition(
     }
   })
 
-  const popupClassArray = computed(() => [
-    `popup--${direction.value.position}`,
-    `popup--${direction.value.alignment}`,
-  ])
+  const popupClassArray = computed(() => [`popup--${direction.value.position}`, `popup--${direction.value.alignment}`])
   return { direction, fixedStyle, arrowStyle, popupClassArray }
 }

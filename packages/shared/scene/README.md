@@ -37,7 +37,7 @@ bun run --cwd packages/shared check:scene    # 只比对：不一致 / 副本被
 - 客户端还有一道 `pre-commit`（`.githooks/pre-commit`，`bun run setup:hooks` 装）：
   只跑 `--tracked-only` 这一条断言，干净检出上副本不存在也不会误拦，`git commit --no-verify` 可绕过。
 - 目标目录里多出来的文件会被**删掉**（镜像语义）。真源删文件后副本立即跟上，不会继续按 URL 出货。
-- 真源 CSS 由 `lint:shared` 里的 `check-css-syntax.mjs` 做语法门禁（esbuild 引擎，与构建判定一致）：
+- 真源 CSS 由 `bun run --cwd packages/shared check:css` 里的 `check-css-syntax.mjs` 做语法门禁（esbuild 引擎，与构建判定一致）：
   「只有选择器、没有声明块」这类在 `vite build` 里只是 warning 的残缺规则会在这里拦下。
 
 ## 例外：`scene-depth.js`

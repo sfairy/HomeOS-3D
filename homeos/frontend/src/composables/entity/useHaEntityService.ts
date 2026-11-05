@@ -2,10 +2,7 @@
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { logger } from '@/shared/utils/core/logger'
-import {
-  blockDangerousHaServiceWhenOffline,
-  HA_OFFLINE_DANGEROUS_CONTROL_MSG,
-} from '@/shared/utils/ha/url'
+import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/shared/utils/ha/url'
 
 /**
  * HA 离线时拦截阀/锁/报警等高风险 service 调用（UI 层预检，store.callService 亦有同逻辑）。
@@ -25,14 +22,7 @@ function useHaControlGuard() {
    * @returns 是否允许调用
    */
   function canControlEntity(entityId: string, service = 'turn_on') {
-    if (
-      blockDangerousHaServiceWhenOffline(
-        entitiesStore.connected,
-        getEntityDomain(entityId),
-        service,
-        entityId,
-      )
-    ) {
+    if (blockDangerousHaServiceWhenOffline(entitiesStore.connected, getEntityDomain(entityId), service, entityId)) {
       return false
     }
     return true

@@ -21,9 +21,9 @@ const DEFAULT_URL = 'http://127.0.0.1:8000/metrics'
 
 /** 计划验收线（p99，毫秒）：只对这几段硬性要求，其余仅记录。 */
 const ACCEPTANCE = {
-  'fe_e2e_apply': 250,
+  fe_e2e_apply: 250,
   // 关键控制域在合并队列里只该停一个帧级窗口；50ms 那档说明短窗口没生效。
-  'ha_deferred_dwell_critical': 10,
+  ha_deferred_dwell_critical: 10,
   ws_emit: 60,
 }
 
@@ -63,7 +63,10 @@ export function parseMetrics(text) {
     for (const part of rawLabels.split(',')) {
       const eq = part.indexOf('=')
       if (eq === -1) continue
-      labels[part.slice(0, eq).trim()] = part.slice(eq + 1).trim().replace(/^"|"$/g, '')
+      labels[part.slice(0, eq).trim()] = part
+        .slice(eq + 1)
+        .trim()
+        .replace(/^"|"$/g, '')
     }
     if (name === 'homeos_ha_sync_latency_ms' && labels.stage && labels.quantile) {
       latency[labels.stage] ||= {}
@@ -87,13 +90,7 @@ function printTable({ latency, counters }) {
   const stages = Object.keys(latency).sort()
   const rows = stages.map((stage) => {
     const s = latency[stage]
-    return [
-      stage,
-      fmt(s.p50),
-      fmt(s.p99),
-      fmt(s.max),
-      String(s.count ?? 0),
-    ]
+    return [stage, fmt(s.p50), fmt(s.p99), fmt(s.max), String(s.count ?? 0)]
   })
   const header = ['stage', 'p50', 'p99', 'max', 'n']
   const widths = header.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)))

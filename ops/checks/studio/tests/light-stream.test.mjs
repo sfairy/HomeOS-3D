@@ -69,7 +69,7 @@ function createClock() {
     },
     runWithDelay(delayMs) {
       const dueTimers = [...timers.entries()].filter(([, timer]) => timer.delayMs === delayMs)
-      for (const [timerId, timer] of dueTimers) (timers.delete(timerId), timer.callback())
+      for (const [timerId, timer] of dueTimers) timers.delete(timerId), timer.callback()
       return dueTimers.length
     },
   }

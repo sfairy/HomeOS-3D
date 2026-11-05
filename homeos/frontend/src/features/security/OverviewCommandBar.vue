@@ -187,9 +187,7 @@ const sosCooldownLeft = ref(0)
 let sosCooldownCancel = null
 
 /** SOS 按钮文案：冷却期显示剩余秒数 */
-const sosLabel = computed(() =>
-  sosCooldownLeft.value > 0 ? `紧急求助 (${sosCooldownLeft.value}s)` : '紧急求助',
-)
+const sosLabel = computed(() => (sosCooldownLeft.value > 0 ? `紧急求助 (${sosCooldownLeft.value}s)` : '紧急求助'))
 
 /**
  * 处理紧急求助点击：先弹出危险样式二次确认，确认后才触发并进入冷却
@@ -197,24 +195,27 @@ const sosLabel = computed(() =>
  */
 async function onEmergencyClick() {
   if (props.emergencyBusy || sosCooldownLeft.value > 0) return
-  const ok = await chrome.confirm(
-    '紧急求助将触发联动（全屋声光/重点区域/静默通知），是否继续？',
-    '紧急求助',
-    { type: 'danger', confirmText: '确认触发' },
-  )
+  const ok = await chrome.confirm('紧急求助将触发联动（全屋声光/重点区域/静默通知），是否继续？', '紧急求助', {
+    type: 'danger',
+    confirmText: '确认触发',
+  })
   if (!ok) return
   // 触发成功后进入冷却，期间按钮置灰不可点
   sosCooldownLeft.value = SOS_COOLDOWN_SEC
   // 冷却倒计时经全局调度器每秒递减（页面隐藏时暂停，恢复可见后继续递减）
-  sosCooldownCancel = schedulePoll('security:sos-cooldown', () => {
-    sosCooldownLeft.value -= 1
-    if (sosCooldownLeft.value <= 0) {
-      if (sosCooldownCancel) {
-        sosCooldownCancel()
-        sosCooldownCancel = null
+  sosCooldownCancel = schedulePoll(
+    'security:sos-cooldown',
+    () => {
+      sosCooldownLeft.value -= 1
+      if (sosCooldownLeft.value <= 0) {
+        if (sosCooldownCancel) {
+          sosCooldownCancel()
+          sosCooldownCancel = null
+        }
       }
-    }
-  }, 1000)
+    },
+    1000,
+  )
   emit('emergency')
 }
 
@@ -248,9 +249,7 @@ const armSelectionHint = computed(() => {
 /** 有告警时只展示告警 chip；无告警时展示传感器分类汇总，避免与告警条重复 */
 const sideChips = computed(() => {
   if (props.alertCount > 0) {
-    const byLabel = new Map(
-      (props.statCards || []).map((c) => [c.label, c]),
-    )
+    const byLabel = new Map((props.statCards || []).map((c) => [c.label, c]))
     return (props.activeAlertChips || []).map((chip) => {
       const card = byLabel.get(chip.label)
       return {

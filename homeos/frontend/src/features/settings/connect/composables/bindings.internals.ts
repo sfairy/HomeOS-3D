@@ -48,10 +48,7 @@ import {
   readPanelEnergyBinding,
   seedPanelEnergyMeter,
 } from '@/shared/energy/utils/binding-bridge.util'
-import {
-  handleSystemConfigPatchError,
-  useSystemConfig,
-} from '@/composables/config/system-config-core.internals'
+import { handleSystemConfigPatchError, useSystemConfig } from '@/composables/config/system-config-core.internals'
 import { computed, ref } from 'vue'
 
 // ── useSettingsAccountBindingsHub ──
@@ -63,17 +60,13 @@ interface SettingsAccountBindingsHubOptions {
   tabs: ReadonlyArray<{ id: string; label: string; emoji: string; accent: string }>
 }
 
-function useSettingsAccountBindingsHub(
-  activeTab: () => string,
-  options: SettingsAccountBindingsHubOptions,
-) {
+function useSettingsAccountBindingsHub(activeTab: () => string, options: SettingsAccountBindingsHubOptions) {
   const categoryTab = ref(options.defaultCategory)
   const layoutSaving = ref(false)
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
   const entitiesStore = useEntitiesStore()
-  const { load: loadSystemConfig, save: saveSystemConfig, getCached: getCachedSystemConfig } =
-    useSystemConfig()
+  const { load: loadSystemConfig, save: saveSystemConfig, getCached: getCachedSystemConfig } = useSystemConfig()
   /** 系统配置里的主电表（能耗聚合实际使用的实体）；用于差异提示 */
   const configEnergyMeter = ref('')
 
@@ -101,9 +94,9 @@ function useSettingsAccountBindingsHub(
   const activeMappableFields = computed(() => getMappableFields(categoryTab.value as EnergyCategory))
 
   const activeChartFields = computed(() =>
-    ((ENERGY_FIELD_DEFS as Record<string, (typeof ENERGY_FIELD_DEFS)[EnergyCategory]>)[
-      categoryTab.value
-    ] || []).filter((f) => f.type === 'list' || f.type === 'object'),
+    ((ENERGY_FIELD_DEFS as Record<string, (typeof ENERGY_FIELD_DEFS)[EnergyCategory]>)[categoryTab.value] || []).filter(
+      (f) => f.type === 'list' || f.type === 'object',
+    ),
   )
 
   const compositeEntityAttrs = computed(() => {
@@ -136,9 +129,9 @@ function useSettingsAccountBindingsHub(
 
   function setBindingMode(mode: string) {
     ensureSourcesStruct()
-    const src = layoutStore.layoutConfig.statsSensors.energySources![
-      categoryTab.value
-    ] as ReturnType<typeof createDefaultEnergySource>
+    const src = layoutStore.layoutConfig.statsSensors.energySources![categoryTab.value] as ReturnType<
+      typeof createDefaultEnergySource
+    >
     src.mode = mode
     if (mode === 'convention') ensureAccountEntriesOnSource(src)
     if (mode === 'entity') ensureEntityAccountsOnSource(src)
@@ -147,9 +140,9 @@ function useSettingsAccountBindingsHub(
 
   function fillDefaultAttrs() {
     ensureSourcesStruct()
-    const src = layoutStore.layoutConfig.statsSensors.energySources![
-      categoryTab.value
-    ] as ReturnType<typeof createDefaultEnergySource>
+    const src = layoutStore.layoutConfig.statsSensors.energySources![categoryTab.value] as ReturnType<
+      typeof createDefaultEnergySource
+    >
     if (!src.attrMap) src.attrMap = {}
     const attrMap = src.attrMap as Record<string, string>
     for (const field of [...activeMappableFields.value, ...activeChartFields.value]) {
@@ -162,9 +155,9 @@ function useSettingsAccountBindingsHub(
   function inferFromEntity(mode: string, accountIndex = 0) {
     ensureSourcesStruct()
     const cat = categoryTab.value
-    const src = layoutStore.layoutConfig.statsSensors.energySources![
-      cat
-    ] as ReturnType<typeof createDefaultEnergySource>
+    const src = layoutStore.layoutConfig.statsSensors.energySources![cat] as ReturnType<
+      typeof createDefaultEnergySource
+    >
     if (mode === 'multi') {
       ensureMultiAccountsOnSource(src)
       const idx = Math.max(0, Math.min(accountIndex, (src.multiAccounts?.length || 1) - 1))
@@ -183,9 +176,7 @@ function useSettingsAccountBindingsHub(
       }
       syncMultiAccounts(src)
       chrome.notify(
-        matched
-          ? `已为账户 ${idx + 1} 推断匹配 ${matched} 个字段`
-          : '未找到可匹配的字段，请检查实体前缀或手动映射',
+        matched ? `已为账户 ${idx + 1} 推断匹配 ${matched} 个字段` : '未找到可匹配的字段，请检查实体前缀或手动映射',
         matched ? 'success' : 'info',
       )
       return
@@ -206,9 +197,7 @@ function useSettingsAccountBindingsHub(
       src.entityMap = { ...src.entityMap, ...entityMap }
       syncEntityAccounts(src)
       chrome.notify(
-        matched
-          ? `已为账户 ${idx + 1} 推断匹配 ${matched} 个字段`
-          : '未找到可匹配的字段，请检查实体前缀或手动映射',
+        matched ? `已为账户 ${idx + 1} 推断匹配 ${matched} 个字段` : '未找到可匹配的字段，请检查实体前缀或手动映射',
         matched ? 'success' : 'info',
       )
       return
@@ -244,10 +233,7 @@ function useSettingsAccountBindingsHub(
     current: () => liveLifeAccountsLayoutSlice(layoutStore.layoutConfig),
     ready: () => layoutStore.isConfigLoaded,
     applyBaseline: (baseline) => {
-      applyLifeAccountsLayoutSlice(
-        layoutStore.layoutConfig,
-        baseline as ReturnType<typeof pickLifeAccountsLayoutSlice>,
-      )
+      applyLifeAccountsLayoutSlice(layoutStore.layoutConfig, baseline as ReturnType<typeof pickLifeAccountsLayoutSlice>)
       afterLayoutCancelSync(layoutStore.layoutConfig)
     },
   })

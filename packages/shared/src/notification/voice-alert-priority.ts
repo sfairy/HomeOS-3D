@@ -16,7 +16,7 @@ export const VOICE_ALERT_PRIORITY: Record<string, number> = {
   energyBudget: 20,
   envMoldRisk: 15,
   presenceLeft: 10,
-};
+}
 
 /**
  * 语音告警 key 的优先级比较函数（用于 Array.sort，数值越大越优先）。
@@ -27,5 +27,5 @@ export const VOICE_ALERT_PRIORITY: Record<string, number> = {
  * @returns 正数 = A 优先级低于 B（应排在后面）；负数 = A 优先；0 = 同优先级（相对顺序保持稳定）
  */
 export function compareVoiceAlertPriority(a: string, b: string): number {
-  return (VOICE_ALERT_PRIORITY[b] ?? 0) - (VOICE_ALERT_PRIORITY[a] ?? 0);
+  return (VOICE_ALERT_PRIORITY[b] ?? 0) - (VOICE_ALERT_PRIORITY[a] ?? 0)
 }

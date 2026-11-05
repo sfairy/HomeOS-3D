@@ -9,9 +9,7 @@ type PresenceMember = { atHome?: boolean; [key: string]: unknown }
  * @param presence 包含 members 数组的在场状态对象
  * @returns 徽章文案；无人在家返回「无人在家」，否则返回「N人在家」
  */
-export function formatPresenceBadgeSummary(
-  presence: { members?: PresenceMember[] | unknown[] } | null | undefined,
-) {
+export function formatPresenceBadgeSummary(presence: { members?: PresenceMember[] | unknown[] } | null | undefined) {
   if (!presence) return ''
   const members = Array.isArray(presence.members) ? presence.members : []
   const atHome = members.filter((m) => (m as PresenceMember).atHome)
@@ -56,10 +54,7 @@ export function formatPresenceDetailSummary(
  * @returns true 表示已配置；false 表示尚未配置需要引导
  */
 export function isPresenceConfigured(
-  presence:
-    | { autoMode?: boolean; members?: PresenceMember[] | unknown[] }
-    | null
-    | undefined,
+  presence: { autoMode?: boolean; members?: PresenceMember[] | unknown[] } | null | undefined,
 ) {
   if (!presence) return false
   if (presence.autoMode === false) return true

@@ -190,19 +190,12 @@ import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
 import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
 import ModeLogsAnalyticsRail from './components/ModeLogsAnalyticsRail.vue'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
-import {
-  EMPTY_MODE_LOG_ANALYTICS,
-  type ModeLogAnalytics,
-} from './composables/useModeLogsAnalytics'
+import { EMPTY_MODE_LOG_ANALYTICS, type ModeLogAnalytics } from './composables/useModeLogsAnalytics'
 import { formatDetailedDateTimeOrDash } from '@/shared/utils/format/locale-format.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
-import {
-  homeModeLogSourceLabel,
-  homeModeLogReasonLabel,
-  HOME_MODE_LOG_SOURCE_LABELS,
-} from '@homeos/shared'
+import { homeModeLogSourceLabel, homeModeLogReasonLabel, HOME_MODE_LOG_SOURCE_LABELS } from '@homeos/shared'
 
 type TriggerLogRow = {
   id?: string | number

@@ -52,11 +52,7 @@ export function build() {
       branch.y + branch.rise * 0.52,
       Math.sin(branch.angle) * reach * 0.5,
     ]
-    const end = [
-      Math.cos(branch.angle) * reach,
-      branch.y + branch.rise,
-      Math.sin(branch.angle) * reach,
-    ]
+    const end = [Math.cos(branch.angle) * reach, branch.y + branch.rise, Math.sin(branch.angle) * reach]
     branches.push(
       tubeChain({
         points: [start, mid, end],

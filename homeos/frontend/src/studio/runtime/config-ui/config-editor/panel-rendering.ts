@@ -1,21 +1,13 @@
-
+import { buttonIconSize } from '@app/bridge/presets/button-icon-size'
+import { extraTypes as extraTypes2 } from '../../climate/purifier-extras'
+import { validCurtainGroups as validCurtainGroups2 } from '../../cover/cover-groups'
 import {
-  buttonIconSize,
-} from "@app/bridge/presets/button-icon-size";
-import {
-  extraTypes as extraTypes2,
-} from "../../climate/purifier-extras";
-import {
-  validCurtainGroups as validCurtainGroups2,
-} from "../../cover/cover-groups";
-import { interaction3dPreviewSize as interaction3dPreviewSize2, observeInteraction3dPreview } from "@app/bridge/presets/preview-layout";
-import {
-  requestInteraction3dAccess as requestInteraction3dAccess2,
-} from "@app/bridge/bridge";
-import {
-  carChargingMappingError as carChargingMappingError2,
-} from "../../vehicle/car-state";
-import { createConfigurationFeedback } from "../configuration-feedback";
+  interaction3dPreviewSize as interaction3dPreviewSize2,
+  observeInteraction3dPreview,
+} from '@app/bridge/presets/preview-layout'
+import { requestInteraction3dAccess as requestInteraction3dAccess2 } from '@app/bridge/bridge'
+import { carChargingMappingError as carChargingMappingError2 } from '../../vehicle/car-state'
+import { createConfigurationFeedback } from '../configuration-feedback'
 import {
   ensureItemCollections as ensureItemCollectionsCore,
   renderStatusRuleSection as renderStatusRuleSectionCore,
@@ -23,9 +15,9 @@ import {
   renderExtraControlsSection as renderExtraControlsSectionCore,
   renderAirPurifierBindingSection as renderAirPurifierBindingSectionCore,
   renderVacuumShortcutPanel as renderVacuumShortcutPanelCore,
-} from "./rendering/panel-sections";
-import { ensureInteraction3dSelectControls } from "../select-controls";
-import { renderPanelImpl as renderPanelCore } from "./rendering/panel-assembly";
+} from './rendering/panel-sections'
+import { ensureInteraction3dSelectControls } from '../select-controls'
+import { renderPanelImpl as renderPanelCore } from './rendering/panel-assembly'
 import {
   openAddDialog as openAddDialogCore,
   openVacuumRoomPicker as openVacuumRoomPickerCore,
@@ -33,12 +25,12 @@ import {
   openMetricsDialog as openMetricsDialogCore,
   openCurtainGroupBatchApplyDialog as openCurtainGroupBatchApplyDialogCore,
   openLabelBatchApplyDialog as openLabelBatchApplyDialogCore,
-} from "./rendering/panel-dialogs";
+} from './rendering/panel-dialogs'
 import {
   buildItemPayload as buildItemPayloadCore,
   listChangedFields as listChangedFieldsCore,
   switchEditorKind as switchEditorKindCore,
-} from "./rendering/panel-session";
+} from './rendering/panel-session'
 
 export function attachEditorPanelRendering(editorHost: any) {
   /**
@@ -50,7 +42,7 @@ export function attachEditorPanelRendering(editorHost: any) {
    * 存在感应等编辑入口用的是同一份。`renderPanel` 结束时再对齐一次，避免首帧读到还没落定的
    * `select.value`。
    */
-  const selectControls = ensureInteraction3dSelectControls();
+  const selectControls = ensureInteraction3dSelectControls()
   /**
    * 「一键应用」按钮重建器的**可变单元**（代理宿主的 `let refreshBatchButtons`）。
    *
@@ -60,12 +52,12 @@ export function attachEditorPanelRendering(editorHost: any) {
    */
   const refreshBatchButtonsCell: { current: () => any } = {
     get current() {
-      return refreshBatchButtons;
+      return refreshBatchButtons
     },
     set current(next: any) {
-      refreshBatchButtons = next;
+      refreshBatchButtons = next
     },
-  };
+  }
   /**
    * 面板分区渲染的外部句柄（见 `rendering/panel-sections`）：上下文对象 `e` + 12 个兄弟函数
    * （6c 的 4 项 + 6d-2 新增 8 项；只被部分分区用到的那几项由各函数自行解构子集）。
@@ -89,36 +81,39 @@ export function attachEditorPanelRendering(editorHost: any) {
     openLabelBatchApplyDialog,
     switchEditorKind,
     openAddDialog,
-    get editorSession() { return editorSession },
+    get editorSession() {
+      return editorSession
+    },
     refreshBatchButtonsCell,
-  });
+  })
   /** 条目集合规整（原 panel-rendering 直系声明，P4 搬进 `rendering/panel-sections`）。 */
   function ensureItemCollections() {
-    return ensureItemCollectionsCore(panelSectionsDeps());
+    return ensureItemCollectionsCore(panelSectionsDeps())
   }
   /** 状态规则分区渲染（同上）。 */
-  function renderStatusRuleSection(
-    statusSettingsSectionElement: any,
-    statusItem: any,
-    statusOptions: any = {},
-  ) {
-    return renderStatusRuleSectionCore(panelSectionsDeps(), statusSettingsSectionElement, statusItem, statusOptions);
+  function renderStatusRuleSection(statusSettingsSectionElement: any, statusItem: any, statusOptions: any = {}) {
+    return renderStatusRuleSectionCore(panelSectionsDeps(), statusSettingsSectionElement, statusItem, statusOptions)
   }
   /** 幕布分组分区（同上）。 */
   function renderCurtainGroupSection(curtainGroup: any) {
-    return renderCurtainGroupSectionCore(panelSectionsDeps(), curtainGroup);
+    return renderCurtainGroupSectionCore(panelSectionsDeps(), curtainGroup)
   }
   /** 附加控件分区（同上）。 */
   function renderExtraControlsSection() {
-    return renderExtraControlsSectionCore(panelSectionsDeps());
+    return renderExtraControlsSectionCore(panelSectionsDeps())
   }
   /** 净化器绑定分区（同上）。 */
   function renderAirPurifierBindingSection(sizeFieldContainer: any, sizeFieldTarget: any, sizeFieldOptions: any) {
-    return renderAirPurifierBindingSectionCore(panelSectionsDeps(), sizeFieldContainer, sizeFieldTarget, sizeFieldOptions);
+    return renderAirPurifierBindingSectionCore(
+      panelSectionsDeps(),
+      sizeFieldContainer,
+      sizeFieldTarget,
+      sizeFieldOptions,
+    )
   }
   /** 吸尘器快捷模式面板（同上）。 */
   function renderVacuumShortcutPanel() {
-    return renderVacuumShortcutPanelCore(panelSectionsDeps());
+    return renderVacuumShortcutPanelCore(panelSectionsDeps())
   }
 
   /**
@@ -135,35 +130,41 @@ export function attachEditorPanelRendering(editorHost: any) {
     switchEditorKind,
     createSettingRow,
     closeAuxDialog,
-    get editorSession() { return editorSession },
-    get saveStatusElement() { return saveStatusElement },
-    get buildEditableFieldList() { return buildEditableFieldList },
+    get editorSession() {
+      return editorSession
+    },
+    get saveStatusElement() {
+      return saveStatusElement
+    },
+    get buildEditableFieldList() {
+      return buildEditableFieldList
+    },
     buildItemPayload,
     listChangedFields,
-  });
+  })
   /** 新增条目弹窗（原 panel-rendering 直系声明，P4 搬进 `rendering/panel-dialogs`）。 */
   function openAddDialog(addDialogTriggerEvent: any = undefined) {
-    return openAddDialogCore(panelDialogsDeps(), addDialogTriggerEvent);
+    return openAddDialogCore(panelDialogsDeps(), addDialogTriggerEvent)
   }
   /** 吸尘器房间选择器（同上）。 */
   function openVacuumRoomPicker(roomPickerTriggerEvent: any) {
-    return openVacuumRoomPickerCore(panelDialogsDeps(), roomPickerTriggerEvent);
+    return openVacuumRoomPickerCore(panelDialogsDeps(), roomPickerTriggerEvent)
   }
   /** 幕布分组弹窗（同上）。 */
   function openCurtainGroupDialog(onCancel: any) {
-    return openCurtainGroupDialogCore(panelDialogsDeps(), onCancel);
+    return openCurtainGroupDialogCore(panelDialogsDeps(), onCancel)
   }
   /** 指标弹窗（同上）。 */
   function openMetricsDialog(metricsTargetEntry: any) {
-    return openMetricsDialogCore(panelDialogsDeps(), metricsTargetEntry);
+    return openMetricsDialogCore(panelDialogsDeps(), metricsTargetEntry)
   }
   /** 「一键应用到其他」幕布分组批量弹窗（同上）。 */
   function openCurtainGroupBatchApplyDialog(sourceGroup: any, linkedFieldProbe = false) {
-    return openCurtainGroupBatchApplyDialogCore(panelDialogsDeps(), sourceGroup, linkedFieldProbe);
+    return openCurtainGroupBatchApplyDialogCore(panelDialogsDeps(), sourceGroup, linkedFieldProbe)
   }
   /** 标签位批量弹窗（同上）。 */
   function openLabelBatchApplyDialog(sourceSection: any) {
-    return openLabelBatchApplyDialogCore(panelDialogsDeps(), sourceSection);
+    return openLabelBatchApplyDialogCore(panelDialogsDeps(), sourceSection)
   }
 
   /**
@@ -175,31 +176,33 @@ export function attachEditorPanelRendering(editorHost: any) {
    */
   const panelSessionDeps = () => ({
     editorHost,
-    get editorSession() { return editorSession },
-    get kindSessionsByKind() { return kindSessionsByKind },
+    get editorSession() {
+      return editorSession
+    },
+    get kindSessionsByKind() {
+      return kindSessionsByKind
+    },
     closeAddDialog,
     closeAuxDialog,
     ensureItemCollections,
-    get buildEditableFieldList() { return buildEditableFieldList },
+    get buildEditableFieldList() {
+      return buildEditableFieldList
+    },
     renderPanel,
     refreshEditorPreview,
     openAddDialog,
-  });
+  })
   /** 条目 → 可持久化形状（原 panel-rendering 直系声明，P4 搬进 `rendering/panel-session`）。 */
   function buildItemPayload(item: any) {
-    return buildItemPayloadCore(panelSessionDeps(), item);
+    return buildItemPayloadCore(panelSessionDeps(), item)
   }
   /** 与基线的字段差异（同上）。 */
   function listChangedFields(changedItem: any) {
-    return listChangedFieldsCore(panelSessionDeps(), changedItem);
+    return listChangedFieldsCore(panelSessionDeps(), changedItem)
   }
   /** 切换设备种类的会话重建（同上；本身是 `async`，薄绑定只返回 Promise，不写成 `async`）。 */
-  function switchEditorKind(
-    nextDeviceKind: any,
-    shouldOpenAddDialog = false,
-    selection: any = null,
-  ) {
-    return switchEditorKindCore(panelSessionDeps(), nextDeviceKind, shouldOpenAddDialog, selection);
+  function switchEditorKind(nextDeviceKind: any, shouldOpenAddDialog = false, selection: any = null) {
+    return switchEditorKindCore(panelSessionDeps(), nextDeviceKind, shouldOpenAddDialog, selection)
   }
 
   /**
@@ -224,7 +227,9 @@ export function attachEditorPanelRendering(editorHost: any) {
     listChangedFields,
     renderVacuumShortcutPanel,
     renderExtraControlsSection,
-    get buildRuntimeProperties() { return buildRuntimeProperties },
+    get buildRuntimeProperties() {
+      return buildRuntimeProperties
+    },
     listAddableModels,
     openAddDialog,
     renderCurtainGroupSection,
@@ -233,400 +238,397 @@ export function attachEditorPanelRendering(editorHost: any) {
     openCurtainGroupDialog,
     syncLinkedIconSize,
     renderStatusRuleSection,
-    get saveButtonElement() { return saveButtonElement },});
+    get saveButtonElement() {
+      return saveButtonElement
+    },
+  })
   /** 面板总装（P4 搬进 `rendering/panel-assembly`，此处只转发句柄）。 */
   function renderPanel() {
-    const renderResult = renderPanelCore(panelAssemblyDeps());
+    const renderResult = renderPanelCore(panelAssemblyDeps())
     // 面板刚重绘完：新 select 先套壳再回灌状态（首帧的系统菜单不闪一下）。
-    selectControls.refresh();
-    return renderResult;
+    selectControls.refresh()
+    return renderResult
   }
-    function buildCurtainGroupOptions() {
-      editorHost.structuredClone2.environment?.curtainGroups &&
-        (editorHost.structuredClone2.environment.curtainGroups = validCurtainGroups2(
-          editorHost.structuredClone2.environment,
-        ));
-    }
-        ensureItemCollections();
-    for (const normalizedBatchItem of [
-      ...(editorHost.structuredClone2.environment?.airConditioners || []),
-      ...(editorHost.structuredClone2.environment?.airers || []),
-      ...(editorHost.structuredClone2.environment?.fans || []),
-      ...(editorHost.structuredClone2.environment?.exhaustFans || []),
-      ...(editorHost.structuredClone2.environment?.airPurifiers || []),
-      ...(editorHost.structuredClone2.environment?.waterHeaters || []),
-    ])
-      normalizedBatchItem.extraControls = (normalizedBatchItem.extraControls || []).map(
-        ({ label: batchControlLabel, ...batchControlRest }: any) => ({
-          ...batchControlRest,
-          type: extraTypes2(batchControlRest.entityId)[0],
-        }),
-      );
-    const buildEditableFieldList = () =>
-      editorHost.deviceKind === "smallcar"
+  function buildCurtainGroupOptions() {
+    editorHost.structuredClone2.environment?.curtainGroups &&
+      (editorHost.structuredClone2.environment.curtainGroups = validCurtainGroups2(
+        editorHost.structuredClone2.environment,
+      ))
+  }
+  ensureItemCollections()
+  for (const normalizedBatchItem of [
+    ...(editorHost.structuredClone2.environment?.airConditioners || []),
+    ...(editorHost.structuredClone2.environment?.airers || []),
+    ...(editorHost.structuredClone2.environment?.fans || []),
+    ...(editorHost.structuredClone2.environment?.exhaustFans || []),
+    ...(editorHost.structuredClone2.environment?.airPurifiers || []),
+    ...(editorHost.structuredClone2.environment?.waterHeaters || []),
+  ])
+    normalizedBatchItem.extraControls = (normalizedBatchItem.extraControls || []).map(
+      ({ label: batchControlLabel, ...batchControlRest }: any) => ({
+        ...batchControlRest,
+        type: extraTypes2(batchControlRest.entityId)[0],
+      }),
+    )
+  const buildEditableFieldList = () =>
+    editorHost.deviceKind === 'smallcar'
+      ? [
+          ['cardWidth', '信息框宽度', 'px'],
+          ['cardFontSize', '文字大小', 'px'],
+          ['cardOpacity', '背景不透明度', '%'],
+          ['buttonVisibility', '卡片显示', ''],
+        ]
+      : editorHost.usesModelBinding
         ? [
-            ["cardWidth", "信息框宽度", "px"],
-            ["cardFontSize", "文字大小", "px"],
-            ["cardOpacity", "背景不透明度", "%"],
-            ["buttonVisibility", "卡片显示", ""],
+            ...(editorHost.isVacuumMode ? [] : [['icon', '图标', '']]),
+            ['size', editorHost.isVacuumMode ? '状态框缩放' : '按钮大小', editorHost.isVacuumMode ? '%' : 'px'],
+
+            ...(editorHost.isVacuumMode ? [['iconSize', '文字大小', 'px']] : []),
+            ['hitSize', '点击范围', 'px'],
+            ['buttonVisibility', '按钮显示', ''],
+            ...(editorHost.isVacuumMode ? [['backgroundOpacity', '背景不透明度', '%']] : []),
+            ...(editorHost.isVacuumShortcutMode
+              ? [
+                  ['fontSize', '文字大小', 'px'],
+                  ['iconHidden', '隐藏图标', ''],
+                  ['labelHidden', '隐藏名称', ''],
+                ]
+              : []),
           ]
-        : editorHost.usesModelBinding
-          ? [
-              ...(editorHost.isVacuumMode ? [] : [["icon", "图标", ""]]),
-              ["size", editorHost.isVacuumMode ? "状态框缩放" : "按钮大小", editorHost.isVacuumMode ? "%" : "px"],
-  
-              ...(editorHost.isVacuumMode ? [["iconSize", "文字大小", "px"]] : []),
-              ["hitSize", "点击范围", "px"],
-              ["buttonVisibility", "按钮显示", ""],
-              ...(editorHost.isVacuumMode ? [["backgroundOpacity", "背景不透明度", "%"]] : []),
-              ...(editorHost.isVacuumShortcutMode
-                ? [
-                    ["fontSize", "文字大小", "px"],
-                    ["iconHidden", "隐藏图标", ""],
-                    ["labelHidden", "隐藏名称", ""],
-                  ]
-                : []),
-            ]
-          : [
-              ["size", "按钮大小", "px"],
-              ["hitSize", "点击范围", "px"],
-              ["fadeDuration", "缓开缓灭", "秒"],
-              // 灯光专属：这份清单同时决定「N 项修改」计数与「一键应用到其他灯光」的范围，
-              // 漏掉它就会出现「下拉改了、计数不动、也同步不出去」。
-              ...(editorHost.deviceKind === "light"
-                ? ([["temperatureFallback", "不支持调色温时", ""]] as [string, string, string][])
-                : []),
-            ];
-    /**
-     * 编辑会话基线（**可变单元**）：可编辑字段清单 + 条目基线快照。
-     *
-     * 原先这两份是宿主 `let`，而搬出去的会话/弹窗函数必须**重新赋值**它们
-     * （`switchEditorKind` 切换种类时重建两份；`renderVacuumShortcutPanel` 清空基线），
-     * 快照解构不等价 —— 收进一个可变单元整体传下去，宿主自己的 `listChangedFields`
-     * 也改成读这个单元（它随后一并搬进 `rendering/panel-session`）。
-     */
-    const editorSession = {
-      fieldDefs: buildEditableFieldList(),
-      baselineItemsById: new Map(
-        editorHost.getItemList().map((baselinedItem: any) => [baselinedItem.id, structuredClone(baselinedItem)]),
-      ),
-    };
-    const kindSessionsByKind = new Map();
-    let auxDialogElement: any = null,
-      refreshBatchButtons = () => {};
-                        const syncPreviewSize = () => {
-        // 借用会话里画面就是编辑器页的运行时（绝对定位铺满），不要再按比例去改容器尺寸。
-        if (editorHost.isBorrowedPreview) return;
-        const previewSize = interaction3dPreviewSize2(
-          editorHost.component,
-          editorHost.documentApi,
-          editorHost.viewElement.clientWidth,
-          editorHost.viewElement.clientHeight,
-        );
-        Object.assign(editorHost.aspectBoxElement.style, {
-          width: previewSize.width + "px",
-          height: previewSize.height + "px",
-        });
-      },
-      resizeObserver = observeInteraction3dPreview(editorHost.viewElement, syncPreviewSize);
-    const disposeEditor = () => {
-        editorHost.isDisposed ||
-          ((editorHost.isDisposed = true),
-          closeAddDialog(),
-          closeAuxDialog(),
-          editorHost.subEditorHandle?.close(),
-          resizeObserver.disconnect(),
-          editorHost.pickerGeneration++,
-          editorHost.pickerHandle?.close(),
-          // 共享装饰器不在这里回收：安防 / 存在感应等入口用的是同一份，关掉本弹窗不该让它失效。
-          // 关窗即销毁运行时（`keep: false`）：与 0.8.2 一致，下次打开重新挂一份干净的。
-          // 池里「保留 2 分钟再复用」会把 `viewport` 清空，而运行时不会再把自己接回去 ——
-          // 复用出来的第二次打开只剩面板、没有 3D 画面，所以这里不走保留分支。
-          editorHost.previewHandle
-            ? editorHost.previewHandle.release({ keep: false })
-            : editorHost.editorRuntime?.(),
-          editorHost.accessUnsubscribe?.(),
-          configurationFeedback.dispose(),
-          editorHost.previewHandle || editorHost.editorDialogElement.remove(),
-          editorHost.element.remove(),
-          document.dispatchEvent(new Event("hb-i3d-preview-scope")));
-      },
-      saveStatusElement = editorHost.createElement("span", "i3d-save-status");
-    saveStatusElement.setAttribute("role", "status");
-    // 保存反馈统一走状态机：脏状态按「属性快照 JSON」比较，退出前能拦住未保存的修改。
-    const configurationFeedback = createConfigurationFeedback({
-      read: () => editorHost.structuredClone2,
-      status: saveStatusElement,
-      document,
-    });
-    editorHost.configurationFeedback = configurationFeedback;
-    const saveEditorConfiguration = async () => {
-      if (editorHost.isSaving || editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending)
-        return;
-      for (const carRecord of editorHost.structuredClone2.devices?.cars || []) {
-        if (!carRecord.chargingStates) continue;
-        const chargingMappingError = carChargingMappingError2(carRecord.chargingStates);
-        if (chargingMappingError) {
-          const chargingErrorMessage =
-            (carRecord.label || carRecord.deviceName || "汽车") + "：" + chargingMappingError;
-          editorHost.errorMessageElement.textContent = chargingErrorMessage;
-          configurationFeedback.failed(new Error(chargingErrorMessage));
-          return;
-        }
-      }
-      const savedSnapshot = configurationFeedback.capture();
-      ((editorHost.isSaving = true),
-        (saveButtonElement.disabled = true),
-        (editorHost.errorMessageElement.textContent = ""));
-      try {
-        if ((await requestInteraction3dAccess2(), editorHost.isDisposed)) return;
-        (await editorHost.onSaveConfig(savedSnapshot),
-          editorHost.isDisposed || configurationFeedback.saved(savedSnapshot));
-      } catch (saveError: any) {
-        editorHost.isDisposed ||
-          ((editorHost.errorMessageElement.textContent = saveError.message),
-          configurationFeedback.failed(saveError));
-      } finally {
-        ((editorHost.isSaving = false),
-          editorHost.isDisposed ||
-            (saveButtonElement.disabled =
-              !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending));
-      }
-    };
-    const saveButtonElement = editorHost.createButton("保存配置", saveEditorConfiguration);
-    ((saveButtonElement.className = "primary"),
-      editorHost.headerElement.append(editorHost.createElement("strong", "", "3D " + editorHost.editorKindTitle + "配置")));
-    if (
-      editorHost.isClimateMode ||
-      editorHost.isCoverMode ||
-      editorHost.isWindowOpenerMode ||
-      editorHost.isTemperatureHumidityMode ||
-      editorHost.isDeviceKind ||
-      editorHost.isGenericDeviceMode ||
-      editorHost.isVacuumMode ||
-      editorHost.isVacuumShortcutMode
-    ) {
-      const showAllLabelsInput = editorHost.createElement("input");
-      ((showAllLabelsInput.type = "checkbox"),
-        (showAllLabelsInput.checked = editorHost.editingShowAllLabels === true),
-        showAllLabelsInput.setAttribute("aria-label", "显示本类全部标签"),
-        showAllLabelsInput.addEventListener("change", () => {
-          if (editorHost.isDisposed || !editorHost.isAccessAllowed) return;
-          ((editorHost.editingShowAllLabels = showAllLabelsInput.checked),
-            editorHost.editorRuntime?.update(
-              buildRuntimeProperties(),
-              editorHost.isVacuumShortcutMode && editorHost.text
-                ? "vacuum-room:" + editorHost.vacuumId + ":" + editorHost.text
-                : editorHost.describeGroupFieldValue(),
-              {
-                module: editorHost.deviceKind,
-                vacuumId: editorHost.isVacuumShortcutMode ? editorHost.vacuumId : "",
-                showAllLabels: editorHost.editingShowAllLabels === true,
-              },
-            ));
-        }));
-      const showAllLabelsToggleElement = editorHost.createElement(
-        "label",
-        "i3d-setting-toggle i3d-preview-label-toggle",
-      );
-      (showAllLabelsToggleElement.append(
-        editorHost.createElement("span", "", "显示本类全部标签"),
-        showAllLabelsInput,
-      ),
-        editorHost.headerElement.append(showAllLabelsToggleElement));
-    }
-    (editorHost.headerElement.append(
-      saveStatusElement,
-      saveButtonElement,
-      editorHost.createButton("退出", () =>
-        configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration),
-      ),
+        : [
+            ['size', '按钮大小', 'px'],
+            ['hitSize', '点击范围', 'px'],
+            ['fadeDuration', '缓开缓灭', '秒'],
+            // 灯光专属：这份清单同时决定「N 项修改」计数与「一键应用到其他灯光」的范围，
+            // 漏掉它就会出现「下拉改了、计数不动、也同步不出去」。
+            ...(editorHost.deviceKind === 'light'
+              ? ([['temperatureFallback', '不支持调色温时', '']] as [string, string, string][])
+              : []),
+          ]
+  /**
+   * 编辑会话基线（**可变单元**）：可编辑字段清单 + 条目基线快照。
+   *
+   * 原先这两份是宿主 `let`，而搬出去的会话/弹窗函数必须**重新赋值**它们
+   * （`switchEditorKind` 切换种类时重建两份；`renderVacuumShortcutPanel` 清空基线），
+   * 快照解构不等价 —— 收进一个可变单元整体传下去，宿主自己的 `listChangedFields`
+   * 也改成读这个单元（它随后一并搬进 `rendering/panel-session`）。
+   */
+  const editorSession = {
+    fieldDefs: buildEditableFieldList(),
+    baselineItemsById: new Map(
+      editorHost.getItemList().map((baselinedItem: any) => [baselinedItem.id, structuredClone(baselinedItem)]),
     ),
-      editorHost.bodyElement.append(editorHost.viewElement, editorHost.panelElement),
-      editorHost.editorDialogElement.append(editorHost.headerElement, editorHost.bodyElement),
-      editorHost.previewHandle || document.body.append(editorHost.editorDialogElement),
-      editorHost.editorDialogElement.addEventListener("cancel", (editorCancelEvent: any) => {
-        (editorCancelEvent.preventDefault(),
-          configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration));
-      }));
-    const buildRuntimeProperties = () => {
-      const floorId =
-          editorHost.isVacuumShortcutMode && editorHost.findVacuumModel() ? editorHost.findVacuumModel().floorId : editorHost.floorSelection,
-        camera =
-          editorHost.structuredClone2.floorCameras?.[floorId] ||
-          (floorId === editorHost.structuredClone2.floorSelection ? editorHost.structuredClone2.camera : null);
-      return {
-        ...editorHost.structuredClone2, floorSelection: floorId,
-        ...(camera === undefined
-          ? {}
-          : {
-              camera: camera,
-            }),
-      };
-    };
-    function refreshEditorPreview(markChanged = true) {
-      (buildCurtainGroupOptions(),
-        markChanged ? configurationFeedback.changed() : configurationFeedback.refresh(),
-        editorHost.editorRuntime?.update(
-          buildRuntimeProperties(),
-          editorHost.isVacuumShortcutMode && editorHost.text
-            ? "vacuum-room:" + editorHost.vacuumId + ":" + editorHost.text
-            : editorHost.describeGroupFieldValue(),
-          {
-            module: editorHost.deviceKind,
-            vacuumId: editorHost.isVacuumShortcutMode ? editorHost.vacuumId : "",
-            showAllLabels: editorHost.editingShowAllLabels === true,
-          },
-        ),
-        refreshBatchButtons());
-    }
-    function createSettingRow(rowContainer: any, rowLabel: any, rowControl: any) {
-      rowControl.name = "i3d-" + editorHost.deviceKind + "-" + (editorHost.text || "scene") + "-" + rowLabel;
-      const settingRowElement = editorHost.createElement(
-        "label",
-        rowControl.type === "checkbox" ? "i3d-setting-toggle" : "",
-      );
-      return (
-        settingRowElement.append(editorHost.createElement("span", "", rowLabel), rowControl),
-        rowContainer.append(settingRowElement),
-        rowControl
-      );
-    }
-    function createSelectRow(
-      selectContainer: any,
-      selectLabel: any,
-      selectOptions: any,
-      selectValue: any,
-      onSelectChange: any,
-    ) {
-      const selectElement = editorHost.createElement("select");
-      for (const [optionValueKey, optionLabelText] of selectOptions) {
-        const optionElement = editorHost.createElement("option", "", optionLabelText);
-        ((optionElement.value = optionValueKey), selectElement.append(optionElement));
+  }
+  const kindSessionsByKind = new Map()
+  let auxDialogElement: any = null,
+    refreshBatchButtons = () => {}
+  const syncPreviewSize = () => {
+      // 借用会话里画面就是编辑器页的运行时（绝对定位铺满），不要再按比例去改容器尺寸。
+      if (editorHost.isBorrowedPreview) return
+      const previewSize = interaction3dPreviewSize2(
+        editorHost.component,
+        editorHost.documentApi,
+        editorHost.viewElement.clientWidth,
+        editorHost.viewElement.clientHeight,
+      )
+      Object.assign(editorHost.aspectBoxElement.style, {
+        width: previewSize.width + 'px',
+        height: previewSize.height + 'px',
+      })
+    },
+    resizeObserver = observeInteraction3dPreview(editorHost.viewElement, syncPreviewSize)
+  const disposeEditor = () => {
+      editorHost.isDisposed ||
+        ((editorHost.isDisposed = true),
+        closeAddDialog(),
+        closeAuxDialog(),
+        editorHost.subEditorHandle?.close(),
+        resizeObserver.disconnect(),
+        editorHost.pickerGeneration++,
+        editorHost.pickerHandle?.close(),
+        // 共享装饰器不在这里回收：安防 / 存在感应等入口用的是同一份，关掉本弹窗不该让它失效。
+        // 关窗即销毁运行时（`keep: false`）：与 0.8.2 一致，下次打开重新挂一份干净的。
+        // 池里「保留 2 分钟再复用」会把 `viewport` 清空，而运行时不会再把自己接回去 ——
+        // 复用出来的第二次打开只剩面板、没有 3D 画面，所以这里不走保留分支。
+        editorHost.previewHandle ? editorHost.previewHandle.release({ keep: false }) : editorHost.editorRuntime?.(),
+        editorHost.accessUnsubscribe?.(),
+        configurationFeedback.dispose(),
+        editorHost.previewHandle || editorHost.editorDialogElement.remove(),
+        editorHost.element.remove(),
+        document.dispatchEvent(new Event('hb-i3d-preview-scope')))
+    },
+    saveStatusElement = editorHost.createElement('span', 'i3d-save-status')
+  saveStatusElement.setAttribute('role', 'status')
+  // 保存反馈统一走状态机：脏状态按「属性快照 JSON」比较，退出前能拦住未保存的修改。
+  const configurationFeedback = createConfigurationFeedback({
+    read: () => editorHost.structuredClone2,
+    status: saveStatusElement,
+    document,
+  })
+  editorHost.configurationFeedback = configurationFeedback
+  const saveEditorConfiguration = async () => {
+    if (
+      editorHost.isSaving ||
+      editorHost.isDisposed ||
+      !editorHost.isAccessAllowed ||
+      editorHost.isCameraEditing ||
+      editorHost.isCameraCommandPending
+    )
+      return
+    for (const carRecord of editorHost.structuredClone2.devices?.cars || []) {
+      if (!carRecord.chargingStates) continue
+      const chargingMappingError = carChargingMappingError2(carRecord.chargingStates)
+      if (chargingMappingError) {
+        const chargingErrorMessage = (carRecord.label || carRecord.deviceName || '汽车') + '：' + chargingMappingError
+        editorHost.errorMessageElement.textContent = chargingErrorMessage
+        configurationFeedback.failed(new Error(chargingErrorMessage))
+        return
       }
-      return (
-        (selectElement.value = selectValue),
-        selectElement.addEventListener("change", () => onSelectChange(selectElement.value)),
-        createSettingRow(selectContainer, selectLabel, selectElement)
-      );
     }
-    function createNumberRow(
-      numberFieldContainer: any,
-      numberFieldLabel: any,
-      numberFieldValue: any,
-      numberFieldMin: any,
-      numberFieldMax: any,
-      numberFieldStep: any,
-      onNumberFieldChange: any,
-      numberInputMode = "number",
-      isCheckboxMode = false,
-    ) {
-      const endsWith = numberFieldLabel.endsWith("高度（米）"),
-        formatNumberValue = (value: any) => (endsWith ? Number(value).toFixed(1) : String(value)),
-        numberInputElement = editorHost.createElement("input");
-      return (
-        Object.assign(numberInputElement, {
-          type: numberInputMode,
-          min: String(numberFieldMin),
-          max: String(numberFieldMax),
-          step: String(endsWith ? 0.1 : numberFieldStep),
-          value: formatNumberValue(numberFieldValue),
-        }),
-        isCheckboxMode &&
-          numberInputMode === "number" &&
-          numberInputElement.addEventListener("input", () => {
-            const NaN2 =
-              numberInputElement.value.trim() === "" ? NaN : Number(numberInputElement.value);
-            !Number.isFinite(NaN2) ||
-              NaN2 < numberFieldMin ||
-              NaN2 > numberFieldMax ||
-              NaN2 === numberFieldValue ||
-              ((numberFieldValue = NaN2), onNumberFieldChange(numberFieldValue));
+    const savedSnapshot = configurationFeedback.capture()
+    ;(editorHost.isSaving = true),
+      (saveButtonElement.disabled = true),
+      (editorHost.errorMessageElement.textContent = '')
+    try {
+      if ((await requestInteraction3dAccess2(), editorHost.isDisposed)) return
+      await editorHost.onSaveConfig(savedSnapshot), editorHost.isDisposed || configurationFeedback.saved(savedSnapshot)
+    } catch (saveError: any) {
+      editorHost.isDisposed ||
+        ((editorHost.errorMessageElement.textContent = saveError.message), configurationFeedback.failed(saveError))
+    } finally {
+      ;(editorHost.isSaving = false),
+        editorHost.isDisposed ||
+          (saveButtonElement.disabled =
+            !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending)
+    }
+  }
+  const saveButtonElement = editorHost.createButton('保存配置', saveEditorConfiguration)
+  ;(saveButtonElement.className = 'primary'),
+    editorHost.headerElement.append(editorHost.createElement('strong', '', '3D ' + editorHost.editorKindTitle + '配置'))
+  if (
+    editorHost.isClimateMode ||
+    editorHost.isCoverMode ||
+    editorHost.isWindowOpenerMode ||
+    editorHost.isTemperatureHumidityMode ||
+    editorHost.isDeviceKind ||
+    editorHost.isGenericDeviceMode ||
+    editorHost.isVacuumMode ||
+    editorHost.isVacuumShortcutMode
+  ) {
+    const showAllLabelsInput = editorHost.createElement('input')
+    ;(showAllLabelsInput.type = 'checkbox'),
+      (showAllLabelsInput.checked = editorHost.editingShowAllLabels === true),
+      showAllLabelsInput.setAttribute('aria-label', '显示本类全部标签'),
+      showAllLabelsInput.addEventListener('change', () => {
+        if (editorHost.isDisposed || !editorHost.isAccessAllowed) return
+        ;(editorHost.editingShowAllLabels = showAllLabelsInput.checked),
+          editorHost.editorRuntime?.update(
+            buildRuntimeProperties(),
+            editorHost.isVacuumShortcutMode && editorHost.text
+              ? 'vacuum-room:' + editorHost.vacuumId + ':' + editorHost.text
+              : editorHost.describeGroupFieldValue(),
+            {
+              module: editorHost.deviceKind,
+              vacuumId: editorHost.isVacuumShortcutMode ? editorHost.vacuumId : '',
+              showAllLabels: editorHost.editingShowAllLabels === true,
+            },
+          )
+      })
+    const showAllLabelsToggleElement = editorHost.createElement('label', 'i3d-setting-toggle i3d-preview-label-toggle')
+    showAllLabelsToggleElement.append(editorHost.createElement('span', '', '显示本类全部标签'), showAllLabelsInput),
+      editorHost.headerElement.append(showAllLabelsToggleElement)
+  }
+  editorHost.headerElement.append(
+    saveStatusElement,
+    saveButtonElement,
+    editorHost.createButton('退出', () => configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration)),
+  ),
+    editorHost.bodyElement.append(editorHost.viewElement, editorHost.panelElement),
+    editorHost.editorDialogElement.append(editorHost.headerElement, editorHost.bodyElement),
+    editorHost.previewHandle || document.body.append(editorHost.editorDialogElement),
+    editorHost.editorDialogElement.addEventListener('cancel', (editorCancelEvent: any) => {
+      editorCancelEvent.preventDefault(), configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration)
+    })
+  const buildRuntimeProperties = () => {
+    const floorId =
+        editorHost.isVacuumShortcutMode && editorHost.findVacuumModel()
+          ? editorHost.findVacuumModel().floorId
+          : editorHost.floorSelection,
+      camera =
+        editorHost.structuredClone2.floorCameras?.[floorId] ||
+        (floorId === editorHost.structuredClone2.floorSelection ? editorHost.structuredClone2.camera : null)
+    return {
+      ...editorHost.structuredClone2,
+      floorSelection: floorId,
+      ...(camera === undefined
+        ? {}
+        : {
+            camera: camera,
           }),
-        numberInputElement.addEventListener(numberInputMode === "range" ? "input" : "change", () => {
-          const NaN3 =
-            numberInputElement.value.trim() === "" ? NaN : Number(numberInputElement.value);
-          if (!Number.isFinite(NaN3)) {
-            numberInputElement.value = formatNumberValue(numberFieldValue);
-            return;
-          }
-          const hasNumericSupportedFeatures = numberFieldValue;
-          ((numberFieldValue = Math.max(numberFieldMin, Math.min(numberFieldMax, NaN3))),
-            endsWith && (numberFieldValue = Number(numberFieldValue.toFixed(1))),
-            (numberInputElement.value = formatNumberValue(numberFieldValue)),
-            (!isCheckboxMode || numberFieldValue !== hasNumericSupportedFeatures) &&
-              onNumberFieldChange(numberFieldValue));
-        }),
-        createSettingRow(numberFieldContainer, numberFieldLabel, numberInputElement)
-      );
     }
-    function createSizeRow(sizeRowContainer: any, sizeRowLabel: any, readSizeValue: any, onSizeValueChange: any) {
-      const sizeInputElement = editorHost.createElement("input");
-      return (
-        Object.assign(sizeInputElement, {
-          type: "number",
-          step: "any",
-          value: String(Number(readSizeValue().toPrecision(12))),
-        }),
-        sizeInputElement.addEventListener("change", () => {
-          const NaN4 = sizeInputElement.value.trim() === "" ? NaN : Number(sizeInputElement.value);
-          Number.isFinite(NaN4) && NaN4 > 0
-            ? ((sizeInputElement.value = String(NaN4)), onSizeValueChange(NaN4))
-            : (sizeInputElement.value = String(readSizeValue()));
-        }),
-        createSettingRow(sizeRowContainer, sizeRowLabel, sizeInputElement)
-      );
+  }
+  function refreshEditorPreview(markChanged = true) {
+    buildCurtainGroupOptions(),
+      markChanged ? configurationFeedback.changed() : configurationFeedback.refresh(),
+      editorHost.editorRuntime?.update(
+        buildRuntimeProperties(),
+        editorHost.isVacuumShortcutMode && editorHost.text
+          ? 'vacuum-room:' + editorHost.vacuumId + ':' + editorHost.text
+          : editorHost.describeGroupFieldValue(),
+        {
+          module: editorHost.deviceKind,
+          vacuumId: editorHost.isVacuumShortcutMode ? editorHost.vacuumId : '',
+          showAllLabels: editorHost.editingShowAllLabels === true,
+        },
+      ),
+      refreshBatchButtons()
+  }
+  function createSettingRow(rowContainer: any, rowLabel: any, rowControl: any) {
+    rowControl.name = 'i3d-' + editorHost.deviceKind + '-' + (editorHost.text || 'scene') + '-' + rowLabel
+    const settingRowElement = editorHost.createElement(
+      'label',
+      rowControl.type === 'checkbox' ? 'i3d-setting-toggle' : '',
+    )
+    return (
+      settingRowElement.append(editorHost.createElement('span', '', rowLabel), rowControl),
+      rowContainer.append(settingRowElement),
+      rowControl
+    )
+  }
+  function createSelectRow(
+    selectContainer: any,
+    selectLabel: any,
+    selectOptions: any,
+    selectValue: any,
+    onSelectChange: any,
+  ) {
+    const selectElement = editorHost.createElement('select')
+    for (const [optionValueKey, optionLabelText] of selectOptions) {
+      const optionElement = editorHost.createElement('option', '', optionLabelText)
+      ;(optionElement.value = optionValueKey), selectElement.append(optionElement)
     }
-  
-  
-    function syncLinkedIconSize(targetConfig: any, nextButtonSize: any) {
-      const resolvedIconSize = buttonIconSize(nextButtonSize);
-      targetConfig.iconSize = resolvedIconSize;
-      return resolvedIconSize;
-    }
-    function listAddableModels() {
-      return (editorHost.sceneMetadata?.floors || [])
-        .filter((candidateFloorEntry: any) => candidateFloorEntry.id === editorHost.floorSelection)
-        .flatMap((floorWithModels: any) =>
-          (editorHost.usesModelBinding ? floorWithModels[editorHost.collectionKey] || [] : floorWithModels.groups || [])
-            .filter(
-              (modelInFloor: any) =>
-                !editorHost.getItemList().some(
+    return (
+      (selectElement.value = selectValue),
+      selectElement.addEventListener('change', () => onSelectChange(selectElement.value)),
+      createSettingRow(selectContainer, selectLabel, selectElement)
+    )
+  }
+  function createNumberRow(
+    numberFieldContainer: any,
+    numberFieldLabel: any,
+    numberFieldValue: any,
+    numberFieldMin: any,
+    numberFieldMax: any,
+    numberFieldStep: any,
+    onNumberFieldChange: any,
+    numberInputMode = 'number',
+    isCheckboxMode = false,
+  ) {
+    const endsWith = numberFieldLabel.endsWith('高度（米）'),
+      formatNumberValue = (value: any) => (endsWith ? Number(value).toFixed(1) : String(value)),
+      numberInputElement = editorHost.createElement('input')
+    return (
+      Object.assign(numberInputElement, {
+        type: numberInputMode,
+        min: String(numberFieldMin),
+        max: String(numberFieldMax),
+        step: String(endsWith ? 0.1 : numberFieldStep),
+        value: formatNumberValue(numberFieldValue),
+      }),
+      isCheckboxMode &&
+        numberInputMode === 'number' &&
+        numberInputElement.addEventListener('input', () => {
+          const NaN2 = numberInputElement.value.trim() === '' ? NaN : Number(numberInputElement.value)
+          !Number.isFinite(NaN2) ||
+            NaN2 < numberFieldMin ||
+            NaN2 > numberFieldMax ||
+            NaN2 === numberFieldValue ||
+            ((numberFieldValue = NaN2), onNumberFieldChange(numberFieldValue))
+        }),
+      numberInputElement.addEventListener(numberInputMode === 'range' ? 'input' : 'change', () => {
+        const NaN3 = numberInputElement.value.trim() === '' ? NaN : Number(numberInputElement.value)
+        if (!Number.isFinite(NaN3)) {
+          numberInputElement.value = formatNumberValue(numberFieldValue)
+          return
+        }
+        const hasNumericSupportedFeatures = numberFieldValue
+        ;(numberFieldValue = Math.max(numberFieldMin, Math.min(numberFieldMax, NaN3))),
+          endsWith && (numberFieldValue = Number(numberFieldValue.toFixed(1))),
+          (numberInputElement.value = formatNumberValue(numberFieldValue)),
+          (!isCheckboxMode || numberFieldValue !== hasNumericSupportedFeatures) && onNumberFieldChange(numberFieldValue)
+      }),
+      createSettingRow(numberFieldContainer, numberFieldLabel, numberInputElement)
+    )
+  }
+  function createSizeRow(sizeRowContainer: any, sizeRowLabel: any, readSizeValue: any, onSizeValueChange: any) {
+    const sizeInputElement = editorHost.createElement('input')
+    return (
+      Object.assign(sizeInputElement, {
+        type: 'number',
+        step: 'any',
+        value: String(Number(readSizeValue().toPrecision(12))),
+      }),
+      sizeInputElement.addEventListener('change', () => {
+        const NaN4 = sizeInputElement.value.trim() === '' ? NaN : Number(sizeInputElement.value)
+        Number.isFinite(NaN4) && NaN4 > 0
+          ? ((sizeInputElement.value = String(NaN4)), onSizeValueChange(NaN4))
+          : (sizeInputElement.value = String(readSizeValue()))
+      }),
+      createSettingRow(sizeRowContainer, sizeRowLabel, sizeInputElement)
+    )
+  }
+
+  function syncLinkedIconSize(targetConfig: any, nextButtonSize: any) {
+    const resolvedIconSize = buttonIconSize(nextButtonSize)
+    targetConfig.iconSize = resolvedIconSize
+    return resolvedIconSize
+  }
+  function listAddableModels() {
+    return (editorHost.sceneMetadata?.floors || [])
+      .filter((candidateFloorEntry: any) => candidateFloorEntry.id === editorHost.floorSelection)
+      .flatMap((floorWithModels: any) =>
+        (editorHost.usesModelBinding ? floorWithModels[editorHost.collectionKey] || [] : floorWithModels.groups || [])
+          .filter(
+            (modelInFloor: any) =>
+              !editorHost
+                .getItemList()
+                .some(
                   (existingModelItem: any) =>
                     existingModelItem.floorId === floorWithModels.id &&
                     existingModelItem[editorHost.modelIdKey] === modelInFloor.id,
                 ),
-            )
-            .map((addableModel: any) => ({
-              floor: floorWithModels,
-              group: addableModel,
-              key: JSON.stringify([floorWithModels.id, addableModel.id]),
-            })),
-        );
-    }
-        function closeAuxDialog() {
-      (auxDialogElement?.close(), auxDialogElement?.remove(), (auxDialogElement = null));
-    }
-    function closeAddDialog() {
-      (editorHost.addDialogState && (editorHost.pickerGeneration++, editorHost.pickerHandle?.close(), (editorHost.pickerHandle = null)),
-        editorHost.addDialogState?.close(),
-        editorHost.addDialogState?.remove(),
-        (editorHost.addDialogState = null));
-    }
-                function createConfigSection(sectionTitle: any) {
-      const configSectionElement = editorHost.createElement("section", "i3d-config-section");
-      return (
-        configSectionElement.append(editorHost.createElement("h4", "", sectionTitle)),
-        editorHost.panelElement.append(configSectionElement),
-        configSectionElement
-      );
-    }
-    function createConfigRow(parentSectionElement: any) {
-      const configRowElement = editorHost.createElement("div", "i3d-config-row");
-      return (parentSectionElement.append(configRowElement), configRowElement);
-    }
-                              editorHost.saveButtonElement = saveButtonElement;
-  editorHost.saveStatusElement = saveStatusElement;
+          )
+          .map((addableModel: any) => ({
+            floor: floorWithModels,
+            group: addableModel,
+            key: JSON.stringify([floorWithModels.id, addableModel.id]),
+          })),
+      )
+  }
+  function closeAuxDialog() {
+    auxDialogElement?.close(), auxDialogElement?.remove(), (auxDialogElement = null)
+  }
+  function closeAddDialog() {
+    editorHost.addDialogState &&
+      (editorHost.pickerGeneration++, editorHost.pickerHandle?.close(), (editorHost.pickerHandle = null)),
+      editorHost.addDialogState?.close(),
+      editorHost.addDialogState?.remove(),
+      (editorHost.addDialogState = null)
+  }
+  function createConfigSection(sectionTitle: any) {
+    const configSectionElement = editorHost.createElement('section', 'i3d-config-section')
+    return (
+      configSectionElement.append(editorHost.createElement('h4', '', sectionTitle)),
+      editorHost.panelElement.append(configSectionElement),
+      configSectionElement
+    )
+  }
+  function createConfigRow(parentSectionElement: any) {
+    const configRowElement = editorHost.createElement('div', 'i3d-config-row')
+    return (parentSectionElement.append(configRowElement), configRowElement)
+  }
+  editorHost.saveButtonElement = saveButtonElement
+  editorHost.saveStatusElement = saveStatusElement
   Object.assign(editorHost, {
     buildCurtainGroupOptions,
     ensureItemCollections,
@@ -660,13 +662,13 @@ export function attachEditorPanelRendering(editorHost: any) {
     renderAirPurifierBindingSection,
     openLabelBatchApplyDialog,
     renderPanel,
-  });
-  Object.defineProperty(editorHost, "auxDialogElement", {
+  })
+  Object.defineProperty(editorHost, 'auxDialogElement', {
     get: () => auxDialogElement,
     set: (value: any) => {
-      auxDialogElement = value;
+      auxDialogElement = value
     },
     enumerable: true,
     configurable: true,
-  });
+  })
 }

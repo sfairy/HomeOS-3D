@@ -3,10 +3,10 @@
 /** 从 entity_id 提取 domain（如 light.living → light） */
 export function getEntityDomain(entityId: string): string {
   // 防御性转换：容忍 null / undefined / 非字符串输入
-  const id = String(entityId || '');
-  const dot = id.indexOf('.');
+  const id = String(entityId || '')
+  const dot = id.indexOf('.')
   // dot > 0 确保 domain 非空（避免 ".living" 返回空串时误判）
-  return dot > 0 ? id.slice(0, dot) : '';
+  return dot > 0 ? id.slice(0, dot) : ''
 }
 
 /**
@@ -16,9 +16,9 @@ export function getEntityDomain(entityId: string): string {
  * 供前端展示兜底文案、后端生成变量名等场景统一使用，避免各处自行切分导致空串/undefined 差异。
  */
 export function getEntityLeaf(entityId: string): string {
-  const id = String(entityId || '');
-  const dot = id.lastIndexOf('.');
-  if (dot < 0) return id;
-  const leaf = id.slice(dot + 1);
-  return leaf || id;
+  const id = String(entityId || '')
+  const dot = id.lastIndexOf('.')
+  if (dot < 0) return id
+  const leaf = id.slice(dot + 1)
+  return leaf || id
 }

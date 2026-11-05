@@ -6,17 +6,17 @@
 export function createPreviewTransformCache() {
   const capturedByRoot = new WeakMap(),
     committedByPlan = new WeakMap(),
-    ignoredKeys = new Set(["x", "y", "rotation", "remark"]);
+    ignoredKeys = new Set(['x', 'y', 'rotation', 'remark'])
   function captureEntry(item: any, isEligible: any, isSelected: any) {
-    if (!item || typeof item != "object" || typeof item.id != "string" || !item.id) return null;
+    if (!item || typeof item != 'object' || typeof item.id != 'string' || !item.id) return null
     const x = item.x,
       y = item.y,
-      rotation = item.rotation ?? 0;
-    if (![x, y, rotation].every(Number.isFinite)) return null;
+      rotation = item.rotation ?? 0
+    if (![x, y, rotation].every(Number.isFinite)) return null
     try {
       const signature = JSON.stringify(
         Object.fromEntries(Object.entries(item).filter(([key]) => !ignoredKeys.has(key))),
-      );
+      )
       return {
         item: item,
         id: item.id,
@@ -26,34 +26,31 @@ export function createPreviewTransformCache() {
         signature: signature,
         eligible: isEligible(item) === true,
         selected: isSelected(item) === true,
-      };
+      }
     } catch {
-      return null;
+      return null
     }
   }
   function captureEntries(items: any, isEligible: any, isSelected: any) {
-    if (!Array.isArray(items) || typeof isEligible != "function" || typeof isSelected != "function")
-      return null;
+    if (!Array.isArray(items) || typeof isEligible != 'function' || typeof isSelected != 'function') return null
     const entries: any[] = [],
-      seenIds = new Set();
+      seenIds = new Set()
     for (const item of items) {
-      const entry = captureEntry(item, isEligible, isSelected);
-      if (!entry || seenIds.has(entry.id)) return null;
-      (seenIds.add(entry.id), entries.push(entry));
+      const entry = captureEntry(item, isEligible, isSelected)
+      if (!entry || seenIds.has(entry.id)) return null
+      seenIds.add(entry.id), entries.push(entry)
     }
-    return entries;
+    return entries
   }
   function capture(root: any, { items, contextKey, isEligible, isSelected, groups }: any) {
-    capturedByRoot.delete(root);
-    const entries = captureEntries(items, isEligible, isSelected);
-    if (!entries) return false;
+    capturedByRoot.delete(root)
+    const entries = captureEntries(items, isEligible, isSelected)
+    if (!entries) return false
     const groupByItemId =
-      groups instanceof Map
-        ? groups
-        : new Map((groups || []).map(({ item, group }: any) => [item.id, group]));
+      groups instanceof Map ? groups : new Map((groups || []).map(({ item, group }: any) => [item.id, group]))
     for (const entry of entries) {
-      const group = groupByItemId.get(entry.id);
-      entry.group = entry.eligible && entry.selected && group?.parent === root ? group : null;
+      const group = groupByItemId.get(entry.id)
+      entry.group = entry.eligible && entry.selected && group?.parent === root ? group : null
     }
     return (
       capturedByRoot.set(root, {
@@ -61,17 +58,17 @@ export function createPreviewTransformCache() {
         entries: entries,
       }),
       true
-    );
+    )
   }
   function plan(root: any, { items, contextKey, isEligible, isSelected }: any) {
-    const captured = capturedByRoot.get(root);
-    if (!captured || captured.contextKey !== contextKey) return null;
-    const entries = captureEntries(items, isEligible, isSelected);
-    if (!entries || entries.length !== captured.entries.length) return null;
-    const movedTransforms: any[] = [];
+    const captured = capturedByRoot.get(root)
+    if (!captured || captured.contextKey !== contextKey) return null
+    const entries = captureEntries(items, isEligible, isSelected)
+    if (!entries || entries.length !== captured.entries.length) return null
+    const movedTransforms: any[] = []
     for (let index = 0; index < entries.length; index++) {
       const entry = entries[index],
-        previousEntry = captured.entries[index];
+        previousEntry = captured.entries[index]
       if (
         entry.item !== previousEntry.item ||
         entry.id !== previousEntry.id ||
@@ -79,13 +76,12 @@ export function createPreviewTransformCache() {
         entry.selected !== previousEntry.selected ||
         entry.eligible !== previousEntry.eligible
       )
-        return null;
+        return null
       if (
         ((entry.group = previousEntry.group),
         !(entry.x === previousEntry.x && entry.y === previousEntry.y && entry.rotation === previousEntry.rotation))
       ) {
-        if (!entry.eligible || !entry.selected || !entry.group || entry.group.parent !== root)
-          return null;
+        if (!entry.eligible || !entry.selected || !entry.group || entry.group.parent !== root) return null
         movedTransforms.push(
           Object.freeze({
             item: entry.item,
@@ -94,7 +90,7 @@ export function createPreviewTransformCache() {
             y: entry.y,
             rotation: entry.rotation,
           }),
-        );
+        )
       }
     }
     return (
@@ -105,10 +101,10 @@ export function createPreviewTransformCache() {
         entries: entries,
       }),
       movedTransforms
-    );
+    )
   }
   function commit(root: any, plan: any) {
-    const planState = committedByPlan.get(plan);
+    const planState = committedByPlan.get(plan)
     return !planState || planState.root !== root || capturedByRoot.get(root) !== planState.previous
       ? false
       : (committedByPlan.delete(plan),
@@ -116,7 +112,7 @@ export function createPreviewTransformCache() {
           contextKey: planState.previous.contextKey,
           entries: planState.entries,
         }),
-        true);
+        true)
   }
   return {
     capture: capture,
@@ -126,5 +122,5 @@ export function createPreviewTransformCache() {
     planReplacements: plan,
     commitReplacements: commit,
     clear: (root: any) => capturedByRoot.delete(root),
-  };
+  }
 }

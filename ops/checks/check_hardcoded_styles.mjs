@@ -28,29 +28,29 @@
  *   node ops/checks/check_hardcoded_styles.mjs --update  # 重写基线（只该在数字变小时跑）
  *   node ops/checks/check_hardcoded_styles.mjs --json    # 机器可读输出
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 
-const args = process.argv.slice(2);
+const args = process.argv.slice(2)
 const argOf = (name, fallback) => {
-  const index = args.indexOf(`--${name}`);
-  return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
-};
+  const index = args.indexOf(`--${name}`)
+  return index >= 0 && args[index + 1] ? args[index + 1] : fallback
+}
 
-const repoRoot = resolve(argOf('root', resolve(import.meta.dirname, '../..')));
-const update = args.includes('--update');
-const asJson = args.includes('--json');
-const BASELINE = join(repoRoot, 'ops/checks/hardcoded-styles-baseline.json');
+const repoRoot = resolve(argOf('root', resolve(import.meta.dirname, '../..')))
+const update = args.includes('--update')
+const asJson = args.includes('--json')
+const BASELINE = join(repoRoot, 'ops/checks/hardcoded-styles-baseline.json')
 
 /** 与 check_frontend_complexity.mjs 保持一致的两棵前端源码树。 */
-const ROOTS = ['homeos/frontend/src', 'homeos-store/frontend/src'];
-const EXTENSIONS = new Set(['.css', '.scss', '.vue', '.ts', '.js']);
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__snapshots__']);
+const ROOTS = ['homeos/frontend/src', 'homeos-store/frontend/src']
+const EXTENSIONS = new Set(['.css', '.scss', '.vue', '.ts', '.js'])
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__snapshots__'])
 
 /** `#abc` / `#abcd` / `#aabbcc` / `#aabbccdd`；前面不能紧跟标识符字符（排除 `url(#id)`）。 */
-const HEX_COLOR = /(?<![\w&])#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
+const HEX_COLOR = /(?<![\w&])#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g
 /** 时长字面量：前面是冒号/空格/逗号，且不是 `0s` / `0ms`。 */
-const DURATION = /(?<![\w.-])(?!0(?:ms|s)\b)\d+(?:\.\d+)?m?s\b/g;
+const DURATION = /(?<![\w.-])(?!0(?:ms|s)\b)\d+(?:\.\d+)?m?s\b/g
 
 /**
  * 去掉不参与统计的片段，避免误伤。
@@ -59,112 +59,110 @@ const DURATION = /(?<![\w.-])(?!0(?:ms|s)\b)\d+(?:\.\d+)?m?s\b/g;
  * 万一以后要给出行列号也不用重新算。
  */
 function stripNonCode(text) {
-  let out = text;
+  let out = text
   // 块注释
-  out = out.replace(/\/\*[\s\S]*?\*\//g, (match) => ' '.repeat(match.length));
+  out = out.replace(/\/\*[\s\S]*?\*\//g, (match) => ' '.repeat(match.length))
   // HTML 注释
-  out = out.replace(/<!--[\s\S]*?-->/g, (match) => ' '.repeat(match.length));
+  out = out.replace(/<!--[\s\S]*?-->/g, (match) => ' '.repeat(match.length))
   // 行注释（不跨越换行，避免吃掉后面的代码）。前置 `[^:]` 让协议里的 `//` 不被误判。
-  out = out.replace(/(^|[^:])\/\/[^\n]*/g, (match) => ' '.repeat(match.length));
+  out = out.replace(/(^|[^:])\/\/[^\n]*/g, (match) => ' '.repeat(match.length))
   // url(#some-id) / href="#anchor"：`#` 后面不是 hex 的本来就匹配不上 HEX_COLOR，
   // 但 `url(#abc)` 会被当成 6 位以下的短 hex，这里显式抹掉。
-  out = out.replace(/url\(\s*#[^)]*\)/g, (match) => ' '.repeat(match.length));
-  return out;
+  out = out.replace(/url\(\s*#[^)]*\)/g, (match) => ' '.repeat(match.length))
+  return out
 }
 
 function walk(dir, out = []) {
-  let entries;
+  let entries
   try {
-    entries = readdirSync(dir, { withFileTypes: true });
+    entries = readdirSync(dir, { withFileTypes: true })
   } catch {
-    return out;
+    return out
   }
   for (const entry of entries) {
-    if (SKIP_DIRS.has(entry.name)) continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) out.push(full);
+    if (SKIP_DIRS.has(entry.name)) continue
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) walk(full, out)
+    else if (EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) out.push(full)
   }
-  return out;
+  return out
 }
 
 /** 统计单个文件的 color / duration / important。 */
 function countFile(file) {
-  const raw = readFileSync(file, 'utf8');
-  const text = stripNonCode(raw);
-  const color = (text.match(HEX_COLOR) || []).length;
-  const duration = (text.match(DURATION) || []).length;
-  const important = (text.match(/!important/g) || []).length;
-  return { color, duration, important };
+  const raw = readFileSync(file, 'utf8')
+  const text = stripNonCode(raw)
+  const color = (text.match(HEX_COLOR) || []).length
+  const duration = (text.match(DURATION) || []).length
+  const important = (text.match(/!important/g) || []).length
+  return { color, duration, important }
 }
 
-const files = ROOTS.flatMap((root) => walk(join(repoRoot, root))).sort();
-const counts = {};
-const totals = { files: 0, color: 0, duration: 0, important: 0 };
+const files = ROOTS.flatMap((root) => walk(join(repoRoot, root))).sort()
+const counts = {}
+const totals = { files: 0, color: 0, duration: 0, important: 0 }
 
 for (const file of files) {
-  const result = countFile(file);
-  if (result.color === 0 && result.duration === 0 && result.important === 0) continue;
-  counts[relative(repoRoot, file)] = result;
-  totals.files += 1;
-  totals.color += result.color;
-  totals.duration += result.duration;
-  totals.important += result.important;
+  const result = countFile(file)
+  if (result.color === 0 && result.duration === 0 && result.important === 0) continue
+  counts[relative(repoRoot, file)] = result
+  totals.files += 1
+  totals.color += result.color
+  totals.duration += result.duration
+  totals.important += result.important
 }
 
 if (update) {
-  writeFileSync(
-    BASELINE,
-    `${JSON.stringify({ totals, files: counts }, null, 2)}\n`,
-    'utf8',
-  );
+  writeFileSync(BASELINE, `${JSON.stringify({ totals, files: counts }, null, 2)}\n`, 'utf8')
   console.log(
     `硬编码样式基线已更新：${totals.files} 个文件，` +
       `color=${totals.color} duration=${totals.duration} important=${totals.important}`,
-  );
-  process.exit(0);
+  )
+  process.exit(0)
 }
 
-let baseline;
+let baseline
 try {
-  baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
+  baseline = JSON.parse(readFileSync(BASELINE, 'utf8'))
 } catch (error) {
   console.error(
     `硬编码样式棘轮：读不到基线 ${relative(repoRoot, BASELINE)}（${error.message}）。` +
       '首次启用请先跑 --update 生成基线。',
-  );
-  process.exit(2);
+  )
+  process.exit(2)
 }
 
-const baselineFiles = baseline.files || {};
-const problems = [];
+const baselineFiles = baseline.files || {}
+const problems = []
 
 for (const file of Object.keys(counts).sort()) {
-  const before = baselineFiles[file];
+  const before = baselineFiles[file]
   if (!before) {
-    problems.push(`${file}: 新文件引入硬编码（color=${counts[file].color} duration=${counts[file].duration}${counts[file].important ? ` important=${counts[file].important}` : ''}）`);
-    continue;
+    problems.push(
+      `${file}: 新文件引入硬编码（color=${counts[file].color} duration=${counts[file].duration}${counts[file].important ? ` important=${counts[file].important}` : ''}）`,
+    )
+    continue
   }
   for (const key of ['color', 'duration', 'important']) {
-    const after = counts[file][key] ?? 0;
-    const was = before[key] ?? 0;
-    if (after > was) problems.push(`${file}: ${key} ${was} -> ${after}`);
+    const after = counts[file][key] ?? 0
+    const was = before[key] ?? 0
+    if (after > was) problems.push(`${file}: ${key} ${was} -> ${after}`)
   }
 }
 
 if (asJson) {
-  console.log(JSON.stringify({ totals, problems }, null, 2));
+  console.log(JSON.stringify({ totals, problems }, null, 2))
 } else if (problems.length > 0) {
-  console.error(`硬编码样式棘轮失败：${problems.length} 项增加`);
-  for (const line of problems) console.error(`  - ${line}`);
-  console.error('  说明：新增颜色请用 --hos-color-* / --hos-bg-* / --hos-fg-* 令牌；');
-  console.error('        新增时长请用 --hos-dur-{fast,base,slow,slower}。');
-  console.error('        基线只该被 --update 压低，不要手工改大。');
+  console.error(`硬编码样式棘轮失败：${problems.length} 项增加`)
+  for (const line of problems) console.error(`  - ${line}`)
+  console.error('  说明：新增颜色请用 --hos-color-* / --hos-bg-* / --hos-fg-* 令牌；')
+  console.error('        新增时长请用 --hos-dur-{fast,base,slow,slower}。')
+  console.error('        基线只该被 --update 压低，不要手工改大。')
 } else {
   console.log(
     `硬编码样式棘轮通过：${totals.files} 个文件 / ` +
       `color=${totals.color} duration=${totals.duration} important=${totals.important}`,
-  );
+  )
 }
 
-process.exit(problems.length > 0 ? 1 : 0);
+process.exit(problems.length > 0 ? 1 : 0)

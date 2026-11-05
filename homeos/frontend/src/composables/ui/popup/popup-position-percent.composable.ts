@@ -55,9 +55,6 @@ export function usePopupPosition(
   }))
 
   /** 弹窗方向 class 数组，用于模板中绑定 popup--top/popup--center 等 class */
-  const popupClassArray = computed(() => [
-    `popup--${direction.value.position}`,
-    `popup--${direction.value.alignment}`,
-  ])
+  const popupClassArray = computed(() => [`popup--${direction.value.position}`, `popup--${direction.value.alignment}`])
   return { direction, popupStyle, popupClassArray }
 }

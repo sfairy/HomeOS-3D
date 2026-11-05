@@ -13,10 +13,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/bridge/presets/focus-layout.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/bridge/presets/focus-layout.ts', import.meta.url),
 )
 const { focusTranslationDistance } = await import(moduleUrl)
 
@@ -33,7 +30,7 @@ test('zoom=2 时位移减半，zoom=3 时位移降到三分之一', () => {
 
 test('zoom 与动画进度叠加：位移 = distance * amount / zoom', () => {
   assert.equal(focusTranslationDistance(240, 0.5, '2'), 60)
-  assert.equal(focusTranslationDistance(100, 0.25, '1.5'), 100 * 0.25 / 1.5)
+  assert.equal(focusTranslationDistance(100, 0.25, '1.5'), (100 * 0.25) / 1.5)
 })
 
 test('zoom 带单位或小数时按 parseFloat 语义取数值部分', () => {

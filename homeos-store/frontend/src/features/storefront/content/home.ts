@@ -17,8 +17,7 @@ export const HERO = {
   eyebrow: "本机自托管 · 直连 Home Assistant",
   titleLead: "把整个家，收进一块",
   titleAccent: "3D 中控",
-  lead:
-    "户型、灯光、空调、安防与能耗都在同一块屏里完成；家庭数据只留在自己的机器上，授权一次买断。",
+  lead: "户型、灯光、空调、安防与能耗都在同一块屏里完成；家庭数据只留在自己的机器上，授权一次买断。",
   /** 起价后面那串口径，首屏与收尾 CTA 共用，避免两处文案漂移。 */
   priceNote: "起 · 买断永久 · 支付确认后自动发码",
   primaryCta: "选购授权",
@@ -59,8 +58,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     cards: [
       {
         title: "3D 户型工作室",
-        description:
-          "自建或导入户型，按楼层自动导图并回写仪表盘；墙体、材质与灯光属性可批量套用，房间自动归类。",
+        description: "自建或导入户型，按楼层自动导图并回写仪表盘；墙体、材质与灯光属性可批量套用，房间自动归类。",
         tone: "accent",
         icon: "fa-cube",
       },
@@ -72,15 +70,13 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "全屏中控展示",
-        description:
-          "为墙面平板与常亮屏准备的只读展示页，与编辑器共用登录会话，登录即可使用，不再需要配对码。",
+        description: "为墙面平板与常亮屏准备的只读展示页，与编辑器共用登录会话，登录即可使用，不再需要配对码。",
         tone: "cool",
         icon: "fa-tv",
       },
       {
         title: "3D 交互舞台",
-        description:
-          "把控件嵌进户型：在三维视图里直接开关灯、窗帘、空调、电视与扫地机，状态实时回流。",
+        description: "把控件嵌进户型：在三维视图里直接开关灯、窗帘、空调、电视与扫地机，状态实时回流。",
         tone: "aura",
         icon: "fa-hand-pointer",
         feature: "module.3d_interaction",
@@ -98,8 +94,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     cards: [
       {
         title: "Home Assistant 直连",
-        description:
-          "填写地址与长期令牌即可同步实体与实时状态，控制指令走同一条连接，断线可自动重连。",
+        description: "填写地址与长期令牌即可同步实体与实时状态，控制指令走同一条连接，断线可自动重连。",
         tone: "lumen",
         icon: "fa-plug",
       },
@@ -135,8 +130,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     cards: [
       {
         title: "分区布防与紧急求助",
-        description:
-          "按区域独立布防撤防，面板与中控同步状态；紧急求助按钮触发后进入告警流程并留痕。",
+        description: "按区域独立布防撤防，面板与中控同步状态；紧急求助按钮触发后进入告警流程并留痕。",
         tone: "eco",
         icon: "fa-shield-halved",
         feature: "module.security",
@@ -150,16 +144,14 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "离家和日历联动",
-        description:
-          "全员离家自动布防，回家自动撤防；离家模拟按时间段随机开关灯，制造有人居住的痕迹。",
+        description: "全员离家自动布防，回家自动撤防；离家模拟按时间段随机开关灯，制造有人居住的痕迹。",
         tone: "aura",
         icon: "fa-person-walking-arrow-right",
         feature: "module.security",
       },
       {
         title: "存在感知与演习",
-        description:
-          "毫米波存在检测接入为占位传感器，安全演习可定时走一遍告警链路，验证配置是否真的会响。",
+        description: "毫米波存在检测接入为占位传感器，安全演习可定时走一遍告警链路，验证配置是否真的会响。",
         tone: "sensor",
         icon: "fa-wave-square",
         feature: "module.security",
@@ -184,16 +176,14 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "通知中心与渠道",
-        description:
-          "站内通知、邮件、WebPush 与企业微信统一投递；告警规则可按设备、区域与等级配置。",
+        description: "站内通知、邮件、WebPush 与企业微信统一投递；告警规则可按设备、区域与等级配置。",
         tone: "lumen",
         icon: "fa-bell",
         feature: "module.notifications",
       },
       {
         title: "地震预警",
-        description:
-          "接入 EEW 实时预警与 CENC 速报，倒计时与避险提示直接推到中控；历史事件可回看分析。",
+        description: "接入 EEW 实时预警与 CENC 速报，倒计时与避险提示直接推到中控；历史事件可回看分析。",
         tone: "heat",
         icon: "fa-house-crack",
         feature: "module.earthquake",
@@ -218,8 +208,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
     cards: [
       {
         title: "能耗统计与生活账户",
-        description:
-          "电表读数与能源统计成图，电 / 气 / 水与运营商账户分开记账，费用视图按周期结算。",
+        description: "电表读数与能源统计成图，电 / 气 / 水与运营商账户分开记账，费用视图按周期结算。",
         tone: "heat",
         icon: "fa-bolt",
         feature: "module.energy",
@@ -240,8 +229,7 @@ export const CAPABILITY_DOMAINS: CapabilityDomain[] = [
       },
       {
         title: "AI 智能管家",
-        description:
-          "多轮对话理解「把客厅调暗一点」这类含糊指令，结合当前场景拆成可执行动作再下发。",
+        description: "多轮对话理解「把客厅调暗一点」这类含糊指令，结合当前场景拆成可执行动作再下发。",
         tone: "accent",
         icon: "fa-robot",
         feature: "module.agent",
@@ -504,8 +492,7 @@ export const FAQ: FaqEntry[] = [
   },
   {
     question: "墙屏 / 平板还要单独配对吗？",
-    answer:
-      "不需要。中控展示页与编辑器共用同一登录会话，在展示设备上登录同一账号即可使用，已不再使用 6 位配对码。",
+    answer: "不需要。中控展示页与编辑器共用同一登录会话，在展示设备上登录同一账号即可使用，已不再使用 6 位配对码。",
   },
   {
     question: "一台授权能绑几台设备？换设备怎么办？",
@@ -514,8 +501,7 @@ export const FAQ: FaqEntry[] = [
   },
   {
     question: "买了基础版，之后想升级可以吗？",
-    answer:
-      "可以。增量包挂到已有的永久主授权上，不需要重新购买基础版，也不影响原授权的有效期。",
+    answer: "可以。增量包挂到已有的永久主授权上，不需要重新购买基础版，也不影响原授权的有效期。",
   },
   {
     question: "支付成功后没看到激活码？",

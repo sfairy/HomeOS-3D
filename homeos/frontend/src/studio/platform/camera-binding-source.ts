@@ -11,9 +11,7 @@
  * 被判成「没配好」而既不显示图标也不挂载传输。
  */
 export function cameraSourceConfigured(cameraBinding: any) {
-  return !!(
-    cameraBinding?.cameraSource === "go2rtc"
-      ? String(cameraBinding.go2rtcUrl || "").trim()
-      : cameraBinding?.entityId
-  );
+  return !!(cameraBinding?.cameraSource === 'go2rtc'
+    ? String(cameraBinding.go2rtcUrl || '').trim()
+    : cameraBinding?.entityId)
 }

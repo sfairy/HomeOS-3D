@@ -25,7 +25,8 @@
     "sync:scene": "bun scripts/sync-scene-static.mjs",
     "check:scene": "bun scripts/sync-scene-static.mjs --check",
     "build": "bun run sync:scene && tsc -p tsconfig.esm.json && bun scripts/build-cjs.mjs",
-    "lint": "eslint \"**/*.{ts,vue}\" --max-warnings 0 && node ../../ops/lib/check-css-syntax.mjs scene/static",
+    "lint": "bun run --cwd ../.. lint && node ../../ops/lib/check-css-syntax.mjs scene/static",
+    "check:css": "node ../../ops/lib/check-css-syntax.mjs scene/static",
     "typecheck": "tsc -p tsconfig.esm.json --noEmit"
   },
   "dependencies": {
@@ -35,12 +36,6 @@
     "vue": "^3.5"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@typescript-eslint/parser": "^8.72.1",
-    "eslint": "^10.14.0",
-    "eslint-plugin-vue": "^10.12.0",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.1",
-    "vue-eslint-parser": "^10.4.1"
+    "typescript": "^6.0.3"
   }
 }

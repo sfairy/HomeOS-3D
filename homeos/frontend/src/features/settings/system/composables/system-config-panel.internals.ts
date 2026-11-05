@@ -19,7 +19,13 @@ import type { EditableConfigSection } from '@/shared/types/system-config-editor'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 import { useAppConfigBackup } from '@/features/settings/shared/composables/hub-backup-orchestrator.internals'
-import { countSystemConfigPendingChanges, fromEditableSections, getSystemConfigPendingFieldKeys, getSystemConfigSectionPendingMap, toEditableSections } from '@/composables/config/system-config-edit.util'
+import {
+  countSystemConfigPendingChanges,
+  fromEditableSections,
+  getSystemConfigPendingFieldKeys,
+  getSystemConfigSectionPendingMap,
+  toEditableSections,
+} from '@/composables/config/system-config-edit.util'
 import { filterSectionsForExpert } from '@/shared/utils/config/system-config/expert.util'
 import type { Ref } from 'vue'
 import { computed, ref, watch } from 'vue'
@@ -53,11 +59,7 @@ type SystemConfigPanelParams = {
 export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanelParams) {
   const chrome = useChromeStore()
   const { saving, runSave } = useSettingsSave()
-  const {
-    load: loadSystemConfig,
-    save: saveSystemConfig,
-    invalidate: invalidateSystemConfig,
-  } = useSystemConfig()
+  const { load: loadSystemConfig, save: saveSystemConfig, invalidate: invalidateSystemConfig } = useSystemConfig()
   const configAudit = ref<ConfigAuditEntry[]>([])
   const validationErrors = ref<ConfigValidationError[]>([])
   const loading = ref(false)
@@ -82,9 +84,7 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   })
   let loaded = false
 
-  const visibleSectionList = computed(() =>
-    filterSectionsForExpert(sectionList.value, expertMode.value),
-  )
+  const visibleSectionList = computed(() => filterSectionsForExpert(sectionList.value, expertMode.value))
 
   const paramsSectionNav = computed(() =>
     visibleSectionList.value.map((section) => ({ id: section.key, label: section.label })),
@@ -108,8 +108,9 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
       null,
   )
 
-  const { sectionLabel, fieldLabel, fieldHint, fieldId, searchFieldId } =
-    createSystemConfigFieldHelpers(() => currentSection.value?.key)
+  const { sectionLabel, fieldLabel, fieldHint, fieldId, searchFieldId } = createSystemConfigFieldHelpers(
+    () => currentSection.value?.key,
+  )
 
   const { isSearchMode, searchResults, searchMatchMap, filteredSectionFields } = useSystemConfigPanelSearch({
     globalSearch,
@@ -118,12 +119,8 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     currentSection,
   })
 
-  const booleanFields = computed(() =>
-    filteredSectionFields.value.filter((field) => field.type === 'boolean'),
-  )
-  const inputFields = computed(() =>
-    filteredSectionFields.value.filter((field) => field.type !== 'boolean'),
-  )
+  const booleanFields = computed(() => filteredSectionFields.value.filter((field) => field.type === 'boolean'))
+  const inputFields = computed(() => filteredSectionFields.value.filter((field) => field.type !== 'boolean'))
 
   const groupedDisplayFields = computed(() => {
     const rows = []
@@ -144,17 +141,11 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     return rows
   })
 
-  const pendingChanges = computed(() =>
-    countSystemConfigPendingChanges(sectionList.value, savedSnapshot.value),
-  )
+  const pendingChanges = computed(() => countSystemConfigPendingChanges(sectionList.value, savedSnapshot.value))
 
-  const pendingFieldKeys = computed(() =>
-    getSystemConfigPendingFieldKeys(sectionList.value, savedSnapshot.value),
-  )
+  const pendingFieldKeys = computed(() => getSystemConfigPendingFieldKeys(sectionList.value, savedSnapshot.value))
 
-  const sectionPendingMap = computed(() =>
-    getSystemConfigSectionPendingMap(sectionList.value, savedSnapshot.value),
-  )
+  const sectionPendingMap = computed(() => getSystemConfigSectionPendingMap(sectionList.value, savedSnapshot.value))
 
   const visibleSectionPendingMap = computed(() => {
     const visibleKeys = new Set(visibleSectionList.value.map((section) => section.key))
@@ -235,17 +226,16 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     }
   }
 
-  const { navigateToValidationError, applyParamsSection, applySectionFromRoute } =
-    createSystemConfigPanelNav({
-      route,
-      globalSearch,
-      sectionList,
-      visibleSectionList,
-      expertMode,
-      activeSection,
-      activeCategory,
-      setExpertMode,
-    })
+  const { navigateToValidationError, applyParamsSection, applySectionFromRoute } = createSystemConfigPanelNav({
+    route,
+    globalSearch,
+    sectionList,
+    visibleSectionList,
+    expertMode,
+    activeSection,
+    activeCategory,
+    setExpertMode,
+  })
 
   useSettingsHubRouteSection(activeSection, paramsSectionNav, {
     tabId: 'params',
@@ -281,10 +271,7 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
       await loadAudit(data?._configAudit)
       captureSnapshot()
       loaded = true
-      if (
-        !route.query.section &&
-        !visibleSectionList.value.some((section) => section.key === activeSection.value)
-      ) {
+      if (!route.query.section && !visibleSectionList.value.some((section) => section.key === activeSection.value)) {
         activeSection.value =
           visibleSectionList.value.find((section) => section.key === 'screensaver')?.key ||
           visibleSectionList.value.find((section) => section.key === 'ui')?.key ||

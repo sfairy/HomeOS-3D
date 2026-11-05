@@ -1,9 +1,6 @@
 /** 实体同步优先级切分工具 */
 import { getEntityDomain, DEFAULT_CRITICAL_DOMAINS, sortEntitiesBySyncPriority } from '@homeos/shared'
-import {
-  collectPinnedEntityIds,
-  resolveSubscribeDomains,
-} from '@/shared/entity/utils/ws-subscription'
+import { collectPinnedEntityIds, resolveSubscribeDomains } from '@/shared/entity/utils/ws-subscription'
 import type { HaEntityState } from '@/shared/types/entity-store'
 
 type LayoutSubscriptionConfig = Parameters<typeof collectPinnedEntityIds>[0]

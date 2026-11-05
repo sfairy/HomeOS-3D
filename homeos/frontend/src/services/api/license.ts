@@ -171,10 +171,7 @@ export function licenseStatusTone(status?: string | null): LicenseTone {
  * @param state 授权状态（字段可缺省）
  * @param fallback 完全无状态时的兜底文案
  */
-export function licenseStatusLabel(
-  state: LicenseMessageState = {},
-  fallback = '正在读取授权状态',
-): string {
+export function licenseStatusLabel(state: LicenseMessageState = {}, fallback = '正在读取授权状态'): string {
   const label = String(state.statusLabel || '').trim()
   if (label) return label
   const code = String(state.status || '').trim()

@@ -73,12 +73,8 @@ function patchDerivedSnapshot(
   const affectedDomains = new Set<string>()
   // 二级索引（电池 / 离线）patch 前后快照，用于产出增量增删
   const trackSecondary = !deferSecondary
-  const batteryBefore = trackSecondary
-    ? new Set(acc.batteryList.map((b) => b.entity_id))
-    : null
-  const offlineBefore = trackSecondary
-    ? new Set(acc.offlineList.map((o) => o.entity_id))
-    : null
+  const batteryBefore = trackSecondary ? new Set(acc.batteryList.map((b) => b.entity_id)) : null
+  const offlineBefore = trackSecondary ? new Set(acc.offlineList.map((o) => o.entity_id)) : null
 
   for (let i = 0; i < patches.length; i++) {
     const { entity_id: entityId, oldEntity, newEntity } = patches[i]

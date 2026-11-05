@@ -35,10 +35,7 @@ const GEOMETRY = fileURLToPath(
   new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts', import.meta.url),
 )
 const STUDIO_WALLS = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-walls.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-walls.ts', import.meta.url),
 )
 
 const { createLockMotion } = await import(LOCK_MOTION)
@@ -188,9 +185,7 @@ for (const doorCase of HINGE_TYPES) {
             ...doorCase,
             hinge,
             interiorSide,
-            doorOpenRotation: doorCase.authorsOpenRotation
-              ? (swing === -1 ? -1 : 1) * Math.PI * 0.42
-              : undefined,
+            doorOpenRotation: doorCase.authorsOpenRotation ? (swing === -1 ? -1 : 1) * Math.PI * 0.42 : undefined,
           })
           createLockMotion({ modelRoot: swingRig.modelRoot }).sync(swingRig.bindings, OPEN_STATES)
           assert.equal(swingRig.pivot.rotation.y, openedAngle, 'swing 不该改变开门转角')
@@ -482,7 +477,6 @@ test('关门后回到几何侧的关闭位', () => {
   motion.sync(rig.bindings, OPEN_STATES)
   assert.ok(Math.abs(rig.pivot.rotation.y) > 1e-3)
   motion.sync(rig.bindings, CLOSED_STATES)
-  for (let tickIndex = 1; tickIndex <= 40; tickIndex += 1)
-    motion.tick(tickIndex * 100, rig.bindings, CLOSED_STATES)
+  for (let tickIndex = 1; tickIndex <= 40; tickIndex += 1) motion.tick(tickIndex * 100, rig.bindings, CLOSED_STATES)
   assert.ok(Math.abs(rig.pivot.rotation.y) < 1e-3, `关门后应回到 0，实际 ${rig.pivot.rotation.y}`)
 })

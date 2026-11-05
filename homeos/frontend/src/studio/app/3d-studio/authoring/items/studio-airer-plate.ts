@@ -10,25 +10,25 @@
  */
 
 /** 板长（米）。挤出后按 `width / plateWidth` 整体缩放。 */
-export const AIRER_PLATE_WIDTH = 1.9;
+export const AIRER_PLATE_WIDTH = 1.9
 
 /** 相邻两个孔的间距（米）。 */
-export const AIRER_PLATE_HOLE_SPACING = 0.085;
+export const AIRER_PLATE_HOLE_SPACING = 0.085
 
 /** 孔径半径（米）。 */
-export const AIRER_PLATE_HOLE_RADIUS = 0.0075;
+export const AIRER_PLATE_HOLE_RADIUS = 0.0075
 
 /** 孔数：-10 … 10 共 21 个，奇数保证正中一个孔且左右对称。 */
-export const AIRER_PLATE_HOLE_COUNT = 21;
+export const AIRER_PLATE_HOLE_COUNT = 21
 
 /** 21 个孔的 X 偏移，从 -0.85 到 0.85。 */
 export function singleAirerPlateHoleOffsets(): number[] {
-  const offsets: number[] = [];
-  for (let holeIndex = -10; holeIndex <= 10; holeIndex++) offsets.push(holeIndex * AIRER_PLATE_HOLE_SPACING);
-  return offsets;
+  const offsets: number[] = []
+  for (let holeIndex = -10; holeIndex <= 10; holeIndex++) offsets.push(holeIndex * AIRER_PLATE_HOLE_SPACING)
+  return offsets
 }
 
 /** 板体宽度方向缩放：保持孔与杆的相对位置，不逐孔重排。 */
 export function airerPlateScale(airerWidth: number): number {
-  return Number.isFinite(airerWidth) && airerWidth > 0 ? airerWidth / AIRER_PLATE_WIDTH : 1;
+  return Number.isFinite(airerWidth) && airerWidth > 0 ? airerWidth / AIRER_PLATE_WIDTH : 1
 }

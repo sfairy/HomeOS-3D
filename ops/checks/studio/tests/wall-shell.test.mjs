@@ -17,9 +17,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const frontendRoot = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/', import.meta.url),
-)
+const frontendRoot = fileURLToPath(new URL('../../../../homeos/frontend/src/studio/app/3d-studio/', import.meta.url))
 const readModule = (relative) => readFileSync(join(frontendRoot, relative), 'utf8')
 const importModule = (relative) => import(pathToFileURL(join(frontendRoot, relative)).href)
 
@@ -43,21 +41,12 @@ test('顶盖膜浓度与墙面等效膜厚一致', async () => {
     wallTopSource.includes('wallFilmOpacity(wallTopOpacity)'),
     '顶盖浓度必须走 wallFilmOpacity，不得再乘经验系数',
   )
-  assert.ok(
-    !/filmScale|filmCap/.test(wallTopSource),
-    '顶盖不得再保留 filmScale / filmCap 的经验缩放',
-  )
+  assert.ok(!/filmScale|filmCap/.test(wallTopSource), '顶盖不得再保留 filmScale / filmCap 的经验缩放')
 })
 
 test('洞口底盖（soffit）与顶盖共用同一套盖面逻辑', () => {
-  assert.ok(
-    wallShellSource.includes('facing === "up" ? "top" : "soffit"'),
-    'soffit 必须受 ?wall-debug=soffit 控制',
-  )
-  assert.ok(
-    /facing === "up" \? 0\.0005 : -0\.0005/.test(wallShellSource),
-    '底盖要贴在边界下方，避免和顶盖 z-fighting',
-  )
+  assert.ok(wallShellSource.includes("facing === 'up' ? 'top' : 'soffit'"), 'soffit 必须受 ?wall-debug=soffit 控制')
+  assert.ok(/facing === 'up' \? 0\.0005 : -0\.0005/.test(wallShellSource), '底盖要贴在边界下方，避免和顶盖 z-fighting')
   assert.ok(
     wallLevelsSource.includes('wallVolume.bottom > LEVEL_EPSILON'),
     '只有悬空体块（洞口上方的过梁）才需要底盖，落地墙不要和楼板打架',
@@ -87,16 +76,11 @@ test('竖向渐变按每段墙自己的高度归一化', () => {
     wallLevelsSource.includes('heightSpan: group.volumes[0]?.wallHeight'),
     '矮墙要传自己的高度，否则墙根渐变走不满',
   )
-  assert.ok(
-    wallsSource.includes('wallBandOptions.heightSpan'),
-    'buildWallBandMesh 必须读取 heightSpan',
-  )
+  assert.ok(wallsSource.includes('wallBandOptions.heightSpan'), 'buildWallBandMesh 必须读取 heightSpan')
 })
 
 test('窗框深度按墙厚收口（普通窗 / 自定义窗 / 门套）', async () => {
-  const { windowGeometryParts, openingFrameDepth } = await importModule(
-    'plan/studio-window-geometry.ts',
-  )
+  const { windowGeometryParts, openingFrameDepth } = await importModule('plan/studio-window-geometry.ts')
 
   assert.equal(openingFrameDepth(undefined), 0.06, '缺省仍沿用旧的 60mm')
   assert.ok(Math.abs(openingFrameDepth(0.2) - 0.19) < 1e-9, '200mm 墙 → 190mm 框（两侧各 5mm）')
@@ -113,10 +97,7 @@ test('窗框深度按墙厚收口（普通窗 / 自定义窗 / 门套）', async
   // 玻璃保持 25mm 居中：跟着加厚只会让窗更像一块实心板。
   assert.equal(parts.glass[0][2], 0.025)
 
-  assert.ok(
-    wallsSource.includes('openingFrameDepth(openingWall.thickness)'),
-    '自定义窗与门套都要按墙厚取框深',
-  )
+  assert.ok(wallsSource.includes('openingFrameDepth(openingWall.thickness)'), '自定义窗与门套都要按墙厚取框深')
 })
 
 test('并集失败：只丢掉被包住的环，且计数', async () => {
@@ -163,32 +144,17 @@ test('并集失败的回退在墙带/盖面/选中层三条路径上都生效', 
 })
 
 test('舞台启用透明排序与静态方向光阴影', () => {
-  assert.ok(
-    !/deps\.isEmbedStageMode \|\|\s*prepareWallSideOrder2/.test(wallsSource),
-    '舞台不得再短路跳过三角形重排',
-  )
-  assert.ok(
-    wallsSource.includes('prepareWallSideOrder2(ns2, wallBandMesh)'),
-    '墙带必须接入透明重排',
-  )
-  assert.ok(
-    wallsSource.includes('transmission: 0'),
-    '半透明只由 opacity 表达，别再交 transmission pass 的钱',
-  )
+  assert.ok(!/deps\.isEmbedStageMode \|\|\s*prepareWallSideOrder2/.test(wallsSource), '舞台不得再短路跳过三角形重排')
+  assert.ok(wallsSource.includes('prepareWallSideOrder2(ns2, wallBandMesh)'), '墙带必须接入透明重排')
+  assert.ok(wallsSource.includes('transmission: 0'), '半透明只由 opacity 表达，别再交 transmission pass 的钱')
 })
 
 test('墙面不再被排除在方向光阴影之外', () => {
   const regionLights = readModule('plan/studio-plan2-region-lights.ts')
-  assert.ok(
-    !regionLights.includes('materialKind === "wall"\n            ? ""'),
-    'wall 组不得再跳过太阳阴影 snippet',
-  )
+  assert.ok(!regionLights.includes('materialKind === "wall"\n            ? ""'), 'wall 组不得再跳过太阳阴影 snippet')
   assert.ok(
     !regionLights.includes('activeLightGroup.kind === "wall"\n            ? 0'),
     'wall 组的 sunShadowStrength 不能再固定为 0',
   )
-  assert.ok(
-    regionLights.includes('wallOrientationSnippet'),
-    '墙面需要按朝向补偿，否则朝东朝西的墙读数一模一样',
-  )
+  assert.ok(regionLights.includes('wallOrientationSnippet'), '墙面需要按朝向补偿，否则朝东朝西的墙读数一模一样')
 })

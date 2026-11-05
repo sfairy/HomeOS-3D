@@ -78,10 +78,7 @@ export function useSecurityZoneMonitor(
   }
 
   /** 单个区域的富化：布局补全 + 传感器行 + 计数 + 模式提示。 */
-  function enrichZone(
-    zone: SecurityZoneDraft & { armed?: boolean; sensors?: string[] },
-    mode: ArmingMode,
-  ) {
+  function enrichZone(zone: SecurityZoneDraft & { armed?: boolean; sensors?: string[] }, mode: ArmingMode) {
     // 从布局配置补充 roomId/zoneType
     const layout = layoutById.value.get(zone.id)
     const roomId = layout?.roomId || zone.roomId || ''

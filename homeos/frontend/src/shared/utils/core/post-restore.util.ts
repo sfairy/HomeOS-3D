@@ -72,9 +72,6 @@ export async function resolvePostRestoreDestination(): Promise<PostRestoreDestin
  * @param destination `resolvePostRestoreDestination` 的返回值
  * @param delayMs 留一小段停留时间，让用户看清弹窗 / 通知里的结果再跳
  */
-export function navigateAfterRestore(
-  destination: PostRestoreDestination,
-  delayMs = 800,
-): void {
+export function navigateAfterRestore(destination: PostRestoreDestination, delayMs = 800): void {
   window.setTimeout(() => window.location.replace(destination.path), delayMs)
 }

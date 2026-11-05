@@ -169,12 +169,8 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { storeToRefs } from 'pinia'
 
-const AssetManagerModal = defineAsyncComponent(
-  () => import('@/components/common/asset-manager/AssetManagerModal.vue'),
-)
-const AssetPickerModal = defineAsyncComponent(
-  () => import('@/components/common/AssetPickerModal.vue'),
-)
+const AssetManagerModal = defineAsyncComponent(() => import('@/components/common/asset-manager/AssetManagerModal.vue'))
+const AssetPickerModal = defineAsyncComponent(() => import('@/components/common/AssetPickerModal.vue'))
 
 defineProps({ activeTab: { type: String, default: 'assets' } })
 
@@ -243,9 +239,7 @@ const bgSlots = computed(() => {
   ]
 })
 
-const flowCollapsedSummary = computed(() =>
-  pending.value ? '2 类素材 · 有未保存布局' : '2 类素材 · 布局已同步',
-)
+const flowCollapsedSummary = computed(() => (pending.value ? '2 类素材 · 有未保存布局' : '2 类素材 · 布局已同步'))
 
 // 开/关灯背景 URL 变化时重置坏图标记
 watch(
@@ -292,7 +286,6 @@ const assetsFlowSteps = [
   { label: '引用', meta: '布局配置', icon: Layout, tone: 'exec' },
   { label: '呈现', meta: '大屏 / 平板', icon: Monitor, tone: 'out' },
 ]
-
 </script>
 
 <style>

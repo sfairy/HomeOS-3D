@@ -58,16 +58,11 @@ function extractHaPathFromAbsolute(haUrl: string, absolute: string): string | nu
  * @param haPath HA 相对路径或绝对地址
  * @returns 可直接加载的资源 URL；入参为空时返回空串
  */
-function resolveHaResourceUrl(
-  haUrl: string | null | undefined,
-  haPath: string,
-): string {
+function resolveHaResourceUrl(haUrl: string | null | undefined, haPath: string): string {
   if (!haUrl?.trim() || !haPath?.trim()) return ''
 
   const absolute =
-    haPath.startsWith('http://') || haPath.startsWith('https://')
-      ? haPath.trim()
-      : buildHaAbsoluteUrl(haUrl, haPath)
+    haPath.startsWith('http://') || haPath.startsWith('https://') ? haPath.trim() : buildHaAbsoluteUrl(haUrl, haPath)
 
   if (!needsHaMediaProxy(absolute)) return absolute
 

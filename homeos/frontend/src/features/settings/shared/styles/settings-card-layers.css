@@ -6,23 +6,34 @@
  */
 
 /* ── Hub 页：去掉伪元素底，统一 accent 单层表面 ── */
-.settings-page--flush .settings-card:not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card)::before,
-.settings-page--flush .settings-card:not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card)::after {
+.settings-page--flush
+  .settings-card:not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card)::before,
+.settings-page--flush
+  .settings-card:not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card)::after {
   display: none;
 }
 
-.settings-page--flush .settings-card:not(.settings-card--flat):not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card):not(.settings-card--nested) {
+.settings-page--flush
+  .settings-card:not(.settings-card--flat):not(.settings-card--elevated):not(.settings-card--popout):not(
+    .params-panel-card
+  ):not(.settings-card--nested) {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-.settings-page--flush .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card):not(.settings-card--nested) {
+.settings-page--flush
+  .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--elevated):not(
+    .settings-card--popout
+  ):not(.params-panel-card):not(.settings-card--nested) {
   background: var(--set-card-surface-bg);
   border-color: var(--set-card-surface-border);
   box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
 }
 
-.settings-page--flush .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card):not(.settings-card--nested):hover {
+.settings-page--flush
+  .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--elevated):not(
+    .settings-card--popout
+  ):not(.params-panel-card):not(.settings-card--nested):hover {
   transform: none;
   background: var(--set-card-surface-bg-hover);
   border-color: var(--set-card-surface-border-hover);

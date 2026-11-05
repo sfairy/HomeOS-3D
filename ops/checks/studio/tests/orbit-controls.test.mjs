@@ -9,10 +9,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-orbit-controls.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-orbit-controls.ts', import.meta.url),
 )
 const { createStudioOrbitControls } = await import(moduleUrl)
 
@@ -75,9 +72,7 @@ test('damping 帧率无关：120Hz 两帧的衰减约等于 60Hz 一帧', () => 
   slow.update(1 / 60)
   const fastFactor = fast.dampingSeen[1]
   const slowFactor = slow.dampingSeen[0]
-  assert.ok(
-    Math.abs((1 - fastFactor) ** 2 - (1 - slowFactor)) < 0.0001,
-  )
+  assert.ok(Math.abs((1 - fastFactor) ** 2 - (1 - slowFactor)) < 0.0001)
   // 调用后恢复 vendor 的原始值，不污染后续帧。
   assert.equal(fast.dampingFactor, 0.22)
 })

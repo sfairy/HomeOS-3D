@@ -100,16 +100,13 @@ function toggleTab(id: string) {
   if (idx >= 0) {
     if (list.length <= 1) return
     list.splice(idx, 1)
-    const defaultTab =
-      current.defaultTab === id ? list[0] || props.tabSet[0]?.id || '' : current.defaultTab
+    const defaultTab = current.defaultTab === id ? list[0] || props.tabSet[0]?.id || '' : current.defaultTab
     draft.value = { defaultTab, visibleTabs: list }
     return
   }
   list.push(id)
   list.sort(
-    (a, b) =>
-      (props.tabSet || []).findIndex((t) => t.id === a) -
-      (props.tabSet || []).findIndex((t) => t.id === b),
+    (a, b) => (props.tabSet || []).findIndex((t) => t.id === a) - (props.tabSet || []).findIndex((t) => t.id === b),
   )
   draft.value = { ...current, visibleTabs: list }
 }

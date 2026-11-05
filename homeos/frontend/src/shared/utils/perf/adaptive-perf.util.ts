@@ -9,7 +9,11 @@ import {
   getWorkerDerivedThreshold,
   onConfigChange,
 } from '@/shared/utils/config/frontend-config'
-import { registerAdaptiveFpsTick, startFpsScheduler, bindFpsSchedulerVisibilityPause } from '@/shared/utils/perf/fps-scheduler.util'
+import {
+  registerAdaptiveFpsTick,
+  startFpsScheduler,
+  bindFpsSchedulerVisibilityPause,
+} from '@/shared/utils/perf/fps-scheduler.util'
 import {
   getAutoPerformanceMode,
   normalizePerfMode,

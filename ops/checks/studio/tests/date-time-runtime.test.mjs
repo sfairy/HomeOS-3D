@@ -9,10 +9,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/renderer/controls/date-time-runtime.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/renderer/controls/date-time-runtime.ts', import.meta.url),
 )
 const { formatLunarDate, parseChineseLunarDay } = await import(moduleUrl)
 
@@ -26,12 +23,18 @@ test('初一到初十', () => {
 
 test('十一到二十', () => {
   const labels = ['十一', '十二', '十五', '十九', '二十']
-  assert.deepEqual(labels.map((label) => parseChineseLunarDay(label)), [11, 12, 15, 19, 20])
+  assert.deepEqual(
+    labels.map((label) => parseChineseLunarDay(label)),
+    [11, 12, 15, 19, 20],
+  )
 })
 
 test('廿一到三十', () => {
   const labels = ['廿一', '廿三', '廿九', '三十']
-  assert.deepEqual(labels.map((label) => parseChineseLunarDay(label)), [21, 23, 29, 30])
+  assert.deepEqual(
+    labels.map((label) => parseChineseLunarDay(label)),
+    [21, 23, 29, 30],
+  )
 })
 
 test('阿拉伯数字与非法输入', () => {

@@ -11,14 +11,7 @@ import { resolveListRowEntity } from '@/composables/entity/projection-row.util'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 
-const DEVICES_TOGGLE_DOMAINS = new Set([
-  'light',
-  'switch',
-  'fan',
-  'cover',
-  'lock',
-  'input_boolean',
-])
+const DEVICES_TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'lock', 'input_boolean'])
 
 const DEVICES_PREFERRED_DOMAINS = [
   'light',
@@ -38,10 +31,7 @@ type DevicesDomainTab = {
 }
 
 /** 构建域 Tab：优先常用域，再按数量补其余域。 */
-export function buildDevicesDomainTabs(
-  memoryItems: DeviceListItem[],
-  useRestList: boolean,
-): DevicesDomainTab[] {
+export function buildDevicesDomainTabs(memoryItems: DeviceListItem[], useRestList: boolean): DevicesDomainTab[] {
   if (useRestList) {
     const tabs: DevicesDomainTab[] = [{ id: 'all', label: '全部', count: null }]
     for (const domain of DEVICES_PREFERRED_DOMAINS) {
@@ -53,9 +43,7 @@ export function buildDevicesDomainTabs(
   for (const device of memoryItems) {
     counts.set(device.domain, (counts.get(device.domain) || 0) + 1)
   }
-  const tabs: DevicesDomainTab[] = [
-    { id: 'all', label: '全部', count: memoryItems.length },
-  ]
+  const tabs: DevicesDomainTab[] = [{ id: 'all', label: '全部', count: memoryItems.length }]
   for (const domain of DEVICES_PREFERRED_DOMAINS) {
     if (counts.has(domain)) {
       tabs.push({ id: domain, label: getDomainLabel(domain), count: counts.get(domain)! })

@@ -17,10 +17,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/materials/studio-wall-materials.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/materials/studio-wall-materials.ts', import.meta.url),
 )
 const { prepareWallSideOrder } = await import(moduleUrl)
 
@@ -190,14 +187,7 @@ function createCamera({ flipZ = false } = {}) {
 
 function render(mesh, camera) {
   const group = mesh.geometry.groups[0]
-  mesh.onBeforeRender(
-    {},
-    {},
-    camera,
-    mesh.geometry,
-    mesh.material[1],
-    group,
-  )
+  mesh.onBeforeRender({}, {}, camera, mesh.geometry, mesh.material[1], group)
 }
 
 test('prepareWallSideOrder：背向三角形先写、朝向三角形后写', () => {

@@ -1,4 +1,4 @@
-import { segmentIntersection as segmentIntersection2 } from "../../../plan/geometry";
+import { segmentIntersection as segmentIntersection2 } from '../../../plan/geometry'
 
 export function isPointInBounds(pointRef: any, boundsRef: any) {
   return (
@@ -6,11 +6,11 @@ export function isPointInBounds(pointRef: any, boundsRef: any) {
     pointRef.x <= boundsRef.maxX &&
     pointRef.y >= boundsRef.minY &&
     pointRef.y <= boundsRef.maxY
-  );
+  )
 }
 
 export function boundsIntersectSegment(segStart: any, segEnd: any, boundsRect: any) {
-  if (isPointInBounds(segStart, boundsRect) || isPointInBounds(segEnd, boundsRect)) return true;
+  if (isPointInBounds(segStart, boundsRect) || isPointInBounds(segEnd, boundsRect)) return true
   const boundsCorners = [
     {
       x: boundsRect.minX,
@@ -28,7 +28,7 @@ export function boundsIntersectSegment(segStart: any, segEnd: any, boundsRect: a
       x: boundsRect.minX,
       y: boundsRect.maxY,
     },
-  ];
+  ]
   for (let edgeIndex = 0; edgeIndex < boundsCorners.length; edgeIndex += 1)
     if (
       segmentIntersection2(
@@ -38,6 +38,6 @@ export function boundsIntersectSegment(segStart: any, segEnd: any, boundsRect: a
         boundsCorners[(edgeIndex + 1) % boundsCorners.length],
       )
     )
-      return true;
-  return false;
+      return true
+  return false
 }

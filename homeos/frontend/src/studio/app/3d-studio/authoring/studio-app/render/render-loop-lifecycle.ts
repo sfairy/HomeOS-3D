@@ -6,18 +6,18 @@
  */
 
 type OrbitControlsLike = {
-  enablePan?: boolean;
-  enableZoom?: boolean;
-  minPolarAngle?: number;
-  maxPolarAngle?: number;
-  minAzimuthAngle?: number;
-  maxAzimuthAngle?: number;
-  getPolarAngle: () => number;
-  getAzimuthalAngle: () => number;
-};
+  enablePan?: boolean
+  enableZoom?: boolean
+  minPolarAngle?: number
+  maxPolarAngle?: number
+  minAzimuthAngle?: number
+  maxAzimuthAngle?: number
+  getPolarAngle: () => number
+  getAzimuthalAngle: () => number
+}
 
 type CameraLike = {
-  uuid: string;
+  uuid: string
   setViewOffset: (
     fullWidth: number,
     fullHeight: number,
@@ -25,42 +25,42 @@ type CameraLike = {
     offsetY: number,
     width: number,
     height: number,
-  ) => void;
-  clearViewOffset: () => void;
-};
+  ) => void
+  clearViewOffset: () => void
+}
 
-type ScreenSize = { x?: number; y?: number };
+type ScreenSize = { x?: number; y?: number }
 
 /** 渲染循环闭包里与相机相关的可变状态。 */
-export type RenderLoopCameraState = {
-  cameraViewMode?: string;
-  stereoSampleIndex?: number;
-  lastViewOffsetSignature?: string;
-  shouldEnablePan?: boolean;
-  shouldEnableZoom?: boolean;
-};
+type RenderLoopCameraState = {
+  cameraViewMode?: string
+  stereoSampleIndex?: number
+  lastViewOffsetSignature?: string
+  shouldEnablePan?: boolean
+  shouldEnableZoom?: boolean
+}
 
 /** 渲染循环闭包里自管的帧步进句柄与定时器。 */
-export type RenderLoopTeardownState = {
-  renderTickCounter?: number;
-  reflectionPassCounter?: number;
-  overviewTimeoutHandle?: number | null;
-  presentationHandle?: number | null;
-  isPresentationRunning?: boolean;
-  hasEffectsPrepared?: boolean;
-};
+type RenderLoopTeardownState = {
+  renderTickCounter?: number
+  reflectionPassCounter?: number
+  overviewTimeoutHandle?: number | null
+  presentationHandle?: number | null
+  isPresentationRunning?: boolean
+  hasEffectsPrepared?: boolean
+}
 
 export function applyOrbitControlSettingsTo(
   appCtx: { orbitControls: OrbitControlsLike },
   ctx: RenderLoopCameraState,
 ): void {
-  const orbitControls = appCtx.orbitControls;
-  orbitControls.enablePan = ctx.shouldEnablePan;
-  orbitControls.enableZoom = ctx.shouldEnableZoom;
-  if (ctx.cameraViewMode === "horizontal")
-    orbitControls.minPolarAngle = orbitControls.maxPolarAngle = orbitControls.getPolarAngle();
-  if (ctx.cameraViewMode === "vertical")
-    orbitControls.minAzimuthAngle = orbitControls.maxAzimuthAngle = orbitControls.getAzimuthalAngle();
+  const orbitControls = appCtx.orbitControls
+  orbitControls.enablePan = ctx.shouldEnablePan
+  orbitControls.enableZoom = ctx.shouldEnableZoom
+  if (ctx.cameraViewMode === 'horizontal')
+    orbitControls.minPolarAngle = orbitControls.maxPolarAngle = orbitControls.getPolarAngle()
+  if (ctx.cameraViewMode === 'vertical')
+    orbitControls.minAzimuthAngle = orbitControls.maxAzimuthAngle = orbitControls.getAzimuthalAngle()
 }
 
 /**
@@ -74,23 +74,17 @@ export function syncViewOffsetFor(
   projectedScreenPoint: ScreenSize,
   syncSnapshotCamera: () => void,
 ): void {
-  appCtx.threeRenderer.getSize(projectedScreenPoint);
+  appCtx.threeRenderer.getSize(projectedScreenPoint)
   const viewOffsetWidth = Math.max(projectedScreenPoint.x || 1, 1),
     viewOffsetHeight = Math.max(projectedScreenPoint.y || 1, 1),
     stereoSampleIndex = ctx.stereoSampleIndex ?? 0,
     viewOffsetSignature =
-      viewOffsetWidth +
-      "/" +
-      viewOffsetHeight +
-      "/" +
-      stereoSampleIndex +
-      "/" +
-      appCtx.threeCamera.uuid;
+      viewOffsetWidth + '/' + viewOffsetHeight + '/' + stereoSampleIndex + '/' + appCtx.threeCamera.uuid
   if (viewOffsetSignature === ctx.lastViewOffsetSignature) {
-    syncSnapshotCamera();
-    return;
+    syncSnapshotCamera()
+    return
   }
-  ctx.lastViewOffsetSignature = viewOffsetSignature;
+  ctx.lastViewOffsetSignature = viewOffsetSignature
   if (stereoSampleIndex)
     appCtx.threeCamera.setViewOffset(
       viewOffsetWidth,
@@ -99,9 +93,9 @@ export function syncViewOffsetFor(
       0,
       viewOffsetWidth,
       viewOffsetHeight,
-    );
-  else appCtx.threeCamera.clearViewOffset();
-  syncSnapshotCamera();
+    )
+  else appCtx.threeCamera.clearViewOffset()
+  syncSnapshotCamera()
 }
 
 /**
@@ -112,39 +106,38 @@ export function syncViewOffsetFor(
  * 并把 GPU 时间翻倍。闭包里自管的 RAF / 定时器同理必须在这里取消。
  */
 export function createRenderLoopTeardown(params: {
-  state: RenderLoopTeardownState;
-  appCtx: { rendererLossHandler?: unknown };
-  groundReflections: unknown;
-  progressListeners: { clear: () => void };
-  subsystems: ({ dispose?: () => void } | null | undefined)[];
-  releaseInteractionBatches: () => void;
+  state: RenderLoopTeardownState
+  appCtx: { rendererLossHandler?: unknown }
+  groundReflections: unknown
+  progressListeners: { clear: () => void }
+  subsystems: ({ dispose?: () => void } | null | undefined)[]
+  releaseInteractionBatches: () => void
 }): () => void {
-  let isDisposed = false;
+  let isDisposed = false
   return () => {
-    if (isDisposed) return;
-    isDisposed = true;
-    const { state } = params;
-    if (state.renderTickCounter) cancelAnimationFrame(state.renderTickCounter);
-    state.renderTickCounter = 0;
-    if (state.reflectionPassCounter) cancelAnimationFrame(state.reflectionPassCounter);
-    state.reflectionPassCounter = 0;
-    if (state.overviewTimeoutHandle != null) window.clearTimeout(state.overviewTimeoutHandle);
-    state.overviewTimeoutHandle = null;
-    if (state.presentationHandle != null) window.clearTimeout(state.presentationHandle);
-    state.presentationHandle = null;
-    params.progressListeners.clear();
+    if (isDisposed) return
+    isDisposed = true
+    const { state } = params
+    if (state.renderTickCounter) cancelAnimationFrame(state.renderTickCounter)
+    state.renderTickCounter = 0
+    if (state.reflectionPassCounter) cancelAnimationFrame(state.reflectionPassCounter)
+    state.reflectionPassCounter = 0
+    if (state.overviewTimeoutHandle != null) window.clearTimeout(state.overviewTimeoutHandle)
+    state.overviewTimeoutHandle = null
+    if (state.presentationHandle != null) window.clearTimeout(state.presentationHandle)
+    state.presentationHandle = null
+    params.progressListeners.clear()
     for (const renderSubsystem of params.subsystems) {
       try {
-        renderSubsystem?.dispose?.();
+        renderSubsystem?.dispose?.()
       } catch (disposeError) {
         // 显存/上下文可能已丢失，单个子系统回收失败不应阻断其余回收。
-        console.warn("[studio] 渲染子系统回收失败", disposeError);
+        console.warn('[studio] 渲染子系统回收失败', disposeError)
       }
     }
-    if (params.appCtx.rendererLossHandler === params.groundReflections)
-      params.appCtx.rendererLossHandler = null;
-    params.releaseInteractionBatches();
-    state.isPresentationRunning = false;
-    state.hasEffectsPrepared = false;
-  };
+    if (params.appCtx.rendererLossHandler === params.groundReflections) params.appCtx.rendererLossHandler = null
+    params.releaseInteractionBatches()
+    state.isPresentationRunning = false
+    state.hasEffectsPrepared = false
+  }
 }

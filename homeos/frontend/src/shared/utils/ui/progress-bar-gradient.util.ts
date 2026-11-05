@@ -81,12 +81,7 @@ export function snapToSliderStep(value: number, min: number, max: number, step: 
 import { clampNum } from '@/shared/utils/core/misc.util'
 
 /** 将数值钳制在 [min, max]；无效时返回 fallback */
-export function clampInRange(
-  value: number | null | undefined,
-  min: number,
-  max: number,
-  fallback: number = min,
-) {
+export function clampInRange(value: number | null | undefined, min: number, max: number, fallback: number = min) {
   const lo = Number(min)
   const hi = Number(max)
   const n = Number(value)
@@ -166,9 +161,7 @@ export function resolveProgressGradient(
     return PROGRESS_VARIANTS[budgetVariantFromPct(value)] || PROGRESS_VARIANTS.accent
   }
   if (variant === 'balance') {
-    return (
-      PROGRESS_VARIANTS[balanceVariantFromAmount(Number(value) || 0)] || PROGRESS_VARIANTS.accent
-    )
+    return PROGRESS_VARIANTS[balanceVariantFromAmount(Number(value) || 0)] || PROGRESS_VARIANTS.accent
   }
   if (variant === 'resource') {
     return PROGRESS_VARIANTS[resourceVariantFromPct(value)] || PROGRESS_VARIANTS.success

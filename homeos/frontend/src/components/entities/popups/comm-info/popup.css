@@ -1,4 +1,4 @@
-@import '@/assets/styles/utility-meter-popup.css';
+@import "@/assets/styles/utility-meter-popup.css";
 
 /* 头部 */
 .comm-header {
@@ -87,14 +87,17 @@
   border: 1px solid var(--premium-border-strong);
   border-radius: var(--hos-radius-card);
   padding: 6px 6px 6px 10px;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .comm-account-select:hover,
 .comm-account-select:focus {
   background: rgba(255, 255, 255, 0.07);
   border-color: color-mix(in srgb, var(--comm-accent) 35%, rgba(0, 0, 0, 0));
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
 }
 
 /* 余额条 */
@@ -198,7 +201,9 @@
   background: rgba(248, 113, 113, 0.08);
 }
 
-.comm-balance__chip--warn strong { color: #fca5a5; }
+.comm-balance__chip--warn strong {
+  color: #fca5a5;
+}
 
 .comm-balance__foot {
   display: flex;
@@ -237,7 +242,10 @@
   background: var(--premium-glass-bg);
   border: 1px solid var(--premium-border);
   min-width: 0;
-  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease;
 }
 
 .comm-pack:hover {
@@ -268,10 +276,7 @@
 }
 
 .comm-pack__ring-fill {
-  background: conic-gradient(
-    var(--pack-accent) 0 var(--pack-pct),
-    transparent var(--pack-pct) 100%
-  );
+  background: conic-gradient(var(--pack-accent) 0 var(--pack-pct), transparent var(--pack-pct) 100%);
   mask: radial-gradient(
     farthest-side,
     transparent calc(100% - var(--ring-stroke)),
@@ -311,9 +316,16 @@
   white-space: nowrap;
 }
 
-.comm-pack__remain-val--md { font-size: var(--premium-fs-body-sm); }
-.comm-pack__remain-val--sm { font-size: var(--premium-fs-caption); }
-.comm-pack__remain-val--xs { font-size: var(--premium-fs-micro); letter-spacing: -0.02em; }
+.comm-pack__remain-val--md {
+  font-size: var(--premium-fs-body-sm);
+}
+.comm-pack__remain-val--sm {
+  font-size: var(--premium-fs-caption);
+}
+.comm-pack__remain-val--xs {
+  font-size: var(--premium-fs-micro);
+  letter-spacing: -0.02em;
+}
 
 .comm-pack__remain-u {
   font-size: var(--premium-fs-micro);

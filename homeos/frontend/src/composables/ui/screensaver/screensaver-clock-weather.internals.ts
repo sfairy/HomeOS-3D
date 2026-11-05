@@ -23,10 +23,7 @@ type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type LayoutStore = ReturnType<typeof useLayoutStore>
 
 /** 屏保时钟 / 日期 / 农历派生 */
-export function createScreensaverClockState(
-  layoutStore: LayoutStore,
-  currentTime: Ref<Date>,
-) {
+export function createScreensaverClockState(layoutStore: LayoutStore, currentTime: Ref<Date>) {
   const siteTitle = computed(() => layoutStore.layoutConfig.siteTitle || 'HomeOS')
   const zonedClock = computed(() => getZonedParts(currentTime.value))
   const timeHour = computed(() => zonedClock.value.hour)
@@ -46,9 +43,7 @@ export function createScreensaverClockState(
   })
 
   const dateWeek = computed(() => formatZonedDate(lowFreqClock.value, 'zh-CN', { weekday: 'long' }))
-  const dateMD = computed(() =>
-    formatZonedDate(lowFreqClock.value, 'zh-CN', { month: 'long', day: 'numeric' }),
-  )
+  const dateMD = computed(() => formatZonedDate(lowFreqClock.value, 'zh-CN', { month: 'long', day: 'numeric' }))
   const dateYear = computed(() => formatZonedDate(lowFreqClock.value, 'zh-CN', { year: 'numeric' }))
   const lunarRaw = computed(() => solarToLunar(getZonedWallDate(lowFreqClock.value)))
   const lunarFullLine = computed(() => formatLunarFullLine(lunarRaw.value))
@@ -68,10 +63,7 @@ export function createScreensaverClockState(
 }
 
 /** 屏保天气实体与展示派生 */
-export function createScreensaverWeatherState(
-  entitiesStore: EntitiesStore,
-  layoutStore: LayoutStore,
-) {
+export function createScreensaverWeatherState(entitiesStore: EntitiesStore, layoutStore: LayoutStore) {
   const weatherEntity = computed(() => {
     void entitiesStore.derivedEpoch
     void entitiesStore.getDomainEpoch('weather')
@@ -121,11 +113,7 @@ export function createScreensaverWeatherState(
   return { weatherEntity, weatherEid, weatherTemp, weatherDesc, weatherExtra, weatherIcon }
 }
 
-function buildWeatherExtraItems(
-  entitiesStore: EntitiesStore,
-  attrs: Record<string, unknown>,
-  weatherEid: string,
-) {
+function buildWeatherExtraItems(entitiesStore: EntitiesStore, attrs: Record<string, unknown>, weatherEid: string) {
   const items: { icon: string; val: string }[] = []
   if (attrs.humidity != null) items.push({ icon: '💧', val: String(attrs.humidity) + '%' })
   const tRaw = numOr(attrs.temperature, NaN)
@@ -147,8 +135,7 @@ function buildWeatherExtraItems(
     const unit = (attrs.wind_speed_unit as string) || 'm/s'
     items.push({ icon: '🌬', val: Math.round(Number(attrs.wind_speed)) + unit })
   }
-  if (attrs.pressure != null)
-    items.push({ icon: '📊', val: Math.round(Number(attrs.pressure)) + 'hPa' })
+  if (attrs.pressure != null) items.push({ icon: '📊', val: Math.round(Number(attrs.pressure)) + 'hPa' })
   void entitiesStore.getDomainEpoch('sensor')
   const aqi = readAqiNumber(
     (id) => entitiesStore.getEntity(id),

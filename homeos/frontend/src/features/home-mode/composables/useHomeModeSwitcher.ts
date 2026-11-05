@@ -13,10 +13,7 @@ import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdow
 import { resolveHomeModeIcon } from '@/shared/home-mode'
 import { fetchHomeModeContext } from '@/services/api/home-modes'
 import { loadPresenceHome as fetchPresenceHomeData } from '@/shared/presence/composables/load-presence-home'
-import {
-  formatPresenceBadgeSummary,
-  isPresenceConfigured,
-} from '@/shared/presence/utils/display.util'
+import { formatPresenceBadgeSummary, isPresenceConfigured } from '@/shared/presence/utils/display.util'
 import { systemConfigRef } from '@/composables/config/system-config-core.internals'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
@@ -59,24 +56,13 @@ export function useHomeModeSwitcher() {
   // 在场状态轮询任务取消函数（注册到全局调度器）
   let presencePollCancel: (() => void) | null = null
 
-  const {
-    modes,
-    activeMode,
-    activeModes,
-    loading,
-    acting,
-    activate,
-    deactivate,
-    fetchModes,
-    fetchActive,
-  } = useHomeModes()
+  const { modes, activeMode, activeModes, loading, acting, activate, deactivate, fetchModes, fetchActive } =
+    useHomeModes()
 
   // 多个互斥组可以同时激活：header 只显示「主模式 +N」而不是把名字拼到被截断，
   // 完整列表放进 title（拼成「睡眠模式 · 回家模式」后按钮会被截断成「睡眠模式·…」，
   // 看起来像只有一个模式在生效）。
-  const activeLabels = computed(() =>
-    activeModes.value.map((m) => m.name).filter((name): name is string => !!name),
-  )
+  const activeLabels = computed(() => activeModes.value.map((m) => m.name).filter((name): name is string => !!name))
   const activeModeIds = computed(() => activeModes.value.map((m) => String(m.id)))
   const label = computed(() => {
     const names = activeLabels.value
@@ -100,12 +86,8 @@ export function useHomeModeSwitcher() {
     return Array.isArray(list) ? list : []
   })
 
-  const showPresenceBadge = computed(
-    () => presenceLoaded.value && isPresenceConfigured(presenceHome.value),
-  )
-  const showPresenceEmpty = computed(
-    () => presenceLoaded.value && !isPresenceConfigured(presenceHome.value),
-  )
+  const showPresenceBadge = computed(() => presenceLoaded.value && isPresenceConfigured(presenceHome.value))
+  const showPresenceEmpty = computed(() => presenceLoaded.value && !isPresenceConfigured(presenceHome.value))
   const presenceSummary = computed(() => formatPresenceBadgeSummary(presenceHome.value))
   const presenceAtHomeCount = computed(
     () => presenceMembers.value.filter((m) => Boolean((m as { atHome?: boolean }).atHome)).length,
@@ -226,11 +208,10 @@ export function useHomeModeSwitcher() {
     open.value = false
     if (!activeMode.value) return
     const name = activeMode.value.name || '当前模式'
-    const ok = await useChromeStore().confirm(
-      `确定退出「${name}」？将尝试按激活前快照还原设备状态。`,
-      '退出家庭模式',
-      { type: 'danger', confirmText: '确认退出' },
-    )
+    const ok = await useChromeStore().confirm(`确定退出「${name}」？将尝试按激活前快照还原设备状态。`, '退出家庭模式', {
+      type: 'danger',
+      confirmText: '确认退出',
+    })
     if (!ok) return
     // 只退出当前主模式（多互斥组时其余组继续保持激活）
     const result = await deactivate(activeMode.value.id)
@@ -254,10 +235,7 @@ export function useHomeModeSwitcher() {
     presenceTipOpen.value = false
   }
 
-  useClickOutside(
-    () => [rootRef.value, menuRef.value].filter((el): el is HTMLElement => !!el),
-    onDocClick,
-  )
+  useClickOutside(() => [rootRef.value, menuRef.value].filter((el): el is HTMLElement => !!el), onDocClick)
 
   onMounted(() => {
     fetchModes()

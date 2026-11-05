@@ -49,11 +49,7 @@
 .voice-cmd-card {
   padding: 14px;
   border-radius: var(--hos-r-2);
-  background: linear-gradient(
-    160deg,
-    rgba(var(--hos-color-accent-strong-rgb), 0.06) 0%,
-    rgba(0, 0, 0, 0.2) 100%
-  );
+  background: linear-gradient(160deg, rgba(var(--hos-color-accent-strong-rgb), 0.06) 0%, rgba(0, 0, 0, 0.2) 100%);
   border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.16);
   transition:
     border-color 0.15s ease,
@@ -126,7 +122,8 @@
 }
 
 .voice-cmd-card__delete:focus-visible {
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
   border-color: rgba(var(--hos-color-danger-rgb), 0.5);
   box-shadow: 0 0 0 3px rgba(var(--hos-color-danger-rgb), 0.18);
 }
@@ -135,12 +132,7 @@
   margin-top: 0;
 }
 
-
-
-
-
 .voice-cmd-flow-band__shell {
   --hos-glow-flow-a: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-a));
   --hos-glow-flow-b: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-b));
 }
-

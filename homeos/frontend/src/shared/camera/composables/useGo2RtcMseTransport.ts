@@ -60,13 +60,7 @@ const TERMINAL_CLOSE_CODES = new Set([4400, 4401, 4403])
 const AUTH_CLOSE_CODES = new Set([4401, 4403])
 
 /** 摄像机舞台的视觉状态（写入 `dataset.cameraVisualState`）。 */
-type CameraVisualState =
-  | 'idle'
-  | 'connecting'
-  | 'reconnecting'
-  | 'ready'
-  | 'unavailable'
-  | 'suspended'
+type CameraVisualState = 'idle' | 'connecting' | 'reconnecting' | 'ready' | 'unavailable' | 'suspended'
 
 /** `window.ManagedMediaSource` / `window.MediaSource`：vite-env.d.ts 的 Window 只有索引签名，这里补局部类型。 */
 type MediaSourceRuntimeCtor = {
@@ -109,14 +103,10 @@ export function normalizeGo2rtcTarget(
   } catch {
     throw new Error('go2rtc 地址无效')
   }
-  if (!['http:', 'https:'].includes(parsedTarget.protocol))
-    throw new Error('go2rtc 地址必须使用 http:// 或 https://')
-  if (parsedTarget.pathname.replace(/\/$/, '') !== '/stream.html')
-    throw new Error('go2rtc 地址必须指向 /stream.html')
-  if (!parsedTarget.searchParams.get('src')?.trim())
-    throw new Error('go2rtc 地址必须包含有效的 src')
-  if (parsedTarget.username || parsedTarget.password)
-    throw new Error('go2rtc 地址不能包含账号或密码')
+  if (!['http:', 'https:'].includes(parsedTarget.protocol)) throw new Error('go2rtc 地址必须使用 http:// 或 https://')
+  if (parsedTarget.pathname.replace(/\/$/, '') !== '/stream.html') throw new Error('go2rtc 地址必须指向 /stream.html')
+  if (!parsedTarget.searchParams.get('src')?.trim()) throw new Error('go2rtc 地址必须包含有效的 src')
+  if (parsedTarget.username || parsedTarget.password) throw new Error('go2rtc 地址不能包含账号或密码')
   const relayUrl = new URL(GO2RTC_WS_PATH, window.location.href)
   if (cameraId) relayUrl.searchParams.set('cameraId', String(cameraId))
   relayUrl.protocol = relayUrl.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -159,9 +149,7 @@ export interface Go2RtcMseTransportHandle {
  *
  * 内部自带重连与画面停滞看门狗，调用方只需在页面挂起/卸载时 `dispose()`。
  */
-export function createGo2RtcMseTransport(
-  options: Go2RtcMseTransportOptions,
-): Go2RtcMseTransportHandle {
+export function createGo2RtcMseTransport(options: Go2RtcMseTransportOptions): Go2RtcMseTransportHandle {
   const {
     video: videoElement,
     url: rawGo2rtcUrl,
@@ -268,8 +256,7 @@ export function createGo2RtcMseTransport(
       if (isDisposed || generation !== transportGeneration) return
       const currentTime = videoElement.currentTime
       // currentTime 只要前进过就清零；否则累计停滞次数。
-      stalledTicks =
-        Number.isFinite(currentTime) && currentTime > lastCurrentTime ? 0 : stalledTicks + 1
+      stalledTicks = Number.isFinite(currentTime) && currentTime > lastCurrentTime ? 0 : stalledTicks + 1
       lastCurrentTime = currentTime
       if (stalledTicks >= STALL_TICKS_BEFORE_RECONNECT) {
         fail(generation, '摄像头画面停滞，正在重连')
@@ -312,8 +299,7 @@ export function createGo2RtcMseTransport(
     activeSocket = socket
     activeMediaSource = mediaSource
 
-    const isCurrent = () =>
-      !isDisposed && generation === transportGeneration && activeSocket === socket
+    const isCurrent = () => !isDisposed && generation === transportGeneration && activeSocket === socket
 
     let sourceBuffer: SourceBuffer | null = null
     let pendingChunks: ArrayBuffer[] = []
@@ -420,9 +406,7 @@ export function createGo2RtcMseTransport(
 
     // ManagedMediaSource 支持 srcObject 直连，普通 MediaSource 只能走 blob URL。
     if (isManaged) {
-      ;(
-        videoElement as HTMLVideoElement & { disableRemotePlayback: boolean }
-      ).disableRemotePlayback = true
+      ;(videoElement as HTMLVideoElement & { disableRemotePlayback: boolean }).disableRemotePlayback = true
       videoElement.srcObject = mediaSource
     } else {
       objectUrl = URL.createObjectURL(mediaSource)

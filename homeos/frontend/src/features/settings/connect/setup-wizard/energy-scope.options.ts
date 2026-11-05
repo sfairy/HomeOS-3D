@@ -7,7 +7,7 @@
  */
 import type { EnergyMeterGrain, EnergyMeterScope } from '@homeos/shared'
 
-export type EnergyScopeOption = {
+type EnergyScopeOption = {
   value: EnergyMeterScope
   label: string
   /** 该口径下直接读表的粒度（其余靠差分/求和） */

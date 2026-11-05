@@ -44,14 +44,7 @@ const slopedRail = transform(b(0.05, 0.05, Math.hypot(STEPS * RUN, TOP)), {
 const landingRail = b(0.05, 0.05, LANDING, W / 2 - 0.04, H - 0.025, D / 2 - LANDING / 2)
 const balusters = merge(
   Array.from({ length: STEPS }, (_, index) =>
-    b(
-      0.025,
-      postH,
-      0.025,
-      W / 2 - 0.04,
-      (index + 1) * RISE + postH / 2,
-      -D / 2 + index * RUN + RUN / 2,
-    ),
+    b(0.025, postH, 0.025, W / 2 - 0.04, (index + 1) * RISE + postH / 2, -D / 2 + index * RUN + RUN / 2),
   ),
 )
 

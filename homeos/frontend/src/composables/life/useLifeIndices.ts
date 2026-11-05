@@ -67,10 +67,7 @@ export function useLifeIndices(entityIdOverride?: MaybeRef<string | undefined>) 
   const liveMetrics = computed(() => {
     void entitiesStore.derivedEpoch
     void entitiesStore.getDomainEpoch('sensor')
-    return resolveWeatherStationLiveMetrics(
-      (id) => entitiesStore.getEntity(id),
-      resolvedEid.value,
-    )
+    return resolveWeatherStationLiveMetrics((id) => entitiesStore.getEntity(id), resolvedEid.value)
   })
 
   // 气象预警（如 binary_sensor 的 state）
@@ -81,9 +78,7 @@ export function useLifeIndices(entityIdOverride?: MaybeRef<string | undefined>) 
   })
 
   const availableCount = computed(() => indices.value.length)
-  const attentionCount = computed(
-    () => indices.value.filter((i) => i.tone === 'warn' || i.tone === 'caution').length,
-  )
+  const attentionCount = computed(() => indices.value.filter((i) => i.tone === 'warn' || i.tone === 'caution').length)
 
   // 头条索引：按优先级取穿衣 / 舒适度 / 带伞中第一个有效项
   const headline = computed(() => {

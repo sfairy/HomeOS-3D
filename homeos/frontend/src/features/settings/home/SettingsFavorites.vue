@@ -171,10 +171,7 @@ import { DEVICES_ROUTES } from '@/shared/device/utils/devices-route.util'
 const devicesFavoritesLink = DEVICES_ROUTES.favorites()
 
 // 实体选择弹窗（懒加载）
-const EntityPickModal = defineAsyncComponent(
-  () => import('@/components/entities/EntityPickModal.vue'),
-)
-
+const EntityPickModal = defineAsyncComponent(() => import('@/components/entities/EntityPickModal.vue'))
 
 defineProps({ activeTab: { type: String, default: 'favorites' } })
 
@@ -200,8 +197,7 @@ const favFlowSteps = [
 
 // 流程折叠态摘要：设备数 + 已配置分类数
 const favFlowSummary = computed(
-  () =>
-    `${totalFavoriteCount.value} 设备 · ${configuredCategoryCount.value}/${categoryViews.value.length} 分类`,
+  () => `${totalFavoriteCount.value} 设备 · ${configuredCategoryCount.value}/${categoryViews.value.length} 分类`,
 )
 
 // 实体选择弹窗开关与当前编辑 domain/label

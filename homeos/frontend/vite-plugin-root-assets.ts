@@ -43,15 +43,7 @@ const DEV_BUILD_OUTPUT_PREFIXES = ['/static/'] as const
  * 只收「被当成脚本 / 样式 / 数据加载」的类型：它们拿到 HTML 一定失败，且失败信息具有误导性。
  * 图片、字体等缺失时浏览器本来就会安静降级，无需额外处理。
  */
-const MISSING_BUILD_OUTPUT_SUFFIXES = new Set([
-  '.js',
-  '.mjs',
-  '.css',
-  '.json',
-  '.map',
-  '.wasm',
-  '.webmanifest',
-])
+const MISSING_BUILD_OUTPUT_SUFFIXES = new Set(['.js', '.mjs', '.css', '.json', '.map', '.wasm', '.webmanifest'])
 
 const MIME: Record<string, string> = {
   '.svg': 'image/svg+xml',
@@ -117,10 +109,7 @@ function resolvePublicStaticFile(urlPath: string): string | null {
 }
 
 /** 构建产物请求的解析结果：命中文件、确认缺失（应回 404）、或与构建产物无关。 */
-type BuildOutputResolution =
-  | { status: 'serve'; file: string }
-  | { status: 'missing' }
-  | null
+type BuildOutputResolution = { status: 'serve'; file: string } | { status: 'missing' } | null
 
 /**
  * 只由构建产物提供的 `/static/**`、`/assets/**` 在 dev 下的兜底。
@@ -145,16 +134,11 @@ function resolveDevBuildOutputFallback(urlPath: string): BuildOutputResolution {
   const bucket = prefix.slice(1)
   const file = path.join(DIST_ROOT, bucket, rel)
   if (fs.existsSync(file) && fs.statSync(file).isFile()) return { status: 'serve', file }
-  return MISSING_BUILD_OUTPUT_SUFFIXES.has(path.extname(rel).toLowerCase())
-    ? { status: 'missing' }
-    : null
+  return MISSING_BUILD_OUTPUT_SUFFIXES.has(path.extname(rel).toLowerCase()) ? { status: 'missing' } : null
 }
 
 /** 单段 `Range: bytes=…` 解析；非单段 / 越界一律返回 null（按整文件下发）。 */
-function parseByteRange(
-  header: string | undefined,
-  size: number,
-): { start: number; end: number } | null {
+function parseByteRange(header: string | undefined, size: number): { start: number; end: number } | null {
   if (!header || size <= 0) return null
   const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim())
   if (!match) return null
@@ -189,10 +173,7 @@ function serveDiskFile(
   const ext = path.extname(file).toLowerCase()
   const stat = fs.existsSync(file) ? fs.statSync(file) : null
   const found = stat?.isFile() === true
-  res.setHeader(
-    'Content-Type',
-    MIME[ext] || (found ? 'application/octet-stream' : 'text/plain; charset=utf-8'),
-  )
+  res.setHeader('Content-Type', MIME[ext] || (found ? 'application/octet-stream' : 'text/plain; charset=utf-8'))
   if (!found || !stat) {
     res.statusCode = 404
     res.end('Not Found')

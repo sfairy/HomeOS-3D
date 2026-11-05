@@ -15,8 +15,7 @@
   padding: 1.25rem 1.35rem 1.15rem;
   border-radius: var(--hos-r-3);
   border: 1px solid rgb(56 189 248 / 0.28);
-  background:
-    linear-gradient(165deg, rgb(8 28 48 / 0.96) 0%, rgb(4 16 32 / 0.98) 55%, rgb(2 10 22 / 0.98) 100%);
+  background: linear-gradient(165deg, rgb(8 28 48 / 0.96) 0%, rgb(4 16 32 / 0.98) 55%, rgb(2 10 22 / 0.98) 100%);
   box-shadow:
     0 0 0 1px rgb(14 165 233 / 0.08),
     0 24px 64px rgb(0 0 0 / 0.45);
@@ -155,7 +154,9 @@
 
 .cenc-fade-enter-active .cenc-card,
 .cenc-fade-leave-active .cenc-card {
-  transition: transform 0.22s ease, opacity 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
 }
 
 .cenc-fade-enter-from,

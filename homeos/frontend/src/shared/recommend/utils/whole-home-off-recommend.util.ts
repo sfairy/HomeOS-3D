@@ -21,9 +21,7 @@ interface WholeHomeOffRecommendInput {
  * @param input 推荐输入
  * @returns 推荐结果对象
  */
-export function buildWholeHomeOffRecommendations(
-  input: WholeHomeOffRecommendInput,
-): RecommendInsightResult {
+export function buildWholeHomeOffRecommendations(input: WholeHomeOffRecommendInput): RecommendInsightResult {
   const excludeSet = new Set(input.excludeEntityIds.map((id) => String(id).trim()).filter(Boolean))
   const chips = []
 
@@ -46,9 +44,7 @@ export function buildWholeHomeOffRecommendations(
   return {
     domain: 'whole-home-off',
     title: '全屋关闭推荐',
-    summary: hasActionable
-      ? `建议将 ${chips.length} 个常开设备加入排除列表，避免误关`
-      : '排除列表已覆盖主要常开设备',
+    summary: hasActionable ? `建议将 ${chips.length} 个常开设备加入排除列表，避免误关` : '排除列表已覆盖主要常开设备',
     hasActionable,
     groups: chips.length ? [{ id: 'exclude', label: '建议排除实体', chips }] : [],
     linkTo: '/settings?tab=general&section=whole-home-off',

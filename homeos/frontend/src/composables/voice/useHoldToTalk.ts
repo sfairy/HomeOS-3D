@@ -26,9 +26,9 @@ const WAVE_GAIN = 18
 const WAVE_STEP = 0.22
 
 /** idle=未按 / holding=录音中 / cancel=已上滑、松手即丢弃 */
-export type HoldPhase = 'idle' | 'holding' | 'cancel'
+type HoldPhase = 'idle' | 'holding' | 'cancel'
 
-export interface HoldToTalkOptions {
+interface HoldToTalkOptions {
   /** 允许开始的条件（忙 / 未配置时按不动） */
   enabled?: () => boolean
   /** 按住达标：调用方启动录音 */

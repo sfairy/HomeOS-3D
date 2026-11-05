@@ -59,10 +59,7 @@ export const DEVICE_CHART_COPY = {
  * @param series 各系列元信息（name + unit），用于匹配并拼接单位
  * @returns HTML 字符串：表头（axisValue）+ 各系列名值与单位
  */
-export function formatDualMetricTooltip(
-  params: unknown,
-  series: Array<{ name: string; unit: string }>,
-): string {
+export function formatDualMetricTooltip(params: unknown, series: Array<{ name: string; unit: string }>): string {
   const items = Array.isArray(params) ? params : [params]
   if (!items.length) return ''
   const header = String((items[0] as { axisValue?: string }).axisValue ?? '')

@@ -1,9 +1,5 @@
 /** - 管理 IndexedDB 数据库（homeos_entity_cache）的打开、升级与修复。 */
-import type {
-  EntityCacheAccessUser,
-  EntityCacheSnapshot,
-  HaEntityState,
-} from '@/shared/types/entity-store'
+import type { EntityCacheAccessUser, EntityCacheSnapshot, HaEntityState } from '@/shared/types/entity-store'
 import { getFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { logger } from '@/shared/utils/core/logger'
 
@@ -50,9 +46,7 @@ export function buildEntityCacheKey(
   accessUser: EntityCacheAccessUser | null | undefined,
 ): string {
   const user = username || 'anonymous'
-  const restrictions = Array.isArray(accessUser?.restrictions)
-    ? [...accessUser.restrictions].sort().join(',')
-    : ''
+  const restrictions = Array.isArray(accessUser?.restrictions) ? [...accessUser.restrictions].sort().join(',') : ''
   return `${user}|${restrictions}`
 }
 
@@ -162,10 +156,7 @@ function idbRequest<T>(req: IDBRequest<T>): Promise<T> {
   })
 }
 
-function withStore<T>(
-  mode: 'readonly' | 'readwrite',
-  fn: (store: IDBObjectStore) => T | Promise<T>,
-): Promise<T> {
+function withStore<T>(mode: 'readonly' | 'readwrite', fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T> {
   return openDb().then(
     (db) =>
       new Promise((resolve, reject) => {
@@ -206,9 +197,7 @@ export async function loadEntityCache(
   try {
     const snapshot = await withStore('readonly', async (store) => {
       const allKeys = (await idbRequest(store.getAllKeys())) as IDBValidKey[]
-      const shardKeys = allKeys.filter(
-        (k): k is string => typeof k === 'string' && k.startsWith(cacheKey + SHARD_SEP),
-      )
+      const shardKeys = allKeys.filter((k): k is string => typeof k === 'string' && k.startsWith(cacheKey + SHARD_SEP))
       if (!shardKeys.length) return undefined
       // 合并全部分片重建全量实体（分片间实体互不重叠，直接按 entity_id 覆盖合并）
       const entityMap = new Map<string, HaEntityState>()

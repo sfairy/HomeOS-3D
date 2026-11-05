@@ -76,9 +76,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio'
 
 const LicenseRecoveryView = defineAsyncComponent(() => import('@/views/auth/LicenseRecoveryView.vue'))
-const MediaPlayerModal = defineAsyncComponent(() =>
-  import('@/layouts/shell-overlays').then((m) => m.MediaPlayerModal),
-)
+const MediaPlayerModal = defineAsyncComponent(() => import('@/layouts/shell-overlays').then((m) => m.MediaPlayerModal))
 
 // 初始化应用主题（监听并应用用户偏好的亮/暗主题）
 useAppTheme()
@@ -103,9 +101,7 @@ const isDisplayBackdropRoute = computed(() => DISPLAY_BACKDROP_ROUTES.has(String
 // 独立整屏展示页的整页背景图状态（灯亮 → light_on，全关 → light_off）
 const displayLightBackdrop = useDisplayLightBackdropState()
 const lightBackdropStyle = computed(() =>
-  isDisplayBackdropRoute.value
-    ? { backgroundImage: `url('${displayLightBackdrop.value.url}')` }
-    : {},
+  isDisplayBackdropRoute.value ? { backgroundImage: `url('${displayLightBackdrop.value.url}')` } : {},
 )
 
 /**
@@ -145,8 +141,7 @@ const routeTransitionName = ref('route-fade')
 const removeRouteTransitionGuard = router.beforeEach((to, from) => {
   const toName = String(to.name ?? '')
   const fromName = String(from.name ?? '')
-  const involvesCreator =
-    STUDIO_CREATOR_ROUTES.has(toName) || STUDIO_CREATOR_ROUTES.has(fromName)
+  const involvesCreator = STUDIO_CREATOR_ROUTES.has(toName) || STUDIO_CREATOR_ROUTES.has(fromName)
   routeTransitionName.value = involvesCreator ? 'route-cut' : 'route-fade'
 })
 onBeforeUnmount(removeRouteTransitionGuard)
@@ -159,9 +154,7 @@ const isAppChromeToastHost = computed(() => route.matched.length <= 1)
 
 // ── 3D Studio 页面资产调度 ──
 // 后端在返回 SPA 外壳时给 <html> 标 data-license-blocked="1"：此时按原因决定渲染哪一页。
-const licenseBlocked = ref(
-  typeof document !== 'undefined' && document.documentElement.dataset.licenseBlocked === '1',
-)
+const licenseBlocked = ref(typeof document !== 'undefined' && document.documentElement.dataset.licenseBlocked === '1')
 
 /** 后端写在 `<html data-license-status>` 上的阻断原因（状态码）；未阻断时为空串。 */
 const licenseBlockedStatus = (
@@ -254,8 +247,7 @@ watch(
     previousShellRouteKey = nextShellKey
     routeAssetsResolved = true
 
-    const deferStyles =
-      shellKeyChanged && routeTransitionName.value === 'route-fade'
+    const deferStyles = shellKeyChanged && routeTransitionName.value === 'route-fade'
 
     if (deferStyles) {
       applyPageAssets(nextAssets, { keepStylesheets: listManagedStylesheets() })

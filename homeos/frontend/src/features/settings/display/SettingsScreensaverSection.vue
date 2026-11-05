@@ -69,10 +69,7 @@ import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsC
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import SettingsSwitchToggle from '@/features/settings/shared/layout/SettingsSwitchToggle.vue'
-import {
-  handleSystemConfigPatchError,
-  patchSystemConfig,
-} from '@/composables/config/system-config-core.internals'
+import { handleSystemConfigPatchError, patchSystemConfig } from '@/composables/config/system-config-core.internals'
 import {
   getConfigSection,
   loadFrontendConfig,
@@ -97,14 +94,11 @@ function readPower() {
 const baseline = reactive(readPower())
 const form = reactive({ ...baseline })
 
-const isDirty = computed(
-  () => form.enabled !== baseline.enabled || form.idleMinutes !== baseline.idleMinutes,
-)
+const isDirty = computed(() => form.enabled !== baseline.enabled || form.idleMinutes !== baseline.idleMinutes)
 
 function syncFromConfig() {
   const next = readPower()
-  const dirty =
-    form.enabled !== baseline.enabled || form.idleMinutes !== baseline.idleMinutes
+  const dirty = form.enabled !== baseline.enabled || form.idleMinutes !== baseline.idleMinutes
   baseline.enabled = next.enabled
   baseline.idleMinutes = next.idleMinutes
   if (!dirty) {

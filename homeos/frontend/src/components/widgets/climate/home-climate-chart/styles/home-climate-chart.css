@@ -205,13 +205,9 @@
   width: 100%;
 }
 
-
-
 .hcc-card__legend-chip--off {
   opacity: 0.38;
 }
-
-
 
 .hcc-card__legend-value {
   font-size: var(--premium-fs-micro);
@@ -397,8 +393,6 @@
 .hcc-card__summary-cell.is-hum-unknown {
   --hcc-level-color: rgba(148, 163, 184, 0.52);
 }
-
-
 
 /* ── 空态 ── */
 .hcc-card__state {

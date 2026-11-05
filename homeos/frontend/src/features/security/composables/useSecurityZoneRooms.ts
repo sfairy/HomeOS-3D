@@ -46,15 +46,11 @@ export function useSecurityZoneRooms() {
   )
 
   // 按房间分组的安全传感器 Map：key 为 roomId，未分配的归入 __unassigned__
-  const sensorsByRoom = computed(() =>
-    groupSecuritySensorsByRoom(entitiesStore.entities, envMap.activeRoom.value),
-  )
+  const sensorsByRoom = computed(() => groupSecuritySensorsByRoom(entitiesStore.entities, envMap.activeRoom.value))
 
   // 有传感器的已分配房间列表（排除 __unassigned__）
   const roomsWithSensors = computed(() =>
-    [...sensorsByRoom.value.values()].filter(
-      (g) => g.roomId !== '__unassigned__' && g.sensors.length > 0,
-    ),
+    [...sensorsByRoom.value.values()].filter((g) => g.roomId !== '__unassigned__' && g.sensors.length > 0),
   )
 
   const unassignedSensors = computed(() => sensorsByRoom.value.get('__unassigned__')?.sensors || [])
@@ -104,11 +100,7 @@ export function useSecurityZoneRooms() {
    * @param roomId 房间 ID
    * @param options.replaceSensors 是否替换区域传感器为房间传感器，默认 true
    */
-  function applyRoomToZone(
-    zone: SecurityZoneDraft,
-    roomId: string,
-    { replaceSensors = true } = {},
-  ) {
+  function applyRoomToZone(zone: SecurityZoneDraft, roomId: string, { replaceSensors = true } = {}) {
     zone.roomId = roomId || ''
     // 空房间 ID 时仅清空，不同步传感器
     if (!roomId) return

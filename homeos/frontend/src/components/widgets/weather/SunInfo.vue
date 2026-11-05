@@ -139,11 +139,7 @@ const showPresence = computed(() => hubConfig.value.showPresence !== false)
 /** 实体仓库（用于读取 sun.sun 实体） */
 const entitiesStore = useEntitiesStore()
 /** 在家成员状态 composable */
-const {
-  loading: presenceLoading,
-  members: presenceMembers,
-  autoMode: presenceAutoMode,
-} = usePresenceHome()
+const { loading: presenceLoading, members: presenceMembers, autoMode: presenceAutoMode } = usePresenceHome()
 
 /**
  * sun.sun 实体。
@@ -167,29 +163,19 @@ const sunriseTime = computed(() => formatSunTime(sunTimes.value.sunrise))
 const sunsetTime = computed(() => formatSunTime(sunTimes.value.sunset))
 
 /** 白昼时长描述（如「12小时30分」） */
-const daylightDuration = computed(() =>
-  formatDaylightDuration(sunTimes.value.sunrise, sunTimes.value.sunset),
-)
+const daylightDuration = computed(() => formatDaylightDuration(sunTimes.value.sunrise, sunTimes.value.sunset))
 
 /** 太阳在日轨上的进度百分比（0-100） */
-const sunPosition = computed(() =>
-  computeSunProgress(sunTimes.value.sunrise, sunTimes.value.sunset),
-)
+const sunPosition = computed(() => computeSunProgress(sunTimes.value.sunrise, sunTimes.value.sunset))
 
 /** 当前时间（HH:mm） */
-const currentTime = computed(() =>
-  formatLocaleTime(new Date(), { hour: '2-digit', minute: '2-digit', hour12: false }),
-)
+const currentTime = computed(() => formatLocaleTime(new Date(), { hour: '2-digit', minute: '2-digit', hour12: false }))
 
 /** 距下一次日出/日落倒计时 */
-const sunCountdown = computed(() =>
-  formatSunCountdown(sunEntity.value?.attributes, isDay.value),
-)
+const sunCountdown = computed(() => formatSunCountdown(sunEntity.value?.attributes, isDay.value))
 
 /** 按 Hub 配置过滤后的在家成员列表 */
-const displayMembers = computed(() =>
-  filterPresenceMembers(presenceMembers.value, hubConfig.value.presencePersonIds),
-)
+const displayMembers = computed(() => filterPresenceMembers(presenceMembers.value, hubConfig.value.presencePersonIds))
 
 /** 在家优先、同状态按姓名排序的成员列表 */
 const sortedMembers = computed(() =>

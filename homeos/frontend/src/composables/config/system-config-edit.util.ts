@@ -53,20 +53,18 @@ function isEditableFieldValue(fieldKey: string, value: unknown): boolean {
  * @param data - 后端返回的 SystemConfig。
  * @returns 可编辑分节数组；无可编辑字段时分节为空。
  */
-export function toEditableSections(
-  data: SystemConfig | Record<string, unknown>,
-): EditableConfigSection[] {
+export function toEditableSections(data: SystemConfig | Record<string, unknown>): EditableConfigSection[] {
   const sections: EditableConfigSection[] = []
   const record = data as Record<string, unknown>
   for (const key of Object.keys(record)) {
     if (key.startsWith('_')) continue
     const rawValue = record[key]
     if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) continue
-      if (EXCLUDED_SECTIONS.has(key)) continue
-      const section = rawValue as Record<string, unknown>
-      const fields: EditableConfigSection['fields'] = []
-      for (const fieldKey of Object.keys(section)) {
-        if (!SYSTEM_CONFIG_FIELD_KEYS.has(fieldKey)) continue
+    if (EXCLUDED_SECTIONS.has(key)) continue
+    const section = rawValue as Record<string, unknown>
+    const fields: EditableConfigSection['fields'] = []
+    for (const fieldKey of Object.keys(section)) {
+      if (!SYSTEM_CONFIG_FIELD_KEYS.has(fieldKey)) continue
       const value = section[fieldKey]
       if (!isEditableFieldValue(fieldKey, value)) continue
       const type = inferSystemConfigFieldType(value, fieldKey)
@@ -93,9 +91,7 @@ export function fromEditableSections(sectionList: EditableConfigSection[]): Edit
       if (
         field.type === 'password' &&
         field.isMasked &&
-        (field.value === CONFIG_MASK ||
-          field.value === '********' ||
-          !String(field.value || '').trim())
+        (field.value === CONFIG_MASK || field.value === '********' || !String(field.value || '').trim())
       ) {
         continue
       }
@@ -137,9 +133,7 @@ export function fromEditableSectionsPending(
 }
 
 /** 解析已保存快照 JSON 字符串；空或非法时返回 null（不抛错以容错） */
-function parseSavedSnapshot(
-  savedSnapshot: string | null | undefined,
-): EditableConfigSnapshot | null {
+function parseSavedSnapshot(savedSnapshot: string | null | undefined): EditableConfigSnapshot | null {
   if (!savedSnapshot) return null
   try {
     const parsed = JSON.parse(savedSnapshot) as unknown
@@ -189,12 +183,7 @@ export function getSystemConfigSectionPendingMap(
   return map
 }
 
-const PRICING_TIER_ONLY_KEYS = new Set([
-  'tier1Kwh',
-  'tier1Price',
-  'tier2Price',
-  'tier3Price',
-])
+const PRICING_TIER_ONLY_KEYS = new Set(['tier1Kwh', 'tier1Price', 'tier2Price', 'tier3Price'])
 const PRICING_FIXED_ONLY_KEYS = new Set(['fixedPrice', 'regionLabel'])
 const PRICING_TOU_ONLY_KEYS = new Set([
   'peakStart1',

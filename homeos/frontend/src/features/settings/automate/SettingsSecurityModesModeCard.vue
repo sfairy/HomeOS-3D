@@ -278,9 +278,7 @@ const homeModesLoading = ref(false)
 let homeModesLoaded = false
 
 // 当前模式对象：从 securityModes 中按 modeKey 查找
-const mode = computed(() =>
-  (layoutStore.layoutConfig.securityModes || []).find((m) => m.key === props.modeKey),
-)
+const mode = computed(() => (layoutStore.layoutConfig.securityModes || []).find((m) => m.key === props.modeKey))
 // 安防模式到家庭模式的联动映射表，缺失时按四个标准模式 key 初始化
 const securityModeLinks = computed(() => {
   const lc = layoutStore.layoutConfig

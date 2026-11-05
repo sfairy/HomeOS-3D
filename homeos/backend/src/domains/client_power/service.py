@@ -83,16 +83,6 @@ def _coerce_number(value: Any) -> float | None:
     return number
 
 
-def _coerce_int(value: Any, fallback: int) -> int:
-    number = _coerce_number(value)
-    return fallback if number is None else int(number)
-
-
-def _coerce_float(value: Any, fallback: float) -> float:
-    number = _coerce_number(value)
-    return fallback if number is None else number
-
-
 #: 已经为哪些配置项报过「值无效」告警（同一项只告警一次，避免 10s 一条刷屏）
 _INVALID_CONFIG_WARNED: set[str] = set()
 

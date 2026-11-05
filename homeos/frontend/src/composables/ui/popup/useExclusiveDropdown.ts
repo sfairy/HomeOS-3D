@@ -60,10 +60,7 @@ type ExclusiveDropdownOptions = {
  * 将布尔打开状态接入全局互斥下拉。
  * 打开时 claim 并关掉其它菜单；关闭/卸载时 release。
  */
-export function useExclusiveDropdown(
-  isOpenRef: Ref<boolean>,
-  options: ExclusiveDropdownOptions = {},
-) {
+export function useExclusiveDropdown(isOpenRef: Ref<boolean>, options: ExclusiveDropdownOptions = {}) {
   if (options.exclusive === false) {
     return { id: null as symbol | null }
   }
@@ -90,5 +87,3 @@ export function useExclusiveDropdown(
 
   return { id }
 }
-
-

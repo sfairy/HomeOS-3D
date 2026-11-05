@@ -21,4 +21,8 @@ export { useEarthquakeStatusQuery } from './composables/useEarthquakeStatusQuery
 // 纯函数（域根只留真的被跨域取用的）
 export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/composables/earthquake/earthquake-layout.util'
 export { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
-export { buildFixedPageSlots, computeAnalyticsSummary, shortenPlace } from '@/shared/earthquake/utils/history-analytics.util'
+export {
+  buildFixedPageSlots,
+  computeAnalyticsSummary,
+  shortenPlace,
+} from '@/shared/earthquake/utils/history-analytics.util'

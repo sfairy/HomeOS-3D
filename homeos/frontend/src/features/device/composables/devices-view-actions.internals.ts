@@ -6,18 +6,13 @@
 
 import { coverToggleService } from '@/shared/entity/utils/control/cover-control-core'
 
-type DeviceToggleCommand =
-  | { ok: true; domain: string; service: string }
-  | { ok: false; reason: 'unknown-state' }
+type DeviceToggleCommand = { ok: true; domain: string; service: string } | { ok: false; reason: 'unknown-state' }
 
 /**
  * 根据域与当前状态解析 toggle 要调用的 HA service。
  * cover 状态未知时返回失败；lock 解锁为高危（调用方需二次确认）。
  */
-export function resolveDeviceToggleCommand(
-  domain: string,
-  state: string,
-): DeviceToggleCommand {
+export function resolveDeviceToggleCommand(domain: string, state: string): DeviceToggleCommand {
   if (domain === 'cover') {
     const service = coverToggleService(state)
     if (!service) return { ok: false, reason: 'unknown-state' }

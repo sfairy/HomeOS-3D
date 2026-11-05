@@ -7,8 +7,17 @@ import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { EMBED_ICON_LABELS, embedIconMap, embedLucidIcons, resolveEmbedIconByIndex } from '@/shared/utils/layout/embed-icons.util'
-import { EMBED_TAB_ACCENTS, resolveEmbedIconAccent, resolveEmbedTabAccent } from '@/shared/utils/layout/embed-nav-theme.util'
+import {
+  EMBED_ICON_LABELS,
+  embedIconMap,
+  embedLucidIcons,
+  resolveEmbedIconByIndex,
+} from '@/shared/utils/layout/embed-icons.util'
+import {
+  EMBED_TAB_ACCENTS,
+  resolveEmbedIconAccent,
+  resolveEmbedTabAccent,
+} from '@/shared/utils/layout/embed-nav-theme.util'
 import { getEmbedBlockReason } from '@/shared/utils/layout/embed-url.util'
 import { pruneNavTabsForRemovedEmbed } from '@/shared/utils/layout/nav-tabs.util'
 import { copyTextWithNotify } from '@/services/notify'
@@ -38,8 +47,7 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
   })
 
   useClickOutside(
-    () =>
-      [iconPickerRef.value, iconPickerPanelRef.value].filter((el): el is HTMLElement => el != null),
+    () => [iconPickerRef.value, iconPickerPanelRef.value].filter((el): el is HTMLElement => el != null),
     () => {
       iconPickerOpen.value = false
     },
@@ -55,9 +63,7 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
     return EMBED_ICON_LABELS[icon || 'MonitorPlay'] || '图标'
   }
 
-  const embedTabsKey = computed(() =>
-    (layoutStore.layoutConfig.customEmbeds || []).map((e) => e.id).join('|'),
-  )
+  const embedTabsKey = computed(() => (layoutStore.layoutConfig.customEmbeds || []).map((e) => e.id).join('|'))
 
   const embedTabs = computed(() =>
     (layoutStore.layoutConfig.customEmbeds || []).map((e, idx) => ({
@@ -79,9 +85,7 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
 
   const activeEmbedAccent = computed(() => {
     if (!activeEmbed.value) return EMBED_TAB_ACCENTS[0]
-    const idx = (layoutStore.layoutConfig.customEmbeds || []).findIndex(
-      (e) => e.id === activeEmbedId.value,
-    )
+    const idx = (layoutStore.layoutConfig.customEmbeds || []).findIndex((e) => e.id === activeEmbedId.value)
     return resolveEmbedTabAccent(activeEmbed.value, Math.max(0, idx))
   })
 
@@ -142,9 +146,7 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
     )
     if (!ok) return
     if (layoutStore.layoutConfig.customEmbeds) {
-      layoutStore.layoutConfig.customEmbeds = layoutStore.layoutConfig.customEmbeds.filter(
-        (e) => e.id !== id,
-      )
+      layoutStore.layoutConfig.customEmbeds = layoutStore.layoutConfig.customEmbeds.filter((e) => e.id !== id)
     }
     pruneNavTabsForRemovedEmbed(layoutStore.layoutConfig, id)
   }
@@ -194,4 +196,3 @@ export function useSettingsEmbeds(activeTabProp: () => string) {
     onEmbedReorder,
   }
 }
-

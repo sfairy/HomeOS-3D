@@ -6,4 +6,4 @@ export {
   dateFromZonedWallClock,
   dateFromZonedHourFraction,
   matchCronExpression,
-} from './zoned-time.util';
+} from './zoned-time.util'

@@ -4,15 +4,15 @@ import {
   preloadCacheEntries,
   restoreCacheEntries,
   writeCacheRecord,
-} from "../cache/cache-shared";
+} from '../cache/cache-shared'
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
-const REFLECTION_CACHE_VERSION = "20260930-v1";
+const REFLECTION_CACHE_VERSION = '20260930-v1'
 const MAX_ENTRY_BYTES = 25165824,
   MAX_PERSISTED_BYTES = 67108864,
   MAX_ENTRY_COUNT = 8,
   MAX_PERSISTED_ENTRIES = 4,
-  MAX_PENDING_ENTRIES = 8;
+  MAX_PENDING_ENTRIES = 8
 /** 反射快照：分辨率 128..1024 的方形，像素为 size*size*4 的半精度 RGBA，矩阵 16 个有限数。 */
 function validReflectionSnapshot(snapshot: any) {
   return (
@@ -25,14 +25,14 @@ function validReflectionSnapshot(snapshot: any) {
     Array.isArray(snapshot.matrix) &&
     snapshot.matrix.length === 16 &&
     snapshot.matrix.every(Number.isFinite)
-  );
+  )
 }
-const snapshotBytes = (snapshot: any) => snapshot.pixels.byteLength + 128;
-export function createReflectionPersistentCache({ env: env = globalThis, key: key = "" } = {}) {
+const snapshotBytes = (snapshot: any) => snapshot.pixels.byteLength + 128
+export function createReflectionPersistentCache({ env: env = globalThis, key: key = '' } = {}) {
   const snapshotByKey = new Map(),
     pendingByKey = new Map(),
     persistedKeySet = new Set(),
-    storageKey = key && JSON.stringify([REFLECTION_CACHE_VERSION, key]);
+    storageKey = key && JSON.stringify([REFLECTION_CACHE_VERSION, key])
   let cachedConnection: any,
     openPromise,
     preloadPromise,
@@ -42,7 +42,7 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
     idleHandle: any = null,
     isIdleRunning = false,
     idleChain = Promise.resolve(),
-    totalBytes = 0;
+    totalBytes = 0
   const stats = {
       hits: 0,
       misses: 0,
@@ -50,64 +50,67 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
       writes: 0,
       fallbacks: 0,
     },
-    log = createCacheLogger(env, "[3D-reflection-cache]", stats);
+    log = createCacheLogger(env, '[3D-reflection-cache]', stats)
   function isAvailable() {
     try {
-      return !!storageKey && !isDisposed && !hasOpenFailed && !!env.indexedDB;
+      return !!storageKey && !isDisposed && !hasOpenFailed && !!env.indexedDB
     } catch {
-      return false;
+      return false
     }
   }
   function runWithTimeout(task: any): Promise<any> {
     return executeTaskWithTimeout(env, task, {
       duration: 1500,
       onTimeout: () => stats.fallbacks++,
-    });
+    })
   }
   function openDatabase() {
     return isAvailable()
       ? ((openPromise ||= runWithTimeout((settleOpen: any) => {
-          const openRequest = env.indexedDB.open("homeos-first-reflections", 1);
-          ((openRequest.onupgradeneeded = () => {
-            (openRequest.result.createObjectStore("scenes", {
-              keyPath: "key",
+          const openRequest = env.indexedDB.open('homeos-first-reflections', 1)
+          ;(openRequest.onupgradeneeded = () => {
+            openRequest.result.createObjectStore('scenes', {
+              keyPath: 'key',
             }),
-              openRequest.result.createObjectStore("metadata", {
-                keyPath: "key",
-              }));
+              openRequest.result.createObjectStore('metadata', {
+                keyPath: 'key',
+              })
           }),
             (openRequest.onerror = openRequest.onblocked =
               () => {
-                ((hasOpenFailed = true), settleOpen(null));
+                ;(hasOpenFailed = true), settleOpen(null)
               }),
             (openRequest.onsuccess = () => {
               if (!isAvailable()) {
-                (openRequest.result.close(), settleOpen(null));
-                return;
+                openRequest.result.close(), settleOpen(null)
+                return
               }
-              ((cachedConnection = openRequest.result),
+              ;(cachedConnection = openRequest.result),
                 (cachedConnection.onversionchange = disposeCache),
-                settleOpen(cachedConnection));
-            }));
+                settleOpen(cachedConnection)
+            })
         })),
         openPromise)
-      : Promise.resolve(null);
+      : Promise.resolve(null)
   }
   function deleteEntry(cacheKey: any) {
-    ((totalBytes -= snapshotByKey.get(cacheKey)?.bytes || 0), snapshotByKey.delete(cacheKey));
+    ;(totalBytes -= snapshotByKey.get(cacheKey)?.bytes || 0), snapshotByKey.delete(cacheKey)
   }
   function storeSnapshot(cacheKey: any, entry: any) {
     if (
-      typeof cacheKey != "string" ||
-      typeof entry.signature != "string" ||
+      typeof cacheKey != 'string' ||
+      typeof entry.signature != 'string' ||
       entry.signature.length > 1024 * 1024 ||
       !validReflectionSnapshot(entry.data)
     )
-      return false;
-    const entryBytes = snapshotBytes(entry.data) + entry.signature.length * 2;
-    if (entryBytes > MAX_ENTRY_BYTES) return false;
-    for (deleteEntry(cacheKey); snapshotByKey.size && (snapshotByKey.size >= MAX_ENTRY_COUNT || totalBytes + entryBytes > MAX_ENTRY_BYTES);)
-      deleteEntry(snapshotByKey.keys().next().value);
+      return false
+    const entryBytes = snapshotBytes(entry.data) + entry.signature.length * 2
+    if (entryBytes > MAX_ENTRY_BYTES) return false
+    for (
+      deleteEntry(cacheKey);
+      snapshotByKey.size && (snapshotByKey.size >= MAX_ENTRY_COUNT || totalBytes + entryBytes > MAX_ENTRY_BYTES);
+    )
+      deleteEntry(snapshotByKey.keys().next().value)
     return (
       snapshotByKey.set(cacheKey, {
         ...entry,
@@ -115,7 +118,7 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
       }),
       (totalBytes += entryBytes),
       true
-    );
+    )
   }
   function preload() {
     return isAvailable()
@@ -129,24 +132,23 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
           restore: (storedEntries: any[]) => {
             restoreCacheEntries(storedEntries, {
               maxEntries: MAX_ENTRY_COUNT,
-              hasEntry: (entryKey: any) =>
-                snapshotByKey.has(entryKey) || persistedKeySet.has(entryKey),
+              hasEntry: (entryKey: any) => snapshotByKey.has(entryKey) || persistedKeySet.has(entryKey),
               store: storeSnapshot,
               onFallback: () => stats.fallbacks++,
-            });
-            (stats.restores++, log("restored"));
+            })
+            stats.restores++, log('restored')
           },
         }).catch(() => {
-          stats.fallbacks++;
+          stats.fallbacks++
         })),
         preloadPromise)
-      : Promise.resolve();
+      : Promise.resolve()
   }
 
   async function persist() {
-    const openedDatabase = await openDatabase();
-    if (!openedDatabase || !isAvailable()) return;
-    ((await writeCacheRecord(
+    const openedDatabase = await openDatabase()
+    if (!openedDatabase || !isAvailable()) return
+    ;(await writeCacheRecord(
       openedDatabase,
       {
         storageKey,
@@ -160,65 +162,63 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
     ))
       ? stats.writes++
       : (stats.fallbacks++, (hasOpenFailed = true)),
-      log("stored"));
+      log('stored')
   }
   function cancelPendingEntries() {
-    for (const pendingEntry of pendingByKey.values()) pendingEntry.done();
-    pendingByKey.clear();
+    for (const pendingEntry of pendingByKey.values()) pendingEntry.done()
+    pendingByKey.clear()
   }
   function scheduleIdleFlush() {
     if (!isAvailable()) {
-      cancelPendingEntries();
-      return;
+      cancelPendingEntries()
+      return
     }
-    if (!hasPresented || isIdleRunning || idleHandle !== null || !pendingByKey.size) return;
+    if (!hasPresented || isIdleRunning || idleHandle !== null || !pendingByKey.size) return
     const flushPendingEntry = () => {
-      ((idleHandle = null),
+      ;(idleHandle = null),
         (isIdleRunning = true),
         (idleChain = (async () => {
-          if (!isAvailable() || !pendingByKey.size) return;
-          const [pendingKey, pendingEntry] = pendingByKey.entries().next().value!;
-          pendingByKey.delete(pendingKey);
+          if (!isAvailable() || !pendingByKey.size) return
+          const [pendingKey, pendingEntry] = pendingByKey.entries().next().value!
+          pendingByKey.delete(pendingKey)
           try {
-            if (!isAvailable() || persistedKeySet.has(pendingKey) || !pendingEntry.valid()) return;
+            if (!isAvailable() || persistedKeySet.has(pendingKey) || !pendingEntry.valid()) return
             const signature =
-              typeof pendingEntry.signature == "function"
-                ? pendingEntry.signature()
-                : pendingEntry.signature;
-            if (!signature || !pendingEntry.valid()) return;
-            const producedSnapshot = await pendingEntry.produce(signature);
-            if (!isAvailable() || !pendingEntry.valid() || !producedSnapshot) return;
+              typeof pendingEntry.signature == 'function' ? pendingEntry.signature() : pendingEntry.signature
+            if (!signature || !pendingEntry.valid()) return
+            const producedSnapshot = await pendingEntry.produce(signature)
+            if (!isAvailable() || !pendingEntry.valid() || !producedSnapshot) return
             if (
               !storeSnapshot(pendingKey, {
                 signature: signature,
                 data: producedSnapshot,
               })
             ) {
-              stats.fallbacks++;
-              return;
+              stats.fallbacks++
+              return
             }
-            (persistedKeySet.add(pendingKey), await persist());
+            persistedKeySet.add(pendingKey), await persist()
           } finally {
-            pendingEntry.done();
+            pendingEntry.done()
           }
         })()
           .catch(() => {
-            stats.fallbacks++;
+            stats.fallbacks++
           })
           .finally(() => {
-            ((isIdleRunning = false), scheduleIdleFlush());
-          })));
-    };
+            ;(isIdleRunning = false), scheduleIdleFlush()
+          }))
+    }
     idleHandle = env.requestIdleCallback
       ? env.requestIdleCallback(flushPendingEntry, {
           timeout: 3000,
         })
-      : env.setTimeout(flushPendingEntry, 250);
+      : env.setTimeout(flushPendingEntry, 250)
   }
   function disposeCache() {
-    ((isDisposed = true),
+    ;(isDisposed = true),
       idleHandle !== null &&
-        (typeof env.requestIdleCallback === "function"
+        (typeof env.requestIdleCallback === 'function'
           ? env.cancelIdleCallback?.(idleHandle)
           : env.clearTimeout(idleHandle),
         (idleHandle = null)),
@@ -226,10 +226,10 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
       snapshotByKey.clear(),
       persistedKeySet.clear(),
       (totalBytes = 0),
-      cachedConnection?.close());
+      cachedConnection?.close()
   }
   return (
-    env.addEventListener?.("pagehide", disposeCache, {
+    env.addEventListener?.('pagehide', disposeCache, {
       once: true,
     }),
     {
@@ -238,40 +238,40 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
       available: isAvailable,
       has: (cacheKey: any) => isAvailable() && snapshotByKey.has(cacheKey),
       discard(cacheKey: any) {
-        (deleteEntry(cacheKey), persistedKeySet.delete(cacheKey), stats.fallbacks++);
+        deleteEntry(cacheKey), persistedKeySet.delete(cacheKey), stats.fallbacks++
       },
       peek(cacheKey: any, signature: any) {
-        if (!isAvailable() || !signature) return null;
-        const cachedEntry = snapshotByKey.get(cacheKey);
+        if (!isAvailable() || !signature) return null
+        const cachedEntry = snapshotByKey.get(cacheKey)
         return cachedEntry?.signature === signature && validReflectionSnapshot(cachedEntry.data)
-          ? (stats.hits++, persistedKeySet.add(cacheKey), log("restored"), cachedEntry.data)
-          : (stats.misses++, null);
+          ? (stats.hits++, persistedKeySet.add(cacheKey), log('restored'), cachedEntry.data)
+          : (stats.misses++, null)
       },
       enqueue(cacheKey: any, signature: any, produce: any, valid: any, done = () => {}) {
         if (
           !isAvailable() ||
           !signature ||
-          (typeof signature != "function" && signature.length > 1024 * 1024) ||
+          (typeof signature != 'function' && signature.length > 1024 * 1024) ||
           persistedKeySet.has(cacheKey)
         ) {
-          done();
-          return;
+          done()
+          return
         }
         if (!pendingByKey.has(cacheKey) && pendingByKey.size >= MAX_PENDING_ENTRIES) {
-          const oldestPendingKey = pendingByKey.keys().next().value;
-          (pendingByKey.get(oldestPendingKey).done(), pendingByKey.delete(oldestPendingKey));
+          const oldestPendingKey = pendingByKey.keys().next().value
+          pendingByKey.get(oldestPendingKey).done(), pendingByKey.delete(oldestPendingKey)
         }
-        (pendingByKey.get(cacheKey)?.done(),
+        pendingByKey.get(cacheKey)?.done(),
           pendingByKey.set(cacheKey, {
             signature: signature,
             produce: produce,
             valid: valid,
             done: done,
           }),
-          scheduleIdleFlush());
+          scheduleIdleFlush()
       },
       presented() {
-        ((hasPresented = true), scheduleIdleFlush());
+        ;(hasPresented = true), scheduleIdleFlush()
       },
       stats: () => ({
         ...stats,
@@ -280,18 +280,18 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
       }),
       whenIdle: () => idleChain,
     }
-  );
+  )
 }
 /** 抓取当前反射贴图为半精度快照（要求 EXT_color_buffer_float，尺寸为 2 的幂且 128..1024）。 */
 export async function captureReflectionSnapshot(three: any, renderer: any, source: any, canCapture: any) {
   if (
     !renderer.readRenderTargetPixelsAsync ||
     !canCapture() ||
-    (renderer.extensions?.has && !renderer.extensions.has("EXT_color_buffer_float"))
+    (renderer.extensions?.has && !renderer.extensions.has('EXT_color_buffer_float'))
   )
-    return null;
-  const size = source.map.width;
-  if (size < 128 || size > 1024 || source.map.height !== size) return null;
+    return null
+  const size = source.map.width
+  if (size < 128 || size > 1024 || source.map.height !== size) return null
   const matrixArray = source.matrix.toArray(),
     renderTarget = new three.WebGLRenderTarget(size, size, {
       type: three.FloatType,
@@ -308,11 +308,11 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
           value: source.map.texture,
         },
       },
-      vertexShader: "varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}",
-      fragmentShader: "uniform sampler2D source;varying vec2 vUv;void main(){gl_FragColor=texture2D(source,vUv);}",
+      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+      fragmentShader: 'uniform sampler2D source;varying vec2 vUv;void main(){gl_FragColor=texture2D(source,vUv);}',
     }),
-    copyMesh = new three.Mesh(new three.PlaneGeometry(2, 2), copyMaterial);
-  ((copyMesh.frustumCulled = false), captureScene.add(copyMesh));
+    copyMesh = new three.Mesh(new three.PlaneGeometry(2, 2), copyMaterial)
+  ;(copyMesh.frustumCulled = false), captureScene.add(copyMesh)
   const floatPixels = new Float32Array(size * size * 4),
     rendererState = {
       target: renderer.getRenderTarget(),
@@ -324,62 +324,54 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
       autoClear: renderer.autoClear,
       xr: renderer.xr.enabled,
       shadow: renderer.shadowMap.enabled,
-    };
+    }
   try {
-    let readPromise;
+    let readPromise
     try {
-      ((renderer.xr.enabled = renderer.shadowMap.enabled = false),
+      ;(renderer.xr.enabled = renderer.shadowMap.enabled = false),
         (renderer.autoClear = false),
         renderer.setScissorTest(false),
         renderer.setRenderTarget(renderTarget),
         renderer.render(captureScene, captureCamera),
-        (readPromise = renderer.readRenderTargetPixelsAsync(
-          renderTarget,
-          0,
-          0,
-          size,
-          size,
-          floatPixels,
-        )));
+        (readPromise = renderer.readRenderTargetPixelsAsync(renderTarget, 0, 0, size, size, floatPixels))
     } finally {
-      (renderer.setViewport(rendererState.viewport),
+      renderer.setViewport(rendererState.viewport),
         renderer.setScissor(rendererState.scissor),
         renderer.setScissorTest(rendererState.scissorTest),
         renderer.setRenderTarget(rendererState.target, rendererState.face, rendererState.mip),
         (renderer.autoClear = rendererState.autoClear),
         (renderer.xr.enabled = rendererState.xr),
-        (renderer.shadowMap.enabled = rendererState.shadow));
+        (renderer.shadowMap.enabled = rendererState.shadow)
     }
-    if ((await readPromise, !canCapture())) return null;
-    const halfFloatPixels = new Uint16Array(floatPixels.length);
+    if ((await readPromise, !canCapture())) return null
+    const halfFloatPixels = new Uint16Array(floatPixels.length)
     for (let pixelIndex = 0; pixelIndex < floatPixels.length; pixelIndex++) {
-      if (!Number.isFinite(floatPixels[pixelIndex]) || Math.abs(floatPixels[pixelIndex]) > 65504)
-        return null;
-      halfFloatPixels[pixelIndex] = three.DataUtils.toHalfFloat(floatPixels[pixelIndex]);
+      if (!Number.isFinite(floatPixels[pixelIndex]) || Math.abs(floatPixels[pixelIndex]) > 65504) return null
+      halfFloatPixels[pixelIndex] = three.DataUtils.toHalfFloat(floatPixels[pixelIndex])
     }
     return {
       size: size,
       pixels: halfFloatPixels,
       matrix: matrixArray,
-    };
+    }
   } finally {
-    (renderTarget.dispose(), copyMesh.geometry.dispose(), copyMaterial.dispose());
+    renderTarget.dispose(), copyMesh.geometry.dispose(), copyMaterial.dispose()
   }
 }
 /** 用快照重建可贴回地面的半精度 DataTexture。 */
 export function restoreReflectionSnapshot(three: any, snapshot: any) {
-  if (!validReflectionSnapshot(snapshot)) return null;
+  if (!validReflectionSnapshot(snapshot)) return null
   const dataTexture = new three.DataTexture(
     snapshot.pixels.slice(),
     snapshot.size,
     snapshot.size,
     three.RGBAFormat,
     three.HalfFloatType,
-  );
+  )
   return (
     (dataTexture.minFilter = dataTexture.magFilter = three.LinearFilter),
     (dataTexture.generateMipmaps = false),
     (dataTexture.needsUpdate = true),
     dataTexture
-  );
+  )
 }

@@ -18,8 +18,9 @@ const moduleUrl = fileURLToPath(
     import.meta.url,
   ),
 )
-const { itemPreviewScope, entriesPreviewScope, selectionPreviewScope, historyChangePreviewScope } =
-  await import(moduleUrl)
+const { itemPreviewScope, entriesPreviewScope, selectionPreviewScope, historyChangePreviewScope } = await import(
+  moduleUrl
+)
 
 const lightTypes = new Set(['ceilinglamp', 'spotlight', 'striplight'])
 const courtyardIds = new Set(['fence', 'pond', 'paving'])
@@ -42,17 +43,27 @@ test('单个物品：灯光 / 普通 / 庭院 / 整层牵连', () => {
 
 test('多条条目：全建筑档 → architecture；全灯光 → lights；混合 → all', () => {
   assert.equal(
-    entriesPreviewScope([{ id: 'd1', kind: 'door' }, { id: 'w1', kind: 'window' }], [], options),
+    entriesPreviewScope(
+      [
+        { id: 'd1', kind: 'door' },
+        { id: 'w1', kind: 'window' },
+      ],
+      [],
+      options,
+    ),
     'architecture',
   )
-  assert.equal(
-    entriesPreviewScope([{ id: 'l1', kind: 'item' }], [{ id: 'l1', type: 'spotlight' }], options),
-    'lights',
-  )
+  assert.equal(entriesPreviewScope([{ id: 'l1', kind: 'item' }], [{ id: 'l1', type: 'spotlight' }], options), 'lights')
   assert.equal(
     entriesPreviewScope(
-      [{ id: 'l1', kind: 'item' }, { id: 's1', kind: 'item' }],
-      [{ id: 'l1', type: 'spotlight' }, { id: 's1', type: 'sofa' }],
+      [
+        { id: 'l1', kind: 'item' },
+        { id: 's1', kind: 'item' },
+      ],
+      [
+        { id: 'l1', type: 'spotlight' },
+        { id: 's1', type: 'sofa' },
+      ],
       options,
     ),
     'all',
@@ -67,8 +78,14 @@ test('多条条目：全建筑档 → architecture；全灯光 → lights；混�
   // 庭院 + 普通物件混选：仍然能按庭院那一档收窄（两者都不是灯光）。
   assert.equal(
     entriesPreviewScope(
-      [{ id: 'fence', kind: 'item' }, { id: 's1', kind: 'item' }],
-      [{ id: 'fence', type: 'sofa' }, { id: 's1', type: 'sofa' }],
+      [
+        { id: 'fence', kind: 'item' },
+        { id: 's1', kind: 'item' },
+      ],
+      [
+        { id: 'fence', type: 'sofa' },
+        { id: 's1', type: 'sofa' },
+      ],
       options,
     ),
     'architecture',
@@ -76,8 +93,14 @@ test('多条条目：全建筑档 → architecture；全灯光 → lights；混�
   // 但庭院里混进灯光就不行：灯光和几何是两个通道，只能整屏。
   assert.equal(
     entriesPreviewScope(
-      [{ id: 'fence', kind: 'item' }, { id: 'l1', kind: 'item' }],
-      [{ id: 'fence', type: 'sofa' }, { id: 'l1', type: 'spotlight' }],
+      [
+        { id: 'fence', kind: 'item' },
+        { id: 'l1', kind: 'item' },
+      ],
+      [
+        { id: 'fence', type: 'sofa' },
+        { id: 'l1', type: 'spotlight' },
+      ],
       options,
     ),
     'all',
@@ -86,19 +109,10 @@ test('多条条目：全建筑档 → architecture；全灯光 → lights；混�
 
 test('选中高亮：空选中返回 null；灯带按「非灯光」放大作用域', () => {
   assert.equal(selectionPreviewScope([], [], options), null)
-  assert.equal(
-    selectionPreviewScope([{ id: 'w1', kind: 'wall' }], [], options),
-    'architecture',
-  )
+  assert.equal(selectionPreviewScope([{ id: 'w1', kind: 'wall' }], [], options), 'architecture')
   // 纯灯光选中不产生额外重绘面（高亮本身就是灯光效果），返回 null 表示「不必放大」。
-  assert.equal(
-    selectionPreviewScope([{ id: 'l1', kind: 'item' }], [{ id: 'l1', type: 'ceilinglamp' }], options),
-    null,
-  )
-  assert.equal(
-    selectionPreviewScope([{ id: 's1', kind: 'item' }], [{ id: 's1', type: 'sofa' }], options),
-    'items',
-  )
+  assert.equal(selectionPreviewScope([{ id: 'l1', kind: 'item' }], [{ id: 'l1', type: 'ceilinglamp' }], options), null)
+  assert.equal(selectionPreviewScope([{ id: 's1', kind: 'item' }], [{ id: 's1', type: 'sofa' }], options), 'items')
   // 灯带即使不在 lightTypes 里也要参与高亮重绘（它的高亮会牵动相邻墙面）。
   assert.equal(
     selectionPreviewScope([{ id: 'l1', kind: 'item' }], [{ id: 'l1', type: 'striplight' }], {
@@ -112,10 +126,7 @@ test('选中高亮：空选中返回 null；灯带按「非灯光」放大作用
     selectionPreviewScope([{ id: 'o1', kind: 'item' }], [{ id: 'o1', type: 'flooropening' }], options),
     'all',
   )
-  assert.equal(
-    selectionPreviewScope([{ id: 'e1', kind: 'item' }], [{ id: 'e1', type: 'exhaust-fan' }], options),
-    'all',
-  )
+  assert.equal(selectionPreviewScope([{ id: 'e1', kind: 'item' }], [{ id: 'e1', type: 'exhaust-fan' }], options), 'all')
   // 纯庭院选中沿用庭院档；庭院混灯光则整屏。
   assert.equal(
     selectionPreviewScope([{ id: 'fence', kind: 'item' }], [{ id: 'fence', type: 'sofa' }], options),
@@ -123,8 +134,14 @@ test('选中高亮：空选中返回 null；灯带按「非灯光」放大作用
   )
   assert.equal(
     selectionPreviewScope(
-      [{ id: 'fence', kind: 'item' }, { id: 'l1', kind: 'item' }],
-      [{ id: 'fence', type: 'sofa' }, { id: 'l1', type: 'spotlight' }],
+      [
+        { id: 'fence', kind: 'item' },
+        { id: 'l1', kind: 'item' },
+      ],
+      [
+        { id: 'fence', type: 'sofa' },
+        { id: 'l1', type: 'spotlight' },
+      ],
       options,
     ),
     'all',
@@ -152,16 +169,9 @@ test('历史对比：只有灯光组变化 → lights；只有物品变化 → �
     selectionScope: () => null,
   }
   const base = { floors: [{ id: 'f1' }], items: [{ id: 'a', type: 'sofa' }], lightGroups: [] }
+  assert.equal(historyChangePreviewScope(base, { ...base, lightGroups: [{ id: 'g1' }] }, historyOptions), 'lights')
   assert.equal(
-    historyChangePreviewScope(base, { ...base, lightGroups: [{ id: 'g1' }] }, historyOptions),
-    'lights',
-  )
-  assert.equal(
-    historyChangePreviewScope(
-      base,
-      { ...base, items: [{ id: 'a', type: 'sofa', x: 3 }] },
-      historyOptions,
-    ),
+    historyChangePreviewScope(base, { ...base, items: [{ id: 'a', type: 'sofa', x: 3 }] }, historyOptions),
     'items',
   )
   // 一灯一物件同时变了 → 作用域不唯一，必须整屏。
@@ -181,10 +191,7 @@ test('历史对比：楼层/设置变化 → all（不再逐物品比对）', ()
     selectionScope: () => null,
   }
   const base = { floors: [{ id: 'f1' }], items: [], lightGroups: [] }
-  assert.equal(
-    historyChangePreviewScope(base, { ...base, floors: [{ id: 'f1', height: 3 }] }, historyOptions),
-    'all',
-  )
+  assert.equal(historyChangePreviewScope(base, { ...base, floors: [{ id: 'f1', height: 3 }] }, historyOptions), 'all')
 })
 
 test('历史对比：选中项的 scope 也会并进来，作用域不唯一时整屏', () => {

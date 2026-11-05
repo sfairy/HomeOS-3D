@@ -52,9 +52,7 @@ interface FloatingPanelDisplayOptions {
   afhEditId: Ref<string | null>
 }
 
-export function useFloatingPanelDisplay({
-  afhEditId,
-}: FloatingPanelDisplayOptions) {
+export function useFloatingPanelDisplay({ afhEditId }: FloatingPanelDisplayOptions) {
   const openSection = ref('layout')
 
   const floatingCatalogGroups = computed(() => getFloatingCatalogGroups())

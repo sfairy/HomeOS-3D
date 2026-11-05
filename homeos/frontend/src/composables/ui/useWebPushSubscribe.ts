@@ -1,10 +1,6 @@
 /** - 申请浏览器通知权限并使用 VAPID 公钥创建推送订阅； */
 import { ref } from 'vue'
-import {
-  fetchWebPushVapidPublicKey,
-  subscribeWebPush,
-  testWebPush,
-} from '@/services/api/notifications'
+import { fetchWebPushVapidPublicKey, subscribeWebPush, testWebPush } from '@/services/api/notifications'
 import { notifyError } from '@/services/notify'
 import { useChromeStore } from '@/stores/chrome.store'
 

@@ -7,4 +7,4 @@ export {
   type WsHaStatusPayload,
   type WsEntityStatePayload,
   type WsStateChangedBatchPayload,
-} from './client-events';
+} from './client-events'

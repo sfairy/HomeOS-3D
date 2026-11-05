@@ -64,10 +64,22 @@ export function localMatrix(node) {
   const wy = qw * y2
   const wz = qw * z2
   return [
-    (1 - (yy + zz)) * sx, (xy - wz) * sx, (xz + wy) * sx, tx,
-    (xy + wz) * sy, (1 - (xx + zz)) * sy, (yz - wx) * sy, ty,
-    (xz - wy) * sz, (yz + wx) * sz, (1 - (xx + yy)) * sz, tz,
-    0, 0, 0, 1,
+    (1 - (yy + zz)) * sx,
+    (xy - wz) * sx,
+    (xz + wy) * sx,
+    tx,
+    (xy + wz) * sy,
+    (1 - (xx + zz)) * sy,
+    (yz - wx) * sy,
+    ty,
+    (xz - wy) * sz,
+    (yz + wx) * sz,
+    (1 - (xx + yy)) * sz,
+    tz,
+    0,
+    0,
+    0,
+    1,
   ]
 }
 
@@ -202,9 +214,7 @@ export function slotGeometry(json, bin, { weldTolerance = 1e-4 } = {}) {
       let indices
       try {
         positions = readAccessor(json, bin, positionAccessor)
-        indices = typeof primitive.indices === 'number'
-          ? readAccessor(json, bin, primitive.indices).values
-          : null
+        indices = typeof primitive.indices === 'number' ? readAccessor(json, bin, primitive.indices).values : null
       } catch {
         skipped = true
         continue
@@ -318,9 +328,10 @@ export function slotGeometry(json, bin, { weldTolerance = 1e-4 } = {}) {
       areaShare: modelArea > 0 ? Number((slot.area / modelArea).toFixed(3)) : 0,
       size: size.map((v) => Number(v.toFixed(3))),
       thinness: Number((minExtent / maxExtent).toFixed(3)),
-      yBand: modelSize[1] > 0 && Number.isFinite(slot.min[1])
-        ? Number(Math.max(0, Math.min(1, (center[1] - modelMin[1]) / modelSize[1])).toFixed(2))
-        : null,
+      yBand:
+        modelSize[1] > 0 && Number.isFinite(slot.min[1])
+          ? Number(Math.max(0, Math.min(1, (center[1] - modelMin[1]) / modelSize[1])).toFixed(2))
+          : null,
       offset: [0, 1, 2].map((a) => Number((center[a] - modelCenter[a]).toFixed(3))),
       shells: slot.shells,
       volume: Number(slot.volume.toFixed(5)),

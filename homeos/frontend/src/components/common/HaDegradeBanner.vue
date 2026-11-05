@@ -46,7 +46,5 @@ const emit = defineEmits(['retry'])
 
 const entitiesStore = useEntitiesStore()
 
-const retryLabel = computed(() =>
-  entitiesStore.connected && !entitiesStore.reconnecting ? '刷新' : '重试连接',
-)
+const retryLabel = computed(() => (entitiesStore.connected && !entitiesStore.reconnecting ? '刷新' : '重试连接'))
 </script>

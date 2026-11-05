@@ -1,14 +1,7 @@
 /** 系统配置专家模式工具 */
 
 /** 专家模式关闭时隐藏的分区（连接层 + 运维采样） */
-const EXPERT_ONLY_SECTIONS = new Set([
-  'haConnector',
-  'stateStore',
-  'wsPush',
-  'commandProxy',
-  'webrtc',
-  'ops',
-])
+const EXPERT_ONLY_SECTIONS = new Set(['haConnector', 'stateStore', 'wsPush', 'commandProxy', 'webrtc', 'ops'])
 
 /** 专家模式关闭时隐藏的单字段（屏保像素级 / 前端性能细调） */
 const EXPERT_ONLY_FIELD_KEYS = new Set([

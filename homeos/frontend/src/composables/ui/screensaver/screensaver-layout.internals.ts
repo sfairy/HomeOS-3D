@@ -4,11 +4,7 @@
  */
 import { ref, computed, type Ref } from 'vue'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
-import {
-  activeDesignWidth,
-  activeDesignHeight,
-  computeScreensaverLayout,
-} from '@/composables/ui/useScaling'
+import { activeDesignWidth, activeDesignHeight, computeScreensaverLayout } from '@/composables/ui/useScaling'
 import { screensaverBackgroundIdle } from '@/shared/utils/ui/screensaver-background-idle.util'
 import { SS_DEFAULTS } from './screensaver.defaults'
 import type { useLayoutStore } from '@/stores/layout.store'
@@ -32,8 +28,7 @@ export function createScreensaverLayoutState(layoutStore: LayoutStore) {
   const layoutMetrics = computed(() => {
     scalingTick.value
     const ui = getConfigSection('ui')
-    const designW =
-      activeDesignWidth.value || layoutStore.layoutConfig.pageMaxWidth || ui.scaleBaseWidth || 1366
+    const designW = activeDesignWidth.value || layoutStore.layoutConfig.pageMaxWidth || ui.scaleBaseWidth || 1366
     const designH = activeDesignHeight.value || ui.scaleBaseHeight || 1024
     return computeScreensaverLayout(viewportW.value, viewportH.value, designW, designH)
   })
@@ -79,16 +74,19 @@ export function createScreensaverLayoutState(layoutStore: LayoutStore) {
   }
 }
 
-function createOverlayShellStyles(ssCfg: Ref<Record<string, unknown>>, layoutMetrics: Ref<{
-  layoutMode?: string
-  shellW?: number
-  shellH?: number
-  shellScale?: number
-  canvasW: number
-  canvasH: number
-  designW: number
-  designH: number
-}>) {
+function createOverlayShellStyles(
+  ssCfg: Ref<Record<string, unknown>>,
+  layoutMetrics: Ref<{
+    layoutMode?: string
+    shellW?: number
+    shellH?: number
+    shellScale?: number
+    canvasW: number
+    canvasH: number
+    designW: number
+    designH: number
+  }>,
+) {
   const overlayClass = computed(() => {
     const c = ssCfg.value
     return {

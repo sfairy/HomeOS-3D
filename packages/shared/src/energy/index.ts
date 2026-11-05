@@ -4,4 +4,4 @@ export {
   type TouWindowFields,
   clockRangesOverlap,
   validateTouWindows,
-} from './tou-windows.util';
+} from './tou-windows.util'

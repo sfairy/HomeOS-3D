@@ -1,14 +1,14 @@
-import { createBackgroundTheme } from "./background-theme";
+import { createBackgroundTheme } from './background-theme'
 
 /** 背景外观配置：只列本模块读的键。 */
 type BackgroundAppearanceConfig = {
-  sceneStyle?: unknown;
-  warmBackgroundTheme?: unknown;
-  backgroundTheme?: unknown;
-  backgroundMotion?: unknown;
+  sceneStyle?: unknown
+  warmBackgroundTheme?: unknown
+  backgroundTheme?: unknown
+  backgroundMotion?: unknown
   /** 展示端会强制 false，让房子周围透出页面底图。 */
-  backgroundVisible?: unknown;
-};
+  backgroundVisible?: unknown
+}
 
 function backgroundFloorAnchor(
   anchorStageOptions: any,
@@ -17,67 +17,58 @@ function backgroundFloorAnchor(
 ) {
   const floors = anchorStageOptions.document?.floors || [],
     anchorFloor =
-      floorRef === "all"
+      floorRef === 'all'
         ? floors.reduce(
             (lowestFloor: any, candidateFloor: any) =>
-              !lowestFloor || candidateFloor.elevation < lowestFloor.elevation
-                ? candidateFloor
-                : lowestFloor,
+              !lowestFloor || candidateFloor.elevation < lowestFloor.elevation ? candidateFloor : lowestFloor,
             null,
           )
-        : floors.find((matchingFloor: any) => matchingFloor.id === floorRef) || floors[0];
-  if (!anchorFloor) return null;
-  let planCenter = anchorCache.get(anchorFloor.scene);
+        : floors.find((matchingFloor: any) => matchingFloor.id === floorRef) || floors[0]
+  if (!anchorFloor) return null
+  let planCenter = anchorCache.get(anchorFloor.scene)
   if (!planCenter) {
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
-      maxY = -Infinity;
+      maxY = -Infinity
     for (const wall of anchorFloor.scene.walls || [])
       for (const wallEndpoint of [wall.start, wall.end])
-        ((minX = Math.min(minX, wallEndpoint.x)),
+        (minX = Math.min(minX, wallEndpoint.x)),
           (minY = Math.min(minY, wallEndpoint.y)),
           (maxX = Math.max(maxX, wallEndpoint.x)),
-          (maxY = Math.max(maxY, wallEndpoint.y)));
+          (maxY = Math.max(maxY, wallEndpoint.y))
     if (!Number.isFinite(minX))
       for (const sceneItem of anchorFloor.scene.items || []) {
-        if (!["courtyard-area", "courtyard-path", "courtyard-fence"].includes(sceneItem.type))
-          continue;
+        if (!['courtyard-area', 'courtyard-path', 'courtyard-fence'].includes(sceneItem.type)) continue
         const pixelsPerMeter = anchorFloor.scene.calibration?.pixelsPerMeter || 100,
           rotationRad = ((sceneItem.rotation || 0) * Math.PI) / 180,
           cosRotation = Math.cos(rotationRad),
-          sinRotation = Math.sin(rotationRad);
+          sinRotation = Math.sin(rotationRad)
         for (const drawingPoint of sceneItem.drawing?.points || []) {
           const worldX =
               sceneItem.x +
-              (drawingPoint.x * sceneItem.width * cosRotation -
-                drawingPoint.y * sceneItem.depth * sinRotation) *
+              (drawingPoint.x * sceneItem.width * cosRotation - drawingPoint.y * sceneItem.depth * sinRotation) *
                 pixelsPerMeter,
             worldY =
               sceneItem.y +
-              (drawingPoint.x * sceneItem.width * sinRotation +
-                drawingPoint.y * sceneItem.depth * cosRotation) *
-                pixelsPerMeter;
+              (drawingPoint.x * sceneItem.width * sinRotation + drawingPoint.y * sceneItem.depth * cosRotation) *
+                pixelsPerMeter
           !Number.isFinite(worldX) ||
             !Number.isFinite(worldY) ||
             ((minX = Math.min(minX, worldX)),
             (minY = Math.min(minY, worldY)),
             (maxX = Math.max(maxX, worldX)),
-            (maxY = Math.max(maxY, worldY)));
+            (maxY = Math.max(maxY, worldY)))
         }
       }
-    ((planCenter = Number.isFinite(minX) ? [(minX + maxX) / 2, (minY + maxY) / 2] : [0, 0]),
-      anchorCache.set(anchorFloor.scene, planCenter));
+    ;(planCenter = Number.isFinite(minX) ? [(minX + maxX) / 2, (minY + maxY) / 2] : [0, 0]),
+      anchorCache.set(anchorFloor.scene, planCenter)
   }
-  return anchorStageOptions.presentationPoint(anchorFloor.id, ...planCenter, -0.203);
+  return anchorStageOptions.presentationPoint(anchorFloor.id, ...planCenter, -0.203)
 }
 const WARM_MOTES_CHUNK =
-  "\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}";
-export function createSceneBackground(
-  stageOptions: any,
-  requestFrame = () => {},
-  { frameInterval = 50 } = {},
-) {
+  '\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}'
+export function createSceneBackground(stageOptions: any, requestFrame = () => {}, { frameInterval = 50 } = {}) {
   const themeController = createBackgroundTheme(stageOptions, requestFrame),
     { THREE: THREE } = stageOptions,
     floorAnchorMap = new WeakMap(),
@@ -106,15 +97,15 @@ export function createSceneBackground(
         value: new THREE.Vector2(),
       },
       warmDeep: {
-        value: new THREE.Color("#d9d6cc"),
+        value: new THREE.Color('#d9d6cc'),
       },
       warmInk: {
-        value: new THREE.Color("#fff6dd"),
+        value: new THREE.Color('#fff6dd'),
       },
       warmAccent: {
-        value: new THREE.Color("#b59b72"),
+        value: new THREE.Color('#b59b72'),
       },
-    };
+    }
   let warmBackdrop: any = null,
     isWarmWood = false,
     isWarmDusk = false,
@@ -125,52 +116,51 @@ export function createSceneBackground(
     backgroundObjects: any = [],
     lastTickMs: any = null,
     lastWarmFrameMs = -Infinity,
-    lastCameraPosition: any = null;
-  const isReducedMotionPreferred =
-    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+    lastCameraPosition: any = null
+  const isReducedMotionPreferred = globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true
   function ensureWarmBackdrop() {
-    if (warmBackdrop) return;
+    if (warmBackdrop) return
     const warmMaterial = new THREE.MeshBasicMaterial({
       color: 15658212,
       depthTest: false,
       depthWrite: false,
       toneMapped: false,
-    });
-    ((warmMaterial.onBeforeCompile = (compiledShader: any) => {
-      (Object.assign(compiledShader.uniforms, warmUniforms),
+    })
+    ;(warmMaterial.onBeforeCompile = (compiledShader: any) => {
+      Object.assign(compiledShader.uniforms, warmUniforms),
         (compiledShader.vertexShader = compiledShader.vertexShader
           .replace(
-            "#include <common>",
-            "#include <common>\n        varying vec2 warmPoint; uniform float warmAspect; uniform float warmScale; uniform vec2 warmShift;",
+            '#include <common>',
+            '#include <common>\n        varying vec2 warmPoint; uniform float warmAspect; uniform float warmScale; uniform vec2 warmShift;',
           )
           .replace(
-            "#include <begin_vertex>",
-            "#include <begin_vertex>\n          warmPoint=vec2(position.x*max(warmAspect,.5),-position.y)*12.0*warmScale+warmShift;",
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\n          warmPoint=vec2(position.x*max(warmAspect,.5),-position.y)*12.0*warmScale+warmShift;',
           )
-          .replace("#include <project_vertex>", "gl_Position=vec4(position.xy,0.9999,1.0);")),
+          .replace('#include <project_vertex>', 'gl_Position=vec4(position.xy,0.9999,1.0);')),
         (compiledShader.fragmentShader = compiledShader.fragmentShader
           .replace(
-            "#include <common>",
-            "#include <common>\n        varying vec2 warmPoint; uniform vec2 warmAnchor; uniform float warmTime; uniform float warmOverview;\n        uniform vec2 warmFlow; uniform vec3 warmDeep; uniform vec3 warmInk; uniform vec3 warmAccent;\n        " +
+            '#include <common>',
+            '#include <common>\n        varying vec2 warmPoint; uniform vec2 warmAnchor; uniform float warmTime; uniform float warmOverview;\n        uniform vec2 warmFlow; uniform vec3 warmDeep; uniform vec3 warmInk; uniform vec3 warmAccent;\n        ' +
               WARM_MOTES_CHUNK,
           )
           .replace(
-            "#include <color_fragment>",
-            "#include <color_fragment>\n          vec2 bgUV=warmPoint/6.0;\n          float fade=1.0-smoothstep(2.2,4.2,length(bgUV));\n          vec2 drift=vec2(warmTime*.009,-warmTime*.006);\n          vec2 flow=warmFlow*.11;\n          vec2 uv=bgUV/mix(1.0,1.22,warmOverview);\n          float nearDust=warmMotes(uv/.22+drift+flow,.021,.68,warmTime);\n          float farDust=warmMotes(uv/.095-drift*.42+flow*.32,.016,.80,warmTime+7.0);\n          vec2 wash=(warmPoint-warmAnchor)/6.0*vec2(.68,1.12);\n          float sunlight=exp(-dot(wash,wash)*.72);\n          float washStrength=1.0-smoothstep(.25,.85,warmOverview);\n          vec3 base=mix(warmDeep,vec3(.94,.914,.858),.42+sunlight*.18*washStrength);\n          float dust=(nearDust*.74+farDust*.26)*fade;\n          base=mix(base,warmAccent,min(.18,dust*.12));\n          base+=vec3(1.0,.93,.77)*(nearDust*.38+farDust*.15)*fade;\n          diffuseColor.rgb=(base+warmInk*sunlight*.008)*.88;",
-          )));
+            '#include <color_fragment>',
+            '#include <color_fragment>\n          vec2 bgUV=warmPoint/6.0;\n          float fade=1.0-smoothstep(2.2,4.2,length(bgUV));\n          vec2 drift=vec2(warmTime*.009,-warmTime*.006);\n          vec2 flow=warmFlow*.11;\n          vec2 uv=bgUV/mix(1.0,1.22,warmOverview);\n          float nearDust=warmMotes(uv/.22+drift+flow,.021,.68,warmTime);\n          float farDust=warmMotes(uv/.095-drift*.42+flow*.32,.016,.80,warmTime+7.0);\n          vec2 wash=(warmPoint-warmAnchor)/6.0*vec2(.68,1.12);\n          float sunlight=exp(-dot(wash,wash)*.72);\n          float washStrength=1.0-smoothstep(.25,.85,warmOverview);\n          vec3 base=mix(warmDeep,vec3(.94,.914,.858),.42+sunlight*.18*washStrength);\n          float dust=(nearDust*.74+farDust*.26)*fade;\n          base=mix(base,warmAccent,min(.18,dust*.12));\n          base+=vec3(1.0,.93,.77)*(nearDust*.38+farDust*.15)*fade;\n          diffuseColor.rgb=(base+warmInk*sunlight*.008)*.88;',
+          ))
     }),
-      (warmMaterial.customProgramCacheKey = () => "warm-wood-backdrop-v9-flat-stars"),
+      (warmMaterial.customProgramCacheKey = () => 'warm-wood-backdrop-v9-flat-stars'),
       (warmBackdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), warmMaterial)),
-      (warmBackdrop.name = "warm-wood-background"),
+      (warmBackdrop.name = 'warm-wood-background'),
       (warmBackdrop.renderOrder = -10000),
       (warmBackdrop.frustumCulled = false),
       (warmBackdrop.userData.environmentEffect = true),
-      stageOptions.overlayScene?.add(warmBackdrop));
+      stageOptions.overlayScene?.add(warmBackdrop)
   }
   function stopWarmFrames() {
-    ((lastTickMs = null),
+    ;(lastTickMs = null),
       (lastCameraPosition = null),
-      isWarmAnimating && ((isWarmAnimating = false), stageOptions.backgroundFrame?.(false)));
+      isWarmAnimating && ((isWarmAnimating = false), stageOptions.backgroundFrame?.(false))
   }
   function applyBackgroundVisibility() {
     if (
@@ -179,35 +169,33 @@ export function createSceneBackground(
       isWarmWood)
     ) {
       for (const backgroundObject of backgroundObjects)
-        ((backgroundObject.userData.backgroundThemeHidden = true),
-          (backgroundObject.visible = false));
+        (backgroundObject.userData.backgroundThemeHidden = true), (backgroundObject.visible = false)
     } else {
       for (const backgroundObjectEntry of backgroundObjects)
-        backgroundObjectEntry.userData.exportRole !== "grid" &&
-          (backgroundObjectEntry.userData.backgroundThemeHidden = false);
+        backgroundObjectEntry.userData.exportRole !== 'grid' &&
+          (backgroundObjectEntry.userData.backgroundThemeHidden = false)
     }
   }
   return {
     get theme() {
-      return isWarmWood ? (isWarmDusk ? "warm-dusk" : "warm-sunlight") : themeController.theme;
+      return isWarmWood ? (isWarmDusk ? 'warm-dusk' : 'warm-sunlight') : themeController.theme
     },
     get active() {
-      return isWarmWood ? isWarmAnimating : themeController.active;
+      return isWarmWood ? isWarmAnimating : themeController.active
     },
     get cacheBackground() {
-      return isWarmWood && isBackgroundEnabled ? warmBackdrop : null;
+      return isWarmWood && isBackgroundEnabled ? warmBackdrop : null
     },
 
     configure(configuredTheme: any, config: BackgroundAppearanceConfig = {}) {
-      const isWarmWoodNext = config.sceneStyle === "warm-wood",
-        nextWarmDusk =
-          isWarmWoodNext && (config.warmBackgroundTheme || config.backgroundTheme) === "warm-dusk",
+      const isWarmWoodNext = config.sceneStyle === 'warm-wood',
+        nextWarmDusk = isWarmWoodNext && (config.warmBackgroundTheme || config.backgroundTheme) === 'warm-dusk',
         nextBackgroundEnabled = config.backgroundVisible !== false,
         didChange =
           isWarmWoodNext !== isWarmWood ||
           nextWarmDusk !== isWarmDusk ||
           isMotionEnabled !== (config.backgroundMotion !== false) ||
-          nextBackgroundEnabled !== isBackgroundEnabled;
+          nextBackgroundEnabled !== isBackgroundEnabled
       return (
         didChange && stopWarmFrames(),
         (isWarmWood = isWarmWoodNext),
@@ -215,82 +203,56 @@ export function createSceneBackground(
         (isMotionEnabled = config.backgroundMotion !== false),
         (isBackgroundEnabled = nextBackgroundEnabled),
         isBackgroundEnabled || stopWarmFrames(),
-        warmUniforms.warmDeep.value.set(isWarmDusk ? "#746c67" : "#d9d6cc"),
-        warmUniforms.warmInk.value.set(isWarmDusk ? "#f4dfb6" : "#fff6dd"),
-        warmUniforms.warmAccent.value.set(isWarmDusk ? "#9c765a" : "#b59b72"),
+        warmUniforms.warmDeep.value.set(isWarmDusk ? '#746c67' : '#d9d6cc'),
+        warmUniforms.warmInk.value.set(isWarmDusk ? '#f4dfb6' : '#fff6dd'),
+        warmUniforms.warmAccent.value.set(isWarmDusk ? '#9c765a' : '#b59b72'),
         themeController.configure(configuredTheme),
         isWarmWood && (themeController.suspend(), ensureWarmBackdrop()),
         applyBackgroundVisibility(),
         didChange && requestFrame(),
         didChange
-      );
+      )
     },
     sync(sceneObjects: any, nextBackgroundEnabled: any) {
-      ((backgroundObjects = sceneObjects),
+      ;(backgroundObjects = sceneObjects),
         (isBackgroundEnabled = nextBackgroundEnabled !== false),
         isBackgroundEnabled || stopWarmFrames(),
-        applyBackgroundVisibility());
+        applyBackgroundVisibility()
     },
     interact(pointerEvent: any, shouldRaycast: any) {
-      isWarmWood
-        ? isBackgroundEnabled && requestFrame()
-        : themeController.interact(pointerEvent, shouldRaycast);
+      isWarmWood ? isBackgroundEnabled && requestFrame() : themeController.interact(pointerEvent, shouldRaycast)
     },
     tick(frameTimestampMs: any) {
-      if (isDisposed) return Infinity;
-      if (!isWarmWood) return themeController.tick(frameTimestampMs);
-      if (!isBackgroundEnabled || globalThis.document?.hidden) return (stopWarmFrames(), Infinity);
-      const camera = stageOptions.camera;
-      (camera.updateMatrixWorld(), camera.getWorldDirection(cameraDirection));
-      const cameraAspect =
-          camera.aspect || (camera.right - camera.left) / (camera.top - camera.bottom) || 1,
-        clampedAspect = Math.max(0.5, Math.min(2.5, cameraAspect));
-      ((warmUniforms.warmAspect.value = clampedAspect),
-        warmUniforms.warmShift.value.set(
-          cameraDirection.x * 0.85,
-          cameraDirection.z * 0.7 + cameraDirection.y * 0.25,
-        ));
-      const cameraDistance = camera.position.distanceTo(
-          stageOptions.controls?.target || new THREE.Vector3(),
-        ),
-        warmScale = 1 + Math.tanh(Math.log(Math.max(cameraDistance, 1) / 35)) * 0.12;
-      warmUniforms.warmScale.value = warmScale;
+      if (isDisposed) return Infinity
+      if (!isWarmWood) return themeController.tick(frameTimestampMs)
+      if (!isBackgroundEnabled || globalThis.document?.hidden) return (stopWarmFrames(), Infinity)
+      const camera = stageOptions.camera
+      camera.updateMatrixWorld(), camera.getWorldDirection(cameraDirection)
+      const cameraAspect = camera.aspect || (camera.right - camera.left) / (camera.top - camera.bottom) || 1,
+        clampedAspect = Math.max(0.5, Math.min(2.5, cameraAspect))
+      ;(warmUniforms.warmAspect.value = clampedAspect),
+        warmUniforms.warmShift.value.set(cameraDirection.x * 0.85, cameraDirection.z * 0.7 + cameraDirection.y * 0.25)
+      const cameraDistance = camera.position.distanceTo(stageOptions.controls?.target || new THREE.Vector3()),
+        warmScale = 1 + Math.tanh(Math.log(Math.max(cameraDistance, 1) / 35)) * 0.12
+      warmUniforms.warmScale.value = warmScale
       const floorAnchorPoint = backgroundFloorAnchor(stageOptions, floorAnchorMap),
-        floorTransition = stageOptions.backgroundFloorTransition;
-      if (
-        floorAnchorPoint &&
-        floorTransition &&
-        floorTransition.from !== stageOptions.backgroundFloor
-      ) {
-        const fromAnchorPoint = backgroundFloorAnchor(
-          stageOptions,
-          floorAnchorMap,
-          floorTransition.from,
-        );
+        floorTransition = stageOptions.backgroundFloorTransition
+      if (floorAnchorPoint && floorTransition && floorTransition.from !== stageOptions.backgroundFloor) {
+        const fromAnchorPoint = backgroundFloorAnchor(stageOptions, floorAnchorMap, floorTransition.from)
         fromAnchorPoint &&
-          floorAnchorPoint.lerpVectors(
-            fromAnchorPoint,
-            floorAnchorPoint.clone(),
-            floorTransition.amount,
-          );
+          floorAnchorPoint.lerpVectors(fromAnchorPoint, floorAnchorPoint.clone(), floorTransition.amount)
       }
       floorAnchorPoint &&
         (projectedFloorAnchor.copy(floorAnchorPoint).project(camera),
         warmUniforms.warmAnchor.value
-          .set(
-            projectedFloorAnchor.x * clampedAspect * 12 * warmScale,
-            -projectedFloorAnchor.y * 12 * warmScale,
-          )
-          .add(warmUniforms.warmShift.value));
+          .set(projectedFloorAnchor.x * clampedAspect * 12 * warmScale, -projectedFloorAnchor.y * 12 * warmScale)
+          .add(warmUniforms.warmShift.value))
       const deltaSeconds =
         lastTickMs === null
           ? 0
-          : Math.min(
-              Math.max(0.06, (frameInterval / 1000) * 1.2),
-              Math.max(0, (frameTimestampMs - lastTickMs) / 1000),
-            );
-      lastTickMs = frameTimestampMs;
-      const overviewTarget = stageOptions.backgroundFloor === "all" ? 1 : 0;
+          : Math.min(Math.max(0.06, (frameInterval / 1000) * 1.2), Math.max(0, (frameTimestampMs - lastTickMs) / 1000))
+      lastTickMs = frameTimestampMs
+      const overviewTarget = stageOptions.backgroundFloor === 'all' ? 1 : 0
       return (
         (warmUniforms.warmOverview.value +=
           (overviewTarget - warmUniforms.warmOverview.value) * (1 - Math.exp(-deltaSeconds * 4))),
@@ -317,19 +279,17 @@ export function createSceneBackground(
               }),
               (lastWarmFrameMs = frameTimestampMs)),
             Math.max(0, frameInterval - (frameTimestampMs - lastWarmFrameMs)))
-      );
+      )
     },
     suspend() {
-      (themeController.suspend(), stopWarmFrames());
+      themeController.suspend(), stopWarmFrames()
     },
     dispose() {
-      ((isDisposed = true), stopWarmFrames(), themeController.dispose());
+      ;(isDisposed = true), stopWarmFrames(), themeController.dispose()
       for (const backgroundObjectToDispose of backgroundObjects)
-        delete backgroundObjectToDispose.userData.backgroundThemeHidden;
+        delete backgroundObjectToDispose.userData.backgroundThemeHidden
       warmBackdrop &&
-        (warmBackdrop.removeFromParent(),
-        warmBackdrop.geometry.dispose(),
-        warmBackdrop.material.dispose());
+        (warmBackdrop.removeFromParent(), warmBackdrop.geometry.dispose(), warmBackdrop.material.dispose())
     },
-  };
+  }
 }

@@ -16,143 +16,139 @@ export function resolveInteractionCleanup(
   return new Promise<boolean>((cleanupResolve) => {
     const affectedProjects: string[] = Array.isArray(interactionImpact?.projects)
       ? interactionImpact.projects.map((project: any) => String(project))
-      : [];
-    const affectedImpacts: number = Array.isArray(interactionImpact?.impacts)
-      ? interactionImpact.impacts.length
-      : 0;
+      : []
+    const affectedImpacts: number = Array.isArray(interactionImpact?.impacts) ? interactionImpact.impacts.length : 0
 
-    const cleanupDialogElement = document.createElement("dialog");
-    cleanupDialogElement.className = "scale-dialog interaction-cleanup-dialog";
-    cleanupDialogElement.setAttribute("role", "alertdialog");
-    cleanupDialogElement.setAttribute("aria-modal", "true");
-    cleanupDialogElement.setAttribute("aria-labelledby", "interaction-cleanup-title");
-    cleanupDialogElement.setAttribute("aria-describedby", "interaction-cleanup-lead");
+    const cleanupDialogElement = document.createElement('dialog')
+    cleanupDialogElement.className = 'scale-dialog interaction-cleanup-dialog'
+    cleanupDialogElement.setAttribute('role', 'alertdialog')
+    cleanupDialogElement.setAttribute('aria-modal', 'true')
+    cleanupDialogElement.setAttribute('aria-labelledby', 'interaction-cleanup-title')
+    cleanupDialogElement.setAttribute('aria-describedby', 'interaction-cleanup-lead')
 
-    const cleanupFormElement = document.createElement("form");
-    cleanupFormElement.method = "dialog";
+    const cleanupFormElement = document.createElement('form')
+    cleanupFormElement.method = 'dialog'
 
     /* 右上角关闭 = 放弃删除，与「撤销删除」同义。 */
-    const cleanupCloseButton = document.createElement("button");
-    cleanupCloseButton.type = "button";
-    cleanupCloseButton.className = "dialog-close";
-    cleanupCloseButton.setAttribute("aria-label", "关闭删除提示");
-    cleanupCloseButton.textContent = "×";
+    const cleanupCloseButton = document.createElement('button')
+    cleanupCloseButton.type = 'button'
+    cleanupCloseButton.className = 'dialog-close'
+    cleanupCloseButton.setAttribute('aria-label', '关闭删除提示')
+    cleanupCloseButton.textContent = '×'
 
-    const cleanupIndexLabel = document.createElement("span");
-    cleanupIndexLabel.className = "dialog-index";
-    cleanupIndexLabel.textContent = "SYNC INTERACTION";
+    const cleanupIndexLabel = document.createElement('span')
+    cleanupIndexLabel.className = 'dialog-index'
+    cleanupIndexLabel.textContent = 'SYNC INTERACTION'
 
-    const cleanupTitleHeading = document.createElement("h2");
-    cleanupTitleHeading.id = "interaction-cleanup-title";
-    cleanupTitleHeading.textContent = "删除关联的 3D 交互配置？";
+    const cleanupTitleHeading = document.createElement('h2')
+    cleanupTitleHeading.id = 'interaction-cleanup-title'
+    cleanupTitleHeading.textContent = '删除关联的 3D 交互配置？'
 
     /* 先给结论：会移除入口、会清理绑定、组合成员保留。细节放进下面的指标与说明。 */
-    const cleanupLeadElement = document.createElement("p");
-    cleanupLeadElement.id = "interaction-cleanup-lead";
-    cleanupLeadElement.className = "interaction-cleanup-lead";
-    cleanupLeadElement.textContent =
-      "确认后会移除仪表盘里对应的入口，并清理这些交互绑定；组合中的另一成员会保留。";
+    const cleanupLeadElement = document.createElement('p')
+    cleanupLeadElement.id = 'interaction-cleanup-lead'
+    cleanupLeadElement.className = 'interaction-cleanup-lead'
+    cleanupLeadElement.textContent = '确认后会移除仪表盘里对应的入口，并清理这些交互绑定；组合中的另一成员会保留。'
 
-    const cleanupStatsElement = document.createElement("div");
-    cleanupStatsElement.className = "interaction-cleanup-stats";
+    const cleanupStatsElement = document.createElement('div')
+    cleanupStatsElement.className = 'interaction-cleanup-stats'
     for (const [statLabel, statValue, statUnit] of [
-      ["受影响仪表盘", String(affectedProjects.length), "个"],
-      ["交互绑定", String(affectedImpacts), "项"],
+      ['受影响仪表盘', String(affectedProjects.length), '个'],
+      ['交互绑定', String(affectedImpacts), '项'],
     ] as const) {
-      const statElement = document.createElement("div");
-      statElement.className = "interaction-cleanup-stat";
-      const statLabelElement = document.createElement("span");
-      statLabelElement.textContent = statLabel;
-      const statValueElement = document.createElement("strong");
-      statValueElement.textContent = statValue;
-      const statUnitElement = document.createElement("small");
-      statUnitElement.textContent = statUnit;
-      statValueElement.append(statUnitElement);
-      statElement.append(statLabelElement, statValueElement);
-      cleanupStatsElement.append(statElement);
+      const statElement = document.createElement('div')
+      statElement.className = 'interaction-cleanup-stat'
+      const statLabelElement = document.createElement('span')
+      statLabelElement.textContent = statLabel
+      const statValueElement = document.createElement('strong')
+      statValueElement.textContent = statValue
+      const statUnitElement = document.createElement('small')
+      statUnitElement.textContent = statUnit
+      statValueElement.append(statUnitElement)
+      statElement.append(statLabelElement, statValueElement)
+      cleanupStatsElement.append(statElement)
     }
 
-    const cleanupProjectsElement = document.createElement("div");
-    cleanupProjectsElement.className = "interaction-cleanup-projects";
-    const cleanupProjectsLabel = document.createElement("span");
-    cleanupProjectsLabel.className = "interaction-cleanup-projects-label";
-    cleanupProjectsLabel.textContent = "受影响仪表盘";
-    const cleanupProjectsList = document.createElement("div");
-    cleanupProjectsList.className = "interaction-cleanup-projects-list";
+    const cleanupProjectsElement = document.createElement('div')
+    cleanupProjectsElement.className = 'interaction-cleanup-projects'
+    const cleanupProjectsLabel = document.createElement('span')
+    cleanupProjectsLabel.className = 'interaction-cleanup-projects-label'
+    cleanupProjectsLabel.textContent = '受影响仪表盘'
+    const cleanupProjectsList = document.createElement('div')
+    cleanupProjectsList.className = 'interaction-cleanup-projects-list'
     if (!affectedProjects.length) {
-      const emptyProject = document.createElement("span");
-      emptyProject.className = "interaction-cleanup-chip is-empty";
-      emptyProject.textContent = "未记录";
-      cleanupProjectsList.append(emptyProject);
+      const emptyProject = document.createElement('span')
+      emptyProject.className = 'interaction-cleanup-chip is-empty'
+      emptyProject.textContent = '未记录'
+      cleanupProjectsList.append(emptyProject)
     }
     for (const projectName of affectedProjects) {
-      const cleanupProjectChip = document.createElement("span");
-      cleanupProjectChip.className = "interaction-cleanup-chip";
-      const cleanupProjectText = document.createElement("span");
-      cleanupProjectText.textContent = projectName;
-      cleanupProjectChip.title = projectName;
-      cleanupProjectChip.append(cleanupProjectText);
-      cleanupProjectsList.append(cleanupProjectChip);
+      const cleanupProjectChip = document.createElement('span')
+      cleanupProjectChip.className = 'interaction-cleanup-chip'
+      const cleanupProjectText = document.createElement('span')
+      cleanupProjectText.textContent = projectName
+      cleanupProjectChip.title = projectName
+      cleanupProjectChip.append(cleanupProjectText)
+      cleanupProjectsList.append(cleanupProjectChip)
     }
-    cleanupProjectsElement.append(cleanupProjectsLabel, cleanupProjectsList);
+    cleanupProjectsElement.append(cleanupProjectsLabel, cleanupProjectsList)
 
     /* 两条边界说明拆开：一条讲影响范围，一条讲撤销能做到什么。 */
-    const cleanupNoteElement = document.createElement("div");
-    cleanupNoteElement.className = "interaction-cleanup-note";
-    const cleanupScopeNote = document.createElement("p");
-    cleanupScopeNote.textContent = "不删除 HA 实体，也不发送设备指令。";
-    const cleanupUndoNote = document.createElement("p");
-    cleanupUndoNote.textContent =
-      "撤销删除会恢复本次移除的楼层、模型和灯组，并保留其他修改。";
-    cleanupNoteElement.append(cleanupScopeNote, cleanupUndoNote);
+    const cleanupNoteElement = document.createElement('div')
+    cleanupNoteElement.className = 'interaction-cleanup-note'
+    const cleanupScopeNote = document.createElement('p')
+    cleanupScopeNote.textContent = '不删除 HA 实体，也不发送设备指令。'
+    const cleanupUndoNote = document.createElement('p')
+    cleanupUndoNote.textContent = '撤销删除会恢复本次移除的楼层、模型和灯组，并保留其他修改。'
+    cleanupNoteElement.append(cleanupScopeNote, cleanupUndoNote)
 
-    const cleanupActionsElement = document.createElement("div");
-    cleanupActionsElement.className = "dialog-actions";
+    const cleanupActionsElement = document.createElement('div')
+    cleanupActionsElement.className = 'dialog-actions'
 
     const finishCleanup = (cleanupConfirmed: boolean) => {
-      cleanupDialogElement.close();
-      cleanupDialogElement.remove();
-      cleanupResolve(cleanupConfirmed);
-    };
+      cleanupDialogElement.close()
+      cleanupDialogElement.remove()
+      cleanupResolve(cleanupConfirmed)
+    }
 
     const setCleanupBusy = (cleanupBusy: boolean) => {
-      cleanupConfirmButton.disabled = cleanupBusy;
-      cleanupCloseButton.disabled = cleanupBusy;
-      cleanupCancelButton.disabled = cleanupBusy;
-      cleanupCancelButton.textContent = cleanupBusy ? "正在恢复…" : "撤销删除";
-    };
+      cleanupConfirmButton.disabled = cleanupBusy
+      cleanupCloseButton.disabled = cleanupBusy
+      cleanupCancelButton.disabled = cleanupBusy
+      cleanupCancelButton.textContent = cleanupBusy ? '正在恢复…' : '撤销删除'
+    }
 
-    const cleanupCancelButton = document.createElement("button");
-    cleanupCancelButton.type = "button";
-    cleanupCancelButton.className = "interaction-cleanup-undo";
-    cleanupCancelButton.textContent = "撤销删除";
+    const cleanupCancelButton = document.createElement('button')
+    cleanupCancelButton.type = 'button'
+    cleanupCancelButton.className = 'interaction-cleanup-undo'
+    cleanupCancelButton.textContent = '撤销删除'
     /* 默认焦点放在安全动作上：回车不会误确认删除。 */
-    cleanupCancelButton.autofocus = true;
+    cleanupCancelButton.autofocus = true
     cleanupCancelButton.onclick = async () => {
-      setCleanupBusy(true);
+      setCleanupBusy(true)
       try {
-        await undoDeletion();
-        finishCleanup(false);
+        await undoDeletion()
+        finishCleanup(false)
       } catch (cleanupRestoreFailure: any) {
-        showToast(cleanupRestoreFailure.message || "恢复删除失败，请重试。", "error");
+        showToast(cleanupRestoreFailure.message || '恢复删除失败，请重试。', 'error')
       } finally {
-        setCleanupBusy(false);
+        setCleanupBusy(false)
       }
-    };
+    }
 
-    const cleanupConfirmButton = document.createElement("button");
-    cleanupConfirmButton.type = "button";
-    cleanupConfirmButton.className = "primary-action";
-    cleanupConfirmButton.textContent = "确认删除并保存";
-    cleanupConfirmButton.onclick = () => finishCleanup(true);
+    const cleanupConfirmButton = document.createElement('button')
+    cleanupConfirmButton.type = 'button'
+    cleanupConfirmButton.className = 'primary-action'
+    cleanupConfirmButton.textContent = '确认删除并保存'
+    cleanupConfirmButton.onclick = () => finishCleanup(true)
 
-    cleanupCloseButton.onclick = () => finishCleanup(false);
-    cleanupDialogElement.addEventListener("cancel", (cleanupCancelEvent) => {
-      cleanupCancelEvent.preventDefault();
-      finishCleanup(false);
-    });
+    cleanupCloseButton.onclick = () => finishCleanup(false)
+    cleanupDialogElement.addEventListener('cancel', (cleanupCancelEvent) => {
+      cleanupCancelEvent.preventDefault()
+      finishCleanup(false)
+    })
 
-    cleanupActionsElement.append(cleanupCancelButton, cleanupConfirmButton);
+    cleanupActionsElement.append(cleanupCancelButton, cleanupConfirmButton)
     cleanupFormElement.append(
       cleanupCloseButton,
       cleanupIndexLabel,
@@ -162,9 +158,9 @@ export function resolveInteractionCleanup(
       cleanupProjectsElement,
       cleanupNoteElement,
       cleanupActionsElement,
-    );
-    cleanupDialogElement.append(cleanupFormElement);
-    document.body.append(cleanupDialogElement);
-    cleanupDialogElement.showModal();
-  });
+    )
+    cleanupDialogElement.append(cleanupFormElement)
+    document.body.append(cleanupDialogElement)
+    cleanupDialogElement.showModal()
+  })
 }

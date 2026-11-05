@@ -6,4 +6,4 @@
  * 只是为了让 `modules/runtime/camera/go2rtc-url.js` 继续作为构建入口存在
  * （清单白名单按文件生成，路径不能消失）。
  */
-export { validateGo2rtcDocument, validateGo2rtcUrl } from "@/studio/platform/go2rtc-url";
+export { validateGo2rtcDocument, validateGo2rtcUrl } from '@/studio/platform/go2rtc-url'

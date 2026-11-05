@@ -272,9 +272,7 @@ export function matchesEntityAttrSearch(key: string, value: string, query: strin
   const q = query.trim().toLowerCase()
   if (!q) return true
   const { zh, en } = getEntityAttrLabel(key)
-  return (
-    en.toLowerCase().includes(q) || zh.toLowerCase().includes(q) || value.toLowerCase().includes(q)
-  )
+  return en.toLowerCase().includes(q) || zh.toLowerCase().includes(q) || value.toLowerCase().includes(q)
 }
 
 function humanizeAttrKey(key: string): string {

@@ -1,6 +1,6 @@
 /** - 定义槽位 payload 结构（SlotSchemaPayload）：mapping（key→entity_id）+ slotsMeta（槽位元信息）； */
-import type { ApplianceSlotDef } from './appliance-catalog';
-import { getBuiltinSlots } from './appliance-catalog';
+import type { ApplianceSlotDef } from './appliance-catalog'
+import { getBuiltinSlots } from './appliance-catalog'
 
 /**
  * 槽位元信息（在 ApplianceSlotDef 基础上追加持久化字段）。
@@ -8,9 +8,9 @@ import { getBuiltinSlots } from './appliance-catalog';
  */
 export interface SlotMeta extends ApplianceSlotDef {
   /** 持久化稳定 key（默认与 key 相同；custom_ 前缀表示用户自定义槽位） */
-  _key?: string;
+  _key?: string
   /** 是否为用户自定义槽位；缺省时按 _key 是否以 "custom_" 开头推断 */
-  custom?: boolean;
+  custom?: boolean
 }
 
 /**
@@ -19,9 +19,9 @@ export interface SlotMeta extends ApplianceSlotDef {
  */
 export interface SlotSchemaPayload {
   /** 槽位 key → entity_id 映射（仅非空值会被存储） */
-  mapping: Record<string, string>;
+  mapping: Record<string, string>
   /** 所有槽位的元信息（顺序即 UI 展示顺序；先放内置槽位，再追加自定义） */
-  slotsMeta: SlotMeta[];
+  slotsMeta: SlotMeta[]
 }
 
 /**
@@ -31,20 +31,20 @@ export interface SlotSchemaPayload {
  * @returns true 时类型被收窄为 SlotSchemaPayload
  */
 export function isSlotSchemaPayload(raw: unknown): raw is SlotSchemaPayload {
-  if (!raw || typeof raw !== 'object') return false;
-  const o = raw as SlotSchemaPayload;
-  return !!o.mapping && typeof o.mapping === 'object' && Array.isArray(o.slotsMeta);
+  if (!raw || typeof raw !== 'object') return false
+  const o = raw as SlotSchemaPayload
+  return !!o.mapping && typeof o.mapping === 'object' && Array.isArray(o.slotsMeta)
 }
 
 /** 仅接受带 slotsMeta 的槽位 payload；非法结构归一化为空 */
 export function normalizeSlotPayload(raw: unknown): SlotSchemaPayload {
   if (!isSlotSchemaPayload(raw)) {
-    return { mapping: {}, slotsMeta: [] };
+    return { mapping: {}, slotsMeta: [] }
   }
   return {
     mapping: { ...raw.mapping },
     slotsMeta: raw.slotsMeta.map((s) => ({ ...s })),
-  };
+  }
 }
 
 /**
@@ -55,15 +55,12 @@ export function normalizeSlotPayload(raw: unknown): SlotSchemaPayload {
  * @param slotsList  当前槽位列表（内置 + 自定义合并后的顺序）
  * @returns 合法的 SlotSchemaPayload（mapping 被剪枝为仅 list 中存在的 key）
  */
-export function buildSlotPayload(
-  mapping: Record<string, string>,
-  slotsList: SlotMeta[],
-): SlotSchemaPayload {
-  const cleanMapping: Record<string, string> = {};
+export function buildSlotPayload(mapping: Record<string, string>, slotsList: SlotMeta[]): SlotSchemaPayload {
+  const cleanMapping: Record<string, string> = {}
   for (const s of slotsList) {
-    const key = s._key || s.key;
-    const val = mapping[key]?.trim();
-    if (val) cleanMapping[key] = val;
+    const key = s._key || s.key
+    const val = mapping[key]?.trim()
+    if (val) cleanMapping[key] = val
   }
   return {
     mapping: cleanMapping,
@@ -76,7 +73,7 @@ export function buildSlotPayload(
       icon: s.icon,
       custom: s.custom ?? String(s._key || '').startsWith('custom_'),
     })),
-  };
+  }
 }
 
 /** 从持久化 payload 恢复 slotsList + slots 映射 */
@@ -84,19 +81,19 @@ export function restoreSlotsFromPayload(
   payload: unknown,
   typeId: string,
 ): { slotsList: SlotMeta[]; slots: Record<string, string> } {
-  const { mapping, slotsMeta } = normalizeSlotPayload(payload);
-  const builtin = getBuiltinSlots(typeId);
-  const slotsList: SlotMeta[] = [];
-  const seen = new Set<string>();
+  const { mapping, slotsMeta } = normalizeSlotPayload(payload)
+  const builtin = getBuiltinSlots(typeId)
+  const slotsList: SlotMeta[] = []
+  const seen = new Set<string>()
 
   for (const def of builtin) {
-    slotsList.push({ ...def, _key: def.key });
-    seen.add(def.key);
+    slotsList.push({ ...def, _key: def.key })
+    seen.add(def.key)
   }
 
   for (const meta of slotsMeta) {
-    const key = meta._key || meta.key;
-    if (!key || seen.has(key)) continue;
+    const key = meta._key || meta.key
+    if (!key || seen.has(key)) continue
     slotsList.push({
       key: meta.key || key,
       _key: key,
@@ -105,15 +102,15 @@ export function restoreSlotsFromPayload(
       domain: meta.domain || 'sensor',
       icon: meta.icon || '📌',
       custom: true,
-    });
-    seen.add(key);
+    })
+    seen.add(key)
   }
 
-  const slots: Record<string, string> = {};
+  const slots: Record<string, string> = {}
   for (const s of slotsList) {
-    const k = s._key || s.key;
-    if (mapping[k]) slots[k] = mapping[k];
+    const k = s._key || s.key
+    if (mapping[k]) slots[k] = mapping[k]
   }
 
-  return { slotsList, slots };
+  return { slotsList, slots }
 }

@@ -21,9 +21,7 @@ const BODY_TOP = H - TOP
 
 const plinth = b(W - 0.16, PLINTH, BODY_D - 0.06, 0, PLINTH / 2, -0.02)
 const sides = merge(
-  [-1, 1].map((side) =>
-    b(PANEL, BODY_TOP - PLINTH, BODY_D, (side * (W - PANEL)) / 2, (BODY_TOP + PLINTH) / 2, -0.02),
-  ),
+  [-1, 1].map((side) => b(PANEL, BODY_TOP - PLINTH, BODY_D, (side * (W - PANEL)) / 2, (BODY_TOP + PLINTH) / 2, -0.02)),
 )
 const bottom = b(W - PANEL * 2, PANEL, BODY_D - 0.02, 0, PLINTH + PANEL / 2, -0.02)
 const back = b(W - PANEL * 2, BODY_TOP - PLINTH, 0.008, 0, (BODY_TOP + PLINTH) / 2, -D / 2 + 0.008)
@@ -31,11 +29,7 @@ const divider = b(PANEL, BODY_TOP - PLINTH - PANEL, BODY_D - 0.02, 0, (BODY_TOP 
 const shelf = b(W - PANEL * 2, PANEL, BODY_D - 0.02, 0, 0.26, -0.02)
 
 const topSlab = b(W, TOP, D, 0, H - TOP / 2, 0)
-const drawers = merge(
-  [-1, 1].map((side) =>
-    b(W / 2 - 0.03, 0.19, 0.02, (side * W) / 4, 0.3, FRONT_Z),
-  ),
-)
+const drawers = merge([-1, 1].map((side) => b(W / 2 - 0.03, 0.19, 0.02, (side * W) / 4, 0.3, FRONT_Z)))
 const shadow = b(W, 0.004, D, 0, 0.002, 0)
 
 export function build() {

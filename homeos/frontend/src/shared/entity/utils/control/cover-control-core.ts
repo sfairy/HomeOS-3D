@@ -29,10 +29,7 @@ export function coverIsMoving(state: string | null | undefined): boolean {
   return state === 'opening' || state === 'closing'
 }
 
-export function coverPositionFromAttributes(
-  attributes: Record<string, unknown> | undefined,
-  fallback = 50,
-): number {
+export function coverPositionFromAttributes(attributes: Record<string, unknown> | undefined, fallback = 50): number {
   const raw = attributes?.current_position
   const n = raw == null ? fallback : Number(raw)
   return clampInRange(Number.isFinite(n) ? n : fallback, 0, 100, fallback)

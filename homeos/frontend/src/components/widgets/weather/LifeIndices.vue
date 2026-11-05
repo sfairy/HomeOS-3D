@@ -238,11 +238,7 @@ import {
 } from '@lucide/vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import { useLifeIndices } from '@/composables/life/useLifeIndices'
-import {
-  lifeIndexGroupLabel,
-  type LifeIndexDef,
-  type LifeIndexItem,
-} from '@/shared/weather/utils/life-indices.util'
+import { lifeIndexGroupLabel, type LifeIndexDef, type LifeIndexItem } from '@/shared/weather/utils/life-indices.util'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({

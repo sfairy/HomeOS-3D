@@ -3,11 +3,11 @@
 
 为什么商店需要单独的脚本
 ------------------------
-主应用有 `route_inventory.py`：它用临时 symlink 导入 `bootstrap.router_registry` 取
-OpenAPI。商店的 `create_app()` 会在导入/构造时建库、跑迁移、要求密钥目录，不适合放进
+主应用的等效检查走运行时导入 `bootstrap.router_registry` 取 OpenAPI。商店的
+`create_app()` 会在导入/构造时建库、跑迁移、要求密钥目录，不适合放进
 静态门禁；而商店 121 条路由里 75 条是 admin，任何一条鉴权注解被删都会造成越权。
 
-这里用纯 AST 静态扫描，口径与 `route_inventory.py` 的"实际注册表"不同：
+这里用纯 AST 静态扫描，口径与「实际注册表」不同：
 - 路径 = `APIRouter(prefix=...)` + 装饰器路径；
 - 鉴权 = handler 参数里的 `AdminAccount` / `AuthedAccount` / `CurrentAccount|CurrentSession`；
 - 不启动应用、不建库、不读密钥。

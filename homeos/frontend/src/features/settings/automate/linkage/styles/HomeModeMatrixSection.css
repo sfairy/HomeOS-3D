@@ -1,5 +1,5 @@
 /** 安防 ↔ 家庭模式对照表样式（在 linkage.css 基础上补充） */
-@import 'linkage.css';
+@import "linkage.css";
 .hm-sec-master {
   display: flex;
   align-items: center;
@@ -9,15 +9,17 @@
   padding: 13px 15px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--link-line, rgba(255, 255, 255, 0.08));
-  background:
-    linear-gradient(
-      135deg,
-      rgba(var(--link-security-rgb, var(--page-accent-rgb)), 0.07) 0%,
-      var(--link-fill, rgba(255, 255, 255, 0.035)) 45%,
-      var(--link-fill-deep, rgba(0, 0, 0, 0.14)) 100%
-    );
+  background: linear-gradient(
+    135deg,
+    rgba(var(--link-security-rgb, var(--page-accent-rgb)), 0.07) 0%,
+    var(--link-fill, rgba(255, 255, 255, 0.035)) 45%,
+    var(--link-fill-deep, rgba(0, 0, 0, 0.14)) 100%
+  );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .hm-sec-master--on {
@@ -59,12 +61,11 @@
   gap: 0;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--link-line, rgba(255, 255, 255, 0.07));
-  background:
-    linear-gradient(
-      180deg,
-      rgba(var(--link-security-rgb, var(--page-accent-rgb)), 0.05) 0%,
-      rgba(0, 0, 0, 0.2) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    rgba(var(--link-security-rgb, var(--page-accent-rgb)), 0.05) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
   overflow: hidden;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }

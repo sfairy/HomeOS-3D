@@ -111,11 +111,7 @@ export function baseCabinet({
         width: doorWidth,
         height: doorHeight,
         depth: panel,
-        center: [
-          side * (doorGap / 2 + doorWidth / 2),
-          doorBottom + doorHeight / 2,
-          doorZ,
-        ],
+        center: [side * (doorGap / 2 + doorWidth / 2), doorBottom + doorHeight / 2, doorZ],
       }),
     ),
   )
@@ -267,40 +263,15 @@ export function rectBowlShell({
   for (let side = 0; side < 4; side += 1) {
     const next = (side + 1) % 4
     // 盆沿：外沿 → 内沿，朝上（藏在台面底面之下）。
-    quad(
-      rimInnerLoop[side],
-      rimInnerLoop[next],
-      rimOuterLoop[next],
-      rimOuterLoop[side],
-    )
+    quad(rimInnerLoop[side], rimInnerLoop[next], rimOuterLoop[next], rimOuterLoop[side])
     // 外壁：上外沿 → 下外底，朝外。
-    quad(
-      rimOuterLoop[side],
-      rimOuterLoop[next],
-      bottomOuterLoop[next],
-      bottomOuterLoop[side],
-    )
+    quad(rimOuterLoop[side], rimOuterLoop[next], bottomOuterLoop[next], bottomOuterLoop[side])
     // 内壁：下内底 → 上内沿，朝盆腔内侧。
-    quad(
-      bottomInnerLoop[side],
-      bottomInnerLoop[next],
-      rimInnerLoop[next],
-      rimInnerLoop[side],
-    )
+    quad(bottomInnerLoop[side], bottomInnerLoop[next], rimInnerLoop[next], rimInnerLoop[side])
   }
   // 外底朝下、内底朝上，形成盆底钢板厚度。
-  quad(
-    bottomOuterLoop[3],
-    bottomOuterLoop[2],
-    bottomOuterLoop[1],
-    bottomOuterLoop[0],
-  )
-  quad(
-    bottomInnerLoop[0],
-    bottomInnerLoop[1],
-    bottomInnerLoop[2],
-    bottomInnerLoop[3],
-  )
+  quad(bottomOuterLoop[3], bottomOuterLoop[2], bottomOuterLoop[1], bottomOuterLoop[0])
+  quad(bottomInnerLoop[0], bottomInnerLoop[1], bottomInnerLoop[2], bottomInnerLoop[3])
 
   return { positions, normals, uvs, indices }
 }

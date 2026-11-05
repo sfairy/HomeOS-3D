@@ -104,8 +104,7 @@ export function progressFillStyle({
     background: progressGradientCss(grad),
   }
   let resolvedKey = variant
-  if (variant === 'budget' || variant === 'threshold')
-    resolvedKey = budgetVariantFromPct(colorSource)
+  if (variant === 'budget' || variant === 'threshold') resolvedKey = budgetVariantFromPct(colorSource)
   else if (variant === 'balance') resolvedKey = balanceVariantFromAmount(Number(colorSource) || 0)
   else if (variant === 'resource') resolvedKey = resourceVariantFromPct(colorSource)
   const shouldGlow = glow || (autoGlow && (resolvedKey === 'warn' || resolvedKey === 'danger'))
@@ -114,5 +113,3 @@ export function progressFillStyle({
   }
   return style
 }
-
-

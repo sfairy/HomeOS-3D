@@ -177,10 +177,7 @@ import {
 } from '@/services/api/backups'
 import { downloadBlob } from '@/shared/utils/core/misc.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import {
-  navigateAfterRestore,
-  resolvePostRestoreDestination,
-} from '@/shared/utils/core/post-restore.util'
+import { navigateAfterRestore, resolvePostRestoreDestination } from '@/shared/utils/core/post-restore.util'
 import { useShellTeleportTarget } from '@/composables/ui/shell/useShellTeleportTarget'
 
 const props = defineProps({
@@ -285,10 +282,7 @@ function close() {
 async function runExport() {
   if (busy.value) return
   if (typeof props.canExport === 'function' && !props.canExport()) {
-    return setMessage(
-      '当前有未保存或正在保存的修改，请先关闭窗口并保存，再创建备份。',
-      'error',
-    )
+    return setMessage('当前有未保存或正在保存的修改，请先关闭窗口并保存，再创建备份。', 'error')
   }
   if (exportPassword.value.length < 8) {
     return setMessage('备份密码至少 8 个字符。', 'error')
@@ -348,10 +342,7 @@ async function runInspect() {
     }
     ticket.value = data.ticket || ''
     const created = data.createdAt ? new Date(data.createdAt) : null
-    const expiresMinutes = Math.max(
-      1,
-      Math.round(Number(data.expiresIn || 600) / 60),
-    )
+    const expiresMinutes = Math.max(1, Math.round(Number(data.expiresIn || 600) / 60))
     const sizeText = formatBackupBytes(Number(data.databaseSize) || 0)
     preview.value = [
       `HomeOS ${data.version || ''} · ${
@@ -362,10 +353,7 @@ async function runInspect() {
       data.includesHistory === false ? '不含历史事件与操作日志' : '含历史事件数据',
     ].join('\n')
     restorePassword.value = ''
-    setMessage(
-      `检查通过。请在 ${expiresMinutes} 分钟内确认恢复；当前业务数据将被整体覆盖。`,
-      'success',
-    )
+    setMessage(`检查通过。请在 ${expiresMinutes} 分钟内确认恢复；当前业务数据将被整体覆盖。`, 'success')
   } catch (error) {
     setMessage(getApiErrorMessage(error, '检查备份失败'), 'error')
   } finally {

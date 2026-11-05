@@ -6,42 +6,40 @@
  */
 
 interface ExportSpliceElementRefs {
-  ibeBrightnessRealtimeElement: any;
-  ibeButtonOffColorElement: any;
-  ibeButtonOnColorElement: any;
-  ibeButtonOpacityElement: any;
-  ibeColorTemperatureRealtimeElement: any;
-  ibeEffectFadeDurationElement: any;
-  ibeEffectLeftElement: any;
-  ibeEffectOpacityElement: any;
-  ibeEffectRotationElement: any;
-  ibeEffectScaleElement: any;
-  ibeEffectTopElement: any;
-  ibeFrameColorElement: any;
-  ibeFrameOpacityElement: any;
-  ibeFrameWidthElement: any;
-  ibeGlowColorElement: any;
-  ibeGlowOffStrengthElement: any;
-  ibeGlowOnStrengthElement: any;
-  ibeHeightElement: any;
-  ibeIconOffColorElement: any;
-  ibeIconOnColorElement: any;
-  ibeIconSizeElement: any;
-  ibeLeftElement: any;
-  ibeRadiusElement: any;
-  ibeRotationElement: any;
-  ibeScaleElement: any;
-  ibeTopElement: any;
-  ibeWidthElement: any;
+  ibeBrightnessRealtimeElement: any
+  ibeButtonOffColorElement: any
+  ibeButtonOnColorElement: any
+  ibeButtonOpacityElement: any
+  ibeColorTemperatureRealtimeElement: any
+  ibeEffectFadeDurationElement: any
+  ibeEffectLeftElement: any
+  ibeEffectOpacityElement: any
+  ibeEffectRotationElement: any
+  ibeEffectScaleElement: any
+  ibeEffectTopElement: any
+  ibeFrameColorElement: any
+  ibeFrameOpacityElement: any
+  ibeFrameWidthElement: any
+  ibeGlowColorElement: any
+  ibeGlowOffStrengthElement: any
+  ibeGlowOnStrengthElement: any
+  ibeHeightElement: any
+  ibeIconOffColorElement: any
+  ibeIconOnColorElement: any
+  ibeIconSizeElement: any
+  ibeLeftElement: any
+  ibeRadiusElement: any
+  ibeRotationElement: any
+  ibeScaleElement: any
+  ibeTopElement: any
+  ibeWidthElement: any
 }
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。
  * 正文逐字保留，只有「残留依赖显式化」这一处人工改动。
  */
-export function createExportSpliceTables(
-  ctx: ExportSpliceElementRefs,
-) {
+export function createExportSpliceTables(ctx: ExportSpliceElementRefs) {
   const {
     ibeBrightnessRealtimeElement,
     ibeButtonOffColorElement,
@@ -70,38 +68,38 @@ export function createExportSpliceTables(
     ibeScaleElement,
     ibeTopElement,
     ibeWidthElement,
-  } = ctx;
+  } = ctx
   const exportSpliceErrorById = new Map([
       [
         ibeColorTemperatureRealtimeElement,
         {
-          property: "effectColorTemperatureRealtime",
-          type: "boolean",
+          property: 'effectColorTemperatureRealtime',
+          type: 'boolean',
         },
       ],
       [
         ibeBrightnessRealtimeElement,
         {
-          property: "effectBrightnessRealtime",
-          type: "boolean",
+          property: 'effectBrightnessRealtime',
+          type: 'boolean',
         },
       ],
       [
         ibeIconOffColorElement,
         {
-          property: "iconOffColor",
+          property: 'iconOffColor',
         },
       ],
       [
         ibeIconOnColorElement,
         {
-          property: "iconOnColor",
+          property: 'iconOnColor',
         },
       ],
       [
         ibeIconSizeElement,
         {
-          property: "iconSize",
+          property: 'iconSize',
           min: 1,
           max: 100,
         },
@@ -109,19 +107,19 @@ export function createExportSpliceTables(
       [
         ibeButtonOffColorElement,
         {
-          property: "buttonOffColor",
+          property: 'buttonOffColor',
         },
       ],
       [
         ibeButtonOnColorElement,
         {
-          property: "buttonOnColor",
+          property: 'buttonOnColor',
         },
       ],
       [
         ibeButtonOpacityElement,
         {
-          property: "buttonOpacity",
+          property: 'buttonOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -130,13 +128,13 @@ export function createExportSpliceTables(
       [
         ibeFrameColorElement,
         {
-          property: "frameColor",
+          property: 'frameColor',
         },
       ],
       [
         ibeFrameWidthElement,
         {
-          property: "frameWidth",
+          property: 'frameWidth',
           min: 0,
           max: 20,
         },
@@ -144,7 +142,7 @@ export function createExportSpliceTables(
       [
         ibeFrameOpacityElement,
         {
-          property: "frameOpacity",
+          property: 'frameOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -153,7 +151,7 @@ export function createExportSpliceTables(
       [
         ibeRadiusElement,
         {
-          property: "radius",
+          property: 'radius',
           min: 0,
           max: 50,
         },
@@ -161,13 +159,13 @@ export function createExportSpliceTables(
       [
         ibeGlowColorElement,
         {
-          property: "glowColor",
+          property: 'glowColor',
         },
       ],
       [
         ibeGlowOffStrengthElement,
         {
-          property: "glowOffStrength",
+          property: 'glowOffStrength',
           min: 0,
           max: 300,
           divisor: 100,
@@ -176,7 +174,7 @@ export function createExportSpliceTables(
       [
         ibeGlowOnStrengthElement,
         {
-          property: "glowOnStrength",
+          property: 'glowOnStrength',
           min: 0,
           max: 300,
           divisor: 100,
@@ -185,7 +183,7 @@ export function createExportSpliceTables(
       [
         ibeEffectOpacityElement,
         {
-          property: "effectOpacity",
+          property: 'effectOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -194,7 +192,7 @@ export function createExportSpliceTables(
       [
         ibeEffectFadeDurationElement,
         {
-          property: "effectFadeDuration",
+          property: 'effectFadeDuration',
           min: 0,
           max: 3,
         },
@@ -202,7 +200,7 @@ export function createExportSpliceTables(
       [
         ibeEffectLeftElement,
         {
-          property: "effectLeft",
+          property: 'effectLeft',
           min: -100,
           max: 200,
         },
@@ -210,7 +208,7 @@ export function createExportSpliceTables(
       [
         ibeEffectTopElement,
         {
-          property: "effectTop",
+          property: 'effectTop',
           min: -100,
           max: 200,
         },
@@ -218,7 +216,7 @@ export function createExportSpliceTables(
       [
         ibeEffectScaleElement,
         {
-          property: "effectScale",
+          property: 'effectScale',
           min: 1,
           max: 500,
           divisor: 100,
@@ -227,19 +225,19 @@ export function createExportSpliceTables(
       [
         ibeEffectRotationElement,
         {
-          property: "effectRotation",
+          property: 'effectRotation',
           min: -360,
           max: 360,
         },
       ],
     ]),
     exportSpliceErrorByIdById = new Map([
-      [ibeIconOffColorElement, "off"],
-      [ibeButtonOffColorElement, "off"],
-      [ibeGlowOffStrengthElement, "off"],
-      [ibeIconOnColorElement, "on"],
-      [ibeButtonOnColorElement, "on"],
-      [ibeGlowOnStrengthElement, "on"],
+      [ibeIconOffColorElement, 'off'],
+      [ibeButtonOffColorElement, 'off'],
+      [ibeGlowOffStrengthElement, 'off'],
+      [ibeIconOnColorElement, 'on'],
+      [ibeButtonOnColorElement, 'on'],
+      [ibeGlowOnStrengthElement, 'on'],
     ]),
     exportSpliceErrorSet = new Set([
       ibeLeftElement,
@@ -248,11 +246,11 @@ export function createExportSpliceTables(
       ibeHeightElement,
       ibeScaleElement,
       ibeRotationElement,
-    ]);
+    ])
 
   return {
     exportSpliceErrorById,
     exportSpliceErrorByIdById,
     exportSpliceErrorSet,
-  };
+  }
 }

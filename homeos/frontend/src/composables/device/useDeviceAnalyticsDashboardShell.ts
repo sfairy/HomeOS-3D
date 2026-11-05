@@ -1,13 +1,5 @@
 /** 设备分析仪表盘 Shell Composable */
-import {
-  ref,
-  computed,
-  watch,
-  onMounted,
-  onUnmounted,
-  type Ref,
-  type ComponentPublicInstance,
-} from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, type Ref, type ComponentPublicInstance } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
@@ -80,16 +72,9 @@ export function useDeviceAnalyticsDashboardShell(options: {
   ]
 
   // 拉取分析数据
-  const { loading, error, summary, eventsStats, refresh } = useDeviceAnalyticsDashboard(
-    days,
-    visibleRef,
-  )
+  const { loading, error, summary, eventsStats, refresh } = useDeviceAnalyticsDashboard(days, visibleRef)
   // 健康趋势
-  const {
-    trend: healthTrend,
-    current: healthCurrent,
-    refresh: refreshHealth,
-  } = useDeviceHealthTrend()
+  const { trend: healthTrend, current: healthCurrent, refresh: refreshHealth } = useDeviceHealthTrend()
   // 派生指标
   const {
     LOW_ACTIVITY_THRESHOLD,
@@ -186,6 +171,12 @@ export function useDeviceAnalyticsDashboardShell(options: {
   const bindHeatmapChart = bindChartRef(heatmapChartRef)
   const bindEventsChart = bindChartRef(eventsChartRef)
   const bindHealthTrend = bindChartRef(healthTrendRef)
+  // 根元素同样用函数 ref 绑定：vue-tsc 不把模板里的 `ref="name"` 字符串当作对脚本变量的
+  // 读取，开启 noUnusedLocals 后只被模板引用的 ref 会误报「声明但未使用」。函数 ref 是真实
+  // 表达式引用，判定成立。**`useTemplateRef('name')` 同样无效**——实测（vue-tsc 3.3.14 /
+  // vue 3.5.44）`ref="x"` + `useTemplateRef('x')` 与 `ref="x"` + `ref()` 一样报 TS6133，
+  // 因为模板字符串 ref 根本不参与读取判定；别再尝试换成 useTemplateRef。
+  const bindRootRef = bindChartRef(rootRef)
 
   return {
     rootRef,
@@ -218,6 +209,7 @@ export function useDeviceAnalyticsDashboardShell(options: {
     bindHeatmapChart,
     bindEventsChart,
     bindHealthTrend,
+    bindRootRef,
     reload,
     exportCsv,
     entityName,

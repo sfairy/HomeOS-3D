@@ -5,13 +5,13 @@
  */
 export interface PresencePerson {
   /** 人员 ID（缺省时由归一化生成稳定 ID） */
-  id: string;
+  id: string
   /** 人员显示名（如 "张三"） */
-  name: string;
+  name: string
   /** 关联实体 ID 列表（任一在家即视为在家） */
-  entityIds: string[];
+  entityIds: string[]
   /** 可选：绑定 HomeOS 用户（用于跨模块联动） */
-  userId?: string;
+  userId?: string
 }
 
 /**
@@ -19,7 +19,7 @@ export interface PresencePerson {
  * 用作归一化时的回退，便于跨设备配置去重。
  */
 function defaultPresencePersonId(name: string, entityIds: string[]): string {
-  return `p_${name.replace(/\s+/g, '_')}_${entityIds[0]?.replace(/\./g, '_') ?? 'x'}`;
+  return `p_${name.replace(/\s+/g, '_')}_${entityIds[0]?.replace(/\./g, '_') ?? 'x'}`
 }
 
 /**
@@ -39,23 +39,21 @@ export function normalizePresencePersons(
   raw: unknown,
   opts?: { generateId?: (name: string, entityIds: string[]) => string },
 ): PresencePerson[] {
-  if (!Array.isArray(raw)) return [];
-  const generateId = opts?.generateId ?? defaultPresencePersonId;
-  const result: PresencePerson[] = [];
+  if (!Array.isArray(raw)) return []
+  const generateId = opts?.generateId ?? defaultPresencePersonId
+  const result: PresencePerson[] = []
   for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const o = item as Record<string, unknown>;
-    const name = String(o.name ?? '').trim();
-    const entityIds = Array.isArray(o.entityIds)
-      ? o.entityIds.map((id) => String(id).trim()).filter(Boolean)
-      : [];
-    if (!name || entityIds.length === 0) continue;
-    let id = String(o.id ?? '').trim();
-    if (!id) id = generateId(name, entityIds);
-    const userId = String(o.userId ?? '').trim() || undefined;
-    result.push({ id, name, entityIds, ...(userId ? { userId } : {}) });
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const name = String(o.name ?? '').trim()
+    const entityIds = Array.isArray(o.entityIds) ? o.entityIds.map((id) => String(id).trim()).filter(Boolean) : []
+    if (!name || entityIds.length === 0) continue
+    let id = String(o.id ?? '').trim()
+    if (!id) id = generateId(name, entityIds)
+    const userId = String(o.userId ?? '').trim() || undefined
+    result.push({ id, name, entityIds, ...(userId ? { userId } : {}) })
   }
-  return result;
+  return result
 }
 
 /**
@@ -64,10 +62,8 @@ export function normalizePresencePersons(
  * @param security 系统配置中的 security 子对象
  * @returns 归一化后的 PresencePerson 数组
  */
-export function getPresencePersonsFromSecurity(
-  security: { presencePersons?: unknown } = {},
-): PresencePerson[] {
-  return normalizePresencePersons(security.presencePersons);
+export function getPresencePersonsFromSecurity(security: { presencePersons?: unknown } = {}): PresencePerson[] {
+  return normalizePresencePersons(security.presencePersons)
 }
 
 /**
@@ -77,11 +73,11 @@ export function getPresencePersonsFromSecurity(
  * @returns 去重后的 entity_id 数组（用于批量订阅 / 状态查询）
  */
 export function collectPresenceEntityIds(persons: PresencePerson[]): string[] {
-  const set = new Set<string>();
+  const set = new Set<string>()
   for (const person of persons) {
-    for (const id of person.entityIds) set.add(id);
+    for (const id of person.entityIds) set.add(id)
   }
-  return [...set];
+  return [...set]
 }
 
 /**
@@ -94,7 +90,7 @@ export function computePersonAtHome(
   person: { entityIds?: string[] },
   entityAtHome: (entityId: string) => boolean | undefined,
 ): boolean {
-  const ids = Array.isArray(person?.entityIds) ? person.entityIds.filter(Boolean) : [];
-  if (!ids.length) return false;
-  return ids.some((id) => entityAtHome(id) === true);
+  const ids = Array.isArray(person?.entityIds) ? person.entityIds.filter(Boolean) : []
+  if (!ids.length) return false
+  return ids.some((id) => entityAtHome(id) === true)
 }

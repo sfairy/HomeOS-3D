@@ -89,15 +89,7 @@ const LEVEL_LABELS: Record<string, string> = {
   info: '信息',
 }
 
-const FALLBACK_COLORS = [
-  '#f472b6',
-  '#fb7185',
-  '#fbbf24',
-  '#34d399',
-  '#38bdf8',
-  '#a78bfa',
-  '#94a3b8',
-]
+const FALLBACK_COLORS = ['#f472b6', '#fb7185', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa', '#94a3b8']
 
 /** NOTIFICATION_HOUR_OPTIONS：常量集合，成员语义见定义处。 */
 export const NOTIFICATION_HOUR_OPTIONS = [24, 72, 168, 720] as const
@@ -116,9 +108,7 @@ export function formatNotificationHourOption(hours: number) {
   return `${hours} 小时`
 }
 
-export function buildSourceBuckets(
-  notifications: Array<{ source?: string | null }>,
-): NotificationSourceBucket[] {
+export function buildSourceBuckets(notifications: Array<{ source?: string | null }>): NotificationSourceBucket[] {
   const counts = new Map<string, number>()
   for (const notification of notifications) {
     const key = normalizeNotificationSource(notification.source)
@@ -134,9 +124,7 @@ export function buildSourceBuckets(
     .sort((a, b) => b.count - a.count)
 }
 
-export function buildSourceBucketsFromStats(
-  bySource: Record<string, number> = {},
-): NotificationSourceBucket[] {
+export function buildSourceBucketsFromStats(bySource: Record<string, number> = {}): NotificationSourceBucket[] {
   return Object.entries(bySource)
     .map(([key, count], index) => ({
       key,
@@ -147,9 +135,7 @@ export function buildSourceBucketsFromStats(
     .sort((a, b) => b.count - a.count)
 }
 
-export function buildLevelBuckets(
-  notifications: Array<{ level?: string | null }>,
-): NotificationLevelBucket[] {
+export function buildLevelBuckets(notifications: Array<{ level?: string | null }>): NotificationLevelBucket[] {
   const order = ['danger', 'warn', 'success', 'info']
   const counts = new Map<string, number>()
   for (const notification of notifications) {
@@ -166,9 +152,7 @@ export function buildLevelBuckets(
     }))
 }
 
-export function buildLevelBucketsFromStats(
-  byLevel: Record<string, number> = {},
-): NotificationLevelBucket[] {
+export function buildLevelBucketsFromStats(byLevel: Record<string, number> = {}): NotificationLevelBucket[] {
   const order = ['danger', 'warn', 'success', 'info']
   return order
     .filter((level) => (byLevel[level] || 0) > 0)
@@ -236,16 +220,10 @@ export function computeNotificationAnalyticsSummary(
   windowHours = 24,
 ): NotificationAnalyticsSummary {
   const useStats = stats && stats.total > 0
-  const sources = useStats
-    ? buildSourceBucketsFromStats(stats.bySource)
-    : buildSourceBuckets(notifications)
-  const levels = useStats
-    ? buildLevelBucketsFromStats(stats.byLevel)
-    : buildLevelBuckets(notifications)
+  const sources = useStats ? buildSourceBucketsFromStats(stats.bySource) : buildSourceBuckets(notifications)
+  const levels = useStats ? buildLevelBucketsFromStats(stats.byLevel) : buildLevelBuckets(notifications)
   const timeBuckets =
-    useStats && stats.byTime.length
-      ? stats.byTime
-      : buildTimeBucketsFromNotifications(notifications, windowHours)
+    useStats && stats.byTime.length ? stats.byTime : buildTimeBucketsFromNotifications(notifications, windowHours)
   const topSource = sources[0] || null
   const topLevel = levels[0] || null
   const peak = [...timeBuckets].sort((a, b) => b.count - a.count)[0] || null
@@ -263,11 +241,7 @@ export function computeNotificationAnalyticsSummary(
     read,
     delivered,
     readRate: useStats ? stats.readRate : total ? Math.round((read / total) * 10000) / 100 : 0,
-    deliveryRate: useStats
-      ? stats.deliveryRate
-      : total
-        ? Math.round((delivered / total) * 10000) / 100
-        : 0,
+    deliveryRate: useStats ? stats.deliveryRate : total ? Math.round((delivered / total) * 10000) / 100 : 0,
     dangerCount: useStats
       ? stats.byLevel.danger || 0
       : notifications.filter((notification) => notification.level === 'danger').length,

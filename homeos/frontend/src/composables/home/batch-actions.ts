@@ -8,10 +8,7 @@ import type { WholeHomeOffConfig } from '@/shared/types/whole-home-off'
 
 /** 全屋关闭可覆盖的配置项子集 */
 type WholeHomeOffOptions = Partial<
-  Pick<
-    WholeHomeOffConfig,
-    'lights' | 'covers' | 'climate' | 'switches' | 'excludeEntities' | 'entityIds'
-  >
+  Pick<WholeHomeOffConfig, 'lights' | 'covers' | 'climate' | 'switches' | 'excludeEntities' | 'entityIds'>
 >
 
 /**

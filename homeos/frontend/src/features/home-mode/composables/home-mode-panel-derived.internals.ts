@@ -48,119 +48,115 @@ export function createHomeModePanelDerived(d: {
     applyTemplate,
   } = d
 
-const activeSection = ref('basic')
+  const activeSection = ref('basic')
 
-const anyModeDraftDirty = computed(() => modeTabs.value.some((tab) => isTabDirty(tab.id)))
+  const anyModeDraftDirty = computed(() => modeTabs.value.some((tab) => isTabDirty(tab.id)))
 
-const pendingModeChanges = computed(
-  () => modeTabs.value.filter((tab) => isTabDirty(tab.id)).length,
-)
+  const pendingModeChanges = computed(() => modeTabs.value.filter((tab) => isTabDirty(tab.id)).length)
 
-const displayModeTabs = computed(() =>
-  modeTabs.value.map((tab) => {
-    // 多互斥组可同时激活：按全部激活 id 判定，否则另一个组的标签页看起来像没在生效。
-    const isLive = activeModeIds.value.includes(String(tab.id))
-    const dirty = isTabDirty(tab.id)
-    return {
-      ...tab,
-      label: dirty
-        ? `${String(tab.label).replace(/ \*$/, '')} *`
-        : String(tab.label).replace(/ \*$/, ''),
-      countTitle: dirty ? '有未保存修改' : undefined,
-      accent: isLive ? '#34d399' : tab.accent,
+  const displayModeTabs = computed(() =>
+    modeTabs.value.map((tab) => {
+      // 多互斥组可同时激活：按全部激活 id 判定，否则另一个组的标签页看起来像没在生效。
+      const isLive = activeModeIds.value.includes(String(tab.id))
+      const dirty = isTabDirty(tab.id)
+      return {
+        ...tab,
+        label: dirty ? `${String(tab.label).replace(/ \*$/, '')} *` : String(tab.label).replace(/ \*$/, ''),
+        countTitle: dirty ? '有未保存修改' : undefined,
+        accent: isLive ? '#34d399' : tab.accent,
+      }
+    }),
+  )
+
+  const sectionTabs = computed(() => {
+    const d = activeDraft.value
+    const logCount = triggerLogs.value.length + execHistory.value.length
+    return [
+      { id: 'basic', label: '基本配置', emoji: '⚙️' },
+      { id: 'actions', label: '全屋动作', emoji: '⚡', count: d?.actions?.length || 0 },
+      { id: 'triggers', label: '自动触发', emoji: '⏰', count: d?.triggers?.length || 0 },
+      { id: 'logs', label: '运行日志', emoji: '📋', count: logCount || undefined },
+    ]
+  })
+
+  const contextPills = computed(() => {
+    const group = activeDraft.value?.exclusiveGroup || 'default'
+    const groupLabel = exclusiveGroupOptions.find((o) => o.value === group)?.label || group
+    return [
+      {
+        id: 'presence',
+        icon: Users,
+        label: '在场',
+        value: presenceLabel.value,
+      },
+      {
+        id: 'calendar',
+        icon: CalendarDays,
+        label: '日历',
+        value: modeContext.value.calendarAway ? '外出中' : '在家',
+        tone: modeContext.value.calendarAway ? 'warn' : '',
+      },
+      {
+        id: 'triggers',
+        icon: Radio,
+        label: '自动触发',
+        value: '{n} 条'.replace('{n}', String(modeContext.value.triggerBindingsCount ?? 0)),
+        section: 'triggers',
+      },
+      {
+        id: 'actions',
+        icon: Zap,
+        label: '全屋动作',
+        value: '{n} 条'.replace('{n}', String(activeDraft.value?.actions?.length ?? 0)),
+        section: 'actions',
+      },
+      {
+        id: 'linkage',
+        icon: Link2,
+        label: '联动',
+        value: `快照恢复 · ${groupLabel} · 优先级 ${activeDraft.value?.priority ?? 50}`,
+        section: 'basic',
+      },
+    ]
+  })
+
+  function focusSection(sectionId: string) {
+    if (['basic', 'actions', 'triggers', 'logs'].includes(sectionId)) {
+      activeSection.value = sectionId
     }
-  }),
-)
-
-const sectionTabs = computed(() => {
-  const d = activeDraft.value
-  const logCount = triggerLogs.value.length + execHistory.value.length
-  return [
-    { id: 'basic', label: '基本配置', emoji: '⚙️' },
-    { id: 'actions', label: '全屋动作', emoji: '⚡', count: d?.actions?.length || 0 },
-    { id: 'triggers', label: '自动触发', emoji: '⏰', count: d?.triggers?.length || 0 },
-    { id: 'logs', label: '运行日志', emoji: '📋', count: logCount || undefined },
-  ]
-})
-
-const contextPills = computed(() => {
-  const group = activeDraft.value?.exclusiveGroup || 'default'
-  const groupLabel = exclusiveGroupOptions.find((o) => o.value === group)?.label || group
-  return [
-    {
-      id: 'presence',
-      icon: Users,
-      label: '在场',
-      value: presenceLabel.value,
-    },
-    {
-      id: 'calendar',
-      icon: CalendarDays,
-      label: '日历',
-      value: modeContext.value.calendarAway ? '外出中' : '在家',
-      tone: modeContext.value.calendarAway ? 'warn' : '',
-    },
-    {
-      id: 'triggers',
-      icon: Radio,
-      label: '自动触发',
-      value: '{n} 条'.replace('{n}', String(modeContext.value.triggerBindingsCount ?? 0)),
-      section: 'triggers',
-    },
-    {
-      id: 'actions',
-      icon: Zap,
-      label: '全屋动作',
-      value: '{n} 条'.replace('{n}', String(activeDraft.value?.actions?.length ?? 0)),
-      section: 'actions',
-    },
-    {
-      id: 'linkage',
-      icon: Link2,
-      label: '联动',
-      value: `快照恢复 · ${groupLabel} · 优先级 ${activeDraft.value?.priority ?? 50}`,
-      section: 'basic',
-    },
-  ]
-})
-
-function focusSection(sectionId: string) {
-  if (['basic', 'actions', 'triggers', 'logs'].includes(sectionId)) {
-    activeSection.value = sectionId
   }
-}
 
-function handleAddAction() {
-  activeSection.value = 'actions'
-  addAction()
-}
-
-function handleAddTrigger() {
-  activeSection.value = 'triggers'
-  addTrigger()
-}
-
-function handleApplyTemplate(tpl: ActionTemplate) {
-  activeSection.value = 'actions'
-  applyTemplate(tpl)
-}
-
-function onKindChange(act: ModeActionDraft) {
-  act.entity_id = ''
-  if (act.kind === 'scene') {
-    act.domain = 'scene'
-    act.service = 'turn_on'
-  } else if (act.kind === 'script') {
-    act.domain = 'script'
-    act.service = 'turn_on'
-  } else if (act.kind === 'notify') {
-    act.domain = 'notify'
-    act.service = 'send_message'
-  } else if (act.kind === 'security') {
-    act.domain = 'security'
-    act.service = 'arm'
+  function handleAddAction() {
+    activeSection.value = 'actions'
+    addAction()
   }
-}
+
+  function handleAddTrigger() {
+    activeSection.value = 'triggers'
+    addTrigger()
+  }
+
+  function handleApplyTemplate(tpl: ActionTemplate) {
+    activeSection.value = 'actions'
+    applyTemplate(tpl)
+  }
+
+  function onKindChange(act: ModeActionDraft) {
+    act.entity_id = ''
+    if (act.kind === 'scene') {
+      act.domain = 'scene'
+      act.service = 'turn_on'
+    } else if (act.kind === 'script') {
+      act.domain = 'script'
+      act.service = 'turn_on'
+    } else if (act.kind === 'notify') {
+      act.domain = 'notify'
+      act.service = 'send_message'
+    } else if (act.kind === 'security') {
+      act.domain = 'security'
+      act.service = 'arm'
+    }
+  }
 
   return {
     activeSection,

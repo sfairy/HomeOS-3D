@@ -7,19 +7,15 @@ export const defaultViewSettings = {
   background: 1120029,
   ground: 1382690,
 
-
   floor: 13091768,
   floorEdge: 16163146,
   grid: 5331300,
-
 
   wall: 14605007,
 
   wallTop: 14933715,
 
-
   windowFrame: 11515315,
-
 
   wallOpacity: 0.36,
   furniture: 8226713,
@@ -29,7 +25,6 @@ export const defaultViewSettings = {
   appliance: 10134967,
   applianceSoft: 11911118,
   applianceDark: 6845576,
-
 
   glass: 10604733,
   frame: 12172999,

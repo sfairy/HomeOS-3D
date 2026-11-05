@@ -1,4 +1,4 @@
-@import './bind-env-panel.css';
+@import "./bind-env-panel.css";
 
 .env-room-panel {
   display: flex;
@@ -50,9 +50,7 @@
   padding: var(--hos-panel-padding-default, 20px);
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid var(--page-accent-border);
-  background:
-    radial-gradient(ellipse at 0% 0%, var(--page-accent-glow) 0%, transparent 65%),
-    rgba(0, 0, 0, 0.15);
+  background: radial-gradient(ellipse at 0% 0%, var(--page-accent-glow) 0%, transparent 65%), rgba(0, 0, 0, 0.15);
 }
 
 .env-room-editor__bar {

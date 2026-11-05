@@ -1425,7 +1425,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   border-color: var(--line, #303840);
   border-radius: 10px;
   font:
-    12px/1.5 PingFang SC,
+    12px / 1.5 PingFang SC,
     sans-serif;
 }
 .i3d-vacuum-map-editor > header {
@@ -1815,7 +1815,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   color: #edf3fa;
   box-shadow: 0 10px 36px #0005;
   font:
-    13px/1.5 system-ui,
+    13px / 1.5 system-ui,
     sans-serif;
   overflow: hidden;
 }
@@ -1845,7 +1845,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   width: 26px;
   height: 26px;
   padding: 0;
-  font: 20px/1 system-ui;
+  font: 20px / 1 system-ui;
 }
 .i3d-popup-preview-body {
   box-sizing: border-box;
@@ -1913,8 +1913,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   opacity: 1;
   cursor: default;
 }
-.hb-interaction3d-runtime[data-scene-style="warm-wood"]
-  :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
   color: #493f34;
   border-color: #bca98c;
   background: linear-gradient(
@@ -1994,7 +1993,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
     inset 0 1px #ffffff0a;
   backdrop-filter: blur(18px);
   font:
-    14px/1.5 PingFang SC,
+    14px / 1.5 PingFang SC,
     sans-serif;
 }
 .i3d-popup-preview-heading {
@@ -2131,20 +2130,8 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(
-      to right,
-      rgba(255, 42, 54, 0.72),
-      transparent 22%,
-      transparent 78%,
-      rgba(255, 42, 54, 0.72)
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(255, 42, 54, 0.65),
-      transparent 22%,
-      transparent 78%,
-      rgba(255, 42, 54, 0.65)
-    );
+    linear-gradient(to right, rgba(255, 42, 54, 0.72), transparent 22%, transparent 78%, rgba(255, 42, 54, 0.72)),
+    linear-gradient(to bottom, rgba(255, 42, 54, 0.65), transparent 22%, transparent 78%, rgba(255, 42, 54, 0.65));
   animation: i3d-alarm-breathe 2s ease-in-out infinite;
   animation-play-state: paused;
 }
@@ -2187,7 +2174,9 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   background: #1e090eeb;
   color: #fff1f1;
   box-shadow: 0 12px 50px #0005;
-  font: 16px / 1.45 system-ui, sans-serif;
+  font:
+    16px / 1.45 system-ui,
+    sans-serif;
 }
 .i3d-alarm-message > .i3d-alarm-icon {
   width: 36px;
@@ -2250,8 +2239,12 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   border-color: #b7a489;
   background: linear-gradient(145deg, #fcf8f0, #eee7db);
   color: #4e4438;
-  box-shadow: 0 8px 20px #59492940, inset 0 1px #fff;
-  font-family: PingFang SC, sans-serif;
+  box-shadow:
+    0 8px 20px #59492940,
+    inset 0 1px #fff;
+  font-family:
+    PingFang SC,
+    sans-serif;
 }
 .i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-message > .i3d-alarm-icon {
   color: #a13f2c;
@@ -2263,8 +2256,12 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   border-color: #bca98c;
   background: #f6f0e5;
   color: #554632;
-  font-family: PingFang SC, sans-serif;
-  box-shadow: 0 8px 20px #59492940, inset 0 1px #fff;
+  font-family:
+    PingFang SC,
+    sans-serif;
+  box-shadow:
+    0 8px 20px #59492940,
+    inset 0 1px #fff;
 }
 .i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-dismiss:hover {
   background: #e6d5b8;
@@ -2327,8 +2324,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 .i3d-feedback-owner {
   position: relative;
 }
-.i3d-feedback-owner
-  > :is(.i3d-climate-heading, .i3d-nas-heading, .i3d-cover-heading, .i3d-speaker-media-heading) {
+.i3d-feedback-owner > :is(.i3d-climate-heading, .i3d-nas-heading, .i3d-cover-heading, .i3d-speaker-media-heading) {
   order: -2;
 }
 .i3d-feedback-owner > .i3d-popup-feedback {
@@ -2435,9 +2431,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   border-color: #8a5c23;
   background: #a4773f;
 }
-.interaction3d-stage[data-scene-style="warm-wood"]
-  .i3d-extra-light
-  button[role="switch"][aria-checked="true"] {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-light button[role="switch"][aria-checked="true"] {
   color: #67471e;
   border-color: #a48351;
   background: #e6d5b8;
@@ -2450,7 +2444,8 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 .i3d-extra-native-root {
   min-width: 0;
-}.i3d-extra-native-root > .i3d-extra-native-panel {
+}
+.i3d-extra-native-root > .i3d-extra-native-panel {
   padding: 0;
   border: 0;
   background: transparent;
@@ -2754,20 +2749,89 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 
 /* ---- 0.8.4 选择器级补丁 ---- */
-.i3d-editor aside .i3d-lock-motion-grid>label { grid-template-rows:minmax(0,1fr) auto }
-.i3d-climate-type-field { display:grid;flex:1;min-width:0;gap:6px;margin-bottom:10px;color:var(--muted,#89949d);font-size:11px }
-.i3d-config-list-row>.i3d-climate-type-field { margin-bottom:0 }
-.i3d-climate-type-options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px;border:1px solid #343d45;border-radius:4px;background:var(--field,#171d22) }
-.i3d-climate-type-options>button { min-width:0;min-height:27px;padding:0 5px;border:0;border-radius:3px;color:var(--muted,#89949d);background:transparent;font:inherit;cursor:pointer }
-.i3d-climate-type-options>button:hover { color:var(--text,#e8ecef);background:#ffffff0b }
-.i3d-climate-type-options>button[aria-pressed=true] { color:#fff4dc;background:#f2a20d29;box-shadow:inset 0 0 0 1px #f2a20d7a }
-.i3d-climate-type-options>button:focus-visible { outline:2px solid var(--accent,#f2a20d);outline-offset:-2px }
-.i3d-editor .i3d-extra-source { border-top:1px solid var(--line,#303840);margin-top:8px }
-.i3d-editor .i3d-extra-source>summary { overflow-wrap:anywhere;font-weight:500 }
-.i3d-editor .i3d-extra-pages { position:sticky;bottom:0;padding:8px 0;background:var(--panel,#171d22) }
-.i3d-editor .i3d-extra-source-actions { display:flex;flex-wrap:wrap;align-items:center;gap:8px }
-.i3d-editor .i3d-extra-remove-confirm { padding:8px;border:1px solid var(--line,#303840);border-radius:6px }
-.i3d-editor .i3d-extra-pages button { width:auto }
-.i3d-editor .i3d-extra-source-actions button { width:auto }
-.editor-paged-picker-items.entity-list.i3d-extra-device-picker { grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)) }
-.editor-paged-picker-items.i3d-extra-device-picker .inspector-entity-name-line { white-space:normal;overflow-wrap:anywhere }
+.i3d-editor aside .i3d-lock-motion-grid > label {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.i3d-climate-type-field {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--muted, #89949d);
+  font-size: 11px;
+}
+.i3d-config-list-row > .i3d-climate-type-field {
+  margin-bottom: 0;
+}
+.i3d-climate-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #343d45;
+  border-radius: 4px;
+  background: var(--field, #171d22);
+}
+.i3d-climate-type-options > button {
+  min-width: 0;
+  min-height: 27px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted, #89949d);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.i3d-climate-type-options > button:hover {
+  color: var(--text, #e8ecef);
+  background: #ffffff0b;
+}
+.i3d-climate-type-options > button[aria-pressed="true"] {
+  color: #fff4dc;
+  background: #f2a20d29;
+  box-shadow: inset 0 0 0 1px #f2a20d7a;
+}
+.i3d-climate-type-options > button:focus-visible {
+  outline: 2px solid var(--accent, #f2a20d);
+  outline-offset: -2px;
+}
+.i3d-editor .i3d-extra-source {
+  border-top: 1px solid var(--line, #303840);
+  margin-top: 8px;
+}
+.i3d-editor .i3d-extra-source > summary {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+.i3d-editor .i3d-extra-pages {
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0;
+  background: var(--panel, #171d22);
+}
+.i3d-editor .i3d-extra-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.i3d-editor .i3d-extra-remove-confirm {
+  padding: 8px;
+  border: 1px solid var(--line, #303840);
+  border-radius: 6px;
+}
+.i3d-editor .i3d-extra-pages button {
+  width: auto;
+}
+.i3d-editor .i3d-extra-source-actions button {
+  width: auto;
+}
+.editor-paged-picker-items.entity-list.i3d-extra-device-picker {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+.editor-paged-picker-items.i3d-extra-device-picker .inspector-entity-name-line {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

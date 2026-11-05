@@ -8,16 +8,7 @@
 -->
 <script setup>
 import { computed, onMounted } from 'vue'
-import {
-  FileText,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  ShieldOff,
-  Ban,
-  ListFilter,
-  Save,
-} from '@lucide/vue'
+import { FileText, Loader2, CheckCircle2, AlertCircle, ShieldOff, Ban, ListFilter, Save } from '@lucide/vue'
 import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import { useRecommendInsight } from '@/shared/recommend/composables/useRecommendInsight'
@@ -55,9 +46,7 @@ const {
 } = useEventLogRecordFilter()
 
 const recordMeta = computed(() =>
-  eventStats.value
-    ? `近 ${hoursLabel(statsHours.value)} · ${formatCount(eventStats.value.total)} 条记录`
-    : '',
+  eventStats.value ? `近 ${hoursLabel(statsHours.value)} · ${formatCount(eventStats.value.total)} 条记录` : '',
 )
 
 const { cardProps: recordCardProps } = useRecommendInsight({

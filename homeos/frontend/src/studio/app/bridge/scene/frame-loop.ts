@@ -8,9 +8,9 @@
  * - `stats` / `pending` 保持不变。
  */
 
-const EARLY_FRAME_TOLERANCE_MS = 1.5;
-const DEADLINE_WINDOW_LIMIT_MS = 100;
-const DEADLINE_FRAME_SLACK_MS = 1000 / 60;
+const EARLY_FRAME_TOLERANCE_MS = 1.5
+const DEADLINE_WINDOW_LIMIT_MS = 100
+const DEADLINE_FRAME_SLACK_MS = 1000 / 60
 
 export function createDemandFrameLoop({
   step: step,
@@ -32,105 +32,100 @@ export function createDemandFrameLoop({
     isParked = false,
     nextFrameTimeMs = -Infinity,
     deadlineTargetMs = -Infinity,
-    deadlineWindowMs = 0;
+    deadlineWindowMs = 0
   const frameIntervalMs =
-      maxFps === Infinity
-        ? 0
-        : 1000 / (Number.isFinite(maxFps) && maxFps > 0 ? Math.min(maxFps, 60) : 60),
+      maxFps === Infinity ? 0 : 1000 / (Number.isFinite(maxFps) && maxFps > 0 ? Math.min(maxFps, 60) : 60),
     frameStats = {
       frames: 0,
       deadlines: 0,
-    };
+    }
   function clearPendingHandles() {
-    (animationFrameId !== null && cancelFrame(animationFrameId),
+    animationFrameId !== null && cancelFrame(animationFrameId),
       timeoutId !== null && cancel(timeoutId),
       (animationFrameId = timeoutId = null),
-      (deadlineTargetMs = -Infinity));
+      (deadlineTargetMs = -Infinity)
   }
   /** 只请求下一帧（不清定时器）：截止时间对齐分支里由定时器回调进来。 */
   function requestNextFrame() {
-    animationFrameId === null && (onWake(), (animationFrameId = requestFrame(tickFrameLoop)));
+    animationFrameId === null && (onWake(), (animationFrameId = requestFrame(tickFrameLoop)))
   }
   function wakeLoop() {
-    if (isDisposed || !isAvailable) return;
+    if (isDisposed || !isAvailable) return
     // 上一次 `sleep()` 之后再 wake 视为恢复运行。
-    isParked = false;
+    isParked = false
     if (isStepping) {
-      hasPendingWake = true;
-      return;
+      hasPendingWake = true
+      return
     }
-    (timeoutId !== null && cancel(timeoutId),
-      (timeoutId = null),
-      (deadlineTargetMs = -Infinity),
-      requestNextFrame());
+    timeoutId !== null && cancel(timeoutId), (timeoutId = null), (deadlineTargetMs = -Infinity), requestNextFrame()
   }
   function tickFrameLoop(frameTimestamp = now()) {
-    if (((animationFrameId = null), isDisposed || !isAvailable || isParked)) return;
+    if (((animationFrameId = null), isDisposed || !isAvailable || isParked)) return
     if (
       frameTimestamp + EARLY_FRAME_TOLERANCE_MS < nextFrameTimeMs ||
       frameTimestamp + deadlineWindowMs < deadlineTargetMs
     ) {
-      animationFrameId = requestFrame(tickFrameLoop);
-      return;
+      animationFrameId = requestFrame(tickFrameLoop)
+      return
     }
-    ((nextFrameTimeMs =
+    ;(nextFrameTimeMs =
       frameTimestamp - nextFrameTimeMs >= frameIntervalMs
         ? frameTimestamp + frameIntervalMs
         : nextFrameTimeMs + frameIntervalMs),
       (isStepping = true),
       (hasPendingWake = false),
-      frameStats.frames++);
-    let nextDelayMs = Infinity;
+      frameStats.frames++
+    let nextDelayMs = Infinity
     try {
-      nextDelayMs = step(frameTimestamp);
+      nextDelayMs = step(frameTimestamp)
     } finally {
-      isStepping = false;
+      isStepping = false
     }
-    if (isDisposed || !isAvailable || isParked) return;
+    if (isDisposed || !isAvailable || isParked) return
     if (hasPendingWake || nextDelayMs <= 0) {
-      ((deadlineTargetMs = -Infinity), (animationFrameId = requestFrame(tickFrameLoop)));
-      return;
+      ;(deadlineTargetMs = -Infinity), (animationFrameId = requestFrame(tickFrameLoop))
+      return
     }
-    if (!Number.isFinite(nextDelayMs)) return;
+    if (!Number.isFinite(nextDelayMs)) return
     if (!alignDeadlines) {
       timeoutId = schedule(() => {
-        ((timeoutId = null), frameStats.deadlines++, wakeLoop());
-      }, nextDelayMs);
-      return;
+        ;(timeoutId = null), frameStats.deadlines++, wakeLoop()
+      }, nextDelayMs)
+      return
     }
     // 对齐模式：目标截止时间 = 本次时间戳 + 推进间隔，提前一帧进入下一轮。
-    deadlineTargetMs = frameTimestamp + nextDelayMs;
-    deadlineWindowMs = nextDelayMs <= DEADLINE_WINDOW_LIMIT_MS ? 1 : 0;
-    const remainingMs = deadlineTargetMs - now() - DEADLINE_FRAME_SLACK_MS;
+    deadlineTargetMs = frameTimestamp + nextDelayMs
+    deadlineWindowMs = nextDelayMs <= DEADLINE_WINDOW_LIMIT_MS ? 1 : 0
+    const remainingMs = deadlineTargetMs - now() - DEADLINE_FRAME_SLACK_MS
     if (remainingMs <= 0) {
-      animationFrameId = requestFrame(tickFrameLoop);
-      return;
+      animationFrameId = requestFrame(tickFrameLoop)
+      return
     }
     timeoutId = schedule(() => {
-      ((timeoutId = null), frameStats.deadlines++, requestNextFrame());
-    }, remainingMs);
+      ;(timeoutId = null), frameStats.deadlines++, requestNextFrame()
+    }, remainingMs)
   }
   return {
     wake: wakeLoop,
     stats: frameStats,
     wakeAnimation() {
-      isStepping || wakeLoop();
+      isStepping || wakeLoop()
     },
     /** 页面切到后台：停掉所有已排队的帧与定时器，并在 `setAvailable(true)` 前不再自唤醒。 */
     sleep() {
-      (clearPendingHandles(), (hasPendingWake = false), (isParked = true));
+      clearPendingHandles(), (hasPendingWake = false), (isParked = true)
     },
     setAvailable(nextAvailable: any) {
       isDisposed ||
         isAvailable === !!nextAvailable ||
         ((isAvailable = !!nextAvailable),
-        isAvailable ? wakeLoop() : (clearPendingHandles(), (nextFrameTimeMs = -Infinity)));
+        isAvailable ? wakeLoop() : (clearPendingHandles(), (nextFrameTimeMs = -Infinity)))
     },
     dispose() {
-      ((isDisposed = true), clearPendingHandles());
+      ;(isDisposed = true), clearPendingHandles()
     },
     get pending() {
-      return animationFrameId !== null || timeoutId !== null;
+      return animationFrameId !== null || timeoutId !== null
     },
-  };
+  }
 }

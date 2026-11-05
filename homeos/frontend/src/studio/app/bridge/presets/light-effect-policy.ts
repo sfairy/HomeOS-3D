@@ -7,7 +7,7 @@ const LIGHT_EFFECT_RANGE = Object.freeze({
   LIGHT_EFFECT_DEFAULTS = Object.freeze({
     brightness: 150,
     kelvin: 3500,
-  });
+  })
 export function withFixedLightEffects(settings: any) {
   return {
     ...settings,
@@ -17,5 +17,5 @@ export function withFixedLightEffects(settings: any) {
     effectDefaults: {
       ...LIGHT_EFFECT_DEFAULTS,
     },
-  };
+  }
 }

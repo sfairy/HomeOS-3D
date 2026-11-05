@@ -21,7 +21,7 @@ import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { speakLocal } from '@/shared/voice/utils/local-speech.util'
 
 /** 一次播报实际走过的链路。 */
-export type TtsPath = 'local' | 'ha' | 'skipped'
+type TtsPath = 'local' | 'ha' | 'skipped'
 
 export interface TtsSpeakResult {
   ok: boolean
@@ -29,7 +29,7 @@ export interface TtsSpeakResult {
   path: TtsPath
 }
 
-export interface TtsSpeakOptions {
+interface TtsSpeakOptions {
   mediaPlayer?: string
   mediaPlayers?: string[]
   /** 手动触发：无视总开关与冷却（试听 / 媒体弹窗按钮用） */
@@ -73,7 +73,7 @@ function resolveTtsOutputMode(): 'local' | 'ha' | 'auto' {
 }
 
 /** 总开关：缺省视为开启（与后端 ``ttsEnabled is not False`` 同一口径）。 */
-export function isTtsEnabled(): boolean {
+function isTtsEnabled(): boolean {
   return getConfigSection('voice')?.ttsEnabled !== false
 }
 
@@ -84,7 +84,7 @@ function resolveCooldownMin(): number {
 }
 
 /** 把播报文本归一成冷却键：忽略空白与标点差异，同义内容不重复出声。 */
-export function cooldownKeyOf(text: string): string {
+function cooldownKeyOf(text: string): string {
   return String(text || '')
     .replace(/\s+/g, '')
     .replace(/[，。！？、,.!?;；:：]/g, '')
@@ -160,9 +160,7 @@ export function useTtsSpeak() {
   const ttsOutputMode = computed(() => resolveTtsOutputMode())
 
   const configuredPlayerId = computed(() =>
-    getConfigSection('voice')?.ttsMediaPlayerId
-      ? String(getConfigSection('voice')?.ttsMediaPlayerId).trim()
-      : '',
+    getConfigSection('voice')?.ttsMediaPlayerId ? String(getConfigSection('voice')?.ttsMediaPlayerId).trim() : '',
   )
   const configuredPlayerIds = computed(() => {
     const ids = getConfigSection('voice')?.ttsMediaPlayerIds
@@ -201,10 +199,7 @@ export function useTtsSpeak() {
   /**
    * 经 HA 音箱播报（多台走一条批量请求，由后端并发下发并汇总结果）。
    */
-  async function speakViaHa(
-    text: string,
-    opts: TtsSpeakOptions = {},
-  ): Promise<TtsSpeakResult> {
+  async function speakViaHa(text: string, opts: TtsSpeakOptions = {}): Promise<TtsSpeakResult> {
     const targetIds = resolveTargetIds(opts)
     if (targetIds.length === 0) {
       return {
@@ -225,22 +220,14 @@ export function useTtsSpeak() {
   }
 
   /** HA 优先：失败归还冷却名额，让下一次还有机会出声。 */
-  async function speakHaFirst(
-    text: string,
-    opts: TtsSpeakOptions,
-    dedupKey: string,
-  ): Promise<TtsSpeakResult> {
+  async function speakHaFirst(text: string, opts: TtsSpeakOptions, dedupKey: string): Promise<TtsSpeakResult> {
     const result = await speakViaHa(text, opts)
     if (!result.ok) releaseCooldown(dedupKey)
     return result
   }
 
   /** 本机优先：``local`` 模式下失败就到此为止，``auto`` 回退 HA。 */
-  async function speakLocalFirst(
-    text: string,
-    opts: TtsSpeakOptions,
-    dedupKey: string,
-  ): Promise<TtsSpeakResult> {
+  async function speakLocalFirst(text: string, opts: TtsSpeakOptions, dedupKey: string): Promise<TtsSpeakResult> {
     const local = await speakLocal(text)
     if (local.ok) return { ok: true, path: 'local', message: local.message }
     logger.debug('本机 TTS 失败,回退 HA', local.message)
@@ -254,10 +241,7 @@ export function useTtsSpeak() {
   /**
    * 播报文本（按 ttsOutputMode 路由本机 / HA）。
    */
-  async function speak(
-    message: string | null | undefined,
-    opts: TtsSpeakOptions = {},
-  ): Promise<TtsSpeakResult> {
+  async function speak(message: string | null | undefined, opts: TtsSpeakOptions = {}): Promise<TtsSpeakResult> {
     const text = String(message || '').trim()
     if (!text) return skipped('请输入播报内容')
 

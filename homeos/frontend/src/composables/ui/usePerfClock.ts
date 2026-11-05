@@ -41,9 +41,7 @@ export function usePerfClock({
   let running = false
   let visHandler: (() => void) | null = null
 
-  const perfMode = computed(() =>
-    resolveEffectivePerformanceMode(layoutStore.layoutConfig.performanceMode),
-  )
+  const perfMode = computed(() => resolveEffectivePerformanceMode(layoutStore.layoutConfig.performanceMode))
   const refreshInterval = computed(() => {
     if (typeof forceIntervalMs === 'number' && forceIntervalMs > 0) return forceIntervalMs
     if (perfMode.value === 'low') return 60000
@@ -51,8 +49,7 @@ export function usePerfClock({
     return 1000
   })
   const showSeconds = computed(
-    () =>
-      (typeof forceIntervalMs === 'number' && forceIntervalMs <= 1000) || perfMode.value === 'high',
+    () => (typeof forceIntervalMs === 'number' && forceIntervalMs <= 1000) || perfMode.value === 'high',
   )
 
   function clearTimer() {

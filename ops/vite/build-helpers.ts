@@ -22,38 +22,39 @@
  *   - **代理 / 别名 / 插件集**：两边的端口、挂载前缀、可外置资源（three、`/static/vendor/**`）
  *     完全不同，合并只会得到一个满是分支的函数。
  */
-import fs from "node:fs";
-import path from "node:path";
-import { build as esbuildBuild } from "esbuild";
-import { createLogger, type Logger } from "vite";
+import fs from 'node:fs'
+import path from 'node:path'
+import { build as esbuildBuild } from 'esbuild'
+import { createLogger, type Logger } from 'vite'
 
 // 依赖归属：本文件 import 的 `esbuild` / `vite` 声明在**仓库根** `package.json`（`ops/` 属根
 // workspace）—— 两个应用不必为了共用构建助手各自声明一遍，这与 P3e「vue-tsc 归属移到根」同理。
-// 本文件不参与任何应用的 ESLint（两边的 `lint` 只管自己的 `src/**`），类型由根
-// `tsconfig.node.json` 的 `typecheck:node` 把关（它从三个 vite 配置沿 import 追到这里）。
+// 本文件由仓根的 `biome.json` 统一 lint/format（`files.includes` 覆盖 `ops/**`），没有
+// 应用侧的独立配置；类型由根 `tsconfig.node.json` 的 `typecheck:node` 把关（它从三个
+// vite 配置沿 import 追到这里）。
 
 /** SPA 唯一入口名：两个应用的产物布局都以它为准（商店还要把它搬出静态挂载根）。 */
-export const SPA_ENTRY = "index.html";
+export const SPA_ENTRY = 'index.html'
 
 /** 压掉「经典 IIFE / 运行时路径」等预期告警，避免刷屏。 */
 export function quietLogger(): Logger {
-  const logger = createLogger();
-  const warn = logger.warn.bind(logger);
-  const warnOnce = logger.warnOnce.bind(logger);
+  const logger = createLogger()
+  const warn = logger.warn.bind(logger)
+  const warnOnce = logger.warnOnce.bind(logger)
 
   const suppress = (msg: string) =>
     msg.includes('can\'t be bundled without type="module" attribute') ||
-    msg.includes("doesn't exist at build time, it will remain unchanged");
+    msg.includes("doesn't exist at build time, it will remain unchanged")
 
   logger.warn = (msg, options) => {
-    if (typeof msg === "string" && suppress(msg)) return;
-    warn(msg, options);
-  };
+    if (typeof msg === 'string' && suppress(msg)) return
+    warn(msg, options)
+  }
   logger.warnOnce = (msg, options) => {
-    if (typeof msg === "string" && suppress(msg)) return;
-    warnOnce(msg, options);
-  };
-  return logger;
+    if (typeof msg === 'string' && suppress(msg)) return
+    warnOnce(msg, options)
+  }
+  return logger
 }
 
 /**
@@ -66,23 +67,20 @@ export function quietLogger(): Logger {
  * 老事故由 `vite.config.ts` 的 `updatePublicStaticManifest` 兜底 —— 登记清单引用却缺失，
  * 那里会硬失败。
  */
-export async function bundleClassicIife(options: {
-  entry: string;
-  outfile: string;
-}): Promise<void> {
-  const { entry, outfile } = options;
-  if (!fs.existsSync(entry)) return;
-  fs.mkdirSync(path.dirname(outfile), { recursive: true });
+export async function bundleClassicIife(options: { entry: string; outfile: string }): Promise<void> {
+  const { entry, outfile } = options
+  if (!fs.existsSync(entry)) return
+  fs.mkdirSync(path.dirname(outfile), { recursive: true })
   await esbuildBuild({
     entryPoints: [entry],
     outfile,
     bundle: true,
-    format: "iife",
-    platform: "browser",
-    target: "es2022",
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2022',
     minify: true,
-    logLevel: "silent",
-  });
+    logLevel: 'silent',
+  })
 }
 
 /**
@@ -94,10 +92,10 @@ export async function bundleClassicIife(options: {
  * 一遍去找。`hint` 由调用方给出各自的下一步动作（重跑哪条命令）。
  */
 export function assertSpaShellPresent(outDir: string, hint: string): void {
-  const entry = path.join(outDir, SPA_ENTRY);
-  if (fs.existsSync(entry)) return;
-  const listing = fs.existsSync(outDir) ? fs.readdirSync(outDir).join(", ") : "(outDir 不存在)";
-  throw new Error(`SPA 入口缺失：${entry}（outDir 内容: ${listing}）。${hint}`);
+  const entry = path.join(outDir, SPA_ENTRY)
+  if (fs.existsSync(entry)) return
+  const listing = fs.existsSync(outDir) ? fs.readdirSync(outDir).join(', ') : '(outDir 不存在)'
+  throw new Error(`SPA 入口缺失：${entry}（outDir 内容: ${listing}）。${hint}`)
 }
 
 /**
@@ -109,21 +107,21 @@ export function assertSpaShellPresent(outDir: string, hint: string): void {
  * `reset()` 必须在每次构建开始时调用（watch 重建要丢掉上一轮的占用）。
  */
 export function createChunkNameAllocator() {
-  const usedNames = new Set<string>();
+  const usedNames = new Set<string>()
   return {
     reset() {
-      usedNames.clear();
+      usedNames.clear()
     },
     unique(baseName: string): string {
       if (!usedNames.has(baseName)) {
-        usedNames.add(baseName);
-        return baseName;
+        usedNames.add(baseName)
+        return baseName
       }
-      let index = 2;
-      while (usedNames.has(`${baseName}-${index}`)) index += 1;
-      const name = `${baseName}-${index}`;
-      usedNames.add(name);
-      return name;
+      let index = 2
+      while (usedNames.has(`${baseName}-${index}`)) index += 1
+      const name = `${baseName}-${index}`
+      usedNames.add(name)
+      return name
     },
-  };
+  }
 }

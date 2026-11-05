@@ -360,8 +360,9 @@ const dryRun = flags.has('--dry-run')
 // 槽位指向的文件必须真实存在：路径写错（文件重命名 / 搬目录）时 `slotAppliesTo`
 // 永远不匹配，该槽位会静默退化成 no-op —— 严格层照样报「0 处残留」，
 // 界面上的版本号却一直停在旧值（本轮实测：两个槽位路径已失效）。
-const staleSlotFiles = [...new Set(SLOTS.filter((slot) => slot.file).map((slot) => slot.file))]
-  .filter((relPath) => !fs.existsSync(path.join(REPO_ROOT, relPath)))
+const staleSlotFiles = [...new Set(SLOTS.filter((slot) => slot.file).map((slot) => slot.file))].filter(
+  (relPath) => !fs.existsSync(path.join(REPO_ROOT, relPath)),
+)
 if (staleSlotFiles.length) {
   console.error('✗ 槽位指向的文件不存在（路径已失效，该槽位会静默失效）：')
   for (const relPath of staleSlotFiles) console.error(`  - ${relPath}`)
@@ -395,7 +396,9 @@ for (const { relPath, text } of versionTexts) {
   if (!checkOnly && !dryRun) fs.writeFileSync(path.join(REPO_ROOT, relPath), next, 'utf-8')
 }
 
-console.log(`${checkOnly ? '◇ 自检' : dryRun ? '◇ DRY-RUN' : '✓ 改写'}：命中 ${slotHits} 个槽位、${changedFiles} 个文件`)
+console.log(
+  `${checkOnly ? '◇ 自检' : dryRun ? '◇ DRY-RUN' : '✓ 改写'}：命中 ${slotHits} 个槽位、${changedFiles} 个文件`,
+)
 for (const { relPath, hits } of reports) {
   console.log(`  · ${relPath}`)
   for (const hit of hits) console.log(`      - ${hit.label} → ${hit.to}`)
@@ -415,17 +418,22 @@ const leaks = []
 for (const { relPath } of versionTexts) {
   const inScope = LEAK_FILES.some((glob) => matchesGlob(relPath, glob))
   if (!inScope) continue
-  nextByPath.get(relPath).split('\n').forEach((line, lineIndex) => {
-    if (!LEAK_LINE.test(line)) return
-    // 占位符（`<新版本>` / `<上一个版本>` / `$VERSION` / `[:tag]`）不参与比较。
-    if (/<[^>]*>|\$[A-Z_]+|\[:tag\]/.test(line)) return
-    const tokens = line.match(new RegExp(VER, 'g')) || []
-    const stray = tokens.filter((token) => token !== version)
-    if (stray.length) leaks.push({ relPath, line: lineIndex + 1, stray, text: line.trim() })
-  })
+  nextByPath
+    .get(relPath)
+    .split('\n')
+    .forEach((line, lineIndex) => {
+      if (!LEAK_LINE.test(line)) return
+      // 占位符（`<新版本>` / `<上一个版本>` / `$VERSION` / `[:tag]`）不参与比较。
+      if (/<[^>]*>|\$[A-Z_]+|\[:tag\]/.test(line)) return
+      const tokens = line.match(new RegExp(VER, 'g')) || []
+      const stray = tokens.filter((token) => token !== version)
+      if (stray.length) leaks.push({ relPath, line: lineIndex + 1, stray, text: line.trim() })
+    })
 }
 
-console.log(`◇ 严格层（重跑槽位规则）：${strictLeftovers.length === 0 ? '0 处残留 ✓' : `${strictLeftovers.length} 处残留 ✗`}`)
+console.log(
+  `◇ 严格层（重跑槽位规则）：${strictLeftovers.length === 0 ? '0 处残留 ✓' : `${strictLeftovers.length} 处残留 ✗`}`,
+)
 for (const leftover of strictLeftovers) {
   console.log(`  ! ${leftover.relPath}`)
   for (const hit of leftover.hits) console.log(`      - ${hit.label}：仍为 ${hit.from}`)

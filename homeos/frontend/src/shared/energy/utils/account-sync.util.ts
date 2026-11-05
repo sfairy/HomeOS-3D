@@ -1,13 +1,7 @@
 /** - 打开设置页时按模式补齐缺失的多账户结构（convention / entity / multi）。 */
-import type {
-  EnergyAccountEntry,
-  EnergyAccountSourceLike,
-} from '@/shared/energy/utils/account-types.util'
+import type { EnergyAccountEntry, EnergyAccountSourceLike } from '@/shared/energy/utils/account-types.util'
 import { serializeAccountEntries } from '@/shared/energy/utils/account-input.util'
-import {
-  ensureEntityAccountsOnSource,
-  ensureMultiAccountsOnSource,
-} from '@/shared/energy/utils/account-entity.util'
+import { ensureEntityAccountsOnSource, ensureMultiAccountsOnSource } from '@/shared/energy/utils/account-entity.util'
 import { resolvePrimaryAccountRowIndex } from '@/shared/energy/utils/account-types.util'
 
 /**
@@ -58,10 +52,7 @@ export function syncAccountString(src: Record<string, unknown>): void {
   src.account = serializeAccountEntries(src.accountEntries as EnergyAccountEntry[] | undefined)
   const rows = Array.isArray(src.accountEntries) ? src.accountEntries : []
   if (rows.length > 0) {
-    src.primaryAccountIndex = resolvePrimaryAccountRowIndex(
-      src as EnergyAccountSourceLike,
-      rows.length,
-    )
+    src.primaryAccountIndex = resolvePrimaryAccountRowIndex(src as EnergyAccountSourceLike, rows.length)
   } else {
     src.primaryAccountIndex = 0
   }

@@ -12,7 +12,9 @@
 .afh-widget {
   --afh-accent: #94a3b8;
   pointer-events: auto;
-  transition: transform 0.3s var(--ease-bounce), box-shadow 0.3s ease;
+  transition:
+    transform 0.3s var(--ease-bounce),
+    box-shadow 0.3s ease;
   position: absolute;
 }
 
@@ -44,22 +46,22 @@
 .afh-widget.is-edit-mode {
   cursor: grab;
   touch-action: none;
-  border: 1px dashed color-mix(in srgb, var(--premium-accent-blue, #0A84FF) 45%, rgba(0, 0, 0, 0));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-blue, #0A84FF) 12%, rgba(0, 0, 0, 0));
+  border: 1px dashed color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 12%, rgba(0, 0, 0, 0));
   transition: none;
 }
 
 .afh-widget.is-dragging {
   cursor: grabbing;
   z-index: 140;
-  border-color: #0A84FF;
-  box-shadow: 0 0 20px rgba(10,132,255,0.4);
+  border-color: #0a84ff;
+  box-shadow: 0 0 20px rgba(10, 132, 255, 0.4);
 }
 
 .afh-edit-overlay {
   pointer-events: auto;
   z-index: 10;
-  background: rgba(10,132,255,0.1);
+  background: rgba(10, 132, 255, 0.1);
   justify-content: center;
   align-items: center;
   display: flex;
@@ -77,7 +79,7 @@
 .afh-drag-handle {
   pointer-events: none;
   color: #fff;
-  background: #0A84FF;
+  background: #0a84ff;
   border-radius: 50%;
   justify-content: center;
   align-items: center;
@@ -157,7 +159,7 @@
   cursor: pointer;
 }
 .afh-content--clickable:hover {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 /*
@@ -201,26 +203,40 @@
   overflow: hidden;
   -webkit-backdrop-filter: var(--premium-blur);
   backdrop-filter: var(--premium-blur);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
-    rgba(20, 22, 32, 0.78);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)), rgba(20, 22, 32, 0.78);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   border-radius: var(--hos-radius-panel);
   box-shadow: var(--premium-shadow);
 }
 
-.afh-theme-neon-blue { --afh-accent: #60a5fa; }
-.afh-theme-neon-amber { --afh-accent: #fbbf24; }
-.afh-theme-neon-cyan { --afh-accent: #22d3ee; }
-.afh-theme-neon-purple { --afh-accent: #c084fc; }
-.afh-theme-emerald { --afh-accent: #34d399; }
-.afh-theme-rose-glow { --afh-accent: #fb7185; }
-.afh-theme-cyber-red { --afh-accent: #f87171; }
-.afh-theme-sunset { --afh-accent: #fb923c; }
+.afh-theme-neon-blue {
+  --afh-accent: #60a5fa;
+}
+.afh-theme-neon-amber {
+  --afh-accent: #fbbf24;
+}
+.afh-theme-neon-cyan {
+  --afh-accent: #22d3ee;
+}
+.afh-theme-neon-purple {
+  --afh-accent: #c084fc;
+}
+.afh-theme-emerald {
+  --afh-accent: #34d399;
+}
+.afh-theme-rose-glow {
+  --afh-accent: #fb7185;
+}
+.afh-theme-cyber-red {
+  --afh-accent: #f87171;
+}
+.afh-theme-sunset {
+  --afh-accent: #fb923c;
+}
 
 .afh-widget--tinted::before,
 .afh-widget--custom-color::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 16%;
@@ -299,21 +315,27 @@
   font-weight: 700;
 }
 
-.afh-value--good { color: #34C759; }
-.afh-value--moderate { color: #FF9500; }
-.afh-value--bad { color: #FF3B30; }
+.afh-value--good {
+  color: #34c759;
+}
+.afh-value--moderate {
+  color: #ff9500;
+}
+.afh-value--bad {
+  color: #ff3b30;
+}
 
 .afh-widget--tinted .afh-value--good,
 .afh-widget--custom-color .afh-value--good {
-  color: #34C759;
+  color: #34c759;
 }
 .afh-widget--tinted .afh-value--moderate,
 .afh-widget--custom-color .afh-value--moderate {
-  color: #FF9500;
+  color: #ff9500;
 }
 .afh-widget--tinted .afh-value--bad,
 .afh-widget--custom-color .afh-value--bad {
-  color: #FF3B30;
+  color: #ff3b30;
 }
 
 .afh-unit {
@@ -337,8 +359,14 @@
 }
 
 @keyframes afh-in {
-  0% { opacity: 0; filter: brightness(0.9); }
-  to { opacity: 1; filter: brightness(1); }
+  0% {
+    opacity: 0;
+    filter: brightness(0.9);
+  }
+  to {
+    opacity: 1;
+    filter: brightness(1);
+  }
 }
 
 .animate-afh-in {

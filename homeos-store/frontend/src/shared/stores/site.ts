@@ -15,17 +15,13 @@ export const useSiteStore = defineStore("site", () => {
   const configuration = ref<StoreConfiguration | null>(null);
   const loaded = ref(false);
 
-  const store = computed<StoreSiteConfig | undefined>(
-    () => configuration.value?.store as StoreSiteConfig | undefined,
-  );
+  const store = computed<StoreSiteConfig | undefined>(() => configuration.value?.store as StoreSiteConfig | undefined);
   const siteName = computed(() => store.value?.siteName || "HomeOS");
   const siteTitle = computed(() => store.value?.siteTitle || "HomeOS 授权中心");
   const logoUrl = computed(() => store.value?.logoUrl || "/store-static/homeos-mark.svg");
   const announcement = computed(() => store.value?.announcement || "");
   const maintenanceMode = computed(() => Boolean(store.value?.maintenanceMode));
-  const maintenanceMessage = computed(
-    () => store.value?.maintenanceMessage || "系统正在升级维护，请稍后再试。",
-  );
+  const maintenanceMessage = computed(() => store.value?.maintenanceMessage || "系统正在升级维护，请稍后再试。");
   const supportEmail = computed(() => {
     const raw = store.value?.supportEmail;
     return typeof raw === "string" ? raw.trim() : "";
@@ -44,16 +40,10 @@ export const useSiteStore = defineStore("site", () => {
     () => (configuration.value?.payment?.channels as PaymentChannel[] | undefined) || [],
   );
   /** 真正能收款的渠道（凭据齐全 + 站点开启支付）。 */
-  const availableChannels = computed(() =>
-    paymentChannels.value.filter((channel) => channel.available),
-  );
+  const availableChannels = computed(() => paymentChannels.value.filter((channel) => channel.available));
   const defaultChannel = computed(
-    () =>
-      paymentChannels.value.find((channel) => channel.isDefault) ||
-      availableChannels.value[0] ||
-      null,
+    () => paymentChannels.value.find((channel) => channel.isDefault) || availableChannels.value[0] || null,
   );
-
 
   async function loadVersion() {
     // /healthz 不在 /store/v1 之下，单独取一次；版本号只用于展示。
@@ -70,10 +60,7 @@ export const useSiteStore = defineStore("site", () => {
   let loading: Promise<void> | null = null;
 
   async function loadOnce(): Promise<void> {
-    const [config] = await Promise.allSettled([
-      api<StoreConfiguration>("/configuration"),
-      loadVersion(),
-    ]);
+    const [config] = await Promise.allSettled([api<StoreConfiguration>("/configuration"), loadVersion()]);
     if (config.status !== "fulfilled") {
       // 拉取失败时不能置 loaded：否则本次会话内 load() 会直接短路返回，
       // 站点名 / 公告 / 维护模式 / 支付渠道将一直停留在默认值，也不再重试。

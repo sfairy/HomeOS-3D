@@ -342,10 +342,7 @@ import {
   computeAnalyticsSummary,
   shortenPlace,
 } from '@/shared/earthquake/utils/history-analytics.util'
-import {
-  formatEarthquakeMagnitude,
-  earthquakeMagnitudeTone,
-} from '@/composables/earthquake/earthquake-layout.util'
+import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/composables/earthquake/earthquake-layout.util'
 import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
 import {
   EEW_MAGNITUDE_OPTIONS,
@@ -387,13 +384,9 @@ const filteredLocalItems = computed(() => {
   })
 })
 
-const simulationCount = computed(
-  () => localItems.value.filter((row) => isSimulationRow(row)).length,
-)
+const simulationCount = computed(() => localItems.value.filter((row) => isSimulationRow(row)).length)
 
-const allItems = computed(() =>
-  tab.value === 'local' ? filteredLocalItems.value : globalItems.value,
-)
+const allItems = computed(() => (tab.value === 'local' ? filteredLocalItems.value : globalItems.value))
 const total = computed(() => allItems.value.length)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const normalizedItems = computed(() => allItems.value.map(normalizeRow))
@@ -428,20 +421,13 @@ const statCells = computed(() => [
       analyticsSummary.value.maxMagnitude != null
         ? `M${formatEarthquakeMagnitude(analyticsSummary.value.maxMagnitude)}`
         : '—',
-    tone:
-      analyticsSummary.value.maxMagnitude != null && analyticsSummary.value.maxMagnitude >= 5
-        ? 'danger'
-        : 'sky',
+    tone: analyticsSummary.value.maxMagnitude != null && analyticsSummary.value.maxMagnitude >= 5 ? 'danger' : 'sky',
   },
   {
     key: 'near',
     label: '距家最近',
-    value:
-      analyticsSummary.value.nearestKm != null ? `${analyticsSummary.value.nearestKm} km` : '—',
-    tone:
-      analyticsSummary.value.nearestKm != null && analyticsSummary.value.nearestKm <= 200
-        ? 'warn'
-        : 'muted',
+    value: analyticsSummary.value.nearestKm != null ? `${analyticsSummary.value.nearestKm} km` : '—',
+    tone: analyticsSummary.value.nearestKm != null && analyticsSummary.value.nearestKm <= 200 ? 'warn' : 'muted',
   },
 ])
 
@@ -485,10 +471,7 @@ function rowKey(row) {
 function formatHistoryTimestamp(ts, compact = false) {
   if (ts == null || ts === '') return '—'
   const n = Number(ts)
-  const date =
-    Number.isFinite(n) && n > 0
-      ? new Date(n > 1e12 ? n : n * 1000)
-      : new Date(ts)
+  const date = Number.isFinite(n) && n > 0 ? new Date(n > 1e12 ? n : n * 1000) : new Date(ts)
   if (Number.isNaN(date.getTime())) return '—'
   try {
     if (compact) {
@@ -658,10 +641,7 @@ async function clearAllSimulations() {
   try {
     const res = await deleteEarthquakeSimulationHistory()
     const deleted = Number(res?.data?.deleted ?? res?.deleted ?? 0)
-    chrome.notify(
-      deleted ? `已清除 ${deleted} 条演练记录` : '暂无演练记录',
-      deleted ? 'success' : 'info',
-    )
+    chrome.notify(deleted ? `已清除 ${deleted} 条演练记录` : '暂无演练记录', deleted ? 'success' : 'info')
     await loadLocal()
   } catch (e) {
     chrome.notify(getApiErrorMessage(e, '清除失败'), 'error')
@@ -678,10 +658,7 @@ async function load() {
     else await loadGlobal()
   } catch (e) {
     const raw = getApiErrorMessage(e, '加载失败')
-    error.value =
-      tab.value === 'global'
-        ? `数据源暂不可用：${raw}。可切换 CENC/USGS 或稍后重试。`
-        : raw
+    error.value = tab.value === 'global' ? `数据源暂不可用：${raw}。可切换 CENC/USGS 或稍后重试。` : raw
     if (tab.value === 'local') localItems.value = []
     else globalItems.value = []
   } finally {

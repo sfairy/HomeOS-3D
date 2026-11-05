@@ -32,10 +32,8 @@ const props = defineProps({
 
 const sizeStyle = computed(() => {
   const s = {}
-  if (props.width != null)
-    s.width = typeof props.width === 'number' ? `${props.width}px` : props.width
-  if (props.height != null)
-    s.height = typeof props.height === 'number' ? `${props.height}px` : props.height
+  if (props.width != null) s.width = typeof props.width === 'number' ? `${props.width}px` : props.width
+  if (props.height != null) s.height = typeof props.height === 'number' ? `${props.height}px` : props.height
   return s
 })
 </script>

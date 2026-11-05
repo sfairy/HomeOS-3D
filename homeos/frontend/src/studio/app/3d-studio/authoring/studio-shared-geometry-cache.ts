@@ -6,21 +6,21 @@
  */
 
 type SharedGeometryCacheStats = {
-  unusedEntries: number;
-  unusedBytes: number;
-  evicted: number;
-};
+  unusedEntries: number
+  unusedBytes: number
+  evicted: number
+}
 
 /** 估算几何体占用的字节数（索引 + 全部属性数组）。 */
 function geometryByteSize(geometry: any) {
-  const bufferSet = new Set<ArrayBufferLike>();
+  const bufferSet = new Set<ArrayBufferLike>()
   for (const attribute of [geometry.index, ...Object.values(geometry.attributes || {})]) {
     const bufferArray = (attribute as any)?.isInterleavedBufferAttribute
       ? (attribute as any).data?.array
-      : (attribute as any)?.array;
-    bufferArray && bufferSet.add(bufferArray);
+      : (attribute as any)?.array
+    bufferArray && bufferSet.add(bufferArray)
   }
-  return [...bufferSet].reduce((total, bufferArray) => total + bufferArray.byteLength, 0);
+  return [...bufferSet].reduce((total, bufferArray) => total + bufferArray.byteLength, 0)
 }
 
 /**
@@ -37,41 +37,35 @@ export function trimSharedGeometryCache(
   { maxUnusedEntries = 32, maxUnusedBytes = 2 * 1024 * 1024 } = {},
 ): SharedGeometryCacheStats {
   const liveGeometrySet = new Set<any>(),
-    visitedNodeSet = new Set<any>();
+    visitedNodeSet = new Set<any>()
   for (const sceneRoot of sceneRoots) {
-    if (!sceneRoot || visitedNodeSet.has(sceneRoot)) continue;
+    if (!sceneRoot || visitedNodeSet.has(sceneRoot)) continue
     sceneRoot.traverse((sceneNode: any) => {
-      (visitedNodeSet.add(sceneNode), sceneNode.geometry && liveGeometrySet.add(sceneNode.geometry));
-    });
+      visitedNodeSet.add(sceneNode), sceneNode.geometry && liveGeometrySet.add(sceneNode.geometry)
+    })
   }
 
   const unusedRecords: { key: any; geometry: any; size: number }[] = [],
-    referenceCountByGeometry = new Map<any, number>();
-  let unusedBytes = 0;
+    referenceCountByGeometry = new Map<any, number>()
+  let unusedBytes = 0
   for (const [cacheKey, geometry] of cache) {
-    referenceCountByGeometry.set(
-      geometry,
-      (referenceCountByGeometry.get(geometry) || 0) + 1,
-    );
-    if (liveGeometrySet.has(geometry)) continue;
-    const size = geometryByteSize(geometry);
-    unusedRecords.push({ key: cacheKey, geometry, size });
-    unusedBytes += size;
+    referenceCountByGeometry.set(geometry, (referenceCountByGeometry.get(geometry) || 0) + 1)
+    if (liveGeometrySet.has(geometry)) continue
+    const size = geometryByteSize(geometry)
+    unusedRecords.push({ key: cacheKey, geometry, size })
+    unusedBytes += size
   }
 
   let unusedEntries = unusedRecords.length,
-    evicted = 0;
+    evicted = 0
   for (const record of unusedRecords) {
-    if (unusedEntries <= maxUnusedEntries && unusedBytes <= maxUnusedBytes) break;
-    (cache.delete(record.key),
+    if (unusedEntries <= maxUnusedEntries && unusedBytes <= maxUnusedBytes) break
+    cache.delete(record.key),
       unusedEntries--,
       (unusedBytes -= record.size),
       evicted++,
-      referenceCountByGeometry.set(
-        record.geometry,
-        (referenceCountByGeometry.get(record.geometry) || 0) - 1,
-      ),
-      referenceCountByGeometry.get(record.geometry) || record.geometry.dispose());
+      referenceCountByGeometry.set(record.geometry, (referenceCountByGeometry.get(record.geometry) || 0) - 1),
+      referenceCountByGeometry.get(record.geometry) || record.geometry.dispose()
   }
-  return { unusedEntries, unusedBytes, evicted };
+  return { unusedEntries, unusedBytes, evicted }
 }

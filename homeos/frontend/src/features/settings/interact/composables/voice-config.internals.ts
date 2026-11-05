@@ -19,10 +19,7 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
 import { isSystemConfigConflictError, useSystemConfig } from '@/composables/config/system-config-core.internals'
-import {
-  composeCustomAlertTemplate,
-  detectCustomSpeechMode,
-} from '@/shared/voice/utils/speech.util'
+import { composeCustomAlertTemplate, detectCustomSpeechMode } from '@/shared/voice/utils/speech.util'
 import { ref } from 'vue'
 
 interface VoiceCommand {
@@ -70,9 +67,6 @@ interface VoiceConfigState {
   ttsModel: string
 }
 
-
-
-
 // ── useVoiceConfig ──
 function normalizeTtsOutputMode(raw: unknown): 'local' | 'ha' | 'auto' {
   if (raw === 'local' || raw === 'auto') return raw
@@ -112,7 +106,9 @@ function clampInt(raw: unknown, min: number, max: number, fallback: number): num
  * 单独成函数是为了把「一串 `||` 兜底」的复杂度收在这里：调用点的对象字面量
  * 本来已经是这个文件里最复杂的函数，再挂 8 个兜底会把前端复杂度棘轮顶穿。
  */
-function readServerTts(source: ServerTtsSource): Pick<VoiceConfigState, 'ttsEngine' | 'ttsVoice' | 'ttsRate' | 'ttsPitch' | 'ttsApiBase' | 'ttsApiKey' | 'ttsModel'> {
+function readServerTts(
+  source: ServerTtsSource,
+): Pick<VoiceConfigState, 'ttsEngine' | 'ttsVoice' | 'ttsRate' | 'ttsPitch' | 'ttsApiBase' | 'ttsApiKey' | 'ttsModel'> {
   return {
     ttsEngine: pickTtsEngine(source.ttsEngine),
     ttsVoice: pickText(source.ttsVoice, 'zh-CN-XiaoxiaoNeural'),
@@ -182,8 +178,7 @@ function normalizeCommand(cmd: Partial<VoiceCommand> & Record<string, unknown>) 
     domain,
     service: cmd?.service || 'turn_on',
     entityMatch: normalizeEntityMatch(domain, cmd?.entityMatch),
-    serviceData:
-      cmd?.serviceData && typeof cmd.serviceData === 'object' ? { ...cmd.serviceData } : undefined,
+    serviceData: cmd?.serviceData && typeof cmd.serviceData === 'object' ? { ...cmd.serviceData } : undefined,
   }
 }
 
@@ -281,8 +276,7 @@ export function useVoiceConfig() {
               service: String(cmd.service || '').trim(),
             }
             if (cmd.entityMatch?.trim()) out.entityMatch = cmd.entityMatch.trim()
-            if (cmd.serviceData && Object.keys(cmd.serviceData).length)
-              out.serviceData = cmd.serviceData
+            if (cmd.serviceData && Object.keys(cmd.serviceData).length) out.serviceData = cmd.serviceData
             return out
           })
           .filter((cmd): cmd is Record<string, unknown> => Boolean(cmd))
@@ -306,9 +300,7 @@ export function useVoiceConfig() {
         )
         const wakeWords = normalizeWakeWords(voice.value)
 
-        const cleanedPlayerIds = ttsMediaPlayerIds.value
-          .map((id) => String(id).trim())
-          .filter(Boolean)
+        const cleanedPlayerIds = ttsMediaPlayerIds.value.map((id) => String(id).trim()).filter(Boolean)
         const primaryPlayerId = cleanedPlayerIds[0] || ''
 
         await saveSystemConfig({
@@ -373,7 +365,9 @@ export function useVoiceConfig() {
 
   async function fetchCommandPresets() {
     const { data } = await fetchVoicePresets()
-    return (data?.presets || []).map((preset: unknown) => normalizeCommand(preset as Partial<VoiceCommand> & Record<string, unknown>))
+    return (data?.presets || []).map((preset: unknown) =>
+      normalizeCommand(preset as Partial<VoiceCommand> & Record<string, unknown>),
+    )
   }
 
   async function importWholeHomePresets(replace = false) {

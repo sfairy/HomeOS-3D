@@ -158,9 +158,7 @@ const zombieGroups = computed(() => {
     if (!map.has(item.source)) map.set(item.source, [])
     map.get(item.source).push(item)
   }
-  return order
-    .filter((s) => map.has(s))
-    .map((s) => ({ source: s, items: map.get(s) }))
+  return order.filter((s) => map.has(s)).map((s) => ({ source: s, items: map.get(s) }))
 })
 
 const selectedCount = computed(() => selectedKeys.value.length)

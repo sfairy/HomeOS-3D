@@ -2,7 +2,13 @@
  * @file home-mode-panel-context.internals.ts
  * @module frontend/src/features/home-mode/composables
  */
-import { fetchHomeModeContext, fetchHomeModeExecutionHistory, fetchHomeModePresets, fetchHomeModeTemplates, installHomeModePreset } from '@/services/api/home-modes'
+import {
+  fetchHomeModeContext,
+  fetchHomeModeExecutionHistory,
+  fetchHomeModePresets,
+  fetchHomeModeTemplates,
+  installHomeModePreset,
+} from '@/services/api/home-modes'
 import { collectHaSceneScriptRecords } from '@/shared/utils/ha/scene-script.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { fetchPresenceHome } from '@/services/api/security'
@@ -52,9 +58,7 @@ export function useHomeModePanelContext(options: {
   let contextLoaded = false
 
   async function fetchContextBatch(
-    keys: Array<
-      'context' | 'presence' | 'history' | 'templates' | 'presets' | 'scenes' | 'scripts'
-    >,
+    keys: Array<'context' | 'presence' | 'history' | 'templates' | 'presets' | 'scenes' | 'scripts'>,
     resetWarnings: boolean,
   ) {
     if (resetWarnings) contextLoadWarnings.value = []
@@ -74,8 +78,7 @@ export function useHomeModePanelContext(options: {
       history: () => fetchHomeModeExecutionHistory(),
       templates: () => fetchHomeModeTemplates(),
       presets: () => fetchHomeModePresets(),
-      scenes: () =>
-        Promise.resolve({ data: collectHaSceneScriptRecords(entitiesStore.entities, 'scene') }),
+      scenes: () => Promise.resolve({ data: collectHaSceneScriptRecords(entitiesStore.entities, 'scene') }),
       scripts: () =>
         Promise.resolve({
           data: collectHaSceneScriptRecords(entitiesStore.entities, 'script'),
@@ -96,34 +99,22 @@ export function useHomeModePanelContext(options: {
     if ('history' in byKey) {
       const hist = byKey.history
       const fallback = modeContext.value.recentExecutions
-      execHistory.value = (Array.isArray(hist)
-        ? hist
-        : Array.isArray(fallback)
-          ? fallback
-          : []) as Record<string, unknown>[]
+      execHistory.value = (Array.isArray(hist) ? hist : Array.isArray(fallback) ? fallback : []) as Record<
+        string,
+        unknown
+      >[]
     }
     if ('templates' in byKey)
       actionTemplates.value = (Array.isArray(byKey.templates) ? byKey.templates : []) as ActionTemplate[]
     if ('presets' in byKey)
-      modePresets.value = (Array.isArray(byKey.presets) ? byKey.presets : []) as Record<
-        string,
-        unknown
-      >[]
+      modePresets.value = (Array.isArray(byKey.presets) ? byKey.presets : []) as Record<string, unknown>[]
     if ('scenes' in byKey)
-      savedScenes.value = (Array.isArray(byKey.scenes) ? byKey.scenes : []) as Record<
-        string,
-        unknown
-      >[]
+      savedScenes.value = (Array.isArray(byKey.scenes) ? byKey.scenes : []) as Record<string, unknown>[]
     if ('scripts' in byKey)
-      savedScripts.value = (Array.isArray(byKey.scripts) ? byKey.scripts : []) as Record<
-        string,
-        unknown
-      >[]
+      savedScripts.value = (Array.isArray(byKey.scripts) ? byKey.scripts : []) as Record<string, unknown>[]
     if ('presence' in byKey) {
       presenceLabel.value =
-        formatPresenceBadgeSummary(
-          byKey.presence as { members?: unknown[] } | null | undefined,
-        ) || '--'
+        formatPresenceBadgeSummary(byKey.presence as { members?: unknown[] } | null | undefined) || '--'
     }
     contextLoadWarnings.value = warnings
   }
@@ -134,10 +125,7 @@ export function useHomeModePanelContext(options: {
       if (scope === 'runtime') {
         await fetchContextBatch(['context', 'presence', 'history'], false)
       } else {
-        await fetchContextBatch(
-          ['context', 'presence', 'history', 'templates', 'presets', 'scenes', 'scripts'],
-          true,
-        )
+        await fetchContextBatch(['context', 'presence', 'history', 'templates', 'presets', 'scenes', 'scripts'], true)
         contextLoaded = true
       }
     } catch (e) {
@@ -221,11 +209,7 @@ export function useHomeModePanelContext(options: {
             name,
             icon: item.icon || '🏠',
             config:
-              typeof item.config === 'string'
-                ? JSON.parse(item.config)
-                : Array.isArray(item.config)
-                  ? item.config
-                  : [],
+              typeof item.config === 'string' ? JSON.parse(item.config) : Array.isArray(item.config) ? item.config : [],
             triggers:
               typeof item.triggers === 'string'
                 ? JSON.parse(item.triggers)

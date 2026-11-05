@@ -8,13 +8,7 @@ import type { EnergyMeterGrain, EnergyMeterScope } from '@homeos/shared'
 export type { EnergyMeterGrain }
 
 /** 首装向导步骤 ID：connection=连接，security=安防，energy=能耗，environment=环境，dashboard=户型/收藏（可选），complete=完成 */
-export type SetupWizardStepId =
-  | 'connection'
-  | 'security'
-  | 'energy'
-  | 'environment'
-  | 'dashboard'
-  | 'complete'
+export type SetupWizardStepId = 'connection' | 'security' | 'energy' | 'environment' | 'dashboard' | 'complete'
 
 /** 单步状态 */
 interface SetupWizardStepStatus {
@@ -23,7 +17,7 @@ interface SetupWizardStepStatus {
 }
 
 /** 能源绑定现状（后端算好的口径与粒度覆盖，前端只展示不猜规则） */
-export interface SetupWizardEnergyBinding {
+interface SetupWizardEnergyBinding {
   meterEntityId: string
   meterScope: EnergyMeterScope
   scopeResetLabel: string
@@ -53,7 +47,7 @@ export interface SetupWizardStatus {
 export type EnergyEntityKind = 'energy' | 'power' | 'other'
 
 /** 实体类型描述（由后端 attributes 判定，供能源绑定给出即时反馈） */
-export interface EntityTypeInfo {
+interface EntityTypeInfo {
   kind: EnergyEntityKind
   deviceClass: string
   unit: string

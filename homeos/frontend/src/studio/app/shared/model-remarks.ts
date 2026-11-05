@@ -9,30 +9,28 @@
  */
 
 /** 备注最长 60 字（与选择入口的单行显示宽度一致）。 */
-export const MODEL_REMARK_MAX_LENGTH = 60;
+const MODEL_REMARK_MAX_LENGTH = 60
 
 /** 带备注的集合：物件 / 门 / 窗户（窗户还带每个窗格的 `sashRemarks`）。 */
-const MODEL_REMARK_COLLECTION_KEYS = ["items", "doors", "windows"] as const;
+const MODEL_REMARK_COLLECTION_KEYS = ['items', 'doors', 'windows'] as const
 
-type JsonRecord = Record<string, unknown>;
+type JsonRecord = Record<string, unknown>
 
 function asRecord(value: unknown): JsonRecord {
-  return value && typeof value === "object" ? (value as JsonRecord) : {};
+  return value && typeof value === 'object' ? (value as JsonRecord) : {}
 }
 
 /** 把任意输入收敛成可存的备注文本。 */
 export function normalizeModelRemark(rawRemark: unknown): string {
-  return typeof rawRemark === "string"
-    ? rawRemark.replace(/\s+/g, " ").trim().slice(0, MODEL_REMARK_MAX_LENGTH)
-    : "";
+  return typeof rawRemark === 'string' ? rawRemark.replace(/\s+/g, ' ').trim().slice(0, MODEL_REMARK_MAX_LENGTH) : ''
 }
 
 /** 选择入口上的标签：有备注时显示 `名称（备注）`。 */
-export function modelChoiceLabel(model: unknown, fallbackLabel = ""): string {
+export function modelChoiceLabel(model: unknown, fallbackLabel = ''): string {
   const candidate = asRecord(model),
     baseLabel = String(candidate.name || candidate.label || fallbackLabel),
-    remark = normalizeModelRemark(candidate.remark);
-  return remark ? baseLabel + "（" + remark + "）" : baseLabel;
+    remark = normalizeModelRemark(candidate.remark)
+  return remark ? baseLabel + '（' + remark + '）' : baseLabel
 }
 
 /**
@@ -43,21 +41,21 @@ export function modelChoiceLabel(model: unknown, fallbackLabel = ""): string {
  */
 export function withoutModelRemarks<T>(floorConfig: T): T {
   const source = asRecord(floorConfig),
-    stripped: JsonRecord = { ...source };
+    stripped: JsonRecord = { ...source }
   for (const collectionKey of MODEL_REMARK_COLLECTION_KEYS) {
-    const collection = source[collectionKey];
-    if (!Array.isArray(collection)) continue;
+    const collection = source[collectionKey]
+    if (!Array.isArray(collection)) continue
     stripped[collectionKey] = collection.map((entry: unknown) => {
-      if (!entry || typeof entry !== "object") return entry;
+      if (!entry || typeof entry !== 'object') return entry
       // `remark` 只是被解构丢弃，落不到返回对象里。
-      const { remark: _remark, ...rest } = entry as JsonRecord;
-      if (collectionKey !== "windows" || !rest.windowDesign) return rest;
+      const { remark: _remark, ...rest } = entry as JsonRecord
+      if (collectionKey !== 'windows' || !rest.windowDesign) return rest
       // 窗格备注同属编辑期元数据：只去掉这一层，窗型本身必须留下。
-      const { sashRemarks: _sashRemarks, ...windowDesign } = asRecord(rest.windowDesign);
-      return { ...rest, windowDesign };
-    });
+      const { sashRemarks: _sashRemarks, ...windowDesign } = asRecord(rest.windowDesign)
+      return { ...rest, windowDesign }
+    })
   }
-  return stripped as T;
+  return stripped as T
 }
 
 /**
@@ -68,29 +66,29 @@ export function withoutModelRemarks<T>(floorConfig: T): T {
  */
 export function syncModelRemarks(targetConfig: unknown, sourceConfig: unknown): void {
   const target = asRecord(targetConfig),
-    source = asRecord(sourceConfig);
+    source = asRecord(sourceConfig)
   for (const collectionKey of MODEL_REMARK_COLLECTION_KEYS) {
     const sourceCollection = source[collectionKey],
-      targetCollection = target[collectionKey];
-    if (!Array.isArray(sourceCollection) || !Array.isArray(targetCollection)) continue;
-    const sourceById = new Map<string, JsonRecord>();
+      targetCollection = target[collectionKey]
+    if (!Array.isArray(sourceCollection) || !Array.isArray(targetCollection)) continue
+    const sourceById = new Map<string, JsonRecord>()
     for (const sourceEntry of sourceCollection) {
-      const record = asRecord(sourceEntry);
-      if (record.id !== undefined) sourceById.set(String(record.id), record);
+      const record = asRecord(sourceEntry)
+      if (record.id !== undefined) sourceById.set(String(record.id), record)
     }
     for (const targetEntry of targetCollection) {
       const record = asRecord(targetEntry),
-        sourceRecord = sourceById.get(String(record.id));
-      if (!sourceRecord) continue;
-      if (Object.hasOwn(sourceRecord, "remark")) record.remark = sourceRecord.remark;
-      else delete record.remark;
+        sourceRecord = sourceById.get(String(record.id))
+      if (!sourceRecord) continue
+      if (Object.hasOwn(sourceRecord, 'remark')) record.remark = sourceRecord.remark
+      else delete record.remark
       // 窗格备注要跟着走：撤销/重载后窗型是新建对象，不搬就只剩默认名。
-      if (collectionKey === "windows" && record.windowDesign && sourceRecord.windowDesign) {
+      if (collectionKey === 'windows' && record.windowDesign && sourceRecord.windowDesign) {
         const targetDesign = asRecord(record.windowDesign),
-          sourceDesign = asRecord(sourceRecord.windowDesign);
-        if (Object.hasOwn(sourceDesign, "sashRemarks"))
-          targetDesign.sashRemarks = structuredClone(sourceDesign.sashRemarks);
-        else delete targetDesign.sashRemarks;
+          sourceDesign = asRecord(sourceRecord.windowDesign)
+        if (Object.hasOwn(sourceDesign, 'sashRemarks'))
+          targetDesign.sashRemarks = structuredClone(sourceDesign.sashRemarks)
+        else delete targetDesign.sashRemarks
       }
     }
   }

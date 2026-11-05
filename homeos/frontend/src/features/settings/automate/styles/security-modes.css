@@ -14,9 +14,7 @@
   padding: 10px 14px;
   border-radius: var(--acc-radius, 14px);
   border: var(--hos-hairline) solid var(--premium-border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 100%),
-    var(--premium-glass-bg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 100%), var(--premium-glass-bg);
   -webkit-backdrop-filter: var(--premium-blur);
   backdrop-filter: var(--premium-blur);
   box-shadow: var(--premium-shadow);
@@ -33,7 +31,7 @@
 }
 
 .settings-page-inset--tabs .sm-modes-tabs-head .settings-orch-count--inline::after {
-  content: '条';
+  content: "条";
   font-size: var(--premium-fs-micro);
   margin-left: 1px;
   font-weight: 600;
@@ -227,7 +225,7 @@
 }
 
 .sm-mode-advanced__summary::before {
-  content: '';
+  content: "";
   width: 6px;
   height: 6px;
   border-right: 1.5px solid currentColor;
@@ -342,7 +340,10 @@
   box-shadow: inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.06);
 }
 
-.sm-mode-hero__meta { flex: 1; min-width: 0; }
+.sm-mode-hero__meta {
+  flex: 1;
+  min-width: 0;
+}
 
 .sm-field__label {
   display: block;
@@ -378,7 +379,6 @@
   font-weight: 500;
   padding: 8px 10px;
 }
-
 
 .sm-chip {
   font-size: var(--set-fs-caption, 13px);
@@ -462,7 +462,9 @@
   padding: 0 var(--hos-chip-pad-x, 12px);
   border-radius: var(--acc-radius);
   border: var(--hos-hairline) solid transparent;
-  transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    background 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }
 
@@ -472,7 +474,9 @@
   border-color: var(--set-info-border);
 }
 
-.sm-btn--batch:hover { background: var(--set-info-bg-strong, rgba(10, 132, 255, 0.14)); }
+.sm-btn--batch:hover {
+  background: var(--set-info-bg-strong, rgba(10, 132, 255, 0.14));
+}
 
 .sm-btn--add {
   color: var(--set-success);
@@ -480,7 +484,9 @@
   border-color: var(--set-success-border);
 }
 
-.sm-btn--add:hover { background: var(--set-success-bg-strong, rgba(52, 199, 89, 0.14)); }
+.sm-btn--add:hover {
+  background: var(--set-success-bg-strong, rgba(52, 199, 89, 0.14));
+}
 
 .sm-btn--primary {
   color: var(--set-text-primary);
@@ -525,10 +531,14 @@
 }
 
 @media (max-width: 720px) {
-  .sm-batch-row { grid-template-columns: 1fr; }
+  .sm-batch-row {
+    grid-template-columns: 1fr;
+  }
 }
 
-.sm-batch-entities { margin-top: 12px; }
+.sm-batch-entities {
+  margin-top: 12px;
+}
 
 .sm-batch-entities__head {
   display: flex;
@@ -549,7 +559,9 @@
   padding: 0;
 }
 
-.sm-link--muted { color: var(--set-text-label); }
+.sm-link--muted {
+  color: var(--set-text-label);
+}
 
 .sm-chip-grid {
   display: flex;
@@ -781,8 +793,6 @@
   accent-color: var(--set-danger);
 }
 
-
-
 .sm-emergency-summary {
   margin: 8px 0 0;
   font-size: var(--set-fs-caption, 13px);
@@ -798,7 +808,9 @@
 }
 
 @media (max-width: 720px) {
-  .sm-emergency-presets { grid-template-columns: 1fr; }
+  .sm-emergency-presets {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sm-emergency-preset {
@@ -813,7 +825,11 @@
   background: var(--set-bg-dark);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sm-emergency-preset:hover {
@@ -834,7 +850,7 @@
 }
 
 .sm-emergency-preset--on::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 10px;
   right: 10px;
@@ -853,15 +869,16 @@
   color: var(--set-text-secondary);
 }
 
-.sm-emergency-preset__icon { font-size: 20px; line-height: 1; }
+.sm-emergency-preset__icon {
+  font-size: 20px;
+  line-height: 1;
+}
 
 .sm-emergency-preset__name {
   font-size: var(--set-fs-body-sm, 14px);
   font-weight: 800;
   color: var(--set-text-primary);
 }
-
-
 
 .sm-emergency-options {
   display: flex;
@@ -898,7 +915,6 @@
   font-size: var(--set-fs-caption, 13px);
   color: var(--set-text-label);
 }
-
 
 .smc-text-warn {
   color: var(--set-warn, #fcd34d);

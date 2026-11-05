@@ -80,17 +80,13 @@ function randomKey(): string {
 const settings = computed(() => data.value?.settings || {});
 const wallet = computed(() => data.value?.wallet || null);
 const minPoints = computed(() => Math.max(0, Number(settings.value.withdrawalMinPoints ?? 0)));
-const available = computed(() =>
-  Math.max(0, Number(wallet.value?.balance || 0) - Number(wallet.value?.frozen || 0)),
-);
+const available = computed(() => Math.max(0, Number(wallet.value?.balance || 0) - Number(wallet.value?.frozen || 0)));
 const rateText = computed(() =>
   settings.value.enabled
     ? `好友每笔实付订单，奖励 ${settings.value.ratePercent}% 积分。`
     : "邀请活动暂时关闭，已有积分仍可查看和申请提现。",
 );
-const inviteLink = computed(
-  () => `${location.origin}/user/authentication/register?invite=${wallet.value?.code || ""}`,
-);
+const inviteLink = computed(() => `${location.origin}/user/authentication/register?invite=${wallet.value?.code || ""}`);
 const canWithdraw = computed(
   () => Boolean(wallet.value) && available.value >= minPoints.value && Number(wallet.value?.frozen || 0) <= 0,
 );

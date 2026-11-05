@@ -73,10 +73,7 @@ export function setupGlassEffectSync(getLayoutConfig: (() => LayoutConfigForGlas
   teardown?.()
   const sync = () => {
     const layout = typeof getLayoutConfig === 'function' ? getLayoutConfig() : null
-    applyGlassEffectDocument(
-      layout?.glassEffect,
-      resolveEffectivePerformanceMode(layout?.performanceMode),
-    )
+    applyGlassEffectDocument(layout?.glassEffect, resolveEffectivePerformanceMode(layout?.performanceMode))
   }
   sync()
   teardown = () => {

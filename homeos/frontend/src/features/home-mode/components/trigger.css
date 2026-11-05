@@ -10,7 +10,9 @@
   font-size: var(--premium-fs-caption);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .home-mode-switcher__btn:hover:not(:disabled) {

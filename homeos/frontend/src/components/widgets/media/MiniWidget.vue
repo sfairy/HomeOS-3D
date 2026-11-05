@@ -226,17 +226,17 @@ const sliderRef = ref(null)
 
 // 辅助函数
 
-  /**
-   * 解析实体的封面图片 URL（兼容 HA 相对路径，拼接 HA 实例地址）。
-   * @param {string} eid - media_player 实体 ID
-   * @returns {string|null} 完整封面 URL 或 null
-   */
-  function entityArt(eid) {
-    // 引用 mediaDisplayEpoch 触发响应式依赖，确保封面随域更新刷新
-    void mediaDisplayEpoch.value
-    const url = entitiesStore.entities[eid]?.attributes?.entity_picture
-    return resolveHaEntityPicture(haConnectionStore.baseUrl, url)
-  }
+/**
+ * 解析实体的封面图片 URL（兼容 HA 相对路径，拼接 HA 实例地址）。
+ * @param {string} eid - media_player 实体 ID
+ * @returns {string|null} 完整封面 URL 或 null
+ */
+function entityArt(eid) {
+  // 引用 mediaDisplayEpoch 触发响应式依赖，确保封面随域更新刷新
+  void mediaDisplayEpoch.value
+  const url = entitiesStore.entities[eid]?.attributes?.entity_picture
+  return resolveHaEntityPicture(haConnectionStore.baseUrl, url)
+}
 
 /**
  * 根据实体播放状态返回状态圆点的 CSS 类名（含光晕效果）。
@@ -315,11 +315,14 @@ const albumBg = computed(() => {
  * - scrollToSlide(idx): 滚动到指定索引的幻灯片
  * dragExcludeSelector 指定的元素不触发拖拽，避免误伤控制按钮。
  */
-const { dragMoved, onDragStart, onDragLeave, onDragEnd, onDragMove, scrollToSlide } =
-  useSwiperDraggable(sliderRef, activeSlide, {
+const { dragMoved, onDragStart, onDragLeave, onDragEnd, onDragMove, scrollToSlide } = useSwiperDraggable(
+  sliderRef,
+  activeSlide,
+  {
     dragThreshold: 8,
     dragExcludeSelector: '.mm-controls, .mm-actions, .mm-btn, .mm-btn-play',
-  })
+  },
+)
 
 /**
  * 切换播放/暂停状态。根据当前 state 调用 HA 的 media_play 或 media_pause 服务。

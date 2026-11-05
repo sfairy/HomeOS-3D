@@ -15,11 +15,11 @@
  * VSM 图，两边都能直接复用。
  */
 export const PLAN2_SUN_SHADOW_SNIPPET =
-  "\n          #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0\n            if (receiveShadow && plan2SunShadowStrength > 0.0 && directionalLightShadows[0].shadowIntensity > 0.0) {\n              // The studio's single shadow-casting directional light is the\n              // first shadow slot. Reuse its resident VSM map; no new capture.\n              DirectionalLightShadow plan2SunShadow = directionalLightShadows[0];\n              plan2ShadowMask = getShadow(directionalShadowMap[0], plan2SunShadow.shadowMapSize,\n                min(1.0, plan2SunShadow.shadowIntensity * plan2SunShadowStrength / 0.18),\n                plan2SunShadow.shadowBias, plan2SunShadow.shadowRadius, vDirectionalShadowCoord[0]);\n            }\n          #endif";
+  "\n          #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0\n            if (receiveShadow && plan2SunShadowStrength > 0.0 && directionalLightShadows[0].shadowIntensity > 0.0) {\n              // The studio's single shadow-casting directional light is the\n              // first shadow slot. Reuse its resident VSM map; no new capture.\n              DirectionalLightShadow plan2SunShadow = directionalLightShadows[0];\n              plan2ShadowMask = getShadow(directionalShadowMap[0], plan2SunShadow.shadowMapSize,\n                min(1.0, plan2SunShadow.shadowIntensity * plan2SunShadowStrength / 0.18),\n                plan2SunShadow.shadowBias, plan2SunShadow.shadowRadius, vDirectionalShadowCoord[0]);\n            }\n          #endif"
 
 /** 只要墙面（`alphaWallBand`）材质的朝向补偿，其它材质返回空串。 */
 interface WallBandMaterial {
-  userData?: { alphaWallBand?: boolean };
+  userData?: { alphaWallBand?: boolean }
 }
 
 /**
@@ -32,6 +32,6 @@ interface WallBandMaterial {
  * 朝向拉开一档。
  */
 export function plan2WallOrientationSnippet(sourceMaterial: WallBandMaterial) {
-  if (!sourceMaterial.userData?.alphaWallBand) return "";
-  return "\n          vec3 plan2WallNormal = normalize(mat3(plan2ViewToWorld) * normal);\n          float plan2WallSun = max(dot(plan2WallNormal, normalize(vec3(-0.29, 0.91, 0.25))), 0.0);\n          plan2ReceivingColor *= mix(0.80, 1.16, plan2WallSun);";
+  if (!sourceMaterial.userData?.alphaWallBand) return ''
+  return '\n          vec3 plan2WallNormal = normalize(mat3(plan2ViewToWorld) * normal);\n          float plan2WallSun = max(dot(plan2WallNormal, normalize(vec3(-0.29, 0.91, 0.25))), 0.0);\n          plan2ReceivingColor *= mix(0.80, 1.16, plan2WallSun);'
 }

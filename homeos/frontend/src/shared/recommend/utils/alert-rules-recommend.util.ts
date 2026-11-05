@@ -1,9 +1,6 @@
 /** 告警规则推荐模块。 */
 import { getEntityDomain, getEntityLeaf } from '@homeos/shared'
-import type {
-  EventLogStatsSnapshot,
-  RecommendInsightResult,
-} from '@/shared/recommend/types/recommend.types'
+import type { EventLogStatsSnapshot, RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 import { buildRecommendInsight } from '@/shared/recommend/utils/insight.util'
 
 /** 告警规则推荐输入 */
@@ -28,9 +25,7 @@ interface AlertRulesRecommendInput {
  * @param input 包含统计、已配置集合、安防事件实体的输入
  * @returns 推荐结果对象，含分组 chips 与跳转链接
  */
-export function buildAlertRulesRecommendations(
-  input: AlertRulesRecommendInput,
-): RecommendInsightResult {
+export function buildAlertRulesRecommendations(input: AlertRulesRecommendInput): RecommendInsightResult {
   const { stats, existingEntityIds, securityEventEntities = [] } = input
   const chips = []
   const seen = new Set<string>()

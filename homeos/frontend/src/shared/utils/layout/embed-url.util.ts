@@ -17,10 +17,7 @@ function normalizeEmbedHostname(hostname: string | null | undefined) {
 }
 
 /** 是否为当前 HomeOS 实例地址（不可 iframe 嵌入自身） */
-function isSameAppEmbedUrl(
-  urlString: string | null | undefined,
-  currentLocation: LocationLike = window.location,
-) {
+function isSameAppEmbedUrl(urlString: string | null | undefined, currentLocation: LocationLike = window.location) {
   if (!urlString?.trim()) return false
 
   try {
@@ -29,9 +26,7 @@ function isSameAppEmbedUrl(
     if (!/^https?:$/i.test(target.protocol)) return false
 
     // 同主机任意端口均视为 HomeOS 自身（常见误配：HTTPS :8803 访问、内嵌 http://LAN:8801）
-    return (
-      normalizeEmbedHostname(target.hostname) === normalizeEmbedHostname(currentLocation.hostname)
-    )
+    return normalizeEmbedHostname(target.hostname) === normalizeEmbedHostname(currentLocation.hostname)
   } catch {
     return false
   }
@@ -85,10 +80,7 @@ function isProxyableEmbedHost(hostname: string | null | undefined): boolean {
  * 公网目标无法反代（后端 SSRF 仅放行局域网）：HTTPS 父页内嵌 HTTP 时仍须反代（混合内容
  * 无法直连），其余退化为直连 iframe。
  */
-function needsEmbedProxy(
-  urlString: string,
-  currentLocation: LocationLike = window.location,
-): boolean {
+function needsEmbedProxy(urlString: string, currentLocation: LocationLike = window.location): boolean {
   const trimmed = urlString?.trim()
 
   if (!trimmed) return false
@@ -152,8 +144,7 @@ export function getEmbedBlockReason(
 ) {
   if (!urlString?.trim()) return null
 
-  if (!isValidEmbedUrl(urlString))
-    return '内嵌地址无效，请填写以 http:// 或 https:// 开头的完整 URL。'
+  if (!isValidEmbedUrl(urlString)) return '内嵌地址无效，请填写以 http:// 或 https:// 开头的完整 URL。'
 
   if (isSameAppEmbedUrl(urlString, currentLocation))
     return '不能将 HomeOS 自身地址（相同主机名，含其它端口）作为内嵌页。请填写外部系统的完整 URL，例如 NAS、MoviePilot 等服务的地址。'
@@ -207,4 +198,3 @@ export function clearAllEmbedCtxCookies() {
     }
   }
 }
-

@@ -79,8 +79,7 @@ export function useConnectionDisplay() {
 
   const connectionStatCells = computed(() => {
     const haTone = entitiesStore.connected ? 'emerald' : 'rose'
-    const wsTone =
-      haWsMode.value === 'leader' ? 'emerald' : haWsMode.value === 'follower' ? 'amber' : 'slate'
+    const wsTone = haWsMode.value === 'leader' ? 'emerald' : haWsMode.value === 'follower' ? 'amber' : 'slate'
 
     const cells = [
       {
@@ -107,9 +106,7 @@ export function useConnectionDisplay() {
       cells.push({
         key: 'cache',
         label: '本地实体缓存',
-        value: entitiesStore.entitiesCacheHydrated
-          ? 'IndexedDB'
-          : formatCacheTime(entitiesStore.entitiesCacheSavedAt),
+        value: entitiesStore.entitiesCacheHydrated ? 'IndexedDB' : formatCacheTime(entitiesStore.entitiesCacheSavedAt),
         tone: 'amber',
       })
     }

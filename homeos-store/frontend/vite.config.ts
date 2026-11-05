@@ -49,11 +49,7 @@ const chunkNames = createChunkNameAllocator();
  * ``useApi-<hash>-<hash>.js`` 双哈希。带路径后成为 ``features/admin/views/ProductsView-<hash>.js``
  * 与 ``features/storefront/views/ProductsView-<hash>.js``，名与源一一对应。
  */
-function chunkBaseName(chunk: {
-  name?: string;
-  facadeModuleId?: string | null;
-  moduleIds?: string[];
-}): string {
+function chunkBaseName(chunk: { name?: string; facadeModuleId?: string | null; moduleIds?: string[] }): string {
   const candidates = [chunk.facadeModuleId || "", ...(chunk.moduleIds || [])];
   for (const raw of candidates) {
     if (!raw) continue;
@@ -71,11 +67,7 @@ function chunkBaseName(chunk: {
   return raw.replace(/-[A-Za-z0-9_-]{8}$/, "") || raw;
 }
 
-function uniqueChunkBaseName(chunk: {
-  name?: string;
-  facadeModuleId?: string | null;
-  moduleIds?: string[];
-}): string {
+function uniqueChunkBaseName(chunk: { name?: string; facadeModuleId?: string | null; moduleIds?: string[] }): string {
   return chunkNames.unique(chunkBaseName(chunk));
 }
 
@@ -106,10 +98,7 @@ function placeShellPlugin(): Plugin {
     name: "homeos-store-place-shell",
     closeBundle() {
       // 外壳缺失 = 产物不完整（空目录 / 被中途清空），交给共用助手报出 outDir 实际内容。
-      assertSpaShellPresent(
-        buildOutDir,
-        "商店构建没有产出外壳：通常是 htmlInputs() 没找到 frontend/index.html。",
-      );
+      assertSpaShellPresent(buildOutDir, "商店构建没有产出外壳：通常是 htmlInputs() 没找到 frontend/index.html。");
       const from = path.join(buildOutDir, SPA_ENTRY);
       fs.mkdirSync(frontendOutDir, { recursive: true });
       //: base 已经是挂载前缀，产物里的资源引用无需再改写，直接搬走即可。
@@ -137,9 +126,7 @@ function assertSceneStaticPlugin(): Plugin {
   return {
     name: "homeos-store-assert-scene-static",
     closeBundle() {
-      const missing = SCENE_STYLES.filter(
-        (file) => !fs.existsSync(path.join(buildOutDir, "scene", file)),
-      );
+      const missing = SCENE_STYLES.filter((file) => !fs.existsSync(path.join(buildOutDir, "scene", file)));
       if (missing.length === 0) return;
       throw new Error(
         `场景静态资源缺失：产物里没有 ${missing.map((f) => `scene/${f}`).join("、")}。\n` +

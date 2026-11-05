@@ -311,9 +311,7 @@ const {
 /** inject/HMR 可能短暂缺字段；模板与 computed 统一走兜底 */
 const displayNotifications = computed(() => {
   if (!displayNotificationsRaw) return []
-  return Array.isArray(displayNotificationsRaw)
-    ? displayNotificationsRaw
-    : (displayNotificationsRaw.value ?? [])
+  return Array.isArray(displayNotificationsRaw) ? displayNotificationsRaw : (displayNotificationsRaw.value ?? [])
 })
 const unreadCount = computed(() => {
   if (unreadCountRaw == null) return 0
@@ -322,11 +320,12 @@ const unreadCount = computed(() => {
 
 const notificationCount = computed(() => displayNotifications.value.length)
 
-const { currentPage, totalPages, canPrev, canNext, prevPage, nextPage, resetPage, sliceItems } =
-  useFixedPagePagination({
+const { currentPage, totalPages, canPrev, canNext, prevPage, nextPage, resetPage, sliceItems } = useFixedPagePagination(
+  {
     itemCount: notificationCount,
     perPage: PAGE_SIZE,
-  })
+  },
+)
 
 const pagedNotifications = computed(() => {
   const list = displayNotifications.value

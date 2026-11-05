@@ -1,9 +1,6 @@
-
 type NestedObjectEditorKind = 'record-table' | 'fixed-form' | 'json'
 
-const NESTED_RECORD_TABLE_FIELDS = new Set([
-  'widgetPollIntervals',
-])
+const NESTED_RECORD_TABLE_FIELDS = new Set(['widgetPollIntervals'])
 
 /** NESTED_RECORD_TABLE_META：符号语义见下方声明。 */
 export const NESTED_RECORD_TABLE_META: Record<
@@ -88,9 +85,7 @@ export function recordRowsFromObject(obj: Record<string, unknown>) {
   }))
 }
 
-export function objectFromRecordRows(
-  rows: Array<{ key: string; value: number | string }>,
-): Record<string, number> {
+export function objectFromRecordRows(rows: Array<{ key: string; value: number | string }>): Record<string, number> {
   const out: Record<string, number> = {}
   for (const row of rows) {
     const k = String(row.key || '').trim()
@@ -117,10 +112,7 @@ export function findDuplicateRecordKeys(rows: Array<{ key: string }>): string[] 
 }
 
 /** fixed-form 字段：min 须 ≤ max */
-export function findFixedFormRangeErrors(
-  fieldKey: string,
-  values: Record<string, number | string>,
-): string[] {
+export function findFixedFormRangeErrors(fieldKey: string, values: Record<string, number | string>): string[] {
   if (fieldKey !== 'awaySimIntervalMinMax') return []
   const min = Number(values.min)
   const max = Number(values.max)

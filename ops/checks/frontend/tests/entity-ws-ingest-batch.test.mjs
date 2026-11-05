@@ -19,11 +19,7 @@ import { fileURLToPath } from 'node:url'
 const MODULE = fileURLToPath(
   new URL('../../../../homeos/frontend/src/shared/entity/utils/state-delta.util.ts', import.meta.url),
 )
-const {
-  mergeNormalizedDeltas,
-  normalizeWsBatchChangesSync,
-  splitDeltaChanges,
-} = await import(MODULE)
+const { mergeNormalizedDeltas, normalizeWsBatchChangesSync, splitDeltaChanges } = await import(MODULE)
 
 /** 造一个非 delta 的整包实体状态补发条目 */
 function fullState(entities, entityId, state) {
@@ -87,11 +83,7 @@ test('拆分 + 回填与整批同步规范化结果逐条一致', () => {
   ]
   const { deltas, positions } = splitDeltaChanges(changes)
 
-  const merged = mergeNormalizedDeltas(
-    changes,
-    positions,
-    normalizeWsBatchChangesSync(deltas, entities),
-  )
+  const merged = mergeNormalizedDeltas(changes, positions, normalizeWsBatchChangesSync(deltas, entities))
   const expected = normalizeWsBatchChangesSync(changes, entities)
 
   assert.ok(merged)

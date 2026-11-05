@@ -1,5 +1,11 @@
 /** 认证状态管理 Store（homeos-3d 会话模型） */
-import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalStorage, writeLocalStorageJson } from '@/shared/utils/core/local-storage.util'
+import {
+  readLocalStorage,
+  readLocalStorageJson,
+  removeLocalStorage,
+  writeLocalStorage,
+  writeLocalStorageJson,
+} from '@/shared/utils/core/local-storage.util'
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -317,10 +323,7 @@ export const useAuthStore = defineStore('auth', () => {
    * @param purpose - 用途：首装注册 / 找回本机密码
    * @returns 发码结果（含重发冷却秒数）
    */
-  async function sendVerificationCode(
-    email: string,
-    purpose: VerificationPurpose = 'register',
-  ) {
+  async function sendVerificationCode(email: string, purpose: VerificationPurpose = 'register') {
     const res = await apiSendVerificationCode(email, purpose)
     return res.data
   }

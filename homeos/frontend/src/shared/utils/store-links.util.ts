@@ -49,12 +49,8 @@ const FALLBACK_STORE_CONFIG: StoreConfig = {
 /** 归一化后端响应：只认非空字符串，缺失或类型不对一律回落到兜底值。 */
 function readStoreConfig(payload: unknown): StoreConfig {
   const record = (payload || {}) as Record<string, unknown>
-  const storeUrl =
-    typeof record.storeUrl === 'string' ? record.storeUrl.trim().replace(/\/+$/, '') : ''
-  const resetPath =
-    typeof record.storePasswordResetPath === 'string'
-      ? record.storePasswordResetPath.trim()
-      : ''
+  const storeUrl = typeof record.storeUrl === 'string' ? record.storeUrl.trim().replace(/\/+$/, '') : ''
+  const resetPath = typeof record.storePasswordResetPath === 'string' ? record.storePasswordResetPath.trim() : ''
   return {
     storeUrl: storeUrl || FALLBACK_STORE_CONFIG.storeUrl,
     storePasswordResetPath: resetPath || FALLBACK_STORE_CONFIG.storePasswordResetPath,
@@ -94,9 +90,7 @@ export async function resolveStoreLinks(): Promise<StoreLinks> {
   return {
     storeUrl,
     storeHomeUrl: storeUrl ? `${storeUrl}/` : '',
-    passwordResetUrl: storeUrl
-      ? `${storeUrl}${normalizeStorePath(config.storePasswordResetPath)}`
-      : '',
+    passwordResetUrl: storeUrl ? `${storeUrl}${normalizeStorePath(config.storePasswordResetPath)}` : '',
     pathUrl: (path) => (storeUrl ? `${storeUrl}${normalizeStorePath(path)}` : ''),
   }
 }
@@ -134,10 +128,4 @@ export function prefetchStoreLinks(): Promise<StoreLinks> {
  */
 export function peekStoreLinks(): StoreLinks | null {
   return resolved
-}
-
-/** 清掉模块级缓存（登出 / 换站点后调用；正常情况下不需要）。 */
-export function forgetStoreLinks(): void {
-  resolved = null
-  inflight = null
 }

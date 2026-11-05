@@ -107,7 +107,10 @@ async function loadReportIntervalSec() {
 async function postReport({
   refreshStatic = false,
   retryAuth = true,
-}: { refreshStatic?: boolean; retryAuth?: boolean } = {}) {
+}: {
+  refreshStatic?: boolean
+  retryAuth?: boolean
+} = {}) {
   if (reporting) return
   reporting = true
   try {
@@ -129,10 +132,7 @@ async function postReport({
       const refreshed = await useAuthStore().refreshSession()
       if (!refreshed) {
         stopReporter()
-        logger.warn(
-          '客户端系统上报未授权,已停止上报;请使用相同 URL 协议重新登录(建议使用 https://:8803).',
-          err,
-        )
+        logger.warn('客户端系统上报未授权,已停止上报;请使用相同 URL 协议重新登录(建议使用 https://:8803).', err)
         return
       }
       reporting = false
@@ -179,9 +179,14 @@ function scheduleInterval(sec: number) {
   clearTimer()
   const ms = Math.max(5, sec) * 1000 * (hidden ? HIDDEN_INTERVAL_MULT : 1)
   // 客户端电源上报属后台常驻服务，页面隐藏时仍需按周期上报（visibilityAware:false）
-  intervalCancel = schedulePoll('client-power:report', () => {
-    void postReport()
-  }, ms, { visibilityAware: false })
+  intervalCancel = schedulePoll(
+    'client-power:report',
+    () => {
+      void postReport()
+    },
+    ms,
+    { visibilityAware: false },
+  )
 }
 
 /**
@@ -209,9 +214,7 @@ function onBatteryEvent() {
   const battery = readBatterySnapshotSync()
   const pct = batteryLevelPercent(battery)
   const delta =
-    pct != null && lastReportedLevelPct != null
-      ? Math.abs(pct - lastReportedLevelPct)
-      : BATTERY_IMMEDIATE_DELTA
+    pct != null && lastReportedLevelPct != null ? Math.abs(pct - lastReportedLevelPct) : BATTERY_IMMEDIATE_DELTA
   if (batteryDebounceId != null) {
     clearTimeout(batteryDebounceId)
     batteryDebounceId = null
@@ -310,11 +313,7 @@ export function useClientPowerReporter() {
   const licenseAllowed = computed(() => getLicenseActivated() === true)
 
   watch(
-    () =>
-      authStore.isAuthenticated &&
-      licenseAllowed.value &&
-      route.name !== 'activation' &&
-      route.name !== 'login',
+    () => authStore.isAuthenticated && licenseAllowed.value && route.name !== 'activation' && route.name !== 'login',
     (shouldReport) => {
       if (shouldReport) {
         void startReporter()

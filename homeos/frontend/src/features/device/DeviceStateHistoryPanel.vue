@@ -201,15 +201,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import {
-  Activity,
-  RefreshCw,
-  AlertCircle,
-  BarChart3,
-  TrendingUp,
-  List,
-  Clock,
-} from '@lucide/vue'
+import { Activity, RefreshCw, AlertCircle, BarChart3, TrendingUp, List, Clock } from '@lucide/vue'
 import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import {
@@ -252,11 +244,7 @@ const entityIdRef = computed(() => props.entityId)
 const rangeRef = computed(() => selectedRange.value)
 const visibleRef = computed(() => props.visible)
 
-const { loading, error, events, total, truncated, refresh } = useDeviceStateHistory(
-  entityIdRef,
-  rangeRef,
-  visibleRef,
-)
+const { loading, error, events, total, truncated, refresh } = useDeviceStateHistory(entityIdRef, rangeRef, visibleRef)
 
 const sampleRecordCount = computed(() => (truncated.value ? events.value.length : total.value))
 
@@ -315,9 +303,7 @@ const historyStats = computed(() => {
 })
 
 const chartEventsAsc = computed(() =>
-  [...events.value].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  ),
+  [...events.value].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
 )
 
 const stateCategories = computed(() => {

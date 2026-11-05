@@ -45,14 +45,8 @@ export function useSecurityOverview() {
     ready: secPanelReady,
   } = useSecurityPanelStatus()
   const { reducing: reducingSensitivity, reduceSensitivity } = useReduceSecuritySensitivity()
-  const {
-    allSensors,
-    alertCount,
-    activeAlertChips,
-    statCards,
-    sensorFilters,
-    acknowledgeAllAlerts,
-  } = useSecuritySensors()
+  const { allSensors, alertCount, activeAlertChips, statCards, sensorFilters, acknowledgeAllAlerts } =
+    useSecuritySensors()
   const {
     secEventFilter,
     secAuditLoading,

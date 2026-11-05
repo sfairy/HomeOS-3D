@@ -11,10 +11,7 @@ const BATCH = 80
  * @param {import('vue').MaybeRefOrGetter<string[]>} idsRef
  * @param {{ immediate?: boolean }} [opts]
  */
-export function useEnsureVisibleEntities(
-  idsRef: MaybeRefOrGetter<string[]>,
-  opts: { immediate?: boolean } = {},
-) {
+export function useEnsureVisibleEntities(idsRef: MaybeRefOrGetter<string[]>, opts: { immediate?: boolean } = {}) {
   const entitiesStore = useEntitiesStore()
   const { immediate = true } = opts
   async function ensureBatch(ids: string[] | null | undefined) {

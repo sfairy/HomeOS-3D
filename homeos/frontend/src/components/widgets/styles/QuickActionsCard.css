@@ -87,13 +87,7 @@
   border-radius: var(--hos-radius-pill);
   background: #ff3b30;
   color: #fff;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    'SF Pro Text',
-    'Segoe UI',
-    system-ui,
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -141,7 +135,7 @@
 }
 
 .action-btn--active::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 14%;

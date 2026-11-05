@@ -60,9 +60,7 @@ export function incrementalBatchIncomplete(expected: number, received: number): 
 }
 
 /** 登记一次 END 收尾：捕获当前 token/已收数量；重复 END 返回 null */
-export function scheduleIncrementalEnd(
-  sync: EntitySocketSyncState,
-): { token: unknown; received: number } | null {
+export function scheduleIncrementalEnd(sync: EntitySocketSyncState): { token: unknown; received: number } | null {
   if (sync.incrementalToken == null || sync.incrementalEndScheduled) return null
   sync.incrementalEndScheduled = true
   return { token: sync.incrementalToken, received: sync.incrementalReceivedCount }

@@ -118,7 +118,10 @@ const inputId = `vfc-input-${Math.random().toString(36).slice(2, 9)}`
 const errorMessage = computed(() => localError.value || props.error || '')
 
 // 焦点陷阱激活条件：弹窗打开
-useFocusTrap(panelRef, computed(() => props.modelValue))
+useFocusTrap(
+  panelRef,
+  computed(() => props.modelValue),
+)
 /** 滚动锁激活条件（与焦点陷阱同源，拆开便于日后单独调整） */
 const modalActive = computed(() => props.modelValue)
 // Esc 取消：入全局 Esc 层级栈（只关栈顶那一层）。原先自己挂 window keydown，
@@ -186,7 +189,6 @@ watch(
     }
   },
 )
-
 </script>
 
 <style scoped src="./styles/VFolderCreateModal.css"></style>

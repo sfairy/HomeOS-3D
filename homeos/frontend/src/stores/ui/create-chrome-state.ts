@@ -341,11 +341,7 @@ export function createUIChromeState() {
    * @param opts 额外选项（confirmText / cancelText / type），均为可选
    * @returns 用户是否点击确认
    */
-  function confirm(
-    message: string,
-    title = '',
-    opts: Record<string, string> = {},
-  ): Promise<boolean> {
+  function confirm(message: string, title = '', opts: Record<string, string> = {}): Promise<boolean> {
     // 新确认弹窗弹出前，先把未关闭的旧弹窗按"取消" resolve，避免旧 Promise 永久悬挂
     if (activeConfirm.value) {
       activeConfirm.value.resolve(false)

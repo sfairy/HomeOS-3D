@@ -134,15 +134,16 @@ async function rebuild(id) {
     // 根节点名沿用**英文 id**：它是模型内部标识，模板 codec 与材质角色都按它对齐，
     // 不跟着磁盘中文文件名走。
     rootName: id,
-    extras: { mount: spec.mount, dimensions: Object.fromEntries(['width', 'height', 'depth'].map((key, axis) => [key, spec.size[axis]])) },
+    extras: {
+      mount: spec.mount,
+      dimensions: Object.fromEntries(['width', 'height', 'depth'].map((key, axis) => [key, spec.size[axis]])),
+    },
   })
   let drift = []
   try {
     // 体积口径：结构性重建允许从「占位级几 KB」涨到真实结构，但单件完整件封顶 1.2MB；
     // 全库总量仍由 `audit_glb_assets.mjs`（30MB / lite 8MB）兜底。
-    const maxGrowth = allowGrowth
-      ? Math.max(1.5, 1_200_000 / Math.max(1, sourceBytes.length))
-      : 1.5
+    const maxGrowth = allowGrowth ? Math.max(1.5, 1_200_000 / Math.max(1, sourceBytes.length)) : 1.5
     assertPreserved(`重建 ${id}`, sourceBytes, stagingPath, {
       minTriangleRatio: 0.9,
       allowRenames,
@@ -184,14 +185,12 @@ async function rebuild(id) {
 async function main() {
   // 位置参数即模型 id；也支持 --model a,b（便于和其它脚本统一）。
   const positional = args.filter((arg) => !arg.startsWith('--') && arg !== valueOf('model'))
-  const only = [...(valueOf('model')?.split(',') ?? []), ...positional]
-    .map((id) => id.trim())
-    .filter(Boolean)
+  const only = [...(valueOf('model')?.split(',') ?? []), ...positional].map((id) => id.trim()).filter(Boolean)
   const available = fs
     .readdirSync(path.join(hereDir, 'items'))
     .filter((file) => file.endsWith('.mjs'))
     .map((file) => file.replace(/\.mjs$/, ''))
-  const ids = hasFlag('all') ? available : only ?? []
+  const ids = hasFlag('all') ? available : (only ?? [])
   if (!ids.length) {
     console.log('已提供配方的精修件：' + available.join(', '))
     console.log('用法：bun rebuild-items.mjs <id...> [--write] | --all [--write]')

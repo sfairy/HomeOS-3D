@@ -534,34 +534,17 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import {
-  Bell,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Mail,
-  MessagesSquare,
-  Route,
-  Send,
-  Shield,
-  Smartphone,
-} from '@lucide/vue'
+import { Bell, Eye, EyeOff, KeyRound, Mail, MessagesSquare, Route, Send, Shield, Smartphone } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
-import SettingsFlowStat, {
-  type FlowStatTone,
-} from '@/features/settings/shared/layout/SettingsFlowStat.vue'
+import SettingsFlowStat, { type FlowStatTone } from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import type { AgentConfig, ChannelConfig } from '@/shared/types/layout'
 import type { ChannelsStatusResult } from '@/services/api/agent'
-import {
-  fetchWebPushSubscriptions,
-  testWebPush,
-  unsubscribeWebPush,
-} from '@/services/api/notifications'
+import { fetchWebPushSubscriptions, testWebPush, unsubscribeWebPush } from '@/services/api/notifications'
 import { notifyError } from '@/services/notify'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useWebPushSubscribe } from '@/composables/ui/useWebPushSubscribe'
@@ -713,12 +696,8 @@ const channelTabItems = computed(() => {
   const webpush = props.channelStatus?.webpush
   const wecom = props.channelStatus?.wecom
   const mcpKey = String(agentDraft.value.mcpGatewaySecret || '').trim()
-  const mcpConfigured =
-    Boolean(mcpKey) && mcpKey !== '••••••••' && mcpKey !== '********'
-  const webpushExtra =
-    webpush?.enabled && webpush?.configured
-      ? `${webpush.subscriptionCount ?? 0} 设备`
-      : ''
+  const mcpConfigured = Boolean(mcpKey) && mcpKey !== '••••••••' && mcpKey !== '********'
+  const webpushExtra = webpush?.enabled && webpush?.configured ? `${webpush.subscriptionCount ?? 0} 设备` : ''
 
   return [
     {

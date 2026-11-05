@@ -253,10 +253,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
 
   async function refreshHaAreasFromHa() {
     const count = await refreshHaAreas()
-    chrome.notify(
-      count ? `已同步 ${count} 个 HA 区域` : '未能获取 HA 区域列表',
-      count ? 'success' : 'warning',
-    )
+    chrome.notify(count ? `已同步 ${count} 个 HA 区域` : '未能获取 HA 区域列表', count ? 'success' : 'warning')
   }
 
   return {
@@ -286,4 +283,3 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
     registryError,
   }
 }
-

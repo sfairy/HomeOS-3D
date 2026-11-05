@@ -2,12 +2,7 @@
 import { shallowReactive, markRaw } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
-import type {
-  EntitiesMap,
-  EntityProjection,
-  EntityProjectionChange,
-  HaEntityState,
-} from '@/shared/types/entity-store'
+import type { EntitiesMap, EntityProjection, EntityProjectionChange, HaEntityState } from '@/shared/types/entity-store'
 
 /** 投影缓存：entity_id → EntityProjection（shallowReactive Map，键级响应） */
 const projections = shallowReactive(new Map<string, EntityProjection>())
@@ -24,9 +19,7 @@ let activeIds = new Set<string>()
  * @param entity - 完整实体状态；为空时返回 null
  * @returns 精简投影对象，或 null（无 entity_id 时）
  */
-function toEntityProjection(
-  entity: HaEntityState | null | undefined,
-): EntityProjection | null {
+function toEntityProjection(entity: HaEntityState | null | undefined): EntityProjection | null {
   if (!entity?.entity_id) return null
   const domain = getEntityDomain(entity.entity_id)
   const state = entity.state ?? 'unknown'
@@ -120,10 +113,7 @@ export function upsertProjection(entityId: string, entity: HaEntityState | null 
  * @param changes - 状态变更列表（仅需 entity_id 字段）
  * @param entitiesMap - 当前完整实体状态 map
  */
-export function patchProjectionsFromChanges(
-  changes: EntityProjectionChange[],
-  entitiesMap: EntitiesMap,
-): void {
+export function patchProjectionsFromChanges(changes: EntityProjectionChange[], entitiesMap: EntitiesMap): void {
   if (!changes?.length) return
   for (let i = 0; i < changes.length; i++) {
     const c = changes[i]

@@ -6,12 +6,14 @@
  * `.list-page__panel-body`、`.power-panel__body` 这类容器内容一多就只能靠滚轮/触屏滚，
  * 纯键盘用户**没法把焦点放进去**，等于内容被吞掉。
  *
- * 为什么做成指令而不是 composable：需要补的有 4 个页面各自的模板容器，逐个引入
- * `useScrollableRegion()` 再绑 ref / tabindex / role / aria-label，等于把同一段逻辑抄 4 遍，
+ * 为什么做成指令而不是 composable：需要补的有 4 个页面各自的模板容器，逐个绑 ref
+ * 再手动补 tabindex / role / aria-label，等于把同一段逻辑抄 4 遍，
  * 而且新写的列表页不会自动带上。指令把「测溢出 → 开关属性」收在一处，
  * 模板侧只加一个 `v-scroll-region="'设备列表'"`。
  *
- * `useScrollableRegion()` 仍然保留给需要读 `isScrollable` 做 UI 反馈（滚动提示、渐隐）的场景。
+ * 曾经并存过一个 composable 版本（`useScrollableRegion`），用于读 `isScrollable` 做滚动提示、
+ * 渐隐之类的 UI 反馈；但它全仓零消费者，已随清理删除。将来真需要读这个状态时再加，
+ * 不要留着两份「测溢出」的实现。
  *
  * 用法：
  *   <div class="list-page__panel-body" v-scroll-region="'模式变更日志'">…</div>
@@ -22,7 +24,7 @@ import type { ObjectDirective } from 'vue'
 /** 亚像素取整会让 scrollHeight 比 clientHeight 大 1px，留出容差。 */
 const OVERFLOW_TOLERANCE_PX = 2
 
-export interface ScrollRegionBinding {
+interface ScrollRegionBinding {
   /** 读屏念出的区域名，如「模式变更日志」。 */
   label: string
   /** 只判纵向（默认）还是纵横都判。横向溢出的表格需要 `'both'`。 */

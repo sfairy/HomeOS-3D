@@ -7,17 +7,17 @@
 
 /** 可作为喷雾开关的实体 id（域 + object_id）。 */
 export const isDeviceMistSource = (entityId: any) =>
-  /^(switch|input_boolean|fan)\.[a-z0-9_]+$/.test(String(entityId || ""));
+  /^(switch|input_boolean|fan)\.[a-z0-9_]+$/.test(String(entityId || ''))
 
 export type DeviceMistState = {
-  entityId: string;
-  available: boolean;
-  running: boolean;
-  label: string;
-};
+  entityId: string
+  available: boolean
+  running: boolean
+  label: string
+}
 
 export function deviceMistState(device: any = {}, states: any = {}): DeviceMistState {
-  const entityId = device.animationEntityId || "",
+  const entityId = device.animationEntityId || '',
     hasMistControl =
       !!device.deviceId &&
       isDeviceMistSource(entityId) &&
@@ -28,20 +28,14 @@ export function deviceMistState(device: any = {}, states: any = {}): DeviceMistS
       hasMistControl &&
       rawState?.available !== false &&
       entityState?.available !== false &&
-      ["on", "off"].includes(entityState?.state),
-    running = available && entityState.state === "on";
+      ['on', 'off'].includes(entityState?.state),
+    running = available && entityState.state === 'on'
   return {
     entityId,
     available,
     running,
-    label: entityId
-      ? available
-        ? running
-          ? "喷雾中"
-          : "已停止"
-        : "状态不可用，已停止"
-      : "未绑定开关",
-  };
+    label: entityId ? (available ? (running ? '喷雾中' : '已停止') : '状态不可用，已停止') : '未绑定开关',
+  }
 }
 
 /** 单条喷雾飘带：7 层、每层 41 个采样点，双面三角带。 */
@@ -51,44 +45,37 @@ function createMistPlume(THREE: any) {
     sideValues: number[] = [],
     phaseValues: number[] = [],
     indexValues: number[] = [],
-    layerOffsets = [0, -1, 1, -2, 2, -3, 3];
+    layerOffsets = [0, -1, 1, -2, 2, -3, 3]
   for (let layerIndex = 0; layerIndex < 7; layerIndex++) {
-    const layerStartVertex = positionValues.length / 3;
+    const layerStartVertex = positionValues.length / 3
     for (let sampleIndex = 0; sampleIndex <= 40; sampleIndex++) {
-      const sampleRatio = sampleIndex / 40;
+      const sampleRatio = sampleIndex / 40
       for (const sideSign of [-1, 1]) {
-        (positionValues.push(layerOffsets[layerIndex] * 0.003 * sampleRatio, sampleRatio, 0),
+        positionValues.push(layerOffsets[layerIndex] * 0.003 * sampleRatio, sampleRatio, 0),
           uvValues.push((sideSign + 1) / 2, sampleRatio),
           sideValues.push(sideSign),
-          phaseValues.push(layerIndex * 0.47));
+          phaseValues.push(layerIndex * 0.47)
       }
       if (sampleIndex < 40) {
-        const baseIndex = layerStartVertex + sampleIndex * 2;
-        indexValues.push(
-          baseIndex,
-          baseIndex + 1,
-          baseIndex + 2,
-          baseIndex + 1,
-          baseIndex + 3,
-          baseIndex + 2,
-        );
+        const baseIndex = layerStartVertex + sampleIndex * 2
+        indexValues.push(baseIndex, baseIndex + 1, baseIndex + 2, baseIndex + 1, baseIndex + 3, baseIndex + 2)
       }
     }
   }
 
-  const geometry = new THREE.BufferGeometry();
-  (geometry.setAttribute("position", new THREE.Float32BufferAttribute(positionValues, 3)),
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvValues, 2)),
-    geometry.setAttribute("mistSide", new THREE.Float32BufferAttribute(sideValues, 1)),
-    geometry.setAttribute("mistPhase", new THREE.Float32BufferAttribute(phaseValues, 1)),
-    geometry.setIndex(indexValues));
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positionValues, 3)),
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvValues, 2)),
+    geometry.setAttribute('mistSide', new THREE.Float32BufferAttribute(sideValues, 1)),
+    geometry.setAttribute('mistPhase', new THREE.Float32BufferAttribute(phaseValues, 1)),
+    geometry.setIndex(indexValues)
 
   const uniforms = {
     mistTime: { value: 0 },
     mistHeight: { value: 0.42 },
     mistOpacity: { value: 1 },
     mistContrast: { value: 0.35 },
-  };
+  }
   const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -115,10 +102,10 @@ function createMistPlume(THREE: any) {
         float core=1.0-smoothstep(0.15,0.65,across);
         float shade=mistContrast*(1.0-core)*(0.38+0.08*fold);
         if(alpha<0.003)discard;gl_FragColor=vec4(vec3(1.0-shade),alpha);}`,
-  });
+  })
 
-  const mesh = new THREE.Mesh(geometry, material);
-  ((mesh.name = "device-mist"),
+  const mesh = new THREE.Mesh(geometry, material)
+  ;(mesh.name = 'device-mist'),
     (mesh.visible = false),
     (mesh.frustumCulled = false),
     Object.assign(mesh.userData, {
@@ -126,31 +113,25 @@ function createMistPlume(THREE: any) {
       deviceMist: true,
       disableContactShadow: true,
     }),
-    (mesh.raycast = () => {}));
+    (mesh.raycast = () => {})
 
   let isRunning = false,
-    isDisposed = false;
+    isDisposed = false
   return {
     mesh,
-    configure(
-      requestedRunning: boolean,
-      mistHeight = 0.42,
-      visibleLayers = 7,
-      mistOpacity = 1,
-      mistContrast = 0.35,
-    ) {
-      if (isDisposed) return;
-      (isRunning !== requestedRunning && (uniforms.mistTime.value = 0), (isRunning = requestedRunning));
-      ((mesh.visible = requestedRunning),
+    configure(requestedRunning: boolean, mistHeight = 0.42, visibleLayers = 7, mistOpacity = 1, mistContrast = 0.35) {
+      if (isDisposed) return
+      isRunning !== requestedRunning && (uniforms.mistTime.value = 0), (isRunning = requestedRunning)
+      ;(mesh.visible = requestedRunning),
         (uniforms.mistHeight.value = mistHeight),
         (uniforms.mistOpacity.value = mistOpacity),
         (uniforms.mistContrast.value = mistContrast),
-        geometry.setDrawRange(0, visibleLayers * 40 * 6));
+        geometry.setDrawRange(0, visibleLayers * 40 * 6)
     },
     tick(elapsedSeconds: number) {
-      if (isDisposed || !isRunning) return true;
-      uniforms.mistTime.value += Math.min(0.15, Math.max(0, elapsedSeconds));
-      return true;
+      if (isDisposed || !isRunning) return true
+      uniforms.mistTime.value += Math.min(0.15, Math.max(0, elapsedSeconds))
+      return true
     },
     dispose() {
       isDisposed ||
@@ -159,33 +140,31 @@ function createMistPlume(THREE: any) {
         (mesh.visible = false),
         mesh.removeFromParent(),
         geometry.dispose(),
-        material.dispose());
+        material.dispose())
     },
-  };
+  }
 }
 
-const sceneModelKey = (binding: any) =>
-    JSON.stringify([binding.floorId, binding.modelId]),
+const sceneModelKey = (binding: any) => JSON.stringify([binding.floorId, binding.modelId]),
   isVisibleInSceneHierarchy = (sceneNode: any) => {
-    for (let ancestor = sceneNode; ancestor; ancestor = ancestor.parent)
-      if (ancestor.visible === false) return false;
-    return true;
-  };
+    for (let ancestor = sceneNode; ancestor; ancestor = ancestor.parent) if (ancestor.visible === false) return false
+    return true
+  }
 
 export type DeviceMistController = {
   sync: (payload: {
-    root: any;
-    revision: any;
-    bindings?: any[];
-    states?: any;
-    enabled?: boolean;
-    sceneStyle?: string;
-  }) => void;
-  tick: (nowMs: number) => boolean;
-  nextDelay: () => number;
-  setAvailable: (isAvailable: boolean) => void;
-  dispose: () => void;
-};
+    root: any
+    revision: any
+    bindings?: any[]
+    states?: any
+    enabled?: boolean
+    sceneStyle?: string
+  }) => void
+  tick: (nowMs: number) => boolean
+  nextDelay: () => number
+  setAvailable: (isAvailable: boolean) => void
+  dispose: () => void
+}
 
 export function createDeviceMist({
   THREE: THREE,
@@ -195,68 +174,60 @@ export function createDeviceMist({
   getCamera: getCamera,
   getViewportHeight: getViewportHeight = () => 900,
 }: {
-  THREE?: any;
-  requestFrame?: () => void;
-  requestAnimation?: () => void;
-  reducedMotion?: boolean;
-  getCamera?: (model: any) => any;
-  getViewportHeight?: () => number;
+  THREE?: any
+  requestFrame?: () => void
+  requestAnimation?: () => void
+  reducedMotion?: boolean
+  getCamera?: (model: any) => any
+  getViewportHeight?: () => number
 } = {}): DeviceMistController {
-  const plumeByKey = new Map<string, any>();
+  const plumeByKey = new Map<string, any>()
   let rootObject: any,
     rootRevision: any,
     modelsByKey = new Map<string, any>(),
     isAvailable = true,
     isDisposed = false,
-    mistContrast = 0.35;
+    mistContrast = 0.35
 
-  const reducedMotionQuery = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)"),
-    prefersReducedMotion = () =>
-      reducedMotion ?? reducedMotionQuery?.matches === true;
+  const reducedMotionQuery = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)'),
+    prefersReducedMotion = () => reducedMotion ?? reducedMotionQuery?.matches === true
 
   /** 用模型上的 `deviceMistOutlet` 锚点定位飘带；没有锚点返回 false。 */
   function placePlumeAtOutlet(entryRecord: any) {
-    const model = entryRecord.model;
-    model.updateWorldMatrix(true, true);
-    const inverseModelMatrix = model.matrixWorld.clone().invert();
-    let didFindOutlet = false;
+    const model = entryRecord.model
+    model.updateWorldMatrix(true, true)
+    const inverseModelMatrix = model.matrixWorld.clone().invert()
+    let didFindOutlet = false
     model.traverse((sceneNode: any) => {
-      if (didFindOutlet || !Array.isArray(sceneNode.userData?.deviceMistOutlet)) return;
+      if (didFindOutlet || !Array.isArray(sceneNode.userData?.deviceMistOutlet)) return
       const outletPosition = new THREE.Vector3().fromArray(sceneNode.userData.deviceMistOutlet),
-        outletMatrix = new THREE.Matrix4().multiplyMatrices(inverseModelMatrix, sceneNode.matrixWorld);
-      (entryRecord.effect.mesh.position.copy(outletPosition.applyMatrix4(outletMatrix)),
+        outletMatrix = new THREE.Matrix4().multiplyMatrices(inverseModelMatrix, sceneNode.matrixWorld)
+      entryRecord.effect.mesh.position.copy(outletPosition.applyMatrix4(outletMatrix)),
         entryRecord.effect.mesh.scale.setFromMatrixScale(outletMatrix),
-        (didFindOutlet = true));
-    });
-    return didFindOutlet;
+        (didFindOutlet = true)
+    })
+    return didFindOutlet
   }
 
   const headPosition = new THREE.Vector3(),
-    topPosition = new THREE.Vector3();
+    topPosition = new THREE.Vector3()
 
   /** 依据屏幕上的可见高度决定层数与节流，远景直接不画。 */
   function updateDetail(entryRecord: any, visibleLayers: number, opacity: number, delay: number) {
-    ((entryRecord.detail.layers = visibleLayers),
+    ;(entryRecord.detail.layers = visibleLayers),
       (entryRecord.detail.opacity = opacity),
-      (entryRecord.detail.delay = delay));
-    return entryRecord.detail;
+      (entryRecord.detail.delay = delay)
+    return entryRecord.detail
   }
   function resolveDetail(entryRecord: any) {
-    if (!isVisibleInSceneHierarchy(entryRecord.model))
-      return updateDetail(entryRecord, 0, 0, Infinity);
-    const camera = getCamera?.(entryRecord.model);
-    if (!camera) return updateDetail(entryRecord, 7, 1, 1000 / 30);
-    const mistMesh = entryRecord.effect.mesh;
-    (mistMesh.updateWorldMatrix(true, false), camera.updateMatrixWorld(true));
-    (headPosition
-      .set(0, 0, 0)
-      .applyMatrix4(mistMesh.matrixWorld)
-      .project(camera),
-      topPosition
-        .set(0, entryRecord.height, 0)
-        .applyMatrix4(mistMesh.matrixWorld)
-        .project(camera));
-    const onScreenHeight = (Math.abs(topPosition.y - headPosition.y) * getViewportHeight()) / 2;
+    if (!isVisibleInSceneHierarchy(entryRecord.model)) return updateDetail(entryRecord, 0, 0, Infinity)
+    const camera = getCamera?.(entryRecord.model)
+    if (!camera) return updateDetail(entryRecord, 7, 1, 1000 / 30)
+    const mistMesh = entryRecord.effect.mesh
+    mistMesh.updateWorldMatrix(true, false), camera.updateMatrixWorld(true)
+    headPosition.set(0, 0, 0).applyMatrix4(mistMesh.matrixWorld).project(camera),
+      topPosition.set(0, entryRecord.height, 0).applyMatrix4(mistMesh.matrixWorld).project(camera)
+    const onScreenHeight = (Math.abs(topPosition.y - headPosition.y) * getViewportHeight()) / 2
     return !Number.isFinite(onScreenHeight) ||
       onScreenHeight < 6 ||
       headPosition.z > 1 ||
@@ -266,14 +237,14 @@ export function createDeviceMist({
       ? updateDetail(entryRecord, 0, 0, Infinity)
       : onScreenHeight < 48
         ? updateDetail(entryRecord, 3, 0.55, 1000 / 12)
-        : updateDetail(entryRecord, 7, 1, 1000 / 30);
+        : updateDetail(entryRecord, 7, 1, 1000 / 30)
   }
   function applyEntry(entryRecord: any) {
     if (!isAvailable || prefersReducedMotion() || !entryRecord.running) {
-      (entryRecord.effect.configure(false, entryRecord.height), (entryRecord.lastTime = null));
-      return;
+      entryRecord.effect.configure(false, entryRecord.height), (entryRecord.lastTime = null)
+      return
     }
-    (resolveDetail(entryRecord),
+    resolveDetail(entryRecord),
       entryRecord.effect.configure(
         entryRecord.detail.layers > 0,
         entryRecord.height,
@@ -281,116 +252,112 @@ export function createDeviceMist({
         entryRecord.detail.opacity,
         mistContrast,
       ),
-      entryRecord.detail.layers || (entryRecord.lastTime = null));
+      entryRecord.detail.layers || (entryRecord.lastTime = null)
   }
   function refreshAll() {
-    for (const entryRecord of plumeByKey.values()) applyEntry(entryRecord);
-    requestFrame();
+    for (const entryRecord of plumeByKey.values()) applyEntry(entryRecord)
+    requestFrame()
   }
-  reducedMotionQuery?.addEventListener?.("change", refreshAll);
+  reducedMotionQuery?.addEventListener?.('change', refreshAll)
 
   return {
-    sync({ root, revision, bindings = [], states = {}, enabled = true, sceneStyle = "default" }) {
-      if (isDisposed) return;
-      mistContrast = sceneStyle === "warm-wood" ? 1 : 0.35;
-      const didSceneChange = rootObject !== root || rootRevision !== revision;
+    sync({ root, revision, bindings = [], states = {}, enabled = true, sceneStyle = 'default' }) {
+      if (isDisposed) return
+      mistContrast = sceneStyle === 'warm-wood' ? 1 : 0.35
+      const didSceneChange = rootObject !== root || rootRevision !== revision
       didSceneChange &&
         ((rootObject = root),
         (rootRevision = revision),
         (modelsByKey = new Map()),
         rootObject?.traverse((sceneNode: any) => {
-          ["humidifier", "aroma-diffuser"].includes(sceneNode.userData?.environmentModelType) &&
+          ;['humidifier', 'aroma-diffuser'].includes(sceneNode.userData?.environmentModelType) &&
             modelsByKey.set(
               sceneModelKey({
                 floorId: sceneNode.userData.environmentFloorId,
                 modelId: sceneNode.userData.environmentModelId,
               }),
               sceneNode,
-            );
-        }));
+            )
+        }))
 
-      const liveKeySet = new Set<string>();
-      let shouldRequestFrame = false;
+      const liveKeySet = new Set<string>()
+      let shouldRequestFrame = false
       for (const binding of bindings) {
-        if (binding.visible === false) continue;
+        if (binding.visible === false) continue
         const bindingKey = sceneModelKey(binding),
-          model = modelsByKey.get(bindingKey);
-        if (!model) continue;
-        let entryRecord = plumeByKey.get(bindingKey);
+          model = modelsByKey.get(bindingKey)
+        if (!model) continue
+        let entryRecord = plumeByKey.get(bindingKey)
         if (entryRecord && entryRecord.model !== model) {
-          (entryRecord.effect.dispose(), plumeByKey.delete(bindingKey), (entryRecord = null));
+          entryRecord.effect.dispose(), plumeByKey.delete(bindingKey), (entryRecord = null)
         }
         if (entryRecord) {
-          didSceneChange && placePlumeAtOutlet(entryRecord);
+          didSceneChange && placePlumeAtOutlet(entryRecord)
         } else {
           entryRecord = {
             model,
             effect: createMistPlume(THREE),
-            height: model.userData.environmentModelType === "humidifier" ? 0.42 : 0.32,
+            height: model.userData.environmentModelType === 'humidifier' ? 0.42 : 0.32,
             running: false,
             lastTime: null,
             detail: { layers: 7, opacity: 1, delay: 1000 / 30 },
-          };
-          if (!placePlumeAtOutlet(entryRecord)) {
-            entryRecord.effect.dispose();
-            continue;
           }
-          (model.add(entryRecord.effect.mesh),
-            plumeByKey.set(bindingKey, entryRecord),
-            (shouldRequestFrame = true));
+          if (!placePlumeAtOutlet(entryRecord)) {
+            entryRecord.effect.dispose()
+            continue
+          }
+          model.add(entryRecord.effect.mesh), plumeByKey.set(bindingKey, entryRecord), (shouldRequestFrame = true)
         }
-        liveKeySet.add(bindingKey);
-        const shouldRun = enabled && deviceMistState(binding, states).running;
+        liveKeySet.add(bindingKey)
+        const shouldRun = enabled && deviceMistState(binding, states).running
         shouldRun !== entryRecord.running &&
-          ((entryRecord.running = shouldRun),
-          (entryRecord.lastTime = null),
-          (shouldRequestFrame = true));
-        applyEntry(entryRecord);
+          ((entryRecord.running = shouldRun), (entryRecord.lastTime = null), (shouldRequestFrame = true))
+        applyEntry(entryRecord)
       }
       for (const [staleKey, staleRecord] of plumeByKey)
         liveKeySet.has(staleKey) ||
-          (staleRecord.effect.dispose(), plumeByKey.delete(staleKey), (shouldRequestFrame = true));
-      shouldRequestFrame && requestFrame();
+          (staleRecord.effect.dispose(), plumeByKey.delete(staleKey), (shouldRequestFrame = true))
+      shouldRequestFrame && requestFrame()
     },
     tick(nowMs: number) {
-      if (isDisposed || !isAvailable) return false;
-      let didAnimate = false;
+      if (isDisposed || !isAvailable) return false
+      let didAnimate = false
       for (const entryRecord of plumeByKey.values()) {
-        applyEntry(entryRecord);
-        const frameDelay = entryRecord.detail.delay;
+        applyEntry(entryRecord)
+        const frameDelay = entryRecord.detail.delay
         if (
           !entryRecord.running ||
           !Number.isFinite(frameDelay) ||
           !entryRecord.effect.mesh.visible ||
           (entryRecord.lastTime !== null && nowMs - entryRecord.lastTime < frameDelay - 0.5)
         )
-          continue;
+          continue
         const elapsedSeconds =
           entryRecord.lastTime === null
             ? frameDelay / 1000
-            : Math.min(0.15, Math.max(0, (nowMs - entryRecord.lastTime) / 1000));
-        entryRecord.lastTime = nowMs;
-        didAnimate = entryRecord.effect.tick(elapsedSeconds) || didAnimate;
+            : Math.min(0.15, Math.max(0, (nowMs - entryRecord.lastTime) / 1000))
+        entryRecord.lastTime = nowMs
+        didAnimate = entryRecord.effect.tick(elapsedSeconds) || didAnimate
       }
-      return (didAnimate && requestAnimation(), didAnimate);
+      return (didAnimate && requestAnimation(), didAnimate)
     },
     nextDelay() {
-      if (isDisposed || !isAvailable || prefersReducedMotion()) return Infinity;
-      let nextDelayMs = Infinity;
+      if (isDisposed || !isAvailable || prefersReducedMotion()) return Infinity
+      let nextDelayMs = Infinity
       for (const entryRecord of plumeByKey.values())
         entryRecord.running &&
           isVisibleInSceneHierarchy(entryRecord.model) &&
-          (nextDelayMs = Math.min(nextDelayMs, entryRecord.detail.delay));
-      return nextDelayMs;
+          (nextDelayMs = Math.min(nextDelayMs, entryRecord.detail.delay))
+      return nextDelayMs
     },
     setAvailable(isNowAvailable: boolean) {
-      isDisposed || ((isAvailable = !!isNowAvailable), refreshAll());
+      isDisposed || ((isAvailable = !!isNowAvailable), refreshAll())
     },
     dispose() {
-      if (isDisposed) return;
-      ((isDisposed = true), reducedMotionQuery?.removeEventListener?.("change", refreshAll));
-      for (const entryRecord of plumeByKey.values()) entryRecord.effect.dispose();
-      (plumeByKey.clear(), modelsByKey.clear(), (rootObject = null));
+      if (isDisposed) return
+      ;(isDisposed = true), reducedMotionQuery?.removeEventListener?.('change', refreshAll)
+      for (const entryRecord of plumeByKey.values()) entryRecord.effect.dispose()
+      plumeByKey.clear(), modelsByKey.clear(), (rootObject = null)
     },
-  };
+  }
 }

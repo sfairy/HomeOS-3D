@@ -69,7 +69,10 @@ function toggleCode(code: string) {
   const checked = new Set(selected.value);
   if (checked.has(code)) checked.delete(code);
   else checked.add(code);
-  emit("update:modelValue", catalog.items.map((item) => item.code).filter((item) => checked.has(item)));
+  emit(
+    "update:modelValue",
+    catalog.items.map((item) => item.code).filter((item) => checked.has(item)),
+  );
 }
 
 function openPicker() {

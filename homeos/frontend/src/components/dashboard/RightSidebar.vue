@@ -141,10 +141,9 @@ const panelOuterStyle = computed(() => {
 })
 
 const visiblePanelWidgets = computed(() =>
-  filterWidgetsForProfile(
-    layoutStore.activeProfileId,
-    layoutStore.layoutConfig.rightPanelWidgets || [],
-  ).filter((w) => w.visible !== false && getWidgetComponent(w.type)),
+  filterWidgetsForProfile(layoutStore.activeProfileId, layoutStore.layoutConfig.rightPanelWidgets || []).filter(
+    (w) => w.visible !== false && getWidgetComponent(w.type),
+  ),
 )
 
 const props = defineProps({

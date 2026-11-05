@@ -65,9 +65,7 @@ function paymentChannelCopy(order: StoreOrder) {
   return {
     kicker: CHANNEL_KICKERS[channel] || "Payment",
     title: CHANNEL_TITLES[channel] || (channelName ? `${channelName}扫码支付` : "扫码支付"),
-    hint:
-      order.payment?.note ||
-      `打开${channelName || "支付宝"}「扫一扫」完成付款，付款后本页会自动确认。`,
+    hint: order.payment?.note || `打开${channelName || "支付宝"}「扫一扫」完成付款，付款后本页会自动确认。`,
   };
 }
 
@@ -160,9 +158,7 @@ export const useOrderStore = defineStore("order", () => {
     // 发货失败必须显式报错（后端在 202 响应里带 ``error``），只改状态不提示等于让用户
     // 以为卡在"等待支付"。
     const failure =
-      order.status === "expired" ||
-      order.status === "payment_failed" ||
-      order.status === "fulfillment_failed";
+      order.status === "expired" || order.status === "payment_failed" || order.status === "fulfillment_failed";
     // 后端在失败响应里带 ``error``（如「已支付但发货失败」）；有它就用它，比状态标签具体。
     const reason = typeof order.error === "string" ? order.error : "";
     toast.show(reason || label, failure ? "err" : undefined);
@@ -286,10 +282,7 @@ export const useOrderStore = defineStore("order", () => {
       if (!pollGuard.isCurrent(startEpoch)) return false;
       pollFailures += 1;
       if (pollFailures === 3) {
-        toast.show(
-          withRetryHint("暂时查不到支付状态，将自动重试。", retryAfterSeconds(error)),
-          "err",
-        );
+        toast.show(withRetryHint("暂时查不到支付状态，将自动重试。", retryAfterSeconds(error)), "err");
       }
       return false;
     }
@@ -306,9 +299,7 @@ export const useOrderStore = defineStore("order", () => {
       void (async () => {
         let latest: StoreOrder | null = null;
         try {
-          latest = (await api(
-            `/orders/${encodeURIComponent(order.orderNo || "")}`,
-          )) as StoreOrder;
+          latest = (await api(`/orders/${encodeURIComponent(order.orderNo || "")}`)) as StoreOrder;
         } catch (error) {
           logAndIgnore("PendingOrderDialog 关闭后的订单复查")(error);
         }

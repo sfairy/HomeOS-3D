@@ -7,54 +7,52 @@
  */
 
 interface NavigationInputElementRefs {
-  navigationFrameActiveOpacityElement: any;
-  navigationFrameAngleElement: any;
-  navigationFrameColorElement: any;
-  navigationFrameIdleOpacityElement: any;
-  navigationFrameVisibleElement: any;
-  navigationFrameWidthElement: any;
-  navigationGlowActiveSizeElement: any;
-  navigationGlowActiveStrengthElement: any;
-  navigationGlowAngleElement: any;
-  navigationGlowColorElement: any;
-  navigationGlowIdleSizeElement: any;
-  navigationGlowIdleStrengthElement: any;
-  navigationGlowVisibleElement: any;
-  navigationIconActiveOpacityElement: any;
-  navigationIconColorElement: any;
-  navigationIconIdleOpacityElement: any;
-  navigationIconLeftElement: any;
-  navigationIconSizeElement: any;
-  navigationIconTopElement: any;
-  navigationIconVisibleElement: any;
-  navigationMainColorElement: any;
-  navigationMainSizeElement: any;
-  navigationMainSpacingElement: any;
-  navigationMainTextElement: any;
-  navigationMainTextLeftElement: any;
-  navigationMainTextTopElement: any;
-  navigationMainVisibleElement: any;
-  navigationMainWeightElement: any;
-  navigationRadiusElement: any;
-  navigationSecondaryColorElement: any;
-  navigationSecondarySizeElement: any;
-  navigationSecondarySpacingElement: any;
-  navigationSecondaryTextElement: any;
-  navigationSecondaryTextLeftElement: any;
-  navigationSecondaryTextTopElement: any;
-  navigationSecondaryVisibleElement: any;
-  navigationSecondaryWeightElement: any;
-  navigationTextActiveOpacityElement: any;
-  navigationTextIdleOpacityElement: any;
+  navigationFrameActiveOpacityElement: any
+  navigationFrameAngleElement: any
+  navigationFrameColorElement: any
+  navigationFrameIdleOpacityElement: any
+  navigationFrameVisibleElement: any
+  navigationFrameWidthElement: any
+  navigationGlowActiveSizeElement: any
+  navigationGlowActiveStrengthElement: any
+  navigationGlowAngleElement: any
+  navigationGlowColorElement: any
+  navigationGlowIdleSizeElement: any
+  navigationGlowIdleStrengthElement: any
+  navigationGlowVisibleElement: any
+  navigationIconActiveOpacityElement: any
+  navigationIconColorElement: any
+  navigationIconIdleOpacityElement: any
+  navigationIconLeftElement: any
+  navigationIconSizeElement: any
+  navigationIconTopElement: any
+  navigationIconVisibleElement: any
+  navigationMainColorElement: any
+  navigationMainSizeElement: any
+  navigationMainSpacingElement: any
+  navigationMainTextElement: any
+  navigationMainTextLeftElement: any
+  navigationMainTextTopElement: any
+  navigationMainVisibleElement: any
+  navigationMainWeightElement: any
+  navigationRadiusElement: any
+  navigationSecondaryColorElement: any
+  navigationSecondarySizeElement: any
+  navigationSecondarySpacingElement: any
+  navigationSecondaryTextElement: any
+  navigationSecondaryTextLeftElement: any
+  navigationSecondaryTextTopElement: any
+  navigationSecondaryVisibleElement: any
+  navigationSecondaryWeightElement: any
+  navigationTextActiveOpacityElement: any
+  navigationTextIdleOpacityElement: any
 }
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。
  * 正文逐字保留，只有「残留依赖显式化」这一处人工改动。
  */
-export function createNavigationInputTables(
-  ctx: NavigationInputElementRefs,
-) {
+export function createNavigationInputTables(ctx: NavigationInputElementRefs) {
   const {
     navigationFrameActiveOpacityElement,
     navigationFrameAngleElement,
@@ -95,21 +93,21 @@ export function createNavigationInputTables(
     navigationSecondaryWeightElement,
     navigationTextActiveOpacityElement,
     navigationTextIdleOpacityElement,
-  } = ctx;
+  } = ctx
   const navigationColorPropertiesByElement = new Map([
-      [navigationMainTextElement, "mainText"],
-      [navigationSecondaryTextElement, "secondaryText"],
-      [navigationMainColorElement, "mainColor"],
-      [navigationSecondaryColorElement, "secondaryColor"],
-      [navigationIconColorElement, "iconColor"],
-      [navigationFrameColorElement, "frameColor"],
-      [navigationGlowColorElement, "glowColor"],
+      [navigationMainTextElement, 'mainText'],
+      [navigationSecondaryTextElement, 'secondaryText'],
+      [navigationMainColorElement, 'mainColor'],
+      [navigationSecondaryColorElement, 'secondaryColor'],
+      [navigationIconColorElement, 'iconColor'],
+      [navigationFrameColorElement, 'frameColor'],
+      [navigationGlowColorElement, 'glowColor'],
     ]),
     navigationPropertyConfigsByElement = new Map([
       [
         navigationMainSizeElement,
         {
-          property: "mainSize",
+          property: 'mainSize',
           minimum: 1,
           maximum: 500,
           divisor: 1,
@@ -118,7 +116,7 @@ export function createNavigationInputTables(
       [
         navigationSecondarySizeElement,
         {
-          property: "secondarySize",
+          property: 'secondarySize',
           minimum: 1,
           maximum: 500,
           divisor: 1,
@@ -127,7 +125,7 @@ export function createNavigationInputTables(
       [
         navigationMainWeightElement,
         {
-          property: "mainWeight",
+          property: 'mainWeight',
           minimum: 0,
           maximum: 3,
           divisor: 1,
@@ -136,7 +134,7 @@ export function createNavigationInputTables(
       [
         navigationSecondaryWeightElement,
         {
-          property: "secondaryWeight",
+          property: 'secondaryWeight',
           minimum: 0,
           maximum: 3,
           divisor: 1,
@@ -145,7 +143,7 @@ export function createNavigationInputTables(
       [
         navigationMainSpacingElement,
         {
-          property: "mainSpacing",
+          property: 'mainSpacing',
           minimum: -20,
           maximum: 100,
           divisor: 1,
@@ -154,7 +152,7 @@ export function createNavigationInputTables(
       [
         navigationSecondarySpacingElement,
         {
-          property: "secondarySpacing",
+          property: 'secondarySpacing',
           minimum: -20,
           maximum: 100,
           divisor: 1,
@@ -163,7 +161,7 @@ export function createNavigationInputTables(
       [
         navigationMainTextLeftElement,
         {
-          property: "mainTextLeft",
+          property: 'mainTextLeft',
           minimum: -100,
           maximum: 200,
           divisor: 1,
@@ -172,7 +170,7 @@ export function createNavigationInputTables(
       [
         navigationMainTextTopElement,
         {
-          property: "mainTextTop",
+          property: 'mainTextTop',
           minimum: -100,
           maximum: 200,
           divisor: 1,
@@ -181,7 +179,7 @@ export function createNavigationInputTables(
       [
         navigationSecondaryTextLeftElement,
         {
-          property: "secondaryTextLeft",
+          property: 'secondaryTextLeft',
           minimum: -100,
           maximum: 200,
           divisor: 1,
@@ -190,7 +188,7 @@ export function createNavigationInputTables(
       [
         navigationSecondaryTextTopElement,
         {
-          property: "secondaryTextTop",
+          property: 'secondaryTextTop',
           minimum: -100,
           maximum: 200,
           divisor: 1,
@@ -199,7 +197,7 @@ export function createNavigationInputTables(
       [
         navigationTextIdleOpacityElement,
         {
-          property: "textIdleOpacity",
+          property: 'textIdleOpacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -208,7 +206,7 @@ export function createNavigationInputTables(
       [
         navigationTextActiveOpacityElement,
         {
-          property: "textActiveOpacity",
+          property: 'textActiveOpacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -217,7 +215,7 @@ export function createNavigationInputTables(
       [
         navigationIconSizeElement,
         {
-          property: "iconSize",
+          property: 'iconSize',
           minimum: 1,
           maximum: 500,
           divisor: 1,
@@ -226,7 +224,7 @@ export function createNavigationInputTables(
       [
         navigationIconLeftElement,
         {
-          property: "iconLeft",
+          property: 'iconLeft',
           minimum: -100,
           maximum: 200,
           divisor: 1,
@@ -235,7 +233,7 @@ export function createNavigationInputTables(
       [
         navigationIconTopElement,
         {
-          property: "iconTop",
+          property: 'iconTop',
           minimum: -100,
           maximum: 200,
           divisor: 1,
@@ -244,7 +242,7 @@ export function createNavigationInputTables(
       [
         navigationIconIdleOpacityElement,
         {
-          property: "iconIdleOpacity",
+          property: 'iconIdleOpacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -253,7 +251,7 @@ export function createNavigationInputTables(
       [
         navigationIconActiveOpacityElement,
         {
-          property: "iconActiveOpacity",
+          property: 'iconActiveOpacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -262,7 +260,7 @@ export function createNavigationInputTables(
       [
         navigationFrameWidthElement,
         {
-          property: "frameWidth",
+          property: 'frameWidth',
           minimum: 0,
           maximum: 20,
           divisor: 1,
@@ -271,7 +269,7 @@ export function createNavigationInputTables(
       [
         navigationFrameIdleOpacityElement,
         {
-          property: "frameIdleOpacity",
+          property: 'frameIdleOpacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -280,7 +278,7 @@ export function createNavigationInputTables(
       [
         navigationFrameActiveOpacityElement,
         {
-          property: "frameActiveOpacity",
+          property: 'frameActiveOpacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -289,7 +287,7 @@ export function createNavigationInputTables(
       [
         navigationRadiusElement,
         {
-          property: "radius",
+          property: 'radius',
           minimum: 0,
           maximum: 50,
           divisor: 100,
@@ -298,7 +296,7 @@ export function createNavigationInputTables(
       [
         navigationFrameAngleElement,
         {
-          property: "frameAngle",
+          property: 'frameAngle',
           minimum: 0,
           maximum: 360,
           divisor: 1,
@@ -307,7 +305,7 @@ export function createNavigationInputTables(
       [
         navigationGlowAngleElement,
         {
-          property: "glowAngle",
+          property: 'glowAngle',
           minimum: 0,
           maximum: 360,
           divisor: 1,
@@ -316,7 +314,7 @@ export function createNavigationInputTables(
       [
         navigationGlowIdleStrengthElement,
         {
-          property: "glowIdleStrength",
+          property: 'glowIdleStrength',
           minimum: 0,
           maximum: 500,
           divisor: 100,
@@ -325,7 +323,7 @@ export function createNavigationInputTables(
       [
         navigationGlowIdleSizeElement,
         {
-          property: "glowIdleSize",
+          property: 'glowIdleSize',
           minimum: 0,
           maximum: 300,
           divisor: 100,
@@ -334,7 +332,7 @@ export function createNavigationInputTables(
       [
         navigationGlowActiveStrengthElement,
         {
-          property: "glowActiveStrength",
+          property: 'glowActiveStrength',
           minimum: 0,
           maximum: 500,
           divisor: 100,
@@ -343,7 +341,7 @@ export function createNavigationInputTables(
       [
         navigationGlowActiveSizeElement,
         {
-          property: "glowActiveSize",
+          property: 'glowActiveSize',
           minimum: 0,
           maximum: 300,
           divisor: 100,
@@ -351,30 +349,30 @@ export function createNavigationInputTables(
       ],
     ]),
     navigationToggleStateByElement = new Map([
-      [navigationTextIdleOpacityElement, "off"],
-      [navigationIconIdleOpacityElement, "off"],
-      [navigationFrameIdleOpacityElement, "off"],
-      [navigationGlowIdleStrengthElement, "off"],
-      [navigationGlowIdleSizeElement, "off"],
-      [navigationTextActiveOpacityElement, "on"],
-      [navigationIconActiveOpacityElement, "on"],
-      [navigationFrameActiveOpacityElement, "on"],
-      [navigationGlowActiveStrengthElement, "on"],
-      [navigationGlowActiveSizeElement, "on"],
-    ]);
+      [navigationTextIdleOpacityElement, 'off'],
+      [navigationIconIdleOpacityElement, 'off'],
+      [navigationFrameIdleOpacityElement, 'off'],
+      [navigationGlowIdleStrengthElement, 'off'],
+      [navigationGlowIdleSizeElement, 'off'],
+      [navigationTextActiveOpacityElement, 'on'],
+      [navigationIconActiveOpacityElement, 'on'],
+      [navigationFrameActiveOpacityElement, 'on'],
+      [navigationGlowActiveStrengthElement, 'on'],
+      [navigationGlowActiveSizeElement, 'on'],
+    ])
 
   const navigationVisibilityPropertiesByButton = new Map([
-    [navigationMainVisibleElement, "mainTextVisible"],
-    [navigationSecondaryVisibleElement, "secondaryTextVisible"],
-    [navigationIconVisibleElement, "iconVisible"],
-    [navigationFrameVisibleElement, "frameVisible"],
-    [navigationGlowVisibleElement, "glowVisible"],
-  ]);
+    [navigationMainVisibleElement, 'mainTextVisible'],
+    [navigationSecondaryVisibleElement, 'secondaryTextVisible'],
+    [navigationIconVisibleElement, 'iconVisible'],
+    [navigationFrameVisibleElement, 'frameVisible'],
+    [navigationGlowVisibleElement, 'glowVisible'],
+  ])
 
   return {
     navigationColorPropertiesByElement,
     navigationPropertyConfigsByElement,
     navigationToggleStateByElement,
     navigationVisibilityPropertiesByButton,
-  };
+  }
 }

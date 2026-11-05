@@ -9,18 +9,18 @@
  */
 
 /** 口令长度下界（与后端 `PASSWORD_MIN_LENGTH` 同值）。 */
-export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MIN_LENGTH = 8
 
 /** 口令长度上界（与后端 `PASSWORD_MAX_LENGTH` 同值）。 */
-export const PASSWORD_MAX_LENGTH = 128;
+export const PASSWORD_MAX_LENGTH = 128
 
 /** 策略提示文案：后端 `PASSWORD_POLICY_MESSAGE` 的同一句。 */
-export const PASSWORD_POLICY_MESSAGE = "密码至少 8 位，且须同时包含字母和数字";
+export const PASSWORD_POLICY_MESSAGE = '密码至少 8 位，且须同时包含字母和数字'
 
 /** 口令是否满足统一策略：8–128 位，且同时含 ASCII 字母与 ASCII 数字。 */
 export function isPasswordPolicyCompliant(password: string): boolean {
   if (!password || password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-    return false;
+    return false
   }
-  return /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+  return /[A-Za-z]/.test(password) && /[0-9]/.test(password)
 }

@@ -178,7 +178,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 
 | 组 | 管什么 |
 | --- | --- |
-| `static` | 两个前端的 typecheck / lint、`eslint ops`、`ruff`、场景静态资源、`any` 棘轮、静默 `except`、async DB、依赖锁与镜像导入 |
+| `static` | 全仓 typecheck / Biome lint、`ruff`、场景静态资源、`any` 棘轮、静默 `except`、async DB、依赖锁与镜像导入 |
 | `test` | 前端 / studio / 架构 / 安防 / 首页模式 / 鉴权导航用例，前后端依赖 DAG，拆分预算 |
 | `model` | 3D 模型：几何、槽位、槽位角色、材质角色指纹、资产结构、目录布局、中文名索引 |
 | `build` | 清 `dist` → 前端构建与产物断言 → 体积预算 → 跨 chunk 初始化顺序 |

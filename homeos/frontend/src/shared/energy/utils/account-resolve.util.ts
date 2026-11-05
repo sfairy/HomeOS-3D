@@ -5,10 +5,7 @@ import {
   type EnergyAccountSourceLike,
 } from '@/shared/energy/utils/account-types.util'
 import { parseAccountString } from '@/shared/energy/utils/account-input.util'
-import {
-  resolveAccountEntityEntries,
-  resolveMultiAccountEntries,
-} from '@/shared/energy/utils/account-entity.util'
+import { resolveAccountEntityEntries, resolveMultiAccountEntries } from '@/shared/energy/utils/account-entity.util'
 
 /**
  * 解析有效账户条目列表（优先 accountEntries，回退 account 逗号串）。
@@ -16,9 +13,7 @@ import {
  * @param cfg 账户配置源数据。
  * @returns 去除空号后的账户条目数组；无配置时返回空数组。
  */
-export function resolveAccountEntries(
-  cfg: EnergyAccountSourceLike | null | undefined,
-): EnergyAccountEntry[] {
+export function resolveAccountEntries(cfg: EnergyAccountSourceLike | null | undefined): EnergyAccountEntry[] {
   const fromEntries = Array.isArray(cfg?.accountEntries)
     ? cfg!.accountEntries!.filter((e) => String(e?.number ?? '').trim())
     : []
@@ -80,9 +75,7 @@ export function resolveConventionAccountAtIndex(
   cfg: EnergyAccountSourceLike | null | undefined,
   accountIndex = 0,
 ): string {
-  const rows = Array.isArray(cfg?.accountEntries)
-    ? cfg.accountEntries
-    : parseAccountString(cfg?.account)
+  const rows = Array.isArray(cfg?.accountEntries) ? cfg.accountEntries : parseAccountString(cfg?.account)
   if (!rows.length) return ''
   const direct = String(rows[accountIndex]?.number ?? '').trim()
   if (direct) return direct

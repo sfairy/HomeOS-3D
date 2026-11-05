@@ -28,9 +28,6 @@ export function getDomainMap() {
  * @param eid 实体 ID
  * @returns 实体对象或 null
  */
-export function getEntityFromStore(
-  entities: Record<string, unknown>,
-  eid: string,
-) {
+export function getEntityFromStore(entities: Record<string, unknown>, eid: string) {
   return entities[eid] || null
 }

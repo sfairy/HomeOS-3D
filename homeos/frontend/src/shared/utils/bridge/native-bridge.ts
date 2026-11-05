@@ -83,9 +83,8 @@ export function pushServerAccessConfig(config: ServerAccessConfig): boolean {
   }
 
   // 3) iOS WKWebView：对象载荷
-  const webkit = (
-    readGlobal<{ messageHandlers?: Record<string, WebkitMessageHandler> }>('webkit')
-  )?.messageHandlers?.HomeOSNative
+  const webkit = readGlobal<{ messageHandlers?: Record<string, WebkitMessageHandler> }>('webkit')?.messageHandlers
+    ?.HomeOSNative
   if (typeof webkit?.postMessage === 'function') {
     try {
       webkit.postMessage(payload)

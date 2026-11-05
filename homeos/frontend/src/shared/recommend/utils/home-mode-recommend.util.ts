@@ -30,9 +30,7 @@ function recommendSourceLabel(source: string): string {
  * @param input 家庭模式与触发日志输入
  * @returns 推荐结果对象
  */
-export function buildHomeModeRecommendations(
-  input: HomeModeRecommendInput,
-): RecommendInsightResult {
+export function buildHomeModeRecommendations(input: HomeModeRecommendInput): RecommendInsightResult {
   const { modes, triggerLogs } = input
   const banners = []
   const groups = []
@@ -101,9 +99,7 @@ export function buildHomeModeRecommendations(
   return {
     domain: 'home-mode',
     title: '家庭模式推荐',
-    summary: hasActionable
-      ? `${modesWithoutTriggers.length} 个模式仍仅支持手动切换`
-      : '家庭模式触发配置较为完善',
+    summary: hasActionable ? `${modesWithoutTriggers.length} 个模式仍仅支持手动切换` : '家庭模式触发配置较为完善',
     hasActionable,
     banners,
     groups,

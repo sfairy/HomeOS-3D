@@ -6,15 +6,15 @@ import { hexWithOpacity } from '@/shared/utils/ui/color.util'
 /** 设备页图表配色常量（accent / 状态色 / 网格 / 轴色等） */
 export const DEVICE_CHART_COLORS = {
   accent: '#38bdf8', // 主强调色（天蓝）
-  green: '#34d399',  // 健康 / 在线色
-  red: '#f87171',    // 告警 / 离线色
-  amber: '#fbbf24',  // 警示色
+  green: '#34d399', // 健康 / 在线色
+  red: '#f87171', // 告警 / 离线色
+  amber: '#fbbf24', // 警示色
   purple: '#a78bfa', // 对比色（同域平均等）
   grid: 'rgba(255,255,255,0.06)', // 网格线色
   /** 与 --premium-border-strong 数值一致（ECharts 不支持 CSS var） */
   sliceBorder: 'rgba(255,255,255,0.08)', // 饼图扇区边框色
-  axis: 'rgba(255,255,255,0.58)',        // 轴标签色
-  axisName: 'rgba(255,255,255,0.62)',    // 轴名色
+  axis: 'rgba(255,255,255,0.58)', // 轴标签色
+  axisName: 'rgba(255,255,255,0.62)', // 轴名色
 }
 
 /** 通用坐标轴 tooltip 配置（深色背景 + premium 边框） */
@@ -88,9 +88,9 @@ function sidebarPieTooltipPosition(
 export function deviceSidebarPieTooltip(): NonNullable<EChartsCoreOption['tooltip']> {
   return {
     ...devicePieTooltip(),
-    renderMode: 'html',        // 以 HTML 渲染，脱离父容器
-    appendTo: 'body',          // 挂载到 body 避免被父级 overflow 裁切
-    confine: false,            // 不限制在图表容器内
+    renderMode: 'html', // 以 HTML 渲染，脱离父容器
+    appendTo: 'body', // 挂载到 body 避免被父级 overflow 裁切
+    confine: false, // 不限制在图表容器内
     transitionDuration: 0.15,
     extraCssText: 'z-index: 13100; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.35);',
     position: sidebarPieTooltipPosition,
@@ -98,9 +98,7 @@ export function deviceSidebarPieTooltip(): NonNullable<EChartsCoreOption['toolti
 }
 
 /** 笛卡尔坐标系网格配置（含标签包含模式，兼容 ECharts 6） */
-export function deviceChartGrid(options?: {
-  top?: number
-}): NonNullable<EChartsCoreOption['grid']> {
+export function deviceChartGrid(options?: { top?: number }): NonNullable<EChartsCoreOption['grid']> {
   return {
     left: 40,
     right: 16,

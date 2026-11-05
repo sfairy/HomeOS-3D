@@ -52,9 +52,7 @@ export function normalizeWholeHomeOff(raw: Partial<WholeHomeOffConfig> = {}): Wh
  * @param layout - 布局对象；为空时返回默认配置。
  * @returns 规范化后的 WholeHomeOffConfig。
  */
-export function getWholeHomeOffConfig(
-  layout: LayoutWithWholeHomeOff | null | undefined,
-): WholeHomeOffConfig {
+export function getWholeHomeOffConfig(layout: LayoutWithWholeHomeOff | null | undefined): WholeHomeOffConfig {
   return normalizeWholeHomeOff(layout?.wholeHomeOff)
 }
 /**
@@ -86,12 +84,7 @@ type WholeHomeOffDomainKey = 'lights' | 'covers' | 'climate' | 'switches'
  */
 function getWholeHomeOffDomainLabels(cfg: WholeHomeOffConfig): string[] {
   const labels: string[] = []
-  for (const key of [
-    'lights',
-    'covers',
-    'climate',
-    'switches',
-  ] as const satisfies WholeHomeOffDomainKey[]) {
+  for (const key of ['lights', 'covers', 'climate', 'switches'] as const satisfies WholeHomeOffDomainKey[]) {
     if (cfg[key]) labels.push(DOMAIN_LABELS[key])
   }
   return labels

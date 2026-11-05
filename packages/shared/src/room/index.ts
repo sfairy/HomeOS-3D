@@ -25,7 +25,7 @@ export {
   buildPublicRoomMeta,
   buildRoomEntityMatchers,
   entityMatchesEnvRoom,
-} from './catalog';
+} from './catalog'
 export {
   type HaAreaRef,
   type HaEnvRoomListItem,
@@ -38,4 +38,4 @@ export {
   resolveRoomLabelFromHaAreas,
   resolveVoiceRoomsFromHaAreas,
   buildPublicRoomMetaFromHaAreas,
-} from './ha-area-env-map';
+} from './ha-area-env-map'

@@ -44,7 +44,7 @@
 }
 
 .power-panel::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -113,9 +113,7 @@
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   border: 1px solid var(--hos-border-hairline);
-  background:
-    linear-gradient(180deg, var(--glass-bg-sm), var(--glass-bg-xs)),
-    rgba(var(--shell-scrim-card-rgb), 0.35);
+  background: linear-gradient(180deg, var(--glass-bg-sm), var(--glass-bg-xs)), rgba(var(--shell-scrim-card-rgb), 0.35);
   transition:
     background 0.28s ease,
     border-color 0.28s ease,
@@ -123,7 +121,7 @@
 }
 
 .power-card::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 18%;
@@ -137,9 +135,7 @@
 .power-card:hover {
   transform: translateY(-2px);
   border-color: var(--hos-border-hairline-strong);
-  background:
-    linear-gradient(180deg, var(--glass-bg-md), var(--glass-bg-xs)),
-    rgba(var(--shell-scrim-card-rgb), 0.4);
+  background: linear-gradient(180deg, var(--glass-bg-md), var(--glass-bg-xs)), rgba(var(--shell-scrim-card-rgb), 0.4);
 }
 
 .power-card--yellow {

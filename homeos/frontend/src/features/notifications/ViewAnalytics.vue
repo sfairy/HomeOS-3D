@@ -31,7 +31,7 @@
           <span class="nc-analytics__chart-title">通知时序</span>
           <span class="nc-analytics__chart-hint">{{ hours <= 48 ? '按小时' : '按天' }}</span>
         </header>
-        <div ref="timeChartRef" class="nc-analytics__chart" />
+        <div :ref="bindTimeChart" class="nc-analytics__chart" />
       </section>
 
       <section class="nc-analytics__chart-card">
@@ -39,7 +39,7 @@
           <span class="nc-analytics__chart-title">已读 / 未读</span>
           <span class="nc-analytics__chart-hint">已读率 {{ formatPercent(summary.readRate) }}</span>
         </header>
-        <div ref="readChartRef" class="nc-analytics__chart" />
+        <div :ref="bindReadChart" class="nc-analytics__chart" />
       </section>
 
       <section class="nc-analytics__chart-card">
@@ -47,7 +47,7 @@
           <span class="nc-analytics__chart-title">来源分布</span>
           <span class="nc-analytics__chart-hint">点击筛选</span>
         </header>
-        <div ref="sourceChartRef" class="nc-analytics__chart" />
+        <div :ref="bindSourceChart" class="nc-analytics__chart" />
       </section>
 
       <section class="nc-analytics__chart-card">
@@ -55,7 +55,7 @@
           <span class="nc-analytics__chart-title">级别分布</span>
           <span class="nc-analytics__chart-hint">点击筛选级别</span>
         </header>
-        <div ref="levelChartRef" class="nc-analytics__chart" />
+        <div :ref="bindLevelChart" class="nc-analytics__chart" />
       </section>
 
       <section class="nc-analytics__chart-card nc-analytics__chart-card--wide">
@@ -63,7 +63,7 @@
           <span class="nc-analytics__chart-title">来源排行</span>
           <span class="nc-analytics__chart-hint">推送送达 {{ formatPercent(summary.deliveryRate) }}</span>
         </header>
-        <div ref="rankChartRef" class="nc-analytics__chart" />
+        <div :ref="bindRankChart" class="nc-analytics__chart" />
       </section>
     </div>
   </div>
@@ -102,19 +102,12 @@ const emit = defineEmits<{
 
 const { hours } = toRefs(props)
 // 委托 composable 完成 5 张图表的挂载与 KPI 计算，并将图表点击事件桥接为 emit
-const {
-  sourceChartRef,
-  levelChartRef,
-  rankChartRef,
-  timeChartRef,
-  readChartRef,
-  kpiCells,
-  summary,
-} = useNotificationsViewAnalytics(toRefs(props), (event, value) => {
-  // 根据 composable 回传的事件类型分发到对应的 emit
-  if (event === 'filter-by-source') emit('filter-by-source', value)
-  else emit('filter-by-level', value)
-})
+const { bindSourceChart, bindLevelChart, bindRankChart, bindTimeChart, bindReadChart, kpiCells, summary } =
+  useNotificationsViewAnalytics(toRefs(props), (event, value) => {
+    // 根据 composable 回传的事件类型分发到对应的 emit
+    if (event === 'filter-by-source') emit('filter-by-source', value)
+    else emit('filter-by-level', value)
+  })
 </script>
 
 <style src="@/assets/styles/list-page-analytics.css"></style>

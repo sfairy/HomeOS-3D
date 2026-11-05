@@ -3,10 +3,7 @@
  * @module frontend/src/views
  */
 /** 首装向导：在场 / 安防联动开关 */
-import {
-  handleSystemConfigPatchError,
-  useSystemConfig,
-} from '@/composables/config/system-config-core.internals'
+import { handleSystemConfigPatchError, useSystemConfig } from '@/composables/config/system-config-core.internals'
 import { loadPresenceHome } from '@/shared/presence/composables/load-presence-home'
 import { useChromeStore } from '@/stores/chrome.store'
 import type { PresenceHomeResponse, PresenceMember } from '@/shared/types/setup-wizard'
@@ -55,10 +52,7 @@ export function useSetupWizardPresence(opts: {
   async function loadPresence() {
     presenceLoading.value = true
     try {
-      const [presence, cfg] = await Promise.all([
-        loadPresenceHome(),
-        loadSystemConfig().catch(() => null),
-      ])
+      const [presence, cfg] = await Promise.all([loadPresenceHome(), loadSystemConfig().catch(() => null)])
       presenceHome.value = (presence as PresenceHomeResponse | null) ?? null
       if (!presence) {
         notify('加载在家状态失败', false)
@@ -86,8 +80,7 @@ export function useSetupWizardPresence(opts: {
     presenceFlagSaving.value = true
     try {
       await saveSystemConfig({ security: { [key]: next } })
-      const label =
-        key === 'autoArmOnEveryoneLeft' ? '全员离家自动布防' : '居家/夜间升级为离家布防'
+      const label = key === 'autoArmOnEveryoneLeft' ? '全员离家自动布防' : '居家/夜间升级为离家布防'
       notify(next ? `已开启：${label}` : `已关闭：${label}`)
       return true
     } catch (e) {
@@ -110,10 +103,7 @@ export function useSetupWizardPresence(opts: {
   }
 
   async function toggleAutoUpgrade() {
-    return setPresenceSecurityFlag(
-      'autoUpgradeToAwayOnEveryoneLeft',
-      !autoUpgradeEnabled.value,
-    )
+    return setPresenceSecurityFlag('autoUpgradeToAwayOnEveryoneLeft', !autoUpgradeEnabled.value)
   }
 
   watch(stepMeta, (meta) => {

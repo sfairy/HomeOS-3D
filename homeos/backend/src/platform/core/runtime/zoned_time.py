@@ -12,7 +12,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 _TIME_AT_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
-_WEEKDAY_MAP = {"Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6}
 
 
 def normalize_home_mode_time_at(raw: object) -> str | None:

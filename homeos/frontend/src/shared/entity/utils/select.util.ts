@@ -37,10 +37,7 @@ interface EntitySelectOption {
  * @param entity 实体状态对象（可能含预计算 name 字段）
  * @returns 显示用 label 字符串
  */
-function resolveEntitySelectLabel(
-  entityId: string,
-  entity?: HaEntityState | Record<string, unknown> | null,
-): string {
+function resolveEntitySelectLabel(entityId: string, entity?: HaEntityState | Record<string, unknown> | null): string {
   const precomputed =
     entity && typeof entity === 'object' && 'name' in entity
       ? String((entity as { name?: unknown }).name ?? '').trim()

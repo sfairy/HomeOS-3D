@@ -179,9 +179,7 @@ const {
   'openVoiceEntityTts',
 ])
 
-const inboxFlowSummary = computed(
-  () => `${rules.value.length} 规则 · ${enabledVoiceAlertCount.value} 语音项`,
-)
+const inboxFlowSummary = computed(() => `${rules.value.length} 规则 · ${enabledVoiceAlertCount.value} 语音项`)
 </script>
 
 <style src="./styles/AlertRulesInboxSection.css"></style>

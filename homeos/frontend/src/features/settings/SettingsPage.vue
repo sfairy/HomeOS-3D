@@ -139,16 +139,7 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/loc
  * 系统设置页面 — 薄壳入口
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css
  */
-import {
-  computed,
-  nextTick,
-  ref,
-  watch,
-  defineAsyncComponent,
-  onMounted,
-  onBeforeUnmount,
-  onScopeDispose,
-} from 'vue'
+import { computed, nextTick, ref, watch, defineAsyncComponent, onMounted, onBeforeUnmount, onScopeDispose } from 'vue'
 import { PanelLeft, ChevronRight, Link2, KeyRound, LogOut } from '@lucide/vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
@@ -163,14 +154,7 @@ import {
 } from '@/composables/settings-kernel/pending.internals'
 import SettingsSidebar from './shared/layout/SettingsSidebar.vue'
 import SettingsOverviewStrip from './shared/layout/SettingsOverviewStrip.vue'
-import {
-  PANEL_MAP,
-  buildNavGroups,
-  resolveTab,
-  DEFAULT_TAB,
-  isValidSettingsTab,
-  INDEPENDENT_SAVE_TABS,
-} from './nav'
+import { PANEL_MAP, buildNavGroups, resolveTab, DEFAULT_TAB, isValidSettingsTab, INDEPENDENT_SAVE_TABS } from './nav'
 import { isTabFeatureGranted } from '@/shared/utils/registry/settings-nav.util'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import {
@@ -185,10 +169,7 @@ import {
 } from '@/composables/settings-kernel/pending.internals'
 import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
 import { countNavTabs, resolveNavTabContext } from './nav-search.util'
-import {
-  SETTINGS_KEEP_ALIVE_MAX,
-  SETTINGS_KEEP_ALIVE_INCLUDE,
-} from './keep-alive.util'
+import { SETTINGS_KEEP_ALIVE_MAX, SETTINGS_KEEP_ALIVE_INCLUDE } from './keep-alive.util'
 import { settingsPageShareUrl } from '@/shared/utils/registry/settings-route.util'
 import { recordSettingsTabVisit } from '@/shared/utils/registry/settings-recent-tabs.util'
 import { copyTextWithNotify } from '@/services/notify'
@@ -197,9 +178,7 @@ import './shared/settings-theme.css'
 
 const appVersion = pkg.version
 
-const ExitEditConfirmDialog = defineAsyncComponent(
-  () => import('@/components/common/ExitEditConfirmDialog.vue'),
-)
+const ExitEditConfirmDialog = defineAsyncComponent(() => import('@/components/common/ExitEditConfirmDialog.vue'))
 
 // 同步引入而不是 defineAsyncComponent：侧栏账号条是一进来就可见的，
 // 异步组件的模板 ref 要等解析完成才拿得到 open()，会让第一次点击落空。
@@ -234,8 +213,7 @@ const reopenButtonRef = ref(null)
 
 // 900px 以下侧栏改为覆盖式抽屉：固定 260px 侧栏会把主内容压到约 130px，
 // 而手动折叠状态来自 localStorage，首次进入窄屏时不会自动收起。
-const compactMediaQuery =
-  typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
+const compactMediaQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
 const isCompactSettings = ref(compactMediaQuery?.matches ?? false)
 const compactNavOpen = ref(false)
 
@@ -321,9 +299,7 @@ const navGroups = computed(() => buildNavGroups(licenseFeatureAccess.value))
 const showSettingsNav = computed(() => countNavTabs(navGroups.value) >= 1)
 
 const isNavHidden = computed(
-  () =>
-    showSettingsNav.value &&
-    (isCompactSettings.value ? !compactNavOpen.value : sidebarCollapsed.value),
+  () => showSettingsNav.value && (isCompactSettings.value ? !compactNavOpen.value : sidebarCollapsed.value),
 )
 
 const resolvedTab = computed(() => {
@@ -441,11 +417,11 @@ function hasUnsavedForCurrentTab() {
 
 async function confirmLeaveIfDirty() {
   if (!hasUnsavedSettingsChanges()) return true
-  return chrome.confirm(
-    `${describeUnsavedChanges()}离开后这些修改将丢失。确定要离开吗？`,
-    '未保存的更改',
-    { type: 'danger', confirmText: '离开', cancelText: '留在此页' },
-  )
+  return chrome.confirm(`${describeUnsavedChanges()}离开后这些修改将丢失。确定要离开吗？`, '未保存的更改', {
+    type: 'danger',
+    confirmText: '离开',
+    cancelText: '留在此页',
+  })
 }
 
 async function confirmLeaveCurrentTabIfDirty() {
@@ -609,7 +585,6 @@ watch(
   },
   { immediate: true },
 )
-
 
 const hasReconnected = ref(false)
 watch(

@@ -3,13 +3,23 @@
  * @module frontend/src/views
  */
 /** 收藏 Hub */
-import { countQuickActionBatteryLow, countQuickActionClimateActive, countQuickActionDomainActive, countQuickActionLightsOn, countQuickActionOffline } from '@/composables/device/group-counts.util'
+import {
+  countQuickActionBatteryLow,
+  countQuickActionClimateActive,
+  countQuickActionDomainActive,
+  countQuickActionLightsOn,
+  countQuickActionOffline,
+} from '@/composables/device/group-counts.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { buildFavoritesRecommendations } from '@/shared/recommend/utils/favorites-recommend.util'
 import type { FavoriteCategoryMeta } from '@/shared/utils/registry/favorites-categories.config'
-import { FAVORITE_CATEGORIES, FAVORITE_CATEGORY_GROUPS, FAVORITE_CATEGORY_MAP } from '@/shared/utils/registry/favorites-categories.config'
+import {
+  FAVORITE_CATEGORIES,
+  FAVORITE_CATEGORY_GROUPS,
+  FAVORITE_CATEGORY_MAP,
+} from '@/shared/utils/registry/favorites-categories.config'
 import { computed, ref } from 'vue'
 
 type QuickActionEntities = Parameters<typeof countQuickActionLightsOn>[0]
@@ -139,17 +149,13 @@ export function useFavoritesHub() {
     return categoryViews.value
   })
 
-  const totalFavoriteCount = computed(() =>
-    categoryViews.value.reduce((sum, cat) => sum + cat.count, 0),
-  )
+  const totalFavoriteCount = computed(() => categoryViews.value.reduce((sum, cat) => sum + cat.count, 0))
 
   const configuredCategoryCount = computed(
     () => categoryViews.value.filter((categoryView) => categoryView.configured).length,
   )
 
-  const completionPct = computed(() =>
-    Math.round((configuredCategoryCount.value / FAVORITE_CATEGORIES.length) * 100),
-  )
+  const completionPct = computed(() => Math.round((configuredCategoryCount.value / FAVORITE_CATEGORIES.length) * 100))
 
   const recommendations = computed(() =>
     buildFavoritesRecommendations({
@@ -189,4 +195,3 @@ export function useFavoritesHub() {
     categoryGroupSummary: Object.values(FAVORITE_CATEGORY_GROUPS).join(' · '),
   }
 }
-

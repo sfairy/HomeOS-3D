@@ -1,4 +1,3 @@
-
 /**
  * 商店前台的 API 错误口径（HTTP 层与视图共用）：把失败响应翻成人话，并把 `retryAfter` 提示统一。
  *
@@ -11,7 +10,6 @@ type DetailEntry = {
   message?: unknown;
 };
 
-
 function describeEntry(entry: unknown): string {
   if (typeof entry === "string") return entry;
   if (!entry || typeof entry !== "object") return "取值不合法";
@@ -19,7 +17,7 @@ function describeEntry(entry: unknown): string {
   const field = Array.isArray(record.loc)
     ? record.loc.filter((part) => part !== "body" && part !== "query").join(".")
     : "";
-  const reason = (record.msg || record.message) || "取值不合法";
+  const reason = record.msg || record.message || "取值不合法";
   return field ? `参数 ${field}：${reason}` : String(reason);
 }
 
@@ -85,16 +83,9 @@ export function withRetryHint(message: string, retryAfter?: number): string {
   return `${message}（请 ${wait}后重试）`;
 }
 
-
-export function fromResponse(
-  response: Response,
-  data: unknown,
-  fallback?: string,
-): ApiError {
+export function fromResponse(response: Response, data: unknown, fallback?: string): ApiError {
   const detail =
-    data && typeof data === "object" && "detail" in data
-      ? (data as { detail?: unknown }).detail
-      : undefined;
+    data && typeof data === "object" && "detail" in data ? (data as { detail?: unknown }).detail : undefined;
   const error = new Error(describe(detail, fallback)) as ApiError;
   error.status = response.status;
   error.payload = data;

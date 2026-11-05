@@ -61,9 +61,7 @@ const deployScripts = computed<Array<{ label: string; command: string }>>(() => 
   const scripts = (site.configuration?.store as { deployScripts?: unknown } | undefined)?.deployScripts;
   return Array.isArray(scripts) ? (scripts as Array<{ label: string; command: string }>) : [];
 });
-const addonOffers = computed(() =>
-  session.hasPermanentLicense ? catalog.availableAddonProducts : [],
-);
+const addonOffers = computed(() => (session.hasPermanentLicense ? catalog.availableAddonProducts : []));
 const moreOrders = computed(() => session.ordersTotal - session.ordersLoaded);
 
 function activationCode(item: StoreLicense) {
@@ -90,25 +88,20 @@ function licenseTitle(item: StoreLicense, index: number) {
 
 function licensePeriod(item: StoreLicense) {
   if (!item.accessExpiresAt) return item.validityDays ? `${item.validityDays} 天` : "永久授权";
-  const start = item.accessStartedAt
-    ? new Date(String(item.accessStartedAt)).toLocaleDateString("zh-CN")
-    : "发卡日";
+  const start = item.accessStartedAt ? new Date(String(item.accessStartedAt)).toLocaleDateString("zh-CN") : "发卡日";
   const end = new Date(String(item.accessExpiresAt)).toLocaleDateString("zh-CN");
   return `${start} 至 ${end}`;
 }
 
 function entitlementStatus(item: Record<string, unknown>) {
-  const expired =
-    Boolean(item.expiresAt) && new Date(String(item.expiresAt)) <= new Date();
+  const expired = Boolean(item.expiresAt) && new Date(String(item.expiresAt)) <= new Date();
   if (!item.active) return "已停用";
   return expired ? "已到期" : "有效";
 }
 
 function entitlementTarget(item: Record<string, unknown>) {
   const target = licenses.value.find((license) => license.activationCodeId === item.licenseId);
-  return target
-    ? `${target.userLabel || target.productName} · 激活码尾号 ${target.codeHint}`
-    : "原主授权";
+  return target ? `${target.userLabel || target.productName} · 激活码尾号 ${target.codeHint}` : "原主授权";
 }
 
 function orderStatusLabel(item: StoreOrder) {
@@ -124,9 +117,7 @@ function orderCountdown(item: StoreOrder) {
 function policyDeadlineMs(policy: NonNullable<StoreLicense["deviceReleasePolicy"]>): number | null {
   if (policy.nextAllowedAt != null && policy.nextAllowedAt !== "") {
     const parsed =
-      typeof policy.nextAllowedAt === "number"
-        ? policy.nextAllowedAt
-        : Date.parse(String(policy.nextAllowedAt));
+      typeof policy.nextAllowedAt === "number" ? policy.nextAllowedAt : Date.parse(String(policy.nextAllowedAt));
     if (Number.isFinite(parsed)) return parsed;
   }
   if (policy.lastReleasedAt && policy.cooldownSeconds) {
@@ -160,9 +151,7 @@ const releaseSeconds = computed(() => {
 
 const releaseWaitText = computed(() => {
   const remaining = releaseSeconds.value;
-  return remaining > 0
-    ? `这份授权还需等待 ${formatReleaseWait(remaining)}。`
-    : "这份授权当前可以解绑。";
+  return remaining > 0 ? `这份授权还需等待 ${formatReleaseWait(remaining)}。` : "这份授权当前可以解绑。";
 });
 
 async function refresh() {
@@ -183,9 +172,7 @@ const tickerNeeded = computed(() => {
   if (releaseLicense.value) return true;
   return session.orders.some(
     (item) =>
-      item.status === "pending" &&
-      Boolean(item.expiresAt) &&
-      new Date(String(item.expiresAt)).getTime() > now.value,
+      item.status === "pending" && Boolean(item.expiresAt) && new Date(String(item.expiresAt)).getTime() > now.value,
   );
 });
 

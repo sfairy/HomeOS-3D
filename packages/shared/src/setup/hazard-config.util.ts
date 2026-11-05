@@ -6,23 +6,23 @@
  * 危险传感器类别字面量联合：smoke（烟感）/ gas（燃气）/ leak（水浸）。
  * 与 hazardSmokeEntityIds / hazardGasEntityIds / hazardLeakEntityIds 三个复数数组字段一一对应。
  */
-export type HazardSensorKind = 'smoke' | 'gas' | 'leak';
+export type HazardSensorKind = 'smoke' | 'gas' | 'leak'
 
 /**
  * 三类危险传感器的绑定汇总结果（entityId 字符串数组）。
  * 由 collectHazardBindingSummary 从 haConfig 复数数组字段解析得到，用于绑定展示与后续冲突检测。
  */
 export interface HazardBindingSummary {
-  smoke: string[]; /** 烟感实体 ID 列表 */
-  gas: string[];   /** 燃气实体 ID 列表 */
-  leak: string[];  /** 水浸实体 ID 列表 */
+  smoke: string[] /** 烟感实体 ID 列表 */
+  gas: string[] /** 燃气实体 ID 列表 */
+  leak: string[] /** 水浸实体 ID 列表 */
 }
 
 const HAZARD_BINDING_FIELDS: Array<{ kind: HazardSensorKind; plural: string }> = [
   { kind: 'smoke', plural: 'hazardSmokeEntityIds' },
   { kind: 'gas', plural: 'hazardGasEntityIds' },
   { kind: 'leak', plural: 'hazardLeakEntityIds' },
-];
+]
 
 /**
  * 从 haConfig 中解析指定复数数组字段（如 hazardSmokeEntityIds）为去空 trim 后的 entityId 列表。
@@ -35,10 +35,10 @@ export function parseHazardEntityIdList(
   haConfig: Record<string, unknown> | null | undefined,
   pluralKey: string,
 ): string[] {
-  const ha = haConfig || {};
-  const raw = ha[pluralKey];
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item) => String(item ?? '').trim()).filter(Boolean);
+  const ha = haConfig || {}
+  const raw = ha[pluralKey]
+  if (!Array.isArray(raw)) return []
+  return raw.map((item) => String(item ?? '').trim()).filter(Boolean)
 }
 
 /**
@@ -50,11 +50,11 @@ export function parseHazardEntityIdList(
 export function collectHazardBindingSummary(
   haConfig: Record<string, unknown> | null | undefined,
 ): HazardBindingSummary {
-  const summary: HazardBindingSummary = { smoke: [], gas: [], leak: [] };
+  const summary: HazardBindingSummary = { smoke: [], gas: [], leak: [] }
   for (const field of HAZARD_BINDING_FIELDS) {
-    summary[field.kind] = parseHazardEntityIdList(haConfig, field.plural);
+    summary[field.kind] = parseHazardEntityIdList(haConfig, field.plural)
   }
-  return summary;
+  return summary
 }
 
 /**
@@ -66,12 +66,12 @@ export function collectHazardBindingSummary(
 export function buildHazardBindingMap(
   haConfig: Record<string, unknown> | null | undefined,
 ): Map<string, HazardSensorKind> {
-  const map = new Map<string, HazardSensorKind>();
-  const summary = collectHazardBindingSummary(haConfig);
-  for (const id of summary.smoke) map.set(id, 'smoke');
-  for (const id of summary.gas) map.set(id, 'gas');
-  for (const id of summary.leak) map.set(id, 'leak');
-  return map;
+  const map = new Map<string, HazardSensorKind>()
+  const summary = collectHazardBindingSummary(haConfig)
+  for (const id of summary.smoke) map.set(id, 'smoke')
+  for (const id of summary.gas) map.set(id, 'gas')
+  for (const id of summary.leak) map.set(id, 'leak')
+  return map
 }
 
 /**
@@ -80,11 +80,9 @@ export function buildHazardBindingMap(
  * @param haConfig HA 配置 Record
  * @returns 任一类非空返回 true；全部空或 null 配置返回 false
  */
-export function hasAnyHazardSensorBinding(
-  haConfig: Record<string, unknown> | null | undefined,
-): boolean {
-  const summary = collectHazardBindingSummary(haConfig);
-  return summary.smoke.length > 0 || summary.gas.length > 0 || summary.leak.length > 0;
+export function hasAnyHazardSensorBinding(haConfig: Record<string, unknown> | null | undefined): boolean {
+  const summary = collectHazardBindingSummary(haConfig)
+  return summary.smoke.length > 0 || summary.gas.length > 0 || summary.leak.length > 0
 }
 
 /**
@@ -93,15 +91,13 @@ export function hasAnyHazardSensorBinding(
  * @param haConfig HA 配置 Record
  * @returns 拼接后的中文摘要串；完全未绑定时返回空字符串
  */
-export function formatHazardBindingSummaryText(
-  haConfig: Record<string, unknown> | null | undefined,
-): string {
-  const summary = collectHazardBindingSummary(haConfig);
-  const parts: string[] = [];
-  if (summary.smoke.length) parts.push(`烟感 ${summary.smoke.length}`);
-  if (summary.gas.length) parts.push(`燃气 ${summary.gas.length}`);
-  if (summary.leak.length) parts.push(`水浸 ${summary.leak.length}`);
-  return parts.join('、');
+export function formatHazardBindingSummaryText(haConfig: Record<string, unknown> | null | undefined): string {
+  const summary = collectHazardBindingSummary(haConfig)
+  const parts: string[] = []
+  if (summary.smoke.length) parts.push(`烟感 ${summary.smoke.length}`)
+  if (summary.gas.length) parts.push(`燃气 ${summary.gas.length}`)
+  if (summary.leak.length) parts.push(`水浸 ${summary.leak.length}`)
+  return parts.join('、')
 }
 
 /**
@@ -116,27 +112,27 @@ export function formatHazardBindingSummaryText(
  * @returns 完整中文消息字符串；至少包含「传感器触发告警」级别文本
  */
 export function formatSecurityAlarmMessage(data: {
-  friendlyName?: string;
-  entityId?: string;
-  zoneNames?: string;
-  message?: string;
-  type?: string;
-  actionFailures?: string[];
+  friendlyName?: string
+  entityId?: string
+  zoneNames?: string
+  message?: string
+  type?: string
+  actionFailures?: string[]
 }): string {
-  const name = data.friendlyName || data.entityId || '传感器';
-  let base: string;
-  if (data.type === 'smoke') base = `烟雾告警：${name} 检测到烟雾，请立即检查`;
-  else if (data.type === 'gas_leak') base = `燃气泄漏：${name} 触发告警，请立即通风并检查燃气阀`;
-  else if (data.type === 'water_leak') base = `漏水告警：${name} 检测到漏水，水阀已尝试自动关闭`;
-  else if (data.message) base = data.message;
+  const name = data.friendlyName || data.entityId || '传感器'
+  let base: string
+  if (data.type === 'smoke') base = `烟雾告警：${name} 检测到烟雾，请立即检查`
+  else if (data.type === 'gas_leak') base = `燃气泄漏：${name} 触发告警，请立即通风并检查燃气阀`
+  else if (data.type === 'water_leak') base = `漏水告警：${name} 检测到漏水，水阀已尝试自动关闭`
+  else if (data.message) base = data.message
   else {
-    const zone = data.zoneNames ? ` (${data.zoneNames})` : '';
-    base = `${name} 触发告警${zone}`;
+    const zone = data.zoneNames ? ` (${data.zoneNames})` : ''
+    base = `${name} 触发告警${zone}`
   }
   if (data.actionFailures?.length) {
-    base += `（联动失败：${data.actionFailures.join('、')}）`;
+    base += `（联动失败：${data.actionFailures.join('、')}）`
   }
-  return base;
+  return base
 }
 
 /**
@@ -144,8 +140,8 @@ export function formatSecurityAlarmMessage(data: {
  * 例如某 entityId 同时出现在 smoke 与 gas 数组中，会被本结构记录供设置页标红。
  */
 export interface HazardBindingConflict {
-  entityId: string;       /** 冲突的实体 ID */
-  kinds: HazardSensorKind[]; /** 该实体被重复绑定到的传感器类别（长度 ≥2） */
+  entityId: string /** 冲突的实体 ID */
+  kinds: HazardSensorKind[] /** 该实体被重复绑定到的传感器类别（长度 ≥2） */
 }
 
 /**
@@ -157,20 +153,20 @@ export interface HazardBindingConflict {
 export function detectHazardBindingConflicts(
   haConfig: Record<string, unknown> | null | undefined,
 ): HazardBindingConflict[] {
-  const summary = collectHazardBindingSummary(haConfig);
-  const kindByEntity = new Map<string, HazardSensorKind[]>();
+  const summary = collectHazardBindingSummary(haConfig)
+  const kindByEntity = new Map<string, HazardSensorKind[]>()
   for (const kind of ['smoke', 'gas', 'leak'] as HazardSensorKind[]) {
     for (const id of summary[kind]) {
-      const list = kindByEntity.get(id) || [];
-      list.push(kind);
-      kindByEntity.set(id, list);
+      const list = kindByEntity.get(id) || []
+      list.push(kind)
+      kindByEntity.set(id, list)
     }
   }
-  const conflicts: HazardBindingConflict[] = [];
+  const conflicts: HazardBindingConflict[] = []
   for (const [entityId, kinds] of kindByEntity) {
-    if (kinds.length > 1) conflicts.push({ entityId, kinds });
+    if (kinds.length > 1) conflicts.push({ entityId, kinds })
   }
-  return conflicts;
+  return conflicts
 }
 
 /**
@@ -179,40 +175,38 @@ export function detectHazardBindingConflicts(
  * @param haConfig HA 配置 Record
  * @returns 去重后的 entityId 字符串数组；可直接作为后端 WS 网关或 HTTP 接口的订阅集合
  */
-export function collectHazardWatchedEntityIds(
-  haConfig: Record<string, unknown> | null | undefined,
-): string[] {
-  const ha = haConfig || {};
-  const ids = new Set<string>();
-  const summary = collectHazardBindingSummary(ha);
+export function collectHazardWatchedEntityIds(haConfig: Record<string, unknown> | null | undefined): string[] {
+  const ha = haConfig || {}
+  const ids = new Set<string>()
+  const summary = collectHazardBindingSummary(ha)
   for (const list of [summary.smoke, summary.gas, summary.leak]) {
-    for (const id of list) ids.add(id);
+    for (const id of list) ids.add(id)
   }
-  const gasValve = String(ha.hazardGasValveEntityId ?? '').trim();
-  const waterValve = String(ha.hazardWaterValveEntityId ?? '').trim();
-  if (gasValve) ids.add(gasValve);
-  if (waterValve) ids.add(waterValve);
+  const gasValve = String(ha.hazardGasValveEntityId ?? '').trim()
+  const waterValve = String(ha.hazardWaterValveEntityId ?? '').trim()
+  if (gasValve) ids.add(gasValve)
+  if (waterValve) ids.add(waterValve)
   const fans = String(ha.hazardExhaustFanEntityIds ?? '')
     .split(/[,;\s]+/)
     .map((s) => s.trim())
-    .filter(Boolean);
-  for (const fan of fans) ids.add(fan);
-  return [...ids];
+    .filter(Boolean)
+  for (const fan of fans) ids.add(fan)
+  return [...ids]
 }
 
 /**
  * 危险传感器告警联动动作类别：close_valve（关闭燃气/水阀）/ open_exhaust（开启排风扇）。
  * 与 HazardActionResult.ok 组合使用，用于报告联动成功/失败明细。
  */
-export type HazardActionKind = 'close_valve' | 'open_exhaust';
+export type HazardActionKind = 'close_valve' | 'open_exhaust'
 
 /**
  * 单次危险传感器联动动作的执行结果（关阀或排风），供 summarizeHazardActionFailures 汇总后附加到告警消息。
  */
 export interface HazardActionResult {
-  target: string;           /** 目标实体 ID 或标签（humanize 后展示） */
-  action: HazardActionKind; /** 联动动作类别：关阀 / 排风 */
-  ok: boolean;              /** 本次调用是否成功；false 时计入失败列表 */
+  target: string /** 目标实体 ID 或标签（humanize 后展示） */
+  action: HazardActionKind /** 联动动作类别：关阀 / 排风 */
+  ok: boolean /** 本次调用是否成功；false 时计入失败列表 */
 }
 
 /**
@@ -222,7 +216,5 @@ export interface HazardActionResult {
  * @returns 失败项的中文描述；无失败时返回空数组（可直接拼接到 formatSecurityAlarmMessage.actionFailures）
  */
 export function summarizeHazardActionFailures(results: HazardActionResult[]): string[] {
-  return results
-    .filter((r) => !r.ok)
-    .map((r) => `${r.target}(${r.action === 'close_valve' ? '关阀' : '排风'})`);
+  return results.filter((r) => !r.ok).map((r) => `${r.target}(${r.action === 'close_valve' ? '关阀' : '排风'})`)
 }

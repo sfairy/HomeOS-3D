@@ -6,4 +6,4 @@
  * 元数据模块就会与 home.ts 形成**循环 import**（顶层求值期读 TDZ 常量必炸）。
  * 提到这里后，home.ts 与元数据模块都单向依赖它。
  */
-export const DEFAULT_PERSPECTIVE_CORNERS = Object.freeze([0, 0, 1, 0, 1, 1, 0, 1]);
+export const DEFAULT_PERSPECTIVE_CORNERS = Object.freeze([0, 0, 1, 0, 1, 1, 0, 1])

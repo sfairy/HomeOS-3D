@@ -3,10 +3,7 @@
  * @module frontend/src/composables/energy
  */
 import { ref, computed, watch, type ComputedRef } from 'vue'
-import {
-  resolveAccountEntityIds,
-  normalizeEnergySource,
-} from '@/shared/energy/utils/source.util'
+import { resolveAccountEntityIds, normalizeEnergySource } from '@/shared/energy/utils/source.util'
 import { readPopupField } from '@/shared/energy/utils/popup-read.util'
 import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/shared/energy'
 import type { UtilityMeterParsedItem } from '@/shared/energy'
@@ -59,9 +56,7 @@ export function createUtilityMeterAccountState(opts: {
     },
     { immediate: true },
   )
-  const sourceCfg = computed(() =>
-    normalizeEnergySource(layout.layoutConfig.statsSensors, sourceKey),
-  )
+  const sourceCfg = computed(() => normalizeEnergySource(layout.layoutConfig.statsSensors, sourceKey))
   function accountLabel(eid: string) {
     const fromConfig = resolveAccountLabelForEntityId(sourceKey, eid, sourceCfg.value)
     if (fromConfig) return fromConfig
@@ -153,12 +148,10 @@ export function createUtilityMeterLists(opts: {
     () => parseJsonAttr(popField('daylist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'daylist')),
   )
   const rawMonthlist = computed(
-    () =>
-      parseJsonAttr(popField('monthlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'monthlist')),
+    () => parseJsonAttr(popField('monthlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'monthlist')),
   )
   const rawYearlist = computed(
-    () =>
-      parseJsonAttr(popField('yearlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'yearlist')),
+    () => parseJsonAttr(popField('yearlist')) ?? parseJsonAttr(readPopupAttr(ent.value, 'yearlist')),
   )
   const daylist = computed(() => {
     const d = rawDaylist.value
@@ -185,16 +178,18 @@ export function createUtilityMeterLists(opts: {
   const exp = ref(false)
   const expTab = ref('day')
   const listForTab = () =>
-    expTab.value === 'day'
-      ? daylist.value
-      : expTab.value === 'month'
-        ? monthlist.value
-        : yearlist.value
-  const curList = computed(() =>
-    listForTab().map((d) => ({ ...d, _usage: d._usageStr, _cost: d._costStr })),
+    expTab.value === 'day' ? daylist.value : expTab.value === 'month' ? monthlist.value : yearlist.value
+  const curList = computed(() => listForTab().map((d) => ({ ...d, _usage: d._usageStr, _cost: d._costStr })))
+  const sumUsage = computed(() =>
+    listForTab()
+      .reduce((s, x) => s + x._usage, 0)
+      .toFixed(1),
   )
-  const sumUsage = computed(() => listForTab().reduce((s, x) => s + x._usage, 0).toFixed(1))
-  const sumCost = computed(() => listForTab().reduce((s, x) => s + x._cost, 0).toFixed(2))
+  const sumCost = computed(() =>
+    listForTab()
+      .reduce((s, x) => s + x._cost, 0)
+      .toFixed(2),
+  )
   const summaryLabel = computed(() => {
     if (expTab.value === 'day') return `近${daylist.value.length}天合计:`
     if (expTab.value === 'month') return `近${monthlist.value.length}月合计:`

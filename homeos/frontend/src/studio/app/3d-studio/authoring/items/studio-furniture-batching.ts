@@ -1,169 +1,172 @@
-import { mergeGeometries } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
-import { buildStaticMaterialKey } from "../../materials/studio-static-material-key";
-import { nextBatchItemTypeSet } from "./item-catalog";
-import * as threeModuleMin from "/static/vendor/three/0.187.0/three.module.min.js";
+import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
+import { buildStaticMaterialKey } from '../../materials/studio-static-material-key'
+import { nextBatchItemTypeSet } from './item-catalog'
+import * as threeModuleMin from '/static/vendor/three/0.187.0/three.module.min.js'
 const indexCompactionTypeSet = new Set([
-    "rectangular-pipeline-dispenser",
-    "loft-bed-circle",
-    "entryway-niche-cabinet",
-    "arched-glass-console",
-    "double-open-wardrobe",
-    "drawer-chest",
-    "bunk-bed",
-    "wardrobe",
-    "office-chair",
-    "router",
-    "humidifier",
-    "dehumidifier",
-    "heater",
-    "pool-table",
-    "tea-table-set",
-    "bed",
-    "chair",
-    "coffeetable",
-    "rounddiningtable",
-    "rounddiningtable_turntable",
-    "sofa",
-    "squarecoffeetable",
-    "table",
-    "tvstand",
+    'rectangular-pipeline-dispenser',
+    'loft-bed-circle',
+    'entryway-niche-cabinet',
+    'arched-glass-console',
+    'double-open-wardrobe',
+    'drawer-chest',
+    'bunk-bed',
+    'wardrobe',
+    'office-chair',
+    'router',
+    'humidifier',
+    'dehumidifier',
+    'heater',
+    'pool-table',
+    'tea-table-set',
+    'bed',
+    'chair',
+    'coffeetable',
+    'rounddiningtable',
+    'rounddiningtable_turntable',
+    'sofa',
+    'squarecoffeetable',
+    'table',
+    'tvstand',
   ]),
   batchableFurnitureTypeSet = new Set([
-    "rectangular-pipeline-dispenser",
-    "loft-bed-circle",
-    "entryway-niche-cabinet",
-    "arched-glass-console",
-    "double-open-wardrobe",
-    "drawer-chest",
-    "steelstairs",
-    "tea_bar_machine",
-    "pipelinewaterpurifier",
-    "bunk-bed",
-    "wardrobe",
-    "office-chair",
-    "router",
-    "humidifier",
-    "dehumidifier",
-    "heater",
-    "pool-table",
-    "tea-table-set",
-    "bed",
-    "coffeetable",
-    "rounddiningtable",
-    "rounddiningtable_turntable",
-    "squarecoffeetable",
-    "table",
-    "plant",
-    "nightstand",
-    "vanity",
-    "desk",
-    "bookcase",
-    "piano",
-    "bar",
-    "sideboard",
-    "shoecabinet",
-    "cabinet",
-    "glasscabinet",
-    "shelf",
-    "wallcabinet",
-    "kitchenbase",
-    "kitchensink",
-    "kitchencooktop",
-    "basin",
-    "toilet",
-    "squattoilet",
-    "urinal",
-    "shower",
-    "bathtub",
-    "floorac",
-    "airpurifier",
-    "fridge",
-    "freezer",
-    "rangehood",
-    "dishwasher",
-    "steamoven",
-    "microwave",
-    "ricecooker",
-    "washer",
-    "dryer",
-    "desktop",
-    "laptop",
+    'rectangular-pipeline-dispenser',
+    'loft-bed-circle',
+    'entryway-niche-cabinet',
+    'arched-glass-console',
+    'double-open-wardrobe',
+    'drawer-chest',
+    'steelstairs',
+    'tea_bar_machine',
+    'pipelinewaterpurifier',
+    'bunk-bed',
+    'wardrobe',
+    'office-chair',
+    'router',
+    'humidifier',
+    'dehumidifier',
+    'heater',
+    'pool-table',
+    'tea-table-set',
+    'bed',
+    'coffeetable',
+    'rounddiningtable',
+    'rounddiningtable_turntable',
+    'squarecoffeetable',
+    'table',
+    'plant',
+    'nightstand',
+    'vanity',
+    'desk',
+    'bookcase',
+    'piano',
+    'bar',
+    'sideboard',
+    'shoecabinet',
+    'cabinet',
+    'glasscabinet',
+    'shelf',
+    'wallcabinet',
+    'kitchenbase',
+    'kitchensink',
+    'kitchencooktop',
+    'basin',
+    'toilet',
+    'squattoilet',
+    'urinal',
+    'shower',
+    'bathtub',
+    'floorac',
+    'airpurifier',
+    'fridge',
+    'freezer',
+    'rangehood',
+    'dishwasher',
+    'steamoven',
+    'microwave',
+    'ricecooker',
+    'washer',
+    'dryer',
+    'desktop',
+    'laptop',
     // approved external models（排除 kitchen-island，保留原 kitchenisland）
-    "ceiling-fan",
-    "table-lamp",
-    "up-down-wall-lamp",
-    "smart-display",
-    "smart-display-wall",
-    "ps5",
-    "switch-console",
-    "xbox-series-x",
-    "arcade-machine",
-    "3d-printer",
-    "water-purifier",
-    "disinfection-cabinet",
-    "electric-valve",
-    "single-rail-rack",
-    "drying-rack",
-    "home-network-cabinet",
-    "coat-rack",
-    "baby-crib",
-    "child-highchair",
-    "rocking-horse",
-    "rocking-chair",
-    "cat-tree",
-    "pet-bed-bowls",
-    "pet-dryer",
-    "treadmill",
-    "elliptical",
-    "dumbbell-rack",
-    "yoga-set",
-    "mahjong-table",
-    "ping-pong-table",
-    "drum-kit",
-    "keyboard-stand",
-    "guitar-stand",
-    "cello-stand",
-    "wall-art",
-    "wall-clock",
-    "full-length-mirror",
-    "round-rug",
-    "side-table",
-    "bar-stool",
-    "trash-bin",
-    "storage-box",
-    "storage-cart",
-    "laundry-basket",
-    "aroma-diffuser",
-    "desktop-frame",
-    "easel-board",
-    "bicycle-rack",
-    "dartboard",
+    'ceiling-fan',
+    'table-lamp',
+    'up-down-wall-lamp',
+    'smart-display',
+    'smart-display-wall',
+    'ps5',
+    'switch-console',
+    'xbox-series-x',
+    'arcade-machine',
+    '3d-printer',
+    'water-purifier',
+    'disinfection-cabinet',
+    'electric-valve',
+    'single-rail-rack',
+    'drying-rack',
+    'home-network-cabinet',
+    'coat-rack',
+    'baby-crib',
+    'child-highchair',
+    'rocking-horse',
+    'rocking-chair',
+    'cat-tree',
+    'pet-bed-bowls',
+    'pet-dryer',
+    'treadmill',
+    'elliptical',
+    'dumbbell-rack',
+    'yoga-set',
+    'mahjong-table',
+    'ping-pong-table',
+    'drum-kit',
+    'keyboard-stand',
+    'guitar-stand',
+    'cello-stand',
+    'wall-art',
+    'wall-clock',
+    'full-length-mirror',
+    'round-rug',
+    'side-table',
+    'bar-stool',
+    'trash-bin',
+    'storage-box',
+    'storage-cart',
+    'laundry-basket',
+    'aroma-diffuser',
+    'desktop-frame',
+    'easel-board',
+    'bicycle-rack',
+    'dartboard',
     // 0.8.0 柜体变体 + 排气扇（排气扇只有外壳进批，转子由 `interactionDynamicPart` 豁免）
-    "wardrobe-two-section",
-    "cabinet-two-section",
-    "slim-recessed-cabinet",
-    "exhaust-fan",
-  ]);
+    'wardrobe-two-section',
+    'cabinet-two-section',
+    'slim-recessed-cabinet',
+    'exhaust-fan',
+  ])
 export function compactFurnitureIndices(three: any, templateRoot: any, furnitureType: any) {
   indexCompactionTypeSet.has(furnitureType) &&
     templateRoot?.traverse?.((mesh: any) => {
       const meshGeometry = mesh.geometry,
-        geometryIndex = meshGeometry?.index;
+        geometryIndex = meshGeometry?.index
       geometryIndex?.array instanceof Uint32Array &&
         meshGeometry.attributes.position.count <= 65536 &&
-        meshGeometry.setIndex(new three.BufferAttribute(new Uint16Array(geometryIndex.array), 1));
-    });
+        meshGeometry.setIndex(new three.BufferAttribute(new Uint16Array(geometryIndex.array), 1))
+    })
 }
 export function createFurnitureBatchCache(threeApi: any, { geometryCache: geometryCache = null }: any = {}) {
   let batchCacheByModel = new WeakMap(),
     geometrySignatureByGeometry = new WeakMap(),
-    modelGeometrySetByModel = new WeakMap();
-  const disposableResourceSet = new Set<{ dispose: () => void }>();
+    modelGeometrySetByModel = new WeakMap()
+  const disposableResourceSet = new Set<{ dispose: () => void }>()
   /** 几何体批量缓存的签名：属性引用/版本/groups 变了就换一代，能命中才复用上次合并结果。 */
   function describeGeometrySignature(geometry: any) {
     const identityState: any[] = [],
-      attributeSignatures: any[] = [];
-    for (const [attributeName, attribute] of [["index", geometry.index], ...Object.entries(geometry.attributes).sort()]) {
+      attributeSignatures: any[] = []
+    for (const [attributeName, attribute] of [
+      ['index', geometry.index],
+      ...Object.entries(geometry.attributes).sort(),
+    ]) {
       const attributeSignature = [
         attributeName,
         attribute?.version,
@@ -174,21 +177,21 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
         attribute?.array?.constructor.name,
         attribute?.offset,
         attribute?.data?.stride,
-      ];
-      (identityState.push(attribute, attribute?.array, attribute?.data, ...attributeSignature),
-        attributeSignatures.push(attributeSignature));
+      ]
+      identityState.push(attribute, attribute?.array, attribute?.data, ...attributeSignature),
+        attributeSignatures.push(attributeSignature)
     }
-    identityState.push(geometry.drawRange.start, geometry.drawRange.count);
-    for (const group of geometry.groups) identityState.push(group.start, group.count, group.materialIndex);
-    const cachedSignature = geometrySignatureByGeometry.get(geometry);
+    identityState.push(geometry.drawRange.start, geometry.drawRange.count)
+    for (const group of geometry.groups) identityState.push(group.start, group.count, group.materialIndex)
+    const cachedSignature = geometrySignatureByGeometry.get(geometry)
     if (
       cachedSignature &&
       cachedSignature.state.length === identityState.length &&
       identityState.every((identityValue, index) => identityValue === cachedSignature.state[index])
     )
-      return cachedSignature.key;
+      return cachedSignature.key
     const generation = cachedSignature ? cachedSignature.generation + 1 : 0,
-      signatureKey = [geometry.uuid, generation, attributeSignatures, geometry.groups, geometry.drawRange];
+      signatureKey = [geometry.uuid, generation, attributeSignatures, geometry.groups, geometry.drawRange]
     return (
       geometrySignatureByGeometry.set(geometry, {
         state: identityState,
@@ -196,13 +199,14 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
         generation: generation,
       }),
       signatureKey
-    );
+    )
   }
   /** 把一组网格记录压成几何缓存参数（几何/材质各自去重成索引，再带上世界矩阵）。 */
   function batchGeometryCacheArgs(modelType: any, shouldTintVertices: any, meshRecords: any) {
     const geometryIndexByKey = new Map(),
       materialIndexByKey = new Map(),
-      recordArgs = meshRecords.map((sourceRecord: any) => (
+      recordArgs = meshRecords.map(
+        (sourceRecord: any) => (
           geometryIndexByKey.has(sourceRecord.geometryKey) ||
             geometryIndexByKey.set(sourceRecord.geometryKey, geometryIndexByKey.size),
           materialIndexByKey.has(sourceRecord.exact) ||
@@ -212,28 +216,23 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
             materialIndexByKey.get(sourceRecord.exact),
             sourceRecord.matrix.elements,
           ]
-        ));
-    return [
-      modelType,
-      shouldTintVertices,
-      [...geometryIndexByKey.keys()],
-      [...materialIndexByKey.keys()],
-      recordArgs,
-    ];
+        ),
+      )
+    return [modelType, shouldTintVertices, [...geometryIndexByKey.keys()], [...materialIndexByKey.keys()], recordArgs]
   }
   /** 只有当所有源几何体都还挂在这个模型上时，才敢用几何缓存（否则矩阵/几何对不上）。 */
   function canUseGeometryCache(loadedModel: any, meshRecords: any) {
-    if (!geometryCache || !loadedModel.source?.traverse) return false;
-    let geometrySet = modelGeometrySetByModel.get(loadedModel);
+    if (!geometryCache || !loadedModel.source?.traverse) return false
+    let geometrySet = modelGeometrySetByModel.get(loadedModel)
     return (
       geometrySet ||
         ((geometrySet = new Set()),
         loadedModel.source.traverse((sourceNode: any) => {
-          sourceNode.geometry && geometrySet.add(sourceNode.geometry);
+          sourceNode.geometry && geometrySet.add(sourceNode.geometry)
         }),
         modelGeometrySetByModel.set(loadedModel, geometrySet)),
       meshRecords.every((sourceRecord: any) => geometrySet.has(sourceRecord.object.geometry))
-    );
+    )
   }
   function prepareBatches(
     modelClone: any,
@@ -242,28 +241,28 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
     staticMaterialKey: any,
     shouldTintVertices = true,
   ) {
-    if (!batchableFurnitureTypeSet.has(modelType) || !staticMaterialKey) return false;
-    modelClone.updateMatrixWorld(true);
+    if (!batchableFurnitureTypeSet.has(modelType) || !staticMaterialKey) return false
+    modelClone.updateMatrixWorld(true)
     const modelInverseMatrix = modelClone.matrixWorld.clone().invert(),
       meshRecords: any = [],
       seenMaterialKeySet = new Set(),
-      materialKeyCache = new WeakMap();
-    let hasDuplicateMaterialKey = false;
+      materialKeyCache = new WeakMap()
+    let hasDuplicateMaterialKey = false
     if (
       (modelClone.traverse((childMesh: any) => {
-        if (!childMesh.isMesh) return;
+        if (!childMesh.isMesh) return
         const exactMaterialKey = staticMaterialKey(childMesh, false, false, materialKeyCache),
           tintedMaterialKey = shouldTintVertices
             ? staticMaterialKey(childMesh, false, true, materialKeyCache)
-            : exactMaterialKey;
+            : exactMaterialKey
         for (let ancestorNode = childMesh; ancestorNode; ancestorNode = ancestorNode.parent) {
-          if (!ancestorNode.visible) return;
+          if (!ancestorNode.visible) return
           /**
            * 动态部件守卫：吊扇 / 排气扇的转子子树打了 `interactionDynamicPart`，
            * 它们必须留在模型树里逐帧旋转。合批会把源网格 `removeFromParent()` 后挂到
            * 模型根上（下面的 `batchDescriptors` 落位），叶片一旦被摘走就再也不转了。
            */
-          if (ancestorNode.userData?.interactionDynamicPart) return;
+          if (ancestorNode.userData?.interactionDynamicPart) return
         }
         !exactMaterialKey ||
           !tintedMaterialKey ||
@@ -274,36 +273,30 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
           childMesh.children.length ||
           !Number.isFinite(childMesh.matrixWorld.determinant()) ||
           childMesh.matrixWorld.determinant() === 0 ||
-          (childMesh.matrixWorld.determinant() < 0 && modelType !== "steelstairs") ||
+          (childMesh.matrixWorld.determinant() < 0 && modelType !== 'steelstairs') ||
           (seenMaterialKeySet.has(exactMaterialKey) && (hasDuplicateMaterialKey = true),
           seenMaterialKeySet.add(exactMaterialKey),
           meshRecords.push({
             object: childMesh,
             exact: exactMaterialKey,
             tinted: tintedMaterialKey,
-            matrix: new threeApi.Matrix4().multiplyMatrices(
-              modelInverseMatrix,
-              childMesh.matrixWorld,
-            ),
-          }));
+            matrix: new threeApi.Matrix4().multiplyMatrices(modelInverseMatrix, childMesh.matrixWorld),
+          }))
       }),
       !hasDuplicateMaterialKey &&
         shouldTintVertices &&
-        meshRecords.some(
-          (candidateRecord: any) => candidateRecord.object.material.userData?.plan2SurfaceSlope,
-        ) &&
+        meshRecords.some((candidateRecord: any) => candidateRecord.object.material.userData?.plan2SurfaceSlope) &&
         (hasDuplicateMaterialKey =
-          new Set(meshRecords.map((mappedRecord: any) => mappedRecord.tinted)).size <
-          meshRecords.length),
+          new Set(meshRecords.map((mappedRecord: any) => mappedRecord.tinted)).size < meshRecords.length),
       !hasDuplicateMaterialKey)
     )
-      return false;
-    const geometryKeyByGeometry = new Map();
+      return false
+    const geometryKeyByGeometry = new Map()
     for (const sourceRecord of meshRecords) {
-      const sourceGeometry = sourceRecord.object.geometry;
-      (geometryKeyByGeometry.has(sourceGeometry) ||
+      const sourceGeometry = sourceRecord.object.geometry
+      geometryKeyByGeometry.has(sourceGeometry) ||
         geometryKeyByGeometry.set(sourceGeometry, describeGeometrySignature(sourceGeometry)),
-        (sourceRecord.geometryKey = geometryKeyByGeometry.get(sourceGeometry)));
+        (sourceRecord.geometryKey = geometryKeyByGeometry.get(sourceGeometry))
     }
     const cacheKey = JSON.stringify([
       shouldTintVertices,
@@ -312,107 +305,83 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
         sourceRecord.exact,
         sourceRecord.matrix.elements,
       ]),
-    ]);
-    let batchListByCacheKey = batchCacheByModel.get(loadedModel);
-    batchListByCacheKey ||
-      ((batchListByCacheKey = new Map()), batchCacheByModel.set(loadedModel, batchListByCacheKey));
-    let batchDescriptors = batchListByCacheKey.get(cacheKey);
+    ])
+    let batchListByCacheKey = batchCacheByModel.get(loadedModel)
+    batchListByCacheKey || ((batchListByCacheKey = new Map()), batchCacheByModel.set(loadedModel, batchListByCacheKey))
+    let batchDescriptors = batchListByCacheKey.get(cacheKey)
     if (!batchDescriptors) {
-      const recordsByTintedKey = new Map();
+      const recordsByTintedKey = new Map()
       for (const groupedRecord of meshRecords)
-        (recordsByTintedKey.has(groupedRecord.tinted) ||
-          recordsByTintedKey.set(groupedRecord.tinted, []),
-          recordsByTintedKey.get(groupedRecord.tinted).push(groupedRecord));
-      batchDescriptors = [];
+        recordsByTintedKey.has(groupedRecord.tinted) || recordsByTintedKey.set(groupedRecord.tinted, []),
+          recordsByTintedKey.get(groupedRecord.tinted).push(groupedRecord)
+      batchDescriptors = []
       for (const tintedGroup of recordsByTintedKey.values()) {
         const prepareMergedGeometry = () => {
-          const preparedGeometries = tintedGroup.map(
-            ({ object: sourceMesh, matrix: instanceMatrix }: any) => {
+          const preparedGeometries = tintedGroup.map(({ object: sourceMesh, matrix: instanceMatrix }: any) => {
               const sourceGeometry = sourceMesh.geometry,
-                bakedGeometry = new threeApi.BufferGeometry();
-              for (const attributeName of ["position", "normal"]) {
+                bakedGeometry = new threeApi.BufferGeometry()
+              for (const attributeName of ['position', 'normal']) {
                 const sourceAttribute = sourceGeometry.attributes[attributeName],
-                  attributeArray = new Float32Array(sourceAttribute.count * 3);
+                  attributeArray = new Float32Array(sourceAttribute.count * 3)
                 for (let vertexIndex = 0; vertexIndex < sourceAttribute.count; vertexIndex++)
-                  ((attributeArray[vertexIndex * 3] = sourceAttribute.getX(vertexIndex)),
+                  (attributeArray[vertexIndex * 3] = sourceAttribute.getX(vertexIndex)),
                     (attributeArray[vertexIndex * 3 + 1] = sourceAttribute.getY(vertexIndex)),
-                    (attributeArray[vertexIndex * 3 + 2] = sourceAttribute.getZ(vertexIndex)));
-                bakedGeometry.setAttribute(
-                  attributeName,
-                  new threeApi.BufferAttribute(attributeArray, 3),
-                );
+                    (attributeArray[vertexIndex * 3 + 2] = sourceAttribute.getZ(vertexIndex))
+                bakedGeometry.setAttribute(attributeName, new threeApi.BufferAttribute(attributeArray, 3))
               }
-              const vertexCount = sourceGeometry.attributes.position.count;
+              const vertexCount = sourceGeometry.attributes.position.count
               if (shouldTintVertices) {
                 const materialColor = sourceMesh.material.color,
                   sourceColorAttribute = sourceGeometry.attributes.color,
-                  colorArray = new Float32Array(vertexCount * 3);
+                  colorArray = new Float32Array(vertexCount * 3)
                 for (let colorVertexIndex = 0; colorVertexIndex < vertexCount; colorVertexIndex++)
-                  ((colorArray[colorVertexIndex * 3] =
+                  (colorArray[colorVertexIndex * 3] =
                     materialColor.r *
-                    (sourceMesh.material.vertexColors
-                      ? sourceColorAttribute.getX(colorVertexIndex)
-                      : 1)),
+                    (sourceMesh.material.vertexColors ? sourceColorAttribute.getX(colorVertexIndex) : 1)),
                     (colorArray[colorVertexIndex * 3 + 1] =
                       materialColor.g *
-                      (sourceMesh.material.vertexColors
-                        ? sourceColorAttribute.getY(colorVertexIndex)
-                        : 1)),
+                      (sourceMesh.material.vertexColors ? sourceColorAttribute.getY(colorVertexIndex) : 1)),
                     (colorArray[colorVertexIndex * 3 + 2] =
                       materialColor.b *
-                      (sourceMesh.material.vertexColors
-                        ? sourceColorAttribute.getZ(colorVertexIndex)
-                        : 1)));
-                bakedGeometry.setAttribute("color", new threeApi.BufferAttribute(colorArray, 3));
+                      (sourceMesh.material.vertexColors ? sourceColorAttribute.getZ(colorVertexIndex) : 1))
+                bakedGeometry.setAttribute('color', new threeApi.BufferAttribute(colorArray, 3))
               } else
                 sourceMesh.material.vertexColors &&
-                  bakedGeometry.setAttribute("color", sourceGeometry.attributes.color.clone());
+                  bakedGeometry.setAttribute('color', sourceGeometry.attributes.color.clone())
               const indexCount = sourceGeometry.index?.count ?? vertexCount,
-                indexArray =
-                  vertexCount <= 65536 ? new Uint16Array(indexCount) : new Uint32Array(indexCount);
+                indexArray = vertexCount <= 65536 ? new Uint16Array(indexCount) : new Uint32Array(indexCount)
               for (let indexCursor = 0; indexCursor < indexCount; indexCursor++)
-                indexArray[indexCursor] = sourceGeometry.index
-                  ? sourceGeometry.index.getX(indexCursor)
-                  : indexCursor;
+                indexArray[indexCursor] = sourceGeometry.index ? sourceGeometry.index.getX(indexCursor) : indexCursor
               if (instanceMatrix.determinant() < 0)
-                for (
-                  let faceStartIndex = 0;
-                  faceStartIndex < indexArray.length;
-                  faceStartIndex += 3
-                ) {
-                  const swappedIndex = indexArray[faceStartIndex + 1];
-                  ((indexArray[faceStartIndex + 1] = indexArray[faceStartIndex + 2]),
-                    (indexArray[faceStartIndex + 2] = swappedIndex));
+                for (let faceStartIndex = 0; faceStartIndex < indexArray.length; faceStartIndex += 3) {
+                  const swappedIndex = indexArray[faceStartIndex + 1]
+                  ;(indexArray[faceStartIndex + 1] = indexArray[faceStartIndex + 2]),
+                    (indexArray[faceStartIndex + 2] = swappedIndex)
                 }
               return (
                 bakedGeometry.setIndex(new threeApi.BufferAttribute(indexArray, 1)),
                 bakedGeometry.applyMatrix4(instanceMatrix)
-              );
-            },
-          ),
-            mergedGeometry = mergeGeometries(preparedGeometries);
-          return (
-            preparedGeometries.forEach((preparedGeometry: any) => preparedGeometry.dispose()),
-            mergedGeometry
-          );
-        };
+              )
+            }),
+            mergedGeometry = mergeGeometries(preparedGeometries)
+          return (preparedGeometries.forEach((preparedGeometry: any) => preparedGeometry.dispose()), mergedGeometry)
+        }
         const mergedGeometry = canUseGeometryCache(loadedModel, tintedGroup)
           ? geometryCache.geometry(
               threeApi,
-              "furniture-batch-v1",
+              'furniture-batch-v1',
               batchGeometryCacheArgs(modelType, shouldTintVertices, tintedGroup),
               prepareMergedGeometry,
             )
-          : prepareMergedGeometry();
+          : prepareMergedGeometry()
         if (!mergedGeometry) {
           for (const batchToDispose of batchDescriptors)
-            (batchToDispose.geometry.dispose(), batchToDispose.material.dispose());
-          return false;
+            batchToDispose.geometry.dispose(), batchToDispose.material.dispose()
+          return false
         }
         const groupMesh = tintedGroup[0].object,
-          batchMaterial = groupMesh.material.clone();
-        (shouldTintVertices &&
-          (batchMaterial.color.setRGB(1, 1, 1), (batchMaterial.vertexColors = true)),
+          batchMaterial = groupMesh.material.clone()
+        shouldTintVertices && (batchMaterial.color.setRGB(1, 1, 1), (batchMaterial.vertexColors = true)),
           batchDescriptors.push({
             geometry: mergedGeometry,
             material: batchMaterial,
@@ -420,20 +389,16 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
             receiveShadow: groupMesh.receiveShadow,
             renderOrder: groupMesh.renderOrder,
             layers: groupMesh.layers.mask,
-          }));
+          })
       }
-      batchListByCacheKey.set(cacheKey, batchDescriptors);
+      batchListByCacheKey.set(cacheKey, batchDescriptors)
       for (const batchToTrack of batchDescriptors)
-        (disposableResourceSet.add(batchToTrack.geometry),
-          disposableResourceSet.add(batchToTrack.material));
+        disposableResourceSet.add(batchToTrack.geometry), disposableResourceSet.add(batchToTrack.material)
     }
-    for (const { object: removedMesh } of meshRecords) removedMesh.removeFromParent();
+    for (const { object: removedMesh } of meshRecords) removedMesh.removeFromParent()
     for (const batchToInstantiate of batchDescriptors) {
-      const batchedMesh = new threeApi.Mesh(
-        batchToInstantiate.geometry,
-        batchToInstantiate.material,
-      );
-      ((batchedMesh.castShadow = batchToInstantiate.castShadow),
+      const batchedMesh = new threeApi.Mesh(batchToInstantiate.geometry, batchToInstantiate.material)
+      ;(batchedMesh.castShadow = batchToInstantiate.castShadow),
         (batchedMesh.receiveShadow = batchToInstantiate.receiveShadow),
         (batchedMesh.renderOrder = batchToInstantiate.renderOrder),
         (batchedMesh.layers.mask = batchToInstantiate.layers),
@@ -443,101 +408,93 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
           externalModelSharedMaterial: true,
           externalModelSharedTextures: true,
         }),
-        modelClone.add(batchedMesh));
+        modelClone.add(batchedMesh)
     }
-    return true;
+    return true
   }
   return {
     prepare: prepareBatches,
     dispose() {
-      for (const resource of disposableResourceSet) resource.dispose();
-      (disposableResourceSet.clear(),
+      for (const resource of disposableResourceSet) resource.dispose()
+      disposableResourceSet.clear(),
         (batchCacheByModel = new WeakMap()),
         (geometrySignatureByGeometry = new WeakMap()),
-        (modelGeometrySetByModel = new WeakMap()));
+        (modelGeometrySetByModel = new WeakMap())
     },
-  };
+  }
 }
 
 export function buildGeometryKey(geometryMesh: any) {
   const geometryAttributeEntries = Object.entries(geometryMesh.geometry?.attributes || {})
-    .sort(([attributeKeyLeft], [attributeKeyRight]) =>
-      attributeKeyLeft.localeCompare(attributeKeyRight),
-    )
+    .sort(([attributeKeyLeft], [attributeKeyRight]) => attributeKeyLeft.localeCompare(attributeKeyRight))
     .map(([attributeName, geometryAttribute]: [string, any]) => [
       attributeName,
       geometryAttribute.itemSize,
       geometryAttribute.normalized,
       geometryAttribute.array?.constructor?.name,
-    ]);
+    ])
   return JSON.stringify([
     !!geometryMesh.geometry?.index,
     geometryAttributeEntries,
     Object.keys(geometryMesh.geometry?.morphAttributes || {}).sort(),
-  ]);
+  ])
 }
 
 export function collectChildMeshes(meshRoot: any) {
-  const childMeshes: any = [];
+  const childMeshes: any = []
   return (
     meshRoot.traverse((childObject: any) => {
-      childObject !== meshRoot && childObject.isMesh && childMeshes.push(childObject);
+      childObject !== meshRoot && childObject.isMesh && childMeshes.push(childObject)
     }),
     childMeshes
-  );
+  )
 }
 
 export function batchFurnitureMeshes(batchRoot: any, batchItemType: any) {
-  if (!nextBatchItemTypeSet.has(batchItemType)) return;
-  const gu5 = collectChildMeshes(batchRoot);
-  if (gu5.some((batchedMeshEntry: any) => batchedMeshEntry.userData.furnitureBatchCompiled)) return;
+  if (!nextBatchItemTypeSet.has(batchItemType)) return
+  const gu5 = collectChildMeshes(batchRoot)
+  if (gu5.some((batchedMeshEntry: any) => batchedMeshEntry.userData.furnitureBatchCompiled)) return
   const meshCountBefore = gu5.length,
-    meshesByBatchKey = new Map();
+    meshesByBatchKey = new Map()
   for (const batchSourceMesh of gu5) {
-    if (batchSourceMesh.userData.televisionScreen || batchSourceMesh.userData.televisionGlow)
-      continue;
-    const ra2 = buildStaticMaterialKey(batchSourceMesh);
-    if (!ra2) continue;
-    const batchKey = ra2 + ":" + buildGeometryKey(batchSourceMesh);
-    (meshesByBatchKey.has(batchKey) || meshesByBatchKey.set(batchKey, []),
-      meshesByBatchKey.get(batchKey).push(batchSourceMesh));
+    if (batchSourceMesh.userData.televisionScreen || batchSourceMesh.userData.televisionGlow) continue
+    const ra2 = buildStaticMaterialKey(batchSourceMesh)
+    if (!ra2) continue
+    const batchKey = ra2 + ':' + buildGeometryKey(batchSourceMesh)
+    meshesByBatchKey.has(batchKey) || meshesByBatchKey.set(batchKey, []),
+      meshesByBatchKey.get(batchKey).push(batchSourceMesh)
   }
-  batchRoot.updateMatrixWorld(true);
-  const invert = batchRoot.matrixWorld.clone().invert();
+  batchRoot.updateMatrixWorld(true)
+  const invert = batchRoot.matrixWorld.clone().invert()
   for (const batchMeshGroup of meshesByBatchKey.values()) {
-    if (batchMeshGroup.length < 2) continue;
+    if (batchMeshGroup.length < 2) continue
     const batchGeometries = batchMeshGroup.map((batchGeometryMesh: any) => {
-        const multiplyMatrices = new threeModuleMin.Matrix4().multiplyMatrices(
-          invert,
-          batchGeometryMesh.matrixWorld,
-        );
-        return batchGeometryMesh.geometry.clone().applyMatrix4(multiplyMatrices);
+        const multiplyMatrices = new threeModuleMin.Matrix4().multiplyMatrices(invert, batchGeometryMesh.matrixWorld)
+        return batchGeometryMesh.geometry.clone().applyMatrix4(multiplyMatrices)
       }),
-      mergedBatchGeometry = mergeGeometries(batchGeometries);
-    if ((batchGeometries.forEach((batchGeometry: any) => batchGeometry.dispose()), !mergedBatchGeometry))
-      continue;
+      mergedBatchGeometry = mergeGeometries(batchGeometries)
+    if ((batchGeometries.forEach((batchGeometry: any) => batchGeometry.dispose()), !mergedBatchGeometry)) continue
     const batchTemplateMesh = batchMeshGroup[0],
-      mergedBatchMesh = new threeModuleMin.Mesh(mergedBatchGeometry, batchTemplateMesh.material);
-    ((mergedBatchMesh.castShadow = batchTemplateMesh.castShadow),
+      mergedBatchMesh = new threeModuleMin.Mesh(mergedBatchGeometry, batchTemplateMesh.material)
+    ;(mergedBatchMesh.castShadow = batchTemplateMesh.castShadow),
       (mergedBatchMesh.receiveShadow = batchTemplateMesh.receiveShadow),
       (mergedBatchMesh.renderOrder = batchTemplateMesh.renderOrder),
       (mergedBatchMesh.userData = {
-        externalModelSharedMaterial:
-          batchTemplateMesh.userData.externalModelSharedMaterial === true,
+        externalModelSharedMaterial: batchTemplateMesh.userData.externalModelSharedMaterial === true,
       }),
       batchMeshGroup.forEach((removedMesh: any, removedMeshIndex: any) => {
-        (removedMesh.parent?.remove(removedMesh),
+        removedMesh.parent?.remove(removedMesh),
           removedMesh.userData.externalModelSharedGeometry || removedMesh.geometry.dispose(),
           removedMeshIndex > 0 &&
             !removedMesh.userData.externalModelSharedMaterial &&
             removedMesh.material !== batchTemplateMesh.material &&
-            removedMesh.material.dispose());
+            removedMesh.material.dispose()
       }),
-      batchRoot.add(mergedBatchMesh));
+      batchRoot.add(mergedBatchMesh)
   }
   batchRoot.userData.optimizationStats = {
     type: batchItemType,
     before: meshCountBefore,
     after: collectChildMeshes(batchRoot).length,
-  };
+  }
 }

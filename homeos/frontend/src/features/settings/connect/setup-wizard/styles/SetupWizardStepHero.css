@@ -54,12 +54,7 @@
 
 .sw-step-hero--emerald {
   --sw-hero-border: var(--sw-emerald-border);
-  --sw-hero-bg: linear-gradient(
-    125deg,
-    var(--sw-emerald-bg) 0%,
-    var(--sw-violet-bg) 50%,
-    var(--sw-surface) 100%
-  );
+  --sw-hero-bg: linear-gradient(125deg, var(--sw-emerald-bg) 0%, var(--sw-violet-bg) 50%, var(--sw-surface) 100%);
   --sw-hero-glow: var(--sw-emerald-glow);
   --sw-hero-tip: var(--sw-emerald-text);
   --sw-hero-emoji-color: var(--sw-emerald-light);

@@ -6,8 +6,12 @@
   --security-hub-accent: var(--hos-color-accent);
   --security-hub-accent-sub: var(--hos-color-accent-strong);
   --security-hub-accent-rgb: var(--hos-color-accent-rgb);
-  --security-surface:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 42%, rgba(0, 0, 0, 0.32) 100%);
+  --security-surface: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.015) 42%,
+    rgba(0, 0, 0, 0.32) 100%
+  );
   --security-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --security-ease: cubic-bezier(0.32, 0.72, 0, 1);
   padding: var(--space-page-y-top) var(--space-page-x) var(--space-page-y-bottom);
@@ -47,9 +51,7 @@
     radial-gradient(ellipse 110% 90% at 0% 0%, rgba(var(--security-hub-accent-rgb), 0.16) 0%, transparent 55%),
     radial-gradient(ellipse 70% 60% at 100% 0%, rgba(var(--hos-color-accent-strong-rgb), 0.08) 0%, transparent 48%),
     var(--security-surface);
-  box-shadow:
-    var(--hos-shadow-3),
-    var(--security-surface-inset);
+  box-shadow: var(--hos-shadow-3), var(--security-surface-inset);
 }
 
 .security-hub .premium-head__title {
@@ -131,18 +133,14 @@
   background:
     radial-gradient(ellipse 110% 80% at 100% 0%, rgba(var(--security-hub-accent-rgb), 0.08) 0%, transparent 55%),
     var(--security-surface);
-  box-shadow:
-    var(--hos-shadow-3),
-    var(--security-surface-inset);
+  box-shadow: var(--hos-shadow-3), var(--security-surface-inset);
 }
 
 .security-hub__panel-toolbar.list-page__panel-toolbar {
   flex-shrink: 0;
   padding: 10px 14px;
   overflow: visible;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
-    rgba(0, 0, 0, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), rgba(0, 0, 0, 0.18);
 }
 
 .security-hub__panel-toolbar-row {
@@ -224,7 +222,7 @@
   margin: 0;
 }
 .glass-shine::after {
-  content: '';
+  content: "";
   z-index: 30;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0));
   height: 1px;

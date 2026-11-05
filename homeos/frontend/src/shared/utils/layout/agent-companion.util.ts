@@ -10,13 +10,13 @@ import type { AgentCompanionConfig } from '@/shared/types/layout'
 /** 机器人直径（px），与 AgentCompanion.vue 的 .companion-root / .companion-trigger 一致 */
 export const AGENT_COMPANION_FACE_SIZE = 66
 /** 离屏最小间距（px） */
-export const AGENT_COMPANION_EDGE_GAP = 14
+const AGENT_COMPANION_EDGE_GAP = 14
 /** 旧版垂直停靠高度的允许区间（与设置页滑块一致） */
-export const AGENT_COMPANION_MIN_TOP = 15
-export const AGENT_COMPANION_MAX_TOP = 85
+const AGENT_COMPANION_MIN_TOP = 15
+const AGENT_COMPANION_MAX_TOP = 85
 
 /** 默认配置：贴左停靠、垂直 60%（与 stores/defaults.ts 同源） */
-export const DEFAULT_AGENT_COMPANION: AgentCompanionConfig = {
+const DEFAULT_AGENT_COMPANION: AgentCompanionConfig = {
   enabled: true,
   side: 'left',
   topPercent: 60,
@@ -38,14 +38,11 @@ export function clampCompanionPercent(value: unknown, fallback: number): number 
  * 归一化悬浮伴侣配置：非法值回到默认，自由位置两轴都有效才启用。
  * 保存与读取共用同一口径，避免手改成 200% 后存进布局、下次打开又跳回默认。
  */
-export function normalizeAgentCompanion(
-  raw?: Partial<AgentCompanionConfig> | null,
-): AgentCompanionConfig {
+export function normalizeAgentCompanion(raw?: Partial<AgentCompanionConfig> | null): AgentCompanionConfig {
   const top = Number(raw?.topPercent)
   const x = Number(raw?.xPercent)
   const y = Number(raw?.yPercent)
-  const hasFreePosition =
-    raw?.xPercent != null && raw?.yPercent != null && Number.isFinite(x) && Number.isFinite(y)
+  const hasFreePosition = raw?.xPercent != null && raw?.yPercent != null && Number.isFinite(x) && Number.isFinite(y)
   return {
     enabled: raw?.enabled !== false,
     side: raw?.side === 'right' ? 'right' : 'left',
@@ -84,7 +81,7 @@ export function resolveAgentCompanionStageSize(): { width: number; height: numbe
 }
 
 /** 解析旧版停靠配置对应的视口百分比中心点（与组件渲染同一口径） */
-export function resolveAgentCompanionFallback(
+function resolveAgentCompanionFallback(
   config: AgentCompanionConfig,
   deps: {
     panelPosition?: string
@@ -97,8 +94,7 @@ export function resolveAgentCompanionFallback(
   const panelPosition = deps.panelPosition === 'left' ? 'left' : 'right'
   const panelWidth = Number(deps.panelWidth) || 0
   // 与信息侧栏同侧时退到侧栏内侧，避免小管家压在右栏部件上
-  const inset =
-    panelPosition === config.side ? AGENT_COMPANION_EDGE_GAP + panelWidth : AGENT_COMPANION_EDGE_GAP
+  const inset = panelPosition === config.side ? AGENT_COMPANION_EDGE_GAP + panelWidth : AGENT_COMPANION_EDGE_GAP
   const half = AGENT_COMPANION_FACE_SIZE / 2
   const centerX = config.side === 'left' ? inset + half : width - inset - half
   return {

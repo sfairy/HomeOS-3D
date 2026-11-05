@@ -84,8 +84,9 @@ const { tab } = toRefs(props)
  * - magChartRef / distChartRef / timeChartRef / extraChartRef：四张图表的 DOM 引用
  * - kpiCells：KPI 卡片数据（label/value/hint/tone）
  */
-const { magChartRef, distChartRef, timeChartRef, extraChartRef, kpiCells } =
-  useEarthquakeHistoryAnalytics(toRefs(props))
+const { magChartRef, distChartRef, timeChartRef, extraChartRef, kpiCells } = useEarthquakeHistoryAnalytics(
+  toRefs(props),
+)
 </script>
 
 <style scoped src="./styles/HistoryAnalytics.css"></style>

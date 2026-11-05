@@ -91,10 +91,7 @@ type NormalizedEnergySourceCfg = EnergySourceCfg & ReturnType<typeof createDefau
 const normalizeEnergySourceCache = new WeakMap<object, Map<string, NormalizedEnergySourceCfg>>()
 let normalizeEnergySourceNullCache: Map<string, NormalizedEnergySourceCfg> | null = null
 
-export function normalizeEnergySource(
-  statsSensors: StatsSensors | null | undefined,
-  cat: EnergyCategory | string,
-) {
+export function normalizeEnergySource(statsSensors: StatsSensors | null | undefined, cat: EnergyCategory | string) {
   const key = String(cat)
   let byCat: Map<string, NormalizedEnergySourceCfg> | null | undefined
   if (statsSensors && typeof statsSensors === 'object') {
@@ -114,8 +111,7 @@ export function normalizeEnergySource(
     ...createDefaultEnergySource(),
     ...((raw || {}) as Partial<ReturnType<typeof createDefaultEnergySource>>),
   } as NormalizedEnergySourceCfg
-  const cfg =
-    base.mode === 'convention' ? { ...base, account: base.account?.trim() || '' } : base
+  const cfg = base.mode === 'convention' ? { ...base, account: base.account?.trim() || '' } : base
   byCat.set(key, cfg)
   return cfg
 }
@@ -237,8 +233,7 @@ function isAggregatableField(fieldKey: string, def: EnergyFieldDef | undefined):
   if (!def) return false
   if (def.type === 'list' || def.type === 'object') return false
   if (def.type === 'string') return false
-  if (fieldKey.includes('Date') || fieldKey.includes('Time') || fieldKey === 'refreshTime')
-    return false
+  if (fieldKey.includes('Date') || fieldKey.includes('Time') || fieldKey === 'refreshTime') return false
   return def.type === 'number' || fieldKey === 'balance' || !!def.unit
 }
 
@@ -276,8 +271,7 @@ export function resolveFieldRawAggregated(
   let hasAny = false
   for (const idx of indices) {
     const raw = resolveFieldRaw(cat, fieldKey, statsSensors, entities, idx, cfg)
-    if (raw == null || raw === '' || raw === '--' || raw === 'unavailable' || raw === 'unknown')
-      continue
+    if (raw == null || raw === '' || raw === '--' || raw === 'unavailable' || raw === 'unknown') continue
     const num = parseFloat(String(raw))
     if (Number.isNaN(num)) continue
     sum += num
@@ -366,9 +360,7 @@ export function resolveFieldRaw(
         const prefix = resolveEntityPrefix(cat, statsSensors, entityId)
         const chartEnt = prefix ? prefix + def.conventionSuffix : ''
         if (chartEnt && entities[chartEnt]) {
-          return parseJsonValue(
-            readEntityAttr(entities, chartEnt, def.listAttrFallback || def.defaultAttr),
-          )
+          return parseJsonValue(readEntityAttr(entities, chartEnt, def.listAttrFallback || def.defaultAttr))
         }
       }
       return undefined
@@ -398,11 +390,9 @@ export function resolveFieldRaw(
     const map = resolveMultiAccountEntityMap(cfg, accountIndex)
     if (def.type === 'list' || def.type === 'object') {
       const mapped = map[fieldKey]?.trim()
-      const candidates = [
-        mapped,
-        map.balance?.trim(),
-        resolvePrimaryEntityId(cat, statsSensors, accountIndex),
-      ].filter(Boolean) as string[]
+      const candidates = [mapped, map.balance?.trim(), resolvePrimaryEntityId(cat, statsSensors, accountIndex)].filter(
+        Boolean,
+      ) as string[]
       for (const entityId of candidates) {
         if (mapped && entityId === mapped) {
           const entityState = readEntityState(entities, entityId)
@@ -449,9 +439,7 @@ function resolvePrimaryEntityId(
   }
   if (cfg.mode === 'multi') {
     const rows =
-      Array.isArray(cfg.multiAccounts) && cfg.multiAccounts.length
-        ? cfg.multiAccounts
-        : resolveMultiAccountEntries(cfg)
+      Array.isArray(cfg.multiAccounts) && cfg.multiAccounts.length ? cfg.multiAccounts : resolveMultiAccountEntries(cfg)
     if (rows.length) {
       const primaryIndex = resolvePrimaryAccountRowIndex(cfg, rows.length)
       const row = rows[accountIndex] || rows[primaryIndex] || rows[0]
@@ -475,7 +463,6 @@ function resolvePrimaryEntityId(
   return ''
 }
 
-
 /**
  * 解析多账户选项列表（用于弹窗账户切换）。
  *
@@ -486,10 +473,7 @@ function resolvePrimaryEntityId(
  * @param statsSensors 统计传感器配置。
  * @returns 实体 ID 数组。
  */
-export function resolveAccountEntityIds(
-  cat: EnergyCategory | string,
-  statsSensors: StatsSensors | null | undefined,
-) {
+export function resolveAccountEntityIds(cat: EnergyCategory | string, statsSensors: StatsSensors | null | undefined) {
   const cfg = normalizeEnergySource(statsSensors, cat)
   if (cfg.mode === 'entity') {
     const entityEntries = resolveAccountEntityEntries(cfg)
@@ -567,8 +551,3 @@ export function formatNum(val: unknown, decimals = 2) {
   const num = parseFloat(String(val))
   return Number.isNaN(num) ? '--' : num.toFixed(decimals)
 }
-
-
-
-
-

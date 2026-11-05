@@ -1,5 +1,5 @@
 /** 输出策略： */
-/* eslint-disable no-console -- 本模块为 console 封装层 */
+/* console 封装层：Biome 的 noConsole 已在 biome.json 中按文件豁免，此处无需再声明 */
 
 /** 是否为开发环境（生产环境下降级只输出 error） */
 const isDev = import.meta.env?.DEV ?? false

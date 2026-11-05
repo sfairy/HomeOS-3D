@@ -215,11 +215,7 @@ export function invalidateSharedFetchPrefix(prefix: string): void {
  * @param ttlMs 缓存存活时间，默认 5000ms
  * @returns 命中缓存则直接返回；否则等待 fetcher 结果并缓存
  */
-export async function sharedFetch<T>(
-  key: string,
-  fetcher: () => Promise<T>,
-  ttlMs = 5000,
-): Promise<T> {
+export async function sharedFetch<T>(key: string, fetcher: () => Promise<T>, ttlMs = 5000): Promise<T> {
   const now = Date.now()
   const cached = sharedCache.get(key)
   if (cached && now - cached.at < ttlMs) return cached.data as T

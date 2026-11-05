@@ -105,10 +105,7 @@ export function readBatterySnapshotSync() {
  * @returns true 表示疑似 Safari / iOS
  */
 function isSafariLikeUa(ua = '') {
-  return (
-    /iPhone|iPod|iPad/i.test(ua) ||
-    (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(ua))
-  )
+  return /iPhone|iPod|iPad/i.test(ua) || (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(ua))
 }
 
 /**
@@ -213,11 +210,7 @@ async function probeClientSystemInfo({ refreshStatic = false }: { refreshStatic?
   const battery = batteryManager ? readBatterySnapshot(batteryManager) : await probeBattery()
   const now = Date.now()
   // 静态信息命中缓存时直接返回（电量仍取最新）
-  if (
-    !refreshStatic &&
-    cachedStaticSystemInfo &&
-    now - cachedStaticSystemAt < STATIC_SYSTEM_CACHE_MS
-  ) {
+  if (!refreshStatic && cachedStaticSystemInfo && now - cachedStaticSystemAt < STATIC_SYSTEM_CACHE_MS) {
     return {
       ...cachedStaticSystemInfo,
       battery,
@@ -231,12 +224,9 @@ async function probeClientSystemInfo({ refreshStatic = false }: { refreshStatic?
   const nav = typeof navigator !== 'undefined' ? navigator : null
   const ua = nav?.userAgent || ''
   // coarse pointer = 触控主导设备
-  const coarsePointer =
-    typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true
+  const coarsePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true
   // standalone = PWA / 墙屏模式
-  const standalone =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(display-mode: standalone)').matches === true
+  const standalone = typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches === true
 
   const staticInfo: Record<string, unknown> = {
     hardware: {
@@ -266,8 +256,7 @@ async function probeClientSystemInfo({ refreshStatic = false }: { refreshStatic?
       standalone,
       serviceWorker: typeof nav?.serviceWorker !== 'undefined',
       reducedMotion:
-        typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+        typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
     },
     network: readNetworkInfo(),
   }

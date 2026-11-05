@@ -41,15 +41,11 @@ export function securityCameraEntityIds(hc: HaConfig | null | undefined): string
  * @param entityId 摄像头实体 ID
  * @returns go2rtc 地址，未配置时空串
  */
-export function securityCameraGo2rtcUrl(
-  hc: HaConfig | null | undefined,
-  entityId: string,
-): string {
+export function securityCameraGo2rtcUrl(hc: HaConfig | null | undefined, entityId: string): string {
   const normalizedEntityId = String(entityId || '').trim()
   if (!normalizedEntityId) return ''
   return (
-    normalizeSecurityCameras(hc?.securityCameras).find(
-      (binding) => binding.entityId === normalizedEntityId,
-    )?.go2rtcUrl || ''
+    normalizeSecurityCameras(hc?.securityCameras).find((binding) => binding.entityId === normalizedEntityId)
+      ?.go2rtcUrl || ''
   )
 }

@@ -17,9 +17,7 @@ function resolveId(entityIdRef: MaybeRefOrGetter<string | undefined | null>) {
  * @param fallbackRef ref/getter/ref 值
  * @returns 解析后的实体对象或 null/undefined
  */
-function resolveFallback(
-  fallbackRef: MaybeRefOrGetter<HaEntityState | Record<string, unknown> | null | undefined>,
-) {
+function resolveFallback(fallbackRef: MaybeRefOrGetter<HaEntityState | Record<string, unknown> | null | undefined>) {
   return typeof fallbackRef === 'function' ? fallbackRef() : unref(fallbackRef)
 }
 /**

@@ -17,19 +17,18 @@ const baseAppearancePreset = {
   },
   focusDimStrength: 0,
   focusVignetteStrength: 0,
-};
+}
 for (const presetValue of Object.values(baseAppearancePreset))
-  presetValue && typeof presetValue == "object" && Object.freeze(presetValue);
-Object.freeze(baseAppearancePreset);
+  presetValue && typeof presetValue == 'object' && Object.freeze(presetValue)
+Object.freeze(baseAppearancePreset)
 const PAGE_APPEARANCE_PRESETS = Object.freeze({
   default: baseAppearancePreset,
-  "warm-wood": baseAppearancePreset,
-});
+  'warm-wood': baseAppearancePreset,
+})
 export function withPageAppearancePreset(sceneConfig: any) {
-  const appearancePreset =
-    PAGE_APPEARANCE_PRESETS[sceneConfig.sceneStyle === "warm-wood" ? "warm-wood" : "default"];
+  const appearancePreset = PAGE_APPEARANCE_PRESETS[sceneConfig.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default']
   return {
     ...sceneConfig,
     ...structuredClone(appearancePreset),
-  };
+  }
 }

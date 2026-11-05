@@ -25,7 +25,7 @@ function parseSignedNumber(raw: unknown): number {
 }
 
 /** 语音草稿里参与合成的字段（设置页直接传 `voice.value`） */
-export interface SpeechDraft {
+interface SpeechDraft {
   ttsEngine?: string
   ttsVoice?: string
   ttsRate?: string
@@ -35,7 +35,7 @@ export interface SpeechDraft {
   ttsModel?: string
 }
 
-export interface SpeechPreviewResult {
+interface SpeechPreviewResult {
   ok: boolean
   /** 实际链路：服务端合成 / 本机 / HA */
   path: 'server' | 'local' | 'ha' | 'skipped'

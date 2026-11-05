@@ -186,9 +186,7 @@ const voiceOutputTabs = [
 ]
 
 const voiceInputTabs = computed(() => {
-  const tabs = [
-    { id: 'mode', label: '交互方式', emoji: '🎙️', accent: 'var(--hos-color-accent-strong)' },
-  ]
+  const tabs = [{ id: 'mode', label: '交互方式', emoji: '🎙️', accent: 'var(--hos-color-accent-strong)' }]
   if (voice.value.interactionMode === 'wake') {
     tabs.push({ id: 'wake', label: '唤醒词', emoji: '📻', accent: 'var(--hos-color-accent)' })
   }
@@ -281,9 +279,7 @@ const wakeWordsText = computed({
   },
 })
 
-const voiceRooms = computed(() =>
-  voiceMeta.value.rooms?.length ? voiceMeta.value.rooms : getVoiceRoomLabels(),
-)
+const voiceRooms = computed(() => (voiceMeta.value.rooms?.length ? voiceMeta.value.rooms : getVoiceRoomLabels()))
 const voiceMeta = ref({ rooms: [] })
 
 const saveTip = ref('')
@@ -298,8 +294,7 @@ let testTtsTipTimer = null
 
 const entityStats = computed(() => {
   void entitiesStore.derivedEpoch
-  const countDomain = (domain) =>
-    domainIndexToArray(entitiesStore.domainEntityIndex.get(domain)).length
+  const countDomain = (domain) => domainIndexToArray(entitiesStore.domainEntityIndex.get(domain)).length
   return {
     tts: countDomain('tts'),
     stt: countDomain('stt'),
@@ -348,11 +343,10 @@ useSettingsHubRouteSection(voiceSection, voiceSubnavSections, {
 })
 
 async function onImportPresetsReplace() {
-  const ok = await chrome.confirm(
-    '将清空现有语音命令并导入全屋模板，此操作不可撤销。',
-    '覆盖导入全屋模板',
-    { confirmText: '覆盖导入', type: 'danger' },
-  )
+  const ok = await chrome.confirm('将清空现有语音命令并导入全屋模板，此操作不可撤销。', '覆盖导入全屋模板', {
+    confirmText: '覆盖导入',
+    type: 'danger',
+  })
   if (!ok) return
   try {
     const n = await importWholeHomePresets(true)

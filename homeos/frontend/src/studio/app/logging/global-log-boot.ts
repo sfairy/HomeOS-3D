@@ -1,39 +1,31 @@
-import { setupGlobalLog } from "./global-log";
-import { navigateInShell } from "@/studio/platform/shell-navigation";
-async function apiFetch(
-  path: any,
-  options: { body?: any; headers?: Record<string, string> } = {},
-) {
-  const response = await fetch("/api/v1" + path, {
-      cache: "no-store",
+import { setupGlobalLog } from './global-log'
+import { navigateInShell } from '@/studio/platform/shell-navigation'
+async function apiFetch(path: any, options: { body?: any; headers?: Record<string, string> } = {}) {
+  const response = await fetch('/api/v1' + path, {
+      cache: 'no-store',
       ...options,
       headers: options.body
         ? {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             ...(options.headers || {}),
           }
         : options.headers,
     }),
-    responseText = response.status === 204 ? "" : await response.text();
-  let payload: any = null;
+    responseText = response.status === 204 ? '' : await response.text()
+  let payload: any = null
   if (responseText)
     try {
-      payload = JSON.parse(responseText);
+      payload = JSON.parse(responseText)
     } catch {
-      if (response.ok) throw new Error("接口返回格式异常：" + path.split("?")[0]);
+      if (response.ok) throw new Error('接口返回格式异常：' + path.split('?')[0])
     }
-  if (response.status === 401)
-    throw (navigateInShell("/login"), new Error("登录状态已失效。"));
+  if (response.status === 401) throw (navigateInShell('/login'), new Error('登录状态已失效。'))
   if (!response.ok) {
-    const detail = payload?.detail;
-    throw new Error(
-      typeof detail == "string"
-        ? detail
-        : detail?.message || "请求失败（HTTP " + response.status + "）",
-    );
+    const detail = payload?.detail
+    throw new Error(typeof detail == 'string' ? detail : detail?.message || '请求失败（HTTP ' + response.status + '）')
   }
-  return payload;
+  return payload
 }
 setupGlobalLog({
   api: apiFetch,
-});
+})

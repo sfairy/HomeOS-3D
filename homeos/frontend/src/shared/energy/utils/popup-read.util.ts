@@ -1,5 +1,9 @@
 /** 兼容用户点击非主实体（如分账户实体、图表实体）的场景。 */
-import { getFieldDef, balanceAttrCandidatesForField, type EnergyCategory } from '@/shared/energy/constants/energy-fields'
+import {
+  getFieldDef,
+  balanceAttrCandidatesForField,
+  type EnergyCategory,
+} from '@/shared/energy/constants/energy-fields'
 import { readEntityAttr } from '@/shared/energy/utils/entity-read.util'
 import { resolveAccountIndexForEntityId } from '@/shared/energy/utils/account.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
@@ -48,8 +52,7 @@ export function readPopupField(
   if (!def) return undefined
   const mainId = cfg.entityId?.trim()
   const accountIndex = resolveAccountIndexForEntityId(cfg, cat, activeEntityId)
-  const useResolver =
-    (cfg.mode === 'entity' && mainId && activeEntityId === mainId) || cfg.mode === 'multi'
+  const useResolver = (cfg.mode === 'entity' && mainId && activeEntityId === mainId) || cfg.mode === 'multi'
   if (useResolver) {
     return resolveFieldRaw(cat, fieldKey, statsSensors, entities, accountIndex, cfg)
   }

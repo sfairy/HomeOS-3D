@@ -131,9 +131,7 @@ export function registerSecurityPanelRefreshHandler(handler: VoidHandler): void 
  * 注册安防模式应用处理器（Socket 推送模式变更时即时应用）。
  * @param handler 模式应用函数
  */
-export function registerSecurityPanelModeHandler(
-  handler: (data: SecurityModeSocketPayload) => void,
-): void {
+export function registerSecurityPanelModeHandler(handler: (data: SecurityModeSocketPayload) => void): void {
   securityPanelModeHandler = handler
 }
 
@@ -182,7 +180,6 @@ export function refreshNotificationsFromSocket(): void {
     logger.warn('[Store 桥接] 通知刷新失败', err)
   }
 }
-
 
 /** Socket 重连后补拉 EventLog，找回断连期间错过的即时消息墙事件 */
 export function refreshEventLogFromSocket(): void {

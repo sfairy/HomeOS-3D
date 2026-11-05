@@ -11,26 +11,26 @@ const baseLightingPreset = {
   topAzimuth: 90,
   topElevation: 86,
   topIntensity: 0.12,
-};
+}
 const REGION_LIGHTING_PRESETS = Object.freeze({
   default: Object.freeze({
     ...baseLightingPreset,
     exposure: 0.95,
     floorBrightness: 75,
   }),
-  "warm-wood": Object.freeze({
+  'warm-wood': Object.freeze({
     ...baseLightingPreset,
     exposure: 0.6,
     floorBrightness: 50,
   }),
-});
+})
 export function withRegionLightingPreset(sceneConfig: any) {
-  if (sceneConfig.lightingMode !== "region") return sceneConfig;
-  const presetKey = sceneConfig.sceneStyle === "warm-wood" ? "warm-wood" : "default";
+  if (sceneConfig.lightingMode !== 'region') return sceneConfig
+  const presetKey = sceneConfig.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default'
   return {
     ...sceneConfig,
     baseLighting: {
       ...REGION_LIGHTING_PRESETS[presetKey],
     },
-  };
+  }
 }

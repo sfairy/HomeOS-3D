@@ -14,8 +14,7 @@ export function collectPresetActionTags(preset: {
     else if (kind === 'scene') tags.add('场景')
     else if (kind === 'script') tags.add('脚本')
     else {
-      const domain =
-        String(action.domain || '').trim() || getEntityDomain(String(action.entity_id || ''))
+      const domain = String(action.domain || '').trim() || getEntityDomain(String(action.entity_id || ''))
       if (domain) tags.add(domain)
     }
   }

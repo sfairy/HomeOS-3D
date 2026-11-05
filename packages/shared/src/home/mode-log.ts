@@ -4,21 +4,21 @@
  * 家庭模式触发 / 执行日志 source → 中文标签映射。
  */
 export const HOME_MODE_LOG_SOURCE_LABELS: Record<string, string> = {
-  manual: '手动',           // 用户手动切换
-  trigger: '触发器',         // 触发器规则命中
-  calendar: '日历',          // 日历事件驱动
-  deactivate: '停用',        // 模式被停用
-  security: '安防',          // 安防联动
+  manual: '手动', // 用户手动切换
+  trigger: '触发器', // 触发器规则命中
+  calendar: '日历', // 日历事件驱动
+  deactivate: '停用', // 模式被停用
+  security: '安防', // 安防联动
   weather_linkage: '天气联动',
   energy_linkage: '能源联动',
   advisor: '智能顾问',
   agent: '智能管家',
-  presence: '人员',          // 人员状态变化
-  voice: '语音',             // 语音指令
-  automation: '自动化',      // 自动化触发
-  entity: '实体变化',        // 实体状态变化
+  presence: '人员', // 人员状态变化
+  voice: '语音', // 语音指令
+  automation: '自动化', // 自动化触发
+  entity: '实体变化', // 实体状态变化
   everyone_left: '全员离家', // 全员离家自动切换
-  time: '定时',              // 定时计划
+  time: '定时', // 定时计划
 }
 
 /**

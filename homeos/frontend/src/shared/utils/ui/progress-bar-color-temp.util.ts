@@ -64,10 +64,7 @@ function isHaGenericMiredRange(minM: number | null | undefined, maxM: number | n
  * @param maxK 最大 Kelvin
  * @returns 是占位范围返回 true
  */
-function isHaGenericColorTempKelvinRange(
-  minK: number | null | undefined,
-  maxK: number | null | undefined,
-) {
+function isHaGenericColorTempKelvinRange(minK: number | null | undefined, maxK: number | null | undefined) {
   const min = Math.round(Number(minK))
   const max = Math.round(Number(maxK))
   if (!Number.isFinite(min) || !Number.isFinite(max)) return false
@@ -205,10 +202,7 @@ export function clampKelvinForDevice(kelvin: number | null | undefined, attrs: C
 }
 
 /** 从实体属性读当前色温 Kelvin，并钳制到设备支持范围 */
-function resolveEntityColorTempKelvin(
-  attrs: ColorTempAttrs = {},
-  bounds: KelvinBounds = resolveKelvinBounds(attrs),
-) {
+function resolveEntityColorTempKelvin(attrs: ColorTempAttrs = {}, bounds: KelvinBounds = resolveKelvinBounds(attrs)) {
   const { min, max } = bounds
   let kelvin: number | null = null
   const colorTempKelvin = attrs.color_temp_kelvin
@@ -222,7 +216,6 @@ function resolveEntityColorTempKelvin(
   if (kelvin == null || kelvin <= 0) kelvin = Math.round((min + max) / 2)
   return Math.max(min, Math.min(max, Math.round(kelvin)))
 }
-
 
 /** 暖光 → 冷光轨道端点色 */
 const COLOR_TEMP_WARM = '#fdba74'

@@ -58,13 +58,29 @@ class Box3 {
     for (const x of [this.min.x, this.max.x])
       for (const y of [this.min.y, this.max.y])
         for (const z of [this.min.z, this.max.z]) corners.push(new Point(x, y, z).applyMatrix4(matrix))
-    this.min = new Point(Math.min(...corners.map((c) => c.x)), Math.min(...corners.map((c) => c.y)), Math.min(...corners.map((c) => c.z)))
-    this.max = new Point(Math.max(...corners.map((c) => c.x)), Math.max(...corners.map((c) => c.y)), Math.max(...corners.map((c) => c.z)))
+    this.min = new Point(
+      Math.min(...corners.map((c) => c.x)),
+      Math.min(...corners.map((c) => c.y)),
+      Math.min(...corners.map((c) => c.z)),
+    )
+    this.max = new Point(
+      Math.max(...corners.map((c) => c.x)),
+      Math.max(...corners.map((c) => c.y)),
+      Math.max(...corners.map((c) => c.z)),
+    )
     return this
   }
   union(other) {
-    ;(this.min = new Point(Math.min(this.min.x, other.min.x), Math.min(this.min.y, other.min.y), Math.min(this.min.z, other.min.z))),
-      (this.max = new Point(Math.max(this.max.x, other.max.x), Math.max(this.max.y, other.max.y), Math.max(this.max.z, other.max.z)))
+    ;(this.min = new Point(
+      Math.min(this.min.x, other.min.x),
+      Math.min(this.min.y, other.min.y),
+      Math.min(this.min.z, other.min.z),
+    )),
+      (this.max = new Point(
+        Math.max(this.max.x, other.max.x),
+        Math.max(this.max.y, other.max.y),
+        Math.max(this.max.z, other.max.z),
+      ))
     return this
   }
 }
@@ -104,20 +120,22 @@ function createSource({ floorId, min, max, matrix = IDENTITY, projection = IDENT
     bounds: new Box3(),
     frameFromAnchor: IDENTITY,
     projection,
-    shadowObjects:
-      objects ||
-      [
-        {
-          matrixWorld: matrix,
-          geometry: { boundingBox: new Box3(new Point(...min), new Point(...max)) },
-        },
-      ],
+    shadowObjects: objects || [
+      {
+        matrixWorld: matrix,
+        geometry: { boundingBox: new Box3(new Point(...min), new Point(...max)) },
+      },
+    ],
   }
 }
 
 // ── 用例 ───────────────────────────────────────────────────────────────────
 test('裁剪矩形包住投影后的包围盒，并按 32 对齐、夹回贴图内', () => {
-  const plan = planFloorShadowCrops([createSource({ floorId: 'f1', min: [0, 0, 0], max: [0.5, 0.5, 0] })], IDENTITY, MAP)
+  const plan = planFloorShadowCrops(
+    [createSource({ floorId: 'f1', min: [0, 0, 0], max: [0.5, 0.5, 0] })],
+    IDENTITY,
+    MAP,
+  )
   assert.equal(plan.width, 160, '144 像素宽的盒子向上对齐到 160')
   assert.equal(plan.height, 160)
   // 盒子贴着原点，外扩 padding 后是 [-16,144]，居中到 160 的框里会被夹回 0。
@@ -145,7 +163,11 @@ test('多层取最大尺寸，每层各自居中', () => {
 })
 
 test('空层给 1×1 兜底，再被对齐成最小块', () => {
-  const plan = planFloorShadowCrops([createSource({ floorId: 'empty', min: [0, 0, 0], max: [0, 0, 0], objects: [] })], IDENTITY, MAP)
+  const plan = planFloorShadowCrops(
+    [createSource({ floorId: 'empty', min: [0, 0, 0], max: [0, 0, 0], objects: [] })],
+    IDENTITY,
+    MAP,
+  )
   assert.equal(plan.width, 32)
   assert.equal(plan.height, 32)
   assert.deepEqual(plan.crops[0], { x: 0, y: 0, width: 32, height: 32 })
@@ -153,18 +175,21 @@ test('空层给 1×1 兜底，再被对齐成最小块', () => {
 
 test('坏矩阵（NaN）退回整张贴图，宁可糊不可黑屏', () => {
   const broken = { ...IDENTITY, elements: [NaN, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }
-  const plan = planFloorShadowCrops([createSource({ floorId: 'bad', min: [0, 0, 0], max: [1, 1, 0], matrix: broken })], IDENTITY, MAP)
+  const plan = planFloorShadowCrops(
+    [createSource({ floorId: 'bad', min: [0, 0, 0], max: [1, 1, 0], matrix: broken })],
+    IDENTITY,
+    MAP,
+  )
   assert.equal(plan.width, 256)
   assert.equal(plan.height, 256)
   assert.deepEqual(plan.crops[0], { x: 0, y: 0, width: 256, height: 256 })
 })
 
 test('容量上限：对齐不会超过贴图尺寸', () => {
-  const plan = planFloorShadowCrops(
-    [createSource({ floorId: 'full', min: [0, 0, 0], max: [1, 1, 0] })],
-    IDENTITY,
-    { x: 100, y: 70 },
-  )
+  const plan = planFloorShadowCrops([createSource({ floorId: 'full', min: [0, 0, 0], max: [1, 1, 0] })], IDENTITY, {
+    x: 100,
+    y: 70,
+  })
   assert.equal(plan.width, 100, '贴图只有 100 宽时不能被对齐成 128')
   assert.equal(plan.height, 70, '夹回贴图尺寸优先于对齐（96 > 70）')
 })
@@ -268,4 +293,3 @@ test('有效性谓词为 true 时不提前退出：没有楼层分组时继续�
   assert.equal(controller.stats.floors, 0)
   assert.equal(controller.stats.layers, 0)
 })
-

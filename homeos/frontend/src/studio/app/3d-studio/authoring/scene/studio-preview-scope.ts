@@ -10,15 +10,15 @@
  * 所以这里统一采用**保守口径**：拿不准就返回 `'all'`，只有在能证明「只动了某一类」时
  * 才给更窄的作用域。
  */
-import { sceneContentKey } from "../../../bridge/scene/scene-content-key";
+import { sceneContentKey } from '../../../bridge/scene/scene-content-key'
 
-export type PreviewScope = "all" | "architecture" | "lights" | "items" | "none";
+export type PreviewScope = 'all' | 'architecture' | 'lights' | 'items' | 'none'
 
 export interface PreviewScopeOptions {
   /** 视为「灯光类」的物品类型（灯带、射灯、氛围灯……）。 */
-  lightTypes: ReadonlySet<string>;
+  lightTypes: ReadonlySet<string>
   /** 庭院图元（栅栏/水池/铺装）对应的作用域。由调用方按当前渲染管线决定。 */
-  courtyardScope: () => PreviewScope;
+  courtyardScope: () => PreviewScope
   /**
    * 是否为庭院图元。
    *
@@ -26,31 +26,31 @@ export interface PreviewScopeOptions {
    * 而这个模块的价值恰恰是「纯函数、可单测」。调用方传
    * `(item) => isCourtyardDrawing(item) || isCourtyardGate(item)` 即可。
    */
-  isCourtyardItem: (item: SceneItemLike) => boolean;
+  isCourtyardItem: (item: SceneItemLike) => boolean
 }
 
-export interface SceneItemLike {
-  id?: string;
-  type?: string;
-  [key: string]: unknown;
+interface SceneItemLike {
+  id?: string
+  type?: string
+  [key: string]: unknown
 }
 
-export interface SceneEntryLike {
-  id?: string;
-  kind?: string;
-  [key: string]: unknown;
+interface SceneEntryLike {
+  id?: string
+  kind?: string
+  [key: string]: unknown
 }
 
 /** 建筑外壳条目：这些 `kind` 只影响几何体，不涉及光照或材质状态。 */
-const ARCHITECTURE_ENTRY_KINDS = ["door", "window", "railing"];
+const ARCHITECTURE_ENTRY_KINDS = ['door', 'window', 'railing']
 /** 这两类的几何与开关状态会牵动整层（洞口 = 墙体布尔，排气扇 = 墙体附着）。 */
-const WHOLE_SCENE_ITEM_TYPES = ["flooropening", "exhaust-fan"];
+const WHOLE_SCENE_ITEM_TYPES = ['flooropening', 'exhaust-fan']
 
 export function itemPreviewScope(item: SceneItemLike | null | undefined, options: PreviewScopeOptions): PreviewScope {
-  if (!item) return "all";
-  if (WHOLE_SCENE_ITEM_TYPES.includes(String(item.type))) return "all";
-  if (options.isCourtyardItem(item)) return options.courtyardScope();
-  return options.lightTypes.has(String(item.type)) ? "lights" : "items";
+  if (!item) return 'all'
+  if (WHOLE_SCENE_ITEM_TYPES.includes(String(item.type))) return 'all'
+  if (options.isCourtyardItem(item)) return options.courtyardScope()
+  return options.lightTypes.has(String(item.type)) ? 'lights' : 'items'
 }
 
 export function entriesPreviewScope(
@@ -59,25 +59,23 @@ export function entriesPreviewScope(
   options: PreviewScopeOptions,
 ): PreviewScope {
   if (entries.length && entries.every((entry) => ARCHITECTURE_ENTRY_KINDS.includes(String(entry.kind))))
-    return "architecture";
-  if (!entries.length || entries.some((entry) => entry.kind !== "item")) return "all";
+    return 'architecture'
+  if (!entries.length || entries.some((entry) => entry.kind !== 'item')) return 'all'
   const entryIdSet = new Set(entries.map((entry) => entry.id)),
-    matchedItems = items.filter((item) => entryIdSet.has(item.id));
-  if (!matchedItems.length) return "all";
-  if (matchedItems.some((item) => WHOLE_SCENE_ITEM_TYPES.includes(String(item.type)))) return "all";
+    matchedItems = items.filter((item) => entryIdSet.has(item.id))
+  if (!matchedItems.length) return 'all'
+  if (matchedItems.some((item) => WHOLE_SCENE_ITEM_TYPES.includes(String(item.type)))) return 'all'
   // 庭院图元：只要混进任何一个非庭院物件，就不能按「庭院」这一档收窄。
   if (matchedItems.some((item) => options.isCourtyardItem(item)))
-    return matchedItems.some((item) => options.lightTypes.has(String(item.type)))
-      ? "all"
-      : options.courtyardScope();
-  const lightItemCount = matchedItems.filter((item) => options.lightTypes.has(String(item.type))).length;
-  return lightItemCount === matchedItems.length ? "lights" : lightItemCount === 0 ? "items" : "all";
+    return matchedItems.some((item) => options.lightTypes.has(String(item.type))) ? 'all' : options.courtyardScope()
+  const lightItemCount = matchedItems.filter((item) => options.lightTypes.has(String(item.type))).length
+  return lightItemCount === matchedItems.length ? 'lights' : lightItemCount === 0 ? 'items' : 'all'
 }
 
-export interface SelectionScopeOptions extends Pick<PreviewScopeOptions, "lightTypes"> {
+interface SelectionScopeOptions extends Pick<PreviewScopeOptions, 'lightTypes'> {
   /** 庭院图元的判定与作用域；不传时按普通物品处理。 */
-  isCourtyardItem?: (item: SceneItemLike) => boolean;
-  courtyardScope?: () => PreviewScope;
+  isCourtyardItem?: (item: SceneItemLike) => boolean
+  courtyardScope?: () => PreviewScope
 }
 
 export function selectionPreviewScope(
@@ -85,40 +83,32 @@ export function selectionPreviewScope(
   items: ReadonlyArray<SceneItemLike>,
   options: SelectionScopeOptions,
 ): PreviewScope | null {
-  const { lightTypes } = options;
-  if (!selection.length) return null;
-  if (
-    selection.every((entry) => ["wall", ...ARCHITECTURE_ENTRY_KINDS].includes(String(entry.kind)))
-  )
-    return "architecture";
-  if (selection.some((entry) => entry.kind !== "item")) return "all";
+  const { lightTypes } = options
+  if (!selection.length) return null
+  if (selection.every((entry) => ['wall', ...ARCHITECTURE_ENTRY_KINDS].includes(String(entry.kind))))
+    return 'architecture'
+  if (selection.some((entry) => entry.kind !== 'item')) return 'all'
   const selectedIdSet = new Set(selection.map((entry) => entry.id)),
-    matchedItems = items.filter((item) => selectedIdSet.has(item.id));
-  if (!matchedItems.length) return null;
+    matchedItems = items.filter((item) => selectedIdSet.has(item.id))
+  if (!matchedItems.length) return null
   // 洞口与排气扇的高亮会牵动整层（墙体布尔 / 附着物），不能按类收窄。
-  if (matchedItems.some((item) => WHOLE_SCENE_ITEM_TYPES.includes(String(item.type)))) return "all";
+  if (matchedItems.some((item) => WHOLE_SCENE_ITEM_TYPES.includes(String(item.type)))) return 'all'
   // 庭院图元：混进任何非庭院物件就退回 `'all'`，全是庭院件时才用庭院档。
   if (options.isCourtyardItem && matchedItems.some((item) => options.isCourtyardItem?.(item)))
     return matchedItems.some((item) => lightTypes.has(String(item.type)))
-      ? "all"
-      : options.courtyardScope?.() ?? "items";
+      ? 'all'
+      : (options.courtyardScope?.() ?? 'items')
   // 灯带（`striplight`）的高亮会牵动相邻墙面，所以即使它不在 `lightTypes` 里也要计入
   // 高亮重绘（否则选中灯带时墙面高亮不刷新）。
-  const highlightItems = matchedItems.filter(
-    (item) => !lightTypes.has(String(item.type)) || item.type === "striplight",
-  );
-  if (!highlightItems.length) return null;
-  const lightHighlightCount = highlightItems.filter((item) => lightTypes.has(String(item.type))).length;
-  return lightHighlightCount === highlightItems.length
-    ? "lights"
-    : lightHighlightCount === 0
-      ? "items"
-      : "all";
+  const highlightItems = matchedItems.filter((item) => !lightTypes.has(String(item.type)) || item.type === 'striplight')
+  if (!highlightItems.length) return null
+  const lightHighlightCount = highlightItems.filter((item) => lightTypes.has(String(item.type))).length
+  return lightHighlightCount === highlightItems.length ? 'lights' : lightHighlightCount === 0 ? 'items' : 'all'
 }
 
-export interface HistoryScopeOptions {
-  itemScope: (item: SceneItemLike) => PreviewScope;
-  selectionScope: () => PreviewScope | null;
+interface HistoryScopeOptions {
+  itemScope: (item: SceneItemLike) => PreviewScope
+  selectionScope: () => PreviewScope | null
 }
 
 /**
@@ -132,38 +122,33 @@ export function historyChangePreviewScope(
   nextScene: Record<string, unknown>,
   { itemScope, selectionScope }: HistoryScopeOptions,
 ): PreviewScope {
-  if (sceneContentKey(previousScene) === sceneContentKey(nextScene)) return "none";
+  if (sceneContentKey(previousScene) === sceneContentKey(nextScene)) return 'none'
   const withoutItems = (scene: Record<string, unknown>) => ({
     ...scene,
     items: [],
     lightGroups: [],
-  });
-  if (sceneContentKey(withoutItems(previousScene)) !== sceneContentKey(withoutItems(nextScene)))
-    return "all";
+  })
+  if (sceneContentKey(withoutItems(previousScene)) !== sceneContentKey(withoutItems(nextScene))) return 'all'
 
-  const scopes = new Set<PreviewScope>();
-  if (JSON.stringify(previousScene.lightGroups) !== JSON.stringify(nextScene.lightGroups))
-    scopes.add("lights");
+  const scopes = new Set<PreviewScope>()
+  if (JSON.stringify(previousScene.lightGroups) !== JSON.stringify(nextScene.lightGroups)) scopes.add('lights')
 
   const previousItemsById = new Map(
       ((previousScene.items as SceneItemLike[] | undefined) || []).map((item) => [item.id, item]),
     ),
-    nextItemsById = new Map(
-      ((nextScene.items as SceneItemLike[] | undefined) || []).map((item) => [item.id, item]),
-    );
+    nextItemsById = new Map(((nextScene.items as SceneItemLike[] | undefined) || []).map((item) => [item.id, item]))
   for (const itemId of new Set([...previousItemsById.keys(), ...nextItemsById.keys()])) {
     const previousItem = previousItemsById.get(itemId),
-      nextItem = nextItemsById.get(itemId);
+      nextItem = nextItemsById.get(itemId)
     if (
       sceneContentKey({ items: previousItem ? [previousItem] : [] }) !==
       sceneContentKey({ items: nextItem ? [nextItem] : [] })
     ) {
-      (previousItem && scopes.add(itemScope(previousItem)),
-        nextItem && scopes.add(itemScope(nextItem)));
+      previousItem && scopes.add(itemScope(previousItem)), nextItem && scopes.add(itemScope(nextItem))
     }
   }
-  if (!scopes.size) return "all";
-  const selectedScope = selectionScope();
-  selectedScope && scopes.add(selectedScope);
-  return scopes.size === 1 ? [...scopes][0] : "all";
+  if (!scopes.size) return 'all'
+  const selectedScope = selectionScope()
+  selectedScope && scopes.add(selectedScope)
+  return scopes.size === 1 ? [...scopes][0] : 'all'
 }

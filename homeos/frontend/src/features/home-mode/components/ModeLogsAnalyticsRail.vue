@@ -67,11 +67,7 @@ const analytics = computed<ModeLogAnalytics>(() => props.analytics || EMPTY_MODE
 
 useHubChart(sourceRef, () => buildModeSourcePieOption(analytics.value.sourceBuckets), [analytics])
 useHubChart(timelineRef, () => buildModeTimelineOption(analytics.value.dayBuckets), [analytics])
-useHubChart(
-  resultRef,
-  () => buildModeResultBarOption(analytics.value.ok, analytics.value.fail),
-  [analytics],
-)
+useHubChart(resultRef, () => buildModeResultBarOption(analytics.value.ok, analytics.value.fail), [analytics])
 
 /**
  * 折叠状态：宽屏常开、窄屏默认收起。

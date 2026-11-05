@@ -8,10 +8,6 @@ export const splitLineStyle = {
   lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' as const },
 }
 
-
-
-
-
 /** 深色 tooltip 工厂属性（borderWidth / padding / extraCssText 未传时不输出该键） */
 interface ChartTooltipOptions {
   borderColor: string

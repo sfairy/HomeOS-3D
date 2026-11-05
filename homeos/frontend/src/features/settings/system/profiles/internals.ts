@@ -6,10 +6,7 @@ import { useProfileManagement } from '@/features/settings/shared/composables/hub
 import { useSettingsHubRouteSection } from '@/features/settings/shared/composables/hub-ui.internals'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { downloadBlob } from '@/shared/utils/core/misc.util'
-import {
-  navigateAfterRestore,
-  resolvePostRestoreDestination,
-} from '@/shared/utils/core/post-restore.util'
+import { navigateAfterRestore, resolvePostRestoreDestination } from '@/shared/utils/core/post-restore.util'
 import {
   fetchServerBackupFiles,
   downloadServerBackupFile,
@@ -18,10 +15,7 @@ import {
   createServerBackup,
   fetchAutoBackupStatus,
 } from '@/services/api/system'
-import {
-  handleSystemConfigPatchError,
-  patchSystemConfig,
-} from '@/composables/config/system-config-core.internals'
+import { handleSystemConfigPatchError, patchSystemConfig } from '@/composables/config/system-config-core.internals'
 import { formatAuditTime, formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 import {
   deleteTerminalBinding,
@@ -60,9 +54,7 @@ function useProfilesServerBackups() {
   const chrome = useChromeStore()
 
   const backupRunNowLoading = ref(false)
-  const backupFiles = ref<
-    Array<{ name: string; size: number; mtime: string; path: string }>
-  >([])
+  const backupFiles = ref<Array<{ name: string; size: number; mtime: string; path: string }>>([])
   const backupFilesLoading = ref(false)
   const backupFileActionName = ref('')
   const backupFileActionKind = ref<'restore' | 'export' | 'delete' | ''>('')
@@ -169,10 +161,7 @@ function useProfilesServerBackups() {
   }
 
   async function deleteBackupFile(name: string) {
-    const ok = await chrome.confirm(
-      `确定删除服务器上的备份包「${name}」？此操作不可撤销。`,
-      '删除备份包',
-    )
+    const ok = await chrome.confirm(`确定删除服务器上的备份包「${name}」？此操作不可撤销。`, '删除备份包')
     if (!ok) return
     backupFileActionName.value = name
     backupFileActionKind.value = 'delete'
@@ -302,10 +291,7 @@ function useProfilesTerminalBindings() {
     try {
       const { data } = await fetchActiveProject()
       const payload = data?.data ?? data
-      if (
-        payload?.newTerminalDefault === 'default' ||
-        payload?.newTerminalDefault === 'activeProfile'
-      ) {
+      if (payload?.newTerminalDefault === 'default' || payload?.newTerminalDefault === 'activeProfile') {
         newTerminalDefault.value = payload.newTerminalDefault
       }
     } catch (error) {

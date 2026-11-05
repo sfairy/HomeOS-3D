@@ -27,36 +27,31 @@ function getClimateModeMap(): Record<string, ClimateModeEntry> {
       icon: Settings,
       label: '自动',
       iconColor: 'text-purple-400',
-      activeClass:
-        'bg-purple-400/15 text-purple-300 border-purple-400/30 shadow-[0_0_16px_rgba(168,85,247,0.18)]',
+      activeClass: 'bg-purple-400/15 text-purple-300 border-purple-400/30 shadow-[0_0_16px_rgba(168,85,247,0.18)]',
     },
     cool: {
       icon: ThermometerSnowflake,
       label: '制冷',
       iconColor: 'text-blue-400',
-      activeClass:
-        'bg-blue-400/15 text-blue-300 border-blue-400/30 shadow-[0_0_16px_rgba(96,165,250,0.18)]',
+      activeClass: 'bg-blue-400/15 text-blue-300 border-blue-400/30 shadow-[0_0_16px_rgba(96,165,250,0.18)]',
     },
     dry: {
       icon: Droplets,
       label: '除湿',
       iconColor: 'text-yellow-400',
-      activeClass:
-        'bg-yellow-400/15 text-yellow-300 border-yellow-400/30 shadow-[0_0_16px_rgba(250,204,21,0.18)]',
+      activeClass: 'bg-yellow-400/15 text-yellow-300 border-yellow-400/30 shadow-[0_0_16px_rgba(250,204,21,0.18)]',
     },
     fan_only: {
       icon: Fan,
       label: '送风',
       iconColor: 'text-cyan-400',
-      activeClass:
-        'bg-cyan-400/15 text-cyan-300 border-cyan-400/30 shadow-[0_0_16px_rgba(34,211,238,0.18)]',
+      activeClass: 'bg-cyan-400/15 text-cyan-300 border-cyan-400/30 shadow-[0_0_16px_rgba(34,211,238,0.18)]',
     },
     heat: {
       icon: Flame,
       label: '制热',
       iconColor: 'text-orange-400',
-      activeClass:
-        'bg-orange-400/15 text-orange-300 border-orange-400/30 shadow-[0_0_16px_rgba(251,146,60,0.18)]',
+      activeClass: 'bg-orange-400/15 text-orange-300 border-orange-400/30 shadow-[0_0_16px_rgba(251,146,60,0.18)]',
     },
     off: {
       icon: Power,

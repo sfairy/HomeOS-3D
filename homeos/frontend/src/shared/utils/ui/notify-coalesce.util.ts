@@ -15,7 +15,7 @@ const DEFAULT_WINDOW_MS = 2000
 const DEFAULT_MAX_TRACKED = 32
 
 /** 一次命中：复用哪张卡片、累加后是第几次。 */
-export interface NotifyCoalesceHit {
+interface NotifyCoalesceHit {
   /** 已存在卡片的 id */
   id: string
   /** 累加后的次数（首条为 1，重复推送为 2、3……） */
@@ -23,7 +23,7 @@ export interface NotifyCoalesceHit {
 }
 
 /** 合并器对外能力 */
-export interface NotifyCoalescer {
+interface NotifyCoalescer {
   /** 记录/命中一条提示；窗口内同键返回命中信息并累加计数，否则返回 null 交给调用方新建。 */
   hit: (type: string, message: string, now?: number) => NotifyCoalesceHit | null
   /** 登记一张新卡片，之后同键推送会合并到它。 */
@@ -54,10 +54,7 @@ function keyOf(type: string, message: string): string {
  * @param windowMs 合并窗口，默认 2000ms；设为 0 等价于关闭合并
  * @param maxTracked 跟踪表上限，默认 32
  */
-export function createNotifyCoalescer(
-  windowMs = DEFAULT_WINDOW_MS,
-  maxTracked = DEFAULT_MAX_TRACKED,
-): NotifyCoalescer {
+export function createNotifyCoalescer(windowMs = DEFAULT_WINDOW_MS, maxTracked = DEFAULT_MAX_TRACKED): NotifyCoalescer {
   const tracked = new Map<string, Tracked>()
 
   function prune(now: number): void {
@@ -96,4 +93,3 @@ export function createNotifyCoalescer(
     },
   }
 }
-

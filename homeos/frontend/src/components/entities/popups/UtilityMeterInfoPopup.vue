@@ -115,11 +115,7 @@ import { readEnergyPopupAttr } from '@/shared/energy/utils/popup-read.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { resolveUtilityMeterPreset } from '@/shared/constants/utility-meter-presets'
-import {
-  isElectricityEntity,
-  isGasEntity,
-  isWaterEntity,
-} from '@/shared/entity/utils/entity-type.util'
+import { isElectricityEntity, isGasEntity, isWaterEntity } from '@/shared/entity/utils/entity-type.util'
 
 function resolveUtilityKind(kind, entityId) {
   if (kind === 'gas' || kind === 'grid' || kind === 'water') return kind
@@ -250,9 +246,7 @@ function j(v) {
 const resolvedPrice = computed(() => {
   if (resolvedKind !== 'grid') return price.value
   const c =
-    parseFloat(gridBs.value?.平均单价) ||
-    parseFloat(gridBs.value?.avg_price) ||
-    parseFloat(gridBs.value?.fixed_price)
+    parseFloat(gridBs.value?.平均单价) || parseFloat(gridBs.value?.avg_price) || parseFloat(gridBs.value?.fixed_price)
   if (c > 0) return c.toFixed(3)
   const d = j(popField('daylist'))
   if (Array.isArray(d) && d.length) {

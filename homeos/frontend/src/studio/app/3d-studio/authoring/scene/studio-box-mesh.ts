@@ -7,21 +7,20 @@
  * （当前主题的视图设置，门窗玻璃的透明度 / 金属度要看它的 warmWood 标记）。
  */
 
-import type { ArchitectureMeshOptions, MeshMaterialOptions } from "../types/studio-app-types";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import type { ArchitectureMeshOptions, MeshMaterialOptions } from '../types/studio-app-types'
+import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 /** 盒子网格构件需要的外部状态：两个缓存 + 主题视图设置读取器。 */
 interface StudioBoxMeshDeps {
-  geometryCacheByKey: Map<string, any>;
-  textureCacheByKey: Map<string, any>;
-  backgroundSettings: () => { warmWood?: boolean } & Record<string, any>;
+  geometryCacheByKey: Map<string, any>
+  textureCacheByKey: Map<string, any>
+  backgroundSettings: () => { warmWood?: boolean } & Record<string, any>
 }
 
 function normalizeBoxSpec(boxSpec: any) {
   if (Array.isArray(boxSpec)) {
-    const [specWidth, specHeight, specDepth, specX = 0, specY = 0, specZ = 0, specRotationY = 0] =
-      boxSpec;
+    const [specWidth, specHeight, specDepth, specX = 0, specY = 0, specZ = 0, specRotationY = 0] = boxSpec
     return {
       width: specWidth,
       height: specHeight,
@@ -30,7 +29,7 @@ function normalizeBoxSpec(boxSpec: any) {
       y: specY,
       z: specZ,
       rotationY: specRotationY,
-    };
+    }
   }
   return {
     width: boxSpec.width,
@@ -40,7 +39,7 @@ function normalizeBoxSpec(boxSpec: any) {
     y: boxSpec.y || 0,
     z: boxSpec.z || 0,
     rotationY: boxSpec.rotationY || 0,
-  };
+  }
 }
 
 function mergeBoxGeometries(deps: StudioBoxMeshDeps, boxSpecs: any) {
@@ -50,8 +49,8 @@ function mergeBoxGeometries(deps: StudioBoxMeshDeps, boxSpecs: any) {
       [validBoxSpec.width, validBoxSpec.height, validBoxSpec.depth].every(
         (boxSpecValue) => Number.isFinite(boxSpecValue) && boxSpecValue > 0.0001,
       ),
-    );
-  if (!validBoxSpecs.length) return null;
+    )
+  if (!validBoxSpecs.length) return null
   const boxSpecKey = JSON.stringify(
     validBoxSpecs.map((boxSpecEntry: any) => [
       boxSpecEntry.width,
@@ -62,7 +61,7 @@ function mergeBoxGeometries(deps: StudioBoxMeshDeps, boxSpecs: any) {
       boxSpecEntry.z,
       boxSpecEntry.rotationY,
     ]),
-  );
+  )
   if (!deps.geometryCacheByKey.has(boxSpecKey)) {
     const boxGeometries = validBoxSpecs.map((boxGeometrySpec: any) => {
         const singleBoxGeometry = new ns2.BoxGeometry(
@@ -74,24 +73,17 @@ function mergeBoxGeometries(deps: StudioBoxMeshDeps, boxSpecs: any) {
             new ns2.Vector3(boxGeometrySpec.x, boxGeometrySpec.y, boxGeometrySpec.z),
             new ns2.Quaternion().setFromEuler(new ns2.Euler(0, boxGeometrySpec.rotationY, 0)),
             new ns2.Vector3(1, 1, 1),
-          );
-        return singleBoxGeometry.applyMatrix4(compose);
+          )
+        return singleBoxGeometry.applyMatrix4(compose)
       }),
-      mergedBoxGeometry = mergeGeometries2(boxGeometries);
-    if (
-      (boxGeometries.forEach((disposedGeometry: any) => disposedGeometry.dispose()), !mergedBoxGeometry)
-    )
-      return null;
-    deps.geometryCacheByKey.set(boxSpecKey, mergedBoxGeometry);
+      mergedBoxGeometry = mergeGeometries2(boxGeometries)
+    if ((boxGeometries.forEach((disposedGeometry: any) => disposedGeometry.dispose()), !mergedBoxGeometry)) return null
+    deps.geometryCacheByKey.set(boxSpecKey, mergedBoxGeometry)
   }
-  return deps.geometryCacheByKey.get(boxSpecKey);
+  return deps.geometryCacheByKey.get(boxSpecKey)
 }
 
-function createBoxMaterial(
-  deps: StudioBoxMeshDeps,
-  materialColor: any,
-  materialOptions: MeshMaterialOptions = {},
-) {
+function createBoxMaterial(deps: StudioBoxMeshDeps, materialColor: any, materialOptions: MeshMaterialOptions = {}) {
   const hex = new ns2.Color(materialColor).getHex(),
     materialKey = JSON.stringify([
       hex,
@@ -104,7 +96,7 @@ function createBoxMaterial(
       materialOptions.side ?? ns2.FrontSide,
       materialOptions.emissive ?? 0,
       materialOptions.emissiveIntensity ?? 0,
-    ]);
+    ])
   return (
     deps.textureCacheByKey.has(materialKey) ||
       deps.textureCacheByKey.set(
@@ -123,7 +115,7 @@ function createBoxMaterial(
         }),
       ),
     deps.textureCacheByKey.get(materialKey)
-  );
+  )
 }
 
 export function addArchitectureMesh(
@@ -133,12 +125,9 @@ export function addArchitectureMesh(
   architectureColor: any,
   architectureOptions: ArchitectureMeshOptions = {},
 ) {
-  const fv2 = mergeBoxGeometries(deps, architectureSpecs);
-  if (!fv2) return null;
-  const architectureMesh = new ns2.Mesh(
-    fv2,
-    createBoxMaterial(deps, architectureColor, architectureOptions),
-  );
+  const fv2 = mergeBoxGeometries(deps, architectureSpecs)
+  if (!fv2) return null
+  const architectureMesh = new ns2.Mesh(fv2, createBoxMaterial(deps, architectureColor, architectureOptions))
   return (
     (architectureMesh.castShadow = architectureOptions.castShadow !== false),
     (architectureMesh.receiveShadow = architectureOptions.receiveShadow !== false),
@@ -147,7 +136,7 @@ export function addArchitectureMesh(
     (architectureMesh.userData.architectureSharedMaterial = true),
     architectureParent.add(architectureMesh),
     architectureMesh
-  );
+  )
 }
 
 export function addWindowFrames(
@@ -165,12 +154,12 @@ export function addWindowFrames(
       receiveShadow: false,
     },
     windowFrameSpecs: any[] = [],
-    windowSpecsWithGlass: any[] = [];
+    windowSpecsWithGlass: any[] = []
   for (const windowOpening of windowOpenings) {
     const windowInset = Math.min(0.045, windowOpening.width * 0.08, windowOpening.height * 0.04),
       windowInnerWidth = Math.max(windowOpening.width - windowInset * 2, 0.04),
-      windowInnerHeight = Math.max(windowOpening.height - windowInset * 2, 0.08);
-    (windowFrameSpecs.push([
+      windowInnerHeight = Math.max(windowOpening.height - windowInset * 2, 0.08)
+    windowFrameSpecs.push([
       windowInnerWidth,
       windowInnerHeight,
       0.018,
@@ -179,14 +168,7 @@ export function addWindowFrames(
       windowOpening.centerZ,
     ]),
       windowSpecsWithGlass.push(
-        [
-          windowOpening.width,
-          windowInset,
-          0.045,
-          windowOpening.centerX,
-          windowInset / 2,
-          windowOpening.centerZ,
-        ],
+        [windowOpening.width, windowInset, 0.045, windowOpening.centerX, windowInset / 2, windowOpening.centerZ],
         [
           windowOpening.width,
           windowInset,
@@ -211,7 +193,7 @@ export function addWindowFrames(
           windowOpening.height / 2,
           windowOpening.centerZ,
         ],
-      ));
+      )
   }
   for (const windowFrameSpec of windowFrameSpecs)
     addArchitectureMesh(deps, windowParent, [windowFrameSpec], windowGlassColor, {
@@ -225,6 +207,6 @@ export function addWindowFrames(
       castShadow: false,
       receiveShadow: false,
       renderOrder: 7,
-    });
-  addArchitectureMesh(deps, windowParent, windowSpecsWithGlass, windowFrameColor, windowFrameOptions);
+    })
+  addArchitectureMesh(deps, windowParent, windowSpecsWithGlass, windowFrameColor, windowFrameOptions)
 }

@@ -43,9 +43,7 @@ registerHooks({
 })
 
 const { optimisticExpectationSatisfied } = await import(
-  pathToFileURL(
-    fileURLToPath(new URL('stores/entities/optimistic-expectation.util.ts', FRONTEND_SRC)),
-  ).href
+  pathToFileURL(fileURLToPath(new URL('stores/entities/optimistic-expectation.util.ts', FRONTEND_SRC))).href
 )
 
 const lightOff = { entity_id: 'light.a', state: 'off', attributes: { brightness: 0 } }
@@ -60,24 +58,15 @@ test('对开着的灯下发 turn_off：目标态未满足，必须建立乐观�
 })
 
 test('state 命中但预测属性不同：仍算未满足（真的要去改亮度）', () => {
-  assert.equal(
-    optimisticExpectationSatisfied({ state: 'on', attributes: { brightness: 128 } }, lightOn),
-    false,
-  )
+  assert.equal(optimisticExpectationSatisfied({ state: 'on', attributes: { brightness: 128 } }, lightOn), false)
 })
 
 test('state 与属性都命中现有值：已满足', () => {
-  assert.equal(
-    optimisticExpectationSatisfied({ state: 'on', attributes: { brightness: 200 } }, lightOn),
-    true,
-  )
+  assert.equal(optimisticExpectationSatisfied({ state: 'on', attributes: { brightness: 200 } }, lightOn), true)
 })
 
 test('属性数值容差与 attrValueEquals 同语义（差 1 视为未变）', () => {
-  assert.equal(
-    optimisticExpectationSatisfied({ state: 'on', attributes: { brightness: 201 } }, lightOn),
-    true,
-  )
+  assert.equal(optimisticExpectationSatisfied({ state: 'on', attributes: { brightness: 201 } }, lightOn), true)
 })
 
 test('空预测视为已满足（没有可等的东西）', () => {

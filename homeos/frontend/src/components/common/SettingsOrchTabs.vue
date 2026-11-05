@@ -140,10 +140,7 @@ const activeSortIndex = computed(() => safeTabs.value.findIndex((tabEntry) => ta
 const canSortShiftLeft = computed(() => props.sortable && activeSortIndex.value > 0)
 
 const canSortShiftRight = computed(
-  () =>
-    props.sortable &&
-    activeSortIndex.value >= 0 &&
-    activeSortIndex.value < safeTabs.value.length - 1,
+  () => props.sortable && activeSortIndex.value >= 0 && activeSortIndex.value < safeTabs.value.length - 1,
 )
 
 let resizeObserver = null
@@ -356,7 +353,8 @@ watch(
 )
 
 watch(
-  () => safeTabs.value.map((tabEntry) => `${tabEntry.id}:${tabEntry.count ?? ''}:${tabEntry.disabled ? 1 : 0}`).join('|'),
+  () =>
+    safeTabs.value.map((tabEntry) => `${tabEntry.id}:${tabEntry.count ?? ''}:${tabEntry.disabled ? 1 : 0}`).join('|'),
   () => {
     nextTick(() => {
       updateIndicator()

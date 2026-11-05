@@ -38,12 +38,8 @@ const cabin = merge([
   transform(b(BODY_W - 0.3, 0.38, 0.46), { rotateX: -0.45, translate: [0, WHEEL_R + 0.63, -1.24] }),
   b(BODY_W - 0.5, 0.06, 2.1, 0, H - 0.03, -0.12),
 ])
-const roofRail = merge(
-  [-1, 1].map((side) => b(0.05, 0.05, 2.0, side * (BODY_W / 2 - 0.24), H - 0.025, -0.12)),
-)
-const mirrors = merge(
-  [-1, 1].map((side) => b(0.09, 0.1, 0.22, side * (W / 2 - 0.045), WHEEL_R + 0.72, 0.85)),
-)
+const roofRail = merge([-1, 1].map((side) => b(0.05, 0.05, 2.0, side * (BODY_W / 2 - 0.24), H - 0.025, -0.12)))
+const mirrors = merge([-1, 1].map((side) => b(0.09, 0.1, 0.22, side * (W / 2 - 0.045), WHEEL_R + 0.72, 0.85)))
 const bumpers = merge([
   b(BODY_W - 0.04, 0.26, 0.2, 0, WHEEL_R - 0.06, D / 2 - 0.1),
   b(BODY_W - 0.04, 0.26, 0.2, 0, WHEEL_R - 0.06, -D / 2 + 0.1),

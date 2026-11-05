@@ -118,7 +118,11 @@ function deriveShades(hex: string): { bright: string; deep: string } {
     return (
       "#" +
       table
-        .map((part) => Math.round((part + offset) * 255).toString(16).padStart(2, "0"))
+        .map((part) =>
+          Math.round((part + offset) * 255)
+            .toString(16)
+            .padStart(2, "0"),
+        )
         .join("")
     );
   };
@@ -162,8 +166,7 @@ type ResolveTokensInput = {
  * 而 `tokens['--hb-accent']` 这类读取会顺着原型链拿到基线值，后台预览不会出现空白。
  */
 export function resolveTokens({ presetId, accentColor }: ResolveTokensInput = {}): Record<string, string> {
-  const preset =
-    PRESETS.find((item) => item.id === presetId) ?? PRESETS.find((item) => item.id === DEFAULT_PRESET)!;
+  const preset = PRESETS.find((item) => item.id === presetId) ?? PRESETS.find((item) => item.id === DEFAULT_PRESET)!;
   const custom = normalizeHex(accentColor);
   const base = normalizeHex(preset.colors.accent);
   const overrides = custom && custom !== base ? accentOverrideTokens(custom) : {};

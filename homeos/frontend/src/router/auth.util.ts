@@ -2,13 +2,7 @@
 import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/shared/types/router'
 
 /** 未登录也允许停留的入户页路由名（后端离线时仅放行这些）。 */
-const GUEST_ROUTES = new Set([
-  'register',
-  'login',
-  'activation',
-  'license-recovery',
-  'reset-password',
-])
+const GUEST_ROUTES = new Set(['register', 'login', 'activation', 'license-recovery', 'reset-password'])
 
 /** 零用户（本机还没有任何账号）时允许停留的两页：登录页会给出注册入口，注册页是表单本体。 */
 const ZERO_USER_ENTRY_ROUTES = new Set(['login', 'register'])
@@ -42,10 +36,7 @@ export function resolveZeroUserTarget(routeName?: string): '/login' | null {
  * 9. 设置锁 → 拦截
  * 10. 默认放行（公开展示页无需登录）
  */
-export function resolveNavigationTarget(
-  to: RoutableLocation,
-  ctx: NavigationContext,
-): NavigationDecision {
+export function resolveNavigationTarget(to: RoutableLocation, ctx: NavigationContext): NavigationDecision {
   const {
     systemInitialized,
     isAuthenticated,
@@ -92,8 +83,7 @@ export function resolveNavigationTarget(
   // 7. 商业授权门禁（LICENSE_REQUIRED 关闭时调用方传入 true）
   // `/activate` 现要求本机会话，故未登录时必须能停留在 `/login`，否则会与激活页互踢。
   if (licenseActivated === false) {
-    if (routeName === 'activation' || routeName === 'login' || routeName === 'reset-password')
-      return null
+    if (routeName === 'activation' || routeName === 'login' || routeName === 'reset-password') return null
     return isAuthenticated ? '/activate' : '/login'
   }
 
@@ -111,11 +101,7 @@ export function resolveNavigationTarget(
   }
 
   // 9. 设置锁
-  if (
-    (to.path?.startsWith('/settings') || routeName === 'builder') &&
-    settingsLockEnabled &&
-    !isSettingsUnlocked
-  ) {
+  if ((to.path?.startsWith('/settings') || routeName === 'builder') && settingsLockEnabled && !isSettingsUnlocked) {
     return '/'
   }
 

@@ -32,7 +32,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { collectModelVariants, listModelFiles, modelsDir, parseGlb } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import {
+  collectModelVariants,
+  listModelFiles,
+  modelsDir,
+  parseGlb,
+} from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(hereDir, '../../..')
@@ -221,7 +226,13 @@ if (!fs.existsSync(baselineFile)) {
 const baseline = JSON.parse(fs.readFileSync(baselineFile, 'utf8'))
 
 const problems = []
-const report = { checkedAt: new Date().toISOString(), totals: { fullBytes: 0, liteBytes: 0 }, files: 0, rebuiltSkipped: [], problems }
+const report = {
+  checkedAt: new Date().toISOString(),
+  totals: { fullBytes: 0, liteBytes: 0 },
+  files: 0,
+  rebuiltSkipped: [],
+  problems,
+}
 const add = (level, id, file, message) => problems.push({ level, id, file, message })
 
 for (const id of ids) {
@@ -245,9 +256,12 @@ for (const id of ids) {
       const lostFragile = lost.filter((extension) => FRAGILE_EXTENSIONS.includes(extension))
       if (lostFragile.length) add('error', id, relativePath, `丢失扩展 ${lostFragile.join(', ')}`)
       else if (lost.length && !rebuilt) add('error', id, relativePath, `丢失扩展 ${lost.join(', ')}`)
-      if (current.images < before.images) add('error', id, relativePath, `贴图 images ${before.images} → ${current.images}`)
-      if (current.textures < before.textures) add('error', id, relativePath, `贴图 textures ${before.textures} → ${current.textures}`)
-      if (current.brokenImages.length) add('error', id, relativePath, `无效贴图 images[${current.brokenImages.join(',')}]`)
+      if (current.images < before.images)
+        add('error', id, relativePath, `贴图 images ${before.images} → ${current.images}`)
+      if (current.textures < before.textures)
+        add('error', id, relativePath, `贴图 textures ${before.textures} → ${current.textures}`)
+      if (current.brokenImages.length)
+        add('error', id, relativePath, `无效贴图 images[${current.brokenImages.join(',')}]`)
       if (!rebuilt) {
         if (current.triangles < before.triangles * BUDGETS.triangleRatio) {
           add('error', id, relativePath, `三角面 ${before.triangles} → ${current.triangles}（低于 0.9×，疑似低模顶替）`)
@@ -257,17 +271,28 @@ for (const id of ids) {
         const removedNodes = before.nodeNames.filter((name) => !current.nodeNames.includes(name))
         const addedNodes = current.nodeNames.filter((name) => !before.nodeNames.includes(name))
         if (removedNodes.length || addedNodes.length) {
-          add('error', id, relativePath, `节点名变化 -[${removedNodes.slice(0, 4).join(',')}] +[${addedNodes.slice(0, 4).join(',')}]`)
+          add(
+            'error',
+            id,
+            relativePath,
+            `节点名变化 -[${removedNodes.slice(0, 4).join(',')}] +[${addedNodes.slice(0, 4).join(',')}]`,
+          )
         }
         const removedMaterials = before.materialNames.filter((name) => !current.materialNames.includes(name))
         const addedMaterials = current.materialNames.filter((name) => !before.materialNames.includes(name))
         if (removedMaterials.length || addedMaterials.length) {
-          add('error', id, relativePath, `材质名变化 -[${removedMaterials.slice(0, 4).join(',')}] +[${addedMaterials.slice(0, 4).join(',')}]`)
+          add(
+            'error',
+            id,
+            relativePath,
+            `材质名变化 -[${removedMaterials.slice(0, 4).join(',')}] +[${addedMaterials.slice(0, 4).join(',')}]`,
+          )
         }
       }
     }
     if (variant === 'lite') {
-      if (before?.draco && !current.draco) add('error', id, relativePath, 'lite 丢失 Draco 压缩（体积会回到未压缩状态）')
+      if (before?.draco && !current.draco)
+        add('error', id, relativePath, 'lite 丢失 Draco 压缩（体积会回到未压缩状态）')
     } else if (!before?.draco && current.draco) {
       add('error', id, relativePath, '完整件被 Draco 压缩（导出/再编辑会拿到量化网格）')
     }
@@ -292,10 +317,20 @@ for (const id of ids) {
 }
 
 if (report.totals.liteBytes > BUDGETS.liteTotalBytes) {
-  add('error', '（全库）', '', `lite 合计 ${(report.totals.liteBytes / 1048576).toFixed(2)}MB > 预算 ${BUDGETS.liteTotalBytes / 1048576}MB`)
+  add(
+    'error',
+    '（全库）',
+    '',
+    `lite 合计 ${(report.totals.liteBytes / 1048576).toFixed(2)}MB > 预算 ${BUDGETS.liteTotalBytes / 1048576}MB`,
+  )
 }
 if (report.totals.fullBytes > BUDGETS.fullTotalBytes) {
-  add('error', '（全库）', '', `完整件合计 ${(report.totals.fullBytes / 1048576).toFixed(2)}MB > 预算 ${BUDGETS.fullTotalBytes / 1048576}MB`)
+  add(
+    'error',
+    '（全库）',
+    '',
+    `完整件合计 ${(report.totals.fullBytes / 1048576).toFixed(2)}MB > 预算 ${BUDGETS.fullTotalBytes / 1048576}MB`,
+  )
 }
 
 const summary = {
@@ -311,7 +346,10 @@ if (hasFlag('json')) {
   console.log(JSON.stringify({ ...report, summary }, null, 2))
 } else {
   console.log(JSON.stringify(summary, null, 2))
-  for (const problem of problems) console.log(`${problem.level === 'error' ? '✗' : '!'} ${problem.id}${problem.file ? ` (${problem.file})` : ''}: ${problem.message}`)
+  for (const problem of problems)
+    console.log(
+      `${problem.level === 'error' ? '✗' : '!'} ${problem.id}${problem.file ? ` (${problem.file})` : ''}: ${problem.message}`,
+    )
 }
 
 process.exit(hasFlag('check') && summary.errors ? 1 : 0)

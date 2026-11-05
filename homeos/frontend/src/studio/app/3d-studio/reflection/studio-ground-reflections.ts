@@ -3,21 +3,13 @@ import {
   GROUND_REFLECTION_FADE_HEIGHT,
   groundReflectionQuality,
   normalizeGroundReflection,
-} from "../../bridge/scene/reflection-settings";
-import { createReflectionCulling } from "./studio-reflection-culling";
-import { selectFrameCaptures } from "./studio-reflection-capture-budget";
-import { createReflectionSignature } from "./studio-reflection-signature";
-import {
-  captureReflectionSnapshot,
-  restoreReflectionSnapshot,
-} from "./reflection-persistent-cache";
-import {
-  isFloorTransitionLeaving,
-  isVisibleWithin,
-  readOwnFloorId,
-  resolveFloorId,
-} from "./reflection-scene-queries";
-import { createRefractionMaterialResolver } from "./refraction-materials";
+} from '../../bridge/scene/reflection-settings'
+import { createReflectionCulling } from './studio-reflection-culling'
+import { selectFrameCaptures } from './studio-reflection-capture-budget'
+import { createReflectionSignature } from './studio-reflection-signature'
+import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
+import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
+import { createRefractionMaterialResolver } from './refraction-materials'
 
 export function createGroundReflections({
   THREE: three,
@@ -26,9 +18,8 @@ export function createGroundReflections({
   getRoot: getRoot,
   syncLighting: syncLighting,
 
-
   getFloorCamera: getFloorCamera = (fallbackCamera: any, _floorId: any) => fallbackCamera,
-  getStateKey: getStateKey = () => "",
+  getStateKey: getStateKey = () => '',
   getSceneRevision: getSceneRevision = null,
   persistentCache: persistentCache = null,
   getPersistentState: getPersistentState = (_floorId: any) => null,
@@ -36,14 +27,11 @@ export function createGroundReflections({
   floorLighting: floorLighting = false,
   detail: detail = null,
 
-
   detailMaxResolution: detailMaxResolution = null,
   passes: passes = null,
   cull: cull = true,
 
-
   blur: blur = null,
-
 
   fadeHeight: fadeHeight = GROUND_REFLECTION_FADE_HEIGHT,
 
@@ -85,7 +73,6 @@ export function createGroundReflections({
       expiredRecords: 0,
       inCapture: false,
 
-
       candidateBuilds: 0,
       programPreparations: 0,
       lastDrawCalls: 0,
@@ -97,12 +84,9 @@ export function createGroundReflections({
       persistenceKeyMs: 0,
       persistentHits: 0,
     },
-
-    { getRefractionFreeMaterial, cloneReflectionMaterial, disposeMaterialClones } =
-      createRefractionMaterialResolver({
-
-        material: (sourceMaterial) => passes?.material(sourceMaterial) || sourceMaterial,
-      }),
+    { getRefractionFreeMaterial, cloneReflectionMaterial, disposeMaterialClones } = createRefractionMaterialResolver({
+      material: (sourceMaterial) => passes?.material(sourceMaterial) || sourceMaterial,
+    }),
     fadeRecordByMaterial = new Map(),
     reflectionUniforms = {
       groundReflectionPlane: {
@@ -123,18 +107,13 @@ export function createGroundReflections({
     scratchPlane = new three.Plane(),
     scratchPlaneVector = new three.Vector4(),
     scratchSignVector = new three.Vector4(),
-    scratchProjectionMatrix = new three.Matrix4();
+    scratchProjectionMatrix = new three.Matrix4()
   /** 取「捕获这一帧该用哪个材质」：先去掉折射，再按需要叠一层高度淡出。 */
   function resolveFadeMaterial(baseMaterial: any) {
-    const refractionFreeMaterialNode = getRefractionFreeMaterial(baseMaterial);
-    if (
-      !(fadeHeight > 0) ||
-      !refractionFreeMaterialNode ||
-      refractionFreeMaterialNode.isShaderMaterial
-    )
-      return refractionFreeMaterialNode;
-    let fadeRecord = fadeRecordByMaterial.get(refractionFreeMaterialNode);
-
+    const refractionFreeMaterialNode = getRefractionFreeMaterial(baseMaterial)
+    if (!(fadeHeight > 0) || !refractionFreeMaterialNode || refractionFreeMaterialNode.isShaderMaterial)
+      return refractionFreeMaterialNode
+    let fadeRecord = fadeRecordByMaterial.get(refractionFreeMaterialNode)
 
     if (
       (fadeRecord &&
@@ -144,114 +123,107 @@ export function createGroundReflections({
         (fadeRecord.version = refractionFreeMaterialNode.version)),
       !fadeRecord)
     ) {
-      const fadedClone = cloneReflectionMaterial(refractionFreeMaterialNode);
+      const fadedClone = cloneReflectionMaterial(refractionFreeMaterialNode)
 
-
-      ((fadedClone.onBeforeCompile = function (shader, webglRenderer) {
-        (refractionFreeMaterialNode.onBeforeCompile!.call(this, shader, webglRenderer),
+      ;(fadedClone.onBeforeCompile = function (shader, webglRenderer) {
+        refractionFreeMaterialNode.onBeforeCompile!.call(this, shader, webglRenderer),
           Object.assign(shader.uniforms, reflectionUniforms),
           (shader.vertexShader =
-            "uniform vec4 groundReflectionPlane;\nuniform mat4 groundReflectionViewToWorld;\nvarying float vGroundReflectionHeight;\n" +
+            'uniform vec4 groundReflectionPlane;\nuniform mat4 groundReflectionViewToWorld;\nvarying float vGroundReflectionHeight;\n' +
             shader.vertexShader),
           (shader.vertexShader = shader.vertexShader.replace(
-            "#include <project_vertex>",
-            "#include <project_vertex>\n          vGroundReflectionHeight = dot(groundReflectionPlane, groundReflectionViewToWorld * mvPosition);",
+            '#include <project_vertex>',
+            '#include <project_vertex>\n          vGroundReflectionHeight = dot(groundReflectionPlane, groundReflectionViewToWorld * mvPosition);',
           )),
           (shader.fragmentShader =
-            "uniform float groundReflectionFadeHeight;\nvarying float vGroundReflectionHeight;\n" +
+            'uniform float groundReflectionFadeHeight;\nvarying float vGroundReflectionHeight;\n' +
             shader.fragmentShader),
           (shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <dithering_fragment>",
-            "#include <dithering_fragment>\n          float groundReflectionFade = 1.0 - smoothstep(0.0, groundReflectionFadeHeight, max(0.0, vGroundReflectionHeight));\n          if (groundReflectionFade <= 0.001) discard;\n          gl_FragColor.a *= groundReflectionFade;\n          " +
-              (!refractionFreeMaterialNode.transparent ||
-              refractionFreeMaterialNode.premultipliedAlpha
-                ? "gl_FragColor.rgb *= groundReflectionFade;"
-                : ""),
-          )));
+            '#include <dithering_fragment>',
+            '#include <dithering_fragment>\n          float groundReflectionFade = 1.0 - smoothstep(0.0, groundReflectionFadeHeight, max(0.0, vGroundReflectionHeight));\n          if (groundReflectionFade <= 0.001) discard;\n          gl_FragColor.a *= groundReflectionFade;\n          ' +
+              (!refractionFreeMaterialNode.transparent || refractionFreeMaterialNode.premultipliedAlpha
+                ? 'gl_FragColor.rgb *= groundReflectionFade;'
+                : ''),
+          ))
       }),
         (fadedClone.customProgramCacheKey = () =>
-          refractionFreeMaterialNode.customProgramCacheKey!() + "|reflection-root-fade-v1"),
+          refractionFreeMaterialNode.customProgramCacheKey!() + '|reflection-root-fade-v1'),
         (fadeRecord = {
           copy: fadedClone,
           version: refractionFreeMaterialNode.version,
           release() {
-            (refractionFreeMaterialNode.removeEventListener("dispose", fadeRecord.release),
+            refractionFreeMaterialNode.removeEventListener('dispose', fadeRecord.release),
               fadeRecordByMaterial.delete(refractionFreeMaterialNode),
-              fadedClone.dispose());
+              fadedClone.dispose()
           },
         }),
-        refractionFreeMaterialNode.addEventListener("dispose", fadeRecord.release),
-        fadeRecordByMaterial.set(refractionFreeMaterialNode, fadeRecord));
+        refractionFreeMaterialNode.addEventListener('dispose', fadeRecord.release),
+        fadeRecordByMaterial.set(refractionFreeMaterialNode, fadeRecord)
     }
-    const resolvedMaterial = fadeRecord.copy;
-    for (const colorProperty of ["color", "emissive"])
+    const resolvedMaterial = fadeRecord.copy
+    for (const colorProperty of ['color', 'emissive'])
       resolvedMaterial[colorProperty] &&
         (refractionFreeMaterialNode as any)[colorProperty] &&
-        resolvedMaterial[colorProperty].copy((refractionFreeMaterialNode as any)[colorProperty]);
+        resolvedMaterial[colorProperty].copy((refractionFreeMaterialNode as any)[colorProperty])
     for (const materialProperty of [
-      "opacity",
-      "emissiveIntensity",
-      "roughness",
-      "metalness",
-      "map",
-      "alphaMap",
-      "lightMap",
-      "lightMapIntensity",
-      "aoMap",
-      "aoMapIntensity",
-      "visible",
+      'opacity',
+      'emissiveIntensity',
+      'roughness',
+      'metalness',
+      'map',
+      'alphaMap',
+      'lightMap',
+      'lightMapIntensity',
+      'aoMap',
+      'aoMapIntensity',
+      'visible',
     ])
       materialProperty in refractionFreeMaterialNode &&
-        (resolvedMaterial[materialProperty] = (refractionFreeMaterialNode as any)[materialProperty]);
-    return (passes?.aliasMaterial?.(baseMaterial, resolvedMaterial), resolvedMaterial);
+        (resolvedMaterial[materialProperty] = (refractionFreeMaterialNode as any)[materialProperty])
+    return (passes?.aliasMaterial?.(baseMaterial, resolvedMaterial), resolvedMaterial)
   }
   function resolveFadeMaterials(materialInput: any, materialCache: any) {
-    if (materialCache.has(materialInput)) return materialCache.get(materialInput);
+    if (materialCache.has(materialInput)) return materialCache.get(materialInput)
     if (!Array.isArray(materialInput)) {
-      const resolvedMaterial = resolveFadeMaterial(materialInput);
-      return (materialCache.set(materialInput, resolvedMaterial), resolvedMaterial);
+      const resolvedMaterial = resolveFadeMaterial(materialInput)
+      return (materialCache.set(materialInput, resolvedMaterial), resolvedMaterial)
     }
-    let arrayRecord = fadeArrayByInput.get(materialInput);
-    (arrayRecord ||
+    let arrayRecord = fadeArrayByInput.get(materialInput)
+    arrayRecord ||
       ((arrayRecord = {
         next: [] as any[],
       }),
       fadeArrayByInput.set(materialInput, arrayRecord)),
-      (arrayRecord.next.length = materialInput.length));
-    let hasMaterialChanged = false;
+      (arrayRecord.next.length = materialInput.length)
+    let hasMaterialChanged = false
     for (let materialIndex = 0; materialIndex < materialInput.length; materialIndex++)
-      ((arrayRecord.next[materialIndex] = resolveFadeMaterials(
-        materialInput[materialIndex],
-        materialCache,
-      )),
-        (hasMaterialChanged ||= arrayRecord.next[materialIndex] !== materialInput[materialIndex]));
-    const resolvedInput = hasMaterialChanged ? arrayRecord.next : materialInput;
-    return (materialCache.set(materialInput, resolvedInput), resolvedInput);
+      (arrayRecord.next[materialIndex] = resolveFadeMaterials(materialInput[materialIndex], materialCache)),
+        (hasMaterialChanged ||= arrayRecord.next[materialIndex] !== materialInput[materialIndex])
+    const resolvedInput = hasMaterialChanged ? arrayRecord.next : materialInput
+    return (materialCache.set(materialInput, resolvedInput), resolvedInput)
   }
   let activeRecords: any = [],
     currentRoot: any = null,
     rootFirstChild: any = null,
     shouldRefresh = true,
     lastRenderTimeMs = -Infinity,
-    lastCameraSignature = "",
-    lastLightingSignature = "",
+    lastCameraSignature = '',
+    lastLightingSignature = '',
     isDisposed = false,
-    lastReceiverSignature = "",
+    lastReceiverSignature = '',
     receiverMeshes: any = [],
     changeRevisionCount = 0,
     lastSceneRevision: any,
     isSuspended = false,
     isResumePending = false,
     resumeStartedAtMs: any = null,
-    suspendStartedAtMs: any = null;
-
+    suspendStartedAtMs: any = null
 
   const qualityPreset = () => groundReflectionQuality(settings.resolution),
     usesReflectionBlur = () => blur ?? qualityPreset().blur,
     isDetailEnabled = () =>
-      !!detail &&
-      settings.resolution <= (detailMaxResolution ?? qualityPreset().detailMaxResolution);
-  const resumeFadeDurationMs = 160;
+      !!detail && settings.resolution <= (detailMaxResolution ?? qualityPreset().detailMaxResolution)
+  const resumeFadeDurationMs = 160
   let presentationGain = 1,
     throttleTimer: any = null,
     outsideFloorId: any = null,
@@ -260,20 +232,20 @@ export function createGroundReflections({
     insideEnabled = true,
     resumeRecordSet: any = null,
     /** 每帧预算取子集时的轮转起点：保证排在后面的记录不会长期饿死。 */
-    captureRotation = 0;
+    captureRotation = 0
   const recordsBySource = new Map(),
     floorChangeCountByFloorId = new Map(),
-    persistenceByteBudget = 24 * 1024 * 1024;
+    persistenceByteBudget = 24 * 1024 * 1024
   let insideExpiryTimer: any = null,
     isPersistenceSettled = false,
     propagationCount = 0,
-    persistenceRetainedBytes = 0;
+    persistenceRetainedBytes = 0
   let heightByFloorId = new Map(),
     lightsByFloorId = new Map(),
     nodeEntries: any = [],
     cachedTreeRoot: any = null,
     cachedTreeFirstChild: any = null,
-    cachedTreeRevision: any;
+    cachedTreeRevision: any
   function rebuildNodeEntries(treeRoot: any, treeRevision: any) {
     if (
       getSceneRevision &&
@@ -281,38 +253,34 @@ export function createGroundReflections({
       cachedTreeFirstChild === treeRoot.children[0] &&
       cachedTreeRevision === treeRevision
     )
-      return;
-    ((nodeEntries = []),
+      return
+    ;(nodeEntries = []),
       (cachedTreeRoot = treeRoot),
       (cachedTreeFirstChild = treeRoot.children[0]),
-      (cachedTreeRevision = treeRevision));
+      (cachedTreeRevision = treeRevision)
     const collectNodeEntry = (treeNode: any, parentEntryIndex = -1) => {
-      if (treeNode.userData.reflectionOverlay) return;
+      if (treeNode.userData.reflectionOverlay) return
       const selfIndex = nodeEntries.length,
         sceneEntry = {
           object: treeNode,
           parent: parentEntryIndex,
           end: 0,
-          id: "",
-        };
-      nodeEntries.push(sceneEntry);
-      for (const traversedChild of treeNode.children) collectNodeEntry(traversedChild, selfIndex);
-      sceneEntry.end = nodeEntries.length;
-    };
-    (collectNodeEntry(treeRoot), (stats.candidateBuilds = (stats.candidateBuilds || 0) + 1));
+          id: '',
+        }
+      nodeEntries.push(sceneEntry)
+      for (const traversedChild of treeNode.children) collectNodeEntry(traversedChild, selfIndex)
+      sceneEntry.end = nodeEntries.length
+    }
+    collectNodeEntry(treeRoot), (stats.candidateBuilds = (stats.candidateBuilds || 0) + 1)
   }
-  const traversalGroup = new three.Group();
-  traversalGroup.traverse = (visitNode: any) => scene.traverseVisible(visitNode);
+  const traversalGroup = new three.Group()
+  traversalGroup.traverse = (visitNode: any) => scene.traverseVisible(visitNode)
   function tryPrepareProgram(programRecord: any, compileCamera: any) {
-    if (!renderer.compile || !renderer.extensions?.has("KHR_parallel_shader_compile")) return true;
-    const glInstance = renderer.getContext();
-    if (glInstance.isContextLost()) return false;
-    let programWork = programRecord.programWork;
-    if (
-      !programWork ||
-      programWork.context !== glInstance ||
-      programWork.revision !== lastSceneRevision
-    )
+    if (!renderer.compile || !renderer.extensions?.has('KHR_parallel_shader_compile')) return true
+    const glInstance = renderer.getContext()
+    if (glInstance.isContextLost()) return false
+    let programWork = programRecord.programWork
+    if (!programWork || programWork.context !== glInstance || programWork.revision !== lastSceneRevision)
       return (
         renderer.compile(traversalGroup, compileCamera, scene),
         (programWork = programRecord.programWork =
@@ -325,11 +293,11 @@ export function createGroundReflections({
           }),
         (stats.programPreparations = (stats.programPreparations || 0) + 1),
         false
-      );
-    if (programWork.done) return true;
+      )
+    if (programWork.done) return true
     const programSet = new Set(renderer.info.programs),
       isLiveProgram = (program: any) =>
-        programSet.has(program) && program.program && glInstance.isProgram(program.program);
+        programSet.has(program) && program.program && glInstance.isProgram(program.program)
     return (
       (programWork.done =
         performance.now() >= programWork.deadline ||
@@ -337,114 +305,108 @@ export function createGroundReflections({
         programWork.programs.every((pendingProgram: any) => pendingProgram.isReady())),
       programWork.done && (programWork.programs = []),
       programWork.done
-    );
+    )
   }
-  const objectIdByObject = new WeakMap();
-  let objectIdSequence = 0;
+  const objectIdByObject = new WeakMap()
+  let objectIdSequence = 0
   function getObjectId(targetObject: any) {
     return targetObject
-      ? (objectIdByObject.has(targetObject) ||
-          objectIdByObject.set(targetObject, ++objectIdSequence),
+      ? (objectIdByObject.has(targetObject) || objectIdByObject.set(targetObject, ++objectIdSequence),
         objectIdByObject.get(targetObject))
-      : 0;
+      : 0
   }
 
-
   function geometrySignature(mesh: any) {
-    const meshGeometry = mesh.geometry;
+    const meshGeometry = mesh.geometry
     return [
       meshGeometry.uuid,
       getObjectId(meshGeometry.index),
       meshGeometry.index?.version,
       ...Object.entries(meshGeometry.attributes).flatMap(([attributeName, attribute]) => {
-
-
         const signatureAttribute = attribute as {
-          version?: number;
-          data?: { version?: number };
-          count?: number;
-        };
+          version?: number
+          data?: { version?: number }
+          count?: number
+        }
         return [
           attributeName,
           getObjectId(signatureAttribute),
           signatureAttribute.version,
           signatureAttribute.data?.version,
           signatureAttribute.count,
-        ];
+        ]
       }),
       meshGeometry.drawRange.start,
       meshGeometry.drawRange.count,
-    ].join("|");
+    ].join('|')
   }
   function isEligibleReceiver(candidateObject: any) {
     for (let walkedNode = candidateObject; walkedNode; walkedNode = walkedNode.parent)
-      if (walkedNode.userData.courtyardSurface || walkedNode.userData.courtyardFoundation)
-        return false;
+      if (walkedNode.userData.courtyardSurface || walkedNode.userData.courtyardFoundation) return false
     return (
       candidateObject.userData.backgroundThemeHidden !== true ||
       candidateObject.userData.groundReflectionReceiver === true
-    );
+    )
   }
   function cancelInsideExpiry() {
-    (clearTimeout(insideExpiryTimer), (insideExpiryTimer = null));
+    clearTimeout(insideExpiryTimer), (insideExpiryTimer = null)
   }
   function disposeRecord(recordToDispose: any) {
-    if (!recordToDispose || recordToDispose.dead) return;
-    recordToDispose.dead = true;
+    if (!recordToDispose || recordToDispose.dead) return
+    recordToDispose.dead = true
     try {
-      recordToDispose.geometry?.removeEventListener?.(
-        "dispose",
-        recordToDispose.onSourceDispose,
-      );
+      recordToDispose.geometry?.removeEventListener?.('dispose', recordToDispose.onSourceDispose)
     } catch {
       /* geometry 可能已销毁 */
     }
-    (recordToDispose.pendingSnapshot?.release(),
+    recordToDispose.pendingSnapshot?.release(),
       recordToDispose.overlay?.removeFromParent?.(),
       recordToDispose.overlay?.geometry?.dispose?.(),
       recordToDispose.overlay?.material?.dispose?.(),
       recordToDispose.restoredTexture?.dispose?.(),
       recordToDispose.map?.dispose?.(),
-      recordsBySource.delete(recordToDispose.source));
+      recordsBySource.delete(recordToDispose.source)
   }
   function trimRecordCache(forceExpireInside = false) {
     const activeRecordSet = new Set(activeRecords),
       reclaimCandidates = [...recordsBySource.values()]
         .filter((candidateRecord) => !activeRecordSet.has(candidateRecord))
-        .sort((recordA, recordB) => recordB.used - recordA.used);
+        .sort((recordA, recordB) => recordB.used - recordA.used)
     let totalBytes = 0,
-      keptCount = 0;
+      keptCount = 0
     for (const candidate of reclaimCandidates) {
       const candidateBytes =
           candidate.map.width *
           candidate.map.height *
           (12 * (1 + candidate.map.samples) + (candidate.restoredTexture ? 8 : 0)),
-        shouldExpireInside = forceExpireInside && !insideEnabled && candidate.kind === "inside";
+        shouldExpireInside = forceExpireInside && !insideEnabled && candidate.kind === 'inside'
       if (
         shouldExpireInside ||
         candidate.dead ||
         keptCount >= maxInactiveRecords ||
         totalBytes + candidateBytes > inactiveBudget
       ) {
-        (shouldExpireInside && stats.expiredRecords++, disposeRecord(candidate));
-        continue;
+        shouldExpireInside && stats.expiredRecords++, disposeRecord(candidate)
+        continue
       }
-      ((totalBytes += candidateBytes), keptCount++);
+      ;(totalBytes += candidateBytes), keptCount++
     }
-    ((stats.cachedRecords = keptCount),
+    ;(stats.cachedRecords = keptCount),
       (stats.cachedBytes = totalBytes),
       !insideEnabled &&
       [...recordsBySource.values()].some(
-        (cachedRecord) => !activeRecordSet.has(cachedRecord) && cachedRecord.kind === "inside",
+        (cachedRecord) => !activeRecordSet.has(cachedRecord) && cachedRecord.kind === 'inside',
       )
         ? !isDisposed &&
           insideExpiryTimer === null &&
           Number.isFinite(insideIdleMs) &&
-          (insideExpiryTimer = setTimeout(() => {
-            ((insideExpiryTimer = null),
-              !isDisposed && !insideEnabled && trimRecordCache(true));
-          }, Math.max(0, insideIdleMs)))
-        : cancelInsideExpiry());
+          (insideExpiryTimer = setTimeout(
+            () => {
+              ;(insideExpiryTimer = null), !isDisposed && !insideEnabled && trimRecordCache(true)
+            },
+            Math.max(0, insideIdleMs),
+          ))
+        : cancelInsideExpiry()
   }
   function buildLightingSignature(lights: any) {
     return lights
@@ -462,40 +424,36 @@ export function createGroundReflections({
           light.penumbra,
           ...light.matrixWorld.elements,
           ...(light.target?.matrixWorld.elements || []),
-        ].join(","),
+        ].join(','),
       )
-      .join(";");
+      .join(';')
   }
   function recordStateKey(stateRecord: any) {
     return (
       visibleFloorId ??
-      (stateRecord.kind === "outside" && outsideFloorId !== null
+      (stateRecord.kind === 'outside' && outsideFloorId !== null
         ? outsideFloorId
         : resolveFloorId(stateRecord.source) || null)
-    );
+    )
   }
   function recordLightingSignature(targetRecord: any, signatureByFloor: any) {
-    const recordFloorId = recordStateKey(targetRecord);
+    const recordFloorId = recordStateKey(targetRecord)
     return [...heightByFloorId]
       .filter(
         ([entryFloorKey]) =>
-          !floorLighting ||
-          recordFloorId === null ||
-          !entryFloorKey ||
-          entryFloorKey === recordFloorId,
+          !floorLighting || recordFloorId === null || !entryFloorKey || entryFloorKey === recordFloorId,
       )
       .map(([lookupFloorKey]) => signatureByFloor.get(lookupFloorKey))
-      .join("|");
+      .join('|')
   }
-  const isOnVisibleFloor = (targetNode: any) =>
-    visibleFloorId === null || resolveFloorId(targetNode) === visibleFloorId;
+  const isOnVisibleFloor = (targetNode: any) => visibleFloorId === null || resolveFloorId(targetNode) === visibleFloorId
   function isOnOutsideFloor(outsideSource: any) {
-    if (outsideFloorId === null) return true;
+    if (outsideFloorId === null) return true
     for (let outsideNode = outsideSource; outsideNode; outsideNode = outsideNode.parent) {
-      const ancestorFloorId = outsideNode.userData?.floorId || outsideNode.userData?.regionFloorId;
-      if (ancestorFloorId) return ancestorFloorId === outsideFloorId;
+      const ancestorFloorId = outsideNode.userData?.floorId || outsideNode.userData?.regionFloorId
+      if (ancestorFloorId) return ancestorFloorId === outsideFloorId
     }
-    return false;
+    return false
   }
   const blurScene = new three.Scene(),
     /**
@@ -519,18 +477,18 @@ export function createGroundReflections({
           value: new three.Vector2(),
         },
       },
-      vertexShader: "varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}",
+      vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
       fragmentShader:
-        "uniform sampler2D source; uniform vec2 step; varying vec2 vUv;\n      void main(){ gl_FragColor=texture2D(source,vUv)*.227027;\n      gl_FragColor+=(texture2D(source,vUv+step*1.384615)+texture2D(source,vUv-step*1.384615))*.316216;\n      gl_FragColor+=(texture2D(source,vUv+step*3.230769)+texture2D(source,vUv-step*3.230769))*.070270; }",
+        'uniform sampler2D source; uniform vec2 step; varying vec2 vUv;\n      void main(){ gl_FragColor=texture2D(source,vUv)*.227027;\n      gl_FragColor+=(texture2D(source,vUv+step*1.384615)+texture2D(source,vUv-step*1.384615))*.316216;\n      gl_FragColor+=(texture2D(source,vUv+step*3.230769)+texture2D(source,vUv-step*3.230769))*.070270; }',
     }),
-    blurMesh = new three.Mesh(new three.PlaneGeometry(2, 2), blurMaterial);
-  blurScene.add(blurMesh);
+    blurMesh = new three.Mesh(new three.PlaneGeometry(2, 2), blurMaterial)
+  blurScene.add(blurMesh)
   const createReflectionTarget = (resolutionPx: any, forBlurPass = false) =>
     new three.WebGLRenderTarget(resolutionPx, resolutionPx, {
       type: three.HalfFloatType,
       depthBuffer: !forBlurPass,
       samples: forBlurPass ? 0 : Math.min(2, renderer.capabilities.maxSamples),
-    });
+    })
   /**
    * 双向高斯模糊的中间目标：所有记录共用一张。
    *
@@ -538,27 +496,24 @@ export function createGroundReflections({
    * 所以每个记录各持一张 scratch 纯属浪费：256 档下 N 条记录就是 N × 256² × 8B
    * 的常驻开销。共用一张后记录只在 blur 开着时才需要它。
    */
-  let sharedBlurScratch: any = null;
+  let sharedBlurScratch: any = null
   const getBlurScratch = (resolutionPx: any) => {
-    if (!sharedBlurScratch) sharedBlurScratch = createReflectionTarget(resolutionPx, true);
-    else if (sharedBlurScratch.width !== resolutionPx)
-      sharedBlurScratch.setSize(resolutionPx, resolutionPx);
-    return sharedBlurScratch;
-  };
+    if (!sharedBlurScratch) sharedBlurScratch = createReflectionTarget(resolutionPx, true)
+    else if (sharedBlurScratch.width !== resolutionPx) sharedBlurScratch.setSize(resolutionPx, resolutionPx)
+    return sharedBlurScratch
+  }
   function disposeAllRecords() {
-    (cancelInsideExpiry(), (resumeRecordSet = null));
-    for (const storedRecord of [...recordsBySource.values()]) disposeRecord(storedRecord);
-    ((activeRecords = []), (receiverMeshes = []), (stats.cachedRecords = stats.cachedBytes = 0));
+    cancelInsideExpiry(), (resumeRecordSet = null)
+    for (const storedRecord of [...recordsBySource.values()]) disposeRecord(storedRecord)
+    ;(activeRecords = []), (receiverMeshes = []), (stats.cachedRecords = stats.cachedBytes = 0)
   }
   function rebuildRecords(sceneRevision: any) {
-    const resolvedRoot = getRoot();
+    const resolvedRoot = getRoot()
     if (!resolvedRoot) {
-      (disposeAllRecords(),
-        (currentRoot = rootFirstChild = cachedTreeRoot = null),
-        (nodeEntries = []));
-      return;
+      disposeAllRecords(), (currentRoot = rootFirstChild = cachedTreeRoot = null), (nodeEntries = [])
+      return
     }
-    (rebuildNodeEntries(resolvedRoot, sceneRevision),
+    rebuildNodeEntries(resolvedRoot, sceneRevision),
       (!getSceneRevision ||
         lastSceneRevision !== sceneRevision ||
         currentRoot !== resolvedRoot ||
@@ -568,50 +523,46 @@ export function createGroundReflections({
           traversedReceiver.isMesh &&
             !traversedReceiver.userData.floorPlanGroundShadow &&
             traversedReceiver.userData.batchedWallContactShadowCount == null &&
-            (traversedReceiver.userData.regionReceiverKind === "floor" ||
-              traversedReceiver.userData.exportRole === "background") &&
-            receiverMeshes.push(traversedReceiver);
-        })));
+            (traversedReceiver.userData.regionReceiverKind === 'floor' ||
+              traversedReceiver.userData.exportRole === 'background') &&
+            receiverMeshes.push(traversedReceiver)
+        }))
     const receiverSignature = receiverMeshes
-      .map(
-        (receiverEntry: any) => receiverEntry.uuid + ":" + (isEligibleReceiver(receiverEntry) ? 1 : 0),
-      )
-      .join("|");
+      .map((receiverEntry: any) => receiverEntry.uuid + ':' + (isEligibleReceiver(receiverEntry) ? 1 : 0))
+      .join('|')
     if (
       lastSceneRevision === sceneRevision &&
       currentRoot === resolvedRoot &&
       rootFirstChild === resolvedRoot.children[0] &&
       receiverSignature === lastReceiverSignature &&
       activeRecords.every(
-        (knownRecord: any) =>
-          knownRecord.source.parent && !knownRecord.dead && isEligibleReceiver(knownRecord.source),
+        (knownRecord: any) => knownRecord.source.parent && !knownRecord.dead && isEligibleReceiver(knownRecord.source),
       )
     )
-      return;
+      return
     for (const staleRecord of activeRecords)
-      ((staleRecord.overlay.visible = false), staleRecord.overlay.removeFromParent());
-    ((activeRecords = []),
+      (staleRecord.overlay.visible = false), staleRecord.overlay.removeFromParent()
+    ;(activeRecords = []),
       (lastSceneRevision = sceneRevision),
       (currentRoot = resolvedRoot),
       (rootFirstChild = resolvedRoot.children[0]),
       (lastReceiverSignature = receiverSignature),
       currentRoot.updateWorldMatrix(true, true),
       (heightByFloorId = new Map()),
-      (lightsByFloorId = new Map()));
-    const heightBox = new three.Box3();
+      (lightsByFloorId = new Map())
+    const heightBox = new three.Box3()
     currentRoot.traverse((traversedNode: any) => {
-      if (traversedNode.userData?.reflectionOverlay || traversedNode.userData?.environmentEffect)
-        return;
-      const traversedFloorId = resolveFloorId(traversedNode);
+      if (traversedNode.userData?.reflectionOverlay || traversedNode.userData?.environmentEffect) return
+      const traversedFloorId = resolveFloorId(traversedNode)
       if (
         (traversedNode.isLight &&
           (lightsByFloorId.has(traversedFloorId) || lightsByFloorId.set(traversedFloorId, []),
           lightsByFloorId.get(traversedFloorId).push(traversedNode)),
         !traversedNode.isMesh || !traversedNode.geometry)
       )
-        return;
-      (traversedNode.geometry.boundingBox || traversedNode.geometry.computeBoundingBox(),
-        traversedNode.isInstancedMesh && traversedNode.computeBoundingBox());
+        return
+      traversedNode.geometry.boundingBox || traversedNode.geometry.computeBoundingBox(),
+        traversedNode.isInstancedMesh && traversedNode.computeBoundingBox()
       const localBounds = traversedNode.isInstancedMesh
           ? traversedNode.boundingBox
           : traversedNode.geometry.boundingBox,
@@ -620,44 +571,35 @@ export function createGroundReflections({
             ? Infinity
             : localBounds
               ? heightBox.copy(localBounds).applyMatrix4(traversedNode.matrixWorld).max.y
-              : Infinity;
-      heightByFloorId.set(
-        traversedFloorId,
-        Math.max(heightByFloorId.get(traversedFloorId) ?? -Infinity, topWorldY),
-      );
-    });
-    const eligibleReceivers = receiverMeshes.filter(isEligibleReceiver);
+              : Infinity
+      heightByFloorId.set(traversedFloorId, Math.max(heightByFloorId.get(traversedFloorId) ?? -Infinity, topWorldY))
+    })
+    const eligibleReceivers = receiverMeshes.filter(isEligibleReceiver)
     for (const sourceMesh of eligibleReceivers) {
-      const receiverKind = sourceMesh.userData.exportRole === "background" ? "outside" : "inside";
+      const receiverKind = sourceMesh.userData.exportRole === 'background' ? 'outside' : 'inside'
       if (
         isFloorTransitionLeaving(sourceMesh) ||
         !isOnVisibleFloor(sourceMesh) ||
-        (settings.mode !== "all" && receiverKind !== settings.mode) ||
-        (receiverKind === "inside" && !insideEnabled) ||
-        (receiverKind === "outside" && !isOnOutsideFloor(sourceMesh))
+        (settings.mode !== 'all' && receiverKind !== settings.mode) ||
+        (receiverKind === 'inside' && !insideEnabled) ||
+        (receiverKind === 'outside' && !isOnOutsideFloor(sourceMesh))
       )
-        continue;
+        continue
       const sourceBounds = new three.Box3().setFromObject(sourceMesh),
         sourceHeight = sourceBounds.max.y,
-        sourceKey = geometrySignature(sourceMesh);
-      let record = recordsBySource.get(sourceMesh);
+        sourceKey = geometrySignature(sourceMesh)
+      let record = recordsBySource.get(sourceMesh)
       if (
         (record &&
-          (record.dead ||
-            record.key !== sourceKey ||
-            record.geometry !== sourceMesh.geometry) &&
+          (record.dead || record.key !== sourceKey || record.geometry !== sourceMesh.geometry) &&
           (disposeRecord(record), (record = null)),
         record)
       ) {
-        const reflectionUniform = record.overlay?.material?.uniforms?.reflection;
-        if (
-          reflectionUniform &&
-          record.map?.texture &&
-          reflectionUniform.value !== record.map.texture
-        ) {
-          reflectionUniform.value = record.map.texture;
+        const reflectionUniform = record.overlay?.material?.uniforms?.reflection
+        if (reflectionUniform && record.map?.texture && reflectionUniform.value !== record.map.texture) {
+          reflectionUniform.value = record.map.texture
         }
-        ((record.height = sourceHeight),
+        ;(record.height = sourceHeight),
           (record.used = ++usageCounter),
           (record.hasCapture = false),
           record.overlay.position.copy(sourceMesh.position),
@@ -665,8 +607,8 @@ export function createGroundReflections({
           record.overlay.scale.copy(sourceMesh.scale),
           sourceMesh.parent.add(record.overlay),
           activeRecords.push(record),
-          stats.reuses++);
-        continue;
+          stats.reuses++
+        continue
       }
       const reflectionTarget = createReflectionTarget(settings.resolution),
         reflectionMatrix = new three.Matrix4(),
@@ -688,12 +630,12 @@ export function createGroundReflections({
             },
           },
           vertexShader:
-            "uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;vec4 mvPosition=modelViewMatrix*vec4(position,1.);\n          gl_Position=projectionMatrix*mvPosition;}",
+            'uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;vec4 mvPosition=modelViewMatrix*vec4(position,1.);\n          gl_Position=projectionMatrix*mvPosition;}',
           fragmentShader:
-            "uniform sampler2D reflection; uniform float strength; varying vec4 reflected; varying float up;\n          void main(){if(up<.9||reflected.w<=0.)discard;vec2 uv=reflected.xy/reflected.w;\n          if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;\n          vec4 value=texture2D(reflection,uv);gl_FragColor=vec4(value.rgb/max(value.a,.001),clamp(value.a*strength,0.,.7));\n          #include <tonemapping_fragment>\n          #include <colorspace_fragment>\n          }",
+            'uniform sampler2D reflection; uniform float strength; varying vec4 reflected; varying float up;\n          void main(){if(up<.9||reflected.w<=0.)discard;vec2 uv=reflected.xy/reflected.w;\n          if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;\n          vec4 value=texture2D(reflection,uv);gl_FragColor=vec4(value.rgb/max(value.a,.001),clamp(value.a*strength,0.,.7));\n          #include <tonemapping_fragment>\n          #include <colorspace_fragment>\n          }',
         }),
-        overlayMesh = new three.Mesh(sourceMesh.geometry.clone(), reflectionMaterial);
-      (overlayMesh.position.copy(sourceMesh.position),
+        overlayMesh = new three.Mesh(sourceMesh.geometry.clone(), reflectionMaterial)
+      overlayMesh.position.copy(sourceMesh.position),
         overlayMesh.quaternion.copy(sourceMesh.quaternion),
         overlayMesh.scale.copy(sourceMesh.scale),
         (overlayMesh.renderOrder = 1),
@@ -713,95 +655,79 @@ export function createGroundReflections({
           matrix: reflectionMatrix,
           key: sourceKey,
           used: ++usageCounter,
-          state: "",
+          state: '',
           dead: false,
           hasCapture: false,
         }),
         (record.onSourceDispose = () => {
           // 源几何被销毁时立刻释放整条记录，避免贴图/克隆几何悬空。
-          disposeRecord(record);
+          disposeRecord(record)
         }),
-        sourceMesh.geometry.addEventListener("dispose", record.onSourceDispose),
+        sourceMesh.geometry.addEventListener('dispose', record.onSourceDispose),
         recordsBySource.set(sourceMesh, record),
         stats.allocations++,
         sourceMesh.parent.add(overlayMesh),
-        activeRecords.push(record));
+        activeRecords.push(record)
     }
-    (activeRecords.length &&
-      (isDetailEnabled() && detail.prepare(currentRoot), passes?.prepare(currentRoot)),
+    activeRecords.length && (isDetailEnabled() && detail.prepare(currentRoot), passes?.prepare(currentRoot)),
       trimRecordCache(),
-      (shouldRefresh = true));
+      (shouldRefresh = true)
   }
   function shouldShowRecord(recordToCheck: any) {
     return (
       isOnVisibleFloor(recordToCheck.source) &&
-      (settings.mode === "all" || settings.mode === recordToCheck.kind) &&
-      (recordToCheck.kind !== "inside" || insideEnabled) &&
-      (recordToCheck.kind !== "outside" || isOnOutsideFloor(recordToCheck.source))
-    );
+      (settings.mode === 'all' || settings.mode === recordToCheck.kind) &&
+      (recordToCheck.kind !== 'inside' || insideEnabled) &&
+      (recordToCheck.kind !== 'outside' || isOnOutsideFloor(recordToCheck.source))
+    )
   }
   function configure(nextSettings: any) {
-    const normalizedSettings = normalizeGroundReflection(nextSettings);
+    const normalizedSettings = normalizeGroundReflection(nextSettings)
     if (
       normalizedSettings.mode === settings.mode &&
       normalizedSettings.resolution === settings.resolution &&
       normalizedSettings.strength === settings.strength
     )
-      return false;
+      return false
     const hasResolutionChanged = settings.resolution !== normalizedSettings.resolution,
-      hasModeChanged = settings.mode !== normalizedSettings.mode;
+      hasModeChanged = settings.mode !== normalizedSettings.mode
     return (
       Object.assign(settings, normalizedSettings),
-      (hasResolutionChanged ||
-        normalizedSettings.mode === "off" ||
-        normalizedSettings.strength === 0) &&
+      (hasResolutionChanged || normalizedSettings.mode === 'off' || normalizedSettings.strength === 0) &&
         (disposeAllRecords(), (rootFirstChild = null)),
       hasModeChanged && (rootFirstChild = null),
       (shouldRefresh ||= hasResolutionChanged || hasModeChanged),
       requestFrame(),
       true
-    );
+    )
   }
   function updateReflectionCamera(sourceCamera: any, mirrorPlane: any, textureMatrix: any) {
-    let reflectionCamera = reflectionCameraBySource.get(sourceCamera);
-    (reflectionCamera ||
-      ((reflectionCamera = sourceCamera.clone(false)),
-      reflectionCameraBySource.set(sourceCamera, reflectionCamera)),
-      (reflectionCamera.layers.mask = sourceCamera.layers.mask));
+    let reflectionCamera = reflectionCameraBySource.get(sourceCamera)
+    reflectionCamera ||
+      ((reflectionCamera = sourceCamera.clone(false)), reflectionCameraBySource.set(sourceCamera, reflectionCamera)),
+      (reflectionCamera.layers.mask = sourceCamera.layers.mask)
     for (const cameraProperty of [
-      "near",
-      "far",
-      "zoom",
-      "fov",
-      "aspect",
-      "focus",
-      "filmGauge",
-      "filmOffset",
-      "left",
-      "right",
-      "top",
-      "bottom",
-      "coordinateSystem",
+      'near',
+      'far',
+      'zoom',
+      'fov',
+      'aspect',
+      'focus',
+      'filmGauge',
+      'filmOffset',
+      'left',
+      'right',
+      'top',
+      'bottom',
+      'coordinateSystem',
     ])
-      cameraProperty in sourceCamera &&
-        (reflectionCamera[cameraProperty] = sourceCamera[cameraProperty]);
-    const cameraWorldPosition = scratchWorldPosition.setFromMatrixPosition(
-        sourceCamera.matrixWorld,
-      ),
-      cameraForward = scratchWorldNormal
-        .setFromMatrixColumn(sourceCamera.matrixWorld, 2)
-        .negate()
-        .normalize();
-    (cameraWorldPosition.addScaledVector(
-      mirrorPlane.normal,
-      -2 * mirrorPlane.distanceToPoint(cameraWorldPosition),
-    ),
+      cameraProperty in sourceCamera && (reflectionCamera[cameraProperty] = sourceCamera[cameraProperty])
+    const cameraWorldPosition = scratchWorldPosition.setFromMatrixPosition(sourceCamera.matrixWorld),
+      cameraForward = scratchWorldNormal.setFromMatrixColumn(sourceCamera.matrixWorld, 2).negate().normalize()
+    cameraWorldPosition.addScaledVector(mirrorPlane.normal, -2 * mirrorPlane.distanceToPoint(cameraWorldPosition)),
       cameraForward.reflect(mirrorPlane.normal),
       reflectionCamera.position.copy(cameraWorldPosition),
-      reflectionCamera.up
-        .setFromMatrixColumn(sourceCamera.matrixWorld, 1)
-        .normalize()
-        .reflect(mirrorPlane.normal),
+      reflectionCamera.up.setFromMatrixColumn(sourceCamera.matrixWorld, 1).normalize().reflect(mirrorPlane.normal),
       reflectionCamera.lookAt(scratchLookTarget.copy(cameraWorldPosition).add(cameraForward)),
       reflectionCamera.updateMatrixWorld(true),
       reflectionCamera.projectionMatrix.copy(sourceCamera.projectionMatrix),
@@ -810,10 +736,8 @@ export function createGroundReflections({
       textureMatrix
         .set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
         .multiply(reflectionCamera.projectionMatrix)
-        .multiply(reflectionCamera.matrixWorldInverse));
-    const planeInCameraSpace = scratchPlane
-        .copy(mirrorPlane)
-        .applyMatrix4(reflectionCamera.matrixWorldInverse),
+        .multiply(reflectionCamera.matrixWorldInverse)
+    const planeInCameraSpace = scratchPlane.copy(mirrorPlane).applyMatrix4(reflectionCamera.matrixWorldInverse),
       clipPlaneVector = scratchPlaneVector.set(
         planeInCameraSpace.normal.x,
         planeInCameraSpace.normal.y,
@@ -823,7 +747,7 @@ export function createGroundReflections({
       projectionElements = reflectionCamera.projectionMatrix.elements,
       signVector = scratchSignVector
         .set(Math.sign(clipPlaneVector.x), Math.sign(clipPlaneVector.y), 1, 1)
-        .applyMatrix4(scratchProjectionMatrix.copy(reflectionCamera.projectionMatrix).invert());
+        .applyMatrix4(scratchProjectionMatrix.copy(reflectionCamera.projectionMatrix).invert())
     return (
       clipPlaneVector.multiplyScalar(2 / clipPlaneVector.dot(signVector)),
       (projectionElements[2] = clipPlaneVector.x - projectionElements[3]),
@@ -832,21 +756,20 @@ export function createGroundReflections({
       (projectionElements[14] = clipPlaneVector.w - projectionElements[15]),
       reflectionCamera.projectionMatrixInverse.copy(reflectionCamera.projectionMatrix).invert(),
       reflectionCamera
-    );
+    )
   }
   function buildPersistenceKey(persistenceRecord: any, persistenceCamera: any) {
-    if (!reflectionSignature) return null;
+    if (!reflectionSignature) return null
     try {
       const persistenceSignature = reflectionSignature({
         scene: scene,
         renderer: renderer,
         camera: persistenceCamera,
         state: getPersistentState(recordStateKey(persistenceRecord)),
-        insideOnly: persistenceRecord.kind === "inside",
+        insideOnly: persistenceRecord.kind === 'inside',
         scope: recordStateKey(persistenceRecord),
         materialState: getPersistentMaterialState,
-        captureGeometry: (captureSource: any) =>
-          detail?.get(captureSource) || captureSource.geometry,
+        captureGeometry: (captureSource: any) => detail?.get(captureSource) || captureSource.geometry,
         settings: [
           settings,
           passes?.options,
@@ -863,20 +786,14 @@ export function createGroundReflections({
           getFloorCamera(persistenceCamera, persistenceRecord.source).matrixWorld.toArray(),
           getFloorCamera(persistenceCamera, persistenceRecord.source).projectionMatrix.toArray(),
         ],
-      });
-      return persistenceSignature && persistenceSignature.length <= 1024 * 1024
-        ? persistenceSignature
-        : null;
+      })
+      return persistenceSignature && persistenceSignature.length <= 1024 * 1024 ? persistenceSignature : null
     } catch {
-      return null;
+      return null
     }
   }
   const reflectionQueueKey = (queueRecord: any) =>
-    resolveFloorId(queueRecord.source) +
-    ":" +
-    queueRecord.kind +
-    ":" +
-    activeRecords.indexOf(queueRecord);
+    resolveFloorId(queueRecord.source) + ':' + queueRecord.kind + ':' + activeRecords.indexOf(queueRecord)
   function enqueuePersistenceCapture(persistenceRecord: any, persistenceKey: any) {
     if (
       !persistenceKey ||
@@ -884,21 +801,14 @@ export function createGroundReflections({
       persistenceRecord.restoredTexture ||
       !renderer.readRenderTargetPixelsAsync
     )
-      return;
+      return
     const persistenceTarget = persistenceRecord.map,
       persistenceMatrix = persistenceRecord.matrix.clone(),
-      persistenceBytes =
-        persistenceTarget.width *
-        persistenceTarget.height *
-        12 *
-        (1 + persistenceTarget.samples);
-    if (persistenceRetainedBytes + persistenceBytes > persistenceByteBudget) return;
-    ((persistenceRetainedBytes += persistenceBytes),
+      persistenceBytes = persistenceTarget.width * persistenceTarget.height * 12 * (1 + persistenceTarget.samples)
+    if (persistenceRetainedBytes + persistenceBytes > persistenceByteBudget) return
+    ;(persistenceRetainedBytes += persistenceBytes),
       (stats.persistenceRetainedBytes = persistenceRetainedBytes),
-      (stats.persistencePeakBytes = Math.max(
-        stats.persistencePeakBytes || 0,
-        persistenceRetainedBytes,
-      )));
+      (stats.persistencePeakBytes = Math.max(stats.persistencePeakBytes || 0, persistenceRetainedBytes))
     const snapshotHandle = {
       map: persistenceTarget,
       released: false,
@@ -908,16 +818,15 @@ export function createGroundReflections({
           (persistenceRetainedBytes -= persistenceBytes),
           (stats.persistenceRetainedBytes = persistenceRetainedBytes),
           persistenceTarget !== persistenceRecord.map && persistenceTarget.dispose(),
-          persistenceRecord.pendingSnapshot === snapshotHandle &&
-            (persistenceRecord.pendingSnapshot = null));
+          persistenceRecord.pendingSnapshot === snapshotHandle && (persistenceRecord.pendingSnapshot = null))
       },
-    };
-    persistenceRecord.pendingSnapshot = snapshotHandle;
+    }
+    persistenceRecord.pendingSnapshot = snapshotHandle
     const isPersistenceValid = () =>
       !isDisposed &&
       !persistenceRecord.dead &&
       !snapshotHandle.released &&
-      (typeof document === "undefined" || !document.hidden);
+      (typeof document === 'undefined' || !document.hidden)
     persistentCache.enqueue(
       reflectionQueueKey(persistenceRecord),
       persistenceKey,
@@ -933,26 +842,19 @@ export function createGroundReflections({
         ),
       isPersistenceValid,
       snapshotHandle.release,
-    );
+    )
   }
   function render(camera: any, { worldMatricesCurrent: worldMatricesCurrent = false } = {}) {
-    if (isDisposed || stats.inCapture || !camera) return;
+    if (isDisposed || stats.inCapture || !camera) return
     if (isSuspended) {
-      if (suspendStartedAtMs === null) return;
-      const fadeOutProgress = Math.min(
-        1,
-        Math.max(0, (performance.now() - suspendStartedAtMs) / 240),
-      );
+      if (suspendStartedAtMs === null) return
+      const fadeOutProgress = Math.min(1, Math.max(0, (performance.now() - suspendStartedAtMs) / 240))
       for (const fadingRecord of activeRecords) {
-        let isUnderRoot = false;
-        for (
-          let ancestorNode = fadingRecord.source;
-          ancestorNode;
-          ancestorNode = ancestorNode.parent
-        )
+        let isUnderRoot = false
+        for (let ancestorNode = fadingRecord.source; ancestorNode; ancestorNode = ancestorNode.parent)
           if (ancestorNode === getRoot()) {
-            isUnderRoot = true;
-            break;
+            isUnderRoot = true
+            break
           }
         if (
           fadeOutProgress === 1 ||
@@ -961,10 +863,10 @@ export function createGroundReflections({
           !fadingRecord.hasCapture ||
           !fadingRecord.fadeOutStrength
         ) {
-          ((fadingRecord.overlay.visible = false), fadingRecord.overlay.removeFromParent());
-          continue;
+          ;(fadingRecord.overlay.visible = false), fadingRecord.overlay.removeFromParent()
+          continue
         }
-        (fadingRecord.source.updateWorldMatrix(true, false),
+        fadingRecord.source.updateWorldMatrix(true, false),
           fadingRecord.matrix
             .copy(fadingRecord.fadeOutMatrix)
             .multiply(fadingRecord.fadeOutFrame)
@@ -978,124 +880,106 @@ export function createGroundReflections({
           (fadingRecord.overlay.material.uniforms.strength.value =
             fadingRecord.fadeOutStrength * (1 - fadeOutProgress)),
           (fadingRecord.overlay.visible = isVisibleWithin(
-            fadingRecord.kind === "outside" ? fadingRecord.source.parent : fadingRecord.source,
-          )));
+            fadingRecord.kind === 'outside' ? fadingRecord.source.parent : fadingRecord.source,
+          ))
       }
-      fadeOutProgress < 1 ? requestFrame() : (suspendStartedAtMs = null);
-      return;
+      fadeOutProgress < 1 ? requestFrame() : (suspendStartedAtMs = null)
+      return
     }
     if (
-      settings.mode === "off" ||
+      settings.mode === 'off' ||
       settings.strength === 0 ||
       (worldMatricesCurrent ||
-        (scene.matrixWorldAutoUpdate && scene.updateMatrixWorld(),
-        camera.updateWorldMatrix(true, false)),
+        (scene.matrixWorldAutoUpdate && scene.updateMatrixWorld(), camera.updateWorldMatrix(true, false)),
       rebuildRecords(getSceneRevision?.()),
       !currentRoot)
     )
-      return;
+      return
     if (!activeRecords.length) {
-      ((shouldRefresh = false),
+      ;(shouldRefresh = false),
         (isResumePending = false),
         (resumeRecordSet = null),
         (resumeStartedAtMs = null),
         clearTimeout(throttleTimer),
-        (throttleTimer = null));
-      return;
+        (throttleTimer = null)
+      return
     }
     const resumeProgress = isResumePending
       ? 0
       : resumeStartedAtMs === null
         ? 1
-        : Math.min(1, (performance.now() - resumeStartedAtMs) / resumeFadeDurationMs);
-    resumeProgress < 1 ? requestFrame() : (resumeStartedAtMs = null);
+        : Math.min(1, (performance.now() - resumeStartedAtMs) / resumeFadeDurationMs)
+    resumeProgress < 1 ? requestFrame() : (resumeStartedAtMs = null)
     for (const activeRecord of activeRecords) {
       if (!activeRecord.sourceFrame?.equals(activeRecord.source.matrixWorld)) {
-        ((activeRecord.sourceFrame = (activeRecord.sourceFrame || new three.Matrix4()).copy(
+        ;(activeRecord.sourceFrame = (activeRecord.sourceFrame || new three.Matrix4()).copy(
           activeRecord.source.matrixWorld,
         )),
-          activeRecord.source.geometry.boundingBox ||
-            activeRecord.source.geometry.computeBoundingBox());
+          activeRecord.source.geometry.boundingBox || activeRecord.source.geometry.computeBoundingBox()
         const geometryBounds = activeRecord.source.geometry.boundingBox,
           geometrySize = geometryBounds.getSize(new three.Vector3()),
           thinAxis =
             geometrySize.x <= geometrySize.y && geometrySize.x <= geometrySize.z
-              ? "x"
+              ? 'x'
               : geometrySize.y <= geometrySize.z
-                ? "y"
-                : "z",
-          planeNormal = new three.Vector3();
-        ((planeNormal[thinAxis] = 1),
-          planeNormal
-            .applyMatrix3(new three.Matrix3().getNormalMatrix(activeRecord.sourceFrame))
-            .normalize());
-        const planeCenter = geometryBounds.getCenter(new three.Vector3());
-        ((planeCenter[thinAxis] =
-          planeNormal.y < 0 ? geometryBounds.min[thinAxis] : geometryBounds.max[thinAxis]),
+                ? 'y'
+                : 'z',
+          planeNormal = new three.Vector3()
+        ;(planeNormal[thinAxis] = 1),
+          planeNormal.applyMatrix3(new three.Matrix3().getNormalMatrix(activeRecord.sourceFrame)).normalize()
+        const planeCenter = geometryBounds.getCenter(new three.Vector3())
+        ;(planeCenter[thinAxis] = planeNormal.y < 0 ? geometryBounds.min[thinAxis] : geometryBounds.max[thinAxis]),
           planeNormal.y < 0 && planeNormal.negate(),
-          (activeRecord.plane = (
-            activeRecord.plane || new three.Plane()
-          ).setFromNormalAndCoplanarPoint(
+          (activeRecord.plane = (activeRecord.plane || new three.Plane()).setFromNormalAndCoplanarPoint(
             planeNormal,
             planeCenter.applyMatrix4(activeRecord.sourceFrame),
           )),
-          (activeRecord.height = new three.Box3()
-            .copy(geometryBounds)
-            .applyMatrix4(activeRecord.sourceFrame).max.y),
-          (shouldRefresh = true));
+          (activeRecord.height = new three.Box3().copy(geometryBounds).applyMatrix4(activeRecord.sourceFrame).max.y),
+          (shouldRefresh = true)
       }
-      ((activeRecord.eligible =
+      ;(activeRecord.eligible =
         !isFloorTransitionLeaving(activeRecord.source) &&
-        isVisibleWithin(
-          activeRecord.kind === "outside" ? activeRecord.source.parent : activeRecord.source,
-        ) &&
+        isVisibleWithin(activeRecord.kind === 'outside' ? activeRecord.source.parent : activeRecord.source) &&
         shouldShowRecord(activeRecord) &&
-        activeRecord.plane.distanceToPoint(getFloorCamera(camera, activeRecord.source).position) >
-          0),
+        activeRecord.plane.distanceToPoint(getFloorCamera(camera, activeRecord.source).position) > 0),
         (activeRecord.overlay.visible = activeRecord.eligible && activeRecord.hasCapture),
         (activeRecord.presentationBaseStrength = settings.strength * resumeProgress),
         (activeRecord.overlay.material.uniforms.strength.value =
-          activeRecord.presentationBaseStrength * presentationGain));
+          activeRecord.presentationBaseStrength * presentationGain)
     }
-    if (!activeRecords.length) return;
+    if (!activeRecords.length) return
     const frameStartMs = performance.now(),
-      cameraSignature =
-        camera.matrixWorld.elements.join(",") + camera.projectionMatrix.elements.join(","),
+      cameraSignature = camera.matrixWorld.elements.join(',') + camera.projectionMatrix.elements.join(','),
       hasCameraChanged = cameraSignature !== lastCameraSignature,
-      currentResolution = settings.resolution;
+      currentResolution = settings.resolution
     for (const resizedRecord of activeRecords)
       resizedRecord.map.width !== currentResolution &&
-        (resizedRecord.map.setSize(currentResolution, currentResolution),
-        (shouldRefresh = true));
+        (resizedRecord.map.setSize(currentResolution, currentResolution), (shouldRefresh = true))
     const lightingSignature =
         getStateKey() +
-        "|" +
+        '|' +
         changeRevisionCount +
-        "|" +
-        buildLightingSignature(lightsByFloorId.get("") || []) +
-        "|" +
-        (floorLighting ? "" : buildLightingSignature([...lightsByFloorId.values()].flat())),
-      stateChanged =
-        shouldRefresh || hasCameraChanged || lightingSignature !== lastLightingSignature,
+        '|' +
+        buildLightingSignature(lightsByFloorId.get('') || []) +
+        '|' +
+        (floorLighting ? '' : buildLightingSignature([...lightsByFloorId.values()].flat())),
+      stateChanged = shouldRefresh || hasCameraChanged || lightingSignature !== lastLightingSignature,
       lightingSignatureByFloor = new Map(
         [...heightByFloorId.keys()].map((perFloorKey) => [
           perFloorKey,
           perFloorKey +
-            ":" +
+            ':' +
             (floorChangeCountByFloorId.get(perFloorKey) || 0) +
-            ":" +
-            (floorLighting ? buildLightingSignature(lightsByFloorId.get(perFloorKey) || []) : ""),
+            ':' +
+            (floorLighting ? buildLightingSignature(lightsByFloorId.get(perFloorKey) || []) : ''),
         ]),
       ),
-      stateKeyByRecord = new Map();
+      stateKeyByRecord = new Map()
     let dirtyRecords = activeRecords.filter((eligibleRecord: any) => {
-      if (!eligibleRecord.eligible) return false;
-      const stateKey = recordLightingSignature(eligibleRecord, lightingSignatureByFloor);
-      return (
-        stateKeyByRecord.set(eligibleRecord, stateKey),
-        stateChanged || eligibleRecord.state !== stateKey
-      );
-    });
+      if (!eligibleRecord.eligible) return false
+      const stateKey = recordLightingSignature(eligibleRecord, lightingSignatureByFloor)
+      return (stateKeyByRecord.set(eligibleRecord, stateKey), stateChanged || eligibleRecord.state !== stateKey)
+    })
     if (
       (resumeRecordSet &&
         (dirtyRecords = dirtyRecords
@@ -1103,31 +987,27 @@ export function createGroundReflections({
           .slice(0, Math.max(1, maxResumeCapturesPerFrame))),
       !dirtyRecords.length)
     )
-      return;
+      return
     /** 本轮因每帧预算被推迟的记录数：>0 时必须在收尾处继续 requestFrame。 */
-    let budgetDeferredCount = 0;
+    let budgetDeferredCount = 0
     // 相机位姿变化时整批重捕：按预算轮转会让部分记录停在上一帧位姿，拖动时就是甩尾/拖影。
     const captureSelection = selectFrameCaptures(dirtyRecords, {
       budget: resolveCaptureBudget(),
       rotation: captureRotation,
       cameraChanged: hasCameraChanged,
-    });
-    ((budgetDeferredCount = captureSelection.deferred),
+    })
+    ;(budgetDeferredCount = captureSelection.deferred),
       (captureRotation = captureSelection.rotation),
-      (dirtyRecords = captureSelection.records));
-    if (
-      !shouldRefresh &&
-      !hasCameraChanged &&
-      frameStartMs - lastRenderTimeMs < 1000 / settings.fps
-    ) {
+      (dirtyRecords = captureSelection.records)
+    if (!shouldRefresh && !hasCameraChanged && frameStartMs - lastRenderTimeMs < 1000 / settings.fps) {
       throttleTimer === null &&
         (throttleTimer = setTimeout(
           () => {
-            ((throttleTimer = null), requestFrame());
+            ;(throttleTimer = null), requestFrame()
           },
           1000 / settings.fps - (frameStartMs - lastRenderTimeMs),
-        ));
-      return;
+        ))
+      return
     }
     const rendererState = {
         target: renderer.getRenderTarget(),
@@ -1149,8 +1029,8 @@ export function createGroundReflections({
       geometryRestores: any = [],
       wallMeshes: any = [],
       floorNodeEntries: any = [],
-      allInside = dirtyRecords.every((allInsideRecord: any) => allInsideRecord.kind === "inside");
-    const persistenceKeyByRecord = new Map();
+      allInside = dirtyRecords.every((allInsideRecord: any) => allInsideRecord.kind === 'inside')
+    const persistenceKeyByRecord = new Map()
     if (persistentCache && !isPersistenceSettled && (persistentCache.available?.() ?? true)) {
       for (const persistenceRecord of dirtyRecords)
         if (!persistenceRecord.persistenceCaptured) {
@@ -1163,58 +1043,49 @@ export function createGroundReflections({
             passes?.stats.bytes,
             passes?.stats.pending,
             settings,
-          ]);
+          ])
           if (persistenceStamp !== persistenceRecord.persistenceStamp) {
-            const persistenceKeyStartMs = performance.now();
-            ((persistenceRecord.persistenceKey = buildPersistenceKey(
-              persistenceRecord,
-              camera,
-            )),
+            const persistenceKeyStartMs = performance.now()
+            ;(persistenceRecord.persistenceKey = buildPersistenceKey(persistenceRecord, camera)),
               (persistenceRecord.persistenceStamp = persistenceStamp),
-              (stats.persistenceKeyMs =
-                (stats.persistenceKeyMs || 0) + performance.now() - persistenceKeyStartMs));
+              (stats.persistenceKeyMs = (stats.persistenceKeyMs || 0) + performance.now() - persistenceKeyStartMs)
           }
-          persistenceKeyByRecord.set(persistenceRecord, persistenceRecord.persistenceKey);
+          persistenceKeyByRecord.set(persistenceRecord, persistenceRecord.persistenceKey)
         }
     }
     let isCaptureDeferred = false,
-      hasCaptured = false;
-    culling.reset();
-    const captureStartMs = performance.now();
-    ((stats.inCapture = true), (stats.lastDrawCalls = stats.lastTriangles = 0));
+      hasCaptured = false
+    culling.reset()
+    const captureStartMs = performance.now()
+    ;(stats.inCapture = true), (stats.lastDrawCalls = stats.lastTriangles = 0)
     try {
       const materialCache = new Map(),
         prepareNode = (candidateNode: any, nodeId: any, ancestorId: any) => {
-          if (!candidateNode.visible) return false;
+          if (!candidateNode.visible) return false
           if (
-            (candidateNode !== currentRoot &&
-              visibleFloorId !== null &&
-              nodeId &&
-              nodeId !== visibleFloorId) ||
+            (candidateNode !== currentRoot && visibleFloorId !== null && nodeId && nodeId !== visibleFloorId) ||
             candidateNode.userData.floorTransitionLeaving ||
-            candidateNode.name === "interaction3d-curtain-shadow-refresh" ||
+            candidateNode.name === 'interaction3d-curtain-shadow-refresh' ||
             candidateNode.userData.reflectionOverlay ||
-            ["background", "grid", "outline"].includes(candidateNode.userData.exportRole) ||
-            candidateNode.userData.regionReceiverKind === "floor" ||
+            ['background', 'grid', 'outline'].includes(candidateNode.userData.exportRole) ||
+            candidateNode.userData.regionReceiverKind === 'floor' ||
             candidateNode.userData.environmentEffect ||
             candidateNode.userData.presenceId != null ||
-            (allInside && candidateNode.userData.reflectionRole === "wall")
+            (allInside && candidateNode.userData.reflectionRole === 'wall')
           )
             return (
-              visibilityRestores.push([candidateNode, candidateNode.visible]),
-              (candidateNode.visible = false),
-              false
-            );
-          (candidateNode !== currentRoot &&
+              visibilityRestores.push([candidateNode, candidateNode.visible]), (candidateNode.visible = false), false
+            )
+          candidateNode !== currentRoot &&
             nodeId &&
             nodeId !== ancestorId &&
             floorNodeEntries.push({
               object: candidateNode,
               id: nodeId,
             }),
-            candidateNode.userData.reflectionRole === "wall" && wallMeshes.push(candidateNode),
-            cull && culling.add(candidateNode, !floorLighting, nodeId));
-          const detailGeometry = isDetailEnabled() ? detail.get(candidateNode) : null;
+            candidateNode.userData.reflectionRole === 'wall' && wallMeshes.push(candidateNode),
+            cull && culling.add(candidateNode, !floorLighting, nodeId)
+          const detailGeometry = isDetailEnabled() ? detail.get(candidateNode) : null
           if (
             (detailGeometry &&
               (geometryRestores.push([candidateNode, candidateNode.geometry]),
@@ -1222,58 +1093,52 @@ export function createGroundReflections({
             candidateNode.isMesh && candidateNode.material)
           ) {
             const originalMaterial = candidateNode.material,
-              materialForRender = resolveFadeMaterials(originalMaterial, materialCache);
+              materialForRender = resolveFadeMaterials(originalMaterial, materialCache)
             materialForRender !== originalMaterial &&
-              (materialRestores.push([candidateNode, originalMaterial]),
-              (candidateNode.material = materialForRender));
+              (materialRestores.push([candidateNode, originalMaterial]), (candidateNode.material = materialForRender))
           }
-          return true;
+          return true
         },
-        prepareFloorNodes = (subtreeRoot: any, enclosingFloorId = "", fallbackFloorId = "") => {
+        prepareFloorNodes = (subtreeRoot: any, enclosingFloorId = '', fallbackFloorId = '') => {
           if (subtreeRoot === currentRoot) {
             for (const hideRecord of activeRecords)
               hideRecord.overlay.visible &&
-                (visibilityRestores.push([hideRecord.overlay, true]),
-                (hideRecord.overlay.visible = false));
-            for (let entryIndex = 0; entryIndex < nodeEntries.length;) {
+                (visibilityRestores.push([hideRecord.overlay, true]), (hideRecord.overlay.visible = false))
+            for (let entryIndex = 0; entryIndex < nodeEntries.length; ) {
               const nodeEntry = nodeEntries[entryIndex],
-                parentEntry = nodeEntries[nodeEntry.parent];
+                parentEntry = nodeEntries[nodeEntry.parent]
               nodeEntry.id = String(
-                readOwnFloorId(nodeEntry.object) ||
-                  (parentEntry ? parentEntry.id : fallbackFloorId),
-              );
+                readOwnFloorId(nodeEntry.object) || (parentEntry ? parentEntry.id : fallbackFloorId),
+              )
               const parentFloorId = parentEntry
                 ? parentEntry.object === currentRoot
-                  ? ""
+                  ? ''
                   : parentEntry.id
-                : enclosingFloorId;
-              entryIndex = prepareNode(nodeEntry.object, nodeEntry.id, parentFloorId)
-                ? entryIndex + 1
-                : nodeEntry.end;
+                : enclosingFloorId
+              entryIndex = prepareNode(nodeEntry.object, nodeEntry.id, parentFloorId) ? entryIndex + 1 : nodeEntry.end
             }
-            return;
+            return
           }
-          const nodeFloorId = String(readOwnFloorId(subtreeRoot) || fallbackFloorId);
+          const nodeFloorId = String(readOwnFloorId(subtreeRoot) || fallbackFloorId)
           if (prepareNode(subtreeRoot, nodeFloorId, enclosingFloorId)) {
-            for (const childNode of subtreeRoot.children)
-              prepareFloorNodes(childNode, nodeFloorId, nodeFloorId);
+            for (const childNode of subtreeRoot.children) prepareFloorNodes(childNode, nodeFloorId, nodeFloorId)
           }
-        };
-      let isScenePrepared = false;
-      ((scene.matrixWorldAutoUpdate = false),
+        }
+      let isScenePrepared = false
+      ;(scene.matrixWorldAutoUpdate = false),
         (renderer.xr.enabled = false),
         (renderer.shadowMap.autoUpdate = false),
         (renderer.autoClear = true),
         (scene.background = null),
         renderer.setClearColor(0, 0),
-        renderer.setScissorTest(false));
+        renderer.setScissorTest(false)
       for (const captureRecord of dirtyRecords) {
-        captureRecord.hasCapture = false;
+        captureRecord.hasCapture = false
         const capturedCamera = updateReflectionCamera(
           getFloorCamera(camera, captureRecord.source),
           captureRecord.plane,
           captureRecord.matrix,
-        );
+        )
         if (
           (reflectionUniforms.groundReflectionPlane.value.set(
             captureRecord.plane.normal.x,
@@ -1284,72 +1149,68 @@ export function createGroundReflections({
           reflectionUniforms.groundReflectionViewToWorld.value.copy(capturedCamera.matrixWorld),
           cull && !culling.prepare(captureRecord, capturedCamera))
         ) {
-          ((captureRecord.state = stateKeyByRecord.get(captureRecord)),
+          ;(captureRecord.state = stateKeyByRecord.get(captureRecord)),
             (captureRecord.preparedPose = cameraSignature),
             (captureRecord.preparedStateKey = lightingSignature),
-            resumeRecordSet?.add(captureRecord));
-          continue;
+            resumeRecordSet?.add(captureRecord)
+          continue
         }
         if (persistentCache && !isPersistenceSettled && !captureRecord.persistenceChecked) {
-          const queuedPersistenceKey = persistenceKeyByRecord.get(captureRecord) || null;
+          const queuedPersistenceKey = persistenceKeyByRecord.get(captureRecord) || null
           if (((captureRecord.persistenceChecked = true), queuedPersistenceKey)) {
             const persistenceQueueKey = reflectionQueueKey(captureRecord),
-              cachedSnapshot = persistentCache.peek(persistenceQueueKey, queuedPersistenceKey);
+              cachedSnapshot = persistentCache.peek(persistenceQueueKey, queuedPersistenceKey)
             if (
               cachedSnapshot?.size === currentResolution &&
               cachedSnapshot.matrix.every(
-                (matrixEntry: any, matrixIndex: any) =>
-                  matrixEntry === captureRecord.matrix.elements[matrixIndex],
+                (matrixEntry: any, matrixIndex: any) => matrixEntry === captureRecord.matrix.elements[matrixIndex],
               )
             ) {
-              const restoredSnapshot = restoreReflectionSnapshot(three, cachedSnapshot);
+              const restoredSnapshot = restoreReflectionSnapshot(three, cachedSnapshot)
               if (restoredSnapshot) {
-                (captureRecord.restoredTexture?.dispose(),
+                captureRecord.restoredTexture?.dispose(),
                   (captureRecord.restoredTexture = restoredSnapshot),
                   (captureRecord.overlay.material.uniforms.reflection.value = restoredSnapshot),
                   (captureRecord.hasCapture = true),
                   (hasCaptured = true),
                   (captureRecord.capturedPose = captureRecord.preparedPose = cameraSignature),
-                  (captureRecord.capturedStateKey = captureRecord.preparedStateKey =
-                    lightingSignature),
+                  (captureRecord.capturedStateKey = captureRecord.preparedStateKey = lightingSignature),
                   (captureRecord.state = stateKeyByRecord.get(captureRecord)),
                   resumeRecordSet?.add(captureRecord),
                   (captureRecord.persistenceCaptured = true),
-                  (stats.persistentHits = (stats.persistentHits || 0) + 1));
-                continue;
+                  (stats.persistentHits = (stats.persistentHits || 0) + 1)
+                continue
               }
             }
-            cachedSnapshot && persistentCache.discard(persistenceQueueKey);
+            cachedSnapshot && persistentCache.discard(persistenceQueueKey)
           }
         }
-        (captureRecord.pendingSnapshot?.map === captureRecord.map &&
+        captureRecord.pendingSnapshot?.map === captureRecord.map &&
           ((captureRecord.map = createReflectionTarget(currentResolution)),
           (captureRecord.overlay.material.uniforms.reflection.value =
             captureRecord.restoredTexture || captureRecord.map.texture)),
           captureRecord.restoredTexture &&
             captureRecord.map &&
             !captureRecord.pendingSnapshot &&
-            (captureRecord.overlay.material.uniforms.reflection.value =
-              captureRecord.restoredTexture),
+            (captureRecord.overlay.material.uniforms.reflection.value = captureRecord.restoredTexture),
           captureRecord.restoredTexture &&
             captureRecord.pendingSnapshot &&
             (captureRecord.restoredTexture.dispose(),
             (captureRecord.restoredTexture = null),
-            (captureRecord.overlay.material.uniforms.reflection.value =
-              captureRecord.map.texture)),
-          isScenePrepared || (prepareFloorNodes(scene), (isScenePrepared = true)));
-        const temporarilyHidden: any[] = [];
+            (captureRecord.overlay.material.uniforms.reflection.value = captureRecord.map.texture)),
+          isScenePrepared || (prepareFloorNodes(scene), (isScenePrepared = true))
+        const temporarilyHidden: any[] = []
         try {
-          const requiredFloorId = recordStateKey(captureRecord);
+          const requiredFloorId = recordStateKey(captureRecord)
           if ((cull && culling.apply(requiredFloorId), requiredFloorId !== null)) {
             for (const { object: boundaryNode, id: boundaryFloorId } of floorNodeEntries)
               boundaryNode.visible &&
                 boundaryFloorId !== requiredFloorId &&
-                (temporarilyHidden.push(boundaryNode), (boundaryNode.visible = false));
+                (temporarilyHidden.push(boundaryNode), (boundaryNode.visible = false))
           }
-          if (captureRecord.kind === "inside") {
+          if (captureRecord.kind === 'inside') {
             for (const wallNode of wallMeshes)
-              wallNode.visible && (temporarilyHidden.push(wallNode), (wallNode.visible = false));
+              wallNode.visible && (temporarilyHidden.push(wallNode), (wallNode.visible = false))
           }
           if (
             (passes?.begin(scene, capturedCamera, currentResolution, requiredFloorId),
@@ -1357,34 +1218,34 @@ export function createGroundReflections({
             renderer.setRenderTarget(captureRecord.map),
             !tryPrepareProgram(captureRecord, capturedCamera))
           ) {
-            isCaptureDeferred = true;
-            continue;
+            isCaptureDeferred = true
+            continue
           }
-          (renderer.clear(),
+          renderer.clear(),
             renderer.render(scene, capturedCamera),
             stats.renders++,
             (stats.lastDrawCalls += renderer.info?.render.calls || 0),
-            (stats.lastTriangles += renderer.info?.render.triangles || 0));
+            (stats.lastTriangles += renderer.info?.render.triangles || 0)
         } finally {
-          (passes?.restore(), culling.restore());
-          for (const restoredNode of temporarilyHidden) restoredNode.visible = true;
+          passes?.restore(), culling.restore()
+          for (const restoredNode of temporarilyHidden) restoredNode.visible = true
         }
         if (usesReflectionBlur()) {
-          const blurScratch = getBlurScratch(currentResolution);
+          const blurScratch = getBlurScratch(currentResolution)
           for (const [blurSource, blurDestination, sourceScale, destinationScale] of [
             [captureRecord.map, blurScratch, 1, 0],
             [blurScratch, captureRecord.map, 0, 1],
           ])
-            ((blurMaterial.uniforms.source.value = blurSource.texture),
+            (blurMaterial.uniforms.source.value = blurSource.texture),
               blurMaterial.uniforms.step.value.set(
                 (sourceScale * BLUR_TEXEL_RADIUS) / BLUR_REFERENCE_RESOLUTION,
                 (destinationScale * BLUR_TEXEL_RADIUS) / BLUR_REFERENCE_RESOLUTION,
               ),
               renderer.setRenderTarget(blurDestination),
               renderer.clear(),
-              renderer.render(blurScene, blurCamera));
+              renderer.render(blurScene, blurCamera)
         }
-        (stats.captures++,
+        stats.captures++,
           (captureRecord.hasCapture = true),
           (hasCaptured = true),
           (captureRecord.captureRevision = (captureRecord.captureRevision || 0) + 1),
@@ -1396,17 +1257,17 @@ export function createGroundReflections({
           (captureRecord.capturedPose = captureRecord.preparedPose = cameraSignature),
           (captureRecord.capturedStateKey = captureRecord.preparedStateKey = lightingSignature),
           resumeRecordSet?.add(captureRecord),
-          (captureRecord.state = stateKeyByRecord.get(captureRecord)));
+          (captureRecord.state = stateKeyByRecord.get(captureRecord))
       }
       isResumePending &&
         hasCaptured &&
-        ((isResumePending = false), (resumeStartedAtMs = performance.now()), requestFrame());
+        ((isResumePending = false), (resumeStartedAtMs = performance.now()), requestFrame())
       const hasPendingCaptures =
         resumeRecordSet &&
         activeRecords.some(
           (uncapturedRecord: any) => uncapturedRecord.eligible && !resumeRecordSet.has(uncapturedRecord),
-        );
-      ((shouldRefresh =
+        )
+      ;(shouldRefresh =
         isCaptureDeferred ||
         budgetDeferredCount > 0 ||
         !!hasPendingCaptures ||
@@ -1421,41 +1282,34 @@ export function createGroundReflections({
         shouldRefresh && requestFrame(),
         (lastRenderTimeMs = frameStartMs),
         (lastCameraSignature = cameraSignature),
-        (lastLightingSignature = lightingSignature));
+        (lastLightingSignature = lightingSignature)
     } finally {
-      ((scene.matrixWorldAutoUpdate = rendererState.matrixWorldAutoUpdate),
+      ;(scene.matrixWorldAutoUpdate = rendererState.matrixWorldAutoUpdate),
         passes?.restore(),
         culling.restore(),
         (stats.culling = {
           ...culling.stats,
-        }));
-      for (const [geometryMesh, savedGeometry] of geometryRestores)
-        geometryMesh.geometry = savedGeometry;
-      for (const [visibilityObject, previousVisible] of visibilityRestores)
-        visibilityObject.visible = previousVisible;
-      for (const [materialMesh, savedMaterial] of materialRestores)
-        materialMesh.material = savedMaterial;
+        })
+      for (const [geometryMesh, savedGeometry] of geometryRestores) geometryMesh.geometry = savedGeometry
+      for (const [visibilityObject, previousVisible] of visibilityRestores) visibilityObject.visible = previousVisible
+      for (const [materialMesh, savedMaterial] of materialRestores) materialMesh.material = savedMaterial
+      // 只要求「曾经捕获过」：受每帧预算限制而本轮未重捕的记录继续显示上一帧纹理，
+      // 否则它们会在补捕之前整帧消失（一帧闪一下比稍微滞后的倒影明显得多）。
       for (const restoredRecord of activeRecords)
-        // 只要求「曾经捕获过」：受每帧预算限制而本轮未重捕的记录继续显示上一帧纹理，
-        // 否则它们会在补捕之前整帧消失（一帧闪一下比稍微滞后的倒影明显得多）。
-        restoredRecord.overlay.visible = restoredRecord.eligible && restoredRecord.hasCapture;
-      ((scene.background = rendererState.background),
+        restoredRecord.overlay.visible = restoredRecord.eligible && restoredRecord.hasCapture
+      ;(scene.background = rendererState.background),
         renderer.setClearColor(rendererState.color, rendererState.alpha),
         renderer.setViewport(rendererState.viewport),
         renderer.setScissor(rendererState.scissor),
         renderer.setScissorTest(rendererState.scissorTest),
-        renderer.setRenderTarget(
-          rendererState.target,
-          rendererState.cubeFace,
-          rendererState.mipmap,
-        ),
+        renderer.setRenderTarget(rendererState.target, rendererState.cubeFace, rendererState.mipmap),
         (renderer.xr.enabled = rendererState.xr),
         (renderer.shadowMap.autoUpdate = rendererState.shadow),
         (renderer.autoClear = rendererState.autoClear),
         syncLighting(camera),
         (stats.inCapture = false),
         (stats.lastMs = performance.now() - captureStartMs),
-        (stats.totalMs += stats.lastMs));
+        (stats.totalMs += stats.lastMs)
     }
   }
   return {
@@ -1467,65 +1321,61 @@ export function createGroundReflections({
       isDisposed ||
         isPersistenceSettled ||
         shouldRefresh ||
-        ((isPersistenceSettled = true), persistentCache?.presented());
+        ((isPersistenceSettled = true), persistentCache?.presented())
     },
     setInsideEnabled(enabled: any) {
-      const nextInsideEnabled = enabled !== false;
+      const nextInsideEnabled = enabled !== false
       if (!(isDisposed || nextInsideEnabled === insideEnabled)) {
         if (((insideEnabled = nextInsideEnabled), cancelInsideExpiry(), !nextInsideEnabled)) {
           for (const insideRecord of recordsBySource.values())
-            insideRecord.kind === "inside" &&
+            insideRecord.kind === 'inside' &&
               ((insideRecord.overlay.visible = false),
               insideRecord.overlay.removeFromParent(),
               (insideRecord.fadeOutStrength = 0),
-              insideRecord.pendingSnapshot?.release());
+              insideRecord.pendingSnapshot?.release())
         }
-        ((rootFirstChild = null),
+        ;(rootFirstChild = null),
           (shouldRefresh = true),
           clearTimeout(throttleTimer),
           (throttleTimer = null),
-          requestFrame());
+          requestFrame()
       }
     },
     setVisibleFloor(nextFloorId: any) {
-      const normalizedFloorId = nextFloorId == null ? null : String(nextFloorId);
+      const normalizedFloorId = nextFloorId == null ? null : String(nextFloorId)
       if (normalizedFloorId !== visibleFloorId) {
-        visibleFloorId = normalizedFloorId;
+        visibleFloorId = normalizedFloorId
         for (const floorRecord of activeRecords)
           isOnVisibleFloor(floorRecord.source) ||
-            ((floorRecord.overlay.visible = false), floorRecord.overlay.removeFromParent());
-        ((rootFirstChild = null), (shouldRefresh = true), requestFrame());
+            ((floorRecord.overlay.visible = false), floorRecord.overlay.removeFromParent())
+        ;(rootFirstChild = null), (shouldRefresh = true), requestFrame()
       }
     },
     setOutsideFloor(nextOutsideFloorId: any) {
-      const normalizedOutsideFloorId =
-        nextOutsideFloorId == null ? null : String(nextOutsideFloorId);
+      const normalizedOutsideFloorId = nextOutsideFloorId == null ? null : String(nextOutsideFloorId)
       if (normalizedOutsideFloorId !== outsideFloorId) {
-        outsideFloorId = normalizedOutsideFloorId;
+        outsideFloorId = normalizedOutsideFloorId
         for (const outsideRecord of activeRecords)
-          outsideRecord.kind === "outside" &&
+          outsideRecord.kind === 'outside' &&
             !isOnOutsideFloor(outsideRecord.source) &&
-            (outsideRecord.overlay.visible = false);
-        ((rootFirstChild = null), (shouldRefresh = true), requestFrame());
+            (outsideRecord.overlay.visible = false)
+        ;(rootFirstChild = null), (shouldRefresh = true), requestFrame()
       }
     },
     setPresentationGain(requestedGain: any) {
-      const normalizedGain = Math.min(
-        1,
-        Math.max(0, Number.isFinite(requestedGain) ? requestedGain : 1),
-      );
+      const normalizedGain = Math.min(1, Math.max(0, Number.isFinite(requestedGain) ? requestedGain : 1))
       if (!(isDisposed || normalizedGain === presentationGain)) {
-        presentationGain = normalizedGain;
+        presentationGain = normalizedGain
         for (const strengthRecord of activeRecords)
           strengthRecord.overlay.material.uniforms.strength.value =
-            (strengthRecord.presentationBaseStrength ?? settings.strength) * normalizedGain;
-        requestFrame();
+            (strengthRecord.presentationBaseStrength ?? settings.strength) * normalizedGain
+        requestFrame()
       }
     },
     isPrepared: () =>
       isDisposed ||
       isSuspended ||
-      settings.mode === "off" ||
+      settings.mode === 'off' ||
       settings.strength === 0 ||
       (!shouldRefresh &&
         activeRecords.every(
@@ -1535,24 +1385,23 @@ export function createGroundReflections({
               checkedRecord.preparedStateKey === lastLightingSignature),
         )),
     setSuspended(suspended: any, { fade: fade = false, fadeIn: fadeIn = true } = {}) {
-      const shouldSuspend = suspended === true;
+      const shouldSuspend = suspended === true
       if (isSuspended === shouldSuspend) {
         if (shouldSuspend) {
           for (const hiddenRecord of activeRecords)
-            ((hiddenRecord.overlay.visible = false), hiddenRecord.overlay.removeFromParent());
+            (hiddenRecord.overlay.visible = false), hiddenRecord.overlay.removeFromParent()
         }
-        shouldSuspend && !fade && (suspendStartedAtMs = null);
-        return;
+        shouldSuspend && !fade && (suspendStartedAtMs = null)
+        return
       }
-      (propagationCount++,
+      propagationCount++,
         (isSuspended = shouldSuspend),
         (resumeStartedAtMs = null),
         (isResumePending = !isSuspended && fadeIn),
-        (resumeRecordSet =
-          !isSuspended && Number.isFinite(maxResumeCapturesPerFrame) ? new Set() : null),
-        (suspendStartedAtMs = isSuspended && fade ? performance.now() : null));
+        (resumeRecordSet = !isSuspended && Number.isFinite(maxResumeCapturesPerFrame) ? new Set() : null),
+        (suspendStartedAtMs = isSuspended && fade ? performance.now() : null)
       for (const suspendRecord of activeRecords)
-        (isSuspended &&
+        isSuspended &&
           fade &&
           ((suspendRecord.fadeOutStrength = suspendRecord.overlay.visible
             ? suspendRecord.overlay.material.uniforms.strength.value
@@ -1561,64 +1410,60 @@ export function createGroundReflections({
           suspendRecord.source.updateWorldMatrix(true, false),
           (suspendRecord.fadeOutFrame = suspendRecord.source.matrixWorld.clone())),
           (suspendRecord.overlay.visible = false),
-          suspendRecord.overlay.removeFromParent());
-      ((shouldRefresh = true), isSuspended || (rootFirstChild = null), requestFrame());
+          suspendRecord.overlay.removeFromParent()
+      ;(shouldRefresh = true), isSuspended || (rootFirstChild = null), requestFrame()
     },
     get records() {
-      return activeRecords;
+      return activeRecords
     },
     invalidate() {
-      ((shouldRefresh = true), propagationCount++);
+      ;(shouldRefresh = true), propagationCount++
     },
     invalidateContext() {
       if (!isDisposed) {
-        (propagationCount++,
-          (isPersistenceSettled = true),
-          clearTimeout(throttleTimer),
-          (throttleTimer = null));
+        propagationCount++, (isPersistenceSettled = true), clearTimeout(throttleTimer), (throttleTimer = null)
         for (const cachedRecord of recordsBySource.values())
-          (cachedRecord.pendingSnapshot?.release(),
+          cachedRecord.pendingSnapshot?.release(),
             (cachedRecord.hasCapture = false),
             (cachedRecord.state = null),
             (cachedRecord.overlay.visible = false),
-            (cachedRecord.programWork = null));
-        ((resumeRecordSet =
-          !isSuspended && Number.isFinite(maxResumeCapturesPerFrame) ? new Set() : null),
+            (cachedRecord.programWork = null)
+        ;(resumeRecordSet = !isSuspended && Number.isFinite(maxResumeCapturesPerFrame) ? new Set() : null),
           (suspendStartedAtMs = null),
           (shouldRefresh = true),
           (lastRenderTimeMs = -Infinity),
-          requestFrame());
+          requestFrame()
       }
     },
     changed(changedFloorIds: any = null) {
-      propagationCount++;
-      if (changedFloorIds == null) changeRevisionCount++;
+      propagationCount++
+      if (changedFloorIds == null) changeRevisionCount++
       else
         for (const changedFloorId of new Set(changedFloorIds)) {
           if (!changedFloorId || !heightByFloorId.has(String(changedFloorId))) {
-            changeRevisionCount++;
-            continue;
+            changeRevisionCount++
+            continue
           }
           floorChangeCountByFloorId.set(
             String(changedFloorId),
             (floorChangeCountByFloorId.get(String(changedFloorId)) || 0) + 1,
-          );
+          )
         }
     },
     dispose() {
-      ((isDisposed = true), (nodeEntries = []), (cachedTreeRoot = null));
-      for (const fadedRecord of [...fadeRecordByMaterial.values()]) fadedRecord.release();
-      (passes?.dispose(),
+      ;(isDisposed = true), (nodeEntries = []), (cachedTreeRoot = null)
+      for (const fadedRecord of [...fadeRecordByMaterial.values()]) fadedRecord.release()
+      passes?.dispose(),
         detail?.dispose(),
         clearTimeout(throttleTimer),
         disposeAllRecords(),
         blurMesh.geometry.dispose(),
         blurMaterial.dispose(),
         sharedBlurScratch?.dispose?.(),
-        (sharedBlurScratch = null));
+        (sharedBlurScratch = null)
 
-      disposeMaterialClones();
-      (floorChangeCountByFloorId.clear(), heightByFloorId.clear(), lightsByFloorId.clear());
+      disposeMaterialClones()
+      floorChangeCountByFloorId.clear(), heightByFloorId.clear(), lightsByFloorId.clear()
     },
-  };
+  }
 }

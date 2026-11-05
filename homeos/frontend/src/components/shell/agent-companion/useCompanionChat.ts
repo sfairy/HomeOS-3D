@@ -19,7 +19,7 @@ const OUTCOME_FALLBACK: Record<string, string> = {
 const FAILURE_REPLY = '抱歉，管家连接异常，请重试。'
 
 /** 一轮原地对话的结果：正文 + 可选的播报音频 + 操作音效 */
-export interface CompanionReply {
+interface CompanionReply {
   reply: string
   /** 服务端合成的音频 URL；为空表示直接用本机 / HA 播报 */
   ttsUrl?: string

@@ -263,15 +263,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import {
-  AlertCircle,
-  Copy,
-  Eye,
-  EyeOff,
-  KeyRound,
-  PlugZap,
-  RefreshCw,
-} from '@lucide/vue'
+import { AlertCircle, Copy, Eye, EyeOff, KeyRound, PlugZap, RefreshCw } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
@@ -521,9 +513,7 @@ const gateRows = computed(() => {
   }))
 })
 
-const featureRows = computed(() =>
-  (status.value?.features || []).map((code) => ({ code, label: featureLabel(code) })),
-)
+const featureRows = computed(() => (status.value?.features || []).map((code) => ({ code, label: featureLabel(code) })))
 
 const products = computed(() => status.value?.products || [])
 const entitlements = computed(() => status.value?.entitlements || [])

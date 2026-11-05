@@ -140,14 +140,8 @@ import { ShieldCheck, Shield, ShieldOff, Home, Moon, Loader2, ChevronDown } from
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
-import {
-  executeSecurityPanelArm,
-  interpretSecurityArmResult,
-} from '@/shared/security/utils/panel-arm.util'
-import {
-  postSecurityZonesSafe,
-  normalizeZonesForApi,
-} from '@/shared/security/utils/zones-api.util'
+import { executeSecurityPanelArm, interpretSecurityArmResult } from '@/shared/security/utils/panel-arm.util'
+import { postSecurityZonesSafe, normalizeZonesForApi } from '@/shared/security/utils/zones-api.util'
 import { bootstrapSecurityPanelZonesOnce } from '@/shared/security/utils/panel-zones-bootstrap.util'
 import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'
@@ -185,9 +179,7 @@ const effectiveZones = computed(() => {
 
 const armZoneSelection = ref([])
 
-const ALL_HUB_TABS = [
-  { key: 'arm', label: '布防', accent: 'var(--hos-color-danger)' },
-]
+const ALL_HUB_TABS = [{ key: 'arm', label: '布防', accent: 'var(--hos-color-danger)' }]
 
 const TAB_ACCENT_MAP = Object.fromEntries(ALL_HUB_TABS.map((t) => [t.key, t.accent]))
 
@@ -209,9 +201,7 @@ const securityTabsColored = computed(() =>
  * 传给头部的页签：仅当存在多个页签时才渲染顶部子导航。
  * 子面板裁剪后只剩「布防」单页签，全宽页签栏会呈现为空栏，故单页签时隐藏。
  */
-const headerTabs = computed(() =>
-  securityTabsColored.value.length > 1 ? securityTabsColored.value : [],
-)
+const headerTabs = computed(() => (securityTabsColored.value.length > 1 ? securityTabsColored.value : []))
 
 const arming = ref(null)
 const lastEvent = ref('')

@@ -44,9 +44,7 @@ export function normalizeZonesForApi(zones: SecurityZonePayload[]) {
       id: z.id,
       name: z.name.trim(),
       zoneType: z.zoneType || 'all',
-      sensors: Array.isArray(z.sensors)
-        ? z.sensors.map((s) => String(s || '').trim()).filter(Boolean)
-        : [],
+      sensors: Array.isArray(z.sensors) ? z.sensors.map((s) => String(s || '').trim()).filter(Boolean) : [],
       ...(z.roomId?.trim() ? { roomId: z.roomId.trim() } : {}),
     }))
 }

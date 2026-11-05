@@ -1,19 +1,42 @@
 /** 待配对终端发现/清除、电池与设备信息派生逻辑，供 SettingsClientPowerPanel 与子 Section 复用。 */
 /** composables：客户端电源配置 / 面板 / 展示 */
 import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
-import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/composables/config/system-config-core.internals'
+import {
+  handleSystemConfigPatchError,
+  patchSystemConfig,
+  useSystemConfig,
+} from '@/composables/config/system-config-core.internals'
 import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'
-import type { ClientPowerClient, ClientPowerPendingClient, ClientPowerSettings, ClientPowerStatusSnapshot } from '@/shared/types/client-power'
+import type {
+  ClientPowerClient,
+  ClientPowerPendingClient,
+  ClientPowerSettings,
+  ClientPowerStatusSnapshot,
+} from '@/shared/types/client-power'
 import type { SystemConfig } from '@/shared/types/system-config'
 import { normalizeBatteryPercent } from '@/shared/client/utils/power-battery-display.util'
-import { getClientBatteryState, getClientDeviceKind, getClientSuggestedLabel, getClientSystemSpecChips, getLocalBatteryUnsupportedHint, getSystemInfoFromClientRow } from '@/shared/client/utils/system-display.util'
+import {
+  getClientBatteryState,
+  getClientDeviceKind,
+  getClientSuggestedLabel,
+  getClientSystemSpecChips,
+  getLocalBatteryUnsupportedHint,
+  getSystemInfoFromClientRow,
+} from '@/shared/client/utils/system-display.util'
 import { getClientDeviceId } from '@/shared/client/utils/system.util'
 import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { copyTextWithNotify } from '@/services/notify'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
-import { buildClientCardTitle, buildClientStatusMap, buildPendingCardTitle, clientNeedsChargerSwitch, clientSelfChargeThresholdInvalid, resolveClientLiveRow } from '@/features/settings/home/settings-client-power-display.util'
+import {
+  buildClientCardTitle,
+  buildClientStatusMap,
+  buildPendingCardTitle,
+  clientNeedsChargerSwitch,
+  clientSelfChargeThresholdInvalid,
+  resolveClientLiveRow,
+} from '@/features/settings/home/settings-client-power-display.util'
 import {
   buildClientPowerWakePublic,
   DEFAULT_CLIENT_POWER_SELF_CHARGE,
@@ -60,9 +83,7 @@ function normalizeClient(item: unknown): ClientPowerClient {
   if (!item || typeof item !== 'object') return createEmptyClientConfig()
   const row = item as Record<string, unknown>
   const selfCharge =
-    row.selfCharge && typeof row.selfCharge === 'object'
-      ? (row.selfCharge as Record<string, unknown>)
-      : {}
+    row.selfCharge && typeof row.selfCharge === 'object' ? (row.selfCharge as Record<string, unknown>) : {}
   return expandTruncatedClientLabel({
     id: String(row.id || '').trim(),
     label: String(row.label || '').trim(),
@@ -74,34 +95,26 @@ function normalizeClient(item: unknown): ClientPowerClient {
       lowPercent: parsePercent(selfCharge.lowPercent, DEFAULT_CLIENT_POWER_SELF_CHARGE.lowPercent),
       highPercent: parsePercent(selfCharge.highPercent, DEFAULT_CLIENT_POWER_SELF_CHARGE.highPercent),
       touEnabled: selfCharge.touEnabled === true,
-      criticalPercent: parsePercent(
-        selfCharge.criticalPercent,
-        DEFAULT_CLIENT_POWER_SELF_CHARGE.criticalPercent ?? 0,
-      ),
+      criticalPercent: parsePercent(selfCharge.criticalPercent, DEFAULT_CLIENT_POWER_SELF_CHARGE.criticalPercent ?? 0),
     },
   })
 }
 
 // 归一化整组配置：从 SystemConfig.clientPower 提取并补齐缺失参数
-function normalizeConfig(
-  raw: SystemConfig | Record<string, unknown> | null | undefined,
-): ClientPowerSettings {
+function normalizeConfig(raw: SystemConfig | Record<string, unknown> | null | undefined): ClientPowerSettings {
   const clientPower = (
-    raw && typeof raw === 'object' && raw.clientPower && typeof raw.clientPower === 'object'
-      ? raw.clientPower
-      : {}
+    raw && typeof raw === 'object' && raw.clientPower && typeof raw.clientPower === 'object' ? raw.clientPower : {}
   ) as Record<string, unknown>
   return {
     enabled: clientPower.enabled === true,
-    reportIntervalSec:
-      Number(clientPower.reportIntervalSec) || DEFAULT_CLIENT_POWER_SETTINGS.reportIntervalSec,
+    reportIntervalSec: Number(clientPower.reportIntervalSec) || DEFAULT_CLIENT_POWER_SETTINGS.reportIntervalSec,
     staleTimeoutSec: Number(clientPower.staleTimeoutSec) || DEFAULT_CLIENT_POWER_SETTINGS.staleTimeoutSec,
     cooldownMin: Number(clientPower.cooldownMin) || DEFAULT_CLIENT_POWER_SETTINGS.cooldownMin,
-    linkageRetryCount:
-      Number(clientPower.linkageRetryCount) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryCount,
-    linkageRetryDelayMs:
-      Number(clientPower.linkageRetryDelayMs) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryDelayMs,
-    clients: Array.isArray(clientPower.clients) ? clientPower.clients.map(normalizeClient).filter((client) => client.id) : [],
+    linkageRetryCount: Number(clientPower.linkageRetryCount) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryCount,
+    linkageRetryDelayMs: Number(clientPower.linkageRetryDelayMs) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryDelayMs,
+    clients: Array.isArray(clientPower.clients)
+      ? clientPower.clients.map(normalizeClient).filter((client) => client.id)
+      : [],
   }
 }
 
@@ -257,11 +270,10 @@ function useClientPowerConfig() {
     const client = config.value.clients[idx]
     if (!client) return
     const name = client.label || client.id || '该终端'
-    const ok = await chrome.confirm(
-      `确定移除「${name}」的充放电策略？保存后终端将回到待配对列表。`,
-      '移除策略',
-      { confirmText: '移除', type: 'danger' },
-    )
+    const ok = await chrome.confirm(`确定移除「${name}」的充放电策略？保存后终端将回到待配对列表。`, '移除策略', {
+      confirmText: '移除',
+      type: 'danger',
+    })
     if (!ok) return
     config.value.clients.splice(idx, 1)
   }
@@ -272,9 +284,7 @@ function useClientPowerConfig() {
   }
 
   /** 清除离线待配对终端的发现记录（仅离线终端可清除，在线会在下次心跳重现） */
-  async function dismissPendingRecord(
-    clientId: string,
-  ): Promise<{ dismissed: boolean; reason?: string }> {
+  async function dismissPendingRecord(clientId: string): Promise<{ dismissed: boolean; reason?: string }> {
     const id = String(clientId || '').trim()
     if (!id) return { dismissed: false, reason: 'invalid' }
     const { data } = await dismissClientPowerPending({ clientId: id })
@@ -299,10 +309,7 @@ function useClientPowerConfig() {
           not_found: '未找到该待配对记录',
           invalid: '终端 ID 无效',
         }
-        chrome.notify(
-          (reasonMap as Record<string, string>)[data.reason ?? ''] || '清除失败',
-          'info',
-        )
+        chrome.notify((reasonMap as Record<string, string>)[data.reason ?? ''] || '清除失败', 'info')
         await refreshStatus()
         return
       }
@@ -400,11 +407,7 @@ export function useClientPowerPanel() {
     revertClientPowerSilently,
   } = configState
 
-  useRegisterSettingsTabPending(
-    'smart-charge',
-    () => clientPowerPendingCount.value > 0,
-    revertClientPowerSilently,
-  )
+  useRegisterSettingsTabPending('smart-charge', () => clientPowerPendingCount.value > 0, revertClientPowerSilently)
 
   const displayDeps = {
     config,
@@ -520,7 +523,9 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
   }
 
   // 离线待配对终端总数（仅离线可清除）
-  const pendingOfflineCount = computed(() => pending.value.filter((pendingClient) => pendingOffline(pendingClient)).length)
+  const pendingOfflineCount = computed(
+    () => pending.value.filter((pendingClient) => pendingOffline(pendingClient)).length,
+  )
 
   // 已启用但未绑定充电器 Switch 实体
   function clientNeedsSwitch(client: { enabled?: boolean; chargerSwitchEntityId?: string }) {
@@ -528,9 +533,7 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
   }
 
   // 滞回阈值是否无效（低 >= 高）
-  function clientThresholdInvalid(client: {
-    selfCharge?: { lowPercent?: number; highPercent?: number }
-  }) {
+  function clientThresholdInvalid(client: { selfCharge?: { lowPercent?: number; highPercent?: number } }) {
     return clientSelfChargeThresholdInvalid(client)
   }
 

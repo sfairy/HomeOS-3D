@@ -26,7 +26,6 @@ type PageCacheListener = () => void
 const suspendListeners = new Set<PageCacheListener>()
 const resumeListeners = new Set<PageCacheListener>()
 let listenersInstalled = false
-let inPageCache = false
 
 function notify(listeners: Set<PageCacheListener>): void {
   // 逐个 try：一个通道的恢复失败不能拦住其它通道，否则整个页面会停在「半连接」状态。
@@ -45,12 +44,10 @@ function installListeners(): void {
   listenersInstalled = true
   window.addEventListener('pagehide', (pageHideEvent) => {
     if (pageHideEvent.persisted !== true) return
-    inPageCache = true
     notify(suspendListeners)
   })
   window.addEventListener('pageshow', (pageShowEvent) => {
     if (pageShowEvent.persisted !== true) return
-    inPageCache = false
     notify(resumeListeners)
   })
 }
@@ -75,14 +72,4 @@ export function onPageCacheResume(listener: PageCacheListener): () => void {
   installListeners()
   resumeListeners.add(listener)
   return () => resumeListeners.delete(listener)
-}
-
-/**
- * 当前文档是否停在 bfcache 里。
- *
- * 用途限于「判断此刻该不该建连」：`pageshow` 恢复时会先把这个标记复位再通知订阅者，
- * 订阅者在回调里读到的一定是 `false`。
- */
-export function isInPageCache(): boolean {
-  return inPageCache
 }

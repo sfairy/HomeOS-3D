@@ -38,7 +38,7 @@
 }
 
 .hm-trigger-card__enable-switch::before {
-  content: '';
+  content: "";
   position: absolute;
   top: var(--hos-switch-thumb-inset);
   left: var(--hos-switch-thumb-inset);

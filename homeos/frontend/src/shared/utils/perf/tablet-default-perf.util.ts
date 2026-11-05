@@ -11,10 +11,7 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/loc
  * 平板首次启动默认性能档位（用户手动选择后不再覆盖）
  */
 import { probeDeviceProfile } from '@/shared/utils/perf/adaptive-perf.util'
-import {
-  clearAutoPerformanceMode,
-  setAutoPerformanceMode,
-} from '@/shared/utils/perf/runtime-perf-mode.util'
+import { clearAutoPerformanceMode, setAutoPerformanceMode } from '@/shared/utils/perf/runtime-perf-mode.util'
 import { getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
 
 const USER_SET_KEY = 'homeos:performanceMode:userSet'

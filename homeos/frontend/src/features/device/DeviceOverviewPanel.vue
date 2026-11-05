@@ -367,18 +367,12 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 import { formatEntityAttrValue } from '@/shared/device/utils/attr-format.util'
 import { formatEntityAttrLabel } from '@/shared/device/utils/entity-attr-labels.util'
-import {
-  displayClimateOperatingLabel,
-  displayEntityStateLabel,
-} from '@/shared/constants/entity-state-labels'
+import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
 import { displayEventState } from '@/shared/events/utils/events-display.util'
 import { formatAuditTimestamp, formatLocaleTime } from '@/shared/utils/format/locale-format.util'
 import { useDeviceOverview } from '@/composables/device/useDeviceOverview'
 import DeviceHealthScore from './DeviceHealthScore.vue'
-import {
-  HVAC_ACTION_LABELS,
-  HVAC_MODE_LABELS,
-} from '@/shared/device/utils/attr-format.util'
+import { HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/shared/device/utils/attr-format.util'
 
 const props = withDefaults(
   defineProps<{
@@ -410,8 +404,10 @@ const entityIdRef = computed(() => props.entityId)
 
 const RECENT_PREVIEW_LIMIT = 4
 
-const { usageLoading, eventsLoading, usageReport, recentEvents, recentTotal, refresh } =
-  useDeviceOverview(entityIdRef, visibleRef)
+const { usageLoading, eventsLoading, usageReport, recentEvents, recentTotal, refresh } = useDeviceOverview(
+  entityIdRef,
+  visibleRef,
+)
 
 /** 概览卡默认预览条数（与角标一致） */
 const recentPreview = computed(() => recentEvents.value.slice(0, RECENT_PREVIEW_LIMIT))
@@ -419,9 +415,7 @@ const recentPreview = computed(() => recentEvents.value.slice(0, RECENT_PREVIEW_
 const entity = computed(() => entitiesStore.entities[props.entityId] ?? null)
 const domain = computed(() => getEntityDomain(props.entityId) || '')
 const domainLabel = computed(() => getDomainLabel(domain.value))
-const unavailable = computed(
-  () => entity.value?.state === 'unavailable' || entity.value?.state === 'unknown',
-)
+const unavailable = computed(() => entity.value?.state === 'unavailable' || entity.value?.state === 'unknown')
 const displayState = computed(() => {
   const state = entity.value?.state
   const d = domain.value
@@ -520,10 +514,7 @@ const identityMeta = computed(() => {
     {
       key: 'events',
       label: '近期事件',
-      value:
-        eventsLoading.value && !recentPreview.value.length
-          ? '…'
-          : `${recentPreview.value.length} 条`,
+      value: eventsLoading.value && !recentPreview.value.length ? '…' : `${recentPreview.value.length} 条`,
     },
   ]
   // 无电量信息时不占位，避免底部被裁切成半行
@@ -625,8 +616,7 @@ const highlightAttrs = computed(() => {
   const attrs = entity.value?.attributes as Record<string, unknown> | undefined
   if (!attrs) return []
   const d = domain.value
-  const keys =
-    d === 'climate' || d === 'water_heater' ? HIGHLIGHT_KEYS_CLIMATE : HIGHLIGHT_KEYS_DEFAULT
+  const keys = d === 'climate' || d === 'water_heater' ? HIGHLIGHT_KEYS_CLIMATE : HIGHLIGHT_KEYS_DEFAULT
   const items: Array<{ key: string; label: string; value: string }> = []
   const seen = new Set<string>()
   const entityState = String(entity.value?.state || '').toLowerCase()
@@ -636,11 +626,7 @@ const highlightAttrs = computed(() => {
     if (raw == null || raw === '') continue
     if (seen.has(key)) continue
     // state 已是设定模式时，不再重复占一格「运行模式」
-    if (
-      key === 'hvac_mode' &&
-      (d === 'climate' || d === 'water_heater') &&
-      String(raw).toLowerCase() === entityState
-    ) {
+    if (key === 'hvac_mode' && (d === 'climate' || d === 'water_heater') && String(raw).toLowerCase() === entityState) {
       continue
     }
     seen.add(key)

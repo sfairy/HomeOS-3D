@@ -8,8 +8,7 @@
 import { box, cylinder, merge, transform } from './primitive-kit.mjs'
 
 /** 盒子：`b(宽, 高, 深, 中心x, 中心y, 中心z)`。 */
-export const b = (width, height, depth, x = 0, y = 0, z = 0) =>
-  box({ width, height, depth, center: [x, y, z] })
+export const b = (width, height, depth, x = 0, y = 0, z = 0) => box({ width, height, depth, center: [x, y, z] })
 
 /** 四条方腿：`inset` 是腿外表面到构件外沿的距离。 */
 export function legs4({ height, insetX, insetZ, size = 0.05, y = 0 }) {
@@ -20,9 +19,7 @@ export function legs4({ height, insetX, insetZ, size = 0.05, y = 0 }) {
       [insetX, -insetZ],
       [-insetX, insetZ],
       [-insetX, -insetZ],
-    ].map(([x, z]) =>
-      transform(leg, { translate: [x, y + height / 2, z] }),
-    ),
+    ].map(([x, z]) => transform(leg, { translate: [x, y + height / 2, z] })),
   )
 }
 
@@ -48,14 +45,7 @@ export function contactShadow(width, depth, thickness = 0.004) {
 }
 
 /** 柜体：左右侧板 + 顶底板 + 背板，返回 { carcass, interior } 两个块。 */
-export function carcassBox({
-  width,
-  height,
-  depth,
-  center = [0, 0, 0],
-  panel = 0.018,
-  back = 0.008,
-}) {
+export function carcassBox({ width, height, depth, center = [0, 0, 0], panel = 0.018, back = 0.008 }) {
   const [cx, cy, cz] = center
   const side = box({ width: panel, height, depth })
   const topBottom = box({ width: width - panel * 2, height: panel, depth })
@@ -86,8 +76,6 @@ export function pullBar({ length, radius = 0.009, standoff = 0.03, center = [0, 
  * 叶片已经登记 `open-sheet`，法线误差肉眼不可见，换来的轮廓准确度更值。
  */
 export function axisScale(geometry, [sx, sy, sz]) {
-  const positions = geometry.positions.map((value, index) =>
-    value * (index % 3 === 0 ? sx : index % 3 === 1 ? sy : sz),
-  )
+  const positions = geometry.positions.map((value, index) => value * (index % 3 === 0 ? sx : index % 3 === 1 ? sy : sz))
   return { ...geometry, positions }
 }

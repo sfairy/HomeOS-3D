@@ -13,17 +13,10 @@ import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'
 import { isEewSimulationEventId, WS_CLIENT_EVENTS } from '@homeos/shared'
 import type { Socket } from 'socket.io-client'
 
-export function bindEntitySocketDomainEvents(
-  socket: Socket,
-  ctx: EntitySocketHandlerContext,
-): void {
+export function bindEntitySocketDomainEvents(socket: Socket, ctx: EntitySocketHandlerContext): void {
   const { logger, actions, listeners } = ctx
 
-  const dispatchToModeListeners = (
-    arr: Array<(payload: unknown) => void>,
-    data: unknown,
-    label: string,
-  ) => {
+  const dispatchToModeListeners = (arr: Array<(payload: unknown) => void>, data: unknown, label: string) => {
     for (let i = 0; i < arr.length; i++) {
       try {
         arr[i](data)
@@ -162,13 +155,7 @@ export function bindEntitySocketDomainEvents(
 
   socket.on(
     WS_CLIENT_EVENTS.ENERGY_ANOMALY,
-    (data: {
-      friendlyName?: string
-      current?: number
-      average?: number
-      message?: string
-      entityId?: string
-    }) => {
+    (data: { friendlyName?: string; current?: number; average?: number; message?: string; entityId?: string }) => {
       const name = data?.friendlyName || data?.entityId || '设备'
       const cur = typeof data?.current === 'number' ? `${data.current}W` : ''
       const detail = data?.message || (cur ? `${name} 当前功耗 ${cur}` : name)

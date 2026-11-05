@@ -10,7 +10,7 @@
 -->
 
 <template>
-  <div ref="rootRef" class="device-analytics">
+  <div :ref="bindRootRef" class="device-analytics">
     <div class="device-analytics__chrome">
       <nav class="list-page__tabs device-analytics__tabs" role="tablist" :aria-label="'分析视图'">
         <button
@@ -166,15 +166,7 @@
 
 <script setup lang="ts">
 import { toRef } from 'vue'
-import {
-  BarChart3,
-  RefreshCw,
-  AlertCircle,
-  Layers,
-  Wifi,
-  WifiOff,
-  BatteryWarning,
-} from '@lucide/vue'
+import { BarChart3, RefreshCw, AlertCircle, Layers, Wifi, WifiOff, BatteryWarning } from '@lucide/vue'
 import VSkeleton from '@/components/common/base/VSkeleton.vue'
 import DeviceAnalyticsOverviewTab from './analytics/DeviceAnalyticsOverviewTab.vue'
 import DeviceAnalyticsActivityTab from './analytics/DeviceAnalyticsActivityTab.vue'
@@ -203,7 +195,6 @@ const emit = defineEmits<{
 }>()
 
 const {
-  rootRef,
   days,
   activeTab,
   rangeOptions,
@@ -225,6 +216,7 @@ const {
   analyticsTabs,
   bindTrendChart,
   bindDomainChart,
+  bindRootRef,
   bindHeatmapChart,
   bindEventsChart,
   bindHealthTrend,
@@ -233,8 +225,8 @@ const {
   entityName,
   getDomainLabel,
   formatRuntime,
-// 分析仪表盘核心组合式函数：统一管理天数、Tab、加载/错误状态、汇总数据、各图表 ref 绑定与刷新/导出。
-// onFilterDomain/onFilterEntity 回调将子页签的筛选事件桥接为本组件的 emit。
+  // 分析仪表盘核心组合式函数：统一管理天数、Tab、加载/错误状态、汇总数据、各图表 ref 绑定与刷新/导出。
+  // onFilterDomain/onFilterEntity 回调将子页签的筛选事件桥接为本组件的 emit。
 } = useDeviceAnalyticsDashboardShell({
   visible: toRef(props, 'visible'),
   onFilterDomain: (domain) => emit('filter-domain', domain),

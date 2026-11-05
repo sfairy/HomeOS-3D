@@ -177,8 +177,10 @@ function optionId(idx) {
  * @property placement - 弹出方向
  * @property updatePosition - 更新面板位置的方法
  */
-const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } =
-  useDropdownPosition(wrapRef, showDropdown, {
+const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } = useDropdownPosition(
+  wrapRef,
+  showDropdown,
+  {
     // getBoundingClientRect 为视口像素，须换算为画布单位再传入 minWidth
     minWidth: () => {
       const s = currentScale.value || 1
@@ -189,7 +191,8 @@ const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePositi
     chromeHeight: 0,
     minListHeight: 96,
     dropdownRef,
-  })
+  },
+)
 
 /** 当前选中项的标签文本 */
 const selectedLabel = computed(() => {

@@ -220,26 +220,21 @@ function normalizeConfirmation(raw: unknown): AgentChatConfirmation | undefined 
     summary: typeof data.summary === 'string' ? data.summary : '',
     confirmText,
     cancelText,
-    expiresInSeconds:
-      typeof data.expiresInSeconds === 'number' ? data.expiresInSeconds : undefined,
+    expiresInSeconds: typeof data.expiresInSeconds === 'number' ? data.expiresInSeconds : undefined,
   }
 }
 
-function normalizeResult(raw: unknown): AgentChatResult {  if (!raw || typeof raw !== 'object') return emptyResult()
+function normalizeResult(raw: unknown): AgentChatResult {
+  if (!raw || typeof raw !== 'object') return emptyResult()
   const data = raw as Record<string, unknown>
   return emptyResult({
     reply: typeof data.reply === 'string' ? data.reply : '',
     speak: data.speak === true,
     ttsUrl: pickTtsUrl(data.ttsUrl),
-    outcome: (['answer', 'success', 'failed', 'blocked'] as const).includes(
-      data.outcome as AgentOutcome,
-    )
+    outcome: (['answer', 'success', 'failed', 'blocked'] as const).includes(data.outcome as AgentOutcome)
       ? (data.outcome as AgentOutcome)
       : 'answer',
-    earcon:
-      data.earcon === 'success' || data.earcon === 'error' || data.earcon === 'confirm'
-        ? data.earcon
-        : null,
+    earcon: data.earcon === 'success' || data.earcon === 'error' || data.earcon === 'confirm' ? data.earcon : null,
     provider: typeof data.provider === 'string' ? data.provider : '',
     model: typeof data.model === 'string' ? data.model : undefined,
     rounds: typeof data.rounds === 'number' ? data.rounds : 0,
@@ -427,9 +422,7 @@ export function agentChatStream(
             callbacks.onTool?.({
               name: item.name,
               arguments:
-                item.arguments && typeof item.arguments === 'object'
-                  ? (item.arguments as Record<string, unknown>)
-                  : {},
+                item.arguments && typeof item.arguments === 'object' ? (item.arguments as Record<string, unknown>) : {},
               resultPreview: typeof item.resultPreview === 'string' ? item.resultPreview : '',
             })
           }
@@ -442,11 +435,7 @@ export function agentChatStream(
         }
         if (event === 'error') {
           const messageText = (payload as { message?: unknown })?.message
-          throw new Error(
-            typeof messageText === 'string' && messageText.trim()
-              ? messageText.trim()
-              : '管家暂时不可用',
-          )
+          throw new Error(typeof messageText === 'string' && messageText.trim() ? messageText.trim() : '管家暂时不可用')
         }
       }
 
@@ -470,8 +459,7 @@ export function agentChatStream(
     } catch (error) {
       // 主动取消不算错误，直接返回已拿到的结果
       if (controller.signal.aborted) return finalResult
-      const messageText =
-        error instanceof Error && error.message ? error.message : '管家暂时不可用'
+      const messageText = error instanceof Error && error.message ? error.message : '管家暂时不可用'
       callbacks.onError?.(messageText)
       throw error
     }
@@ -675,10 +663,7 @@ export async function createAgentPolicy(payload: AgentPolicyPayload) {
 
 /** 更新家规（只改传入字段）。 */
 export async function updateAgentPolicy(policyId: string, payload: AgentPolicyPayload) {
-  const response = await apiPut<AgentPolicyWriteResult>(
-    `/agent/policies/${encodeURIComponent(policyId)}`,
-    payload,
-  )
+  const response = await apiPut<AgentPolicyWriteResult>(`/agent/policies/${encodeURIComponent(policyId)}`, payload)
   return response.data
 }
 
@@ -693,9 +678,7 @@ export async function toggleAgentPolicy(policyId: string, enabled?: boolean) {
 
 /** 删除家规。 */
 export async function deleteAgentPolicy(policyId: string) {
-  const response = await apiDelete<{ ok: boolean; message?: string }>(
-    `/agent/policies/${encodeURIComponent(policyId)}`,
-  )
+  const response = await apiDelete<{ ok: boolean; message?: string }>(`/agent/policies/${encodeURIComponent(policyId)}`)
   return response.data
 }
 
@@ -713,10 +696,7 @@ export async function createAgentSchedule(payload: AgentSchedulePayload) {
 
 /** 更新计划任务（会重算下次执行时间）。 */
 export async function updateAgentSchedule(taskId: string, payload: AgentSchedulePayload) {
-  const response = await apiPut<AgentScheduleWriteResult>(
-    `/agent/schedules/${encodeURIComponent(taskId)}`,
-    payload,
-  )
+  const response = await apiPut<AgentScheduleWriteResult>(`/agent/schedules/${encodeURIComponent(taskId)}`, payload)
   return response.data
 }
 
@@ -731,9 +711,7 @@ export async function toggleAgentSchedule(taskId: string, enabled?: boolean) {
 
 /** 删除计划任务。 */
 export async function deleteAgentSchedule(taskId: string) {
-  const response = await apiDelete<{ ok: boolean; message?: string }>(
-    `/agent/schedules/${encodeURIComponent(taskId)}`,
-  )
+  const response = await apiDelete<{ ok: boolean; message?: string }>(`/agent/schedules/${encodeURIComponent(taskId)}`)
   return response.data
 }
 

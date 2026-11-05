@@ -4,9 +4,7 @@ import { nextTick } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
-import {
-  createLayoutCoreState,
-} from '@/stores/ui/create-layout-core-state'
+import { createLayoutCoreState } from '@/stores/ui/create-layout-core-state'
 import { resolveActiveProfileId } from '@/composables/config/resolve-active-profile.util'
 import { createEditHistoryState } from '@/stores/ui/create-edit-history-state'
 import { createFloorWidgetActions } from '@/stores/ui/create-floor-widget-actions'
@@ -35,13 +33,7 @@ export const useLayoutStore = defineStore('layout', () => {
     resetCoreState,
   } = core
 
-  const {
-    isEditMode,
-    selectedWidgetId,
-    placementEntity,
-    showExitEditConfirm,
-    isSettingsUnlocked,
-  } = storeToRefs(chrome)
+  const { isEditMode, selectedWidgetId, placementEntity, showExitEditConfirm, isSettingsUnlocked } = storeToRefs(chrome)
   const { notify } = chrome
 
   // 方案解析并发保护 token：自增用于丢弃过期请求的响应（路由切换竞态）
@@ -63,12 +55,18 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   // 编辑历史切片：单栈撤销/重做（past/future 双栈，300ms 防抖）
-  const { pushEditHistory, undoEdit, redoEdit, canUndoEdit, canRedoEdit, clearEditHistory } =
-    createEditHistoryState({ layoutConfig, layoutDirty, clonePlain })
+  const { pushEditHistory, undoEdit, redoEdit, canUndoEdit, canRedoEdit, clearEditHistory } = createEditHistoryState({
+    layoutConfig,
+    layoutDirty,
+    clonePlain,
+  })
 
   // 浮动部件 CRUD 切片：顶层 floatingWidgets 的增删改，所有写操作均标记 dirty
-  const { addFloatingWidget, updateFloatingWidget, removeFloatingWidget } =
-    createFloorWidgetActions({ layoutConfig, layoutDirty, pushEditHistory })
+  const { addFloatingWidget, updateFloatingWidget, removeFloatingWidget } = createFloorWidgetActions({
+    layoutConfig,
+    layoutDirty,
+    pushEditHistory,
+  })
 
   /**
    * 统一 API 错误处理：记录日志 + 区分 403（仅管理员可修改）与其他错误提示
@@ -148,10 +146,7 @@ export const useLayoutStore = defineStore('layout', () => {
    * 不做这一步的话，本次新增的字段（新嵌入页、新安防模式…）会残留，
    * 快照已经回滚而内容没有，pending 计数永远归不了零。
    */
-  function deleteKeysMissingFrom(
-    target: Record<string, unknown>,
-    baseline: Record<string, unknown>,
-  ): void {
+  function deleteKeysMissingFrom(target: Record<string, unknown>, baseline: Record<string, unknown>): void {
     for (const key of Object.keys(target)) {
       if (!(key in baseline)) delete target[key]
     }

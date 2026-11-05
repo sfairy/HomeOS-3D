@@ -37,16 +37,7 @@ interface EventAnalyticsSummary {
 }
 
 /** 域缺省时的回退调色板：当 ENTITY_DOMAIN_COLORS 未定义该域时按索引循环取色。 */
-const FALLBACK_COLORS = [
-  '#22d3ee',
-  '#7dd3fc',
-  '#6ee7b7',
-  '#fbbf24',
-  '#fb923c',
-  '#f472b6',
-  '#a78bfa',
-  '#94a3b8',
-]
+const FALLBACK_COLORS = ['#22d3ee', '#7dd3fc', '#6ee7b7', '#fbbf24', '#fb923c', '#f472b6', '#a78bfa', '#94a3b8']
 
 /**
  * 按域取色：优先使用域主题色映射，未命中则从回退调色板按索引循环取色。

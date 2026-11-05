@@ -60,8 +60,7 @@ CONFIG_CACHE_MS = 5_000
 DISMISSED_EVENT_IDS_MAX = 200
 #: 后台补任务的在途上限：同一秒里连来几次配置变更只需补一次，堆积起来只是白烧 CPU。
 SPAWN_INFLIGHT_MAX = 8
-#: SYSTEM_CONFIG_UPDATED / layout.config.updated 事件名
-SYSTEM_CONFIG_UPDATED_EVENT = "SYSTEM_CONFIG_UPDATED"
+#: layout.config.updated 事件名
 LAYOUT_CONFIG_UPDATED_EVENT = "layout.config.updated"
 
 

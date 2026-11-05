@@ -1,74 +1,59 @@
-import { appendBackgroundOpacityControl } from "../core/label-appearance";
-import {
-  openBatchApply,
-  copyBatchFields,
-} from "../config-ui/batch-apply";
-import {
-  PRESENCE_TRIGGER_MODES,
-  presenceTriggerIsTimed,
-} from "../presence/presence-motion";
-import {
-  doorModels,
-  identifyLockEntities,
-  lockEntityRole,
-} from "@app/bridge/lock-state-runtime";
-import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
-import { modelChoiceLabel } from "@app/shared/model-remarks";
-import {
-  windowModels,
-} from "@app/3d-studio/plan/window/window-models";
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
-import { temperatureHumidityFloorCenter } from "@app/bridge/temperature-humidity";
-import { validateGo2rtcUrl } from "../camera/go2rtc-url";
+import { appendBackgroundOpacityControl } from '../core/label-appearance'
+import { openBatchApply, copyBatchFields } from '../config-ui/batch-apply'
+import { PRESENCE_TRIGGER_MODES, presenceTriggerIsTimed } from '../presence/presence-motion'
+import { doorModels, identifyLockEntities, lockEntityRole } from '@app/bridge/lock-state-runtime'
+import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
+import { modelChoiceLabel } from '@app/shared/model-remarks'
+import { windowModels } from '@app/3d-studio/plan/window/window-models'
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
+import { temperatureHumidityFloorCenter } from '@app/bridge/temperature-humidity'
+import { validateGo2rtcUrl } from '../camera/go2rtc-url'
 import {
   SECURITY_ALARM_TYPES,
   createSecurityAlarmOverlay,
   isSecurityAlarmKind,
   securityAlarmKindLabel,
-} from "./security-alarm";
-const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId", "battery2EntityId"],
+} from './security-alarm'
+const LOCK_ENTITY_FIELDS = ['doorEntityId', 'batteryEntityId', 'battery2EntityId'],
   LOCK_BATCH_APPEARANCE_FIELDS = [
-    ["icon", "图标"],
-    ["size", "卡片大小"],
-    ["fontSize", "文字大小"],
-    ["labelMode", "标签显示"],
-  ];
+    ['icon', '图标'],
+    ['size', '卡片大小'],
+    ['fontSize', '文字大小'],
+    ['labelMode', '标签显示'],
+  ]
 const SECURITY_CATEGORY_CHOICES: ReadonlyArray<readonly [string, string]> = [
-  ["camera", "摄像头"],
-  ["presence", "人体传感器"],
-  ["lock", "门"],
+  ['camera', '摄像头'],
+  ['presence', '人体传感器'],
+  ['lock', '门'],
   // 0.8.4：窗户作为独立安防类别（窗磁检测 + 开度显示），不再只能从开窗器侧配置。
-  ["window", "窗户"],
-  ["moisture", "水浸"],
-  ["smoke", "烟雾"],
-  ["gas", "天然气"],
-];
+  ['window', '窗户'],
+  ['moisture', '水浸'],
+  ['smoke', '烟雾'],
+  ['gas', '天然气'],
+]
 /** 安防面板里读到的条目 / 模型字段（只声明用到的面，避免新增宽松类型）。 */
 interface SecurityChoiceRecord {
-  id?: string;
-  label?: string;
-  name?: string;
-  entityId?: string;
-  modelId?: string;
-  floorId?: string;
-  kind?: string;
-  icon?: string;
-  hinge?: string;
-  [key: string]: unknown;
+  id?: string
+  label?: string
+  name?: string
+  entityId?: string
+  modelId?: string
+  floorId?: string
+  kind?: string
+  icon?: string
+  hinge?: string
+  [key: string]: unknown
 }
-import { mountInteraction3d } from "../core/runtime";
-import { openPresenceEditor } from "../presence/presence-editor";
-import { randomUuid } from "@app/shared/util/random-id";
-import {
-  requestInteraction3dAccess,
-  subscribeInteraction3dAccess,
-} from "@app/bridge/bridge";
-import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/presets/preview-layout";
-import { createConfigurationFeedback } from "../config-ui/configuration-feedback";
-import { openConfigurationPicker } from "../config-ui/configuration-picker";
-import { configurationProgress } from "../config-ui/configuration-progress";
-import { domElement } from "@app/shared/util/dom-factory";
-import { normalizeSecurityDraftProperties } from "@app/shared/util/security-draft";
+import { mountInteraction3d } from '../core/runtime'
+import { openPresenceEditor } from '../presence/presence-editor'
+import { randomUuid } from '@app/shared/util/random-id'
+import { requestInteraction3dAccess, subscribeInteraction3dAccess } from '@app/bridge/bridge'
+import { interaction3dPreviewSize, observeInteraction3dPreview } from '@app/bridge/presets/preview-layout'
+import { createConfigurationFeedback } from '../config-ui/configuration-feedback'
+import { openConfigurationPicker } from '../config-ui/configuration-picker'
+import { configurationProgress } from '../config-ui/configuration-progress'
+import { domElement } from '@app/shared/util/dom-factory'
+import { normalizeSecurityDraftProperties } from '@app/shared/util/security-draft'
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
@@ -76,61 +61,55 @@ export async function openSecurityEditor({
   pickers: pickers,
   onSave: onSaveConfig,
   editorView: initialEditorView = null,
-  editingFloorId = "",
+  editingFloorId = '',
 }: any) {
   // 授权结果必须**接住**：旧实现只 ``await`` 不看返回值，真正的判定全靠后面的订阅回调，
   // 而面板在订阅之前就已经渲染并挂上了运行时 —— 「打开弹窗到首帧 access 事件」之间
   // 安防控件是可操作的（添加/删除摄像头、锁、报警，进相机编辑，甚至发起一次保存）。
   // 对安防这种强控制面，默认值必须是「拒绝」。
-  const initialAccess = await requestInteraction3dAccess();
-  const initialAccessAllowed = initialAccess?.allowed === true;
-  const draftProperties = normalizeSecurityDraftProperties(component.properties);
-  const createElement = (tagName: any, className = "", textContent = "") =>
+  const initialAccess = await requestInteraction3dAccess()
+  const initialAccessAllowed = initialAccess?.allowed === true
+  const draftProperties = normalizeSecurityDraftProperties(component.properties)
+  const createElement = (tagName: any, className = '', textContent = '') =>
       domElement(document, tagName, className, textContent),
     createButton = (buttonLabel: any, onClick: any) => {
-      const buttonElement = createElement("button", "", buttonLabel);
-      return (
-        (buttonElement.type = "button"),
-        buttonElement.addEventListener("click", onClick),
-        buttonElement
-      );
+      const buttonElement = createElement('button', '', buttonLabel)
+      return ((buttonElement.type = 'button'), buttonElement.addEventListener('click', onClick), buttonElement)
     },
-    styleSheetLinkElement = createElement("link");
-  ((styleSheetLinkElement.rel = "stylesheet"),
-    (styleSheetLinkElement.href =
-      "/api/v1/modules/interaction3d/core/runtime.css"));
-  const editorDialogElement = createElement("dialog", "i3d-editor");
-  (editorDialogElement.setAttribute("aria-label", "3D 安防配置"),
-    (editorDialogElement.dataset.i3dPreviewScope = "security"));
-  const headerElement = createElement("header"),
-    bodyElement = createElement("div", "i3d-editor-body"),
-    viewElement = createElement("div", "i3d-editor-view"),
-    panelElement = createElement("aside");
-  let currentContainerElement = panelElement;
-  const aspectBoxElement = createElement("div", "i3d-editor-aspect"),
-    stageHostElement = createElement("div", "i3d-editor-stage"),
-    errorMessageElement = createElement("p", "i3d-error");
-  (errorMessageElement.setAttribute("role", "status"),
+    styleSheetLinkElement = createElement('link')
+  ;(styleSheetLinkElement.rel = 'stylesheet'),
+    (styleSheetLinkElement.href = '/api/v1/modules/interaction3d/core/runtime.css')
+  const editorDialogElement = createElement('dialog', 'i3d-editor')
+  editorDialogElement.setAttribute('aria-label', '3D 安防配置'),
+    (editorDialogElement.dataset.i3dPreviewScope = 'security')
+  const headerElement = createElement('header'),
+    bodyElement = createElement('div', 'i3d-editor-body'),
+    viewElement = createElement('div', 'i3d-editor-view'),
+    panelElement = createElement('aside')
+  let currentContainerElement = panelElement
+  const aspectBoxElement = createElement('div', 'i3d-editor-aspect'),
+    stageHostElement = createElement('div', 'i3d-editor-stage'),
+    errorMessageElement = createElement('p', 'i3d-error')
+  errorMessageElement.setAttribute('role', 'status'),
     aspectBoxElement.append(stageHostElement),
     viewElement.append(aspectBoxElement),
-    bodyElement.append(viewElement, panelElement));
+    bodyElement.append(viewElement, panelElement)
   const setSaveResultMessage = (messageText: any) => {
-    ((errorMessageElement.textContent = messageText || ""),
-      (errorMessageElement.hidden = !errorMessageElement.textContent));
-  };
-  setSaveResultMessage("");
+    ;(errorMessageElement.textContent = messageText || ''),
+      (errorMessageElement.hidden = !errorMessageElement.textContent)
+  }
+  setSaveResultMessage('')
   // 保存反馈状态机：脏状态按属性快照比较，退出前拦住未保存的修改。
   const configurationFeedback = createConfigurationFeedback({
     read: () => draftProperties,
     status: errorMessageElement,
     document: documentApi,
-  });
+  })
   let sceneMetadata: any = initialEditorView?.metadata || null,
     selectedFloorId =
-      editingFloorId ||
-      (draftProperties.floorSelection === "all" ? "" : draftProperties.floorSelection || ""),
-    securityKind = "camera",
-    selectedItemId = "",
+      editingFloorId || (draftProperties.floorSelection === 'all' ? '' : draftProperties.floorSelection || ''),
+    securityKind = 'camera',
+    selectedItemId = '',
     editorRuntime: any = null,
     isDisposed = false,
     // fail-closed：首个 access 事件（或上面那次请求）到达前一律按「无权限」渲染。
@@ -140,108 +119,97 @@ export async function openSecurityEditor({
     isCameraEditing = false,
     editingShowAllLabels = false,
     pendingCameraDraft: any = null,
-    cameraCommandQueue = Promise.resolve();
+    cameraCommandQueue = Promise.resolve()
   // 借用入口视图时直接复用它的户型元数据；选中的楼层必须在其中，否则回落到首层。
   initialEditorView &&
     editingFloorId &&
     !(sceneMetadata?.floors || []).some((floorEntry: any) => floorEntry.id === editingFloorId) &&
-    (selectedFloorId = sceneMetadata?.floors?.[0]?.id || "");
-  const expandedDisclosureKeySet = new Set();
+    (selectedFloorId = sceneMetadata?.floors?.[0]?.id || '')
+  const expandedDisclosureKeySet = new Set()
   let activePickerHandle: any = null,
     pickerGeneration = 0,
     presenceEditorHandle: any = null,
     isPresenceEditorOpen = false,
     batchDialogHandle: any = null,
     mergeDialogHandle: any = null,
-    alarmPreviewOverlay: any = null;
+    alarmPreviewOverlay: any = null
   function stopAlarmPreview() {
-    alarmPreviewOverlay?.dispose();
-    alarmPreviewOverlay = null;
+    alarmPreviewOverlay?.dispose()
+    alarmPreviewOverlay = null
   }
   const previouslyFocusedElement = document.activeElement,
-    deviceEntitiesByItemId = new Map();
-  let renderedPanelSignature = "";
-  const isAlarmKindValue = (value: string) =>
-      value === "moisture" || value === "smoke" || value === "gas",
+    deviceEntitiesByItemId = new Map()
+  let renderedPanelSignature = ''
+  const isAlarmKindValue = (value: string) => value === 'moisture' || value === 'smoke' || value === 'gas',
     getSecurityCategory = () => securityKind,
     setSecurityCategory = (nextCategory: string) => {
-      securityKind = nextCategory;
+      securityKind = nextCategory
     },
     getCollectionKey = () =>
-      securityKind === "lock"
-        ? "locks"
-        : securityKind === "camera"
-          ? "cameras"
-          : securityKind === "window"
-            ? "windows"
+      securityKind === 'lock'
+        ? 'locks'
+        : securityKind === 'camera'
+          ? 'cameras'
+          : securityKind === 'window'
+            ? 'windows'
             : isAlarmKindValue(securityKind)
-              ? "alarms"
-              : "presenceSensors",
+              ? 'alarms'
+              : 'presenceSensors',
     getKindLabel = () =>
-      securityKind === "lock"
-        ? "门"
-        : securityKind === "camera"
-          ? "摄像头"
-          : securityKind === "window"
-            ? "窗户"
+      securityKind === 'lock'
+        ? '门'
+        : securityKind === 'camera'
+          ? '摄像头'
+          : securityKind === 'window'
+            ? '窗户'
             : isAlarmKindValue(securityKind)
               ? securityAlarmKindLabel(securityKind)
-              : "人体传感器",
+              : '人体传感器',
     getCollection = () => draftProperties.security[getCollectionKey()],
     getItemList = () => {
-      const collection = getCollection();
-      if (!isAlarmKindValue(securityKind)) return collection;
-      return collection.filter(
-        (alarmItem: any) => (alarmItem.kind || "smoke") === securityKind,
-      );
+      const collection = getCollection()
+      if (!isAlarmKindValue(securityKind)) return collection
+      return collection.filter((alarmItem: any) => (alarmItem.kind || 'smoke') === securityKind)
     },
     findSelectedItem = () =>
       getItemList().find(
-        (candidateItem: any) =>
-          candidateItem.id === selectedItemId && candidateItem.floorId === selectedFloorId,
+        (candidateItem: any) => candidateItem.id === selectedItemId && candidateItem.floorId === selectedFloorId,
       ),
     findSelectedFloor = () =>
       sceneMetadata?.floors.find((candidateFloor: any) => candidateFloor.id === selectedFloorId),
     /** 选择器说明里的楼层名（上游 `v105()?.name`，缺失时回落「未知楼层」）。 */
-    selectedFloorName = () => String(findSelectedFloor()?.name ?? "").trim() || "未知楼层",
+    selectedFloorName = () => String(findSelectedFloor()?.name ?? '').trim() || '未知楼层',
     getFloorDoorModels = () => doorModels(findSelectedFloor() || {}),
-    getCandidateModelId = (candidateModel: any) => candidateModel?.modelId || candidateModel?.id || "";
+    getCandidateModelId = (candidateModel: any) => candidateModel?.modelId || candidateModel?.id || ''
   function normalizeDoorModelIds() {
     for (const lockConfigItem of draftProperties.security.locks) {
-      if (!lockConfigItem?.modelId || String(lockConfigItem.modelId).startsWith("door:")) continue;
+      if (!lockConfigItem?.modelId || String(lockConfigItem.modelId).startsWith('door:')) continue
       const matchingFloor = (sceneMetadata?.floors || []).find(
           (lockFloorMatch: any) => lockFloorMatch.id === lockConfigItem.floorId,
         ),
         matchingDoorModel = (
-          matchingFloor?.scene?.doors?.length
-            ? matchingFloor.scene.doors
-            : matchingFloor?.doors || []
+          matchingFloor?.scene?.doors?.length ? matchingFloor.scene.doors : matchingFloor?.doors || []
         ).find((candidateDoorRecord: any) => {
-          const doorModelIdText = String(
-            candidateDoorRecord?.id || candidateDoorRecord?.modelId || "",
-          );
+          const doorModelIdText = String(candidateDoorRecord?.id || candidateDoorRecord?.modelId || '')
           return (
-            doorModelIdText === String(lockConfigItem.modelId) ||
-            doorModelIdText === "door:" + lockConfigItem.modelId
-          );
+            doorModelIdText === String(lockConfigItem.modelId) || doorModelIdText === 'door:' + lockConfigItem.modelId
+          )
         }),
-        normalizedDoorId = String(
-          matchingDoorModel?.id || matchingDoorModel?.modelId || "",
-        ).replace(/^door:/, "");
-      normalizedDoorId && (lockConfigItem.modelId = "door:" + normalizedDoorId);
+        normalizedDoorId = String(matchingDoorModel?.id || matchingDoorModel?.modelId || '').replace(/^door:/, '')
+      normalizedDoorId && (lockConfigItem.modelId = 'door:' + normalizedDoorId)
     }
   }
   const getFloorModelList = () =>
-      securityKind === "lock"
-        ? getFloorDoorModels().filter((doorModel: any) => doorModel.doorType !== "frame-only")
-        : securityKind === "window"
+      securityKind === 'lock'
+        ? getFloorDoorModels().filter((doorModel: any) => doorModel.doorType !== 'frame-only')
+        : securityKind === 'window'
           ? windowModels(findSelectedFloor() || {})
-          : securityKind === "presence"
+          : securityKind === 'presence'
             ? findSelectedFloor()?.presenceSensors || []
             : isAlarmKindValue(securityKind)
               ? []
               : findSelectedFloor()?.[getCollectionKey()] || [],
-    toItemKey = (configItem: any) => securityKind + ":" + configItem.id,
+    toItemKey = (configItem: any) => securityKind + ':' + configItem.id,
     buildEditorProperties = () => ({
       ...draftProperties,
       floorSelection: selectedFloorId,
@@ -250,78 +218,67 @@ export async function openSecurityEditor({
         (draftProperties.floorSelection === selectedFloorId ? draftProperties.camera : null),
     }),
     showError = (error: any) => {
-      isDisposed || setSaveResultMessage(error?.message || String(error));
-    };
+      isDisposed || setSaveResultMessage(error?.message || String(error))
+    }
   function syncEditorRuntime() {
     !isDisposed &&
       !isPresenceEditorOpen &&
       isAccessAllowed &&
-      editorRuntime?.update(
-        buildEditorProperties(),
-        selectedItemId ? securityKind + ":" + selectedItemId : "",
-        {
-          module: "security",
-          securityKind: securityKind,
-          showAllLabels: editingShowAllLabels,
-        },
-      );
+      editorRuntime?.update(buildEditorProperties(), selectedItemId ? securityKind + ':' + selectedItemId : '', {
+        module: 'security',
+        securityKind: securityKind,
+        showAllLabels: editingShowAllLabels,
+      })
   }
   function markPropertiesDirty() {
-    (configurationFeedback.changed(), syncEditorRuntime());
+    configurationFeedback.changed(), syncEditorRuntime()
   }
   function closeActivePicker() {
-    (pickerGeneration++, activePickerHandle?.close(), (activePickerHandle = null));
+    pickerGeneration++, activePickerHandle?.close(), (activePickerHandle = null)
   }
   /**
    * 两段式分段控件。复用 `.i3d-focus-actions` 的双列栅格与
    * `button[aria-pressed="true"]` 高亮，不新增样式。
    */
-  function createSegmentedField(
-    labelText: any,
-    optionEntries: any[],
-    selectedValue: any,
-    onValueChange: any,
-  ) {
-    const groupElement = createElement("div", "i3d-focus-actions"),
+  function createSegmentedField(labelText: any, optionEntries: any[], selectedValue: any, onValueChange: any) {
+    const groupElement = createElement('div', 'i3d-focus-actions'),
       optionButtonByValue = new Map(),
       markActiveValue = (activeValue: any) => {
         for (const [optionValue, optionButtonElement] of optionButtonByValue)
-          (optionButtonElement.classList.toggle("active", optionValue === activeValue),
-            optionButtonElement.setAttribute("aria-pressed", String(optionValue === activeValue)));
-      };
-    (groupElement.setAttribute("role", "group"),
-      groupElement.setAttribute("aria-label", labelText));
+          optionButtonElement.classList.toggle('active', optionValue === activeValue),
+            optionButtonElement.setAttribute('aria-pressed', String(optionValue === activeValue))
+      }
+    groupElement.setAttribute('role', 'group'), groupElement.setAttribute('aria-label', labelText)
     for (const [optionValue, optionLabel] of optionEntries) {
       const optionButtonElement = createButton(optionLabel, () => {
-        (markActiveValue(optionValue), onValueChange(optionValue));
-      });
-      (optionButtonByValue.set(optionValue, optionButtonElement),
-        groupElement.append(optionButtonElement));
+        markActiveValue(optionValue), onValueChange(optionValue)
+      })
+      optionButtonByValue.set(optionValue, optionButtonElement), groupElement.append(optionButtonElement)
     }
-    markActiveValue(selectedValue);
-    const labelElement = createElement("label");
+    markActiveValue(selectedValue)
+    const labelElement = createElement('label')
     return (
-      labelElement.append(createElement("span", "", labelText), groupElement),
+      labelElement.append(createElement('span', '', labelText), groupElement),
       currentContainerElement.append(labelElement),
       groupElement
-    );
+    )
   }
   function createSelectField(labelText: any, optionEntries: any, selectedValue: any, onValueChange: any) {
-    const selectElement = createElement("select");
-    (selectElement.setAttribute("aria-label", labelText),
-      optionEntries.length || (optionEntries = [["", sceneMetadata ? "暂无可选项" : "正在加载…"]]));
+    const selectElement = createElement('select')
+    selectElement.setAttribute('aria-label', labelText),
+      optionEntries.length || (optionEntries = [['', sceneMetadata ? '暂无可选项' : '正在加载…']])
     for (const [optionValue, optionLabel] of optionEntries) {
-      const optionElement = createElement("option", "", optionLabel);
-      ((optionElement.value = optionValue), selectElement.append(optionElement));
+      const optionElement = createElement('option', '', optionLabel)
+      ;(optionElement.value = optionValue), selectElement.append(optionElement)
     }
-    ((selectElement.value = selectedValue),
-      selectElement.addEventListener("change", () => onValueChange(selectElement.value)));
-    const labelElement = createElement("label");
+    ;(selectElement.value = selectedValue),
+      selectElement.addEventListener('change', () => onValueChange(selectElement.value))
+    const labelElement = createElement('label')
     return (
-      labelElement.append(createElement("span", "", labelText), selectElement),
+      labelElement.append(createElement('span', '', labelText), selectElement),
       currentContainerElement.append(labelElement),
       selectElement
-    );
+    )
   }
   function createPickerField(
     labelText: string,
@@ -329,51 +286,51 @@ export async function openSecurityEditor({
     onOpen: (trigger: HTMLButtonElement) => void,
     disabled = false,
   ) {
-    const triggerButton = createElement("button") as HTMLButtonElement,
-      labelElement = createElement("label");
+    const triggerButton = createElement('button') as HTMLButtonElement,
+      labelElement = createElement('label')
     return (
-      (triggerButton.type = "button"),
-      (triggerButton.className = "i3d-picker-button"),
-      triggerButton.setAttribute("aria-haspopup", "dialog"),
-      triggerButton.setAttribute("aria-label", labelText),
-      (triggerButton.title = currentLabel || ""),
+      (triggerButton.type = 'button'),
+      (triggerButton.className = 'i3d-picker-button'),
+      triggerButton.setAttribute('aria-haspopup', 'dialog'),
+      triggerButton.setAttribute('aria-label', labelText),
+      (triggerButton.title = currentLabel || ''),
       (triggerButton.disabled = disabled),
-      triggerButton.append(createElement("span", "", currentLabel)),
-      triggerButton.addEventListener("click", () => {
-        triggerButton.disabled || onOpen(triggerButton);
+      triggerButton.append(createElement('span', '', currentLabel)),
+      triggerButton.addEventListener('click', () => {
+        triggerButton.disabled || onOpen(triggerButton)
       }),
-      labelElement.append(createElement("span", "", labelText), triggerButton),
+      labelElement.append(createElement('span', '', labelText), triggerButton),
       currentContainerElement.append(labelElement),
       triggerButton
-    );
+    )
   }
   /** 目标安防类别在当前楼层的模型库（`getFloorModelList` 只能取当前类别，这里按 kind 取）。 */
   function floorModelListForSecurityKind(targetKind: string): ReadonlyArray<SecurityChoiceRecord> {
-    return targetKind === "lock"
+    return targetKind === 'lock'
       ? (getFloorDoorModels() as ReadonlyArray<SecurityChoiceRecord>).filter(
-          (doorModel) => doorModel.doorType !== "frame-only",
+          (doorModel) => doorModel.doorType !== 'frame-only',
         )
-      : targetKind === "window"
+      : targetKind === 'window'
         ? (windowModels(findSelectedFloor() || {}) as ReadonlyArray<SecurityChoiceRecord>)
-        : targetKind === "presence"
+        : targetKind === 'presence'
           ? findSelectedFloor()?.presenceSensors || []
           : isAlarmKindValue(targetKind)
             ? []
-            : findSelectedFloor()?.[targetKind === "camera" ? "cameras" : "presenceSensors"] || [];
+            : findSelectedFloor()?.[targetKind === 'camera' ? 'cameras' : 'presenceSensors'] || []
   }
   /** 目标安防类别的已配置条目（报警类按 `kind` 过滤，卡片与分类一一对应）。 */
   function securityBindingsForKind(targetKind: string): ReadonlyArray<SecurityChoiceRecord> {
-    return targetKind === "lock"
+    return targetKind === 'lock'
       ? draftProperties.security.locks
-      : targetKind === "camera"
+      : targetKind === 'camera'
         ? draftProperties.security.cameras
-        : targetKind === "window"
+        : targetKind === 'window'
           ? draftProperties.security.windows
-          : targetKind === "presence"
+          : targetKind === 'presence'
             ? draftProperties.security.presenceSensors
             : (draftProperties.security.alarms as ReadonlyArray<SecurityChoiceRecord>).filter(
-                (alarmItem) => (alarmItem.kind || "smoke") === targetKind,
-              );
+                (alarmItem) => (alarmItem.kind || 'smoke') === targetKind,
+              )
   }
   /**
    * 安防类别选择器（上游 `v287`）：每类带当前楼层的配置进度，报警类只显示已配置卡片数。
@@ -391,59 +348,49 @@ export async function openSecurityEditor({
           modelKey: getCandidateModelId,
           bindingKey: (bindingItem: SecurityChoiceRecord) => bindingItem?.modelId,
         }),
-      }));
-    activePickerHandle?.close();
+      }))
+    activePickerHandle?.close()
     const categoryPickerHandle = openConfigurationPicker({
       document,
-      title: "选择安防类别",
-      kicker: "SECURITY CATEGORY",
-      unit: "模型",
+      title: '选择安防类别',
+      kicker: 'SECURITY CATEGORY',
+      unit: '模型',
       description:
-        "当前楼层：" +
-        selectedFloorName() +
-        "。已配置表示已添加到 3D 交互；报警卡片无需模型，只显示已配置数量。",
+        '当前楼层：' + selectedFloorName() + '。已配置表示已添加到 3D 交互；报警卡片无需模型，只显示已配置数量。',
       selectedId: getSecurityCategory(),
-      emptyMessage: "当前楼层没有可选类别。",
+      emptyMessage: '当前楼层没有可选类别。',
       sections: [{ options: categoryChoices }],
       async onSelect(nextSecurityKind: string) {
-        if (
-          isDisposed ||
-          !isAccessAllowed ||
-          categoryPickerGeneration !== pickerGeneration
-        )
-          throw new Error("该配置已变更，请重新选择。");
-        stopAlarmPreview();
-        setSecurityCategory(nextSecurityKind);
-        selectedItemId = "";
-        syncEditorRuntime();
-        renderPanel();
+        if (isDisposed || !isAccessAllowed || categoryPickerGeneration !== pickerGeneration)
+          throw new Error('该配置已变更，请重新选择。')
+        stopAlarmPreview()
+        setSecurityCategory(nextSecurityKind)
+        selectedItemId = ''
+        syncEditorRuntime()
+        renderPanel()
       },
       onClose() {
-        activePickerHandle === categoryPickerHandle && (activePickerHandle = null);
+        activePickerHandle === categoryPickerHandle && (activePickerHandle = null)
       },
-    });
+    })
     isDisposed || !isAccessAllowed || categoryPickerGeneration !== pickerGeneration
       ? categoryPickerHandle.close()
-      : (activePickerHandle = categoryPickerHandle);
+      : (activePickerHandle = categoryPickerHandle)
   }
   /** 已配置列表选择器（上游 `v328`，kicker `CONFIGURED ITEMS`）。 */
   function openSecurityItemPicker(itemsInSelectedFloor: ReadonlyArray<SecurityChoiceRecord>) {
     const itemPickerGeneration = ++pickerGeneration,
       floorModelList = getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>,
       modelLabelOf = (boundItem: SecurityChoiceRecord) =>
-        floorModelList.find(
-          (modelProbe) => getCandidateModelId(modelProbe) === boundItem?.modelId,
-        )?.name || getKindLabel();
-    activePickerHandle?.close();
+        floorModelList.find((modelProbe) => getCandidateModelId(modelProbe) === boundItem?.modelId)?.name ||
+        getKindLabel()
+    activePickerHandle?.close()
     const itemPickerHandle = openConfigurationPicker({
       document,
-      title: "选择" + getKindLabel(),
-      kicker: "CONFIGURED ITEMS",
+      title: '选择' + getKindLabel(),
+      kicker: 'CONFIGURED ITEMS',
       unit: getKindLabel(),
-      description:
-        "当前楼层：" +
-        selectedFloorName() +
-        "。选择已配置项继续编辑。最后点击“保存配置”应用修改。",
+      description: '当前楼层：' + selectedFloorName() + '。选择已配置项继续编辑。最后点击“保存配置”应用修改。',
       summary: configurationProgress({
         ready: !!findSelectedFloor(),
         requiresModel: !isAlarmKindValue(securityKind),
@@ -451,48 +398,42 @@ export async function openSecurityEditor({
         bindings: itemsInSelectedFloor,
       }),
       selectedId: selectedItemId,
-      emptyMessage: "当前楼层还没有配置" + getKindLabel() + "。",
+      emptyMessage: '当前楼层还没有配置' + getKindLabel() + '。',
       sections: [
         {
           options: itemsInSelectedFloor.map((floorItem) => {
             const hasModel =
               isAlarmKindValue(securityKind) ||
-              floorModelList.some(
-                (modelProbe) => getCandidateModelId(modelProbe) === floorItem.modelId,
-              );
+              floorModelList.some((modelProbe) => getCandidateModelId(modelProbe) === floorItem.modelId)
             return {
               id: String(floorItem.id),
               label: floorItem.label || floorItem.entityId || getKindLabel(),
               wrapLabel: true,
-              state: hasModel ? ("configured" as const) : ("missing" as const),
+              state: hasModel ? ('configured' as const) : ('missing' as const),
               detail: hasModel
                 ? isAlarmKindValue(securityKind)
-                  ? "已配置 · 报警卡片"
-                  : "已配置 · " + modelLabelOf(floorItem)
-                : getKindLabel() + "缺失 · 可重新关联或删除",
-            };
+                  ? '已配置 · 报警卡片'
+                  : '已配置 · ' + modelLabelOf(floorItem)
+                : getKindLabel() + '缺失 · 可重新关联或删除',
+            }
           }),
         },
       ],
       async onSelect(nextSelectedItemId: string) {
-        if (
-          isDisposed ||
-          !isAccessAllowed ||
-          itemPickerGeneration !== pickerGeneration
-        )
-          throw new Error("该配置已变更，请重新选择。");
-        nextSelectedItemId !== selectedItemId && stopAlarmPreview();
-        selectedItemId = nextSelectedItemId;
-        syncEditorRuntime();
-        renderPanel();
+        if (isDisposed || !isAccessAllowed || itemPickerGeneration !== pickerGeneration)
+          throw new Error('该配置已变更，请重新选择。')
+        nextSelectedItemId !== selectedItemId && stopAlarmPreview()
+        selectedItemId = nextSelectedItemId
+        syncEditorRuntime()
+        renderPanel()
       },
       onClose() {
-        activePickerHandle === itemPickerHandle && (activePickerHandle = null);
+        activePickerHandle === itemPickerHandle && (activePickerHandle = null)
       },
-    });
+    })
     isDisposed || !isAccessAllowed || itemPickerGeneration !== pickerGeneration
       ? itemPickerHandle.close()
-      : (activePickerHandle = itemPickerHandle);
+      : (activePickerHandle = itemPickerHandle)
   }
   /**
    * 待添加模型选择器（上游 `v475('add')`）：已配置的模型留在列表里禁用；
@@ -505,36 +446,36 @@ export async function openSecurityEditor({
         (getCollection() as ReadonlyArray<SecurityChoiceRecord>)
           .filter((boundItem) => boundItem.floorId === selectedFloorId)
           .map((boundItem) => boundItem.modelId),
-      );
-    activePickerHandle?.close();
+      )
+    activePickerHandle?.close()
     const addPickerHandle = openConfigurationPicker({
       document,
-      title: "添加" + getKindLabel(),
-      kicker: "MODEL SELECTION",
+      title: '添加' + getKindLabel(),
+      kicker: 'MODEL SELECTION',
       unit: getKindLabel(),
-      emptyMessage: "本层没有" + getKindLabel() + "模型，请先在 3D 户型图绘制中增加模型。",
+      emptyMessage: '本层没有' + getKindLabel() + '模型，请先在 3D 户型图绘制中增加模型。',
       sections: [
         {
           options: floorModelList.map((floorModel) => {
             const floorModelId = getCandidateModelId(floorModel),
-              isBound = boundModelIdSet.has(floorModelId);
+              isBound = boundModelIdSet.has(floorModelId)
             return {
               id: floorModelId,
               label: floorModel.name || getKindLabel(),
               wrapLabel: true,
               disabled: isBound,
-              state: isBound ? ("configured" as const) : ("remaining" as const),
-              detail: isBound ? "已配置" : "未配置 · 点击选择",
-            };
+              state: isBound ? ('configured' as const) : ('remaining' as const),
+              detail: isBound ? '已配置' : '未配置 · 点击选择',
+            }
           }),
         },
       ],
       async onSelect(chosenModelId: string) {
         if (isDisposed || !isAccessAllowed || addPickerGeneration !== pickerGeneration)
-          throw new Error("该配置已变更，请重新选择。");
+          throw new Error('该配置已变更，请重新选择。')
         const addableModel = (getFloorModelList() as ReadonlyArray<SecurityChoiceRecord>).find(
           (addableModelMatch) => getCandidateModelId(addableModelMatch) === chosenModelId,
-        );
+        )
         if (
           !addableModel ||
           (getCollection() as ReadonlyArray<SecurityChoiceRecord>).some(
@@ -543,72 +484,72 @@ export async function openSecurityEditor({
               existingItemProbe.modelId === getCandidateModelId(addableModel),
           )
         )
-          throw new Error("该对象已添加或不再可用，请重新选择。");
+          throw new Error('该对象已添加或不再可用，请重新选择。')
         const newItem = {
           id: randomUuid(),
           floorId: selectedFloorId,
           modelId: getCandidateModelId(addableModel),
-          entityId: "",
+          entityId: '',
           label: addableModel.name || getKindLabel(),
-          ...(securityKind === "lock"
+          ...(securityKind === 'lock'
             ? {
                 openAngle: 80,
                 openDirection: 1,
                 duration: 0.7,
-                hinge: addableModel.hinge === "right" ? "right" : "left",
+                hinge: addableModel.hinge === 'right' ? 'right' : 'left',
                 size: DEFAULT_BUTTON_SIZE,
                 fontSize: CARD_TEXT_SIZE_PX,
-                labelMode: "always",
-                icon: "mdi:door-closed",
+                labelMode: 'always',
+                icon: 'mdi:door-closed',
               }
-            : securityKind === "camera"
+            : securityKind === 'camera'
               ? {
                   size: DEFAULT_BUTTON_SIZE,
                   visible: true,
-                  icon: "mdi:cctv",
+                  icon: 'mdi:cctv',
                   // 与原版一致：新摄像头默认按原始比例出画，可在面板里切「压缩 16:9」。
-                  fit: "contain",
+                  fit: 'contain',
                 }
-              : securityKind === "window"
+              : securityKind === 'window'
                 ? {
                     // 窗磁只报 open/closed，开度按 `openPercent` 换算成开合动画；
                     // 有开窗器时 `motionSource` 决定用哪一路驱动。
-                    doorEntityId: "",
+                    doorEntityId: '',
                     openPercent: 100,
-                    motionSource: "auto",
+                    motionSource: 'auto',
                     size: DEFAULT_BUTTON_SIZE,
                     fontSize: CARD_TEXT_SIZE_PX,
-                    labelMode: "always",
-                    icon: "mdi:window-closed",
+                    labelMode: 'always',
+                    icon: 'mdi:window-closed',
                     x: addableModel.x ?? 0,
                     y: addableModel.y ?? 0,
                     height: addableModel.height ?? 1.1,
                   }
                 : {
-                  route: [] as any[],
-                  routeClosed: false,
-                  size: 1,
-                  speed: 0.45,
-                  displayDuration: 0,
-                  character: "traveler",
-                  color: "cyan",
-                  clickToFocus: false,
-                  hitPadding: 8,
-                }),
-        };
-        (getCollection().push(newItem),
+                    route: [] as any[],
+                    routeClosed: false,
+                    size: 1,
+                    speed: 0.45,
+                    displayDuration: 0,
+                    character: 'traveler',
+                    color: 'cyan',
+                    clickToFocus: false,
+                    hitPadding: 8,
+                  }),
+        }
+        getCollection().push(newItem),
           (selectedItemId = newItem.id),
-          expandedDisclosureKeySet.delete("add:" + getSecurityCategory() + ":" + selectedFloorId),
+          expandedDisclosureKeySet.delete('add:' + getSecurityCategory() + ':' + selectedFloorId),
           markPropertiesDirty(),
-          renderPanel());
+          renderPanel()
       },
       onClose() {
-        activePickerHandle === addPickerHandle && (activePickerHandle = null);
+        activePickerHandle === addPickerHandle && (activePickerHandle = null)
       },
-    });
+    })
     isDisposed || !isAccessAllowed || addPickerGeneration !== pickerGeneration
       ? addPickerHandle.close()
-      : (activePickerHandle = addPickerHandle);
+      : (activePickerHandle = addPickerHandle)
   }
   function createNumberField(
     fieldLabel: any,
@@ -619,70 +560,68 @@ export async function openSecurityEditor({
     stepSize = 0.1,
     shouldCommitWhileTyping = false,
   ) {
-    const isHeightField = fieldLabel.endsWith("高度（米）"),
-      formatFieldValue = (inputValue: any) =>
-        isHeightField ? Number(inputValue).toFixed(1) : inputValue,
-      inputElement = createElement("input");
-    (Object.assign(inputElement, {
-      type: "number",
+    const isHeightField = fieldLabel.endsWith('高度（米）'),
+      formatFieldValue = (inputValue: any) => (isHeightField ? Number(inputValue).toFixed(1) : inputValue),
+      inputElement = createElement('input')
+    Object.assign(inputElement, {
+      type: 'number',
       value: formatFieldValue(currentValue),
       min: minValue,
       max: maxValue,
       step: isHeightField ? 0.1 : stepSize,
     }),
-      inputElement.setAttribute("aria-label", fieldLabel),
+      inputElement.setAttribute('aria-label', fieldLabel),
       shouldCommitWhileTyping &&
-        inputElement.addEventListener("input", () => {
-          const typedValue = Number(inputElement.value);
+        inputElement.addEventListener('input', () => {
+          const typedValue = Number(inputElement.value)
           inputElement.value.trim() &&
             Number.isFinite(typedValue) &&
             typedValue >= minValue &&
             typedValue <= maxValue &&
             ((currentValue = isHeightField ? Number(typedValue.toFixed(1)) : typedValue),
             onValueCommit(currentValue),
-            markPropertiesDirty());
+            markPropertiesDirty())
         }),
-      inputElement.addEventListener("change", () => {
-        const changedValue = Number(inputElement.value);
+      inputElement.addEventListener('change', () => {
+        const changedValue = Number(inputElement.value)
         if (
           !inputElement.value.trim() ||
           !Number.isFinite(changedValue) ||
           changedValue < minValue ||
           changedValue > maxValue
         ) {
-          inputElement.value = formatFieldValue(currentValue);
-          return;
+          inputElement.value = formatFieldValue(currentValue)
+          return
         }
-        ((currentValue = isHeightField ? Number(changedValue.toFixed(1)) : changedValue),
+        ;(currentValue = isHeightField ? Number(changedValue.toFixed(1)) : changedValue),
           (inputElement.value = formatFieldValue(currentValue)),
           onValueCommit(currentValue),
-          markPropertiesDirty());
-      }));
-    const fieldLabelElement = createElement("label");
-    (fieldLabelElement.append(createElement("span", "", fieldLabel), inputElement),
-      currentContainerElement.append(fieldLabelElement));
+          markPropertiesDirty()
+      })
+    const fieldLabelElement = createElement('label')
+    fieldLabelElement.append(createElement('span', '', fieldLabel), inputElement),
+      currentContainerElement.append(fieldLabelElement)
   }
   async function saveConfiguration() {
     if (!(isSaving || !isAccessAllowed || isCameraEditing || isPresenceEditorOpen)) {
-      ((isSaving = true), renderPanel());
+      ;(isSaving = true), renderPanel()
       try {
         // 保存前先跑一遍 go2rtc 地址校验：地址输入框不需要先失焦，点「保存配置」就能拿到
         // 最新值并给出准确提示（权威校验仍在后端 normalize_go2rtc_target）。
         for (const cameraItem of draftProperties.security?.cameras || [])
-          cameraItem?.cameraSource === "go2rtc" && validateGo2rtcUrl(cameraItem?.go2rtcUrl);
-        if ((await requestInteraction3dAccess(), isDisposed || !isAccessAllowed)) return;
-        const savedSnapshot = configurationFeedback.capture();
-        (await onSaveConfig(structuredClone(savedSnapshot)),
-          isDisposed || configurationFeedback.saved(savedSnapshot));
+          cameraItem?.cameraSource === 'go2rtc' && validateGo2rtcUrl(cameraItem?.go2rtcUrl)
+        if ((await requestInteraction3dAccess(), isDisposed || !isAccessAllowed)) return
+        const savedSnapshot = configurationFeedback.capture()
+        await onSaveConfig(structuredClone(savedSnapshot)), isDisposed || configurationFeedback.saved(savedSnapshot)
       } catch (saveError: any) {
-        (showError(saveError), isDisposed || configurationFeedback.failed(saveError));
+        showError(saveError), isDisposed || configurationFeedback.failed(saveError)
       } finally {
-        ((isSaving = false), isDisposed || renderPanel());
+        ;(isSaving = false), isDisposed || renderPanel()
       }
     }
   }
-  const saveButtonElement = createButton("保存配置", () => void saveConfiguration());
-  saveButtonElement.className = "primary";
+  const saveButtonElement = createButton('保存配置', () => void saveConfiguration())
+  saveButtonElement.className = 'primary'
   function closeEditor() {
     isDisposed ||
       ((isDisposed = true),
@@ -701,114 +640,97 @@ export async function openSecurityEditor({
       editorDialogElement.close(),
       editorDialogElement.remove(),
       styleSheetLinkElement.remove(),
-      document.dispatchEvent(new Event("hb-i3d-preview-scope")),
-      previouslyFocusedElement instanceof HTMLElement && previouslyFocusedElement.focus());
+      document.dispatchEvent(new Event('hb-i3d-preview-scope')),
+      previouslyFocusedElement instanceof HTMLElement && previouslyFocusedElement.focus())
   }
-  const showAllLabelsInput = createElement("input");
-  showAllLabelsInput.type = "checkbox";
-  showAllLabelsInput.checked = editingShowAllLabels;
-  showAllLabelsInput.setAttribute("aria-label", "显示本类全部标签");
-  showAllLabelsInput.addEventListener("change", () => {
-    if (isDisposed || !isAccessAllowed) return;
-    editingShowAllLabels = showAllLabelsInput.checked;
-    syncEditorRuntime();
-  });
-  const showAllLabelsToggle = createElement(
-    "label",
-    "i3d-setting-toggle i3d-preview-label-toggle",
-  );
-  showAllLabelsToggle.append(createElement("span", "", "显示本类全部标签"), showAllLabelsInput);
-  (headerElement.append(
-    createElement("strong", "", "3D 安防配置"),
+  const showAllLabelsInput = createElement('input')
+  showAllLabelsInput.type = 'checkbox'
+  showAllLabelsInput.checked = editingShowAllLabels
+  showAllLabelsInput.setAttribute('aria-label', '显示本类全部标签')
+  showAllLabelsInput.addEventListener('change', () => {
+    if (isDisposed || !isAccessAllowed) return
+    editingShowAllLabels = showAllLabelsInput.checked
+    syncEditorRuntime()
+  })
+  const showAllLabelsToggle = createElement('label', 'i3d-setting-toggle i3d-preview-label-toggle')
+  showAllLabelsToggle.append(createElement('span', '', '显示本类全部标签'), showAllLabelsInput)
+  headerElement.append(
+    createElement('strong', '', '3D 安防配置'),
     showAllLabelsToggle,
     saveButtonElement,
-    createButton("退出", () =>
-      configurationFeedback.requestClose(closeEditor, saveConfiguration),
-    ),
+    createButton('退出', () => configurationFeedback.requestClose(closeEditor, saveConfiguration)),
   ),
     editorDialogElement.append(headerElement, bodyElement),
-    editorDialogElement.addEventListener("cancel", (cancelEvent: any) => {
-      (cancelEvent.preventDefault(),
-        configurationFeedback.requestClose(closeEditor, saveConfiguration));
-    }));
+    editorDialogElement.addEventListener('cancel', (cancelEvent: any) => {
+      cancelEvent.preventDefault(), configurationFeedback.requestClose(closeEditor, saveConfiguration)
+    })
   function updatePreviewSize() {
     const previewSize = interaction3dPreviewSize(
       component,
       documentApi,
       viewElement.clientWidth,
       viewElement.clientHeight,
-    );
-    ((aspectBoxElement.style.width = previewSize.width + "px"),
-      (aspectBoxElement.style.height = previewSize.height + "px"));
+    )
+    ;(aspectBoxElement.style.width = previewSize.width + 'px'),
+      (aspectBoxElement.style.height = previewSize.height + 'px')
   }
-  const previewResizeObserver = observeInteraction3dPreview(viewElement, updatePreviewSize);
-  let unsubscribeAccessChange = () => {};
+  const previewResizeObserver = observeInteraction3dPreview(viewElement, updatePreviewSize)
+  let unsubscribeAccessChange = () => {}
   const handleAccessState = (accessState: any) => {
-    const isAllowed = accessState.allowed === true;
-    if (!isAllowed && accessState.status === "denied") {
-      ((isAccessAllowed = false),
+    const isAllowed = accessState.allowed === true
+    if (!isAllowed && accessState.status === 'denied') {
+      ;(isAccessAllowed = false),
         (isCameraEditing = false),
         closeActivePicker(),
         presenceEditorHandle?.close(),
         editorRuntime?.setAuthorized?.(false),
         editorRuntime?.(),
         (editorRuntime = null),
-        setSaveResultMessage(accessState.message || "3D 使用权限已失效。"),
-        isDisposed || renderPanel());
-      return;
+        setSaveResultMessage(accessState.message || '3D 使用权限已失效。'),
+        isDisposed || renderPanel()
+      return
     }
     isAllowed !== isAccessAllowed &&
       ((isAccessAllowed = isAllowed),
       isAccessAllowed
-        ? (editorRuntime?.setAuthorized?.(true), setSaveResultMessage(""))
+        ? (editorRuntime?.setAuthorized?.(true), setSaveResultMessage(''))
         : ((isCameraEditing = false),
           closeActivePicker(),
           presenceEditorHandle?.close(),
           editorRuntime?.setAuthorized?.(false),
-          setSaveResultMessage("")),
-      isDisposed ||
-        (renderPanel(), isAccessAllowed && editorDialogElement.open && mountEditorRuntime()));
-  };
+          setSaveResultMessage('')),
+      isDisposed || (renderPanel(), isAccessAllowed && editorDialogElement.open && mountEditorRuntime()))
+  }
   async function queueCameraCommand(commandName: any, commandPayload: any = undefined) {
-    const commandTargetItem = findSelectedItem();
-    if (!commandTargetItem || isSaving || !isAccessAllowed || isDisposed) return;
-    const isFocalLengthCommand = commandName === "focus-focal-length",
-      previousQueuePromise = cameraCommandQueue;
-    let releaseQueueGate;
-    ((cameraCommandQueue = new Promise((resolveQueueGate) => {
-      releaseQueueGate = resolveQueueGate;
+    const commandTargetItem = findSelectedItem()
+    if (!commandTargetItem || isSaving || !isAccessAllowed || isDisposed) return
+    const isFocalLengthCommand = commandName === 'focus-focal-length',
+      previousQueuePromise = cameraCommandQueue
+    let releaseQueueGate
+    ;(cameraCommandQueue = new Promise((resolveQueueGate) => {
+      releaseQueueGate = resolveQueueGate
     })),
-      isFocalLengthCommand || ((isSaving = true), renderPanel()));
+      isFocalLengthCommand || ((isSaving = true), renderPanel())
     try {
-      if (
-        (await previousQueuePromise,
-        isDisposed || !isAccessAllowed || findSelectedItem() !== commandTargetItem)
-      )
-        return;
-      const commandResult = await editorRuntime.focusCommand(
-        commandName,
-        toItemKey(commandTargetItem),
-        commandPayload,
-      );
-      if (isDisposed || !isAccessAllowed || findSelectedItem() !== commandTargetItem) return;
-      (commandResult?.camera && (pendingCameraDraft = commandResult.camera),
-        commandName === "save-light-camera"
-          ? ((commandTargetItem.focusCamera = commandResult.camera),
-            (isCameraEditing = false),
-            markPropertiesDirty())
-          : commandName === "cancel-light-camera"
+      if ((await previousQueuePromise, isDisposed || !isAccessAllowed || findSelectedItem() !== commandTargetItem))
+        return
+      const commandResult = await editorRuntime.focusCommand(commandName, toItemKey(commandTargetItem), commandPayload)
+      if (isDisposed || !isAccessAllowed || findSelectedItem() !== commandTargetItem) return
+      commandResult?.camera && (pendingCameraDraft = commandResult.camera),
+        commandName === 'save-light-camera'
+          ? ((commandTargetItem.focusCamera = commandResult.camera), (isCameraEditing = false), markPropertiesDirty())
+          : commandName === 'cancel-light-camera'
             ? ((isCameraEditing = false), (pendingCameraDraft = null))
-            : commandName === "edit-light-camera" && (isCameraEditing = true));
+            : commandName === 'edit-light-camera' && (isCameraEditing = true)
     } catch (commandError: any) {
-      isDisposed || showError(commandError);
+      isDisposed || showError(commandError)
     } finally {
-      (releaseQueueGate!(),
-        isFocalLengthCommand || ((isSaving = false), isDisposed || renderPanel()));
+      releaseQueueGate!(), isFocalLengthCommand || ((isSaving = false), isDisposed || renderPanel())
     }
   }
   async function openPresenceSubEditor() {
     if (!(isSaving || isCameraEditing || isPresenceEditorOpen || !isAccessAllowed)) {
-      ((isPresenceEditorOpen = true), editorRuntime?.(), (editorRuntime = null));
+      ;(isPresenceEditorOpen = true), editorRuntime?.(), (editorRuntime = null)
       try {
         const openedPresenceEditor = await openPresenceEditor({
           component: {
@@ -826,235 +748,208 @@ export async function openSecurityEditor({
             !isDisposed &&
               isAccessAllowed &&
               ((draftProperties.security = structuredClone(presenceDraft.security)),
-              setSaveResultMessage("路线已应用，请保存配置。"));
+              setSaveResultMessage('路线已应用，请保存配置。'))
           },
           onClose: () => {
-            ((presenceEditorHandle = null),
+            ;(presenceEditorHandle = null),
               (isPresenceEditorOpen = false),
-              !isDisposed && isAccessAllowed && (mountEditorRuntime(), renderPanel()));
+              !isDisposed && isAccessAllowed && (mountEditorRuntime(), renderPanel())
           },
-        });
+        })
         isDisposed || !isAccessAllowed || !isPresenceEditorOpen
           ? openedPresenceEditor?.close()
-          : (presenceEditorHandle = openedPresenceEditor);
+          : (presenceEditorHandle = openedPresenceEditor)
       } catch (presenceEditorError: any) {
-        ((isPresenceEditorOpen = false),
+        ;(isPresenceEditorOpen = false),
           showError(presenceEditorError),
-          !isDisposed && isAccessAllowed && mountEditorRuntime());
+          !isDisposed && isAccessAllowed && mountEditorRuntime()
       }
     }
   }
   function createSectionHeading(sectionTitle: any) {
-    const sectionElement = createElement("section", "i3d-focus-settings i3d-security-settings");
+    const sectionElement = createElement('section', 'i3d-focus-settings i3d-security-settings')
     return (
-      sectionElement.append(createElement("h4", "", sectionTitle)),
+      sectionElement.append(createElement('h4', '', sectionTitle)),
       panelElement.append(sectionElement),
       (currentContainerElement = sectionElement),
       sectionElement
-    );
+    )
   }
   function createDisclosure(summaryText: any, disclosureKey: any, hostElement = currentContainerElement) {
-    const detailsElement = createElement("details", "i3d-security-disclosure");
-    ((detailsElement.open = expandedDisclosureKeySet.has(disclosureKey)),
-      detailsElement.append(createElement("summary", "", summaryText)),
-      detailsElement.addEventListener("toggle", () => {
+    const detailsElement = createElement('details', 'i3d-security-disclosure')
+    ;(detailsElement.open = expandedDisclosureKeySet.has(disclosureKey)),
+      detailsElement.append(createElement('summary', '', summaryText)),
+      detailsElement.addEventListener('toggle', () => {
         detailsElement.open
           ? expandedDisclosureKeySet.add(disclosureKey)
-          : expandedDisclosureKeySet.delete(disclosureKey);
-      }));
-    const disclosureBodyElement = createElement("div", "i3d-security-disclosure-body");
-    return (
-      detailsElement.append(disclosureBodyElement),
-      hostElement.append(detailsElement),
-      disclosureBodyElement
-    );
+          : expandedDisclosureKeySet.delete(disclosureKey)
+      })
+    const disclosureBodyElement = createElement('div', 'i3d-security-disclosure-body')
+    return (detailsElement.append(disclosureBodyElement), hostElement.append(detailsElement), disclosureBodyElement)
   }
   function openBatchApplyDialog(sourceItem: any) {
-    if (
-      isDisposed ||
-      !isAccessAllowed ||
-      isSaving ||
-      isCameraEditing ||
-      isPresenceEditorOpen ||
-      batchDialogHandle
-    )
-      return;
+    if (isDisposed || !isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen || batchDialogHandle)
+      return
     const doorTypeOf = (doorTypeCandidateItem: any) =>
         getFloorDoorModels().find(
-          (candidateDoorModel: any) =>
-            getCandidateModelId(candidateDoorModel) === doorTypeCandidateItem.modelId,
-        )?.doorType || "solid",
+          (candidateDoorModel: any) => getCandidateModelId(candidateDoorModel) === doorTypeCandidateItem.modelId,
+        )?.doorType || 'solid',
       sourceModelEntry = getFloorModelList().find(
         (sourceModelMatch: any) => getCandidateModelId(sourceModelMatch) === sourceItem.modelId,
       ),
       batchSource = {
         ...sourceItem,
-        height:
-          sourceItem.height ?? sourceModelEntry?.height ?? (securityKind === "camera" ? 0.15 : 1.1),
-      };
-    let batchFields: Record<string, any>[];
-    if (securityKind === "lock") {
-      (Object.assign(batchSource, {
-        icon: sourceItem.icon || "mdi:door-closed",
+        height: sourceItem.height ?? sourceModelEntry?.height ?? (securityKind === 'camera' ? 0.15 : 1.1),
+      }
+    let batchFields: Record<string, any>[]
+    if (securityKind === 'lock') {
+      Object.assign(batchSource, {
+        icon: sourceItem.icon || 'mdi:door-closed',
         size: sourceItem.size ?? DEFAULT_BUTTON_SIZE,
         fontSize: sourceItem.fontSize ?? CARD_TEXT_SIZE_PX,
-        labelMode: sourceItem.labelMode || "always",
+        labelMode: sourceItem.labelMode || 'always',
         duration: sourceItem.duration ?? 0.7,
         openAngle: sourceItem.openAngle ?? 80,
         openDirection: sourceItem.openDirection ?? 1,
-        hinge: sourceItem.hinge || "left",
+        hinge: sourceItem.hinge || 'left',
       }),
         (batchFields = LOCK_BATCH_APPEARANCE_FIELDS.map(([batchFieldKey, batchFieldLabel]) => ({
           key: batchFieldKey,
           label: batchFieldLabel,
-          ...(batchFieldKey === "labelMode"
+          ...(batchFieldKey === 'labelMode'
             ? {
                 write: (writeTargetItem: any, writeLabelModeValue: any) => {
-                  writeTargetItem.labelMode = writeLabelModeValue;
+                  writeTargetItem.labelMode = writeLabelModeValue
                 },
               }
             : {}),
         }))),
         batchFields.push({
-          key: "duration",
-          label: "动画时长",
-          unit: " 秒",
+          key: 'duration',
+          label: '动画时长',
+          unit: ' 秒',
           optional: true,
-        }));
+        })
       const sourceDoorType = doorTypeOf(sourceItem),
-        isHingeDoorType = ["solid", "entry", "entry-child-mother", "glass"].includes(
-          sourceDoorType,
-        );
-      ((isHingeDoorType || sourceDoorType === "double") &&
+        isHingeDoorType = ['solid', 'entry', 'entry-child-mother', 'glass'].includes(sourceDoorType)
+      ;(isHingeDoorType || sourceDoorType === 'double') &&
         batchFields.push({
-          key: "openAngle",
-          label: "开门角度",
+          key: 'openAngle',
+          label: '开门角度',
           optional: true,
           compatible: (angleCandidateItem: any) => doorTypeOf(angleCandidateItem) === sourceDoorType,
         }),
-        (isHingeDoorType || ["double", "sliding-glass"].includes(sourceDoorType)) &&
+        (isHingeDoorType || ['double', 'sliding-glass'].includes(sourceDoorType)) &&
           batchFields.push({
-            key: "openDirection",
-            label: "开门方向",
+            key: 'openDirection',
+            label: '开门方向',
             optional: true,
-            compatible: (directionCandidateItem: any) =>
-              doorTypeOf(directionCandidateItem) === sourceDoorType,
+            compatible: (directionCandidateItem: any) => doorTypeOf(directionCandidateItem) === sourceDoorType,
           }),
         isHingeDoorType &&
           batchFields.push({
-            key: "hinge",
-            label: "铰链方向",
+            key: 'hinge',
+            label: '铰链方向',
             optional: true,
             compatible: (hingeCandidateItem: any) => doorTypeOf(hingeCandidateItem) === sourceDoorType,
-          }));
-    } else if (securityKind === "window") {
+          })
+    } else if (securityKind === 'window') {
       // 窗户的批量项只有外观 + 开度 + 动画时长，没有门的铰链/开向。
-      (Object.assign(batchSource, {
-        icon: sourceItem.icon || "mdi:window-closed",
+      Object.assign(batchSource, {
+        icon: sourceItem.icon || 'mdi:window-closed',
         size: sourceItem.size ?? DEFAULT_BUTTON_SIZE,
         fontSize: sourceItem.fontSize ?? CARD_TEXT_SIZE_PX,
-        labelMode: sourceItem.labelMode || "always",
+        labelMode: sourceItem.labelMode || 'always',
         openPercent: sourceItem.openPercent ?? 100,
         duration: sourceItem.duration ?? 0.7,
       }),
         (batchFields = [
-          ["icon", "图标"],
-          ["size", "卡片大小"],
-          ["fontSize", "文字大小"],
-          ["labelMode", "标签显示"],
+          ['icon', '图标'],
+          ['size', '卡片大小'],
+          ['fontSize', '文字大小'],
+          ['labelMode', '标签显示'],
         ].map(([windowFieldKey, windowFieldLabel]) => ({
           key: windowFieldKey,
           label: windowFieldLabel,
         }))),
         batchFields.push(
-          { key: "openPercent", label: "显示开度", unit: "%", optional: true },
-          { key: "duration", label: "动画时长", unit: " 秒", optional: true },
-        ));
+          { key: 'openPercent', label: '显示开度', unit: '%', optional: true },
+          { key: 'duration', label: '动画时长', unit: ' 秒', optional: true },
+        )
     } else
-      securityKind === "camera"
+      securityKind === 'camera'
         ? (batchFields = [
-            ["icon", "图标", "mdi:cctv"],
-            ["size", "标签大小", DEFAULT_BUTTON_SIZE],
-            ["iconSize", "图标大小", buttonIconSize(DEFAULT_BUTTON_SIZE)],
-            ["fontSize", "文字大小", CARD_TEXT_SIZE_PX],
-            ["hitSize", "触控范围", DEFAULT_BUTTON_SIZE],
+            ['icon', '图标', 'mdi:cctv'],
+            ['size', '标签大小', DEFAULT_BUTTON_SIZE],
+            ['iconSize', '图标大小', buttonIconSize(DEFAULT_BUTTON_SIZE)],
+            ['fontSize', '文字大小', CARD_TEXT_SIZE_PX],
+            ['hitSize', '触控范围', DEFAULT_BUTTON_SIZE],
           ].map(([cameraFieldKey, cameraFieldLabel, cameraFieldFallback]) => ({
             key: cameraFieldKey,
             label: cameraFieldLabel,
             fallback: cameraFieldFallback,
           })))
         : (batchFields = [
-            ["waveEnabled", "显示感应光圈", true],
-            ["waveScale", "光圈缩放", 1],
-            ["waveOpacity", "光圈不透明度（%）", 68],
-            ["character", "人物方案", "traveler"],
-            ["color", "人物颜色", "cyan"],
-            ["size", "人物缩放", 1],
-            ["speed", "行走速度（米/秒）", 0.45],
-            ["clickToFocus", "点击人物聚焦", false],
-            ["hitPadding", "触控范围扩展（px）", 8],
+            ['waveEnabled', '显示感应光圈', true],
+            ['waveScale', '光圈缩放', 1],
+            ['waveOpacity', '光圈不透明度（%）', 68],
+            ['character', '人物方案', 'traveler'],
+            ['color', '人物颜色', 'cyan'],
+            ['size', '人物缩放', 1],
+            ['speed', '行走速度（米/秒）', 0.45],
+            ['clickToFocus', '点击人物聚焦', false],
+            ['hitPadding', '触控范围扩展（px）', 8],
           ].map(([presenceFieldKey, presenceFieldLabel, presenceFieldFallback]) => ({
             key: presenceFieldKey,
             label: presenceFieldLabel,
             fallback: presenceFieldFallback,
-            optional: ["speed", "clickToFocus", "hitPadding"].includes(String(presenceFieldKey)),
-          })));
-    (securityKind !== "presence" &&
+            optional: ['speed', 'clickToFocus', 'hitPadding'].includes(String(presenceFieldKey)),
+          })))
+    securityKind !== 'presence' &&
       batchFields.push({
-        key: "backgroundOpacity",
-        label: "背景不透明度",
-        unit: "%",
+        key: 'backgroundOpacity',
+        label: '背景不透明度',
+        unit: '%',
         fallback: 1,
         format: (opacityRatio: any) => Math.round(opacityRatio * 100),
       }),
       // 告警卡片：`labelMode` 三态，文案与属性面板一致。
       isSecurityAlarmKind(securityKind) &&
         batchFields.push({
-          key: "labelMode",
-          label: "标签显示",
-          fallback: "always",
+          key: 'labelMode',
+          label: '标签显示',
+          fallback: 'always',
           format: (alarmLabelMode: any) =>
-            alarmLabelMode === "hidden"
-              ? "隐藏标签"
-              : alarmLabelMode === "alarm"
-                ? "报警时显示"
-                : "常驻显示",
+            alarmLabelMode === 'hidden' ? '隐藏标签' : alarmLabelMode === 'alarm' ? '报警时显示' : '常驻显示',
         }),
-      securityKind !== "presence" &&
+      securityKind !== 'presence' &&
         batchFields.push({
-          key: "height",
-          label: "高度",
-          unit: " 米",
+          key: 'height',
+          label: '高度',
+          unit: ' 米',
           optional: true,
           format: (heightValue: any) => Number(heightValue).toFixed(1),
         }),
       (batchDialogHandle = openBatchApply({
-        title: "应用" + getKindLabel() + "设置",
+        title: '应用' + getKindLabel() + '设置',
         source: batchSource,
         fields: batchFields,
         targets: getItemList().filter(
           (targetCandidateItem: any) =>
-            targetCandidateItem.id !== sourceItem.id &&
-            targetCandidateItem.floorId === sourceItem.floorId,
+            targetCandidateItem.id !== sourceItem.id && targetCandidateItem.floorId === sourceItem.floorId,
         ),
         onClose: () => {
-          batchDialogHandle = null;
+          batchDialogHandle = null
         },
         onApply: async (selectedTargetItems: any, selectedFieldDefs: any) => {
-          if (
-            (await requestInteraction3dAccess(),
-            isDisposed || !isAccessAllowed || !batchDialogHandle?.open)
-          )
-            throw new Error("配置已关闭或授权不可用");
-          for (const targetItem of selectedTargetItems)
-            copyBatchFields(targetItem, batchSource, selectedFieldDefs);
-          (markPropertiesDirty(),
+          if ((await requestInteraction3dAccess(), isDisposed || !isAccessAllowed || !batchDialogHandle?.open))
+            throw new Error('配置已关闭或授权不可用')
+          for (const targetItem of selectedTargetItems) copyBatchFields(targetItem, batchSource, selectedFieldDefs)
+          markPropertiesDirty(),
             renderPanel(),
-            setSaveResultMessage(
-              "已应用到 " + selectedTargetItems.length + " 个目标，请保存配置。",
-            ));
+            setSaveResultMessage('已应用到 ' + selectedTargetItems.length + ' 个目标，请保存配置。')
         },
-      })));
+      }))
   }
   /**
    * 推拉窗组的历史逐扇配置合并（上游 `_0x53c6d1`）。
@@ -1063,13 +958,12 @@ export async function openSecurityEditor({
    * 让用户挑一份保留（窗磁 / 电量 / 标签都在这一条里），其余重复项删除。
    */
   function openWindowGroupMerge(sourceWindowItem: any) {
-    if (!isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen || mergeDialogHandle)
-      return;
+    if (!isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen || mergeDialogHandle) return
     const groupModelEntry = getFloorModelList().find(
       (modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId,
-    );
-    if (!groupModelEntry?.legacyModels) return;
-    closeActivePicker();
+    )
+    if (!groupModelEntry?.legacyModels) return
+    closeActivePicker()
     const mergeFloorId = selectedFloorId,
       mergeCandidates = () =>
         (draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>).filter(
@@ -1077,31 +971,30 @@ export async function openSecurityEditor({
             windowBindingItem.floorId === mergeFloorId &&
             (windowBindingItem.modelId === groupModelEntry.modelId ||
               (groupModelEntry.legacyModels as ReadonlyArray<any>).some(
-                (legacyModelEntry) =>
-                  (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
+                (legacyModelEntry) => (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
               )),
         ),
-      mergeSnapshot = JSON.stringify(mergeCandidates());
-    let mergePickerHandle: any;
+      mergeSnapshot = JSON.stringify(mergeCandidates())
+    let mergePickerHandle: any
     mergePickerHandle = openConfigurationPicker({
       document,
-      title: "选择整组使用的配置",
-      kicker: "SLIDING WINDOW",
+      title: '选择整组使用的配置',
+      kicker: 'SLIDING WINDOW',
       description:
-        "这组推拉窗现有 " +
+        '这组推拉窗现有 ' +
         mergeCandidates().length +
-        " 份配置。选择要保留的窗磁、电量和标签设置后，合并为一条整组配置；其他重复项将移除。点击“保存配置”后应用，也可以关闭本窗口取消。",
+        ' 份配置。选择要保留的窗磁、电量和标签设置后，合并为一条整组配置；其他重复项将移除。点击“保存配置”后应用，也可以关闭本窗口取消。',
       sections: [
         {
           options: mergeCandidates().map((windowBindingItem) => ({
             id: String(windowBindingItem.id),
-            label: windowBindingItem.label || "窗户配置",
+            label: windowBindingItem.label || '窗户配置',
             wrapLabel: true,
             detail:
-              "窗磁：" +
-              (windowBindingItem.doorEntityId || "未绑定") +
-              "；电量：" +
-              (windowBindingItem.batteryEntityId || "未绑定"),
+              '窗磁：' +
+              (windowBindingItem.doorEntityId || '未绑定') +
+              '；电量：' +
+              (windowBindingItem.batteryEntityId || '未绑定'),
           })),
         },
       ],
@@ -1110,419 +1003,360 @@ export async function openSecurityEditor({
           isDisposed ||
           !isAccessAllowed ||
           mergePickerHandle !== mergeDialogHandle ||
-          securityKind !== "window" ||
+          securityKind !== 'window' ||
           selectedFloorId !== mergeFloorId
         )
-          return;
+          return
         if (
           JSON.stringify(mergeCandidates()) !== mergeSnapshot ||
-          getFloorModelList().find(
-            (modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId,
-          )?.modelId !== groupModelEntry.modelId
+          getFloorModelList().find((modelMatch: any) => getCandidateModelId(modelMatch) === sourceWindowItem.modelId)
+            ?.modelId !== groupModelEntry.modelId
         )
-          throw new Error("窗户配置已变化，请关闭后重新选择。");
+          throw new Error('窗户配置已变化，请关闭后重新选择。')
         const keptBinding = mergeCandidates().find(
           (windowBindingItem) => String(windowBindingItem.id) === keptBindingId,
-        );
-        if (!keptBinding) return;
-        keptBinding.modelId = groupModelEntry.modelId;
+        )
+        if (!keptBinding) return
+        keptBinding.modelId = groupModelEntry.modelId
         draftProperties.security.windows = (
           draftProperties.security.windows as ReadonlyArray<SecurityChoiceRecord>
         ).filter(
-          (windowBindingItem) =>
-            !mergeCandidates().includes(windowBindingItem) || windowBindingItem === keptBinding,
-        );
-        selectedItemId = String(keptBinding.id);
-        (markPropertiesDirty(), renderPanel());
+          (windowBindingItem) => !mergeCandidates().includes(windowBindingItem) || windowBindingItem === keptBinding,
+        )
+        selectedItemId = String(keptBinding.id)
+        markPropertiesDirty(), renderPanel()
       },
       onClose() {
-        mergeDialogHandle === mergePickerHandle && (mergeDialogHandle = null);
+        mergeDialogHandle === mergePickerHandle && (mergeDialogHandle = null)
       },
-    });
-    isDisposed || !isAccessAllowed ? mergePickerHandle.close() : (mergeDialogHandle = mergePickerHandle);
+    })
+    isDisposed || !isAccessAllowed ? mergePickerHandle.close() : (mergeDialogHandle = mergePickerHandle)
   }
   function renderPanel() {
-    (panelElement.replaceChildren(),
+    panelElement.replaceChildren(),
       (saveButtonElement.disabled =
-        isSaving || isCameraEditing || !isAccessAllowed || !sceneMetadata || isPresenceEditorOpen));
-    const scopeSectionElement = createSectionHeading("配置范围"),
-      scopeGridElement = createElement("div", "i3d-security-scope-grid");
-    (scopeSectionElement.append(scopeGridElement),
+        isSaving || isCameraEditing || !isAccessAllowed || !sceneMetadata || isPresenceEditorOpen)
+    const scopeSectionElement = createSectionHeading('配置范围'),
+      scopeGridElement = createElement('div', 'i3d-security-scope-grid')
+    scopeSectionElement.append(scopeGridElement),
       (currentContainerElement = scopeGridElement),
       createSelectField(
-        "配置楼层",
+        '配置楼层',
         (sceneMetadata?.floors || []).map((floorItem: any) => [floorItem.id, floorItem.name]),
         selectedFloorId,
         (nextFloorId: any) => {
-          (closeActivePicker(),
+          closeActivePicker(),
             (selectedFloorId = nextFloorId),
-            (selectedItemId = ""),
+            (selectedItemId = ''),
             syncEditorRuntime(),
-            renderPanel());
+            renderPanel()
         },
       ),
       createPickerField(
-        "安防类别",
-        SECURITY_CATEGORY_CHOICES.find(([categoryKind]) => categoryKind === getSecurityCategory())?.[1] || "",
+        '安防类别',
+        SECURITY_CATEGORY_CHOICES.find(([categoryKind]) => categoryKind === getSecurityCategory())?.[1] || '',
         openSecurityCategoryPicker,
-      ));
+      )
     const itemsInSelectedFloor = getItemList().filter(
       (floorBoundItem: any) => floorBoundItem.floorId === selectedFloorId,
-    );
+    )
     itemsInSelectedFloor.some((itemProbe: any) => itemProbe.id === selectedItemId) ||
-      (selectedItemId = itemsInSelectedFloor[0]?.id || "");
+      (selectedItemId = itemsInSelectedFloor[0]?.id || '')
 
     if (isAlarmKindValue(securityKind)) {
-      const cardSectionElement = createSectionHeading(getKindLabel() + "卡片");
-      currentContainerElement = cardSectionElement;
-      const addCardButton = createButton("添加" + getKindLabel() + "卡片", () => {
-        if (!selectedFloorId || !isAccessAllowed || draftProperties.security.alarms.length >= 100)
-          return;
-        const floorCenter = temperatureHumidityFloorCenter(findSelectedFloor() || {});
+      const cardSectionElement = createSectionHeading(getKindLabel() + '卡片')
+      currentContainerElement = cardSectionElement
+      const addCardButton = createButton('添加' + getKindLabel() + '卡片', () => {
+        if (!selectedFloorId || !isAccessAllowed || draftProperties.security.alarms.length >= 100) return
+        const floorCenter = temperatureHumidityFloorCenter(findSelectedFloor() || {})
         const newItem = {
           id: randomUuid(),
           kind: securityKind,
           floorId: selectedFloorId,
-          entityId: "",
-          label: getKindLabel() + "传感器",
+          entityId: '',
+          label: getKindLabel() + '传感器',
           x: floorCenter.x,
           y: floorCenter.y,
           height: 1.8,
           size: 340,
           fontSize: 21,
           opacity: 1,
-        };
-        (draftProperties.security.alarms.push(newItem),
+        }
+        draftProperties.security.alarms.push(newItem),
           (selectedItemId = newItem.id),
           markPropertiesDirty(),
-          renderPanel());
-      });
-      ((addCardButton.className = "primary i3d-alarm-add-card"),
+          renderPanel()
+      })
+      ;(addCardButton.className = 'primary i3d-alarm-add-card'),
         (addCardButton.disabled = !selectedFloorId || !isAccessAllowed),
         currentContainerElement.append(addCardButton),
         currentContainerElement.append(
           createElement(
-            "p",
-            "i3d-note",
-            "卡片可独立放置，也可在预览画面中拖动。报警提示覆盖整个仪表盘，与当前分类和楼层无关。",
+            'p',
+            'i3d-note',
+            '卡片可独立放置，也可在预览画面中拖动。报警提示覆盖整个仪表盘，与当前分类和楼层无关。',
           ),
-        ));
+        )
       if (itemsInSelectedFloor.length) {
         createSelectField(
-          "当前报警卡片",
-          itemsInSelectedFloor.map((itemOption: any) => [
-            itemOption.id,
-            itemOption.label || getKindLabel(),
-          ]),
+          '当前报警卡片',
+          itemsInSelectedFloor.map((itemOption: any) => [itemOption.id, itemOption.label || getKindLabel()]),
           selectedItemId,
           (nextSelectedItemId: any) => {
-            (closeActivePicker(),
+            closeActivePicker(),
               nextSelectedItemId !== selectedItemId && stopAlarmPreview(),
               (selectedItemId = nextSelectedItemId),
               syncEditorRuntime(),
-              renderPanel());
+              renderPanel()
           },
-        );
+        )
       }
     } else {
-    const modelListSectionElement = createSectionHeading("模型列表");
-    ((modelListSectionElement.className += " i3d-security-model-list"),
-      (currentContainerElement = modelListSectionElement));
-    (createPickerField(
-        getKindLabel() + "列表",
+      const modelListSectionElement = createSectionHeading('模型列表')
+      ;(modelListSectionElement.className += ' i3d-security-model-list'),
+        (currentContainerElement = modelListSectionElement)
+      createPickerField(
+        getKindLabel() + '列表',
         itemsInSelectedFloor.find((itemOption: any) => itemOption.id === selectedItemId)?.label ||
           itemsInSelectedFloor.find((itemOption: any) => itemOption.id === selectedItemId)?.entityId ||
           getKindLabel(),
         () => openSecurityItemPicker(itemsInSelectedFloor),
         !itemsInSelectedFloor.length,
       ),
-      (currentContainerElement = createDisclosure(
-        "添加" + getKindLabel(),
-        "add:" + getSecurityCategory() + ":" + selectedFloorId,
-        modelListSectionElement,
-      )));
-    (createPickerField(
-      "添加" + getKindLabel(),
-      "选择" + getKindLabel() + "模型",
-      openSecurityAddPicker,
-      !getFloorModelList().length,
-    ),
-      getFloorModelList().length ||
-        currentContainerElement.append(
-          createElement(
-            "p",
-            "i3d-note",
-            "本层没有" + getKindLabel() + "模型，请先在 3D 户型图绘制中增加模型。",
+        (currentContainerElement = createDisclosure(
+          '添加' + getKindLabel(),
+          'add:' + getSecurityCategory() + ':' + selectedFloorId,
+          modelListSectionElement,
+        ))
+      createPickerField(
+        '添加' + getKindLabel(),
+        '选择' + getKindLabel() + '模型',
+        openSecurityAddPicker,
+        !getFloorModelList().length,
+      ),
+        getFloorModelList().length ||
+          currentContainerElement.append(
+            createElement('p', 'i3d-note', '本层没有' + getKindLabel() + '模型，请先在 3D 户型图绘制中增加模型。'),
           ),
-        ),
-      (currentContainerElement = modelListSectionElement));
+        (currentContainerElement = modelListSectionElement)
     }
-    const selectedItem = findSelectedItem();
+    const selectedItem = findSelectedItem()
     if (selectedItem && isAlarmKindValue(securityKind)) {
-      currentContainerElement = createSectionHeading("显示内容");
-      const nameInputElement = createElement("input");
-      ((nameInputElement.value = selectedItem.label || ""),
+      currentContainerElement = createSectionHeading('显示内容')
+      const nameInputElement = createElement('input')
+      ;(nameInputElement.value = selectedItem.label || ''),
         (nameInputElement.maxLength = 128),
-        nameInputElement.setAttribute("aria-label", "名称"),
-        nameInputElement.addEventListener("input", () => {
-          ((selectedItem.label = nameInputElement.value), markPropertiesDirty());
-        }));
-      const nameFieldElement = createElement("label");
-      (nameFieldElement.append(createElement("span", "", "名称"), nameInputElement),
-        currentContainerElement.append(nameFieldElement));
+        nameInputElement.setAttribute('aria-label', '名称'),
+        nameInputElement.addEventListener('input', () => {
+          ;(selectedItem.label = nameInputElement.value), markPropertiesDirty()
+        })
+      const nameFieldElement = createElement('label')
+      nameFieldElement.append(createElement('span', '', '名称'), nameInputElement),
+        currentContainerElement.append(nameFieldElement)
       const alarmEntityButton = createButton(
         selectedItem.entityId ||
-          (securityKind === "moisture"
-            ? "选择浸没状态实体"
-            : "选择" + getKindLabel() + "报警实体"),
+          (securityKind === 'moisture' ? '选择浸没状态实体' : '选择' + getKindLabel() + '报警实体'),
         async () => {
-          const pickerRequestGeneration = ++pickerGeneration;
+          const pickerRequestGeneration = ++pickerGeneration
           try {
             const alarmPickerHandle = await pickers.alarm?.({
               trigger: alarmEntityButton,
               kind: securityKind,
-              current: selectedItem.entityId || "",
-              role: securityKind === "moisture" ? "immersion" : "primary",
+              current: selectedItem.entityId || '',
+              role: securityKind === 'moisture' ? 'immersion' : 'primary',
               onSelect(_device: any, entity: any) {
                 isDisposed ||
                   !isAccessAllowed ||
                   pickerRequestGeneration !== pickerGeneration ||
                   findSelectedItem() !== selectedItem ||
-                  ((selectedItem.entityId = entity?.entityId || ""),
-                  markPropertiesDirty(),
-                  renderPanel());
+                  ((selectedItem.entityId = entity?.entityId || ''), markPropertiesDirty(), renderPanel())
               },
-            });
+            })
             isDisposed || pickerRequestGeneration !== pickerGeneration
               ? alarmPickerHandle?.close()
-              : (activePickerHandle = alarmPickerHandle);
+              : (activePickerHandle = alarmPickerHandle)
           } catch (alarmPickerError: any) {
-            showError(alarmPickerError);
+            showError(alarmPickerError)
           }
         },
-      );
-      ((alarmEntityButton.className = "i3d-picker-button"),
+      )
+      ;(alarmEntityButton.className = 'i3d-picker-button'),
         currentContainerElement.append(
           (() => {
-            const field = createElement("label");
+            const field = createElement('label')
             return (
               field.append(
-                createElement(
-                  "span",
-                  "",
-                  securityKind === "moisture"
-                    ? "浸没状态实体"
-                    : getKindLabel() + "报警实体",
-                ),
+                createElement('span', '', securityKind === 'moisture' ? '浸没状态实体' : getKindLabel() + '报警实体'),
                 alarmEntityButton,
               ),
               field
-            );
+            )
           })(),
-        ));
-      if (securityKind === "moisture") {
+        )
+      if (securityKind === 'moisture') {
         const sprayEntityButton = createButton(
-          selectedItem.secondaryEntityId || "选择淋水状态实体（可选）",
+          selectedItem.secondaryEntityId || '选择淋水状态实体（可选）',
           async () => {
-            const pickerRequestGeneration = ++pickerGeneration;
+            const pickerRequestGeneration = ++pickerGeneration
             try {
               const sprayPickerHandle = await pickers.alarm?.({
                 trigger: sprayEntityButton,
-                kind: "moisture",
-                current: selectedItem.secondaryEntityId || "",
-                role: "spray",
+                kind: 'moisture',
+                current: selectedItem.secondaryEntityId || '',
+                role: 'spray',
                 onSelect(_device: any, entity: any) {
                   isDisposed ||
                     !isAccessAllowed ||
                     pickerRequestGeneration !== pickerGeneration ||
                     findSelectedItem() !== selectedItem ||
-                    ((selectedItem.secondaryEntityId = entity?.entityId || ""),
-                    markPropertiesDirty(),
-                    renderPanel());
+                    ((selectedItem.secondaryEntityId = entity?.entityId || ''), markPropertiesDirty(), renderPanel())
                 },
-              });
+              })
               isDisposed || pickerRequestGeneration !== pickerGeneration
                 ? sprayPickerHandle?.close()
-                : (activePickerHandle = sprayPickerHandle);
+                : (activePickerHandle = sprayPickerHandle)
             } catch (sprayPickerError: any) {
-              showError(sprayPickerError);
+              showError(sprayPickerError)
             }
           },
-        );
-        ((sprayEntityButton.className = "i3d-picker-button"),
+        )
+        ;(sprayEntityButton.className = 'i3d-picker-button'),
           currentContainerElement.append(
             (() => {
-              const field = createElement("label");
-              return (
-                field.append(
-                  createElement("span", "", "淋水状态实体（可选）"),
-                  sprayEntityButton,
-                ),
-                field
-              );
+              const field = createElement('label')
+              return (field.append(createElement('span', '', '淋水状态实体（可选）'), sprayEntityButton), field)
             })(),
           ),
           currentContainerElement.append(
             createElement(
-              "p",
-              "i3d-note",
-              "可在同一卡片分别显示浸没与淋水状态；淋水实体可选。任一个 on 即报警，两个都明确 off 才恢复；状态未知与设备不可用分别显示。",
+              'p',
+              'i3d-note',
+              '可在同一卡片分别显示浸没与淋水状态；淋水实体可选。任一个 on 即报警，两个都明确 off 才恢复；状态未知与设备不可用分别显示。',
             ),
-            createElement(
-              "p",
-              "i3d-note",
-              "实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。",
-            ),
-          ));
-      } else if (securityKind === "smoke") {
+            createElement('p', 'i3d-note', '实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。'),
+          )
+      } else if (securityKind === 'smoke') {
         currentContainerElement.append(
           createElement(
-            "p",
-            "i3d-note",
-            "支持开关、小米工作状态或高浓度烟雾事件，任选一个实体。工作状态按告警/正常显示；事件按新事件提示，关闭后下次新事件仍会提醒，历史事件不重弹。",
+            'p',
+            'i3d-note',
+            '支持开关、小米工作状态或高浓度烟雾事件，任选一个实体。工作状态按告警/正常显示；事件按新事件提示，关闭后下次新事件仍会提醒，历史事件不重弹。',
           ),
-          createElement(
-            "p",
-            "i3d-note",
-            "实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。",
-          ),
-        );
-      } else if (securityKind === "gas") {
+          createElement('p', 'i3d-note', '实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。'),
+        )
+      } else if (securityKind === 'gas') {
         currentContainerElement.append(
           createElement(
-            "p",
-            "i3d-note",
-            "支持开关状态与小米天然气工作状态。on 或“天然气泄漏报警”触发报警；off 或“监测正常”恢复。预热、自检、故障和寿命到期单独显示。",
+            'p',
+            'i3d-note',
+            '支持开关状态与小米天然气工作状态。on 或“天然气泄漏报警”触发报警；off 或“监测正常”恢复。预热、自检、故障和寿命到期单独显示。',
           ),
-          createElement(
-            "p",
-            "i3d-note",
-            "实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。",
-          ),
-        );
+          createElement('p', 'i3d-note', '实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。'),
+        )
       }
       const workStateEntityButton = createButton(
-        selectedItem.workStateEntityId || "选择工作状态实体（可选）",
+        selectedItem.workStateEntityId || '选择工作状态实体（可选）',
         async () => {
-          const pickerRequestGeneration = ++pickerGeneration;
+          const pickerRequestGeneration = ++pickerGeneration
           try {
             const workStatePickerHandle = await pickers.alarm?.({
               trigger: workStateEntityButton,
               kind: securityKind,
-              current: selectedItem.workStateEntityId || "",
-              role: "work-state",
+              current: selectedItem.workStateEntityId || '',
+              role: 'work-state',
               onSelect(_device: any, entity: any) {
                 isDisposed ||
                   !isAccessAllowed ||
                   pickerRequestGeneration !== pickerGeneration ||
                   findSelectedItem() !== selectedItem ||
-                  ((selectedItem.workStateEntityId = entity?.entityId || ""),
-                  markPropertiesDirty(),
-                  renderPanel());
+                  ((selectedItem.workStateEntityId = entity?.entityId || ''), markPropertiesDirty(), renderPanel())
               },
-            });
+            })
             isDisposed || pickerRequestGeneration !== pickerGeneration
               ? workStatePickerHandle?.close()
-              : (activePickerHandle = workStatePickerHandle);
+              : (activePickerHandle = workStatePickerHandle)
           } catch (workStatePickerError: any) {
-            showError(workStatePickerError);
+            showError(workStatePickerError)
           }
         },
-      );
-      ((workStateEntityButton.className = "i3d-picker-button"),
+      )
+      ;(workStateEntityButton.className = 'i3d-picker-button'),
         currentContainerElement.append(
           (() => {
-            const field = createElement("label");
-            return (
-              field.append(
-                createElement("span", "", "工作状态实体（可选）"),
-                workStateEntityButton,
-              ),
-              field
-            );
+            const field = createElement('label')
+            return (field.append(createElement('span', '', '工作状态实体（可选）'), workStateEntityButton), field)
           })(),
           createElement(
-            "p",
-            "i3d-note",
-            "在卡片右上角显示工作状态；监测正常/监测中为绿色，报警/故障为红色，预热/自检为琥珀色，未知与不可用为灰色。",
+            'p',
+            'i3d-note',
+            '在卡片右上角显示工作状态；监测正常/监测中为绿色，报警/故障为红色，预热/自检为琥珀色，未知与不可用为灰色。',
           ),
-        ));
-      const batteryEntityButton = createButton(
-        selectedItem.batteryEntityId || "选择电量实体（可选）",
-        async () => {
-          const pickerRequestGeneration = ++pickerGeneration;
-          try {
-            // 烟感/气感/水浸电量与门锁共用 lock-battery（sensor.*），不是泛 sensor/灯光开关目录
-            const batteryPickerHandle = await pickers.entity({
-              trigger: batteryEntityButton,
-              deviceKind: "lock-battery",
-              current: selectedItem.batteryEntityId || "",
-              title: "选择电量传感器",
-              onSelect(selectedEntityId: any, entity: any) {
-                isDisposed ||
-                  !isAccessAllowed ||
-                  pickerRequestGeneration !== pickerGeneration ||
-                  findSelectedItem() !== selectedItem ||
-                  ((selectedItem.batteryEntityId =
-                    entity?.entityId || selectedEntityId || ""),
-                  markPropertiesDirty(),
-                  renderPanel());
-              },
-            });
-            isDisposed || pickerRequestGeneration !== pickerGeneration
-              ? batteryPickerHandle?.close()
-              : (activePickerHandle = batteryPickerHandle);
-          } catch (batteryPickerError: any) {
-            showError(batteryPickerError);
-          }
-        },
-      );
-      ((batteryEntityButton.className = "i3d-picker-button"),
+        )
+      const batteryEntityButton = createButton(selectedItem.batteryEntityId || '选择电量实体（可选）', async () => {
+        const pickerRequestGeneration = ++pickerGeneration
+        try {
+          // 烟感/气感/水浸电量与门锁共用 lock-battery（sensor.*），不是泛 sensor/灯光开关目录
+          const batteryPickerHandle = await pickers.entity({
+            trigger: batteryEntityButton,
+            deviceKind: 'lock-battery',
+            current: selectedItem.batteryEntityId || '',
+            title: '选择电量传感器',
+            onSelect(selectedEntityId: any, entity: any) {
+              isDisposed ||
+                !isAccessAllowed ||
+                pickerRequestGeneration !== pickerGeneration ||
+                findSelectedItem() !== selectedItem ||
+                ((selectedItem.batteryEntityId = entity?.entityId || selectedEntityId || ''),
+                markPropertiesDirty(),
+                renderPanel())
+            },
+          })
+          isDisposed || pickerRequestGeneration !== pickerGeneration
+            ? batteryPickerHandle?.close()
+            : (activePickerHandle = batteryPickerHandle)
+        } catch (batteryPickerError: any) {
+          showError(batteryPickerError)
+        }
+      })
+      ;(batteryEntityButton.className = 'i3d-picker-button'),
         currentContainerElement.append(
           (() => {
-            const field = createElement("label");
-            return (
-              field.append(
-                createElement("span", "", "电量实体（可选）"),
-                batteryEntityButton,
-              ),
-              field
-            );
+            const field = createElement('label')
+            return (field.append(createElement('span', '', '电量实体（可选）'), batteryEntityButton), field)
           })(),
-        ));
-      const appearanceSection = createSectionHeading("位置与外观");
+        )
+      const appearanceSection = createSectionHeading('位置与外观')
       // 0.8.1 安防标签可固定在仪表盘画面中：`follow` 跟随户型，`fixed` 用画面百分比定位。
       createSegmentedField(
-        "位置模式",
+        '位置模式',
         [
-          ["follow", "跟随户型"],
-          ["fixed", "固定位置"],
+          ['follow', '跟随户型'],
+          ['fixed', '固定位置'],
         ],
-        selectedItem.positionMode === "fixed" ? "fixed" : "follow",
+        selectedItem.positionMode === 'fixed' ? 'fixed' : 'follow',
         (pickedPositionMode: string) => {
-          ((selectedItem.positionMode = pickedPositionMode),
-            pickedPositionMode === "fixed" &&
-              ((selectedItem.fixedX ??= 50), (selectedItem.fixedY ??= 50)),
+          ;(selectedItem.positionMode = pickedPositionMode),
+            pickedPositionMode === 'fixed' && ((selectedItem.fixedX ??= 50), (selectedItem.fixedY ??= 50)),
             markPropertiesDirty(),
-            renderPanel());
+            renderPanel()
         },
-      );
-      const coordinateGrid = createElement("div", "i3d-coordinate-grid");
-      (appearanceSection.append(coordinateGrid), (currentContainerElement = coordinateGrid));
+      )
+      const coordinateGrid = createElement('div', 'i3d-coordinate-grid')
+      appearanceSection.append(coordinateGrid), (currentContainerElement = coordinateGrid)
       const positionFieldDefs =
-        selectedItem.positionMode === "fixed"
+        selectedItem.positionMode === 'fixed'
           ? ([
-              ["fixedX", "水平位置（%）", 0, 100, 0.1, 50],
-              ["fixedY", "垂直位置（%）", 0, 100, 0.1, 50],
+              ['fixedX', '水平位置（%）', 0, 100, 0.1, 50],
+              ['fixedY', '垂直位置（%）', 0, 100, 0.1, 50],
             ] as const)
           : ([
-              ["x", "位置 X", -1000000, 1000000, 1, 0],
-              ["y", "位置 Y", -1000000, 1000000, 1, 0],
-              ["height", "离地高度（米）", 0, 20, 0.1, 1.8],
-              ["size", "卡片宽度（px）", 100, 600, 1, 340],
+              ['x', '位置 X', -1000000, 1000000, 1, 0],
+              ['y', '位置 Y', -1000000, 1000000, 1, 0],
+              ['height', '离地高度（米）', 0, 20, 0.1, 1.8],
+              ['size', '卡片宽度（px）', 100, 600, 1, 340],
               // 与后端 validate_config 一致：fontSize 上限 24
-              ["fontSize", "文字大小（px）", 9, 24, 1, 21],
-            ] as const);
+              ['fontSize', '文字大小（px）', 9, 24, 1, 21],
+            ] as const)
       for (const [fieldKey, fieldLabel, minValue, maxValue, stepSize, defaultValue] of positionFieldDefs) {
         createNumberField(
           fieldLabel,
@@ -1530,150 +1364,118 @@ export async function openSecurityEditor({
           minValue,
           maxValue,
           (nextValue: any) => {
-            selectedItem[fieldKey] = nextValue;
+            selectedItem[fieldKey] = nextValue
           },
           stepSize,
           true,
-        );
+        )
       }
-      ((currentContainerElement = appearanceSection),
-        selectedItem.positionMode === "fixed" &&
+      ;(currentContainerElement = appearanceSection),
+        selectedItem.positionMode === 'fixed' &&
           appearanceSection.append(
-            createElement(
-              "p",
-              "i3d-note",
-              "固定在画面位置，可拖动标签调整；转动、缩放户型时保持不动。",
-            ),
+            createElement('p', 'i3d-note', '固定在画面位置，可拖动标签调整；转动、缩放户型时保持不动。'),
           ),
-        selectedItem.positionMode !== "fixed" &&
-          appearanceSection.append(
-            createElement("p", "i3d-note", "标签跟随户型位置，转动、缩放户型时一起移动。"),
-          ),
-        appendBackgroundOpacityControl(
-          appearanceSection,
-          selectedItem,
-          "opacity",
-          markPropertiesDirty,
-        ));
+        selectedItem.positionMode !== 'fixed' &&
+          appearanceSection.append(createElement('p', 'i3d-note', '标签跟随户型位置，转动、缩放户型时一起移动。')),
+        appendBackgroundOpacityControl(appearanceSection, selectedItem, 'opacity', markPropertiesDirty)
       // 0.8.0：告警卡片标签三态（隐藏 / 常驻 / 报警时显示），默认常驻。
-      const alarmLabelModeSelectElement = createElement("select");
-      alarmLabelModeSelectElement.setAttribute("aria-label", "标签显示");
+      const alarmLabelModeSelectElement = createElement('select')
+      alarmLabelModeSelectElement.setAttribute('aria-label', '标签显示')
       for (const [alarmLabelModeValue, alarmLabelModeLabel] of [
-        ["hidden", "隐藏标签"],
-        ["always", "常驻显示"],
-        ["alarm", "报警时显示"],
+        ['hidden', '隐藏标签'],
+        ['always', '常驻显示'],
+        ['alarm', '报警时显示'],
       ]) {
-        const alarmLabelModeOptionElement = createElement("option", "", alarmLabelModeLabel);
-        ((alarmLabelModeOptionElement.value = alarmLabelModeValue),
-          alarmLabelModeSelectElement.append(alarmLabelModeOptionElement));
+        const alarmLabelModeOptionElement = createElement('option', '', alarmLabelModeLabel)
+        ;(alarmLabelModeOptionElement.value = alarmLabelModeValue),
+          alarmLabelModeSelectElement.append(alarmLabelModeOptionElement)
       }
-      ((alarmLabelModeSelectElement.value = ["hidden", "always", "alarm"].includes(
-        selectedItem.labelMode,
-      )
+      ;(alarmLabelModeSelectElement.value = ['hidden', 'always', 'alarm'].includes(selectedItem.labelMode)
         ? selectedItem.labelMode
-        : "always"),
-        alarmLabelModeSelectElement.addEventListener("change", () => {
-          ((selectedItem.labelMode = alarmLabelModeSelectElement.value),
-            markPropertiesDirty(),
-            renderPanel());
-        }));
-      const alarmLabelModeFieldElement = createElement("label");
-      (alarmLabelModeFieldElement.append(
-        createElement("span", "", "标签显示"),
-        alarmLabelModeSelectElement,
-      ),
+        : 'always'),
+        alarmLabelModeSelectElement.addEventListener('change', () => {
+          ;(selectedItem.labelMode = alarmLabelModeSelectElement.value), markPropertiesDirty(), renderPanel()
+        })
+      const alarmLabelModeFieldElement = createElement('label')
+      alarmLabelModeFieldElement.append(createElement('span', '', '标签显示'), alarmLabelModeSelectElement),
         appearanceSection.append(alarmLabelModeFieldElement),
         // 事件型烟感没有持续报警状态，`alarm` 会让标签永远不出现。
-        securityKind === "smoke" &&
+        securityKind === 'smoke' &&
           appearanceSection.append(
-            createElement(
-              "p",
-              "i3d-note",
-              "事件型烟感不提供持续报警状态，选择常驻显示可查看最近事件。",
-            ),
-          ));
+            createElement('p', 'i3d-note', '事件型烟感不提供持续报警状态，选择常驻显示可查看最近事件。'),
+          )
       // 位置与外观仅坐标/尺寸/背景不透明度，无「显示卡片」「参与全屏」开关
-      const previewSection = createSectionHeading("报警效果预览");
-      const alarmProfile =
-        SECURITY_ALARM_TYPES[securityKind] || SECURITY_ALARM_TYPES.smoke;
-      const previewButton = createButton(
-        alarmPreviewOverlay ? "结束预览" : "预览报警",
-        () => {
-          const wasRunning = previewButton.dataset.running === "true";
-          // 每次点击先 dispose 再建，避免关闭提示后状态残留。
-          alarmPreviewOverlay?.dispose();
-          alarmPreviewOverlay = createSecurityAlarmOverlay(stageHostElement, {
-            onDismiss() {
-              previewButton.dataset.running = "false";
-              previewButton.textContent = "预览报警";
-              alarmPreviewOverlay = null;
-            },
-          });
-          alarmPreviewOverlay.update(
-            wasRunning
-              ? []
-              : [
-                  {
-                    id: selectedItem.id,
-                    entityId: "preview:" + selectedItem.id + ":" + Date.now(),
-                    label: selectedItem.label || alarmProfile.label,
-                    detail: alarmProfile.alarm,
-                    icon: alarmProfile.icon,
-                  },
-                ],
-            true,
-            draftProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default",
-          );
-          previewButton.dataset.running = String(!wasRunning);
-          previewButton.textContent = wasRunning ? "预览报警" : "结束预览";
-          if (wasRunning) {
-            alarmPreviewOverlay.dispose();
-            alarmPreviewOverlay = null;
-          }
-        },
-      );
-      if (alarmPreviewOverlay) previewButton.dataset.running = "true";
-      (previewSection.append(
+      const previewSection = createSectionHeading('报警效果预览')
+      const alarmProfile = SECURITY_ALARM_TYPES[securityKind] || SECURITY_ALARM_TYPES.smoke
+      const previewButton = createButton(alarmPreviewOverlay ? '结束预览' : '预览报警', () => {
+        const wasRunning = previewButton.dataset.running === 'true'
+        // 每次点击先 dispose 再建，避免关闭提示后状态残留。
+        alarmPreviewOverlay?.dispose()
+        alarmPreviewOverlay = createSecurityAlarmOverlay(stageHostElement, {
+          onDismiss() {
+            previewButton.dataset.running = 'false'
+            previewButton.textContent = '预览报警'
+            alarmPreviewOverlay = null
+          },
+        })
+        alarmPreviewOverlay.update(
+          wasRunning
+            ? []
+            : [
+                {
+                  id: selectedItem.id,
+                  entityId: 'preview:' + selectedItem.id + ':' + Date.now(),
+                  label: selectedItem.label || alarmProfile.label,
+                  detail: alarmProfile.alarm,
+                  icon: alarmProfile.icon,
+                },
+              ],
+          true,
+          draftProperties.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default',
+        )
+        previewButton.dataset.running = String(!wasRunning)
+        previewButton.textContent = wasRunning ? '预览报警' : '结束预览'
+        if (wasRunning) {
+          alarmPreviewOverlay.dispose()
+          alarmPreviewOverlay = null
+        }
+      })
+      if (alarmPreviewOverlay) previewButton.dataset.running = 'true'
+      previewSection.append(
         previewButton,
-        createElement(
-          "p",
-          "i3d-note",
-          "这里的预览仅覆盖左侧画面；运行时覆盖整个仪表盘屏幕。",
-        ),
+        createElement('p', 'i3d-note', '这里的预览仅覆盖左侧画面；运行时覆盖整个仪表盘屏幕。'),
       ),
-        createSectionHeading("卡片管理").append(
-          createButton("删除报警卡片", () => {
-            (closeActivePicker(),
+        createSectionHeading('卡片管理').append(
+          createButton('删除报警卡片', () => {
+            closeActivePicker(),
               stopAlarmPreview(),
               (draftProperties.security.alarms = draftProperties.security.alarms.filter(
                 (remaining: any) => remaining !== selectedItem,
               )),
-              (selectedItemId = ""),
+              (selectedItemId = ''),
               markPropertiesDirty(),
-              renderPanel());
+              renderPanel()
           }),
-        ));
+        )
     } else if (selectedItem) {
-      const bindingSectionElement = createSectionHeading("基础绑定"),
-        bindingGridElement = createElement("div", "i3d-security-scope-grid");
-      (bindingSectionElement.append(bindingGridElement),
-        (currentContainerElement = bindingGridElement));
-      const nameInputElement = createElement("input");
-      ((nameInputElement.value = selectedItem.label || ""),
+      const bindingSectionElement = createSectionHeading('基础绑定'),
+        bindingGridElement = createElement('div', 'i3d-security-scope-grid')
+      bindingSectionElement.append(bindingGridElement), (currentContainerElement = bindingGridElement)
+      const nameInputElement = createElement('input')
+      ;(nameInputElement.value = selectedItem.label || ''),
         (nameInputElement.maxLength = 128),
-        nameInputElement.setAttribute("aria-label", "名称"),
-        nameInputElement.addEventListener("input", () => {
-          ((selectedItem.label = nameInputElement.value), markPropertiesDirty());
-        }));
-      const nameFieldElement = createElement("label");
-      (nameFieldElement.append(createElement("span", "", "名称"), nameInputElement),
-        currentContainerElement.append(nameFieldElement));
+        nameInputElement.setAttribute('aria-label', '名称'),
+        nameInputElement.addEventListener('input', () => {
+          ;(selectedItem.label = nameInputElement.value), markPropertiesDirty()
+        })
+      const nameFieldElement = createElement('label')
+      nameFieldElement.append(createElement('span', '', '名称'), nameInputElement),
+        currentContainerElement.append(nameFieldElement)
       const allFloorModels = getFloorModelList(),
         occupiedModelIdSet = new Set(
           getCollection()
             .filter(
-              (otherBoundItem: any) =>
-                otherBoundItem !== selectedItem && otherBoundItem.floorId === selectedFloorId,
+              (otherBoundItem: any) => otherBoundItem !== selectedItem && otherBoundItem.floorId === selectedFloorId,
             )
             .map((otherBoundItem: any) => otherBoundItem.modelId),
         ),
@@ -1686,35 +1488,35 @@ export async function openSecurityEditor({
             associateChoices = allFloorModels.map((availableModel: any) => {
               const availableModelId = getCandidateModelId(availableModel),
                 isCurrentModel = availableModelId === selectedItem.modelId,
-                isOccupied = !isCurrentModel && occupiedModelIdSet.has(availableModelId);
+                isOccupied = !isCurrentModel && occupiedModelIdSet.has(availableModelId)
               return {
                 id: availableModelId,
                 label: modelChoiceLabel(availableModel),
                 wrapLabel: true,
                 disabled: isOccupied,
-                state: isCurrentModel || isOccupied ? ("configured" as const) : ("remaining" as const),
-                detail: isCurrentModel ? "当前关联" : isOccupied ? "已配置" : "未配置 · 点击选择",
-              };
-            });
+                state: isCurrentModel || isOccupied ? ('configured' as const) : ('remaining' as const),
+                detail: isCurrentModel ? '当前关联' : isOccupied ? '已配置' : '未配置 · 点击选择',
+              }
+            })
           currentModelPresent ||
             associateChoices.unshift({
-              id: selectedItem.modelId || "",
-              label: selectedItem.modelId ? "原模型已移除，请重新选择" : "未关联模型（保留原有人物路线）",
+              id: selectedItem.modelId || '',
+              label: selectedItem.modelId ? '原模型已移除，请重新选择' : '未关联模型（保留原有人物路线）',
               wrapLabel: true,
               disabled: true,
-              state: "missing" as const,
-              detail: selectedItem.modelId ? "原模型已移除" : "未关联模型",
-            });
-          activePickerHandle?.close();
+              state: 'missing' as const,
+              detail: selectedItem.modelId ? '原模型已移除' : '未关联模型',
+            })
+          activePickerHandle?.close()
           const associatePickerHandle = openConfigurationPicker({
             document,
-            title: "关联" + getKindLabel() + "模型",
-            kicker: "MODEL SELECTION",
-            unit: "模型",
+            title: '关联' + getKindLabel() + '模型',
+            kicker: 'MODEL SELECTION',
+            unit: '模型',
             description:
-              "当前楼层：" +
+              '当前楼层：' +
               selectedFloorName() +
-              "。选择新的关联模型，已占用的模型不可重复关联。最后点击“保存配置”应用修改。",
+              '。选择新的关联模型，已占用的模型不可重复关联。最后点击“保存配置”应用修改。',
             summary: configurationProgress({
               ready: !!findSelectedFloor(),
               requiresModel: !isAlarmKindValue(securityKind),
@@ -1723,8 +1525,8 @@ export async function openSecurityEditor({
                 (boundItem) => boundItem.floorId === selectedFloorId,
               ),
             }),
-            selectedId: selectedItem.modelId || "",
-            emptyMessage: "当前楼层没有可选模型。",
+            selectedId: selectedItem.modelId || '',
+            emptyMessage: '当前楼层没有可选模型。',
             sections: [{ options: associateChoices }],
             async onSelect(nextModelId: string) {
               if (
@@ -1733,45 +1535,44 @@ export async function openSecurityEditor({
                 associatePickerGeneration !== pickerGeneration ||
                 findSelectedItem() !== selectedItem
               )
-                throw new Error("该配置已变更，请重新选择。");
-              if (!nextModelId) throw new Error("该模型已变更，请重新选择。");
+                throw new Error('该配置已变更，请重新选择。')
+              if (!nextModelId) throw new Error('该模型已变更，请重新选择。')
               nextModelId === selectedItem.modelId ||
                 ((selectedItem.modelId = nextModelId),
-                (securityKind === "camera" || securityKind === "lock") &&
-                  delete selectedItem.focusCamera,
+                (securityKind === 'camera' || securityKind === 'lock') && delete selectedItem.focusCamera,
                 markPropertiesDirty(),
-                renderPanel());
+                renderPanel())
             },
             onClose() {
-              activePickerHandle === associatePickerHandle && (activePickerHandle = null);
+              activePickerHandle === associatePickerHandle && (activePickerHandle = null)
             },
-          });
+          })
           isDisposed ||
           !isAccessAllowed ||
           associatePickerGeneration !== pickerGeneration ||
           findSelectedItem() !== selectedItem
             ? associatePickerHandle.close()
-            : (activePickerHandle = associatePickerHandle);
-        };
+            : (activePickerHandle = associatePickerHandle)
+        }
       if (
         (createPickerField(
-          "关联" + getKindLabel() + "模型",
+          '关联' + getKindLabel() + '模型',
           selectedItem.modelId
             ? modelChoiceLabel(
                 allFloorModels.find(
                   (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
                 ) || selectedItem,
               )
-            : "未关联模型（保留原有人物路线）",
+            : '未关联模型（保留原有人物路线）',
           openAssociateModelPicker,
         ),
         (currentContainerElement = bindingSectionElement),
-        securityKind === "lock" || securityKind === "window")
+        securityKind === 'lock' || securityKind === 'window')
       ) {
-        const isWindowBinding = securityKind === "window",
+        const isWindowBinding = securityKind === 'window',
           selectedWindowModelEntry = allFloorModels.find(
             (matchedModel: any) => getCandidateModelId(matchedModel) === selectedItem.modelId,
-          );
+          )
         if (
           isWindowBinding &&
           selectedWindowModelEntry?.legacyModels &&
@@ -1779,21 +1580,20 @@ export async function openSecurityEditor({
             (windowBindingItem) =>
               windowBindingItem.floorId === selectedFloorId &&
               (selectedWindowModelEntry.legacyModels as ReadonlyArray<any>).some(
-                (legacyModelEntry) =>
-                  (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
+                (legacyModelEntry) => (legacyModelEntry.modelId || legacyModelEntry.id) === windowBindingItem.modelId,
               ),
           )
         ) {
           // 推拉组的逐扇老配置：整组只有一条正式身份，其余要去重。
-          (currentContainerElement = bindingSectionElement),
+          ;(currentContainerElement = bindingSectionElement),
             bindingSectionElement.append(
               createElement(
-                "p",
-                "i3d-note",
-                "这组推拉窗保留了此前的逐扇配置。可选择一份配置供整组使用，合并前原绑定继续生效。",
+                'p',
+                'i3d-note',
+                '这组推拉窗保留了此前的逐扇配置。可选择一份配置供整组使用，合并前原绑定继续生效。',
               ),
-              createButton("合并为整组配置", () => openWindowGroupMerge(selectedItem)),
-            );
+              createButton('合并为整组配置', () => openWindowGroupMerge(selectedItem)),
+            )
         }
         if (isWindowBinding) {
           // 窗磁只负责「开 / 关」，动画来源由环境 → 开窗器统一决定，这里只提示不抢配置权。
@@ -1804,432 +1604,399 @@ export async function openSecurityEditor({
                 (legacyModelEntry: any) => legacyModelEntry.modelId || legacyModelEntry.id,
               ),
             ]),
-            boundOpenerEntry = (
-              (draftProperties.environment?.windowOpeners as ReadonlyArray<any>) || []
-            ).find(
+            boundOpenerEntry = ((draftProperties.environment?.windowOpeners as ReadonlyArray<any>) || []).find(
               (openerBindingItem: any) =>
                 openerBindingItem.floorId === selectedItem.floorId &&
                 boundWindowModelIdSet.has(openerBindingItem.modelId) &&
                 openerBindingItem.entityId,
-            );
+            )
           boundOpenerEntry &&
             (currentContainerElement = bindingSectionElement) &&
             bindingSectionElement.append(
               createElement(
-                "p",
-                "i3d-note",
-                "此窗扇已配置开窗器：" +
+                'p',
+                'i3d-note',
+                '此窗扇已配置开窗器：' +
                   (boundOpenerEntry.label || boundOpenerEntry.entityId) +
-                  "。窗磁保留检测，动画来源在环境 → 开窗器中统一设置。",
+                  '。窗磁保留检测，动画来源在环境 → 开窗器中统一设置。',
               ),
-            );
+            )
         }
-        currentContainerElement = createSectionHeading("实体来源");
-        const deviceButtonElement = createButton(
-          selectedItem.deviceName || "选择设备",
-          async () => {
-            const devicePickerGeneration = ++pickerGeneration;
-            activePickerHandle?.close();
-            try {
-              const devicePickerHandle = await pickers.device({
-                trigger: deviceButtonElement,
-                current: selectedItem.deviceId || "",
-                deviceIcon: isWindowBinding ? "mdi:window-closed" : "mdi:door-closed",
-                title: isWindowBinding ? "选择窗户设备" : "选择门设备",
-                onSelect(pickedDevice: any) {
-                  if (!(
+        currentContainerElement = createSectionHeading('实体来源')
+        const deviceButtonElement = createButton(selectedItem.deviceName || '选择设备', async () => {
+          const devicePickerGeneration = ++pickerGeneration
+          activePickerHandle?.close()
+          try {
+            const devicePickerHandle = await pickers.device({
+              trigger: deviceButtonElement,
+              current: selectedItem.deviceId || '',
+              deviceIcon: isWindowBinding ? 'mdi:window-closed' : 'mdi:door-closed',
+              title: isWindowBinding ? '选择窗户设备' : '选择门设备',
+              onSelect(pickedDevice: any) {
+                if (
+                  !(
                     isDisposed ||
                     !isAccessAllowed ||
                     devicePickerGeneration !== pickerGeneration ||
                     findSelectedItem() !== selectedItem
-                  )) {
-                    ((selectedItem.deviceId = pickedDevice?.deviceId || ""),
-                      (selectedItem.deviceName = pickedDevice?.name || ""),
-                      Object.assign(
-                        selectedItem,
-                        identifyLockEntities(pickedDevice?.entities || []),
-                      ),
-                      delete selectedItem.entityId,
-                      delete selectedItem.lowBatteryEntityId,
-                      delete selectedItem.tamperEntityId,
-                      // 窗户没有门的开/关事件与开合值字段，换设备时一并清掉。
-                      isWindowBinding &&
-                        (delete selectedItem.doorEventEntityId,
-                        delete selectedItem.doorOpenEntityId,
-                        delete selectedItem.doorCloseEntityId));
-                    (markPropertiesDirty(), renderPanel());
-                  }
-                },
-              });
-              isDisposed || devicePickerGeneration !== pickerGeneration
-                ? devicePickerHandle?.close()
-                : (activePickerHandle = devicePickerHandle);
-            } catch (devicePickerError: any) {
-              showError(devicePickerError);
-            }
-          },
-        );
-        currentContainerElement.append(deviceButtonElement);
-        const entitySlotFields = isWindowBinding
-            ? (["doorEntityId", "batteryEntityId"] as const)
-            : LOCK_ENTITY_FIELDS,
-          entityFieldLabels = (isWindowBinding
-            ? { doorEntityId: "开关窗检测", batteryEntityId: "电量" }
-            : {
-                doorEntityId: "开关门检测",
-                batteryEntityId: "锂电池",
-                battery2EntityId: "干电池（可选）",
-              }) as Record<string, string>,
+                  )
+                ) {
+                  ;(selectedItem.deviceId = pickedDevice?.deviceId || ''),
+                    (selectedItem.deviceName = pickedDevice?.name || ''),
+                    Object.assign(selectedItem, identifyLockEntities(pickedDevice?.entities || [])),
+                    delete selectedItem.entityId,
+                    delete selectedItem.lowBatteryEntityId,
+                    delete selectedItem.tamperEntityId,
+                    // 窗户没有门的开/关事件与开合值字段，换设备时一并清掉。
+                    isWindowBinding &&
+                      (delete selectedItem.doorEventEntityId,
+                      delete selectedItem.doorOpenEntityId,
+                      delete selectedItem.doorCloseEntityId)
+                  markPropertiesDirty(), renderPanel()
+                }
+              },
+            })
+            isDisposed || devicePickerGeneration !== pickerGeneration
+              ? devicePickerHandle?.close()
+              : (activePickerHandle = devicePickerHandle)
+          } catch (devicePickerError: any) {
+            showError(devicePickerError)
+          }
+        })
+        currentContainerElement.append(deviceButtonElement)
+        const entitySlotFields = isWindowBinding ? (['doorEntityId', 'batteryEntityId'] as const) : LOCK_ENTITY_FIELDS,
+          entityFieldLabels = (
+            isWindowBinding
+              ? { doorEntityId: '开关窗检测', batteryEntityId: '电量' }
+              : {
+                  doorEntityId: '开关门检测',
+                  batteryEntityId: '锂电池',
+                  battery2EntityId: '干电池（可选）',
+                }
+          ) as Record<string, string>,
           // 选择器标题去掉「（可选）」后缀，避免出现「选择干电池（可选）实体」这种别扭文案。
-          entityFieldPickerTitles = (isWindowBinding
-            ? { doorEntityId: "选择开关窗检测实体", batteryEntityId: "选择电量实体" }
-            : {
-                doorEntityId: "选择开关门检测实体",
-                batteryEntityId: "选择锂电池电量实体",
-                battery2EntityId: "选择干电池电量实体",
-              }) as Record<string, string>;
+          entityFieldPickerTitles = (
+            isWindowBinding
+              ? { doorEntityId: '选择开关窗检测实体', batteryEntityId: '选择电量实体' }
+              : {
+                  doorEntityId: '选择开关门检测实体',
+                  batteryEntityId: '选择锂电池电量实体',
+                  battery2EntityId: '选择干电池电量实体',
+                }
+          ) as Record<string, string>
         for (const entityField of entitySlotFields) {
           const entityButtonElement = createButton(
             (entityFieldLabels as any)[entityField] +
-              "：" +
-              (entities.find(
-                (slotEntityMatch: any) => slotEntityMatch.entityId === selectedItem[entityField],
-              )?.name ||
+              '：' +
+              (entities.find((slotEntityMatch: any) => slotEntityMatch.entityId === selectedItem[entityField])?.name ||
                 selectedItem[entityField] ||
-                "未选择"),
+                '未选择'),
             async () => {
-              const slotPickerGeneration = ++pickerGeneration;
-              activePickerHandle?.close();
+              const slotPickerGeneration = ++pickerGeneration
+              activePickerHandle?.close()
               try {
-                const slotDeviceKind =
-                    entityField === "doorEntityId" ? "lock-door" : "lock-battery",
+                const slotDeviceKind = entityField === 'doorEntityId' ? 'lock-door' : 'lock-battery',
                   slotPickerHandle = await pickers.entity({
                     trigger: entityButtonElement,
-                    current: selectedItem[entityField] || "",
+                    current: selectedItem[entityField] || '',
                     deviceKind: slotDeviceKind,
                     title: entityFieldPickerTitles[entityField],
                     entityFilter: (candidateEntity: any) => {
-                      const candidateEntityId =
-                        candidateEntity.entityId || candidateEntity.entity_id || "";
-                      if (candidateEntityId === selectedItem[entityField]) return true;
+                      const candidateEntityId = candidateEntity.entityId || candidateEntity.entity_id || ''
+                      if (candidateEntityId === selectedItem[entityField]) return true
                       if (
                         !selectedItem.deviceId ||
-                        (candidateEntity.deviceId || candidateEntity.device_id) !==
-                          selectedItem.deviceId
+                        (candidateEntity.deviceId || candidateEntity.device_id) !== selectedItem.deviceId
                       )
-                        return false;
-                      if (lockEntityRole(candidateEntity, entityField)) return true;
-                      const candidateEntityDomain = candidateEntityId.split(".")[0];
-                      return entityField === "doorEntityId"
-                        ? ["binary_sensor", "sensor"].includes(candidateEntityDomain)
-                        : ["batteryEntityId", "battery2EntityId"].includes(entityField) &&
-                            candidateEntityDomain === "sensor";
+                        return false
+                      if (lockEntityRole(candidateEntity, entityField)) return true
+                      const candidateEntityDomain = candidateEntityId.split('.')[0]
+                      return entityField === 'doorEntityId'
+                        ? ['binary_sensor', 'sensor'].includes(candidateEntityDomain)
+                        : ['batteryEntityId', 'battery2EntityId'].includes(entityField) &&
+                            candidateEntityDomain === 'sensor'
                     },
                     onSelect(slotPickedEntityId: any) {
                       isDisposed ||
                         !isAccessAllowed ||
                         slotPickerGeneration !== pickerGeneration ||
                         findSelectedItem() !== selectedItem ||
-                        ((selectedItem[entityField] = slotPickedEntityId),
-                        markPropertiesDirty(),
-                        renderPanel());
+                        ((selectedItem[entityField] = slotPickedEntityId), markPropertiesDirty(), renderPanel())
                     },
-                  });
+                  })
                 isDisposed || slotPickerGeneration !== pickerGeneration
                   ? slotPickerHandle?.close()
-                  : (activePickerHandle = slotPickerHandle);
+                  : (activePickerHandle = slotPickerHandle)
               } catch (slotPickerError: any) {
-                showError(slotPickerError);
+                showError(slotPickerError)
               }
             },
-          );
-          ((entityButtonElement.disabled = !selectedItem.deviceId),
-            (entityButtonElement.className = "i3d-picker-button i3d-lock-entity-picker"),
-            currentContainerElement.append(entityButtonElement));
+          )
+          ;(entityButtonElement.disabled = !selectedItem.deviceId),
+            (entityButtonElement.className = 'i3d-picker-button i3d-lock-entity-picker'),
+            currentContainerElement.append(entityButtonElement)
         }
         const doorType = isWindowBinding
-            ? "window"
+            ? 'window'
             : getFloorDoorModels().find(
-                (matchedDoorModel: any) =>
-                  getCandidateModelId(matchedDoorModel) === selectedItem.modelId,
-              )?.doorType || "solid",
+                (matchedDoorModel: any) => getCandidateModelId(matchedDoorModel) === selectedItem.modelId,
+              )?.doorType || 'solid',
           // 推拉组整体滑动，动作文案要与「单扇」区分开。
           motionSectionElement = createSectionHeading(
             isWindowBinding
-              ? selectedWindowModelEntry?.kind === "sliding" &&
+              ? selectedWindowModelEntry?.kind === 'sliding' &&
                 selectedItem.modelId === selectedWindowModelEntry?.modelId
-                ? "推拉窗组动作"
-                : "窗扇动作"
-              : "门扇动作",
+                ? '推拉窗组动作'
+                : '窗扇动作'
+              : '门扇动作',
           ),
-          motionGridElement = createElement("div", "i3d-security-grid i3d-lock-motion-grid");
-        (motionSectionElement.append(motionGridElement),
-          (currentContainerElement = motionGridElement));
+          motionGridElement = createElement('div', 'i3d-security-grid i3d-lock-motion-grid')
+        motionSectionElement.append(motionGridElement), (currentContainerElement = motionGridElement)
         const commitMotionChange = () => {
-            (markPropertiesDirty(),
+            markPropertiesDirty(),
               isWindowBinding
                 ? editorRuntime?.previewWindowMotion?.(toItemKey(selectedItem), true)
-                : editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), true));
+                : editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), true)
           },
-          isHingeDoor = ["solid", "entry", "entry-child-mother", "glass"].includes(doorType),
-          isDoubleDoor = doorType === "double",
-          isSlidingDoor = doorType === "sliding-glass";
-        (isHingeDoor &&
+          isHingeDoor = ['solid', 'entry', 'entry-child-mother', 'glass'].includes(doorType),
+          isDoubleDoor = doorType === 'double',
+          isSlidingDoor = doorType === 'sliding-glass'
+        isHingeDoor &&
           createSelectField(
-            "铰链方向",
+            '铰链方向',
             [
-              ["left", "左开"],
-              ["right", "右开"],
+              ['left', '左开'],
+              ['right', '右开'],
             ],
-            selectedItem.hinge || "left",
+            selectedItem.hinge || 'left',
             (nextHinge: any) => {
-              ((selectedItem.hinge = nextHinge), commitMotionChange());
+              ;(selectedItem.hinge = nextHinge), commitMotionChange()
             },
           ),
           (isHingeDoor || isDoubleDoor) &&
             createSelectField(
-              isDoubleDoor ? "双扇开启方向" : "开门方向",
+              isDoubleDoor ? '双扇开启方向' : '开门方向',
               [
-                ["1", "内开"],
-                ["-1", "外开"],
+                ['1', '内开'],
+                ['-1', '外开'],
               ],
               String(selectedItem.openDirection ?? 1),
               (nextDirection: any) => {
-                ((selectedItem.openDirection = Number(nextDirection)), commitMotionChange());
+                ;(selectedItem.openDirection = Number(nextDirection)), commitMotionChange()
               },
             ),
           isSlidingDoor &&
             createSelectField(
-              "滑动方向",
+              '滑动方向',
               [
-                ["1", "向右收起"],
-                ["-1", "向左收起"],
+                ['1', '向右收起'],
+                ['-1', '向左收起'],
               ],
               String(selectedItem.openDirection ?? 1),
               (nextSlideDirection: any) => {
-                ((selectedItem.openDirection = Number(nextSlideDirection)), commitMotionChange());
+                ;(selectedItem.openDirection = Number(nextSlideDirection)), commitMotionChange()
               },
             ),
-          doorType === "roller-shutter" &&
-            motionGridElement.append(
-              createElement("p", "i3d-note", "卷帘门按上下卷收，不使用左右铰链或内外开方向。"),
-            ),
+          doorType === 'roller-shutter' &&
+            motionGridElement.append(createElement('p', 'i3d-note', '卷帘门按上下卷收，不使用左右铰链或内外开方向。')),
           (isHingeDoor || isDoubleDoor) &&
             createNumberField(
-              "开门角度",
+              '开门角度',
               selectedItem.openAngle ?? 80,
               10,
               110,
               (nextAngle: any) => {
-                selectedItem.openAngle = nextAngle;
+                selectedItem.openAngle = nextAngle
               },
               1,
             ),
           // 窗磁只有开/关两态，实际开合量按这里的百分比换算。
           isWindowBinding &&
             createNumberField(
-              "显示开度（%）",
+              '显示开度（%）',
               selectedItem.openPercent ?? 100,
               0,
               100,
               (nextOpenPercent: any) => {
-                selectedItem.openPercent = nextOpenPercent;
+                selectedItem.openPercent = nextOpenPercent
               },
               1,
             ),
           createNumberField(
-            "动画时长（秒）",
+            '动画时长（秒）',
             selectedItem.duration ?? 0.7,
             0.2,
             3,
             (nextDuration: any) => {
-              selectedItem.duration = nextDuration;
+              selectedItem.duration = nextDuration
             },
             0.1,
-          ));
+          )
         // 0.8.1 新增：门扇动作的「预览开门 / 预览关门」按钮对。
         // 只驱动场景里的门扇动画，不调用任何锁服务，所以文案必须说清楚。
-        if (isHingeDoor || isDoubleDoor || isSlidingDoor || doorType === "roller-shutter") {
-          const previewGridElement = createElement("div", "i3d-security-grid i3d-lock-motion-grid");
+        if (isHingeDoor || isDoubleDoor || isSlidingDoor || doorType === 'roller-shutter') {
+          const previewGridElement = createElement('div', 'i3d-security-grid i3d-lock-motion-grid')
           for (const [previewButtonLabel, previewOpen] of [
-            [isWindowBinding ? "预览开窗" : "预览开门", true],
-            [isWindowBinding ? "预览关窗" : "预览关门", false],
+            [isWindowBinding ? '预览开窗' : '预览开门', true],
+            [isWindowBinding ? '预览关窗' : '预览关门', false],
           ] as const) {
             const previewButtonElement = createButton(previewButtonLabel, () => {
               isWindowBinding
                 ? editorRuntime?.previewWindowMotion?.(toItemKey(selectedItem), previewOpen)
-                : editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), previewOpen);
-            });
-            ((previewButtonElement.disabled = !isAccessAllowed),
-              previewGridElement.append(previewButtonElement));
+                : editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), previewOpen)
+            })
+            ;(previewButtonElement.disabled = !isAccessAllowed), previewGridElement.append(previewButtonElement)
           }
           motionGridElement.append(
             previewGridElement,
             createElement(
-              "p",
-              "i3d-note",
+              'p',
+              'i3d-note',
               isWindowBinding
-                ? "检测到打开时，按绘制的最大开角或滑动行程显示；检测实体不提供实际开角。预览不控制设备。"
-                : "仅预览门扇动作，不控制真实门锁。",
+                ? '检测到打开时，按绘制的最大开角或滑动行程显示；检测实体不提供实际开角。预览不控制设备。'
+                : '仅预览门扇动作，不控制真实门锁。',
             ),
-          );
+          )
         }
-        const appearanceSectionElement = createSectionHeading("标签外观"),
-          appearanceGridElement = createElement(
-            "div",
-            "i3d-security-grid i3d-lock-appearance-grid",
-          );
-        (appearanceSectionElement.append(appearanceGridElement),
-          (currentContainerElement = appearanceGridElement));
-        const lockDefaultIcon = isWindowBinding ? "mdi:window-closed" : "mdi:door-closed",
-          iconPickerButtonElement = createButton(
-            selectedItem.icon || lockDefaultIcon,
-            async () => {
-              const iconPickerGeneration = ++pickerGeneration;
-              activePickerHandle?.close();
-              try {
-                const iconPickerHandle = await pickers.icon({
-                  trigger: iconPickerButtonElement,
-                  current: selectedItem.icon || lockDefaultIcon,
-                  // 窗户沿用门的图标目录（上游同样没有单独的窗户图标集）。
-                  deviceKind: "lock",
-                  onSelect(pickedIconId: any) {
-                    isDisposed ||
-                      !isAccessAllowed ||
-                      iconPickerGeneration !== pickerGeneration ||
-                      findSelectedItem() !== selectedItem ||
-                      ((selectedItem.icon = pickedIconId || lockDefaultIcon),
-                      markPropertiesDirty(),
-                      renderPanel());
-                  },
-                });
-                isDisposed || iconPickerGeneration !== pickerGeneration
-                  ? iconPickerHandle?.close()
-                  : (activePickerHandle = iconPickerHandle);
-              } catch (iconPickerError: any) {
-                showError(iconPickerError);
-              }
-            },
-          );
-        iconPickerButtonElement.className = "i3d-picker-button i3d-icon-picker-button";
-        const lockIconMaskElement = createElement("i");
-        lockIconMaskElement.setAttribute("aria-hidden", "true");
-        const iconId = selectedItem.icon || lockDefaultIcon;
-        ((lockIconMaskElement.style.maskImage =
-          "url('/static/vendor/mdi/7.4.47/svg/" + iconId.slice(4) + ".svg')"),
+        const appearanceSectionElement = createSectionHeading('标签外观'),
+          appearanceGridElement = createElement('div', 'i3d-security-grid i3d-lock-appearance-grid')
+        appearanceSectionElement.append(appearanceGridElement), (currentContainerElement = appearanceGridElement)
+        const lockDefaultIcon = isWindowBinding ? 'mdi:window-closed' : 'mdi:door-closed',
+          iconPickerButtonElement = createButton(selectedItem.icon || lockDefaultIcon, async () => {
+            const iconPickerGeneration = ++pickerGeneration
+            activePickerHandle?.close()
+            try {
+              const iconPickerHandle = await pickers.icon({
+                trigger: iconPickerButtonElement,
+                current: selectedItem.icon || lockDefaultIcon,
+                // 窗户沿用门的图标目录（上游同样没有单独的窗户图标集）。
+                deviceKind: 'lock',
+                onSelect(pickedIconId: any) {
+                  isDisposed ||
+                    !isAccessAllowed ||
+                    iconPickerGeneration !== pickerGeneration ||
+                    findSelectedItem() !== selectedItem ||
+                    ((selectedItem.icon = pickedIconId || lockDefaultIcon), markPropertiesDirty(), renderPanel())
+                },
+              })
+              isDisposed || iconPickerGeneration !== pickerGeneration
+                ? iconPickerHandle?.close()
+                : (activePickerHandle = iconPickerHandle)
+            } catch (iconPickerError: any) {
+              showError(iconPickerError)
+            }
+          })
+        iconPickerButtonElement.className = 'i3d-picker-button i3d-icon-picker-button'
+        const lockIconMaskElement = createElement('i')
+        lockIconMaskElement.setAttribute('aria-hidden', 'true')
+        const iconId = selectedItem.icon || lockDefaultIcon
+        ;(lockIconMaskElement.style.maskImage = "url('/static/vendor/mdi/7.4.47/svg/" + iconId.slice(4) + ".svg')"),
           (lockIconMaskElement.style.webkitMaskImage = lockIconMaskElement.style.maskImage),
-          (iconPickerButtonElement.textContent = ""),
-          iconPickerButtonElement.append(lockIconMaskElement, createElement("span", "", iconId)),
-          iconPickerButtonElement.setAttribute("aria-label", isWindowBinding ? "窗户图标" : "门图标"));
-        const iconFieldElement = createElement("label");
-        iconFieldElement.append(createElement("span", "", "图标"), iconPickerButtonElement);
+          (iconPickerButtonElement.textContent = ''),
+          iconPickerButtonElement.append(lockIconMaskElement, createElement('span', '', iconId)),
+          iconPickerButtonElement.setAttribute('aria-label', isWindowBinding ? '窗户图标' : '门图标')
+        const iconFieldElement = createElement('label')
+        iconFieldElement.append(createElement('span', '', '图标'), iconPickerButtonElement)
         const currentLabelMode =
-            selectedItem.labelMode === "hidden" ||
-            selectedItem.labelMode === "open" ||
-            selectedItem.labelMode === "always"
+            selectedItem.labelMode === 'hidden' ||
+            selectedItem.labelMode === 'open' ||
+            selectedItem.labelMode === 'always'
               ? selectedItem.labelMode
-              : "always",
-          labelModeSelectElement = createElement("select");
-        labelModeSelectElement.setAttribute("aria-label", "标签显示");
+              : 'always',
+          labelModeSelectElement = createElement('select')
+        labelModeSelectElement.setAttribute('aria-label', '标签显示')
         for (const [labelModeValue, labelModeLabel] of [
-          ["hidden", "隐藏标签"],
-          ["always", "常驻显示"],
-          ["open", "打开时显示"],
+          ['hidden', '隐藏标签'],
+          ['always', '常驻显示'],
+          ['open', '打开时显示'],
         ]) {
-          const labelModeOptionElement = createElement("option", "", labelModeLabel);
-          ((labelModeOptionElement.value = labelModeValue),
-            labelModeSelectElement.append(labelModeOptionElement));
+          const labelModeOptionElement = createElement('option', '', labelModeLabel)
+          ;(labelModeOptionElement.value = labelModeValue), labelModeSelectElement.append(labelModeOptionElement)
         }
-        ((labelModeSelectElement.value = currentLabelMode),
-          labelModeSelectElement.addEventListener("change", () => {
-            ((selectedItem.labelMode = labelModeSelectElement.value),
-              markPropertiesDirty(),
-              renderPanel());
-          }));
-        const labelModeFieldElement = createElement("label");
-        labelModeFieldElement.append(createElement("span", "", "标签显示"), labelModeSelectElement);
-        const appearanceRowElement = createElement("div", "i3d-lock-appearance-row");
-        (appearanceRowElement.append(iconFieldElement, labelModeFieldElement),
+        ;(labelModeSelectElement.value = currentLabelMode),
+          labelModeSelectElement.addEventListener('change', () => {
+            ;(selectedItem.labelMode = labelModeSelectElement.value), markPropertiesDirty(), renderPanel()
+          })
+        const labelModeFieldElement = createElement('label')
+        labelModeFieldElement.append(createElement('span', '', '标签显示'), labelModeSelectElement)
+        const appearanceRowElement = createElement('div', 'i3d-lock-appearance-row')
+        appearanceRowElement.append(iconFieldElement, labelModeFieldElement),
           appearanceGridElement.append(appearanceRowElement),
           createNumberField(
-            "卡片大小（px）",
+            '卡片大小（px）',
             selectedItem.size ?? DEFAULT_BUTTON_SIZE,
             20,
             500,
             (nextSize: any) => {
-              selectedItem.size = nextSize;
+              selectedItem.size = nextSize
             },
             1,
           ),
           createNumberField(
-            "文字大小（px）",
+            '文字大小（px）',
             selectedItem.fontSize ?? CARD_TEXT_SIZE_PX,
             8,
             100,
             (nextLockFontSize: any) => {
-              selectedItem.fontSize = nextLockFontSize;
+              selectedItem.fontSize = nextLockFontSize
             },
             1,
           ),
           appendBackgroundOpacityControl(
             appearanceSectionElement,
             selectedItem,
-            "backgroundOpacity",
+            'backgroundOpacity',
             markPropertiesDirty,
-          ));
-        const labelPositionSectionElement = createSectionHeading("标签位置"),
-          labelPositionGridElement = createElement("div", "i3d-coordinate-grid");
-        (labelPositionSectionElement.append(labelPositionGridElement),
+          )
+        const labelPositionSectionElement = createSectionHeading('标签位置'),
+          labelPositionGridElement = createElement('div', 'i3d-coordinate-grid')
+        labelPositionSectionElement.append(labelPositionGridElement),
           (currentContainerElement = labelPositionGridElement),
           createNumberField(
-            "位置 X",
+            '位置 X',
             selectedItem.x ??
-              getFloorModelList().find(
-                (xModelMatch: any) => getCandidateModelId(xModelMatch) === selectedItem.modelId,
-              )?.x ??
+              getFloorModelList().find((xModelMatch: any) => getCandidateModelId(xModelMatch) === selectedItem.modelId)
+                ?.x ??
               0,
             -1000000,
             1000000,
             (nextX: any) => {
-              selectedItem.x = nextX;
+              selectedItem.x = nextX
             },
             0.01,
           ),
           createNumberField(
-            "位置 Y",
+            '位置 Y',
             selectedItem.y ??
-              getFloorModelList().find(
-                (yModelMatch: any) => getCandidateModelId(yModelMatch) === selectedItem.modelId,
-              )?.y ??
+              getFloorModelList().find((yModelMatch: any) => getCandidateModelId(yModelMatch) === selectedItem.modelId)
+                ?.y ??
               0,
             -1000000,
             1000000,
             (nextY: any) => {
-              selectedItem.y = nextY;
+              selectedItem.y = nextY
             },
             0.01,
           ),
           createNumberField(
-            "离地高度（米）",
+            '离地高度（米）',
             selectedItem.height ??
               getFloorModelList().find(
-                (heightModelMatch: any) =>
-                  getCandidateModelId(heightModelMatch) === selectedItem.modelId,
+                (heightModelMatch: any) => getCandidateModelId(heightModelMatch) === selectedItem.modelId,
               )?.height ??
               1.1,
             -1000,
             1000,
             (nextHeight: any) => {
-              selectedItem.height = nextHeight;
+              selectedItem.height = nextHeight
             },
             0.1,
-          ));
-        const doorBatchSectionElement = createSectionHeading("批量设置"),
-          doorBatchApplyButtonElement = createButton(
-            isWindowBinding ? "一键应用到其他窗户" : "一键应用到其他门",
-            () => openBatchApplyDialog(selectedItem),
-          );
-        ((doorBatchApplyButtonElement.className = "i3d-batch-apply-button"),
+          )
+        const doorBatchSectionElement = createSectionHeading('批量设置'),
+          doorBatchApplyButtonElement = createButton(isWindowBinding ? '一键应用到其他窗户' : '一键应用到其他门', () =>
+            openBatchApplyDialog(selectedItem),
+          )
+        ;(doorBatchApplyButtonElement.className = 'i3d-batch-apply-button'),
           (doorBatchApplyButtonElement.disabled =
             getItemList().filter(
               (otherItem: any) => otherItem !== selectedItem && otherItem.floorId === selectedFloorId,
@@ -2237,121 +2004,104 @@ export async function openSecurityEditor({
           doorBatchSectionElement.append(
             doorBatchApplyButtonElement,
             createElement(
-              "p",
-              "i3d-note",
+              'p',
+              'i3d-note',
               isWindowBinding
-                ? "选择标签外观、高度、显示开度或动画时长；保留模型、实体和坐标。"
-                : "选择外观、高度或兼容门型的动作设置；保留模型、实体、坐标和视角。",
+                ? '选择标签外观、高度、显示开度或动画时长；保留模型、实体和坐标。'
+                : '选择外观、高度或兼容门型的动作设置；保留模型、实体、坐标和视角。',
             ),
-          ));
+          )
       }
-      let detectionSourceBodyElement: any = null;
-      if (securityKind === "presence") {
-        const sensorPickerButtonElement = createButton(
-          selectedItem.deviceName || "选择人体传感器设备",
-          async () => {
-            const pickerRequestGeneration = ++pickerGeneration;
-            activePickerHandle?.close();
-            try {
-              const sensorPickerHandle = await pickers.presence({
-                trigger: sensorPickerButtonElement,
-                current: selectedItem.deviceId || "",
-                onSelect(selectedSensor: any) {
-                  isDisposed ||
-                    !isAccessAllowed ||
-                    pickerRequestGeneration !== pickerGeneration ||
-                    findSelectedItem() !== selectedItem ||
-                    (selectedSensor
-                      ? ((selectedItem.deviceId = selectedSensor.deviceId),
-                        (selectedItem.deviceName = selectedSensor.name),
-                        deviceEntitiesByItemId.set(selectedItem.id, selectedSensor.entities),
-                        selectedSensor.entities.some(
-                          (entityProbe: any) => entityProbe.entityId === selectedItem.entityId,
-                        ) || (selectedItem.entityId = selectedSensor.entities[0]?.entityId || ""),
-                        selectedItem.entityId.startsWith("event.") &&
-                          !(selectedItem.displayDuration > 0) &&
-                          (selectedItem.displayDuration = 30))
-                      : (delete selectedItem.deviceId,
-                        delete selectedItem.deviceName,
-                        (selectedItem.entityId = ""),
-                        deviceEntitiesByItemId.delete(selectedItem.id)),
-                    markPropertiesDirty(),
-                    renderPanel());
-                },
-              });
-              isDisposed || pickerRequestGeneration !== pickerGeneration
-                ? sensorPickerHandle?.close()
-                : (activePickerHandle = sensorPickerHandle);
-            } catch (sensorPickerError: any) {
-              showError(sensorPickerError);
-            }
-          },
-        );
-        ((sensorPickerButtonElement.className = "i3d-picker-button"),
-          sensorPickerButtonElement.setAttribute("aria-label", "选择人体传感器设备"));
-        const deviceFieldElement = createElement("label");
-        (deviceFieldElement.append(
-          createElement("span", "", "绑定设备"),
-          sensorPickerButtonElement,
-        ),
+      let detectionSourceBodyElement: any = null
+      if (securityKind === 'presence') {
+        const sensorPickerButtonElement = createButton(selectedItem.deviceName || '选择人体传感器设备', async () => {
+          const pickerRequestGeneration = ++pickerGeneration
+          activePickerHandle?.close()
+          try {
+            const sensorPickerHandle = await pickers.presence({
+              trigger: sensorPickerButtonElement,
+              current: selectedItem.deviceId || '',
+              onSelect(selectedSensor: any) {
+                isDisposed ||
+                  !isAccessAllowed ||
+                  pickerRequestGeneration !== pickerGeneration ||
+                  findSelectedItem() !== selectedItem ||
+                  (selectedSensor
+                    ? ((selectedItem.deviceId = selectedSensor.deviceId),
+                      (selectedItem.deviceName = selectedSensor.name),
+                      deviceEntitiesByItemId.set(selectedItem.id, selectedSensor.entities),
+                      selectedSensor.entities.some(
+                        (entityProbe: any) => entityProbe.entityId === selectedItem.entityId,
+                      ) || (selectedItem.entityId = selectedSensor.entities[0]?.entityId || ''),
+                      selectedItem.entityId.startsWith('event.') &&
+                        !(selectedItem.displayDuration > 0) &&
+                        (selectedItem.displayDuration = 30))
+                    : (delete selectedItem.deviceId,
+                      delete selectedItem.deviceName,
+                      (selectedItem.entityId = ''),
+                      deviceEntitiesByItemId.delete(selectedItem.id)),
+                  markPropertiesDirty(),
+                  renderPanel())
+              },
+            })
+            isDisposed || pickerRequestGeneration !== pickerGeneration
+              ? sensorPickerHandle?.close()
+              : (activePickerHandle = sensorPickerHandle)
+          } catch (sensorPickerError: any) {
+            showError(sensorPickerError)
+          }
+        })
+        ;(sensorPickerButtonElement.className = 'i3d-picker-button'),
+          sensorPickerButtonElement.setAttribute('aria-label', '选择人体传感器设备')
+        const deviceFieldElement = createElement('label')
+        deviceFieldElement.append(createElement('span', '', '绑定设备'), sensorPickerButtonElement),
           currentContainerElement.append(deviceFieldElement),
           currentContainerElement.append(
-            createElement("p", "i3d-note", "选择设备后自动关联检测来源，通常无需再设置。"),
+            createElement('p', 'i3d-note', '选择设备后自动关联检测来源，通常无需再设置。'),
           ),
-          (detectionSourceBodyElement = createDisclosure(
-            "检测来源（高级）",
-            "detection:" + selectedItem.id,
-          )));
-        const previousContainerElement = currentContainerElement;
+          (detectionSourceBodyElement = createDisclosure('检测来源（高级）', 'detection:' + selectedItem.id))
+        const previousContainerElement = currentContainerElement
         if (((currentContainerElement = detectionSourceBodyElement), selectedItem.deviceId)) {
           const entityOptionList = (
             deviceEntitiesByItemId.get(selectedItem.id) ||
             pickers.presenceEntities?.(selectedItem.deviceId) ||
             []
-          ).map((detectionEntity: any) => [
-            detectionEntity.entityId,
-            detectionEntity.name || detectionEntity.entityId,
-          ]);
-          (selectedItem.entityId &&
-            !entityOptionList.some(
-              ([optionEntityId]: any) => optionEntityId === selectedItem.entityId,
-            ) &&
-            entityOptionList.unshift([
-              selectedItem.entityId,
-              selectedItem.entityId + "（当前绑定）",
-            ]),
+          ).map((detectionEntity: any) => [detectionEntity.entityId, detectionEntity.name || detectionEntity.entityId])
+          selectedItem.entityId &&
+            !entityOptionList.some(([optionEntityId]: any) => optionEntityId === selectedItem.entityId) &&
+            entityOptionList.unshift([selectedItem.entityId, selectedItem.entityId + '（当前绑定）']),
             entityOptionList.length > 1
               ? createSelectField(
-                  "有人状态来源",
+                  '有人状态来源',
                   entityOptionList,
-                  selectedItem.entityId || "",
+                  selectedItem.entityId || '',
                   (nextEntityId: any) => {
-                    ((selectedItem.entityId = nextEntityId),
-                      nextEntityId.startsWith("event.") &&
+                    ;(selectedItem.entityId = nextEntityId),
+                      nextEntityId.startsWith('event.') &&
                         !(selectedItem.displayDuration > 0) &&
                         (selectedItem.displayDuration = 30),
-                      markPropertiesDirty());
+                      markPropertiesDirty()
                   },
                 )
               : currentContainerElement.append(
                   createElement(
-                    "p",
-                    "i3d-note",
+                    'p',
+                    'i3d-note',
                     entityOptionList.length
-                      ? "检测实体：" + entityOptionList[0][1]
-                      : "设备暂无可用检测实体，请重新选择设备。",
+                      ? '检测实体：' + entityOptionList[0][1]
+                      : '设备暂无可用检测实体，请重新选择设备。',
                   ),
-                ));
+                )
         }
-        currentContainerElement = previousContainerElement;
+        currentContainerElement = previousContainerElement
       }
       const entityPickerButtonElement = createButton(
         entities.find((entityMatch: any) => entityMatch.entityId === selectedItem.entityId)?.name ||
           selectedItem.entityId ||
-          "选择" + getKindLabel() + "实体",
+          '选择' + getKindLabel() + '实体',
         async () => {
-          const entityPickerGeneration = ++pickerGeneration;
-          activePickerHandle?.close();
+          const entityPickerGeneration = ++pickerGeneration
+          activePickerHandle?.close()
           try {
             const entityPickerHandle = await pickers.entity({
               trigger: entityPickerButtonElement,
@@ -2363,513 +2113,461 @@ export async function openSecurityEditor({
                   entityPickerGeneration !== pickerGeneration ||
                   findSelectedItem() !== selectedItem ||
                   ((selectedItem.entityId = pickedEntityId),
-                  securityKind === "presence" &&
+                  securityKind === 'presence' &&
                     (delete selectedItem.deviceId,
                     delete selectedItem.deviceName,
                     deviceEntitiesByItemId.delete(selectedItem.id)),
-                  securityKind === "presence" &&
-                    pickedEntityId.startsWith("event.") &&
+                  securityKind === 'presence' &&
+                    pickedEntityId.startsWith('event.') &&
                     !(selectedItem.displayDuration > 0) &&
                     (selectedItem.displayDuration = 30),
                   markPropertiesDirty(),
-                  renderPanel());
+                  renderPanel())
               },
-            });
+            })
             isDisposed || entityPickerGeneration !== pickerGeneration
               ? entityPickerHandle?.close()
-              : (activePickerHandle = entityPickerHandle);
+              : (activePickerHandle = entityPickerHandle)
           } catch (entityPickerError: any) {
-            showError(entityPickerError);
+            showError(entityPickerError)
           }
         },
-      );
-      securityKind === "presence" &&
+      )
+      securityKind === 'presence' &&
         (entityPickerButtonElement.textContent = selectedItem.entityId
-          ? "手动绑定：" + selectedItem.entityId
-          : "手动选择实体（无设备归属）");
-      const entityLabelText = entityPickerButtonElement.textContent;
-      entityPickerButtonElement.textContent = "";
-      const entityLabelElement = createElement(
-        "span",
-        "i3d-security-entity-label",
-        entityLabelText,
-      );
+          ? '手动绑定：' + selectedItem.entityId
+          : '手动选择实体（无设备归属）')
+      const entityLabelText = entityPickerButtonElement.textContent
+      entityPickerButtonElement.textContent = ''
+      const entityLabelElement = createElement('span', 'i3d-security-entity-label', entityLabelText)
       if (
         (entityPickerButtonElement.append(entityLabelElement),
         (entityPickerButtonElement.title = entityLabelText),
-        (entityPickerButtonElement.className = "i3d-picker-button"),
-        entityPickerButtonElement.setAttribute("aria-label", "选择" + getKindLabel() + "实体"),
-        securityKind === "presence")
+        (entityPickerButtonElement.className = 'i3d-picker-button'),
+        entityPickerButtonElement.setAttribute('aria-label', '选择' + getKindLabel() + '实体'),
+        securityKind === 'presence')
       ) {
         if (
           (detectionSourceBodyElement.append(
-            createElement(
-              "p",
-              "i3d-note",
-              "可选择摄像头检测、人体传感器或自定义实体，按检测结果触发。",
-            ),
+            createElement('p', 'i3d-note', '可选择摄像头检测、人体传感器或自定义实体，按检测结果触发。'),
             entityPickerButtonElement,
           ),
           (currentContainerElement = detectionSourceBodyElement),
           createSelectField(
-            "触发方式",
+            '触发方式',
             PRESENCE_TRIGGER_MODES,
-            selectedItem.triggerMode || "auto",
+            selectedItem.triggerMode || 'auto',
             (nextTriggerMode: any) => {
-              ((selectedItem.triggerMode = nextTriggerMode),
-                nextTriggerMode === "equals" && (selectedItem.triggerValue ||= "on"),
-                nextTriggerMode === "threshold" && (selectedItem.triggerThreshold ??= 0),
+              ;(selectedItem.triggerMode = nextTriggerMode),
+                nextTriggerMode === 'equals' && (selectedItem.triggerValue ||= 'on'),
+                nextTriggerMode === 'threshold' && (selectedItem.triggerThreshold ??= 0),
                 presenceTriggerIsTimed(selectedItem) &&
                   !(selectedItem.displayDuration > 0) &&
                   (selectedItem.displayDuration = 30),
                 markPropertiesDirty(),
-                renderPanel());
+                renderPanel()
             },
           ),
-          selectedItem.triggerMode === "threshold" &&
+          selectedItem.triggerMode === 'threshold' &&
             createNumberField(
-              "数值大于",
+              '数值大于',
               selectedItem.triggerThreshold ?? 0,
               -1000000,
               1000000,
               (nextThreshold: any) => {
-                selectedItem.triggerThreshold = nextThreshold;
+                selectedItem.triggerThreshold = nextThreshold
               },
               0.1,
               true,
             ),
-          selectedItem.triggerMode === "equals")
+          selectedItem.triggerMode === 'equals')
         ) {
-          const triggerValueInputElement = createElement("input");
-          ((triggerValueInputElement.value = selectedItem.triggerValue ?? "on"),
+          const triggerValueInputElement = createElement('input')
+          ;(triggerValueInputElement.value = selectedItem.triggerValue ?? 'on'),
             (triggerValueInputElement.maxLength = 128),
-            triggerValueInputElement.setAttribute("aria-label", "触发值"),
-            triggerValueInputElement.addEventListener("input", () => {
+            triggerValueInputElement.setAttribute('aria-label', '触发值'),
+            triggerValueInputElement.addEventListener('input', () => {
               triggerValueInputElement.value.trim() &&
                 ((selectedItem.triggerValue = triggerValueInputElement.value.trim().slice(0, 128)),
-                markPropertiesDirty());
+                markPropertiesDirty())
             }),
-            triggerValueInputElement.addEventListener("change", () => {
-              triggerValueInputElement.value = selectedItem.triggerValue ?? "on";
-            }));
-          const triggerValueFieldElement = createElement("label");
-          (triggerValueFieldElement.append(
-            createElement("span", "", "触发值"),
-            triggerValueInputElement,
-          ),
-            currentContainerElement.append(triggerValueFieldElement));
+            triggerValueInputElement.addEventListener('change', () => {
+              triggerValueInputElement.value = selectedItem.triggerValue ?? 'on'
+            })
+          const triggerValueFieldElement = createElement('label')
+          triggerValueFieldElement.append(createElement('span', '', '触发值'), triggerValueInputElement),
+            currentContainerElement.append(triggerValueFieldElement)
         }
-        const isTimedTrigger = presenceTriggerIsTimed(selectedItem);
-        (createNumberField(
-          "触发后显示（秒）",
+        const isTimedTrigger = presenceTriggerIsTimed(selectedItem)
+        createNumberField(
+          '触发后显示（秒）',
           selectedItem.displayDuration ?? (isTimedTrigger ? 30 : 0),
           isTimedTrigger ? 1 : 0,
           3600,
           (nextDisplayDuration: any) => {
-            selectedItem.displayDuration = nextDisplayDuration;
+            selectedItem.displayDuration = nextDisplayDuration
           },
           1,
           true,
         ),
           currentContainerElement.append(
             createElement(
-              "p",
-              "i3d-note",
-              selectedItem.triggerMode === "change" || selectedItem.triggerMode === "equals"
-                ? "只比较状态值，属性刷新不触发；首次加载和离线恢复不触发。再次触发重新计时。"
+              'p',
+              'i3d-note',
+              selectedItem.triggerMode === 'change' || selectedItem.triggerMode === 'equals'
+                ? '只比较状态值，属性刷新不触发；首次加载和离线恢复不触发。再次触发重新计时。'
                 : isTimedTrigger
-                  ? "按检测事件发生时间计时，再次检测重新计时；到时隐藏。"
-                  : "0 秒：满足条件时持续显示，不满足时隐藏。其他值：达到时长后隐藏。自动识别开关状态、检测事件及名称明确的人数；其他数值请设置阈值。",
+                  ? '按检测事件发生时间计时，再次检测重新计时；到时隐藏。'
+                  : '0 秒：满足条件时持续显示，不满足时隐藏。其他值：达到时长后隐藏。自动识别开关状态、检测事件及名称明确的人数；其他数值请设置阈值。',
             ),
           ),
           (currentContainerElement = bindingSectionElement),
           currentContainerElement.append(
-            createElement(
-              "p",
-              "i3d-note",
-              "配置时点击标签选择传感器；正式页面仅展示模型和感应效果。",
-            ),
-          ));
-      } else if (securityKind === "camera") {
+            createElement('p', 'i3d-note', '配置时点击标签选择传感器；正式页面仅展示模型和感应效果。'),
+          )
+      } else if (securityKind === 'camera') {
         // 与原版一致：名称、关联模型之后，来源 / 实体（或地址）/ 画面比例依次排在
         // 「基础绑定」里，不额外拆「视频来源」分区。
-        currentContainerElement = bindingSectionElement;
+        currentContainerElement = bindingSectionElement
         // 视频来源：默认沿用 HA 实体；切成 go2rtc 后填局域网地址，走同源 MSE 中继出画。
         createSegmentedField(
-          "摄像头来源",
+          '摄像头来源',
           [
-            ["entity", "HA 实体"],
-            ["go2rtc", "go2rtc"],
+            ['entity', 'HA 实体'],
+            ['go2rtc', 'go2rtc'],
           ],
-          selectedItem.cameraSource === "go2rtc" ? "go2rtc" : "entity",
+          selectedItem.cameraSource === 'go2rtc' ? 'go2rtc' : 'entity',
           (nextCameraSource: any) => {
-            (selectedItem.cameraSource = nextCameraSource,
+            ;(selectedItem.cameraSource = nextCameraSource),
               // 切来源会重建面板，先关掉指向旧节点的选择器。
               closeActivePicker(),
               markPropertiesDirty(),
-              renderPanel());
+              renderPanel()
           },
-        );
-        if (selectedItem.cameraSource === "go2rtc") {
+        )
+        if (selectedItem.cameraSource === 'go2rtc') {
           // go2rtc 不需要 HA 实体，地址即配置；ha 实体选择器整块不渲染。
-          const cameraGo2rtcUrlLabelElement = createElement("label"),
-            cameraGo2rtcUrlInputElement = createElement("input");
-          (Object.assign(cameraGo2rtcUrlInputElement, {
-            type: "url",
-            value: String(selectedItem.go2rtcUrl || ""),
+          const cameraGo2rtcUrlLabelElement = createElement('label'),
+            cameraGo2rtcUrlInputElement = createElement('input')
+          Object.assign(cameraGo2rtcUrlInputElement, {
+            type: 'url',
+            value: String(selectedItem.go2rtcUrl || ''),
             maxLength: 2048,
-            placeholder: "http://192.168.1.100:1984/stream.html?src=camera1",
+            placeholder: 'http://192.168.1.100:1984/stream.html?src=camera1',
           }),
-            cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 网页播放地址"),
+            cameraGo2rtcUrlInputElement.setAttribute('aria-label', 'go2rtc 网页播放地址'),
             // 用 input：边输边写进草稿，保存时不必先让输入框失焦。
-            cameraGo2rtcUrlInputElement.addEventListener("input", () => {
-              (selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim(),
-                markPropertiesDirty());
+            cameraGo2rtcUrlInputElement.addEventListener('input', () => {
+              ;(selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim()), markPropertiesDirty()
             }),
             cameraGo2rtcUrlLabelElement.append(
-              createElement("span", "", "go2rtc 网页播放地址"),
+              createElement('span', '', 'go2rtc 网页播放地址'),
               cameraGo2rtcUrlInputElement,
             ),
             currentContainerElement.append(
               cameraGo2rtcUrlLabelElement,
               createElement(
-                "p",
-                "i3d-note",
-                "请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HomeOS 中转，保存仪表盘后播放。",
+                'p',
+                'i3d-note',
+                '请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HomeOS 中转，保存仪表盘后播放。',
               ),
-            ));
-        } else currentContainerElement.append(entityPickerButtonElement);
+            )
+        } else currentContainerElement.append(entityPickerButtonElement)
         // 画面比例决定摄像头弹窗是原始比例还是压成 16:9。
         createSegmentedField(
-          "画面比例",
+          '画面比例',
           [
-            ["contain", "原始比例"],
-            ["fill", "压缩 16:9"],
+            ['contain', '原始比例'],
+            ['fill', '压缩 16:9'],
           ],
-          selectedItem.fit === "fill" ? "fill" : "contain",
+          selectedItem.fit === 'fill' ? 'fill' : 'contain',
           (nextCameraFit: any) => {
-            (selectedItem.fit = nextCameraFit, markPropertiesDirty(), renderPanel());
+            ;(selectedItem.fit = nextCameraFit), markPropertiesDirty(), renderPanel()
           },
-        );
+        )
         currentContainerElement.append(
-          createElement(
-            "p",
-            "i3d-note",
-            "标签显示设备状态；仅点击聚焦后连接视频，退出时断开。可拖动标签调整位置。",
-          ),
-        );
-        const labelSettingsSectionElement = createSectionHeading("标签设置"),
-          labelSettingsGridElement = createElement("div", "i3d-security-scope-grid");
-        (labelSettingsSectionElement.append(labelSettingsGridElement),
-          (currentContainerElement = labelSettingsGridElement));
-        const cameraIconPickerButtonElement = createButton(
-          selectedItem.icon || "mdi:cctv",
-          async () => {
-            const cameraIconPickerGeneration = ++pickerGeneration;
-            activePickerHandle?.close();
-            try {
-              const cameraIconPickerHandle = await pickers.icon({
-                trigger: cameraIconPickerButtonElement,
-                current: selectedItem.icon || "mdi:cctv",
-                deviceKind: "camera",
-                onSelect(pickedCameraIconId: any) {
-                  isDisposed ||
-                    !isAccessAllowed ||
-                    cameraIconPickerGeneration !== pickerGeneration ||
-                    findSelectedItem() !== selectedItem ||
-                    ((selectedItem.icon = pickedCameraIconId),
-                    markPropertiesDirty(),
-                    renderPanel());
-                },
-              });
-              isDisposed || cameraIconPickerGeneration !== pickerGeneration
-                ? cameraIconPickerHandle?.close()
-                : (activePickerHandle = cameraIconPickerHandle);
-            } catch (cameraIconPickerError: any) {
-              showError(cameraIconPickerError);
-            }
-          },
-        );
-        cameraIconPickerButtonElement.className = "i3d-picker-button i3d-icon-picker-button";
-        const iconMaskElement = createElement("i");
-        ((iconMaskElement.style.maskImage =
-          "url('/static/vendor/mdi/7.4.47/svg/" +
-          (selectedItem.icon || "mdi:cctv").slice(4) +
-          ".svg')"),
+          createElement('p', 'i3d-note', '标签显示设备状态；仅点击聚焦后连接视频，退出时断开。可拖动标签调整位置。'),
+        )
+        const labelSettingsSectionElement = createSectionHeading('标签设置'),
+          labelSettingsGridElement = createElement('div', 'i3d-security-scope-grid')
+        labelSettingsSectionElement.append(labelSettingsGridElement),
+          (currentContainerElement = labelSettingsGridElement)
+        const cameraIconPickerButtonElement = createButton(selectedItem.icon || 'mdi:cctv', async () => {
+          const cameraIconPickerGeneration = ++pickerGeneration
+          activePickerHandle?.close()
+          try {
+            const cameraIconPickerHandle = await pickers.icon({
+              trigger: cameraIconPickerButtonElement,
+              current: selectedItem.icon || 'mdi:cctv',
+              deviceKind: 'camera',
+              onSelect(pickedCameraIconId: any) {
+                isDisposed ||
+                  !isAccessAllowed ||
+                  cameraIconPickerGeneration !== pickerGeneration ||
+                  findSelectedItem() !== selectedItem ||
+                  ((selectedItem.icon = pickedCameraIconId), markPropertiesDirty(), renderPanel())
+              },
+            })
+            isDisposed || cameraIconPickerGeneration !== pickerGeneration
+              ? cameraIconPickerHandle?.close()
+              : (activePickerHandle = cameraIconPickerHandle)
+          } catch (cameraIconPickerError: any) {
+            showError(cameraIconPickerError)
+          }
+        })
+        cameraIconPickerButtonElement.className = 'i3d-picker-button i3d-icon-picker-button'
+        const iconMaskElement = createElement('i')
+        ;(iconMaskElement.style.maskImage =
+          "url('/static/vendor/mdi/7.4.47/svg/" + (selectedItem.icon || 'mdi:cctv').slice(4) + ".svg')"),
           (iconMaskElement.style.webkitMaskImage = iconMaskElement.style.maskImage),
-          (cameraIconPickerButtonElement.textContent = ""),
+          (cameraIconPickerButtonElement.textContent = ''),
           cameraIconPickerButtonElement.append(
             iconMaskElement,
-            createElement("span", "", selectedItem.icon || "mdi:cctv"),
+            createElement('span', '', selectedItem.icon || 'mdi:cctv'),
           ),
-          cameraIconPickerButtonElement.setAttribute("aria-label", "摄像头图标"));
-        const cameraIconFieldElement = createElement("label");
-        (cameraIconFieldElement.append(
-          createElement("span", "", "图标"),
-          cameraIconPickerButtonElement,
-        ),
+          cameraIconPickerButtonElement.setAttribute('aria-label', '摄像头图标')
+        const cameraIconFieldElement = createElement('label')
+        cameraIconFieldElement.append(createElement('span', '', '图标'), cameraIconPickerButtonElement),
           currentContainerElement.append(cameraIconFieldElement),
           createNumberField(
-            "标签缩放（%）",
-
+            '标签缩放（%）',
 
             Math.round(((selectedItem.size ?? DEFAULT_BUTTON_SIZE) / DEFAULT_BUTTON_SIZE) * 100),
             10,
             500,
             (nextScalePercent: any) => {
-              selectedItem.size = (nextScalePercent / 100) * DEFAULT_BUTTON_SIZE;
+              selectedItem.size = (nextScalePercent / 100) * DEFAULT_BUTTON_SIZE
             },
             1,
           ),
           appendBackgroundOpacityControl(
             labelSettingsSectionElement,
             selectedItem,
-            "backgroundOpacity",
+            'backgroundOpacity',
             markPropertiesDirty,
-          ));
-        const sizeDisclosureBodyElement = createDisclosure(
-            "更多尺寸设置",
-            "camera-sizes",
-            labelSettingsSectionElement,
-          ),
-          sizeGridElement = createElement("div", "i3d-coordinate-grid i3d-security-size-grid");
-        (sizeDisclosureBodyElement.append(sizeGridElement),
+          )
+        const sizeDisclosureBodyElement = createDisclosure('更多尺寸设置', 'camera-sizes', labelSettingsSectionElement),
+          sizeGridElement = createElement('div', 'i3d-coordinate-grid i3d-security-size-grid')
+        sizeDisclosureBodyElement.append(sizeGridElement),
           (currentContainerElement = sizeGridElement),
           createNumberField(
-            "图标大小（px）",
+            '图标大小（px）',
             selectedItem.iconSize ?? buttonIconSize(selectedItem.size ?? DEFAULT_BUTTON_SIZE),
             4,
             200,
             (nextIconSize: any) => {
-              selectedItem.iconSize = nextIconSize;
+              selectedItem.iconSize = nextIconSize
             },
             1,
           ),
           createNumberField(
-            "文字大小（px）",
+            '文字大小（px）',
             selectedItem.fontSize ?? CARD_TEXT_SIZE_PX,
             8,
             100,
             (nextFontSize: any) => {
-              selectedItem.fontSize = nextFontSize;
+              selectedItem.fontSize = nextFontSize
             },
             1,
           ),
           createNumberField(
-            "触控范围（px）",
+            '触控范围（px）',
             selectedItem.hitSize ?? DEFAULT_BUTTON_SIZE,
             1,
             1000,
             (nextHitSize: any) => {
-              selectedItem.hitSize = nextHitSize;
+              selectedItem.hitSize = nextHitSize
             },
             1,
-          ));
-        const cameraLabelPositionSectionElement = createSectionHeading("标签位置"),
-          cameraLabelPositionGridElement = createElement("div", "i3d-coordinate-grid");
-        (cameraLabelPositionSectionElement.append(cameraLabelPositionGridElement),
-          (currentContainerElement = cameraLabelPositionGridElement));
+          )
+        const cameraLabelPositionSectionElement = createSectionHeading('标签位置'),
+          cameraLabelPositionGridElement = createElement('div', 'i3d-coordinate-grid')
+        cameraLabelPositionSectionElement.append(cameraLabelPositionGridElement),
+          (currentContainerElement = cameraLabelPositionGridElement)
         const modelDefaults = getFloorModelList().find(
           (modelMatch: any) => getCandidateModelId(modelMatch) === selectedItem.modelId,
-        );
-        for (const axisName of ["x", "y"])
+        )
+        for (const axisName of ['x', 'y'])
           createNumberField(
-            "位置 " + axisName.toUpperCase(),
+            '位置 ' + axisName.toUpperCase(),
             selectedItem[axisName] ?? modelDefaults?.[axisName] ?? 0,
             -1000000,
             1000000,
             (nextAxisValue: any) => {
-              selectedItem[axisName] = nextAxisValue;
+              selectedItem[axisName] = nextAxisValue
             },
-          );
-        (createNumberField(
-          "离地高度（米）",
+          )
+        createNumberField(
+          '离地高度（米）',
           selectedItem.height ?? modelDefaults?.height ?? 0.15,
           -1000,
           1000,
           (nextCameraHeight: any) => {
-            selectedItem.height = nextCameraHeight;
+            selectedItem.height = nextCameraHeight
           },
         ),
-          (currentContainerElement = cameraLabelPositionSectionElement));
-        const resetToModelButtonElement = createButton("恢复跟随模型", () => {
-          (delete selectedItem.x,
-            delete selectedItem.y,
-            delete selectedItem.height,
-            markPropertiesDirty(),
-            renderPanel());
-        });
-        ((resetToModelButtonElement.disabled = !["x", "y", "height"].some((axisKey) =>
+          (currentContainerElement = cameraLabelPositionSectionElement)
+        const resetToModelButtonElement = createButton('恢复跟随模型', () => {
+          delete selectedItem.x, delete selectedItem.y, delete selectedItem.height, markPropertiesDirty(), renderPanel()
+        })
+        ;(resetToModelButtonElement.disabled = !['x', 'y', 'height'].some((axisKey) =>
           Number.isFinite(selectedItem[axisKey]),
         )),
-          (resetToModelButtonElement.className = "i3d-focus-reset"),
+          (resetToModelButtonElement.className = 'i3d-focus-reset'),
           currentContainerElement.append(resetToModelButtonElement),
           currentContainerElement.append(
-            createElement("p", "i3d-note", "仅调整标签，不移动摄像头模型。也可在预览中拖动标签。"),
+            createElement('p', 'i3d-note', '仅调整标签，不移动摄像头模型。也可在预览中拖动标签。'),
           ),
-          createSectionHeading("聚焦视角"));
-        const focusActionsElement = createElement("div", "i3d-focus-actions");
+          createSectionHeading('聚焦视角')
+        const focusActionsElement = createElement('div', 'i3d-focus-actions')
         if (
           (isCameraEditing
             ? focusActionsElement.append(
-                createButton("保存视角", () => queueCameraCommand("save-light-camera")),
-                createButton("取消调整", () => queueCameraCommand("cancel-light-camera")),
+                createButton('保存视角', () => queueCameraCommand('save-light-camera')),
+                createButton('取消调整', () => queueCameraCommand('cancel-light-camera')),
               )
             : focusActionsElement.append(
-                createButton(selectedItem.focusCamera ? "调整视角" : "设置视角", () =>
-                  queueCameraCommand("edit-light-camera"),
+                createButton(selectedItem.focusCamera ? '调整视角' : '设置视角', () =>
+                  queueCameraCommand('edit-light-camera'),
                 ),
-                createButton("预览聚焦", () => queueCameraCommand("preview-light-camera")),
+                createButton('预览聚焦', () => queueCameraCommand('preview-light-camera')),
               ),
           currentContainerElement.append(focusActionsElement),
           isCameraEditing)
         ) {
-          const projectionGroupElement = createElement("div", "i3d-focus-actions");
-          (projectionGroupElement.setAttribute("role", "group"),
-            projectionGroupElement.setAttribute("aria-label", "聚焦投影"));
+          const projectionGroupElement = createElement('div', 'i3d-focus-actions')
+          projectionGroupElement.setAttribute('role', 'group'),
+            projectionGroupElement.setAttribute('aria-label', '聚焦投影')
           for (const [projectionMode, projectionLabel] of [
-            ["orthographic", "正交"],
-            ["perspective", "透视"],
+            ['orthographic', '正交'],
+            ['perspective', '透视'],
           ]) {
             const projectionButtonElement = createButton(projectionLabel, () =>
-              queueCameraCommand("focus-projection", projectionMode),
-            );
-            (projectionButtonElement.setAttribute(
-              "aria-pressed",
-              String((pendingCameraDraft?.mode || "orthographic") === projectionMode),
+              queueCameraCommand('focus-projection', projectionMode),
+            )
+            projectionButtonElement.setAttribute(
+              'aria-pressed',
+              String((pendingCameraDraft?.mode || 'orthographic') === projectionMode),
             ),
-              projectionGroupElement.append(projectionButtonElement));
+              projectionGroupElement.append(projectionButtonElement)
           }
-          const focalLengthInputElement = createElement("input");
-          (Object.assign(focalLengthInputElement, {
-            type: "number",
-            min: "18",
-            max: "120",
-            step: "1",
+          const focalLengthInputElement = createElement('input')
+          Object.assign(focalLengthInputElement, {
+            type: 'number',
+            min: '18',
+            max: '120',
+            step: '1',
             value: String(Math.round(pendingCameraDraft?.focalLength || 50)),
           }),
-            focalLengthInputElement.setAttribute("aria-label", "焦段（mm）"),
-            (focalLengthInputElement.dataset.focusFocal = "true"),
-            focalLengthInputElement.addEventListener("change", () => {
-              const nextFocalLength = Number(focalLengthInputElement.value);
+            focalLengthInputElement.setAttribute('aria-label', '焦段（mm）'),
+            (focalLengthInputElement.dataset.focusFocal = 'true'),
+            focalLengthInputElement.addEventListener('change', () => {
+              const nextFocalLength = Number(focalLengthInputElement.value)
               if (!focalLengthInputElement.value.trim() || !Number.isFinite(nextFocalLength)) {
-                focalLengthInputElement.value = String(pendingCameraDraft?.focalLength || 50);
-                return;
+                focalLengthInputElement.value = String(pendingCameraDraft?.focalLength || 50)
+                return
               }
-              ((focalLengthInputElement.value = String(
-                Math.max(18, Math.min(120, nextFocalLength)),
-              )),
-                queueCameraCommand("focus-focal-length", Number(focalLengthInputElement.value)));
-            }));
-          const focalLengthFieldElement = createElement("label");
-          (focalLengthFieldElement.append(
-            createElement("span", "", "焦段（mm）"),
-            focalLengthInputElement,
-          ),
-            currentContainerElement.append(projectionGroupElement, focalLengthFieldElement));
+              ;(focalLengthInputElement.value = String(Math.max(18, Math.min(120, nextFocalLength)))),
+                queueCameraCommand('focus-focal-length', Number(focalLengthInputElement.value))
+            })
+          const focalLengthFieldElement = createElement('label')
+          focalLengthFieldElement.append(createElement('span', '', '焦段（mm）'), focalLengthInputElement),
+            currentContainerElement.append(projectionGroupElement, focalLengthFieldElement)
         }
         if (!isCameraEditing) {
-          const resetFocusButtonElement = createButton("恢复自动聚焦", async () => {
+          const resetFocusButtonElement = createButton('恢复自动聚焦', async () => {
             if (!(isSaving || !isAccessAllowed)) {
-              ((isSaving = true), renderPanel());
+              ;(isSaving = true), renderPanel()
               try {
                 if (
-                  (await editorRuntime.focusCommand("cancel-light-camera", toItemKey(selectedItem)),
+                  (await editorRuntime.focusCommand('cancel-light-camera', toItemKey(selectedItem)),
                   isDisposed || !isAccessAllowed)
                 )
-                  return;
-                (delete selectedItem.focusCamera, markPropertiesDirty());
+                  return
+                delete selectedItem.focusCamera, markPropertiesDirty()
               } catch (resetFocusError: any) {
-                showError(resetFocusError);
+                showError(resetFocusError)
               } finally {
-                ((isSaving = false), isDisposed || renderPanel());
+                ;(isSaving = false), isDisposed || renderPanel()
               }
             }
-          });
-          ((resetFocusButtonElement.disabled = !selectedItem.focusCamera),
-            (resetFocusButtonElement.className = "i3d-focus-reset"),
-            currentContainerElement.append(resetFocusButtonElement));
+          })
+          ;(resetFocusButtonElement.disabled = !selectedItem.focusCamera),
+            (resetFocusButtonElement.className = 'i3d-focus-reset'),
+            currentContainerElement.append(resetFocusButtonElement)
         }
       } else
-        securityKind !== "lock" &&
-          securityKind !== "window" &&
-          currentContainerElement.append(entityPickerButtonElement);
-      if (securityKind === "presence") {
+        securityKind !== 'lock' &&
+          securityKind !== 'window' &&
+          currentContainerElement.append(entityPickerButtonElement)
+      if (securityKind === 'presence') {
         if (selectedItem.modelId) {
-          const waveSectionElement = createSectionHeading("感应光圈");
+          const waveSectionElement = createSectionHeading('感应光圈')
           createSelectField(
-            "显示光圈",
+            '显示光圈',
             [
-              ["on", "开启"],
-              ["off", "关闭"],
+              ['on', '开启'],
+              ['off', '关闭'],
             ],
-            selectedItem.waveEnabled === false ? "off" : "on",
+            selectedItem.waveEnabled === false ? 'off' : 'on',
             (nextWaveEnabled: any) => {
-              ((selectedItem.waveEnabled = nextWaveEnabled === "on"),
-                markPropertiesDirty(),
-                renderPanel());
+              ;(selectedItem.waveEnabled = nextWaveEnabled === 'on'), markPropertiesDirty(), renderPanel()
             },
-          );
-          const waveGridElement = createElement("div", "i3d-security-scope-grid");
+          )
+          const waveGridElement = createElement('div', 'i3d-security-scope-grid')
           if (
             (waveSectionElement.append(waveGridElement),
             (currentContainerElement = waveGridElement),
             createNumberField(
-              "光圈大小（%）",
+              '光圈大小（%）',
               Math.round((selectedItem.waveScale ?? 1) * 100),
               25,
               300,
               (nextWaveScalePercent: any) => {
-                selectedItem.waveScale = nextWaveScalePercent / 100;
+                selectedItem.waveScale = nextWaveScalePercent / 100
               },
               1,
             ),
             createNumberField(
-              "光圈透明度（%）",
+              '光圈透明度（%）',
               100 - (selectedItem.waveOpacity ?? 68),
               0,
               100,
               (nextWaveOpacityPercent: any) => {
-                selectedItem.waveOpacity = 100 - nextWaveOpacityPercent;
+                selectedItem.waveOpacity = 100 - nextWaveOpacityPercent
               },
               1,
             ),
             selectedItem.waveEnabled === false)
           ) {
-            for (const waveInputElement of waveGridElement.querySelectorAll("input"))
-              waveInputElement.disabled = true;
+            for (const waveInputElement of waveGridElement.querySelectorAll('input')) waveInputElement.disabled = true
           }
         }
-        (createSectionHeading("人物展示"),
-          currentContainerElement.append(createButton("配置人物与行走路线", openPresenceSubEditor)),
+        createSectionHeading('人物展示'),
+          currentContainerElement.append(createButton('配置人物与行走路线', openPresenceSubEditor)),
           currentContainerElement.append(
-            createElement(
-              "p",
-              "i3d-note",
-              "按需设置人物、显示时长与行走路线。设备绑定在上方统一管理。",
-            ),
-          ));
+            createElement('p', 'i3d-note', '按需设置人物、显示时长与行走路线。设备绑定在上方统一管理。'),
+          )
       }
-      securityKind !== "lock" &&
-        securityKind !== "window" &&
-        createSectionHeading("批量设置").append(
-          createButton("一键应用到其他" + getKindLabel(), () => openBatchApplyDialog(selectedItem)),
-        );
-      const bindingManagementSectionElement = createSectionHeading("绑定管理"),
-        removeBindingButtonElement = createButton("移除" + getKindLabel() + "绑定", () => {
-          (closeActivePicker(),
+      securityKind !== 'lock' &&
+        securityKind !== 'window' &&
+        createSectionHeading('批量设置').append(
+          createButton('一键应用到其他' + getKindLabel(), () => openBatchApplyDialog(selectedItem)),
+        )
+      const bindingManagementSectionElement = createSectionHeading('绑定管理'),
+        removeBindingButtonElement = createButton('移除' + getKindLabel() + '绑定', () => {
+          closeActivePicker(),
             (draftProperties.security[getCollectionKey()] = getCollection().filter(
               (remainingItem: any) => remainingItem !== selectedItem,
             )),
-            (selectedItemId = ""),
+            (selectedItemId = ''),
             markPropertiesDirty(),
-            renderPanel());
-        });
-      ((removeBindingButtonElement.className = "i3d-remove-light"),
-        bindingManagementSectionElement.append(removeBindingButtonElement));
+            renderPanel()
+        })
+      ;(removeBindingButtonElement.className = 'i3d-remove-light'),
+        bindingManagementSectionElement.append(removeBindingButtonElement)
     }
-    const currentPanelSignature =
-      getSecurityCategory() + ":" + selectedFloorId + ":" + selectedItemId;
+    const currentPanelSignature = getSecurityCategory() + ':' + selectedFloorId + ':' + selectedItemId
     if (
       (currentPanelSignature !== renderedPanelSignature &&
         ((renderedPanelSignature = currentPanelSignature), (panelElement.scrollTop = 0)),
@@ -2877,18 +2575,15 @@ export async function openSecurityEditor({
       currentContainerElement.append(errorMessageElement),
       isSaving || isCameraEditing || !isAccessAllowed || isPresenceEditorOpen)
     ) {
-      for (const disabledControlElement of panelElement.querySelectorAll("button,input,select"))
-        disabledControlElement.disabled = true;
+      for (const disabledControlElement of panelElement.querySelectorAll('button,input,select'))
+        disabledControlElement.disabled = true
       if (isCameraEditing && !isSaving && isAccessAllowed) {
-        for (const focusActionButtonElement of panelElement.querySelectorAll(
-          ".i3d-focus-actions button",
-        ))
-          focusActionButtonElement.disabled = false;
+        for (const focusActionButtonElement of panelElement.querySelectorAll('.i3d-focus-actions button'))
+          focusActionButtonElement.disabled = false
       }
-      for (const panelInputElement of panelElement.querySelectorAll("input"))
+      for (const panelInputElement of panelElement.querySelectorAll('input'))
         panelInputElement.dataset.focusFocal &&
-          (panelInputElement.disabled =
-            isSaving || !isAccessAllowed || pendingCameraDraft?.mode !== "perspective");
+          (panelInputElement.disabled = isSaving || !isAccessAllowed || pendingCameraDraft?.mode !== 'perspective')
     }
   }
   function mountEditorRuntime() {
@@ -2906,41 +2601,38 @@ export async function openSecurityEditor({
           editable: true,
         },
         editing: true,
-        editingModule: "security",
+        editingModule: 'security',
         editingSecurityKind: securityKind,
         editingShowAllLabels: editingShowAllLabels,
         onReady(readyMetadata?: any) {
-          ((sceneMetadata = readyMetadata),
+          ;(sceneMetadata = readyMetadata),
             normalizeDoorModelIds(),
             sceneMetadata.floors.some((floorMatch: any) => floorMatch.id === selectedFloorId) ||
-              (selectedFloorId = sceneMetadata.floors[0]?.id || ""),
+              (selectedFloorId = sceneMetadata.floors[0]?.id || ''),
             renderPanel(),
-            syncEditorRuntime());
+            syncEditorRuntime()
         },
         onEdit(editEvent: any) {
           if (!(isDisposed || !isAccessAllowed)) {
-            if (editEvent.action === "position") {
-              const positionTargetMatch =
-                /^(camera|lock|window|moisture|smoke|gas):(.+)$/.exec(editEvent.id || "");
-              const positionKind = positionTargetMatch?.[1] || "";
+            if (editEvent.action === 'position') {
+              const positionTargetMatch = /^(camera|lock|window|moisture|smoke|gas):(.+)$/.exec(editEvent.id || '')
+              const positionKind = positionTargetMatch?.[1] || ''
               const positionTargetList =
-                positionKind === "lock"
-                  ? "locks"
-                  : positionKind === "window"
-                    ? "windows"
-                    : positionKind === "camera"
-                      ? "cameras"
+                positionKind === 'lock'
+                  ? 'locks'
+                  : positionKind === 'window'
+                    ? 'windows'
+                    : positionKind === 'camera'
+                      ? 'cameras'
                       : isAlarmKindValue(positionKind)
-                        ? "alarms"
-                        : "";
+                        ? 'alarms'
+                        : ''
               const editedPositionItem =
                 positionTargetList &&
                 draftProperties.security[positionTargetList].find(
                   (positionMatch: any) => positionMatch.id === positionTargetMatch![2],
-                );
-              editedPositionItem &&
-                positionTargetList === "alarms" &&
-                editedPositionItem.positionMode === "fixed"
+                )
+              editedPositionItem && positionTargetList === 'alarms' && editedPositionItem.positionMode === 'fixed'
                 ? Number.isFinite(editEvent.fixedX) &&
                   Number.isFinite(editEvent.fixedY) &&
                   ((editedPositionItem.fixedX = Math.max(0, Math.min(100, editEvent.fixedX))),
@@ -2949,18 +2641,16 @@ export async function openSecurityEditor({
                 : editedPositionItem &&
                   Number.isFinite(editEvent.x) &&
                   Number.isFinite(editEvent.y) &&
-                  ((editedPositionItem.x = editEvent.x),
-                  (editedPositionItem.y = editEvent.y),
-                  markPropertiesDirty());
+                  ((editedPositionItem.x = editEvent.x), (editedPositionItem.y = editEvent.y), markPropertiesDirty())
             }
             if (
-              (editEvent.action === "focus-exited" && ((isCameraEditing = false), renderPanel()),
-              editEvent.action === "select" &&
-                /^(camera|presence|lock|window|moisture|smoke|gas):/.test(editEvent.id || ""))
+              (editEvent.action === 'focus-exited' && ((isCameraEditing = false), renderPanel()),
+              editEvent.action === 'select' &&
+                /^(camera|presence|lock|window|moisture|smoke|gas):/.test(editEvent.id || ''))
             ) {
-              const separatorIndex = editEvent.id.indexOf(":");
-              const nextKind = editEvent.id.slice(0, separatorIndex);
-              const nextItemId = editEvent.id.slice(separatorIndex + 1);
+              const separatorIndex = editEvent.id.indexOf(':')
+              const nextKind = editEvent.id.slice(0, separatorIndex)
+              const nextItemId = editEvent.id.slice(separatorIndex + 1)
               // 「显示本类全部标签」的预览引用：必须仍开着开关、同楼层、同安防子类。
               if (
                 editEvent.previewReference === true &&
@@ -2968,27 +2658,29 @@ export async function openSecurityEditor({
                   (editEvent.floorId && editEvent.floorId !== selectedFloorId) ||
                   editEvent.module !== nextKind)
               )
-                return;
+                return
               const previewCollectionKey =
-                  ({
-                    camera: "cameras",
-                    presence: "presenceSensors",
-                    lock: "locks",
-                    window: "windows",
-                  } as any)[nextKind] || "alarms",
-                previewTargetList = draftProperties.security?.[previewCollectionKey] || [];
+                  (
+                    {
+                      camera: 'cameras',
+                      presence: 'presenceSensors',
+                      lock: 'locks',
+                      window: 'windows',
+                    } as any
+                  )[nextKind] || 'alarms',
+                previewTargetList = draftProperties.security?.[previewCollectionKey] || []
               if (
                 editEvent.previewReference === true &&
                 !previewTargetList.some((previewTarget: any) => previewTarget.id === nextItemId)
               )
-                return;
-              ((securityKind = nextKind), (selectedItemId = nextItemId), renderPanel());
+                return
+              ;(securityKind = nextKind), (selectedItemId = nextItemId), renderPanel()
             }
           }
         },
         onLoadError: showError,
       })),
-      document.dispatchEvent(new Event("hb-i3d-preview-scope")));
+      document.dispatchEvent(new Event('hb-i3d-preview-scope')))
   }
   return (
     document.head.append(styleSheetLinkElement),
@@ -3002,5 +2694,5 @@ export async function openSecurityEditor({
     {
       close: closeEditor,
     }
-  );
+  )
 }

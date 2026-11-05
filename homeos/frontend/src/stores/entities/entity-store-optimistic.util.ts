@@ -38,7 +38,7 @@ import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '
 export function predictOptimistic(
   domain: string,
   service: string,
-  entityId: string,
+  _entityId: string,
   serviceData: Record<string, unknown> | null | undefined,
   current: HaEntityState | null | undefined,
 ): OptimisticPrediction | null {
@@ -61,8 +61,7 @@ export function predictOptimistic(
         state = 'on'
         // 百分比 → 0–255 的唯一口径（含上下夹取）；旧实现这里硬编码 ``* 2.55``，
         // 与 ``lightBrightnessFromPct`` 的 min=1 语义不一致，且 pct 越界会写出非法 brightness。
-        if (sd.brightness_pct != null)
-          attrs.brightness = lightBrightnessFromPct(Number(sd.brightness_pct))
+        if (sd.brightness_pct != null) attrs.brightness = lightBrightnessFromPct(Number(sd.brightness_pct))
         if (sd.brightness != null) attrs.brightness = sd.brightness
         if (sd.color_temp_kelvin != null) attrs.color_temp_kelvin = sd.color_temp_kelvin
         if (sd.color_temp != null) {
@@ -110,24 +109,20 @@ export function predictOptimistic(
     case 'water_heater':
       if (service === 'turn_off') state = 'off'
       else if (service === 'turn_on') state = 'on'
-      else if (service === 'set_temperature' && sd.temperature != null)
-        attrs.temperature = sd.temperature
-      else if (service === 'set_operation_mode' && sd.operation_mode)
-        state = String(sd.operation_mode)
+      else if (service === 'set_temperature' && sd.temperature != null) attrs.temperature = sd.temperature
+      else if (service === 'set_operation_mode' && sd.operation_mode) state = String(sd.operation_mode)
       else return null
       break
     case 'cover':
       if (service === 'close_cover') state = 'closed'
       else if (service === 'open_cover') state = 'open'
-      else if (service === 'set_cover_position' && sd.position != null)
-        attrs.current_position = sd.position
+      else if (service === 'set_cover_position' && sd.position != null) attrs.current_position = sd.position
       else return null
       break
     case 'valve':
       if (service === 'close_valve') state = 'closed'
       else if (service === 'open_valve') state = 'open'
-      else if (service === 'set_position' && sd.position != null)
-        attrs.current_position = sd.position
+      else if (service === 'set_position' && sd.position != null) attrs.current_position = sd.position
       else return null
       break
     case 'lock':
@@ -138,8 +133,7 @@ export function predictOptimistic(
     case 'media_player':
       if (service === 'media_play') state = 'playing'
       else if (service === 'media_pause') state = 'paused'
-      else if (service === 'media_stop' || service === 'turn_off')
-        state = service === 'turn_off' ? 'off' : 'idle'
+      else if (service === 'media_stop' || service === 'turn_off') state = service === 'turn_off' ? 'off' : 'idle'
       else if (service === 'volume_set' && sd.volume_level != null) {
         attrs.volume_level = sd.volume_level
       } else if (service === 'volume_mute' && sd.is_volume_muted != null) {
@@ -161,8 +155,7 @@ export function predictOptimistic(
         if (sd.temperature != null) attrs.temperature = sd.temperature
         if (sd.target_temp_low != null) attrs.target_temp_low = sd.target_temp_low
         if (sd.target_temp_high != null) attrs.target_temp_high = sd.target_temp_high
-        if (sd.temperature == null && sd.target_temp_low == null && sd.target_temp_high == null)
-          return null
+        if (sd.temperature == null && sd.target_temp_low == null && sd.target_temp_high == null) return null
       } else if (service === 'set_swing_mode' && sd.swing_mode) attrs.swing_mode = sd.swing_mode
       else if (service === 'set_preset_mode' && sd.preset_mode) attrs.preset_mode = sd.preset_mode
       else return null
@@ -362,16 +355,12 @@ export function createEntityOptimisticState({
       const optimisticSnapshot: HaEntityState = { ...toRaw(previousEntity) }
       if (e.backup) {
         entities[entityId] = e.backup
-        patchDerivedChanges([
-          { entity_id: entityId, oldEntity: optimisticSnapshot, newEntity: e.backup },
-        ])
+        patchDerivedChanges([{ entity_id: entityId, oldEntity: optimisticSnapshot, newEntity: e.backup }])
         patchProjectionsFromChanges([{ entity_id: entityId }], entities)
         emitStateListeners(entityId, e.backup, optimisticSnapshot)
       } else {
         delete entities[entityId]
-        patchDerivedChanges([
-          { entity_id: entityId, oldEntity: optimisticSnapshot, newEntity: null },
-        ])
+        patchDerivedChanges([{ entity_id: entityId, oldEntity: optimisticSnapshot, newEntity: null }])
         emitStateListeners(entityId, null, optimisticSnapshot)
       }
       bumpEntityStateRevision(entityId)

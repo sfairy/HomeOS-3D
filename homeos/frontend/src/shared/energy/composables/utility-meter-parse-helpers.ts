@@ -24,16 +24,10 @@ export interface UtilityMeterParsedItem {
 
 function makeUtilityMeterParser(opts: UtilityMeterParserOpts) {
   const { usageKeys, costKeys, labelKeys, formatUsage, formatCost } = opts
-  return function parseItem(
-    x: MeterRow,
-    amountKey?: string | null,
-    usageKey?: string | null,
-  ): UtilityMeterParsedItem {
+  return function parseItem(x: MeterRow, amountKey?: string | null, usageKey?: string | null): UtilityMeterParsedItem {
     const usage = parseFloat(
       String(
-        (usageKey && x[usageKey]) ??
-          usageKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined) ??
-          0,
+        (usageKey && x[usageKey]) ?? usageKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined) ?? 0,
       ),
     )
     const cost = parseFloat(
@@ -43,8 +37,7 @@ function makeUtilityMeterParser(opts: UtilityMeterParserOpts) {
           0,
       ),
     )
-    const label =
-      String(labelKeys.reduce<unknown>((accumulated, k) => accumulated || x[k], '') || '') || ''
+    const label = String(labelKeys.reduce<unknown>((accumulated, k) => accumulated || x[k], '') || '') || ''
     const usageRaw =
       (usageKey && x[usageKey]) ?? usageKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined)
     const costRaw =
@@ -119,11 +112,7 @@ export const parseGridYearItem = makeUtilityMeterParser({
   labelKeys: ['year', 'date'],
   ...rawFieldUsageCost,
 })
-export function parseWaterDayItem(
-  x: MeterRow,
-  amountKey: string = 'money',
-  usageKey: string = 'usage',
-) {
+export function parseWaterDayItem(x: MeterRow, amountKey: string = 'money', usageKey: string = 'usage') {
   return makeUtilityMeterParser({
     usageKeys: FLUID_USAGE_KEYS,
     costKeys: FLUID_COST_KEYS,

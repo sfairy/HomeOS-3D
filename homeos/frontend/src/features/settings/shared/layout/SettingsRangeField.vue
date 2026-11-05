@@ -84,10 +84,7 @@ import { ChevronUp, ChevronDown } from '@lucide/vue'
 import { sliderTrackStyle } from '@/shared/utils/ui/progress-bar.util'
 import { parseOptionalNumber } from '@/shared/utils/core/misc.util'
 
-import {
-  formatRangeDisplayValue,
-  snapToRangeStep,
-} from '@/shared/utils/settings/range-steps.util'
+import { formatRangeDisplayValue, snapToRangeStep } from '@/shared/utils/settings/range-steps.util'
 
 const props = defineProps({
   modelValue: { type: Number, default: 0 },
@@ -144,14 +141,10 @@ const rootClass = computed(() => [
 const showHead = computed(() => props.variant !== 'inline')
 
 const labelClass = computed(() =>
-  props.variant === 'plain'
-    ? 'settings-form-label settings-range-field__label-plain'
-    : 'settings-slider-block__label',
+  props.variant === 'plain' ? 'settings-form-label settings-range-field__label-plain' : 'settings-slider-block__label',
 )
 
-const valueAccentClass = computed(() =>
-  props.valueAccent === 'sky' ? 'settings-range-field__value--sky' : '',
-)
+const valueAccentClass = computed(() => (props.valueAccent === 'sky' ? 'settings-range-field__value--sky' : ''))
 
 function snapToStep(raw) {
   return snapToRangeStep(Number(raw), props.min, props.max, props.step)
@@ -207,13 +200,9 @@ function emitValue(raw, syncDraft = true) {
   }
 }
 
-const canStepUp = computed(
-  () => snapToStep(props.modelValue + props.step) > snapToStep(props.modelValue),
-)
+const canStepUp = computed(() => snapToStep(props.modelValue + props.step) > snapToStep(props.modelValue))
 
-const canStepDown = computed(
-  () => snapToStep(props.modelValue - props.step) < snapToStep(props.modelValue),
-)
+const canStepDown = computed(() => snapToStep(props.modelValue - props.step) < snapToStep(props.modelValue))
 
 function stepBy(direction) {
   emitValue(Number(props.modelValue) + props.step * direction)

@@ -7,11 +7,7 @@ import { useRoute } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
-import {
-  getEventLogConfig,
-  loadFrontendConfig,
-  onConfigChange,
-} from '@/shared/utils/config/frontend-config'
+import { getEventLogConfig, loadFrontendConfig, onConfigChange } from '@/shared/utils/config/frontend-config'
 import { formatCount, formatHourOption } from '@/shared/events/utils/events-display.util'
 import {
   createEventsViewMetaState,
@@ -32,8 +28,7 @@ function buildEventsViewApi(parts: {
   filters: ReturnType<typeof createEventsViewFilters>
   clearAllRecords: () => Promise<void>
 }) {
-  const { hours, entityFilter, domainFilter, page, meta, loaders, summaries, filters, clearAllRecords } =
-    parts
+  const { hours, entityFilter, domainFilter, page, meta, loaders, summaries, filters, clearAllRecords } = parts
   return {
     hours,
     entityFilter,

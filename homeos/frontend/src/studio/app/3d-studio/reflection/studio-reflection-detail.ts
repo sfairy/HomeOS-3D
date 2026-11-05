@@ -1,26 +1,20 @@
 function scheduleIdleWork(workCallback: any) {
-  if (typeof globalThis.requestIdleCallback === "function") {
+  if (typeof globalThis.requestIdleCallback === 'function') {
     const idleCallbackHandle = requestIdleCallback(workCallback, {
       timeout: 250,
-    });
-    return () => cancelIdleCallback(idleCallbackHandle);
+    })
+    return () => cancelIdleCallback(idleCallbackHandle)
   }
-  const timeoutId = setTimeout(workCallback, 0);
-  return () => clearTimeout(timeoutId);
+  const timeoutId = setTimeout(workCallback, 0)
+  return () => clearTimeout(timeoutId)
 }
 export function createReflectionDetail({
   THREE: three,
   requestFrame: requestFrame = () => {},
   makeWorker: makeWorker = () =>
-    new Worker(
-      new URL(
-        "./studio-reflection-detail-worker.js",
-        import.meta.url,
-      ),
-      {
-        type: "module",
-      },
-    ),
+    new Worker(new URL('./studio-reflection-detail-worker.js', import.meta.url), {
+      type: 'module',
+    }),
   scheduleWork: scheduleWork = scheduleIdleWork,
   maxBytes: maxBytes = 16 * 1024 * 1024,
   worldError: worldError = 0.02,
@@ -30,14 +24,14 @@ export function createReflectionDetail({
 }: any) {
   const recordsByGeometry = new Map(),
     prepareQueue: any = [],
-    scaleVector = new three.Vector3();
+    scaleVector = new three.Vector3()
   let worker: any,
     inFlightRecord: any = null,
     cancelScheduledWork: any = null,
     nextRecordId = 0,
     isDisposed = false,
     hasFailed = false,
-    hasNewDetail = false;
+    hasNewDetail = false
   const stats = {
       prepared: 0,
       pending: 0,
@@ -47,7 +41,7 @@ export function createReflectionDetail({
       bytes: 0,
     },
     buildGeometrySignature = (signatureGeometry: any) =>
-      [["index", signatureGeometry.index], ...Object.entries(signatureGeometry.attributes)].map(
+      [['index', signatureGeometry.index], ...Object.entries(signatureGeometry.attributes)].map(
         ([attributeKey, signatureAttribute]) => ({
           name: attributeKey,
           attribute: signatureAttribute,
@@ -60,19 +54,17 @@ export function createReflectionDetail({
       Object.keys(record.source.attributes).length + 1 === record.signature.length &&
       record.signature.every((signatureEntry: any) => {
         const liveAttribute =
-          signatureEntry.name === "index"
-            ? record.source.index
-            : record.source.attributes[signatureEntry.name];
+          signatureEntry.name === 'index' ? record.source.index : record.source.attributes[signatureEntry.name]
         return (
           liveAttribute === signatureEntry.attribute &&
           liveAttribute.version === signatureEntry.version &&
           liveAttribute.data?.version === signatureEntry.dataVersion &&
           liveAttribute.count === signatureEntry.count
-        );
+        )
       }),
     isReflectionSimplifiable = (mesh: any) => {
       const meshMaterial = mesh.material,
-        meshGeometry = mesh.geometry;
+        meshGeometry = mesh.geometry
       return (
         mesh.isMesh &&
         mesh.userData?.reflectionSimplifiable &&
@@ -91,90 +83,80 @@ export function createReflectionDetail({
         !mesh.customDistanceMaterial &&
         meshGeometry?.drawRange.start === 0 &&
         meshGeometry.drawRange.count === Infinity
-      );
+      )
     },
-    computeGeometryBytes = (measuredGeometry: {
-      attributes: Record<string, { array: { byteLength: number } }>;
-    }) =>
+    computeGeometryBytes = (measuredGeometry: { attributes: Record<string, { array: { byteLength: number } }> }) =>
       [
-        ...new Set(
-          Object.values(measuredGeometry.attributes).map(
-            (geometryAttribute) => geometryAttribute.array,
-          ),
-        ),
+        ...new Set(Object.values(measuredGeometry.attributes).map((geometryAttribute) => geometryAttribute.array)),
       ].reduce((byteSum, attributeArray) => byteSum + attributeArray.byteLength, 0),
     updatePendingCount = () => {
       stats.pending =
         prepareQueue.length +
-        (inFlightRecord && recordsByGeometry.get(inFlightRecord.source) === inFlightRecord ? 1 : 0);
-    };
+        (inFlightRecord && recordsByGeometry.get(inFlightRecord.source) === inFlightRecord ? 1 : 0)
+    }
   function releaseRecord(sourceGeometry: any) {
-    const releasedRecord = recordsByGeometry.get(sourceGeometry);
-    if (!releasedRecord) return;
-    (sourceGeometry.removeEventListener("dispose", releasedRecord.release),
-      recordsByGeometry.delete(sourceGeometry));
-    const queueIndex = prepareQueue.indexOf(releasedRecord);
-    (queueIndex !== -1 && prepareQueue.splice(queueIndex, 1),
+    const releasedRecord = recordsByGeometry.get(sourceGeometry)
+    if (!releasedRecord) return
+    sourceGeometry.removeEventListener('dispose', releasedRecord.release), recordsByGeometry.delete(sourceGeometry)
+    const queueIndex = prepareQueue.indexOf(releasedRecord)
+    queueIndex !== -1 && prepareQueue.splice(queueIndex, 1),
       releasedRecord.geometry &&
         (releasedRecord.geometry.dispose(),
         (stats.bytes -= releasedRecord.bytes),
         stats.prepared--,
         (stats.sourceTriangles -= releasedRecord.sourceTriangles),
         (stats.detailTriangles -= releasedRecord.detailTriangles)),
-      updatePendingCount());
+      updatePendingCount()
   }
   function handleWorkerError() {
-    ((hasFailed = true),
+    ;(hasFailed = true),
       (stats.failed += prepareQueue.length + (inFlightRecord ? 1 : 0)),
       (prepareQueue.length = 0),
       (inFlightRecord = null),
       updatePendingCount(),
       worker?.terminate(),
       (worker = null),
-      hasNewDetail && !isDisposed && ((hasNewDetail = false), requestFrame()));
+      hasNewDetail && !isDisposed && ((hasNewDetail = false), requestFrame())
   }
   function scheduleNextPrepare() {
-    if (
-      (updatePendingCount(), !(isDisposed || hasFailed || inFlightRecord || cancelScheduledWork))
-    ) {
+    if ((updatePendingCount(), !(isDisposed || hasFailed || inFlightRecord || cancelScheduledWork))) {
       if (!prepareQueue.length) {
-        hasNewDetail && ((hasNewDetail = false), requestFrame());
-        return;
+        hasNewDetail && ((hasNewDetail = false), requestFrame())
+        return
       }
       cancelScheduledWork = scheduleWork(() => {
-        ((cancelScheduledWork = null), processNextRecord());
-      });
+        ;(cancelScheduledWork = null), processNextRecord()
+      })
     }
   }
   function ensureWorker() {
     if (!(worker || hasFailed))
       try {
-        ((worker = makeWorker()),
+        ;(worker = makeWorker()),
           (worker.onerror = handleWorkerError),
           (worker.onmessage = ({ data: workerMessage }: any) => {
-            if (isDisposed || !inFlightRecord || workerMessage.id !== inFlightRecord.id) return;
-            const processingRecord = inFlightRecord;
-            ((inFlightRecord = null), updatePendingCount());
+            if (isDisposed || !inFlightRecord || workerMessage.id !== inFlightRecord.id) return
+            const processingRecord = inFlightRecord
+            ;(inFlightRecord = null), updatePendingCount()
             try {
-              if (recordsByGeometry.get(processingRecord.source) !== processingRecord) return;
+              if (recordsByGeometry.get(processingRecord.source) !== processingRecord) return
               if (!isSignatureCurrent(processingRecord)) {
-                releaseRecord(processingRecord.source);
-                return;
+                releaseRecord(processingRecord.source)
+                return
               }
               if (workerMessage.failed) {
-                stats.failed++;
-                return;
+                stats.failed++
+                return
               }
               if (
                 !workerMessage.indices?.length ||
                 workerMessage.indices.length >= processingRecord.source.index.count * 0.9
               )
-                return;
-              const totalBytes =
-                computeGeometryBytes(processingRecord.source) + workerMessage.indices.byteLength;
-              if (stats.bytes + totalBytes > maxBytes) return;
-              const simplifiedGeometry = processingRecord.source.clone();
-              (simplifiedGeometry.setIndex(new three.BufferAttribute(workerMessage.indices, 1)),
+                return
+              const totalBytes = computeGeometryBytes(processingRecord.source) + workerMessage.indices.byteLength
+              if (stats.bytes + totalBytes > maxBytes) return
+              const simplifiedGeometry = processingRecord.source.clone()
+              simplifiedGeometry.setIndex(new three.BufferAttribute(workerMessage.indices, 1)),
                 (processingRecord.geometry = simplifiedGeometry),
                 (processingRecord.bytes = totalBytes),
                 (stats.bytes += totalBytes),
@@ -183,78 +165,62 @@ export function createReflectionDetail({
                 (processingRecord.detailTriangles = workerMessage.indices.length / 3),
                 (stats.sourceTriangles += processingRecord.sourceTriangles),
                 (stats.detailTriangles += processingRecord.detailTriangles),
-                (hasNewDetail = true));
+                (hasNewDetail = true)
             } finally {
-              scheduleNextPrepare();
+              scheduleNextPrepare()
             }
-          }));
+          })
       } catch {
-        handleWorkerError();
+        handleWorkerError()
       }
   }
   function processNextRecord() {
-    if (isDisposed || hasFailed || inFlightRecord) return;
-    const queuedRecord = prepareQueue.shift();
+    if (isDisposed || hasFailed || inFlightRecord) return
+    const queuedRecord = prepareQueue.shift()
     if ((updatePendingCount(), !queuedRecord)) {
-      scheduleNextPrepare();
-      return;
+      scheduleNextPrepare()
+      return
     }
-    const recordGeometry = queuedRecord.source;
+    const recordGeometry = queuedRecord.source
     if (!isSignatureCurrent(queuedRecord)) {
-      (releaseRecord(recordGeometry), scheduleNextPrepare());
-      return;
+      releaseRecord(recordGeometry), scheduleNextPrepare()
+      return
     }
-    if (
-      stats.bytes + computeGeometryBytes(recordGeometry) + recordGeometry.index.count * 4 >
-      maxBytes
-    ) {
-      scheduleNextPrepare();
-      return;
+    if (stats.bytes + computeGeometryBytes(recordGeometry) + recordGeometry.index.count * 4 > maxBytes) {
+      scheduleNextPrepare()
+      return
     }
     if (((inFlightRecord = queuedRecord), updatePendingCount(), ensureWorker(), !!worker))
       try {
-        const packedAttributeNames = ["position", "normal", "color", "uv", "runtimeSurface"].filter(
+        const packedAttributeNames = ['position', 'normal', 'color', 'uv', 'runtimeSurface'].filter(
             (attributeName) => recordGeometry.attributes[attributeName],
           ),
           attributeCopies = Object.fromEntries(
             packedAttributeNames.map((packedAttributeName) => {
               const sourceAttribute = recordGeometry.attributes[packedAttributeName],
                 attributeCopy = new Float32Array(sourceAttribute.count * sourceAttribute.itemSize),
-                componentGetterNames = ["getX", "getY", "getZ", "getW"];
-              for (
-                let sourceVertexIndex = 0;
-                sourceVertexIndex < sourceAttribute.count;
-                sourceVertexIndex++
-              )
-                for (
-                  let componentIndex = 0;
-                  componentIndex < sourceAttribute.itemSize;
-                  componentIndex++
-                )
+                componentGetterNames = ['getX', 'getY', 'getZ', 'getW']
+              for (let sourceVertexIndex = 0; sourceVertexIndex < sourceAttribute.count; sourceVertexIndex++)
+                for (let componentIndex = 0; componentIndex < sourceAttribute.itemSize; componentIndex++)
                   attributeCopy[sourceVertexIndex * sourceAttribute.itemSize + componentIndex] =
-                    sourceAttribute[componentGetterNames[componentIndex]](sourceVertexIndex);
-              return [packedAttributeName, attributeCopy];
+                    sourceAttribute[componentGetterNames[componentIndex]](sourceVertexIndex)
+              return [packedAttributeName, attributeCopy]
             }),
           ),
           interleavedAttributeNames = packedAttributeNames.filter(
-            (remainingAttributeName) => remainingAttributeName !== "position",
+            (remainingAttributeName) => remainingAttributeName !== 'position',
           ),
           vertexStride = interleavedAttributeNames.reduce(
-            (strideSum, strideAttributeName) =>
-              strideSum + recordGeometry.attributes[strideAttributeName].itemSize,
+            (strideSum, strideAttributeName) => strideSum + recordGeometry.attributes[strideAttributeName].itemSize,
             0,
           ),
-          interleavedAttributes = new Float32Array(
-            recordGeometry.attributes.position.count * vertexStride,
-          ),
-          attributeWeights: any[] = [];
-        let attributeOffset = 0;
+          interleavedAttributes = new Float32Array(recordGeometry.attributes.position.count * vertexStride),
+          attributeWeights: any[] = []
+        let attributeOffset = 0
         for (const interleavedName of interleavedAttributeNames) {
-          const attributeItemSize = recordGeometry.attributes[interleavedName].itemSize;
+          const attributeItemSize = recordGeometry.attributes[interleavedName].itemSize
           for (let weightIndex = 0; weightIndex < attributeItemSize; weightIndex++)
-            attributeWeights.push(
-              interleavedName === "normal" ? 0.2 : interleavedName === "color" ? 1 : 2,
-            );
+            attributeWeights.push(interleavedName === 'normal' ? 0.2 : interleavedName === 'color' ? 1 : 2)
           for (
             let targetVertexIndex = 0;
             targetVertexIndex < recordGeometry.attributes.position.count;
@@ -266,11 +232,11 @@ export function createReflectionDetail({
                 (targetVertexIndex + 1) * attributeItemSize,
               ),
               targetVertexIndex * vertexStride + attributeOffset,
-            );
-          attributeOffset += attributeItemSize;
+            )
+          attributeOffset += attributeItemSize
         }
         const sourceIndices = new Uint32Array(recordGeometry.index.array),
-          sourcePositions = attributeCopies.position;
+          sourcePositions = attributeCopies.position
         worker.postMessage(
           {
             id: queuedRecord.id,
@@ -283,47 +249,46 @@ export function createReflectionDetail({
             ratio: targetRatio,
           },
           [sourceIndices.buffer, sourcePositions.buffer, interleavedAttributes.buffer],
-        );
+        )
       } catch {
-        (stats.failed++, (inFlightRecord = null), scheduleNextPrepare());
+        stats.failed++, (inFlightRecord = null), scheduleNextPrepare()
       }
   }
   function prepareRecords(sceneRoot: any) {
-    if (isDisposed || hasFailed) return;
-    const sceneGeometrySet = new Set();
+    if (isDisposed || hasFailed) return
+    const sceneGeometrySet = new Set()
     sceneRoot.traverse((existingMesh: any) => {
-      isReflectionSimplifiable(existingMesh) && sceneGeometrySet.add(existingMesh.geometry);
-    });
+      isReflectionSimplifiable(existingMesh) && sceneGeometrySet.add(existingMesh.geometry)
+    })
     for (const staleGeometry of recordsByGeometry.keys())
-      sceneGeometrySet.has(staleGeometry) || releaseRecord(staleGeometry);
-    (sceneRoot.traverse((traversedMesh: any) => {
-      const geometry = traversedMesh.geometry;
+      sceneGeometrySet.has(staleGeometry) || releaseRecord(staleGeometry)
+    sceneRoot.traverse((traversedMesh: any) => {
+      const geometry = traversedMesh.geometry
       if (
         !isReflectionSimplifiable(traversedMesh) ||
         !geometry.index ||
         !geometry.attributes.position ||
         geometry.index.count < 900
       )
-        return;
-      const existingRecord = recordsByGeometry.get(geometry);
-      existingRecord && !isSignatureCurrent(existingRecord) && releaseRecord(geometry);
-      const worldScaleVector = new three.Vector3();
-      traversedMesh.getWorldScale(worldScaleVector);
+        return
+      const existingRecord = recordsByGeometry.get(geometry)
+      existingRecord && !isSignatureCurrent(existingRecord) && releaseRecord(geometry)
+      const worldScaleVector = new three.Vector3()
+      traversedMesh.getWorldScale(worldScaleVector)
       const maxWorldScale = Math.max(
           Math.abs(worldScaleVector.x),
           Math.abs(worldScaleVector.y),
           Math.abs(worldScaleVector.z),
           0.001,
         ),
-        scaledErrorTolerance =
-          (traversedMesh.userData.runtimeDetail ? runtimeWorldError : worldError) / maxWorldScale;
+        scaledErrorTolerance = (traversedMesh.userData.runtimeDetail ? runtimeWorldError : worldError) / maxWorldScale
       if (
         (recordsByGeometry.has(geometry) &&
           recordsByGeometry.get(geometry).error > scaledErrorTolerance * 1.000001 &&
           releaseRecord(geometry),
         recordsByGeometry.has(geometry))
       )
-        return;
+        return
       const createdRecord = {
         id: ++nextRecordId,
         source: geometry,
@@ -333,39 +298,35 @@ export function createReflectionDetail({
         maxScale: maxWorldScale,
         error: scaledErrorTolerance,
         release: () => releaseRecord(geometry),
-      };
-      (geometry.addEventListener("dispose", createdRecord.release),
+      }
+      geometry.addEventListener('dispose', createdRecord.release),
         recordsByGeometry.set(geometry, createdRecord),
-        prepareQueue.push(createdRecord));
+        prepareQueue.push(createdRecord)
     }),
-      scheduleNextPrepare());
+      scheduleNextPrepare()
   }
   return {
     stats: stats,
     prepare: prepareRecords,
     get(queryMesh: any) {
-      if (!isReflectionSimplifiable(queryMesh)) return null;
-      const cachedRecord = recordsByGeometry.get(queryMesh.geometry);
-      if (!cachedRecord || !isSignatureCurrent(cachedRecord)) return null;
-      const meshScaleVector = scaleVector.setFromMatrixScale(queryMesh.matrixWorld);
-      return Math.max(
-        Math.abs(meshScaleVector.x),
-        Math.abs(meshScaleVector.y),
-        Math.abs(meshScaleVector.z),
-      ) *
+      if (!isReflectionSimplifiable(queryMesh)) return null
+      const cachedRecord = recordsByGeometry.get(queryMesh.geometry)
+      if (!cachedRecord || !isSignatureCurrent(cachedRecord)) return null
+      const meshScaleVector = scaleVector.setFromMatrixScale(queryMesh.matrixWorld)
+      return Math.max(Math.abs(meshScaleVector.x), Math.abs(meshScaleVector.y), Math.abs(meshScaleVector.z)) *
         cachedRecord.error <=
         (queryMesh.userData.runtimeDetail ? runtimeWorldError : worldError) * 1.000001
         ? cachedRecord.geometry
-        : null;
+        : null
     },
     dispose() {
-      ((isDisposed = true),
+      ;(isDisposed = true),
         cancelScheduledWork?.(),
         (cancelScheduledWork = null),
         worker?.terminate(),
-        (inFlightRecord = null));
-      for (const disposedGeometry of [...recordsByGeometry.keys()]) releaseRecord(disposedGeometry);
-      ((prepareQueue.length = 0), updatePendingCount());
+        (inFlightRecord = null)
+      for (const disposedGeometry of [...recordsByGeometry.keys()]) releaseRecord(disposedGeometry)
+      ;(prepareQueue.length = 0), updatePendingCount()
     },
-  };
+  }
 }

@@ -9,13 +9,13 @@
  *   造成长阻塞；被推迟的记录沿用上一帧纹理（相机没动，位姿一致，肉眼看不出）。
  */
 
-export interface CaptureSelection<T> {
+interface CaptureSelection<T> {
   /** 本帧要重捕的记录。 */
-  records: T[];
+  records: T[]
   /** 下一次轮转的起点，保证排在后面的记录不会长期饿死。 */
-  rotation: number;
+  rotation: number
   /** 本帧被推迟的记录数：>0 时收尾必须继续 requestFrame。 */
-  deferred: number;
+  deferred: number
 }
 
 /**
@@ -31,15 +31,15 @@ export function selectFrameCaptures<T>(
   { budget, rotation, cameraChanged }: { budget: number; rotation: number; cameraChanged: boolean },
 ): CaptureSelection<T> {
   if (cameraChanged || records.length <= Math.max(1, Math.floor(budget)))
-    return { records: [...records], rotation, deferred: 0 };
+    return { records: [...records], rotation, deferred: 0 }
   const end = Math.max(1, Math.floor(budget)),
     start = ((Math.floor(rotation) % records.length) + records.length) % records.length,
-    picked: T[] = [];
+    picked: T[] = []
   for (let pickedIndex = 0; pickedIndex < end; pickedIndex += 1)
-    picked.push(records[(start + pickedIndex) % records.length]);
+    picked.push(records[(start + pickedIndex) % records.length])
   return {
     records: picked,
     rotation: (start + end) % records.length,
     deferred: records.length - picked.length,
-  };
+  }
 }

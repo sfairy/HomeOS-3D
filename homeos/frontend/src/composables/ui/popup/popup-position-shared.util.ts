@@ -77,21 +77,14 @@ export function collectOverflowScrollParents(el: HTMLElement | null) {
   let node = el?.parentElement ?? null
   while (node) {
     const style = getComputedStyle(node)
-    if (/auto|scroll|overlay/.test(style.overflowY) || /auto|scroll|overlay/.test(style.overflowX))
-      parents.push(node)
+    if (/auto|scroll|overlay/.test(style.overflowY) || /auto|scroll|overlay/.test(style.overflowX)) parents.push(node)
     node = node.parentElement
   }
   return parents
 }
 
 /** 弹窗数值入参的联合类型（支持数字 / 字符串 / ref / computed / 函数 / { value }） */
-export type PopupNumericInput =
-  | number
-  | string
-  | null
-  | undefined
-  | (() => unknown)
-  | { value: unknown }
+export type PopupNumericInput = number | string | null | undefined | (() => unknown) | { value: unknown }
 
 /** 将各种类型的值统一解析为数字（ref / computed / function / 纯数字） */
 export function resolvePopupNumeric(v: PopupNumericInput, fallback = 50) {

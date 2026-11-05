@@ -10,9 +10,9 @@
 
 /** 框料深度：按墙厚收口，`wallThickness` 缺省时沿用旧的 60mm。 */
 export function openingFrameDepth(wallThickness?: number) {
-  const thickness = Number(wallThickness);
-  if (!Number.isFinite(thickness) || thickness <= 0) return 0.06;
-  return Math.max(0.06, Math.min(thickness - 0.01, 0.2));
+  const thickness = Number(wallThickness)
+  if (!Number.isFinite(thickness) || thickness <= 0) return 0.06
+  return Math.max(0.06, Math.min(thickness - 0.01, 0.2))
 }
 
 export function windowGeometryParts(
@@ -22,7 +22,7 @@ export function windowGeometryParts(
   hasMullions = true,
   wallThickness?: number,
 ) {
-  if (![width, height, sillHeight].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  if (![width, height, sillHeight].every(Number.isFinite) || width <= 0 || height <= 0) return null
   const frameThickness = Math.min(0.045, width / 4, height / 4),
     frameDepth = openingFrameDepth(wallThickness),
     centerY = sillHeight + height / 2,
@@ -30,17 +30,10 @@ export function windowGeometryParts(
     frameParts = [
       [width, frameThickness, frameDepth, 0, sillHeight + frameThickness / 2, 0],
       [width, frameThickness, frameDepth, 0, sillHeight + height - frameThickness / 2, 0],
-      [
-        frameThickness,
-        height - 2 * frameThickness,
-        frameDepth,
-        -(width - frameThickness) / 2,
-        centerY,
-        0,
-      ],
+      [frameThickness, height - 2 * frameThickness, frameDepth, -(width - frameThickness) / 2, centerY, 0],
       [frameThickness, height - 2 * frameThickness, frameDepth, (width - frameThickness) / 2, centerY, 0],
     ],
-    isDivided = hasMullions && width > 1.2;
+    isDivided = hasMullions && width > 1.2
   return (
     isDivided &&
       frameParts.push([
@@ -57,5 +50,5 @@ export function windowGeometryParts(
       divided: isDivided,
       frameDepth,
     }
-  );
+  )
 }

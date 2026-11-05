@@ -54,10 +54,7 @@ type EmbedNavTabLayoutFields = {
 /**
  * 删除指定 Tab id 在顺序 / 可见性 / 放置中的引用。
  */
-function removeNavTabRefs(
-  layout: EmbedNavTabLayoutFields,
-  tabIds: Iterable<string>,
-): void {
+function removeNavTabRefs(layout: EmbedNavTabLayoutFields, tabIds: Iterable<string>): void {
   const drop = new Set([...tabIds].filter(Boolean))
   if (!drop.size) return
   if (Array.isArray(layout.navTabOrder)) {
@@ -75,10 +72,7 @@ function removeNavTabRefs(
  * @param layout 布局配置
  * @param embedId 被删除的内嵌页 id
  */
-export function pruneNavTabsForRemovedEmbed(
-  layout: EmbedNavTabLayoutFields,
-  embedId: string,
-): void {
+export function pruneNavTabsForRemovedEmbed(layout: EmbedNavTabLayoutFields, embedId: string): void {
   const id = String(embedId || '').trim()
   if (!id) return
   removeNavTabRefs(layout, [embedNavTabId(id)])
@@ -195,14 +189,8 @@ export function setNavTabPlacement(
  * @param extraIds 额外 Tab id（当前有效的内嵌 Tab 等）
  * @returns 去重后的有序 Tab id 列表
  */
-export function resolveOrderedNavTabIds(
-  navTabOrder: string[] | null | undefined,
-  extraIds: string[] = [],
-): string[] {
-  const base =
-    Array.isArray(navTabOrder) && navTabOrder.length
-      ? [...navTabOrder]
-      : [...NAV_TAB_ORDER_DEFAULT]
+export function resolveOrderedNavTabIds(navTabOrder: string[] | null | undefined, extraIds: string[] = []): string[] {
+  const base = Array.isArray(navTabOrder) && navTabOrder.length ? [...navTabOrder] : [...NAV_TAB_ORDER_DEFAULT]
   const knownBuiltIns = new Set<string>([...NAV_TAB_ORDER_DEFAULT, ...NAV_OPTIONAL_TAB_IDS])
   const knownExtra = new Set(extraIds.filter(Boolean))
 

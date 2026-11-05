@@ -22,7 +22,7 @@ const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.3/hls.min.js'
  * 上游是 `window.Hls || video.canPlayType(mime)` 先行短路，这里把这一步单独导出，
  * 让 `camera-media` 直接把流地址交给 `<video src>`，失败文案才统一成播放器加载失败。
  */
-export const HLS_NATIVE_MIME = 'application/vnd.apple.mpegurl'
+const HLS_NATIVE_MIME = 'application/vnd.apple.mpegurl'
 
 /** 当前浏览器是否原生支持 HLS（`''` / `'maybe'` / `'probably'`，空串表示不支持）。 */
 export function canPlayNativeHls(videoElement?: HTMLVideoElement | null): boolean {
@@ -113,9 +113,7 @@ export function ensureHls(): Promise<HlsCtor | null> {
   if (runtime) return Promise.resolve(runtime)
   if (loadPromise) return loadPromise
   const existingScript = document.querySelector<HTMLScriptElement>(HLS_SCRIPT_SELECTOR)
-  const scriptPromise = existingScript
-    ? waitForExistingScript(existingScript)
-    : injectHlsScript()
+  const scriptPromise = existingScript ? waitForExistingScript(existingScript) : injectHlsScript()
   loadPromise = scriptPromise.then((hlsRuntime) => {
     if (!hlsRuntime) loadPromise = null
     return hlsRuntime
@@ -124,7 +122,7 @@ export function ensureHls(): Promise<HlsCtor | null> {
 }
 
 /** hls.js 致命错误负载里判定「地址是否失效」需要的那几个字段（外部脚本给的是 any）。 */
-export type HlsErrorPayload = {
+type HlsErrorPayload = {
   type?: string
   details?: string
   response?: { code?: number }

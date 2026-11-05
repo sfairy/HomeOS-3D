@@ -11,16 +11,7 @@
   减少首屏请求；横屏 ≥1280px 桌面断点启用；地震/设置锁/儿童模式优先级高于普通浮层。
 -->
 <script setup>
-import {
-  computed,
-  defineAsyncComponent,
-  watch,
-  onMounted,
-  onUnmounted,
-  ref,
-  provide,
-  nextTick,
-} from 'vue'
+import { computed, defineAsyncComponent, watch, onMounted, onUnmounted, ref, provide, nextTick } from 'vue'
 import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
@@ -33,26 +24,14 @@ import AgentChatPalette from '@/components/widgets/agent/AgentChatPalette.vue'
 import AgentCompanion from '@/components/shell/AgentCompanion.vue'
 /** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求（媒体全屏已挂 App 根） */
 const loadShellOverlays = () => import('@/layouts/shell-overlays')
-const DoorbellAlertModal = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.DoorbellAlertModal),
-)
-const EarthquakeSetupWizard = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.EarthquakeSetupWizard),
-)
-const SetupChecklistBanner = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.SetupChecklistBanner),
-)
-const ColdEntityPerfBanner = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.ColdEntityPerfBanner),
-)
-const SettingsLockModal = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.SettingsLockModal),
-)
+const DoorbellAlertModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.DoorbellAlertModal))
+const EarthquakeSetupWizard = defineAsyncComponent(() => loadShellOverlays().then((m) => m.EarthquakeSetupWizard))
+const SetupChecklistBanner = defineAsyncComponent(() => loadShellOverlays().then((m) => m.SetupChecklistBanner))
+const ColdEntityPerfBanner = defineAsyncComponent(() => loadShellOverlays().then((m) => m.ColdEntityPerfBanner))
+const SettingsLockModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.SettingsLockModal))
 import { HomeModeSwitcher } from '@/features/home-mode'
 import HaStatusDegradeBanner from '@/components/common/HaStatusDegradeBanner.vue'
-const NotificationDrawer = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.NotificationDrawer),
-)
+const NotificationDrawer = defineAsyncComponent(() => loadShellOverlays().then((m) => m.NotificationDrawer))
 import { useMainLayoutChrome } from '@/composables/ui/shell/useMainLayoutChrome'
 import { useDailyAdvisorGreeting } from '@/composables/voice/useDailyAdvisorGreeting'
 import { useEntityWsSubscriptionSync } from '@/composables/entity/useEntityWsSubscriptionSync'
@@ -60,10 +39,7 @@ import { useEarthquakeBootstrap } from '@/features/earthquake'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import { setDerivedRoutePath } from '@/shared/entity/utils/derived-route.util'
 import { resolvePerfShellClass } from '@/shared/utils/perf/adaptive-perf.util'
-import {
-  autoPerformanceModeRef,
-  resolveEffectivePerformanceMode,
-} from '@/shared/utils/perf/runtime-perf-mode.util'
+import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/shared/utils/perf/runtime-perf-mode.util'
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import { useViewportTier } from '@/shared/utils/layout/viewport-tier.util'
@@ -85,9 +61,7 @@ const DashboardFooter = defineAsyncComponent(() => import('@/components/dashboar
 // 设备分组批量弹窗：右栏 quickActions 点击设备组时打开，
 // 状态源在 chrome store（isGroupModalOpen / groupModalDomain / groupModalSensors）。
 // 与其它壳层浮层合并进 shell-overlays chunk，避免额外小请求。
-const DeviceGroupModal = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.DeviceGroupModal),
-)
+const DeviceGroupModal = defineAsyncComponent(() => loadShellOverlays().then((m) => m.DeviceGroupModal))
 
 const {
   route,
@@ -130,9 +104,7 @@ const notificationCenterState = useNotificationCenter()
 provide(NOTIFICATION_CENTER_KEY, notificationCenterState)
 
 /** 壳层入口：未授权模块收起入口（后端仍是权威 403）。明细未加载时 fail-closed，避免闪现。 */
-const showAgentChrome = computed(
-  () => authStore.isAuthenticated && isLicenseFeatureGranted('module.agent'),
-)
+const showAgentChrome = computed(() => authStore.isAuthenticated && isLicenseFeatureGranted('module.agent'))
 const showHomeModeChrome = computed(() => isLicenseFeatureGranted('module.home_mode'))
 const showNotificationChrome = computed(
   () => authStore.isAuthenticated && isLicenseFeatureGranted('module.notifications'),
@@ -178,9 +150,7 @@ function toggleAgentChat() {
  * 主布局自身浮层（智能管家面板 / 通知抽屉 / “更多”菜单）是否有任一层在场上。
  * 任一在场上时主布局才参与 Esc 层级栈，否则不占层。
  */
-const mainLayoutEscLayerOpen = computed(
-  () => showAgentChat.value || showNotificationDrawer.value || navMoreOpen.value,
-)
+const mainLayoutEscLayerOpen = computed(() => showAgentChat.value || showNotificationDrawer.value || navMoreOpen.value)
 
 /**
  * 主布局浮层的 Esc 处理：只关自己这三层里最上面那一个。
@@ -206,8 +176,7 @@ const navMoreAnchorRef = ref(null)
 const navMoreMenuRef = ref(null)
 // “更多”菜单的定位样式：未打开时隐藏（visibility:hidden），避免空白占用导致布局抖动
 const navMoreMenuStyle = ref({ visibility: 'hidden' })
-const { teleportTarget: navMoreTeleportTo, shellTeleportPending, refreshShellTeleport } =
-  useShellTeleportTarget()
+const { teleportTarget: navMoreTeleportTo, shellTeleportPending, refreshShellTeleport } = useShellTeleportTarget()
 // “更多”下拉菜单的宽度上下限：项目估算高度 44px/行 + 16px padding
 const NAV_MORE_MIN_WIDTH = 120
 const NAV_MORE_MAX_WIDTH = 280
@@ -418,16 +387,16 @@ useViewportTier()
 
 // 每日顾问问候：必须等 isConfigLoaded，否则读到的是前端默认值（dailyAdvisorSpeak=false 永不触发）。
 const { maybeGreet: maybeDailyGreet } = useDailyAdvisorGreeting()
-watch(() => layoutStore.isConfigLoaded, (loaded) => loaded && maybeDailyGreet(), { immediate: true })
+watch(
+  () => layoutStore.isConfigLoaded,
+  (loaded) => loaded && maybeDailyGreet(),
+  { immediate: true },
+)
 
 // 玻璃拟态开关随配置变化：性能模式降级时强制关闭毛玻璃，避免低端设备掉帧。
 // 自动降档（设备能力 / 帧率回落）只在运行时生效，这里同样要跟着它走。
 watch(
-  () => [
-    layoutStore.layoutConfig.glassEffect,
-    layoutStore.layoutConfig.performanceMode,
-    autoPerformanceModeRef.value,
-  ],
+  () => [layoutStore.layoutConfig.glassEffect, layoutStore.layoutConfig.performanceMode, autoPerformanceModeRef.value],
   () =>
     applyGlassEffectDocument(
       layoutStore.layoutConfig.glassEffect,

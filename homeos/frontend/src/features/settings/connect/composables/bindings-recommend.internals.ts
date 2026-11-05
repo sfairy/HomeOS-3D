@@ -108,11 +108,7 @@ export function useBindingsRecommend(serverGaps: () => BindingGapItem[]) {
     if (!entityId || !kind) return false
     const hc = layoutStore.layoutConfig.haConfig
     const key =
-      kind === 'smoke'
-        ? 'hazardSmokeEntityIds'
-        : kind === 'gas'
-          ? 'hazardGasEntityIds'
-          : 'hazardLeakEntityIds'
+      kind === 'smoke' ? 'hazardSmokeEntityIds' : kind === 'gas' ? 'hazardGasEntityIds' : 'hazardLeakEntityIds'
     if (!Array.isArray(hc[key])) hc[key] = []
     if (hc[key].includes(entityId)) return false
     hc[key].push(entityId)

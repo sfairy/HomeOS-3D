@@ -10,23 +10,23 @@
  */
 
 type EffectCacheStats = {
-  captures: number;
-  replays: number;
-  fullFrames: number;
-  failures: number;
-  bytes: number;
-};
+  captures: number
+  replays: number
+  fullFrames: number
+  failures: number
+  bytes: number
+}
 
 type EffectCacheOptions = {
-  THREE: any;
-  renderer: any;
+  THREE: any
+  renderer: any
   /** 读取当前时间（毫秒）；测试可注入。 */
-  now?: () => number;
+  now?: () => number
   /** 缓存帧允许占用的显存上限，默认 32 MiB。 */
-  maxBytes?: number;
-};
+  maxBytes?: number
+}
 
-const CACHE_SETTLE_MS = 200;
+const CACHE_SETTLE_MS = 200
 
 export function createEffectCache({
   THREE: three,
@@ -38,11 +38,8 @@ export function createEffectCache({
     backgroundScene = new three.Scene(),
     fullscreenCamera = new three.Camera(),
     drawingBufferSize = new three.Vector2(),
-    fullscreenGeometry = new three.BufferGeometry();
-  fullscreenGeometry.setAttribute(
-    "position",
-    new three.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3),
-  );
+    fullscreenGeometry = new three.BufferGeometry()
+  fullscreenGeometry.setAttribute('position', new three.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3))
   const fullscreenMaterial = new three.ShaderMaterial({
     depthTest: true,
     depthFunc: three.AlwaysDepth,
@@ -54,12 +51,12 @@ export function createEffectCache({
       depthMap: { value: null },
       cacheSize: { value: new three.Vector2(1, 1) },
     },
-    vertexShader: "void main(){gl_Position=vec4(position,1.);}",
+    vertexShader: 'void main(){gl_Position=vec4(position,1.);}',
     fragmentShader:
-      "uniform sampler2D colorMap; uniform sampler2D depthMap; uniform vec2 cacheSize; void main(){vec2 cacheUv=gl_FragCoord.xy/cacheSize;gl_FragColor=texture2D(colorMap,cacheUv);gl_FragDepth=texture2D(depthMap,cacheUv).r;}",
-  });
-  const fullscreenMesh = new three.Mesh(fullscreenGeometry, fullscreenMaterial);
-  ((fullscreenMesh.frustumCulled = false), fullscreenScene.add(fullscreenMesh));
+      'uniform sampler2D colorMap; uniform sampler2D depthMap; uniform vec2 cacheSize; void main(){vec2 cacheUv=gl_FragCoord.xy/cacheSize;gl_FragColor=texture2D(colorMap,cacheUv);gl_FragDepth=texture2D(depthMap,cacheUv).r;}',
+  })
+  const fullscreenMesh = new three.Mesh(fullscreenGeometry, fullscreenMaterial)
+  ;(fullscreenMesh.frustumCulled = false), fullscreenScene.add(fullscreenMesh)
 
   let renderTarget: any = null,
     lastBackground: any = null,
@@ -70,10 +67,10 @@ export function createEffectCache({
     isDisposed = false,
     isScreenPass = false,
     cacheChangeCounter = 0,
-    lastInvalidateTimestampMs = -Infinity;
+    lastInvalidateTimestampMs = -Infinity
 
-  const dynamicObjectsByScene = new Map<any, Set<any>>();
-  let dynamicObjectSet = new Set<any>();
+  const dynamicObjectsByScene = new Map<any, Set<any>>()
+  let dynamicObjectSet = new Set<any>()
 
   const stats: EffectCacheStats = {
     captures: 0,
@@ -81,66 +78,58 @@ export function createEffectCache({
     fullFrames: 0,
     failures: 0,
     bytes: 0,
-  };
+  }
 
   function invalidate() {
-    ((isCacheValid = false),
-      cacheChangeCounter++,
-      (lastInvalidateTimestampMs = readNowMs()));
+    ;(isCacheValid = false), cacheChangeCounter++, (lastInvalidateTimestampMs = readNowMs())
   }
 
   /** 同步某一场景的动态对象集合；变了就整体失效一次缓存。 */
   function setDynamicObjects(sceneKey: any, objects: any[] = []) {
-    if (isDisposed) return false;
+    if (isDisposed) return false
     const nextSet = new Set(objects.filter((object) => object?.isObject3D)),
-      currentSet = dynamicObjectsByScene.get(sceneKey) || new Set<any>();
-    if (
-      nextSet.size === currentSet.size &&
-      [...nextSet].every((object) => currentSet.has(object))
-    )
-      return false;
-    (nextSet.size
-      ? dynamicObjectsByScene.set(sceneKey, nextSet)
-      : dynamicObjectsByScene.delete(sceneKey),
+      currentSet = dynamicObjectsByScene.get(sceneKey) || new Set<any>()
+    if (nextSet.size === currentSet.size && [...nextSet].every((object) => currentSet.has(object))) return false
+    nextSet.size ? dynamicObjectsByScene.set(sceneKey, nextSet) : dynamicObjectsByScene.delete(sceneKey),
       (dynamicObjectSet = new Set([...dynamicObjectsByScene.values()].flatMap((set) => [...set]))),
-      invalidate());
-    return true;
+      invalidate()
+    return true
   }
 
   function isDynamicObject(object: any) {
-    for (let node = object; node; node = node.parent) if (dynamicObjectSet.has(node)) return true;
-    return false;
+    for (let node = object; node; node = node.parent) if (dynamicObjectSet.has(node)) return true
+    return false
   }
 
   function clear() {
-    (invalidate(),
+    invalidate(),
       renderTarget?.dispose?.(),
       (renderTarget = null),
       (lastBackground = null),
       (backgroundClone = null),
       (stats.bytes = 0),
       (fullscreenMaterial.uniforms.colorMap.value = null),
-      (fullscreenMaterial.uniforms.depthMap.value = null));
+      (fullscreenMaterial.uniforms.depthMap.value = null)
   }
 
   function ensureRenderTarget() {
-    webglRenderer.getDrawingBufferSize(drawingBufferSize);
+    webglRenderer.getDrawingBufferSize(drawingBufferSize)
     const sampleCount = Math.min(4, webglRenderer.capabilities.maxSamples || 0),
-      requiredBytes = drawingBufferSize.x * drawingBufferSize.y * 8 * (sampleCount + 1);
+      requiredBytes = drawingBufferSize.x * drawingBufferSize.y * 8 * (sampleCount + 1)
     if (
       !Number.isFinite(requiredBytes) ||
       requiredBytes > maxBytes ||
       drawingBufferSize.x < 1 ||
       drawingBufferSize.y < 1
     )
-      return (clear(), false);
+      return (clear(), false)
     if (
       renderTarget?.width === drawingBufferSize.x &&
       renderTarget?.height === drawingBufferSize.y &&
       renderTarget.texture.colorSpace === webglRenderer.outputColorSpace
     )
-      return true;
-    (clear(),
+      return true
+    clear(),
       (renderTarget = new three.WebGLRenderTarget(drawingBufferSize.x, drawingBufferSize.y, {
         samples: sampleCount,
         // 与画布的 antialias 保持一致：画布开了 MSAA 而缓存没开，回放边缘会明显发硬。
@@ -148,34 +137,28 @@ export function createEffectCache({
         depthBuffer: true,
         stencilBuffer: false,
         colorSpace: webglRenderer.outputColorSpace,
-        depthTexture: new three.DepthTexture(
-          drawingBufferSize.x,
-          drawingBufferSize.y,
-          three.UnsignedIntType,
-        ),
+        depthTexture: new three.DepthTexture(drawingBufferSize.x, drawingBufferSize.y, three.UnsignedIntType),
       })),
       (renderTarget.texture.needsUpdate = true),
-      (renderTarget.texture.internalFormat = "RGBA8"),
+      (renderTarget.texture.internalFormat = 'RGBA8'),
       webglRenderer.initRenderTarget(renderTarget),
-      (stats.bytes = requiredBytes));
-    const glContext = webglRenderer.getContext?.();
+      (stats.bytes = requiredBytes)
+    const glContext = webglRenderer.getContext?.()
     if (glContext) {
-      let isFramebufferComplete = false;
+      let isFramebufferComplete = false
       try {
-        (webglRenderer.setRenderTarget(renderTarget),
+        webglRenderer.setRenderTarget(renderTarget),
           (isFramebufferComplete =
-            glContext.checkFramebufferStatus(glContext.FRAMEBUFFER) ===
-            glContext.FRAMEBUFFER_COMPLETE));
+            glContext.checkFramebufferStatus(glContext.FRAMEBUFFER) === glContext.FRAMEBUFFER_COMPLETE)
       } finally {
-        webglRenderer.setRenderTarget(null);
+        webglRenderer.setRenderTarget(null)
       }
-      if (!isFramebufferComplete)
-        throw new Error("Effect cache framebuffer unavailable");
+      if (!isFramebufferComplete) throw new Error('Effect cache framebuffer unavailable')
     }
-    ((fullscreenMaterial.uniforms.colorMap.value = renderTarget.texture),
+    ;(fullscreenMaterial.uniforms.colorMap.value = renderTarget.texture),
       (fullscreenMaterial.uniforms.depthMap.value = renderTarget.depthTexture),
-      webglRenderer.compile(fullscreenScene, fullscreenCamera));
-    return true;
+      webglRenderer.compile(fullscreenScene, fullscreenCamera)
+    return true
   }
 
   function matchesCameraKey(previousKey: number[] | null, nextKey: number[]) {
@@ -190,7 +173,7 @@ export function createEffectCache({
             Math.abs(value - previousKey[index]) <=
               16 * Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(previousKey[index]))),
       )
-    );
+    )
   }
 
   function saveRendererState() {
@@ -200,24 +183,24 @@ export function createEffectCache({
       autoClear = webglRenderer.autoClear,
       shadowAutoUpdate = webglRenderer.shadowMap.autoUpdate,
       shadowNeedsUpdate = webglRenderer.shadowMap.needsUpdate,
-      clearAlpha = webglRenderer.getClearAlpha();
+      clearAlpha = webglRenderer.getClearAlpha()
     return {
       viewport,
       scissor,
       scissorTest,
       clearAlpha,
       restore() {
-        ((webglRenderer.setClearAlpha?.(clearAlpha),
+        webglRenderer.setClearAlpha?.(clearAlpha),
           webglRenderer.setRenderTarget(null),
           webglRenderer.setViewport(viewport),
           webglRenderer.setScissor(scissor),
           webglRenderer.setScissorTest(scissorTest),
           (webglRenderer.autoClear = autoClear),
           (webglRenderer.shadowMap.autoUpdate = shadowAutoUpdate),
-          (webglRenderer.shadowMap.needsUpdate = shadowNeedsUpdate)),
-          (isScreenPass = false));
+          (webglRenderer.shadowMap.needsUpdate = shadowNeedsUpdate),
+          (isScreenPass = false)
       },
-    };
+    }
   }
 
   function render(
@@ -225,10 +208,10 @@ export function createEffectCache({
     camera: any,
     { enabled = false, background = null }: { enabled?: boolean; background?: any } = {},
   ) {
-    if (!background?.visible || !background.material?.visible) background = null;
+    if (!background?.visible || !background.material?.visible) background = null
     const renderFullFrame = () => {
-      (stats.fullFrames++, webglRenderer.render(scene, camera));
-    };
+      stats.fullFrames++, webglRenderer.render(scene, camera)
+    }
     if (
       isDisposed ||
       hasCaptureFailed ||
@@ -236,11 +219,11 @@ export function createEffectCache({
       webglRenderer.getRenderTarget() ||
       (!isCacheValid && readNowMs() - lastInvalidateTimestampMs < CACHE_SETTLE_MS)
     ) {
-      renderFullFrame();
-      return;
+      renderFullFrame()
+      return
     }
 
-    camera.updateWorldMatrix(true, false);
+    camera.updateWorldMatrix(true, false)
     const cameraKey = [
       ...camera.matrixWorld.elements,
       ...camera.projectionMatrix.elements,
@@ -249,24 +232,20 @@ export function createEffectCache({
       webglRenderer.outputColorSpace,
       camera.layers.mask,
       background?.layers?.mask,
-      background?.uuid || "",
+      background?.uuid || '',
       ...webglRenderer.getViewport(new three.Vector4()).toArray(),
-    ] as number[];
-    if (!matchesCameraKey(previousCameraKey, cameraKey)) isCacheValid = false;
+    ] as number[]
+    if (!matchesCameraKey(previousCameraKey, cameraKey)) isCacheValid = false
 
     const opaqueEntries: [any, number][] = [],
-      effectEntries: [any, number][] = [];
-    let hasTransmissiveMaterial = false;
+      effectEntries: [any, number][] = []
+    let hasTransmissiveMaterial = false
     scene.traverseVisible((visibleNode: any) => {
-      if (visibleNode === background || !visibleNode.material) return;
-      if (!visibleNode.layers.test(camera.layers)) return;
-      const materials = Array.isArray(visibleNode.material)
-        ? visibleNode.material
-        : [visibleNode.material];
-      hasTransmissiveMaterial ||= materials.some(
-        (material: any) => material.transmission > 0,
-      );
-      (isDynamicObject(visibleNode) ||
+      if (visibleNode === background || !visibleNode.material) return
+      if (!visibleNode.layers.test(camera.layers)) return
+      const materials = Array.isArray(visibleNode.material) ? visibleNode.material : [visibleNode.material]
+      hasTransmissiveMaterial ||= materials.some((material: any) => material.transmission > 0)
+      ;(isDynamicObject(visibleNode) ||
       visibleNode.userData.environmentEffect ||
       // transparent 才是「必须逐帧重绘」的判据：transmission 材质可能完全不透明。
       materials.some((material: any) => material.transparent) ||
@@ -274,72 +253,69 @@ export function createEffectCache({
       visibleNode.isSkinnedMesh
         ? effectEntries
         : opaqueEntries
-      ).push([visibleNode, visibleNode.layers.mask]);
-    });
+      ).push([visibleNode, visibleNode.layers.mask])
+    })
     if (!hasTransmissiveMaterial || !opaqueEntries.length || (!effectEntries.length && !background)) {
-      (clear(), renderFullFrame());
-      return;
+      clear(), renderFullFrame()
+      return
     }
 
     const rendererState = saveRendererState(),
       previousOnBeforeRender = scene.onBeforeRender,
       previousBackground = scene.background,
-      previousBackgroundLayerMask = background?.layers.mask;
-    let capturedInfo: any = null;
+      previousBackgroundLayerMask = background?.layers.mask
+    let capturedInfo: any = null
     try {
       if (!ensureRenderTarget()) {
-        renderFullFrame();
-        return;
+        renderFullFrame()
+        return
       }
       if (!isCacheValid) {
-        const captureChangeCounter = cacheChangeCounter;
+        const captureChangeCounter = cacheChangeCounter
         scene.onBeforeRender = function (...args: any[]) {
-          (previousOnBeforeRender?.apply(this, args),
+          previousOnBeforeRender?.apply(this, args),
             webglRenderer.getRenderTarget() === renderTarget &&
               args[2] === camera &&
               (effectEntries.forEach(([effectNode]) => (effectNode.layers.mask = 0)),
               (webglRenderer.shadowMap.autoUpdate = false),
               (webglRenderer.shadowMap.needsUpdate = false),
-              background &&
-                ((background.layers.mask = 0),
-                (scene.background = null),
-                webglRenderer.setClearAlpha(0))));
-        };
-        isScreenPass = true;
-        webglRenderer.setRenderTarget(renderTarget);
-        webglRenderer.render(scene, camera);
-        isScreenPass = false;
-        scene.onBeforeRender = previousOnBeforeRender;
-        capturedInfo = { ...webglRenderer.info.render };
-        if (background) {
-          ((background.layers.mask = previousBackgroundLayerMask),
-            (scene.background = previousBackground),
-            webglRenderer.setClearAlpha(rendererState.clearAlpha));
+              background && ((background.layers.mask = 0), (scene.background = null), webglRenderer.setClearAlpha(0)))
         }
-        effectEntries.forEach(([effectNode, layerMask]) => (effectNode.layers.mask = layerMask));
-        (webglRenderer.setRenderTarget(null),
+        isScreenPass = true
+        webglRenderer.setRenderTarget(renderTarget)
+        webglRenderer.render(scene, camera)
+        isScreenPass = false
+        scene.onBeforeRender = previousOnBeforeRender
+        capturedInfo = { ...webglRenderer.info.render }
+        if (background) {
+          ;(background.layers.mask = previousBackgroundLayerMask),
+            (scene.background = previousBackground),
+            webglRenderer.setClearAlpha(rendererState.clearAlpha)
+        }
+        effectEntries.forEach(([effectNode, layerMask]) => (effectNode.layers.mask = layerMask))
+        webglRenderer.setRenderTarget(null),
           webglRenderer.setViewport(rendererState.viewport),
-          webglRenderer.setScissor(rendererState.scissor));
+          webglRenderer.setScissor(rendererState.scissor)
         // 捕获期间发生过失效（模型/材质/相机变了）：这一帧作废，直接重绘。
         if (cacheChangeCounter !== captureChangeCounter) {
-          rendererState.restore();
-          renderFullFrame();
-          return;
+          rendererState.restore()
+          renderFullFrame()
+          return
         }
-        ((isCacheValid = true), (previousCameraKey = cameraKey), stats.captures++);
+        ;(isCacheValid = true), (previousCameraKey = cameraKey), stats.captures++
       }
 
-      webglRenderer.setScissorTest(false);
-      webglRenderer.autoClear = true;
+      webglRenderer.setScissorTest(false)
+      webglRenderer.autoClear = true
       if (background) {
         if (lastBackground !== background) {
-          (backgroundClone?.removeFromParent(),
+          backgroundClone?.removeFromParent(),
             (lastBackground = background),
             (backgroundClone = background.clone(false)),
             (backgroundClone.matrixAutoUpdate = false),
-            backgroundScene.add(backgroundClone));
+            backgroundScene.add(backgroundClone)
         }
-        (backgroundClone.matrix.copy(background.matrixWorld),
+        backgroundClone.matrix.copy(background.matrixWorld),
           (backgroundClone.layers.mask = previousBackgroundLayerMask ?? 0),
           (backgroundClone.visible = true),
           webglRenderer.render(backgroundScene, camera),
@@ -347,14 +323,14 @@ export function createEffectCache({
           (fullscreenMaterial.blending = three.CustomBlending),
           (fullscreenMaterial.blendSrc = three.OneFactor),
           (fullscreenMaterial.blendDst = three.OneMinusSrcAlphaFactor),
-          (fullscreenMaterial.blendEquation = three.AddEquation));
+          (fullscreenMaterial.blendEquation = three.AddEquation)
       } else {
-        fullscreenMaterial.blending = three.NoBlending;
+        fullscreenMaterial.blending = three.NoBlending
       }
-      webglRenderer.render(fullscreenScene, fullscreenCamera);
-      if (background) background.layers.mask = 0;
-      opaqueEntries.forEach(([opaqueNode]) => (opaqueNode.layers.mask = 0));
-      ((scene.onBeforeRender = () => {}),
+      webglRenderer.render(fullscreenScene, fullscreenCamera)
+      if (background) background.layers.mask = 0
+      opaqueEntries.forEach(([opaqueNode]) => (opaqueNode.layers.mask = 0))
+      ;(scene.onBeforeRender = () => {}),
         (scene.background = null),
         (webglRenderer.autoClear = false),
         (webglRenderer.shadowMap.autoUpdate = false),
@@ -362,17 +338,15 @@ export function createEffectCache({
         webglRenderer.setViewport(rendererState.viewport),
         webglRenderer.setScissor(rendererState.scissor),
         webglRenderer.setScissorTest(rendererState.scissorTest),
-        webglRenderer.render(scene, camera));
-      webglRenderer.info.render.calls +=
-        (background ? 2 : 1) + (capturedInfo?.calls || 0);
-      webglRenderer.info.render.triangles +=
-        (background ? 3 : 1) + (capturedInfo?.triangles || 0);
-      stats.replays++;
+        webglRenderer.render(scene, camera)
+      webglRenderer.info.render.calls += (background ? 2 : 1) + (capturedInfo?.calls || 0)
+      webglRenderer.info.render.triangles += (background ? 3 : 1) + (capturedInfo?.triangles || 0)
+      stats.replays++
     } catch {
-      (stats.failures++, (hasCaptureFailed = true), rendererState.restore(), clear());
-      renderFullFrame();
+      stats.failures++, (hasCaptureFailed = true), rendererState.restore(), clear()
+      renderFullFrame()
     } finally {
-      rendererState.restore();
+      rendererState.restore()
     }
   }
 
@@ -384,21 +358,21 @@ export function createEffectCache({
     setDynamicObjects,
     isDynamicObject,
     get active() {
-      return isCacheValid && !isDisposed && !hasCaptureFailed;
+      return isCacheValid && !isDisposed && !hasCaptureFailed
     },
     resetContext() {
-      ((hasCaptureFailed = false), clear());
+      ;(hasCaptureFailed = false), clear()
     },
     get isScreenPass() {
-      return isScreenPass && webglRenderer.getRenderTarget() === renderTarget;
+      return isScreenPass && webglRenderer.getRenderTarget() === renderTarget
     },
     dispose() {
-      ((isDisposed = true),
+      ;(isDisposed = true),
         clear(),
         dynamicObjectsByScene.clear(),
         dynamicObjectSet.clear(),
         fullscreenGeometry.dispose(),
-        fullscreenMaterial.dispose());
+        fullscreenMaterial.dispose()
     },
-  };
+  }
 }

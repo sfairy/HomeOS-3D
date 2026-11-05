@@ -6,29 +6,28 @@
     max-height: 100%;
   }
 
-  .ss-brand { padding-left: 20px; padding-right: 20px; }
-  .ss-brand-text { letter-spacing: 0.04em; font-size: min(var(--ss-brand-px), calc(var(--ss-vmin) * 0.042)); }
-  .ss-sec { letter-spacing: 0.28em; }
+  .ss-brand {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .ss-brand-text {
+    letter-spacing: 0.04em;
+    font-size: min(var(--ss-brand-px), calc(var(--ss-vmin) * 0.042));
+  }
+  .ss-sec {
+    letter-spacing: 0.28em;
+  }
 
   .ss-time {
-    font-size: min(
-      calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-      calc(var(--ss-vmin) * 0.38)
-    );
+    font-size: min(calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vmin) * 0.38));
   }
 
   .ss-time-sep {
-    font-size: min(
-      calc(var(--ss-sep-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-      calc(var(--ss-vmin) * 0.28)
-    );
+    font-size: min(calc(var(--ss-sep-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vmin) * 0.28));
   }
 
   .ss-date-primary {
-    font-size: min(
-      calc(var(--ss-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-      calc(var(--ss-vmin) * 0.048)
-    );
+    font-size: min(calc(var(--ss-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vmin) * 0.048));
   }
 
   .ss-date-secondary {
@@ -49,16 +48,16 @@
 }
 
 @media (max-width: 480px) {
-  .ss-brand { padding-left: 16px; padding-right: 16px; }
+  .ss-brand {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 /* 平板横屏（如小米 Pad）：收紧时钟、保证日期跟在时钟下方 */
 @media (orientation: landscape) and (min-width: 768px) {
   .ss-time {
-    font-size: min(
-      calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-      calc(var(--ss-vh) * 0.42)
-    );
+    font-size: min(calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.42));
   }
 
   .ss-stage {
@@ -105,7 +104,10 @@
     animation: none !important;
   }
 
-  .ss-fade-0, .ss-fade-1, .ss-fade-2, .ss-fade-3 {
+  .ss-fade-0,
+  .ss-fade-1,
+  .ss-fade-2,
+  .ss-fade-3 {
     opacity: 1;
     animation: none;
   }

@@ -24,7 +24,7 @@
       足以压过 `.a .b:focus { outline:none }` 这类两级选择器；
    3) 加 !important 兜底，保证焦点环永远不会因为某处新增的 outline:none 而消失。
    焦点环是无障碍的底线，值得用 !important 锁死。 */
-:is(a, button, [role='button'], summary, [tabindex], input, select, textarea):focus-visible:focus-visible {
+:is(a, button, [role="button"], summary, [tabindex], input, select, textarea):focus-visible:focus-visible {
   outline: var(--hos-focus-outline) !important;
   outline-offset: var(--hos-focus-offset) !important;
 }
@@ -41,7 +41,7 @@
 }
 
 /* 键盘聚焦时不要让 outline 被 overflow:hidden 的父级裁掉 */
-:where(main, [role='main'], .main-content):focus:not(:focus-visible) {
+:where(main, [role="main"], .main-content):focus:not(:focus-visible) {
   outline: none;
 }
 
@@ -62,12 +62,12 @@
   .tab-bar__more-item,
   .v-empty__link,
   button,
-  [role='button'],
-  [role='tab'],
-  [role='option'],
-  [role='menuitem'],
-  [role='switch'],
-  [role='checkbox'],
+  [role="button"],
+  [role="tab"],
+  [role="option"],
+  [role="menuitem"],
+  [role="switch"],
+  [role="checkbox"],
   .list-page__tab,
   .device-filter__checkbox,
   .mode-logs-empty__btn {
@@ -77,8 +77,8 @@
 
   /* 复选框/单选框本体常被写成 15px。替换元素不支持 ::after 伪元素，
      所以只能直接抬盒子尺寸（视觉略大但可点），并保持与文字的基线对齐。 */
-  input[type='checkbox'],
-  input[type='radio'] {
+  input[type="checkbox"],
+  input[type="radio"] {
     min-block-size: var(--hos-touch-min);
     min-inline-size: var(--hos-touch-min);
     margin-block: 0;
@@ -99,7 +99,7 @@
     position: relative;
   }
   :where(.icon-btn)::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 50%;
     inline-size: var(--hos-touch-min);
@@ -184,9 +184,9 @@
 }
 
 /* 忙态：挡住重复点击，同时保留可见的等待光标 */
-[aria-busy='true'] {
+[aria-busy="true"] {
   cursor: progress;
 }
-[aria-busy='true'] :where(button, a, [role='button']) {
+[aria-busy="true"] :where(button, a, [role="button"]) {
   pointer-events: none;
 }

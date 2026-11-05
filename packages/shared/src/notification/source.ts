@@ -117,15 +117,15 @@ export function normalizeNotificationFilterKey(source?: string | null): string {
  * - level=danger 一律放行
  * - source 命中安防/紧急/地震预警/用水危急等前缀放行
  */
-export function isLifeSafetyNotification(
-  level: string | null | undefined,
-  source?: string | null,
-): boolean {
+export function isLifeSafetyNotification(level: string | null | undefined, source?: string | null): boolean {
   if (String(level || '').toLowerCase() === 'danger') return true
-  const safetySource = String(source || '').trim().toLowerCase()
+  const safetySource = String(source || '')
+    .trim()
+    .toLowerCase()
   if (!safetySource) return false
   if (safetySource === 'emergency' || safetySource === 'security' || safetySource === 'water-monitor') return true
-  if (safetySource.startsWith('security') || safetySource.startsWith('hazard') || safetySource.startsWith('drill')) return true
+  if (safetySource.startsWith('security') || safetySource.startsWith('hazard') || safetySource.startsWith('drill'))
+    return true
   if (safetySource.startsWith('earthquake')) return true
   if (safetySource.startsWith('water')) return true
   // HA（中枢）失联：它一断，安防 / 告警 / 自动化 / 场景全部失效，且设备离线告警本身会被
@@ -174,10 +174,7 @@ export function notificationSourceLabel(source?: string | null): string {
  * @param filterKey 筛选 Tab 的 key（"all" 表示不限制；其余见 NOTIFICATION_FILTER_PRIORITY）
  * @returns true 表示该通知源匹配筛选条件（可在当前 Tab 显示）
  */
-export function matchesNotificationSourceFilter(
-  source: string | null | undefined,
-  filterKey: string,
-): boolean {
+export function matchesNotificationSourceFilter(source: string | null | undefined, filterKey: string): boolean {
   if (!filterKey || filterKey === 'all') return true
   const matchSource = String(source || '').trim()
   const normalized = normalizeNotificationFilterKey(matchSource)
@@ -288,12 +285,7 @@ export function buildNotificationSourceDbFilter(filterKey: string): Notification
   if (filterKey === 'security') {
     return {
       kind: 'or',
-      clauses: [
-        { startsWith: 'security' },
-        { exact: 'emergency' },
-        { startsWith: 'hazard' },
-        { startsWith: 'drill' },
-      ],
+      clauses: [{ startsWith: 'security' }, { exact: 'emergency' }, { startsWith: 'hazard' }, { startsWith: 'drill' }],
     }
   }
   if (filterKey === 'device-monitor') return { kind: 'startsWith', value: 'device' }

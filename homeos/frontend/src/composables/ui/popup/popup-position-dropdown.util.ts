@@ -31,8 +31,7 @@ function hasFixedContainingTransform(el: HTMLElement | null) {
   let node = el
   while (node) {
     const style = getComputedStyle(node)
-    if (style.transform !== 'none' || style.filter !== 'none' || style.perspective !== 'none')
-      return true
+    if (style.transform !== 'none' || style.filter !== 'none' || style.perspective !== 'none') return true
     node = node.parentElement
   }
   return false
@@ -232,10 +231,7 @@ export function buildDropdownFixedStyle(
  */
 export function measureDropdownFitWidth(
   el: HTMLElement | null | undefined,
-  {
-    minWidth = 0,
-    maxWidth = Number.POSITIVE_INFINITY,
-  }: { minWidth?: number; maxWidth?: number } = {},
+  { minWidth = 0, maxWidth = Number.POSITIVE_INFINITY }: { minWidth?: number; maxWidth?: number } = {},
 ) {
   if (!el) return Math.max(0, minWidth)
   const prevWidth = el.style.width

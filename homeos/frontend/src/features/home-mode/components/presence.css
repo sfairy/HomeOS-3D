@@ -79,19 +79,16 @@
   align-items: center;
   gap: 10px;
   padding: 12px 14px 10px;
-  background:
-    radial-gradient(ellipse 80% 100% at 0% 0%, rgba(255, 255, 255, 0.06), transparent 65%);
+  background: radial-gradient(ellipse 80% 100% at 0% 0%, rgba(255, 255, 255, 0.06), transparent 65%);
   border-bottom: var(--hos-hairline) solid var(--premium-border);
 }
 
 .home-mode-switcher__presence-pop--home .presence-pop-head {
-  background:
-    radial-gradient(ellipse 90% 120% at 0% 0%, rgba(52, 211, 153, 0.14), transparent 62%);
+  background: radial-gradient(ellipse 90% 120% at 0% 0%, rgba(52, 211, 153, 0.14), transparent 62%);
 }
 
 .home-mode-switcher__presence-pop--away .presence-pop-head {
-  background:
-    radial-gradient(ellipse 90% 120% at 0% 0%, rgba(148, 163, 184, 0.08), transparent 62%);
+  background: radial-gradient(ellipse 90% 120% at 0% 0%, rgba(148, 163, 184, 0.08), transparent 62%);
 }
 
 .presence-pop-head__orb {
@@ -154,7 +151,9 @@
   border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.02);
   border: var(--hos-hairline) solid transparent;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .presence-pop-row--at-home {
@@ -273,7 +272,9 @@
 
 .presence-pop-enter-active,
 .presence-pop-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .presence-pop-enter-from,

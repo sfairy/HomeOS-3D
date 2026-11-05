@@ -16,8 +16,7 @@
   padding: 7px 13px;
   border-radius: var(--hos-radius-card);
   border: 1px solid var(--premium-border-strong);
-  background:
-    linear-gradient(155deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.26) 100%);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.26) 100%);
   box-shadow: none;
   flex: 0 1 auto;
   max-width: 100%;
@@ -59,15 +58,51 @@
   line-height: 1.2;
 }
 
-.lp-metrics__item--sky .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #7dd3fc; }
-.lp-metrics__item--green .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #6ee7b7; }
-.lp-metrics__item--red .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fca5a5; }
-.lp-metrics__item--amber .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fde68a; }
-.lp-metrics__item--orange .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fdba74; }
-.lp-metrics__item--pink .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #f9a8d4; }
-.lp-metrics__item--emerald .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #6ee7b7; }
-.lp-metrics__item--violet .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #c4b5fd; }
-.lp-metrics__item--muted .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-text-secondary); }
+.lp-metrics__item--sky .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #7dd3fc;
+}
+.lp-metrics__item--green .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #6ee7b7;
+}
+.lp-metrics__item--red .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #fca5a5;
+}
+.lp-metrics__item--amber .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #fde68a;
+}
+.lp-metrics__item--orange .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #fdba74;
+}
+.lp-metrics__item--pink .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #f9a8d4;
+}
+.lp-metrics__item--emerald .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #6ee7b7;
+}
+.lp-metrics__item--violet .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #c4b5fd;
+}
+.lp-metrics__item--muted .lp-metrics__value {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: var(--hos-text-secondary);
+}
 
 /* ── 页面主题色（仅 Tab / 主按钮 / 链接） ──
    注：--page-accent / --page-accent-rgb 由各 View 组件 :style 注入
@@ -77,9 +112,23 @@
    必须同时给出：--page-accent-rgb 是派生色（--page-accent-bg / -border / -glow / -text）
    的唯一色源，缺了它，本页派生面色会停留在全局默认色。
    注：--page-accent / --page-accent-rgb 也可能由各 View 组件 :style 注入。 */
-.devices-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
-.device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
-.security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
+.devices-view {
+  --page-accent: var(--module-accent-devices);
+  --page-accent-secondary: var(--module-accent-devices-sub);
+  --page-accent-rgb: var(--module-accent-devices-rgb);
+  --dev-accent-rgb: var(--module-accent-devices-rgb);
+}
+.device-detail-view {
+  --page-accent: var(--module-accent-devices);
+  --page-accent-secondary: var(--module-accent-devices-sub);
+  --page-accent-rgb: var(--module-accent-devices-rgb);
+  --dev-accent-rgb: var(--module-accent-devices-rgb);
+}
+.security-view {
+  --page-accent: var(--module-accent-security);
+  --page-accent-secondary: var(--module-accent-security-sub);
+  --page-accent-rgb: var(--module-accent-security-rgb);
+}
 .mode-logs-view {
   --page-accent: var(--module-accent-home-mode, #fbbf24);
   --page-accent-secondary: var(--module-accent-home-mode-sub, #fb7185);
@@ -96,7 +145,7 @@
   --page-accent-rgb: 251, 191, 36;
 }
 
-.list-page[class*='-view'] .list-page__tab--on {
+.list-page[class*="-view"] .list-page__tab--on {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--page-accent) 52%, #0c0e14),
@@ -107,14 +156,14 @@
 
 /* 平板（≤1100px）：增强各 -view 页面 tab 激活对比度（与基类保持一致） */
 @media (max-width: 1100px) {
-  .list-page[class*='-view'] .list-page__tab {
+  .list-page[class*="-view"] .list-page__tab {
     color: rgba(255, 255, 255, 0.62);
   }
-  .list-page[class*='-view'] .list-page__tab:hover {
+  .list-page[class*="-view"] .list-page__tab:hover {
     color: rgba(255, 255, 255, 0.92);
     background: rgba(255, 255, 255, 0.08);
   }
-  .list-page[class*='-view'] .list-page__tab--on {
+  .list-page[class*="-view"] .list-page__tab--on {
     /* 高不透明度渐变 */
     background: linear-gradient(
       135deg,
@@ -130,7 +179,7 @@
   }
 }
 
-.list-page[class*='-view'] .list-page__btn--primary {
+.list-page[class*="-view"] .list-page__btn--primary {
   border-color: color-mix(in srgb, var(--page-accent) 42%, #1a1d28);
   background: linear-gradient(
     135deg,
@@ -142,11 +191,11 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
-.list-page[class*='-view'] .list-page__btn--primary:hover:not(:disabled) {
+.list-page[class*="-view"] .list-page__btn--primary:hover:not(:disabled) {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
 }
 
-.list-page[class*='-view'] .list-page__chip--accent {
+.list-page[class*="-view"] .list-page__chip--accent {
   border-color: color-mix(in srgb, var(--page-accent) 38%, #1a1d28);
   background: color-mix(in srgb, var(--page-accent) 14%, #0c0e14);
   color: color-mix(in srgb, var(--page-accent) 50%, white);
@@ -168,9 +217,19 @@
 .device-detail-view .list-page__row-main--clickable:hover .list-page__row-name {
   color: color-mix(in srgb, var(--page-accent) 45%, white);
 }
-.rooms-view__chev--open { transform: rotate(90deg); opacity: 0.85; }
-.rooms-view__dot--on { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.45); }
-.list-page__form-title { margin: 0 0 10px; font-size: var(--premium-fs-caption); font-weight: 600; }
+.rooms-view__chev--open {
+  transform: rotate(90deg);
+  opacity: 0.85;
+}
+.rooms-view__dot--on {
+  background: #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.45);
+}
+.list-page__form-title {
+  margin: 0 0 10px;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+}
 
 /* ── 设备 ── */
 .devices-view__hero-toolbar {
@@ -369,8 +428,11 @@
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
-    color var(--set-transition-fast), opacity var(--set-transition-fast);
+  transition:
+    background var(--set-transition-fast),
+    border-color var(--set-transition-fast),
+    color var(--set-transition-fast),
+    opacity var(--set-transition-fast);
 }
 
 .devices-view .list-page__tab-arrow:hover:not(:disabled) {
@@ -418,7 +480,10 @@
   background: rgba(255, 255, 255, 0.04);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
 }
 
 .devices-view__select-all:hover {
@@ -513,7 +578,12 @@
   flex-shrink: 0;
   cursor: pointer;
   line-height: 1;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s var(--ease-spring), box-shadow 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.15s var(--ease-spring),
+    box-shadow 0.2s;
 }
 
 .device-detail-view__back-btn:hover {
@@ -702,10 +772,10 @@
     transform: none;
     box-shadow: none;
   }
-  .list-page[class*='-view'] .list-page__tab--on,
-  .list-page[class*='-view'] .list-page__btn--primary,
-  .list-page[class*='-view'] .list-page__btn--primary:hover:not(:disabled),
-  .list-page[class*='-view'] .list-page__chip--accent {
+  .list-page[class*="-view"] .list-page__tab--on,
+  .list-page[class*="-view"] .list-page__btn--primary,
+  .list-page[class*="-view"] .list-page__btn--primary:hover:not(:disabled),
+  .list-page[class*="-view"] .list-page__chip--accent {
     box-shadow: none;
   }
   .devices-view .list-page__row:hover::before,

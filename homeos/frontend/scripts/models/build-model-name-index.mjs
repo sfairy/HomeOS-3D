@@ -26,6 +26,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { formatGenerated } from '../../../../ops/lib/biome-format.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 /** `homeos/frontend`：脚本位于 `<frontend>/scripts/models/`。 */
@@ -45,15 +46,12 @@ const args = process.argv.slice(2)
 const checkMode = args.includes('--check')
 const asJson = args.includes('--json')
 
-const loadModule = (relativePath) =>
-  import(pathToFileURL(path.join(frontendDir, relativePath)).href)
+const loadModule = (relativePath) => import(pathToFileURL(path.join(frontendDir, relativePath)).href)
 
 const { MODEL_ASSETS_BY_FOLDER, MODEL_FOLDER_PATHS } = await loadModule(
   'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
 )
-const { ALL_ITEM_MODELS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/all-item-models.ts',
-)
+const { ALL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts')
 const { MODEL_FILE_STEMS } = await loadModule(
   'src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts',
 )
@@ -62,16 +60,13 @@ const { MODEL_FILE_STEMS } = await loadModule(
  * Windows / macOS 文件名禁用字符。`\u0000-\u001f` 是**故意**匹配控制字符：
  * 这个常量就是给命名门禁用的，命中即代表文件系统层面非法，改成可见字符范围就失去意义。
  */
-// eslint-disable-next-line no-control-regex
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Windows 文件名非法字符表：控制字符段是规范的一部分
 const FORBIDDEN_STEM_CHARS = /[\\/:*?"<>|\u0000-\u001f]/
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 
 /** 模型库卡片：`item-type` → 中文名（同名 key 以首次出现为准）。 */
 function readLibraryCardNames() {
-  const vueSource = fs.readFileSync(
-    path.join(frontendDir, 'src/studio/entries/StudioView.vue'),
-    'utf8',
-  )
+  const vueSource = fs.readFileSync(path.join(frontendDir, 'src/studio/entries/StudioView.vue'), 'utf8')
   const names = new Map()
   for (const tag of vueSource.match(/<button\b[^>]*>/g) ?? []) {
     const itemType = tag.match(/data-item-type="([^"]+)"/)?.[1]
@@ -225,9 +220,7 @@ for (const row of rows) {
 }
 
 const strayOverrides = Object.keys(overrides).filter((id) => !rows.some((row) => row.id === id))
-const strayFileNameOverrides = Object.keys(fileNameOverrides).filter(
-  (id) => !rows.some((row) => row.id === id),
-)
+const strayFileNameOverrides = Object.keys(fileNameOverrides).filter((id) => !rows.some((row) => row.id === id))
 
 /* ----------------------------- 产物渲染 ----------------------------- */
 
@@ -283,9 +276,7 @@ function renderMarkdown() {
   ]
 
   for (const [folder, assetIds] of Object.entries(MODEL_ASSETS_BY_FOLDER)) {
-    const folderRows = assetIds.map((id) =>
-      rows.find((row) => row.id === id && row.folder === folder),
-    )
+    const folderRows = assetIds.map((id) => rows.find((row) => row.id === id && row.folder === folder))
     lines.push(`## ${MODEL_FOLDER_PATHS[folder] || folder} — ${folder}`)
     lines.push('')
     lines.push(`共 ${assetIds.length} 个模型。`)
@@ -293,9 +284,7 @@ function renderMarkdown() {
     lines.push('| 英文 id | 中文文件名 | 显示名 | 名称来源 |')
     lines.push('| --- | --- | --- | --- |')
     for (const row of folderRows) {
-      lines.push(
-        `| \`${row.id}\` | ${row.stem ? `\`${row.stem}\`` : '—'} | ${row.name} | ${row.stemSource} |`,
-      )
+      lines.push(`| \`${row.id}\` | ${row.stem ? `\`${row.stem}\`` : '—'} | ${row.name} | ${row.stemSource} |`)
     }
     lines.push('')
   }
@@ -315,8 +304,12 @@ function renderMarkdown() {
   return lines.join('\n') + '\n'
 }
 
+/**
+ * 生成结果必须先过仓库的 Biome 配置，否则 `--check` 会拿「生成器口味」去比「格式化后的
+ * 磁盘文件」，每次 `biome format` 都把这条门禁变红。口径说明见 `ops/lib/biome-format.mjs`。
+ */
 const markdown = renderMarkdown()
-const typeScript = renderTypeScript()
+const typeScript = formatGenerated(renderTypeScript(), generatedTsFile)
 const jsonText =
   JSON.stringify(
     {
@@ -364,9 +357,7 @@ if (checkMode) {
     stale.push(path.relative(frontendDir, generatedJsonFile))
   }
   if (stale.length) {
-    console.error(
-      '模型中文名索引已过期：运行 bun homeos/frontend/scripts/models/build-model-name-index.mjs 重新生成。',
-    )
+    console.error('模型中文名索引已过期：运行 bun homeos/frontend/scripts/models/build-model-name-index.mjs 重新生成。')
     for (const file of stale) console.error(`  - ${file}`)
     process.exit(1)
   }
@@ -388,7 +379,5 @@ if (strayOverrides.length) {
   console.warn(`model-name-overrides.json 里有已不存在的 id：${strayOverrides.join(', ')}`)
 }
 if (strayFileNameOverrides.length) {
-  console.warn(
-    `model-file-name-overrides.json 里有已不存在的 id：${strayFileNameOverrides.join(', ')}`,
-  )
+  console.warn(`model-file-name-overrides.json 里有已不存在的 id：${strayFileNameOverrides.join(', ')}`)
 }

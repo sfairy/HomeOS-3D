@@ -1,9 +1,5 @@
-import { validatePlacementChange } from "../authoring/items/studio-placement";
-import {
-  enhanceStudioSelect,
-  initializeNumberInputs,
-  disposeStudioSelects,
-} from "../authoring/ui/studio-widgets";
+import { validatePlacementChange } from '../authoring/items/studio-placement'
+import { enhanceStudioSelect, initializeNumberInputs, disposeStudioSelects } from '../authoring/ui/studio-widgets'
 import {
   snapCourtyardPoint,
   trimCourtyardArea,
@@ -22,40 +18,40 @@ import {
   fenceSegments,
   fenceOpenings,
   hedgeSamples,
-} from "./courtyard-drawing";
-import { courtyardPalette } from "./courtyard-models";
+} from './courtyard-drawing'
+import { courtyardPalette } from './courtyard-models'
 /** 编辑器面板里的控件都是用 innerHTML 运行时拼出来的，选择器又是 data-* / 标签名动态查找，逐个写死具体元素类型不现实。 */
 type PanelControlElement = HTMLElement & {
-  disabled?: boolean;
-  value?: any;
-  checked?: any;
-  min?: string;
-  max?: string;
-  type?: string;
+  disabled?: boolean
+  value?: any
+  checked?: any
+  min?: string
+  max?: string
+  type?: string
   /** 事件处理器：面板里有的地方会 onclick?.() 直接触发，所以参数放宽成任意长度。 */
-  onclick?: (...args: any[]) => any;
-};
+  onclick?: (...args: any[]) => any
+}
 
 export function createCourtyardDrawingEditor(host: any) {
   const { canvas: canvasElement, toolbar: toolbarElement, inspector: inspectorElement } = host,
-    toolOptionsElement = document.createElement("div");
-  ((toolOptionsElement.className = "courtyard-tool-options"),
+    toolOptionsElement = document.createElement('div')
+  ;(toolOptionsElement.className = 'courtyard-tool-options'),
     (toolOptionsElement.hidden = true),
     (toolOptionsElement.innerHTML =
       '<label>样式 <select aria-label="绘制样式"></select></label><label class="area-mode">方式 <select aria-label="地面绘制方式"><option value="polygon">逐点围合</option><option value="rectangle">拖画矩形</option></select></label><button type="button" data-action="finish">完成绘制</button><button type="button" data-action="cancel">取消</button><span>连续点击画边线，点起点闭合；Enter 完成，Esc 取消，Shift 锁轴</span>'),
-    toolbarElement.append(toolOptionsElement));
-  const fieldsElement = document.createElement("div");
-  ((fieldsElement.className = "courtyard-fields field-section"),
+    toolbarElement.append(toolOptionsElement)
+  const fieldsElement = document.createElement('div')
+  ;(fieldsElement.className = 'courtyard-fields field-section'),
     (fieldsElement.hidden = true),
-    inspectorElement.append(fieldsElement));
-  const styleSelect = toolOptionsElement.querySelector<PanelControlElement>("select"),
-    areaModeSelect = toolOptionsElement.querySelector<PanelControlElement>('[aria-label="地面绘制方式"]');
-  let renderedSignature = "",
+    inspectorElement.append(fieldsElement)
+  const styleSelect = toolOptionsElement.querySelector<PanelControlElement>('select'),
+    areaModeSelect = toolOptionsElement.querySelector<PanelControlElement>('[aria-label="地面绘制方式"]')
+  let renderedSignature = '',
     renderedItem: any = null,
     trimTargetId: any = null,
     snapFeedback: any = null,
     redoPoints: any = [],
-    activeTool = "select",
+    activeTool = 'select',
     draftPoints: any = [],
     previewPoint: any = null,
     dragState: any = null,
@@ -63,52 +59,52 @@ export function createCourtyardDrawingEditor(host: any) {
     selectedNodeIndex = -1,
     selectedRingIndex = -1,
     isNodeEditing = false,
-    inspectedItemId: any = null;
+    inspectedItemId: any = null
   const hostDocument = canvasElement.ownerDocument || document,
-    hostWindow = hostDocument.defaultView || window;
+    hostWindow = hostDocument.defaultView || window
   let pendingFrameId = 0,
     pendingPointerEvent: any = null,
     cachedScene = host.scene(),
-    isPageUnloading = false;
+    isPageUnloading = false
   function cancelPendingFrame() {
-    (pendingFrameId && hostWindow.cancelAnimationFrame(pendingFrameId),
+    pendingFrameId && hostWindow.cancelAnimationFrame(pendingFrameId),
       (pendingFrameId = 0),
-      (pendingPointerEvent = null));
+      (pendingPointerEvent = null)
   }
   function reconcileScene() {
-    return cachedScene === host.scene()
-      ? true
-      : (resetDraft(), (cachedScene = host.scene()), false);
+    return cachedScene === host.scene() ? true : (resetDraft(), (cachedScene = host.scene()), false)
   }
   function flushPendingFrame() {
-    pendingFrameId = 0;
-    const deferredPointerEvent = pendingPointerEvent;
+    pendingFrameId = 0
+    const deferredPointerEvent = pendingPointerEvent
     if (
       ((pendingPointerEvent = null),
       !(!deferredPointerEvent || isPageUnloading || hostDocument.hidden) &&
-        !(!reconcileScene() ||
+        !(
+          !reconcileScene() ||
           deferredPointerEvent.scene !== cachedScene ||
           deferredPointerEvent.tool !== activeTool ||
-          deferredPointerEvent.drag !== dragState))
+          deferredPointerEvent.drag !== dragState
+        ))
     ) {
       if (dragState?.item && !cachedScene.items.includes(dragState.item)) {
-        resetDraft();
-        return;
+        resetDraft()
+        return
       }
-      handlePointerMove(deferredPointerEvent.event);
+      handlePointerMove(deferredPointerEvent.event)
     }
   }
   function flushFrameForPointer(pointerId: any) {
     pendingPointerEvent?.event.pointerId === pointerId &&
-      (pendingFrameId && hostWindow.cancelAnimationFrame(pendingFrameId), flushPendingFrame());
+      (pendingFrameId && hostWindow.cancelAnimationFrame(pendingFrameId), flushPendingFrame())
   }
   function queuePointerMove(moveEvent: any) {
-    if (isPageUnloading || hostDocument.hidden) return;
+    if (isPageUnloading || hostDocument.hidden) return
     if ((reconcileScene(), dragState && dragState.pointerId !== moveEvent.pointerId)) {
-      isDrawingTool() && moveEvent.stopImmediatePropagation();
-      return;
+      isDrawingTool() && moveEvent.stopImmediatePropagation()
+      return
     }
-    (dragState?.pointerId !== moveEvent.pointerId && !isDrawingTool()) ||
+    ;(dragState?.pointerId !== moveEvent.pointerId && !isDrawingTool()) ||
       (dragState?.pointerId === moveEvent.pointerId && moveEvent.preventDefault(),
       moveEvent.stopImmediatePropagation(),
       (pendingPointerEvent = {
@@ -124,13 +120,13 @@ export function createCourtyardDrawingEditor(host: any) {
           shiftKey: moveEvent.shiftKey,
         },
       }),
-      pendingFrameId || (pendingFrameId = hostWindow.requestAnimationFrame(flushPendingFrame)));
+      pendingFrameId || (pendingFrameId = hostWindow.requestAnimationFrame(flushPendingFrame)))
   }
-  const drawingDefaultsByType: Record<string, any> = {};
+  const drawingDefaultsByType: Record<string, any> = {}
   for (const drawingType of Object.keys(DRAWING_STYLES))
     (drawingDefaultsByType as any)[drawingType] = normalizeCourtyardDrawing({
       type: drawingType,
-    }).drawing;
+    }).drawing
   const normalizeItemAngle = (item: any) =>
       ((((item.drawing.angle + (item.rotation || 0) + 180) % 360) + 360) % 360) - 180,
     getSelectedItem = () => host.selected(),
@@ -152,30 +148,30 @@ export function createCourtyardDrawingEditor(host: any) {
       })),
       host.feedback?.(snapFeedback),
       snapFeedback.point
-    );
+    )
   function fillStyleOptions(selectElement: any, drawingStyleType: any, currentStyle: any) {
-    ((selectElement.innerHTML = Object.entries((DRAWING_STYLES as any)[drawingStyleType])
-      .map(
-        ([styleKey, styleLabel]) => '<option value="' + styleKey + '">' + styleLabel + "</option>",
-      )
-      .join("")),
+    ;(selectElement.innerHTML = Object.entries((DRAWING_STYLES as any)[drawingStyleType])
+      .map(([styleKey, styleLabel]) => '<option value="' + styleKey + '">' + styleLabel + '</option>')
+      .join('')),
       Object.hasOwn((DRAWING_STYLES as any)[drawingStyleType], currentStyle) ||
         selectElement.insertAdjacentHTML(
-          "beforeend",
+          'beforeend',
           '<option value="' + currentStyle + '" disabled>旧款围挡（可切换）</option>',
         ),
-      (selectElement.value = currentStyle));
+      (selectElement.value = currentStyle)
   }
   function resetDraft() {
-    cancelPendingFrame();
-    const hadActiveDrag = !!dragState;
+    cancelPendingFrame()
+    const hadActiveDrag = !!dragState
     if (dragState) {
       try {
-        canvasElement.releasePointerCapture(dragState.pointerId);
-      } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
-      dragState.original && dragState.item && Object.assign(dragState.item, dragState.original);
+        canvasElement.releasePointerCapture(dragState.pointerId)
+      } catch {
+        /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */
+      }
+      dragState.original && dragState.item && Object.assign(dragState.item, dragState.original)
     }
-    ((draftPoints = []),
+    ;(draftPoints = []),
       (redoPoints = []),
       (previewPoint = null),
       (holeTargetId = null),
@@ -183,68 +179,62 @@ export function createCourtyardDrawingEditor(host: any) {
       (snapFeedback = null),
       (dragState = null),
       host.feedback?.(null),
-      hadActiveDrag && host.interactionEnded?.());
+      hadActiveDrag && host.interactionEnded?.()
   }
   function setTool(toolId: any) {
-    (resetDraft(),
+    resetDraft(),
       (cachedScene = host.scene()),
       (activeTool = toolId),
       (toolOptionsElement.hidden = !isDrawingTool()),
       (isNodeEditing = false),
       isDrawingTool() &&
-        ((styleSelect!.closest("label")!.hidden = false),
+        ((styleSelect!.closest('label')!.hidden = false),
         (toolOptionsElement.querySelector<PanelControlElement>('[data-action="finish"]')!.disabled! = false),
-        (toolOptionsElement.querySelector("span")!.textContent =
-          "连续点击画边线，点起点闭合；Enter 完成，Esc 取消，Shift 锁轴（矩形为正方形）"),
+        (toolOptionsElement.querySelector('span')!.textContent =
+          '连续点击画边线，点起点闭合；Enter 完成，Esc 取消，Shift 锁轴（矩形为正方形）'),
         fillStyleOptions(styleSelect, activeTool, (drawingDefaultsByType as any)[activeTool].style),
-        (toolOptionsElement.querySelector<PanelControlElement>(".area-mode")!.hidden = activeTool !== "courtyard-area")),
-      host.draw());
+        (toolOptionsElement.querySelector<PanelControlElement>('.area-mode')!.hidden =
+          activeTool !== 'courtyard-area')),
+      host.draw()
   }
   function validatePlacement(plannedItem: any) {
-    const placementError = validatePlacementChange(plannedItem, host.scene(), host.ppm());
-    return placementError
-      ? ((renderedSignature = ""), host.toast(placementError), host.refresh(), false)
-      : true;
+    const placementError = validatePlacementChange(plannedItem, host.scene(), host.ppm())
+    return placementError ? ((renderedSignature = ''), host.toast(placementError), host.refresh(), false) : true
   }
   function finishDrawing() {
-    if ((cancelPendingFrame(), !isDrawingTool())) return;
+    if ((cancelPendingFrame(), !isDrawingTool())) return
     if (trimTargetId) {
-      host.toast("先点两点画裁剪线，再点击要裁掉的一侧。");
-      return;
+      host.toast('先点两点画裁剪线，再点击要裁掉的一侧。')
+      return
     }
-    const isAreaTool = activeTool === "courtyard-area",
-      minimumNodeCount = isAreaTool ? 3 : 2;
+    const isAreaTool = activeTool === 'courtyard-area',
+      minimumNodeCount = isAreaTool ? 3 : 2
     if (draftPoints.length < minimumNodeCount) {
-      host.toast(isAreaTool ? "至少绘制三个节点，或切换为拖画矩形。" : "至少绘制两个节点。");
-      return;
+      host.toast(isAreaTool ? '至少绘制三个节点，或切换为拖画矩形。' : '至少绘制两个节点。')
+      return
     }
     if (isAreaTool && !validLoop(draftPoints)) {
-      host.toast("轮廓不能交叉或重叠，请调整节点。");
-      return;
+      host.toast('轮廓不能交叉或重叠，请调整节点。')
+      return
     }
     if (holeTargetId) {
-      const holeTargetItem = host
-        .scene()
-        .items.find((holeItemCandidate: any) => holeItemCandidate.id === holeTargetId);
-      if (!holeTargetItem) return;
+      const holeTargetItem = host.scene().items.find((holeItemCandidate: any) => holeItemCandidate.id === holeTargetId)
+      if (!holeTargetItem) return
       if (holeTargetItem.drawing.holes.length >= 16) {
-        host.toast("单块地面最多支持 16 处留空。");
-        return;
+        host.toast('单块地面最多支持 16 处留空。')
+        return
       }
       const outerRingPoints = drawingPlanPoints(holeTargetItem, host.ppm()),
         holeRingPoints = holeTargetItem.drawing.holes.map((holeRing: any) =>
           drawingPlanPoints(holeTargetItem, host.ppm(), holeRing),
-        );
+        )
       if (!validHole(draftPoints, outerRingPoints, holeRingPoints)) {
-        host.toast("留空范围须完整位于地面内部，且不能与其他留空相交。");
-        return;
+        host.toast('留空范围须完整位于地面内部，且不能与其他留空相交。')
+        return
       }
-      host.snapshot();
-      const packedHoleDrawing = packDrawingPoints(outerRingPoints, host.ppm(), [
-        ...holeRingPoints,
-        draftPoints,
-      ]);
-      ((holeTargetItem.drawing.angle = normalizeItemAngle(holeTargetItem)),
+      host.snapshot()
+      const packedHoleDrawing = packDrawingPoints(outerRingPoints, host.ppm(), [...holeRingPoints, draftPoints])
+      ;(holeTargetItem.drawing.angle = normalizeItemAngle(holeTargetItem)),
         Object.assign(holeTargetItem, {
           x: packedHoleDrawing.x,
           y: packedHoleDrawing.y,
@@ -255,23 +245,23 @@ export function createCourtyardDrawingEditor(host: any) {
         (holeTargetItem.drawing.points = packedHoleDrawing.points),
         (holeTargetItem.drawing.holes = packedHoleDrawing.holes),
         resetDraft(),
-        host.setTool("select"),
+        host.setTool('select'),
         (isNodeEditing = true),
         host.changed(),
-        host.refresh());
-      return;
+        host.refresh()
+      return
     }
     const packedDraft = packDrawingPoints(draftPoints, host.ppm()),
       objectType = activeTool,
-      drawingTemplate = structuredClone((drawingDefaultsByType as any)[objectType]);
+      drawingTemplate = structuredClone((drawingDefaultsByType as any)[objectType])
     if (
       ((drawingTemplate.style = styleSelect!.value),
       (drawingTemplate.points = packedDraft.points),
       (drawingTemplate.holes = []),
       packedDraft.width > 200 || packedDraft.depth > 200)
     ) {
-      host.toast("单个绘制对象不能超过 200 米，请分区绘制。");
-      return;
+      host.toast('单个绘制对象不能超过 200 米，请分区绘制。')
+      return
     }
     const newItem = {
         id: host.id(),
@@ -283,44 +273,43 @@ export function createCourtyardDrawingEditor(host: any) {
         rotation: 0,
         elevation: 0,
         height:
-          objectType === "courtyard-area"
-            ? drawingTemplate.style === "deck"
+          objectType === 'courtyard-area'
+            ? drawingTemplate.style === 'deck'
               ? 0.16
-              : drawingTemplate.style === "paving"
+              : drawingTemplate.style === 'paving'
                 ? 0.06
                 : 0.04
-            : objectType === "courtyard-path"
+            : objectType === 'courtyard-path'
               ? 0.08
               : 1.2,
-        color: "#7d8799",
+        color: '#7d8799',
         drawing: drawingTemplate,
       },
-      sceneClone = host.clone();
-    (host.scene().items.push(newItem),
+      sceneClone = host.clone()
+    host.scene().items.push(newItem),
       validatePlacement(sceneClone) &&
         (host.push(sceneClone),
         resetDraft(),
         host.select(newItem.id),
-        host.setTool("select"),
+        host.setTool('select'),
         (isNodeEditing = true),
         host.changed(),
-        host.refresh()));
+        host.refresh())
   }
-  ((styleSelect!.onchange = () => {
-    (((drawingDefaultsByType as any)[activeTool].style = styleSelect!.value),
-      activeTool === "courtyard-area" &&
-        ((drawingDefaultsByType as any)[activeTool].patternWidth =
-          styleSelect!.value === "deck" ? 0.16 : 0.6));
+  ;(styleSelect!.onchange = () => {
+    ;((drawingDefaultsByType as any)[activeTool].style = styleSelect!.value),
+      activeTool === 'courtyard-area' &&
+        ((drawingDefaultsByType as any)[activeTool].patternWidth = styleSelect!.value === 'deck' ? 0.16 : 0.6)
   }),
     (areaModeSelect!.onchange = () => {
-      (cancelPendingFrame(), (draftPoints = []), (previewPoint = null), host.draw());
+      cancelPendingFrame(), (draftPoints = []), (previewPoint = null), host.draw()
     }),
     (toolOptionsElement.querySelector<PanelControlElement>('[data-action="finish"]')!.onclick = finishDrawing),
     (toolOptionsElement.querySelector<PanelControlElement>('[data-action="cancel"]')!.onclick = () =>
-      host.setTool("select")));
+      host.setTool('select'))
   function applyOutlineToItem(targetItem: any, outlinePoints: any, holeRings: any) {
     if (
-      targetItem.type === "courtyard-area" &&
+      targetItem.type === 'courtyard-area' &&
       (!validLoop(outlinePoints) ||
         holeRings.some(
           (checkedHole: any, checkedHoleIndex: any) =>
@@ -331,8 +320,8 @@ export function createCourtyardDrawingEditor(host: any) {
             ),
         ))
     )
-      return false;
-    const packedRegion = packDrawingPoints(outlinePoints, host.ppm(), holeRings);
+      return false
+    const packedRegion = packDrawingPoints(outlinePoints, host.ppm(), holeRings)
     return packedRegion.width > 200 || packedRegion.depth > 200
       ? false
       : ((targetItem.drawing.angle = normalizeItemAngle(targetItem)),
@@ -345,7 +334,7 @@ export function createCourtyardDrawingEditor(host: any) {
         }),
         (targetItem.drawing.points = packedRegion.points),
         (targetItem.drawing.holes = packedRegion.holes),
-        true);
+        true)
   }
   function findOutlineHandle(handleItem: any, probePoint: any) {
     for (const [ringIndex, sampleRingPoints] of [
@@ -361,61 +350,49 @@ export function createCourtyardDrawingEditor(host: any) {
     ])) {
       const nodeIndex = sampleRingPoints.findIndex(
         (candidatePoint: any) =>
-          Math.hypot(candidatePoint.x - probePoint.x, candidatePoint.y - probePoint.y) *
-            host.zoom() <
-          10,
-      );
+          Math.hypot(candidatePoint.x - probePoint.x, candidatePoint.y - probePoint.y) * host.zoom() < 10,
+      )
       if (nodeIndex >= 0)
         return {
           index: nodeIndex,
           ring: ringIndex,
-        };
+        }
     }
-    return null;
+    return null
   }
   function handlePointerDown(downEvent: any) {
-    if (isPageUnloading || (reconcileScene(), cancelPendingFrame(), downEvent.button !== 0 || host.panning()))
-      return;
+    if (isPageUnloading || (reconcileScene(), cancelPendingFrame(), downEvent.button !== 0 || host.panning())) return
     if (isDrawingTool()) {
-      if (!host.calibrated()) return;
-      (downEvent.preventDefault(),
+      if (!host.calibrated()) return
+      downEvent.preventDefault(),
         downEvent.stopImmediatePropagation(),
         canvasElement.focus({
           preventScroll: true,
         }),
-        (redoPoints = []));
+        (redoPoints = [])
       const currentPlanPoint =
         trimTargetId && draftPoints.length === 2
           ? planPointAt(downEvent)
-          : snapPoint(planPointAt(downEvent), draftPoints.at(-1), downEvent.shiftKey);
+          : snapPoint(planPointAt(downEvent), draftPoints.at(-1), downEvent.shiftKey)
       if (trimTargetId) {
         if (draftPoints.length < 2) {
-          ((!draftPoints.length ||
-            Math.hypot(
-              currentPlanPoint.x - draftPoints[0].x,
-              currentPlanPoint.y - draftPoints[0].y,
-            ) >
+          ;(!draftPoints.length ||
+            Math.hypot(currentPlanPoint.x - draftPoints[0].x, currentPlanPoint.y - draftPoints[0].y) >
               host.ppm() * 0.01) &&
             draftPoints.push(currentPlanPoint),
-            draftPoints.length === 2 && host.toast("点击裁剪线要去掉的一侧；Esc 取消。"),
-            host.draw());
-          return;
+            draftPoints.length === 2 && host.toast('点击裁剪线要去掉的一侧；Esc 取消。'),
+            host.draw()
+          return
         }
         const trimTargetItem = host
             .scene()
             .items.find((trimItemCandidate: any) => trimItemCandidate.id === trimTargetId),
           trimmedRegions =
             trimTargetItem &&
-            trimCourtyardArea(
-              trimTargetItem,
-              draftPoints[0],
-              draftPoints[1],
-              currentPlanPoint,
-              host.ppm(),
-            );
+            trimCourtyardArea(trimTargetItem, draftPoints[0], draftPoints[1], currentPlanPoint, host.ppm())
         if (!trimmedRegions?.length) {
-          host.toast("裁剪会移除整块地面，请选择另一侧，或按 Esc 取消。");
-          return;
+          host.toast('裁剪会移除整块地面，请选择另一侧，或按 Esc 取消。')
+          return
         }
         if (
           trimmedRegions.length > 16 ||
@@ -426,11 +403,11 @@ export function createCourtyardDrawingEditor(host: any) {
               complexRegion.holes.some((complexHole: any) => complexHole.length > 128),
           )
         ) {
-          host.toast("裁剪结果过于复杂，请分段裁剪。");
-          return;
+          host.toast('裁剪结果过于复杂，请分段裁剪。')
+          return
         }
         const trimmedItems = trimmedRegions.map((trimRegion: any, trimRegionIndex: any) => {
-          const packedTrimmed = packDrawingPoints(trimRegion.outline, host.ppm(), trimRegion.holes);
+          const packedTrimmed = packDrawingPoints(trimRegion.outline, host.ppm(), trimRegion.holes)
           return {
             ...structuredClone(trimTargetItem),
             id: trimRegionIndex ? host.id() : trimTargetItem.id,
@@ -445,101 +422,87 @@ export function createCourtyardDrawingEditor(host: any) {
               points: packedTrimmed.points,
               holes: packedTrimmed.holes,
             },
-          };
-        });
-        host.snapshot();
-        const trimTargetPosition = host.scene().items.indexOf(trimTargetItem);
-        (host.scene().items.splice(trimTargetPosition, 1, ...trimmedItems),
+          }
+        })
+        host.snapshot()
+        const trimTargetPosition = host.scene().items.indexOf(trimTargetItem)
+        host.scene().items.splice(trimTargetPosition, 1, ...trimmedItems),
           resetDraft(),
-          host.setTool("select"),
+          host.setTool('select'),
           host.select(trimmedItems[0].id),
           (isNodeEditing = true),
           host.changed(),
-          host.refresh());
-        return;
+          host.refresh()
+        return
       }
-      if (
-        activeTool === "courtyard-area" &&
-        areaModeSelect!.value === "rectangle" &&
-        !holeTargetId
-      ) {
-        ((dragState = {
+      if (activeTool === 'courtyard-area' && areaModeSelect!.value === 'rectangle' && !holeTargetId) {
+        ;(dragState = {
           rectangle: true,
           start: currentPlanPoint,
           current: currentPlanPoint,
           pointerId: downEvent.pointerId,
         }),
-          canvasElement.setPointerCapture(downEvent.pointerId));
-        return;
+          canvasElement.setPointerCapture(downEvent.pointerId)
+        return
       }
       if (
         draftPoints.length >= 3 &&
-        Math.hypot(currentPlanPoint.x - draftPoints[0].x, currentPlanPoint.y - draftPoints[0].y) *
-          host.zoom() <
-          12 &&
-        activeTool === "courtyard-area"
+        Math.hypot(currentPlanPoint.x - draftPoints[0].x, currentPlanPoint.y - draftPoints[0].y) * host.zoom() < 12 &&
+        activeTool === 'courtyard-area'
       ) {
-        finishDrawing();
-        return;
+        finishDrawing()
+        return
       }
-      ((!draftPoints.length ||
-        Math.hypot(
-          currentPlanPoint.x - draftPoints.at(-1).x,
-          currentPlanPoint.y - draftPoints.at(-1).y,
-        ) >
+      ;(!draftPoints.length ||
+        Math.hypot(currentPlanPoint.x - draftPoints.at(-1).x, currentPlanPoint.y - draftPoints.at(-1).y) >
           0.04 * host.ppm()) &&
         draftPoints.push(currentPlanPoint),
         draftPoints.length >= 128 &&
-          ((draftPoints = draftPoints.slice(0, 128)),
-          host.toast("已达到单条轮廓 128 个节点，请完成绘制。")),
-        host.draw());
-      return;
+          ((draftPoints = draftPoints.slice(0, 128)), host.toast('已达到单条轮廓 128 个节点，请完成绘制。')),
+        host.draw()
+      return
     }
-    const selectedItem = getSelectedItem();
-    if (activeTool !== "select" || !isNodeEditing || !isCourtyardDrawing(selectedItem)) return;
+    const selectedItem = getSelectedItem()
+    if (activeTool !== 'select' || !isNodeEditing || !isCourtyardDrawing(selectedItem)) return
     const clickPoint = planPointAt(downEvent),
       originalItem = structuredClone(selectedItem),
-      beforeClone = host.clone();
+      beforeClone = host.clone()
     let hitHandle = findOutlineHandle(selectedItem, clickPoint),
-      isHandleInserted = false;
+      isHandleInserted = false
     if (!hitHandle) {
       const outlineRings = [
         drawingPlanPoints(selectedItem, host.ppm()),
-        ...selectedItem.drawing.holes.map((ringHole: any) =>
-          drawingPlanPoints(selectedItem, host.ppm(), ringHole),
-        ),
-      ];
+        ...selectedItem.drawing.holes.map((ringHole: any) => drawingPlanPoints(selectedItem, host.ppm(), ringHole)),
+      ]
       for (let ringCursor = 0; ringCursor < outlineRings.length && !hitHandle; ringCursor++)
         for (
           let segmentCursor = 0;
           segmentCursor <
           outlineRings[ringCursor].length -
-            (selectedItem.type === "courtyard-area" || selectedItem.drawing.closed ? 0 : 1);
+            (selectedItem.type === 'courtyard-area' || selectedItem.drawing.closed ? 0 : 1);
           segmentCursor++
         ) {
           const segmentStart = outlineRings[ringCursor][segmentCursor],
-            segmentEnd =
-              outlineRings[ringCursor][(segmentCursor + 1) % outlineRings[ringCursor].length],
+            segmentEnd = outlineRings[ringCursor][(segmentCursor + 1) % outlineRings[ringCursor].length],
             segmentMidpoint = {
               x: (segmentStart.x + segmentEnd.x) / 2,
               y: (segmentStart.y + segmentEnd.y) / 2,
-            };
-          if (!(
-            Math.hypot(segmentStart.x - segmentEnd.x, segmentStart.y - segmentEnd.y) * host.zoom() <
-              30 ||
-            Math.hypot(clickPoint.x - segmentMidpoint.x, clickPoint.y - segmentMidpoint.y) *
-              host.zoom() >
-              8 ||
-            outlineRings[ringCursor].length >= 128
-          )) {
-            (outlineRings[ringCursor].splice(segmentCursor + 1, 0, segmentMidpoint),
+            }
+          if (
+            !(
+              Math.hypot(segmentStart.x - segmentEnd.x, segmentStart.y - segmentEnd.y) * host.zoom() < 30 ||
+              Math.hypot(clickPoint.x - segmentMidpoint.x, clickPoint.y - segmentMidpoint.y) * host.zoom() > 8 ||
+              outlineRings[ringCursor].length >= 128
+            )
+          ) {
+            outlineRings[ringCursor].splice(segmentCursor + 1, 0, segmentMidpoint),
               applyOutlineToItem(selectedItem, outlineRings[0], outlineRings.slice(1)) &&
                 ((hitHandle = {
                   index: segmentCursor + 1,
                   ring: ringCursor - 1,
                 }),
-                (isHandleInserted = true)));
-            break;
+                (isHandleInserted = true))
+            break
           }
         }
     }
@@ -567,42 +530,40 @@ export function createCourtyardDrawingEditor(host: any) {
       (dragState.patternAngle = normalizeItemAngle(selectedItem)),
       canvasElement.setPointerCapture(downEvent.pointerId),
       renderFields(selectedItem),
-      host.draw());
+      host.draw())
   }
   function handlePointerMove(moveEvent: any) {
     if (dragState?.pointerId === moveEvent.pointerId) {
       if (dragState.rectangle) {
         const movePoint = snapPoint(planPointAt(moveEvent), null, false),
-          rectangleStart = dragState.start;
+          rectangleStart = dragState.start
         if (moveEvent.shiftKey) {
           const squareSize = Math.max(
             Math.abs(movePoint.x - rectangleStart.x),
             Math.abs(movePoint.y - rectangleStart.y),
-          );
-          ((dragState.current = {
+          )
+          ;(dragState.current = {
             x: rectangleStart.x + Math.sign(movePoint.x - rectangleStart.x || 1) * squareSize,
             y: rectangleStart.y + Math.sign(movePoint.y - rectangleStart.y || 1) * squareSize,
           }),
             (snapFeedback = {
               point: dragState.current,
-              kind: "axis",
-              label: "正方形",
-            }));
-        } else dragState.current = movePoint;
-        host.draw();
-        return;
+              kind: 'axis',
+              label: '正方形',
+            })
+        } else dragState.current = movePoint
+        host.draw()
+        return
       }
-      const dragItem = host
-        .scene()
-        .items.find((dragItemCandidate: any) => dragItemCandidate.id === dragState.id);
-      if (!dragItem) return;
+      const dragItem = host.scene().items.find((dragItemCandidate: any) => dragItemCandidate.id === dragState.id)
+      if (!dragItem) return
       const dragItemAngle = dragItem.drawing.angle,
-        dragItemRotation = dragItem.rotation;
-      ((dragItem.drawing.angle = dragState.patternAngle), (dragItem.rotation = 0));
+        dragItemRotation = dragItem.rotation
+      ;(dragItem.drawing.angle = dragState.patternAngle), (dragItem.rotation = 0)
       const dragOutline = structuredClone(dragState.outline),
         dragHoles = structuredClone(dragState.holes),
-        activeRing = selectedRingIndex < 0 ? dragOutline : dragHoles[selectedRingIndex];
-      ((activeRing[selectedNodeIndex] = snapPoint(
+        activeRing = selectedRingIndex < 0 ? dragOutline : dragHoles[selectedRingIndex]
+      ;(activeRing[selectedNodeIndex] = snapPoint(
         planPointAt(moveEvent),
         activeRing[(selectedNodeIndex + activeRing.length - 1) % activeRing.length],
         moveEvent.shiftKey,
@@ -611,8 +572,8 @@ export function createCourtyardDrawingEditor(host: any) {
         dragState.invalid
           ? ((dragItem.drawing.angle = dragItemAngle), (dragItem.rotation = dragItemRotation))
           : (dragState.moved = true),
-        host.draw());
-      return;
+        host.draw()
+      return
     }
     isDrawingTool() &&
       (moveEvent.stopImmediatePropagation(),
@@ -620,7 +581,7 @@ export function createCourtyardDrawingEditor(host: any) {
         trimTargetId && draftPoints.length === 2
           ? planPointAt(moveEvent)
           : snapPoint(planPointAt(moveEvent), draftPoints.at(-1), moveEvent.shiftKey)),
-      host.draw());
+      host.draw())
   }
   function handlePointerRelease(releaseEvent: any) {
     if (
@@ -629,32 +590,32 @@ export function createCourtyardDrawingEditor(host: any) {
       dragState?.pointerId !== releaseEvent.pointerId ||
       (releaseEvent.preventDefault(),
       releaseEvent.stopImmediatePropagation(),
-      releaseEvent.type === "pointercancel"
-        ? cancelPendingFrame()
-        : flushFrameForPointer(releaseEvent.pointerId),
+      releaseEvent.type === 'pointercancel' ? cancelPendingFrame() : flushFrameForPointer(releaseEvent.pointerId),
       !dragState)
     )
-      return;
-    const releasedDrag = dragState;
-    dragState = null;
+      return
+    const releasedDrag = dragState
+    dragState = null
     try {
-      canvasElement.releasePointerCapture(releaseEvent.pointerId);
-    } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
+      canvasElement.releasePointerCapture(releaseEvent.pointerId)
+    } catch {
+      /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */
+    }
     if ((host.interactionEnded?.(), releasedDrag.rectangle)) {
-      if (releaseEvent.type === "pointercancel") {
-        host.draw();
-        return;
+      if (releaseEvent.type === 'pointercancel') {
+        host.draw()
+        return
       }
       const dragStartPoint = releasedDrag.start,
-        dragCurrentPoint = releasedDrag.current;
+        dragCurrentPoint = releasedDrag.current
       if (
         Math.abs(dragStartPoint.x - dragCurrentPoint.x) < host.ppm() * 0.1 ||
         Math.abs(dragStartPoint.y - dragCurrentPoint.y) < host.ppm() * 0.1
       ) {
-        host.draw();
-        return;
+        host.draw()
+        return
       }
-      ((draftPoints = [
+      ;(draftPoints = [
         dragStartPoint,
         {
           x: dragCurrentPoint.x,
@@ -666,94 +627,81 @@ export function createCourtyardDrawingEditor(host: any) {
           y: dragCurrentPoint.y,
         },
       ]),
-        finishDrawing());
-      return;
+        finishDrawing()
+      return
     }
-    if (releaseEvent.type === "pointercancel") {
-      (Object.assign(
-        host
-          .scene()
-          .items.find((cancelItemCandidate: any) => cancelItemCandidate.id === releasedDrag.id),
+    if (releaseEvent.type === 'pointercancel') {
+      Object.assign(
+        host.scene().items.find((cancelItemCandidate: any) => cancelItemCandidate.id === releasedDrag.id),
         releasedDrag.original,
       ),
-        host.refresh());
-      return;
+        host.refresh()
+      return
     }
-    (releasedDrag.moved &&
-      validatePlacement(releasedDrag.before) &&
-      (host.push(releasedDrag.before), host.changed()),
-      releasedDrag.invalid && host.toast("该位置会使轮廓交叉或留空越界，已保留最后有效位置。"),
-      host.refresh());
+    releasedDrag.moved && validatePlacement(releasedDrag.before) && (host.push(releasedDrag.before), host.changed()),
+      releasedDrag.invalid && host.toast('该位置会使轮廓交叉或留空越界，已保留最后有效位置。'),
+      host.refresh()
   }
-  (canvasElement.addEventListener("pointerdown", handlePointerDown, true),
-    canvasElement.addEventListener("pointermove", queuePointerMove, true));
-  for (const pointerEventName of ["pointerup", "pointercancel"])
-    canvasElement.addEventListener(pointerEventName, handlePointerRelease, true);
+  canvasElement.addEventListener('pointerdown', handlePointerDown, true),
+    canvasElement.addEventListener('pointermove', queuePointerMove, true)
+  for (const pointerEventName of ['pointerup', 'pointercancel'])
+    canvasElement.addEventListener(pointerEventName, handlePointerRelease, true)
   function cancelActiveInteraction() {
-    (cancelPendingFrame(),
+    cancelPendingFrame(),
       dragState &&
         handlePointerRelease({
           pointerId: dragState.pointerId,
-          type: "pointercancel",
+          type: 'pointercancel',
           preventDefault() {},
           stopImmediatePropagation() {},
-        }));
+        })
   }
   function handleVisibilityChange() {
-    hostDocument.hidden && cancelActiveInteraction();
+    hostDocument.hidden && cancelActiveInteraction()
   }
-  hostDocument.addEventListener("visibilitychange", handleVisibilityChange);
+  hostDocument.addEventListener('visibilitychange', handleVisibilityChange)
   function handlePageHide(pageHideEvent: any) {
-    (cancelActiveInteraction(),
+    cancelActiveInteraction(),
       !pageHideEvent.persisted &&
         ((isPageUnloading = true),
-        hostDocument.removeEventListener("visibilitychange", handleVisibilityChange),
-        hostWindow.removeEventListener("pagehide", handlePageHide)));
+        hostDocument.removeEventListener('visibilitychange', handleVisibilityChange),
+        hostWindow.removeEventListener('pagehide', handlePageHide))
   }
-  hostWindow.addEventListener("pagehide", handlePageHide);
-  (canvasElement.addEventListener(
-    "dblclick",
+  hostWindow.addEventListener('pagehide', handlePageHide)
+  canvasElement.addEventListener(
+    'dblclick',
     (doubleClickEvent: any) => {
       if (isDrawingTool()) {
-        (doubleClickEvent.preventDefault(),
+        doubleClickEvent.preventDefault(),
           doubleClickEvent.stopImmediatePropagation(),
-          activeTool !== "courtyard-area" && finishDrawing());
-        return;
+          activeTool !== 'courtyard-area' && finishDrawing()
+        return
       }
-      const doubleClickItem = getSelectedItem();
-      if (!isNodeEditing || !isCourtyardDrawing(doubleClickItem)) return;
+      const doubleClickItem = getSelectedItem()
+      if (!isNodeEditing || !isCourtyardDrawing(doubleClickItem)) return
       const doubleClickPoint = planPointAt(doubleClickEvent),
         doubleClickRings = [
           drawingPlanPoints(doubleClickItem, host.ppm()),
           ...doubleClickItem.drawing.holes.map((doubleClickHoleRing: any) =>
             drawingPlanPoints(doubleClickItem, host.ppm(), doubleClickHoleRing),
           ),
-        ];
-      for (
-        let doubleClickRingCursor = 0;
-        doubleClickRingCursor < doubleClickRings.length;
-        doubleClickRingCursor++
-      )
+        ]
+      for (let doubleClickRingCursor = 0; doubleClickRingCursor < doubleClickRings.length; doubleClickRingCursor++)
         for (
           let doubleClickSegmentCursor = 0;
           doubleClickSegmentCursor <
           doubleClickRings[doubleClickRingCursor].length -
-            (doubleClickItem.type === "courtyard-area" || doubleClickItem.drawing.closed ? 0 : 1);
+            (doubleClickItem.type === 'courtyard-area' || doubleClickItem.drawing.closed ? 0 : 1);
           doubleClickSegmentCursor++
         ) {
-          const doubleClickSegmentStart =
-              doubleClickRings[doubleClickRingCursor][doubleClickSegmentCursor],
+          const doubleClickSegmentStart = doubleClickRings[doubleClickRingCursor][doubleClickSegmentCursor],
             doubleClickSegmentEnd =
               doubleClickRings[doubleClickRingCursor][
                 (doubleClickSegmentCursor + 1) % doubleClickRings[doubleClickRingCursor].length
-              ];
-          if (
-            segmentDistance(doubleClickPoint, doubleClickSegmentStart, doubleClickSegmentEnd) *
-              host.zoom() >
-            10
-          )
-            continue;
-          if (doubleClickRings[doubleClickRingCursor].length >= 128) return;
+              ]
+          if (segmentDistance(doubleClickPoint, doubleClickSegmentStart, doubleClickSegmentEnd) * host.zoom() > 10)
+            continue
+          if (doubleClickRings[doubleClickRingCursor].length >= 128) return
           const segmentDeltaX = doubleClickSegmentEnd.x - doubleClickSegmentStart.x,
             segmentDeltaY = doubleClickSegmentEnd.y - doubleClickSegmentStart.y,
             segmentT = Math.max(
@@ -765,7 +713,7 @@ export function createCourtyardDrawingEditor(host: any) {
                   (segmentDeltaX * segmentDeltaX + segmentDeltaY * segmentDeltaY || 1),
               ),
             ),
-            insertClone = host.clone();
+            insertClone = host.clone()
           if (
             (doubleClickRings[doubleClickRingCursor].splice(doubleClickSegmentCursor + 1, 0, {
               x: doubleClickSegmentStart.x + segmentT * segmentDeltaX,
@@ -774,126 +722,124 @@ export function createCourtyardDrawingEditor(host: any) {
             !applyOutlineToItem(doubleClickItem, doubleClickRings[0], doubleClickRings.slice(1)) ||
               !validatePlacement(insertClone))
           )
-            return;
-          (host.push(insertClone),
+            return
+          host.push(insertClone),
             (selectedNodeIndex = doubleClickSegmentCursor + 1),
             (selectedRingIndex = doubleClickRingCursor - 1),
             host.changed(),
             host.refresh(),
             doubleClickEvent.preventDefault(),
-            doubleClickEvent.stopImmediatePropagation());
-          return;
+            doubleClickEvent.stopImmediatePropagation()
+          return
         }
     },
     true,
   ),
     window.addEventListener(
-      "keydown",
+      'keydown',
       (keyEvent) => {
-        const eventTarget = keyEvent.target as Element | null;
+        const eventTarget = keyEvent.target as Element | null
         if (!eventTarget!.closest?.('input,select,textarea,[contenteditable="true"]')) {
           if (
             dragState &&
-            (keyEvent.key === "Escape" ||
-              ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key.toLowerCase() === "z"))
+            (keyEvent.key === 'Escape' ||
+              ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key.toLowerCase() === 'z'))
           ) {
-            (keyEvent.preventDefault(),
+            keyEvent.preventDefault(),
               keyEvent.stopImmediatePropagation(),
               handlePointerRelease({
                 pointerId: dragState.pointerId,
-                type: "pointercancel",
+                type: 'pointercancel',
                 preventDefault() {},
                 stopImmediatePropagation() {},
-              }));
-            return;
+              })
+            return
           }
           if (
             !isDrawingTool() &&
             isNodeEditing &&
             selectedNodeIndex >= 0 &&
             isCourtyardDrawing(getSelectedItem()) &&
-            ["Delete", "Backspace"].includes(keyEvent.key)
+            ['Delete', 'Backspace'].includes(keyEvent.key)
           ) {
-            (keyEvent.preventDefault(),
+            keyEvent.preventDefault(),
               keyEvent.stopImmediatePropagation(),
-              fieldsElement.querySelector<PanelControlElement>('[data-action="remove-node"]')!.onclick?.());
-            return;
+              fieldsElement.querySelector<PanelControlElement>('[data-action="remove-node"]')!.onclick?.()
+            return
           }
           if (
             isDrawingTool() &&
             (keyEvent.metaKey || keyEvent.ctrlKey) &&
-            keyEvent.key.toLowerCase() === "z" &&
+            keyEvent.key.toLowerCase() === 'z' &&
             (draftPoints.length || redoPoints.length)
           ) {
-            (cancelPendingFrame(),
+            cancelPendingFrame(),
               keyEvent.preventDefault(),
               keyEvent.stopImmediatePropagation(),
               keyEvent.shiftKey
                 ? redoPoints.length && draftPoints.push(redoPoints.pop())
                 : draftPoints.length && redoPoints.push(draftPoints.pop()),
-              host.draw());
-            return;
+              host.draw()
+            return
           }
           isDrawingTool() &&
-            ["Enter", "Escape", "Backspace", "Delete"].includes(keyEvent.key) &&
+            ['Enter', 'Escape', 'Backspace', 'Delete'].includes(keyEvent.key) &&
             (cancelPendingFrame(),
             keyEvent.preventDefault(),
             keyEvent.stopImmediatePropagation(),
-            keyEvent.key === "Enter"
+            keyEvent.key === 'Enter'
               ? finishDrawing()
-              : keyEvent.key === "Escape"
-                ? host.setTool("select")
-                : (draftPoints.length && redoPoints.push(draftPoints.pop()), host.draw()));
+              : keyEvent.key === 'Escape'
+                ? host.setTool('select')
+                : (draftPoints.length && redoPoints.push(draftPoints.pop()), host.draw()))
         }
       },
       true,
-    ));
+    )
   function drawItem(drawnItem: any, painter: any) {
     const pixelsPerMeter = host.ppm(),
       palette = courtyardPalette(
-        drawnItem.type === "courtyard-area"
-          ? "garden-" + drawnItem.drawing.style
-          : drawnItem.type === "courtyard-path"
-            ? "garden-stepping"
-            : "garden-fence",
-        "default",
+        drawnItem.type === 'courtyard-area'
+          ? 'garden-' + drawnItem.drawing.style
+          : drawnItem.type === 'courtyard-path'
+            ? 'garden-stepping'
+            : 'garden-fence',
+        'default',
       ),
       planColor = host.planColor?.(drawnItem),
       isSelected = host.isSelected(drawnItem.id),
       planOutline = drawingPlanPoints(drawnItem, pixelsPerMeter),
       traceRing = (ringPoints: any) => {
         ringPoints.forEach((ringPoint: any, ringPointIndex: any) => {
-          const screenPoint = host.screen(ringPoint);
-          ringPointIndex
-            ? painter.lineTo(screenPoint.x, screenPoint.y)
-            : painter.moveTo(screenPoint.x, screenPoint.y);
-        });
-      };
+          const screenPoint = host.screen(ringPoint)
+          ringPointIndex ? painter.lineTo(screenPoint.x, screenPoint.y) : painter.moveTo(screenPoint.x, screenPoint.y)
+        })
+      }
     if (
       (painter.save(),
-      (painter.strokeStyle = isSelected ? "#ff9d2e" : planColor || "#c7d0d7"),
+      (painter.strokeStyle = isSelected ? '#ff9d2e' : planColor || '#c7d0d7'),
       (painter.lineWidth = isSelected ? 2.5 : 1.5),
-      drawnItem.type === "courtyard-area")
+      drawnItem.type === 'courtyard-area')
     ) {
       painter.fillStyle =
         (planColor ||
-          "#" +
-            (drawnItem.drawing.style === "lawn"
+          '#' +
+            (drawnItem.drawing.style === 'lawn'
               ? palette.leaf
-              : drawnItem.drawing.style === "deck"
+              : drawnItem.drawing.style === 'deck'
                 ? palette.base
                 : palette.light
             )
               .toString(16)
-              .padStart(6, "0")) + "66";
+              .padStart(6, '0')) + '66'
       const surfaceRegionList = surfaceRegions(
         drawnItem,
         surfaceExclusions(drawnItem, host.scene().items, host.buildings(), pixelsPerMeter),
-      );
-      painter.beginPath();
+      )
+      painter.beginPath()
       for (const surfaceRegion of surfaceRegionList)
         for (const surfaceRing of [surfaceRegion.outline, ...surfaceRegion.holes])
-          (traceRing(
+          traceRing(
             drawingPlanPoints(
               drawnItem,
               pixelsPerMeter,
@@ -903,51 +849,43 @@ export function createCourtyardDrawingEditor(host: any) {
               })),
             ),
           ),
-            painter.closePath());
-      (painter.fill("evenodd"), painter.stroke());
+            painter.closePath()
+      painter.fill('evenodd'), painter.stroke()
     } else {
       const rotationRad = ((drawnItem.rotation || 0) * Math.PI) / 180,
         cosRotation = Math.cos(rotationRad),
         sinRotation = Math.sin(rotationRad),
         modelToScreen = (modelPoint: any) =>
           host.screen({
-            x:
-              drawnItem.x +
-              (modelPoint.x * cosRotation - modelPoint.y * sinRotation) * pixelsPerMeter,
-            y:
-              drawnItem.y +
-              (modelPoint.x * sinRotation + modelPoint.y * cosRotation) * pixelsPerMeter,
-          });
-      if (drawnItem.type === "courtyard-path")
+            x: drawnItem.x + (modelPoint.x * cosRotation - modelPoint.y * sinRotation) * pixelsPerMeter,
+            y: drawnItem.y + (modelPoint.x * sinRotation + modelPoint.y * cosRotation) * pixelsPerMeter,
+          })
+      if (drawnItem.type === 'courtyard-path')
         for (const pathSample of samplePath(
           pathPoints(drawnItem),
           Math.max(drawnItem.drawing.spacing, drawnItem.drawing.stoneDepth + 0.05),
         )) {
-          const pathScreenPoint = modelToScreen(pathSample);
-          (painter.save(),
+          const pathScreenPoint = modelToScreen(pathSample)
+          painter.save(),
             painter.translate(pathScreenPoint.x, pathScreenPoint.y),
             painter.rotate(pathSample.angle + rotationRad),
-            (painter.fillStyle = planColor || "#" + palette.light.toString(16).padStart(6, "0")),
-            painter.beginPath());
+            (painter.fillStyle = planColor || '#' + palette.light.toString(16).padStart(6, '0')),
+            painter.beginPath()
           const stoneDepthPx = drawnItem.drawing.stoneDepth * pixelsPerMeter * host.zoom(),
-            stoneWidthPx = drawnItem.drawing.stoneWidth * pixelsPerMeter * host.zoom();
-          (drawnItem.drawing.style === "square"
+            stoneWidthPx = drawnItem.drawing.stoneWidth * pixelsPerMeter * host.zoom()
+          drawnItem.drawing.style === 'square'
             ? painter.rect(-stoneDepthPx / 2, -stoneWidthPx / 2, stoneDepthPx, stoneWidthPx)
             : painter.ellipse(0, 0, stoneDepthPx / 2, stoneWidthPx / 2, 0, 0, Math.PI * 2),
             painter.fill(),
             painter.stroke(),
-            painter.restore());
+            painter.restore()
         }
       else {
-        if (drawnItem.drawing.style === "hedge") {
-          painter.fillStyle =
-            (planColor || "#" + palette.leaf.toString(16).padStart(6, "0")) + "99";
-          for (const hedgeSample of hedgeSamples(
-            drawnItem,
-            fenceOpenings(drawnItem, host.scene().items),
-          )) {
-            const hedgeScreenPoint = modelToScreen(hedgeSample);
-            (painter.beginPath(),
+        if (drawnItem.drawing.style === 'hedge') {
+          painter.fillStyle = (planColor || '#' + palette.leaf.toString(16).padStart(6, '0')) + '99'
+          for (const hedgeSample of hedgeSamples(drawnItem, fenceOpenings(drawnItem, host.scene().items))) {
+            const hedgeScreenPoint = modelToScreen(hedgeSample)
+            painter.beginPath(),
               painter.arc(
                 hedgeScreenPoint.x,
                 hedgeScreenPoint.y,
@@ -956,24 +894,17 @@ export function createCourtyardDrawingEditor(host: any) {
                 Math.PI * 2,
               ),
               painter.fill(),
-              painter.stroke());
+              painter.stroke()
           }
         } else {
-          ((painter.lineWidth = Math.max(
-            3,
-            drawnItem.drawing.thickness * pixelsPerMeter * host.zoom(),
-          )),
-            painter.beginPath());
-          for (const [fenceStart, fenceEnd] of fenceSegments(
-            drawnItem,
-            fenceOpenings(drawnItem, host.scene().items),
-          )) {
+          ;(painter.lineWidth = Math.max(3, drawnItem.drawing.thickness * pixelsPerMeter * host.zoom())),
+            painter.beginPath()
+          for (const [fenceStart, fenceEnd] of fenceSegments(drawnItem, fenceOpenings(drawnItem, host.scene().items))) {
             const fenceStartScreen = modelToScreen(fenceStart),
-              fenceEndScreen = modelToScreen(fenceEnd);
-            (painter.moveTo(fenceStartScreen.x, fenceStartScreen.y),
-              painter.lineTo(fenceEndScreen.x, fenceEndScreen.y));
+              fenceEndScreen = modelToScreen(fenceEnd)
+            painter.moveTo(fenceStartScreen.x, fenceStartScreen.y), painter.lineTo(fenceEndScreen.x, fenceEndScreen.y)
           }
-          painter.stroke();
+          painter.stroke()
         }
       }
     }
@@ -986,16 +917,14 @@ export function createCourtyardDrawingEditor(host: any) {
         ]),
       ])
         handleRingPoints.forEach((handlePoint: any, handlePointIndex: any) => {
-          const handleScreenPoint = host.screen(handlePoint);
-          ((painter.fillStyle =
-            selectedNodeIndex === handlePointIndex && selectedRingIndex === handleRingKey
-              ? "#ff9d2e"
-              : "#edf2f7"),
+          const handleScreenPoint = host.screen(handlePoint)
+          ;(painter.fillStyle =
+            selectedNodeIndex === handlePointIndex && selectedRingIndex === handleRingKey ? '#ff9d2e' : '#edf2f7'),
             painter.beginPath(),
             painter.arc(handleScreenPoint.x, handleScreenPoint.y, 5, 0, Math.PI * 2),
             painter.fill(),
-            painter.stroke());
-        });
+            painter.stroke()
+        })
       for (const outlineRingList of [
         planOutline,
         ...drawnItem.drawing.holes.map((outlineHoleRing: any) =>
@@ -1005,38 +934,34 @@ export function createCourtyardDrawingEditor(host: any) {
         for (
           let outlineRingCursor = 0;
           outlineRingCursor <
-          outlineRingList.length -
-            (drawnItem.type === "courtyard-area" || drawnItem.drawing.closed ? 0 : 1);
+          outlineRingList.length - (drawnItem.type === 'courtyard-area' || drawnItem.drawing.closed ? 0 : 1);
           outlineRingCursor++
         ) {
           const outlineSegmentStart = outlineRingList[outlineRingCursor],
-            outlineSegmentEnd = outlineRingList[(outlineRingCursor + 1) % outlineRingList.length];
+            outlineSegmentEnd = outlineRingList[(outlineRingCursor + 1) % outlineRingList.length]
           if (
-            Math.hypot(
-              outlineSegmentStart.x - outlineSegmentEnd.x,
-              outlineSegmentStart.y - outlineSegmentEnd.y,
-            ) *
+            Math.hypot(outlineSegmentStart.x - outlineSegmentEnd.x, outlineSegmentStart.y - outlineSegmentEnd.y) *
               host.zoom() <
             30
           )
-            continue;
+            continue
           const outlineSegmentMidScreen = host.screen({
             x: (outlineSegmentStart.x + outlineSegmentEnd.x) / 2,
             y: (outlineSegmentStart.y + outlineSegmentEnd.y) / 2,
-          });
-          ((painter.fillStyle = "#17202b"),
+          })
+          ;(painter.fillStyle = '#17202b'),
             painter.fillRect(outlineSegmentMidScreen.x - 3, outlineSegmentMidScreen.y - 3, 6, 6),
-            painter.strokeRect(outlineSegmentMidScreen.x - 3, outlineSegmentMidScreen.y - 3, 6, 6));
+            painter.strokeRect(outlineSegmentMidScreen.x - 3, outlineSegmentMidScreen.y - 3, 6, 6)
         }
     }
-    painter.restore();
+    painter.restore()
   }
   function drawPreview(previewPainter: any) {
-    if (!isDrawingTool() && !dragState) return;
-    let previewPoints = [...draftPoints];
+    if (!isDrawingTool() && !dragState) return
+    let previewPoints = [...draftPoints]
     if (dragState?.rectangle) {
       const previewRectangleStart = dragState.start,
-        previewRectangleEnd = dragState.current;
+        previewRectangleEnd = dragState.current
       previewPoints = [
         previewRectangleStart,
         {
@@ -1049,82 +974,65 @@ export function createCourtyardDrawingEditor(host: any) {
           y: previewRectangleEnd.y,
         },
         previewRectangleStart,
-      ];
-    } else
-      previewPoint &&
-        !(trimTargetId && draftPoints.length === 2) &&
-        previewPoints.push(previewPoint);
-    if (!previewPoints.length && !snapFeedback) return;
-    (previewPainter.save(),
-      (previewPainter.strokeStyle = "#ff9d2e"),
+      ]
+    } else previewPoint && !(trimTargetId && draftPoints.length === 2) && previewPoints.push(previewPoint)
+    if (!previewPoints.length && !snapFeedback) return
+    previewPainter.save(),
+      (previewPainter.strokeStyle = '#ff9d2e'),
       (previewPainter.lineWidth = 2),
       previewPainter.setLineDash([6, 4]),
       previewPainter.beginPath(),
       previewPoints.forEach((previewVertex, previewVertexIndex) => {
-        const previewScreenPoint = host.screen(previewVertex);
+        const previewScreenPoint = host.screen(previewVertex)
         previewVertexIndex
           ? previewPainter.lineTo(previewScreenPoint.x, previewScreenPoint.y)
-          : previewPainter.moveTo(previewScreenPoint.x, previewScreenPoint.y);
+          : previewPainter.moveTo(previewScreenPoint.x, previewScreenPoint.y)
       }),
-      activeTool === "courtyard-area" &&
+      activeTool === 'courtyard-area' &&
         !trimTargetId &&
         previewPoints.length >= 3 &&
-        (previewPainter.closePath(),
-        (previewPainter.fillStyle = "#ff9d2e16"),
-        previewPainter.fill()),
+        (previewPainter.closePath(), (previewPainter.fillStyle = '#ff9d2e16'), previewPainter.fill()),
       previewPainter.stroke(),
-      previewPainter.setLineDash([]));
+      previewPainter.setLineDash([])
     for (const draftVertex of draftPoints) {
-      const draftScreenPoint = host.screen(draftVertex);
-      (previewPainter.beginPath(),
+      const draftScreenPoint = host.screen(draftVertex)
+      previewPainter.beginPath(),
         previewPainter.arc(draftScreenPoint.x, draftScreenPoint.y, 4, 0, Math.PI * 2),
-        (previewPainter.fillStyle = "#ff9d2e"),
-        previewPainter.fill());
+        (previewPainter.fillStyle = '#ff9d2e'),
+        previewPainter.fill()
     }
-    const drawPlanLabel = (
-      labelAnchorPlan: any,
-      labelText: any,
-      labelColor = "#43d2e6",
-      labelOffsetY = -25,
-    ) => {
-      const labelAnchorScreen = host.screen(labelAnchorPlan);
-      previewPainter.font = "12px sans-serif";
+    const drawPlanLabel = (labelAnchorPlan: any, labelText: any, labelColor = '#43d2e6', labelOffsetY = -25) => {
+      const labelAnchorScreen = host.screen(labelAnchorPlan)
+      previewPainter.font = '12px sans-serif'
       const labelWidthPx = previewPainter.measureText(labelText).width,
-        labelX = Math.max(
-          4,
-          Math.min(labelAnchorScreen.x + 10, canvasElement.clientWidth - labelWidthPx - 16),
-        ),
-        labelY = Math.max(
-          4,
-          Math.min(labelAnchorScreen.y + labelOffsetY, canvasElement.clientHeight - 26),
-        );
-      ((previewPainter.fillStyle = "#17202b"),
+        labelX = Math.max(4, Math.min(labelAnchorScreen.x + 10, canvasElement.clientWidth - labelWidthPx - 16)),
+        labelY = Math.max(4, Math.min(labelAnchorScreen.y + labelOffsetY, canvasElement.clientHeight - 26))
+      ;(previewPainter.fillStyle = '#17202b'),
         previewPainter.fillRect(labelX, labelY, labelWidthPx + 12, 22),
         (previewPainter.fillStyle = labelColor),
-        previewPainter.fillText(labelText, labelX + 6, labelY + 15));
-    };
+        previewPainter.fillText(labelText, labelX + 6, labelY + 15)
+    }
     if (snapFeedback?.kind && !(trimTargetId && draftPoints.length === 2)) {
-      const feedbackScreenPoint = host.screen(snapFeedback.point);
-      ((previewPainter.strokeStyle = "#43d2e6"),
+      const feedbackScreenPoint = host.screen(snapFeedback.point)
+      ;(previewPainter.strokeStyle = '#43d2e6'),
         (previewPainter.lineWidth = 2),
         previewPainter.strokeRect(feedbackScreenPoint.x - 5, feedbackScreenPoint.y - 5, 10, 10),
-        drawPlanLabel(snapFeedback.point, snapFeedback.label));
+        drawPlanLabel(snapFeedback.point, snapFeedback.label)
     }
     if (previewPoints.length >= 2) {
       const lastSegmentStart = previewPoints.at(-2),
-        lastSegmentEnd = previewPoints.at(-1);
+        lastSegmentEnd = previewPoints.at(-1)
       drawPlanLabel(
         {
           x: (lastSegmentStart.x + lastSegmentEnd.x) / 2,
           y: (lastSegmentStart.y + lastSegmentEnd.y) / 2,
         },
-        (
-          Math.hypot(lastSegmentEnd.x - lastSegmentStart.x, lastSegmentEnd.y - lastSegmentStart.y) /
-          host.ppm()
-        ).toFixed(2) + " m",
-        "#ff9d2e",
+        (Math.hypot(lastSegmentEnd.x - lastSegmentStart.x, lastSegmentEnd.y - lastSegmentStart.y) / host.ppm()).toFixed(
+          2,
+        ) + ' m',
+        '#ff9d2e',
         10,
-      );
+      )
     }
     if (trimTargetId && draftPoints.length === 2 && previewPoint) {
       const previewTrimItem = host
@@ -1132,18 +1040,12 @@ export function createCourtyardDrawingEditor(host: any) {
           .items.find((previewTrimCandidate: any) => previewTrimCandidate.id === trimTargetId),
         previewTrimRegions =
           previewTrimItem &&
-          trimCourtyardArea(
-            previewTrimItem,
-            draftPoints[0],
-            draftPoints[1],
-            previewPoint,
-            host.ppm(),
-          ),
+          trimCourtyardArea(previewTrimItem, draftPoints[0], draftPoints[1], previewPoint, host.ppm()),
         trimLineStartScreen = host.screen(draftPoints[0]),
         trimLineEndScreen = host.screen(draftPoints[1]),
         trimLineDeltaX = trimLineEndScreen.x - trimLineStartScreen.x,
-        trimLineDeltaY = trimLineEndScreen.y - trimLineStartScreen.y;
-      ((previewPainter.strokeStyle = "#ff9d2e"),
+        trimLineDeltaY = trimLineEndScreen.y - trimLineStartScreen.y
+      ;(previewPainter.strokeStyle = '#ff9d2e'),
         previewPainter.setLineDash([6, 4]),
         previewPainter.beginPath(),
         previewPainter.moveTo(
@@ -1156,23 +1058,21 @@ export function createCourtyardDrawingEditor(host: any) {
         ),
         previewPainter.stroke(),
         previewPainter.setLineDash([]),
-        (previewPainter.fillStyle = "#43d2e633"),
-        (previewPainter.strokeStyle = "#43d2e6"),
-        previewPainter.beginPath());
+        (previewPainter.fillStyle = '#43d2e633'),
+        (previewPainter.strokeStyle = '#43d2e6'),
+        previewPainter.beginPath()
       for (const previewTrimRegion of previewTrimRegions || [])
         for (const previewTrimRing of [previewTrimRegion.outline, ...previewTrimRegion.holes])
-          (previewTrimRing.forEach((previewRingPoint: any, previewRingPointIndex: any) => {
-            const trimScreenPoint = host.screen(previewRingPoint);
+          previewTrimRing.forEach((previewRingPoint: any, previewRingPointIndex: any) => {
+            const trimScreenPoint = host.screen(previewRingPoint)
             previewRingPointIndex
               ? previewPainter.lineTo(trimScreenPoint.x, trimScreenPoint.y)
-              : previewPainter.moveTo(trimScreenPoint.x, trimScreenPoint.y);
+              : previewPainter.moveTo(trimScreenPoint.x, trimScreenPoint.y)
           }),
-            previewPainter.closePath());
-      (previewPainter.fill("evenodd"),
-        previewPainter.stroke(),
-        drawPlanLabel(previewPoint, "裁掉此侧，蓝色保留"));
+            previewPainter.closePath()
+      previewPainter.fill('evenodd'), previewPainter.stroke(), drawPlanLabel(previewPoint, '裁掉此侧，蓝色保留')
     }
-    previewPainter.restore();
+    previewPainter.restore()
   }
   function renderFields(inspectedItem: any) {
     if (
@@ -1181,12 +1081,9 @@ export function createCourtyardDrawingEditor(host: any) {
       (fieldsElement.hidden = !isCourtyardDrawing(inspectedItem)),
       fieldsElement.hidden)
     )
-      return ((inspectedItemId = null), (renderedSignature = ""), false);
+      return ((inspectedItemId = null), (renderedSignature = ''), false)
     inspectedItemId !== inspectedItem.id &&
-      ((selectedNodeIndex = -1),
-      (selectedRingIndex = -1),
-      (isNodeEditing = true),
-      (inspectedItemId = inspectedItem.id));
+      ((selectedNodeIndex = -1), (selectedRingIndex = -1), (isNodeEditing = true), (inspectedItemId = inspectedItem.id))
     const itemSignature = JSON.stringify([
       inspectedItem.id,
       inspectedItem.type,
@@ -1197,13 +1094,20 @@ export function createCourtyardDrawingEditor(host: any) {
       isNodeEditing,
       selectedNodeIndex,
       selectedRingIndex,
-    ]);
-    if (renderedSignature === itemSignature && renderedItem === inspectedItem) return true;
-    ((renderedSignature = itemSignature), (renderedItem = inspectedItem));
+    ])
+    if (renderedSignature === itemSignature && renderedItem === inspectedItem) return true
+    ;(renderedSignature = itemSignature), (renderedItem = inspectedItem)
     const itemType = inspectedItem.type,
       itemDrawing = inspectedItem.drawing,
-      numberFieldMarkup = (fieldLabel: any, fieldName: any, fieldValue: any, fieldMin: any, fieldMax: any, fieldStep: any) =>
-        "<label>" +
+      numberFieldMarkup = (
+        fieldLabel: any,
+        fieldName: any,
+        fieldValue: any,
+        fieldMin: any,
+        fieldMax: any,
+        fieldStep: any,
+      ) =>
+        '<label>' +
         fieldLabel +
         '<input aria-label="' +
         fieldLabel +
@@ -1217,189 +1121,169 @@ export function createCourtyardDrawingEditor(host: any) {
         fieldMax +
         '" step="' +
         fieldStep +
-        '"></label>';
-    (disposeStudioSelects(fieldsElement),
+        '"></label>'
+    disposeStudioSelects(fieldsElement),
       (fieldsElement.innerHTML =
         '<label>样式<select aria-label="庭院对象样式" data-field="style"></select></label><div class="field-grid">' +
-        (itemType === "courtyard-area" && itemDrawing.style === "lawn"
-          ? ""
+        (itemType === 'courtyard-area' && itemDrawing.style === 'lawn'
+          ? ''
           : numberFieldMarkup(
-              itemType === "courtyard-area" ? "面层厚度（m）" : "高度（m）",
-              "height",
+              itemType === 'courtyard-area' ? '面层厚度（m）' : '高度（m）',
+              'height',
               inspectedItem.height,
               0.01,
               6,
               0.01,
             )) +
         numberFieldMarkup(
-          itemType === "courtyard-area" ? "整体抬高（m）" : "离地（m）",
-          "elevation",
+          itemType === 'courtyard-area' ? '整体抬高（m）' : '离地（m）',
+          'elevation',
           inspectedItem.elevation,
           0,
           6,
           0.01,
         ) +
-        numberFieldMarkup("整体旋转（°）", "rotation", inspectedItem.rotation, -360, 360, 1) +
-        (itemType === "courtyard-area" && itemDrawing.style !== "lawn"
-          ? numberFieldMarkup("铺设方向（°）", "angle", itemDrawing.angle, -180, 180, 5) +
+        numberFieldMarkup('整体旋转（°）', 'rotation', inspectedItem.rotation, -360, 360, 1) +
+        (itemType === 'courtyard-area' && itemDrawing.style !== 'lawn'
+          ? numberFieldMarkup('铺设方向（°）', 'angle', itemDrawing.angle, -180, 180, 5) +
             numberFieldMarkup(
-              itemDrawing.style === "deck" ? "木板宽（m）" : "砖宽（m）",
-              "patternWidth",
+              itemDrawing.style === 'deck' ? '木板宽（m）' : '砖宽（m）',
+              'patternWidth',
               itemDrawing.patternWidth,
               0.08,
               2,
               0.01,
             ) +
-            (itemDrawing.style === "paving"
-              ? numberFieldMarkup(
-                  "砖长（m）",
-                  "patternLength",
-                  itemDrawing.patternLength,
-                  0.1,
-                  3,
-                  0.05,
-                )
-              : "")
-          : "") +
-        (itemType !== "courtyard-area"
+            (itemDrawing.style === 'paving'
+              ? numberFieldMarkup('砖长（m）', 'patternLength', itemDrawing.patternLength, 0.1, 3, 0.05)
+              : '')
+          : '') +
+        (itemType !== 'courtyard-area'
           ? numberFieldMarkup(
-              itemType === "courtyard-path"
-                ? "步距（m）"
-                : itemDrawing.style === "hedge"
-                  ? "绿篱株距（m）"
-                  : "立柱间距（m）",
-              itemDrawing.style === "hedge" ? "hedgeSpacing" : "spacing",
-              itemDrawing.style === "hedge" ? itemDrawing.hedgeSpacing : itemDrawing.spacing,
+              itemType === 'courtyard-path'
+                ? '步距（m）'
+                : itemDrawing.style === 'hedge'
+                  ? '绿篱株距（m）'
+                  : '立柱间距（m）',
+              itemDrawing.style === 'hedge' ? 'hedgeSpacing' : 'spacing',
+              itemDrawing.style === 'hedge' ? itemDrawing.hedgeSpacing : itemDrawing.spacing,
               0.2,
               5,
               0.05,
             )
-          : "") +
-        (itemType === "courtyard-path"
-          ? numberFieldMarkup(
-              "石头宽（m）",
-              "stoneWidth",
-              itemDrawing.stoneWidth,
-              0.15,
-              1.5,
-              0.05,
-            ) +
-            numberFieldMarkup("石头长（m）", "stoneDepth", itemDrawing.stoneDepth, 0.15, 1.5, 0.05)
-          : "") +
-        (itemType === "courtyard-fence"
-          ? numberFieldMarkup("围挡厚度（m）", "thickness", itemDrawing.thickness, 0.06, 0.8, 0.01)
-          : "") +
-        "</div>" +
-        (itemType === "courtyard-path"
+          : '') +
+        (itemType === 'courtyard-path'
+          ? numberFieldMarkup('石头宽（m）', 'stoneWidth', itemDrawing.stoneWidth, 0.15, 1.5, 0.05) +
+            numberFieldMarkup('石头长（m）', 'stoneDepth', itemDrawing.stoneDepth, 0.15, 1.5, 0.05)
+          : '') +
+        (itemType === 'courtyard-fence'
+          ? numberFieldMarkup('围挡厚度（m）', 'thickness', itemDrawing.thickness, 0.06, 0.8, 0.01)
+          : '') +
+        '</div>' +
+        (itemType === 'courtyard-path'
           ? '<label class="courtyard-toggle"><input type="checkbox" data-field="curve" ' +
-            (itemDrawing.curve ? "checked" : "") +
-            ">平滑曲线</label>"
-          : "") +
-        (itemType === "courtyard-fence"
+            (itemDrawing.curve ? 'checked' : '') +
+            '>平滑曲线</label>'
+          : '') +
+        (itemType === 'courtyard-fence'
           ? '<label class="courtyard-toggle"><input type="checkbox" data-field="closed" ' +
-            (itemDrawing.closed ? "checked" : "") +
-            ">闭合围挡</label>"
-          : "") +
-        (itemType === "courtyard-fence"
+            (itemDrawing.closed ? 'checked' : '') +
+            '>闭合围挡</label>'
+          : '') +
+        (itemType === 'courtyard-fence'
           ? '<div class="courtyard-subsection"><p class="courtyard-section-title">预留门洞</p><div class="field-grid">' +
-            numberFieldMarkup("门洞宽（m）", "gateWidth", itemDrawing.gateWidth, 0, 4, 0.1) +
-            numberFieldMarkup("距起点（m）", "gateOffset", itemDrawing.gateOffset, 0, 200, 0.1) +
+            numberFieldMarkup('门洞宽（m）', 'gateWidth', itemDrawing.gateWidth, 0, 4, 0.1) +
+            numberFieldMarkup('距起点（m）', 'gateOffset', itemDrawing.gateOffset, 0, 200, 0.1) +
             '</div><p class="muted">宽度设为 0 关闭；放置庭院门也会自动留口。</p></div>'
-          : "") +
+          : '') +
         ('<div class="courtyard-subsection"><p class="courtyard-section-title">轮廓编辑</p><div class="courtyard-actions"><button type="button" data-action="nodes">' +
-          (isNodeEditing ? "完成节点编辑" : "编辑节点") +
+          (isNodeEditing ? '完成节点编辑' : '编辑节点') +
           '</button><button type="button" data-action="remove-node" ' +
-          (selectedNodeIndex < 0 ? "disabled" : "") +
-          ">删除选中节点</button>") +
-        (itemType === "courtyard-area"
+          (selectedNodeIndex < 0 ? 'disabled' : '') +
+          '>删除选中节点</button>') +
+        (itemType === 'courtyard-area'
           ? '<button type="button" data-action="trim">画线裁剪</button><button type="button" data-action="hole">绘制留空</button><button type="button" data-action="remove-hole">移除选中留空</button>'
-          : "") +
+          : '') +
         '</div><p class="muted">' +
-        (itemType === "courtyard-fence" && itemDrawing.style === "hedge"
-          ? "株距是相邻植株中心的距离；越小越密，越大越疏。"
-          : "") +
-        "拖动圆点改形，拖动边中点加节点；选中圆点后按 Delete 删除。完成节点编辑后可整体拖动。" +
-        (itemType === "courtyard-area" ? "画线裁剪：画一条线，再点要裁掉的一侧。" : "") +
-        "</p></div>"),
-      fillStyleOptions(fieldsElement.querySelector("select"), itemType, itemDrawing.style),
-      fieldsElement.querySelectorAll<PanelControlElement>("[data-field]").forEach(
+        (itemType === 'courtyard-fence' && itemDrawing.style === 'hedge'
+          ? '株距是相邻植株中心的距离；越小越密，越大越疏。'
+          : '') +
+        '拖动圆点改形，拖动边中点加节点；选中圆点后按 Delete 删除。完成节点编辑后可整体拖动。' +
+        (itemType === 'courtyard-area' ? '画线裁剪：画一条线，再点要裁掉的一侧。' : '') +
+        '</p></div>'),
+      fillStyleOptions(fieldsElement.querySelector('select'), itemType, itemDrawing.style),
+      fieldsElement.querySelectorAll<PanelControlElement>('[data-field]').forEach(
         (fieldElement) =>
           (fieldElement.onchange = () => {
             const fieldClone = host.clone(),
               fieldKey = fieldElement.dataset.field,
               fieldInputValue =
-                fieldElement.type === "checkbox"
+                fieldElement.type === 'checkbox'
                   ? fieldElement.checked
-                  : fieldElement.tagName === "SELECT"
+                  : fieldElement.tagName === 'SELECT'
                     ? fieldElement.value
-                    : Number(fieldElement.value);
-            if (["height", "elevation", "rotation"].includes(fieldKey!))
+                    : Number(fieldElement.value)
+            if (['height', 'elevation', 'rotation'].includes(fieldKey!))
               inspectedItem[fieldKey!] = Math.max(
                 Number(fieldElement.min),
-                Math.min(
-                  Number(fieldElement.max),
-                  Number.isFinite(fieldInputValue) ? fieldInputValue : 0,
-                ),
-              );
+                Math.min(Number(fieldElement.max), Number.isFinite(fieldInputValue) ? fieldInputValue : 0),
+              )
             else {
-              if (fieldKey === "style" && itemType === "courtyard-area") {
+              if (fieldKey === 'style' && itemType === 'courtyard-area') {
                 const defaultHeightsByStyle = {
                   lawn: 0.04,
                   deck: 0.16,
                   paving: 0.06,
-                };
-                (Math.abs(inspectedItem.height - (defaultHeightsByStyle as any)[itemDrawing.style]) <
-                  0.001 && (inspectedItem.height = (defaultHeightsByStyle as any)[fieldInputValue]),
-                  (itemDrawing.patternWidth = fieldInputValue === "deck" ? 0.16 : 0.6));
+                }
+                Math.abs(inspectedItem.height - (defaultHeightsByStyle as any)[itemDrawing.style]) < 0.001 &&
+                  (inspectedItem.height = (defaultHeightsByStyle as any)[fieldInputValue]),
+                  (itemDrawing.patternWidth = fieldInputValue === 'deck' ? 0.16 : 0.6)
               }
-              ((itemDrawing[fieldKey!] = fieldInputValue),
-                Object.assign(inspectedItem, normalizeCourtyardDrawing(inspectedItem)));
+              ;(itemDrawing[fieldKey!] = fieldInputValue),
+                Object.assign(inspectedItem, normalizeCourtyardDrawing(inspectedItem))
             }
-            validatePlacement(fieldClone) &&
-              (host.push(fieldClone), host.changed(), host.refresh());
+            validatePlacement(fieldClone) && (host.push(fieldClone), host.changed(), host.refresh())
           }),
       ),
       (fieldsElement.querySelector<PanelControlElement>('[data-action="nodes"]')!.onclick = () => {
-        ((isNodeEditing = !isNodeEditing), renderFields(inspectedItem), host.draw());
+        ;(isNodeEditing = !isNodeEditing), renderFields(inspectedItem), host.draw()
       }),
       (fieldsElement.querySelector<PanelControlElement>('[data-action="remove-node"]')!.onclick = () => {
         const removeNodeOutline = drawingPlanPoints(inspectedItem, host.ppm()),
           removeNodeHoles = itemDrawing.holes.map((removeNodeHoleRing: any) =>
             drawingPlanPoints(inspectedItem, host.ppm(), removeNodeHoleRing),
           ),
-          removeNodeRing =
-            selectedRingIndex < 0 ? removeNodeOutline : removeNodeHoles[selectedRingIndex];
-        if (!removeNodeRing || removeNodeRing.length <= (itemType === "courtyard-area" ? 3 : 2))
-          return;
-        const removeClone = host.clone();
+          removeNodeRing = selectedRingIndex < 0 ? removeNodeOutline : removeNodeHoles[selectedRingIndex]
+        if (!removeNodeRing || removeNodeRing.length <= (itemType === 'courtyard-area' ? 3 : 2)) return
+        const removeClone = host.clone()
         if (
           (removeNodeRing.splice(selectedNodeIndex, 1),
           !applyOutlineToItem(inspectedItem, removeNodeOutline, removeNodeHoles))
         ) {
-          host.toast("删除后轮廓无效，已保留原节点。");
-          return;
+          host.toast('删除后轮廓无效，已保留原节点。')
+          return
         }
         validatePlacement(removeClone) &&
-          (host.push(removeClone), (selectedNodeIndex = -1), host.changed(), host.refresh());
+          (host.push(removeClone), (selectedNodeIndex = -1), host.changed(), host.refresh())
       }),
-      fieldsElement.querySelector('[data-action="hole"]')?.addEventListener("click", () => {
-        (host.setTool("courtyard-area"),
+      fieldsElement.querySelector('[data-action="hole"]')?.addEventListener('click', () => {
+        host.setTool('courtyard-area'),
           (holeTargetId = inspectedItem.id),
-          (areaModeSelect!.value = "polygon"),
-          host.toast("在所选地面内部围出留空范围，点击起点或按 Enter 完成。"));
+          (areaModeSelect!.value = 'polygon'),
+          host.toast('在所选地面内部围出留空范围，点击起点或按 Enter 完成。')
       }),
-      fieldsElement.querySelector('[data-action="trim"]')?.addEventListener("click", () => {
-        (host.setTool("courtyard-area"),
+      fieldsElement.querySelector('[data-action="trim"]')?.addEventListener('click', () => {
+        host.setTool('courtyard-area'),
           (trimTargetId = inspectedItem.id),
-          (areaModeSelect!.value = "polygon"),
-          (styleSelect!.closest("label")!.hidden = true),
-          (toolOptionsElement.querySelector<PanelControlElement>(".area-mode")!.hidden = true),
+          (areaModeSelect!.value = 'polygon'),
+          (styleSelect!.closest('label')!.hidden = true),
+          (toolOptionsElement.querySelector<PanelControlElement>('.area-mode')!.hidden = true),
           (toolOptionsElement.querySelector<PanelControlElement>('[data-action="finish"]')!.disabled! = true),
-          (toolOptionsElement.querySelector("span")!.textContent =
-            "点两点确定裁剪直线（两端延伸），再点击要裁掉的一侧；蓝色区域保留，Esc 取消"),
-          host.toast("点两点画裁剪线，再点击要裁掉的一侧。蓝色预览保留区域，Esc 取消。"));
-      }));
-    const removeHoleButton = fieldsElement.querySelector<PanelControlElement>('[data-action="remove-hole"]');
+          (toolOptionsElement.querySelector('span')!.textContent =
+            '点两点确定裁剪直线（两端延伸），再点击要裁掉的一侧；蓝色区域保留，Esc 取消'),
+          host.toast('点两点画裁剪线，再点击要裁掉的一侧。蓝色预览保留区域，Esc 取消。')
+      })
+    const removeHoleButton = fieldsElement.querySelector<PanelControlElement>('[data-action="remove-hole"]')
     removeHoleButton &&
       ((removeHoleButton.disabled = selectedRingIndex < 0),
       (removeHoleButton.onclick = () => {
@@ -1409,11 +1293,10 @@ export function createCourtyardDrawingEditor(host: any) {
           (selectedRingIndex = -1),
           (selectedNodeIndex = -1),
           host.changed(),
-          host.refresh());
-      }));
-    for (const fieldSelect of fieldsElement.querySelectorAll("select"))
-      enhanceStudioSelect(fieldSelect);
-    return (initializeNumberInputs(fieldsElement), true);
+          host.refresh())
+      }))
+    for (const fieldSelect of fieldsElement.querySelectorAll('select')) enhanceStudioSelect(fieldSelect)
+    return (initializeNumberInputs(fieldsElement), true)
   }
   return {
     setTool: setTool,
@@ -1423,5 +1306,5 @@ export function createCourtyardDrawingEditor(host: any) {
     editing: () => isNodeEditing && isCourtyardDrawing(getSelectedItem()),
     isDragging: () => !!dragState,
     hasPendingChange: () => !!dragState?.moved,
-  };
+  }
 }

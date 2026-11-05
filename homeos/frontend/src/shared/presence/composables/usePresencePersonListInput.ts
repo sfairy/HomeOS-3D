@@ -9,10 +9,7 @@
  * @dependencies vue, @/shared/presence/utils/person.util
  */
 import { computed, ref, watch } from 'vue'
-import {
-  createEmptyPresencePerson,
-  reorderPresencePersons,
-} from '@/shared/presence/utils/person.util'
+import { createEmptyPresencePerson, reorderPresencePersons } from '@/shared/presence/utils/person.util'
 
 /**
  * 单个人员行数据
@@ -51,10 +48,7 @@ type PresenceEmit = (event: 'update:modelValue', value: PresencePersonRow[]) => 
  * @param emit 事件发射器，用于同步 modelValue
  * @returns 响应式状态与操作方法
  */
-export function usePresencePersonListInput(
-  props: PresencePersonListInputProps,
-  emit: PresenceEmit,
-) {
+export function usePresencePersonListInput(props: PresencePersonListInputProps, emit: PresenceEmit) {
   // 新增按钮文案，缺省回退为"添加人员"
   const addLabel = computed(() => props.addLabel || '添加人员')
   // 移除按钮文案，缺省回退为"移除"

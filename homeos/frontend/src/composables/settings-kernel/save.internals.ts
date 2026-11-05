@@ -13,10 +13,7 @@ export function useSettingsSave() {
 
   async function runSave(
     fn: () => unknown | Promise<unknown>,
-    {
-      errorContext,
-      onError,
-    }: { errorContext?: string; onError?: (error: unknown) => unknown | Promise<unknown> } = {},
+    { errorContext, onError }: { errorContext?: string; onError?: (error: unknown) => unknown | Promise<unknown> } = {},
   ) {
     saving.value = true
     try {

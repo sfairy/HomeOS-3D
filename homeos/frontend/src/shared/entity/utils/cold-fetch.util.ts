@@ -44,11 +44,7 @@ function isNotFoundError(err: unknown): boolean {
 }
 
 /** 同 key 并发请求复用同一 Promise，settle 后自动移除（单条/批量共用一套去重） */
-function dedupeInflight<T>(
-  map: Map<string, Promise<T>>,
-  key: string,
-  create: () => Promise<T>,
-): Promise<T> {
+function dedupeInflight<T>(map: Map<string, Promise<T>>, key: string, create: () => Promise<T>): Promise<T> {
   const existing = map.get(key)
   if (existing) return existing
   const promise = create().finally(() => map.delete(key))
@@ -123,12 +119,8 @@ async function fetchEntitiesByIdsChunk(ids: string[]): Promise<Map<string, HaEnt
  * @param entityIds 实体 ID 列表。
  * @returns entity_id → 状态；未找到的 ID 已写入负缓存。
  */
-export async function fetchEntitiesByIds(
-  entityIds: string[],
-): Promise<Map<string, HaEntityState>> {
-  const ids = [...new Set(entityIds.filter(Boolean).map(String))].filter(
-    (id) => !isMissingCached(id),
-  )
+export async function fetchEntitiesByIds(entityIds: string[]): Promise<Map<string, HaEntityState>> {
+  const ids = [...new Set(entityIds.filter(Boolean).map(String))].filter((id) => !isMissingCached(id))
   const result = new Map<string, HaEntityState>()
   if (!ids.length) return result
 

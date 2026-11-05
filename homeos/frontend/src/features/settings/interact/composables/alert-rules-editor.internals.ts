@@ -7,9 +7,7 @@
 import { computed, nextTick, ref } from 'vue'
 import type { AlertLevel, AlertRuleEditForm, ConditionMode, InboxAlertRule } from '@/shared/types/alert-rules'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
-import {
-  type AlertRulePreset,
-} from '@/shared/constants/alert-rule-presets'
+import type { AlertRulePreset } from '@/shared/constants/alert-rule-presets'
 import {
   clauseToExpr,
   DEFAULT_ALERT_RULE_CHANNELS,
@@ -36,9 +34,7 @@ export function useAlertRulesPanelRuleEditor(options: {
   const cooldownUnit = ref<'minute' | 'hour'>('minute')
 
   function captureEditingBaseline() {
-    editingBaseline.value = editing.value
-      ? (clonePlain(editing.value) as AlertRuleEditForm)
-      : null
+    editingBaseline.value = editing.value ? (clonePlain(editing.value) as AlertRuleEditForm) : null
   }
 
   const editingDirty = computed(() => {
@@ -62,13 +58,10 @@ export function useAlertRulesPanelRuleEditor(options: {
     }
     if (e.condType === 'state') e.condition = (e.condValue || 'on').trim()
     else if (e.condType === 'contains') e.condition = `contains ${e.condValue ?? ''}`.trim()
-    else if (e.condType === 'numeric')
-      e.condition = `${e.condOp || '>'} ${e.condValue ?? ''}`.trim()
+    else if (e.condType === 'numeric') e.condition = `${e.condOp || '>'} ${e.condValue ?? ''}`.trim()
     else if (e.condType === 'attr' && e.condOp === 'contains') {
       e.condition = `attr:${e.condAttr || 'brightness'} contains ${e.condValue ?? ''}`.trim()
-    } else
-      e.condition =
-        `attr:${e.condAttr || 'brightness'} ${e.condOp || '>'} ${e.condValue ?? ''}`.trim()
+    } else e.condition = `attr:${e.condAttr || 'brightness'} ${e.condOp || '>'} ${e.condValue ?? ''}`.trim()
   }
 
   function syncClause() {

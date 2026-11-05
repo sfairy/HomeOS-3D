@@ -66,9 +66,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
-const teleportDisabled = computed(
-  () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
-)
+const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
 
 // keep-alive 网关把宿主页冻结成快照时，弹窗的 Teleport 目标会失效：直接关闭，避免挂在失效节点上。
 watch(keepAliveTeleportDisabled, (disabled) => {

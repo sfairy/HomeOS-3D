@@ -10,7 +10,7 @@
 }
 
 .settings-shell::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -34,11 +34,11 @@
   overflow: hidden;
   position: relative;
   z-index: 2;
-  box-shadow: 4px 0 32px rgba(0,0,0,0.25);
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.25);
 }
 
 .settings-sidebar::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   right: 0;
@@ -174,7 +174,9 @@
   background: var(--set-glass-bg);
   color: var(--set-text-tertiary);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .settings-breadcrumb__copy:hover {
@@ -236,10 +238,11 @@
   border: var(--hos-hairline) solid var(--hos-border-subtle, var(--premium-border));
   border-radius: var(--hos-radius-panel, var(--radius-ipad-xl));
   padding: var(--hos-panel-padding-default, 20px);
-  transition: border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.35s ease,
-              transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.35s ease,
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: visible;
   flex: 0 0 auto;
@@ -257,23 +260,23 @@
 }
 
 .settings-card::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(10,132,255,0.015) 0%, transparent 40%, rgba(191,90,242,0.015) 100%);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.015) 0%, transparent 40%, rgba(191, 90, 242, 0.015) 100%);
   pointer-events: none;
   z-index: 0;
 }
 
 .settings-card::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 28px;
   right: 28px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
   pointer-events: none;
   z-index: 0;
   opacity: 0;
@@ -360,9 +363,11 @@
 }
 
 .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--nested):hover {
-  border-color: var(--hos-border-strong, rgba(255,255,255,0.14));
+  border-color: var(--hos-border-strong, rgba(255, 255, 255, 0.14));
   background: var(--hos-surface-panel-hover);
-  box-shadow: var(--hos-shadow-card-hover, var(--premium-shadow)), var(--hos-surface-inset, inset 0 1px 0 rgba(255,255,255,0.07));
+  box-shadow:
+    var(--hos-shadow-card-hover, var(--premium-shadow)),
+    var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
   transform: translateY(-1px);
 }
 
@@ -370,8 +375,9 @@
 .settings-card.settings-card--open {
   border-color: var(--premium-border-open, rgba(10, 132, 255, 0.22));
   box-shadow: var(--premium-shadow-open);
-  background: radial-gradient(ellipse at 0% 0%, rgba(10, 132, 255, 0.04) 0%, transparent 55%),
-              var(--premium-glass-bg-open, rgba(255,255,255,0.04));
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(10, 132, 255, 0.04) 0%, transparent 55%),
+    var(--premium-glass-bg-open, rgba(255, 255, 255, 0.04));
 }
 
 .sidebar-group {
@@ -405,7 +411,10 @@
   background: var(--set-glass-bg);
   color: var(--set-text-tertiary);
   cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .sidebar-collapse-btn:hover {
@@ -453,7 +462,11 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .settings-sidebar-reopen:hover {
@@ -547,7 +560,10 @@
   font-weight: 650;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .sidebar-dirty-tray__item-label {
@@ -612,7 +628,9 @@
   color: var(--set-text-primary);
   font-size: var(--set-fs-caption);
   outline: none;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .sidebar-search__input::placeholder {
@@ -681,9 +699,9 @@
   align-items: center;
   justify-content: center;
   font-size: var(--set-fs-nav-brand);
-  background: linear-gradient(135deg, rgba(10,132,255,0.15), rgba(94,92,230,0.1));
-  border: var(--hos-hairline) solid rgba(10,132,255,0.2);
-  box-shadow: 0 4px 16px rgba(10,132,255,0.12);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.15), rgba(94, 92, 230, 0.1));
+  border: var(--hos-hairline) solid rgba(10, 132, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.12);
 }
 
 .sidebar-brand-title {
@@ -770,7 +788,9 @@
 
 .sidebar-submenu {
   display: grid;
-  transition: grid-template-rows 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+  transition:
+    grid-template-rows 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.22s ease;
 }
 
 .sidebar-submenu--open {
@@ -932,7 +952,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: linear-gradient(135deg, #0A84FF, #5E5CE6);
+  background: linear-gradient(135deg, #0a84ff, #5e5ce6);
   color: #fff;
   padding: 13px 16px;
   border-radius: var(--radius-ipad-pill);
@@ -941,17 +961,28 @@
   cursor: pointer;
   border: none;
   transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
-  box-shadow: 0 4px 16px rgba(10,132,255,0.25);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.25);
 }
-.save-btn:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(10,132,255,0.35); }
-.save-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; transform: none; }
-.save-btn:active:not(:disabled) { transform: scale(0.96); }
+.save-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(10, 132, 255, 0.35);
+}
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+.save-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
 
 .sidebar-footer {
   flex-shrink: 0;
   padding: 12px 16px;
   border-top: var(--hos-hairline) solid var(--set-border-subtle);
-  background: linear-gradient(180deg, rgba(10,132,255,0.02) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(10, 132, 255, 0.02) 0%, transparent 100%);
 }
 
 .sidebar-footer__inner {
@@ -1031,7 +1062,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(135deg, #0A84FF, #5E5CE6);
+  background: linear-gradient(135deg, #0a84ff, #5e5ce6);
   color: #fff;
   /* 高度钉到 lg 档：原先 11px 内边距 + 21px 行高凑出 43px，比 lg(44) 矮 1px。 */
   height: var(--control-height-lg);
@@ -1042,13 +1073,13 @@
   cursor: pointer;
   border: none;
   transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-  box-shadow: 0 4px 16px rgba(10,132,255,0.25);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.25);
 }
 
 .sidebar-footer__save-btn:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(10,132,255,0.35);
+  box-shadow: 0 6px 24px rgba(10, 132, 255, 0.35);
 }
 
 .sidebar-footer__save-btn:disabled {
@@ -1106,7 +1137,9 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 0.18s ease, background 0.18s ease;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
 }
 
 .sidebar-account__btn + .sidebar-account__btn {
@@ -1168,7 +1201,7 @@
   margin-top: 2px !important;
   font-size: var(--premium-fs-micro) !important;
   font-weight: 500 !important;
-  font-family: ui-monospace, 'SF Mono', monospace;
+  font-family: ui-monospace, "SF Mono", monospace;
   letter-spacing: 0.04em !important;
   color: var(--hos-text-faint) !important;
 }
@@ -1207,7 +1240,7 @@
   margin-top: 2px !important;
   font-size: var(--premium-fs-micro) !important;
   font-weight: 500 !important;
-  font-family: ui-monospace, 'SF Mono', monospace;
+  font-family: ui-monospace, "SF Mono", monospace;
   letter-spacing: 0.04em !important;
   color: var(--hos-text-faint) !important;
 }
@@ -1228,7 +1261,10 @@
   align-items: center;
   gap: 8px;
 }
-.sys-action-btn:hover { background: rgba(255,255,255,0.07); color: var(--set-text-primary); }
+.sys-action-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--set-text-primary);
+}
 
 .settings-main input[type="text"],
 .settings-main input[type="number"],
@@ -1239,7 +1275,9 @@
 
 .settings-main input:focus,
 .settings-main textarea:focus {
-  box-shadow: 0 0 0 1px rgba(10,132,255,0.2), 0 0 20px rgba(10,132,255,0.05);
+  box-shadow:
+    0 0 0 1px rgba(10, 132, 255, 0.2),
+    0 0 20px rgba(10, 132, 255, 0.05);
 }
 
 .toggle-btn {
@@ -1258,10 +1296,15 @@
   flex-shrink: 0;
   box-sizing: border-box;
   overflow: hidden;
-  transition: background-color 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
+  transition:
+    background-color 0.25s var(--ease-spring),
+    box-shadow 0.25s var(--ease-spring);
   transform: translateZ(0);
 }
-.toggle-btn.on { background: #0A84FF; box-shadow: none; }
+.toggle-btn.on {
+  background: #0a84ff;
+  box-shadow: none;
+}
 .toggle-dot {
   position: absolute;
   top: var(--hos-switch-thumb-inset);
@@ -1275,11 +1318,13 @@
   border-radius: 50%;
   background: #fff;
   transition: transform 0.2s var(--ease-spring);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transform: translateZ(0);
   pointer-events: none;
 }
-.toggle-dot.on { transform: translate3d(var(--hos-switch-travel-md), 0, 0); }
+.toggle-dot.on {
+  transform: translate3d(var(--hos-switch-travel-md), 0, 0);
+}
 
 /* ── 触屏设备（pointer: coarse / hover: none）：降一级到 sm 档 ──
    盒模型计算（box-sizing: border-box），轨道取 --hos-switch-w-sm/h-sm = 40×24：
@@ -1300,7 +1345,7 @@
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55);
   }
   .toggle-btn.on {
-    background: #0A84FF;
+    background: #0a84ff;
     box-shadow: none;
   }
   .toggle-dot {
@@ -1338,18 +1383,31 @@
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .profile-card:hover {
-  border-color: rgba(129,140,248,0.3) !important;
-  box-shadow: 0 4px 20px rgba(99,102,241,0.08);
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.08);
 }
 
 @keyframes settingsFadeIn {
-  0% { opacity: 0; transform: translateY(12px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes settingsAmbientPulse {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.02); }
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
 }
 
 .settings-card .grid > div {
@@ -1367,7 +1425,7 @@
   transition: all 0.25s ease;
   padding: 0;
   margin-top: 0;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid transparent;
 }
@@ -1377,12 +1435,12 @@
   opacity: 1;
   padding: 16px;
   margin-top: 12px;
-  border-color: rgba(10,132,255,0.1);
+  border-color: rgba(10, 132, 255, 0.1);
 }
 
 .sp-check-chip {
   font-size: var(--set-fs-caption);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: "SF Mono", "Fira Code", monospace;
   padding: 2px 8px;
   border-radius: 6px;
   border: var(--hos-hairline) solid var(--premium-border-strong);
@@ -1396,9 +1454,9 @@
   color: var(--set-text-secondary);
 }
 .sp-check-chip--on {
-  background: rgba(10,132,255,0.15);
-  border-color: rgba(10,132,255,0.4);
-  color: #0A84FF;
+  background: rgba(10, 132, 255, 0.15);
+  border-color: rgba(10, 132, 255, 0.4);
+  color: #0a84ff;
 }
 
 /* 高度钉到 lg 档，只作用于文本框/下拉触发器。
@@ -1412,14 +1470,17 @@ input.settings-field {
 
 .settings-field {
   width: 100%;
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   border: var(--hos-hairline) solid var(--premium-border);
   border-radius: var(--acc-radius);
   padding: 10px 12px;
   font-size: var(--set-fs-input);
   color: white;
   outline: none;
-  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-field:hover {
@@ -1432,7 +1493,8 @@ input.settings-field {
   border-color: var(--premium-border-open);
   background: var(--premium-glass-bg-open);
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
 }
 
 /* 显式 focus-visible：键盘导航时使用可见焦点环 */
@@ -1458,7 +1520,9 @@ input.settings-field {
   position: relative;
 }
 
-.settings-page--compact { gap: 16px; }
+.settings-page--compact {
+  gap: 16px;
+}
 
 .settings-card--full {
   grid-column: 1 / -1;
@@ -1478,8 +1542,8 @@ input.settings-field {
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--page-accent, #0A84FF) 16%, rgba(0, 0, 0, 0)) 0%,
-    color-mix(in srgb, var(--page-accent, #0A84FF) 6%, rgba(0, 0, 0, 0)) 42%,
+    color-mix(in srgb, var(--page-accent, #0a84ff) 16%, rgba(0, 0, 0, 0)) 0%,
+    color-mix(in srgb, var(--page-accent, #0a84ff) 6%, rgba(0, 0, 0, 0)) 42%,
     rgba(0, 0, 0, 0) 70%
   );
   pointer-events: none;
@@ -1498,7 +1562,11 @@ input.settings-field {
 }
 
 /* breadcrumb + Hero 合并为单行 context：弱化卡片感，避免双叠头 */
-.settings-shell .settings-breadcrumb + .settings-main__stage .settings-page-inset--top .settings-hero.premium-head--card {
+.settings-shell
+  .settings-breadcrumb
+  + .settings-main__stage
+  .settings-page-inset--top
+  .settings-hero.premium-head--card {
   padding: 10px 14px;
   border-radius: var(--hos-radius-card, 14px);
   box-shadow: none;
@@ -1611,7 +1679,7 @@ input.settings-field {
 }
 
 .settings-page-inset--scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(10,132,255,0.25);
+  background: rgba(10, 132, 255, 0.25);
 }
 
 /* 内容栈：宽屏自动双栏，卡片交错入场 */
@@ -1631,13 +1699,27 @@ input.settings-field {
   animation: setFadeInLg 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.settings-page-stack > *:nth-child(1) { animation-delay: 0.03s; }
-.settings-page-stack > *:nth-child(2) { animation-delay: 0.06s; }
-.settings-page-stack > *:nth-child(3) { animation-delay: 0.09s; }
-.settings-page-stack > *:nth-child(4) { animation-delay: 0.12s; }
-.settings-page-stack > *:nth-child(5) { animation-delay: 0.15s; }
-.settings-page-stack > *:nth-child(6) { animation-delay: 0.18s; }
-.settings-page-stack > *:nth-child(n+7) { animation-delay: 0.21s; }
+.settings-page-stack > *:nth-child(1) {
+  animation-delay: 0.03s;
+}
+.settings-page-stack > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.settings-page-stack > *:nth-child(3) {
+  animation-delay: 0.09s;
+}
+.settings-page-stack > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.settings-page-stack > *:nth-child(5) {
+  animation-delay: 0.15s;
+}
+.settings-page-stack > *:nth-child(6) {
+  animation-delay: 0.18s;
+}
+.settings-page-stack > *:nth-child(n + 7) {
+  animation-delay: 0.21s;
+}
 
 @container settings-scroll (min-width: 900px) {
   .settings-page-stack:not(.settings-page-stack--single) {
@@ -1718,7 +1800,9 @@ input.settings-field {
     gap: 24px;
   }
 
-  .settings-page--compact { gap: 20px; }
+  .settings-page--compact {
+    gap: 20px;
+  }
 
   .settings-breadcrumb {
     padding: 12px 2rem 0;
@@ -1791,7 +1875,9 @@ input.settings-field {
     gap: 32px;
   }
 
-  .settings-page--compact { gap: 24px; }
+  .settings-page--compact {
+    gap: 24px;
+  }
 
   .settings-breadcrumb {
     padding: 16px 2.5rem 0;
@@ -1878,7 +1964,6 @@ input.settings-field {
   }
 }
 
-
 /* ══ ≤900px：设置侧栏改为覆盖式抽屉 ══
  * 260px 固定侧栏在 390px 视口会把主内容压到约 130px；这里让侧栏脱离布局、
  * 默认移出视口，由「导航」按钮/遮罩/Esc 控制，主内容始终占满宽度。
@@ -1899,7 +1984,9 @@ input.settings-field {
     opacity: 0;
     pointer-events: none;
     box-shadow: none;
-    transition: transform 0.24s ease, opacity 0.24s ease;
+    transition:
+      transform 0.24s ease,
+      opacity 0.24s ease;
   }
 
   .settings-shell--compact-nav-open .settings-sidebar--desktop {

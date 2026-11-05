@@ -1,168 +1,157 @@
-import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
-import { createEnvironmentHalos as createEnvironmentHalos2 } from "./environment-halos";
+import { bathHeaterState as bathHeaterState2 } from '../bath-heater/bath-heater'
+import { createEnvironmentHalos as createEnvironmentHalos2 } from './environment-halos'
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
-} from "../device/generic-device-catalog";
+} from '../device/generic-device-catalog'
 export function pageDimming(config: any, activeModule: any, isFocusMode = false) {
   const moduleKey =
-    ({
-      "water-heater": "devices",
-      airer: "devices",
-      fan: "environment",
-      purifier: "environment",
-      climate: "environment",
-      cover: "environment",
-      "temperature-humidity": "environment",
-      nas: "devices",
-      speaker: "devices",
-      television: "devices",
-      "vacuum-shortcut": "vacuum",
-      ...Object.fromEntries(
-        GENERIC_DEVICE_KINDS2.map((genericDeviceKind) => [genericDeviceKind, "devices"]),
-      ),
-    } as any)[activeModule] || activeModule;
-  if (!["overview", "light", "environment", "devices", "vacuum", "security"].includes(moduleKey))
+    (
+      {
+        'water-heater': 'devices',
+        airer: 'devices',
+        fan: 'environment',
+        purifier: 'environment',
+        climate: 'environment',
+        cover: 'environment',
+        'temperature-humidity': 'environment',
+        nas: 'devices',
+        speaker: 'devices',
+        television: 'devices',
+        'vacuum-shortcut': 'vacuum',
+        ...Object.fromEntries(GENERIC_DEVICE_KINDS2.map((genericDeviceKind) => [genericDeviceKind, 'devices'])),
+      } as any
+    )[activeModule] || activeModule
+  if (!['overview', 'light', 'environment', 'devices', 'vacuum', 'security'].includes(moduleKey))
     return {
       page: moduleKey,
       strength: 0,
       enabled: false,
-    };
+    }
   const clampPercent = (candidateValue: any, fallbackValue: any) =>
       Number.isFinite(candidateValue) ? Math.max(0, Math.min(100, candidateValue)) : fallbackValue,
     dimStrengthPercent = clampPercent(
       config.pageDimStrength?.[moduleKey],
-      moduleKey === "overview" ? 0 : clampPercent(config.environment?.dimStrength, 70),
+      moduleKey === 'overview' ? 0 : clampPercent(config.environment?.dimStrength, 70),
     ),
-    saturationPercent = clampPercent(
-      config.pageSaturation?.[moduleKey],
-      moduleKey === "overview" ? 100 : 75,
-    );
+    saturationPercent = clampPercent(config.pageSaturation?.[moduleKey], moduleKey === 'overview' ? 100 : 75)
   return {
     page: moduleKey,
     saturation: saturationPercent,
-    enabled: moduleKey !== "overview" || dimStrengthPercent > 0 || saturationPercent < 100,
+    enabled: moduleKey !== 'overview' || dimStrengthPercent > 0 || saturationPercent < 100,
     strength: Math.min(
       100,
-      dimStrengthPercent +
-        (isFocusMode && moduleKey !== "overview" ? clampPercent(config.focusDimStrength, 15) : 0),
+      dimStrengthPercent + (isFocusMode && moduleKey !== 'overview' ? clampPercent(config.focusDimStrength, 15) : 0),
     ),
-  };
+  }
 }
 const MODEL_TYPE_TO_PAGE = {
-    entry: "security",
-    door: "security",
-    storagewaterheater: "devices",
-    gaswaterheater: "devices",
-    airer: "devices",
-    fan: "environment",
-    "ceiling-fan": "environment",
-    airpurifier: "environment",
-    wallac: "environment",
-    floorac: "environment",
-    airoutlet: "environment",
-    curtain: "environment",
-    nas: "devices",
-    speaker: "devices",
-    tv: "devices",
-    robotvacuum: "vacuum",
-    camera: "security",
-    presence: "security",
+    entry: 'security',
+    door: 'security',
+    storagewaterheater: 'devices',
+    gaswaterheater: 'devices',
+    airer: 'devices',
+    fan: 'environment',
+    'ceiling-fan': 'environment',
+    airpurifier: 'environment',
+    wallac: 'environment',
+    floorac: 'environment',
+    airoutlet: 'environment',
+    curtain: 'environment',
+    nas: 'devices',
+    speaker: 'devices',
+    tv: 'devices',
+    robotvacuum: 'vacuum',
+    camera: 'security',
+    presence: 'security',
     ...Object.fromEntries(
       GENERIC_DEVICE_KINDS2.flatMap((profileDeviceKind) =>
         (
-          genericDeviceProfile2(profileDeviceKind).modelTypes || [
-            genericDeviceProfile2(profileDeviceKind).modelType,
-          ]
-        ).map((profileModelType: any) => [profileModelType, "devices"]),
+          genericDeviceProfile2(profileDeviceKind).modelTypes || [genericDeviceProfile2(profileDeviceKind).modelType]
+        ).map((profileModelType: any) => [profileModelType, 'devices']),
       ),
     ),
   },
   MODEL_TYPE_TO_DEVICE_KIND = {
-    entry: "lock",
-    door: "lock",
-    storagewaterheater: "climate",
-    gaswaterheater: "climate",
-    airer: "cover",
-    fan: "climate",
-    "ceiling-fan": "climate",
-    airpurifier: "climate",
-    wallac: "climate",
-    floorac: "climate",
-    airoutlet: "climate",
-    curtain: "cover",
-    nas: "nas",
-    speaker: "speaker",
-    tv: "television",
-    robotvacuum: "vacuum",
-    camera: "camera",
-    presence: "presence",
+    entry: 'lock',
+    door: 'lock',
+    storagewaterheater: 'climate',
+    gaswaterheater: 'climate',
+    airer: 'cover',
+    fan: 'climate',
+    'ceiling-fan': 'climate',
+    airpurifier: 'climate',
+    wallac: 'climate',
+    floorac: 'climate',
+    airoutlet: 'climate',
+    curtain: 'cover',
+    nas: 'nas',
+    speaker: 'speaker',
+    tv: 'television',
+    robotvacuum: 'vacuum',
+    camera: 'camera',
+    presence: 'presence',
     ...Object.fromEntries(
       GENERIC_DEVICE_KINDS2.flatMap((mappedDeviceKind) =>
-        (
-          genericDeviceProfile2(mappedDeviceKind).modelTypes || [
-            genericDeviceProfile2(mappedDeviceKind).modelType,
-          ]
-        ).map((mappedModelType: any) => [mappedModelType, mappedDeviceKind]),
+        (genericDeviceProfile2(mappedDeviceKind).modelTypes || [genericDeviceProfile2(mappedDeviceKind).modelType]).map(
+          (mappedModelType: any) => [mappedModelType, mappedDeviceKind],
+        ),
       ),
     ),
-  };
+  }
 function isModelTypeBound(modelType: any, bindingCandidate: any) {
-  if (!bindingCandidate) return false;
-  const deviceKind = (MODEL_TYPE_TO_DEVICE_KIND as any)[modelType];
+  if (!bindingCandidate) return false
+  const deviceKind = (MODEL_TYPE_TO_DEVICE_KIND as any)[modelType]
   return GENERIC_DEVICE_KINDS2.includes(deviceKind)
     ? !!bindingCandidate.deviceId
-    : deviceKind === "lock"
+    : deviceKind === 'lock'
       ? [
-          "doorEntityId",
-          "batteryEntityId",
-          "battery2EntityId",
-          "entityId",
-          "doorEventEntityId",
-          "doorOpenEntityId",
-          "doorCloseEntityId",
+          'doorEntityId',
+          'batteryEntityId',
+          'battery2EntityId',
+          'entityId',
+          'doorEventEntityId',
+          'doorOpenEntityId',
+          'doorCloseEntityId',
         ].some((entityFieldName) => bindingCandidate[entityFieldName])
-      : deviceKind === "nas"
+      : deviceKind === 'nas'
         ? !!(bindingCandidate.entityId || bindingCandidate.statusSource?.deviceId)
-        : deviceKind === "television"
+        : deviceKind === 'television'
           ? !!(bindingCandidate.entityId || bindingCandidate.powerEntityId)
-          : (["fan", "ceiling-fan", "airpurifier", "storagewaterheater", "gaswaterheater"].includes(
-                modelType,
-              ) ||
-                (["wallac", "floorac", "airoutlet"].includes(modelType) &&
-                  bindingCandidate.climateType === "bath-heater")) &&
+          : (['fan', 'ceiling-fan', 'airpurifier', 'storagewaterheater', 'gaswaterheater'].includes(modelType) ||
+                (['wallac', 'floorac', 'airoutlet'].includes(modelType) &&
+                  bindingCandidate.climateType === 'bath-heater')) &&
               bindingCandidate.deviceId
             ? true
-            : !!bindingCandidate.entityId;
+            : !!bindingCandidate.entityId
 }
 export function pageModelBindings(floors: any, sceneBindings: any, page: any, floorId: any) {
-
   const map = new Map<string, any>(
     sceneBindings.map((sceneBinding: any) => [
       JSON.stringify([sceneBinding.floorId, sceneBinding.modelId]),
       sceneBinding,
     ]),
-  );
+  )
   return floors
-    .filter((floor: any) => floorId === "all" || floor.id === floorId)
+    .filter((floor: any) => floorId === 'all' || floor.id === floorId)
     .flatMap((floorOfScene: any) =>
       [
         ...(floorOfScene.scene?.items || []),
         ...(floorOfScene.scene?.doors || []).map((doorItem: any) => ({
           ...doorItem,
-          id: "door:" + doorItem.id,
-          type: "door",
+          id: 'door:' + doorItem.id,
+          type: 'door',
         })),
       ].flatMap((sceneItem) => {
-        const itemPage = (MODEL_TYPE_TO_PAGE as any)[sceneItem.type];
-        if (!itemPage || (page !== "overview" && itemPage !== page)) return [];
+        const itemPage = (MODEL_TYPE_TO_PAGE as any)[sceneItem.type]
+        if (!itemPage || (page !== 'overview' && itemPage !== page)) return []
         const stringify = JSON.stringify([floorOfScene.id, sceneItem.id]),
-          existingBinding = map.get(stringify);
+          existingBinding = map.get(stringify)
         return isModelTypeBound(sceneItem.type, existingBinding)
           ? [
               {
                 ...existingBinding,
-                id: existingBinding?.id || "presentation:" + stringify,
+                id: existingBinding?.id || 'presentation:' + stringify,
                 floorId: floorOfScene.id,
                 modelId: sceneItem.id,
                 deviceKind: (MODEL_TYPE_TO_DEVICE_KIND as any)[sceneItem.type],
@@ -172,9 +161,9 @@ export function pageModelBindings(floors: any, sceneBindings: any, page: any, fl
                 previewOnly: !existingBinding,
               },
             ]
-          : [];
+          : []
       }),
-    );
+    )
 }
 export function createEnvironmentScene({
   THREE: THREE,
@@ -194,24 +183,23 @@ export function createEnvironmentScene({
     variantsBySourceMaterial = new Map(),
     set = new Set<any>(),
     retainedRootSet = new Set(),
-
     retainedEntriesByMesh = new Map<any, any>(),
     modelKeysByRetainedRoot = new Map(),
     retainedKeySet = new Set(),
     releasedKeySet = new Set(),
     prefersReducedMotion = () =>
-      globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
-      globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
+      globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ||
+      globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
     halos = createEnvironmentHalos2({
       THREE: THREE,
       modeAmount: modeUniform,
     }),
     stateColors = {
-      cool: new THREE.Color("#c8e2eb"),
-      heat: new THREE.Color("#efd1ae"),
-      other: new THREE.Color("#eee9df"),
-      selected: new THREE.Color("#ffe1aa"),
-    };
+      cool: new THREE.Color('#c8e2eb'),
+      heat: new THREE.Color('#efd1ae'),
+      other: new THREE.Color('#eee9df'),
+      selected: new THREE.Color('#ffe1aa'),
+    }
   let value: any = null,
     rootRevision: any,
     list: any = [],
@@ -219,27 +207,23 @@ export function createEnvironmentScene({
     isEnabled = false,
     hasTraversedScene = false,
     currentBindings: any = [],
-    text = "[]",
+    text = '[]',
     entityStates: Record<string, any> = {},
-    focusedId = "",
-    selectedId = "";
+    focusedId = '',
+    selectedId = ''
   const retiredBindingsByKey = new Map(),
-    activeBindings = () => [...currentBindings, ...retiredBindingsByKey.values()];
+    activeBindings = () => [...currentBindings, ...retiredBindingsByKey.values()]
   let num = 0,
     previousDimStrength = 0,
     targetModeAmount = 0,
     previousModeAmount = 0,
     modeFadeStartMs: any = null,
     hasMaterialsApplied = false,
-    configuredDimStrength = 0.7;
+    configuredDimStrength = 0.7
   const composeScopeKey = (scopeFloorId: any, scopeModelId: any) =>
-      JSON.stringify([String(scopeFloorId ?? ""), String(scopeModelId ?? "")]),
+      JSON.stringify([String(scopeFloorId ?? ''), String(scopeModelId ?? '')]),
     composeBindingKey = (bindingRecord: any) =>
-      JSON.stringify([
-        String(bindingRecord.id ?? ""),
-        bindingRecord.floorId,
-        bindingRecord.modelId,
-      ]),
+      JSON.stringify([String(bindingRecord.id ?? ''), bindingRecord.floorId, bindingRecord.modelId]),
     toArray = (arrayCandidate: any) =>
       Array.isArray(arrayCandidate) ? arrayCandidate : arrayCandidate ? [arrayCandidate] : [],
     isSupportedMaterial = (materialCandidate: any) =>
@@ -263,20 +247,20 @@ export function createEnvironmentScene({
         value: new THREE.Vector2(0.12, 0.8),
       },
     }),
-    baseUniforms = createUniforms();
+    baseUniforms = createUniforms()
   function patchMaterial(material: any, patchUniforms: any, sourceMaterial: any = null) {
-    if (!isSupportedMaterial(material) || patchesByMaterial.has(material)) return;
+    if (!isSupportedMaterial(material) || patchesByMaterial.has(material)) return
     const onBeforeCompile = material.onBeforeCompile,
       customProgramCacheKey = material.customProgramCacheKey,
-      own = Object.hasOwn(material, "onBeforeCompile"),
-      own2 = Object.hasOwn(material, "customProgramCacheKey"),
+      own = Object.hasOwn(material, 'onBeforeCompile'),
+      own2 = Object.hasOwn(material, 'customProgramCacheKey'),
       existingPatch = sourceMaterial ? patchesByMaterial.get(sourceMaterial) : null,
       priorCompile = existingPatch?.priorCompile || onBeforeCompile,
       priorKey = existingPatch?.priorKey || customProgramCacheKey,
       originalOwner = sourceMaterial || material,
       patchedOnBeforeCompile = function (this: any, shaderParameters: any, renderer: any) {
-        priorCompile?.call(this, shaderParameters, renderer);
-        const opaqueFragmentChunk = "#include <opaque_fragment>";
+        priorCompile?.call(this, shaderParameters, renderer)
+        const opaqueFragmentChunk = '#include <opaque_fragment>'
         if (
           !shaderParameters.fragmentShader.includes(opaqueFragmentChunk) ||
           ((shaderParameters.uniforms.hbEnvironmentAmount = patchUniforms.amount),
@@ -285,35 +269,35 @@ export function createEnvironmentScene({
           (shaderParameters.uniforms.hbEnvironmentRetain = patchUniforms.retain),
           (shaderParameters.uniforms.hbEnvironmentGlow = patchUniforms.glow),
           (shaderParameters.uniforms.hbEnvironmentLift = patchUniforms.lift),
-          shaderParameters.fragmentShader.includes("uniform float hbEnvironmentAmount;"))
+          shaderParameters.fragmentShader.includes('uniform float hbEnvironmentAmount;'))
         )
-          return;
+          return
         shaderParameters.fragmentShader =
-          "uniform float hbEnvironmentAmount;\nuniform float hbEnvironmentMode;\nuniform float hbEnvironmentSaturation;\nuniform float hbEnvironmentRetain;\nuniform vec3 hbEnvironmentGlow;\nuniform vec2 hbEnvironmentLift;\n" +
+          'uniform float hbEnvironmentAmount;\nuniform float hbEnvironmentMode;\nuniform float hbEnvironmentSaturation;\nuniform float hbEnvironmentRetain;\nuniform vec3 hbEnvironmentGlow;\nuniform vec2 hbEnvironmentLift;\n' +
           shaderParameters.fragmentShader.replace(
             opaqueFragmentChunk,
-            "float hbEnvironmentLuma = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));\noutgoingLight = mix(outgoingLight, vec3(hbEnvironmentLuma) * vec3(1.005, 1.0, 0.99), hbEnvironmentMode * (1.0 - hbEnvironmentRetain) * (1.0 - hbEnvironmentSaturation));\noutgoingLight += hbEnvironmentGlow * hbEnvironmentMode * (vec3(hbEnvironmentLift.x) + clamp(outgoingLight, 0.0, 1.0) * hbEnvironmentLift.y);\n" +
+            'float hbEnvironmentLuma = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));\noutgoingLight = mix(outgoingLight, vec3(hbEnvironmentLuma) * vec3(1.005, 1.0, 0.99), hbEnvironmentMode * (1.0 - hbEnvironmentRetain) * (1.0 - hbEnvironmentSaturation));\noutgoingLight += hbEnvironmentGlow * hbEnvironmentMode * (vec3(hbEnvironmentLift.x) + clamp(outgoingLight, 0.0, 1.0) * hbEnvironmentLift.y);\n' +
               opaqueFragmentChunk,
-          );
-        const colorSpaceFragmentChunk = "#include <colorspace_fragment>";
+          )
+        const colorSpaceFragmentChunk = '#include <colorspace_fragment>'
         shaderParameters.fragmentShader = shaderParameters.fragmentShader.replace(
           colorSpaceFragmentChunk,
           colorSpaceFragmentChunk +
-            ("\ngl_FragColor.rgb *= mix(1.0, " +
-              (material.userData.environmentWallTop ? "1.0" : "0.15") +
-              ", hbEnvironmentAmount * (1.0 - hbEnvironmentRetain));"),
-        );
+            ('\ngl_FragColor.rgb *= mix(1.0, ' +
+              (material.userData.environmentWallTop ? '1.0' : '0.15') +
+              ', hbEnvironmentAmount * (1.0 - hbEnvironmentRetain));'),
+        )
       },
       patchedProgramCacheKey = function () {
         return (
           (priorKey === THREE.Material.prototype.customProgramCacheKey
-            ? priorCompile?.toString() || ""
-            : priorKey?.call(originalOwner) || "") +
-          "|hb-environment-saturation-v8:" +
-          (material.userData.environmentWallTop ? "wall-top" : "ordinary")
-        );
-      };
-    (patchesByMaterial.set(material, {
+            ? priorCompile?.toString() || ''
+            : priorKey?.call(originalOwner) || '') +
+          '|hb-environment-saturation-v8:' +
+          (material.userData.environmentWallTop ? 'wall-top' : 'ordinary')
+        )
+      }
+    patchesByMaterial.set(material, {
       oldCompile: onBeforeCompile,
       oldKey: customProgramCacheKey,
       hasCompile: own,
@@ -327,22 +311,20 @@ export function createEnvironmentScene({
     }),
       (material.onBeforeCompile = patchedOnBeforeCompile),
       (material.customProgramCacheKey = patchedProgramCacheKey),
-      (material.needsUpdate = true));
+      (material.needsUpdate = true)
   }
   function detachAppliedMaterials() {
-    halos.setVisible(false);
+    halos.setVisible(false)
     for (const entry of list)
-      entry.applied &&
-        entry.mesh.material === entry.applied &&
-        (entry.mesh.material = entry.original);
-    hasMaterialsApplied = false;
+      entry.applied && entry.mesh.material === entry.applied && (entry.mesh.material = entry.original)
+    hasMaterialsApplied = false
   }
   function resetScene() {
     for (const retainedEntry of retainedEntriesByMesh.values())
       retainedEntry.applied &&
         retainedEntry.mesh.material === retainedEntry.applied &&
-        (retainedEntry.mesh.material = retainedEntry.original);
-    (retainedEntriesByMesh.clear(),
+        (retainedEntry.mesh.material = retainedEntry.original)
+    retainedEntriesByMesh.clear(),
       retainedRootSet.clear(),
       modelKeysByRetainedRoot.clear(),
       retainedKeySet.clear(),
@@ -350,47 +332,38 @@ export function createEnvironmentScene({
       detachAppliedMaterials(),
       halos.clear(),
       set.clear(),
-      retiredBindingsByKey.clear());
-    for (const [patchedMaterial, materialPatch] of patchesByMaterial)
-      unpatchMaterial(patchedMaterial, materialPatch);
+      retiredBindingsByKey.clear()
+    for (const [patchedMaterial, materialPatch] of patchesByMaterial) unpatchMaterial(patchedMaterial, materialPatch)
     for (const variantsOfMaterial of variantsBySourceMaterial.values())
-      for (const variant of variantsOfMaterial.values()) variant.material.dispose();
-    (patchesByMaterial.clear(),
-      variantsBySourceMaterial.clear(),
-      (list = []),
-      (hasTraversedScene = false));
+      for (const variant of variantsOfMaterial.values()) variant.material.dispose()
+    patchesByMaterial.clear(), variantsBySourceMaterial.clear(), (list = []), (hasTraversedScene = false)
   }
   function unpatchMaterial(targetMaterial: any, patch: any) {
-    let hasRestoredPatch = false;
-    (targetMaterial.onBeforeCompile === patch.compile &&
-      (patch.hasCompile
-        ? (targetMaterial.onBeforeCompile = patch.oldCompile)
-        : delete targetMaterial.onBeforeCompile,
+    let hasRestoredPatch = false
+    targetMaterial.onBeforeCompile === patch.compile &&
+      (patch.hasCompile ? (targetMaterial.onBeforeCompile = patch.oldCompile) : delete targetMaterial.onBeforeCompile,
       (hasRestoredPatch = true)),
       targetMaterial.customProgramCacheKey === patch.key &&
         (patch.hasKey
           ? (targetMaterial.customProgramCacheKey = patch.oldKey)
           : delete targetMaterial.customProgramCacheKey,
         (hasRestoredPatch = true)),
-      hasRestoredPatch &&
-        (patch.source || targetMaterial.dispose(), (targetMaterial.needsUpdate = true)));
+      hasRestoredPatch && (patch.source || targetMaterial.dispose(), (targetMaterial.needsUpdate = true))
   }
   function resolveVariantMaterial(baseMaterial: any, targetBinding: any) {
-    if (!isSupportedMaterial(baseMaterial)) return baseMaterial;
-    let variantsBySource = variantsBySourceMaterial.get(baseMaterial);
-    variantsBySource ||
-      ((variantsBySource = new Map()),
-      variantsBySourceMaterial.set(baseMaterial, variantsBySource));
-    const bindingKey = composeBindingKey(targetBinding);
-    let resolvedVariant = variantsBySource.get(bindingKey);
+    if (!isSupportedMaterial(baseMaterial)) return baseMaterial
+    let variantsBySource = variantsBySourceMaterial.get(baseMaterial)
+    variantsBySource || ((variantsBySource = new Map()), variantsBySourceMaterial.set(baseMaterial, variantsBySource))
+    const bindingKey = composeBindingKey(targetBinding)
+    let resolvedVariant = variantsBySource.get(bindingKey)
     if (!resolvedVariant) {
       const clone = baseMaterial.clone(),
-        variantUniforms = createUniforms();
-      (baseMaterial.defines &&
+        variantUniforms = createUniforms()
+      baseMaterial.defines &&
         (clone.defines = {
           ...baseMaterial.defines,
         }),
-        Object.defineProperty(clone, "environmentSourceMaterial", {
+        Object.defineProperty(clone, 'environmentSourceMaterial', {
           value: baseMaterial,
           configurable: true,
         }),
@@ -400,27 +373,27 @@ export function createEnvironmentScene({
           uniforms: variantUniforms,
           binding: targetBinding,
         }),
-        variantsBySource.set(bindingKey, resolvedVariant));
+        variantsBySource.set(bindingKey, resolvedVariant)
     }
     return (
       (resolvedVariant.binding = targetBinding),
       resolvedVariant.uniforms.lift.value.set(
-        ...(targetBinding.deviceKind === "cover"
+        ...(targetBinding.deviceKind === 'cover'
           ? [0.025, 0.9]
-          : targetBinding.deviceKind === "climate"
+          : targetBinding.deviceKind === 'climate'
             ? [0.16, 1.05]
             : [0.12, 0.8]),
       ),
       halos.setColor(targetBinding.id, resolvedVariant.uniforms.glow.value),
       resolvedVariant.material
-    );
+    )
   }
   function applyBindingMaterials() {
     if (!value || (!isEnabled && options.value === 0 && modeUniform.value === 0)) {
-      (detachAppliedMaterials(), pruneMaterialVariants());
-      return;
+      detachAppliedMaterials(), pruneMaterialVariants()
+      return
     }
-    (halos.sync(
+    halos.sync(
       value,
       activeBindings(),
       rootRevision,
@@ -430,94 +403,79 @@ export function createEnvironmentScene({
           .map((entryWithModel: any) => [entryWithModel.modelKey, entryWithModel.modelNode]),
       ),
     ),
-      halos.setVisible(true));
-    const bindingsByModelKey = new Map();
+      halos.setVisible(true)
+    const bindingsByModelKey = new Map()
     for (const pageBinding of activeBindings())
       if (pageBinding.modelId != null && pageBinding.visible !== false) {
-        const modelKey = composeScopeKey(pageBinding.floorId, pageBinding.modelId);
-        bindingsByModelKey.has(modelKey) || bindingsByModelKey.set(modelKey, pageBinding);
+        const modelKey = composeScopeKey(pageBinding.floorId, pageBinding.modelId)
+        bindingsByModelKey.has(modelKey) || bindingsByModelKey.set(modelKey, pageBinding)
       }
     for (const meshEntry of list) {
       // 新 id 找不到时退到历史 id：老配置的材质/状态绑定不会因为窗扇 id 升级而失效。
       const bindingForEntry =
         bindingsByModelKey.get(meshEntry.modelKey) ||
-        (meshEntry.legacyModelKey != null
-          ? bindingsByModelKey.get(meshEntry.legacyModelKey)
-          : undefined);
+        (meshEntry.legacyModelKey != null ? bindingsByModelKey.get(meshEntry.legacyModelKey) : undefined)
       if (bindingForEntry) {
         const appliedMaterials = toArray(meshEntry.original).map((mappedMaterial) =>
           resolveVariantMaterial(mappedMaterial, bindingForEntry),
-        );
-        ((meshEntry.applied = Array.isArray(meshEntry.original)
-          ? appliedMaterials
-          : appliedMaterials[0]),
-          (meshEntry.mesh.material = meshEntry.applied));
+        )
+        ;(meshEntry.applied = Array.isArray(meshEntry.original) ? appliedMaterials : appliedMaterials[0]),
+          (meshEntry.mesh.material = meshEntry.applied)
       } else
-        (meshEntry.applied &&
+        meshEntry.applied &&
           meshEntry.mesh.material === meshEntry.applied &&
           (meshEntry.mesh.material = meshEntry.original),
-          (meshEntry.applied = null));
+          (meshEntry.applied = null)
     }
-    ((hasMaterialsApplied = true), pruneMaterialVariants());
+    ;(hasMaterialsApplied = true), pruneMaterialVariants()
   }
   function pruneMaterialVariants() {
-    const activeBindingKeySet = new Set(activeBindings().map(composeBindingKey));
+    const activeBindingKeySet = new Set(activeBindings().map(composeBindingKey))
     for (const [staleSourceMaterial, variantsOfSource] of variantsBySourceMaterial) {
       for (const [candidateBindingKey, removedVariant] of variantsOfSource) {
-        const scopeKey = composeScopeKey(
-          removedVariant.binding.floorId,
-          removedVariant.binding.modelId,
-        );
+        const scopeKey = composeScopeKey(removedVariant.binding.floorId, removedVariant.binding.modelId)
         retainedKeySet.has(scopeKey)
-          ? (set.delete(removedVariant),
-            (removedVariant.fade = null),
-            (removedVariant.target = null))
+          ? (set.delete(removedVariant), (removedVariant.fade = null), (removedVariant.target = null))
           : !activeBindingKeySet.has(candidateBindingKey) &&
             !releasedKeySet.has(scopeKey) &&
             (set.delete(removedVariant),
             patchesByMaterial.delete(removedVariant.material),
             removedVariant.material.dispose(),
-            variantsOfSource.delete(candidateBindingKey));
+            variantsOfSource.delete(candidateBindingKey))
       }
-      variantsOfSource.size || variantsBySourceMaterial.delete(staleSourceMaterial);
+      variantsOfSource.size || variantsBySourceMaterial.delete(staleSourceMaterial)
     }
   }
   function updateMaterialTargets(shouldAnimate = false, changedFloorIdTargetSet = new Set()) {
     const highlightId = selectedId || focusedId,
       some =
         !!highlightId &&
-        currentBindings.some(
-          (listedBinding: any) => (listedBinding.entryId || listedBinding.id) === highlightId,
-        );
-    let hasTargetChanged = false;
+        currentBindings.some((listedBinding: any) => (listedBinding.entryId || listedBinding.id) === highlightId)
+    let hasTargetChanged = false
     for (const variantMap of variantsBySourceMaterial.values())
       for (const materialVariant of variantMap.values()) {
-        const binding = materialVariant.binding;
-        if (retainedKeySet.has(composeScopeKey(binding.floorId, binding.modelId))) continue;
+        const binding = materialVariant.binding
+        if (retainedKeySet.has(composeScopeKey(binding.floorId, binding.modelId))) continue
         const targetAmount =
             !retiredBindingsByKey.has(composeBindingKey(binding)) &&
             (!some || (binding.entryId || binding.id) === highlightId)
               ? 1
               : 0,
-          entityId =
-            binding.entityId ||
-            (binding.deviceKind === "nas" ? binding.statusSource?.primaryEntityId : ""),
-          stateRecord =
-            entityStates instanceof Map ? entityStates.get(entityId) : (entityStates as any)?.[entityId],
+          entityId = binding.entityId || (binding.deviceKind === 'nas' ? binding.statusSource?.primaryEntityId : ''),
+          stateRecord = entityStates instanceof Map ? entityStates.get(entityId) : (entityStates as any)?.[entityId],
           state = stateRecord?.newState || stateRecord || {},
-          lowerCase = String(state.state || "").toLowerCase(),
-          bathHeaterFeedback =
-            binding.climateType === "bath-heater" ? bathHeaterState2(binding, entityStates) : null,
+          lowerCase = String(state.state || '').toLowerCase(),
+          bathHeaterFeedback = binding.climateType === 'bath-heater' ? bathHeaterState2(binding, entityStates) : null,
           isStateActive = bathHeaterFeedback
             ? bathHeaterFeedback.on
-            : !["", "off", "unknown", "unavailable"].includes(lowerCase),
+            : !['', 'off', 'unknown', 'unavailable'].includes(lowerCase),
           isSelected = (binding.entryId || binding.id) === selectedId,
           intensity = targetAmount
             ? isSelected
               ? 1.45
-              : binding.deviceKind === "cover"
+              : binding.deviceKind === 'cover'
                 ? 1.2
-                : binding.deviceKind === "climate"
+                : binding.deviceKind === 'climate'
                   ? isStateActive
                     ? 1.35
                     : 1
@@ -527,14 +485,13 @@ export function createEnvironmentScene({
             : 0,
           selected = isSelected
             ? stateColors.selected
-            : (isStateActive && (stateColors as any)[bathHeaterFeedback?.visualMode || lowerCase]) ||
-              stateColors.other,
+            : (isStateActive && (stateColors as any)[bathHeaterFeedback?.visualMode || lowerCase]) || stateColors.other,
           tintedRed = intensity * selected.r,
           tintedGreen = intensity * selected.g,
           tintedBlue = intensity * selected.b,
           uniforms = materialVariant.uniforms,
           glowColor = uniforms.glow.value,
-          nextTarget = [targetAmount, tintedRed, tintedGreen, tintedBlue];
+          nextTarget = [targetAmount, tintedRed, tintedGreen, tintedBlue]
         materialVariant.target?.every((targetValue: any, index: any) => targetValue === nextTarget[index]) ||
           ((hasTargetChanged = true),
           changedFloorIdTargetSet.add(binding.floorId),
@@ -549,9 +506,9 @@ export function createEnvironmentScene({
               (uniforms.retain.value = targetAmount),
               glowColor.setRGB(tintedRed, tintedGreen, tintedBlue),
               halos.setColor(binding.id, glowColor)),
-          (materialVariant.target = nextTarget));
+          (materialVariant.target = nextTarget))
       }
-    return hasTargetChanged;
+    return hasTargetChanged
   }
   function setRoot(nextRoot: any, revision: any) {
     isDisposed ||
@@ -560,27 +517,27 @@ export function createEnvironmentScene({
       (value = nextRoot || null),
       (rootRevision = revision),
       !(!hasTraversedScene && !isEnabled && !currentBindings.length) &&
-        (indexSceneGraph(), applyBindingMaterials(), updateMaterialTargets(), requestFrame()));
+        (indexSceneGraph(), applyBindingMaterials(), updateMaterialTargets(), requestFrame()))
   }
   function preparePresentationMaterials(targetRoot: any, targetRevision: any) {
-    isDisposed || (setRoot(targetRoot, targetRevision), hasTraversedScene || indexSceneGraph());
+    isDisposed || (setRoot(targetRoot, targetRevision), hasTraversedScene || indexSceneGraph())
   }
   function indexSceneGraph() {
-    if (!value?.traverse) return;
-    prepareMaterials();
+    if (!value?.traverse) return
+    prepareMaterials()
     const entriesByMesh = new Map<any, any>([
         ...retainedEntriesByMesh,
         ...list.map((indexedEntry: any): [any, any] => [indexedEntry.mesh, indexedEntry]),
       ]),
       nextMeshEntries: any = [],
-      usedMaterialSet = new Set();
+      usedMaterialSet = new Set()
     value?.traverse?.((node: any) => {
-      if (!node.isMesh || !node.material || node.userData?.environmentEffect) return;
+      if (!node.isMesh || !node.material || node.userData?.environmentEffect) return
       for (let exportRoleNode = node; exportRoleNode; exportRoleNode = exportRoleNode.parent) {
-        if (["background", "grid"].includes(exportRoleNode.userData?.exportRole)) return;
-        if (exportRoleNode === value) break;
+        if (['background', 'grid'].includes(exportRoleNode.userData?.exportRole)) return
+        if (exportRoleNode === value) break
       }
-      let foundModelId, foundFloorId, foundLegacyModelId, modelNode;
+      let foundModelId, foundFloorId, foundLegacyModelId, modelNode
       for (
         let ancestorNode = node;
         ancestorNode &&
@@ -590,11 +547,9 @@ export function createEnvironmentScene({
         // 0.8.4：窗扇模型 id 从 `<windowId>` 变成 `window:<windowId>:<sashId>` 后，
         // 老配置里按旧 id 存的材质绑定还要能找到同一扇窗，否则改一次窗型材质全丢。
         foundLegacyModelId == null &&
-          (ancestorNode.userData?.environmentLegacyModelId ??
-            ancestorNode.userData?.windowLegacyModelId) &&
+          (ancestorNode.userData?.environmentLegacyModelId ?? ancestorNode.userData?.windowLegacyModelId) &&
           (foundLegacyModelId =
-            ancestorNode.userData.environmentLegacyModelId ??
-            ancestorNode.userData.windowLegacyModelId),
+            ancestorNode.userData.environmentLegacyModelId ?? ancestorNode.userData.windowLegacyModelId),
         foundFloorId == null &&
           ancestorNode.userData?.environmentFloorId != null &&
           (foundFloorId = ancestorNode.userData.environmentFloorId),
@@ -603,9 +558,7 @@ export function createEnvironmentScene({
       );
       const existingEntry = entriesByMesh.get(node),
         original =
-          existingEntry?.applied && node.material === existingEntry.applied
-            ? existingEntry.original
-            : node.material,
+          existingEntry?.applied && node.material === existingEntry.applied ? existingEntry.original : node.material,
         materialEntry =
           existingEntry && original === existingEntry.original
             ? existingEntry
@@ -613,76 +566,70 @@ export function createEnvironmentScene({
                 mesh: node,
                 original: original,
                 applied: null as any,
-              };
-      ((materialEntry.modelNode = modelNode),
-        (materialEntry.modelKey =
-          foundModelId == null ? null : composeScopeKey(foundFloorId, foundModelId)),
+              }
+      ;(materialEntry.modelNode = modelNode),
+        (materialEntry.modelKey = foundModelId == null ? null : composeScopeKey(foundFloorId, foundModelId)),
         (materialEntry.legacyModelKey =
           foundLegacyModelId == null ? null : composeScopeKey(foundFloorId, foundLegacyModelId)),
         nextMeshEntries.push(materialEntry),
-        entriesByMesh.delete(node));
+        entriesByMesh.delete(node)
       for (const entryOriginalMaterial of toArray(original))
-        (usedMaterialSet.add(entryOriginalMaterial),
-          patchMaterial(entryOriginalMaterial, baseUniforms));
-    });
+        usedMaterialSet.add(entryOriginalMaterial), patchMaterial(entryOriginalMaterial, baseUniforms)
+    })
     for (const staleEntry of entriesByMesh.values()) {
-      let isRetainedSubtree = false;
+      let isRetainedSubtree = false
       for (let mesh = staleEntry.mesh; mesh; mesh = mesh.parent)
         if (retainedRootSet.has(mesh)) {
-          isRetainedSubtree = true;
-          break;
+          isRetainedSubtree = true
+          break
         }
       !isRetainedSubtree &&
         staleEntry.applied &&
         staleEntry.mesh.material === staleEntry.applied &&
-        (staleEntry.mesh.material = staleEntry.original);
+        (staleEntry.mesh.material = staleEntry.original)
     }
-    retainedEntriesByMesh.clear();
+    retainedEntriesByMesh.clear()
     const isUnderRetainedRoot = (startNode: any) => {
       for (let ancestorOfMesh = startNode; ancestorOfMesh; ancestorOfMesh = ancestorOfMesh.parent)
-        if (retainedRootSet.has(ancestorOfMesh)) return true;
-      return false;
-    };
+        if (retainedRootSet.has(ancestorOfMesh)) return true
+      return false
+    }
     for (const keptEntry of entriesByMesh.values())
       if (isUnderRetainedRoot(keptEntry.mesh)) {
-        retainedEntriesByMesh.set(keptEntry.mesh, keptEntry);
-        for (const retainedMaterial of toArray(keptEntry.original))
-          usedMaterialSet.add(retainedMaterial);
+        retainedEntriesByMesh.set(keptEntry.mesh, keptEntry)
+        for (const retainedMaterial of toArray(keptEntry.original)) usedMaterialSet.add(retainedMaterial)
       }
-    list = nextMeshEntries;
+    list = nextMeshEntries
     for (const [orphanSourceMaterial, variantsOfOrphan] of variantsBySourceMaterial)
       if (!usedMaterialSet.has(orphanSourceMaterial)) {
         for (const discardedVariant of variantsOfOrphan.values())
-          (set.delete(discardedVariant),
+          set.delete(discardedVariant),
             patchesByMaterial.delete(discardedVariant.material),
-            discardedVariant.material.dispose());
-        variantsBySourceMaterial.delete(orphanSourceMaterial);
+            discardedVariant.material.dispose()
+        variantsBySourceMaterial.delete(orphanSourceMaterial)
       }
     for (const [unusedMaterial, stalePatch] of patchesByMaterial)
       !stalePatch.source &&
         !usedMaterialSet.has(unusedMaterial) &&
-        (unpatchMaterial(unusedMaterial, stalePatch), patchesByMaterial.delete(unusedMaterial));
-    hasTraversedScene = true;
+        (unpatchMaterial(unusedMaterial, stalePatch), patchesByMaterial.delete(unusedMaterial))
+    hasTraversedScene = true
   }
   function setMode(modeOptions: Record<string, any> = {}) {
-    if (isDisposed) return;
+    if (isDisposed) return
     if (Number.isFinite(modeOptions.saturation)) {
-      const saturationRatio = Math.max(0, Math.min(100, modeOptions.saturation)) / 100;
-      saturationRatio !== saturationUniform.value &&
-        ((saturationUniform.value = saturationRatio), requestFrame());
+      const saturationRatio = Math.max(0, Math.min(100, modeOptions.saturation)) / 100
+      saturationRatio !== saturationUniform.value && ((saturationUniform.value = saturationRatio), requestFrame())
     }
-    const isEnabledNext = Object.hasOwn(modeOptions, "enabled")
-      ? modeOptions.enabled === true
-      : isEnabled;
-    if (Object.hasOwn(modeOptions, "dimStrength")) {
-      const parsedDimStrength = Number(modeOptions.dimStrength);
+    const isEnabledNext = Object.hasOwn(modeOptions, 'enabled') ? modeOptions.enabled === true : isEnabled
+    if (Object.hasOwn(modeOptions, 'dimStrength')) {
+      const parsedDimStrength = Number(modeOptions.dimStrength)
       configuredDimStrength = Number.isFinite(parsedDimStrength)
         ? Math.max(0, Math.min(100, parsedDimStrength)) / 100
-        : 0.7;
+        : 0.7
     }
-    const own3 = Object.hasOwn(modeOptions, "bindings") && releasedKeySet.size > 0;
-    own3 && releasedKeySet.clear();
-    const bindings = Object.hasOwn(modeOptions, "bindings")
+    const own3 = Object.hasOwn(modeOptions, 'bindings') && releasedKeySet.size > 0
+    own3 && releasedKeySet.clear()
+    const bindings = Object.hasOwn(modeOptions, 'bindings')
         ? Array.isArray(modeOptions.bindings)
           ? modeOptions.bindings
           : []
@@ -696,118 +643,94 @@ export function createEnvironmentScene({
             modelId: bindingModelId,
             entityId: bindingEntityId,
             visible: isVisible,
-          }: any) => [
-            bindingId,
-            bindingEntryId,
-            bindingFloorId,
-            bindingModelId,
-            bindingEntityId,
-            isVisible,
-          ],
+          }: any) => [bindingId, bindingEntryId, bindingFloorId, bindingModelId, bindingEntityId, isVisible],
         ),
       ),
       hasBindingsChanged = text !== nextSignature,
       hasEnabledChanged = isEnabled !== isEnabledNext,
       shouldAnimateBindings =
-        hasBindingsChanged &&
-        modeOptions.animateBindings === true &&
-        modeUniform.value > 0 &&
-        !prefersReducedMotion();
+        hasBindingsChanged && modeOptions.animateBindings === true && modeUniform.value > 0 && !prefersReducedMotion()
     if (hasBindingsChanged) {
       if (shouldAnimateBindings) {
         const nextBindingKeySet = new Set(bindings.map(composeBindingKey)),
           nextModelKeySet = new Set(
-            bindings.map((nextBinding: any) =>
-              composeScopeKey(nextBinding.floorId, nextBinding.modelId),
-            ),
-          );
+            bindings.map((nextBinding: any) => composeScopeKey(nextBinding.floorId, nextBinding.modelId)),
+          )
         for (const retiredBinding of currentBindings)
           nextBindingKeySet.has(composeBindingKey(retiredBinding)) ||
-            retiredBindingsByKey.set(composeBindingKey(retiredBinding), retiredBinding);
+            retiredBindingsByKey.set(composeBindingKey(retiredBinding), retiredBinding)
         for (const [retiredKey, pendingBinding] of retiredBindingsByKey)
           (nextBindingKeySet.has(retiredKey) ||
             nextModelKeySet.has(composeScopeKey(pendingBinding.floorId, pendingBinding.modelId))) &&
-            retiredBindingsByKey.delete(retiredKey);
-      } else retiredBindingsByKey.clear();
+            retiredBindingsByKey.delete(retiredKey)
+      } else retiredBindingsByKey.clear()
     }
-    ((isEnabled = isEnabledNext),
+    ;(isEnabled = isEnabledNext),
       (currentBindings = bindings),
       (text = nextSignature),
-      Object.hasOwn(modeOptions, "states") && (entityStates = modeOptions.states || {}));
+      Object.hasOwn(modeOptions, 'states') && (entityStates = modeOptions.states || {})
     const own4 =
-      Object.hasOwn(modeOptions, "focusedId") &&
-      (modeOptions.focusedId || "") !== focusedId &&
-      !(modeOptions.selectedId ?? selectedId);
-    (Object.hasOwn(modeOptions, "focusedId") && (focusedId = modeOptions.focusedId || ""),
-      Object.hasOwn(modeOptions, "selectedId") && (selectedId = modeOptions.selectedId || ""));
+      Object.hasOwn(modeOptions, 'focusedId') &&
+      (modeOptions.focusedId || '') !== focusedId &&
+      !(modeOptions.selectedId ?? selectedId)
+    Object.hasOwn(modeOptions, 'focusedId') && (focusedId = modeOptions.focusedId || ''),
+      Object.hasOwn(modeOptions, 'selectedId') && (selectedId = modeOptions.selectedId || '')
     const nextDimStrength = isEnabled ? configuredDimStrength : 0,
       nextModeAmount = isEnabled ? 1 : 0,
-      hasMotionChanged = nextDimStrength !== num || nextModeAmount !== targetModeAmount;
-    (hasMotionChanged &&
+      hasMotionChanged = nextDimStrength !== num || nextModeAmount !== targetModeAmount
+    hasMotionChanged &&
       ((previousDimStrength = options.value),
       (previousModeAmount = modeUniform.value),
       (num = nextDimStrength),
       (targetModeAmount = nextModeAmount),
       (modeFadeStartMs = null)),
       !hasTraversedScene && (isEnabled || currentBindings.length) && indexSceneGraph(),
-      (hasBindingsChanged || hasEnabledChanged || (!hasMaterialsApplied && isEnabled)) &&
-        applyBindingMaterials());
-    const changedFloorIdSet = new Set();
-    own3 && pruneMaterialVariants();
-    const hasMaterialTargetsChanged = updateMaterialTargets(
-      own4 || shouldAnimateBindings,
-      changedFloorIdSet,
-    );
-    (retiredBindingsByKey.size &&
-      !set.size &&
-      (retiredBindingsByKey.clear(), applyBindingMaterials()),
+      (hasBindingsChanged || hasEnabledChanged || (!hasMaterialsApplied && isEnabled)) && applyBindingMaterials()
+    const changedFloorIdSet = new Set()
+    own3 && pruneMaterialVariants()
+    const hasMaterialTargetsChanged = updateMaterialTargets(own4 || shouldAnimateBindings, changedFloorIdSet)
+    retiredBindingsByKey.size && !set.size && (retiredBindingsByKey.clear(), applyBindingMaterials()),
       hasEnabledChanged || hasMotionChanged || hasBindingsChanged
         ? requestFrame()
-        : hasMaterialTargetsChanged &&
-          (isEnabled || modeUniform.value > 0) &&
-          requestFrame([...changedFloorIdSet]));
+        : hasMaterialTargetsChanged && (isEnabled || modeUniform.value > 0) && requestFrame([...changedFloorIdSet])
   }
   function tick(timestampMs: any) {
-    if (isDisposed) return false;
-    halos.update();
-    const isModeAnimating = options.value !== num || modeUniform.value !== targetModeAmount;
-    if (!isModeAnimating && !set.size) return false;
-    Number.isFinite(timestampMs) || (timestampMs = globalThis.performance?.now() ?? Date.now());
-    let hasTickChanged = false;
-    const tickChangedFloorIdSet = new Set();
+    if (isDisposed) return false
+    halos.update()
+    const isModeAnimating = options.value !== num || modeUniform.value !== targetModeAmount
+    if (!isModeAnimating && !set.size) return false
+    Number.isFinite(timestampMs) || (timestampMs = globalThis.performance?.now() ?? Date.now())
+    let hasTickChanged = false
+    const tickChangedFloorIdSet = new Set()
     if (isModeAnimating) {
-      modeFadeStartMs === null && (modeFadeStartMs = timestampMs);
+      modeFadeStartMs === null && (modeFadeStartMs = timestampMs)
       const modeFadeProgress = prefersReducedMotion()
           ? 1
           : Math.max(0, Math.min(1, (timestampMs - modeFadeStartMs) / 400)),
         dimStrengthBeforeTick = options.value,
-        modeAmountBeforeTick = modeUniform.value;
-      ((options.value =
+        modeAmountBeforeTick = modeUniform.value
+      ;(options.value =
         modeFadeProgress === 1
           ? num
           : previousDimStrength + (num - previousDimStrength) * (1 - (1 - modeFadeProgress) ** 2)),
         (modeUniform.value =
           modeFadeProgress === 1
             ? targetModeAmount
-            : previousModeAmount +
-              (targetModeAmount - previousModeAmount) * (1 - (1 - modeFadeProgress) ** 2)),
-        (hasTickChanged ||=
-          dimStrengthBeforeTick !== options.value || modeAmountBeforeTick !== modeUniform.value));
+            : previousModeAmount + (targetModeAmount - previousModeAmount) * (1 - (1 - modeFadeProgress) ** 2)),
+        (hasTickChanged ||= dimStrengthBeforeTick !== options.value || modeAmountBeforeTick !== modeUniform.value)
     }
     for (const fadingEntry of set) {
-      const fade = fadingEntry.fade;
-      fade.started === null && (fade.started = timestampMs);
-      const fadeProgress = prefersReducedMotion()
-          ? 1
-          : Math.max(0, Math.min(1, (timestampMs - fade.started) / 360)),
+      const fade = fadingEntry.fade
+      fade.started === null && (fade.started = timestampMs)
+      const fadeProgress = prefersReducedMotion() ? 1 : Math.max(0, Math.min(1, (timestampMs - fade.started) / 360)),
         easedProgress = fadeProgress * fadeProgress * (3 - 2 * fadeProgress),
         interpolatedTarget = fadingEntry.target.map((targetComponent: any, targetIndex: any) =>
           fadeProgress === 1
             ? targetComponent
             : fade.from[targetIndex] + (targetComponent - fade.from[targetIndex]) * easedProgress,
         ),
-        fadeGlowColor = fadingEntry.uniforms.glow.value;
-      ((fadingEntry.uniforms.retain.value !== interpolatedTarget[0] ||
+        fadeGlowColor = fadingEntry.uniforms.glow.value
+      ;(fadingEntry.uniforms.retain.value !== interpolatedTarget[0] ||
         fadeGlowColor.r !== interpolatedTarget[1] ||
         fadeGlowColor.g !== interpolatedTarget[2] ||
         fadeGlowColor.b !== interpolatedTarget[3]) &&
@@ -815,65 +738,53 @@ export function createEnvironmentScene({
         (fadingEntry.uniforms.retain.value = interpolatedTarget[0]),
         fadeGlowColor.setRGB(interpolatedTarget[1], interpolatedTarget[2], interpolatedTarget[3]),
         halos.setColor(fadingEntry.binding.id, fadeGlowColor),
-        fadeProgress === 1 && (set.delete(fadingEntry), (fadingEntry.fade = null)));
+        fadeProgress === 1 && (set.delete(fadingEntry), (fadingEntry.fade = null))
     }
     return (
-      retiredBindingsByKey.size &&
-        !set.size &&
-        (retiredBindingsByKey.clear(), applyBindingMaterials()),
+      retiredBindingsByKey.size && !set.size && (retiredBindingsByKey.clear(), applyBindingMaterials()),
       !isEnabled && options.value === 0 && modeUniform.value === 0 && detachAppliedMaterials(),
       hasTickChanged && requestFrame(isModeAnimating ? undefined : [...tickChangedFloorIdSet]),
       options.value !== num || modeUniform.value !== targetModeAmount || set.size > 0
-    );
+    )
   }
   function retainRoot(root: any) {
-    retainedRootSet.add(root);
-    const retainedModelKeySet = new Set();
-    (root.traverse((traversedNode: any) => {
+    retainedRootSet.add(root)
+    const retainedModelKeySet = new Set()
+    root.traverse((traversedNode: any) => {
       traversedNode.userData?.environmentModelId != null &&
         retainedModelKeySet.add(
-          composeScopeKey(
-            traversedNode.userData.environmentFloorId,
-            traversedNode.userData.environmentModelId,
-          ),
-        );
+          composeScopeKey(traversedNode.userData.environmentFloorId, traversedNode.userData.environmentModelId),
+        )
     }),
-      modelKeysByRetainedRoot.set(root, retainedModelKeySet));
+      modelKeysByRetainedRoot.set(root, retainedModelKeySet)
     for (const retainedModelKey of retainedModelKeySet)
-      (retainedKeySet.add(retainedModelKey), releasedKeySet.delete(retainedModelKey));
-    pruneMaterialVariants();
+      retainedKeySet.add(retainedModelKey), releasedKeySet.delete(retainedModelKey)
+    pruneMaterialVariants()
   }
   function releaseRoot(releasedRoot: any, { dispose: shouldDispose = false } = {}) {
-    const releasedModelKeySet = modelKeysByRetainedRoot.get(releasedRoot) || new Set();
-    (retainedRootSet.delete(releasedRoot),
-      modelKeysByRetainedRoot.delete(releasedRoot),
-      retainedKeySet.clear());
+    const releasedModelKeySet = modelKeysByRetainedRoot.get(releasedRoot) || new Set()
+    retainedRootSet.delete(releasedRoot), modelKeysByRetainedRoot.delete(releasedRoot), retainedKeySet.clear()
     for (const modelKeySet of modelKeysByRetainedRoot.values())
-      for (const nestedModelKey of modelKeySet) retainedKeySet.add(nestedModelKey);
+      for (const nestedModelKey of modelKeySet) retainedKeySet.add(nestedModelKey)
     for (const releasedModelKey of releasedModelKeySet)
-      shouldDispose
-        ? releasedKeySet.delete(releasedModelKey)
-        : releasedKeySet.add(releasedModelKey);
+      shouldDispose ? releasedKeySet.delete(releasedModelKey) : releasedKeySet.add(releasedModelKey)
     if (shouldDispose) {
-      indexSceneGraph();
-      const activeModelKeySet = new Set(list.map((listedMeshEntry: any) => listedMeshEntry.modelKey));
+      indexSceneGraph()
+      const activeModelKeySet = new Set(list.map((listedMeshEntry: any) => listedMeshEntry.modelKey))
       for (const [prunedSourceMaterial, variantsOfPrunedSource] of variantsBySourceMaterial) {
         for (const [variantBindingKey, variantEntry] of variantsOfPrunedSource) {
-          const variantScopeKey = composeScopeKey(
-            variantEntry.binding.floorId,
-            variantEntry.binding.modelId,
-          );
+          const variantScopeKey = composeScopeKey(variantEntry.binding.floorId, variantEntry.binding.modelId)
           !releasedModelKeySet.has(variantScopeKey) ||
             retainedKeySet.has(variantScopeKey) ||
             activeModelKeySet.has(variantScopeKey) ||
             (set.delete(variantEntry),
             patchesByMaterial.delete(variantEntry.material),
             variantEntry.material.dispose(),
-            variantsOfPrunedSource.delete(variantBindingKey));
+            variantsOfPrunedSource.delete(variantBindingKey))
         }
-        variantsOfPrunedSource.size || variantsBySourceMaterial.delete(prunedSourceMaterial);
+        variantsOfPrunedSource.size || variantsBySourceMaterial.delete(prunedSourceMaterial)
       }
-      pruneMaterialVariants();
+      pruneMaterialVariants()
     }
   }
   return {
@@ -884,16 +795,10 @@ export function createEnvironmentScene({
     retainRoot: retainRoot,
     releaseRoot: releaseRoot,
     persistentMaterialKey(material: any) {
-      const existingPatch = patchesByMaterial.get(material);
-      if (
-        isDisposed ||
-        !existingPatch ||
-        set.size ||
-        options.value !== num ||
-        modeUniform.value !== targetModeAmount
-      )
-        return null;
-      const patchUniformsForMaterial = existingPatch.uniforms;
+      const existingPatch = patchesByMaterial.get(material)
+      if (isDisposed || !existingPatch || set.size || options.value !== num || modeUniform.value !== targetModeAmount)
+        return null
+      const patchUniformsForMaterial = existingPatch.uniforms
       return [
         modeUniform.value,
         saturationUniform.value,
@@ -901,10 +806,10 @@ export function createEnvironmentScene({
         patchUniformsForMaterial.retain.value,
         patchUniformsForMaterial.glow.value.toArray(),
         patchUniformsForMaterial.lift.value.toArray(),
-      ];
+      ]
     },
     get isActive() {
-      return !isDisposed && (isEnabled || modeUniform.value > 0);
+      return !isDisposed && (isEnabled || modeUniform.value > 0)
     },
     dispose() {
       isDisposed ||
@@ -916,7 +821,7 @@ export function createEnvironmentScene({
         (value = null),
         (currentBindings = []),
         (entityStates = {}),
-        (isDisposed = true));
+        (isDisposed = true))
     },
-  };
+  }
 }

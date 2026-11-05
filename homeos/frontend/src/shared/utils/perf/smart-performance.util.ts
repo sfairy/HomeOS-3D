@@ -44,9 +44,7 @@ function onSmartPerfTick({ lowStreak, highStreak }: { lowStreak: number; highStr
  * @param {() => object} layoutConfigGetter
  * @returns {() => void}
  */
-export function setupSmartPerformanceMode(
-  layoutConfigGetter: () => LayoutConfigForSmartPerf | null,
-) {
+export function setupSmartPerformanceMode(layoutConfigGetter: () => LayoutConfigForSmartPerf | null) {
   teardown?.()
   getLayoutConfig = layoutConfigGetter
   registerSmartPerfTick(onSmartPerfTick)

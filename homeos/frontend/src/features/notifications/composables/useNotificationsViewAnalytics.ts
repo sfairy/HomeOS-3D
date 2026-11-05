@@ -1,5 +1,16 @@
 /** KPI 指标卡 + 点击下钻过滤。 */
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, type ToRefs, unref } from 'vue'
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onUnmounted,
+  nextTick,
+  type ToRefs,
+  type Ref,
+  type ComponentPublicInstance,
+  unref,
+} from 'vue'
 import type { ECharts, ECElementEvent, EChartsCoreOption } from 'echarts'
 import { observeChartResize } from '@/shared/utils/ui/chart-resize.util'
 import {
@@ -55,6 +66,25 @@ export function useNotificationsViewAnalytics(
   const rankChartRef = ref<HTMLElement | null>(null)
   const timeChartRef = ref<HTMLElement | null>(null)
   const readChartRef = ref<HTMLElement | null>(null)
+
+  /**
+   * 生成函数式模板 ref：把 DOM 元素写回指定 Ref。
+   *
+   * 不用 `ref="name"` 字符串形式——vue-tsc 不会把字符串 ref 当作对脚本变量的读取，
+   * 开启 `noUnusedLocals` 后会误报「声明但未使用」；函数 ref 是显式引用。
+   * 换成 `useTemplateRef('name')` 也没用：实测 vue-tsc 3.3.14 / vue 3.5.44 下
+   * `ref="x"` + `useTemplateRef('x')` 照样报 TS6133，模板字符串 ref 不参与读取判定。
+   */
+  function bindChartRef(target: Ref<HTMLElement | null>) {
+    return (el: Element | ComponentPublicInstance | null) => {
+      target.value = el instanceof HTMLElement ? el : null
+    }
+  }
+  const bindSourceChart = bindChartRef(sourceChartRef)
+  const bindLevelChart = bindChartRef(levelChartRef)
+  const bindRankChart = bindChartRef(rankChartRef)
+  const bindTimeChart = bindChartRef(timeChartRef)
+  const bindReadChart = bindChartRef(readChartRef)
 
   // 5 张 echarts 实例（懒初始化）
   const charts: Record<ChartKey, ECharts | null> = {
@@ -220,14 +250,7 @@ export function useNotificationsViewAnalytics(
    * 在 onUnmounted 调用，避免内存泄漏。
    */
   function disposeCharts() {
-    for (const stop of [
-      stopSourceResize,
-      stopLevelResize,
-      stopRankResize,
-      stopTimeResize,
-      stopReadResize,
-    ])
-      stop?.()
+    for (const stop of [stopSourceResize, stopLevelResize, stopRankResize, stopTimeResize, stopReadResize]) stop?.()
     stopSourceResize = stopLevelResize = stopRankResize = stopTimeResize = stopReadResize = null
     for (const key of Object.keys(charts) as ChartKey[]) {
       charts[key]?.dispose()
@@ -312,11 +335,11 @@ export function useNotificationsViewAnalytics(
   onUnmounted(disposeCharts)
 
   return {
-    sourceChartRef,
-    levelChartRef,
-    rankChartRef,
-    timeChartRef,
-    readChartRef,
+    bindSourceChart,
+    bindLevelChart,
+    bindRankChart,
+    bindTimeChart,
+    bindReadChart,
     kpiCells,
     summary,
   }

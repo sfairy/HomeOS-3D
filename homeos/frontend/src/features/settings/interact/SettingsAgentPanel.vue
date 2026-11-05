@@ -877,7 +877,7 @@
             bordered
           />
 
-          <div ref="chatLogEl" class="agent-chat-log agent-form-block" aria-live="polite">
+          <div :ref="bindChatLog" class="agent-chat-log agent-form-block" aria-live="polite">
             <SettingsAgentChatBubble
               v-for="(m, i) in chatLog"
               :key="i"
@@ -1066,7 +1066,7 @@ const {
   chatting,
   AGENT_CHAT_MAX_LENGTH,
   chatLog,
-  chatLogEl,
+  bindChatLog,
   envHealthHref,
   isMockProvider,
   sceneVoiceEnabled,
@@ -1148,14 +1148,10 @@ watch(section, (value) => {
   }
 })
 
-const chatFlowSummary = computed(
-  () => `${chatStatReadyLabel.value} · ${chatStatRoundLabel.value}`,
-)
+const chatFlowSummary = computed(() => `${chatStatReadyLabel.value} · ${chatStatRoundLabel.value}`)
 
 /** 等首 token 的阶段才显示「思考中」气泡；已开始逐字输出后由流式气泡本身承载 */
-const showChatTyping = computed(
-  () => chatting.value && !chatLog.value.some((m) => m.streaming && m.text.trim()),
-)
+const showChatTyping = computed(() => chatting.value && !chatLog.value.some((m) => m.streaming && m.text.trim()))
 
 function goConfigureApiKey() {
   section.value = 'model'

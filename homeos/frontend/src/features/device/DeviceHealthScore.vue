@@ -112,16 +112,7 @@
 import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
 import { ref, computed, onMounted, type Component } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
-import {
-  Heart,
-  RefreshCw,
-  Lightbulb,
-  Wifi,
-  Battery,
-  Clock,
-  Activity,
-  AlertTriangle,
-} from '@lucide/vue'
+import { Heart, RefreshCw, Lightbulb, Wifi, Battery, Clock, Activity, AlertTriangle } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 
 const PASSIVE_DOMAINS = new Set([
@@ -215,8 +206,7 @@ const gradeHint = computed(() => {
 
 const ringStyle = computed(() => {
   const deg = (healthScore.value / 100) * 360
-  const color =
-    healthScore.value >= 80 ? '#34d399' : healthScore.value >= 60 ? '#fbbf24' : '#f87171'
+  const color = healthScore.value >= 80 ? '#34d399' : healthScore.value >= 60 ? '#fbbf24' : '#f87171'
   return {
     background: `conic-gradient(${color} 0deg, ${color} ${deg}deg, transparent ${deg}deg)`,
   }
@@ -250,15 +240,11 @@ const healthFactors = computed((): HealthFactor[] => {
               ? 80
               : 100
         : 50
-    const tone: FactorTone =
-      batteryScore >= 80 ? 'good' : batteryScore >= 50 ? 'warn' : 'bad'
+    const tone: FactorTone = batteryScore >= 80 ? 'good' : batteryScore >= 50 ? 'warn' : 'bad'
     factors.push({
       key: 'battery',
       label: '电量',
-      note:
-        typeof batteryLevel === 'number'
-          ? `当前电量 ${batteryLevel}%`
-          : '已识别电池供电，但缺少电量读数',
+      note: typeof batteryLevel === 'number' ? `当前电量 ${batteryLevel}%` : '已识别电池供电，但缺少电量读数',
       icon: Battery,
       score: batteryScore,
       toneClass: toneClass(tone),
@@ -273,8 +259,7 @@ const healthFactors = computed((): HealthFactor[] => {
     if (hours > 72) activityScore = 30
     else if (hours > 24) activityScore = 70
     else if (hours > 12) activityScore = 90
-    const tone: FactorTone =
-      activityScore >= 90 ? 'good' : activityScore >= 70 ? 'warn' : 'bad'
+    const tone: FactorTone = activityScore >= 90 ? 'good' : activityScore >= 70 ? 'warn' : 'bad'
     factors.push({
       key: 'activity',
       label: '活跃状态',

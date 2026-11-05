@@ -15,11 +15,7 @@ import draco3d from 'draco3dgltf'
 import fs from 'node:fs'
 import path from 'node:path'
 import { AssetDamageError, glbFingerprint } from './asset-guard.mjs'
-import {
-  analyzeTopology,
-  cleanPrimitive,
-  triangleArea,
-} from './geometry-ops.mjs'
+import { analyzeTopology, cleanPrimitive, triangleArea } from './geometry-ops.mjs'
 
 let ioPromise = null
 
@@ -27,20 +23,15 @@ let ioPromise = null
 function getIO() {
   if (!ioPromise) {
     ioPromise = (async () => {
-      const [decoder, encoder] = await Promise.all([
-        draco3d.createDecoderModule(),
-        draco3d.createEncoderModule(),
-      ])
+      const [decoder, encoder] = await Promise.all([draco3d.createDecoderModule(), draco3d.createEncoderModule()])
       // 注册**全部**扩展，而不是只注册 Draco：
       // 16 个文件（car / piano / elevator / steel-stairs / glass-stairs / air-outlet /
       // tea-bar-machine / pipeline-water-purifier）用 `KHR_materials_pbrSpecularGlossiness`，
       // 未注册时 glTF-Transform 只打一行 warning 就把它整段丢掉 —— 材质名还在，颜色没了。
-      return new NodeIO()
-        .registerExtensions(ALL_EXTENSIONS)
-        .registerDependencies({
-          'draco3d.decoder': decoder,
-          'draco3d.encoder': encoder,
-        })
+      return new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+        'draco3d.decoder': decoder,
+        'draco3d.encoder': encoder,
+      })
     })()
   }
   return ioPromise
@@ -153,7 +144,12 @@ function readPrimitive(primitive, matrix) {
   const elementSize = position.getElementSize()
   const positions = new Float32Array((source.length / elementSize) * 3)
   for (let index = 0; index < source.length / elementSize; index += 1) {
-    const point = transformPoint(matrix, source[index * elementSize], source[index * elementSize + 1], source[index * elementSize + 2])
+    const point = transformPoint(
+      matrix,
+      source[index * elementSize],
+      source[index * elementSize + 1],
+      source[index * elementSize + 2],
+    )
     positions[index * 3] = point[0]
     positions[index * 3 + 1] = point[1]
     positions[index * 3 + 2] = point[2]
@@ -222,7 +218,12 @@ export function materialFingerprints(doc) {
       entry.vertices += data.positions.length / 3
       entry.triangles += data.indices.length / 3
       for (let offset = 0; offset < data.indices.length; offset += 3) {
-        entry.area += triangleArea(data.positions, data.indices[offset], data.indices[offset + 1], data.indices[offset + 2])
+        entry.area += triangleArea(
+          data.positions,
+          data.indices[offset],
+          data.indices[offset + 1],
+          data.indices[offset + 2],
+        )
       }
       for (let index = 0; index < data.positions.length; index += 3) {
         growBounds(entry.bounds, [data.positions[index], data.positions[index + 1], data.positions[index + 2]])

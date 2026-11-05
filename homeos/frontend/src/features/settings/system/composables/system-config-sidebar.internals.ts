@@ -1,7 +1,11 @@
 /** 系统配置参数侧边栏组合式函数。 */
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { categoryForSection, getSectionCategories, sectionMeta } from '@/composables/config/system-config-core.internals'
+import {
+  categoryForSection,
+  getSectionCategories,
+  sectionMeta,
+} from '@/composables/config/system-config-core.internals'
 
 /** SECTION_LINK_LABELS：对象常量，字段 / 方法语义见定义处。 */
 export const SECTION_LINK_LABELS: Record<string, string> = {
@@ -53,10 +57,7 @@ type SidebarEmit = {
 }
 
 /** 系统配置参数侧边栏：派生分类导航、搜索过滤与活跃分区滚动定位，供 SystemConfigParamsSidebar 组件使用 */
-export function useSystemConfigParamsSidebar(
-  props: SystemConfigParamsSidebarProps,
-  emit: SidebarEmit,
-) {
+export function useSystemConfigParamsSidebar(props: SystemConfigParamsSidebarProps, emit: SidebarEmit) {
   const searchRef = ref<HTMLInputElement | null>(null)
   const navRef = ref<HTMLElement | null>(null)
   const mediaPlaylistOpen = ref(false)
@@ -167,8 +168,7 @@ export function useSystemConfigParamsSidebar(
     if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
     const target = event.target as HTMLElement | null
     const tag = target?.tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable)
-      return
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
     event.preventDefault()
     searchRef.value?.focus()
   }

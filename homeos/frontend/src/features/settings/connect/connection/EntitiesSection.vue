@@ -129,14 +129,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import {
-  RefreshCw,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  ListFilter,
-  Database,
-} from '@lucide/vue'
+import { RefreshCw, Loader2, CheckCircle2, AlertCircle, ListFilter, Database } from '@lucide/vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import { buildEntitySyncRecommendations } from '@/shared/recommend/utils/entity-sync-recommend.util'
 import { DEVICES_ROUTES } from '@/shared/device/utils/devices-route.util'

@@ -250,11 +250,12 @@ function needsSlotRename(name, itemType, role) {
   if (!CANONICAL_SLOT.test(raw)) return true
   if (/(?:^|-)material-\d+$/.test(lower)) return true
   if (!lower.startsWith(itemType.toLowerCase() + '-')) return true
-  const tail = lower
-    .split('-')
-    .filter(Boolean)
-    .filter((segment) => !/^\d+$/.test(segment))
-    .pop() ?? ''
+  const tail =
+    lower
+      .split('-')
+      .filter(Boolean)
+      .filter((segment) => !/^\d+$/.test(segment))
+      .pop() ?? ''
   return !/[a-z]{2,}/.test(tail)
 }
 
@@ -266,9 +267,7 @@ function needsSlotRename(name, itemType, role) {
  */
 function planSlotRenames(itemType, slots, previousLegacyFor) {
   const kept = new Set(
-    slots
-      .filter((slot) => !needsSlotRename(slot.name, itemType, slot.role))
-      .map((slot) => slot.name.toLowerCase()),
+    slots.filter((slot) => !needsSlotRename(slot.name, itemType, slot.role)).map((slot) => slot.name.toLowerCase()),
   )
   const used = new Set(kept)
   let renamed = 0
@@ -310,7 +309,16 @@ function describeComponent(role, fingerprint, fallback) {
   else if (share <= 0.05) notes.push(`面积占比 ${(share * 100).toFixed(1)}%（小件）`)
   if (fingerprint.thinness <= 0.06) notes.push('薄板')
   if (fingerprint.yBand !== null) {
-    const band = fingerprint.yBand <= 0.15 ? '贴地' : fingerprint.yBand >= 0.85 ? '顶部' : fingerprint.yBand >= 0.6 ? '上部' : fingerprint.yBand <= 0.4 ? '下部' : '中部'
+    const band =
+      fingerprint.yBand <= 0.15
+        ? '贴地'
+        : fingerprint.yBand >= 0.85
+          ? '顶部'
+          : fingerprint.yBand >= 0.6
+            ? '上部'
+            : fingerprint.yBand <= 0.4
+              ? '下部'
+              : '中部'
     notes.push(`${band}(y=${fingerprint.yBand})`)
   }
   if (fingerprint.offset && Math.abs(fingerprint.offset[2]) >= 0.12) {
@@ -396,8 +404,7 @@ function main() {
     const spec = specById.get(model.id) ?? {}
     const slots = model.materials.map((material) => {
       // 指纹按**材质名**对齐：lite 与完整件的下标在导出漂移后不可靠（lite 会整段丢槽位）。
-      const fingerprint =
-        enumeration?.slots.find((slot) => slot.name === material.name)?.fingerprint ?? null
+      const fingerprint = enumeration?.slots.find((slot) => slot.name === material.name)?.fingerprint ?? null
       if (!fingerprint) stats.noGeometry += 1
       const explicitRole = EXPLICIT_ROLE_OVERRIDES[model.id]?.[material.index]
       const role = explicitRole ?? material.role ?? null
@@ -473,8 +480,10 @@ function main() {
     const uniqueRoles = [...new Set(roles)]
     if (uniqueRoles.length === 1 && slots.length > 1) stats.sameRole.push(model.id)
     // 改名计划：名字不规范 / 只有序号 / 前缀不是 itemType 的槽位，给出 `<itemType>-<角色>`。
-    stats.rename += planSlotRenames(model.itemType, slots, (name) =>
-      previousLegacy.get(`${model.itemType}|${String(name).toLowerCase()}`) ?? null,
+    stats.rename += planSlotRenames(
+      model.itemType,
+      slots,
+      (name) => previousLegacy.get(`${model.itemType}|${String(name).toLowerCase()}`) ?? null,
     )
     const topologyClass = spec.topologyClass ?? 'solid'
     contracts.push({
@@ -521,7 +530,9 @@ function main() {
   }
   fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2) + '\n')
   console.log(`写入 ${path.relative(repoRoot, outputPath)}：${stats.models} 款 / ${stats.slots} 槽位`)
-  console.log(`  待改名 ${stats.rename}、死材质 ${stats.dead.length}、全槽位同角色 ${stats.sameRole.length}、无几何指纹 ${stats.noGeometry}`)
+  console.log(
+    `  待改名 ${stats.rename}、死材质 ${stats.dead.length}、全槽位同角色 ${stats.sameRole.length}、无几何指纹 ${stats.noGeometry}`,
+  )
 }
 
 main()

@@ -8,11 +8,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { useRelativeDateLabel } from '@/shared/energy'
-import {
-  formatNum,
-  resolveAccountEntityIds,
-  normalizeEnergySource,
-} from '@/shared/energy/utils/source.util'
+import { formatNum, resolveAccountEntityIds, normalizeEnergySource } from '@/shared/energy/utils/source.util'
 import { readPopupField } from '@/shared/energy/utils/popup-read.util'
 import { resolveAccountLabelForEntityId } from '@/shared/energy/utils/account.util'
 import {
@@ -120,9 +116,7 @@ export function useCommInfoPopup(props: { entityId?: string }) {
     { immediate: true },
   )
 
-  const sourceCfg = computed(() =>
-    normalizeEnergySource(layout.layoutConfig.statsSensors, commCat.value),
-  )
+  const sourceCfg = computed(() => normalizeEnergySource(layout.layoutConfig.statsSensors, commCat.value))
 
   function accountLabel(eid: string) {
     const fromConfig = resolveAccountLabelForEntityId(commCat.value, eid, sourceCfg.value)
@@ -188,11 +182,7 @@ export function useCommInfoPopup(props: { entityId?: string }) {
   const smsUsagePct = computed(() => pctVal(fields.value.smsUsageRate))
 
   const hasSmsQuota = computed(
-    () =>
-      hasVal(smsRemaining.value) ||
-      hasVal(smsUsed.value) ||
-      hasVal(smsTotal.value) ||
-      hasVal(smsUsageRate.value),
+    () => hasVal(smsRemaining.value) || hasVal(smsUsed.value) || hasVal(smsTotal.value) || hasVal(smsUsageRate.value),
   )
 
   /** 通用 / 专用 / 其他流量明细（有数据时展示） */
@@ -205,11 +195,7 @@ export function useCommInfoPopup(props: { entityId?: string }) {
       total: string
       over?: string
     }> = []
-    if (
-      hasVal(dataCommonRemaining.value) ||
-      hasVal(dataCommonUsed.value) ||
-      hasVal(dataCommonTotal.value)
-    ) {
+    if (hasVal(dataCommonRemaining.value) || hasVal(dataCommonUsed.value) || hasVal(dataCommonTotal.value)) {
       rows.push({
         id: 'common',
         label: '通用流量',
@@ -219,11 +205,7 @@ export function useCommInfoPopup(props: { entityId?: string }) {
         over: hasVal(dataCommonOver.value) ? dataCommonOver.value : undefined,
       })
     }
-    if (
-      hasVal(dataSpecialRemaining.value) ||
-      hasVal(dataSpecialUsed.value) ||
-      hasVal(dataSpecialTotal.value)
-    ) {
+    if (hasVal(dataSpecialRemaining.value) || hasVal(dataSpecialUsed.value) || hasVal(dataSpecialTotal.value)) {
       rows.push({
         id: 'special',
         label: '专用流量',
@@ -232,11 +214,7 @@ export function useCommInfoPopup(props: { entityId?: string }) {
         total: dataSpecialTotal.value,
       })
     }
-    if (
-      hasVal(dataOtherRemaining.value) ||
-      hasVal(dataOtherUsed.value) ||
-      hasVal(dataOtherTotal.value)
-    ) {
+    if (hasVal(dataOtherRemaining.value) || hasVal(dataOtherUsed.value) || hasVal(dataOtherTotal.value)) {
       rows.push({
         id: 'other',
         label: '其他流量',

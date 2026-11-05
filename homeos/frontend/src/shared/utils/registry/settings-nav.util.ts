@@ -115,15 +115,7 @@ export const NAV_STRUCTURE = [
   { id: 'interact', tabs: ['voice', 'agent', 'alerts'] },
   {
     id: 'system',
-    tabs: [
-      'family',
-      'access',
-      'profiles',
-      'license',
-      'retention',
-      'diagnostics',
-      'params',
-    ],
+    tabs: ['family', 'access', 'profiles', 'license', 'retention', 'diagnostics', 'params'],
   },
 ]
 

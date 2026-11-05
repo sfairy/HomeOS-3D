@@ -8,13 +8,9 @@
  * 绘制器是动态加载的：窗户是低频功能，没必要把 three 预览 + SVG 编辑器打进首屏。
  */
 
-import {
-  clampWindowT as clampWindowT2,
-  closedWallFloorPolygons,
-  doorInteriorSide,
-} from "../../../plan/geometry";
-import { isCustomWindow } from "../../../plan/window/layout";
-import { windowSceneError } from "../../../plan/window/window-scene-guard";
+import { clampWindowT as clampWindowT2, closedWallFloorPolygons, doorInteriorSide } from '../../../plan/geometry'
+import { isCustomWindow } from '../../../plan/window/layout'
+import { windowSceneError } from '../../../plan/window/window-scene-guard'
 
 export function bindWindowDesignerWiring(deps: Record<string, any>): void {
   const {
@@ -29,13 +25,13 @@ export function bindWindowDesignerWiring(deps: Record<string, any>): void {
     refreshScopeItems,
     selectElement,
     showToast,
-  } = deps;
+  } = deps
 
-  let designerHandle: any = null;
-  let openingDesigner = false;
+  let designerHandle: any = null
+  let openingDesigner = false
 
-  const currentFloorId = () => getActiveFloor?.()?.id ?? appCtx.activeFloorId;
-  const pixelsPerMeter = () => getPixelsPerMeter() || 100;
+  const currentFloorId = () => getActiveFloor?.()?.id ?? appCtx.activeFloorId
+  const pixelsPerMeter = () => getPixelsPerMeter() || 100
 
   /**
    * 把绘制结果写回当前场景。抛错时绘制器留在原地并把 message 显示在自己的提示条里。
@@ -45,12 +41,11 @@ export function bindWindowDesignerWiring(deps: Record<string, any>): void {
    * 在 backdrop 后面，用户只会看到「点了应用窗型没反应」。
    */
   const applyWindowDesign = (draft: any, openedWindow: any) => {
-    if (currentFloorId() !== openedWindow.floorId)
-      throw Error("窗户或楼层已变化，请关闭后重新打开窗型绘制。");
+    if (currentFloorId() !== openedWindow.floorId) throw Error('窗户或楼层已变化，请关闭后重新打开窗型绘制。')
     const sceneState = appCtx.studioState,
-      targetWindow = sceneState.windows.find((windowEntry: any) => windowEntry.id === openedWindow.id);
+      targetWindow = sceneState.windows.find((windowEntry: any) => windowEntry.id === openedWindow.id)
     if (!targetWindow || JSON.stringify(targetWindow) !== openedWindow.snapshot)
-      throw Error("窗户或楼层已变化，请关闭后重新打开窗型绘制。");
+      throw Error('窗户或楼层已变化，请关闭后重新打开窗型绘制。')
 
     // 先按候选对象验证整场景，通过了才真的落改动（失败时不留半截状态）。
     const candidateWindow = {
@@ -59,8 +54,8 @@ export function bindWindowDesignerWiring(deps: Record<string, any>): void {
         height: draft.height,
         windowDesign: structuredClone(draft.windowDesign),
       },
-      anchorWall = sceneState.walls.find((wall: any) => wall.id === targetWindow.wallId);
-    if (anchorWall) candidateWindow.t = clampWindowT2(anchorWall, candidateWindow, pixelsPerMeter());
+      anchorWall = sceneState.walls.find((wall: any) => wall.id === targetWindow.wallId)
+    if (anchorWall) candidateWindow.t = clampWindowT2(anchorWall, candidateWindow, pixelsPerMeter())
     const sceneError = windowSceneError(
       {
         walls: sceneState.walls,
@@ -69,34 +64,34 @@ export function bindWindowDesignerWiring(deps: Record<string, any>): void {
         ),
       },
       pixelsPerMeter(),
-    );
-    if (sceneError) throw Error(sceneError);
-    if (JSON.stringify(candidateWindow) === JSON.stringify(targetWindow)) return true;
+    )
+    if (sceneError) throw Error(sceneError)
+    if (JSON.stringify(candidateWindow) === JSON.stringify(targetWindow)) return true
 
-    const undoSnapshot = captureUndoSnapshot();
-    Object.assign(targetWindow, candidateWindow);
-    (applyPlacementChange(undoSnapshot), refreshScopeItems("architecture"), markDocumentDirty());
-    return true;
-  };
+    const undoSnapshot = captureUndoSnapshot()
+    Object.assign(targetWindow, candidateWindow)
+    applyPlacementChange(undoSnapshot), refreshScopeItems('architecture'), markDocumentDirty()
+    return true
+  }
 
-  selectElement("#window-customize").addEventListener("click", () => {
-    if (openingDesigner || designerHandle?.isOpen) return;
-    const selectedWindow = getSelectedObject();
-    if (appCtx.selectedItem?.kind !== "window" || !selectedWindow) return;
+  selectElement('#window-customize').addEventListener('click', () => {
+    if (openingDesigner || designerHandle?.isOpen) return
+    const selectedWindow = getSelectedObject()
+    if (appCtx.selectedItem?.kind !== 'window' || !selectedWindow) return
     // 只有「这扇窗自己越界」时**不能**拦：绘制器正是修它的地方（缩窄窗宽 / 降窗高）。
     // 拦在这里会让用户无路可走 —— 检查器改尺寸同样要过 `validateSelectionChange`，
     // 而后者会因为同一处越界把改动回滚。
     const selectedError = windowSceneError(
       { walls: appCtx.studioState.walls, windows: [selectedWindow] },
       pixelsPerMeter(),
-    );
+    )
     if (!selectedError) {
       // 这扇窗没问题，但户型里别的窗越界：提前说明（文案已指名是哪一扇），
       // 免得用户画完才在「应用窗型」被拒。
-      const sceneError = windowSceneError(appCtx.studioState, pixelsPerMeter());
+      const sceneError = windowSceneError(appCtx.studioState, pixelsPerMeter())
       if (sceneError) {
-        showToast(sceneError, "error");
-        return;
+        showToast(sceneError, 'error')
+        return
       }
     }
     const openedWindow = {
@@ -113,55 +108,48 @@ export function bindWindowDesignerWiring(deps: Record<string, any>): void {
             closedWallFloorPolygons(appCtx.studioState.walls, 1),
             pixelsPerMeter(),
           )) ||
-        1;
-    openingDesigner = true;
-    import("../../../plan/window/designer")
+        1
+    openingDesigner = true
+    import('../../../plan/window/designer')
       .then(({ openWindowDesigner }) => {
-        const latestWindow = appCtx.studioState.windows.find(
-          (windowEntry: any) => windowEntry.id === openedWindow.id,
-        );
+        const latestWindow = appCtx.studioState.windows.find((windowEntry: any) => windowEntry.id === openedWindow.id)
         if (
           isEmbeddedStage ||
           currentFloorId() !== openedWindow.floorId ||
-          appCtx.selectedItem?.kind !== "window" ||
+          appCtx.selectedItem?.kind !== 'window' ||
           appCtx.selectedItem.id !== openedWindow.id ||
           !latestWindow ||
           JSON.stringify(latestWindow) !== openedWindow.snapshot
         )
-          return;
+          return
         designerHandle = openWindowDesigner({
           record: latestWindow,
           style: deps.backgroundSettings?.(),
           interiorSide,
           onApply: (appliedDraft: any) => applyWindowDesign(appliedDraft, openedWindow),
           onClose: () => {
-            designerHandle = null;
-            selectElement("#window-customize").focus();
+            designerHandle = null
+            selectElement('#window-customize').focus()
           },
-        });
+        })
       })
       .catch((designerError: any) => {
-        showToast(designerError?.message || "窗型绘制器加载失败。", "error");
+        showToast(designerError?.message || '窗型绘制器加载失败。', 'error')
       })
       .finally(() => {
-        openingDesigner = false;
-      });
-  });
+        openingDesigner = false
+      })
+  })
 
-  selectElement("#window-ordinary").addEventListener("click", () => {
-    const selectedWindow = getSelectedObject();
-    if (
-      appCtx.selectedItem?.kind !== "window" ||
-      !selectedWindow ||
-      !isCustomWindow(selectedWindow)
-    )
-      return;
+  selectElement('#window-ordinary').addEventListener('click', () => {
+    const selectedWindow = getSelectedObject()
+    if (appCtx.selectedItem?.kind !== 'window' || !selectedWindow || !isCustomWindow(selectedWindow)) return
     // 只把模式切回普通窗：分格树留着，下次「编辑自定义窗型…」还能接着改。
-    const undoSnapshot = captureUndoSnapshot();
+    const undoSnapshot = captureUndoSnapshot()
     selectedWindow.windowDesign = {
       ...structuredClone(selectedWindow.windowDesign),
-      mode: "ordinary",
-    };
-    (applyPlacementChange(undoSnapshot), refreshScopeItems("architecture"), markDocumentDirty());
-  });
+      mode: 'ordinary',
+    }
+    applyPlacementChange(undoSnapshot), refreshScopeItems('architecture'), markDocumentDirty()
+  })
 }

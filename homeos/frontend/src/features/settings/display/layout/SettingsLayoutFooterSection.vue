@@ -355,18 +355,7 @@
 <script setup>
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { computed } from 'vue'
-import {
-  PanelBottom,
-  Eye,
-  EyeOff,
-  Plus,
-  Sparkles,
-  RotateCcw,
-  Trash2,
-  Type,
-  Database,
-  Radio,
-} from '@lucide/vue'
+import { PanelBottom, Eye, EyeOff, Plus, Sparkles, RotateCcw, Trash2, Type, Database, Radio } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
@@ -413,9 +402,7 @@ const props = defineProps({
 })
 
 // 当前选中的底栏项对象及其在数组中的索引
-const activeFooterItem = computed(
-  () => footerCfg.value.items?.find((it) => it.id === activeFooterItemId.value) || null,
-)
+const activeFooterItem = computed(() => footerCfg.value.items?.find((it) => it.id === activeFooterItemId.value) || null)
 const activeFooterItemIdx = computed(
   () => footerCfg.value.items?.findIndex((it) => it.id === activeFooterItemId.value) ?? -1,
 )
@@ -516,11 +503,7 @@ const activeFooterSecondaryPreview = computed(() => {
   const item = activeFooterItem.value
   if (!item?.secondaryField) return ''
   const data = activeFooterPreviewData.value
-  const name =
-    data?.secondaryName ||
-    item.secondaryLabel?.trim() ||
-    activeFooterSecondaryLabelPreview.value ||
-    '副字段'
+  const name = data?.secondaryName || item.secondaryLabel?.trim() || activeFooterSecondaryLabelPreview.value || '副字段'
   const value = data?.secondary ?? '--'
   return `${name} ¥${value}`
 })

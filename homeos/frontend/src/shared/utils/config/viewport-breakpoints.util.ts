@@ -24,8 +24,6 @@ export function isTabletLikeViewport(
  * @param width 视口宽度，默认 window.innerWidth（SSR 取 1366）
  * @returns 是否紧凑平板视口
  */
-export function isTabletCompactViewport(
-  width = typeof window !== 'undefined' ? window.innerWidth : 1366,
-): boolean {
+export function isTabletCompactViewport(width = typeof window !== 'undefined' ? window.innerWidth : 1366): boolean {
   return width >= TABLET_COMPACT_MIN_WIDTH && width <= TABLET_COMPACT_MAX_WIDTH
 }

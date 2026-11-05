@@ -106,7 +106,3 @@ ops/checks/studio/material-slot-repair-plan.json
 # 厂商包的反混淆产物与比对脚本（v81 / v82 抽取出来的 .deob.js 与 diff 工具）。
 # 仅供本地对照，不入库：仓库是公开的，第三方反编译代码一旦推上去就会永久留在历史里。
 .deob/
-
-# 移植核对工具的一次性调试产物（反混淆片段、临时 CSS、dbg 脚本）。
-# `ops/port/*.mjs` 与 `ops/port/lib/` 入库，`tmp/` 只留本地。
-ops/port/tmp/

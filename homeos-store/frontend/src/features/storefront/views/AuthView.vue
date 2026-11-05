@@ -146,10 +146,7 @@ async function applyVerification(
     toast.show(result.deliveryError, "err");
     return;
   }
-  toast.show(
-    `验证码未能通过邮件发出（当前投递方式：${result.deliveryMode || "未知"}），请联系客服。`,
-    "err",
-  );
+  toast.show(`验证码未能通过邮件发出（当前投递方式：${result.deliveryMode || "未知"}），请联系客服。`, "err");
 }
 
 async function sendCode(purpose: "register" | "reset") {
@@ -189,9 +186,7 @@ async function submitLogin() {
   submitting.value = true;
   try {
     await session.login(login.account, login.password);
-    toast.show(
-      session.hasPermanentLicense ? "登录成功，正在进入账号中心。" : "登录成功，正在进入购买页。",
-    );
+    toast.show(session.hasPermanentLicense ? "登录成功，正在进入账号中心。" : "登录成功，正在进入购买页。");
     afterAuth();
   } catch (error) {
     errorText.value = errorMessage(error);

@@ -6,24 +6,24 @@
  * 家电模板部署模式字面量联合：helper（helper 模板，不需要 configuration.yaml 注入）/
  * config_yaml（需配置 YAML 注入）/ either（两种方式都能工作）。
  */
-export type ApplianceDeployMode = 'helper' | 'config_yaml' | 'either';
+export type ApplianceDeployMode = 'helper' | 'config_yaml' | 'either'
 
 /**
  * 家电模板的功能分类字面量联合：composite（聚合控制+展示，多槽位联动）/ display（只读展示）/ control（可控制）。
  * 前端 UI 按 kind 决定渲染「控制器」还是「展示卡片」。
  */
-export type ApplianceKind = 'composite' | 'display' | 'control';
+export type ApplianceKind = 'composite' | 'display' | 'control'
 
 /**
  * 单个家电槽位定义（前端表单项 + 后端反向解析共用最小结构）。
  * 一个家电由多个槽位组成，每个槽位绑定一个 HA 实体（domain 限定校验用）。
  */
 export interface ApplianceSlotDef {
-  key: string;    /** 槽位英文 key（唯一，如 pwr / fan / temp） */
-  label: string;  /** 中文展示标签（表单项标题） */
-  hint: string;   /** 中文占位提示文案 */
-  domain: string; /** 绑定实体的 HA domain（如 switch / sensor / fan / climate） */
-  icon: string;   /** emoji 图标，用于表单项左侧标识 */
+  key: string /** 槽位英文 key（唯一，如 pwr / fan / temp） */
+  label: string /** 中文展示标签（表单项标题） */
+  hint: string /** 中文占位提示文案 */
+  domain: string /** 绑定实体的 HA domain（如 switch / sensor / fan / climate） */
+  icon: string /** emoji 图标，用于表单项左侧标识 */
 }
 
 /**
@@ -31,23 +31,23 @@ export interface ApplianceSlotDef {
  * 描述该类家电对应的 HA template platform / 功能分类 / 部署模式 / 槽位清单 / 必填槽位组。
  */
 export interface ApplianceTypeDef {
-  id: string;                 /** 类型 ID（如 range_hood / washing_machine），全局唯一 */
-  label: string;              /** 中文展示名（目录标题） */
-  platform: string;           /** 对应的 HA template platform（fan/sensor/switch/climate/vacuum 等） */
-  kind: ApplianceKind;        /** 功能分类：composite / display / control */
-  deployMode: ApplianceDeployMode; /** 部署模式：helper / config_yaml / either */
-  description: string;        /** 中文说明（提示该类型聚合哪些实体，是否需要 config_yaml） */
-  slots: ApplianceSlotDef[];  /** 槽位定义列表（前后端表单最小字段） */
-  requiredSlotGroups: string[][]; /** 必填槽位组：组间「或」，组内「且」；任一组全部满足即可提交 */
+  id: string /** 类型 ID（如 range_hood / washing_machine），全局唯一 */
+  label: string /** 中文展示名（目录标题） */
+  platform: string /** 对应的 HA template platform（fan/sensor/switch/climate/vacuum 等） */
+  kind: ApplianceKind /** 功能分类：composite / display / control */
+  deployMode: ApplianceDeployMode /** 部署模式：helper / config_yaml / either */
+  description: string /** 中文说明（提示该类型聚合哪些实体，是否需要 config_yaml） */
+  slots: ApplianceSlotDef[] /** 槽位定义列表（前后端表单最小字段） */
+  requiredSlotGroups: string[][] /** 必填槽位组：组间「或」，组内「且」；任一组全部满足即可提交 */
 }
 
-const slot = (
-  key: string,
-  label: string,
-  hint: string,
-  domain: string,
-  icon: string,
-): ApplianceSlotDef => ({ key, label, hint, domain, icon });
+const slot = (key: string, label: string, hint: string, domain: string, icon: string): ApplianceSlotDef => ({
+  key,
+  label,
+  hint,
+  domain,
+  icon,
+})
 
 /**
  * 家电模板目录数组（单一真相源）：内置 20+ 类家电的类型定义。
@@ -421,25 +421,26 @@ export const APPLIANCE_TYPES: ApplianceTypeDef[] = [
       slot('fan', '雾化档位', '风速/档位', 'select', '🌀'),
     ],
   },
-];
+]
 
 /**
  * 家电类型 ID → ApplianceTypeDef 的快速查找表（由 APPLIANCE_TYPES 派生），供 getApplianceType O(1) 查询。
  */
-export const APPLIANCE_TYPE_MAP = Object.fromEntries(
-  APPLIANCE_TYPES.map((t) => [t.id, t]),
-) as Record<string, ApplianceTypeDef>;
+export const APPLIANCE_TYPE_MAP = Object.fromEntries(APPLIANCE_TYPES.map((t) => [t.id, t])) as Record<
+  string,
+  ApplianceTypeDef
+>
 
 /**
  * 家电类型 ID 集合（派生自 APPLIANCE_TYPES），用于 O(1) 判断一个字符串是否为合法的内置家电类型。
  */
-export const APPLIANCE_TYPE_IDS = new Set(APPLIANCE_TYPES.map((t) => t.id));
+export const APPLIANCE_TYPE_IDS = new Set(APPLIANCE_TYPES.map((t) => t.id))
 
 /**
  * 特殊模板类型集合：trigger_sensor（触发式传感器，非家电聚合）/ yaml_import（未知原始 YAML 按导入原样保留）。
  * 不属于 APPLIANCE_TYPE_IDS；前后端 UI 据此分类显示为「触发传感器」或「导入 YAML」选项卡。
  */
-export const SPECIAL_TEMPLATE_TYPES = new Set(['trigger_sensor', 'yaml_import']);
+export const SPECIAL_TEMPLATE_TYPES = new Set(['trigger_sensor', 'yaml_import'])
 
 /**
  * 根据家电类型 ID 快速查询类型定义（来自 APPLIANCE_TYPE_MAP O(1)）。
@@ -448,7 +449,7 @@ export const SPECIAL_TEMPLATE_TYPES = new Set(['trigger_sensor', 'yaml_import'])
  * @returns ApplianceTypeDef；未知 ID 返回 undefined
  */
 export function getApplianceType(id: string): ApplianceTypeDef | undefined {
-  return APPLIANCE_TYPE_MAP[id];
+  return APPLIANCE_TYPE_MAP[id]
 }
 
 /**
@@ -458,7 +459,7 @@ export function getApplianceType(id: string): ApplianceTypeDef | undefined {
  * @returns ApplianceSlotDef 数组；未知类型返回空数组（永不 null）
  */
 export function getBuiltinSlots(typeId: string): ApplianceSlotDef[] {
-  return getApplianceType(typeId)?.slots || [];
+  return getApplianceType(typeId)?.slots || []
 }
 
 /**
@@ -468,5 +469,5 @@ export function getBuiltinSlots(typeId: string): ApplianceSlotDef[] {
  * @returns string[][] 必需槽位组；未知类型返回仅含 pwr 组的兜底
  */
 export function getRequiredSlotGroups(typeId: string): string[][] {
-  return getApplianceType(typeId)?.requiredSlotGroups || [['pwr']];
+  return getApplianceType(typeId)?.requiredSlotGroups || [['pwr']]
 }

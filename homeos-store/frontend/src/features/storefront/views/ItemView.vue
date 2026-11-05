@@ -132,17 +132,13 @@ const purchaseBlock = computed(() => {
   return "";
 });
 
-const priceLabel = computed(() =>
-  couponState.value === "valid" ? "优惠后" : "应付金额",
-);
+const priceLabel = computed(() => (couponState.value === "valid" ? "优惠后" : "应付金额"));
 const priceCents = computed(() => {
   if (couponState.value === "valid") return couponAmountCents.value;
   return product.value?.priceCents || 0;
 });
 
-const deliveryLabel = computed(() =>
-  isAddon.value ? "自动开通" : isManual.value ? "手动发货" : "自动发货",
-);
+const deliveryLabel = computed(() => (isAddon.value ? "自动开通" : isManual.value ? "手动发货" : "自动发货"));
 const deliveryFact = computed(() =>
   isAddon.value ? "原激活码自动更新" : isManual.value ? "后台确认后发放" : "账号中心显示激活码",
 );
@@ -284,15 +280,17 @@ async function submit() {
     return;
   }
   if (!session.account) {
-    await confirm.confirm({
-      kicker: "Login Required",
-      title: "请先登录后购买",
-      message: "未登录可以浏览商品，但不能购买或创建订单。",
-      confirmLabel: "去登录",
-      cancelLabel: "继续浏览",
-    }).then((ok) => {
-      if (ok) router.push("/user/authentication/login");
-    });
+    await confirm
+      .confirm({
+        kicker: "Login Required",
+        title: "请先登录后购买",
+        message: "未登录可以浏览商品，但不能购买或创建订单。",
+        confirmLabel: "去登录",
+        cancelLabel: "继续浏览",
+      })
+      .then((ok) => {
+        if (ok) router.push("/user/authentication/login");
+      });
     return;
   }
   const owned = await ownedPermanentLicense(item.id);

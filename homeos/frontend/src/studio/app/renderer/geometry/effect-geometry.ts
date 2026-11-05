@@ -1,34 +1,31 @@
 export function normalizeIconButtonEffectComponent(component: any) {
-  if (component?.type !== "icon-button-effect") return component;
+  if (component?.type !== 'icon-button-effect') return component
   const nextProperties = {
     ...(component.properties || {}),
-  };
+  }
   return (
-    Object.prototype.hasOwnProperty.call(nextProperties, "buttonVisible") ||
-      (nextProperties.buttonVisible = true),
-    Object.prototype.hasOwnProperty.call(nextProperties, "effectVisible") ||
-      (nextProperties.effectVisible = true),
+    Object.hasOwn(nextProperties, 'buttonVisible') || (nextProperties.buttonVisible = true),
+    Object.hasOwn(nextProperties, 'effectVisible') || (nextProperties.effectVisible = true),
     {
       ...component,
       properties: nextProperties,
     }
-  );
+  )
 }
 export function componentHostZIndex(hostComponent: any, baseZIndex: any, applyTypeBoost = true) {
-  const resolvedZIndex = Number(baseZIndex || 0);
-  return !applyTypeBoost && hostComponent?.type !== "group"
+  const resolvedZIndex = Number(baseZIndex || 0)
+  return !applyTypeBoost && hostComponent?.type !== 'group'
     ? resolvedZIndex
-    : hostComponent?.type === "icon-button-effect" &&
-        (hostComponent.properties?.buttonVisible !== false ||
-          hostComponent.properties?.hiddenContentClickable === true)
+    : hostComponent?.type === 'icon-button-effect' &&
+        (hostComponent.properties?.buttonVisible !== false || hostComponent.properties?.hiddenContentClickable === true)
       ? 1000000000 + resolvedZIndex
-      : hostComponent?.type === "presence-sensor"
+      : hostComponent?.type === 'presence-sensor'
         ? 500000000 + resolvedZIndex
-        : resolvedZIndex;
+        : resolvedZIndex
 }
 export function effectFadeDuration(effectComponent: any) {
-  const durationSeconds = Number(effectComponent?.properties?.effectFadeDuration);
-  return Number.isFinite(durationSeconds) ? Math.max(0, Math.min(3, durationSeconds)) : 0.52;
+  const durationSeconds = Number(effectComponent?.properties?.effectFadeDuration)
+  return Number.isFinite(durationSeconds) ? Math.max(0, Math.min(3, durationSeconds)) : 0.52
 }
 export function effectLayerDimensions(
   layerComponent: any,
@@ -36,12 +33,12 @@ export function effectLayerDimensions(
   layerContainerWidth: any,
   layerContainerHeight: any,
 ) {
-  if (layerComponent?.effectLayoutMode === "fill")
+  if (layerComponent?.effectLayoutMode === 'fill')
     return {
       width: layerContainerWidth,
       height: layerContainerHeight,
       pendingNaturalSize: false,
-    };
+    }
   const layerNaturalWidth = Number(layerComponent?.effectNaturalWidth || 0),
     layerNaturalHeight = Number(layerComponent?.effectNaturalHeight || 0),
     layerOriginalWidth = Number(
@@ -51,7 +48,7 @@ export function effectLayerDimensions(
       layerImageElement?.dataset?.effectOriginalHeight || layerImageElement?.naturalHeight || 0,
     ),
     layerWidth = layerNaturalWidth > 0 ? layerNaturalWidth : layerOriginalWidth,
-    layerHeight = layerNaturalHeight > 0 ? layerNaturalHeight : layerOriginalHeight;
+    layerHeight = layerNaturalHeight > 0 ? layerNaturalHeight : layerOriginalHeight
   return layerWidth > 0 && layerHeight > 0
     ? {
         width: layerWidth,
@@ -59,13 +56,10 @@ export function effectLayerDimensions(
         pendingNaturalSize: false,
       }
     : {
-        width:
-          (layerContainerWidth * Math.max(0.001, Number(layerComponent?.effectWidth ?? 100))) / 100,
-        height:
-          (layerContainerHeight * Math.max(0.001, Number(layerComponent?.effectHeight ?? 100))) /
-          100,
+        width: (layerContainerWidth * Math.max(0.001, Number(layerComponent?.effectWidth ?? 100))) / 100,
+        height: (layerContainerHeight * Math.max(0.001, Number(layerComponent?.effectHeight ?? 100))) / 100,
         pendingNaturalSize: true,
-      };
+      }
 }
 export function effectSourceDimensions(
   sourceComponent: any,
@@ -90,26 +84,24 @@ export function effectSourceDimensions(
         ? componentNaturalHeight
         : datasetOriginalHeight > 0
           ? datasetOriginalHeight
-          : elementNaturalHeight;
+          : elementNaturalHeight
   return sourceWidth > 0 && sourceHeight > 0
     ? {
         width: sourceWidth,
         height: sourceHeight,
         pendingNaturalSize: false,
       }
-    : sourceComponent?.effectLayoutMode === "fill"
+    : sourceComponent?.effectLayoutMode === 'fill'
       ? {
           width: containerWidth,
           height: containerHeight,
           pendingNaturalSize: true,
         }
       : {
-          width:
-            (containerWidth * Math.max(0.001, Number(sourceComponent?.effectWidth ?? 100))) / 100,
-          height:
-            (containerHeight * Math.max(0.001, Number(sourceComponent?.effectHeight ?? 100))) / 100,
+          width: (containerWidth * Math.max(0.001, Number(sourceComponent?.effectWidth ?? 100))) / 100,
+          height: (containerHeight * Math.max(0.001, Number(sourceComponent?.effectHeight ?? 100))) / 100,
           pendingNaturalSize: true,
-        };
+        }
 }
 export function effectCropRectangle(cropImageElement: any, targetDimensions: any) {
   const datasetWidth = Number(cropImageElement?.dataset?.effectOriginalWidth || 0),
@@ -117,7 +109,7 @@ export function effectCropRectangle(cropImageElement: any, targetDimensions: any
     datasetCropX = Number(cropImageElement?.dataset?.effectCropX),
     datasetCropY = Number(cropImageElement?.dataset?.effectCropY),
     datasetCropWidth = Number(cropImageElement?.dataset?.effectCropWidth || 0),
-    datasetCropHeight = Number(cropImageElement?.dataset?.effectCropHeight || 0);
+    datasetCropHeight = Number(cropImageElement?.dataset?.effectCropHeight || 0)
   if (
     datasetWidth > 0 &&
     datasetHeight > 0 &&
@@ -131,20 +123,20 @@ export function effectCropRectangle(cropImageElement: any, targetDimensions: any
     datasetCropY + datasetCropHeight <= datasetHeight
   ) {
     const scaleX = targetDimensions.width / datasetWidth,
-      scaleY = targetDimensions.height / datasetHeight;
+      scaleY = targetDimensions.height / datasetHeight
     return {
       x: datasetCropX * scaleX,
       y: datasetCropY * scaleY,
       width: datasetCropWidth * scaleX,
       height: datasetCropHeight * scaleY,
-    };
+    }
   }
   return {
     x: 0,
     y: 0,
     width: targetDimensions.width,
     height: targetDimensions.height,
-  };
+  }
 }
 export function effectCroppedLayerGeometry({
   centerX: centerX,
@@ -160,16 +152,12 @@ export function effectCroppedLayerGeometry({
 }: any) {
   const rotationRad = (Number(rotation || 0) * Math.PI) / 180,
     scaleFactor = Math.max(0.0001, Number(scale || 1)),
-    offsetX =
-      (Number(cropX || 0) + Number(cropWidth || 0) / 2 - Number(originalWidth || 0) / 2) *
-      scaleFactor,
-    offsetY =
-      (Number(cropY || 0) + Number(cropHeight || 0) / 2 - Number(originalHeight || 0) / 2) *
-      scaleFactor,
+    offsetX = (Number(cropX || 0) + Number(cropWidth || 0) / 2 - Number(originalWidth || 0) / 2) * scaleFactor,
+    offsetY = (Number(cropY || 0) + Number(cropHeight || 0) / 2 - Number(originalHeight || 0) / 2) * scaleFactor,
     rotatedOffsetX = offsetX * Math.cos(rotationRad) - offsetY * Math.sin(rotationRad),
     rotatedOffsetY = offsetX * Math.sin(rotationRad) + offsetY * Math.cos(rotationRad),
     rotatedCenterX = Number(centerX || 0) + rotatedOffsetX,
-    rotatedCenterY = Number(centerY || 0) + rotatedOffsetY;
+    rotatedCenterY = Number(centerY || 0) + rotatedOffsetY
   return {
     left: rotatedCenterX - Number(cropWidth || 0) / 2,
     top: rotatedCenterY - Number(cropHeight || 0) / 2,
@@ -177,7 +165,7 @@ export function effectCroppedLayerGeometry({
     height: Number(cropHeight || 0),
     scale: scaleFactor,
     rotation: Number(rotation || 0),
-  };
+  }
 }
 export function effectReferenceImageTransform(
   project: any,
@@ -187,14 +175,14 @@ export function effectReferenceImageTransform(
   fillWidth: any,
   fillHeight: any,
 ) {
-  if (!(targetWidth > 0 && targetHeight > 0)) return null;
+  if (!(targetWidth > 0 && targetHeight > 0)) return null
   const referenceZIndex = Number(referenceComponent?.position?.zIndex || 1),
-    referenceImageId = String(referenceComponent?.properties?.effectReferenceImageId || ""),
+    referenceImageId = String(referenceComponent?.properties?.effectReferenceImageId || ''),
     referencedCandidates: any = [],
     fallbackCandidates: any = [],
     collectCandidates = (componentList: any) => {
       for (const childComponent of componentList || []) {
-        if (childComponent.type === "image") {
+        if (childComponent.type === 'image') {
           const childProperties = childComponent.properties || {},
             childNaturalWidth = Number(childProperties.naturalWidth || 0),
             childNaturalHeight = Number(childProperties.naturalHeight || 0),
@@ -205,28 +193,22 @@ export function effectReferenceImageTransform(
               childComponent.style?.visible !== false &&
               childNaturalWidth === targetWidth &&
               childNaturalHeight === targetHeight &&
-              childZIndex < referenceZIndex;
+              childZIndex < referenceZIndex
           if (isReferenceImage || isBestSizeMatch) {
-            const isFillLayout = childProperties.layoutMode === "fill",
+            const isFillLayout = childProperties.layoutMode === 'fill',
               childPosition = childComponent.position || {},
-              candidateWidth = isFillLayout
-                ? fillWidth
-                : Number(childPosition.width || targetWidth),
-              candidateHeight = isFillLayout
-                ? fillHeight
-                : Number(childPosition.height || targetHeight),
+              candidateWidth = isFillLayout ? fillWidth : Number(childPosition.width || targetWidth),
+              candidateHeight = isFillLayout ? fillHeight : Number(childPosition.height || targetHeight),
               candidate = {
                 zIndex: childZIndex,
                 scale: Math.min(candidateWidth / targetWidth, candidateHeight / targetHeight),
-              };
-            isReferenceImage
-              ? referencedCandidates.push(candidate)
-              : fallbackCandidates.push(candidate);
+              }
+            isReferenceImage ? referencedCandidates.push(candidate) : fallbackCandidates.push(candidate)
           }
         }
-        collectCandidates(childComponent.children);
+        collectCandidates(childComponent.children)
       }
-    };
+    }
   return (
     collectCandidates(project?.components),
     referencedCandidates[0] ||
@@ -234,5 +216,5 @@ export function effectReferenceImageTransform(
         (leftCandidate: any, rightCandidate: any) => rightCandidate.zIndex - leftCandidate.zIndex,
       )[0] ||
       null
-  );
+  )
 }

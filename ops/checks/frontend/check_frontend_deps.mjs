@@ -58,7 +58,6 @@ for (let i = 0; i < process.argv.length; i += 1) {
 /** 长前缀优先：`@app/` 必须排在 `@/` 之前，否则永远命中后者。 */
 const ALIAS_ENTRIES = [...ALIASES.entries()].sort((a, b) => b[0].length - a[0].length)
 
-
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === 'dist') continue

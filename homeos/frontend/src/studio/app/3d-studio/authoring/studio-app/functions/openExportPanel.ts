@@ -1,79 +1,101 @@
+import { clamp as clamp2 } from '../../../plan/geometry'
 
+import { normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2 } from '../../../export/export-presets'
 
+import { finite as finite2 } from '../../../loaders/studio-normalization'
 
+import type { StudioAppContext } from '../studio-app-context'
+export interface OpenExportPanelDeps {
+  appCtx: StudioAppContext
+  applyExportPreset: any
+  captureCameraView: any
+  captureOverviewCamera: any
+  ensureSceneRendered: any
+  exportDialogElement: any
+  exportFolderNameInput: any
+  exportFolderQueryValue: any
+  exportHeightInput: any
+  exportLockRatioInput: any
+  exportPackageButton: any
+  exportPreviewStageElement: any
+  exportStatusElement: any
+  exportWidthInput: any
+  floorSelectionId: any
+  getActiveFloor: any
+  getCameraFocalLength: any
+  getCameraMode: any
+  getCameraTopRotation: any
+  getCameraView: any
+  getPreviewFloorMode: any
+  isAutoDiagramEmbed: any
+  listChargingRows: any
+  listLightGroupRows: any
+  listScreenRows: any
+  openExportDialog: any
+  prepareFreeCameraCapture: any
+  rebuildFloorLayers: any
+  refreshCanvasSizeUi: any
+  refreshFloorControls: any
+  refreshSelection: any
+  renderExportLayers: any
+  renderExportPresetSlots: any
+  selectPreviewFloor: any
+  setCameraMode: any
+  stateViewportAspectGetCanvasSize: any
+  syncCanvasSizeInputs: any
+  updateCameraView: any
+}
 
+export function openExportPanel(deps: OpenExportPanelDeps) {
+  const {
+    appCtx,
+    applyExportPreset,
+    captureCameraView,
+    captureOverviewCamera,
+    ensureSceneRendered,
+    exportDialogElement,
+    exportFolderNameInput,
+    exportFolderQueryValue,
+    exportHeightInput,
+    exportLockRatioInput,
+    exportPackageButton,
+    exportPreviewStageElement,
+    exportStatusElement,
+    exportWidthInput,
+    floorSelectionId,
+    getActiveFloor,
+    getCameraFocalLength,
+    getCameraMode,
+    getCameraTopRotation,
+    getCameraView,
+    getPreviewFloorMode,
+    isAutoDiagramEmbed,
+    listChargingRows,
+    listLightGroupRows,
+    listScreenRows,
+    openExportDialog,
+    prepareFreeCameraCapture,
+    rebuildFloorLayers,
+    refreshCanvasSizeUi,
+    refreshFloorControls,
+    refreshSelection,
+    renderExportLayers,
+    renderExportPresetSlots,
+    selectPreviewFloor,
+    setCameraMode,
+    stateViewportAspectGetCanvasSize,
+    syncCanvasSizeInputs,
+    updateCameraView,
+  } = deps
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import {
-  clamp as clamp2,
-} from "../../../plan/geometry";
-
-
-import {
-  normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
-} from "../../../export/export-presets";
-
-
-
-
-
-
-import {
-  finite as finite2,
-} from "../../../loaders/studio-normalization";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import type { StudioAppContext } from "../studio-app-context";
-export interface OpenExportPanelDeps { appCtx: StudioAppContext; applyExportPreset: any; captureCameraView: any; captureOverviewCamera: any; ensureSceneRendered: any; exportDialogElement: any; exportFolderNameInput: any; exportFolderQueryValue: any; exportHeightInput: any; exportLockRatioInput: any; exportPackageButton: any; exportPreviewStageElement: any; exportStatusElement: any; exportWidthInput: any; floorSelectionId: any; getActiveFloor: any; getCameraFocalLength: any; getCameraMode: any; getCameraTopRotation: any; getCameraView: any; getPreviewFloorMode: any; isAutoDiagramEmbed: any; listChargingRows: any; listLightGroupRows: any; listScreenRows: any; openExportDialog: any; prepareFreeCameraCapture: any; rebuildFloorLayers: any; refreshCanvasSizeUi: any; refreshFloorControls: any; refreshSelection: any; renderExportLayers: any; renderExportPresetSlots: any; selectPreviewFloor: any; setCameraMode: any; stateViewportAspectGetCanvasSize: any; syncCanvasSizeInputs: any; updateCameraView: any; }
-
-export function openExportPanel(deps: OpenExportPanelDeps, ) {
-  const { appCtx, applyExportPreset, captureCameraView, captureOverviewCamera, ensureSceneRendered, exportDialogElement, exportFolderNameInput, exportFolderQueryValue, exportHeightInput, exportLockRatioInput, exportPackageButton, exportPreviewStageElement, exportStatusElement, exportWidthInput, floorSelectionId, getActiveFloor, getCameraFocalLength, getCameraMode, getCameraTopRotation, getCameraView, getPreviewFloorMode, isAutoDiagramEmbed, listChargingRows, listLightGroupRows, listScreenRows, openExportDialog, prepareFreeCameraCapture, rebuildFloorLayers, refreshCanvasSizeUi, refreshFloorControls, refreshSelection, renderExportLayers, renderExportPresetSlots, selectPreviewFloor, setCameraMode, stateViewportAspectGetCanvasSize, syncCanvasSizeInputs, updateCameraView } = deps;
-
-  if (appCtx.pendingRuntimeSettings || !appCtx.threeRenderer || !appCtx.threeCamera || !appCtx.orbitControls) return;
-  (window.clearTimeout(appCtx.exportPreviewTimeoutId),
+  if (appCtx.pendingRuntimeSettings || !appCtx.threeRenderer || !appCtx.threeCamera || !appCtx.orbitControls) return
+  window.clearTimeout(appCtx.exportPreviewTimeoutId),
     (appCtx.exportPreviewTimeoutId = null),
-    (appCtx.isExportPresetDirty = false));
+    (appCtx.isExportPresetDirty = false)
   const va2 = listLightGroupRows(),
     televisionEntries = listScreenRows(),
-    na2 = listChargingRows();
-  ((appCtx.pendingRuntimeSettings = {
+    na2 = listChargingRows()
+  ;(appCtx.pendingRuntimeSettings = {
     canvasParent: appCtx.threeRenderer.domElement.parentElement,
     camera: captureOverviewCamera(),
     selected: appCtx.selectedItem
@@ -101,10 +123,7 @@ export function openExportPanel(deps: OpenExportPanelDeps, ) {
       ...appCtx.studioProject.combinedCameraSettings,
     },
     groupStates: new Map(
-      va2.map(({ key: groupStateKey, group: groupStateGroup }: any) => [
-        groupStateKey,
-        groupStateGroup.enabled,
-      ]),
+      va2.map(({ key: groupStateKey, group: groupStateGroup }: any) => [groupStateKey, groupStateGroup.enabled]),
     ),
     tvStates: new Map(
       televisionEntries.map(({ key: televisionStateKey, item: televisionStateItem }: any) => [
@@ -126,12 +145,12 @@ export function openExportPanel(deps: OpenExportPanelDeps, ) {
     },
     pixelRatio: appCtx.threeRenderer.getPixelRatio(),
   }),
-    appCtx.lightPrecompileController?.setEnabled(false));
-  for (const { group: disabledGroup } of va2) disabledGroup.enabled = false;
+    appCtx.lightPrecompileController?.setEnabled(false)
+  for (const { group: disabledGroup } of va2) disabledGroup.enabled = false
   if (
     (refreshSelection(),
-    (exportStatusElement.textContent = "准备保存到 NAS"),
-    exportFolderNameInput.classList.remove("invalid"),
+    (exportStatusElement.textContent = '准备保存到 NAS'),
+    exportFolderNameInput.classList.remove('invalid'),
     renderExportLayers(),
     prepareFreeCameraCapture(),
     refreshFloorControls(),
@@ -139,31 +158,31 @@ export function openExportPanel(deps: OpenExportPanelDeps, ) {
     (exportPackageButton.disabled = false),
     isAutoDiagramEmbed)
   ) {
-    document.body.classList.add("auto-diagram-embedded");
+    document.body.classList.add('auto-diagram-embedded')
     const uRLSearchParams = new URLSearchParams(window.location.search),
       exportWidth = clamp2(
         finite2(
-          uRLSearchParams.get("dashboard-width"),
-          finite2(uRLSearchParams.get("component-width"), exportWidthInput.value),
+          uRLSearchParams.get('dashboard-width'),
+          finite2(uRLSearchParams.get('component-width'), exportWidthInput.value),
         ),
         320,
         4096,
       ),
       exportHeight = clamp2(
         finite2(
-          uRLSearchParams.get("dashboard-height"),
-          finite2(uRLSearchParams.get("component-height"), exportHeightInput.value),
+          uRLSearchParams.get('dashboard-height'),
+          finite2(uRLSearchParams.get('component-height'), exportHeightInput.value),
         ),
         320,
         4096,
-      );
-    ((exportWidthInput.value = String(Math.round(exportWidth))),
+      )
+    ;(exportWidthInput.value = String(Math.round(exportWidth))),
       (exportHeightInput.value = String(Math.round(exportHeight))),
       (exportLockRatioInput.checked = true),
       exportFolderQueryValue && (exportFolderNameInput.value = exportFolderQueryValue),
-      refreshCanvasSizeUi());
+      refreshCanvasSizeUi()
   }
-  (exportDialogElement.showModal(), exportPreviewStageElement.append(appCtx.threeRenderer.domElement));
+  exportDialogElement.showModal(), exportPreviewStageElement.append(appCtx.threeRenderer.domElement)
   const resolvedPresetSlot = normalizeActiveExportPresetSlot2(
       appCtx.studioProject.activeExportPresetSlot,
       appCtx.studioProject.exportPresets.length,
@@ -172,18 +191,18 @@ export function openExportPanel(deps: OpenExportPanelDeps, ) {
       resolvedPresetSlot !== null &&
       applyExportPreset(resolvedPresetSlot, {
         silent: true,
-      });
+      })
   if (isAutoDiagramEmbed && floorSelectionId !== null) {
     const exportFloorMatch = appCtx.studioProject.floors.find(
         (exportFloorCandidate: any) => exportFloorCandidate.id === floorSelectionId,
       ),
       exportFloorId =
-        floorSelectionId === "all" && appCtx.studioProject.floors.length > 1
-          ? "all"
-          : exportFloorMatch?.id || getActiveFloor()?.id || appCtx.activeFloorId;
-    selectPreviewFloor(exportFloorId);
+        floorSelectionId === 'all' && appCtx.studioProject.floors.length > 1
+          ? 'all'
+          : exportFloorMatch?.id || getActiveFloor()?.id || appCtx.activeFloorId
+    selectPreviewFloor(exportFloorId)
   }
-  (du4 ||
+  du4 ||
     (rebuildFloorLayers(),
     captureCameraView()
       ? openExportDialog({
@@ -194,10 +213,8 @@ export function openExportPanel(deps: OpenExportPanelDeps, ) {
           preserveView: false,
         }),
         updateCameraView())),
-    (appCtx.exportAspectRatio =
-      stateViewportAspectGetCanvasSize().width / stateViewportAspectGetCanvasSize().height),
+    (appCtx.exportAspectRatio = stateViewportAspectGetCanvasSize().width / stateViewportAspectGetCanvasSize().height),
     renderExportPresetSlots(),
     syncCanvasSizeInputs(),
-    ensureSceneRendered());
-
+    ensureSceneRendered()
 }

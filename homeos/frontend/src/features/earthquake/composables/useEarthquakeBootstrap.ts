@@ -32,10 +32,7 @@ const WIZARD_DONE_KEY = 'eew_wizard_completed'
  * @param haConfigured 是否已保存 HA 连接（单源：stores/ha-connection.store.ts）
  * @returns true 表示应当弹出向导
  */
-function shouldPromptWizard(
-  layoutStore: ReturnType<typeof useLayoutStore>,
-  haConfigured: boolean,
-): boolean {
+function shouldPromptWizard(layoutStore: ReturnType<typeof useLayoutStore>, haConfigured: boolean): boolean {
   if (readLocalStorageFlag(WIZARD_DONE_KEY)) return false
   const cfg = layoutStore.layoutConfig?.earthquakeConfig
   if (cfg?.enabled && cfg.latitude && cfg.longitude) return false
@@ -87,10 +84,7 @@ export function useEarthquakeBootstrap() {
    * 延迟是为了避免首屏初始化期间弹窗抢夺焦点。
    * @param layoutStore UI 状态存储实例
    */
-  function scheduleWizardIfNeeded(
-    layoutStore: ReturnType<typeof useLayoutStore>,
-    haConfigured: boolean,
-  ) {
+  function scheduleWizardIfNeeded(layoutStore: ReturnType<typeof useLayoutStore>, haConfigured: boolean) {
     clearWizardTimer()
     if (!layoutStore.isConfigLoaded) return
     if (!shouldPromptWizard(layoutStore, haConfigured)) return

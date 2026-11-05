@@ -7,7 +7,7 @@
  *  - armed_away：外出布防（全区域告警）
  *  - armed_night：夜间布防（仅外围 + 全区域，忽略纯室内）
  */
-export type SecurityArmingMode = 'disarmed' | 'armed_home' | 'armed_away' | 'armed_night';
+export type SecurityArmingMode = 'disarmed' | 'armed_home' | 'armed_away' | 'armed_night'
 
 /**
  * 安防区域类型。
@@ -15,7 +15,7 @@ export type SecurityArmingMode = 'disarmed' | 'armed_home' | 'armed_away' | 'arm
  *  - interior：室内（动静 / 摄像头）
  *  - all：全区域（参与所有布防模式）
  */
-export type SecurityZoneType = 'perimeter' | 'interior' | 'all';
+export type SecurityZoneType = 'perimeter' | 'interior' | 'all'
 
 /**
  * 全部布防模式（顺序用于设置页渲染与白名单校验）。
@@ -26,7 +26,7 @@ export const SECURITY_ARMING_MODES: readonly SecurityArmingMode[] = [
   'armed_away',
   'armed_night',
   'disarmed',
-] as const;
+] as const
 
 /**
  * 区域是否参与当前布防模式的传感器告警。
@@ -45,14 +45,14 @@ export function shouldZoneAlarmInMode(
   mode: SecurityArmingMode | string,
   zoneType: SecurityZoneType | undefined,
 ): boolean {
-  const zt = zoneType || 'all';
-  if (mode === 'disarmed') return false;
-  if (mode === 'armed_away') return true;
+  const zt = zoneType || 'all'
+  if (mode === 'disarmed') return false
+  if (mode === 'armed_away') return true
   // 居家 / 夜间：仅外围与全区域参与，忽略纯室内区（允许起夜 / 室内活动）
   if (mode === 'armed_home' || mode === 'armed_night') {
-    return zt !== 'interior';
+    return zt !== 'interior'
   }
-  return true;
+  return true
 }
 
 /**
@@ -62,8 +62,8 @@ export function shouldZoneAlarmInMode(
  * @returns 合法的 SecurityZoneType
  */
 export function normalizeZoneType(raw: unknown): SecurityZoneType {
-  if (raw === 'perimeter' || raw === 'interior' || raw === 'all') return raw;
-  return 'all';
+  if (raw === 'perimeter' || raw === 'interior' || raw === 'all') return raw
+  return 'all'
 }
 
 /**
@@ -75,21 +75,21 @@ export const SECURITY_TO_HOME_MODE_NAME_PATTERN: Record<SecurityArmingMode, RegE
   armed_home: /回家|在家|居家|home/i,
   armed_night: /睡眠|夜间|night|晚安/i,
   disarmed: /撤防|disarm/i,
-};
+}
 
 /**
  * 布防 ↔ 家庭模式对照表文案（设置页 / 说明书 / 关联配置说明）。
  */
 export const HOME_SECURITY_LINK_ROWS: ReadonlyArray<{
-  arming: SecurityArmingMode;
-  armingLabel: string;
-  homeModeHint: string;
+  arming: SecurityArmingMode
+  armingLabel: string
+  homeModeHint: string
 }> = [
   { arming: 'armed_home', armingLabel: '居家', homeModeHint: '回家 / 居家 / 在家' },
   { arming: 'armed_away', armingLabel: '离家', homeModeHint: '离家 / 外出 / 度假' },
   { arming: 'armed_night', armingLabel: '夜间', homeModeHint: '睡眠 / 夜间' },
   { arming: 'disarmed', armingLabel: '撤防', homeModeHint: '撤防（留空则退出家庭模式）' },
-];
+]
 
 /**
  * 家庭模式名称 → 建议安防模式（回家→居家，离家→外出）。
@@ -101,13 +101,13 @@ export const HOME_SECURITY_LINK_ROWS: ReadonlyArray<{
  * 离家优先于回家，避免"回家度假"等歧义名称误判。
  */
 export function inferSecurityModeFromHomeModeName(name: string): SecurityArmingMode | null {
-  const n = String(name || '').trim();
-  if (!n) return null;
-  if (/离家|away|外出|度假/i.test(n)) return 'armed_away';
-  if (/睡眠|夜间|night|晚安/i.test(n)) return 'armed_night';
-  if (/回家|居家|在家|(^|[^a-z])home([^a-z]|$)/i.test(n)) return 'armed_home';
-  if (/撤防|disarm/i.test(n)) return 'disarmed';
-  return null;
+  const n = String(name || '').trim()
+  if (!n) return null
+  if (/离家|away|外出|度假/i.test(n)) return 'armed_away'
+  if (/睡眠|夜间|night|晚安/i.test(n)) return 'armed_night'
+  if (/回家|居家|在家|(^|[^a-z])home([^a-z]|$)/i.test(n)) return 'armed_home'
+  if (/撤防|disarm/i.test(n)) return 'disarmed'
+  return null
 }
 
 /**
@@ -122,7 +122,7 @@ export function buildHomeModeSecurityAction(mode: SecurityArmingMode) {
     entity_id: mode,
     domain: 'security',
     service: mode === 'disarmed' ? 'disarm' : 'arm',
-  };
+  }
 }
 
 /**
@@ -132,7 +132,7 @@ export function buildHomeModeSecurityAction(mode: SecurityArmingMode) {
  * @returns true 表示该 id 是合法的 SecurityArmingMode
  */
 export function isSecurityArmingEntityId(id: string): boolean {
-  return (SECURITY_ARMING_MODES as readonly string[]).includes(id);
+  return (SECURITY_ARMING_MODES as readonly string[]).includes(id)
 }
 
 /**
@@ -156,32 +156,32 @@ export function isSecurityArmingEntityId(id: string): boolean {
  * @returns activate / deactivate / none 三态决策
  */
 export function resolveHomeModeLinkForSecurityChange(input: {
-  mode: SecurityArmingMode;
-  linkedId?: string | null;
-  modes: Array<{ id: string; name: string }>;
+  mode: SecurityArmingMode
+  linkedId?: string | null
+  modes: Array<{ id: string; name: string }>
   /** 是否允许按名称正则匹配；显式 linkedId 始终优先。默认 true */
-  allowNameFallback?: boolean;
+  allowNameFallback?: boolean
 }): { action: 'activate'; modeId: string } | { action: 'deactivate' } | { action: 'none' } {
-  const { mode, linkedId, modes, allowNameFallback = true } = input;
-  const linked = linkedId?.trim();
+  const { mode, linkedId, modes, allowNameFallback = true } = input
+  const linked = linkedId?.trim()
   if (linked) {
-    const target = modes.find((m) => m.id === linked);
+    const target = modes.find((m) => m.id === linked)
     if (target) {
-      return { action: 'activate', modeId: target.id };
+      return { action: 'activate', modeId: target.id }
     }
     // 绑定 id 指向的家庭模式已被删除：继续走名称回退，而不是直接 none。
     // 删除家庭模式时没有任何地方清理 securityModeLinks，留一个死 id 就等于把
     // 「安防 → 家庭模式」整条链路永久静默关掉，界面上却仍显示已绑定。
   }
 
-  if (!allowNameFallback) return { action: 'none' };
+  if (!allowNameFallback) return { action: 'none' }
 
   if (mode === 'disarmed') {
-    return { action: 'deactivate' };
+    return { action: 'deactivate' }
   }
 
-  const pattern = SECURITY_TO_HOME_MODE_NAME_PATTERN[mode];
-  const target = modes.find((m) => pattern.test(m.name));
-  if (!target) return { action: 'none' };
-  return { action: 'activate', modeId: target.id };
+  const pattern = SECURITY_TO_HOME_MODE_NAME_PATTERN[mode]
+  const target = modes.find((m) => pattern.test(m.name))
+  if (!target) return { action: 'none' }
+  return { action: 'activate', modeId: target.id }
 }

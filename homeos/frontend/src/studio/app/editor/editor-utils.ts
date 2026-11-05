@@ -1,39 +1,37 @@
-import { randomUuid } from "../shared/util/random-id";
-import { clampNumber } from "../shared/util/number";
-export { clampNumber };
+import { randomUuid } from '../shared/util/random-id'
+import { clampNumber } from '../shared/util/number'
+export { clampNumber }
 export function clone(sourceValue: any) {
-  return structuredClone(sourceValue);
+  return structuredClone(sourceValue)
 }
 export function newId(idPrefix: any) {
-  return idPrefix + "-" + randomUuid();
+  return idPrefix + '-' + randomUuid()
 }
 export function slugify(sourceText: any) {
   return (
-    String(sourceText || "")
-      .normalize("NFKD")
+    String(sourceText || '')
+      .normalize('NFKD')
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 72) || "page-" + randomUuid().slice(0, 8)
-  );
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 72) || 'page-' + randomUuid().slice(0, 8)
+  )
 }
 export function normalizedHexColor(colorInput: any) {
-  const trimmedColor = String(colorInput || "").trim(),
-    hashPrefixedColor = trimmedColor.startsWith("#") ? trimmedColor : "#" + trimmedColor;
+  const trimmedColor = String(colorInput || '').trim(),
+    hashPrefixedColor = trimmedColor.startsWith('#') ? trimmedColor : '#' + trimmedColor
   return /^#[\da-f]{6}$/i.test(hashPrefixedColor)
     ? hashPrefixedColor.toLowerCase()
     : /^#[\da-f]{3}$/i.test(hashPrefixedColor)
-      ? (
-          "#" + [...hashPrefixedColor.slice(1)].map((hexDigit) => hexDigit.repeat(2)).join("")
-        ).toLowerCase()
-      : "";
+      ? ('#' + [...hashPrefixedColor.slice(1)].map((hexDigit) => hexDigit.repeat(2)).join('')).toLowerCase()
+      : ''
 }
 export function rgbToHex(redChannel: any, greenChannel: any, blueChannel: any) {
   const channelToHex = (channelNumber: any) =>
     Math.round(clampNumber(Number(channelNumber) || 0, 0, 255))
       .toString(16)
-      .padStart(2, "0");
-  return "#" + channelToHex(redChannel) + channelToHex(greenChannel) + channelToHex(blueChannel);
+      .padStart(2, '0')
+  return '#' + channelToHex(redChannel) + channelToHex(greenChannel) + channelToHex(blueChannel)
 }
 export function rgbToHsv({ r: redComponent, g: greenComponent, b: blueComponent }: any) {
   const normalizedRed = redComponent / 255,
@@ -41,8 +39,8 @@ export function rgbToHsv({ r: redComponent, g: greenComponent, b: blueComponent 
     normalizedBlue = blueComponent / 255,
     maxChannel = Math.max(normalizedRed, normalizedGreen, normalizedBlue),
     minChannel = Math.min(normalizedRed, normalizedGreen, normalizedBlue),
-    channelRange = maxChannel - minChannel;
-  let hueDeg = 0;
+    channelRange = maxChannel - minChannel
+  let hueDeg = 0
   return (
     channelRange &&
       (maxChannel === normalizedRed
@@ -56,7 +54,7 @@ export function rgbToHsv({ r: redComponent, g: greenComponent, b: blueComponent 
       s: maxChannel ? channelRange / maxChannel : 0,
       v: maxChannel,
     }
-  );
+  )
 }
 /**
  * HSV → RGB 0–255 分量（色相为角度，饱和度/明度为 0–1）。
@@ -84,27 +82,27 @@ export function hsvToRgb255(hueInput: any, saturationInput: any, brightnessInput
               : hueSector < 5
                 ? [intermediateChannel, 0, chroma]
                 : [chroma, 0, intermediateChannel],
-    brightnessOffset = brightnessRatio - chroma;
+    brightnessOffset = brightnessRatio - chroma
   return {
     r: (baseRgbComponents[0] + brightnessOffset) * 255,
     g: (baseRgbComponents[1] + brightnessOffset) * 255,
     b: (baseRgbComponents[2] + brightnessOffset) * 255,
-  };
+  }
 }
 export function roundField(numericField: any) {
-  return Number.isFinite(numericField) ? String(Math.round(numericField * 100) / 100) : "0";
+  return Number.isFinite(numericField) ? String(Math.round(numericField * 100) / 100) : '0'
 }
 export function visibilityIconSvg(visibilityIconVisible: any) {
   return visibilityIconVisible
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 16 16M2.5 12s3.5-6 9.5-6c2 0 3.7.7 5.1 1.6M21.5 12s-3.5 6-9.5 6c-2 0-3.7-.7-5.1-1.6"/></svg>';
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 16 16M2.5 12s3.5-6 9.5-6c2 0 3.7.7 5.1 1.6M21.5 12s-3.5 6-9.5 6c-2 0-3.7-.7-5.1-1.6"/></svg>'
 }
 
 export function normalizedFontWeight(fontWeightInput: any, fallbackWeight = 0.4) {
-  const numericWeight = Number(fontWeightInput);
+  const numericWeight = Number(fontWeightInput)
   return Number.isFinite(numericWeight)
     ? numericWeight > 1
       ? clampNumber((numericWeight - 1) / 899, 0, 1)
       : clampNumber(numericWeight, 0, 1)
-    : fallbackWeight;
+    : fallbackWeight
 }

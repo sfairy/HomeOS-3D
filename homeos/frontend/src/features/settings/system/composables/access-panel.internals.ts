@@ -13,17 +13,7 @@ const PIN_MIN_LENGTH = 4
 const PIN_MAX_LENGTH = 6
 
 /** 常见弱口令黑名单：命中即判定为弱 PIN */
-const COMMON_WEAK_PINS = new Set([
-  '1234',
-  '4321',
-  '0123',
-  '2580',
-  '1230',
-  '12345',
-  '123456',
-  '654321',
-  '0852',
-])
+const COMMON_WEAK_PINS = new Set(['1234', '4321', '0123', '2580', '1230', '12345', '123456', '654321', '0852'])
 
 /** PIN 强度进度条 variant：过短/弱 → danger，可用 → warn，满 6 位 → success */
 const PIN_STRENGTH_VARIANT = {
@@ -68,9 +58,7 @@ export function useAccessPanel() {
   })
 
   /** PIN 强度百分比（长度 / 6，封顶 100） */
-  const pinStrengthPercent = computed(() =>
-    Math.min(100, (pinLength.value / PIN_MAX_LENGTH) * 100),
-  )
+  const pinStrengthPercent = computed(() => Math.min(100, (pinLength.value / PIN_MAX_LENGTH) * 100))
 
   /** PIN 强度文案 */
   const pinStrengthLabel = computed(() => {
@@ -89,14 +77,10 @@ export function useAccessPanel() {
   })
 
   /** 是否满足开启条件：PIN 长度落在 4–6（弱 PIN 仅提示，不硬拦） */
-  const canEnableLock = computed(
-    () => pinLength.value >= PIN_MIN_LENGTH && pinLength.value <= PIN_MAX_LENGTH,
-  )
+  const canEnableLock = computed(() => pinLength.value >= PIN_MIN_LENGTH && pinLength.value <= PIN_MAX_LENGTH)
 
   /** 未满足开启条件时的提示文案（满足则为空串） */
-  const pinRequirementHint = computed(() =>
-    canEnableLock.value ? '' : '请先设置 4–6 位数字 PIN，再开启设置锁',
-  )
+  const pinRequirementHint = computed(() => (canEnableLock.value ? '' : '请先设置 4–6 位数字 PIN，再开启设置锁'))
 
   /** 确保 settingsLock 存在（持久化配置可能缺该字段） */
   function ensureLock() {

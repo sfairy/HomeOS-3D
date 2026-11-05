@@ -1,12 +1,12 @@
 /** - 计算震中到家庭坐标的距离（km）； */
 
 /** 地球平均半径（km，Haversine 公式用） */
-const EARTH_RADIUS_KM = 6371;
+const EARTH_RADIUS_KM = 6371
 /** S 波平均速度（km/s，用于横波到达倒计时） */
-const S_WAVE_SPEED_KM_S = 3.4;
+const S_WAVE_SPEED_KM_S = 3.4
 
 /** 四川盆地近似 bbox（软土放大有感烈度） */
-const SICHUAN_BASIN = { latMin: 28, latMax: 33, lonMin: 102, lonMax: 108 };
+const SICHUAN_BASIN = { latMin: 28, latMax: 33, lonMin: 102, lonMax: 108 }
 
 /**
  * 烈度估算的可选坐标输入。
@@ -14,14 +14,14 @@ const SICHUAN_BASIN = { latMin: 28, latMax: 33, lonMin: 102, lonMax: 108 };
  */
 export type IntensityEstimateOpts = {
   /** 家庭纬度（启用盆地修正时必填） */
-  homeLat?: number | null;
+  homeLat?: number | null
   /** 家庭经度（启用盆地修正时必填） */
-  homeLon?: number | null;
+  homeLon?: number | null
   /** 震中纬度（判断"震中亦在盆地"时使用） */
-  epicenterLat?: number | null;
+  epicenterLat?: number | null
   /** 震中经度（判断"震中亦在盆地"时使用） */
-  epicenterLon?: number | null;
-};
+  epicenterLon?: number | null
+}
 
 /**
  * 计算两个经纬度坐标之间的 Haversine 大圆距离（km）。
@@ -32,25 +32,17 @@ export type IntensityEstimateOpts = {
  * @param lon2 终点经度
  * @returns 距离（km）
  */
-export function haversineDistanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+export function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
   // Logic fix: 浮点误差可能让 a 略微超出 [0,1]，导致 sqrt(1 - a) 得到 NaN。
   // 夹紧到 [0,1] 保证对跖点等极值场景仍返回有限距离。
-  const clamped = Math.min(1, Math.max(0, a));
-  const c = 2 * Math.atan2(Math.sqrt(clamped), Math.sqrt(1 - clamped));
-  return EARTH_RADIUS_KM * c;
+  const clamped = Math.min(1, Math.max(0, a))
+  const c = 2 * Math.atan2(Math.sqrt(clamped), Math.sqrt(1 - clamped))
+  return EARTH_RADIUS_KM * c
 }
 
 /**
@@ -61,14 +53,10 @@ export function haversineDistanceKm(
  * @param nowMs       当前时间（默认 Date.now()，测试可注入）
  * @returns 倒计时秒数；负值表示横波已到达
  */
-export function computeSWaveCountdown(
-  distanceKm: number,
-  originTimeMs: number,
-  nowMs = Date.now(),
-): number {
-  const travelTime = distanceKm / S_WAVE_SPEED_KM_S;
-  const elapsed = (nowMs - originTimeMs) / 1000;
-  return travelTime - elapsed;
+export function computeSWaveCountdown(distanceKm: number, originTimeMs: number, nowMs = Date.now()): number {
+  const travelTime = distanceKm / S_WAVE_SPEED_KM_S
+  const elapsed = (nowMs - originTimeMs) / 1000
+  return travelTime - elapsed
 }
 
 /**
@@ -79,13 +67,13 @@ export function computeSWaveCountdown(
  * @returns true 表示坐标在盆地 bbox 内（非数返回 false）
  */
 export function isInSichuanBasin(lat: number, lon: number): boolean {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false
   return (
     lat >= SICHUAN_BASIN.latMin &&
     lat <= SICHUAN_BASIN.latMax &&
     lon >= SICHUAN_BASIN.lonMin &&
     lon <= SICHUAN_BASIN.lonMax
-  );
+  )
 }
 
 /**
@@ -97,25 +85,16 @@ export function isInSichuanBasin(lat: number, lon: number): boolean {
  * @param opts       家庭 / 震中坐标（启用盆地修正）
  * @returns 烈度数值（保留 1 位小数，范围 [1.0, 12.0]）
  */
-export function estimateLocalIntensity(
-  magnitude: number,
-  distanceKm: number,
-  opts?: IntensityEstimateOpts,
-): number {
-  const homeInBasin =
-    opts?.homeLat != null &&
-    opts?.homeLon != null &&
-    isInSichuanBasin(opts.homeLat, opts.homeLon);
-  const logCoef = homeInBasin ? 3.15 : 3.49;
-  let raw = 0.92 + 1.63 * magnitude - logCoef * Math.log10(Math.max(0, distanceKm) + 6);
+export function estimateLocalIntensity(magnitude: number, distanceKm: number, opts?: IntensityEstimateOpts): number {
+  const homeInBasin = opts?.homeLat != null && opts?.homeLon != null && isInSichuanBasin(opts.homeLat, opts.homeLon)
+  const logCoef = homeInBasin ? 3.15 : 3.49
+  let raw = 0.92 + 1.63 * magnitude - logCoef * Math.log10(Math.max(0, distanceKm) + 6)
   if (homeInBasin) {
     const epiInBasin =
-      opts?.epicenterLat != null &&
-      opts?.epicenterLon != null &&
-      isInSichuanBasin(opts.epicenterLat, opts.epicenterLon);
-    raw += epiInBasin ? 0.5 : 0.3;
+      opts?.epicenterLat != null && opts?.epicenterLon != null && isInSichuanBasin(opts.epicenterLat, opts.epicenterLon)
+    raw += epiInBasin ? 0.5 : 0.3
   }
-  return Math.max(1.0, Math.min(12.0, Math.round(raw * 10) / 10));
+  return Math.max(1.0, Math.min(12.0, Math.round(raw * 10) / 10))
 }
 
 /**
@@ -133,17 +112,17 @@ export function refineAlertCountdown(
   homeLat: number,
   homeLon: number,
 ): { distance: number; countdown: number; localIntensity: number } {
-  const distance = haversineDistanceKm(homeLat, homeLon, payload.latitude, payload.longitude);
-  const countdown = computeSWaveCountdown(distance, payload.originTime);
+  const distance = haversineDistanceKm(homeLat, homeLon, payload.latitude, payload.longitude)
+  const countdown = computeSWaveCountdown(distance, payload.originTime)
   const localIntensity = estimateLocalIntensity(payload.magnitude, distance, {
     homeLat,
     homeLon,
     epicenterLat: payload.latitude,
     epicenterLon: payload.longitude,
-  });
+  })
   return {
     distance: Math.round(distance * 10) / 10,
     countdown: Math.round(countdown * 10) / 10,
     localIntensity,
-  };
+  }
 }

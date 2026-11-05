@@ -21,7 +21,4 @@ if (!result.success) {
   process.exit(1)
 }
 
-writeFileSync(
-  resolve(outdir, 'package.json'),
-  `${JSON.stringify({ type: 'commonjs' }, null, 2)}\n`,
-)
+writeFileSync(resolve(outdir, 'package.json'), `${JSON.stringify({ type: 'commonjs' }, null, 2)}\n`)

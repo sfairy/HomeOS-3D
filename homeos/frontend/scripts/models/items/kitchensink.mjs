@@ -17,12 +17,7 @@
  * 0 踢脚 / 1 柜体 / 2 台面 / 3 盆胆 / 4 下水与溢水口 / 5 龙头 / 6 柜门 / 7 门拉手。
  */
 import { box, cylinder, merge, transform } from '../lib/primitive-kit.mjs'
-import {
-  baseCabinet,
-  gooseneckArc,
-  rectBowlShell,
-  BODY_DEPTH,
-} from '../lib/kitchen-parts.mjs'
+import { baseCabinet, gooseneckArc, rectBowlShell, BODY_DEPTH } from '../lib/kitchen-parts.mjs'
 
 export const spec = { size: [1.224, 1.037, 0.648], mount: 'floor', topologyClass: 'solid' }
 
@@ -164,8 +159,18 @@ export function build() {
   const frontDepth = DEPTH / 2 - OPENING_FRONT
   const backDepth = OPENING_BACK + DEPTH / 2
   const counter = merge([
-    box({ width: WIDTH, height: COUNTER_T, depth: frontDepth, center: [0, COUNTER_TOP - COUNTER_T / 2, OPENING_FRONT + frontDepth / 2] }),
-    box({ width: WIDTH, height: COUNTER_T, depth: backDepth, center: [0, COUNTER_TOP - COUNTER_T / 2, OPENING_BACK - backDepth / 2] }),
+    box({
+      width: WIDTH,
+      height: COUNTER_T,
+      depth: frontDepth,
+      center: [0, COUNTER_TOP - COUNTER_T / 2, OPENING_FRONT + frontDepth / 2],
+    }),
+    box({
+      width: WIDTH,
+      height: COUNTER_T,
+      depth: backDepth,
+      center: [0, COUNTER_TOP - COUNTER_T / 2, OPENING_BACK - backDepth / 2],
+    }),
     ...[-1, 1].map((side) =>
       box({
         width: sideWidth,

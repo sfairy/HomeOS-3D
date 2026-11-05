@@ -15,10 +15,10 @@ export function addMeshBoxToGroup(
   const mesh = new three.Mesh(
     new three.BoxGeometry(boxWidth, boxHeight, boxDepth),
     new three.MeshStandardMaterial({ color, roughness, metalness }),
-  );
-  mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
+  )
+  mesh.position.set(x, y, z)
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  group.add(mesh)
+  return mesh
 }

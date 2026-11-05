@@ -63,9 +63,7 @@ test('pruneShell 打开 + 指纹匹配时真的剔除，并把顶点压紧', () 
   assert.ok(scopes.length > 0, '风扇没有产生任何外壳作用域，测试本身失效')
 
   // 按真实指纹合成一份掩码：从最大的作用域里挑一个含三角形的子节点，剔掉它的前 4 个三角形。
-  const [, nodes] = scopes
-    .slice()
-    .sort((left, right) => right[1].length - left[1].length)[0]
+  const [, nodes] = scopes.slice().sort((left, right) => right[1].length - left[1].length)[0]
   const target = nodes.find((entry) => (entry.node.geometry?.index?.count ?? 0) >= 12)
   assert.ok(target, '找不到带三角形的子节点')
   const vertexCountBefore = target.node.geometry.attributes.position.count
@@ -100,10 +98,7 @@ test('剔除后几何自洽：索引不越界、groups 不越过索引长度', (
     const vertexCount = geometry.attributes.position.count
     if (geometry.index) {
       for (let offset = 0; offset < geometry.index.count; offset++)
-        assert.ok(
-          geometry.index.getX(offset) < vertexCount,
-          `${node.name || 'mesh'}: 索引越界`,
-        )
+        assert.ok(geometry.index.getX(offset) < vertexCount, `${node.name || 'mesh'}: 索引越界`)
     }
     const indexLength = geometry.index ? geometry.index.count : vertexCount
     for (const group of geometry.groups)

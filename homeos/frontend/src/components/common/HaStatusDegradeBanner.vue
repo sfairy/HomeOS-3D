@@ -79,9 +79,7 @@ let degradeTimer = null
  * 只有这两态才说明「HA 真的不可用」。socket 层断开（后端重启、网络切换）时
  * 后端根本没机会播报，此时不能把锅甩给 HA。
  */
-const haDown = computed(
-  () => entitiesStore.haStatus === 'disconnected' || entitiesStore.haStatus === 'reconnecting',
-)
+const haDown = computed(() => entitiesStore.haStatus === 'disconnected' || entitiesStore.haStatus === 'reconnecting')
 /** 后端通道（socket.io）本身没连上：此时我们对 HA 状态一无所知 */
 const backendDown = computed(
   () =>
@@ -92,16 +90,11 @@ const backendDown = computed(
 )
 
 /** HA 是否处于降级态：未连接 / 重连中 / 实体缓存过期任一成立即为降级 */
-const haDegraded = computed(
-  () => haDown.value || backendDown.value || entitiesStore.entitiesStale,
-)
+const haDegraded = computed(() => haDown.value || backendDown.value || entitiesStore.entitiesStale)
 
 /** 无需等待的强制展示：调试、配置未完成、有指令被丢弃（可操作） */
 const immediateVisible = computed(
-  () =>
-    props.forceVisible ||
-    props.configured === false ||
-    entitiesStore.haQueueDroppedTotal > 0,
+  () => props.forceVisible || props.configured === false || entitiesStore.haQueueDroppedTotal > 0,
 )
 
 /** 降级态已持续超过迟滞窗口 */
@@ -172,9 +165,7 @@ const showSpinner = computed(
   () => entitiesStore.reconnecting || entitiesStore.haStatus === 'reconnecting' || backendDown.value,
 )
 /** 是否展示重试按钮：未连接或重连中 */
-const showRetryButton = computed(
-  () => !entitiesStore.connected || entitiesStore.reconnecting || haDown.value,
-)
+const showRetryButton = computed(() => !entitiesStore.connected || entitiesStore.reconnecting || haDown.value)
 const showRetryDropped = computed(() => entitiesStore.haQueueDroppedTotal > 0)
 
 /**

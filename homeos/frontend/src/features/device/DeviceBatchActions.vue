@@ -149,8 +149,7 @@ const props = defineProps<{
 
 defineEmits(['clear'])
 
-const { teleportTarget: modalTeleportTo, shellTeleportPending, refreshShellTeleport } =
-  useShellTeleportTarget()
+const { teleportTarget: modalTeleportTo, shellTeleportPending, refreshShellTeleport } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending
 
 // 实体 store：用于批量调用服务、查询实体状态。

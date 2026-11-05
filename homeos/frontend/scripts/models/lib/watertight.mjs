@@ -21,11 +21,7 @@
 import { maxAxisScale } from './glb-io.mjs'
 import { loadDocument, modelStatistics, worldBounds, writeDocument } from './model-document.mjs'
 import { writeLiteFrom } from './model-builder.mjs'
-import {
-  DEFAULT_WELD_TOLERANCE,
-  cleanTriangles,
-  solidifyShells,
-} from './geometry-ops.mjs'
+import { DEFAULT_WELD_TOLERANCE, cleanTriangles, solidifyShells } from './geometry-ops.mjs'
 
 /** 厚度上下限（世界坐标，米）：下限 0.4mm 保证任何视角都不会看穿，上限 1.5mm 连 4.7m 的车模也看不出来。 */
 export const THICKNESS_MIN = 0.0004

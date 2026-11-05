@@ -2,7 +2,7 @@
   "totals": {
     "files": 369,
     "color": 4433,
-    "duration": 1453,
+    "duration": 1457,
     "important": 362
   },
   "files": {
@@ -1223,7 +1223,7 @@
     },
     "homeos/frontend/src/layouts/styles/main-layout.css": {
       "color": 7,
-      "duration": 16,
+      "duration": 17,
       "important": 0
     },
     "homeos/frontend/src/layouts/styles/tab-bar-mode-switcher.css": {
@@ -1758,7 +1758,7 @@
     },
     "homeos/frontend/src/studio/runtime/core/stage.css": {
       "color": 554,
-      "duration": 61,
+      "duration": 64,
       "important": 35
     },
     "homeos/frontend/src/studio/runtime/core/stage.ts": {

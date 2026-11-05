@@ -73,10 +73,7 @@ export function duplicateHomeMode(id: string, config?: AxiosRequestConfig) {
 }
 
 /** 重排家居模式顺序。 */
-export function reorderHomeModes(
-  items: Array<{ id: string; sortOrder: number }>,
-  config?: AxiosRequestConfig,
-) {
+export function reorderHomeModes(items: Array<{ id: string; sortOrder: number }>, config?: AxiosRequestConfig) {
   return apiPost('/modes/reorder', { items }, config)
 }
 
@@ -86,11 +83,7 @@ export function createHomeMode(body: Record<string, unknown>, config?: AxiosRequ
 }
 
 /** 更新家居模式。 */
-export function updateHomeMode(
-  id: string,
-  body: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function updateHomeMode(id: string, body: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPut(`/modes/${id}`, body, config)
 }
 

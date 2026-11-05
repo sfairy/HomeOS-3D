@@ -5,7 +5,7 @@
  */
 
 /** 占位实体 ID：*_placeholder 或 *.placeholder */
-export const ORCHESTRATOR_PLACEHOLDER_RE = /(?:_placeholder|\.placeholder)\b/i;
+export const ORCHESTRATOR_PLACEHOLDER_RE = /(?:_placeholder|\.placeholder)\b/i
 
 /**
  * 判断文本中是否包含占位实体 ID 标识。
@@ -13,5 +13,5 @@ export const ORCHESTRATOR_PLACEHOLDER_RE = /(?:_placeholder|\.placeholder)\b/i;
  * @returns 命中占位标识返回 true
  */
 export function hasOrchestratorPlaceholder(text: string): boolean {
-  return ORCHESTRATOR_PLACEHOLDER_RE.test(String(text || ''));
+  return ORCHESTRATOR_PLACEHOLDER_RE.test(String(text || ''))
 }

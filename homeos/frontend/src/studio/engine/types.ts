@@ -73,15 +73,7 @@ export type EditorCommand =
   | { type: 'openFloorplan' }
   | {
       type: 'align'
-      mode:
-        | 'left'
-        | 'center'
-        | 'right'
-        | 'top'
-        | 'middle'
-        | 'bottom'
-        | 'distribute-x'
-        | 'distribute-y'
+      mode: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' | 'distribute-x' | 'distribute-y'
     }
 
 export type StudioCommand =

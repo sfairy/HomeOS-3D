@@ -12,8 +12,8 @@
      }
    ========================================================================== */
 
-@import './hos-glass-shell.css';
-@import './popup-pointer.css';
+@import "./hos-glass-shell.css";
+@import "./popup-pointer.css";
 
 /* ---- 弹窗锚点定位 ---- */
 .popup-anchor {
@@ -31,13 +31,11 @@
   --shell-blur: 80px;
   --shell-sat: 260%;
   --shell-bg:
-    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 50%),
-    rgba(18, 18, 26, 0.9);
+    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 50%), rgba(18, 18, 26, 0.9);
   --shell-border: var(--hos-hairline) solid var(--premium-border-strong);
   --shell-radius: var(--hos-radius-shell, var(--radius-ipad-2xl));
   --shell-shadow:
-    0 40px 100px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 40px 100px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04),
     var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
 
   width: 320px;
@@ -64,10 +62,19 @@
   overflow: visible;
 }
 
-.popup-shell--wide { width: 340px; }
-.popup-shell--narrow { width: 270px; padding: 22px 20px; }
-.popup-shell--compact { min-width: 200px; }
-.popup-shell--compact-select { min-width: 180px; }
+.popup-shell--wide {
+  width: 340px;
+}
+.popup-shell--narrow {
+  width: 270px;
+  padding: 22px 20px;
+}
+.popup-shell--compact {
+  min-width: 200px;
+}
+.popup-shell--compact-select {
+  min-width: 180px;
+}
 
 /* ---- 中等视口（481-700px）：弹窗宽度自适应 90vw，避免横向溢出 ----
    注意：实体弹窗挂载于缩放画布，视口宽度为 CSS 像素而非画布坐标，此处按真实视口判断 */
@@ -96,33 +103,50 @@
 
 /* ---- 顶部装饰线（由 --accent / --accent-end 驱动） ---- */
 .popup-shell::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     transparent 5%,
     rgba(var(--accent-rgb), 0.5),
     rgba(var(--accent-rgb), 0.35),
-    transparent 95%);
+    transparent 95%
+  );
   z-index: 2;
   pointer-events: none;
   animation: popupLineGlow 3s ease-in-out infinite;
 }
 
 @keyframes popupLineGlow {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* ---- 弹入动画 ---- */
 @keyframes popup-bounce-in {
-  0%   { opacity: 0; transform: scale(0.8) translateY(28px); }
-  45%  { opacity: 1; transform: scale(1.03) translateY(-8px); }
-  70%  { transform: scale(0.97) translateY(3px); }
-  100% { transform: scale(1) translateY(0); }
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(28px);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.03) translateY(-8px);
+  }
+  70% {
+    transform: scale(0.97) translateY(3px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* ---- 关闭按钮 ---- */
@@ -238,8 +262,13 @@
 }
 
 @keyframes popup-status-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
 .popup-status-badge {
@@ -285,4 +314,3 @@
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
   margin: 16px 0;
 }
-

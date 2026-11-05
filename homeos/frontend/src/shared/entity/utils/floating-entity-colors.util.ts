@@ -2,12 +2,7 @@
 import { getEntityDomain } from '@homeos/shared'
 import type { FloatingWidget, FloatingWidgetConfig } from '@/shared/types/layout'
 import { entityDomainColor } from '@/shared/constants/entity-domain-meta'
-import {
-  isCommEntity,
-  isElectricityEntity,
-  isGasEntity,
-  isWaterEntity,
-} from '@/shared/entity/utils/entity-type.util'
+import { isCommEntity, isElectricityEntity, isGasEntity, isWaterEntity } from '@/shared/entity/utils/entity-type.util'
 
 interface EntityFloatingCustomColors {
   enabled: boolean
@@ -187,9 +182,7 @@ function parseEntityFloatingCustomColors(
   }
 }
 
-export function hasEntityCustomColors(
-  config: FloatingWidgetConfig | Record<string, unknown> | undefined,
-): boolean {
+export function hasEntityCustomColors(config: FloatingWidgetConfig | Record<string, unknown> | undefined): boolean {
   return parseEntityFloatingCustomColors(config) != null
 }
 
@@ -205,10 +198,7 @@ function isSemanticTheme(theme: string | null | undefined): boolean {
 /**
  * 按实体类型解析默认主题：电金 / 气橙 / 水青 / 讯紫，其余跟设备域。
  */
-function resolveAfhSemanticTheme(
-  entityId: string | null | undefined,
-  widgetType?: string | null,
-): AfhThemeId {
+function resolveAfhSemanticTheme(entityId: string | null | undefined, widgetType?: string | null): AfhThemeId {
   const type = String(widgetType || '')
   if (METRIC_THEME[type]) return METRIC_THEME[type]
   const eid = String(entityId || '')
@@ -263,9 +253,7 @@ function buildEntityCustomColorStyle(
   }
 }
 
-export function buildAfhAccentStyle(
-  widget: Pick<FloatingWidget, 'type' | 'config'>,
-): Record<string, string> {
+export function buildAfhAccentStyle(widget: Pick<FloatingWidget, 'type' | 'config'>): Record<string, string> {
   const accent = resolveAfhWidgetAccent(widget)
   const custom = buildEntityCustomColorStyle(widget.config)
   return {

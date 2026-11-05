@@ -126,19 +126,13 @@
   --hos-glass-blur: blur(10px) saturate(135%);
   --hos-glass-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 
-
   /* 渐变：单色竖渐变给按钮（深色文字压在上面要够亮），三色横渐变给标题与光带。 */
   --hos-grad-accent: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
   --hos-grad-lumen: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen-deep));
   --hos-grad-aura: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura-deep));
   --hos-grad-eco: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco-deep));
   --hos-grad-alert: linear-gradient(180deg, var(--hos-alert-bright), var(--hos-alert-deep));
-  --hos-grad-aurora: linear-gradient(
-    100deg,
-    var(--hb-accent) 0%,
-    var(--hb-aura) 48%,
-    var(--hb-lumen) 100%
-  );
+  --hos-grad-aurora: linear-gradient(100deg, var(--hb-accent) 0%, var(--hb-aura) 48%, var(--hb-lumen) 100%);
 
   /* 状态文案色（比语义色亮一档，保证在深空底上的可读性）。 */
   --hos-ok: var(--hb-eco-bright);
@@ -187,12 +181,12 @@
      这里补上场景侧缺失的那一枚。 */
   --hos-on-bright: #041018;
 
-  --hos-font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
-    'Noto Sans CJK SC', sans-serif;
-  --hos-font-brand: 'Orbitron', 'Exo 2', var(--hos-font-cjk);
-  --hos-font-display: 'Exo 2', var(--hos-font-cjk);
-  --hos-font-ui: 'Exo 2', var(--hos-font-cjk);
-  --hos-font-mono: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+  --hos-font-cjk:
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+  --hos-font-brand: "Orbitron", "Exo 2", var(--hos-font-cjk);
+  --hos-font-display: "Exo 2", var(--hos-font-cjk);
+  --hos-font-ui: "Exo 2", var(--hos-font-cjk);
+  --hos-font-mono: "Share Tech Mono", "JetBrains Mono", ui-monospace, monospace;
 
   --hos-fs-micro: 12px;
   --hos-fs-caption: 13px;
@@ -201,7 +195,6 @@
 
   --hos-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
-
 
 /* 主控暖金。取值与 :root 的默认完全相同 —— 加这个类不是为了让默认态变样，而是让
    另外四页是冻结的字面色相 —— 机制不同，改主控色时只有它一个人动。 */
@@ -401,11 +394,8 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     /* 安全区内边距吃进 padding：刘海屏竖屏时面板不能被挖孔压住。 */
-    padding:
-      calc(env(safe-area-inset-top, 0px) + 12px)
-      calc(env(safe-area-inset-right, 0px) + 18px)
-      calc(env(safe-area-inset-bottom, 0px) + 20px)
-      calc(env(safe-area-inset-left, 0px) + 18px);
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 18px)
+      calc(env(safe-area-inset-bottom, 0px) + 20px) calc(env(safe-area-inset-left, 0px) + 18px);
     box-sizing: border-box;
   }
 
@@ -462,7 +452,6 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
 }
 
 /* 只有入口页把自己的 <html> 标成 .hos-shell；商店在同一个文档里还要滚动前台，
@@ -482,4 +471,3 @@ html.hos-shell body {
 html.hos-shell body.modal-open {
   overflow: hidden;
 }
-

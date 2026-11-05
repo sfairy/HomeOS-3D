@@ -54,8 +54,7 @@ function walk(a: unknown, b: unknown): number {
     }
     if (isPlainObject(sole)) {
       return Object.keys(sole).reduce(
-        (n: number, key) =>
-          n + walk(aMissing ? undefined : sole[key], bMissing ? undefined : sole[key]),
+        (n: number, key) => n + walk(aMissing ? undefined : sole[key], bMissing ? undefined : sole[key]),
         0,
       )
     }

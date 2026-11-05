@@ -70,10 +70,7 @@ export async function writeFullModel({ filePath, materials, groups, extras, root
    * 而拒绝落盘（`basin` 就撞过）；文件名的中文主干也会让内部标识跟着 UI 文案漂移。
    */
   const modelId =
-    rootName ??
-    parseModelPath(
-      path.relative(modelsDir, filePath).replace(/\.rebuild\.tmp\.glb$/i, '.glb'),
-    ).id
+    rootName ?? parseModelPath(path.relative(modelsDir, filePath).replace(/\.rebuild\.tmp\.glb$/i, '.glb')).id
   const rootNode = document.createNode(modelId)
 
   for (const group of groups) {
@@ -95,10 +92,7 @@ export async function writeFullModel({ filePath, materials, groups, extras, root
       .setArray(new Float32Array(geometry.uvs))
       .setBuffer(buffer)
     // 索引类型按顶点数选：<65536 用 Uint16，省一半 BIN 体积。
-    const indices =
-      vertexCount < 65536
-        ? new Uint16Array(geometry.indices)
-        : new Uint32Array(geometry.indices)
+    const indices = vertexCount < 65536 ? new Uint16Array(geometry.indices) : new Uint32Array(geometry.indices)
     const index = document
       .createAccessor(group.name + '-index')
       .setType('SCALAR')

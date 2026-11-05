@@ -7,7 +7,9 @@ import { useHaEntityService } from '@/composables/entity/useHaEntityService'
 import type { HaEntityState } from '@/shared/types/entity-store'
 
 /** 实体引用类型：可为 Ref 或 ComputedRef，统一为只读快照。 */
-type EntityRefLike = Ref<HaEntityState | Record<string, unknown> | null | undefined> | ComputedRef<HaEntityState | Record<string, unknown> | null | undefined>
+type EntityRefLike =
+  | Ref<HaEntityState | Record<string, unknown> | null | undefined>
+  | ComputedRef<HaEntityState | Record<string, unknown> | null | undefined>
 
 /**
  * 共享的实体弹窗头部：名称、状态标签、颜色、活跃脉冲。
@@ -36,8 +38,7 @@ export function useEntityPopupHeader(
     // 默认无颜色映射，统一回退到中性灰
     stateColorMap = {} as Record<string, string>,
     // 默认活跃判断：非 off、非 unavailable、非 null/undefined
-    isActiveFn = (state: string | undefined) =>
-      state !== 'off' && state !== 'unavailable' && state != null,
+    isActiveFn = (state: string | undefined) => state !== 'off' && state !== 'unavailable' && state != null,
   } = options
   // 实体友好名称（依赖 entity_id 与 attributes.friendly_name）
   const entityName = computed(() =>

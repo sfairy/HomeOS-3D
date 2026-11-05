@@ -19,9 +19,7 @@ const moduleUrl = (name) => fileURLToPath(new URL(SCENE_DIR + name, import.meta.
 
 const { createShadowParameterBuffer } = await import(moduleUrl('studio-shadow-parameters.ts'))
 const { createShadowTextureCopy } = await import(moduleUrl('studio-shadow-copy.ts'))
-const { shellSignature, shellScopes, applyReviewedShells } = await import(
-  moduleUrl('studio-reviewed-shells.ts')
-)
+const { shellSignature, shellScopes, applyReviewedShells } = await import(moduleUrl('studio-reviewed-shells.ts'))
 
 // ── 射灯阴影参数 UBO ────────────────────────────────────────────────────────
 function createFakeGL({ uniformBlockSize = 65536 } = {}) {
@@ -34,8 +32,7 @@ function createFakeGL({ uniformBlockSize = 65536 } = {}) {
     deletedBuffers: [],
     uploads: [],
     bindBufferBase: () => {},
-    getParameter: (parameter) =>
-      parameter === gl.MAX_UNIFORM_BLOCK_SIZE ? uniformBlockSize : 0,
+    getParameter: (parameter) => (parameter === gl.MAX_UNIFORM_BLOCK_SIZE ? uniformBlockSize : 0),
     createBuffer: () => {
       const buffer = { id: gl.createdBuffers.length + 1 }
       gl.createdBuffers.push(buffer)
@@ -80,18 +77,14 @@ test('每盏灯写 24 个 float：矩阵 16 + rect 4 + params 4，按灯连续�
   const { data } = gl.uploads[0]
   assert.equal(data.length, 48, '两盏灯 = 48 个 float')
   assert.deepEqual(data.slice(0, 4), [0, 1, 2, 3], '第一盏灯的矩阵在偏移 0')
-  assert.deepEqual(
-    data.slice(16, 24),
-    [10, 11, 12, 13, 20, 21, 22, 23],
-    'rect/params 紧随矩阵，偏移 16 / 20',
-  )
+  assert.deepEqual(data.slice(16, 24), [10, 11, 12, 13, 20, 21, 22, 23], 'rect/params 紧随矩阵，偏移 16 / 20')
   assert.deepEqual(data.slice(24, 28), [24, 25, 26, 27], '第二盏灯从偏移 24 开始')
-  assert.deepEqual(
-    data.slice(40, 48),
-    [34, 35, 36, 37, 44, 45, 46, 47],
-    '第二盏灯不能覆盖第一盏',
+  assert.deepEqual(data.slice(40, 48), [34, 35, 36, 37, 44, 45, 46, 47], '第二盏灯不能覆盖第一盏')
+  assert.equal(
+    data.slice(4, 16).every((value) => value === 0),
+    true,
+    '未写入的槽位保持 0',
   )
-  assert.equal(data.slice(4, 16).every((value) => value === 0), true, '未写入的槽位保持 0')
 })
 
 test('超出容量、上下文丢失时返回 false 且不上传', () => {
@@ -139,8 +132,7 @@ function createFakeRenderer({ withBlit = true } = {}) {
     calls,
     properties: { get: (target) => ({ __webglTexture: { id: target.id } }) },
     state: {
-      bindFramebuffer: (target, framebuffer) =>
-        calls.boundFramebuffers.push([target, framebuffer && framebuffer.id]),
+      bindFramebuffer: (target, framebuffer) => calls.boundFramebuffers.push([target, framebuffer && framebuffer.id]),
       setScissorTest: (enabled) => calls.scissor.push(enabled),
     },
     copyTextureToTexture: () => calls.fallback++,
@@ -180,14 +172,19 @@ test('有 blit 时逐层拷贝，并还原帧缓冲绑定与剪裁状态', () =>
   assert.deepEqual(calls.scissor, [false, true])
   // 帧缓冲：最后两条必须是还原（读/写各自的 previous）。
   const restored = calls.boundFramebuffers.slice(-2)
-  assert.deepEqual(restored.map((entry) => entry[1]), ['previous:36010', 'previous:36011'])
+  assert.deepEqual(
+    restored.map((entry) => entry[1]),
+    ['previous:36010', 'previous:36011'],
+  )
 })
 
 test('上下文丢失时抛错且不改动渲染状态', () => {
   const { renderer, calls, gl } = createFakeRenderer()
   gl.isContextLost = () => true
   const copy = createShadowTextureCopy(renderer)
-  assert.throws(() => copy.copy(texture('a'), texture('b'), { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, { x: 0, y: 0 }))
+  assert.throws(() =>
+    copy.copy(texture('a'), texture('b'), { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, { x: 0, y: 0 }),
+  )
   assert.equal(calls.boundFramebuffers.length, 0)
   assert.equal(calls.blits.length, 0)
 })
@@ -273,16 +270,20 @@ test('shellScopes 在部件节点处重置路径', () => {
   root.children = [part]
   const scopes = [...shellScopes(root).values()]
   assert.equal(scopes.length, 2, '根 + 部件 = 两个作用域')
-  assert.deepEqual(scopes[0].map((entry) => entry.path), [''])
-  assert.deepEqual(scopes[1].map((entry) => entry.path), ['', '/0'])
+  assert.deepEqual(
+    scopes[0].map((entry) => entry.path),
+    [''],
+  )
+  assert.deepEqual(
+    scopes[1].map((entry) => entry.path),
+    ['', '/0'],
+  )
 })
 
 test('指纹对不上时不动几何体（换模型必须自动失效）', () => {
   const node = createNode()
   const originalIndex = [...node.geometry.index.array]
-  const removed = applyReviewedShells(createFakeThree(), node, 'fan', [
-    { signature: 'deadbeef', masks: { '': [0] } },
-  ])
+  const removed = applyReviewedShells(createFakeThree(), node, 'fan', [{ signature: 'deadbeef', masks: { '': [0] } }])
   assert.equal(removed, 0)
   assert.deepEqual(node.geometry.index.array, originalIndex)
 })

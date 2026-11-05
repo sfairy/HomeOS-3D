@@ -12,7 +12,6 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
-
 .home-mode-switcher__item {
   display: flex;
   align-items: center;
@@ -130,7 +129,9 @@
 
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: opacity 0.15s, transform 0.15s;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
 }
 
 .dropdown-enter-from,

@@ -5,7 +5,7 @@
    在 main.css 全局引入；组件直接使用类名，无需 scoped 重复样式。
    ========================================================================== */
 
-@import './hos-glass-shell.css';
+@import "./hos-glass-shell.css";
 
 /* ---- 根容器 + 遮罩 ---- */
 .hos-modal-root {
@@ -35,14 +35,11 @@
   /* 玻璃壳配方参数（配方本体见 hos-glass-shell.css） */
   --shell-blur: 56px;
   --shell-sat: 220%;
-  --shell-bg:
-    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%),
-    rgba(12, 12, 18, 0.86);
+  --shell-bg: radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%), rgba(12, 12, 18, 0.86);
   --shell-border: var(--hos-hairline) solid var(--premium-border-strong);
   --shell-radius: var(--hos-radius-shell, 24px);
   --shell-shadow:
-    var(--premium-shadow, 0 32px 100px rgba(0, 0, 0, 0.62)),
-    0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.04),
+    var(--premium-shadow, 0 32px 100px rgba(0, 0, 0, 0.62)), 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   position: relative;
@@ -56,47 +53,59 @@
 }
 
 .hos-modal-panel::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     transparent 4%,
     rgba(var(--hos-accent), 0.55),
     rgba(var(--hos-accent-end), 0.35),
-    transparent 96%);
+    transparent 96%
+  );
   z-index: 2;
   pointer-events: none;
   animation: hos-modal-line-glow 3s ease-in-out infinite;
 }
 
 .hos-modal-panel::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg,
-    rgba(var(--hos-accent), 0.02) 0%,
-    transparent 42%,
-    rgba(191, 90, 242, 0.02) 100%);
+  background: linear-gradient(135deg, rgba(var(--hos-accent), 0.02) 0%, transparent 42%, rgba(191, 90, 242, 0.02) 100%);
   pointer-events: none;
   z-index: 0;
 }
 
 @keyframes hos-modal-in {
-  from { opacity: 0; transform: scale(0.88) translateY(18px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @keyframes hos-modal-line-glow {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* ---- 尺寸变体 ---- */
-.hos-modal-panel--sm { max-width: 460px; }
+.hos-modal-panel--sm {
+  max-width: 460px;
+}
 .hos-modal-panel--md {
   max-width: 580px;
   max-height: calc(85vh / var(--hos-scale, 1));
@@ -124,9 +133,18 @@
   border-radius: var(--hos-radius-panel, 20px);
   overflow: hidden;
 }
-.hos-modal-panel--danger { --hos-accent: 255, 69, 58; --hos-accent-end: 239, 68, 68; }
-.hos-modal-panel--purple { --hos-accent: 95, 212, 255; --hos-accent-end: 56, 189, 248; }
-.hos-modal-panel--amber { --hos-accent: 245, 158, 11; --hos-accent-end: 251, 146, 60; }
+.hos-modal-panel--danger {
+  --hos-accent: 255, 69, 58;
+  --hos-accent-end: 239, 68, 68;
+}
+.hos-modal-panel--purple {
+  --hos-accent: 95, 212, 255;
+  --hos-accent-end: 56, 189, 248;
+}
+.hos-modal-panel--amber {
+  --hos-accent: 245, 158, 11;
+  --hos-accent-end: 251, 146, 60;
+}
 
 /* ---- 头部 ---- */
 .hos-modal-head {
@@ -240,9 +258,16 @@
   white-space: pre-wrap;
 }
 
-.hos-modal-body--flush { padding-top: 0; }
-.hos-modal-body--no-scroll { overflow: hidden; min-height: 0; }
-.hos-modal-body p { margin: 0; }
+.hos-modal-body--flush {
+  padding-top: 0;
+}
+.hos-modal-body--no-scroll {
+  overflow: hidden;
+  min-height: 0;
+}
+.hos-modal-body p {
+  margin: 0;
+}
 
 .hos-modal-footer {
   position: relative;
@@ -256,8 +281,12 @@
   background: rgba(0, 0, 0, 0.22);
 }
 
-.hos-modal-footer--center { justify-content: center; }
-.hos-modal-footer--split .hos-modal-btn { flex: 1; }
+.hos-modal-footer--center {
+  justify-content: center;
+}
+.hos-modal-footer--split .hos-modal-btn {
+  flex: 1;
+}
 
 /* ---- 按钮 ---- */
 .hos-modal-btn {
@@ -286,7 +315,7 @@
 
 .hos-modal-btn--primary {
   color: #fff;
-  background: linear-gradient(135deg, #0A84FF, #5856D6);
+  background: linear-gradient(135deg, #0a84ff, #5856d6);
   box-shadow: 0 4px 20px rgba(10, 132, 255, 0.38);
 }
 
@@ -298,7 +327,7 @@
 
 .hos-modal-btn--danger {
   color: #fff;
-  background: linear-gradient(135deg, #FF453A, #dc2626);
+  background: linear-gradient(135deg, #ff453a, #dc2626);
   box-shadow: 0 4px 20px rgba(255, 69, 58, 0.38);
 }
 
@@ -308,7 +337,9 @@
   box-shadow: 0 8px 28px rgba(255, 69, 58, 0.48);
 }
 
-.hos-modal-btn--full { width: 100%; }
+.hos-modal-btn--full {
+  width: 100%;
+}
 
 /* ---- 表单控件 ---- */
 .hos-modal-label {
@@ -334,7 +365,9 @@
   transition: all 0.25s;
 }
 
-.hos-modal-search { padding-left: 40px; }
+.hos-modal-search {
+  padding-left: 40px;
+}
 .hos-modal-input:focus,
 .hos-modal-search:focus {
   border-color: rgba(10, 132, 255, 0.45);
@@ -342,14 +375,14 @@
 }
 
 .hos-modal-input::placeholder,
-.hos-modal-search::placeholder { color: var(--hos-text-faint); }
-
-.hos-modal-dropzone--active {
-  box-shadow: 0 0 0 2px color-mix(in srgb, #BF5AF2 40%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, #BF5AF2 35%, rgba(0, 0, 0, 0));
+.hos-modal-search::placeholder {
+  color: var(--hos-text-faint);
 }
 
-
+.hos-modal-dropzone--active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #bf5af2 40%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, #bf5af2 35%, rgba(0, 0, 0, 0));
+}
 
 .hos-modal-search-wrap {
   position: relative;
@@ -411,9 +444,6 @@
 
 /* ---- 辅助块 ---- */
 
-
-
-
 .hos-modal-link {
   font-size: var(--premium-fs-caption);
   font-weight: 700;
@@ -424,7 +454,9 @@
   transition: color 0.2s;
 }
 
-.hos-modal-link:hover { color: #93c5fd; }
+.hos-modal-link:hover {
+  color: #93c5fd;
+}
 
 .hos-modal-empty {
   text-align: center;
@@ -489,8 +521,12 @@
   justify-content: center;
 }
 
-.hos-modal-pin-key:hover { background: rgba(255, 255, 255, 0.09); }
-.hos-modal-pin-key:active { transform: scale(0.94); }
+.hos-modal-pin-key:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.hos-modal-pin-key:active {
+  transform: scale(0.94);
+}
 
 .hos-modal-glow {
   position: absolute;
@@ -545,9 +581,13 @@
    路由整屏换页用的是另一族 route-fade-*（assets/styles/route-transitions.css），
    两者刻意不再同名，避免「绝对定位 + 横向位移」的换页规则泄漏到组件内淡入淡出。 */
 .fade-enter-active,
-.fade-leave-active { transition: opacity 0.3s ease; }
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
 .fade-enter-from,
-.fade-leave-to { opacity: 0; }
+.fade-leave-to {
+  opacity: 0;
+}
 
 .scale-fade-enter-active,
 .scale-fade-leave-active {

@@ -7,12 +7,8 @@ const ClockWidget = lazyComponent(() => import('@/components/widgets/system/Cloc
 const WeatherHubPanel = lazyComponent(() => import('@/components/widgets/weather/HubPanel.vue'))
 const QuickActionsCard = lazyComponent(() => import('@/components/widgets/QuickActionsCard.vue'))
 const MediaMiniWidget = lazyComponent(() => import('@/components/widgets/media/MiniWidget.vue'))
-const HomeClimateChartWidget = lazyComponent(
-  () => import('@/components/widgets/climate/HomeClimateChartWidget.vue'),
-)
-const SecurityPanelWidget = lazyComponent(
-  () => import('@/components/widgets/security/PanelWidget.vue'),
-)
+const HomeClimateChartWidget = lazyComponent(() => import('@/components/widgets/climate/HomeClimateChartWidget.vue'))
+const SecurityPanelWidget = lazyComponent(() => import('@/components/widgets/security/PanelWidget.vue'))
 
 const WIDGET_COMPONENTS: Record<string, Component> = {
   clock: ClockWidget,
@@ -23,13 +19,9 @@ const WIDGET_COMPONENTS: Record<string, Component> = {
   securityPanel: SecurityPanelWidget,
 }
 
-const WIDGET_REGISTRY: Record<string, { component?: Component; [key: string]: unknown }> =
-  Object.fromEntries(
-    Object.entries(WIDGET_REGISTRY_META).map(([type, meta]) => [
-      type,
-      { ...meta, component: WIDGET_COMPONENTS[type] },
-    ]),
-  )
+const WIDGET_REGISTRY: Record<string, { component?: Component; [key: string]: unknown }> = Object.fromEntries(
+  Object.entries(WIDGET_REGISTRY_META).map(([type, meta]) => [type, { ...meta, component: WIDGET_COMPONENTS[type] }]),
+)
 
 // 曾在此再导出 `FLOATING_HUB_WIDTH_MAP` / `getSidebarWidgetClass` / `isFloatingPanelType`：
 // 三者的消费者（`components/shell/floating-hub/useFloatingHub`、`components/dashboard/RightSidebar.vue`、
@@ -53,9 +45,7 @@ export function getFloatingPanelComponent(type: string) {
 
 export function getFloatingPanelProps(widget: { type?: string; config?: Record<string, unknown> }) {
   const type = canonicalizeWidgetType(widget?.type ?? '')
-  const fn = WIDGET_REGISTRY[type]?.floatingProps as
-    | ((w: typeof widget) => Record<string, unknown>)
-    | undefined
+  const fn = WIDGET_REGISTRY[type]?.floatingProps as ((w: typeof widget) => Record<string, unknown>) | undefined
   if (fn) return fn(widget)
   const config = widget?.config
   if (config) {

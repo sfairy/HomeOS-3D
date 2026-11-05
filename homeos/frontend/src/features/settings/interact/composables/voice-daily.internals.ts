@@ -26,28 +26,20 @@ export function useVoiceDailyAdvisorPanel(voice: Ref<VoiceDailyFields>) {
   const dailyAdvisorDayPresets = computed(() => getDailyAdvisorDayPresets())
   const dailyAdvisorEveningPresets = computed(() => getDailyAdvisorEveningPresets())
 
-  const dailyDayTemplate = computed(() =>
-    dailyPresetTemplate(dailyDayPreset.value, 'day', dailyDayCustom.value),
-  )
+  const dailyDayTemplate = computed(() => dailyPresetTemplate(dailyDayPreset.value, 'day', dailyDayCustom.value))
   const dailyEveningTemplate = computed(() =>
     dailyPresetTemplate(dailyEveningPreset.value, 'evening', dailyEveningCustom.value),
   )
 
   function syncDailyFromVoice() {
     dailyDayPreset.value = detectDailyPreset('day', voice.value.dailyAdvisorTtsDaytime)
-    dailyDayCustom.value =
-      dailyDayPreset.value === 'custom' ? voice.value.dailyAdvisorTtsDaytime || '' : ''
+    dailyDayCustom.value = dailyDayPreset.value === 'custom' ? voice.value.dailyAdvisorTtsDaytime || '' : ''
     dailyEveningPreset.value = detectDailyPreset('evening', voice.value.dailyAdvisorTtsEvening)
-    dailyEveningCustom.value =
-      dailyEveningPreset.value === 'custom' ? voice.value.dailyAdvisorTtsEvening || '' : ''
+    dailyEveningCustom.value = dailyEveningPreset.value === 'custom' ? voice.value.dailyAdvisorTtsEvening || '' : ''
   }
 
   function syncDailyDay() {
-    voice.value.dailyAdvisorTtsDaytime = dailyPresetTemplate(
-      dailyDayPreset.value,
-      'day',
-      dailyDayCustom.value,
-    )
+    voice.value.dailyAdvisorTtsDaytime = dailyPresetTemplate(dailyDayPreset.value, 'day', dailyDayCustom.value)
   }
 
   function syncDailyEvening() {

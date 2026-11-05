@@ -33,8 +33,7 @@ const exceptionsFile = path.join(specsDir, 'spec-exceptions.json')
 /** 与 `audit_glb_geometry.mjs` 同口径：超过 5% 才算尺寸例外。 */
 const MAX_DEVIATION = 0.05
 
-const OPEN_SHEET_REASON =
-  '薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面'
+const OPEN_SHEET_REASON = '薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面'
 const SOLID_REASON =
   '导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑'
 

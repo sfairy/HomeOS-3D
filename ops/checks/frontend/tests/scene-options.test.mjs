@@ -11,21 +11,15 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const MODULE = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/features/home-mode/composables/scene-options.util.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/features/home-mode/composables/scene-options.util.ts', import.meta.url),
 )
 const { buildSceneOptions, sceneEntitiesSignature } = await import(MODULE)
 
 test('场景映射为选项：name 优先，缺 name 回退 id', () => {
-  const options = buildSceneOptions(
-    [
-      { id: 'scene.movie', name: '观影模式' },
-      { id: 'scene.sleep' },
-    ],
-    { includeEmpty: false, emptyLabel: '不联动场景' },
-  )
+  const options = buildSceneOptions([{ id: 'scene.movie', name: '观影模式' }, { id: 'scene.sleep' }], {
+    includeEmpty: false,
+    emptyLabel: '不联动场景',
+  })
 
   assert.deepEqual(
     options.map((option) => [option.value, option.label]),
@@ -37,12 +31,15 @@ test('场景映射为选项：name 优先，缺 name 回退 id', () => {
 })
 
 test('空 id 的脏数据不进入选项（否则会出现选不中的幽灵项）', () => {
-  const options = buildSceneOptions(
-    [{ id: '' }, { id: '   ' }, { id: 'scene.ok', name: '回家' }],
-    { includeEmpty: false, emptyLabel: '不联动场景' },
-  )
+  const options = buildSceneOptions([{ id: '' }, { id: '   ' }, { id: 'scene.ok', name: '回家' }], {
+    includeEmpty: false,
+    emptyLabel: '不联动场景',
+  })
 
-  assert.deepEqual(options.map((option) => option.value), ['scene.ok'])
+  assert.deepEqual(
+    options.map((option) => option.value),
+    ['scene.ok'],
+  )
 })
 
 test('includeEmpty 默认语义：前置一个值为空串的「不联动场景」', () => {

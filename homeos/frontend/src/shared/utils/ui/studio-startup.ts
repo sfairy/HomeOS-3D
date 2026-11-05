@@ -23,8 +23,7 @@ interface StudioStartupController {
 }
 
 function controller(): StudioStartupController | null {
-  const candidate = (window as unknown as { homeosStudioStartup?: StudioStartupController })
-    .homeosStudioStartup
+  const candidate = (window as unknown as { homeosStudioStartup?: StudioStartupController }).homeosStudioStartup
   return candidate && typeof candidate.phase === 'function' ? candidate : null
 }
 

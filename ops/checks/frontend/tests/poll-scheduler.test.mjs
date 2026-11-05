@@ -48,7 +48,13 @@ test('注册后错峰首跑一次（runImmediately 默认 true）', (t) => {
   const box = sandbox(t)
   try {
     let calls = 0
-    box.register('immediate', () => { calls += 1 }, 60_000)
+    box.register(
+      'immediate',
+      () => {
+        calls += 1
+      },
+      60_000,
+    )
 
     // 最大错峰 7×350ms，推进到窗口之外（含一次刻度）。
     t.mock.timers.tick(2500)
@@ -63,7 +69,14 @@ test('runImmediately:false 时跳过首跑，避免与调用方的显式刷新�
   const box = sandbox(t)
   try {
     let calls = 0
-    box.register('skip-first', () => { calls += 1 }, 60_000, { runImmediately: false })
+    box.register(
+      'skip-first',
+      () => {
+        calls += 1
+      },
+      60_000,
+      { runImmediately: false },
+    )
 
     t.mock.timers.tick(2500)
 
@@ -79,8 +92,22 @@ test('页面隐藏：感知可见性的任务暂停，后台常驻任务继续',
   try {
     let uiCalls = 0
     let backgroundCalls = 0
-    box.register('ui-clock', () => { uiCalls += 1 }, 60_000, { visibilityAware: true })
-    box.register('session-refresh', () => { backgroundCalls += 1 }, 60_000, { visibilityAware: false })
+    box.register(
+      'ui-clock',
+      () => {
+        uiCalls += 1
+      },
+      60_000,
+      { visibilityAware: true },
+    )
+    box.register(
+      'session-refresh',
+      () => {
+        backgroundCalls += 1
+      },
+      60_000,
+      { visibilityAware: false },
+    )
 
     t.mock.timers.tick(2500)
 
@@ -115,8 +142,20 @@ test('同 key 重复注册覆盖旧任务：旧回调不会在错峰窗口内双
   try {
     let first = 0
     let second = 0
-    box.register('dedupe', () => { first += 1 }, 60_000)
-    box.register('dedupe', () => { second += 1 }, 60_000)
+    box.register(
+      'dedupe',
+      () => {
+        first += 1
+      },
+      60_000,
+    )
+    box.register(
+      'dedupe',
+      () => {
+        second += 1
+      },
+      60_000,
+    )
 
     t.mock.timers.tick(2500)
 
@@ -139,7 +178,14 @@ test('按间隔周期执行（1s 最小间隔）', (t) => {
   const box = sandbox(t)
   try {
     let calls = 0
-    box.register('periodic', () => { calls += 1 }, 1000, { runImmediately: false })
+    box.register(
+      'periodic',
+      () => {
+        calls += 1
+      },
+      1000,
+      { runImmediately: false },
+    )
 
     t.mock.timers.tick(1000)
     t.mock.timers.tick(1000)
@@ -148,4 +194,33 @@ test('按间隔周期执行（1s 最小间隔）', (t) => {
   } finally {
     box.dispose()
   }
+})
+
+/**
+ * 同 key 被重新注册后，旧订阅的取消不得删除新任务。
+ *
+ * 背景：`useScheduledPoll` 支持显式 key（如 Forecast.vue 的 'widget:WeatherForecast'），
+ * 当同一 key 的两个实例同时挂载时，后注册者覆盖先注册者；先注册者卸载时调用自己的
+ * cancel，如果 cancel 无条件 `jobs.delete(key)`，就会把**后注册者仍在使用的**任务删掉，
+ * 该小组件从此不再轮询（静默数据陈旧，页面无错误提示）。
+ */
+test('取消旧订阅不得连带删除同 key 的新任务', () => {
+  const fnA = () => {}
+  const fnB = () => {}
+  const cancelA = schedulePoll('duplicate-key', fnA, 60_000, { runImmediately: false })
+  const cancelB = schedulePoll('duplicate-key', fnB, 60_000, { runImmediately: false })
+
+  assert.equal(getPollSchedulerStats().activeJobs, 1, '同 key 只应保留一个任务')
+
+  cancelA()
+  try {
+    const stats = getPollSchedulerStats()
+    assert.equal(stats.activeJobs, 1, '取消旧订阅后，新任务必须仍在调度表中')
+    assert.equal(stats.ticking, true, '调度器刻度不能因旧订阅取消而停止')
+  } finally {
+    cancelB()
+  }
+
+  assert.equal(getPollSchedulerStats().activeJobs, 0, '最后一个订阅取消后任务表应清空')
+  assert.equal(getPollSchedulerStats().ticking, false, '无任务时不应继续空转刻度')
 })

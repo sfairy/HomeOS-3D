@@ -1,15 +1,7 @@
 /** 解析优先级：URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default。 */
-import {
-  fetchProject,
-  resolveTerminalProfile,
-  updateSelfTerminalBinding,
-} from '@/services/api/config'
+import { fetchProject, resolveTerminalProfile, updateSelfTerminalBinding } from '@/services/api/config'
 import { getClientDeviceId } from '@/shared/client/utils/system.util'
-import {
-  readStoredProfileId,
-  hasStoredProfileId,
-  writeStoredProfileId,
-} from '@/stores/ui/create-layout-state'
+import { readStoredProfileId, hasStoredProfileId, writeStoredProfileId } from '@/stores/ui/create-layout-state'
 import { logger } from '@/shared/utils/core/logger'
 import type { UILayoutConfig } from '@/shared/types/layout'
 
@@ -96,10 +88,7 @@ export async function bindSelfTerminalProfile(profileId: string, label?: string)
  * @param circadianId 昼夜节律模块提供的天气实体 ID
  * @returns 优先取 layoutId，为空则取 circadianId
  */
-export function resolveWeatherEntityId(
-  layoutId?: string | null,
-  circadianId?: string | null,
-): string {
+export function resolveWeatherEntityId(layoutId?: string | null, circadianId?: string | null): string {
   return String(layoutId || '').trim() || String(circadianId || '').trim()
 }
 
@@ -109,10 +98,7 @@ export function resolveWeatherEntityId(
  * @param entityId 天气实体 ID
  * @sideeffect 就地修改 layoutConfig.haConfig.weatherEntityId
  */
-export function applyWeatherEntityIdToLayout(
-  layoutConfig: UILayoutConfig,
-  entityId: string,
-): void {
+export function applyWeatherEntityIdToLayout(layoutConfig: UILayoutConfig, entityId: string): void {
   if (!layoutConfig.haConfig) layoutConfig.haConfig = {} as UILayoutConfig['haConfig']
   layoutConfig.haConfig.weatherEntityId = entityId
 }

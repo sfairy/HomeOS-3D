@@ -44,10 +44,7 @@ export function assetIdFromUrl(url) {
 }
 
 async function loadRegistries() {
-  const externalRoot = path.join(
-    repoRoot,
-    'homeos/frontend/src/studio/app/3d-studio/loaders/external-models',
-  )
+  const externalRoot = path.join(repoRoot, 'homeos/frontend/src/studio/app/3d-studio/loaders/external-models')
   const itemRoot = path.join(repoRoot, 'homeos/frontend/src/studio/app/3d-studio/authoring/items')
   const [all, collection, catalog, collectionCatalog] = await Promise.all([
     import(path.join(externalRoot, 'all-item-models.ts')),
@@ -89,7 +86,16 @@ function loadDeclaredExceptions() {
 const round = (value) => Number(Number(value).toFixed(4))
 
 /** 播种一条 spec。 */
-function seedSpec({ id, folder, variants, itemTypes, descriptor, collectionModels, itemTypeCatalog, declaredExceptions }) {
+function seedSpec({
+  id,
+  folder,
+  variants,
+  itemTypes,
+  descriptor,
+  collectionModels,
+  itemTypeCatalog,
+  declaredExceptions,
+}) {
   const override = specOverrides[id] ?? {}
   // 旗舰的联网查证与面数预算集中在 `FLAGSHIP_SPECS`：reference 以人工查证件优先，
   // 手工 override（floor-lamp / tv_standard）里的 reference 再覆盖它。
@@ -153,7 +159,10 @@ function seedSpec({ id, folder, variants, itemTypes, descriptor, collectionModel
               confidence: 0.7,
             }
           : { type: 'pending', title: '待补实物规格', confidence: 0.3 }),
-    assumptions: [...(override.assumptions ?? buildAssumptions({ id, sizeSource, folder })), ...(flagshipSpec.assumptions ?? [])],
+    assumptions: [
+      ...(override.assumptions ?? buildAssumptions({ id, sizeSource, folder })),
+      ...(flagshipSpec.assumptions ?? []),
+    ],
     exceptions: [...(override.exceptions ?? []), ...(declaredExceptions[id] ?? [])],
     flagship: FLAGSHIP_IDS.includes(id),
     ...(override.notes ? { notes: override.notes } : {}),
@@ -167,7 +176,11 @@ function materialFamilyOf({ id, folder, primaryType }) {
   if (['glasspartition', 'full-length-mirror', 'wall-art', 'projection-screen'].includes(id)) return 'glass'
   if (['rug', 'round-rug', 'curtain_left', 'curtain_right', 'curtain_split', 'sofa-throw', 'pillow-set'].includes(id))
     return 'textile'
-  if (/^(garden-(fence|gate|deck|paving|stepping|steps|low-wall|retaining-wall|arch|pergola|trellis|carport|gazebo))/.test(id))
+  if (
+    /^(garden-(fence|gate|deck|paving|stepping|steps|low-wall|retaining-wall|arch|pergola|trellis|carport|gazebo))/.test(
+      id,
+    )
+  )
     return 'structure'
   if (['car', 'suv', 'scooter', 'elevator', 'stairs', 'steel-stairs', 'glass-stairs', 'floating-stairs'].includes(id))
     return 'structure'

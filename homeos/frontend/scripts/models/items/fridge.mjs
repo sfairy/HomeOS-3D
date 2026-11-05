@@ -26,10 +26,7 @@ const bottom = b(W - PANEL * 2, PANEL, SHELL_D - 0.02, 0, PLINTH + PANEL / 2, 0)
 const back = b(W - PANEL * 2, H - PLINTH - PANEL * 2, 0.01, 0, (H + PLINTH) / 2, -SHELL_D / 2 + 0.005)
 const divider = b(W - PANEL * 2, PANEL, SHELL_D - 0.02, 0, 0.72, 0)
 
-const doors = merge([
-  b(W, 1.06, DOOR_T, 0, 1.24, FRONT + DOOR_T / 2),
-  b(W, 0.52, DOOR_T, 0, 0.34, FRONT + DOOR_T / 2),
-])
+const doors = merge([b(W, 1.06, DOOR_T, 0, 1.24, FRONT + DOOR_T / 2), b(W, 0.52, DOOR_T, 0, 0.34, FRONT + DOOR_T / 2)])
 const handles = merge([
   transform(cylinder({ radiusTop: 0.011, height: 0.42, segments: 10 }), {
     translate: [-W / 2 + 0.06, 1.36, FRONT + DOOR_T - 0.01],

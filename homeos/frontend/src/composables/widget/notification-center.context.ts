@@ -6,5 +6,4 @@ import type { useNotificationCenter } from '@/composables/widget/useNotification
 type NotificationCenterContext = ReturnType<typeof useNotificationCenter>
 
 /** 通知中心注入键：以 Symbol 形式避免与其它 InjectionKey 冲突，承载完整的上下文对象 */
-export const NOTIFICATION_CENTER_KEY: InjectionKey<NotificationCenterContext> =
-  Symbol('notificationCenter')
+export const NOTIFICATION_CENTER_KEY: InjectionKey<NotificationCenterContext> = Symbol('notificationCenter')

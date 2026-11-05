@@ -32,10 +32,7 @@
   overflow: hidden;
   background: #000;
   transform: translateZ(0);
-  padding:
-    max(env(safe-area-inset-top), 0px)
-    max(env(safe-area-inset-right), 0px)
-    max(env(safe-area-inset-bottom), 0px)
+  padding: max(env(safe-area-inset-top), 0px) max(env(safe-area-inset-right), 0px) max(env(safe-area-inset-bottom), 0px)
     max(env(safe-area-inset-left), 0px);
   box-sizing: border-box;
 }
@@ -72,8 +69,12 @@
   max-height: 100%;
 }
 
-.ss-overlay-enter-active { animation: ss-in 1s cubic-bezier(0.16, 1, 0.3, 1); }
-.ss-overlay-leave-active { animation: ss-out 0.4s ease forwards; }
+.ss-overlay-enter-active {
+  animation: ss-in 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ss-overlay-leave-active {
+  animation: ss-out 0.4s ease forwards;
+}
 
 .ss-overlay--instant.ss-overlay-enter-active {
   animation: none;
@@ -111,8 +112,22 @@
   pointer-events: none;
 }
 
-@keyframes ss-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ss-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ss-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ss-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 
 /* ---- 背景 ---- */
 .ss-bg {
@@ -158,14 +173,19 @@
 }
 
 @keyframes ss-glow-fade {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 0.75; }
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.75;
+  }
 }
 
 .ss-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 90% 80% at 50% 45%, transparent 30%, rgba(0,0,0,0.72) 100%);
+  background: radial-gradient(ellipse 90% 80% at 50% 45%, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
 }
 
 /* ---- Brand：顶栏 ---- */
@@ -193,7 +213,7 @@
   white-space: nowrap;
   max-width: none;
   overflow: visible;
-  background: linear-gradient(135deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.45) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.45) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -210,10 +230,7 @@
   width: 100%;
   min-height: 0;
   padding: 8px 32px 16px;
-  transform: translate(
-    var(--ss-burnin-x, 0px),
-    calc(var(--ss-content-shift) + var(--ss-burnin-y, 0px))
-  );
+  transform: translate(var(--ss-burnin-x, 0px), calc(var(--ss-content-shift) + var(--ss-burnin-y, 0px)));
   overflow: hidden;
 }
 
@@ -234,13 +251,25 @@
 }
 
 @keyframes ss-panel-in {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes ss-panel-in-wx {
-  from { opacity: 0; transform: translateY(-16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---- 元信息文案 ---- */
@@ -255,21 +284,18 @@
 }
 
 .ss-meta::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -14px;
   left: 50%;
   transform: translateX(-50%);
   width: 48px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
 }
 
 .ss-date-primary {
-  font-size: min(
-    calc(var(--ss-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-    calc(var(--ss-vh) * 0.045)
-  );
+  font-size: min(calc(var(--ss-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.045));
   font-weight: 300;
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.42);
@@ -277,10 +303,7 @@
 }
 
 .ss-date-secondary {
-  font-size: min(
-    calc(var(--ss-sub-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-    calc(var(--ss-vh) * 0.032)
-  );
+  font-size: min(calc(var(--ss-sub-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.032));
   font-weight: 300;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.2);
@@ -293,12 +316,30 @@
 }
 
 /* ---- 错落入场 ---- */
-.ss-fade-0 { opacity: 0; animation: ss-fade-up 0.9s 0.08s ease forwards; }
-.ss-fade-1 { opacity: 0; animation: ss-fade-up 0.9s 0.22s ease forwards; }
-.ss-fade-2 { opacity: 0; animation: ss-fade-up 0.9s 0.38s ease forwards; }
-.ss-fade-3 { opacity: 0; animation: ss-fade-up 0.9s 0.52s ease forwards; }
+.ss-fade-0 {
+  opacity: 0;
+  animation: ss-fade-up 0.9s 0.08s ease forwards;
+}
+.ss-fade-1 {
+  opacity: 0;
+  animation: ss-fade-up 0.9s 0.22s ease forwards;
+}
+.ss-fade-2 {
+  opacity: 0;
+  animation: ss-fade-up 0.9s 0.38s ease forwards;
+}
+.ss-fade-3 {
+  opacity: 0;
+  animation: ss-fade-up 0.9s 0.52s ease forwards;
+}
 
 @keyframes ss-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

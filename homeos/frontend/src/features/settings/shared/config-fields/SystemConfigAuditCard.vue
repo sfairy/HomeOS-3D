@@ -40,9 +40,7 @@ const props = defineProps({
 })
 
 function formatAuditKeys(entry) {
-  return (entry.keys || [])
-    .map((key) => props.fieldLabel({ key }, entry.section))
-    .join('、')
+  return (entry.keys || []).map((key) => props.fieldLabel({ key }, entry.section)).join('、')
 }
 </script>
 

@@ -37,17 +37,12 @@ export function filterMemoryDeviceItems(input: DevicesMemoryFilterInput): Device
   } else if (status === 'offline') {
     result = result.filter((device) => device.unavailable)
   } else if (status === 'low-battery') {
-    result = result.filter(
-      (device) => device.batteryLevel != null && device.batteryLevel <= 20,
-    )
+    result = result.filter((device) => device.batteryLevel != null && device.batteryLevel <= 20)
   }
 
   if (room) {
     result = result.filter((device) =>
-      entityMatchesAreaFilter(
-        device.area ? { area_id: device.area.id, area_name: device.area.name } : undefined,
-        room,
-      ),
+      entityMatchesAreaFilter(device.area ? { area_id: device.area.id, area_name: device.area.name } : undefined, room),
     )
   }
 

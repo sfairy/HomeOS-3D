@@ -154,7 +154,16 @@ test('样式包：图标按钮分组表覆盖核心键且键名唯一', () => {
   const labels = metadata.styleSourceComponentIdState,
     labelKeys = Object.keys(labels)
   assert.deepEqual(labelKeys, [...new Set(labelKeys)], '分组表键名不能重复')
-  for (const requiredKey of ['icon', 'iconOffColor', 'buttonOnColor', 'frameColor', 'width', 'height', 'scale', 'rotation'])
+  for (const requiredKey of [
+    'icon',
+    'iconOffColor',
+    'buttonOnColor',
+    'frameColor',
+    'width',
+    'height',
+    'scale',
+    'rotation',
+  ])
     assert.ok(requiredKey in labels, `图标按钮分组表缺少 ${requiredKey}`)
   assert.equal(labels.icon.group, '按钮图标')
   assert.equal(labels.width.group, '按钮尺寸')

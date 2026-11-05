@@ -47,10 +47,7 @@ test('boot-guard：hidden 与 is-deferred 分两帧摘，禁止同一任务里�
 })
 
 test('boot-guard：hide 尊重最短可见时长，减动效时直接隐藏', () => {
-  const fn = bootGuard.slice(
-    bootGuard.indexOf('function hide()'),
-    bootGuard.indexOf('function reloadButton()'),
-  )
+  const fn = bootGuard.slice(bootGuard.indexOf('function hide()'), bootGuard.indexOf('function reloadButton()'))
   assert.match(fn, /MIN_VISIBLE_MS - \(Date\.now\(\) - revealedAt\)/)
   assert.match(fn, /prefersReducedMotion\(\)/)
   assert.match(fn, /box\.hidden = true/)
@@ -66,7 +63,11 @@ test('route-fade：混合触屏平板也必须关掉整屏过渡', () => {
   assert.ok(start > 0, '缺少触屏媒体查询')
   const brace = routeTransitions.indexOf('{', start)
   const query = routeTransitions.slice(start, brace)
-  assert.match(query, /\(any-pointer: coarse\)/, 'iPad + 妙控键盘 / Surface 的主指针是 fine，少了 any-pointer 仍会滑整屏')
+  assert.match(
+    query,
+    /\(any-pointer: coarse\)/,
+    'iPad + 妙控键盘 / Surface 的主指针是 fine，少了 any-pointer 仍会滑整屏',
+  )
   assert.match(query, /\(hover: none\)/)
 })
 

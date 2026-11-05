@@ -36,9 +36,10 @@ export function createDefaultEnergySource() {
 }
 /** 全部 6 类别的默认 energySources */
 export function createDefaultEnergySources() {
-  return Object.fromEntries(
-    ENERGY_CATEGORIES.map((cat) => [cat, createDefaultEnergySource()]),
-  ) as Record<EnergyCategory, ReturnType<typeof createDefaultEnergySource>>
+  return Object.fromEntries(ENERGY_CATEGORIES.map((cat) => [cat, createDefaultEnergySource()])) as Record<
+    EnergyCategory,
+    ReturnType<typeof createDefaultEnergySource>
+  >
 }
 /** UI 映射字段（排除仅用于弹窗图表的 list/object） */
 export function getMappableFields(cat: EnergyCategory) {
@@ -53,9 +54,7 @@ export function getMappableFields(cat: EnergyCategory) {
  */
 export function getFieldDef(cat: EnergyCategory | string, fieldKey: string): EnergyFieldDef | undefined {
   if (!(ENERGY_CATEGORIES as readonly string[]).includes(cat)) return undefined
-  return ENERGY_FIELD_DEFS[cat as EnergyCategory].find((f) => f.key === fieldKey) as
-    | EnergyFieldDef
-    | undefined
+  return ENERGY_FIELD_DEFS[cat as EnergyCategory].find((f) => f.key === fieldKey) as EnergyFieldDef | undefined
 }
 /** 从 entityId 提取约定前缀 sensor.{prefix}_{account}_ */
 function extractEntityPrefix(entityId: string | null | undefined): string {
@@ -87,11 +86,7 @@ function collectSiblingEntities(
  * - friendly_name（label）路径下所有 ASCII 别名均走分词，禁止裸 includes。
  * - 中文或长别名才允许 substring includes。
  */
-function matchEnergyFieldAlias(
-  fieldKey: string,
-  text: string,
-  mode: 'attr' | 'label' = 'attr',
-): boolean {
+function matchEnergyFieldAlias(fieldKey: string, text: string, mode: 'attr' | 'label' = 'attr'): boolean {
   const aliases = ENERGY_FIELD_ALIASES[fieldKey as EnergyFieldAliasKey] || []
   const lower = String(text || '').toLowerCase()
   if (!lower) return false
@@ -102,11 +97,7 @@ function matchEnergyFieldAlias(
     const ascii = /^[a-z0-9_]+$/i.test(al)
     const tokenOnly = ascii && (al.length < 6 || mode === 'label')
     if (tokenOnly) {
-      return (
-        lower.startsWith(`${al}_`) ||
-        lower.endsWith(`_${al}`) ||
-        lower.includes(`_${al}_`)
-      )
+      return lower.startsWith(`${al}_`) || lower.endsWith(`_${al}`) || lower.includes(`_${al}_`)
     }
     return lower.includes(al)
   })
@@ -121,8 +112,7 @@ export function balanceAttrCandidatesForField(
   fieldKey: string,
   def: EnergyFieldDef | undefined,
 ): string[] {
-  const fromCatalog =
-    (ENERGY_BALANCE_ATTR_KEYS as Record<string, Record<string, string[]>>)[cat]?.[fieldKey] || []
+  const fromCatalog = (ENERGY_BALANCE_ATTR_KEYS as Record<string, Record<string, string[]>>)[cat]?.[fieldKey] || []
   const defaults = def?.defaultAttr ? [def.defaultAttr] : []
   return [...new Set([...defaults, ...fromCatalog])]
 }
@@ -163,9 +153,7 @@ export function inferEnergyMapping(
   const fields = ENERGY_FIELD_DEFS[cat]
   const siblings = collectSiblingEntities(entityId, entities)
   const prefix = extractEntityPrefix(entityId)
-  const allCandidates = [{ id: entityId, ent: mainEnt, isMain: true }, ...siblings].filter(
-    (c) => c.ent,
-  )
+  const allCandidates = [{ id: entityId, ent: mainEnt, isMain: true }, ...siblings].filter((c) => c.ent)
   for (const field of fields) {
     if (field.type === 'list' || field.type === 'object') {
       if (mode !== 'entity') continue

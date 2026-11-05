@@ -273,9 +273,7 @@ const zoneGroupedSensors = computed(() => {
 })
 
 // 当前分组模式对应的分组来源：按区域用 zoneGroupedSensors，否则用原 groupedListSensors
-const baseGroups = computed(() =>
-  groupMode.value === 'zone' ? zoneGroupedSensors.value : props.groupedListSensors,
-)
+const baseGroups = computed(() => (groupMode.value === 'zone' ? zoneGroupedSensors.value : props.groupedListSensors))
 
 // 在基础分组上叠加搜索过滤，剔除无匹配项的空分组
 const displayGroups = computed(() => {
@@ -285,7 +283,8 @@ const displayGroups = computed(() => {
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (sensor) => sensor.name?.toLowerCase().includes(searchTerm) || sensor.entity_id?.toLowerCase().includes(searchTerm),
+        (sensor) =>
+          sensor.name?.toLowerCase().includes(searchTerm) || sensor.entity_id?.toLowerCase().includes(searchTerm),
       ),
     }))
     .filter((group) => group.items.length > 0)

@@ -2,8 +2,7 @@
 import { onMounted, onUnmounted, type Ref } from 'vue'
 
 /** 目标引用类型：可为 Ref<HTMLElement> / Ref<HTMLElement[]> / 取值函数 */
-type TargetRef =
-  Ref<HTMLElement | null> | Ref<HTMLElement[]> | (() => HTMLElement | null | HTMLElement[])
+type TargetRef = Ref<HTMLElement | null> | Ref<HTMLElement[]> | (() => HTMLElement | null | HTMLElement[])
 
 /** 点击外部检测选项 */
 interface ClickOutsideOptions {

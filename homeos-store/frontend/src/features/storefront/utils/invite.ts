@@ -14,10 +14,7 @@ export function readInvite(): string {
   try {
     const code = new URL(location.href).searchParams.get("invite");
     if (code && /^[0-9]{6}$/.test(code)) {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ code, expires: Date.now() + 30 * 86400000 }),
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, expires: Date.now() + 30 * 86400000 }));
       return code;
     }
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") as SavedInvite | null;

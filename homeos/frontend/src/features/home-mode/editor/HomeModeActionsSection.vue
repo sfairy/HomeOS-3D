@@ -352,24 +352,11 @@
 
 <script setup>
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import {
-  Zap,
-  Plus,
-  Layers,
-  Trash2,
-  Copy,
-  GripVertical,
-  ChevronUp,
-  ChevronDown,
-  Settings,
-} from '@lucide/vue'
+import { Zap, Plus, Layers, Trash2, Copy, GripVertical, ChevronUp, ChevronDown, Settings } from '@lucide/vue'
 import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
 import { useHomeModeActionsSection } from '../composables/editor.internals'
-import {
-  sceneEntityIdFromRecord,
-  scriptEntityIdFromRecord,
-} from '@/shared/utils/ha/scene-script.util'
+import { sceneEntityIdFromRecord, scriptEntityIdFromRecord } from '@/shared/utils/ha/scene-script.util'
 
 const batchDomain = defineModel('batchDomain', { type: String, default: '' })
 const batchService = defineModel('batchService', { type: String, default: '' })

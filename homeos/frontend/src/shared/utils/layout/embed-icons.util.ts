@@ -77,19 +77,13 @@ const EMBED_ICON_REGISTRY = [
 export const embedLucidIcons = EMBED_ICON_REGISTRY.map((item) => item.key)
 
 /** key → 图标组件 的映射表 */
-export const embedIconMap = Object.fromEntries(
-  EMBED_ICON_REGISTRY.map((item) => [item.key, item.icon]),
-)
+export const embedIconMap = Object.fromEntries(EMBED_ICON_REGISTRY.map((item) => [item.key, item.icon]))
 
 /** key → 主题色 的映射表 */
-export const EMBED_ICON_ACCENTS = Object.fromEntries(
-  EMBED_ICON_REGISTRY.map((item) => [item.key, item.accent]),
-)
+export const EMBED_ICON_ACCENTS = Object.fromEntries(EMBED_ICON_REGISTRY.map((item) => [item.key, item.accent]))
 
 /** key → 中文标签 的映射表 */
-export const EMBED_ICON_LABELS = Object.fromEntries(
-  EMBED_ICON_REGISTRY.map((item) => [item.key, item.label]),
-)
+export const EMBED_ICON_LABELS = Object.fromEntries(EMBED_ICON_REGISTRY.map((item) => [item.key, item.label]))
 
 /**
  * 按序号循环解析图标 key（负数归零，超出长度取模）。

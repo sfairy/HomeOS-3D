@@ -1,5 +1,3 @@
-
-
 .settings-flow-overview {
   display: flex;
   flex-direction: column;
@@ -31,7 +29,10 @@
   background: var(--set-glass-bg-subtle);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   color: var(--set-text-secondary);
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .settings-flow__label {
@@ -51,7 +52,15 @@
 .settings-flow__arrow {
   font-size: var(--premium-fs-body-sm);
   font-weight: 300;
-  background: var(--hero-flow-arrow, linear-gradient(90deg, rgba(56, 189, 248, 0.5), rgba(var(--page-accent-rgb, 126, 184, 255), 0.5), rgba(251, 191, 36, 0.5)));
+  background: var(
+    --hero-flow-arrow,
+    linear-gradient(
+      90deg,
+      rgba(56, 189, 248, 0.5),
+      rgba(var(--page-accent-rgb, 126, 184, 255), 0.5),
+      rgba(251, 191, 36, 0.5)
+    )
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

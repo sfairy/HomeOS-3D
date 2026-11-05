@@ -3,12 +3,12 @@
  * bfcache，这时才允许做不可逆清理；返回的函数用于提前解绑（例如控件先被卸载）。
  */
 export function onPermanentPageHide(disposeTarget: EventTarget, disposeResources: () => void) {
-  let isBound = true;
+  let isBound = true
   const unbindPageHide = () => {
-    isBound && ((isBound = false), disposeTarget.removeEventListener?.("pagehide", handlePageHide));
-  };
-  function handlePageHide(pageHideEvent: any) {
-    pageHideEvent?.persisted || (unbindPageHide(), disposeResources());
+    isBound && ((isBound = false), disposeTarget.removeEventListener?.('pagehide', handlePageHide))
   }
-  return (disposeTarget.addEventListener?.("pagehide", handlePageHide), unbindPageHide);
+  function handlePageHide(pageHideEvent: any) {
+    pageHideEvent?.persisted || (unbindPageHide(), disposeResources())
+  }
+  return (disposeTarget.addEventListener?.('pagehide', handlePageHide), unbindPageHide)
 }

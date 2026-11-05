@@ -53,9 +53,7 @@ class FakeStorage {
 const storage = new FakeStorage()
 globalThis.window = { sessionStorage: storage }
 
-const history = await import(
-  new URL('shared/agent/utils/chat-history.util.ts', FRONTEND_SRC).href
-)
+const history = await import(new URL('shared/agent/utils/chat-history.util.ts', FRONTEND_SRC).href)
 
 const read = (rel) => readFileSync(join(root, rel), 'utf8')
 const PALETTE = 'homeos/frontend/src/components/widgets/agent/AgentChatPalette.vue'
@@ -82,10 +80,7 @@ test('快照只保留可回放的消息：流式中 / 空文本不入历史', ()
 
 test('没有可保存内容时返回 null（空对话不写历史，也就不会污染恢复）', () => {
   assert.equal(history.buildAgentChatSession('s1', []), null)
-  assert.equal(
-    history.buildAgentChatSession('s1', [{ role: 'assistant', text: ' ', streaming: false }]),
-    null,
-  )
+  assert.equal(history.buildAgentChatSession('s1', [{ role: 'assistant', text: ' ', streaming: false }]), null)
 })
 
 test('读历史：脏数据逐条丢弃，按更新时间倒序', () => {
@@ -101,7 +96,10 @@ test('读历史：脏数据逐条丢弃，按更新时间倒序', () => {
     ]),
   )
   const sessions = history.readAgentChatSessions()
-  assert.deepEqual(sessions.map((item) => item.id), ['new', 'old'])
+  assert.deepEqual(
+    sessions.map((item) => item.id),
+    ['new', 'old'],
+  )
 })
 
 test('当前会话指针可往返；没有指针时返回空串', () => {

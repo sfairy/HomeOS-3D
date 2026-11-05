@@ -19,9 +19,7 @@ import { fileURLToPath } from 'node:url'
 const read = (relativePath) =>
   readFileSync(fileURLToPath(new URL('../../../../' + relativePath, import.meta.url)), 'utf8')
 
-const renderer = read(
-  'homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createStudioRenderer.ts',
-)
+const renderer = read('homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/createStudioRenderer.ts')
 const studioApp = read('homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts')
 // 渲染器/文档残留的释放体已从 boot.ts 拆到独立模块，顺序契约要同时钉住两处。
 const studioRelease = read(
@@ -34,7 +32,7 @@ const editorView = read('homeos/frontend/src/studio/entries/EditorView.vue')
 
 test('createStudioRenderer 捕获 domElement，清理函数不再回读可能已置空的 appCtx.threeRenderer', () => {
   assert.ok(
-    renderer.includes('const rendererDomElement = appCtx.threeRenderer.domElement;'),
+    renderer.includes('const rendererDomElement = appCtx.threeRenderer.domElement'),
     '清理函数必须使用捕获到的 rendererDomElement（teardown 会把 threeRenderer 置 null）',
   )
   const disposeIndex = renderer.indexOf('disposeRendererEvents = () => {')
@@ -52,19 +50,19 @@ test('createStudioRenderer 捕获 domElement，清理函数不再回读可能已
 
 test('createStudioRenderer 清理函数幂等，且同时挂给 pagehide 与宿主回收', () => {
   assert.ok(
-    renderer.includes('if (rendererEventsDisposed) return;'),
+    renderer.includes('if (rendererEventsDisposed) return'),
     'pagehide 与显式回收可能先后各调一次，清理必须幂等',
   )
   assert.ok(
-    renderer.includes('window.addEventListener("pagehide", disposeRendererEvents, { once: true });'),
+    renderer.includes("window.addEventListener('pagehide', disposeRendererEvents, { once: true })"),
     '整页卸载路径必须继续走同一个清理函数',
   )
   assert.ok(
-    renderer.includes('return disposeRendererEvents;'),
+    renderer.includes('return disposeRendererEvents'),
     '清理函数必须返回给 createStudioRenderer 的调用方（StudioApp 回收）',
   )
   assert.ok(
-    renderer.includes('document.removeEventListener("visibilitychange", handlePageVisibility);'),
+    renderer.includes("document.removeEventListener('visibilitychange', handlePageVisibility)"),
     '清理必须摘掉 document 的 visibilitychange',
   )
 })
@@ -79,13 +77,13 @@ test('studio-app 的显式回收调用 renderer 清理函数，且早于 rendere
   const callIndex = studioApp.indexOf('disposeStudioRendererEvents?.()')
   assert.ok(callIndex > 0, 'innerCleanup 必须调用 disposeStudioRendererEvents')
   const releaseIndex = studioApp.indexOf('releaseStudioRenderer(appCtx)')
-  assert.ok(
-    releaseIndex > callIndex,
-    'renderer 清理必须在 releaseStudioRenderer 之前（监听闭包仍持有 appCtx）',
-  )
+  assert.ok(releaseIndex > callIndex, 'renderer 清理必须在 releaseStudioRenderer 之前（监听闭包仍持有 appCtx）')
   const orbitIndex = studioRelease.indexOf('appCtx.orbitControls?.dispose?.()')
   const rendererIndex = studioRelease.indexOf('appCtx.threeRenderer?.dispose?.()')
-  assert.ok(orbitIndex > 0 && rendererIndex > orbitIndex, 'releaseStudioRenderer 必须先摘 orbitControls 再释放 renderer')
+  assert.ok(
+    orbitIndex > 0 && rendererIndex > orbitIndex,
+    'releaseStudioRenderer 必须先摘 orbitControls 再释放 renderer',
+  )
   assert.ok(
     studioRelease.indexOf('appCtx.contextResources?.dispose?.()') < rendererIndex,
     'contextResources 必须早于 renderer.dispose（EventDispatcher 补丁要在 renderer 还在时还原）',
@@ -109,7 +107,7 @@ test('StudioView 卸载串行化：下次挂载先等上一次异步 teardown', 
   assert.ok(bindIndex > awaitIndex, 'bindFacade 必须排在等待链尾之后（否则会被旧实例 resetStudioFacade 清掉）')
   assert.ok(studioView.includes('void scheduleStudioTeardown(dispose)'), 'onBeforeUnmount 必须把异步回收交给串行链')
   assert.ok(
-    studioView.includes('window.HomeOSLog?.error?.(error, { phase: "studio-view-teardown" })'),
+    studioView.includes("window.HomeOSLog?.error?.(error, { phase: 'studio-view-teardown' })"),
     'teardown 失败必须被捕获并记录，不能产生 unhandled rejection',
   )
 })

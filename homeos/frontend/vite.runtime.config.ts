@@ -10,57 +10,57 @@
  * 与主应用构建共用 `homeos/frontend/vite-studio.ts` 的外置契约（three / /api/** /
  * /static/vendor/**），保证运行期 import 解析一致。
  */
-import fs from "node:fs";
-import path from "node:path";
-import { defineConfig, type Plugin } from "vite";
-import { createChunkNameAllocator, quietLogger } from "../../ops/vite/build-helpers.js";
-import { THREE_VENDOR, frontendRoot, isRuntimeExternal, studioRoot } from "./vite-studio.ts";
+import fs from 'node:fs'
+import path from 'node:path'
+import { defineConfig, type Plugin } from 'vite'
+import { createChunkNameAllocator, quietLogger } from '../../ops/vite/build-helpers.js'
+import { THREE_VENDOR, frontendRoot, isRuntimeExternal, studioRoot } from './vite-studio.ts'
 
-const runtimeSrc = path.join(studioRoot, "runtime");
+const runtimeSrc = path.join(studioRoot, 'runtime')
 // 前端产物统一收敛到工作区根 ``dist/homeos/frontend``（与 homeos-store 同位），
 // 由 ops/build.py / Dockerfile 统一打包，源码树里不留构建产物。
-const finalOutDir = path.resolve(frontendRoot, "../../dist/homeos/frontend/modules/runtime");
+const finalOutDir = path.resolve(frontendRoot, '../../dist/homeos/frontend/modules/runtime')
 // 非 watch 构建先写到旁路目录，再原子替换，避免 emptyOutDir 窗口内 config-editor / chunks 404。
-const isWatchBuild = process.argv.includes("--watch");
-const outDir = isWatchBuild ? finalOutDir : `${finalOutDir}.building`;
+const isWatchBuild = process.argv.includes('--watch')
+const outDir = isWatchBuild ? finalOutDir : `${finalOutDir}.building`
 
 /**
  * 运行时模块：整个 src/studio/runtime/** 都是入口，按需经
  * /api/v1/modules/interaction3d/* 单独下发。
  */
 function discoverRuntimeEntries(): Record<string, string> {
-  const entries: Record<string, string> = {};
-  const stack = [runtimeSrc];
+  const entries: Record<string, string> = {}
+  const stack = [runtimeSrc]
   while (stack.length) {
-    const dir = stack.pop()!;
-    if (!fs.existsSync(dir)) continue;
+    const dir = stack.pop()!
+    if (!fs.existsSync(dir)) continue
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
+      const full = path.join(dir, entry.name)
       if (entry.isDirectory()) {
-        stack.push(full);
-        continue;
+        stack.push(full)
+        continue
       }
-      if (!entry.isFile() || !entry.name.endsWith(".ts") || entry.name.endsWith(".d.ts")) continue;
-      const rel = path.relative(runtimeSrc, full).replace(/\\/g, "/");
-      entries[rel.replace(/\.ts$/i, "")] = full;
+      if (!entry.isFile() || !entry.name.endsWith('.ts') || entry.name.endsWith('.d.ts')) continue
+      const rel = path.relative(runtimeSrc, full).replace(/\\/g, '/')
+      entries[rel.replace(/\.ts$/i, '')] = full
     }
   }
-  return entries;
+  return entries
 }
 
 function walkCss(dir: string): string[] {
-  const out: string[] = [];
-  if (!fs.existsSync(dir)) return out;
-  const stack = [dir];
+  const out: string[] = []
+  if (!fs.existsSync(dir)) return out
+  const stack = [dir]
   while (stack.length) {
-    const current = stack.pop()!;
+    const current = stack.pop()!
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) stack.push(full);
-      else if (entry.isFile() && entry.name.endsWith(".css")) out.push(full);
+      const full = path.join(current, entry.name)
+      if (entry.isDirectory()) stack.push(full)
+      else if (entry.isFile() && entry.name.endsWith('.css')) out.push(full)
     }
   }
-  return out;
+  return out
 }
 
 /**
@@ -74,34 +74,26 @@ function walkCss(dir: string): string[] {
  * `chunks/runtime/editor/light-range-editor-<hash>.js` 与
  * `chunks/runtime/config-ui/light-range-editor-<hash>.js`，仍遵守「公开路径不改」的约束。
  */
-function chunkBaseName(chunk: {
-  name?: string;
-  facadeModuleId?: string | null;
-  moduleIds?: string[];
-}): string {
-  const candidates = [chunk.facadeModuleId || "", ...(chunk.moduleIds || [])];
+function chunkBaseName(chunk: { name?: string; facadeModuleId?: string | null; moduleIds?: string[] }): string {
+  const candidates = [chunk.facadeModuleId || '', ...(chunk.moduleIds || [])]
   for (const id of candidates) {
-    if (!id || !id.startsWith(studioRoot)) continue;
+    if (!id || !id.startsWith(studioRoot)) continue
     const rel = path
       .relative(studioRoot, id)
-      .replace(/\\/g, "/")
-      .replace(/\.(ts|js|mjs)$/i, "");
-    if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) return rel;
+      .replace(/\\/g, '/')
+      .replace(/\.(ts|js|mjs)$/i, '')
+    if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return rel
   }
-  return (chunk.name || "chunk").replace(/[\\/]/g, "-");
+  return (chunk.name || 'chunk').replace(/[\\/]/g, '-')
 }
 
 //: 单个构建内已占用的 chunk 名；buildStart 清空。保证产物里不再出现两个同名
 //: `xxx-<hash>.js`（兼容 shim 与实现各成一个 chunk 时会发生）。唯一化逻辑见
 //: `ops/vite/build-helpers.ts` 的 `createChunkNameAllocator`。
-const chunkNames = createChunkNameAllocator();
+const chunkNames = createChunkNameAllocator()
 
-function uniqueChunkBaseName(chunk: {
-  name?: string;
-  facadeModuleId?: string | null;
-  moduleIds?: string[];
-}): string {
-  return chunkNames.unique(chunkBaseName(chunk));
+function uniqueChunkBaseName(chunk: { name?: string; facadeModuleId?: string | null; moduleIds?: string[] }): string {
+  return chunkNames.unique(chunkBaseName(chunk))
 }
 
 /**
@@ -109,48 +101,48 @@ function uniqueChunkBaseName(chunk: {
  */
 function manifestPlugin(): Plugin {
   return {
-    name: "homeos-runtime-manifest",
+    name: 'homeos-runtime-manifest',
     closeBundle() {
-      const files: string[] = [];
-      const stack = [outDir];
+      const files: string[] = []
+      const stack = [outDir]
       while (stack.length) {
-        const dir = stack.pop()!;
-        if (!fs.existsSync(dir)) continue;
+        const dir = stack.pop()!
+        if (!fs.existsSync(dir)) continue
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-          const full = path.join(dir, entry.name);
+          const full = path.join(dir, entry.name)
           if (entry.isDirectory()) {
-            stack.push(full);
-            continue;
+            stack.push(full)
+            continue
           }
-          if (!entry.isFile() || entry.name === "manifest.json") continue;
-          const ext = path.extname(entry.name);
-          if (ext !== ".js" && ext !== ".css") continue;
-          files.push(path.relative(outDir, full).replace(/\\/g, "/"));
+          if (!entry.isFile() || entry.name === 'manifest.json') continue
+          const ext = path.extname(entry.name)
+          if (ext !== '.js' && ext !== '.css') continue
+          files.push(path.relative(outDir, full).replace(/\\/g, '/'))
         }
       }
       for (const cssAbs of walkCss(runtimeSrc)) {
-        const cssRel = path.relative(runtimeSrc, cssAbs).replace(/\\/g, "/");
-        const to = path.join(outDir, cssRel);
-        fs.mkdirSync(path.dirname(to), { recursive: true });
-        fs.copyFileSync(cssAbs, to);
-        if (!files.includes(cssRel)) files.push(cssRel);
+        const cssRel = path.relative(runtimeSrc, cssAbs).replace(/\\/g, '/')
+        const to = path.join(outDir, cssRel)
+        fs.mkdirSync(path.dirname(to), { recursive: true })
+        fs.copyFileSync(cssAbs, to)
+        if (!files.includes(cssRel)) files.push(cssRel)
       }
-      files.sort();
+      files.sort()
       // capability / mediaTypes 以「线上目录」旧清单为准（旁路构建时 outDir 是 .building）。
-      const previousManifest = path.join(finalOutDir, "manifest.json");
-      const manifestPath = path.join(outDir, "manifest.json");
-      let capability = ["editor", "module.3d_interaction"];
+      const previousManifest = path.join(finalOutDir, 'manifest.json')
+      const manifestPath = path.join(outDir, 'manifest.json')
+      let capability = ['editor', 'module.3d_interaction']
       let mediaTypes: Record<string, string> = {
-        ".js": "text/javascript",
-        ".css": "text/css",
-      };
+        '.js': 'text/javascript',
+        '.css': 'text/css',
+      }
       for (const candidate of [previousManifest, manifestPath]) {
-        if (!fs.existsSync(candidate)) continue;
+        if (!fs.existsSync(candidate)) continue
         try {
-          const prev = JSON.parse(fs.readFileSync(candidate, "utf8"));
-          if (Array.isArray(prev.capability)) capability = prev.capability;
-          if (prev.mediaTypes && typeof prev.mediaTypes === "object") mediaTypes = prev.mediaTypes;
-          break;
+          const prev = JSON.parse(fs.readFileSync(candidate, 'utf8'))
+          if (Array.isArray(prev.capability)) capability = prev.capability
+          if (prev.mediaTypes && typeof prev.mediaTypes === 'object') mediaTypes = prev.mediaTypes
+          break
         } catch {
           /* 默认值 */
         }
@@ -160,8 +152,8 @@ function manifestPlugin(): Plugin {
         JSON.stringify(
           {
             _comment: [
-              "Generated by frontend/vite.runtime.config.ts — do not hand-edit files list.",
-              "backend/src/modules/interaction3d/api.py get_resource reads this whitelist.",
+              'Generated by frontend/vite.runtime.config.ts — do not hand-edit files list.',
+              'backend/src/modules/interaction3d/api.py get_resource reads this whitelist.',
             ],
             capability,
             mediaTypes,
@@ -169,33 +161,33 @@ function manifestPlugin(): Plugin {
           },
           null,
           2,
-        ) + "\n",
-        "utf8",
-      );
+        ) + '\n',
+        'utf8',
+      )
       if (!isWatchBuild && outDir !== finalOutDir) {
-        const swapDir = `${finalOutDir}.prev`;
-        fs.rmSync(swapDir, { recursive: true, force: true });
-        if (fs.existsSync(finalOutDir)) fs.renameSync(finalOutDir, swapDir);
-        fs.renameSync(outDir, finalOutDir);
-        fs.rmSync(swapDir, { recursive: true, force: true });
+        const swapDir = `${finalOutDir}.prev`
+        fs.rmSync(swapDir, { recursive: true, force: true })
+        if (fs.existsSync(finalOutDir)) fs.renameSync(finalOutDir, swapDir)
+        fs.renameSync(outDir, finalOutDir)
+        fs.rmSync(swapDir, { recursive: true, force: true })
       }
     },
-  };
+  }
 }
 
-const entries = discoverRuntimeEntries();
+const entries = discoverRuntimeEntries()
 
 export default defineConfig({
   root: frontendRoot,
   // 独立子缓存目录：runtime 的 build/watch 与主应用 dev server 可能同时跑，分开避免抢占缓存。
   // 落在工作区根 node_modules/.vite，避免在 homeos/frontend 下再长出 node_modules。
-  cacheDir: path.join(path.resolve(frontendRoot, "../.."), "node_modules", ".vite", "homeos-runtime"),
+  cacheDir: path.join(path.resolve(frontendRoot, '../..'), 'node_modules', '.vite', 'homeos-runtime'),
   customLogger: quietLogger(),
   publicDir: false,
   resolve: {
     alias: {
-      "@app": path.join(studioRoot, "app"),
-      "@runtime": path.join(studioRoot, "runtime"),
+      '@app': path.join(studioRoot, 'app'),
+      '@runtime': path.join(studioRoot, 'runtime'),
       three: THREE_VENDOR,
     },
   },
@@ -220,29 +212,29 @@ export default defineConfig({
     rollupOptions: {
       input: entries,
       external: isRuntimeExternal,
-      preserveEntrySignatures: "strict",
+      preserveEntrySignatures: 'strict',
       output: {
-        format: "es",
-        entryFileNames: "[name].js",
+        format: 'es',
+        entryFileNames: '[name].js',
         chunkFileNames: (chunk) => `chunks/${uniqueChunkBaseName(chunk)}-[hash].js`,
-        assetFileNames: "[name][extname]",
-        paths: (id) => (id === "three" ? THREE_VENDOR : id),
+        assetFileNames: '[name][extname]',
+        paths: (id) => (id === 'three' ? THREE_VENDOR : id),
       },
     },
   },
   plugins: [
     {
-      name: "homeos-runtime-external",
+      name: 'homeos-runtime-external',
       buildStart() {
         // 每个构建重新计数，watch 重建时不会沿用上一轮的名字占用。
-        chunkNames.reset();
+        chunkNames.reset()
       },
       resolveId(id) {
-        if (id === "three") return { id: THREE_VENDOR, external: true };
-        if (isRuntimeExternal(id)) return { id, external: true };
-        return null;
+        if (id === 'three') return { id: THREE_VENDOR, external: true }
+        if (isRuntimeExternal(id)) return { id, external: true }
+        return null
       },
     },
     manifestPlugin(),
   ],
-});
+})

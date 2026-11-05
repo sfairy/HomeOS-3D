@@ -8,110 +8,126 @@
  * 这里按函数值注入，避免重复装配盒子网格缓存。
  */
 
-import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, canonicalPolygonKey as canonicalPolygonKey2, clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons, doorHingePlacement, doorInteriorSide, doorLeafRotation as doorLeafRotation2, pointInPolygon as pointInPolygon2, polygonArea as polygonArea2, validatedUnionPolygonLoops as validatedUnionPolygonLoops2, wallLengthMeters as wallLengthMeters2, wallSolidPieces as wallSolidPieces2 } from "../../plan/geometry";
-import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
-import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
-import { createWallTopMaterial, isWallTrialShaderEnabled } from "./studio-wall-top";
-import { createWallCapContext } from "./studio-wall-shell";
-import type { WallCapLoop } from "./studio-wall-shell";
-import { buildWallLevelLayers } from "./studio-wall-levels";
-import type { WallLevelContext, WallVolumeSlice } from "./studio-wall-levels";
-import { recordWallUnionFallback } from "../../plan/studio-wall-union";
-import { isWallPartVisible } from "./studio-wall-debug";
-import { createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder as prepareWallSideOrder2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
-import { WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from "../../materials/studio-wall-finish";
-import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
-import { finite as finite2 } from "../../loaders/studio-normalization";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import { validGeometryLoops as validGeometryLoops2 } from "../../cache/geometry-persistent-cache";
 import {
-  openingFrameDepth,
-  windowGeometryParts as windowGeometryParts2,
-} from "../../plan/studio-window-geometry";
-import { addCustomWindow } from "../../plan/window/model";
-import { isCustomWindow } from "../../plan/window/layout";
-import { windowModelId } from "../../plan/window/window-models";
-import { collectExhaustFanOpenings } from "../items/studio-exhaust-fan";
-export { createWallTopMaterial };
+  SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2,
+  canonicalPolygonKey as canonicalPolygonKey2,
+  clamp as clamp2,
+  clampWindowT as clampWindowT2,
+  closedWallFloorPolygons,
+  doorHingePlacement,
+  doorInteriorSide,
+  doorLeafRotation as doorLeafRotation2,
+  pointInPolygon as pointInPolygon2,
+  polygonArea as polygonArea2,
+  validatedUnionPolygonLoops as validatedUnionPolygonLoops2,
+  wallLengthMeters as wallLengthMeters2,
+  wallSolidPieces as wallSolidPieces2,
+} from '../../plan/geometry'
+import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from '../types/studio-app-types'
+import { buildWallSpanFootprint } from '../../plan/studio-wall-spans'
+import { createWallTopMaterial, isWallTrialShaderEnabled } from './studio-wall-top'
+import { createWallCapContext } from './studio-wall-shell'
+import type { WallCapLoop } from './studio-wall-shell'
+import { buildWallLevelLayers } from './studio-wall-levels'
+import type { WallLevelContext, WallVolumeSlice } from './studio-wall-levels'
+import { recordWallUnionFallback } from '../../plan/studio-wall-union'
+import { isWallPartVisible } from './studio-wall-debug'
+import {
+  createWallSideMaterial as createWallSideMaterial2,
+  prepareWallSideOrder as prepareWallSideOrder2,
+  setWallCornerDistances as setWallCornerDistances2,
+  setWallGradientHeight as setWallGradientHeight2,
+} from '../../materials/studio-wall-materials'
+import {
+  WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2,
+  wallEmissiveIntensity as wallEmissiveIntensity2,
+} from '../../materials/studio-wall-finish'
+import { doorMaterialPartRoleFor } from '../../materials/studio-model-material-roles'
+import { finite as finite2 } from '../../loaders/studio-normalization'
+import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
+import { validGeometryLoops as validGeometryLoops2 } from '../../cache/geometry-persistent-cache'
+import { openingFrameDepth, windowGeometryParts as windowGeometryParts2 } from '../../plan/studio-window-geometry'
+import { addCustomWindow } from '../../plan/window/model'
+import { isCustomWindow } from '../../plan/window/layout'
+import { windowModelId } from '../../plan/window/window-models'
+import { collectExhaustFanOpenings } from '../items/studio-exhaust-fan'
+export { createWallTopMaterial }
 
 /** 墙体构件族的外部状态（只读：本族不写入任何外部可变绑定）。 */
 export interface StudioWallsDeps {
-  activeFloorId: any;
-  addArchitectureMesh: any;
-  addWindowFrames: any;
-  backgroundSettings: any;
-  computeSurfaceExclusions: any;
-  createSelectionRef: any;
-  defaultWallRuntimeProfile: any;
-  doorPartDisplayColor: any;
-  doorPartMeshOptions: any;
-  doorPartThemeColor: any;
-  geometryCacheHandle: any;
-  isEmbedStageMode: any;
-  isEmbeddedStage: any;
-  lampsLayerIndex: any;
-  resolveDoorPartMaterials: any;
-  sceneRootNode: any;
-  sceneStyle: any;
-  studioState: any;
-  wallOpacityValue: any;
+  activeFloorId: any
+  addArchitectureMesh: any
+  addWindowFrames: any
+  backgroundSettings: any
+  computeSurfaceExclusions: any
+  createSelectionRef: any
+  defaultWallRuntimeProfile: any
+  doorPartDisplayColor: any
+  doorPartMeshOptions: any
+  doorPartThemeColor: any
+  geometryCacheHandle: any
+  isEmbedStageMode: any
+  isEmbeddedStage: any
+  lampsLayerIndex: any
+  resolveDoorPartMaterials: any
+  sceneRootNode: any
+  sceneStyle: any
+  studioState: any
+  wallOpacityValue: any
 }
 
-
-
-export function createOutlinePath(deps: StudioWallsDeps, outlineShapeConstructor: any, outlinePointList: any) {
-  const outlinePath = new outlineShapeConstructor();
+export function createOutlinePath(_deps: StudioWallsDeps, outlineShapeConstructor: any, outlinePointList: any) {
+  const outlinePath = new outlineShapeConstructor()
   return (
     outlinePointList.forEach((outlinePoint: any, outlinePointIndex: any) => {
       outlinePointIndex === 0
         ? outlinePath.moveTo(outlinePoint.x, outlinePoint.y)
-        : outlinePath.lineTo(outlinePoint.x, outlinePoint.y);
+        : outlinePath.lineTo(outlinePoint.x, outlinePoint.y)
     }),
     outlinePath.closePath(),
     outlinePath
-  );
+  )
 }
 
 export function buildShapesWithHoles(deps: StudioWallsDeps, polygonLoopList: any) {
   const outerLoopEntries: any[] = [],
-    holeLoopQueue: any[] = [];
+    holeLoopQueue: any[] = []
   for (const polygonLoop of polygonLoopList) {
-    const polygonLoopArea = polygonArea2(polygonLoop);
+    const polygonLoopArea = polygonArea2(polygonLoop)
     polygonLoopArea > 0
       ? outerLoopEntries.push({
           loop: polygonLoop,
           area: polygonLoopArea,
           holes: [] as any[],
         })
-      : polygonLoopArea < 0 && holeLoopQueue.push(polygonLoop);
+      : polygonLoopArea < 0 && holeLoopQueue.push(polygonLoop)
   }
   if (!outerLoopEntries.length)
     for (const reversedPolygonLoop of holeLoopQueue.splice(0)) {
-      const reverse = [...reversedPolygonLoop].reverse();
+      const reverse = [...reversedPolygonLoop].reverse()
       outerLoopEntries.push({
         loop: reverse,
         area: Math.abs(polygonArea2(reverse)),
         holes: [] as any[],
-      });
+      })
     }
   for (const pendingHoleLoop of holeLoopQueue) {
     const containingOuterEntry = outerLoopEntries
-      .filter((candidateOuterEntry) =>
-        pointInPolygon2(pendingHoleLoop[0], candidateOuterEntry.loop, 0.000001),
-      )
-      .sort((firstAreaEntry, secondAreaEntry) => firstAreaEntry.area - secondAreaEntry.area)[0];
-    containingOuterEntry && containingOuterEntry.holes.push(pendingHoleLoop);
+      .filter((candidateOuterEntry) => pointInPolygon2(pendingHoleLoop[0], candidateOuterEntry.loop, 0.000001))
+      .sort((firstAreaEntry, secondAreaEntry) => firstAreaEntry.area - secondAreaEntry.area)[0]
+    containingOuterEntry && containingOuterEntry.holes.push(pendingHoleLoop)
   }
   return outerLoopEntries.map((outerLoopEntry) => {
-    const gc2 = createOutlinePath(deps, ns2.Shape, outerLoopEntry.loop);
+    const gc2 = createOutlinePath(deps, ns2.Shape, outerLoopEntry.loop)
     for (const holeLoopShapeSource of outerLoopEntry.holes)
-      gc2.holes.push(createOutlinePath(deps, ns2.Path, holeLoopShapeSource));
-    return gc2;
-  });
+      gc2.holes.push(createOutlinePath(deps, ns2.Path, holeLoopShapeSource))
+    return gc2
+  })
 }
 
-export function createSceneWallSideMaterial(deps: StudioWallsDeps, 
+export function createSceneWallSideMaterial(
+  deps: StudioWallsDeps,
   wallSideColor: any,
   wallSideOpacity: any,
   wallSideOptions: WallSurfaceMaterialOptions = {},
@@ -136,43 +152,40 @@ export function createSceneWallSideMaterial(deps: StudioWallsDeps,
         transparent: !isWallSideOpaque,
         opacity: wallSideOpacity,
         depthWrite: wallSideOptions.depthWrite ?? isWallSideOpaque,
-        depthFunc:
-          wallSideOptions.depthFunc ?? (isWallSideOpaque ? ns2.LessEqualDepth : ns2.LessDepth),
+        depthFunc: wallSideOptions.depthFunc ?? (isWallSideOpaque ? ns2.LessEqualDepth : ns2.LessDepth),
         polygonOffset: wallSideOptions.polygonOffset === true,
         polygonOffsetFactor: wallSideOptions.polygonOffsetFactor ?? -2,
         polygonOffsetUnits: wallSideOptions.polygonOffsetUnits ?? -4,
         side: ns2.DoubleSide,
         emissive: wallSideOptions.emissive ?? wallSideColor,
 
-
         emissiveIntensity: wallSideOptions.emissiveIntensity ?? wallEmissiveIntensity2(warmWood),
       },
       wallSideOptions.polygonOffset !== true,
-      deps.isEmbedStageMode && typeof window < "u"
-        ? (new URLSearchParams(window.location.search).get("wall-trial") ??
-            deps.defaultWallRuntimeProfile)
-        : "",
+      deps.isEmbedStageMode && typeof window < 'u'
+        ? (new URLSearchParams(window.location.search).get('wall-trial') ?? deps.defaultWallRuntimeProfile)
+        : '',
       warmWood,
-    );
-  return ((wallSideMaterial.userData.alphaWallBand = We2), wallSideMaterial);
+    )
+  return ((wallSideMaterial.userData.alphaWallBand = We2), wallSideMaterial)
 }
 
-function createHiddenBasicMaterial(deps: StudioWallsDeps) {
-  const hiddenBasicMaterial = new ns2.MeshBasicMaterial();
-  return ((hiddenBasicMaterial.visible = false), hiddenBasicMaterial);
+function createHiddenBasicMaterial(_deps: StudioWallsDeps) {
+  const hiddenBasicMaterial = new ns2.MeshBasicMaterial()
+  return ((hiddenBasicMaterial.visible = false), hiddenBasicMaterial)
 }
 
 /** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
 function cachedWallUnionLoops(deps: StudioWallsDeps, wallLoopList: any) {
   const computeUnionLoops = () => {
-    const unifiedLoops = validatedUnionPolygonLoops2(wallLoopList, 1e-7);
+    const unifiedLoops = validatedUnionPolygonLoops2(wallLoopList, 1e-7)
     // 并集失败（输入有歧义/自交）时不再把重叠环原样丢给挤出：那会让重叠段各自
     // 画一层双面半透明壳，叠出亮边。改成保守回退并计数（见 studio-wall-shell）。
-    return unifiedLoops.length ? unifiedLoops : recordWallUnionFallback(wallLoopList);
-  };
+    return unifiedLoops.length ? unifiedLoops : recordWallUnionFallback(wallLoopList)
+  }
   return deps.geometryCacheHandle
-    ? deps.geometryCacheHandle.value("wall-union", wallLoopList, computeUnionLoops, validGeometryLoops2)
-    : computeUnionLoops();
+    ? deps.geometryCacheHandle.value('wall-union', wallLoopList, computeUnionLoops, validGeometryLoops2)
+    : computeUnionLoops()
 }
 
 /**
@@ -189,16 +202,16 @@ function resolveWallBandRenderOptions(
 ) {
   // 竖向渐变的归一化基准用**这段墙自己的高度**：以前一律读全局 `wallHeight`，
   // 层高 2.9 的户型里画一面 2.4 米的矮墙，墙根渐变只走到 0.83，整面墙偏亮一档。
-  const heightSpan =
-      Math.max(Number(wallBandOptions.heightSpan) || 0, 0) || deps.studioState.settings.wallHeight,
+  const heightSpan = Math.max(Number(wallBandOptions.heightSpan) || 0, 0) || deps.studioState.settings.wallHeight,
     options =
       !unionValid && wallBandOpacity < 0.999 && wallBandOptions.depthWrite === undefined
         ? { ...wallBandOptions, depthWrite: true, depthFunc: ns2.LessDepth }
-        : wallBandOptions;
-  return { heightSpan, options };
+        : wallBandOptions
+  return { heightSpan, options }
 }
 
-function buildWallBandMesh(deps: StudioWallsDeps, 
+function buildWallBandMesh(
+  deps: StudioWallsDeps,
   wallBandLoopList: any,
   wallBandBaseHeight: any,
   wallBandTopHeight: any,
@@ -206,12 +219,8 @@ function buildWallBandMesh(deps: StudioWallsDeps,
   wallBandOpacity: any,
   wallBandOptions: WallBandOptions = {},
 ) {
-  if (
-    !wallBandLoopList.length ||
-    wallBandTopHeight - wallBandBaseHeight <= 0.000001 ||
-    !isWallPartVisible("side")
-  )
-    return;
+  if (!wallBandLoopList.length || wallBandTopHeight - wallBandBaseHeight <= 0.000001 || !isWallPartVisible('side'))
+    return
   const validatedWallBandLoops = cachedWallUnionLoops(deps, wallBandLoopList),
     hasValidWallBandLoops = validatedWallBandLoops.length > 0,
     ms2 = buildShapesWithHoles(deps, hasValidWallBandLoops ? validatedWallBandLoops : wallBandLoopList),
@@ -220,7 +229,7 @@ function buildWallBandMesh(deps: StudioWallsDeps,
       wallBandOptions,
       wallBandOpacity,
       hasValidWallBandLoops,
-    );
+    )
   for (const wallBandShape of ms2) {
     // 转角压暗原先只给专用墙面着色器算：物理材质这条路只有墙根渐变，长墙从上到下一条
     // 亮度带、转角没有暗边，整圈墙像折纸板。`polygonOffset`（装饰墙带）排除，避免叠加两次。
@@ -232,36 +241,31 @@ function buildWallBandMesh(deps: StudioWallsDeps,
           bevelEnabled: false,
           steps: 1,
           curveSegments: 1,
-        });
+        })
         return (
-          setWallGradientHeight2(ns2, extrudedGeometry, "z", wallBandTopHeight, -1, wallBandHeightSpan),
+          setWallGradientHeight2(ns2, extrudedGeometry, 'z', wallBandTopHeight, -1, wallBandHeightSpan),
           usesCornerDistance &&
-            setWallCornerDistances2(ns2, extrudedGeometry, [
-              extractPoints.shape,
-              ...extractPoints.holes,
-            ]),
+            setWallCornerDistances2(ns2, extrudedGeometry, [extractPoints.shape, ...extractPoints.holes]),
           extrudedGeometry
-        );
+        )
       },
       wallBandGeometry = deps.geometryCacheHandle
-        ? deps.geometryCacheHandle.geometry(ns2, "wall-band", [
-            extractPoints,
-            wallBandBaseHeight,
-            wallBandTopHeight,
-            wallBandHeightSpan,
-            usesCornerDistance,
-          ], buildWallBandGeometry)
-        : buildWallBandGeometry();
+        ? deps.geometryCacheHandle.geometry(
+            ns2,
+            'wall-band',
+            [extractPoints, wallBandBaseHeight, wallBandTopHeight, wallBandHeightSpan, usesCornerDistance],
+            buildWallBandGeometry,
+          )
+        : buildWallBandGeometry()
     const hiddenWallBandMaterial = createHiddenBasicMaterial(deps),
       hg3 = createSceneWallSideMaterial(deps, wallBandColor, wallBandOpacity, resolvedWallBandOptions),
-      wallBandMesh = new ns2.Mesh(wallBandGeometry, [hiddenWallBandMaterial, hg3]);
-    ((wallBandMesh.userData.hbMergeWallBand =
+      wallBandMesh = new ns2.Mesh(wallBandGeometry, [hiddenWallBandMaterial, hg3])
+    ;(wallBandMesh.userData.hbMergeWallBand =
       wallBandOptions.polygonOffset !== true && (wallBandOptions.renderOrder ?? 4) === 4),
-      (wallBandMesh.userData.reflectionRole = "wall"),
+      (wallBandMesh.userData.reflectionRole = 'wall'),
       (wallBandMesh.rotation.x = Math.PI / 2),
-      (wallBandMesh.position.y = wallBandTopHeight));
-    const isWallBandOpaque = wallBandOpacity >= 0.999;
-    ((wallBandMesh.castShadow = wallBandOptions.castShadow === true),
+      (wallBandMesh.position.y = wallBandTopHeight)
+    ;(wallBandMesh.castShadow = wallBandOptions.castShadow === true),
       wallBandOptions.lightOccluder && wallBandMesh.layers.set(deps.lampsLayerIndex),
       // 墙面必须吃阴影：现实里白天的窗光、家具影、人的影子都会落在墙上，夜晚吊灯的
       // 光被柜体挡住的那一块也靠这张阴影图。原先只在「墙不透明」时才开（默认 0.36
@@ -273,7 +277,7 @@ function buildWallBandMesh(deps: StudioWallsDeps,
       // 近侧墙被远侧墙抢先画，整面墙糊成一层雾。函数内部已有「相机侧写没变就返回」
       // 的短路，舞台只是多一次矩阵比较，不会每帧上传索引。
       prepareWallSideOrder2(ns2, wallBandMesh),
-      deps.sceneRootNode.add(wallBandMesh));
+      deps.sceneRootNode.add(wallBandMesh)
   }
 }
 
@@ -283,18 +287,18 @@ function createWallCapBuilder(deps: StudioWallsDeps) {
     deps,
     (capLoops: WallCapLoop[][]) => {
       const validatedLoops = cachedWallUnionLoops(deps, capLoops),
-        usesUnionLoops = validatedLoops.length > 0;
+        usesUnionLoops = validatedLoops.length > 0
       return {
         shapes: buildShapesWithHoles(deps, usesUnionLoops ? validatedLoops : capLoops),
         unionValid: usesUnionLoops,
-      };
+      }
     },
     (capColor: number, capOpacity: number, capOptions: WallTopSurfaceOptions) =>
       createWallTopMaterial(deps, capColor, capOpacity, capOptions),
-  );
+  )
 }
 
-export function expandPolygonOutward(deps: StudioWallsDeps, polygonPointList: any, outwardOffset: any) {
+export function expandPolygonOutward(_deps: StudioWallsDeps, polygonPointList: any, outwardOffset: any) {
   const reduce = polygonPointList.reduce(
     (accumulatedPoint: any, offsetPointEntry: any) => ({
       x: accumulatedPoint.x + offsetPointEntry.x / polygonPointList.length,
@@ -304,39 +308,36 @@ export function expandPolygonOutward(deps: StudioWallsDeps, polygonPointList: an
       x: 0,
       y: 0,
     },
-  );
+  )
   return polygonPointList.map((polygonPoint: any) => {
     const pointDeltaX = polygonPoint.x - reduce.x,
       pointDeltaY = polygonPoint.y - reduce.y,
-      pointDistance = Math.max(Math.hypot(pointDeltaX, pointDeltaY), 0.000001);
+      pointDistance = Math.max(Math.hypot(pointDeltaX, pointDeltaY), 0.000001)
     return {
       x: polygonPoint.x + (pointDeltaX / pointDistance) * outwardOffset,
       y: polygonPoint.y + (pointDeltaY / pointDistance) * outwardOffset,
-    };
-  });
+    }
+  })
 }
 
 function createWallContactShadowMesh(deps: StudioWallsDeps, wallPolygonList: any, contactShadowHeight: any) {
-  if (!wallPolygonList.length || isWallTrialShaderEnabled(deps)) return;
+  if (!wallPolygonList.length || isWallTrialShaderEnabled(deps)) return
   const wallShapes = wallPolygonList.map((wallPolygon: any) => {
       const xu3 = expandPolygonOutward(deps, wallPolygon, 0.028),
-        reverse2 = polygonArea2(xu3) >= 0 ? xu3 : [...xu3].reverse();
-      return createOutlinePath(deps, ns2.Shape, reverse2);
+        reverse2 = polygonArea2(xu3) >= 0 ? xu3 : [...xu3].reverse()
+      return createOutlinePath(deps, ns2.Shape, reverse2)
     }),
     wallShapeGeometries = wallShapes.map((wallShape: any) => {
-      const wallShapeGeometry = new ns2.ShapeGeometry(wallShape, 1);
+      const wallShapeGeometry = new ns2.ShapeGeometry(wallShape, 1)
       return (
         wallShapeGeometry.rotateX(Math.PI / 2),
         wallShapeGeometry.translate(0, contactShadowHeight, 0),
         wallShapeGeometry
-      );
+      )
     }),
-    mergedContactGeometry = mergeGeometries2(wallShapeGeometries);
-  if (
-    (wallShapeGeometries.forEach((disposableGeometry: any) => disposableGeometry.dispose()),
-    !mergedContactGeometry)
-  )
-    return;
+    mergedContactGeometry = mergeGeometries2(wallShapeGeometries)
+  if ((wallShapeGeometries.forEach((disposableGeometry: any) => disposableGeometry.dispose()), !mergedContactGeometry))
+    return
   const wallContactShadowMesh = new ns2.Mesh(
     mergedContactGeometry,
     new ns2.MeshBasicMaterial({
@@ -350,27 +351,27 @@ function createWallContactShadowMesh(deps: StudioWallsDeps, wallPolygonList: any
       toneMapped: false,
       side: ns2.DoubleSide,
     }),
-  );
-  ((wallContactShadowMesh.renderOrder = 1),
+  )
+  ;(wallContactShadowMesh.renderOrder = 1),
     (wallContactShadowMesh.userData.batchedWallContactShadowCount = wallShapes.length),
-    (wallContactShadowMesh.userData.exportRole = "background"),
-    (wallContactShadowMesh.visible = deps.sceneStyle !== "warm-wood"),
-    deps.sceneRootNode.add(wallContactShadowMesh));
+    (wallContactShadowMesh.userData.exportRole = 'background'),
+    (wallContactShadowMesh.visible = deps.sceneStyle !== 'warm-wood'),
+    deps.sceneRootNode.add(wallContactShadowMesh)
 }
 
-
-export function buildInteriorScene(deps: StudioWallsDeps, {
-  ppm: interiorPixelsPerMeter,
-  toWorld: interiorToWorld,
-  floorSurfaceY: interiorFloorSurfaceY,
-  floorPolygons: interiorFloorPolygons,
-}: any) {
+export function buildInteriorScene(
+  deps: StudioWallsDeps,
+  {
+    ppm: interiorPixelsPerMeter,
+    toWorld: interiorToWorld,
+    floorSurfaceY: interiorFloorSurfaceY,
+    floorPolygons: interiorFloorPolygons,
+  }: any,
+) {
   const yt6 = deps.backgroundSettings(),
-    oe4 = typeof deps.activeFloorId == "string" ? deps.activeFloorId : "",
+    oe4 = typeof deps.activeFloorId == 'string' ? deps.activeFloorId : '',
     buildInteriorSceneIsEmbeddedStage =
-      typeof window < "u" &&
-      window.location.pathname ===
-        "/api/v1/modules/interaction3d/stage.html",
+      typeof window < 'u' && window.location.pathname === '/api/v1/modules/interaction3d/stage.html',
     /**
      * 门扇朝哪边开要用「屋里在哪侧」来判断（0.8.1 `doorInteriorSide`）：
      * 拿 `createFloorWorldMapper` 已经算好的楼层多边形，没有就按墙自己闭合一遍。
@@ -380,19 +381,19 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
       ? (interiorFloorPolygons ?? closedWallFloorPolygons(deps.studioState.walls, 1))
       : [],
     resolveDoorMaterialType = (rawDoorType: any) =>
-      rawDoorType === "entry" || rawDoorType === "entry-child-mother"
-        ? "entry"
-        : rawDoorType === "solid"
-          ? "wood"
-          : rawDoorType === "double"
-            ? "double"
-            : rawDoorType === "glass"
-              ? "glass"
-              : rawDoorType === "sliding-glass"
-                ? "sliding"
-                : rawDoorType === "roller-shutter"
-                  ? "roller"
-                  : "static",
+      rawDoorType === 'entry' || rawDoorType === 'entry-child-mother'
+        ? 'entry'
+        : rawDoorType === 'solid'
+          ? 'wood'
+          : rawDoorType === 'double'
+            ? 'double'
+            : rawDoorType === 'glass'
+              ? 'glass'
+              : rawDoorType === 'sliding-glass'
+                ? 'sliding'
+                : rawDoorType === 'roller-shutter'
+                  ? 'roller'
+                  : 'static',
     existingChildSet = new Set(deps.sceneRootNode.children),
     floorOpenings = [
       ...deps.studioState.windows,
@@ -403,12 +404,12 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
       ...deps.studioState.railings.map((railingEntry: any) => {
         const railingWall = deps.studioState.walls.find(
           (candidateWall: any) => candidateWall.id === railingEntry.wallId,
-        );
+        )
         return {
           ...railingEntry,
           sill: 0,
           height: railingWall?.height || deps.studioState.settings.wallHeight,
-        };
+        }
       }),
       /** 排气扇是场景条目而非洞口集合，洞口由自身位置 + 墙体反推（84% 真洞）。 */
       ...collectExhaustFanOpenings(
@@ -420,13 +421,13 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
     ],
     wallVolumes: WallVolumeSlice[] = [],
     wallVolumeKeySet = new Set(),
-    iy2 = deps.computeSurfaceExclusions(interiorPixelsPerMeter);
+    iy2 = deps.computeSurfaceExclusions(interiorPixelsPerMeter)
   for (const currentWall of deps.studioState.walls) {
     const wallOpacity =
       deps.wallOpacityValue ??
       (currentWall.opacity === null || currentWall.opacity === undefined
         ? deps.studioState.settings.wallOpacity
-        : clamp2(finite2(currentWall.opacity, deps.studioState.settings.wallOpacity), 0, 1));
+        : clamp2(finite2(currentWall.opacity, deps.studioState.settings.wallOpacity), 0, 1))
     for (const wallSolidPiece of wallSolidPieces2(
       currentWall,
       floorOpenings,
@@ -439,8 +440,8 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         interiorPixelsPerMeter,
         interiorToWorld,
         iy2[currentWall.id],
-      );
-      if (!jv2) continue;
+      )
+      if (!jv2) continue
       const join5 = [
         // 去重键必须带墙 id：以前只有「足迹 + 高度 + 不透明度」，两段共线的独立墙
         // （比如八字墙的两个翼）会被判成同一块体，后一段直接丢掉。
@@ -449,7 +450,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         wallSolidPiece.bottom.toFixed(5),
         wallSolidPiece.top.toFixed(5),
         wallOpacity.toFixed(4),
-      ].join("|");
+      ].join('|')
       wallVolumeKeySet.has(join5) ||
         (wallVolumeKeySet.add(join5),
         wallVolumes.push({
@@ -459,7 +460,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           top: wallSolidPiece.top,
           opacity: wallOpacity,
           wallHeight: currentWall.height,
-        }));
+        }))
     }
   }
   const sort5 = [
@@ -470,13 +471,14 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
     ),
   ]
     .map(Number)
-    .sort((firstWallLevel, secondWallLevel) => firstWallLevel - secondWallLevel);
+    .sort((firstWallLevel, secondWallLevel) => firstWallLevel - secondWallLevel)
   createWallContactShadowMesh(
-    deps, wallVolumes
+    deps,
+    wallVolumes
       .filter((bottomWallVolume) => bottomWallVolume.bottom <= 0.000001)
       .map((lowWallVolume) => lowWallVolume.footprint),
     interiorFloorSurfaceY + 0.0025,
-  );
+  )
   /**
    * 按高度层画墙：每层一次性交给 `buildWallLevelLayers`（墙带 / 顶盖 / 过梁底面 /
    * 选中高亮层都在那边）。这里只负责「层从哪来、层间顺序」。
@@ -488,19 +490,20 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
     tint: yt6,
     wallVolumes,
     floorSurfaceY: interiorFloorSurfaceY,
-  };
-  sort5.slice(0, -1).forEach((lowerWallLevel, wallLevelIndex) =>
-    buildWallLevelLayers(wallLevelContext, lowerWallLevel, sort5[wallLevelIndex + 1]),
-  );
+  }
+  sort5
+    .slice(0, -1)
+    .forEach((lowerWallLevel, wallLevelIndex) =>
+      buildWallLevelLayers(wallLevelContext, lowerWallLevel, sort5[wallLevelIndex + 1]),
+    )
   for (const openingWall of deps.studioState.walls) {
     const openingWallDeltaX = openingWall.end.x - openingWall.start.x,
       openingWallDeltaZ = openingWall.end.y - openingWall.start.y,
-      hypot7 = Math.hypot(openingWallDeltaX, openingWallDeltaZ);
-    if (!hypot7) continue;
-    const openingWallAngle = -Math.atan2(openingWallDeltaZ, openingWallDeltaX);
+      hypot7 = Math.hypot(openingWallDeltaX, openingWallDeltaZ)
+    if (!hypot7) continue
+    const openingWallAngle = -Math.atan2(openingWallDeltaZ, openingWallDeltaX)
     for (const currentWindow of deps.studioState.windows.filter(
-      (buildInteriorSceneWindowCandidate: any) =>
-        buildInteriorSceneWindowCandidate.wallId === openingWall.id,
+      (buildInteriorSceneWindowCandidate: any) => buildInteriorSceneWindowCandidate.wallId === openingWall.id,
     )) {
       const windowPositionT = clampWindowT2(openingWall, currentWindow, interiorPixelsPerMeter),
         windowCenterPlanPoint = {
@@ -508,21 +511,17 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           y: openingWall.start.y + openingWallDeltaZ * windowPositionT,
         },
         windowWorldPoint = interiorToWorld(windowCenterPlanPoint),
-        windowGroup = new ns2.Group();
-      (windowGroup.position.set(windowWorldPoint.x, 0, windowWorldPoint.z),
-        (windowGroup.rotation.y = openingWallAngle));
-      const windowWidth = Math.min(
-          currentWindow.width,
-          wallLengthMeters2(openingWall, interiorPixelsPerMeter),
-        ),
+        windowGroup = new ns2.Group()
+      windowGroup.position.set(windowWorldPoint.x, 0, windowWorldPoint.z), (windowGroup.rotation.y = openingWallAngle)
+      const windowWidth = Math.min(currentWindow.width, wallLengthMeters2(openingWall, interiorPixelsPerMeter)),
         windowSillHeight = clamp2(currentWindow.sill, 0, openingWall.height),
-        windowHeight = Math.min(currentWindow.height, openingWall.height - windowSillHeight);
+        windowHeight = Math.min(currentWindow.height, openingWall.height - windowSillHeight)
       if (isCustomWindow(currentWindow)) {
         // 自定义窗型：走向由设计里的 wallDirection 决定，朝内开就要把整组掉个头。
-        if (currentWindow.windowDesign?.wallDirection === -1) windowGroup.rotation.y += Math.PI;
-        const customWindowAccent = deps.createSelectionRef("window", currentWindow.id)
+        if (currentWindow.windowDesign?.wallDirection === -1) windowGroup.rotation.y += Math.PI
+        const customWindowAccent = deps.createSelectionRef('window', currentWindow.id)
           ? yt6.accent
-          : (yt6.windowFrame ?? yt6.furniture);
+          : (yt6.windowFrame ?? yt6.furniture)
         try {
           addCustomWindow({
             group: windowGroup,
@@ -537,19 +536,19 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             frameDepth: openingFrameDepth(openingWall.thickness),
             // 运行态要能开合；编辑器里保持静态，减少 draw call 也避免误触。
             animated: buildInteriorSceneIsEmbeddedStage,
-          });
+          })
         } catch (customWindowError) {
           // 设计不合法时整层楼不能跟着消失：退回普通窗，让用户还能选中重画。
-          console.warn("[studio] 自定义窗型构建失败，回退普通窗", currentWindow.id, customWindowError);
-          windowGroup.clear();
+          console.warn('[studio] 自定义窗型构建失败，回退普通窗', currentWindow.id, customWindowError)
+          windowGroup.clear()
           const fallbackParts = windowGeometryParts2(
             windowWidth,
             windowHeight,
             windowSillHeight,
             currentWindow.hasDivider !== false,
             openingWall.thickness,
-          );
-          if (!fallbackParts) continue;
+          )
+          if (!fallbackParts) continue
           deps.addArchitectureMesh(windowGroup, fallbackParts.glass, yt6.glass, {
             rounded: false,
             transparent: true,
@@ -560,13 +559,13 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             metalness: 0.04,
             castShadow: false,
             renderOrder: 6,
-          });
+          })
           deps.addArchitectureMesh(windowGroup, fallbackParts.frames, customWindowAccent, {
             rounded: false,
             metalness: 0.15,
             castShadow: false,
             receiveShadow: false,
-          });
+          })
         }
         if (buildInteriorSceneIsEmbeddedStage) {
           // 运行期按窗扇绑定选中：每个可动件都要能被 `window:<id>:<sash>` 找到。
@@ -574,32 +573,32 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             width: windowWidth,
             height: windowHeight,
             sill: windowSillHeight,
-          };
+          }
           windowGroup.traverse((windowNode: any) => {
-            if (!windowNode.userData.windowSashId) return;
-            const sashId = windowNode.userData.windowSashId;
-            const groupId = windowNode.userData.windowGroupId;
+            if (!windowNode.userData.windowSashId) return
+            const sashId = windowNode.userData.windowSashId
+            const groupId = windowNode.userData.windowGroupId
             Object.assign(windowNode.userData, {
               environmentModelId: windowModelId(currentWindow.id, groupId || sashId),
-              windowLegacyModelId: groupId ? windowModelId(currentWindow.id, sashId) : "",
+              windowLegacyModelId: groupId ? windowModelId(currentWindow.id, sashId) : '',
               environmentFloorId: oe4,
-              environmentModelType: "window",
+              environmentModelType: 'window',
               editorModelId: windowModelId(currentWindow.id, groupId || sashId),
               editorFloorId: oe4,
-            });
-          });
+            })
+          })
         }
-        deps.sceneRootNode.add(windowGroup);
-        continue;
+        deps.sceneRootNode.add(windowGroup)
+        continue
       }
       const windowParts = windowGeometryParts2(
-          windowWidth,
-          windowHeight,
-          windowSillHeight,
-          currentWindow.hasDivider !== false,
-          openingWall.thickness,
-        );
-      if (!windowParts) continue;
+        windowWidth,
+        windowHeight,
+        windowSillHeight,
+        currentWindow.hasDivider !== false,
+        openingWall.thickness,
+      )
+      if (!windowParts) continue
       deps.addArchitectureMesh(windowGroup, windowParts.glass, yt6.glass, {
         rounded: false,
         transparent: true,
@@ -610,26 +609,25 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         metalness: 0.04,
         castShadow: false,
         renderOrder: 6,
-      });
-      const accent = deps.createSelectionRef("window", currentWindow.id)
+      })
+      const accent = deps.createSelectionRef('window', currentWindow.id)
         ? yt6.accent
-        : (yt6.windowFrame ?? yt6.furniture);
-      (deps.addArchitectureMesh(windowGroup, windowParts.frames, accent, {
+        : (yt6.windowFrame ?? yt6.furniture)
+      deps.addArchitectureMesh(windowGroup, windowParts.frames, accent, {
         rounded: false,
         metalness: 0.15,
         castShadow: false,
         receiveShadow: false,
       }),
         (windowGroup.userData.optimizationStats = {
-          type: windowParts.divided ? "window-divided" : "window-plain",
+          type: windowParts.divided ? 'window-divided' : 'window-plain',
           before: windowParts.divided ? 6 : 5,
           after: 2,
         }),
-        deps.sceneRootNode.add(windowGroup));
+        deps.sceneRootNode.add(windowGroup)
     }
     for (const currentRailing of deps.studioState.railings.filter(
-      (buildInteriorSceneRailingCandidate: any) =>
-        buildInteriorSceneRailingCandidate.wallId === openingWall.id,
+      (buildInteriorSceneRailingCandidate: any) => buildInteriorSceneRailingCandidate.wallId === openingWall.id,
     )) {
       const railingPositionT = clampWindowT2(openingWall, currentRailing, interiorPixelsPerMeter),
         railingCenterPlanPoint = {
@@ -637,21 +635,15 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           y: openingWall.start.y + openingWallDeltaZ * railingPositionT,
         },
         railingWorldPoint = interiorToWorld(railingCenterPlanPoint),
-        railingGroup = new ns2.Group();
-      (railingGroup.position.set(railingWorldPoint.x, 0, railingWorldPoint.z),
-        (railingGroup.rotation.y = openingWallAngle));
-      const railingWidth = Math.min(
-          currentRailing.width,
-          wallLengthMeters2(openingWall, interiorPixelsPerMeter),
-        ),
+        railingGroup = new ns2.Group()
+      railingGroup.position.set(railingWorldPoint.x, 0, railingWorldPoint.z),
+        (railingGroup.rotation.y = openingWallAngle)
+      const railingWidth = Math.min(currentRailing.width, wallLengthMeters2(openingWall, interiorPixelsPerMeter)),
         railingHeight = Math.min(currentRailing.height, openingWall.height),
-        accent2 = deps.createSelectionRef("railing", currentRailing.id) ? yt6.accent : yt6.frame,
+        accent2 = deps.createSelectionRef('railing', currentRailing.id) ? yt6.accent : yt6.frame,
         railingPostThickness = Math.min(Math.max(railingWidth * 0.012, 0.028), 0.05),
         railingRailInset = 0.08,
-        railingClearHeight = Math.max(
-          railingHeight - railingRailInset - railingPostThickness * 1.4,
-          0.2,
-        );
+        railingClearHeight = Math.max(railingHeight - railingRailInset - railingPostThickness * 1.4, 0.2)
       deps.addArchitectureMesh(
         railingGroup,
         [
@@ -677,7 +669,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           receiveShadow: false,
           renderOrder: 6,
         },
-      );
+      )
       const railingMaterialOptions = {
           rounded: false,
           metalness: 0.58,
@@ -687,18 +679,10 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         },
         railingPostCount = Math.max(2, Math.min(16, Math.ceil(railingWidth / 1.5) + 1)),
         railingPostSpans = [[railingWidth, railingPostThickness, 0.055, 0, railingHeight, 0]],
-        railingRailSpans: any[] = [];
+        railingRailSpans: any[] = []
       for (let railingPostIndex = 0; railingPostIndex < railingPostCount; railingPostIndex += 1) {
-        const railingPostX =
-          -railingWidth / 2 + (railingWidth * railingPostIndex) / (railingPostCount - 1);
-        (railingPostSpans.push([
-          railingPostThickness,
-          railingHeight,
-          0.055,
-          railingPostX,
-          railingHeight * 0.5,
-          0,
-        ]),
+        const railingPostX = -railingWidth / 2 + (railingWidth * railingPostIndex) / (railingPostCount - 1)
+        railingPostSpans.push([railingPostThickness, railingHeight, 0.055, railingPostX, railingHeight * 0.5, 0]),
           railingRailSpans.push([
             railingPostThickness * 2,
             railingPostThickness * 0.8,
@@ -706,25 +690,19 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             railingPostX,
             railingPostThickness * 0.4,
             0,
-          ]));
+          ])
       }
-      (deps.addArchitectureMesh(railingGroup, railingPostSpans, accent2, railingMaterialOptions),
-        deps.addArchitectureMesh(
-          railingGroup,
-          railingRailSpans,
-          yt6.furnitureSoft,
-          railingMaterialOptions,
-        ),
+      deps.addArchitectureMesh(railingGroup, railingPostSpans, accent2, railingMaterialOptions),
+        deps.addArchitectureMesh(railingGroup, railingRailSpans, yt6.furnitureSoft, railingMaterialOptions),
         (railingGroup.userData.optimizationStats = {
-          type: "glass-railing",
+          type: 'glass-railing',
           before: 2 + railingPostCount * 2,
           after: 3,
         }),
-        deps.sceneRootNode.add(railingGroup));
+        deps.sceneRootNode.add(railingGroup)
     }
     for (const currentDoor of deps.studioState.doors.filter(
-      (buildInteriorSceneDoorCandidate: any) =>
-        buildInteriorSceneDoorCandidate.wallId === openingWall.id,
+      (buildInteriorSceneDoorCandidate: any) => buildInteriorSceneDoorCandidate.wallId === openingWall.id,
     )) {
       const doorPositionT = clampWindowT2(openingWall, currentDoor, interiorPixelsPerMeter),
         doorCenterPlanPoint = {
@@ -732,58 +710,40 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           y: openingWall.start.y + openingWallDeltaZ * doorPositionT,
         },
         doorWorldPoint = interiorToWorld(doorCenterPlanPoint),
-        doorGroup = new ns2.Group();
-      (buildInteriorSceneIsEmbeddedStage &&
+        doorGroup = new ns2.Group()
+      buildInteriorSceneIsEmbeddedStage &&
         Object.assign(doorGroup.userData, {
-          editorModelId: "door:" + currentDoor.id,
+          editorModelId: 'door:' + currentDoor.id,
           editorFloorId: oe4,
         }),
         doorGroup.position.set(doorWorldPoint.x, 0, doorWorldPoint.z),
         (doorGroup.rotation.y = openingWallAngle),
         buildInteriorSceneIsEmbeddedStage &&
-          ((doorGroup.userData.environmentModelId = "door:" + currentDoor.id),
+          ((doorGroup.userData.environmentModelId = 'door:' + currentDoor.id),
           (doorGroup.userData.environmentFloorId = oe4),
-          (doorGroup.userData.environmentModelType = "door"),
-          (doorGroup.userData.doorAnimationType = resolveDoorMaterialType(
-            currentDoor.doorType || "solid",
-          ))));
+          (doorGroup.userData.environmentModelType = 'door'),
+          (doorGroup.userData.doorAnimationType = resolveDoorMaterialType(currentDoor.doorType || 'solid')))
       const buildInteriorSceneDoorWidth = Math.min(
           currentDoor.width,
           wallLengthMeters2(openingWall, interiorPixelsPerMeter),
         ),
-        buildInteriorSceneDoorHeight = Math.min(currentDoor.height, openingWall.height);
+        buildInteriorSceneDoorHeight = Math.min(currentDoor.height, openingWall.height)
       buildInteriorSceneIsEmbeddedStage &&
-        Object.assign(
-          doorGroup.userData,
-          doorHingePlacement(currentDoor, buildInteriorSceneDoorWidth),
-          {
-            doorInteriorSide: doorInteriorSide(
-              openingWall,
-              currentDoor,
-              doorFloorPolygons,
-              interiorPixelsPerMeter,
-            ),
-          },
-        );
-      const ne8 = deps.createSelectionRef("door", currentDoor.id),
-        doorType = currentDoor.doorType || "solid",
-        isSolidDoorLeaf = doorType === "solid" || doorType === "frame-only",
-
-
+        Object.assign(doorGroup.userData, doorHingePlacement(currentDoor, buildInteriorSceneDoorWidth), {
+          doorInteriorSide: doorInteriorSide(openingWall, currentDoor, doorFloorPolygons, interiorPixelsPerMeter),
+        })
+      const ne8 = deps.createSelectionRef('door', currentDoor.id),
+        doorType = currentDoor.doorType || 'solid',
+        isSolidDoorLeaf = doorType === 'solid' || doorType === 'frame-only',
         doorParts = deps.resolveDoorPartMaterials(currentDoor, yt6),
-
-
         doorPartForRole = (roleName: any) => doorParts[doorMaterialPartRoleFor(doorType, roleName)],
         doorPartColor = (roleName: any) => deps.doorPartDisplayColor(doorPartForRole(roleName), ne8, yt6),
         doorPartOptions = (roleName: any, baseOptions: any) =>
           deps.doorPartMeshOptions(doorPartForRole(roleName), baseOptions),
-
-        doorGlassColor = doorParts.glass?.colorValue ?? deps.doorPartThemeColor(doorType, "glass", yt6),
+        doorGlassColor = doorParts.glass?.colorValue ?? deps.doorPartThemeColor(doorType, 'glass', yt6),
         doorLeafMaterialOptions = yt6.warmWood
           ? {
-
-
-              emissive: doorPartForRole("door")?.colorValue ?? yt6.doorLeaf,
+              emissive: doorPartForRole('door')?.colorValue ?? yt6.doorLeaf,
               emissiveIntensity: 0.4,
             }
           : {},
@@ -825,9 +785,9 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             buildInteriorSceneDoorHeight,
             0,
           ],
-        ];
-      if (doorType === "roller-shutter") {
-        const doorSwingSign = currentDoor.swing === -1 ? -1 : 1;
+        ]
+      if (doorType === 'roller-shutter') {
+        const doorSwingSign = currentDoor.swing === -1 ? -1 : 1
         doorLeafPanels.push([
           buildInteriorSceneDoorWidth + doorLeafThickness * 0.6,
           doorLeafThickness * 1.8,
@@ -835,45 +795,37 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           0,
           buildInteriorSceneDoorHeight - doorLeafThickness * 0.35,
           doorSwingSign * 0.04,
-        ]);
+        ])
       }
       if (
         (deps.addArchitectureMesh(
           doorGroup,
           doorLeafPanels,
-          doorPartColor("frame"),
-          doorPartOptions("frame", doorLeafOptions),
+          doorPartColor('frame'),
+          doorPartOptions('frame', doorLeafOptions),
         ),
-        doorType === "frame-only")
+        doorType === 'frame-only')
       ) {
-        ((doorGroup.userData.optimizationStats = {
-          type: "door-frame-only",
+        ;(doorGroup.userData.optimizationStats = {
+          type: 'door-frame-only',
           before: 3,
           after: 1,
         }),
-          deps.sceneRootNode.add(doorGroup));
-        continue;
+          deps.sceneRootNode.add(doorGroup)
+        continue
       }
-      if (doorType === "sliding-glass") {
-        const doorLeafMaxHeight = Math.max(
-            buildInteriorSceneDoorHeight - doorLeafThickness * 0.85,
-            0.4,
-          ),
+      if (doorType === 'sliding-glass') {
+        const doorLeafMaxHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.4),
           doorLeafMaxWidth = Math.max(buildInteriorSceneDoorWidth * 0.54, 0.28),
-          doorHingeSign = currentDoor.hinge === "right" ? 1 : -1;
+          doorHingeSign = currentDoor.hinge === 'right' ? 1 : -1
         for (const slidingPanelSign of [-1, 1]) {
           const slidingPanelGroup = new ns2.Group(),
             slidingPanelOffset = slidingPanelSign * buildInteriorSceneDoorWidth * 0.23,
-
-
             slidingPanelRestOffset =
               slidingPanelSign === -doorHingeSign
-                ? doorHingeSign *
-                  buildInteriorSceneDoorWidth *
-                  0.46 *
-                  SLIDING_DOOR_DISPLAY_OPEN_RATIO2
-                : 0;
-          ((slidingPanelGroup.position.x = slidingPanelRestOffset),
+                ? doorHingeSign * buildInteriorSceneDoorWidth * 0.46 * SLIDING_DOOR_DISPLAY_OPEN_RATIO2
+                : 0
+          ;(slidingPanelGroup.position.x = slidingPanelRestOffset),
             buildInteriorSceneIsEmbeddedStage &&
               Object.assign(slidingPanelGroup.userData, {
                 doorSlidePivot: true,
@@ -892,11 +844,10 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
                   centerZ: slidingPanelSign * 0.024,
                 },
               ],
-              doorPartColor("frame"),
+              doorPartColor('frame'),
               doorGlassColor,
-            ));
-          const slidingPanelTrackOffset =
-            slidingPanelOffset - slidingPanelSign * doorLeafMaxWidth * 0.36;
+            )
+          const slidingPanelTrackOffset = slidingPanelOffset - slidingPanelSign * doorLeafMaxWidth * 0.36
           deps.addArchitectureMesh(
             slidingPanelGroup,
             [
@@ -909,53 +860,41 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
                 slidingPanelSign * 0.052,
               ],
             ],
-            doorPartColor("metal"),
-            doorPartOptions("metal", {
+            doorPartColor('metal'),
+            doorPartOptions('metal', {
               rounded: false,
               metalness: 0.5,
               castShadow: false,
               receiveShadow: false,
             }),
-          );
+          )
         }
-        (buildInteriorSceneIsEmbeddedStage &&
+        buildInteriorSceneIsEmbeddedStage &&
           ((doorGroup.userData.doorSlideOpenTranslation = buildInteriorSceneDoorWidth * 0.46),
           (doorGroup.userData.doorSlideClosedTranslation = 0)),
           (doorGroup.userData.optimizationStats = {
-            type: "door-sliding-glass",
+            type: 'door-sliding-glass',
             before: 15,
             after: 5,
           }),
-          deps.sceneRootNode.add(doorGroup));
-        continue;
+          deps.sceneRootNode.add(doorGroup)
+        continue
       }
-      if (doorType === "roller-shutter") {
-        const pocketDoorWidth = Math.max(
-            buildInteriorSceneDoorWidth - doorLeafThickness * 1.3,
-            0.4,
-          ),
+      if (doorType === 'roller-shutter') {
+        const pocketDoorWidth = Math.max(buildInteriorSceneDoorWidth - doorLeafThickness * 1.3, 0.4),
           pocketDoorHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
           pocketSwingSign = currentDoor.swing === -1 ? -1 : 1,
-          pocketDoorGroup = new ns2.Group();
-        (buildInteriorSceneIsEmbeddedStage &&
+          pocketDoorGroup = new ns2.Group()
+        buildInteriorSceneIsEmbeddedStage &&
           ((pocketDoorGroup.userData.doorRollerPivot = true),
           (pocketDoorGroup.userData.doorRestTranslation = 0),
           (pocketDoorGroup.userData.doorRollerClosedTranslation = 0),
           (pocketDoorGroup.userData.doorRollerOpenTranslation = pocketDoorHeight)),
           deps.addArchitectureMesh(
             pocketDoorGroup,
-            [
-              [
-                pocketDoorWidth,
-                pocketDoorHeight,
-                0.045,
-                0,
-                pocketDoorHeight * 0.5,
-                pocketSwingSign * 0.04,
-              ],
-            ],
-            doorPartColor("shutter"),
-            doorPartOptions("shutter", {
+            [[pocketDoorWidth, pocketDoorHeight, 0.045, 0, pocketDoorHeight * 0.5, pocketSwingSign * 0.04]],
+            doorPartColor('shutter'),
+            doorPartOptions('shutter', {
               ...doorLeafMaterialOptions,
               rounded: false,
               metalness: yt6.warmWood ? 0.08 : 0.36,
@@ -963,25 +902,18 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               castShadow: false,
               receiveShadow: false,
             }),
-          ));
+          )
         const pocketSlatCount = Math.max(5, Math.min(36, Math.round(pocketDoorHeight / 0.12))),
-          pocketSlatOffsets: any[] = [];
+          pocketSlatOffsets: any[] = []
         for (let pocketSlatIndex = 1; pocketSlatIndex < pocketSlatCount; pocketSlatIndex += 1) {
-          const pocketSlatOffset = (pocketDoorHeight * pocketSlatIndex) / pocketSlatCount;
-          pocketSlatOffsets.push([
-            pocketDoorWidth * 0.98,
-            0.012,
-            0.052,
-            0,
-            pocketSlatOffset,
-            pocketSwingSign * 0.052,
-          ]);
+          const pocketSlatOffset = (pocketDoorHeight * pocketSlatIndex) / pocketSlatCount
+          pocketSlatOffsets.push([pocketDoorWidth * 0.98, 0.012, 0.052, 0, pocketSlatOffset, pocketSwingSign * 0.052])
         }
-        (deps.addArchitectureMesh(
+        deps.addArchitectureMesh(
           pocketDoorGroup,
           pocketSlatOffsets,
-          doorPartColor("slat"),
-          doorPartOptions("slat", {
+          doorPartColor('slat'),
+          doorPartOptions('slat', {
             ...doorLeafMaterialOptions,
             rounded: false,
             metalness: yt6.warmWood ? 0.08 : 0.42,
@@ -992,31 +924,25 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
         ),
           doorGroup.add(pocketDoorGroup),
           (doorGroup.userData.optimizationStats = {
-            type: "door-roller-shutter",
+            type: 'door-roller-shutter',
             before: 5 + pocketSlatCount,
             after: 3,
           }),
-          deps.sceneRootNode.add(doorGroup));
-        continue;
+          deps.sceneRootNode.add(doorGroup)
+        continue
       }
-      if (doorType === "entry") {
-        const pocketLeafWidth = Math.max(
-            buildInteriorSceneDoorWidth - doorLeafThickness * 1.5,
-            0.4,
-          ),
+      if (doorType === 'entry') {
+        const pocketLeafWidth = Math.max(buildInteriorSceneDoorWidth - doorLeafThickness * 1.5, 0.4),
           pocketLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
-
-
           pocketSwingSign = currentDoor.swing === -1 ? -1 : 1,
-          pocketLeafFaceZ =
-            pocketSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
+          pocketLeafFaceZ = pocketSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
           pocketTrimZ = pocketLeafFaceZ + pocketSwingSign * 0.012,
-          pocketHandleZ = pocketLeafFaceZ + pocketSwingSign * 0.055;
-        (deps.addArchitectureMesh(
+          pocketHandleZ = pocketLeafFaceZ + pocketSwingSign * 0.055
+        deps.addArchitectureMesh(
           doorGroup,
           [[pocketLeafWidth, pocketLeafHeight, 0.065, 0, pocketLeafHeight * 0.5, pocketLeafFaceZ]],
-          doorPartColor("door"),
-          doorPartOptions("door", {
+          doorPartColor('door'),
+          doorPartOptions('door', {
             rounded: false,
             roughness: 0.58,
             metalness: 0.1,
@@ -1030,64 +956,55 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.68, pocketTrimZ],
               [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.34, pocketTrimZ],
             ],
-            doorPartColor("trim"),
-            doorPartOptions("trim", {
+            doorPartColor('trim'),
+            doorPartOptions('trim', {
               rounded: false,
               roughness: 0.5,
               castShadow: false,
               receiveShadow: false,
             }),
-          ));
-        const pocketHingeOffset =
-          currentDoor.hinge === "right" ? -pocketLeafWidth * 0.34 : pocketLeafWidth * 0.34;
+          )
+        const pocketHingeOffset = currentDoor.hinge === 'right' ? -pocketLeafWidth * 0.34 : pocketLeafWidth * 0.34
         deps.addArchitectureMesh(
           doorGroup,
           [[0.035, 0.18, 0.085, pocketHingeOffset, buildInteriorSceneDoorHeight * 0.5, pocketHandleZ]],
-          doorPartColor("metal"),
-          doorPartOptions("metal", {
+          doorPartColor('metal'),
+          doorPartOptions('metal', {
             rounded: false,
             metalness: 0.58,
             roughness: 0.24,
             castShadow: false,
             receiveShadow: false,
           }),
-        );
-        const pocketLeafGroup = new ns2.Group();
-        pocketLeafGroup.position.x =
-          ((currentDoor.hinge === "right" ? 1 : -1) * pocketLeafWidth) / 2;
+        )
+        const pocketLeafGroup = new ns2.Group()
+        pocketLeafGroup.position.x = ((currentDoor.hinge === 'right' ? 1 : -1) * pocketLeafWidth) / 2
         for (const pocketPanel of [...doorGroup.children].slice(1))
-          ((pocketPanel.position.x -= pocketLeafGroup.position.x),
-            pocketLeafGroup.add(pocketPanel));
-        (doorGroup.add(pocketLeafGroup),
+          (pocketPanel.position.x -= pocketLeafGroup.position.x), pocketLeafGroup.add(pocketPanel)
+        doorGroup.add(pocketLeafGroup),
           buildInteriorSceneIsEmbeddedStage &&
             ((pocketLeafGroup.userData.entryDoorPivot = true),
             (pocketLeafGroup.userData.doorHingePivot = true),
             (pocketLeafGroup.userData.doorRestRotation = 0),
             (doorGroup.userData.entryDoorSign =
-              (currentDoor.hinge === "right" ? 1 : -1) * (currentDoor.swing === -1 ? -1 : 1)),
+              (currentDoor.hinge === 'right' ? 1 : -1) * (currentDoor.swing === -1 ? -1 : 1)),
             (doorGroup.userData.entryDoorLeafWidth = pocketLeafWidth),
             (doorGroup.userData.doorLeafWidth = pocketLeafWidth),
             (doorGroup.userData.doorClosedRotation = 0)),
           (doorGroup.userData.optimizationStats = {
-            type: "door-entry",
+            type: 'door-entry',
             before: 7,
             after: 4,
           }),
-          deps.sceneRootNode.add(doorGroup));
-        continue;
+          deps.sceneRootNode.add(doorGroup)
+        continue
       }
-      if (doorType === "entry-child-mother") {
+      if (doorType === 'entry-child-mother') {
         /** 入户子母门：宽扇（母门）带铰链可开，窄扇（子门）常闭，两扇不等宽。 */
-        const childMotherHingeSign = currentDoor.hinge === "right" ? 1 : -1,
+        const childMotherHingeSign = currentDoor.hinge === 'right' ? 1 : -1,
           childMotherSwingSign = currentDoor.swing === -1 ? -1 : 1,
-          childMotherLeafHeight = Math.max(
-            buildInteriorSceneDoorHeight - doorLeafThickness * 0.85,
-            0.8,
-          ),
-          childMotherUsableWidth = Math.max(
-            buildInteriorSceneDoorWidth - doorLeafThickness * 1.5,
-            0.34,
-          ),
+          childMotherLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
+          childMotherUsableWidth = Math.max(buildInteriorSceneDoorWidth - doorLeafThickness * 1.5, 0.34),
           childMotherChildWidth = Math.min(
             Math.max(childMotherUsableWidth * 0.3, 0.22),
             Math.max(childMotherUsableWidth * 0.45, childMotherUsableWidth - 0.4),
@@ -1095,12 +1012,11 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           childMotherMotherWidth = Math.max(childMotherUsableWidth - childMotherChildWidth, 0.2),
           /** 母门扇在铰链枢轴内的局部偏移；子门中心恰好与它同号同值。 */
           childMotherLeafOffsetX = -childMotherHingeSign * (childMotherMotherWidth / 2),
-          childMotherFaceZ =
-            childMotherSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
+          childMotherFaceZ = childMotherSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
           childMotherTrimZ = childMotherFaceZ + childMotherSwingSign * 0.012,
           childMotherHandleZ = childMotherFaceZ + childMotherSwingSign * 0.055,
-          childMotherMotherGroup = new ns2.Group();
-        childMotherMotherGroup.position.x = (childMotherHingeSign * childMotherUsableWidth) / 2;
+          childMotherMotherGroup = new ns2.Group()
+        childMotherMotherGroup.position.x = (childMotherHingeSign * childMotherUsableWidth) / 2
         deps.addArchitectureMesh(
           childMotherMotherGroup,
           [
@@ -1113,8 +1029,8 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               childMotherFaceZ,
             ],
           ],
-          doorPartColor("door"),
-          doorPartOptions("door", {
+          doorPartColor('door'),
+          doorPartOptions('door', {
             ...doorLeafMaterialOptions,
             rounded: false,
             roughness: 0.58,
@@ -1122,7 +1038,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             castShadow: false,
             receiveShadow: false,
           }),
-        );
+        )
         deps.addArchitectureMesh(
           childMotherMotherGroup,
           [
@@ -1143,14 +1059,14 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               childMotherTrimZ,
             ],
           ],
-          doorPartColor("trim"),
-          doorPartOptions("trim", {
+          doorPartColor('trim'),
+          doorPartOptions('trim', {
             rounded: false,
             roughness: 0.5,
             castShadow: false,
             receiveShadow: false,
           }),
-        );
+        )
         deps.addArchitectureMesh(
           childMotherMotherGroup,
           [
@@ -1163,15 +1079,15 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               childMotherHandleZ,
             ],
           ],
-          doorPartColor("metal"),
-          doorPartOptions("metal", {
+          doorPartColor('metal'),
+          doorPartOptions('metal', {
             rounded: false,
             metalness: 0.58,
             roughness: 0.24,
             castShadow: false,
             receiveShadow: false,
           }),
-        );
+        )
         /** 子门：常闭窄扇，带上下两道插销。 */
         deps.addArchitectureMesh(
           doorGroup,
@@ -1185,8 +1101,8 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               childMotherFaceZ,
             ],
           ],
-          doorPartColor("door"),
-          doorPartOptions("door", {
+          doorPartColor('door'),
+          doorPartOptions('door', {
             ...doorLeafMaterialOptions,
             rounded: false,
             roughness: 0.58,
@@ -1194,7 +1110,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             castShadow: false,
             receiveShadow: false,
           }),
-        );
+        )
         deps.addArchitectureMesh(
           doorGroup,
           [
@@ -1215,16 +1131,16 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
               childMotherHandleZ,
             ],
           ],
-          doorPartColor("metal"),
-          doorPartOptions("metal", {
+          doorPartColor('metal'),
+          doorPartOptions('metal', {
             rounded: false,
             metalness: 0.52,
             roughness: 0.3,
             castShadow: false,
             receiveShadow: false,
           }),
-        );
-        (doorGroup.add(childMotherMotherGroup),
+        )
+        doorGroup.add(childMotherMotherGroup),
           buildInteriorSceneIsEmbeddedStage &&
             (Object.assign(childMotherMotherGroup.userData, {
               entryDoorPivot: true,
@@ -1238,95 +1154,76 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             (doorGroup.userData.doorLeafWidth = childMotherMotherWidth),
             (doorGroup.userData.doorClosedRotation = 0)),
           (doorGroup.userData.optimizationStats = {
-            type: "door-entry-child-mother",
+            type: 'door-entry-child-mother',
             before: 9,
             after: 6,
           }),
-          deps.sceneRootNode.add(doorGroup));
-        continue;
+          deps.sceneRootNode.add(doorGroup)
+        continue
       }
-      if (doorType === "double") {
-        const splitPanelWidth = Math.max(
-            (buildInteriorSceneDoorWidth - doorLeafThickness) / 2 - 0.003,
-            0.25,
-          ),
-          splitPanelHeight = Math.max(
-            buildInteriorSceneDoorHeight - doorLeafThickness / 2 - 0.006,
-            0.4,
-          ),
-          splitPanelSwingAngle = (currentDoor.swing === -1 ? 1 : -1) * Math.PI * 0.42;
+      if (doorType === 'double') {
+        const splitPanelWidth = Math.max((buildInteriorSceneDoorWidth - doorLeafThickness) / 2 - 0.003, 0.25),
+          splitPanelHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness / 2 - 0.006, 0.4),
+          splitPanelSwingAngle = (currentDoor.swing === -1 ? 1 : -1) * Math.PI * 0.42
         for (const splitPanelSign of [-1, 1]) {
-          const splitPanelOffset =
-              splitPanelSign * (buildInteriorSceneDoorWidth / 2 - doorLeafThickness * 0.5),
-            splitPanelGroup = new ns2.Group();
-          ((splitPanelGroup.position.x = splitPanelOffset),
-            (splitPanelGroup.rotation.y =
-              splitPanelSign < 0 ? splitPanelSwingAngle : -splitPanelSwingAngle),
+          const splitPanelOffset = splitPanelSign * (buildInteriorSceneDoorWidth / 2 - doorLeafThickness * 0.5),
+            splitPanelGroup = new ns2.Group()
+          ;(splitPanelGroup.position.x = splitPanelOffset),
+            (splitPanelGroup.rotation.y = splitPanelSign < 0 ? splitPanelSwingAngle : -splitPanelSwingAngle),
             buildInteriorSceneIsEmbeddedStage &&
               ((splitPanelGroup.userData.doorHingePivot = true),
               (splitPanelGroup.userData.doorFixedHinge = true),
               (splitPanelGroup.userData.doorRestRotation = splitPanelGroup.rotation.y),
-              (splitPanelGroup.userData.doorOpenRotation = splitPanelGroup.rotation.y)));
-          const splitPanelHandleOffset =
-            splitPanelSign < 0 ? splitPanelWidth / 2 : -splitPanelWidth / 2;
+              (splitPanelGroup.userData.doorOpenRotation = splitPanelGroup.rotation.y))
+          const splitPanelHandleOffset = splitPanelSign < 0 ? splitPanelWidth / 2 : -splitPanelWidth / 2
           deps.addArchitectureMesh(
             splitPanelGroup,
-            [
-              [
-                splitPanelWidth,
-                splitPanelHeight,
-                0.04,
-                splitPanelHandleOffset,
-                splitPanelHeight / 2,
-                0,
-              ],
-            ],
-            doorPartColor("door"),
-            doorPartOptions("door", {
+            [[splitPanelWidth, splitPanelHeight, 0.04, splitPanelHandleOffset, splitPanelHeight / 2, 0]],
+            doorPartColor('door'),
+            doorPartOptions('door', {
               ...doorLeafMaterialOptions,
               rounded: false,
               roughness: 0.66,
               castShadow: false,
               receiveShadow: false,
             }),
-          );
-          const splitPanelHandleX =
-            splitPanelSign < 0 ? splitPanelWidth * 0.84 : -splitPanelWidth * 0.84;
-          (deps.addArchitectureMesh(
+          )
+          const splitPanelHandleX = splitPanelSign < 0 ? splitPanelWidth * 0.84 : -splitPanelWidth * 0.84
+          deps.addArchitectureMesh(
             splitPanelGroup,
             [[0.035, 0.055, 0.065, splitPanelHandleX, buildInteriorSceneDoorHeight * 0.5, 0.04]],
-            doorPartColor("metal"),
-            doorPartOptions("metal", {
+            doorPartColor('metal'),
+            doorPartOptions('metal', {
               rounded: false,
               metalness: 0.45,
               castShadow: false,
               receiveShadow: false,
             }),
           ),
-            doorGroup.add(splitPanelGroup));
+            doorGroup.add(splitPanelGroup)
         }
-        ((doorGroup.userData.optimizationStats = {
-          type: "door-double",
+        ;(doorGroup.userData.optimizationStats = {
+          type: 'door-double',
           before: 7,
           after: 3,
         }),
-          deps.sceneRootNode.add(doorGroup));
-        continue;
+          deps.sceneRootNode.add(doorGroup)
+        continue
       }
-      const isRightHingeLeaf = currentDoor.hinge === "right",
+      const isRightHingeLeaf = currentDoor.hinge === 'right',
         foldLeafWidth = Math.max(buildInteriorSceneDoorWidth - doorLeafThickness * 1.4, 0.2),
         foldLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.8, 0.4),
-        foldLeafGroup = new ns2.Group();
-      ((foldLeafGroup.position.x = isRightHingeLeaf
+        foldLeafGroup = new ns2.Group()
+      ;(foldLeafGroup.position.x = isRightHingeLeaf
         ? buildInteriorSceneDoorWidth / 2 - doorLeafThickness * 0.5
         : -buildInteriorSceneDoorWidth / 2 + doorLeafThickness * 0.5),
         (foldLeafGroup.rotation.y = doorLeafRotation2(currentDoor, Math.PI * 0.42)),
         buildInteriorSceneIsEmbeddedStage &&
           ((foldLeafGroup.userData.doorHingePivot = true),
           (foldLeafGroup.userData.doorRestRotation = foldLeafGroup.rotation.y)),
-        doorGroup.add(foldLeafGroup));
-      const foldLeafOffset = isRightHingeLeaf ? -foldLeafWidth / 2 : foldLeafWidth / 2;
-      doorType === "glass"
+        doorGroup.add(foldLeafGroup)
+      const foldLeafOffset = isRightHingeLeaf ? -foldLeafWidth / 2 : foldLeafWidth / 2
+      doorType === 'glass'
         ? deps.addWindowFrames(
             foldLeafGroup,
             [
@@ -1337,27 +1234,27 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
                 centerZ: 0,
               },
             ],
-            doorPartColor("frame"),
+            doorPartColor('frame'),
             doorGlassColor,
           )
         : deps.addArchitectureMesh(
             foldLeafGroup,
             [[foldLeafWidth, foldLeafHeight, 0.04, foldLeafOffset, foldLeafHeight / 2, 0]],
-            doorPartColor("door"),
-            doorPartOptions("door", {
+            doorPartColor('door'),
+            doorPartOptions('door', {
               ...doorLeafMaterialOptions,
               rounded: false,
               roughness: 0.66,
               castShadow: false,
               receiveShadow: false,
             }),
-          );
-      const foldLeafHingeOffset = isRightHingeLeaf ? -foldLeafWidth * 0.84 : foldLeafWidth * 0.84;
-      (deps.addArchitectureMesh(
+          )
+      const foldLeafHingeOffset = isRightHingeLeaf ? -foldLeafWidth * 0.84 : foldLeafWidth * 0.84
+      deps.addArchitectureMesh(
         foldLeafGroup,
         [[0.035, 0.055, 0.065, foldLeafHingeOffset, buildInteriorSceneDoorHeight * 0.5, 0.04]],
-        doorPartColor("metal"),
-        doorPartOptions("metal", {
+        doorPartColor('metal'),
+        doorPartOptions('metal', {
           rounded: false,
           metalness: 0.45,
           castShadow: false,
@@ -1370,17 +1267,17 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           // 0.8.1 会给普通门扇写开门位：拿不到楼层多边形时（开放平面）靠它定开向。
           (doorGroup.userData.doorOpenRotation = foldLeafGroup.rotation.y)),
         (doorGroup.userData.optimizationStats = {
-          type: doorType === "glass" ? "door-glass" : "door-solid",
-          before: doorType === "glass" ? 9 : 5,
-          after: doorType === "glass" ? 4 : 3,
+          type: doorType === 'glass' ? 'door-glass' : 'door-solid',
+          before: doorType === 'glass' ? 9 : 5,
+          after: doorType === 'glass' ? 4 : 3,
         }),
-        deps.sceneRootNode.add(doorGroup));
+        deps.sceneRootNode.add(doorGroup)
     }
   }
   for (const interiorChildObject of deps.sceneRootNode.children)
     existingChildSet.has(interiorChildObject) ||
-      ((interiorChildObject.userData.modelLayer = "architecture"),
+      ((interiorChildObject.userData.modelLayer = 'architecture'),
       interiorChildObject.traverse((interiorDescendant: any) => {
-        interiorDescendant.userData.exportRole || (interiorDescendant.userData.exportRole = "plan");
-      }));
+        interiorDescendant.userData.exportRole || (interiorDescendant.userData.exportRole = 'plan')
+      }))
 }

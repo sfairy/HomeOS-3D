@@ -77,9 +77,7 @@ defineOptions({ inheritAttrs: false })
 const attrs = useAttrs()
 const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
-const teleportDisabled = computed(
-  () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
-)
+const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
 
 const props = defineProps({
   // 锚点百分比横坐标（0-100），用于百分比定位模式
@@ -170,8 +168,7 @@ const shellRef = ref(null)
 /** 弹窗打开前的活动元素，关闭时恢复焦点 */
 let previousFocus = null
 
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
 function handleShellKeydown(e) {
   if (e.key === 'Escape' && props.trapFocus) {

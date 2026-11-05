@@ -46,10 +46,7 @@ function parseClientPlatform(ua: string | null | undefined, platformStr: string 
   // iPad OS 13+ 的 UA 与 Mac 一致，需结合 platform + touch 判定
   const isIPad =
     /iPad/i.test(userAgent) ||
-    (platform === 'MacIntel' &&
-      touch &&
-      /Macintosh/i.test(userAgent) &&
-      !/iPhone|iPod/i.test(userAgent))
+    (platform === 'MacIntel' && touch && /Macintosh/i.test(userAgent) && !/iPhone|iPod/i.test(userAgent))
   const isIPhone = /iPhone|iPod/i.test(userAgent)
   const isAndroid = /Android/i.test(userAgent)
   const isAndroidPhone = isAndroid && /Mobile/i.test(userAgent)
@@ -180,10 +177,7 @@ export function getClientDeviceKindLabel(systemInfo: ClientSystemInfo | null | u
  * @param clientId 客户端 id
  * @returns 形如 "iPad · abc123" 的标签；均缺失时返回 '未命名终端'
  */
-export function getClientSuggestedLabel(
-  systemInfo: ClientSystemInfo | null | undefined,
-  clientId: string = '',
-) {
+export function getClientSuggestedLabel(systemInfo: ClientSystemInfo | null | undefined, clientId: string = '') {
   const { label } = resolveClientDeviceIdentity(systemInfo)
   const id = String(clientId || '').trim()
   if (label && id) return `${label} · ${id}`
@@ -246,9 +240,7 @@ export function getClientBatteryState(systemInfo: ClientSystemInfo | null | unde
  * @param row 客户端行数据（含 systemInfo 字段）
  * @returns systemInfo 对象；row 无效或不含 systemInfo 时返回 null
  */
-export function getSystemInfoFromClientRow(
-  row: unknown,
-): ClientSystemInfo | null {
+export function getSystemInfoFromClientRow(row: unknown): ClientSystemInfo | null {
   if (!row || typeof row !== 'object') return null
   const systemInfo = (row as { systemInfo?: unknown }).systemInfo
   if (systemInfo && typeof systemInfo === 'object') {
@@ -274,10 +266,7 @@ export function getLocalBatteryUnsupportedHint() {
   if (typeof navigator.getBattery === 'function' && window.isSecureContext) return ''
   if (!window.isSecureContext) return BATTERY_HINT_INSECURE
   const ua = navigator.userAgent || ''
-  if (
-    /iPhone|iPod|iPad/i.test(ua) ||
-    (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(ua))
-  ) {
+  if (/iPhone|iPod|iPad/i.test(ua) || (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(ua))) {
     return BATTERY_HINT_SAFARI
   }
   return BATTERY_HINT_API

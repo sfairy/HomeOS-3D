@@ -1,14 +1,14 @@
-export { resolvePageBehavior } from "@app/bridge/presets/page-behavior";
+export { resolvePageBehavior } from '@app/bridge/presets/page-behavior'
 /** idle 配置项：三种 idle 控制器（旋转 / 聚焦退出 / 图标隐藏）共用。 */
 type IdleRotationOptions = {
-  enabled?: boolean;
+  enabled?: boolean
   /** 顺时针 / 逆时针（只有旋转控制器用）。 */
-  direction?: string;
+  direction?: string
   /** 空闲多少秒后触发，1..3600。 */
-  idleSeconds?: number;
+  idleSeconds?: number
   /** 旋转速度（度/秒），0.5..30。 */
-  speed?: number;
-};
+  speed?: number
+}
 
 export function createIdleRotation({
   now: now = () => performance.now(),
@@ -21,115 +21,105 @@ export function createIdleRotation({
       enabled: false,
       idleSeconds: 30,
       speed: 6,
-      direction: "clockwise",
+      direction: 'clockwise',
     },
     isRotationAvailable = false,
     isRotationHeld = false,
-    rotationPhase = "waiting",
+    rotationPhase = 'waiting',
     waitingSinceMs = now(),
     lastRotationMs = 0,
     rotationAngleRad = 0,
     rotationElapsedS = 0,
-    rotationActivityRevision = 0;
+    rotationActivityRevision = 0
   function resetRotationState(activityTimestampMs = now()) {
-    const wasRotating = rotationPhase === "returning" || rotationPhase === "rotating";
-    (rotationActivityRevision++,
-      (rotationPhase = "waiting"),
+    const wasRotating = rotationPhase === 'returning' || rotationPhase === 'rotating'
+    rotationActivityRevision++,
+      (rotationPhase = 'waiting'),
       (waitingSinceMs = activityTimestampMs),
       (lastRotationMs = 0),
       (rotationAngleRad = 0),
       (rotationElapsedS = 0),
-      wasRotating && stopRotation());
+      wasRotating && stopRotation()
   }
   return {
     configure(configureOptions: IdleRotationOptions = {}, configureTimestampMs = now()) {
       const nextRotationConfig = {
         enabled: configureOptions?.enabled === true,
-        direction:
-          configureOptions?.direction === "counterclockwise" ? "counterclockwise" : "clockwise",
+        direction: configureOptions?.direction === 'counterclockwise' ? 'counterclockwise' : 'clockwise',
         idleSeconds: Number.isInteger(configureOptions?.idleSeconds)
           ? Math.max(1, Math.min(3600, configureOptions.idleSeconds!))
           : 30,
-        speed: Number.isFinite(configureOptions?.speed)
-          ? Math.max(0.5, Math.min(30, configureOptions.speed!))
-          : 6,
-      };
+        speed: Number.isFinite(configureOptions?.speed) ? Math.max(0.5, Math.min(30, configureOptions.speed!)) : 6,
+      }
       JSON.stringify(nextRotationConfig) !== JSON.stringify(rotationConfig) &&
-        ((rotationConfig = nextRotationConfig), resetRotationState(configureTimestampMs));
+        ((rotationConfig = nextRotationConfig), resetRotationState(configureTimestampMs))
     },
     setAvailable(availableFlag: any, availableTimestampMs = now()) {
       isRotationAvailable !== !!availableFlag &&
-        ((isRotationAvailable = !!availableFlag), resetRotationState(availableTimestampMs));
+        ((isRotationAvailable = !!availableFlag), resetRotationState(availableTimestampMs))
     },
     hold(heldFlag: any, holdTimestampMs = now()) {
-      ((isRotationHeld = !!heldFlag), resetRotationState(holdTimestampMs));
+      ;(isRotationHeld = !!heldFlag), resetRotationState(holdTimestampMs)
     },
     activity: resetRotationState,
     tick(tickTimestampMs = now()) {
       if (!(!rotationConfig.enabled || !isRotationAvailable || isRotationHeld)) {
-        if (
-          rotationPhase === "waiting" &&
-          tickTimestampMs - waitingSinceMs >= rotationConfig.idleSeconds * 1000
-        ) {
-          rotationPhase = "returning";
-          const returnRevision = ++rotationActivityRevision;
+        if (rotationPhase === 'waiting' && tickTimestampMs - waitingSinceMs >= rotationConfig.idleSeconds * 1000) {
+          rotationPhase = 'returning'
+          const returnRevision = ++rotationActivityRevision
           returnToBase(() => {
             returnRevision !== rotationActivityRevision ||
-              rotationPhase !== "returning" ||
+              rotationPhase !== 'returning' ||
               !isRotationAvailable ||
               isRotationHeld ||
               !rotationConfig.enabled ||
-              ((rotationPhase = "rotating"),
+              ((rotationPhase = 'rotating'),
               (lastRotationMs = now()),
               (rotationAngleRad = 0),
               (rotationElapsedS = 0),
-              startRotation());
-          });
+              startRotation())
+          })
         } else {
-          if (rotationPhase === "rotating") {
-            const deltaSeconds = Math.max(
-              0,
-              Math.min(0.1, (tickTimestampMs - lastRotationMs) / 1000),
-            );
-            lastRotationMs = tickTimestampMs;
-            const rampProgress = Math.min(1, rotationElapsedS / 0.6);
-            ((rotationElapsedS += deltaSeconds),
+          if (rotationPhase === 'rotating') {
+            const deltaSeconds = Math.max(0, Math.min(0.1, (tickTimestampMs - lastRotationMs) / 1000))
+            lastRotationMs = tickTimestampMs
+            const rampProgress = Math.min(1, rotationElapsedS / 0.6)
+            ;(rotationElapsedS += deltaSeconds),
               (rotationAngleRad =
                 (rotationAngleRad +
                   (((deltaSeconds * rotationConfig.speed * Math.PI) / 180) *
                     (rampProgress + Math.min(1, rotationElapsedS / 0.6))) /
                     2) %
                 (Math.PI * 2)),
-              applyRotationStep(
-                rotationConfig.direction === "counterclockwise"
-                  ? -rotationAngleRad
-                  : rotationAngleRad,
-              ));
+              applyRotationStep(rotationConfig.direction === 'counterclockwise' ? -rotationAngleRad : rotationAngleRad)
           }
         }
       }
     },
     dispose() {
-      ((isRotationAvailable = false), resetRotationState());
+      ;(isRotationAvailable = false), resetRotationState()
     },
     nextDelay(delayTimestampMs = now()) {
       return !rotationConfig.enabled || !isRotationAvailable || isRotationHeld
         ? Infinity
-        : rotationPhase === "rotating"
+        : rotationPhase === 'rotating'
           ? 0
-          : rotationPhase === "waiting"
+          : rotationPhase === 'waiting'
             ? Math.max(0, waitingSinceMs + rotationConfig.idleSeconds * 1000 - delayTimestampMs)
-            : Infinity;
+            : Infinity
     },
     get phase() {
-      return rotationPhase;
+      return rotationPhase
     },
-  };
+  }
 }
 export function createIdleFocusExit({
   now: focusExitNow = () => performance.now(),
   onExit: onIdleExit,
-}: { now?: () => number; onExit?: (...args: any[]) => any } = {}) {
+}: {
+  now?: () => number
+  onExit?: (...args: any[]) => any
+} = {}) {
   let focusExitConfig = {
       enabled: false,
       idleSeconds: 30,
@@ -138,34 +128,32 @@ export function createIdleFocusExit({
     isFocusExitHeld = false,
     isFocusExitDisposed = false,
     hasFocusIdleExited = false,
-    focusExitActivityMs = focusExitNow();
+    focusExitActivityMs = focusExitNow()
   function restartFocusIdleTimer(focusExitTimestampMs = focusExitNow()) {
-    isFocusExitDisposed ||
-      ((focusExitActivityMs = focusExitTimestampMs), (hasFocusIdleExited = false));
+    isFocusExitDisposed || ((focusExitActivityMs = focusExitTimestampMs), (hasFocusIdleExited = false))
   }
   return {
     configure(focusExitOptions: IdleRotationOptions = {}, focusExitConfigureMs = focusExitNow()) {
-      if (isFocusExitDisposed) return;
+      if (isFocusExitDisposed) return
       const nextFocusExitConfig = {
         enabled: focusExitOptions?.enabled === true,
         idleSeconds: Number.isInteger(focusExitOptions?.idleSeconds)
           ? Math.max(1, Math.min(3600, focusExitOptions.idleSeconds!))
           : 30,
-      };
-      (nextFocusExitConfig.enabled === focusExitConfig.enabled &&
+      }
+      ;(nextFocusExitConfig.enabled === focusExitConfig.enabled &&
         nextFocusExitConfig.idleSeconds === focusExitConfig.idleSeconds) ||
-        ((focusExitConfig = nextFocusExitConfig), restartFocusIdleTimer(focusExitConfigureMs));
+        ((focusExitConfig = nextFocusExitConfig), restartFocusIdleTimer(focusExitConfigureMs))
     },
     setAvailable(focusExitAvailableFlag: any, focusExitAvailableMs = focusExitNow()) {
       isFocusExitDisposed ||
         isFocusExitAvailable === !!focusExitAvailableFlag ||
         ((isFocusExitAvailable = !!focusExitAvailableFlag),
         isFocusExitAvailable || (isFocusExitHeld = false),
-        restartFocusIdleTimer(focusExitAvailableMs));
+        restartFocusIdleTimer(focusExitAvailableMs))
     },
     hold(focusExitHeldFlag: any, focusExitHoldMs = focusExitNow()) {
-      isFocusExitDisposed ||
-        ((isFocusExitHeld = !!focusExitHeldFlag), restartFocusIdleTimer(focusExitHoldMs));
+      isFocusExitDisposed || ((isFocusExitHeld = !!focusExitHeldFlag), restartFocusIdleTimer(focusExitHoldMs))
     },
     activity: restartFocusIdleTimer,
     tick(focusExitTickMs = focusExitNow()) {
@@ -175,7 +163,7 @@ export function createIdleFocusExit({
         isFocusExitHeld ||
         hasFocusIdleExited ||
         (focusExitTickMs - focusExitActivityMs >= focusExitConfig.idleSeconds * 1000 &&
-          ((hasFocusIdleExited = true), onIdleExit!()));
+          ((hasFocusIdleExited = true), onIdleExit!()))
     },
     nextDelay(focusExitDelayMs = focusExitNow()) {
       return isFocusExitDisposed ||
@@ -184,12 +172,12 @@ export function createIdleFocusExit({
         isFocusExitHeld ||
         hasFocusIdleExited
         ? Infinity
-        : Math.max(0, focusExitActivityMs + focusExitConfig.idleSeconds * 1000 - focusExitDelayMs);
+        : Math.max(0, focusExitActivityMs + focusExitConfig.idleSeconds * 1000 - focusExitDelayMs)
     },
     dispose() {
-      ((isFocusExitDisposed = true), (isFocusExitAvailable = false), (isFocusExitHeld = false));
+      ;(isFocusExitDisposed = true), (isFocusExitAvailable = false), (isFocusExitHeld = false)
     },
-  };
+  }
 }
 export function createIdleIconVisibility({
   now: iconVisibilityNow = () => performance.now(),
@@ -203,37 +191,35 @@ export function createIdleIconVisibility({
     isIconVisibilityHeld = false,
     shouldHideIcons = false,
     isIconVisibilityDisposed = false,
-    iconActivityMs = iconVisibilityNow();
+    iconActivityMs = iconVisibilityNow()
   function setIconsHidden(hiddenFlag: any) {
-    shouldHideIcons !== hiddenFlag &&
-      ((shouldHideIcons = hiddenFlag), onVisibilityChange(shouldHideIcons));
+    shouldHideIcons !== hiddenFlag && ((shouldHideIcons = hiddenFlag), onVisibilityChange(shouldHideIcons))
   }
   function restartIconIdleTimer(iconResetTimestampMs = iconVisibilityNow()) {
-    isIconVisibilityDisposed || ((iconActivityMs = iconResetTimestampMs), setIconsHidden(false));
+    isIconVisibilityDisposed || ((iconActivityMs = iconResetTimestampMs), setIconsHidden(false))
   }
   return {
     configure(iconVisibilityOptions: IdleRotationOptions = {}, iconConfigureMs = iconVisibilityNow()) {
-      if (isIconVisibilityDisposed) return;
+      if (isIconVisibilityDisposed) return
       const nextIconVisibilityConfig = {
         enabled: iconVisibilityOptions?.enabled === true,
         idleSeconds: Number.isInteger(iconVisibilityOptions?.idleSeconds)
           ? Math.max(1, Math.min(3600, iconVisibilityOptions.idleSeconds!))
           : 30,
-      };
-      (nextIconVisibilityConfig.enabled === iconVisibilityConfig.enabled &&
+      }
+      ;(nextIconVisibilityConfig.enabled === iconVisibilityConfig.enabled &&
         nextIconVisibilityConfig.idleSeconds === iconVisibilityConfig.idleSeconds) ||
-        ((iconVisibilityConfig = nextIconVisibilityConfig), restartIconIdleTimer(iconConfigureMs));
+        ((iconVisibilityConfig = nextIconVisibilityConfig), restartIconIdleTimer(iconConfigureMs))
     },
     setAvailable(iconAvailableFlag: any, iconAvailableMs = iconVisibilityNow()) {
       isIconVisibilityDisposed ||
         isIconVisibilityAvailable === !!iconAvailableFlag ||
         ((isIconVisibilityAvailable = !!iconAvailableFlag),
         isIconVisibilityAvailable || (isIconVisibilityHeld = false),
-        restartIconIdleTimer(iconAvailableMs));
+        restartIconIdleTimer(iconAvailableMs))
     },
     hold(iconHeldFlag: any, iconHoldMs = iconVisibilityNow()) {
-      isIconVisibilityDisposed ||
-        ((isIconVisibilityHeld = !!iconHeldFlag), restartIconIdleTimer(iconHoldMs));
+      isIconVisibilityDisposed || ((isIconVisibilityHeld = !!iconHeldFlag), restartIconIdleTimer(iconHoldMs))
     },
     activity: restartIconIdleTimer,
     tick(iconTickMs = iconVisibilityNow()) {
@@ -241,18 +227,17 @@ export function createIdleIconVisibility({
         !iconVisibilityConfig.enabled ||
         !isIconVisibilityAvailable ||
         isIconVisibilityHeld ||
-        (iconTickMs - iconActivityMs >= iconVisibilityConfig.idleSeconds * 1000 &&
-          setIconsHidden(true));
+        (iconTickMs - iconActivityMs >= iconVisibilityConfig.idleSeconds * 1000 && setIconsHidden(true))
     },
     dispose() {
       isIconVisibilityDisposed ||
         ((isIconVisibilityDisposed = true),
         (isIconVisibilityAvailable = false),
         (isIconVisibilityHeld = false),
-        setIconsHidden(false));
+        setIconsHidden(false))
     },
     get hidden() {
-      return shouldHideIcons;
+      return shouldHideIcons
     },
     nextDelay(iconDelayMs = iconVisibilityNow()) {
       return isIconVisibilityDisposed ||
@@ -261,7 +246,7 @@ export function createIdleIconVisibility({
         isIconVisibilityHeld ||
         shouldHideIcons
         ? Infinity
-        : Math.max(0, iconActivityMs + iconVisibilityConfig.idleSeconds * 1000 - iconDelayMs);
+        : Math.max(0, iconActivityMs + iconVisibilityConfig.idleSeconds * 1000 - iconDelayMs)
     },
-  };
+  }
 }

@@ -2,10 +2,7 @@
 import { defineComponent, h, shallowRef, type Component } from 'vue'
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
-import {
-  isPinnedSettingsTab,
-  settingsKeepAliveName,
-} from '@/features/settings/keep-alive.util'
+import { isPinnedSettingsTab, settingsKeepAliveName } from '@/features/settings/keep-alive.util'
 
 /**
  * 创建懒加载面板组件。
@@ -45,9 +42,7 @@ function lazyPanel(tabId: string, loader: () => Promise<{ default?: Component }>
         '加载中…',
       )
     }
-    return h(ErrorBoundary, { title: tabId, fill: true }, () =>
-      h(resolved!, { activeTab: props.activeTab }),
-    )
+    return h(ErrorBoundary, { title: tabId, fill: true }, () => h(resolved!, { activeTab: props.activeTab }))
   }
 
   // 非 pinned 路径：复用 lazyComponent，由其处理 Suspense/错误
@@ -58,10 +53,7 @@ function lazyPanel(tabId: string, loader: () => Promise<{ default?: Component }>
         activeTab: { type: String, default: '' },
       },
       setup(props) {
-        return () =>
-          h(ErrorBoundary, { title: tabId, fill: true }, () =>
-            h(AsyncPanel, { activeTab: props.activeTab }),
-          )
+        return () => h(ErrorBoundary, { title: tabId, fill: true }, () => h(AsyncPanel, { activeTab: props.activeTab }))
       },
     })
   }
@@ -90,35 +82,17 @@ function lazyPanel(tabId: string, loader: () => Promise<{ default?: Component }>
 
 /** 入门与连接 */
 const connectPanels = {
-  'setup-wizard': lazyPanel(
-    'setup-wizard',
-    () => import('@/features/settings/connect/SetupWizardPanel.vue'),
-  ),
-  connection: lazyPanel(
-    'connection',
-    () => import('@/features/settings/connect/SettingsConnectionPanel.vue'),
-  ),
-  bindings: lazyPanel(
-    'bindings',
-    () => import('@/features/settings/connect/SettingsBindingsPanel.vue'),
-  ),
-  devices: lazyPanel(
-    'devices',
-    () => import('@/features/settings/connect/SettingsDeviceManagementPanel.vue'),
-  ),
+  'setup-wizard': lazyPanel('setup-wizard', () => import('@/features/settings/connect/SetupWizardPanel.vue')),
+  connection: lazyPanel('connection', () => import('@/features/settings/connect/SettingsConnectionPanel.vue')),
+  bindings: lazyPanel('bindings', () => import('@/features/settings/connect/SettingsBindingsPanel.vue')),
+  devices: lazyPanel('devices', () => import('@/features/settings/connect/SettingsDeviceManagementPanel.vue')),
 }
 
 /** 家居配置（空间 + 能源 + 快捷设备） */
 const homePanels = {
   rooms: lazyPanel('rooms', () => import('@/features/settings/home/SettingsRoomsPanel.vue')),
-  'life-accounts': lazyPanel(
-    'life-accounts',
-    () => import('@/features/settings/home/SettingsLifeAccountsPanel.vue'),
-  ),
-  'smart-charge': lazyPanel(
-    'smart-charge',
-    () => import('@/features/settings/home/SettingsClientPowerPanel.vue'),
-  ),
+  'life-accounts': lazyPanel('life-accounts', () => import('@/features/settings/home/SettingsLifeAccountsPanel.vue')),
+  'smart-charge': lazyPanel('smart-charge', () => import('@/features/settings/home/SettingsClientPowerPanel.vue')),
   favorites: lazyPanel('favorites', () => import('@/features/settings/home/SettingsFavorites.vue')),
 }
 
@@ -128,19 +102,13 @@ const displayPanels = {
   layout: lazyPanel('layout', () => import('@/features/settings/display/SettingsLayoutPanel.vue')),
   assets: lazyPanel('assets', () => import('@/features/settings/display/SettingsAssetsPanel.vue')),
   widgets: lazyPanel('widgets', () => import('@/features/settings/display/SettingsWidgetsPanel.vue')),
-  floating: lazyPanel(
-    'floating',
-    () => import('@/features/settings/display/SettingsFloatingPanel.vue'),
-  ),
+  floating: lazyPanel('floating', () => import('@/features/settings/display/SettingsFloatingPanel.vue')),
   embeds: lazyPanel('embeds', () => import('@/features/settings/display/SettingsEmbeds.vue')),
 }
 
 /** 自动化与安防 */
 const automatePanels = {
-  'home-mode': lazyPanel(
-    'home-mode',
-    () => import('@/features/settings/automate/SettingsHomeModePanel.vue'),
-  ),
+  'home-mode': lazyPanel('home-mode', () => import('@/features/settings/automate/SettingsHomeModePanel.vue')),
   'security-modes': lazyPanel(
     'security-modes',
     () => import('@/features/settings/automate/SettingsSecurityModesPanel.vue'),
@@ -159,15 +127,9 @@ const systemPanels = {
   profiles: lazyPanel('profiles', () => import('@/features/settings/system/SettingsProfilesPanel.vue')),
   family: lazyPanel('family', () => import('@/features/settings/system/SettingsFamilyPanel.vue')),
   access: lazyPanel('access', () => import('@/features/settings/system/SettingsAccessPanel.vue')),
-  diagnostics: lazyPanel(
-    'diagnostics',
-    () => import('@/features/settings/system/SettingsDiagnosticsPanel.vue'),
-  ),
+  diagnostics: lazyPanel('diagnostics', () => import('@/features/settings/system/SettingsDiagnosticsPanel.vue')),
   params: lazyPanel('params', () => import('@/features/settings/system/ConfigPanel.vue')),
-  retention: lazyPanel(
-    'retention',
-    () => import('@/features/settings/system/SettingsRetentionPanel.vue'),
-  ),
+  retention: lazyPanel('retention', () => import('@/features/settings/system/SettingsRetentionPanel.vue')),
   license: lazyPanel('license', () => import('@/features/settings/system/SettingsLicensePanel.vue')),
 }
 

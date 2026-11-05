@@ -7,10 +7,10 @@ import {
   buildPublicRoomMeta,
   isRoomHiddenInMap,
   resolveRoomLabel,
-} from './catalog';
+} from './catalog'
 
 /** HA area_registry 引用（id + name） */
-export type HaAreaRef = { id: string; name: string };
+export type HaAreaRef = { id: string; name: string }
 
 /**
  * 按 area_id 在 HA area 列表中查找。
@@ -20,9 +20,9 @@ export type HaAreaRef = { id: string; name: string };
  * @returns 命中的 HaAreaRef；空 id 返回 undefined
  */
 export function lookupHaArea(areaId: string, areas: readonly HaAreaRef[]): HaAreaRef | undefined {
-  const id = String(areaId || '').trim();
-  if (!id) return undefined;
-  return areas.find((area) => area.id === id);
+  const id = String(areaId || '').trim()
+  if (!id) return undefined
+  return areas.find((area) => area.id === id)
 }
 
 /**
@@ -36,10 +36,8 @@ export function findCatalogForHaArea(
   area: HaAreaRef,
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): RoomCatalogEntry | undefined {
-  const hay = `${area.id} ${area.name}`.toLowerCase();
-  return catalog.find((room) =>
-    room.areaPatterns.some((pattern) => hay.includes(pattern.toLowerCase())),
-  );
+  const hay = `${area.id} ${area.name}`.toLowerCase()
+  return catalog.find((room) => room.areaPatterns.some((pattern) => hay.includes(pattern.toLowerCase())))
 }
 
 /**
@@ -60,25 +58,25 @@ export function findHaAreaForCatalogRoom(
   areas: readonly HaAreaRef[],
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): HaAreaRef | undefined {
-  const roomId = String(catalogRoomId || '').trim();
-  if (!roomId || !areas.length) return undefined;
+  const roomId = String(catalogRoomId || '').trim()
+  if (!roomId || !areas.length) return undefined
 
-  const direct = lookupHaArea(roomId, areas);
-  if (direct) return direct;
+  const direct = lookupHaArea(roomId, areas)
+  if (direct) return direct
 
-  const catalogEntry = catalog.find((room) => room.id === roomId);
+  const catalogEntry = catalog.find((room) => room.id === roomId)
   for (const area of areas) {
-    if (findCatalogForHaArea(area, catalog)?.id === roomId) return area;
-    if (!catalogEntry) continue;
-    const hay = `${area.id} ${area.name}`.toLowerCase();
+    if (findCatalogForHaArea(area, catalog)?.id === roomId) return area
+    if (!catalogEntry) continue
+    const hay = `${area.id} ${area.name}`.toLowerCase()
     if (catalogEntry.areaPatterns.some((pattern) => hay.includes(pattern.toLowerCase()))) {
-      return area;
+      return area
     }
     if (catalogEntry.inferKeywords.some((kw) => hay.includes(kw.toLowerCase()))) {
-      return area;
+      return area
     }
   }
-  return undefined;
+  return undefined
 }
 
 /**
@@ -87,8 +85,8 @@ export function findHaAreaForCatalogRoom(
  * - _hidden：patch 显式提供时优先，否则沿用 base。
  */
 function mergeEnvEntries(base?: EnvSensorMapEntry, patch?: EnvSensorMapEntry): EnvSensorMapEntry {
-  if (!base) return { ...(patch || {}) };
-  if (!patch) return { ...base };
+  if (!base) return { ...(patch || {}) }
+  if (!patch) return { ...base }
   return {
     label: patch.label?.trim() || base.label,
     haAreaId: patch.haAreaId || base.haAreaId,
@@ -101,22 +99,19 @@ function mergeEnvEntries(base?: EnvSensorMapEntry, patch?: EnvSensorMapEntry): E
     light: patch.light?.trim() || base.light,
     climate: patch.climate?.trim() || base.climate,
     _hidden: patch._hidden ?? base._hidden,
-  };
+  }
 }
 
 /** 仅保留 HA area_id 主键的 envSensorMap 条目 */
-export function filterEnvSensorMapToKnownAreas(
-  map: EnvSensorMap = {},
-  areas: readonly HaAreaRef[],
-): EnvSensorMap {
-  if (!areas.length || !map || typeof map !== 'object') return map || {};
-  const areaIds = new Set(areas.map((area) => area.id));
-  const next: EnvSensorMap = {};
+export function filterEnvSensorMapToKnownAreas(map: EnvSensorMap = {}, areas: readonly HaAreaRef[]): EnvSensorMap {
+  if (!areas.length || !map || typeof map !== 'object') return map || {}
+  const areaIds = new Set(areas.map((area) => area.id))
+  const next: EnvSensorMap = {}
   for (const [key, entry] of Object.entries(map)) {
-    if (!entry || !areaIds.has(key)) continue;
-    next[key] = mergeEnvEntries(next[key], { ...entry, haAreaId: key });
+    if (!entry || !areaIds.has(key)) continue
+    next[key] = mergeEnvEntries(next[key], { ...entry, haAreaId: key })
   }
-  return next;
+  return next
 }
 
 /**
@@ -124,17 +119,14 @@ export function filterEnvSensorMapToKnownAreas(
  * fixed 字段标记该房间由 HA 真实 area 提供（不可从目录移除）。
  */
 export type HaEnvRoomListItem = {
-  id: string;            /** HA area_id（主键） */
-  defaultLabel: string;  /** HA area 原生名称（兜底展示） */
-  fixed: boolean;        /** 是否为 HA 真实绑定的固定房间 */
-  displayLabel: string;  /** 最终展示名（envSensorMap.label 优先） */
-};
+  id: string /** HA area_id（主键） */
+  defaultLabel: string /** HA area 原生名称（兜底展示） */
+  fixed: boolean /** 是否为 HA 真实绑定的固定房间 */
+  displayLabel: string /** 最终展示名（envSensorMap.label 优先） */
+}
 
 /** 以 HA area_registry 为房间目录 */
-export function buildRoomListFromHaAreas(
-  areas: readonly HaAreaRef[],
-  map: EnvSensorMap = {},
-): HaEnvRoomListItem[] {
+export function buildRoomListFromHaAreas(areas: readonly HaAreaRef[], map: EnvSensorMap = {}): HaEnvRoomListItem[] {
   return [...areas]
     .filter((area) => !isRoomHiddenInMap(map, area.id))
     .map((area) => ({
@@ -143,14 +135,14 @@ export function buildRoomListFromHaAreas(
       fixed: true,
       displayLabel: map[area.id]?.label?.trim() || area.name,
     }))
-    .sort((a, b) => a.displayLabel.localeCompare(b.displayLabel, 'zh-CN'));
+    .sort((a, b) => a.displayLabel.localeCompare(b.displayLabel, 'zh-CN'))
 }
 
 function isAsciiSlugLabel(label: string): boolean {
-  const t = label.trim();
-  if (!t) return true;
-  if (/[\u4e00-\u9fff]/.test(t)) return false;
-  return /^[a-z0-9_\-\s]+$/i.test(t);
+  const t = label.trim()
+  if (!t) return true
+  if (/[\u4e00-\u9fff]/.test(t)) return false
+  return /^[a-z0-9_\-\s]+$/i.test(t)
 }
 
 /** 从 HA area id / 拼音 slug 反查目录默认中文名（如 lao_ren_fang → 老人房） */
@@ -162,15 +154,15 @@ function inferCatalogLabelFromAreaSlug(
     .trim()
     .toLowerCase()
     .replace(/-/g, '_')
-    .replace(/_/g, ' ');
-  if (!hay) return undefined;
+    .replace(/_/g, ' ')
+  if (!hay) return undefined
   for (const room of catalog) {
-    if (room.inferKeywords.some((kw) => hay.includes(kw.toLowerCase()))) return room.defaultLabel;
+    if (room.inferKeywords.some((kw) => hay.includes(kw.toLowerCase()))) return room.defaultLabel
     if (room.areaPatterns.some((pattern) => hay.includes(pattern.toLowerCase()))) {
-      return room.defaultLabel;
+      return room.defaultLabel
     }
   }
-  return undefined;
+  return undefined
 }
 
 /**
@@ -188,29 +180,29 @@ export function resolveRoomLabelFromHaAreas(
   areas: readonly HaAreaRef[] = [],
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string {
-  const id = String(roomId || '').trim();
-  if (!id) return '';
-  const custom = map[id]?.label?.trim();
-  if (custom) return custom;
-  const ha = lookupHaArea(id, areas);
+  const id = String(roomId || '').trim()
+  if (!id) return ''
+  const custom = map[id]?.label?.trim()
+  if (custom) return custom
+  const ha = lookupHaArea(id, areas)
   if (ha) {
-    const haName = ha.name?.trim() || '';
-    if (haName && !isAsciiSlugLabel(haName)) return haName;
-    const fromCatalog = findCatalogForHaArea(ha, catalog);
-    if (fromCatalog) return fromCatalog.defaultLabel;
-    const fromSlug = inferCatalogLabelFromAreaSlug(ha.id, catalog);
-    if (fromSlug) return fromSlug;
-    if (haName) return haName;
+    const haName = ha.name?.trim() || ''
+    if (haName && !isAsciiSlugLabel(haName)) return haName
+    const fromCatalog = findCatalogForHaArea(ha, catalog)
+    if (fromCatalog) return fromCatalog.defaultLabel
+    const fromSlug = inferCatalogLabelFromAreaSlug(ha.id, catalog)
+    if (fromSlug) return fromSlug
+    if (haName) return haName
   }
-  const fromId = inferCatalogLabelFromAreaSlug(id, catalog);
-  if (fromId) return fromId;
-  return resolveRoomLabel(id, map, catalog);
+  const fromId = inferCatalogLabelFromAreaSlug(id, catalog)
+  if (fromId) return fromId
+  return resolveRoomLabel(id, map, catalog)
 }
 
 /**
  * 语音交互使用的房间别名条目：展示 label + 识别关键词集合（去重，含 label / HA name / area_id / 目录 voiceKeywords）。
  */
-export type VoiceRoomLike = { label: string; keywords: string[] };
+export type VoiceRoomLike = { label: string; keywords: string[] }
 
 /**
  * 从 HA area_registry 构建语音识别可用的房间别名列表（按 displayLabel 中文排序）。
@@ -227,18 +219,18 @@ export function resolveVoiceRoomsFromHaAreas(
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
   fallbackRooms: readonly VoiceRoomLike[] = [],
 ): VoiceRoomLike[] {
-  if (!areas.length) return [...fallbackRooms];
-  const rooms: VoiceRoomLike[] = [];
+  if (!areas.length) return [...fallbackRooms]
+  const rooms: VoiceRoomLike[] = []
   for (const area of areas) {
-    if (isRoomHiddenInMap(map, area.id)) continue;
-    const label = map[area.id]?.label?.trim() || area.name;
-    const catalogEntry = findCatalogForHaArea(area, catalog);
+    if (isRoomHiddenInMap(map, area.id)) continue
+    const label = map[area.id]?.label?.trim() || area.name
+    const catalogEntry = findCatalogForHaArea(area, catalog)
     const keywords = catalogEntry
       ? [...new Set([...catalogEntry.voiceKeywords, label, area.name, area.id])]
-      : [...new Set([label, area.name, area.id, area.id.replace(/_/g, ' ')])];
-    rooms.push({ label, keywords });
+      : [...new Set([label, area.name, area.id, area.id.replace(/_/g, ' ')])]
+    rooms.push({ label, keywords })
   }
-  return rooms.sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'));
+  return rooms.sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
 }
 
 /**
@@ -254,26 +246,26 @@ export function buildPublicRoomMetaFromHaAreas(
   map: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): { roomLabels: Record<string, string>; deviceGroupLabels: Record<string, string> } {
-  if (!areas.length) return buildPublicRoomMeta(map, catalog);
+  if (!areas.length) return buildPublicRoomMeta(map, catalog)
 
-  const roomLabels: Record<string, string> = {};
-  const deviceGroupLabels: Record<string, string> = { other: '其他' };
+  const roomLabels: Record<string, string> = {}
+  const deviceGroupLabels: Record<string, string> = { other: '其他' }
 
   for (const area of areas) {
-    if (isRoomHiddenInMap(map, area.id)) continue;
-    const label = map[area.id]?.label?.trim() || area.name;
-    roomLabels[area.id] = label;
-    const catalogEntry = findCatalogForHaArea(area, catalog);
+    if (isRoomHiddenInMap(map, area.id)) continue
+    const label = map[area.id]?.label?.trim() || area.name
+    roomLabels[area.id] = label
+    const catalogEntry = findCatalogForHaArea(area, catalog)
     if (catalogEntry) {
-      deviceGroupLabels[catalogEntry.deviceGroupKey] = label;
+      deviceGroupLabels[catalogEntry.deviceGroupKey] = label
     }
   }
 
   for (const room of catalog) {
-    if (deviceGroupLabels[room.deviceGroupKey]) continue;
-    if (isRoomHiddenInMap(map, room.id)) continue;
-    deviceGroupLabels[room.deviceGroupKey] = resolveRoomLabel(room.id, map, catalog);
+    if (deviceGroupLabels[room.deviceGroupKey]) continue
+    if (isRoomHiddenInMap(map, room.id)) continue
+    deviceGroupLabels[room.deviceGroupKey] = resolveRoomLabel(room.id, map, catalog)
   }
 
-  return { roomLabels, deviceGroupLabels };
+  return { roomLabels, deviceGroupLabels }
 }

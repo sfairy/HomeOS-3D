@@ -84,7 +84,13 @@ test('暴露的六个成员与 TS 门面一一对应', () => {
   for (const member of ['active', 'signal', 'phase', 'fail', 'wait', 'ready']) {
     assert.ok(body.includes(member), `控制器缺少成员 ${member}`)
   }
-  for (const fn of ['studioStartupActive', 'studioStartupPhase', 'studioStartupFail', 'studioStartupReady', 'studioStartupWait']) {
+  for (const fn of [
+    'studioStartupActive',
+    'studioStartupPhase',
+    'studioStartupFail',
+    'studioStartupReady',
+    'studioStartupWait',
+  ]) {
     assert.ok(tsFacade.includes(`export function ${fn}`), `TS 门面缺少 ${fn}`)
   }
 })

@@ -56,10 +56,7 @@ export function availableDeviceHistoryRanges(maxQueryHours: number): DeviceHisto
 }
 
 /** 若当前选择超出可查询窗口，回退到最大可用档位 */
-export function clampDeviceHistoryRange(
-  range: DeviceHistoryRange,
-  maxQueryHours: number,
-): DeviceHistoryRange {
+export function clampDeviceHistoryRange(range: DeviceHistoryRange, maxQueryHours: number): DeviceHistoryRange {
   const opts = availableDeviceHistoryRanges(maxQueryHours)
   if (opts.some((r) => r.value === range)) return range
   return opts[opts.length - 1]?.value ?? '24h'
@@ -73,11 +70,7 @@ export function clampDeviceHistoryRange(
  * @param visible  可选的可见性开关；为 false 时跳过请求与 watch 自动触发。
  * @returns loading / error / events / total / truncated / refresh。
  */
-export function useDeviceStateHistory(
-  entityId: Ref<string>,
-  range: Ref<DeviceHistoryRange>,
-  visible?: Ref<boolean>,
-) {
+export function useDeviceStateHistory(entityId: Ref<string>, range: Ref<DeviceHistoryRange>, visible?: Ref<boolean>) {
   const loading = ref(false)
   const error = ref('')
   const events = ref<DeviceStateHistoryEvent[]>([])

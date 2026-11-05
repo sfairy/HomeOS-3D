@@ -15,10 +15,7 @@ import { getLicenseAvailability } from '@/services/api/license'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import {
-  PASSWORD_POLICY_MESSAGE,
-  isPasswordPolicyCompliant,
-} from '@homeos/shared/security/password-policy'
+import { PASSWORD_POLICY_MESSAGE, isPasswordPolicyCompliant } from '@homeos/shared/security/password-policy'
 import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
 import { rememberActivationEmail } from '@/shared/utils/auth/activation-email.util'
 import { resolveStoreLinks } from '@/shared/utils/store-links.util'
@@ -104,7 +101,10 @@ async function onSendCode(): Promise<void> {
   try {
     const result = await authStore.sendVerificationCode(target)
     startCooldown(Number(result.resendAfter) || 60)
-    chrome.notify(result.delivered === false ? '验证码已生成，但邮件投递失败，请联系客服。' : '验证码已发送，请检查邮箱。', result.delivered === false ? 'warning' : 'success')
+    chrome.notify(
+      result.delivered === false ? '验证码已生成，但邮件投递失败，请联系客服。' : '验证码已发送，请检查邮箱。',
+      result.delivered === false ? 'warning' : 'success',
+    )
   } catch (caughtError) {
     errorMessage.value = getApiErrorMessage(caughtError, '验证码发送失败。')
   } finally {
@@ -132,9 +132,7 @@ async function onSubmit(): Promise<void> {
   //
   // 不用 `window.open(url, '_blank', 'noopener')`：带 noopener 时返回值恒为 null，
   // 注册失败就关不掉这个标签页，用户会被丢在一个「其实没注册成功」的商店页上。
-  const storeTab = needsPurchase.value && storeProductsUrl
-    ? window.open(storeProductsUrl, '_blank')
-    : null
+  const storeTab = needsPurchase.value && storeProductsUrl ? window.open(storeProductsUrl, '_blank') : null
   if (storeTab) {
     // 等价于 noopener，但保留句柄（可以关）：防反向劫持。
     try {
@@ -161,9 +159,7 @@ async function onSubmit(): Promise<void> {
       // 用户再点一次按钮就能买到。地址压根没解析出来是另一种失败，激活页的兜底话
       // （「商店地址当前不可用，请联系厂商」）才是对的，重试弹窗没有意义。
       const blocked = !storeTab && Boolean(storeProductsUrl)
-      window.location.assign(
-        blocked ? '/activate?from=register&store=blocked' : '/activate?from=register',
-      )
+      window.location.assign(blocked ? '/activate?from=register&store=blocked' : '/activate?from=register')
       return
     }
     window.location.assign('/')

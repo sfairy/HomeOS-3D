@@ -12,7 +12,7 @@
  */
 import { ref } from 'vue'
 
-export type PerfMode = 'high' | 'medium' | 'low'
+type PerfMode = 'high' | 'medium' | 'low'
 
 const RANK: Record<PerfMode, number> = { low: 1, medium: 2, high: 3 }
 

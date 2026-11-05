@@ -84,10 +84,7 @@ async function addRemoteCandidates(peerConnection: RTCPeerConnection, candidates
  * @param onTrack track 事件回调
  * @returns 连接成功时 resolve；超时或失败时 reject
  */
-function waitForConnection(
-  peerConnection: RTCPeerConnection,
-  onTrack?: (ev: RTCTrackEvent) => void,
-): Promise<void> {
+function waitForConnection(peerConnection: RTCPeerConnection, onTrack?: (ev: RTCTrackEvent) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     let settled = false
     const timeout = setTimeout(() => {
@@ -150,10 +147,7 @@ function postLocalCandidate(entityId: string, sessionId: string, candidate: RTCI
  * @returns 停止函数，调用后关闭连接并通知后端释放会话
  * @throws 连接超时或信令失败时抛出错误
  */
-async function startHaNativeWebRtc(
-  entityId: string,
-  videoEl: HTMLVideoElement,
-): Promise<WebRtcStopFn> {
+async function startHaNativeWebRtc(entityId: string, videoEl: HTMLVideoElement): Promise<WebRtcStopFn> {
   let iceServers = await resolveIceServers()
   try {
     const configRes = await apiGet<{ configuration?: { iceServers?: IceServerConfig[] } }>(
@@ -196,11 +190,7 @@ async function startHaNativeWebRtc(
     answer: string
     candidates: Record<string, unknown>[]
     subscription_id: number
-  }>(
-    '/ha/webrtc/negotiate',
-    { entity_id: entityId, offer: offer.sdp },
-    { timeout: NEGOTIATE_TIMEOUT_MS },
-  )
+  }>('/ha/webrtc/negotiate', { entity_id: entityId, offer: offer.sdp }, { timeout: NEGOTIATE_TIMEOUT_MS })
 
   const negotiated = negotiatedRes.data
   sessionId = negotiated.session_id
@@ -238,10 +228,7 @@ async function startHaNativeWebRtc(
  * @returns 停止函数，调用后关闭 WS 与连接
  * @throws WebSocket 连接超时或失败时抛出错误
  */
-async function startGo2RtcWebRtc(
-  wsUrl: string,
-  videoEl: HTMLVideoElement,
-): Promise<WebRtcStopFn> {
+async function startGo2RtcWebRtc(wsUrl: string, videoEl: HTMLVideoElement): Promise<WebRtcStopFn> {
   const iceServers = await resolveIceServers()
   const peerConnection = new RTCPeerConnection({ iceServers })
   setupRecvTransceivers(peerConnection)

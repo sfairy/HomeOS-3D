@@ -3,10 +3,7 @@ import msgpackParser from 'socket.io-msgpack-parser'
 import type { Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'
 import { useLayoutStore } from '@/stores/layout.store'
-import {
-  getActiveSubscribeDomains,
-  collectWsPinnedEntityIds,
-} from '@/shared/entity/utils/ws-subscription'
+import { getActiveSubscribeDomains, collectWsPinnedEntityIds } from '@/shared/entity/utils/ws-subscription'
 import { resolveActivePopupEntityId } from '@/composables/entity/popup/active-popup-entity'
 
 /** 构建前端 Socket.IO 连接参数（从 entities.store 抽离） */

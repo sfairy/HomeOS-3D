@@ -11,7 +11,11 @@
   overflow: auto;
   scrollbar-gutter: stable;
   background:
-    radial-gradient(ellipse 95% 55% at 8% -12%, rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.07) 0%, transparent 56%),
+    radial-gradient(
+      ellipse 95% 55% at 8% -12%,
+      rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.07) 0%,
+      transparent 56%
+    ),
     radial-gradient(ellipse 70% 42% at 96% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 50%),
     radial-gradient(ellipse 60% 40% at 50% 110%, rgba(52, 211, 153, 0.03) 0%, transparent 48%),
     linear-gradient(180deg, #0b0e15 0%, #080a10 100%);
@@ -173,7 +177,10 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid color-mix(in srgb, var(--head-accent, #38bdf8) 35%, rgba(0, 0, 0, 0));
   background: color-mix(in srgb, var(--head-accent, #38bdf8) 12%, rgba(0, 0, 0, 0));
-  transition: transform 0.2s var(--ease-spring), background 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s var(--ease-spring),
+    background 0.2s,
+    box-shadow 0.2s;
   white-space: nowrap;
 }
 
@@ -248,7 +255,11 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.15s;
 }
 
 .list-page__chip--btn:hover {
@@ -381,7 +392,7 @@
 }
 
 .list-page__section-title::before {
-  content: '';
+  content: "";
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -441,11 +452,15 @@
   isolation: isolate;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s var(--ease-spring);
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s var(--ease-spring);
 }
 
 .list-page__row::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 12px;
@@ -453,7 +468,9 @@
   width: 3px;
   border-radius: 3px;
   background: transparent;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
 }
 
 .list-page__row:hover {
@@ -572,7 +589,7 @@
 
 .list-page__row-sub {
   font-size: var(--premium-fs-caption);
-  font-family: ui-monospace, 'SF Mono', monospace;
+  font-family: ui-monospace, "SF Mono", monospace;
   color: var(--hos-text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -633,11 +650,14 @@
   background: rgba(0, 0, 0, 0.35);
   color: inherit;
   font-size: var(--premium-fs-caption);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .list-page__input:focus {
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
   border-color: color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 45%, rgba(0, 0, 0, 0));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 12%, rgba(0, 0, 0, 0));
 }
@@ -672,9 +692,16 @@
 }
 
 @media (max-width: 768px) {
-  .list-page__search-wrap { max-width: none; width: 100%; }
-  .list-page__row-sub { display: none; }
-  .list-page__row-area { display: none; }
+  .list-page__search-wrap {
+    max-width: none;
+    width: 100%;
+  }
+  .list-page__row-sub {
+    display: none;
+  }
+  .list-page__row-area {
+    display: none;
+  }
 }
 
 /* 触控 / 窄屏：独立列表页统一去掉易出白晕的毛玻璃、发光与 inset 高光 */

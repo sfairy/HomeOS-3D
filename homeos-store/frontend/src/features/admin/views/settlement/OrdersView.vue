@@ -276,12 +276,7 @@ async function refund(order: AdminOrder) {
   });
 }
 
-async function runAction(
-  order: AdminOrder,
-  action: string,
-  label: string,
-  extra: Record<string, unknown> = {},
-) {
+async function runAction(order: AdminOrder, action: string, label: string, extra: Record<string, unknown> = {}) {
   try {
     await adminApi(`/orders/${order.orderNo}/${action}`, {
       method: "POST",

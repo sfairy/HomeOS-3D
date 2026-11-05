@@ -20,10 +20,7 @@ interface BackendBootRetryOptions {
  * @returns fn 的成功返回值
  * @throws 当错误不属于后端不可达，或达到最大次数仍失败时抛出最近一次错误
  */
-export async function withBackendBootRetry<T>(
-  fn: () => Promise<T>,
-  options: BackendBootRetryOptions = {},
-): Promise<T> {
+export async function withBackendBootRetry<T>(fn: () => Promise<T>, options: BackendBootRetryOptions = {}): Promise<T> {
   const maxAttempts = options.maxAttempts ?? API_BOOT_RETRY_MAX
   const delayMs = options.delayMs ?? API_BOOT_RETRY_DELAY_MS
   let lastError: unknown

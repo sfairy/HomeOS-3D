@@ -8,11 +8,7 @@
  */
 import { resolveCameraHlsPlayUrl } from '@/shared/utils/ha/camera-stream.util'
 import { logger } from '@/shared/utils/core/logger'
-import {
-  ensureHls,
-  isExpiredStreamAddressError,
-  type HlsCtor,
-} from '@/shared/camera/hls-loader'
+import { ensureHls, isExpiredStreamAddressError, type HlsCtor } from '@/shared/camera/hls-loader'
 
 type HlsInstance = InstanceType<HlsCtor>
 type TransportMode = 'idle' | 'hls' | 'legacy' | 'snapshot'
@@ -223,8 +219,7 @@ export async function startCameraMediaTransport(
         },
       })
       hls = player
-      const isCurrent = () =>
-        !stopped && expectedGen === generation && mode === 'hls' && hls === player
+      const isCurrent = () => !stopped && expectedGen === generation && mode === 'hls' && hls === player
       player.on(Hls.Events.MANIFEST_PARSED, () => {
         if (!isCurrent()) return
         hlsAddressRetries = 0
@@ -234,11 +229,7 @@ export async function startCameraMediaTransport(
         if (!isCurrent() || !data?.fatal) return
         if (isExpiredStreamAddressError(data) && hlsAddressRetries < HLS_ADDRESS_RETRY_LIMIT) {
           hlsAddressRetries += 1
-          logger.warn(
-            '[camera-media] HLS 播放地址已失效，重新换票',
-            data.details,
-            data.response?.code,
-          )
+          logger.warn('[camera-media] HLS 播放地址已失效，重新换票', data.details, data.response?.code)
           hls = null
           player.destroy()
           void startHls(++generation)

@@ -13,8 +13,7 @@ export function defaultAlertClause(): ConditionClause {
 export function clauseToExpr(clause: ConditionClause) {
   if (clause.condType === 'state') return (clause.condValue || 'on').trim()
   if (clause.condType === 'contains') return `contains ${clause.condValue ?? ''}`.trim()
-  if (clause.condType === 'numeric')
-    return `${clause.condOp || '>'} ${clause.condValue ?? ''}`.trim()
+  if (clause.condType === 'numeric') return `${clause.condOp || '>'} ${clause.condValue ?? ''}`.trim()
   if (clause.condType === 'attr' && clause.condOp === 'contains') {
     return `attr:${clause.condAttr || 'brightness'} contains ${clause.condValue ?? ''}`.trim()
   }

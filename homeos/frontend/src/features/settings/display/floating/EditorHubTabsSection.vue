@@ -25,9 +25,7 @@ const { field } = useDraftObjectField(() => afhConfig.value)
 const hubTabsModel = computed({
   get: () => ({
     defaultTab: String(afhHubTabs.value?.defaultTab || ''),
-    visibleTabs: Array.isArray(afhHubTabs.value?.visibleTabs)
-      ? [...afhHubTabs.value.visibleTabs]
-      : [],
+    visibleTabs: Array.isArray(afhHubTabs.value?.visibleTabs) ? [...afhHubTabs.value.visibleTabs] : [],
   }),
   set: (val) => {
     if (!val || typeof val !== 'object') return

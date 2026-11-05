@@ -1,173 +1,151 @@
-import { createAccessMonitor } from "./access/access-monitor";
-import { createInteraction3dCover } from "./cover";
-import { createInteraction3dFocusLayout } from "./presets/focus-layout";
+import { createAccessMonitor } from './access/access-monitor'
+import { createInteraction3dCover } from './cover'
+import { createInteraction3dFocusLayout } from './presets/focus-layout'
 /** 在 Error 上挂 HTTP 状态码：授权校验失败时调用方按它分支。 */
-type AccessError = Error & { status?: number };
+type AccessError = Error & { status?: number }
 
 /** 宿主元素上的 bridge 扩展方法：3D 预览块挂在画布 DOM 里，编辑器通过这两个方法控制页面可见性与内容刷新。 */
 type Interaction3dHostElement = HTMLElement & {
   /** 页面可见性（编辑器切页时调用，避免后台空转）。 */
-  setInteraction3dPageVisible?: (shouldShowPage: boolean) => void;
+  setInteraction3dPageVisible?: (shouldShowPage: boolean) => void
   /**
    * 编辑开关：2D 编辑器里切换「编辑」时直接改已挂载实例，不重新挂载。
    * 关闭时同时退出视图/范围编辑并清掉弹窗预览。
    */
-  setInteraction3dEditable?: (editable: boolean) => void;
+  setInteraction3dEditable?: (editable: boolean) => void
   /** 内容更新：组件定义或宿主文档变化时调用。 */
-  updateInteraction3d?: (nextComponent: any, contentDocument: any) => void;
-};
+  updateInteraction3d?: (nextComponent: any, contentDocument: any) => void
+}
 
 /** 3D 交互实例（runtime.mountInteraction3d 的返回值）。 */
 export type Interaction3dEditorView = {
   /** 视图是否已经就绪（不是「已挂载」）。 */
-  ready?: boolean;
+  ready?: boolean
   /** 是否处于视图编辑态。 */
-  viewEditing?: boolean;
+  viewEditing?: boolean
   /** 是否处于导航位置调整态。 */
-  navigationEditing?: boolean;
+  navigationEditing?: boolean
   /** 是否处于范围编辑态。 */
-  rangeEditing?: boolean;
-  setViewEditing?: (editing: boolean) => void;
-  setNavigationEditing?: (editing: boolean) => void;
-  subscribeEdit?: (listener: (editEvent: any) => void) => () => void;
-  setAuthorized?: (authorized: boolean) => void;
-  setPageVisible?: (visible: boolean) => void;
-  closePopupLayoutPreview?: (...args: any[]) => any;
+  rangeEditing?: boolean
+  setViewEditing?: (editing: boolean) => void
+  setNavigationEditing?: (editing: boolean) => void
+  subscribeEdit?: (listener: (editEvent: any) => void) => () => void
+  setAuthorized?: (authorized: boolean) => void
+  setPageVisible?: (visible: boolean) => void
+  closePopupLayoutPreview?: (...args: any[]) => any
   /** 天气效果预览：返回 false 表示当前画布不满足预览条件（正在视角/范围编辑、页面隐藏等）。 */
-  previewWeather?: (weatherState: string) => boolean;
+  previewWeather?: (weatherState: string) => boolean
   /** 订阅预览态：回调参数是正在预览的天气键，空串表示已回到真实天气；返回取消订阅函数。 */
-  onWeatherPreviewChange?: (listener: (previewState: string) => void) => (() => void) | undefined;
-  closeWeatherPreview?: (...args: any[]) => any;
-  closeRangeEditor?: (...args: any[]) => any;
+  onWeatherPreviewChange?: (listener: (previewState: string) => void) => (() => void) | undefined
+  closeWeatherPreview?: (...args: any[]) => any
+  closeRangeEditor?: (...args: any[]) => any
   /** 实例自身可调用：锁定时用它收尾。 */
-  (...args: any[]): any;
-  [memberName: string]: any;
-};
+  (...args: any[]): any
+  [memberName: string]: any
+}
 
 /** renderInteraction3d 的渲染上下文（由编辑器传入）。 */
 type Interaction3dRenderOptions = {
   /** 预热：先不加载，等页面真正可见再挂载。 */
-  prewarmStage?: boolean;
+  prewarmStage?: boolean
   /** 可编辑：挂进 editorViewsById 并对外派发视图事件。 */
-  editable?: boolean;
+  editable?: boolean
   /** 内容文档（编辑器注入，更新时回填）。 */
-  document?: any;
+  document?: any
   /** 清理钩子：bridge 把「停止交互」的收尾回调交给调用方保存。 */
-  cleanup?: (stopInteraction: () => void) => void;
-  [optionName: string]: any;
-};
+  cleanup?: (stopInteraction: () => void) => void
+  [optionName: string]: any
+}
 
 export async function requestInteraction3dAccess() {
   const abortController = new AbortController(),
-    accessTimeoutId = setTimeout(() => abortController.abort(), 5000);
+    accessTimeoutId = setTimeout(() => abortController.abort(), 5000)
   try {
-    const accessResponse = await fetch("/api/v1/modules/interaction3d/access", {
-      cache: "no-store",
-      credentials: "same-origin",
+    const accessResponse = await fetch('/api/v1/modules/interaction3d/access', {
+      cache: 'no-store',
+      credentials: 'same-origin',
       signal: abortController.signal,
-    });
+    })
     if (!accessResponse.ok) {
       const accessError = new Error(
         accessResponse.status === 403
-          ? "3D 交互授权不可用，请在授权信息中查看。"
+          ? '3D 交互授权不可用，请在授权信息中查看。'
           : accessResponse.status === 401
-            ? "登录状态已失效，请重新登录。"
-            : "暂时无法验证 3D 交互授权，请稍候重试。",
-      );
-      throw (((accessError as AccessError).status = accessResponse.status), accessError);
+            ? '登录状态已失效，请重新登录。'
+            : '暂时无法验证 3D 交互授权，请稍候重试。',
+      )
+      throw (((accessError as AccessError).status = accessResponse.status), accessError)
     }
-    const responseBody = await accessResponse.json();
+    const responseBody = await accessResponse.json()
     if (
       responseBody?.allowed !== true ||
       !Number.isFinite(Number(responseBody.validForSeconds)) ||
       Number(responseBody.validForSeconds) <= 0
     ) {
-      const accessGrantError = new Error("暂时无法验证 3D 交互授权，请稍候重试。");
-      throw (
-        ((accessGrantError as AccessError).status = responseBody?.allowed === false ? 403 : 502),
-        accessGrantError
-      );
+      const accessGrantError = new Error('暂时无法验证 3D 交互授权，请稍候重试。')
+      throw (((accessGrantError as AccessError).status = responseBody?.allowed === false ? 403 : 502), accessGrantError)
     }
-    return responseBody;
+    return responseBody
   } finally {
-    clearTimeout(accessTimeoutId);
+    clearTimeout(accessTimeoutId)
   }
 }
 /** runtime 模块的动态 import 缓存：并发挂载只加载一次；加载失败时清空缓存，下次可重试。 */
-let interaction3dRuntimePromise: any;
+let interaction3dRuntimePromise: any
 function loadInteraction3dRuntime() {
   return (
     interaction3dRuntimePromise ||
-      (interaction3dRuntimePromise = import("/api/v1/modules/interaction3d/core/runtime.js").catch(
+      (interaction3dRuntimePromise = import('/api/v1/modules/interaction3d/core/runtime.js').catch(
         (runtimeImportError) => {
-          throw ((interaction3dRuntimePromise = null), runtimeImportError);
+          throw ((interaction3dRuntimePromise = null), runtimeImportError)
         },
       )),
     interaction3dRuntimePromise
-  );
+  )
 }
-let accessMonitor: any;
+let accessMonitor: any
 const editorViewsById = new Map<string, Interaction3dEditorView>(),
-  viewListenersById = new Map<string, Set<(viewError?: any) => void>>();
+  viewListenersById = new Map<string, Set<(viewError?: any) => void>>()
 function emitEditorViewEvent(editorViewId: string, listenerError: any = null) {
-  for (const viewListener of viewListenersById.get(editorViewId) || []) viewListener(listenerError);
+  for (const viewListener of viewListenersById.get(editorViewId) || []) viewListener(listenerError)
 }
 export function getInteraction3dEditorView(editorId: string) {
-  return editorViewsById.get(editorId);
+  return editorViewsById.get(editorId)
 }
 /**
  * 2D 编辑开关直接作用到已挂载实例：打开时进入视图编辑，关闭时同时收掉
  * 位置/范围编辑与弹窗预览，避免切回浏览态后仍残留可拖拽的把手。
  */
-function setInteraction3dEditable(editorView: Interaction3dEditorView | null | undefined, editable: boolean) {
-  if (!editorView) return;
-  const editableEnabled = !!editable;
-  typeof editorView.setEditable === "function"
-    ? editorView.setEditable(editableEnabled)
-    : editorView.setViewEditing?.(editableEnabled);
-  editableEnabled || editorView.setNavigationEditing?.(false);
-  editableEnabled || editorView.closeRangeEditor?.();
-  editableEnabled || editorView.closePopupLayoutPreview?.();
-  editableEnabled || editorView.closeWeatherPreview?.();
-}
-export function waitInteraction3dEditorView(
-  targetEditorId: string,
-): Promise<Interaction3dEditorView> {
+export function waitInteraction3dEditorView(targetEditorId: string): Promise<Interaction3dEditorView> {
   return new Promise((resolveView, rejectView) => {
     const removeViewWaiter = () => {
-        (clearTimeout(waitTimeoutId),
+        clearTimeout(waitTimeoutId),
           viewListenersById.get(targetEditorId)?.delete(handleViewUpdate),
-          viewListenersById.get(targetEditorId)?.size || viewListenersById.delete(targetEditorId));
+          viewListenersById.get(targetEditorId)?.size || viewListenersById.delete(targetEditorId)
       },
       handleViewUpdate = (viewError: any = null) => {
-        const editorView = editorViewsById.get(targetEditorId);
+        const editorView = editorViewsById.get(targetEditorId)
         viewError
           ? (removeViewWaiter(), rejectView(viewError))
-          : editorView?.ready &&
-            editorView.metadata &&
-            (removeViewWaiter(), resolveView(editorView));
+          : editorView?.ready && editorView.metadata && (removeViewWaiter(), resolveView(editorView))
       },
       waitTimeoutId = setTimeout(() => {
-        (removeViewWaiter(), rejectView(new Error("户型准备较慢，请稍候重试。")));
-      }, 25000);
-    (viewListenersById.has(targetEditorId) ||
+        removeViewWaiter(), rejectView(new Error('户型准备较慢，请稍候重试。'))
+      }, 25000)
+    viewListenersById.has(targetEditorId) ||
       viewListenersById.set(targetEditorId, new Set<(viewError?: any) => void>()),
       viewListenersById.get(targetEditorId)!.add(handleViewUpdate),
-      handleViewUpdate());
-  });
+      handleViewUpdate()
+  })
 }
 export function cancelOtherInteraction3dViews(currentEditorId: string) {
   for (const [otherEditorId, otherEditorView] of editorViewsById)
-    (otherEditorId !== currentEditorId &&
-      otherEditorView.viewEditing &&
-      otherEditorView.setViewEditing!(false),
+    otherEditorId !== currentEditorId && otherEditorView.viewEditing && otherEditorView.setViewEditing!(false),
       otherEditorId !== currentEditorId &&
         otherEditorView.navigationEditing &&
         otherEditorView.setNavigationEditing?.(false),
       otherEditorId !== currentEditorId && otherEditorView.closePopupLayoutPreview?.(),
-      otherEditorId !== currentEditorId &&
-        otherEditorView.rangeEditing &&
-        otherEditorView.closeRangeEditor?.());
+      otherEditorId !== currentEditorId && otherEditorView.rangeEditing && otherEditorView.closeRangeEditor?.()
 }
 function getAccessMonitor() {
   return (
@@ -175,248 +153,221 @@ function getAccessMonitor() {
     ((accessMonitor = createAccessMonitor({
       requestGrant: requestInteraction3dAccess,
     })),
-    document.addEventListener("visibilitychange", () =>
+    document.addEventListener('visibilitychange', () =>
       document.hidden ? accessMonitor.suspend() : accessMonitor.resume(),
     ),
-    window.addEventListener("pagehide", () => accessMonitor.suspend()),
-    window.addEventListener("pageshow", () => {
-      document.hidden || accessMonitor.resume();
+    window.addEventListener('pagehide', () => accessMonitor.suspend()),
+    window.addEventListener('pageshow', () => {
+      document.hidden || accessMonitor.resume()
     }),
     document.hidden && accessMonitor.suspend(),
     accessMonitor)
-  );
+  )
 }
 export function subscribeInteraction3dAccess(onAccessChange: any) {
-  return getAccessMonitor().subscribe(onAccessChange);
+  return getAccessMonitor().subscribe(onAccessChange)
 }
-
 
 export function syncInteraction3dUiScale(hostElement: any) {
   const layoutWidth = Number(hostElement?.offsetWidth) || 0,
-    visualWidth = Number(hostElement?.getBoundingClientRect?.().width) || 0;
-  if (!layoutWidth || !visualWidth) return;
+    visualWidth = Number(hostElement?.getBoundingClientRect?.().width) || 0
+  if (!layoutWidth || !visualWidth) return
 
-  hostElement.style.setProperty(
-    "--i3d-visual-scale",
-    String(Math.min(6, Math.max(1, layoutWidth / visualWidth))),
-  );
+  hostElement.style.setProperty('--i3d-visual-scale', String(Math.min(6, Math.max(1, layoutWidth / visualWidth))))
 }
-export function renderInteraction3d(
-  component: any,
-  options: Interaction3dRenderOptions = {},
-) {
-  const hostElement: Interaction3dHostElement = document.createElement("section");
-  ((hostElement.className = "hb-interaction3d-host"),
-    hostElement.setAttribute("role", "region"),
-    hostElement.setAttribute("aria-label", "3D 交互"));
+export function renderInteraction3d(component: any, options: Interaction3dRenderOptions = {}) {
+  const hostElement: Interaction3dHostElement = document.createElement('section')
+  ;(hostElement.className = 'hb-interaction3d-host'),
+    hostElement.setAttribute('role', 'region'),
+    hostElement.setAttribute('aria-label', '3D 交互')
   let isDisposed = false,
     isMounting = false,
     isMounted = false,
     operationCount = 0,
     interaction3dInstance: any,
-    isPageVisible = options.prewarmStage !== true;
+    isPageVisible = options.prewarmStage !== true
   hostElement.setInteraction3dPageVisible = (shouldShowPage) => {
-    ((isPageVisible = shouldShowPage !== false),
-      interaction3dInstance?.setPageVisible?.(isPageVisible));
-  };
-  let styleLinkElement: any;
-  const focusLayout = createInteraction3dFocusLayout(hostElement, options);
+    ;(isPageVisible = shouldShowPage !== false), interaction3dInstance?.setPageVisible?.(isPageVisible)
+  }
+  let styleLinkElement: any
+  const focusLayout = createInteraction3dFocusLayout(hostElement, options)
   hostElement.setInteraction3dEditable = (nextEditable) => {
-    const isEditableEnabled = nextEditable === true;
-    if (!!options.editable === isEditableEnabled) return;
-    (isEditableEnabled && interaction3dInstance?.setEditable
+    const isEditableEnabled = nextEditable === true
+    if (!!options.editable === isEditableEnabled) return
+    isEditableEnabled && interaction3dInstance?.setEditable
       ? interaction3dInstance.setEditable(isEditableEnabled)
       : (options.editable = isEditableEnabled),
       isEditableEnabled && interaction3dInstance
         ? editorViewsById.set(component.id, interaction3dInstance)
-        : editorViewsById.get(component.id) === interaction3dInstance &&
-          editorViewsById.delete(component.id),
-      emitEditorViewEvent(
-        component.id,
-        isEditableEnabled ? undefined : new Error("已切换到仪表盘。"),
-      ),
-      focusLayout.refresh());
-  };
-  (hostElement.classList.toggle(
-    "is-background-hidden",
-    component.properties?.backgroundVisible === false,
-  ),
+        : editorViewsById.get(component.id) === interaction3dInstance && editorViewsById.delete(component.id),
+      emitEditorViewEvent(component.id, isEditableEnabled ? undefined : new Error('已切换到仪表盘。')),
+      focusLayout.refresh()
+  }
+  hostElement.classList.toggle('is-background-hidden', component.properties?.backgroundVisible === false),
     (hostElement.updateInteraction3d = (nextComponent, contentDocument) => {
-      ((component = nextComponent),
+      ;(component = nextComponent),
         (options.document = contentDocument),
-        hostElement.classList.toggle(
-          "is-background-hidden",
-          component.properties?.backgroundVisible === false,
-        ),
+        hostElement.classList.toggle('is-background-hidden', component.properties?.backgroundVisible === false),
         interaction3dInstance?.update(component.properties || {}, undefined, null, component),
-        focusLayout.refresh());
-    }));
-  function lockInteraction3d(_lockReason = "") {
-    (focusLayout.setActive(false),
+        focusLayout.refresh()
+    })
+  function lockInteraction3d(_lockReason = '') {
+    focusLayout.setActive(false),
       (operationCount += 1),
       (isMounting = false),
       (isMounted = false),
-      editorViewsById.get(component.id) === interaction3dInstance &&
-        editorViewsById.delete(component.id),
-      isDisposed ||
-        emitEditorViewEvent(component.id, new Error("3D 户型暂不可用，请检查授权或重新载入。")),
+      editorViewsById.get(component.id) === interaction3dInstance && editorViewsById.delete(component.id),
+      isDisposed || emitEditorViewEvent(component.id, new Error('3D 户型暂不可用，请检查授权或重新载入。')),
       interaction3dInstance?.(),
       (interaction3dInstance = null),
       styleLinkElement?.remove(),
       (styleLinkElement = null),
-      hostElement.dataset.access !== "locked" &&
-        hostElement.replaceChildren(createInteraction3dCover()),
-      (hostElement.dataset.access = "locked"),
-      hostElement.setAttribute("aria-busy", "false"));
+      hostElement.dataset.access !== 'locked' && hostElement.replaceChildren(createInteraction3dCover()),
+      (hostElement.dataset.access = 'locked'),
+      hostElement.setAttribute('aria-busy', 'false')
   }
   const unsubscribeAccess = subscribeInteraction3dAccess(async (accessState: any) => {
-    if (isDisposed) return;
+    if (isDisposed) return
     if (!accessState.allowed) {
-      if (accessState.status === "denied") return lockInteraction3d(accessState.message);
-      if ((interaction3dInstance?.setAuthorized(false), hostElement.dataset.access === "locked")) {
-        hostElement.setAttribute("aria-busy", accessState.status === "checking" ? "true" : "false");
-        return;
+      if (accessState.status === 'denied') return lockInteraction3d(accessState.message)
+      if ((interaction3dInstance?.setAuthorized(false), hostElement.dataset.access === 'locked')) {
+        hostElement.setAttribute('aria-busy', accessState.status === 'checking' ? 'true' : 'false')
+        return
       }
-      if (
-        ((hostElement.dataset.access = "pending"),
-        hostElement.setAttribute("aria-busy", "true"),
-        !isMounted)
-      ) {
-        ((operationCount += 1), (isMounting = false));
-        const pendingElement = document.createElement("div");
-        ((pendingElement.className = "i3d-access-pending"),
-          pendingElement.setAttribute("role", "status"),
-          pendingElement.setAttribute("aria-label", accessState.message || "正在准备 3D 户型"),
+      if (((hostElement.dataset.access = 'pending'), hostElement.setAttribute('aria-busy', 'true'), !isMounted)) {
+        ;(operationCount += 1), (isMounting = false)
+        const pendingElement = document.createElement('div')
+        ;(pendingElement.className = 'i3d-access-pending'),
+          pendingElement.setAttribute('role', 'status'),
+          pendingElement.setAttribute('aria-label', accessState.message || '正在准备 3D 户型'),
           // 旧实现只写了 aria-label：可视区域完全空白，授权校验失败/超时/暂停时用户只看到
           // 一块透明区域，既不知道在等什么，也分不清是网络、授权还是 WebView 的问题。
           // 把状态原话写进占位层，异常时这行字就是现场唯一线索（也顺带可被肉眼取证）。
-          (pendingElement.textContent = accessState.message || "正在准备 3D 户型…"),
+          (pendingElement.textContent = accessState.message || '正在准备 3D 户型…'),
           syncInteraction3dUiScale(hostElement),
-          hostElement.replaceChildren(pendingElement));
+          hostElement.replaceChildren(pendingElement)
       }
-      return;
+      return
     }
     if (isMounted) {
-      (interaction3dInstance?.setAuthorized(true),
-        (hostElement.dataset.access = "allowed"),
-        hostElement.setAttribute("aria-busy", "false"),
-        options.editable && emitEditorViewEvent(component.id));
-      return;
+      interaction3dInstance?.setAuthorized(true),
+        (hostElement.dataset.access = 'allowed'),
+        hostElement.setAttribute('aria-busy', 'false'),
+        options.editable && emitEditorViewEvent(component.id)
+      return
     }
-    if (isMounting) return;
-    isMounting = true;
+    if (isMounting) return
+    isMounting = true
     // 2D 编辑器会在双击/回车后再补一次挂载请求；用宿主标记挡住重复进入。
-    hostElement.dataset.interaction3dEntryPending = "true";
-    const operationToken = ++operationCount;
+    hostElement.dataset.interaction3dEntryPending = 'true'
+    const operationToken = ++operationCount
     try {
-      const runtimeModule = await loadInteraction3dRuntime();
-      if (isDisposed || operationToken !== operationCount || document.hidden) return;
-      ((styleLinkElement = document.createElement("link")),
-        (styleLinkElement.rel = "stylesheet"),
-        (styleLinkElement.href =
-          "/api/v1/modules/interaction3d/core/runtime.css"),
+      const runtimeModule = await loadInteraction3dRuntime()
+      if (isDisposed || operationToken !== operationCount || document.hidden) return
+      ;(styleLinkElement = document.createElement('link')),
+        (styleLinkElement.rel = 'stylesheet'),
+        (styleLinkElement.href = '/api/v1/modules/interaction3d/core/runtime.css'),
         (styleLinkElement.onload = () => {
-          styleLinkElement.isConnected &&
-            (hostElement.dataset.styleState = "ready");
+          styleLinkElement.isConnected && (hostElement.dataset.styleState = 'ready')
         }),
         (styleLinkElement.onerror = () => {
-          if (isDisposed || !styleLinkElement?.isConnected) return;
-          ((operationCount += 1), (isMounting = false), (isMounted = false));
-          const styleError = new Error("3D 户型样式载入失败，请重新载入。"),
-            mountedInstance = interaction3dInstance;
-          (interaction3dInstance?.(),
+          if (isDisposed || !styleLinkElement?.isConnected) return
+          ;(operationCount += 1), (isMounting = false), (isMounted = false)
+          const styleError = new Error('3D 户型样式载入失败，请重新载入。'),
+            mountedInstance = interaction3dInstance
+          interaction3dInstance?.(),
             (interaction3dInstance = null),
             mountedInstance &&
               editorViewsById.get(component.id) === mountedInstance &&
-              editorViewsById.delete(component.id));
-          const errorElement = document.createElement("div");
-          ((errorElement.className = "i3d-access-pending is-load-error"),
+              editorViewsById.delete(component.id)
+          const errorElement = document.createElement('div')
+          ;(errorElement.className = 'i3d-access-pending is-load-error'),
             (errorElement.textContent = styleError.message),
-            errorElement.setAttribute("role", "status"),
+            errorElement.setAttribute('role', 'status'),
             syncInteraction3dUiScale(hostElement),
             hostElement.replaceChildren(errorElement),
-            (hostElement.dataset.access = "pending"),
-            (hostElement.dataset.styleState = "error"),
-            options.editable && emitEditorViewEvent(component.id, styleError));
+            (hostElement.dataset.access = 'pending'),
+            (hostElement.dataset.styleState = 'error'),
+            options.editable && emitEditorViewEvent(component.id, styleError)
         }),
-        hostElement.append(styleLinkElement));
+        hostElement.append(styleLinkElement)
       // 编辑器/编辑工作区里用 <dialog open> 承载，供读屏与焦点语义；只读预览仍是普通 div。
-      const isEditorMount =
-          options.editable === true || options.editorWorkspace === true,
-        mountElement = document.createElement(isEditorMount ? "dialog" : "div");
-      (isEditorMount &&
-        (mountElement.setAttribute("open", ""),
-        mountElement.setAttribute("role", "region"),
-        mountElement.setAttribute("aria-label", "3D 交互户型")),
+      const isEditorMount = options.editable === true || options.editorWorkspace === true,
+        mountElement = document.createElement(isEditorMount ? 'dialog' : 'div')
+      isEditorMount &&
+        (mountElement.setAttribute('open', ''),
+        mountElement.setAttribute('role', 'region'),
+        mountElement.setAttribute('aria-label', '3D 交互户型')),
         [...hostElement.childNodes].forEach((childNode) => {
-          childNode !== styleLinkElement && childNode.remove();
+          childNode !== styleLinkElement && childNode.remove()
         }),
         hostElement.append(mountElement),
         (interaction3dInstance = runtimeModule.mountInteraction3d(mountElement, {
           component: component,
           context: options,
           onPresented: () => {
-            (focusLayout.refresh(), options.editable && emitEditorViewEvent(component.id));
+            focusLayout.refresh(), options.editable && emitEditorViewEvent(component.id)
           },
           onLoadError: (loadError: any) => {
-            options.editable && emitEditorViewEvent(component.id, loadError);
+            options.editable && emitEditorViewEvent(component.id, loadError)
           },
           onFocusChange: (isFocused: any) => focusLayout.setActive(isFocused),
         })),
         interaction3dInstance.setPageVisible?.(isPageVisible),
         options.editable && editorViewsById.set(component.id, interaction3dInstance),
-        (hostElement.dataset.access = "allowed"),
-        hostElement.setAttribute("aria-busy", "false"),
-        (isMounted = true));
+        (hostElement.dataset.access = 'allowed'),
+        hostElement.setAttribute('aria-busy', 'false'),
+        (isMounted = true)
     } catch (runtimeLoadError: any) {
       if (!isDisposed && operationToken === operationCount) {
         try {
           window.HomeOSLog?.error!(
             runtimeLoadError,
             {
-              projectId: options.document?.projectId || "",
+              projectId: options.document?.projectId || '',
               componentId: component.id,
-              phase: "interaction3d-runtime-load",
-              code: "INTERACTION3D_RUNTIME_LOAD_FAILED",
+              phase: 'interaction3d-runtime-load',
+              code: 'INTERACTION3D_RUNTIME_LOAD_FAILED',
             },
-            "3D 户型运行模块载入失败",
-          )!;
-        } catch { /* 错误上报 best-effort：上报失败不应掩盖原始加载失败 */ }
-        (styleLinkElement?.remove(), (styleLinkElement = null));
-        const errorElement = document.createElement("div");
-        ((errorElement.className = "i3d-access-pending"),
-          errorElement.classList.add("is-load-error"),
-          (errorElement.textContent = "户型暂时无法载入，请稍候重试。"),
-          errorElement.setAttribute("role", "status"),
+            '3D 户型运行模块载入失败',
+          )!
+        } catch {
+          /* 错误上报 best-effort：上报失败不应掩盖原始加载失败 */
+        }
+        styleLinkElement?.remove(), (styleLinkElement = null)
+        const errorElement = document.createElement('div')
+        ;(errorElement.className = 'i3d-access-pending'),
+          errorElement.classList.add('is-load-error'),
+          (errorElement.textContent = '户型暂时无法载入，请稍候重试。'),
+          errorElement.setAttribute('role', 'status'),
           syncInteraction3dUiScale(hostElement),
           hostElement.replaceChildren(errorElement),
-          (hostElement.dataset.access = "pending"),
-          options.editable &&
-            emitEditorViewEvent(component.id, new Error(errorElement.textContent)));
+          (hostElement.dataset.access = 'pending'),
+          options.editable && emitEditorViewEvent(component.id, new Error(errorElement.textContent))
       }
     } finally {
       if (operationToken === operationCount) {
-        isMounting = false;
-        delete hostElement.dataset.interaction3dEntryPending;
+        isMounting = false
+        delete hostElement.dataset.interaction3dEntryPending
       }
     }
-  });
+  })
   return (
     options.cleanup?.(() => {
       // 组件被删除/卸载时广播，编辑器借此收掉借用的 3D 预览会话。
       hostElement.ownerDocument?.dispatchEvent?.(
-        new CustomEvent("hb-i3d-component-removed", {
+        new CustomEvent('hb-i3d-component-removed', {
           detail: {
             componentId: component.id,
-            projectId: options.document?.projectId || "",
+            projectId: options.document?.projectId || '',
           },
         }),
       ),
         (isDisposed = true),
         unsubscribeAccess(),
-        lockInteraction3d("3D 交互已停止。"),
-        focusLayout.dispose();
+        lockInteraction3d('3D 交互已停止。'),
+        focusLayout.dispose()
     }),
     hostElement
-  );
+  )
 }

@@ -29,12 +29,9 @@ const geometryModuleUrl = fileURLToPath(
   new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/geometry.ts', import.meta.url),
 )
 const { resizeRotatedItemFromCorner } = await import(geometryModuleUrl)
-const {
-  itemFromPlanFootprintResize,
-  itemPlanFootprint,
-  itemPlanFootprintOffset,
-  itemWithPlanFootprint,
-} = await import(postureModuleUrl)
+const { itemFromPlanFootprintResize, itemPlanFootprint, itemPlanFootprintOffset, itemWithPlanFootprint } = await import(
+  postureModuleUrl
+)
 
 const EPSILON_METERS = 1e-9
 
@@ -46,7 +43,7 @@ function frameCorners(item, pixelsPerMeter) {
     rotationCos = Math.cos(rotationRad),
     rotationSin = Math.sin(rotationRad),
     halfWidthPx = (footprint.width * pixelsPerMeter) / 2,
-    halfDepthPx = (footprint.depth * pixelsPerMeter) / 2;
+    halfDepthPx = (footprint.depth * pixelsPerMeter) / 2
   return [
     [-1, -1],
     [1, -1],
@@ -78,12 +75,8 @@ function dragCorner(item, corner, dragPixels, pixelsPerMeter) {
     rotationCos = Math.cos(rotationRad),
     rotationSin = Math.sin(rotationRad),
     target = {
-      x:
-        corner.point.x +
-        (corner.directionX * rotationCos - corner.directionY * rotationSin) * dragPixels,
-      y:
-        corner.point.y +
-        (corner.directionX * rotationSin + corner.directionY * rotationCos) * dragPixels,
+      x: corner.point.x + (corner.directionX * rotationCos - corner.directionY * rotationSin) * dragPixels,
+      y: corner.point.y + (corner.directionX * rotationSin + corner.directionY * rotationCos) * dragPixels,
     },
     resizedRectangle = resizeRotatedItemFromCorner(
       itemWithPlanFootprint(item, pixelsPerMeter),
@@ -93,14 +86,10 @@ function dragCorner(item, corner, dragPixels, pixelsPerMeter) {
       pixelsPerMeter,
       false,
       { minimumDimension: 0.05 },
-    );
+    )
   return {
     target,
-    resized: Object.assign(
-      {},
-      item,
-      itemFromPlanFootprintResize(item, resizedRectangle, pixelsPerMeter),
-    ),
+    resized: Object.assign({}, item, itemFromPlanFootprintResize(item, resizedRectangle, pixelsPerMeter)),
   }
 }
 
@@ -131,27 +120,18 @@ test('拖角缩放：对角钉住、被拖的角跟着指针（立柱各造型 �
             resizedCorners = frameCorners(resized, pixelsPerMeter),
             resizedCorner = resizedCorners[cornerIndex],
             resizedOpposite = resizedCorners.find(
-              (candidate) =>
-                candidate.directionX === -corner.directionX &&
-                candidate.directionY === -corner.directionY,
+              (candidate) => candidate.directionX === -corner.directionX && candidate.directionY === -corner.directionY,
             ),
-            label = `${pillarShape} rot=${rotation} ppm=${pixelsPerMeter} corner=${corner.directionX},${corner.directionY}`;
+            label = `${pillarShape} rot=${rotation} ppm=${pixelsPerMeter} corner=${corner.directionX},${corner.directionY}`
 
           assert.ok(
-            Math.hypot(
-              resizedOpposite.point.x - corner.opposite.x,
-              resizedOpposite.point.y - corner.opposite.y,
-            ) /
+            Math.hypot(resizedOpposite.point.x - corner.opposite.x, resizedOpposite.point.y - corner.opposite.y) /
               pixelsPerMeter <=
               EPSILON_METERS,
             `${label}: 对角没有钉住`,
           )
           assert.ok(
-            Math.hypot(
-              resizedCorner.point.x - target.x,
-              resizedCorner.point.y - target.y,
-            ) /
-              pixelsPerMeter <=
+            Math.hypot(resizedCorner.point.x - target.x, resizedCorner.point.y - target.y) / pixelsPerMeter <=
               EPSILON_METERS,
             `${label}: 手柄没有跟住指针`,
           )
@@ -173,13 +153,10 @@ test('拖角缩放：立姿灯带的平面「宽」驱动灯带长度（height�
     },
     pixelsPerMeter = 100,
     corner = frameCorners(item, pixelsPerMeter)[2],
-    { resized } = dragCorner(item, corner, 30, pixelsPerMeter);
+    { resized } = dragCorner(item, corner, 30, pixelsPerMeter)
 
   assert.ok(Math.abs(resized.width - item.width) < EPSILON_METERS, `灯带厚度被改了：${resized.width}`)
-  assert.ok(
-    Math.abs(resized.height - (item.height + 0.3)) < 1e-6,
-    `灯带长度没有跟着平面宽走：${resized.height}`,
-  )
+  assert.ok(Math.abs(resized.height - (item.height + 0.3)) < 1e-6, `灯带长度没有跟着平面宽走：${resized.height}`)
   assert.ok(Math.abs(resized.depth - (item.depth + 0.3)) < 1e-6, `灯带进深没有跟着平面深走：${resized.depth}`)
 })
 
@@ -198,7 +175,7 @@ test('拖角缩放：躺姿立柱的平面「深」驱动立柱长度（height�
     },
     pixelsPerMeter = 100,
     corner = frameCorners(item, pixelsPerMeter)[2],
-    { resized } = dragCorner(item, corner, 30, pixelsPerMeter);
+    { resized } = dragCorner(item, corner, 30, pixelsPerMeter)
 
   assert.ok(Math.abs(resized.width - (item.width + 0.3)) < 1e-6, `立柱截面宽没有变：${resized.width}`)
   assert.ok(Math.abs(resized.height - (item.height + 0.3)) < 1e-6, `立柱长度没有跟着平面深走：${resized.height}`)
@@ -224,7 +201,7 @@ test('拖角缩放：默认跟手到任意尺寸，不再按家具步进量化',
     resizeTo = (target) =>
       resizeRotatedItemFromCorner(item, corner, anchor, target, pixelsPerMeter, false, {
         minimumDimension: 0.1,
-      });
+      })
 
   const freeResize = resizeTo({ x: anchor.x + 147.3, y: anchor.y + 100 })
   assert.equal(freeResize.width, 1.473, `跟手尺寸被量化了：${freeResize.width}`)
@@ -251,25 +228,16 @@ test('拖角缩放：结果不带浮点尾巴（像素换算的 0.30000000000000
   const pixelsPerMeter = 100,
     item = { id: 'table', type: 'table', x: 300, y: 260, rotation: 0, width: 1, depth: 1, height: 0.75 },
     anchor = { x: 250, y: 210 },
-    resized = resizeRotatedItemFromCorner(
-      item,
-      { x: 1, y: 1 },
-      anchor,
-      { x: 293.7, y: 253.1 },
-      pixelsPerMeter,
-      true,
-      { minimumDimension: 0.1 },
-    );
+    resized = resizeRotatedItemFromCorner(item, { x: 1, y: 1 }, anchor, { x: 293.7, y: 253.1 }, pixelsPerMeter, true, {
+      minimumDimension: 0.1,
+    })
 
   for (const [label, value] of [
     ['width', resized.width],
     ['depth', resized.depth],
     ['height', resized.height],
   ]) {
-    assert.ok(
-      Math.abs(value * 1e6 - Math.round(value * 1e6)) < 1e-6,
-      `${label} 带浮点尾巴：${value}`,
-    )
+    assert.ok(Math.abs(value * 1e6 - Math.round(value * 1e6)) < 1e-6, `${label} 带浮点尾巴：${value}`)
   }
   // 等比例缩放（Shift）：宽 / 深 / 高都按较大的一侧比例走。
   assert.equal(resized.width, 0.437)
@@ -287,8 +255,8 @@ test('拖角缩放：调用方不再把家具步进塞给缩放（否则又变�
       ),
       'utf8',
     ),
-    resizeBranchStart = pointerUpSource.indexOf('marqueeBox.type === "resize-item"'),
-    resizeBranchEnd = pointerUpSource.indexOf('marqueeBox.type === "rotate-item"'),
+    resizeBranchStart = pointerUpSource.indexOf("marqueeBox.type === 'resize-item'"),
+    resizeBranchEnd = pointerUpSource.indexOf("marqueeBox.type === 'rotate-item'"),
     resizeBranch = pointerUpSource.slice(resizeBranchStart, resizeBranchEnd)
 
   assert.ok(resizeBranchStart > 0 && resizeBranchEnd > resizeBranchStart, '找不到 resize-item 分支')

@@ -7,60 +7,58 @@
  */
 
 interface DateTimeWeatherLineChartElementRefs {
-  dateLeftElement: any;
-  dateLineGapElement: any;
-  dateLunarColorElement: any;
-  dateLunarSizeElement: any;
-  dateLunarSpacingElement: any;
-  dateLunarWeightElement: any;
-  dateOpacityElement: any;
-  datePrimaryColorElement: any;
-  datePrimarySizeElement: any;
-  datePrimarySpacingElement: any;
-  datePrimaryWeightElement: any;
-  dateRotationElement: any;
-  dateScaleElement: any;
-  dateTopElement: any;
-  lineChartCurveRadiusInputElement: any;
-  lineChartHeightInputElement: any;
-  lineChartHoursInputElement: any;
-  lineChartLeftInputElement: any;
-  lineChartRotationInputElement: any;
-  lineChartScaleInputElement: any;
-  lineChartStatePrecisionSelectElement: any;
-  lineChartThresholdModeSelectElement: any;
-  lineChartTopInputElement: any;
-  lineChartUpdateIntervalInputElement: any;
-  lineChartValueColorInputElement: any;
-  lineChartValueOffsetXInputElement: any;
-  lineChartValueOffsetYInputElement: any;
-  lineChartValueScaleInputElement: any;
-  lineChartWidthInputElement: any;
-  weatherIconGapElement: any;
-  weatherIconSizeElement: any;
-  weatherLeftElement: any;
-  weatherLineGapElement: any;
-  weatherOpacityElement: any;
-  weatherRotationElement: any;
-  weatherScaleElement: any;
-  weatherSecondaryColorElement: any;
-  weatherSecondarySizeElement: any;
-  weatherSecondarySpacingElement: any;
-  weatherSecondaryWeightElement: any;
-  weatherTemperatureColorElement: any;
-  weatherTemperatureSizeElement: any;
-  weatherTemperatureSpacingElement: any;
-  weatherTemperatureWeightElement: any;
-  weatherTopElement: any;
+  dateLeftElement: any
+  dateLineGapElement: any
+  dateLunarColorElement: any
+  dateLunarSizeElement: any
+  dateLunarSpacingElement: any
+  dateLunarWeightElement: any
+  dateOpacityElement: any
+  datePrimaryColorElement: any
+  datePrimarySizeElement: any
+  datePrimarySpacingElement: any
+  datePrimaryWeightElement: any
+  dateRotationElement: any
+  dateScaleElement: any
+  dateTopElement: any
+  lineChartCurveRadiusInputElement: any
+  lineChartHeightInputElement: any
+  lineChartHoursInputElement: any
+  lineChartLeftInputElement: any
+  lineChartRotationInputElement: any
+  lineChartScaleInputElement: any
+  lineChartStatePrecisionSelectElement: any
+  lineChartThresholdModeSelectElement: any
+  lineChartTopInputElement: any
+  lineChartUpdateIntervalInputElement: any
+  lineChartValueColorInputElement: any
+  lineChartValueOffsetXInputElement: any
+  lineChartValueOffsetYInputElement: any
+  lineChartValueScaleInputElement: any
+  lineChartWidthInputElement: any
+  weatherIconGapElement: any
+  weatherIconSizeElement: any
+  weatherLeftElement: any
+  weatherLineGapElement: any
+  weatherOpacityElement: any
+  weatherRotationElement: any
+  weatherScaleElement: any
+  weatherSecondaryColorElement: any
+  weatherSecondarySizeElement: any
+  weatherSecondarySpacingElement: any
+  weatherSecondaryWeightElement: any
+  weatherTemperatureColorElement: any
+  weatherTemperatureSizeElement: any
+  weatherTemperatureSpacingElement: any
+  weatherTemperatureWeightElement: any
+  weatherTopElement: any
 }
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。
  * 正文逐字保留，只有「残留依赖显式化」这一处人工改动。
  */
-export function createDateTimeWeatherLineChartInputTables(
-  ctx: DateTimeWeatherLineChartElementRefs,
-) {
+export function createDateTimeWeatherLineChartInputTables(ctx: DateTimeWeatherLineChartElementRefs) {
   const {
     dateLeftElement,
     dateLineGapElement,
@@ -107,16 +105,16 @@ export function createDateTimeWeatherLineChartInputTables(
     weatherTemperatureSpacingElement,
     weatherTemperatureWeightElement,
     weatherTopElement,
-  } = ctx;
+  } = ctx
   const dateColorPropertyByElement = new Map([
-      [datePrimaryColorElement, "primaryColor"],
-      [dateLunarColorElement, "lunarColor"],
+      [datePrimaryColorElement, 'primaryColor'],
+      [dateLunarColorElement, 'lunarColor'],
     ]),
     datePropertyConfigsByElement = new Map([
       [
         datePrimarySizeElement,
         {
-          property: "primarySize",
+          property: 'primarySize',
           minimum: 12,
           maximum: 500,
           divisor: 1,
@@ -126,7 +124,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         datePrimaryWeightElement,
         {
-          property: "primaryWeight",
+          property: 'primaryWeight',
           minimum: 0,
           maximum: 1,
           divisor: 1,
@@ -136,7 +134,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         datePrimarySpacingElement,
         {
-          property: "primarySpacing",
+          property: 'primarySpacing',
           minimum: -20,
           maximum: 100,
           divisor: 1,
@@ -146,7 +144,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         dateLunarSizeElement,
         {
-          property: "lunarSize",
+          property: 'lunarSize',
           minimum: 10,
           maximum: 500,
           divisor: 1,
@@ -156,7 +154,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         dateLunarWeightElement,
         {
-          property: "lunarWeight",
+          property: 'lunarWeight',
           minimum: 0,
           maximum: 1,
           divisor: 1,
@@ -166,7 +164,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         dateLunarSpacingElement,
         {
-          property: "lunarSpacing",
+          property: 'lunarSpacing',
           minimum: -20,
           maximum: 100,
           divisor: 1,
@@ -176,7 +174,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         dateLineGapElement,
         {
-          property: "lineGap",
+          property: 'lineGap',
           minimum: 0,
           maximum: 200,
           divisor: 1,
@@ -186,7 +184,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         dateOpacityElement,
         {
-          property: "opacity",
+          property: 'opacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -194,22 +192,17 @@ export function createDateTimeWeatherLineChartInputTables(
         },
       ],
     ]),
-    dateTransformInputSet = new Set([
-      dateLeftElement,
-      dateTopElement,
-      dateScaleElement,
-      dateRotationElement,
-    ]);
+    dateTransformInputSet = new Set([dateLeftElement, dateTopElement, dateScaleElement, dateRotationElement])
 
   const weatherColorPropertiesByElement = new Map([
-      [weatherTemperatureColorElement, "temperatureColor"],
-      [weatherSecondaryColorElement, "secondaryColor"],
+      [weatherTemperatureColorElement, 'temperatureColor'],
+      [weatherSecondaryColorElement, 'secondaryColor'],
     ]),
     weatherPropertyConfigsByElement = new Map([
       [
         weatherIconSizeElement,
         {
-          property: "iconSize",
+          property: 'iconSize',
           minimum: 12,
           maximum: 500,
           divisor: 1,
@@ -219,7 +212,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherIconGapElement,
         {
-          property: "iconGap",
+          property: 'iconGap',
           minimum: 0,
           maximum: 300,
           divisor: 1,
@@ -229,7 +222,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherTemperatureSizeElement,
         {
-          property: "temperatureSize",
+          property: 'temperatureSize',
           minimum: 12,
           maximum: 500,
           divisor: 1,
@@ -239,7 +232,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherTemperatureWeightElement,
         {
-          property: "temperatureWeight",
+          property: 'temperatureWeight',
           minimum: 0,
           maximum: 1,
           divisor: 1,
@@ -249,7 +242,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherTemperatureSpacingElement,
         {
-          property: "temperatureSpacing",
+          property: 'temperatureSpacing',
           minimum: -20,
           maximum: 100,
           divisor: 1,
@@ -259,7 +252,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherSecondarySizeElement,
         {
-          property: "secondarySize",
+          property: 'secondarySize',
           minimum: 10,
           maximum: 500,
           divisor: 1,
@@ -269,7 +262,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherSecondaryWeightElement,
         {
-          property: "secondaryWeight",
+          property: 'secondaryWeight',
           minimum: 0,
           maximum: 1,
           divisor: 1,
@@ -279,7 +272,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherSecondarySpacingElement,
         {
-          property: "secondarySpacing",
+          property: 'secondarySpacing',
           minimum: -20,
           maximum: 100,
           divisor: 1,
@@ -289,7 +282,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherLineGapElement,
         {
-          property: "lineGap",
+          property: 'lineGap',
           minimum: 0,
           maximum: 200,
           divisor: 1,
@@ -299,7 +292,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         weatherOpacityElement,
         {
-          property: "opacity",
+          property: 'opacity',
           minimum: 0,
           maximum: 100,
           divisor: 100,
@@ -312,18 +305,18 @@ export function createDateTimeWeatherLineChartInputTables(
       weatherTopElement,
       weatherScaleElement,
       weatherRotationElement,
-    ]);
+    ])
 
   const lineChartColorPropertiesByElement = new Map([
-      [lineChartValueColorInputElement, "valueColor"],
-      [lineChartStatePrecisionSelectElement, "statePrecision"],
-      [lineChartThresholdModeSelectElement, "thresholdMode"],
+      [lineChartValueColorInputElement, 'valueColor'],
+      [lineChartStatePrecisionSelectElement, 'statePrecision'],
+      [lineChartThresholdModeSelectElement, 'thresholdMode'],
     ]),
     lineChartPropertyConfigsByElement = new Map([
       [
         lineChartValueScaleInputElement,
         {
-          property: "valueScale",
+          property: 'valueScale',
           minimum: 10,
           maximum: 500,
           divisor: 1,
@@ -332,7 +325,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         lineChartValueOffsetXInputElement,
         {
-          property: "valueOffsetX",
+          property: 'valueOffsetX',
           minimum: -100,
           maximum: 100,
           divisor: 1,
@@ -341,7 +334,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         lineChartValueOffsetYInputElement,
         {
-          property: "valueOffsetY",
+          property: 'valueOffsetY',
           minimum: -100,
           maximum: 100,
           divisor: 1,
@@ -350,7 +343,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         lineChartUpdateIntervalInputElement,
         {
-          property: "updateInterval",
+          property: 'updateInterval',
           minimum: 30,
           maximum: 86400,
           divisor: 1,
@@ -359,7 +352,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         lineChartHoursInputElement,
         {
-          property: "hours",
+          property: 'hours',
           minimum: 1,
           maximum: 168,
           divisor: 1,
@@ -368,7 +361,7 @@ export function createDateTimeWeatherLineChartInputTables(
       [
         lineChartCurveRadiusInputElement,
         {
-          property: "cornerRadius",
+          property: 'cornerRadius',
           minimum: 0,
           maximum: 50,
           divisor: 1,
@@ -382,7 +375,7 @@ export function createDateTimeWeatherLineChartInputTables(
       lineChartHeightInputElement,
       lineChartScaleInputElement,
       lineChartRotationInputElement,
-    ]);
+    ])
 
   return {
     dateColorPropertyByElement,
@@ -394,5 +387,5 @@ export function createDateTimeWeatherLineChartInputTables(
     lineChartColorPropertiesByElement,
     lineChartPropertyConfigsByElement,
     lineChartTransformInputSet,
-  };
+  }
 }

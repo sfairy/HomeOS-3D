@@ -12,7 +12,7 @@
  * @param props - 多选配置属性
  * @param emit - 事件触发函数
  * @returns 多选状态和操作方法
-*/
+ */
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, nextTick } from 'vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
@@ -99,7 +99,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
   /**
    * 实体选择器会话管理
    * 提供下拉定位、域名菜单、REST 搜索等功能
-  */
+   */
   const {
     entitiesStore,
     restItems,
@@ -127,11 +127,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     dropdownMinWidth: () => props.dropdownMinWidth,
     dropdownMaxHeight: () => props.dropdownMaxHeight,
     chromeHeight: () =>
-      props.staticOptions?.length
-        ? 44
-        : props.allowedDomains.length > 1 || !props.allowedDomains.length
-          ? 88
-          : 44,
+      props.staticOptions?.length ? 44 : props.allowedDomains.length > 1 || !props.allowedDomains.length ? 88 : 44,
     // 分组头 + 名称/ID 双行条目；过小会导致搜索后向上展开时裁切末行
     minListHeight: () => 96,
     minRowHeight: () => 52,
@@ -141,8 +137,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
       // 阈值判断在 session 默认逻辑中；此处仅关闭静态选项场景
       return useEntitiesStore().totalCount >= getLargeEntityThreshold()
     },
-    filterRestItem: (entityId) =>
-      allowAllDomains.value || allowedDomainSet.value.has(getEntityDomain(entityId)),
+    filterRestItem: (entityId) => allowAllDomains.value || allowedDomainSet.value.has(getEntityDomain(entityId)),
   })
 
   /** 可用域名列表（从允许域名或实体库推导） */
@@ -151,9 +146,9 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     void entitiesStore.derivedEpoch
     const index = entitiesStore.domainEntityIndex
     if (index?.size) return [...index.keys()].sort((a, b) => a.localeCompare(b))
-    return [
-      ...new Set(Object.keys(entitiesStore.entities).map((id) => getEntityDomain(id))),
-    ].sort((a, b) => a.localeCompare(b))
+    return [...new Set(Object.keys(entitiesStore.entities).map((id) => getEntityDomain(id)))].sort((a, b) =>
+      a.localeCompare(b),
+    )
   })
 
   /** 判断实体是否在允许的域名范围内 */
@@ -165,9 +160,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
   /** 获取索引化的候选实体 ID 列表 */
   function getIndexedCandidateIds() {
     return getSessionIndexedIds({
-      domains: allowAllDomains.value
-        ? [...(entitiesStore.domainEntityIndex?.keys() || [])]
-        : props.allowedDomains,
+      domains: allowAllDomains.value ? [...(entitiesStore.domainEntityIndex?.keys() || [])] : props.allowedDomains,
       isAllowed: isDomainAllowed,
     })
   }
@@ -178,12 +171,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     const hint = (props.placeholder || '').toLowerCase()
     if (hint.includes('smoke') || hint.includes('烟雾')) return 'smoke'
     if (hint.includes('gas') || hint.includes('燃气') || hint.includes('methane')) return 'gas'
-    if (
-      hint.includes('water') ||
-      hint.includes('leak') ||
-      hint.includes('漏水') ||
-      hint.includes('水浸')
-    )
+    if (hint.includes('water') || hint.includes('leak') || hint.includes('漏水') || hint.includes('水浸'))
       return 'moisture'
     return ''
   })
@@ -197,10 +185,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
    * @param entries 候选实体（`key` 为 entity_id）
    * @param searchQuery 已小写、已 trim 的搜索词；空串表示不过滤
    */
-  function buildGroupedFromEntries(
-    entries: Array<{ key: string; entity: unknown }>,
-    searchQuery: string,
-  ) {
+  function buildGroupedFromEntries(entries: Array<{ key: string; entity: unknown }>, searchQuery: string) {
     const groups = new Map<string, GroupedEntityItem[]>()
     const suggestDeviceClass = activeSuggestDeviceClass.value
     for (const { key, entity } of entries) {
@@ -212,8 +197,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
       const attrs = (entity as { attributes?: Record<string, unknown> })?.attributes
       const deviceClass = String(attrs?.device_class || '').toLowerCase()
       const isSuggested = Boolean(suggestDeviceClass && deviceClass === suggestDeviceClass)
-      const matches =
-        !searchQuery || entityIdLower.includes(searchQuery) || displayLabel.includes(searchQuery)
+      const matches = !searchQuery || entityIdLower.includes(searchQuery) || displayLabel.includes(searchQuery)
       if (!matches) continue
       if (!groups.has(entityDomain)) groups.set(entityDomain, [])
       groups.get(entityDomain)!.push({
@@ -247,11 +231,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
           const label = String(option.label || '').toLowerCase()
           const id = String(option.id || '').toLowerCase()
           const hint = String(option.hint || '').toLowerCase()
-          return (
-            label.includes(searchQuery) ||
-            id.includes(searchQuery) ||
-            hint.includes(searchQuery)
-          )
+          return label.includes(searchQuery) || id.includes(searchQuery) || hint.includes(searchQuery)
         })
         .map((option) => ({
           entity_id: option.id,
@@ -281,9 +261,7 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
   const flatItems = computed(() => groupedItems.value.flatMap((section) => section.items))
 
   /** 是否显示域名筛选器 */
-  const showDomainFilter = computed(
-    () => !props.staticOptions?.length && availableDomains.value.length > 1,
-  )
+  const showDomainFilter = computed(() => !props.staticOptions?.length && availableDomains.value.length > 1)
   /** 是否显示分组标题 */
   const showGroupHeader = computed(() => {
     if (props.staticOptions?.length) return false
@@ -392,13 +370,9 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
 
   useClickOutside(
     () =>
-      [
-        wrapRef.value,
-        triggerRef.value,
-        dropdownRef.value,
-        domainMenuAnchor.value,
-        domainMenuPanelRef.value,
-      ].filter(Boolean) as HTMLElement[],
+      [wrapRef.value, triggerRef.value, dropdownRef.value, domainMenuAnchor.value, domainMenuPanelRef.value].filter(
+        Boolean,
+      ) as HTMLElement[],
     onClickOutside,
   )
 

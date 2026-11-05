@@ -57,9 +57,7 @@ export function useSetupChecklist() {
   const snoozedLocally = ref(isSnoozed())
 
   // 横幅展示条件：服务端可见 + 未被本地或服务端暂缓
-  const showBanner = computed(
-    () => Boolean(checklist.value?.visible) && !snoozedLocally.value && !isSnoozed(),
-  )
+  const showBanner = computed(() => Boolean(checklist.value?.visible) && !snoozedLocally.value && !isSnoozed())
 
   // 进度文案：completed/total
   const progressText = computed(() => {

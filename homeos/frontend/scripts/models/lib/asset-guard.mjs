@@ -71,7 +71,10 @@ export function glbFingerprint(source) {
     vertices,
     materials: materials.map((material) => material.name ?? ''),
     materialNames: materials.map((material) => material.name ?? '').sort(),
-    nodeNames: nodes.map((node) => node.name ?? '').filter(Boolean).sort(),
+    nodeNames: nodes
+      .map((node) => node.name ?? '')
+      .filter(Boolean)
+      .sort(),
     nodeCount: nodes.length,
     extensions: [...(json.extensionsUsed ?? [])].sort(),
     images: (json.images ?? []).length,

@@ -17,7 +17,7 @@ import type { Ref } from 'vue'
 import { useWakeWord } from '@/composables/voice/useWakeWord'
 import { configEpoch, getConfigSection } from '@/shared/utils/config/frontend-config'
 
-export interface CompanionWakeOptions {
+interface CompanionWakeOptions {
   /** 伴侣是否可见（不可见时不该占用麦克风） */
   visible: Ref<boolean>
   /** 是否正在录音 / 处理中（此时让位给长按流程） */
@@ -28,7 +28,7 @@ export interface CompanionWakeOptions {
   onError?: (message: string) => void
 }
 
-export interface CompanionWakeHandle {
+interface CompanionWakeHandle {
   /** 当前是否在监听唤醒词（模板可用来显示提示） */
   listening: Ref<boolean>
   /** 最近一次错误（空串表示无） */

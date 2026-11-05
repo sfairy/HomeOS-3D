@@ -3,7 +3,6 @@
 /** localStorage 中震动开关的存储键（'0' / 'false' 视为关闭） */
 import { readLocalStorage } from '@/shared/utils/core/local-storage.util'
 
-
 /** localStorage 中震动开关的存储键（'0' / 'false' 视为关闭） */
 const HAPTICS_STORAGE_KEY = 'homeos_haptics'
 
@@ -17,9 +16,11 @@ const HAPTICS_STORAGE_KEY = 'homeos_haptics'
  */
 function hasUserActivation() {
   if (typeof navigator === 'undefined') return false
-  const activation = (navigator as unknown as {
-    userActivation?: { hasBeenActive?: boolean }
-  }).userActivation
+  const activation = (
+    navigator as unknown as {
+      userActivation?: { hasBeenActive?: boolean }
+    }
+  ).userActivation
   return activation?.hasBeenActive ?? true
 }
 
@@ -30,10 +31,7 @@ function hasUserActivation() {
  */
 function hapticsEnabled() {
   try {
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       return false
     }
     const stored = readLocalStorage(HAPTICS_STORAGE_KEY)
@@ -41,11 +39,7 @@ function hapticsEnabled() {
   } catch {
     /* 忽略 */
   }
-  return (
-    typeof navigator !== 'undefined' &&
-    typeof navigator.vibrate === 'function' &&
-    hasUserActivation()
-  )
+  return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function' && hasUserActivation()
 }
 
 /** 告警/安防反馈 */

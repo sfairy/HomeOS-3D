@@ -53,10 +53,7 @@ export function hexToRgbOrBlack(hex: string | undefined | null): Rgb {
 /**
  * 把 HEX 转为 CSS `r, g, b` 通道串，供 `--accent-rgb` 使用。
  */
-export function hexToRgbChannels(
-  hex: string | null | undefined,
-  fallback = '148, 163, 184',
-): string {
+export function hexToRgbChannels(hex: string | null | undefined, fallback = '148, 163, 184'): string {
   const rgb = hexToRgb(normalizeHexColor(hex) || hex || '')
   if (!rgb) return fallback
   return `${rgb.r}, ${rgb.g}, ${rgb.b}`
@@ -86,9 +83,9 @@ export function contrastRatio(
 }
 
 /** 强调色在深色画布上的最低对比度（非文本控件 / 焦点环，WCAG 1.4.11）。 */
-export const ACCENT_MIN_SURFACE_CONTRAST = 3
+const ACCENT_MIN_SURFACE_CONTRAST = 3
 /** 强调色本身作为文字、或强调底上的文字所需的最低对比度（WCAG 1.4.3）。 */
-export const ACCENT_MIN_TEXT_CONTRAST = 4.5
+const ACCENT_MIN_TEXT_CONTRAST = 4.5
 
 /**
  * 把后台 `ui.accentColor` 收敛到可读范围。

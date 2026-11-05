@@ -273,11 +273,7 @@ export function shortenPlace(place: unknown, maxLen = 14): string {
 }
 
 /** 固定 8 条分页槽位，末页不足时用 null 占位 */
-export function buildFixedPageSlots<T>(
-  items: T[],
-  page: number,
-  pageSize: number,
-): Array<T | null> {
+export function buildFixedPageSlots<T>(items: T[], page: number, pageSize: number): Array<T | null> {
   const start = (page - 1) * pageSize
   const slice = items.slice(start, start + pageSize)
   const slots: Array<T | null> = [...slice]

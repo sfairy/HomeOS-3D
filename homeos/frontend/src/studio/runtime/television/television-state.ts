@@ -1,64 +1,53 @@
 const readEntityState = (stateSource: any, entityId: any) =>
-  stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
+  stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId]
 
 /** ``screenImage.assetId`` 形如 ``user:<32hex>``。 */
 function televisionScreenAssetId(televisionConfig: any = {}) {
-  const assetId = televisionConfig?.screenImage?.assetId;
-  if (typeof assetId == "string" && /^user:[0-9a-f]{32}$/i.test(assetId.trim()))
-    return assetId.trim().toLowerCase();
-  return "";
+  const assetId = televisionConfig?.screenImage?.assetId
+  if (typeof assetId == 'string' && /^user:[0-9a-f]{32}$/i.test(assetId.trim())) return assetId.trim().toLowerCase()
+  return ''
 }
 
 function televisionPosterAssetUrl(televisionConfig: any) {
-  const assetId = televisionScreenAssetId(televisionConfig);
-  return assetId ? "/api/v1/assets/user/" + assetId.slice(5) : "";
+  const assetId = televisionScreenAssetId(televisionConfig)
+  return assetId ? '/api/v1/assets/user/' + assetId.slice(5) : ''
 }
 export function televisionArtwork(
-  artworkAttributes: {
-    entity_picture_local?: any;
-    entity_picture?: any;
-    media_image_url?: any;
-  } = {},
+  artworkAttributes: { entity_picture_local?: any; entity_picture?: any; media_image_url?: any } = {},
 ) {
   return (
-    [
-      artworkAttributes.entity_picture_local,
-      artworkAttributes.entity_picture,
-      artworkAttributes.media_image_url,
-    ].find(
+    [artworkAttributes.entity_picture_local, artworkAttributes.entity_picture, artworkAttributes.media_image_url].find(
       (candidateArtworkUrl) =>
-        typeof candidateArtworkUrl == "string" &&
+        typeof candidateArtworkUrl == 'string' &&
         /^\/api\/(?:media_player_proxy|image_proxy)\/[^\s]+$/.test(candidateArtworkUrl),
-    ) || ""
-  );
+    ) || ''
+  )
 }
 export function televisionState(televisionConfig: any, entityStateStore: Record<string, any> = {}, nowMs = Date.now()) {
   const stateEntry = readEntityState(entityStateStore, televisionConfig.entityId),
     entityState = stateEntry?.newState || stateEntry || {},
     stateAttributes = entityState.attributes || {},
-    normalizedState = String(entityState.state || "unknown").toLowerCase(),
+    normalizedState = String(entityState.state || 'unknown').toLowerCase(),
     isMediaAvailable =
       !!televisionConfig.entityId &&
       entityState.available !== false &&
-      !["unknown", "unavailable", ""].includes(normalizedState),
-    isMediaOn = isMediaAvailable && !["off", "standby"].includes(normalizedState),
+      !['unknown', 'unavailable', ''].includes(normalizedState),
+    isMediaOn = isMediaAvailable && !['off', 'standby'].includes(normalizedState),
     powerState = televisionPower(televisionConfig, entityStateStore),
     isAvailable = televisionConfig.powerEntityId ? powerState.available : isMediaAvailable,
     isOn = televisionConfig.powerEntityId ? powerState.on : isMediaOn,
-    isIdle = isOn && (!isMediaOn || ["on", "idle"].includes(normalizedState)),
+    isIdle = isOn && (!isMediaOn || ['on', 'idle'].includes(normalizedState)),
     parseFiniteNumber = (rawInput: any) =>
-      rawInput !== null && rawInput !== "" && Number.isFinite(Number(rawInput))
-        ? Number(rawInput)
-        : null,
+      rawInput !== null && rawInput !== '' && Number.isFinite(Number(rawInput)) ? Number(rawInput) : null,
     mediaDurationSeconds = parseFiniteNumber(stateAttributes.media_duration),
     mediaPositionSeconds = parseFiniteNumber(stateAttributes.media_position),
-    mediaPositionUpdatedAtMs = Date.parse(stateAttributes.media_position_updated_at || ""),
+    mediaPositionUpdatedAtMs = Date.parse(stateAttributes.media_position_updated_at || ''),
     mediaPositionElapsedSeconds =
-      isOn && normalizedState === "playing" && Number.isFinite(mediaPositionUpdatedAtMs)
+      isOn && normalizedState === 'playing' && Number.isFinite(mediaPositionUpdatedAtMs)
         ? Math.max(0, (nowMs - mediaPositionUpdatedAtMs) / 1000)
-        : 0;
-  let artworkUrl = isOn && !isIdle ? televisionArtwork(stateAttributes) : "";
-  const customPosterUrl = televisionPosterAssetUrl(televisionConfig);
+        : 0
+  let artworkUrl = isOn && !isIdle ? televisionArtwork(stateAttributes) : ''
+  const customPosterUrl = televisionPosterAssetUrl(televisionConfig)
   if (artworkUrl) {
     const artworkIdentityJson = JSON.stringify([
       stateAttributes.media_content_id,
@@ -70,12 +59,11 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
       stateAttributes.media_artist,
       stateAttributes.app_name,
       stateAttributes.source,
-    ]);
-    let artworkHash = 2166136261;
+    ])
+    let artworkHash = 2166136261
     for (let charIndex = 0; charIndex < artworkIdentityJson.length; charIndex++)
-      artworkHash = Math.imul(artworkHash ^ artworkIdentityJson.charCodeAt(charIndex), 16777619);
-    artworkUrl +=
-      (artworkUrl.includes("?") ? "&" : "?") + "hb_i3d=" + (artworkHash >>> 0).toString(36);
+      artworkHash = Math.imul(artworkHash ^ artworkIdentityJson.charCodeAt(charIndex), 16777619)
+    artworkUrl += (artworkUrl.includes('?') ? '&' : '?') + 'hb_i3d=' + (artworkHash >>> 0).toString(36)
   }
   return {
     state: normalizedState,
@@ -83,40 +71,40 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
     on: isOn,
     idle: isIdle,
     mediaAvailable: isMediaAvailable,
-    playing: isOn && isMediaOn && normalizedState === "playing",
-    name: televisionConfig.label || stateAttributes.friendly_name || "电视",
+    playing: isOn && isMediaOn && normalizedState === 'playing',
+    name: televisionConfig.label || stateAttributes.friendly_name || '电视',
     status:
       !televisionConfig.entityId && !televisionConfig.powerEntityId
-        ? "尚未绑定媒体实体"
+        ? '尚未绑定媒体实体'
         : isAvailable
           ? !isOn && televisionConfig.powerEntityId
-            ? "电视已关闭"
+            ? '电视已关闭'
             : isOn && !isMediaOn
-              ? "已开启"
+              ? '已开启'
               : {
-                  playing: "播放中",
-                  paused: "已暂停",
-                  buffering: "缓冲中",
-                  idle: "空闲",
-                  on: "已开启",
-                  off: "已关闭",
-                  standby: "待机",
+                  playing: '播放中',
+                  paused: '已暂停',
+                  buffering: '缓冲中',
+                  idle: '空闲',
+                  on: '已开启',
+                  off: '已关闭',
+                  standby: '待机',
                 }[normalizedState] || normalizedState
-          : "设备不可用",
+          : '设备不可用',
     title: isIdle
-      ? "暂无播放内容"
+      ? '暂无播放内容'
       : String(
           stateAttributes.media_title ||
             stateAttributes.media_series_title ||
             stateAttributes.app_name ||
             stateAttributes.source ||
-            "暂无播放内容",
+            '暂无播放内容',
         ),
-    app: String(stateAttributes.app_name || stateAttributes.source || ""),
-    artist: String(stateAttributes.media_artist || ""),
+    app: String(stateAttributes.app_name || stateAttributes.source || ''),
+    artist: String(stateAttributes.media_artist || ''),
     artwork: artworkUrl,
     customPosterUrl: customPosterUrl,
-    screenImageUrl: artworkUrl || (isOn ? customPosterUrl : ""),
+    screenImageUrl: artworkUrl || (isOn ? customPosterUrl : ''),
     duration: mediaDurationSeconds! > 0 ? mediaDurationSeconds : null,
     position:
       mediaPositionSeconds !== null
@@ -125,31 +113,35 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
             Math.max(0, mediaPositionSeconds + mediaPositionElapsedSeconds),
           )
         : null,
-    updated: entityState.updatedAt || entityState.last_updated || "",
-  };
+    updated: entityState.updatedAt || entityState.last_updated || '',
+  }
 }
 export function televisionTime(totalSeconds: any) {
-  if (!Number.isFinite(totalSeconds)) return "—";
-  const wholeSeconds = Math.max(0, Math.floor(totalSeconds));
-  return Math.floor(wholeSeconds / 60) + ":" + String(wholeSeconds % 60).padStart(2, "0");
+  if (!Number.isFinite(totalSeconds)) return '—'
+  const wholeSeconds = Math.max(0, Math.floor(totalSeconds))
+  return Math.floor(wholeSeconds / 60) + ':' + String(wholeSeconds % 60).padStart(2, '0')
 }
-export function televisionPower(powerConfig: any, powerStateStore: Record<string, any> = {}, desiredOn: any = undefined) {
-  const targetEntityId = powerConfig.powerEntityId || powerConfig.entityId || "",
-    entityDomain = targetEntityId.split(".")[0],
+export function televisionPower(
+  powerConfig: any,
+  powerStateStore: Record<string, any> = {},
+  desiredOn: any = undefined,
+) {
+  const targetEntityId = powerConfig.powerEntityId || powerConfig.entityId || '',
+    entityDomain = targetEntityId.split('.')[0],
     powerStateEntry = readEntityState(powerStateStore, targetEntityId),
     powerEntityState = powerStateEntry?.newState || powerStateEntry || {},
     isPowerAvailable =
       !!targetEntityId &&
       powerEntityState.available !== false &&
-      typeof powerEntityState.state == "string" &&
-      !["unknown", "unavailable", ""].includes(powerEntityState.state),
-    isPowerOn = isPowerAvailable && !["off", "standby"].includes(powerEntityState.state),
-    shouldTurnOn = typeof desiredOn == "boolean" ? desiredOn : !isPowerOn,
-    powerService = shouldTurnOn ? "turn_on" : "turn_off",
+      typeof powerEntityState.state == 'string' &&
+      !['unknown', 'unavailable', ''].includes(powerEntityState.state),
+    isPowerOn = isPowerAvailable && !['off', 'standby'].includes(powerEntityState.state),
+    shouldTurnOn = typeof desiredOn == 'boolean' ? desiredOn : !isPowerOn,
+    powerService = shouldTurnOn ? 'turn_on' : 'turn_off',
     powerSupportedFeatures = Number(powerEntityState.attributes?.supported_features) || 0,
     canTogglePower =
-      entityDomain === "switch" ||
-      (entityDomain === "media_player" && !!(powerSupportedFeatures & (shouldTurnOn ? 128 : 256)));
+      entityDomain === 'switch' ||
+      (entityDomain === 'media_player' && !!(powerSupportedFeatures & (shouldTurnOn ? 128 : 256)))
   return {
     entityId: targetEntityId,
     domain: entityDomain,
@@ -157,15 +149,15 @@ export function televisionPower(powerConfig: any, powerStateStore: Record<string
     available: isPowerAvailable,
     supported: canTogglePower,
     service: powerService,
-    reason: isPowerAvailable ? (canTogglePower ? "" : "此实体不支持开关机") : "电源状态不可用",
+    reason: isPowerAvailable ? (canTogglePower ? '' : '此实体不支持开关机') : '电源状态不可用',
     command: {
       entityId: targetEntityId,
       domain: entityDomain,
       service: powerService,
       data: {} as Record<string, any>,
-      deviceKind: "television",
+      deviceKind: 'television',
     },
-  };
+  }
 }
 export function televisionMediaControl(mediaConfig: any, mediaStateStore: any, mediaAction: any) {
   const mediaStateEntry = readEntityState(mediaStateStore, mediaConfig.entityId),
@@ -173,31 +165,31 @@ export function televisionMediaControl(mediaConfig: any, mediaStateStore: any, m
     televisionSnapshot = televisionState(mediaConfig, mediaStateStore),
     mediaSupportedFeatures = Number(mediaEntityState.attributes?.supported_features) || 0,
     mediaService =
-      mediaAction === "previous"
-        ? "media_previous_track"
-        : mediaAction === "next"
-          ? "media_next_track"
+      mediaAction === 'previous'
+        ? 'media_previous_track'
+        : mediaAction === 'next'
+          ? 'media_next_track'
           : televisionSnapshot.playing
-            ? "media_pause"
-            : "media_play",
+            ? 'media_pause'
+            : 'media_play',
     requiredFeatureMask = {
       media_previous_track: 16,
       media_next_track: 32,
       media_pause: 1,
       media_play: 16384,
-    }[mediaService];
+    }[mediaService]
   return {
     enabled:
       televisionSnapshot.on &&
       televisionSnapshot.mediaAvailable &&
-      !["off", "standby"].includes(televisionSnapshot.state) &&
+      !['off', 'standby'].includes(televisionSnapshot.state) &&
       !!(mediaSupportedFeatures & requiredFeatureMask),
     command: {
-      domain: "media_player",
+      domain: 'media_player',
       entityId: mediaConfig.entityId,
       service: mediaService,
       data: {} as Record<string, any>,
-      deviceKind: "television",
+      deviceKind: 'television',
     },
-  };
+  }
 }

@@ -27,9 +27,7 @@ export function getPageTraceId(): string {
  * @param headers 响应 headers 对象
  * @returns trace ID 字符串；不存在返回 undefined
  */
-function extractTraceIdFromResponse(
-  headers: Record<string, unknown> | undefined,
-): string | undefined {
+function extractTraceIdFromResponse(headers: Record<string, unknown> | undefined): string | undefined {
   const raw = headers?.['x-trace-id'] ?? headers?.['X-Trace-Id']
   return typeof raw === 'string' ? raw : undefined
 }
@@ -43,10 +41,7 @@ function extractTraceIdFromResponse(
  * @returns trace ID；不存在返回 undefined
  */
 export function extractTraceIdFromError(
-  error:
-    | { response?: { data?: { traceId?: string }; headers?: Record<string, unknown> } }
-    | null
-    | undefined,
+  error: { response?: { data?: { traceId?: string }; headers?: Record<string, unknown> } } | null | undefined,
 ): string | undefined {
   return error?.response?.data?.traceId || extractTraceIdFromResponse(error?.response?.headers)
 }

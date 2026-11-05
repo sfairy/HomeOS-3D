@@ -14,7 +14,7 @@
  */
 
 /** 模型坐标若是厘米导出（家具里很常见），先折算到米，否则木纹会被铺成 100 倍密。 */
-const CENTIMETER_HEURISTIC_THRESHOLD = 40;
+const CENTIMETER_HEURISTIC_THRESHOLD = 40
 
 /**
  * 节点世界缩放 → UV 单位换算。
@@ -26,105 +26,121 @@ const CENTIMETER_HEURISTIC_THRESHOLD = 40;
  * 包围盒猜测（那种模型是「坐标本身就是厘米、没有节点缩放」的老导出）。
  */
 function resolveUnitScale(boundingBox: any, worldScale: number | null | undefined) {
-  if (typeof worldScale === "number" && Number.isFinite(worldScale) && worldScale > 0) {
-    if (Math.abs(worldScale - 1) > 1e-6) return worldScale;
+  if (typeof worldScale === 'number' && Number.isFinite(worldScale) && worldScale > 0) {
+    if (Math.abs(worldScale - 1) > 1e-6) return worldScale
   }
-  if (!boundingBox) return 1;
+  if (!boundingBox) return 1
   const longestSide = Math.max(
     boundingBox.max.x - boundingBox.min.x,
     boundingBox.max.y - boundingBox.min.y,
     boundingBox.max.z - boundingBox.min.z,
-  );
-  return longestSide > CENTIMETER_HEURISTIC_THRESHOLD ? 0.01 : 1;
+  )
+  return longestSide > CENTIMETER_HEURISTIC_THRESHOLD ? 0.01 : 1
 }
 
 /** 单个几何体补盒式 UV；返回是否真的写入了 `uv` 属性（已有 UV / 无三角面时返回 false）。 */
 function ensureBoxUv(threeApi: any, geometry: any, worldScale?: number | null): boolean {
-  const position = geometry?.attributes?.position;
-  if (!position || geometry.attributes.uv || geometry.userData?.homeosBoxUv) return false;
+  const position = geometry?.attributes?.position
+  if (!position || geometry.attributes.uv || geometry.userData?.homeosBoxUv) return false
 
-  const vertexCount = position.count;
-  const index = geometry.index;
-  const triangleCount = Math.floor((index ? index.count : vertexCount) / 3);
-  if (triangleCount <= 0) return false;
+  const vertexCount = position.count
+  const index = geometry.index
+  const triangleCount = Math.floor((index ? index.count : vertexCount) / 3)
+  if (triangleCount <= 0) return false
 
   // 盒子 UV 用的是几何体的本地坐标；先算出「本地单位 → 米」的换算。
-  if (!geometry.boundingBox) geometry.computeBoundingBox?.();
-  const unitScale = resolveUnitScale(geometry.boundingBox ?? null, worldScale);
+  if (!geometry.boundingBox) geometry.computeBoundingBox?.()
+  const unitScale = resolveUnitScale(geometry.boundingBox ?? null, worldScale)
 
-  const uvs = new Float32Array(vertexCount * 2);
-  const assigned = new Uint8Array(vertexCount);
-  const vertexIndexAt = (offset: number) => (index ? index.getX(offset) : offset);
+  const uvs = new Float32Array(vertexCount * 2)
+  const assigned = new Uint8Array(vertexCount)
+  const vertexIndexAt = (offset: number) => (index ? index.getX(offset) : offset)
   const point = {
-    ax: 0, ay: 0, az: 0,
-    bx: 0, by: 0, bz: 0,
-    cx: 0, cy: 0, cz: 0,
-  };
+    ax: 0,
+    ay: 0,
+    az: 0,
+    bx: 0,
+    by: 0,
+    bz: 0,
+    cx: 0,
+    cy: 0,
+    cz: 0,
+  }
 
   for (let triangle = 0; triangle < triangleCount; triangle += 1) {
-    const offsets = [triangle * 3, triangle * 3 + 1, triangle * 3 + 2];
-    const vertexIndices = offsets.map(vertexIndexAt);
-    const [a, b, c] = vertexIndices;
-    point.ax = position.getX(a); point.ay = position.getY(a); point.az = position.getZ(a);
-    point.bx = position.getX(b); point.by = position.getY(b); point.bz = position.getZ(b);
-    point.cx = position.getX(c); point.cy = position.getY(c); point.cz = position.getZ(c);
+    const offsets = [triangle * 3, triangle * 3 + 1, triangle * 3 + 2]
+    const vertexIndices = offsets.map(vertexIndexAt)
+    const [a, b, c] = vertexIndices
+    point.ax = position.getX(a)
+    point.ay = position.getY(a)
+    point.az = position.getZ(a)
+    point.bx = position.getX(b)
+    point.by = position.getY(b)
+    point.bz = position.getZ(b)
+    point.cx = position.getX(c)
+    point.cy = position.getY(c)
+    point.cz = position.getZ(c)
 
     // 面法线的三个分量里绝对值最大的那个轴就是投影方向（box mapping 的标准做法）。
-    const edge1x = point.bx - point.ax, edge1y = point.by - point.ay, edge1z = point.bz - point.az;
-    const edge2x = point.cx - point.ax, edge2y = point.cy - point.ay, edge2z = point.cz - point.az;
-    const normalX = Math.abs(edge1y * edge2z - edge1z * edge2y);
-    const normalY = Math.abs(edge1z * edge2x - edge1x * edge2z);
-    const normalZ = Math.abs(edge1x * edge2y - edge1y * edge2x);
-    const dominantAxis = normalX >= normalY && normalX >= normalZ ? 0 : normalY >= normalZ ? 1 : 2;
+    const edge1x = point.bx - point.ax,
+      edge1y = point.by - point.ay,
+      edge1z = point.bz - point.az
+    const edge2x = point.cx - point.ax,
+      edge2y = point.cy - point.ay,
+      edge2z = point.cz - point.az
+    const normalX = Math.abs(edge1y * edge2z - edge1z * edge2y)
+    const normalY = Math.abs(edge1z * edge2x - edge1x * edge2z)
+    const normalZ = Math.abs(edge1x * edge2y - edge1y * edge2x)
+    const dominantAxis = normalX >= normalY && normalX >= normalZ ? 0 : normalY >= normalZ ? 1 : 2
 
     for (const vertexIndex of vertexIndices) {
       // 共享顶点会被多个面写到：让第一个面说了算，避免同一顶点在面之间抖动。
-      if (assigned[vertexIndex]) continue;
-      const x = position.getX(vertexIndex);
-      const y = position.getY(vertexIndex);
-      const z = position.getZ(vertexIndex);
-      const u = dominantAxis === 0 ? z : x;
-      const v = dominantAxis === 1 ? z : y;
-      uvs[vertexIndex * 2] = u * unitScale;
-      uvs[vertexIndex * 2 + 1] = v * unitScale;
-      assigned[vertexIndex] = 1;
+      if (assigned[vertexIndex]) continue
+      const x = position.getX(vertexIndex)
+      const y = position.getY(vertexIndex)
+      const z = position.getZ(vertexIndex)
+      const u = dominantAxis === 0 ? z : x
+      const v = dominantAxis === 1 ? z : y
+      uvs[vertexIndex * 2] = u * unitScale
+      uvs[vertexIndex * 2 + 1] = v * unitScale
+      assigned[vertexIndex] = 1
     }
   }
 
-  let assignedCount = 0;
+  let assignedCount = 0
   for (let vertex = 0; vertex < vertexCount; vertex += 1) {
     if (assigned[vertex]) {
-      assignedCount += 1;
-      continue;
+      assignedCount += 1
+      continue
     }
     // 没有三角面用到的顶点（孤立点 / 退化面）也要有合法 UV，否则整块属性都不完整。
-    uvs[vertex * 2] = position.getX(vertex) * unitScale;
-    uvs[vertex * 2 + 1] = position.getZ(vertex) * unitScale;
+    uvs[vertex * 2] = position.getX(vertex) * unitScale
+    uvs[vertex * 2 + 1] = position.getZ(vertex) * unitScale
   }
-  if (!assignedCount) return false;
+  if (!assignedCount) return false
 
-  geometry.setAttribute("uv", new threeApi.BufferAttribute(uvs, 2));
-  geometry.userData = { ...(geometry.userData || {}), homeosBoxUv: true };
-  return true;
+  geometry.setAttribute('uv', new threeApi.BufferAttribute(uvs, 2))
+  geometry.userData = { ...(geometry.userData || {}), homeosBoxUv: true }
+  return true
 }
 
 /** 遍历场景里所有网格几何体补 UV；返回补了多少个（供调试 / 单测）。 */
 export function ensureSceneBoxUvs(threeApi: any, scene: any): number {
-  let patched = 0;
+  let patched = 0
   // 世界矩阵要先算好：UV 的单位换算取自节点世界缩放（英寸 / 厘米导出的模型全靠它）。
-  scene?.updateMatrixWorld?.(true);
-  const worldScaleVector = threeApi?.Vector3 ? new threeApi.Vector3() : null;
+  scene?.updateMatrixWorld?.(true)
+  const worldScaleVector = threeApi?.Vector3 ? new threeApi.Vector3() : null
   scene?.traverse?.((node: any) => {
-    if (!node?.isMesh || !node.geometry) return;
+    if (!node?.isMesh || !node.geometry) return
     const worldScale = worldScaleVector
       ? node.getWorldScale
         ? node.getWorldScale(worldScaleVector)
         : worldScaleVector.set(1, 1, 1)
-      : null;
+      : null
     const uniformScale = worldScale
       ? (Math.abs(worldScale.x) + Math.abs(worldScale.y) + Math.abs(worldScale.z)) / 3
-      : null;
-    if (ensureBoxUv(threeApi, node.geometry, uniformScale)) patched += 1;
-  });
-  return patched;
+      : null
+    if (ensureBoxUv(threeApi, node.geometry, uniformScale)) patched += 1
+  })
+  return patched
 }

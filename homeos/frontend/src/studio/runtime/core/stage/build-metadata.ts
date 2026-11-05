@@ -1,7 +1,7 @@
-import { floorNavigationChoices } from "../floor-navigation";
-import { doorModels } from "../../security/lock-state";
-import { genericDeviceMetadata } from "../../device/generic-device-catalog";
-import { normalizeModelRemark } from "@app/shared/model-remarks";
+import { floorNavigationChoices } from '../floor-navigation'
+import { doorModels } from '../../security/lock-state'
+import { genericDeviceMetadata } from '../../device/generic-device-catalog'
+import { normalizeModelRemark } from '@app/shared/model-remarks'
 
 export function buildMetadata(
   mountOptions: any,
@@ -10,14 +10,12 @@ export function buildMetadata(
 ) {
   const floorElevationByFloorId = new Map(
     floorNavigationChoices(mountOptions.document.floors)
-      .filter(([buildMetadataFloorChoiceId]) => buildMetadataFloorChoiceId !== "all")
+      .filter(([buildMetadataFloorChoiceId]) => buildMetadataFloorChoiceId !== 'all')
       .map(([floorId, floorNumberLabel]) => [
         floorId,
-        floorNumberLabel.startsWith("B")
-          ? -Number(floorNumberLabel.slice(1))
-          : Number(floorNumberLabel.slice(0, -1)),
+        floorNumberLabel.startsWith('B') ? -Number(floorNumberLabel.slice(1)) : Number(floorNumberLabel.slice(0, -1)),
       ]),
-  );
+  )
   return (
     mountOptions.regionLighting?.sync?.(mountOptions.camera),
     {
@@ -55,8 +53,8 @@ export function buildMetadata(
             doorType: doorModel.doorType,
             doorLabel: doorModel.doorLabel,
             // 0.8.1：开合方向随模型进舞台元数据，运行时按铰链侧算旋转方向。
-            hinge: doorModel.hinge === "right" ? "right" : "left",
-          }));
+            hinge: doorModel.hinge === 'right' ? 'right' : 'left',
+          }))
         return {
           id: metadataFloorItem.id,
           name: metadataFloorItem.name,
@@ -97,63 +95,49 @@ export function buildMetadata(
             ),
           },
           cameras: metadataFloorItem.scene.items
-            .filter((cameraSceneItem: any) => cameraSceneItem.type === "camera")
+            .filter((cameraSceneItem: any) => cameraSceneItem.type === 'camera')
             .map((cameraMetadataItem: any, cameraMetadataIndex: any) => ({
               id: cameraMetadataItem.id,
               remark: normalizeModelRemark(cameraMetadataItem.remark),
-              name: cameraMetadataItem.name || "摄像头 " + (cameraMetadataIndex + 1),
+              name: cameraMetadataItem.name || '摄像头 ' + (cameraMetadataIndex + 1),
               x: cameraMetadataItem.x,
               y: cameraMetadataItem.y,
-              height:
-                (Number(cameraMetadataItem.elevation) || 0) +
-                (Number(cameraMetadataItem.height) || 0.3) / 2,
+              height: (Number(cameraMetadataItem.elevation) || 0) + (Number(cameraMetadataItem.height) || 0.3) / 2,
             })),
           presenceSensors: metadataFloorItem.scene.items
-            .filter((sensorSceneItem: any) => sensorSceneItem.type === "presence")
+            .filter((sensorSceneItem: any) => sensorSceneItem.type === 'presence')
             .map((sensorMetadataItem: any, sensorMetadataIndex: any) => ({
               id: sensorMetadataItem.id,
               remark: normalizeModelRemark(sensorMetadataItem.remark),
-              name: sensorMetadataItem.name || "人体传感器 " + (sensorMetadataIndex + 1),
+              name: sensorMetadataItem.name || '人体传感器 ' + (sensorMetadataIndex + 1),
             })),
           vacuums: metadataFloorItem.scene.items
-            .filter(
-              (buildMetadataVacuumSceneItem: any) =>
-                buildMetadataVacuumSceneItem.type === "robotvacuum",
-            )
+            .filter((buildMetadataVacuumSceneItem: any) => buildMetadataVacuumSceneItem.type === 'robotvacuum')
             .map((vacuumMetadataItem: any, vacuumMetadataIndex: any) => ({
               id: vacuumMetadataItem.id,
               remark: normalizeModelRemark(vacuumMetadataItem.remark),
-              name: vacuumMetadataItem.name || "扫地机 " + (vacuumMetadataIndex + 1),
+              name: vacuumMetadataItem.name || '扫地机 ' + (vacuumMetadataIndex + 1),
               x: vacuumMetadataItem.x,
               y: vacuumMetadataItem.y,
-              height:
-                (Number(vacuumMetadataItem.elevation) || 0) +
-                (Number(vacuumMetadataItem.height) || 0.85) / 2,
+              height: (Number(vacuumMetadataItem.elevation) || 0) + (Number(vacuumMetadataItem.height) || 0.85) / 2,
             })),
           speakers: metadataFloorItem.scene.items
-            .filter(
-              (buildMetadataSpeakerSceneItem: any) => buildMetadataSpeakerSceneItem.type === "speaker",
-            )
+            .filter((buildMetadataSpeakerSceneItem: any) => buildMetadataSpeakerSceneItem.type === 'speaker')
             .map((speakerMetadataItem: any, speakerMetadataIndex: any) => ({
               id: speakerMetadataItem.id,
               remark: normalizeModelRemark(speakerMetadataItem.remark),
-              name: speakerMetadataItem.name || "智能音响 " + (speakerMetadataIndex + 1),
+              name: speakerMetadataItem.name || '智能音响 ' + (speakerMetadataIndex + 1),
               type: speakerMetadataItem.type,
               x: speakerMetadataItem.x,
               y: speakerMetadataItem.y,
-              height:
-                (Number(speakerMetadataItem.elevation) || 0) +
-                (Number(speakerMetadataItem.height) || 0.2336) / 2,
+              height: (Number(speakerMetadataItem.elevation) || 0) + (Number(speakerMetadataItem.height) || 0.2336) / 2,
             })),
           televisions: metadataFloorItem.scene.items
-            .filter(
-              (buildMetadataTelevisionSceneItem: any) =>
-                buildMetadataTelevisionSceneItem.type === "tv",
-            )
+            .filter((buildMetadataTelevisionSceneItem: any) => buildMetadataTelevisionSceneItem.type === 'tv')
             .map((televisionMetadataItem: any, televisionMetadataIndex: any) => ({
               id: televisionMetadataItem.id,
               remark: normalizeModelRemark(televisionMetadataItem.remark),
-              name: televisionMetadataItem.name || "电视 " + (televisionMetadataIndex + 1),
+              name: televisionMetadataItem.name || '电视 ' + (televisionMetadataIndex + 1),
               type: televisionMetadataItem.type,
               x: televisionMetadataItem.x,
               y: televisionMetadataItem.y,
@@ -163,60 +147,53 @@ export function buildMetadata(
             })),
           ...genericDeviceMetadata(metadataFloorItem.scene.items),
           nas: metadataFloorItem.scene.items
-            .filter((buildMetadataNasSceneItem: any) => buildMetadataNasSceneItem.type === "nas")
+            .filter((buildMetadataNasSceneItem: any) => buildMetadataNasSceneItem.type === 'nas')
             .map((nasMetadataItem: any, nasMetadataIndex: any) => ({
               id: nasMetadataItem.id,
               remark: normalizeModelRemark(nasMetadataItem.remark),
-              name: nasMetadataItem.name || "NAS " + (nasMetadataIndex + 1),
+              name: nasMetadataItem.name || 'NAS ' + (nasMetadataIndex + 1),
               type: nasMetadataItem.type,
               x: nasMetadataItem.x,
               y: nasMetadataItem.y,
-              height:
-                (Number(nasMetadataItem.elevation) || 0) +
-                (Number(nasMetadataItem.height) || 0.34) / 2,
+              height: (Number(nasMetadataItem.elevation) || 0) + (Number(nasMetadataItem.height) || 0.34) / 2,
             })),
           curtains: metadataFloorItem.scene.items
-            .filter((curtainSceneItem: any) => curtainSceneItem.type === "curtain")
+            .filter((curtainSceneItem: any) => curtainSceneItem.type === 'curtain')
             .map((curtainMetadataItem: any, curtainMetadataIndex: any) => ({
               id: curtainMetadataItem.id,
               remark: normalizeModelRemark(curtainMetadataItem.remark),
-              name: curtainMetadataItem.name || "窗帘 " + (curtainMetadataIndex + 1),
+              name: curtainMetadataItem.name || '窗帘 ' + (curtainMetadataIndex + 1),
               type: curtainMetadataItem.type,
               x: curtainMetadataItem.x,
               y: curtainMetadataItem.y,
-              height:
-                (Number(curtainMetadataItem.elevation) || 0) +
-                (Number(curtainMetadataItem.height) || 2.4) / 2,
-              curtainPosition: curtainMetadataItem.curtainPosition || "split",
-              curtainTrack: curtainMetadataItem.curtainTrack || "straight",
-              curtainForm: curtainMetadataItem.curtainForm === "roller" ? "roller" : "standard",
+              height: (Number(curtainMetadataItem.elevation) || 0) + (Number(curtainMetadataItem.height) || 2.4) / 2,
+              curtainPosition: curtainMetadataItem.curtainPosition || 'split',
+              curtainTrack: curtainMetadataItem.curtainTrack || 'straight',
+              curtainForm: curtainMetadataItem.curtainForm === 'roller' ? 'roller' : 'standard',
               curtainFabric: curtainMetadataItem.curtainFabric,
             })),
           waterHeaters: metadataFloorItem.scene.items
             .filter((waterHeaterSceneItem: any) =>
-              ["storagewaterheater", "gaswaterheater"].includes(waterHeaterSceneItem.type),
+              ['storagewaterheater', 'gaswaterheater'].includes(waterHeaterSceneItem.type),
             )
             .map((waterHeaterMetadataItem: any, waterHeaterMetadataIndex: any) => ({
               ...waterHeaterMetadataItem,
-              name: waterHeaterMetadataItem.name || "热水器 " + (waterHeaterMetadataIndex + 1),
+              name: waterHeaterMetadataItem.name || '热水器 ' + (waterHeaterMetadataIndex + 1),
             })),
           airers: metadataFloorItem.scene.items
-            .filter((airerSceneItem: any) => airerSceneItem.type === "airer")
+            .filter((airerSceneItem: any) => airerSceneItem.type === 'airer')
             .map((airerMetadataItem: any, airerMetadataIndex: any) => ({
               ...airerMetadataItem,
               height:
-                (Number(airerMetadataItem.elevation) || 2.7) -
-                (Number(airerMetadataItem.airerExtension) || 1.2) / 2,
-              name: airerMetadataItem.name || "晾衣架 " + (airerMetadataIndex + 1),
+                (Number(airerMetadataItem.elevation) || 2.7) - (Number(airerMetadataItem.airerExtension) || 1.2) / 2,
+              name: airerMetadataItem.name || '晾衣架 ' + (airerMetadataIndex + 1),
             })),
           fans: metadataFloorItem.scene.items
-            .filter((fanSceneItem: any) =>
-              fanSceneItem.type === "fan" || fanSceneItem.type === "ceiling-fan",
-            )
+            .filter((fanSceneItem: any) => fanSceneItem.type === 'fan' || fanSceneItem.type === 'ceiling-fan')
             .map((fanMetadataItem: any, fanMetadataIndex: any) => ({
               ...fanMetadataItem,
               // 吊扇锚点在机身中心（elevation 向下半个高度）
-              ...(fanMetadataItem.type === "ceiling-fan"
+              ...(fanMetadataItem.type === 'ceiling-fan'
                 ? {
                     height:
                       (Number(fanMetadataItem.elevation) || 0) -
@@ -226,47 +203,43 @@ export function buildMetadata(
                 : {}),
               name:
                 fanMetadataItem.name ||
-                (fanMetadataItem.type === "ceiling-fan" ? "吊扇" : "电风扇") +
-                  " " +
-                  (fanMetadataIndex + 1),
+                (fanMetadataItem.type === 'ceiling-fan' ? '吊扇' : '电风扇') + ' ' + (fanMetadataIndex + 1),
             })),
           /**
            * 排气扇：挂墙设备，锚点与 wallac / floorac 同式 —— `elevation + height / 2`，
            * 不能沿用 fans 的吊扇负偏移。
            */
           exhaustFans: metadataFloorItem.scene.items
-            .filter((exhaustSceneItem: any) => exhaustSceneItem.type === "exhaust-fan")
+            .filter((exhaustSceneItem: any) => exhaustSceneItem.type === 'exhaust-fan')
             .map((exhaustMetadataItem: any, exhaustMetadataIndex: any) => ({
               ...exhaustMetadataItem,
-              height:
-                (Number(exhaustMetadataItem.elevation) || 0) +
-                (Number(exhaustMetadataItem.height) || 0.34) / 2,
-              name: exhaustMetadataItem.name || "排气扇 " + (exhaustMetadataIndex + 1),
+              height: (Number(exhaustMetadataItem.elevation) || 0) + (Number(exhaustMetadataItem.height) || 0.34) / 2,
+              name: exhaustMetadataItem.name || '排气扇 ' + (exhaustMetadataIndex + 1),
             })),
           airPurifiers: metadataFloorItem.scene.items
-            .filter((purifierSceneItem: any) => purifierSceneItem.type === "airpurifier")
+            .filter((purifierSceneItem: any) => purifierSceneItem.type === 'airpurifier')
             .map((purifierMetadataItem: any, purifierMetadataIndex: any) => ({
               ...purifierMetadataItem,
-              name: purifierMetadataItem.name || "空气净化器 " + (purifierMetadataIndex + 1),
+              name: purifierMetadataItem.name || '空气净化器 ' + (purifierMetadataIndex + 1),
             })),
           airConditioners: metadataFloorItem.scene.items
             .filter((airConditionerSceneItem: any) =>
-              ["wallac", "floorac", "airoutlet"].includes(airConditionerSceneItem.type),
+              ['wallac', 'floorac', 'airoutlet'].includes(airConditionerSceneItem.type),
             )
             .map((airConditionerMetadataItem: any, airConditionerMetadataIndex: any) => ({
               id: airConditionerMetadataItem.id,
               remark: normalizeModelRemark(airConditionerMetadataItem.remark),
               name:
                 airConditionerMetadataItem.name ||
-                (airConditionerMetadataItem.type === "airpurifier"
-                  ? "空气净化器"
-                  : airConditionerMetadataItem.type === "airoutlet"
-                    ? "出风口"
-                    : airConditionerMetadataItem.type === "wallac"
-                      ? "挂机空调"
-                      : "柜机空调") +
-                " " +
-                (airConditionerMetadataIndex + 1),
+                (airConditionerMetadataItem.type === 'airpurifier'
+                  ? '空气净化器'
+                  : airConditionerMetadataItem.type === 'airoutlet'
+                    ? '出风口'
+                    : airConditionerMetadataItem.type === 'wallac'
+                      ? '挂机空调'
+                      : '柜机空调') +
+                  ' ' +
+                  (airConditionerMetadataIndex + 1),
               type: airConditionerMetadataItem.type,
               x: airConditionerMetadataItem.x,
               y: airConditionerMetadataItem.y,
@@ -280,27 +253,23 @@ export function buildMetadata(
               ),
               groupAnchorPoints = groupLightItems.length
                 ? groupLightItems
-                : metadataFloorItem.scene.walls.map((groupWallItem: any) => groupWallItem.start);
+                : metadataFloorItem.scene.walls.map((groupWallItem: any) => groupWallItem.start)
             return {
               id: lightGroup.id,
               name: lightGroup.name,
               height: resolvedWallHeight,
               x: groupAnchorPoints.length
-                ? groupAnchorPoints.reduce(
-                    (accumulatedX: any, xAnchorPoint: any) => accumulatedX + xAnchorPoint.x,
-                    0,
-                  ) / groupAnchorPoints.length
+                ? groupAnchorPoints.reduce((accumulatedX: any, xAnchorPoint: any) => accumulatedX + xAnchorPoint.x, 0) /
+                  groupAnchorPoints.length
                 : 0,
               y: groupAnchorPoints.length
-                ? groupAnchorPoints.reduce(
-                    (accumulatedY: any, yAnchorPoint: any) => accumulatedY + yAnchorPoint.y,
-                    0,
-                  ) / groupAnchorPoints.length
+                ? groupAnchorPoints.reduce((accumulatedY: any, yAnchorPoint: any) => accumulatedY + yAnchorPoint.y, 0) /
+                  groupAnchorPoints.length
                 : 0,
-            };
+            }
           }),
-        };
+        }
       }),
     }
-  );
+  )
 }

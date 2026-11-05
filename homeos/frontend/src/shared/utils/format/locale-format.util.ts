@@ -52,11 +52,7 @@ const DETAILED_DATETIME_OPTS: Intl.DateTimeFormatOptions = {
  * @param locale 语言区域，默认 zh-CN
  * @returns 格式化后的日期字符串；非法输入由 Date 构造器决定（通常为 Invalid Date 文案）
  */
-export function formatLocaleDate(
-  date: DateInput,
-  options?: Intl.DateTimeFormatOptions,
-  locale = 'zh-CN',
-): string {
+export function formatLocaleDate(date: DateInput, options?: Intl.DateTimeFormatOptions, locale = 'zh-CN'): string {
   return new Date(date as string | number | Date).toLocaleDateString(locale, options)
 }
 
@@ -71,7 +67,6 @@ export function formatLocaleTime(date: DateInput, options?: Intl.DateTimeFormatO
   return new Date(date as string | number | Date).toLocaleTimeString('zh-CN', options)
 }
 
-
 /**
  * 按 zh-CN 与指定选项格式化完整日期时间（含日期 + 时间）。
  *
@@ -80,7 +75,7 @@ export function formatLocaleTime(date: DateInput, options?: Intl.DateTimeFormatO
  * @returns 完整 locale 字符串
  */
 export function formatLocaleString(date: DateInput, options?: Intl.DateTimeFormatOptions): string {
-  // eslint-disable-next-line no-restricted-syntax -- 本模块 toLocaleString 语义化封装
+  // check-restricted-syntax-ignore: 本模块是 toLocaleString 的语义化封装层
   return new Date(date as string | number | Date).toLocaleString('zh-CN', options)
 }
 
@@ -93,7 +88,6 @@ export function formatShortDateTime(date: DateInput): string {
     return String(date)
   }
 }
-
 
 /** 配置审计等：numeric 月日 + 24 小时制 */
 export function formatAuditTimestamp(date: DateInput): string {
@@ -141,7 +135,6 @@ export function formatFullDateTime(date: DateInput): string {
   }
 }
 
-
 /**
  * 详细日期时间 + 占位符：空值返回「—」，含秒、24 小时制。
  *
@@ -167,7 +160,6 @@ export function formatDurationMs(ms: number | null | undefined): string {
   const mins = minutes % 60
   return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
 }
-
 
 /**
  * 相对时间档位：``withinMs`` 是该档的上界（毫秒），命中即用 ``label`` 生成文案。

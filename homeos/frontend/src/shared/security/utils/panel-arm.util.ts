@@ -62,8 +62,7 @@ export async function executeSecurityPanelArm(
   zones: Array<{ id: string }>,
   patchModeFromSocket: (data: SecurityModeSocketPayload) => void,
 ): Promise<SecurityArmResult> {
-  const { data } =
-    mode === 'disarmed' ? await disarmSecurityPanel() : await armSecurityPanel(mode, zoneIds)
+  const { data } = mode === 'disarmed' ? await disarmSecurityPanel() : await armSecurityPanel(mode, zoneIds)
   // 高危操作触感反馈：仅真正提交成功且非跳过时触发（含撤防 degraded）
   if (data?.success !== false && !data?.skipped) hapticAlert()
   patchArmedStateFromArmResponse(mode, zoneIds, zones, patchModeFromSocket, data)

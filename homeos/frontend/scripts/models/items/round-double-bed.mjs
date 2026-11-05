@@ -27,7 +27,12 @@ const legs = merge(
   }),
 )
 const base = cylinder({ radiusTop: R, height: BASE_TOP - LEG_H, center: [0, (BASE_TOP + LEG_H) / 2, 0], segments: 48 })
-const frame = cylinder({ radiusTop: R - 0.015, height: FRAME_TOP - BASE_TOP, center: [0, (FRAME_TOP + BASE_TOP) / 2, 0], segments: 48 })
+const frame = cylinder({
+  radiusTop: R - 0.015,
+  height: FRAME_TOP - BASE_TOP,
+  center: [0, (FRAME_TOP + BASE_TOP) / 2, 0],
+  segments: 48,
+})
 const mattress = cylinder({
   radiusTop: R - 0.065,
   height: MATTRESS_TOP - FRAME_TOP,

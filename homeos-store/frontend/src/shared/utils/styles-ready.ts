@@ -40,7 +40,7 @@ const ADMIN_STYLES_TIMEOUT_MS = 3000;
 const ADMIN_SELECTOR = "link[data-admin-stylesheet]";
 
 /** 首屏样式是否已经揭幕。 */
-export function isStylesReady(): boolean {
+function isStylesReady(): boolean {
   return document.documentElement.getAttribute(READY_ATTR) === "1";
 }
 

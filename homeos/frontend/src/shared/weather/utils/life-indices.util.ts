@@ -54,10 +54,7 @@ const OPTIONAL_LIFE_INDEX_DEFS: LifeIndexDef[] = [
   { suffix: 'pollution_diffusion', label: '污染扩散', primary: false, group: 'health' },
 ]
 
-const ALL_LIFE_INDEX_DEFS: LifeIndexDef[] = [
-  ...PRIMARY_LIFE_INDEX_DEFS,
-  ...OPTIONAL_LIFE_INDEX_DEFS,
-]
+const ALL_LIFE_INDEX_DEFS: LifeIndexDef[] = [...PRIMARY_LIFE_INDEX_DEFS, ...OPTIONAL_LIFE_INDEX_DEFS]
 
 /** 与气象站同前缀的实况 / 预警实体后缀（用于侧栏与冷实体补全） */
 const WEATHER_STATION_LIVE_SUFFIXES = [
@@ -96,9 +93,7 @@ type WeatherStationLiveMetric = {
   unit: string
 }
 
-type EntityGetter = (
-  eid: string,
-) => { state?: unknown; attributes?: Record<string, unknown> } | undefined
+type EntityGetter = (eid: string) => { state?: unknown; attributes?: Record<string, unknown> } | undefined
 
 function isUsable(state: unknown): boolean {
   return state !== undefined && state !== null && state !== 'unavailable' && state !== 'unknown'
@@ -145,10 +140,7 @@ export function collectOptionalLifeIndexEntityIds(weatherEid: string): string[] 
 }
 
 /** 读取生活指数描述：优先 {suffix}_des_s，再常见 fallback */
-function readLifeIndexDescription(
-  suffix: string,
-  attrs: Record<string, unknown> | undefined,
-): string {
+function readLifeIndexDescription(suffix: string, attrs: Record<string, unknown> | undefined): string {
   if (!attrs) return ''
   const preferredKeys = [`${suffix}_des_s`, `${suffix}_des`, 'des_s', 'des', 'description', 'detail']
   for (const key of preferredKeys) {
@@ -247,8 +239,7 @@ export function resolveWeatherStationLiveMetrics(
     const ent = getEntity(entityId)
     if (!ent || !isUsable(ent.state)) continue
     const meta = LIVE_METRIC_LABELS[key]
-    const unit =
-      String(ent.attributes?.unit_of_measurement || '').trim() || meta.unit
+    const unit = String(ent.attributes?.unit_of_measurement || '').trim() || meta.unit
     out.push({
       key,
       label: meta.label,
@@ -268,10 +259,7 @@ type WeatherWarningSnapshot = {
 }
 
 /** binary_sensor.{station}_warning：state on + title / alarms */
-export function resolveWeatherWarning(
-  getEntity: EntityGetter,
-  weatherEid: string,
-): WeatherWarningSnapshot | null {
+export function resolveWeatherWarning(getEntity: EntityGetter, weatherEid: string): WeatherWarningSnapshot | null {
   const station = weatherStationCode(weatherEid)
   if (!station) return null
   const entityId = weatherWarningEntityId(station)
@@ -314,4 +302,3 @@ export function lifeIndexGroupLabel(group: LifeIndexDef['group']): string {
       return '其他'
   }
 }
-

@@ -49,15 +49,14 @@ export function useUtilityBalanceFields({
       readPopupAttr(ent.value, 'last_payment_date') ||
       '',
   )
-  const dataDate = computed(
-    () =>
-      String(
-        popField('dailyDate') ||
-          readPopupAttr(ent.value, 'daily_lasted_date') ||
-          readPopupAttr(ent.value, 'update_time') ||
-          readPopupAttr(ent.value, 'latest_data') ||
-          '',
-      ),
+  const dataDate = computed(() =>
+    String(
+      popField('dailyDate') ||
+        readPopupAttr(ent.value, 'daily_lasted_date') ||
+        readPopupAttr(ent.value, 'update_time') ||
+        readPopupAttr(ent.value, 'latest_data') ||
+        '',
+    ),
   )
   const { relLabel, relClass } = useRelativeDateLabel(dataDate, relClassPrefix)
   const billingStandard = computed(() => {
@@ -91,30 +90,40 @@ export function useUtilityBalanceFields({
   const t1l = computed(() =>
     parseFloat(
       String(
-        billingStandard.value?.[tierFieldMap.t1Limit || '年阶梯第2档起始水量'] || billingStandard.value?.tier_1_limit || 0,
+        billingStandard.value?.[tierFieldMap.t1Limit || '年阶梯第2档起始水量'] ||
+          billingStandard.value?.tier_1_limit ||
+          0,
       ),
     ).toFixed(0),
   )
   const t2l = computed(() =>
     parseFloat(
       String(
-        billingStandard.value?.[tierFieldMap.t2Limit || '年阶梯第3档起始水量'] || billingStandard.value?.tier_2_limit || 0,
+        billingStandard.value?.[tierFieldMap.t2Limit || '年阶梯第3档起始水量'] ||
+          billingStandard.value?.tier_2_limit ||
+          0,
       ),
     ).toFixed(0),
   )
   const t1p = computed(() =>
     parseFloat(
-      String(billingStandard.value?.[tierFieldMap.t1Price || '年阶梯第1档水价'] || billingStandard.value?.tier_1_price || 0),
+      String(
+        billingStandard.value?.[tierFieldMap.t1Price || '年阶梯第1档水价'] || billingStandard.value?.tier_1_price || 0,
+      ),
     ).toFixed(2),
   )
   const t2p = computed(() =>
     parseFloat(
-      String(billingStandard.value?.[tierFieldMap.t2Price || '年阶梯第2档水价'] || billingStandard.value?.tier_2_price || 0),
+      String(
+        billingStandard.value?.[tierFieldMap.t2Price || '年阶梯第2档水价'] || billingStandard.value?.tier_2_price || 0,
+      ),
     ).toFixed(2),
   )
   const t3p = computed(() =>
     parseFloat(
-      String(billingStandard.value?.[tierFieldMap.t3Price || '年阶梯第3档水价'] || billingStandard.value?.tier_3_price || 0),
+      String(
+        billingStandard.value?.[tierFieldMap.t3Price || '年阶梯第3档水价'] || billingStandard.value?.tier_3_price || 0,
+      ),
     ).toFixed(2),
   )
   const price = computed(() => {

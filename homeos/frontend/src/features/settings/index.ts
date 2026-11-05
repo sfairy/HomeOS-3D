@@ -3,7 +3,7 @@
  *
  * 域内细节（`shared/` `connect/` `display/` … 及各面板的 `composables/`）不外借：跨域引用只允许
  * `import ... from '@/features/settings'`（门禁见 ops/checks/frontend/check_frontend_deps.mjs 与
- * eslint.config.js 的域边界规则）。
+ * biome.json 的 noRestrictedImports 规则）。
  *
  * 这里**刻意只导出被跨域实际用到的成员**，不做「整域再导出」：settings 是 100+ 文件的
  * 功能域，全量 barrel 会把面板实现拖进任何引用方的 chunk。
