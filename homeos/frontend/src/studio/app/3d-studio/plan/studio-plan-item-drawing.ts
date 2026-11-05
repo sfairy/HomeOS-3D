@@ -100,7 +100,7 @@ function doorPlanPartMaterial(
   doorType: string,
   themePalette: any,
 ) {
-  const { resolveDoorPartMaterials, doorPartDisplayColor } = deps;
+  const { resolveDoorPartMaterials } = deps;
   const partMaterials = resolveDoorPartMaterials(doorRecord, themePalette),
     planRole = doorPlanMaterialRoleFor(doorType);
   return partMaterials[planRole] ?? partMaterials[doorMaterialPartRolesForType(doorType)[0]];

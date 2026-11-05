@@ -145,7 +145,7 @@ export function syncCameraInspector(ctx: CameraInspectorContext, cameraComponent
   ((ctx.cameraApplyStyleElement.disabled = !cameraReplaceableCount || !cameraApplyTargetCount),
     (ctx.cameraApplyCountElement.textContent = cameraApplyTargetCount + " 项修改"),
     (ctx.cameraApplyStyleElement.textContent = "一键应用到同类型控件"));
-  const componentWithTapAction = Object.prototype.hasOwnProperty.call(
+  const componentWithTapAction = Object.hasOwn(
     cameraComponent.actions || {},
     "tap",
   )

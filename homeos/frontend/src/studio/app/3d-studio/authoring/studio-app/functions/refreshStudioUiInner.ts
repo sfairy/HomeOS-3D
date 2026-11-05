@@ -562,8 +562,7 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
                 selectElement("#item-y"),
                 at4.y / (getPixelsPerMeter() || 1),
               ));
-            const dimensionPolicy = itemDimensionPolicy2(at4.type),
-              dimensionDecimals = dimensionPolicy.digits;
+            const dimensionPolicy = itemDimensionPolicy2(at4.type);
             for (const footprintInput of [
               selectElement("#item-width"),
               selectElement("#item-depth"),

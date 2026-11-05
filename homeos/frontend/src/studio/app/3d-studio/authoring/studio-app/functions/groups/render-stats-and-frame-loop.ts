@@ -46,14 +46,14 @@ export function pushBoundedSample(runtime: StudioAppRuntime, sampleList: any, sa
       sampleList.splice(0, sampleList.length - runtime.maxFrameSampleCount));
 }
 
-export function computeAverage(runtime: StudioAppRuntime, numberList: any) {
+export function computeAverage(_runtime: StudioAppRuntime, numberList: any) {
   return numberList.length
     ? numberList.reduce((sumAccumulator: any, numberValue: any) => sumAccumulator + numberValue, 0) /
         numberList.length
     : null;
 }
 
-export function computePercentile(runtime: StudioAppRuntime, sampleSeries: any, percentileRatio: any) {
+export function computePercentile(_runtime: StudioAppRuntime, sampleSeries: any, percentileRatio: any) {
   if (!sampleSeries.length) return null;
   const sort = [...sampleSeries].sort((leftSample, rightSample) => leftSample - rightSample),
     percentileIndex = Math.min(
@@ -63,7 +63,7 @@ export function computePercentile(runtime: StudioAppRuntime, sampleSeries: any, 
   return sort[percentileIndex];
 }
 
-export function roundToDigits(runtime: StudioAppRuntime, numericValue: any, digitCount = 1) {
+export function roundToDigits(_runtime: StudioAppRuntime, numericValue: any, digitCount = 1) {
   return Number.isFinite(numericValue) ? Number(numericValue.toFixed(digitCount)) : null;
 }
 
@@ -840,13 +840,13 @@ export function rerenderScene(runtime: StudioAppRuntime, ) {
     runtime.appCtx.threeRenderer.render(runtime.appCtx.threeScene, runtime.appCtx.threeCamera);
 }
 
-export function ensureRenderReady(runtime: StudioAppRuntime, ) {
+export function ensureRenderReady(_runtime: StudioAppRuntime, ) {
   return globalThis.scheduler?.yield
     ? globalThis.scheduler.yield()
     : new Promise<void>((resolveRenderWait) => requestAnimationFrame(() => resolveRenderWait()));
 }
 
-export function waitForIdleFrame(runtime: StudioAppRuntime, ) {
+export function waitForIdleFrame(_runtime: StudioAppRuntime, ) {
   return globalThis.scheduler?.yield
     ? globalThis.scheduler.yield()
     : typeof globalThis.requestIdleCallback === "function"

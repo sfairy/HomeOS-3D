@@ -327,7 +327,7 @@ export function prepareExportRender(runtime: StudioAppRuntime, ) {
     runtime.appCtx.threeRenderer.render(runtime.appCtx.threeScene, runtime.appCtx.threeCamera);
 }
 
-export function canvasToBlob(runtime: StudioAppRuntime, blobCanvas: any): Promise<Blob> {
+export function canvasToBlob(_runtime: StudioAppRuntime, blobCanvas: any): Promise<Blob> {
   return new Promise((resolveBlob, rejectBlob) => {
     blobCanvas.toBlob(
       (resultBlob: any) => {
@@ -473,7 +473,7 @@ export async function renderBackgroundLayer(runtime: StudioAppRuntime,
   return runtime.canvasToBlob(backgroundCanvas);
 }
 
-export function makeUniqueFileName(runtime: StudioAppRuntime, 
+export function makeUniqueFileName(_runtime: StudioAppRuntime, 
   fileBaseName: any,
   fileNameIndex: any,
   usedFileNameSet: any,
@@ -605,7 +605,7 @@ export function projectLightGroupAnchor(runtime: StudioAppRuntime,
   return null;
 }
 
-export async function blobToBytes(runtime: StudioAppRuntime, sourceBlob: any) {
+export async function blobToBytes(_runtime: StudioAppRuntime, sourceBlob: any) {
   return new Uint8Array(await sourceBlob.arrayBuffer());
 }
 
@@ -645,7 +645,7 @@ export function resolveOverwriteChoice(runtime: StudioAppRuntime, overwriteChoic
     bl3?.(overwriteChoice));
 }
 
-export function showConflictDialog(runtime: StudioAppRuntime, dialogWindowHost: any, conflictFolderName: any) {
+export function showConflictDialog(_runtime: StudioAppRuntime, dialogWindowHost: any, conflictFolderName: any) {
   const document2 = dialogWindowHost.document,
     conflictDialogElement = document2.createElement("dialog");
   return (
@@ -987,7 +987,7 @@ export function mergeMeshesByType(runtime: StudioAppRuntime, mergeRoot: any, mer
   };
 }
 
-export function configureLightSourcePreview(runtime: StudioAppRuntime, previewSourceMesh: any) {
+export function configureLightSourcePreview(_runtime: StudioAppRuntime, previewSourceMesh: any) {
   return (
     (previewSourceMesh.userData.exportRole = "light-source-preview"),
     (previewSourceMesh.castShadow = false),

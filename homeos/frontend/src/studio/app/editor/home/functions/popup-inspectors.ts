@@ -258,7 +258,7 @@ export function syncEffectAssetSelection(deps: PopupInspectorsDeps, effectOwnerC
     deps.ibeAssetOptionsElement.replaceChildren());
 }
 
-export function assignActionControlIds(deps: PopupInspectorsDeps, controlElement: any) {
+export function assignActionControlIds(_deps: PopupInspectorsDeps, controlElement: any) {
   const formId = controlElement.closest(".inspector-form[id]")?.id || "component-action",
     replace3 = String(controlElement.dataset.actionTrigger || "action").replace(
       /[^a-zA-Z0-9_-]/g,
@@ -306,7 +306,7 @@ export function initActionPopupConfig(deps: PopupInspectorsDeps) {
   }
 }
 
-export function closePopupEntityMenus(deps: PopupInspectorsDeps, activeTriggerElement: any = null) {
+export function closePopupEntityMenus(_deps: PopupInspectorsDeps, activeTriggerElement: any = null) {
   for (const popupMenuElement of document.querySelectorAll<HTMLElement>("[data-popup-entity-menu]")) {
     const triggerElement = popupMenuElement.closest("[data-action-trigger]");
     triggerElement !== activeTriggerElement &&
@@ -361,7 +361,7 @@ export function renderPopupEntityOptions(deps: PopupInspectorsDeps, popupConfigE
   }
 }
 
-export function positionPopupEntityMenu(deps: PopupInspectorsDeps, triggerConfigElement: any) {
+export function positionPopupEntityMenu(_deps: PopupInspectorsDeps, triggerConfigElement: any) {
   const popupEntityButtonPanel = triggerConfigElement?.querySelector("[data-popup-entity-button]"),
     entityMenuElementElement = triggerConfigElement?.querySelector("[data-popup-entity-menu]");
   if (!popupEntityButtonPanel || !entityMenuElementElement || entityMenuElementElement.hidden)
@@ -382,7 +382,7 @@ export function positionPopupEntityMenu(deps: PopupInspectorsDeps, triggerConfig
   });
 }
 
-export function timeFitComponent(deps: PopupInspectorsDeps, timeFitProperties: any, timeProperties = timeFitProperties?.properties || {}) {
+export function timeFitComponent(_deps: PopupInspectorsDeps, timeFitProperties: any, timeProperties = timeFitProperties?.properties || {}) {
   fitInspectorComponentToDimensions2(timeFitProperties, timeProperties, timeComponentDimensions2);
 }
 
@@ -431,7 +431,7 @@ export function renderTimeInspector(deps: PopupInspectorsDeps, dateProperties: a
     (deps.timeRotationElement.disabled = false));
 }
 
-export function weatherProperties(deps: PopupInspectorsDeps, 
+export function weatherProperties(_deps: PopupInspectorsDeps, 
   availablePropertiesValue: any,
   availablePropertiesConfig = availablePropertiesValue?.properties || {},
 ) {
@@ -442,7 +442,7 @@ export function weatherProperties(deps: PopupInspectorsDeps,
   );
 }
 
-export function fitWeatherComponentToDimensions(deps: PopupInspectorsDeps, 
+export function fitWeatherComponentToDimensions(_deps: PopupInspectorsDeps, 
   weatherFitComponent: any,
   weatherFitProperties = weatherFitComponent?.properties || {},
 ) {

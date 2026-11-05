@@ -355,6 +355,7 @@ export function createClimateModeHistory({
       typeof candidateMode == "string" &&
       !!candidateMode.trim() &&
       candidateMode.length <= 120 &&
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: 模式名清洗：控制字符与括号属于非法输入
       !/[{}\[\]\x00-\x1f]/.test(candidateMode) &&
       !["off", "unknown", "unavailable"].includes(candidateMode),
     storageKeyFor = (historyEntityId: any) =>

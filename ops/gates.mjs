@@ -73,10 +73,16 @@ const bun = (...args) => ({ cmd: 'bun', args });
 const GATE_GROUPS = {
   static: [
     { name: 'typecheck', ...bun('run', 'typecheck') },
-    { name: 'lint:frontend', ...bun('run', '--cwd', 'homeos/frontend', 'lint:ci') },
-    { name: 'lint:store-frontend', ...bun('run', '--cwd', 'homeos-store', 'lint:ci') },
-    { name: 'lint:shared', ...bun('run', 'lint:shared') },
-    { name: 'lint:ops', ...bun('run', 'lint:ops') },
+    // 单一 Biome 配置覆盖主应用 / 商店 / shared / ops。三个子包各自的 `lint:ci`
+    // 已退化成委托到这里（见各 package.json），不再有「一处加规则、另一处静默少一条」。
+    { name: 'lint', ...bun('run', 'lint') },
+    // CSS 语法仍走 esbuild（与构建同一引擎）：Biome 的 CSS 解析器不认识 Tailwind 的
+    // `@import` / `@config` 顺序，也不认 Vue 的 `:deep()`，用它判定会与真实产物脱节。
+    { name: 'check:css-syntax', ...bun('run', '--cwd', 'homeos/frontend', 'check:css') },
+    { name: 'check:css-syntax-store', ...bun('run', '--cwd', 'homeos-store', 'check:css') },
+    { name: 'check:css-syntax-shared', ...bun('run', '--cwd', 'packages/shared', 'check:css') },
+    // Biome 没有 no-restricted-syntax 的等价物，这两条规范约束用脚本承接。
+    { name: 'check:restricted-syntax', ...bun('run', 'check:restricted-syntax') },
     { name: 'lint:py', ...bun('run', 'lint:py') },
     { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
     { name: 'check:scene', ...bun('run', 'check:scene') },

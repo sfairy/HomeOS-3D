@@ -10,36 +10,17 @@ import { createSpeakerPanel as createSpeakerPanel2 } from "../speaker/speaker-pa
 import { createSpeakerRings as createSpeakerRings2 } from "../speaker/speaker-ring";
 import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
 const [
-  { backgroundOpacity: labelBackgroundOpacity },
   { withPageAppearancePreset: applyPageAppearancePreset },
   { withRegionLightingPreset: applyRegionLightingPreset },
   { withFixedLightEffects: applyFixedLightEffects },
-  {
-    temperatureHumidityReading: readTemperatureHumidity,
-    temperatureHumidityEntities: temperatureHumidityEntities,
-    ENVIRONMENT_METRICS: environmentMetricNames,
-    layoutEnvironmentReadings: layoutEnvironmentReadings,
-    DEFAULT_LABEL_SIZE: defaultLabelSize,
-    DEFAULT_LABEL_ICON_SIZE: defaultLabelIconSize,
-    MAX_LABEL_SIZE: maxLabelSize,
-    MAX_LABEL_ICON_SIZE: maxLabelIconSize,
-    MIN_LABEL_SIZE: minLabelSize,
-    MIN_LABEL_ICON_SIZE: minLabelIconSize,
-  },
   { popupPlacement: computePopupPlacement },
-  { createMarkerTouch: createMarkerTouch, nearestMarkerTarget: nearestMarkerTarget },
   { buttonIconSize: resolveButtonIconSize, DEFAULT_BUTTON_SIZE: defaultButtonSize },
-  { CARD_TEXT_SIZE_PX: cardTextSizePx },
 ] = await Promise.all([
-  import("./label-appearance"),
   import("@app/bridge/presets/page-appearance-presets"),
   import("@app/bridge/presets/region-lighting-presets"),
   import("@app/bridge/presets/light-effect-policy"),
-  import("@app/bridge/temperature-humidity"),
   import("@app/bridge/presets/popup-placement"),
-  import("./marker-input"),
   import("@app/bridge/presets/button-icon-size"),
-  import("@app/bridge/presets/card-text-size"),
 ]);
 import {
   createPresenceScene as createPresenceScene2,

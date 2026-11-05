@@ -60,7 +60,6 @@ const formatSwingModeLabel = (swingModeKey: any, swingDirection: any = undefined
     normal: "标准",
     natural: "自然风",
   };
-let pickerIdCounter = 0;
 /** 面板的宿主元素与回调； */
 type ClimatePanelOptions = {
   element?: any;

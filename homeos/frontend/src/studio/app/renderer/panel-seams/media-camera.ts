@@ -5,7 +5,7 @@ import { mountCameraMedia as mountCameraMedia2 } from "../registry";
 import { popupPlacement as popupPlacement2 } from "../../bridge/presets/popup-placement";
 import type { PanelRenderer } from "../panel-renderer";
 
-export async function browseMedia(self: PanelRenderer, mediaEntityId: any, mediaContentId = "media-source://", mediaContentType = "") {
+export async function browseMedia(_self: PanelRenderer, mediaEntityId: any, mediaContentId = "media-source://", mediaContentType = "") {
     const mediaResponse = await fetch("/api/v1/ha/media/browse", {
         method: "POST",
         headers: {

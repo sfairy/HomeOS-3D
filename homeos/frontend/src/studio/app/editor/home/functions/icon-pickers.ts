@@ -121,7 +121,7 @@ export function closeOtherPickerMenus(deps: IconPickersDeps, excludedKind: any =
       deps.runPrimary(deps.navigationIconMenuElement, deps.navigationIconButtonElement));
 }
 
-export function resolveMdiIconUrl(deps: IconPickersDeps, iconName: any) {
+export function resolveMdiIconUrl(_deps: IconPickersDeps, iconName: any) {
   const replace = String(iconName || "")
     .trim()
     .replace(/^mdi:/, "");
@@ -207,7 +207,7 @@ export function renderLightStatisticsButtonIcon(deps: IconPickersDeps, iconName:
       : "当前未使用图标"));
 }
 
-export async function copyTextToClipboard(deps: IconPickersDeps, clipboardText: any) {
+export async function copyTextToClipboard(_deps: IconPickersDeps, clipboardText: any) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(clipboardText);
     return;

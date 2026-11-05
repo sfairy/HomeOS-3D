@@ -258,7 +258,7 @@ function createLifecycleReporter(projectId: any, componentId: any) {
       previousEvents = mountCount === 1 ? breadcrumbStore.previous(diagnosticsKey) : [],
       reportLifecycleEvent = (lifecycleEventCode: any, lifecycleEventCounts: Record<string, any> = {}) => {
         try {
-          if (!Object.prototype.hasOwnProperty.call(BREADCRUMB_CODE_MESSAGES, lifecycleEventCode))
+          if (!Object.hasOwn(BREADCRUMB_CODE_MESSAGES, lifecycleEventCode))
             return;
           breadcrumbStore.remember(diagnosticsKey, lifecycleEventCode, lifecycleEventCounts);
           const hostLogger = window.HomeOSLog as HostLogger | undefined;
@@ -2651,7 +2651,7 @@ export function mountInteraction3d(
      * 组件属性、编辑上下文与回调，然后重发一次带 `resetPreviewSession` 的 config；返回的
      * 函数负责把所有状态原样换回去（对应上游 `saved` / `invalidate` / `listeners` 会话）。
      */
-    (runtimeHandle.beginEditorPreview = (previewOptions: any = {}, viewportElement: any, onCancel?: any) => {
+    (runtimeHandle.beginEditorPreview = (previewOptions: any = {}, viewportElement: any, _onCancel?: any) => {
       if (isDisposed) throw new Error("3D 运行时已销毁。");
       // 0.8.4：借用前再核一次「同一组件、同一仪表盘、画面就绪」——
       // 池里挑中之后到真正挂载之间，编辑器可能已经切走组件或重载户型。

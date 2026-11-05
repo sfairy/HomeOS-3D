@@ -39,7 +39,6 @@ const SOURCE_CSS = join(FRONTEND, 'font', 'font-awesome.css')
 const OUT_CSS = join(FRONTEND, 'public', 'static', 'font.min.css')
 const FONT_DIR = join(FRONTEND, 'public', 'static', 'fonts')
 const FULL_WOFF2 = join(FONT_DIR, 'font.woff2')
-const FULL_TTF = join(FONT_DIR, 'font.ttf')
 const SUBSET_WOFF2 = join(FONT_DIR, 'font-subset.woff2')
 const SCAN_ROOTS = [join(FRONTEND, 'src'), join(FRONTEND, 'index.html')]
 

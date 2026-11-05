@@ -113,7 +113,7 @@ function readEntityState(stateStore: any, stateKey: any) {
     typeof stateStore?.get == "function" ? stateStore.get(stateKey) : stateStore?.[stateKey];
   return rawStateEntry &&
     typeof rawStateEntry == "object" &&
-    Object.prototype.hasOwnProperty.call(rawStateEntry, "newState")
+    Object.hasOwn(rawStateEntry, "newState")
     ? rawStateEntry.newState || null
     : rawStateEntry || null;
 }

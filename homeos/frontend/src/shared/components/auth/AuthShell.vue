@@ -41,7 +41,7 @@ defineProps<{
     :steps-label="stepsLabel"
   >
     <!-- 场景背景由调用方以 slot 传入：src/shared 不允许反向 import app 层组件
-         （eslint no-restricted-imports），把「背景是什么」留给页面自己声明。 -->
+         （biome.json 的 noRestrictedImports），把「背景是什么」留给页面自己声明。 -->
     <template #scene><slot name="scene" /></template>
     <template #head-extra><slot name="head-extra" /></template>
     <!-- 坞脚整块由页面决定有没有：不判断的话，没有 copy 的页面会多出一个空的

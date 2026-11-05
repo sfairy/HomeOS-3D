@@ -1,0 +1,48 @@
+# 行尾统一为 LF（仓库内与工作区一致）。
+#
+# 背景：本仓此前没有 .gitattributes，68 个受版本控制的文件以 CRLF 入库。格式化工具
+# （Biome）在 CRLF 文件上会产出「整文件每一行都变」的假 diff，把真实改动淹没。先把
+# 行尾定死，后续任何一次 `biome format` 的 diff 才可读。
+#
+# eol=lf 的含义：仓库内一律存 LF，检出也用 LF。Windows 侧不会自动转 CRLF —— 本仓是
+# 容器化部署 + bun/vite 工具链，统一 LF 反而能消除构建脚本里 `\r` 的隐患。
+* text=auto eol=lf
+
+# 二进制：行尾转换会直接损坏文件，必须显式排除。
+# 3D 模型（672 个 .glb）与图标/贴图是仓库里体积最大的资产，误当文本处理会让
+# `git diff` 试图逐字节比对二进制内容。
+*.glb   binary
+*.gltf  text eol=lf
+*.bin   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.bmp   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.mp3   binary
+*.mp4   binary
+*.wav   binary
+*.webm  binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.pdf   binary
+*.so    binary
+*.dylib binary
+*.node  binary
+*.db    binary
+*.sqlite3 binary
+*.pkl   binary
+*.onnx  binary
+*.pt    binary
+
+# 锁文件与生成物：不参与 diff 展示，减少 review 噪音。
+# bun.lock 是文本但每次依赖变动都是整段重排，标成 linguist-generated 让 GitHub 折叠。
+bun.lock linguist-generated=true

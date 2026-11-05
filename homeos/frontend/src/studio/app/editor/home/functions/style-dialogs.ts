@@ -183,7 +183,7 @@ export function openNavigationStyleApplyDialog(deps: StyleDialogsDeps) {
     deps.navigationStyleApplyDialogElement.showModal());
 }
 
-export function onImageAssetFolderSelectChange(deps: StyleDialogsDeps, 
+export function onImageAssetFolderSelectChange(_deps: StyleDialogsDeps, 
   onImageAssetSearchInputInput: any,
   onImageAssetOptionsPointerover: any,
 ) {
@@ -525,7 +525,7 @@ export function imageAssetMeasureError(deps: StyleDialogsDeps) {
     deps.navigationStyleApplyDialogElement.showModal());
 }
 
-export function applyInspectorDimensionChange(deps: StyleDialogsDeps, 
+export function applyInspectorDimensionChange(_deps: StyleDialogsDeps, 
   nextValue: any,
   target: any,
   dimension: string,

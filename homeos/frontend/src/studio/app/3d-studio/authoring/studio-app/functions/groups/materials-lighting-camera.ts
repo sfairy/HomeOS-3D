@@ -147,7 +147,7 @@ export function refreshScopeItems(runtime: StudioAppRuntime, scopeFilter = "all"
       }));
 }
 
-export function setDrawingToolGroupOpen(runtime: StudioAppRuntime, drawingToolSection: any, isDrawingToolGroupOpen: any) {
+export function setDrawingToolGroupOpen(_runtime: StudioAppRuntime, drawingToolSection: any, isDrawingToolGroupOpen: any) {
   const drawingToolToggle = drawingToolSection.querySelector(".drawing-tool-toggle");
   const drawingToolPanel = drawingToolSection.querySelector(".drawing-tool-buttons");
   if (!drawingToolToggle || !drawingToolPanel) return;
@@ -635,7 +635,7 @@ export function backgroundSettings(runtime: StudioAppRuntime, ): BackgroundViewS
     : defaultViewSettings;
 }
 
-export function positionLightFromAngles(runtime: StudioAppRuntime, lightObject: any, azimuthDegrees: any, elevationDegrees: any, lightDistance: any) {
+export function positionLightFromAngles(_runtime: StudioAppRuntime, lightObject: any, azimuthDegrees: any, elevationDegrees: any, lightDistance: any) {
   if (!lightObject) return;
   const degToRad = ns2.MathUtils.degToRad(azimuthDegrees),
     degToRad2 = ns2.MathUtils.degToRad(elevationDegrees),

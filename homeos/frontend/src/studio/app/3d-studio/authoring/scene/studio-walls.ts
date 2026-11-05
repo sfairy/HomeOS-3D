@@ -60,7 +60,7 @@ export interface StudioWallsDeps {
 
 
 
-export function createOutlinePath(deps: StudioWallsDeps, outlineShapeConstructor: any, outlinePointList: any) {
+export function createOutlinePath(_deps: StudioWallsDeps, outlineShapeConstructor: any, outlinePointList: any) {
   const outlinePath = new outlineShapeConstructor();
   return (
     outlinePointList.forEach((outlinePoint: any, outlinePointIndex: any) => {
@@ -157,7 +157,7 @@ export function createSceneWallSideMaterial(deps: StudioWallsDeps,
   return ((wallSideMaterial.userData.alphaWallBand = We2), wallSideMaterial);
 }
 
-function createHiddenBasicMaterial(deps: StudioWallsDeps) {
+function createHiddenBasicMaterial(_deps: StudioWallsDeps) {
   const hiddenBasicMaterial = new ns2.MeshBasicMaterial();
   return ((hiddenBasicMaterial.visible = false), hiddenBasicMaterial);
 }
@@ -260,7 +260,6 @@ function buildWallBandMesh(deps: StudioWallsDeps,
       (wallBandMesh.userData.reflectionRole = "wall"),
       (wallBandMesh.rotation.x = Math.PI / 2),
       (wallBandMesh.position.y = wallBandTopHeight));
-    const isWallBandOpaque = wallBandOpacity >= 0.999;
     ((wallBandMesh.castShadow = wallBandOptions.castShadow === true),
       wallBandOptions.lightOccluder && wallBandMesh.layers.set(deps.lampsLayerIndex),
       // 墙面必须吃阴影：现实里白天的窗光、家具影、人的影子都会落在墙上，夜晚吊灯的
@@ -294,7 +293,7 @@ function createWallCapBuilder(deps: StudioWallsDeps) {
   );
 }
 
-export function expandPolygonOutward(deps: StudioWallsDeps, polygonPointList: any, outwardOffset: any) {
+export function expandPolygonOutward(_deps: StudioWallsDeps, polygonPointList: any, outwardOffset: any) {
   const reduce = polygonPointList.reduce(
     (accumulatedPoint: any, offsetPointEntry: any) => ({
       x: accumulatedPoint.x + offsetPointEntry.x / polygonPointList.length,

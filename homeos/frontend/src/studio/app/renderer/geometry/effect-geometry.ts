@@ -4,9 +4,9 @@ export function normalizeIconButtonEffectComponent(component: any) {
     ...(component.properties || {}),
   };
   return (
-    Object.prototype.hasOwnProperty.call(nextProperties, "buttonVisible") ||
+    Object.hasOwn(nextProperties, "buttonVisible") ||
       (nextProperties.buttonVisible = true),
-    Object.prototype.hasOwnProperty.call(nextProperties, "effectVisible") ||
+    Object.hasOwn(nextProperties, "effectVisible") ||
       (nextProperties.effectVisible = true),
     {
       ...component,

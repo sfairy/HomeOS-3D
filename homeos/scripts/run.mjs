@@ -32,7 +32,7 @@ function run(command, args, cwd = REPO_ROOT) {
   })
   // `status === null` 只有一种情况：进程压根没起来（ENOENT，工具链缺失）。
   // 过去这里直接 `exit(status ?? 1)`，于是「后端 venv 没建」这种可修的问题表现为
-  // **一行输出都没有的 exit 1**，看起来像 eslint/ruff 报了错却又没有内容。
+  // **一行输出都没有的 exit 1**，看起来像 biome/ruff 报了错却又没有内容。
   // 现在把真实原因（哪个命令、什么错误）打出来，失败必须有名有姓。
   if (result.error || result.status === null) {
     const why = result.error ? `${result.error.code ?? ''} ${result.error.message}`.trim() : '被信号中断'

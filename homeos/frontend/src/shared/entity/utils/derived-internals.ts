@@ -100,7 +100,7 @@ export function snapshotFromDerivedAcc(acc: EntityDerivedAccumulator): DerivedSn
  * @returns 存在 friendly_name 返回 true，否则返回 false。
  */
 export function hasEntityFriendlyName(entity: HaEntityView | null | undefined): boolean {
-  // eslint-disable-next-line no-restricted-syntax -- 规范实现
+  // check-restricted-syntax-ignore: 规范实现本身
   return Boolean(entity?.attributes?.friendly_name)
 }
 
@@ -132,7 +132,7 @@ export function getEntityDisplayName(
   entity: HaEntityView | null | undefined,
 ): string {
   if (!entityId) return ''
-  // eslint-disable-next-line no-restricted-syntax -- 规范实现
+  // check-restricted-syntax-ignore: 规范实现本身
   const raw = entity?.attributes?.friendly_name || entityId.split('.')[1] || entityId
   return collapseRepeatedDisplayName(String(raw))
 }

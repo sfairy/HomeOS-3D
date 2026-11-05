@@ -94,7 +94,7 @@ export function targetPageCandidate(deps: LightingPanelDeps) {
 
 }
 
-export function buttonVisibilityDraftDocument(deps: LightingPanelDeps, iconPreviewStateClickEventElement: any) {
+export function buttonVisibilityDraftDocument(_deps: LightingPanelDeps, iconPreviewStateClickEventElement: any) {
   try {
     return {
       urls: JSON.parse(iconPreviewStateClickEventElement.dataset.previewUrls || "[]"),
@@ -319,7 +319,7 @@ export function documentSource(deps: LightingPanelDeps) {
     : false;
 }
 
-export function popupId(deps: LightingPanelDeps, _entityLabelFor: any) {}
+export function popupId(_deps: LightingPanelDeps, _entityLabelFor: any) {}
 
 export async function triggerKey(deps: LightingPanelDeps) {
   const documentPages = await deps.requestJson("/license/status");
@@ -336,7 +336,7 @@ export async function triggerKey(deps: LightingPanelDeps) {
   );
 }
 
-export function findDiagramPreviewFrame(deps: LightingPanelDeps, 
+export function findDiagramPreviewFrame(_deps: LightingPanelDeps, 
   lightingComponentId: any,
   applyBaseLightingToPanel: any,
   baseLighting: any = null,
@@ -360,7 +360,7 @@ export function findDiagramPreviewFrame(deps: LightingPanelDeps,
     : false;
 }
 
-export function lightInputElement(deps: LightingPanelDeps, openAutoDiagramDialog: any, dialogComponentId: any) {
+export function lightInputElement(_deps: LightingPanelDeps, openAutoDiagramDialog: any, dialogComponentId: any) {
   const cancelRemovesComponentElement = document.querySelector<HTMLIFrameElement>(
     '.hb-component[data-component-id="' +
       CSS.escape(openAutoDiagramDialog) +
@@ -380,7 +380,7 @@ export function lightInputElement(deps: LightingPanelDeps, openAutoDiagramDialog
     : false;
 }
 
-export function cancelRemovesComponent(deps: LightingPanelDeps, bindFloorplanSection: any) {
+export function cancelRemovesComponent(_deps: LightingPanelDeps, bindFloorplanSection: any) {
   if (!bindFloorplanSection?.isConnected) return;
   const onElement = bindFloorplanSection.closest(".hb-floorplan-auto-diagram");
   if (!onElement) return;

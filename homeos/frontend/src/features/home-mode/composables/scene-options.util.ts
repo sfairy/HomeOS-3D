@@ -67,7 +67,7 @@ export function sceneEntitiesSignature(
       // 这里要的是 `friendly_name` 的**原值**做签名字符串（变了就重算），不走
       // `getEntityDisplayName` 的展示名回退链 —— 回退会让「改名」与「实体缺失」不可区分。
       // 而且本文件刻意不 import `@/…`，Node 才能零构建直接跑单测。
-      // eslint-disable-next-line no-restricted-syntax
+      // check-restricted-syntax-ignore: 本文件不依赖 @/ 别名，Node 零构建直接跑单测
       const friendly = entity?.attributes?.friendly_name
       return typeof friendly === 'string' ? `${id}:${friendly}` : id
     })

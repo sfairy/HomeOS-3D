@@ -392,7 +392,7 @@ export function resolveFooterItemLabel(
 export function resolveFooterPrimaryLabel(
   item: DashboardFooterItem,
   fieldOptionsFn: (source: string) => FooterFieldOption[],
-  statsSensors?: Record<string, unknown> | null,
+  _statsSensors?: Record<string, unknown> | null,
   sourceOptions: FooterSourceOption[] = ACCOUNT_BINDING_SOURCE_OPTIONS as FooterSourceOption[],
 ): string {
   if (item.label?.trim()) {

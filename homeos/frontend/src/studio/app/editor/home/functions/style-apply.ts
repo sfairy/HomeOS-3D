@@ -85,7 +85,7 @@ export function onNavigationStyleApplyCancelButtonClick(deps: StyleApplyDeps,
         : String(styleDialogClickEvent ?? "");
 }
 
-export function onNavigationStyleApplyConfirmButtonClick(deps: StyleApplyDeps, styleSourceComponentId: any, propertyKey: any) {
+export function onNavigationStyleApplyConfirmButtonClick(_deps: StyleApplyDeps, styleSourceComponentId: any, propertyKey: any) {
   if (styleSourceComponentId)
     return propertyKey === "width" || propertyKey === "height"
       ? Number(styleSourceComponentId.position?.[propertyKey] || 100)
@@ -145,7 +145,7 @@ export function formatAirConditionerStyleValue(deps: StyleApplyDeps, propertyKey
           : String(value ?? "");
 }
 
-export function resolveAirConditionerStyleValue(deps: StyleApplyDeps, styleTypeLabel: any, propertyKey: any) {
+export function resolveAirConditionerStyleValue(_deps: StyleApplyDeps, styleTypeLabel: any, propertyKey: any) {
   if (styleTypeLabel)
     return propertyKey === "width" || propertyKey === "height"
       ? Number(styleTypeLabel.position?.[propertyKey] || 100)
@@ -207,7 +207,7 @@ export function formatIconButtonEffectStyleValue(deps: StyleApplyDeps, propertyK
             : String(value || "不使用");
 }
 
-export function normalizeSensorKind(deps: StyleApplyDeps, component: any) {
+export function normalizeSensorKind(_deps: StyleApplyDeps, component: any) {
   const styleComponentType = component?.properties?.sensorKind;
   return ["presence", "door-window", "water-leak", "smoke", "natural-gas"].includes(
     styleComponentType,
@@ -254,7 +254,7 @@ export function resolvePresenceSensorStyleKeys(deps: StyleApplyDeps, styleProper
           : ["naturalGasColor", ...selectedTargetComponentIds];
 }
 
-export function styleTargetCheckbox(deps: StyleApplyDeps, styleApplyDraftDocument: any, styleTargetComponentId: any) {
+export function styleTargetCheckbox(_deps: StyleApplyDeps, styleApplyDraftDocument: any, styleTargetComponentId: any) {
   if (!styleApplyDraftDocument) return;
   if (styleTargetComponentId === "width" || styleTargetComponentId === "height")
     return Number(styleApplyDraftDocument.position?.[styleTargetComponentId] || 100);
@@ -337,7 +337,7 @@ export function appliedStylePropertyKey(deps: StyleApplyDeps, styleApplyButton: 
   );
 }
 
-export function onNavigationIconCopyButtonClick(deps: StyleApplyDeps, navigationSelectedIconName: any, styleKey: any) {
+export function onNavigationIconCopyButtonClick(_deps: StyleApplyDeps, navigationSelectedIconName: any, styleKey: any) {
   return navigationSelectedIconName?.type === "presence-sensor"
     ? (styleComponentTypeConfig as any)[styleKey]
     : navigationSelectedIconName?.type !== "device-button"
@@ -438,7 +438,7 @@ export function navigationIconCopyError(deps: StyleApplyDeps,
                 : String(onNavigationIconOptionsClick ?? "");
 }
 
-export function resolveCameraStyleValue(deps: StyleApplyDeps, component: any, propertyKey: any) {
+export function resolveCameraStyleValue(_deps: StyleApplyDeps, component: any, propertyKey: any) {
   if (!component) return;
   if (propertyKey === "width" || propertyKey === "height")
     return Number(component.position?.[propertyKey] || 100);
@@ -501,7 +501,7 @@ export function formatCameraStyleValue(deps: StyleApplyDeps, propertyKey: any, v
       : String(value ?? "");
 }
 
-export function resolvePanelFrameStyleValue(deps: StyleApplyDeps, component: any, navigationIconDraftDocument: any) {
+export function resolvePanelFrameStyleValue(_deps: StyleApplyDeps, component: any, navigationIconDraftDocument: any) {
   if (!component) return;
   if (navigationIconDraftDocument === "width" || navigationIconDraftDocument === "height")
     return Number(component.position?.[navigationIconDraftDocument] || 100);
@@ -587,7 +587,7 @@ export function formatPanelFrameStyleValue(deps: StyleApplyDeps,
           : String(value ?? "");
 }
 
-export function entryStateRecord(deps: StyleApplyDeps, entryStateName: any, propertyKey: any) {
+export function entryStateRecord(_deps: StyleApplyDeps, entryStateName: any, propertyKey: any) {
   if (!entryStateName) return;
   if (propertyKey === "width" || propertyKey === "height")
     return Number(entryStateName.position?.[propertyKey] || 100);
@@ -625,7 +625,7 @@ export function entryStateRecord(deps: StyleApplyDeps, entryStateName: any, prop
                 : (availablePropertiesKey[propertyKey] ?? styleTypeLabelState);
 }
 
-export function areStyleValuesEqual(deps: StyleApplyDeps, leftValue: any, rightValue: any) {
+export function areStyleValuesEqual(_deps: StyleApplyDeps, leftValue: any, rightValue: any) {
   return JSON.stringify(leftValue) === JSON.stringify(rightValue);
 }
 

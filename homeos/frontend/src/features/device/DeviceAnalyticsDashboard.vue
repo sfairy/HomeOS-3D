@@ -10,7 +10,7 @@
 -->
 
 <template>
-  <div ref="rootRef" class="device-analytics">
+  <div :ref="bindRootRef" class="device-analytics">
     <div class="device-analytics__chrome">
       <nav class="list-page__tabs device-analytics__tabs" role="tablist" :aria-label="'分析视图'">
         <button
@@ -203,7 +203,6 @@ const emit = defineEmits<{
 }>()
 
 const {
-  rootRef,
   days,
   activeTab,
   rangeOptions,
@@ -225,6 +224,7 @@ const {
   analyticsTabs,
   bindTrendChart,
   bindDomainChart,
+  bindRootRef,
   bindHeatmapChart,
   bindEventsChart,
   bindHealthTrend,

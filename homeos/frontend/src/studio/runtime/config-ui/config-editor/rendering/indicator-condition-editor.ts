@@ -46,8 +46,7 @@ export function indicatorEntitySupport(
       reason:
         "此实体仅提供动作或瞬时事件，没有可用于指示灯的持续状态。请选择开关、状态或数值传感器。",
     };
-  const newState = rawState?.newState || rawState,
-    attributes = { ...entityDescriptor?.attributes, ...newState?.attributes };
+  const newState = rawState?.newState || rawState;
   return {
     supported: true,
     numeric:

@@ -312,6 +312,7 @@ function measureTextWidth(text: any, fontSizePx: any) {
     (accumulatedWidth, character) =>
       /\s/u.test(character)
         ? accumulatedWidth + fontSizePx * 0.35
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: ASCII 判定需覆盖 \x00-\x7f 全段
         : /[\x00-\x7f]/u.test(character)
           ? /[ilI1.,:;'|!]/u.test(character)
             ? accumulatedWidth + fontSizePx * 0.32
@@ -409,6 +410,7 @@ export function climateModeLabel(
           ? WATER_HEATER_MODE_LABELS
           : CLIMATE_MODE_LABELS,
     candidateTranslation = climateModeTranslation(rawMode, modeLabelOptions);
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 非 ASCII 判定需覆盖 \x00-\x7f 全段
   return candidateTranslation && /[^\x00-\x7f]/u.test(candidateTranslation)
     ? candidateTranslation
     : (modeLabelTable as any)[normalizedModeKey] || candidateTranslation || rawMode;

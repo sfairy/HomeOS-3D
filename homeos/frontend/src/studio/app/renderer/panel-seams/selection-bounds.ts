@@ -529,7 +529,7 @@ export function updateTextSelectionBounds(self: PanelRenderer, textBoundsHostEle
           );
         });
   }
-export async function updateImageSelectionBounds(self: PanelRenderer, imageBoundsHostElement: any,
+export async function updateImageSelectionBounds(_self: PanelRenderer, imageBoundsHostElement: any,
     imageBoundsComponent: any,
     imageBoundsElement: any,) {
     const imageDisplayElement = imageBoundsHostElement.querySelector(

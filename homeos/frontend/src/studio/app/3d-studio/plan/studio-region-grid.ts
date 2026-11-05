@@ -23,7 +23,7 @@ export const REGION_GRID_SIZE = 8;
 export function fillRegionGrid(
   slots: any,
   lightCount: any,
-  capacity: any,
+  _capacity: any,
   gridData: Float32Array,
   gridBounds: any,
 ): boolean {

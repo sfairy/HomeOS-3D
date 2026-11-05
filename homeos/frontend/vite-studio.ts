@@ -9,7 +9,6 @@
  *   4. `tsconfig` 里的编译期 shim 与运行期外置必须配套，否则 Rollup 会把
  *      `/api/v1/modules/interaction3d/...` 当成待解析的本地模块而失败。
  */
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";

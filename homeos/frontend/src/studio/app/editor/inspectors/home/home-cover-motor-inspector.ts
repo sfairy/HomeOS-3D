@@ -84,7 +84,7 @@ function syncCoverSettingsInspector(ctx: CoverMotorInspectorContext, coverCompon
       ));
   }
 }
-export function collectChangedCoverMotorStyleKeys(ctx: CoverMotorInspectorContext, component: any) {
+export function collectChangedCoverMotorStyleKeys(_ctx: CoverMotorInspectorContext, component: any) {
   const coverMotorDirectionValueState = normalizeFlowLine2(component?.properties);
   return [...(coverMotorDirectionValueById.get(component?.id) || [])]
     .filter(

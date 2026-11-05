@@ -50,7 +50,6 @@ const WEATHER_TWICE_DAILY = 0x4;
 /** update 能力位：1=安装；2=指定版本；4=跳过；8=备份；16=更新说明。 */
 const UPDATE_INSTALL = 0x1;
 const UPDATE_VERSION = 0x2;
-const UPDATE_SKIP = 0x4;
 const UPDATE_BACKUP = 0x8;
 const UPDATE_RELEASE_NOTES = 0x10;
 

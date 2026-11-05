@@ -140,7 +140,7 @@ export function selectedComponentIdsFromDom(deps: ComponentEditingDeps) {
   return deps.editorCtx.selectedComponentIdsSet.size > 1 ? [...deps.editorCtx.selectedComponentIdsSet] : domSelectedIds;
 }
 
-export function setComponentsRotation(deps: ComponentEditingDeps, 
+export function setComponentsRotation(_deps: ComponentEditingDeps, 
   rotationDocument: any,
   rotationComponentId: any,
   rotationDegrees: any,
@@ -292,7 +292,7 @@ export function openComponentMenu(deps: ComponentEditingDeps, menuEvent: any, op
     }));
 }
 
-export function findCommonCopyTargets(deps: ComponentEditingDeps, copyTargetDocument: any, copySourceComponentIds: any) {
+export function findCommonCopyTargets(_deps: ComponentEditingDeps, copyTargetDocument: any, copySourceComponentIds: any) {
   const copySourceIds = [...new Set(copySourceComponentIds || [])].filter(Boolean);
   if (!copyTargetDocument || !copySourceIds.length) return [];
   const copyTargetKeysBySource = copySourceIds.map(
@@ -378,7 +378,7 @@ export function duplicateComponents(deps: ComponentEditingDeps,
     });
 }
 
-export function copyTargetsForDocument(deps: ComponentEditingDeps, 
+export function copyTargetsForDocument(_deps: ComponentEditingDeps, 
   copyTargetSourceDocument: any,
   {
     includeShared: includeSharedTargets = true,
@@ -417,7 +417,7 @@ export function renderCopyTargetOptions(deps: ComponentEditingDeps, copyTargetOp
     deps.loadNavigationIconOptions(deps.copyComponentPageTargetElement));
 }
 
-export function getDocumentCanvasSize(deps: ComponentEditingDeps, canvasSizeDocument: any) {
+export function getDocumentCanvasSize(_deps: ComponentEditingDeps, canvasSizeDocument: any) {
   return {
     width: Number(canvasSizeDocument?.canvas?.width || 2778),
     height: Number(canvasSizeDocument?.canvas?.height || 1940),
@@ -961,7 +961,7 @@ export function renderComponentTemplates(deps: ComponentEditingDeps) {
   );
 }
 
-export function renderNavigationIconPreview(deps: ComponentEditingDeps, navigationIconName: any) {
+export function renderNavigationIconPreview(_deps: ComponentEditingDeps, navigationIconName: any) {
   return navigationIconName?.domain || String(navigationIconName?.entityId || "").split(".")[0];
 }
 

@@ -51,7 +51,7 @@ export function describeEntityDomain(deps: EntityLabelsDeps, entity: any) {
       : (deps.ENTITY_DOMAIN_LABELS as any)[be2] || be2 || "实体";
 }
 
-export function normalizeWhitespace(deps: EntityLabelsDeps, text: any) {
+export function normalizeWhitespace(_deps: EntityLabelsDeps, text: any) {
   return String(text || "")
     .replace(/\s+/g, " ")
     .trim();
@@ -469,7 +469,7 @@ export function resolveOverflowScrollPreviewContainer(deps: EntityLabelsDeps, el
   return deps.effectIconLabelElementByIdById.get(effectIconLabelElementRef)?.[0] || null;
 }
 
-export function findEnclosingScrollPreviewRow(deps: EntityLabelsDeps, element: any) {
+export function findEnclosingScrollPreviewRow(_deps: EntityLabelsDeps, element: any) {
   return element?.closest?.("[data-overflow-scroll-preview-row]") || element;
 }
 

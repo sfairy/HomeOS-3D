@@ -12,7 +12,7 @@
  */
 import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
-import { type Ref } from 'vue'
+import type { Ref } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import type { UILayoutConfig } from '@/shared/types/layout'

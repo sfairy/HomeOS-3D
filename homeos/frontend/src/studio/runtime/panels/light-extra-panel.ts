@@ -53,13 +53,6 @@ function lightExtraCapabilities(state: any) {
   };
 }
 
-type LightField = {
-  row: HTMLElement;
-  input: any;
-  readout: HTMLElement;
-  label: string;
-  type: string;
-};
 
 type LightExtraPanelOptions = {
   element: any;

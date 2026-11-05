@@ -877,7 +877,7 @@
             bordered
           />
 
-          <div ref="chatLogEl" class="agent-chat-log agent-form-block" aria-live="polite">
+          <div :ref="bindChatLog" class="agent-chat-log agent-form-block" aria-live="polite">
             <SettingsAgentChatBubble
               v-for="(m, i) in chatLog"
               :key="i"
@@ -1066,7 +1066,7 @@ const {
   chatting,
   AGENT_CHAT_MAX_LENGTH,
   chatLog,
-  chatLogEl,
+  bindChatLog,
   envHealthHref,
   isMockProvider,
   sceneVoiceEnabled,

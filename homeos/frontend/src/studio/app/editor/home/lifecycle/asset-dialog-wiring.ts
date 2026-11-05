@@ -19,7 +19,7 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     imageAssetSearchInputElement, leftFolderName, loadNavigationIconOptions, measureAssetImageSize,
     mutateDocument, newId2, nextTemplateInstanceName2, pageSelectElement, positionEffectAssetMenu,
     positionImageAssetMenu, projectSelectElement, projectSummary, recoveryDialogElement, recoveryDiscardElement,
-    recoveryMessageTitleElement, recoveryMessageDetailElement, recoveryDownloadElement,
+    recoveryDownloadElement,
     recoveryRestoreElement, setRecoverySaveAttempts, redoElement, refreshAssetPickers, refreshComponentDialogScale, reloadAssetCatalog,
     renderComponentLists, renderComponentTemplates, renderEditorWorkspace, renderEffectAssetOptions,
     renderImageAssetOptions, requestJson, saveDraft, scheduleAssetPreview, selectComponent, setComponentScope,

@@ -237,10 +237,10 @@ function createCommCarrierFields(overrides: CommCarrierFieldOverrides = {}): Com
   for (const base of COMM_CARRIER_BASE) {
     if (omit.has(base.key)) continue
     const field: CommCarrierField = { ...base }
-    if (Object.prototype.hasOwnProperty.call(conventionSuffix, base.key)) {
+    if (Object.hasOwn(conventionSuffix, base.key)) {
       field.conventionSuffix = conventionSuffix[base.key]!
     }
-    if (Object.prototype.hasOwnProperty.call(balanceAttrOnly, base.key)) {
+    if (Object.hasOwn(balanceAttrOnly, base.key)) {
       if (balanceAttrOnly[base.key]) field.balanceAttrOnly = true
       else delete field.balanceAttrOnly
     }

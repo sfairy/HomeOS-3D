@@ -860,7 +860,7 @@ export async function saveDraft(deps: WorkspaceHistoryDeps) {
   }
 }
 
-export function interaction3dEntryActive(deps: WorkspaceHistoryDeps) {
+export function interaction3dEntryActive(_deps: WorkspaceHistoryDeps) {
   return (
     !!document.querySelector('[data-interaction3d-entry-pending="true"]') ||
     !!document.activeElement?.closest?.(

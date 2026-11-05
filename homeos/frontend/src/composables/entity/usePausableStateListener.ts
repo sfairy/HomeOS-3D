@@ -40,8 +40,8 @@ export function usePausableStateListener(
   const { filter, entityIds: entityIdsRef, domains: domainsRef } = options
   /** 未传 entityIds/domains 选项时为 intentional 全局监听 */
   const scoped =
-    Object.prototype.hasOwnProperty.call(options, 'entityIds') ||
-    Object.prototype.hasOwnProperty.call(options, 'domains')
+    Object.hasOwn(options, 'entityIds') ||
+    Object.hasOwn(options, 'domains')
   const wrapped = (payload: EntityStateListenerPayload) => {
     if (paused) return
     if (filter && !filter(payload)) return

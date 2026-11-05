@@ -439,7 +439,7 @@ export function openGroupRenameDialog(deps: WorkspaceDocumentDeps, renameGroupId
     window.setTimeout(() => deps.componentGroupRenameInputElement.focus(), 0));
 }
 
-export function normalizeHexColor(deps: WorkspaceDocumentDeps, colorValue: any) {
+export function normalizeHexColor(_deps: WorkspaceDocumentDeps, colorValue: any) {
   const lowerCase = String(colorValue || "")
     .trim()
     .toLowerCase();

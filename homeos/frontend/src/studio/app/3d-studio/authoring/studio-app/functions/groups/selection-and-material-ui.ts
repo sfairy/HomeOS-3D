@@ -48,7 +48,7 @@ export function hitTestHandle(runtime: StudioAppRuntime, pointerPoint: any) {
     : null;
 }
 
-export function boundsFromCorners(runtime: StudioAppRuntime, cornerA: any, cornerB: any) {
+export function boundsFromCorners(_runtime: StudioAppRuntime, cornerA: any, cornerB: any) {
   return {
     minX: Math.min(cornerA.x, cornerB.x),
     minY: Math.min(cornerA.y, cornerB.y),
@@ -424,7 +424,7 @@ export function writeInspectorGroupCollapseState(runtime: StudioAppRuntime, coll
 }
 
 /** 组内是否还有可见字段。 */
-export function inspectorGroupHasVisibleField(runtime: StudioAppRuntime, inspectorGroupElement: any) {
+export function inspectorGroupHasVisibleField(_runtime: StudioAppRuntime, inspectorGroupElement: any) {
   const groupBodyElement = inspectorGroupElement.querySelector(".inspector-group-body");
   if (!groupBodyElement) return false;
   for (const groupUnitElement of groupBodyElement.children)
@@ -433,7 +433,7 @@ export function inspectorGroupHasVisibleField(runtime: StudioAppRuntime, inspect
 }
 
 /** 折叠徽标里的字段条数：只数组内当前可见的字段行。 */
-export function countInspectorGroupFields(runtime: StudioAppRuntime, inspectorGroupElement: any) {
+export function countInspectorGroupFields(_runtime: StudioAppRuntime, inspectorGroupElement: any) {
   const groupBodyElement = inspectorGroupElement.querySelector(".inspector-group-body");
   if (!groupBodyElement) return 0;
   let visibleFieldCount = 0;
@@ -591,7 +591,7 @@ export function setMaterialSlotGroupFilter(runtime: StudioAppRuntime, groupId: a
 }
 
 /** 一行只读表面参数：粗糙 / 金属 / 透明 / 自发光。 */
-export function materialSlotMetaText(runtime: StudioAppRuntime, slotEntry: any) {
+export function materialSlotMetaText(_runtime: StudioAppRuntime, slotEntry: any) {
   const metaParts = [
     "粗糙 " + slotEntry.roughness.toFixed(2),
     "金属 " + slotEntry.metalness.toFixed(2),
@@ -611,7 +611,7 @@ export function materialSlotMetaText(runtime: StudioAppRuntime, slotEntry: any) 
 /** 门部件「跟随主题」时读的调色板键（返回色号）。 */
 /** 门的逐部件材质 —— 出图与面板**同源**的那一份（改这里就等于同时改画面与检查面板）。 */
 /** 画面上的门部件色：选中时叠一层主题 accent（沿用架构构件「选中即高亮」的老规矩），但**只叠一半** —— 从前的写法是把整扇门刷成 accent，于是编辑材质时画面上永远是一片高亮色，看不出自己改了什么（「选了风格没变化」）。 */
-export function doorPartDisplayColor(runtime: StudioAppRuntime, partMaterial: any, isSelected: boolean, themePalette: any) {
+export function doorPartDisplayColor(_runtime: StudioAppRuntime, partMaterial: any, isSelected: boolean, themePalette: any) {
   const partColorValue = partMaterial?.colorValue;
   if (!isSelected || typeof partColorValue !== "number") return partColorValue;
   const accentColor = themePalette?.accent;
@@ -625,7 +625,7 @@ export function doorPartDisplayColor(runtime: StudioAppRuntime, partMaterial: an
 }
 
 /** 门部件材质 → `addArchitectureMesh` 的 options。 */
-export function doorPartMeshOptions(runtime: StudioAppRuntime, partMaterial: any, baseOptions: any) {
+export function doorPartMeshOptions(_runtime: StudioAppRuntime, partMaterial: any, baseOptions: any) {
   if (!partMaterial) return baseOptions;
   const meshOptions = { ...baseOptions };
   partMaterial.roughness !== undefined && (meshOptions.roughness = partMaterial.roughness);
@@ -795,7 +795,7 @@ export function renderMaterialSlotPanel(runtime: StudioAppRuntime, modelItem: an
 }
 
 /** 一行覆盖情况的说法：颜色改了几处、表面参数改了几处，都没改就说跟随主题。 */
-export function materialCoverageSummary(runtime: StudioAppRuntime, overrideCount: any, surfaceOverrideCount: any) {
+export function materialCoverageSummary(_runtime: StudioAppRuntime, overrideCount: any, surfaceOverrideCount: any) {
   const changeParts: any[] = [];
   overrideCount && changeParts.push("改色 " + overrideCount);
   surfaceOverrideCount && changeParts.push("改参数 " + surfaceOverrideCount);

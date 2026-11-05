@@ -29,9 +29,6 @@ interface Vec3Like {
   z: number;
 }
 
-interface Vec4Like extends Vec3Like {
-  w: number;
-}
 
 /** `THREE.Box3` 的最小契约。 */
 export interface BakedBox {

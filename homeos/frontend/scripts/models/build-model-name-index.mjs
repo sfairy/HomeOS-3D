@@ -62,7 +62,7 @@ const { MODEL_FILE_STEMS } = await loadModule(
  * Windows / macOS 文件名禁用字符。`\u0000-\u001f` 是**故意**匹配控制字符：
  * 这个常量就是给命名门禁用的，命中即代表文件系统层面非法，改成可见字符范围就失去意义。
  */
-// eslint-disable-next-line no-control-regex
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Windows 文件名非法字符表：控制字符段是规范的一部分
 const FORBIDDEN_STEM_CHARS = /[\\/:*?"<>|\u0000-\u001f]/
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 

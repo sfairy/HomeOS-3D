@@ -116,7 +116,7 @@ export function createImageExtraPanel({
         imageElement.src = objectUrl;
         imageElement.alt = item.label || "实体图片";
       })
-      .catch((error: any) => {
+      .catch((_error: any) => {
         if (disposed || requestGeneration !== generation || signal.aborted) return;
         placeholderElement.textContent = "暂无图片";
         errorElement.textContent = "图片暂时无法读取，请重新加载";

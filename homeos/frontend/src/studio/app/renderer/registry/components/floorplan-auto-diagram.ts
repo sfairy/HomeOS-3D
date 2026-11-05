@@ -554,7 +554,7 @@ export function registerFloorplanAutoDiagramComponent(registerComponent: (type: 
             "--light-statistics-count-active-color",
             normalizeCssColor(lightStatisticsProperties.countActiveColor, "#f2a20d"),
           ));
-        const iconAssetId = Object.prototype.hasOwnProperty.call(lightStatisticsProperties, "icon")
+        const iconAssetId = Object.hasOwn(lightStatisticsProperties, "icon")
             ? String(lightStatisticsProperties.icon || "")
             : "mdi:lightbulb-group-outline",
           statisticsIconUrl = resolveMdiIconUrl(iconAssetId),

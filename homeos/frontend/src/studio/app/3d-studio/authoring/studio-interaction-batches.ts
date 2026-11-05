@@ -1254,7 +1254,7 @@ export function createInteractionBatches({
     const descriptor = geometryDescriptor(mesh.geometry, geometryDescriptors),
       // 材质自己实现了 onBeforeCompile（且不是区域材质）时，烘焙出来的几何会缺那段注入。
       bakeable =
-        !Object.prototype.hasOwnProperty.call(mesh.material, "onBeforeCompile") ||
+        !Object.hasOwn(mesh.material, "onBeforeCompile") ||
         Boolean(
           mesh.material.userData?.plan2RegionMaterial ||
             mesh.material.environmentSourceMaterial?.userData?.plan2RegionMaterial,

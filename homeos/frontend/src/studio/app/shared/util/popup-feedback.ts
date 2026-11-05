@@ -72,7 +72,6 @@ type FeedbackEntry = {
   lastValue: string;
 };
 
-type PopupFeedback = ReturnType<typeof createPopupFeedback>;
 
 /** 成功提示自动收起的等待（毫秒）。 */
 const AUTO_HIDE_DELAY = 2000;

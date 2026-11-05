@@ -317,7 +317,7 @@ export async function dispatchAction(self: PanelRenderer, toggleComponentRecord:
   }
 
 export async function callEntityService(
-  self: PanelRenderer,
+  _self: PanelRenderer,
   serviceDomain: string,
   serviceName: string,
   serviceEntityId: string,

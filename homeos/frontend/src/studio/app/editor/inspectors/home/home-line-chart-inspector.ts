@@ -63,7 +63,6 @@ export function syncLineChartInspector(ctx: LineChartInspectorContext, component
     selectedComponentIdsSet,
     syncComponentActionControls
   } = ctx;
-  const linechartinspectorComponent = componentArg;
   const chartProperties = componentArg.properties || {},
     chartPosition = componentArg.position || {},
     chartCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),

@@ -83,7 +83,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
         selected: reportedFloorSelection,
       });
       const readyProperties = readyComponent.properties || {};
-      (Object.prototype.hasOwnProperty.call(readyProperties, "floorSelection") &&
+      (Object.hasOwn(readyProperties, "floorSelection") &&
         reportedFloorSelection &&
         readyProperties.floorSelection !== reportedFloorSelection &&
         mutateDocument((floorSyncDraftDocument: any) => {

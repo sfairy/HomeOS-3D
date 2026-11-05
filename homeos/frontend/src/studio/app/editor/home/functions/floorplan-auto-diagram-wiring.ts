@@ -111,6 +111,7 @@ export function bindFloorplanAutoDiagramControls(
     const folderName = String(component.properties?.exportFolder || "").trim()
     if (
       !folderName ||
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: 文件夹名校验：控制字符属于非法范围
       /[<>:"/\\|?*\x00-\x1f\x7f]/.test(folderName) ||
       folderName.startsWith(".") ||
       /[. ]$/.test(folderName)

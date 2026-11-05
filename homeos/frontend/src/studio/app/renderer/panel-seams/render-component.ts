@@ -506,7 +506,7 @@ export function renderComponent(this: PanelRenderer,
           this.startComponentMove(componentMoveEvent, renderComponentRecord, componentHostElement),
         ));
     else {
-      const call = Object.prototype.hasOwnProperty.call(renderComponentRecord.actions || {}, "tap"),
+      const call = Object.hasOwn(renderComponentRecord.actions || {}, "tap"),
         runtimeActionOptions =
           renderComponentRecord.type === "camera" &&
           renderComponentRecord.bindings?.entity?.entityId &&

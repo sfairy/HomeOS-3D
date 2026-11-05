@@ -493,7 +493,7 @@ export function refreshImageAssetPickerPreview(deps: AssetPickerDeps) {
   deps.resolveAssetPreviewUrl("image");
 }
 
-export function resolveAssetFileUrl(deps: AssetPickerDeps, asset: any) {
+export function resolveAssetFileUrl(_deps: AssetPickerDeps, asset: any) {
   if (asset?.url) return String(asset.url);
   const encodedAssetPath = String(asset?.assetId || "");
   if (encodedAssetPath.startsWith("user:")) {
@@ -525,7 +525,7 @@ export function resolveEffectAssetUrl(deps: AssetPickerDeps, effectAsset: any) {
     : deps.runExtraTwin(effectAsset);
 }
 
-export function assetMatchesId(deps: AssetPickerDeps, assetRecord: any, targetAssetId: any) {
+export function assetMatchesId(_deps: AssetPickerDeps, assetRecord: any, targetAssetId: any) {
 
   return assetRecord?.assetId === targetAssetId;
 }
@@ -538,7 +538,7 @@ export function findAssetById(deps: AssetPickerDeps, wantedAssetId: any) {
   return deps.allAssets().find((assetCandidate: any) => deps.assetMatchesId(assetCandidate, wantedAssetId));
 }
 
-export function assetDisplayName(deps: AssetPickerDeps, namedAsset: any) {
+export function assetDisplayName(_deps: AssetPickerDeps, namedAsset: any) {
   return String(namedAsset?.name || namedAsset?.relativePath || namedAsset?.assetId || "").replace(
     /\.(?:png|jpe?g|webp|gif|svg)$/i,
     "",
@@ -649,7 +649,7 @@ export function measureAssetImageSize(deps: AssetPickerDeps, measuredAsset: any)
       });
 }
 
-export function applyAssetNaturalSize(deps: AssetPickerDeps, assetComponent: any, appliedAssetId: any, naturalSize: any) {
+export function applyAssetNaturalSize(_deps: AssetPickerDeps, assetComponent: any, appliedAssetId: any, naturalSize: any) {
   const buildAssetLayout = (layoutPosition: any, layoutScale: any) => {
     const naturalWidth = Number(layoutPosition?.width || naturalSize.width),
       naturalHeight = Number(layoutPosition?.height || naturalSize.height),
@@ -695,7 +695,7 @@ export function applyAssetNaturalSize(deps: AssetPickerDeps, assetComponent: any
   };
 }
 
-export function readEffectNaturalSize(deps: AssetPickerDeps, effectSourceComponent: any, fallbackSize: any = null) {
+export function readEffectNaturalSize(_deps: AssetPickerDeps, effectSourceComponent: any, fallbackSize: any = null) {
   const effectNaturalWidth = Number(
       effectSourceComponent?.effectNaturalWidth || fallbackSize?.width || 0,
     ),

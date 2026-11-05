@@ -138,7 +138,7 @@ export function formatLastSeen(deps: ShellControlsDeps, lastSeenTimestamp: Docum
   return formatLastSeenCore(deps.numberStepperDeps(), lastSeenTimestamp);
 }
 
-export function setSettingsMessage(deps: ShellControlsDeps, messageElement: any, messageText: any, toneClass = "") {
+export function setSettingsMessage(_deps: ShellControlsDeps, messageElement: any, messageText: any, toneClass = "") {
   ((messageElement.hidden = !messageText),
     (messageElement.textContent = messageText),
     (messageElement.className = ("settings-message " + toneClass).trim()));
@@ -177,7 +177,7 @@ export function closeCustomSelect(deps: ShellControlsDeps, selectState = deps.ed
     deps.editorCtx.openCustomSelect === selectState && (deps.editorCtx.openCustomSelect = null));
 }
 
-export function positionCustomSelectMenu(deps: ShellControlsDeps, selectState: any) {
+export function positionCustomSelectMenu(_deps: ShellControlsDeps, selectState: any) {
   if (selectState.menu.hidden) return;
   const boundingClientRect = selectState.button.getBoundingClientRect(),
     hoverScrollStateByRow = Math.max(80, Math.min(320, window.innerHeight - 16));

@@ -159,7 +159,7 @@ export function exportSpliceError(deps: NavigationPreviewDeps, bindIconButtonEff
   }
 }
 
-export function collectPageImages(deps: NavigationPreviewDeps, pageSource: any) {
+export function collectPageImages(_deps: NavigationPreviewDeps, pageSource: any) {
   const pageImages: any = [],
     collectImageComponents = (componentItems: any) => {
       for (const imageItem of componentItems || [])
@@ -416,7 +416,7 @@ export function navigationPropertyNameFromElement(deps: NavigationPreviewDeps, n
             : "";
 }
 
-export function resolveComponentStyleValue(deps: NavigationPreviewDeps, component: any, propertyKey: any) {
+export function resolveComponentStyleValue(_deps: NavigationPreviewDeps, component: any, propertyKey: any) {
   if (component)
     return propertyKey === "width" || propertyKey === "height"
       ? Number(component.position?.[propertyKey] || 100)
@@ -480,7 +480,7 @@ export function formatLineChartStyleValue(deps: NavigationPreviewDeps,
               : String(onNavigationPreviewStateClick ?? "");
 }
 
-export function resolveNavigationStyleValue(deps: NavigationPreviewDeps, component: any, propertyKey: any) {
+export function resolveNavigationStyleValue(_deps: NavigationPreviewDeps, component: any, propertyKey: any) {
   if (component)
     return propertyKey === "width" || propertyKey === "height"
       ? Number(component.position?.[propertyKey] || 100)

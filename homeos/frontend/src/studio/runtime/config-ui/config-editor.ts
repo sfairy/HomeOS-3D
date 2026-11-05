@@ -318,10 +318,6 @@ export async function openInteraction3dEditor({
     pickerGeneration = 0,
     isSaving = false,
     isDirty = 0,
-    configurationFeedback: {
-      changed(): void;
-      refresh(): void;
-    } | null = null,
     latestStates: any = null,
     refreshEffectSettings = () => {},
     bathEffectEditorHandle = () => {},
@@ -466,37 +462,13 @@ export async function openInteraction3dEditor({
   let accessUnsubscribe = () => {};
   __editorHost.accessUnsubscribe = () => accessUnsubscribe();
   const {
-    buildCurtainGroupOptions,
-    ensureItemCollections,
-    buildEditableFieldList,
-    buildItemPayload,
-    listChangedFields,
     closeAuxDialog,
-    openMetricsDialog,
-    openCurtainGroupBatchApplyDialog,
     syncPreviewSize,
-    disposeEditor,
     buildRuntimeProperties,
     refreshEditorPreview,
-    createSettingRow,
-    createSelectRow,
-    createNumberRow,
-    createSizeRow,
-    syncLinkedIconSize,
-    listAddableModels,
     switchEditorKind,
     closeAddDialog,
     openAddDialog,
-    openVacuumRoomPicker,
-    renderVacuumShortcutPanel,
-    createConfigSection,
-    createConfigRow,
-    renderStatusRuleSection,
-    openCurtainGroupDialog,
-    renderCurtainGroupSection,
-    renderExtraControlsSection,
-    renderAirPurifierBindingSection,
-    openLabelBatchApplyDialog,
     renderPanel,
   } = __editorHost;
   /**

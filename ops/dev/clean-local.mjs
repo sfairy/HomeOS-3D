@@ -57,7 +57,7 @@ function rm(target) {
     if (code === 'EACCES' || code === 'EBUSY' || code === 'ENOTEMPTY') {
       console.error(
         `skip ${target}/ (${code}): path is locked. On Windows stop bun/node dev servers ` +
-          `(dev:backend / dev:frontend / vite / eslint), then retry.`,
+          `(dev:backend / dev:frontend / vite / biome), then retry.`,
       )
       return 'locked'
     }

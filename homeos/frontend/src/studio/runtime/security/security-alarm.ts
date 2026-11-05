@@ -34,7 +34,7 @@ export const SECURITY_ALARM_TYPES: Record<
 };
 
 export const isSecurityAlarmKind = (kind: any) =>
-  Object.prototype.hasOwnProperty.call(SECURITY_ALARM_TYPES, kind);
+  Object.hasOwn(SECURITY_ALARM_TYPES, kind);
 
 export function securityAlarmKindLabel(kind: any) {
   return SECURITY_ALARM_TYPES[String(kind || "")]?.label || "安防";
@@ -172,11 +172,11 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
       status = "unavailable";
     } else if (mode) {
       if (mode === "gas-enum") {
-        status = Object.prototype.hasOwnProperty.call(GAS_ENUM_STATES, rawState)
+        status = Object.hasOwn(GAS_ENUM_STATES, rawState)
           ? GAS_ENUM_STATES[rawState]
           : "unknown";
       } else if (mode === "smoke-enum") {
-        status = Object.prototype.hasOwnProperty.call(SMOKE_ENUM_STATES, rawState)
+        status = Object.hasOwn(SMOKE_ENUM_STATES, rawState)
           ? SMOKE_ENUM_STATES[rawState]
           : "unknown";
       } else if (rawState === "on") status = "alarm";
@@ -187,7 +187,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
 
   const gasEnumLabel =
     (mode === "gas-enum" || mode === "smoke-enum") &&
-    Object.prototype.hasOwnProperty.call(
+    Object.hasOwn(
       mode === "smoke-enum" ? SMOKE_ENUM_STATES : GAS_ENUM_STATES,
       rawState,
     ) &&
@@ -300,7 +300,7 @@ function securityAlarmWorkState(
       : alarmKind === "smoke"
         ? { ...SMOKE_ENUM_STATES, ...GAS_ENUM_STATES }
         : { ...SMOKE_ENUM_STATES, ...GAS_ENUM_STATES };
-  if (enumMap && Object.prototype.hasOwnProperty.call(enumMap, rawState)) {
+  if (enumMap && Object.hasOwn(enumMap, rawState)) {
     const status = enumMap[rawState];
     return {
       status,

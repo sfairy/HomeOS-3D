@@ -245,7 +245,7 @@ export function withSelectionMeasurementHost(self: PanelRenderer, measurementRoo
       for (const hiddenElement of hiddenElements) hiddenElement.hidden = true;
     }
   }
-export function selectionElementIsVisible(self: PanelRenderer, measuredElement: any) {
+export function selectionElementIsVisible(_self: PanelRenderer, measuredElement: any) {
     if (!measuredElement || measuredElement.hidden) return false;
     const computedStyle = window.getComputedStyle?.(measuredElement);
     return computedStyle?.display === "none" || computedStyle?.visibility === "hidden"
@@ -257,7 +257,7 @@ export function selectionElementIsVisible(self: PanelRenderer, measuredElement: 
             measuredElement.offsetHeight || measuredElement.getBoundingClientRect?.().height || 0,
           ) > 0;
   }
-export function selectionElementBox(self: PanelRenderer, boxElement: any, boxStopElement: any) {
+export function selectionElementBox(_self: PanelRenderer, boxElement: any, boxStopElement: any) {
     let boxOffsetX = 0,
       boxOffsetY = 0,
       walkedBoxElement = boxElement;
@@ -305,7 +305,7 @@ export function applyDoorWindowPerspective(self: PanelRenderer, doorWindowHostEl
       perspectiveCornersArray,
     );
   }
-export function updateDoorWindowPerspectiveHandles(self: PanelRenderer, perspectiveBoundsElement: any, perspectiveCornerValues: any) {
+export function updateDoorWindowPerspectiveHandles(_self: PanelRenderer, perspectiveBoundsElement: any, perspectiveCornerValues: any) {
     if (!perspectiveBoundsElement) return;
     const cornerCoordinates = doorWindowPerspectiveCorners2(perspectiveCornerValues);
     (perspectiveBoundsElement

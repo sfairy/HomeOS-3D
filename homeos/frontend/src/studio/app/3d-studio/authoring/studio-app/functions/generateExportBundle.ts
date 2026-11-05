@@ -77,6 +77,7 @@ export async function generateExportBundle(deps: GenerateExportBundleDeps, ) {
   const trim = exportFolderNameInput.value.trim();
   if (
     !trim ||
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: 导出名校验：控制字符属于必须拒绝的非法文件名范围
     /[<>:\"/\\|?*\x00-\x1f\x7f]/.test(trim) ||
     trim.startsWith(".") ||
     /[. ]$/.test(trim)

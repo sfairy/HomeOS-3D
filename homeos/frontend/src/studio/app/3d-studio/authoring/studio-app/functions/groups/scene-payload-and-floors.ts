@@ -737,7 +737,7 @@ export async function addNewFloor(runtime: StudioAppRuntime, ) {
     runtime.selectStudioTool("select"));
 }
 
-export function planToWorldPoint(runtime: StudioAppRuntime, calibrationFloor: any, planPoint: any) {
+export function planToWorldPoint(_runtime: StudioAppRuntime, calibrationFloor: any, planPoint: any) {
   const pixelsPerMeter = calibrationFloor?.scene?.calibration?.pixelsPerMeter || 1,
     localX = (planPoint.x - finite2(calibrationFloor?.originX, 0)) / pixelsPerMeter,
     localY = (planPoint.y - finite2(calibrationFloor?.originY, 0)) / pixelsPerMeter,
@@ -754,7 +754,7 @@ export function planToWorldPoint(runtime: StudioAppRuntime, calibrationFloor: an
   };
 }
 
-export function worldToPlanPoint(runtime: StudioAppRuntime, calibrationSourceFloor: any, worldAnchorPoint: any) {
+export function worldToPlanPoint(_runtime: StudioAppRuntime, calibrationSourceFloor: any, worldAnchorPoint: any) {
   const inversePixelsPerMeter = calibrationSourceFloor?.scene?.calibration?.pixelsPerMeter || 1,
     inverseRotation = -ns2.MathUtils.degToRad(finite2(calibrationSourceFloor?.rotation, 0)),
     relativeX = worldAnchorPoint.x - finite2(calibrationSourceFloor?.offsetX, 0),

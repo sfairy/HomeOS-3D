@@ -20,7 +20,7 @@ views (router)  -.->  studio  (只经 `@/studio` barrel 的懒加载器；不直
 | 叶子 | `services/`、`shared/utils/`、`shared/{constants,types}/`、`shared/<域>/{utils,constants,types}/` | 仅叶子之间 — **不得** import composables / stores / components，也不得 import `shared/<域>` 裸 barrel |
 | Studio | `studio/` | 子系统；根只能 `import '@/studio'` |
 
-规则由 ESLint `no-restricted-imports`（编辑器即时反馈）与 `bun run check:frontend-deps`
+规则由 `biome.json` 的 `noRestrictedImports`（编辑器即时反馈）与 `bun run check:frontend-deps`
 （CI）共同强制，层违规白名单为空 —— 新增违规请改代码，不要加豁免。
 
 > **设备域同名提示**：`studio/runtime/<device>`（3D 舞台运行时，公网模块 URL，命名冻结）与
@@ -193,8 +193,10 @@ import Overview from '@/features/security/Overview.vue'
   `'@homeos/shared': …` 会把 `@homeos/shared/components/*.vue` 这类子路径一并吞掉，
   症状是**构建静默不落盘**（产物目录整份为空，只在 `closeBundle` 报「SPA 入口缺失」）。
 - **商店侧刻意不加该别名**：它只取子路径，交给包自己的 `exports`。
-- **共享包自己带 lint**：`bun run lint:shared` 跑 `packages/shared/eslint.config.mjs`（含
-  `eslint-plugin-vue` 段落）；否则 `.vue` 合过来后只剩各应用侧的 vue-tsc，那只查类型、不查规则。
+- **共享包的 lint 走仓库根**：`bun run lint` 是一条 Biome 命令，配置在根 `biome.json`，
+  覆盖主应用 / 商店 / shared / ops 四处。`.vue` 的规则由 `vue-tsc`（含 `noUnusedLocals`）
+  与 `check:restricted-syntax` 承接 —— Biome 的 linter 不认识 SFC 模板作用域，强行开启会
+  把「只在 template 里用到的变量」误报成未使用。
 
 `.vue` 只收**两侧逐字同构**的展示件；**数据 / 文案 / 版本号来源的差异一律留应用侧的薄适配层**
 （样板：本应用 `components/common/SceneStage.vue` 只做 `values` + `version` 注入，版本来自本包

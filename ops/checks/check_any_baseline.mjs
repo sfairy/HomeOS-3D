@@ -2,7 +2,7 @@
 /**
  * `any` 计数棘轮（studio 范围）。
  *
- * 为什么不是直接把 `@typescript-eslint/no-explicit-any` 设为 error：studio 里现存
+ * 为什么不是直接把 `biome.json` 的 `noExplicitAny` 设为 error：studio 里现存
  * 17000+ 处 `any`（大量是 WebGL / three.js 边界与历史 deps 包），一次性清零不现实；
  * 但「不再变多」可以从今天开始守。做法与 `check_silent_except.py` 一致：
  *

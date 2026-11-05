@@ -57,7 +57,6 @@ export function addTelevisionModel(
   televisionModelHeight: any,
 ) {
   const {
-      bodyHeight: ag2,
       centerY: ag3,
       screenWidth,
       screenHeight,

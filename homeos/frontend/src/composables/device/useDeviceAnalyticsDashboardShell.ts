@@ -186,6 +186,9 @@ export function useDeviceAnalyticsDashboardShell(options: {
   const bindHeatmapChart = bindChartRef(heatmapChartRef)
   const bindEventsChart = bindChartRef(eventsChartRef)
   const bindHealthTrend = bindChartRef(healthTrendRef)
+  // 根元素同样用函数 ref 绑定：Vue 3.5 起 `ref="name"` 的字符串形式无法被 vue-tsc 统计为
+  // 「被读取」，在 noUnusedLocals 下会误报未使用。函数 ref 是显式读取，且与上面各图表一致。
+  const bindRootRef = bindChartRef(rootRef)
 
   return {
     rootRef,
@@ -218,6 +221,7 @@ export function useDeviceAnalyticsDashboardShell(options: {
     bindHeatmapChart,
     bindEventsChart,
     bindHealthTrend,
+    bindRootRef,
     reload,
     exportCsv,
     entityName,

@@ -927,7 +927,7 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
 
 export function renderExtraControlsSection(deps: PanelSectionsDeps) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { editorHost, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, openLabelBatchApplyDialog } = deps;
+  const { editorHost, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createNumberRow, openLabelBatchApplyDialog } = deps;
       const createPickerRow = bindPickerRow(editorHost, createSettingRow);
       const labelListSectionElement = createConfigSection("环境标签列表"),
         labelListRowElement = createConfigRow(labelListSectionElement),

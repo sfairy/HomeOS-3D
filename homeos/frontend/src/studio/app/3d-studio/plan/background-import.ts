@@ -117,6 +117,7 @@ export async function prepareBackground(
     baseFileName =
       sourceFile.name
         .replace(/\.[^.]+$/, "")
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: 导入文件名清洗：控制字符需被替换
         .replace(/[\x00-\x1f\x7f/\\]/g, "_")
         .replace(/^\.+/, "")
         .slice(0, 60) || "户型底图",

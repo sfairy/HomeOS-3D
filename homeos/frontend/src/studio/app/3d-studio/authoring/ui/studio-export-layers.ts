@@ -103,6 +103,7 @@ export function sanitizeExportName(rawExportName: any, fallbackName: any) {
   return (
     String(rawExportName || "")
       .normalize("NFKC")
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: 导出文件名清洗：控制字符需被替换
       .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")

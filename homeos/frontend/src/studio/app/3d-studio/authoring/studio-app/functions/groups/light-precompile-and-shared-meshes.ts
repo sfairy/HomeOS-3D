@@ -114,7 +114,7 @@ export function applyAccentEmissive(runtime: StudioAppRuntime, accentRoot: any, 
 }
 
 /** 由铭牌颜色派生底线 / 描边的半透明色，保证描边永远跟字色同源。 */
-export function planLabelAccentColor(runtime: StudioAppRuntime, candidateColor: any, alpha = planLabelAccentAlpha) {
+export function planLabelAccentColor(_runtime: StudioAppRuntime, candidateColor: any, alpha = planLabelAccentAlpha) {
   const labelColorHex = normalizePlanLabelColor(candidateColor);
   return (
     "rgba(" +
@@ -261,7 +261,7 @@ export function collectLightSourceSpecs(runtime: StudioAppRuntime, ) {
   );
 }
 
-export function countMaterialTextures(runtime: StudioAppRuntime, countedMaterial: any) {
+export function countMaterialTextures(_runtime: StudioAppRuntime, countedMaterial: any) {
   if (!countedMaterial || countedMaterial.isMeshBasicMaterial || countedMaterial.isShadowMaterial)
     return 0;
   let textureCount = Object.values(countedMaterial).filter(

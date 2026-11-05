@@ -386,7 +386,7 @@ const inflightGets = new Map<string, Promise<unknown>>()
  * @param config 请求配置；dedupe=false 可关闭去重
  * @returns Axios 响应；去重时返回与其它调用共享的 Promise
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiGet = <T = any>(url: string, config?: ApiRequestConfig) => {
   const params = config?.params
   const key = `get:${authGeneration}:${url}:${params == null ? '' : JSON.stringify(params)}`
@@ -402,17 +402,17 @@ export const apiGet = <T = any>(url: string, config?: ApiRequestConfig) => {
 }
 
 /** 发起 POST 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiPost = <T = any>(url: string, data?: unknown, config?: ApiRequestConfig) =>
   apiClient.post<T>(url, data, config)
 
 /** 发起 PUT 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiPut = <T = any>(url: string, data?: unknown, config?: ApiRequestConfig) =>
   apiClient.put<T>(url, data, config)
 
 /** 发起 DELETE 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
+// biome-ignore lint/suspicious/noExplicitAny: AxiosResponse.data 的边界默认类型
 export const apiDelete = <T = any>(url: string, config?: ApiRequestConfig) =>
   apiClient.delete<T>(url, config)
 

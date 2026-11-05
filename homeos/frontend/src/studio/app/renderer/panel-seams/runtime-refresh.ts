@@ -172,7 +172,7 @@ export function unindexRuntimeComponent(self: PanelRenderer, unindexedComponent:
       (componentIndexSet.delete(unindexedComponent),
         componentIndexSet.size || self.runtimeEntityComponentIndex.delete(indexedEntityKey));
   }
-export function runtimeComponentContent(self: PanelRenderer, renderHostElement: any) {
+export function runtimeComponentContent(_self: PanelRenderer, renderHostElement: any) {
     return (
       [...(renderHostElement?.children || [])].find(
         (componentChildElement) =>

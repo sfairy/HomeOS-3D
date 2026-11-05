@@ -573,7 +573,7 @@ export function nudgeDeltaX(deps: CopyBackupPickersDeps, nudgeDeltaY: any, nudge
   return nudgeDeltaXCore(deps.nudgeDeps(), nudgeDeltaY, nudgedComponentIds);
 }
 
-export function clickPopupListOption(deps: CopyBackupPickersDeps, popupListItemElementPanel: any, dataKey: any, dataValue: any) {
+export function clickPopupListOption(_deps: CopyBackupPickersDeps, popupListItemElementPanel: any, dataKey: any, dataValue: any) {
   const popupMenuRectElement = document.createElement("button");
   ((popupMenuRectElement.type = "button"),
     (popupMenuRectElement.dataset[dataKey] = dataValue),

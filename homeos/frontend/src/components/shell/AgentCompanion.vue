@@ -15,7 +15,6 @@
 <template>
   <div
     v-if="visible"
-    ref="rootRef"
     class="companion-root"
     :class="[`companion-root--${state}`, { 'companion-root--dragging': dragging }]"
     :style="positionStyle"
@@ -237,7 +236,6 @@ const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
 const authStore = useAuthStore()
 
-const rootRef = ref<HTMLElement | null>(null)
 const triggerRef = ref<HTMLElement | null>(null)
 
 const state = ref<CompanionState>('dormant')

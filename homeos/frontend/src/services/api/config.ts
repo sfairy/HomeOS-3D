@@ -83,7 +83,7 @@ export function mkdirConfigAsset(base: string, path: string, config?: AxiosReque
 
 /** 上传配置资产文件。 */
 export function uploadConfigAsset(
-  base: string,
+  _base: string,
   url: string,
   formData: FormData,
   config?: AxiosRequestConfig,

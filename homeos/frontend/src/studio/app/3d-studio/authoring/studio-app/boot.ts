@@ -73,8 +73,7 @@ import {
   syncStudioClipboardFacade as syncStudioClipboardFacadeImpl,
   historyFailureMessage as historyFailureMessageImpl, undoStudioHistory as undoStudioHistoryImpl, redoStudioHistory as redoStudioHistoryImpl, applyStudioHistoryDirection as applyStudioHistoryDirectionImpl,
   collectPatchFloorIds as collectPatchFloorIdsImpl, canApplyHistoryPatch as canApplyHistoryPatchImpl, refreshAfterHistoryChange as refreshAfterHistoryChangeImpl, validateSelectionChange as validateSelectionChangeImpl,
-  primeHistorySnapshot as primeHistorySnapshotImpl, deselectAll as deselectAllImpl, applyPlacementChange as applyPlacementChangeImpl, flushPendingHistory as flushPendingHistoryImpl,
-  restoreSnapshot as restoreSnapshotImpl, markDocumentDirty as markDocumentDirtyImpl, recordSaveConflict as recordSaveConflictImpl, resetSaveRetryState as resetSaveRetryStateImpl,
+  primeHistorySnapshot as primeHistorySnapshotImpl, deselectAll as deselectAllImpl, applyPlacementChange as applyPlacementChangeImpl, flushPendingHistory as flushPendingHistoryImpl,markDocumentDirty as markDocumentDirtyImpl, recordSaveConflict as recordSaveConflictImpl, 
   scheduleAutosave as scheduleAutosaveImpl, handleInteractionEnded as handleInteractionEndedImpl, isInteractionBusy as isInteractionBusyImpl, hasUnsavedChanges as hasUnsavedChangesImpl,
   refreshExitDialogButtons as refreshExitDialogButtonsImpl, closeExitDialog as closeExitDialogImpl, leaveStudio as leaveStudioImpl, flushAutosave as flushAutosaveImpl,
   planToScreen as planToScreenImpl, screenToPlanPoint as screenToPlanPointImpl, screenToPlan as screenToPlanImpl, eventToLocalPoint as eventToLocalPointImpl,
@@ -1064,10 +1063,8 @@ export function bootStudio(): void {
   const deselectAll = (...args: any[]): any => (deselectAllImpl as any)(studioRuntime, ...args);
   const applyPlacementChange = (...args: any[]): any => (applyPlacementChangeImpl as any)(studioRuntime, ...args);
   const flushPendingHistory = (...args: any[]): any => (flushPendingHistoryImpl as any)(studioRuntime, ...args);
-  const restoreSnapshot = (...args: any[]): any => (restoreSnapshotImpl as any)(studioRuntime, ...args);
   const markDocumentDirty = (...args: any[]): any => (markDocumentDirtyImpl as any)(studioRuntime, ...args);
   const recordSaveConflict = (...args: any[]): any => (recordSaveConflictImpl as any)(studioRuntime, ...args);
-  const resetSaveRetryState = (...args: any[]): any => (resetSaveRetryStateImpl as any)(studioRuntime, ...args);
   const scheduleAutosave = (...args: any[]): any => (scheduleAutosaveImpl as any)(studioRuntime, ...args);
   const handleInteractionEnded = (...args: any[]): any => (handleInteractionEndedImpl as any)(studioRuntime, ...args);
   const isInteractionBusy = (...args: any[]): any => (isInteractionBusyImpl as any)(studioRuntime, ...args);
@@ -1516,7 +1513,6 @@ const planCanvasElement = selectElement("#plan-canvas"),
   lightPropertyApplyTitleElement = selectElement("#light-property-apply-title"),
   lightPropertyApplyValueElement = selectElement("#light-property-apply-value"),
   applyLightPropertyControls = [...document.querySelectorAll<StudioControlElement>("[data-apply-light-property]")],
-  toastElement = selectElement("#toast"),
   inspectorEmptyElement = selectElement("#inspector-empty"),
   selectionInspectorElement = selectElement("#selection-inspector"),
   selectionHeadingElement = selectElement(".selection-heading"),
@@ -2017,8 +2013,6 @@ function applyLoadedDraftDeps(): ApplyLoadedDraftDeps {
 }
 /** 退出保护：非重试性保存失败后锁定的版本；自动保存重试状态与退出请求状态。 */
 /** 自动保存节奏：最后一次修改后 3s 合并保存，首次修改后最多 15s 兜底。 */
-const AUTOSAVE_DEBOUNCE_MS = 3000,
-  AUTOSAVE_MAX_DELAY_MS = 15000;
 /** 等待进行中保存完成的解析器；等待交互结束再落盘的解析器（退出「保存并退出」用）。 */
 const saveWaiterResolvers = new Set<() => void>(),
   exitWaiterResolvers = new Set<() => void>();

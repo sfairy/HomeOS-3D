@@ -38,7 +38,7 @@ import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '
 export function predictOptimistic(
   domain: string,
   service: string,
-  entityId: string,
+  _entityId: string,
   serviceData: Record<string, unknown> | null | undefined,
   current: HaEntityState | null | undefined,
 ): OptimisticPrediction | null {

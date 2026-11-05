@@ -188,7 +188,7 @@ export function closeRuntimeDialog(self: PanelRenderer, targetDialogElement = se
         self.detailsDialog === targetDialogElement && (self.detailsDialog = null),
         self.detailsStateSync?.dialog === targetDialogElement && (self.detailsStateSync = null)));
   }
-export function bindRuntimeDialogOutsideDismiss(self: PanelRenderer, outsideDismissLayer: any,
+export function bindRuntimeDialogOutsideDismiss(_self: PanelRenderer, outsideDismissLayer: any,
     outsideClickDialog: any,
     outsideDismissCardElement: any,) {
     const outsideClickGraceUntilMs = performance.now() + 320;

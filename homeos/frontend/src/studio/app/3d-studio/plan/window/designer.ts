@@ -522,7 +522,7 @@ export function openWindowDesigner({
       }, true),
     );
   query("leaf-kind").addEventListener("change", () =>
-    change((window) => changeKind(currentEntry()!.node as WindowLeaf, (query("leaf-kind") as HTMLSelectElement).value as any)),
+    change((_window) => changeKind(currentEntry()!.node as WindowLeaf, (query("leaf-kind") as HTMLSelectElement).value as any)),
   );
   for (const [field, axis] of [
     ["width", "x"],
@@ -542,7 +542,7 @@ export function openWindowDesigner({
     ["default-opening", "defaultOpening", true],
   ] as const)
     query(controlId).addEventListener("change", () =>
-      change((window) => {
+      change((_window) => {
         const node = currentEntry()!.node as WindowLeaf;
         const control = query(controlId) as HTMLInputElement | HTMLSelectElement;
         if (field === "count") changePanelCount(node, Number(control.value));

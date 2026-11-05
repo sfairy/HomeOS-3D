@@ -7,8 +7,8 @@
 import { computed, nextTick, ref } from 'vue'
 import type { AlertLevel, AlertRuleEditForm, ConditionMode, InboxAlertRule } from '@/shared/types/alert-rules'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
-import {
-  type AlertRulePreset,
+import type {
+  AlertRulePreset,
 } from '@/shared/constants/alert-rule-presets'
 import {
   clauseToExpr,

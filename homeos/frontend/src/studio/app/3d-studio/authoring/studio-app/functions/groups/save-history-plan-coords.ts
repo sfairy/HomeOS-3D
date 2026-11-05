@@ -384,7 +384,7 @@ export async function fetchStudioApi(runtime: StudioAppRuntime,
   return errorBody;
 }
 
-export function showToast(runtime: StudioAppRuntime, toastMessage: any, toastKind = "") {
+export function showToast(_runtime: StudioAppRuntime, toastMessage: any, toastKind = "") {
   // 走外壳 chrome toast（App 根挂载的 VNotification），不再操作本页 .toast DOM。
   shellNotify(String(toastMessage ?? ""), String(toastKind ?? ""));
 }
@@ -438,7 +438,7 @@ export function syncStudioClipboardFacade(runtime: StudioAppRuntime) {
 }
 
 /** 撤销 / 重做：先 canApply 再出栈；失败不出栈，应用失败由历史 store 压回并回调提示。 */
-export function historyFailureMessage(runtime: StudioAppRuntime, direction: "undo" | "redo", reason: string): string {
+export function historyFailureMessage(_runtime: StudioAppRuntime, direction: "undo" | "redo", reason: string): string {
   const historyActionName = direction === "undo" ? "撤销" : "重做";
   return reason === "not-applicable"
     ? "无法" +
@@ -1078,7 +1078,7 @@ export function drawRailing(runtime: StudioAppRuntime, railingRecord: any, raili
 /** 平面图这扇门用哪块料代表（取「最占视线」的部件； */
 
 /** 平面图门色：**与 3D 同一条取色链**（档位配方 → 主题键 → 逐门覆盖色）。 */
-export function rotateLocalPoint(runtime: StudioAppRuntime, originPoint: any, localOffsetX: any, localOffsetY: any) {
+export function rotateLocalPoint(_runtime: StudioAppRuntime, originPoint: any, localOffsetX: any, localOffsetY: any) {
   const rotationRad = ((Number(originPoint.rotation) || 0) * Math.PI) / 180;
   return {
     x: originPoint.x + localOffsetX * Math.cos(rotationRad) - localOffsetY * Math.sin(rotationRad),

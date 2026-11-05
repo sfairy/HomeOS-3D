@@ -276,7 +276,7 @@ export function updateCameraPlanes(runtime: StudioAppRuntime, planeCamera = runt
       true);
 }
 
-export function computeVisibleHeight(runtime: StudioAppRuntime, heightCamera: any, heightTarget: any) {
+export function computeVisibleHeight(_runtime: StudioAppRuntime, heightCamera: any, heightTarget: any) {
   if (heightCamera?.isOrthographicCamera)
     return (
       Math.abs(heightCamera.top - heightCamera.bottom) / Math.max(heightCamera.zoom || 1, 0.000001)
@@ -289,7 +289,7 @@ export function computeVisibleHeight(runtime: StudioAppRuntime, heightCamera: an
   return 10;
 }
 
-export function adjustFrameSize(runtime: StudioAppRuntime, visibleHeight: any, viewportAspectRatio = 1, cameraZoomFactor = 1) {
+export function adjustFrameSize(_runtime: StudioAppRuntime, visibleHeight: any, viewportAspectRatio = 1, cameraZoomFactor = 1) {
   const clampedAspect = Math.max(finite2(viewportAspectRatio, 1), 0.1),
     clampedZoom = Math.max(finite2(cameraZoomFactor, 1), 0.000001);
   return Math.max(finite2(visibleHeight, 10), 0.000001) * Math.min(1, clampedAspect) * clampedZoom;

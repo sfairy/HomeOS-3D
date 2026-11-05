@@ -190,7 +190,7 @@ export function canApplyDocumentPatch(document: any, patch: DocumentPatch): bool
 /** 就地覆盖字段、保留对象引用（three 场景/选中集持的是同一个物件对象）。 */
 function replaceItemInPlace(target: any, replacement: any): void {
   for (const key of Object.keys(target)) {
-    if (!Object.prototype.hasOwnProperty.call(replacement, key)) delete target[key];
+    if (!Object.hasOwn(replacement, key)) delete target[key];
   }
   Object.assign(target, replacement);
 }

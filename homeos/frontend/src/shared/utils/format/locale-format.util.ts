@@ -80,7 +80,7 @@ export function formatLocaleTime(date: DateInput, options?: Intl.DateTimeFormatO
  * @returns 完整 locale 字符串
  */
 export function formatLocaleString(date: DateInput, options?: Intl.DateTimeFormatOptions): string {
-  // eslint-disable-next-line no-restricted-syntax -- 本模块 toLocaleString 语义化封装
+  // check-restricted-syntax-ignore: 本模块是 toLocaleString 的语义化封装层
   return new Date(date as string | number | Date).toLocaleString('zh-CN', options)
 }
 

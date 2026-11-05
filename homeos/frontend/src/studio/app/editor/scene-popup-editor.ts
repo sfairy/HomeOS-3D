@@ -160,7 +160,7 @@ export function createScenePopupEditor(scenePopupEditorHost: ScenePopupEditorHos
   }
 
   /** 属性默认值随主题走：暗色主题给浅色描边，暖木主题给深色描边。 */
-  function defaultColorFor(propertyKey: string, controlType: string, warmWood: boolean) {
+  function defaultColorFor(propertyKey: string, _controlType: string, warmWood: boolean) {
     if (propertyKey === "secondaryColor") return warmWood ? "#777a70" : "#85929b";
     if (propertyKey === "iconColor") return warmWood ? "#74796b" : "#c5cfd6";
     return warmWood ? "#3d3b35" : "#f4f5f6";
