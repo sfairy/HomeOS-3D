@@ -20,7 +20,7 @@ interface PurgeRequest {
  * `refundableCents` 是后端 `order_payload` 算好的可退余额（已扣掉历史退款），
  * 弹窗用它做默认值与上限 —— 前端不再自己按 `amountCents` 猜「还剩多少能退」。
  */
-export interface RefundTarget {
+interface RefundTarget {
   orderNo: string;
   totalCents: number;
   refundedCents: number;
@@ -29,7 +29,7 @@ export interface RefundTarget {
   offline: boolean;
 }
 
-export interface RefundDecision {
+interface RefundDecision {
   amountCents: number;
   note: string;
 }

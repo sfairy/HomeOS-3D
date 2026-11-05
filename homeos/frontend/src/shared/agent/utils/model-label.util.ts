@@ -20,7 +20,7 @@ export const AGENT_PROVIDER_LABELS: Record<string, string> = {
 }
 
 /** `/agent/ping` 里本模块用到的字段（结构化声明，避免 shared 反向依赖 services） */
-export interface AgentModelSource {
+interface AgentModelSource {
   ok?: boolean
   provider?: string
   model?: string

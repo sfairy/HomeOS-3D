@@ -2,7 +2,7 @@
 
 import { utcInput } from "@store/features/admin/utils/format";
 
-export interface LicensePatchInput {
+interface LicensePatchInput {
   userLabel: string;
   extendDays: string;
   accessExpiresAt: string;
@@ -10,12 +10,12 @@ export interface LicensePatchInput {
   validityDays: string;
 }
 
-export type LicensePatchResult = { ok: true; payload: Record<string, unknown> } | { ok: false; message: string };
+type LicensePatchResult = { ok: true; payload: Record<string, unknown> } | { ok: false; message: string };
 
-export const MIXED_EXPIRY_MESSAGE = "「续期天数」「新的到期时间 / 永久有效」「有效天数」只能选一种。";
-export const EXTEND_DAYS_MESSAGE = "续期天数必须是不小于 1 的整数。";
-export const VALIDITY_DAYS_MESSAGE = "有效天数必须是不小于 1 的整数。";
-export const EXPIRES_AT_MESSAGE = "新的到期时间无法解析，请重新选择。";
+const MIXED_EXPIRY_MESSAGE = "「续期天数」「新的到期时间 / 永久有效」「有效天数」只能选一种。";
+const EXTEND_DAYS_MESSAGE = "续期天数必须是不小于 1 的整数。";
+const VALIDITY_DAYS_MESSAGE = "有效天数必须是不小于 1 的整数。";
+const EXPIRES_AT_MESSAGE = "新的到期时间无法解析，请重新选择。";
 
 /** 解析「天数」输入：留空返回 ``null``，非法返回 ``undefined``（调用方据此报错）。 */
 export function parseDaysInput(raw: string): number | null | undefined {

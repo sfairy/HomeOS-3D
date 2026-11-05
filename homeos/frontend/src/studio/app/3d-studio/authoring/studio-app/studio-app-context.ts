@@ -200,9 +200,7 @@ export interface StudioAppContext {
   activeListDragSession: ListDragRowSession | null
   listDragEndedAt: number
   blockedSaveRevision: number
-  failedSaveRevision: number
   saveRetryDueAt: number
-  saveFailureRetryCount: number
   firstLocalChangeAt: any
   lastLocalChangeAt: any
   isInteractionDeferredSave: boolean
@@ -402,9 +400,7 @@ export function createStudioAppContext(): StudioAppContext {
     activeListDragSession: null,
     listDragEndedAt: 0,
     blockedSaveRevision: -1,
-    failedSaveRevision: -1,
     saveRetryDueAt: 0,
-    saveFailureRetryCount: 0,
     firstLocalChangeAt: null,
     lastLocalChangeAt: null,
     isInteractionDeferredSave: false,

@@ -21,7 +21,7 @@ export interface PopupPlacementSettings {
   custom?: boolean
 }
 
-export interface PopupPlacementOptions {
+interface PopupPlacementOptions {
   width: number
   height: number
   panelWidth: number
@@ -47,7 +47,7 @@ export interface PopupPlacement {
   custom: boolean
 }
 
-export function popupCustomEnabled(settings: PopupPlacementSettings = {}): boolean {
+function popupCustomEnabled(settings: PopupPlacementSettings = {}): boolean {
   return typeof settings.custom == 'boolean'
     ? settings.custom
     : clampOrDefault(settings.scale, 1, 0.5, 10) !== 1 ||

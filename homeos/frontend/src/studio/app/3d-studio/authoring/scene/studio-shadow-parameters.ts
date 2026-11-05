@@ -21,7 +21,7 @@ const BYTES_PER_LIGHT = 96
 const FLOATS_PER_LIGHT = BYTES_PER_LIGHT / 4
 
 /** 只暴露本模块真正用到的 WebGL2 能力，便于测试注入假的上下文。 */
-export interface ShadowParameterGL {
+interface ShadowParameterGL {
   /** WebGL1 没有；缺失即视为不支持 UBO 路径。 */
   bindBufferBase?: (target: number, index: number, buffer: WebGLBuffer | null) => void
   bufferSubData: (target: number, offset: number, data: Float32Array) => void
@@ -37,7 +37,7 @@ export interface ShadowParameterGL {
 }
 
 /** `THREE.Matrix4` / `THREE.Vector4` 的共同写入接口（`toArray` 即可）。 */
-export interface ShadowParameterSink {
+interface ShadowParameterSink {
   toArray(array: number[] | Float32Array, offset?: number): number[] | Float32Array
 }
 

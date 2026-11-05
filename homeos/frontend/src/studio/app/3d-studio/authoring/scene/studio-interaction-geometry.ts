@@ -30,7 +30,7 @@ interface Vec3Like {
 }
 
 /** `THREE.Box3` 的最小契约。 */
-export interface BakedBox {
+interface BakedBox {
   min: Vec3Like
   max: Vec3Like
   isEmpty(): boolean
@@ -41,7 +41,7 @@ export interface BakedBox {
 }
 
 /** 顶点属性（`BufferAttribute`）的最小契约。 */
-export interface BakedAttribute {
+interface BakedAttribute {
   array: {
     length: number
     BYTES_PER_ELEMENT: number
@@ -55,7 +55,7 @@ export interface BakedAttribute {
 }
 
 /** `THREE.BufferGeometry` 的最小契约。 */
-export interface BakedGeometry {
+interface BakedGeometry {
   attributes: Record<string, BakedAttribute>
   index: { count: number; array: { [index: number]: number } } | null
   boundingBox: BakedBox | null

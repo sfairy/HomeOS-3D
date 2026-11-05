@@ -19,7 +19,7 @@
 export type SetupState = "open" | "initialized" | "unreachable";
 
 /** 一次探测的结果。字符串字段一律给空串，方便视图直接 bind。 */
-export interface SetupSnapshot {
+interface SetupSnapshot {
   state: SetupState;
   /** 远程访问时是否必须携带引导密钥（`STORE_SETUP_TOKEN`）。 */
   requiresToken: boolean;
@@ -47,7 +47,7 @@ export function peekSetupStatus(): SetupSnapshot | null {
 }
 
 /** 记下快照（探测函数与测试都会用到）。 */
-export function rememberSetupStatus(next: SetupSnapshot): SetupSnapshot {
+function rememberSetupStatus(next: SetupSnapshot): SetupSnapshot {
   snapshot = next;
   return next;
 }

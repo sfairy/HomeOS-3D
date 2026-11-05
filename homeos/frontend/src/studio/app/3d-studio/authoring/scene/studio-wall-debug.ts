@@ -9,7 +9,7 @@
  */
 
 /** 墙体分层：侧面 / 顶盖 / 洞口底盖。 */
-export type WallDebugPart = 'side' | 'top' | 'soffit'
+type WallDebugPart = 'side' | 'top' | 'soffit'
 
 function readDebugParts(): Set<WallDebugPart> | null {
   const isDev = import.meta.env.DEV

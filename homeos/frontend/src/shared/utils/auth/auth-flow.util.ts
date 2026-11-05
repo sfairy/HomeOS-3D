@@ -19,7 +19,7 @@ interface AuthFlowStep {
 type AuthStepState = 'done' | 'current' | 'todo' | 'blocked'
 
 /** 渲染用的一步：编号、文案、状态。 */
-export interface RenderableAuthStep extends AuthFlowStep {
+interface RenderableAuthStep extends AuthFlowStep {
   /** 两位编号，例如 '01'。 */
   ordinal: string
   /** 该步在轨道上的状态。 */

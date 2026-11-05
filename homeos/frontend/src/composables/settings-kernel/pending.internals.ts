@@ -109,12 +109,12 @@ type DraftResetFn = () => void
 const draftResetByTab = new Map<string, DraftResetFn>()
 
 /** 注册某 Tab 的草稿丢弃函数（重复注册以最后一次为准） */
-export function registerSettingsTabDraftReset(tabId: string, fn: DraftResetFn) {
+function registerSettingsTabDraftReset(tabId: string, fn: DraftResetFn) {
   draftResetByTab.set(tabId, fn)
 }
 
 /** 注销某 Tab 的草稿丢弃函数（面板卸载时调用） */
-export function unregisterSettingsTabDraftReset(tabId: string) {
+function unregisterSettingsTabDraftReset(tabId: string) {
   draftResetByTab.delete(tabId)
 }
 

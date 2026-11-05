@@ -309,7 +309,7 @@ export async function callEntityService(
  * 随「等待时长 × 指令条数 × 相位」线性增长（算法与后端 `_remote_learning_timeout` 一致）。
  * 所以预算统一交给 `interaction3dControlTimeout`，这里只负责按预算 abort。
  */
-export async function requestHAControl(
+async function requestHAControl(
   serviceDomain: string,
   serviceName: string,
   serviceEntityId: string,

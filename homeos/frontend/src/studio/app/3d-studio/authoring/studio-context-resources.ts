@@ -38,7 +38,7 @@ interface DispatcherPatch {
   wrapper: (this: unknown, type: string, listener: unknown) => void
 }
 
-export interface ContextResourceTracker {
+interface ContextResourceTracker {
   /** 上下文丢失时立即释放渲染期登记的资源（补丁本身保留）。 */
   releaseLostContext(): void
   /** 彻底卸载：清空登记并还原 `addEventListener`（最后一个 tracker 才真正还原）。 */

@@ -22,7 +22,6 @@ import { getStudioFacadeState, patchStudioFacadeState } from '../../../../../../
 import { buildStudioHistoryPatch } from '../../../ui/studio-history'
 import type { PlanEditPreviewFlags, StudioApiRequestOptions } from '../../../types/studio-app-types'
 import { resolveInteractionCleanup } from '../../../ui/studio-interaction-cleanup'
-import { normalizeScenePayload } from '../../../scene/studio-scene-payload'
 import { applyDocumentPatch, canApplyDocumentPatch } from '../../../store/document-store'
 import type { DocumentPatch } from '../../../store/document-store'
 import { diffDocumentPatches, describeDocumentPatch } from '../../../store/document-diff'
@@ -583,7 +582,7 @@ export function refreshAfterHistoryChange(
 }
 
 /** 撤销 / 重做需要重绘的作用域；快照缺失或判定失败时保守返回 `'all'`。 */
-export function resolveHistoryPreviewScope(
+function resolveHistoryPreviewScope(
   runtime: StudioAppRuntime,
   previousScene?: Record<string, unknown> | null,
 ): PreviewScope {
@@ -660,54 +659,6 @@ export function flushPendingHistory(runtime: StudioAppRuntime) {
   runtime.syncStudioHistoryFacade()
 }
 
-export async function restoreSnapshot(runtime: StudioAppRuntime, snapshotDocument: any) {
-  /**
-   * 合并墙保护：恢复删除备份前，若恢复会改写一面当前仍存在的墙，
-   * 而当前场景在这面墙上新增了门窗或栏杆（不在备份的 attachmentIds 内），
-   * 说明合并墙在备份之后又发生变化，此时拒绝恢复，提示先撤销这些改动。
-   */
-  const backupWallById = new Map<string, any>(
-      (snapshotDocument.walls || []).map((backupWall: any) => [backupWall.id, backupWall]),
-    ),
-    changedWallIds = new Set(
-      (runtime.appCtx.studioState.walls || [])
-        .filter((currentWall) => {
-          const backupWall = backupWallById.get(currentWall.id)
-          return (
-            backupWall &&
-            (backupWall.start.x !== currentWall.start.x ||
-              backupWall.start.y !== currentWall.start.y ||
-              backupWall.end.x !== currentWall.end.x ||
-              backupWall.end.y !== currentWall.end.y)
-          )
-        })
-        .map((currentWall) => currentWall.id),
-    )
-  if (changedWallIds.size)
-    for (const attachmentKey of ['windows', 'doors', 'railings']) {
-      const backupAttachmentIds = new Set(
-        (snapshotDocument[attachmentKey] || []).map((attachmentRecord: any) => attachmentRecord.id),
-      )
-      if (
-        ((runtime.appCtx.studioState as any)[attachmentKey] || []).some(
-          (attachmentRecord: any) =>
-            changedWallIds.has(attachmentRecord.wallId) && !backupAttachmentIds.has(attachmentRecord.id),
-        )
-      )
-        throw new Error('合并墙上已有新增门窗或栏杆，请先撤销这些改动，再撤销删除。')
-    }
-  runtime.selectStudioTool('select'),
-    (runtime.appCtx.studioState = normalizeScenePayload(snapshotDocument, runtime.externalModelRegistry))
-  const ae6 = runtime.getActiveFloor()
-  ae6 && (ae6.scene = runtime.appCtx.studioState),
-    (runtime.appCtx.planView.rotation = runtime.appCtx.studioState.settings.planViewRotation),
-    runtime.refreshSelection(),
-    runtime.refreshPreviewScene(),
-    await runtime.loadBackgroundImage(),
-    runtime.refreshScopeItems(),
-    runtime.markDocumentDirty()
-}
-
 export function markDocumentDirty(runtime: StudioAppRuntime) {
   if (runtime.isEmbeddedStage) {
     runtime.pendingHistoryScene = null
@@ -746,13 +697,6 @@ export function recordSaveConflict(
   }),
     runtime.showSaveState('等待处理保存冲突', 'error'),
     runtime.saveConflictDialogElement.open || runtime.saveConflictDialogElement.showModal()
-}
-
-/** 保存失败后的重试状态复位（重试次数、重试到期时间、非重试性失败锁定版本）。 */
-export function resetSaveRetryState(runtime: StudioAppRuntime) {
-  ;(runtime.appCtx.saveFailureRetryCount = 0),
-    (runtime.appCtx.saveRetryDueAt = 0),
-    (runtime.appCtx.failedSaveRevision = -1)
 }
 
 /** 自动保存调度：宿主只保留闸门，防抖 / 首次 15s 兜底 / 退避重试全部交给 save-store。 */

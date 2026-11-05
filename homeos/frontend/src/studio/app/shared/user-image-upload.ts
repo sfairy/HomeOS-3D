@@ -17,19 +17,15 @@
  *
  * 位图**不限文件大小**：20MB 是服务端的保护阈值，客户端提前拦会让「一张 4K 截图」
  * 在本地就失败，而用户其实只想让服务端自己决定。真正在本地拦的只有两件：
- * 解码出来必然超限的（总像素 / 单边，服务端也会 400，但本地拦能立刻给文案）、
- * 以及 SVG（矢量化数据没有像素，只能按体积设 5MB 上限）。
- * 空文件也在这里拦：0 字节一定会被服务端拒，早点说清楚。
+ * SVG（矢量化数据没有像素，只能按体积设 5MB 上限）、空文件（0 字节一定会被服务端拒，
+ * 早点说清楚）；像素 / 单边上限由服务端按 `MAX_UPLOAD_PIXELS` / `MAX_UPLOAD_DIMENSION`
+ * 判定，客户端只在文案里说明（`USER_IMAGE_UPLOAD_LIMITS`）。
  */
 
-/** 与后端一致的客户端预检上限（服务端仍会再校验一次，这里只是提前给文案）。 */
-export const USER_IMAGE_MAX_BYTES = 20 * 1024 * 1024
-export const USER_IMAGE_MAX_DIMENSION = 8192
-export const USER_IMAGE_MAX_PIXELS = 10_000_000
 /** SVG 没有像素，只能按体积设上限（0.8.1 口径：5 MB）。 */
 export const USER_IMAGE_MAX_SVG_BYTES = 5_000_000
 /** 单张上传的等待上限：大图解码 + 写盘，超过就按超时处理（服务端可能已经收下）。 */
-export const USER_IMAGE_UPLOAD_TIMEOUT_MS = 120_000
+const USER_IMAGE_UPLOAD_TIMEOUT_MS = 120_000
 
 /** 用户能看懂的上限说明（提示语与错误文案共用一段，避免两处写岔）。 */
 export const USER_IMAGE_UPLOAD_LIMITS = '总像素不超过 1000 万，单边不超过 8192 像素；SVG 最大 5 MB。'
@@ -47,7 +43,7 @@ export const USER_IMAGE_HINT =
 const USER_IMAGE_EXTENSIONS = /\.(png|jpe?g|webp|svg|gif|bmp|tiff?|ico|avif|heic|heif)$/i
 const SVG_EXTENSION = /\.svg$/i
 
-export type UserImageRequest = (path: string, options: RequestInit & { timeoutMs?: number }) => Promise<unknown>
+type UserImageRequest = (path: string, options: RequestInit & { timeoutMs?: number }) => Promise<unknown>
 
 export interface UserImageUploadState {
   /** 是否正在上传 / 刷新目录（调用方据此禁用按钮）。 */
@@ -60,12 +56,12 @@ export interface UserImageUploadState {
   refreshFailed: boolean
 }
 
-export interface UserImageUploadResult {
+interface UserImageUploadResult {
   uploadedAssetIds: string[]
   errors: string[]
 }
 
-export interface UserImageUploaderOptions {
+interface UserImageUploaderOptions {
   request: UserImageRequest
   /** 上传成功后刷新资产目录（可失败，失败时保留 `retryRefresh()`）。 */
   onCatalogUpdated?: () => Promise<unknown> | unknown
@@ -128,7 +124,7 @@ export function imageUploadError(error: unknown, fallback = '图片上传失败�
 }
 
 /** 造一个 `TimeoutError`：调用方只需按 `name` 判定，不用区分 AbortError 的来源。 */
-export function userImageTimeoutError(): Error {
+function userImageTimeoutError(): Error {
   const timeoutError = new Error('上传超时')
   timeoutError.name = 'TimeoutError'
   return timeoutError

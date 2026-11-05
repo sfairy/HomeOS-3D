@@ -31,7 +31,7 @@ function resolveDeps() {
 }
 
 /** 停止当前播报（新一轮提问、模块自带清理都走这里） */
-export function stopCompanionSpeech() {
+function stopCompanionSpeech() {
   deps?.server.stop()
 }
 
@@ -41,7 +41,7 @@ export function stopCompanionSpeech() {
  * @param ttsUrl 后端 `ttsUrl`；空值直接走回落
  * @param text   回复正文，回落播报用
  */
-export async function speakCompanionReply(text: string, ttsUrl?: string): Promise<boolean> {
+async function speakCompanionReply(text: string, ttsUrl?: string): Promise<boolean> {
   if (!String(text || '').trim()) return false
   if (getConfigSection('voice')?.ttsEnabled === false) return false
   const { server, local } = resolveDeps()

@@ -19,7 +19,7 @@
  */
 
 /** 服务端给出的登录态提示。`unknown` = 外壳上没有这个属性（开发索引 / 老模板）。 */
-export type ServerAuthHint = 'guest' | 'user' | 'unknown'
+type ServerAuthHint = 'guest' | 'user' | 'unknown'
 
 /**
  * 解析 `data-auth` 的取值。

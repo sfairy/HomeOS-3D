@@ -40,7 +40,7 @@ const ROOT_INDEX = process.argv.indexOf('--root')
 const ROOT = ROOT_INDEX > -1 ? path.resolve(process.argv[ROOT_INDEX + 1]) : DEFAULT_ROOT
 
 /**
- * eslint 时代的规则只覆盖 `src/**` 且 `ignores: ['src/studio/**']`，studio 由单独一块
+ * 迁移前的 ESLint 规则只覆盖 `src/**` 且 `ignores: ['src/studio/**']`，studio 由单独一块
  * 只开 unused-imports。为了「换掉 linter 不改产品行为」，studio 的存量违规**计数但不阻断**：
  * 改 studio 的展示名解析属于产品改动，应单独一批、带视觉回归地做。
  * 想现在就把 studio 也卡上，加 `--strict`。

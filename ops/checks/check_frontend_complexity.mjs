@@ -2,9 +2,10 @@
 /**
  * 前端复杂度棘轮（函数圈复杂度 / 函数长度）。
  *
- * 为什么不是直接把 ESLint complexity 设为 error：studio 里已有 1,200+ 个
+ * 为什么不是直接把 linter 的复杂度规则设为 error：studio 里已有 1,200+ 个
  * 圈复杂度 > 10 的函数（大量是 three.js 边界与历史面板装配代码），一次性清零不现实；
- * 但“不再变多”可以从今天开始守。做法与 check_complexity.py / check_any_baseline.mjs 一致：
+ * 但“不再变多”可以从今天开始守。（Biome 也没有 complexity 规则，这条只能是脚本。）
+ * 做法与 check_complexity.py / check_any_baseline.mjs 一致：
  *
  * - 基线 ops/checks/frontend-complexity-baseline.json 记录**逐文件**的
  *   gt10 / gt15 / gt80 / max 计数；

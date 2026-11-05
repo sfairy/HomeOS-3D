@@ -13,7 +13,7 @@
     "dev:runtime": "vite build --config vite.runtime.config.ts --watch",
     "build:analyze": "bun run --cwd ../../packages/shared sync:scene && vite build --mode analyze",
     "preview": "vite preview",
-    "lint": "bun run --cwd ../.. lint:fix",
+    "lint": "bun run --cwd ../.. lint",
     "lint:ci": "bun run --cwd ../.. lint && node ../../ops/lib/check-css-syntax.mjs",
     "check:deps": "node ../../ops/checks/frontend/check_frontend_deps.mjs",
     "check:css": "node ../../ops/lib/check-css-syntax.mjs",

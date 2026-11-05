@@ -9,7 +9,7 @@ import type { NavigationInspectorContext } from '../../inspectors/home/home-navi
 import type { LineChartInspectorContext } from '../../inspectors/home/home-line-chart-inspector'
 import type { AirConditionerInspectorContext } from '../../inspectors/home/home-air-conditioner-inspector'
 
-export interface InspectorContextsBootResult {
+interface InspectorContextsBootResult {
   iconButtonInspectorContext: IconButtonInspectorContext
   navigationInspectorContext: NavigationInspectorContext
   lineChartInspectorContext: LineChartInspectorContext

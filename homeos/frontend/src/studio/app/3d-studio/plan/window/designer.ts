@@ -60,7 +60,7 @@ const CENTER_SNAP_PIXELS = 9
 /** 有未应用的修改时，第一次关闭只提醒，这么久内再关一次才真的丢弃。 */
 const CLOSE_CONFIRM_MS = 4000
 
-export interface WindowDesignerOptions {
+interface WindowDesignerOptions {
   /** 要编辑的窗户（含 `windowDesign`）。 */
   record: WindowRecord
   /** 材质色板，用于 3D 预览。 */
@@ -71,7 +71,7 @@ export interface WindowDesignerOptions {
   onClose?: () => void
 }
 
-export interface WindowDesignerHandle {
+interface WindowDesignerHandle {
   close: () => void
   hasPendingChange: () => boolean
   readonly isOpen: boolean

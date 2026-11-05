@@ -5,7 +5,7 @@ type ThreeMesh = InstanceType<typeof THREE.Mesh>
 type ThreeVector3 = InstanceType<typeof THREE.Vector3>
 
 //: 车辆模型类型（0.8.1 导出常量）：充电几何、车辆动效都按这个集合判定。
-export const VEHICLE_MODEL_TYPES = Object.freeze(['smallcar', 'suv', 'scooter'])
+const VEHICLE_MODEL_TYPES = Object.freeze(['smallcar', 'suv', 'scooter'])
 
 export function isVehicleModelType(candidateType: unknown): boolean {
   return VEHICLE_MODEL_TYPES.includes(candidateType as string)

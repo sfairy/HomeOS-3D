@@ -23,7 +23,7 @@
 export type WeatherEffectKey = 'rainy' | 'snowy' | 'lightning-rainy' | 'snowy-rainy' | 'partlycloudy' | 'clear-night'
 
 /** 单个效果键的元数据：按钮文案、是否可手动预览、HA 同义 state。 */
-export type WeatherEffectDefinition = {
+type WeatherEffectDefinition = {
   /** 预览按钮与面板内文案用的短标签。 */
   readonly label: string
   /** 是否出现在编辑器的「天气预览」按钮组里。 */
@@ -91,7 +91,7 @@ const UNAVAILABLE_STATES = Object.freeze(['', 'none', 'unknown', 'unavailable'])
 export const WEATHER_PREVIEW_TIMEOUT_MS = 12000
 
 /** 可手动预览的效果键（顺序即按钮顺序）。 */
-export const WEATHER_PREVIEW_KEYS: readonly WeatherEffectKey[] = Object.freeze(
+const WEATHER_PREVIEW_KEYS: readonly WeatherEffectKey[] = Object.freeze(
   (Object.keys(WEATHER_EFFECTS) as WeatherEffectKey[]).filter((key) => WEATHER_EFFECTS[key].preview),
 )
 
@@ -199,7 +199,7 @@ const WEATHER_TEXT_ALIASES: ReadonlyArray<readonly [string, WeatherEffectKey]> =
  * 「中雨」，机读值放在 `attributes.skycon`（如 `MODERATE_RAIN_DAY`），
  * 只认 `weather.rainy` 的实现会直接判空。
  */
-export function resolveWeatherEffectText(value: unknown): WeatherEffectKey | '' {
+function resolveWeatherEffectText(value: unknown): WeatherEffectKey | '' {
   const text = normalizeWeatherState(value)
   if (!text) return ''
   const direct = WEATHER_STATE_ALIASES[text]

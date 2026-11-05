@@ -49,14 +49,14 @@ const escapeHtml = (value: any) =>
       )[character],
   )
 
-export interface ScenePopupEditorStatus {
+interface ScenePopupEditorStatus {
   dirty: boolean
   canSave: boolean
   canUndo: boolean
   canRedo: boolean
 }
 
-export interface ScenePopupEditorHost {
+interface ScenePopupEditorHost {
   /** 编辑器根容器（通常是 `<main>`）。挂载时会被加上 `hb-scene-popup-editor-host`。 */
   host: HTMLElement
   /** 当前正在编辑的控件；关闭或切换控件后返回 `null`，编辑器会自动停写。 */

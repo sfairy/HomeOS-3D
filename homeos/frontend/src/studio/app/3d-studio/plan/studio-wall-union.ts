@@ -14,7 +14,7 @@
  */
 
 /** 平面环（与 `plan/geometry` 的环同构，只要求 x / y）。 */
-export type WallPlanLoop = { x: number; y: number }[]
+type WallPlanLoop = { x: number; y: number }[]
 
 let wallUnionFallbackTotal = 0
 
@@ -39,7 +39,7 @@ function polygonSignedArea(loop: WallPlanLoop) {
 }
 
 /** 射线法：点是否在多边形内部（环坐标是平面米制）。 */
-export function pointInsideWallLoop(point: { x: number; y: number }, loop: WallPlanLoop) {
+function pointInsideWallLoop(point: { x: number; y: number }, loop: WallPlanLoop) {
   let inside = false
   for (let i = 0, j = loop.length - 1; i < loop.length; j = i, i += 1) {
     const current = loop[i],

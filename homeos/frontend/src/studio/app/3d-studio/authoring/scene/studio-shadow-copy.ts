@@ -18,7 +18,7 @@
  * 最小结构化接口描述用到的部分，而不是 `import type` from "three"。
  */
 
-export interface ShadowCopyBox {
+interface ShadowCopyBox {
   min: { x: number; y: number; z?: number }
   max: { x: number; y: number; z?: number }
   /** `THREE.Box3` 上有这个标量字段；二维 box 没有。 */
@@ -26,12 +26,12 @@ export interface ShadowCopyBox {
 }
 
 /** 只用到 three 纹理的数组层标记。 */
-export interface ShadowCopyTexture {
+interface ShadowCopyTexture {
   isDataArrayTexture?: boolean
 }
 
 /** 只用到 three 渲染器状态与纹理属性表的这一小部分。 */
-export interface ShadowCopyRenderer {
+interface ShadowCopyRenderer {
   getContext?(): unknown
   properties: {
     get(texture: ShadowCopyTexture): { __webglTexture?: WebGLTexture }

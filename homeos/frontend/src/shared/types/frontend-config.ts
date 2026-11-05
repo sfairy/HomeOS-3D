@@ -27,7 +27,7 @@ export interface FrontendSection {
 }
 
 /** 智能管家快捷指令的单项（与后端 AppConfig.ui.agentQuickPrompts 对齐） */
-export interface AgentQuickPromptConfig {
+interface AgentQuickPromptConfig {
   label: string // 按钮短文案
   prompt: string // 真正下发的完整指令
   hint?: string // 悬浮提示 / 读屏说明

@@ -8,7 +8,7 @@
 import { meteoconUrl, weatherVisual } from './controls/weather-chart-runtime'
 import { withRequestTimeout } from '@app/shared/util/request-timeout'
 
-export const FORECAST_TYPE_LABELS: Record<string, string> = {
+const FORECAST_TYPE_LABELS: Record<string, string> = {
   daily: '日预报',
   hourly: '逐小时',
   twice_daily: '昼夜预报',
@@ -72,7 +72,7 @@ export function weatherSceneStyle(sceneDocument: any, page: any) {
     : 'default'
 }
 
-export interface WeatherForecastResponse {
+interface WeatherForecastResponse {
   entityId: string
   type?: 'daily' | 'hourly' | 'twice_daily' | string
   status?: 'ok' | 'unsupported' | 'unavailable' | string
@@ -112,9 +112,9 @@ export async function requestWeatherForecast(
   )
 }
 
-export type WeatherForecastFetch = typeof requestWeatherForecast
+type WeatherForecastFetch = typeof requestWeatherForecast
 
-export class WeatherForecastSession {
+class WeatherForecastSession {
   entityId: string
   publish: (state: any) => void
   fetchForecast: WeatherForecastFetch
@@ -179,7 +179,7 @@ function splitForecastDateTime(datetimeValue: any) {
   return matchResult ? { date: matchResult[1], time: matchResult[2] } : { date: '', time: '' }
 }
 
-export function forecastDayLabel(datetimeValue: any, todayValue: any) {
+function forecastDayLabel(datetimeValue: any, todayValue: any) {
   const forecastDate = splitForecastDateTime(datetimeValue).date,
     todayDate = splitForecastDateTime(todayValue).date,
     dayOffset = (Date.parse(forecastDate + 'T12:00:00Z') - Date.parse(todayDate + 'T12:00:00Z')) / 86400000

@@ -9,7 +9,7 @@
  *   造成长阻塞；被推迟的记录沿用上一帧纹理（相机没动，位姿一致，肉眼看不出）。
  */
 
-export interface CaptureSelection<T> {
+interface CaptureSelection<T> {
   /** 本帧要重捕的记录。 */
   records: T[]
   /** 下一次轮转的起点，保证排在后面的记录不会长期饿死。 */

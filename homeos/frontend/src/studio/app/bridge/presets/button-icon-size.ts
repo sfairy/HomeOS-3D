@@ -4,7 +4,7 @@
 export const DEFAULT_BUTTON_SIZE = 60
 
 /** 圆形按钮里 mdi 图标的相对大小（图标边长 / 按钮边长）。 */
-export const BUTTON_ICON_SIZE_RATIO = 0.6
+const BUTTON_ICON_SIZE_RATIO = 0.6
 
 export function buttonIconSize(buttonSize: any) {
   const numericSize = Number(buttonSize),

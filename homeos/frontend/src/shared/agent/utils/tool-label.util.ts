@@ -44,7 +44,7 @@ const TOOL_LABELS: Record<string, string> = {
 }
 
 /** 单个工具名的展示文案（空名返回空串，调用方据此不渲染） */
-export function toolLabel(name: string): string {
+function toolLabel(name: string): string {
   const key = String(name || '').trim()
   if (!key) return ''
   return TOOL_LABELS[key] || key.replace(/_/g, ' ')

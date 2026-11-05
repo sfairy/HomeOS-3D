@@ -14,12 +14,12 @@ export interface HomeosSceneSelectOption {
 }
 
 /** 场景记录的最小形状（与 `HaSceneScriptRecord` 结构兼容）。 */
-export interface SceneOptionSource {
+interface SceneOptionSource {
   id?: unknown
   name?: unknown
 }
 
-export interface SceneOptionsBuildOptions {
+interface SceneOptionsBuildOptions {
   /** 是否前置「不联动场景」空选项。 */
   includeEmpty: boolean
   /** 空选项标签文案。 */

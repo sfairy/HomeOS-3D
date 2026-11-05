@@ -33,7 +33,7 @@ let disposeActiveGuide: (() => void) | null = null
  * HA 仪表盘是以 iframe 嵌入的，用户不会在 HA 面板里把 HomeOS 装到主屏幕；go2rtc 的
  * `?embed=1` 场景也复用这个判定，避免两处各写一份。
  */
-export function isEmbeddedDisplayContext(
+function isEmbeddedDisplayContext(
   environment: { self?: unknown; top?: unknown } = window,
   search: string = location.search,
 ): boolean {

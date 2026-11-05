@@ -32,7 +32,7 @@ type CameraLike = {
 type ScreenSize = { x?: number; y?: number }
 
 /** 渲染循环闭包里与相机相关的可变状态。 */
-export type RenderLoopCameraState = {
+type RenderLoopCameraState = {
   cameraViewMode?: string
   stereoSampleIndex?: number
   lastViewOffsetSignature?: string
@@ -41,7 +41,7 @@ export type RenderLoopCameraState = {
 }
 
 /** 渲染循环闭包里自管的帧步进句柄与定时器。 */
-export type RenderLoopTeardownState = {
+type RenderLoopTeardownState = {
   renderTickCounter?: number
   reflectionPassCounter?: number
   overviewTimeoutHandle?: number | null

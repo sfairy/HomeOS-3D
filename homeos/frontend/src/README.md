@@ -194,9 +194,18 @@ import Overview from '@/features/security/Overview.vue'
   症状是**构建静默不落盘**（产物目录整份为空，只在 `closeBundle` 报「SPA 入口缺失」）。
 - **商店侧刻意不加该别名**：它只取子路径，交给包自己的 `exports`。
 - **共享包的 lint 走仓库根**：`bun run lint` 是一条 Biome 命令，配置在根 `biome.json`，
-  覆盖主应用 / 商店 / shared / ops 四处。`.vue` 的规则由 `vue-tsc`（含 `noUnusedLocals`）
-  与 `check:restricted-syntax` 承接 —— Biome 的 linter 不认识 SFC 模板作用域，强行开启会
-  把「只在 template 里用到的变量」误报成未使用。
+  覆盖主应用 / 商店 / shared / ops 四处 —— 因此**只有在本 monorepo 内可用**，单独 checkout
+  `packages/shared` 无法跑 lint。子包的 `lint` 是只读的（等价于根 `lint`），要落盘改写统一用
+  根的 `bun run lint:fix`；在子包里跑 `bun run lint` 不会动任何文件。
+- **`.vue` 没有任何 Biome 规则**（`linter.includes` 显式排除 `**/*.vue`）。Biome 的 linter 不
+  认识 SFC 模板作用域，强行开启会把「只在 template 里用到的变量」误报成未使用。当前 419 个
+  SFC（主应用 363 / 商店 + shared 56）因此**只剩下面这两层保护**：
+  - `vue-tsc`（`noUnusedLocals` / `noUnusedParameters`）：脚本段的未使用变量与 import；
+  - `check:restricted-syntax`：`toLocaleString('zh-CN')` 与 `.attributes.friendly_name`。
+  原先 ESLint 的 `vue/essential` 剩余部分**已无门禁**，包括 `vue/require-v-for-key`、
+  `vue/no-unused-vars`（模板 `v-for` 别名）、`vue/no-side-effects-in-computed-properties`、
+  `vue/no-mutating-props`（嵌套属性）与 `vue/no-ref-as-operand` 的 `if (someRef)` 真值判断形态
+  （TS 只在算术/比较时报 TS2365，赋值报 TS2540，真值判断不报）。改这几类写法时只能靠 review。
 - **四个 studio 文件刻意不参与格式化**：`studio-app/boot.ts` 与 `editor/home/lifecycle/boot.ts`
   受 `check:studio-split` 的**硬性行数预算**约束（4200 / 5400 行），格式化会把它们从 4070/5355
   顶到 5818/8418；`studio-item-model.ts` 与 `items/item-model/**` 受 `verify_item_model` 的

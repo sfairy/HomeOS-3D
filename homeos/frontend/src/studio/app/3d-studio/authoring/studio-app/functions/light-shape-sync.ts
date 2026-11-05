@@ -35,7 +35,7 @@ function lightPresetFor(lightType: string) {
 import { lampItemTypeSet } from '../../items/item-catalog'
 import type { StudioAppContext } from '../studio-app-context'
 
-export interface LightShapeTarget {
+interface LightShapeTarget {
   distance: number
   halfAngleRad: number
 }
@@ -68,7 +68,7 @@ declare global {
 }
 
 /** item → 灯对象上应有的锥体参数；不是灯或缺少 id 时返回 null。 */
-export function resolveLightShapeTarget(lightItem: LightItemLike): LightShapeTarget | null {
+function resolveLightShapeTarget(lightItem: LightItemLike): LightShapeTarget | null {
   if (!lightItem?.id || !lampItemTypeSet.has(lightItem.type ?? '')) return null
   const lightPreset = lightPresetFor(lightItem.type ?? ''),
     lightRange = clamp2(finite2(lightItem.lightRange, lightPreset.range), 0.5, 10),
@@ -107,7 +107,7 @@ function applyLightShapeTarget(sceneLight: SceneLightLike, shapeTarget: LightSha
  *
  * @returns 实际被改动的灯对象数量（0 表示已一致，或场景里还没有对应的灯）。
  */
-export function syncLightShapeFromItems(
+function syncLightShapeFromItems(
   appCtx: StudioAppContext,
   lightItemList: LightItemLike[] = (appCtx.studioState?.items as LightItemLike[]) || [],
 ) {
@@ -157,7 +157,7 @@ let probeAppCtx: StudioAppContext | null = null
  * - 有 item、没有对应的 spot → 灯光层没建出来（或该类型是灯带）；
  * - 两边不一致 → 重建没跑到灯光层，就地同步也没命中。
  */
-export function installLightShapeProbe(appCtx: StudioAppContext) {
+function installLightShapeProbe(appCtx: StudioAppContext) {
   probeAppCtx = appCtx
   if (typeof window === 'undefined' || window.__homeosLightShapeProbe) return
   window.__homeosLightShapeProbe = () => {

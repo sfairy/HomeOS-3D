@@ -25,7 +25,7 @@ const CANVAS_PADDING_X = 88
 const CANVAS_PADDING_Y = 90
 
 /** 正立面坐标换算：`screen = (local * scale) + offset`。 */
-export interface WindowCanvasScale {
+interface WindowCanvasScale {
   scale: number
   ox: number
   oy: number
@@ -34,7 +34,7 @@ export interface WindowCanvasScale {
   h: number
 }
 
-export interface WindowCanvasDrawOptions {
+interface WindowCanvasDrawOptions {
   /** 目标 `<svg>`（调用方负责传入 `#wd-drawing`）。 */
   drawing: SVGSVGElement
   /** 当前窗型快照（已通过 `validateWindowRecord`）。 */

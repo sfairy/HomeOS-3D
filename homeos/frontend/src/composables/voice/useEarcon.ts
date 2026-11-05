@@ -11,7 +11,7 @@ import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { logger } from '@/shared/utils/core/logger'
 
 /** 音效类型：与后端 `AgentChatResponse.earcon` 对齐 */
-export type EarconKind = 'success' | 'error' | 'confirm'
+type EarconKind = 'success' | 'error' | 'confirm'
 
 /** 单个音符 */
 interface Tone {
@@ -69,7 +69,7 @@ async function ensureRunning(ctx: AudioContext): Promise<boolean> {
 }
 
 /** 音效是否启用（跟随语音播报开关） */
-export function earconEnabled(): boolean {
+function earconEnabled(): boolean {
   return getConfigSection('voice')?.ttsEnabled !== false
 }
 

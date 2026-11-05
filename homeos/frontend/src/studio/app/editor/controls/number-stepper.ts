@@ -151,16 +151,3 @@ export function formatLastSeen(deps: NumberStepperDeps, lastSeenTimestamp: Docum
       })
   }
 }
-
-/**
- * 切片/重绘后清理「已增强」集合里已脱离文档的输入。
- *
- * `WeakSet` 不会自己剔除已卸载的元素（只保证不阻止回收），宿主每次切片后把旧输入
- * 传进来即可；返回清理条数，便于宿主在调试面板里显示。
- */
-export function disposeDetached(deps: NumberStepperDeps, inputs: Iterable<HTMLElement>) {
-  let disposedCount = 0
-  for (const detachedInput of inputs)
-    !detachedInput?.isConnected && deps.enhancedNumberInputsSet.delete(detachedInput) && (disposedCount += 1)
-  return disposedCount
-}

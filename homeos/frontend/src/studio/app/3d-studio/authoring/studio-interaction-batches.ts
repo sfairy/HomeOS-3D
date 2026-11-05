@@ -256,7 +256,7 @@ type RenderGroup = {
   localMatrix?: Matrix4Like
 }
 
-export type InteractionBatchStats = {
+type InteractionBatchStats = {
   candidates: number
   batches: number
   savedDraws: number
@@ -291,7 +291,7 @@ export type InteractionBatchStats = {
   lastError?: string
 }
 
-export type InteractionBatchesOptions = {
+type InteractionBatchesOptions = {
   THREE: BatchesThree
   renderer: { render: (this: unknown, ...args: unknown[]) => unknown }
   scene: SceneLike

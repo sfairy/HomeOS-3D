@@ -22,7 +22,7 @@
 import { REVIEWED_SHELL_MASKS, type ReviewedShellMaskSet } from './studio-reviewed-shell-data'
 
 /** `THREE.BufferAttribute` 的最小契约。 */
-export interface ShellAttribute {
+interface ShellAttribute {
   array: {
     length: number
     [index: number]: number
@@ -36,7 +36,7 @@ export interface ShellAttribute {
 }
 
 /** `THREE.BufferGeometry` 的最小契约（只覆盖裁剪与重建用到的部分）。 */
-export interface ShellGeometry {
+interface ShellGeometry {
   index: { count: number; array: { length: number; [index: number]: number }; needsUpdate?: boolean } | null
   attributes: Record<string, ShellAttribute>
   groups: Array<{ start: number; count: number; materialIndex: number }>
@@ -50,7 +50,7 @@ export interface ShellGeometry {
 }
 
 /** `THREE.Mesh` / `THREE.Object3D` 的最小契约。 */
-export interface ShellNode {
+interface ShellNode {
   children: ShellNode[]
   matrix: { elements: Float32Array }
   userData: Record<string, unknown>
@@ -61,11 +61,11 @@ export interface ShellNode {
 }
 
 /** 调用方注入的 three 构造器（只有 `BufferAttribute`）。 */
-export interface ShellThree {
+interface ShellThree {
   BufferAttribute: new (array: unknown, itemSize: number, normalized?: boolean) => ShellAttribute
 }
 
-export interface ShellScopeNode {
+interface ShellScopeNode {
   node: ShellNode
   /** 相对作用域根节点的子节点路径，形如 `/0/3`。 */
   path: string

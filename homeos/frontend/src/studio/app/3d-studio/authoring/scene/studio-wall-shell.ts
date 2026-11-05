@@ -30,19 +30,19 @@ export type WallCapLoop = { x: number; y: number }
  * three 的 `Shape`。浏览器直载模块在编译期只有影子声明（`ShapeGeometry` 无类型），
  * 这里只标记「几何输入对象」，不引入 three 的类型。
  */
-export type WallCapShape = object
+type WallCapShape = object
 
 /** 盖面材质用到的两个字段（半透明 / 单 pass 压缩）。 */
-export interface WallCapMaterial {
+interface WallCapMaterial {
   transparent?: boolean
   forceSinglePass?: boolean
 }
 
 /** 盖面朝向：`up` 顶盖，`down` 洞口过梁底面。 */
-export type WallCapFacing = 'up' | 'down'
+type WallCapFacing = 'up' | 'down'
 
 /** 并集结果：`unionValid` 决定是否退回「更保守」的深度设置（与原顶盖分支同义）。 */
-export interface WallCapShapes {
+interface WallCapShapes {
   shapes: WallCapShape[]
   unionValid: boolean
 }

@@ -99,7 +99,7 @@ export function readCacheEntries(
  *
  * 纯函数，便于在不依赖 IndexedDB 的情况下断言边界（空表、刚好等于上限、全部超限）。
  */
-export function selectEvictions(records: any[], { maxEntries, maxBytes }: any): string[] {
+function selectEvictions(records: any[], { maxEntries, maxBytes }: any): string[] {
   const sorted = [...records].sort((left, right) => left.created - right.created)
   let persistedBytes = sorted.reduce((byteSum, record) => byteSum + record.bytes, 0),
     persistedCount = sorted.length

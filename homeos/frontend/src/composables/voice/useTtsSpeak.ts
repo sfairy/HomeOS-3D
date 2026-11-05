@@ -21,7 +21,7 @@ import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { speakLocal } from '@/shared/voice/utils/local-speech.util'
 
 /** 一次播报实际走过的链路。 */
-export type TtsPath = 'local' | 'ha' | 'skipped'
+type TtsPath = 'local' | 'ha' | 'skipped'
 
 export interface TtsSpeakResult {
   ok: boolean
@@ -29,7 +29,7 @@ export interface TtsSpeakResult {
   path: TtsPath
 }
 
-export interface TtsSpeakOptions {
+interface TtsSpeakOptions {
   mediaPlayer?: string
   mediaPlayers?: string[]
   /** 手动触发：无视总开关与冷却（试听 / 媒体弹窗按钮用） */
@@ -73,7 +73,7 @@ function resolveTtsOutputMode(): 'local' | 'ha' | 'auto' {
 }
 
 /** 总开关：缺省视为开启（与后端 ``ttsEnabled is not False`` 同一口径）。 */
-export function isTtsEnabled(): boolean {
+function isTtsEnabled(): boolean {
   return getConfigSection('voice')?.ttsEnabled !== false
 }
 
@@ -84,7 +84,7 @@ function resolveCooldownMin(): number {
 }
 
 /** 把播报文本归一成冷却键：忽略空白与标点差异，同义内容不重复出声。 */
-export function cooldownKeyOf(text: string): string {
+function cooldownKeyOf(text: string): string {
   return String(text || '')
     .replace(/\s+/g, '')
     .replace(/[，。！？、,.!?;；:：]/g, '')

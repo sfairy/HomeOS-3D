@@ -74,7 +74,7 @@ export interface FloorLightNode {
   removeEventListener?(type: string, listener: (event: FloorChildEvent) => void): void
 }
 
-export interface FloorChildEvent {
+interface FloorChildEvent {
   type: string
   child: FloorLightNode
 }
@@ -110,12 +110,12 @@ export interface FloorSunEntry {
   normalBias: number
 }
 
-export interface FloorLightsThree {
+interface FloorLightsThree {
   Matrix4: new () => FloorMatrix4
   Vector4: new (x: number, y: number, z: number, w: number) => FloorVector4
 }
 
-export interface FloorLightGL {
+interface FloorLightGL {
   UNIFORM_BUFFER: number
   DYNAMIC_DRAW: number
   MAX_UNIFORM_BLOCK_SIZE: number

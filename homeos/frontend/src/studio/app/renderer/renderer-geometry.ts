@@ -1,18 +1,5 @@
 import type { PanelRenderer } from './panel-renderer'
 
-export interface PanelRendererGeometry {
-  componentParentTransform(transformChainComponentId: any): any
-  componentTransformChain(chainStartComponentId: any): any
-  componentWorldTransform(worldTransformComponentId: any): any
-  worldPointToComponentLocal(localPointComponentId: any, worldPointX: any, worldPointY: any): any
-  componentLocalPointToWorld(worldPointComponentKey: any, localPointX: any, localPointY: any): any
-  componentVisualBounds(boundsComponentRecord: any, boundsHostElement?: any): any
-  scaleRecordsBounds(componentSelectionEntries: any): any
-  refreshMultiSelectionBounds(): any
-  updateMultiSelectionHandleScale(multiSelectionHandleElement: any): any
-  appendMultiSelectionBounds(): any
-}
-
 export function componentParentTransform(this: PanelRenderer, transformChainComponentId: any) {
   let ancestorComponentId = this.componentParentIds?.get(transformChainComponentId) || null,
     accumulatedRotation = 0,

@@ -1,5 +1,5 @@
 //: 新建户型时的存档数量：4 个刚好铺满一行，再多用户就得横向滚动。
-export const DEFAULT_EXPORT_PRESET_COUNT = 4
+const DEFAULT_EXPORT_PRESET_COUNT = 4
 export const MAX_EXPORT_PRESET_COUNT = 8
 const allowedFileKindSet = new Set([
   'background',
@@ -131,19 +131,4 @@ export function normalizeActiveExportPresetSlot(
 }
 export function exportPresetIsEmpty(candidatePreset: any, hasPendingValue = false) {
   return !normalizeExportPreset(candidatePreset) && !hasPendingValue
-}
-
-/**
- * 存档摘要：`1920×1080 · 全楼合并 · 透视`（上游同名导出的语义）。
- *
- * 楼名来自调用方给的 `floorNameById`；楼层被改过名或删掉时回落「楼层已变更」，
- * 而不是显示一个已经不存在的名字。
- */
-export function exportPresetSummary(candidatePreset: any, floorNameById = new Map()) {
-  const normalizedPreset = normalizeExportPreset(candidatePreset)
-  if (!normalizedPreset) return '未设置'
-  const floorLabel =
-      normalizedPreset.floorMode === 'all' ? '全楼合并' : floorNameById.get(normalizedPreset.floorId) || '楼层已变更',
-    cameraLabel = normalizedPreset.camera.mode === 'perspective' ? '透视' : '正交'
-  return `${normalizedPreset.width}×${normalizedPreset.height} · ${floorLabel} · ${cameraLabel}`
 }

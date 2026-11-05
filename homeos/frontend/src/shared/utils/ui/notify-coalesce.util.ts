@@ -15,7 +15,7 @@ const DEFAULT_WINDOW_MS = 2000
 const DEFAULT_MAX_TRACKED = 32
 
 /** 一次命中：复用哪张卡片、累加后是第几次。 */
-export interface NotifyCoalesceHit {
+interface NotifyCoalesceHit {
   /** 已存在卡片的 id */
   id: string
   /** 累加后的次数（首条为 1，重复推送为 2、3……） */
@@ -23,7 +23,7 @@ export interface NotifyCoalesceHit {
 }
 
 /** 合并器对外能力 */
-export interface NotifyCoalescer {
+interface NotifyCoalescer {
   /** 记录/命中一条提示；窗口内同键返回命中信息并累加计数，否则返回 null 交给调用方新建。 */
   hit: (type: string, message: string, now?: number) => NotifyCoalesceHit | null
   /** 登记一张新卡片，之后同键推送会合并到它。 */

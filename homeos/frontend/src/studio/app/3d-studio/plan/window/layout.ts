@@ -36,12 +36,12 @@ const MAX_REMARK_TEXT = 60
 /** 撤销栈深度。 */
 const HISTORY_DEPTH = 80
 
-export type WindowKind = (typeof WINDOW_KINDS)[number]
-export type WindowAxis = 'x' | 'y'
-export type WindowHinge = 'left' | 'right'
-export type WindowSwing = 'in' | 'out'
-export type WindowSlide = 'left' | 'right'
-export type WindowMode = 'ordinary' | 'custom'
+type WindowKind = (typeof WINDOW_KINDS)[number]
+type WindowAxis = 'x' | 'y'
+type WindowHinge = 'left' | 'right'
+type WindowSwing = 'in' | 'out'
+type WindowSlide = 'left' | 'right'
+type WindowMode = 'ordinary' | 'custom'
 
 /** 叶子：一片可开启 / 固定的窗扇。 */
 export interface WindowLeaf {
@@ -72,7 +72,7 @@ export interface WindowSplit {
   kind?: undefined
 }
 
-export type WindowNode = WindowSplit | WindowLeaf
+type WindowNode = WindowSplit | WindowLeaf
 
 /** 窗户自带的版式；`ordinary` 是「切回自定义」前的占位树。 */
 export interface WindowDesign {
@@ -100,7 +100,7 @@ export interface WindowRecord {
 }
 
 /** 摊平后的窗格：绝对坐标 + 祖先分隔线 id（由外到内）。 */
-export interface WindowEntry {
+interface WindowEntry {
   node: WindowNode
   x: number
   y: number
@@ -110,7 +110,7 @@ export interface WindowEntry {
 }
 
 /** 一段可单独删除的分隔线。 */
-export interface WindowSegment {
+interface WindowSegment {
   start: number
   end: number
   coordinate: number
@@ -122,13 +122,6 @@ export interface WindowSegment {
 }
 
 /** 一次「删除窗扇」的可撤销快照。 */
-export interface WindowDeletionChange {
-  id: string
-  before: WindowRecord
-  after: WindowRecord
-  remarks: Record<string, string>
-}
-
 const clone = <T>(value: T): T => structuredClone(value)
 
 const id = () => 'sash-' + randomUuid()
@@ -196,7 +189,7 @@ export function changePanelCount(node: WindowLeaf, count: number): void {
 }
 
 /** 由普通窗户生成窗型草稿：已有设计就克隆，否则按「是否显示中间分割」造初始树。 */
-export function createWindowDesign(window: WindowRecord, interiorSide: 1 | -1 = 1): WindowDesign {
+function createWindowDesign(window: WindowRecord, interiorSide: 1 | -1 = 1): WindowDesign {
   if (window.windowDesign) {
     validateWindowDesign(window.windowDesign, window.width, window.height)
     const design = clone(window.windowDesign)
@@ -342,7 +335,7 @@ export function merge(window: WindowRecord, nodeId: string): string | undefined 
  *
  * 不对齐时删除会留下非矩形窗格（3D 里直接是个洞），所以给出可操作的原因。
  */
-export function windowSplitSegments(window: WindowRecord, nodeId: string): WindowSegment[] {
+function windowSplitSegments(window: WindowRecord, nodeId: string): WindowSegment[] {
   const entry = find(window, nodeId)
   if (!entry?.node.children) return []
   const vertical = (entry.node as WindowSplit).axis === 'x'
@@ -596,119 +589,6 @@ export function validateWindowDesign(design: WindowDesign | undefined, width: nu
 /** 校验一扇窗户（带 `windowDesign` 才校验）。 */
 export function validateWindowRecord(window: WindowRecord): void {
   if (window.windowDesign !== undefined) validateWindowDesign(window.windowDesign, window.width, window.height)
-}
-
-/** 墙体方向翻转时，窗型的内外朝向要跟着翻。 */
-export function remapWindowOrientation(window: WindowRecord, beforeWall: any, afterWall: any): WindowRecord {
-  if (window.windowDesign?.version !== 1) return window
-  const dot =
-    (beforeWall.end.x - beforeWall.start.x) * (afterWall.end.x - afterWall.start.x) +
-    (beforeWall.end.y - beforeWall.start.y) * (afterWall.end.y - afterWall.start.y)
-  return dot >= 0
-    ? window
-    : {
-        ...window,
-        windowDesign: {
-          ...clone(window.windowDesign),
-          wallDirection: -((window.windowDesign.wallDirection ?? 1) as 1 | -1) as 1 | -1,
-        },
-      }
-}
-
-/** 可绑定的窗扇目标（开窗器 / 窗磁用）。 */
-export function windowSashTargets(window: WindowRecord): { id: string; groupId: string; kind: WindowKind }[] {
-  return isCustomWindow(window)
-    ? entries(window)
-        .filter((entry) => !entry.node.children && (entry.node as WindowLeaf).kind !== 'fixed')
-        .flatMap(({ node }) =>
-          (node as WindowLeaf).kind === 'sliding'
-            ? [node.id, ...(node as WindowLeaf).panelIds].map((sashId) => ({
-                id: sashId,
-                groupId: node.id,
-                kind: (node as WindowLeaf).kind,
-              }))
-            : [{ id: node.id, groupId: node.id, kind: (node as WindowLeaf).kind }],
-        )
-    : []
-}
-
-const windowSnapshot = (window: WindowRecord): WindowRecord => ({
-  id: window.id,
-  width: window.width,
-  height: window.height,
-  t: window.t,
-  windowDesign: Object.fromEntries(
-    Object.entries(window.windowDesign || {}).filter(([key]) => key !== 'sashRemarks'),
-  ) as unknown as WindowDesign,
-})
-
-/**
- * 对比一次删除前后的窗户：删掉窗扇时顺带记下它们的备注，撤销时能一起还原。
- * 没有窗扇被删时返回 null。
- */
-export function windowDeletionChange(
-  beforeWindow: WindowRecord,
-  afterWindow: WindowRecord,
-): WindowDeletionChange | null {
-  const remainingIds = new Set(windowSashTargets(afterWindow).map((target) => target.id))
-  if (!windowSashTargets(beforeWindow).some((target) => !remainingIds.has(target.id))) return null
-  const remarks = Object.fromEntries(
-    windowSashTargets(beforeWindow)
-      .filter((target) => !remainingIds.has(target.id))
-      .filter((target) => Object.hasOwn(beforeWindow.windowDesign!.sashRemarks || {}, target.id))
-      .map((target) => [target.id, beforeWindow.windowDesign!.sashRemarks![target.id]]),
-  )
-  return {
-    id: beforeWindow.id,
-    before: clone(windowSnapshot(beforeWindow)),
-    after: clone(windowSnapshot(afterWindow)),
-    remarks,
-  }
-}
-
-/**
- * 撤销一次删除：把 `current` 里「仍是删除后状态」的字段改回删除前。
- *
- * 三方合并（current / before / after）：用户如果已经再次修改过这片结构，
- * 就拒绝撤销（提示先撤销那些改动），避免把两次编辑搅在一起。
- */
-export function restoreWindowDeletion(current: WindowRecord, change: WindowDeletionChange): WindowRecord {
-  const equal = (left: any, right: any) => JSON.stringify(left) === JSON.stringify(right)
-  function merge(currentValue: any, beforeValue: any, afterValue: any): any {
-    if (equal(beforeValue, afterValue) || equal(currentValue, beforeValue)) return currentValue
-    if (equal(currentValue, afterValue)) return clone(beforeValue)
-    if (
-      currentValue &&
-      beforeValue &&
-      afterValue &&
-      typeof currentValue === 'object' &&
-      typeof beforeValue === 'object' &&
-      typeof afterValue === 'object' &&
-      Array.isArray(currentValue) === Array.isArray(beforeValue) &&
-      Array.isArray(beforeValue) === Array.isArray(afterValue) &&
-      (!Array.isArray(beforeValue) ||
-        (beforeValue.length === afterValue.length && currentValue.length === beforeValue.length)) &&
-      beforeValue.id === afterValue.id &&
-      currentValue.id === afterValue.id
-    ) {
-      const merged = clone(currentValue)
-      for (const key of new Set([...Object.keys(beforeValue), ...Object.keys(afterValue)])) {
-        const value = merge(currentValue[key], beforeValue[key], afterValue[key])
-        if (value === undefined) delete merged[key]
-        else merged[key] = value
-      }
-      return merged
-    }
-    throw Error('相关窗扇结构已再次修改，请先撤销这些改动，再撤销删除。')
-  }
-  const restored = merge(current, change.before, change.after)
-  if (Object.keys(change.remarks || {}).length)
-    restored.windowDesign.sashRemarks = {
-      ...change.remarks,
-      ...restored.windowDesign.sashRemarks,
-    }
-  validateWindowRecord(restored)
-  return restored
 }
 
 /** 窗型编辑器的撤销栈（按整份窗户快照存，深度 80）。 */

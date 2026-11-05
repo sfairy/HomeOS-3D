@@ -28,14 +28,14 @@ import type { FloorLightNode, FloorMatrix4 } from './studio-floor-lights'
 import { objectFloorId } from './studio-floor-lights'
 
 /** 阴影裁剪矩形（像素坐标，左上原点）。 */
-export interface ShadowCrop {
+interface ShadowCrop {
   x: number
   y: number
   width: number
   height: number
 }
 
-export interface ShadowCropPlan {
+interface ShadowCropPlan {
   /** 对齐后的统一裁剪宽度（所有层共用）。 */
   width: number
   /** 对齐后的统一裁剪高度（所有层共用）。 */
@@ -53,7 +53,7 @@ interface ShadowPoint {
   applyMatrix4(matrix: unknown): ShadowPoint
 }
 
-export interface ShadowBox3 {
+interface ShadowBox3 {
   min: ShadowPoint
   max: ShadowPoint
   isEmpty(): boolean
@@ -64,12 +64,12 @@ export interface ShadowBox3 {
 }
 
 /** `THREE.Vector4` 的最小契约（裁剪 UV）。 */
-export interface ShadowVector4 {
+interface ShadowVector4 {
   toArray(array: unknown, offset?: number): number[]
 }
 
 /** 投影物体（网格 / 实例化网格 / 蒙皮网格）。 */
-export interface FloorShadowObject {
+interface FloorShadowObject {
   isInstancedMesh?: boolean
   isSkinnedMesh?: boolean
   isMesh?: boolean
@@ -89,7 +89,7 @@ export interface FloorShadowObject {
 }
 
 /** 一个楼层的阴影源。 */
-export interface FloorShadowSource {
+interface FloorShadowSource {
   id: string
   anchor: FloorLightNode
   bounds: ShadowBox3
@@ -118,7 +118,7 @@ interface ShadowVec2 {
   y: number
 }
 
-export interface FloorShadowThree {
+interface FloorShadowThree {
   Matrix4: new () => FloorMatrix4
   Vector4: new (
     x?: number,
@@ -143,13 +143,13 @@ export interface FloorShadowThree {
   LinearFilter: number
 }
 
-export interface ShadowRenderTarget {
+interface ShadowRenderTarget {
   texture?: unknown
   depth?: number
   dispose(): void
 }
 
-export interface ShadowArrayRenderTarget extends ShadowRenderTarget {
+interface ShadowArrayRenderTarget extends ShadowRenderTarget {
   texture: { generateMipmaps?: boolean }
   depth: number
 }
@@ -179,7 +179,7 @@ export interface FloorDirectionalLight extends Omit<FloorLightNode, 'target'> {
   updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void
 }
 
-export interface ShadowRenderer {
+interface ShadowRenderer {
   getRenderTarget(): unknown
   getActiveCubeFace?(): number
   getActiveMipmapLevel?(): number
@@ -198,7 +198,7 @@ export interface ShadowRenderer {
   copyTextureToTexture(source: unknown, target: unknown, sourceBox: unknown, targetOrigin: unknown): void
 }
 
-export interface FloorDirectionalShadowOptions {
+interface FloorDirectionalShadowOptions {
   THREE: FloorShadowThree
   renderer: ShadowRenderer
   scene: { updateMatrixWorld(force: boolean): void; traverse(callback: (node: FloorShadowObject) => void): void }

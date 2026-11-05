@@ -15,7 +15,7 @@ import { createButtonSound } from '../shared/sound-effects'
 import type { DomControl } from '@app/shared/util/dom-control'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 
-export function syncAppleDisplaySurface(boardConfig: any, env = window) {
+function syncAppleDisplaySurface(boardConfig: any, env = window) {
   const { document: documentNode, navigator: nav } = env,
     isIosDevice =
       /iPad|iPhone|iPod/i.test(nav.userAgent || '') ||

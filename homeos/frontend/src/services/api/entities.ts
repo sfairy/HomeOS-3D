@@ -109,11 +109,6 @@ export function fetchHaHistory(entityId: string, hours: number, config?: AxiosRe
   })
 }
 
-/** 重试已丢弃的 HA 命令（队列重投）。 */
-export function retryDroppedHaCommands(config?: AxiosRequestConfig) {
-  return apiPost('/ha/queue/retry', {}, config)
-}
-
 /**
  * 直接问后端「HA 现在连上了吗」。
  *

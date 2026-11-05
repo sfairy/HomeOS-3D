@@ -192,7 +192,7 @@ export function createIndoorAssetDescriptor(indoorAssetId: any, indoorAssetScale
   })
 }
 /** 立柱的原生占位：方柱 / 圆 / 1/4 圆都是 0.45 见方，半圆柱只有半深（见下）。 */
-export const PILLAR_SCALE_BASIS = Object.freeze([0.45, 2.8, 0.45])
+const PILLAR_SCALE_BASIS = Object.freeze([0.45, 2.8, 0.45])
 /**
  * 半圆柱的原生占位：真半圆的深度只能是半宽，`0.45 × 0.225 × 2.8`。
  *

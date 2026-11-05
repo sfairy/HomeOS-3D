@@ -10,7 +10,7 @@
  */
 
 /** 一条回放用的附件（只用 URL，不落任何凭证） */
-export type AgentChatStoredAttachment = {
+type AgentChatStoredAttachment = {
   kind: 'image'
   url: string
   entityId?: string
@@ -18,7 +18,7 @@ export type AgentChatStoredAttachment = {
 }
 
 /** 可序列化的一条消息：只保留历史回放需要的字段 */
-export type AgentChatStoredMessage = {
+type AgentChatStoredMessage = {
   role: 'user' | 'assistant'
   text: string
   tools?: string
@@ -38,7 +38,7 @@ export type AgentChatSession = {
 /** 历史里最多保留几段会话 */
 export const AGENT_CHAT_HISTORY_LIMIT = 8
 /** 单段会话最多回放多少条消息 */
-export const AGENT_CHAT_HISTORY_MESSAGE_LIMIT = 40
+const AGENT_CHAT_HISTORY_MESSAGE_LIMIT = 40
 
 const HISTORY_KEY = 'homeos.agent.chat.history.v1'
 const CURRENT_KEY = 'homeos.agent.chat.current.v1'

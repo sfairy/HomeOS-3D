@@ -64,7 +64,7 @@ function coneSolidAngle(beamAngleDeg: number) {
  * 假设光通量在圆锥内均匀分布：I = Φ / Ω，Ω = 2π(1 - cos(θ/2))。
  * 这是灯具手册里「坎德拉 @ 光束角」的算法，也是 Three.js `SpotLight.intensity` 的单位。
  */
-export function candelaFromFlux(fluxLumens: number, beamAngleDeg: number) {
+function candelaFromFlux(fluxLumens: number, beamAngleDeg: number) {
   return Math.max(finite2(fluxLumens, 0), 0) / coneSolidAngle(beamAngleDeg)
 }
 
@@ -75,7 +75,7 @@ export function candelaFromFlux(fluxLumens: number, beamAngleDeg: number) {
  * 灯带的光通量按长度给（`lightFluxLumens.striplight`），长度取发光面长边，
  * 于是「灯带越长 / 越宽」自然越亮，不再是一个和尺寸无关的常量 48。
  */
-export function rectAreaLuminanceFromFlux(fluxPerMeter: number, lengthMeters: number, widthMeters: number) {
+function rectAreaLuminanceFromFlux(fluxPerMeter: number, lengthMeters: number, widthMeters: number) {
   const area = Math.max(finite2(lengthMeters, 0.1) * finite2(widthMeters, 0.1), 1e-3)
   return (Math.max(finite2(fluxPerMeter, 0), 0) * Math.max(finite2(lengthMeters, 0.1), 0.1)) / (Math.PI * area)
 }
@@ -105,7 +105,7 @@ const lightRenderCalibrationReference = Object.freeze({
   striplight: { fluxPerMeter: 350, lengthMeters: 2 * 0.94, widthMeters: 0.28 * 0.94, renderValue: 48 },
 })
 
-export const lightRenderGain: Readonly<Record<string, number>> = Object.freeze({
+const lightRenderGain: Readonly<Record<string, number>> = Object.freeze({
   downlight:
     lightRenderCalibrationReference.downlight.renderValue /
     candelaFromFlux(
@@ -217,7 +217,7 @@ const ROOM_KELVIN_RULES: ReadonlyArray<{ kelvin: number; pattern: RegExp }> = Ob
 ])
 
 /** 按灯组名取建议色温；没命中任何房间关键词时返回 null（保持原值）。 */
-export function roomLightKelvin(lightGroupName: unknown): number | null {
+function roomLightKelvin(lightGroupName: unknown): number | null {
   const groupName = typeof lightGroupName === 'string' ? lightGroupName : ''
   if (!groupName) return null
   for (const rule of ROOM_KELVIN_RULES) if (rule.pattern.test(groupName)) return rule.kelvin

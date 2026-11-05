@@ -83,9 +83,9 @@ export function contrastRatio(
 }
 
 /** 强调色在深色画布上的最低对比度（非文本控件 / 焦点环，WCAG 1.4.11）。 */
-export const ACCENT_MIN_SURFACE_CONTRAST = 3
+const ACCENT_MIN_SURFACE_CONTRAST = 3
 /** 强调色本身作为文字、或强调底上的文字所需的最低对比度（WCAG 1.4.3）。 */
-export const ACCENT_MIN_TEXT_CONTRAST = 4.5
+const ACCENT_MIN_TEXT_CONTRAST = 4.5
 
 /**
  * 把后台 `ui.accentColor` 收敛到可读范围。

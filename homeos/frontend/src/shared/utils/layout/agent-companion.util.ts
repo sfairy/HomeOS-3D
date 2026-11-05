@@ -10,13 +10,13 @@ import type { AgentCompanionConfig } from '@/shared/types/layout'
 /** 机器人直径（px），与 AgentCompanion.vue 的 .companion-root / .companion-trigger 一致 */
 export const AGENT_COMPANION_FACE_SIZE = 66
 /** 离屏最小间距（px） */
-export const AGENT_COMPANION_EDGE_GAP = 14
+const AGENT_COMPANION_EDGE_GAP = 14
 /** 旧版垂直停靠高度的允许区间（与设置页滑块一致） */
-export const AGENT_COMPANION_MIN_TOP = 15
-export const AGENT_COMPANION_MAX_TOP = 85
+const AGENT_COMPANION_MIN_TOP = 15
+const AGENT_COMPANION_MAX_TOP = 85
 
 /** 默认配置：贴左停靠、垂直 60%（与 stores/defaults.ts 同源） */
-export const DEFAULT_AGENT_COMPANION: AgentCompanionConfig = {
+const DEFAULT_AGENT_COMPANION: AgentCompanionConfig = {
   enabled: true,
   side: 'left',
   topPercent: 60,
@@ -81,7 +81,7 @@ export function resolveAgentCompanionStageSize(): { width: number; height: numbe
 }
 
 /** 解析旧版停靠配置对应的视口百分比中心点（与组件渲染同一口径） */
-export function resolveAgentCompanionFallback(
+function resolveAgentCompanionFallback(
   config: AgentCompanionConfig,
   deps: {
     panelPosition?: string

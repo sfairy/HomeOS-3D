@@ -19,31 +19,6 @@ export const windowModelId = (windowId: unknown, sashId: unknown): string =>
   'window:' + encodeURIComponent(String(windowId)) + ':' + encodeURIComponent(String(sashId))
 
 /**
- * 选择器上的提示文案：这个窗扇是否已经被开窗器 / 窗磁占用。
- *
- * `kind` 取 `window-opener`（开窗器）或 `window`（安防窗户传感器）。
- */
-export function windowBindingHint(model: any, floorId: unknown, kind: string, floorConfig: any): string {
-  if (!model || !['window-opener', 'window'].includes(kind)) return ''
-  const modelIds = new Set<string>([
-    model.modelId || model.id,
-    ...(model.legacyModels || []).map((legacyModel: any) => legacyModel.modelId || legacyModel.id),
-  ])
-  const isOpener = kind === 'window-opener'
-  const bindings: any[] = (isOpener ? floorConfig?.security?.windows : floorConfig?.environment?.windowOpeners) || []
-  return bindings.some(
-    (binding) =>
-      binding.floorId === floorId &&
-      modelIds.has(binding.modelId) &&
-      (isOpener ? binding.doorEntityId : binding.entityId),
-  )
-    ? isOpener
-      ? '已配安防窗户传感器'
-      : '已配开窗器'
-    : ''
-}
-
-/**
  * 列出一层楼里所有可绑定的窗扇。
  *
  * `includeLegacy` 为真时把推拉组的历史面板模型也摊平进结果（老配置需要它们才能显示名字），

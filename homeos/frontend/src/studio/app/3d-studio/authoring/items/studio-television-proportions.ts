@@ -10,7 +10,7 @@
  * 上限**等比**回收（`fitScale`），机身始终 = 屏幕高 / 0.94。
  */
 /** 只读 `tvMountStyle` 一档：给结构类型而非宽类型，安装方式打错字时编译期就能发现。 */
-export interface TelevisionMountItem {
+interface TelevisionMountItem {
   tvMountStyle?: string
 }
 

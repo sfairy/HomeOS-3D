@@ -4,7 +4,7 @@
  * 只列「长期稳定」的神经音色：微软会不定期下线旧音色，列表太长反而让用户选到
  * 已经不可用的名字。`value` 是直接塞进 SSML `<voice name>` 的完整音色名。
  */
-export interface EdgeVoiceOption {
+interface EdgeVoiceOption {
   /** SSML 音色名 */
   value: string
   /** 展示名 */
@@ -14,7 +14,7 @@ export interface EdgeVoiceOption {
 }
 
 /** 中文神经音色（大陆普通话为主，含少量方言与港台） */
-export const EDGE_VOICES_ZH: EdgeVoiceOption[] = [
+const EDGE_VOICES_ZH: EdgeVoiceOption[] = [
   { value: 'zh-CN-XiaoxiaoNeural', label: '晓晓', hint: '女声 · 温暖亲和（默认）' },
   { value: 'zh-CN-XiaoyiNeural', label: '晓伊', hint: '女声 · 活泼' },
   { value: 'zh-CN-YunxiNeural', label: '云希', hint: '男声 · 阳光' },
@@ -28,17 +28,17 @@ export const EDGE_VOICES_ZH: EdgeVoiceOption[] = [
 ]
 
 /** 英文神经音色（双语家庭 / 英文界面时可用） */
-export const EDGE_VOICES_EN: EdgeVoiceOption[] = [
+const EDGE_VOICES_EN: EdgeVoiceOption[] = [
   { value: 'en-US-AriaNeural', label: 'Aria', hint: 'Female · US' },
   { value: 'en-US-GuyNeural', label: 'Guy', hint: 'Male · US' },
   { value: 'en-GB-SoniaNeural', label: 'Sonia', hint: 'Female · UK' },
 ]
 
 /** 全部音色（下拉框按分组渲染用） */
-export const EDGE_VOICES: EdgeVoiceOption[] = [...EDGE_VOICES_ZH, ...EDGE_VOICES_EN]
+const EDGE_VOICES: EdgeVoiceOption[] = [...EDGE_VOICES_ZH, ...EDGE_VOICES_EN]
 
 /** OpenAI 兼容引擎的常用音色 */
-export const OPENAI_VOICES: EdgeVoiceOption[] = [
+const OPENAI_VOICES: EdgeVoiceOption[] = [
   { value: 'alloy', label: 'alloy', hint: '中性' },
   { value: 'echo', label: 'echo', hint: '男声' },
   { value: 'fable', label: 'fable', hint: '英式' },

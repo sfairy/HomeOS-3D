@@ -9,7 +9,7 @@
  */
 
 /** 备注最长 60 字（与选择入口的单行显示宽度一致）。 */
-export const MODEL_REMARK_MAX_LENGTH = 60
+const MODEL_REMARK_MAX_LENGTH = 60
 
 /** 带备注的集合：物件 / 门 / 窗户（窗户还带每个窗格的 `sashRemarks`）。 */
 const MODEL_REMARK_COLLECTION_KEYS = ['items', 'doors', 'windows'] as const

@@ -9,7 +9,7 @@ type DisposableLike = { dispose?: () => void }
 type RendererLike = DisposableLike & { forceContextLoss?: () => void }
 
 /** teardown 需要回收的 three.js 句柄（`appCtx` 的子集）。 */
-export type StudioRendererHandles = {
+type StudioRendererHandles = {
   orbitControls?: DisposableLike | null
   contextResources?: DisposableLike | null
   threeRenderer?: RendererLike | null

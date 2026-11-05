@@ -28,7 +28,7 @@ export interface WallVolumeSlice {
 }
 
 /** 主题里墙用到的三档颜色（`backgroundSettings()` 的墙分支）。 */
-export interface WallLevelTint {
+interface WallLevelTint {
   wall: number
   wallTop: number
   accent: number
@@ -36,7 +36,7 @@ export interface WallLevelTint {
 }
 
 /** 注入的墙带构建器（见文件头说明：避免运行时循环依赖）。 */
-export type BuildWallBandMesh = (
+type BuildWallBandMesh = (
   deps: StudioWallsDeps,
   loops: WallCapLoop[][],
   baseHeight: number,
@@ -58,12 +58,12 @@ export interface WallLevelContext {
 }
 
 /** 最底层墙带的下沿：楼板面在 0 以下时把墙补到楼板里，其余层原样。 */
-export function resolveWallBandBaseHeight(lowerWallLevel: number, floorSurfaceY: number) {
+function resolveWallBandBaseHeight(lowerWallLevel: number, floorSurfaceY: number) {
   return lowerWallLevel <= LEVEL_EPSILON ? Math.min(lowerWallLevel, floorSurfaceY) : lowerWallLevel
 }
 
 /** 取横跨本层中线的体块（同高层的墙才会出现在这里）。 */
-export function collectLevelVolumes(wallVolumes: WallVolumeSlice[], lowerWallLevel: number, upperWallLevel: number) {
+function collectLevelVolumes(wallVolumes: WallVolumeSlice[], lowerWallLevel: number, upperWallLevel: number) {
   const midWallLevel = (lowerWallLevel + upperWallLevel) / 2
   return wallVolumes.filter(
     (wallVolume) => midWallLevel > wallVolume.bottom - LEVEL_EPSILON && midWallLevel < wallVolume.top + LEVEL_EPSILON,
@@ -71,7 +71,7 @@ export function collectLevelVolumes(wallVolumes: WallVolumeSlice[], lowerWallLev
 }
 
 /** 按透明度分组：不同透明度的墙要各自一套材质，不然半透明墙会被不透明墙带偏。 */
-export function groupWallVolumesByOpacity(levelVolumes: WallVolumeSlice[]) {
+function groupWallVolumesByOpacity(levelVolumes: WallVolumeSlice[]) {
   const groups = new Map<string, { opacity: number; volumes: WallVolumeSlice[] }>()
   for (const wallVolume of levelVolumes) {
     const groupKey = wallVolume.opacity.toFixed(4),
@@ -89,7 +89,7 @@ export function groupWallVolumesByOpacity(levelVolumes: WallVolumeSlice[]) {
  * 下边界额外排除贴着地面的体块（`bottom > 0`）：地面那侧由接触阴影和楼板负责，
  * 再补一层朝下的面片只会在视线高度糊一条暗带。
  */
-export function levelFootprintsAt(volumes: WallVolumeSlice[], height: number, edge: 'top' | 'bottom') {
+function levelFootprintsAt(volumes: WallVolumeSlice[], height: number, edge: 'top' | 'bottom') {
   return volumes
     .filter((wallVolume) =>
       edge === 'top'

@@ -4,7 +4,7 @@ import { sha256 } from '../bridge/scene/sha256'
 const RECOVERY_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/
 /** `saveAttempts` 上限（上游同款：超过 16 条时保留第一条 + 最近 14 条）。 */
 const MAX_RECOVERY_SAVE_ATTEMPTS = 16
-export function recoveryFingerprint(recoveryDocument: any) {
+function recoveryFingerprint(recoveryDocument: any) {
   return sha256(documentSignature(recoveryDocument))
 }
 export function createRecoveryWriter(

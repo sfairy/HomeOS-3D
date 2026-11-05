@@ -38,19 +38,6 @@ export function previewIssues(): PreviewIssue[] {
   return issueStore().slice()
 }
 
-export function clearPreviewIssues(): void {
-  issueStore().length = 0
-  sequence = 0
-  const element = statusElement()
-  if (element) {
-    element.hidden = true
-    element.textContent = ''
-    element.title = ''
-    delete element.dataset.previewIssues
-    delete element.dataset.previewIssueCount
-  }
-}
-
 function statusElement(): HTMLElement | null {
   return typeof document === 'undefined'
     ? null
@@ -112,17 +99,4 @@ export function messageOfPreviewError(error: unknown): string {
     return error.message || error.name
   }
   return String(error ?? '未知错误')
-}
-
-/**
- * 渲染统计的空场兜底：`renderTriangles === 0` 说明这一帧什么都没画出来
- * （模型没挂上、被裁掉、材质全透明）。只记一次，避免每帧刷屏。
- */
-export function reportBlankFrame(itemType: string, url?: string): void {
-  reportPreviewIssue({
-    stage: 'render',
-    itemType: itemType || 'scene',
-    url,
-    message: '帧内三角面为 0：模型未挂入场景、被相机裁掉或材质全透明',
-  })
 }

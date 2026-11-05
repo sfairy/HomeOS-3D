@@ -29,13 +29,13 @@ export interface PreviewScopeOptions {
   isCourtyardItem: (item: SceneItemLike) => boolean
 }
 
-export interface SceneItemLike {
+interface SceneItemLike {
   id?: string
   type?: string
   [key: string]: unknown
 }
 
-export interface SceneEntryLike {
+interface SceneEntryLike {
   id?: string
   kind?: string
   [key: string]: unknown
@@ -72,7 +72,7 @@ export function entriesPreviewScope(
   return lightItemCount === matchedItems.length ? 'lights' : lightItemCount === 0 ? 'items' : 'all'
 }
 
-export interface SelectionScopeOptions extends Pick<PreviewScopeOptions, 'lightTypes'> {
+interface SelectionScopeOptions extends Pick<PreviewScopeOptions, 'lightTypes'> {
   /** 庭院图元的判定与作用域；不传时按普通物品处理。 */
   isCourtyardItem?: (item: SceneItemLike) => boolean
   courtyardScope?: () => PreviewScope
@@ -106,7 +106,7 @@ export function selectionPreviewScope(
   return lightHighlightCount === highlightItems.length ? 'lights' : lightHighlightCount === 0 ? 'items' : 'all'
 }
 
-export interface HistoryScopeOptions {
+interface HistoryScopeOptions {
   itemScope: (item: SceneItemLike) => PreviewScope
   selectionScope: () => PreviewScope | null
 }

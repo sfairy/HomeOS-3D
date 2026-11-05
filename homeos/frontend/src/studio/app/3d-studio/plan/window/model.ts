@@ -24,7 +24,7 @@ import {
 } from './layout'
 
 /** 可动件的行程：旋转（铰链）或平移（推拉）。 */
-export interface WindowMotion {
+interface WindowMotion {
   object: any
   axis?: 'x' | 'y'
   angle?: number
@@ -35,9 +35,9 @@ export interface WindowMotion {
 }
 
 /** `addBoxes` 的签名 = 舞台的 `addArchitectureMesh(parent, parts, color, options)`。 */
-export type WindowBoxAdder = (parent: any, parts: any[], color: unknown, options?: any) => any
+type WindowBoxAdder = (parent: any, parts: any[], color: unknown, options?: any) => any
 
-export interface CustomWindowOptions {
+interface CustomWindowOptions {
   group: any
   window: WindowRecord
   /** 材质色板（`windowFrame` / `furniture` / `glass` / `accent` / `applianceDark`）。 */
@@ -60,7 +60,7 @@ export interface CustomWindowOptions {
  * 铰链轴与旋转角：返回 `pivot`（相对窗格中心的偏移）、`center`（窗格中心相对枢轴）
  * 与 `angle`（弧度，带正负方向）。
  */
-export function windowHinge(
+function windowHinge(
   leaf: WindowLeaf,
   width: number,
   height: number,

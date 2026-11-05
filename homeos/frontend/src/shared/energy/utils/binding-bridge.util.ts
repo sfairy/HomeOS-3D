@@ -15,7 +15,7 @@
  * 实体 ID、多账户模式下的多块表，后端都只能认一块，硬同步会把统计指到错的表上。
  */
 
-export type PanelEnergyBinding = {
+type PanelEnergyBinding = {
   /** 面板这一侧能否唯一、忠实地映射为 `config.energy.meterEntityId` */
   expressible: boolean
   /** 面板当前的主电表（不可表达时仍返回主行，供提示文案使用） */

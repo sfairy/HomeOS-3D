@@ -17,7 +17,7 @@ interface SetupWizardStepStatus {
 }
 
 /** 能源绑定现状（后端算好的口径与粒度覆盖，前端只展示不猜规则） */
-export interface SetupWizardEnergyBinding {
+interface SetupWizardEnergyBinding {
   meterEntityId: string
   meterScope: EnergyMeterScope
   scopeResetLabel: string
@@ -47,7 +47,7 @@ export interface SetupWizardStatus {
 export type EnergyEntityKind = 'energy' | 'power' | 'other'
 
 /** 实体类型描述（由后端 attributes 判定，供能源绑定给出即时反馈） */
-export interface EntityTypeInfo {
+interface EntityTypeInfo {
   kind: EnergyEntityKind
   deviceClass: string
   unit: string

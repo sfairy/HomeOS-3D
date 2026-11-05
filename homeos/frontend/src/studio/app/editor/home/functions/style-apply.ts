@@ -635,7 +635,7 @@ export function onAssetOptionsClick(deps: StyleApplyDeps, assetOptionsClickEvent
 }
 
 /** 样式应用会话需要清理的 5 张 baseline 缓存（0.8.1 同款集合）。 */
-export interface StyleApplyBaselineMaps {
+interface StyleApplyBaselineMaps {
   airConditionerBaselineByComponentId: Map<unknown, unknown>
   iconButtonBaselineByComponentId: Map<unknown, unknown>
   iconButtonEffectBaselineByComponentId: Map<unknown, unknown>
@@ -643,7 +643,7 @@ export interface StyleApplyBaselineMaps {
   panelFrameBaselineByComponentId: Map<unknown, unknown>
 }
 
-export interface StyleApplyBaselineDeps extends StyleApplyBaselineMaps {
+interface StyleApplyBaselineDeps extends StyleApplyBaselineMaps {
   editorCtx: EditorContext
 }
 

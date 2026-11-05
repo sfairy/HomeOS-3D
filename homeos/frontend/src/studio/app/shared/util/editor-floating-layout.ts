@@ -15,7 +15,7 @@
  * （`floatingVisibilityProblem` / `clampFloatingRect`），单测不需要 DOM 布局。
  */
 
-export interface FloatingRect {
+interface FloatingRect {
   left: number
   top: number
   right: number
@@ -24,14 +24,14 @@ export interface FloatingRect {
   height: number
 }
 
-export interface FloatingViewport {
+interface FloatingViewport {
   left: number
   top: number
   right: number
   bottom: number
 }
 
-export interface FloatingClampOptions {
+interface FloatingClampOptions {
   anchorRect: FloatingRect
   panelWidth: number
   panelHeight: number
@@ -44,7 +44,7 @@ export interface FloatingClampOptions {
   preferAbove?: boolean
 }
 
-export interface FloatingPlacement {
+interface FloatingPlacement {
   left: number
   top: number
   width: number
@@ -146,7 +146,7 @@ export function clampFloatingRect({
 }
 
 /** 从锚点/主题根节点抄一份颜色变量给挂在 body 上的浮层。 */
-export function applyFloatingColorVariables(
+function applyFloatingColorVariables(
   panel: HTMLElement,
   anchor: HTMLElement | null | undefined,
   ownerDocument: Document = globalThis.document,
@@ -162,7 +162,7 @@ export function applyFloatingColorVariables(
 }
 
 /** 锚点不可见时直接把浮层收起；返回 `false` 表示调用方应提前 return。 */
-export function hideIfFloatingUnavailable(
+function hideIfFloatingUnavailable(
   anchor: HTMLElement | null | undefined,
   panel: HTMLElement,
   ownerDocument: Document = anchor?.ownerDocument || globalThis.document,
@@ -173,7 +173,7 @@ export function hideIfFloatingUnavailable(
   return false
 }
 
-export interface FloatingMenuOptions {
+interface FloatingMenuOptions {
   anchor: HTMLElement
   panel: HTMLElement
   /** 滚动区（`*-options`），按面板可用高度减去表头预留。 */
@@ -249,7 +249,7 @@ export function positionFloatingMenu({
   return true
 }
 
-export interface FloatingLayoutOptions {
+interface FloatingLayoutOptions {
   anchor: HTMLElement
   panel: HTMLElement
   document?: Document
@@ -430,7 +430,7 @@ export function createFloatingLayout({
 }
 
 /** 缩放空间：`transform` 容器里「视口坐标 ↔ 容器布局坐标」的换算（0.8.1 `editorFloatingSpace`）。 */
-export interface FloatingSpace {
+interface FloatingSpace {
   /** 视口坐标 → 容器布局坐标。 */
   point(left: number, top: number): { left: number; top: number }
   /** 视口矩形 → 容器布局矩形。 */
@@ -440,7 +440,7 @@ export interface FloatingSpace {
   bounds: FloatingRect
 }
 
-export interface FloatingSpaceMeasurement {
+interface FloatingSpaceMeasurement {
   originLeft: number
   originTop: number
   scaleX: number
@@ -491,7 +491,7 @@ function ratio(value: unknown, fallback = 1) {
  * `rect.width / offsetWidth`。只有把这个比例和容器原点一起带出来，
  * 菜单才能既不偏移也不变形。
  */
-export function editorFloatingSpace(element: HTMLElement): FloatingSpace {
+function editorFloatingSpace(element: HTMLElement): FloatingSpace {
   const ownerDocument = element.ownerDocument || globalThis.document,
     view = ownerDocument.defaultView,
     visualViewport = view?.visualViewport,
@@ -559,7 +559,7 @@ export function editorFloatingSpace(element: HTMLElement): FloatingSpace {
   })
 }
 
-export interface ScaledPopupPlacementInput {
+interface ScaledPopupPlacementInput {
   anchorRect: FloatingRect
   bounds: FloatingViewport
   /** 锚点的视觉缩放（`rect.width / offsetWidth`）。 */
@@ -573,7 +573,7 @@ export interface ScaledPopupPlacementInput {
   gap?: number
 }
 
-export interface ScaledPopupPlacement {
+interface ScaledPopupPlacement {
   left: number
   top: number
   /** 布局宽度（写进 `style.width`，视觉宽度 = width × scaleX）。 */
@@ -637,7 +637,7 @@ export function scaledPopupPlacement({
   }
 }
 
-export interface ScaledPopupMenuOptions {
+interface ScaledPopupMenuOptions {
   minWidth?: number
   maxHeight?: number
   margin?: number

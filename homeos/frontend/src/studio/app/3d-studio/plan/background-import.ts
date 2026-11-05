@@ -1,5 +1,5 @@
 /** 背景图上限：总像素 1000 万、单边 8192（与上游 `background-import` 同口径）。 */
-export const BACKGROUND_MAX_PIXELS = 10000000,
+const BACKGROUND_MAX_PIXELS = 10000000,
   BACKGROUND_MAX_DIMENSION = 8192
 
 function createCodedError(errorMessage: any, errorCode: any) {
@@ -7,7 +7,7 @@ function createCodedError(errorMessage: any, errorCode: any) {
     code: errorCode,
   })
 }
-export function backgroundTargetSize(sourceWidth: any, sourceHeight: any) {
+function backgroundTargetSize(sourceWidth: any, sourceHeight: any) {
   if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0)
     throw createCodedError('无法读取图片尺寸，请另存为 PNG/JPG 后重试。', 'IMAGE_DIMENSIONS')
   const scaleFactor = Math.min(
