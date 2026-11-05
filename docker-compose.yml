@@ -88,6 +88,20 @@ services:
       - homeos-client-keys:/data/client-keys
     networks:
       - homeos-net
+    # ── 资源与日志上限（性能报告 B1）──────────────────────────────────────────
+    # 依据：实测稳态 RSS ~157MB（应用 / 商店同镜像族）。内存给 ~3 倍余量，防止泄漏式增长撞满
+    # 宿主；cpus 限单核（商店是轻负载 HTTP 服务）；pids 防 fork 炸弹 / 线程泄漏。
+    # 全部可用环境变量覆盖，不必改这份被跟踪的文件：HOMEOS_STORE_MEM_LIMIT / _CPUS / _PIDS_LIMIT、
+    # HOMEOS_LOG_MAX_SIZE / HOMEOS_LOG_MAX_FILE。
+    mem_limit: ${HOMEOS_STORE_MEM_LIMIT:-512m}
+    cpus: ${HOMEOS_STORE_CPUS:-1.0}
+    pids_limit: ${HOMEOS_STORE_PIDS_LIMIT:-512}
+    logging:
+      # 默认 json-file 日志会无限增长（长期运行写满宿主磁盘）；单文件 10MB × 3 个轮转。
+      driver: json-file
+      options:
+        max-size: ${HOMEOS_LOG_MAX_SIZE:-10m}
+        max-file: ${HOMEOS_LOG_MAX_FILE:-3}
     healthcheck:
       # 商店只有一个对外服务端口：8802。
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8802/healthz >/dev/null"]
@@ -175,6 +189,19 @@ services:
       - ${HOMEOS_DMI_PATH:-/host/sys/class/dmi/id}:/host/sys/class/dmi/id:ro
     networks:
       - homeos-net
+    # ── 资源与日志上限（性能报告 B1）──────────────────────────────────────────
+    # 依据：实测稳态 RSS ~157MB（前台渲染 / 3D 在浏览器侧，容器主要跑 API + 内置 Caddy）。
+    # 内存 768m 给足余量；cpus 2.0 覆盖内置反代 + 后端 + 周期性备份线程；pids 512 同上。
+    # 全部可用环境变量覆盖：HOMEOS_APP_MEM_LIMIT / _CPUS / _PIDS_LIMIT、HOMEOS_LOG_MAX_SIZE / _MAX_FILE。
+    mem_limit: ${HOMEOS_APP_MEM_LIMIT:-768m}
+    cpus: ${HOMEOS_APP_CPUS:-2.0}
+    pids_limit: ${HOMEOS_APP_PIDS_LIMIT:-512}
+    logging:
+      # 与商店一致：json-file 轮转，避免长期运行写满宿主磁盘（20MB 上限/服务）。
+      driver: json-file
+      options:
+        max-size: ${HOMEOS_LOG_MAX_SIZE:-10m}
+        max-file: ${HOMEOS_LOG_MAX_FILE:-3}
     healthcheck:
       # 应用与内置反代都要活着才算健康。
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]

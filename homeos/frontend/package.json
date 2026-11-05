@@ -19,7 +19,9 @@
     "check:css": "node ../../ops/lib/check-css-syntax.mjs",
     "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit",
     "sync:three": "node scripts/build-three-vendor.mjs",
-    "sync:three:check": "node scripts/build-three-vendor.mjs --check"
+    "sync:three:check": "node scripts/build-three-vendor.mjs --check",
+    "sync:hls": "node scripts/sync-hls-vendor.mjs",
+    "sync:hls:check": "node scripts/sync-hls-vendor.mjs --check"
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",

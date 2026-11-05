@@ -1,5 +1,5 @@
 /** Socket.IO 传输层（从 entities.store 抽离） */
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import {
   buildEntitySocketAuth,
   buildEntitySocketOptions,
@@ -64,32 +64,76 @@ export function createEntityTransport(deps: EntityTransportDeps) {
     return run
   }
 
+  /** 清理旧 socket 实例（重建连接前调用）。 */
+  function clearExistingSocket(): void {
+    if (!socket) return
+    socket.removeAllListeners()
+    socket.disconnect()
+    socket = null
+  }
+
+  /**
+   * IndexedDB 缓存回填：
+   * - 首连：始终尝试恢复缓存，缩短白屏；
+   * - 重连：仅当内存为空或已标 stale 时再 hydrate，避免与 WS 增量抢写，
+   *   同时覆盖「整页被回收后重进 / 长断线后内存已空」场景。
+   */
+  async function hydrateCacheIfNeeded(): Promise<boolean> {
+    const needsCacheHydrate = !hydratedOnce || deps.totalCount.value === 0 || deps.refs.entitiesStale?.value === true
+    if (!needsCacheHydrate) return true
+    const cacheHydrated = await deps.hydrateFromEntityCache().catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message : String(e)
+      deps.logger.debug(`实体缓存 hydrate 失败: ${msg}`)
+      return false
+    })
+    hydratedOnce = true
+    return cacheHydrated
+  }
+
+  /**
+   * 动态加载 socket.io-client 与 msgpack parser（B21：从首屏静态依赖中移出）。
+   * 失败只记 warn 并返回 null，由调用方放弃本次建连；重连语义不变。
+   */
+  async function loadSocketIoModules(): Promise<{
+    ioClient: typeof import('socket.io-client').io
+    msgpackParser: unknown
+  } | null> {
+    try {
+      const [socketIoModule, msgpackParserModule] = await Promise.all([
+        import('socket.io-client'),
+        import('socket.io-msgpack-parser'),
+      ])
+      return {
+        ioClient: socketIoModule.io,
+        msgpackParser: (msgpackParserModule as { default?: unknown }).default,
+      }
+    } catch (importError: unknown) {
+      deps.logger.warn(
+        `实体传输层动态加载 socket.io 失败: ${importError instanceof Error ? importError.message : String(importError)}`,
+      )
+      return null
+    }
+  }
+
+  /** RUM：重连尝试只派发事件（采集端批量上报且失败静默），不阻塞 WS 主路径。 */
+  function broadcastWsReconnectAttempt(targetSocket: Socket): void {
+    targetSocket.on('reconnect_attempt', (attempt: number) => {
+      try {
+        window.dispatchEvent(new CustomEvent('homeos:ws-reconnect', { detail: { attempt } }))
+      } catch {
+        /* 事件派发失败不应影响重连 */
+      }
+    })
+  }
+
   /**
    * 真正执行建连。epoch 是进入时的连接世代：
    * hydrate 可能耗时（IndexedDB），期间若发生 disconnect() / 登出，则放弃本次建连，
    * 避免建出一个「已登出仍在连」的 socket。
    */
   async function doConnect(epoch: number): Promise<void> {
-    if (socket) {
-      socket.removeAllListeners()
-      socket.disconnect()
-      socket = null
-    }
-
-    // IndexedDB 回填：
-    // - 首连：始终尝试恢复缓存，缩短白屏；
-    // - 重连：仅当内存为空或已标 stale 时再 hydrate，避免与 WS 增量抢写，
-    //   同时覆盖「整页被回收后重进 / 长断线后内存已空」场景。
-    let cacheHydrated = true
-    const needsCacheHydrate = !hydratedOnce || deps.totalCount.value === 0 || deps.refs.entitiesStale?.value === true
-    if (needsCacheHydrate) {
-      cacheHydrated = await deps.hydrateFromEntityCache().catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : String(e)
-        deps.logger.debug(`实体缓存 hydrate 失败: ${msg}`)
-        return false
-      })
-      hydratedOnce = true
-    }
+    clearExistingSocket()
+    const cacheHydrated = await hydrateCacheIfNeeded()
     // hydrate 期间可能已 disconnect()（登出 / bfcache 冻结）：本次建连作废
     if (epoch !== connectEpoch) return
     if (deps.isAuthenticated && !deps.isAuthenticated()) return
@@ -108,7 +152,17 @@ export function createEntityTransport(deps: EntityTransportDeps) {
       deps.track.lastEventId,
       deps.track.lastSocketEventAt > 0,
     )
-    socket = io(buildEntitySocketUrl(), buildEntitySocketOptions(socketAuth))
+    // B21：socket.io-client 与 msgpack parser 改为「建连时才动态加载」，从首屏静态依赖
+    // 里移出；加载点仍在 hydrate / epoch / 鉴权检查之后，重连与离线语义不变。
+    const socketIoModules = await loadSocketIoModules()
+    // 动态加载期间可能已登出 / bfcache 冻结 / 重连：epoch 变了就放弃本次建连。
+    if (!socketIoModules || epoch !== connectEpoch) return
+    const connectedSocket = socketIoModules.ioClient(
+      buildEntitySocketUrl(),
+      buildEntitySocketOptions(socketAuth, socketIoModules.msgpackParser),
+    )
+    socket = connectedSocket
+    broadcastWsReconnectAttempt(connectedSocket)
 
     const sync = createEntitySocketSyncState() as EntitySocketSyncState
     currentSync = sync
@@ -127,7 +181,7 @@ export function createEntityTransport(deps: EntityTransportDeps) {
     }, 12000)
 
     bindEntitySocketHandlers(
-      socket,
+      connectedSocket,
       {
         logger: deps.logger,
         getInitialStatesWaitMs: deps.getInitialStatesWaitMs,

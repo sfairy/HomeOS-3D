@@ -1012,11 +1012,9 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
            * 代价：懒路由的 CSS 不再由 index.html 预加载，改为导航时经 __vite__mapDeps 拉取。
            *
            * 保留的组只有三类：
-           *  1) 第三方库（vendor-vue / vendor-core / lucide / charts / hls）：不会被某个
-           *     业务域子图拖成巨型 chunk；
+           *  1) 第三方库（vendor-vue / vendor-core / socket-io / lucide / charts / hls）：不会被业务域子图拖成巨型 chunk；
            *  2) shared-registry：把「模块顶层就会被别的模块调用的纯常量/纯函数」隔离成无环叶子 chunk；
-           *  3) entriesAware 兜底组 shared：合并跨入口共享的小模块（阈值 48KB），避免碎 chunk。
-           * minSize 20_000 继续兜住 1–5KB 碎 chunk：实测 chunk 数 45 → 65，无碎片化问题。
+           *  3) entriesAware 兜底组 shared：合并跨入口共享的小模块（阈值 48KB），避免碎 chunk；
            *
            * 不变量：每组 test 必须至少匹配到一个真实模块（历史漂移：views-auth 等）。
            * 注意 scripts/check-vite-chunk-groups.mjs 在仓库里并不存在，该不变量目前只能人工
@@ -1032,9 +1030,11 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
               },
               {
                 name: 'vendor-core',
-                test: /node_modules[\\/](axios|socket\.io-client|socket\.io-msgpack-parser|@vueuse|comlink)/,
+                test: /node_modules[\\/](axios|@vueuse|comlink)/,
                 priority: 35,
               },
+              // B21：socket.io 建连才动态加载，自成一档避免被 vendor-misc 合并回静态 vendor chunk。
+              { name: 'socket-io', test: /node_modules[\\/]socket\.io-/, priority: 10 },
               { name: 'lucide', test: /node_modules[\\/]@lucide[\\/]vue/, priority: 30 },
               { name: 'charts', test: /node_modules[\\/]echarts/, priority: 28 },
               { name: 'hls', test: /node_modules[\\/]hls\.js/, priority: 28 },

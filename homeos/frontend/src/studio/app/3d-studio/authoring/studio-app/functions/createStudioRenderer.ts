@@ -5,12 +5,13 @@ import { createContextResourceTracker } from '../../studio-context-resources'
 import { createMotionBuffer as createMotionBuffer2 } from '../../scene/studio-motion-buffer'
 import { createBackgroundCache as createBackgroundCache2 } from '../../scene/studio-background-cache'
 import { stageStartup as stageStartup2 } from '../../../stage-startup'
-import { interactionResourcePolicy } from '../../../studio-resource-policy'
+import { interactionResourcePolicy, resolveSunShadowMapSize } from '../../../studio-resource-policy'
 import {
   installLightingShaderFailsafe,
   restoreLightingShaderChecksIfReady,
   type LightingShaderFailsafe,
 } from './lighting-shader-failsafe'
+import { scheduleShaderWarmup } from '../render/studio-shader-compile-warmup'
 
 import { createOverviewStack as createOverviewStack2 } from '../../scene/studio-overview-stack'
 
@@ -103,6 +104,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
   } = deps
 
   let disposeRendererEvents: (() => void) | null = null
+  /** B12：presented 前的着色器空闲预热（compileAsync）；回退开关 ?shader-warmup=0。 */
+  let shaderWarmupCanceller: (() => void) | null = null
   /** 灯光补丁编译兜底（见 `lighting-shader-failsafe.ts`）；渲染器建好之后才注册。 */
   let lightingShaderFailsafe: LightingShaderFailsafe | null = null
   const previewViewportElement = selectElement('#preview-3d')
@@ -218,8 +221,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       appCtx.mainDirectionalLight.position.set(-7, 22, 6),
       (appCtx.mainDirectionalLight.castShadow = true),
       appCtx.mainDirectionalLight.shadow.mapSize.set(
-        isEmbedStageMode ? interactionResourcePolicy.stageSunShadow.mapSize : 2048,
-        isEmbedStageMode ? interactionResourcePolicy.stageSunShadow.mapSize : 2048,
+        resolveSunShadowMapSize(isEmbedStageMode),
+        resolveSunShadowMapSize(isEmbedStageMode),
       ),
       isEmbedStageMode &&
         ((appCtx.mainDirectionalLight.shadow.bias = interactionResourcePolicy.stageSunShadow.bias),
@@ -486,12 +489,19 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
           appCtx.contactShadowController?.dispose?.()
           // 兜底注册的 onShaderError 闭包住整个 appCtx；不注销会在下一次引导里留着旧 handler。
           lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null)
+          shaderWarmupCanceller?.(), (shaderWarmupCanceller = null)
         } catch {
           /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失 */
         }
       }
       // 整页卸载（pagehide）与 SPA 内显式回收都会走到同一个清理函数，重复调用是幂等的。
       window.addEventListener('pagehide', disposeRendererEvents, { once: true })
+      // B12：先让首帧出画，再在空闲时用 compileAsync 预热着色器，减少后续交互的编译卡顿。
+      shaderWarmupCanceller = scheduleShaderWarmup({
+        renderer: appCtx.threeRenderer,
+        scene: appCtx.threeScene,
+        camera: appCtx.threeCamera,
+      })
       handlePageVisibility()
       wakeStudio()
     }

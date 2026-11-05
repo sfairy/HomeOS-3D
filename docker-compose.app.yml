@@ -108,6 +108,18 @@ services:
       # 的 APP_HARDWARE_* 钉住）。保持默认值 = 与原来完全一致。
       - ${HOMEOS_MACHINE_ID_PATH:-/host/etc/machine-id}:/host/etc/machine-id:ro
       - ${HOMEOS_DMI_PATH:-/host/sys/class/dmi/id}:/host/sys/class/dmi/id:ro
+    # ── 资源与日志上限（性能报告 B1）──────────────────────────────────────────
+    # 与 docker-compose.yml 的 homeos 服务同一口径：实测稳态 RSS ~157MB，768m / 2.0 核 / pids 512。
+    # 全部可用环境变量覆盖，不必改这份被跟踪的文件。
+    mem_limit: ${HOMEOS_APP_MEM_LIMIT:-768m}
+    cpus: ${HOMEOS_APP_CPUS:-2.0}
+    pids_limit: ${HOMEOS_APP_PIDS_LIMIT:-512}
+    logging:
+      # json-file 轮转：单文件 10MB × 3 个（约 30MB/服务上限）。
+      driver: json-file
+      options:
+        max-size: ${HOMEOS_LOG_MAX_SIZE:-10m}
+        max-file: ${HOMEOS_LOG_MAX_FILE:-3}
     healthcheck:
       # 应用与内置反代都要活着才算健康。
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]

@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from ..shared_http import shared_http_client
 from ....platform.core.http.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.agent.llm.deepseek")
@@ -259,33 +260,34 @@ class DeepseekLlmProvider(LlmProvider):
         - 其余 >=400 → BusinessException（不可重试）
         """
         url = f"{self.base_url}/chat/completions"
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                if streaming:
-                    async with client.stream(
-                        "POST", url, headers=headers, json=payload
-                    ) as resp:
-                        if resp.status_code >= 400:
-                            text = (await resp.aread()).decode(errors="replace")
-                            raise self._upstream_error(resp.status_code, text[:300])
-                        return await self._consume_chat_stream(resp, on_token)
+        # 复用进程级连接池；超时按请求传入，保持每个调用方各自的超时语义。
+        client = shared_http_client()
+        try:
+            if streaming:
+                async with client.stream(
+                    "POST", url, headers=headers, json=payload, timeout=timeout
+                ) as resp:
+                    if resp.status_code >= 400:
+                        text = (await resp.aread()).decode(errors="replace")
+                        raise self._upstream_error(resp.status_code, text[:300])
+                    return await self._consume_chat_stream(resp, on_token)
 
-                resp = await client.post(url, headers=headers, json=payload)
-            except httpx.TimeoutException as exc:
-                raise RetryableUpstreamError(
-                    api_error("AGENT_LLM_UPSTREAM_ERROR", "timeout", str(exc) or "")
-                ) from exc
-            except httpx.TransportError as exc:
-                raise RetryableUpstreamError(
-                    api_error("AGENT_LLM_UPSTREAM_ERROR", "network", str(exc) or "")
-                ) from exc
-            if resp.status_code >= 400:
-                # 对齐 Nest：截断上游错误正文，避免超长 message 污染响应
-                raise self._upstream_error(resp.status_code, resp.text[:300])
-            try:
-                data = resp.json()
-            except ValueError:
-                data = None
+            resp = await client.post(url, headers=headers, json=payload, timeout=timeout)
+        except httpx.TimeoutException as exc:
+            raise RetryableUpstreamError(
+                api_error("AGENT_LLM_UPSTREAM_ERROR", "timeout", str(exc) or "")
+            ) from exc
+        except httpx.TransportError as exc:
+            raise RetryableUpstreamError(
+                api_error("AGENT_LLM_UPSTREAM_ERROR", "network", str(exc) or "")
+            ) from exc
+        if resp.status_code >= 400:
+            # 对齐 Nest：截断上游错误正文，避免超长 message 污染响应
+            raise self._upstream_error(resp.status_code, resp.text[:300])
+        try:
+            data = resp.json()
+        except ValueError:
+            data = None
 
         return self._parse_completion(data)
 

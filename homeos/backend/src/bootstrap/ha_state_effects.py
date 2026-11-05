@@ -202,6 +202,12 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
     broadcast_entities = entities
     if sync_filter is not None:
         broadcast_entities = sync_filter.filter_syncable_states(entities)
+    # 首次快照 vs 周期对账必须分开看：L1 是进程内内存表，冷启动时为空，``set_all``
+    # 会把「全量填充」算成「全量差异」（本机实测 779 条 = 全部活跃实体）。这份差异
+    # 不是断连窗口里漏掉的变化，此时也没有任何客户端持有旧基线，让前端整表重拉纯属
+    # 多余（还会再刷一行 WARN）。所以要在 ``set_all`` 之前取「是否已有基线」，它会被
+    # 本次调用置为 True。
+    had_baseline = store.is_ha_synced()
     # L1 必须收全量：隐藏/禁用只是展示策略，安全实体仍需要基线来做边沿判定。
     # 返回值是「这次对账真正改变了什么」：断连窗口里错过的变化全在这里，不补推的话
     # 已连接的客户端会一直停在旧值上（它们不会重新拉 initial_states）。
@@ -223,7 +229,8 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
     if changes and len(changes) <= RESYNC_BROADCAST_MAX_CHANGES:
         # ``applied=True``：L1 已由 set_all 写完，下游只补副作用与广播。
         await bus.emit("ha.state_changed.batch", {"changes": changes, "applied": True, "reason": "resync"})
-    elif changes:
+    elif changes and had_baseline:
+        # 只有「已有基线」的差异才是对账差异：冷启动的 diff 是首次填充，整表重拉没有意义。
         logger.warning(
             "对账差异 %d 条，超过逐条补推上限（%d），改为建议客户端整表重拉",
             len(changes),

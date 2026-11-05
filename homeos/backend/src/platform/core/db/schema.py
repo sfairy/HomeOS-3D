@@ -41,11 +41,13 @@ def _metadata() -> MetaData:
 
 def _integrity_note(report: IntegrityReport) -> str:
     """体检强度的一句话来历：日志里得能看出「这次到底有没有逐页全查」。"""
+    if report.pragma == "skipped":
+        return "上次为干净关闭,已跳过逐页扫描"
     if report.clean_shutdown is None:
         return "显式指定强度"
     if report.clean_shutdown:
         return "上次为干净关闭"
-    return "上次未干净关闭,故逐页全查"
+    return "上次未干净关闭,故快速校验"
 
 
 def prepare_schema(settings: Settings) -> None:

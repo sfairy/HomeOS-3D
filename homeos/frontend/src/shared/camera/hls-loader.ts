@@ -16,7 +16,7 @@ import type HlsJs from 'hls.js'
 
 export type HlsCtor = typeof HlsJs
 
-const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.3/hls.min.js'
+const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.4/hls.min.js'
 /**
  * 0.8.4：Safari / iOS 原生就能播 m3u8。命中时**完全不要**下载 620KB 的 hls.js ——
  * 上游是 `window.Hls || video.canPlayType(mime)` 先行短路，这里把这一步单独导出，
@@ -34,7 +34,7 @@ export function canPlayNativeHls(videoElement?: HTMLVideoElement | null): boolea
   }
 }
 /** 与 public/static/vendor/hls.js/<version> 目录同步；升级时同时改版本号与脚本 URL。 */
-const HLS_SCRIPT_VERSION = '1.7.3'
+const HLS_SCRIPT_VERSION = '1.7.4'
 const HLS_SCRIPT_SELECTOR = `script[data-homeos-hls="${HLS_SCRIPT_VERSION}"]`
 /** requestIdleCallback 的兜底超时：空闲回调迟迟不来时也要发起预取。 */
 const HLS_PREFETCH_IDLE_TIMEOUT_MS = 3000

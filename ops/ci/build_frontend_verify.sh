@@ -26,6 +26,12 @@ bun install --frozen-lockfile
 # 排查方向完全不同。
 bun run --cwd homeos/frontend sync:three:check
 
+# hls.js 运行时副本的漂移检查：public/static/vendor/hls.js/<版本>/ 由
+# `homeos/frontend/scripts/sync-hls-vendor.mjs` 从 node_modules/hls.js 单向生成。
+# 同样放在 build 之前：npm 侧升了 hls.js 而副本/源码常量没跟上时，这里直接报出
+# 是哪个文件、哪个版本不一致；等到构建后再发现只会在浏览器里表现为「HLS 播放器加载失败」。
+bun run --cwd homeos/frontend sync:hls:check
+
 bun run build:frontend
 
 # 前端产物是 Vite 压缩产物（**不混淆**，见 ops/BUILD.md）。
@@ -69,10 +75,19 @@ test ! -e dist/homeos/frontend/static/assets/js
 test ! -e dist/homeos/frontend/static/assets/css
 test -f dist/homeos/frontend/static/assets/index-*.js
 test -f dist/homeos/frontend/static/assets/index-*.css
+# 构建期预压缩（性能报告 B5）：入口 chunk 与外壳必须带 .br / .gz sidecar，且与原文件同目录、
+# 同 basename —— 后端 PrecompressedStaticFiles 只按这个约定直出（见 ops/scripts/precompress-static.mjs）。
+test -f dist/homeos/frontend/static/assets/index-*.js.br
+test -f dist/homeos/frontend/static/assets/index-*.js.gz
+test -f dist/homeos/frontend/static/assets/index-*.css.br
+test -f dist/homeos/frontend/index.html.br
+test -f dist/homeos-store/frontend/index.html.gz
 # 外壳必须真的引用新路径；否则说明 output 模板与 assetsDir 有一处没改。
 grep -q '/static/assets/index-' dist/homeos/frontend/index.html
 # 第三方插件整棵子树原样复制：public/static/vendor 由 Vite 逐字节搬进产物，不经任何改写。
-if ! diff -rq homeos/frontend/public/static/vendor dist/homeos/frontend/static/vendor; then
+# 排除构建期预压缩生成的 .br / .gz sidecar：它们只属于 dist（源目录里没有），
+# 是 build:frontend 末尾按 sidecar 契约新加的，不算对插件目录的改写。
+if ! diff -rq -x '*.br' -x '*.gz' homeos/frontend/public/static/vendor dist/homeos/frontend/static/vendor; then
     echo "static/vendor 与源不一致：第三方插件目录必须原样复制。" >&2
     exit 1
 fi

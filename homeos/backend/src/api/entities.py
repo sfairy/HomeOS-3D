@@ -2,7 +2,7 @@
 
 逐条对齐 Nest ``StateStoreController``：
 
-- ``GET  entities``：实体列表（page/limit 或 cursor/limit 分页，直读 StateStore 单读模型）；
+- ``GET  entities``：实体列表（page/limit、cursor/limit 或 offset/limit 分页，直读 StateStore 单读模型）；
 - ``GET  entities/changed``：增量变更（基于 recentChanges 环形缓冲）；
 - ``GET  entities/areas/list``：HA 区域列表（area_registry）；
 - ``GET  entities/:entity_id/references``：查询引用该实体的功能配置；
@@ -23,7 +23,13 @@ from pydantic import BeforeValidator
 
 from .router import NestRouter
 from .schemas.base import StrictModel
-from ..platform.core.db.pagination import parse_crud_pagination
+from ..platform.core.db.pagination import (
+    MAX_SAFE_INTEGER,
+    clamp_int,
+    parse_bounded_limit,
+    parse_crud_pagination,
+    parse_int_10,
+)
 from ..platform.core.http.errors import api_error, forbidden, not_found
 from ..platform.core.runtime.booleans import parse_boolean_query
 from ..platform.security.auth_context import require_user
@@ -114,6 +120,7 @@ async def get_all_entities(
     page: str | None = Query(default=None),
     limit: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
+    offset: str | None = Query(default=None),
 ):
     # 单读模型：不做 REST 层缓存，直接由 StateStore（唯一事实源）实时组装，
     # 避免出现「缓存与状态库各持一份」的双读模型与陈旧响应。
@@ -152,6 +159,28 @@ async def get_all_entities(
     async def page_of(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """补全区域信息：带区域过滤时整表已补全过，这里只对当前页补。"""
         return items if area_filter_value else await enrich_service.enrich_entities(items)
+
+    # 可选 offset 分页（B13）：显式传 offset 才启用，limit 独立解析（默认 200、上限 1000），
+    # 响应额外带 limit/offset/has_more/next_offset 元信息；不传 offset 时下面 page / cursor /
+    # 无参三种响应形状保持完全不变，老前端零改动。
+    if offset is not None:
+        offset_value = clamp_int(parse_int_10(offset) or 0, 0, MAX_SAFE_INTEGER)
+        window_limit = parse_bounded_limit(limit, 200, minimum=1, maximum=1000)
+        total = len(entities)
+        sliced_items = entities[offset_value : offset_value + window_limit]
+        page_items = await page_of(sliced_items)
+        has_more = offset_value + len(sliced_items) < total
+        return {
+            "count": len(page_items),
+            "total": total,
+            "entities": page_items,
+            "haSynced": store.is_ha_synced(),
+            "storeTotal": store.get_count(),
+            "limit": window_limit,
+            "offset": offset_value,
+            "has_more": has_more,
+            "next_offset": offset_value + len(sliced_items) if has_more else None,
+        }
 
     if use_cursor:
         sliced = slice_entities_by_cursor(entities, cursor or None, page_size)

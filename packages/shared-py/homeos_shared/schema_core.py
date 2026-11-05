@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sqlite3
 import time
@@ -38,17 +39,36 @@ class SchemaError(RuntimeError):
 #: 也不会因为换了数据目录而读到别处的陈旧结论。
 CLEAN_SHUTDOWN_SUFFIX = ".clean-shutdown"
 
+#: 体检强度的环境变量覆盖：``auto``（默认，按上次是否干净关闭选档）/ ``full`` / ``quick``。
+#: 默认 auto 已把「干净关闭」做成跳过逐页扫描；需要强制全查时把它设成 ``full``。
+INTEGRITY_TIER_ENV = "HOMEOS_SCHEMA_INTEGRITY"
+_INTEGRITY_TIERS = frozenset({"auto", "full", "quick"})
+
 
 @dataclass(frozen=True, slots=True)
 class IntegrityReport:
     """一次启动体检的结论；调用方据此写日志（本模块的 logger 不在宿主日志树下）。"""
 
-    #: 实际执行的 PRAGMA 名：``integrity_check`` 或 ``quick_check``
+    #: 实际执行的 PRAGMA 名：``integrity_check`` / ``quick_check`` /
+    #: ``skipped``（上次干净关闭，按 auto 档跳过逐页扫描）
     pragma: str
     #: 体检耗时（毫秒），含外键校验与必需表核对
     elapsed_ms: float
     #: 上次是否干净关闭；``None`` 表示调用方显式指定了强度，没有参考标记
     clean_shutdown: bool | None
+
+
+def integrity_tier_from_env() -> str | None:
+    """读取 ``HOMEOS_SCHEMA_INTEGRITY``；未设置或非法值返回 ``None``（走自动档）。
+
+    非法值不报错：体检强度是排障开关，不是业务配置，写错一个字就拒绝启动的代价
+    （起不来）远大于多扫一遍库。
+    """
+    raw = os.environ.get(INTEGRITY_TIER_ENV)
+    if raw is None:
+        return None
+    tier = raw.strip().lower()
+    return tier if tier in _INTEGRITY_TIERS else None
 
 
 def clean_shutdown_marker(database_path: Path) -> Path:
@@ -159,32 +179,50 @@ def validate_database(
 ) -> IntegrityReport:
     """校验库文件的完整性、外键约束与必需业务表，返回本次体检的结论。
 
-    ``integrity`` 只决定**体检强度**，不影响外键校验与必需表核对：
+    ``integrity`` 只决定**逐页扫描强度**，不影响外键校验与必需表核对：
 
     - ``"full"``：``PRAGMA integrity_check`` —— 逐页校验表 B-tree 与全部索引；
     - ``"quick"``：``PRAGMA quick_check`` —— 跳过索引一致性，耗时约为 ``full`` 的 1/4；
-    - ``None``（默认）：按「上次是否干净关闭」自动选档 —— 干净关闭走 ``quick``，
-      异常退出走 ``full``。异常退出后的首启正是最可能出现半写页 / 索引错位的时刻，
-      这一档不能省。
+    - ``None``（默认）：按「上次是否干净关闭」+ 环境变量 ``HOMEOS_SCHEMA_INTEGRITY``
+      自动选档：
 
-    为什么默认不总是 ``full``：``integrity_check`` 是 O(库文件大小) 的全盘扫描（291 MB 的库
-    实测约 800 ms，占了整个启动的 80%），而每次正常重启都重扫一遍拿不到新信息。
+      * 环境变量显式给 ``full`` / ``quick`` 时按它执行（排障用，仍消费干净关闭标记）；
+      * 否则 ``auto``：干净关闭 → **跳过**逐页扫描（``pragma="skipped"``），
+        异常退出 → ``quick_check``。
+
+    为什么干净关闭可以直接跳过：``integrity_check`` 是 O(库文件大小) 的全盘扫描（291 MB 的库
+    实测约 800 ms，占了整个启动的 80%），而停机路径已经正常关库、WAL 收尾完成，
+    每次正常重启都重扫一遍拿不到新信息。异常退出后的首启才是半写页 / 缺页的高危时刻，
+    这时仍做 ``quick_check`` 兜住页级损坏（索引一致性属可重建的派生结构，代价不对称）。
+    需要回到旧的全查行为时设 ``HOMEOS_SCHEMA_INTEGRITY=full``。
     """
     if integrity not in (None, "full", "quick"):
         raise ValueError(f"未知的完整性体检强度：{integrity}")
     clean_shutdown: bool | None = None
+    skipped = False
     if integrity is None:
+        # 标记读即删：无论走哪一档都必须消费掉它，否则本次启动中途崩溃后，
+        # 下次会被误判成「上次干净关闭」而跳过扫描。
         clean_shutdown = consume_clean_shutdown_marker(database_path)
-        integrity = "quick" if clean_shutdown else "full"
-    pragma = "quick_check" if integrity == "quick" else "integrity_check"
+        tier = integrity_tier_from_env() or "auto"
+        if tier == "auto":
+            skipped = clean_shutdown
+            integrity = "quick"
+        else:
+            # 环境变量显式指定强度：报告里 clean_shutdown 记 None，
+            # 调用方日志据此说「显式指定强度」；标记已在上面消费掉。
+            clean_shutdown = None
+            integrity = tier
+    pragma = "skipped" if skipped else ("quick_check" if integrity == "quick" else "integrity_check")
     if not database_path.is_file():
         raise SchemaError(f"数据库文件不存在：{database_path}")
     started = time.perf_counter()
     with closing(sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)) as connection:
-        result = connection.execute(f"PRAGMA {pragma}").fetchone()
-        if result is None or result[0] != "ok":
-            detail = result[0] if result else "no result"
-            raise SchemaError(f"SQLite {pragma} 失败：{detail}")
+        if not skipped:
+            result = connection.execute(f"PRAGMA {pragma}").fetchone()
+            if result is None or result[0] != "ok":
+                detail = result[0] if result else "no result"
+                raise SchemaError(f"SQLite {pragma} 失败：{detail}")
         violations = connection.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
             sample = "; ".join(str(row) for row in violations[:5])

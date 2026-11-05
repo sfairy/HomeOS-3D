@@ -300,6 +300,11 @@ def _apply_cache_headers(request: Request, response: Response) -> None:
             IMMUTABLE_PRIVATE_CACHE if _is_immutable_asset(path) else "private, no-cache"
         )
         return
+    # 路由已显式给出 ETag + private, no-cache 的页面（SPA 外壳）不要被统一 no-store 覆盖。
+    if response.headers.get("etag") and response.headers.get(
+        "cache-control", ""
+    ).startswith("private, no-cache"):
+        return
     if (
         is_page_path(path)
         or (

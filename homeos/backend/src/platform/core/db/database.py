@@ -110,6 +110,10 @@ class Database:
         if is_sqlite:
             # FastAPI 线程池会在不同线程复用连接，关闭同线程检查。
             connect_args["check_same_thread"] = False
+        # SQLite 文件库的 pre_ping 每次 checkout 都发一条 SELECT 1（指标记在
+        # before_cursor_execute 之前，所以计数还看不到它）；本机文件 + 单进程不需要
+        # 连接保活探测。Postgres / 内存库保留 pre_ping，避免跨网络失效连接被复用。
+        is_file_sqlite = is_sqlite and parsed_url.database not in (None, "", ":memory:")
         # SQLite 内存库由 SingletonThreadPool 承载，不接受 pool_size / max_overflow /
         # pool_timeout；SQLite 文件与 Postgres 走可配的 QueuePool。
         pool_kwargs: dict[str, object] = {}
@@ -121,6 +125,8 @@ class Database:
                 "max_overflow": _environment_int(
                     "HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW
                 ),
+                # 回收陈旧连接，避免长期运行的进程持有已迁移/删除的库文件句柄。
+                "pool_recycle": 1800,
                 "pool_timeout": _environment_float(
                     "HOMEOS_DB_POOL_TIMEOUT_SECONDS",
                     DEFAULT_POOL_TIMEOUT_SECONDS,
@@ -130,7 +136,7 @@ class Database:
         self.engine: Engine = create_engine(
             database_url,
             connect_args=connect_args,
-            pool_pre_ping=True,
+            pool_pre_ping=not is_file_sqlite,
             **pool_kwargs,
         )
         if database_url.startswith("sqlite"):

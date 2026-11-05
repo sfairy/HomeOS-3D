@@ -140,8 +140,13 @@ class LicenseGuardMiddleware:
             ):
                 # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
                 # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。
-                # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。
-                if not await asyncio.to_thread(service.allows, feature_codes.FEATURE_API):
+                # 先读纯内存缓存；未命中才把同步 SQLAlchemy 读放到线程池。
+                allowed = service.cached_allows(feature_codes.FEATURE_API)
+                if allowed is None:
+                    allowed = await asyncio.to_thread(
+                        service.allows, feature_codes.FEATURE_API
+                    )
+                if not allowed:
                     _warn_if_asset_blocked(path)
                     response = business_exception_json(
                         request,
@@ -169,7 +174,11 @@ class LicenseGuardMiddleware:
             and self.settings.license_required
             and not is_license_exempt_path(path, "GET")
         ):
-            allowed = await asyncio.to_thread(service.allows, feature_codes.FEATURE_API)
+            allowed = service.cached_allows(feature_codes.FEATURE_API)
+            if allowed is None:
+                allowed = await asyncio.to_thread(
+                    service.allows, feature_codes.FEATURE_API
+                )
             if not allowed:
                 await send({"type": "websocket.close", "code": 1008})
                 return
@@ -294,9 +303,23 @@ class SelectiveGZipMiddleware:
 
     #: 压缩级别：9 对 API JSON 只比 5 小约 1–2%，CPU 却高一个数量级；高 QPS 下
     #: 这是每个响应都要付的阻塞成本，故取 5（对齐 nginx/compression 的常用默认）。
-    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compresslevel: int = 5) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        minimum_size: int = 1024,
+        compresslevel: int = 5,
+        thread_minimum_size: int = 0,
+    ) -> None:
         self.app = app
-        self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+        # Starlette 默认只把 >=128KiB 的响应丢进线程池，128KiB 以下在事件循环里同步 zlib。
+        # 静态 chunk 常见 30KB–1.3MB，正好落在同步区间；统一 thread_minimum_size=0，
+        # 让所有压缩离开事件循环（代价是一次线程切换，远小于 1.3MB 现压的毫秒数）。
+        self.gzip = GZipMiddleware(
+            app,
+            minimum_size=minimum_size,
+            compresslevel=compresslevel,
+            thread_minimum_size=thread_minimum_size,
+        )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
@@ -316,7 +339,12 @@ def register_outer_middleware(app: FastAPI, settings: Settings) -> None:
     )
     app.add_middleware(CorsMiddleware)
     # 对齐 Nest ``compression()``：默认阈值 1KB；媒体流必须排除（见 SelectiveGZipMiddleware）。
-    app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024, compresslevel=5)
+    app.add_middleware(
+        SelectiveGZipMiddleware,
+        minimum_size=1024,
+        compresslevel=5,
+        thread_minimum_size=0,
+    )
     # 对齐 Nest body-parser limit：公共端点 1MB、其余 50MB。
     # 但「其余 50MB」不能一刀切：有些端点的处理器自己就声明了更大的上限（3D 草稿 64MB、
     # 导出包 512MB），门禁不放行的话那些上限永远走不到，用户拿到的是与「文件太大」无关的

@@ -30,6 +30,7 @@ export function releaseModelAsset(modelAsset: any) {
 export function createModelAssetLoader({
   THREE: three,
   GLTFLoader: gltfLoaderClass,
+  resolveGLTFLoader: resolveGLTFLoader = null,
 
   createDracoLoader: dracoLoaderFactory = (_manager: any) => null,
   requestTimeoutMs: requestTimeoutMs = 60000,
@@ -42,6 +43,26 @@ export function createModelAssetLoader({
     pendingAbortSet = new Set<(abortReason?: unknown) => void>(),
     effectiveTimeoutMs = Math.max(50, Number(requestTimeoutMs) || 60000)
   let isDisposed = false
+  // B21：GLTFLoader（three addon，~26KB gzip）只在真正要加载模型时才拉取；这里缓存
+  // 解析后的 Promise，并发加载共用一次网络请求，失败清缓存以便弱网恢复后重试。
+  let gltfLoaderClassPromise: Promise<unknown> | null = null
+  function ensureGLTFLoaderClass() {
+    if (gltfLoaderClass) return Promise.resolve(gltfLoaderClass)
+    if (!resolveGLTFLoader) return Promise.reject(new Error('模型加载器缺少 GLTFLoader 提供者'))
+    if (!gltfLoaderClassPromise) {
+      gltfLoaderClassPromise = Promise.resolve()
+        .then(() => resolveGLTFLoader())
+        .then((resolvedLoaderClass) => {
+          if (!resolvedLoaderClass) throw new Error('GLTFLoader 动态加载失败')
+          return (gltfLoaderClass = resolvedLoaderClass)
+        })
+        .catch((loadError: unknown) => {
+          gltfLoaderClassPromise = null
+          throw loadError
+        })
+    }
+    return gltfLoaderClassPromise
+  }
   function createLoaderBundle() {
     const loadTracker = new three.LoadingManager()
     loadTracker.setURLModifier(resolveAssetUrl)
@@ -67,8 +88,10 @@ export function createModelAssetLoader({
     bundleToRetire.retired ||
       ((bundleToRetire.retired = true), bundleToRetire.manager.abort(), bundleToRetire.decoder?.dispose())
   }
-  function loadModelAsync(modelUrl: any) {
-    if (isDisposed) return Promise.reject(new DOMException('模型加载器已关闭', 'AbortError'))
+  async function loadModelAsync(modelUrl: any) {
+    if (isDisposed) throw new DOMException('模型加载器已关闭', 'AbortError')
+    // 先确保 GLTFLoader 就位（首次会动态拉取），再取/建 loader 实例。
+    await ensureGLTFLoaderClass()
     const loaderBundle = loaderPool.pop() || createLoaderBundle(),
       abortController = new AbortController()
     let abortPendingLoad: any, timeoutId: any

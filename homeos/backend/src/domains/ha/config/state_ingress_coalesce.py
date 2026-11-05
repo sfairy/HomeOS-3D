@@ -8,6 +8,7 @@ import logging
 import time
 from typing import Any
 
+from .perf_windows import resolve_ingress_coalesce_window_ms
 from ...app_config.defaults import DEFAULT_APP_CONFIG
 from ....platform.core.entity.entity_domain import get_entity_domain
 from ....platform.core.runtime.app_config import load_raw_config
@@ -145,11 +146,11 @@ class StateIngressCoalesceService:
     def _schedule(self) -> None:
         if self._timer is not None:
             return
-        window_ms = self._cfg()["ha"].get("ingressCoalesceWindowMs", 8)
-        try:
-            window_ms = float(window_ms)
-        except (TypeError, ValueError):
-            window_ms = 8.0
+        # 入口微窗只收拢「同一瞬间到达」的突发：默认 4ms（一帧的四分之一），
+        # 不再让单条传感器更新白等 8ms。env > 配置 > 默认（见 perf_windows）。
+        window_ms = resolve_ingress_coalesce_window_ms(
+            self._cfg()["ha"].get("ingressCoalesceWindowMs")
+        )
         loop = self._loop
         if loop is None or loop.is_closed():
             # 无运行中事件循环：立即刷新，避免事件滞留丢失

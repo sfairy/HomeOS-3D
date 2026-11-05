@@ -475,7 +475,10 @@ def load_settings() -> Settings:
         ha_websocket_max_size_bytes=int(
             os.getenv("HA_WEBSOCKET_MAX_SIZE_BYTES", str(67108864))
         ),
-        ha_reconcile_interval_seconds=int(os.getenv("HA_RECONCILE_INTERVAL_SECONDS", "1800")),
+        # 周期全量对账是兜底：实时 WS 已覆盖大部分变化，30 分钟把 700+ 实体全量拉一遍
+        # 既费 HA 又写库，默认降到 6 小时；重连/手动刷新仍会立即全量同步，
+        # 需要更频繁可用 HA_RECONCILE_INTERVAL_SECONDS 调回。
+        ha_reconcile_interval_seconds=int(os.getenv("HA_RECONCILE_INTERVAL_SECONDS", "21600")),
         runtime_access_cache_seconds=_environment_non_negative_float(
             "APP_RUNTIME_ACCESS_CACHE_SECONDS", DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
         ),

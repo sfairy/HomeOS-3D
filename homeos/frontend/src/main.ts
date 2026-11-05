@@ -227,6 +227,14 @@ const isEntryAuthRoute = /^\/(login|register|setup|activate|license|reset-passwo
 
 function mountApp(): void {
   app.mount('#app')
+  // B22 + RUM：全局 WebGL 上下文丢失兜底与轻量性能采集，idle 时懒加载启动。
+  // 入口只多一次动态 import，不为采集付首屏字节；?webgl-guard=0 / ?client-metrics=0 可回退。
+  const startPerf = (): void => {
+    void import('@/shared/utils/perf/perf-instrumentation').then(({ startPerfInstrumentation }) =>
+      startPerfInstrumentation(),
+    )
+  }
+  typeof requestIdleCallback === 'function' ? requestIdleCallback(startPerf) : setTimeout(startPerf, 1500)
   // 挂载完成标记：与 data-homeos-ready（首个路由解析完成）区分开。
   // boot-guard.js 用它判断「#app 为空」是仍在正常启动（等配置加载）还是真的没渲染出来。
   document.documentElement.setAttribute('data-homeos-mounted', '1')

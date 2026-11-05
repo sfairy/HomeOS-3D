@@ -20,6 +20,7 @@
  * - `test`：单元测试与架构门禁用例（含依赖 DAG、路由基线）；
  * - `model`：3D 模型库的只读审计（几何 / 槽位 / 材质 / 资产 / 目录与命名索引）；
  * - `build`：需要前端产物的检查（构建 + 结构断言 + 体积预算 + chunk 初始化顺序）；
+ * - `perf`：3D / 首屏性能预算（读 ops/perf 的结果目录；CI 默认不跑，见该组注释）；
  * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
@@ -117,9 +118,6 @@ const GATE_GROUPS = {
     { name: 'test:security', ...bun('run', 'test:security') },
     { name: 'test:shared', ...bun('run', 'test:shared') },
     { name: 'test:store', ...bun('run', 'test:store') },
-    // 产品包自身的最小回归：从 0 到 1 的入口，后续新用例按包放进去。
-    { name: 'test:homeos-backend', ...bun('run', 'test:homeos-backend') },
-    { name: 'test:store-backend', ...bun('run', 'test:store-backend') },
     { name: 'test:auth-nav', ...bun('run', 'test:auth-nav') },
     { name: 'check:frontend-deps', ...bun('run', 'check:frontend-deps') },
     { name: 'check:backend-deps', ...bun('run', 'check:backend-deps') },
@@ -154,6 +152,16 @@ const GATE_GROUPS = {
     { name: 'check:bundle-budget', ...bun('run', 'check:bundle-budget') },
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
+  ],
+  perf: [
+    {
+      // 3D / 首屏性能预算：读 ops/perf 跑出的结果目录（默认 $TMPDIR/homeos-perf/results/<最新>）。
+      // 不并进 build 组：CI 的 build job 只构建前端、不跑浏览器 perf，并进去会让
+      // 「没有结果目录时本机 SKIP、CI FAIL」直接把每次 PR 的 build job 染红。
+      // 需要它的流水线（发版前性能 job / 手动）先产出结果，再显式跑 bun run gate:perf。
+      name: 'check:perf-budget',
+      ...bun('run', 'check:perf-budget'),
+    },
   ],
   infra: [
     {

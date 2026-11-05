@@ -29,6 +29,7 @@ from ...dependencies import (
     require_viewer_entity,
     viewer_entity_ids,
 )
+from ...domains.ha.config.perf_windows import runtime_state_batch_window_ms
 from ...domains.ha.integration.client import HAClientError
 from ...domains.ha.integration.connection_query import active_connection, load_active_connection_snapshot
 from ...domains.ha.integration.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
@@ -64,11 +65,10 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
-#: `/ws/runtime` 出站合并窗口（秒）。只吸收「同一瞬间到达」的事件（场景切换 / 全屋开关），
-#: 小于一帧（16ms），不会让单条状态更新多等一帧。
-RUNTIME_STATE_BATCH_WINDOW_SECONDS = 0.012
-#: 出站合并的「探测窗口」：先只等这么久判断是否处于突发，孤立事件只付这点延迟。
-RUNTIME_DRAIN_PROBE_SECONDS = 0.002
+#: `/ws/runtime` 出站合并窗口（秒）：默认 4ms，可用
+#: HOMEOS_HA_RUNTIME_STATE_BATCH_WINDOW_MS 覆盖；探测窗口不超过合批窗本身。
+RUNTIME_STATE_BATCH_WINDOW_SECONDS = runtime_state_batch_window_ms() / 1000.0
+RUNTIME_DRAIN_PROBE_SECONDS = min(0.002, RUNTIME_STATE_BATCH_WINDOW_SECONDS)
 
 
 def _runtime_access_cache_seconds(websocket: WebSocket) -> float:

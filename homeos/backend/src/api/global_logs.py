@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..domains.logs.global_log import event_context, format_log_context, safe_context
+from ..platform.core.runtime.client_metrics import record_client_metric
 from ..platform.security.client_address import resolve_client_address_from_request
 from ..platform.security.login_limiter import retry_after_headers
 
@@ -63,6 +64,27 @@ PUBLIC_PAGES = {
 }
 
 
+class ClientMetricSample(BaseModel):
+
+    model_config = ConfigDict(extra='forbid')
+    page: str = Field(default='/', max_length=128)
+    name: str = Field(pattern='^(lcp|fcp|ttfb|inp|longtask|cls|error|ws_reconnect)$')
+    value: float = Field(ge=0, le=600000, allow_inf_nan=False)
+
+
+def _require_same_origin(request: Request) -> None:
+    host = request.headers.get('host', '').casefold()
+    raw_origin = request.headers.get('origin', '')
+    if not raw_origin:
+        # sendBeacon / fetch keepalive 在部分浏览器不发送 Origin（同源请求允许省略）。
+        # 该端点只写聚合计数、无鉴权无副作用，匿名滥用由限流兜底，因此缺省放行；
+        # 一旦浏览器带了 Origin（跨站请求必带），仍按同源校验拦截。
+        return
+    origin = urlsplit(raw_origin)
+    if origin.scheme not in {'http', 'https'} or origin.netloc.casefold() != host:
+        raise HTTPException(status_code=403, detail='只允许同源页面上报。')
+
+
 class ClientLogLimiter:
     '限制匿名上报，避免为每个任意 IP 各增长一条记录。'
 
@@ -72,7 +94,7 @@ class ClientLogLimiter:
         self._clients = OrderedDict()
         self._all = deque()
 
-    def allow(self, peer: str, *, anonymous: bool) -> bool:
+    def allow(self, peer: str, *, anonymous: bool, per_client_limit: int = 30) -> bool:
         now = time.monotonic()
         with self._lock:
             bucket = self._clients.pop(peer, deque())
@@ -82,14 +104,16 @@ class ClientLogLimiter:
             for queue in (bucket, self._all):
                 while queue and queue[0] <= now - 60:
                     queue.popleft()
-            if len(bucket) >= (30 if anonymous else 120) or len(self._all) >= 600:
+            # 日志上报沿用 30 条/分钟；Web Vitals 每 10s 一批（最多 8 项）单独给
+            # 120 条/分钟，否则正常 RUM 会被限流。全局 600 条/分钟兜底。
+            if len(bucket) >= per_client_limit or len(self._all) >= 600:
                 return False
             bucket.append(now)
             self._all.append(now)
             return True
 
 
-def _limit_client_log(request: Request, *, anonymous: bool) -> None:
+def _limit_client_log(request: Request, *, anonymous: bool, per_client_limit: int = 30) -> None:
     store = request.app.state.global_log
     with store._lock:
         if not hasattr(store, 'client_limiter'):
@@ -100,7 +124,7 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
     # 一个页面刷屏就会让所有人的上报被 429 拦截。无法判定客户端时退化为全局桶。
     address = resolve_client_address_from_request(request)
     peer = address.ip if address.per_client and address.ip else 'unknown'
-    if not limiter.allow(peer, anonymous=anonymous):
+    if not limiter.allow(peer, anonymous=anonymous, per_client_limit=per_client_limit):
         raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers=retry_after_headers(60))
 
 
@@ -190,9 +214,7 @@ def create_client_log_event(payload: ClientLogEvent, request: Request, viewer: C
 
 @router.post('/public-events', status_code=status.HTTP_204_NO_CONTENT)
 def create_public_client_log_event(payload: ClientLogEvent, request: Request, response: Response, database: DatabaseSession) -> Response:
-    origin = urlsplit(request.headers.get('origin', ''))
-    if origin.scheme not in {'http', 'https'} or origin.netloc.casefold() != request.headers.get('host', '').casefold():
-        raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
+    _require_same_origin(request)
     if payload.level not in {'error', 'warning'}:
         raise HTTPException(status_code=422, detail='未登录页面只能上报异常。')
     page = str(payload.context.get('page') or '').split('?', 1)[0].split('#', 1)[0].rstrip('/') or '/'
@@ -206,6 +228,15 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
             raise
         viewer = None
     _append_client_event(payload, request, viewer)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post('/public-metrics', status_code=status.HTTP_204_NO_CONTENT)
+def create_public_client_metric(payload: ClientMetricSample, request: Request) -> Response:
+    """匿名 Web Vitals / 错误 / 重连上报；同源 + 限流，聚合进 `/metrics`。"""
+    _require_same_origin(request)
+    _limit_client_log(request, anonymous=True, per_client_limit=120)
+    record_client_metric(payload.name, payload.page, payload.value)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

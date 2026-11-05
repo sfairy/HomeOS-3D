@@ -39,6 +39,7 @@ from ..domains.store import (
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import LoginSession, User
 from ..platform.core.http.deps import get_session
+from ..platform.security.auth_context import invalidate_session_cache
 from ..platform.security.client_address import (
     client_ip_from_request,
     resolve_client_address_from_request,
@@ -574,6 +575,7 @@ async def reset_password(
             detail="邮箱或验证码无效。",
         )
     user_id, username = result
+    invalidate_session_cache(None)
     clear_session_cookie(response, request.app.state.settings, request)
     request.app.state.global_log.append(
         "success", "系统后台", "账号", f"账号 {username} 通过邮箱验证码重置了密码"
@@ -613,6 +615,7 @@ async def change_password(
         payload.new_password,
         max_age_seconds,
     )
+    invalidate_session_cache(None)
     set_session_cookie(
         response,
         settings,
@@ -639,6 +642,7 @@ async def logout(
     if token:
         session_factory = request.app.state.database.session_factory
         username, revoked_user_id = await run_db(_logout_in_db, session_factory, token)
+        invalidate_session_cache(token)
     request.app.state.global_log.append(
         "info", "系统后台", "账号", f"{username} 已退出登录"
     )

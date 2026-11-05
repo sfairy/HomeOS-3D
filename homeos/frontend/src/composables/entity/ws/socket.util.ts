@@ -1,5 +1,4 @@
 /** 实体 WebSocket（Socket.IO）连接构建工具 */
-import msgpackParser from 'socket.io-msgpack-parser'
 import type { Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'
 import { useLayoutStore } from '@/stores/layout.store'
@@ -63,12 +62,13 @@ export function refreshEntitySocketAuth(
   socket.auth = buildEntitySocketAuth(lastSocketEventAt, lastEventId, hasBaseline)
 }
 
-/** 构建 Socket.IO 连接 options：withCredentials + msgpack + polling 优先 + 无限重连 */
-export function buildEntitySocketOptions(auth: Record<string, unknown>) {
+/** 构建 Socket.IO 连接 options：withCredentials + msgpack + polling 优先 + 无限重连。
+ * parser 由传输层按需动态加载后传入（B21：socket.io 不进首屏静态依赖）。 */
+export function buildEntitySocketOptions(auth: Record<string, unknown>, parser: unknown) {
   return {
     withCredentials: true,
     auth,
-    parser: msgpackParser,
+    parser,
     // polling 优先：先经 HTTP 握手（后端不可达时 Vite 代理回 503 → 安静的 connect_error），
     // 会话建立后再升级到 WebSocket。若 websocket 优先，后端重启/未就绪时每次重连都会
     // 触发浏览器级「WebSocket is closed before the connection is established」报错。

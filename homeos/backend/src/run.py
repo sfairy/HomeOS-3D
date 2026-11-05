@@ -18,6 +18,8 @@ import time
 
 import uvicorn
 
+_log = logging.getLogger(__name__)
+
 # 应用模块导入耗时（含 load_app_version 与其依赖链），用于区分「import 慢」与「lifespan 慢」。
 _BOOT_IMPORT_STARTED = time.perf_counter()
 from . import load_app_version
@@ -38,6 +40,33 @@ def _resolve_host() -> str:
     return os.getenv("HOMEOS_HOST", "").strip() or os.getenv("HOST", "").strip() or "0.0.0.0"
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "on", "yes", "true"}
+
+
+def _resolve_keep_alive() -> int:
+    raw = os.getenv("HOMEOS_KEEP_ALIVE_SECONDS", "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        _log.warning("HOMEOS_KEEP_ALIVE_SECONDS 非法，回退 30：%r", raw)
+        return 30
+    return value if value > 0 else 30
+
+
+def _resolve_limit_concurrency() -> int | None:
+    raw = os.getenv("HOMEOS_LIMIT_CONCURRENCY", "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        _log.warning("HOMEOS_LIMIT_CONCURRENCY 非法，回退不限流：%r", raw)
+        return None
+    return value if value > 0 else None
+
+
 def _resolve_shutdown_timeout() -> int:
     """优雅关闭上限(秒)。
 
@@ -49,6 +78,7 @@ def _resolve_shutdown_timeout() -> int:
     try:
         value = int(raw)
     except ValueError:
+        _log.warning("HOMEOS_SHUTDOWN_TIMEOUT 非法，回退 10：%r", raw)
         return 10
     return value if value > 0 else 10
 
@@ -57,9 +87,7 @@ def main() -> None:
     host = _resolve_host()
     port = _resolve_port()
     reload_enabled = os.getenv("HOMEOS_RELOAD", "").strip().lower() in {"1", "on", "yes", "true"}
-    logging.getLogger("homeos.bootstrap").info(
-        "HomeOS 后端 v%s 运行在 http://%s:%s", load_app_version(), host, port
-    )
+    logging.getLogger("homeos.bootstrap").info("HomeOS 后端 v%s 运行在 http://%s:%s", load_app_version(), host, port)
     if reload_enabled:
         # 开发期降噪：重载提示与 watchfiles 的逐次改动日志（必须在 uvicorn.run 之前挂）。
         from homeos_shared.logging_noise import install_reload_noise_filter
@@ -73,6 +101,9 @@ def main() -> None:
             reload=True,
             log_level=os.getenv("LOG_LEVEL", "info"),
             log_config=None,
+            access_log=_env_flag("HOMEOS_UVICORN_ACCESS_LOG", False),
+            timeout_keep_alive=_resolve_keep_alive(),
+            limit_concurrency=_resolve_limit_concurrency(),
             timeout_graceful_shutdown=_resolve_shutdown_timeout(),
         )
         return
@@ -82,6 +113,11 @@ def main() -> None:
         port=port,
         log_level=os.getenv("LOG_LEVEL", "info"),
         log_config=None,
+        # 访问日志每条请求一行 stdout，在 1.7k QPS 下是纯开销；需要排障时用
+        # HOMEOS_UVICORN_ACCESS_LOG=1 打开。
+        access_log=_env_flag("HOMEOS_UVICORN_ACCESS_LOG", False),
+        timeout_keep_alive=_resolve_keep_alive(),
+        limit_concurrency=_resolve_limit_concurrency(),
         timeout_graceful_shutdown=_resolve_shutdown_timeout(),
     )
 

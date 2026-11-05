@@ -2,7 +2,9 @@
 
 每天 02:30（Asia/Shanghai）生成完整备份包并保留近 N 天产物。
 
-- 开关与保留天数读取 ``ops.autoBackupEnabled`` / ``ops.autoBackupRetainDays``（系统参数热更新）；
+- 开关与保留天数读取 ``ops.autoBackupEnabled`` / ``ops.autoBackupRetainDays``（系统参数热更新）：
+  保留天数 <1 时回退安全默认 7 天（``HOMEOS_AUTO_BACKUP_RETAIN_DAYS`` 可覆盖）；
+- 生成前检查数据盘可用比例（``HOMEOS_BACKUP_MIN_FREE_RATIO``，默认 10%），水位不足本轮跳过；
 - 单副本部署，调度到点直接执行；
 - 每次执行后记录 ``lastRunAt`` / ``lastError``，供 ``GET /system/backup/auto/status`` 展示。
 """
@@ -11,8 +13,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import shutil
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from ...platform.core.runtime.zoned_time import date_from_zoned_wall_clock, zoned_date_parts
@@ -24,6 +29,49 @@ AUTO_BACKUP_HOUR = 2
 AUTO_BACKUP_MINUTE = 30
 #: 文案与 Cron 固定北京时间，避免容器 UTC 把 02:30 跑成上午 10:30
 AUTO_BACKUP_TZ = "Asia/Shanghai"
+
+#: ``retainDays`` 未配置（或 <1）时的安全默认保留天数。旧实现「<1 即不清理」，
+#: 磁盘只涨不跌；这里回退到最近 7 份，且仍永远保留最新一份。
+AUTO_BACKUP_RETAIN_ENV = "HOMEOS_AUTO_BACKUP_RETAIN_DAYS"
+DEFAULT_AUTO_BACKUP_RETAIN_DAYS = 7
+
+#: 数据盘可用比例低于该阈值时跳过本轮自动备份并告警，避免把盘写满先拖垮业务。
+#: 取值 0~1（不含 1）；非法回退 0.10。
+BACKUP_MIN_FREE_RATIO_ENV = "HOMEOS_BACKUP_MIN_FREE_RATIO"
+DEFAULT_BACKUP_MIN_FREE_RATIO = 0.10
+
+
+def resolve_auto_backup_retain_days(configured: Any) -> int:
+    """``ops.autoBackupRetainDays`` 的生效值：缺省/非法/<1 时回退 env 或 7。
+
+    保留天数 <1 在旧实现里等于「不清理」，长期运行必然涨盘；这里把它收敛成
+    「至少保留最近 7 天」，需要保留更久时用 ``HOMEOS_AUTO_BACKUP_RETAIN_DAYS``。
+    """
+    if isinstance(configured, (int, float)) and not isinstance(configured, bool) and configured >= 1:
+        return int(configured)
+    raw = os.environ.get(AUTO_BACKUP_RETAIN_ENV, "").strip()
+    if raw:
+        try:
+            value = int(raw)
+        except ValueError:
+            logger.debug("自动备份保留天数配置非法,按未配置处理: %r", raw)
+            value = 0
+        if value >= 1:
+            return value
+    return DEFAULT_AUTO_BACKUP_RETAIN_DAYS
+
+
+def resolve_backup_min_free_ratio() -> float:
+    """读取磁盘水位阈值（0~1）；未设置/非法回退 10%。"""
+    raw = os.environ.get(BACKUP_MIN_FREE_RATIO_ENV, "").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.debug("磁盘水位阈值配置非法,回退默认 %s: %r", DEFAULT_BACKUP_MIN_FREE_RATIO, raw)
+        return DEFAULT_BACKUP_MIN_FREE_RATIO
+    if 0.0 <= value < 1.0:
+        return value
+    return DEFAULT_BACKUP_MIN_FREE_RATIO
 
 
 class AutoBackupService:
@@ -73,11 +121,45 @@ class AutoBackupService:
         ops = self._app_config.get("ops") or {}
         return {
             "enabled": bool(ops.get("autoBackupEnabled")),
-            "retainDays": int(ops.get("autoBackupRetainDays") or 0),
+            "retainDays": resolve_auto_backup_retain_days(ops.get("autoBackupRetainDays")),
             "lastRunAt": self.last_run_at,
             "lastError": self.last_error,
             "nextRunAt": self.compute_next_run_at(),
         }
+
+    # 磁盘水位
+    def _backup_directory(self) -> Path | None:
+        """备份包所在目录；取不到时返回 None（跳过水位检查而不是拦住备份）。"""
+        directory = getattr(self._server_backup, "backups_dir", None)
+        if directory is not None:
+            return Path(directory)
+        try:
+            entries = self._server_backup.list_files()
+        except Exception as err:
+            logger.debug("读取备份目录失败,跳过水位检查: %s", err)
+            return None
+        if not entries:
+            return None
+        path = entries[0].get("path")
+        return Path(path).parent if path else None
+
+    def _disk_watermark_skip_reason(self) -> str | None:
+        """磁盘可用比例低于阈值时返回跳过原因；无法判断时返回 None（放行）。"""
+        directory = self._backup_directory()
+        if directory is None:
+            return None
+        try:
+            usage = shutil.disk_usage(directory)
+        except OSError as err:
+            logger.debug("读取磁盘水位失败,按可用处理: %s", err)
+            return None
+        if usage.total <= 0:
+            return None
+        free_ratio = usage.free / usage.total
+        threshold = resolve_backup_min_free_ratio()
+        if free_ratio >= threshold:
+            return None
+        return f"磁盘可用空间不足({free_ratio:.1%} < 阈值 {threshold:.0%}),已跳过本次自动备份"
 
     async def run_auto_backup(self) -> None:
         ops = self._app_config.get("ops") or {}
@@ -89,15 +171,18 @@ class AutoBackupService:
         if self._coordinator is not None and self._coordinator.maintenance:
             logger.warning("正在恢复业务数据，本次自动备份跳过")
             return
+        retain_days = resolve_auto_backup_retain_days(ops.get("autoBackupRetainDays"))
+        # 水位检查放在生成之前：盘要满时宁可少一份备份，也不能让备份把业务写挂。
+        skip_reason = self._disk_watermark_skip_reason()
+        if skip_reason is not None:
+            self.last_error = skip_reason
+            logger.warning("自动备份跳过:%s", skip_reason)
+            return
         try:
             if self._coordinator is not None:
-                name = await self._coordinator.run_exclusive(
-                    self._create_and_prune, int(ops.get("autoBackupRetainDays") or 0)
-                )
+                name = await self._coordinator.run_exclusive(self._create_and_prune, retain_days)
             else:
-                name = await asyncio.to_thread(
-                    self._create_and_prune, int(ops.get("autoBackupRetainDays") or 0)
-                )
+                name = await asyncio.to_thread(self._create_and_prune, retain_days)
             self.last_run_at = datetime.now(UTC).isoformat(timespec="milliseconds").replace(
                 "+00:00", "Z"
             )
@@ -121,10 +206,11 @@ class AutoBackupService:
         - 手动包（``homeos-full-``）与自动包过去同名同目录，无法区分来源，于是「升级前手动
           备份」闲置超期就被静默删掉 —— 那往往正是最该留下的那一份；
         - 没有任何「至少留一份」的兜底时，长时间停机后首次调度会先造新包再删旧包，看似安全，
-          但若新包创建失败、清理又先跑，就会把历史清空。
+          但若新包创建失败、清理又先跑，就会把历史清空；
+        - 保留天数 <1 的旧语义是「不清理」，等于放任磁盘涨满；现在回退到安全默认 7 天
+          （``HOMEOS_AUTO_BACKUP_RETAIN_DAYS`` 可覆盖），同时仍永远保留最新一份。
         """
-        if not isinstance(retain_days, (int, float)) or retain_days < 1:
-            return
+        retain_days = resolve_auto_backup_retain_days(retain_days)
         cutoff_ms = time.time() * 1000 - retain_days * 24 * 60 * 60 * 1000
         entries = [item for item in self._server_backup.list_files() if item.get("origin") == "auto"]
         if len(entries) <= 1:

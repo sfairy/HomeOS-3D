@@ -51,6 +51,19 @@ _MAX_DELETE_BATCHES = 10_000
 #: 单表单轮清理的时间上限（秒）：到点先在批次之间收尾，剩下的留给下一轮。
 _DELETE_TIME_BUDGET = 120.0
 
+#: 清理后附加维护策略（B14）：
+#: - ``light``（默认）：``PRAGMA optimize`` + ``ANALYZE event_logs`` + 被动 WAL checkpoint，
+#:   不重写库文件，避免整库 ``VACUUM`` 独占写锁 1–3 s 卡住业务写入；
+#: - ``incremental``：额外跑 ``PRAGMA incremental_vacuum``（需建库时 auto_vacuum=INCREMENTAL，
+#:   否则 SQLite 安静地什么都不做）；
+#: - ``full``：旧行为，整库 ``VACUUM``（排障/手动维护时用）；
+#: - ``off``：只删数据，不做任何附加维护。
+RETENTION_VACUUM_MODE_ENV = "HOMEOS_RETENTION_VACUUM_MODE"
+RETENTION_VACUUM_MIN_ROWS_ENV = "HOMEOS_RETENTION_VACUUM_MIN_ROWS"
+#: 本轮删除达到多少行才触发附加维护（与旧实现对齐的 1000 行）。
+DEFAULT_VACUUM_MIN_ROWS = 1000
+_VACUUM_MODES = frozenset({"light", "incremental", "full", "off"})
+
 _RETENTION_MODELS: dict[str, Any] = {
     "eventLog": (EventLog, "event_logs"),
     "notification": (Notification, "notifications"),
@@ -109,6 +122,24 @@ def resolve_positive_int(from_config: Any, env_keys: list[str], fallback: int) -
         if found is not None:
             return found
     return fallback
+
+
+def resolve_vacuum_mode() -> str:
+    """读取附加维护策略；未设置或非法值回退 ``light``（不整库 VACUUM）。"""
+    raw = os.environ.get(RETENTION_VACUUM_MODE_ENV)
+    mode = raw.strip().lower() if isinstance(raw, str) else ""
+    return mode if mode in _VACUUM_MODES else "light"
+
+
+def resolve_vacuum_min_rows() -> int:
+    """读取触发附加维护的删除行数阈值；非法/非正回退 1000。"""
+    raw = os.environ.get(RETENTION_VACUUM_MIN_ROWS_ENV)
+    try:
+        value = int(raw) if raw is not None else DEFAULT_VACUUM_MIN_ROWS
+    except (TypeError, ValueError):
+        logger.debug("附加维护行数阈值非法,回退默认 %s: %r", DEFAULT_VACUUM_MIN_ROWS, raw)
+        return DEFAULT_VACUUM_MIN_ROWS
+    return value if value > 0 else DEFAULT_VACUUM_MIN_ROWS
 
 
 class DatabaseRetentionService:
@@ -388,7 +419,8 @@ class DatabaseRetentionService:
             except Exception as exc:
                 logger.warning("清理 %s 失败: %s", key, exc)
 
-        # EventLog 大批量删除后 ANALYZE / VACUUM（对齐 Nest：>=1000 行时执行）
+        # EventLog 大批量删除后做附加维护（默认轻量：optimize/analyze/被动 checkpoint，
+        # 不再每次整库 VACUUM；策略见 HOMEOS_RETENTION_VACUUM_MODE）
         self._vacuum_event_log(deleted.get("eventLog", 0))
 
         # 通知冷却 prune（与表清理独立，失败仅告警）
@@ -417,8 +449,20 @@ class DatabaseRetentionService:
 
     # 附加清理步骤
     def _vacuum_event_log(self, deleted_count: int) -> None:
-        """EventLog 删除 >=1000 行后 VACUUM + ANALYZE；失败回退 ANALYZE（对齐 Nest）。"""
-        if deleted_count < 1000:
+        """EventLog 大批量删除后的附加维护（默认轻量，不再整库 VACUUM）。
+
+        旧实现每删 >=1000 行就 ``VACUUM`` 整个库：重写库文件会独占写锁 1–3 s，而清理线程
+        跑在业务进程里，正好卡住同一时刻的状态落库。现在默认只做不阻塞读写的轻量维护：
+        ``PRAGMA optimize`` 更新查询计划统计、``ANALYZE event_logs`` 刷新该表统计、
+        ``PRAGMA wal_checkpoint(PASSIVE)`` 把可回写的 WAL 页顺手刷掉。空间回收交给
+        ``HOMEOS_RETENTION_VACUUM_MODE=incremental|full`` 按需开启。
+        """
+        mode = resolve_vacuum_mode()
+        min_rows = resolve_vacuum_min_rows()
+        if deleted_count < min_rows:
+            return
+        if mode == "off":
+            logger.debug("EventLog 附加维护已关闭(本次删除 %s 行)", deleted_count)
             return
         with self._session_factory() as session:
             try:
@@ -426,22 +470,31 @@ class DatabaseRetentionService:
             except Exception as exc:
                 logger.warning("获取数据库引擎失败: %s", exc)
                 return
+        steps: list[str] = []
         try:
             with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                conn.exec_driver_sql("VACUUM")
+                if mode == "full":
+                    conn.exec_driver_sql("VACUUM")
+                    steps.append("VACUUM")
+                elif mode == "incremental":
+                    conn.exec_driver_sql("PRAGMA incremental_vacuum")
+                    steps.append("INCREMENTAL VACUUM")
+                conn.exec_driver_sql("PRAGMA optimize")
+                steps.append("OPTIMIZE")
                 conn.exec_driver_sql('ANALYZE "event_logs"')
-            logger.info("EventLog 已 VACUUM + ANALYZE(本次删除 %s 行)", deleted_count)
-        except Exception as vacuum_err:
-            try:
-                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                    conn.exec_driver_sql('ANALYZE "event_logs"')
-                logger.info(
-                    "EventLog 已 ANALYZE(VACUUM 不可用: %s;本次删除 %s 行)",
-                    vacuum_err,
-                    deleted_count,
-                )
-            except Exception as exc:
-                logger.warning("EventLog ANALYZE 失败: %s", exc)
+                steps.append("ANALYZE event_logs")
+                conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
+                steps.append("WAL CHECKPOINT(PASSIVE)")
+        except Exception as exc:
+            # 附加维护失败不影响数据清理本身：删除已提交，这里只是空间/统计优化。
+            logger.warning(
+                "EventLog 附加维护失败(mode=%s,本次删除 %s 行): %s",
+                mode,
+                deleted_count,
+                exc,
+            )
+            return
+        logger.info("EventLog 附加维护完成(%s;本次删除 %s 行)", " + ".join(steps), deleted_count)
 
     def _delete_batched(self, model: Any, cutoff: datetime, batch_size: int) -> int:
         """分批删除 ``createdAt < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。

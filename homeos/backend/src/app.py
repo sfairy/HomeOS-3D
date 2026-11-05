@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 import time
 
+_APP_IMPORT_STARTED = time.perf_counter()
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
@@ -34,6 +36,10 @@ from .platform.core.db.database import Database
 from .platform.core.http.proxy_env import repair_no_proxy_env
 from .platform.core.runtime.observability import decide_metrics_access, format_homeos_prometheus_metrics
 from .platform.security.client_address import client_ip_from_request
+
+#: 应用模块（含路由/领域包）导入耗时；容器路径 uvicorn --factory 没有入口计时，
+#: 由模块自己记录，供 /metrics 的 homeos_boot_import_ms 使用。
+_MODULE_IMPORT_MS = round((time.perf_counter() - _APP_IMPORT_STARTED) * 1000.0, 2)
 
 #: 健康检查 DB 探针缓存 TTL：/health 为公开端点，避免高频轮询击穿连接。
 DB_PROBE_TTL_SECONDS = 3.0
@@ -204,8 +210,9 @@ def create_asgi_app(settings: Settings | None = None, *, boot_import_ms: float |
     import socketio
 
     fastapi_app = create_app(settings)
-    if boot_import_ms is not None:
-        fastapi_app.state.boot_import_ms = float(boot_import_ms)
+    fastapi_app.state.boot_import_ms = float(
+        boot_import_ms if boot_import_ms is not None else _MODULE_IMPORT_MS
+    )
     return socketio.ASGIApp(
         fastapi_app.state.realtime.sio,
         other_asgi_app=fastapi_app,

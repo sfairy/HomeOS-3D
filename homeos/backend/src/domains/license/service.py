@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
+from .allow_cache import cached_allow
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpoint, LicenseEndpointPool
 from .features import (
@@ -1510,14 +1511,13 @@ class LicenseService:
         self._allow_cache.clear()
         self._identity_snapshot = None
 
+    def cached_allows(self, feature: str | None = None) -> bool | None:
+        return cached_allow(self._allow_cache, self._identity_snapshot, feature, time.monotonic())
+
     def allows(self, feature: str | None = None, *, database=None) -> bool:
         feature_key = feature or "*"
-        # 快路径：授权判定本身已有 2s 缓存，但缓存键里带着 (lease_id, lease_sequence)，
-        # 而这两个值原先只能靠每条受保护请求读一次 LicenseState 才拿得到 —— 于是
-        # 每个请求都固定多出 1 次 SQLite 读（基线里 /assets/*、/ha/entities 的
-        # DB/req = 3 就是这么来的）。这里把最近一次读到的租约身份连同一个短 TTL 记下来，
-        # 命中的请求直接返回缓存判定，不再开 session。
-        # 陈旧窗口与 _allow_cache 的 TTL 相同（2s），不额外放宽任何语义。
+        # 快路径：最近一次租约身份 + 与 _allow_cache 相同的 2s TTL，命中则不再开
+        # session（否则每条受保护请求都要多读一次 LicenseState）。
         now = time.monotonic()
         if database is None:
             snapshot = self._identity_snapshot

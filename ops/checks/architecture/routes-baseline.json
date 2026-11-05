@@ -230,6 +230,7 @@
     "POST /api/v1/license/retry",
     "POST /api/v1/logs/events",
     "POST /api/v1/logs/public-events",
+    "POST /api/v1/logs/public-metrics",
     "POST /api/v1/mcp",
     "POST /api/v1/modes",
     "POST /api/v1/modes/deactivate",

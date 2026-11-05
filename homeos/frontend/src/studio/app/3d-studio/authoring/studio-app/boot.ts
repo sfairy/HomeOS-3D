@@ -233,7 +233,6 @@ import {
 } from "../../../bridge/scene/render-cache";
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../../shared/util/range-progress";
 import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import { GLTFLoader as GLTFLoader2 } from "/static/vendor/three/0.187.0/GLTFLoader.js";
 import { SameOriginDRACOLoader as SameOriginDRACOLoader2 } from "../../export/draco-loader";
 import { createModelAssetLoader as createModelAssetLoader2 } from "../../loaders/model-asset-loader";
 
@@ -1663,7 +1662,7 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   lampsLayerIndex = 2;
 const modelAssetLoader = createModelAssetLoader2({
   THREE: ns2,
-  GLTFLoader: GLTFLoader2,
+  resolveGLTFLoader: () => import("/static/vendor/three/0.187.0/GLTFLoader.js").then((loaderModule: any) => loaderModule.GLTFLoader),
   createDracoLoader(loaderConfig: any) {
     const dracoLoader = new SameOriginDRACOLoader2(
       "/static/3d-studio/export/draco-decoder-worker.js",

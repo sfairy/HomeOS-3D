@@ -349,7 +349,9 @@ def _ha_connector_defaults() -> dict[str, Any]:
         "maxReconnectDelayMs": 10_000,
         "historyCacheMaxSize": 300,
         "ingressCoalesceEnabled": True,
-        "ingressCoalesceWindowMs": 8,
+        # 入口微窗默认 4ms（一帧的四分之一）：只吸收同一瞬间到达的突发，不再让单条
+        # 更新白等 8ms；env HOMEOS_HA_INGRESS_COALESCE_WINDOW_MS 可覆盖。
+        "ingressCoalesceWindowMs": 4,
         "ingressCoalesceDomains": list(DEFAULT_INGRESS_COALESCE_DOMAINS),
         "syncOnlyEnabledEntities": True,
         # 应用层心跳：15s 一次 ping、单次等待 10s、连续 2 次未响应即判死。

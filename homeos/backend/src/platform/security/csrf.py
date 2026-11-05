@@ -47,6 +47,9 @@ CSRF_SKIP_PATHS = frozenset(
         # 同源校验挡住，CSRF 在此无额外保护价值；若不放行，未登录页的异常上报恒定 403
         # 并被客户端静默丢弃（用户报错时恰恰拿不到日志）。
         "/api/v1/logs/public-events",
+        # Web Vitals 匿名上报：与 public-events 同源的页面，sendBeacon 不带 CSRF 头；
+        # 路由自身做 Origin/Host 同源校验 + 匿名限流。
+        "/api/v1/logs/public-metrics",
     }
 )
 

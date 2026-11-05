@@ -79,6 +79,7 @@ class FakeGateway(ConnectionLifecycleMixin, SubscriptionIndexMixin):
         self._sid_pinned: dict[str, set[str]] = {}
         self._connecting: set[str] = set()
         self._closed_sids: set[str] = set()
+        self._backpressure_drops: dict[str, int] = {}
         self._license_listener_registered = False
         self._loop = None
         self.settings = SimpleNamespace(cookie_name="auth_token", license_required=False)

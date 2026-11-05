@@ -1,10 +1,11 @@
-"""启动体检强度的回归：「干净关闭才 quick_check，异常退出后必须逐页全查」。
+"""启动体检强度的回归：「干净关闭跳过扫描，异常退出必须 quick_check」。
 
 为什么这条要有测试：档位是**按上一次退出是否干净**自动选的，选错的后果不对称 ——
 多扫一遍只是慢 0.6 秒，少扫一遍却可能把半写页的库当健康库放行。所以这里锁住三件事：
 
-1. 没有「干净关闭」标记（含崩溃退出、标记被消费后再次启动）→ 一律 ``integrity_check``；
-2. 标记存在 → ``quick_check``，且标记**读即删**（否则一次干净关闭会永久降档）；
+1. 没有「干净关闭」标记（含崩溃退出、标记被消费后再次启动）→ 一律 ``quick_check``；
+2. 标记存在且 auto 档 → 跳过逐页扫描（``skipped``），且标记**读即删**
+   （否则一次干净关闭会永久跳过）；
 3. 降档只降「逐页」这一项：外键校验与必需表核对在任何档位下都必须照常报错。
 
 运行：node ops/lib/py.mjs -m unittest discover -s ops/checks/shared/tests -v
@@ -12,11 +13,13 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SHARED_PY_ROOT = REPO_ROOT / "packages" / "shared-py"
@@ -38,23 +41,23 @@ class IntegrityTierTest(unittest.TestCase):
         with sqlite3.connect(self.db) as connection:
             connection.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
 
-    def test_unclean_exit_runs_full_check(self) -> None:
+    def test_unclean_exit_runs_quick_check(self) -> None:
         report = validate_database(self.db, {"t"})
-        self.assertEqual(report.pragma, "integrity_check")
+        self.assertEqual(report.pragma, "quick_check")
         self.assertFalse(report.clean_shutdown)
 
-    def test_clean_exit_downgrades_and_consumes_marker(self) -> None:
+    def test_clean_exit_skips_scan_and_consumes_marker(self) -> None:
         mark_clean_shutdown(self.db)
         self.assertTrue(clean_shutdown_marker(self.db).is_file())
 
         report = validate_database(self.db, {"t"})
-        self.assertEqual(report.pragma, "quick_check")
+        self.assertEqual(report.pragma, "skipped")
         self.assertTrue(report.clean_shutdown)
         # 读即删：本次启动中途再崩，下次不会被误判成「上次干净关闭」。
         self.assertFalse(clean_shutdown_marker(self.db).exists())
 
         again = validate_database(self.db, {"t"})
-        self.assertEqual(again.pragma, "integrity_check")
+        self.assertEqual(again.pragma, "quick_check")
         self.assertFalse(again.clean_shutdown)
 
     def test_explicit_tier_ignores_marker(self) -> None:
@@ -68,6 +71,45 @@ class IntegrityTierTest(unittest.TestCase):
     def test_unknown_tier_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             validate_database(self.db, {"t"}, integrity="fast")
+
+
+class EnvTierOverrideTest(unittest.TestCase):
+    """排障开关：HOMEOS_SCHEMA_INTEGRITY 的显式档位优先于自动档，非法值退回 auto。"""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.db = Path(self._tmp.name) / "app.db"
+        with sqlite3.connect(self.db) as connection:
+            connection.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+
+    def test_env_full_forces_integrity_check(self) -> None:
+        mark_clean_shutdown(self.db)
+        with mock.patch.dict(os.environ, {"HOMEOS_SCHEMA_INTEGRITY": "full"}):
+            report = validate_database(self.db, {"t"})
+        self.assertEqual(report.pragma, "integrity_check")
+        self.assertIsNone(report.clean_shutdown)
+        # 强制档位也必须消费标记，否则旧标记会留到下次自动档。
+        self.assertFalse(clean_shutdown_marker(self.db).exists())
+
+    def test_env_quick_forces_quick_check(self) -> None:
+        with mock.patch.dict(os.environ, {"HOMEOS_SCHEMA_INTEGRITY": "quick"}):
+            report = validate_database(self.db, {"t"})
+        self.assertEqual(report.pragma, "quick_check")
+        self.assertIsNone(report.clean_shutdown)
+
+    def test_env_auto_keeps_skip_on_clean_shutdown(self) -> None:
+        mark_clean_shutdown(self.db)
+        with mock.patch.dict(os.environ, {"HOMEOS_SCHEMA_INTEGRITY": "auto"}):
+            report = validate_database(self.db, {"t"})
+        self.assertEqual(report.pragma, "skipped")
+        self.assertTrue(report.clean_shutdown)
+
+    def test_invalid_env_falls_back_to_auto(self) -> None:
+        mark_clean_shutdown(self.db)
+        with mock.patch.dict(os.environ, {"HOMEOS_SCHEMA_INTEGRITY": "fast"}):
+            report = validate_database(self.db, {"t"})
+        self.assertEqual(report.pragma, "skipped")
 
 
 class DowngradeKeepsOtherChecksTest(unittest.TestCase):

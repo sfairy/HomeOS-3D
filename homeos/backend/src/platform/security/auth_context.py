@@ -13,6 +13,9 @@
 
 from __future__ import annotations
 
+import os
+import threading
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -26,8 +29,52 @@ from .session_store import (
     set_session_cookie,
 )
 from ..core.db.models import LoginSession, User
-from ..core.http.deps import get_session
 from ..core.http.errors import unauthorized
+
+#: 登录会话解析缓存：受保护请求在 TTL 内不再查 sessions 表。
+#: 登出 / 改密会显式清空，因此窗口只影响「同一 token 的并发请求」，不延长吊销。
+_SESSION_CACHE_TTL_SECONDS = max(
+    0.0, float(os.getenv("HOMEOS_AUTH_CACHE_SECONDS", "2") or "2")
+)
+_SESSION_CACHE_MAX_ENTRIES = 256
+_session_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+_session_cache_lock = threading.Lock()
+
+
+def invalidate_session_cache(token: str | None = None) -> None:
+    """清空会话解析缓存；``token`` 为空时清空全部（改密 / 重置密码）。"""
+    with _session_cache_lock:
+        if token is None:
+            _session_cache.clear()
+            return
+        _session_cache.pop(session_token_hash(token), None)
+
+
+def _cached_user(token: str) -> dict[str, Any] | None:
+    if _SESSION_CACHE_TTL_SECONDS <= 0:
+        return None
+    key = session_token_hash(token)
+    now = time.monotonic()
+    with _session_cache_lock:
+        entry = _session_cache.get(key)
+        if entry is None:
+            return None
+        expires_at, payload = entry
+        if expires_at <= now:
+            _session_cache.pop(key, None)
+            return None
+        return dict(payload)
+
+
+def _cache_user(token: str, payload: dict[str, Any]) -> None:
+    if _SESSION_CACHE_TTL_SECONDS <= 0:
+        return
+    key = session_token_hash(token)
+    now = time.monotonic()
+    with _session_cache_lock:
+        if len(_session_cache) >= _SESSION_CACHE_MAX_ENTRIES:
+            _session_cache.clear()
+        _session_cache[key] = (now + _SESSION_CACHE_TTL_SECONDS, dict(payload))
 
 
 def _settings(request: Request):
@@ -118,19 +165,31 @@ def authenticate_session(
     return user
 
 
-def get_current_user(
-    request: Request,
-    response: Response,
-    session: Session = Depends(get_session),
-) -> dict[str, Any]:
+def get_current_user(request: Request, response: Response) -> dict[str, Any]:
     """解析当前用户；无有效会话时抛 401。
 
     同步实现是有意的：FastAPI 会把同步依赖丢到线程池，SQLite 查询不占事件循环。
+    缓存命中时连 session 都不开 —— 原先 ``Depends(get_session)`` 会先跑一个同步生成器
+    依赖（又一次线程池往返），即使缓存命中也要 checkout 连接。代价是吊销/停用最多
+    滞后 ``HOMEOS_AUTH_CACHE_SECONDS``（默认 2s）：登出、改密、重置密码都会显式清空，
+    账号停用则由 TTL 兜底。
     """
-    user = authenticate_session(request, response, session)
-    if user is not None:
-        return _user_from_db(user)
-    return unauthorized("未登录或登录已过期")
+    settings = _settings(request)
+    token = request.cookies.get(settings.cookie_name, "")
+    if token:
+        cached = _cached_user(token)
+        if cached is not None:
+            return cached
+    with request.app.state.database.session_factory() as session:
+        user = authenticate_session(request, response, session)
+    if user is None:
+        if token:
+            invalidate_session_cache(token)
+        return unauthorized("未登录或登录已过期")
+    payload = _user_from_db(user)
+    if token:
+        _cache_user(token, payload)
+    return payload
 
 
 async def require_user(
@@ -143,5 +202,6 @@ async def require_user(
 __all__ = [
     "authenticate_session",
     "get_current_user",
+    "invalidate_session_cache",
     "require_user",
 ]

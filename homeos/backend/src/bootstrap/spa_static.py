@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import re
 from html import escape as html_escape
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ..api.assets import read_builtin_asset
@@ -32,6 +33,7 @@ from ..platform.core.http.frontend_static import (
     is_frontend_static_path,
     strip_auth_scene_assets,
 )
+from ..platform.core.http.precompressed_static import PrecompressedStaticFiles
 from ..platform.security.session_store import resolve_login_session
 
 #: 需要按「能力」判定授权状态的页面路径 → 能力名。
@@ -213,8 +215,8 @@ _IMMUTABLE_VENDOR_PATH = re.compile(r"^vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
 _BUILTIN_ASSET_MAX_AGE = 3600
 
 
-class _VersionedStaticFiles(StaticFiles):
-    """静态产物挂载：仅版本化 vendor 路径追加 immutable 长缓存头。"""
+class _VersionedStaticFiles(PrecompressedStaticFiles):
+    """静态产物挂载：预压缩 sidecar 直出 + 版本化 vendor 路径长缓存。"""
 
     async def get_response(self, path, scope):
         response = await super().get_response(path, scope)
@@ -241,7 +243,7 @@ def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
     modules_dir.mkdir(parents=True, exist_ok=True)
     app.mount(
         MODULES_MOUNT_PREFIX,
-        StaticFiles(directory=str(modules_dir)),
+        PrecompressedStaticFiles(directory=str(modules_dir)),
         name=MODULES_MOUNT_PREFIX.strip("/"),
     )
 
@@ -345,6 +347,15 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
             )
 
 
+def _spa_shell_response(html: str, request: Request) -> Response:
+    """按最终 HTML 计算 ETag；If-None-Match 命中时回 304，省掉重复导航的外壳 body。"""
+    etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:16] + '"'
+    headers = {"Cache-Control": "private, no-cache", "Vary": "Cookie", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return HTMLResponse(html, headers=headers)
+
+
 def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> None:
     """统一 SPA 外壳与 catch-all 回退。"""
 
@@ -444,7 +455,7 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
                 page_preload_stylesheets(request.url.path),
                 request.app.state.settings.frontend_dir,
             )
-        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+        return _spa_shell_response(html, request)
 
     @app.get("/", include_in_schema=False)
     async def spa_root(request: Request):

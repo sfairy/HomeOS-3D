@@ -163,26 +163,40 @@ def main() -> None:
         flush=True,
     )
     print("已有账号：直接在那张登录页登录。", flush=True)
-    print(f"授权服务器      {environment['APP_LICENSE_SERVER_URL']}", flush=True)
+    # 访问日志默认关闭：每个静态资源/轮询一行会淹没容器日志，且与 run.py 的直跑默认一致。
+    # 需要排查时 HOMEOS_UVICORN_ACCESS_LOG=1 打开；日志级别默认 warning（uvicorn 自身日志，
+    # 应用日志走自己的 logging 配置，不受影响）。
+    access_log = (environment.get('HOMEOS_UVICORN_ACCESS_LOG') or '').strip().lower() in {
+        '1', 'true', 'yes', 'on',
+    }
+    log_level = (environment.get('HOMEOS_UVICORN_LOG_LEVEL') or 'warning').strip() or 'warning'
+    keep_alive = (environment.get('HOMEOS_KEEP_ALIVE_SECONDS') or '30').strip() or '30'
 
     os.environ.clear()
     os.environ.update(environment)
+    uvicorn_args = [
+        sys.executable,
+        '-m',
+        'uvicorn',
+        'app.app:create_asgi_app',
+        '--factory',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        app_port,
+        '--proxy-headers',
+        '--forwarded-allow-ips',
+        forwarded_allow_ips,
+        '--log-level',
+        log_level,
+        '--timeout-keep-alive',
+        keep_alive,
+    ]
+    if not access_log:
+        uvicorn_args.append('--no-access-log')
     raise SystemExit(
         run_with_proxy(
-            [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "app.app:create_asgi_app",
-                "--factory",
-                "--host",
-                "0.0.0.0",
-                "--port",
-                app_port,
-                "--proxy-headers",
-                "--forwarded-allow-ips",
-                forwarded_allow_ips,
-            ],
+            uvicorn_args,
             data_dir=Path(environment["HOMEOS_DATA_DIR"]),
             service_label="主应用",
             # 与 Caddyfile 的 ``reverse_proxy 127.0.0.1:{$APP_PORT:8801}`` 同一个来源：

@@ -35,8 +35,9 @@ from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import to_ws_state_change_payload
 from .state_store import StateStore
 from .subscription import is_entity_visible_to_client
-from .ws_buffer import resolve_ws_max_buffer_bytes
+from .ws_buffer import resolve_ws_max_buffer_bytes, resolve_ws_push_backpressure_frames
 from .ws_config import load_state_store_config, load_ws_push_config
+from .ws_manager import HomeOSAsyncManager, resolve_ws_manager_mode
 from .ws_payloads import (
     HaStatusSnapshot,
     as_set,
@@ -51,7 +52,8 @@ _SERVER_TOKEN = "server"
 
 logger = logging.getLogger("homeos.realtime.gateway")
 
-#: 单客户端 websocket 写缓冲背压阈值（对齐 Nest ``WS_PUSH_BACKPRESSURE_WRITE_BUFFER``）
+#: 单客户端 websocket 写缓冲背压阈值默认值（对齐 Nest ``WS_PUSH_BACKPRESSURE_WRITE_BUFFER``）。
+#: 实际生效值在实例化时由 ``HOMEOS_WS_PUSH_BACKPRESSURE_FRAMES`` 覆盖（见 ws_buffer.py）。
 WS_PUSH_BACKPRESSURE_WRITE_BUFFER = 512
 
 
@@ -59,7 +61,11 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
     def __init__(self, app: Any) -> None:
         self.app = app
         install_msgpack_ext_hook()
+        manager_kwargs: dict[str, Any] = {}
+        if resolve_ws_manager_mode() != "builtin":
+            manager_kwargs["client_manager"] = HomeOSAsyncManager()
         self.sio = socketio.AsyncServer(
+            **manager_kwargs,
             async_mode="asgi",
             serializer="msgpack",
             cors_allowed_origins=self._is_origin_allowed,
@@ -89,6 +95,12 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         #: engineio 的无界写队列里继续灌水，形成正反馈；同一轮背压内只提示一次，
         #: 待该连接恢复正常（不再背压）后清除，下次真正背压时再提示。
         self._resync_pending: set[str] = set()
+        #: 单连接写队列背压帧上限（env 可调）。超过该值的连接不再收状态批量推送。
+        self._backpressure_frames = resolve_ws_push_backpressure_frames()
+        #: 每连接因背压被丢弃的批次计数（随断连清理，避免字典随历史 sid 无限增长）。
+        self._backpressure_drops: dict[str, int] = {}
+        #: 全局背压丢弃计数，供状态接口/日志快速观测。
+        self._backpressure_drop_total = 0
         #: 正在握手（``_on_connect`` 尚未返回）的 sid。``connect``/``disconnect`` 各自跑在
         #: 独立 task 里，客户端「连上就断」时断连清理可能先于登记跑完；这些集合用来识别
         #: 这种交错，避免死 sid 被重新登记后永久参与广播。
@@ -328,9 +340,16 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                 continue
             # 背压且无钉选实体：不推状态，改用「建议重同步」提示。但同一轮背压内只提示一次 ——
             # 每个变更都发一条只会往已经堆积的写队列里继续灌水，越堵越糟。
+            dropped = self._note_backpressure_drop(sid)
             if sid in self._resync_pending:
                 continue
             self._resync_pending.add(sid)
+            logger.debug(
+                "WS 背压丢弃状态批次 sid=%s dropped=%s limit=%s",
+                sid,
+                dropped,
+                self._backpressure_frames,
+            )
             await self.sio.emit("resync_suggested", resync_suggested_payload(), to=sid)
         if not ready:
             return
@@ -355,6 +374,21 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                     await self.sio.leave_room(sid, room)
                 except (KeyError, ValueError):
                     continue
+
+    def _note_backpressure_drop(self, sid: str) -> int:
+        """记录某连接因背压被丢弃的一个状态批次，返回该连接累计丢弃数。"""
+        dropped = self._backpressure_drops.get(sid, 0) + 1
+        self._backpressure_drops[sid] = dropped
+        self._backpressure_drop_total += 1
+        return dropped
+
+    def backpressure_stats(self) -> dict[str, Any]:
+        """背压可观测快照：帧上限、累计丢弃、按连接丢弃数（只读）。"""
+        return {
+            "framesLimit": self._backpressure_frames,
+            "droppedTotal": self._backpressure_drop_total,
+            "connections": dict(self._backpressure_drops),
+        }
 
     def _next_batch_room(self) -> str:
         """生成一次性的广播桶房间名（带自增序号，避免并发广播撞名）。"""
@@ -386,11 +420,11 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             except Exception:
                 return False
             # ``getattr`` 拿到的是 ``object``，先收窄再与阈值比较，避免误把非数值当 0/大数。
-            return isinstance(pending, int) and pending > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
+            return isinstance(pending, int) and pending > self._backpressure_frames
         transport = getattr(eio_socket, "transport", None)
         buffer = getattr(transport, "write_buffer", None)
         if isinstance(buffer, list):
-            return len(buffer) > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
+            return len(buffer) > self._backpressure_frames
         return False
 
 

@@ -12,12 +12,19 @@ import asyncio
 import contextvars
 import hashlib
 import hmac
+import logging
 import math
 import os
+import shutil
+import sys
 import threading
 from collections import deque
 from dataclasses import dataclass
 from typing import Any
+
+from .client_metrics import client_metric_lines
+
+logger = logging.getLogger(__name__)
 
 # traceId（contextvars，等价 AsyncLocalStorage）
 _trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("trace_id", default=None)
@@ -118,6 +125,12 @@ HA_COUNTER_NAMES: tuple[str, ...] = (
     "decode_resync",
     "shadow_compare",
     "shadow_mismatch",
+    # 握手窗口（先订阅后同步）的三个计数：此前只记录、不导出，于是「窗口里到底有没有
+    # 丢帧」只能在 WARNING 里看，没有丢帧时的合并量则完全不可见。
+    "handshake_replay",
+    "handshake_replay_stale",
+    "handshake_coalesced",
+    "handshake_overflow",
 )
 
 _ha_counter_lock = threading.Lock()
@@ -182,9 +195,7 @@ _http_lock = threading.Lock()
 _http_series: dict[tuple[str, str, str], list[float]] = {}
 
 
-def record_http_request(
-    route: str, method: str, status_code: int, seconds: float
-) -> None:
+def record_http_request(route: str, method: str, status_code: int, seconds: float) -> None:
     """记录一次 HTTP 请求耗时；route 已是路由模板而不是原始 path。"""
     if seconds < 0:
         return
@@ -210,7 +221,6 @@ def record_http_request(
 def get_http_metrics() -> dict[tuple[str, str, str], list[float]]:
     with _http_lock:
         return {key: list(value) for key, value in _http_series.items()}
-
 
 
 # 事件循环延迟采样（Phase 3 观测）：每 interval 秒测一次实际唤醒相对计划时间的偏差。
@@ -389,13 +399,80 @@ def _startup_metric_lines(
     ]
 
 
+def _resident_memory_bytes() -> int:
+    """当前进程 RSS（Linux 读 /proc/self/statm，其它平台退回 ru_maxrss）。"""
+    try:
+        with open("/proc/self/statm", encoding="ascii") as handle:
+            pages = int(handle.read().split()[1])
+        return pages * int(os.sysconf("SC_PAGE_SIZE"))
+    except (OSError, ValueError, IndexError):
+        logger.debug("读取 /proc/self/statm 失败，回退 ru_maxrss", exc_info=True)
+    try:
+        import resource
+
+        peak = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        return peak if sys.platform == "darwin" else peak * 1024
+    except (ImportError, OSError, ValueError):
+        logger.debug("读取 ru_maxrss 失败", exc_info=True)
+        return 0
+
+
+def _open_fd_count() -> int | None:
+    try:
+        return len(os.listdir("/proc/self/fd"))
+    except OSError:
+        logger.debug("读取 /proc/self/fd 失败", exc_info=True)
+        return None
+
+
+def _process_resource_metric_lines() -> list[str]:
+    """进程资源指标：CPU / RSS / 线程 / FD / 数据盘余量（五维观测的 CPU、内存两维）。"""
+    times = os.times()
+    lines = [
+        "# HELP homeos_process_cpu_seconds_total Process CPU time in seconds",
+        "# TYPE homeos_process_cpu_seconds_total counter",
+        f'homeos_process_cpu_seconds_total{{mode="user"}} {_metric_number(times.user)}',
+        f'homeos_process_cpu_seconds_total{{mode="system"}} {_metric_number(times.system)}',
+        "# HELP homeos_process_resident_memory_bytes Process resident memory bytes",
+        "# TYPE homeos_process_resident_memory_bytes gauge",
+        f"homeos_process_resident_memory_bytes {_resident_memory_bytes()}",
+        "# HELP homeos_process_threads Process thread count",
+        "# TYPE homeos_process_threads gauge",
+        f"homeos_process_threads {threading.active_count()}",
+    ]
+    fds = _open_fd_count()
+    if fds is not None:
+        lines.extend(
+            [
+                "# HELP homeos_process_open_fds Process open file descriptors",
+                "# TYPE homeos_process_open_fds gauge",
+                f"homeos_process_open_fds {fds}",
+            ]
+        )
+    data_dir = os.getenv("HOMEOS_DATA_DIR", "").strip() or "."
+    try:
+        free_bytes = shutil.disk_usage(data_dir).free
+    except OSError:
+        logger.debug("读取数据盘余量失败：%s", data_dir, exc_info=True)
+        free_bytes = None
+    if free_bytes is not None:
+        lines.extend(
+            [
+                "# HELP homeos_disk_free_bytes Free bytes on the data filesystem",
+                "# TYPE homeos_disk_free_bytes gauge",
+                f'homeos_disk_free_bytes{{path="data"}} {free_bytes}',
+            ]
+        )
+    return lines
+
+
 def _runtime_metric_lines(
     *,
     deferred_dropped: int,
     lag: LoopLagSnapshot,
     queries: dict[str, int],
 ) -> list[str]:
-    """运行期指标块：WS 过载丢弃 / 事件环延迟分位 / DB 语句计数。"""
+    """运行期指标块：WS 过载丢弃 / 事件环延迟分位 / DB 语句计数 / 进程资源。"""
     return [
         "# HELP homeos_ha_ws_deferred_dropped_total HA WS deferred ingress events dropped under overload",
         "# TYPE homeos_ha_ws_deferred_dropped_total counter",
@@ -413,6 +490,7 @@ def _runtime_metric_lines(
         f'homeos_db_queries_total{{kind="select"}} {queries.get("select", 0)}',
         f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
         f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
+        *_process_resource_metric_lines(),
     ]
 
 
@@ -484,8 +562,17 @@ def _ha_sync_latency_metric_lines(snapshots: list[LatencySnapshot]) -> list[str]
 
 
 def _http_histogram_metric_lines(http: dict[tuple[str, str, str], list[float]]) -> list[str]:
-    """HTTP 请求时长直方图（桶边界取自 `HTTP_DURATION_BUCKETS`，`+Inf` 桶单独补）。"""
+    """HTTP 请求时长直方图 + 按状态类聚合的请求总数（错误率分子/分母）。"""
+    status_classes = ("1xx", "2xx", "3xx", "4xx", "5xx")
+    totals = dict.fromkeys(status_classes, 0)
+    for (_route, _method, status), series in http.items():
+        status_text = str(status)
+        status_class = status_text[0] + "xx" if status_text[:1] in "12345" else "5xx"
+        totals[status_class] = totals.get(status_class, 0) + int(series[0])
     lines = [
+        "# HELP homeos_http_requests_total HTTP requests by status class",
+        "# TYPE homeos_http_requests_total counter",
+        *[f'homeos_http_requests_total{{status_class="{name}"}} {totals[name]}' for name in status_classes],
         "# HELP homeos_http_request_duration_seconds HTTP request duration seconds",
         "# TYPE homeos_http_request_duration_seconds histogram",
     ]
@@ -582,6 +669,8 @@ def _render_metric_lines(
 
     if inputs.http:
         lines.extend(_http_histogram_metric_lines(inputs.http))
+
+    lines.extend(client_metric_lines())
     return lines
 
 
@@ -659,11 +748,7 @@ def decide_metrics_access(
         if not is_production:
             return "allow"
         return "allow" if is_loopback_remote_address(remote_address) else "not_found"
-    bearer = (
-        authorization_header[7:]
-        if authorization_header and authorization_header.startswith("Bearer ")
-        else ""
-    )
+    bearer = authorization_header[7:] if authorization_header and authorization_header.startswith("Bearer ") else ""
     provided = bearer or (query_token or "")
     # 常数时间比较：虽然 token 泄漏面很小，但这是认证判定，不能留下时序侧信道。
     return "allow" if hmac.compare_digest(provided, token) else "unauthorized"

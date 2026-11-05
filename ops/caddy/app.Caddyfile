@@ -49,6 +49,15 @@
 		on_demand
 	}
 
+	# ── 访问日志（性能报告 B16）────────────────────────────────────────────────────
+	# 每个请求一条 JSON 到 stdout：容器里由 docker 的 json-file 驱动收集（max-size/max-file
+	# 轮转见 docker-compose*.yml），也便于宿主侧直接接采集器。与全局块里 Caddy 自身进程
+	# 日志（ERROR 级 console）是两条独立通道，互不影响。
+	log {
+		output stdout
+		format json
+	}
+
 	# ── 静态资源压缩（只匹配 /static/*，不给 /api/* 开）───────────────────────────
 	#
 	# 为什么压：3D 模型的 GLB 是 f32 几何，HTTP 传输可压得很狠。以下数字均为**实测**
@@ -63,8 +72,12 @@
 	# 两个容易踩的边界（同样是实测）：
 	#   · encode 默认 `min_length` 是 512 B —— 小文件直接不压（200 B 文本原样透传，900 B 才压）；
 	#   · 已压格式（webp / woff2）压完反而略大：全库仅 35 个、合计 +513 B，可忽略。
-	# 这里只挂 zstd + gzip，**没配 br**：只发 `Accept-Encoding: br` 的客户端会拿到原文件。
-	# 主流浏览器都同时接受 gzip，实际不会退化。
+	# 这里只挂 zstd + gzip，**没配 br**：标准 caddy 官方构建不带 brotli 模块，硬加 `br` 会让
+	# 配置解析失败、反代起不来（换带插件的自编译镜像代价与收益不匹配）。只发
+	# `Accept-Encoding: br` 的客户端由**构建期预压缩 sidecar** 兜住：/static 下每个可压缩
+	# 文件旁都有同名 .br / .gz（ops/scripts/precompress-static.mjs 生成），后端
+	# PrecompressedStaticFiles 按 Accept-Encoding 优先直出 br；encode 见到响应已带
+	# Content-Encoding 时不会二次编码。主流浏览器同时接受 gzip，实际不退化。
 	#
 	# 为什么必须写 `match { header Content-Type * }`：Caddy 的 encode 默认只压「可压缩
 	# 文本类型」，实测**会跳过** `model/gltf-binary`（287196 B 原样透传、无 Content-Encoding）；
@@ -86,6 +99,21 @@
 	}
 
 	reverse_proxy 127.0.0.1:{$APP_PORT:8801} {
+		# ── 健康检查 / 超时 / 流式（性能报告 B16）────────────────────────────────────
+		# 主动探测上游 /health/ready：应用启动中或崩溃重启期间，反代快速失败而不是把请求
+		# 打到一个半死的上游（与 depends_on、容器 HEALTHCHECK 互补，后者管容器生命周期）。
+		health_uri /health/ready
+		health_interval 15s
+		health_timeout 5s
+		# WebSocket / SSE / go2rtc 流：不缓冲、立即转发；反代层面不设 read timeout，
+		# 长连接存活由上游心跳决定（Caddy 不会截断已升级的 WebSocket）。
+		flush_interval -1
+		transport http {
+			# 建连上限 5s；3D 大资源 / 慢接口的响应头等待上限 60s（默认 0=不限，
+			# 给个上限避免慢查询长期占住连接）。
+			dial_timeout 5s
+			response_header_timeout 60s
+		}
 		# 上游端口来自 APP_PORT（与 ops/docker/start_app.py 给 uvicorn 的 --port 同源）。
 		# 不能写死 8801：APP_PORT 是可配的（.env.example 就写着「镜像入口读 APP_PORT」），
 		# 改了端口而这里不变，反代就永久盯着一个没人监听的端口 —— 全站 502，而症状

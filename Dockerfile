@@ -86,10 +86,12 @@ ARG PIP_VERSION
 #: PyYAML 6.0.3（uvicorn[standard] 的依赖）尚未发布 cp315 wheel，而本阶段没有编译器。
 #: PYYAML_FORCE_LIBYAML=0 让它的构建关闭 C 扩展、产出纯 Python wheel —— PyYAML 在这里
 #: 只服务于 uvicorn 的 YAML 日志配置，纯 Python 实现足够；等上游发布 cp315 wheel 后删掉。
-RUN PYYAML_FORCE_LIBYAML=0 pip install --upgrade "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
-    && PYYAML_FORCE_LIBYAML=0 pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes \
+#: --no-cache-dir 显式写死（不依赖 ENV，防被覆盖）：pip 缓存留在 /root/.cache/pip 会撑大镜像层。
+RUN PYYAML_FORCE_LIBYAML=0 pip install --upgrade --no-cache-dir "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
+    && PYYAML_FORCE_LIBYAML=0 pip install --no-cache-dir ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes \
         -r /tmp/requirements.lock \
-    && rm /tmp/requirements.lock
+    && rm -f /tmp/requirements.lock \
+    && rm -rf /root/.cache/pip
 
 #: Debian 包源同上，由 ops/build.py 换成就近镜像。
 ARG APT_MIRROR=""
@@ -123,7 +125,8 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 update \
     && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" "setuptools==${SETUPTOOLS_VERSION}"
+    && pip install --no-cache-dir ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" "setuptools==${SETUPTOOLS_VERSION}" \
+    && rm -rf /root/.cache/pip
 
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
@@ -181,6 +184,18 @@ RUN case "$PROJECT" in \
     # 而那时 $stray 根本没被赋值 —— 报出来的是一条**空清单**，把排查方向带偏到「混入文件」。
     && stray="$(find /app/app /app/ops /app/homeos_shared -type f ! -name '*.so' -print)" \
     && if [ -n "$stray" ]; then echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; fi
+
+# 导出前最后一次瘦身（性能报告 B23）：
+#   - /tmp/package.json 只用于版本号回退，产物里不需要；
+#   - root 的 pip / 编译缓存不进导出；
+#   - strip 掉 .so 的符号表（保留 .dynsym，Cython 模块 import 不受影响）—— 不重编、不改
+#     Cython 参数，是唯一无风险的体积回收手段。gcc 依赖 binutils 所以 strip 一定存在，
+#     但仍写成条件式：换基础镜像时缺 binutils 也不该把构建打断。
+RUN rm -f /tmp/package.json \
+    && rm -rf /root/.cache \
+    && if command -v strip >/dev/null 2>&1; then \
+         find /app -type f -name '*.so' -exec strip --strip-unneeded {} +; \
+       fi
 
 # 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净 /app 而非整个 rootfs。
 FROM scratch AS backend-export

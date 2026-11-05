@@ -24,9 +24,14 @@ from typing import Any
 
 from .live_entities import _timestamp_from_iso
 from .service_support import LOGGER
+from ..config.perf_windows import live_event_batch_window_ms, live_event_critical_window_ms
 
-#: 合并窗口（毫秒）：比一次墙屏帧（16ms）略长，又不至于让人感觉到延迟。
-LIVE_EVENT_BATCH_WINDOW_MS = 50
+#: 合并窗口（毫秒）：一个墙屏帧（16ms），合批最多多等一帧。
+#:
+#: 旧默认 50ms 是为了把传感器刷屏压成更少的事务，但它同时也是「点灯 → 墙屏亮」
+#: 端到端延迟里最大的一段。现在逐层降到帧级（见 `perf_windows` 模块头注释），
+#: 可用 `HOMEOS_HA_LIVE_EVENT_BATCH_WINDOW_MS` 覆盖；大户型可再按刷屏率调高。
+LIVE_EVENT_BATCH_WINDOW_MS = live_event_batch_window_ms()
 #: 单个批次最多合并多少条：再大就分多次落地，避免一次事务过大。
 LIVE_EVENT_BATCH_MAX_SIZE = 200
 #: 待合并队列上限：HA 刷屏时宁可丢最旧的推送（下一轮全量对账会补），也不让内存无界增长。
@@ -40,10 +45,10 @@ LIVE_EVENT_FLUSH_MAX_RETRIES = 2
 #: 关键控制域的专用合并窗口（毫秒）。
 #:
 #: 为什么单独给：``LIVE_EVENT_BATCH_WINDOW_MS`` 是拿「传感器刷屏」换「事务次数」的取舍，
-#: 对灯光/开关这类**用户手势的直接反馈**却是纯延迟 —— 点一下灯要白等最多 50ms（实测
-#: p50 也要 ~29ms）才可能被推送。这里给关键域一个帧级的短窗口：既保留「同一次操作
-#: 涉及多个实体时合批」的能力，又不会让人感觉到延迟。
-LIVE_EVENT_CRITICAL_WINDOW_MS = 4
+#: 对灯光/开关这类**用户手势的直接反馈**却是纯延迟。这里给关键域一个帧级的短窗口：
+#: 既保留「同一次操作涉及多个实体时合批」的能力，又不会让人感觉到延迟。
+#: 可用 `HOMEOS_HA_LIVE_EVENT_CRITICAL_WINDOW_MS` 覆盖（永远不超过批窗本身）。
+LIVE_EVENT_CRITICAL_WINDOW_MS = live_event_critical_window_ms()
 #: 关键域默认清单，与 ``wsPush.criticalDomains`` 默认值一致（配置会覆盖）。
 LIVE_EVENT_CRITICAL_DOMAINS: frozenset[str] = frozenset(
     {'light', 'switch', 'cover', 'climate', 'media_player', 'fan', 'lock'}
@@ -199,7 +204,7 @@ class LiveStateEventQueue:
         if self._closed:
             return
         # 关键域先置位再入队：即使下面走的是「同实体覆盖」分支，本批也应改走短窗口 ——
-        # 用户又拨了一次开关，没理由继续等传感器那 50ms 的合并窗。
+        # 用户又拨了一次开关，没理由继续等传感器那一个批窗的合并时间。
         if not self._critical_pending and self._critical_window < self._window:
             if entity_domain(entity_id) in self._critical_domains:
                 self._critical_pending = True
@@ -285,7 +290,7 @@ class LiveStateEventQueue:
     async def _wait_for_batch(self) -> None:
         """等到该开批的时刻。
 
-        - 空闲时按常规窗口（默认 50ms）攒批，把传感器刷屏压成一次事务；
+        - 空闲时按常规窗口（默认 16ms，一帧）攒批，把传感器刷屏压成一次事务；
         - 关键域入队会 ``set()`` 唤醒：先从常规窗口里立刻退出，再用帧级短窗口收拢
           「同一次操作的多实体变化」，然后开批。
         """

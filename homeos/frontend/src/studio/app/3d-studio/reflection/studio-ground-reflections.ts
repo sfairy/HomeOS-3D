@@ -7,10 +7,10 @@ import {
 import { createReflectionCulling } from './studio-reflection-culling'
 import { selectFrameCaptures } from './studio-reflection-capture-budget'
 import { createReflectionSignature } from './studio-reflection-signature'
+import { buildReflectionPersistenceStamp, resolveReflectionIdleCaptureFps } from './studio-reflection-runtime'
 import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
 import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
 import { createRefractionMaterialResolver } from './refraction-materials'
-
 export function createGroundReflections({
   THREE: three,
   renderer: renderer,
@@ -50,7 +50,7 @@ export function createGroundReflections({
 }: any) {
   const settings = {
       ...normalizeGroundReflection(),
-      fps: 30,
+      fps: resolveReflectionIdleCaptureFps(),
     },
     /** 每帧重新捕获的地面反射记录上限（见 `maxCapturesPerFrame` 选项）。 */
     resolveCaptureBudget = () =>
@@ -1034,7 +1034,7 @@ export function createGroundReflections({
     if (persistentCache && !isPersistenceSettled && (persistentCache.available?.() ?? true)) {
       for (const persistenceRecord of dirtyRecords)
         if (!persistenceRecord.persistenceCaptured) {
-          const persistenceStamp = JSON.stringify([
+          const persistenceStamp = buildReflectionPersistenceStamp([
             cameraSignature,
             lightingSignature,
             stateKeyByRecord.get(persistenceRecord),

@@ -454,6 +454,8 @@ class ConnectionLifecycleMixin:
         self.connected.discard(sid)
         self._baseline_ready.discard(sid)
         self._resync_pending.discard(sid)
+        # 每连接背压计数只对活跃连接有意义，断连即释放，避免字典无限增长。
+        self._backpressure_drops.pop(sid, None)
         self._unindex_subscription(sid)
         self._sessions.pop(sid, None)
         self.app.state.socket_clients = len(self.connected)

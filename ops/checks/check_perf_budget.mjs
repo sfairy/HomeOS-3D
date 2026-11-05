@@ -15,8 +15,15 @@
  * - `presentedCalls` 是**首帧**口径（含阴影图与首次反射捕获），稳态见 `renderCalls`；
  * - 结果目录不完整（没跑 3D / 没跑契约）时按 SKIP 处理，不算失败。
  *
+ * 本机 vs CI：
+ * - 本机没有 perf 结果目录是常态（跑过 `perf:baseline` 才有），按 SKIP 处理并打印如何生成；
+ * - CI（`CI=true`，或门禁上下文 `HOMEOS_GATE_CONTEXT=ci`）里没有结果目录属于「门禁没验到」，
+ *   必须 FAIL —— 否则一条永远 SKIP 的检查会伪装成绿灯；
+ * - 确有需要（例如只跑后端契约的 job）可用 `--allow-missing` 或 `HOMEOS_PERF_ALLOW_MISSING=1`
+ *   显式降级为 SKIP，跳过必须是调用方写下来的决定，不能是默认行为。
+ *
  * 用法：
- *   node ops/checks/check_perf_budget.mjs [--dir <results/label>]
+ *   node ops/checks/check_perf_budget.mjs [--dir <results/label>] [--allow-missing]
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
@@ -54,11 +61,23 @@ function latestResultsDir() {
   return (entries.find((entry) => existsSync(join(entry.path, '3d.json'))) || entries[0])?.path || null
 }
 
+// CI 判定与本地不同：本机缺结果目录是常态，CI 里则说明这条门禁压根没数据可验。
+const IS_CI = process.env.CI === 'true' || process.env.CI === '1' || process.env.HOMEOS_GATE_CONTEXT === 'ci'
+const ALLOW_MISSING = args.includes('--allow-missing') || process.env.HOMEOS_PERF_ALLOW_MISSING === '1'
 const dir = argOf('--dir', latestResultsDir())
 if (!dir || !existsSync(dir)) {
-  console.log(
-    `perf-budget：跳过（找不到结果目录 ${dir || join(ROOTS[0], 'results', '<label>')}；先跑 bun run perf:baseline）`,
-  )
+  const expected = dir || join(ROOTS[0], 'results', '<label>')
+  const reason = `找不到结果目录（${expected}；先跑 bun run perf:baseline）`
+  if (ALLOW_MISSING) {
+    console.log(`perf-budget：跳过（${reason}；调用方已显式允许缺失：--allow-missing / HOMEOS_PERF_ALLOW_MISSING=1）`)
+    process.exit(0)
+  }
+  if (IS_CI) {
+    console.error(`perf-budget：失败（${reason}）。CI 下不允许静默 SKIP：没有数据的门禁等于没跑。`)
+    console.error('若该 job 不产出 perf 结果，请显式传 --allow-missing（或设 HOMEOS_PERF_ALLOW_MISSING=1）。')
+    process.exit(1)
+  }
+  console.log(`perf-budget：跳过（${reason}；本机按 SKIP 处理，CI 下同样情况会失败）`)
   process.exit(0)
 }
 

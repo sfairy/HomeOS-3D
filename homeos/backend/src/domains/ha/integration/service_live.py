@@ -8,15 +8,14 @@ import inspect
 import json
 import time
 import traceback
-from collections import deque
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
 from .client import HAClientError
+from .handshake_capture import LIVE_BOOTSTRAP_MAX_FRAMES, HandshakeCapture
 from .live_entities import CompressedStateDecoder, ShadowStateTracker
 from .live_events import (
-    LIVE_EVENT_BATCH_WINDOW_MS,
     LIVE_EVENT_CRITICAL_DOMAINS,
     LiveStateEventQueue,
     entity_domain,
@@ -34,6 +33,7 @@ from .service_support import (
     classify_connector_failure,
     classify_disconnect_reason,
 )
+from ..config.perf_windows import resolve_live_event_batch_window_seconds
 from ...logs.global_log import _safe_text
 from ....platform.core.runtime.observability import record_ha_counter, record_ha_sync_latency
 
@@ -43,32 +43,6 @@ _REGISTRY_EVENT_NAMES = {
     "device_registry_updated": "ha.device_registry_updated",
     "area_registry_updated": "ha.area_registry_updated",
 }
-
-#: 握手窗口最多缓冲多少帧（订阅已建立、全量快照还没落地）。
-#:
-#: 这个窗口里不能「不读 socket」：HA 的待发队列会堆积，轻则事件延迟，重则被判为消费
-#: 不过来而踢连接（→ 又触发一轮全量重建）。也不能无限缓冲：大户型在同步那几秒里
-#: 可能收到成百上千条传感器帧。超限时丢最旧的（与实时合并队列同一取舍：新的更重要），
-#: 并在回放结束后补一次全量对账。
-LIVE_BOOTSTRAP_MAX_FRAMES = 2_000
-
-
-class _HandshakeCapture:
-    """订阅已建立、全量快照尚未落地期间到达的原始帧。
-
-    ``frames`` 用定长 deque：超限自动丢最旧的一帧。``received`` 记录实际收到多少，
-    用来判断是否发生过丢弃（丢弃意味着窗口内的部分变更只能靠下一次对账补齐）。
-    """
-
-    __slots__ = ("frames", "received")
-
-    def __init__(self, limit: int = LIVE_BOOTSTRAP_MAX_FRAMES) -> None:
-        self.frames: deque[dict[str, Any]] = deque(maxlen=max(int(limit), 1))
-        self.received = 0
-
-    @property
-    def dropped(self) -> int:
-        return max(0, self.received - len(self.frames))
 
 
 def _event_lag_ms(time_fired: Any) -> float | None:
@@ -255,15 +229,13 @@ class HALiveMixin(HAConnectorHost):
         return min(max(jittered, 0.05), maximum)
 
     def _live_event_batch_window(self) -> float:
-        """实时状态合并窗口秒数：haConnector.liveEventBatchWindowMs（默认 50ms，0 表示不合并）。"""
+        """实时状态合并窗口秒数：env > haConnector.liveEventBatchWindowMs > 默认 16ms。
+
+        环境变量优先级最高（部署侧显式覆盖），其次才是库里的配置；0 表示不合并。
+        旧默认 50ms 会把一次点灯最多拖后三帧，现与关键域一起降到帧级。
+        """
         connector = self._ha_tuning()["haConnector"]
-        raw = connector.get("liveEventBatchWindowMs")
-        if raw is None:
-            return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
-        try:
-            return max(int(raw), 0) / 1000.0
-        except (TypeError, ValueError):
-            return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
+        return resolve_live_event_batch_window_seconds(connector.get("liveEventBatchWindowMs"))
 
     def _can_fast_reconnect(self) -> bool:
         """重连是否可以跳过全量同步。
@@ -296,9 +268,9 @@ class HALiveMixin(HAConnectorHost):
         后的重连）。顺序必须是「订阅 → 同步 → 回放」：
 
         - 先同步再订阅：同步那几秒（get_states + 3 张注册表 + 大事务）里发生的状态变更
-          没人订阅，HA 也不会重发 —— 前端永久停在旧值，直到下一次对账（默认 30 分钟）；
+          没人订阅，HA 也不会重发 —— 前端永久停在旧值，直到下一次对账（默认 6 小时）；
         - 订阅了但不读 socket：HA 侧待发队列会堆积，轻则延迟、重则被踢连接；
-        - 所以同步期间收到的帧先进 ``_HandshakeCapture``，同步结束后按 ``last_updated``
+        - 所以同步期间收到的帧先进 ``HandshakeCapture``，同步结束后按 ``last_updated``
           与快照合并回放（旧于快照的丢弃，见 ``live_events.superseded_by_snapshot``）。
         """
         connection = await self._run_database(self._load_connection, connection_id)
@@ -317,7 +289,7 @@ class HALiveMixin(HAConnectorHost):
         shadow: ShadowStateTracker | None = None
         compressed_stream = False
         shadow_stream = False
-        capture: _HandshakeCapture | None = None
+        capture: HandshakeCapture | None = None
         capture_task: asyncio.Task[Any] | None = None
         try:
             if client.use_subscribe_entities:
@@ -333,7 +305,7 @@ class HALiveMixin(HAConnectorHost):
                 )
             if bootstrap:
                 # 订阅已建立：同步期间的帧收进内存，同步结束后统一回放。
-                capture = _HandshakeCapture()
+                capture = HandshakeCapture()
                 capture_task = asyncio.create_task(
                     self._capture_handshake_frames(websocket, capture), name="ha-live-handshake"
                 )
@@ -451,7 +423,7 @@ class HALiveMixin(HAConnectorHost):
                 LOGGER.warning("HA 压缩状态影子订阅失败，继续使用压缩流：%s", error)
         return buffered_events, compressed_stream, shadow_stream
 
-    async def _capture_handshake_frames(self, websocket: Any, capture: _HandshakeCapture) -> None:
+    async def _capture_handshake_frames(self, websocket: Any, capture: HandshakeCapture) -> None:
         """同步窗口的收包旁路：订阅已建立、全量快照还没落地。
 
         只收不处理（解码器还要等新快照做基线）。取消 ``recv`` 是 websockets 明确支持的
@@ -471,8 +443,7 @@ class HALiveMixin(HAConnectorHost):
             except (TypeError, ValueError):
                 LOGGER.debug('握手期收到非 JSON 帧，已跳过')
                 continue
-            capture.received += 1
-            capture.frames.append(message)
+            capture.add(message)
 
     @staticmethod
     async def _stop_handshake_capture(task: asyncio.Task[Any] | None) -> None:
@@ -486,18 +457,22 @@ class HALiveMixin(HAConnectorHost):
         self,
         events: LiveStateEventQueue,
         connection_id: str,
-        capture: _HandshakeCapture,
+        capture: HandshakeCapture,
         decoder: CompressedStateDecoder | None,
         shadow: ShadowStateTracker | None,
     ) -> None:
         """把同步窗口里缓冲的帧补发出去，并丢掉已被快照覆盖的旧值。"""
-        frames = list(capture.frames)
-        capture.frames.clear()
+        frames = capture.drain()
         dropped = capture.dropped
+        coalesced = capture.coalesced
+        if coalesced:
+            # 合并掉的是同一实体的中间值：回放只需要最新那条，不算丢数据。
+            record_ha_counter("handshake_coalesced", coalesced)
+            LOGGER.debug("HA 握手窗口按实体合并 %d 帧（缓冲 %d 格）", coalesced, len(frames))
         if dropped:
             record_ha_counter("handshake_overflow", dropped)
             LOGGER.warning(
-                "HA 握手窗口内缓冲溢出，丢弃最旧 %d 帧（上限 %d），将补一次全量对账",
+                "HA 握手窗口缓冲溢出，丢弃最旧 %d 格（上限 %d），将补一次全量对账",
                 dropped,
                 LIVE_BOOTSTRAP_MAX_FRAMES,
             )

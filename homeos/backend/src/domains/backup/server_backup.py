@@ -40,6 +40,11 @@ class ServerBackupService:
     def __init__(self, settings: Any) -> None:
         self._settings = settings
 
+    @property
+    def backups_dir(self) -> Path:
+        """备份包目录（磁盘水位检查等旁路逻辑需要，不暴露可写句柄）。"""
+        return self._resolve_backup_dir()
+
     # 生成 / 列出
     def create_backup(self, origin: str = "manual") -> dict[str, str]:
         directory = self._resolve_backup_dir()

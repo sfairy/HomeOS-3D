@@ -15,6 +15,7 @@
 import * as THREE from '/static/vendor/three/0.187.0/three.module.min.js'
 import { OrbitControls } from '/static/vendor/three/0.187.0/OrbitControls.js'
 
+import { installWebglContextLossGuard } from '@/shared/utils/perf/webgl-context-loss-guard.util'
 import { addCustomWindow } from './model'
 
 const VERTICAL_FOV_DEGREES = 38
@@ -35,6 +36,9 @@ export class WindowPreview {
   dimensions: { w: number; h: number } | null = null
   interiorSide: 1 | -1 = 1
   fitted = false
+  contextLost = false
+  contextLostOverlay: HTMLElement | null = null
+  disposeContextGuard: () => void = () => {}
 
   constructor(host: HTMLElement, style: any) {
     this.host = host
@@ -45,6 +49,12 @@ export class WindowPreview {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.domElement.setAttribute('aria-label', '窗户三维预览，可拖动旋转、滚轮缩放')
     host.replaceChildren(this.renderer.domElement)
+    // B22：上下文丢失时暂停渲染并展示可恢复提示；restored 后自动重绘。
+    this.disposeContextGuard = installWebglContextLossGuard(this.renderer, {
+      label: 'window-preview',
+      onLost: () => this.handleContextLost(),
+      onRestored: () => this.handleContextRestored(),
+    })
 
     this.scene = new THREE.Scene()
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x556677, 2.3))
@@ -66,7 +76,7 @@ export class WindowPreview {
   }
 
   render(): void {
-    if (this.closed || document.hidden || !this.host.clientWidth || !this.host.clientHeight) return
+    if (this.closed || this.contextLost || document.hidden || !this.host.clientWidth || !this.host.clientHeight) return
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -167,9 +177,32 @@ export class WindowPreview {
     this.render()
   }
 
+  /** 上下文丢失：停掉本预览的渲染，并在宿主上盖一层「可恢复」提示（不阻塞页面其它部分）。 */
+  handleContextLost(): void {
+    this.contextLost = true
+    if (this.contextLostOverlay) return
+    if (getComputedStyle(this.host).position === 'static') this.host.style.position = 'relative'
+    this.contextLostOverlay = document.createElement('div')
+    this.contextLostOverlay.textContent = '3D 预览已暂停（显卡上下文丢失），正在尝试恢复…'
+    this.contextLostOverlay.style.cssText =
+      'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;font-size:12px;line-height:1.5;color:var(--hos-fg-body);background:rgba(17,24,32,.88);text-align:center;'
+    this.host.appendChild(this.contextLostOverlay)
+  }
+
+  /** 上下文恢复：移除提示并重绘当前预览（three 会在首次渲染时重新上传资源）。 */
+  handleContextRestored(): void {
+    this.contextLost = false
+    this.contextLostOverlay?.remove()
+    this.contextLostOverlay = null
+    this.render()
+  }
+
   dispose(): void {
     if (this.closed) return
     this.closed = true
+    this.disposeContextGuard()
+    this.contextLostOverlay?.remove()
+    this.contextLostOverlay = null
     this.observer.disconnect()
     this.controls.removeEventListener('change', this.onChange)
     this.controls.dispose()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import Callable, Iterable
 from contextlib import asynccontextmanager
 from copy import deepcopy
@@ -13,6 +14,18 @@ from typing import Any
 from ....platform.core.runtime.observability import record_ha_counter
 
 LOGGER = logging.getLogger(__name__)
+
+#: 是否恢复「发布时深拷贝整份载荷」的旧行为（默认关闭 = 共享同一份只读快照）。
+#: 共享后订阅方必须只读：队列里的 dict 就是 hub 内存里的同一对象；要回滚就设该 env。
+STATE_HUB_COPY_PAYLOAD_ENV = 'HOMEOS_HA_STATE_HUB_COPY_PAYLOAD'
+_TRUTHY = frozenset({'1', 'true', 'yes', 'on'})
+
+
+def resolve_state_hub_copy_payload() -> bool:
+    """读取回滚开关：``HOMEOS_HA_STATE_HUB_COPY_PAYLOAD=1`` 时恢复逐事件深拷贝。"""
+    raw = os.getenv(STATE_HUB_COPY_PAYLOAD_ENV)
+    return raw is not None and raw.strip().lower() in _TRUTHY
+
 
 #: 状态值本身没有语义的"服务型实体"：常态 ``unknown`` 不等于掉线。
 #:
@@ -67,6 +80,9 @@ class StateHub:
         # 进行中的「批量取状态」窗口；key 是 StateFetchChanges 的 id()（生命周期只在窗口内），
         # value 是该窗口的变更记录，见 track_fetch_changes / _mark_fetch_changes。
         self._fetch_changes = {}
+        #: 发布载荷是否逐事件深拷贝（B20 回滚开关）：默认共享同一份只读快照，
+        #: 一次状态更新只保留 normalize 里 attributes 的那一次深拷贝。
+        self._copy_payload = resolve_state_hub_copy_payload()
 
     @asynccontextmanager
     async def track_fetch_changes(self, entity_ids: set[str] | None = None):
@@ -221,6 +237,11 @@ class StateHub:
     async def snapshot(
         self, entity_ids: set[str] | None = None
     ) -> list[dict[str, Any]]:
+        """返回内存状态的只读视图列表。
+
+        默认与 hub 共享同一批 dict（不深拷贝）：调用方只允许读取/序列化，不得原地修改
+        ``attributes`` 等嵌套字段。需要旧行为时设 ``HOMEOS_HA_STATE_HUB_COPY_PAYLOAD=1``。
+        """
         async with self._lock:
             if entity_ids is None:
                 values = self._states.values()
@@ -228,7 +249,8 @@ class StateHub:
                 values = (
                     self._states[key] for key in entity_ids if key in self._states
                 )
-            return deepcopy(list(values))
+            states = list(values)
+        return deepcopy(states) if self._copy_payload else states
 
     async def entity_ids(self) -> set[str]:
         async with self._lock:
@@ -288,10 +310,14 @@ class StateHub:
         return
 
     async def publish(self, event: dict[str, Any]) -> None:
-        # 一次发布只深拷贝一份载荷，所有订阅队列共享同一个 dict：订阅方（/ws/runtime）
-        # 只读取并交给了序列化，不会原地修改。旧实现为每个订阅者各拷一份，多端在线时
-        # 同一事件的深拷贝开销随连接数线性增长，是状态推送热路径上最大的一笔纯 CPU。
-        payload = deepcopy(event)
+        """把一次状态事件投递给所有订阅队列（默认共享同一份只读载荷）。
+
+        默认直接把 ``event`` 本身入队：订阅方（/ws/runtime）只读取并交给序列化，不会
+        原地修改；normalize 已为 ``attributes`` 深拷贝过一次，这里再整份深拷贝等于每事件
+        拷两遍，是状态推送热路径上一笔可观的纯 CPU。回滚：
+        ``HOMEOS_HA_STATE_HUB_COPY_PAYLOAD=1`` 恢复旧行为。
+        """
+        payload = deepcopy(event) if self._copy_payload else event
         event_type = payload.get("type")
         entity_id = payload.get("entityId")
         for queue in tuple(self._subscribers):

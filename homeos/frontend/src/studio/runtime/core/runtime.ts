@@ -18,6 +18,7 @@ import {
 } from '@/studio/platform/weather-settings'
 import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
 import { createLabelConfigPatch } from './state-update-plan'
+import { applyStageGpuHint, createStageFrameLazyMountGate } from './stage-frame-lazy-mount'
 
 type HostLogger = HomeOSLog & {
   report?: (level: string, category?: string, message?: string, details?: unknown, detailsText?: string) => void
@@ -390,13 +391,7 @@ export function mountInteraction3d(
     pendingRangeRequestsByRequestId = new Map(),
     editSubscribersSet = new Set<(editState: unknown) => void>(),
     normalizeLightingMode = (lightingMode: any) => (lightingMode === 'region' ? 'region' : 'standard')
-  /**
-   * 舞台 iframe 自动重试的退避间隔；合计约 18s。
-   *
-   * 这个窗口是照着真实故障时长定的：`watch-build` 重建主应用实测 6–6.5s（期间 dist
-   * 的 index.html 不在），后端 watchfiles 重载数秒，两者叠加正好落在 10s 量级。
-   * 早先的 5s 预算会在产物还没落地时就用尽，等于白重试。
-   */
+  /** 舞台 iframe 重试退避约 18s：watch-build 6–6.5s + watchfiles 数秒；早先 5s 预算曾不够。 */
   const STAGE_FRAME_RETRY_DELAYS_MS = [500, 1500, 3000, 5000, 8000]
   /**
    * 判断 iframe 里真正落地的是什么文档。
@@ -1705,8 +1700,8 @@ export function mountInteraction3d(
               }
             : {}),
         })
-    stageFrameUrl = nextStageFrameUrl
-    ;(stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout()
+    const assignFrameSrc = () => ((stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout())
+    ;(stageFrameUrl = nextStageFrameUrl), stageFrameMountGate?.begin(assignFrameSrc)
   }
   function scheduleLoadTimeout() {
     loadingTimeoutId = setTimeout(
@@ -1754,6 +1749,7 @@ export function mountInteraction3d(
           ...stageMessage.counts,
           loadSequence: reloadGeneration,
         })
+      applyStageGpuHint(loadingElement, stageMessage.code)
       return
     }
     if (
@@ -2223,6 +2219,7 @@ export function mountInteraction3d(
     ;(forceUpdate === true || layoutJson !== lastLayoutJson) &&
       ((lastLayoutJson = layoutJson), postToStageFrame(layoutPayload))
   }
+  const stageFrameMountGate = createStageFrameLazyMountGate({ hostElement, isHostVisible: isHostActuallyVisible })
   const hostResizeObserver = new ResizeObserver(updatePresentationLayout)
   hostResizeObserver.observe(hostElement),
     window.addEventListener('resize', updatePresentationLayout),
@@ -2273,6 +2270,7 @@ export function mountInteraction3d(
           listenerTarget.removeEventListener('animationend', handleVisibilityChange, true),
           window.removeEventListener('pagehide', handlePageHide),
           window.removeEventListener('pageshow', handlePageShow),
+          stageFrameMountGate?.dispose(),
           window.removeEventListener('blur', releaseHeldInput),
           activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort('lifecycle')),
           stageFrameElement.removeAttribute('src'),

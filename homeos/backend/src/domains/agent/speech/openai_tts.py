@@ -14,6 +14,8 @@ from collections.abc import Mapping
 
 import httpx
 
+from ..shared_http import shared_http_client
+
 logger = logging.getLogger("homeos.agent.tts.openai")
 
 #: 默认 API Base（OpenAI 官方；自建网关填自己的，如 ``https://api.deepseek.com/v1`` 兼容网关）
@@ -79,15 +81,16 @@ class OpenAiTtsProvider:
             "response_format": "mp3",
         }
         url = _endpoint(api_base)
+        # 复用进程级连接池；超时按请求传入，避免并发请求互相改超时。
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                )
-                response.raise_for_status()
-                audio = response.content
+            response = await shared_http_client().post(
+                url,
+                json=payload,
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                timeout=self._timeout,
+            )
+            response.raise_for_status()
+            audio = response.content
         except httpx.HTTPStatusError as exc:
             raise OpenAiTtsError(f"OpenAI TTS 返回 {exc.response.status_code}") from exc
         except httpx.HTTPError as exc:

@@ -338,6 +338,50 @@ class HASyncMixin(HAConnectorHost):
     def _status(disabled_by: str | None) -> str:
         return "disabled" if disabled_by else "active"
 
+    @staticmethod
+    def _assign_entity_registry_fields(
+        record: HAEntity,
+        *,
+        entity_id: str,
+        registry: dict,
+        attributes: dict,
+    ) -> bool:
+        """把注册表字段逐项与现值比较后才赋值，返回是否有字段变化。
+
+        旧实现无条件赋值：SQLAlchemy 的属性只要被 set 就标脏，周期对账时 700+ 行全部
+        进 UPDATE，WAL 与写锁都被白白放大。这里只在值真的变了才写；未变化行由调用方
+        合并成一条批量 ``UPDATE last_seen_at``，不再逐行标脏。
+        """
+        changed = False
+        desired: dict[str, Any] = {"domain": entity_id.partition(".")[0]}
+        if registry:
+            desired.update(
+                platform=registry.get("platform"),
+                translation_key=registry.get("translation_key"),
+                has_entity_name=registry.get("has_entity_name"),
+                unique_id=registry.get("unique_id"),
+                device_id=registry.get("device_id"),
+                area_id=registry.get("area_id"),
+                name=registry.get("name") or attributes.get("friendly_name") or registry.get("original_name"),
+                original_name=registry.get("original_name"),
+                icon=registry.get("icon") or attributes.get("icon"),
+                disabled_by=registry.get("disabled_by"),
+            )
+        else:
+            desired["name"] = record.name or attributes.get("friendly_name")
+            desired["icon"] = attributes.get("icon") or record.icon
+        for field, value in desired.items():
+            if getattr(record, field) != value:
+                setattr(record, field, value)
+                changed = True
+        if registry:
+            # 精度是 HA options 的派生值，走同一个「变了才算」的判定。
+            before = (record.display_precision, record.suggested_display_precision)
+            apply_sensor_display_precision(record, registry)
+            if (record.display_precision, record.suggested_display_precision) != before:
+                changed = True
+        return changed
+
     def _sync_snapshot_entities(
         self,
         database,
@@ -348,38 +392,43 @@ class HASyncMixin(HAConnectorHost):
         registry_by_id: dict[str, dict],
         now,
     ) -> None:
-        """按快照 upsert 实体并标记缺失。"""
+        """按快照 upsert 实体并标记缺失；只把真正变化的行标脏。"""
         existing_entities = {
             entity.entity_id: entity
             for entity in database.scalars(select(HAEntity).where(HAEntity.connection_id == connection_id))
         }
+        unchanged_ids: list[str] = []
         for entity_id in seen_entities:
             registry = registry_by_id.get(entity_id, {})
             state = state_by_id.get(entity_id, {})
             attributes = state.get("attributes") or {}
             record = existing_entities.get(entity_id)
+            created = record is None
             if record is None:
                 record = HAEntity(connection_id=connection_id, entity_id=entity_id, domain=entity_id.partition(".")[0])
                 database.add(record)
-            record.domain = entity_id.partition(".")[0]
-            if registry:
-                record.platform = registry.get("platform")
-                record.translation_key = registry.get("translation_key")
-                record.has_entity_name = registry.get("has_entity_name")
-                record.unique_id = registry.get("unique_id")
-                record.device_id = registry.get("device_id")
-                record.area_id = registry.get("area_id")
-                record.name = registry.get("name") or attributes.get("friendly_name") or registry.get("original_name")
-                record.original_name = registry.get("original_name")
-                record.icon = registry.get("icon") or attributes.get("icon")
-                record.disabled_by = registry.get("disabled_by")
-                apply_sensor_display_precision(record, registry)
+            changed = self._assign_entity_registry_fields(
+                record, entity_id=entity_id, registry=registry, attributes=attributes
+            )
+            status = self._status(record.disabled_by)
+            if record.sync_status != status:
+                record.sync_status = status
+                changed = True
+            if record.missing_since is not None:
+                record.missing_since = None
+                changed = True
+            if created or changed:
+                record.last_seen_at = now
             else:
-                record.name = record.name or attributes.get("friendly_name")
-                record.icon = attributes.get("icon") or record.icon
-            record.sync_status = self._status(record.disabled_by)
-            record.last_seen_at = now
-            record.missing_since = None
+                unchanged_ids.append(entity_id)
+        # 未变化行不再逐个 ORM 赋值（700+ 行会整表进 UPDATE），按块合并成一条指令刷新。
+        for chunk in _chunked(unchanged_ids):
+            database.execute(
+                update(HAEntity)
+                .where(HAEntity.connection_id == connection_id, HAEntity.entity_id.in_(chunk))
+                .values(last_seen_at=now)
+                .execution_options(synchronize_session=False)
+            )
         for entity_id, record in existing_entities.items():
             if entity_id not in seen_entities:
                 if record.sync_status != "missing":
