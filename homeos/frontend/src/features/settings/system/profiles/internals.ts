@@ -479,16 +479,6 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     await terminal.fetchTerminalBindings()
   }
 
-  /**
-   * 删除方案后刷新终端绑定：后端会顺带清理指向该方案的绑定，
-   * 不重新拉取的话列表里会残留一个「指向已删方案」的终端。
-   */
-  async function deleteProfileAndRefreshBindings(id: string) {
-    const deleted = await profile.onDeleteProfile(id)
-    if (deleted) await terminal.fetchTerminalBindings()
-    return deleted
-  }
-
   watch(
     activeTab,
     (tab) => {
@@ -526,7 +516,12 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     ...serverBackups,
     ...terminal,
     switchToProfile,
-    // 覆盖 ...profile 里的同名实现：删除方案后要顺带刷新「已注册终端」列表
-    onDeleteProfile: deleteProfileAndRefreshBindings,
+    // 覆盖 ...profile 里的同名实现：后端会顺带清理指向该方案的绑定，不重新拉取的话
+    // 列表里会残留一个「指向已删方案」的终端。
+    async onDeleteProfile(id: string) {
+      const deleted = await profile.onDeleteProfile(id)
+      if (deleted) await terminal.fetchTerminalBindings()
+      return deleted
+    },
   }
 }

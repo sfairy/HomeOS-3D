@@ -19,6 +19,12 @@ import { logger } from '@/shared/utils/core/logger'
 /** 两次复查之间的最小间隔（毫秒） */
 const BINDING_SYNC_INTERVAL_MS = 60_000
 
+/** `GET config/terminal/:id/profile` 返回体里本模块关心的字段。 */
+interface TerminalBindingPayload {
+  source?: string
+  profileId?: string
+}
+
 /**
  * 注册「回到前台时复查云端终端绑定」的监听。
  * 在应用根组件调用一次即可，重复调用会产生重复监听。
@@ -31,27 +37,31 @@ export function useTerminalBindingSync() {
   let lastSyncAt = 0
   let inFlight = false
 
-  async function sync(): Promise<void> {
-    if (inFlight || !authStore.isAuthenticated) return
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-    const now = Date.now()
-    if (now - lastSyncAt < BINDING_SYNC_INTERVAL_MS) return
-    lastSyncAt = now
-
+  /** 现在是否该发起一次复查：节流、前台、已登录、非编辑中缺一不可。 */
+  function shouldSyncNow(): boolean {
+    if (inFlight || !authStore.isAuthenticated) return false
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
+    if (Date.now() - lastSyncAt < BINDING_SYNC_INTERVAL_MS) return false
     // 编辑中或存在未保存改动：云端改绑延后到用户空闲（下次回到前台）再应用
-    if (layoutStore.isEditMode || layoutStore.layoutDirty) return
+    return !layoutStore.isEditMode && !layoutStore.layoutDirty
+  }
 
+  /** 应用服务端绑定：只有明确来自绑定、且与当前方案不同才切换。 */
+  async function applyBinding(payload: TerminalBindingPayload | undefined): Promise<void> {
+    if (payload?.source !== 'binding') return
+    const profileId = String(payload.profileId || '').trim()
+    if (!profileId || profileId === layoutStore.activeProfileId) return
+    const switched = await layoutStore.switchProfile(profileId, true)
+    if (switched) chrome.notify(`已按云端终端绑定切换到方案：${profileId}`, 'info', 5000)
+  }
+
+  async function sync(): Promise<void> {
+    if (!shouldSyncNow()) return
+    lastSyncAt = Date.now()
     inFlight = true
     try {
       const { data } = await resolveTerminalProfile(getClientDeviceId())
-      const payload = data?.data ?? data
-      if (payload?.source !== 'binding') return
-      const profileId = String(payload?.profileId || '').trim()
-      if (!profileId || profileId === layoutStore.activeProfileId) return
-      const ok = await layoutStore.switchProfile(profileId, true)
-      if (ok) {
-        chrome.notify(`已按云端终端绑定切换到方案：${profileId}`, 'info', 5000)
-      }
+      await applyBinding(data?.data ?? data)
     } catch (err) {
       logger.warn('复查云端终端绑定失败', err)
     } finally {

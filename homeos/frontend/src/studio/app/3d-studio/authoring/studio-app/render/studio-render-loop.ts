@@ -20,6 +20,7 @@ import { createFloorTransition as createFloorTransition2 } from '../../scene/stu
 import { createGroundReflections as createGroundReflections2 } from '../../../reflection/studio-ground-reflections'
 import { createMotionPresentation as createMotionPresentation2 } from '../../scene/studio-motion-presentation'
 import { applyOrbitControlSettingsTo, createRenderLoopTeardown, syncViewOffsetFor } from './render-loop-lifecycle'
+import { awaitLightCachePhase } from '../../boot/stage-boot-flags'
 
 import { transformSceneCamera as transformSceneCamera2 } from '../../../../bridge/scene/scene-frame'
 import { normalizeGroundReflection as normalizeGroundReflection2 } from '../../../../bridge/scene/reflection-settings'
@@ -2952,21 +2953,13 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             !isEmbeddedStage && appCtx.contactShadowController?.isPending() && canBuildScene();
           )
             await new Promise(requestAnimationFrame)
-          let isLightCacheReady = true
           isCurrentAppInstance() &&
             (stageLoadTiming('settled-frame'),
             prepareReflectionTargets(),
             stageLoadTiming('presentation-background-ready'),
-            (isLightCacheReady = await waitForStageReady()),
+            await awaitLightCachePhase(isEmbedStageMode, waitForStageReady, stageLoadTiming),
             isCurrentAppInstance() &&
-              (stageLoadTiming(
-                isEmbedStageMode
-                  ? 'light-cache-not-required'
-                  : isLightCacheReady
-                    ? 'light-cache-ready'
-                    : 'light-cache-deferred',
-              ),
-              stageLoadTiming('final-render-start'),
+              (stageLoadTiming('final-render-start'),
               appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
               stageLoadTiming('final-render-end'),
               await new Promise(requestAnimationFrame),

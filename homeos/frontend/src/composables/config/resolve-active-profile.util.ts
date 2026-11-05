@@ -24,6 +24,62 @@ import type { UILayoutConfig } from '@/shared/types/layout'
 /** profile 解析来源标签，用于调试与埋点 */
 type ProfileResolveSource = 'url' | 'local' | 'binding' | 'activeProfile' | 'default'
 
+/** 一次解析的结果：方案 id + 来源标签。 */
+interface ResolvedProfile {
+  profileId: string
+  source: ProfileResolveSource
+}
+
+/**
+ * URL 覆盖（kiosk 场景）：方案存在才算数。
+ *
+ * 命中时必须同时落成服务端绑定，否则下一次导航 URL 参数已被消费掉，服务端绑定会把
+ * 设备拉回旧方案，表现为「刷新就跳走」。绑定必须 await：路由守卫紧接着会删掉
+ * `?profile=` 再解析一次，若绑定还没落库，第二次解析会读到旧绑定并把设备切回去。
+ */
+async function resolveFromUrl(urlProfile: string): Promise<ResolvedProfile | null> {
+  if (!urlProfile) return null
+  if (!(await validateProfileExists(urlProfile))) {
+    logger.warn(`URL 指定的方案 "${urlProfile}" 不存在,继续按其他来源解析`)
+    return null
+  }
+  writeStoredProfileId(urlProfile)
+  await bindSelfTerminalProfile(urlProfile, inferTerminalLabel())
+  return { profileId: urlProfile, source: 'url' }
+}
+
+/**
+ * 服务端解析的三段优先级：云端绑定 > 本机记录 > 新终端默认策略。
+ *
+ * 网络异常由调用方兜底（这里只管「服务端有答复」的分支）。
+ */
+async function resolveFromServer(local: string, hasLocal: boolean): Promise<ResolvedProfile> {
+  const { data } = await resolveTerminalProfile(getClientDeviceId())
+  const payload = data?.data ?? data
+  const profileId = String(payload?.profileId || 'default').trim() || 'default'
+  const source = (payload?.source as ProfileResolveSource) || 'default'
+
+  // 1) 云端给这台设备指定过方案：以云端为准（管理员改绑立刻生效）
+  if (source === 'binding') {
+    writeStoredProfileId(profileId)
+    return { profileId, source }
+  }
+
+  // 2) 没有绑定：本机记录的方案优先，但要先确认它还在（可能已被别的终端删掉）
+  if (hasLocal) {
+    if (await validateProfileExists(local)) {
+      ensureTerminalRegistered(local)
+      return { profileId: local, source: 'local' }
+    }
+    logger.warn(`本机记录的方案 "${local}" 已不存在,改用服务端策略结果`)
+  }
+
+  // 3) 新终端：按「新终端默认策略」兜底，并顺手登记，让设置页能看到这台设备
+  writeStoredProfileId(profileId)
+  ensureTerminalRegistered(profileId)
+  return { profileId, source }
+}
+
 /**
  * 按优先级解析当前终端应使用的 display profile。
  *
@@ -31,53 +87,15 @@ type ProfileResolveSource = 'url' | 'local' | 'binding' | 'activeProfile' | 'def
  * @returns 解析结果：profileId + 来源标签
  * @sideeffect 命中 URL / 服务端绑定 / 本地时会写入 localStorage；首次解析会登记终端绑定
  */
-export async function resolveActiveProfileId(routeQueryProfile?: string): Promise<{
-  profileId: string
-  source: ProfileResolveSource
-}> {
+export async function resolveActiveProfileId(routeQueryProfile?: string): Promise<ResolvedProfile> {
   const urlProfile = String(routeQueryProfile || '').trim()
-  if (urlProfile) {
-    const valid = await validateProfileExists(urlProfile)
-    if (valid) {
-      writeStoredProfileId(urlProfile)
-      // kiosk 场景（墙屏书签带 ?profile=xxx）：必须同时落成服务端绑定，否则下一次
-      // 导航 URL 参数已被消费掉，服务端绑定会把设备拉回旧方案，表现为「刷新就跳走」。
-      // 这里必须 await：路由守卫紧接着会删掉 ?profile= 再解析一次，若绑定还没落库，
-      // 第二次解析会读到旧绑定并把设备切回去（来回跳）。
-      await bindSelfTerminalProfile(urlProfile, inferTerminalLabel())
-      return { profileId: urlProfile, source: 'url' }
-    }
-    logger.warn(`URL 指定的方案 "${urlProfile}" 不存在,继续按其他来源解析`)
-  }
+  const fromUrl = await resolveFromUrl(urlProfile)
+  if (fromUrl) return fromUrl
 
   const local = readStoredProfileId()
   const hasLocal = hasStoredProfileId()
-
   try {
-    const { data } = await resolveTerminalProfile(getClientDeviceId())
-    const payload = data?.data ?? data
-    const profileId = String(payload?.profileId || 'default').trim() || 'default'
-    const source = (payload?.source as ProfileResolveSource) || 'default'
-
-    // 1) 云端给这台设备指定过方案：以云端为准（管理员改绑立刻生效）
-    if (source === 'binding') {
-      writeStoredProfileId(profileId)
-      return { profileId, source }
-    }
-
-    // 2) 没有绑定：本机记录的方案优先，但要先确认它还在（可能已被别的终端删掉）
-    if (hasLocal) {
-      if (await validateProfileExists(local)) {
-        ensureTerminalRegistered(local)
-        return { profileId: local, source: 'local' }
-      }
-      logger.warn(`本机记录的方案 "${local}" 已不存在,改用服务端策略结果`)
-    }
-
-    // 3) 新终端：按「新终端默认策略」兜底，并顺手登记，让设置页能看到这台设备
-    writeStoredProfileId(profileId)
-    ensureTerminalRegistered(profileId)
-    return { profileId, source }
+    return await resolveFromServer(local, hasLocal)
   } catch (err) {
     logger.warn('服务端终端方案解析失败,回退本地/默认', err)
     if (hasLocal) return { profileId: local, source: 'local' }

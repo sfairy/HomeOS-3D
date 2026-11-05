@@ -31,7 +31,7 @@
   margin-left: 4px;
   vertical-align: middle;
   color: var(--set-text-faint);
-  transition: color 0.15s ease;
+  transition: color var(--hos-dur-fast) var(--hos-ease-out);
 }
 
 .pd-inline-link:hover {

@@ -13,14 +13,14 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 
-from homeos_shared.schema_core import mark_clean_shutdown
-
 from .agent_services import build_agent_shared_state
 from .energy_wiring import (
     make_energy_attrs_provider,
     make_energy_bindings_provider,
     make_energy_primary_provider,
 )
+from .shutdown import record_lifecycle_failure as _record_lifecycle_failure
+from .shutdown import shutdown_all
 from ..config import Settings
 
 if TYPE_CHECKING:
@@ -259,46 +259,6 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
 
 
 SHUTDOWN_TIMEOUT = 5.0
-
-
-async def _shutdown(
-    what: str,
-    stopper: Callable[[], Awaitable[Any]],
-    *,
-    event_log: Any = None,
-) -> None:
-    """停机一个组件：超时/异常只记日志，绝不打断停机流程。
-
-    旧写法是十几段复制粘贴的 `try: await asyncio.wait_for(x.stop(), timeout=5) except
-    Exception: pass`，两个问题：
-
-    1. `pass` 把失败彻底吞掉 —— 停机为什么慢、哪个组件卡住，日志里一点痕迹都没有；
-    2. 地震那组把四个组件塞进同一个 `try`，第一个失败会让后面三个**根本不执行**。
-    """
-    try:
-        await asyncio.wait_for(stopper(), SHUTDOWN_TIMEOUT)
-    except TimeoutError:
-        logger.warning("%s停机超时（%ss），已放弃等待", what, SHUTDOWN_TIMEOUT)
-        await _record_lifecycle_failure(event_log, what, f"{what}停机超时（{SHUTDOWN_TIMEOUT}s），已放弃等待")
-    except Exception as exc:
-        logger.warning("%s停机失败：%s", what, exc)
-        await _record_lifecycle_failure(event_log, what, f"{what}停机失败: {exc}")
-
-
-async def _record_lifecycle_failure(event_log: Any, what: str, message: str) -> None:
-    """生命周期故障留痕：进程日志 + 全局日志（用户能在「系统后台」里看到）。
-
-    走 ``append_async``：停机路径上写日志不能同步占住事件循环（此时其它组件正在等
-    超时，主循环被拖住会把 5s 的预算变成更长的假死）。写失败只降级成进程日志 ——
-    停机阶段的收尾日志永远不能反过来打断停机。
-    """
-    logger.warning("%s", message)
-    if event_log is None:
-        return
-    try:
-        await event_log.append_async("warning", "系统后台", "生命周期", message, context={"phase": what})
-    except Exception:
-        logger.debug("生命周期故障写入全局日志失败: %s", what, exc_info=True)
 
 
 def _pending() -> Any:
@@ -1338,99 +1298,9 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
 
 
-async def _shutdown_agent_automation(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
-    """停止看门狗与计划任务（先停巡检，避免停机过程中再触发设备控制）。"""
-    for service, label in (
-        (getattr(app.state, "agent_watchdog", None), "看门狗"),
-        (getattr(app.state, "agent_scheduler", None), "计划任务"),
-    ):
-        if service is not None:
-            await shutdown(label, service.stop)
-
-
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
-    """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
-    loop_lag = getattr(app.state, "loop_lag", None)
-    event_log = getattr(app.state, "global_log", None)
-
-    async def shutdown(what: str, stopper: Callable[[], Awaitable[Any]]) -> None:
-        # 统一带上全局日志：停机失败既要进进程日志，也要让用户在「系统后台」看得到。
-        await _shutdown(what, stopper, event_log=event_log)
-
-    if loop_lag is not None:
-        await shutdown("事件循环延迟采样", loop_lag.stop)
-    # 3D 平面模块是按需导入的：启动在 install 之前就失败时它从未被导入过，
-    # 此时不能为了停机去 import 一遍（会在失败路径上再跑一次装配期依赖）。
-    if _studio3d_plane_module is not None:
-        await shutdown("3D 平面", lambda: _studio3d_plane_module.shutdown(app))
-    await shutdown("授权服务", startup.license_service.stop)
-    await shutdown("数据库保留调度", startup.database_retention.stop_schedule)
-    await shutdown("外部 API", startup.external_api.stop)
-    for service, label in (
-        (startup.presence, "在场检测"),
-        (startup.mmwave, "毫米波"),
-        (startup.away_sim, "离家模拟"),
-    ):
-        await shutdown(label, service.stop)
-    await shutdown("家庭模式", startup.home_mode.stop)
-    proactive = getattr(app.state, "agent_proactive", None)
-    if proactive is not None:
-        await shutdown("主动管家", proactive.stop)
-    await _shutdown_agent_automation(app, shutdown)
-    await shutdown("通知", startup.notification.stop)
-    channels_service = getattr(app.state, "channels_service", None)
-    if channels_service is not None:
-        await shutdown("消息通道", channels_service.stop)
-    for service, label in (
-        (startup.catalog_notify, "目录通知"),
-        (startup.eew_poll, "地震预警轮询"),
-        (startup.earthquake, "地震服务"),
-        (startup.eew_leader, "地震预警主节点"),
-    ):
-        await shutdown(label, service.stop)
-    for service, label in (
-        (startup.weather_watch, "天气监视"),
-        (startup.advisor_usage, "顾问用量"),
-    ):
-        await shutdown(label, service.stop)
-    await shutdown("HA 连接器", startup.ha_connector.stop)
-    # 时序写入是 200ms 微批：连接器停了之后必须把缓冲刷掉，否则最后一批翻转会随进程消失。
-    agent_timeline = getattr(app.state, "agent_timeline", None)
-    if agent_timeline is not None:
-        await shutdown("设备时序刷盘", agent_timeline.aclose)
-    await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
-    # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
-    from ..api.ha.proxy import close_shared_media_clients
-
-    await shutdown("媒体代理连接池", close_shared_media_clients)
-    await shutdown("事件日志刷盘", startup.event_log_service.flush)
-    # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志
-    # 会滞留在内存队列里丢掉。
-    if event_log is not None:
-        await shutdown("全局日志刷盘", lambda: asyncio.to_thread(event_log.close, 5.0))
-    startup.auto_backup.stop()
-    # 调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
-    # 否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，
-    # 超时则不 dispose（进程即将退出，交给 OS 回收），避免制造 use-after-dispose。
-    dispose_database = True
-    coordinator = getattr(app.state, "business_backup", None)
-    if coordinator is not None:
-        try:
-            await asyncio.wait_for(coordinator.wait_idle(), 10.0)
-        except TimeoutError:
-            dispose_database = False
-            logger.warning("备份作业仍在执行，跳过数据库 dispose 以免中途释放连接")
-    database = getattr(app.state, "database", None)
-    if database is not None and dispose_database:
-        # 遥测库先关：它的写队列已在「设备时序刷盘」清空，这里只是归还连接。
-        telemetry_database = getattr(app.state, "telemetry_database", None)
-        if telemetry_database is not None:
-            telemetry_database.dispose()
-        database.dispose()
-        # 收尾真跑完（含 WAL 归并）才落「干净关闭」标记：下次启动据此只做 quick_check。
-        # dispose 被跳过时（备份线程还在跑）不落标记 —— 那种收尾本来就不算干净，
-        # 下次启动必须逐页全查。
-        mark_clean_shutdown(startup.app_settings.database_path)
+    """停机全部组件（编排见 ``bootstrap.shutdown``）。"""
+    await shutdown_all(app, startup, studio3d_plane=_studio3d_plane_module)
 
 
 @asynccontextmanager

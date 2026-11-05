@@ -52,3 +52,30 @@ export function readStageBootFlags(env: StageBootEnv = globalThis as StageBootEn
 export function deferLightCacheEnabled(env: StageBootEnv = globalThis as StageBootEnv): boolean {
   return readStageBootFlags(env).deferLightCache
 }
+
+/**
+ * 灯光烘焙贴图那一步的分阶段标签（给 `stageLoadTiming` / `performance.mark` 用）。
+ *
+ * 内嵌模式根本不加载烘焙贴图，所以它不是一个「等没等到」的问题，单独一个标签才不会
+ * 与延迟路径混在一起计数。A/B 两组的梯子要靠这个标签区分，取错就等于两组数据无法比较。
+ */
+export function lightCachePhase(isEmbedStageMode: boolean, lightCacheReady: boolean): string {
+  if (isEmbedStageMode) return 'light-cache-not-required'
+  return lightCacheReady ? 'light-cache-ready' : 'light-cache-deferred'
+}
+
+/**
+ * 等待烘焙贴图就绪并上报分阶段标签。
+ *
+ * 「先等、再按结果打标签」这两步必须贴在一起：拆成两行会让调用方各自持有 `ready`
+ * 局部变量，任何一次重构都可能把打标签挪到等待之前（标签就永远报 ready）。
+ * 等待本身仍由调用方传入，本模块不依赖舞台运行时。
+ */
+export async function awaitLightCachePhase(
+  isEmbedStageMode: boolean,
+  waitForStageReady: () => Promise<boolean>,
+  onPhase: (phase: string) => void,
+): Promise<void> {
+  const ready = await waitForStageReady()
+  onPhase(lightCachePhase(isEmbedStageMode, ready))
+}

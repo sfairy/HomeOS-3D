@@ -610,8 +610,8 @@ defineExpose({ open, close })
 .hos-backup-dialog__elapsed {
   display: block;
   margin-top: 4px;
-  color: #f2a20d;
   font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 .hos-backup-dialog__message.error {
   border-color: #e26b6761;

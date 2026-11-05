@@ -34,7 +34,7 @@ const RENDER_LOOP = fileURLToPath(
   ),
 )
 
-const { readStageBootFlags, deferLightCacheEnabled } = await import(FLAGS)
+const { readStageBootFlags, deferLightCacheEnabled, lightCachePhase, awaitLightCachePhase } = await import(FLAGS)
 const { createLoadTiming } = await import(LOAD_TIMING)
 
 const source = (file) => readFileSync(file, 'utf8')
@@ -64,10 +64,31 @@ test('waitForStageReady 接线到开关，且保留 1800ms 兜底', () => {
 
 test('渲染循环按实际结果打标签，A/B 两组的梯子可比较', () => {
   const text = source(RENDER_LOOP)
-  assert.match(text, /isLightCacheReady = await waitForStageReady\(\)/)
-  assert.match(text, /'light-cache-deferred'/)
+  // 等待与打标签必须由同一个调用完成：拆成两行会让 ready 落在调用方的局部变量里，
+  // 重构时把打标签挪到等待之前，标签就永远报 ready 而 A/B 两组再也分不开。
+  assert.match(text, /await awaitLightCachePhase\(isEmbedStageMode, waitForStageReady, stageLoadTiming\)/)
   // 旧的秒等写法不能再出现（它会把延迟模式的等待又加回来）
   assert.equal(/await waitForStageReady\(\),\n\s*isCurrentAppInstance/.test(text), false)
+})
+
+test('灯缓存标签：内嵌模式单独一颗，等待结果决定 ready / deferred', async () => {
+  assert.equal(lightCachePhase(true, true), 'light-cache-not-required')
+  assert.equal(lightCachePhase(true, false), 'light-cache-not-required')
+  assert.equal(lightCachePhase(false, true), 'light-cache-ready')
+  assert.equal(lightCachePhase(false, false), 'light-cache-deferred')
+
+  // 先等后打标签：等待还没结束时不应出现任何标签
+  const phases = []
+  let release
+  const pending = awaitLightCachePhase(
+    false,
+    () => new Promise((resolve) => (release = resolve)),
+    (phase) => phases.push(phase),
+  )
+  assert.deepEqual(phases, [])
+  release(false)
+  await pending
+  assert.deepEqual(phases, ['light-cache-deferred'])
 })
 
 test('计时器：无条件打 mark，控制台仅诊断参数下打印', () => {
