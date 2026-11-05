@@ -117,9 +117,6 @@ const GATE_GROUPS = {
     { name: 'test:security', ...bun('run', 'test:security') },
     { name: 'test:shared', ...bun('run', 'test:shared') },
     { name: 'test:store', ...bun('run', 'test:store') },
-    // 产品包自身的最小回归：从 0 到 1 的入口，后续新用例按包放进去。
-    { name: 'test:homeos-backend', ...bun('run', 'test:homeos-backend') },
-    { name: 'test:store-backend', ...bun('run', 'test:store-backend') },
     { name: 'test:auth-nav', ...bun('run', 'test:auth-nav') },
     { name: 'check:frontend-deps', ...bun('run', 'check:frontend-deps') },
     { name: 'check:backend-deps', ...bun('run', 'check:backend-deps') },

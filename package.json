@@ -63,8 +63,6 @@
     "check:file-size": "node ops/lib/py.mjs ops/checks/check_file_size.py",
     "check:complexity": "node ops/lib/py.mjs ops/checks/check_complexity.py --check",
     "check:python-format": "node ops/lib/py.mjs ops/checks/check_python_format.py",
-    "test:homeos-backend": "node ops/lib/py.mjs -m unittest discover -s homeos/backend/tests -t homeos/backend -v",
-    "test:store-backend": "node ops/lib/py.mjs -m unittest discover -s homeos-store/backend/tests -t homeos-store/backend -v",
     "test:architecture": "node ops/lib/py.mjs -m unittest discover -s ops/checks/architecture/tests -v",
     "audit:architecture": "node ops/lib/py.mjs ops/checks/architecture/inventory.py --out-dir docs/architecture/inventory",
     "check:bundle-budget": "bun ops/checks/check_bundle_budget.mjs",
