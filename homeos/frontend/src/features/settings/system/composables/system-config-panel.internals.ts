@@ -14,7 +14,7 @@ import { useSettingsHubRouteSection } from '@/features/settings/shared/composabl
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
 import { fetchConfigAudit } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'
-import type { SystemConfig, SystemConfigLoadOptions } from '@/shared/types/system-config'
+import type { SystemConfigLoadOptions } from '@/shared/types/system-config'
 import type { EditableConfigSection } from '@/shared/types/system-config-editor'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
@@ -52,6 +52,12 @@ type ConfigValidationError = {
 type SystemConfigPanelParams = {
   route: RouteLocationNormalizedLoaded
   paramsDockRef: Ref<{ selectSection: (section: string) => void } | null | undefined>
+}
+
+/** 空配置响应按加载失败处理：别把面板静默渲染成一张空列表 */
+function assertConfigPayload<T>(data: T | null | undefined): T {
+  if (!data || typeof data !== 'object') throw new Error('系统配置响应为空（后端可能正在重启），请稍后重试')
+  return data
 }
 
 // ── useSystemConfigPanel ──
@@ -266,9 +272,9 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     loading.value = true
     loadError.value = ''
     try {
-      const data = await loadSystemConfig({ force })
-      sectionList.value = toEditableSections(data as SystemConfig)
-      await loadAudit(data?._configAudit)
+      const data = assertConfigPayload(await loadSystemConfig({ force }))
+      sectionList.value = toEditableSections(data)
+      await loadAudit(data._configAudit)
       captureSnapshot()
       loaded = true
       if (!route.query.section && !visibleSectionList.value.some((section) => section.key === activeSection.value)) {

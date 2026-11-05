@@ -43,6 +43,10 @@ class SaveProjectConfigDto(StrictModel):
     #: 乐观锁：客户端读取该方案时的 updatedAt。带上它且与库里不一致时返回 409，
     #: 避免多终端并发改布局时后写方静默覆盖先写方（与系统配置的 expectedUpdatedAt 一致）。
     expectedUpdatedAt: str | None = None
+    #: 新建方案时的密钥回填来源。多终端场景下各终端当前方案不同，「以当前布局另存为新方案」
+    #: 必须按发起方正在看的方案回填 agentConfig / channelConfig 的脱敏字段，
+    #: 否则会从别的终端/后台默认方案里取到不属于它的密钥。
+    backfillFromProfileId: str | None = None
 
 class ImportAllConfigsDto(StrictModel):
     configs: list[dict[str, Any]] | None = None

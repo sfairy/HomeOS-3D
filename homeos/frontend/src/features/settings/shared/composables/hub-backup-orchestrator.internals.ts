@@ -112,7 +112,8 @@ export function useProfileManagement() {
     )
     if (confirmed) {
       try {
-        await layoutStore.switchProfile(id)
+        // 静默切换：提示由这里统一给（带方案可读名），避免双 Toast
+        await layoutStore.switchProfile(id, true)
         chrome.notify(`已成功加载方案: ${name}`, 'success')
       } catch (e) {
         chrome.notify(getApiErrorMessage(e, '切换方案失败'), 'error')
@@ -125,13 +126,14 @@ export function useProfileManagement() {
     const confirmed = await chrome.confirm(`确定要彻底删除方案 "${name}" 吗？此操作不可撤销！`, '危险操作', {
       type: 'danger',
     })
-    if (confirmed && authStore.isAuthenticated) {
-      try {
-        await layoutStore.deleteProfile(id)
-        chrome.notify(`方案 ${name} 已被移除`, 'success')
-      } catch (e) {
-        chrome.notify(getApiErrorMessage(e, '删除方案失败'), 'error')
-      }
+    if (!confirmed || !authStore.isAuthenticated) return false
+    try {
+      await layoutStore.deleteProfile(id)
+      chrome.notify(`方案 ${name} 已被移除`, 'success')
+      return true
+    } catch (e) {
+      chrome.notify(getApiErrorMessage(e, '删除方案失败'), 'error')
+      return false
     }
   }
 

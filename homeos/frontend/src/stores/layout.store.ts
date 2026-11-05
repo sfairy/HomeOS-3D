@@ -103,6 +103,7 @@ export const useLayoutStore = defineStore('layout', () => {
     createProfile,
     deleteProfile,
     switchProfile,
+    setServerDefaultProfile,
     maybeActivateProfileHomeMode,
   } = createLayoutProfileActions({
     layoutConfig,
@@ -111,6 +112,7 @@ export const useLayoutStore = defineStore('layout', () => {
     profilesLoadError,
     isConfigLoaded,
     handleApiError,
+    notify,
     loadConfig,
   })
 
@@ -223,6 +225,7 @@ export const useLayoutStore = defineStore('layout', () => {
     createProfile,
     deleteProfile,
     switchProfile,
+    setServerDefaultProfile,
     availableProfiles,
     saveDraft,
     loadDraft,

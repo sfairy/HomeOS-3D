@@ -1,7 +1,23 @@
-/** 解析优先级：URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default。 */
+/**
+ * 显示方案解析与终端绑定。
+ *
+ * 解析优先级：URL ?profile= > 服务端终端绑定 > localStorage > 新终端默认策略 > default。
+ *
+ * 关键点：**服务端绑定是权威源**。这个功能的意义就是「云端给每台设备指定方案」，
+ * 所以在已登录、无 URL 覆盖时，本机必须先问服务端；localStorage 只作为
+ * 离线 / 服务不可达时的兜底，以及首屏的即时值。
+ * 反过来（本地优先）会让「在 B 设备上把 A 设备改绑到另一个方案」永远不生效。
+ */
 import { fetchProject, resolveTerminalProfile, updateSelfTerminalBinding } from '@/services/api/config'
 import { getClientDeviceId } from '@/shared/client/utils/system.util'
-import { readStoredProfileId, hasStoredProfileId, writeStoredProfileId } from '@/stores/ui/create-layout-state'
+import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
+import {
+  hasStoredProfileId,
+  hasTerminalRegistered,
+  markTerminalRegistered,
+  readStoredProfileId,
+  writeStoredProfileId,
+} from '@/stores/ui/create-layout-state'
 import { logger } from '@/shared/utils/core/logger'
 import type { UILayoutConfig } from '@/shared/types/layout'
 
@@ -9,12 +25,11 @@ import type { UILayoutConfig } from '@/shared/types/layout'
 type ProfileResolveSource = 'url' | 'local' | 'binding' | 'activeProfile' | 'default'
 
 /**
- * 按优先级解析当前终端应使用的 display profile：
- * URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default
+ * 按优先级解析当前终端应使用的 display profile。
  *
  * @param routeQueryProfile 来自路由 query 的 profile 候选值
  * @returns 解析结果：profileId + 来源标签
- * @sideeffect URL/local 命中时会写入 localStorage；服务端绑定命中时也会写入
+ * @sideeffect 命中 URL / 服务端绑定 / 本地时会写入 localStorage；首次解析会登记终端绑定
  */
 export async function resolveActiveProfileId(routeQueryProfile?: string): Promise<{
   profileId: string
@@ -25,33 +40,57 @@ export async function resolveActiveProfileId(routeQueryProfile?: string): Promis
     const valid = await validateProfileExists(urlProfile)
     if (valid) {
       writeStoredProfileId(urlProfile)
+      // kiosk 场景（墙屏书签带 ?profile=xxx）：必须同时落成服务端绑定，否则下一次
+      // 导航 URL 参数已被消费掉，服务端绑定会把设备拉回旧方案，表现为「刷新就跳走」。
+      // 这里必须 await：路由守卫紧接着会删掉 ?profile= 再解析一次，若绑定还没落库，
+      // 第二次解析会读到旧绑定并把设备切回去（来回跳）。
+      await bindSelfTerminalProfile(urlProfile, inferTerminalLabel())
       return { profileId: urlProfile, source: 'url' }
     }
     logger.warn(`URL 指定的方案 "${urlProfile}" 不存在,继续按其他来源解析`)
   }
 
   const local = readStoredProfileId()
-  if (local !== 'default' || hasStoredProfileId()) {
-    return { profileId: local, source: 'local' }
-  }
+  const hasLocal = hasStoredProfileId()
 
-  // 无本地记录：查询服务端终端绑定（新终端首次进入会走这里）
   try {
-    const clientId = getClientDeviceId()
-    const { data } = await resolveTerminalProfile(clientId)
+    const { data } = await resolveTerminalProfile(getClientDeviceId())
     const payload = data?.data ?? data
     const profileId = String(payload?.profileId || 'default').trim() || 'default'
     const source = (payload?.source as ProfileResolveSource) || 'default'
+
+    // 1) 云端给这台设备指定过方案：以云端为准（管理员改绑立刻生效）
+    if (source === 'binding') {
+      writeStoredProfileId(profileId)
+      return { profileId, source }
+    }
+
+    // 2) 没有绑定：本机记录的方案优先，但要先确认它还在（可能已被别的终端删掉）
+    if (hasLocal) {
+      if (await validateProfileExists(local)) {
+        ensureTerminalRegistered(local)
+        return { profileId: local, source: 'local' }
+      }
+      logger.warn(`本机记录的方案 "${local}" 已不存在,改用服务端策略结果`)
+    }
+
+    // 3) 新终端：按「新终端默认策略」兜底，并顺手登记，让设置页能看到这台设备
     writeStoredProfileId(profileId)
+    ensureTerminalRegistered(profileId)
     return { profileId, source }
   } catch (err) {
-    logger.warn('服务端终端方案解析失败,回退 default', err)
+    logger.warn('服务端终端方案解析失败,回退本地/默认', err)
+    if (hasLocal) return { profileId: local, source: 'local' }
     return { profileId: 'default', source: 'default' }
   }
 }
 
 /**
- * 校验指定 profileId 是否存在（通过 fetchProject 探测）。
+ * 校验指定 profileId 是否存在。
+ *
+ * 依赖后端在方案不存在时返回 404：以前后端对缺失方案回 200 + 空 layout，
+ * 这里永远返回 true，导致「URL 里随便写一个 id」都会被当成有效方案写进本地。
+ *
  * @param profileId 待校验方案 id
  * @returns 是否存在
  */
@@ -65,20 +104,36 @@ async function validateProfileExists(profileId: string): Promise<boolean> {
 }
 
 /**
- * 本机绑定当前方案到服务端（切换方案时调用）。
+ * 首次解析时把本终端登记到服务端（只做一次，见 ``TERMINAL_REGISTERED_KEY``）。
+ *
+ * 不 await：解析在路由守卫里，首屏不该为一次绑定写入多等一个往返。
+ * @param profileId 要绑定的方案 id
+ */
+function ensureTerminalRegistered(profileId: string): void {
+  if (hasTerminalRegistered()) return
+  void bindSelfTerminalProfile(profileId, inferTerminalLabel())
+}
+
+/**
+ * 本机绑定当前方案到服务端（切换方案 / 首次登记时调用）。
+ *
  * @param profileId 目标方案 id
  * @param label 可选方案标签
- * @sideeffect 失败仅 warn，不抛出（绑定失败不影响本地使用）
+ * @returns 是否绑定成功（失败只 warn，不抛出：绑定失败不影响本机使用）
+ * @sideeffect 成功时标记「已登记」，阻止后续自动登记重复写入
  */
-export async function bindSelfTerminalProfile(profileId: string, label?: string): Promise<void> {
+export async function bindSelfTerminalProfile(profileId: string, label?: string): Promise<boolean> {
   try {
     await updateSelfTerminalBinding({
       clientId: getClientDeviceId(),
       profileId,
       label: label || undefined,
     })
+    markTerminalRegistered()
+    return true
   } catch (err) {
     logger.warn('同步终端方案绑定到服务端失败', err)
+    return false
   }
 }
 

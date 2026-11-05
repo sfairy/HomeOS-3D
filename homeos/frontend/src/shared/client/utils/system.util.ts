@@ -32,12 +32,41 @@ let cachedStaticSystemAt = 0
 const STATIC_SYSTEM_CACHE_MS = 5 * 60 * 1000
 
 /**
+ * 读取 URL 上钉住的终端 ID（``?terminal=xxx``）。
+ *
+ * 为什么需要它：终端身份存在 localStorage，而 localStorage 按 **origin** 隔离。
+ * 同一块墙屏用「内网 IP / 域名 / 隧道域名」三个地址访问就是三个 origin，会被当成
+ * 三台终端，云端绑定因此管不住它；清一次站点数据也会变成新终端。
+ * 需要固定身份的设备（墙屏、吧台屏）第一次带上 ``?terminal=<id>`` 打开即可把身份钉住，
+ * 之后该 id 会写入 localStorage，与后续访问的地址无关。
+ *
+ * @returns 合法的终端 ID；未携带或不合法时返回空串
+ */
+function readPinnedTerminalId(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const raw = String(new URLSearchParams(window.location.search).get('terminal') || '').trim()
+    // 只接受安全字符，避免把任意内容当作设备标识写进库
+    return /^[A-Za-z0-9_-]{4,64}$/.test(raw) ? raw : ''
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 获取或创建稳定的客户端 ID（持久化到 localStorage）。
  *
  * @returns 客户端 UUID；localStorage 不可用时返回临时 UUID
  */
 export function getClientDeviceId() {
   if (typeof localStorage === 'undefined') return randomUUID()
+  const pinned = readPinnedTerminalId()
+  if (pinned) {
+    if (readLocalStorage(CLIENT_DEVICE_ID_KEY) !== pinned) {
+      writeLocalStorage(CLIENT_DEVICE_ID_KEY, pinned)
+    }
+    return pinned
+  }
   let id = readLocalStorage(CLIENT_DEVICE_ID_KEY)
   if (!id) {
     id = randomUUID()

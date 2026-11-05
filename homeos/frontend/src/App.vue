@@ -67,6 +67,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { useAppTheme } from '@/composables/ui/useAppTheme'
 import { logger } from '@/shared/utils/core/logger'
 import { useClientPowerReporter } from '@/composables/energy/useClientPowerReporter'
+import { useTerminalBindingSync } from '@/composables/config/use-terminal-binding-sync'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
@@ -82,6 +83,8 @@ const MediaPlayerModal = defineAsyncComponent(() => import('@/layouts/shell-over
 useAppTheme()
 // 启动客户端能耗数据上报器（用于在服务端汇总展示各终端功耗）
 useClientPowerReporter()
+// 回到前台时复查云端终端绑定：别的设备给本机换过方案要能自动生效
+useTerminalBindingSync()
 const authStore = useAuthStore()
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()

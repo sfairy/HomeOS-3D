@@ -143,6 +143,22 @@ export function isConflictError(error: unknown): boolean {
 }
 
 /**
+ * 判断错误是否为「显示方案不存在」（``GET /config/project/:id`` 的 404）。
+ *
+ * 语义上要区别于普通加载失败：方案可能在别的终端被删了，此时终端绑定 / 本地缓存
+ * 都指向一个不存在的方案，必须回退到 default，而不是把用户按在一个永远加载失败的页面上。
+ */
+export function isProfileMissingError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const e = error as AxiosLikeError & { status?: number }
+  const status = e.response?.status ?? e.status
+  if (status !== 404) return false
+  const code = e.response?.data?.apiErrorCode
+  // 后端给了稳定码就按码判断；老版本后端没有该码时，404 也只在配置路由上出现。
+  return !code || code === 'UI_CONFIG_PROFILE_NOT_FOUND'
+}
+
+/**
  * 从任意错误中提取面向用户的可读消息。
  * 优先级：后端业务文案 > 后端不可达提示 > 本地化后的 message > 未知错误。
  * @param error 任意错误

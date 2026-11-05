@@ -27,6 +27,7 @@ import {
 import { getClientDeviceId } from '@/shared/client/utils/system.util'
 import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
 import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
+import { copyTextWithNotify } from '@/services/notify'
 
 function profileLabel(projectId: string) {
   return projectId === 'default' ? '默认系统方案' : projectId
@@ -48,6 +49,8 @@ type TerminalBindingRow = {
   profileId: string
   label?: string
   updatedAt: string
+  /** 是否已在服务端登记（本机尚未登记时列表里看不到自己） */
+  registered?: boolean
 }
 
 function useProfilesServerBackups() {
@@ -251,17 +254,24 @@ function useProfilesTerminalBindings() {
   const bindingsError = ref('')
   const bindingActionLoading = ref(false)
   const newTerminalDefault = ref<'activeProfile' | 'default'>('activeProfile')
+  /** 后台默认方案：后端任务（AI / 通知 / 安防事件 / 内嵌代理）读取的方案 */
+  const serverDefaultProfile = ref('')
+  /** 点保存时的上一次值，用于判断是否真的改过 */
+  const savedServerDefaultProfile = ref('')
   const defaultsLoading = ref(false)
   const defaultsSaving = ref(false)
 
-  const localBinding = computed(() => {
+  const localBinding = computed<TerminalBindingRow>(() => {
     const fromServer = terminalBindings.value.find((binding) => binding.clientId === localClientId)
-    if (fromServer) return fromServer
+    if (fromServer) return { ...fromServer, registered: true }
+    // 没登记时不能假装「已绑定」：这里显示的只是本机当前生效的方案，
+    // 云端并不知道这台设备的存在，管理员也就无法给它换方案。
     return {
       clientId: localClientId,
       profileId: layoutStore.activeProfileId,
       label: localTerminalLabel,
       updatedAt: '',
+      registered: false,
     }
   })
 
@@ -269,6 +279,20 @@ function useProfilesTerminalBindings() {
     const clientIdText = String(id || '')
     if (clientIdText.length <= 12) return clientIdText
     return `${clientIdText.slice(0, 8)}…${clientIdText.slice(-4)}`
+  }
+
+  /**
+   * 复制本机完整终端 ID。
+   *
+   * 终端身份存在浏览器 localStorage 里（按 origin 隔离），换地址 / 清缓存都会变成新终端；
+   * 复制出来后在设备访问地址上带 ``?terminal=<ID>`` 打开即可把身份钉死。
+   */
+  async function copyLocalClientId() {
+    if (!localClientId) return
+    await copyTextWithNotify(localClientId, {
+      successMessage: '终端 ID 已复制：在设备访问地址后加 ?terminal=<ID> 可固定身份',
+      emptyMessage: '读取终端 ID 失败',
+    })
   }
 
   async function fetchTerminalBindings() {
@@ -294,6 +318,9 @@ function useProfilesTerminalBindings() {
       if (payload?.newTerminalDefault === 'default' || payload?.newTerminalDefault === 'activeProfile') {
         newTerminalDefault.value = payload.newTerminalDefault
       }
+      const active = String(payload?.activeProfileId || '').trim()
+      serverDefaultProfile.value = active || 'default'
+      savedServerDefaultProfile.value = serverDefaultProfile.value
     } catch (error) {
       chrome.notify(getApiErrorMessage(error, '加载新终端默认策略失败'), 'error')
     } finally {
@@ -313,10 +340,33 @@ function useProfilesTerminalBindings() {
     }
   }
 
+  /**
+   * 保存后台默认方案。
+   *
+   * 只在用户显式操作时写入：这个值决定服务端后台任务读哪份 layout，
+   * 若跟着「本终端切换」自动改，多设备下会互相抢。
+   */
+  async function saveServerDefaultProfile() {
+    const next = String(serverDefaultProfile.value || '').trim()
+    if (!next || next === savedServerDefaultProfile.value) return
+    defaultsSaving.value = true
+    try {
+      const ok = await layoutStore.setServerDefaultProfile(next)
+      if (ok) savedServerDefaultProfile.value = next
+      else serverDefaultProfile.value = savedServerDefaultProfile.value
+    } finally {
+      defaultsSaving.value = false
+    }
+  }
+
   async function bindCurrentTerminal() {
     bindingActionLoading.value = true
     try {
-      await bindSelfTerminalProfile(layoutStore.activeProfileId, localTerminalLabel)
+      const ok = await bindSelfTerminalProfile(layoutStore.activeProfileId, localTerminalLabel)
+      if (!ok) {
+        chrome.notify('绑定失败，请检查网络或后端服务', 'error')
+        return
+      }
       chrome.notify('本终端已绑定到当前方案', 'success')
       await fetchTerminalBindings()
     } catch (error) {
@@ -330,7 +380,10 @@ function useProfilesTerminalBindings() {
     bindingActionLoading.value = true
     try {
       await deleteTerminalBinding(clientId)
-      chrome.notify('终端绑定已解除', 'success')
+      chrome.notify(
+        clientId === localClientId ? '已解除本机绑定：本机继续使用当前方案，但云端不再管理这台设备' : '终端绑定已解除',
+        'success',
+      )
       await fetchTerminalBindings()
     } catch (error) {
       chrome.notify(getApiErrorMessage(error, '解除绑定失败'), 'error')
@@ -351,6 +404,10 @@ function useProfilesTerminalBindings() {
       })
       chrome.notify('终端方案已更新', 'success')
       await fetchTerminalBindings()
+      // 改的是本机：绑定虽然是云端权威，但没必要让用户再刷新一次页面才看到变化
+      if (clientId === localClientId && next !== layoutStore.activeProfileId) {
+        await layoutStore.switchProfile(next, true)
+      }
     } catch (error) {
       chrome.notify(getApiErrorMessage(error, '更新终端绑定失败'), 'error')
     } finally {
@@ -369,17 +426,21 @@ function useProfilesTerminalBindings() {
     localClientId,
     localTerminalLabel,
     shortClientId,
+    copyLocalClientId,
     terminalBindings,
     localBinding,
     bindingsLoading,
     bindingsError,
     bindingActionLoading,
     newTerminalDefault,
+    serverDefaultProfile,
+    savedServerDefaultProfile,
     defaultsLoading,
     defaultsSaving,
     fetchTerminalBindings,
     fetchProfileDefaults,
     saveNewTerminalDefault,
+    saveServerDefaultProfile,
     bindCurrentTerminal,
     removeTerminalBinding,
     updateTerminalBindingProfile,
@@ -416,6 +477,16 @@ export function useProfilesPanel(activeTab: Ref<string>) {
   async function switchToProfile(id: string) {
     await profile.switchToProfile(id)
     await terminal.fetchTerminalBindings()
+  }
+
+  /**
+   * 删除方案后刷新终端绑定：后端会顺带清理指向该方案的绑定，
+   * 不重新拉取的话列表里会残留一个「指向已删方案」的终端。
+   */
+  async function deleteProfileAndRefreshBindings(id: string) {
+    const deleted = await profile.onDeleteProfile(id)
+    if (deleted) await terminal.fetchTerminalBindings()
+    return deleted
   }
 
   watch(
@@ -455,5 +526,7 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     ...serverBackups,
     ...terminal,
     switchToProfile,
+    // 覆盖 ...profile 里的同名实现：删除方案后要顺带刷新「已注册终端」列表
+    onDeleteProfile: deleteProfileAndRefreshBindings,
   }
 }
