@@ -90,6 +90,10 @@ class HAConnectorService(
         self._last_full_sync_at: float = 0.0
         self._database_lock = asyncio.Lock()
         self._connected = False
+        # 当前连接的 HA 版本号（内存镜像，权威值在 ``HAConnection.ha_version``）。
+        # 诊断接口与 ``ha_status`` 广播都读它，必须由同步流程（``sync_once``）刷新，
+        # 否则永远是空串、前端诊断页只能显示「—」。
+        self.ha_version: str | None = None
         self._runtime_error = None
         # 重连失败日志状态（见 service_live._log_cycle_failure）：本轮故障归类和上次提示时刻，
         # 用来把「HA 停机时每分钟 6 轮」的同一条失败压成一行。

@@ -21,6 +21,12 @@ _RECENT_CHANGES_MAX = 3000
 #: 数据陈旧判定阈值（``stateStore.staleThresholdMs`` 默认值，与 Nest 一致）。
 _STALE_THRESHOLD_MS = 12_000
 
+#: ``replay_truncation_reason`` 的两个取值。两种情况处置相同（都要整包重拉），
+#: 但排障语义完全相反：前者是客户端带着**上一个进程**的游标重连（后端重启后的必然
+#: 现象，缓冲毫发无损），后者才是环形缓冲真的把变更挤掉了（容量/压力问题）。
+REPLAY_TRUNCATION_CURSOR_STALE = "cursor_from_prev_process"
+REPLAY_TRUNCATION_BUFFER_EVICTED = "buffer_evicted"
+
 
 def _iso_now() -> str:
     now = datetime.now(UTC)
@@ -196,25 +202,36 @@ class StateStore:
         """
         return _parse_iso_ms(self._last_synced_at) or 0.0
 
+    def replay_truncation_reason(self, since_ms: float, last_event_id: int) -> str | None:
+        """请求的 replay 起点为何不可信；起点仍可用时返回 ``None``。
+
+        - ``REPLAY_TRUNCATION_CURSOR_STALE``：``last_event_id`` **超前**于本进程已产生的
+          最大 id。``_change_seq`` 是进程内自增计数，重启后从 0 开始；客户端跨重连保留
+          旧游标（例如 1200），新进程只有几十条记录时增量过滤会把**所有**记录剔掉，而
+          调用方见 ``replayed`` 就不再发全量 —— 实体表从此永久停在重启前的状态。
+          注意此时环形缓冲并没有淘汰任何东西，别误判成容量不足。
+        - ``REPLAY_TRUNCATION_BUFFER_EVICTED``：``last_event_id`` 早于当前保留的最旧
+          记录，或 ``since_ms`` 早于最旧变更时刻 —— 中间变更确实已被挤出缓冲。
+        """
+        if last_event_id and last_event_id > self._change_seq:
+            return REPLAY_TRUNCATION_CURSOR_STALE
+        if not self._recent:
+            # 缓冲为空但已有变更历史，说明早期变更全部被淘汰
+            return REPLAY_TRUNCATION_BUFFER_EVICTED if self._change_seq > 0 else None
+        oldest = self._recent[0]
+        if last_event_id and last_event_id < int(oldest["id"]) - 1:
+            return REPLAY_TRUNCATION_BUFFER_EVICTED
+        if since_ms and since_ms < float(oldest["at"]):
+            return REPLAY_TRUNCATION_BUFFER_EVICTED
+        return None
+
     def is_replay_truncated(self, since_ms: float, last_event_id: int) -> bool:
         """请求的 replay 起点是否已不可信（此时增量会被漏发，应强制全量 resync）。
 
-        - ``last_event_id`` **超前**于本进程已产生的最大 id：``_change_seq`` 是进程内自增
-          计数，重启后从 0 开始。客户端跨重连保留旧游标（例如 1200），新进程只有几十条
-          记录时增量过滤会把**所有**记录剔掉，而调用方见 ``replayed`` 就不再发全量 ——
-          实体表从此永久停在重启前的状态（且界面毫无异常）。
-        - ``last_event_id`` 早于当前保留的最旧记录：中间变更已被丢弃；
-        - ``since_ms`` 早于最旧记录的变更时刻：同上（时间窗已滚出缓冲）。
+        判定细节见 :meth:`replay_truncation_reason`；需要区分「旧进程游标」与
+        「缓冲真的淘汰」时用后者。
         """
-        if last_event_id and last_event_id > self._change_seq:
-            return True
-        if not self._recent:
-            # 缓冲为空但已有变更历史，说明早期变更全部被淘汰
-            return self._change_seq > 0
-        oldest = self._recent[0]
-        if last_event_id and last_event_id < int(oldest["id"]) - 1:
-            return True
-        return bool(since_ms and since_ms < float(oldest["at"]))
+        return self.replay_truncation_reason(since_ms, last_event_id) is not None
 
     def apply_state_changed_hot(self, event: dict[str, Any]) -> bool:
         """热路径写入（对齐 Nest ``applyStateChangedHot``）。
