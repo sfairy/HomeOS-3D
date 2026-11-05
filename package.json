@@ -32,6 +32,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
+    "format:check": "biome ci .",
     "lint:py": "node ops/lib/py.mjs -m ruff check .",
     "dev": "bun ops/dev.mjs",
     "dev:prepare": "bun ops/dev.mjs --prepare",

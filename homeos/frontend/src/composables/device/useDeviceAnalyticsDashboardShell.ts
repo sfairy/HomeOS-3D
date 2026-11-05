@@ -171,8 +171,11 @@ export function useDeviceAnalyticsDashboardShell(options: {
   const bindHeatmapChart = bindChartRef(heatmapChartRef)
   const bindEventsChart = bindChartRef(eventsChartRef)
   const bindHealthTrend = bindChartRef(healthTrendRef)
-  // 根元素同样用函数 ref 绑定：Vue 3.5 起 `ref="name"` 的字符串形式无法被 vue-tsc 统计为
-  // 「被读取」，在 noUnusedLocals 下会误报未使用。函数 ref 是显式读取，且与上面各图表一致。
+  // 根元素同样用函数 ref 绑定：vue-tsc 不把模板里的 `ref="name"` 字符串当作对脚本变量的
+  // 读取，开启 noUnusedLocals 后只被模板引用的 ref 会误报「声明但未使用」。函数 ref 是真实
+  // 表达式引用，判定成立。**`useTemplateRef('name')` 同样无效**——实测（vue-tsc 3.3.14 /
+  // vue 3.5.44）`ref="x"` + `useTemplateRef('x')` 与 `ref="x"` + `ref()` 一样报 TS6133，
+  // 因为模板字符串 ref 根本不参与读取判定；别再尝试换成 useTemplateRef。
   const bindRootRef = bindChartRef(rootRef)
 
   return {

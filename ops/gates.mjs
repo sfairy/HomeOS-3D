@@ -75,7 +75,9 @@ const GATE_GROUPS = {
     { name: 'typecheck', ...bun('run', 'typecheck') },
     // 单一 Biome 配置覆盖主应用 / 商店 / shared / ops。三个子包各自的 `lint:ci`
     // 已退化成委托到这里（见各 package.json），不再有「一处加规则、另一处静默少一条」。
-    { name: 'lint', ...bun('run', 'lint') },
+    // 走 `biome ci` 而不是 `biome check`：CI 形态语义明确（只读、格式化差异即失败），
+    // 避免将来有人给门禁那条命令顺手加上 `--write` 把「检查」变成「改代码」。
+    { name: 'lint:biome', ...bun('run', 'format:check') },
     // CSS 语法仍走 esbuild（与构建同一引擎）：Biome 的 CSS 解析器不认识 Tailwind 的
     // `@import` / `@config` 顺序，也不认 Vue 的 `:deep()`，用它判定会与真实产物脱节。
     { name: 'check:css-syntax', ...bun('run', '--cwd', 'homeos/frontend', 'check:css') },

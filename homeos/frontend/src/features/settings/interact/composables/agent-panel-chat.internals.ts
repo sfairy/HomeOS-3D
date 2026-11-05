@@ -54,6 +54,7 @@ export function useAgentPanelChat(opts: {
   /**
    * 函数式模板 ref。不用 `ref="chatLogEl"` 字符串形式：vue-tsc 不把字符串 ref 当作
    * 对脚本变量的读取，开启 `noUnusedLocals` 后会误报「声明但未使用」。
+   * 换 `useTemplateRef('chatLogEl')` 同样报 TS6133（vue-tsc 3.3.14 实测），别改。
    */
   const bindChatLog = (el: Element | ComponentPublicInstance | null) => {
     chatLogEl.value = el instanceof HTMLElement ? el : null
