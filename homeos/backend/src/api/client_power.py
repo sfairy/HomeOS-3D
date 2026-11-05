@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import Depends, Request, Response
@@ -20,6 +21,9 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from .router import NestRouter
 from ..platform.security.auth_context import require_user
 from ..platform.security.cookies import resolve_cookie_secure_for_request
+
+#: 与领域层同源 logger：控制台展示为「终端电量」，避免上报失败落到「应用服务」里。
+logger = logging.getLogger("homeos.client_power")
 
 router = NestRouter(prefix="/system", tags=["system"])
 
@@ -198,7 +202,14 @@ async def report(
         "systemInfo": dto.systemInfo,
         "reportToken": from_body or from_cookie or None,
     }
-    result = await _service(request).report(merged)
+    try:
+        result = await _service(request).report(merged)
+    except Exception:
+        # 这是每 10 秒一次的遥测通道：内部异常不该变成 500 —— 前端会把每种失败当成
+        # 「上报失败」刷控制台，5xx 指标也会被它占满，真正的故障反而看不见。
+        # 按「未接受」应答，同时用 ERROR + 堆栈把根因留在日志里（仍需修，不能靠这里兜）。
+        logger.exception("客户端系统信息上报失败 clientId=%s", merged["clientId"])
+        return {"accepted": False, "configured": False}
 
     deliver_token = result.pop("deliverToken", None)
     if deliver_token:
@@ -240,9 +251,7 @@ async def dismiss_pending(
 
 
 @router.post("/client-power/pending/dismiss-offline")
-async def dismiss_all_offline_pending(
-    request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def dismiss_all_offline_pending(request: Request, user: dict[str, Any] = Depends(require_user)):
     """批量清除所有离线待配对终端的发现记录（仅管理员）。"""
     _ = user
     return await _service(request).dismiss_all_offline_pending()

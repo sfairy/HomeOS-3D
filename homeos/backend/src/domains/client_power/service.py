@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import inspect
 import logging
+import math
 from datetime import UTC, datetime
 from typing import Any
 
@@ -59,6 +60,67 @@ def _parse_iso_ms(value: Any) -> float:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return parsed.timestamp() * 1000
+
+
+def _coerce_number(value: Any) -> float | None:
+    """把配置里的数值字段解析成 float；布尔 / 非数字 / NaN / Inf 一律 ``None``。
+
+    ``clientPower`` 分区是用户可编辑的（设置页表单、导入的配置备份、手改的库），
+    这些字段以前直接 ``int(...)`` / ``float(...)``：一个 ``"10s"`` 就让
+    每 10 秒一次的上报和状态面板一起 500。解析失败只回落默认值，不再抛。
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value.strip()) if isinstance(value, str) else float(value)
+    except (TypeError, ValueError):  # fmt: skip
+        # 非法值的对外告警由 _config_int / _config_float 统一负责（同项只报一次），
+        # 这里只留一条 DEBUG，避免 10s 一次的读取把日志刷满。
+        logger.debug("clientPower 配置值无法解析为数字: %r", value)
+        return None
+    if math.isnan(number) or math.isinf(number):
+        return None
+    return number
+
+
+def _coerce_int(value: Any, fallback: int) -> int:
+    number = _coerce_number(value)
+    return fallback if number is None else int(number)
+
+
+def _coerce_float(value: Any, fallback: float) -> float:
+    number = _coerce_number(value)
+    return fallback if number is None else number
+
+
+#: 已经为哪些配置项报过「值无效」告警（同一项只告警一次，避免 10s 一条刷屏）
+_INVALID_CONFIG_WARNED: set[str] = set()
+
+
+def _warn_invalid_config(key: str, value: Any, fallback: Any) -> None:
+    if key in _INVALID_CONFIG_WARNED:
+        return
+    _INVALID_CONFIG_WARNED.add(key)
+    logger.warning("clientPower.%s 配置值无效(%r)，本次按 %r 处理", key, value, fallback)
+
+
+def _config_int(raw: dict[str, Any], key: str, fallback: int) -> int:
+    """取整数配置项：缺省 / 假值走 fallback，非法值告警一次后走 fallback。"""
+    value = raw.get(key) or fallback
+    number = _coerce_number(value)
+    if number is None:
+        _warn_invalid_config(key, raw.get(key), fallback)
+        return fallback
+    return int(number)
+
+
+def _config_float(raw: dict[str, Any], key: str, fallback: float) -> float:
+    value = raw.get(key) or fallback
+    number = _coerce_number(value)
+    if number is None:
+        _warn_invalid_config(key, raw.get(key), fallback)
+        return fallback
+    return number
 
 
 class ClientPowerService:
@@ -153,11 +215,11 @@ class ClientPowerService:
         clients = clients_source if isinstance(clients_source, list) else []
         return ClientPowerConfig(
             enabled=raw.get("enabled") is True,
-            report_interval_sec=int(raw.get("reportIntervalSec") or 10),
-            stale_timeout_sec=int(raw.get("staleTimeoutSec") or 300),
-            cooldown_min=float(raw.get("cooldownMin") or 5),
-            linkage_retry_count=int(raw.get("linkageRetryCount") or 0),
-            linkage_retry_delay_ms=int(raw.get("linkageRetryDelayMs") or 0),
+            report_interval_sec=_config_int(raw, "reportIntervalSec", 10),
+            stale_timeout_sec=_config_int(raw, "staleTimeoutSec", 300),
+            cooldown_min=_config_float(raw, "cooldownMin", 5.0),
+            linkage_retry_count=_config_int(raw, "linkageRetryCount", 0),
+            linkage_retry_delay_ms=_config_int(raw, "linkageRetryDelayMs", 0),
             clients=[c for c in clients if isinstance(c, dict)],
         )
 
@@ -174,6 +236,8 @@ class ClientPowerService:
         """监听 ``app.config.updated``：clientPower 更新后重新对账待配对列表。"""
         keys = sections if isinstance(sections, list) else []
         if "clientPower" in keys:
+            # 配置换了就重新允许告警：旧值已被修正时不该继续沉默，新值再坏要能再报一次。
+            _INVALID_CONFIG_WARNED.clear()
             self._reconcile_pending_with_config()
 
     # reportToken 鉴权
@@ -289,23 +353,16 @@ class ClientPowerService:
             return
         self_charge = client_cfg.get("selfCharge") if client_cfg else None
         self_charge = self_charge if isinstance(self_charge, dict) else {}
-        low_threshold = float(
-            self_charge.get("lowPercent") or DEFAULT_CLIENT_POWER_SELF_CHARGE["lowPercent"]
-        )
-        high_threshold = float(
-            self_charge.get("highPercent") or DEFAULT_CLIENT_POWER_SELF_CHARGE["highPercent"]
+        low_threshold = _config_float(self_charge, "lowPercent", float(DEFAULT_CLIENT_POWER_SELF_CHARGE["lowPercent"]))
+        high_threshold = _config_float(
+            self_charge, "highPercent", float(DEFAULT_CLIENT_POWER_SELF_CHARGE["highPercent"])
         )
         if prev is not None and prev.level is not None and prev.level >= low_threshold and level < low_threshold:
             await self._emit(CLIENT_POWER_LOW, {"clientId": client_id, "level": level})
         elif prev is None and level < low_threshold and configured and auth.get("linkageAllowed"):
             # 首次上报即低于低阈值：仅对已配对（token 确认）终端触发一次
             await self._emit(CLIENT_POWER_LOW, {"clientId": client_id, "level": level})
-        if (
-            prev is not None
-            and prev.level is not None
-            and prev.level < high_threshold
-            and level >= high_threshold
-        ):
+        if prev is not None and prev.level is not None and prev.level < high_threshold and level >= high_threshold:
             await self._emit(CLIENT_POWER_CHARGED, {"clientId": client_id, "level": level})
 
     async def report(self, dto: dict[str, Any]) -> dict[str, Any]:
@@ -338,12 +395,16 @@ class ClientPowerService:
         self._dirty = True
 
         await self._emit_reported_event(client_id, client_cfg, normalized, auth, state, now)
-        await self._emit_threshold_events(
-            client_id, client_cfg, normalized["level"], prev, configured, auth
-        )
 
-        if self.cfg().enabled and auth.get("linkageAllowed"):
-            await self._evaluate_and_execute(state)
+        try:
+            await self._emit_threshold_events(client_id, client_cfg, normalized["level"], prev, configured, auth)
+            if self.cfg().enabled and auth.get("linkageAllowed"):
+                await self._evaluate_and_execute(state)
+        except Exception:
+            # 状态已经在上一段落进内存态，广播 / 联动只是副作用：这里再炸一次只会把
+            # 「已经记录成功」的上报变成 500，让每 10 秒一条的遥测通道整体失效。
+            # 根因仍要修，所以按 ERROR 带堆栈留痕，不静默吞掉。
+            logger.exception("客户端上报后的广播/联动失败 clientId=%s", client_id)
 
         result: dict[str, Any] = {"accepted": True, "configured": configured}
         if auth.get("deliverToken"):
@@ -415,9 +476,7 @@ class ClientPowerService:
             last_ms = _parse_iso_ms(state.last_report_at)
             snapshot["online"] = last_ms >= 0 and (now - last_ms) <= stale_ms
             clients.append(snapshot)
-        configured_clients = [
-            {k: v for k, v in client.items() if k != "reportToken"} for client in cfg.clients
-        ]
+        configured_clients = [{k: v for k, v in client.items() if k != "reportToken"} for client in cfg.clients]
         return {
             "enabled": cfg.enabled,
             "clients": clients,
@@ -432,9 +491,7 @@ class ClientPowerService:
     def _collect_pending_clients(self) -> list[dict[str, Any]]:
         self._reconcile_pending_with_config()
         configured_ids = {c.get("id") for c in self.cfg().clients}
-        rows = [
-            pending for pending in self._pending.values() if pending.client_id not in configured_ids
-        ]
+        rows = [pending for pending in self._pending.values() if pending.client_id not in configured_ids]
         rows.sort(key=lambda p: p.last_report_at, reverse=True)
         return [row.to_public() for row in rows]
 
@@ -486,9 +543,7 @@ class ClientPowerService:
         """将已注册终端移出 pending，未注册但有上报记录的终端恢复为待配对。"""
         # 只收集有 id 的终端（缺 id 会往集合里塞 None，弹出的是无意义键）；
         # 键统一成字符串：`_pending` 的键就是字符串 client_id。
-        configured_ids = {
-            str(client["id"]) for client in self.cfg().clients if client.get("id")
-        }
+        configured_ids = {str(client["id"]) for client in self.cfg().clients if client.get("id")}
         for client_id in configured_ids:
             self._pending.pop(client_id, None)
 
@@ -505,7 +560,9 @@ class ClientPowerService:
             existing = self._pending.get(state.client_id)
             self._pending[state.client_id] = PendingClientState(
                 client_id=state.client_id,
-                system_info=state.system_info if state.system_info is not None else (existing.system_info if existing else None),
+                system_info=state.system_info
+                if state.system_info is not None
+                else (existing.system_info if existing else None),
                 first_seen_at=existing.first_seen_at if existing else state.last_report_at,
                 last_report_at=state.last_report_at,
             )
@@ -576,9 +633,7 @@ class ClientPowerService:
             try:
                 await self._ha.call_service(action.domain, action.service, action.entity_id)
                 self._mark_cooldown(action.cooldown_key)
-                logger.info(
-                    "客户端电量联动:%s %s(%s)", action.entity_id, action.service, action.reason
-                )
+                logger.info("客户端电量联动:%s %s(%s)", action.entity_id, action.service, action.reason)
                 return
             except Exception as exc:
                 last_error = exc
@@ -650,9 +705,7 @@ class ClientPowerService:
                 self._pending[cid] = PendingClientState(
                     client_id=cid,
                     system_info=pending.get("systemInfo"),
-                    first_seen_at=str(
-                        pending.get("firstSeenAt") or pending.get("lastReportAt") or _iso_now()
-                    ),
+                    first_seen_at=str(pending.get("firstSeenAt") or pending.get("lastReportAt") or _iso_now()),
                     last_report_at=str(pending.get("lastReportAt") or _iso_now()),
                 )
         except Exception as exc:

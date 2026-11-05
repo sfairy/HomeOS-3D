@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.requests import ClientDisconnect
 
 from ..config import Settings
 from ..platform.core.http.errors import (
@@ -25,6 +26,11 @@ from ..platform.core.http.errors import (
 from ..platform.core.runtime.observability import get_trace_id
 
 _SENSITIVE_5XX_MESSAGE = "服务器内部错误"
+
+#: 客户端已断开（nginx 约定的 ``499 Client Closed Request``）
+CLIENT_CLOSED_REQUEST_STATUS = 499
+#: 客户端断开时的响应文案（对端多半收不到，仅用于访问日志与排障）
+CLIENT_CLOSED_REQUEST_MESSAGE = "客户端已断开连接。"
 
 logger = logging.getLogger("homeos.app")
 
@@ -134,12 +140,43 @@ def business_exception_json(
     )
 
 
+def client_disconnect_json(request: Request) -> JSONResponse:
+    """把 ``ClientDisconnect`` 规整成 499，而不是 500。
+
+    断连不是服务端故障：3D 舞台 / 墙屏刷新、进 bfcache、切走标签页时，正在上传的
+    请求体（渲染缓存瓦片、项目草稿）会在 ``request.stream()`` / FastAPI 解析请求体
+    途中抛 ``ClientDisconnect``。此前它会落到 ``Exception`` 处理器，于是每次断连都
+    写一条 ERROR「未处理异常」+ 一条 uvicorn「Exception in ASGI application」，
+    Prometheus 的 5xx 也跟着涨 —— 真正要排查的 500 被这些噪音淹没。
+
+    ``499`` 语义是「客户端已走、响应无人接收」：uvicorn 的 ``send`` 在断连后直接
+    返回，这里写响应不会二次报错；访问日志与指标按 4xx 归因。
+    """
+    return JSONResponse(
+        status_code=CLIENT_CLOSED_REQUEST_STATUS,
+        content=nest_error_payload(
+            status=CLIENT_CLOSED_REQUEST_STATUS,
+            error_code=str(ErrorCode.UNKNOWN),
+            message=CLIENT_CLOSED_REQUEST_MESSAGE,
+            error=reason_phrase(CLIENT_CLOSED_REQUEST_STATUS),
+            request=request,
+            trace_id=get_trace_id() or request.headers.get("x-trace-id"),
+        ),
+    )
+
+
 def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
     """注册统一 Nest 结构异常处理器（须在路由装配前调用）。"""
 
     @app.exception_handler(BusinessException)
     async def _business_exception(request: Request, exc: BusinessException):
         return business_exception_json(request, exc, is_production=settings.is_production)
+
+    @app.exception_handler(ClientDisconnect)
+    async def _client_disconnect(request: Request, exc: ClientDisconnect):
+        # 断连属客户端行为：DEBUG 留一行线索即可，不打 5xx、不写堆栈。
+        logger.debug("客户端在请求途中断开 %s %s: %s", request.method, request.url.path, exc)
+        return client_disconnect_json(request)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception(request: Request, exc: StarletteHTTPException):
@@ -212,6 +249,11 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, _exc: Exception):
+        # 外层中间件（授权门禁 / 外壳 / 请求体门禁）没有 ExceptionMiddleware 兜底，
+        # 那里冒出来的断连会直接落到这里：仍按 499 处理，别记成服务端故障。
+        if isinstance(_exc, ClientDisconnect):
+            logger.debug("客户端在请求途中断开 %s %s: %s", request.method, request.url.path, _exc)
+            return client_disconnect_json(request)
         status = 500
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
         # 开发期把未捕获异常打到日志，便于定位媒体代理等 500。
