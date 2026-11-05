@@ -39,7 +39,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100,
+    "lineWidth": 120,
     "lineEnding": "lf"
   },
 
@@ -122,6 +122,17 @@
   },
 
   "overrides": [
+    {
+      "includes": [
+        "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts",
+        "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts",
+        "homeos/frontend/src/studio/app/3d-studio/authoring/items/studio-item-model.ts",
+        "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/**"
+      ],
+      "formatter": {
+        "enabled": false
+      }
+    },
     {
       "includes": ["homeos-store/**"],
       "javascript": {
@@ -247,12 +258,7 @@
                     "message": "app/shared 禁止 import app/editor；下沉到 editor 或 platform"
                   },
                   {
-                    "group": [
-                      "**/renderer/**",
-                      "../renderer/**",
-                      "../../renderer/**",
-                      "@app/renderer/**"
-                    ],
+                    "group": ["**/renderer/**", "../renderer/**", "../../renderer/**", "@app/renderer/**"],
                     "message": "app/shared 禁止 import app/renderer；下沉到 renderer 或 platform"
                   }
                 ]

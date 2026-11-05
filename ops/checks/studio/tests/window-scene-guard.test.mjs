@@ -20,10 +20,7 @@ const LAYOUT = fileURLToPath(
   new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/window/layout.ts', import.meta.url),
 )
 const SCENE_GUARD = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/plan/window/window-scene-guard.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/window/window-scene-guard.ts', import.meta.url),
 )
 const WIRING = fileURLToPath(
   new URL(
@@ -99,9 +96,7 @@ test('windowSceneError：窗宽超出墙长时报错并给出两侧毫米数', (
 
 test('windowSceneError：指名是第几扇窗，十几扇窗时才找得到', () => {
   const multi = scene({ wallLength: 6.997, width: 7 })
-  multi.windows.unshift(
-    { id: 'window-0', wallId: 'wall-1', t: 0.2, width: 1, height: 1, sill: 0.4 },
-  )
+  multi.windows.unshift({ id: 'window-0', wallId: 'wall-1', t: 0.2, width: 1, height: 1, sill: 0.4 })
   assert.match(windowSceneError(multi, PPM), /第 2 扇窗户/, '越界的是第 2 扇，不能只说「自定义窗户」')
   const named = scene({ wallLength: 6.997, width: 7 })
   named.windows[0].remark = '主卧飘窗'
@@ -192,13 +187,13 @@ function functionBody(source, marker, endMarker) {
 }
 
 test('落盘被拒时必须 throw 给绘制器，不能 showToast（模态层会盖住 toast）', () => {
-  const body = functionBody(wiringSource, 'const applyWindowDesign =', 'selectElement("#window-customize")')
+  const body = functionBody(wiringSource, 'const applyWindowDesign =', "selectElement('#window-customize')")
   assert.match(body, /if \(sceneError\) throw Error\(sceneError\)/, 'sceneError 必须冒泡到绘制器的 try/catch')
   assert.doesNotMatch(body, /showToast\(/, 'showToast 在 <dialog> 顶层的 backdrop 后面，用户看不见')
 })
 
 test('绘制器把 apply 的异常写进自己的 #wd-notice 并保持打开', () => {
-  const body = functionBody(designerSource, 'query("apply").onclick =', 'dialog.addEventListener("keydown"')
+  const body = functionBody(designerSource, "query('apply').onclick =", "dialog.addEventListener('keydown'")
   assert.match(body, /catch \(error\)/, 'apply 必须自己兜住异常')
   assert.match(body, /notify\(\(error as Error\)\.message\)/, '异常要落到 #wd-notice 提示条')
   assert.match(body, /onApply\(applied\) !== false && close\(\)/, '返回 false 时保持打开，异常时也不关闭')
@@ -215,10 +210,10 @@ test('未应用的修改不能被一次 Esc / 误点 × 悄悄丢掉', () => {
   assert.match(designerSource, /if \(!isDirty\(\)\) return close\(\)/, '没有修改时不能多问一遍')
   assert.match(
     designerSource,
-    /for \(const actionId of \["cancel", "close-dialog"\]\) query\(actionId\)\.onclick = requestClose/,
+    /for \(const actionId of \['cancel', 'close-dialog'\]\) query\(actionId\)\.onclick = requestClose/,
     '「取消」和 × 都要走确认',
   )
-  const cancelEvent = functionBody(designerSource, 'dialog.addEventListener("cancel"', 'query("apply").onclick')
+  const cancelEvent = functionBody(designerSource, "dialog.addEventListener('cancel'", "query('apply').onclick")
   assert.match(cancelEvent, /requestClose\(\)/, 'Esc 也要走确认')
 })
 

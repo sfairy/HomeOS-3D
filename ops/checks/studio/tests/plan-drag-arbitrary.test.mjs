@@ -53,18 +53,12 @@ test('planDragDelta：Shift 只锁轴，不改变被保留轴上的位移', () =
 
 test('move-items 分支不再按步进量化位移', () => {
   const source = readFileSync(POINTER_UP, 'utf8'),
-    branchStart = source.indexOf('marqueeBox.type === "move-items"'),
-    branchEnd = source.indexOf('marqueeBox.type === "resize-item"')
+    branchStart = source.indexOf("marqueeBox.type === 'move-items'"),
+    branchEnd = source.indexOf("marqueeBox.type === 'resize-item'")
 
   assert.ok(branchStart > 0 && branchEnd > branchStart, '找不到 move-items 分支')
   const moveBranch = source.slice(branchStart, branchEnd)
   for (const forbidden of ['snapEditDelta', 'moveStepMeters', 'widthStep', 'depthStep', 'Math.round'])
-    assert.ok(
-      !moveBranch.includes(forbidden),
-      `move-items 分支又出现了 ${forbidden}：鼠标拖动会退回固定网格`,
-    )
-  assert.ok(
-    moveBranch.includes('planDragDelta'),
-    'move-items 分支必须走 planDragDelta（唯一的位移口径）',
-  )
+    assert.ok(!moveBranch.includes(forbidden), `move-items 分支又出现了 ${forbidden}：鼠标拖动会退回固定网格`)
+  assert.ok(moveBranch.includes('planDragDelta'), 'move-items 分支必须走 planDragDelta（唯一的位移口径）')
 })
