@@ -12,8 +12,7 @@
 }
 
 .nc-root--popover {
-  background:
-    linear-gradient(165deg, rgba(28, 28, 40, 0.98) 0%, rgba(12, 12, 18, 0.99) 100%);
+  background: linear-gradient(165deg, rgba(28, 28, 40, 0.98) 0%, rgba(12, 12, 18, 0.99) 100%);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.16);
   border-radius: inherit;
   -webkit-backdrop-filter: blur(40px) saturate(180%);
@@ -234,7 +233,10 @@
   background: var(--premium-glass-bg);
   color: var(--hos-text-secondary);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .nc-filter--active {
@@ -288,7 +290,10 @@
   border-radius: var(--hos-radius-card);
   background: var(--premium-glass-bg);
   border: var(--hos-hairline) solid var(--premium-border);
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.15s;
   position: relative;
 }
 
@@ -310,7 +315,7 @@
 }
 
 .nc-item--unread::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 6px;
   top: 50%;
@@ -507,7 +512,9 @@
   color: var(--hos-text-secondary);
   flex-shrink: 0;
   margin-top: 6px;
-  transition: color 0.15s, transform 0.15s;
+  transition:
+    color 0.15s,
+    transform 0.15s;
 }
 
 .nc-item--clickable:hover .nc-item__chevron {
@@ -530,7 +537,10 @@
   cursor: pointer;
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    background 0.15s;
 }
 
 .nc-item:hover .nc-dismiss,

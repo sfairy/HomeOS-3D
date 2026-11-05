@@ -93,15 +93,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import {
-  PlugZap,
-  AlertCircle,
-  Loader2,
-  KeyRound,
-  Radio,
-  RefreshCw,
-  CheckCircle,
-} from '@lucide/vue'
+import { PlugZap, AlertCircle, Loader2, KeyRound, Radio, RefreshCw, CheckCircle } from '@lucide/vue'
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
@@ -121,9 +113,7 @@ const connectionFlowSummary = computed(() => {
 
 /** 概览只展示 HA / 实体两项，避免流程带统计区过挤 */
 const overviewCells = computed(() =>
-  (props.connectionStatCells || [])
-    .filter((c) => c.key === 'ha' || c.key === 'entities')
-    .slice(0, 2),
+  (props.connectionStatCells || []).filter((c) => c.key === 'ha' || c.key === 'entities').slice(0, 2),
 )
 
 const connectionFlowSteps = computed(() => {

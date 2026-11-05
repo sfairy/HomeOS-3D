@@ -2,11 +2,7 @@
  * 按路由可见实体 ID 维护 EntityProjection 作用域
  */
 import { watch, onUnmounted, unref, type MaybeRefOrGetter } from 'vue'
-import {
-  setProjectionScope,
-  clearProjections,
-  upsertProjection,
-} from '@/stores/entities/entity-projection'
+import { setProjectionScope, clearProjections, upsertProjection } from '@/stores/entities/entity-projection'
 import { useEntitiesStore } from '@/stores/entities.store'
 /**
  * @param {import('vue').MaybeRefOrGetter<string[]>} entityIdsRef
@@ -14,8 +10,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 export function useRouteEntityProjection(entityIdsRef: MaybeRefOrGetter<string[]>) {
   const entitiesStore = useEntitiesStore()
   function syncScope() {
-    const ids =
-      typeof entityIdsRef === 'function' ? entityIdsRef() : unref(entityIdsRef)
+    const ids = typeof entityIdsRef === 'function' ? entityIdsRef() : unref(entityIdsRef)
     const list = Array.isArray(ids) ? ids.filter(Boolean) : []
     setProjectionScope(list)
     const map = entitiesStore.entities

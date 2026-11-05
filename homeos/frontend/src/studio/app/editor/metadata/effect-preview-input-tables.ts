@@ -6,190 +6,188 @@
  * 故整条搬出（`--whole-statement`）；表单元素引用按 ctx 注入，调用点零改写。
  */
 
-import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from "../../renderer/panel-renderer";
+import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from '../../renderer/panel-renderer'
 
 interface EffectPreviewInputElementRefs {
-  airConditionerAirflowAngleElement: any;
-  airConditionerAirflowBlurElement: any;
-  airConditionerAirflowCoolColorElement: any;
-  airConditionerAirflowCurveElement: any;
-  airConditionerAirflowDensityElement: any;
-  airConditionerAirflowFadeElement: any;
-  airConditionerAirflowHeatColorElement: any;
-  airConditionerAirflowHeightElement: any;
-  airConditionerAirflowIrregularityElement: any;
-  airConditionerAirflowLengthElement: any;
-  airConditionerAirflowOffsetXElement: any;
-  airConditionerAirflowOffsetYElement: any;
-  airConditionerAirflowOtherColorElement: any;
-  airConditionerAirflowRotationElement: any;
-  airConditionerAirflowScaleElement: any;
-  airConditionerAirflowSpeedElement: any;
-  airConditionerAirflowSpreadElement: any;
-  airConditionerAirflowStrengthElement: any;
-  airConditionerAirflowThicknessElement: any;
-  airConditionerAirflowWidthElement: any;
-  airConditionerBadgeColorElement: any;
-  airConditionerBadgeOpacityElement: any;
-  airConditionerBadgeSizeElement: any;
-  airConditionerHeightElement: any;
-  airConditionerIconLeftElement: any;
-  airConditionerIconOffColorElement: any;
-  airConditionerIconOnColorElement: any;
-  airConditionerIconTopElement: any;
-  airConditionerLeftElement: any;
-  airConditionerMainColorElement: any;
-  airConditionerMainLeftElement: any;
-  airConditionerMainSizeElement: any;
-  airConditionerMainSpacingElement: any;
-  airConditionerMainTopElement: any;
-  airConditionerMainWeightElement: any;
-  airConditionerRotationElement: any;
-  airConditionerScaleElement: any;
-  airConditionerSecondaryColorElement: any;
-  airConditionerSecondaryLeftElement: any;
-  airConditionerSecondarySizeElement: any;
-  airConditionerSecondarySpacingElement: any;
-  airConditionerSecondaryTopElement: any;
-  airConditionerSecondaryWeightElement: any;
-  airConditionerSymbolSizeElement: any;
-  airConditionerTopElement: any;
-  airConditionerWidthElement: any;
-  cameraFrameAngleElement: any;
-  cameraFrameColorElement: any;
-  cameraFrameOpacityElement: any;
-  cameraFrameWidthElement: any;
-  cameraHeightElement: any;
-  cameraLeftElement: any;
-  cameraRadiusElement: any;
-  cameraRotationElement: any;
-  cameraScaleElement: any;
-  cameraTopElement: any;
-  cameraWidthElement: any;
-  deviceButtonBadgeColorElement: any;
-  deviceButtonBadgeOpacityElement: any;
-  deviceButtonBadgeSizeElement: any;
-  deviceButtonIconOnColorElement: any;
-  deviceButtonSymbolSizeElement: any;
-  iconButtonCutCornerElement: any;
-  iconButtonFrameAngleElement: any;
-  iconButtonFrameOffOpacityElement: any;
-  iconButtonFrameOnOpacityElement: any;
-  iconButtonFrameWidthElement: any;
-  iconButtonGlowAngleElement: any;
-  iconButtonGlowColorElement: any;
-  iconButtonGlowSizeElement: any;
-  iconButtonGlowStrengthElement: any;
-  iconButtonHeightElement: any;
-  iconButtonIconColorElement: any;
-  iconButtonIconLeftElement: any;
-  iconButtonIconOffOpacityElement: any;
-  iconButtonIconOnOpacityElement: any;
-  iconButtonIconSizeElement: any;
-  iconButtonIconTopElement: any;
-  iconButtonLeftElement: any;
-  iconButtonMainColorElement: any;
-  iconButtonMainLeftElement: any;
-  iconButtonMainOffOpacityElement: any;
-  iconButtonMainOnOpacityElement: any;
-  iconButtonMainSizeElement: any;
-  iconButtonMainSpacingElement: any;
-  iconButtonMainTopElement: any;
-  iconButtonMainWeightElement: any;
-  iconButtonOnFillColorElement: any;
-  iconButtonOnFillFadeDurationElement: any;
-  iconButtonOnFillStrengthElement: any;
-  iconButtonRotationElement: any;
-  iconButtonScaleElement: any;
-  iconButtonSecondaryColorElement: any;
-  iconButtonSecondaryLeftElement: any;
-  iconButtonSecondaryOffOpacityElement: any;
-  iconButtonSecondaryOnOpacityElement: any;
-  iconButtonSecondarySizeElement: any;
-  iconButtonSecondarySpacingElement: any;
-  iconButtonSecondaryTopElement: any;
-  iconButtonSecondaryWeightElement: any;
-  iconButtonSoftLightAngleElement: any;
-  iconButtonSoftLightColorElement: any;
-  iconButtonSoftLightSizeElement: any;
-  iconButtonSoftLightStrengthElement: any;
-  iconButtonTopElement: any;
-  iconButtonWidthElement: any;
-  lightStatisticsCountActiveColorElement: any;
-  lightStatisticsCountColorElement: any;
-  lightStatisticsCountGapElement: any;
-  lightStatisticsCountSizeElement: any;
-  lightStatisticsCountSpacingElement: any;
-  lightStatisticsCountWeightElement: any;
-  lightStatisticsHeightElement: any;
-  lightStatisticsIconActiveColorElement: any;
-  lightStatisticsIconColorElement: any;
-  lightStatisticsIconGapElement: any;
-  lightStatisticsIconSizeElement: any;
-  lightStatisticsLeftElement: any;
-  lightStatisticsRotationElement: any;
-  lightStatisticsScaleElement: any;
-  lightStatisticsTitleColorElement: any;
-  lightStatisticsTitleSizeElement: any;
-  lightStatisticsTitleSpacingElement: any;
-  lightStatisticsTitleWeightElement: any;
-  lightStatisticsTopElement: any;
-  lightStatisticsWidthElement: any;
-  presenceHaloOpacityElement: any;
-  presenceHaloRotationElement: any;
-  presenceHaloScaleXElement: any;
-  presenceHaloScaleYElement: any;
-  presenceOrbitDurationElement: any;
-  presencePersonOpacityElement: any;
-  presencePersonRotationElement: any;
-  presencePersonScaleElement: any;
-  titleButtonFrameColorElement: any;
-  titleButtonFrameOffsetXElement: any;
-  titleButtonFrameOffsetYElement: any;
-  titleButtonFrameSizeElement: any;
-  titleButtonFrameSpacingElement: any;
-  titleButtonFrameWidthElement: any;
-  titleButtonHeightElement: any;
-  titleButtonIconColorElement: any;
-  titleButtonIconLeftElement: any;
-  titleButtonIconSizeElement: any;
-  titleButtonIconTopElement: any;
-  titleButtonLeftElement: any;
-  titleButtonMainColorElement: any;
-  titleButtonMainLeftElement: any;
-  titleButtonMainSizeElement: any;
-  titleButtonMainSpacingElement: any;
-  titleButtonMainTopElement: any;
-  titleButtonMainWeightElement: any;
-  titleButtonMarkerColorElement: any;
-  titleButtonMarkerLeftElement: any;
-  titleButtonMarkerSizeElement: any;
-  titleButtonMarkerTopElement: any;
-  titleButtonRotationElement: any;
-  titleButtonScaleElement: any;
-  titleButtonSecondaryColorElement: any;
-  titleButtonSecondaryLeftElement: any;
-  titleButtonSecondaryLineGapElement: any;
-  titleButtonSecondarySizeElement: any;
-  titleButtonSecondarySpacingElement: any;
-  titleButtonSecondaryTopElement: any;
-  titleButtonSecondaryWeightElement: any;
-  titleButtonTopElement: any;
-  titleButtonWidthElement: any;
-  vacuumMapLeftElement: any;
-  vacuumMapOpacityElement: any;
-  vacuumMapRotationElement: any;
-  vacuumMapScaleElement: any;
-  vacuumMapTopElement: any;
+  airConditionerAirflowAngleElement: any
+  airConditionerAirflowBlurElement: any
+  airConditionerAirflowCoolColorElement: any
+  airConditionerAirflowCurveElement: any
+  airConditionerAirflowDensityElement: any
+  airConditionerAirflowFadeElement: any
+  airConditionerAirflowHeatColorElement: any
+  airConditionerAirflowHeightElement: any
+  airConditionerAirflowIrregularityElement: any
+  airConditionerAirflowLengthElement: any
+  airConditionerAirflowOffsetXElement: any
+  airConditionerAirflowOffsetYElement: any
+  airConditionerAirflowOtherColorElement: any
+  airConditionerAirflowRotationElement: any
+  airConditionerAirflowScaleElement: any
+  airConditionerAirflowSpeedElement: any
+  airConditionerAirflowSpreadElement: any
+  airConditionerAirflowStrengthElement: any
+  airConditionerAirflowThicknessElement: any
+  airConditionerAirflowWidthElement: any
+  airConditionerBadgeColorElement: any
+  airConditionerBadgeOpacityElement: any
+  airConditionerBadgeSizeElement: any
+  airConditionerHeightElement: any
+  airConditionerIconLeftElement: any
+  airConditionerIconOffColorElement: any
+  airConditionerIconOnColorElement: any
+  airConditionerIconTopElement: any
+  airConditionerLeftElement: any
+  airConditionerMainColorElement: any
+  airConditionerMainLeftElement: any
+  airConditionerMainSizeElement: any
+  airConditionerMainSpacingElement: any
+  airConditionerMainTopElement: any
+  airConditionerMainWeightElement: any
+  airConditionerRotationElement: any
+  airConditionerScaleElement: any
+  airConditionerSecondaryColorElement: any
+  airConditionerSecondaryLeftElement: any
+  airConditionerSecondarySizeElement: any
+  airConditionerSecondarySpacingElement: any
+  airConditionerSecondaryTopElement: any
+  airConditionerSecondaryWeightElement: any
+  airConditionerSymbolSizeElement: any
+  airConditionerTopElement: any
+  airConditionerWidthElement: any
+  cameraFrameAngleElement: any
+  cameraFrameColorElement: any
+  cameraFrameOpacityElement: any
+  cameraFrameWidthElement: any
+  cameraHeightElement: any
+  cameraLeftElement: any
+  cameraRadiusElement: any
+  cameraRotationElement: any
+  cameraScaleElement: any
+  cameraTopElement: any
+  cameraWidthElement: any
+  deviceButtonBadgeColorElement: any
+  deviceButtonBadgeOpacityElement: any
+  deviceButtonBadgeSizeElement: any
+  deviceButtonIconOnColorElement: any
+  deviceButtonSymbolSizeElement: any
+  iconButtonCutCornerElement: any
+  iconButtonFrameAngleElement: any
+  iconButtonFrameOffOpacityElement: any
+  iconButtonFrameOnOpacityElement: any
+  iconButtonFrameWidthElement: any
+  iconButtonGlowAngleElement: any
+  iconButtonGlowColorElement: any
+  iconButtonGlowSizeElement: any
+  iconButtonGlowStrengthElement: any
+  iconButtonHeightElement: any
+  iconButtonIconColorElement: any
+  iconButtonIconLeftElement: any
+  iconButtonIconOffOpacityElement: any
+  iconButtonIconOnOpacityElement: any
+  iconButtonIconSizeElement: any
+  iconButtonIconTopElement: any
+  iconButtonLeftElement: any
+  iconButtonMainColorElement: any
+  iconButtonMainLeftElement: any
+  iconButtonMainOffOpacityElement: any
+  iconButtonMainOnOpacityElement: any
+  iconButtonMainSizeElement: any
+  iconButtonMainSpacingElement: any
+  iconButtonMainTopElement: any
+  iconButtonMainWeightElement: any
+  iconButtonOnFillColorElement: any
+  iconButtonOnFillFadeDurationElement: any
+  iconButtonOnFillStrengthElement: any
+  iconButtonRotationElement: any
+  iconButtonScaleElement: any
+  iconButtonSecondaryColorElement: any
+  iconButtonSecondaryLeftElement: any
+  iconButtonSecondaryOffOpacityElement: any
+  iconButtonSecondaryOnOpacityElement: any
+  iconButtonSecondarySizeElement: any
+  iconButtonSecondarySpacingElement: any
+  iconButtonSecondaryTopElement: any
+  iconButtonSecondaryWeightElement: any
+  iconButtonSoftLightAngleElement: any
+  iconButtonSoftLightColorElement: any
+  iconButtonSoftLightSizeElement: any
+  iconButtonSoftLightStrengthElement: any
+  iconButtonTopElement: any
+  iconButtonWidthElement: any
+  lightStatisticsCountActiveColorElement: any
+  lightStatisticsCountColorElement: any
+  lightStatisticsCountGapElement: any
+  lightStatisticsCountSizeElement: any
+  lightStatisticsCountSpacingElement: any
+  lightStatisticsCountWeightElement: any
+  lightStatisticsHeightElement: any
+  lightStatisticsIconActiveColorElement: any
+  lightStatisticsIconColorElement: any
+  lightStatisticsIconGapElement: any
+  lightStatisticsIconSizeElement: any
+  lightStatisticsLeftElement: any
+  lightStatisticsRotationElement: any
+  lightStatisticsScaleElement: any
+  lightStatisticsTitleColorElement: any
+  lightStatisticsTitleSizeElement: any
+  lightStatisticsTitleSpacingElement: any
+  lightStatisticsTitleWeightElement: any
+  lightStatisticsTopElement: any
+  lightStatisticsWidthElement: any
+  presenceHaloOpacityElement: any
+  presenceHaloRotationElement: any
+  presenceHaloScaleXElement: any
+  presenceHaloScaleYElement: any
+  presenceOrbitDurationElement: any
+  presencePersonOpacityElement: any
+  presencePersonRotationElement: any
+  presencePersonScaleElement: any
+  titleButtonFrameColorElement: any
+  titleButtonFrameOffsetXElement: any
+  titleButtonFrameOffsetYElement: any
+  titleButtonFrameSizeElement: any
+  titleButtonFrameSpacingElement: any
+  titleButtonFrameWidthElement: any
+  titleButtonHeightElement: any
+  titleButtonIconColorElement: any
+  titleButtonIconLeftElement: any
+  titleButtonIconSizeElement: any
+  titleButtonIconTopElement: any
+  titleButtonLeftElement: any
+  titleButtonMainColorElement: any
+  titleButtonMainLeftElement: any
+  titleButtonMainSizeElement: any
+  titleButtonMainSpacingElement: any
+  titleButtonMainTopElement: any
+  titleButtonMainWeightElement: any
+  titleButtonMarkerColorElement: any
+  titleButtonMarkerLeftElement: any
+  titleButtonMarkerSizeElement: any
+  titleButtonMarkerTopElement: any
+  titleButtonRotationElement: any
+  titleButtonScaleElement: any
+  titleButtonSecondaryColorElement: any
+  titleButtonSecondaryLeftElement: any
+  titleButtonSecondaryLineGapElement: any
+  titleButtonSecondarySizeElement: any
+  titleButtonSecondarySpacingElement: any
+  titleButtonSecondaryTopElement: any
+  titleButtonSecondaryWeightElement: any
+  titleButtonTopElement: any
+  titleButtonWidthElement: any
+  vacuumMapLeftElement: any
+  vacuumMapOpacityElement: any
+  vacuumMapRotationElement: any
+  vacuumMapScaleElement: any
+  vacuumMapTopElement: any
 }
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。
  * 正文逐字保留，只有「残留依赖显式化」这一处人工改动。
  */
-export function createEffectPreviewInputTables(
-  ctx: EffectPreviewInputElementRefs,
-) {
+export function createEffectPreviewInputTables(ctx: EffectPreviewInputElementRefs) {
   const {
     airConditionerAirflowAngleElement,
     airConditionerAirflowBlurElement,
@@ -363,25 +361,25 @@ export function createEffectPreviewInputTables(
     vacuumMapRotationElement,
     vacuumMapScaleElement,
     vacuumMapTopElement,
-  } = ctx;
+  } = ctx
 
   const effectVisibleComponentById = new Map([
       [
         titleButtonMainColorElement,
         {
-          property: "mainColor",
+          property: 'mainColor',
         },
       ],
       [
         titleButtonSecondaryColorElement,
         {
-          property: "secondaryColor",
+          property: 'secondaryColor',
         },
       ],
       [
         titleButtonMainSizeElement,
         {
-          property: "mainSize",
+          property: 'mainSize',
           min: 8,
           max: 200,
         },
@@ -389,7 +387,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonSecondarySizeElement,
         {
-          property: "secondarySize",
+          property: 'secondarySize',
           min: 6,
           max: 100,
         },
@@ -397,7 +395,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMainWeightElement,
         {
-          property: "mainWeight",
+          property: 'mainWeight',
           min: 0,
           max: 1,
         },
@@ -405,7 +403,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonSecondaryWeightElement,
         {
-          property: "secondaryWeight",
+          property: 'secondaryWeight',
           min: 0,
           max: 1,
         },
@@ -413,7 +411,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMainSpacingElement,
         {
-          property: "mainSpacing",
+          property: 'mainSpacing',
           min: -20,
           max: 100,
         },
@@ -421,7 +419,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonSecondarySpacingElement,
         {
-          property: "secondarySpacing",
+          property: 'secondarySpacing',
           min: -20,
           max: 100,
         },
@@ -429,7 +427,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonSecondaryLineGapElement,
         {
-          property: "secondaryLineGap",
+          property: 'secondaryLineGap',
           min: 0,
           max: 100,
         },
@@ -437,7 +435,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMainLeftElement,
         {
-          property: "mainTextLeft",
+          property: 'mainTextLeft',
           min: -100,
           max: 200,
         },
@@ -445,7 +443,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMainTopElement,
         {
-          property: "mainTextTop",
+          property: 'mainTextTop',
           min: -100,
           max: 200,
         },
@@ -453,7 +451,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonSecondaryLeftElement,
         {
-          property: "secondaryTextLeft",
+          property: 'secondaryTextLeft',
           min: -100,
           max: 200,
         },
@@ -461,7 +459,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonSecondaryTopElement,
         {
-          property: "secondaryTextTop",
+          property: 'secondaryTextTop',
           min: -100,
           max: 200,
         },
@@ -469,13 +467,13 @@ export function createEffectPreviewInputTables(
       [
         titleButtonIconColorElement,
         {
-          property: "iconColor",
+          property: 'iconColor',
         },
       ],
       [
         titleButtonIconSizeElement,
         {
-          property: "iconSize",
+          property: 'iconSize',
           min: 1,
           max: 100,
         },
@@ -483,7 +481,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonIconLeftElement,
         {
-          property: "iconLeft",
+          property: 'iconLeft',
           min: -100,
           max: 200,
         },
@@ -491,7 +489,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonIconTopElement,
         {
-          property: "iconTop",
+          property: 'iconTop',
           min: -100,
           max: 200,
         },
@@ -499,13 +497,13 @@ export function createEffectPreviewInputTables(
       [
         titleButtonFrameColorElement,
         {
-          property: "frameColor",
+          property: 'frameColor',
         },
       ],
       [
         titleButtonFrameWidthElement,
         {
-          property: "frameWidth",
+          property: 'frameWidth',
           min: 0,
           max: 12,
         },
@@ -513,7 +511,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonFrameSizeElement,
         {
-          property: "frameSize",
+          property: 'frameSize',
           min: 10,
           max: 300,
         },
@@ -521,7 +519,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonFrameSpacingElement,
         {
-          property: "frameSpacing",
+          property: 'frameSpacing',
           min: 0,
           max: 300,
         },
@@ -529,7 +527,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonFrameOffsetXElement,
         {
-          property: "frameOffsetX",
+          property: 'frameOffsetX',
           min: -100,
           max: 100,
         },
@@ -537,7 +535,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonFrameOffsetYElement,
         {
-          property: "frameOffsetY",
+          property: 'frameOffsetY',
           min: -100,
           max: 100,
         },
@@ -545,13 +543,13 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMarkerColorElement,
         {
-          property: "markerColor",
+          property: 'markerColor',
         },
       ],
       [
         titleButtonMarkerSizeElement,
         {
-          property: "markerSize",
+          property: 'markerSize',
           min: 2,
           max: 60,
         },
@@ -559,7 +557,7 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMarkerLeftElement,
         {
-          property: "markerLeft",
+          property: 'markerLeft',
           min: -100,
           max: 200,
         },
@@ -567,37 +565,37 @@ export function createEffectPreviewInputTables(
       [
         titleButtonMarkerTopElement,
         {
-          property: "markerTop",
+          property: 'markerTop',
           min: -100,
           max: 200,
         },
       ],
     ]),
     effectVisibleComponentByIdById = new Map([
-      [titleButtonLeftElement, "left"],
-      [titleButtonTopElement, "top"],
-      [titleButtonWidthElement, "width"],
-      [titleButtonHeightElement, "height"],
-      [titleButtonScaleElement, "scale"],
-      [titleButtonRotationElement, "rotation"],
+      [titleButtonLeftElement, 'left'],
+      [titleButtonTopElement, 'top'],
+      [titleButtonWidthElement, 'width'],
+      [titleButtonHeightElement, 'height'],
+      [titleButtonScaleElement, 'scale'],
+      [titleButtonRotationElement, 'rotation'],
     ]),
     previewStateByInputElementById = new Map([
       [
         lightStatisticsIconColorElement,
         {
-          property: "iconColor",
+          property: 'iconColor',
         },
       ],
       [
         lightStatisticsIconActiveColorElement,
         {
-          property: "iconActiveColor",
+          property: 'iconActiveColor',
         },
       ],
       [
         lightStatisticsIconSizeElement,
         {
-          property: "iconSize",
+          property: 'iconSize',
           min: 8,
           max: 100,
         },
@@ -605,13 +603,13 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsTitleColorElement,
         {
-          property: "titleColor",
+          property: 'titleColor',
         },
       ],
       [
         lightStatisticsTitleSizeElement,
         {
-          property: "titleSize",
+          property: 'titleSize',
           min: 8,
           max: 100,
         },
@@ -619,7 +617,7 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsTitleWeightElement,
         {
-          property: "titleWeight",
+          property: 'titleWeight',
           min: 0,
           max: 1,
         },
@@ -627,7 +625,7 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsTitleSpacingElement,
         {
-          property: "titleSpacing",
+          property: 'titleSpacing',
           min: -20,
           max: 100,
         },
@@ -635,19 +633,19 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsCountColorElement,
         {
-          property: "countColor",
+          property: 'countColor',
         },
       ],
       [
         lightStatisticsCountActiveColorElement,
         {
-          property: "countActiveColor",
+          property: 'countActiveColor',
         },
       ],
       [
         lightStatisticsCountSizeElement,
         {
-          property: "countSize",
+          property: 'countSize',
           min: 8,
           max: 140,
         },
@@ -655,7 +653,7 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsCountWeightElement,
         {
-          property: "countWeight",
+          property: 'countWeight',
           min: 0,
           max: 1,
         },
@@ -663,7 +661,7 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsCountSpacingElement,
         {
-          property: "countSpacing",
+          property: 'countSpacing',
           min: -20,
           max: 100,
         },
@@ -671,7 +669,7 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsIconGapElement,
         {
-          property: "iconGap",
+          property: 'iconGap',
           min: 0,
           max: 40,
         },
@@ -679,25 +677,25 @@ export function createEffectPreviewInputTables(
       [
         lightStatisticsCountGapElement,
         {
-          property: "countGap",
+          property: 'countGap',
           min: 0,
           max: 40,
         },
       ],
     ]),
     previewStateByInputElementByKey = new Map([
-      [lightStatisticsLeftElement, "left"],
-      [lightStatisticsTopElement, "top"],
-      [lightStatisticsWidthElement, "width"],
-      [lightStatisticsHeightElement, "height"],
-      [lightStatisticsScaleElement, "scale"],
-      [lightStatisticsRotationElement, "rotation"],
+      [lightStatisticsLeftElement, 'left'],
+      [lightStatisticsTopElement, 'top'],
+      [lightStatisticsWidthElement, 'width'],
+      [lightStatisticsHeightElement, 'height'],
+      [lightStatisticsScaleElement, 'scale'],
+      [lightStatisticsRotationElement, 'rotation'],
     ]),
     previewStateByInputElement = new Map<any, any>([
       [
         presenceHaloScaleXElement,
         {
-          property: "haloScaleX",
+          property: 'haloScaleX',
           min: 20,
           max: 300,
           divisor: 100,
@@ -706,7 +704,7 @@ export function createEffectPreviewInputTables(
       [
         presenceHaloScaleYElement,
         {
-          property: "haloScaleY",
+          property: 'haloScaleY',
           min: 20,
           max: 300,
           divisor: 100,
@@ -715,7 +713,7 @@ export function createEffectPreviewInputTables(
       [
         presenceHaloRotationElement,
         {
-          property: "haloRotation",
+          property: 'haloRotation',
           min: -360,
           max: 360,
         },
@@ -723,7 +721,7 @@ export function createEffectPreviewInputTables(
       [
         presenceHaloOpacityElement,
         {
-          property: "haloOpacity",
+          property: 'haloOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -732,7 +730,7 @@ export function createEffectPreviewInputTables(
       [
         presencePersonScaleElement,
         {
-          property: "personScale",
+          property: 'personScale',
           min: 20,
           max: 300,
           divisor: 100,
@@ -741,7 +739,7 @@ export function createEffectPreviewInputTables(
       [
         presencePersonRotationElement,
         {
-          property: "personRotation",
+          property: 'personRotation',
           min: -360,
           max: 360,
         },
@@ -749,7 +747,7 @@ export function createEffectPreviewInputTables(
       [
         presencePersonOpacityElement,
         {
-          property: "personOpacity",
+          property: 'personOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -758,7 +756,7 @@ export function createEffectPreviewInputTables(
       [
         presenceOrbitDurationElement,
         {
-          property: "orbitDuration",
+          property: 'orbitDuration',
           min: 2,
           max: 60,
         },
@@ -766,34 +764,34 @@ export function createEffectPreviewInputTables(
       [
         iconButtonIconColorElement,
         {
-          property: "iconColor",
+          property: 'iconColor',
         },
       ],
       [
         deviceButtonIconOnColorElement,
         {
           property: (syncIconButtonPreviewButtons: any) =>
-            syncIconButtonPreviewButtons.type !== "presence-sensor"
-              ? "iconOnColor"
-              : syncIconButtonPreviewButtons.properties?.sensorKind === "water-leak"
-                ? "waterLeakColor"
-                : syncIconButtonPreviewButtons.properties?.sensorKind === "smoke"
-                  ? "smokeColor"
-                  : syncIconButtonPreviewButtons.properties?.sensorKind === "natural-gas"
-                    ? "naturalGasColor"
-                    : "iconOnColor",
+            syncIconButtonPreviewButtons.type !== 'presence-sensor'
+              ? 'iconOnColor'
+              : syncIconButtonPreviewButtons.properties?.sensorKind === 'water-leak'
+                ? 'waterLeakColor'
+                : syncIconButtonPreviewButtons.properties?.sensorKind === 'smoke'
+                  ? 'smokeColor'
+                  : syncIconButtonPreviewButtons.properties?.sensorKind === 'natural-gas'
+                    ? 'naturalGasColor'
+                    : 'iconOnColor',
         },
       ],
       [
         deviceButtonBadgeColorElement,
         {
-          property: "badgeColor",
+          property: 'badgeColor',
         },
       ],
       [
         deviceButtonBadgeOpacityElement,
         {
-          property: "badgeOpacity",
+          property: 'badgeOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -802,7 +800,7 @@ export function createEffectPreviewInputTables(
       [
         deviceButtonSymbolSizeElement,
         {
-          property: "symbolSize",
+          property: 'symbolSize',
           min: 1,
           max: 100,
         },
@@ -810,7 +808,7 @@ export function createEffectPreviewInputTables(
       [
         deviceButtonBadgeSizeElement,
         {
-          property: "badgeSize",
+          property: 'badgeSize',
           min: 1,
           max: 100,
         },
@@ -818,7 +816,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonIconSizeElement,
         {
-          property: "iconSize",
+          property: 'iconSize',
           min: 1,
           max: 100,
         },
@@ -826,7 +824,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonIconOffOpacityElement,
         {
-          property: "iconOffOpacity",
+          property: 'iconOffOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -835,7 +833,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonIconOnOpacityElement,
         {
-          property: "iconOnOpacity",
+          property: 'iconOnOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -844,7 +842,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonIconLeftElement,
         {
-          property: "iconLeft",
+          property: 'iconLeft',
           min: -100,
           max: 200,
         },
@@ -852,7 +850,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonIconTopElement,
         {
-          property: "iconTop",
+          property: 'iconTop',
           min: -100,
           max: 200,
         },
@@ -860,19 +858,19 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainColorElement,
         {
-          property: "mainColor",
+          property: 'mainColor',
         },
       ],
       [
         iconButtonSecondaryColorElement,
         {
-          property: "secondaryColor",
+          property: 'secondaryColor',
         },
       ],
       [
         iconButtonMainOffOpacityElement,
         {
-          property: "mainOffOpacity",
+          property: 'mainOffOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -881,7 +879,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainOnOpacityElement,
         {
-          property: "mainOnOpacity",
+          property: 'mainOnOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -890,7 +888,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondaryOffOpacityElement,
         {
-          property: "secondaryOffOpacity",
+          property: 'secondaryOffOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -899,7 +897,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondaryOnOpacityElement,
         {
-          property: "secondaryOnOpacity",
+          property: 'secondaryOnOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -908,7 +906,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainSizeElement,
         {
-          property: "mainSize",
+          property: 'mainSize',
           min: 6,
           max: 120,
         },
@@ -916,7 +914,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondarySizeElement,
         {
-          property: "secondarySize",
+          property: 'secondarySize',
           min: 5,
           max: 80,
         },
@@ -924,7 +922,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainWeightElement,
         {
-          property: "mainWeight",
+          property: 'mainWeight',
           min: 0,
           max: 1,
         },
@@ -932,7 +930,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondaryWeightElement,
         {
-          property: "secondaryWeight",
+          property: 'secondaryWeight',
           min: 0,
           max: 1,
         },
@@ -940,7 +938,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainSpacingElement,
         {
-          property: "mainSpacing",
+          property: 'mainSpacing',
           min: -20,
           max: 100,
         },
@@ -948,7 +946,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondarySpacingElement,
         {
-          property: "secondarySpacing",
+          property: 'secondarySpacing',
           min: -20,
           max: 100,
         },
@@ -956,7 +954,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainLeftElement,
         {
-          property: "mainTextLeft",
+          property: 'mainTextLeft',
           min: -100,
           max: 200,
         },
@@ -964,7 +962,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonMainTopElement,
         {
-          property: "mainTextTop",
+          property: 'mainTextTop',
           min: -100,
           max: 200,
         },
@@ -972,7 +970,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondaryLeftElement,
         {
-          property: "secondaryTextLeft",
+          property: 'secondaryTextLeft',
           min: -100,
           max: 200,
         },
@@ -980,7 +978,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSecondaryTopElement,
         {
-          property: "secondaryTextTop",
+          property: 'secondaryTextTop',
           min: -100,
           max: 200,
         },
@@ -988,13 +986,13 @@ export function createEffectPreviewInputTables(
       [
         iconButtonOnFillColorElement,
         {
-          property: "onFillColor",
+          property: 'onFillColor',
         },
       ],
       [
         iconButtonOnFillStrengthElement,
         {
-          property: "onFillStrength",
+          property: 'onFillStrength',
           min: 0,
           max: 100,
           divisor: 100,
@@ -1003,7 +1001,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonOnFillFadeDurationElement,
         {
-          property: "onFillFadeDuration",
+          property: 'onFillFadeDuration',
           min: 0,
           max: 3,
         },
@@ -1011,7 +1009,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonFrameWidthElement,
         {
-          property: "frameWidth",
+          property: 'frameWidth',
           min: 0,
           max: 12,
         },
@@ -1019,7 +1017,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonFrameAngleElement,
         {
-          property: "frameAngle",
+          property: 'frameAngle',
           min: 0,
           max: 360,
         },
@@ -1027,7 +1025,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonFrameOffOpacityElement,
         {
-          property: "frameOffOpacity",
+          property: 'frameOffOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -1036,7 +1034,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonFrameOnOpacityElement,
         {
-          property: "frameOnOpacity",
+          property: 'frameOnOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -1045,7 +1043,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonCutCornerElement,
         {
-          property: "cutCorner",
+          property: 'cutCorner',
           min: 0,
           max: 50,
         },
@@ -1053,13 +1051,13 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSoftLightColorElement,
         {
-          property: "softLightColor",
+          property: 'softLightColor',
         },
       ],
       [
         iconButtonSoftLightStrengthElement,
         {
-          property: "softLightStrength",
+          property: 'softLightStrength',
           min: 0,
           max: 500,
           divisor: 100,
@@ -1068,7 +1066,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSoftLightSizeElement,
         {
-          property: "softLightSize",
+          property: 'softLightSize',
           min: 0,
           max: 300,
           divisor: 100,
@@ -1077,7 +1075,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonSoftLightAngleElement,
         {
-          property: "softLightAngle",
+          property: 'softLightAngle',
           min: 0,
           max: 360,
         },
@@ -1085,13 +1083,13 @@ export function createEffectPreviewInputTables(
       [
         iconButtonGlowColorElement,
         {
-          property: "glowColor",
+          property: 'glowColor',
         },
       ],
       [
         iconButtonGlowStrengthElement,
         {
-          property: "glowStrength",
+          property: 'glowStrength',
           min: 0,
           max: 500,
           divisor: 100,
@@ -1100,7 +1098,7 @@ export function createEffectPreviewInputTables(
       [
         iconButtonGlowSizeElement,
         {
-          property: "glowSize",
+          property: 'glowSize',
           min: 0,
           max: 300,
           divisor: 100,
@@ -1109,43 +1107,43 @@ export function createEffectPreviewInputTables(
       [
         iconButtonGlowAngleElement,
         {
-          property: "glowAngle",
+          property: 'glowAngle',
           min: 0,
           max: 360,
         },
       ],
     ]),
     effectVisibleComponentByIdByKey = new Map([
-      [iconButtonLeftElement, "left"],
-      [iconButtonTopElement, "top"],
-      [iconButtonWidthElement, "width"],
-      [iconButtonHeightElement, "height"],
-      [iconButtonScaleElement, "scale"],
-      [iconButtonRotationElement, "rotation"],
+      [iconButtonLeftElement, 'left'],
+      [iconButtonTopElement, 'top'],
+      [iconButtonWidthElement, 'width'],
+      [iconButtonHeightElement, 'height'],
+      [iconButtonScaleElement, 'scale'],
+      [iconButtonRotationElement, 'rotation'],
     ]),
     previewStateByInputElementByName = new Map<any, any>([
       [
         airConditionerIconOffColorElement,
         {
-          property: "iconOffColor",
+          property: 'iconOffColor',
         },
       ],
       [
         airConditionerIconOnColorElement,
         {
-          property: "iconOnColor",
+          property: 'iconOnColor',
         },
       ],
       [
         airConditionerBadgeColorElement,
         {
-          property: "badgeColor",
+          property: 'badgeColor',
         },
       ],
       [
         airConditionerBadgeOpacityElement,
         {
-          property: "badgeOpacity",
+          property: 'badgeOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -1154,7 +1152,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerSymbolSizeElement,
         {
-          property: "symbolSize",
+          property: 'symbolSize',
           min: 1,
           max: 100,
         },
@@ -1162,7 +1160,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerBadgeSizeElement,
         {
-          property: "badgeSize",
+          property: 'badgeSize',
           min: 1,
           max: 100,
         },
@@ -1170,7 +1168,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerIconLeftElement,
         {
-          property: "iconLeft",
+          property: 'iconLeft',
           min: -100,
           max: 200,
         },
@@ -1178,7 +1176,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerIconTopElement,
         {
-          property: "iconTop",
+          property: 'iconTop',
           min: -100,
           max: 200,
         },
@@ -1186,13 +1184,13 @@ export function createEffectPreviewInputTables(
       [
         airConditionerMainColorElement,
         {
-          property: "mainColor",
+          property: 'mainColor',
         },
       ],
       [
         airConditionerMainSizeElement,
         {
-          property: "mainSize",
+          property: 'mainSize',
           min: 6,
           max: 120,
         },
@@ -1200,7 +1198,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerMainWeightElement,
         {
-          property: "mainWeight",
+          property: 'mainWeight',
           min: 0,
           max: 1,
         },
@@ -1208,7 +1206,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerMainSpacingElement,
         {
-          property: "mainSpacing",
+          property: 'mainSpacing',
           min: -20,
           max: 100,
         },
@@ -1216,7 +1214,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerMainLeftElement,
         {
-          property: "mainTextLeft",
+          property: 'mainTextLeft',
           min: -100,
           max: 200,
         },
@@ -1224,7 +1222,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerMainTopElement,
         {
-          property: "mainTextTop",
+          property: 'mainTextTop',
           min: -100,
           max: 200,
         },
@@ -1232,13 +1230,13 @@ export function createEffectPreviewInputTables(
       [
         airConditionerSecondaryColorElement,
         {
-          property: "secondaryColor",
+          property: 'secondaryColor',
         },
       ],
       [
         airConditionerSecondarySizeElement,
         {
-          property: "secondarySize",
+          property: 'secondarySize',
           min: 5,
           max: 80,
         },
@@ -1246,7 +1244,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerSecondaryWeightElement,
         {
-          property: "secondaryWeight",
+          property: 'secondaryWeight',
           min: 0,
           max: 1,
         },
@@ -1254,7 +1252,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerSecondarySpacingElement,
         {
-          property: "secondarySpacing",
+          property: 'secondarySpacing',
           min: -20,
           max: 100,
         },
@@ -1262,7 +1260,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerSecondaryLeftElement,
         {
-          property: "secondaryTextLeft",
+          property: 'secondaryTextLeft',
           min: -100,
           max: 200,
         },
@@ -1270,7 +1268,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerSecondaryTopElement,
         {
-          property: "secondaryTextTop",
+          property: 'secondaryTextTop',
           min: -100,
           max: 200,
         },
@@ -1278,25 +1276,25 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowCoolColorElement,
         {
-          property: "airflowCoolColor",
+          property: 'airflowCoolColor',
         },
       ],
       [
         airConditionerAirflowHeatColorElement,
         {
-          property: "airflowHeatColor",
+          property: 'airflowHeatColor',
         },
       ],
       [
         airConditionerAirflowOtherColorElement,
         {
-          property: "airflowOtherColor",
+          property: 'airflowOtherColor',
         },
       ],
       [
         airConditionerAirflowAngleElement,
         {
-          property: "airflowAngle",
+          property: 'airflowAngle',
           min: -360,
           max: 360,
         },
@@ -1304,7 +1302,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowCurveElement,
         {
-          property: "airflowCurve",
+          property: 'airflowCurve',
           min: -200,
           max: 200,
         },
@@ -1312,7 +1310,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowLengthElement,
         {
-          property: "airflowLength",
+          property: 'airflowLength',
           min: 10,
           max: 300,
         },
@@ -1320,7 +1318,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowFadeElement,
         {
-          property: "airflowFadePosition",
+          property: 'airflowFadePosition',
           min: 15,
           max: 100,
         },
@@ -1328,7 +1326,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowSpreadElement,
         {
-          property: "airflowSpread",
+          property: 'airflowSpread',
           min: 10,
           max: 300,
         },
@@ -1336,7 +1334,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowDensityElement,
         {
-          property: "airflowDensity",
+          property: 'airflowDensity',
           min: 20,
           max: 200,
         },
@@ -1344,7 +1342,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowIrregularityElement,
         {
-          property: "airflowIrregularity",
+          property: 'airflowIrregularity',
           min: 0,
           max: 200,
         },
@@ -1352,7 +1350,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowThicknessElement,
         {
-          property: "airflowThickness",
+          property: 'airflowThickness',
           min: 5,
           max: 300,
         },
@@ -1360,7 +1358,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowStrengthElement,
         {
-          property: "airflowStrength",
+          property: 'airflowStrength',
           min: 0,
           max: 500,
         },
@@ -1368,7 +1366,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowBlurElement,
         {
-          property: "airflowBlur",
+          property: 'airflowBlur',
           min: 0,
           max: 30,
         },
@@ -1376,7 +1374,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowSpeedElement,
         {
-          property: "airflowSpeed",
+          property: 'airflowSpeed',
           min: 0.3,
           max: 12,
         },
@@ -1384,39 +1382,36 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowOffsetXElement,
         {
-          property: "airflowOffsetX",
+          property: 'airflowOffsetX',
           limits: (previewStateValue: any, previewButtonNode: any) => {
-            const isButtonActive = airflowCanvasOffsetBounds2(
-              previewStateValue,
-              previewButtonNode.canvas,
-            );
+            const isButtonActive = airflowCanvasOffsetBounds2(previewStateValue, previewButtonNode.canvas)
             return {
               min: isButtonActive.minX,
               max: isButtonActive.maxX,
-            };
+            }
           },
         },
       ],
       [
         airConditionerAirflowOffsetYElement,
         {
-          property: "airflowOffsetY",
+          property: 'airflowOffsetY',
           limits: (applyIconButtonPreviewState: any, previewComponentIdForIcon: any) => {
             const previewComponentIdForIconState = airflowCanvasOffsetBounds2(
               applyIconButtonPreviewState,
               previewComponentIdForIcon.canvas,
-            );
+            )
             return {
               min: previewComponentIdForIconState.minY,
               max: previewComponentIdForIconState.maxY,
-            };
+            }
           },
         },
       ],
       [
         airConditionerAirflowWidthElement,
         {
-          property: "airflowWidth",
+          property: 'airflowWidth',
           min: 1,
           max: 500,
         },
@@ -1424,7 +1419,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowHeightElement,
         {
-          property: "airflowHeight",
+          property: 'airflowHeight',
           min: 1,
           max: 500,
         },
@@ -1432,7 +1427,7 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowScaleElement,
         {
-          property: "airflowScale",
+          property: 'airflowScale',
           min: 1,
           max: 500,
           divisor: 100,
@@ -1441,31 +1436,31 @@ export function createEffectPreviewInputTables(
       [
         airConditionerAirflowRotationElement,
         {
-          property: "airflowRotation",
+          property: 'airflowRotation',
           min: -360,
           max: 360,
         },
       ],
     ]),
     previewComponentIdForIconById = new Map([
-      [airConditionerLeftElement, "left"],
-      [airConditionerTopElement, "top"],
-      [airConditionerWidthElement, "width"],
-      [airConditionerHeightElement, "height"],
-      [airConditionerScaleElement, "scale"],
-      [airConditionerRotationElement, "rotation"],
+      [airConditionerLeftElement, 'left'],
+      [airConditionerTopElement, 'top'],
+      [airConditionerWidthElement, 'width'],
+      [airConditionerHeightElement, 'height'],
+      [airConditionerScaleElement, 'scale'],
+      [airConditionerRotationElement, 'rotation'],
     ]),
     previewComponentIdForIconByIdById = new Map([
       [
         cameraFrameColorElement,
         {
-          property: "frameColor",
+          property: 'frameColor',
         },
       ],
       [
         cameraFrameWidthElement,
         {
-          property: "frameWidth",
+          property: 'frameWidth',
           min: 0,
           max: 20,
         },
@@ -1473,7 +1468,7 @@ export function createEffectPreviewInputTables(
       [
         cameraRadiusElement,
         {
-          property: "radius",
+          property: 'radius',
           min: 0,
           max: 50,
           divisor: 100,
@@ -1482,7 +1477,7 @@ export function createEffectPreviewInputTables(
       [
         cameraFrameAngleElement,
         {
-          property: "frameAngle",
+          property: 'frameAngle',
           min: 0,
           max: 360,
         },
@@ -1490,7 +1485,7 @@ export function createEffectPreviewInputTables(
       [
         cameraFrameOpacityElement,
         {
-          property: "frameOpacity",
+          property: 'frameOpacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -1501,7 +1496,7 @@ export function createEffectPreviewInputTables(
       [
         vacuumMapOpacityElement,
         {
-          property: "opacity",
+          property: 'opacity',
           min: 0,
           max: 100,
           divisor: 100,
@@ -1509,19 +1504,19 @@ export function createEffectPreviewInputTables(
       ],
     ]),
     previewModeForIconByIdById = new Map([
-      [vacuumMapLeftElement, "left"],
-      [vacuumMapTopElement, "top"],
-      [vacuumMapScaleElement, "scale"],
-      [vacuumMapRotationElement, "rotation"],
+      [vacuumMapLeftElement, 'left'],
+      [vacuumMapTopElement, 'top'],
+      [vacuumMapScaleElement, 'scale'],
+      [vacuumMapRotationElement, 'rotation'],
     ]),
     previewModeForIconByIdByKey = new Map([
-      [cameraLeftElement, "left"],
-      [cameraTopElement, "top"],
-      [cameraWidthElement, "width"],
-      [cameraHeightElement, "height"],
-      [cameraScaleElement, "scale"],
-      [cameraRotationElement, "rotation"],
-    ]);
+      [cameraLeftElement, 'left'],
+      [cameraTopElement, 'top'],
+      [cameraWidthElement, 'width'],
+      [cameraHeightElement, 'height'],
+      [cameraScaleElement, 'scale'],
+      [cameraRotationElement, 'rotation'],
+    ])
 
   return {
     effectVisibleComponentById,
@@ -1536,5 +1531,5 @@ export function createEffectPreviewInputTables(
     previewModeForIconById,
     previewModeForIconByIdById,
     previewModeForIconByIdByKey,
-  };
+  }
 }

@@ -1,5 +1,5 @@
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import type { CylinderMeshOptions } from "../../types/studio-app-types";
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
+import type { CylinderMeshOptions } from '../../types/studio-app-types'
 
 export function addCylinderMesh(
   cylinderParent: any,
@@ -21,14 +21,9 @@ export function addCylinderMesh(
       depthWrite: cylinderOptions.depthWrite ?? true,
     }),
     cylinderMesh = new ns2.Mesh(
-      new ns2.CylinderGeometry(
-        cylinderRadiusTop,
-        cylinderRadiusBottom,
-        cylinderHeight,
-        cylinderOptions.segments ?? 24,
-      ),
+      new ns2.CylinderGeometry(cylinderRadiusTop, cylinderRadiusBottom, cylinderHeight, cylinderOptions.segments ?? 24),
       cylinderMaterial,
-    );
+    )
   return (
     cylinderMesh.position.set(cylinderX, cylinderY, cylinderZ),
     cylinderOptions.rotationX && (cylinderMesh.rotation.x = cylinderOptions.rotationX),
@@ -37,5 +32,5 @@ export function addCylinderMesh(
     (cylinderMesh.receiveShadow = cylinderOptions.receiveShadow !== false),
     cylinderParent.add(cylinderMesh),
     cylinderMesh
-  );
+  )
 }

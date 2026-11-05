@@ -1,12 +1,7 @@
 /** 实体弹窗解析（纯元数据层）——「entity_id → 弹窗种类」的判定与 props 构造。 */
 import { getEntityDomain } from '@homeos/shared'
 import type { HaEntityState } from '@/shared/types/entity-store'
-import {
-  isCommEntity,
-  isElectricityEntity,
-  isGasEntity,
-  isWaterEntity,
-} from './entity-type.util'
+import { isCommEntity, isElectricityEntity, isGasEntity, isWaterEntity } from './entity-type.util'
 
 /**
  * 弹窗种类。与组件映射一一对应，但与组件解耦（本模块不认识任何 .vue）。

@@ -1,24 +1,13 @@
 /** 常用设备（收藏）推荐模块。 */
 import { getEntityDomain, getEntityLeaf } from '@homeos/shared'
-import type {
-  EventLogStatsSnapshot,
-  RecommendInsightResult,
-} from '@/shared/recommend/types/recommend.types'
+import type { EventLogStatsSnapshot, RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 import { buildRecommendInsight } from '@/shared/recommend/utils/insight.util'
 
 /**
  * 允许加入常用设备的设备域白名单。
  * 仅包含可被用户直接控制的执行器域。
  */
-const FAVORITE_DOMAINS = [
-  'light',
-  'switch',
-  'climate',
-  'cover',
-  'fan',
-  'media_player',
-  'lock',
-] as const
+const FAVORITE_DOMAINS = ['light', 'switch', 'climate', 'cover', 'fan', 'media_player', 'lock'] as const
 
 /** 设备域 → 中文标签映射，用于分组标题 */
 const DOMAIN_LABELS: Record<string, string> = {
@@ -53,9 +42,7 @@ interface FavoritesRecommendInput {
  * @param input 推荐输入
  * @returns 推荐结果对象
  */
-export function buildFavoritesRecommendations(
-  input: FavoritesRecommendInput,
-): RecommendInsightResult {
+export function buildFavoritesRecommendations(input: FavoritesRecommendInput): RecommendInsightResult {
   const { stats, favoriteEntities, commandTopEntities = [] } = input
   // 展平已收藏实体，构建去重集合
   const existing = new Set(

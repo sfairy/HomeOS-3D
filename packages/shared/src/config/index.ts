@@ -28,17 +28,17 @@ export type {
   SharedVoiceConfig,
   SharedOtherConfig,
   SharedAppConfigSections,
-} from './sections';
-export { DEFAULT_AUTH_SECURITY } from './sections';
+} from './sections'
+export { DEFAULT_AUTH_SECURITY } from './sections'
 export type {
   ClientPowerClient,
   ClientPowerSelfCharge,
   ClientPowerSettings,
-} from './client-power';
+} from './client-power'
 export {
   DEFAULT_CLIENT_POWER_SELF_CHARGE,
   DEFAULT_CLIENT_POWER_SETTINGS,
-} from './client-power';
+} from './client-power'
 export type {
   ChargerWakeResolveKind,
   ChargerWakeResolveResult,
@@ -46,7 +46,7 @@ export type {
   ClientPowerWakePublic,
   ClientPowerWakeSource,
   ClientPowerWakeSourceClient,
-} from './client-power-wake.util';
+} from './client-power-wake.util'
 export {
   buildClientPowerWakePublic,
   isSwitchOffToOn,
@@ -54,4 +54,4 @@ export {
   resolveChargerSwitchWakeEntityIdForDevice,
   resolveChargerSwitchWakeForDevice,
   shouldDismissScreensaverOnChargerSwitch,
-} from './client-power-wake.util';
+} from './client-power-wake.util'

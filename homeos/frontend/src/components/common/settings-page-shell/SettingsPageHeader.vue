@@ -37,10 +37,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import {
-  SETTINGS_HEADER_ICONS,
-  SETTINGS_TAB_HEADER_ICONS,
-} from '@/shared/utils/registry/settings-header-icons'
+import { SETTINGS_HEADER_ICONS, SETTINGS_TAB_HEADER_ICONS } from '@/shared/utils/registry/settings-header-icons'
 // 设置页页头样式（premium-head）：随设置壳懒加载，不计入首屏 CSS。
 import '@/assets/styles/premium-head.css'
 // `.settings-shell` 折叠面板样式：只有设置壳会用到。

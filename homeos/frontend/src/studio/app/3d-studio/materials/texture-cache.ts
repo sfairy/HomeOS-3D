@@ -16,21 +16,21 @@ export function createCachedCanvasTexture(
   { width, height, maxAnisotropy = 1, paint }: any,
 ) {
   if (textureByStyle.has(style)) {
-    return textureByStyle.get(style);
+    return textureByStyle.get(style)
   }
 
-  const canvasElement = document.createElement("canvas");
-  canvasElement.width = width;
-  canvasElement.height = height;
-  const canvasCtx = canvasElement.getContext("2d");
+  const canvasElement = document.createElement('canvas')
+  canvasElement.width = width
+  canvasElement.height = height
+  const canvasCtx = canvasElement.getContext('2d')
   if (!canvasCtx) {
-    return null;
+    return null
   }
-  paint(canvasCtx, canvasElement.width, canvasElement.height);
-  const texture = new threeApi.CanvasTexture(canvasElement);
-  texture.colorSpace = threeApi.SRGBColorSpace;
-  texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
-  texture.needsUpdate = true;
-  textureByStyle.set(style, texture);
-  return texture;
+  paint(canvasCtx, canvasElement.width, canvasElement.height)
+  const texture = new threeApi.CanvasTexture(canvasElement)
+  texture.colorSpace = threeApi.SRGBColorSpace
+  texture.anisotropy = Math.min(maxAnisotropy || 1, 8)
+  texture.needsUpdate = true
+  textureByStyle.set(style, texture)
+  return texture
 }

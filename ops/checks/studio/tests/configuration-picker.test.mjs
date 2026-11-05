@@ -128,7 +128,9 @@ test('触发器：aria-haspopup=dialog、禁用态、点击回调', () => {
     return rowControl
   }
   const createPickerRow = bindPickerRow(
-    { createElement: (tagName, className, textContent) => FAKE_DOCUMENT.createElement(tagName, className, textContent) },
+    {
+      createElement: (tagName, className, textContent) => FAKE_DOCUMENT.createElement(tagName, className, textContent),
+    },
     createSettingRow,
   )
   const container = FAKE_DOCUMENT.createElement('div')
@@ -223,9 +225,7 @@ test('onSelect 抛错：文案写回弹窗、选项恢复可点、弹窗不关',
   const dialog = lastDialog()
   const [firstOption, occupiedOption] = options(dialog)
   await click(firstOption)
-  const errorElement = collect(dialog, (node) =>
-    String(node.className || '').includes('i3d-error'),
-  ).at(-1)
+  const errorElement = collect(dialog, (node) => String(node.className || '').includes('i3d-error')).at(-1)
   assert.equal(errorElement.textContent, '该对象已添加或不再可用，请重新选择。')
   assert.equal(errorElement.getAttribute('role'), 'status')
   assert.equal(dialog.closed, false, '失败时必须留在弹窗里重选')
@@ -304,13 +304,14 @@ test('configurationSummary：加载中 / 缺失计数 / 已配置为 0 的样式
     '总数 / 已配置 / 未配置 / 缺失',
   )
   assert.equal(numbers[0].className.includes('is-zero'), false)
-  const zeroElement = configurationSummary(
-    configurationProgress({ models: [], bindings: [] }),
-    { document: FAKE_DOCUMENT, unit: '模型' },
-  )
+  const zeroElement = configurationSummary(configurationProgress({ models: [], bindings: [] }), {
+    document: FAKE_DOCUMENT,
+    unit: '模型',
+  })
   assert.equal(
-    collect(zeroElement, (node) => String(node.className || '').includes('i3d-configuration-number'))[0]
-      .className.includes('is-zero'),
+    collect(zeroElement, (node) =>
+      String(node.className || '').includes('i3d-configuration-number'),
+    )[0].className.includes('is-zero'),
     true,
   )
 })

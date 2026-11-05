@@ -14,4 +14,3 @@ export const EVENT_LOG_OVERLAY_DOMAINS = [
   'water_heater',
   'alarm_control_panel',
 ] as const satisfies readonly string[]
-

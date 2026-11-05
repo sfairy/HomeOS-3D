@@ -28,13 +28,8 @@ const backendPath = fileURLToPath(
   sourceUrl('../../../../homeos/backend/src/modules/interaction3d/config_sections_core.py'),
 )
 
-const {
-  FLOOR_CATEGORY_CHOICES,
-  defaultFloorCategory,
-  defaultOpeningFloor,
-  enteringFloorCategory,
-  floorSwitchMode,
-} = await import(defaultsPath)
+const { FLOOR_CATEGORY_CHOICES, defaultFloorCategory, defaultOpeningFloor, enteringFloorCategory, floorSwitchMode } =
+  await import(defaultsPath)
 
 const ONE = [{ id: 'f1' }]
 const TWO = [{ id: 'f1' }, { id: 'f2' }]

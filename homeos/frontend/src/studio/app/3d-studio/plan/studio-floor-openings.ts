@@ -3,7 +3,7 @@ export function floorOpeningPolygon(opening: any, scale: any) {
     cosRotation = Math.cos(rotationRad),
     sinRotation = Math.sin(rotationRad),
     halfWidth = (opening.width * scale) / 2,
-    halfDepth = (opening.depth * scale) / 2;
+    halfDepth = (opening.depth * scale) / 2
   return [
     [-halfWidth, -halfDepth],
     [halfWidth, -halfDepth],
@@ -12,5 +12,5 @@ export function floorOpeningPolygon(opening: any, scale: any) {
   ].map(([localX, localY]) => ({
     x: opening.x + localX * cosRotation - localY * sinRotation,
     y: opening.y + localX * sinRotation + localY * cosRotation,
-  }));
+  }))
 }

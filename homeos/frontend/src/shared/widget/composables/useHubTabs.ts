@@ -70,24 +70,14 @@ export function useHubTabs(options: {
 
   // 监听默认 Tab / 选择令牌：外部可重复请求同一 Tab
   watch(
-    () =>
-      [
-        toValue(options.defaultTabProp),
-        tabConfig.value.defaultTab,
-        toValue(options.tabSelectToken) ?? 0,
-      ] as const,
+    () => [toValue(options.defaultTabProp), tabConfig.value.defaultTab, toValue(options.tabSelectToken) ?? 0] as const,
     ([nextDefaultProp, nextDefaultTab, nextToken], prev) => {
       const prevDefaultProp = prev?.[0]
       const prevDefaultTab = prev?.[1]
       const prevToken = prev?.[2] ?? 0
       const tokenBumped = nextToken !== prevToken
-      const defaultChanged =
-        nextDefaultProp !== prevDefaultProp || nextDefaultTab !== prevDefaultTab
-      if (
-        !defaultChanged &&
-        !tokenBumped &&
-        hubTabs.value.some((t) => resolveHubTabId(t) === activeTab.value)
-      ) {
+      const defaultChanged = nextDefaultProp !== prevDefaultProp || nextDefaultTab !== prevDefaultTab
+      if (!defaultChanged && !tokenBumped && hubTabs.value.some((t) => resolveHubTabId(t) === activeTab.value)) {
         return
       }
       activeTab.value = resolveActiveTab(nextDefaultProp)

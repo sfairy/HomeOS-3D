@@ -43,17 +43,12 @@ function isUsableMomentaryState(state: string | null | undefined) {
  */
 export function useMainLayoutDoorbell(options: {
   layoutStore: Pick<ReturnType<typeof useLayoutStore>, 'layoutConfig'>
-  chrome: Pick<
-    ReturnType<typeof useChromeStore>,
-    'isDoorbellModalOpen' | 'openDoorbellModal' | 'closeDoorbellModal'
-  >
+  chrome: Pick<ReturnType<typeof useChromeStore>, 'isDoorbellModalOpen' | 'openDoorbellModal' | 'closeDoorbellModal'>
   entitiesStore: ReturnType<typeof useEntitiesStore>
 }) {
   const { layoutStore, chrome, entitiesStore } = options
   // 当前布局配置解析出的所有门铃路由（按配置顺序）
-  const doorbellRoutes = computed(() =>
-    resolveDoorbellRoutes(layoutStore.layoutConfig.haConfig),
-  )
+  const doorbellRoutes = computed(() => resolveDoorbellRoutes(layoutStore.layoutConfig.haConfig))
   // 当前活跃的门铃路由（被触发的那一个），未触发时为 null
   const activeDoorbell = ref<ReturnType<typeof resolveDoorbellRoutes>[number] | null>(null)
   // 通知点击指定的摄像头覆盖（优先于门铃路由）；空串表示无覆盖
@@ -61,10 +56,7 @@ export function useMainLayoutDoorbell(options: {
   // 门铃摄像头实体 ID：优先取通知覆盖，其次活跃门铃，最后回退到第一个路由
   const doorbellCameraId = computed(
     () =>
-      overrideCameraId.value ||
-      activeDoorbell.value?.cameraEntityId ||
-      doorbellRoutes.value[0]?.cameraEntityId ||
-      null,
+      overrideCameraId.value || activeDoorbell.value?.cameraEntityId || doorbellRoutes.value[0]?.cameraEntityId || null,
   )
   // 门铃触发器实体 ID：通知覆盖场景无触发器（关闭弹窗时无需复位实体）
   const doorbellTriggerEntityId = computed(() =>
@@ -77,9 +69,7 @@ export function useMainLayoutDoorbell(options: {
     () => activeDoorbell.value?.lockEntityId || doorbellRoutes.value[0]?.lockEntityId || '',
   )
   // 当前活跃门铃的显示标签；通知覆盖场景不传 label，交由弹窗按实体名展示
-  const doorbellLabel = computed(() =>
-    overrideCameraId.value ? '' : activeDoorbell.value?.label || '',
-  )
+  const doorbellLabel = computed(() => (overrideCameraId.value ? '' : activeDoorbell.value?.label || ''))
   // 已经“稳定”过的触发器 ID 集合：状态从 on 回到 off 后才认为稳定，避免初始化时即 on 的误报
   const seenSettledIds = new Set<string>()
   // 当前处于 on 状态的门铃触发器集合
@@ -122,11 +112,7 @@ export function useMainLayoutDoorbell(options: {
         if (isMomentaryTrigger(id)) {
           // 瞬时触发器：状态值变化即视为按下事件
           const prev = prevMomentaryStates.get(id)
-          if (
-            isUsableMomentaryState(state) &&
-            prev !== undefined &&
-            prev !== state
-          ) {
+          if (isUsableMomentaryState(state) && prev !== undefined && prev !== state) {
             // 新按下：清除 dismissed，使该门铃可以再次弹窗
             dismissedIds.delete(id)
             if (!momentaryHit) momentaryHit = d
@@ -162,8 +148,7 @@ export function useMainLayoutDoorbell(options: {
       )
       // 优先使用瞬时触发命中，否则使用普通 on 命中
       const newlyFiring =
-        (momentaryHit && !dismissedIds.has(momentaryHit.triggerEntityId) ? momentaryHit : null) ||
-        newlyOn
+        (momentaryHit && !dismissedIds.has(momentaryHit.triggerEntityId) ? momentaryHit : null) || newlyOn
 
       if (newlyFiring) {
         activeDoorbell.value = newlyFiring

@@ -29,12 +29,7 @@ export const specsDir = path.join(scriptsDir, 'specs')
  * （`model-asset-folders.ts`），这里按需加载，避免各脚本各写一套正则。
  */
 const { modelAssetFolder, modelAssetFolderFromPath, modelAssetIdForStem } = await import(
-  pathToFileURL(
-    path.join(
-      frontendDir,
-      'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
-    ),
-  ).href
+  pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts')).href
 )
 
 const GLB_MAGIC = 0x46546c67 // "glTF"
@@ -87,9 +82,7 @@ export const MODELS_URL_PREFIX = '/static/3d-studio/models/'
  */
 export function modelIdFromUrl(url) {
   if (typeof url !== 'string' || !url.includes(MODELS_URL_PREFIX)) return null
-  const tail = decodeURIComponent(
-    url.slice(url.indexOf(MODELS_URL_PREFIX) + MODELS_URL_PREFIX.length).split('?')[0],
-  )
+  const tail = decodeURIComponent(url.slice(url.indexOf(MODELS_URL_PREFIX) + MODELS_URL_PREFIX.length).split('?')[0])
   const segments = tail.split('/').filter(Boolean)
   const fileName = segments.pop() ?? ''
   if (!/\.glb$/i.test(fileName)) return null
@@ -107,19 +100,14 @@ export function modelIdFromUrl(url) {
 export function readModelAtRevision(relativePath, revision = 'HEAD') {
   const parsed = parseModelPath(relativePath)
   const folder = modelAssetFolder(parsed.id)
-  const legacyPath = folder
-    ? `${folder}/${parsed.id}${parsed.variant === 'lite' ? '-lite' : ''}.glb`
-    : null
+  const legacyPath = folder ? `${folder}/${parsed.id}${parsed.variant === 'lite' ? '-lite' : ''}.glb` : null
   for (const candidate of [relativePath, legacyPath].filter(Boolean)) {
     try {
-      return execFileSync(
-        'git',
-        [
-          'show',
-          `${revision}:homeos/frontend/public/static/3d-studio/models/${candidate}`,
-        ],
-        { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] },
-      )
+      return execFileSync('git', ['show', `${revision}:homeos/frontend/public/static/3d-studio/models/${candidate}`], {
+        cwd: repoRoot,
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
     } catch {
       // 换下一个候选
     }

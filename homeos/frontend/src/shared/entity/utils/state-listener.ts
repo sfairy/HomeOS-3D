@@ -1,6 +1,12 @@
 /** 实体状态监听注册表 + 批量派发 */
 import { describeAttrChange } from './control-attr-change.util'
-import type { EntityStateListenerFlushDeps, EntityStateListenerFn, EntityStateListenerLogger, EntityStateListenerPayload, RegisterStateListenerOptions } from '@/shared/types/entity-store'
+import type {
+  EntityStateListenerFlushDeps,
+  EntityStateListenerFn,
+  EntityStateListenerLogger,
+  EntityStateListenerPayload,
+  RegisterStateListenerOptions,
+} from '@/shared/types/entity-store'
 import { logger } from '@/shared/utils/core/logger'
 import { getEntityDomain } from '@homeos/shared'
 
@@ -127,9 +133,7 @@ function notificationFingerprint(payload: EntityStateListenerPayload): string {
 /**
  * 批内去重：仅折叠与上一条完全相同的通知，保留同实体连续不同变更。
  */
-function dedupeNotificationBatch(
-  batch: EntityStateListenerPayload[],
-): EntityStateListenerPayload[] {
+function dedupeNotificationBatch(batch: EntityStateListenerPayload[]): EntityStateListenerPayload[] {
   const out: EntityStateListenerPayload[] = []
   let lastFp = ''
   for (let i = 0; i < batch.length; i++) {
@@ -191,10 +195,7 @@ let flushScheduled = false
 let listenersPaused = false
 let onPageVisible: (() => void) | null = null
 
-const raf =
-  typeof requestAnimationFrame === 'function'
-    ? requestAnimationFrame
-    : (fn: () => void) => setTimeout(fn, 16)
+const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn: () => void) => setTimeout(fn, 16)
 
 let flushDeps: EntityStateListenerFlushDeps | null = null
 

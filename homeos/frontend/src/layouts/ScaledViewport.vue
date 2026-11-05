@@ -45,11 +45,7 @@ import VNotification from '@/components/common/base/VNotification.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useScaling } from '@/composables/ui/useScaling'
-import {
-  getConfigSection,
-  configEpoch,
-  getWorkerDerivedThreshold,
-} from '@/shared/utils/config/frontend-config'
+import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
 import { adaptiveTier } from '@/shared/utils/perf/adaptive-perf.util'
 
 const props = defineProps({

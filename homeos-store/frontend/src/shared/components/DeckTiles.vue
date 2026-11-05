@@ -17,8 +17,7 @@ const tiles = ref<DeckTile[]>([]);
 const now = ref(Date.now());
 let timer: number | undefined;
 
-const calm = () =>
-  window.matchMedia("(prefers-reduced-motion: reduce), (pointer: coarse), (hover: none)").matches;
+const calm = () => window.matchMedia("(prefers-reduced-motion: reduce), (pointer: coarse), (hover: none)").matches;
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -65,9 +64,7 @@ const PLACEHOLDER_TILES: { tile: DeckTile; text: string }[] = [
 ];
 
 const rendered = computed<{ tile: DeckTile; text: string }[]>(() =>
-  tiles.value.length
-    ? tiles.value.map((tile) => ({ tile, text: renderTile(tile) }))
-    : PLACEHOLDER_TILES,
+  tiles.value.length ? tiles.value.map((tile) => ({ tile, text: renderTile(tile) })) : PLACEHOLDER_TILES,
 );
 
 /**
@@ -82,10 +79,9 @@ const deckCache = new Map<string, DeckTile[]>();
 
 async function load() {
   try {
-    const response = await fetch(
-      `/store/v1/shell/deck?page=${encodeURIComponent(props.page)}`,
-      { credentials: "same-origin" },
-    );
+    const response = await fetch(`/store/v1/shell/deck?page=${encodeURIComponent(props.page)}`, {
+      credentials: "same-origin",
+    });
     if (!response.ok) {
       emit("loaded");
       return;

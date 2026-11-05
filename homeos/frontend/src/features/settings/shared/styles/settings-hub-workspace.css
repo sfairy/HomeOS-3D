@@ -17,32 +17,32 @@
 }
 
 /* hub-stat 左色条语义（克制，不大面积渐变） */
-.hub-stat-row .hub-stat[class*='--sky'],
-.hub-stat-row .hub-stat[class*='--emerald'],
-.hub-stat-row .hub-stat[class*='--amber'],
-.hub-stat-row .hub-stat[class*='--accent'],
-.hub-stat-row .hub-stat[class*='--secondary'] {
+.hub-stat-row .hub-stat[class*="--sky"],
+.hub-stat-row .hub-stat[class*="--emerald"],
+.hub-stat-row .hub-stat[class*="--amber"],
+.hub-stat-row .hub-stat[class*="--accent"],
+.hub-stat-row .hub-stat[class*="--secondary"] {
   border-left-width: 3px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-[class*='-stat--sky'] {
+[class*="-stat--sky"] {
   border-left-color: var(--set-info, #38bdf8) !important;
 }
 
-[class*='-stat--emerald'] {
+[class*="-stat--emerald"] {
   border-left-color: var(--set-success, #34d399) !important;
 }
 
-[class*='-stat--amber'] {
+[class*="-stat--amber"] {
   border-left-color: var(--set-warn, #fbbf24) !important;
 }
 
-[class*='-stat--accent'] {
+[class*="-stat--accent"] {
   border-left-color: rgba(var(--page-accent-rgb), 0.75) !important;
 }
 
-[class*='-stat--secondary'] {
+[class*="-stat--secondary"] {
   border-left-color: rgba(var(--page-accent-secondary-rgb), 0.75) !important;
 }
 

@@ -116,7 +116,9 @@
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  transition: opacity 0.2s, background-color 0.2s;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
 }
 
 .notification-item:hover .notification-item__close,

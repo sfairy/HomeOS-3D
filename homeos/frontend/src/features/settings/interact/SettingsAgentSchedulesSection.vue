@@ -226,9 +226,7 @@ const form = reactive({
   service: 'turn_off',
 })
 
-const logHeader = computed(() =>
-  logTaskName.value ? `任务「${logTaskName.value}」最近 20 条` : '最近 20 条',
-)
+const logHeader = computed(() => (logTaskName.value ? `任务「${logTaskName.value}」最近 20 条` : '最近 20 条'))
 
 function scheduleLabel(task: AgentScheduledTask): string {
   if (task.scheduleType === 'RECURRING') {
@@ -401,11 +399,7 @@ function buildSchedulePayload(): AgentSchedulePayload | null {
 }
 
 /** 保存 / 创建共用一份结果处理，避免 submit 里的分支越堆越多 */
-async function applyWriteResult(
-  result: AgentScheduleWriteResult,
-  payload: AgentSchedulePayload,
-  targetId: string,
-) {
+async function applyWriteResult(result: AgentScheduleWriteResult, payload: AgentSchedulePayload, targetId: string) {
   if (!result.ok) {
     setMessage(result.message || (targetId ? '保存失败' : '创建失败'), false)
     return
@@ -422,9 +416,7 @@ async function submit() {
   const targetId = editingId.value
   creating.value = true
   try {
-    const result = targetId
-      ? await updateAgentSchedule(targetId, payload)
-      : await createAgentSchedule(payload)
+    const result = targetId ? await updateAgentSchedule(targetId, payload) : await createAgentSchedule(payload)
     await applyWriteResult(result, payload, targetId)
   } catch (error) {
     setMessage(getApiErrorMessage(error, targetId ? '保存计划任务失败' : '创建计划任务失败'), false)

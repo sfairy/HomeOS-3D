@@ -1,5 +1,3 @@
-
-
 .ws-type-row .hos-select {
   flex: 1;
   min-width: 0;
@@ -11,9 +9,6 @@
   flex: 1;
   min-width: 0;
 }
-
-
-
 
 .ws-hint-action {
   font-size: var(--premium-fs-micro);
@@ -34,7 +29,10 @@
   margin-bottom: 10px;
 }
 
-.ws-state-path.empty { color: var(--hos-text-secondary); font-style: italic; }
+.ws-state-path.empty {
+  color: var(--hos-text-secondary);
+  font-style: italic;
+}
 
 .ws-btn-add {
   font-size: var(--premium-fs-micro);
@@ -47,11 +45,4 @@
   cursor: pointer;
 }
 
-
-
-
-
-
 /* ── 危险操作区 ── */
-
-

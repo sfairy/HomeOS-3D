@@ -35,7 +35,7 @@ const FLOW_TO_YAML_ENTRIES: Record<string, string> = {
   press: 'press',
   event_type: 'event_type',
   event_types: 'event_types',
-};
+}
 
 const YAML_TO_FLOW_ENTRIES: Record<string, string> = {
   state: 'state',
@@ -73,18 +73,18 @@ const YAML_TO_FLOW_ENTRIES: Record<string, string> = {
   press: 'press',
   event_type: 'event_type',
   event_types: 'event_types',
-};
+}
 
 /**
  * Flow 表单字段 → HA configuration.yaml 字段的映射表（只读）：on_action 与 off_action 等新旧语法别名统一映射 turn_on/turn_off。
  * 单一真相源，前后端 Flow 与 YAML 互转都以本表为准。
  */
-export const TEMPLATE_FLOW_TO_YAML_KEYS: Readonly<Record<string, string>> = FLOW_TO_YAML_ENTRIES;
+export const TEMPLATE_FLOW_TO_YAML_KEYS: Readonly<Record<string, string>> = FLOW_TO_YAML_ENTRIES
 
 /**
  * HA YAML 字段名 → Flow 字段名的反向映射表（只读）：state_template 等老写法也反归一化为 state；set_percentage → set_percentage_action。
  */
-export const TEMPLATE_YAML_TO_FLOW_KEYS: Readonly<Record<string, string>> = YAML_TO_FLOW_ENTRIES;
+export const TEMPLATE_YAML_TO_FLOW_KEYS: Readonly<Record<string, string>> = YAML_TO_FLOW_ENTRIES
 
 /**
  * Flow 字段名查询对应 YAML 字段名；未命中按原样返回（允许透传扩展字段）。
@@ -93,7 +93,7 @@ export const TEMPLATE_YAML_TO_FLOW_KEYS: Readonly<Record<string, string>> = YAML
  * @returns 映射后的 YAML 字段名；未知 flowKey 原样返回
  */
 export function flowKeyToYamlKey(flowKey: string): string {
-  return TEMPLATE_FLOW_TO_YAML_KEYS[flowKey] ?? flowKey;
+  return TEMPLATE_FLOW_TO_YAML_KEYS[flowKey] ?? flowKey
 }
 
 /**
@@ -103,5 +103,5 @@ export function flowKeyToYamlKey(flowKey: string): string {
  * @returns 映射后的 Flow 字段名；未知 yamlKey 原样返回
  */
 export function yamlKeyToFlowKey(yamlKey: string): string {
-  return TEMPLATE_YAML_TO_FLOW_KEYS[yamlKey] ?? yamlKey;
+  return TEMPLATE_YAML_TO_FLOW_KEYS[yamlKey] ?? yamlKey
 }

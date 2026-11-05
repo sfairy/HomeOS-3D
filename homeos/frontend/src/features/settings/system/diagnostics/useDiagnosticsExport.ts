@@ -112,9 +112,7 @@ export function useDiagnosticsExport(deps: {
     ]
   })
 
-  const diagExportSyncErrors = computed(
-    () => diag.value?.orchestratorSync?.recentErrors?.slice(0, 5) ?? [],
-  )
+  const diagExportSyncErrors = computed(() => diag.value?.orchestratorSync?.recentErrors?.slice(0, 5) ?? [])
 
   const diagExportGuides = [
     {

@@ -74,11 +74,7 @@
   min-height: 44px;
   border-radius: 50%;
   border: var(--hos-hairline) solid var(--dev-accent-border);
-  background: linear-gradient(
-    135deg,
-    rgba(var(--dev-accent-rgb, 56, 189, 248), 0.25),
-    rgba(94, 92, 230, 0.2)
-  );
+  background: linear-gradient(135deg, rgba(var(--dev-accent-rgb, 56, 189, 248), 0.25), rgba(94, 92, 230, 0.2));
   /* 前景色走 --hos-on-accent：铺在强调色渐变上的图标，换主题时对比度自动跟着变。 */
   color: var(--hos-on-accent);
   cursor: pointer;

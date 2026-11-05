@@ -3,12 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { copyTextWithNotify, notifyError } from '@/services/notify'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import {
-  deleteConfigAsset,
-  listConfigAssets,
-  mkdirConfigAsset,
-  uploadConfigAsset,
-} from '@/services/api/config'
+import { deleteConfigAsset, listConfigAssets, mkdirConfigAsset, uploadConfigAsset } from '@/services/api/config'
 
 /**
  * 资源条目数据结构。
@@ -77,10 +72,7 @@ interface UploadProgress {
  * @param emit select 事件发射器，选择文件时触发
  * @returns 资源管理器所需的全部响应式状态与操作方法
  */
-export function useAssetManager(
-  props: AssetManagerProps,
-  emit: (event: 'select', value: string) => void,
-) {
+export function useAssetManager(props: AssetManagerProps, emit: (event: 'select', value: string) => void) {
   const chrome = useChromeStore()
 
   // 目录列表缓存：key 形如 "background:a/b"，避免重复请求
@@ -127,9 +119,7 @@ export function useAssetManager(
    */
   const filteredItems = computed(() => {
     const searchTerm = searchQuery.value.trim().toLowerCase()
-    const list = searchTerm
-      ? items.value.filter((item) => item?.name?.toLowerCase().includes(searchTerm))
-      : items.value
+    const list = searchTerm ? items.value.filter((item) => item?.name?.toLowerCase().includes(searchTerm)) : items.value
     return [...list].sort((a, b) => {
       // 目录排在文件之前，便于用户优先进入子目录
       if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
@@ -320,10 +310,7 @@ export function useAssetManager(
         closeFolderModal()
         chrome.notify(`已创建文件夹「${name}」`, 'success', 2000)
       } else {
-        folderModalError.value = getApiErrorMessage(
-          { response: { data } },
-          data.message || '创建失败',
-        )
+        folderModalError.value = getApiErrorMessage({ response: { data } }, data.message || '创建失败')
       }
     } catch (error) {
       folderModalError.value = getApiErrorMessage(error, '网络错误，创建失败')
@@ -399,11 +386,7 @@ export function useAssetManager(
       return
     }
     // 部分成功：明确告知成功与失败数量，避免用户以为整批都失败
-    chrome.notify(
-      `部分上传成功：${uploaded} 个，失败 ${errors.length} 个（${errors[0]}）`,
-      'warning',
-      5000,
-    )
+    chrome.notify(`部分上传成功：${uploaded} 个，失败 ${errors.length} 个（${errors[0]}）`, 'warning', 5000)
   }
 
   /**
@@ -467,8 +450,7 @@ export function useAssetManager(
     const isIcon = props.type === 'icon'
     const targetPath = relativeItemPath(item)
     // 根据条目类型构造不同描述，目录删除提示"及其内部所有内容"以强调影响范围
-    const targetLabel =
-      item.type === 'dir' ? '文件夹及其内部所有内容' : isIcon ? '该图标' : '该文件'
+    const targetLabel = item.type === 'dir' ? '文件夹及其内部所有内容' : isIcon ? '该图标' : '该文件'
     const confirmed = await chrome.confirm(
       `确定要删除${targetLabel}吗？
 

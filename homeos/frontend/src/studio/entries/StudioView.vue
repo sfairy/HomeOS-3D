@@ -5,18 +5,16 @@
  * 一条串行链，下一次 onMounted 先等链尾，避免新实例 boot 与旧实例回收交错（旧实例
  * finally 里的 resetStudioFacade 会把新实例的 facade 清掉）。
  */
-let pendingStudioTeardown: Promise<void> = Promise.resolve();
+let pendingStudioTeardown: Promise<void> = Promise.resolve()
 
-function scheduleStudioTeardown(
-  teardown: (() => Promise<void> | void) | null | undefined,
-): Promise<void> {
-  if (!teardown) return pendingStudioTeardown;
+function scheduleStudioTeardown(teardown: (() => Promise<void> | void) | null | undefined): Promise<void> {
+  if (!teardown) return pendingStudioTeardown
   pendingStudioTeardown = pendingStudioTeardown.then(() =>
     Promise.resolve(teardown()).catch((error: unknown) => {
-      window.HomeOSLog?.error?.(error, { phase: "studio-view-teardown" });
+      window.HomeOSLog?.error?.(error, { phase: 'studio-view-teardown' })
     }),
-  );
-  return pendingStudioTeardown;
+  )
+  return pendingStudioTeardown
 }
 </script>
 

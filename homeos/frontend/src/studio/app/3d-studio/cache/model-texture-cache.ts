@@ -5,14 +5,14 @@
  */
 const MAX_TEXTURE_DATA_BYTES = 8 * 1024 * 1024,
   MAX_TEXTURE_PIXELS = 4 * 1024 * 1024,
-  originalTextureRecord = new WeakMap();
+  originalTextureRecord = new WeakMap()
 
 /** 图片字节的 FNV-1a 双哈希指纹（mime/尺寸/长度 + 两个 32 位散列）。 */
 function textureImageKey(textureImage: any) {
   let hashA = 2166136261,
-    hashB = 3339675911;
+    hashB = 3339675911
   for (const byte of textureImage.data)
-    ((hashA = Math.imul(hashA ^ byte, 16777619)), (hashB = Math.imul(hashB ^ byte, 2246822519)));
+    (hashA = Math.imul(hashA ^ byte, 16777619)), (hashB = Math.imul(hashB ^ byte, 2246822519))
   return JSON.stringify([
     textureImage.mimeType,
     textureImage.width,
@@ -20,7 +20,7 @@ function textureImageKey(textureImage: any) {
     textureImage.data.length,
     hashA >>> 0,
     hashB >>> 0,
-  ]);
+  ])
 }
 /**
  * 取「已解码图片」的像素尺寸。
@@ -32,22 +32,20 @@ function textureImageKey(textureImage: any) {
  * 出图的模型就永远进不了缓存。
  */
 function decodedImageSize(image: any) {
-  if (!image) return null;
-  if (image.tagName === "IMG")
+  if (!image) return null
+  if (image.tagName === 'IMG')
     return image.complete && image.naturalWidth && image.naturalHeight
       ? { width: image.naturalWidth, height: image.naturalHeight }
-      : null;
+      : null
   const width = image.width,
-    height = image.height;
-  return Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0
-    ? { width, height }
-    : null;
+    height = image.height
+  return Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0 ? { width, height } : null
 }
 /** 只接受体积/像素在预算内的 PNG/JPEG 内嵌图。 */
 function isValidTextureImage(textureImage: any) {
   return (
     textureImage &&
-    ["image/png", "image/jpeg"].includes(textureImage.mimeType) &&
+    ['image/png', 'image/jpeg'].includes(textureImage.mimeType) &&
     textureImage.data instanceof Uint8Array &&
     textureImage.data.length > 0 &&
     textureImage.data.length <= MAX_TEXTURE_DATA_BYTES &&
@@ -56,11 +54,11 @@ function isValidTextureImage(textureImage: any) {
     textureImage.width > 0 &&
     textureImage.height > 0 &&
     textureImage.width * textureImage.height <= MAX_TEXTURE_PIXELS
-  );
+  )
 }
 /** 记下「纹理 <-> 抠出的图片字节」的对应关系，供后续 pack 使用。 */
 function rememberTexture(texture: any, textureImage: any) {
-  const pixels = texture.image;
+  const pixels = texture.image
   originalTextureRecord.set(texture, {
     image: textureImage,
     version: texture.version,
@@ -71,12 +69,12 @@ function rememberTexture(texture: any, textureImage: any) {
     width: textureImage.width,
     height: textureImage.height,
     /** `ImageBitmap` 没有 `complete` / `src`，校验只能比尺寸。 */
-    isBitmap: typeof ImageBitmap != "undefined" && pixels instanceof ImageBitmap,
-  });
+    isBitmap: typeof ImageBitmap != 'undefined' && pixels instanceof ImageBitmap,
+  })
 }
 /** 只有纹理仍指向当初记下的那些对象、且没被换成 DataTexture/压缩纹理时，记录才有效。 */
 function originalTextureRecordFor(texture: any) {
-  const record = originalTextureRecord.get(texture);
+  const record = originalTextureRecord.get(texture)
   if (
     !record ||
     texture.version !== record.version ||
@@ -89,29 +87,27 @@ function originalTextureRecordFor(texture: any) {
     texture.isCompressedTexture ||
     texture.mipmaps.length
   )
-    return null;
+    return null
   if (record.isBitmap)
-    return record.pixels?.width === record.width && record.pixels?.height === record.height
-      ? record
-      : null;
+    return record.pixels?.width === record.width && record.pixels?.height === record.height ? record : null
   return record.pixels?.src === record.src &&
     record.pixels?.complete &&
     record.pixels?.naturalWidth === record.width &&
     record.pixels?.naturalHeight === record.height
     ? record
-    : null;
+    : null
 }
 /** 遍历 GLTF，把可从 bufferView 直接取出的内嵌图片记下来（跳过扩展纹理 / 非内嵌图）。 */
 export async function prepareModelTextures(gltf: any) {
   const parser = gltf?.parser,
-    scene = gltf?.scene;
-  if (!parser?.json || !parser.associations || !scene) return;
+    scene = gltf?.scene
+  if (!parser?.json || !parser.associations || !scene) return
   const textureSet = new Set<any>(),
-    imagePromiseBySourceId = new Map();
-  (scene.traverse((node: any) => {
+    imagePromiseBySourceId = new Map()
+  scene.traverse((node: any) => {
     for (const material of [].concat(node.material || []))
       for (const materialValue of Object.values(material as Record<string, any>))
-        materialValue?.isTexture && textureSet.add(materialValue);
+        materialValue?.isTexture && textureSet.add(materialValue)
   }),
     await Promise.all(
       [...textureSet].map(async (texture) => {
@@ -119,42 +115,41 @@ export async function prepareModelTextures(gltf: any) {
           const textureIndex = parser.associations.get(texture)?.textures,
             textureDefinition = parser.json.textures?.[textureIndex],
             imageDefinition = parser.json.images?.[textureDefinition?.source],
-            decodedSize = decodedImageSize(texture.image);
+            decodedSize = decodedImageSize(texture.image)
           if (
             !imageDefinition ||
             !Number.isInteger(imageDefinition.bufferView) ||
             textureDefinition.extensions ||
             !decodedSize
           )
-            return;
+            return
           imagePromiseBySourceId.has(textureDefinition.source) ||
             imagePromiseBySourceId.set(
               textureDefinition.source,
               (async () => {
-                const bufferViewData = await parser.getDependency(
-                    "bufferView",
-                    imageDefinition.bufferView,
-                  ),
+                const bufferViewData = await parser.getDependency('bufferView', imageDefinition.bufferView),
                   textureImage: any = {
                     mimeType: imageDefinition.mimeType,
                     width: decodedSize.width,
                     height: decodedSize.height,
                     data: new Uint8Array(bufferViewData).slice(),
-                  };
+                  }
                 return isValidTextureImage(textureImage)
                   ? ((textureImage.key = textureImageKey(textureImage)), textureImage)
-                  : null;
+                  : null
               })(),
-            );
-          const textureImage = await imagePromiseBySourceId.get(textureDefinition.source);
-          textureImage && rememberTexture(texture, textureImage);
-        } catch { /* 贴图缓存写入 best-effort：条目已失效或解码器已释放时跳过，不影响本次渲染 */ }
+            )
+          const textureImage = await imagePromiseBySourceId.get(textureDefinition.source)
+          textureImage && rememberTexture(texture, textureImage)
+        } catch {
+          /* 贴图缓存写入 best-effort：条目已失效或解码器已释放时跳过，不影响本次渲染 */
+        }
       }),
-    ));
+    )
 }
 /** 稳定贴图键：拿「图片指纹 + 采样/坐标参数」当键，引擎判定参数全都没变就能复用。 */
 export function stableModelTextureKey(texture: any) {
-  const record = originalTextureRecordFor(texture);
+  const record = originalTextureRecordFor(texture)
   return record
     ? [
         record.image.key,
@@ -180,20 +175,20 @@ export function stableModelTextureKey(texture: any) {
         texture.matrixAutoUpdate,
         texture.matrixAutoUpdate ? null : texture.matrix.toArray(),
       ]
-    : null;
+    : null
 }
 /** 把一组纹理打成物理贴图：图片按 source.uuid 去重存字节，另存每张纹理的 UV 变换矩阵。 */
 export function packModelTextures(textureSet: any, serializationMeta: any) {
   const textureImagesBySourceUuid: Record<string, any> = {},
-    textureMatricesByTextureUuid: Record<string, any> = {};
+    textureMatricesByTextureUuid: Record<string, any> = {}
   let totalTextureBytes = 0,
-    totalTexturePixels = 0;
-  if (textureSet.size > 32) throw Error("Too many textures");
+    totalTexturePixels = 0
+  if (textureSet.size > 32) throw Error('Too many textures')
   for (const texture of textureSet) {
-    const record = originalTextureRecordFor(texture);
-    if (!record) throw Error("Texture needs the original loader");
-    const sourceUuid = texture.source.uuid;
-    (textureImagesBySourceUuid[sourceUuid] ||
+    const record = originalTextureRecordFor(texture)
+    if (!record) throw Error('Texture needs the original loader')
+    const sourceUuid = texture.source.uuid
+    textureImagesBySourceUuid[sourceUuid] ||
       ((textureImagesBySourceUuid[sourceUuid] = record.image),
       (totalTextureBytes += record.image.data.byteLength),
       (totalTexturePixels += record.image.width * record.image.height)),
@@ -203,20 +198,20 @@ export function packModelTextures(textureSet: any, serializationMeta: any) {
       (textureMatricesByTextureUuid[texture.uuid] = {
         autoUpdate: texture.matrixAutoUpdate,
         elements: texture.matrix.toArray(),
-      }));
+      })
   }
   if (
     Object.keys(textureImagesBySourceUuid).length > 16 ||
     totalTextureBytes > MAX_TEXTURE_DATA_BYTES ||
     totalTexturePixels > MAX_TEXTURE_PIXELS
   )
-    throw Error("Texture budget exceeded");
-  for (const texture of textureSet) texture.toJSON(serializationMeta);
+    throw Error('Texture budget exceeded')
+  for (const texture of textureSet) texture.toJSON(serializationMeta)
   return {
     images: textureImagesBySourceUuid,
     matrices: textureMatricesByTextureUuid,
     bytes: totalTextureBytes,
-  };
+  }
 }
 /** 从字节解出一张可用的图片元素（带超时与取消校验）。 */
 function decodeTextureImage(textureImage: any, env: any, valid: any, timeoutMs: any) {
@@ -224,37 +219,37 @@ function decodeTextureImage(textureImage: any, env: any, valid: any, timeoutMs: 
     let imageElement: any,
       objectUrl: any,
       timeoutHandle: any,
-      isSettled = false;
+      isSettled = false
     const settle = (decodeError: any) => {
       isSettled ||
         ((isSettled = true),
         env.clearTimeout(timeoutHandle),
         imageElement && (imageElement.onload = imageElement.onerror = null),
         objectUrl && env.URL.revokeObjectURL(objectUrl),
-        decodeError ? (imageElement && (imageElement.src = ""), reject(decodeError)) : resolve(imageElement));
-    };
+        decodeError ? (imageElement && (imageElement.src = ''), reject(decodeError)) : resolve(imageElement))
+    }
     try {
-      ((imageElement = new env.Image()),
+      ;(imageElement = new env.Image()),
         (objectUrl = env.URL.createObjectURL(
           new env.Blob([textureImage.data], {
             type: textureImage.mimeType,
           }),
         )),
-        (timeoutHandle = env.setTimeout(() => settle(Error("Cached image decode timeout")), timeoutMs)),
+        (timeoutHandle = env.setTimeout(() => settle(Error('Cached image decode timeout')), timeoutMs)),
         (imageElement.onload = () =>
           settle(
             !valid() ||
               imageElement.naturalWidth !== textureImage.width ||
               imageElement.naturalHeight !== textureImage.height
-              ? Error("Cached image changed or cancelled")
+              ? Error('Cached image changed or cancelled')
               : null,
           )),
-        (imageElement.onerror = () => settle(Error("Invalid cached image"))),
-        (imageElement.src = objectUrl));
+        (imageElement.onerror = () => settle(Error('Invalid cached image'))),
+        (imageElement.src = objectUrl)
     } catch (decodeError: any) {
-      settle(decodeError);
+      settle(decodeError)
     }
-  });
+  })
 }
 /** 解码模板里的贴图字节并还原贴图集合；预算/时效/取消校验任一不满足就整体失败。 */
 export async function restoreModelTextures(
@@ -265,52 +260,43 @@ export async function restoreModelTextures(
   const sourceByImageUuid: Record<string, any> = {},
     textureImages = template.textureImages || {},
     restoredTextures: Record<string, any> = {},
-    textureDefinitions = template.textures || [];
-  if (!textureDefinitions.length && !Object.keys(textureImages).length) return restoredTextures;
-  if (textureDefinitions.length > 32 || Object.keys(textureImages).length > 16)
-    throw Error("Too many cached textures");
+    textureDefinitions = template.textures || []
+  if (!textureDefinitions.length && !Object.keys(textureImages).length) return restoredTextures
+  if (textureDefinitions.length > 32 || Object.keys(textureImages).length > 16) throw Error('Too many cached textures')
   let totalPixels = 0,
-    totalBytes = 0;
+    totalBytes = 0
   for (const textureImage of Object.values(textureImages as Record<string, any>)) {
     if (!isValidTextureImage(textureImage) || textureImage.key !== textureImageKey(textureImage))
-      throw Error("Invalid cached image");
-    ((totalPixels += textureImage.width * textureImage.height),
-      (totalBytes += textureImage.data.byteLength));
+      throw Error('Invalid cached image')
+    ;(totalPixels += textureImage.width * textureImage.height), (totalBytes += textureImage.data.byteLength)
   }
   if (totalPixels > MAX_TEXTURE_PIXELS || totalBytes > MAX_TEXTURE_DATA_BYTES)
-    throw Error("Cached images exceed budget");
+    throw Error('Cached images exceed budget')
   for (const textureDefinition of textureDefinitions)
     if (!textureImages[textureDefinition.image] || !template.textureMatrices?.[textureDefinition.uuid])
-      throw Error("Missing cached texture");
+      throw Error('Missing cached texture')
   try {
     for (const [imageUuid, textureImage] of Object.entries(textureImages)) {
-      if (!valid()) return null;
+      if (!valid()) return null
       sourceByImageUuid[imageUuid] = new three.TextureSource(
         await decodeTextureImage(textureImage, env, valid, timeoutMs),
-      );
+      )
     }
-    if (!valid()) return null;
-    Object.assign(
-      restoredTextures,
-      new three.ObjectLoader().parseTextures(textureDefinitions, sourceByImageUuid),
-    );
+    if (!valid()) return null
+    Object.assign(restoredTextures, new three.ObjectLoader().parseTextures(textureDefinitions, sourceByImageUuid))
     for (const textureDefinition of textureDefinitions) {
       const restoredTexture = restoredTextures[textureDefinition.uuid],
-        textureMatrix = template.textureMatrices[textureDefinition.uuid];
+        textureMatrix = template.textureMatrices[textureDefinition.uuid]
       if (textureMatrix.elements?.length !== 9 || !textureMatrix.elements.every(Number.isFinite))
-        throw Error("Invalid texture matrix");
-      ((restoredTexture.matrixAutoUpdate = textureMatrix.autoUpdate),
+        throw Error('Invalid texture matrix')
+      ;(restoredTexture.matrixAutoUpdate = textureMatrix.autoUpdate),
         restoredTexture.matrix.fromArray(textureMatrix.elements),
         (restoredTexture.needsUpdate = true),
-        rememberTexture(restoredTexture, textureImages[textureDefinition.image]));
+        rememberTexture(restoredTexture, textureImages[textureDefinition.image])
     }
-    return restoredTextures;
+    return restoredTextures
   } catch (restoreError: any) {
-    if (
-      (Object.values(restoredTextures).forEach((restoredTexture) => restoredTexture.dispose()),
-      !valid())
-    )
-      return null;
-    throw restoreError;
+    if ((Object.values(restoredTextures).forEach((restoredTexture) => restoredTexture.dispose()), !valid())) return null
+    throw restoreError
   }
 }

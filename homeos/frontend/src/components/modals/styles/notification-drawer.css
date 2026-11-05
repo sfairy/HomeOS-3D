@@ -106,7 +106,9 @@
   background: transparent;
   color: var(--hos-text-secondary);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .notification-drawer-header__close:hover {

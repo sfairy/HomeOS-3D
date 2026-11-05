@@ -11,10 +11,7 @@ import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pen
 import { computed } from 'vue'
 import { useHomeModeEditor } from './editor.internals'
 import { useHomeModePanelContext } from './home-mode-panel-context.internals'
-import {
-  createHomeModePanelDerived,
-  createHomeModePanelHandlers,
-} from './home-mode-panel-actions.internals'
+import { createHomeModePanelDerived, createHomeModePanelHandlers } from './home-mode-panel-actions.internals'
 
 function buildHomeModePanelApi(parts: {
   loading: unknown
@@ -28,18 +25,8 @@ function buildHomeModePanelApi(parts: {
   saving: unknown
   acting: unknown
 }) {
-  const {
-    loading,
-    modesLoadError,
-    editor,
-    derived,
-    context,
-    handlers,
-    activeMode,
-    activeModeIds,
-    saving,
-    acting,
-  } = parts
+  const { loading, modesLoadError, editor, derived, context, handlers, activeMode, activeModeIds, saving, acting } =
+    parts
   return {
     loading,
     modesLoadError,
@@ -191,18 +178,12 @@ export function useHomeModePanel() {
     const drafts = editor.drafts.value
     const tabs = [...editor.modeTabs.value]
     const isNewDraft = (tab: (typeof tabs)[number]): boolean => drafts[tab.id]?.isNew === true
-    tabs
-      .filter(isNewDraft)
-      .forEach((tab) => editor.removeDraft(tab.id, editor.resolveTabAfterRemove(tab.id)))
+    tabs.filter(isNewDraft).forEach((tab) => editor.removeDraft(tab.id, editor.resolveTabAfterRemove(tab.id)))
     tabs.filter((tab) => !isNewDraft(tab)).forEach((tab) => editor.refreshDraftFromMode(tab.id))
   }
 
   // 第三参数：确认离开设置页后真正丢弃家庭模式草稿（自定义模式整块删掉，已有模式重读）
-  useRegisterSettingsTabPending(
-    'home-mode',
-    () => derived.anyModeDraftDirty.value,
-    discardPendingHomeModeDrafts,
-  )
+  useRegisterSettingsTabPending('home-mode', () => derived.anyModeDraftDirty.value, discardPendingHomeModeDrafts)
 
   const handlers = createPanelHandlers(runtime, editor, derived, context, chrome, touchOrchCounts, runSave)
 

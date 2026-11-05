@@ -1,29 +1,42 @@
-import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
-import { compactStaticDeviceParts as compactStaticDeviceParts2 } from "../../../items/studio-device-batching";
-import { isCourtyardPlanItem as isCourtyardPlanItem2 } from "../../../../plan/courtyard-plan";
-import { courtyardFootprintLoops as courtyardFootprintLoops2, outerPerimeterLine as outerPerimeterLine2, sceneModelOrigin as sceneModelOrigin2 } from "../../../../plan/courtyard-drawing";
-import { applyShadowReceiverTrial as applyShadowReceiverTrial2 } from "../../../studio-shadow-receiver-trial";
-import { buildStaticMaterialKey } from "../../../../materials/studio-static-material-key";
-import { compactRuntimeFurniture as compactRuntimeFurniture2 } from "../../../items/studio-runtime-furniture";
-import { cacheObjectTransforms as cacheObjectTransforms2 } from "../../../../../bridge/scene/scene-matrices";
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
-import { axisLockedPoint as axisLockedPoint2, clamp as clamp2, distance as distance2, polygonArea as polygonArea2, snapPoint as snapPoint2, subtractPolygonLoops as subtractPolygonLoops2 } from "../../../../plan/geometry";
-import { finite as finite2 } from "../../../../loaders/studio-normalization";
-import { lampItemTypeSet } from "../../../items/item-catalog";
-import type { UpdateCameraViewOptions } from "../../../types/studio-app-types";
-import { precompileShaderPrograms } from "../../../scene/studio-shader-precompile";
-import { minPointDistance } from "../../../scene/studio-scene-payload";
-import { applyItemOrientation } from "../../scene/item-orientation";
-import { buildFloorEdgeOutline } from "../../scene/floor-edge";
+import type { StudioAppRuntime } from '../../runtime/studio-app-runtime'
+import { compactStaticDeviceParts as compactStaticDeviceParts2 } from '../../../items/studio-device-batching'
+import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../../../../plan/courtyard-plan'
+import {
+  courtyardFootprintLoops as courtyardFootprintLoops2,
+  outerPerimeterLine as outerPerimeterLine2,
+  sceneModelOrigin as sceneModelOrigin2,
+} from '../../../../plan/courtyard-drawing'
+import { applyShadowReceiverTrial as applyShadowReceiverTrial2 } from '../../../studio-shadow-receiver-trial'
+import { buildStaticMaterialKey } from '../../../../materials/studio-static-material-key'
+import { compactRuntimeFurniture as compactRuntimeFurniture2 } from '../../../items/studio-runtime-furniture'
+import { cacheObjectTransforms as cacheObjectTransforms2 } from '../../../../../bridge/scene/scene-matrices'
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
+import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
+import {
+  axisLockedPoint as axisLockedPoint2,
+  clamp as clamp2,
+  distance as distance2,
+  polygonArea as polygonArea2,
+  snapPoint as snapPoint2,
+  subtractPolygonLoops as subtractPolygonLoops2,
+} from '../../../../plan/geometry'
+import { finite as finite2 } from '../../../../loaders/studio-normalization'
+import { lampItemTypeSet } from '../../../items/item-catalog'
+import type { UpdateCameraViewOptions } from '../../../types/studio-app-types'
+import { precompileShaderPrograms } from '../../../scene/studio-shader-precompile'
+import { minPointDistance } from '../../../scene/studio-scene-payload'
+import { applyItemOrientation } from '../../scene/item-orientation'
+import { buildFloorEdgeOutline } from '../../scene/floor-edge'
 
-export function buildCourtyardFoundation(runtime: StudioAppRuntime, { ppm: courtyardPixelsPerMeter, toWorld: courtyardToWorld }: any) {
-  const floorEdgeIndoorLoops = runtime.appCtx.sceneRootNode.userData.floorEdgeIndoorLoops;
-  if (!floorEdgeIndoorLoops) return;
+export function buildCourtyardFoundation(
+  runtime: StudioAppRuntime,
+  { ppm: courtyardPixelsPerMeter, toWorld: courtyardToWorld }: any,
+) {
+  const floorEdgeIndoorLoops = runtime.appCtx.sceneRootNode.userData.floorEdgeIndoorLoops
+  if (!floorEdgeIndoorLoops) return
   const courtyardDrawingList = runtime.appCtx.studioState.items.filter(
       (courtyardDrawingItem) =>
-        courtyardDrawingItem.type === "courtyard-area" ||
-        courtyardDrawingItem.type === "courtyard-fence",
+        courtyardDrawingItem.type === 'courtyard-area' || courtyardDrawingItem.type === 'courtyard-fence',
     ),
     floorEdge = runtime.backgroundSettings().floorEdge,
     courtyardSignature = JSON.stringify([
@@ -44,13 +57,12 @@ export function buildCourtyardFoundation(runtime: StudioAppRuntime, { ppm: court
       courtyardPixelsPerMeter,
       floorEdge,
       runtime.appCtx.studioState.settings.floorEdgeVisible,
-    ]);
-  if (runtime.appCtx.sceneRootNode.userData.floorEdgeKey === courtyardSignature) return;
+    ])
+  if (runtime.appCtx.sceneRootNode.userData.floorEdgeKey === courtyardSignature) return
   for (const foundationChildObject of [...runtime.appCtx.sceneRootNode.children])
-    (foundationChildObject.userData.exportRole === "outline" ||
-      foundationChildObject.userData.courtyardFoundation) &&
-      (runtime.appCtx.sceneRootNode.remove(foundationChildObject), runtime.disposeObjectTree(foundationChildObject));
-  runtime.appCtx.sceneRootNode.userData.floorEdgeKey = courtyardSignature;
+    (foundationChildObject.userData.exportRole === 'outline' || foundationChildObject.userData.courtyardFoundation) &&
+      (runtime.appCtx.sceneRootNode.remove(foundationChildObject), runtime.disposeObjectTree(foundationChildObject))
+  runtime.appCtx.sceneRootNode.userData.floorEdgeKey = courtyardSignature
   const courtyardFootprintLoops = courtyardDrawingList.length
       ? courtyardFootprintLoops2(
           floorEdgeIndoorLoops,
@@ -65,9 +77,7 @@ export function buildCourtyardFoundation(runtime: StudioAppRuntime, { ppm: court
             y: indoorLoopPoint.z,
           })),
         ),
-    outerFootprintLoops = courtyardFootprintLoops.filter(
-      (footprintLoop: any) => polygonArea2(footprintLoop) > 0,
-    );
+    outerFootprintLoops = courtyardFootprintLoops.filter((footprintLoop: any) => polygonArea2(footprintLoop) > 0)
   if (courtyardDrawingList.length && outerFootprintLoops.length) {
     const cutoutLoops = [
         ...floorEdgeIndoorLoops.map((cutoutIndoorLoopGroup: any) =>
@@ -76,13 +86,11 @@ export function buildCourtyardFoundation(runtime: StudioAppRuntime, { ppm: court
             y: cutoutIndoorPoint.z,
           })),
         ),
-        ...courtyardFootprintLoops.filter(
-          (holeFootprintLoop: any) => polygonArea2(holeFootprintLoop) < 0,
-        ),
+        ...courtyardFootprintLoops.filter((holeFootprintLoop: any) => polygonArea2(holeFootprintLoop) < 0),
         ...(runtime.appCtx.sceneRootNode.userData.floorEdgeOpenings || []),
       ],
       holedFootprintLoops = subtractPolygonLoops2(outerFootprintLoops, cutoutLoops, 0.00001),
-      ms4 = runtime.buildShapesWithHoles(holedFootprintLoops);
+      ms4 = runtime.buildShapesWithHoles(holedFootprintLoops)
     if (ms4.length) {
       const foundationMesh = new ns2.Mesh(
         new ns2.ExtrudeGeometry(ms4, {
@@ -91,23 +99,24 @@ export function buildCourtyardFoundation(runtime: StudioAppRuntime, { ppm: court
           steps: 1,
         }),
         runtime.createFloorMaterial(),
-      );
-      ((foundationMesh.rotation.x = Math.PI / 2),
+      )
+      ;(foundationMesh.rotation.x = Math.PI / 2),
         (foundationMesh.position.y = -0.008),
         (foundationMesh.receiveShadow = true),
         Object.assign(foundationMesh.userData, {
           courtyardFoundation: true,
-          exportRole: "plan",
-          regionReceiverKind: "floor",
+          exportRole: 'plan',
+          regionReceiverKind: 'floor',
           regionFloorId: runtime.appCtx.activeFloorId,
         }),
-        runtime.appCtx.sceneRootNode.add(foundationMesh));
+        runtime.appCtx.sceneRootNode.add(foundationMesh)
     }
   }
   if (runtime.appCtx.studioState.settings.floorEdgeVisible !== false) {
     for (const closedFootprintLoop of outerFootprintLoops)
       buildFloorEdgeOutline(
-        runtime.appCtx, courtyardDrawingList.length
+        runtime.appCtx,
+        courtyardDrawingList.length
           ? outerPerimeterLine2(closedFootprintLoop)
           : closedFootprintLoop.map((perimeterPoint: any) => ({
               x: perimeterPoint.x,
@@ -115,17 +124,22 @@ export function buildCourtyardFoundation(runtime: StudioAppRuntime, { ppm: court
             })),
         floorEdge,
         -0.168,
-      );
+      )
   }
 }
 
-export function buildGroundShadow(runtime: StudioAppRuntime, groundShadowLoopList: any, groundShadowHeight: any, groundShadowHoles: any[] = []) {
-  if (!Array.isArray(groundShadowLoopList) || groundShadowLoopList.length < 3) return;
+export function buildGroundShadow(
+  runtime: StudioAppRuntime,
+  groundShadowLoopList: any,
+  groundShadowHeight: any,
+  groundShadowHoles: any[] = [],
+) {
+  if (!Array.isArray(groundShadowLoopList) || groundShadowLoopList.length < 3) return
   const groundShadowPoints = groundShadowLoopList.map((groundShadowLoopPoint) => ({
     x: groundShadowLoopPoint.x,
     y: groundShadowLoopPoint.z,
-  }));
-  [
+  }))
+  ;[
     {
       spread: 0.035,
       offsetX: 0.13,
@@ -145,13 +159,12 @@ export function buildGroundShadow(runtime: StudioAppRuntime, groundShadowLoopLis
       opacity: 0.018,
     },
   ].forEach((shadowLayerConfig, shadowLayerIndex) => {
-    const shadowLayerPoints = runtime.expandPolygonOutward(
-        groundShadowPoints,
-        shadowLayerConfig.spread,
-      ).map((shadowLayerPoint: any) => ({
-        x: shadowLayerPoint.x + shadowLayerConfig.offsetX,
-        y: shadowLayerPoint.y + shadowLayerConfig.offsetY,
-      })),
+    const shadowLayerPoints = runtime
+        .expandPolygonOutward(groundShadowPoints, shadowLayerConfig.spread)
+        .map((shadowLayerPoint: any) => ({
+          x: shadowLayerPoint.x + shadowLayerConfig.offsetX,
+          y: shadowLayerPoint.y + shadowLayerConfig.offsetY,
+        })),
       ms5 = groundShadowHoles.length
         ? runtime.buildShapesWithHoles(subtractPolygonLoops2([shadowLayerPoints], groundShadowHoles))
         : runtime.createOutlinePath(ns2.Shape, shadowLayerPoints),
@@ -166,39 +179,42 @@ export function buildGroundShadow(runtime: StudioAppRuntime, groundShadowLoopLis
           side: ns2.DoubleSide,
           forceSinglePass: runtime.isEmbeddedStage,
         }),
-      );
-    ((groundShadowMesh.rotation.x = Math.PI / 2),
+      )
+    ;(groundShadowMesh.rotation.x = Math.PI / 2),
       (groundShadowMesh.position.y = groundShadowHeight + 0.001 + shadowLayerIndex * 0.00015),
       (groundShadowMesh.userData.floorPlanGroundShadow = true),
-      (groundShadowMesh.userData.exportRole = "background"),
-      (groundShadowMesh.visible = runtime.appCtx.sceneStyle !== "warm-wood"),
+      (groundShadowMesh.userData.exportRole = 'background'),
+      (groundShadowMesh.visible = runtime.appCtx.sceneStyle !== 'warm-wood'),
       (groundShadowMesh.renderOrder = 1 + shadowLayerIndex),
-      runtime.appCtx.sceneRootNode.add(groundShadowMesh));
-  });
+      runtime.appCtx.sceneRootNode.add(groundShadowMesh)
+  })
 }
 
-export function getPreviewFloorMode(runtime: StudioAppRuntime, ) {
-  return runtime.appCtx.studioProject?.previewFloorMode === "all" && runtime.appCtx.studioProject.floors.length > 1
-    ? "all"
-    : "active";
+export function getPreviewFloorMode(runtime: StudioAppRuntime) {
+  return runtime.appCtx.studioProject?.previewFloorMode === 'all' && runtime.appCtx.studioProject.floors.length > 1
+    ? 'all'
+    : 'active'
 }
 
-export function updateFloorPreviewButtons(runtime: StudioAppRuntime, ) {
+export function updateFloorPreviewButtons(runtime: StudioAppRuntime) {
   const le2 = runtime.getPreviewFloorMode(),
-    shouldEnableFloorPreview = (runtime.appCtx.studioProject?.floors.length || 0) > 1;
+    shouldEnableFloorPreview = (runtime.appCtx.studioProject?.floors.length || 0) > 1
   for (const floorPreviewButton of runtime.previewFloorControls) {
-    const isActiveFloorPreviewButton = floorPreviewButton.dataset.previewFloor === le2;
-    (floorPreviewButton.classList.toggle("active", isActiveFloorPreviewButton),
-      floorPreviewButton.setAttribute("aria-pressed", String(isActiveFloorPreviewButton)),
-      (floorPreviewButton.disabled =
-        floorPreviewButton.dataset.previewFloor === "all" && !shouldEnableFloorPreview));
+    const isActiveFloorPreviewButton = floorPreviewButton.dataset.previewFloor === le2
+    floorPreviewButton.classList.toggle('active', isActiveFloorPreviewButton),
+      floorPreviewButton.setAttribute('aria-pressed', String(isActiveFloorPreviewButton)),
+      (floorPreviewButton.disabled = floorPreviewButton.dataset.previewFloor === 'all' && !shouldEnableFloorPreview)
   }
 }
 
-export function setPreviewFloor(runtime: StudioAppRuntime, previewFloorId: any, { persist: shouldPersistPreview = true } = {}) {
+export function setPreviewFloor(
+  runtime: StudioAppRuntime,
+  previewFloorId: any,
+  { persist: shouldPersistPreview = true } = {},
+) {
   runtime.appCtx.studioProject &&
     ((runtime.appCtx.studioProject.previewFloorMode =
-      previewFloorId === "all" && runtime.appCtx.studioProject.floors.length > 1 ? "all" : "active"),
+      previewFloorId === 'all' && runtime.appCtx.studioProject.floors.length > 1 ? 'all' : 'active'),
     runtime.updateFloorPreviewButtons(),
     runtime.refreshFloorControls(),
     runtime.setCameraMode(runtime.getCameraMode(), {
@@ -207,39 +223,44 @@ export function setPreviewFloor(runtime: StudioAppRuntime, previewFloorId: any, 
     Promise.allSettled(runtime.preloadDefaultModels()),
     runtime.rebuildFloorLayers(),
     runtime.updateCameraView(),
-    shouldPersistPreview && runtime.markDocumentDirty());
+    shouldPersistPreview && runtime.markDocumentDirty())
 }
 
 export function rebuildFloorLayers(runtime: StudioAppRuntime, floorRebuildOptions: Record<string, any> = {}) {
   if (runtime.appCtx.isSceneStillLoading) {
-    runtime.assetLoaderState.revision++;
-    return;
+    runtime.assetLoaderState.revision++
+    return
   }
   // 预览重建期间先不销毁旧材质/几何，交给交接队列在渲染帧结束后统一回收。
   const rebuildFloors = () => {
     for (const _floorLayerEntry of runtime.buildFloorsAsync(floorRebuildOptions));
-  };
+  }
   runtime.previewResources
-    ? runtime.previewResources.run(rebuildFloors, !runtime.isEmbeddedStage && !runtime.appCtx.isRenderSuppressed && !document.hidden)
-    : rebuildFloors();
+    ? runtime.previewResources.run(
+        rebuildFloors,
+        !runtime.isEmbeddedStage && !runtime.appCtx.isRenderSuppressed && !document.hidden,
+      )
+    : rebuildFloors()
 }
 
-export async function waitForSceneRevision(runtime: StudioAppRuntime, ) {
+export async function waitForSceneRevision(runtime: StudioAppRuntime) {
   const sceneAtStart = runtime.appCtx.studioProject,
     rootAtStart = runtime.appCtx.sceneRootNode,
     isSceneRevisionCurrent = () =>
-      !runtime.assetLoaderState.disposed && sceneAtStart === runtime.appCtx.studioProject && rootAtStart === runtime.appCtx.sceneRootNode;
-  for (; isSceneRevisionCurrent();) {
+      !runtime.assetLoaderState.disposed &&
+      sceneAtStart === runtime.appCtx.studioProject &&
+      rootAtStart === runtime.appCtx.sceneRootNode
+  for (; isSceneRevisionCurrent(); ) {
     const revision = runtime.assetLoaderState.revision,
-      bg2 = runtime.buildFloorsAsync();
+      bg2 = runtime.buildFloorsAsync()
     try {
-      let shouldWaitForScene = false;
-      for (; isSceneRevisionCurrent() && revision === runtime.assetLoaderState.revision;) {
+      let shouldWaitForScene = false
+      for (; isSceneRevisionCurrent() && revision === runtime.assetLoaderState.revision; ) {
         if (bg2.next().done) {
-          shouldWaitForScene = true;
-          break;
+          shouldWaitForScene = true
+          break
         }
-        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame)
       }
       if (shouldWaitForScene)
         return (
@@ -249,16 +270,16 @@ export async function waitForSceneRevision(runtime: StudioAppRuntime, ) {
           (runtime.appCtx.isSceneDirty = false),
           runtime.refreshPreviewSync(),
           true
-        );
+        )
     } finally {
-      bg2.return();
+      bg2.return()
     }
   }
-  return false;
+  return false
 }
 
 export async function waitForSceneReady(runtime: StudioAppRuntime, sceneWaitTimeout: any = null) {
-  if (!runtime.isEmbedStageMode || !runtime.appCtx.regionLightController || !runtime.appCtx.threeRenderer) return;
+  if (!runtime.isEmbedStageMode || !runtime.appCtx.regionLightController || !runtime.appCtx.threeRenderer) return
   const sceneSnapshotRef = runtime.appCtx.sceneRootNode,
     floorsSnapshotRef = runtime.appCtx.threeRenderer,
     ue3 = runtime.appCtx.threeScene,
@@ -273,55 +294,55 @@ export async function waitForSceneReady(runtime: StudioAppRuntime, sceneWaitTime
       runtime.appCtx.threeRenderer === floorsSnapshotRef &&
       runtime.appCtx.threeScene === ue3 &&
       runtime.appCtx.threeCamera === cameraSnapshotRef &&
-      runtime.appCtx.sceneRevisionCount === Gt2;
-  (ue3.updateMatrixWorld(true),
+      runtime.appCtx.sceneRevisionCount === Gt2
+  ue3.updateMatrixWorld(true),
     runtime.appCtx.regionLightController.sync(cameraSnapshotRef),
-    sceneWaitTimeout?.preparePresentationMaterials?.(
-      sceneSnapshotRef,
-      Gt2 + ":" + runtime.appCtx.curtainFrameKey,
-    ));
+    sceneWaitTimeout?.preparePresentationMaterials?.(sceneSnapshotRef, Gt2 + ':' + runtime.appCtx.curtainFrameKey)
   try {
     await precompileShaderPrograms(floorsSnapshotRef, ue3, cameraSnapshotRef, isSceneStable, {
       visibleOnly: true,
       pollInterval: 16,
-    });
-  } catch { /* 着色器预编译是预热优化：失败时退回按需编译，不影响渲染正确性 */ }
+    })
+  } catch {
+    /* 着色器预编译是预热优化：失败时退回按需编译，不影响渲染正确性 */
+  }
 }
 
-export function* buildFloorsAsync(runtime: StudioAppRuntime, {
-  preserveLightCache: preserveLightCacheSnapshot = false,
-} = {}): Generator<any, void, unknown> {
-  if (!runtime.appCtx.sceneRootNode) return;
-  if ((runtime.stageLoadTiming("model-build"), runtime.getPreviewFloorMode() !== "all")) {
-    (runtime.buildStudioScene({
+export function* buildFloorsAsync(
+  runtime: StudioAppRuntime,
+  { preserveLightCache: preserveLightCacheSnapshot = false } = {},
+): Generator<any, void, unknown> {
+  if (!runtime.appCtx.sceneRootNode) return
+  if ((runtime.stageLoadTiming('model-build'), runtime.getPreviewFloorMode() !== 'all')) {
+    runtime.buildStudioScene({
       preserveLightCache: preserveLightCacheSnapshot,
     }),
-      runtime.computeSceneExtent());
-    return;
+      runtime.computeSceneExtent()
+    return
   }
   const rootForFloors = runtime.appCtx.sceneRootNode,
     viewModelForFloors = runtime.appCtx.studioState,
     oe5 = runtime.appCtx.activeFloorId,
-    nn3 = runtime.appCtx.sceneModelOrigin;
-  (runtime.refreshBaseLighting(),
+    nn3 = runtime.appCtx.sceneModelOrigin
+  runtime.refreshBaseLighting(),
     runtime.disposeFloorScene(),
     runtime.refreshSceneRender({
       shadows: true,
       scene: true,
       preserveLightCache: preserveLightCacheSnapshot,
-    }));
+    })
   const sort6 = [...runtime.appCtx.studioProject.floors].sort(
       (firstFloor, secondFloor) => firstFloor.elevation - secondFloor.elevation,
     ),
     floorGap = runtime.appCtx.pendingRuntimeSettings
       ? finite2(runtime.appCtx.studioProject.exportFloorGap, 3)
-      : finite2(runtime.appCtx.studioProject.previewFloorGap, 3);
+      : finite2(runtime.appCtx.studioProject.previewFloorGap, 3)
   for (const [floorSortIndex, preserveLightCacheSnapshotFloorRecord] of sort6.entries()) {
-    const floorGroupContainer = new ns2.Group();
-    ((floorGroupContainer.name = "floor-" + preserveLightCacheSnapshotFloorRecord.id),
-      (floorGroupContainer.userData.floorId = preserveLightCacheSnapshotFloorRecord.id));
+    const floorGroupContainer = new ns2.Group()
+    ;(floorGroupContainer.name = 'floor-' + preserveLightCacheSnapshotFloorRecord.id),
+      (floorGroupContainer.userData.floorId = preserveLightCacheSnapshotFloorRecord.id)
     try {
-      ((runtime.appCtx.sceneRootNode = floorGroupContainer),
+      ;(runtime.appCtx.sceneRootNode = floorGroupContainer),
         (runtime.appCtx.studioState = preserveLightCacheSnapshotFloorRecord.scene),
         (runtime.appCtx.activeFloorId = preserveLightCacheSnapshotFloorRecord.id),
         (runtime.appCtx.sceneModelOrigin = {
@@ -330,32 +351,28 @@ export function* buildFloorsAsync(runtime: StudioAppRuntime, {
         }),
         runtime.buildStudioScene({
           preserveLightCache: preserveLightCacheSnapshot,
-        }));
+        })
     } catch (floorBuildError: any) {
-      throw (runtime.disposeObjectTree(floorGroupContainer), floorBuildError);
+      throw (runtime.disposeObjectTree(floorGroupContainer), floorBuildError)
     } finally {
-      ((runtime.appCtx.sceneRootNode = rootForFloors),
+      ;(runtime.appCtx.sceneRootNode = rootForFloors),
         (runtime.appCtx.studioState = viewModelForFloors),
         (runtime.appCtx.activeFloorId = oe5),
-        (runtime.appCtx.sceneModelOrigin = nn3));
+        (runtime.appCtx.sceneModelOrigin = nn3)
     }
     if (floorSortIndex > 0) {
       for (const preserveLightCacheSnapshotFloorChildObject of [...floorGroupContainer.children])
-        if (
-          ["background", "grid"].includes(
-            preserveLightCacheSnapshotFloorChildObject.userData?.exportRole,
-          )
-        ) {
+        if (['background', 'grid'].includes(preserveLightCacheSnapshotFloorChildObject.userData?.exportRole)) {
           if (runtime.isEmbeddedStage) {
-            ((preserveLightCacheSnapshotFloorChildObject.userData.floorBackgroundHidden = true),
-              (preserveLightCacheSnapshotFloorChildObject.visible = false));
-            continue;
+            ;(preserveLightCacheSnapshotFloorChildObject.userData.floorBackgroundHidden = true),
+              (preserveLightCacheSnapshotFloorChildObject.visible = false)
+            continue
           }
-          (floorGroupContainer.remove(preserveLightCacheSnapshotFloorChildObject),
-            runtime.disposeObjectTree(preserveLightCacheSnapshotFloorChildObject));
+          floorGroupContainer.remove(preserveLightCacheSnapshotFloorChildObject),
+            runtime.disposeObjectTree(preserveLightCacheSnapshotFloorChildObject)
         }
     }
-    (floorGroupContainer.position.set(
+    floorGroupContainer.position.set(
       finite2(preserveLightCacheSnapshotFloorRecord.offsetX, 0),
       floorSortIndex * floorGap,
       finite2(preserveLightCacheSnapshotFloorRecord.offsetZ, 0),
@@ -364,9 +381,9 @@ export function* buildFloorsAsync(runtime: StudioAppRuntime, {
         finite2(preserveLightCacheSnapshotFloorRecord.rotation, 0),
       )),
       rootForFloors.add(floorGroupContainer),
-      floorSortIndex < sort6.length - 1 && (yield));
+      floorSortIndex < sort6.length - 1 && (yield)
   }
-  ((runtime.appCtx.sceneRootNode = rootForFloors),
+  ;(runtime.appCtx.sceneRootNode = rootForFloors),
     (runtime.appCtx.studioState = viewModelForFloors),
     (runtime.appCtx.activeFloorId = oe5),
     (runtime.appCtx.sceneModelOrigin = nn3),
@@ -378,14 +395,14 @@ export function* buildFloorsAsync(runtime: StudioAppRuntime, {
       shadows: true,
       scene: true,
       preserveLightCache: preserveLightCacheSnapshot,
-    }));
+    })
 }
 
 export function syncFloorGroups(runtime: StudioAppRuntime, layerKeySet: any) {
-  if (!layerKeySet.size || !runtime.appCtx.sceneRootNode) return;
-  if (runtime.getPreviewFloorMode() !== "all") {
-    layerKeySet.has(runtime.appCtx.activeFloorId) && runtime.rebuildFloorLayers();
-    return;
+  if (!layerKeySet.size || !runtime.appCtx.sceneRootNode) return
+  if (runtime.getPreviewFloorMode() !== 'all') {
+    layerKeySet.has(runtime.appCtx.activeFloorId) && runtime.rebuildFloorLayers()
+    return
   }
   const rootForFloorSync = runtime.appCtx.sceneRootNode,
     viewModelForFloorSync = runtime.appCtx.studioState,
@@ -393,7 +410,7 @@ export function syncFloorGroups(runtime: StudioAppRuntime, layerKeySet: any) {
     nn4 = runtime.appCtx.sceneModelOrigin,
     sort7 = [...runtime.appCtx.studioProject.floors].sort(
       (firstSortFloor, secondSortFloor) => firstSortFloor.elevation - secondSortFloor.elevation,
-    );
+    )
   if (
     sort7.some(
       (syncFloor) =>
@@ -402,8 +419,8 @@ export function syncFloorGroups(runtime: StudioAppRuntime, layerKeySet: any) {
         ),
     )
   ) {
-    runtime.rebuildFloorLayers();
-    return;
+    runtime.rebuildFloorLayers()
+    return
   }
   try {
     for (const [floorSyncIndex, syncFloorRecord] of sort7.entries())
@@ -423,40 +440,36 @@ export function syncFloorGroups(runtime: StudioAppRuntime, layerKeySet: any) {
           floorSyncIndex * runtime.appCtx.studioProject.previewFloorGap,
           finite2(syncFloorRecord.offsetZ, 0),
         ),
-        runtime.appCtx.sceneRootNode.rotation.set(
-          0,
-          -ns2.MathUtils.degToRad(finite2(syncFloorRecord.rotation, 0)),
-          0,
-        ),
+        runtime.appCtx.sceneRootNode.rotation.set(0, -ns2.MathUtils.degToRad(finite2(syncFloorRecord.rotation, 0)), 0),
         runtime.appCtx.sceneRootNode.scale.set(1, 1, 1),
         runtime.buildStudioScene(),
         floorSyncIndex > 0)
       ) {
         for (const staleFloorChild of [...runtime.appCtx.sceneRootNode.children])
-          if (["background", "grid"].includes(staleFloorChild.userData?.exportRole)) {
+          if (['background', 'grid'].includes(staleFloorChild.userData?.exportRole)) {
             if (runtime.isEmbeddedStage) {
-              ((staleFloorChild.userData.floorBackgroundHidden = true),
-                (staleFloorChild.visible = false));
-              continue;
+              ;(staleFloorChild.userData.floorBackgroundHidden = true), (staleFloorChild.visible = false)
+              continue
             }
-            (runtime.appCtx.sceneRootNode.remove(staleFloorChild), runtime.disposeObjectTree(staleFloorChild));
+            runtime.appCtx.sceneRootNode.remove(staleFloorChild), runtime.disposeObjectTree(staleFloorChild)
           }
       }
   } finally {
-    ((runtime.appCtx.sceneRootNode = rootForFloorSync),
+    ;(runtime.appCtx.sceneRootNode = rootForFloorSync),
       (runtime.appCtx.studioState = viewModelForFloorSync),
       (runtime.appCtx.activeFloorId = oe6),
-      (runtime.appCtx.sceneModelOrigin = nn4));
+      (runtime.appCtx.sceneModelOrigin = nn4)
   }
-  (runtime.setupSceneShadows(rootForFloorSync), runtime.computeSceneExtent());
+  runtime.setupSceneShadows(rootForFloorSync), runtime.computeSceneExtent()
 }
 
-export function createFloorWorldMapper(runtime: StudioAppRuntime, ) {
-  const floorMapperPpm = runtime.getPixelsPerMeter();
-  if (!floorMapperPpm) return null;
-  const nn5 = runtime.appCtx.sceneModelOrigin || sceneModelOrigin2(runtime.appCtx.studioState, runtime.getActiveFloor()),
+export function createFloorWorldMapper(runtime: StudioAppRuntime) {
+  const floorMapperPpm = runtime.getPixelsPerMeter()
+  if (!floorMapperPpm) return null
+  const nn5 =
+      runtime.appCtx.sceneModelOrigin || sceneModelOrigin2(runtime.appCtx.studioState, runtime.getActiveFloor()),
     floorMapperOriginX = nn5.x,
-    floorMapperOriginY = nn5.y;
+    floorMapperOriginY = nn5.y
   return {
     ppm: floorMapperPpm,
     floorSurfaceY: -0.008,
@@ -465,11 +478,12 @@ export function createFloorWorldMapper(runtime: StudioAppRuntime, ) {
       x: (mapperPoint.x - floorMapperOriginX) / floorMapperPpm,
       z: (mapperPoint.y - floorMapperOriginY) / floorMapperPpm,
     }),
-  };
+  }
 }
 
-export function previewTransformContext(runtime: StudioAppRuntime, ) {
-  const previewTransformOrigin = runtime.appCtx.sceneModelOrigin || sceneModelOrigin2(runtime.appCtx.studioState, runtime.getActiveFloor());
+export function previewTransformContext(runtime: StudioAppRuntime) {
+  const previewTransformOrigin =
+    runtime.appCtx.sceneModelOrigin || sceneModelOrigin2(runtime.appCtx.studioState, runtime.getActiveFloor())
   return {
     items: runtime.appCtx.studioState.items,
     contextKey: JSON.stringify([
@@ -487,10 +501,10 @@ export function previewTransformContext(runtime: StudioAppRuntime, ) {
     ]),
     isEligible: (previewCandidate: any) =>
       !lampItemTypeSet.has(previewCandidate.type) &&
-      previewCandidate.type !== "flooropening" &&
+      previewCandidate.type !== 'flooropening' &&
       !isCourtyardPlanItem2(previewCandidate),
-    isSelected: (previewCandidate: any) => runtime.createSelectionRef("item", previewCandidate.id),
-  };
+    isSelected: (previewCandidate: any) => runtime.createSelectionRef('item', previewCandidate.id),
+  }
 }
 
 export function capturePreviewTransforms(runtime: StudioAppRuntime, layerItemRecords: any) {
@@ -500,23 +514,23 @@ export function capturePreviewTransforms(runtime: StudioAppRuntime, layerItemRec
     runtime.previewTransformCache.capture(runtime.appCtx.sceneRootNode, {
       ...runtime.previewTransformContext(),
       groups: layerItemRecords,
-    });
+    })
 }
 
-export function applyPreviewTransforms(runtime: StudioAppRuntime, 
+export function applyPreviewTransforms(
+  runtime: StudioAppRuntime,
   worldMapper: any,
   { preserveLightCache: shouldPreservePreviewLightCache, shadowRoot: previewShadowRoot }: any,
 ) {
-  if (runtime.isEmbeddedStage || runtime.isEmbedStageMode || !runtime.appCtx.sceneRootNode) return false;
+  if (runtime.isEmbeddedStage || runtime.isEmbedStageMode || !runtime.appCtx.sceneRootNode) return false
   const movedTransforms = runtime.previewTransformCache.planReplacements(
     runtime.appCtx.sceneRootNode,
     runtime.previewTransformContext(),
-  );
-  if (!movedTransforms) return false;
+  )
+  if (!movedTransforms) return false
   for (const { item: movedItem, group: movedGroup } of movedTransforms) {
-    const world = worldMapper.toWorld(movedItem);
-    (movedGroup.position.set(world.x, movedItem.elevation || 0, world.z),
-      applyItemOrientation(movedGroup, movedItem));
+    const world = worldMapper.toWorld(movedItem)
+    movedGroup.position.set(world.x, movedItem.elevation || 0, world.z), applyItemOrientation(movedGroup, movedItem)
   }
   return (
     runtime.previewTransformCache.commitReplacements(runtime.appCtx.sceneRootNode, movedTransforms),
@@ -529,18 +543,19 @@ export function applyPreviewTransforms(runtime: StudioAppRuntime,
         preserveLightCache: shouldPreservePreviewLightCache,
       })),
     true
-  );
+  )
 }
 
 export function buildSceneLayers(runtime: StudioAppRuntime, layerKeyList: any) {
   if (runtime.appCtx.sceneRootNode) {
     for (const layerChildObject of [...runtime.appCtx.sceneRootNode.children])
       layerChildObject.userData.modelLayer === layerKeyList &&
-        (runtime.appCtx.sceneRootNode.remove(layerChildObject), runtime.disposeObjectTree(layerChildObject));
+        (runtime.appCtx.sceneRootNode.remove(layerChildObject), runtime.disposeObjectTree(layerChildObject))
   }
 }
 
-export function buildLayerGroup(runtime: StudioAppRuntime, 
+export function buildLayerGroup(
+  runtime: StudioAppRuntime,
   layerKey: any,
   {
     preserveLightCache: preserveLayerLightCache = false,
@@ -548,25 +563,29 @@ export function buildLayerGroup(runtime: StudioAppRuntime,
     allowTransforms: allowLayerTransforms = false,
   } = {},
 ) {
-  if (!runtime.appCtx.sceneRootNode) return;
-  const mg3 = runtime.createFloorWorldMapper();
-  if (!mg3) return;
-  if (layerKey === "items" && allowLayerTransforms && runtime.applyPreviewTransforms(mg3, {
-    preserveLightCache: preserveLayerLightCache,
-    shadowRoot: layerShadowRoot,
-  }))
-    return;
-  runtime.buildSceneLayers(layerKey);
-  const isLightsLayer = layerKey === "lights",
+  if (!runtime.appCtx.sceneRootNode) return
+  const mg3 = runtime.createFloorWorldMapper()
+  if (!mg3) return
+  if (
+    layerKey === 'items' &&
+    allowLayerTransforms &&
+    runtime.applyPreviewTransforms(mg3, {
+      preserveLightCache: preserveLayerLightCache,
+      shadowRoot: layerShadowRoot,
+    })
+  )
+    return
+  runtime.buildSceneLayers(layerKey)
+  const isLightsLayer = layerKey === 'lights',
     $u3 = isLightsLayer ? runtime.collectLightSourceSpecs() : null,
-    layerItemRecords: any[] = [];
+    layerItemRecords: any[] = []
   for (const layerItem of runtime.appCtx.studioState.items) {
-    if (lampItemTypeSet.has(layerItem.type) !== isLightsLayer) continue;
-    const world = mg3.toWorld(layerItem);
-    if (layerItem.type === "flooropening") continue;
-    const vu3 = runtime.buildItemModel(layerItem, $u3);
-    (runtime.isEmbeddedStage &&
-      !runtime.createSelectionRef("item", layerItem.id) &&
+    if (lampItemTypeSet.has(layerItem.type) !== isLightsLayer) continue
+    const world = mg3.toWorld(layerItem)
+    if (layerItem.type === 'flooropening') continue
+    const vu3 = runtime.buildItemModel(layerItem, $u3)
+    runtime.isEmbeddedStage &&
+      !runtime.createSelectionRef('item', layerItem.id) &&
       compactStaticDeviceParts2(ns2, vu3, layerItem.type, buildStaticMaterialKey),
       runtime.isEmbeddedStage &&
         Object.assign(vu3.userData, {
@@ -574,40 +593,40 @@ export function buildLayerGroup(runtime: StudioAppRuntime,
           editorFloorId: runtime.appCtx.activeFloorId,
         }),
       runtime.isEmbedStageMode &&
-        ["smallcar", "suv", "scooter"].includes(layerItem.type) &&
+        ['smallcar', 'suv', 'scooter'].includes(layerItem.type) &&
         (vu3.userData.preserveDetailedSurface = true),
       runtime.isEmbeddedStage &&
         [
-          "airer",
-          "fan",
-          "ceiling-fan",
-          "exhaust-fan",
-          "storagewaterheater",
-          "gaswaterheater",
-          "airpurifier",
-          "wallac",
-          "floorac",
-          "airoutlet",
-          "curtain",
-          "nas",
-          "fridge",
-          "freezer",
-          "dishwasher",
-          "washer",
-          "dryer",
-          "plant",
-          "camera",
-          "presence",
-          "speaker",
-          "tv",
-          "robotvacuum",
-          "smallcar",
-          "suv",
-          "scooter",
+          'airer',
+          'fan',
+          'ceiling-fan',
+          'exhaust-fan',
+          'storagewaterheater',
+          'gaswaterheater',
+          'airpurifier',
+          'wallac',
+          'floorac',
+          'airoutlet',
+          'curtain',
+          'nas',
+          'fridge',
+          'freezer',
+          'dishwasher',
+          'washer',
+          'dryer',
+          'plant',
+          'camera',
+          'presence',
+          'speaker',
+          'tv',
+          'robotvacuum',
+          'smallcar',
+          'suv',
+          'scooter',
         ].includes(layerItem.type) &&
         ((vu3.userData.environmentModelId = layerItem.id),
-        (vu3.userData.environmentModelType = ["smallcar", "suv", "scooter"].includes(layerItem.type)
-          ? "smallcar"
+        (vu3.userData.environmentModelType = ['smallcar', 'suv', 'scooter'].includes(layerItem.type)
+          ? 'smallcar'
           : layerItem.type),
         (vu3.userData.environmentFloorId = runtime.appCtx.activeFloorId)),
       vu3.position.set(world.x, layerItem.elevation || 0, world.z),
@@ -618,17 +637,15 @@ export function buildLayerGroup(runtime: StudioAppRuntime,
         layerItemRecords.push({
           item: layerItem,
           group: vu3,
-        }));
+        })
   }
-  (isLightsLayer ||
+  isLightsLayer ||
     (runtime.batchSharedMeshes(runtime.appCtx.sceneRootNode, layerItemRecords),
     runtime.isEmbeddedStage &&
-      new URLSearchParams(window.location.search).get("furniture-runtime") !== "baseline" &&
+      new URLSearchParams(window.location.search).get('furniture-runtime') !== 'baseline' &&
       compactRuntimeFurniture2(
         runtime.appCtx.sceneRootNode,
-        layerItemRecords.filter(
-          ({ item: layerItemRef }) => !runtime.createSelectionRef("item", layerItemRef.id),
-        ),
+        layerItemRecords.filter(({ item: layerItemRef }) => !runtime.createSelectionRef('item', layerItemRef.id)),
         {
           THREE: ns2,
           mergeGeometries: mergeGeometries2,
@@ -647,17 +664,20 @@ export function buildLayerGroup(runtime: StudioAppRuntime,
       shadows: !isLightsLayer && !preserveLayerLightCache,
       preserveLightCache: preserveLayerLightCache,
     }),
-    isLightsLayer || runtime.capturePreviewTransforms(layerItemRecords));
+    isLightsLayer || runtime.capturePreviewTransforms(layerItemRecords)
 }
 
-export function buildArchitectureLayer(runtime: StudioAppRuntime, {
-  preserveLightCache: preserveArchitectureLightCache = false,
-  shadowRoot: architectureShadowRoot = runtime.appCtx.sceneRootNode,
-} = {}) {
-  const mg4 = runtime.createFloorWorldMapper();
+export function buildArchitectureLayer(
+  runtime: StudioAppRuntime,
+  {
+    preserveLightCache: preserveArchitectureLightCache = false,
+    shadowRoot: architectureShadowRoot = runtime.appCtx.sceneRootNode,
+  } = {},
+) {
+  const mg4 = runtime.createFloorWorldMapper()
   !runtime.appCtx.sceneRootNode ||
     !mg4 ||
-    (runtime.buildSceneLayers("architecture"),
+    (runtime.buildSceneLayers('architecture'),
     runtime.buildInteriorScene(mg4),
     preserveArchitectureLightCache || runtime.appCtx.contactShadowController?.invalidate(),
     runtime.setupSceneShadows(architectureShadowRoot, {
@@ -667,66 +687,70 @@ export function buildArchitectureLayer(runtime: StudioAppRuntime, {
       shadows: !preserveArchitectureLightCache,
       scene: true,
       preserveLightCache: preserveArchitectureLightCache,
-    }));
+    }))
 }
 
 export function buildItemsLayer(runtime: StudioAppRuntime, itemsLayerOptions: Record<string, any> = {}) {
-  runtime.buildLayerGroup("items", itemsLayerOptions);
+  runtime.buildLayerGroup('items', itemsLayerOptions)
 }
 
 export function buildLightsLayer(runtime: StudioAppRuntime, lightsLayerOptions: Record<string, any> = {}) {
-  runtime.buildLayerGroup("lights", lightsLayerOptions);
+  runtime.buildLayerGroup('lights', lightsLayerOptions)
 }
 
 export function buildFloorAtIndex(runtime: StudioAppRuntime, requestedLayerSet: any, sceneLayerOptions: any) {
   const floorBuildRoot = runtime.appCtx.sceneRootNode,
-    nn6 = runtime.appCtx.sceneModelOrigin;
-  if (runtime.getPreviewFloorMode() === "all") {
+    nn6 = runtime.appCtx.sceneModelOrigin
+  if (runtime.getPreviewFloorMode() === 'all') {
     const floorRecordAtId = runtime.appCtx.studioProject.floors.find(
         (candidateFloor: any) => candidateFloor.id === runtime.appCtx.activeFloorId,
       ),
       floorGroupAtId = floorBuildRoot?.children.find(
         (floorGroupChild: any) => floorGroupChild.userData?.floorId === runtime.appCtx.activeFloorId,
-      );
+      )
     if (!floorRecordAtId || !floorGroupAtId) {
-      runtime.rebuildFloorLayers(sceneLayerOptions);
-      return;
+      runtime.rebuildFloorLayers(sceneLayerOptions)
+      return
     }
-    ((runtime.appCtx.sceneRootNode = floorGroupAtId),
+    ;(runtime.appCtx.sceneRootNode = floorGroupAtId),
       (runtime.appCtx.sceneModelOrigin = {
         x: finite2(floorRecordAtId.originX, 0),
         y: finite2(floorRecordAtId.originY, 0),
-      }));
+      })
   }
   try {
     const floorBuildOptions = {
       ...sceneLayerOptions,
       shadowRoot: floorBuildRoot,
-    };
-    (requestedLayerSet.has("architecture") && runtime.buildArchitectureLayer(floorBuildOptions),
-      requestedLayerSet.has("items") && runtime.buildItemsLayer(floorBuildOptions),
-      requestedLayerSet.has("lights") && runtime.buildLightsLayer(floorBuildOptions));
+    }
+    requestedLayerSet.has('architecture') && runtime.buildArchitectureLayer(floorBuildOptions),
+      requestedLayerSet.has('items') && runtime.buildItemsLayer(floorBuildOptions),
+      requestedLayerSet.has('lights') && runtime.buildLightsLayer(floorBuildOptions)
   } finally {
-    ((runtime.appCtx.sceneRootNode = floorBuildRoot), (runtime.appCtx.sceneModelOrigin = nn6));
+    ;(runtime.appCtx.sceneRootNode = floorBuildRoot), (runtime.appCtx.sceneModelOrigin = nn6)
   }
 }
 
-export function buildLayerForFloor(runtime: StudioAppRuntime, floorLayerKey: any, layerFloorOptions: Record<string, any> = {}) {
+export function buildLayerForFloor(
+  runtime: StudioAppRuntime,
+  floorLayerKey: any,
+  layerFloorOptions: Record<string, any> = {},
+) {
   const layerFloorRoot = runtime.appCtx.sceneRootNode,
     viewModelForLayer = runtime.appCtx.studioState,
     oe7 = runtime.appCtx.activeFloorId,
     nn7 = runtime.appCtx.sceneModelOrigin,
     sort8 = [...(runtime.appCtx.studioProject?.floors || [])].sort(
       (firstLayerFloor, secondLayerFloor) => firstLayerFloor.elevation - secondLayerFloor.elevation,
-    );
-  if (!layerFloorRoot || !sort8.length) return false;
+    )
+  if (!layerFloorRoot || !sort8.length) return false
   try {
     for (const layerFloorRecord of sort8) {
       const layerFloorGroup = layerFloorRoot.children.find(
         (layerFloorChild: any) => layerFloorChild.userData?.floorId === layerFloorRecord.id,
-      );
-      if (!layerFloorGroup) return false;
-      ((runtime.appCtx.sceneRootNode = layerFloorGroup),
+      )
+      if (!layerFloorGroup) return false
+      ;(runtime.appCtx.sceneRootNode = layerFloorGroup),
         (runtime.appCtx.studioState = layerFloorRecord.scene),
         (runtime.appCtx.activeFloorId = layerFloorRecord.id),
         (runtime.appCtx.sceneModelOrigin = {
@@ -736,15 +760,15 @@ export function buildLayerForFloor(runtime: StudioAppRuntime, floorLayerKey: any
         runtime.buildLayerGroup(floorLayerKey, {
           ...layerFloorOptions,
           shadowRoot: layerFloorRoot,
-        }));
+        })
     }
   } finally {
-    ((runtime.appCtx.sceneRootNode = layerFloorRoot),
+    ;(runtime.appCtx.sceneRootNode = layerFloorRoot),
       (runtime.appCtx.studioState = viewModelForLayer),
       (runtime.appCtx.activeFloorId = oe7),
-      (runtime.appCtx.sceneModelOrigin = nn7));
+      (runtime.appCtx.sceneModelOrigin = nn7)
   }
-  return (runtime.computeSceneExtent(), true);
+  return (runtime.computeSceneExtent(), true)
 }
 
 export function isDescendantOfRoot(runtime: StudioAppRuntime, ancestorStartNode: any, ancestorStopSet: any) {
@@ -753,80 +777,73 @@ export function isDescendantOfRoot(runtime: StudioAppRuntime, ancestorStartNode:
     isDescendantOfRootAncestorNode && isDescendantOfRootAncestorNode !== runtime.appCtx.sceneRootNode;
     isDescendantOfRootAncestorNode = isDescendantOfRootAncestorNode.parent
   )
-    if (ancestorStopSet.has(isDescendantOfRootAncestorNode.userData?.modelLayer)) return true;
-  return false;
+    if (ancestorStopSet.has(isDescendantOfRootAncestorNode.userData?.modelLayer)) return true
+  return false
 }
 
-export function computeSceneBounds(runtime: StudioAppRuntime, { excludeModelLayers: excludeModelLayers = null }: any = {}) {
-  const sceneBoundsBox = new ns2.Box3();
+export function computeSceneBounds(
+  runtime: StudioAppRuntime,
+  { excludeModelLayers: excludeModelLayers = null }: any = {},
+) {
+  const sceneBoundsBox = new ns2.Box3()
   return (
     runtime.appCtx.sceneRootNode.updateWorldMatrix(true, true),
     runtime.appCtx.sceneRootNode.traverse((boundsMeshNode: any) => {
       if (
         !(
           !boundsMeshNode.isMesh ||
-          ["background", "grid", "light-source-preview"].includes(
-            boundsMeshNode.userData?.exportRole,
-          )
+          ['background', 'grid', 'light-source-preview'].includes(boundsMeshNode.userData?.exportRole)
         ) &&
         !(excludeModelLayers && runtime.isDescendantOfRoot(boundsMeshNode, excludeModelLayers))
       ) {
         if (boundsMeshNode.isInstancedMesh) {
-          (boundsMeshNode.computeBoundingBox(),
+          boundsMeshNode.computeBoundingBox(),
             boundsMeshNode.boundingBox &&
-              sceneBoundsBox.union(
-                boundsMeshNode.boundingBox.clone().applyMatrix4(boundsMeshNode.matrixWorld),
-              ));
-          return;
+              sceneBoundsBox.union(boundsMeshNode.boundingBox.clone().applyMatrix4(boundsMeshNode.matrixWorld))
+          return
         }
-        (boundsMeshNode.geometry.computeBoundingBox(),
+        boundsMeshNode.geometry.computeBoundingBox(),
           boundsMeshNode.geometry.boundingBox &&
-            sceneBoundsBox.union(
-              boundsMeshNode.geometry.boundingBox.clone().applyMatrix4(boundsMeshNode.matrixWorld),
-            ));
+            sceneBoundsBox.union(boundsMeshNode.geometry.boundingBox.clone().applyMatrix4(boundsMeshNode.matrixWorld))
       }
     }),
     sceneBoundsBox
-  );
+  )
 }
 
-export function computeSceneExtent(runtime: StudioAppRuntime, ) {
-  if (!runtime.appCtx.isGroundShadowEnabled || !runtime.appCtx.mainDirectionalLight?.shadow?.camera || !runtime.appCtx.sceneRootNode)
-    return false;
-  const qu4 = runtime.computeSceneBounds();
-  if (qu4.isEmpty()) return false;
-  (runtime.appCtx.sceneRootNode.updateWorldMatrix(true, true),
+export function computeSceneExtent(runtime: StudioAppRuntime) {
+  if (
+    !runtime.appCtx.isGroundShadowEnabled ||
+    !runtime.appCtx.mainDirectionalLight?.shadow?.camera ||
+    !runtime.appCtx.sceneRootNode
+  )
+    return false
+  const qu4 = runtime.computeSceneBounds()
+  if (qu4.isEmpty()) return false
+  runtime.appCtx.sceneRootNode.updateWorldMatrix(true, true),
     runtime.appCtx.mainDirectionalLight.updateWorldMatrix(true, false),
-    runtime.appCtx.mainDirectionalLight.target.updateWorldMatrix(true, false));
+    runtime.appCtx.mainDirectionalLight.target.updateWorldMatrix(true, false)
   const camera3 = runtime.appCtx.mainDirectionalLight.shadow.camera,
-    setFromMatrixPosition = new ns2.Vector3().setFromMatrixPosition(
-      runtime.appCtx.mainDirectionalLight.matrixWorld,
-    ),
+    setFromMatrixPosition = new ns2.Vector3().setFromMatrixPosition(runtime.appCtx.mainDirectionalLight.matrixWorld),
     setFromMatrixPosition2 = new ns2.Vector3().setFromMatrixPosition(
       runtime.appCtx.mainDirectionalLight.target.matrixWorld,
-    );
-  (camera3.position.copy(setFromMatrixPosition),
-    camera3.lookAt(setFromMatrixPosition2),
-    camera3.updateMatrixWorld(true));
+    )
+  camera3.position.copy(setFromMatrixPosition), camera3.lookAt(setFromMatrixPosition2), camera3.updateMatrixWorld(true)
   const sceneMinPoint = new ns2.Vector3(Infinity, Infinity, Infinity),
-    sceneMaxPoint = new ns2.Vector3(-Infinity, -Infinity, -Infinity);
+    sceneMaxPoint = new ns2.Vector3(-Infinity, -Infinity, -Infinity)
   for (const sceneBoundsX of [qu4.min.x, qu4.max.x])
     for (const sceneBoundsY of [qu4.min.y, qu4.max.y])
       for (const sceneBoundsZ of [qu4.min.z, qu4.max.z]) {
         const matrix4 = new ns2.Vector3(sceneBoundsX, sceneBoundsY, sceneBoundsZ).applyMatrix4(
           camera3.matrixWorldInverse,
-        );
-        (sceneMinPoint.min(matrix4), sceneMaxPoint.max(matrix4));
+        )
+        sceneMinPoint.min(matrix4), sceneMaxPoint.max(matrix4)
       }
-  const sceneSpan = Math.max(
-      sceneMaxPoint.x - sceneMinPoint.x,
-      sceneMaxPoint.y - sceneMinPoint.y,
-      1,
-    ),
+  const sceneSpan = Math.max(sceneMaxPoint.x - sceneMinPoint.x, sceneMaxPoint.y - sceneMinPoint.y, 1),
     groundExtent = Math.max(minPointDistance, sceneSpan * 0.05),
     sceneMinDepth = -sceneMaxPoint.z,
     sceneMaxDepth = -sceneMinPoint.z,
-    shadowExtent = Math.max(minPointDistance, (sceneMaxDepth - sceneMinDepth) * 0.08);
+    shadowExtent = Math.max(minPointDistance, (sceneMaxDepth - sceneMinDepth) * 0.08)
   return (
     (camera3.left = sceneMinPoint.x - groundExtent),
     (camera3.right = sceneMaxPoint.x + groundExtent),
@@ -837,26 +854,22 @@ export function computeSceneExtent(runtime: StudioAppRuntime, ) {
     camera3.updateProjectionMatrix(),
     (runtime.appCtx.mainDirectionalLight.shadow.needsUpdate = true),
     true
-  );
+  )
 }
 
 export function updateCameraView(runtime: StudioAppRuntime, cameraViewOptions: UpdateCameraViewOptions = {}) {
-  if (!runtime.appCtx.threeCamera || !runtime.appCtx.orbitControls) return;
+  if (!runtime.appCtx.threeCamera || !runtime.appCtx.orbitControls) return
   const viewMode =
-      cameraViewOptions.view === "top"
-        ? "top"
-        : cameraViewOptions.view === "free"
-          ? "free"
-          : runtime.getCameraView(),
+      cameraViewOptions.view === 'top' ? 'top' : cameraViewOptions.view === 'free' ? 'free' : runtime.getCameraView(),
     qn3 = runtime.getCameraTopRotation(),
-    isShowingAllFloors = runtime.getPreviewFloorMode() === "all",
+    isShowingAllFloors = runtime.getPreviewFloorMode() === 'all',
     cameraViewPpm = runtime.getPixelsPerMeter() || 100,
     qu5 = runtime.getSceneContentBounds(),
     ug2 = runtime.computeCourtyardBounds(),
     qu6 =
       ug2 ||
       runtime.computeSceneBounds({
-        excludeModelLayers: new Set(["items", "lights"]),
+        excludeModelLayers: new Set(['items', 'lights']),
       }),
     size2 = (isShowingAllFloors || ug2) && !qu6.isEmpty() ? qu6.getSize(new ns2.Vector3()) : null,
     sceneCenterVector = qu6.isEmpty() ? null : qu6.getCenter(new ns2.Vector3()),
@@ -866,68 +879,67 @@ export function updateCameraView(runtime: StudioAppRuntime, cameraViewOptions: U
     sceneHeight = size2
       ? size2.y
       : Math.max(0, ...runtime.appCtx.studioState.walls.map((viewWall) => viewWall.height || 0)),
-    cameraViewOptionsCameraDistance = Math.max(
-      cameraTargetRadius * 1.18,
-      cameraTargetRadius + sceneHeight * 0.32,
-    );
-  ((runtime.appCtx.threeCamera.userData.frameSize = cameraViewOptionsCameraDistance),
+    cameraViewOptionsCameraDistance = Math.max(cameraTargetRadius * 1.18, cameraTargetRadius + sceneHeight * 0.32)
+  ;(runtime.appCtx.threeCamera.userData.frameSize = cameraViewOptionsCameraDistance),
     (runtime.appCtx.threeCamera.userData.cameraView = viewMode),
-    (runtime.appCtx.threeCamera.userData.topRotation = qn3));
+    (runtime.appCtx.threeCamera.userData.topRotation = qn3)
   const cameraTarget = sceneCenterVector
     ? new ns2.Vector3(sceneCenterVector.x, sceneCenterVector.y, sceneCenterVector.z)
-    : new ns2.Vector3(0, Math.min(0.78, cameraTargetRadius * 0.055), 0);
-  let cameraDistanceResult;
+    : new ns2.Vector3(0, Math.min(0.78, cameraTargetRadius * 0.055), 0)
+  let cameraDistanceResult
   if (runtime.appCtx.threeCamera.isPerspectiveCamera) {
-    ((runtime.appCtx.threeCamera.aspect = runtime.appCtx.threeCamera.userData.viewportAspect || 1), runtime.applyCameraFocalLength());
+    ;(runtime.appCtx.threeCamera.aspect = runtime.appCtx.threeCamera.userData.viewportAspect || 1),
+      runtime.applyCameraFocalLength()
     const cameraFovDistance =
       cameraViewOptionsCameraDistance /
-      (2 * Math.tan(ns2.MathUtils.degToRad(runtime.appCtx.threeCamera.getEffectiveFOV()) / 2));
-    cameraDistanceResult = Math.max(cameraFovDistance * 1.04, cameraTargetRadius * 1.65, 8);
+      (2 * Math.tan(ns2.MathUtils.degToRad(runtime.appCtx.threeCamera.getEffectiveFOV()) / 2))
+    cameraDistanceResult = Math.max(cameraFovDistance * 1.04, cameraTargetRadius * 1.65, 8)
   } else
-    (runtime.applyOrthoFrame(cameraViewOptionsCameraDistance, runtime.appCtx.threeCamera.userData.viewportAspect || 1),
-      (cameraDistanceResult = Math.max(cameraTargetRadius * 3.2, 18)));
-  if (viewMode === "top")
-    (runtime.appCtx.threeCamera.up.copy(runtime.buildCameraUpVector(qn3)),
-      runtime.appCtx.threeCamera.position.set(
-        cameraTarget.x,
-        cameraTarget.y + cameraDistanceResult,
-        cameraTarget.z,
-      ));
+    runtime.applyOrthoFrame(cameraViewOptionsCameraDistance, runtime.appCtx.threeCamera.userData.viewportAspect || 1),
+      (cameraDistanceResult = Math.max(cameraTargetRadius * 3.2, 18))
+  if (viewMode === 'top')
+    runtime.appCtx.threeCamera.up.copy(runtime.buildCameraUpVector(qn3)),
+      runtime.appCtx.threeCamera.position.set(cameraTarget.x, cameraTarget.y + cameraDistanceResult, cameraTarget.z)
   else {
-    runtime.appCtx.threeCamera.up.set(0, 1, 0);
-    const normalize2 = new ns2.Vector3(1.08, 1.7, 1.12).normalize();
-    runtime.appCtx.threeCamera.position.copy(cameraTarget).addScaledVector(normalize2, cameraDistanceResult);
+    runtime.appCtx.threeCamera.up.set(0, 1, 0)
+    const normalize2 = new ns2.Vector3(1.08, 1.7, 1.12).normalize()
+    runtime.appCtx.threeCamera.position.copy(cameraTarget).addScaledVector(normalize2, cameraDistanceResult)
   }
-  (runtime.updateCameraPlanes(runtime.appCtx.threeCamera, cameraTarget),
+  runtime.updateCameraPlanes(runtime.appCtx.threeCamera, cameraTarget),
     (runtime.appCtx.threeCamera.zoom = 1),
     runtime.appCtx.threeCamera.lookAt(cameraTarget),
     runtime.appCtx.threeCamera.updateProjectionMatrix(),
     runtime.appCtx.orbitControls.target.copy(cameraTarget),
     runtime.requestStudioRender(),
-    runtime.appCtx.orbitControls.update());
+    runtime.appCtx.orbitControls.update()
 }
 
-export function axisLockedDistance(runtime: StudioAppRuntime, dragStartPoint: any, dragEndPoint: any, isShiftPressed = false) {
-  const measurePpm = runtime.getPixelsPerMeter() || 100;
+export function axisLockedDistance(
+  runtime: StudioAppRuntime,
+  dragStartPoint: any,
+  dragEndPoint: any,
+  isShiftPressed = false,
+) {
+  const measurePpm = runtime.getPixelsPerMeter() || 100
   if (!runtime.isSnapEnabled()) {
     if (isShiftPressed && dragEndPoint) {
-      const axisLockedPoint = axisLockedPoint2(dragStartPoint, dragEndPoint);
+      const axisLockedPoint = axisLockedPoint2(dragStartPoint, dragEndPoint)
       return {
         ...axisLockedPoint,
-        kind: "axis",
+        kind: 'axis',
         distance: distance2(dragStartPoint, axisLockedPoint.point),
-      };
+      }
     }
     return {
       point: {
         ...dragStartPoint,
       },
       kind: null as any,
-      label: "",
+      label: '',
       distance: 0,
-    };
+    }
   }
-  const settings = runtime.appCtx.studioState.settings;
+  const settings = runtime.appCtx.studioState.settings
   return snapPoint2(dragStartPoint, runtime.appCtx.studioState.walls, {
     zoom: runtime.appCtx.planView.zoom,
     screenTolerance: clamp2(Math.round(finite2(settings.snapTolerance, 13)), 6, 24),
@@ -943,14 +955,15 @@ export function axisLockedDistance(runtime: StudioAppRuntime, dragStartPoint: an
     snapOrthogonal: settings.snapOrthogonal !== false,
     snapAngles: settings.snapAngles !== false,
     snapGrid: settings.snapGrid !== false,
-  });
+  })
 }
 
 export function formatMeasurement(runtime: StudioAppRuntime, measurementRecord = runtime.appCtx.snapHit) {
-  if (!runtime.appCtx.snapEndpointPoint || runtime.appCtx.wallSegmentCount < 2 || !measurementRecord?.point) return false;
-  const measurementTolerance = Math.max(1, (runtime.getPixelsPerMeter() || 100) * 0.01);
+  if (!runtime.appCtx.snapEndpointPoint || runtime.appCtx.wallSegmentCount < 2 || !measurementRecord?.point)
+    return false
+  const measurementTolerance = Math.max(1, (runtime.getPixelsPerMeter() || 100) * 0.01)
   return (
-    measurementRecord.kind === "endpoint" &&
+    measurementRecord.kind === 'endpoint' &&
     distance2(measurementRecord.point, runtime.appCtx.snapEndpointPoint) <= measurementTolerance
-  );
+  )
 }

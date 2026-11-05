@@ -17,7 +17,7 @@ const FOCUSABLE = [
   "input:not([disabled])",
   "select:not([disabled])",
   "textarea:not([disabled])",
-  "[tabindex]:not([tabindex=\"-1\"])",
+  '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
 function isOpen() {

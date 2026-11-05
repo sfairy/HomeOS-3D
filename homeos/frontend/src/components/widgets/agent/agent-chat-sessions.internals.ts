@@ -43,9 +43,7 @@ export function useAgentChatSessions(deps: AgentChatSessionDeps) {
     const date = new Date(updatedAt)
     const now = new Date()
     const sameDay =
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth() &&
-      date.getDate() === now.getDate()
+      date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()
     if (sameDay) {
       return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
     }

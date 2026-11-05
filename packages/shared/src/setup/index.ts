@@ -7,7 +7,7 @@ export {
   collectBindingGaps,
   resolveBindingGapSection,
   filterBindingGapsBySection,
-} from './bindings-gaps.util';
+} from './bindings-gaps.util'
 export {
   parseHazardEntityIdList,
   hasAnyHazardSensorBinding,
@@ -23,7 +23,7 @@ export {
   type HazardBindingConflict,
   type HazardActionKind,
   type HazardActionResult,
-} from './hazard-config.util';
+} from './hazard-config.util'
 export {
   type DashboardFooterItemLike,
   ACCOUNT_BINDING_SOURCE_LABELS,
@@ -34,11 +34,11 @@ export {
   formatAccountBindingLabel,
   isCommAccountBindingCategory,
   resolveAccountBindingSettingsRoute,
-} from './account-binding-categories.util';
+} from './account-binding-categories.util'
 export {
   type StatsSensorsLike,
   type EnergySourceConfig,
   getFirstAccount,
   normalizeEnergySource,
   hasEnergyConfig,
-} from './energy-config.util';
+} from './energy-config.util'

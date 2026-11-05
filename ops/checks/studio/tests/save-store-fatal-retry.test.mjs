@@ -21,10 +21,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const SAVE_STORE = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/authoring/store/save-store.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/store/save-store.ts', import.meta.url),
 )
 const { StudioSaveStore } = await import(SAVE_STORE)
 

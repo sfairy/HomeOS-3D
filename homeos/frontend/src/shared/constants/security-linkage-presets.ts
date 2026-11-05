@@ -64,8 +64,7 @@ export function getSecurityLinkagePresets(): SecurityLinkagePreset[] {
       icon: 'Home',
       theme: 'emerald',
       title: '布防/撤防 → 家庭模式',
-      description:
-        '按对照表或名称规则联动：居家↔回家、离家↔离家、夜间↔睡眠；撤防默认退出家庭模式。',
+      description: '按对照表或名称规则联动：居家↔回家、离家↔离家、夜间↔睡眠；撤防默认退出家庭模式。',
       configKey: 'linkHomeModeOnSecurityChange',
       config: { linkHomeModeOnSecurityChange: true },
       offConfig: { linkHomeModeOnSecurityChange: false },

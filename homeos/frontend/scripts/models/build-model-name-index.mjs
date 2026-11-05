@@ -45,15 +45,12 @@ const args = process.argv.slice(2)
 const checkMode = args.includes('--check')
 const asJson = args.includes('--json')
 
-const loadModule = (relativePath) =>
-  import(pathToFileURL(path.join(frontendDir, relativePath)).href)
+const loadModule = (relativePath) => import(pathToFileURL(path.join(frontendDir, relativePath)).href)
 
 const { MODEL_ASSETS_BY_FOLDER, MODEL_FOLDER_PATHS } = await loadModule(
   'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
 )
-const { ALL_ITEM_MODELS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/all-item-models.ts',
-)
+const { ALL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts')
 const { MODEL_FILE_STEMS } = await loadModule(
   'src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts',
 )
@@ -68,10 +65,7 @@ const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 
 /** 模型库卡片：`item-type` → 中文名（同名 key 以首次出现为准）。 */
 function readLibraryCardNames() {
-  const vueSource = fs.readFileSync(
-    path.join(frontendDir, 'src/studio/entries/StudioView.vue'),
-    'utf8',
-  )
+  const vueSource = fs.readFileSync(path.join(frontendDir, 'src/studio/entries/StudioView.vue'), 'utf8')
   const names = new Map()
   for (const tag of vueSource.match(/<button\b[^>]*>/g) ?? []) {
     const itemType = tag.match(/data-item-type="([^"]+)"/)?.[1]
@@ -225,9 +219,7 @@ for (const row of rows) {
 }
 
 const strayOverrides = Object.keys(overrides).filter((id) => !rows.some((row) => row.id === id))
-const strayFileNameOverrides = Object.keys(fileNameOverrides).filter(
-  (id) => !rows.some((row) => row.id === id),
-)
+const strayFileNameOverrides = Object.keys(fileNameOverrides).filter((id) => !rows.some((row) => row.id === id))
 
 /* ----------------------------- 产物渲染 ----------------------------- */
 
@@ -283,9 +275,7 @@ function renderMarkdown() {
   ]
 
   for (const [folder, assetIds] of Object.entries(MODEL_ASSETS_BY_FOLDER)) {
-    const folderRows = assetIds.map((id) =>
-      rows.find((row) => row.id === id && row.folder === folder),
-    )
+    const folderRows = assetIds.map((id) => rows.find((row) => row.id === id && row.folder === folder))
     lines.push(`## ${MODEL_FOLDER_PATHS[folder] || folder} — ${folder}`)
     lines.push('')
     lines.push(`共 ${assetIds.length} 个模型。`)
@@ -293,9 +283,7 @@ function renderMarkdown() {
     lines.push('| 英文 id | 中文文件名 | 显示名 | 名称来源 |')
     lines.push('| --- | --- | --- | --- |')
     for (const row of folderRows) {
-      lines.push(
-        `| \`${row.id}\` | ${row.stem ? `\`${row.stem}\`` : '—'} | ${row.name} | ${row.stemSource} |`,
-      )
+      lines.push(`| \`${row.id}\` | ${row.stem ? `\`${row.stem}\`` : '—'} | ${row.name} | ${row.stemSource} |`)
     }
     lines.push('')
   }
@@ -364,9 +352,7 @@ if (checkMode) {
     stale.push(path.relative(frontendDir, generatedJsonFile))
   }
   if (stale.length) {
-    console.error(
-      '模型中文名索引已过期：运行 bun homeos/frontend/scripts/models/build-model-name-index.mjs 重新生成。',
-    )
+    console.error('模型中文名索引已过期：运行 bun homeos/frontend/scripts/models/build-model-name-index.mjs 重新生成。')
     for (const file of stale) console.error(`  - ${file}`)
     process.exit(1)
   }
@@ -388,7 +374,5 @@ if (strayOverrides.length) {
   console.warn(`model-name-overrides.json 里有已不存在的 id：${strayOverrides.join(', ')}`)
 }
 if (strayFileNameOverrides.length) {
-  console.warn(
-    `model-file-name-overrides.json 里有已不存在的 id：${strayFileNameOverrides.join(', ')}`,
-  )
+  console.warn(`model-file-name-overrides.json 里有已不存在的 id：${strayFileNameOverrides.join(', ')}`)
 }

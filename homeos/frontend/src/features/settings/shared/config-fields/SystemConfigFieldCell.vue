@@ -262,10 +262,7 @@ const nestedEditorKind = computed(() => {
 })
 
 const isStructuredObject = computed(
-  () =>
-    props.allowObject &&
-    props.field.type === 'object' &&
-    nestedEditorKind.value !== 'json',
+  () => props.allowObject && props.field.type === 'object' && nestedEditorKind.value !== 'json',
 )
 
 /** div[role=combobox] 等非 labelable 控件不能用原生 for，需手动聚焦 */

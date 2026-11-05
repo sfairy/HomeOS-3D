@@ -34,9 +34,7 @@ export function useSwiperDraggable(
 
   /** 从鼠标或触摸事件中统一取 pageX 坐标 */
   function pageX(e: MouseEvent | TouchEvent) {
-    return 'touches' in e
-      ? (e.touches[0]?.pageX ?? (e as unknown as MouseEvent).pageX)
-      : (e as MouseEvent).pageX
+    return 'touches' in e ? (e.touches[0]?.pageX ?? (e as unknown as MouseEvent).pageX) : (e as MouseEvent).pageX
   }
 
   /** 拖拽开始：命中排除元素则跳过；记录起始坐标并关闭 snap */

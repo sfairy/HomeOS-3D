@@ -19,9 +19,9 @@ let globalResume: ResumeFn | null = null
 
 /**
  * 注册全局布局待更改快照函数
- * 
+ *
  * 功能描述：注册一个用于创建布局配置快照的函数，用于后续比较是否有未保存更改。
- * 
+ *
  * @param fn - 快照函数，接收当前数据源作为参数
  * @returns 无返回值
  * @调用场景 布局设置面板初始化时调用
@@ -33,9 +33,9 @@ export function registerGlobalLayoutPendingSnapshot(fn: LayoutSnapshotFn) {
 
 /**
  * 同步全局布局待更改快照
- * 
+ *
  * 功能描述：触发全局快照函数，用当前数据更新快照基线。
- * 
+ *
  * @param source - 数据源对象，将被传递给快照函数
  * @returns 无返回值
  * @调用场景 保存成功或取消修改后调用
@@ -47,9 +47,9 @@ export function syncGlobalLayoutPendingSnapshot(source: unknown) {
 
 /**
  * 注册全局暂停/恢复函数
- * 
+ *
  * 功能描述：注册用于暂停和恢复未保存更改检测的函数对。
- * 
+ *
  * @param pause - 暂停检测的函数
  * @param resume - 恢复检测的函数
  * @returns 无返回值
@@ -63,9 +63,9 @@ export function registerGlobalPendingPause(pause: PauseFn, resume: ResumeFn) {
 
 /**
  * 暂停全局未保存更改检测
- * 
+ *
  * 功能描述：暂时禁用未保存更改检测，用于初始化或批量更新时避免误报。
- * 
+ *
  * @returns 无返回值
  * @调用场景 数据加载、批量更新前调用
  * @副作用 暂停脏数据检测
@@ -76,9 +76,9 @@ export function pauseGlobalPendingChanges() {
 
 /**
  * 恢复全局未保存更改检测
- * 
+ *
  * 功能描述：恢复之前暂停的未保存更改检测。
- * 
+ *
  * @returns 无返回值
  * @调用场景 数据加载、批量更新完成后调用
  * @副作用 恢复脏数据检测
@@ -146,9 +146,9 @@ export function resetAllSettingsTabDrafts(): void {
 
 /**
  * 设置指定 Tab 的未保存状态
- * 
+ *
  * 功能描述：标记或清除某个独立保存 Tab 的未保存更改状态。
- * 
+ *
  * @param tabId - Tab 唯一标识
  * @param pending - 是否有未保存更改
  * @returns 无返回值
@@ -165,9 +165,9 @@ function setSettingsTabPending(tabId: string, pending: boolean) {
 
 /**
  * 检查是否存在独立保存的未保存更改
- * 
+ *
  * 功能描述：判断当前是否有任何独立保存的 Tab 存在未保存更改。
- * 
+ *
  * @returns true 表示有未保存更改，false 表示没有
  * @调用场景 离开设置页面前的确认检查
  */
@@ -247,10 +247,10 @@ const hubMountCounts = new Map<string, number>()
 
 /**
  * Hub 面板未保存更改检测组合式函数
- * 
+ *
  * 功能描述：为设置面板中的 Hub 组件提供统一的未保存更改检测、
  * 离开确认和保存/取消处理逻辑。
- * 
+ *
  * @param options - 配置选项
  * @param options.snapshot - 快照数据的响应式引用
  * @param options.current - 获取当前数据的函数
@@ -261,9 +261,7 @@ const hubMountCounts = new Map<string, number>()
  * @调用场景 所有带保存/取消功能的 Hub 面板
  * @副作用 注册全局离开确认监听
  */
-export function useSettingsHubPending<TCurrent = unknown>(
-  options: SettingsHubPendingOptions<TCurrent>,
-) {
+export function useSettingsHubPending<TCurrent = unknown>(options: SettingsHubPendingOptions<TCurrent>) {
   const layoutStore = useLayoutStore()
   const pending = useSettingsPendingChanges(options)
 
@@ -301,14 +299,7 @@ export function useSettingsHubPending<TCurrent = unknown>(
  * @param {{ snapshot: import('vue').Ref, current: () => unknown, label?: string, fieldKeys?: string[] }} options
  */
 export function useSettingsPendingChanges(options: SettingsHubPendingOptions) {
-  const {
-    snapshot,
-    current,
-    label = '{n} 项已修改',
-    fieldKeys = null,
-    ready = () => true,
-    applyBaseline,
-  } = options
+  const { snapshot, current, label = '{n} 项已修改', fieldKeys = null, ready = () => true, applyBaseline } = options
   const pendingCount = ref(0)
   const paused = ref(false)
 

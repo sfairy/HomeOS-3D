@@ -20,7 +20,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { collectModelVariants, listModelFiles, readModelAtRevision } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import {
+  collectModelVariants,
+  listModelFiles,
+  readModelAtRevision,
+} from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(hereDir, '../../..')
@@ -138,20 +142,25 @@ const summary = {
 if (process.argv.includes('--json')) {
   process.stdout.write(JSON.stringify({ summary, drift, undeclared }, null, 2) + '\n')
 } else {
-  console.log(`基线条目 ${summary.baselineEntries}，可比对 ${summary.compared}（${((covered / Math.max(1, summary.baselineEntries)) * 100).toFixed(1)}% 覆盖）`)
+  console.log(
+    `基线条目 ${summary.baselineEntries}，可比对 ${summary.compared}（${((covered / Math.max(1, summary.baselineEntries)) * 100).toFixed(1)}% 覆盖）`,
+  )
   console.log(`  角色不变 ${summary.unchanged}`)
   console.log(`  契约声明的变更 ${summary.declaredChanges}`)
-  for (const entry of drift) console.log(`    · ${entry.id}#${entry.index} ${entry.name}：${entry.before} → ${entry.after}（${entry.declared.reason}）`)
+  for (const entry of drift)
+    console.log(
+      `    · ${entry.id}#${entry.index} ${entry.name}：${entry.before} → ${entry.after}（${entry.declared.reason}）`,
+    )
   console.log(`  未声明漂移 ${summary.undeclaredDrift}`)
-  for (const entry of undeclared.slice(0, 20)) console.log(`    ✗ ${entry.id}#${entry.index} ${entry.name}：${entry.before} → ${entry.after}`)
-  const missing = [...legacyRoleByName.keys()]
-    .filter((key) => {
-      const [file, name] = key.split('|')
-      const id = file.replace(/-lite\.glb$|\.glb$/g, '')
-      const model = contracts.models.find((candidate) => candidate.id === id)
-      if (!model) return false
-      return !model.slots.some((slot) => String(slot.legacyName ?? alias(slot.name)).toLowerCase() === name)
-    })
+  for (const entry of undeclared.slice(0, 20))
+    console.log(`    ✗ ${entry.id}#${entry.index} ${entry.name}：${entry.before} → ${entry.after}`)
+  const missing = [...legacyRoleByName.keys()].filter((key) => {
+    const [file, name] = key.split('|')
+    const id = file.replace(/-lite\.glb$|\.glb$/g, '')
+    const model = contracts.models.find((candidate) => candidate.id === id)
+    if (!model) return false
+    return !model.slots.some((slot) => String(slot.legacyName ?? alias(slot.name)).toLowerCase() === name)
+  })
   console.log(`  基线里有、当前模型已无对应旧名 ${missing.length}（死材质清理造成，属预期）`)
 }
 

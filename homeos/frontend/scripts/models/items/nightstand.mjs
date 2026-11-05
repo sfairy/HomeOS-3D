@@ -45,9 +45,7 @@ export function build() {
   const legX = WIDTH / 2 - 0.045
   const legZ = DEPTH / 2 - 0.045
   const legs = merge(
-    [1, -1].flatMap((sx) =>
-      [1, -1].map((sz) => transform(leg, { translate: [sx * legX, 0, sz * legZ] })),
-    ),
+    [1, -1].flatMap((sx) => [1, -1].map((sz) => transform(leg, { translate: [sx * legX, 0, sz * legZ] }))),
   )
 
   // 柜体：两侧板 + 背板 + 顶底，中间留一层开放式储物格。
@@ -90,7 +88,9 @@ export function build() {
   })
   const drawerBox = merge([
     transform(drawerSide, { translate: [0, BODY_BOTTOM + PANEL + (0.2 - PANEL) / 2, BODY_Z + BODY_DEPTH / 2 - 0.03] }),
-    transform(drawerSide, { translate: [0, BODY_BOTTOM + PANEL + (0.2 - PANEL) / 2, BODY_Z - BODY_DEPTH / 2 + PANEL + 0.012] }),
+    transform(drawerSide, {
+      translate: [0, BODY_BOTTOM + PANEL + (0.2 - PANEL) / 2, BODY_Z - BODY_DEPTH / 2 + PANEL + 0.012],
+    }),
   ])
   // 拉手：22mm 宽的一段横向金属条，离抽屉面上沿 40mm。
   const handle = box({

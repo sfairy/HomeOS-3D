@@ -4,8 +4,18 @@
  */
 /** composables：安防模式核心逻辑 */
 import type { Component } from 'vue'
-import { applySecurityModesLayoutSlice, liveSecurityModesLayoutSlice, pickSecurityModesLayoutSlice } from '@/features/settings/display/composables/layout-dashboard.internals'
-import { afterLayoutCancelSync, pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot, useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
+import {
+  applySecurityModesLayoutSlice,
+  liveSecurityModesLayoutSlice,
+  pickSecurityModesLayoutSlice,
+} from '@/features/settings/display/composables/layout-dashboard.internals'
+import {
+  afterLayoutCancelSync,
+  pauseGlobalPendingChanges,
+  resumeGlobalPendingChanges,
+  syncGlobalLayoutPendingSnapshot,
+  useSettingsPendingChanges,
+} from '@/composables/settings-kernel/pending.internals'
 import { getEmergencyPresets, normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
 import { getSecurityModePresets } from '@/shared/constants/security-mode-presets'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -16,7 +26,6 @@ import { servicesForDomain } from '@/shared/utils/registry/widget-catalog'
 import { Home, Moon, Shield, ShieldOff } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSecurityModesEmergency } from '@/features/settings/automate/composables/security-modes-emergency.internals'
-
 
 // ── useSecurityModes ──
 const EMERGENCY_TAB = 'emergency'
@@ -100,14 +109,13 @@ export function useSecurityModes() {
       )
       if (!ok) return
     }
-    mode.actions = preset.actions.map((action: { entity_id?: string; domain?: string; service?: string; service_data?: Record<string, unknown> }) => ({
-      ...action,
-      service_data: action.service_data ? { ...action.service_data } : undefined,
-    }))
-    chrome.notify(
-      `已应用「${preset.name}」预设（${mode.actions.length} 条动作，请映射实体后保存布局）`,
-      'success',
+    mode.actions = preset.actions.map(
+      (action: { entity_id?: string; domain?: string; service?: string; service_data?: Record<string, unknown> }) => ({
+        ...action,
+        service_data: action.service_data ? { ...action.service_data } : undefined,
+      }),
     )
+    chrome.notify(`已应用「${preset.name}」预设（${mode.actions.length} 条动作，请映射实体后保存布局）`, 'success')
   }
 
   const securityModeLinks = computed(() => {
@@ -222,11 +230,7 @@ export function useSecurityModes() {
       reader.onload = async () => {
         try {
           const data = JSON.parse(String(reader.result ?? ''))
-          const incoming = Array.isArray(data?.modes)
-            ? data.modes
-            : Array.isArray(data)
-              ? data
-              : null
+          const incoming = Array.isArray(data?.modes) ? data.modes : Array.isArray(data) ? data : null
           if (!incoming?.length) throw new Error('无效格式')
           const modes = layoutStore.layoutConfig.securityModes || []
           let merged = 0
@@ -244,11 +248,11 @@ export function useSecurityModes() {
                   service?: string
                   service_data?: Record<string, unknown>
                 }) => ({
-                entity_id: action.entity_id || '',
-                domain: action.domain || '',
-                service: action.service || '',
-                service_data: action.service_data || undefined,
-              }),
+                  entity_id: action.entity_id || '',
+                  domain: action.domain || '',
+                  service: action.service || '',
+                  service_data: action.service_data || undefined,
+                }),
               )
               merged++
             }
@@ -272,10 +276,7 @@ export function useSecurityModes() {
           } // saveConfig 已弹出失败提示
           snapshotSecurityConfig()
           syncGlobalLayoutPendingSnapshot(layoutStore.layoutConfig)
-          chrome.notify(
-            merged ? `已导入 ${merged} 个安防场景` : '未找到可合并的场景 key',
-            merged ? 'success' : 'info',
-          )
+          chrome.notify(merged ? `已导入 ${merged} 个安防场景` : '未找到可合并的场景 key', merged ? 'success' : 'info')
           resolve(merged)
         } catch (error) {
           chrome.notify('导入失败：JSON 格式无效', 'error')
@@ -426,5 +427,7 @@ export function useSecurityModes() {
   }
 }
 
-
-export { useSecurityLinkage, useSettingsSecurityModesLinkageDisplay } from '@/features/settings/automate/composables/security-modes-linkage.internals'
+export {
+  useSecurityLinkage,
+  useSettingsSecurityModesLinkageDisplay,
+} from '@/features/settings/automate/composables/security-modes-linkage.internals'

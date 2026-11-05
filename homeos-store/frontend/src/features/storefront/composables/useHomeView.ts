@@ -130,9 +130,8 @@ export function useHomeView() {
   /** 全功能版包含的模块码：没有这个商品时返回空集。 */
   const fullEditionProduct = computed(
     () =>
-      catalog.primaryProducts.find(
-        (item) => item.productType === "edition_full" || item.productType === "bundle",
-      ) || null,
+      catalog.primaryProducts.find((item) => item.productType === "edition_full" || item.productType === "bundle") ||
+      null,
   );
 
   const fullEditionModuleCodes = computed(() => {
@@ -250,8 +249,7 @@ export function useHomeView() {
         id: product.id,
         name: product.name || product.edition || "授权版本",
         hint:
-          TIER_HINTS[product.productType || ""] ||
-          (typeof product.edition === "string" ? product.edition : "按需选择"),
+          TIER_HINTS[product.productType || ""] || (typeof product.edition === "string" ? product.edition : "按需选择"),
         description:
           description ||
           (containsAll
@@ -272,17 +270,14 @@ export function useHomeView() {
         owned,
         href: owned ? "/user/dashboard/index" : productHref(product),
         ctaLabel: owned ? "去账号中心" : soldOut ? "查看商品" : "查看详情",
-        stockNote:
-          !soldOut && stock > 0 && stock <= 5 ? `仅剩 ${stock} 份` : soldOut ? "已售罄" : "",
+        stockNote: !soldOut && stock > 0 && stock <= 5 ? `仅剩 ${stock} 份` : soldOut ? "已售罄" : "",
       };
     });
   });
 
   const trialProduct = computed(
     () =>
-      catalog.products.find(
-        (item) => catalog.isTrialProduct(item) && !catalog.primaryProductUnavailable(item),
-      ) || null,
+      catalog.products.find((item) => catalog.isTrialProduct(item) && !catalog.primaryProductUnavailable(item)) || null,
   );
 
   const trial = computed<TrialView | null>(() => {
@@ -321,20 +316,10 @@ export function useHomeView() {
               : null;
         return {
           ...card,
-          requirement: owned
-            ? "已拥有"
-            : includedInFull && !product
-              ? `含于全功能版 · ${label}`
-              : `需 ${label}`,
+          requirement: owned ? "已拥有" : includedInFull && !product ? `含于全功能版 · ${label}` : `需 ${label}`,
           requirementTone: owned ? ("owned" as const) : ("module" as const),
           href,
-          linkLabel: href
-            ? product
-              ? "查看增量包"
-              : includedInFull
-                ? "了解全功能版"
-                : "查看授权"
-            : null,
+          linkLabel: href ? (product ? "查看增量包" : includedInFull ? "了解全功能版" : "查看授权") : null,
         };
       }),
     })),
@@ -351,12 +336,8 @@ export function useHomeView() {
 
   /** FAQ 里「全功能版包含哪些模块」按功能目录动态生成，不再手写一份会漂移的名单。 */
   const faq = computed<FaqEntry[]>(() => {
-    const modules = Array.from(fullEditionModuleCodes.value).map((code) =>
-      catalog.featureLabel(code),
-    );
-    const list = modules.length
-      ? modules
-      : catalog.moduleFeatures.map((item) => item.label);
+    const modules = Array.from(fullEditionModuleCodes.value).map((code) => catalog.featureLabel(code));
+    const list = modules.length ? modules : catalog.moduleFeatures.map((item) => item.label);
     const entry: FaqEntry = {
       question: "全功能版包含哪些模块？",
       answer: list.length

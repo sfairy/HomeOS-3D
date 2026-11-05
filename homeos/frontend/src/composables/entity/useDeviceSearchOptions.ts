@@ -56,7 +56,9 @@ export function useDeviceSearchOptions({
       if (q) params.search = q
       if (domain.value && domain.value !== 'all') params.domain = domain.value
       const { data } = await fetchEntities(params, { timeout: 30000 })
-      const payload = data as { entities?: Array<{ entity_id: string; attributes?: Record<string, unknown> }> } | undefined
+      const payload = data as
+        | { entities?: Array<{ entity_id: string; attributes?: Record<string, unknown> }> }
+        | undefined
       const rows = (payload?.entities || []).map((e) => {
         const key = e.entity_id
         const dom = getEntityDomain(key)

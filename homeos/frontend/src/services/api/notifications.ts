@@ -8,10 +8,7 @@ export function fetchNotifications(params?: { limit?: number }, config?: AxiosRe
 }
 
 /** 获取通知统计。 */
-export function fetchNotificationStats(
-  params?: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function fetchNotificationStats(params?: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiGet('/notifications/stats', { ...config, params: { ...config?.params, ...params } })
 }
 
@@ -21,13 +18,9 @@ export function fetchNotificationSettings(config?: AxiosRequestConfig) {
 }
 
 /** 更新通知设置。 */
-export function updateNotificationSettings(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function updateNotificationSettings(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPut('/notifications/settings', payload, config)
 }
-
 
 /** 标记单条通知已读。 */
 export function markNotificationRead(id: string | number, config?: AxiosRequestConfig) {
@@ -55,19 +48,12 @@ export function fetchNotificationRules(config?: AxiosRequestConfig) {
 }
 
 /** 创建通知规则。 */
-export function createNotificationRule(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function createNotificationRule(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/notifications/rules', payload, config)
 }
 
 /** 更新通知规则。 */
-export function updateNotificationRule(
-  id: string,
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function updateNotificationRule(id: string, payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPut(`/notifications/rules/${id}`, payload, config)
 }
 
@@ -77,10 +63,7 @@ export function deleteNotificationRule(id: string, config?: AxiosRequestConfig) 
 }
 
 /** 测试通知规则。 */
-export function testNotificationRule(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function testNotificationRule(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/notifications/rules/test', payload, config)
 }
 
@@ -110,9 +93,7 @@ export function unsubscribeWebPush(endpoint: string, config?: AxiosRequestConfig
 }
 
 /** 列出服务端已登记的 WebPush 订阅。 */
-export function fetchWebPushSubscriptions<T = { items?: unknown[] }>(
-  config?: AxiosRequestConfig,
-) {
+export function fetchWebPushSubscriptions<T = { items?: unknown[] }>(config?: AxiosRequestConfig) {
   return apiGet<T>('/channels/webpush/subscriptions', config)
 }
 

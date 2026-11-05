@@ -108,9 +108,7 @@ export function useConnectionCredentials(onReconnectSuccess?: () => void | Promi
     if (!error || typeof error !== 'object') return false
     const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
     return Boolean(
-      detail &&
-        typeof detail === 'object' &&
-        (detail as { code?: string }).code === 'HA_URL_CHANGED_TOKEN_REUSE',
+      detail && typeof detail === 'object' && (detail as { code?: string }).code === 'HA_URL_CHANGED_TOKEN_REUSE',
     )
   }
 

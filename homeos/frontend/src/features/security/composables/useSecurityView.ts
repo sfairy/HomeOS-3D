@@ -157,9 +157,7 @@ export function useSecurityView() {
   const armedZoneCount = computed(() => zones.value.filter((z) => z.armed).length)
 
   // 危险传感器受监测的实体 ID 列表
-  const hazardWatchedIds = computed(() =>
-    collectHazardWatchedEntityIds(layoutStore.layoutConfig.haConfig || {}),
-  )
+  const hazardWatchedIds = computed(() => collectHazardWatchedEntityIds(layoutStore.layoutConfig.haConfig || {}))
 
   // 安防相关实体 ID 集合：摄像头 + 危险传感器 + 区域传感器
   const securityEntityIds = computed(() => {
@@ -202,14 +200,10 @@ export function useSecurityView() {
   })
 
   // 离线摄像头数量
-  const offlineCameraCount = computed(
-    () => allCameras.value.filter((camId) => isCameraOffline(camId)).length,
-  )
+  const offlineCameraCount = computed(() => allCameras.value.filter((camId) => isCameraOffline(camId)).length)
 
   // 在线摄像头数量
-  const onlineCameraCount = computed(
-    () => allCameras.value.length - offlineCameraCount.value,
-  )
+  const onlineCameraCount = computed(() => allCameras.value.length - offlineCameraCount.value)
 
   // Hero 区指标：布防/告警/区域/监控
   const heroMetrics = computed(() => {

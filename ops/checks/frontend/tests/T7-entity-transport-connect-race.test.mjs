@@ -98,10 +98,8 @@ registerHooks({
   },
 })
 
-const MODULE = new URL(
-  '../../../../homeos/frontend/src/stores/entities/entity-store-transport.ts',
-  import.meta.url,
-).href
+const MODULE = new URL('../../../../homeos/frontend/src/stores/entities/entity-store-transport.ts', import.meta.url)
+  .href
 const { createEntityTransport } = await import(MODULE)
 
 /** 造一个能跑通 connect() 各分支的最小依赖集合；hydrate 由用例手动控制 */

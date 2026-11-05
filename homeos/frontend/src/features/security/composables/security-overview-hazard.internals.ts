@@ -16,10 +16,7 @@ type LayoutStore = ReturnType<typeof useLayoutStore>
 type ChromeStore = ReturnType<typeof useChromeStore>
 
 /** 危险传感器 / 紧急场景配置与测试 */
-export function createSecurityOverviewHazard(opts: {
-  layoutStore: LayoutStore
-  chrome: ChromeStore
-}) {
+export function createSecurityOverviewHazard(opts: { layoutStore: LayoutStore; chrome: ChromeStore }) {
   const { layoutStore, chrome } = opts
   const router = useRouter()
   const hazardTesting = ref(false)
@@ -77,9 +74,7 @@ export function createSecurityOverviewHazard(opts: {
         await callService({ domain: 'scene', service: 'turn_on', entity_id: entityId })
       }
       chrome.notify(
-        sceneIds.length > 1
-          ? `已触发 ${sceneIds.length} 个紧急场景（测试）`
-          : '已触发紧急场景（测试）',
+        sceneIds.length > 1 ? `已触发 ${sceneIds.length} 个紧急场景（测试）` : '已触发紧急场景（测试）',
         'success',
       )
     } catch (e) {

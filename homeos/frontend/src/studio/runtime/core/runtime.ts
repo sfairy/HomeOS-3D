@@ -1,24 +1,13 @@
-import {
-  createPopupLayoutPreview,
-  createFocusDevicePopup,
-  popupHeightDraft,
-} from "./popup-preview";
-import { createLightStream } from "../light/light-stream";
-import { createCoverMemoryClient } from "../cover/cover-memory-client";
-import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/generic-device-catalog";
-import {
-  createSecurityAlarmOverlay,
-  overlayEligibleAlarms,
-  securityAlarmReadings,
-} from "../security/security-alarm";
-import { cameraSourceConfigured } from "../camera/camera-status";
-import { carTireEntities, carTireModelType } from "../vehicle/car-tires";
-import { createWeatherEffects } from "../environment/weather-effects";
-import {
-  normalizeGroundQuad,
-  type WeatherGroundQuad,
-} from "../environment/weather/ground-quad";
+import { createPopupLayoutPreview, createFocusDevicePopup, popupHeightDraft } from './popup-preview'
+import { createLightStream } from '../light/light-stream'
+import { createCoverMemoryClient } from '../cover/cover-memory-client'
+import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../device/generic-device-catalog'
+import { createSecurityAlarmOverlay, overlayEligibleAlarms, securityAlarmReadings } from '../security/security-alarm'
+import { cameraSourceConfigured } from '../camera/camera-status'
+import { carTireEntities, carTireModelType } from '../vehicle/car-tires'
+import { createWeatherEffects } from '../environment/weather-effects'
+import { normalizeGroundQuad, type WeatherGroundQuad } from '../environment/weather/ground-quad'
 import {
   WEATHER_EFFECTS,
   WEATHER_PREVIEW_TIMEOUT_MS,
@@ -26,114 +15,106 @@ import {
   weatherEffectKey,
   weatherEntityIds,
   weatherEntityState,
-} from "@/studio/platform/weather-settings";
-import { ensureInteraction3dSelectControls } from "../config-ui/select-controls";
-import { createLabelConfigPatch } from "./state-update-plan";
+} from '@/studio/platform/weather-settings'
+import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
+import { createLabelConfigPatch } from './state-update-plan'
 
 type HostLogger = HomeOSLog & {
-  report?: (
-    level: string,
-    category?: string,
-    message?: string,
-    details?: unknown,
-    detailsText?: string,
-  ) => void;
-};
+  report?: (level: string, category?: string, message?: string, details?: unknown, detailsText?: string) => void
+}
 
 type RuntimeContextBag = {
-  editable?: boolean;
-  prewarmStage?: boolean;
-  document?: Record<string, any>;
-  entityMetadata?: Map<string, Record<string, any>>;
-  states?: Map<string, any>;
-  registerRuntimeStateHandler?: (entityId: string, handler: (...args: any[]) => void) => void;
-  openCameraPreview?: (...args: any[]) => any;
-  openVacuumDetails?: (...args: any[]) => any;
-  runVacuumRoom?: (...args: any[]) => Promise<any>;
-};
-const { vacuumStatusBinding: vacuumStatusBinding } = await (import("@app/renderer/controls/vacuum-runtime")),
-  {
-    temperatureHumidityEntities: temperatureHumidityEntities,
-    entityNumberFormats: entityNumberFormatsOf,
-  } = await (import("@app/bridge/temperature-humidity")),
-  INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d",
+  editable?: boolean
+  prewarmStage?: boolean
+  document?: Record<string, any>
+  entityMetadata?: Map<string, Record<string, any>>
+  states?: Map<string, any>
+  registerRuntimeStateHandler?: (entityId: string, handler: (...args: any[]) => void) => void
+  openCameraPreview?: (...args: any[]) => any
+  openVacuumDetails?: (...args: any[]) => any
+  runVacuumRoom?: (...args: any[]) => Promise<any>
+}
+const { vacuumStatusBinding: vacuumStatusBinding } = await import('@app/renderer/controls/vacuum-runtime'),
+  { temperatureHumidityEntities: temperatureHumidityEntities, entityNumberFormats: entityNumberFormatsOf } =
+    await import('@app/bridge/temperature-humidity'),
+  INTERACTION3D_API_BASE = '/api/v1/modules/interaction3d',
   // 配置里出现的实体 id（`entityId` / `*EntityId` / 数组元素）；用于生成 `number-formats` 映射。
   ENTITY_ID_VALUE_PATTERN = /^[a-z_]+\.[a-z0-9_]+$/,
   referencedEntityIds = (value: any, collected = new Set<string>()): Set<string> => {
-    if (typeof value == "string") {
-      ENTITY_ID_VALUE_PATTERN.test(value) && collected.add(value);
+    if (typeof value == 'string') {
+      ENTITY_ID_VALUE_PATTERN.test(value) && collected.add(value)
     } else if (Array.isArray(value)) {
-      for (const entry of value) referencedEntityIds(entry, collected);
-    } else if (value && typeof value == "object") {
-      for (const entry of Object.values(value)) referencedEntityIds(entry, collected);
+      for (const entry of value) referencedEntityIds(entry, collected)
+    } else if (value && typeof value == 'object') {
+      for (const entry of Object.values(value)) referencedEntityIds(entry, collected)
     }
-    return collected;
+    return collected
   },
   mountDiagnosticsByInstance = new Map(),
   reportThrottleState = {
     started: 0,
     count: 0,
   },
-  runtimeInstanceToken = Date.now() + "-" + Math.random().toString(36).slice(2),
+  runtimeInstanceToken = Date.now() + '-' + Math.random().toString(36).slice(2),
   NUMERIC_COUNT_FIELDS = [
-    "loadSequence",
-    "frameLoads",
-    "sourceRevision",
-    "floorCount",
-    "durationMs",
-    "pending",
-    "active",
-    "queued",
-    "replacementFrames",
-    "width",
-    "height",
-    "dpr",
-    "fromCategory",
-    "toCategory",
-    "geometries",
-    "textures",
-    "programs",
-    "mapPixels",
-    "mapTextures",
+    'loadSequence',
+    'frameLoads',
+    'sourceRevision',
+    'floorCount',
+    'durationMs',
+    'pending',
+    'active',
+    'queued',
+    'replacementFrames',
+    'width',
+    'height',
+    'dpr',
+    'fromCategory',
+    'toCategory',
+    'geometries',
+    'textures',
+    'programs',
+    'mapPixels',
+    'mapTextures',
   ],
   ACCEPTED_EVENT_CODES = new Set([
-    "mount-initial",
-    "mount-repeat",
-    "category-switch-start",
-    "category-switch-applied",
-    "page-hide",
-    "page-show",
-    "gpu-lost",
-    "gpu-restored",
-  ]);
+    'mount-initial',
+    'mount-repeat',
+    'category-switch-start',
+    'category-switch-applied',
+    'page-hide',
+    'page-show',
+    'gpu-lost',
+    'gpu-restored',
+  ])
 function sanitizeCounts(rawCounts: Record<string, any> = {}) {
-  const sanitizedCounts: Record<string, any> = {};
+  const sanitizedCounts: Record<string, any> = {}
   for (const numericField of NUMERIC_COUNT_FIELDS)
-    typeof (rawCounts as any)?.[numericField] == "number" &&
+    typeof (rawCounts as any)?.[numericField] == 'number' &&
       Number.isFinite((rawCounts as any)[numericField]) &&
-      ((sanitizedCounts as any)[numericField] = Math.max(0, Math.min(1000000000, (rawCounts as any)[numericField])));
-  for (const booleanField of ["replacementPending", "persisted"])
-    typeof (rawCounts as any)?.[booleanField] == "boolean" &&
-      ((sanitizedCounts as any)[booleanField] = (rawCounts as any)[booleanField]);
-  return sanitizedCounts;
+      ((sanitizedCounts as any)[numericField] = Math.max(0, Math.min(1000000000, (rawCounts as any)[numericField])))
+  for (const booleanField of ['replacementPending', 'persisted'])
+    typeof (rawCounts as any)?.[booleanField] == 'boolean' &&
+      ((sanitizedCounts as any)[booleanField] = (rawCounts as any)[booleanField])
+  return sanitizedCounts
 }
 function createBreadcrumbStore() {
-  const breadcrumbStorageKey = "homeos:i3d-reload-breadcrumbs:v1",
+  const breadcrumbStorageKey = 'homeos:i3d-reload-breadcrumbs:v1',
     readStoredBreadcrumbs = () => {
       try {
-        const storedBreadcrumbsJson = window.sessionStorage?.getItem(breadcrumbStorageKey);
-        if (!storedBreadcrumbsJson || storedBreadcrumbsJson.length > 65536) return [];
+        const storedBreadcrumbsJson = window.sessionStorage?.getItem(breadcrumbStorageKey)
+        if (!storedBreadcrumbsJson || storedBreadcrumbsJson.length > 65536) return []
         const parsedBreadcrumbs = JSON.parse(storedBreadcrumbsJson),
-          readAtMs = Date.now();
+          readAtMs = Date.now()
         return Array.isArray(parsedBreadcrumbs)
           ? parsedBreadcrumbs
               .slice(-16)
               .filter(
                 (rawBreadcrumb) =>
                   rawBreadcrumb &&
-                  typeof rawBreadcrumb.key == "string" &&
+                  typeof rawBreadcrumb.key == 'string' &&
                   rawBreadcrumb.key.length < 180 &&
-                  typeof rawBreadcrumb.document == "string" &&
+                  typeof rawBreadcrumb.document == 'string' &&
                   rawBreadcrumb.document.length < 80 &&
                   Array.isArray(rawBreadcrumb.events),
               )
@@ -157,94 +138,87 @@ function createBreadcrumbStore() {
                   })),
               }))
               .filter((rawKeptEntry) => rawKeptEntry.events.length)
-          : [];
+          : []
       } catch {
-        return [];
+        return []
       }
-    };
+    }
   return {
     previous(lookupKey: any) {
       const matchedBreadcrumb = readStoredBreadcrumbs().find(
         (candidateBreadcrumb) => candidateBreadcrumb.key === lookupKey,
-      );
-      return matchedBreadcrumb && matchedBreadcrumb.document !== runtimeInstanceToken
-        ? matchedBreadcrumb.events
-        : [];
+      )
+      return matchedBreadcrumb && matchedBreadcrumb.document !== runtimeInstanceToken ? matchedBreadcrumb.events : []
     },
     remember(rememberKey: any, breadcrumbEventCode: any, breadcrumbEventCounts: any) {
       if (ACCEPTED_EVENT_CODES.has(breadcrumbEventCode))
         try {
           const storedBreadcrumbs = readStoredBreadcrumbs(),
-            existingBreadcrumb = storedBreadcrumbs.find(
-              (candidateEntry) => candidateEntry.key === rememberKey,
-            ),
-            breadcrumbEvents =
-              existingBreadcrumb?.document === runtimeInstanceToken
-                ? existingBreadcrumb.events
-                : [];
+            existingBreadcrumb = storedBreadcrumbs.find((candidateEntry) => candidateEntry.key === rememberKey),
+            breadcrumbEvents = existingBreadcrumb?.document === runtimeInstanceToken ? existingBreadcrumb.events : []
           breadcrumbEvents.push({
             code: breadcrumbEventCode,
             at: Date.now(),
             counts: sanitizeCounts(breadcrumbEventCounts),
-          });
-          const remainingBreadcrumbs = storedBreadcrumbs.filter(
-            (removedEntry) => removedEntry.key !== rememberKey,
-          );
+          })
+          const remainingBreadcrumbs = storedBreadcrumbs.filter((removedEntry) => removedEntry.key !== rememberKey)
           remainingBreadcrumbs.push({
             key: rememberKey,
             document: runtimeInstanceToken,
             events: breadcrumbEvents.slice(-8),
-          });
-          const trimmedBreadcrumbs = remainingBreadcrumbs.slice(-16);
-          for (; JSON.stringify(trimmedBreadcrumbs).length > 32768;) trimmedBreadcrumbs.shift();
-          window.sessionStorage?.setItem(breadcrumbStorageKey, JSON.stringify(trimmedBreadcrumbs));
-        } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
+          })
+          const trimmedBreadcrumbs = remainingBreadcrumbs.slice(-16)
+          for (; JSON.stringify(trimmedBreadcrumbs).length > 32768; ) trimmedBreadcrumbs.shift()
+          window.sessionStorage?.setItem(breadcrumbStorageKey, JSON.stringify(trimmedBreadcrumbs))
+        } catch {
+          /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */
+        }
     },
-  };
+  }
 }
 const BREADCRUMB_CODE_MESSAGES = Object.freeze({
-  "mount-initial": ["info", "3D 组件首次挂载"],
-  "mount-repeat": ["warning", "3D 组件在当前页面重新挂载"],
-  "category-switch-start": ["info", "3D 开始切换分类"],
-  "category-switch-applied": ["info", "3D 分类状态已应用"],
-  "page-hide": ["info", "3D 所在页面离开"],
-  "page-show": ["info", "3D 所在页面显示"],
-  "load-scene-change": ["info", "3D 户型切换，重新载入舞台"],
-  "load-mode-change": ["info", "3D 灯光模式切换，重新载入舞台"],
-  "load-bfcache": ["info", "3D 页面从返回缓存恢复，重新载入已释放的舞台"],
-  "iframe-load-unexpected": ["warning", "3D 子页面出现非主动载入"],
-  "stage-ready-repeat": ["warning", "3D 子页面重复初始化"],
-  "source-adopt-start": ["info", "3D 开始采纳保存的户型修改"],
-  "source-adopt-complete": ["info", "3D 已采纳保存的户型修改"],
-  "source-adopt-failed": ["warning", "3D 户型修改采纳失败，尝试恢复原场景"],
-  "gpu-lost": ["warning", "3D 图形上下文丢失"],
-  "gpu-restored": ["info", "3D 图形上下文恢复"],
-  "models-loading-resumed": ["info", "3D 已展示后再次加载模型"],
-  "models-completion-resumed": ["info", "3D 已展示后再次完成模型替换"],
+  'mount-initial': ['info', '3D 组件首次挂载'],
+  'mount-repeat': ['warning', '3D 组件在当前页面重新挂载'],
+  'category-switch-start': ['info', '3D 开始切换分类'],
+  'category-switch-applied': ['info', '3D 分类状态已应用'],
+  'page-hide': ['info', '3D 所在页面离开'],
+  'page-show': ['info', '3D 所在页面显示'],
+  'load-scene-change': ['info', '3D 户型切换，重新载入舞台'],
+  'load-mode-change': ['info', '3D 灯光模式切换，重新载入舞台'],
+  'load-bfcache': ['info', '3D 页面从返回缓存恢复，重新载入已释放的舞台'],
+  'iframe-load-unexpected': ['warning', '3D 子页面出现非主动载入'],
+  'stage-ready-repeat': ['warning', '3D 子页面重复初始化'],
+  'source-adopt-start': ['info', '3D 开始采纳保存的户型修改'],
+  'source-adopt-complete': ['info', '3D 已采纳保存的户型修改'],
+  'source-adopt-failed': ['warning', '3D 户型修改采纳失败，尝试恢复原场景'],
+  'gpu-lost': ['warning', '3D 图形上下文丢失'],
+  'gpu-restored': ['info', '3D 图形上下文恢复'],
+  'models-loading-resumed': ['info', '3D 已展示后再次加载模型'],
+  'models-completion-resumed': ['info', '3D 已展示后再次完成模型替换'],
   // 0.8.4：分类过渡的性能采样（`category-transition-diagnostics`）。
   // 不在这里登记就会被 `reportLifecycleEvent` 的 hasOwnProperty 门禁直接丢掉。
-  "category-transition-profile": ["info", "3D 分类过渡性能采样"],
-  "category-transition-slow": ["warning", "3D 分类过渡出现慢帧"],
-});
+  'category-transition-profile': ['info', '3D 分类过渡性能采样'],
+  'category-transition-slow': ['warning', '3D 分类过渡出现慢帧'],
+})
 function createLifecycleReporter(projectId: any, componentId: any) {
   try {
     const sanitizeIdSegment = (rawIdSegment: any) =>
-        /^[\w-]{1,80}$/.test(String(rawIdSegment || "")) ? String(rawIdSegment) : "",
+        /^[\w-]{1,80}$/.test(String(rawIdSegment || '')) ? String(rawIdSegment) : '',
       reportContext = {
         projectId: sanitizeIdSegment(projectId),
         componentId: sanitizeIdSegment(componentId),
-        phase: "interaction3d-lifecycle",
+        phase: 'interaction3d-lifecycle',
       },
       readNowMs = () => globalThis.performance?.now?.() ?? Date.now(),
       nowMs = readNowMs(),
-      diagnosticsKey = JSON.stringify([reportContext.projectId, reportContext.componentId]);
+      diagnosticsKey = JSON.stringify([reportContext.projectId, reportContext.componentId])
     for (const [staleKey, staleDiagnostics] of mountDiagnosticsByInstance)
-      nowMs - staleDiagnostics.at > 900000 && mountDiagnosticsByInstance.delete(staleKey);
+      nowMs - staleDiagnostics.at > 900000 && mountDiagnosticsByInstance.delete(staleKey)
     const mountDiagnostics = mountDiagnosticsByInstance.get(diagnosticsKey) || {
       at: nowMs,
       mounts: 0,
       events: new Map(),
-    };
+    }
     for (
       mountDiagnostics.at = nowMs,
         mountDiagnostics.mounts = Math.min(1000000, mountDiagnostics.mounts + 1),
@@ -252,49 +226,45 @@ function createLifecycleReporter(projectId: any, componentId: any) {
         mountDiagnosticsByInstance.set(diagnosticsKey, mountDiagnostics);
       mountDiagnosticsByInstance.size > 64;
     )
-      mountDiagnosticsByInstance.delete(mountDiagnosticsByInstance.keys().next().value);
+      mountDiagnosticsByInstance.delete(mountDiagnosticsByInstance.keys().next().value)
     const mountCount = mountDiagnostics.mounts,
       breadcrumbStore = createBreadcrumbStore(),
       previousEvents = mountCount === 1 ? breadcrumbStore.previous(diagnosticsKey) : [],
       reportLifecycleEvent = (lifecycleEventCode: any, lifecycleEventCounts: Record<string, any> = {}) => {
         try {
-          if (!Object.hasOwn(BREADCRUMB_CODE_MESSAGES, lifecycleEventCode))
-            return;
-          breadcrumbStore.remember(diagnosticsKey, lifecycleEventCode, lifecycleEventCounts);
-          const hostLogger = window.HomeOSLog as HostLogger | undefined;
-          if (typeof hostLogger?.report != "function") return;
+          if (!Object.hasOwn(BREADCRUMB_CODE_MESSAGES, lifecycleEventCode)) return
+          breadcrumbStore.remember(diagnosticsKey, lifecycleEventCode, lifecycleEventCounts)
+          const hostLogger = window.HomeOSLog as HostLogger | undefined
+          if (typeof hostLogger?.report != 'function') return
           const eventAtMs = readNowMs(),
-            lastReportAtMs = mountDiagnostics.events.get(lifecycleEventCode);
+            lastReportAtMs = mountDiagnostics.events.get(lifecycleEventCode)
           if (
             (lastReportAtMs !== undefined && eventAtMs - lastReportAtMs < 5000) ||
-            ((eventAtMs - reportThrottleState.started >= 60000 ||
-              eventAtMs < reportThrottleState.started) &&
+            ((eventAtMs - reportThrottleState.started >= 60000 || eventAtMs < reportThrottleState.started) &&
               ((reportThrottleState.started = eventAtMs), (reportThrottleState.count = 0)),
             reportThrottleState.count >= 30)
           )
-            return;
-          (mountDiagnostics.events.set(lifecycleEventCode, eventAtMs), reportThrottleState.count++);
+            return
+          mountDiagnostics.events.set(lifecycleEventCode, eventAtMs), reportThrottleState.count++
 
           const reportPayload: Record<string, any> = {
-            build: "20260927-reload-diagnostics-v2",
+            build: '20260927-reload-diagnostics-v2',
             mountCount: mountCount,
             ...sanitizeCounts(lifecycleEventCounts),
-          };
-          lifecycleEventCode === "mount-initial" &&
+          }
+          lifecycleEventCode === 'mount-initial' &&
             previousEvents.length &&
-            (reportPayload.previousEvents = previousEvents);
+            (reportPayload.previousEvents = previousEvents)
           const navigationType = (
-            globalThis.performance?.getEntriesByType?.("navigation")?.[0] as
-              | PerformanceNavigationTiming
-              | undefined
-          )?.type;
-          ["navigate", "reload", "back_forward", "prerender"].includes(navigationType as string) &&
-            (reportPayload.navigation = navigationType);
-          const [reportLevel, eventMessage] = (BREADCRUMB_CODE_MESSAGES as any)[lifecycleEventCode];
+            globalThis.performance?.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined
+          )?.type
+          ;['navigate', 'reload', 'back_forward', 'prerender'].includes(navigationType as string) &&
+            (reportPayload.navigation = navigationType)
+          const [reportLevel, eventMessage] = (BREADCRUMB_CODE_MESSAGES as any)[lifecycleEventCode]
           Promise.resolve(
             hostLogger.report(
               reportLevel,
-              "3D 运行生命周期",
+              '3D 运行生命周期',
               eventMessage,
               {
                 ...reportContext,
@@ -302,15 +272,14 @@ function createLifecycleReporter(projectId: any, componentId: any) {
               },
               JSON.stringify(reportPayload),
             ),
-          ).catch(() => {});
-        } catch { /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */ }
-      };
-    return (
-      reportLifecycleEvent(mountCount === 1 ? "mount-initial" : "mount-repeat"),
-      reportLifecycleEvent
-    );
+          ).catch(() => {})
+        } catch {
+          /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */
+        }
+      }
+    return (reportLifecycleEvent(mountCount === 1 ? 'mount-initial' : 'mount-repeat'), reportLifecycleEvent)
   } catch {
-    return () => {};
+    return () => {}
   }
 }
 export function mountInteraction3d(
@@ -319,9 +288,9 @@ export function mountInteraction3d(
     component: componentDescriptor,
     context: runtimeContext = {} as RuntimeContextBag,
     editing: isEditing = false,
-    editingModule: editingModuleKind = "light",
-    editingSecurityKind = "",
-    editingVacuumId = "",
+    editingModule: editingModuleKind = 'light',
+    editingSecurityKind = '',
+    editingVacuumId = '',
     editingShowAllLabels = false,
     rangeEditorOnly: isRangeEditorOnly = false,
     onEdit = (_editState?: any) => {},
@@ -332,48 +301,45 @@ export function mountInteraction3d(
     onFocusChange = (_nextFocusActive?: boolean) => {},
   }: any,
 ) {
-  hostElement.className = "hb-interaction3d-runtime";
+  hostElement.className = 'hb-interaction3d-runtime'
   // 3D 配置类弹窗里的原生 <select> 统一换自绘下拉：各编辑入口（配置 / 安防 / 存在感应 / 音箱）
   // 都从这里挂载运行时，所以在这挂一次就够；装饰器本身幂等，只接管 3D 弹窗内的 select。
-  ensureInteraction3dSelectControls();
+  ensureInteraction3dSelectControls()
   let componentProperties = structuredClone(componentDescriptor.properties || {}),
     isDisposed = false,
     isAuthorized = true,
     showAllLabels = editingShowAllLabels === true,
-    selectedId = "",
+    selectedId = '',
     loadingTimeoutId: any,
     componentMetadata: any,
-    isPageHidden = false;
+    isPageHidden = false
   const canPrewarmStage = () =>
-    runtimeContext.prewarmStage === true &&
-    !isScenePresented &&
-    !hasLoadFailed &&
-    !isPreviewSuspended;
+    runtimeContext.prewarmStage === true && !isScenePresented && !hasLoadFailed && !isPreviewSuspended
   let popupLayoutPreview: any = null,
-    focusDevicePopup: any = null;
+    focusDevicePopup: any = null
   function disposeFocusDevicePopup() {
-    (focusDevicePopup?.dispose(), (focusDevicePopup = null));
+    focusDevicePopup?.dispose(), (focusDevicePopup = null)
   }
   const collectVacuumEntries = () =>
     (componentProperties.devices?.vacuums || []).map((vacuumEntry: any) =>
       vacuumStatusBinding(vacuumEntry, runtimeContext.entityMetadata),
-    );
+    )
   function openFocusDevicePopup(popupTargetId: any) {
-    disposeFocusDevicePopup();
-    const focusDeviceKind = popupTargetId?.startsWith("camera:")
-        ? "camera"
-        : popupTargetId?.startsWith("vacuum:") || editingModuleKind === "vacuum"
-          ? "vacuum"
+    disposeFocusDevicePopup()
+    const focusDeviceKind = popupTargetId?.startsWith('camera:')
+        ? 'camera'
+        : popupTargetId?.startsWith('vacuum:') || editingModuleKind === 'vacuum'
+          ? 'vacuum'
           : null,
-      focusDeviceId = popupTargetId?.replace(/^(camera|vacuum):/, ""),
+      focusDeviceId = popupTargetId?.replace(/^(camera|vacuum):/, ''),
       focusDeviceItem = (
-        focusDeviceKind === "camera"
+        focusDeviceKind === 'camera'
           ? componentProperties.security?.cameras
-          : focusDeviceKind === "vacuum"
+          : focusDeviceKind === 'vacuum'
             ? collectVacuumEntries()
             : []
-      )?.find((deviceCandidate: any) => deviceCandidate.id === focusDeviceId);
-    if (!focusDeviceItem) return;
+      )?.find((deviceCandidate: any) => deviceCandidate.id === focusDeviceId)
+    if (!focusDeviceItem) return
     const createdFocusPopup = createFocusDevicePopup(hostElement, {
       kind: focusDeviceKind,
       item: focusDeviceItem,
@@ -384,29 +350,26 @@ export function mountInteraction3d(
       }),
       getStates: getCurrentStates,
       panelDocument: runtimeContext.document,
-    });
-    ((focusDevicePopup = createdFocusPopup),
+    })
+    ;(focusDevicePopup = createdFocusPopup),
       createdFocusPopup.ready.catch((popupReadyError) => {
-        focusDevicePopup === createdFocusPopup &&
-          (disposeFocusDevicePopup(), onLoadError(popupReadyError));
-      }));
+        focusDevicePopup === createdFocusPopup && (disposeFocusDevicePopup(), onLoadError(popupReadyError))
+      })
   }
   function closePopupLayoutPreview() {
-    (disposeFocusDevicePopup(), popupLayoutPreview?.dispose(), (popupLayoutPreview = null));
+    disposeFocusDevicePopup(), popupLayoutPreview?.dispose(), (popupLayoutPreview = null)
   }
   let isScenePresented = false,
     isViewEditing = false,
     requestIdCounter = 0,
     configIdCounter = 0,
     defaultCamera: any,
-    activeCamera =
-      componentProperties.floorCameras?.[componentProperties.floorSelection] ||
-      componentProperties.camera,
-    lastConfigJson = "",
+    activeCamera = componentProperties.floorCameras?.[componentProperties.floorSelection] || componentProperties.camera,
+    lastConfigJson = '',
     // 上一次成功下发的完整 `config` 主体：标签补丁要拿它做差分基准。
     // 补丁失败（结构变了 / 不在白名单）时退回整份下发，两者不会打架。
     lastSentConfigPayload: any = null,
-    lastNumberFormatsJson = "",
+    lastNumberFormatsJson = '',
     // 下一次 `config` 下发要带 `resetPreviewSession`，让舞台侧当成「换了入口」整屏重置一次。
     pendingResetPreviewSession = false,
     isPreviewSuspended = false,
@@ -419,15 +382,14 @@ export function mountInteraction3d(
     isNavigationEditing = false,
     isRangeEditing = false,
     /** 当前装载的舞台地址：503 自动重试沿用它，只追加重试序号。 */
-    stageFrameUrl = "",
+    stageFrameUrl = '',
     /** 503 自动重试预算：已用次数与待触发的定时器。 */
     stageFrameRetryAttempt = 0,
-    stageFrameRetryTimeoutId: any = null;
+    stageFrameRetryTimeoutId: any = null
   const pendingEditsByRequestId = new Map(),
     pendingRangeRequestsByRequestId = new Map(),
     editSubscribersSet = new Set<(editState: unknown) => void>(),
-    normalizeLightingMode = (lightingMode: any) =>
-      lightingMode === "region" ? "region" : "standard";
+    normalizeLightingMode = (lightingMode: any) => (lightingMode === 'region' ? 'region' : 'standard')
   /**
    * 舞台 iframe 自动重试的退避间隔；合计约 18s。
    *
@@ -435,7 +397,7 @@ export function mountInteraction3d(
    * 的 index.html 不在），后端 watchfiles 重载数秒，两者叠加正好落在 10s 量级。
    * 早先的 5s 预算会在产物还没落地时就用尽，等于白重试。
    */
-  const STAGE_FRAME_RETRY_DELAYS_MS = [500, 1500, 3000, 5000, 8000];
+  const STAGE_FRAME_RETRY_DELAYS_MS = [500, 1500, 3000, 5000, 8000]
   /**
    * 判断 iframe 里真正落地的是什么文档。
    *
@@ -445,20 +407,19 @@ export function mountInteraction3d(
    * 缺失就是「没拿到舞台」。跨域 / 导航未完成时读取会抛 SecurityError，按「未知」处理不重试。
    */
   function readStageFrameOutcome(frameElement: HTMLIFrameElement): {
-    kind: "ok" | "failed" | "unknown";
-    detail: string;
+    kind: 'ok' | 'failed' | 'unknown'
+    detail: string
   } {
     try {
-      const contentDocument = frameElement.contentDocument;
-      if (!contentDocument) return { kind: "unknown", detail: "" };
-      if (contentDocument.documentElement?.dataset?.homeosStage === "1")
-        return { kind: "ok", detail: "" };
+      const contentDocument = frameElement.contentDocument
+      if (!contentDocument) return { kind: 'unknown', detail: '' }
+      if (contentDocument.documentElement?.dataset?.homeosStage === '1') return { kind: 'ok', detail: '' }
       return {
-        kind: "failed",
-        detail: (contentDocument.body?.textContent || "").trim().slice(0, 200),
-      };
+        kind: 'failed',
+        detail: (contentDocument.body?.textContent || '').trim().slice(0, 200),
+      }
     } catch {
-      return { kind: "unknown", detail: "" };
+      return { kind: 'unknown', detail: '' }
     }
   }
   /**
@@ -470,174 +431,172 @@ export function mountInteraction3d(
    * 401/403 这类确定性失败不重试 —— 重试只会把同一个拒绝再打两遍，白等 5s。
    */
   function isTransientStageFailure(detail: string) {
-    return !detail || /尚未就绪|暂未就绪|Service Unavailable|HomeOS offline|\b503\b/i.test(detail);
+    return !detail || /尚未就绪|暂未就绪|Service Unavailable|HomeOS offline|\b503\b/i.test(detail)
   }
   /** 收掉重试预算与待触发的定时器（重载换舞台 / 正常落地时调用）。 */
   function resetStageFrameRetry() {
-    stageFrameRetryTimeoutId != null &&
-      (clearTimeout(stageFrameRetryTimeoutId), (stageFrameRetryTimeoutId = null));
-    stageFrameRetryAttempt = 0;
+    stageFrameRetryTimeoutId != null && (clearTimeout(stageFrameRetryTimeoutId), (stageFrameRetryTimeoutId = null))
+    stageFrameRetryAttempt = 0
   }
   /** 瞬时失败：退避重载同一个舞台地址；预算用尽才走原有失败提示。 */
   function retryStageFrameLoad(reason: string) {
-    if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return;
+    if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return
     if (stageFrameRetryAttempt >= STAGE_FRAME_RETRY_DELAYS_MS.length) {
-      failSceneLoad("3D 画面暂时不可用（后端可能正在重启或更新），请稍后重新载入户型。");
-      return;
+      failSceneLoad('3D 画面暂时不可用（后端可能正在重启或更新），请稍后重新载入户型。')
+      return
     }
-    if (stageFrameRetryTimeoutId != null) return;
-    const retryDelay = STAGE_FRAME_RETRY_DELAYS_MS[stageFrameRetryAttempt++];
-    reportRuntimeLifecycle("stage-frame-retry", {
+    if (stageFrameRetryTimeoutId != null) return
+    const retryDelay = STAGE_FRAME_RETRY_DELAYS_MS[stageFrameRetryAttempt++]
+    reportRuntimeLifecycle('stage-frame-retry', {
       loadSequence: reloadGeneration,
       attempt: stageFrameRetryAttempt,
       reason,
-    });
-    ((loadingElement.hidden = false), (loadingElement.textContent = "3D 画面正在重新连接…"));
+    })
+    ;(loadingElement.hidden = false), (loadingElement.textContent = '3D 画面正在重新连接…')
     stageFrameRetryTimeoutId = setTimeout(() => {
-      stageFrameRetryTimeoutId = null;
-      if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return;
+      stageFrameRetryTimeoutId = null
+      if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return
       // 重试是「一次全新的装载」：45s 的加载超时要从这一发重新起算，否则前面耗掉的
       // 退避时间会算进这一发的预算里，刚恢复的舞台又会被「加载较慢」判失败。
-      clearTimeout(loadingTimeoutId);
-      isPreviewSuspended || scheduleLoadTimeout();
+      clearTimeout(loadingTimeoutId)
+      isPreviewSuspended || scheduleLoadTimeout()
       // 追加重试序号：既是这一发的区分键，也方便在 Network 面板里认出这几发重试。
-      const retryUrl = new URL(stageFrameUrl, location.href);
-      retryUrl.searchParams.set("frame-retry", String(stageFrameRetryAttempt));
-      stageFrameElement.src = retryUrl.pathname + retryUrl.search;
-    }, retryDelay);
+      const retryUrl = new URL(stageFrameUrl, location.href)
+      retryUrl.searchParams.set('frame-retry', String(stageFrameRetryAttempt))
+      stageFrameElement.src = retryUrl.pathname + retryUrl.search
+    }, retryDelay)
   }
   function createStageFrameElement() {
-    const frameElement = document.createElement("iframe");
+    const frameElement = document.createElement('iframe')
     let frameLoadCount = 0,
-      lastContentDocument: any;
+      lastContentDocument: any
     return (
-      frameElement.addEventListener("load", () => {
+      frameElement.addEventListener('load', () => {
         if (!(isDisposed || frameElement !== stageFrameElement)) {
           try {
-            if (frameElement.contentWindow?.location?.href === "about:blank") return;
-            const contentDocument = frameElement.contentDocument;
-            if (contentDocument && contentDocument === lastContentDocument) return;
-            lastContentDocument = contentDocument;
-          } catch { /* 跨域 iframe 读取 document / window 会抛 SecurityError：属预期路径，按「无 document」处理 */ }
+            if (frameElement.contentWindow?.location?.href === 'about:blank') return
+            const contentDocument = frameElement.contentDocument
+            if (contentDocument && contentDocument === lastContentDocument) return
+            lastContentDocument = contentDocument
+          } catch {
+            /* 跨域 iframe 读取 document / window 会抛 SecurityError：属预期路径，按「无 document」处理 */
+          }
           ++frameLoadCount > 1 &&
-            reportRuntimeLifecycle("iframe-load-unexpected", {
+            reportRuntimeLifecycle('iframe-load-unexpected', {
               frameLoads: frameLoadCount,
               loadSequence: reloadGeneration,
-            });
+            })
           // 舞台地址本身可能 503（后端热重载 / 产物重建）：此时文档是那段 JSON 而不是舞台外壳，
           // 不做处理就会一直停在白底文本上，直到用户手动刷新。
-          const stageFrameOutcome = readStageFrameOutcome(frameElement);
-          stageFrameOutcome.kind === "ok"
+          const stageFrameOutcome = readStageFrameOutcome(frameElement)
+          stageFrameOutcome.kind === 'ok'
             ? // 舞台外壳已落地：立刻收掉重试预算，并清掉「正在重新连接…」的文案，
               // 否则 .is-ready 之后这句已经过时的话仍留在 DOM 里（CSS 隐形但不该留）。
-              (resetStageFrameRetry(), (loadingElement.textContent = ""))
-            : stageFrameOutcome.kind === "failed" &&
+              (resetStageFrameRetry(), (loadingElement.textContent = ''))
+            : stageFrameOutcome.kind === 'failed' &&
               isTransientStageFailure(stageFrameOutcome.detail) &&
-              retryStageFrameLoad(stageFrameOutcome.detail || "empty-document");
+              retryStageFrameLoad(stageFrameOutcome.detail || 'empty-document')
         }
       }),
-      (frameElement.title = "3D 交互户型"),
-      (frameElement.className = "i3d-frame"),
-      frameElement.setAttribute("allow", "fullscreen"),
+      (frameElement.title = '3D 交互户型'),
+      (frameElement.className = 'i3d-frame'),
+      frameElement.setAttribute('allow', 'fullscreen'),
       runtimeContext.editable &&
         !isEditing &&
         !isViewEditing &&
         !isRangeEditing &&
         !isNavigationEditing &&
-        (frameElement.style.pointerEvents = "none"),
+        (frameElement.style.pointerEvents = 'none'),
       frameElement
-    );
+    )
   }
-  let stageFrameElement = createStageFrameElement();
-  const loadingElement = document.createElement("p");
-  ((loadingElement.className = "i3d-loading"),
-    loadingElement.setAttribute("role", "status"),
-    hostElement.replaceChildren(stageFrameElement, loadingElement));
-  const hostProjectId = runtimeContext.document?.projectId || "",
+  let stageFrameElement = createStageFrameElement()
+  const loadingElement = document.createElement('p')
+  ;(loadingElement.className = 'i3d-loading'),
+    loadingElement.setAttribute('role', 'status'),
+    hostElement.replaceChildren(stageFrameElement, loadingElement)
+  const hostProjectId = runtimeContext.document?.projectId || '',
     reportRuntimeLifecycle = createLifecycleReporter(hostProjectId, componentDescriptor.id),
     postToStageFrame = (frameMessage: any) => {
       !isDisposed &&
         stageFrameElement.contentWindow &&
         stageFrameElement.contentWindow.postMessage(
           {
-            channel: "hb-i3d-v1",
+            channel: 'hb-i3d-v1',
             ...frameMessage,
           },
           location.origin,
-        );
-    };
+        )
+    }
   function notifyEditSubscribers(editState: any) {
-    onEdit(editState);
-    for (const subscriber of [...editSubscribersSet]) subscriber(editState);
+    onEdit(editState)
+    for (const subscriber of [...editSubscribersSet]) subscriber(editState)
   }
-  function setRangeEditingState(isActive: any, errorMessage = "") {
-    const nextRangeEditing = isActive === true;
-    (nextRangeEditing === isRangeEditing && !errorMessage) ||
+  function setRangeEditingState(isActive: any, errorMessage = '') {
+    const nextRangeEditing = isActive === true
+    ;(nextRangeEditing === isRangeEditing && !errorMessage) ||
       ((isRangeEditing = nextRangeEditing),
-      hostElement.classList.toggle("is-range-editing", nextRangeEditing),
+      hostElement.classList.toggle('is-range-editing', nextRangeEditing),
       runtimeContext.editable &&
         !isEditing &&
         (stageFrameElement.style.pointerEvents =
-          nextRangeEditing || isViewEditing || isNavigationEditing ? "auto" : "none"),
+          nextRangeEditing || isViewEditing || isNavigationEditing ? 'auto' : 'none'),
       notifyEditSubscribers({
-        action: "range-editor-state",
+        action: 'range-editor-state',
         active: nextRangeEditing,
         ...(errorMessage
           ? {
               error: errorMessage,
             }
           : {}),
-      }));
+      }))
   }
 
   function setNavigationEditingState(requestedActive: any) {
-    const nextNavigationEditing = requestedActive === true;
+    const nextNavigationEditing = requestedActive === true
     nextNavigationEditing === isNavigationEditing ||
       ((isNavigationEditing = nextNavigationEditing),
-      hostElement.classList.toggle("is-navigation-editing", nextNavigationEditing),
+      hostElement.classList.toggle('is-navigation-editing', nextNavigationEditing),
       runtimeContext.editable &&
         !isEditing &&
         (stageFrameElement.style.pointerEvents =
-          nextNavigationEditing || isViewEditing || isRangeEditing ? "auto" : "none"),
+          nextNavigationEditing || isViewEditing || isRangeEditing ? 'auto' : 'none'),
       sendConfigUpdate(),
       notifyEditSubscribers({
-        action: "navigation-editing-state",
+        action: 'navigation-editing-state',
         active: nextNavigationEditing,
-      }));
+      }))
   }
   let hasPresentedStage = false,
     isReloadPending = false,
     wasStageActive: any,
     wasStageVisible: any,
     isPageFrozen = false,
-    lastActivityAtMs = -Infinity;
+    lastActivityAtMs = -Infinity
   const heldPointerIdsSet = new Set(),
     heldKeyCodesSet = new Set(),
-    hasHeldInput = () => heldPointerIdsSet.size > 0 || heldKeyCodesSet.size > 0;
-  let isStageIntersecting = typeof IntersectionObserver > "u";
+    hasHeldInput = () => heldPointerIdsSet.size > 0 || heldKeyCodesSet.size > 0
+  let isStageIntersecting = typeof IntersectionObserver > 'u'
   /** `refreshActivityState` 算出的「舞台真的在屏幕上」结果，供天气层等热路径读取。 */
-  let isStageOnScreenCached = false;
+  let isStageOnScreenCached = false
   function syncPreviewSuspension() {
-    const topOpenPreviewDialog = [
-        ...(document.querySelectorAll?.("dialog[data-i3d-preview-scope][open]") || []),
-      ].at(-1),
-      isOtherPreviewOpen = !!(topOpenPreviewDialog && !topOpenPreviewDialog.contains(hostElement));
+    const topOpenPreviewDialog = [...(document.querySelectorAll?.('dialog[data-i3d-preview-scope][open]') || [])].at(
+        -1,
+      ),
+      isOtherPreviewOpen = !!(topOpenPreviewDialog && !topOpenPreviewDialog.contains(hostElement))
     isPreviewSuspended === isOtherPreviewOpen ||
       isDisposed ||
       ((isPreviewSuspended = isOtherPreviewOpen),
-      hostElement.setAttribute("data-preview-suspended", String(isOtherPreviewOpen)),
+      hostElement.setAttribute('data-preview-suspended', String(isOtherPreviewOpen)),
       clearTimeout(loadingTimeoutId),
       isOtherPreviewOpen ||
-        (!isScenePresented &&
-          componentProperties.sceneId &&
-          !hasLoadFailed &&
-          scheduleLoadTimeout(),
+        (!isScenePresented && componentProperties.sceneId && !hasLoadFailed && scheduleLoadTimeout(),
         isStageReady && publishStates(),
         lightStream && onStatesUpdate?.(getCurrentStates()),
         focusDevicePopup?.updateStates?.(),
         vacuumPopup?.updateStates?.(getCurrentStates()),
         sendConfigUpdate()),
-      refreshActivityState());
+      refreshActivityState())
   }
   function isHostActuallyVisible() {
     if (
@@ -651,7 +610,7 @@ export function mountInteraction3d(
         contentVisibilityAuto: true,
       }) === false
     )
-      return false;
+      return false
     for (
       let visibilityProbeElement = hostElement;
       visibilityProbeElement;
@@ -660,22 +619,22 @@ export function mountInteraction3d(
       if (
         visibilityProbeElement.hidden ||
         visibilityProbeElement.inert ||
-        visibilityProbeElement.getAttribute?.("aria-hidden") === "true"
+        visibilityProbeElement.getAttribute?.('aria-hidden') === 'true'
       )
-        return false;
-      const visibilityProbeStyle = window.getComputedStyle?.(visibilityProbeElement);
+        return false
+      const visibilityProbeStyle = window.getComputedStyle?.(visibilityProbeElement)
       if (
         visibilityProbeStyle &&
-        (visibilityProbeStyle.display === "none" ||
-          visibilityProbeStyle.visibility === "hidden" ||
-          visibilityProbeStyle.visibility === "collapse" ||
+        (visibilityProbeStyle.display === 'none' ||
+          visibilityProbeStyle.visibility === 'hidden' ||
+          visibilityProbeStyle.visibility === 'collapse' ||
           Number(visibilityProbeStyle.opacity) === 0)
       )
-        return false;
+        return false
     }
     const hostRect = hostElement.getBoundingClientRect(),
       viewportWidthPx = document.documentElement?.clientWidth || window.innerWidth || Infinity,
-      viewportHeightPx = document.documentElement?.clientHeight || window.innerHeight || Infinity;
+      viewportHeightPx = document.documentElement?.clientHeight || window.innerHeight || Infinity
     return (
       hostRect.width > 0 &&
       hostRect.height > 0 &&
@@ -683,18 +642,18 @@ export function mountInteraction3d(
       (hostRect.top || 0) < viewportHeightPx &&
       (hostRect.right ?? (hostRect.left || 0) + hostRect.width) > 0 &&
       (hostRect.bottom ?? (hostRect.top || 0) + hostRect.height) > 0
-    );
+    )
   }
   function refreshActivityState(forceRefresh = false) {
-    if (isDisposed) return;
-    syncLightStreamActive();
+    if (isDisposed) return
+    syncLightStreamActive()
     const isStageOnScreen =
         isAuthorized &&
         !isPreviewSuspended &&
         !isPageFrozen &&
         !isPageHidden &&
         document.hidden !== true &&
-        document.visibilityState !== "hidden" &&
+        document.visibilityState !== 'hidden' &&
         isStageIntersecting &&
         isHostActuallyVisible(),
       isPrewarmAllowed = isAuthorized && canPrewarmStage() && !isPageFrozen && !document.hidden,
@@ -704,39 +663,37 @@ export function mountInteraction3d(
         !isEditing &&
         !runtimeContext.editable &&
         !isViewEditing &&
-        isStageOnScreen;
-    isStageOnScreenCached = isStageOnScreen;
-    (isStageActive || (heldPointerIdsSet.clear(), heldKeyCodesSet.clear()),
-      (forceRefresh ||
-        isStageActive !== wasStageActive ||
-        (isStageOnScreen || isPrewarmAllowed) !== wasStageVisible) &&
+        isStageOnScreen
+    isStageOnScreenCached = isStageOnScreen
+    isStageActive || (heldPointerIdsSet.clear(), heldKeyCodesSet.clear()),
+      (forceRefresh || isStageActive !== wasStageActive || (isStageOnScreen || isPrewarmAllowed) !== wasStageVisible) &&
         ((wasStageActive = isStageActive),
         (wasStageVisible = isStageOnScreen || isPrewarmAllowed),
         syncWeatherEffects(),
         (lastActivityAtMs = -Infinity),
         postToStageFrame({
-          type: "activity-state",
+          type: 'activity-state',
           visible: isStageActive,
           presentedVisible: isStageOnScreen || isPrewarmAllowed,
-        })));
+        }))
   }
   function handleActivityInput(inputEvent: any) {
-    if (isDisposed || inputEvent.isTrusted === false) return;
-    const hasHeldInputAtEntry = hasHeldInput();
-    (inputEvent.type === "pointerdown" && heldPointerIdsSet.add(inputEvent.pointerId),
-      (inputEvent.type === "pointerup" || inputEvent.type === "pointercancel") &&
+    if (isDisposed || inputEvent.isTrusted === false) return
+    const hasHeldInputAtEntry = hasHeldInput()
+    inputEvent.type === 'pointerdown' && heldPointerIdsSet.add(inputEvent.pointerId),
+      (inputEvent.type === 'pointerup' || inputEvent.type === 'pointercancel') &&
         heldPointerIdsSet.delete(inputEvent.pointerId),
-      inputEvent.type === "keydown" && heldKeyCodesSet.add(inputEvent.code || inputEvent.key),
-      inputEvent.type === "keyup" && heldKeyCodesSet.delete(inputEvent.code || inputEvent.key));
-    const inputAtMs = globalThis.performance?.now?.() ?? Date.now();
-    (hasHeldInput() === hasHeldInputAtEntry && inputAtMs - lastActivityAtMs < 200) ||
+      inputEvent.type === 'keydown' && heldKeyCodesSet.add(inputEvent.code || inputEvent.key),
+      inputEvent.type === 'keyup' && heldKeyCodesSet.delete(inputEvent.code || inputEvent.key)
+    const inputAtMs = globalThis.performance?.now?.() ?? Date.now()
+    ;(hasHeldInput() === hasHeldInputAtEntry && inputAtMs - lastActivityAtMs < 200) ||
       (refreshActivityState(),
       (lastActivityAtMs = inputAtMs),
       wasStageActive &&
         postToStageFrame({
-          type: "user-activity",
+          type: 'user-activity',
           held: hasHeldInput(),
-        }));
+        }))
   }
   /**
    * 松开所有「按住的输入」并通知舞台。
@@ -745,21 +702,21 @@ export function mountInteraction3d(
    * 还在按着鼠标或键，状态得先清干净，否则舞台会一直以为有人在拖拽 / 长按。
    */
   function releaseHeldInput() {
-    if (isDisposed) return;
-    const hadHeldInput = hasHeldInput();
-    (heldPointerIdsSet.clear(),
+    if (isDisposed) return
+    const hadHeldInput = hasHeldInput()
+    heldPointerIdsSet.clear(),
       heldKeyCodesSet.clear(),
       refreshActivityState(),
       hadHeldInput &&
         wasStageActive &&
         ((lastActivityAtMs = globalThis.performance?.now?.() ?? Date.now()),
         postToStageFrame({
-          type: "user-activity",
+          type: 'user-activity',
           held: false,
-        })));
+        }))
   }
   function handlePageHide(pageHideEvent: any) {
-    (reportRuntimeLifecycle("page-hide", {
+    reportRuntimeLifecycle('page-hide', {
       persisted: pageHideEvent?.persisted === true,
     }),
       closePopupLayoutPreview(),
@@ -768,23 +725,23 @@ export function mountInteraction3d(
       // 进 bfcache 前主动断开实时通道：浏览器会冻结文档并自己切断 WebSocket，那时既没有
       // close 回调也没有定时器，退避重连一次都不会跑（见 light/light-stream.ts 的 suspend）。
       lightStream?.suspend(),
-      refreshActivityState());
+      refreshActivityState()
   }
   function handlePageShow(pageShowEvent: any) {
-    (reportRuntimeLifecycle("page-show", {
+    reportRuntimeLifecycle('page-show', {
       persisted: pageShowEvent?.persisted === true,
     }),
       (isPageFrozen = false),
       pageShowEvent?.persisted && !isDisposed
-        ? (reloadStageFrame("load-bfcache"), lightStream?.resume())
-        : (refreshActivityState(), lightStream?.resume()));
+        ? (reloadStageFrame('load-bfcache'), lightStream?.resume())
+        : (refreshActivityState(), lightStream?.resume())
   }
   function handleVisibilityChange() {
-    (document.hidden && closePopupLayoutPreview(), refreshActivityState());
+    document.hidden && closePopupLayoutPreview(), refreshActivityState()
   }
   let latestStatesByEntityId: Record<string, any> = {},
     lastPublishedStates: any = null,
-    supportsStatePatches = false;
+    supportsStatePatches = false
   /**
    * 窗帘姿态记忆（0.8.4）：后端攒「上次位置 + 补间样本」，本地状态观测按 `at` 取新合并。
    *
@@ -792,40 +749,40 @@ export function mountInteraction3d(
    * 记忆拿不到时只是动画差一点，所有调用都是 best-effort。
    */
   const coverMemoryClient = createCoverMemoryClient({
-    projectId: runtimeContext.document?.projectId || "",
-    componentId: componentDescriptor?.id || "",
-  });
+    projectId: runtimeContext.document?.projectId || '',
+    componentId: componentDescriptor?.id || '',
+  })
   const lightStream =
-    typeof window.WebSocket == "function"
+    typeof window.WebSocket == 'function'
       ? createLightStream({
           onStates(incomingStates) {
-            ((latestStatesByEntityId = incomingStates),
+            ;(latestStatesByEntityId = incomingStates),
               coverMemoryClient.observe(incomingStates),
-              fetchClimateCapabilities());
+              fetchClimateCapabilities()
             if (isPreviewSuspended) {
               // 预览挂起时 `states` 停发：历史通道原样转发整份状态（0.7.9 同款分支）。
-              publishStatusHistory(incomingStates);
-              return;
+              publishStatusHistory(incomingStates)
+              return
             }
-            (focusDevicePopup?.updateStates?.(),
+            focusDevicePopup?.updateStates?.(),
               vacuumPopup?.updateStates?.(incomingStates),
               onStatesUpdate?.(incomingStates),
-              isStageReady && publishStates());
+              isStageReady && publishStates()
           },
           onPatch(statePatch) {
             latestStatesByEntityId = {
               ...latestStatesByEntityId,
               ...statePatch,
-            };
-            coverMemoryClient.observe(statePatch, { patch: true });
-            if (isPreviewSuspended) {
-              publishStatusHistory(statePatch, true);
-              return;
             }
-            (focusDevicePopup?.updateStates?.(),
+            coverMemoryClient.observe(statePatch, { patch: true })
+            if (isPreviewSuspended) {
+              publishStatusHistory(statePatch, true)
+              return
+            }
+            focusDevicePopup?.updateStates?.(),
               vacuumPopup?.updateStates?.(latestStatesByEntityId),
               onStatesUpdate?.(latestStatesByEntityId),
-              isStageReady && publishStates(statePatch));
+              isStageReady && publishStates(statePatch)
           },
           onInvalidate(invalidatedEntityIds) {
             // 订阅态被重置：让舞台清掉这些实体的迟滞记忆，
@@ -834,19 +791,19 @@ export function mountInteraction3d(
               isDisposed ||
               !invalidatedEntityIds.length ||
               postToStageFrame({
-                type: "status-history-invalidated",
+                type: 'status-history-invalidated',
                 entityIds: invalidatedEntityIds,
-              });
+              })
           },
           onCoverMemory(entityId) {
             // 后端攒了新样本（控制后 / HA 状态变化）：重取快照，单飞 + 40ms 合并。
-            coverMemoryClient.notifyChanged(entityId);
+            coverMemoryClient.notifyChanged(entityId)
           },
         })
-      : null;
+      : null
   function syncLightStreamActive() {
-    if (!lightStream || isDisposed) return;
-    hostElement.isConnected === true && (hasBeenConnected = true);
+    if (!lightStream || isDisposed) return
+    hostElement.isConnected === true && (hasBeenConnected = true)
     let isStageVisible =
       isAuthorized &&
       !hasLoadFailed &&
@@ -854,51 +811,47 @@ export function mountInteraction3d(
       !isPageFrozen &&
       !isPageHidden &&
       document.hidden !== true &&
-      document.visibilityState !== "hidden" &&
-      !(hasBeenConnected && hostElement.isConnected === false);
+      document.visibilityState !== 'hidden' &&
+      !(hasBeenConnected && hostElement.isConnected === false)
     for (
       let ancestorElement = hostElement;
       isStageVisible && ancestorElement;
       ancestorElement = ancestorElement.parentElement
     ) {
-      const ancestorStyle = window.getComputedStyle?.(ancestorElement);
-      (ancestorElement.hidden ||
+      const ancestorStyle = window.getComputedStyle?.(ancestorElement)
+      ;(ancestorElement.hidden ||
         ancestorElement.inert ||
-        ancestorElement.getAttribute?.("aria-hidden") === "true" ||
-        ancestorStyle?.display === "none" ||
-        ["hidden", "collapse"].includes(ancestorStyle?.visibility)) &&
-        (isStageVisible = false);
+        ancestorElement.getAttribute?.('aria-hidden') === 'true' ||
+        ancestorStyle?.display === 'none' ||
+        ['hidden', 'collapse'].includes(ancestorStyle?.visibility)) &&
+        (isStageVisible = false)
     }
-    lightStream.setActive(
-      isStageVisible || (isAuthorized && canPrewarmStage() && !isPageFrozen && !document.hidden),
-    );
+    lightStream.setActive(isStageVisible || (isAuthorized && canPrewarmStage() && !isPageFrozen && !document.hidden))
   }
   function findCurtainMotorReverseEntities() {
-    const entityMetadata = runtimeContext.entityMetadata;
+    const entityMetadata = runtimeContext.entityMetadata
     return !entityMetadata?.get || !entityMetadata?.values
       ? []
       : (componentProperties.environment?.curtains || []).flatMap((curtain: any) => {
-          const curtainMetadata = entityMetadata.get(curtain.entityId);
-          if (!curtainMetadata?.deviceId) return [];
+          const curtainMetadata = entityMetadata.get(curtain.entityId)
+          if (!curtainMetadata?.deviceId) return []
           const motorReverseCandidates = [...entityMetadata.values()].filter(
             (candidateMetadata) =>
               candidateMetadata.deviceId === curtainMetadata.deviceId &&
               (!curtainMetadata.platform ||
                 !candidateMetadata.platform ||
                 candidateMetadata.platform === curtainMetadata.platform) &&
-              ["switch", "select"].includes(
-                candidateMetadata.domain || candidateMetadata.entityId?.split(".")[0],
-              ) &&
+              ['switch', 'select'].includes(candidateMetadata.domain || candidateMetadata.entityId?.split('.')[0]) &&
               !candidateMetadata.disabledBy &&
-              !["disabled", "missing"].includes(candidateMetadata.status) &&
+              !['disabled', 'missing'].includes(candidateMetadata.status) &&
               /motor_reverse|电机反向/i.test(
-                (candidateMetadata.entityId || "") +
-                  " " +
-                  (candidateMetadata.name || "") +
-                  " " +
-                  (candidateMetadata.translationKey || ""),
+                (candidateMetadata.entityId || '') +
+                  ' ' +
+                  (candidateMetadata.name || '') +
+                  ' ' +
+                  (candidateMetadata.translationKey || ''),
               ),
-          );
+          )
           return motorReverseCandidates.length === 1
             ? [
                 {
@@ -906,12 +859,12 @@ export function mountInteraction3d(
                   coverEntityId: curtain.entityId,
                 },
               ]
-            : [];
-        });
+            : []
+        })
   }
   let temperatureUnit: any = null,
     lastCapabilityFetchAtMs = 0,
-    isFetchingCapabilities = false;
+    isFetchingCapabilities = false
   async function fetchClimateCapabilities() {
     if (
       isDisposed ||
@@ -920,59 +873,56 @@ export function mountInteraction3d(
         (componentProperties.environment?.waterHeaters || []).length ||
         (componentProperties.environment?.airConditioners || []).length
       ) ||
-      typeof fetch != "function" ||
+      typeof fetch != 'function' ||
       isFetchingCapabilities ||
       Date.now() - lastCapabilityFetchAtMs < 60000
     )
-      return;
-    ((isFetchingCapabilities = true), (lastCapabilityFetchAtMs = Date.now()));
-    const capabilityAbortController = new AbortController();
-    activeRequestsSet.add(capabilityAbortController);
-    const capabilityTimeoutId = setTimeout(() => capabilityAbortController.abort(), 10000);
+      return
+    ;(isFetchingCapabilities = true), (lastCapabilityFetchAtMs = Date.now())
+    const capabilityAbortController = new AbortController()
+    activeRequestsSet.add(capabilityAbortController)
+    const capabilityTimeoutId = setTimeout(() => capabilityAbortController.abort(), 10000)
     try {
       const capabilityResponse = await fetch(
         INTERACTION3D_API_BASE +
-          "/" +
-          ((componentProperties.environment?.airConditioners || []).length
-            ? "climate"
-            : "water-heater") +
-          "-capabilities",
+          '/' +
+          ((componentProperties.environment?.airConditioners || []).length ? 'climate' : 'water-heater') +
+          '-capabilities',
         {
-          credentials: "same-origin",
+          credentials: 'same-origin',
           signal: capabilityAbortController.signal,
         },
-      );
-      if (!capabilityResponse.ok) return;
-      const { temperatureUnit: reportedTemperatureUnit } = await capabilityResponse.json();
-      if (isDisposed) return;
-      const normalizedTemperatureUnit = ["°C", "°F", "K"].includes(reportedTemperatureUnit)
+      )
+      if (!capabilityResponse.ok) return
+      const { temperatureUnit: reportedTemperatureUnit } = await capabilityResponse.json()
+      if (isDisposed) return
+      const normalizedTemperatureUnit = ['°C', '°F', 'K'].includes(reportedTemperatureUnit)
         ? reportedTemperatureUnit
-        : null;
+        : null
       normalizedTemperatureUnit !== temperatureUnit &&
-        ((temperatureUnit = normalizedTemperatureUnit),
-        (lastPublishedStates = null),
-        publishStates());
-    } catch { /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */ } finally {
-      (clearTimeout(capabilityTimeoutId),
+        ((temperatureUnit = normalizedTemperatureUnit), (lastPublishedStates = null), publishStates())
+    } catch {
+      /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */
+    } finally {
+      clearTimeout(capabilityTimeoutId),
         activeRequestsSet.delete(capabilityAbortController),
-        (isFetchingCapabilities = false));
+        (isFetchingCapabilities = false)
     }
   }
   function mergeMotorReverseStates(statesMap: any, patchStates: any = null) {
     const mergedStates: Record<string, any> = {
       ...(patchStates || statesMap),
-    };
+    }
     for (const [stateEntityId, rawState] of Object.entries(mergedStates)) {
-      if (!/^(water_heater|climate)\./.test(stateEntityId) || !rawState || !temperatureUnit)
-        continue;
-      const stateEntry = rawState.newState || rawState;
+      if (!/^(water_heater|climate)\./.test(stateEntityId) || !rawState || !temperatureUnit) continue
+      const stateEntry = rawState.newState || rawState
       mergedStates[stateEntityId] = {
         ...stateEntry,
         attributes: {
           ...stateEntry.attributes,
           temperature_unit: temperatureUnit,
         },
-      };
+      }
     }
     for (const motorReversePair of findCurtainMotorReverseEntities()) {
       if (
@@ -980,53 +930,37 @@ export function mountInteraction3d(
         !(motorReversePair.entityId in patchStates) &&
         !(motorReversePair.coverEntityId in patchStates)
       )
-        continue;
-      const coverState = statesMap[motorReversePair.coverEntityId];
-      if (!coverState) continue;
-      const motorReverseState =
-          statesMap[motorReversePair.entityId]?.newState || statesMap[motorReversePair.entityId],
-        motorReverseText = String(motorReverseState?.state || "")
+        continue
+      const coverState = statesMap[motorReversePair.coverEntityId]
+      if (!coverState) continue
+      const motorReverseState = statesMap[motorReversePair.entityId]?.newState || statesMap[motorReversePair.entityId],
+        motorReverseText = String(motorReverseState?.state || '')
           .trim()
           .toLowerCase(),
         isMotorReverseEnabled =
           motorReverseState?.available === false
             ? null
-            : [
-                  "on",
-                  "true",
-                  "1",
-                  "enabled",
-                  "开启",
-                  "打开",
-                  "reverse",
-                  "reversed",
-                  "反向",
-                ].includes(motorReverseText)
+            : ['on', 'true', '1', 'enabled', '开启', '打开', 'reverse', 'reversed', '反向'].includes(motorReverseText)
               ? true
-              : ["off", "false", "0", "disabled", "关闭", "normal", "forward", "正向"].includes(
-                    motorReverseText,
-                  )
+              : ['off', 'false', '0', 'disabled', '关闭', 'normal', 'forward', '正向'].includes(motorReverseText)
                 ? false
-                : null;
+                : null
       mergedStates[motorReversePair.coverEntityId] = {
         ...(coverState.newState || coverState),
         motorReverse: {
           entityId: motorReversePair.entityId,
           enabled: isMotorReverseEnabled,
         },
-      };
+      }
     }
-    return mergedStates;
+    return mergedStates
   }
   const collectGenericDeviceEntries = () =>
       GENERIC_DEVICE_KINDS.flatMap(
-        (deviceKind) =>
-          componentProperties.devices?.[genericDeviceProfile(deviceKind).collection] || [],
+        (deviceKind) => componentProperties.devices?.[genericDeviceProfile(deviceKind).collection] || [],
       ),
     collectDeviceExtraEntities = () =>
-      collectGenericDeviceEntries().flatMap(
-        (genericDeviceEntry) => genericDeviceEntry.extraControls || [],
-      ),
+      collectGenericDeviceEntries().flatMap((genericDeviceEntry) => genericDeviceEntry.extraControls || []),
     collectGenericDeviceEntities = () =>
       collectGenericDeviceEntries().flatMap((deviceEntry) => {
         const genericStatusRules = deviceEntry.statusRules || {},
@@ -1034,29 +968,27 @@ export function mountInteraction3d(
             ? genericStatusRules.health
             : genericStatusRules.health
               ? [genericStatusRules.health]
-              : [];
+              : []
         return [
           ...(deviceEntry.extraControls || []),
-          ...[deviceEntry.batteryEntityId, deviceEntry.chargingEntityId]
-            .filter(Boolean)
-            .map((relatedEntityId) => ({
-              entityId: relatedEntityId,
-            })),
+          ...[deviceEntry.batteryEntityId, deviceEntry.chargingEntityId].filter(Boolean).map((relatedEntityId) => ({
+            entityId: relatedEntityId,
+          })),
           // 轮位胎压：订阅侧拿不到绑定带宽的车型，按场景元数据解析（四轮 / 双轮轮位表不同）。
-          ...carTireEntities(deviceEntry, carTireModelType(deviceEntry, componentMetadata)).map(
-            (tireEntityId) => ({ entityId: tireEntityId }),
-          ),
+          ...carTireEntities(deviceEntry, carTireModelType(deviceEntry, componentMetadata)).map((tireEntityId) => ({
+            entityId: tireEntityId,
+          })),
           genericStatusRules.power,
           ...genericHealthRules,
-        ].filter(Boolean);
+        ].filter(Boolean)
       }),
     collectWaterHeaterEntities = () =>
       (componentProperties.environment?.waterHeaters || []).flatMap((waterHeaterEntry: any) => {
         const waterHeaterStatusRules = waterHeaterEntry.statusRules || {},
           waterHeaterHealthRules = Array.isArray(waterHeaterStatusRules.health)
             ? waterHeaterStatusRules.health
-            : [waterHeaterStatusRules.health];
-        return [waterHeaterStatusRules.power, ...waterHeaterHealthRules].filter(Boolean);
+            : [waterHeaterStatusRules.health]
+        return [waterHeaterStatusRules.power, ...waterHeaterHealthRules].filter(Boolean)
       }),
     collectEnvironmentExtraEntities = () =>
       [
@@ -1069,15 +1001,15 @@ export function mountInteraction3d(
     collectLockEntities = () =>
       (componentProperties.security?.locks || []).flatMap((lockEntry: any) =>
         [
-          "entityId",
-          "doorEntityId",
-          "doorEventEntityId",
-          "doorOpenEntityId",
-          "doorCloseEntityId",
-          "batteryEntityId",
-          "battery2EntityId",
-          "lowBatteryEntityId",
-          "tamperEntityId",
+          'entityId',
+          'doorEntityId',
+          'doorEventEntityId',
+          'doorOpenEntityId',
+          'doorCloseEntityId',
+          'batteryEntityId',
+          'battery2EntityId',
+          'lowBatteryEntityId',
+          'tamperEntityId',
         ]
           .map((entityKey) => ({
             entityId: lockEntry[entityKey],
@@ -1155,41 +1087,39 @@ export function mountInteraction3d(
           entityId: televisionWithPower.powerEntityId,
         })),
       ...(componentProperties.devices?.nas || []).flatMap((nasEntry: any) => {
-        const nasStatusSource = nasEntry.statusSource;
+        const nasStatusSource = nasEntry.statusSource
         return (nasStatusSource?.metrics || []).filter(
           (metricEntry: any) =>
             !nasStatusSource.visibleMetrics ||
             nasStatusSource.visibleMetrics.includes(metricEntry.entityId) ||
             metricEntry.entityId === nasStatusSource.primaryEntityId,
-        );
+        )
       }),
-    ];
+    ]
   function isKnownSelectionId(selectionId: any) {
-    return typeof selectionId != "string" || !selectionId
+    return typeof selectionId != 'string' || !selectionId
       ? false
       : (componentProperties.lights || []).some((lightEntry: any) => lightEntry.id === selectionId) ||
           (componentProperties.security?.locks || []).some(
-            (lockConfigEntry: any) => selectionId === "lock:" + lockConfigEntry.id,
+            (lockConfigEntry: any) => selectionId === 'lock:' + lockConfigEntry.id,
           ) ||
           (componentProperties.security?.cameras || []).some(
-            (cameraEntry: any) => selectionId === "camera:" + cameraEntry.id,
+            (cameraEntry: any) => selectionId === 'camera:' + cameraEntry.id,
           ) ||
           (componentProperties.security?.presenceSensors || []).some(
-            (presenceSensorEntry: any) => selectionId === "presence:" + presenceSensorEntry.id,
+            (presenceSensorEntry: any) => selectionId === 'presence:' + presenceSensorEntry.id,
           ) ||
           (componentProperties.security?.alarms || []).some((alarmEntry: any) => {
-            const alarmKind = ["moisture", "smoke", "gas"].includes(alarmEntry.kind)
-              ? alarmEntry.kind
-              : "smoke";
-            return selectionId === alarmKind + ":" + alarmEntry.id;
+            const alarmKind = ['moisture', 'smoke', 'gas'].includes(alarmEntry.kind) ? alarmEntry.kind : 'smoke'
+            return selectionId === alarmKind + ':' + alarmEntry.id
           }) ||
           (componentProperties.environment?.curtainGroups || []).some(
-            (curtainGroupEntry: any) => selectionId === "cover:curtain-group:" + curtainGroupEntry.id,
+            (curtainGroupEntry: any) => selectionId === 'cover:curtain-group:' + curtainGroupEntry.id,
           )
         ? true
         : [
             [
-              "climate",
+              'climate',
               [
                 ...(componentProperties.environment?.airConditioners || []),
                 ...(componentProperties.environment?.fans || []),
@@ -1199,7 +1129,7 @@ export function mountInteraction3d(
               ],
             ],
             [
-              "cover",
+              'cover',
               [
                 ...(componentProperties.environment?.curtains || []),
                 ...(componentProperties.environment?.airers || []),
@@ -1209,42 +1139,40 @@ export function mountInteraction3d(
               genericDeviceKind,
               componentProperties.devices?.[genericDeviceProfile(genericDeviceKind).collection],
             ]),
-            ["nas", componentProperties.devices?.nas],
-            ["speaker", componentProperties.devices?.speakers],
-            ["television", componentProperties.devices?.televisions],
-            ["vacuum", componentProperties.devices?.vacuums],
+            ['nas', componentProperties.devices?.nas],
+            ['speaker', componentProperties.devices?.speakers],
+            ['television', componentProperties.devices?.televisions],
+            ['vacuum', componentProperties.devices?.vacuums],
           ].some(([deviceKey, deviceConfigList]) =>
             (deviceConfigList || []).some(
               (deviceConfigEntry: any) =>
-                typeof deviceConfigEntry.id == "string" &&
+                typeof deviceConfigEntry.id == 'string' &&
                 deviceConfigEntry.id &&
-                selectionId === deviceKey + ":" + deviceConfigEntry.id,
+                selectionId === deviceKey + ':' + deviceConfigEntry.id,
             ),
-          );
+          )
   }
   const getCurrentStates = () =>
-      lightStream
-        ? latestStatesByEntityId
-        : Object.fromEntries(
-            collectTrackedEntities().map((trackedEntry) => [
-              trackedEntry.entityId,
-              runtimeContext.states?.get(trackedEntry.entityId) || null,
-            ]),
-          );
-  let securityAlarmOverlay: any = null;
+    lightStream
+      ? latestStatesByEntityId
+      : Object.fromEntries(
+          collectTrackedEntities().map((trackedEntry) => [
+            trackedEntry.entityId,
+            runtimeContext.states?.get(trackedEntry.entityId) || null,
+          ]),
+        )
+  let securityAlarmOverlay: any = null
   const syncSecurityAlarmOverlay = (states: any = null) => {
-    if (isDisposed) return;
+    if (isDisposed) return
     // 仪表盘挂 document.body；编辑画布挂宿主。编辑模块内由 security-editor 自管预览。
     if (isEditing || !isAuthorized) {
-      securityAlarmOverlay?.update([], false);
-      return;
+      securityAlarmOverlay?.update([], false)
+      return
     }
-    const overlayHost = runtimeContext.editable
-      ? hostElement
-      : hostElement.ownerDocument?.body || document.body;
-    if (!overlayHost) return;
+    const overlayHost = runtimeContext.editable ? hostElement : hostElement.ownerDocument?.body || document.body
+    if (!overlayHost) return
     if (!securityAlarmOverlay) {
-      securityAlarmOverlay = createSecurityAlarmOverlay(overlayHost);
+      securityAlarmOverlay = createSecurityAlarmOverlay(overlayHost)
     }
     securityAlarmOverlay.update(
       securityAlarmReadings(
@@ -1252,21 +1180,21 @@ export function mountInteraction3d(
         states ?? getCurrentStates(),
       ),
       true,
-      componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default",
-    );
-  };
+      componentProperties.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default',
+    )
+  }
   // 天气特效层：只在「绑定了天气实体」或「编辑器正在预览某个天气态」时创建 canvas，
   // 其余情况整层不存在、不出帧（按需帧循环见 `weather-effects`）。
   let weatherEffects: any = null,
-    weatherPreviewCondition = "",
-    weatherPreviewTimeoutId: any = null;
+    weatherPreviewCondition = '',
+    weatherPreviewTimeoutId: any = null
   /**
    * 舞台发来的真实地面投影（归一化屏幕四边形）。
    * 没收到过（舞台未就绪 / 相机贴地导致投影退化）时保持 null，天气层用兜底透视带。
    */
-  let weatherGroundQuad: WeatherGroundQuad | null = null;
+  let weatherGroundQuad: WeatherGroundQuad | null = null
   /** 预览态订阅方（配置面板据此高亮按钮、复位说明文案）。 */
-  const weatherPreviewListeners = new Set<(previewState: string) => void>();
+  const weatherPreviewListeners = new Set<(previewState: string) => void>()
   /**
    * 绑定的天气实体 ID。
    *
@@ -1276,10 +1204,10 @@ export function mountInteraction3d(
    * 取值统一走 platform 的 `weatherEntityIds()`（域名 / 长度校验 + 排序），
    * 与实体订阅共用同一份清单——两处口径不一致时，状态根本不会推下来。
    */
-  const currentWeatherEntityId = () => boundWeatherEntityId(componentProperties);
+  const currentWeatherEntityId = () => boundWeatherEntityId(componentProperties)
   /** 广播当前预览态；没有预览时传空串。 */
   function notifyWeatherPreview() {
-    for (const listener of weatherPreviewListeners) listener(weatherPreviewCondition);
+    for (const listener of weatherPreviewListeners) listener(weatherPreviewCondition)
   }
   /**
    * 天气层是否该出帧。
@@ -1300,48 +1228,47 @@ export function mountInteraction3d(
       document.hidden !== true &&
       isStageIntersecting &&
       isStageOnScreenCached
-    );
+    )
   }
   /** 同步天气态；`states` 省略时回落到当前订阅快照。 */
   function syncWeatherEffects(states: any = null) {
-    if (isDisposed) return;
-    const weatherTargetId = currentWeatherEntityId();
+    if (isDisposed) return
+    const weatherTargetId = currentWeatherEntityId()
     // 没绑定、也没在预览：连 canvas 都不建，避免给不关心天气的户型带来任何开销。
-    if (!weatherEffects && !weatherTargetId && !weatherPreviewCondition) return;
+    if (!weatherEffects && !weatherTargetId && !weatherPreviewCondition) return
     // 解绑（或实体 ID 变成空串）后把已经建过的 canvas 一起收掉：留着它虽然 `hidden`，
     // 但会永久占着一个 DOM 节点 + 一份粒子池，而且下次绑定要复用一个「上一次天气」的旧层。
     if (!weatherTargetId && !weatherPreviewCondition) {
-      (weatherEffects?.dispose(), (weatherEffects = null));
-      return;
+      weatherEffects?.dispose(), (weatherEffects = null)
+      return
     }
-    const isActive = weatherEffectsActive();
+    const isActive = weatherEffectsActive()
     // 不可见**不结束预览**：这条路径会被每次可见性重算命中（滚动、切页、其它弹窗盖上来），
     // 在这里顺手取消预览会让「点预览按钮」在不可见的那一帧自我了断——按钮已高亮、
     // 画面却什么都没发生。预览的收尾只交给 12 秒超时与 `setEditable` / dispose。
     if (!weatherEffects && isActive && (weatherTargetId || weatherPreviewCondition))
-      (weatherEffects = createWeatherEffects(hostElement)),
-        weatherEffects.setGround?.(weatherGroundQuad);
+      (weatherEffects = createWeatherEffects(hostElement)), weatherEffects.setGround?.(weatherGroundQuad)
     weatherEffects?.update(
       weatherPreviewCondition
         ? { state: weatherPreviewCondition }
         : weatherEntityState(states ?? getCurrentStates(), weatherTargetId),
       isActive,
-    );
+    )
   }
   /** 结束天气预览（含 12 秒超时到点）。空态时直接返回，避免与 `syncWeatherEffects` 相互递归。 */
   function closeWeatherPreview() {
-    if (weatherPreviewTimeoutId !== null) clearTimeout(weatherPreviewTimeoutId);
-    weatherPreviewTimeoutId = null;
-    if (!weatherPreviewCondition) return;
-    weatherPreviewCondition = "";
-    notifyWeatherPreview();
-    syncWeatherEffects();
+    if (weatherPreviewTimeoutId !== null) clearTimeout(weatherPreviewTimeoutId)
+    weatherPreviewTimeoutId = null
+    if (!weatherPreviewCondition) return
+    weatherPreviewCondition = ''
+    notifyWeatherPreview()
+    syncWeatherEffects()
   }
   /**
    * 进入预览态。合法态与可预览性都从 `WEATHER_EFFECTS` 派生：新增天气不必再改这里。
    */
   function previewWeather(weatherState: unknown) {
-    const previewKey = weatherEffectKey(weatherState);
+    const previewKey = weatherEffectKey(weatherState)
     if (
       isDisposed ||
       !isAuthorized ||
@@ -1355,13 +1282,13 @@ export function mountInteraction3d(
       !previewKey ||
       !WEATHER_EFFECTS[previewKey].preview
     )
-      return false;
-    clearTimeout(weatherPreviewTimeoutId);
-    weatherPreviewCondition = previewKey;
-    weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS);
-    notifyWeatherPreview();
-    syncWeatherEffects();
-    return true;
+      return false
+    clearTimeout(weatherPreviewTimeoutId)
+    weatherPreviewCondition = previewKey
+    weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS)
+    notifyWeatherPreview()
+    syncWeatherEffects()
+    return true
   }
   /**
    * 按 HA 显示精度生成 `entityId -> precision` 映射；只在变化时下发。
@@ -1369,50 +1296,48 @@ export function mountInteraction3d(
    * 舞台侧据此格式化温湿度、NAS、附加面板的数值，避免与主界面显示不一致。
    */
   const publishNumberFormats = () => {
-    if (!isStageReady || isDisposed || isPreviewSuspended) return;
+    if (!isStageReady || isDisposed || isPreviewSuspended) return
     const numberFormats = entityNumberFormatsOf(
         [...referencedEntityIds(componentProperties)],
         runtimeContext.entityMetadata,
       ),
-      numberFormatsJson = JSON.stringify(numberFormats);
+      numberFormatsJson = JSON.stringify(numberFormats)
     numberFormatsJson === lastNumberFormatsJson ||
       ((lastNumberFormatsJson = numberFormatsJson),
       postToStageFrame({
-        type: "number-formats",
+        type: 'number-formats',
         formats: numberFormats,
-      }));
-  };
+      }))
+  }
   /**
    * 预览态专用的指示灯历史通道（0.7.9 同款）：预览被其他弹窗挂起时 `states` 停发，
    * 这条通道把**整份** HA 状态照原样转给舞台，舞台只拿它预热迟滞记忆。
    */
   const publishStatusHistory = (incomingStates: any = null, isPatch = false) => {
-    if (!lightStream || !isStageReady || isDisposed || !incomingStates) return;
+    if (!lightStream || !isStageReady || isDisposed || !incomingStates) return
     postToStageFrame({
-      type: "status-history-states",
+      type: 'status-history-states',
       states: coverMemoryClient.hydrate(incomingStates),
       ...(isPatch
         ? {
             patch: true,
           }
         : {}),
-    });
-  };
+    })
+  }
   /** 立即下发 `states`；返回是否已送达（或因「状态没变」无需再发）。 */
   const publishStatesNow = (incomingPatch: any = null) => {
-    const currentStates = getCurrentStates();
-    syncSecurityAlarmOverlay(currentStates);
-    syncWeatherEffects(currentStates);
+    const currentStates = getCurrentStates()
+    syncSecurityAlarmOverlay(currentStates)
+    syncWeatherEffects(currentStates)
     // 与 0.7.9 一致：预览挂起时 `states` 直接停发（历史通道由 onStates/onPatch 自己兜底）。
-    if (isPreviewSuspended) return false;
-    if (isPageHidden) return false;
-    if (lightStream && currentStates === lastPublishedStates) return true;
-    const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
-    (postToStageFrame({
-      type: "states",
-      states: coverMemoryClient.hydrate(
-        mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null),
-      ),
+    if (isPreviewSuspended) return false
+    if (isPageHidden) return false
+    if (lightStream && currentStates === lastPublishedStates) return true
+    const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null
+    postToStageFrame({
+      type: 'states',
+      states: coverMemoryClient.hydrate(mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null)),
       ...(shouldSendPatch
         ? {
             patch: true,
@@ -1420,9 +1345,9 @@ export function mountInteraction3d(
         : {}),
     }),
       (lastPublishedStates = currentStates),
-      lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates)));
-    return true;
-  };
+      lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates))
+    return true
+  }
   /**
    * 同一帧内的 `states` patch 合并成一条再下发（`publishStates` 的入口）。
    *
@@ -1433,68 +1358,56 @@ export function mountInteraction3d(
    * 最后一次结果。
    */
   let pendingStatePatch: any = null,
-    isStateFlushQueued = false;
+    isStateFlushQueued = false
   /** patch 的键必须都是实体 id，否则不是「实体→状态」映射（见 `publishStates`）。 */
   const isEntityStateMap = (statePatch: any) =>
     !!statePatch &&
-    typeof statePatch == "object" &&
-    Object.keys(statePatch).every((patchedEntityId) =>
-      /^[a-z_]+\.[a-z0-9_]+$/.test(patchedEntityId),
-    );
+    typeof statePatch == 'object' &&
+    Object.keys(statePatch).every((patchedEntityId) => /^[a-z_]+\.[a-z0-9_]+$/.test(patchedEntityId))
   const flushPendingStates = () => {
-    isStateFlushQueued = false;
-    const queuedStatePatch = pendingStatePatch;
-    pendingStatePatch = null;
-    if (isDisposed || !queuedStatePatch) return;
+    isStateFlushQueued = false
+    const queuedStatePatch = pendingStatePatch
+    pendingStatePatch = null
+    if (isDisposed || !queuedStatePatch) return
     // 挂起 / 不可见时没有真正下发：patch 留着，等恢复后随整份状态一起补发。
     publishStatesNow(queuedStatePatch) ||
-      (pendingStatePatch = pendingStatePatch
-        ? { ...queuedStatePatch, ...pendingStatePatch }
-        : queuedStatePatch);
-  };
+      (pendingStatePatch = pendingStatePatch ? { ...queuedStatePatch, ...pendingStatePatch } : queuedStatePatch)
+  }
   const queueStateFlush = () => {
     isStateFlushQueued ||
       ((isStateFlushQueued = true),
-      typeof requestAnimationFrame == "function"
+      typeof requestAnimationFrame == 'function'
         ? requestAnimationFrame(flushPendingStates)
-        : setTimeout(flushPendingStates, 16));
-  };
+        : setTimeout(flushPendingStates, 16))
+  }
   const publishStates = (incomingPatch: any = null) => {
     // 只有「实体 id → 状态」的 patch 才谈得上合并；`registerRuntimeStateHandler` 那条通道传
     // 下来的是单个实体的状态快照（含 entityId / state / attributes），形状不同，直接照原样下发。
     if (incomingPatch !== null && isEntityStateMap(incomingPatch)) {
-      pendingStatePatch = pendingStatePatch
-        ? { ...pendingStatePatch, ...incomingPatch }
-        : { ...incomingPatch };
-      queueStateFlush();
-      return;
+      pendingStatePatch = pendingStatePatch ? { ...pendingStatePatch, ...incomingPatch } : { ...incomingPatch }
+      queueStateFlush()
+      return
     }
     if (incomingPatch !== null) {
-      publishStatesNow(incomingPatch);
-      return;
+      publishStatesNow(incomingPatch)
+      return
     }
     // 整份状态覆盖掉还没发出的 patch，避免同一批变化下发两遍。
-    pendingStatePatch = null;
-    publishStatesNow(null);
-  };
-  const registeredStateEntityIdsSet = new Set();
+    pendingStatePatch = null
+    publishStatesNow(null)
+  }
+  const registeredStateEntityIdsSet = new Set()
   function configureStateSubscriptions() {
     if (lightStream) {
-      (lightStream.configure(
+      lightStream.configure(
         collectTrackedEntities().map((subscribedEntry) => subscribedEntry.entityId),
         {
           additionalEntityIds: [
             ...collectLockEntities().map((lockedEntity: any) => lockedEntity.entityId),
-            ...collectGenericDeviceEntities().map(
-              (genericDeviceEntity) => genericDeviceEntity.entityId,
-            ),
+            ...collectGenericDeviceEntities().map((genericDeviceEntity) => genericDeviceEntity.entityId),
             ...collectWaterHeaterEntities().map((waterHeaterEntity: any) => waterHeaterEntity.entityId),
-            ...collectEnvironmentExtraEntities().map(
-              (environmentExtraEntity) => environmentExtraEntity.entityId,
-            ),
-            ...findCurtainMotorReverseEntities().map(
-              (motorReverseEntity: any) => motorReverseEntity.entityId,
-            ),
+            ...collectEnvironmentExtraEntities().map((environmentExtraEntity) => environmentExtraEntity.entityId),
+            ...findCurtainMotorReverseEntities().map((motorReverseEntity: any) => motorReverseEntity.entityId),
             ...(componentProperties.lights || []).map((lightEntity: any) => lightEntity.entityId),
             ...(componentProperties.security?.presenceSensors || []).map(
               (presenceSensorEntity: any) => presenceSensorEntity.entityId,
@@ -1504,13 +1417,9 @@ export function mountInteraction3d(
             ),
             ...collectVacuumEntries().flatMap((vacuumEntityEntry: any) => [
               ...(vacuumEntityEntry.relatedEntityIds || []),
-              ...(vacuumEntityEntry.shortcuts || []).map(
-                (shortcutEntity: any) => shortcutEntity.entityId,
-              ),
+              ...(vacuumEntityEntry.shortcuts || []).map((shortcutEntity: any) => shortcutEntity.entityId),
             ]),
-            ...(componentProperties.environment?.airers || []).map(
-              (airerEntity: any) => airerEntity.entityId,
-            ),
+            ...(componentProperties.environment?.airers || []).map((airerEntity: any) => airerEntity.entityId),
             ...(componentProperties.environment?.fans || []).flatMap((fanEntity: any) => [
               fanEntity.entityId,
               fanEntity.speedEntityId,
@@ -1533,18 +1442,18 @@ export function mountInteraction3d(
           ],
         },
       ),
-        syncLightStreamActive());
-      return;
+        syncLightStreamActive()
+      return
     }
     for (const registeredEntry of collectTrackedEntities())
       registeredEntry.entityId &&
         !registeredStateEntityIdsSet.has(registeredEntry.entityId) &&
         (registeredStateEntityIdsSet.add(registeredEntry.entityId),
-        runtimeContext.registerRuntimeStateHandler?.(registeredEntry.entityId, publishStates));
+        runtimeContext.registerRuntimeStateHandler?.(registeredEntry.entityId, publishStates))
   }
   function sendConfigUpdate() {
-    if (!isStageReady || isDisposed || isPreviewSuspended) return;
-    fetchClimateCapabilities();
+    if (!isStageReady || isDisposed || isPreviewSuspended) return
+    fetchClimateCapabilities()
     const configPayload = {
         properties: {
           ...componentProperties,
@@ -1567,38 +1476,38 @@ export function mountInteraction3d(
         interactive: !isEditing && !runtimeContext.editable,
         selectedId: selectedId,
       },
-      configJson = JSON.stringify(configPayload);
+      configJson = JSON.stringify(configPayload)
     if (configJson === lastConfigJson) {
-      (updatePresentationLayout(), refreshActivityState(), publishStates(), publishNumberFormats());
-      return;
+      updatePresentationLayout(), refreshActivityState(), publishStates(), publishNumberFormats()
+      return
     }
     // 标签类字段（名称/尺寸/位置/显隐…）单独走补丁通道：舞台只需重排受影响的标签，
     // 不必走整份 config 分支。结构变了补丁函数会返回 null，自动退回整份下发。
     const labelConfigPatches =
       lastSentConfigPayload && !pendingResetPreviewSession
         ? createLabelConfigPatch(lastSentConfigPayload, configPayload)
-        : null;
+        : null
     if (labelConfigPatches) {
-      ((lastConfigJson = configJson),
+      ;(lastConfigJson = configJson),
         (lastSentConfigPayload = structuredClone(configPayload)),
         postToStageFrame({
-          type: "label-config",
+          type: 'label-config',
           configId: configIdCounter,
           patches: labelConfigPatches,
         }),
         updatePresentationLayout(),
         refreshActivityState(),
-        publishNumberFormats());
-      return;
+        publishNumberFormats()
+      return
     }
-    lastSentConfigPayload = structuredClone(configPayload);
-    ((lastConfigJson = configJson),
+    lastSentConfigPayload = structuredClone(configPayload)
+    ;(lastConfigJson = configJson),
       (hasPresentedStage = false),
       (isReloadPending = true),
       refreshActivityState(true),
       updatePresentationLayout(true),
       postToStageFrame({
-        type: "config",
+        type: 'config',
         configId: ++configIdCounter,
         ...configPayload,
         // 配置窗口关过一次：即使属性没变，也要让舞台丢掉上一次编辑留下的选中/取景状态。
@@ -1608,68 +1517,60 @@ export function mountInteraction3d(
       (pendingResetPreviewSession = false),
       (lastPublishedStates = getCurrentStates()),
       publishNumberFormats(),
-      isScenePresented || refreshActivityState(true));
+      isScenePresented || refreshActivityState(true)
   }
   function syncBackgroundHidden() {
-    (hostElement.classList.toggle(
-      "is-background-hidden",
-      componentProperties.backgroundVisible === false,
-    ),
-      (hostElement.dataset.sceneStyle =
-        componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default"));
+    hostElement.classList.toggle('is-background-hidden', componentProperties.backgroundVisible === false),
+      (hostElement.dataset.sceneStyle = componentProperties.sceneStyle === 'warm-wood' ? 'warm-wood' : 'default')
   }
   function setFocusActive(nextFocusActive: any) {
-    isFocusActive !== nextFocusActive &&
-      ((isFocusActive = nextFocusActive), onFocusChange(nextFocusActive));
+    isFocusActive !== nextFocusActive && ((isFocusActive = nextFocusActive), onFocusChange(nextFocusActive))
   }
   function rejectPendingEdits(editRejectReason: any) {
     for (const pendingEdit of pendingEditsByRequestId.values())
-      (clearTimeout(pendingEdit.timeout), pendingEdit.reject(new Error(editRejectReason)));
-    pendingEditsByRequestId.clear();
+      clearTimeout(pendingEdit.timeout), pendingEdit.reject(new Error(editRejectReason))
+    pendingEditsByRequestId.clear()
   }
   function rejectPendingRangeRequests(rangeRejectReason: any) {
     for (const pendingRangeRequest of pendingRangeRequestsByRequestId.values())
-      (clearTimeout(pendingRangeRequest.timeout),
-        pendingRangeRequest.reject(new Error(rangeRejectReason)));
-    pendingRangeRequestsByRequestId.clear();
+      clearTimeout(pendingRangeRequest.timeout), pendingRangeRequest.reject(new Error(rangeRejectReason))
+    pendingRangeRequestsByRequestId.clear()
   }
   function dismissFocus(immediate = false) {
-    ((isVacuumPopupOpen = false),
-      (activeCameraSelectionId = activeVacuumSelectionId = ""),
+    ;(isVacuumPopupOpen = false),
+      (activeCameraSelectionId = activeVacuumSelectionId = ''),
       closeCameraPreview(),
       closeVacuumPopup(),
       (isFocusPanelOpen = false),
       setFocusActive(false),
       postToStageFrame({
-        type: "dismiss-focus",
+        type: 'dismiss-focus',
         immediate: immediate,
-      }));
+      })
   }
   let cameraPreview: any = null,
-    openCameraPreviewId = "",
-    activeCameraSelectionId = "";
+    openCameraPreviewId = '',
+    activeCameraSelectionId = ''
   const closeCameraPreview = () => {
-    const previousCameraPreview = cameraPreview;
-    ((cameraPreview = null), (openCameraPreviewId = ""), previousCameraPreview?.close?.());
-  };
+    const previousCameraPreview = cameraPreview
+    ;(cameraPreview = null), (openCameraPreviewId = ''), previousCameraPreview?.close?.()
+  }
   let vacuumPopup: any = null,
-    openVacuumPopupId = "",
-    activeVacuumSelectionId = "",
-    isVacuumPopupOpen = false;
+    openVacuumPopupId = '',
+    activeVacuumSelectionId = '',
+    isVacuumPopupOpen = false
   const closeVacuumPopup = () => {
-    const previousVacuumPopup = vacuumPopup;
-    ((vacuumPopup = null), (openVacuumPopupId = ""), previousVacuumPopup?.close?.());
-  };
+    const previousVacuumPopup = vacuumPopup
+    ;(vacuumPopup = null), (openVacuumPopupId = ''), previousVacuumPopup?.close?.()
+  }
   function handleDocumentClickAway(clickEvent: any) {
     cameraPreview?.contains?.(clickEvent.target) ||
       vacuumPopup?.contains?.(clickEvent.target) ||
-      ((isFocusActive || isFocusPanelOpen) &&
-        !hostElement.contains(clickEvent.target) &&
-        dismissFocus());
+      ((isFocusActive || isFocusPanelOpen) && !hostElement.contains(clickEvent.target) && dismissFocus())
   }
   function handleDocumentKeyDown(keyEvent: any) {
-    (keyEvent.key === "Escape" && closePopupLayoutPreview(),
-      (isFocusActive || isFocusPanelOpen) && keyEvent.key === "Escape" && dismissFocus());
+    keyEvent.key === 'Escape' && closePopupLayoutPreview(),
+      (isFocusActive || isFocusPanelOpen) && keyEvent.key === 'Escape' && dismissFocus()
   }
   /**
    * 把 3D 阶段运行时抛出的技术性异常收敛成用户能看懂的降级文案。
@@ -1679,57 +1580,57 @@ export function mountInteraction3d(
    */
   function friendly3dErrorMessage(failureMessage: any) {
     const raw =
-      typeof failureMessage === "string"
+      typeof failureMessage === 'string'
         ? failureMessage.trim()
         : failureMessage instanceof Error
           ? failureMessage.message.trim()
-          : "";
-    if (!raw) return "3D 画布初始化失败，请重试或改用 2D 控件。";
+          : ''
+    if (!raw) return '3D 画布初始化失败，请重试或改用 2D 控件。'
     return /webgl|webgpu|context lost|renderer|three\.|reading 'render'|cannot read propert/i.test(raw)
-      ? "当前设备无法创建 3D 画面（WebGL 不可用），可重试或改用 2D 控件。"
-      : raw;
+      ? '当前设备无法创建 3D 画面（WebGL 不可用），可重试或改用 2D 控件。'
+      : raw
   }
   function failSceneLoad(failureMessage: any) {
-    const friendlyMessage = friendly3dErrorMessage(failureMessage);
-    ((hasLoadFailed = true),
+    const friendlyMessage = friendly3dErrorMessage(failureMessage)
+    ;(hasLoadFailed = true),
       (isScenePresented = false),
       (hasPresentedStage = false),
       (isReloadPending = false),
       refreshActivityState(true),
-      rejectPendingRangeRequests(friendlyMessage || "户型画面已关闭，请重新调整照射范围。"),
+      rejectPendingRangeRequests(friendlyMessage || '户型画面已关闭，请重新调整照射范围。'),
       postToStageFrame({
-        type: "range-editor",
+        type: 'range-editor',
         open: false,
       }),
       setRangeEditingState(false),
-      activeRequestsSet.forEach((abortableController) => abortableController.abort("stale")),
-      rejectPendingEdits("户型加载失败，请重新载入后调整视角。"),
+      activeRequestsSet.forEach((abortableController) => abortableController.abort('stale')),
+      rejectPendingEdits('户型加载失败，请重新载入后调整视角。'),
       dismissFocus(true),
       clearTimeout(loadingTimeoutId),
-      hostElement.classList.remove("is-loading"),
-      hostElement.classList.add("is-load-error"),
+      hostElement.classList.remove('is-loading'),
+      hostElement.classList.add('is-load-error'),
       (loadingElement.hidden = false),
-      (loadingElement.textContent = friendlyMessage || "3D 户型加载失败，请重新载入户型。"),
-      onLoadError(new Error(loadingElement.textContent)));
+      (loadingElement.textContent = friendlyMessage || '3D 户型加载失败，请重新载入户型。'),
+      onLoadError(new Error(loadingElement.textContent))
   }
-  function reloadStageFrame(reloadReason = "") {
+  function reloadStageFrame(reloadReason = '') {
     if (
-      resetStageFrameRetry(),
-      (reloadGeneration &&
+      (resetStageFrameRetry(),
+      reloadGeneration &&
         reportRuntimeLifecycle(reloadReason, {
           loadSequence: reloadGeneration + 1,
         }),
       closePopupLayoutPreview(),
       (isVacuumPopupOpen = false),
-      (activeCameraSelectionId = activeVacuumSelectionId = ""),
+      (activeCameraSelectionId = activeVacuumSelectionId = ''),
       closeCameraPreview(),
       closeVacuumPopup(),
-      (lastConfigJson = ""),
+      (lastConfigJson = ''),
       (lastSentConfigPayload = null),
-      (lastLayoutJson = ""),
+      (lastLayoutJson = ''),
       (presentationLayout = null),
       reloadGeneration++ &&
-        (stageFrameElement.removeAttribute("src"),
+        (stageFrameElement.removeAttribute('src'),
         (stageFrameElement = createStageFrameElement()),
         hostElement.replaceChildren(stageFrameElement, loadingElement),
         // 天气层是 hostElement 的子节点，重载换 iframe 时会被一并清掉，同步回收控制器。
@@ -1738,9 +1639,9 @@ export function mountInteraction3d(
         // 新舞台会重新发地面投影，旧四边形可能属于上一个户型，先清空。
         (weatherGroundQuad = null)),
       setRangeEditingState(false),
-      activeRequestsSet.forEach((staleController) => staleController.abort("stale")),
-      rejectPendingEdits("户型已切换，请在新户型中重新调整视角。"),
-      rejectPendingRangeRequests("户型已切换，请在新户型中重新调整照射范围。"),
+      activeRequestsSet.forEach((staleController) => staleController.abort('stale')),
+      rejectPendingEdits('户型已切换，请在新户型中重新调整视角。'),
+      rejectPendingRangeRequests('户型已切换，请在新户型中重新调整照射范围。'),
       (isFocusPanelOpen = false),
       setFocusActive(false),
       (hasLoadFailed = false),
@@ -1750,135 +1651,125 @@ export function mountInteraction3d(
       (isReloadPending = false),
       refreshActivityState(true),
       clearTimeout(loadingTimeoutId),
-      hostElement.classList.remove("is-ready", "is-load-error"),
-      hostElement.classList.toggle("is-loading", !!componentProperties.sceneId),
-      hostElement.setAttribute("aria-busy", String(!!componentProperties.sceneId)),
+      hostElement.classList.remove('is-ready', 'is-load-error'),
+      hostElement.classList.toggle('is-loading', !!componentProperties.sceneId),
+      hostElement.setAttribute('aria-busy', String(!!componentProperties.sceneId)),
       syncBackgroundHidden(),
       configureStateSubscriptions(),
       !componentProperties.sceneId)
     ) {
-      ((stageFrameElement.hidden = true),
+      ;(stageFrameElement.hidden = true),
         (loadingElement.hidden = false),
-        (loadingElement.textContent = "请在属性面板中配置 3D 户型"));
-      return;
+        (loadingElement.textContent = '请在属性面板中配置 3D 户型')
+      return
     }
-    ((stageFrameElement.hidden = false),
+    ;(stageFrameElement.hidden = false),
       (loadingElement.hidden = false),
-      (loadingElement.textContent = ""),
-      loadingElement.setAttribute("aria-label", "正在准备 3D 户型"));
-    const wallTrialModes = (new URLSearchParams(window.location.search).get("wall-trial") || "")
-        .split(",")
-        .filter((wallTrialMode) => ["shader", "single", "depth", "merge"].includes(wallTrialMode))
-        .join(","),
+      (loadingElement.textContent = ''),
+      loadingElement.setAttribute('aria-label', '正在准备 3D 户型')
+    const wallTrialModes = (new URLSearchParams(window.location.search).get('wall-trial') || '')
+        .split(',')
+        .filter((wallTrialMode) => ['shader', 'single', 'depth', 'merge'].includes(wallTrialMode))
+        .join(','),
       nextStageFrameUrl =
         INTERACTION3D_API_BASE +
-        "/stage.html?" +
+        '/stage.html?' +
         new URLSearchParams({
           sceneId: componentProperties.sceneId,
           projectId: hostProjectId,
-          componentId: componentDescriptor.id || "",
+          componentId: componentDescriptor.id || '',
           lighting: normalizeLightingMode(componentProperties.lightingMode),
           ...(wallTrialModes
             ? {
-                "wall-trial": wallTrialModes,
+                'wall-trial': wallTrialModes,
               }
             : {}),
-          ...(new URLSearchParams(window.location.search).get("furniture-runtime") === "compact"
+          ...(new URLSearchParams(window.location.search).get('furniture-runtime') === 'compact'
             ? {
-                "furniture-runtime": "compact",
+                'furniture-runtime': 'compact',
               }
             : {}),
-          ...(new URLSearchParams(window.location.search).get("reflection-detail") === "low"
+          ...(new URLSearchParams(window.location.search).get('reflection-detail') === 'low'
             ? {
-                "reflection-detail": "low",
+                'reflection-detail': 'low',
               }
             : {}),
-          ...(new URLSearchParams(window.location.search).get("performance-diagnostics") === "1"
+          ...(new URLSearchParams(window.location.search).get('performance-diagnostics') === '1'
             ? {
-                "performance-diagnostics": "1",
-                ...(new URLSearchParams(window.location.search).get("reflection-work") ===
-                "baseline"
+                'performance-diagnostics': '1',
+                ...(new URLSearchParams(window.location.search).get('reflection-work') === 'baseline'
                   ? {
-                      "reflection-work": "baseline",
+                      'reflection-work': 'baseline',
                     }
                   : {}),
               }
             : {}),
-        });
-    stageFrameUrl = nextStageFrameUrl;
-    ((stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout());
+        })
+    stageFrameUrl = nextStageFrameUrl
+    ;(stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout()
   }
   function scheduleLoadTimeout() {
     loadingTimeoutId = setTimeout(
-      () => failSceneLoad("3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。"),
+      () => failSceneLoad('3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。'),
       45000,
-    );
+    )
   }
-  const activeRequestsSet = new Set<AbortController>();
+  const activeRequestsSet = new Set<AbortController>()
   async function handleStageMessage(messageEvent: any) {
     if (
       isDisposed ||
       messageEvent.origin !== location.origin ||
       messageEvent.source !== stageFrameElement.contentWindow ||
-      messageEvent.data?.channel !== "hb-i3d-v1"
+      messageEvent.data?.channel !== 'hb-i3d-v1'
     )
-      return;
-    const stageMessage = messageEvent.data;
+      return
+    const stageMessage = messageEvent.data
     if (
       !isEditing &&
       !runtimeContext.editable &&
-      [
-        "control",
-        "vacuum-room",
-        "camera-popup",
-        "vacuum-popup",
-        "focus-state",
-        "vacuum-follow-state",
-      ].includes(stageMessage.type) &&
+      ['control', 'vacuum-room', 'camera-popup', 'vacuum-popup', 'focus-state', 'vacuum-follow-state'].includes(
+        stageMessage.type,
+      ) &&
       (isPageHidden ||
         isPageFrozen ||
         isPreviewSuspended ||
         document.hidden ||
-        document.visibilityState === "hidden" ||
+        document.visibilityState === 'hidden' ||
         !isHostActuallyVisible())
     )
-      return;
-    if (stageMessage.type === "runtime-diagnostic") {
-      [
-        "category-switch-start",
-        "category-switch-applied",
-        "source-adopt-start",
-        "source-adopt-complete",
-        "source-adopt-failed",
-        "gpu-lost",
-        "gpu-restored",
-        "models-loading-resumed",
-        "models-completion-resumed",
+      return
+    if (stageMessage.type === 'runtime-diagnostic') {
+      ;[
+        'category-switch-start',
+        'category-switch-applied',
+        'source-adopt-start',
+        'source-adopt-complete',
+        'source-adopt-failed',
+        'gpu-lost',
+        'gpu-restored',
+        'models-loading-resumed',
+        'models-completion-resumed',
       ].includes(stageMessage.code) &&
         reportRuntimeLifecycle(stageMessage.code, {
           ...stageMessage.counts,
           loadSequence: reloadGeneration,
-        });
-      return;
+        })
+      return
     }
     if (
-      (stageMessage.type === "vacuum-follow-state" &&
+      (stageMessage.type === 'vacuum-follow-state' &&
         ((isVacuumPopupOpen =
-          stageMessage.active === true &&
-          isAuthorized &&
-          isScenePresented &&
-          !isEditing &&
-          !runtimeContext.editable),
+          stageMessage.active === true && isAuthorized && isScenePresented && !isEditing && !runtimeContext.editable),
         isVacuumPopupOpen && closeVacuumPopup(),
         setFocusActive(isVacuumPopupOpen || !!activeCameraSelectionId)),
-      stageMessage.type === "vacuum-popup-close" && closeVacuumPopup(),
-      stageMessage.type === "camera-popup-close" && closeCameraPreview(),
-      stageMessage.type === "presentation-ui" &&
+      stageMessage.type === 'vacuum-popup-close' && closeVacuumPopup(),
+      stageMessage.type === 'camera-popup-close' && closeCameraPreview(),
+      stageMessage.type === 'presentation-ui' &&
         (popupLayoutPreview?.resize(),
         focusDevicePopup?.resize(),
         vacuumPopup?.updateLayout?.(),
         cameraPreview?.updateLayout?.()),
-      stageMessage.type === "camera-popup" &&
+      stageMessage.type === 'camera-popup' &&
         isAuthorized &&
         isScenePresented &&
         !isEditing &&
@@ -1887,11 +1778,11 @@ export function mountInteraction3d(
     ) {
       const cameraConfig = (componentProperties.security?.cameras || []).find(
         (cameraCandidate: any) =>
-          "camera:" + cameraCandidate.id === stageMessage.id &&
+          'camera:' + cameraCandidate.id === stageMessage.id &&
           cameraCandidate.visible !== false &&
           // go2rtc 来源不需要 HA 实体，判据换成「来源是否配置完整」。
           cameraSourceConfigured(cameraCandidate),
-      );
+      )
       cameraConfig &&
         runtimeContext.openCameraPreview &&
         openCameraPreviewId !== stageMessage.id &&
@@ -1901,7 +1792,7 @@ export function mountInteraction3d(
         (cameraPreview = runtimeContext.openCameraPreview(
           cameraConfig,
           () => {
-            ((cameraPreview = null), (openCameraPreviewId = ""), dismissFocus());
+            ;(cameraPreview = null), (openCameraPreviewId = ''), dismissFocus()
           },
           {
             root: hostElement,
@@ -1909,15 +1800,15 @@ export function mountInteraction3d(
             // go2rtc 的权威地址只从服务端保存的文档里取，这里必须把「哪个组件里的哪颗摄像头」
             // 一起传下去（componentId = interaction3d 组件，cameraId = 标记 id）。
             projectId: hostProjectId,
-            componentId: componentDescriptor.id || "",
+            componentId: componentDescriptor.id || '',
             popupOpacity: componentProperties.popupOpacity,
             getPresentationLayout: () => presentationLayout,
             getPopupLayout: () => componentProperties.popupLayout?.camera,
           },
-        )));
+        )))
     }
     if (
-      stageMessage.type === "vacuum-popup" &&
+      stageMessage.type === 'vacuum-popup' &&
       !isVacuumPopupOpen &&
       isAuthorized &&
       isScenePresented &&
@@ -1927,10 +1818,10 @@ export function mountInteraction3d(
     ) {
       const vacuumPopupConfig = collectVacuumEntries().find(
         (vacuumCandidate: any) =>
-          "vacuum:" + vacuumCandidate.id === stageMessage.id &&
+          'vacuum:' + vacuumCandidate.id === stageMessage.id &&
           vacuumCandidate.visible !== false &&
           vacuumCandidate.entityId,
-      );
+      )
       vacuumPopupConfig &&
         runtimeContext.openVacuumDetails &&
         openVacuumPopupId !== stageMessage.id &&
@@ -1939,7 +1830,7 @@ export function mountInteraction3d(
         (vacuumPopup = runtimeContext.openVacuumDetails(
           vacuumPopupConfig,
           () => {
-            ((vacuumPopup = null), (openVacuumPopupId = ""), dismissFocus());
+            ;(vacuumPopup = null), (openVacuumPopupId = ''), dismissFocus()
           },
           {
             states: getCurrentStates(),
@@ -1949,10 +1840,10 @@ export function mountInteraction3d(
             getPresentationLayout: () => presentationLayout,
             getPopupLayout: () => componentProperties.popupLayout?.general,
           },
-        )));
+        )))
     }
     if (
-      stageMessage.type === "vacuum-room" &&
+      stageMessage.type === 'vacuum-room' &&
       isAuthorized &&
       isScenePresented &&
       !isEditing &&
@@ -1969,57 +1860,50 @@ export function mountInteraction3d(
             shortcutCandidate.id === stageMessage.shortcutId &&
             shortcutCandidate.visible !== false &&
             shortcutCandidate.entityId,
-        );
+        )
       if (
         !vacuumShortcutConfig ||
-        stageMessage.id !== "vacuum-room:" + vacuumRoomConfig.id + ":" + vacuumShortcutConfig.id
+        stageMessage.id !== 'vacuum-room:' + vacuumRoomConfig.id + ':' + vacuumShortcutConfig.id
       )
-        return;
+        return
       try {
-        if (!runtimeContext.runVacuumRoom) throw new Error("清扫操作入口尚未准备好，请刷新页面。");
-        (await runtimeContext.runVacuumRoom(vacuumShortcutConfig),
+        if (!runtimeContext.runVacuumRoom) throw new Error('清扫操作入口尚未准备好，请刷新页面。')
+        await runtimeContext.runVacuumRoom(vacuumShortcutConfig),
           postToStageFrame({
-            type: "vacuum-room-result",
+            type: 'vacuum-room-result',
             id: stageMessage.id,
-          }));
+          })
       } catch (roomError: any) {
         postToStageFrame({
-          type: "vacuum-room-result",
+          type: 'vacuum-room-result',
           id: stageMessage.id,
           error: roomError.message,
-        });
+        })
       }
     }
-    if (stageMessage.type === "focus-state" && !isEditing && !runtimeContext.editable) {
-      const isFocusSelectionKnown =
-        isAuthorized && isScenePresented && isKnownSelectionId(stageMessage.id);
-      ((activeCameraSelectionId =
-        isFocusSelectionKnown && stageMessage.active === true ? stageMessage.id : ""),
+    if (stageMessage.type === 'focus-state' && !isEditing && !runtimeContext.editable) {
+      const isFocusSelectionKnown = isAuthorized && isScenePresented && isKnownSelectionId(stageMessage.id)
+      ;(activeCameraSelectionId = isFocusSelectionKnown && stageMessage.active === true ? stageMessage.id : ''),
         (activeVacuumSelectionId =
           isFocusSelectionKnown &&
           (stageMessage.active === true || stageMessage.panelOpen === true) &&
-          stageMessage.id?.startsWith("vacuum:")
+          stageMessage.id?.startsWith('vacuum:')
             ? stageMessage.id
-            : ""),
-        openCameraPreviewId &&
-          openCameraPreviewId !== activeCameraSelectionId &&
-          closeCameraPreview(),
+            : ''),
+        openCameraPreviewId && openCameraPreviewId !== activeCameraSelectionId && closeCameraPreview(),
         openVacuumPopupId && openVacuumPopupId !== activeVacuumSelectionId && closeVacuumPopup(),
         (isFocusPanelOpen = isFocusSelectionKnown && stageMessage.panelOpen === true),
-        setFocusActive(
-          isVacuumPopupOpen || (isFocusSelectionKnown && stageMessage.active === true),
-        ));
+        setFocusActive(isVacuumPopupOpen || (isFocusSelectionKnown && stageMessage.active === true))
     }
-    (stageMessage.type === "model-metadata" &&
-      ((componentMetadata = stageMessage.metadata), onReady(componentMetadata)),
-      stageMessage.type === "ready" &&
+    stageMessage.type === 'model-metadata' && ((componentMetadata = stageMessage.metadata), onReady(componentMetadata)),
+      stageMessage.type === 'ready' &&
         (isStageReady &&
-          reportRuntimeLifecycle("stage-ready-repeat", {
+          reportRuntimeLifecycle('stage-ready-repeat', {
             loadSequence: reloadGeneration,
           }),
         (supportsStatePatches = stageMessage.statePatches === true),
         (lastPublishedStates = null),
-        (lastConfigJson = ""),
+        (lastConfigJson = ''),
         (lastSentConfigPayload = null),
         (hasLoadFailed = false),
         (isStageReady = true),
@@ -2033,7 +1917,7 @@ export function mountInteraction3d(
         isPreviewSuspended && refreshActivityState(true),
         void coverMemoryClient.load(true),
         onReady(stageMessage.metadata)),
-      stageMessage.type === "presented" &&
+      stageMessage.type === 'presented' &&
         stageMessage.configId === configIdCounter &&
         isReloadPending &&
         ((isReloadPending = false),
@@ -2045,99 +1929,82 @@ export function mountInteraction3d(
             componentProperties.camera ||
             defaultCamera),
           clearTimeout(loadingTimeoutId),
-          hostElement.classList.remove("is-loading", "is-load-error"),
-          hostElement.classList.add("is-ready"),
-          hostElement.setAttribute("aria-busy", "false"),
+          hostElement.classList.remove('is-loading', 'is-load-error'),
+          hostElement.classList.add('is-ready'),
+          hostElement.setAttribute('aria-busy', 'false'),
           onPresented()),
         (hasPresentedStage = true),
         refreshActivityState()),
-      stageMessage.type === "error" && failSceneLoad(stageMessage.message));
+      stageMessage.type === 'error' && failSceneLoad(stageMessage.message)
     const isRangeEditorAvailable =
       isAuthorized &&
       isScenePresented &&
       (isEditing || runtimeContext.editable) &&
-      normalizeLightingMode(componentProperties.lightingMode) === "region";
-    if (stageMessage.type === "range-editor-state" && isRangeEditorAvailable) {
-      const pendingRangeRequestEntry = pendingRangeRequestsByRequestId.get(stageMessage.requestId);
-      if (stageMessage.requestId && !pendingRangeRequestEntry) return;
-      (pendingRangeRequestEntry &&
+      normalizeLightingMode(componentProperties.lightingMode) === 'region'
+    if (stageMessage.type === 'range-editor-state' && isRangeEditorAvailable) {
+      const pendingRangeRequestEntry = pendingRangeRequestsByRequestId.get(stageMessage.requestId)
+      if (stageMessage.requestId && !pendingRangeRequestEntry) return
+      pendingRangeRequestEntry &&
         (clearTimeout(pendingRangeRequestEntry.timeout),
         pendingRangeRequestsByRequestId.delete(stageMessage.requestId),
         stageMessage.active === pendingRangeRequestEntry.open && !stageMessage.error
           ? pendingRangeRequestEntry.resolve()
-          : pendingRangeRequestEntry.reject(
-              new Error(stageMessage.error || "照射范围编辑未能打开。"),
-            )),
-        setRangeEditingState(
-          stageMessage.active === true && !stageMessage.error,
-          stageMessage.error || "",
-        ));
+          : pendingRangeRequestEntry.reject(new Error(stageMessage.error || '照射范围编辑未能打开。'))),
+        setRangeEditingState(stageMessage.active === true && !stageMessage.error, stageMessage.error || '')
     }
     if (
-      (stageMessage.type === "range-overrides" &&
+      (stageMessage.type === 'range-overrides' &&
         isRangeEditorAvailable &&
         stageMessage.overrides &&
-        typeof stageMessage.overrides == "object" &&
+        typeof stageMessage.overrides == 'object' &&
         !Array.isArray(stageMessage.overrides) &&
         ((componentProperties.lightRegionOverrides = structuredClone(stageMessage.overrides)),
         notifyEditSubscribers({
-          action: "light-region-overrides",
+          action: 'light-region-overrides',
           overrides: structuredClone(componentProperties.lightRegionOverrides),
         })),
-      stageMessage.type === "edit" &&
-        stageMessage.action === "camera" &&
-        runtimeContext.editable &&
-        isViewEditing)
+      stageMessage.type === 'edit' && stageMessage.action === 'camera' && runtimeContext.editable && isViewEditing)
     ) {
-      const pendingEditEntry = pendingEditsByRequestId.get(stageMessage.requestId);
+      const pendingEditEntry = pendingEditsByRequestId.get(stageMessage.requestId)
       pendingEditEntry &&
         ((activeCamera = stageMessage.camera),
         clearTimeout(pendingEditEntry.timeout),
         pendingEditsByRequestId.delete(stageMessage.requestId),
-        pendingEditEntry.resolve(stageMessage.camera));
+        pendingEditEntry.resolve(stageMessage.camera))
     }
-    if (stageMessage.type === "edit" && isEditing && isAuthorized && isScenePresented) {
+    if (stageMessage.type === 'edit' && isEditing && isAuthorized && isScenePresented) {
       if (
-        (stageMessage.action === "focus-exited" && disposeFocusDevicePopup(),
-        stageMessage.action === "focus-camera")
+        (stageMessage.action === 'focus-exited' && disposeFocusDevicePopup(), stageMessage.action === 'focus-camera')
       ) {
-        const respondedEditEntry = pendingEditsByRequestId.get(stageMessage.requestId);
-        if (!respondedEditEntry) return;
+        const respondedEditEntry = pendingEditsByRequestId.get(stageMessage.requestId)
+        if (!respondedEditEntry) return
         respondedEditEntry &&
           (clearTimeout(respondedEditEntry.timeout),
           pendingEditsByRequestId.delete(stageMessage.requestId),
           stageMessage.error
             ? respondedEditEntry.reject(new Error(stageMessage.error))
-            : (["edit-light-camera", "preview-light-camera"].includes(respondedEditEntry.command) &&
+            : (['edit-light-camera', 'preview-light-camera'].includes(respondedEditEntry.command) &&
                 openFocusDevicePopup(respondedEditEntry.id),
-              ["save-light-camera", "cancel-light-camera", "edit-follow-camera"].includes(
-                respondedEditEntry.command,
-              ) && disposeFocusDevicePopup(),
-              respondedEditEntry.resolve(stageMessage)));
+              ['save-light-camera', 'cancel-light-camera', 'edit-follow-camera'].includes(respondedEditEntry.command) &&
+                disposeFocusDevicePopup(),
+              respondedEditEntry.resolve(stageMessage)))
       }
-      notifyEditSubscribers(stageMessage);
+      notifyEditSubscribers(stageMessage)
     }
     if (
-      stageMessage.type === "edit" &&
-      stageMessage.action === "navigation-position" &&
+      stageMessage.type === 'edit' &&
+      stageMessage.action === 'navigation-position' &&
       !isEditing &&
       runtimeContext.editable &&
       isAuthorized &&
       isScenePresented
     ) {
-
-      notifyEditSubscribers(stageMessage);
+      notifyEditSubscribers(stageMessage)
     }
-    if (
-      stageMessage.type === "control" &&
-      isAuthorized &&
-      isScenePresented &&
-      !isEditing &&
-      !runtimeContext.editable
-    ) {
-      const controlEntityId = stageMessage.command?.entityId;
+    if (stageMessage.type === 'control' && isAuthorized && isScenePresented && !isEditing && !runtimeContext.editable) {
+      const controlEntityId = stageMessage.command?.entityId
       if (
-        typeof controlEntityId != "string" ||
+        typeof controlEntityId != 'string' ||
         !controlEntityId.trim() ||
         ![
           ...(componentProperties.security?.locks || []),
@@ -2159,46 +2026,44 @@ export function mountInteraction3d(
         ].some((controlDeviceEntry) => controlDeviceEntry.entityId === controlEntityId)
       ) {
         postToStageFrame({
-          type: "control-result",
+          type: 'control-result',
           requestId: stageMessage.requestId,
-          error: "此实体未绑定到当前 3D 控件，请检查设备配置。",
-        });
-        return;
+          error: '此实体未绑定到当前 3D 控件，请检查设备配置。',
+        })
+        return
       }
       const reloadGenerationSnapshot = reloadGeneration,
         postFrameMessage = (framePayload: any) => {
           reloadGenerationSnapshot === reloadGeneration &&
             isScenePresented &&
             isAuthorized &&
-            postToStageFrame(framePayload);
+            postToStageFrame(framePayload)
         },
-        controlAbortController = new AbortController();
-      activeRequestsSet.add(controlAbortController);
+        controlAbortController = new AbortController()
+      activeRequestsSet.add(controlAbortController)
       const controlTimeoutId = setTimeout(
         () => controlAbortController.abort(),
         interaction3dControlTimeout(stageMessage.command),
-      );
+      )
       try {
-        const controlResponse = await fetch(INTERACTION3D_API_BASE + "/control", {
-            method: "POST",
-            credentials: "same-origin",
+        const controlResponse = await fetch(INTERACTION3D_API_BASE + '/control', {
+            method: 'POST',
+            credentials: 'same-origin',
             headers: {
-              "content-type": "application/json",
+              'content-type': 'application/json',
             },
             body: JSON.stringify({
               ...stageMessage.command,
-              ...(["lock", "climate", "cover", "fan", "water_heater"].includes(
-                stageMessage.command?.domain,
-              ) ||
+              ...(['lock', 'climate', 'cover', 'fan', 'water_heater'].includes(stageMessage.command?.domain) ||
               [
-                "climate-extra",
-                "airer-extra",
-                "speaker",
-                "television",
-                "fan-extra",
-                "purifier-extra",
-                "water-heater-extra",
-                "device-extra",
+                'climate-extra',
+                'airer-extra',
+                'speaker',
+                'television',
+                'fan-extra',
+                'purifier-extra',
+                'water-heater-extra',
+                'device-extra',
               ].includes(stageMessage.command?.deviceKind)
                 ? {
                     projectId: hostProjectId,
@@ -2208,34 +2073,30 @@ export function mountInteraction3d(
             }),
             signal: controlAbortController.signal,
           }),
-          controlResult = await controlResponse.json().catch(() => ({}));
+          controlResult = await controlResponse.json().catch(() => ({}))
         if (!controlResponse.ok)
           throw new Error(
-            typeof controlResult.detail == "string"
+            typeof controlResult.detail == 'string'
               ? controlResult.detail
-              : controlResult.detail?.message || "设备操作失败。",
-          );
+              : controlResult.detail?.message || '设备操作失败。',
+          )
         postFrameMessage({
-          type: "control-result",
+          type: 'control-result',
           requestId: stageMessage.requestId,
-        });
+        })
       } catch (controlError: any) {
         const abortReason = controlAbortController.signal.reason,
           isLifecycleAbort =
-            controlError.name === "AbortError" &&
-            (isDisposed || abortReason === "lifecycle" || abortReason === "stale");
+            controlError.name === 'AbortError' && (isDisposed || abortReason === 'lifecycle' || abortReason === 'stale')
         isLifecycleAbort ||
           postFrameMessage({
-            type: "control-result",
+            type: 'control-result',
             requestId: stageMessage.requestId,
-            error:
-              controlError.name === "AbortError"
-                ? "请求超时，请检查设备状态。"
-                : controlError.message,
-            timedOut: controlError.name === "AbortError",
-          });
+            error: controlError.name === 'AbortError' ? '请求超时，请检查设备状态。' : controlError.message,
+            timedOut: controlError.name === 'AbortError',
+          })
       } finally {
-        (clearTimeout(controlTimeoutId), activeRequestsSet.delete(controlAbortController));
+        clearTimeout(controlTimeoutId), activeRequestsSet.delete(controlAbortController)
       }
     }
   }
@@ -2244,154 +2105,133 @@ export function mountInteraction3d(
    * `handleStageMessage` 的分支链已经到复杂度上限，不能再往里加判断。
    */
   function onStageMessage(messageEvent: any) {
-    const stageMessage = messageEvent?.data;
-    if (stageMessage?.channel !== "hb-i3d-v1" || stageMessage.type !== "weather-ground")
-      return handleStageMessage(messageEvent);
+    const stageMessage = messageEvent?.data
+    if (stageMessage?.channel !== 'hb-i3d-v1' || stageMessage.type !== 'weather-ground')
+      return handleStageMessage(messageEvent)
     // 与 `handleStageMessage` 同一套来源校验：不能只凭 channel 就信这个四边形。
     if (
       isDisposed ||
       messageEvent.origin !== location.origin ||
       messageEvent.source !== stageFrameElement.contentWindow
     )
-      return;
-    const nextGroundQuad = normalizeGroundQuad(stageMessage.quad);
-    if (!nextGroundQuad) return;
-    weatherGroundQuad = nextGroundQuad;
-    weatherEffects?.setGround?.(nextGroundQuad);
+      return
+    const nextGroundQuad = normalizeGroundQuad(stageMessage.quad)
+    if (!nextGroundQuad) return
+    weatherGroundQuad = nextGroundQuad
+    weatherEffects?.setGround?.(nextGroundQuad)
   }
-  (window.addEventListener("message", onStageMessage),
-    window.addEventListener("pointerdown", handleDocumentClickAway),
-    window.addEventListener("keydown", handleDocumentKeyDown));
-  const listenerTarget = typeof document.addEventListener === "function" ? document : window;
-  listenerTarget.addEventListener("hb-i3d-preview-scope", syncPreviewSuspension);
-  const activityEventNames = [
-      "pointerdown",
-      "pointermove",
-      "pointerup",
-      "pointercancel",
-      "wheel",
-      "keydown",
-      "keyup",
-    ],
+  window.addEventListener('message', onStageMessage),
+    window.addEventListener('pointerdown', handleDocumentClickAway),
+    window.addEventListener('keydown', handleDocumentKeyDown)
+  const listenerTarget = typeof document.addEventListener === 'function' ? document : window
+  listenerTarget.addEventListener('hb-i3d-preview-scope', syncPreviewSuspension)
+  const activityEventNames = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'wheel', 'keydown', 'keyup'],
     activityListenerOptions = {
       capture: true,
       passive: true,
-    };
+    }
   for (const activityEventName of activityEventNames)
-    listenerTarget.addEventListener(
-      activityEventName,
-      handleActivityInput,
-      activityListenerOptions,
-    );
-  (listenerTarget.addEventListener("visibilitychange", handleVisibilityChange),
-    listenerTarget.addEventListener("transitionend", handleVisibilityChange, true),
-    listenerTarget.addEventListener("animationend", handleVisibilityChange, true),
-    window.addEventListener("pagehide", handlePageHide),
-    window.addEventListener("pageshow", handlePageShow),
-    window.addEventListener("blur", releaseHeldInput));
+    listenerTarget.addEventListener(activityEventName, handleActivityInput, activityListenerOptions)
+  listenerTarget.addEventListener('visibilitychange', handleVisibilityChange),
+    listenerTarget.addEventListener('transitionend', handleVisibilityChange, true),
+    listenerTarget.addEventListener('animationend', handleVisibilityChange, true),
+    window.addEventListener('pagehide', handlePageHide),
+    window.addEventListener('pageshow', handlePageShow),
+    window.addEventListener('blur', releaseHeldInput)
   const intersectionObserver =
-    typeof IntersectionObserver > "u"
+    typeof IntersectionObserver > 'u'
       ? null
       : new IntersectionObserver(
           (observerEntries) => {
             for (const observerEntry of observerEntries)
               observerEntry.target === hostElement &&
-                (isStageIntersecting =
-                  observerEntry.isIntersecting && observerEntry.intersectionRatio > 0);
-            refreshActivityState();
+                (isStageIntersecting = observerEntry.isIntersecting && observerEntry.intersectionRatio > 0)
+            refreshActivityState()
           },
           {
             threshold: [0, 0.001],
           },
-        );
-  intersectionObserver?.observe(hostElement);
-  let observedAncestorList: any = [];
+        )
+  intersectionObserver?.observe(hostElement)
+  let observedAncestorList: any = []
   function observeVisibilityAncestors() {
-    if (isDisposed) return;
-    const ancestorChain: any[] = [];
+    if (isDisposed) return
+    const ancestorChain: any[] = []
     for (let ancestorNode = hostElement; ancestorNode; ancestorNode = ancestorNode.parentElement)
-      ancestorChain.push(ancestorNode);
-    if (!(
-      ancestorChain.length === observedAncestorList.length &&
-      ancestorChain.every(
-        (ancestor, ancestorIndex) => ancestor === observedAncestorList[ancestorIndex],
+      ancestorChain.push(ancestorNode)
+    if (
+      !(
+        ancestorChain.length === observedAncestorList.length &&
+        ancestorChain.every((ancestor, ancestorIndex) => ancestor === observedAncestorList[ancestorIndex])
       )
-    )) {
-      ((observedAncestorList = ancestorChain), mutationObserver?.disconnect());
+    ) {
+      ;(observedAncestorList = ancestorChain), mutationObserver?.disconnect()
       for (const observedAncestor of ancestorChain)
         mutationObserver?.observe(observedAncestor, {
           attributes: true,
           childList: true,
-          attributeFilter: ["hidden", "inert", "aria-hidden", "style", "class"],
-        });
+          attributeFilter: ['hidden', 'inert', 'aria-hidden', 'style', 'class'],
+        })
     }
   }
   const mutationObserver =
-    typeof MutationObserver > "u"
+    typeof MutationObserver > 'u'
       ? null
       : new MutationObserver(() => {
-          (observeVisibilityAncestors(), updatePresentationLayout());
-        });
-  observeVisibilityAncestors();
-  let lastLayoutJson = "",
-    presentationLayout: any = null;
-
+          observeVisibilityAncestors(), updatePresentationLayout()
+        })
+  observeVisibilityAncestors()
+  let lastLayoutJson = '',
+    presentationLayout: any = null
 
   function updatePresentationLayout(forceUpdate: unknown = false) {
-    refreshActivityState();
-    const hostBounds = hostElement.getBoundingClientRect();
-    if (!hostBounds.width || !hostElement.clientWidth) return;
+    refreshActivityState()
+    const hostBounds = hostElement.getBoundingClientRect()
+    if (!hostBounds.width || !hostElement.clientWidth) return
     const scaleX = hostElement.clientWidth / hostBounds.width,
       scaleY =
-        hostElement.clientHeight > 0 && hostBounds.height > 0
-          ? hostElement.clientHeight / hostBounds.height
-          : scaleX;
-    ((stageFrameElement.style.width = hostBounds.width + "px"),
-      (stageFrameElement.style.height = hostBounds.height + "px"),
+        hostElement.clientHeight > 0 && hostBounds.height > 0 ? hostElement.clientHeight / hostBounds.height : scaleX
+    ;(stageFrameElement.style.width = hostBounds.width + 'px'),
+      (stageFrameElement.style.height = hostBounds.height + 'px'),
       (stageFrameElement.style.transform =
-        scaleX === scaleY ? "scale(" + scaleX + ")" : "scale(" + scaleX + "," + scaleY + ")"));
+        scaleX === scaleY ? 'scale(' + scaleX + ')' : 'scale(' + scaleX + ',' + scaleY + ')')
     const layoutSource =
-        componentProperties.layoutMode === "fill"
-          ? runtimeContext.document?.canvas
-          : componentDescriptor.position,
+        componentProperties.layoutMode === 'fill' ? runtimeContext.document?.canvas : componentDescriptor.position,
       layoutScale =
-        componentProperties.layoutMode === "fill"
+        componentProperties.layoutMode === 'fill'
           ? 1
           : Math.max(0.01, Math.min(5, Number(componentDescriptor.style?.scale) || 1)),
       layoutWidth = Number(layoutSource?.width) * layoutScale,
       layoutHeight = Number(layoutSource?.height) * layoutScale,
       resizeContentScale = Number(runtimeContext.document?.canvas?.resizeContentScale),
-      safeContentScale =
-        Number.isFinite(resizeContentScale) && resizeContentScale > 0 ? resizeContentScale : 1,
+      safeContentScale = Number.isFinite(resizeContentScale) && resizeContentScale > 0 ? resizeContentScale : 1,
       layoutPayload = {
-        type: "presentation-layout",
+        type: 'presentation-layout',
         width:
-          (Number.isFinite(layoutWidth) && layoutWidth > 0
-            ? layoutWidth
-            : hostElement.clientWidth || 1) / safeContentScale,
+          (Number.isFinite(layoutWidth) && layoutWidth > 0 ? layoutWidth : hostElement.clientWidth || 1) /
+          safeContentScale,
         height:
-          (Number.isFinite(layoutHeight) && layoutHeight > 0
-            ? layoutHeight
-            : hostElement.clientHeight || 1) / safeContentScale,
-      };
-    ((presentationLayout = layoutPayload),
+          (Number.isFinite(layoutHeight) && layoutHeight > 0 ? layoutHeight : hostElement.clientHeight || 1) /
+          safeContentScale,
+      }
+    ;(presentationLayout = layoutPayload),
       popupLayoutPreview?.resize(),
       focusDevicePopup?.resize(),
       vacuumPopup?.updateLayout?.(),
-      cameraPreview?.updateLayout?.());
-    const layoutJson = JSON.stringify(layoutPayload);
-    (forceUpdate === true || layoutJson !== lastLayoutJson) &&
-      ((lastLayoutJson = layoutJson), postToStageFrame(layoutPayload));
+      cameraPreview?.updateLayout?.()
+    const layoutJson = JSON.stringify(layoutPayload)
+    ;(forceUpdate === true || layoutJson !== lastLayoutJson) &&
+      ((lastLayoutJson = layoutJson), postToStageFrame(layoutPayload))
   }
-  const hostResizeObserver = new ResizeObserver(updatePresentationLayout);
-  (hostResizeObserver.observe(hostElement),
-    window.addEventListener("resize", updatePresentationLayout),
+  const hostResizeObserver = new ResizeObserver(updatePresentationLayout)
+  hostResizeObserver.observe(hostElement),
+    window.addEventListener('resize', updatePresentationLayout),
     syncPreviewSuspension(),
-    reloadStageFrame());
+    reloadStageFrame()
   const initialLayoutFrameId = requestAnimationFrame(updatePresentationLayout),
     runtimeHandle = () => {
       if (!isDisposed) {
-        (closePopupLayoutPreview(),
+        closePopupLayoutPreview(),
           (hasPresentedStage = false),
           refreshActivityState(true),
           setFocusActive(false),
@@ -2401,48 +2241,44 @@ export function mountInteraction3d(
           coverMemoryClient.dispose(),
           securityAlarmOverlay?.dispose(),
           (securityAlarmOverlay = null),
-          (weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId)),
+          weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId),
           (weatherPreviewTimeoutId = null),
-          (weatherPreviewCondition = ""),
+          (weatherPreviewCondition = ''),
           weatherPreviewListeners.clear(),
           weatherEffects?.dispose(),
           (weatherEffects = null),
           (weatherGroundQuad = null),
           editSubscribersSet.clear(),
           (isRangeEditing = false),
-          hostElement.classList.remove("is-range-editing"),
+          hostElement.classList.remove('is-range-editing'),
           (isNavigationEditing = false),
-          hostElement.classList.remove("is-navigation-editing"),
+          hostElement.classList.remove('is-navigation-editing'),
           (isDisposed = true),
           clearTimeout(loadingTimeoutId),
           cancelAnimationFrame(initialLayoutFrameId),
           hostResizeObserver.disconnect(),
           intersectionObserver?.disconnect(),
           mutationObserver?.disconnect(),
-          rejectPendingEdits("户型画面已关闭，请重新调整。"),
-          rejectPendingRangeRequests("户型画面已关闭，请重新调整照射范围。"),
-          window.removeEventListener("resize", updatePresentationLayout),
-          window.removeEventListener("message", onStageMessage),
-          window.removeEventListener("pointerdown", handleDocumentClickAway),
-          window.removeEventListener("keydown", handleDocumentKeyDown));
+          rejectPendingEdits('户型画面已关闭，请重新调整。'),
+          rejectPendingRangeRequests('户型画面已关闭，请重新调整照射范围。'),
+          window.removeEventListener('resize', updatePresentationLayout),
+          window.removeEventListener('message', onStageMessage),
+          window.removeEventListener('pointerdown', handleDocumentClickAway),
+          window.removeEventListener('keydown', handleDocumentKeyDown)
         for (const removedEventName of activityEventNames)
-          listenerTarget.removeEventListener(
-            removedEventName,
-            handleActivityInput,
-            activityListenerOptions,
-          );
-        (listenerTarget.removeEventListener("visibilitychange", handleVisibilityChange),
-          listenerTarget.removeEventListener("hb-i3d-preview-scope", syncPreviewSuspension),
-          listenerTarget.removeEventListener("transitionend", handleVisibilityChange, true),
-          listenerTarget.removeEventListener("animationend", handleVisibilityChange, true),
-          window.removeEventListener("pagehide", handlePageHide),
-          window.removeEventListener("pageshow", handlePageShow),
-          window.removeEventListener("blur", releaseHeldInput),
-          activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort("lifecycle")),
-          stageFrameElement.removeAttribute("src"),
-          hostElement.replaceChildren());
+          listenerTarget.removeEventListener(removedEventName, handleActivityInput, activityListenerOptions)
+        listenerTarget.removeEventListener('visibilitychange', handleVisibilityChange),
+          listenerTarget.removeEventListener('hb-i3d-preview-scope', syncPreviewSuspension),
+          listenerTarget.removeEventListener('transitionend', handleVisibilityChange, true),
+          listenerTarget.removeEventListener('animationend', handleVisibilityChange, true),
+          window.removeEventListener('pagehide', handlePageHide),
+          window.removeEventListener('pageshow', handlePageShow),
+          window.removeEventListener('blur', releaseHeldInput),
+          activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort('lifecycle')),
+          stageFrameElement.removeAttribute('src'),
+          hostElement.replaceChildren()
       }
-    };
+    }
   return (
     (runtimeHandle.update = (
       nextProperties: any,
@@ -2450,65 +2286,56 @@ export function mountInteraction3d(
       nextEditing: any = null,
       nextDescriptor = componentDescriptor,
     ) => {
-      if (isDisposed) return;
-      ((componentDescriptor = nextDescriptor),
-        isEditing && nextEditing && nextEditing.module === "security"
-          ? ((editingModuleKind = "security"),
+      if (isDisposed) return
+      ;(componentDescriptor = nextDescriptor),
+        isEditing && nextEditing && nextEditing.module === 'security'
+          ? ((editingModuleKind = 'security'),
             // 烟雾/水浸/天然气各自为 securityKind，不能收敛成 alarm
-            (editingSecurityKind = [
-              "camera",
-              "presence",
-              "lock",
-              "window",
-              "moisture",
-              "smoke",
-              "gas",
-            ].includes(nextEditing.securityKind)
+            (editingSecurityKind = ['camera', 'presence', 'lock', 'window', 'moisture', 'smoke', 'gas'].includes(
+              nextEditing.securityKind,
+            )
               ? nextEditing.securityKind
-              : ""),
-            (editingVacuumId = ""))
+              : ''),
+            (editingVacuumId = ''))
           : isEditing &&
             nextEditing &&
             [
-              "light",
-              "climate",
-              "fan",
-              "purifier",
-              "water-heater",
-              "airer",
-              "cover",
-              "nas",
-              "television",
-              "speaker",
-              "vacuum",
-              "vacuum-shortcut",
-              "temperature-humidity",
+              'light',
+              'climate',
+              'fan',
+              'purifier',
+              'water-heater',
+              'airer',
+              'cover',
+              'nas',
+              'television',
+              'speaker',
+              'vacuum',
+              'vacuum-shortcut',
+              'temperature-humidity',
               ...GENERIC_DEVICE_KINDS,
             ].includes(nextEditing.module) &&
             ((editingModuleKind = nextEditing.module),
-            (editingSecurityKind = ""),
-            (editingVacuumId =
-              editingModuleKind === "vacuum-shortcut" ? String(nextEditing.vacuumId || "") : "")),
+            (editingSecurityKind = ''),
+            (editingVacuumId = editingModuleKind === 'vacuum-shortcut' ? String(nextEditing.vacuumId || '') : '')),
         isEditing && nextEditing && (showAllLabels = nextEditing.showAllLabels === true),
-        (nextSelectedId !== selectedId ||
-          nextProperties.floorSelection !== componentProperties.floorSelection) &&
-          disposeFocusDevicePopup());
+        (nextSelectedId !== selectedId || nextProperties.floorSelection !== componentProperties.floorSelection) &&
+          disposeFocusDevicePopup()
       const previousSceneId = componentProperties.sceneId,
         previousCameraJson = JSON.stringify(componentProperties.camera),
         previousLightingMode = normalizeLightingMode(componentProperties.lightingMode),
         previousCameraPreviewJson = JSON.stringify(
           (componentProperties.security?.cameras || []).find(
-            (previewCameraCandidate: any) =>
-              "camera:" + previewCameraCandidate.id === openCameraPreviewId,
+            (previewCameraCandidate: any) => 'camera:' + previewCameraCandidate.id === openCameraPreviewId,
           ),
         ),
         previousVacuumPopupJson = JSON.stringify(
           (componentProperties.devices?.vacuums || []).find(
-            (previewVacuumCandidate: any) => "vacuum:" + previewVacuumCandidate.id === openVacuumPopupId,
+            (previewVacuumCandidate: any) => 'vacuum:' + previewVacuumCandidate.id === openVacuumPopupId,
           ),
         ),
-        previousFloorSelection = componentProperties.floorSelection;
-      ((componentProperties = structuredClone(nextProperties)),
+        previousFloorSelection = componentProperties.floorSelection
+      ;(componentProperties = structuredClone(nextProperties)),
         (selectedId = nextSelectedId),
         configureStateSubscriptions(),
         syncBackgroundHidden(),
@@ -2519,8 +2346,7 @@ export function mountInteraction3d(
             previousCameraPreviewJson !==
               JSON.stringify(
                 (componentProperties.security?.cameras || []).find(
-                  (refreshedCameraCandidate: any) =>
-                    "camera:" + refreshedCameraCandidate.id === openCameraPreviewId,
+                  (refreshedCameraCandidate: any) => 'camera:' + refreshedCameraCandidate.id === openCameraPreviewId,
                 ),
               )) &&
           dismissFocus(true),
@@ -2529,8 +2355,7 @@ export function mountInteraction3d(
             previousVacuumPopupJson !==
               JSON.stringify(
                 (componentProperties.devices?.vacuums || []).find(
-                  (refreshedVacuumCandidate: any) =>
-                    "vacuum:" + refreshedVacuumCandidate.id === openVacuumPopupId,
+                  (refreshedVacuumCandidate: any) => 'vacuum:' + refreshedVacuumCandidate.id === openVacuumPopupId,
                 ),
               )) &&
           dismissFocus(true),
@@ -2543,49 +2368,38 @@ export function mountInteraction3d(
             componentProperties.floorCameras?.[componentProperties.floorSelection] ||
             componentProperties.camera ||
             defaultCamera),
-          hostElement.classList.remove("is-view-editing"),
-          (stageFrameElement.style.pointerEvents = "none")),
-
-        isNavigationEditing &&
-          previousSceneId !== componentProperties.sceneId &&
-          setNavigationEditingState(false),
+          hostElement.classList.remove('is-view-editing'),
+          (stageFrameElement.style.pointerEvents = 'none')),
+        isNavigationEditing && previousSceneId !== componentProperties.sceneId && setNavigationEditingState(false),
         previousSceneId !== componentProperties.sceneId ||
         previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode)
-          ? reloadStageFrame(
-              previousSceneId !== componentProperties.sceneId
-                ? "load-scene-change"
-                : "load-mode-change",
-            )
+          ? reloadStageFrame(previousSceneId !== componentProperties.sceneId ? 'load-scene-change' : 'load-mode-change')
           : sendConfigUpdate(),
         // 天气绑定变了要立刻重建/更新特效层，不能等到下一次 HA 状态推送或可见性变化。
-        syncWeatherEffects());
+        syncWeatherEffects()
     }),
     (runtimeHandle.previewLockMotion = (lockEntityId: any, shouldOpen = true) =>
-      isDisposed ||
-      !isEditing ||
-      editingModuleKind !== "security" ||
-      editingSecurityKind !== "lock" ||
-      !lockEntityId
+      isDisposed || !isEditing || editingModuleKind !== 'security' || editingSecurityKind !== 'lock' || !lockEntityId
         ? false
         : (postToStageFrame({
-            type: "editor-command",
-            command: "preview-lock-motion",
+            type: 'editor-command',
+            command: 'preview-lock-motion',
             id: lockEntityId,
-            value: shouldOpen === false ? "closed" : "open",
+            value: shouldOpen === false ? 'closed' : 'open',
           }),
           true)),
     (runtimeHandle.previewWindowMotion = (windowEntityId: any, shouldOpen = true) =>
       isDisposed ||
       !isEditing ||
-      editingModuleKind !== "security" ||
-      !["window", "window-opener"].includes(editingSecurityKind) ||
+      editingModuleKind !== 'security' ||
+      !['window', 'window-opener'].includes(editingSecurityKind) ||
       !windowEntityId
         ? false
         : (postToStageFrame({
-            type: "editor-command",
-            command: "preview-window-motion",
+            type: 'editor-command',
+            command: 'preview-window-motion',
             id: windowEntityId,
-            value: shouldOpen === false ? "closed" : "open",
+            value: shouldOpen === false ? 'closed' : 'open',
           }),
           true)),
     (runtimeHandle.setPageVisible = (isVisible: any) => {
@@ -2595,7 +2409,7 @@ export function mountInteraction3d(
         (hostElement.inert = isPageHidden || !isAuthorized),
         isPageHidden && (closePopupLayoutPreview(), dismissFocus(true)),
         refreshActivityState(true),
-        isPageHidden || (updatePresentationLayout(), lightStream || publishStates()));
+        isPageHidden || (updatePresentationLayout(), lightStream || publishStates()))
     }),
     /**
      * 关闭配置窗口时的收尾：不销毁运行时，只把这次编辑留下的临时状态全部撤销。
@@ -2607,23 +2421,23 @@ export function mountInteraction3d(
      * 「属性没变就不重发 config」的去重不会把这个标志吞掉。
      */
     (runtimeHandle.resetPreviewSession = () => {
-      (runtimeHandle.setPageVisible(false),
+      runtimeHandle.setPageVisible(false),
         runtimeHandle.closeRangeEditor(),
-        rejectPendingEdits("配置窗口已关闭。"),
-        rejectPendingRangeRequests("配置窗口已关闭。"),
+        rejectPendingEdits('配置窗口已关闭。'),
+        rejectPendingRangeRequests('配置窗口已关闭。'),
         activeRequestsSet.forEach((activeRequest) => activeRequest.abort()),
         releaseHeldInput(),
         (isViewEditing = false),
-        hostElement.classList.remove("is-view-editing"),
-        (lastConfigJson = ""),
+        hostElement.classList.remove('is-view-editing'),
+        (lastConfigJson = ''),
         (lastSentConfigPayload = null),
-        (pendingResetPreviewSession = true));
+        (pendingResetPreviewSession = true)
     }),
     /**
      * 借用的宿主元素：配置预览会把 `header` / 面板骨架临时挂到这里。
      * 编辑器页挂载的是 `<dialog open>`，正好能就地切成配置弹窗（`is-borrowed-editor`）。
      */
-    Object.defineProperty(runtimeHandle, "editorPreviewHost", {
+    Object.defineProperty(runtimeHandle, 'editorPreviewHost', {
       get: () => hostElement,
     }),
     /**
@@ -2652,7 +2466,7 @@ export function mountInteraction3d(
      * 函数负责把所有状态原样换回去（对应上游 `saved` / `invalidate` / `listeners` 会话）。
      */
     (runtimeHandle.beginEditorPreview = (previewOptions: any = {}, viewportElement: any, _onCancel?: any) => {
-      if (isDisposed) throw new Error("3D 运行时已销毁。");
+      if (isDisposed) throw new Error('3D 运行时已销毁。')
       // 0.8.4：借用前再核一次「同一组件、同一仪表盘、画面就绪」——
       // 池里挑中之后到真正挂载之间，编辑器可能已经切走组件或重载户型。
       if (
@@ -2661,7 +2475,7 @@ export function mountInteraction3d(
           previewOptions.context?.document,
         )
       )
-        throw new Error("编辑器画面已变化，请重新打开配置。");
+        throw new Error('编辑器画面已变化，请重新打开配置。')
       const savedSession = {
           component: componentDescriptor,
           properties: componentProperties,
@@ -2680,18 +2494,18 @@ export function mountInteraction3d(
           onFocusChange,
         },
         previewComponent = previewOptions.component || componentDescriptor,
-        savedPointerEvents = hostElement.style.pointerEvents;
-      let isSessionClosed = false;
-      (viewportElement?.setAttribute?.("data-i3d-preview-scope", ""),
+        savedPointerEvents = hostElement.style.pointerEvents
+      let isSessionClosed = false
+      viewportElement?.setAttribute?.('data-i3d-preview-scope', ''),
         // 编辑器里非编辑态会禁用 iframe 指针事件；借来当配置预览时要能点。
-        (hostElement.style.pointerEvents = ""),
+        (hostElement.style.pointerEvents = ''),
         (componentDescriptor = previewComponent),
         (componentProperties = structuredClone(previewComponent.properties || {})),
-        (selectedId = previewOptions.selectedId || ""),
+        (selectedId = previewOptions.selectedId || ''),
         (isEditing = true),
-        (editingModuleKind = previewOptions.editingModule || "light"),
-        (editingSecurityKind = previewOptions.editingSecurityKind || ""),
-        (editingVacuumId = previewOptions.editingVacuumId || ""),
+        (editingModuleKind = previewOptions.editingModule || 'light'),
+        (editingSecurityKind = previewOptions.editingSecurityKind || ''),
+        (editingVacuumId = previewOptions.editingVacuumId || ''),
         (showAllLabels = previewOptions.showAllLabels === true),
         (isRangeEditorOnly = previewOptions.rangeEditorOnly === true),
         (onEdit = previewOptions.onEdit || (() => {})),
@@ -2705,14 +2519,14 @@ export function mountInteraction3d(
         // 不重新同步的话，上一层天气会一直挂在借用画面上直到下一条 HA 状态到达。
         syncWeatherEffects(),
         syncBackgroundHidden(),
-        (lastConfigJson = ""),
+        (lastConfigJson = ''),
         (lastSentConfigPayload = null),
         (pendingResetPreviewSession = true),
-        sendConfigUpdate());
+        sendConfigUpdate()
       return () => {
-        if (isSessionClosed) return;
-        isSessionClosed = true;
-        ((componentDescriptor = savedSession.component),
+        if (isSessionClosed) return
+        isSessionClosed = true
+        ;(componentDescriptor = savedSession.component),
           (componentProperties = savedSession.properties),
           (isEditing = savedSession.isEditing),
           (editingModuleKind = savedSession.editingModuleKind),
@@ -2728,29 +2542,29 @@ export function mountInteraction3d(
           (onLoadError = savedSession.onLoadError),
           (onFocusChange = savedSession.onFocusChange),
           (hostElement.style.pointerEvents = savedPointerEvents),
-          viewportElement?.removeAttribute?.("data-i3d-preview-scope"),
+          viewportElement?.removeAttribute?.('data-i3d-preview-scope'),
           configureStateSubscriptions(),
           // 归还画面：天气层要跟着恢复成宿主自己的绑定（对应上面开场的同步）。
           syncWeatherEffects(),
           syncBackgroundHidden(),
-          (lastConfigJson = ""),
+          (lastConfigJson = ''),
           (lastSentConfigPayload = null),
           (pendingResetPreviewSession = true),
-          sendConfigUpdate());
-      };
+          sendConfigUpdate()
+      }
     }),
     (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
     (runtimeHandle.closeWeatherPreview = closeWeatherPreview),
     (runtimeHandle.previewWeather = previewWeather),
     (runtimeHandle.onWeatherPreviewChange = (listener: unknown) => {
-      if (typeof listener !== "function") return () => {};
-      const previewListener = listener as (previewState: string) => void;
-      weatherPreviewListeners.add(previewListener);
+      if (typeof listener !== 'function') return () => {}
+      const previewListener = listener as (previewState: string) => void
+      weatherPreviewListeners.add(previewListener)
       // 订阅即回报当前态：面板重开时仍能对上正在进行的预览。
-      previewListener(weatherPreviewCondition);
+      previewListener(weatherPreviewCondition)
       return () => {
-        weatherPreviewListeners.delete(previewListener);
-      };
+        weatherPreviewListeners.delete(previewListener)
+      }
     }),
     (runtimeHandle.previewPopupLayout = (
       layoutKind: string,
@@ -2765,7 +2579,7 @@ export function mountInteraction3d(
       isPreviewSuspended ||
       isViewEditing ||
       isRangeEditing ||
-      !["general", "camera"].includes(layoutKind)
+      !['general', 'camera'].includes(layoutKind)
         ? false
         : (popupLayoutPreview ||
             (dismissFocus(true),
@@ -2782,55 +2596,45 @@ export function mountInteraction3d(
       layoutOptions: Record<string, unknown> = {},
       maxHeight: unknown,
     ) =>
-      ["general", "camera"].includes(layoutKind) && presentationLayout
-        ? popupHeightDraft(
-            layoutKind,
-            presentationLayout.width,
-            presentationLayout.height,
-            layoutOptions,
-            maxHeight,
-          )
+      ['general', 'camera'].includes(layoutKind) && presentationLayout
+        ? popupHeightDraft(layoutKind, presentationLayout.width, presentationLayout.height, layoutOptions, maxHeight)
         : null),
     /* 布局预览的不透明度：滑条在拖动途中调它，就地刷新已开着的预览（没开预览时是空操作，
        也不需要调用方知道当前预览的是「通用」还是「摄像头」）。 */
     (runtimeHandle.previewPopupOpacity = (opacity: any) => popupLayoutPreview?.setOpacity(opacity)),
     (runtimeHandle.command = (command: any) =>
       postToStageFrame({
-        type: "editor-command",
+        type: 'editor-command',
         command: command,
       })),
     (runtimeHandle.subscribeEdit = (listener: any) =>
-      isDisposed || typeof listener != "function"
+      isDisposed || typeof listener != 'function'
         ? () => {}
         : (editSubscribersSet.add(listener), () => editSubscribersSet.delete(listener))),
     (runtimeHandle.openRangeEditor = () => {
-      if (
-        (closePopupLayoutPreview(),
-        isDisposed || !isAuthorized || !(isEditing || runtimeContext.editable))
-      )
-        return Promise.reject(new Error("请在已授权的控件编辑器中调整照射范围。"));
-      if (!isScenePresented)
-        return Promise.reject(new Error("户型还在加载，请稍候再调整照射范围。"));
-      if (normalizeLightingMode(componentProperties.lightingMode) !== "region")
-        return Promise.reject(new Error("请先选择轻量柔光模式。"));
-      if (isRangeEditing) return Promise.resolve();
-      const existingRangeRequest = pendingRangeRequestsByRequestId.values().next().value;
-      if (existingRangeRequest) return existingRangeRequest.promise;
-      isViewEditing && runtimeHandle.setViewEditing(false);
-      const rangeRequestId = "range-" + ++requestIdCounter;
-      let rangeRequestResolve, rangeRequestReject: any;
+      if ((closePopupLayoutPreview(), isDisposed || !isAuthorized || !(isEditing || runtimeContext.editable)))
+        return Promise.reject(new Error('请在已授权的控件编辑器中调整照射范围。'))
+      if (!isScenePresented) return Promise.reject(new Error('户型还在加载，请稍候再调整照射范围。'))
+      if (normalizeLightingMode(componentProperties.lightingMode) !== 'region')
+        return Promise.reject(new Error('请先选择轻量柔光模式。'))
+      if (isRangeEditing) return Promise.resolve()
+      const existingRangeRequest = pendingRangeRequestsByRequestId.values().next().value
+      if (existingRangeRequest) return existingRangeRequest.promise
+      isViewEditing && runtimeHandle.setViewEditing(false)
+      const rangeRequestId = 'range-' + ++requestIdCounter
+      let rangeRequestResolve, rangeRequestReject: any
       const rangeRequestPromise = new Promise((rangeResolve, rangeReject) => {
-          ((rangeRequestResolve = rangeResolve), (rangeRequestReject = rangeReject));
+          ;(rangeRequestResolve = rangeResolve), (rangeRequestReject = rangeReject)
         }),
         rangeRequestTimeoutId = setTimeout(() => {
-          (pendingRangeRequestsByRequestId.delete(rangeRequestId),
+          pendingRangeRequestsByRequestId.delete(rangeRequestId),
             postToStageFrame({
-              type: "range-editor",
+              type: 'range-editor',
               open: false,
             }),
             setRangeEditingState(false),
-            rangeRequestReject(new Error("打开照射范围编辑超时，请重试。")));
-        }, 5000);
+            rangeRequestReject(new Error('打开照射范围编辑超时，请重试。'))
+        }, 5000)
       return (
         pendingRangeRequestsByRequestId.set(rangeRequestId, {
           resolve: rangeRequestResolve,
@@ -2840,111 +2644,106 @@ export function mountInteraction3d(
           open: true,
         }),
         postToStageFrame({
-          type: "range-editor",
+          type: 'range-editor',
           open: true,
           requestId: rangeRequestId,
         }),
         rangeRequestPromise
-      );
+      )
     }),
     (runtimeHandle.flushRangeEditor = () => {
       if (isDisposed || !isAuthorized || !isScenePresented || !isRangeEditing)
-        return Promise.reject(new Error("请先打开照射范围编辑。"));
-      const flushRequestId = "range-" + ++requestIdCounter;
+        return Promise.reject(new Error('请先打开照射范围编辑。'))
+      const flushRequestId = 'range-' + ++requestIdCounter
       return new Promise((flushResolve, flushReject) => {
         const flushTimeoutId = setTimeout(() => {
-          (pendingRangeRequestsByRequestId.delete(flushRequestId),
-            flushReject(new Error("读取照射范围超时，请重试。")));
-        }, 5000);
-        (pendingRangeRequestsByRequestId.set(flushRequestId, {
+          pendingRangeRequestsByRequestId.delete(flushRequestId), flushReject(new Error('读取照射范围超时，请重试。'))
+        }, 5000)
+        pendingRangeRequestsByRequestId.set(flushRequestId, {
           resolve: flushResolve,
           reject: flushReject,
           timeout: flushTimeoutId,
           open: true,
         }),
           postToStageFrame({
-            type: "range-editor",
+            type: 'range-editor',
             flush: true,
             requestId: flushRequestId,
-          }));
-      });
+          })
+      })
     }),
     (runtimeHandle.closeRangeEditor = ({ flush: shouldFlush = false } = {}) => {
-      if ((rejectPendingRangeRequests("照射范围编辑已取消。"), !shouldFlush)) {
-        (postToStageFrame({
-          type: "range-editor",
+      if ((rejectPendingRangeRequests('照射范围编辑已取消。'), !shouldFlush)) {
+        postToStageFrame({
+          type: 'range-editor',
           open: false,
         }),
-          setRangeEditingState(false));
-        return;
+          setRangeEditingState(false)
+        return
       }
       if (isDisposed || !isAuthorized || !isScenePresented)
-        return Promise.reject(new Error("户型画面暂不可用，请重新打开照射范围。"));
-      const closeRequestId = "range-" + ++requestIdCounter;
+        return Promise.reject(new Error('户型画面暂不可用，请重新打开照射范围。'))
+      const closeRequestId = 'range-' + ++requestIdCounter
       return new Promise((closeResolve, closeReject) => {
         const closeTimeoutId = setTimeout(() => {
-          (pendingRangeRequestsByRequestId.delete(closeRequestId),
-            closeReject(new Error("读取照射范围超时，请重试。")));
-        }, 5000);
-        (pendingRangeRequestsByRequestId.set(closeRequestId, {
+          pendingRangeRequestsByRequestId.delete(closeRequestId), closeReject(new Error('读取照射范围超时，请重试。'))
+        }, 5000)
+        pendingRangeRequestsByRequestId.set(closeRequestId, {
           resolve: closeResolve,
           reject: closeReject,
           timeout: closeTimeoutId,
           open: false,
         }),
           postToStageFrame({
-            type: "range-editor",
+            type: 'range-editor',
             open: false,
             requestId: closeRequestId,
-          }));
-      });
+          })
+      })
     }),
     (runtimeHandle.setAuthorized = (nextAuthorized: any) => {
-      const authorizedChanged = isAuthorized !== (nextAuthorized === true);
-      ((isAuthorized = nextAuthorized === true),
+      const authorizedChanged = isAuthorized !== (nextAuthorized === true)
+      ;(isAuthorized = nextAuthorized === true),
         (hostElement.inert = !isAuthorized || isPageHidden),
         refreshActivityState(),
         isAuthorized ||
           (closePopupLayoutPreview(),
           runtimeHandle.closeRangeEditor(),
-          rejectPendingEdits("授权验证暂不可用，请恢复后重新调整。"),
+          rejectPendingEdits('授权验证暂不可用，请恢复后重新调整。'),
           dismissFocus(true),
-          activeRequestsSet.forEach((activeRequest) => activeRequest.abort("stale"))),
-        authorizedChanged && (isEditing || runtimeContext.editable) && sendConfigUpdate());
+          activeRequestsSet.forEach((activeRequest) => activeRequest.abort('stale'))),
+        authorizedChanged && (isEditing || runtimeContext.editable) && sendConfigUpdate()
     }),
-    Object.defineProperty(runtimeHandle, "metadata", {
+    Object.defineProperty(runtimeHandle, 'metadata', {
       get: () => componentMetadata,
     }),
-    Object.defineProperty(runtimeHandle, "presentationLayout", {
+    Object.defineProperty(runtimeHandle, 'presentationLayout', {
       get: () => presentationLayout,
     }),
-    Object.defineProperty(runtimeHandle, "ready", {
+    Object.defineProperty(runtimeHandle, 'ready', {
       get: () => isScenePresented && !isDisposed && isAuthorized,
     }),
-    Object.defineProperty(runtimeHandle, "viewEditing", {
+    Object.defineProperty(runtimeHandle, 'viewEditing', {
       get: () => isViewEditing,
     }),
     /** 页面当前是否可见（借用预览结束后要恢复成借用前的状态）。 */
-    Object.defineProperty(runtimeHandle, "pageVisible", {
+    Object.defineProperty(runtimeHandle, 'pageVisible', {
       get: () => !isDisposed && !isPageHidden,
     }),
-    Object.defineProperty(runtimeHandle, "navigationEditing", {
+    Object.defineProperty(runtimeHandle, 'navigationEditing', {
       get: () => isNavigationEditing,
     }),
-    Object.defineProperty(runtimeHandle, "viewCamera", {
+    Object.defineProperty(runtimeHandle, 'viewCamera', {
       get: () => activeCamera,
     }),
-    Object.defineProperty(runtimeHandle, "rangeEditing", {
+    Object.defineProperty(runtimeHandle, 'rangeEditing', {
       get: () => isRangeEditing && !isDisposed && isAuthorized,
     }),
     (runtimeHandle.setViewEditing = (nextViewEditing: any) => {
       if ((nextViewEditing && closePopupLayoutPreview(), !runtimeContext.editable || isDisposed))
-        throw new Error("请在编辑器中调整户型视角。");
-      if (nextViewEditing && !isScenePresented) throw new Error("户型还在加载，请稍候再调整视角。");
-      (nextViewEditing &&
-        (isRangeEditing || pendingRangeRequestsByRequestId.size) &&
-        runtimeHandle.closeRangeEditor(),
-
+        throw new Error('请在编辑器中调整户型视角。')
+      if (nextViewEditing && !isScenePresented) throw new Error('户型还在加载，请稍候再调整视角。')
+      nextViewEditing && (isRangeEditing || pendingRangeRequestsByRequestId.size) && runtimeHandle.closeRangeEditor(),
         nextViewEditing && isNavigationEditing && setNavigationEditingState(false),
         (isViewEditing = nextViewEditing === true),
         isViewEditing ||
@@ -2952,83 +2751,71 @@ export function mountInteraction3d(
             componentProperties.floorCameras?.[componentProperties.floorSelection] ||
             componentProperties.camera ||
             defaultCamera),
-        hostElement.classList.toggle("is-view-editing", isViewEditing),
+        hostElement.classList.toggle('is-view-editing', isViewEditing),
         (stageFrameElement.style.pointerEvents =
-          isViewEditing || isRangeEditing || isNavigationEditing ? "auto" : "none"),
-        sendConfigUpdate());
+          isViewEditing || isRangeEditing || isNavigationEditing ? 'auto' : 'none'),
+        sendConfigUpdate()
     }),
-
     (runtimeHandle.setNavigationEditing = (nextNavigationEditing: any) => {
-      const isNavigationEditingEnabled = nextNavigationEditing === true;
-      if (
-        isNavigationEditingEnabled &&
-        (!runtimeContext.editable || isEditing || isDisposed)
-      )
-        throw new Error("请在仪表盘编辑器里调整导航位置。");
-      if (isNavigationEditingEnabled && !isScenePresented)
-        throw new Error("3D 画面还在加载，请稍候再调整导航位置。");
+      const isNavigationEditingEnabled = nextNavigationEditing === true
+      if (isNavigationEditingEnabled && (!runtimeContext.editable || isEditing || isDisposed))
+        throw new Error('请在仪表盘编辑器里调整导航位置。')
+      if (isNavigationEditingEnabled && !isScenePresented) throw new Error('3D 画面还在加载，请稍候再调整导航位置。')
       if (isNavigationEditingEnabled && (isViewEditing || isRangeEditing))
-        throw new Error("请先结束视角调整或照射范围编辑，再调整导航位置。");
-      setNavigationEditingState(isNavigationEditingEnabled);
+        throw new Error('请先结束视角调整或照射范围编辑，再调整导航位置。')
+      setNavigationEditingState(isNavigationEditingEnabled)
     }),
     (runtimeHandle.setEditable = (nextEditable: any) => {
-      const editableEnabled = nextEditable === true;
-      if (isDisposed || runtimeContext.editable === editableEnabled) return;
+      const editableEnabled = nextEditable === true
+      if (isDisposed || runtimeContext.editable === editableEnabled) return
       /* 0.7.8：切换画布模式等同一次预览会话重置——在途编辑/范围请求全部按
          「画布模式已切换，请重新调整。」拒绝，编辑态一次性收干净。 */
-      (rejectPendingEdits("画布模式已切换，请重新调整。"),
-        rejectPendingRangeRequests("画布模式已切换，请重新调整。"),
+      rejectPendingEdits('画布模式已切换，请重新调整。'),
+        rejectPendingRangeRequests('画布模式已切换，请重新调整。'),
         runtimeHandle.closeRangeEditor?.(),
         isViewEditing && runtimeHandle.setViewEditing(false),
         isNavigationEditing && setNavigationEditingState(false),
         closePopupLayoutPreview(),
         closeWeatherPreview(),
         (runtimeContext.editable = editableEnabled),
-        (selectedId = ""),
-        (stageFrameElement.style.pointerEvents =
-          editableEnabled && !isEditing ? "none" : ""),
-        sendConfigUpdate());
+        (selectedId = ''),
+        (stageFrameElement.style.pointerEvents = editableEnabled && !isEditing ? 'none' : ''),
+        sendConfigUpdate()
     }),
     (runtimeHandle.viewCommand = (viewCommandName: any, viewCommandValue: any = undefined) =>
       new Promise((viewResolve, viewReject) => {
         if (!runtimeContext.editable || !isViewEditing || !isScenePresented || isDisposed) {
-          viewReject(new Error("请先进入户型视角调整。"));
-          return;
+          viewReject(new Error('请先进入户型视角调整。'))
+          return
         }
-        const viewRequestId = "view-" + ++requestIdCounter,
+        const viewRequestId = 'view-' + ++requestIdCounter,
           viewTimeoutId = setTimeout(() => {
-            (pendingEditsByRequestId.delete(viewRequestId),
-              viewReject(new Error("读取视角超时，请重试。")));
-          }, 5000);
-        (pendingEditsByRequestId.set(viewRequestId, {
+            pendingEditsByRequestId.delete(viewRequestId), viewReject(new Error('读取视角超时，请重试。'))
+          }, 5000)
+        pendingEditsByRequestId.set(viewRequestId, {
           resolve: viewResolve,
           reject: viewReject,
           timeout: viewTimeoutId,
         }),
           postToStageFrame({
-            type: "editor-command",
+            type: 'editor-command',
             command: viewCommandName,
             value: viewCommandValue,
             requestId: viewRequestId,
-          }));
+          })
       })),
-    (runtimeHandle.captureView = () => runtimeHandle.viewCommand("save-camera")),
-    (runtimeHandle.focusCommand = (
-      focusCommandName: any,
-      focusTargetId = selectedId,
-      focusCommandValue: any,
-    ) =>
+    (runtimeHandle.captureView = () => runtimeHandle.viewCommand('save-camera')),
+    (runtimeHandle.focusCommand = (focusCommandName: any, focusTargetId = selectedId, focusCommandValue: any) =>
       new Promise((focusResolve, focusReject) => {
         if (!isEditing || !isScenePresented || isDisposed || !isAuthorized) {
-          focusReject(new Error("户型还在加载，请稍候再设置聚焦视角。"));
-          return;
+          focusReject(new Error('户型还在加载，请稍候再设置聚焦视角。'))
+          return
         }
-        const focusRequestId = "focus-" + ++requestIdCounter,
+        const focusRequestId = 'focus-' + ++requestIdCounter,
           focusTimeoutId = setTimeout(() => {
-            (pendingEditsByRequestId.delete(focusRequestId),
-              focusReject(new Error("读取聚焦视角超时，请重试。")));
-          }, 5000);
-        (pendingEditsByRequestId.set(focusRequestId, {
+            pendingEditsByRequestId.delete(focusRequestId), focusReject(new Error('读取聚焦视角超时，请重试。'))
+          }, 5000)
+        pendingEditsByRequestId.set(focusRequestId, {
           resolve: focusResolve,
           reject: focusReject,
           timeout: focusTimeoutId,
@@ -3036,13 +2823,13 @@ export function mountInteraction3d(
           id: focusTargetId,
         }),
           postToStageFrame({
-            type: "editor-command",
+            type: 'editor-command',
             command: focusCommandName,
             id: focusTargetId,
             value: focusCommandValue,
             requestId: focusRequestId,
-          }));
+          })
       })),
     runtimeHandle
-  );
+  )
 }

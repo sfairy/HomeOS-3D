@@ -16,72 +16,64 @@
  * `resolveShapes` / `createMaterial` 由 `studio-walls` 注入：并集缓存与「专用墙面
  * 着色器」分支都在那边，这里只管把形状变成一层平铺面片。
  */
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-import { mergeGeometries } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
+import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 
-import type { WallTopSurfaceOptions } from "../types/studio-app-types";
-import type { StudioWallsDeps } from "./studio-walls";
-import { isWallPartVisible } from "./studio-wall-debug";
+import type { WallTopSurfaceOptions } from '../types/studio-app-types'
+import type { StudioWallsDeps } from './studio-walls'
+import { isWallPartVisible } from './studio-wall-debug'
 
 /** 墙体平面环（世界米制）。 */
-export type WallCapLoop = { x: number; y: number };
+export type WallCapLoop = { x: number; y: number }
 
 /**
  * three 的 `Shape`。浏览器直载模块在编译期只有影子声明（`ShapeGeometry` 无类型），
  * 这里只标记「几何输入对象」，不引入 three 的类型。
  */
-export type WallCapShape = object;
+export type WallCapShape = object
 
 /** 盖面材质用到的两个字段（半透明 / 单 pass 压缩）。 */
 export interface WallCapMaterial {
-  transparent?: boolean;
-  forceSinglePass?: boolean;
+  transparent?: boolean
+  forceSinglePass?: boolean
 }
 
 /** 盖面朝向：`up` 顶盖，`down` 洞口过梁底面。 */
-export type WallCapFacing = "up" | "down";
+export type WallCapFacing = 'up' | 'down'
 
 /** 并集结果：`unionValid` 决定是否退回「更保守」的深度设置（与原顶盖分支同义）。 */
 export interface WallCapShapes {
-  shapes: WallCapShape[];
-  unionValid: boolean;
+  shapes: WallCapShape[]
+  unionValid: boolean
 }
 
 export interface WallCapContext {
-  deps: StudioWallsDeps;
+  deps: StudioWallsDeps
   /** 并集 + 带洞形状（由 `studio-walls` 注入，含并集失败回退）。 */
-  resolveShapes: (loops: WallCapLoop[][]) => WallCapShapes;
+  resolveShapes: (loops: WallCapLoop[][]) => WallCapShapes
   /** 盖面材质（墙顶材质，含半透明膜浓度）。 */
-  createMaterial: (
-    color: number,
-    opacity: number,
-    options: WallTopSurfaceOptions,
-  ) => WallCapMaterial;
+  createMaterial: (color: number, opacity: number, options: WallTopSurfaceOptions) => WallCapMaterial
 }
 
 export function createWallCapContext(
   deps: StudioWallsDeps,
-  resolveShapes: WallCapContext["resolveShapes"],
-  createMaterial: WallCapContext["createMaterial"],
+  resolveShapes: WallCapContext['resolveShapes'],
+  createMaterial: WallCapContext['createMaterial'],
 ): WallCapContext {
-  return { deps, resolveShapes, createMaterial };
+  return { deps, resolveShapes, createMaterial }
 }
 
 /** 按比例压暗一个 sRGB 色值（过梁底面比顶面暗一档，符合「朝下的面吃不到天光」）。 */
 export function shadeTint(colorValue: number, factor: number) {
-  return new ns2.Color(colorValue).multiplyScalar(factor).getHex();
+  return new ns2.Color(colorValue).multiplyScalar(factor).getHex()
 }
 
 /**
  * 并集失败时给半透明盖面一个「只写深度」的兜底：宁可盖住后面的墙，也不要让两层膜叠亮。
  */
-function resolveCapRenderOptions(
-  options: WallTopSurfaceOptions,
-  unionValid: boolean,
-  opacity: number,
-) {
-  if (unionValid || opacity >= 0.999 || options.depthWrite !== undefined) return options;
-  return { ...options, depthWrite: true, depthFunc: ns2.LessDepth };
+function resolveCapRenderOptions(options: WallTopSurfaceOptions, unionValid: boolean, opacity: number) {
+  if (unionValid || opacity >= 0.999 || options.depthWrite !== undefined) return options
+  return { ...options, depthWrite: true, depthFunc: ns2.LessDepth }
 }
 
 /**
@@ -90,13 +82,12 @@ function resolveCapRenderOptions(
  */
 function mergeCapGeometries(shapes: WallCapShape[]) {
   const shapeGeometries = shapes.map((capShape) => new ns2.ShapeGeometry(capShape, 1)),
-    mergedGeometry =
-      shapeGeometries.length === 1 ? shapeGeometries[0] : mergeGeometries(shapeGeometries);
+    mergedGeometry = shapeGeometries.length === 1 ? shapeGeometries[0] : mergeGeometries(shapeGeometries)
   if (shapeGeometries.length > 1) {
-    for (const geometry of shapeGeometries) geometry.dispose();
-    if (!mergedGeometry) return null;
+    for (const geometry of shapeGeometries) geometry.dispose()
+    if (!mergedGeometry) return null
   }
-  return mergedGeometry;
+  return mergedGeometry
 }
 
 /** 摆好面片：绕 X +90°（法线朝 -Y）、抬到 `height`，并按盖面用途打标记。 */
@@ -108,16 +99,16 @@ function attachCapMesh(
   facing: WallCapFacing,
   renderOrder: number,
 ) {
-  const capMesh = new ns2.Mesh(geometry, material);
-  ((capMesh.rotation.x = Math.PI / 2),
-    (capMesh.position.y = height + (facing === "up" ? 0.0005 : -0.0005)),
-    (capMesh.userData.reflectionRole = "wall"),
+  const capMesh = new ns2.Mesh(geometry, material)
+  ;(capMesh.rotation.x = Math.PI / 2),
+    (capMesh.position.y = height + (facing === 'up' ? 0.0005 : -0.0005)),
+    (capMesh.userData.reflectionRole = 'wall'),
     (capMesh.userData.wallCapFacing = facing),
     (capMesh.castShadow = false),
     (capMesh.receiveShadow = false),
     (capMesh.renderOrder = renderOrder),
     context.deps.isEmbeddedStage && material.transparent && (material.forceSinglePass = true),
-    context.deps.sceneRootNode.add(capMesh));
+    context.deps.sceneRootNode.add(capMesh)
 }
 
 /**
@@ -137,20 +128,20 @@ export function buildWallCapSurface(
     options = {},
     facing,
   }: {
-    loops: WallCapLoop[][];
-    height: number;
-    color: number;
-    opacity: number;
-    options?: WallTopSurfaceOptions;
-    facing: WallCapFacing;
+    loops: WallCapLoop[][]
+    height: number
+    color: number
+    opacity: number
+    options?: WallTopSurfaceOptions
+    facing: WallCapFacing
   },
 ) {
-  if (!isWallPartVisible(facing === "up" ? "top" : "soffit") || !loops.length) return;
-  const { shapes, unionValid } = context.resolveShapes(loops);
-  if (!shapes.length) return;
+  if (!isWallPartVisible(facing === 'up' ? 'top' : 'soffit') || !loops.length) return
+  const { shapes, unionValid } = context.resolveShapes(loops)
+  if (!shapes.length) return
   const resolvedOptions = resolveCapRenderOptions(options, unionValid, opacity),
-    capGeometry = mergeCapGeometries(shapes);
-  if (!capGeometry) return;
-  const capMaterial = context.createMaterial(color, opacity, resolvedOptions);
-  attachCapMesh(context, capGeometry, capMaterial, height, facing, resolvedOptions.renderOrder ?? 4);
+    capGeometry = mergeCapGeometries(shapes)
+  if (!capGeometry) return
+  const capMaterial = context.createMaterial(color, opacity, resolvedOptions)
+  attachCapMesh(context, capGeometry, capMaterial, height, facing, resolvedOptions.renderOrder ?? 4)
 }

@@ -1,10 +1,6 @@
 /** 安防区域模式工具模块。 */
 /** 前端镜像后端 zoneType × mode 告警逻辑 — 判定自 @homeos/shared */
-import {
-  type SecurityArmingMode,
-  type SecurityZoneType,
-  shouldZoneAlarmInMode,
-} from '@homeos/shared'
+import { type SecurityArmingMode, type SecurityZoneType, shouldZoneAlarmInMode } from '@homeos/shared'
 
 /** 安防布防模式类型（armed_away/armed_home/armed_night/disarmed） */
 export type ArmingMode = SecurityArmingMode
@@ -19,11 +15,7 @@ export { shouldZoneAlarmInMode }
  * @param armed 该区域是否实际处于布防状态（未勾选布防时为 false）
  * @returns 提示文案，说明该区域在当前模式下是否参与告警
  */
-export function zoneModeHint(
-  mode: string,
-  zoneType: SecurityZoneType | undefined,
-  armed = true,
-) {
+export function zoneModeHint(mode: string, zoneType: SecurityZoneType | undefined, armed = true) {
   if (mode === 'disarmed') return '撤防中 · 不触发告警'
   // 「模式允许」不等于「实际参与」：选择性布防时没被勾选的区域不会告警，
   // 只按 mode×zoneType 给「参与告警」会把用户骗了。
@@ -55,10 +47,7 @@ export function isSensorAlertState(state: string | undefined) {
     state === 'on' ||
     state === 'wet' ||
     state === 'open' ||
-    (state !== 'off' &&
-      state !== 'closed' &&
-      !Number.isNaN(parseFloat(String(state))) &&
-      parseFloat(String(state)) > 0)
+    (state !== 'off' && state !== 'closed' && !Number.isNaN(parseFloat(String(state))) && parseFloat(String(state)) > 0)
   )
 }
 

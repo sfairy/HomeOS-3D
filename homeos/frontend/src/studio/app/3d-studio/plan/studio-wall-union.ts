@@ -14,44 +14,42 @@
  */
 
 /** 平面环（与 `plan/geometry` 的环同构，只要求 x / y）。 */
-export type WallPlanLoop = { x: number; y: number }[];
+export type WallPlanLoop = { x: number; y: number }[]
 
-let wallUnionFallbackTotal = 0;
+let wallUnionFallbackTotal = 0
 
 /** 墙体并集失败的累计次数（本页生命周期）。 */
 export function wallUnionFallbackCount() {
-  return wallUnionFallbackTotal;
+  return wallUnionFallbackTotal
 }
 
 /** 只给测试用：把计数清零。 */
 export function resetWallUnionFallbackCount() {
-  wallUnionFallbackTotal = 0;
+  wallUnionFallbackTotal = 0
 }
 
 function polygonSignedArea(loop: WallPlanLoop) {
-  let area = 0;
+  let area = 0
   for (let index = 0; index < loop.length; index += 1) {
     const current = loop[index],
-      next = loop[(index + 1) % loop.length];
-    area += current.x * next.y - next.x * current.y;
+      next = loop[(index + 1) % loop.length]
+    area += current.x * next.y - next.x * current.y
   }
-  return area / 2;
+  return area / 2
 }
 
 /** 射线法：点是否在多边形内部（环坐标是平面米制）。 */
 export function pointInsideWallLoop(point: { x: number; y: number }, loop: WallPlanLoop) {
-  let inside = false;
+  let inside = false
   for (let i = 0, j = loop.length - 1; i < loop.length; j = i, i += 1) {
     const current = loop[i],
       previous = loop[j],
       crossesRay =
         current.y > point.y !== previous.y > point.y &&
-        point.x <
-          ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y || 1e-12) +
-            current.x;
-    crossesRay && (inside = !inside);
+        point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y || 1e-12) + current.x
+    crossesRay && (inside = !inside)
   }
-  return inside;
+  return inside
 }
 
 /**
@@ -61,28 +59,28 @@ export function pointInsideWallLoop(point: { x: number; y: number }, loop: WallP
  * 都落在对方内部，只比重心会把一面墙整段删掉。
  */
 export function dropContainedWallLoops<T extends WallPlanLoop>(loopList: T[]): T[] {
-  if (loopList.length <= 1) return loopList;
+  if (loopList.length <= 1) return loopList
   const entries = loopList.map((loop) => ({ loop, area: Math.abs(polygonSignedArea(loop)) })),
-    contained = new Set<(typeof entries)[number]>();
+    contained = new Set<(typeof entries)[number]>()
   for (const candidate of entries) {
-    if (contained.has(candidate)) continue;
+    if (contained.has(candidate)) continue
     for (const hostEntry of entries) {
-      if (hostEntry === candidate || contained.has(hostEntry)) continue;
+      if (hostEntry === candidate || contained.has(hostEntry)) continue
       const fullyInside =
         hostEntry.area >= candidate.area &&
-        candidate.loop.every((vertex) => pointInsideWallLoop(vertex, hostEntry.loop));
+        candidate.loop.every((vertex) => pointInsideWallLoop(vertex, hostEntry.loop))
       if (fullyInside) {
-        contained.add(candidate);
-        break;
+        contained.add(candidate)
+        break
       }
     }
   }
-  const keptLoops = entries.filter((entry) => !contained.has(entry)).map((entry) => entry.loop);
-  return keptLoops.length ? keptLoops : loopList;
+  const keptLoops = entries.filter((entry) => !contained.has(entry)).map((entry) => entry.loop)
+  return keptLoops.length ? keptLoops : loopList
 }
 
 /** 记录一次并集失败并返回保守回退后的环。 */
 export function recordWallUnionFallback<T extends WallPlanLoop>(loopList: T[]): T[] {
-  wallUnionFallbackTotal += 1;
-  return dropContainedWallLoops(loopList);
+  wallUnionFallbackTotal += 1
+  return dropContainedWallLoops(loopList)
 }

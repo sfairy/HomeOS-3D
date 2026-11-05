@@ -33,10 +33,7 @@ test('sw.js 里恰好有一个版本占位符，且与 vite.config.ts 用的是�
     1,
     '占位符必须出现且只出现一次：多写一处就会有一处没被替换，缓存名出现两种版本',
   )
-  assert.ok(
-    viteConfig.includes(`'${TOKEN}'`),
-    'vite.config.ts 的 RESOURCE_VERSION_TOKEN 必须与 sw.js 的占位符逐字相同',
-  )
+  assert.ok(viteConfig.includes(`'${TOKEN}'`), 'vite.config.ts 的 RESOURCE_VERSION_TOKEN 必须与 sw.js 的占位符逐字相同')
 })
 
 test('sw.js 的缓存名由占位符拼出，不再手写版本号', () => {
@@ -51,19 +48,11 @@ test('前后端对资源版本清单的文件名一致', () => {
 
 test('revision 口径一致：16 位小写十六进制', () => {
   assert.match(backendSource, /_REVISION_PATTERN = re\.compile\(r"\[0-9a-f\]\{16\}"\)/)
-  assert.match(
-    viteConfig,
-    /digest\('hex'\)\.slice\(0, 16\)/,
-    'vite 侧必须截到 16 位，否则后端校验会直接抛 ValueError',
-  )
+  assert.match(viteConfig, /digest\('hex'\)\.slice\(0, 16\)/, 'vite 侧必须截到 16 位，否则后端校验会直接抛 ValueError')
 })
 
 test('外壳 HTML 自身不带 ?v=，改写只发生在构建收尾', () => {
-  assert.equal(
-    /\?v=/.test(shellHtml),
-    false,
-    'index.html 里写死 ?v= 会与构建期替换叠加成两个 v 参数，等于制造缓存碎片',
-  )
+  assert.equal(/\?v=/.test(shellHtml), false, 'index.html 里写死 ?v= 会与构建期替换叠加成两个 v 参数，等于制造缓存碎片')
 })
 
 test('构建收尾按顺序：先算 revision，再写清单、改写外壳、替换 SW', () => {

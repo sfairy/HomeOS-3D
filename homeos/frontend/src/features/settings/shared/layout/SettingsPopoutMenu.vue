@@ -51,9 +51,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
 const { teleportTarget, shellTeleportPending, refreshShellTeleport } = useShellTeleportTarget()
-const teleportDisabled = computed(
-  () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
-)
+const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
 
 const triggerRef = ref(null)
 const menuRef = ref(null)

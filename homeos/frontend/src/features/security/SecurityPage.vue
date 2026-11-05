@@ -519,9 +519,7 @@ const fullscreenRef = ref(null)
  * 与 `isFullscreenViewer` 分开：打开标记为真但当天的选事件没有画面时不应进入模态语义，
  * 否则会出现「对话框里什么都没有」且焦点被锁。陷阱、滚动锁、Esc 都以它为准。
  */
-const fullscreenOpen = computed(
-  () => isFullscreenViewer.value && !!dayEvents.value[selectedEventIdx.value],
-)
+const fullscreenOpen = computed(() => isFullscreenViewer.value && !!dayEvents.value[selectedEventIdx.value])
 /** 对话框可访问名：带当前序号，读屏进入全屏后能立刻知道「在看第几条」。 */
 const fullscreenLabel = computed(
   () => `事件媒体全屏查看 · 第 ${selectedEventIdx.value + 1} / ${dayEvents.value.length} 条`,

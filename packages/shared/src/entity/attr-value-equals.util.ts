@@ -10,45 +10,42 @@
 export function attrValueEquals(a: unknown, b: unknown): boolean {
   // Logic fix: C-4.1/路径5/候选5-A — NaN 读数丢失的传感器再次丢失时应视为"属性无变化"，
   // 避免响应式乐观 bump 与 UI 无意义刷新。IEEE 754 NaN≠NaN 正确，但此处业务比较语义要求两者等价。
-  if (typeof a === 'number' && typeof b === 'number' && Number.isNaN(a) && Number.isNaN(b)) return true;
-  if (a === b) return true;
-  if (a == null || b == null) return a === b;
+  if (typeof a === 'number' && typeof b === 'number' && Number.isNaN(a) && Number.isNaN(b)) return true
+  if (a === b) return true
+  if (a == null || b == null) return a === b
   // Logic fix: 空串/纯空白不应被 Number() 归一为 0（否则 '' 会被判定等于 0），
   // 且 '' 与空白串应视为相等；与下方数字/字符串数值比较语义保持一致。
   if (typeof a === 'string' && a.trim() === '') {
-    return typeof b === 'string' && b.trim() === '';
+    return typeof b === 'string' && b.trim() === ''
   }
   if (typeof b === 'string' && b.trim() === '') {
-    return typeof a === 'string' && a.trim() === '';
+    return typeof a === 'string' && a.trim() === ''
   }
   if (typeof a === 'number' && typeof b === 'number') {
-    if (Number.isNaN(a) || Number.isNaN(b)) return false;
-    return Math.abs(a - b) <= 1;
+    if (Number.isNaN(a) || Number.isNaN(b)) return false
+    return Math.abs(a - b) <= 1
   }
-  if (
-    (typeof a === 'number' || typeof a === 'string') &&
-    (typeof b === 'number' || typeof b === 'string')
-  ) {
-    const na = Number(a);
-    const nb = Number(b);
-    if (Number.isFinite(na) && Number.isFinite(nb) && Math.abs(na - nb) <= 1) return true;
+  if ((typeof a === 'number' || typeof a === 'string') && (typeof b === 'number' || typeof b === 'string')) {
+    const na = Number(a)
+    const nb = Number(b)
+    if (Number.isFinite(na) && Number.isFinite(nb) && Math.abs(na - nb) <= 1) return true
   }
-  if (typeof a !== typeof b) return false;
+  if (typeof a !== typeof b) return false
   if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
+    if (a.length !== b.length) return false
     for (let i = 0; i < a.length; i++) {
-      if (!attrValueEquals(a[i], b[i])) return false;
+      if (!attrValueEquals(a[i], b[i])) return false
     }
-    return true;
+    return true
   }
   if (typeof a === 'object' && typeof b === 'object') {
-    const ao = a as Record<string, unknown>;
-    const bo = b as Record<string, unknown>;
-    const keys = new Set([...Object.keys(ao), ...Object.keys(bo)]);
+    const ao = a as Record<string, unknown>
+    const bo = b as Record<string, unknown>
+    const keys = new Set([...Object.keys(ao), ...Object.keys(bo)])
     for (const k of keys) {
-      if (!attrValueEquals(ao[k], bo[k])) return false;
+      if (!attrValueEquals(ao[k], bo[k])) return false
     }
-    return true;
+    return true
   }
-  return false;
+  return false
 }

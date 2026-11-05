@@ -1,29 +1,26 @@
-import { withPageAppearancePreset as withPageAppearancePreset } from "./presets/page-appearance-presets";
-const INTERACTION3D_TYPE = "interaction3d";
+import { withPageAppearancePreset as withPageAppearancePreset } from './presets/page-appearance-presets'
+const INTERACTION3D_TYPE = 'interaction3d'
 export const INTERACTION3D_LIGHTING_MODES = [
-    ["standard", "标准光影"],
-    ["region", "轻量柔光"],
+    ['standard', '标准光影'],
+    ['region', '轻量柔光'],
   ],
-
-  normalizeInteraction3dLightingMode = (lightingMode: any) =>
-    lightingMode === "region" ? "region" : "standard",
+  normalizeInteraction3dLightingMode = (lightingMode: any) => (lightingMode === 'region' ? 'region' : 'standard'),
   BACKGROUND_THEMES = [
-    ["grid", "经典网格"],
-    ["dots", "微光星尘"],
+    ['grid', '经典网格'],
+    ['dots', '微光星尘'],
   ],
-  normalizeBackgroundTheme = (themeId: any) =>
-    themeId === "dots" || themeId === "contours" ? "dots" : "grid",
+  normalizeBackgroundTheme = (themeId: any) => (themeId === 'dots' || themeId === 'contours' ? 'dots' : 'grid'),
   interaction3dTemplate = {
     id: INTERACTION3D_TYPE,
     type: INTERACTION3D_TYPE,
-    name: "3D 交互",
-    description: "在 3D 户型中查看和控制灯光、设备。",
-    scopes: ["page"],
-    create({ id: componentId, instanceName: instanceName = "3D 交互", canvas: canvas }: any) {
+    name: '3D 交互',
+    description: '在 3D 户型中查看和控制灯光、设备。',
+    scopes: ['page'],
+    create({ id: componentId, instanceName: instanceName = '3D 交互', canvas: canvas }: any) {
       const canvasWidth = Number(canvas?.width || 2778),
         canvasHeight = Number(canvas?.height || 1940),
         componentWidth = canvasWidth * 0.56,
-        componentHeight = canvasHeight * 0.56;
+        componentHeight = canvasHeight * 0.56
       return {
         id: componentId,
         type: INTERACTION3D_TYPE,
@@ -39,33 +36,33 @@ export const INTERACTION3D_LIGHTING_MODES = [
         properties: {
           label: instanceName,
           instanceName: instanceName,
-          layoutMode: "free",
+          layoutMode: 'free',
           backgroundVisible: false,
-          backgroundTheme: "grid",
-          sceneStyle: "default",
+          backgroundTheme: 'grid',
+          sceneStyle: 'default',
           wallOpacity: null as any,
           backgroundMotion: true,
           renderScale: 1,
-          lightingMode: "standard",
+          lightingMode: 'standard',
           groundReflection: {
-            mode: "off",
+            mode: 'off',
             resolution: 512,
             strength: 0.18,
           },
           ...withPageAppearancePreset({}),
           popupOpacity: 74,
           interaction: {
-            rotationMode: "free",
+            rotationMode: 'free',
             panEnabled: true,
             zoomEnabled: true,
           },
-          behaviorScope: "global",
+          behaviorScope: 'global',
           pageBehaviors: {} as Record<string, any>,
           autoRotate: {
             enabled: false,
             idleSeconds: 30,
             speed: 6,
-            direction: "clockwise",
+            direction: 'clockwise',
           },
           idleExitFocus: {
             enabled: false,
@@ -99,6 +96,6 @@ export const INTERACTION3D_LIGHTING_MODES = [
           scale: 1,
           visible: true,
         },
-      };
+      }
     },
-  };
+  }

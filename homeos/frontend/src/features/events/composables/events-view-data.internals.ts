@@ -3,25 +3,13 @@
  * @module frontend/src/features/events/composables
  */
 import { ref, computed, watch, type Ref } from 'vue'
-import {
-  fetchEventStats,
-  fetchEvents,
-  fetchEventMeta,
-  clearEvents,
-} from '@/services/api/entities'
+import { fetchEventStats, fetchEvents, fetchEventMeta, clearEvents } from '@/services/api/entities'
 import type { useChromeStore } from '@/stores/chrome.store'
 import { logger } from '@/shared/utils/core/logger'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { notifyError } from '@/services/notify'
-import {
-  configEpoch,
-  getEventLogConfig,
-} from '@/shared/utils/config/frontend-config'
-import {
-  formatCount,
-  hoursLabel,
-  normalizeByDomain,
-} from '@/shared/events/utils/events-display.util'
+import { configEpoch, getEventLogConfig } from '@/shared/utils/config/frontend-config'
+import { formatCount, hoursLabel, normalizeByDomain } from '@/shared/events/utils/events-display.util'
 import { getEntityDisplayName, hasEntityFriendlyName } from '@/shared/entity/utils/derived.util'
 import type { useEntitiesStore } from '@/stores/entities.store'
 
@@ -29,7 +17,6 @@ type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type ChromeStore = ReturnType<typeof useChromeStore>
 
 const PAGE_SIZE = 8
-
 
 /** 事件日志 meta / 小时窗口 */
 export function createEventsViewMetaState(hours: Ref<number>) {
@@ -40,10 +27,8 @@ export function createEventsViewMetaState(hours: Ref<number>) {
     const local = getEventLogConfig()
     const remote = serverEventMeta.value
     if (!remote) return local
-    const retentionDays =
-      Number(remote.retentionDays) > 0 ? Number(remote.retentionDays) : local.retentionDays
-    const maxQueryHours =
-      Number(remote.maxQueryHours) > 0 ? Number(remote.maxQueryHours) : local.maxQueryHours
+    const retentionDays = Number(remote.retentionDays) > 0 ? Number(remote.retentionDays) : local.retentionDays
+    const maxQueryHours = Number(remote.maxQueryHours) > 0 ? Number(remote.maxQueryHours) : local.maxQueryHours
     const remoteHours = Array.isArray(remote.hourOptions)
       ? remote.hourOptions.map((h) => Number(h)).filter((h) => h > 0 && h <= maxQueryHours)
       : []
@@ -208,17 +193,8 @@ export function createEventsViewSummaries(opts: {
   entitiesStore: EntitiesStore
   entityDisplayName: (entityId: string) => string
 }) {
-  const {
-    hours,
-    entityFilter,
-    domainFilter,
-    events,
-    total,
-    stats,
-    domainCatalog,
-    entitiesStore,
-    entityDisplayName,
-  } = opts
+  const { hours, entityFilter, domainFilter, events, total, stats, domainCatalog, entitiesStore, entityDisplayName } =
+    opts
 
   const domainStatsPreview = computed(() => normalizeByDomain(stats.value?.byDomain).slice(0, 8))
 
@@ -311,15 +287,9 @@ export async function clearAllEventRecords(opts: {
     const { data } = await clearEvents()
     const deleted = Number(data?.deleted ?? 0)
     if (data?.complete === false) {
-      chrome.notify(
-        `已清除 ${formatCount(deleted)} 条记录，仍有剩余记录未删完，请再次执行清除`,
-        'warning',
-      )
+      chrome.notify(`已清除 ${formatCount(deleted)} 条记录，仍有剩余记录未删完，请再次执行清除`, 'warning')
     } else {
-      chrome.notify(
-        deleted > 0 ? `已清除 ${formatCount(deleted)} 条记录` : '记录已清空',
-        'success',
-      )
+      chrome.notify(deleted > 0 ? `已清除 ${formatCount(deleted)} 条记录` : '记录已清空', 'success')
     }
     page.value = 1
     await Promise.all([loadEvents(), loadStats()])

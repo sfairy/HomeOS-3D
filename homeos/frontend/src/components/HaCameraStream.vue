@@ -64,9 +64,7 @@ let stopPlayback = null
 let streamGeneration = 0
 
 /** 只在「HA 实体」来源下才认实体；go2rtc 来源的地址即配置。 */
-const go2rtcSourceUrl = computed(() =>
-  props.cameraSource === 'go2rtc' ? String(props.go2rtcUrl || '').trim() : '',
-)
+const go2rtcSourceUrl = computed(() => (props.cameraSource === 'go2rtc' ? String(props.go2rtcUrl || '').trim() : ''))
 /** go2rtc 宣告终态（地址非法/被拒/浏览器不支持）后置位，把画面让回既有通路。 */
 const isGo2rtcUnavailable = ref(false)
 
@@ -150,10 +148,7 @@ async function startStream() {
   const tryWebrtc = props.preferWebrtc && !skipWebRtc.value && props.haUrl
   if (tryWebrtc) {
     try {
-      stopPlayback = await startCameraWebRtc(
-        { mode: 'webrtc', webrtcSignal: 'ha', entityId, url: '' },
-        els.video,
-      )
+      stopPlayback = await startCameraWebRtc({ mode: 'webrtc', webrtcSignal: 'ha', entityId, url: '' }, els.video)
       if (generation !== streamGeneration) {
         stopPlayback?.()
         stopPlayback = null
@@ -190,8 +185,15 @@ watch(
 )
 
 watch(
-  () => [props.active, props.entity?.entity_id, props.haUrl, props.preferWebrtc, skipWebRtc.value,
-    go2rtcSourceUrl.value, isGo2rtcUnavailable.value],
+  () => [
+    props.active,
+    props.entity?.entity_id,
+    props.haUrl,
+    props.preferWebrtc,
+    skipWebRtc.value,
+    go2rtcSourceUrl.value,
+    isGo2rtcUnavailable.value,
+  ],
   () => {
     void startStream()
   },

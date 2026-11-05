@@ -224,26 +224,25 @@ const {
 } = panel
 
 // 第三参数：确认离开后重新拉取运行参数，丢弃字段草稿
-useRegisterSettingsTabPending('params', () => pendingChanges.value > 0, () => {
-  void reload()
-})
+useRegisterSettingsTabPending(
+  'params',
+  () => pendingChanges.value > 0,
+  () => {
+    void reload()
+  },
+)
 
-const {
-  mainScrollRef,
-  displayFields,
-  inputFieldEntries,
-  onFieldValueUpdate,
-  onFieldMaskedUpdate,
-} = useSystemConfigPanelShell({
-  activeTab: toRef(props, 'activeTab'),
-  ensureLoaded,
-  activeSection,
-  currentSection,
-  inputFields,
-  goPrevSection,
-  goNextSection,
-  isSearchMode,
-})
+const { mainScrollRef, displayFields, inputFieldEntries, onFieldValueUpdate, onFieldMaskedUpdate } =
+  useSystemConfigPanelShell({
+    activeTab: toRef(props, 'activeTab'),
+    ensureLoaded,
+    activeSection,
+    currentSection,
+    inputFields,
+    goPrevSection,
+    goNextSection,
+    isSearchMode,
+  })
 
 /** 搜索结果「打开分区」：退出搜索并进入该分区 */
 /** 搜索结果「打开分区」：退出搜索并进入该分区 */

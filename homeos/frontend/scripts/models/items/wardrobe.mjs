@@ -28,9 +28,7 @@ const carcass = carcassBox({
   center: [0, (BODY_TOP + PLINTH) / 2, 0],
   panel: PANEL,
 })
-const shelves = merge(
-  [0.62, 1.32, 1.92].map((height) => b(W - PANEL * 2, PANEL, BODY_D - 0.03, 0, height, 0)),
-)
+const shelves = merge([0.62, 1.32, 1.92].map((height) => b(W - PANEL * 2, PANEL, BODY_D - 0.03, 0, height, 0)))
 const topSlab = b(W, TOP, BODY_D, 0, H - TOP / 2, 0)
 
 const doors = merge(

@@ -10,37 +10,37 @@
  */
 
 type ExhaustFanWall = {
-  id: string;
-  start: { x: number; y: number };
-  end: { x: number; y: number };
-  thickness?: number;
-  height?: number;
-};
+  id: string
+  start: { x: number; y: number }
+  end: { x: number; y: number }
+  thickness?: number
+  height?: number
+}
 
 type ExhaustFanOpening = {
-  id: string;
-  wallId: string;
-  t: number;
-  width: number;
-  height: number;
-  sill: number;
-};
+  id: string
+  wallId: string
+  t: number
+  width: number
+  height: number
+  sill: number
+}
 
 type ExhaustFanInstallation = {
-  wall: ExhaustFanWall;
-  distance: number;
-  opening: ExhaustFanOpening;
-};
+  wall: ExhaustFanWall
+  distance: number
+  opening: ExhaustFanOpening
+}
 
 type ExhaustFanSnap = {
-  wall: ExhaustFanWall;
-  x: number;
-  y: number;
-  distance: number;
-  angle: number;
-};
+  wall: ExhaustFanWall
+  x: number
+  y: number
+  distance: number
+  angle: number
+}
 
-const EXHAUST_FAN_TYPE = "exhaust-fan",
+const EXHAUST_FAN_TYPE = 'exhaust-fan',
   /** 洞口宽度 / 高度占设备包围盒的比例（0.8.0 固定 84%）。 */
   OPENING_RATIO = 0.84,
   /** 设备中心允许偏离墙中心线的距离（米）。 */
@@ -48,13 +48,13 @@ const EXHAUST_FAN_TYPE = "exhaust-fan",
   /** 吸墙半径（米）。 */
   SNAP_RADIUS = 0.2,
   /** 朝向对齐的余弦阈值（约 2.6°）。 */
-  ALIGN_COS = 0.999;
+  ALIGN_COS = 0.999
 
 function wallMetrics(wall: ExhaustFanWall) {
   const deltaX = wall.end.x - wall.start.x,
     deltaY = wall.end.y - wall.start.y,
-    length = Math.hypot(deltaX, deltaY);
-  return { deltaX, deltaY, length };
+    length = Math.hypot(deltaX, deltaY)
+  return { deltaX, deltaY, length }
 }
 
 /**
@@ -69,20 +69,20 @@ export function exhaustFanInstallation(
   tolerance = 100,
   wallHeight = 2.8,
 ): ExhaustFanInstallation | null {
-  if (item?.type !== EXHAUST_FAN_TYPE || !(tolerance > 0)) return null;
-  const rotationRad = ((Number(item.rotation) || 0) * Math.PI) / 180;
-  let bestInstallation: ExhaustFanInstallation | null = null;
+  if (item?.type !== EXHAUST_FAN_TYPE || !(tolerance > 0)) return null
+  const rotationRad = ((Number(item.rotation) || 0) * Math.PI) / 180
+  let bestInstallation: ExhaustFanInstallation | null = null
   for (const wall of walls) {
-    const { deltaX, deltaY, length } = wallMetrics(wall);
-    if (!length) continue;
+    const { deltaX, deltaY, length } = wallMetrics(wall)
+    if (!length) continue
     /** 设备朝向必须与墙走向平行（正反都行）。 */
     if (Math.abs((Math.cos(rotationRad) * deltaX) / length + (Math.sin(rotationRad) * deltaY) / length) < ALIGN_COS)
-      continue;
+      continue
     const wallT = ((item.x - wall.start.x) * deltaX + (item.y - wall.start.y) * deltaY) / (length * length),
       distance = Math.abs((item.x - wall.start.x) * deltaY - (item.y - wall.start.y) * deltaX) / length / tolerance,
       openingWidth = (Number(item.width) || 0) * OPENING_RATIO,
       openingHeight = (Number(item.height) || 0) * OPENING_RATIO,
-      sill = (Number(item.elevation) || 0) + (Number(item.height) || 0) * 0.08;
+      sill = (Number(item.elevation) || 0) + (Number(item.height) || 0) * 0.08
     if (
       distance > INSTALL_TOLERANCE ||
       (wallT * length) / tolerance < openingWidth / 2 ||
@@ -90,22 +90,22 @@ export function exhaustFanInstallation(
       sill < 0 ||
       sill + openingHeight > (wall.height || wallHeight)
     )
-      continue;
+      continue
     if (!bestInstallation || distance < bestInstallation.distance)
       bestInstallation = {
         wall,
         distance,
         opening: {
-          id: "exhaust:" + item.id,
+          id: 'exhaust:' + item.id,
           wallId: wall.id,
           t: wallT,
           width: openingWidth,
           height: openingHeight,
           sill,
         },
-      };
+      }
   }
-  return bestInstallation;
+  return bestInstallation
 }
 
 /**
@@ -119,32 +119,31 @@ export function snapExhaustFan(
   tolerance = 100,
   { orient = false }: { orient?: boolean } = {},
 ): ExhaustFanSnap | null {
-  if (item?.type !== EXHAUST_FAN_TYPE || !(tolerance > 0)) return null;
-  let bestSnap: ExhaustFanSnap | null = null;
+  if (item?.type !== EXHAUST_FAN_TYPE || !(tolerance > 0)) return null
+  let bestSnap: ExhaustFanSnap | null = null
   for (const wall of walls) {
-    const { deltaX, deltaY, length } = wallMetrics(wall);
-    if (!length) continue;
+    const { deltaX, deltaY, length } = wallMetrics(wall)
+    if (!length) continue
     const wallT = ((item.x - wall.start.x) * deltaX + (item.y - wall.start.y) * deltaY) / (length * length),
       projectedX = wall.start.x + deltaX * wallT,
       projectedY = wall.start.y + deltaY * wallT,
       distance = Math.hypot(item.x - projectedX, item.y - projectedY) / tolerance,
-      angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
+      angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI
     if (
       wallT < 0 ||
       wallT > 1 ||
       distance > SNAP_RADIUS ||
       (!orient && Math.abs(Math.cos((((item.rotation || 0) - angle) * Math.PI) / 180)) < ALIGN_COS)
     )
-      continue;
-    if (!bestSnap || distance < bestSnap.distance)
-      bestSnap = { wall, x: projectedX, y: projectedY, distance, angle };
+      continue
+    if (!bestSnap || distance < bestSnap.distance) bestSnap = { wall, x: projectedX, y: projectedY, distance, angle }
   }
-  if (!bestSnap) return null;
-  item.x = bestSnap.x;
-  item.y = bestSnap.y;
-  item.depth = bestSnap.wall.thickness || 0.16;
-  orient && (item.rotation = bestSnap.angle);
-  return bestSnap;
+  if (!bestSnap) return null
+  item.x = bestSnap.x
+  item.y = bestSnap.y
+  item.depth = bestSnap.wall.thickness || 0.16
+  orient && (item.rotation = bestSnap.angle)
+  return bestSnap
 }
 
 /**
@@ -158,11 +157,11 @@ export function collectExhaustFanOpenings(
   tolerance = 100,
   wallHeight = 2.8,
 ): { item: any; installation: ExhaustFanInstallation }[] {
-  const results: { item: any; installation: ExhaustFanInstallation }[] = [];
+  const results: { item: any; installation: ExhaustFanInstallation }[] = []
   for (const item of items) {
-    if (item?.type !== EXHAUST_FAN_TYPE) continue;
-    const installation = exhaustFanInstallation(item, walls, tolerance, wallHeight);
-    installation && results.push({ item, installation });
+    if (item?.type !== EXHAUST_FAN_TYPE) continue
+    const installation = exhaustFanInstallation(item, walls, tolerance, wallHeight)
+    installation && results.push({ item, installation })
   }
-  return results;
+  return results
 }

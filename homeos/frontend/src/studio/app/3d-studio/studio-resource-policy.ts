@@ -38,4 +38,4 @@ export const interactionResourcePolicy = Object.freeze({
     bias: -0.0006,
     normalBias: 0.02,
   }),
-});
+})

@@ -49,10 +49,6 @@ export default echarts
  * @param opts 初始化选项（如显式传入 width / height 以避免测量期告警）
  * @returns 容器上的既有实例，或新建实例
  */
-export function getOrInitChart(
-  dom: HTMLElement,
-  theme?: string | object | null,
-  opts?: EChartsInitOpts,
-): ECharts {
+export function getOrInitChart(dom: HTMLElement, theme?: string | object | null, opts?: EChartsInitOpts): ECharts {
   return echarts.getInstanceByDom(dom) ?? echarts.init(dom, theme, opts)
 }

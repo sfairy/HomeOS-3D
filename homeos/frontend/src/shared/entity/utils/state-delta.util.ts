@@ -35,10 +35,7 @@ interface NormalizedWsBatchChange {
   _pipelineTs?: number
 }
 
-export function mergeWsStateChange(
-  existing: HaEntityState | null,
-  change: WsDeltaChange,
-): HaEntityState | null {
+export function mergeWsStateChange(existing: HaEntityState | null, change: WsDeltaChange): HaEntityState | null {
   if (!change?._delta) {
     return change.new_state ?? null
   }
@@ -176,10 +173,7 @@ export function isOlderFrameTimestamp(incoming: unknown, existing: unknown): boo
  * - 顶层字段：本地有值就用本地（``undefined`` 不算有值，让 chunk 补）；
  * - ``attributes``：先铺 chunk 的全部属性，再盖上本地的（本地是更新的一次快照）。
  */
-export function mergeChunkIntoNewerEntity(
-  local: HaEntityState,
-  chunk: HaEntityState,
-): HaEntityState {
+export function mergeChunkIntoNewerEntity(local: HaEntityState, chunk: HaEntityState): HaEntityState {
   const definedLocal = Object.fromEntries(
     Object.entries(local).filter(([, value]) => value !== undefined),
   ) as HaEntityState

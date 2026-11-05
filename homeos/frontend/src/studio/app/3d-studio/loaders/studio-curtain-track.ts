@@ -1,93 +1,91 @@
 /** 帘轨 / 帘布的可配置字段。 */
 type CurtainTrackOptions = {
   /** 帘种：「roller」走卷帘分支，其余按帘轨处理。 */
-  curtainForm?: string;
+  curtainForm?: string
   /** 帘轨形状：straight / l / u（卷帘恒为 straight）。 */
-  curtainTrack?: string;
+  curtainTrack?: string
   /** L 形轨的拐角方向：left / right。 */
-  curtainCorner?: string;
+  curtainCorner?: string
   /** 帘布展开方向：left / right / split。 */
-  curtainPosition?: string;
+  curtainPosition?: string
   /** 帘布材质：cloth / sheer。 */
-  curtainFabric?: string;
-  curtainLeftLength?: number | string;
-  curtainRightLength?: number | string;
+  curtainFabric?: string
+  curtainLeftLength?: number | string
+  curtainRightLength?: number | string
   /** 帘布合拢程度（百分数）。 */
-  curtainMeet?: number | string;
+  curtainMeet?: number | string
   /** 预览展开程度（百分数 0-100）。 */
-  curtainPreview?: number | string;
+  curtainPreview?: number | string
   /** 帘宽（米）：width 优先于 curtainWidth。 */
-  width?: number | string;
-  curtainWidth?: number | string;
+  width?: number | string
+  curtainWidth?: number | string
   /** 帘高（米）。 */
-  height?: number | string;
+  height?: number | string
   /** 直轨深度（米），只影响占地深度。 */
-  depth?: number | string;
-};
+  depth?: number | string
+}
 
 /** 帘布 / 帘杆的颜色覆盖，由材质库按主题传入； */
 type CurtainColorOverrides = {
   /** 直接替换帘布材质； */
-  material?: any;
+  material?: any
   /** 帘布底色。 */
-  light?: number;
+  light?: number
   /** 帘杆 / 卷帘管底色。 */
-  dark?: number;
-};
+  dark?: number
+}
 
 const clampOptionalNumber = (rawValue: any, fallback: any, minimum: any, maximum: any) => {
-  const parsedValue = rawValue == null || rawValue === "" ? NaN : Number(rawValue);
-  return Number.isFinite(parsedValue)
-    ? Math.max(minimum, Math.min(maximum, parsedValue))
-    : fallback;
-};
+  const parsedValue = rawValue == null || rawValue === '' ? NaN : Number(rawValue)
+  return Number.isFinite(parsedValue) ? Math.max(minimum, Math.min(maximum, parsedValue)) : fallback
+}
 export function normalizeCurtainTrack(inputOptions: CurtainTrackOptions = {}) {
   return {
-    ...(inputOptions.curtainForm === "roller"
+    ...(inputOptions.curtainForm === 'roller'
       ? {
-          curtainForm: "roller",
+          curtainForm: 'roller',
         }
       : {}),
     curtainTrack:
-      inputOptions.curtainForm === "roller"
-        ? "straight"
-        : ["straight", "l", "u"].includes(inputOptions.curtainTrack ?? "")
+      inputOptions.curtainForm === 'roller'
+        ? 'straight'
+        : ['straight', 'l', 'u'].includes(inputOptions.curtainTrack ?? '')
           ? inputOptions.curtainTrack
-          : "straight",
-    curtainCorner: inputOptions.curtainCorner === "left" ? "left" : "right",
+          : 'straight',
+    curtainCorner: inputOptions.curtainCorner === 'left' ? 'left' : 'right',
     curtainLeftLength: clampOptionalNumber(inputOptions.curtainLeftLength, 1.2, 0.2, 7.8),
     curtainRightLength: clampOptionalNumber(inputOptions.curtainRightLength, 1.2, 0.2, 7.8),
     curtainMeet: clampOptionalNumber(inputOptions.curtainMeet, 50, 5, 95),
     curtainPreview: clampOptionalNumber(inputOptions.curtainPreview, 0, 0, 100),
-    ...(inputOptions.curtainFabric === "cloth" || inputOptions.curtainFabric === "sheer"
+    ...(inputOptions.curtainFabric === 'cloth' || inputOptions.curtainFabric === 'sheer'
       ? {
           curtainFabric: inputOptions.curtainFabric,
         }
       : {}),
-  };
+  }
 }
 export function curtainFootprintDepth(trackConfig: any) {
-  const trackModel = normalizeCurtainTrack(trackConfig);
-  return trackModel.curtainTrack === "straight"
+  const trackModel = normalizeCurtainTrack(trackConfig)
+  return trackModel.curtainTrack === 'straight'
     ? clampOptionalNumber(trackConfig.depth, 0.18, 0.05, 8)
     : 0.18 +
-        (trackModel.curtainTrack === "u"
+        (trackModel.curtainTrack === 'u'
           ? Math.max(trackModel.curtainLeftLength, trackModel.curtainRightLength)
-          : trackModel.curtainCorner === "left"
+          : trackModel.curtainCorner === 'left'
             ? trackModel.curtainLeftLength
-            : trackModel.curtainRightLength);
+            : trackModel.curtainRightLength)
 }
 export function createCurtainTrack(options: CurtainTrackOptions = {}) {
   const normalizedTrack = normalizeCurtainTrack(options),
     width = clampOptionalNumber(options.width ?? options.curtainWidth, 1.8, 0.2, 8),
     leftReturnLength =
-      normalizedTrack.curtainTrack === "u" ||
-      (normalizedTrack.curtainTrack === "l" && normalizedTrack.curtainCorner === "left")
+      normalizedTrack.curtainTrack === 'u' ||
+      (normalizedTrack.curtainTrack === 'l' && normalizedTrack.curtainCorner === 'left')
         ? normalizedTrack.curtainLeftLength
         : 0,
     rightReturnLength =
-      normalizedTrack.curtainTrack === "u" ||
-      (normalizedTrack.curtainTrack === "l" && normalizedTrack.curtainCorner === "right")
+      normalizedTrack.curtainTrack === 'u' ||
+      (normalizedTrack.curtainTrack === 'l' && normalizedTrack.curtainCorner === 'right')
         ? normalizedTrack.curtainRightLength
         : 0,
     baseZ = -Math.max(leftReturnLength, rightReturnLength) / 2,
@@ -117,14 +115,14 @@ export function createCurtainTrack(options: CurtainTrackOptions = {}) {
           ]
         : []),
     ],
-    segments: any = [];
-  let totalLength = 0;
+    segments: any = []
+  let totalLength = 0
   const addStraightSegment = (fromPoint: any, toPoint: any) => {
-    const segmentLength = Math.hypot(toPoint.x - fromPoint.x, toPoint.z - fromPoint.z);
-    if (segmentLength < 1e-8) return;
+    const segmentLength = Math.hypot(toPoint.x - fromPoint.x, toPoint.z - fromPoint.z)
+    if (segmentLength < 1e-8) return
     const directionX = (toPoint.x - fromPoint.x) / segmentLength,
-      directionZ = (toPoint.z - fromPoint.z) / segmentLength;
-    (segments.push({
+      directionZ = (toPoint.z - fromPoint.z) / segmentLength
+    segments.push({
       start: totalLength,
       length: segmentLength,
       sample: (distanceAlong: any) => ({
@@ -134,9 +132,9 @@ export function createCurtainTrack(options: CurtainTrackOptions = {}) {
         tz: directionZ,
       }),
     }),
-      (totalLength += segmentLength));
-  };
-  let cursorPoint = vertices[0];
+      (totalLength += segmentLength)
+  }
+  let cursorPoint = vertices[0]
   for (let vertexIndex = 1; vertexIndex < vertices.length - 1; vertexIndex++) {
     const previousPoint = vertices[vertexIndex - 1],
       cornerPoint = vertices[vertexIndex],
@@ -151,35 +149,33 @@ export function createCurtainTrack(options: CurtainTrackOptions = {}) {
       arcStartPoint = {
         x: cornerPoint.x - previousDirectionX * filletRadius,
         z: cornerPoint.z - previousDirectionZ * filletRadius,
-      };
-    addStraightSegment(cursorPoint, arcStartPoint);
+      }
+    addStraightSegment(cursorPoint, arcStartPoint)
     const arcCenter = {
         x: arcStartPoint.x + nextDirectionX * filletRadius,
         z: arcStartPoint.z + nextDirectionZ * filletRadius,
       },
       startAngle = Math.atan2(arcStartPoint.z - arcCenter.z, arcStartPoint.x - arcCenter.x),
-      turnSign = Math.sign(
-        previousDirectionX * nextDirectionZ - previousDirectionZ * nextDirectionX,
-      ),
-      arcLength = (filletRadius * Math.PI) / 2;
-    (segments.push({
+      turnSign = Math.sign(previousDirectionX * nextDirectionZ - previousDirectionZ * nextDirectionX),
+      arcLength = (filletRadius * Math.PI) / 2
+    segments.push({
       start: totalLength,
       length: arcLength,
       sample: (arcDistance: any) => {
-        const arcAngle = startAngle + (turnSign * arcDistance) / filletRadius;
+        const arcAngle = startAngle + (turnSign * arcDistance) / filletRadius
         return {
           x: arcCenter.x + filletRadius * Math.cos(arcAngle),
           z: arcCenter.z + filletRadius * Math.sin(arcAngle),
           tx: -turnSign * Math.sin(arcAngle),
           tz: turnSign * Math.cos(arcAngle),
-        };
+        }
       },
     }),
       (totalLength += arcLength),
       (cursorPoint = {
         x: cornerPoint.x + nextDirectionX * filletRadius,
         z: cornerPoint.z + nextDirectionZ * filletRadius,
-      }));
+      })
   }
   return (
     addStraightSegment(cursorPoint, vertices.at(-1)),
@@ -191,44 +187,36 @@ export function createCurtainTrack(options: CurtainTrackOptions = {}) {
       sample(distance: any) {
         const clampedDistance = clampOptionalNumber(distance, 0, 0, totalLength),
           activeSegment =
-            segments.find((segment: any) => clampedDistance <= segment.start + segment.length) ||
-            segments.at(-1);
-        return activeSegment.sample(
-          Math.max(0, Math.min(activeSegment.length, clampedDistance - activeSegment.start)),
-        );
+            segments.find((segment: any) => clampedDistance <= segment.start + segment.length) || segments.at(-1)
+        return activeSegment.sample(Math.max(0, Math.min(activeSegment.length, clampedDistance - activeSegment.start)))
       },
     }
-  );
+  )
 }
-export function curtainPanelRanges(panelTrack: any, previewPercent = 0, position = "split") {
+export function curtainPanelRanges(panelTrack: any, previewPercent = 0, position = 'split') {
   const coverageScale = 1 - (0.88 * clampOptionalNumber(previewPercent, 0, 0, 100)) / 100,
     trackLength = panelTrack.length,
-    meetOffset = (trackLength * panelTrack.curtainMeet) / 100;
+    meetOffset = (trackLength * panelTrack.curtainMeet) / 100
   return [
     {
-      visible: position !== "right",
+      visible: position !== 'right',
       start: 0,
-      end: (position === "split" ? meetOffset : trackLength) * coverageScale,
+      end: (position === 'split' ? meetOffset : trackLength) * coverageScale,
     },
     {
-      visible: position !== "left",
-      start:
-        trackLength -
-        (position === "split" ? trackLength - meetOffset : trackLength) * coverageScale,
+      visible: position !== 'left',
+      start: trackLength - (position === 'split' ? trackLength - meetOffset : trackLength) * coverageScale,
       end: trackLength,
     },
-  ];
+  ]
 }
-export function createTrackClothGeometry(THREE: any, clothTrack: any, clothHeight: any, fabric = "cloth") {
-  const folds = Math.max(
-      4,
-      Math.min(160, Math.round(clothTrack.length / (fabric === "sheer" ? 0.1 : 0.15))),
-    ),
+export function createTrackClothGeometry(THREE: any, clothTrack: any, clothHeight: any, fabric = 'cloth') {
+  const folds = Math.max(4, Math.min(160, Math.round(clothTrack.length / (fabric === 'sheer' ? 0.1 : 0.15)))),
     segmentCount = Math.max(64, folds * 8),
-    geometry = new THREE.PlaneGeometry(1, 1, segmentCount, 1);
+    geometry = new THREE.PlaneGeometry(1, 1, segmentCount, 1)
   return (
     geometry.setAttribute(
-      "color",
+      'color',
       new THREE.Float32BufferAttribute(new Float32Array((segmentCount + 1) * 6).fill(1), 3),
     ),
     (geometry.userData.curtainCloth = {
@@ -236,11 +224,11 @@ export function createTrackClothGeometry(THREE: any, clothTrack: any, clothHeigh
       height: clothHeight,
       folds: folds,
       fabric: fabric,
-      amplitude: fabric === "sheer" ? 0.023 : 0.046,
+      amplitude: fabric === 'sheer' ? 0.023 : 0.046,
     }),
     geometry.attributes.position.setUsage(THREE.DynamicDrawUsage),
     geometry
-  );
+  )
 }
 export function poseTrackCloth(clothGeometry: any, posedTrack: any, panel: any) {
   const {
@@ -252,33 +240,33 @@ export function poseTrackCloth(clothGeometry: any, posedTrack: any, panel: any) 
     } = clothGeometry.userData.curtainCloth,
     positionAttribute = clothGeometry.attributes.position,
     foldRatio = panel.side === 0 ? posedTrack.curtainMeet / 100 : 1 - posedTrack.curtainMeet / 100,
-    panelFoldCount = Math.max(2, Math.round(foldCount * (panel.split ? foldRatio : 1)));
+    panelFoldCount = Math.max(2, Math.round(foldCount * (panel.split ? foldRatio : 1)))
   for (let segmentIndex = 0; segmentIndex <= meshSegments; segmentIndex++) {
     const foldFraction = segmentIndex / meshSegments,
       trackPoint = posedTrack.sample(panel.start + (panel.end - panel.start) * foldFraction),
       waveOffset = amplitude * Math.sin(foldFraction * panelFoldCount * Math.PI * 2),
       foldDarkness = 0.5 - 0.5 * Math.sin(foldFraction * panelFoldCount * Math.PI * 2),
-      foldShade = 1 - (fabricKind === "sheer" ? 0.16 : 0.34) * foldDarkness * foldDarkness;
+      foldShade = 1 - (fabricKind === 'sheer' ? 0.16 : 0.34) * foldDarkness * foldDarkness
     for (let colorRowIndex = 0; colorRowIndex < 2; colorRowIndex++)
       clothGeometry.attributes.color.setXYZ(
         colorRowIndex * (meshSegments + 1) + segmentIndex,
         foldShade,
         foldShade,
         foldShade,
-      );
+      )
     for (let positionRowIndex = 0; positionRowIndex < 2; positionRowIndex++)
       positionAttribute.setXYZ(
         positionRowIndex * (meshSegments + 1) + segmentIndex,
         trackPoint.x - trackPoint.tz * waveOffset,
         0.06 + (positionRowIndex === 0 ? Math.max(0.1, height - 0.12) : 0),
         trackPoint.z + trackPoint.tx * waveOffset,
-      );
+      )
   }
-  ((positionAttribute.needsUpdate = true),
+  ;(positionAttribute.needsUpdate = true),
     (clothGeometry.attributes.color.needsUpdate = true),
     clothGeometry.computeVertexNormals(),
     clothGeometry.computeBoundingBox(),
-    clothGeometry.computeBoundingSphere());
+    clothGeometry.computeBoundingSphere()
 }
 export function addTrackCurtain(
   three: any,
@@ -286,35 +274,27 @@ export function addTrackCurtain(
   curtainOptions: any,
   colorOverrides: CurtainColorOverrides = {},
 ) {
-  if (curtainOptions.curtainForm === "roller") {
-    const rollerRig = createRollerCurtain(three, curtainOptions, colorOverrides);
+  if (curtainOptions.curtainForm === 'roller') {
+    const rollerRig = createRollerCurtain(three, curtainOptions, colorOverrides)
     return (
       (rigRoot.userData.curtainRigRoot = true),
-      (rigRoot.userData.curtainRigBasis = [
-        rollerRig.width,
-        rollerRig.height,
-        curtainFootprintDepth(curtainOptions),
-      ]),
+      (rigRoot.userData.curtainRigBasis = [rollerRig.width, rollerRig.height, curtainFootprintDepth(curtainOptions)]),
       (rigRoot.userData.curtainRollerModel = true),
       rigRoot.add(rollerRig.group),
       rollerRig.pose(curtainOptions.curtainPreview),
       rigRoot
-    );
+    )
   }
   const curtainTrack = createCurtainTrack(curtainOptions),
     curtainHeight = clampOptionalNumber(curtainOptions.height, 2.4, 0.2, 6),
-    curtainFabric = curtainOptions.curtainFabric || "cloth";
-  ((rigRoot.userData.curtainRigRoot = true),
+    curtainFabric = curtainOptions.curtainFabric || 'cloth'
+  ;(rigRoot.userData.curtainRigRoot = true),
     (rigRoot.userData.curtainTrackModel = true),
-    (rigRoot.userData.curtainRigBasis = [
-      curtainTrack.width,
-      curtainHeight,
-      curtainFootprintDepth(curtainOptions),
-    ]));
+    (rigRoot.userData.curtainRigBasis = [curtainTrack.width, curtainHeight, curtainFootprintDepth(curtainOptions)])
   class CurtainTrackCurve extends three.Curve {
-    ["getPoint"](curveT: any, target = new three.Vector3()) {
-      const curvePoint = curtainTrack.sample(curveT * curtainTrack.length);
-      return target.set(curvePoint.x, curtainHeight - 0.025, curvePoint.z);
+    ['getPoint'](curveT: any, target = new three.Vector3()) {
+      const curvePoint = curtainTrack.sample(curveT * curtainTrack.length)
+      return target.set(curvePoint.x, curtainHeight - 0.025, curvePoint.z)
     }
   }
   const rodMaterial = new three.MeshStandardMaterial({
@@ -331,69 +311,54 @@ export function addTrackCurtain(
         false,
       ),
       rodMaterial,
-    );
-  ((rodMesh.userData.curtainPart = "rod"), rigRoot.add(rodMesh));
+    )
+  ;(rodMesh.userData.curtainPart = 'rod'), rigRoot.add(rodMesh)
   const clothMaterial = new three.MeshStandardMaterial({
-    color: curtainFabric === "sheer" ? 16118766 : (colorOverrides.light ?? 13094354),
+    color: curtainFabric === 'sheer' ? 16118766 : (colorOverrides.light ?? 13094354),
     roughness: 0.94,
     vertexColors: true,
     side: three.DoubleSide,
-    transparent: curtainFabric === "sheer",
-    opacity: curtainFabric === "sheer" ? 0.48 : 1,
-    depthWrite: curtainFabric !== "sheer",
-  });
-  clothMaterial.forceSinglePass = true;
-  const panelPosition = ["left", "right", "split"].includes(curtainOptions.curtainPosition)
+    transparent: curtainFabric === 'sheer',
+    opacity: curtainFabric === 'sheer' ? 0.48 : 1,
+    depthWrite: curtainFabric !== 'sheer',
+  })
+  clothMaterial.forceSinglePass = true
+  const panelPosition = ['left', 'right', 'split'].includes(curtainOptions.curtainPosition)
     ? curtainOptions.curtainPosition
-    : "split";
+    : 'split'
   return (
-    curtainPanelRanges(curtainTrack, curtainTrack.curtainPreview, panelPosition).forEach(
-      (panelRange, sideIndex) => {
-        const clothPieceGeometry = createTrackClothGeometry(
-          three,
-          curtainTrack,
-          curtainHeight,
-          curtainFabric,
-        );
-        poseTrackCloth(clothPieceGeometry, curtainTrack, {
-          ...panelRange,
-          side: sideIndex,
-          split: panelPosition === "split",
-        });
-        const clothMesh = new three.Mesh(clothPieceGeometry, clothMaterial);
-        ((clothMesh.visible = panelRange.visible),
-          (clothMesh.userData.curtainPart = "cloth"),
-          (clothMesh.castShadow = curtainFabric !== "sheer"),
-          (clothMesh.receiveShadow = true),
-          rigRoot.add(clothMesh));
-      },
-    ),
+    curtainPanelRanges(curtainTrack, curtainTrack.curtainPreview, panelPosition).forEach((panelRange, sideIndex) => {
+      const clothPieceGeometry = createTrackClothGeometry(three, curtainTrack, curtainHeight, curtainFabric)
+      poseTrackCloth(clothPieceGeometry, curtainTrack, {
+        ...panelRange,
+        side: sideIndex,
+        split: panelPosition === 'split',
+      })
+      const clothMesh = new three.Mesh(clothPieceGeometry, clothMaterial)
+      ;(clothMesh.visible = panelRange.visible),
+        (clothMesh.userData.curtainPart = 'cloth'),
+        (clothMesh.castShadow = curtainFabric !== 'sheer'),
+        (clothMesh.receiveShadow = true),
+        rigRoot.add(clothMesh)
+    }),
     rigRoot
-  );
+  )
 }
 export function createRollerCurtain(
   rollerThree: any,
   rollerOptions: CurtainTrackOptions = {},
   rollerColorOverrides: CurtainColorOverrides = {},
 ) {
-  const rollerWidth = clampOptionalNumber(
-      rollerOptions.width ?? rollerOptions.curtainWidth,
-      1.8,
-      0.2,
-      8,
-    ),
+  const rollerWidth = clampOptionalNumber(rollerOptions.width ?? rollerOptions.curtainWidth, 1.8, 0.2, 8),
     rollerHeight = clampOptionalNumber(rollerOptions.height, 2.4, 0.2, 6),
     rollerTubeRadius = Math.min(0.045, rollerHeight * 0.12),
     rollerFabricThickness = 0.0016,
     rollerTopY =
-      rollerHeight -
-      Math.sqrt(
-        rollerTubeRadius * rollerTubeRadius + (rollerHeight * rollerFabricThickness) / Math.PI,
-      ),
+      rollerHeight - Math.sqrt(rollerTubeRadius * rollerTubeRadius + (rollerHeight * rollerFabricThickness) / Math.PI),
     rollerPanelHeight = Math.max(0.04, rollerTopY - 0.035),
     rollerGroup = new rollerThree.Group(),
     rollerParts: any = [],
-    isRollerSheer = rollerOptions.curtainFabric === "sheer",
+    isRollerSheer = rollerOptions.curtainFabric === 'sheer',
     rollerClothMaterial =
       rollerColorOverrides.material ||
       new rollerThree.MeshStandardMaterial({
@@ -403,15 +368,15 @@ export function createRollerCurtain(
         transparent: isRollerSheer,
         opacity: isRollerSheer ? 0.48 : 1,
         depthWrite: !isRollerSheer,
-      });
-  rollerClothMaterial.vertexColors = false;
+      })
+  rollerClothMaterial.vertexColors = false
   const rollerMetalMaterial = new rollerThree.MeshStandardMaterial({
       color: rollerColorOverrides.dark ?? 8884634,
       roughness: 0.4,
       metalness: 0.45,
     }),
     addRollerPart = (rollerGeometry: any, rollerMaterial: any, rollerPartName: any) => {
-      const rollerMesh = new rollerThree.Mesh(rollerGeometry, rollerMaterial);
+      const rollerMesh = new rollerThree.Mesh(rollerGeometry, rollerMaterial)
       return (
         (rollerMesh.userData.curtainPart = rollerPartName),
         (rollerMesh.castShadow = !isRollerSheer),
@@ -419,30 +384,30 @@ export function createRollerCurtain(
         rollerParts.push(rollerMesh),
         rollerGroup.add(rollerMesh),
         rollerMesh
-      );
+      )
     },
     rollerPanelMesh = addRollerPart(
       new rollerThree.PlaneGeometry(rollerWidth, rollerPanelHeight),
       rollerClothMaterial,
-      "cloth",
+      'cloth',
     ),
     rollerTubeMesh = addRollerPart(
       new rollerThree.CylinderGeometry(1, 1, rollerWidth, 32),
       rollerClothMaterial,
-      "cloth",
-    );
-  ((rollerTubeMesh.rotation.z = Math.PI / 2), (rollerTubeMesh.position.y = rollerTopY));
+      'cloth',
+    )
+  ;(rollerTubeMesh.rotation.z = Math.PI / 2), (rollerTubeMesh.position.y = rollerTopY)
   const rollerBottomBarMesh = addRollerPart(
     new rollerThree.BoxGeometry(rollerWidth + 0.018, 0.025, 0.028),
     rollerMetalMaterial,
-    "band",
-  );
+    'band',
+  )
   for (const rollerEndX of [-rollerWidth / 2 - 0.018, rollerWidth / 2 + 0.018])
     addRollerPart(
       new rollerThree.BoxGeometry(0.025, rollerTubeRadius * 2.5, rollerTubeRadius * 2.5),
       rollerMetalMaterial,
-      "cap",
-    ).position.set(rollerEndX, rollerTopY, 0);
+      'cap',
+    ).position.set(rollerEndX, rollerTopY, 0)
   function poseRollerCurtain(rollerPreviewPercent: number | string = 0) {
     const rolledFraction = clampOptionalNumber(rollerPreviewPercent, 0, 0, 100) / 100,
       rolledLength = rollerPanelHeight * rolledFraction,
@@ -451,16 +416,16 @@ export function createRollerCurtain(
         rollerTubeRadius * rollerTubeRadius + (rolledLength * rollerFabricThickness) / Math.PI,
       ),
       rollerPositionAttribute = rollerPanelMesh.geometry.attributes.position,
-      rollerUvAttribute = rollerPanelMesh.geometry.attributes.uv;
+      rollerUvAttribute = rollerPanelMesh.geometry.attributes.uv
     for (let rollerVertexIndex = 0; rollerVertexIndex < 4; rollerVertexIndex++) {
-      const isTopVertex = rollerVertexIndex < 2;
-      (rollerPositionAttribute.setXYZ(
+      const isTopVertex = rollerVertexIndex < 2
+      rollerPositionAttribute.setXYZ(
         rollerVertexIndex,
         rollerVertexIndex % 2 ? rollerWidth / 2 : -rollerWidth / 2,
         isTopVertex ? rollerTopY : rollerTopY - hangingLength,
         currentTubeRadius,
       ),
-        rollerUvAttribute.setY(rollerVertexIndex, isTopVertex ? 1 - rolledFraction : 0));
+        rollerUvAttribute.setY(rollerVertexIndex, isTopVertex ? 1 - rolledFraction : 0)
     }
     return (
       (rollerPositionAttribute.needsUpdate = true),
@@ -469,8 +434,7 @@ export function createRollerCurtain(
       rollerPanelMesh.geometry.computeBoundingSphere(),
       (rollerPanelMesh.visible = hangingLength > 0.0001),
       rollerTubeMesh.scale.set(currentTubeRadius, 1, currentTubeRadius),
-      (rollerTubeMesh.rotation.x =
-        (-2 * Math.PI * (currentTubeRadius - rollerTubeRadius)) / rollerFabricThickness),
+      (rollerTubeMesh.rotation.x = (-2 * Math.PI * (currentTubeRadius - rollerTubeRadius)) / rollerFabricThickness),
       rollerBottomBarMesh.position.set(0, rollerTopY - hangingLength, currentTubeRadius),
       {
         top: rollerTopY,
@@ -478,7 +442,7 @@ export function createRollerCurtain(
         radius: currentTubeRadius,
         hanging: hangingLength,
       }
-    );
+    )
   }
   return (
     poseRollerCurtain(rollerOptions.curtainPreview),
@@ -490,36 +454,25 @@ export function createRollerCurtain(
       height: rollerHeight,
       pose: poseRollerCurtain,
       dispose({ keepMaterial: keepMaterial = false } = {}) {
-        for (const rollerPart of rollerParts) rollerPart.geometry.dispose();
-        (rollerMetalMaterial.dispose(), keepMaterial || rollerClothMaterial.dispose());
+        for (const rollerPart of rollerParts) rollerPart.geometry.dispose()
+        rollerMetalMaterial.dispose(), keepMaterial || rollerClothMaterial.dispose()
       },
     }
-  );
+  )
 }
 export function createDreamBladeGeometry(bladeThree: any, bladeTrack: any, bladeHeight: any) {
   const bladeCount = Math.max(4, Math.min(160, Math.ceil(bladeTrack.length / 0.12))),
-    bladeGeometry = new bladeThree.BufferGeometry();
-  bladeGeometry.setAttribute(
-    "position",
-    new bladeThree.Float32BufferAttribute(new Float32Array(bladeCount * 12), 3),
-  );
-  const bladeColorValues: any[] = [];
+    bladeGeometry = new bladeThree.BufferGeometry()
+  bladeGeometry.setAttribute('position', new bladeThree.Float32BufferAttribute(new Float32Array(bladeCount * 12), 3))
+  const bladeColorValues: any[] = []
   for (let bladeIndex = 0; bladeIndex < bladeCount; bladeIndex++)
-    for (const bladeShade of [0.72, 1, 0.72, 1])
-      bladeColorValues.push(bladeShade, bladeShade, bladeShade);
-  (bladeGeometry.setAttribute("color", new bladeThree.Float32BufferAttribute(bladeColorValues, 3)),
-    bladeGeometry.attributes.position.setUsage(bladeThree.DynamicDrawUsage));
-  const indices: any[] = [];
+    for (const bladeShade of [0.72, 1, 0.72, 1]) bladeColorValues.push(bladeShade, bladeShade, bladeShade)
+  bladeGeometry.setAttribute('color', new bladeThree.Float32BufferAttribute(bladeColorValues, 3)),
+    bladeGeometry.attributes.position.setUsage(bladeThree.DynamicDrawUsage)
+  const indices: any[] = []
   for (let bladeQuadIndex = 0; bladeQuadIndex < bladeCount; bladeQuadIndex++) {
-    const vertexOffset = bladeQuadIndex * 4;
-    indices.push(
-      vertexOffset,
-      vertexOffset + 1,
-      vertexOffset + 2,
-      vertexOffset + 2,
-      vertexOffset + 1,
-      vertexOffset + 3,
-    );
+    const vertexOffset = bladeQuadIndex * 4
+    indices.push(vertexOffset, vertexOffset + 1, vertexOffset + 2, vertexOffset + 2, vertexOffset + 1, vertexOffset + 3)
   }
   return (
     bladeGeometry.setIndex(indices),
@@ -529,14 +482,10 @@ export function createDreamBladeGeometry(bladeThree: any, bladeTrack: any, blade
       width: (bladeTrack.length / bladeCount) * 1.08,
     }),
     bladeGeometry
-  );
+  )
 }
 export function poseDreamBlades(bladeStripGeometry: any, dreamTrack: any, dreamPanel: any, tiltPercent = 50) {
-  const {
-      count: bladeTotal,
-      height: bladeTopY,
-      width: bladeWidth,
-    } = bladeStripGeometry.userData.dreamBlades,
+  const { count: bladeTotal, height: bladeTopY, width: bladeWidth } = bladeStripGeometry.userData.dreamBlades,
     bladePositions = bladeStripGeometry.attributes.position,
     activeBladeCount = Math.max(
       2,
@@ -552,37 +501,19 @@ export function poseDreamBlades(bladeStripGeometry: any, dreamTrack: any, dreamP
     tiltEpsilon = 0.02,
     tiltAngle = Math.max(
       tiltEpsilon,
-      Math.min(
-        Math.PI - tiltEpsilon,
-        (clampOptionalNumber(tiltPercent, 50, 0, 100) * Math.PI) / 100,
-      ),
-    );
+      Math.min(Math.PI - tiltEpsilon, (clampOptionalNumber(tiltPercent, 50, 0, 100) * Math.PI) / 100),
+    )
   for (let bladeCursor = 0; bladeCursor < bladeTotal; bladeCursor++) {
     const bladeTrackPoint = dreamTrack.sample(
         dreamPanel.start +
-          ((dreamPanel.end - dreamPanel.start) *
-            (Math.min(bladeCursor, activeBladeCount - 1) + 0.5)) /
+          ((dreamPanel.end - dreamPanel.start) * (Math.min(bladeCursor, activeBladeCount - 1) + 0.5)) /
             activeBladeCount,
       ),
       halfSpan = bladeCursor < activeBladeCount ? bladeWidth / 2 : 0,
-      offsetX =
-        (bladeTrackPoint.tx * Math.cos(tiltAngle) - bladeTrackPoint.tz * Math.sin(tiltAngle)) *
-        halfSpan,
-      offsetZ =
-        (bladeTrackPoint.tz * Math.cos(tiltAngle) + bladeTrackPoint.tx * Math.sin(tiltAngle)) *
-        halfSpan;
-    (bladePositions.setXYZ(
-      bladeCursor * 4,
-      bladeTrackPoint.x - offsetX,
-      0.06,
-      bladeTrackPoint.z - offsetZ,
-    ),
-      bladePositions.setXYZ(
-        bladeCursor * 4 + 1,
-        bladeTrackPoint.x + offsetX,
-        0.06,
-        bladeTrackPoint.z + offsetZ,
-      ),
+      offsetX = (bladeTrackPoint.tx * Math.cos(tiltAngle) - bladeTrackPoint.tz * Math.sin(tiltAngle)) * halfSpan,
+      offsetZ = (bladeTrackPoint.tz * Math.cos(tiltAngle) + bladeTrackPoint.tx * Math.sin(tiltAngle)) * halfSpan
+    bladePositions.setXYZ(bladeCursor * 4, bladeTrackPoint.x - offsetX, 0.06, bladeTrackPoint.z - offsetZ),
+      bladePositions.setXYZ(bladeCursor * 4 + 1, bladeTrackPoint.x + offsetX, 0.06, bladeTrackPoint.z + offsetZ),
       bladePositions.setXYZ(
         bladeCursor * 4 + 2,
         bladeTrackPoint.x - offsetX,
@@ -594,10 +525,10 @@ export function poseDreamBlades(bladeStripGeometry: any, dreamTrack: any, dreamP
         bladeTrackPoint.x + offsetX,
         bladeTopY - 0.06,
         bladeTrackPoint.z + offsetZ,
-      ));
+      )
   }
-  ((bladePositions.needsUpdate = true),
+  ;(bladePositions.needsUpdate = true),
     bladeStripGeometry.computeVertexNormals(),
     bladeStripGeometry.computeBoundingBox(),
-    bladeStripGeometry.computeBoundingSphere());
+    bladeStripGeometry.computeBoundingSphere()
 }

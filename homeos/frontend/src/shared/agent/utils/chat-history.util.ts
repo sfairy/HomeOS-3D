@@ -81,9 +81,7 @@ function optionalText(value: unknown): string | undefined {
 }
 
 /** 单条附件：只认有 URL 的图片，其余字段做字符串兜底 */
-function normalizeAttachment(
-  item: Partial<AgentChatStoredAttachment> | null,
-): AgentChatStoredAttachment | null {
+function normalizeAttachment(item: Partial<AgentChatStoredAttachment> | null): AgentChatStoredAttachment | null {
   const url = typeof item?.url === 'string' ? item.url : ''
   if (!url) return null
   return {
@@ -161,10 +159,7 @@ export function readAgentChatSessions(): AgentChatSession[] {
 /** 写历史会话（隐私模式 / 配额用尽时静默放弃，历史只留内存） */
 export function writeAgentChatSessions(sessions: AgentChatSession[]): void {
   try {
-    safeStorage()?.setItem(
-      HISTORY_KEY,
-      JSON.stringify(sessions.slice(0, AGENT_CHAT_HISTORY_LIMIT)),
-    )
+    safeStorage()?.setItem(HISTORY_KEY, JSON.stringify(sessions.slice(0, AGENT_CHAT_HISTORY_LIMIT)))
   } catch {
     // 隐私模式 / 配额用尽：历史只保留在内存
   }
@@ -181,9 +176,7 @@ export function buildAgentChatSession(
 ): AgentChatSession | null {
   const snapshot = messages
     .filter(
-      (message) =>
-        !message.streaming &&
-        (String(message.text || '').trim() || (message.attachments?.length ?? 0) > 0),
+      (message) => !message.streaming && (String(message.text || '').trim() || (message.attachments?.length ?? 0) > 0),
     )
     .slice(-AGENT_CHAT_HISTORY_MESSAGE_LIMIT)
     .map((message) => ({

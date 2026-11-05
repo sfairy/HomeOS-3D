@@ -6,7 +6,7 @@
 
 import { retryAfterSeconds, withRetryHint } from "../api/error";
 
- interface DeviceReleasePolicy {
+interface DeviceReleasePolicy {
   cooldownSeconds: number;
   lastReleasedAt?: string | null;
   nextAllowedAt?: string | number | null;
@@ -14,7 +14,7 @@ import { retryAfterSeconds, withRetryHint } from "../api/error";
   deadline?: number;
 }
 
- interface StoreDevice {
+interface StoreDevice {
   instanceId?: string;
   bindingId?: string;
   activatedAt?: string;
@@ -37,7 +37,7 @@ export interface StoreLicense {
   [key: string]: unknown;
 }
 
- interface PackageItem {
+interface PackageItem {
   name?: string;
   [key: string]: unknown;
 }
@@ -91,7 +91,7 @@ export interface StoreFeatureCatalog {
   items: StoreFeature[];
 }
 
- interface StorePayment {
+interface StorePayment {
   qrCode?: string;
   provider?: string;
   type?: string;

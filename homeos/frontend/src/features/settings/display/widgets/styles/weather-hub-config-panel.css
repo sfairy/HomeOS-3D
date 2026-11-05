@@ -1,5 +1,5 @@
 /* 从 WeatherHubConfigPanel.vue 抽出 */
-@import '@/features/settings/display/styles/layout-panels.css';
+@import "@/features/settings/display/styles/layout-panels.css";
 
 .whc-icon-info {
   color: var(--set-info, #7dd3fc);

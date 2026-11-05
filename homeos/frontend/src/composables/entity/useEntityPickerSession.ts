@@ -50,15 +50,18 @@ export function useEntityPickerSession(pickerOptions: UseEntityPickerSessionOpti
   let restSearchTimer: ReturnType<typeof setTimeout> | null = null
 
   // 主下拉定位（基于 positionAnchor 与 showDropdown）
-  const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } =
-    useDropdownPosition(pickerOptions.positionAnchor, pickerOptions.showDropdown, {
+  const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } = useDropdownPosition(
+    pickerOptions.positionAnchor,
+    pickerOptions.showDropdown,
+    {
       minWidth: pickerOptions.dropdownMinWidth,
       maxHeight: pickerOptions.dropdownMaxHeight,
       chromeHeight: pickerOptions.chromeHeight,
       minListHeight: pickerOptions.minListHeight,
       minRowHeight: pickerOptions.minRowHeight,
       dropdownRef: pickerOptions.dropdownRef,
-    })
+    },
+  )
 
   // 域菜单定位（不互斥，固定尺寸）
   const {

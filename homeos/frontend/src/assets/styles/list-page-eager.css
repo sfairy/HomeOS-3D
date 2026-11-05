@@ -33,7 +33,12 @@
   text-shadow: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s var(--ease-spring), box-shadow 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.15s var(--ease-spring),
+    box-shadow 0.2s;
 }
 
 .list-page__btn:hover:not(:disabled) {
@@ -68,4 +73,8 @@
   border-color: var(--premium-border-strong);
 }
 
-.list-page__muted { font-size: var(--premium-fs-caption); color: var(--hos-text-secondary); font-variant-numeric: tabular-nums; }
+.list-page__muted {
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  font-variant-numeric: tabular-nums;
+}

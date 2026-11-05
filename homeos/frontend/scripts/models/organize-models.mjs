@@ -40,8 +40,7 @@ const args = process.argv.slice(2)
 const writeMode = args.includes('--write')
 const asJson = args.includes('--json')
 
-const loadModule = (relativePath) =>
-  import(pathToFileURL(path.join(frontendDir, relativePath)).href)
+const loadModule = (relativePath) => import(pathToFileURL(path.join(frontendDir, relativePath)).href)
 
 const {
   MODEL_ASSETS_BY_FOLDER,
@@ -50,18 +49,10 @@ const {
   modelAssetFolderPath,
   modelAssetFileStem,
   modelAssetIdForStem,
-} = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
-)
-const { ALL_ITEM_MODELS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/all-item-models.ts',
-)
-const { EXTERNAL_ITEM_MODELS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/_shared.ts',
-)
-const { COLLECTION_MODELS } = await loadModule(
-  'src/studio/app/3d-studio/loaders/external-models/collection-models.ts',
-)
+} = await loadModule('src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts')
+const { ALL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts')
+const { EXTERNAL_ITEM_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts')
+const { COLLECTION_MODELS } = await loadModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts')
 
 /** 递归列出 `models/` 下所有 GLB 的相对路径（分隔符统一为 `/`）。 */
 function listGlbFiles(dir, relativePrefix = '') {
@@ -100,9 +91,7 @@ function parseModelPath(relativePath) {
 function expectedPath(assetId, variant) {
   const folder = modelAssetFolder(assetId)
   if (!folder) return null
-  return `${modelAssetFolderPath(folder)}/${modelAssetFileStem(assetId)}${
-    variant === 'lite' ? '-lite' : ''
-  }.glb`
+  return `${modelAssetFolderPath(folder)}/${modelAssetFileStem(assetId)}${variant === 'lite' ? '-lite' : ''}.glb`
 }
 
 /** 自底向上删除空目录，返回是否已删除。 */
@@ -144,9 +133,7 @@ const filesById = new Map()
 for (const relativePath of files) {
   const parsed = parseModelPath(relativePath)
   if (!parsed.id) {
-    errors.push(
-      `磁盘上的 \`${relativePath}\` 解析不出模型 id（新增模型请补 model-asset-folders.ts 与中文名）`,
-    )
+    errors.push(`磁盘上的 \`${relativePath}\` 解析不出模型 id（新增模型请补 model-asset-folders.ts 与中文名）`)
     continue
   }
   const entry = filesById.get(parsed.id) ?? { variants: new Map() }
@@ -208,9 +195,7 @@ for (const [registryName, registry] of [
       const stem = urlStem(url)
       if (!stem) continue
       if (!modelAssetIdForStem(stem, urlFolder(url))) {
-        errors.push(
-          `${registryName}.${itemType}.${kind} 指向 \`${stem}\`，该文件没有登记到映射表`,
-        )
+        errors.push(`${registryName}.${itemType}.${kind} 指向 \`${stem}\`，该文件没有登记到映射表`)
       }
     }
   }
@@ -277,9 +262,7 @@ if (asJson) {
   for (const move of moves.slice(0, 5)) console.error(`  - ${move.from} → ${move.to}`)
   if (moves.length > 5) console.error(`  …… 其余 ${moves.length - 5} 个同理`)
 } else {
-  console.log(
-    `模型目录布局正常：${folderByMappedId.size} 个模型 / ${files.length} 个 GLB，全部分类到位。`,
-  )
+  console.log(`模型目录布局正常：${folderByMappedId.size} 个模型 / ${files.length} 个 GLB，全部分类到位。`)
   for (const message of warnings) console.log(`  · ${message}`)
 }
 

@@ -23,8 +23,7 @@ export function getZonedParts(date: Date = new Date(), options: Intl.DateTimeFor
     ...options,
   })
   const parts = fmt.formatToParts(date)
-  const pick = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? ''
+  const pick = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
   return {
     hour: pick('hour'),
     minute: pick('minute'),

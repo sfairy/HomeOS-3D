@@ -34,11 +34,7 @@ export function isValidRootRect(root: DOMRect) {
  * @param fallbackX xPct 回退值（默认 50）
  * @param fallbackY yPct 回退值（默认 50）
  */
-export function sanitizeWidgetPct(
-  widget: Pick<FloatingWidget, 'xPct' | 'yPct'>,
-  fallbackX = 50,
-  fallbackY = 50,
-) {
+export function sanitizeWidgetPct(widget: Pick<FloatingWidget, 'xPct' | 'yPct'>, fallbackX = 50, fallbackY = 50) {
   widget.xPct = clampAfhPct(Number(widget.xPct), fallbackX)
   widget.yPct = clampAfhPct(Number(widget.yPct), fallbackY)
 }

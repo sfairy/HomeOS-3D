@@ -24,12 +24,7 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { getDefaultLayout } from '@/stores/defaults'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import {
-  agentPing,
-  channelsStatus,
-  type AgentPingResult,
-  type ChannelsStatusResult,
-} from '@/services/api/agent'
+import { agentPing, channelsStatus, type AgentPingResult, type ChannelsStatusResult } from '@/services/api/agent'
 import { useAgentPanelChat } from '@/features/settings/interact/composables/agent-panel-chat.internals'
 import { useAgentModelStats } from '@/features/settings/interact/composables/agent-panel-stats.internals'
 import type {
@@ -88,9 +83,9 @@ function readWatchdog(
   }
 }
 
-
 /** 智能管家设置面板：聚合模型配置草稿、通知渠道、管家对话与连通性检测，供 SettingsAgentPanel.vue 使用 */
-export function useSettingsAgentPanel(props: { activeTab: string }) {  const layoutStore = useLayoutStore()
+export function useSettingsAgentPanel(props: { activeTab: string }) {
+  const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
   const showApiKey = ref(false)
   /** 已配置密钥时默认展示「已加密存储」；点「更换」后进入明文输入 */
@@ -128,9 +123,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
   function readSceneVoiceControl(): SceneVoiceControl {
     const raw = layoutStore.layoutConfig?.agentConfig?.sceneVoiceControl
     if (!raw || typeof raw !== 'object') return { enabled: false, allow: [] }
-    const allow = Array.isArray(raw.allow)
-      ? raw.allow.map((id) => String(id ?? '').trim()).filter(Boolean)
-      : []
+    const allow = Array.isArray(raw.allow) ? raw.allow.map((id) => String(id ?? '').trim()).filter(Boolean) : []
     return { enabled: raw.enabled === true, allow }
   }
 
@@ -152,10 +145,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
       energyMultiplier: Math.max(1, num(raw.energyMultiplier, d.energyMultiplier)),
       minEnergyKwh: Math.max(0, num(raw.minEnergyKwh, d.minEnergyKwh)),
       forecastSlots: Math.min(12, Math.max(1, num(raw.forecastSlots, d.forecastSlots))),
-      forecastPopThreshold: Math.min(
-        1,
-        Math.max(0, num(raw.forecastPopThreshold, d.forecastPopThreshold)),
-      ),
+      forecastPopThreshold: Math.min(1, Math.max(0, num(raw.forecastPopThreshold, d.forecastPopThreshold))),
       ...readWatchdog(raw, d),
     }
   }
@@ -220,9 +210,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
   )
   /** 服务端已存密钥（脱敏占位或 apiKeyConfigured），且用户未点「更换」 */
   const apiKeyLocked = computed(
-    () =>
-      !editingApiKey.value &&
-      (agentDraft.apiKeyConfigured === true || isAgentSecretMasked(agentDraft.apiKey)),
+    () => !editingApiKey.value && (agentDraft.apiKeyConfigured === true || isAgentSecretMasked(agentDraft.apiKey)),
   )
 
   /** 进入更换模式：清空占位符，避免「显示」只能看到 •••••••• */
@@ -424,10 +412,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
   })
 
   /** 分钟输入 → 秒存储（Vue 模板只负责把 Event 交进来） */
-  function setProactiveMinutes(
-    field: 'intervalSeconds' | 'cooldownSeconds',
-    event: Event,
-  ): void {
+  function setProactiveMinutes(field: 'intervalSeconds' | 'cooldownSeconds', event: Event): void {
     const minutes = Number((event.target as HTMLInputElement).value)
     if (!Number.isFinite(minutes)) return
     proactive.value[field] = Math.min(1440, Math.max(1, minutes)) * 60
@@ -439,7 +424,6 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     if (!Number.isFinite(percent)) return
     proactive.value.forecastPopThreshold = Math.min(100, Math.max(0, percent)) / 100
   }
-
 
   const modelFlowSteps = computed(() => [
     { label: '自然语言', meta: languageLabel.value, icon: Languages, tone: 'in' as const },
@@ -459,7 +443,6 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
     { label: '大模型', meta: chatFlowModelLabel.value, icon: Sparkles, tone: 'mid' as const },
     { label: '执行反馈', meta: '工具 · 播报', icon: CircleCheck, tone: 'out' as const },
   ])
-
 
   function applyPreset(providerId?: string | number) {
     const id = String(providerId ?? agentDraft.provider)
@@ -512,17 +495,13 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
       layoutStore.layoutConfig.agentConfig = {
         provider: agentDraft.provider,
         // 「更换」后未输入新密钥时回传脱敏占位，避免空串覆盖服务端明文
-        apiKey:
-          editingApiKey.value && !String(agentDraft.apiKey || '').trim()
-            ? AGENT_SECRET_MASK
-            : agentDraft.apiKey,
+        apiKey: editingApiKey.value && !String(agentDraft.apiKey || '').trim() ? AGENT_SECRET_MASK : agentDraft.apiKey,
         apiBase: agentDraft.apiBase,
         model: agentDraft.model,
         language: agentDraft.language,
         // 只用于本地展示「密钥已就绪」，后端保存时会 pop 掉；一起写入是为了避免保存瞬间
         // layoutConfig.agentConfig 少一个字段、被全局快照记成「未保存」。
-        apiKeyConfigured:
-          Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true,
+        apiKeyConfigured: Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true,
         systemPrompt: agentDraft.systemPrompt || '',
         mcpGatewaySecret: agentDraft.mcpGatewaySecret || '',
         mcpActorUserId: agentDraft.mcpActorUserId || '',
@@ -531,9 +510,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
         // 关闭时清单一律无效，因此保留清单不降低安全性，却能避免「误触开关→保存」丢数据。
         sceneVoiceControl: {
           enabled: agentDraft.sceneVoiceControl?.enabled === true,
-          allow: (agentDraft.sceneVoiceControl?.allow ?? [])
-            .map((id) => String(id ?? '').trim())
-            .filter(Boolean),
+          allow: (agentDraft.sceneVoiceControl?.allow ?? []).map((id) => String(id ?? '').trim()).filter(Boolean),
         },
         // 主动管家：保留完整频控参数；back-end 默认关闭，只有 enabled===true 才巡检
         proactive: buildProactivePayload(),
@@ -555,8 +532,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
       const ok = await layoutStore.saveLayout(true)
       if (!ok) throw new Error('保存失败')
       // 保存成功后恢复锁定态：接口不会回传明文，避免误以为「显示」能看到原密钥
-      const keyKeptOrSet =
-        Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true
+      const keyKeptOrSet = Boolean(String(agentDraft.apiKey || '').trim()) || agentDraft.apiKeyConfigured === true
       if (keyKeptOrSet || editingApiKey.value) {
         if (keyKeptOrSet) {
           agentDraft.apiKey = AGENT_SECRET_MASK
@@ -601,11 +577,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {  const lay
       } else if (info.ready) {
         chrome.notify(`智能管家就绪（${info.provider}）`, 'success')
       } else {
-        chrome.notify(
-          `智能管家未就绪（${info.provider}）。请确认已保存有效接口密钥后再试。`,
-          'warning',
-          6000,
-        )
+        chrome.notify(`智能管家未就绪（${info.provider}）。请确认已保存有效接口密钥后再试。`, 'warning', 6000)
       }
     } catch (e: unknown) {
       pingInfo.value = { ok: false, provider: 'unknown', ready: false }

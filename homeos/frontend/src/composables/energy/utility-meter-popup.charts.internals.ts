@@ -24,12 +24,7 @@ export function createUtilityMeterCharts(opts: {
   const monthChartRef = ref<ChartEl | null>(null)
   const yearChartRef = ref<ChartEl | null>(null)
 
-  async function renderChart(
-    el: ChartEl | null,
-    data: UtilityMeterParsedItem[],
-    unit: string,
-    type: string,
-  ) {
+  async function renderChart(el: ChartEl | null, data: UtilityMeterParsedItem[], unit: string, type: string) {
     if (typeof document !== 'undefined' && document.hidden) return
     if (!el || !data.length) return
     if (el.clientWidth === 0 || el.clientHeight === 0) return
@@ -40,8 +35,7 @@ export function createUtilityMeterCharts(opts: {
     const labels = data.map((d) => d._label || '')
     const usages = data.map((d) => d._usage || 0)
     const costs = data.map((d) => d._cost || 0)
-    const rotate =
-      (type === 'day' && labels.length > 15) || (type === 'month' && labels.length > 12) ? 45 : 0
+    const rotate = (type === 'day' && labels.length > 15) || (type === 'month' && labels.length > 12) ? 45 : 0
     chart.setOption(buildChartOption({ labels, usages, costs, unit, type, rotate, color1, color2 }))
   }
 
@@ -51,8 +45,7 @@ export function createUtilityMeterCharts(opts: {
     nextTick(() => {
       const unit = unitLabel.value
       if (expTab.value === 'day') void renderChart(dayChartRef.value, daylist.value, unit, 'day')
-      else if (expTab.value === 'month')
-        void renderChart(monthChartRef.value, monthlist.value, unit, 'month')
+      else if (expTab.value === 'month') void renderChart(monthChartRef.value, monthlist.value, unit, 'month')
       else if (expTab.value === 'year') {
         void renderChart(yearChartRef.value, yearlist.value, unit, 'year')
       }
@@ -95,8 +88,7 @@ export function createUtilityMeterCharts(opts: {
     if (el) observer.observeChartEl(el)
   }
   function setMonthChartRef(el: ChartEl | null) {
-    if (monthChartRef.value && monthChartRef.value !== el)
-      observer.unobserveChartEl(monthChartRef.value)
+    if (monthChartRef.value && monthChartRef.value !== el) observer.unobserveChartEl(monthChartRef.value)
     monthChartRef.value = el
     if (el) observer.observeChartEl(el)
   }
@@ -235,24 +227,9 @@ function createChartVisibilityObserver(opts: {
   yearlist: ComputedRef<UtilityMeterParsedItem[]>
   exp: Ref<boolean>
   unitLabel: ComputedRef<string>
-  renderChart: (
-    el: ChartEl | null,
-    data: UtilityMeterParsedItem[],
-    unit: string,
-    type: string,
-  ) => Promise<void>
+  renderChart: (el: ChartEl | null, data: UtilityMeterParsedItem[], unit: string, type: string) => Promise<void>
 }) {
-  const {
-    dayChartRef,
-    monthChartRef,
-    yearChartRef,
-    daylist,
-    monthlist,
-    yearlist,
-    exp,
-    unitLabel,
-    renderChart,
-  } = opts
+  const { dayChartRef, monthChartRef, yearChartRef, daylist, monthlist, yearlist, exp, unitLabel, renderChart } = opts
   let chartVisibilityObserver: IntersectionObserver | null = null
   const observedChartEls = new WeakSet<Element>()
 

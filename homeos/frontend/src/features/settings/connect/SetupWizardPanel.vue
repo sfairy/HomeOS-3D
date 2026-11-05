@@ -137,14 +137,7 @@
 
 <script setup>
 import { provide, computed } from 'vue'
-import {
-  PlugZap,
-  Shield,
-  Zap,
-  Thermometer,
-  LayoutTemplate,
-  CheckCircle,
-} from '@lucide/vue'
+import { PlugZap, Shield, Zap, Thermometer, LayoutTemplate, CheckCircle } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
@@ -233,9 +226,7 @@ const STEP_TONES = {
 const stepTone = computed(() => STEP_TONES[stepMeta.value?.id] || 'emerald')
 
 // 流程概览折叠态摘要文案
-const wizardFlowSummary = computed(
-  () => `${progress.value}% · ${stepMeta.value?.label || '—'}`,
-)
+const wizardFlowSummary = computed(() => `${progress.value}% · ${stepMeta.value?.label || '—'}`)
 
 // 流程概览步骤定义：连接 HA / 安防基础 / 能源计量 / 环境映射 / 户型收藏 / 完成
 const wizardFlowSteps = computed(() => {
@@ -255,9 +246,7 @@ const wizardFlowSteps = computed(() => {
     },
     {
       label: '能源计量',
-      meta: meterEntityId.value
-        ? `已绑定 · ${resolveEnergyScopeOption(meterScope.value).label}`
-        : '待配置',
+      meta: meterEntityId.value ? `已绑定 · ${resolveEnergyScopeOption(meterScope.value).label}` : '待配置',
       icon: Zap,
       tone: steps.energy?.done ? 'emerald' : 'amber',
     },

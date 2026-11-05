@@ -2,10 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
-import {
-  buildMainLayoutNavMenu,
-  capBarItemsForViewport,
-} from '@/shared/utils/ui/main-layout-nav.util'
+import { buildMainLayoutNavMenu, capBarItemsForViewport } from '@/shared/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
@@ -47,10 +44,7 @@ export function useMainLayoutNavMenu(options: {
   }))
   // 导航菜单整体（shallowRef：整体替换而非深层响应，避免高频 diff）
   const navMenu = shallowRef(
-    capBarItemsForViewport(
-      buildMainLayoutNavMenu(layoutStore.layoutConfig, navOptions.value),
-      viewportWidth.value,
-    ),
+    capBarItemsForViewport(buildMainLayoutNavMenu(layoutStore.layoutConfig, navOptions.value), viewportWidth.value),
   )
   // 顶栏直接显示的菜单项
   const menuItems = computed(() => navMenu.value.barItems)

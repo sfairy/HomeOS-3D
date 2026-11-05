@@ -39,16 +39,12 @@ const emit = defineEmits([
 
 // 活跃域下拉当前值：仅当当前 domainFilter 命中预览列表时回显，否则显示「全部活跃域」
 const activeDomainValue = computed(() =>
-  props.domainStatsPreview.some((row) => row.domain === props.domainFilter)
-    ? props.domainFilter
-    : '',
+  props.domainStatsPreview.some((row) => row.domain === props.domainFilter) ? props.domainFilter : '',
 )
 
 // 高频实体下拉当前值：仅当当前 entityFilter 命中预览列表时回显，否则显示「快速筛选」
 const hotEntityValue = computed(() =>
-  props.topEntitiesPreview.some((row) => row.entityId === props.entityFilter)
-    ? props.entityFilter
-    : '',
+  props.topEntitiesPreview.some((row) => row.entityId === props.entityFilter) ? props.entityFilter : '',
 )
 
 /** 活跃域下拉切换：空值视为清除筛选。 */

@@ -106,10 +106,7 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
    * @param deferredList 待补全的实体列表
    * @param token 启动时的批次 token；过期则中止
    */
-  async function applyDeferredCacheHydrate(
-    deferredList: HaEntityState[],
-    token: number,
-  ): Promise<void> {
+  async function applyDeferredCacheHydrate(deferredList: HaEntityState[], token: number): Promise<void> {
     if (!deferredList?.length) return
     const sorted = sortEntitiesBySyncPriority(deferredList)
     const batchSize = Math.min(deps.initStatesBatchSize(), 200)
@@ -169,10 +166,7 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
    * @param token 启动时的批次 token；过期则返回 false
    * @returns 是否成功完成（false 表示被并发批次抢占）
    */
-  async function applyEntityListBatched(
-    entityList: HaEntityState[],
-    token: number,
-  ): Promise<boolean> {
+  async function applyEntityListBatched(entityList: HaEntityState[], token: number): Promise<boolean> {
     for (const key of Object.keys(deps.entities)) delete deps.entities[key]
     for (const key of Object.keys(deps.friendlyNamesMap)) delete deps.friendlyNamesMap[key]
 
@@ -289,10 +283,7 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
     }
     deps.totalCount.value += visibleAdded
     if (expectedTotal > 0) {
-      deps.entityLoadProgress.value = Math.min(
-        65,
-        Math.round((deps.totalCount.value / expectedTotal) * 65),
-      )
+      deps.entityLoadProgress.value = Math.min(65, Math.round((deps.totalCount.value / expectedTotal) * 65))
     } else if (visibleAdded) {
       deps.entityLoadProgress.value = Math.min(65, deps.entityLoadProgress.value + 2)
     }
@@ -330,8 +321,7 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
   /** 权限（ACL/restrictions）版本是否与上次接受的全量快照不同。 */
   function restrictionsChanged(): boolean {
     return (
-      typeof deps.restrictionsVersion === 'function' &&
-      deps.restrictionsVersion() !== lastAcceptedRestrictionsVersion
+      typeof deps.restrictionsVersion === 'function' && deps.restrictionsVersion() !== lastAcceptedRestrictionsVersion
     )
   }
 

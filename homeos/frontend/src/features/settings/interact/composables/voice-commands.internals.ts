@@ -73,11 +73,7 @@ export function useVoiceCommandEditor() {
     cmd.serviceData = { ...(cmd.serviceData || {}), hvac_mode: mode }
   }
 
-  function onServiceChange(cmd: {
-    domain?: string
-    service?: string
-    serviceData?: Record<string, unknown>
-  }) {
+  function onServiceChange(cmd: { domain?: string; service?: string; serviceData?: Record<string, unknown> }) {
     if (needsClimateMode(cmd) && !cmd.serviceData?.hvac_mode) setClimateMode(cmd, 'cool')
   }
 

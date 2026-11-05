@@ -204,10 +204,8 @@ export function getConfigSection<K extends ConfigSectionKey>(section: K): AppPub
 
 export function getEventLogConfig(): EventLogRuntimeConfig {
   const cfg = _app.eventLog || defaults.eventLog
-  const retentionDays =
-    Number(cfg.retentionDays) > 0 ? Number(cfg.retentionDays) : defaults.eventLog.retentionDays
-  const maxQueryHours =
-    Number(cfg.maxQueryHours) > 0 ? Number(cfg.maxQueryHours) : retentionDays * 24
+  const retentionDays = Number(cfg.retentionDays) > 0 ? Number(cfg.retentionDays) : defaults.eventLog.retentionDays
+  const maxQueryHours = Number(cfg.maxQueryHours) > 0 ? Number(cfg.maxQueryHours) : retentionDays * 24
   const hourOptions =
     Array.isArray(cfg.hourOptions) && cfg.hourOptions.length
       ? cfg.hourOptions.map((h) => Number(h)).filter((h) => h > 0 && h <= maxQueryHours)
@@ -216,24 +214,15 @@ export function getEventLogConfig(): EventLogRuntimeConfig {
     retentionDays,
     maxQueryHours,
     hourOptions: hourOptions.length ? hourOptions : [maxQueryHours],
-    timelineHours:
-      Number(cfg.timelineHours) > 0 ? Number(cfg.timelineHours) : Math.min(12, maxQueryHours),
+    timelineHours: Number(cfg.timelineHours) > 0 ? Number(cfg.timelineHours) : Math.min(12, maxQueryHours),
     timelineLimit: Number(cfg.timelineLimit) > 0 ? Number(cfg.timelineLimit) : 500,
-    overlayHours:
-      Number(cfg.overlayHours) > 0 ? Number(cfg.overlayHours) : Math.min(2, maxQueryHours),
+    overlayHours: Number(cfg.overlayHours) > 0 ? Number(cfg.overlayHours) : Math.min(2, maxQueryHours),
   }
 }
-
-
-
-
-
 
 export function getMaxRemoteNotifications(): number {
   return getFrontendInt('maxRemoteNotifications', defaults.frontend.maxRemoteNotifications)
 }
-
-
 
 /** 订阅配置变更，返回取消订阅函数 */
 export function onConfigChange(fn: ConfigChangeListener): () => void {
@@ -338,11 +327,7 @@ export async function reloadFrontendConfig(): Promise<FrontendSection> {
     const status = (err as { response?: { status?: number } })?.response?.status
     const code = (err as { code?: string })?.code
     const transient =
-      status === 502 ||
-      status === 503 ||
-      status === 504 ||
-      code === 'ERR_NETWORK' ||
-      code === 'ECONNABORTED'
+      status === 502 || status === 503 || status === 504 || code === 'ERR_NETWORK' || code === 'ECONNABORTED'
     if (transient) {
       logger.debug('[前端配置] 重载已跳过(后端不可用),保留缓存配置')
     } else {

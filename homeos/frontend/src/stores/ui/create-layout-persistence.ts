@@ -15,10 +15,7 @@ import { nextTick, type Ref } from 'vue'
 import { fetchProject, saveProject, setActiveProject } from '@/services/api/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { getDefaultLayout } from '@/stores/defaults'
-import {
-  NAV_TAB_ORDER_DEFAULT,
-  normalizeEmbedNavTabLayoutFields,
-} from '@/shared/utils/layout/nav-tabs.util'
+import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/shared/utils/layout/nav-tabs.util'
 import { normalizeDashboardFooter } from '@/shared/constants/dashboard-footer'
 import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
 import { normalizeWholeHomeOff } from '@/shared/constants/whole-home-off'
@@ -139,11 +136,7 @@ function normalizeDisplayBackdropUrl(raw: unknown): string | undefined {
 }
 
 /** 取字符串字段：优先传给服务端的值，其次默认值，都没有时给空串。 */
-function pickSensorText(
-  src: Record<string, unknown>,
-  defaults: Record<string, unknown>,
-  key: string,
-): string {
+function pickSensorText(src: Record<string, unknown>, defaults: Record<string, unknown>, key: string): string {
   return String(src[key] ?? defaults[key] ?? '')
 }
 
@@ -292,11 +285,9 @@ export function createLayoutPersistence({
       ...layout,
       floatingWidgets: sanitizeFloatingWidgets(layout.floatingWidgets),
       lightOnBackgroundUrl:
-        normalizeDisplayBackdropUrl(layout.lightOnBackgroundUrl) ??
-        getDefaultLayout().lightOnBackgroundUrl,
+        normalizeDisplayBackdropUrl(layout.lightOnBackgroundUrl) ?? getDefaultLayout().lightOnBackgroundUrl,
       lightOffBackgroundUrl:
-        normalizeDisplayBackdropUrl(layout.lightOffBackgroundUrl) ??
-        getDefaultLayout().lightOffBackgroundUrl,
+        normalizeDisplayBackdropUrl(layout.lightOffBackgroundUrl) ?? getDefaultLayout().lightOffBackgroundUrl,
       rightPanelWidgets: sanitizePanelWidgets(layout.rightPanelWidgets),
       securityEmergency: normalizeSecurityEmergency({
         ...getDefaultLayout().securityEmergency,
@@ -308,9 +299,7 @@ export function createLayoutPersistence({
           ? securityEmergency.lightPool
           : getDefaultLayout().securityEmergency.lightPool,
       }),
-      securityModes: Array.isArray(layout.securityModes)
-        ? layout.securityModes
-        : getDefaultLayout().securityModes,
+      securityModes: Array.isArray(layout.securityModes) ? layout.securityModes : getDefaultLayout().securityModes,
       securityModeLinks: {
         ...getDefaultLayout().securityModeLinks,
         ...((layout.securityModeLinks as object) || {}),
@@ -459,10 +448,7 @@ export function createLayoutPersistence({
       return
     }
     logger.error('加载UI配置失败', err)
-    notify(
-      `加载配置失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`,
-      'error',
-    )
+    notify(`加载配置失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`, 'error')
     // 加载失败时不标记已加载：避免 dirty watch 生效后用户基于空配置编辑并保存覆盖服务端真实配置。
     // 仅应用默认性能模式以保证 UI 可用，但 isConfigLoaded 保持 false 阻止自动保存。
     isConfigLoaded.value = false
@@ -568,9 +554,7 @@ export function createLayoutPersistence({
       if (!isConfigLoading.value) void loadConfig()
       if (!silent) {
         notify(
-          isConfigLoading.value
-            ? '布局仍在加载中，请稍后再保存'
-            : '布局尚未加载完成，已重新拉取配置，请稍后再保存',
+          isConfigLoading.value ? '布局仍在加载中，请稍后再保存' : '布局尚未加载完成，已重新拉取配置，请稍后再保存',
           'warning',
         )
       }
@@ -612,8 +596,7 @@ export function createLayoutPersistence({
               ...(expectedUpdatedAt ? { expectedUpdatedAt } : {}),
             })
             // 服务端返回新版本号，后续保存以此为基线
-            loadedUpdatedAt =
-              String(response?.data?.data?.updatedAt ?? '').trim() || loadedUpdatedAt
+            loadedUpdatedAt = String(response?.data?.data?.updatedAt ?? '').trim() || loadedUpdatedAt
             if (activeProfileId.value !== targetProfileId) {
               // 保存期间切换了方案：这次写入落在旧方案上，已不属于「当前」状态。
               // 若继续执行下面的副作用，会把新方案刚载入的干净状态标成已保存
@@ -635,21 +618,14 @@ export function createLayoutPersistence({
               // 乐观锁拒绝：别的终端已经写过这份方案。整份快照无法合并，
               // 继续说「保存成功」或强行覆盖都会抹掉对方的改动 —— 报错并重新拉取。
               logger.warn('布局保存版本冲突（其他终端已修改）')
-              notify(
-                '该方案已在其他终端被修改，本次修改未保存；已重新加载最新布局，请确认后重试',
-                'error',
-                9000,
-              )
+              notify('该方案已在其他终端被修改，本次修改未保存；已重新加载最新布局，请确认后重试', 'error', 9000)
               lastOk = false
               saveConfigNeedsResave = false
               conflictDetected = true
               break
             }
             logger.error('保存UI配置失败', err)
-            notify(
-              `保存布局失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`,
-              'error',
-            )
+            notify(`保存布局失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`, 'error')
             lastOk = false
             // 失败后仍消费排队标记，避免错误状态下死循环；调用方需再次主动保存
             saveConfigNeedsResave = false

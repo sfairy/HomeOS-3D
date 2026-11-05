@@ -5,7 +5,11 @@
 /** 安防：全屋断电等扩展 */
 import type { Component } from 'vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/composables/settings-kernel/pending.internals'
+import {
+  pauseGlobalPendingChanges,
+  resumeGlobalPendingChanges,
+  syncGlobalLayoutPendingSnapshot,
+} from '@/composables/settings-kernel/pending.internals'
 import { createDefaultWholeHomeOff } from '@/shared/constants/whole-home-off'
 import { fetchAdvisorForgotten } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -37,9 +41,7 @@ export function useWholeHomeOffSection() {
 
   const entityDomains = ['light', 'cover', 'climate', 'fan', 'switch'] as const
 
-  const enabledDomainCount = computed(
-    () => domainCards.filter((d) => wholeHomeOff.value[d.key]).length,
-  )
+  const enabledDomainCount = computed(() => domainCards.filter((d) => wholeHomeOff.value[d.key]).length)
 
   watch(
     () => layoutStore.layoutConfig.wholeHomeOff,
@@ -139,6 +141,5 @@ export function useWholeHomeOffRecommend() {
     refresh: loadForgotten,
   }
 }
-
 
 export { useHazardBindingsSection } from '@/features/settings/automate/composables/security-modes-hazard.internals'

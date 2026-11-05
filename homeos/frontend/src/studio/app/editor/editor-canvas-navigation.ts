@@ -24,12 +24,7 @@ export interface MarqueeRect {
   height: number
 }
 
-export function normalizeMarquee(
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-): MarqueeRect {
+export function normalizeMarquee(x0: number, y0: number, x1: number, y1: number): MarqueeRect {
   const left = Math.min(x0, x1)
   const top = Math.min(y0, y1)
   return {

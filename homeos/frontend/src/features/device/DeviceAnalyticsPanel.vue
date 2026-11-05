@@ -224,8 +224,7 @@ const analyticsMetrics = computed(() => {
   const summary = usageReport.value?.summary
   const onCount = summary?.onCount ?? 0
   const runtimeMs = summary?.totalRuntimeMs ?? 0
-  const eventCount =
-    eventStats.value?.total ?? hourlyBuckets.value.reduce((sum, value) => sum + value, 0)
+  const eventCount = eventStats.value?.total ?? hourlyBuckets.value.reduce((sum, value) => sum + value, 0)
   return { onCount, runtimeMs, eventCount }
 })
 
@@ -288,9 +287,7 @@ async function fetchDomainMedian() {
     if (!domainMedianSeq.isCurrent(seq)) return
     const data = usageRes.data
     const eventsData = eventsRes.data as { byDomain?: Record<string, number> }
-    const breakdown = (data?.domainBreakdown || []).find(
-      (d: { domain: string }) => d.domain === domain,
-    )
+    const breakdown = (data?.domainBreakdown || []).find((d: { domain: string }) => d.domain === domain)
     const domainEventTotal = Number(eventsData?.byDomain?.[domain] ?? 0)
     if (breakdown && breakdown.deviceCount > 0) {
       domainMedian.value = {
@@ -331,10 +328,7 @@ async function renderUsageChart() {
     legend: deviceChartLegend(),
     grid: deviceChartGrid({ top: 36 }),
     xAxis: deviceChartXAxis(labels),
-    yAxis: [
-      deviceChartYAxis('次数(次)'),
-      { ...deviceChartYAxis('时长(分)'), splitLine: { show: false } },
-    ],
+    yAxis: [deviceChartYAxis('次数(次)'), { ...deviceChartYAxis('时长(分)'), splitLine: { show: false } }],
     series: [
       {
         name: '切换次数',
@@ -432,11 +426,7 @@ async function renderRadarChart() {
             lineStyle: { color: DEVICE_CHART_COLORS.accent },
           },
           {
-            value: [
-              domainMedian.value.onCount,
-              domainMedian.value.runtime,
-              domainMedian.value.events,
-            ],
+            value: [domainMedian.value.onCount, domainMedian.value.runtime, domainMedian.value.events],
             name: '域平均',
             areaStyle: { color: `${DEVICE_CHART_COLORS.purple}26` },
             lineStyle: { color: DEVICE_CHART_COLORS.purple },
@@ -472,12 +462,7 @@ function resizeCharts() {
 
 function observeChartContainers() {
   if (!resizeObserver) return
-  for (const el of [
-    gridRef.value,
-    usageChartRef.value,
-    hourlyChartRef.value,
-    radarChartRef.value,
-  ]) {
+  for (const el of [gridRef.value, usageChartRef.value, hourlyChartRef.value, radarChartRef.value]) {
     if (el) resizeObserver.observe(el)
   }
 }

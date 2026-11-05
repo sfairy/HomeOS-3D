@@ -27,11 +27,11 @@
  * bun ops/checks/studio/repair_glb_geometry.mjs --json             # 机读报告
  * ```
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { KHRDracoMeshCompression } from '@gltf-transform/extensions';
-import { draco } from '@gltf-transform/functions';
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { KHRDracoMeshCompression } from '@gltf-transform/extensions'
+import { draco } from '@gltf-transform/functions'
 import {
   collectModelVariants,
   listModelFiles,
@@ -42,40 +42,40 @@ import {
   round,
   translationMatrix,
   scalingMatrix,
-} from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs';
+} from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import {
   loadDocument,
   modelStatistics,
   worldBounds,
   writeDocument,
-} from '../../../homeos/frontend/scripts/models/lib/model-document.mjs';
+} from '../../../homeos/frontend/scripts/models/lib/model-document.mjs'
 import {
   DEFAULT_WELD_TOLERANCE,
   analyzeTopology,
   cleanTriangles,
   fillPlanarHoles,
   weldPrimitive,
-} from '../../../homeos/frontend/scripts/models/lib/geometry-ops.mjs';
-import { materialAuditFile } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs';
+} from '../../../homeos/frontend/scripts/models/lib/geometry-ops.mjs'
+import { materialAuditFile } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs'
 
-const hereDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(hereDir, '../../..');
-const frontendDir = path.join(repoRoot, 'homeos/frontend');
-const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models');
-const specsFile = path.join(frontendDir, 'scripts/models/specs/model-specs.json');
-const docsDir = path.dirname(materialAuditFile);
+const hereDir = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.resolve(hereDir, '../../..')
+const frontendDir = path.join(repoRoot, 'homeos/frontend')
+const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models')
+const specsFile = path.join(frontendDir, 'scripts/models/specs/model-specs.json')
+const docsDir = path.dirname(materialAuditFile)
 
 /** 结论阈值：与计划 §1 / audit 脚本一致。 */
-const TARGET_DEVIATION = 0.02;
-const MAX_DEVIATION = 0.05;
-const MAX_NONUNIFORM = 0.1;
+const TARGET_DEVIATION = 0.02
+const MAX_DEVIATION = 0.05
+const MAX_NONUNIFORM = 0.1
 
-const args = process.argv.slice(2);
-const hasFlag = (name) => args.includes(`--${name}`);
+const args = process.argv.slice(2)
+const hasFlag = (name) => args.includes(`--${name}`)
 const valueOf = (name) => {
-  const index = args.indexOf(`--${name}`);
-  return index >= 0 ? args[index + 1] : undefined;
-};
+  const index = args.indexOf(`--${name}`)
+  return index >= 0 ? args[index + 1] : undefined
+}
 
 /* ------------------------------------------------------------------ *
  * 尺寸策略
@@ -96,42 +96,54 @@ const valueOf = (name) => {
  */
 export function decideScale(size, target) {
   if (!Array.isArray(target) || target.length !== 3) {
-    return { mode: 'none', scale: [1, 1, 1], deviation: [], reason: '规格缺失', thinAxes: [false, false, false] };
+    return { mode: 'none', scale: [1, 1, 1], deviation: [], reason: '规格缺失', thinAxes: [false, false, false] }
   }
-  const deviation = size.map((value, axis) => relativeDeviation(value, target[axis]) ?? 0);
-  const longest = Math.max(...target);
-  const thinAxes = target.map((value) => value < longest * 0.05);
-  const scalableAxes = [0, 1, 2].filter((axis) => !thinAxes[axis]);
+  const deviation = size.map((value, axis) => relativeDeviation(value, target[axis]) ?? 0)
+  const longest = Math.max(...target)
+  const thinAxes = target.map((value) => value < longest * 0.05)
+  const scalableAxes = [0, 1, 2].filter((axis) => !thinAxes[axis])
   if (!scalableAxes.length) {
-    return { mode: 'none', scale: [1, 1, 1], deviation, reason: '三轴皆为薄片', thinAxes };
+    return { mode: 'none', scale: [1, 1, 1], deviation, reason: '三轴皆为薄片', thinAxes }
   }
-  const primary = scalableAxes.reduce((best, axis) => (target[axis] > target[best] ? axis : best), scalableAxes[0]);
-  const uniform = target[primary] / size[primary];
+  const primary = scalableAxes.reduce((best, axis) => (target[axis] > target[best] ? axis : best), scalableAxes[0])
+  const uniform = target[primary] / size[primary]
   // 薄轴的毫米级差异照常补齐（地毯 13mm → 12mm 没有视觉意义），
   // 但**不计入形变判定**：不能因为 1mm 厚度去动 2m 的幅面。
-  const perAxis = [0, 1, 2].map((axis) => target[axis] / size[axis]);
-  const distortion = Math.max(...scalableAxes.map((axis) => Math.abs(perAxis[axis] / uniform - 1)));
-  const needed = [0, 1, 2].some((axis) => deviation[axis] > TARGET_DEVIATION);
+  const perAxis = [0, 1, 2].map((axis) => target[axis] / size[axis])
+  const distortion = Math.max(...scalableAxes.map((axis) => Math.abs(perAxis[axis] / uniform - 1)))
+  const needed = [0, 1, 2].some((axis) => deviation[axis] > TARGET_DEVIATION)
   if (!needed) {
     return {
       mode: 'none',
       scale: [1, 1, 1],
       deviation,
-      reason: `可缩放轴偏差 ≤2%（薄轴 ${thinAxes.map((thin, axis) => (thin ? 'xyz'[axis] : '')).filter(Boolean).join('') || '无'} 不参与）`,
+      reason: `可缩放轴偏差 ≤2%（薄轴 ${
+        thinAxes
+          .map((thin, axis) => (thin ? 'xyz'[axis] : ''))
+          .filter(Boolean)
+          .join('') || '无'
+      } 不参与）`,
       thinAxes,
-    };
+    }
   }
   if (distortion <= MAX_NONUNIFORM) {
-    const exact = perAxis.every((value) => Math.abs(value - uniform) < 0.005);
+    const exact = perAxis.every((value) => Math.abs(value - uniform) < 0.005)
     return {
       mode: exact ? 'uniform' : 'per-axis',
       scale: perAxis,
       deviation,
       reason:
-        (exact ? `按${'xyz'[primary]}轴均匀缩放 ${uniform.toFixed(4)}` : `基准 ${'xyz'[primary]} 轴 ${uniform.toFixed(4)}，逐轴补齐（最大形变 ${(distortion * 100).toFixed(1)}%）`) +
-        (thinAxes.some(Boolean) ? `；薄轴 ${thinAxes.map((thin, axis) => (thin ? 'xyz'[axis] : '')).filter(Boolean).join('')} 只补厚度` : ''),
+        (exact
+          ? `按${'xyz'[primary]}轴均匀缩放 ${uniform.toFixed(4)}`
+          : `基准 ${'xyz'[primary]} 轴 ${uniform.toFixed(4)}，逐轴补齐（最大形变 ${(distortion * 100).toFixed(1)}%）`) +
+        (thinAxes.some(Boolean)
+          ? `；薄轴 ${thinAxes
+              .map((thin, axis) => (thin ? 'xyz'[axis] : ''))
+              .filter(Boolean)
+              .join('')} 只补厚度`
+          : ''),
       thinAxes,
-    };
+    }
   }
   return {
     mode: 'waiver',
@@ -139,7 +151,7 @@ export function decideScale(size, target) {
     deviation,
     reason: `比例冲突：按基准轴需形变 ${(distortion * 100).toFixed(1)}% > 10%，保留原生比例待人工判定`,
     thinAxes,
-  };
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -148,20 +160,20 @@ export function decideScale(size, target) {
 
 /** 一份 primitive 的所有顶点属性（含非标准语义，如 TANGENT / COLOR_0）。 */
 function readAttributes(primitive) {
-  const semantics = primitive.listSemantics();
-  const attributes = new Map();
+  const semantics = primitive.listSemantics()
+  const attributes = new Map()
   for (const semantic of semantics) {
-    const accessor = primitive.getAttribute(semantic);
-    if (!accessor) continue;
+    const accessor = primitive.getAttribute(semantic)
+    if (!accessor) continue
     attributes.set(semantic, {
       array: accessor.getArray(),
       elementSize: accessor.getElementSize(),
       type: accessor.getType(),
       normalized: accessor.getNormalized(),
       constructor: accessor.getArray().constructor,
-    });
+    })
   }
-  return attributes;
+  return attributes
 }
 
 /**
@@ -173,30 +185,30 @@ function readAttributes(primitive) {
  * primitive 共享，就地 dispose 会误删别的 primitive 还在用的数据。
  */
 function pruneUnusedAccessors(doc) {
-  const root = doc.getRoot();
-  const used = new Set();
+  const root = doc.getRoot()
+  const used = new Set()
   for (const mesh of root.listMeshes()) {
     for (const primitive of mesh.listPrimitives()) {
-      for (const semantic of primitive.listSemantics()) used.add(primitive.getAttribute(semantic));
-      const indices = primitive.getIndices();
-      if (indices) used.add(indices);
+      for (const semantic of primitive.listSemantics()) used.add(primitive.getAttribute(semantic))
+      const indices = primitive.getIndices()
+      if (indices) used.add(indices)
       for (const target of primitive.listTargets()) {
-        for (const semantic of target.listSemantics()) used.add(target.getAttribute(semantic));
+        for (const semantic of target.listSemantics()) used.add(target.getAttribute(semantic))
       }
     }
   }
   for (const skin of root.listSkins()) {
-    const inverseBind = skin.getInverseBindMatrices();
-    if (inverseBind) used.add(inverseBind);
+    const inverseBind = skin.getInverseBindMatrices()
+    if (inverseBind) used.add(inverseBind)
   }
   for (const animation of root.listAnimations()) {
     for (const sampler of animation.listSamplers()) {
-      used.add(sampler.getInput());
-      used.add(sampler.getOutput());
+      used.add(sampler.getInput())
+      used.add(sampler.getOutput())
     }
   }
   for (const accessor of root.listAccessors()) {
-    if (!used.has(accessor)) accessor.dispose();
+    if (!used.has(accessor)) accessor.dispose()
   }
 }
 
@@ -207,63 +219,60 @@ function writeAttributes(doc, primitive, attributes, indices) {
       .createAccessor()
       .setType(attribute.type)
       .setNormalized(attribute.normalized)
-      .setArray(attribute.array);
-    primitive.setAttribute(semantic, accessor);
+      .setArray(attribute.array)
+    primitive.setAttribute(semantic, accessor)
   }
-  const existing = primitive.getIndices();
-  const indexAccessor = doc
-    .createAccessor()
-    .setType('SCALAR')
-    .setArray(downcastIndices(indices));
-  if (existing) indexAccessor.setNormalized(false);
-  primitive.setIndices(indexAccessor);
+  const existing = primitive.getIndices()
+  const indexAccessor = doc.createAccessor().setType('SCALAR').setArray(downcastIndices(indices))
+  if (existing) indexAccessor.setNormalized(false)
+  primitive.setIndices(indexAccessor)
 }
 
 /** 顶点数没变时没必要用 uint32 下标：能装进 65535 就退回 uint16，bin 小一半。 */
 function downcastIndices(indices) {
-  if (!(indices instanceof Uint32Array)) return indices;
-  let max = 0;
+  if (!(indices instanceof Uint32Array)) return indices
+  let max = 0
   for (let index = 0; index < indices.length; index += 1) {
-    if (indices[index] > max) max = indices[index];
+    if (indices[index] > max) max = indices[index]
   }
-  return max < 65536 ? new Uint16Array(indices) : indices;
+  return max < 65536 ? new Uint16Array(indices) : indices
 }
 
 /** 按 remap 压缩所有顶点属性（保留每个目标顶点第一次写入的值）。 */
 function applyRemap(attributes, remap, vertexCount) {
-  const next = new Map();
+  const next = new Map()
   for (const [semantic, attribute] of attributes) {
-    const { array, elementSize, constructor } = attribute;
-    const output = new constructor(vertexCount * elementSize);
-    const written = new Uint8Array(vertexCount);
+    const { array, elementSize, constructor } = attribute
+    const output = new constructor(vertexCount * elementSize)
+    const written = new Uint8Array(vertexCount)
     for (let vertex = 0; vertex < remap.length; vertex += 1) {
-      const target = remap[vertex];
-      if (written[target]) continue;
-      written[target] = 1;
+      const target = remap[vertex]
+      if (written[target]) continue
+      written[target] = 1
       for (let component = 0; component < elementSize; component += 1) {
-        output[target * elementSize + component] = array[vertex * elementSize + component];
+        output[target * elementSize + component] = array[vertex * elementSize + component]
       }
     }
-    next.set(semantic, { ...attribute, array: output });
+    next.set(semantic, { ...attribute, array: output })
   }
-  return next;
+  return next
 }
 
 /** 去掉没有被任何三角面引用的顶点（删除退化面之后会留下空洞顶点）。 */
 function compactAttributes(attributes, indices) {
-  const vertexCount = [...attributes.values()][0].array.length / [...attributes.values()][0].elementSize;
-  const used = new Uint8Array(vertexCount);
-  for (const index of indices) used[index] = 1;
-  const remap = new Uint32Array(vertexCount);
-  let next = 0;
+  const vertexCount = [...attributes.values()][0].array.length / [...attributes.values()][0].elementSize
+  const used = new Uint8Array(vertexCount)
+  for (const index of indices) used[index] = 1
+  const remap = new Uint32Array(vertexCount)
+  let next = 0
   for (let vertex = 0; vertex < vertexCount; vertex += 1) {
-    if (used[vertex]) remap[vertex] = next++;
-    else remap[vertex] = 0xffffffff;
+    if (used[vertex]) remap[vertex] = next++
+    else remap[vertex] = 0xffffffff
   }
-  if (next === vertexCount) return { attributes, indices, removed: 0 };
-  const nextIndices = new Uint32Array(indices.length);
-  for (let index = 0; index < indices.length; index += 1) nextIndices[index] = remap[indices[index]];
-  return { attributes: applyRemap(attributes, remap, next), indices: nextIndices, removed: vertexCount - next };
+  if (next === vertexCount) return { attributes, indices, removed: 0 }
+  const nextIndices = new Uint32Array(indices.length)
+  for (let index = 0; index < indices.length; index += 1) nextIndices[index] = remap[indices[index]]
+  return { attributes: applyRemap(attributes, remap, next), indices: nextIndices, removed: vertexCount - next }
 }
 
 /**
@@ -271,41 +280,44 @@ function compactAttributes(attributes, indices) {
  * @returns {{attributes: Map, indices: Uint32Array, report: object}}
  */
 function cleanPrimitiveData(primitive, { tolerance, fillHoles }) {
-  const attributes = readAttributes(primitive);
-  const position = attributes.get('POSITION');
-  if (!position) return null;
-  const indexAccessor = primitive.getIndices();
-  const vertexCount = position.array.length / position.elementSize;
+  const attributes = readAttributes(primitive)
+  const position = attributes.get('POSITION')
+  if (!position) return null
+  const indexAccessor = primitive.getIndices()
+  const vertexCount = position.array.length / position.elementSize
   const originalIndices = indexAccessor
     ? new Uint32Array(indexAccessor.getArray())
-    : Uint32Array.from({ length: vertexCount }, (_, index) => index);
+    : Uint32Array.from({ length: vertexCount }, (_, index) => index)
   const extraSemantics = [...attributes.keys()].filter(
     (semantic) => !['POSITION', 'NORMAL', 'TEXCOORD_0'].includes(semantic),
-  );
+  )
   const data = {
     positions: position.array,
     normals: attributes.get('NORMAL')?.array,
     uvs: attributes.get('TEXCOORD_0')?.array,
     indices: originalIndices,
-  };
-  const before = analyzeTopology(data, { tolerance });
+  }
+  const before = analyzeTopology(data, { tolerance })
 
   // 1) 焊接（位置 + 法线 + UV）：所有属性按同一 remap 压缩，TANGENT / COLOR_0 也不错位。
-  const welded = weldPrimitive(data, { tolerance });
-  let nextAttributes = applyRemap(attributes, welded.remap, welded.vertexCount);
-  let nextIndices = welded.primitive.indices;
+  const welded = weldPrimitive(data, { tolerance })
+  let nextAttributes = applyRemap(attributes, welded.remap, welded.vertexCount)
+  let nextIndices = welded.primitive.indices
 
   // 2) 删退化面 / 完全重叠面（只动索引）。
-  const cleaned = cleanTriangles({ positions: nextAttributes.get('POSITION').array, indices: nextIndices }, {
-    mergeable: false,
-  });
-  nextIndices = cleaned.primitive.indices;
+  const cleaned = cleanTriangles(
+    { positions: nextAttributes.get('POSITION').array, indices: nextIndices },
+    {
+      mergeable: false,
+    },
+  )
+  nextIndices = cleaned.primitive.indices
 
   // 3) 补平面洞：只在没有额外属性时做（新增顶点没有 TANGENT / COLOR 可继承）。
-  let holes = { filledLoops: 0, skippedLoops: 0, addedTriangles: 0 };
+  let holes = { filledLoops: 0, skippedLoops: 0, addedTriangles: 0 }
   // 已经有非流形边的件不补洞：那些「边界环」多半是非流形裂缝的副产品，
   // 扇形补上去只会把非流形边越补越多（`piano` 实测 348 → 383）。
-  const canFill = fillHoles && !extraSemantics.length && before.nonManifoldEdges === 0;
+  const canFill = fillHoles && !extraSemantics.length && before.nonManifoldEdges === 0
   if (canFill) {
     const result = fillPlanarHoles(
       {
@@ -315,35 +327,35 @@ function cleanPrimitiveData(primitive, { tolerance, fillHoles }) {
         indices: nextIndices,
       },
       { tolerance, planarityTolerance: Math.max(0.0015, tolerance * 100), minLoopVertices: 4 },
-    );
+    )
     // 面数预算：补洞新增三角面不得超过 this primitive 的 10%（小件另有 24 面的绝对额度）。
     // 没有这条，2m 长的出风口（26 面）会被补成 54 面（+107%），注册表口径的 10% 直接爆掉。
-    const triangleBudget = Math.max(24, (nextIndices.length / 3) * 0.1);
-    const overBudget = result.addedTriangles > triangleBudget;
+    const triangleBudget = Math.max(24, (nextIndices.length / 3) * 0.1)
+    const overBudget = result.addedTriangles > triangleBudget
     if (result.addedTriangles > 0 && !overBudget) {
-      holes = result;
-      nextIndices = result.primitive.indices;
+      holes = result
+      nextIndices = result.primitive.indices
       nextAttributes.set('POSITION', {
         ...nextAttributes.get('POSITION'),
         array: result.primitive.positions,
-      });
-      const normalAttribute = nextAttributes.get('NORMAL');
+      })
+      const normalAttribute = nextAttributes.get('NORMAL')
       if (normalAttribute && result.primitive.normals) {
-        nextAttributes.set('NORMAL', { ...normalAttribute, array: result.primitive.normals });
+        nextAttributes.set('NORMAL', { ...normalAttribute, array: result.primitive.normals })
       }
-      const uvAttribute = nextAttributes.get('TEXCOORD_0');
+      const uvAttribute = nextAttributes.get('TEXCOORD_0')
       if (uvAttribute && result.primitive.uvs) {
-        nextAttributes.set('TEXCOORD_0', { ...uvAttribute, array: result.primitive.uvs });
+        nextAttributes.set('TEXCOORD_0', { ...uvAttribute, array: result.primitive.uvs })
       }
     } else if (overBudget) {
-      holes = { filledLoops: 0, skippedLoops: result.skippedLoops + result.filledLoops, addedTriangles: 0 };
+      holes = { filledLoops: 0, skippedLoops: result.skippedLoops + result.filledLoops, addedTriangles: 0 }
     }
   }
 
   // 4) 压实：删面之后留下的孤立顶点一并去掉。
-  const compacted = compactAttributes(nextAttributes, nextIndices);
-  nextAttributes = compacted.attributes;
-  nextIndices = compacted.indices;
+  const compacted = compactAttributes(nextAttributes, nextIndices)
+  nextAttributes = compacted.attributes
+  nextIndices = compacted.indices
 
   // 5) 闭合壳若有向体积为负 → 整体翻面（法线朝内是导出器常见错误）。
   const afterTopology = analyzeTopology(
@@ -352,34 +364,34 @@ function cleanPrimitiveData(primitive, { tolerance, fillHoles }) {
       indices: nextIndices,
     },
     { tolerance },
-  );
-  let flipped = false;
-  const closed = afterTopology.boundaryEdges === 0 && afterTopology.nonManifoldEdges === 0;
+  )
+  let flipped = false
+  const closed = afterTopology.boundaryEdges === 0 && afterTopology.nonManifoldEdges === 0
   if (closed && afterTopology.signedVolume < -1e-9) {
     for (let offset = 0; offset < nextIndices.length; offset += 3) {
-      const swap = nextIndices[offset + 1];
-      nextIndices[offset + 1] = nextIndices[offset + 2];
-      nextIndices[offset + 2] = swap;
+      const swap = nextIndices[offset + 1]
+      nextIndices[offset + 1] = nextIndices[offset + 2]
+      nextIndices[offset + 2] = swap
     }
-    const normalAttribute = nextAttributes.get('NORMAL');
+    const normalAttribute = nextAttributes.get('NORMAL')
     if (normalAttribute) {
-      const array = normalAttribute.array;
-      for (let index = 0; index < array.length; index += 1) array[index] = -array[index];
-      nextAttributes.set('NORMAL', { ...normalAttribute, array });
+      const array = normalAttribute.array
+      for (let index = 0; index < array.length; index += 1) array[index] = -array[index]
+      nextAttributes.set('NORMAL', { ...normalAttribute, array })
     }
-    flipped = true;
+    flipped = true
   }
 
   const afterTopologyFinal = analyzeTopology(
     { positions: nextAttributes.get('POSITION').array, indices: nextIndices },
     { tolerance },
-  );
+  )
   // 不回退规则：机械清理绝不允许把拓扑改坏。SimLab 那批（`piano` / `tea-bar-machine`）
   // 的「重复顶点」其实是相邻壳共用的缝合点，焊上会新造非流形边；删退化面也可能正好
   // 拆掉堵住裂缝的那片。这类件原样保留，交人工 / 后续重建处理。
   const regressed =
     afterTopologyFinal.nonManifoldEdges > before.nonManifoldEdges ||
-    afterTopologyFinal.boundaryEdges > before.boundaryEdges;
+    afterTopologyFinal.boundaryEdges > before.boundaryEdges
   if (regressed) {
     return {
       attributes,
@@ -397,7 +409,7 @@ function cleanPrimitiveData(primitive, { tolerance, fillHoles }) {
         reverted: true,
         revertReason: `拓扑回退：非流形 ${before.nonManifoldEdges}→${afterTopologyFinal.nonManifoldEdges}，边界 ${before.boundaryEdges}→${afterTopologyFinal.boundaryEdges}`,
       },
-    };
+    }
   }
 
   return {
@@ -415,41 +427,41 @@ function cleanPrimitiveData(primitive, { tolerance, fillHoles }) {
       flipped,
       reverted: false,
     },
-  };
+  }
 }
 /** 把一条 primitive 的当前数组读成纯数据（含所有顶点语义）。 */
 function snapshotPrimitive(primitive) {
-  const attributes = readAttributes(primitive);
-  const position = attributes.get('POSITION');
-  if (!position) return null;
-  const indexAccessor = primitive.getIndices();
-  const vertexCount = position.array.length / position.elementSize;
+  const attributes = readAttributes(primitive)
+  const position = attributes.get('POSITION')
+  if (!position) return null
+  const indexAccessor = primitive.getIndices()
+  const vertexCount = position.array.length / position.elementSize
   const indices = indexAccessor
     ? new Uint32Array(indexAccessor.getArray())
-    : Uint32Array.from({ length: vertexCount }, (_, index) => index);
-  return { attributes, indices };
+    : Uint32Array.from({ length: vertexCount }, (_, index) => index)
+  return { attributes, indices }
 }
 
 /** 恢复快照（原样写回，不做任何清理）。 */
 function restorePrimitive(doc, primitive, snapshot) {
-  writeAttributes(doc, primitive, snapshot.attributes, snapshot.indices);
+  writeAttributes(doc, primitive, snapshot.attributes, snapshot.indices)
 }
 
 /** 一条 primitive 的拓扑合计（本地坐标口径）。 */
 function topologyTotals(doc, tolerances) {
-  const totals = { nonManifoldEdges: 0, boundaryEdges: 0, triangles: 0 };
+  const totals = { nonManifoldEdges: 0, boundaryEdges: 0, triangles: 0 }
   for (const [primitive, tolerance] of tolerances) {
-    const snapshot = snapshotPrimitive(primitive);
-    if (!snapshot) continue;
+    const snapshot = snapshotPrimitive(primitive)
+    if (!snapshot) continue
     const topology = analyzeTopology(
       { positions: snapshot.attributes.get('POSITION').array, indices: snapshot.indices },
       { tolerance },
-    );
-    totals.nonManifoldEdges += topology.nonManifoldEdges;
-    totals.boundaryEdges += topology.boundaryEdges;
-    totals.triangles += snapshot.indices.length / 3;
+    )
+    totals.nonManifoldEdges += topology.nonManifoldEdges
+    totals.boundaryEdges += topology.boundaryEdges
+    totals.triangles += snapshot.indices.length / 3
   }
-  return totals;
+  return totals
 }
 
 /**
@@ -473,91 +485,93 @@ function cleanDocument(doc, { fillHoles }) {
     modelReverted: false,
     skipped: [],
     revertReasons: [],
-  };
-  const processed = new Set();
-  const tolerances = new Map();
-  const snapshots = [];
+  }
+  const processed = new Set()
+  const tolerances = new Map()
+  const snapshots = []
   for (const node of doc.getRoot().listNodes()) {
-    const mesh = node.getMesh();
-    if (!mesh) continue;
-    const worldScale = maxAxisScale(node.getWorldMatrix());
-    const tolerance = DEFAULT_WELD_TOLERANCE / Math.max(worldScale, 1e-9);
+    const mesh = node.getMesh()
+    if (!mesh) continue
+    const worldScale = maxAxisScale(node.getWorldMatrix())
+    const tolerance = DEFAULT_WELD_TOLERANCE / Math.max(worldScale, 1e-9)
     for (const primitive of mesh.listPrimitives()) {
       if (processed.has(primitive)) {
         if (tolerances.get(primitive) !== tolerance) {
-          report.skipped.push({ node: node.getName(), reason: '共享网格的节点缩放不一致，只处理首份' });
+          report.skipped.push({ node: node.getName(), reason: '共享网格的节点缩放不一致，只处理首份' })
         }
-        continue;
+        continue
       }
-      processed.add(primitive);
-      const snapshot = snapshotPrimitive(primitive);
-      if (!snapshot) continue;
-      snapshots.push({ primitive, snapshot, tolerance });
-      tolerances.set(primitive, tolerance);
+      processed.add(primitive)
+      const snapshot = snapshotPrimitive(primitive)
+      if (!snapshot) continue
+      snapshots.push({ primitive, snapshot, tolerance })
+      tolerances.set(primitive, tolerance)
     }
   }
-  const beforeTotals = topologyTotals(doc, tolerances);
+  const beforeTotals = topologyTotals(doc, tolerances)
 
-  const prepared = [];
+  const prepared = []
   for (const { primitive, tolerance } of snapshots) {
-    const filled = cleanPrimitiveData(primitive, { tolerance, fillHoles });
-    if (!filled) continue;
+    const filled = cleanPrimitiveData(primitive, { tolerance, fillHoles })
+    if (!filled) continue
     // 同一份 primitive 再算一遍「只焊接不补洞」，留着做模型级面数预算的回退版本。
-    const plain = filled.report.holesFilled ? cleanPrimitiveData(primitive, { tolerance, fillHoles: false }) : filled;
-    prepared.push({ primitive, filled, plain });
+    const plain = filled.report.holesFilled ? cleanPrimitiveData(primitive, { tolerance, fillHoles: false }) : filled
+    prepared.push({ primitive, filled, plain })
   }
   // 模型级面数预算（计划 §1：机械修复前后三角面变化 ≤10%）。
   // 小件上「补一个 2cm² 的洞」就能让整件面数 +100%，这种补洞要整件放弃，
   // 不能靠 primitive 级预算挡 —— 出风口 26 面、落地灯 76 面都是这么被挡住的。
-  const filledTriangles = prepared.reduce((sum, item) => sum + (item.filled.report.after?.triangles ?? 0), 0);
-  const plainTriangles = prepared.reduce((sum, item) => sum + (item.plain.report.after?.triangles ?? 0), 0);
-  const triangleGrowth = beforeTotals.triangles ? (filledTriangles - plainTriangles) / beforeTotals.triangles : 0;
-  const allowFill = triangleGrowth <= 0.1;
+  const filledTriangles = prepared.reduce((sum, item) => sum + (item.filled.report.after?.triangles ?? 0), 0)
+  const plainTriangles = prepared.reduce((sum, item) => sum + (item.plain.report.after?.triangles ?? 0), 0)
+  const triangleGrowth = beforeTotals.triangles ? (filledTriangles - plainTriangles) / beforeTotals.triangles : 0
+  const allowFill = triangleGrowth <= 0.1
   if (!allowFill) {
     report.revertReasons.push({
       reason: `补洞使面数 +${(triangleGrowth * 100).toFixed(1)}% > 10%，整件保留未补洞版本`,
-    });
+    })
   }
 
   for (const item of prepared) {
-    const { primitive, filled } = item;
-    const result = allowFill ? item.filled : item.plain;
-    report.primitives += 1;
-    report.weldedVertices += result.report.weldedVertices;
-    report.degenerateFaces += result.report.degenerateFaces;
-    report.duplicatedFaces += result.report.duplicatedFaces;
-    report.compactedVertices += result.report.compactedVertices;
-    report.holesFilled += allowFill ? result.report.holesFilled : 0;
-    report.holesSkipped += allowFill ? result.report.holesSkipped : result.report.holesSkipped + filled.report.holesFilled;
-    report.flipped += result.report.flipped ? 1 : 0;
+    const { primitive, filled } = item
+    const result = allowFill ? item.filled : item.plain
+    report.primitives += 1
+    report.weldedVertices += result.report.weldedVertices
+    report.degenerateFaces += result.report.degenerateFaces
+    report.duplicatedFaces += result.report.duplicatedFaces
+    report.compactedVertices += result.report.compactedVertices
+    report.holesFilled += allowFill ? result.report.holesFilled : 0
+    report.holesSkipped += allowFill
+      ? result.report.holesSkipped
+      : result.report.holesSkipped + filled.report.holesFilled
+    report.flipped += result.report.flipped ? 1 : 0
     if (result.report.reverted) {
-      report.revertedPrimitives += 1;
-      report.revertReasons.push({ reason: result.report.revertReason });
+      report.revertedPrimitives += 1
+      report.revertReasons.push({ reason: result.report.revertReason })
     }
-    writeAttributes(doc, primitive, result.attributes, result.indices);
+    writeAttributes(doc, primitive, result.attributes, result.indices)
   }
 
-  const afterTotals = topologyTotals(doc, tolerances);
-  report.before = beforeTotals;
-  report.after = afterTotals;
+  const afterTotals = topologyTotals(doc, tolerances)
+  report.before = beforeTotals
+  report.after = afterTotals
   if (
     afterTotals.nonManifoldEdges > beforeTotals.nonManifoldEdges ||
     afterTotals.boundaryEdges > beforeTotals.boundaryEdges
   ) {
-    for (const { primitive, snapshot } of snapshots) restorePrimitive(doc, primitive, snapshot);
-    report.modelReverted = true;
+    for (const { primitive, snapshot } of snapshots) restorePrimitive(doc, primitive, snapshot)
+    report.modelReverted = true
     report.revertReasons.push({
       reason: `整件回退：非流形 ${beforeTotals.nonManifoldEdges}→${afterTotals.nonManifoldEdges}，边界 ${beforeTotals.boundaryEdges}→${afterTotals.boundaryEdges}`,
-    });
-    report.weldedVertices = 0;
-    report.degenerateFaces = 0;
-    report.duplicatedFaces = 0;
-    report.compactedVertices = 0;
-    report.holesFilled = 0;
-    report.flipped = 0;
-    report.after = beforeTotals;
+    })
+    report.weldedVertices = 0
+    report.degenerateFaces = 0
+    report.duplicatedFaces = 0
+    report.compactedVertices = 0
+    report.holesFilled = 0
+    report.flipped = 0
+    report.after = beforeTotals
   }
-  return report;
+  return report
 }
 
 /* ------------------------------------------------------------------ *
@@ -565,13 +579,16 @@ function cleanDocument(doc, { fillHoles }) {
  * ------------------------------------------------------------------ */
 
 function rootNodes(doc) {
-  return doc.getRoot().listNodes().filter((node) => !node.getParentNode());
+  return doc
+    .getRoot()
+    .listNodes()
+    .filter((node) => !node.getParentNode())
 }
 
 /** 对根节点左乘一个矩阵（`node.matrix = M * node.matrix`）。 */
 function prependTransform(doc, matrix) {
   for (const node of rootNodes(doc)) {
-    node.setMatrix(multiplyMatrix(matrix, node.getMatrix()));
+    node.setMatrix(multiplyMatrix(matrix, node.getMatrix()))
   }
 }
 
@@ -582,35 +599,31 @@ function prependTransform(doc, matrix) {
  * 壁挂/吊顶件用「包围盒中心」，挂载点不动。
  */
 function normalizeTransform(doc, { scale, mount }) {
-  const before = worldBounds(doc);
+  const before = worldBounds(doc)
   const pivot =
     mount === 'wall' || mount === 'ceiling'
-      ? [
-          (before.min[0] + before.max[0]) / 2,
-          (before.min[1] + before.max[1]) / 2,
-          (before.min[2] + before.max[2]) / 2,
-        ]
-      : [(before.min[0] + before.max[0]) / 2, before.min[1], (before.min[2] + before.max[2]) / 2];
-  const scaling = scalingMatrix(scale);
+      ? [(before.min[0] + before.max[0]) / 2, (before.min[1] + before.max[1]) / 2, (before.min[2] + before.max[2]) / 2]
+      : [(before.min[0] + before.max[0]) / 2, before.min[1], (before.min[2] + before.max[2]) / 2]
+  const scaling = scalingMatrix(scale)
   const scaleAboutPivot = multiplyMatrix(
     translationMatrix(pivot[0], pivot[1], pivot[2]),
     multiplyMatrix(scaling, translationMatrix(-pivot[0], -pivot[1], -pivot[2])),
-  );
-  prependTransform(doc, scaleAboutPivot);
-  const afterScale = worldBounds(doc);
+  )
+  prependTransform(doc, scaleAboutPivot)
+  const afterScale = worldBounds(doc)
   if (mount === 'wall' || mount === 'ceiling') {
     // 只把水平方向居中；高度与贴墙深度保持模型原义（`elevation` 由场景决定）。
-    const centerX = (afterScale.min[0] + afterScale.max[0]) / 2;
-    if (Math.abs(centerX) > 1e-6) prependTransform(doc, translationMatrix(-centerX, 0, 0));
-    return { grounded: false, shift: [-centerX, 0, 0] };
+    const centerX = (afterScale.min[0] + afterScale.max[0]) / 2
+    if (Math.abs(centerX) > 1e-6) prependTransform(doc, translationMatrix(-centerX, 0, 0))
+    return { grounded: false, shift: [-centerX, 0, 0] }
   }
   const shift = [
     -(afterScale.min[0] + afterScale.max[0]) / 2,
     -afterScale.min[1],
     -(afterScale.min[2] + afterScale.max[2]) / 2,
-  ];
-  prependTransform(doc, translationMatrix(shift[0], shift[1], shift[2]));
-  return { grounded: true, shift };
+  ]
+  prependTransform(doc, translationMatrix(shift[0], shift[1], shift[2]))
+  return { grounded: true, shift }
 }
 
 /* ------------------------------------------------------------------ *
@@ -619,20 +632,20 @@ function normalizeTransform(doc, { scale, mount }) {
 
 /** lite 额外要求：材质必须与完整件逐字节等价（槽位名 / 顺序 / PBR 参数）。 */
 async function writeLiteGuarded(doc, litePath, { write, reference }) {
-  const original = fs.existsSync(litePath) ? fs.readFileSync(litePath) : null;
-  await writeLite(doc, litePath, { write });
-  const expected = preservationFingerprint(reference);
-  const actual = preservationFingerprint(litePath);
+  const original = fs.existsSync(litePath) ? fs.readFileSync(litePath) : null
+  await writeLite(doc, litePath, { write })
+  const expected = preservationFingerprint(reference)
+  const actual = preservationFingerprint(litePath)
   // lite 比完整件多一条 KHR_draco_mesh_compression，扩展声明必然不同，其余必须一致。
-  const drift = fingerprintDrift(expected, actual, { ignoreExtensions: true });
-  if (!drift.length) return { drift: [], restored: false };
-  if (original) fs.writeFileSync(litePath, original);
-  return { drift, restored: true };
+  const drift = fingerprintDrift(expected, actual, { ignoreExtensions: true })
+  if (!drift.length) return { drift: [], restored: false }
+  if (original) fs.writeFileSync(litePath, original)
+  return { drift, restored: true }
 }
 
 async function writeLite(doc, litePath, { write }) {
-  pruneUnusedAccessors(doc);
-  doc.createExtension(KHRDracoMeshCompression).setRequired(true);
+  pruneUnusedAccessors(doc)
+  doc.createExtension(KHRDracoMeshCompression).setRequired(true)
   await doc.transform(
     draco({
       method: 'edgebreaker',
@@ -642,8 +655,8 @@ async function writeLite(doc, litePath, { write }) {
       quantizeColor: 8,
       quantizeGeneric: 12,
     }),
-  );
-  if (write) await writeDocument(doc, litePath);
+  )
+  if (write) await writeDocument(doc, litePath)
 }
 
 /* ------------------------------------------------------------------ *
@@ -657,16 +670,16 @@ async function writeLite(doc, litePath, { write }) {
  * 这些对渲染零影响，却会让闸门把好模型全挡下来。
  */
 function canonicalJson(value) {
-  if (Array.isArray(value)) return value.length ? value.map(canonicalJson) : null;
+  if (Array.isArray(value)) return value.length ? value.map(canonicalJson) : null
   if (value && typeof value === 'object') {
-    const out = {};
+    const out = {}
     for (const key of Object.keys(value).sort()) {
-      const normalized = canonicalJson(value[key]);
-      if (normalized !== null && normalized !== undefined) out[key] = normalized;
+      const normalized = canonicalJson(value[key])
+      if (normalized !== null && normalized !== undefined) out[key] = normalized
     }
-    return Object.keys(out).length ? out : null;
+    return Object.keys(out).length ? out : null
   }
-  return value;
+  return value
 }
 
 /**
@@ -680,26 +693,26 @@ function materialFingerprint(materials = []) {
   return JSON.stringify(
     canonicalJson(
       materials.map((material) => {
-        const copy = JSON.parse(JSON.stringify(material));
-        if (copy.alphaMode === 'OPAQUE') delete copy.alphaMode;
-        if (copy.alphaCutoff === 0.5) delete copy.alphaCutoff;
-        if (copy.doubleSided === false) delete copy.doubleSided;
-        if (Array.isArray(copy.emissiveFactor) && copy.emissiveFactor.every((v) => v === 0)) delete copy.emissiveFactor;
-        if (copy.normalTexture?.scale === 1) delete copy.normalTexture.scale;
-        if (copy.occlusionTexture?.strength === 1) delete copy.occlusionTexture.strength;
-        const pbr = copy.pbrMetallicRoughness;
+        const copy = JSON.parse(JSON.stringify(material))
+        if (copy.alphaMode === 'OPAQUE') delete copy.alphaMode
+        if (copy.alphaCutoff === 0.5) delete copy.alphaCutoff
+        if (copy.doubleSided === false) delete copy.doubleSided
+        if (Array.isArray(copy.emissiveFactor) && copy.emissiveFactor.every((v) => v === 0)) delete copy.emissiveFactor
+        if (copy.normalTexture?.scale === 1) delete copy.normalTexture.scale
+        if (copy.occlusionTexture?.strength === 1) delete copy.occlusionTexture.strength
+        const pbr = copy.pbrMetallicRoughness
         if (pbr) {
           if (Array.isArray(pbr.baseColorFactor) && pbr.baseColorFactor.every((v) => v === 1)) {
-            delete pbr.baseColorFactor;
+            delete pbr.baseColorFactor
           }
-          if (pbr.metallicFactor === 1) delete pbr.metallicFactor;
-          if (pbr.roughnessFactor === 1) delete pbr.roughnessFactor;
-          if (!Object.keys(pbr).length) delete copy.pbrMetallicRoughness;
+          if (pbr.metallicFactor === 1) delete pbr.metallicFactor
+          if (pbr.roughnessFactor === 1) delete pbr.roughnessFactor
+          if (!Object.keys(pbr).length) delete copy.pbrMetallicRoughness
         }
-        return copy;
+        return copy
       }),
     ),
-  );
+  )
 }
 
 /**
@@ -713,15 +726,17 @@ function materialFingerprint(materials = []) {
  * 重新排布都是 glTF-Transform 的常规输出差异，不影响渲染，不该触发回滚。
  */
 function preservationFingerprint(filePath) {
-  const { json } = parseGlb(fs.readFileSync(filePath));
-  const bufferViews = json.bufferViews ?? [];
+  const { json } = parseGlb(fs.readFileSync(filePath))
+  const bufferViews = json.bufferViews ?? []
   return {
     materials: materialFingerprint(json.materials),
     // 纹理只比「指向哪张图」；多写一个默认 sampler 不影响采样。
     textures: JSON.stringify((json.textures ?? []).map((texture) => texture.source ?? null)),
     // 图片按 mime + 字节长度比：bufferView 下标会重排，字节数才是内容证据。
     images: JSON.stringify(
-      (json.images ?? []).map((image) => `${image.mimeType ?? ''}:${bufferViews[image.bufferView]?.byteLength ?? 0}`).sort(),
+      (json.images ?? [])
+        .map((image) => `${image.mimeType ?? ''}:${bufferViews[image.bufferView]?.byteLength ?? 0}`)
+        .sort(),
     ),
     // 原文件没有 sampler 时，补一个默认 sampler 属于无害差异。
     samplers: (json.samplers ?? []).length ? JSON.stringify(canonicalJson(json.samplers)) : 'none',
@@ -731,29 +746,29 @@ function preservationFingerprint(filePath) {
     primitiveMaterials: JSON.stringify(
       (json.meshes ?? []).map((mesh) => (mesh.primitives ?? []).map((primitive) => primitive.material ?? null)),
     ),
-  };
+  }
 }
 
 /** 比对两份指纹，返回漂移字段名列表（空数组 = 完好）。 */
 function fingerprintDrift(before, after, { ignoreExtensions = false } = {}) {
   return Object.keys(before).filter((field) => {
-    if (ignoreExtensions && (field === 'extensionsUsed' || field === 'extensionsRequired')) return false;
+    if (ignoreExtensions && (field === 'extensionsUsed' || field === 'extensionsRequired')) return false
     // 原文件没写 sampler 时补一个默认值无害（`wrapS/T = REPEAT` 就是默认）。
-    if (field === 'samplers' && before[field] === 'none') return false;
-    return before[field] !== after[field];
-  });
+    if (field === 'samplers' && before[field] === 'none') return false
+    return before[field] !== after[field]
+  })
 }
 
 /** 写文件 + 回读校验；漂移则还原原始字节。 */
 async function writeGuarded(doc, filePath) {
-  const original = fs.readFileSync(filePath);
-  const before = preservationFingerprint(filePath);
-  pruneUnusedAccessors(doc);
-  await writeDocument(doc, filePath);
-  const drift = fingerprintDrift(before, preservationFingerprint(filePath));
-  if (!drift.length) return { drift: [], restored: false };
-  fs.writeFileSync(filePath, original);
-  return { drift, restored: true };
+  const original = fs.readFileSync(filePath)
+  const before = preservationFingerprint(filePath)
+  pruneUnusedAccessors(doc)
+  await writeDocument(doc, filePath)
+  const drift = fingerprintDrift(before, preservationFingerprint(filePath))
+  if (!drift.length) return { drift: [], restored: false }
+  fs.writeFileSync(filePath, original)
+  return { drift, restored: true }
 }
 
 /* ------------------------------------------------------------------ *
@@ -761,48 +776,51 @@ async function writeGuarded(doc, filePath) {
  * ------------------------------------------------------------------ */
 
 function loadSpecs() {
-  const payload = JSON.parse(fs.readFileSync(specsFile, 'utf8'));
-  return new Map(payload.models.map((spec) => [spec.id, spec]));
+  const payload = JSON.parse(fs.readFileSync(specsFile, 'utf8'))
+  return new Map(payload.models.map((spec) => [spec.id, spec]))
 }
 
 async function main() {
-  const write = hasFlag('write');
-  const fillHoles = !hasFlag('no-fill');
-  const json = hasFlag('json');
-  const only = valueOf('model')?.split(',').map((id) => id.trim()).filter(Boolean);
-  const specs = loadSpecs();
-  const variants = collectModelVariants(listModelFiles());
-  const results = [];
+  const write = hasFlag('write')
+  const fillHoles = !hasFlag('no-fill')
+  const json = hasFlag('json')
+  const only = valueOf('model')
+    ?.split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+  const specs = loadSpecs()
+  const variants = collectModelVariants(listModelFiles())
+  const results = []
 
   for (const [id, variantMap] of [...variants].sort(([left], [right]) => left.localeCompare(right))) {
-    if (only && !only.includes(id)) continue;
-    const spec = specs.get(id);
+    if (only && !only.includes(id)) continue
+    const spec = specs.get(id)
     if (!spec) {
-      results.push({ id, action: 'skip', reason: 'spec 缺失' });
-      continue;
+      results.push({ id, action: 'skip', reason: 'spec 缺失' })
+      continue
     }
-    const fullPath = variantMap.full ? path.join(modelsDir, variantMap.full) : null;
-    const litePath = variantMap.lite ? path.join(modelsDir, variantMap.lite) : null;
-    const sourcePath = fullPath ?? litePath;
-    const doc = await loadDocument(sourcePath);
+    const fullPath = variantMap.full ? path.join(modelsDir, variantMap.full) : null
+    const litePath = variantMap.lite ? path.join(modelsDir, variantMap.lite) : null
+    const sourcePath = fullPath ?? litePath
+    const doc = await loadDocument(sourcePath)
     try {
-      const before = worldBounds(doc);
-      const beforeStats = modelStatistics(doc);
-      const decision = decideScale(before.size, spec.size);
-      const cleanReport = cleanDocument(doc, { fillHoles: fillHoles && spec.topologyClass === 'solid' });
-      let transformReport = { grounded: false, shift: [0, 0, 0] };
+      const before = worldBounds(doc)
+      const beforeStats = modelStatistics(doc)
+      const decision = decideScale(before.size, spec.size)
+      const cleanReport = cleanDocument(doc, { fillHoles: fillHoles && spec.topologyClass === 'solid' })
+      let transformReport = { grounded: false, shift: [0, 0, 0] }
       if (decision.mode === 'uniform' || decision.mode === 'per-axis') {
-        transformReport = normalizeTransform(doc, { scale: decision.scale, mount: spec.mount });
+        transformReport = normalizeTransform(doc, { scale: decision.scale, mount: spec.mount })
       } else {
         // 尺寸达标或判定 waiver 也要落地：底面 y=0、x/z 居中（壁挂件不动）。
-        transformReport = normalizeTransform(doc, { scale: [1, 1, 1], mount: spec.mount });
+        transformReport = normalizeTransform(doc, { scale: [1, 1, 1], mount: spec.mount })
       }
-      const after = worldBounds(doc);
-      const afterStats = modelStatistics(doc);
-      const deviationAfter = after.size.map((value, axis) => round(relativeDeviation(value, spec.size[axis]) ?? 0, 4));
+      const after = worldBounds(doc)
+      const afterStats = modelStatistics(doc)
+      const deviationAfter = after.size.map((value, axis) => round(relativeDeviation(value, spec.size[axis]) ?? 0, 4))
       const triangleDelta = beforeStats.triangles
         ? round((afterStats.triangles - beforeStats.triangles) / beforeStats.triangles, 4)
-        : 0;
+        : 0
       const row = {
         id,
         name: spec.name,
@@ -842,32 +860,32 @@ async function main() {
         transform: transformReport,
         wrote: false,
         liteRegenerated: false,
-      };
+      }
       if (write) {
-        const target = fullPath ?? litePath;
-        const guard = await writeGuarded(doc, target);
-        row.materialGuard = guard;
-        row.wrote = !guard.restored;
+        const target = fullPath ?? litePath
+        const guard = await writeGuarded(doc, target)
+        row.materialGuard = guard
+        row.wrote = !guard.restored
         if (guard.restored) {
           // 材质漂移 = 致命，直接放弃这件，别让 lite 去覆盖一个被改坏的完整件。
-          row.error = `材质/纹理漂移已回滚：${guard.drift.join(', ')}`;
-          results.push(row);
-          continue;
+          row.error = `材质/纹理漂移已回滚：${guard.drift.join(', ')}`
+          results.push(row)
+          continue
         }
         if (litePath) {
           // lite 从**修好的完整件**重出：同一份几何，只差 Draco 压缩。
-          const liteDoc = await loadDocument(fullPath ?? litePath);
-          const liteGuard = await writeLiteGuarded(liteDoc, litePath, { write, reference: fullPath ?? litePath });
-          liteDoc.getRoot().dispose?.();
-          row.liteRegenerated = !liteGuard.restored;
-          row.liteGuard = liteGuard;
+          const liteDoc = await loadDocument(fullPath ?? litePath)
+          const liteGuard = await writeLiteGuarded(liteDoc, litePath, { write, reference: fullPath ?? litePath })
+          liteDoc.getRoot().dispose?.()
+          row.liteRegenerated = !liteGuard.restored
+          row.liteGuard = liteGuard
         }
       }
-      results.push(row);
+      results.push(row)
     } catch (error) {
-      results.push({ id, action: 'error', reason: error.message });
+      results.push({ id, action: 'error', reason: error.message })
     } finally {
-      doc.getRoot().dispose?.();
+      doc.getRoot().dispose?.()
     }
   }
 
@@ -886,7 +904,7 @@ async function main() {
     nonManifoldAfter: results.reduce((sum, row) => sum + (row.after?.nonManifoldEdges ?? 0), 0),
     boundaryBefore: results.reduce((sum, row) => sum + (row.before?.boundaryEdges ?? 0), 0),
     boundaryAfter: results.reduce((sum, row) => sum + (row.after?.boundaryEdges ?? 0), 0),
-  };
+  }
 
   const payload = {
     generatedAt: new Date().toISOString(),
@@ -895,24 +913,24 @@ async function main() {
     thresholds: { TARGET_DEVIATION, MAX_DEVIATION, MAX_NONUNIFORM },
     summary,
     models: results,
-  };
+  }
 
   if (json) {
-    process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
-    return;
+    process.stdout.write(JSON.stringify(payload, null, 2) + '\n')
+    return
   }
-  console.log(JSON.stringify(summary, null, 2));
+  console.log(JSON.stringify(summary, null, 2))
   if (write) {
-    fs.mkdirSync(docsDir, { recursive: true });
-    const reportFile = path.join(docsDir, 'glb-geometry-repair.json');
-    fs.writeFileSync(reportFile, JSON.stringify(payload, null, 2) + '\n');
-    console.log('写入 ' + path.relative(repoRoot, reportFile));
+    fs.mkdirSync(docsDir, { recursive: true })
+    const reportFile = path.join(docsDir, 'glb-geometry-repair.json')
+    fs.writeFileSync(reportFile, JSON.stringify(payload, null, 2) + '\n')
+    console.log('写入 ' + path.relative(repoRoot, reportFile))
   } else {
-    console.log('（dry-run：加 --write 才落盘）');
+    console.log('（dry-run：加 --write 才落盘）')
   }
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+  console.error(error)
+  process.exit(1)
+})

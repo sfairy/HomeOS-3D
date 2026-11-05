@@ -85,9 +85,7 @@ export function getEmergencyPresets(): EmergencyPresetDef[] {
  * @param raw - 用户输入的部分配置；为空时使用全部默认值。
  * @returns 合并并清洗后的完整 SecurityEmergencyConfig。
  */
-export function normalizeSecurityEmergency(
-  raw: Partial<SecurityEmergencyConfig> = {},
-): SecurityEmergencyConfig {
+export function normalizeSecurityEmergency(raw: Partial<SecurityEmergencyConfig> = {}): SecurityEmergencyConfig {
   const cfg: SecurityEmergencyConfig = {
     ...DEFAULT_SECURITY_EMERGENCY,
     ...raw,

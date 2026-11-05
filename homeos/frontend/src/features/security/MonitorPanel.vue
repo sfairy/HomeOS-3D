@@ -285,11 +285,9 @@ const monitorOfflineReason = computed(() => {
 
 // 配合主标题的副提示，引导用户检查配置或重连
 const monitorOfflineHint = computed(() => {
-  if (!mainCameraItem.value)
-    return '请在「设置 → 集成绑定 → 安防」中配置 securityCameras'
+  if (!mainCameraItem.value) return '请在「设置 → 集成绑定 → 安防」中配置 securityCameras'
   if (!entitiesStore.connected) return '连接恢复后将自动重试拉流；也可点击顶部「重试连接」'
-  if (isCameraOffline(mainCameraKey.value))
-    return '请检查 camera 实体是否在 HA 中可用（Frigate/集成离线时属正常现象）'
+  if (isCameraOffline(mainCameraKey.value)) return '请检查 camera 实体是否在 HA 中可用（Frigate/集成离线时属正常现象）'
   return '请确认 HA Token 有效且 camera 支持 proxy_stream'
 })
 
@@ -359,9 +357,13 @@ function startCarousel() {
   stopCarousel()
   if (!carouselSec.value || viewMode.value !== 'grid' || cameraItems.value.length < 2) return
   // 摄像头轮巡经全局调度器驱动（页面隐藏时暂停，恢复可见后继续轮巡）
-  carouselCancel = schedulePoll('security:monitor-carousel', () => {
-    carouselIndex.value = (carouselIndex.value + 1) % cameraItems.value.length
-  }, carouselSec.value * 1000)
+  carouselCancel = schedulePoll(
+    'security:monitor-carousel',
+    () => {
+      carouselIndex.value = (carouselIndex.value + 1) % cameraItems.value.length
+    },
+    carouselSec.value * 1000,
+  )
 }
 
 function stopCarousel() {
@@ -372,10 +374,7 @@ function stopCarousel() {
 }
 
 // 间隔 / 视图模式 / 摄像头 key 列表变化时重启轮巡任务
-watch(
-  [carouselSec, viewMode, () => cameraItems.value.map((item) => item.key).join('|')],
-  () => startCarousel(),
-)
+watch([carouselSec, viewMode, () => cameraItems.value.map((item) => item.key).join('|')], () => startCarousel())
 onMounted(() => {
   // 连接地址是拼 HA 绝对 URL 的前提；store 内部对失败做了兜底，不阻塞页面渲染。
   void haConnectionStore.load()

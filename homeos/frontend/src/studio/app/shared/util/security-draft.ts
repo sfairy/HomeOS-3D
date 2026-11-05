@@ -6,17 +6,17 @@
  * 不被这层无关的判空逻辑顶到阈值。
  */
 type SecurityCollections = {
-  locks?: unknown[];
-  cameras?: unknown[];
-  presenceSensors?: unknown[];
-  alarms?: unknown[];
-  windows?: unknown[];
-};
+  locks?: unknown[]
+  cameras?: unknown[]
+  presenceSensors?: unknown[]
+  alarms?: unknown[]
+  windows?: unknown[]
+}
 
 export function normalizeSecurityDraftProperties<T extends { security?: SecurityCollections }>(
   properties: T | null | undefined,
 ): T {
-  const draftProperties = structuredClone((properties || {}) as T);
+  const draftProperties = structuredClone((properties || {}) as T)
   draftProperties.security = {
     ...draftProperties.security,
     locks: draftProperties.security?.locks || [],
@@ -24,6 +24,6 @@ export function normalizeSecurityDraftProperties<T extends { security?: Security
     presenceSensors: draftProperties.security?.presenceSensors || [],
     alarms: draftProperties.security?.alarms || [],
     windows: draftProperties.security?.windows || [],
-  } as T["security"];
-  return draftProperties;
+  } as T['security']
+  return draftProperties
 }

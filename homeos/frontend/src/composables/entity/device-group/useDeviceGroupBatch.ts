@@ -53,9 +53,7 @@ export function useDeviceGroupBatch(
   /** 最近一次批量调用的 payload，供 retryFailed 复用。 */
   const lastBatchPayload = ref<BatchPayload | null>(null)
   /** 失败项列表：从 batchExecResult 中过滤出 success 为 false 的条目。 */
-  const failedExecItems = computed(() =>
-    (batchExecResult.value?.results || []).filter((r) => !r.success),
-  )
+  const failedExecItems = computed(() => (batchExecResult.value?.results || []).filter((r) => !r.success))
 
   /**
    * 执行一组批量调用并把完整结果写入 batchExecResult（成功数/总数/服务名/逐条 success+error）。
@@ -117,12 +115,8 @@ export function useDeviceGroupBatch(
    * 再退到 hvac_modes 中第一个非 off 模式。
    */
   function resolveClimateOnMode(eid: string): string | null {
-    const attrs = entitiesStore.entities[eid]?.attributes as
-      | { hvac_modes?: unknown }
-      | undefined
-    const modes = Array.isArray(attrs?.hvac_modes)
-      ? attrs.hvac_modes.map((m) => String(m).toLowerCase())
-      : []
+    const attrs = entitiesStore.entities[eid]?.attributes as { hvac_modes?: unknown } | undefined
+    const modes = Array.isArray(attrs?.hvac_modes) ? attrs.hvac_modes.map((m) => String(m).toLowerCase()) : []
     const preferred = ['cool', 'heat', 'heat_cool', 'auto', 'fan_only', 'dry']
     for (const mode of preferred) {
       if (modes.includes(mode)) return mode
@@ -225,9 +219,7 @@ export function useDeviceGroupBatch(
    */
   async function retryFailed() {
     if (!lastBatchPayload.value || failedExecItems.value.length === 0) return
-    const ids = failedExecItems.value
-      .map((r) => r.entity_id || '')
-      .filter((id) => id.includes('.'))
+    const ids = failedExecItems.value.map((r) => r.entity_id || '').filter((id) => id.includes('.'))
     if (ids.length === 0) return
     const { domain, service, serviceData } = lastBatchPayload.value
     batchExecuting.value = true
@@ -238,20 +230,10 @@ export function useDeviceGroupBatch(
           entity_id: eid,
           call: () => {
             // climate 开机重试：按实体能力重新解析模式（含 turn_on 回退），不能用固定的 'cool'
-            if (
-              domain === 'climate' &&
-              service === 'set_hvac_mode' &&
-              serviceData?.hvac_mode !== 'off'
-            ) {
+            if (domain === 'climate' && service === 'set_hvac_mode' && serviceData?.hvac_mode !== 'off') {
               const mode = resolveClimateOnMode(eid)
               if (mode) {
-                return entitiesStore.callService(
-                  'climate',
-                  'set_hvac_mode',
-                  eid,
-                  { hvac_mode: mode },
-                  false,
-                )
+                return entitiesStore.callService('climate', 'set_hvac_mode', eid, { hvac_mode: mode }, false)
               }
               return entitiesStore.callService('climate', 'turn_on', eid, {}, false)
             }

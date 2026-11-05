@@ -438,8 +438,7 @@ const emit = defineEmits([
   'daily-evening-custom',
 ])
 
-const { outputOptions, outputDeviceId, setOutputDeviceId, supportsSetSinkId, secureContext } =
-  useAudioDevices()
+const { outputOptions, outputDeviceId, setOutputDeviceId, supportsSetSinkId, secureContext } = useAudioDevices()
 
 const ttsOutputModeLabel = computed(() => {
   const m = voice.value.ttsOutputMode
@@ -514,9 +513,7 @@ const tipMeter = computed(() => meterOf(tipCooldownHours.value, 24))
 const ttsVoiceLabel = computed(() => {
   const raw = String(voice.value.ttsVoice || '').trim()
   if (!raw) return '默认'
-  return voice.value.ttsEngine === 'openai'
-    ? raw
-    : raw.replace(/^zh-CN-/, '').replace(/Neural$/, '')
+  return voice.value.ttsEngine === 'openai' ? raw : raw.replace(/^zh-CN-/, '').replace(/Neural$/, '')
 })
 
 const ttsFlowSummary = computed(() => {
@@ -549,8 +546,8 @@ const ttsFlowSteps = computed(() => [
 
 /** 试听面板的装饰声波：固定一组高度，播放时整组做呼吸动画 */
 const waveBars = [
-  34, 58, 28, 72, 42, 86, 32, 54, 92, 40, 66, 30, 60, 82, 36, 74, 48, 90, 34, 62, 44, 78, 38, 68,
-  30, 56, 88, 42, 70, 36, 64, 80,
+  34, 58, 28, 72, 42, 86, 32, 54, 92, 40, 66, 30, 60, 82, 36, 74, 48, 90, 34, 62, 44, 78, 38, 68, 30, 56, 88, 42, 70,
+  36, 64, 80,
 ]
 
 /** 0–23 的整点选项（起始时刻用下拉，避免裸数字输入框输错） */
@@ -563,9 +560,7 @@ const speakingHour = computed({
   },
   set: (value) => {
     const n = Number(value)
-    voice.value.dailyAdvisorSpeakHour = Number.isFinite(n)
-      ? Math.min(23, Math.max(0, Math.round(n)))
-      : 20
+    voice.value.dailyAdvisorSpeakHour = Number.isFinite(n) ? Math.min(23, Math.max(0, Math.round(n))) : 20
   },
 })
 

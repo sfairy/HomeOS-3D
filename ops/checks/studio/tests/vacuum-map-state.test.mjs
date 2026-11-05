@@ -31,10 +31,7 @@ const stateWith = (attributes, state = 'docked') => ({ entityId: 'image.map', st
 test('正常状态与标定：可用', () => {
   assert.equal(vacuumMapAvailable(stateWith({ calibration_points: calibration(triangle) })), true)
   // newState 包装（运行态事件）与裸状态等价
-  assert.equal(
-    vacuumMapAvailable({ newState: stateWith({ calibration_points: calibration(triangle) }) }),
-    true,
-  )
+  assert.equal(vacuumMapAvailable({ newState: stateWith({ calibration_points: calibration(triangle) }) }), true)
 })
 
 test('unavailable / unknown / 空地图：都不可用', () => {
@@ -43,10 +40,7 @@ test('unavailable / unknown / 空地图：都不可用', () => {
   assert.equal(vacuumMapAvailable(stateWith({ is_empty: true })), false)
   assert.equal(vacuumMapAvailable(stateWith({ empty_map: true })), false)
   // 空地图即使带机器人坐标也不能请求：请求回来一定是空白页。
-  assert.equal(
-    vacuumMapAvailable(stateWith({ is_empty: true, vacuum_position: { x: 1, y: 2 } })),
-    false,
-  )
+  assert.equal(vacuumMapAvailable(stateWith({ is_empty: true, vacuum_position: { x: 1, y: 2 } })), false)
 })
 
 test('标定点数不足 / 坐标非有限 / 三点共线：一律判坏', () => {
@@ -55,7 +49,11 @@ test('标定点数不足 / 坐标非有限 / 三点共线：一律判坏', () =>
   assert.equal(
     vacuumMapAvailable(
       stateWith({
-        calibration_points: calibration([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: Number.NaN, y: 5 }]),
+        calibration_points: calibration([
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: Number.NaN, y: 5 },
+        ]),
       }),
     ),
     false,

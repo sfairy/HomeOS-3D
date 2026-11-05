@@ -85,9 +85,8 @@ export function interpretSecurityArmResult(
     return {
       kind: 'failed',
       message:
-        (failed > 0
-          ? `${modeLabel}未生效：${failed} 条联动失败，布防已取消`
-          : `${modeLabel}未生效`) + (detail ? `（${detail}）` : ''),
+        (failed > 0 ? `${modeLabel}未生效：${failed} 条联动失败，布防已取消` : `${modeLabel}未生效`) +
+        (detail ? `（${detail}）` : ''),
     }
   }
 
@@ -114,8 +113,7 @@ export function interpretSecurityArmResult(
   if (data?.persisted === false) {
     return {
       kind: 'partial',
-      message:
-        requestedMode === 'disarmed' ? `已撤防${persistWarning}` : `${modeLabel}已生效${persistWarning}`,
+      message: requestedMode === 'disarmed' ? `已撤防${persistWarning}` : `${modeLabel}已生效${persistWarning}`,
     }
   }
 

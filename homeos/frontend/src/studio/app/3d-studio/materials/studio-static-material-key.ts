@@ -3,20 +3,16 @@
  * 从 `../studio/studio-app.ts` 的巨型闭包中抽出（P4 拆单体）：纯函数，无闭包依赖；
  * 不适用的网格（蒙皮 / 批量 / 半透明 / 自定义 shader 钩子…）返回空串，调用方据此跳过合批。
  */
-import * as threeModuleMin from "/static/vendor/three/0.187.0/three.module.min.js";
+import * as threeModuleMin from '/static/vendor/three/0.187.0/three.module.min.js'
 
 /**
  * 允许出现在合批键里的**程序化共享贴图**通道：加载期统一挂、全场景共享、
  * 且它们的强度参数（`bumpScale` / `normalScale` / `envMapIntensity`）都在材质键里。
  */
-const BATCHABLE_PROGRAMMATIC_TEXTURE_KEYS: ReadonlySet<string> = new Set([
-  "bumpMap",
-  "normalMap",
-  "envMap",
-]);
+const BATCHABLE_PROGRAMMATIC_TEXTURE_KEYS: ReadonlySet<string> = new Set(['bumpMap', 'normalMap', 'envMap'])
 
 export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, isColorOnly = false) {
-  const meshMaterial = sourceMesh.material;
+  const meshMaterial = sourceMesh.material
   if (
     !sourceMesh.isMesh ||
     sourceMesh.isSkinnedMesh ||
@@ -52,24 +48,19 @@ export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, 
           materialTextureValue?.isTexture && !BATCHABLE_PROGRAMMATIC_TEXTURE_KEYS.has(materialPropKey),
       ))
   )
-    return "";
-  const materialKeyParts: any[] = [];
+    return ''
+  const materialKeyParts: any[] = []
   for (const materialPropKey of Object.keys(meshMaterial).sort()) {
-    if (["id", "uuid", "name", "userData", "version", "_listeners"].includes(materialPropKey))
-      continue;
-    const materialPropValue = meshMaterial[materialPropKey];
-    if (materialPropKey === "color" && isColorOnly) {
-      materialKeyParts.push([materialPropKey, [1, 1, 1]]);
-      continue;
+    if (['id', 'uuid', 'name', 'userData', 'version', '_listeners'].includes(materialPropKey)) continue
+    const materialPropValue = meshMaterial[materialPropKey]
+    if (materialPropKey === 'color' && isColorOnly) {
+      materialKeyParts.push([materialPropKey, [1, 1, 1]])
+      continue
     }
-    if (
-      materialPropValue == null ||
-      ["number", "boolean", "string"].includes(typeof materialPropValue)
-    )
-      materialKeyParts.push([materialPropKey, materialPropValue]);
+    if (materialPropValue == null || ['number', 'boolean', 'string'].includes(typeof materialPropValue))
+      materialKeyParts.push([materialPropKey, materialPropValue])
     else {
-      if (materialPropValue.isTexture)
-        materialKeyParts.push([materialPropKey, materialPropValue.uuid]);
+      if (materialPropValue.isTexture) materialKeyParts.push([materialPropKey, materialPropValue.uuid])
       else {
         if (
           materialPropValue.isColor ||
@@ -80,24 +71,24 @@ export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, 
           materialPropValue.isMatrix4 ||
           materialPropValue.isEuler
         )
-          materialKeyParts.push([materialPropKey, materialPropValue.toArray()]);
+          materialKeyParts.push([materialPropKey, materialPropValue.toArray()])
         else {
           if (
             Array.isArray(materialPropValue) &&
             materialPropValue.every((materialArrayItem) =>
-              ["number", "boolean", "string"].includes(typeof materialArrayItem),
+              ['number', 'boolean', 'string'].includes(typeof materialArrayItem),
             )
           )
-            materialKeyParts.push([materialPropKey, materialPropValue]);
+            materialKeyParts.push([materialPropKey, materialPropValue])
           else {
-            if (materialPropKey === "defines")
+            if (materialPropKey === 'defines')
               materialKeyParts.push([
                 materialPropKey,
                 Object.entries(materialPropValue).sort(([entryKeyLeft], [entryKeyRight]) =>
                   entryKeyLeft.localeCompare(entryKeyRight),
                 ),
-              ]);
-            else return "";
+              ])
+            else return ''
           }
         }
       }
@@ -111,5 +102,5 @@ export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, 
     sourceMesh.receiveShadow,
     sourceMesh.renderOrder,
     sourceMesh.layers.mask,
-  ]);
+  ])
 }

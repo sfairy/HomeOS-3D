@@ -37,29 +37,20 @@ export function createUtilityMeterCalendar(opts: {
       _cost?: string
       _data?: UtilityMeterParsedItem
     }> = []
-    const dateMap: Record<
-      string,
-      { _usage: string; _cost: string; _data: UtilityMeterParsedItem }
-    > = {}
+    const dateMap: Record<string, { _usage: string; _cost: string; _data: UtilityMeterParsedItem }> = {}
     daylist.value.forEach((d) => {
       const parts = parseDateParts(d._label || '')
-      if (
-        parts &&
-        parts.month === m &&
-        (parts.year === undefined || parts.year === calYear.value)
-      ) {
+      if (parts && parts.month === m && (parts.year === undefined || parts.year === calYear.value)) {
         dateMap[parts.day] = { _usage: d._usageStr, _cost: d._costStr, _data: d }
       }
     })
-    for (let i = 0; i < startDow; i++)
-      cells.push({ day: '', cls: `${calClassPrefix}-cal-cell--empty` })
+    for (let i = 0; i < startDow; i++) cells.push({ day: '', cls: `${calClassPrefix}-cal-cell--empty` })
     const today = new Date()
     for (let d = 1; d <= last.getDate(); d++) {
       const data = dateMap[d]
       let cls = ''
       const thisDate = new Date(y, m - 1, d)
-      if (today.toDateString() === thisDate.toDateString())
-        cls += ` ${calClassPrefix}-cal-cell--today`
+      if (today.toDateString() === thisDate.toDateString()) cls += ` ${calClassPrefix}-cal-cell--today`
       if (data) cls += ` ${calClassPrefix}-cal-cell--has`
       if (thisDate > today) cls += ` ${calClassPrefix}-cal-cell--future`
       cells.push({ day: d, cls, _usage: data?._usage, _cost: data?._cost, _data: data?._data })

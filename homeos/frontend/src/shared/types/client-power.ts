@@ -4,10 +4,7 @@
  * @homeos/shared 统一维护（与 backend app-config clientPower 分区对齐），
  * 本文件仅补充前端状态快照相关类型。
  */
-import type {
-  ClientPowerClient,
-  ClientPowerSettings,
-} from '@homeos/shared'
+import type { ClientPowerClient, ClientPowerSettings } from '@homeos/shared'
 
 export type { ClientPowerClient, ClientPowerSettings }
 

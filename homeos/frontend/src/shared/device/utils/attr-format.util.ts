@@ -63,21 +63,10 @@ const DURATION_SEC_KEYS = new Set([
   'filter_hours_used',
 ])
 
-const DEGREE_ATTR_KEYS = new Set([
-  'elevation',
-  'azimuth',
-  'wind_bearing',
-  'heading',
-  'course',
-  'bearing',
-])
+const DEGREE_ATTR_KEYS = new Set(['elevation', 'azimuth', 'wind_bearing', 'heading', 'course', 'bearing'])
 
 /** 绝对色温（开尔文）与相对色温 / 灯具色温边界（mired）的分组：口径不同，单位也不同。 */
-const KELVIN_ATTR_KEYS = new Set([
-  'color_temp_kelvin',
-  'min_color_temp_kelvin',
-  'max_color_temp_kelvin',
-])
+const KELVIN_ATTR_KEYS = new Set(['color_temp_kelvin', 'min_color_temp_kelvin', 'max_color_temp_kelvin'])
 const MIRED_ATTR_KEYS = new Set(['color_temp', 'min_mireds', 'max_mireds'])
 
 const TIME_KEY_RE =
@@ -380,11 +369,7 @@ function formatEnumString(key: string, value: string): string | null {
   return table[lower] ?? table[value] ?? null
 }
 
-function formatSpecialNumber(
-  key: string,
-  value: number,
-  attrs: Record<string, unknown>,
-): string | null {
+function formatSpecialNumber(key: string, value: number, attrs: Record<string, unknown>): string | null {
   if (!Number.isFinite(value)) return null
 
   if (key === 'brightness') {
@@ -521,9 +506,7 @@ function formatArrayAttr(key: string, value: unknown[]): FormattedEntityAttr {
     return { value: value.join(', '), isObject: false }
   }
 
-  const allPrimitive = value.every(
-    (item) => item == null || ['string', 'number', 'boolean'].includes(typeof item),
-  )
+  const allPrimitive = value.every((item) => item == null || ['string', 'number', 'boolean'].includes(typeof item))
   if (allPrimitive) {
     const chips = value.map((item) => formatPrimitiveChip(key, item))
     return {
@@ -624,11 +607,7 @@ function resolveAttrUnit(key: string, attrs: Record<string, unknown>): string | 
   return null
 }
 
-export function buildEntityAttrEntries(
-  attrs: Record<string, unknown>,
-  skipKeys: Set<string>,
-  limit?: number,
-) {
+export function buildEntityAttrEntries(attrs: Record<string, unknown>, skipKeys: Set<string>, limit?: number) {
   const rows = Object.entries(attrs)
     .filter(([k, item]) => !skipKeys.has(k) && item != null)
     .map(([key, value]) => {
@@ -640,17 +619,10 @@ export function buildEntityAttrEntries(
 }
 
 /** 供时间线等场景：仅返回友好字符串（数组摘要为顿号拼接） */
-export function formatEntityAttrValueText(
-  key: string,
-  value: unknown,
-  attrs: Record<string, unknown> = {},
-): string {
+export function formatEntityAttrValueText(key: string, value: unknown, attrs: Record<string, unknown> = {}): string {
   const formatted = formatEntityAttrValue(key, value, attrs)
   return formatted.value
 }
 
 /** 导出常用枚举，便于 UI 复用 */
-export {
-  HVAC_MODE_LABELS,
-  HVAC_ACTION_LABELS,
-}
+export { HVAC_MODE_LABELS, HVAC_ACTION_LABELS }

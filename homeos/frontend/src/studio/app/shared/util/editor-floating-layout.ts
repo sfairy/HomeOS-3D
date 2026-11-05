@@ -16,63 +16,63 @@
  */
 
 export interface FloatingRect {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-  width: number;
-  height: number;
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
 }
 
 export interface FloatingViewport {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
+  left: number
+  top: number
+  right: number
+  bottom: number
 }
 
 export interface FloatingClampOptions {
-  anchorRect: FloatingRect;
-  panelWidth: number;
-  panelHeight: number;
-  viewport: FloatingViewport;
+  anchorRect: FloatingRect
+  panelWidth: number
+  panelHeight: number
+  viewport: FloatingViewport
   /** 允许溢出的边界（例如 `.interaction3d-stage`）；缺省用 `viewport`。 */
-  container?: FloatingViewport | null;
-  gap?: number;
-  margin?: number;
+  container?: FloatingViewport | null
+  gap?: number
+  margin?: number
   /** 优先向上展开（空间不足时自动翻转）。 */
-  preferAbove?: boolean;
+  preferAbove?: boolean
 }
 
 export interface FloatingPlacement {
-  left: number;
-  top: number;
-  width: number;
-  maxHeight: number;
-  above: boolean;
+  left: number
+  top: number
+  width: number
+  maxHeight: number
+  above: boolean
 }
 
 /** 浮层需要透传的颜色变量：弹窗主题把它们定义在容器上，浮层挂到 body 后会丢。 */
 export const FLOATING_COLOR_VARIABLES = [
-  "--hb-bed-accent",
-  "--hb-climate-accent",
-  "--hb-climate-accent-soft",
-  "--i3d-climate-accent",
-] as const;
+  '--hb-bed-accent',
+  '--hb-climate-accent',
+  '--hb-climate-accent-soft',
+  '--i3d-climate-accent',
+] as const
 
 const FLOATING_COLOR_FALLBACKS: Record<string, string> = {
-  "--hb-climate-accent": "#73c8ff",
-  "--i3d-climate-accent": "#73c8ff",
-};
+  '--hb-climate-accent': '#73c8ff',
+  '--i3d-climate-accent': '#73c8ff',
+}
 
 function intersect(left: FloatingViewport, right: FloatingViewport | null | undefined): FloatingViewport {
-  if (!right) return left;
+  if (!right) return left
   return {
     left: Math.max(left.left, right.left),
     top: Math.max(left.top, right.top),
     right: Math.min(left.right, right.right),
     bottom: Math.min(left.bottom, right.bottom),
-  };
+  }
 }
 
 /** 视口（含 `visualViewport` 偏移）与可选容器的交集，浮层只允许落在这里面。 */
@@ -84,13 +84,13 @@ export function floatingViewport(
     left = (visualViewport?.offsetLeft || 0) + 0,
     top = (visualViewport?.offsetTop || 0) + 0,
     right = left + (visualViewport?.width || view?.innerWidth || 1024),
-    bottom = top + (visualViewport?.height || view?.innerHeight || 768);
+    bottom = top + (visualViewport?.height || view?.innerHeight || 768)
   return intersect(
     { left, top, right, bottom },
     containerRect
       ? { left: containerRect.left, top: containerRect.top, right: containerRect.right, bottom: containerRect.bottom }
       : null,
-  );
+  )
 }
 
 /**
@@ -102,19 +102,19 @@ export function floatingVisibilityProblem(
   anchor: HTMLElement | null | undefined,
   ownerDocument: Document = globalThis.document,
 ): string | null {
-  if (!anchor || anchor.isConnected === false) return "detached";
-  if (ownerDocument.hidden || ownerDocument.visibilityState === "hidden") return "document-hidden";
-  if ((anchor as HTMLButtonElement).disabled) return "disabled";
-  if (anchor.getClientRects && !anchor.getClientRects().length) return "no-layout";
-  const view = ownerDocument.defaultView;
-  const styles = view?.getComputedStyle?.(anchor);
-  if (styles && (styles.visibility === "hidden" || styles.display === "none")) return "invisible";
+  if (!anchor || anchor.isConnected === false) return 'detached'
+  if (ownerDocument.hidden || ownerDocument.visibilityState === 'hidden') return 'document-hidden'
+  if ((anchor as HTMLButtonElement).disabled) return 'disabled'
+  if (anchor.getClientRects && !anchor.getClientRects().length) return 'no-layout'
+  const view = ownerDocument.defaultView
+  const styles = view?.getComputedStyle?.(anchor)
+  if (styles && (styles.visibility === 'hidden' || styles.display === 'none')) return 'invisible'
   // 祖先被折叠（`hidden` / `inert` / `aria-hidden`）时浮层不该继续挂着。
-  if (anchor.closest?.('[hidden], [inert], [aria-hidden="true"]')) return "ancestor-hidden";
+  if (anchor.closest?.('[hidden], [inert], [aria-hidden="true"]')) return 'ancestor-hidden'
   // 关键：`<dialog>` 关闭后触发器仍在 DOM 里，但弹窗已经不可见。
-  const dialogElement = anchor.closest?.("dialog") as HTMLDialogElement | null;
-  if (dialogElement && !dialogElement.open) return "dialog-closed";
-  return null;
+  const dialogElement = anchor.closest?.('dialog') as HTMLDialogElement | null
+  if (dialogElement && !dialogElement.open) return 'dialog-closed'
+  return null
 }
 
 /** 计算浮层位置：容器内 clamp + 上下翻转。宽度取锚点宽（`matchAnchorWidth`）或自身宽。 */
@@ -128,9 +128,9 @@ export function clampFloatingRect({
   margin = 8,
   preferAbove = false,
 }: FloatingClampOptions): FloatingPlacement | null {
-  const bounds = intersect(viewport, container);
-  if (bounds.right <= bounds.left || bounds.bottom <= bounds.top) return null;
-  if (anchorRect.bottom < bounds.top || anchorRect.top > bounds.bottom) return null;
+  const bounds = intersect(viewport, container)
+  if (bounds.right <= bounds.left || bounds.bottom <= bounds.top) return null
+  if (anchorRect.bottom < bounds.top || anchorRect.top > bounds.bottom) return null
 
   const width = Math.max(0, Math.min(panelWidth, bounds.right - bounds.left - margin * 2)),
     spaceBelow = bounds.bottom - anchorRect.bottom - gap - margin,
@@ -138,14 +138,11 @@ export function clampFloatingRect({
     above = preferAbove ? spaceAbove >= spaceBelow : spaceBelow < panelHeight && spaceAbove > spaceBelow,
     available = Math.max(0, above ? spaceAbove : spaceBelow),
     maxHeight = Math.max(0, Math.min(panelHeight, available)),
-    left = Math.max(
-      bounds.left + margin,
-      Math.min(anchorRect.left, bounds.right - margin - width),
-    ),
+    left = Math.max(bounds.left + margin, Math.min(anchorRect.left, bounds.right - margin - width)),
     top = above
       ? Math.max(bounds.top + margin, anchorRect.top - gap - maxHeight)
-      : Math.min(anchorRect.bottom + gap, bounds.bottom - margin - maxHeight);
-  return { left, top, width, maxHeight, above };
+      : Math.min(anchorRect.bottom + gap, bounds.bottom - margin - maxHeight)
+  return { left, top, width, maxHeight, above }
 }
 
 /** 从锚点/主题根节点抄一份颜色变量给挂在 body 上的浮层。 */
@@ -155,15 +152,12 @@ export function applyFloatingColorVariables(
   ownerDocument: Document = globalThis.document,
 ) {
   const view = ownerDocument.defaultView,
-    source =
-      anchor?.closest?.("[data-scene-style]") ||
-      anchor ||
-      ownerDocument.documentElement;
-  if (!view?.getComputedStyle || !source) return;
-  const styles = view.getComputedStyle(source);
+    source = anchor?.closest?.('[data-scene-style]') || anchor || ownerDocument.documentElement
+  if (!view?.getComputedStyle || !source) return
+  const styles = view.getComputedStyle(source)
   for (const variableName of FLOATING_COLOR_VARIABLES) {
-    const value = styles.getPropertyValue(variableName).trim() || FLOATING_COLOR_FALLBACKS[variableName];
-    if (value) panel.style.setProperty(variableName, value);
+    const value = styles.getPropertyValue(variableName).trim() || FLOATING_COLOR_FALLBACKS[variableName]
+    if (value) panel.style.setProperty(variableName, value)
   }
 }
 
@@ -173,28 +167,28 @@ export function hideIfFloatingUnavailable(
   panel: HTMLElement,
   ownerDocument: Document = anchor?.ownerDocument || globalThis.document,
 ): boolean {
-  if (!floatingVisibilityProblem(anchor, ownerDocument)) return true;
-  panel.hidden = true;
-  panel.dataset.side = "";
-  return false;
+  if (!floatingVisibilityProblem(anchor, ownerDocument)) return true
+  panel.hidden = true
+  panel.dataset.side = ''
+  return false
 }
 
 export interface FloatingMenuOptions {
-  anchor: HTMLElement;
-  panel: HTMLElement;
+  anchor: HTMLElement
+  panel: HTMLElement
   /** 滚动区（`*-options`），按面板可用高度减去表头预留。 */
-  optionsElement?: HTMLElement | null;
-  optionsReserve?: number;
-  optionsMinHeight?: number;
-  document?: Document;
-  container?: () => HTMLElement | null | undefined;
-  matchAnchorWidth?: boolean;
-  maxWidth?: number;
-  maxHeight?: number;
-  gap?: number;
-  margin?: number;
-  preferAbove?: boolean;
-  scaleToAnchor?: boolean;
+  optionsElement?: HTMLElement | null
+  optionsReserve?: number
+  optionsMinHeight?: number
+  document?: Document
+  container?: () => HTMLElement | null | undefined
+  matchAnchorWidth?: boolean
+  maxWidth?: number
+  maxHeight?: number
+  gap?: number
+  margin?: number
+  preferAbove?: boolean
+  scaleToAnchor?: boolean
 }
 
 /**
@@ -217,7 +211,7 @@ export function positionFloatingMenu({
   preferAbove = false,
   scaleToAnchor = false,
 }: FloatingMenuOptions): boolean {
-  if (!hideIfFloatingUnavailable(anchor, panel, ownerDocument)) return false;
+  if (!hideIfFloatingUnavailable(anchor, panel, ownerDocument)) return false
   const view = ownerDocument.defaultView,
     anchorRect = anchor.getBoundingClientRect(),
     layoutWidth = anchor.offsetWidth || anchorRect.width || 1,
@@ -226,97 +220,92 @@ export function positionFloatingMenu({
     scaleY = scaleToAnchor ? anchorRect.height / layoutHeight || 1 : 1,
     placement = clampFloatingRect({
       anchorRect,
-      panelWidth: matchAnchorWidth
-        ? anchorRect.width
-        : panel.offsetWidth || panel.scrollWidth || anchorRect.width,
+      panelWidth: matchAnchorWidth ? anchorRect.width : panel.offsetWidth || panel.scrollWidth || anchorRect.width,
       panelHeight: maxHeight * scaleY,
       viewport: floatingViewport(view) as FloatingViewport,
       container: container?.()?.getBoundingClientRect() ?? null,
       gap: gap * scaleY,
       margin,
       preferAbove,
-    });
+    })
   if (!placement) {
-    panel.hidden = true;
-    return false;
+    panel.hidden = true
+    return false
   }
-  const width = maxWidth ? Math.min(placement.width, maxWidth) : placement.width;
-  panel.style.width = `${width}px`;
-  panel.style.maxHeight = `${placement.maxHeight / scaleY}px`;
-  panel.style.left = `${placement.left}px`;
-  panel.style.top = `${placement.top}px`;
+  const width = maxWidth ? Math.min(placement.width, maxWidth) : placement.width
+  panel.style.width = `${width}px`
+  panel.style.maxHeight = `${placement.maxHeight / scaleY}px`
+  panel.style.left = `${placement.left}px`
+  panel.style.top = `${placement.top}px`
   if (scaleToAnchor) {
-    panel.style.transform = `scale(${scaleX},${scaleY})`;
-    panel.style.transformOrigin = "0 0";
+    panel.style.transform = `scale(${scaleX},${scaleY})`
+    panel.style.transformOrigin = '0 0'
   }
-  panel.dataset.side = placement.above ? "top" : "bottom";
+  panel.dataset.side = placement.above ? 'top' : 'bottom'
   if (optionsElement) {
-    optionsElement.style.maxHeight = `${Math.max(
-      optionsMinHeight,
-      placement.maxHeight / scaleY - optionsReserve,
-    )}px`;
+    optionsElement.style.maxHeight = `${Math.max(optionsMinHeight, placement.maxHeight / scaleY - optionsReserve)}px`
   }
-  applyFloatingColorVariables(panel, anchor, ownerDocument);
-  return true;
+  applyFloatingColorVariables(panel, anchor, ownerDocument)
+  return true
 }
 
 export interface FloatingLayoutOptions {
-  anchor: HTMLElement;
-  panel: HTMLElement;
-  document?: Document;
+  anchor: HTMLElement
+  panel: HTMLElement
+  document?: Document
   /** 允许浮层溢出的容器（一般是 `.interaction3d-stage` 或弹窗根节点）。 */
-  container?: () => HTMLElement | null | undefined;
+  container?: () => HTMLElement | null | undefined
   /** 宽度跟锚点一致（菜单类）；否则用 `panel.offsetWidth`。 */
-  matchAnchorWidth?: boolean;
+  matchAnchorWidth?: boolean
   /** 宽度至少不窄于锚点（下拉菜单要覆盖按钮）。 */
-  minWidthFromAnchor?: boolean;
+  minWidthFromAnchor?: boolean
   /** 先按内容撑开再量宽度（下拉菜单的选项可能比按钮宽）。 */
-  measureContentWidth?: boolean;
-  minWidth?: number;
-  maxWidth?: number;
-  maxHeight?: number;
-  gap?: number;
-  margin?: number;
-  preferAbove?: boolean;
+  measureContentWidth?: boolean
+  minWidth?: number
+  maxWidth?: number
+  maxHeight?: number
+  gap?: number
+  margin?: number
+  preferAbove?: boolean
   /** 缩放容器里要为浮层补的 transform 缩放（兼容旧逻辑）。 */
-  scaleToAnchor?: boolean;
+  scaleToAnchor?: boolean
   /** 抄一份锚点字体（菜单类需要跟按钮一致）。 */
-  inheritFont?: boolean;
+  inheritFont?: boolean
   /** 定位判定失败（锚点不可见 / 容器关闭）时回调，调用方据此关闭浮层。 */
-  onDismiss?: () => void;
+  onDismiss?: () => void
 }
 
 export interface FloatingLayout {
   /** 重新定位；返回 `false` 表示浮层应该关闭（已触发 `onDismiss`）。 */
-  position(): boolean;
+  position(): boolean
   /** 开始跟随锚点（rAF）并登记为当前 document 的唯一浮层。 */
-  start(): void;
-  stop(): void;
-  dispose(): void;
+  start(): void
+  stop(): void
+  dispose(): void
 }
 
 interface FloatingRegistry {
-  active: FloatingLayout | null;
+  active: FloatingLayout | null
 }
 
-const registryByDocument = new WeakMap<Document, FloatingRegistry>();
+const registryByDocument = new WeakMap<Document, FloatingRegistry>()
 
 function registryFor(ownerDocument: Document): FloatingRegistry {
-  let registry = registryByDocument.get(ownerDocument);
-  registry || ((registry = { active: null }), registryByDocument.set(ownerDocument, registry));
-  return registry;
+  let registry = registryByDocument.get(ownerDocument)
+  registry || ((registry = { active: null }), registryByDocument.set(ownerDocument, registry))
+  return registry
 }
 
 /** 同一个 document 只允许一个浮层展开：开新的会先让旧的 `stop()`。 */
 export function claimFloatingLayout(ownerDocument: Document, layout: FloatingLayout) {
-  const registry = registryFor(ownerDocument);
-  if (registry.active && registry.active !== layout) registry.active.stop();
-  registry.active = layout;
+  const registry = registryFor(ownerDocument)
+  if (registry.active && registry.active !== layout) registry.active.stop()
+  registry.active = layout
 }
 
 export function releaseFloatingLayout(ownerDocument: Document, layout: FloatingLayout) {
-  const registry = registryFor(ownerDocument);
-  if (registry.active === layout) registry.active = null;
+  const registry = registryFor(ownerDocument)
+  if (registry.active === layout) registry.active = null
 }
 
 export function createFloatingLayout({
@@ -339,37 +328,37 @@ export function createFloatingLayout({
 }: FloatingLayoutOptions): FloatingLayout {
   let frameId: number | null = null,
     following = false,
-    disposed = false;
-  const view = ownerDocument.defaultView;
+    disposed = false
+  const view = ownerDocument.defaultView
 
   const dismiss = () => {
-    if (disposed) return;
-    stop();
-    onDismiss?.();
-  };
+    if (disposed) return
+    stop()
+    onDismiss?.()
+  }
 
   function stop() {
-    if (frameId !== null) view?.cancelAnimationFrame?.(frameId);
-    frameId = null;
+    if (frameId !== null) view?.cancelAnimationFrame?.(frameId)
+    frameId = null
     if (following) {
-      following = false;
-      ownerDocument.removeEventListener?.("visibilitychange", handleVisibilityChange, true);
-      releaseFloatingLayout(ownerDocument, layout);
+      following = false
+      ownerDocument.removeEventListener?.('visibilitychange', handleVisibilityChange, true)
+      releaseFloatingLayout(ownerDocument, layout)
     }
   }
 
   function handleVisibilityChange() {
-    if (ownerDocument.hidden) dismiss();
-    else if (following) position();
+    if (ownerDocument.hidden) dismiss()
+    else if (following) position()
   }
 
   function position(): boolean {
-    if (disposed) return false;
+    if (disposed) return false
     if (floatingVisibilityProblem(anchor, ownerDocument)) {
-      dismiss();
-      return false;
+      dismiss()
+      return false
     }
-    if (measureContentWidth) panel.style.width = "max-content";
+    if (measureContentWidth) panel.style.width = 'max-content'
     const anchorRect = anchor.getBoundingClientRect(),
       panelRect = panel.getBoundingClientRect(),
       layoutWidth = anchor.offsetWidth || anchorRect.width || 1,
@@ -384,8 +373,7 @@ export function createFloatingLayout({
             minWidth,
           ),
       desiredWidth = Math.min(Math.max(rawWidth, minWidth), maxWidth),
-      panelHeight =
-        Math.min(panelRect.height || panel.offsetHeight || maxHeight, maxHeight) * scaleY,
+      panelHeight = Math.min(panelRect.height || panel.offsetHeight || maxHeight, maxHeight) * scaleY,
       placement = clampFloatingRect({
         anchorRect,
         panelWidth: desiredWidth,
@@ -395,69 +383,69 @@ export function createFloatingLayout({
         gap: gap * scaleY,
         margin,
         preferAbove,
-      });
+      })
     if (!placement) {
-      dismiss();
-      return false;
+      dismiss()
+      return false
     }
-    panel.style.width = `${placement.width}px`;
-    panel.style.maxHeight = `${placement.maxHeight / scaleY}px`;
-    panel.style.left = `${placement.left}px`;
-    panel.style.top = `${placement.top}px`;
+    panel.style.width = `${placement.width}px`
+    panel.style.maxHeight = `${placement.maxHeight / scaleY}px`
+    panel.style.left = `${placement.left}px`
+    panel.style.top = `${placement.top}px`
     if (scaleToAnchor) {
-      panel.style.transform = `scale(${scaleX},${scaleY})`;
-      panel.style.transformOrigin = "0 0";
+      panel.style.transform = `scale(${scaleX},${scaleY})`
+      panel.style.transformOrigin = '0 0'
     }
-    applyFloatingColorVariables(panel, anchor, ownerDocument);
+    applyFloatingColorVariables(panel, anchor, ownerDocument)
     if (inheritFont) {
-      const anchorStyles = view?.getComputedStyle?.(anchor);
-      if (anchorStyles?.font) panel.style.font = anchorStyles.font;
+      const anchorStyles = view?.getComputedStyle?.(anchor)
+      if (anchorStyles?.font) panel.style.font = anchorStyles.font
     }
-    panel.dataset.side = placement.above ? "top" : "bottom";
-    return true;
+    panel.dataset.side = placement.above ? 'top' : 'bottom'
+    return true
   }
 
   function followAnchor() {
-    frameId = null;
-    if (!following || !position()) return;
-    frameId = view?.requestAnimationFrame?.(followAnchor) ?? null;
+    frameId = null
+    if (!following || !position()) return
+    frameId = view?.requestAnimationFrame?.(followAnchor) ?? null
   }
 
   const layout: FloatingLayout = {
     position,
     start() {
-      if (disposed) return;
-      claimFloatingLayout(ownerDocument, layout);
-      if (following) return;
-      following = true;
-      ownerDocument.addEventListener?.("visibilitychange", handleVisibilityChange, true);
-      followAnchor();
+      if (disposed) return
+      claimFloatingLayout(ownerDocument, layout)
+      if (following) return
+      following = true
+      ownerDocument.addEventListener?.('visibilitychange', handleVisibilityChange, true)
+      followAnchor()
     },
     stop,
     dispose() {
-      (stop(), (disposed = true));
+      stop(), (disposed = true)
     },
-  };
-  return layout;
+  }
+  return layout
 }
 
 /** 缩放空间：`transform` 容器里「视口坐标 ↔ 容器布局坐标」的换算（0.8.1 `editorFloatingSpace`）。 */
 export interface FloatingSpace {
   /** 视口坐标 → 容器布局坐标。 */
-  point(left: number, top: number): { left: number; top: number };
+  point(left: number, top: number): { left: number; top: number }
   /** 视口矩形 → 容器布局矩形。 */
-  rect(rect: FloatingRect): FloatingRect;
-  scaleX: number;
-  scaleY: number;
-  bounds: FloatingRect;
+  rect(rect: FloatingRect): FloatingRect
+  scaleX: number
+  scaleY: number
+  bounds: FloatingRect
 }
 
 export interface FloatingSpaceMeasurement {
-  originLeft: number;
-  originTop: number;
-  scaleX: number;
-  scaleY: number;
-  bounds: FloatingRect;
+  originLeft: number
+  originTop: number
+  scaleX: number
+  scaleY: number
+  bounds: FloatingRect
 }
 
 /** 纯换算（无 DOM 读取），供 `editorFloatingSpace` 与单测共用。 */
@@ -469,7 +457,7 @@ export function floatingSpaceFrom({
   bounds,
 }: FloatingSpaceMeasurement): FloatingSpace {
   const safeScaleX = ratio(scaleX),
-    safeScaleY = ratio(scaleY);
+    safeScaleY = ratio(scaleY)
   return {
     point: (left, top) => ({
       left: (left - originLeft) / safeScaleX,
@@ -486,12 +474,12 @@ export function floatingSpaceFrom({
     scaleX: safeScaleX,
     scaleY: safeScaleY,
     bounds,
-  };
+  }
 }
 
 function ratio(value: unknown, fallback = 1) {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallback;
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallback
 }
 
 /**
@@ -510,32 +498,23 @@ export function editorFloatingSpace(element: HTMLElement): FloatingSpace {
     viewportLeft = visualViewport?.offsetLeft || 0,
     viewportTop = visualViewport?.offsetTop || 0,
     viewportWidth = ratio(visualViewport?.width || view?.innerWidth, 1024),
-    viewportHeight = ratio(visualViewport?.height || view?.innerHeight, 768);
+    viewportHeight = ratio(visualViewport?.height || view?.innerHeight, 768)
   let originLeft = 0,
     originTop = 0,
     scaleX = 1,
     scaleY = 1,
-    container: (FloatingRect & { clipX: boolean; clipY: boolean }) | null = null;
-  for (
-    let ancestor = element.parentElement;
-    ancestor;
-    ancestor = ancestor.parentElement
-  ) {
+    container: (FloatingRect & { clipX: boolean; clipY: boolean }) | null = null
+  for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
     const styles = view?.getComputedStyle?.(ancestor),
-      transformed = [
-        styles?.transform,
-        styles?.translate,
-        styles?.scale,
-        styles?.rotate,
-        styles?.perspective,
-        styles?.filter,
-      ].some((value) => value && value !== "none") ||
-        /paint|layout|strict|content/.test(styles?.contain || "");
+      transformed =
+        [styles?.transform, styles?.translate, styles?.scale, styles?.rotate, styles?.perspective, styles?.filter].some(
+          (value) => value && value !== 'none',
+        ) || /paint|layout|strict|content/.test(styles?.contain || '')
     if (transformed) {
       const rect = ancestor.getBoundingClientRect(),
         ancestorScaleX = ratio(rect.width / ratio(ancestor.offsetWidth), 1),
-        ancestorScaleY = ratio(rect.height / ratio(ancestor.offsetHeight), 1);
-      ((scaleX = ancestorScaleX),
+        ancestorScaleY = ratio(rect.height / ratio(ancestor.offsetHeight), 1)
+      ;(scaleX = ancestorScaleX),
         (scaleY = ancestorScaleY),
         (originLeft = rect.left + (ancestor.clientLeft - ancestor.scrollLeft) * ancestorScaleX),
         (originTop = rect.top + (ancestor.clientTop - ancestor.scrollTop) * ancestorScaleY),
@@ -546,31 +525,30 @@ export function editorFloatingSpace(element: HTMLElement): FloatingSpace {
           bottom: 0,
           width: ancestor.clientWidth * ancestorScaleX,
           height: ancestor.clientHeight * ancestorScaleY,
-          clipX: styles?.overflowX !== "visible",
-          clipY: styles?.overflowY !== "visible",
-        }));
-      break;
+          clipX: styles?.overflowX !== 'visible',
+          clipY: styles?.overflowY !== 'visible',
+        })
+      break
     }
     // 顶层（`<dialog>` / popover）之后就不再往外找了：再往外是页面本身。
     if (
-      ancestor.matches(":modal") ||
-      (typeof (ancestor as HTMLElement & { showPopover?: () => void }).showPopover ===
-        "function" &&
-        ancestor.matches(":popover-open"))
+      ancestor.matches(':modal') ||
+      (typeof (ancestor as HTMLElement & { showPopover?: () => void }).showPopover === 'function' &&
+        ancestor.matches(':popover-open'))
     )
-      break;
+      break
   }
   let left = viewportLeft,
     top = viewportTop,
     right = viewportLeft + viewportWidth,
-    bottom = viewportTop + viewportHeight;
+    bottom = viewportTop + viewportHeight
   if (container?.clipX) {
-    left = Math.max(left, container.left);
-    right = Math.min(right, container.left + container.width);
+    left = Math.max(left, container.left)
+    right = Math.min(right, container.left + container.width)
   }
   if (container?.clipY) {
-    top = Math.max(top, container.top);
-    bottom = Math.min(bottom, container.top + container.height);
+    top = Math.max(top, container.top)
+    bottom = Math.min(bottom, container.top + container.height)
   }
   return floatingSpaceFrom({
     originLeft,
@@ -578,31 +556,31 @@ export function editorFloatingSpace(element: HTMLElement): FloatingSpace {
     scaleX,
     scaleY,
     bounds: { left, top, right, bottom, width: right - left, height: bottom - top },
-  });
+  })
 }
 
 export interface ScaledPopupPlacementInput {
-  anchorRect: FloatingRect;
-  bounds: FloatingViewport;
+  anchorRect: FloatingRect
+  bounds: FloatingViewport
   /** 锚点的视觉缩放（`rect.width / offsetWidth`）。 */
-  scaleX?: number;
-  scaleY?: number;
-  minWidth?: number;
-  maxHeight?: number;
+  scaleX?: number
+  scaleY?: number
+  minWidth?: number
+  maxHeight?: number
   /** 菜单内容高度（布局像素，未缩放）。 */
-  menuHeight?: number;
-  margin?: number;
-  gap?: number;
+  menuHeight?: number
+  margin?: number
+  gap?: number
 }
 
 export interface ScaledPopupPlacement {
-  left: number;
-  top: number;
+  left: number
+  top: number
   /** 布局宽度（写进 `style.width`，视觉宽度 = width × scaleX）。 */
-  width: number;
+  width: number
   /** 布局最大高度（写进 `style.maxHeight`）。 */
-  maxHeight: number;
-  above: boolean;
+  maxHeight: number
+  above: boolean
 }
 
 /**
@@ -631,19 +609,11 @@ export function scaledPopupPlacement({
     left = bounds.left + marginX,
     top = bounds.top + marginY,
     right = bounds.right - marginX,
-    bottom = bounds.bottom - marginY;
-  if (right <= left || bottom <= top) return null;
-  if (
-    anchorRect.bottom < top ||
-    anchorRect.top > bottom ||
-    anchorRect.right < left ||
-    anchorRect.left > right
-  )
-    return null;
-  const width = Math.min(
-      Math.max(anchorRect.width / safeScaleX, minWidth),
-      (right - left) / safeScaleX,
-    ),
+    bottom = bounds.bottom - marginY
+  if (right <= left || bottom <= top) return null
+  if (anchorRect.bottom < top || anchorRect.top > bottom || anchorRect.right < left || anchorRect.left > right)
+    return null
+  const width = Math.min(Math.max(anchorRect.width / safeScaleX, minWidth), (right - left) / safeScaleX),
     scaledMenuHeight = Math.min(maxHeight, Math.max(0, menuHeight)) * safeScaleY,
     spaceBelow = Math.max(0, bottom - anchorRect.bottom - gap * safeScaleY),
     spaceAbove = Math.max(0, anchorRect.top - top - gap * safeScaleY),
@@ -657,21 +627,21 @@ export function scaledPopupPlacement({
         above ? anchorRect.top - gap * safeScaleY - height : anchorRect.bottom + gap * safeScaleY,
         bottom - height,
       ),
-    );
+    )
   return {
     left: placementLeft,
     top: placementTop,
     width,
     maxHeight: Math.min(maxHeight, available / safeScaleY),
     above,
-  };
+  }
 }
 
 export interface ScaledPopupMenuOptions {
-  minWidth?: number;
-  maxHeight?: number;
-  margin?: number;
-  gap?: number;
+  minWidth?: number
+  maxHeight?: number
+  margin?: number
+  gap?: number
 }
 
 /**
@@ -685,15 +655,15 @@ export function positionScaledPopupMenu(
   panel: HTMLElement,
   { minWidth = 1, maxHeight = 320, margin = 10, gap = 5 }: ScaledPopupMenuOptions = {},
 ): boolean {
-  if (!hideIfFloatingUnavailable(anchor, panel)) return false;
+  if (!hideIfFloatingUnavailable(anchor, panel)) return false
   const ownerDocument = anchor.ownerDocument || globalThis.document,
     view = ownerDocument.defaultView,
     anchorRect = anchor.getBoundingClientRect(),
     anchorScaleX = ratio(anchorRect.width / ratio(anchor.offsetWidth), 1),
     anchorScaleY = ratio(anchorRect.height / ratio(anchor.offsetHeight), 1),
     inTopLayer =
-      typeof (panel as HTMLElement & { showPopover?: () => void }).showPopover === "function" &&
-      panel.matches(":popover-open"),
+      typeof (panel as HTMLElement & { showPopover?: () => void }).showPopover === 'function' &&
+      panel.matches(':popover-open'),
     space = inTopLayer ? null : editorFloatingSpace(panel),
     placement = scaledPopupPlacement({
       anchorRect,
@@ -702,25 +672,24 @@ export function positionScaledPopupMenu(
       scaleY: anchorScaleY,
       minWidth,
       maxHeight,
-      menuHeight:
-        panel.scrollHeight + Math.max(0, panel.offsetHeight - panel.clientHeight),
+      menuHeight: panel.scrollHeight + Math.max(0, panel.offsetHeight - panel.clientHeight),
       margin,
       gap,
-    });
+    })
   if (!placement) {
-    panel.hidden = true;
-    panel.dataset.side = "";
-    return false;
+    panel.hidden = true
+    panel.dataset.side = ''
+    return false
   }
-  const point = space ? space.point(placement.left, placement.top) : placement;
-  panel.style.width = `${placement.width}px`;
-  panel.style.minWidth = "0";
-  panel.style.maxHeight = `${placement.maxHeight}px`;
-  panel.style.transform = `scale(${anchorScaleX / (space?.scaleX || 1)},${anchorScaleY / (space?.scaleY || 1)})`;
-  panel.style.transformOrigin = "0 0";
-  panel.style.left = `${point.left}px`;
-  panel.style.top = `${point.top}px`;
-  panel.dataset.side = placement.above ? "top" : "bottom";
-  applyFloatingColorVariables(panel, anchor, ownerDocument);
-  return true;
+  const point = space ? space.point(placement.left, placement.top) : placement
+  panel.style.width = `${placement.width}px`
+  panel.style.minWidth = '0'
+  panel.style.maxHeight = `${placement.maxHeight}px`
+  panel.style.transform = `scale(${anchorScaleX / (space?.scaleX || 1)},${anchorScaleY / (space?.scaleY || 1)})`
+  panel.style.transformOrigin = '0 0'
+  panel.style.left = `${point.left}px`
+  panel.style.top = `${point.top}px`
+  panel.dataset.side = placement.above ? 'top' : 'bottom'
+  applyFloatingColorVariables(panel, anchor, ownerDocument)
+  return true
 }

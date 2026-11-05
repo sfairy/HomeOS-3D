@@ -1,8 +1,5 @@
 /** 供 useClientPowerPanel / useClientPowerDisplay 与 Section 组件复用。 */
-import {
-  getClientDeviceKindLabel,
-  getSystemInfoFromClientRow,
-} from '@/shared/client/utils/system-display.util'
+import { getClientDeviceKindLabel, getSystemInfoFromClientRow } from '@/shared/client/utils/system-display.util'
 
 /** 将实时客户端列表按 clientId 索引为 Map，便于按 id 查找行数据 */
 export function buildClientStatusMap(liveClients: Array<{ clientId: string }>) {
@@ -12,18 +9,12 @@ export function buildClientStatusMap(liveClients: Array<{ clientId: string }>) {
 }
 
 /** 按 client.id 在状态 Map 中查找实时行；未找到返回 null */
-export function resolveClientLiveRow<T extends { id: string }>(
-  client: T,
-  statusMap: Record<string, unknown>,
-) {
+export function resolveClientLiveRow<T extends { id: string }>(client: T, statusMap: Record<string, unknown>) {
   return (statusMap[client.id] as T | null) || null
 }
 
 /** 已启用但未绑定 chargerSwitch 实体时返回 true（用于提示「未绑定」徽章） */
-export function clientNeedsChargerSwitch(client: {
-  enabled?: boolean
-  chargerSwitchEntityId?: string
-}) {
+export function clientNeedsChargerSwitch(client: { enabled?: boolean; chargerSwitchEntityId?: string }) {
   return client.enabled && !String(client.chargerSwitchEntityId || '').trim()
 }
 

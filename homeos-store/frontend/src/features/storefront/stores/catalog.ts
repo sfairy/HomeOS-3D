@@ -5,12 +5,7 @@ import { computed, ref } from "vue";
 import { api } from "@store/shared/api/http";
 import { useSessionStore } from "@store/shared/stores/session";
 import { reportBestEffort } from "@store/shared/utils/best-effort";
-import type {
-  StoreFeature,
-  StoreFeatureCatalog,
-  StoreFeatureGroup,
-  StoreProduct,
-} from "@store/shared/types/store";
+import type { StoreFeature, StoreFeatureCatalog, StoreFeatureGroup, StoreProduct } from "@store/shared/types/store";
 
 /** 主授权：决定基础能力的那一份授权。 */
 const PRIMARY_TYPES: readonly string[] = ["base", "bundle", "edition_full", "package"];
@@ -35,17 +30,13 @@ export const useCatalogStore = defineStore("catalog", () => {
   });
 
   /** 增量模块（`group === "module"`），顺序沿用 `ops/contracts/feature_codes.json`。 */
-  const moduleFeatures = computed(() =>
-    features.value.filter((item) => item.group === "module"),
-  );
+  const moduleFeatures = computed(() => features.value.filter((item) => item.group === "module"));
 
   const primaryProducts = computed(() =>
     products.value.filter((item) => PRIMARY_TYPES.includes(item.productType || "")),
   );
 
-  const addonProducts = computed(() =>
-    products.value.filter((item) => ADDON_TYPES.includes(item.productType || "")),
-  );
+  const addonProducts = computed(() => products.value.filter((item) => ADDON_TYPES.includes(item.productType || "")));
 
   const availableAddonProducts = computed(() =>
     addonProducts.value.filter((product) => {
@@ -159,10 +150,7 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   /** 商品是页面主数据；功能码目录失败只降级文案，不阻断商品。 */
   async function loadOnce() {
-    const [productsResult, featuresResult] = await Promise.allSettled([
-      loadProducts(),
-      loadFeatures(),
-    ]);
+    const [productsResult, featuresResult] = await Promise.allSettled([loadProducts(), loadFeatures()]);
     if (featuresResult.status === "rejected") {
       // 目录没拉到时模块卡会退化成商品自带的码（原始 code），页面仍可用但可读性变差 —— 留痕。
       reportBestEffort("功能码目录 /features（本次沿用商品自带的码）", featuresResult.reason);

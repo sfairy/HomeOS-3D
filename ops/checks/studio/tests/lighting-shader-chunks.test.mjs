@@ -78,17 +78,17 @@ test('uniform 数组保留原闸门：计数 > 0 时声明仍在，计数为 0 �
   )
   // 声明本身永远紧跟在闸门后面：GLSL ES 不允许 `spotLights[ 0 ]`。
   assert.equal(enclosingGuard(patched, 'uniform SpotLight spotLights['), '#if NUM_SPOT_LIGHTS > 0')
-  assert.equal(
-    enclosingGuard(patched, 'uniform RectAreaLight rectAreaLights['),
-    '#if NUM_RECT_AREA_LIGHTS > 0',
-  )
+  assert.equal(enclosingGuard(patched, 'uniform RectAreaLight rectAreaLights['), '#if NUM_RECT_AREA_LIGHTS > 0')
 })
 
 /** 取某条声明上一行的预处理器指令（空行会被跳过）。 */
 function enclosingGuard(source, declaration) {
   const declarationIndex = source.indexOf(declaration)
   assert.notEqual(declarationIndex, -1, `找不到声明：${declaration}`)
-  const aboveLines = source.slice(0, declarationIndex).split('\n').filter((line) => line.trim())
+  const aboveLines = source
+    .slice(0, declarationIndex)
+    .split('\n')
+    .filter((line) => line.trim())
   return aboveLines[aboveLines.length - 1].trim()
 }
 

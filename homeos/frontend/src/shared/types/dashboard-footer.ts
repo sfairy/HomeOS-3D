@@ -5,7 +5,16 @@
 
 /** 底部信息栏颜色主题（与 Tailwind 调色板对齐） */
 export type DashboardFooterColor =
-  'yellow' | 'purple' | 'cyan' | 'green' | 'gold' | 'blue' | 'orange' | 'rose' | 'teal' | string
+  | 'yellow'
+  | 'purple'
+  | 'cyan'
+  | 'green'
+  | 'gold'
+  | 'blue'
+  | 'orange'
+  | 'rose'
+  | 'teal'
+  | string
 
 /** 底部信息栏数据源：grid=电网，gas=燃气，water=水，ct=电信，cu=联通 */
 type DashboardFooterSource = 'grid' | 'gas' | 'water' | 'ct' | 'cu' | string

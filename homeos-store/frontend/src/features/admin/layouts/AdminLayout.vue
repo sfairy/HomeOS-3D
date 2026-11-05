@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+  type Component,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SceneStage from "@store/shared/components/SceneStage.vue";
 import DeckTiles from "@store/shared/components/DeckTiles.vue";
@@ -34,9 +44,17 @@ const GROUPS: NavGroup[] = [
     domain: "operations",
     label: "业务运营",
     items: [
-      { page: "overview", label: "概览", paths: ["M3 3h7.4v7.4H3z", "M13.6 3h7.4v7.4h-7.4z", "M3 13.6h7.4v7.4H3z", "M13.6 13.6h7.4v7.4h-7.4z"] },
+      {
+        page: "overview",
+        label: "概览",
+        paths: ["M3 3h7.4v7.4H3z", "M13.6 3h7.4v7.4h-7.4z", "M3 13.6h7.4v7.4H3z", "M13.6 13.6h7.4v7.4h-7.4z"],
+      },
       { page: "orders", label: "订单", paths: ["M5 3h14v18H5z", "M9 8.5h6M9 12.5h6M9 16.5h3.5"] },
-      { page: "withdrawals", label: "提现审核", paths: ["M3 8.2A2.7 2.7 0 0 1 5.7 5.5H18a2 2 0 0 1 2 2v1", "M3 8.2h18v10.8H3z"] },
+      {
+        page: "withdrawals",
+        label: "提现审核",
+        paths: ["M3 8.2A2.7 2.7 0 0 1 5.7 5.5H18a2 2 0 0 1 2 2v1", "M3 8.2h18v10.8H3z"],
+      },
     ],
   },
   {
@@ -44,8 +62,19 @@ const GROUPS: NavGroup[] = [
     domain: "catalog",
     label: "商品营销",
     items: [
-      { page: "products", label: "商品", paths: ["M12 3.2 20.3 7.5v9L12 20.8 3.7 16.5v-9z", "M3.7 7.5 12 11.8l8.3-4.3M12 11.8v9"] },
-      { page: "coupons", label: "优惠码", paths: ["M3.6 12.7V4.7a1.1 1.1 0 0 1 1.1-1.1h8l7.7 7.7a1.6 1.6 0 0 1 0 2.2l-6.7 6.7a1.6 1.6 0 0 1-2.2 0z", "M8.1 8.1h.01"] },
+      {
+        page: "products",
+        label: "商品",
+        paths: ["M12 3.2 20.3 7.5v9L12 20.8 3.7 16.5v-9z", "M3.7 7.5 12 11.8l8.3-4.3M12 11.8v9"],
+      },
+      {
+        page: "coupons",
+        label: "优惠码",
+        paths: [
+          "M3.6 12.7V4.7a1.1 1.1 0 0 1 1.1-1.1h8l7.7 7.7a1.6 1.6 0 0 1 0 2.2l-6.7 6.7a1.6 1.6 0 0 1-2.2 0z",
+          "M8.1 8.1h.01",
+        ],
+      },
     ],
   },
   {
@@ -53,9 +82,21 @@ const GROUPS: NavGroup[] = [
     domain: "licensing",
     label: "授权用户",
     items: [
-      { page: "licenses", label: "激活码", paths: ["M8.2 12a4.3 4.3 0 1 0 0-.01", "M12.5 12H20M17.4 12v3.3M20 12v2.5"] },
+      {
+        page: "licenses",
+        label: "激活码",
+        paths: ["M8.2 12a4.3 4.3 0 1 0 0-.01", "M12.5 12H20M17.4 12v3.3M20 12v2.5"],
+      },
       { page: "bindings", label: "设备绑定", paths: ["M3 4.6h18v12H3z", "M9 20h6M12 16.6V20"] },
-      { page: "accounts", label: "账号", paths: ["M9.4 8.4a3.5 3.5 0 1 0 0-.01", "M3.5 19.6c0-3.3 2.6-5.5 5.9-5.5s5.9 2.2 5.9 5.5", "M16.6 5.3a3.5 3.5 0 0 1 0 6.2M17.6 14.3c2 .8 3.4 2.5 3.4 4.7"] },
+      {
+        page: "accounts",
+        label: "账号",
+        paths: [
+          "M9.4 8.4a3.5 3.5 0 1 0 0-.01",
+          "M3.5 19.6c0-3.3 2.6-5.5 5.9-5.5s5.9 2.2 5.9 5.5",
+          "M16.6 5.3a3.5 3.5 0 0 1 0 6.2M17.6 14.3c2 .8 3.4 2.5 3.4 4.7",
+        ],
+      },
     ],
   },
   {
@@ -63,9 +104,26 @@ const GROUPS: NavGroup[] = [
     domain: "data",
     label: "数据资产",
     items: [
-      { page: "entitlements", label: "功能权益", paths: ["M12 3.4 19.4 6v6.2c0 4.3-3 7.4-7.4 8.4-4.4-1-7.4-4.1-7.4-8.4V6z", "m9.4 12 1.9 1.9 3.6-3.7"] },
-      { page: "ledger", label: "积分流水", paths: ["M5 6.4h14M5 11.4h8M5 16.4h5", "M17.4 13.6a2.4 2.4 0 1 0 0 .01", "M17.4 14v2.4l1.6 1"] },
-      { page: "customers", label: "客户档案", paths: ["M3 5h18v14H3z", "M9 11a2.2 2.2 0 1 0 0-.01", "M5.6 16.4c0-1.9 1.5-3.1 3.4-3.1s3.4 1.2 3.4 3.1", "M15.4 10h3M15.4 13.4h3"] },
+      {
+        page: "entitlements",
+        label: "功能权益",
+        paths: ["M12 3.4 19.4 6v6.2c0 4.3-3 7.4-7.4 8.4-4.4-1-7.4-4.1-7.4-8.4V6z", "m9.4 12 1.9 1.9 3.6-3.7"],
+      },
+      {
+        page: "ledger",
+        label: "积分流水",
+        paths: ["M5 6.4h14M5 11.4h8M5 16.4h5", "M17.4 13.6a2.4 2.4 0 1 0 0 .01", "M17.4 14v2.4l1.6 1"],
+      },
+      {
+        page: "customers",
+        label: "客户档案",
+        paths: [
+          "M3 5h18v14H3z",
+          "M9 11a2.2 2.2 0 1 0 0-.01",
+          "M5.6 16.4c0-1.9 1.5-3.1 3.4-3.1s3.4 1.2 3.4 3.1",
+          "M15.4 10h3M15.4 13.4h3",
+        ],
+      },
       { page: "diagnostics", label: "诊断数据", paths: ["M3.4 12.4h3.9l2.1-4.7 3 9.2 2-6.1 1.7 3.1h4.5"] },
     ],
   },
@@ -74,8 +132,21 @@ const GROUPS: NavGroup[] = [
     domain: "system",
     label: "系统设置",
     items: [
-      { page: "settings", label: "站点配置", paths: ["M4 7h9M18.4 7H20M4 12h3.6M13 12h7M4 17h8M17.6 17H20", "M15.7 4.9a2.1 2.1 0 1 0 0 .01", "M10.4 9.9a2.1 2.1 0 1 0 0 .01", "M15 14.9a2.1 2.1 0 1 0 0 .01"] },
-      { page: "audits", label: "审计日志", paths: ["M5 5h14v16H5z", "M9 5V3.9A1.4 1.4 0 0 1 10.4 2.5h3.2A1.4 1.4 0 0 1 15 3.9V5", "M9 11.2h6M9 15.2h4"] },
+      {
+        page: "settings",
+        label: "站点配置",
+        paths: [
+          "M4 7h9M18.4 7H20M4 12h3.6M13 12h7M4 17h8M17.6 17H20",
+          "M15.7 4.9a2.1 2.1 0 1 0 0 .01",
+          "M10.4 9.9a2.1 2.1 0 1 0 0 .01",
+          "M15 14.9a2.1 2.1 0 1 0 0 .01",
+        ],
+      },
+      {
+        page: "audits",
+        label: "审计日志",
+        paths: ["M5 5h14v16H5z", "M9 5V3.9A1.4 1.4 0 0 1 10.4 2.5h3.2A1.4 1.4 0 0 1 15 3.9V5", "M9 11.2h6M9 15.2h4"],
+      },
     ],
   },
 ];
@@ -105,9 +176,7 @@ const PANELS: Record<string, Component> = {
 
 const loginEmail = ref("");
 const loginPassword = ref("");
-const openGroups = reactive<Record<string, boolean>>(
-  Object.fromEntries(GROUPS.map((group) => [group.key, true])),
-);
+const openGroups = reactive<Record<string, boolean>>(Object.fromEntries(GROUPS.map((group) => [group.key, true])));
 
 const pwForm = reactive({ oldPassword: "", newPassword: "", confirmPassword: "" });
 const pwError = ref("");
@@ -124,7 +193,9 @@ function closeMobileNav(restoreFocus = false) {
 
 watch(
   () => route.fullPath,
-  () => { mobileNavOpen.value = false; },
+  () => {
+    mobileNavOpen.value = false;
+  },
 );
 
 const activePage = computed(() => String(route.params.page || "overview"));

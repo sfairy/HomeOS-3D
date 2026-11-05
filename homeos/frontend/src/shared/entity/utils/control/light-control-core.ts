@@ -36,9 +36,7 @@ export const LIGHT_COLOR_PRESETS = [
   '#2D3436',
 ] as const
 
-export function pickLightCapabilityAttrs(
-  attributes: Record<string, unknown> | undefined,
-): Record<string, unknown> {
+export function pickLightCapabilityAttrs(attributes: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!attributes) return {}
   const picked: Record<string, unknown> = {}
   for (const key of LIGHT_CAPABILITY_ATTR_KEYS) {
@@ -50,9 +48,7 @@ export function pickLightCapabilityAttrs(
 /** 是否支持 RGB/HS/XY 类颜色模式 */
 export function lightSupportsRgb(modes: unknown): boolean {
   if (!Array.isArray(modes)) return false
-  return modes.some(
-    (mode) => mode === 'rgb' || mode === 'hs' || mode === 'xy' || mode === 'rgbw' || mode === 'rgbww',
-  )
+  return modes.some((mode) => mode === 'rgb' || mode === 'hs' || mode === 'xy' || mode === 'rgbw' || mode === 'rgbww')
 }
 
 /** 是否支持色温模式 */
@@ -74,10 +70,7 @@ export function brightnessToPercent(brightness: unknown): number | null {
 }
 
 /** brightness 0–255 → 百分比；关灯且无 brightness 时返回 1（避免滑块归零） */
-export function lightBrightnessPct(
-  state: string | undefined,
-  brightness: unknown,
-): number {
+export function lightBrightnessPct(state: string | undefined, brightness: unknown): number {
   if (brightness != null) return brightnessToPercent(brightness) ?? 0
   return state === 'on' ? 100 : 1
 }

@@ -1,297 +1,282 @@
-import { deviceStatusChoices } from "../device/device-status";
-import {
-  attributesOf,
-  brightnessModes,
-  fanCapabilities,
-  haNumber,
-  stringOptions,
-} from "../device/entity-capabilities";
-import { domElement } from "@app/shared/util/dom-factory";
-import { formatEntityNumber } from "@app/shared/util/ha-number";
-import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
-import {
-  createNativeExtraPanel,
-  nativeExtraKind,
-  nativeExtraMinimumWidth,
-} from "../panels/native-extra-panel";
+import { deviceStatusChoices } from '../device/device-status'
+import { attributesOf, brightnessModes, fanCapabilities, haNumber, stringOptions } from '../device/entity-capabilities'
+import { domElement } from '@app/shared/util/dom-factory'
+import { formatEntityNumber } from '@app/shared/util/ha-number'
+import { syncHtmlRangeProgress } from '@app/shared/util/range-progress'
+import { createNativeExtraPanel, nativeExtraKind, nativeExtraMinimumWidth } from '../panels/native-extra-panel'
 /** 实体可用性判定：离线/未知态不可用，但 button/input_button 的 unknown 态视为可执行。 */
 function entityUsable(entityId: any, state: any) {
   return !!(
     state &&
     state.available !== false &&
-    typeof state.state == "string" &&
-    !["", "unavailable"].includes(state.state) &&
-    (!String(entityId).startsWith("fan.") || ["on", "off"].includes(state.state)) &&
-    (state.state !== "unknown" || /^(button|input_button|scene)\./.test(entityId))
-  );
+    typeof state.state == 'string' &&
+    !['', 'unavailable'].includes(state.state) &&
+    (!String(entityId).startsWith('fan.') || ['on', 'off'].includes(state.state)) &&
+    (state.state !== 'unknown' || /^(button|input_button|scene)\./.test(entityId))
+  )
 }
 function extraStateLabel(entityId: any, state: any, displayPrecision: number | null = null) {
-  const liveState = state?.newState || state;
-  return liveState?.state === "unknown" && !/^(button|input_button|scene)\./.test(entityId)
-    ? "状态未知"
+  const liveState = state?.newState || state
+  return liveState?.state === 'unknown' && !/^(button|input_button|scene)\./.test(entityId)
+    ? '状态未知'
     : entityUsable(entityId, liveState)
-      ? String(entityId).startsWith("scene.")
-        ? liveState.state === "unknown"
-          ? "尚未运行"
-          : "可运行"
-        : liveState.state === "unknown"
-          ? "可执行"
-          : String(entityId).startsWith("binary_sensor.")
-            ? liveState.attributes?.device_class === "running" &&
-              ["on", "off"].includes(liveState.state)
-              ? liveState.state === "on"
-                ? "正在运行"
-                : "未在运行"
+      ? String(entityId).startsWith('scene.')
+        ? liveState.state === 'unknown'
+          ? '尚未运行'
+          : '可运行'
+        : liveState.state === 'unknown'
+          ? '可执行'
+          : String(entityId).startsWith('binary_sensor.')
+            ? liveState.attributes?.device_class === 'running' && ['on', 'off'].includes(liveState.state)
+              ? liveState.state === 'on'
+                ? '正在运行'
+                : '未在运行'
               : deviceStatusChoices(
                   {
                     entityId: entityId,
                   },
                   liveState,
-                )?.options.find((choice) => choice.value === liveState.state)?.label ||
-                liveState.state
-            : ({
-                on: "已开启",
-                off: "已关闭",
-              } as any)[liveState.state] ||
+                )?.options.find((choice) => choice.value === liveState.state)?.label || liveState.state
+            : (
+                {
+                  on: '已开启',
+                  off: '已关闭',
+                } as any
+              )[liveState.state] ||
               // 兜底交给精度格式化：传感器数值按 HA 精度显示，非数值原样返回。
               formatEntityNumber(entityId, liveState, displayPrecision)
-      : "不可用";
+      : '不可用'
 }
 export function extraTypes(rawEntityId: any) {
-  const domain = String(rawEntityId).split(".")[0];
+  const domain = String(rawEntityId).split('.')[0]
   if (
     [
-      "humidifier",
-      "valve",
-      "lawn_mower",
-      "siren",
-      "alarm_control_panel",
-      "vacuum",
-      "lock",
-      "calendar",
-      "todo",
-      "weather",
-      "update",
-      "ai_task",
-      "assist_satellite",
-      "conversation",
-      "notify",
-      "remote",
-      "tts",
-      "image_processing",
-      "stt",
-      "wake_word",
-      "infrared",
-      "radio_frequency",
+      'humidifier',
+      'valve',
+      'lawn_mower',
+      'siren',
+      'alarm_control_panel',
+      'vacuum',
+      'lock',
+      'calendar',
+      'todo',
+      'weather',
+      'update',
+      'ai_task',
+      'assist_satellite',
+      'conversation',
+      'notify',
+      'remote',
+      'tts',
+      'image_processing',
+      'stt',
+      'wake_word',
+      'infrared',
+      'radio_frequency',
     ].includes(domain)
   )
-    return ["panel", "state"];
+    return ['panel', 'state']
   const mapped = {
-    text: "panel",
-    date: "panel",
-    time: "panel",
-    datetime: "panel",
-    scene: "button",
-    camera: "picture",
-    image: "picture",
-    climate: "panel",
-    cover: "panel",
-    water_heater: "panel",
-    media_player: "panel",
-    switch: "switch",
-    input_boolean: "switch",
-    light: "switch",
-    fan: "switch",
-    select: "select",
-    input_select: "select",
-    number: "number",
-    input_number: "number",
-    button: "button",
-    input_button: "button",
-  }[domain];
-  return mapped ? [mapped, "state"] : ["state"];
+    text: 'panel',
+    date: 'panel',
+    time: 'panel',
+    datetime: 'panel',
+    scene: 'button',
+    camera: 'picture',
+    image: 'picture',
+    climate: 'panel',
+    cover: 'panel',
+    water_heater: 'panel',
+    media_player: 'panel',
+    switch: 'switch',
+    input_boolean: 'switch',
+    light: 'switch',
+    fan: 'switch',
+    select: 'select',
+    input_select: 'select',
+    number: 'number',
+    input_number: 'number',
+    button: 'button',
+    input_button: 'button',
+  }[domain]
+  return mapped ? [mapped, 'state'] : ['state']
 }
 export const extraLabels = {
-  picture: "画面显示",
-  panel: "设备面板",
-  switch: "开关",
-  select: "选项",
-  number: "数值",
-  button: "按钮",
-  state: "状态显示",
-};
+  picture: '画面显示',
+  panel: '设备面板',
+  switch: '开关',
+  select: '选项',
+  number: '数值',
+  button: '按钮',
+  state: '状态显示',
+}
 export function purifierRelatedEntities(entities: any, targetEntityId: any) {
   const target = entities.find((entity: any) => entity.entityId === targetEntityId),
-    deviceId = target?.deviceId || target?.device_id;
+    deviceId = target?.deviceId || target?.device_id
   return deviceId
     ? entities.filter(
         (relatedEntity: any) =>
-          relatedEntity.entityId !== targetEntityId &&
-          (relatedEntity.deviceId || relatedEntity.device_id) === deviceId,
+          relatedEntity.entityId !== targetEntityId && (relatedEntity.deviceId || relatedEntity.device_id) === deviceId,
       )
-    : [];
+    : []
 }
 export function purifierDeviceChanged(deviceEntities: any, previousEntityId: any, nextEntityId: any) {
-  if (previousEntityId === nextEntityId) return false;
+  if (previousEntityId === nextEntityId) return false
   const deviceIdOf = (lookupEntityId: any) => {
-    const found = deviceEntities.find(
-      (candidateEntity: any) => candidateEntity.entityId === lookupEntityId,
-    );
-    return found?.deviceId || found?.device_id;
-  };
-  return !deviceIdOf(previousEntityId) || deviceIdOf(previousEntityId) !== deviceIdOf(nextEntityId);
+    const found = deviceEntities.find((candidateEntity: any) => candidateEntity.entityId === lookupEntityId)
+    return found?.deviceId || found?.device_id
+  }
+  return !deviceIdOf(previousEntityId) || deviceIdOf(previousEntityId) !== deviceIdOf(nextEntityId)
 }
 function extraRanges(rangeEntityId: any, rangeState: any) {
-  const attributes = attributesOf(rangeState?.newState || rangeState);
-  if (rangeEntityId.startsWith("fan.") && fanCapabilities(attributes).percentageSupported)
+  const attributes = attributesOf(rangeState?.newState || rangeState)
+  if (rangeEntityId.startsWith('fan.') && fanCapabilities(attributes).percentageSupported)
     return [
       {
-        key: "percentage",
-        label: "风速",
+        key: 'percentage',
+        label: '风速',
         min: 0,
         max: 100,
         step: 1,
         value: haNumber(attributes.percentage) ?? 0,
       },
-    ];
-  if (!rangeEntityId.startsWith("light.")) return [];
+    ]
+  if (!rangeEntityId.startsWith('light.')) return []
   const colorModes = stringOptions(attributes.supported_color_modes),
-    ranges: any[] = [];
+    ranges: any[] = []
   colorModes.some((mode) => brightnessModes.has(mode)) &&
     ranges.push({
-      key: "brightness",
-      label: "亮度",
+      key: 'brightness',
+      label: '亮度',
       min: 0,
       max: 255,
       step: 1,
-      value:
-        (rangeState?.newState || rangeState)?.state === "off"
-          ? 0
-          : (haNumber(attributes.brightness) ?? 0),
-    });
+      value: (rangeState?.newState || rangeState)?.state === 'off' ? 0 : (haNumber(attributes.brightness) ?? 0),
+    })
   const minKelvin = haNumber(attributes.min_color_temp_kelvin),
-    maxKelvin = haNumber(attributes.max_color_temp_kelvin);
+    maxKelvin = haNumber(attributes.max_color_temp_kelvin)
   return (
-    colorModes.includes("color_temp") &&
+    colorModes.includes('color_temp') &&
       minKelvin !== null &&
       minKelvin > 0 &&
       maxKelvin !== null &&
       maxKelvin >= minKelvin &&
       ranges.push({
-        key: "color_temp_kelvin",
-        label: "色温 K",
+        key: 'color_temp_kelvin',
+        label: '色温 K',
         min: minKelvin,
         max: maxKelvin,
         step: 1,
         value: haNumber(attributes.color_temp_kelvin) ?? minKelvin,
       }),
     ranges
-  );
+  )
 }
 function extraRangeCommand(item: any, commandState: any, key: any, rawValue: any) {
   const commandLiveState = commandState?.newState || commandState,
     range = extraRanges(item.entityId, commandLiveState).find((candidate) => candidate.key === key),
-    numericValue = haNumber(rawValue);
+    numericValue = haNumber(rawValue)
   if (
     !entityUsable(item.entityId, commandLiveState) ||
-    item.type !== "switch" ||
+    item.type !== 'switch' ||
     !range ||
     numericValue === null ||
     numericValue < range.min ||
     numericValue > range.max
   )
-    throw new Error("设备不支持此调节或数值超出范围");
-  const entityDomain = item.entityId.split(".")[0];
-  return entityDomain === "light" && key === "brightness" && numericValue === 0
+    throw new Error('设备不支持此调节或数值超出范围')
+  const entityDomain = item.entityId.split('.')[0]
+  return entityDomain === 'light' && key === 'brightness' && numericValue === 0
     ? {
         entityId: item.entityId,
         domain: entityDomain,
-        service: "turn_off",
+        service: 'turn_off',
         data: {},
-        deviceKind: "purifier-extra",
+        deviceKind: 'purifier-extra',
       }
     : {
         entityId: item.entityId,
         domain: entityDomain,
-        service: entityDomain === "fan" ? "set_percentage" : "turn_on",
+        service: entityDomain === 'fan' ? 'set_percentage' : 'turn_on',
         data: {
           [key]: numericValue,
         },
-        deviceKind: "purifier-extra",
-      };
+        deviceKind: 'purifier-extra',
+      }
 }
 /** 命令 data 按控件类型择一携带 option/value，运行时动态挂载，故字段全部可选。 */
-type PurifierCommandData = { option?: any; value?: any };
+type PurifierCommandData = { option?: any; value?: any }
 /** 面板视图模型由调用方 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
 type PurifierExtrasViewModel = {
-  item?: any;
-  editing?: any;
-  states?: any;
+  item?: any
+  editing?: any
+  states?: any
   /** 实体 → HA 显示精度（`number-formats` 通道）。 */
-  numberFormats?: Record<string, number>;
-};
+  numberFormats?: Record<string, number>
+}
 /** 卡片运行时状态袋：除建卡时的固定字段外，卡片在渲染/交互过程中还会挂上description/submit/menu/choices/confirm/ranges 等成员，故按实际访问到的键显式列出并全部可选。 */
 type PurifierCard = {
-  item?: any;
-  section?: any;
-  title?: any;
-  status?: any;
-  error?: any;
-  control?: any;
-  pending?: boolean;
-  description?: any;
-  submit?: any;
-  expected?: any;
-  timer?: any;
-  menu?: any;
-  choices?: any;
-  confirm?: any;
-  ranges?: any[];
-  rangePending?: boolean;
-  rangeExpected?: any;
-  rangeTimer?: any;
-  native?: any;
-  nativeRoot?: any;
+  item?: any
+  section?: any
+  title?: any
+  status?: any
+  error?: any
+  control?: any
+  pending?: boolean
+  description?: any
+  submit?: any
+  expected?: any
+  timer?: any
+  menu?: any
+  choices?: any
+  confirm?: any
+  ranges?: any[]
+  rangePending?: boolean
+  rangeExpected?: any
+  rangeTimer?: any
+  native?: any
+  nativeRoot?: any
   /** 0.8.1：状态类卡片（NAS 指标）的百分比条。 */
-  presentationBar?: HTMLElement | null;
-};
+  presentationBar?: HTMLElement | null
+}
 function numberConstraints(state: any) {
-  const attributes = attributesOf(state);
+  const attributes = attributesOf(state)
   return {
     min: haNumber(attributes.min),
     max: haNumber(attributes.max),
-    step: haNumber(Object.hasOwn(attributes, "step") ? attributes.step : 1),
-  };
+    step: haNumber(Object.hasOwn(attributes, 'step') ? attributes.step : 1),
+  }
 }
 function extraCommand(controlItem: any, controlState: any, controlValue: any) {
-  const controlLiveState = controlState?.newState || controlState;
-  if (!entityUsable(controlItem.entityId, controlLiveState)) throw new Error("该实体当前不可用");
+  const controlLiveState = controlState?.newState || controlState
+  if (!entityUsable(controlItem.entityId, controlLiveState)) throw new Error('该实体当前不可用')
   if (
     !extraTypes(controlItem.entityId).includes(controlItem.type) ||
-    ["state", "panel", "picture"].includes(controlItem.type)
+    ['state', 'panel', 'picture'].includes(controlItem.type)
   )
-    throw new Error("不支持此操作");
-  const controlDomain = controlItem.entityId.split(".")[0],
+    throw new Error('不支持此操作')
+  const controlDomain = controlItem.entityId.split('.')[0],
     controlAttributes = attributesOf(controlLiveState),
-    data: PurifierCommandData = {};
-  let service;
+    data: PurifierCommandData = {}
+  let service
   if (
-    (controlItem.type === "switch" &&
-      (service = controlLiveState.state === "on" ? "turn_off" : "turn_on"),
-    controlItem.type === "switch" &&
-      controlDomain === "fan" &&
-      (!["on", "off"].includes(controlLiveState.state) ||
-        !fanCapabilities(controlAttributes)[service === "turn_on" ? "canTurnOn" : "canTurnOff"]))
+    (controlItem.type === 'switch' && (service = controlLiveState.state === 'on' ? 'turn_off' : 'turn_on'),
+    controlItem.type === 'switch' &&
+      controlDomain === 'fan' &&
+      (!['on', 'off'].includes(controlLiveState.state) ||
+        !fanCapabilities(controlAttributes)[service === 'turn_on' ? 'canTurnOn' : 'canTurnOff']))
   )
-    throw new Error("设备不支持此开关操作");
-  if ((controlItem.type === "button" && (service = controlDomain === "scene" ? "turn_on" : "press"), controlItem.type === "select")) {
-    if (!stringOptions(controlAttributes.options).includes(controlValue))
-      throw new Error("选项已失效");
-    ((service = "select_option"), (data.option = controlValue));
+    throw new Error('设备不支持此开关操作')
+  if (
+    (controlItem.type === 'button' && (service = controlDomain === 'scene' ? 'turn_on' : 'press'),
+    controlItem.type === 'select')
+  ) {
+    if (!stringOptions(controlAttributes.options).includes(controlValue)) throw new Error('选项已失效')
+    ;(service = 'select_option'), (data.option = controlValue)
   }
-  if (controlItem.type === "number") {
+  if (controlItem.type === 'number') {
     const { min: min, max: max, step: step } = numberConstraints(controlLiveState),
-      numeric = haNumber(controlValue);
+      numeric = haNumber(controlValue)
     if (
       numeric === null ||
       min === null ||
@@ -302,18 +287,18 @@ function extraCommand(controlItem: any, controlState: any, controlValue: any) {
       numeric < min ||
       numeric > max
     )
-      throw new Error("数值超出设备范围");
+      throw new Error('数值超出设备范围')
     if (Math.abs((numeric - min) / step - Math.round((numeric - min) / step)) > 0.00001)
-      throw new Error("数值不符合设备步长");
-    ((service = "set_value"), (data.value = numeric));
+      throw new Error('数值不符合设备步长')
+    ;(service = 'set_value'), (data.value = numeric)
   }
   return {
     entityId: controlItem.entityId,
     domain: controlDomain,
     service: service,
     data: data,
-    deviceKind: "purifier-extra",
-  };
+    deviceKind: 'purifier-extra',
+  }
 }
 function extraLayout(controls: any) {
   return controls.map(({ label: label, ...rest }: any) => ({
@@ -321,39 +306,37 @@ function extraLayout(controls: any) {
     type: extraTypes(rest.entityId)[0],
     columns: [1, 2, 3, 4].includes(rest.columns)
       ? rest.columns
-      : extraTypes(rest.entityId)[0] === "picture"
+      : extraTypes(rest.entityId)[0] === 'picture'
         ? 2
-        : ["select", "number"].includes(extraTypes(rest.entityId)[0])
+        : ['select', 'number'].includes(extraTypes(rest.entityId)[0])
           ? 1
           : 3,
     rows: rest.rows === 2 ? 2 : 1,
-  }));
+  }))
 }
 function moveExtra(controlList: any, movedEntityId: any, targetPositionEntityId: any) {
   const currentLayout = extraLayout(controlList),
     fromIndex = currentLayout.findIndex((layoutItem: any) => layoutItem.entityId === movedEntityId),
-    toIndex = currentLayout.findIndex(
-      (candidateItem: any) => candidateItem.entityId === targetPositionEntityId,
-    );
-  if (fromIndex < 0 || toIndex < 0) return currentLayout;
-  const [moved] = currentLayout.splice(fromIndex, 1);
-  return (currentLayout.splice(toIndex, 0, moved), currentLayout);
+    toIndex = currentLayout.findIndex((candidateItem: any) => candidateItem.entityId === targetPositionEntityId)
+  if (fromIndex < 0 || toIndex < 0) return currentLayout
+  const [moved] = currentLayout.splice(fromIndex, 1)
+  return (currentLayout.splice(toIndex, 0, moved), currentLayout)
 }
-const purifierResizeLiveRegions = new WeakMap<Document, HTMLElement>();
+const purifierResizeLiveRegions = new WeakMap<Document, HTMLElement>()
 /**
  * 每个 document 一个隐藏 live region，用于播报「已到最大宽度 / 已到内容最小高度」等拖拽缩放边界。
  * 复用一个节点可避免每次重建面板都往 `body` 里塞新的 `<p>`。
  */
 function purifierResizeLiveRegion(doc: Document): HTMLElement {
-  const existing = purifierResizeLiveRegions.get(doc);
-  if (existing?.isConnected) return existing;
-  const liveElement = doc.createElement("p");
-  ((liveElement.className = "i3d-extra-resize-live"),
-    liveElement.setAttribute("aria-live", "polite"),
-    liveElement.setAttribute("aria-atomic", "true"));
-  (doc.body || doc.documentElement).append(liveElement);
-  purifierResizeLiveRegions.set(doc, liveElement);
-  return liveElement;
+  const existing = purifierResizeLiveRegions.get(doc)
+  if (existing?.isConnected) return existing
+  const liveElement = doc.createElement('p')
+  ;(liveElement.className = 'i3d-extra-resize-live'),
+    liveElement.setAttribute('aria-live', 'polite'),
+    liveElement.setAttribute('aria-atomic', 'true')
+  ;(doc.body || doc.documentElement).append(liveElement)
+  purifierResizeLiveRegions.set(doc, liveElement)
+  return liveElement
 }
 export function createPurifierExtras({
   element: hostElement,
@@ -371,161 +354,140 @@ export function createPurifierExtras({
   // 0.8.1：拖拽时的自动滚动容器；缺省回落到弹窗体/灯光面板。
   scrollContainer = null as HTMLElement | null,
 }: any) {
-  const doc = hostElement.ownerDocument || globalThis.document;
+  const doc = hostElement.ownerDocument || globalThis.document
   // 拖拽缩放的边界播报（0.7.9 `purifier-extras.js` 的隐藏 live region）：
   // 视觉提示由 ghost 承担，屏幕阅读器需要独立节点，且不能污染 `i3d-climate-error` 的报错。
-  const resizeLiveElement = purifierResizeLiveRegion(doc);
+  const resizeLiveElement = purifierResizeLiveRegion(doc)
   let viewModel: PurifierExtrasViewModel = {},
-    layoutSignature = "",
+    layoutSignature = '',
     // 0.8.1：面板可见性；隐藏期间跳过重排，重新可见时按最新 viewModel 重算。
     isVisible = true,
     cards: any = [],
     generation = 0,
     dragState: any = null,
     resizeLiveTimer: any = null,
-    selectedEntityId: any = null;
-  const createEl = (tag: any, text = "") => domElement(doc, tag, "", text);
+    selectedEntityId: any = null
+  const createEl = (tag: any, text = '') => domElement(doc, tag, '', text)
   let openSelect: any = null,
-    rafId: any = null;
+    rafId: any = null
   function closeSelect(restoreFocus = false) {
-    if (!openSelect) return;
-    const current = openSelect;
-    ((openSelect = null),
+    if (!openSelect) return
+    const current = openSelect
+    ;(openSelect = null),
       rafId != null && doc.defaultView?.cancelAnimationFrame?.(rafId),
       (rafId = null),
       current.menu.hidePopover?.(),
       (current.menu.hidden = true),
       current.portal && (current.section.append(current.menu), (current.portal = false)),
-      current.control.setAttribute("aria-expanded", "false"),
+      current.control.setAttribute('aria-expanded', 'false'),
       restoreFocus &&
         current.control.focus?.({
           preventScroll: true,
-        }));
+        })
   }
   const onDocumentPointerDown = (event: any) => {
       openSelect &&
         !openSelect.section.contains?.(event.target) &&
         !openSelect.menu.contains?.(event.target) &&
-        closeSelect();
+        closeSelect()
     },
     onDocumentScroll = (scrollEvent: any) => {
-      openSelect && !openSelect.menu.contains?.(scrollEvent.target) && closeSelect();
-    };
-  (doc.addEventListener?.("pointerdown", onDocumentPointerDown),
-    doc.addEventListener?.("scroll", onDocumentScroll, true));
+      openSelect && !openSelect.menu.contains?.(scrollEvent.target) && closeSelect()
+    }
+  doc.addEventListener?.('pointerdown', onDocumentPointerDown), doc.addEventListener?.('scroll', onDocumentScroll, true)
   function measureElement(element: any) {
     const nodeRect = element.getBoundingClientRect(),
       nodeStyle = doc.defaultView?.getComputedStyle?.(element),
       resolveBoxSize = (prop: any, fallback: any) => {
-        let size = parseFloat(nodeStyle?.[prop]);
-        if (size > 0 && nodeStyle.boxSizing === "content-box") {
-          const sides = prop === "width" ? ["Left", "Right"] : ["Top", "Bottom"];
+        let size = parseFloat(nodeStyle?.[prop])
+        if (size > 0 && nodeStyle.boxSizing === 'content-box') {
+          const sides = prop === 'width' ? ['Left', 'Right'] : ['Top', 'Bottom']
           for (const side of sides)
             size +=
-              (parseFloat(nodeStyle["padding" + side]) || 0) +
-              (parseFloat(nodeStyle["border" + side + "Width"]) || 0);
+              (parseFloat(nodeStyle['padding' + side]) || 0) + (parseFloat(nodeStyle['border' + side + 'Width']) || 0)
         }
-        return size > 0 ? size : fallback;
+        return size > 0 ? size : fallback
       },
-      measuredWidth = resolveBoxSize("width", element.offsetWidth || nodeRect.width || 1),
-      measuredHeight = resolveBoxSize("height", element.offsetHeight || nodeRect.height || 1);
+      measuredWidth = resolveBoxSize('width', element.offsetWidth || nodeRect.width || 1),
+      measuredHeight = resolveBoxSize('height', element.offsetHeight || nodeRect.height || 1)
     return {
       rect: nodeRect,
       width: measuredWidth,
       height: measuredHeight,
       sx: nodeRect.width / measuredWidth || 1,
       sy: nodeRect.height / measuredHeight || 1,
-    };
+    }
   }
   function positionSelectMenu() {
-    if (!openSelect) return;
-    const {
-        rect: controlRect,
-        width: controlWidth,
-        sx: scaleX,
-        sy: scaleY,
-      } = measureElement(openSelect.control),
+    if (!openSelect) return
+    const { rect: controlRect, width: controlWidth, sx: scaleX, sy: scaleY } = measureElement(openSelect.control),
       menu = openSelect.menu,
       win = doc.defaultView,
-      stageRect = hostElement.closest?.(".interaction3d-stage")?.getBoundingClientRect(),
+      stageRect = hostElement.closest?.('.interaction3d-stage')?.getBoundingClientRect(),
       viewportLeft = Math.max(0, stageRect?.left || 0) + 8,
       viewportTop = Math.max(0, stageRect?.top || 0) + 8,
       viewportRight = Math.min(win?.innerWidth || 1024, stageRect?.right ?? Infinity) - 8,
       viewportBottom = Math.min(win?.innerHeight || 768, stageRect?.bottom ?? Infinity) - 8,
-      menuWidth = Math.min(controlWidth, Math.max(0, viewportRight - viewportLeft) / scaleX);
+      menuWidth = Math.min(controlWidth, Math.max(0, viewportRight - viewportLeft) / scaleX)
     Object.assign(menu.style, {
-      width: menuWidth + "px",
-      bottom: "auto",
-      transformOrigin: "0 0",
-      transform: "scale(" + scaleX + "," + scaleY + ")",
-    });
+      width: menuWidth + 'px',
+      bottom: 'auto',
+      transformOrigin: '0 0',
+      transform: 'scale(' + scaleX + ',' + scaleY + ')',
+    })
     const menuStyle = win?.getComputedStyle?.(menu),
-      borderHeight =
-        (parseFloat(menuStyle?.borderTopWidth) || 0) +
-        (parseFloat(menuStyle?.borderBottomWidth) || 0),
-      menuHeight =
-        Math.min(260, (menu.scrollHeight || openSelect.choices.length * 42 + 12) + borderHeight) *
-        scaleY,
+      borderHeight = (parseFloat(menuStyle?.borderTopWidth) || 0) + (parseFloat(menuStyle?.borderBottomWidth) || 0),
+      menuHeight = Math.min(260, (menu.scrollHeight || openSelect.choices.length * 42 + 12) + borderHeight) * scaleY,
       spaceBelow = Math.max(0, viewportBottom - controlRect.bottom - 4 * scaleY),
       spaceAbove = Math.max(0, controlRect.top - viewportTop - 4 * scaleY),
       preferAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow,
-      availableHeight = Math.min(
-        Math.max(0, viewportBottom - viewportTop),
-        preferAbove ? spaceAbove : spaceBelow,
-      ),
-      maxHeight = Math.min(menuHeight, availableHeight);
-    ((menu.style.maxHeight = Math.min(260, availableHeight / scaleY) + "px"),
-      (menu.style.left =
-        Math.max(viewportLeft, Math.min(controlRect.left, viewportRight - menuWidth * scaleX)) +
-        "px"),
+      availableHeight = Math.min(Math.max(0, viewportBottom - viewportTop), preferAbove ? spaceAbove : spaceBelow),
+      maxHeight = Math.min(menuHeight, availableHeight)
+    ;(menu.style.maxHeight = Math.min(260, availableHeight / scaleY) + 'px'),
+      (menu.style.left = Math.max(viewportLeft, Math.min(controlRect.left, viewportRight - menuWidth * scaleX)) + 'px'),
       (menu.style.top =
         Math.max(
           viewportTop,
           Math.min(
-            preferAbove
-              ? controlRect.top - 4 * scaleY - maxHeight
-              : controlRect.bottom + 4 * scaleY,
+            preferAbove ? controlRect.top - 4 * scaleY - maxHeight : controlRect.bottom + 4 * scaleY,
             viewportBottom - maxHeight,
           ),
-        ) + "px"));
+        ) + 'px')
   }
   function tickPosition() {
     if (((rafId = null), !!openSelect)) {
       if (doc.hidden) {
-        closeSelect();
-        return;
+        closeSelect()
+        return
       }
-      (positionSelectMenu(),
-        (rafId = doc.defaultView?.requestAnimationFrame?.(tickPosition) ?? null));
+      positionSelectMenu(), (rafId = doc.defaultView?.requestAnimationFrame?.(tickPosition) ?? null)
     }
   }
-  const defaultView = doc.defaultView;
-  defaultView?.addEventListener?.("resize", positionSelectMenu);
+  const defaultView = doc.defaultView
+  defaultView?.addEventListener?.('resize', positionSelectMenu)
   function openSelectMenu(record: any) {
-    if (record.control.disabled) return;
+    if (record.control.disabled) return
     if (openSelect === record) {
-      closeSelect(true);
-      return;
+      closeSelect(true)
+      return
     }
-    (closeSelect(),
+    closeSelect(),
       (openSelect = record),
       !record.menu.showPopover &&
         doc.body &&
-        ((record.menu.dataset.theme =
-          hostElement.closest?.("[data-scene-style]")?.dataset.sceneStyle || ""),
+        ((record.menu.dataset.theme = hostElement.closest?.('[data-scene-style]')?.dataset.sceneStyle || ''),
         doc.body.append(record.menu),
         (record.portal = true)),
       (record.menu.hidden = false),
-      record.control.setAttribute("aria-expanded", "true"),
+      record.control.setAttribute('aria-expanded', 'true'),
       positionSelectMenu(),
       record.menu.showPopover?.(),
       tickPosition(),
       (
-        record.choices.find((choiceOption: any) => choiceOption.value === record.control.value) ||
-        record.choices[0]
+        record.choices.find((choiceOption: any) => choiceOption.value === record.control.value) || record.choices[0]
       )?.focus?.({
         preventScroll: true,
-      }));
+      })
   }
   const COLUMN_SPAN = {
       3: 2,
@@ -533,60 +495,59 @@ export function createPurifierExtras({
       1: 3,
       2: 6,
     },
-    COLUMN_ORDER = [3, 1, 4, 2];
+    COLUMN_ORDER = [3, 1, 4, 2]
   function fitLayout(cardParams: any, entry = cardParams.item) {
     const gridWidth = hostElement.clientWidth,
       minRows = cardParams.ranges?.length
         ? 1 + cardParams.ranges.length
-        : ["select", "number"].includes(entry.type)
+        : ['select', 'number'].includes(entry.type)
           ? 2
-          : 1;
+          : 1
     if (!gridWidth)
       return {
         ...entry,
         rows: Math.max(entry.rows, minRows),
-      };
+      }
     const nativeKind = nativeExtraKind(entry.entityId, readState(entry.entityId)),
       cardMinWidth =
-        entry.type === "picture"
+        entry.type === 'picture'
           ? 96
           : nativeKind
             ? nativeExtraMinimumWidth(entry.entityId, readState(entry.entityId))
             : 64,
       neededSpan = (COLUMN_SPAN as any)[entry.columns],
-      rangeMinSpan = cardParams.ranges?.length || nativeKind === "light" ? 3 : 2,
+      rangeMinSpan = cardParams.ranges?.length || nativeKind === 'light' ? 3 : 2,
       span =
         [2, 3, 4, 6].find(
           (spanCandidate) =>
             spanCandidate >= neededSpan &&
             spanCandidate >= rangeMinSpan &&
             ((gridWidth + 8) * spanCandidate) / 6 - 8 >= cardMinWidth,
-        ) || 6;
+        ) || 6
     return {
       ...entry,
       columns: COLUMN_ORDER.find((columnCandidate) => (COLUMN_SPAN as any)[columnCandidate] === span),
       rows: Math.max(entry.rows, minRows, cardMinWidth > gridWidth ? 2 : 1),
-    };
+    }
   }
   function measureRows(measureRecord: any, rowCount: any) {
-    const rowStyle = doc.defaultView?.getComputedStyle?.(measureRecord.section);
-    if (!rowStyle) return rowCount;
+    const rowStyle = doc.defaultView?.getComputedStyle?.(measureRecord.section)
+    if (!rowStyle) return rowCount
     const toPx = (cssValue: any) => Number.parseFloat(cssValue) || 0,
       measured = (fieldNode: any) => (fieldNode && !fieldNode.hidden && fieldNode.offsetHeight) || 0,
       gap = toPx(rowStyle.rowGap),
       descriptionHeight = measured(measureRecord.description),
       controlHeight = measured(measureRecord.control),
-      nativeHeight = measured(measureRecord.nativeRoot);
+      nativeHeight = measured(measureRecord.nativeRoot)
     let content = nativeHeight
       ? descriptionHeight + nativeHeight + (descriptionHeight && nativeHeight ? gap : 0)
-      : ["select", "number"].includes(measureRecord.item.type)
+      : ['select', 'number'].includes(measureRecord.item.type)
         ? descriptionHeight + controlHeight + (descriptionHeight && controlHeight ? gap : 0)
-        : Math.max(descriptionHeight, controlHeight);
-    for (const extraRange of measureRecord.ranges || [])
-      content += measured(extraRange.label) + gap;
+        : Math.max(descriptionHeight, controlHeight)
+    for (const extraRange of measureRecord.ranges || []) content += measured(extraRange.label) + gap
     for (const field of [measureRecord.confirm, measureRecord.error]) {
-      const fieldHeight = measured(field);
-      fieldHeight && (content += gap + fieldHeight);
+      const fieldHeight = measured(field)
+      fieldHeight && (content += gap + fieldHeight)
     }
     return (
       (content +=
@@ -595,110 +556,95 @@ export function createPurifierExtras({
         toPx(rowStyle.borderTopWidth) +
         toPx(rowStyle.borderBottomWidth)),
       Math.max(rowCount, Math.ceil((content + 8) / 44))
-    );
+    )
   }
   function syncCardMetrics(metricsRecord: any) {
-    if (dragState) return;
+    if (dragState) return
     const fitted = fitLayout(metricsRecord),
       nextColumns = String((COLUMN_SPAN as any)[fitted.columns]),
-      nextRows = String(measureRows(metricsRecord, fitted.rows));
+      nextRows = String(measureRows(metricsRecord, fitted.rows))
     // ResizeObserver 会因自身写入再次触发；值没变就别碰 DOM，避免无限抖动。
-    metricsRecord.section.style.getPropertyValue("--extra-columns") !== nextColumns &&
-      metricsRecord.section.style.setProperty("--extra-columns", nextColumns);
-    metricsRecord.section.style.getPropertyValue("--extra-rows") !== nextRows &&
-      metricsRecord.section.style.setProperty("--extra-rows", nextRows);
+    metricsRecord.section.style.getPropertyValue('--extra-columns') !== nextColumns &&
+      metricsRecord.section.style.setProperty('--extra-columns', nextColumns)
+    metricsRecord.section.style.getPropertyValue('--extra-rows') !== nextRows &&
+      metricsRecord.section.style.setProperty('--extra-rows', nextRows)
   }
   const resizeObserver =
-    typeof ResizeObserver == "function"
+    typeof ResizeObserver == 'function'
       ? new ResizeObserver(() => {
-          (cards.forEach(syncCardMetrics), positionSelectMenu());
+          cards.forEach(syncCardMetrics), positionSelectMenu()
         })
-      : null;
-  resizeObserver?.observe(hostElement);
+      : null
+  resizeObserver?.observe(hostElement)
   function applyLayout(layoutItems: any) {
     layoutItems.forEach((itemEntry: any, index: any) => {
-      const matchingRecord = cards.find(
-        (matchingCard: any) => matchingCard.item.entityId === itemEntry.entityId,
-      );
-      if (!matchingRecord) return;
-      const itemFitted = fitLayout(matchingRecord, itemEntry);
-      ((matchingRecord.section.style.order = index),
-        matchingRecord.section.style.setProperty(
-          "--extra-columns",
-          (COLUMN_SPAN as any)[itemFitted.columns],
-        ),
-        matchingRecord.section.style.setProperty(
-          "--extra-rows",
-          measureRows(matchingRecord, itemFitted.rows),
-        ));
-    });
+      const matchingRecord = cards.find((matchingCard: any) => matchingCard.item.entityId === itemEntry.entityId)
+      if (!matchingRecord) return
+      const itemFitted = fitLayout(matchingRecord, itemEntry)
+      ;(matchingRecord.section.style.order = index),
+        matchingRecord.section.style.setProperty('--extra-columns', (COLUMN_SPAN as any)[itemFitted.columns]),
+        matchingRecord.section.style.setProperty('--extra-rows', measureRows(matchingRecord, itemFitted.rows))
+    })
   }
   /** 屏幕阅读器播报：拖拽缩放走到边界（与键盘缩放同一套文案）。 */
   function clearResizeLive() {
-    (clearTimeout(resizeLiveTimer),
-      (resizeLiveTimer = null),
-      (resizeLiveElement.textContent = ""));
+    clearTimeout(resizeLiveTimer), (resizeLiveTimer = null), (resizeLiveElement.textContent = '')
   }
   function announceResizeLimit(message: string) {
-    (clearTimeout(resizeLiveTimer),
+    clearTimeout(resizeLiveTimer),
       (resizeLiveTimer = null),
       resizeLiveElement.textContent !== message && (resizeLiveElement.textContent = message),
       (resizeLiveTimer = setTimeout(clearResizeLive, 2000)),
-      resizeLiveTimer?.unref?.());
+      resizeLiveTimer?.unref?.()
   }
   function finishDrag(cancelled = false) {
-    if (!dragState) return;
-    const drag = dragState;
-    (drag.resize && clearResizeLive(),
+    if (!dragState) return
+    const drag = dragState
+    drag.resize && clearResizeLive(),
       (dragState = null),
       clearTimeout(drag.timer),
       drag.ghost?.remove?.(),
-      drag.section.classList.toggle("is-dragging", false),
-      cards.forEach((otherCard: any) => otherCard.section.classList.toggle("is-drop-target", false)));
+      drag.section.classList.toggle('is-dragging', false),
+      cards.forEach((otherCard: any) => otherCard.section.classList.toggle('is-drop-target', false))
     const freshLayout = extraLayout(viewModel.item.extraControls),
       appliedLayout =
         !cancelled && drag.active && !drag.resize && drag.lastTarget
           ? moveExtra(drag.layout, drag.item.entityId, drag.lastTarget)
-          : drag.layout;
-    (applyLayout(cancelled ? freshLayout : appliedLayout),
+          : drag.layout
+    applyLayout(cancelled ? freshLayout : appliedLayout),
       (cancelled || !drag.active) && cards.forEach(syncCardMetrics),
-      drag.handle.hasPointerCapture?.(drag.pointerId) &&
-        drag.handle.releasePointerCapture(drag.pointerId),
+      drag.handle.hasPointerCapture?.(drag.pointerId) && drag.handle.releasePointerCapture(drag.pointerId),
       !cancelled &&
         drag.active &&
         viewModel.editing &&
         JSON.stringify(appliedLayout) !== JSON.stringify(freshLayout) &&
-        onLayout(appliedLayout));
+        onLayout(appliedLayout)
   }
   const onEscapeKeydown = (escapeEvent: any) => {
-    escapeEvent.key === "Escape" &&
+    escapeEvent.key === 'Escape' &&
       dragState &&
-      (escapeEvent.preventDefault(), escapeEvent.stopPropagation(), finishDrag(true));
-  };
-  doc.addEventListener?.("keydown", onEscapeKeydown, true);
+      (escapeEvent.preventDefault(), escapeEvent.stopPropagation(), finishDrag(true))
+  }
+  doc.addEventListener?.('keydown', onEscapeKeydown, true)
   function bindDrag(handle: any, section: any, dragItem: any, resize: any) {
-    (handle.addEventListener("pointerdown", (pointerEvent: any) => {
-      if (!viewModel.editing || (pointerEvent.button != null && pointerEvent.button !== 0)) return;
-      ((pointerEvent.pointerType !== "touch" || resize) && pointerEvent.preventDefault(),
+    handle.addEventListener('pointerdown', (pointerEvent: any) => {
+      if (!viewModel.editing || (pointerEvent.button != null && pointerEvent.button !== 0)) return
+      ;(pointerEvent.pointerType !== 'touch' || resize) && pointerEvent.preventDefault(),
         pointerEvent.stopPropagation(),
         finishDrag(true),
         (selectedEntityId = dragItem.entityId),
         cards.forEach((selectionCard: any) =>
-          selectionCard.section.classList.toggle(
-            "is-selected",
-            selectionCard.item.entityId === dragItem.entityId,
-          ),
+          selectionCard.section.classList.toggle('is-selected', selectionCard.item.entityId === dragItem.entityId),
         ),
         handle.focus?.({
           preventScroll: true,
         }),
-        (pointerEvent.pointerType !== "touch" || resize) &&
-          handle.setPointerCapture(pointerEvent.pointerId));
+        (pointerEvent.pointerType !== 'touch' || resize) && handle.setPointerCapture(pointerEvent.pointerId)
       const metrics = measureElement(section),
         sectionRect = metrics.rect,
         gridRect = measureElement(hostElement),
-        scroller = hostElement.closest?.(".i3d-light-panel");
-      ((dragState = {
+        scroller = hostElement.closest?.('.i3d-light-panel')
+      ;(dragState = {
         handle: handle,
         section: section,
         item: dragItem,
@@ -713,7 +659,7 @@ export function createPurifierExtras({
         scrollTop: scroller?.scrollTop || 0,
         active: false,
         layout: extraLayout(viewModel.item.extraControls),
-        touchReady: resize || pointerEvent.pointerType !== "touch",
+        touchReady: resize || pointerEvent.pointerType !== 'touch',
         targets: cards.map((targetCard: any) => ({
           row: targetCard,
           rect: targetCard.section.getBoundingClientRect(),
@@ -721,73 +667,66 @@ export function createPurifierExtras({
       }),
         dragState.touchReady ||
           (dragState.timer = setTimeout(() => {
-            dragState?.handle === handle &&
-              ((dragState.touchReady = true), section.classList.add("is-dragging"));
-          }, 300)));
+            dragState?.handle === handle && ((dragState.touchReady = true), section.classList.add('is-dragging'))
+          }, 300))
     }),
       handle.addEventListener(
-        "touchmove",
+        'touchmove',
         (touchEvent: any) => {
-          dragState?.handle === handle && dragState.touchReady && touchEvent.preventDefault();
+          dragState?.handle === handle && dragState.touchReady && touchEvent.preventDefault()
         },
         {
           passive: false,
         },
       ),
-      handle.addEventListener("pointermove", (moveEvent: any) => {
-        const gesture = dragState;
-        if (!gesture || gesture.handle !== handle || moveEvent.pointerId !== gesture.pointerId)
-          return;
+      handle.addEventListener('pointermove', (moveEvent: any) => {
+        const gesture = dragState
+        if (!gesture || gesture.handle !== handle || moveEvent.pointerId !== gesture.pointerId) return
         const deltaX = moveEvent.clientX - gesture.x,
-          deltaY = moveEvent.clientY - gesture.y;
+          deltaY = moveEvent.clientY - gesture.y
         if (!gesture.touchReady) {
-          Math.hypot(deltaX, deltaY) > 6 && finishDrag(true);
-          return;
+          Math.hypot(deltaX, deltaY) > 6 && finishDrag(true)
+          return
         }
         if (
           (gesture.handle.hasPointerCapture?.(moveEvent.pointerId) ||
             gesture.handle.setPointerCapture?.(moveEvent.pointerId),
           !gesture.active && Math.hypot(deltaX, deltaY) < 6)
         )
-          return;
-        (moveEvent.preventDefault(),
-          (gesture.active = true),
-          section.classList.toggle("is-dragging", true));
+          return
+        moveEvent.preventDefault(), (gesture.active = true), section.classList.toggle('is-dragging', true)
         const dragScrollContainer =
-          scrollContainer ||
-          hostElement.closest?.(".i3d-popup-body") ||
-          hostElement.closest?.(".i3d-light-panel");
+          scrollContainer || hostElement.closest?.('.i3d-popup-body') || hostElement.closest?.('.i3d-light-panel')
         if (dragScrollContainer) {
-          const scrollBounds = dragScrollContainer.getBoundingClientRect();
+          const scrollBounds = dragScrollContainer.getBoundingClientRect()
           moveEvent.clientY > scrollBounds.bottom - 32
             ? (dragScrollContainer.scrollTop += 12)
-            : moveEvent.clientY < scrollBounds.top + 32 && (dragScrollContainer.scrollTop -= 12);
+            : moveEvent.clientY < scrollBounds.top + 32 && (dragScrollContainer.scrollTop -= 12)
         }
         gesture.ghost ||
-          ((gesture.ghost = createEl("div")),
-          (gesture.ghost.className = "i3d-extra-gesture-hint"),
-          (doc.body || hostElement).append(gesture.ghost));
-        const { sx: dragScaleX, sy: dragScaleY } = gesture.metrics;
+          ((gesture.ghost = createEl('div')),
+          (gesture.ghost.className = 'i3d-extra-gesture-hint'),
+          (doc.body || hostElement).append(gesture.ghost))
+        const { sx: dragScaleX, sy: dragScaleY } = gesture.metrics
         if (
           (Object.assign(gesture.ghost.style, {
-            left: moveEvent.clientX + 12 * dragScaleX + "px",
-            top: moveEvent.clientY + 12 * dragScaleY + "px",
-            transformOrigin: "0 0",
-            transform: "scale(" + dragScaleX + "," + dragScaleY + ")",
+            left: moveEvent.clientX + 12 * dragScaleX + 'px',
+            top: moveEvent.clientY + 12 * dragScaleY + 'px',
+            transformOrigin: '0 0',
+            transform: 'scale(' + dragScaleX + ',' + dragScaleY + ')',
           }),
           resize)
         ) {
           const targetWidth = gesture.metrics.width + deltaX / dragScaleX,
             snappedColumns = COLUMN_ORDER.reduce(
               (best, orderCandidate) =>
-                Math.abs(
-                  ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[orderCandidate]) / 6 - 8 - targetWidth,
-                ) < Math.abs(((gesture.grid.width + 8) * (COLUMN_SPAN as any)[best]) / 6 - 8 - targetWidth)
+                Math.abs(((gesture.grid.width + 8) * (COLUMN_SPAN as any)[orderCandidate]) / 6 - 8 - targetWidth) <
+                Math.abs(((gesture.grid.width + 8) * (COLUMN_SPAN as any)[best]) / 6 - 8 - targetWidth)
                   ? orderCandidate
                   : best,
               gesture.item.columns,
             ),
-            snappedRows = ["select", "number"].includes(dragItem.type)
+            snappedRows = ['select', 'number'].includes(dragItem.type)
               ? 2
               : Math.abs(deltaY / dragScaleY) < 12
                 ? gesture.item.rows
@@ -799,30 +738,31 @@ export function createPurifierExtras({
               ...dragItem,
               columns: snappedColumns,
               rows: snappedRows,
-            });
-          ((gesture.layout = extraLayout(viewModel.item.extraControls).map((layoutCandidate: any) =>
+            })
+          ;(gesture.layout = extraLayout(viewModel.item.extraControls).map((layoutCandidate: any) =>
             layoutCandidate.entityId === dragItem.entityId ? snappedItem : layoutCandidate,
           )),
             (gesture.ghost.textContent =
-              ({
-                3: "1/3 行",
-                4: "2/3 行",
-                1: "半行",
-                2: "整行",
-              } as any)[snappedItem.columns] +
-              " · " +
-              (snappedItem.rows === 1 ? "36" : "80") +
-              "px" +
-              (snappedItem.columns !== snappedColumns ? "（内容最小宽度）" : "")),
-            gesture.ghost.classList.add("is-size-outline"),
-            (gesture.ghost.style.left = gesture.rect.left + "px"),
-            (gesture.ghost.style.top = gesture.rect.top + "px"),
+              (
+                {
+                  3: '1/3 行',
+                  4: '2/3 行',
+                  1: '半行',
+                  2: '整行',
+                } as any
+              )[snappedItem.columns] +
+              ' · ' +
+              (snappedItem.rows === 1 ? '36' : '80') +
+              'px' +
+              (snappedItem.columns !== snappedColumns ? '（内容最小宽度）' : '')),
+            gesture.ghost.classList.add('is-size-outline'),
+            (gesture.ghost.style.left = gesture.rect.left + 'px'),
+            (gesture.ghost.style.top = gesture.rect.top + 'px'),
             (gesture.ghost.style.width =
-              ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[snappedItem.columns]) / 6 - 8 + "px"),
-            (gesture.ghost.style.height = 44 * snappedItem.rows - 8 + "px"));
+              ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[snappedItem.columns]) / 6 - 8 + 'px'),
+            (gesture.ghost.style.height = 44 * snappedItem.rows - 8 + 'px')
           // 0.7.9 的拖拽缩放边界播报：宽度/高度贴边时把命中项合并成一条播报。
-          const columnWidth = (columns: any) =>
-              ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[columns]) / 6 - 8,
+          const columnWidth = (columns: any) => ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[columns]) / 6 - 8,
             minimumItem = fitLayout(dragRecord, {
               ...dragItem,
               columns: COLUMN_ORDER[0],
@@ -832,79 +772,68 @@ export function createPurifierExtras({
             currentHeight = gesture.metrics.height + deltaY / dragScaleY,
             maximumHeight = 44 * measureRows(dragRecord, 2) - 8,
             minimumHeight = 44 * measureRows(dragRecord, 1) - 8,
-            hitLimits: string[] = [];
-          (currentWidth > gesture.grid.width + 6 && hitLimits.push("已到最大宽度"),
+            hitLimits: string[] = []
+          currentWidth > gesture.grid.width + 6 && hitLimits.push('已到最大宽度'),
             currentWidth < columnWidth(minimumItem.columns) - 6 &&
-              hitLimits.push(
-                snappedItem.columns !== dragItem.columns ? "已到内容最小宽度" : "已到最小宽度",
-              ),
-            currentHeight > maximumHeight + 6 && hitLimits.push("已到最大高度"),
+              hitLimits.push(snappedItem.columns !== dragItem.columns ? '已到内容最小宽度' : '已到最小宽度'),
+            currentHeight > maximumHeight + 6 && hitLimits.push('已到最大高度'),
             currentHeight < minimumHeight - 6 &&
-              hitLimits.push(minimumHeight > 36 ? "已到内容最小高度" : "已到最小高度"),
+              hitLimits.push(minimumHeight > 36 ? '已到内容最小高度' : '已到最小高度'),
             hitLimits.length
-              ? announceResizeLimit(
-                  (dragRecord?.title?.textContent || "") + "：" + hitLimits.join("，"),
-                )
-              : clearResizeLive());
+              ? announceResizeLimit((dragRecord?.title?.textContent || '') + '：' + hitLimits.join('，'))
+              : clearResizeLive()
         } else {
-          const scrollDeltaY =
-              ((gesture.scroller?.scrollTop || 0) - gesture.scrollTop) * dragScaleY,
+          const scrollDeltaY = ((gesture.scroller?.scrollTop || 0) - gesture.scrollTop) * dragScaleY,
             nearestTarget = gesture.targets.reduce((closestTarget: any, candidateTarget: any) => {
               const targetRect = candidateTarget.rect,
                 distance = Math.hypot(
                   targetRect.left + targetRect.width / 2 - moveEvent.clientX,
                   targetRect.top - scrollDeltaY + targetRect.height / 2 - moveEvent.clientY,
-                );
+                )
               return !closestTarget || distance < closestTarget.distance
                 ? {
                     ...candidateTarget,
                     distance: distance,
                   }
-                : closestTarget;
-            }, null);
-          ((gesture.lastTarget = nearestTarget?.row.item.entityId),
+                : closestTarget
+            }, null)
+          ;(gesture.lastTarget = nearestTarget?.row.item.entityId),
             cards.forEach((dropCard: any) =>
               dropCard.section.classList.toggle(
-                "is-drop-target",
+                'is-drop-target',
                 dropCard === nearestTarget?.row && dropCard.section !== section,
               ),
-            ));
-          const sourceRecord = cards.find((sourceCard: any) => sourceCard.section === section);
+            )
+          const sourceRecord = cards.find((sourceCard: any) => sourceCard.section === section)
           gesture.ghost.textContent =
-            (sourceRecord?.title.textContent || "附加功能") +
-            " → " +
-            (nearestTarget?.row.title.textContent || "原位置");
+            (sourceRecord?.title.textContent || '附加功能') + ' → ' + (nearestTarget?.row.title.textContent || '原位置')
         }
       }),
-      handle.addEventListener("pointerup", () => finishDrag(false)),
-      handle.addEventListener("pointercancel", () => finishDrag(true)),
-      handle.addEventListener("lostpointercapture", () => finishDrag(true)));
+      handle.addEventListener('pointerup', () => finishDrag(false)),
+      handle.addEventListener('pointercancel', () => finishDrag(true)),
+      handle.addEventListener('lostpointercapture', () => finishDrag(true))
   }
   function readState(trackedEntityId: any) {
-    const stateEntry = viewModel.states?.[trackedEntityId];
-    return stateEntry?.newState || stateEntry;
+    const stateEntry = viewModel.states?.[trackedEntityId]
+    return stateEntry?.newState || stateEntry
   }
   function refreshRows() {
     for (const row of cards) {
       const entityState = readState(row.item.entityId),
         stateAttributes = attributesOf(entityState),
-        available = entityUsable(row.item.entityId, entityState);
+        available = entityUsable(row.item.entityId, entityState)
       if (
         (row.pending &&
           row.expected != null &&
           String(entityState?.state) === String(row.expected) &&
-          (clearTimeout(row.timer),
-          (row.pending = false),
-          (row.expected = null),
-          (row.error.textContent = "")),
+          (clearTimeout(row.timer), (row.pending = false), (row.expected = null), (row.error.textContent = '')),
         row.pending &&
           !available &&
           (clearTimeout(row.timer),
           (row.pending = false),
           (row.expected = null),
-          (row.error.textContent = "设备已离线")),
-        (row.title.textContent =
-          row.item.label || stateAttributes.friendly_name || row.item.entityId),
+          (row.error.textContent = '设备已离线')),
+        (row.title.textContent = row.item.label || stateAttributes.friendly_name || row.item.entityId),
         (row.title.title = row.title.textContent),
         row.presentationBar
           ? // 0.8.1：状态类卡片（NAS 指标）由调用方给出文案、告警与百分比条。
@@ -913,26 +842,21 @@ export function createPurifierExtras({
                 row.item,
                 entityState,
                 (viewModel.numberFormats || {})[row.item.entityId] ?? null,
-              );
-              ((row.status.textContent = presentation.text),
-                row.section.classList.toggle("is-warning", !!presentation.warning),
-                row.section.classList.toggle("is-unavailable", presentation.available === false),
+              )
+              ;(row.status.textContent = presentation.text),
+                row.section.classList.toggle('is-warning', !!presentation.warning),
+                row.section.classList.toggle('is-unavailable', presentation.available === false),
                 (row.presentationBar.hidden = presentation.percent == null),
-                (row.presentationBar.style.width = (presentation.percent ?? 0) + "%"));
+                (row.presentationBar.style.width = (presentation.percent ?? 0) + '%')
             })()
           : (row.status.textContent = available
-              ? "" +
-                extraStateLabel(
-                  row.item.entityId,
-                  entityState,
-                  (viewModel.numberFormats || {})[row.item.entityId],
-                ) +
-                (stateAttributes.unit_of_measurement ? " " + stateAttributes.unit_of_measurement : "")
-              : "不可用"),
+              ? '' +
+                extraStateLabel(row.item.entityId, entityState, (viewModel.numberFormats || {})[row.item.entityId]) +
+                (stateAttributes.unit_of_measurement ? ' ' + stateAttributes.unit_of_measurement : '')
+              : '不可用'),
         (row.status.hidden =
           !!available &&
-          (row.item.type === "select" ||
-            (row.item.type === "number" && !stateAttributes.unit_of_measurement))),
+          (row.item.type === 'select' || (row.item.type === 'number' && !stateAttributes.unit_of_measurement))),
         row.native &&
           ((row.status.hidden = true),
           row.native.update({
@@ -948,113 +872,85 @@ export function createPurifierExtras({
             numberFormats: viewModel.numberFormats || {},
           }),
           syncCardMetrics(row)),
-        row.native ||
-        !row.control)
+        row.native || !row.control)
       ) {
-        syncCardMetrics(row);
-        continue;
+        syncCardMetrics(row)
+        continue
       }
       if (
         ((row.control.disabled = !!(viewModel.editing || row.pending || !available)),
-        row.item.type === "switch" &&
-          ((row.control.textContent = entityState?.state === "on" ? "已开启" : "已关闭"),
-          row.control.setAttribute("role", "switch"),
-          row.control.setAttribute("aria-checked", String(entityState?.state === "on")),
-          row.control.setAttribute("aria-pressed", String(entityState?.state === "on"))),
-        row.item.type === "switch" &&
-          row.item.entityId.startsWith("fan.") &&
+        row.item.type === 'switch' &&
+          ((row.control.textContent = entityState?.state === 'on' ? '已开启' : '已关闭'),
+          row.control.setAttribute('role', 'switch'),
+          row.control.setAttribute('aria-checked', String(entityState?.state === 'on')),
+          row.control.setAttribute('aria-pressed', String(entityState?.state === 'on'))),
+        row.item.type === 'switch' &&
+          row.item.entityId.startsWith('fan.') &&
           (row.control.disabled ||=
-            !fanCapabilities(stateAttributes)[
-              entityState?.state === "on" ? "canTurnOff" : "canTurnOn"
-            ]),
-        row.item.type === "select")
+            !fanCapabilities(stateAttributes)[entityState?.state === 'on' ? 'canTurnOff' : 'canTurnOn']),
+        row.item.type === 'select')
       ) {
-        const options = stringOptions(stateAttributes.options);
-        (row.options !== JSON.stringify(options) &&
+        const options = stringOptions(stateAttributes.options)
+        row.options !== JSON.stringify(options) &&
           (openSelect === row && closeSelect(),
           (row.options = JSON.stringify(options)),
           (row.choices = options.map((optionText) => {
-            const button = createEl("button", optionText);
+            const button = createEl('button', optionText)
             return (
-              (button.type = "button"),
+              (button.type = 'button'),
               (button.value = optionText),
-              button.setAttribute("role", "option"),
-              button.addEventListener("click", () => {
-                row.control.disabled ||
-                  (closeSelect(true), (row.control.value = optionText), row.submit());
+              button.setAttribute('role', 'option'),
+              button.addEventListener('click', () => {
+                row.control.disabled || (closeSelect(true), (row.control.value = optionText), row.submit())
               }),
               button
-            );
+            )
           })),
           row.menu.replaceChildren(...row.choices)),
-          (row.control.value =
-            row.pending && row.expected != null
-              ? row.expected
-              : available
-                ? entityState.state
-                : ""),
+          (row.control.value = row.pending && row.expected != null ? row.expected : available ? entityState.state : ''),
           (row.control.disabled ||= !options.length),
           (row.control.textContent =
-            row.pending && row.expected != null
-              ? String(row.expected)
-              : available
-                ? entityState.state
-                : "不可用"));
+            row.pending && row.expected != null ? String(row.expected) : available ? entityState.state : '不可用')
         for (const choiceButton of row.choices)
-          choiceButton.setAttribute(
-            "aria-selected",
-            String(choiceButton.value === row.control.value),
-          );
-        row.control.disabled && openSelect === row && closeSelect();
+          choiceButton.setAttribute('aria-selected', String(choiceButton.value === row.control.value))
+        row.control.disabled && openSelect === row && closeSelect()
       }
-      if (row.item.type === "number") {
-        const { min: min, max: max, step: step } = numberConstraints(entityState);
-        ((row.control.min = min ?? ""),
-          (row.control.max = max ?? ""),
-          (row.control.step = step ?? ""),
+      if (row.item.type === 'number') {
+        const { min: min, max: max, step: step } = numberConstraints(entityState)
+        ;(row.control.min = min ?? ''),
+          (row.control.max = max ?? ''),
+          (row.control.step = step ?? ''),
           doc.activeElement !== row.control &&
             (row.control.value =
-              row.pending && row.expected != null
-                ? row.expected
-                : available
-                  ? entityState.state
-                  : ""),
-          (row.control.disabled ||=
-            min === null || max === null || min > max || step === null || step <= 0));
+              row.pending && row.expected != null ? row.expected : available ? entityState.state : ''),
+          (row.control.disabled ||= min === null || max === null || min > max || step === null || step <= 0)
       }
       for (const rangeEntry of row.ranges || []) {
         const rangeInfo = extraRanges(row.item.entityId, entityState).find(
           (rangeCandidate) => rangeCandidate.key === rangeEntry.key,
-        );
-        (row.rangeExpected?.key === rangeEntry.key &&
+        )
+        row.rangeExpected?.key === rangeEntry.key &&
           (Math.abs((rangeInfo?.value ?? Infinity) - row.rangeExpected.value) < 1 || !available) &&
           (clearTimeout(row.rangeTimer),
           (row.rangePending = false),
           (row.rangeExpected = null),
-          (row.error.textContent = available ? "" : "实体已离线，调节结果未确认")),
-          (rangeEntry.input.disabled = !!(
-            viewModel.editing ||
-            row.rangePending ||
-            !available ||
-            !rangeInfo
-          )),
+          (row.error.textContent = available ? '' : '实体已离线，调节结果未确认')),
+          (rangeEntry.input.disabled = !!(viewModel.editing || row.rangePending || !available || !rangeInfo)),
           rangeInfo &&
             doc.activeElement !== rangeEntry.input &&
             ((rangeEntry.input.value = String(
               row.rangeExpected?.key === rangeEntry.key ? row.rangeExpected.value : rangeInfo.value,
             )),
             syncHtmlRangeProgress(rangeEntry.input)),
-          (rangeEntry.output.textContent = rangeInfo
-            ? rangeInfo.label + " " + rangeInfo.value
-            : ""));
+          (rangeEntry.output.textContent = rangeInfo ? rangeInfo.label + ' ' + rangeInfo.value : '')
       }
-      syncCardMetrics(row);
+      syncCardMetrics(row)
     }
   }
   function update(nextViewModel: any) {
-    viewModel = nextViewModel;
+    viewModel = nextViewModel
     // 0.8.1：面板不可见（弹窗未展示）时不重排卡片，避免隐藏状态下的无谓布局与测量。
-    if (!isVisible) return;
+    if (!isVisible) return
     const layout = extraLayout(nextViewModel.item?.extraControls || []),
       signature = JSON.stringify([
         nextViewModel.item?.id,
@@ -1065,70 +961,54 @@ export function createPurifierExtras({
           ),
         ),
         !!nextViewModel.editing,
-      ]);
+      ])
     if (((hostElement.hidden = !layout.length), signature !== layoutSignature)) {
-      (closeSelect(),
+      closeSelect(),
         finishDrag(true),
         resizeObserver?.disconnect(),
         resizeObserver?.observe(hostElement),
         cards.forEach((staleCard: any) => {
-          (clearTimeout(staleCard.timer),
-            clearTimeout(staleCard.rangeTimer),
-            staleCard.native?.dispose?.());
+          clearTimeout(staleCard.timer), clearTimeout(staleCard.rangeTimer), staleCard.native?.dispose?.()
         }),
         (layoutSignature = signature),
         generation++,
         hostElement.replaceChildren(),
-        (cards = []));
+        (cards = [])
       for (const control of layout) {
-        const cardSection = createEl("section");
+        const cardSection = createEl('section')
         if (
-          ((cardSection.className =
-            "i3d-climate-option-group i3d-extra-card i3d-extra-" + control.type),
-          cardSection.style.setProperty("--extra-columns", (COLUMN_SPAN as any)[control.columns]),
-          cardSection.style.setProperty("--extra-rows", control.rows),
+          ((cardSection.className = 'i3d-climate-option-group i3d-extra-card i3d-extra-' + control.type),
+          cardSection.style.setProperty('--extra-columns', (COLUMN_SPAN as any)[control.columns]),
+          cardSection.style.setProperty('--extra-rows', control.rows),
           nextViewModel.editing)
         ) {
-          const dragHandle = createEl("button", "⠿");
-          ((dragHandle.type = "button"),
-            (dragHandle.className = "i3d-extra-drag"),
-            dragHandle.setAttribute("aria-label", "调整顺序 " + control.entityId),
-            (dragHandle.title = "拖动排序，方向键移动，Esc取消"),
-            cardSection.classList.toggle("is-selected", selectedEntityId === control.entityId),
-            cardSection.addEventListener("click", () => {
-              ((selectedEntityId = control.entityId),
+          const dragHandle = createEl('button', '⠿')
+          ;(dragHandle.type = 'button'),
+            (dragHandle.className = 'i3d-extra-drag'),
+            dragHandle.setAttribute('aria-label', '调整顺序 ' + control.entityId),
+            (dragHandle.title = '拖动排序，方向键移动，Esc取消'),
+            cardSection.classList.toggle('is-selected', selectedEntityId === control.entityId),
+            cardSection.addEventListener('click', () => {
+              ;(selectedEntityId = control.entityId),
                 cards.forEach((listCard: any) =>
-                  listCard.section.classList.toggle(
-                    "is-selected",
-                    listCard.section === cardSection,
-                  ),
-                ));
+                  listCard.section.classList.toggle('is-selected', listCard.section === cardSection),
+                )
             }),
             bindDrag(dragHandle, cardSection, control, false),
             bindDrag(cardSection, cardSection, control, false),
-            dragHandle.addEventListener("keydown", (dragKeyEvent: any) => {
-              if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(dragKeyEvent.key))
-                return;
-              dragKeyEvent.preventDefault();
-              const controlIndex = layout.findIndex(
-                  (controlEntry: any) => controlEntry.entityId === control.entityId,
-                ),
-                neighbour =
-                  layout[
-                    controlIndex + (["ArrowLeft", "ArrowUp"].includes(dragKeyEvent.key) ? -1 : 1)
-                  ];
-              neighbour && onLayout(moveExtra(layout, control.entityId, neighbour.entityId));
-            }));
-          const resizeHandle = createEl("button", "↘");
-          ((resizeHandle.type = "button"),
-            (resizeHandle.className = "i3d-extra-resize"),
-            resizeHandle.setAttribute("aria-label", "调整大小 " + control.entityId),
-            resizeHandle.setAttribute(
-              "aria-description",
-              "拖动实时调整大小，松手保存，Esc取消，方向键调整",
-            ),
-            (resizeHandle.title =
-              "拖动调整：1/3行、2/3行、半行、整行；36/80px；Esc取消，方向键调整"));
+            dragHandle.addEventListener('keydown', (dragKeyEvent: any) => {
+              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(dragKeyEvent.key)) return
+              dragKeyEvent.preventDefault()
+              const controlIndex = layout.findIndex((controlEntry: any) => controlEntry.entityId === control.entityId),
+                neighbour = layout[controlIndex + (['ArrowLeft', 'ArrowUp'].includes(dragKeyEvent.key) ? -1 : 1)]
+              neighbour && onLayout(moveExtra(layout, control.entityId, neighbour.entityId))
+            })
+          const resizeHandle = createEl('button', '↘')
+          ;(resizeHandle.type = 'button'),
+            (resizeHandle.className = 'i3d-extra-resize'),
+            resizeHandle.setAttribute('aria-label', '调整大小 ' + control.entityId),
+            resizeHandle.setAttribute('aria-description', '拖动实时调整大小，松手保存，Esc取消，方向键调整'),
+            (resizeHandle.title = '拖动调整：1/3行、2/3行、半行、整行；36/80px；Esc取消，方向键调整')
           const emitResize = (nextColumns: any, nextRows: any) => {
             viewModel.editing &&
               onLayout(
@@ -1143,29 +1023,24 @@ export function createPurifierExtras({
                       : layoutControl,
                   ),
                 ),
-              );
-          };
-          (bindDrag(resizeHandle, cardSection, control, true),
-            resizeHandle.addEventListener("keydown", (resizeKeyEvent: any) => {
-              if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(resizeKeyEvent.key))
-                return;
-              resizeKeyEvent.preventDefault();
-              const resizeRecord = cards.find((resizeCard: any) => resizeCard.section === cardSection);
-              if (!resizeRecord) return;
+              )
+          }
+          bindDrag(resizeHandle, cardSection, control, true),
+            resizeHandle.addEventListener('keydown', (resizeKeyEvent: any) => {
+              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(resizeKeyEvent.key)) return
+              resizeKeyEvent.preventDefault()
+              const resizeRecord = cards.find((resizeCard: any) => resizeCard.section === cardSection)
+              if (!resizeRecord) return
               const currentItem = resizeRecord.item,
                 columnIndex = COLUMN_ORDER.indexOf(currentItem.columns),
                 requestedColumns =
-                  resizeKeyEvent.key === "ArrowLeft"
+                  resizeKeyEvent.key === 'ArrowLeft'
                     ? COLUMN_ORDER[Math.max(0, columnIndex - 1)]
-                    : resizeKeyEvent.key === "ArrowRight"
+                    : resizeKeyEvent.key === 'ArrowRight'
                       ? COLUMN_ORDER[Math.min(COLUMN_ORDER.length - 1, columnIndex + 1)]
                       : currentItem.columns,
                 requestedRows =
-                  resizeKeyEvent.key === "ArrowUp"
-                    ? 1
-                    : resizeKeyEvent.key === "ArrowDown"
-                      ? 2
-                      : currentItem.rows,
+                  resizeKeyEvent.key === 'ArrowUp' ? 1 : resizeKeyEvent.key === 'ArrowDown' ? 2 : currentItem.rows,
                 // 方向键同样要过 `fitLayout`：内容装不下时自动放大并提示已到边界
                 // （0.7.8 `purifier-extras.js` 的键盘缩放分支）。
                 fittedNext = fitLayout(resizeRecord, {
@@ -1182,44 +1057,39 @@ export function createPurifierExtras({
                 currentHeight = measureRows(resizeRecord, fittedCurrent.rows),
                 nextHeight = measureRows(resizeRecord, fittedNext.rows),
                 limitMessage =
-                  resizeKeyEvent.key === "ArrowLeft" &&
+                  resizeKeyEvent.key === 'ArrowLeft' &&
                   fittedCurrent.columns === fittedNext.columns &&
                   fittedNext.columns === fittedMinimum.columns
-                    ? "已到内容最小宽度"
-                    : resizeKeyEvent.key === "ArrowRight" && fittedCurrent.columns === 2
-                      ? "已到最大宽度"
-                      : resizeKeyEvent.key === "ArrowUp" && currentHeight === nextHeight
-                        ? "已到内容最小高度"
-                        : resizeKeyEvent.key === "ArrowDown" && currentHeight === nextHeight
-                          ? "已到最大高度"
-                          : "";
-              emitResize(fittedNext.columns, requestedRows);
+                    ? '已到内容最小宽度'
+                    : resizeKeyEvent.key === 'ArrowRight' && fittedCurrent.columns === 2
+                      ? '已到最大宽度'
+                      : resizeKeyEvent.key === 'ArrowUp' && currentHeight === nextHeight
+                        ? '已到内容最小高度'
+                        : resizeKeyEvent.key === 'ArrowDown' && currentHeight === nextHeight
+                          ? '已到最大高度'
+                          : ''
+              emitResize(fittedNext.columns, requestedRows)
               limitMessage
-                ? announceResizeLimit(
-                    (resizeRecord.title.textContent || "") + "：" + limitMessage,
-                  )
-                : clearResizeLive();
+                ? announceResizeLimit((resizeRecord.title.textContent || '') + '：' + limitMessage)
+                : clearResizeLive()
             }),
             cardSection.append(dragHandle, resizeHandle),
-            cardSection.classList.add("is-layout-editing"));
+            cardSection.classList.add('is-layout-editing')
         }
-        const titleElement = createEl("h4"),
-          statusElement = createEl("p"),
-          errorElement = createEl("p");
-        (errorElement.setAttribute("role", "status"),
-          (errorElement.className = "i3d-climate-error"));
-        const configuredType = extraTypes(control.entityId).includes(control.type)
-            ? control.type
-            : "state",
+        const titleElement = createEl('h4'),
+          statusElement = createEl('p'),
+          errorElement = createEl('p')
+        errorElement.setAttribute('role', 'status'), (errorElement.className = 'i3d-climate-error')
+        const configuredType = extraTypes(control.entityId).includes(control.type) ? control.type : 'state',
           nativeKind = nativeExtraKind(control.entityId, readState(control.entityId)),
-          controlType = nativeKind ? "panel" : configuredType,
+          controlType = nativeKind ? 'panel' : configuredType,
           controlElement =
-            nativeKind || controlType === "state"
+            nativeKind || controlType === 'state'
               ? null
               : createEl(
-                  controlType === "number" ? "input" : "button",
+                  controlType === 'number' ? 'input' : 'button',
                   // 场景实体不是"执行"，用户心智里是"运行场景"（0.7.8 `purifier-extras.js`）。
-                  String(control.entityId).startsWith("scene.") ? "运行场景" : "执行",
+                  String(control.entityId).startsWith('scene.') ? '运行场景' : '执行',
                 ),
           cardState: PurifierCard = {
             item: {
@@ -1232,29 +1102,29 @@ export function createPurifierExtras({
             error: errorElement,
             control: controlElement,
             pending: false,
-          };
-        cards.push(cardState);
-        const descriptionElement = createEl("div");
-        ((cardState.description = descriptionElement),
-          (descriptionElement.className = "i3d-extra-description"),
+          }
+        cards.push(cardState)
+        const descriptionElement = createEl('div')
+        ;(cardState.description = descriptionElement),
+          (descriptionElement.className = 'i3d-extra-description'),
           descriptionElement.append(titleElement, statusElement),
-          cardSection.append(descriptionElement));
+          cardSection.append(descriptionElement)
         // 0.8.1：状态类卡片追加百分比条（NAS 用量/温度等），由 `statePresentation` 提供。
-        if (statePresentation && controlType === "state") {
-          const presentationBarElement = createEl("i");
-          ((cardState.presentationBar = presentationBarElement),
-            (presentationBarElement.className = "i3d-extra-state-bar"),
-            cardSection.append(presentationBarElement));
+        if (statePresentation && controlType === 'state') {
+          const presentationBarElement = createEl('i')
+          ;(cardState.presentationBar = presentationBarElement),
+            (presentationBarElement.className = 'i3d-extra-state-bar'),
+            cardSection.append(presentationBarElement)
         }
         if (nativeKind) {
-          cardSection.classList.add("i3d-extra-native");
-          const headerControlsElement = createEl("div");
-          headerControlsElement.className = "i3d-extra-header-controls";
-          descriptionElement.append(headerControlsElement);
-          const nativeRootElement = createEl("div");
-          nativeRootElement.className = "i3d-extra-native-root";
-          cardSection.append(nativeRootElement);
-          cardState.nativeRoot = nativeRootElement;
+          cardSection.classList.add('i3d-extra-native')
+          const headerControlsElement = createEl('div')
+          headerControlsElement.className = 'i3d-extra-header-controls'
+          descriptionElement.append(headerControlsElement)
+          const nativeRootElement = createEl('div')
+          nativeRootElement.className = 'i3d-extra-native-root'
+          cardSection.append(nativeRootElement)
+          cardState.nativeRoot = nativeRootElement
           cardState.native = createNativeExtraPanel({
             element: nativeRootElement,
             headerControls: headerControlsElement,
@@ -1262,196 +1132,177 @@ export function createPurifierExtras({
             kind: nativeKind,
             onControl: onControl,
             onResize: () => syncCardMetrics(cardState),
-          });
+          })
         }
         if (controlElement) {
           if (
-            ((controlElement.className = "i3d-climate-choice"),
-            controlElement.setAttribute("aria-label", control.label || control.entityId),
-            controlType === "number"
-              ? (controlElement.type = "number")
-              : (controlElement.type = "button"),
+            ((controlElement.className = 'i3d-climate-choice'),
+            controlElement.setAttribute('aria-label', control.label || control.entityId),
+            controlType === 'number' ? (controlElement.type = 'number') : (controlElement.type = 'button'),
             (cardState.submit = async () => {
-              if (viewModel.editing || cardState.pending) return;
-              const generationAtSend = generation;
+              if (viewModel.editing || cardState.pending) return
+              const generationAtSend = generation
               try {
-                const command = extraCommand(
-                  cardState.item,
-                  readState(control.entityId),
-                  controlElement.value,
-                );
+                const command = extraCommand(cardState.item, readState(control.entityId), controlElement.value)
                 if (
                   ((cardState.expected =
-                    controlType === "switch"
-                      ? command.service === "turn_on"
-                        ? "on"
-                        : "off"
-                      : controlType === "select"
+                    controlType === 'switch'
+                      ? command.service === 'turn_on'
+                        ? 'on'
+                        : 'off'
+                      : controlType === 'select'
                         ? command.data.option
-                        : controlType === "number"
+                        : controlType === 'number'
                           ? command.data.value
                           : null),
                   (cardState.pending = true),
-                  (errorElement.textContent = ""),
+                  (errorElement.textContent = ''),
                   refreshRows(),
                   await onControl(command),
                   generationAtSend !== generation)
                 )
-                  return;
-                controlType === "button"
-                  ? ((cardState.pending = false), (errorElement.textContent = "指令已发送"))
+                  return
+                controlType === 'button'
+                  ? ((cardState.pending = false), (errorElement.textContent = '指令已发送'))
                   : cardState.pending &&
-                    ((errorElement.textContent = ""),
+                    ((errorElement.textContent = ''),
                     (cardState.timer = setTimeout(() => {
                       generationAtSend === generation &&
                         ((cardState.pending = false),
                         (cardState.expected = null),
-                        (errorElement.textContent = "设备未响应，请重试"),
-                        refreshRows());
+                        (errorElement.textContent = '设备未响应，请重试'),
+                        refreshRows())
                     }, 10000)),
-                    cardState.timer.unref?.());
+                    cardState.timer.unref?.())
               } catch (error: any) {
                 generationAtSend === generation &&
                   ((cardState.pending = false),
                   (cardState.expected = null),
-                  (errorElement.textContent = error.message || "操作失败"));
+                  (errorElement.textContent = error.message || '操作失败'))
               } finally {
-                generationAtSend === generation && refreshRows();
+                generationAtSend === generation && refreshRows()
               }
             }),
-            controlType === "select")
+            controlType === 'select')
           ) {
-            (controlElement.classList.add("i3d-extra-select-trigger"),
-              controlElement.setAttribute("aria-haspopup", "listbox"),
-              controlElement.setAttribute("aria-expanded", "false"));
-            const menuElement = createEl("div");
-            ((cardState.menu = menuElement),
+            controlElement.classList.add('i3d-extra-select-trigger'),
+              controlElement.setAttribute('aria-haspopup', 'listbox'),
+              controlElement.setAttribute('aria-expanded', 'false')
+            const menuElement = createEl('div')
+            ;(cardState.menu = menuElement),
               (cardState.choices = []),
-              (menuElement.className = "i3d-extra-select-menu"),
-              menuElement.setAttribute("popover", "auto"),
-              menuElement.setAttribute("role", "listbox"),
-              menuElement.setAttribute("aria-label", (control.label || control.entityId) + " 选项"),
+              (menuElement.className = 'i3d-extra-select-menu'),
+              menuElement.setAttribute('popover', 'auto'),
+              menuElement.setAttribute('role', 'listbox'),
+              menuElement.setAttribute('aria-label', (control.label || control.entityId) + ' 选项'),
               (menuElement.hidden = true),
               cardSection.append(menuElement),
-              controlElement.addEventListener("click", () => openSelectMenu(cardState)),
-              controlElement.addEventListener("keydown", (triggerKeyEvent: any) => {
-                ["ArrowDown", "ArrowUp"].includes(triggerKeyEvent.key) &&
-                  (triggerKeyEvent.preventDefault(), openSelectMenu(cardState));
+              controlElement.addEventListener('click', () => openSelectMenu(cardState)),
+              controlElement.addEventListener('keydown', (triggerKeyEvent: any) => {
+                ;['ArrowDown', 'ArrowUp'].includes(triggerKeyEvent.key) &&
+                  (triggerKeyEvent.preventDefault(), openSelectMenu(cardState))
               }),
-              menuElement.addEventListener("toggle", (toggleEvent: any) => {
-                toggleEvent.newState === "closed" && openSelect === cardState && closeSelect();
+              menuElement.addEventListener('toggle', (toggleEvent: any) => {
+                toggleEvent.newState === 'closed' && openSelect === cardState && closeSelect()
               }),
-              menuElement.addEventListener("keydown", (menuKeyEvent: any) => {
-                if (menuKeyEvent.key === "Escape") {
-                  (menuKeyEvent.preventDefault(),
-                    menuKeyEvent.stopPropagation(),
-                    closeSelect(true));
-                  return;
+              menuElement.addEventListener('keydown', (menuKeyEvent: any) => {
+                if (menuKeyEvent.key === 'Escape') {
+                  menuKeyEvent.preventDefault(), menuKeyEvent.stopPropagation(), closeSelect(true)
+                  return
                 }
-                if (menuKeyEvent.key === "Tab") {
-                  closeSelect(true);
-                  return;
+                if (menuKeyEvent.key === 'Tab') {
+                  closeSelect(true)
+                  return
                 }
-                if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(menuKeyEvent.key)) return;
-                menuKeyEvent.preventDefault();
+                if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(menuKeyEvent.key)) return
+                menuKeyEvent.preventDefault()
                 const activeIndex = cardState.choices.indexOf(doc.activeElement),
                   choiceCount = cardState.choices.length,
                   nextIndex =
-                    menuKeyEvent.key === "Home"
+                    menuKeyEvent.key === 'Home'
                       ? 0
-                      : menuKeyEvent.key === "End"
+                      : menuKeyEvent.key === 'End'
                         ? choiceCount - 1
-                        : (activeIndex +
-                            (menuKeyEvent.key === "ArrowDown" ? 1 : -1) +
-                            choiceCount) %
-                          choiceCount;
-                cardState.choices[nextIndex]?.focus?.();
-              }));
+                        : (activeIndex + (menuKeyEvent.key === 'ArrowDown' ? 1 : -1) + choiceCount) % choiceCount
+                cardState.choices[nextIndex]?.focus?.()
+              })
           } else {
-            if (controlType === "button") {
-              const confirmElement = createEl("div");
-              ((confirmElement.className = "i3d-extra-confirm"), (confirmElement.hidden = true));
-              const confirmText = createEl("span", "确认执行此操作？"),
-                confirmButton = createEl("button", "确认"),
-                cancelButton = createEl("button", "取消");
-              ((confirmButton.type = cancelButton.type = "button"),
-                confirmButton.addEventListener("click", () => {
-                  ((confirmElement.hidden = true), cardState.submit());
+            if (controlType === 'button') {
+              const confirmElement = createEl('div')
+              ;(confirmElement.className = 'i3d-extra-confirm'), (confirmElement.hidden = true)
+              const confirmText = createEl('span', '确认执行此操作？'),
+                confirmButton = createEl('button', '确认'),
+                cancelButton = createEl('button', '取消')
+              ;(confirmButton.type = cancelButton.type = 'button'),
+                confirmButton.addEventListener('click', () => {
+                  ;(confirmElement.hidden = true), cardState.submit()
                 }),
-                cancelButton.addEventListener("click", () => {
-                  ((confirmElement.hidden = true),
-                    syncCardMetrics(cardState),
-                    controlElement.focus?.());
+                cancelButton.addEventListener('click', () => {
+                  ;(confirmElement.hidden = true), syncCardMetrics(cardState), controlElement.focus?.()
                 }),
                 confirmElement.append(confirmText, confirmButton, cancelButton),
                 (cardState.confirm = confirmElement),
-                controlElement.addEventListener("click", () => {
+                controlElement.addEventListener('click', () => {
                   !viewModel.editing &&
                     !controlElement.disabled &&
-                    ((confirmElement.hidden = false), syncCardMetrics(cardState));
-                }));
-            } else
-              controlElement.addEventListener(
-                controlType === "number" ? "change" : "click",
-                cardState.submit,
-              );
+                    ((confirmElement.hidden = false), syncCardMetrics(cardState))
+                })
+            } else controlElement.addEventListener(controlType === 'number' ? 'change' : 'click', cardState.submit)
           }
-          (cardSection.append(controlElement),
-            cardState.confirm && cardSection.append(cardState.confirm));
+          cardSection.append(controlElement), cardState.confirm && cardSection.append(cardState.confirm)
         }
-        if (((cardState.ranges = []), controlType === "switch"))
+        if (((cardState.ranges = []), controlType === 'switch'))
           for (const rangeSpec of extraRanges(control.entityId, readState(control.entityId))) {
-            const rangeLabel = createEl("label"),
-              rangeOutput = createEl("span"),
-              rangeInput = createEl("input");
-            ((rangeLabel.className = "i3d-extra-range"),
-              (rangeInput.type = "range"),
-              rangeInput.classList.add("i3d-control-range"),
+            const rangeLabel = createEl('label'),
+              rangeOutput = createEl('span'),
+              rangeInput = createEl('input')
+            ;(rangeLabel.className = 'i3d-extra-range'),
+              (rangeInput.type = 'range'),
+              rangeInput.classList.add('i3d-control-range'),
               (rangeInput.min = rangeSpec.min),
               (rangeInput.max = rangeSpec.max),
               (rangeInput.step = rangeSpec.step),
               (rangeInput.value = rangeSpec.value),
               syncHtmlRangeProgress(rangeInput),
-              rangeInput.setAttribute("aria-label", control.entityId + " " + rangeSpec.label),
-              rangeInput.addEventListener("input", () => {
-                (syncHtmlRangeProgress(rangeInput),
-                  (rangeOutput.textContent = rangeSpec.label + " " + rangeInput.value));
+              rangeInput.setAttribute('aria-label', control.entityId + ' ' + rangeSpec.label),
+              rangeInput.addEventListener('input', () => {
+                syncHtmlRangeProgress(rangeInput), (rangeOutput.textContent = rangeSpec.label + ' ' + rangeInput.value)
               }),
-              rangeInput.addEventListener("change", async () => {
-                if (viewModel.editing || cardState.rangePending) return;
-                const rangeGenerationAtSend = generation;
+              rangeInput.addEventListener('change', async () => {
+                if (viewModel.editing || cardState.rangePending) return
+                const rangeGenerationAtSend = generation
                 try {
                   const rangeCommand = extraRangeCommand(
                     cardState.item,
                     readState(control.entityId),
                     rangeSpec.key,
                     rangeInput.value,
-                  );
-                  ((cardState.rangePending = true),
+                  )
+                  ;(cardState.rangePending = true),
                     (cardState.rangeExpected = {
                       key: rangeSpec.key,
                       value: Number(rangeInput.value),
                     }),
-                    (errorElement.textContent = ""),
+                    (errorElement.textContent = ''),
                     refreshRows(),
                     await onControl(rangeCommand),
                     rangeGenerationAtSend === generation &&
                       cardState.rangePending &&
-                      ((errorElement.textContent = ""),
+                      ((errorElement.textContent = ''),
                       (cardState.rangeTimer = setTimeout(() => {
                         rangeGenerationAtSend === generation &&
                           ((cardState.rangePending = false),
                           (cardState.rangeExpected = null),
-                          (errorElement.textContent = "设备未响应，请重试"),
-                          refreshRows());
-                      }, 10000))));
+                          (errorElement.textContent = '设备未响应，请重试'),
+                          refreshRows())
+                      }, 10000)))
                 } catch (rangeError: any) {
                   rangeGenerationAtSend === generation &&
                     ((cardState.rangePending = false),
                     (cardState.rangeExpected = null),
-                    (errorElement.textContent = rangeError.message || "调节失败"));
+                    (errorElement.textContent = rangeError.message || '调节失败'))
                 } finally {
-                  rangeGenerationAtSend === generation && refreshRows();
+                  rangeGenerationAtSend === generation && refreshRows()
                 }
               }),
               rangeLabel.append(rangeOutput, rangeInput),
@@ -1461,9 +1312,9 @@ export function createPurifierExtras({
                 label: rangeLabel,
                 output: rangeOutput,
                 input: rangeInput,
-              }));
+              })
           }
-        (cardSection.append(errorElement), hostElement.append(cardSection));
+        cardSection.append(errorElement), hostElement.append(cardSection)
         for (const observedNode of [
           descriptionElement,
           controlElement,
@@ -1471,35 +1322,32 @@ export function createPurifierExtras({
           errorElement,
           cardState.confirm,
         ])
-          observedNode && resizeObserver?.observe(observedNode);
+          observedNode && resizeObserver?.observe(observedNode)
       }
     }
-    refreshRows();
+    refreshRows()
   }
   return {
     update: update,
     /** 0.8.1：弹窗隐藏时暂停卡片重排；重新可见时立即按最新状态重算。 */
     setVisible(nextVisible: boolean) {
-      isVisible !== nextVisible &&
-        ((isVisible = nextVisible), isVisible ? update(viewModel) : closeSelect());
+      isVisible !== nextVisible && ((isVisible = nextVisible), isVisible ? update(viewModel) : closeSelect())
     },
     dispose() {
-      (defaultView?.removeEventListener?.("resize", positionSelectMenu),
+      defaultView?.removeEventListener?.('resize', positionSelectMenu),
         (isVisible = false),
         closeSelect(),
         finishDrag(true),
         resizeObserver?.disconnect(),
         cards.forEach((cleanupCard: any) => {
-          (clearTimeout(cleanupCard.timer),
-            clearTimeout(cleanupCard.rangeTimer),
-            cleanupCard.native?.dispose?.());
+          clearTimeout(cleanupCard.timer), clearTimeout(cleanupCard.rangeTimer), cleanupCard.native?.dispose?.()
         }),
-        doc.removeEventListener?.("pointerdown", onDocumentPointerDown),
-        doc.removeEventListener?.("scroll", onDocumentScroll, true),
-        doc.removeEventListener?.("keydown", onEscapeKeydown, true),
+        doc.removeEventListener?.('pointerdown', onDocumentPointerDown),
+        doc.removeEventListener?.('scroll', onDocumentScroll, true),
+        doc.removeEventListener?.('keydown', onEscapeKeydown, true),
         generation++,
         (cards = []),
-        hostElement.replaceChildren());
+        hostElement.replaceChildren()
     },
-  };
+  }
 }

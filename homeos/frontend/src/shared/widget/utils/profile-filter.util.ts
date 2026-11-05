@@ -20,10 +20,7 @@ const PROFILE_ALLOWED_WIDGET_TYPES = {
  * @param widgetType 微件类型 key
  * @returns true 表示允许；profile 未配置白名单时一律放行
  */
-function isWidgetAllowedForProfile(
-  profileId: string | undefined,
-  widgetType: string | undefined,
-) {
+function isWidgetAllowedForProfile(profileId: string | undefined, widgetType: string | undefined) {
   if (!profileId) return true
   const allowed = (PROFILE_ALLOWED_WIDGET_TYPES as Record<string, Set<string> | null>)[profileId]
   if (!allowed) return true

@@ -119,19 +119,13 @@ export function useFloatingAfhActions(opts: {
         mirrorSecurityPanelZonesToLayout(layoutStore, zonesForSave)
       }
       if (!zonesForSave.length) {
-        chrome.notify(
-          '浮动组件已更新；未配置区域时不会覆盖后端已有区域，请点击侧边栏「保存全部」持久化',
-          'info',
-        )
+        chrome.notify('浮动组件已更新；未配置区域时不会覆盖后端已有区域，请点击侧边栏「保存全部」持久化', 'info')
         return
       }
       const { postSecurityZonesSafe } = await import('@/shared/security/utils/zones-api.util')
       const result = await postSecurityZonesSafe(zonesForSave)
       if (result.ok) {
-        chrome.notify(
-          '浮动组件与安防区域已同步到后端，请点击侧边栏「保存全部」持久化布局',
-          'success',
-        )
+        chrome.notify('浮动组件与安防区域已同步到后端，请点击侧边栏「保存全部」持久化布局', 'success')
         return
       }
       if (result.unauthorized) {

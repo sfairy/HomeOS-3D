@@ -46,9 +46,7 @@ export function usePresenceEntitiesDisplay(options: {
 }) {
   const entitiesStore = useEntitiesStore()
 
-  const configuredPersons = computed(() =>
-    sanitizePresencePersonsForSave(toValue(options.presencePersons)),
-  )
+  const configuredPersons = computed(() => sanitizePresencePersonsForSave(toValue(options.presencePersons)))
 
   const previewMembers = computed(() => {
     const autoMode = toValue(options.autoMode)
@@ -74,26 +72,20 @@ export function usePresenceEntitiesDisplay(options: {
     const map: Record<string, boolean> = {}
     if (toValue(options.autoMode)) return map
     for (const person of configuredPersons.value) {
-      const member = previewMembers.value.find(
-        (m) => (m as { id?: string }).id === `person:${person.id}`,
-      ) as { atHome?: boolean } | undefined
+      const member = previewMembers.value.find((m) => (m as { id?: string }).id === `person:${person.id}`) as
+        | { atHome?: boolean }
+        | undefined
       if (member) map[person.id] = !!member.atHome
     }
     return map
   })
 
-  const atHomeCount = computed(
-    () => previewMembers.value.filter((m) => (m as { atHome?: boolean }).atHome).length,
-  )
+  const atHomeCount = computed(() => previewMembers.value.filter((m) => (m as { atHome?: boolean }).atHome).length)
 
-  const showHomeSummaryStyle = computed(
-    () => !toValue(options.loading) && atHomeCount.value > 0,
-  )
+  const showHomeSummaryStyle = computed(() => !toValue(options.loading) && atHomeCount.value > 0)
 
   const personRowCount = computed(() => {
-    const arr = Array.isArray(toValue(options.presencePersons))
-      ? (toValue(options.presencePersons) as unknown[])
-      : []
+    const arr = Array.isArray(toValue(options.presencePersons)) ? (toValue(options.presencePersons) as unknown[]) : []
     return arr.length || 1
   })
 
@@ -139,10 +131,7 @@ export function usePresenceEntityConfig() {
 
   let presenceLoaded = false
 
-  async function refresh({
-    bootRetry = false,
-    silent = false,
-  }: { bootRetry?: boolean; silent?: boolean } = {}) {
+  async function refresh({ bootRetry = false, silent = false }: { bootRetry?: boolean; silent?: boolean } = {}) {
     const showLoading = !silent && !presenceLoaded
     if (showLoading) loading.value = true
     try {

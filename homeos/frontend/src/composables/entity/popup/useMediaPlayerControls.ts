@@ -53,9 +53,7 @@ export function useMediaPlayerControls(
   // 状态：缺省 'off'
   const state = computed(() => entity.value?.state || 'off')
   // attributes：缺省空对象
-  const attrs = computed(
-    () => (entity.value?.attributes || {}) as Record<string, unknown>,
-  )
+  const attrs = computed(() => (entity.value?.attributes || {}) as Record<string, unknown>)
   const isPlaying = computed(() => state.value === 'playing')
   const isMuted = computed(() => !!attrs.value.is_volume_muted)
   // HA media_player 支持特性位掩码（MediaPlayerEntityFeature）
@@ -103,10 +101,7 @@ export function useMediaPlayerControls(
   const entityPicture = computed(() => {
     const pic = attrs.value.entity_picture
     if (!pic) return null
-    return resolveHaEntityPicture(
-      haConnectionStore.baseUrl,
-      String(pic),
-    )
+    return resolveHaEntityPicture(haConnectionStore.baseUrl, String(pic))
   })
   // 标题：优先 media_title，否则按状态展示中文文案
   const title = computed(() => {
@@ -137,8 +132,7 @@ export function useMediaPlayerControls(
   })
   /** 解析歌词：支持 lyrics / media_lyrics / lyric / lrc 等常见 HA 属性 */
   const lyricsLines = computed(() => {
-    const raw =
-      attrs.value.lyrics ?? attrs.value.media_lyrics ?? attrs.value.lyric ?? attrs.value.lrc ?? null
+    const raw = attrs.value.lyrics ?? attrs.value.media_lyrics ?? attrs.value.lyric ?? attrs.value.lrc ?? null
     if (!raw) return []
     if (Array.isArray(raw)) {
       return raw.map((line) => String(line).trim()).filter(Boolean)
@@ -230,9 +224,7 @@ export function useMediaPlayerControls(
     },
   })
   // 进度条填充样式（media 变体）
-  const progressFillStyleComputed = computed(() =>
-    progressFillStyle({ value: progressPct.value, variant: 'media' }),
-  )
+  const progressFillStyleComputed = computed(() => progressFillStyle({ value: progressPct.value, variant: 'media' }))
   /**
    * 调用 media_player service，失败时统一 notifyError。
    * @param service media_player.* service 名（如 media_play/media_pause）
@@ -248,9 +240,7 @@ export function useMediaPlayerControls(
     }
   }
   // 音量源：volume_level(0-1) → 0-100（与属性展示、乐观写入共用同一份口径）
-  const volumeSource = computed(
-    () => volumeLevelToPercent(attrs.value.volume_level) ?? 0,
-  )
+  const volumeSource = computed(() => volumeLevelToPercent(attrs.value.volume_level) ?? 0)
   // 音量滑块：拖拽本地值与提交解耦，释放时调用 volume_set
   const {
     localValue: sliderVolume,

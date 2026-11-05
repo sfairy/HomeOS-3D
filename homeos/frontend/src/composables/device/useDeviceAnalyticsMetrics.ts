@@ -17,15 +17,9 @@ type EventsStats = ReturnType<typeof useDeviceAnalyticsDashboard>['eventsStats']
  * @returns LOW_ACTIVITY_THRESHOLD / hasData / periodLabel / usageTotals / topActiveDevice /
  *          lowActivityDevices / alertCounts / heatmapDevices / eventDomainEntries / analyticsTabs。
  */
-export function useDeviceAnalyticsMetrics(
-  days: Ref<number>,
-  summary: Summary,
-  eventsStats: EventsStats,
-) {
+export function useDeviceAnalyticsMetrics(days: Ref<number>, summary: Summary, eventsStats: EventsStats) {
   // 是否含数据：有设备总数或日汇总即视为有数据
-  const hasData = computed(
-    () => summary.value.totalDevices > 0 || summary.value.dailyTotals.length > 0,
-  )
+  const hasData = computed(() => summary.value.totalDevices > 0 || summary.value.dailyTotals.length > 0)
   // 周期标签，例如「近 7 天」
   const periodLabel = computed(() => `近 ${days.value} 天`)
 
@@ -58,9 +52,7 @@ export function useDeviceAnalyticsMetrics(
       if (hint.type !== 'unused' || map.has(hint.entityId)) continue
       map.set(hint.entityId, { entityId: hint.entityId, onCount: 0, totalRuntimeMs: 0 })
     }
-    return [...map.values()]
-      .sort((a, b) => a.onCount - b.onCount || a.totalRuntimeMs - b.totalRuntimeMs)
-      .slice(0, 12)
+    return [...map.values()].sort((a, b) => a.onCount - b.onCount || a.totalRuntimeMs - b.totalRuntimeMs).slice(0, 12)
   })
 
   // 异常计数：按 spike / forgotten / unused 分类统计 anomalyHints

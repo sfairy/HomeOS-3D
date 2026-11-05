@@ -87,9 +87,10 @@ export const ACCOUNT_BINDING_FIELD_META: Record<string, AccountBindingFieldMeta>
 }
 
 /** 账户源下拉选项：由 ACCOUNT_BINDING_SOURCE_LABELS 转换为 { value, label } 数组 */
-export const ACCOUNT_BINDING_SOURCE_OPTIONS = Object.entries(ACCOUNT_BINDING_SOURCE_LABELS).map(
-  ([value, label]) => ({ value, label }),
-)
+export const ACCOUNT_BINDING_SOURCE_OPTIONS = Object.entries(ACCOUNT_BINDING_SOURCE_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}))
 
 /**
  * 把账户源 ID 数组格式化为中文标签字符串（用「、」连接）。

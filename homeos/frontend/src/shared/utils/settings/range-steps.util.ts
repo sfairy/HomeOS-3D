@@ -24,12 +24,7 @@ function rangeStepDecimals(step: number): number {
 }
 
 /** 按步长格式化展示（去掉多余尾零，如 0.850000 → 0.85） */
-export function formatRangeDisplayValue(
-  value: number,
-  min: number,
-  max: number,
-  step: number,
-): string {
+export function formatRangeDisplayValue(value: number, min: number, max: number, step: number): string {
   const n = snapToRangeStep(value, min, max, step)
   const d = rangeStepDecimals(step)
   if (d === 0) return String(Math.round(n))

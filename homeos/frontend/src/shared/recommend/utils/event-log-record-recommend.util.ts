@@ -107,9 +107,7 @@ export function buildEventLogRecordRecommendations(
     .map(([domain, count]) => ({ domain, count: Number(count) || 0 }))
     .sort((a, b) => b.count - a.count)
 
-  const blockedDomainSet = new Set(
-    current.mode === 'block' ? current.blockDomains : current.allowDomains,
-  )
+  const blockedDomainSet = new Set(current.mode === 'block' ? current.blockDomains : current.allowDomains)
   const blockedEntitySet = new Set(current.blockEntityIds)
 
   let controlCount = 0

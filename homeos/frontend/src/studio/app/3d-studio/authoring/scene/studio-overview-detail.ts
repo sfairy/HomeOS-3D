@@ -1,32 +1,36 @@
-import { createReflectionDetail } from "../../reflection/studio-reflection-detail";
+import { createReflectionDetail } from '../../reflection/studio-reflection-detail'
 function createFloorMetric(metricThree: any) {
   return {
     matrix: new metricThree.Matrix4(),
     sphere: new metricThree.Sphere(),
     lengths: [0, 0],
     wr: 0,
-  };
+  }
 }
 function refreshFloorMetric(floorMetric: any, viewCamera: any) {
   const projectionElements = floorMetric.matrix.multiplyMatrices(
     viewCamera.projectionMatrix,
     viewCamera.matrixWorldInverse,
-  ).elements;
-  floorMetric.wr = Math.hypot(projectionElements[3], projectionElements[7], projectionElements[11]);
+  ).elements
+  floorMetric.wr = Math.hypot(projectionElements[3], projectionElements[7], projectionElements[11])
   for (let axisIndex = 0; axisIndex < 2; axisIndex++)
     floorMetric.lengths[axisIndex] = Math.hypot(
       projectionElements[axisIndex],
       projectionElements[axisIndex + 4],
       projectionElements[axisIndex + 8],
-    );
-  return floorMetric;
+    )
+  return floorMetric
 }
-function computeMeshPixelError(errorMesh: any, errorMetric: any, viewportWidth: any, viewportHeight: any, worldError: any) {
-  const meshGeometry = errorMesh.geometry;
-  meshGeometry.boundingSphere || meshGeometry.computeBoundingSphere();
-  const worldSphere = errorMetric.sphere
-      .copy(meshGeometry.boundingSphere)
-      .applyMatrix4(errorMesh.matrixWorld),
+function computeMeshPixelError(
+  errorMesh: any,
+  errorMetric: any,
+  viewportWidth: any,
+  viewportHeight: any,
+  worldError: any,
+) {
+  const meshGeometry = errorMesh.geometry
+  meshGeometry.boundingSphere || meshGeometry.computeBoundingSphere()
+  const worldSphere = errorMetric.sphere.copy(meshGeometry.boundingSphere).applyMatrix4(errorMesh.matrixWorld),
     frustumElements = errorMetric.matrix.elements,
     sphereCenter = worldSphere.center,
     wRowLength = errorMetric.wr,
@@ -35,8 +39,8 @@ function computeMeshPixelError(errorMesh: any, errorMetric: any, viewportWidth: 
       frustumElements[7] * sphereCenter.y +
       frustumElements[11] * sphereCenter.z +
       frustumElements[15],
-    depthMargin = Math.abs(viewDepth) - worldSphere.radius * wRowLength;
-  if (depthMargin <= 0.001) return Infinity;
+    depthMargin = Math.abs(viewDepth) - worldSphere.radius * wRowLength
+  if (depthMargin <= 0.001) return Infinity
   const axisPixelError = (axis: any, viewportExtent: any) => {
     const axisLength = errorMetric.lengths[axis],
       axisExtent =
@@ -46,56 +50,56 @@ function computeMeshPixelError(errorMesh: any, errorMetric: any, viewportWidth: 
             frustumElements[axis + 8] * sphereCenter.z +
             frustumElements[axis + 12],
         ) +
-        worldSphere.radius * axisLength;
+        worldSphere.radius * axisLength
     return (
       viewportExtent *
       0.5 *
       worldError *
       (axisLength / depthMargin + (axisExtent * wRowLength) / (depthMargin * depthMargin))
-    );
-  };
-  return Math.max(axisPixelError(0, viewportWidth), axisPixelError(1, viewportHeight));
+    )
+  }
+  return Math.max(axisPixelError(0, viewportWidth), axisPixelError(1, viewportHeight))
 }
 
 /** 「远景网格简化」控制器的外部依赖。 */
 type OverviewDetailOptions = {
-  THREE: any;
-  renderer: any;
-  scene: any;
+  THREE: any
+  renderer: any
+  scene: any
   /** 主相机； */
-  getCamera: () => any;
+  getCamera: () => any
   /** 网格所属楼层 id，用来复用同一层的投影矩阵。 */
-  getFloorId?: (meshForFloor: any) => string;
+  getFloorId?: (meshForFloor: any) => string
   /** 某楼层对应的相机； */
-  getFloorCamera?: (meshForCamera: any, fallbackCamera: any) => any;
+  getFloorCamera?: (meshForCamera: any, fallbackCamera: any) => any
   /** 本帧是否启用简化。 */
-  enabled: () => boolean;
+  enabled: () => boolean
   /** 简化几何准备就绪后请求下一帧。 */
-  requestFrame?: () => void;
+  requestFrame?: () => void
   /** 复用的反射简化器； */
-  detail?: any;
-};
+  detail?: any
+}
 
 /** 诊断统计：前四项在构造时就存在，后三项由 begin() 每帧写入。 */
 type OverviewDetailStats = {
-  active: boolean;
-  meshes: number;
-  savedTriangles: number;
-  cache: unknown;
+  active: boolean
+  meshes: number
+  savedTriangles: number
+  cache: unknown
   /** 本帧拿到简化几何的网格数。 */
-  ready?: number;
+  ready?: number
   /** 本帧因像素误差超阈值被判定为近景、不该简化的网格数。 */
-  near?: number;
+  near?: number
   /** 本帧的开关状态快照。 */
-  enabled?: boolean;
-};
+  enabled?: boolean
+}
 
 export function createOverviewDetail({
   THREE: three,
   renderer: renderer,
   getCamera: getCamera,
   getFloorCamera: getFloorCamera = (_floorMesh, floorCamera) => floorCamera,
-  getFloorId: getFloorId = () => "",
+  getFloorId: getFloorId = () => '',
   enabled: isEnabled,
   requestFrame: requestFrame = () => {},
   detail: detail,
@@ -110,17 +114,17 @@ export function createOverviewDetail({
         requestFrame: requestFrame,
       }),
     originalRender = renderer.render,
-    originalRenderBufferDirect = renderer.renderBufferDirect;
-  let renderedGeometrySet = new WeakSet();
+    originalRenderBufferDirect = renderer.renderBufferDirect
+  let renderedGeometrySet = new WeakSet()
   const savedGeometryByMesh = new Map(),
     resetRenderedGeometrySet = () => {
-      renderedGeometrySet = new WeakSet();
-    };
-  renderer.domElement?.addEventListener?.("webglcontextlost", resetRenderedGeometrySet);
+      renderedGeometrySet = new WeakSet()
+    }
+  renderer.domElement?.addEventListener?.('webglcontextlost', resetRenderedGeometrySet)
   let simplifiableMeshes: any = [],
     lastPreparedScene: any,
     lastPreparedCamera: any,
-    isDisposed = false;
+    isDisposed = false
   const stats: OverviewDetailStats = {
       active: false,
       meshes: 0,
@@ -128,34 +132,26 @@ export function createOverviewDetail({
       cache: reflectionDetail.stats,
     },
     drawingBufferSize = new three.Vector2(),
-    metricByFloorId = new Map();
-  let frameCount = 0;
+    metricByFloorId = new Map()
+  let frameCount = 0
   function restoreSavedGeometries() {
-    for (const [cachedMesh, cachedGeometry] of savedGeometryByMesh)
-      cachedMesh.geometry = cachedGeometry;
-    savedGeometryByMesh.clear();
+    for (const [cachedMesh, cachedGeometry] of savedGeometryByMesh) cachedMesh.geometry = cachedGeometry
+    savedGeometryByMesh.clear()
   }
   return (
     (renderer.render = function (...renderArgs: any[]) {
-      const savedGeometrySnapshot = [...savedGeometryByMesh].map(
-        ([snapshotMesh, snapshotGeometry]) => [
-          snapshotMesh,
-          snapshotGeometry,
-          snapshotMesh.geometry,
-        ],
-      );
-      restoreSavedGeometries();
+      const savedGeometrySnapshot = [...savedGeometryByMesh].map(([snapshotMesh, snapshotGeometry]) => [
+        snapshotMesh,
+        snapshotGeometry,
+        snapshotMesh.geometry,
+      ])
+      restoreSavedGeometries()
       try {
-        return originalRender.apply(this, renderArgs);
+        return originalRender.apply(this, renderArgs)
       } finally {
-        restoreSavedGeometries();
-        for (const [
-          restoreMesh,
-          restoreSavedGeometry,
-          restoreOriginalGeometry,
-        ] of savedGeometrySnapshot)
-          (savedGeometryByMesh.set(restoreMesh, restoreSavedGeometry),
-            (restoreMesh.geometry = restoreOriginalGeometry));
+        restoreSavedGeometries()
+        for (const [restoreMesh, restoreSavedGeometry, restoreOriginalGeometry] of savedGeometrySnapshot)
+          savedGeometryByMesh.set(restoreMesh, restoreSavedGeometry), (restoreMesh.geometry = restoreOriginalGeometry)
       }
     }),
     (renderer.renderBufferDirect = function (
@@ -166,10 +162,10 @@ export function createOverviewDetail({
       renderObject: any,
       renderGroup: any,
     ) {
-      const savedMeshGeometry = savedGeometryByMesh.get(renderObject);
+      const savedMeshGeometry = savedGeometryByMesh.get(renderObject)
       savedMeshGeometry &&
         (drawMaterial.isMeshDepthMaterial || drawMaterial.isMeshDistanceMaterial) &&
-        (drawGeometry = savedMeshGeometry);
+        (drawGeometry = savedMeshGeometry)
       const renderResult = originalRenderBufferDirect.call(
         this,
         drawCamera,
@@ -178,13 +174,11 @@ export function createOverviewDetail({
         drawMaterial,
         renderObject,
         renderGroup,
-      );
+      )
       return (
-        !savedMeshGeometry &&
-          renderObject.geometry === drawGeometry &&
-          renderedGeometrySet.add(drawGeometry),
+        !savedMeshGeometry && renderObject.geometry === drawGeometry && renderedGeometrySet.add(drawGeometry),
         renderResult
-      );
+      )
     }),
     {
       stats: stats,
@@ -201,9 +195,9 @@ export function createOverviewDetail({
               simplifiableMeshes.push({
                 mesh: sceneChild,
                 floor: getFloorId(sceneChild),
-              });
+              })
           }),
-          prepareScene && reflectionDetail.prepare(prepareScene));
+          prepareScene && reflectionDetail.prepare(prepareScene))
       },
       begin(beginCamera: any) {
         if (
@@ -215,20 +209,20 @@ export function createOverviewDetail({
           (stats.enabled = isEnabled()),
           !(isDisposed || beginCamera !== getCamera() || !stats.enabled))
         ) {
-          (renderer.getDrawingBufferSize(drawingBufferSize), frameCount++);
+          renderer.getDrawingBufferSize(drawingBufferSize), frameCount++
           for (const { mesh: candidateMesh, floor: candidateFloorId } of simplifiableMeshes) {
-            if (!renderedGeometrySet.has(candidateMesh.geometry)) continue;
-            let isVisible = true;
+            if (!renderedGeometrySet.has(candidateMesh.geometry)) continue
+            let isVisible = true
             for (let scopeNode = candidateMesh; scopeNode; scopeNode = scopeNode.parent)
               if (!scopeNode.visible) {
-                isVisible = false;
-                break;
+                isVisible = false
+                break
               }
-            if (!isVisible) continue;
-            const detailGeometry = reflectionDetail.get(candidateMesh);
-            if (!detailGeometry) continue;
-            stats.ready++;
-            let cachedFloorMetric = metricByFloorId.get(candidateFloorId);
+            if (!isVisible) continue
+            const detailGeometry = reflectionDetail.get(candidateMesh)
+            if (!detailGeometry) continue
+            stats.ready++
+            let cachedFloorMetric = metricByFloorId.get(candidateFloorId)
             if (
               (cachedFloorMetric ||
                 ((cachedFloorMetric = createFloorMetric(three)),
@@ -236,37 +230,31 @@ export function createOverviewDetail({
               cachedFloorMetric.frame !== frameCount &&
                 (refreshFloorMetric(cachedFloorMetric, getFloorCamera(candidateMesh, beginCamera)),
                 (cachedFloorMetric.frame = frameCount)),
-              computeMeshPixelError(
-                candidateMesh,
-                cachedFloorMetric,
-                drawingBufferSize.x,
-                drawingBufferSize.y,
-                0.003,
-              ) > 0.55)
+              computeMeshPixelError(candidateMesh, cachedFloorMetric, drawingBufferSize.x, drawingBufferSize.y, 0.003) >
+                0.55)
             ) {
-              stats.near++;
-              continue;
+              stats.near++
+              continue
             }
-            const originalMeshGeometry = candidateMesh.geometry;
-            (savedGeometryByMesh.set(candidateMesh, originalMeshGeometry),
+            const originalMeshGeometry = candidateMesh.geometry
+            savedGeometryByMesh.set(candidateMesh, originalMeshGeometry),
               (candidateMesh.geometry = detailGeometry),
               stats.meshes++,
-              (stats.savedTriangles +=
-                (originalMeshGeometry.index.count - detailGeometry.index.count) / 3));
+              (stats.savedTriangles += (originalMeshGeometry.index.count - detailGeometry.index.count) / 3)
           }
-          stats.active = stats.meshes > 0;
+          stats.active = stats.meshes > 0
         }
       },
       dispose() {
-        ((isDisposed = true),
+        ;(isDisposed = true),
           restoreSavedGeometries(),
           reflectionDetail.dispose(),
           (simplifiableMeshes = []),
           metricByFloorId.clear(),
-          renderer.domElement?.removeEventListener?.("webglcontextlost", resetRenderedGeometrySet),
+          renderer.domElement?.removeEventListener?.('webglcontextlost', resetRenderedGeometrySet),
           (renderer.render = originalRender),
-          (renderer.renderBufferDirect = originalRenderBufferDirect));
+          (renderer.renderBufferDirect = originalRenderBufferDirect)
       },
     }
-  );
+  )
 }

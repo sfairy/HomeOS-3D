@@ -223,10 +223,7 @@ export function buildZonesFromRoomGroups(
     if (!group.sensors.length) continue
     if (group.roomId === '__unassigned__' && !includeUnassigned) continue
     zones.push({
-      id:
-        group.roomId === '__unassigned__'
-          ? `zone-unassigned-${Date.now()}`
-          : `zone-room-${group.roomId}`,
+      id: group.roomId === '__unassigned__' ? `zone-unassigned-${Date.now()}` : `zone-room-${group.roomId}`,
       name: group.label,
       roomId: group.roomId === '__unassigned__' ? '' : group.roomId,
       sensors: group.sensors.map((s) => s.entity_id),
@@ -272,10 +269,7 @@ export function mergeGeneratedZones(
  * @param groups 房间分组映射
  * @returns 该房间的传感器引用数组；无匹配返回空数组
  */
-export function sensorsForRoomSelection(
-  roomId: string,
-  groups: Map<string, RoomSensorGroup>,
-): SecuritySensorRef[] {
+export function sensorsForRoomSelection(roomId: string, groups: Map<string, RoomSensorGroup>): SecuritySensorRef[] {
   if (!roomId) return []
   return groups.get(roomId)?.sensors || []
 }

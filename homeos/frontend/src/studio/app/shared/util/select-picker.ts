@@ -8,33 +8,30 @@
  *
  * 定位/缩放/可见性守卫统一交给 `editor-floating-layout`（0.8.1 同款）。
  */
-import {
-  createFloatingLayout,
-  type FloatingLayout,
-} from "./editor-floating-layout";
+import { createFloatingLayout, type FloatingLayout } from './editor-floating-layout'
 
 /** 同一个页面里多个 picker 的 id 计数器（`aria-controls` 需要唯一 id）。 */
-let pickerSeed = 0;
+let pickerSeed = 0
 
 /** 下拉菜单最小/最大宽度（像素）：太窄点不中，太宽会盖住整个弹窗。 */
-const MIN_MENU_WIDTH = 70;
-const MAX_MENU_WIDTH = 320;
+const MIN_MENU_WIDTH = 70
+const MAX_MENU_WIDTH = 320
 /** 菜单最大高度（像素）。 */
-const MAX_MENU_HEIGHT = 280;
+const MAX_MENU_HEIGHT = 280
 /** 双键快速输入（type-ahead）的合并窗口（毫秒）。 */
-const TYPE_AHEAD_WINDOW = 700;
+const TYPE_AHEAD_WINDOW = 700
 
 type PickerOptions = {
-  picker: HTMLElement;
-  element: HTMLButtonElement;
-  menu: HTMLElement;
-  values: string[];
-  labels: Record<string, string>;
-  choices: HTMLButtonElement[];
-  signature?: string;
-  wasHidden?: boolean;
-  layout?: FloatingLayout;
-};
+  picker: HTMLElement
+  element: HTMLButtonElement
+  menu: HTMLElement
+  values: string[]
+  labels: Record<string, string>
+  choices: HTMLButtonElement[]
+  signature?: string
+  wasHidden?: boolean
+  layout?: FloatingLayout
+}
 
 /**
  * 创建一组互斥的开合 picker。
@@ -43,45 +40,45 @@ type PickerOptions = {
  * 三个全局监听也只会挂一份。
  */
 export function createPopupPickers(hostElement: any, createElement: any) {
-  const ownerDocument = hostElement.ownerDocument || globalThis.document;
-  let active: PickerOptions | null = null;
-  let typeAheadText = "";
-  let typeAheadAt = 0;
+  const ownerDocument = hostElement.ownerDocument || globalThis.document
+  let active: PickerOptions | null = null
+  let typeAheadText = ''
+  let typeAheadAt = 0
 
   function close(refocus = false) {
-    if (!active) return;
-    const current = active;
-    active = null;
-    current.layout?.stop();
+    if (!active) return
+    const current = active
+    active = null
+    current.layout?.stop()
     try {
-      current.menu.hidePopover?.();
+      current.menu.hidePopover?.()
     } catch {
       /* 老浏览器没有 Popover API：下面用 hidden 兜底 */
     }
-    current.menu.hidden = true;
-    current.picker.append(current.menu);
-    current.element.setAttribute("aria-expanded", "false");
-    ownerDocument.removeEventListener?.("pointerdown", onPointerDown, true);
-    ownerDocument.removeEventListener?.("scroll", onScroll, true);
-    ownerDocument.removeEventListener?.("keydown", onKeyDown, true);
-    if (refocus && !current.element.disabled) current.element.focus?.({ preventScroll: true });
+    current.menu.hidden = true
+    current.picker.append(current.menu)
+    current.element.setAttribute('aria-expanded', 'false')
+    ownerDocument.removeEventListener?.('pointerdown', onPointerDown, true)
+    ownerDocument.removeEventListener?.('scroll', onScroll, true)
+    ownerDocument.removeEventListener?.('keydown', onKeyDown, true)
+    if (refocus && !current.element.disabled) current.element.focus?.({ preventScroll: true })
   }
 
   function onPointerDown(event: Event) {
-    if (!active) return;
-    const target = event.target as Node;
-    if (!active.picker.contains?.(target) && !active.menu.contains?.(target)) close();
+    if (!active) return
+    const target = event.target as Node
+    if (!active.picker.contains?.(target) && !active.menu.contains?.(target)) close()
   }
 
   function onScroll(event: Event) {
-    if (active && !active.menu.contains?.(event.target as Node)) close();
+    if (active && !active.menu.contains?.(event.target as Node)) close()
   }
 
   function onKeyDown(event: KeyboardEvent) {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    event.stopPropagation();
-    close(true);
+    if (event.key !== 'Escape') return
+    event.preventDefault()
+    event.stopPropagation()
+    close(true)
   }
 
   /**
@@ -90,60 +87,56 @@ export function createPopupPickers(hostElement: any, createElement: any) {
    * 返回 `false` 时浮层已经关闭（`onDismiss`）。
    */
   function position() {
-    if (!active) return;
-    if (!active.layout?.position()) close();
+    if (!active) return
+    if (!active.layout?.position()) close()
   }
 
   /** 把 roving tabindex 移到第 `index` 项，并把它滚进可视区。 */
   function focusChoice(picker: PickerOptions, index: number) {
     if (picker.choices[index]?.disabled) {
-      index = picker.choices.findIndex((choice) => !choice.disabled);
+      index = picker.choices.findIndex((choice) => !choice.disabled)
     }
     picker.choices.forEach((choice, choiceIndex) => {
-      choice.tabIndex = choiceIndex === index ? 0 : -1;
-    });
-    const choice = picker.choices[index];
-    choice?.focus?.({ preventScroll: true });
+      choice.tabIndex = choiceIndex === index ? 0 : -1
+    })
+    const choice = picker.choices[index]
+    choice?.focus?.({ preventScroll: true })
     if (choice && picker.menu.clientHeight) {
-      const top = choice.offsetTop;
-      const bottom = top + choice.offsetHeight;
-      if (top < picker.menu.scrollTop) picker.menu.scrollTop = top;
+      const top = choice.offsetTop
+      const bottom = top + choice.offsetHeight
+      if (top < picker.menu.scrollTop) picker.menu.scrollTop = top
       else if (bottom > picker.menu.scrollTop + picker.menu.clientHeight) {
-        picker.menu.scrollTop = bottom - picker.menu.clientHeight;
+        picker.menu.scrollTop = bottom - picker.menu.clientHeight
       }
     }
   }
 
   function open(picker: PickerOptions, fromEnd = false) {
-    if (picker.element.disabled) return;
+    if (picker.element.disabled) return
     if (active === picker) {
-      close(true);
-      return;
+      close(true)
+      return
     }
-    close();
-    active = picker;
-    typeAheadText = "";
-    typeAheadAt = 0;
-    (ownerDocument.body || picker.picker).append(picker.menu);
-    picker.menu.hidden = false;
-    picker.menu.dataset.theme =
-      hostElement.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
-    picker.element.setAttribute("aria-expanded", "true");
+    close()
+    active = picker
+    typeAheadText = ''
+    typeAheadAt = 0
+    ;(ownerDocument.body || picker.picker).append(picker.menu)
+    picker.menu.hidden = false
+    picker.menu.dataset.theme = hostElement.closest?.('[data-scene-style]')?.dataset.sceneStyle || ''
+    picker.element.setAttribute('aria-expanded', 'true')
     try {
-      picker.menu.showPopover?.();
+      picker.menu.showPopover?.()
     } catch {
       /* 没有 Popover API 时 hidden 已经足够 */
     }
-    picker.layout?.start();
-    if (position(), !active) return;
-    ownerDocument.addEventListener?.("pointerdown", onPointerDown, true);
-    ownerDocument.addEventListener?.("scroll", onScroll, true);
-    ownerDocument.addEventListener?.("keydown", onKeyDown, true);
-    const selectedIndex = picker.values.indexOf(picker.element.value);
-    focusChoice(
-      picker,
-      selectedIndex < 0 ? (fromEnd ? picker.choices.length - 1 : 0) : selectedIndex,
-    );
+    picker.layout?.start()
+    if ((position(), !active)) return
+    ownerDocument.addEventListener?.('pointerdown', onPointerDown, true)
+    ownerDocument.addEventListener?.('scroll', onScroll, true)
+    ownerDocument.addEventListener?.('keydown', onKeyDown, true)
+    const selectedIndex = picker.values.indexOf(picker.element.value)
+    focusChoice(picker, selectedIndex < 0 ? (fromEnd ? picker.choices.length - 1 : 0) : selectedIndex)
   }
 
   function create(
@@ -152,20 +145,20 @@ export function createPopupPickers(hostElement: any, createElement: any) {
     labels: Record<string, string>,
     onSelect: (value: string) => void,
   ) {
-    const picker = createElement("div", "i3d-climate-picker");
-    const element = createElement("button", "i3d-climate-choice i3d-climate-picker-value");
-    element.type = "button";
-    element.setAttribute("role", "combobox");
-    element.setAttribute("aria-label", ariaLabel);
-    element.setAttribute("aria-haspopup", "listbox");
-    element.setAttribute("aria-expanded", "false");
-    const menu = createElement("div", "i3d-extra-select-menu i3d-climate-picker-menu");
-    menu.id = `i3d-climate-options-${++pickerSeed}`;
-    menu.hidden = true;
-    menu.setAttribute("popover", "manual");
-    menu.setAttribute("role", "listbox");
-    menu.setAttribute("aria-label", `${ariaLabel} 选项`);
-    element.setAttribute("aria-controls", menu.id);
+    const picker = createElement('div', 'i3d-climate-picker')
+    const element = createElement('button', 'i3d-climate-choice i3d-climate-picker-value')
+    element.type = 'button'
+    element.setAttribute('role', 'combobox')
+    element.setAttribute('aria-label', ariaLabel)
+    element.setAttribute('aria-haspopup', 'listbox')
+    element.setAttribute('aria-expanded', 'false')
+    const menu = createElement('div', 'i3d-extra-select-menu i3d-climate-picker-menu')
+    menu.id = `i3d-climate-options-${++pickerSeed}`
+    menu.hidden = true
+    menu.setAttribute('popover', 'manual')
+    menu.setAttribute('role', 'listbox')
+    menu.setAttribute('aria-label', `${ariaLabel} 选项`)
+    element.setAttribute('aria-controls', menu.id)
     const options: PickerOptions = {
       picker,
       element,
@@ -173,82 +166,80 @@ export function createPopupPickers(hostElement: any, createElement: any) {
       values,
       labels,
       choices: [],
-    };
-    for (const value of values) {
-      const choice = createElement("button", "", labels[value] || value);
-      choice.type = "button";
-      choice.value = value;
-      choice.tabIndex = -1;
-      choice.setAttribute("role", "option");
-      choice.setAttribute("aria-selected", "false");
-      choice.addEventListener("click", () => {
-        if (position(), active !== options || element.disabled) return;
-        close(true);
-        onSelect(value);
-      });
-      options.choices.push(choice);
-      menu.append(choice);
     }
-    element.addEventListener("click", () => open(options));
-    element.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
-        event.preventDefault();
-        open(options, event.key === "ArrowUp");
+    for (const value of values) {
+      const choice = createElement('button', '', labels[value] || value)
+      choice.type = 'button'
+      choice.value = value
+      choice.tabIndex = -1
+      choice.setAttribute('role', 'option')
+      choice.setAttribute('aria-selected', 'false')
+      choice.addEventListener('click', () => {
+        if ((position(), active !== options || element.disabled)) return
+        close(true)
+        onSelect(value)
+      })
+      options.choices.push(choice)
+      menu.append(choice)
+    }
+    element.addEventListener('click', () => open(options))
+    element.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
+        event.preventDefault()
+        open(options, event.key === 'ArrowUp')
       }
-    });
-    menu.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (event.key === "Tab") {
-        close(true);
-        return;
+    })
+    menu.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        close(true)
+        return
       }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        close(true);
-        return;
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        close(true)
+        return
       }
-      const enabled = options.choices.filter((choice) => !choice.disabled);
-      const current = enabled.indexOf(ownerDocument.activeElement as any);
-      if (!enabled.length) return;
-      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
-        event.preventDefault();
+      const enabled = options.choices.filter((choice) => !choice.disabled)
+      const current = enabled.indexOf(ownerDocument.activeElement as any)
+      if (!enabled.length) return
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault()
         const next =
-          event.key === "Home"
+          event.key === 'Home'
             ? 0
-            : event.key === "End"
+            : event.key === 'End'
               ? enabled.length - 1
-              : (current + (event.key === "ArrowDown" ? 1 : -1) + enabled.length) % enabled.length;
-        focusChoice(options, options.choices.indexOf(enabled[next]));
-        return;
+              : (current + (event.key === 'ArrowDown' ? 1 : -1) + enabled.length) % enabled.length
+        focusChoice(options, options.choices.indexOf(enabled[next]))
+        return
       }
       // 单字符快速定位：700ms 内连续按键合并成前缀。
       if (
         event.key.length === 1 &&
-        event.key !== " " &&
+        event.key !== ' ' &&
         !event.ctrlKey &&
         !event.metaKey &&
         !event.altKey &&
         !event.isComposing
       ) {
-        event.preventDefault();
-        const now = Date.now();
-        typeAheadText =
-          now - typeAheadAt > TYPE_AHEAD_WINDOW ? event.key : typeAheadText + event.key;
-        typeAheadAt = now;
+        event.preventDefault()
+        const now = Date.now()
+        typeAheadText = now - typeAheadAt > TYPE_AHEAD_WINDOW ? event.key : typeAheadText + event.key
+        typeAheadAt = now
         const match = options.choices.findIndex(
           (choice) =>
-            !choice.disabled &&
-            choice.textContent.toLocaleLowerCase().startsWith(typeAheadText.toLocaleLowerCase()),
-        );
-        if (match >= 0) focusChoice(options, match);
+            !choice.disabled && choice.textContent.toLocaleLowerCase().startsWith(typeAheadText.toLocaleLowerCase()),
+        )
+        if (match >= 0) focusChoice(options, match)
       }
-    });
-    picker.append(element, menu);
+    })
+    picker.append(element, menu)
     options.layout = createFloatingLayout({
       anchor: element,
       panel: menu,
       document: ownerDocument,
-      container: () => hostElement.closest?.(".interaction3d-stage") || hostElement.closest?.("dialog"),
+      container: () => hostElement.closest?.('.interaction3d-stage') || hostElement.closest?.('dialog'),
       minWidth: MIN_MENU_WIDTH,
       maxWidth: MAX_MENU_WIDTH,
       maxHeight: MAX_MENU_HEIGHT,
@@ -259,24 +250,24 @@ export function createPopupPickers(hostElement: any, createElement: any) {
       scaleToAnchor: true,
       inheritFont: true,
       onDismiss: () => {
-        if (active === options) close();
+        if (active === options) close()
       },
-    });
-    return options;
+    })
+    return options
   }
 
   function sync(picker: PickerOptions, value: string, label: string, disabled: boolean) {
-    picker.element.disabled = disabled;
-    picker.element.value = value;
-    picker.element.textContent = label || "请选择";
-    picker.element.title = label || "";
+    picker.element.disabled = disabled
+    picker.element.value = value
+    picker.element.textContent = label || '请选择'
+    picker.element.title = label || ''
     picker.choices.forEach((choice) => {
-      choice.setAttribute("aria-selected", String(choice.value === value));
-    });
-    if (active === picker && disabled) close();
+      choice.setAttribute('aria-selected', String(choice.value === value))
+    })
+    if (active === picker && disabled) close()
   }
 
-  return { create, sync, close };
+  return { create, sync, close }
 }
 
 /**
@@ -287,89 +278,81 @@ export function createPopupPickers(hostElement: any, createElement: any) {
  * `sync` 就是重扫一遍），保证面板重建后新出现的 `<select>` 也会被接管。
  */
 export function enhancePopupSelects(hostElement: any) {
-  const ownerDocument = hostElement.ownerDocument || globalThis.document;
-  const enhancers = new Map<HTMLSelectElement, PickerOptions>();
-  let disposed = false;
-  const pickers = createPopupPickers(hostElement, (tagName: string, className = "", text = "") => {
-    const node = ownerDocument.createElement(tagName);
-    node.className = className;
-    node.textContent = text;
-    return node;
-  });
+  const ownerDocument = hostElement.ownerDocument || globalThis.document
+  const enhancers = new Map<HTMLSelectElement, PickerOptions>()
+  let disposed = false
+  const pickers = createPopupPickers(hostElement, (tagName: string, className = '', text = '') => {
+    const node = ownerDocument.createElement(tagName)
+    node.className = className
+    node.textContent = text
+    return node
+  })
 
   const isOptionDisabled = (option: HTMLOptionElement) =>
     !!(
       option.disabled ||
-      (option.parentElement?.tagName === "OPTGROUP" &&
-        (option.parentElement as HTMLOptGroupElement).disabled)
-    );
+      (option.parentElement?.tagName === 'OPTGROUP' && (option.parentElement as HTMLOptGroupElement).disabled)
+    )
 
   function restore(select: HTMLSelectElement, picker: PickerOptions) {
-    pickers.close();
-    picker.picker.replaceWith(select);
-        select.hidden = picker.wasHidden ?? false;
-    enhancers.delete(select);
+    pickers.close()
+    picker.picker.replaceWith(select)
+    select.hidden = picker.wasHidden ?? false
+    enhancers.delete(select)
   }
 
   function sync() {
-    if (disposed) return;
-    const selects = [...(hostElement.querySelectorAll?.("select") || [])] as HTMLSelectElement[];
+    if (disposed) return
+    const selects = [...(hostElement.querySelectorAll?.('select') || [])] as HTMLSelectElement[]
     for (const [select, picker] of enhancers) {
-      if (!selects.includes(select)) restore(select, picker);
+      if (!selects.includes(select)) restore(select, picker)
     }
     for (const select of selects) {
-      if (!select.replaceWith || !select.options) continue;
-      const options = [...select.options];
+      if (!select.replaceWith || !select.options) continue
+      const options = [...select.options]
       const signature = JSON.stringify(
         options.map((option) => [option.value, option.textContent, isOptionDisabled(option)]),
-      );
-      let picker = enhancers.get(select);
+      )
+      let picker = enhancers.get(select)
       if (picker && picker.signature !== signature) {
-        restore(select, picker);
-        picker = undefined;
+        restore(select, picker)
+        picker = undefined
       }
       if (!picker) {
-        const labels = Object.fromEntries(options.map((option) => [option.value, option.textContent]));
-        const ariaLabel = select.getAttribute("aria-label") || select.name || "选择选项";
+        const labels = Object.fromEntries(options.map((option) => [option.value, option.textContent]))
+        const ariaLabel = select.getAttribute('aria-label') || select.name || '选择选项'
         picker = pickers.create(
           ariaLabel,
           options.map((option) => option.value),
           labels as Record<string, string>,
           (value) => {
-            if (
-              disposed ||
-              select.disabled ||
-              !hostElement.contains(select) ||
-              select.value === value
-            ) {
-              return;
+            if (disposed || select.disabled || !hostElement.contains(select) || select.value === value) {
+              return
             }
-            const option = [...select.options].find((item) => item.value === value);
-            if (!option || isOptionDisabled(option)) return;
-            select.value = value;
-            select.dispatchEvent(
-              new (ownerDocument.defaultView?.Event || Event)("change", { bubbles: true }),
-            );
-            sync();
+            const option = [...select.options].find((item) => item.value === value)
+            if (!option || isOptionDisabled(option)) return
+            select.value = value
+            select.dispatchEvent(new (ownerDocument.defaultView?.Event || Event)('change', { bubbles: true }))
+            sync()
           },
-        );
-        picker.signature = signature;
-        picker.wasHidden = select.hidden === true;
-        picker.picker.classList.add("i3d-popup-select");
-        select.replaceWith(picker.picker);
-        picker.picker.append(select);
-        select.hidden = true;
-        enhancers.set(select, picker);
+        )
+        picker.signature = signature
+        picker.wasHidden = select.hidden === true
+        picker.picker.classList.add('i3d-popup-select')
+        select.replaceWith(picker.picker)
+        picker.picker.append(select)
+        select.hidden = true
+        enhancers.set(select, picker)
       }
       picker.choices.forEach((choice, index) => {
-        choice.disabled = isOptionDisabled(options[index]);
-      });
+        choice.disabled = isOptionDisabled(options[index])
+      })
       pickers.sync(
         picker,
         select.value,
-        options.find((option) => option.value === select.value)?.textContent || "请选择",
+        options.find((option) => option.value === select.value)?.textContent || '请选择',
         select.disabled || !options.some((option) => !isOptionDisabled(option)),
-      );
+      )
     }
   }
 
@@ -377,18 +360,18 @@ export function enhancePopupSelects(hostElement: any) {
     sync,
     close: pickers.close,
     focused(select: HTMLSelectElement) {
-      const picker = enhancers.get(select);
+      const picker = enhancers.get(select)
       return (
         ownerDocument.activeElement === select ||
         !!picker?.picker.contains(ownerDocument.activeElement) ||
         !!picker?.menu.contains(ownerDocument.activeElement)
-      );
+      )
     },
     dispose() {
-      if (disposed) return;
-      disposed = true;
-      for (const [select, picker] of enhancers) restore(select, picker);
-      pickers.close();
+      if (disposed) return
+      disposed = true
+      for (const [select, picker] of enhancers) restore(select, picker)
+      pickers.close()
     },
-  };
+  }
 }

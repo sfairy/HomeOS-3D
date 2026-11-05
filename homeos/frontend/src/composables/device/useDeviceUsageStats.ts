@@ -12,11 +12,7 @@ import { createFetchSequence } from '@/shared/utils/core/misc.util'
  * @param visible   可选的可见性开关；为 false 时跳过请求（用于隐藏 Tab 时的懒加载）。
  * @returns loading / error / report / refresh（refresh 等价于内部 fetchUsage）。
  */
-export function useDeviceUsageStats(
-  entityId: Ref<string>,
-  days: Ref<number> = ref(7),
-  visible?: Ref<boolean>,
-) {
+export function useDeviceUsageStats(entityId: Ref<string>, days: Ref<number> = ref(7), visible?: Ref<boolean>) {
   // 是否正在加载中
   const loading = ref(false)
   // 错误信息（空串表示无错误）

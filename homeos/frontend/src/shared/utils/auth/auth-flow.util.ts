@@ -48,11 +48,7 @@ export const AUTH_FLOW_ACCESS: AuthFlowStep[] = [
  * @param blocked 当前步是否「停在这里过不去」（如绑定冲突），true 时当前步用 blocked 态
  * @returns 供 AuthShell 渲染的步骤数组
  */
-export function renderAuthSteps(
-  flow: AuthFlowStep[],
-  activeKey: string,
-  blocked = false,
-): RenderableAuthStep[] {
+export function renderAuthSteps(flow: AuthFlowStep[], activeKey: string, blocked = false): RenderableAuthStep[] {
   const activeIndex = flow.findIndex((step) => step.key === activeKey)
   return flow.map((step, index) => ({
     ...step,

@@ -4,7 +4,11 @@
  */
 /** composables：安防联动配置与展示 */
 import type { Ref } from 'vue'
-import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/composables/config/system-config-core.internals'
+import {
+  handleSystemConfigPatchError,
+  patchSystemConfig,
+  useSystemConfig,
+} from '@/composables/config/system-config-core.internals'
 import {
   getSecurityLinkageFlagRows,
   getSecurityLinkageParamRows,
@@ -19,7 +23,6 @@ import { sanitizePresencePersonsForSave } from '@/shared/presence/utils/person.u
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { Home, Lamp, Link2 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
-
 
 // ── useSecurityLinkage ──
 /** useSecurityLinkage：函数，按签名入参返回处理结果。 */
@@ -40,9 +43,7 @@ export function useSecurityLinkage() {
   const paramRows = computed(() => getSecurityLinkageParamRows())
   const flagRows = computed(() => getSecurityLinkageFlagRows())
 
-  const enabledCount = computed(
-    () => flagRows.value.filter((flagRow) => security.value[flagRow.key]).length,
-  )
+  const enabledCount = computed(() => flagRows.value.filter((flagRow) => security.value[flagRow.key]).length)
 
   let linkageLoaded = false
 
@@ -57,10 +58,7 @@ export function useSecurityLinkage() {
     }
   }
 
-  async function refresh({
-    bootRetry = false,
-    silent = false,
-  }: { bootRetry?: boolean; silent?: boolean } = {}) {
+  async function refresh({ bootRetry = false, silent = false }: { bootRetry?: boolean; silent?: boolean } = {}) {
     const showLoading = !silent && !linkageLoaded
     if (showLoading) {
       loading.value = true
@@ -187,9 +185,7 @@ export function useSettingsSecurityModesLinkageDisplay(opts: {
 }) {
   const { presencePersons, autoMode, presencePreview } = opts
 
-  const configuredPersonCount = computed(
-    () => sanitizePresencePersonsForSave(presencePersons.value).length,
-  )
+  const configuredPersonCount = computed(() => sanitizePresencePersonsForSave(presencePersons.value).length)
 
   const personStatCount = computed(() => {
     if (!autoMode.value) return configuredPersonCount.value
@@ -226,5 +222,3 @@ export function useSettingsSecurityModesLinkageDisplay(opts: {
     paramRoute,
   }
 }
-
-

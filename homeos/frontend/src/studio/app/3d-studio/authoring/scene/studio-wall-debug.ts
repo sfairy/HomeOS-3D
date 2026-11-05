@@ -9,18 +9,18 @@
  */
 
 /** 墙体分层：侧面 / 顶盖 / 洞口底盖。 */
-export type WallDebugPart = "side" | "top" | "soffit";
+export type WallDebugPart = 'side' | 'top' | 'soffit'
 
 function readDebugParts(): Set<WallDebugPart> | null {
-  const isDev = import.meta.env.DEV;
-  if (!isDev || !(typeof window < "u")) return null;
-  const raw = new URLSearchParams(window.location.search).get("wall-debug");
-  if (!raw) return null;
+  const isDev = import.meta.env.DEV
+  if (!isDev || !(typeof window < 'u')) return null
+  const raw = new URLSearchParams(window.location.search).get('wall-debug')
+  if (!raw) return null
   const parts = raw
-    .split(",")
+    .split(',')
     .map((part) => part.trim())
-    .filter((part): part is WallDebugPart => part === "side" || part === "top" || part === "soffit");
-  return parts.length ? new Set(parts) : null;
+    .filter((part): part is WallDebugPart => part === 'side' || part === 'top' || part === 'soffit')
+  return parts.length ? new Set(parts) : null
 }
 
 /**
@@ -30,6 +30,6 @@ function readDebugParts(): Set<WallDebugPart> | null {
  * 方便逐层截对比图。
  */
 export function isWallPartVisible(part: WallDebugPart): boolean {
-  const debugParts = readDebugParts();
-  return !debugParts || debugParts.has(part);
+  const debugParts = readDebugParts()
+  return !debugParts || debugParts.has(part)
 }

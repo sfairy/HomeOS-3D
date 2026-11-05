@@ -78,10 +78,7 @@ export function setupTokenFromHash(hash: string | undefined): string {
  * @param token 可选的引导密钥（远程访问时必须带，否则服务端只会回「不可初始化」）
  * @param options.force 为 true 时忽略已有快照重新探测
  */
-export function probeSetupStatus(
-  token = "",
-  options: { force?: boolean } = {},
-): Promise<SetupSnapshot> {
+export function probeSetupStatus(token = "", options: { force?: boolean } = {}): Promise<SetupSnapshot> {
   if (!options.force && snapshot) return Promise.resolve(snapshot);
   if (inflight) return inflight;
   inflight = (async (): Promise<SetupSnapshot> => {

@@ -4,18 +4,16 @@
  * onBeforeUnmount 不会等待；把多次挂载/卸载串成一条链，下一次挂载先等链尾，避免旧实例
  * finally 里的 resetEditorFacade 清掉新实例的 facade。
  */
-let pendingEditorTeardown: Promise<void> = Promise.resolve();
+let pendingEditorTeardown: Promise<void> = Promise.resolve()
 
-function scheduleEditorTeardown(
-  teardown: (() => Promise<void> | void) | null | undefined,
-): Promise<void> {
-  if (!teardown) return pendingEditorTeardown;
+function scheduleEditorTeardown(teardown: (() => Promise<void> | void) | null | undefined): Promise<void> {
+  if (!teardown) return pendingEditorTeardown
   pendingEditorTeardown = pendingEditorTeardown.then(() =>
     Promise.resolve(teardown()).catch((error: unknown) => {
-      window.HomeOSLog?.error?.(error, { phase: "editor-view-teardown" });
+      window.HomeOSLog?.error?.(error, { phase: 'editor-view-teardown' })
     }),
-  );
-  return pendingEditorTeardown;
+  )
+  return pendingEditorTeardown
 }
 </script>
 

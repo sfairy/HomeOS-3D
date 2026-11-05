@@ -5,11 +5,21 @@
  */
 
 /* ── Tailwind 标准档 → token ── */
-.text-xs { font-size: var(--hos-fs-3); }
-.text-sm { font-size: var(--hos-fs-4); }
-.text-base { font-size: var(--hos-fs-5); }
-.text-lg { font-size: var(--hos-fs-6); }
-.text-xl { font-size: var(--hos-fs-8); }
+.text-xs {
+  font-size: var(--hos-fs-3);
+}
+.text-sm {
+  font-size: var(--hos-fs-4);
+}
+.text-base {
+  font-size: var(--hos-fs-5);
+}
+.text-lg {
+  font-size: var(--hos-fs-6);
+}
+.text-xl {
+  font-size: var(--hos-fs-8);
+}
 
 /* ── 列表页 / 页头 ── */
 .list-page {

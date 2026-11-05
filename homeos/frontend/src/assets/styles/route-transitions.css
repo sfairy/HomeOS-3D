@@ -30,8 +30,12 @@
   z-index: 1;
   pointer-events: none;
 }
-.route-fade-enter-from { transform: translate3d(100%, 0, 0); }
-.route-fade-leave-to { transform: translate3d(-100%, 0, 0); }
+.route-fade-enter-from {
+  transform: translate3d(100%, 0, 0);
+}
+.route-fade-leave-to {
+  transform: translate3d(-100%, 0, 0);
+}
 
 /**
  * 创作面（编辑器 / 户型图）瞬时换页：离开页立刻从布局摘掉，
@@ -41,7 +45,9 @@
   display: none !important;
 }
 
-.route-transition-root { width: 100%; }
+.route-transition-root {
+  width: 100%;
+}
 
 .app-container {
   position: relative;
@@ -95,7 +101,9 @@
     pointer-events: auto !important;
   }
   .route-fade-enter-from,
-  .route-fade-leave-to { transform: none !important; }
+  .route-fade-leave-to {
+    transform: none !important;
+  }
 }
 
 /* 双主题纯 CSS 氛围层：只合成 transform，不参与布局与交互。 */
@@ -109,20 +117,30 @@
 }
 .homeos-theme-atmosphere::before,
 .homeos-theme-atmosphere::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 52vw;
   height: 52vw;
   border-radius: 50%;
-  opacity: .72;
+  opacity: 0.72;
   will-change: transform;
   transform: translate3d(0, 0, 0);
 }
-.homeos-theme-atmosphere::before { left: -18vw; top: -22vw; background: radial-gradient(circle, var(--hos-glow-accent-soft), transparent 68%); }
-.homeos-theme-atmosphere::after { right: -20vw; bottom: -24vw; background: radial-gradient(circle, var(--hos-glow-accent-faint), transparent 68%); }
+.homeos-theme-atmosphere::before {
+  left: -18vw;
+  top: -22vw;
+  background: radial-gradient(circle, var(--hos-glow-accent-soft), transparent 68%);
+}
+.homeos-theme-atmosphere::after {
+  right: -20vw;
+  bottom: -24vw;
+  background: radial-gradient(circle, var(--hos-glow-accent-faint), transparent 68%);
+}
 @media (prefers-reduced-motion: reduce) {
   .homeos-theme-atmosphere::before,
-  .homeos-theme-atmosphere::after { will-change: auto; }
+  .homeos-theme-atmosphere::after {
+    will-change: auto;
+  }
 }
 
 /**
@@ -139,7 +157,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   opacity: 0.9;
-  transition: background-image 0.6s ease, opacity 0.6s ease;
+  transition:
+    background-image 0.6s ease,
+    opacity 0.6s ease;
 }
 
 /**
@@ -176,9 +196,7 @@
  * 下面是「图能明显透出、文字仍可读」的折中值。
  */
 .app-shell--light-backdrop .app-shell__content .tab-bar {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 38%),
-    rgba(8, 8, 14, 0.58);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 38%), rgba(8, 8, 14, 0.58);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   backdrop-filter: blur(16px) saturate(150%);
 }
@@ -216,6 +234,6 @@
  * 仅在 <html data-display-backdrop="1">（展示页）时生效，管理页保持原有不透明底。
  * （独立整屏大屏不带 .viewport-frame，其 #display-shell 本身已透明。）
  */
-html[data-display-backdrop='1'] .viewport-frame {
+html[data-display-backdrop="1"] .viewport-frame {
   background: transparent !important;
 }

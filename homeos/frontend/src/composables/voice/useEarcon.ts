@@ -45,8 +45,7 @@ let context: AudioContext | null = null
 function resolveContext(): AudioContext | null {
   if (context) return context
   const Ctx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!Ctx) return null
   try {
     context = new Ctx()

@@ -113,9 +113,7 @@ export function ensureHls(): Promise<HlsCtor | null> {
   if (runtime) return Promise.resolve(runtime)
   if (loadPromise) return loadPromise
   const existingScript = document.querySelector<HTMLScriptElement>(HLS_SCRIPT_SELECTOR)
-  const scriptPromise = existingScript
-    ? waitForExistingScript(existingScript)
-    : injectHlsScript()
+  const scriptPromise = existingScript ? waitForExistingScript(existingScript) : injectHlsScript()
   loadPromise = scriptPromise.then((hlsRuntime) => {
     if (!hlsRuntime) loadPromise = null
     return hlsRuntime

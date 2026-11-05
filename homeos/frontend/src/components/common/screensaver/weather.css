@@ -5,18 +5,20 @@
 }
 
 .ss-weather-glyph {
-  font-size: min(
-    calc(var(--ss-wx-icon-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-    calc(var(--ss-vh) * 0.14)
-  );
+  font-size: min(calc(var(--ss-wx-icon-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.14));
   margin-bottom: 8px;
   filter: drop-shadow(0 16px 40px rgba(255, 200, 100, 0.12));
   animation: ss-glyph-float 5s ease-in-out infinite;
 }
 
 @keyframes ss-glyph-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .ss-wx-temp-line {
@@ -27,16 +29,13 @@
 }
 
 .ss-wx-temp {
-  font-size: min(
-    calc(var(--ss-wx-temp-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-    calc(var(--ss-vh) * 0.3)
-  );
+  font-size: min(calc(var(--ss-wx-temp-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.3));
   font-weight: 200;
   line-height: 0.9;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
-  font-family: 'SF Pro Display', -apple-system, sans-serif;
-  background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.38) 100%);
+  font-family: "SF Pro Display", -apple-system, sans-serif;
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.75) 50%, rgba(255, 255, 255, 0.38) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -54,10 +53,7 @@
 
 .ss-wx-desc {
   margin: 10px 0 0;
-  font-size: min(
-    calc(var(--ss-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
-    calc(var(--ss-vh) * 0.045)
-  );
+  font-size: min(calc(var(--ss-meta-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.045));
   font-weight: 300;
   letter-spacing: 0.2em;
   text-transform: uppercase;

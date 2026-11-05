@@ -72,9 +72,7 @@ const props = defineProps<{
  * 显式给出「进入文件夹 X / 选择文件 X」，键盘与读屏用户才知道这一行能干什么。
  */
 const mainLabel = computed(() =>
-  props.item.type === 'dir'
-    ? `进入文件夹 ${props.item.name}`
-    : `选择文件 ${props.item.name}`,
+  props.item.type === 'dir' ? `进入文件夹 ${props.item.name}` : `选择文件 ${props.item.name}`,
 )
 
 // 事件定义：click 进入目录或选择文件；copy 复制路径；delete 删除条目

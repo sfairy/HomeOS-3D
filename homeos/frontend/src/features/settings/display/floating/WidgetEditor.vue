@@ -4,14 +4,7 @@
 -->
 <script setup>
 import { computed } from 'vue'
-import {
-  Crosshair,
-  Zap,
-  Code,
-  Settings2,
-  Shield,
-  Info,
-} from '@lucide/vue'
+import { Crosshair, Zap, Code, Settings2, Shield, Info } from '@lucide/vue'
 import { hasConfigurableTabs } from '@/shared/utils/registry/hub-tabs-options'
 import { canonicalizeWidgetType } from '@/shared/utils/registry/widget-catalog'
 import { isEntityFloatType } from '@/features/settings/display/composables/layout-floating.internals'

@@ -34,7 +34,10 @@ const TABS: AdminTabItem[] = [
 
 const toast = useToastStore();
 const refresh = useAdminRefreshStore();
-const { active, pick } = useAdminTabs("settings", computed(() => TABS));
+const { active, pick } = useAdminTabs(
+  "settings",
+  computed(() => TABS),
+);
 
 const saved = ref<SettingsPayload | null>(null);
 const phase = ref<"loading" | "ready" | "error">("loading");
@@ -164,12 +167,9 @@ function fill(payload: SettingsPayload) {
   form.referralRatePercent = asText(referral.ratePercent ?? 0);
   form.referralWithdrawalFeePercent = asText(referral.withdrawalFeePercent ?? 0);
   form.referralWithdrawalMinPoints = asText(referral.withdrawalMinPoints ?? 0);
-  form.deviceReleaseCooldownSeconds = payload.deviceReleaseCooldownSeconds == null
-    ? ""
-    : asText(payload.deviceReleaseCooldownSeconds);
-  ph.deviceReleaseCooldownSeconds = `跟随环境变量（当前 ${
-    payload.deviceReleaseCooldownEffectiveSeconds ?? 0
-  }）`;
+  form.deviceReleaseCooldownSeconds =
+    payload.deviceReleaseCooldownSeconds == null ? "" : asText(payload.deviceReleaseCooldownSeconds);
+  ph.deviceReleaseCooldownSeconds = `跟随环境变量（当前 ${payload.deviceReleaseCooldownEffectiveSeconds ?? 0}）`;
 
   const enabledChannels = new Set(Array.isArray(payload.channels) ? payload.channels : []);
   form.paymentChannelAlipay = enabledChannels.has("alipay");
@@ -193,9 +193,7 @@ function fill(payload: SettingsPayload) {
 
   form.wechatMchId = wechatSource.mchIdFromDatabase ? asText(wechatSource.mchId) : "";
   form.wechatAppId = wechatSource.appIdFromDatabase ? asText(wechatSource.appId) : "";
-  form.wechatMerchantSerialNo = wechatSource.merchantSerialNoFromDatabase
-    ? asText(wechatSource.merchantSerialNo)
-    : "";
+  form.wechatMerchantSerialNo = wechatSource.merchantSerialNoFromDatabase ? asText(wechatSource.merchantSerialNo) : "";
   form.wechatGatewayUrl = wechatSource.gatewayUrlFromDatabase ? asText(wechatSource.gatewayUrl) : "";
   form.wechatNotifyUrl = wechatSource.notifyUrlFromDatabase ? asText(wechatSource.notifyUrl) : "";
   form.wechatPlatformPublicKeyId = wechatSource.platformPublicKeyIdFromDatabase
@@ -232,9 +230,7 @@ function fill(payload: SettingsPayload) {
     : mailSource.smtpPasswordConfigured
       ? "跟随环境变量（已配置）"
       : "跟随环境变量";
-  form.verificationTtlSeconds = mailSource.verificationTtlFromDatabase
-    ? asText(mailSource.verificationTtlSeconds)
-    : "";
+  form.verificationTtlSeconds = mailSource.verificationTtlFromDatabase ? asText(mailSource.verificationTtlSeconds) : "";
   ph.verificationTtlSeconds = `跟随环境变量（当前 ${mailSource.verificationTtlSeconds}）`;
   form.verificationCooldownSeconds = mailSource.verificationCooldownFromDatabase
     ? asText(mailSource.verificationCooldownSeconds)

@@ -64,13 +64,9 @@ import WidgetHubHeader from '@/components/widgets/shared/WidgetHubHeader.vue'
 import { useHubTabs } from '@/shared/widget/composables/useHubTabs'
 
 /** 气象预报部件（异步加载） */
-const WeatherForecast = defineAsyncComponent(
-  () => import('@/components/widgets/weather/Forecast.vue'),
-)
+const WeatherForecast = defineAsyncComponent(() => import('@/components/widgets/weather/Forecast.vue'))
 /** 生活指数部件（异步加载） */
-const LifeIndices = defineAsyncComponent(
-  () => import('@/components/widgets/weather/LifeIndices.vue'),
-)
+const LifeIndices = defineAsyncComponent(() => import('@/components/widgets/weather/LifeIndices.vue'))
 /** 日出日落部件（异步加载） */
 const SunInfo = defineAsyncComponent(() => import('@/components/widgets/weather/SunInfo.vue'))
 
@@ -108,9 +104,7 @@ const { hubTabs, activeTab } = useHubTabs({
 })
 
 /** 预报/生活：Hub 外层滚动；实时/日出：卡片占满剩余高度 */
-const hubBodyScroll = computed(
-  () => activeTab.value !== 'current' && activeTab.value !== 'sun',
-)
+const hubBodyScroll = computed(() => activeTab.value !== 'current' && activeTab.value !== 'sun')
 </script>
 
 <style scoped src="../styles/widget-hub-embeds.css"></style>

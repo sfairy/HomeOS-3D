@@ -36,32 +36,26 @@ export const WARM_WOOD_STYLE = Object.freeze({
   glass: 9226677,
   frame: 10257502,
   doorLeaf: 15327699,
-});
+})
 export function decorateWarmFloor(material: any, style: any) {
-  if (!style.warmWood) return;
-  ((material.roughness = 0.92), (material.emissiveIntensity = 0.075), (material.roughness = 0.84));
+  if (!style.warmWood) return
+  ;(material.roughness = 0.92), (material.emissiveIntensity = 0.075), (material.roughness = 0.84)
   const originalBeforeCompile = material.onBeforeCompile,
-    originalProgramKey = material.customProgramCacheKey.bind(material)();
-  ((material.onBeforeCompile = function (shader: any, renderer: any) {
-    (originalBeforeCompile.call(this, shader, renderer),
+    originalProgramKey = material.customProgramCacheKey.bind(material)()
+  ;(material.onBeforeCompile = function (shader: any, renderer: any) {
+    originalBeforeCompile.call(this, shader, renderer),
       (shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 hbOakPosition;\nvarying float hbOakTop;')
         .replace(
-          "#include <common>",
-          "#include <common>\nvarying vec2 hbOakPosition;\nvarying float hbOakTop;",
-        )
-        .replace(
-          "#include <begin_vertex>",
-          "#include <begin_vertex>\nhbOakPosition = (modelMatrix * vec4(transformed, 1.0)).xz;\nhbOakTop = abs((mat3(modelMatrix) * normal).y);",
+          '#include <begin_vertex>',
+          '#include <begin_vertex>\nhbOakPosition = (modelMatrix * vec4(transformed, 1.0)).xz;\nhbOakTop = abs((mat3(modelMatrix) * normal).y);',
         )),
       (shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 hbOakPosition;\nvarying float hbOakTop;')
         .replace(
-          "#include <common>",
-          "#include <common>\nvarying vec2 hbOakPosition;\nvarying float hbOakTop;",
-        )
-        .replace(
-          "#include <color_fragment>",
-          "#include <color_fragment>\n        vec2 oakP = hbOakPosition;\n        float oakRow = floor(oakP.y / 0.28);\n        float oakV = fract(oakP.y / 0.28);\n        float oakU = fract(oakP.x / 2.4 + mod(oakRow, 3.0) / 3.0);\n        float oakAcross = min(oakV, 1.0 - oakV) * 0.28;\n        float oakEnd = min(oakU, 1.0 - oakU) * 2.4;\n        vec2 oakAA = max(fwidth(oakP), vec2(0.0001));\n        float oakSeam = (1.0 - smoothstep(0.001, 0.001 + oakAA.y, oakAcross)) * min(1.0, 0.003 / oakAA.y);\n        float oakJoint = (1.0 - smoothstep(0.001, 0.001 + oakAA.x, oakEnd)) * min(1.0, 0.003 / oakAA.x);\n        float oakGrain = sin(oakP.y * 94.0 + sin(oakP.x * 1.15 + oakRow) * 1.5);\n        float oakDetail = 1.0 - smoothstep(0.012, 0.05, oakAA.y);\n        float oakTone = 1.0 + sin(oakRow * 2.31) * 0.006 + oakGrain * oakDetail * 0.008\n          - max(oakSeam, oakJoint) * 0.1;\n        diffuseColor.rgb *= mix(1.0, oakTone, step(0.8, hbOakTop));\n      ",
-        )));
+          '#include <color_fragment>',
+          '#include <color_fragment>\n        vec2 oakP = hbOakPosition;\n        float oakRow = floor(oakP.y / 0.28);\n        float oakV = fract(oakP.y / 0.28);\n        float oakU = fract(oakP.x / 2.4 + mod(oakRow, 3.0) / 3.0);\n        float oakAcross = min(oakV, 1.0 - oakV) * 0.28;\n        float oakEnd = min(oakU, 1.0 - oakU) * 2.4;\n        vec2 oakAA = max(fwidth(oakP), vec2(0.0001));\n        float oakSeam = (1.0 - smoothstep(0.001, 0.001 + oakAA.y, oakAcross)) * min(1.0, 0.003 / oakAA.y);\n        float oakJoint = (1.0 - smoothstep(0.001, 0.001 + oakAA.x, oakEnd)) * min(1.0, 0.003 / oakAA.x);\n        float oakGrain = sin(oakP.y * 94.0 + sin(oakP.x * 1.15 + oakRow) * 1.5);\n        float oakDetail = 1.0 - smoothstep(0.012, 0.05, oakAA.y);\n        float oakTone = 1.0 + sin(oakRow * 2.31) * 0.006 + oakGrain * oakDetail * 0.008\n          - max(oakSeam, oakJoint) * 0.1;\n        diffuseColor.rgb *= mix(1.0, oakTone, step(0.8, hbOakTop));\n      ',
+        ))
   }),
-    (material.customProgramCacheKey = () => originalProgramKey + ":warm-pale-oak-v1"));
+    (material.customProgramCacheKey = () => originalProgramKey + ':warm-pale-oak-v1')
 }

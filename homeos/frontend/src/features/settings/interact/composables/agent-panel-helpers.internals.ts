@@ -7,14 +7,7 @@ import { ref } from 'vue'
 import { AGENT_PROVIDER_LABELS } from '@/shared/agent/utils/model-label.util'
 
 /** 统计卡片色调（与 SettingsFlowStat.vue 的 FlowStatTone 保持对齐） */
-export type FlowStatTone =
-  | 'accent'
-  | 'secondary'
-  | 'emerald'
-  | 'amber'
-  | 'sky'
-  | 'rose'
-  | 'violet'
+export type FlowStatTone = 'accent' | 'secondary' | 'emerald' | 'amber' | 'sky' | 'rose' | 'violet'
 
 function mapFlowStatTone(cls: string): FlowStatTone {
   if (cls.includes('emerald') || cls.includes('green')) return 'emerald'
@@ -46,8 +39,7 @@ export function isAgentMockProvider(opts: {
   if (String(opts.draftProvider || '').toLowerCase() === 'mock') return true
   if (String(opts.pingProvider || '').toLowerCase() === 'mock') return true
   const hasKey =
-    opts.apiKeyConfigured === true ||
-    (Boolean(String(opts.apiKey || '').trim()) && !isAgentSecretMasked(opts.apiKey))
+    opts.apiKeyConfigured === true || (Boolean(String(opts.apiKey || '').trim()) && !isAgentSecretMasked(opts.apiKey))
   if (opts.pingReady === false && !hasKey) return true
   return false
 }

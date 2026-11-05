@@ -30,7 +30,7 @@ export const WALL_SURFACE_FINISH = Object.freeze({
   metalness: 0,
   clearcoat: 0.05,
   clearcoatRoughness: 0.82,
-});
+})
 
 /**
  * 墙面的自发光强度（暖木主题略高，与 `createSceneWallSideMaterial` 一致）。
@@ -52,7 +52,7 @@ export function wallEmissiveIntensity(warmWood: boolean): number {
    * 差被垫平（实测墙根先发黑的那个下限在 0.09 附近，0.11 仍在安全区内）。
    * 若后续再调，先看 `docs/analysis/2026-11-04-wall-rendering/` 里的亮/暗比。
    */
-  return warmWood ? 0.13 : 0.11;
+  return warmWood ? 0.13 : 0.11
 }
 
 /**
@@ -69,6 +69,6 @@ export function wallEmissiveIntensity(warmWood: boolean): number {
  * 取等价的膜厚，柱体与墙在任何 `wallOpacity` 下浓度都一致：0% → 0，100% → 实心。
  */
 export function wallFilmOpacity(wallOpacity: number): number {
-  const clamped = Number.isFinite(wallOpacity) ? Math.min(1, Math.max(0, wallOpacity)) : 1;
-  return clamped >= 0.999 ? 1 : 1 - (1 - clamped) * (1 - clamped);
+  const clamped = Number.isFinite(wallOpacity) ? Math.min(1, Math.max(0, wallOpacity)) : 1
+  return clamped >= 0.999 ? 1 : 1 - (1 - clamped) * (1 - clamped)
 }

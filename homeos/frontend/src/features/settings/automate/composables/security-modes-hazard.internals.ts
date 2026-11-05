@@ -7,7 +7,12 @@ import type { Ref } from 'vue'
 import { computed } from 'vue'
 import { useHomeosSceneOptions } from '@/features/home-mode'
 import { useHazardBindingStatus } from '@/features/security'
-import { idsToSingleEntity, joinCommaEntityIds, parseCommaEntityIds, singleEntityToIds } from '@/shared/entity/utils/comma-entity-ids.util'
+import {
+  idsToSingleEntity,
+  joinCommaEntityIds,
+  parseCommaEntityIds,
+  singleEntityToIds,
+} from '@/shared/entity/utils/comma-entity-ids.util'
 import { collectHazardBindingSummary, detectHazardBindingConflicts } from '@homeos/shared'
 import { Droplets, Fan, Flame, Gauge, Wind, Zap } from '@lucide/vue'
 
@@ -33,11 +38,7 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
     hazardExhaustFanEntityIds,
   } = models
 
-  const {
-    scenes,
-    loading: scenesLoading,
-    labelsForSceneIds,
-  } = useHomeosSceneOptions({ includeEmpty: false })
+  const { scenes, loading: scenesLoading, labelsForSceneIds } = useHomeosSceneOptions({ includeEmpty: false })
 
   const hazardStatusConfig = computed(() => ({
     hazardSmokeEntityIds: hazardSmokeEntityIds.value,
@@ -113,11 +114,9 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
 
   const hazardActionSummary = computed(() => {
     const parts: string[] = []
-    if (hazardGasValveEntityId.value?.trim())
-      parts.push(`燃气关阀 → ${hazardGasValveEntityId.value.trim()}`)
+    if (hazardGasValveEntityId.value?.trim()) parts.push(`燃气关阀 → ${hazardGasValveEntityId.value.trim()}`)
     else if (sensorBindingCount.value) parts.push('燃气关阀 → valve.gas_main（默认）')
-    if (hazardWaterValveEntityId.value?.trim())
-      parts.push(`漏水关阀 → ${hazardWaterValveEntityId.value.trim()}`)
+    if (hazardWaterValveEntityId.value?.trim()) parts.push(`漏水关阀 → ${hazardWaterValveEntityId.value.trim()}`)
     else if (hazardLeakEntityIds.value?.length) parts.push('漏水关阀 → valve.water_main（默认）')
     if (exhaustFanIds.value.length) parts.push(`排风 → ${joinCommaEntityIds(exhaustFanIds.value)}`)
     else if (hazardSmokeEntityIds.value?.length || hazardGasEntityIds.value?.length)
@@ -140,10 +139,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       return { statusLabel: '未选择', statusTone: 'muted' as const }
     }
     const kindRows = statusRows.value.filter((row) => row.kind === kind)
-    if (kindRows.some((row) => row.status === 'alert'))
-      return { statusLabel: '告警', statusTone: 'alert' as const }
-    if (kindRows.some((row) => row.status === 'offline'))
-      return { statusLabel: '离线', statusTone: 'offline' as const }
+    if (kindRows.some((row) => row.status === 'alert')) return { statusLabel: '告警', statusTone: 'alert' as const }
+    if (kindRows.some((row) => row.status === 'offline')) return { statusLabel: '离线', statusTone: 'offline' as const }
     return { statusLabel: '正常', statusTone: 'ok' as const }
   }
 

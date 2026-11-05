@@ -280,9 +280,7 @@ function entitiesFromIndex() {
   const domains = effectiveDomains.value
   if (domains.length === 1 && domains[0] === 'battery') {
     const sensorIds = collectIndexedEntityIds(index, { domain: 'sensor' }) || []
-    return sensorIds
-      .map((id) => entitiesStore.entities[id])
-      .filter((entity) => entity && isBatterySensorEntity(entity))
+    return sensorIds.map((id) => entitiesStore.entities[id]).filter((entity) => entity && isBatterySensorEntity(entity))
   }
   if (domains.length === 1 && domains[0] === 'sensor') {
     const sensorIds = collectIndexedEntityIds(index, { domain: 'sensor' }) || []
@@ -389,9 +387,7 @@ const visibleEntities = computed(() => {
   return filteredEntities.value.slice(start, end)
 })
 
-const virtualPaddingTop = computed(() =>
-  useVirtualScroll.value ? virtualRange.value.start * ROW_STRIDE : 0,
-)
+const virtualPaddingTop = computed(() => (useVirtualScroll.value ? virtualRange.value.start * ROW_STRIDE : 0))
 const virtualPaddingBottom = computed(() => {
   if (!useVirtualScroll.value) return 0
   const total = filteredEntities.value.length

@@ -377,9 +377,7 @@ const displayEntityIds = computed(() => {
  * 是否启用紧凑网格虚拟滚动：仅 light/switch 域且实体数超过阈值时启用。
  * 大列表按固定 4 列分块后交给 VirtualList 按行窗口化渲染，大幅减少 DOM 节点。
  */
-const useVirtualGrid = computed(
-  () => isCompactGrid.value && displayEntityIds.value.length > VIRTUAL_GRID_MIN_ITEMS,
-)
+const useVirtualGrid = computed(() => isCompactGrid.value && displayEntityIds.value.length > VIRTUAL_GRID_MIN_ITEMS)
 
 /**
  * 虚拟滚动行分块：每行固定 VIRTUAL_GRID_COLUMNS 个实体 ID。

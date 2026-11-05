@@ -1,4 +1,4 @@
-import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
+import { bathHeaterState as bathHeaterState2 } from '../bath-heater/bath-heater'
 import {
   climateState as climateState2,
   climateControl as climateControl2,
@@ -11,88 +11,85 @@ import {
   exhaustFanState as exhaustFanState2,
   exhaustSwitchState as exhaustSwitchState2,
   waterHeaterCapabilityStatusLabel as waterHeaterStatusLabel2,
-} from "./climate-state";
-import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
-import { purifierState as purifierState2 } from "../purifier/purifier-state";
-import { resolveFanBindingState } from "../fan/fan-state";
-import { domElement } from "@app/shared/util/dom-factory";
-import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
-import { createRangeFeedback as createRangeFeedback2 } from "@app/shared/util/control-timeout";
-import { createPopupPickers } from "@app/shared/util/select-picker";
-import { createPopupFeedback } from "@app/shared/util/popup-feedback";
-import {
-  createStageDeviceVisual,
-  resolveClimateVisualKind,
-} from "../core/stage-device-visual";
+} from './climate-state'
+import { createPurifierExtras as createPurifierExtras2 } from './purifier-extras'
+import { purifierState as purifierState2 } from '../purifier/purifier-state'
+import { resolveFanBindingState } from '../fan/fan-state'
+import { domElement } from '@app/shared/util/dom-factory'
+import { syncHtmlRangeProgress } from '@app/shared/util/range-progress'
+import { createRangeFeedback as createRangeFeedback2 } from '@app/shared/util/control-timeout'
+import { createPopupPickers } from '@app/shared/util/select-picker'
+import { createPopupFeedback } from '@app/shared/util/popup-feedback'
+import { createStageDeviceVisual, resolveClimateVisualKind } from '../core/stage-device-visual'
 const formatSwingModeLabel = (swingModeKey: any, swingDirection: any = undefined) =>
     (
-      {
-        on: "开启",
-        off: "关闭",
-        middle: "居中",
-      } as Record<string, string>
+      ({
+        on: '开启',
+        off: '关闭',
+        middle: '居中',
+      }) as Record<string, string>
     )[swingModeKey] || climateSwingModeLabel2(swingModeKey, swingDirection),
   fanModeLabels = {
-    auto: "自动",
-    low: "低风",
-    medium: "中风",
-    high: "高风",
-    middle: "中风",
-    quiet: "静音",
-    silent: "静音",
-    turbo: "强劲",
-    diffuse: "柔风",
-    focus: "集中",
+    auto: '自动',
+    low: '低风',
+    medium: '中风',
+    high: '高风',
+    middle: '中风',
+    quiet: '静音',
+    silent: '静音',
+    turbo: '强劲',
+    diffuse: '柔风',
+    focus: '集中',
   },
   purifierPresetLabels = {
-    auto: "自动",
-    silent: "静音",
-    quiet: "静音",
-    low: "低",
-    medium: "中",
-    middle: "中",
-    high: "高",
-    turbo: "强劲",
-    sleep: "睡眠",
-    favorite: "最爱",
-    favorite_level: "最爱",
-    strong: "强劲",
-    normal: "标准",
-    natural: "自然风",
-  };
+    auto: '自动',
+    silent: '静音',
+    quiet: '静音',
+    low: '低',
+    medium: '中',
+    middle: '中',
+    high: '高',
+    turbo: '强劲',
+    sleep: '睡眠',
+    favorite: '最爱',
+    favorite_level: '最爱',
+    strong: '强劲',
+    normal: '标准',
+    natural: '自然风',
+  }
 /** 面板的宿主元素与回调； */
 type ClimatePanelOptions = {
-  element?: any;
-  onControl?: (...args: any[]) => any;
-  onLayout?: (...args: any[]) => any;
-  modeHistory?: any;
+  element?: any
+  onControl?: (...args: any[]) => any
+  onLayout?: (...args: any[]) => any
+  modeHistory?: any
   /** 宿主已经装好的反馈聚合区（`createPopupFeedback` 实例）；缺省时面板自建。 */
-  feedbackSlot?: any;
-};
+  feedbackSlot?: any
+}
 /** 面板视图模型由 stage 的 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
 type ClimatePanelViewModel = {
-  item?: any;
-  states?: any;
-  editing?: any;
-  busy?: any;
-  state?: any;
-  error?: any;
+  item?: any
+  states?: any
+  editing?: any
+  busy?: any
+  state?: any
+  error?: any
   /** 实体 → HA 显示精度（`number-formats` 通道）。 */
-  numberFormats?: Record<string, number>;
-};
-type ClimateStateBranch = ReturnType<typeof climateState2>;
+  numberFormats?: Record<string, number>
+}
+type ClimateStateBranch = ReturnType<typeof climateState2>
 /** 三分支键的并集。 */
-type ClimateStateKeys<Branch> = Branch extends unknown ? keyof Branch : never;
+type ClimateStateKeys<Branch> = Branch extends unknown ? keyof Branch : never
 /** 某个键在各分支中出现的类型的并集。 */
 type ClimateStateValue<Key extends PropertyKey, Branch> = Branch extends unknown
   ? Key extends keyof Branch
     ? Branch[Key]
     : never
-  : never;
+  : never
 /** climateState() 按实体类型返回三个分支（热水器/净化器/空调），每个分支只带本分支的能力字段； */
 type ClimateDeviceState = {
-  [Key in ClimateStateKeys<ClimateStateBranch>]?: ClimateStateValue<Key, ClimateStateBranch>;
-};
+  [Key in ClimateStateKeys<ClimateStateBranch>]?: ClimateStateValue<Key, ClimateStateBranch>
+}
 export function createClimatePanel({
   element: hostElement,
   feedbackSlot: hostFeedbackSlot,
@@ -101,129 +98,125 @@ export function createClimatePanel({
   modeHistory: modeHistory = createClimateModeHistory2(),
 }: ClimatePanelOptions = {}) {
   const document = hostElement?.ownerDocument || globalThis.document,
-    createElement = (tagName: any, className: any, textContent = "") =>
+    createElement = (tagName: any, className: any, textContent = '') =>
       domElement(document, tagName, className, textContent),
     replaceChildren = (containerElement: any, ...children: any[]) => {
-      if (typeof containerElement.replaceChildren == "function")
-        containerElement.replaceChildren(...children);
+      if (typeof containerElement.replaceChildren == 'function') containerElement.replaceChildren(...children)
       else {
-        for (const childNode of [...(containerElement.children || [])]) childNode.remove?.();
-        containerElement.append(...children);
+        for (const childNode of [...(containerElement.children || [])]) childNode.remove?.()
+        containerElement.append(...children)
       }
     },
-    rootElement = hostElement || createElement("section", "");
-  rootElement.classList.add("i3d-climate-panel");
+    rootElement = hostElement || createElement('section', '')
+  rootElement.classList.add('i3d-climate-panel')
   const je2 = createPopupPickers(rootElement, createElement),
-    headingElement = createElement("div", "i3d-climate-heading"),
-    titleElement = createElement("h3", "", "空调"),
-    statusElement = createElement("p", "", "尚未绑定设备"),
-    powerButton = createElement("button", "i3d-climate-power is-visual-replaced");
-  powerButton.type = "button";
-  const headingTextElement = createElement("div", "i3d-climate-heading-text");
+    headingElement = createElement('div', 'i3d-climate-heading'),
+    titleElement = createElement('h3', '', '空调'),
+    statusElement = createElement('p', '', '尚未绑定设备'),
+    powerButton = createElement('button', 'i3d-climate-power is-visual-replaced')
+  powerButton.type = 'button'
+  const headingTextElement = createElement('div', 'i3d-climate-heading-text')
   const deviceVisual = createStageDeviceVisual({
-    kind: "climate",
+    kind: 'climate',
     document,
     onActivate: () => togglePower(),
-  });
-  (headingTextElement.append(titleElement, statusElement),
-    headingElement.append(headingTextElement, powerButton, deviceVisual.root));
-  const thermostatSlotElement = createElement("div", "i3d-climate-thermostat-slot"),
-    thermostatElement = createElement("section", "hb-climate-thermostat"),
-    decreaseButton = createElement("button", "hb-climate-temperature-step", "−"),
-    increaseButton = createElement("button", "hb-climate-temperature-step", "+");
-  ((decreaseButton.type = increaseButton.type = "button"),
-    decreaseButton.setAttribute("aria-label", "降低设定温度"),
-    increaseButton.setAttribute("aria-label", "提高设定温度"));
-  const temperatureContentElement = createElement("div", "i3d-climate-temperature-content"),
-    targetOutputElement = createElement("output", "i3d-climate-target"),
-    currentTemperatureElement = createElement("span", "", "当前温度 --");
-  (targetOutputElement.setAttribute("aria-label", "设定温度"),
+  })
+  headingTextElement.append(titleElement, statusElement),
+    headingElement.append(headingTextElement, powerButton, deviceVisual.root)
+  const thermostatSlotElement = createElement('div', 'i3d-climate-thermostat-slot'),
+    thermostatElement = createElement('section', 'hb-climate-thermostat'),
+    decreaseButton = createElement('button', 'hb-climate-temperature-step', '−'),
+    increaseButton = createElement('button', 'hb-climate-temperature-step', '+')
+  ;(decreaseButton.type = increaseButton.type = 'button'),
+    decreaseButton.setAttribute('aria-label', '降低设定温度'),
+    increaseButton.setAttribute('aria-label', '提高设定温度')
+  const temperatureContentElement = createElement('div', 'i3d-climate-temperature-content'),
+    targetOutputElement = createElement('output', 'i3d-climate-target'),
+    currentTemperatureElement = createElement('span', '', '当前温度 --')
+  targetOutputElement.setAttribute('aria-label', '设定温度'),
     temperatureContentElement.append(
-      createElement("small", "", "设定温度"),
+      createElement('small', '', '设定温度'),
       targetOutputElement,
       currentTemperatureElement,
     ),
     thermostatElement.append(decreaseButton, temperatureContentElement, increaseButton),
-    thermostatSlotElement.append(thermostatElement));
-  const awayModeButton = createElement("button", "i3d-climate-choice");
-  ((awayModeButton.type = "button"),
-    awayModeButton.setAttribute("aria-label", "离家模式"),
-    awayModeButton.addEventListener("click", () =>
-      requestControl("set_away_mode", !deviceState.away),
-    ));
-  const feedbackElement = createElement("p", "i3d-climate-feedback");
-  (feedbackElement.setAttribute("role", "status"), (feedbackElement.hidden = true));
+    thermostatSlotElement.append(thermostatElement)
+  const awayModeButton = createElement('button', 'i3d-climate-choice')
+  ;(awayModeButton.type = 'button'),
+    awayModeButton.setAttribute('aria-label', '离家模式'),
+    awayModeButton.addEventListener('click', () => requestControl('set_away_mode', !deviceState.away))
+  const feedbackElement = createElement('p', 'i3d-climate-feedback')
+  feedbackElement.setAttribute('role', 'status'), (feedbackElement.hidden = true)
   const createFeedback = () =>
     createWaterHeaterFeedback2({
       onChange(feedbackText) {
-        ((feedbackElement.textContent = feedbackText), (feedbackElement.hidden = !feedbackText));
+        ;(feedbackElement.textContent = feedbackText), (feedbackElement.hidden = !feedbackText)
       },
-    });
-  let feedbackTracker = createFeedback();
+    })
+  let feedbackTracker = createFeedback()
   /** 风速滑条：拖动时本地预览，松手提交，10 秒没回显提示「设备未响应」。 */
   const speedFeedback = createRangeFeedback2({
     onChange: () => render(),
     onTimeout: () => {
-      errorText = "设备未响应，请重试。";
+      errorText = '设备未响应，请重试。'
     },
-  });
-  const temperatureIntervalElement = createElement("p", "i3d-climate-temperature-interval"),
-    mainGroupsElement = createElement("div", "i3d-climate-groups i3d-climate-main-groups"),
-    emptyStateElement = createElement("p", "i3d-climate-empty"),
-    errorElement = createElement("p", "i3d-climate-error"),
-    fanSpeedGroupElement = createElement("section", "i3d-climate-option-group"),
-    fanSpeedLabelElement = createElement("span", "", "风速"),
-    fanSpeedRangeElement = createElement("input", "hos-range-ui");
-  ((fanSpeedRangeElement.type = "range"),
-    (fanSpeedRangeElement.min = "0"),
-    (fanSpeedRangeElement.max = "100"),
-    fanSpeedRangeElement.setAttribute("aria-label", "净化器风速"),
-    fanSpeedRangeElement.addEventListener("input", () => {
-      (speedFeedback.preview("speed", Number(fanSpeedRangeElement.value)),
+  })
+  const temperatureIntervalElement = createElement('p', 'i3d-climate-temperature-interval'),
+    mainGroupsElement = createElement('div', 'i3d-climate-groups i3d-climate-main-groups'),
+    emptyStateElement = createElement('p', 'i3d-climate-empty'),
+    errorElement = createElement('p', 'i3d-climate-error'),
+    fanSpeedGroupElement = createElement('section', 'i3d-climate-option-group'),
+    fanSpeedLabelElement = createElement('span', '', '风速'),
+    fanSpeedRangeElement = createElement('input', 'hos-range-ui')
+  ;(fanSpeedRangeElement.type = 'range'),
+    (fanSpeedRangeElement.min = '0'),
+    (fanSpeedRangeElement.max = '100'),
+    fanSpeedRangeElement.setAttribute('aria-label', '净化器风速'),
+    fanSpeedRangeElement.addEventListener('input', () => {
+      speedFeedback.preview('speed', Number(fanSpeedRangeElement.value)),
         syncHtmlRangeProgress(fanSpeedRangeElement),
-        (fanSpeedLabelElement.textContent = "风速 " + fanSpeedRangeElement.value + "%"));
+        (fanSpeedLabelElement.textContent = '风速 ' + fanSpeedRangeElement.value + '%')
     }),
-    fanSpeedRangeElement.addEventListener("change", () => {
-      const requestedPercentage = Number(fanSpeedRangeElement.value);
-      (speedFeedback.commit("speed", requestedPercentage),
-        requestControl("set_percentage", requestedPercentage));
-    }));
-  const speedLevelsElement = createElement("div", "i3d-climate-choices i3d-climate-speed-levels");
-  (speedLevelsElement.setAttribute("role", "group"),
-    speedLevelsElement.setAttribute("aria-label", "净化器风速档位"),
-    fanSpeedGroupElement.append(fanSpeedLabelElement, fanSpeedRangeElement, speedLevelsElement));
-  let lastSpeedSignature = "",
-    list: any = [];
-  (emptyStateElement.setAttribute("role", "status"), errorElement.setAttribute("role", "status"));
-  const temperatureRangeElement = createElement("section", "i3d-climate-range"),
-    rangeRows: any = [];
+    fanSpeedRangeElement.addEventListener('change', () => {
+      const requestedPercentage = Number(fanSpeedRangeElement.value)
+      speedFeedback.commit('speed', requestedPercentage), requestControl('set_percentage', requestedPercentage)
+    })
+  const speedLevelsElement = createElement('div', 'i3d-climate-choices i3d-climate-speed-levels')
+  speedLevelsElement.setAttribute('role', 'group'),
+    speedLevelsElement.setAttribute('aria-label', '净化器风速档位'),
+    fanSpeedGroupElement.append(fanSpeedLabelElement, fanSpeedRangeElement, speedLevelsElement)
+  let lastSpeedSignature = '',
+    list: any = []
+  emptyStateElement.setAttribute('role', 'status'), errorElement.setAttribute('role', 'status')
+  const temperatureRangeElement = createElement('section', 'i3d-climate-range'),
+    rangeRows: any = []
   for (const [rangeField, rangeLabel] of [
-    ["target_temp_low", "温区下限"],
-    ["target_temp_high", "温区上限"],
+    ['target_temp_low', '温区下限'],
+    ['target_temp_high', '温区上限'],
   ]) {
-    const rangeRowElement = createElement("div", "hb-climate-thermostat"),
-      rangeDecreaseButton = createElement("button", "hb-climate-temperature-step", "−"),
-      rangeIncreaseButton = createElement("button", "hb-climate-temperature-step", "+");
-    ((rangeDecreaseButton.type = rangeIncreaseButton.type = "button"),
-      rangeDecreaseButton.setAttribute("aria-label", "降低" + rangeLabel),
-      rangeIncreaseButton.setAttribute("aria-label", "提高" + rangeLabel));
-    const rangeContentElement = createElement("div", "i3d-climate-temperature-content"),
-      rangeOutputElement = createElement("output", "i3d-climate-range-value");
-    (rangeOutputElement.setAttribute("aria-label", rangeLabel),
-      rangeContentElement.append(createElement("small", "", rangeLabel), rangeOutputElement),
+    const rangeRowElement = createElement('div', 'hb-climate-thermostat'),
+      rangeDecreaseButton = createElement('button', 'hb-climate-temperature-step', '−'),
+      rangeIncreaseButton = createElement('button', 'hb-climate-temperature-step', '+')
+    ;(rangeDecreaseButton.type = rangeIncreaseButton.type = 'button'),
+      rangeDecreaseButton.setAttribute('aria-label', '降低' + rangeLabel),
+      rangeIncreaseButton.setAttribute('aria-label', '提高' + rangeLabel)
+    const rangeContentElement = createElement('div', 'i3d-climate-temperature-content'),
+      rangeOutputElement = createElement('output', 'i3d-climate-range-value')
+    rangeOutputElement.setAttribute('aria-label', rangeLabel),
+      rangeContentElement.append(createElement('small', '', rangeLabel), rangeOutputElement),
       rangeRowElement.append(rangeDecreaseButton, rangeContentElement, rangeIncreaseButton),
       temperatureRangeElement.append(rangeRowElement),
-      rangeDecreaseButton.addEventListener("click", () => stepRangeValue(rangeField, -1)),
-      rangeIncreaseButton.addEventListener("click", () => stepRangeValue(rangeField, 1)),
+      rangeDecreaseButton.addEventListener('click', () => stepRangeValue(rangeField, -1)),
+      rangeIncreaseButton.addEventListener('click', () => stepRangeValue(rangeField, 1)),
       rangeRows.push({
         field: rangeField,
         output: rangeOutputElement,
         decrease: rangeDecreaseButton,
         increase: rangeIncreaseButton,
-      }));
+      })
   }
-  const popupBodyElement = createElement("div", "i3d-popup-body");
-  (popupBodyElement.append(
+  const popupBodyElement = createElement('div', 'i3d-popup-body')
+  popupBodyElement.append(
     awayModeButton,
     feedbackElement,
     thermostatSlotElement,
@@ -234,47 +227,47 @@ export function createClimatePanel({
     emptyStateElement,
     errorElement,
   ),
-    replaceChildren(rootElement, headingElement, popupBodyElement));
-  const extrasGridElement = createElement("div", "i3d-climate-groups i3d-extra-grid");
-  popupBodyElement.append(extrasGridElement);
+    replaceChildren(rootElement, headingElement, popupBodyElement)
+  const extrasGridElement = createElement('div', 'i3d-climate-groups i3d-extra-grid')
+  popupBodyElement.append(extrasGridElement)
   // 宿主没有提供反馈聚合区时自建一个（0.7.8 四个原生面板各自兜底）。
   const ownFeedbackSlot = hostFeedbackSlot ? null : createPopupFeedback({ element: rootElement }),
-    feedbackSlot = hostFeedbackSlot || ownFeedbackSlot;
+    feedbackSlot = hostFeedbackSlot || ownFeedbackSlot
   const purifierExtrasController = createPurifierExtras2({
     element: extrasGridElement,
     feedbackSlot,
     onControl: (extraControl: any) =>
       onControl(
-        viewModel.item?.climateType === "bath-heater"
+        viewModel.item?.climateType === 'bath-heater'
           ? {
               ...extraControl,
-              deviceKind: "climate-extra",
+              deviceKind: 'climate-extra',
             }
           : viewModel.item?.pedestalFan
             ? {
                 ...extraControl,
-                deviceKind: "fan-extra",
+                deviceKind: 'fan-extra',
               }
             : deviceState.waterHeater
               ? {
                   ...extraControl,
-                  deviceKind: "water-heater-extra",
+                  deviceKind: 'water-heater-extra',
                 }
               : !viewModel.item?.airPurifier && !deviceState.purifier
                 ? {
                     ...extraControl,
-                    deviceKind: "climate-extra",
+                    deviceKind: 'climate-extra',
                   }
                 : extraControl,
         viewModel.item,
       ),
     onLayout: onLayout,
-  });
+  })
   let viewModel: ClimatePanelViewModel = {},
-    deviceState: ClimateDeviceState = climateState2("", null),
+    deviceState: ClimateDeviceState = climateState2('', null),
     isDisposed = false,
     isSending = false,
-    errorText = "",
+    errorText = '',
     instanceId = 0,
     pendingRangeValues: any = null,
     draftTemperature: any = null,
@@ -282,13 +275,13 @@ export function createClimatePanel({
     draftMode: string | null = null,
     draftPresetMode: string | null = null,
     temperatureTimeoutId: any = null,
-    renderedGroupsSignature = "",
+    renderedGroupsSignature = '',
     choiceButtons: any = [],
     pendingControlPromise = Promise.resolve(),
-    pendingControlCount = 0;
+    pendingControlCount = 0
   // 错误与进度提示都挂到聚合区：同源重复只留一条，并把 HA 原始报错译成人话。
-  const feedbackSource = () => viewModel.item?.entityId || "",
-    feedbackLabel = () => titleElement.textContent || "",
+  const feedbackSource = () => viewModel.item?.entityId || '',
+    feedbackLabel = () => titleElement.textContent || '',
     releaseErrorFeedback = feedbackSlot.attach(errorElement, {
       source: feedbackSource,
       label: feedbackLabel,
@@ -296,128 +289,116 @@ export function createClimatePanel({
     releaseStatusFeedback = feedbackSlot.attach(feedbackElement, {
       source: feedbackSource,
       label: feedbackLabel,
-    });
-  const canControl = () =>
-      !isDisposed && !viewModel.editing && !viewModel.busy && deviceState.available,
+    })
+  const canControl = () => !isDisposed && !viewModel.editing && !viewModel.busy && deviceState.available,
     clearTemperatureDraft = () => {
-      ((draftTemperature = null), (pendingRangeValues = null));
+      ;(draftTemperature = null), (pendingRangeValues = null)
     },
     clearModeDraft = () => {
-      ((draftPowerOn = null), (draftMode = null), (draftPresetMode = null));
+      ;(draftPowerOn = null), (draftMode = null), (draftPresetMode = null)
     },
     clearPendingState = () => {
-      (temperatureTimeoutId !== null && clearTimeout(temperatureTimeoutId),
+      temperatureTimeoutId !== null && clearTimeout(temperatureTimeoutId),
         (temperatureTimeoutId = null),
         clearTemperatureDraft(),
-        clearModeDraft());
+        clearModeDraft()
     },
     armPendingTimeout = () => {
-      temperatureTimeoutId !== null && clearTimeout(temperatureTimeoutId);
+      temperatureTimeoutId !== null && clearTimeout(temperatureTimeoutId)
       temperatureTimeoutId = setTimeout(() => {
-        ((temperatureTimeoutId = null), clearTemperatureDraft(), clearModeDraft(), isDisposed || render());
-      }, 8000);
+        ;(temperatureTimeoutId = null), clearTemperatureDraft(), clearModeDraft(), isDisposed || render()
+      }, 8000)
     },
     resolvePresetLabel = (presetValue: any) => {
-      const key = String(presetValue || "").trim();
-      if (!key) return "";
-      return (purifierPresetLabels as any)[key.toLowerCase()] || key;
+      const key = String(presetValue || '').trim()
+      if (!key) return ''
+      return (purifierPresetLabels as any)[key.toLowerCase()] || key
     },
     resolveDisplayPowerOn = () => {
-      if (draftPowerOn !== null) return !!draftPowerOn;
-      if (viewModel?.item?.airPurifier)
-        return !!purifierState2(viewModel.item, viewModel.states || {}).on;
+      if (draftPowerOn !== null) return !!draftPowerOn
+      if (viewModel?.item?.airPurifier) return !!purifierState2(viewModel.item, viewModel.states || {}).on
       if (viewModel?.item?.pedestalFan) {
         const fanSnap = resolveFanBindingState(viewModel.item, {
           ...(viewModel.states || {}),
-          ...(deviceState.entityId && deviceState.raw
-            ? { [deviceState.entityId]: deviceState.raw }
-            : {}),
-        });
-        return !!fanSnap?.on;
+          ...(deviceState.entityId && deviceState.raw ? { [deviceState.entityId]: deviceState.raw } : {}),
+        })
+        return !!fanSnap?.on
       }
-      return !!deviceState.on;
+      return !!deviceState.on
     },
     resolveClimateVisualMode = (modeValue: any, isPoweredOn: any) =>
-      !isPoweredOn || modeValue === "off"
-        ? "off"
-        : modeValue === "cool"
-          ? "cool"
-          : modeValue === "heat"
-            ? "heat"
-            : modeValue === "fan" || modeValue === "fan_only"
-              ? "fan"
-              : "other",
+      !isPoweredOn || modeValue === 'off'
+        ? 'off'
+        : modeValue === 'cool'
+          ? 'cool'
+          : modeValue === 'heat'
+            ? 'heat'
+            : modeValue === 'fan' || modeValue === 'fan_only'
+              ? 'fan'
+              : 'other',
     resolveClimateAccent = (visualModeValue: any) =>
-      visualModeValue === "cool"
-        ? "#73c8ff"
-        : visualModeValue === "heat"
-          ? "#ff8a65"
-          : visualModeValue === "off"
-            ? "#65717a"
-            : "#c9a26d";
+      visualModeValue === 'cool'
+        ? '#73c8ff'
+        : visualModeValue === 'heat'
+          ? '#ff8a65'
+          : visualModeValue === 'off'
+            ? '#65717a'
+            : '#c9a26d'
   function resolveTemperature() {
-    return draftTemperature ?? deviceState.temperature;
+    return draftTemperature ?? deviceState.temperature
   }
   function applyOptimisticCommand(command: any) {
-    if (!command?.service) return;
-    if (command.service === "set_temperature") {
-      "temperature" in (command.data || {})
+    if (!command?.service) return
+    if (command.service === 'set_temperature') {
+      'temperature' in (command.data || {})
         ? (draftTemperature = command.data.temperature)
         : (pendingRangeValues = {
             ...command.data,
-          });
-      armPendingTimeout();
-      return;
+          })
+      armPendingTimeout()
+      return
     }
-    if (command.service === "set_hvac_mode" || command.service === "set_operation_mode") {
-      const nextMode = String(
-        command.data?.hvac_mode || command.data?.operation_mode || "",
-      ).trim();
+    if (command.service === 'set_hvac_mode' || command.service === 'set_operation_mode') {
+      const nextMode = String(command.data?.hvac_mode || command.data?.operation_mode || '').trim()
       if (nextMode) {
-        ((draftMode = nextMode), (draftPowerOn = nextMode !== "off"), armPendingTimeout());
+        ;(draftMode = nextMode), (draftPowerOn = nextMode !== 'off'), armPendingTimeout()
       }
-      return;
+      return
     }
-    if (command.service === "set_preset_mode") {
-      const nextPreset = String(command.data?.preset_mode || "").trim();
+    if (command.service === 'set_preset_mode') {
+      const nextPreset = String(command.data?.preset_mode || '').trim()
       if (nextPreset) {
         // 净化器/新风：选运行模式即表示要开机
-        ((draftPresetMode = nextPreset), (draftPowerOn = true), armPendingTimeout());
+        ;(draftPresetMode = nextPreset), (draftPowerOn = true), armPendingTimeout()
       }
-      return;
+      return
     }
-    if (command.service === "set_percentage") {
-      ((draftPresetMode = null),
-        (draftPowerOn = true),
-        armPendingTimeout());
-      return;
+    if (command.service === 'set_percentage') {
+      ;(draftPresetMode = null), (draftPowerOn = true), armPendingTimeout()
+      return
     }
-    if (command.service === "turn_off") {
-      ((draftPowerOn = false), (draftMode = "off"), armPendingTimeout());
-      return;
+    if (command.service === 'turn_off') {
+      ;(draftPowerOn = false), (draftMode = 'off'), armPendingTimeout()
+      return
     }
-    if (command.service === "turn_on") {
+    if (command.service === 'turn_on') {
       const restoreMode =
         (deviceState.entityId && modeHistory.get(deviceState.entityId)) ||
-        (deviceState.mode && deviceState.mode !== "off" ? deviceState.mode : "") ||
-        "cool";
-      ((draftPowerOn = true),
-        (draftMode = restoreMode),
-        armPendingTimeout());
+        (deviceState.mode && deviceState.mode !== 'off' ? deviceState.mode : '') ||
+        'cool'
+      ;(draftPowerOn = true), (draftMode = restoreMode), armPendingTimeout()
     }
   }
   function syncTemperature(temperature = resolveTemperature()) {
-    ((targetOutputElement.value = temperature === null ? "" : String(temperature)),
+    ;(targetOutputElement.value = temperature === null ? '' : String(temperature)),
       (targetOutputElement.textContent =
-        temperature === null ? "--" : "" + temperature + (deviceState.temperatureUnit || "°")),
+        temperature === null ? '--' : '' + temperature + (deviceState.temperatureUnit || '°')),
       (currentTemperatureElement.textContent =
         deviceState.currentTemperature === null
-          ? "当前温度 --"
-          : "当前温度 " + deviceState.currentTemperature + (deviceState.temperatureUnit || "°")),
-      (decreaseButton.disabled =
-        !canControl() || (temperature !== null && temperature <= deviceState.minimum!)),
-      (increaseButton.disabled =
-        !canControl() || (temperature !== null && temperature >= deviceState.maximum!)));
+          ? '当前温度 --'
+          : '当前温度 ' + deviceState.currentTemperature + (deviceState.temperatureUnit || '°')),
+      (decreaseButton.disabled = !canControl() || (temperature !== null && temperature <= deviceState.minimum!)),
+      (increaseButton.disabled = !canControl() || (temperature !== null && temperature >= deviceState.maximum!))
   }
   function resolveRangeValues() {
     return (
@@ -425,183 +406,160 @@ export function createClimatePanel({
         target_temp_low: deviceState.targetLow,
         target_temp_high: deviceState.targetHigh,
       }
-    );
+    )
   }
   function stepRangeValue(rangeFieldKey: any, delta: any) {
-    if (!canControl()) return;
+    if (!canControl()) return
     const baseRangeValues = resolveRangeValues(),
       nextRangeValues = {
         target_temp_low: baseRangeValues.target_temp_low ?? deviceState.minimum,
         target_temp_high: baseRangeValues.target_temp_high ?? deviceState.maximum,
-      };
-    (((nextRangeValues as any)[rangeFieldKey] +=
+      }
+    ;((nextRangeValues as any)[rangeFieldKey] +=
       baseRangeValues[rangeFieldKey] === null ? 0 : delta * deviceState.step!),
       ((nextRangeValues as any)[rangeFieldKey] =
-        rangeFieldKey === "target_temp_low"
+        rangeFieldKey === 'target_temp_low'
           ? Math.min((nextRangeValues as any)[rangeFieldKey], nextRangeValues.target_temp_high)
           : Math.max((nextRangeValues as any)[rangeFieldKey], nextRangeValues.target_temp_low)),
-      requestControl("set_temperature", nextRangeValues));
+      requestControl('set_temperature', nextRangeValues)
   }
   async function sendControl(command: any) {
-    if (!canControl()) return;
+    if (!canControl()) return
     const instanceAtSend = instanceId,
-      previousControlPromise = pendingControlCount ? pendingControlPromise : null;
-    let resolvePendingControl;
-    ((pendingControlPromise = new Promise((resolvePromise) => {
-      resolvePendingControl = resolvePromise;
+      previousControlPromise = pendingControlCount ? pendingControlPromise : null
+    let resolvePendingControl
+    ;(pendingControlPromise = new Promise((resolvePromise) => {
+      resolvePendingControl = resolvePromise
     })),
       pendingControlCount++,
       (isSending = true),
-      (errorText = ""),
+      (errorText = ''),
       applyOptimisticCommand(command),
-      render());
-    let feedbackSession: any = null;
+      render()
+    let feedbackSession: any = null
     try {
       if (
         (previousControlPromise && (await previousControlPromise),
         isDisposed || instanceAtSend !== instanceId || !canControl())
       )
-        return;
-      (deviceState.waterHeater && (feedbackSession = feedbackTracker.begin(command)),
+        return
+      deviceState.waterHeater && (feedbackSession = feedbackTracker.begin(command)),
         await onControl(
           viewModel.item?.pedestalFan
             ? {
                 ...command,
-                deviceKind: "fan",
+                deviceKind: 'fan',
               }
             : command,
           viewModel.item,
         ),
-        feedbackSession &&
-          (feedbackTracker.sent(feedbackSession), feedbackTracker.sync(deviceState.raw)));
+        feedbackSession && (feedbackTracker.sent(feedbackSession), feedbackTracker.sync(deviceState.raw))
     } catch (controlError: any) {
-      (feedbackSession && feedbackTracker.fail(feedbackSession, controlError?.message),
+      feedbackSession && feedbackTracker.fail(feedbackSession, controlError?.message),
         !isDisposed &&
           instanceAtSend === instanceId &&
-          ((errorText = controlError?.message || "设备控制失败，请重试。"),
-          pendingControlCount === 1 && clearPendingState()));
+          ((errorText = controlError?.message || '设备控制失败，请重试。'),
+          pendingControlCount === 1 && clearPendingState())
     } finally {
-      (resolvePendingControl!(),
+      resolvePendingControl!(),
         !isDisposed &&
           instanceAtSend === instanceId &&
-          (pendingControlCount--, (isSending = pendingControlCount > 0), render()));
+          (pendingControlCount--, (isSending = pendingControlCount > 0), render())
     }
   }
   function requestControl(requestedService: any, controlValue: any) {
     if (canControl())
       try {
-        return sendControl(climateControl2(deviceState, requestedService, controlValue));
+        return sendControl(climateControl2(deviceState, requestedService, controlValue))
       } catch (controlBuildError: any) {
-        ((errorText = controlBuildError.message), render());
+        ;(errorText = controlBuildError.message), render()
       }
   }
   function togglePower({ toggle: shouldToggle = true } = {}) {
     // 与角标/状态同一套电源判定（含新风 airflow 实体），避免连点发重复指令
-    const currentOn = resolveDisplayPowerOn();
-    if (!canControl() || (!shouldToggle && currentOn)) return Promise.resolve(false);
+    const currentOn = resolveDisplayPowerOn()
+    if (!canControl() || (!shouldToggle && currentOn)) return Promise.resolve(false)
     try {
       return sendControl(
-        climatePowerControl2(
-          deviceState,
-          shouldToggle ? !currentOn : true,
-          modeHistory.get(deviceState.entityId),
-        ),
-      );
+        climatePowerControl2(deviceState, shouldToggle ? !currentOn : true, modeHistory.get(deviceState.entityId)),
+      )
     } catch (powerError: any) {
-      return ((errorText = powerError.message), render(), Promise.resolve(false));
+      return ((errorText = powerError.message), render(), Promise.resolve(false))
     }
   }
   function requestPresetOrMode(serviceName: any, optionValue: any) {
-    const needStart =
-      deviceState.purifier &&
-      serviceName === "set_preset_mode" &&
-      !resolveDisplayPowerOn();
-    const queued = requestControl(serviceName, optionValue);
+    const needStart = deviceState.purifier && serviceName === 'set_preset_mode' && !resolveDisplayPowerOn()
+    const queued = requestControl(serviceName, optionValue)
     // 停机时点运行模式：再补发开机（不能走 togglePower，草稿已把电源标成 on）
     if (needStart && canControl())
       try {
-        void sendControl(
-          climatePowerControl2(deviceState, true, modeHistory.get(deviceState.entityId)),
-        );
+        void sendControl(climatePowerControl2(deviceState, true, modeHistory.get(deviceState.entityId)))
       } catch (powerError: any) {
-        ((errorText = powerError.message), render());
+        ;(errorText = powerError.message), render()
       }
-    return queued;
+    return queued
   }
-  (powerButton.addEventListener("click", () => togglePower()),
-    decreaseButton.addEventListener("click", () =>
+  powerButton.addEventListener('click', () => togglePower()),
+    decreaseButton.addEventListener('click', () =>
       requestControl(
-        "set_temperature",
-        resolveTemperature() === null
-          ? deviceState.minimum
-          : resolveTemperature() - deviceState.step!,
+        'set_temperature',
+        resolveTemperature() === null ? deviceState.minimum : resolveTemperature() - deviceState.step!,
       ),
     ),
-    increaseButton.addEventListener("click", () =>
+    increaseButton.addEventListener('click', () =>
       requestControl(
-        "set_temperature",
-        resolveTemperature() === null
-          ? deviceState.minimum
-          : resolveTemperature() + deviceState.step,
+        'set_temperature',
+        resolveTemperature() === null ? deviceState.minimum : resolveTemperature() + deviceState.step,
       ),
-    ));
+    )
   function buildChoiceGroups() {
-    (je2.close(), replaceChildren(mainGroupsElement), (choiceButtons = []));
-    const primaryGroupsElement = createElement("div", "i3d-climate-primary-groups");
-    ((primaryGroupsElement.hidden = true), mainGroupsElement.append(primaryGroupsElement));
+    je2.close(), replaceChildren(mainGroupsElement), (choiceButtons = [])
+    const primaryGroupsElement = createElement('div', 'i3d-climate-primary-groups')
+    ;(primaryGroupsElement.hidden = true), mainGroupsElement.append(primaryGroupsElement)
     for (const [groupLabel, optionValues, field, service, optionLabels] of [
       [
-        "运行模式",
+        '运行模式',
         deviceState.purifier
           ? deviceState.presetModes
           : deviceState.waterHeater && !deviceState.nativePower
             ? deviceState.modes
-            : deviceState.modes!.filter((mode) => mode !== "off"),
-        deviceState.purifier ? "presetMode" : "mode",
-        deviceState.purifier
-          ? "set_preset_mode"
-          : deviceState.waterHeater
-            ? "set_operation_mode"
-            : "set_hvac_mode",
+            : deviceState.modes!.filter((mode) => mode !== 'off'),
+        deviceState.purifier ? 'presetMode' : 'mode',
+        deviceState.purifier ? 'set_preset_mode' : deviceState.waterHeater ? 'set_operation_mode' : 'set_hvac_mode',
         Object.fromEntries(
           (deviceState.purifier ? deviceState.presetModes : deviceState.modes)!.map((modeValue) => [
             modeValue,
             deviceState.purifier
               ? (purifierPresetLabels as any)[String(modeValue).trim().toLowerCase()] || modeValue
-              : climateModeLabel2(
-                  modeValue,
-                  deviceState.waterHeater ? "water-heater" : "air-conditioner",
-                ),
+              : climateModeLabel2(modeValue, deviceState.waterHeater ? 'water-heater' : 'air-conditioner'),
           ]),
         ),
       ],
-      ["风速", deviceState.fanModes, "fanMode", "set_fan_mode", fanModeLabels],
+      ['风速', deviceState.fanModes, 'fanMode', 'set_fan_mode', fanModeLabels],
       [
-        deviceState.horizontalSwingModes?.length ? "上下摆风" : "摆风",
+        deviceState.horizontalSwingModes?.length ? '上下摆风' : '摆风',
         deviceState.swingModes,
-        "swingMode",
-        "set_swing_mode",
-        Object.fromEntries(
-          deviceState.swingModes!.map((swingMode) => [swingMode, formatSwingModeLabel(swingMode)]),
-        ),
+        'swingMode',
+        'set_swing_mode',
+        Object.fromEntries(deviceState.swingModes!.map((swingMode) => [swingMode, formatSwingModeLabel(swingMode)])),
       ],
       [
-        "左右摆风",
+        '左右摆风',
         deviceState.horizontalSwingModes || [],
-        "horizontalSwingMode",
-        "set_swing_horizontal_mode",
+        'horizontalSwingMode',
+        'set_swing_horizontal_mode',
         Object.fromEntries(
           (deviceState.horizontalSwingModes || []).map((horizontalSwingValue) => [
             horizontalSwingValue,
-            formatSwingModeLabel(horizontalSwingValue, "horizontal"),
+            formatSwingModeLabel(horizontalSwingValue, 'horizontal'),
           ]),
         ),
       ],
       [
-        "预设模式",
+        '预设模式',
         !deviceState.purifier && !deviceState.waterHeater ? deviceState.presetModes : [],
-        "presetMode",
-        "set_preset_mode",
+        'presetMode',
+        'set_preset_mode',
         Object.fromEntries(
           (deviceState.presetModes || []).map((presetModeValue) => [
             presetModeValue,
@@ -610,65 +568,55 @@ export function createClimatePanel({
         ),
       ],
       [
-        "方向",
-        deviceState.purifier && deviceState.directionSupported ? ["forward", "reverse"] : [],
-        "direction",
-        "set_direction",
+        '方向',
+        deviceState.purifier && deviceState.directionSupported ? ['forward', 'reverse'] : [],
+        'direction',
+        'set_direction',
         {
-          forward: "正向",
-          reverse: "反向",
+          forward: '正向',
+          reverse: '反向',
         },
       ],
     ]) {
-      if (!optionValues.length) continue;
-      const groupElement = createElement("section", "i3d-climate-option-group"),
-        groupHeadingElement = createElement("h4", "", groupLabel);
-      groupElement.append(groupHeadingElement);
+      if (!optionValues.length) continue
+      const groupElement = createElement('section', 'i3d-climate-option-group'),
+        groupHeadingElement = createElement('h4', '', groupLabel)
+      groupElement.append(groupHeadingElement)
       const includes =
-          !deviceState.purifier &&
-          !deviceState.waterHeater &&
-          ["mode", "fanMode", "presetMode"].includes(field),
-        groupContainer = includes ? primaryGroupsElement : mainGroupsElement;
+          !deviceState.purifier && !deviceState.waterHeater && ['mode', 'fanMode', 'presetMode'].includes(field),
+        groupContainer = includes ? primaryGroupsElement : mainGroupsElement
       if (
         (includes && (primaryGroupsElement.hidden = false),
         includes ||
           (!deviceState.purifier &&
             !deviceState.waterHeater &&
             (optionValues.length > 4 ||
-              optionValues.some(
-                (listedOption: any) => [...(optionLabels[listedOption] || listedOption)].length > 8,
-              ))))
+              optionValues.some((listedOption: any) => [...(optionLabels[listedOption] || listedOption)].length > 8))))
       ) {
         const groupPicker = je2.create(groupLabel, optionValues, optionLabels, (pickedValue: any) =>
-          deviceState.purifier && service === "set_preset_mode"
+          deviceState.purifier && service === 'set_preset_mode'
             ? requestPresetOrMode(service, pickedValue)
             : requestControl(service, pickedValue),
-        );
-        (choiceButtons.push(
+        )
+        choiceButtons.push(
           Object.assign(groupPicker, {
             field: field,
             select: true,
           }),
         ),
           groupElement.append(groupPicker.picker),
-          groupContainer.append(groupElement));
-        continue;
+          groupContainer.append(groupElement)
+        continue
       }
-      const choicesElement = createElement("div", "i3d-climate-choices");
-      (choicesElement.setAttribute("role", "group"),
-        choicesElement.setAttribute("aria-label", groupLabel),
-        viewModel.item?.pedestalFan &&
-          field === "presetMode" &&
-          choicesElement.classList.add("i3d-fan-modes"));
+      const choicesElement = createElement('div', 'i3d-climate-choices')
+      choicesElement.setAttribute('role', 'group'),
+        choicesElement.setAttribute('aria-label', groupLabel),
+        viewModel.item?.pedestalFan && field === 'presetMode' && choicesElement.classList.add('i3d-fan-modes')
       for (const optionValue of optionValues) {
-        const optionButton = createElement(
-          "button",
-          "i3d-climate-choice",
-          optionLabels[optionValue] || optionValue,
-        );
-        ((optionButton.type = "button"),
-          optionButton.addEventListener("click", () =>
-            deviceState.purifier && service === "set_preset_mode"
+        const optionButton = createElement('button', 'i3d-climate-choice', optionLabels[optionValue] || optionValue)
+        ;(optionButton.type = 'button'),
+          optionButton.addEventListener('click', () =>
+            deviceState.purifier && service === 'set_preset_mode'
               ? requestPresetOrMode(service, optionValue)
               : requestControl(service, optionValue),
           ),
@@ -677,82 +625,69 @@ export function createClimatePanel({
             field: field,
             value: optionValue,
           }),
-          choicesElement.append(optionButton));
+          choicesElement.append(optionButton)
       }
-      (groupElement.append(choicesElement), groupContainer.append(groupElement));
+      groupElement.append(choicesElement), groupContainer.append(groupElement)
     }
     if (deviceState.purifier && deviceState.oscillatingSupported) {
-      const oscillatingGroupElement = createElement("section", "i3d-climate-option-group"),
-        oscillatingTitleElement = createElement(
-          "h4",
-          "",
-          viewModel.item?.pedestalFan ? "摇头" : "摆动",
-        ),
-        oscillatingButton = createElement(
-          "button",
-          "i3d-climate-choice",
-          deviceState.oscillating ? "已开启" : "已关闭",
-        );
-      ((oscillatingButton.type = "button"),
-        oscillatingButton.addEventListener("click", () =>
-          requestControl("oscillate", !deviceState.oscillating),
-        ),
+      const oscillatingGroupElement = createElement('section', 'i3d-climate-option-group'),
+        oscillatingTitleElement = createElement('h4', '', viewModel.item?.pedestalFan ? '摇头' : '摆动'),
+        oscillatingButton = createElement('button', 'i3d-climate-choice', deviceState.oscillating ? '已开启' : '已关闭')
+      ;(oscillatingButton.type = 'button'),
+        oscillatingButton.addEventListener('click', () => requestControl('oscillate', !deviceState.oscillating)),
         choiceButtons.push({
           element: oscillatingButton,
-          field: "oscillating",
+          field: 'oscillating',
           value: true,
         }),
         oscillatingGroupElement.append(oscillatingTitleElement, oscillatingButton),
-        mainGroupsElement.append(oscillatingGroupElement));
+        mainGroupsElement.append(oscillatingGroupElement)
     }
   }
   function render() {
-    if (isDisposed) return;
+    if (isDisposed) return
     const activeItem = viewModel.item || {},
       hasEntity = !!activeItem.entityId,
-      isControllable = canControl();
-    (rootElement.setAttribute(
-      "aria-label",
-      activeItem.climateType === "bath-heater"
-        ? "浴霸控制"
+      isControllable = canControl()
+    rootElement.setAttribute(
+      'aria-label',
+      activeItem.climateType === 'bath-heater'
+        ? '浴霸控制'
         : deviceState.waterHeater
-          ? "热水器控制"
+          ? '热水器控制'
           : activeItem.airPurifier
-            ? "空气净化器控制"
+            ? '空气净化器控制'
             : activeItem.exhaustFan
-              ? "排气扇控制"
+              ? '排气扇控制'
               : activeItem.pedestalFan
                 ? activeItem.ceilingFan
-                  ? "吊扇控制"
-                  : "风扇控制"
+                  ? '吊扇控制'
+                  : '风扇控制'
                 : deviceState.purifier
-                  ? "风扇控制"
-                  : "空调控制",
+                  ? '风扇控制'
+                  : '空调控制',
     ),
-      (titleElement.textContent = climateDialogTitle2(
-        activeItem.label,
-        deviceState.name,
-        activeItem.climateType,
-      )),
+      (titleElement.textContent = climateDialogTitle2(activeItem.label, deviceState.name, activeItem.climateType)),
       (titleElement.title = titleElement.textContent),
       (statusElement.textContent = viewModel.editing
-        ? "控制预览"
+        ? '控制预览'
         : hasEntity
           ? deviceState.available
             ? (draftPowerOn ?? deviceState.on)
               ? climateModeLabel2(draftMode ?? deviceState.mode)
-              : "已关闭"
-            : "设备不可用"
-          : "尚未绑定设备"),
+              : '已关闭'
+            : '设备不可用'
+          : '尚未绑定设备'),
       deviceState.purifier &&
         deviceState.available &&
         !viewModel.editing &&
         !activeItem.airPurifier &&
-        (statusElement.textContent = (draftPowerOn ?? deviceState.on)
-          ? activeItem.pedestalFan
-            ? "运行中"
-            : resolvePresetLabel(draftPresetMode ?? deviceState.presetMode) || "净化中"
-          : "已关闭"),
+        (statusElement.textContent =
+          (draftPowerOn ?? deviceState.on)
+            ? activeItem.pedestalFan
+              ? '运行中'
+              : resolvePresetLabel(draftPresetMode ?? deviceState.presetMode) || '净化中'
+            : '已关闭'),
       deviceState.waterHeater &&
         deviceState.available &&
         !viewModel.editing &&
@@ -761,138 +696,119 @@ export function createClimatePanel({
         !hasEntity &&
         !viewModel.editing &&
         (activeItem.deviceId || activeItem.extraControls?.length) &&
-        (statusElement.textContent = "各功能独立控制"),
+        (statusElement.textContent = '各功能独立控制'),
       activeItem.pedestalFan &&
         !hasEntity &&
         !viewModel.editing &&
         (activeItem.deviceId || activeItem.extraControls?.length) &&
-        (statusElement.textContent = "各功能独立控制"),
-      activeItem.climateType === "bath-heater" &&
+        (statusElement.textContent = '各功能独立控制'),
+      activeItem.climateType === 'bath-heater' &&
         !viewModel.editing &&
-        (statusElement.textContent = bathHeaterState2(activeItem, viewModel.states).label));
+        (statusElement.textContent = bathHeaterState2(activeItem, viewModel.states).label)
     const fanStatus = activeItem.pedestalFan
       ? resolveFanBindingState(activeItem, {
           ...(viewModel.states || {}),
-          ...(activeItem.entityId && deviceState.raw
-            ? { [activeItem.entityId]: deviceState.raw }
-            : {}),
+          ...(activeItem.entityId && deviceState.raw ? { [activeItem.entityId]: deviceState.raw } : {}),
         })
-      : null;
-    const purifierStatus = activeItem.airPurifier
-      ? purifierState2(activeItem, viewModel.states)
-      : null;
-    const effectivePresetMode = String(
-      draftPresetMode ?? deviceState.presetMode ?? "",
-    ).trim();
-    (fanStatus &&
-      !viewModel.editing &&
-      (statusElement.textContent = fanStatus.label || statusElement.textContent),
+      : null
+    const purifierStatus = activeItem.airPurifier ? purifierState2(activeItem, viewModel.states) : null
+    const effectivePresetMode = String(draftPresetMode ?? deviceState.presetMode ?? '').trim()
+    fanStatus && !viewModel.editing && (statusElement.textContent = fanStatus.label || statusElement.textContent),
       // 新风/净化器：状态跟草稿电源，开机时优先显示运行模式名
       purifierStatus &&
         !viewModel.editing &&
         (statusElement.textContent = !hasEntity
-          ? "各功能独立控制"
+          ? '各功能独立控制'
           : !purifierStatus.available
-            ? "状态未知"
+            ? '状态未知'
             : (draftPowerOn ?? purifierStatus.on)
               ? resolvePresetLabel(effectivePresetMode) ||
-                (purifierStatus.running || draftPowerOn ? "运行中" : "已开启")
-              : "已停止"),
-      rootElement.classList.toggle(
-        "is-air-conditioner-panel",
-        !deviceState.purifier && !deviceState.waterHeater,
-      ),
-      rootElement.classList.toggle("is-fan-panel", !!activeItem.pedestalFan),
-      (fanSpeedRangeElement.className = "i3d-control-range"),
+                (purifierStatus.running || draftPowerOn ? '运行中' : '已开启')
+              : '已停止'),
+      rootElement.classList.toggle('is-air-conditioner-panel', !deviceState.purifier && !deviceState.waterHeater),
+      rootElement.classList.toggle('is-fan-panel', !!activeItem.pedestalFan),
+      (fanSpeedRangeElement.className = 'i3d-control-range'),
       fanSpeedRangeElement.setAttribute(
-        "aria-label",
+        'aria-label',
         activeItem.exhaustFan
-          ? "排气扇风速"
+          ? '排气扇风速'
           : activeItem.pedestalFan
             ? activeItem.ceilingFan
-              ? "吊扇风速"
-              : "电风扇风速"
-            : "净化器风速",
+              ? '吊扇风速'
+              : '电风扇风速'
+            : '净化器风速',
       ),
       speedLevelsElement.setAttribute(
-        "aria-label",
+        'aria-label',
         activeItem.exhaustFan
-          ? "排气扇风速档位"
+          ? '排气扇风速档位'
           : activeItem.pedestalFan
             ? activeItem.ceilingFan
-              ? "吊扇风速档位"
-              : "电风扇风速档位"
-            : "净化器风速档位",
-      ));
+              ? '吊扇风速档位'
+              : '电风扇风速档位'
+            : '净化器风速档位',
+      )
     const displayState = fanStatus || purifierStatus || deviceState,
       effectiveOn = !!(displayState.available && resolveDisplayPowerOn()),
-      effectiveMode = String(draftMode ?? deviceState.mode ?? "off"),
+      effectiveMode = String(draftMode ?? deviceState.mode ?? 'off'),
       effectiveVisualMode = fanStatus
         ? effectiveOn && (fanStatus.running || draftPowerOn === true)
-          ? "fan"
-          : "off"
+          ? 'fan'
+          : 'off'
         : purifierStatus
           ? effectiveOn
-            ? "other"
-            : "off"
+            ? 'other'
+            : 'off'
           : resolveClimateVisualMode(effectiveMode, effectiveOn),
       effectiveAccent = resolveClimateAccent(effectiveVisualMode),
       effectiveTemperature = resolveTemperature(),
       effectiveRunning = !!(
         displayState.available &&
-        (effectiveOn &&
-          (displayState.running ||
-            draftPowerOn === true ||
-            draftMode !== null ||
-            draftPresetMode !== null))
-      );
-    ((rootElement.dataset.climateMode = displayState.available ? effectiveVisualMode : "off"),
-      rootElement.style.setProperty("--i3d-climate-accent", effectiveAccent),
-      rootElement.classList.toggle("is-preview", !!viewModel.editing),
-      rootElement.classList.toggle("is-on", effectiveOn),
-      rootElement.classList.toggle("is-running", effectiveRunning),
+        effectiveOn &&
+        (displayState.running || draftPowerOn === true || draftMode !== null || draftPresetMode !== null)
+      )
+    ;(rootElement.dataset.climateMode = displayState.available ? effectiveVisualMode : 'off'),
+      rootElement.style.setProperty('--i3d-climate-accent', effectiveAccent),
+      rootElement.classList.toggle('is-preview', !!viewModel.editing),
+      rootElement.classList.toggle('is-on', effectiveOn),
+      rootElement.classList.toggle('is-running', effectiveRunning),
       (awayModeButton.hidden = !deviceState.waterHeater || !deviceState.awaySupported),
       (awayModeButton.disabled = !isControllable || isSending),
-      (awayModeButton.textContent = deviceState.away ? "离家模式 · 已开启" : "离家模式 · 已关闭"),
-      awayModeButton.setAttribute("aria-pressed", String(!!deviceState.away)),
+      (awayModeButton.textContent = deviceState.away ? '离家模式 · 已开启' : '离家模式 · 已关闭'),
+      awayModeButton.setAttribute('aria-pressed', String(!!deviceState.away)),
       (powerButton.hidden =
         !!(
-          (activeItem.climateType === "bath-heater" ||
-            activeItem.airPurifier ||
-            activeItem.pedestalFan) &&
+          (activeItem.climateType === 'bath-heater' || activeItem.airPurifier || activeItem.pedestalFan) &&
           !activeItem.entityId
         ) || !!(deviceState.waterHeater && !deviceState.canTurnOn && !deviceState.canTurnOff)),
-      (powerButton.textContent = effectiveOn ? "关闭" : "开启"),
-      rootElement.setAttribute("aria-busy", String(isSending || !!viewModel.busy)),
+      (powerButton.textContent = effectiveOn ? '关闭' : '开启'),
+      rootElement.setAttribute('aria-busy', String(isSending || !!viewModel.busy)),
       (powerButton.disabled =
         !isControllable ||
-        (!deviceState.turnOnSupported && !deviceState.modes!.some((modeId) => modeId !== "off")) ||
-        (effectiveOn && !deviceState.waterHeater && !deviceState.modes!.includes("off"))),
+        (!deviceState.turnOnSupported && !deviceState.modes!.some((modeId) => modeId !== 'off')) ||
+        (effectiveOn && !deviceState.waterHeater && !deviceState.modes!.includes('off'))),
       deviceState.waterHeater ||
-        (powerButton.disabled =
-          !isControllable || (effectiveOn ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
+        (powerButton.disabled = !isControllable || (effectiveOn ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
       deviceState.waterHeater &&
         (powerButton.disabled =
-          !isControllable ||
-          isSending ||
-          (effectiveOn ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
-      powerButton.setAttribute("aria-pressed", String(effectiveOn)),
+          !isControllable || isSending || (effectiveOn ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
+      powerButton.setAttribute('aria-pressed', String(effectiveOn)),
       powerButton.setAttribute(
-        "aria-label",
+        'aria-label',
         titleElement.textContent +
-          "，" +
-          (effectiveOn ? "关闭" : "开启") +
-          (activeItem.climateType === "bath-heater"
-            ? "浴霸主实体"
+          '，' +
+          (effectiveOn ? '关闭' : '开启') +
+          (activeItem.climateType === 'bath-heater'
+            ? '浴霸主实体'
             : deviceState.waterHeater
-              ? "热水器"
+              ? '热水器'
               : activeItem.pedestalFan
                 ? activeItem.ceilingFan
-                  ? "吊扇"
-                  : "电风扇"
+                  ? '吊扇'
+                  : '电风扇'
                 : deviceState.purifier
-                  ? "空气净化器"
-                  : "空调"),
+                  ? '空气净化器'
+                  : '空调'),
       ),
       deviceVisual.sync({
         kind: resolveClimateVisualKind(activeItem, deviceState),
@@ -902,13 +818,12 @@ export function createClimatePanel({
         disabled: !!powerButton.disabled,
         interactive: !powerButton.hidden && !powerButton.disabled,
         hidden: !!powerButton.hidden,
-        label: titleElement.textContent || "设备",
+        label: titleElement.textContent || '设备',
         accent: effectiveAccent,
         mode: effectiveMode,
         visualMode: effectiveVisualMode,
-        targetTemperature:
-          typeof effectiveTemperature === "number" ? effectiveTemperature : null,
-        displayText: statusElement.textContent || "",
+        targetTemperature: typeof effectiveTemperature === 'number' ? effectiveTemperature : null,
+        displayText: statusElement.textContent || '',
       }),
       (thermostatSlotElement.hidden = targetOutputElement.hidden =
         !deviceState.temperatureSupported || deviceState.useTemperatureRange),
@@ -916,34 +831,30 @@ export function createClimatePanel({
       (fanSpeedGroupElement.hidden = !deviceState.purifier || !deviceState.percentageSupported),
       (fanSpeedRangeElement.disabled = !isControllable),
       (fanSpeedRangeElement.step = String(deviceState.percentageStep || 1)),
-      (fanSpeedRangeElement.value = String(
-        speedFeedback.read("speed", deviceState.percentage ?? 0),
-      )),
+      (fanSpeedRangeElement.value = String(speedFeedback.read('speed', deviceState.percentage ?? 0))),
       syncHtmlRangeProgress(fanSpeedRangeElement),
-      (fanSpeedLabelElement.textContent = "风速 " + (deviceState.percentage ?? "--") + "%"));
+      (fanSpeedLabelElement.textContent = '风速 ' + (deviceState.percentage ?? '--') + '%')
     const speedLevels = deviceState.speedLevels || [],
-      stringify = JSON.stringify([deviceState.entityId, speedLevels]);
-    ((fanSpeedRangeElement.hidden = speedLevels.length > 0),
+      stringify = JSON.stringify([deviceState.entityId, speedLevels])
+    ;(fanSpeedRangeElement.hidden = speedLevels.length > 0),
       (speedLevelsElement.hidden = !speedLevels.length),
       lastSpeedSignature !== stringify &&
         ((lastSpeedSignature = stringify),
         replaceChildren(speedLevelsElement),
         (list = speedLevels.map((speedLevel) => {
-          const speedChoiceButton = createElement("button", "i3d-climate-choice", speedLevel.label);
+          const speedChoiceButton = createElement('button', 'i3d-climate-choice', speedLevel.label)
           return (
-            (speedChoiceButton.type = "button"),
-            speedChoiceButton.addEventListener("click", () =>
-              requestControl("set_percentage", speedLevel.percentage),
-            ),
+            (speedChoiceButton.type = 'button'),
+            speedChoiceButton.addEventListener('click', () => requestControl('set_percentage', speedLevel.percentage)),
             speedLevelsElement.append(speedChoiceButton),
             {
               button: speedChoiceButton,
               ...speedLevel,
             }
-          );
-        }))));
-    let activeSpeedIndex = -1;
-    (deviceState.on &&
+          )
+        })))
+    let activeSpeedIndex = -1
+    deviceState.on &&
       deviceState.percentage! > 0 &&
       (activeSpeedIndex = speedLevels.findIndex(
         (speedEntry) => Math.abs(speedEntry.percentage - deviceState.percentage!) <= 1,
@@ -951,56 +862,45 @@ export function createClimatePanel({
       speedLevels.length &&
         (fanSpeedLabelElement.textContent =
           activeSpeedIndex >= 0
-            ? "风速 · " + speedLevels[activeSpeedIndex].label
+            ? '风速 · ' + speedLevels[activeSpeedIndex].label
             : effectivePresetMode
-              ? "风速 · 由模式控制"
+              ? '风速 · 由模式控制'
               : resolveDisplayPowerOn()
-                ? "风速 " + (deviceState.percentage ?? "--") + "%"
-                : "风速 · 已关闭"),
+                ? '风速 ' + (deviceState.percentage ?? '--') + '%'
+                : '风速 · 已关闭'),
       list.forEach(({ button: speedButton }: any, speedIndex: any) => {
-        ((speedButton.disabled = !isControllable),
-          speedButton.setAttribute("aria-pressed", String(speedIndex === activeSpeedIndex)));
+        ;(speedButton.disabled = !isControllable),
+          speedButton.setAttribute('aria-pressed', String(speedIndex === activeSpeedIndex))
       }),
-      syncTemperature());
-    const rangeValues = resolveRangeValues();
+      syncTemperature()
+    const rangeValues = resolveRangeValues()
     for (const rangeRow of rangeRows) {
       const rowValue = rangeValues[rangeRow.field],
-        isLowerBound = rangeRow.field === "target_temp_low";
-      ((rangeRow.output.textContent =
-        rowValue == null ? "--" : "" + rowValue + (deviceState.temperatureUnit || "°")),
+        isLowerBound = rangeRow.field === 'target_temp_low'
+      ;(rangeRow.output.textContent = rowValue == null ? '--' : '' + rowValue + (deviceState.temperatureUnit || '°')),
         (rangeRow.decrease.disabled =
           !isControllable ||
           (rowValue !== null &&
-            rowValue <=
-              (isLowerBound
-                ? deviceState.minimum
-                : (rangeValues.target_temp_low ?? deviceState.minimum)))),
+            rowValue <= (isLowerBound ? deviceState.minimum : (rangeValues.target_temp_low ?? deviceState.minimum)))),
         (rangeRow.increase.disabled =
           !isControllable ||
           (rowValue !== null &&
-            rowValue >=
-              (isLowerBound
-                ? (rangeValues.target_temp_high ?? deviceState.maximum)
-                : deviceState.maximum))));
+            rowValue >= (isLowerBound ? (rangeValues.target_temp_high ?? deviceState.maximum) : deviceState.maximum)))
     }
-    ((temperatureIntervalElement.hidden = deviceState.waterHeater
+    ;(temperatureIntervalElement.hidden = deviceState.waterHeater
       ? deviceState.temperatureSupported ||
         (deviceState.currentTemperature === null && deviceState.temperature === null)
       : !deviceState.useTemperatureRange &&
-        (deviceState.temperatureSupported ||
-          deviceState.currentTemperature === null ||
-          deviceState.purifier)),
+        (deviceState.temperatureSupported || deviceState.currentTemperature === null || deviceState.purifier)),
       (temperatureIntervalElement.textContent = deviceState.waterHeater
-        ? "当前水温 " +
-          (deviceState.currentTemperature ?? "--") +
+        ? '当前水温 ' +
+          (deviceState.currentTemperature ?? '--') +
           deviceState.temperatureUnit +
-          " · 目标 " +
-          (deviceState.temperature ?? "--") +
+          ' · 目标 ' +
+          (deviceState.temperature ?? '--') +
           deviceState.temperatureUnit +
-          "（只读）"
-        : "当前温度 " +
-          (deviceState.currentTemperature ?? "--") +
-          (deviceState.temperatureUnit || "°")));
+          '（只读）'
+        : '当前温度 ' + (deviceState.currentTemperature ?? '--') + (deviceState.temperatureUnit || '°'))
     const optionsSignature = JSON.stringify([
       deviceState.entityId,
       !!activeItem.pedestalFan,
@@ -1012,36 +912,33 @@ export function createClimatePanel({
       deviceState.directionSupported,
       deviceState.oscillatingSupported,
       deviceState.nativePower,
-    ]);
-    renderedGroupsSignature !== optionsSignature &&
-      ((renderedGroupsSignature = optionsSignature), buildChoiceGroups());
+    ])
+    renderedGroupsSignature !== optionsSignature && ((renderedGroupsSignature = optionsSignature), buildChoiceGroups())
     for (const controlEntry of choiceButtons)
       if (
-        (controlEntry.field === "oscillating" &&
-          (controlEntry.element.textContent = deviceState.oscillating ? "已开启" : "已关闭"),
+        (controlEntry.field === 'oscillating' &&
+          (controlEntry.element.textContent = deviceState.oscillating ? '已开启' : '已关闭'),
         (controlEntry.element.disabled = !isControllable),
         controlEntry.select)
       ) {
         const entryValue =
-            controlEntry.field === "mode"
-              ? effectiveMode
-              : (deviceState as any)[controlEntry.field] || "",
+            controlEntry.field === 'mode' ? effectiveMode : (deviceState as any)[controlEntry.field] || '',
           entryLabel =
             controlEntry.labels[entryValue] ||
-            (controlEntry.field === "mode" ? climateModeLabel2(entryValue) : entryValue);
-        je2.sync(controlEntry, entryValue, entryLabel, !isControllable);
+            (controlEntry.field === 'mode' ? climateModeLabel2(entryValue) : entryValue)
+        je2.sync(controlEntry, entryValue, entryLabel, !isControllable)
       } else
         controlEntry.element.setAttribute(
-          "aria-pressed",
+          'aria-pressed',
           String(
-            (controlEntry.field === "mode"
+            (controlEntry.field === 'mode'
               ? effectiveMode
-              : controlEntry.field === "presetMode"
+              : controlEntry.field === 'presetMode'
                 ? effectivePresetMode
                 : (deviceState as any)[controlEntry.field]) === controlEntry.value,
           ),
-        );
-    ((emptyStateElement.hidden =
+        )
+    ;(emptyStateElement.hidden =
       deviceState.available &&
       (deviceState.purifier ||
         deviceState.temperatureSupported ||
@@ -1049,41 +946,38 @@ export function createClimatePanel({
         deviceState.canTurnOn ||
         deviceState.canTurnOff ||
         choiceButtons.length > 0 ||
-        (deviceState.waterHeater &&
-          (deviceState.canTurnOn || deviceState.canTurnOff || deviceState.awaySupported)))),
-      (activeItem.climateType === "bath-heater" ||
-        activeItem.airPurifier ||
-        activeItem.waterHeater) &&
+        (deviceState.waterHeater && (deviceState.canTurnOn || deviceState.canTurnOff || deviceState.awaySupported)))),
+      (activeItem.climateType === 'bath-heater' || activeItem.airPurifier || activeItem.waterHeater) &&
         activeItem.extraControls?.length &&
         (emptyStateElement.hidden = true),
       (emptyStateElement.textContent =
         (activeItem.waterHeater || activeItem.pedestalFan) && !hasEntity && activeItem.deviceId
-          ? "请在附加功能中选择要显示的功能"
+          ? '请在附加功能中选择要显示的功能'
           : hasEntity
-            ? deviceState.raw?.state === "unavailable"
-              ? "设备离线"
-              : ""
-            : "尚未绑定设备"),
+            ? deviceState.raw?.state === 'unavailable'
+              ? '设备离线'
+              : ''
+            : '尚未绑定设备'),
       (emptyStateElement.hidden ||= !emptyStateElement.textContent),
       (errorElement.textContent = viewModel.error || errorText),
-      (errorElement.hidden = !errorElement.textContent));
+      (errorElement.hidden = !errorElement.textContent)
   }
   function update(nextViewModel: ClimatePanelViewModel = {}) {
-    if (isDisposed) return;
-    const nextEntityId = nextViewModel.item?.entityId || "";
+    if (isDisposed) return
+    const nextEntityId = nextViewModel.item?.entityId || ''
     nextEntityId !== deviceState.entityId &&
       (instanceId++,
       (pendingControlCount = 0),
       (pendingControlPromise = Promise.resolve()),
       (isSending = false),
-      (errorText = ""),
+      (errorText = ''),
       clearPendingState(),
       feedbackTracker.dispose(),
       (feedbackTracker = createFeedback()),
-      (feedbackElement.textContent = ""),
-      (feedbackElement.hidden = true));
-    const useTemperatureRange = deviceState.useTemperatureRange;
-    ((viewModel = nextViewModel),
+      (feedbackElement.textContent = ''),
+      (feedbackElement.hidden = true))
+    const useTemperatureRange = deviceState.useTemperatureRange
+    ;(viewModel = nextViewModel),
       purifierExtrasController.update({
         item: nextViewModel.item,
         states: nextViewModel.states || {},
@@ -1094,7 +988,7 @@ export function createClimatePanel({
         nextViewModel.state?.entityId === nextEntityId && Array.isArray(nextViewModel.state?.modes)
           ? nextViewModel.state
           : nextViewModel.item?.exhaustFan
-            ? nextEntityId.startsWith("switch.")
+            ? nextEntityId.startsWith('switch.')
               ? exhaustSwitchState2(nextEntityId, nextViewModel.state)
               : exhaustFanState2(nextViewModel.item, nextViewModel.states || {})
             : climateState2(nextEntityId, nextViewModel.state)),
@@ -1103,55 +997,45 @@ export function createClimatePanel({
         (deviceState = {
           ...deviceState,
           purifier: true,
-          name: nextViewModel.item?.exhaustFan
-            ? "排气扇"
-            : nextViewModel.item?.ceilingFan
-              ? "吊扇"
-              : "风扇",
+          name: nextViewModel.item?.exhaustFan ? '排气扇' : nextViewModel.item?.ceilingFan ? '吊扇' : '风扇',
         }),
       nextViewModel.item?.airPurifier &&
         !nextEntityId &&
         (deviceState = {
           ...deviceState,
           purifier: true,
-          name: "空气净化器",
+          name: '空气净化器',
         }),
       nextViewModel.item?.waterHeater &&
         !nextEntityId &&
         (deviceState = {
           ...deviceState,
           waterHeater: true,
-          name: "热水器",
+          name: '热水器',
         }),
       useTemperatureRange !== deviceState.useTemperatureRange && clearPendingState(),
       deviceState.waterHeater && feedbackTracker.sync(deviceState.raw),
       nextViewModel.editing || modeHistory.observe(nextEntityId, deviceState.raw),
       draftTemperature !== null &&
         deviceState.temperature !== null &&
-        Math.abs(deviceState.temperature - draftTemperature) <
-          Math.max(0.001, deviceState.step! / 100) &&
+        Math.abs(deviceState.temperature - draftTemperature) < Math.max(0.001, deviceState.step! / 100) &&
         clearTemperatureDraft(),
       pendingRangeValues &&
-        ["target_temp_low", "target_temp_high"].every(
+        ['target_temp_low', 'target_temp_high'].every(
           (rangeFieldName, rangeIndex) =>
             [deviceState.targetLow, deviceState.targetHigh][rangeIndex] !== null &&
             Math.abs(
-              [deviceState.targetLow, deviceState.targetHigh][rangeIndex]! -
-                pendingRangeValues![rangeFieldName],
+              [deviceState.targetLow, deviceState.targetHigh][rangeIndex]! - pendingRangeValues![rangeFieldName],
             ) < Math.max(0.001, deviceState.step! / 100),
         ) &&
         clearTemperatureDraft(),
       draftMode !== null &&
-        ((!deviceState.on && draftMode === "off") ||
-          (deviceState.on && deviceState.mode === draftMode)) &&
+        ((!deviceState.on && draftMode === 'off') || (deviceState.on && deviceState.mode === draftMode)) &&
         (draftMode = null),
-      draftPresetMode !== null &&
-        deviceState.presetMode === draftPresetMode &&
-        (draftPresetMode = null),
+      draftPresetMode !== null && deviceState.presetMode === draftPresetMode && (draftPresetMode = null),
       draftPowerOn !== null &&
         deviceState.on === draftPowerOn &&
-        (!viewModel.item?.airPurifier ||
-          purifierState2(viewModel.item, viewModel.states || {}).on === draftPowerOn) &&
+        (!viewModel.item?.airPurifier || purifierState2(viewModel.item, viewModel.states || {}).on === draftPowerOn) &&
         (draftPowerOn = null),
       draftMode === null &&
         draftPresetMode === null &&
@@ -1160,7 +1044,7 @@ export function createClimatePanel({
         !pendingRangeValues &&
         temperatureTimeoutId !== null &&
         (clearTimeout(temperatureTimeoutId), (temperatureTimeoutId = null)),
-      render());
+      render()
   }
   function dispose() {
     isDisposed ||
@@ -1175,7 +1059,7 @@ export function createClimatePanel({
       ownFeedbackSlot?.dispose?.(),
       purifierExtrasController.dispose(),
       deviceVisual.dispose(),
-      replaceChildren(rootElement));
+      replaceChildren(rootElement))
   }
   return (
     render(),
@@ -1185,7 +1069,7 @@ export function createClimatePanel({
       power: togglePower,
       dispose: dispose,
       cancelPending() {
-        (instanceId++,
+        instanceId++,
           je2.close(),
           (pendingControlCount = 0),
           (pendingControlPromise = Promise.resolve()),
@@ -1193,9 +1077,9 @@ export function createClimatePanel({
           clearPendingState(),
           feedbackTracker.dispose(),
           (feedbackTracker = createFeedback()),
-          (feedbackElement.textContent = ""),
-          (feedbackElement.hidden = true));
+          (feedbackElement.textContent = ''),
+          (feedbackElement.hidden = true)
       },
     }
-  );
+  )
 }

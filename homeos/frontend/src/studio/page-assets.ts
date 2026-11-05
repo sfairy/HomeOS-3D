@@ -10,24 +10,24 @@
 
 export interface PageAssets {
   /** document.title。 */
-  title: string;
+  title: string
   /** viewport meta 的 content。 */
-  viewport: string;
+  viewport: string
   /** theme-color meta 的 content。 */
-  themeColor: string;
+  themeColor: string
   /** PWA manifest 路径。 */
-  manifest: string;
+  manifest: string
   /** 依赖顺序的样式表清单。 */
-  stylesheets: string[];
+  stylesheets: string[]
 }
 
 /** 认证场景四片：已在 index.html 预装（data-spa-managed），冷开无 FOUC。 */
 const AUTH_SCENE_STYLESHEETS = [
-  "/static/auth/scene/fonts.css",
-  "/static/auth/scene/page.css",
-  "/static/auth/scene/scene.css",
-  "/static/auth/scene/panel.css",
-] as const;
+  '/static/auth/scene/fonts.css',
+  '/static/auth/scene/page.css',
+  '/static/auth/scene/scene.css',
+  '/static/auth/scene/panel.css',
+] as const
 
 /**
  * 站点配色令牌（`--hb-accent-rgb` / `--hb-lumen-rgb` / `--hb-aura-rgb` / `--hb-eco-rgb`）。
@@ -36,26 +36,20 @@ const AUTH_SCENE_STYLESHEETS = [
  * 首帧到令牌落地之间 `rgb(var(--hos-tone-rgb), …)` 会整片解析失败、场景发黑。
  * 因此与场景四片一起在 index.html 预装，运行时复用同一批节点。**顺序即数组顺序**：它必须排在场景四片之后（同为 `:root` 令牌，后加载的赢）。
  */
-const APPEARANCE_STYLESHEET = "/static/appearance.css";
+const APPEARANCE_STYLESHEET = '/static/appearance.css'
 
 /** index.html 预装清单（顺序必须与这里逐条一致，否则运行时会把表摘下来重挂）。 */
-const AUTH_STYLESHEETS = [
-  ...AUTH_SCENE_STYLESHEETS,
-  APPEARANCE_STYLESHEET,
-];
+const AUTH_STYLESHEETS = [...AUTH_SCENE_STYLESHEETS, APPEARANCE_STYLESHEET]
 
 /** 认证相关页（初始化/登录/激活/恢复）共用一套场景样式与视口。 */
-function authPage(
-  title: string,
-  viewport = "width=device-width,initial-scale=1,viewport-fit=cover",
-): PageAssets {
+function authPage(title: string, viewport = 'width=device-width,initial-scale=1,viewport-fit=cover'): PageAssets {
   return {
     title,
     viewport,
-    themeColor: "#050912",
-    manifest: "/static/assets/manifest/manifest-h5.webmanifest",
+    themeColor: '#050912',
+    manifest: '/static/assets/manifest/manifest-h5.webmanifest',
     stylesheets: AUTH_STYLESHEETS,
-  };
+  }
 }
 
 export const PAGE_ASSETS = {
@@ -67,63 +61,60 @@ export const PAGE_ASSETS = {
    * viewport 会残留到非 studio 页面。
    */
   shell: {
-    title: "HomeOS",
-    viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
-    themeColor: "#050912",
-    manifest: "/static/assets/manifest/manifest-h5.webmanifest",
+    title: 'HomeOS',
+    viewport: 'width=device-width,initial-scale=1,viewport-fit=cover',
+    themeColor: '#050912',
+    manifest: '/static/assets/manifest/manifest-h5.webmanifest',
     stylesheets: [] as any[],
   } satisfies PageAssets,
 
-  setup: authPage("注册 · HomeOS"),
-  register: authPage("注册 · HomeOS"),
-  login: authPage("登录 · HomeOS"),
-  license: authPage("激活授权 · HomeOS"),
-  licenseRecovery: authPage("连接状态 · HomeOS"),
+  setup: authPage('注册 · HomeOS'),
+  register: authPage('注册 · HomeOS'),
+  login: authPage('登录 · HomeOS'),
+  license: authPage('激活授权 · HomeOS'),
+  licenseRecovery: authPage('连接状态 · HomeOS'),
 
   editor: {
-    title: "仪表盘编辑器 · HomeOS",
-    viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
-    themeColor: "#080d18",
-    manifest: "/static/assets/manifest/manifest-h5.webmanifest",
+    title: '仪表盘编辑器 · HomeOS',
+    viewport: 'width=device-width,initial-scale=1,viewport-fit=cover',
+    themeColor: '#080d18',
+    manifest: '/static/assets/manifest/manifest-h5.webmanifest',
     stylesheets: [
-      "/static/global-log.css",
-      "/static/app.css",
-      "/static/renderer/renderer.css",
-      "/static/modules/interaction3d/bridge.css",
-      "/static/flow-line-editor.css",
+      '/static/global-log.css',
+      '/static/app.css',
+      '/static/renderer/renderer.css',
+      '/static/modules/interaction3d/bridge.css',
+      '/static/flow-line-editor.css',
     ],
   } satisfies PageAssets,
 
   studio: {
-    title: "户型图绘制",
-    viewport: "width=device-width,initial-scale=1",
-    themeColor: "#111820",
-    manifest: "/static/assets/manifest/manifest-h5.webmanifest",
-    stylesheets: [
-      "/static/3d-studio/studio.css",
-      "/static/3d-studio/studio-window-designer.css",
-    ],
+    title: '户型图绘制',
+    viewport: 'width=device-width,initial-scale=1',
+    themeColor: '#111820',
+    manifest: '/static/assets/manifest/manifest-h5.webmanifest',
+    stylesheets: ['/static/3d-studio/studio.css', '/static/3d-studio/studio-window-designer.css'],
   } satisfies PageAssets,
 
   display: {
-    title: "HomeOS Display",
-    viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
-    themeColor: "#172029",
-    manifest: "/static/assets/manifest/dashboard.webmanifest",
+    title: 'HomeOS Display',
+    viewport: 'width=device-width,initial-scale=1,viewport-fit=cover',
+    themeColor: '#172029',
+    manifest: '/static/assets/manifest/dashboard.webmanifest',
     stylesheets: [
-      "/static/renderer/renderer.css",
-      "/static/display.css",
-      "/static/display-boot.css",
-      "/static/modules/interaction3d/bridge.css",
-      "/static/apple-install-guide.css",
+      '/static/renderer/renderer.css',
+      '/static/display.css',
+      '/static/display-boot.css',
+      '/static/modules/interaction3d/bridge.css',
+      '/static/apple-install-guide.css',
     ],
   } satisfies PageAssets,
-} as const;
+} as const
 
-const MANAGED_ATTR = "data-spa-managed";
+const MANAGED_ATTR = 'data-spa-managed'
 // 用 href 匹配而不是全等：入口里的 href 可能带查询串（构建期补的 `?v=`）或片段，
 // 全等匹配会落空。包含匹配把受管样式表锚定在 SPA 外壳样式之后，两种环境下顺序都成立。
-const ANCHOR_SELECTOR = 'link[href*="/static/spa-shell.css"]';
+const ANCHOR_SELECTOR = 'link[href*="/static/spa-shell.css"]'
 
 /**
  * 把 `href` 归一化成「只比路径」的形式。
@@ -134,8 +125,8 @@ const ANCHOR_SELECTOR = 'link[href*="/static/spa-shell.css"]';
  * 首帧闪烁连同二次下载一起回来。比较只取 `?` / `#` 之前的部分。
  */
 function hrefKey(href: string): string {
-  const cut = href.search(/[?#]/);
-  return cut === -1 ? href : href.slice(0, cut);
+  const cut = href.search(/[?#]/)
+  return cut === -1 ? href : href.slice(0, cut)
 }
 
 /**
@@ -146,10 +137,9 @@ function hrefKey(href: string): string {
  * URL，否则「预装的那张」和「运行时挂的那张」会被浏览器当成两份资源。
  */
 function shellRevisionQuery(): string {
-  const href =
-    document.head.querySelector<HTMLLinkElement>(ANCHOR_SELECTOR)?.getAttribute("href") || "";
-  const cut = href.indexOf("?");
-  return cut === -1 ? "" : href.slice(cut);
+  const href = document.head.querySelector<HTMLLinkElement>(ANCHOR_SELECTOR)?.getAttribute('href') || ''
+  const cut = href.indexOf('?')
+  return cut === -1 ? '' : href.slice(cut)
 }
 /**
  * 锚点缺失时的兜底落点：第一张**非受管**样式表（即 Vite 打包进来的那张）。
@@ -158,13 +148,13 @@ function shellRevisionQuery(): string {
  * 一旦被追加到 `<head>` 末尾，它们就晚于 Vite CSS，于是「后加载的赢」反过来成立，
  * studio-chrome.css 只能靠大量 `!important` 硬压。宁可排前面，也不要制造这种隐式优先级倒挂。
  */
-const UNMANAGED_STYLESHEET_SELECTOR = `link[rel="stylesheet"]:not([${MANAGED_ATTR}])`;
+const UNMANAGED_STYLESHEET_SELECTOR = `link[rel="stylesheet"]:not([${MANAGED_ATTR}])`
 
 /** 当前 <head> 里由本模块挂载的受管样式表 href 列表（文档顺序）。 */
 export function listManagedStylesheets(): string[] {
   return [...document.head.querySelectorAll<HTMLLinkElement>(`link[${MANAGED_ATTR}]`)]
-    .map((el) => el.getAttribute("href") || "")
-    .filter(Boolean);
+    .map((el) => el.getAttribute('href') || '')
+    .filter(Boolean)
 }
 
 /**
@@ -174,20 +164,20 @@ export function listManagedStylesheets(): string[] {
  * 「只看下一个兄弟」会把它们判成「不在位」而整体摘挂一次 —— 正是要消除的那种闪烁。
  */
 function nextMeaningfulSibling(node: Node): Node | null {
-  let cur = node.nextSibling;
+  let cur = node.nextSibling
   while (cur && cur.nodeType !== Node.ELEMENT_NODE) {
-    cur = cur.nextSibling;
+    cur = cur.nextSibling
   }
-  return cur;
+  return cur
 }
 
 /** 跳过一切非元素节点（空白文本、注释），取其前第一个元素兄弟。 */
 function previousMeaningfulSibling(node: Node): Node | null {
-  let cur = node.previousSibling;
+  let cur = node.previousSibling
   while (cur && cur.nodeType !== Node.ELEMENT_NODE) {
-    cur = cur.previousSibling;
+    cur = cur.previousSibling
   }
-  return cur;
+  return cur
 }
 
 /**
@@ -200,64 +190,58 @@ function previousMeaningfulSibling(node: Node): Node | null {
  * 被整体摘下再挂回还会让 `--hos-tone-rgb` 一度变空、link 重新进入 pending。
  * 入口页每次路由切换都会走到这里，所以「零摘挂」是硬要求。
  */
-function isInPlace(
-  el: Element,
-  ref: Element | null,
-  boundary: Element | null,
-): boolean {
-  if (!el.isConnected) return false;
-  if (ref) return nextMeaningfulSibling(ref) === el;
-  if (boundary) return previousMeaningfulSibling(boundary) === el;
+function isInPlace(el: Element, ref: Element | null, boundary: Element | null): boolean {
+  if (!el.isConnected) return false
+  if (ref) return nextMeaningfulSibling(ref) === el
+  if (boundary) return previousMeaningfulSibling(boundary) === el
   /* 既没有锚点也没有兜底边界（精简入口 / 独立页）：只要求它已经在 <head> 里，
      相对顺序由调用方的游标逐条保证 —— 此时再强行搬到末尾只会白白制造摘挂。 */
-  return el.parentNode === document.head;
+  return el.parentNode === document.head
 }
 
 /** 让受管样式表按 `urls` 的顺序、紧跟在 SPA 外壳样式之后挂载（已在位则一条 DOM 变更都不产生）。 */
 function applyStylesheets(urls: readonly string[]): void {
-  const anchor = document.head.querySelector(ANCHOR_SELECTOR);
-  const revision = shellRevisionQuery();
+  const anchor = document.head.querySelector(ANCHOR_SELECTOR)
+  const revision = shellRevisionQuery()
   // 期望集合按**路径**比对，并带上外壳的 revision：预装的 `<link>` 已经带 `?v=`，
   // 裸路径比对会把它们判成多余、摘掉再挂（首帧闪烁 + 二次下载）。
-  const desired = new Set(urls.map((url) => hrefKey(url)));
-  const targetHref = (url: string) => (revision ? `${url}${revision}` : url);
-  for (const el of [
-    ...document.head.querySelectorAll<HTMLLinkElement>(`link[${MANAGED_ATTR}]`),
-  ]) {
-    if (!desired.has(hrefKey(el.getAttribute("href") || ""))) el.remove();
+  const desired = new Set(urls.map((url) => hrefKey(url)))
+  const targetHref = (url: string) => (revision ? `${url}${revision}` : url)
+  for (const el of [...document.head.querySelectorAll<HTMLLinkElement>(`link[${MANAGED_ATTR}]`)]) {
+    if (!desired.has(hrefKey(el.getAttribute('href') || ''))) el.remove()
   }
   /**
    * 兜底边界：`spa-shell.css` 不在（精简入口 / 独立页）时插到第一张非受管样式表**之前**，
    * 而不是 `appendChild` 到 `<head>` 末尾 —— 见 UNMANAGED_STYLESHEET_SELECTOR 的说明。
    */
-  const boundary = anchor ?? document.head.querySelector(UNMANAGED_STYLESHEET_SELECTOR);
+  const boundary = anchor ?? document.head.querySelector(UNMANAGED_STYLESHEET_SELECTOR)
   /**
    * 逐个节点就位，**只移动真正不在位的那个**。
    *
    * 逐个判断：就位的原地不动，新增的插到游标之后，顺序错的才搬。整组重排会让跨壳
    * 换装时（keepStylesheets 保留 + 新表追加）已经就位的场景四片被无谓摘挂一次。
    */
-  let cursor: Element | null = anchor;
+  let cursor: Element | null = anchor
   for (const url of urls) {
-    const href = targetHref(url);
+    const href = targetHref(url)
     // 预装表可能已在 index.html 中；复用节点（按路径匹配，忽略 `?v=`），避免重复
     // <link> 与二次下载闪烁。
-    let el = findStylesheetLink(hrefKey(url));
+    let el = findStylesheetLink(hrefKey(url))
     if (!el) {
-      el = document.createElement("link");
-      el.rel = "stylesheet";
+      el = document.createElement('link')
+      el.rel = 'stylesheet'
       // 必须写 attribute 而不是 IDL 的 `el.href`：后者会被解析成**绝对 URL**，于是
       // 上面的 querySelector 与 `desired.has(getAttribute('href'))` 两条（都用声明里的
       // 相对路径比对）下一轮全部落空 —— 表会被判成「不在期望集合里」反复摘掉重挂。
-      el.setAttribute("href", href);
+      el.setAttribute('href', href)
     }
-    el.setAttribute(MANAGED_ATTR, "css");
+    el.setAttribute(MANAGED_ATTR, 'css')
     if (!isInPlace(el, cursor, boundary)) {
-      if (cursor) cursor.after(el);
-      else if (boundary) boundary.before(el);
-      else document.head.appendChild(el);
+      if (cursor) cursor.after(el)
+      else if (boundary) boundary.before(el)
+      else document.head.appendChild(el)
     }
-    cursor = el;
+    cursor = el
   }
 }
 
@@ -269,14 +253,14 @@ function applyStylesheets(urls: readonly string[]): void {
  */
 function findStylesheetLink(path: string): HTMLLinkElement | null {
   for (const el of document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')) {
-    if (hrefKey(el.getAttribute("href") || "") === path) return el;
+    if (hrefKey(el.getAttribute('href') || '') === path) return el
   }
-  return null;
+  return null
 }
 
-function setMeta(id: string, attr: "content", value: string): void {
-  const el = document.getElementById(id);
-  if (el) el.setAttribute(attr, value);
+function setMeta(id: string, attr: 'content', value: string): void {
+  const el = document.getElementById(id)
+  if (el) el.setAttribute(attr, value)
 }
 
 export type ApplyPageAssetsOptions = {
@@ -284,26 +268,19 @@ export type ApplyPageAssetsOptions = {
    * 跨页过渡期间额外保留的上一页样式表。
    * 新路由样式立刻装上，被替换的样式表延后到 leave 结束再卸，避免滑动背景露出无样式 HTML。
    */
-  keepStylesheets?: readonly string[];
-};
+  keepStylesheets?: readonly string[]
+}
 
 /** 把一组页面资产应用到当前文档。 */
-export function applyPageAssets(
-  assets: PageAssets | undefined,
-  options?: ApplyPageAssetsOptions,
-): void {
-  if (!assets) return;
-  document.title = assets.title;
-  setMeta("spa-viewport", "content", assets.viewport);
-  setMeta("spa-theme-color", "content", assets.themeColor);
-  const manifest = document.getElementById("spa-manifest");
-  if (manifest) manifest.setAttribute("href", assets.manifest);
-  const keep = options?.keepStylesheets ?? [];
-  applyStylesheets(
-    keep.length > 0
-      ? [...new Set([...keep, ...assets.stylesheets])]
-      : assets.stylesheets,
-  );
+export function applyPageAssets(assets: PageAssets | undefined, options?: ApplyPageAssetsOptions): void {
+  if (!assets) return
+  document.title = assets.title
+  setMeta('spa-viewport', 'content', assets.viewport)
+  setMeta('spa-theme-color', 'content', assets.themeColor)
+  const manifest = document.getElementById('spa-manifest')
+  if (manifest) manifest.setAttribute('href', assets.manifest)
+  const keep = options?.keepStylesheets ?? []
+  applyStylesheets(keep.length > 0 ? [...new Set([...keep, ...assets.stylesheets])] : assets.stylesheets)
 }
 
 /**
@@ -314,16 +291,16 @@ export function applyPageAssets(
  * 一个渲染帧量级（400ms）。宁可带着未就绪的样式渲染，也不能让入户页白屏等 CSS：
  * 本函数存在的意义是「尽量别在缺样式时画第一帧」，不是「必须等样式」。
  */
-const STYLES_READY_TIMEOUT_MS = 400;
+const STYLES_READY_TIMEOUT_MS = 400
 
 /** 一张样式表是否已经可用（`sheet` 非空 = 已下载并解析完）。 */
 function isStylesheetReady(el: HTMLLinkElement): boolean {
   // 跨源样式表的 `sheet` 会受 CORS 限制读不到，但同源站点（/static/…）能读到；
   // 读不到也当作「浏览器已经处理过这张表」，避免在 CORS 场景下白等 400ms。
   try {
-    return el.sheet !== null;
+    return el.sheet !== null
   } catch {
-    return true;
+    return true
   }
 }
 
@@ -338,38 +315,35 @@ function isStylesheetReady(el: HTMLLinkElement): boolean {
  * @param options 与 `applyPageAssets` 一致
  * @returns 已就位或超时后 resolve（**永不 reject**）
  */
-export function ensurePageAssets(
-  assets: PageAssets | undefined,
-  options?: ApplyPageAssetsOptions,
-): Promise<void> {
-  applyPageAssets(assets, options);
-  if (typeof document === "undefined" || !assets) return Promise.resolve();
+export function ensurePageAssets(assets: PageAssets | undefined, options?: ApplyPageAssetsOptions): Promise<void> {
+  applyPageAssets(assets, options)
+  if (typeof document === 'undefined' || !assets) return Promise.resolve()
 
   const pending = assets.stylesheets
     .map((url) => findStylesheetLink(hrefKey(url)))
-    .filter((el): el is HTMLLinkElement => Boolean(el) && !isStylesheetReady(el!));
+    .filter((el): el is HTMLLinkElement => Boolean(el) && !isStylesheetReady(el!))
 
-  if (pending.length === 0) return Promise.resolve();
+  if (pending.length === 0) return Promise.resolve()
 
   return new Promise<void>((resolve) => {
-    let remaining = pending.length;
-    let done = false;
+    let remaining = pending.length
+    let done = false
     const settle = () => {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timer);
-      resolve();
-    };
-    const timer = window.setTimeout(settle, STYLES_READY_TIMEOUT_MS);
+      if (done) return
+      done = true
+      window.clearTimeout(timer)
+      resolve()
+    }
+    const timer = window.setTimeout(settle, STYLES_READY_TIMEOUT_MS)
     for (const el of pending) {
       const onSettled = () => {
-        el.removeEventListener("load", onSettled);
-        el.removeEventListener("error", onSettled);
-        remaining -= 1;
-        if (remaining <= 0) settle();
-      };
-      el.addEventListener("load", onSettled);
-      el.addEventListener("error", onSettled);
+        el.removeEventListener('load', onSettled)
+        el.removeEventListener('error', onSettled)
+        remaining -= 1
+        if (remaining <= 0) settle()
+      }
+      el.addEventListener('load', onSettled)
+      el.addEventListener('error', onSettled)
     }
-  });
+  })
 }

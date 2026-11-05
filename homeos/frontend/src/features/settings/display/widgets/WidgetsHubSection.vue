@@ -61,9 +61,7 @@ const catalogCount = computed(
     props.sidebarWidgetGroups.reduce((n, g) => n + g.items.length, 0) +
     props.dashboardWidgetGroups.reduce((n, g) => n + g.items.length, 0),
 )
-const widgetFlowSummary = computed(
-  () => `目录 ${catalogCount.value} · 右侧面板 ${panelInstanceCount.value}`,
-)
+const widgetFlowSummary = computed(() => `目录 ${catalogCount.value} · 右侧面板 ${panelInstanceCount.value}`)
 </script>
 
 <template>

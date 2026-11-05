@@ -4,15 +4,7 @@
 
 import { normalizeMarquee, rectIntersects, type MarqueeRect } from './editor-canvas-navigation'
 
-export type AlignMode =
-  | 'left'
-  | 'center'
-  | 'right'
-  | 'top'
-  | 'middle'
-  | 'bottom'
-  | 'distribute-x'
-  | 'distribute-y'
+export type AlignMode = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' | 'distribute-x' | 'distribute-y'
 
 interface ComponentBounds {
   id: string
@@ -39,10 +31,7 @@ export function clientPointToCanvas(
   return { x: localX * scaleX, y: localY * scaleY }
 }
 
-export function pickComponentsInMarquee(
-  components: ComponentBounds[],
-  marquee: MarqueeRect,
-): string[] {
+export function pickComponentsInMarquee(components: ComponentBounds[], marquee: MarqueeRect): string[] {
   return components
     .filter((component) =>
       rectIntersects(marquee, {
@@ -145,13 +134,13 @@ export function componentBounds(boundsComponent: any) {
         Math.abs(Math.cos(boundsRotationRad)) * boundsHeight * boundsScale) /
       2,
     boundsCenterX = Number(boundsPosition.x || 0) + boundsWidth / 2,
-    boundsCenterY = Number(boundsPosition.y || 0) + boundsHeight / 2;
+    boundsCenterY = Number(boundsPosition.y || 0) + boundsHeight / 2
   return {
     left: boundsCenterX - boundsHalfWidth,
     top: boundsCenterY - boundsHalfHeight,
     right: boundsCenterX + boundsHalfWidth,
     bottom: boundsCenterY + boundsHalfHeight,
-  };
+  }
 }
 
 export { normalizeMarquee, type MarqueeRect }

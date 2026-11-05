@@ -20,10 +20,7 @@ type AxiosLikeError = {
 function readRetryAfterSeconds(headers?: Record<string, unknown>): number | null {
   if (!headers) return null
   const raw =
-    headers['retry-after'] ??
-    headers['Retry-After'] ??
-    headers['retry-after-default'] ??
-    headers['Retry-After-default']
+    headers['retry-after'] ?? headers['Retry-After'] ?? headers['retry-after-default'] ?? headers['Retry-After-default']
   const n = Number(Array.isArray(raw) ? raw[0] : raw)
   if (!Number.isFinite(n) || n <= 0) return null
   return Math.ceil(n)
@@ -86,7 +83,10 @@ function backendUnreachableHint(): string {
 /** 展平 Nest ValidationPipe 等返回的 string | string[] | { message } */
 function flattenApiMessage(raw: unknown): string {
   if (Array.isArray(raw)) {
-    return raw.map((x) => flattenApiMessage(x)).filter(Boolean).join('；')
+    return raw
+      .map((x) => flattenApiMessage(x))
+      .filter(Boolean)
+      .join('；')
   }
   if (typeof raw === 'string') return raw.trim()
   if (raw && typeof raw === 'object' && 'message' in raw) {
@@ -162,16 +162,12 @@ export function extractErrorMessage(error: unknown): string {
     const retryAfter = readRetryAfterSeconds(e.response?.headers)
 
     // 429：优先用带等待时间的提示（覆盖后端笼统中文/英文）
-    if (
-      status === 429 ||
-      /throttler|too many requests|操作过于频繁/i.test(apiMsg)
-    ) {
+    if (status === 429 || /throttler|too many requests|操作过于频繁/i.test(apiMsg)) {
       return formatRateLimitMessage(retryAfter)
     }
 
     // 业务文案优先（含 503 服务暂不可用等）；Vite 代理空/笼统 500 除外
-    const proxyishEmpty500 =
-      status === 500 && (!apiMsg || /^(internal server error|服务器内部错误)$/i.test(apiMsg))
+    const proxyishEmpty500 = status === 500 && (!apiMsg || /^(internal server error|服务器内部错误)$/i.test(apiMsg))
     if (apiMsg && !proxyishEmpty500) {
       return localizeAxiosishMessage(apiMsg, status)
     }

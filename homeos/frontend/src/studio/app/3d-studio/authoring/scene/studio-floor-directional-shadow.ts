@@ -24,234 +24,229 @@
  * 本项目的 three 是浏览器直载的外部模块，编译期只有宽泛的影子声明，所以这里用最小结构化
  * 接口描述用到的部分。
  */
-import type { FloorLightNode, FloorMatrix4 } from "./studio-floor-lights";
-import { objectFloorId } from "./studio-floor-lights";
+import type { FloorLightNode, FloorMatrix4 } from './studio-floor-lights'
+import { objectFloorId } from './studio-floor-lights'
 
 /** 阴影裁剪矩形（像素坐标，左上原点）。 */
 export interface ShadowCrop {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface ShadowCropPlan {
   /** 对齐后的统一裁剪宽度（所有层共用）。 */
-  width: number;
+  width: number
   /** 对齐后的统一裁剪高度（所有层共用）。 */
-  height: number;
-  crops: ShadowCrop[];
+  height: number
+  crops: ShadowCrop[]
 }
 
 /** 可参与投影计算的顶点。 */
 interface ShadowPoint {
-  x: number;
-  y: number;
-  z: number;
-  clone(): ShadowPoint;
-  set(x: number, y: number, z: number): ShadowPoint;
-  applyMatrix4(matrix: unknown): ShadowPoint;
+  x: number
+  y: number
+  z: number
+  clone(): ShadowPoint
+  set(x: number, y: number, z: number): ShadowPoint
+  applyMatrix4(matrix: unknown): ShadowPoint
 }
 
 export interface ShadowBox3 {
-  min: ShadowPoint;
-  max: ShadowPoint;
-  isEmpty(): boolean;
-  clone(): ShadowBox3;
-  applyMatrix4(matrix: unknown): ShadowBox3;
-  union(box: ShadowBox3): ShadowBox3;
-  intersectsBox?(box: ShadowBox3): boolean;
+  min: ShadowPoint
+  max: ShadowPoint
+  isEmpty(): boolean
+  clone(): ShadowBox3
+  applyMatrix4(matrix: unknown): ShadowBox3
+  union(box: ShadowBox3): ShadowBox3
+  intersectsBox?(box: ShadowBox3): boolean
 }
 
 /** `THREE.Vector4` 的最小契约（裁剪 UV）。 */
 export interface ShadowVector4 {
-  toArray(array: unknown, offset?: number): number[];
+  toArray(array: unknown, offset?: number): number[]
 }
 
 /** 投影物体（网格 / 实例化网格 / 蒙皮网格）。 */
 export interface FloorShadowObject {
-  isInstancedMesh?: boolean;
-  isSkinnedMesh?: boolean;
-  isMesh?: boolean;
-  castShadow?: boolean;
-  receiveShadow?: boolean;
-  visible?: boolean;
-  matrixWorld: FloorMatrix4;
-  parent?: FloorShadowObject | null;
-  userData?: Record<string, unknown>;
+  isInstancedMesh?: boolean
+  isSkinnedMesh?: boolean
+  isMesh?: boolean
+  castShadow?: boolean
+  receiveShadow?: boolean
+  visible?: boolean
+  matrixWorld: FloorMatrix4
+  parent?: FloorShadowObject | null
+  userData?: Record<string, unknown>
   geometry?: {
-    boundingBox?: ShadowBox3 | null;
-    computeBoundingBox?(): void;
-  } | null;
-  boundingBox?: ShadowBox3 | null;
-  computeBoundingBox?(): void;
-  traverse?(callback: (node: FloorShadowObject) => void): void;
+    boundingBox?: ShadowBox3 | null
+    computeBoundingBox?(): void
+  } | null
+  boundingBox?: ShadowBox3 | null
+  computeBoundingBox?(): void
+  traverse?(callback: (node: FloorShadowObject) => void): void
 }
 
 /** 一个楼层的阴影源。 */
 export interface FloorShadowSource {
-  id: string;
-  anchor: FloorLightNode;
-  bounds: ShadowBox3;
-  shadowObjects: FloorShadowObject[];
-  frameFromAnchor: FloorMatrix4;
+  id: string
+  anchor: FloorLightNode
+  bounds: ShadowBox3
+  shadowObjects: FloorShadowObject[]
+  frameFromAnchor: FloorMatrix4
   /** 由 `planProjections` 填：该层在光空间的投影矩阵。 */
-  projection?: FloorMatrix4 | null;
+  projection?: FloorMatrix4 | null
   /** 由 `planFloorShadowCrops` 填：该层在阴影图里占的矩形。 */
-  crop?: ShadowCrop;
+  crop?: ShadowCrop
   /** 影响阴影的「光照签名」，用来判断旧层能否复用。 */
-  signature?: string;
-  layer?: number;
+  signature?: string
+  layer?: number
   /** 以下字段在「已经渲染进纹理数组」之后才存在（`captureFloor` 产出）。 */
-  cropUv?: ShadowVector4;
-  light?: FloorLightNode;
-  matrix?: FloorMatrix4;
-  anchorWorld?: FloorMatrix4;
-  bias?: number;
-  normalBias?: number;
-  intensity?: number;
+  cropUv?: ShadowVector4
+  light?: FloorLightNode
+  matrix?: FloorMatrix4
+  anchorWorld?: FloorMatrix4
+  bias?: number
+  normalBias?: number
+  intensity?: number
 }
 
 /** `THREE.Vector2` / `Vector3` / `Vector4` / `Color` 的粗略面。 */
 interface ShadowVec2 {
-  x: number;
-  y: number;
+  x: number
+  y: number
 }
 
 export interface FloorShadowThree {
-  Matrix4: new () => FloorMatrix4;
-  Vector4: new (x?: number, y?: number, z?: number, w?: number) => { toArray(array: unknown, offset?: number): number[] };
-  Vector3: new (x?: number, y?: number, z?: number) => ShadowPoint;
-  Vector2: new (x?: number, y?: number) => ShadowVec2;
-  Box2: new (min?: ShadowVec2, max?: ShadowVec2) => unknown;
-  Box3: new (min?: ShadowPoint, max?: ShadowPoint) => ShadowBox3;
-  Color: new (color?: number) => unknown;
-  WebGLRenderTarget: new (width: number, height: number, options?: Record<string, unknown>) => ShadowRenderTarget;
+  Matrix4: new () => FloorMatrix4
+  Vector4: new (
+    x?: number,
+    y?: number,
+    z?: number,
+    w?: number,
+  ) => { toArray(array: unknown, offset?: number): number[] }
+  Vector3: new (x?: number, y?: number, z?: number) => ShadowPoint
+  Vector2: new (x?: number, y?: number) => ShadowVec2
+  Box2: new (min?: ShadowVec2, max?: ShadowVec2) => unknown
+  Box3: new (min?: ShadowPoint, max?: ShadowPoint) => ShadowBox3
+  Color: new (color?: number) => unknown
+  WebGLRenderTarget: new (width: number, height: number, options?: Record<string, unknown>) => ShadowRenderTarget
   WebGLArrayRenderTarget: new (
     width: number,
     height: number,
     depth: number,
     options?: Record<string, unknown>,
-  ) => ShadowArrayRenderTarget;
-  RGFormat: number;
-  HalfFloatType: number;
-  LinearFilter: number;
+  ) => ShadowArrayRenderTarget
+  RGFormat: number
+  HalfFloatType: number
+  LinearFilter: number
 }
 
 export interface ShadowRenderTarget {
-  texture?: unknown;
-  depth?: number;
-  dispose(): void;
+  texture?: unknown
+  depth?: number
+  dispose(): void
 }
 
 export interface ShadowArrayRenderTarget extends ShadowRenderTarget {
-  texture: { generateMipmaps?: boolean };
-  depth: number;
+  texture: { generateMipmaps?: boolean }
+  depth: number
 }
 
 /** `THREE.DirectionalLight` 的最小契约（含 `shadow` 子系统）。 */
-export interface FloorDirectionalLight extends Omit<FloorLightNode, "target"> {
-  position: { set(x: number, y: number, z: number): void; clone(): unknown; applyMatrix4(matrix: unknown): unknown };
+export interface FloorDirectionalLight extends Omit<FloorLightNode, 'target'> {
+  position: { set(x: number, y: number, z: number): void; clone(): unknown; applyMatrix4(matrix: unknown): unknown }
   target: {
-    position: { set(x: number, y: number, z: number): void; clone(): unknown; applyMatrix4(matrix: unknown): unknown };
-    updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void;
-  };
+    position: { set(x: number, y: number, z: number): void; clone(): unknown; applyMatrix4(matrix: unknown): unknown }
+    updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void
+  }
   shadow: {
-    map: ShadowRenderTarget | null;
-    mapPass: ShadowRenderTarget | null;
-    matrix: FloorMatrix4;
-    camera: { projectionMatrix: { elements: ArrayLike<number> } };
-    mapSize: { x: number; y: number; toArray(): number[] };
-    radius: number;
-    blurSamples: number;
-    bias: number;
-    normalBias: number;
-    intensity: number;
-    autoUpdate: boolean;
-    needsUpdate: boolean;
-    updateMatrices(light: unknown): void;
-  };
-  updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void;
+    map: ShadowRenderTarget | null
+    mapPass: ShadowRenderTarget | null
+    matrix: FloorMatrix4
+    camera: { projectionMatrix: { elements: ArrayLike<number> } }
+    mapSize: { x: number; y: number; toArray(): number[] }
+    radius: number
+    blurSamples: number
+    bias: number
+    normalBias: number
+    intensity: number
+    autoUpdate: boolean
+    needsUpdate: boolean
+    updateMatrices(light: unknown): void
+  }
+  updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void
 }
 
 export interface ShadowRenderer {
-  getRenderTarget(): unknown;
-  getActiveCubeFace?(): number;
-  getActiveMipmapLevel?(): number;
-  getViewport(target: unknown): unknown;
-  getScissor(target: unknown): unknown;
-  getScissorTest(): boolean;
-  getClearColor(target: unknown): unknown;
-  getClearAlpha(): number;
-  setRenderTarget(target: unknown, cubeFace?: number, mipLevel?: number): void;
-  setViewport(viewport: unknown): void;
-  setScissor(scissor: unknown): void;
-  setScissorTest(enabled: boolean): void;
-  setClearColor(color: unknown, alpha?: number): void;
-  clear?(color: boolean, depth: boolean, stencil: boolean): void;
-  initRenderTarget(target: unknown): void;
-  copyTextureToTexture(
-    source: unknown,
-    target: unknown,
-    sourceBox: unknown,
-    targetOrigin: unknown,
-  ): void;
+  getRenderTarget(): unknown
+  getActiveCubeFace?(): number
+  getActiveMipmapLevel?(): number
+  getViewport(target: unknown): unknown
+  getScissor(target: unknown): unknown
+  getScissorTest(): boolean
+  getClearColor(target: unknown): unknown
+  getClearAlpha(): number
+  setRenderTarget(target: unknown, cubeFace?: number, mipLevel?: number): void
+  setViewport(viewport: unknown): void
+  setScissor(scissor: unknown): void
+  setScissorTest(enabled: boolean): void
+  setClearColor(color: unknown, alpha?: number): void
+  clear?(color: boolean, depth: boolean, stencil: boolean): void
+  initRenderTarget(target: unknown): void
+  copyTextureToTexture(source: unknown, target: unknown, sourceBox: unknown, targetOrigin: unknown): void
 }
 
 export interface FloorDirectionalShadowOptions {
-  THREE: FloorShadowThree;
-  renderer: ShadowRenderer;
-  scene: { updateMatrixWorld(force: boolean): void; traverse(callback: (node: FloorShadowObject) => void): void };
+  THREE: FloorShadowThree
+  renderer: ShadowRenderer
+  scene: { updateMatrixWorld(force: boolean): void; traverse(callback: (node: FloorShadowObject) => void): void }
   /** 真正渲染阴影图（内部会 `light.shadow.updateMatrices` + `renderer.render`）。 */
-  renderDepth(light: FloorDirectionalLight): void;
-  requestFrame(): void;
+  renderDepth(light: FloorDirectionalLight): void
+  requestFrame(): void
   /** 楼层淡出期间保留旧层，避免切换时阴影闪烁。 */
-  retainDetachedFloors?: boolean;
+  retainDetachedFloors?: boolean
   /** 楼层锚点空间 → 世界空间（切层动画中的中间态）。 */
-  getFloorFrame?(floorId: string): FloorMatrix4;
+  getFloorFrame?(floorId: string): FloorMatrix4
   /** 纹理拷贝（默认 three 的 `copyTextureToTexture`；WebGL2 下可换成 blit 版）。 */
-  copyTexture?(
-    source: unknown,
-    target: unknown,
-    sourceBox: unknown,
-    targetOrigin: unknown,
-  ): void;
+  copyTexture?(source: unknown, target: unknown, sourceBox: unknown, targetOrigin: unknown): void
 }
 
 export interface FloorDirectionalShadow {
-  entries: Map<string, FloorShadowSource>;
+  entries: Map<string, FloorShadowSource>
   stats: {
-    captures: number;
-    layers: number;
-    bytes: number;
-    fullBytes: number;
-    width: number;
-    height: number;
-    scratchTargets: number;
+    captures: number
+    layers: number
+    bytes: number
+    fullBytes: number
+    width: number
+    height: number
+    scratchTargets: number
     /** 最近一次构建收集到的楼层分组数。为 0 说明场景里没有按楼层分组的根节点。 */
-    floors: number;
+    floors: number
     /** 是否找到可用的方向光（`isDirectionalLight && castShadow`）。为 0 时整条链路不会建层。 */
-    sun: number;
+    sun: number
     /** 最近一次构建的结论：`built` / `no-sun` / `no-floor-groups` / `disabled` / `stale`。 */
-    reason: string;
-  };
-  readonly texture: unknown;
-  sync(enabled?: boolean): void;
-  build(root: unknown, isStillValid: () => boolean, waitFrame: () => Promise<void>): Promise<void>;
+    reason: string
+  }
+  readonly texture: unknown
+  sync(enabled?: boolean): void
+  build(root: unknown, isStillValid: () => boolean, waitFrame: () => Promise<void>): Promise<void>
   buildSteps(
     root: unknown,
     /** 返回 false 表示这次构建已被新的一轮取代：立刻停手，别把半成品写回去。 */
     isStillValid: () => boolean,
     options?: { reuse?: boolean },
-  ): Generator<undefined, void, undefined>;
-  forgetFloor(floorId: string): void;
-  refresh(bounds: unknown): boolean;
-  release(): void;
-  dispose(): void;
+  ): Generator<undefined, void, undefined>
+  forgetFloor(floorId: string): void
+  refresh(bounds: unknown): boolean
+  release(): void
+  dispose(): void
 }
 
 /** 裁剪矩形按 32 像素对齐：纹理块对齐，切换/微调时不必重新分配整张图。 */
-const CROP_ALIGN = 32;
+const CROP_ALIGN = 32
 
 /**
  * 规划每层的阴影裁剪矩形（纯函数）。
@@ -276,42 +271,41 @@ export function planFloorShadowCrops(
         minY = mapHeight,
         maxX = 0,
         maxY = 0,
-        hasBounds = false;
+        hasBounds = false
       for (const object of source.shadowObjects || []) {
-        const boundsSource =
-          object.isInstancedMesh || object.isSkinnedMesh ? object : object.geometry;
-        if (!boundsSource) continue;
-        if (object.isSkinnedMesh || !boundsSource.boundingBox) boundsSource.computeBoundingBox?.();
-        const boundingBox = boundsSource.boundingBox;
-        if (!boundingBox || boundingBox.isEmpty()) continue;
+        const boundsSource = object.isInstancedMesh || object.isSkinnedMesh ? object : object.geometry
+        if (!boundsSource) continue
+        if (object.isSkinnedMesh || !boundsSource.boundingBox) boundsSource.computeBoundingBox?.()
+        const boundingBox = boundsSource.boundingBox
+        if (!boundingBox || boundingBox.isEmpty()) continue
         const worldMatrix = (source.projection || fallbackProjection).clone().multiply(object.matrixWorld),
-          corner = boundingBox.min.clone();
+          corner = boundingBox.min.clone()
         // 八个角都要投：只投 min/max 两个角在旋转后的光空间里会漏掉最外侧的角。
         for (const x of [boundingBox.min.x, boundingBox.max.x]) {
           for (const y of [boundingBox.min.y, boundingBox.max.y]) {
             for (const z of [boundingBox.min.z, boundingBox.max.z]) {
-              corner.set(x, y, z).applyMatrix4(worldMatrix);
+              corner.set(x, y, z).applyMatrix4(worldMatrix)
               if (!Number.isFinite(corner.x + corner.y)) {
-                return { x: 0, y: 0, right: mapWidth, top: mapHeight };
+                return { x: 0, y: 0, right: mapWidth, top: mapHeight }
               }
-              ((minX = Math.min(minX, corner.x * mapWidth)),
+              ;(minX = Math.min(minX, corner.x * mapWidth)),
                 (minY = Math.min(minY, corner.y * mapHeight)),
                 (maxX = Math.max(maxX, corner.x * mapWidth)),
                 (maxY = Math.max(maxY, corner.y * mapHeight)),
-                (hasBounds = true));
+                (hasBounds = true)
             }
           }
         }
       }
-      if (!hasBounds) return { x: 0, y: 0, right: 1, top: 1 };
+      if (!hasBounds) return { x: 0, y: 0, right: 1, top: 1 }
       const x = Math.max(0, Math.min(mapWidth - 1, Math.floor(minX - padding))),
-        y = Math.max(0, Math.min(mapHeight - 1, Math.floor(minY - padding)));
+        y = Math.max(0, Math.min(mapHeight - 1, Math.floor(minY - padding)))
       return {
         x,
         y,
         right: Math.max(x + 1, Math.min(mapWidth, Math.ceil(maxX + padding))),
         top: Math.max(y + 1, Math.min(mapHeight, Math.ceil(maxY + padding))),
-      };
+      }
     }),
     width = Math.min(
       mapWidth,
@@ -327,8 +321,8 @@ export function planFloorShadowCrops(
       y: Math.max(0, Math.min(mapHeight - height, Math.floor((crop.y + crop.top - height) / 2))),
       width,
       height,
-    }));
-  return { width, height, crops };
+    }))
+  return { width, height, crops }
 }
 
 export function createFloorDirectionalShadow({
@@ -349,7 +343,7 @@ export function createFloorDirectionalShadow({
     scratchMap: ShadowRenderTarget | null = null,
     scratchMapPass: ShadowRenderTarget | null = null,
     scratchTarget: ShadowRenderTarget | null = null,
-    scratchTimer: ReturnType<typeof setTimeout> | null = null;
+    scratchTimer: ReturnType<typeof setTimeout> | null = null
   const stats = {
       captures: 0,
       layers: 0,
@@ -360,107 +354,107 @@ export function createFloorDirectionalShadow({
       scratchTargets: 0,
       floors: 0,
       sun: 0,
-      reason: "",
+      reason: '',
     },
-    entries = new Map<string, FloorShadowSource>();
+    entries = new Map<string, FloorShadowSource>()
 
   function resolveLight(): FloorDirectionalLight | null {
     if (!light) {
       scene.traverse((node) => {
-        const candidate = node as unknown as FloorDirectionalLight;
+        const candidate = node as unknown as FloorDirectionalLight
         if (!light && candidate.isDirectionalLight && candidate.castShadow) {
-          light = candidate;
-          lightCastShadow = !!candidate.castShadow;
+          light = candidate
+          lightCastShadow = !!candidate.castShadow
         }
-      });
+      })
     }
-    return light;
+    return light
   }
 
   function sync(enabled = true) {
-    userEnabled = enabled;
-    if (!userEnabled && !light) return;
-    const resolved = resolveLight();
-    if (!resolved) return;
+    userEnabled = enabled
+    if (!userEnabled && !light) return
+    const resolved = resolveLight()
+    if (!resolved) return
     // 接管阴影图期间必须把方向光自身的 `castShadow` 关掉：否则 three 会在每帧末尾用
     // 它自己的阴影图再渲染一次，把我们的数组纹理覆盖掉（表现为阴影忽明忽暗）。
-    resolved.castShadow = userEnabled && arrayTarget ? false : lightCastShadow;
+    resolved.castShadow = userEnabled && arrayTarget ? false : lightCastShadow
   }
 
   function clearScratch() {
-    if (scratchTimer) clearTimeout(scratchTimer);
-    scratchTimer = null;
-    scratchMap?.dispose();
-    scratchMapPass?.dispose();
-    scratchMap = scratchMapPass = null;
-    stats.scratchTargets = 0;
+    if (scratchTimer) clearTimeout(scratchTimer)
+    scratchTimer = null
+    scratchMap?.dispose()
+    scratchMapPass?.dispose()
+    scratchMap = scratchMapPass = null
+    stats.scratchTargets = 0
   }
 
   /** 切层后延迟释放临时缓冲：立刻释放会让 GPU 在下一帧还在用这块内存（驱动会同步等待）。 */
   function scheduleClearScratch() {
-    if (scratchTimer) clearTimeout(scratchTimer);
-    scratchTimer = setTimeout(clearScratch, 750);
-    (scratchTimer as unknown as { unref?: () => void }).unref?.();
+    if (scratchTimer) clearTimeout(scratchTimer)
+    scratchTimer = setTimeout(clearScratch, 750)
+    ;(scratchTimer as unknown as { unref?: () => void }).unref?.()
   }
 
   function withFloorLight<T>(source: FloorShadowSource, fn: (frame: FloorMatrix4) => T): T {
     const resolved = light!,
       savedPosition = resolved.position.clone(),
-      savedTargetPosition = resolved.target.position.clone();
-    source.anchor.updateWorldMatrix?.(true, false);
+      savedTargetPosition = resolved.target.position.clone()
+    source.anchor.updateWorldMatrix?.(true, false)
     const frame = source.frameFromAnchor
       ? new THREE.Matrix4().multiplyMatrices(source.anchor.matrixWorld!, source.frameFromAnchor)
-      : getFloorFrame(source.id);
+      : getFloorFrame(source.id)
     try {
-      (resolved.position.applyMatrix4(frame), resolved.target.position.applyMatrix4(frame));
-      (resolved.updateWorldMatrix(true, false), resolved.target.updateWorldMatrix(true, false));
-      return fn(frame);
+      resolved.position.applyMatrix4(frame), resolved.target.position.applyMatrix4(frame)
+      resolved.updateWorldMatrix(true, false), resolved.target.updateWorldMatrix(true, false)
+      return fn(frame)
     } finally {
-      ((resolved.position as unknown as { copy(v: unknown): void }).copy(savedPosition),
+      ;(resolved.position as unknown as { copy(v: unknown): void }).copy(savedPosition),
         (resolved.target.position as unknown as { copy(v: unknown): void }).copy(savedTargetPosition),
         resolved.updateWorldMatrix(true, false),
-        resolved.target.updateWorldMatrix(true, false));
+        resolved.target.updateWorldMatrix(true, false)
     }
   }
 
   /** 把方向光逐层「挪」到该层锚点空间，记录每层的阴影投影矩阵。 */
   function planProjections(sources: ReadonlyArray<FloorShadowSource>): ShadowCropPlan {
-    const resolved = light!;
-    (scene.updateMatrixWorld(true), resolved.target.updateWorldMatrix(true, false));
-    const savedMatrix = resolved.shadow.matrix.clone();
+    const resolved = light!
+    scene.updateMatrixWorld(true), resolved.target.updateWorldMatrix(true, false)
+    const savedMatrix = resolved.shadow.matrix.clone()
     try {
       for (const source of sources) {
         withFloorLight(source, () => {
-          resolved.shadow.updateMatrices(resolved);
-          source.projection = resolved.shadow.matrix.clone();
-        });
+          resolved.shadow.updateMatrices(resolved)
+          source.projection = resolved.shadow.matrix.clone()
+        })
       }
       return planFloorShadowCrops(
         sources,
         resolved.shadow.matrix,
         resolved.shadow.mapSize,
         Math.max(16, Math.ceil(resolved.shadow.radius * 2 + 4)),
-      );
+      )
     } finally {
-      resolved.shadow.matrix.copy(savedMatrix);
+      resolved.shadow.matrix.copy(savedMatrix)
     }
   }
 
   /** 收集楼层：每层一个锚点（最外层带 `floorId` 的容器）+ 该层的投影物体 + 世界包围盒。 */
   function collectFloors(root: unknown): FloorShadowSource[] {
-    const byFloor = new Map<string, FloorShadowSource>();
-    (root as { traverse?: (cb: (node: FloorShadowObject) => void) => void })?.traverse?.((object) => {
-      if (!object.isMesh || !object.geometry) return;
-      const floorId = objectFloorId(object as unknown as FloorLightNode);
-      if (!floorId) return;
+    const byFloor = new Map<string, FloorShadowSource>()
+    ;(root as { traverse?: (cb: (node: FloorShadowObject) => void) => void })?.traverse?.((object) => {
+      if (!object.isMesh || !object.geometry) return
+      const floorId = objectFloorId(object as unknown as FloorLightNode)
+      if (!floorId) return
       if (!byFloor.has(floorId)) {
         // 锚点必须是「楼层容器」而不是网格本身：网格会随家具移动，容器才是楼层坐标系。
         // 正在淡出的旧层（`floorTransitionLeaving`）不参与，否则会把两层阴影叠在一起。
-        let anchorNode: FloorShadowObject = object;
+        let anchorNode: FloorShadowObject = object
         for (let parent = object.parent; parent && parent !== (scene as unknown); parent = parent.parent) {
           if (parent.userData?.floorId === floorId && parent.userData?.floorTransitionLeaving === undefined) {
-            anchorNode = parent;
-            break;
+            anchorNode = parent
+            break
           }
         }
         byFloor.set(floorId, {
@@ -469,16 +463,16 @@ export function createFloorDirectionalShadow({
           bounds: new THREE.Box3(),
           shadowObjects: [],
           frameFromAnchor: anchorNode.matrixWorld.clone().invert().multiply(getFloorFrame(floorId)),
-        });
+        })
       }
-      if (object.castShadow || object.receiveShadow) byFloor.get(floorId)!.shadowObjects.push(object);
-      const boundsSource = object.isInstancedMesh ? object : object.geometry;
-      if (!boundsSource.boundingBox) boundsSource.computeBoundingBox?.();
+      if (object.castShadow || object.receiveShadow) byFloor.get(floorId)!.shadowObjects.push(object)
+      const boundsSource = object.isInstancedMesh ? object : object.geometry
+      if (!boundsSource.boundingBox) boundsSource.computeBoundingBox?.()
       if (boundsSource.boundingBox) {
-        byFloor.get(floorId)!.bounds.union(boundsSource.boundingBox.clone().applyMatrix4(object.matrixWorld));
+        byFloor.get(floorId)!.bounds.union(boundsSource.boundingBox.clone().applyMatrix4(object.matrixWorld))
       }
-    });
-    return [...byFloor.values()];
+    })
+    return [...byFloor.values()]
   }
 
   /** 逐层渲染阴影并拷进数组纹理的第 `layer` 层。 */
@@ -500,33 +494,30 @@ export function createFloorDirectionalShadow({
         scissorTest: renderer.getScissorTest(),
         clear: renderer.getClearColor(new THREE.Color()),
         alpha: renderer.getClearAlpha(),
-      };
-    ((shadow.map = scratchMap),
+      }
+    ;(shadow.map = scratchMap),
       (shadow.mapPass = scratchMapPass),
       (shadow.autoUpdate = false),
       (shadow.needsUpdate = true),
       (light!.castShadow = false),
-      ((light!.userData as Record<string, unknown>).lightFloorId = source.id));
+      ((light!.userData as Record<string, unknown>).lightFloorId = source.id)
     try {
       // 1×1 的临时 target 只为「让 three 绑一个非空 framebuffer」，真正的阴影图由
       // `shadow.map`（下面拷成层）承接。
-      scratchTarget ||= new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true, stencilBuffer: false });
-      renderer.setRenderTarget(scratchTarget);
-      withFloorLight(source, () => renderDepth(light!));
-      stats.captures += 1;
-      if (!shadow.map?.texture) throw new Error("分层基础阴影未生成");
-      const crop = source.crop!;
+      scratchTarget ||= new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true, stencilBuffer: false })
+      renderer.setRenderTarget(scratchTarget)
+      withFloorLight(source, () => renderDepth(light!))
+      stats.captures += 1
+      if (!shadow.map?.texture) throw new Error('分层基础阴影未生成')
+      const crop = source.crop!
       copyTexture(
         shadow.map.texture,
         target.texture,
-        new THREE.Box2(
-          new THREE.Vector2(crop.x, crop.y),
-          new THREE.Vector2(crop.x + crop.width, crop.y + crop.height),
-        ),
+        new THREE.Box2(new THREE.Vector2(crop.x, crop.y), new THREE.Vector2(crop.x + crop.width, crop.y + crop.height)),
         new THREE.Vector3(0, 0, layer),
-      );
-      source.anchor.updateWorldMatrix?.(true, false);
-      const anchorWorld = source.anchor.matrixWorld!.clone();
+      )
+      source.anchor.updateWorldMatrix?.(true, false)
+      const anchorWorld = source.anchor.matrixWorld!.clone()
       return {
         ...source,
         light: light as unknown as FloorLightNode,
@@ -545,18 +536,15 @@ export function createFloorDirectionalShadow({
           ? source.bounds
               .clone()
               .applyMatrix4(
-                new THREE.Matrix4().multiplyMatrices(
-                  source.anchor.matrixWorld!,
-                  anchorWorld.clone().invert(),
-                ),
+                new THREE.Matrix4().multiplyMatrices(source.anchor.matrixWorld!, anchorWorld.clone().invert()),
               )
           : source.bounds,
         bias: shadow.bias,
         normalBias: shadow.normalBias,
         intensity: shadow.intensity,
-      };
+      }
     } finally {
-      ((scratchMap = shadow.map),
+      ;(scratchMap = shadow.map),
         (scratchMapPass = shadow.mapPass),
         (stats.scratchTargets = Number(!!scratchMap) + Number(!!scratchMapPass)),
         (shadow.map = savedState.map),
@@ -569,9 +557,9 @@ export function createFloorDirectionalShadow({
         renderer.setViewport(savedState.viewport),
         renderer.setScissor(savedState.scissor),
         renderer.setScissorTest(savedState.scissorTest),
-        renderer.setClearColor(savedState.clear, savedState.alpha));
-      if (savedState.floor === undefined) delete (light!.userData as Record<string, unknown>).lightFloorId;
-      else (light!.userData as Record<string, unknown>).lightFloorId = savedState.floor;
+        renderer.setClearColor(savedState.clear, savedState.alpha)
+      if (savedState.floor === undefined) delete (light!.userData as Record<string, unknown>).lightFloorId
+      else (light!.userData as Record<string, unknown>).lightFloorId = savedState.floor
     }
   }
 
@@ -580,69 +568,69 @@ export function createFloorDirectionalShadow({
     isStillValid: () => boolean,
     { reuse = false }: { reuse?: boolean } = {},
   ): Generator<undefined, void, undefined> {
-    if (disposed) return;
-    const resolved = resolveLight();
+    if (disposed) return
+    const resolved = resolveLight()
     // 灰盒验收的三个「为什么没建层」：没太阳 / 缓冲被关 / 这次构建已被新的一轮取代。
-    ((stats.sun = resolved ? 1 : 0), (stats.floors = 0));
+    ;(stats.sun = resolved ? 1 : 0), (stats.floors = 0)
     if (!resolved) {
-      stats.reason = "no-sun";
-      return;
+      stats.reason = 'no-sun'
+      return
     }
     if (!userEnabled) {
-      stats.reason = "disabled";
-      return;
+      stats.reason = 'disabled'
+      return
     }
     if (!isStillValid()) {
-      stats.reason = "stale";
-      return;
+      stats.reason = 'stale'
+      return
     }
-    scene.updateMatrixWorld(true);
-    const floors = collectFloors(root);
-    stats.floors = floors.length;
+    scene.updateMatrixWorld(true)
+    const floors = collectFloors(root)
+    stats.floors = floors.length
     if (!floors.length) {
       // release() 不会清 reason，所以「为什么没建层」能留到下一轮给灰盒看。
-      stats.reason = "no-floor-groups";
-      if (!retainDetachedFloors) api.release();
-      return;
+      stats.reason = 'no-floor-groups'
+      if (!retainDetachedFloors) api.release()
+      return
     }
     // 光照签名：位置/投影/贴图参数任何一项变了，旧层的阴影就不再有效。
     const signature = JSON.stringify([
-      light!.position.clone(),
-      light!.target.position.clone(),
-      Array.from(light!.shadow.camera.projectionMatrix.elements),
-      light!.shadow.mapSize.toArray(),
-      light!.shadow.radius,
-      light!.shadow.blurSamples,
-      light!.shadow.bias,
-      light!.shadow.normalBias,
-      light!.shadow.intensity,
-    ]),
+        light!.position.clone(),
+        light!.target.position.clone(),
+        Array.from(light!.shadow.camera.projectionMatrix.elements),
+        light!.shadow.mapSize.toArray(),
+        light!.shadow.radius,
+        light!.shadow.blurSamples,
+        light!.shadow.bias,
+        light!.shadow.normalBias,
+        light!.shadow.intensity,
+      ]),
       floorIds = new Set(floors.map((floor) => floor.id)),
       // 淡出中的旧层：签名一致才保留（换了天气/太阳角度就必须重建）。
       retained = retainDetachedFloors
         ? [...entries.values()].filter((entry) => !floorIds.has(entry.id) && entry.signature === signature)
         : [],
       planned = floors.map((floor) => {
-        const existing = entries.get(floor.id);
+        const existing = entries.get(floor.id)
         return reuse &&
           existing?.signature === signature &&
           existing.anchor === floor.anchor &&
           existing.shadowObjects.length === floor.shadowObjects.length &&
           existing.shadowObjects.every((object, index) => object === floor.shadowObjects[index])
           ? existing
-          : floor;
+          : floor
       }),
-      changed = planned.filter((floor) => entries.get(floor.id) !== floor);
+      changed = planned.filter((floor) => entries.get(floor.id) !== floor)
     // 没有变化且层数对得上：什么都不用做（每帧调用也不会重渲染阴影）。
-    if (!changed.length && arrayTarget && arrayTarget.depth === planned.length + retained.length) return;
+    if (!changed.length && arrayTarget && arrayTarget.depth === planned.length + retained.length) return
 
     const mapSize = light!.shadow.mapSize,
-      plan = planProjections(changed);
+      plan = planProjections(changed)
     changed.forEach((floor, index) => {
-      floor.crop = plan.crops[index];
-      floor.signature = signature;
-    });
-    planned.push(...retained);
+      floor.crop = plan.crops[index]
+      floor.signature = signature
+    })
+    planned.push(...retained)
     const width = Math.max(plan.width, ...planned.map((floor) => floor.crop!.width)),
       height = Math.max(plan.height, ...planned.map((floor) => floor.crop!.height)),
       target = new THREE.WebGLArrayRenderTarget(width, height, planned.length, {
@@ -652,16 +640,16 @@ export function createFloorDirectionalShadow({
         magFilter: THREE.LinearFilter,
         depthBuffer: false,
         stencilBuffer: false,
-      });
-    target.texture.generateMipmaps = false;
+      })
+    target.texture.generateMipmaps = false
     const nextEntries: FloorShadowSource[] = [],
       savedTarget = renderer.getRenderTarget(),
       savedClearColor = renderer.getClearColor(new THREE.Color()),
-      savedClearAlpha = renderer.getClearAlpha();
+      savedClearAlpha = renderer.getClearAlpha()
     try {
-      renderer.initRenderTarget(target);
+      renderer.initRenderTarget(target)
       for (let layer = 0; layer < planned.length; layer++) {
-        if (disposed || !userEnabled || !isStillValid()) return;
+        if (disposed || !userEnabled || !isStillValid()) return
         const floor = planned[layer],
           crop = floor.crop!,
           // 裁剪矩形对齐到统一尺寸后，可能超出贴图边界：往里夹，靠 `cropUv` 补偿偏移。
@@ -670,12 +658,12 @@ export function createFloorDirectionalShadow({
             y: Math.min(crop.y, mapSize.y - height),
             width,
             height,
-          };
+          }
         if (entries.get(floor.id) === floor) {
           // 复用的层：直接从旧数组纹理整块拷过来。
-          renderer.setRenderTarget(target, layer);
-          renderer.setClearColor(0xffffff, 1);
-          renderer.clear?.(true, false, false);
+          renderer.setRenderTarget(target, layer)
+          renderer.setClearColor(0xffffff, 1)
+          renderer.clear?.(true, false, false)
           copyTexture(
             arrayTarget!.texture,
             target.texture,
@@ -684,7 +672,7 @@ export function createFloorDirectionalShadow({
               new THREE.Vector3(crop.width, crop.height, floor.layer! + 1),
             ),
             new THREE.Vector3(crop.x - clampedCrop.x, crop.y - clampedCrop.y, layer),
-          );
+          )
           nextEntries.push({
             ...floor,
             layer,
@@ -695,18 +683,18 @@ export function createFloorDirectionalShadow({
               width / mapSize.x,
               height / mapSize.y,
             ),
-          });
+          })
         } else {
-          nextEntries.push(captureFloor({ ...floor, crop: clampedCrop }, target, layer));
+          nextEntries.push(captureFloor({ ...floor, crop: clampedCrop }, target, layer))
         }
-        (renderer.setRenderTarget(savedTarget), renderer.setClearColor(savedClearColor, savedClearAlpha));
-        yield;
+        renderer.setRenderTarget(savedTarget), renderer.setClearColor(savedClearColor, savedClearAlpha)
+        yield
       }
-      if (disposed || !userEnabled || !isStillValid()) return;
-      (arrayTarget?.dispose(), (arrayTarget = target), entries.clear());
-      for (const entry of nextEntries) entries.set(entry.id, entry);
+      if (disposed || !userEnabled || !isStillValid()) return
+      arrayTarget?.dispose(), (arrayTarget = target), entries.clear()
+      for (const entry of nextEntries) entries.set(entry.id, entry)
       // 方向光自己的阴影图此刻已经没用了，留着只是占显存。
-      (light!.shadow.map?.dispose(),
+      light!.shadow.map?.dispose(),
         light!.shadow.mapPass?.dispose(),
         (light!.shadow.map = null),
         (light!.shadow.mapPass = null),
@@ -717,14 +705,14 @@ export function createFloorDirectionalShadow({
         (stats.fullBytes = mapSize.x * mapSize.y * planned.length * 4),
         (stats.width = width),
         (stats.height = height),
-        (stats.reason = "built"),
+        (stats.reason = 'built'),
         sync(userEnabled),
-        requestFrame());
+        requestFrame()
     } finally {
-      (renderer.setRenderTarget(savedTarget),
+      renderer.setRenderTarget(savedTarget),
         renderer.setClearColor(savedClearColor, savedClearAlpha),
         arrayTarget !== target && target.dispose(),
-        scheduleClearScratch());
+        scheduleClearScratch()
     }
   }
 
@@ -732,83 +720,84 @@ export function createFloorDirectionalShadow({
     entries,
     stats,
     get texture() {
-      return arrayTarget?.texture || null;
+      return arrayTarget?.texture || null
     },
     sync,
     async build(root, isStillValid, waitFrame) {
-      for (const _step of api.buildSteps(root, isStillValid)) await waitFrame();
+      for (const _step of api.buildSteps(root, isStillValid)) await waitFrame()
     },
     buildSteps,
     forgetFloor(floorId) {
-      entries.delete(floorId);
+      entries.delete(floorId)
     },
     /** 阴影外的区域重算（拖动家具/改层高后调用）；返回 false 表示裁剪矩形不够用了。 */
     refresh(bounds: unknown) {
-      if (!userEnabled || !arrayTarget || !light) return true;
+      if (!userEnabled || !arrayTarget || !light) return true
       const isAnchorVisible = (entry: FloorShadowSource) => {
         for (let node: FloorLightNode | null | undefined = entry.anchor; node; node = node.parent) {
-          if (node.visible === false) return false;
-          if (node === (scene as unknown as FloorLightNode)) return true;
+          if (node.visible === false) return false
+          if (node === (scene as unknown as FloorLightNode)) return true
         }
-        return false;
-      };
+        return false
+      }
       const visibleEntries = [...entries.values()].filter(
         (entry) =>
           isAnchorVisible(entry) &&
           (bounds === null ||
-            (bounds as { some?: (test: (box: ShadowBox3) => boolean) => boolean }).some?.((box) =>
-              box.intersectsBox?.(
-                entry.bounds
-                  .clone()
-                  .applyMatrix4(
-                    new THREE.Matrix4().multiplyMatrices(
-                      entry.anchor.matrixWorld!,
-                      (entry as unknown as { anchorWorld: FloorMatrix4 }).anchorWorld.clone().invert(),
+            (bounds as { some?: (test: (box: ShadowBox3) => boolean) => boolean }).some?.(
+              (box) =>
+                box.intersectsBox?.(
+                  entry.bounds
+                    .clone()
+                    .applyMatrix4(
+                      new THREE.Matrix4().multiplyMatrices(
+                        entry.anchor.matrixWorld!,
+                        (entry as unknown as { anchorWorld: FloorMatrix4 }).anchorWorld.clone().invert(),
+                      ),
                     ),
-                  ),
-              ) === true,
+                ) === true,
             )),
-      );
-      if (!visibleEntries.length) return true;
-      const plan = planProjections(visibleEntries);
+      )
+      if (!visibleEntries.length) return true
+      const plan = planProjections(visibleEntries)
       // 只要有一层的新裁剪矩形超出了现有层尺寸，就必须整张重建（不能局部放大一层）。
       if (
         visibleEntries.some((entry, index) => {
           const plannedCrop = plan.crops[index],
-            currentCrop = entry.crop!;
+            currentCrop = entry.crop!
           return (
             plannedCrop.x < currentCrop.x ||
             plannedCrop.y < currentCrop.y ||
             plannedCrop.x + plannedCrop.width > currentCrop.x + currentCrop.width ||
             plannedCrop.y + plannedCrop.height > currentCrop.y + currentCrop.height
-          );
+          )
         })
       ) {
-        return false;
+        return false
       }
       try {
-        for (const entry of visibleEntries) entries.set(entry.id, captureFloor(entry, arrayTarget, entry.layer!));
+        for (const entry of visibleEntries) entries.set(entry.id, captureFloor(entry, arrayTarget, entry.layer!))
       } finally {
-        scheduleClearScratch();
+        scheduleClearScratch()
       }
-      return true;
+      return true
     },
     release() {
-      (arrayTarget?.dispose(),
+      arrayTarget?.dispose(),
         (arrayTarget = null),
         clearScratch(),
         scratchTarget?.dispose(),
         (scratchTarget = null),
         entries.clear(),
         (stats.layers = stats.bytes = stats.fullBytes = stats.width = stats.height = 0),
-        (stats.floors = 0));
-      if (light) ((light.castShadow = lightCastShadow), (light.shadow.needsUpdate = true));
+        (stats.floors = 0)
+      if (light) (light.castShadow = lightCastShadow), (light.shadow.needsUpdate = true)
     },
     dispose() {
-      ((disposed = true), api.release(), (light = null));
+      ;(disposed = true), api.release(), (light = null)
     },
-  };
-  return api;
+  }
+  return api
 }
 
 /**
@@ -845,5 +834,5 @@ float userFloorDirectionalShadow() {
   return mix(1.0,shadow,params.y);
 }
 #endif
-`;
+`
 }

@@ -10,13 +10,13 @@
  */
 export interface PaginatedResult<T> {
   /** 当前页数据列表 */
-  items: T[];
+  items: T[]
   /** 满足过滤条件的总记录数 */
-  total: number;
+  total: number
   /** 当前页码（从 1 起） */
-  page: number;
+  page: number
   /** 每页条数 */
-  pageSize: number;
+  pageSize: number
   /** 总页数（向上取整；total 为 0 时返回 1，避免前端除零） */
-  totalPages: number;
+  totalPages: number
 }

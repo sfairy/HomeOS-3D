@@ -9,12 +9,7 @@
  */
 import { onMounted, shallowRef, type ShallowRef } from 'vue'
 
-import {
-  EMPTY_STORE_LINKS,
-  peekStoreLinks,
-  prefetchStoreLinks,
-  type StoreLinks,
-} from '@/shared/utils/store-links.util'
+import { EMPTY_STORE_LINKS, peekStoreLinks, prefetchStoreLinks, type StoreLinks } from '@/shared/utils/store-links.util'
 
 /** `useStoreLinks` 的返回值：页面按需取用，不用也不影响副作用。 */
 interface StoreLinksBinding {

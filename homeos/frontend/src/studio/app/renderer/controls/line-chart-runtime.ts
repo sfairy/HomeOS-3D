@@ -1,10 +1,4 @@
-export function lineChartGeometry(
-  samples: any,
-  originX = 0,
-  originY = 5,
-  chartWidth = 100,
-  chartHeight = 59,
-) {
+export function lineChartGeometry(samples: any, originX = 0, originY = 5, chartWidth = 100, chartHeight = 59) {
   const minValue = Math.min(...samples.map((minSample: any) => minSample.value)),
     maxValue = Math.max(...samples.map((maxSample: any) => maxSample.value)),
     valueRange = maxValue - minValue,
@@ -17,11 +11,9 @@ export function lineChartGeometry(
     lastTimestamp = Math.max(firstTimestamp + 1, samples.at(-1).timestamp),
     chartPoints = samples.map((sample: any) => ({
       ...sample,
-      x:
-        originX +
-        ((sample.timestamp - firstTimestamp) / (lastTimestamp - firstTimestamp)) * chartWidth,
+      x: originX + ((sample.timestamp - firstTimestamp) / (lastTimestamp - firstTimestamp)) * chartWidth,
       y: originY + ((axisMax - sample.value) / axisSpan) * chartHeight,
-    }));
+    }))
   return {
     dataMin: minValue,
     dataMax: maxValue,
@@ -31,18 +23,15 @@ export function lineChartGeometry(
     firstTime: firstTimestamp,
     lastTime: lastTimestamp,
     points: chartPoints,
-  };
+  }
 }
 function normalizedStatePrecision(precisionSetting: any) {
-  if (precisionSetting == null || precisionSetting === "" || precisionSetting === "auto")
-    return "auto";
-  const precisionNumber = Number(precisionSetting);
-  return Number.isInteger(precisionNumber) && precisionNumber >= 0 && precisionNumber <= 4
-    ? precisionNumber
-    : "auto";
+  if (precisionSetting == null || precisionSetting === '' || precisionSetting === 'auto') return 'auto'
+  const precisionNumber = Number(precisionSetting)
+  return Number.isInteger(precisionNumber) && precisionNumber >= 0 && precisionNumber <= 4 ? precisionNumber : 'auto'
 }
 function automaticNumericPrecision(magnitudeInput: any) {
-  const magnitude = Math.abs(Number(magnitudeInput));
+  const magnitude = Math.abs(Number(magnitudeInput))
   return !Number.isFinite(magnitude) || magnitude === 0 || magnitude >= 100
     ? 0
     : magnitude >= 10
@@ -51,17 +40,16 @@ function automaticNumericPrecision(magnitudeInput: any) {
         ? 2
         : magnitude >= 0.01
           ? 3
-          : 4;
+          : 4
 }
-export function formatNumericValue(numericValue: any, precisionRequest = "auto") {
-  const rawValue = Number(numericValue);
-  if (!Number.isFinite(rawValue)) return "--";
+export function formatNumericValue(numericValue: any, precisionRequest = 'auto') {
+  const rawValue = Number(numericValue)
+  if (!Number.isFinite(rawValue)) return '--'
   const normalizedPrecision = normalizedStatePrecision(precisionRequest),
-    effectivePrecision =
-      normalizedPrecision === "auto" ? automaticNumericPrecision(rawValue) : normalizedPrecision,
-    formattedNumber = rawValue.toFixed(effectivePrecision);
-  return normalizedPrecision === "auto" ? String(Number(formattedNumber)) : formattedNumber;
+    effectivePrecision = normalizedPrecision === 'auto' ? automaticNumericPrecision(rawValue) : normalizedPrecision,
+    formattedNumber = rawValue.toFixed(effectivePrecision)
+  return normalizedPrecision === 'auto' ? String(Number(formattedNumber)) : formattedNumber
 }
-export function formatLineChartValue(sampleValue: any, precisionOption = "auto") {
-  return formatNumericValue(sampleValue, precisionOption);
+export function formatLineChartValue(sampleValue: any, precisionOption = 'auto') {
+  return formatNumericValue(sampleValue, precisionOption)
 }

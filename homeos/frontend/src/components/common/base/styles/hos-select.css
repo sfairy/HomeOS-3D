@@ -55,7 +55,11 @@
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease;
 }
 
 .hos-select:not(.hos-select--block) .hos-select__trigger {
@@ -113,7 +117,9 @@
   margin-left: auto;
   flex-shrink: 0;
   color: var(--hos-text-secondary);
-  transition: transform 0.2s ease, color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease;
 }
 
 .hos-select--fit .hos-select__chev {
@@ -370,7 +376,9 @@
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: background 0.1s ease, color 0.1s ease;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease;
 }
 
 .hos-select__item:hover:not(:disabled),

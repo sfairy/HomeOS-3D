@@ -1,13 +1,5 @@
 /** 可暂停实体状态监听器组合式函数 */
-import {
-  onMounted,
-  onUnmounted,
-  onActivated,
-  onDeactivated,
-  watch,
-  unref,
-  type MaybeRefOrGetter,
-} from 'vue'
+import { onMounted, onUnmounted, onActivated, onDeactivated, watch, unref, type MaybeRefOrGetter } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { useEntitiesStore } from '@/stores/entities.store'
 import type { EntityStateListenerPayload } from '@/shared/types/entity-store'
@@ -39,9 +31,7 @@ export function usePausableStateListener(
   let unsub = () => {}
   const { filter, entityIds: entityIdsRef, domains: domainsRef } = options
   /** 未传 entityIds/domains 选项时为 intentional 全局监听 */
-  const scoped =
-    Object.hasOwn(options, 'entityIds') ||
-    Object.hasOwn(options, 'domains')
+  const scoped = Object.hasOwn(options, 'entityIds') || Object.hasOwn(options, 'domains')
   const wrapped = (payload: EntityStateListenerPayload) => {
     if (paused) return
     if (filter && !filter(payload)) return
@@ -67,10 +57,7 @@ export function usePausableStateListener(
     }
     const domains = resolveDomains()
     const ids = resolveEntityIds()
-    if (
-      (ids == null || ids === '' || (Array.isArray(ids) && ids.length === 0)) &&
-      !domains?.length
-    ) {
+    if ((ids == null || ids === '' || (Array.isArray(ids) && ids.length === 0)) && !domains?.length) {
       unsub = () => {}
       return
     }
@@ -83,24 +70,18 @@ export function usePausableStateListener(
   // 订阅源用轻量指纹替代 deep watch：实体/域列表常为大型数组，
   // deep 比较逐元素遍历开销大；join 指纹在内容变化时才产生新字符串，触发重订阅语义等价。
   if (entityIdsRef != null) {
-    watch(
-      () => {
-        const ids = resolveEntityIds()
-        if (Array.isArray(ids)) return ids.join('\u0000')
-        return ids ?? null
-      },
-      resubscribe,
-    )
+    watch(() => {
+      const ids = resolveEntityIds()
+      if (Array.isArray(ids)) return ids.join('\u0000')
+      return ids ?? null
+    }, resubscribe)
   }
   if (domainsRef != null) {
-    watch(
-      () => {
-        const domains = resolveDomains()
-        if (Array.isArray(domains)) return domains.join('\u0000')
-        return domains ?? null
-      },
-      resubscribe,
-    )
+    watch(() => {
+      const domains = resolveDomains()
+      if (Array.isArray(domains)) return domains.join('\u0000')
+      return domains ?? null
+    }, resubscribe)
   }
   const refreshPaused = () => {
     paused = typeof document !== 'undefined' && document.hidden

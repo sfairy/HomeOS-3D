@@ -6,13 +6,13 @@
  * 嵌入式外壳、单页面调试页）退回整页跳转。
  */
 
-type ShellNavigate = (path: string) => void | Promise<unknown>;
+type ShellNavigate = (path: string) => void | Promise<unknown>
 
-let shellNavigate: ShellNavigate | null = null;
+let shellNavigate: ShellNavigate | null = null
 
 /** 外壳启动时注册自己的导航入口（`router.push`）。 */
 export function registerShellNavigation(navigate: ShellNavigate): void {
-  shellNavigate = navigate;
+  shellNavigate = navigate
 }
 
 /**
@@ -23,14 +23,14 @@ export function registerShellNavigation(navigate: ShellNavigate): void {
  * 地址返回 `null`，由调用方退回整页跳转。
  */
 function toShellPath(target: string): string | null {
-  if (!target) return null;
-  if (target.startsWith("/") && !target.startsWith("//")) return target;
+  if (!target) return null
+  if (target.startsWith('/') && !target.startsWith('//')) return target
   try {
-    const url = new URL(target, window.location.href);
-    if (url.origin !== window.location.origin) return null;
-    return `${url.pathname}${url.search}${url.hash}`;
+    const url = new URL(target, window.location.href)
+    if (url.origin !== window.location.origin) return null
+    return `${url.pathname}${url.search}${url.hash}`
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -40,13 +40,13 @@ function toShellPath(target: string): string | null {
  * 返回是否走了外壳路由，便于调用方在需要时做后续处理（例如清理本视图状态）。
  */
 export function navigateInShell(target: string): boolean {
-  const path = toShellPath(target);
+  const path = toShellPath(target)
   if (shellNavigate && path !== null) {
     // 已经在该路径上：外壳路由会判定为重复导航，直接当作成功，避免无谓的整页刷新。
-    if (path === window.location.pathname + window.location.search) return true;
-    void shellNavigate(path);
-    return true;
+    if (path === window.location.pathname + window.location.search) return true
+    void shellNavigate(path)
+    return true
   }
-  window.location.assign(target);
-  return false;
+  window.location.assign(target)
+  return false
 }

@@ -37,11 +37,7 @@ interface PlacePopoverOptions {
   prepare?: (pop: HTMLElement) => void;
 }
 
-export function placePopover(
-  pop: HTMLElement,
-  toggle: HTMLElement,
-  options: PlacePopoverOptions = {},
-): void {
+export function placePopover(pop: HTMLElement, toggle: HTMLElement, options: PlacePopoverOptions = {}): void {
   pop.style.top = "0px";
   pop.style.left = "0px";
   options.prepare?.(pop);

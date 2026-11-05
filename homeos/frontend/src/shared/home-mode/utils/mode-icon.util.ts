@@ -1,15 +1,5 @@
 /** 家庭模式图标工具。 */
-import {
-  Home,
-  Moon,
-  DoorOpen,
-  DoorClosed,
-  Film,
-  Utensils,
-  Palmtree,
-  Users,
-  Bot,
-} from '@lucide/vue'
+import { Home, Moon, DoorOpen, DoorClosed, Film, Utensils, Palmtree, Users, Bot } from '@lucide/vue'
 import type { Component } from 'vue'
 
 /** 存储为 emoji 字符的模式图标（非 lucide key） */

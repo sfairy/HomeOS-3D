@@ -17,7 +17,13 @@ const POT_H = 0.34
 const POT_R = 0.155
 
 const pot = merge([
-  cylinder({ radiusTop: POT_R, radiusBottom: POT_R * 0.78, height: POT_H, segments: 28, center: [0, POT_H / 2 + 0.012, 0] }),
+  cylinder({
+    radiusTop: POT_R,
+    radiusBottom: POT_R * 0.78,
+    height: POT_H,
+    segments: 28,
+    center: [0, POT_H / 2 + 0.012, 0],
+  }),
   cylinder({ radiusTop: POT_R + 0.008, height: 0.03, segments: 28, center: [0, POT_H, 0] }),
   cylinder({ radiusTop: POT_R - 0.012, height: 0.02, segments: 28, center: [0, POT_H + 0.005, 0] }),
 ])
@@ -50,30 +56,36 @@ function leaf({ length, width, angle, tilt, height, color = 0 }) {
   })
 }
 
-const leaves = axisScale(merge(
-  Array.from({ length: 5 }, (_, index) => {
-    const angle = (index / 5) * Math.PI * 2 + 0.4
-    return leaf({
-      length: 0.34 + (index % 2) * 0.04,
-      width: 0.22,
-      angle,
-      tilt: 0.62 - (index % 3) * 0.14,
-      height: H - 0.22 - (index % 3) * 0.04,
-    })
-  }),
-), [0.85, 1, 1.11])
-const youngLeaves = axisScale(merge(
-  Array.from({ length: 2 }, (_, index) =>
-    leaf({
-      length: 0.24,
-      width: 0.15,
-      angle: index * 2.4 + 1.2,
-      tilt: 0.2,
-      height: H - 0.16,
-      color: 1,
+const leaves = axisScale(
+  merge(
+    Array.from({ length: 5 }, (_, index) => {
+      const angle = (index / 5) * Math.PI * 2 + 0.4
+      return leaf({
+        length: 0.34 + (index % 2) * 0.04,
+        width: 0.22,
+        angle,
+        tilt: 0.62 - (index % 3) * 0.14,
+        height: H - 0.22 - (index % 3) * 0.04,
+      })
     }),
   ),
-), [0.85, 1, 1.11])
+  [0.85, 1, 1.11],
+)
+const youngLeaves = axisScale(
+  merge(
+    Array.from({ length: 2 }, (_, index) =>
+      leaf({
+        length: 0.24,
+        width: 0.15,
+        angle: index * 2.4 + 1.2,
+        tilt: 0.2,
+        height: H - 0.16,
+        color: 1,
+      }),
+    ),
+  ),
+  [0.85, 1, 1.11],
+)
 
 export function build() {
   void W

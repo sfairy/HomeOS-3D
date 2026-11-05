@@ -6,7 +6,10 @@ import {
   expandDropdownMaxHeight,
   measureDropdownFitWidth,
 } from '@/composables/ui/popup/usePopupPosition'
-import { collectOverflowScrollParents, getTeleportContainerSize } from '@/composables/ui/popup/popup-position-shared.util'
+import {
+  collectOverflowScrollParents,
+  getTeleportContainerSize,
+} from '@/composables/ui/popup/popup-position-shared.util'
 import type { DropdownPosition } from '@/composables/ui/popup/popup-position-dropdown.util'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
 import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
@@ -68,10 +71,7 @@ export function useDropdownPosition(
   const dropdownRef = options.dropdownRef
 
   /** 解析数值型选项：支持常量与取值函数，未提供时使用 fallback */
-  const resolveOpt = <K extends keyof DropdownOptions>(
-    key: K,
-    fallback: number,
-  ): number => {
+  const resolveOpt = <K extends keyof DropdownOptions>(key: K, fallback: number): number => {
     const value = options[key]
     if (typeof value === 'function') return (value as () => number)()
     return (value as number | undefined) ?? fallback
@@ -89,15 +89,9 @@ export function useDropdownPosition(
   const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
   /** 全局互斥：打开本下拉时关闭其它已登记菜单 */
   useExclusiveDropdown(isOpenRef, { exclusive: options.exclusive })
-  const {
-    teleportTarget,
-    shellTeleportPending,
-    refreshShellTeleport,
-  } = useShellTeleportTarget()
+  const { teleportTarget, shellTeleportPending, refreshShellTeleport } = useShellTeleportTarget()
   /** 壳未就绪或 keep-alive 失活时禁用 Teleport，避免挂到 null / 残留遮罩 */
-  const teleportDisabled = computed(
-    () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
-  )
+  const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
   /** 当前放置方向（top/bottom），默认 bottom */
   const placement = computed(() => ddPos.value.placement || 'bottom')
   /** 下拉 fixed 定位样式 */

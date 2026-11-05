@@ -104,13 +104,14 @@ export function hasEntityFriendlyName(entity: HaEntityView | null | undefined): 
   return Boolean(entity?.attributes?.friendly_name)
 }
 
-
 /**
  * 折叠「整段重复」的展示名（如 HA friendly_name 写成「HUAWEI Mate X5 HUAWEI Mate X5」）。
  * 仅处理对半完全相同的情况，避免误伤正常长短语。
  */
 function collapseRepeatedDisplayName(name: string): string {
-  const trimmedName = String(name || '').trim().replace(/\s+/g, ' ')
+  const trimmedName = String(name || '')
+    .trim()
+    .replace(/\s+/g, ' ')
   if (!trimmedName) return ''
   const parts = trimmedName.split(' ')
   if (parts.length < 2 || parts.length % 2 !== 0) return trimmedName
@@ -127,10 +128,7 @@ function collapseRepeatedDisplayName(name: string): string {
  * @param entity 实体状态。
  * @returns 展示名；entityId 为空时返回空字符串。
  */
-export function getEntityDisplayName(
-  entityId: string,
-  entity: HaEntityView | null | undefined,
-): string {
+export function getEntityDisplayName(entityId: string, entity: HaEntityView | null | undefined): string {
   if (!entityId) return ''
   // check-restricted-syntax-ignore: 规范实现本身
   const raw = entity?.attributes?.friendly_name || entityId.split('.')[1] || entityId
@@ -249,10 +247,8 @@ export function removeEntityDerivedKey(
   if (acc.skipSecondary) {
     if (entity.state !== 'unavailable') {
       acc.online = Math.max(0, acc.online - 1)
-      if (key.startsWith('light.') && entity.state === 'on')
-        acc.lightCount = Math.max(0, acc.lightCount - 1)
-      if (key.startsWith('climate.') && entity.state !== 'off')
-        acc.climateCount = Math.max(0, acc.climateCount - 1)
+      if (key.startsWith('light.') && entity.state === 'on') acc.lightCount = Math.max(0, acc.lightCount - 1)
+      if (key.startsWith('climate.') && entity.state !== 'off') acc.climateCount = Math.max(0, acc.climateCount - 1)
     }
     return
   }
@@ -271,10 +267,8 @@ export function removeEntityDerivedKey(
         }
       }
     }
-    if (key.startsWith('light.') && entity.state === 'on')
-      acc.lightCount = Math.max(0, acc.lightCount - 1)
-    if (key.startsWith('climate.') && entity.state !== 'off')
-      acc.climateCount = Math.max(0, acc.climateCount - 1)
+    if (key.startsWith('light.') && entity.state === 'on') acc.lightCount = Math.max(0, acc.lightCount - 1)
+    if (key.startsWith('climate.') && entity.state !== 'off') acc.climateCount = Math.max(0, acc.climateCount - 1)
   } else {
     if (acc.offlineById) {
       acc.offlineById.delete(key)

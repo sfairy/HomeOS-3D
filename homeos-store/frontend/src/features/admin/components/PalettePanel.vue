@@ -2,13 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { adminApi } from "@store/shared/api/http";
 import { describe } from "@store/shared/api/error";
-import {
-  CONFIGURABLE,
-  DEFAULT_PRESET,
-  PRESETS,
-  normalizeHex,
-  resolveTokens,
-} from "@store/shared/scene/appearance";
+import { CONFIGURABLE, DEFAULT_PRESET, PRESETS, normalizeHex, resolveTokens } from "@store/shared/scene/appearance";
 
 interface Draft {
   preset: string;
@@ -169,7 +163,12 @@ function presetTabIndex(index: number): number {
 }
 
 function onPresetKeydown(event: KeyboardEvent, index: number) {
-  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+  const step =
+    event.key === "ArrowRight" || event.key === "ArrowDown"
+      ? 1
+      : event.key === "ArrowLeft" || event.key === "ArrowUp"
+        ? -1
+        : 0;
   const last = PRESETS.length - 1;
   let next = index;
   if (step !== 0) next = (index + step + PRESETS.length) % PRESETS.length;
@@ -191,8 +190,7 @@ function reset() {
 async function loadSaved() {
   try {
     const payload = await adminApi<{ preset?: string; tokens?: Record<string, string> }>("/appearance");
-    const preset =
-      typeof payload?.preset === "string" && payload.preset ? payload.preset : DEFAULT_PRESET;
+    const preset = typeof payload?.preset === "string" && payload.preset ? payload.preset : DEFAULT_PRESET;
     saved.value = { preset, accent: "" };
     const stored = normalizeHex(payload?.tokens?.["--hb-accent"]);
     const presetAccent = normalizeHex(PRESETS.find((item) => item.id === preset)?.colors.accent);
@@ -226,8 +224,7 @@ async function save() {
     });
     saved.value = { ...draft.value };
     clearPreview();
-    const next =
-      payload?.tokens && Object.keys(payload.tokens).length ? payload.tokens : tokens.value;
+    const next = payload?.tokens && Object.keys(payload.tokens).length ? payload.tokens : tokens.value;
     applyPreview(next);
     setMessage("配色已保存，刷新后依然是这套颜色。", "ok");
   } catch (error) {

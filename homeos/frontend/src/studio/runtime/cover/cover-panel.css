@@ -12,7 +12,7 @@
   overflow: visible;
   color: #dce2e6;
   font:
-    12px/1.5 Helvetica Neue,
+    12px / 1.5 Helvetica Neue,
     PingFang SC,
     sans-serif;
 }
@@ -195,7 +195,7 @@
 .i3d-cover-panel .hb-cover-details-actions i {
   color: #a8c5d3;
   font:
-    500 29px/1 Helvetica Neue,
+    500 29px / 1 Helvetica Neue,
     PingFang SC,
     sans-serif;
   font-style: normal;
@@ -292,9 +292,7 @@
   min-height: 0;
   max-height: calc((100% - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2));
 }
-.interaction3d-stage
-  .i3d-light-panel.is-cover-panel:has(.i3d-cover-native-tilt:not([hidden]))
-  > .i3d-cover-panel {
+.interaction3d-stage .i3d-light-panel.is-cover-panel:has(.i3d-cover-native-tilt:not([hidden])) > .i3d-cover-panel {
   height: auto;
   flex: 0 1 auto;
   min-height: 0;
@@ -393,16 +391,27 @@
   margin-right: 0;
   max-height: min(
     176px,
-    max(
-      64px,
-      calc((100vh - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2) - 224px)
-    )
+    max(64px, calc((100vh - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2) - 224px))
   );
 }
 
 /* ---- 0.8.4 选择器级补丁 ---- */
-.i3d-cover-panel:is(.is-control-only-airer, .is-control-only-window) .i3d-cover-controls-slot { height:60px }
-.i3d-cover-panel:is(.is-control-only-airer, .is-control-only-window) .hb-cover-details-controls { grid-template-rows:auto;gap:0 }
-.i3d-cover-panel output.is-remembered { white-space:pre-line;font-size:14px;line-height:1.2 }
-.interaction3d-stage .i3d-light-panel.is-cover-panel.is-window-opener-panel { min-height:0;max-height:var(--i3d-control-max-height,calc((100% - 24px) / var(--i3d-control-scale,2))) }
-.is-window-opener-panel>.i3d-cover-panel { height:auto }
+.i3d-cover-panel:is(.is-control-only-airer, .is-control-only-window) .i3d-cover-controls-slot {
+  height: 60px;
+}
+.i3d-cover-panel:is(.is-control-only-airer, .is-control-only-window) .hb-cover-details-controls {
+  grid-template-rows: auto;
+  gap: 0;
+}
+.i3d-cover-panel output.is-remembered {
+  white-space: pre-line;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.interaction3d-stage .i3d-light-panel.is-cover-panel.is-window-opener-panel {
+  min-height: 0;
+  max-height: var(--i3d-control-max-height, calc((100% - 24px) / var(--i3d-control-scale, 2)));
+}
+.is-window-opener-panel > .i3d-cover-panel {
+  height: auto;
+}

@@ -9,10 +9,7 @@ import {
   stopFrontendPerfMonitor,
 } from '@/shared/utils/perf/frontend-perf-monitor.util'
 import { adaptiveTier } from '@/shared/utils/perf/adaptive-perf.util'
-import {
-  isFpsSchedulerRunning,
-  isDiagnosticsFpsSamplingActive,
-} from '@/shared/utils/perf/fps-scheduler.util'
+import { isFpsSchedulerRunning, isDiagnosticsFpsSamplingActive } from '@/shared/utils/perf/fps-scheduler.util'
 import { getActiveSubscribeDomains } from '@/shared/entity/utils/ws-subscription'
 import { getMaxStateListeners } from '@/shared/utils/config/frontend-config'
 import { copyTextWithNotify } from '@/services/notify'
@@ -49,9 +46,7 @@ export function useDiagnosticsPerf() {
   const baselineTick = ref(0)
   let baselinePreviewTimer: ReturnType<typeof setInterval> | null = null
 
-  const canCopyBaseline = computed(
-    () => baselineSampling.value || Boolean(baselineSnapshot.value?.recordedAt),
-  )
+  const canCopyBaseline = computed(() => baselineSampling.value || Boolean(baselineSnapshot.value?.recordedAt))
 
   const baselinePreview = computed(() => {
     void baselineTick.value
@@ -100,9 +95,7 @@ export function useDiagnosticsPerf() {
     })
   }
 
-  const frontendMemoryLabel = computed(() =>
-    memoryMb.value != null ? `${memoryMb.value} MB` : '不可用',
-  )
+  const frontendMemoryLabel = computed(() => (memoryMb.value != null ? `${memoryMb.value} MB` : '不可用'))
 
   /** 依赖 perfStats / fps，避免静态快照不刷新 */
   const listenerStatsLabel = computed(() => {
@@ -117,9 +110,7 @@ export function useDiagnosticsPerf() {
     void entitiesStore.perfStats
     const domains = getActiveSubscribeDomains()
     if (!domains?.length) return '全部 domain'
-    return domains.length > 8
-      ? `${domains.slice(0, 8).join(', ')}…+${domains.length - 8}`
-      : domains.join(', ')
+    return domains.length > 8 ? `${domains.slice(0, 8).join(', ')}…+${domains.length - 8}` : domains.join(', ')
   })
 
   const fpsSchedulerLabel = computed(() => {
@@ -140,10 +131,7 @@ export function useDiagnosticsPerf() {
       else fpsAccent = 'var(--hos-color-danger-text, #f87171)'
     }
     const userMode = layoutStore.layoutConfig.performanceMode || 'high'
-    const adaptive =
-      adaptiveTier.value !== 'high'
-        ? `自适应 ${perfModeLabel(adaptiveTier.value)}`
-        : null
+    const adaptive = adaptiveTier.value !== 'high' ? `自适应 ${perfModeLabel(adaptiveTier.value)}` : null
     return [
       { label: 'FPS', value: frontendFps.value, accent: fpsAccent },
       { label: 'JS 堆内存', value: frontendMemoryLabel.value, accent: 'var(--hos-color-accent)' },

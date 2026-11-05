@@ -4,10 +4,7 @@
 import { getProjection } from '@/stores/entities/entity-projection'
 import type { HaEntityView } from '@/shared/types/entity-store'
 
-export function resolveListRowEntity(
-  entityId: string,
-  fallbackEntity?: HaEntityView,
-): HaEntityView | null {
+export function resolveListRowEntity(entityId: string, fallbackEntity?: HaEntityView): HaEntityView | null {
   const proj = getProjection(entityId)
   if (proj) {
     return {

@@ -2,7 +2,7 @@
    主色由 SettingsPageShell 注入 --page-accent=var(--module-accent-bindings)，
    此处同步覆盖 --page-accent-rgb 以匹配 sky，使派生变量自动跟随。 */
 
-@import './hero-card-shell.css';
+@import "./hero-card-shell.css";
 
 .bindings-hub {
   --page-accent-rgb: var(--module-accent-bindings-rgb);
@@ -28,7 +28,6 @@
 }
 
 /* 智能推断传感器卡片：sky 主色点缀 */
-
 
 /* 安防主控方案卡片：amber 子色点缀 + 双入口布局 */
 .bind-sec-overview-card {
@@ -152,11 +151,7 @@
 
 .bind-sec-path--homeos {
   border-color: rgba(var(--module-accent-bindings-sub-rgb), 0.28);
-  background: linear-gradient(
-    155deg,
-    rgba(var(--module-accent-bindings-sub-rgb), 0.14) 0%,
-    rgba(0, 0, 0, 0.24) 100%
-  );
+  background: linear-gradient(155deg, rgba(var(--module-accent-bindings-sub-rgb), 0.14) 0%, rgba(0, 0, 0, 0.24) 100%);
 }
 
 .bind-sec-path--homeos:hover {
@@ -166,11 +161,7 @@
 
 .bind-sec-path--ha {
   border-color: rgba(var(--module-accent-bindings-rgb), 0.2);
-  background: linear-gradient(
-    155deg,
-    rgba(var(--module-accent-bindings-rgb), 0.1) 0%,
-    rgba(0, 0, 0, 0.24) 100%
-  );
+  background: linear-gradient(155deg, rgba(var(--module-accent-bindings-rgb), 0.1) 0%, rgba(0, 0, 0, 0.24) 100%);
 }
 
 .bind-sec-path--ha:hover {
@@ -314,7 +305,9 @@
   margin-left: auto;
   flex-shrink: 0;
   opacity: 0.55;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .bind-sec-action:hover .bind-sec-action__arrow {
@@ -379,8 +372,6 @@
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
 }
 
-
-
 .bind-energy-dock {
   overflow: hidden;
   contain: layout;
@@ -404,9 +395,7 @@
   min-height: 118px;
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid var(--set-border-subtle);
-  background:
-    radial-gradient(ellipse at 0% 0%, var(--set-glass-bg-subtle) 0%, transparent 65%),
-    var(--set-bg-dark);
+  background: radial-gradient(ellipse at 0% 0%, var(--set-glass-bg-subtle) 0%, transparent 65%), var(--set-bg-dark);
 }
 
 .bind-energy-hint {
@@ -595,7 +584,6 @@
   opacity: 0.35;
 }
 
-
 .rooms-overview__stats--compact .hub-stat__val {
   font-size: 20px;
   line-height: 1.1;
@@ -613,12 +601,11 @@
 }
 
 .rooms-hub-subnav {
-  background:
-    linear-gradient(
-      165deg,
-      rgba(var(--page-accent-rgb), 0.06) 0%,
-      rgba(var(--page-accent-secondary-rgb), 0.04) 100%
-    ) !important;
+  background: linear-gradient(
+    165deg,
+    rgba(var(--page-accent-rgb), 0.06) 0%,
+    rgba(var(--page-accent-secondary-rgb), 0.04) 100%
+  ) !important;
   border-color: rgba(var(--page-accent-rgb), 0.14) !important;
 }
 
@@ -641,8 +628,7 @@
 
 .rooms-catalog-card .env-room-editor {
   background:
-    radial-gradient(ellipse at 0% 0%, rgba(var(--page-accent-rgb), 0.1) 0%, transparent 65%),
-    rgba(0, 0, 0, 0.18);
+    radial-gradient(ellipse at 0% 0%, rgba(var(--page-accent-rgb), 0.1) 0%, transparent 65%), rgba(0, 0, 0, 0.18);
   border-color: rgba(var(--page-accent-rgb), 0.2);
 }
 
@@ -780,15 +766,17 @@
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid var(--premium-border-strong);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.2) 100%);
-  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.2) 100%);
+  transition:
+    border-color 0.22s ease,
+    background 0.22s ease,
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
 .rooms-hub-scope-item:hover {
   border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.28);
-  background:
-    linear-gradient(165deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.08) 0%, rgba(0, 0, 0, 0.24) 100%);
+  background: linear-gradient(165deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.08) 0%, rgba(0, 0, 0, 0.24) 100%);
   transform: translateY(-1px);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
 }
@@ -862,7 +850,10 @@
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .rooms-hub-scope-item__link:hover {

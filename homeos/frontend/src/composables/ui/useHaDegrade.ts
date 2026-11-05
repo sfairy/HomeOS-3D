@@ -42,16 +42,11 @@ export function useHaDegrade(options: UseHaDegradeOptions = {}) {
 
   // 默认降级判定：断连 / 重连中 / 实体数据过期
   const defaultDegraded = computed(
-    () =>
-      !entitiesStore.connected ||
-      entitiesStore.reconnecting ||
-      entitiesStore.entitiesStale,
+    () => !entitiesStore.connected || entitiesStore.reconnecting || entitiesStore.entitiesStale,
   )
 
   // 降级判定：优先使用调用方传入的自定义状态
-  const connectionDegraded = computed(() =>
-    options.degraded ? toValue(options.degraded) : defaultDegraded.value,
-  )
+  const connectionDegraded = computed(() => (options.degraded ? toValue(options.degraded) : defaultDegraded.value))
 
   /**
    * 重试 HA 连接：先断开再重连

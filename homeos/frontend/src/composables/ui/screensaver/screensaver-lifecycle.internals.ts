@@ -16,10 +16,7 @@ import { useWakeWord } from '@/composables/voice/useWakeWord'
 import { useTtsSpeak } from '@/composables/voice/useTtsSpeak'
 import { executeVoiceCommand } from '@/services/api/system'
 import { getClientDeviceId } from '@/shared/client/utils/system.util'
-import {
-  resolveChargerSwitchWakeEntityIdForDevice,
-  shouldDismissScreensaverOnChargerSwitch,
-} from '@homeos/shared'
+import { resolveChargerSwitchWakeEntityIdForDevice, shouldDismissScreensaverOnChargerSwitch } from '@homeos/shared'
 import type { useEntitiesStore } from '@/stores/entities.store'
 import type { useEarthquakeStore } from '@/stores/earthquake.store'
 
@@ -139,11 +136,7 @@ function createWeatherRefresh(weatherEid: ComputedRef<string>, entitiesStore: En
   function startWeatherRefresh() {
     if (weatherRefreshCancel) return
     refreshScreensaverWeather()
-    weatherRefreshCancel = schedulePoll(
-      'screensaver:weather-refresh',
-      refreshScreensaverWeather,
-      WEATHER_REFRESH_MS,
-    )
+    weatherRefreshCancel = schedulePoll('screensaver:weather-refresh', refreshScreensaverWeather, WEATHER_REFRESH_MS)
   }
   function stopWeatherRefresh() {
     if (weatherRefreshCancel) {
@@ -292,18 +285,11 @@ export function createScreensaverIdleController(opts: {
 }
 
 /** 充电器开关订阅 */
-function bindChargerSwitchWake(opts: {
-  visible: Ref<boolean>
-  dismiss: () => void
-  entitiesStore: EntitiesStore
-}) {
+function bindChargerSwitchWake(opts: { visible: Ref<boolean>; dismiss: () => void; entitiesStore: EntitiesStore }) {
   const { visible, dismiss, entitiesStore } = opts
   const wakeSwitchEntityId = computed(() => {
     void configEpoch.value
-    return resolveChargerSwitchWakeEntityIdForDevice(
-      getConfigSection('clientPowerWake'),
-      getClientDeviceId(),
-    )
+    return resolveChargerSwitchWakeEntityIdForDevice(getConfigSection('clientPowerWake'), getClientDeviceId())
   })
 
   let lastSwitchState: string | null = null

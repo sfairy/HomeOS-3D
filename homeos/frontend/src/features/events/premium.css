@@ -41,11 +41,19 @@
   box-shadow: 0 0 8px color-mix(in srgb, var(--ev-accent) 45%, rgba(0, 0, 0, 0));
 }
 
-.events-view__card[data-domain="light"] .events-view__card-accent { background: #fde68a; }
-.events-view__card[data-domain="climate"] .events-view__card-accent { background: #fdba74; }
-.events-view__card[data-domain="camera"] .events-view__card-accent { background: #fca5a5; }
+.events-view__card[data-domain="light"] .events-view__card-accent {
+  background: #fde68a;
+}
+.events-view__card[data-domain="climate"] .events-view__card-accent {
+  background: #fdba74;
+}
+.events-view__card[data-domain="camera"] .events-view__card-accent {
+  background: #fca5a5;
+}
 .events-view__card[data-domain="sensor"] .events-view__card-accent,
-.events-view__card[data-domain="binary_sensor"] .events-view__card-accent { background: #6ee7b7; }
+.events-view__card[data-domain="binary_sensor"] .events-view__card-accent {
+  background: #6ee7b7;
+}
 
 .events-view__card:hover {
   border-color: color-mix(in srgb, var(--ev-accent) 28%, rgba(0, 0, 0, 0));

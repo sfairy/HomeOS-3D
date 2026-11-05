@@ -5,10 +5,7 @@ import { Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from
 import { computeOfflineCriticalSet, splitOfflineEntityIds } from '@/shared/device/utils/group-offline.util'
 import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/shared/device/utils/group-battery.util'
 import { formatRelativeFromNow } from '@/shared/utils/format/locale-format.util'
-import type {
-  DeviceGroupEntitiesStoreLike,
-  DeviceGroupUiStoreLike,
-} from '@/shared/device/utils/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/shared/device/utils/group-battery.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
 import type { Component } from 'vue'
 

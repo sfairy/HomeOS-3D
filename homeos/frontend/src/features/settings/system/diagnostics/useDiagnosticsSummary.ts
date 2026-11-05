@@ -80,7 +80,13 @@ export function useDiagnosticsSummary(deps: {
   const memoryDetail = computed(() => diag.value?.memoryDetail ?? null)
 
   const summaryKpis = computed(() => [
-    { key: 'entities', label: '实体数', value: entityCount.value, icon: Layers, accent: 'var(--hos-color-accent-strong)' },
+    {
+      key: 'entities',
+      label: '实体数',
+      value: entityCount.value,
+      icon: Layers,
+      accent: 'var(--hos-color-accent-strong)',
+    },
     { key: 'ws', label: 'WS 客户端', value: wsClients.value, icon: Radio, accent: 'var(--hos-color-accent)' },
     {
       key: 'uptime',
@@ -101,7 +107,13 @@ export function useDiagnosticsSummary(deps: {
   ])
 
   const runtimeKpis = computed(() => [
-    { key: 'entities', label: '实体数', value: entityCount.value, icon: Layers, accent: 'var(--hos-color-accent-strong)' },
+    {
+      key: 'entities',
+      label: '实体数',
+      value: entityCount.value,
+      icon: Layers,
+      accent: 'var(--hos-color-accent-strong)',
+    },
     {
       key: 'uptime',
       label: '运行时间',
@@ -188,9 +200,7 @@ export function useDiagnosticsSummary(deps: {
         id: 'ha',
         icon: PlugZap,
         label: 'Home Assistant',
-        meta: haOk.value
-          ? `${diag.value?.ha?.version || '已连接'} · ${haWsModeLabel.value}`
-          : '未连接',
+        meta: haOk.value ? `${diag.value?.ha?.version || '已连接'} · ${haWsModeLabel.value}` : '未连接',
         tone: haOk.value ? 'ok' : 'bad',
       },
       {
@@ -236,10 +246,7 @@ export function useDiagnosticsSummary(deps: {
         icon: ShieldAlert,
       }
     }
-    const attention =
-      Boolean(diag.value?.entities?.stale) ||
-      cpuPct.value >= 85 ||
-      memPct.value >= BACKEND_MEM_WARN_PCT
+    const attention = Boolean(diag.value?.entities?.stale) || cpuPct.value >= 85 || memPct.value >= BACKEND_MEM_WARN_PCT
     if (attention) {
       return {
         tone: 'warn',

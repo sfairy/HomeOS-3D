@@ -5,9 +5,9 @@
  */
 export interface EntityAreaAttrs {
   /** HA area_registry 中的房间 ID（如 "living_room"） */
-  area_id?: unknown;
+  area_id?: unknown
   /** HA area_registry 中的房间显示名（如 "客厅"） */
-  area_name?: unknown;
+  area_name?: unknown
 }
 
 /**
@@ -15,27 +15,27 @@ export interface EntityAreaAttrs {
  */
 export interface EntityAreaInfo {
   /** 房间 ID（优先使用 area_id，缺失时回退为 area_name） */
-  id: string;
+  id: string
   /** 房间名（优先使用 area_name，缺失时回退为 area_id） */
-  name: string;
+  name: string
   /** 前端展示用文本（当前等同于 name） */
-  display: string;
+  display: string
 }
 
 /** 从实体 attributes 解析房间（优先 registry 补全后的 area_id + area_name） */
 export function resolveEntityArea(attrs?: EntityAreaAttrs | null): EntityAreaInfo | null {
-  const id = String(attrs?.area_id ?? '').trim();
-  const name = String(attrs?.area_name ?? '').trim();
+  const id = String(attrs?.area_id ?? '').trim()
+  const name = String(attrs?.area_name ?? '').trim()
   // 两者皆空表示该实体未分配房间
-  if (!id && !name) return null;
+  if (!id && !name) return null
   // 互为兜底：缺哪个就用另一个补
-  const resolvedId = id || name;
-  const resolvedName = name || id;
+  const resolvedId = id || name
+  const resolvedName = name || id
   return {
     id: resolvedId,
     name: resolvedName,
     display: resolvedName,
-  };
+  }
 }
 
 /**
@@ -48,15 +48,12 @@ export function resolveEntityArea(attrs?: EntityAreaAttrs | null): EntityAreaInf
  * 匹配规则：area_id 或 area_name 任一命中 filterAreaId 即可，
  * 以兼容用户既可能按 ID 也可能按名称筛选的场景。
  */
-export function entityMatchesAreaFilter(
-  attrs: EntityAreaAttrs | undefined,
-  filterAreaId: string,
-): boolean {
-  const filter = String(filterAreaId ?? '').trim();
+export function entityMatchesAreaFilter(attrs: EntityAreaAttrs | undefined, filterAreaId: string): boolean {
+  const filter = String(filterAreaId ?? '').trim()
   // 空筛选 = 不限制，直接放行
-  if (!filter) return true;
-  const area = resolveEntityArea(attrs);
-  if (!area) return false;
+  if (!filter) return true
+  const area = resolveEntityArea(attrs)
+  if (!area) return false
   // 同时匹配 id 与 name，兼容按名称筛选
-  return area.id === filter || area.name === filter;
+  return area.id === filter || area.name === filter
 }

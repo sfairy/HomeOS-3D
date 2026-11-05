@@ -1,23 +1,21 @@
-import { clampNumberWithFallback, normalizeCssColor } from "./_shared";
-import { isClimatePoweredOn, resolveAirflowMotionKind } from "./cover-climate-state";
+import { clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { isClimatePoweredOn, resolveAirflowMotionKind } from './cover-climate-state'
 
-type RenderPropertyBag = any;
+type RenderPropertyBag = any
 
-function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeKind = "other") {
-  const airflowMotionKind = airflowProperties.airflowMotion === "static" ? "static" : "dynamic",
+function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeKind = 'other') {
+  const airflowMotionKind = airflowProperties.airflowMotion === 'static' ? 'static' : 'dynamic',
     airflowColor =
-      airflowModeKind === "cool"
-        ? normalizeCssColor(airflowProperties.airflowCoolColor, "#73c8ff")
-        : airflowModeKind === "heat"
-          ? normalizeCssColor(airflowProperties.airflowHeatColor, "#ff8a65")
-          : normalizeCssColor(airflowProperties.airflowOtherColor, "#ffffff"),
+      airflowModeKind === 'cool'
+        ? normalizeCssColor(airflowProperties.airflowCoolColor, '#73c8ff')
+        : airflowModeKind === 'heat'
+          ? normalizeCssColor(airflowProperties.airflowHeatColor, '#ff8a65')
+          : normalizeCssColor(airflowProperties.airflowOtherColor, '#ffffff'),
     airflowAngleDegrees = clampNumberWithFallback(airflowProperties.airflowAngle, -360, 360, 7),
     airflowLengthRatio = clampNumberWithFallback(airflowProperties.airflowLength, 10, 300, 200) / 100,
     airflowFadeRatio = clampNumberWithFallback(airflowProperties.airflowFadePosition, 15, 100, 50) / 100,
     airflowSpreadValue = clampNumberWithFallback(airflowProperties.airflowSpread, 10, 300, 100),
-    airflowCurveFactor = Math.tanh(
-      clampNumberWithFallback(airflowProperties.airflowCurve, -200, 200, 20) / 140,
-    ),
+    airflowCurveFactor = Math.tanh(clampNumberWithFallback(airflowProperties.airflowCurve, -200, 200, 20) / 140),
     airflowDensityRatio = clampNumberWithFallback(airflowProperties.airflowDensity, 20, 200, 60) / 100,
     airflowIrregularityRatio = clampNumberWithFallback(airflowProperties.airflowIrregularity, 0, 200, 50) / 100,
     airflowThicknessRatio = clampNumberWithFallback(airflowProperties.airflowThickness, 5, 300, 40) / 100,
@@ -30,8 +28,8 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
     streamNearOffset = streamMidOffset + (streamFarOffset - streamMidOffset) * 0.56,
     streamSwayAmplitude = Math.min(70, 44 * Math.sqrt(airflowSpreadValue / 100)),
     pseudoRandom = (randomSeed: any) => {
-      const rawRandomValue = Math.sin(randomSeed * 12.9898) * 43758.5453;
-      return rawRandomValue - Math.floor(rawRandomValue);
+      const rawRandomValue = Math.sin(randomSeed * 12.9898) * 43758.5453
+      return rawRandomValue - Math.floor(rawRandomValue)
     },
     bedPathCount = Math.max(3, Math.min(12, Math.round(8 * airflowDensityRatio))),
     wispStrandCount = Math.max(2, Math.min(4, Math.round(1.5 + 1.2 * airflowDensityRatio))),
@@ -41,11 +39,8 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
       },
       (_pathSlotElement, pathOffsetIndex) => {
         const pathRatio = bedPathCount === 1 ? 0.5 : pathOffsetIndex / (bedPathCount - 1),
-          lateralJitter = (pseudoRandom(pathOffsetIndex + 3) - 0.5) * 10 * airflowIrregularityRatio;
-        return Math.max(
-          10,
-          Math.min(170, 90 + (pathRatio - 0.5) * streamSwayAmplitude * 2 + lateralJitter),
-        );
+          lateralJitter = (pseudoRandom(pathOffsetIndex + 3) - 0.5) * 10 * airflowIrregularityRatio
+        return Math.max(10, Math.min(170, 90 + (pathRatio - 0.5) * streamSwayAmplitude * 2 + lateralJitter))
       },
     ),
     minPathOffset = Math.min(...bedPathOffsets),
@@ -54,29 +49,29 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
     tipDriftAmount = airflowCurveFactor * Math.max(0, tipOffset),
     bedPathStrings = bedPathOffsets.map((pathOffset) => {
       const pathEndOffset = pathOffset + tipDriftAmount,
-        pathQuarterOffset = pathOffset + tipDriftAmount * 0.42;
+        pathQuarterOffset = pathOffset + tipDriftAmount * 0.42
       return (
-        "M" +
+        'M' +
         pathOffset.toFixed(2) +
-        " " +
+        ' ' +
         streamBaseOffset +
-        "L" +
+        'L' +
         pathOffset.toFixed(2) +
-        " " +
+        ' ' +
         streamMidOffset.toFixed(2) +
-        "C" +
+        'C' +
         pathOffset.toFixed(2) +
-        " " +
+        ' ' +
         streamNearOffset.toFixed(2) +
-        " " +
+        ' ' +
         pathQuarterOffset.toFixed(2) +
-        " " +
+        ' ' +
         streamFarOffset.toFixed(2) +
-        " " +
+        ' ' +
         pathEndOffset.toFixed(2) +
-        " " +
+        ' ' +
         streamFarOffset.toFixed(2)
-      );
+      )
     }),
     wispRectMarkupList = bedPathStrings.flatMap((bedPathString, bedPathIndex) =>
       Array.from(
@@ -89,27 +84,19 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
               8,
               Math.min(
                 112,
-                (34 + pseudoRandom(wispSeed) * 42 * (0.7 + airflowIrregularityRatio * 0.3)) *
-                  airflowLengthRatio,
+                (34 + pseudoRandom(wispSeed) * 42 * (0.7 + airflowIrregularityRatio * 0.3)) * airflowLengthRatio,
               ),
             ),
-            wispHeight = Math.max(
-              0.2,
-              Math.min(14, (1.5 + pseudoRandom(wispSeed + 7) * 2.9) * airflowThicknessRatio),
-            ),
+            wispHeight = Math.max(0.2, Math.min(14, (1.5 + pseudoRandom(wispSeed + 7) * 2.9) * airflowThicknessRatio)),
             wispVelocity =
-              airflowSpeedValue *
-              (0.8 + pseudoRandom(wispSeed + 13) * 0.42 * (0.55 + airflowIrregularityRatio * 0.45)),
+              airflowSpeedValue * (0.8 + pseudoRandom(wispSeed + 13) * 0.42 * (0.55 + airflowIrregularityRatio * 0.45)),
             wispPhase =
               (strandSlotIndex / wispStrandCount +
                 bedPathIndex * 0.067 +
                 (pseudoRandom(wispSeed + 19) - 0.5) * 0.08 * airflowIrregularityRatio +
                 1) %
               1,
-            wispOpacity = Math.min(
-              1,
-              airflowStrengthRatio * (0.62 + pseudoRandom(wispSeed + 29) * 0.5),
-            ),
+            wispOpacity = Math.min(1, airflowStrengthRatio * (0.62 + pseudoRandom(wispSeed + 29) * 0.5)),
             wispRectMarkup =
               '<rect x="' +
               (-wispWidth / 2).toFixed(2) +
@@ -131,8 +118,8 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
               (wispHeight * 0.44).toFixed(2) +
               '" rx="' +
               (wispHeight * 0.22).toFixed(2) +
-              '" fill="url(#core)"/>';
-          return airflowMotionKind === "static"
+              '" fill="url(#core)"/>'
+          return airflowMotionKind === 'static'
             ? '<g opacity="' +
                 wispOpacity.toFixed(3) +
                 '">' +
@@ -141,14 +128,14 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
                 bedPathString +
                 '" dur="0.001s" keyPoints="' +
                 wispPhase.toFixed(4) +
-                ";" +
+                ';' +
                 wispPhase.toFixed(4) +
                 '" keyTimes="0;1" fill="freeze" rotate="auto"/></g>'
             : '<g opacity="0">' +
                 wispRectMarkup +
                 '<animate attributeName="opacity" values="0;' +
                 wispOpacity.toFixed(3) +
-                ";" +
+                ';' +
                 wispOpacity.toFixed(3) +
                 ';0" keyTimes="0;.06;.78;1" dur="' +
                 wispVelocity.toFixed(3) +
@@ -160,7 +147,7 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
                 wispVelocity.toFixed(3) +
                 's" begin="' +
                 (-wispVelocity * wispPhase).toFixed(3) +
-                's" rotate="auto" repeatCount="indefinite"/></g>';
+                's" rotate="auto" repeatCount="indefinite"/></g>'
         },
       ),
     ),
@@ -209,32 +196,29 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
             Math.min(1, airflowStrengthRatio * 0.075).toFixed(3) +
             '"/>',
         )
-        .join("") +
-      wispRectMarkupList.join("") +
-      "</g></svg>";
-  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(airflowSvgMarkup);
+        .join('') +
+      wispRectMarkupList.join('') +
+      '</g></svg>'
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(airflowSvgMarkup)
 }
-export function renderAirConditionerAirflowLayer(
-  airflowLayerComponent: any,
-  airflowLayerRenderEnvironment: any,
-) {
-  const airflowLayerProperties = airflowLayerComponent.properties || {};
+export function renderAirConditionerAirflowLayer(airflowLayerComponent: any, airflowLayerRenderEnvironment: any) {
+  const airflowLayerProperties = airflowLayerComponent.properties || {}
   if (
     airflowLayerProperties.airflowVisible === false ||
     !isClimatePoweredOn(airflowLayerComponent, airflowLayerRenderEnvironment)
   )
-    return null;
-  const airflowLayerElement = document.createElement("div");
-  airflowLayerElement.className = "hb-air-conditioner-airflow-layer";
-  const airflowImageElement = document.createElement("img");
+    return null
+  const airflowLayerElement = document.createElement('div')
+  airflowLayerElement.className = 'hb-air-conditioner-airflow-layer'
+  const airflowImageElement = document.createElement('img')
   return (
     (airflowImageElement.src = buildAirflowSvg(
       airflowLayerProperties,
       resolveAirflowMotionKind(airflowLayerComponent, airflowLayerRenderEnvironment),
     )),
-    (airflowImageElement.alt = ""),
+    (airflowImageElement.alt = ''),
     (airflowImageElement.draggable = false),
     airflowLayerElement.append(airflowImageElement),
     airflowLayerElement
-  );
+  )
 }

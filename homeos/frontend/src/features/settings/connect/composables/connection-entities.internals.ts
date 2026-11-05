@@ -8,7 +8,11 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 import { formatShortDateTime } from '@/shared/utils/format/locale-format.util'
 import { buildEntitySyncRecommendations } from '@/shared/recommend/utils/entity-sync-recommend.util'
-import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/composables/config/system-config-core.internals'
+import {
+  handleSystemConfigPatchError,
+  patchSystemConfig,
+  useSystemConfig,
+} from '@/composables/config/system-config-core.internals'
 import { computed, ref } from 'vue'
 
 export function useConnectionEntities(onRefreshSuccess?: () => void | Promise<void>) {

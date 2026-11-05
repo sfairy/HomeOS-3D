@@ -95,9 +95,7 @@ const canPreview = computed(() => {
  * @returns {string}
  */
 const mainLabel = computed(() =>
-  props.item?.type === 'dir'
-    ? `进入文件夹 ${props.item?.name ?? ''}`
-    : `选择文件 ${props.item?.name ?? ''}`,
+  props.item?.type === 'dir' ? `进入文件夹 ${props.item?.name ?? ''}` : `选择文件 ${props.item?.name ?? ''}`,
 )
 </script>
 

@@ -54,10 +54,7 @@ function keyOf(type: string, message: string): string {
  * @param windowMs 合并窗口，默认 2000ms；设为 0 等价于关闭合并
  * @param maxTracked 跟踪表上限，默认 32
  */
-export function createNotifyCoalescer(
-  windowMs = DEFAULT_WINDOW_MS,
-  maxTracked = DEFAULT_MAX_TRACKED,
-): NotifyCoalescer {
+export function createNotifyCoalescer(windowMs = DEFAULT_WINDOW_MS, maxTracked = DEFAULT_MAX_TRACKED): NotifyCoalescer {
   const tracked = new Map<string, Tracked>()
 
   function prune(now: number): void {
@@ -96,4 +93,3 @@ export function createNotifyCoalescer(
     },
   }
 }
-

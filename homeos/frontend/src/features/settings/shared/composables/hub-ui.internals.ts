@@ -77,9 +77,7 @@ export function useSettingsHubRouteSection(
     if (!ids.has(sec)) return
     const current = typeof route.query.section === 'string' ? route.query.section : ''
     if (current === sec) return
-    const nextTab =
-      tabId ||
-      (typeof route.query.tab === 'string' && route.query.tab ? route.query.tab : undefined)
+    const nextTab = tabId || (typeof route.query.tab === 'string' && route.query.tab ? route.query.tab : undefined)
     router.replace({
       path: '/settings',
       query: {

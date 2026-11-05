@@ -24,7 +24,10 @@ import { Users, Home, Link2 } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import { usePresenceEntityConfig } from '@/features/settings/automate/composables/presence-linkage.internals'
-import { useSecurityLinkage, useSettingsSecurityModesLinkageDisplay } from '@/features/settings/automate/composables/security-modes-core.internals'
+import {
+  useSecurityLinkage,
+  useSettingsSecurityModesLinkageDisplay,
+} from '@/features/settings/automate/composables/security-modes-core.internals'
 import LinkageLoadErrorBanner from '@/features/settings/automate/linkage/LoadErrorBanner.vue'
 import LinkageHeroSection from '@/features/settings/automate/linkage/HeroSection.vue'
 import LinkagePresenceSection from '@/features/settings/automate/linkage/PresenceSection.vue'
@@ -65,18 +68,12 @@ const {
   refresh: refreshLinkage,
 } = useSecurityLinkage()
 
-const {
-  personStatCount,
-  atHomeCount,
-  presenceModeLabel,
-  presenceStatusLabel,
-  presetIcon,
-  paramRoute,
-} = useSettingsSecurityModesLinkageDisplay({
-  presencePersons,
-  autoMode,
-  presencePreview,
-})
+const { personStatCount, atHomeCount, presenceModeLabel, presenceStatusLabel, presetIcon, paramRoute } =
+  useSettingsSecurityModesLinkageDisplay({
+    presencePersons,
+    autoMode,
+    presencePreview,
+  })
 
 /** 预设卡片已覆盖的开关不再重复进列表；对照页主开关与预设同键可并存 */
 const automationFlagRows = computed(() => {

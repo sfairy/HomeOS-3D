@@ -7,58 +7,51 @@
  */
 export function bindWeatherInspectorToggles(deps: any): void {
   for (const weatherVisibilityElement of deps.visibilityElements)
-    weatherVisibilityElement.addEventListener("click", (weatherVisibilityEvent: any) => {
+    weatherVisibilityElement.addEventListener('click', (weatherVisibilityEvent: any) => {
       const weatherVisibilityComponentId = deps.getSelectedComponentId(),
-        weatherVisibilityButtonElement = weatherVisibilityEvent.target.closest("button");
-      if (!weatherVisibilityComponentId || !weatherVisibilityButtonElement) return;
+        weatherVisibilityButtonElement = weatherVisibilityEvent.target.closest('button')
+      if (!weatherVisibilityComponentId || !weatherVisibilityButtonElement) return
       const weatherVisibilityEntry = [
-        ["weatherIconVisible", "iconVisible"],
-        ["weatherTemperatureVisible", "temperatureVisible"],
-        ["weatherConditionVisible", "conditionVisible"],
-        ["weatherHumidityVisible", "humidityVisible"],
+        ['weatherIconVisible', 'iconVisible'],
+        ['weatherTemperatureVisible', 'temperatureVisible'],
+        ['weatherConditionVisible', 'conditionVisible'],
+        ['weatherHumidityVisible', 'humidityVisible'],
       ].find(
         ([weatherVisibilityDatasetKey]: any) =>
           weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKey] !== undefined,
-      );
-      if (!weatherVisibilityEntry) return;
-      const [weatherVisibilityDatasetKeyName, weatherVisibilityPropertyName] =
-        weatherVisibilityEntry;
+      )
+      if (!weatherVisibilityEntry) return
+      const [weatherVisibilityDatasetKeyName, weatherVisibilityPropertyName] = weatherVisibilityEntry
       deps.mutateDocument((weatherVisibilityDraftDocument: any) => {
         const weatherVisibilityComponent = deps.findComponent(
           weatherVisibilityDraftDocument,
           weatherVisibilityComponentId,
-        )?.component;
+        )?.component
         !weatherVisibilityComponent ||
-          weatherVisibilityComponent.type !== "weather" ||
+          weatherVisibilityComponent.type !== 'weather' ||
           ((weatherVisibilityComponent.properties = {
             ...(weatherVisibilityComponent.properties || {}),
             [weatherVisibilityPropertyName]:
-              weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKeyName] === "on",
+              weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKeyName] === 'on',
           }),
-          deps.fitWeatherComponent(
-            weatherVisibilityComponent,
-            weatherVisibilityComponent.properties,
-          ));
-      });
-    });
-  deps.forecastEnabledElement.addEventListener("click", (weatherForecastEvent: any) => {
+          deps.fitWeatherComponent(weatherVisibilityComponent, weatherVisibilityComponent.properties))
+      })
+    })
+  deps.forecastEnabledElement.addEventListener('click', (weatherForecastEvent: any) => {
     const weatherForecastComponentId = deps.getSelectedComponentId(),
-      weatherForecastButtonElement = weatherForecastEvent.target.closest(
-        "[data-weather-forecast-enabled]",
-      );
-    if (!weatherForecastComponentId || !weatherForecastButtonElement) return;
-    const weatherForecastEnabledValue =
-      weatherForecastButtonElement.dataset.weatherForecastEnabled === "on";
+      weatherForecastButtonElement = weatherForecastEvent.target.closest('[data-weather-forecast-enabled]')
+    if (!weatherForecastComponentId || !weatherForecastButtonElement) return
+    const weatherForecastEnabledValue = weatherForecastButtonElement.dataset.weatherForecastEnabled === 'on'
     deps.mutateDocument((weatherForecastDraftDocument: any) => {
       const weatherForecastComponent = deps.findComponent(
         weatherForecastDraftDocument,
         weatherForecastComponentId,
-      )?.component;
-      weatherForecastComponent?.type === "weather" &&
+      )?.component
+      weatherForecastComponent?.type === 'weather' &&
         (weatherForecastComponent.properties = {
           ...(weatherForecastComponent.properties || {}),
           forecastEnabled: weatherForecastEnabledValue,
-        });
-    });
-  });
+        })
+    })
+  })
 }

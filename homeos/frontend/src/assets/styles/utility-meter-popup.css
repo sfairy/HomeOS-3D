@@ -28,7 +28,12 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
-.um-header__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.um-header__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
 
 .um-header__title {
   font-size: var(--premium-fs-body);
@@ -67,7 +72,8 @@
 .um-account-select:focus {
   background: rgba(255, 255, 255, 0.07);
   border-color: color-mix(in srgb, var(--um-accent) 35%, rgba(0, 0, 0, 0));
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
 }
 
 .um-balance {
@@ -196,9 +202,15 @@
   color: var(--hos-text-secondary);
 }
 
-.um-usage { margin-bottom: 8px; }
+.um-usage {
+  margin-bottom: 8px;
+}
 
-.um-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.um-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
 
 .um-stat-card {
   position: relative;
@@ -207,7 +219,10 @@
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--premium-border);
   cursor: pointer;
-  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease;
   min-width: 0;
 }
 
@@ -234,8 +249,12 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
-.um-stat-trend.up { color: #f87171; }
-.um-stat-trend.down { color: #4ade80; }
+.um-stat-trend.up {
+  color: #f87171;
+}
+.um-stat-trend.down {
+  color: #4ade80;
+}
 
 .um-stat-label {
   font-size: var(--premium-fs-micro);
@@ -273,8 +292,12 @@
   line-height: 1;
 }
 
-.um-stat-metric--usage .um-stat-val { color: var(--um-usage); }
-.um-stat-metric--cost .um-stat-val { color: var(--um-cost); }
+.um-stat-metric--usage .um-stat-val {
+  color: var(--um-usage);
+}
+.um-stat-metric--cost .um-stat-val {
+  color: var(--um-cost);
+}
 
 .um-stat-u {
   font-size: var(--premium-fs-micro);
@@ -293,7 +316,9 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--premium-border);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .um-daily-bar:hover {
@@ -301,7 +326,11 @@
   border-color: color-mix(in srgb, var(--um-accent) 28%, rgba(0, 0, 0, 0));
 }
 
-.um-daily-label { font-size: var(--premium-fs-caption); font-weight: 600; color: var(--hos-text-secondary); }
+.um-daily-label {
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+}
 
 .um-daily-vals {
   display: flex;
@@ -311,11 +340,27 @@
   gap: 4px;
 }
 
-.um-daily-val { font-size: var(--premium-fs-caption); font-weight: 800; font-variant-numeric: tabular-nums; }
-.um-daily-val--usage { color: var(--um-usage); }
-.um-daily-val--cost { color: var(--um-cost); }
-.um-daily-u { font-size: var(--premium-fs-micro); color: var(--hos-text-secondary); font-weight: 600; }
-.um-daily-sep { font-size: var(--premium-fs-caption); color: var(--hos-text-secondary); margin: 0 2px; }
+.um-daily-val {
+  font-size: var(--premium-fs-caption);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.um-daily-val--usage {
+  color: var(--um-usage);
+}
+.um-daily-val--cost {
+  color: var(--um-cost);
+}
+.um-daily-u {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  font-weight: 600;
+}
+.um-daily-sep {
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  margin: 0 2px;
+}
 
 .um-exp-icon {
   width: 14px;
@@ -326,7 +371,9 @@
   align-self: center;
 }
 
-.um-exp-icon--open { transform: rotate(180deg); }
+.um-exp-icon--open {
+  transform: rotate(180deg);
+}
 
 /* ---- 展开面板（气/电/水） ---- */
 .gas-expand,
@@ -436,8 +483,12 @@
 }
 
 /* 汇总/列表数值的颜色辅助 */
-.green { color: var(--um-usage); }
-.yellow { color: var(--um-cost); }
+.green {
+  color: var(--um-usage);
+}
+.yellow {
+  color: var(--um-cost);
+}
 
 /* 图表容器 */
 .gas-chart-container,
@@ -477,9 +528,18 @@
   border: 1px solid var(--premium-border-strong);
 }
 
-.gas-cal-nav:hover { color: var(--gas-accent); border-color: color-mix(in srgb, var(--gas-accent) 35%, rgba(0, 0, 0, 0)); }
-.ele-cal-nav:hover { color: var(--ele-accent); border-color: color-mix(in srgb, var(--ele-accent) 35%, rgba(0, 0, 0, 0)); }
-.w-cal-nav:hover { color: var(--um-accent); border-color: color-mix(in srgb, var(--um-accent) 35%, rgba(0, 0, 0, 0)); }
+.gas-cal-nav:hover {
+  color: var(--gas-accent);
+  border-color: color-mix(in srgb, var(--gas-accent) 35%, rgba(0, 0, 0, 0));
+}
+.ele-cal-nav:hover {
+  color: var(--ele-accent);
+  border-color: color-mix(in srgb, var(--ele-accent) 35%, rgba(0, 0, 0, 0));
+}
+.w-cal-nav:hover {
+  color: var(--um-accent);
+  border-color: color-mix(in srgb, var(--um-accent) 35%, rgba(0, 0, 0, 0));
+}
 
 .gas-cal-title,
 .ele-cal-title,
@@ -572,7 +632,9 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-.gas-cal-cell--has:hover { background: color-mix(in srgb, var(--gas-accent) 22%, rgba(0, 0, 0, 0)); }
+.gas-cal-cell--has:hover {
+  background: color-mix(in srgb, var(--gas-accent) 22%, rgba(0, 0, 0, 0));
+}
 
 .ele-cal-cell--has {
   background: var(--ele-accent-soft);
@@ -580,7 +642,9 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-.ele-cal-cell--has:hover { background: color-mix(in srgb, var(--ele-accent) 22%, rgba(0, 0, 0, 0)); }
+.ele-cal-cell--has:hover {
+  background: color-mix(in srgb, var(--ele-accent) 22%, rgba(0, 0, 0, 0));
+}
 
 .w-cal-cell--has {
   background: var(--um-accent-soft);
@@ -588,11 +652,19 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-.w-cal-cell--has:hover { background: color-mix(in srgb, var(--um-accent) 22%, rgba(0, 0, 0, 0)); }
+.w-cal-cell--has:hover {
+  background: color-mix(in srgb, var(--um-accent) 22%, rgba(0, 0, 0, 0));
+}
 
-.gas-cal-cell--today { border: 1px solid color-mix(in srgb, var(--gas-accent) 45%, rgba(0, 0, 0, 0)); }
-.ele-cal-cell--today { border: 1px solid color-mix(in srgb, var(--ele-accent) 45%, rgba(0, 0, 0, 0)); }
-.w-cal-cell--today { border: 1px solid color-mix(in srgb, var(--um-accent) 45%, rgba(0, 0, 0, 0)); }
+.gas-cal-cell--today {
+  border: 1px solid color-mix(in srgb, var(--gas-accent) 45%, rgba(0, 0, 0, 0));
+}
+.ele-cal-cell--today {
+  border: 1px solid color-mix(in srgb, var(--ele-accent) 45%, rgba(0, 0, 0, 0));
+}
+.w-cal-cell--today {
+  border: 1px solid color-mix(in srgb, var(--um-accent) 45%, rgba(0, 0, 0, 0));
+}
 
 .gas-cal-cell--future,
 .ele-cal-cell--future,

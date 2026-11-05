@@ -168,7 +168,6 @@ export function useSecurityModesEmergency() {
     return emergencyConfig.value.actions?.length || 0
   }
 
-
   return {
     emergencyConfig,
     activeEmergencyPresetId,

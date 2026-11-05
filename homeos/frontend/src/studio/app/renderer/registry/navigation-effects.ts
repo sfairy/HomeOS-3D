@@ -1,5 +1,5 @@
-import { clampNumberWithFallback, normalizeCssColor } from "./_shared";
-import { randomUuid } from "../../shared/util/random-id";
+import { clampNumberWithFallback, normalizeCssColor } from './_shared'
+import { randomUuid } from '../../shared/util/random-id'
 
 export function createNavigationEffectsSvg(
   navigationComponent: any,
@@ -16,27 +16,26 @@ export function createNavigationEffectsSvg(
     frameInset = Math.max(0.5, frameWidth / 2 + 0.5),
     innerWidth = Math.max(1, 236 - frameInset * 2),
     innerHeight = Math.max(1, svgHeight - frameInset * 2),
-    cornerRadius =
-      Math.min(innerWidth, innerHeight) * clampNumberWithFallback(visualProperties.radius, 0, 0.5, 0.5),
+    cornerRadius = Math.min(innerWidth, innerHeight) * clampNumberWithFallback(visualProperties.radius, 0, 0.5, 0.5),
     glowOpacity = Math.min(1, 0.38 * glowIntensity),
     edgeGlowSpread = Math.max(0, Math.min(innerWidth, innerHeight) * 0.42 * glowSpreadScale),
     innerGlowSpread = Math.max(0, Math.min(innerWidth, innerHeight) * 0.095 * glowSpreadScale),
     centerX = 236 / 2,
     centerY = svgHeight / 2,
-    frameColor = normalizeCssColor(visualProperties.frameColor, "#d9e0e6"),
-    glowColor = normalizeCssColor(visualProperties.glowColor, "#f2f6fa"),
+    frameColor = normalizeCssColor(visualProperties.frameColor, '#d9e0e6'),
+    glowColor = normalizeCssColor(visualProperties.glowColor, '#f2f6fa'),
     frameAngle = clampNumberWithFallback(visualProperties.frameAngle, 0, 360, 45),
     glowAngle = clampNumberWithFallback(visualProperties.glowAngle, 0, 360, 45),
     intensityDivisor = isActiveState ? 0.98 : 0.48,
     scaleOpacity = (opacityInput: any) =>
       Math.max(0, Math.min(1, (opacityInput * intensityMultiplier) / intensityDivisor)),
-    gradientId = "navigation-" + randomUuid(),
-    svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    gradientId = 'navigation-' + randomUuid(),
+    svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   return (
-    svgElement.classList.add("hb-navigation-effects"),
-    svgElement.setAttribute("viewBox", "0 0 236 " + svgHeight),
-    svgElement.setAttribute("preserveAspectRatio", "none"),
-    svgElement.setAttribute("aria-hidden", "true"),
+    svgElement.classList.add('hb-navigation-effects'),
+    svgElement.setAttribute('viewBox', '0 0 236 ' + svgHeight),
+    svgElement.setAttribute('preserveAspectRatio', 'none'),
+    svgElement.setAttribute('aria-hidden', 'true'),
     (svgElement.innerHTML =
       '\n    <defs>\n      <linearGradient id="navigation-edge-' +
       gradientId +
@@ -46,9 +45,9 @@ export function createNavigationEffectsSvg(
       centerY +
       '" gradientTransform="rotate(' +
       frameAngle +
-      " " +
+      ' ' +
       centerX +
-      " " +
+      ' ' +
       centerY +
       ')">\n        <stop offset="0" stop-color="' +
       frameColor +
@@ -70,9 +69,9 @@ export function createNavigationEffectsSvg(
       centerY +
       '" gradientTransform="rotate(' +
       glowAngle +
-      " " +
+      ' ' +
       centerX +
-      " " +
+      ' ' +
       centerY +
       ')">\n        <stop offset="0" stop-color="' +
       glowColor +
@@ -123,8 +122,8 @@ export function createNavigationEffectsSvg(
           '" filter="url(#navigation-soft-light-' +
           gradientId +
           ')"/></g>'
-        : "") +
-      "\n    " +
+        : '') +
+      '\n    ' +
       (visualProperties.frameVisible !== false
         ? '<rect x="' +
           frameInset +
@@ -141,23 +140,23 @@ export function createNavigationEffectsSvg(
           ')" stroke-width="' +
           frameWidth +
           '"/>'
-        : "") +
-      "\n  "),
+        : '') +
+      '\n  '),
     svgElement
-  );
+  )
 }
 export function navigationButtonIsActive({
-  targetPage = "",
-  currentPagePath = "",
-  entityId: navigationEntityId = "",
+  targetPage = '',
+  currentPagePath = '',
+  entityId: navigationEntityId = '',
   entityActive: isEntityActive = false,
-  previewState: previewStateValue = "auto",
+  previewState: previewStateValue = 'auto',
 } = {}) {
-  return previewStateValue === "on"
+  return previewStateValue === 'on'
     ? true
-    : previewStateValue === "off"
+    : previewStateValue === 'off'
       ? false
       : targetPage
         ? targetPage === currentPagePath
-        : !!(navigationEntityId && isEntityActive);
+        : !!(navigationEntityId && isEntityActive)
 }

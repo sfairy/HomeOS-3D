@@ -4,7 +4,13 @@ import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 import { useToastStore } from "@store/shared/stores/toast";
 import DiagnosticList from "./DiagnosticList.vue";
-import { asText, type DiagnosticCheck, type SettingsForm, type SettingsPayload, type SettingsPlaceholders } from "./types";
+import {
+  asText,
+  type DiagnosticCheck,
+  type SettingsForm,
+  type SettingsPayload,
+  type SettingsPlaceholders,
+} from "./types";
 
 const props = defineProps<{
   form: SettingsForm;
@@ -62,18 +68,10 @@ function channelBadge(configured: boolean, fromDatabase: boolean, channel: strin
 }
 
 const alipayBadge = computed(() =>
-  channelBadge(
-    Boolean(alipaySettings().configured),
-    Boolean(alipaySettings().appIdFromDatabase),
-    "alipay",
-  ),
+  channelBadge(Boolean(alipaySettings().configured), Boolean(alipaySettings().appIdFromDatabase), "alipay"),
 );
 const wechatBadge = computed(() =>
-  channelBadge(
-    Boolean(wechatSettings().configured),
-    Boolean(wechatSettings().mchIdFromDatabase),
-    "wechat",
-  ),
+  channelBadge(Boolean(wechatSettings().configured), Boolean(wechatSettings().mchIdFromDatabase), "wechat"),
 );
 
 const alipayEffectiveUrls = computed(() => {

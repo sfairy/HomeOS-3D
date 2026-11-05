@@ -1,7 +1,6 @@
 /** * 通信账户信息弹窗 * 展示余额、月费、欠费及套餐配额（电信/联通） */
 
 <script setup>
-
 import AnchoredPopupShell from '@/components/entities/popups/AnchoredPopupShell.vue'
 
 import CommInfoHeader from '@/components/entities/popups/comm-info/CommInfoHeader.vue'
@@ -16,10 +15,7 @@ import { useCommInfoPopup } from '@/composables/energy/useCommInfoPopup'
 
 import '@/components/entities/popups/comm-info/popup.css'
 
-
-
 const props = defineProps({
-
   entityId: { type: String, default: '' },
 
   title: { type: String, default: '' },
@@ -31,15 +27,11 @@ const props = defineProps({
   anchorX: { type: Number, default: null },
 
   anchorY: { type: Number, default: null },
-
 })
 
 defineEmits(['close'])
 
-
-
 const {
-
   activeEntityId,
 
   commBrand,
@@ -71,9 +63,7 @@ const {
   quotaCards,
 
   flowBreakdown,
-
 } = useCommInfoPopup(props)
-
 </script>
 
 

@@ -194,10 +194,7 @@ export function mapSecurityEventRow(row: SecurityEventRow | null | undefined): S
  * @param filter 过滤器字符串
  * @returns 过滤后的列表
  */
-export function filterSecurityEvents(
-  events: SecurityEventDisplayItem[],
-  filter: string | null | undefined,
-) {
+export function filterSecurityEvents(events: SecurityEventDisplayItem[], filter: string | null | undefined) {
   if (!filter || filter === 'all') return events
   if (typeof filter === 'string' && filter.startsWith('zone:')) {
     const zoneId = filter.slice(5)
@@ -214,10 +211,7 @@ export function filterSecurityEvents(
  * @param withinMs 时间窗口毫秒数，默认 24 小时
  * @returns 时间窗口内的联动失败事件
  */
-export function recentLinkageFailures(
-  events: SecurityEventDisplayItem[],
-  withinMs = 24 * 60 * 60 * 1000,
-) {
+export function recentLinkageFailures(events: SecurityEventDisplayItem[], withinMs = 24 * 60 * 60 * 1000) {
   const cutoff = Date.now() - withinMs
   return events.filter((e) => e.linkageFailure && e.ts >= cutoff)
 }

@@ -1,38 +1,38 @@
-import { mergeGeometries } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
+import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 
 /** 做几何签名 / 合批时读到的最小 Attribute 结构。 */
 type GeometryAttributeLike = {
-  version: number;
-  count: number;
-  itemSize: number;
+  version: number
+  count: number
+  itemSize: number
   /** 只有交错缓冲有； */
-  data?: { version?: number };
-};
+  data?: { version?: number }
+}
 
 /** 反射合批通道的外部依赖。 */
 type ReflectionPassesOptions = {
-  THREE: any;
+  THREE: any
   /** 一批建完后请求下一帧。 */
-  requestFrame?: () => void;
+  requestFrame?: () => void
   /** 把建批任务挪到空闲时段； */
-  scheduleWork?: (task: () => void) => () => void;
+  scheduleWork?: (task: () => void) => () => void
   /** 合批代理几何的总字节上限。 */
-  maxBytes?: number;
+  maxBytes?: number
   /** 小物件代理的最大直径（米）。 */
-  maxDetailDiameter?: number;
+  maxDetailDiameter?: number
   /** 小物件代理的最大屏幕像素尺寸。 */
-  maxDetailPixels?: number;
-};
+  maxDetailPixels?: number
+}
 
 function scheduleIdleTask(task: any) {
-  if (typeof globalThis.requestIdleCallback === "function") {
+  if (typeof globalThis.requestIdleCallback === 'function') {
     const idleCallbackId = requestIdleCallback(task, {
       timeout: 250,
-    });
-    return () => cancelIdleCallback(idleCallbackId);
+    })
+    return () => cancelIdleCallback(idleCallbackId)
   }
-  const timeoutId = setTimeout(task, 0);
-  return () => clearTimeout(timeoutId);
+  const timeoutId = setTimeout(task, 0)
+  return () => clearTimeout(timeoutId)
 }
 export function createReflectionPasses({
   THREE: three,
@@ -66,35 +66,33 @@ export function createReflectionPasses({
     expectedLocalMatrix = new three.Matrix4(),
     worldScaleVector = new three.Vector3(),
     projectedCenter = new three.Vector4(),
-    viewProjectionMatrix = new three.Matrix4();
+    viewProjectionMatrix = new three.Matrix4()
   let screenScaleFactor = 0,
     geometryMatchMap: any = null,
     pendingBatches: any = [],
     cancelScheduledWork: any = null,
-    isDisposed = false;
-  const defaultMaterialCacheKey = three.Material.prototype.customProgramCacheKey.call(
-      new three.Material(),
-    ),
+    isDisposed = false
+  const defaultMaterialCacheKey = three.Material.prototype.customProgramCacheKey.call(new three.Material()),
     createGeometryKey = (geometry: any) => ({
       index: geometry.index,
       version: geometry.index?.version,
       start: geometry.drawRange.start,
       count: geometry.drawRange.count,
-      attributes: Object.entries(
-        geometry.attributes as Record<string, GeometryAttributeLike>,
-      ).map(([attributeName, sourceAttribute]) => ({
-        name: attributeName,
-        attribute: sourceAttribute,
-        version: sourceAttribute.version,
-        dataVersion: sourceAttribute.data?.version,
-        count: sourceAttribute.count,
-      })),
+      attributes: Object.entries(geometry.attributes as Record<string, GeometryAttributeLike>).map(
+        ([attributeName, sourceAttribute]) => ({
+          name: attributeName,
+          attribute: sourceAttribute,
+          version: sourceAttribute.version,
+          dataVersion: sourceAttribute.data?.version,
+          count: sourceAttribute.count,
+        }),
+      ),
     }),
     isGeometryKeyCurrent = (entry: any) => {
       const objectGeometry = entry.object.geometry,
-        geometryKey = entry.key;
-      if (objectGeometry !== entry.geometry) return false;
-      if (geometryMatchMap?.has(geometryKey)) return geometryMatchMap.get(geometryKey);
+        geometryKey = entry.key
+      if (objectGeometry !== entry.geometry) return false
+      if (geometryMatchMap?.has(geometryKey)) return geometryMatchMap.get(geometryKey)
       const isKeyMatch =
         geometryKey.index === objectGeometry.index &&
         geometryKey.version === objectGeometry.index?.version &&
@@ -102,34 +100,34 @@ export function createReflectionPasses({
         geometryKey.count === objectGeometry.drawRange.count &&
         Object.keys(objectGeometry.attributes).length === geometryKey.attributes.length &&
         geometryKey.attributes.every((attributeKey: any) => {
-          const liveAttribute = objectGeometry.attributes[attributeKey.name];
+          const liveAttribute = objectGeometry.attributes[attributeKey.name]
           return (
             liveAttribute === attributeKey.attribute &&
             liveAttribute.version === attributeKey.version &&
             liveAttribute.data?.version === attributeKey.dataVersion &&
             liveAttribute.count === attributeKey.count
-          );
-        });
-      return (geometryMatchMap?.set(geometryKey, isKeyMatch), isKeyMatch);
+          )
+        })
+      return (geometryMatchMap?.set(geometryKey, isKeyMatch), isKeyMatch)
     },
     isVisibleInHierarchy = (sceneObject: any) => {
-      for (let node = sceneObject; node; node = node.parent) if (!node.visible) return false;
-      return true;
-    };
+      for (let node = sceneObject; node; node = node.parent) if (!node.visible) return false
+      return true
+    }
   function findFloorOwner(startObject: any) {
     for (let ancestor = startObject.parent; ancestor; ancestor = ancestor.parent) {
-      const floorId = ancestor.userData.floorId || ancestor.userData.regionFloorId;
+      const floorId = ancestor.userData.floorId || ancestor.userData.regionFloorId
       if (floorId)
         return {
           object: ancestor,
           id: String(floorId),
-        };
+        }
     }
-    return null;
+    return null
   }
   function isSimpleMesh(candidateMesh: any) {
     const candidateGeometry = candidateMesh.geometry,
-      candidateMaterial = candidateMesh.material;
+      candidateMaterial = candidateMesh.material
     return (
       candidateMesh.isMesh &&
       !candidateMesh.children.length &&
@@ -151,16 +149,16 @@ export function createReflectionPasses({
       !candidateMaterial.clippingPlanes?.length &&
       !candidateMesh.userData.reflectionOverlay &&
       !candidateMesh.userData.regionReceiverKind &&
-      !["background", "grid", "outline"].includes(candidateMesh.userData.exportRole)
-    );
+      !['background', 'grid', 'outline'].includes(candidateMesh.userData.exportRole)
+    )
   }
   function isPlainMaterial(checkedMaterial: any) {
     return (
       checkedMaterial.onBeforeCompile === three.Material.prototype.onBeforeCompile ||
       (checkedMaterial.userData.plan2RegionMaterial &&
         !checkedMaterial.userData.plan2DetailedSurface &&
-        checkedMaterial.customProgramCacheKey().split("|plan2-")[0] === defaultMaterialCacheKey)
-    );
+        checkedMaterial.customProgramCacheKey().split('|plan2-')[0] === defaultMaterialCacheKey)
+    )
   }
   function getReflectionMaterial(sourceMaterialNode: any) {
     if (
@@ -179,16 +177,16 @@ export function createReflectionPasses({
         !sourceMaterialNode.metalnessMap) ||
       (!sourceMaterialNode.userData.plan2RegionMaterial && !isPlainMaterial(sourceMaterialNode))
     )
-      return sourceMaterialNode;
-    let materialCacheEntry = materialCopyMap.get(sourceMaterialNode);
+      return sourceMaterialNode
+    let materialCacheEntry = materialCopyMap.get(sourceMaterialNode)
     if (
       (materialCacheEntry &&
         materialCacheEntry.version !== sourceMaterialNode.version &&
         (materialCacheEntry.release(), (materialCacheEntry = null)),
       !materialCacheEntry)
     ) {
-      const newReflectionMaterial = sourceMaterialNode.clone();
-      ((newReflectionMaterial.roughness = 1),
+      const newReflectionMaterial = sourceMaterialNode.clone()
+      ;(newReflectionMaterial.roughness = 1),
         (newReflectionMaterial.metalness = 0),
         (newReflectionMaterial.envMap = null),
         (newReflectionMaterial.normalMap =
@@ -202,34 +200,34 @@ export function createReflectionPasses({
           (newReflectionMaterial.iridescence = 0),
           (newReflectionMaterial.anisotropy = 0)),
         (newReflectionMaterial.onBeforeCompile = function (shader: any, renderer: any) {
-          (sourceMaterialNode.onBeforeCompile.call(this, shader, renderer),
+          sourceMaterialNode.onBeforeCompile.call(this, shader, renderer),
             sourceMaterialNode.userData.plan2DetailedSurface &&
-              ((shader.fragmentShader = "uniform mat4 plan2ViewToWorld;\n" + shader.fragmentShader),
+              ((shader.fragmentShader = 'uniform mat4 plan2ViewToWorld;\n' + shader.fragmentShader),
               (shader.fragmentShader = shader.fragmentShader
                 .replace(
-                  "#include <lights_fragment_begin>",
-                  "\n            vec3 reflectionNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n            float reflectionUp = reflectionNormal.y * 0.5 + 0.5;\n            float reflectionKey = max(dot(reflectionNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n            vec3 reflectionTint = mix(vec3(0.82, 0.85, 0.91), vec3(1.0), reflectionUp);\n            reflectedLight.indirectDiffuse = diffuseColor.rgb * reflectionTint * (0.30 + 0.40 * reflectionUp + 0.18 * reflectionKey);\n          ",
+                  '#include <lights_fragment_begin>',
+                  '\n            vec3 reflectionNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n            float reflectionUp = reflectionNormal.y * 0.5 + 0.5;\n            float reflectionKey = max(dot(reflectionNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n            vec3 reflectionTint = mix(vec3(0.82, 0.85, 0.91), vec3(1.0), reflectionUp);\n            reflectedLight.indirectDiffuse = diffuseColor.rgb * reflectionTint * (0.30 + 0.40 * reflectionUp + 0.18 * reflectionKey);\n          ',
                 )
-                .replace("#include <lights_fragment_maps>", "")
-                .replace("#include <lights_fragment_end>", ""))));
+                .replace('#include <lights_fragment_maps>', '')
+                .replace('#include <lights_fragment_end>', '')))
         }),
         (newReflectionMaterial.customProgramCacheKey = () =>
-          sourceMaterialNode.customProgramCacheKey() + "|reflection-light-v1"),
+          sourceMaterialNode.customProgramCacheKey() + '|reflection-light-v1'),
         (materialCacheEntry = {
           copy: newReflectionMaterial,
           version: sourceMaterialNode.version,
           release() {
-            (sourceMaterialNode.removeEventListener("dispose", materialCacheEntry.release),
+            sourceMaterialNode.removeEventListener('dispose', materialCacheEntry.release),
               newReflectionMaterial.dispose(),
               materialCopyMap.delete(sourceMaterialNode),
-              (stats.materials = materialCopyMap.size));
+              (stats.materials = materialCopyMap.size)
           },
         }),
-        sourceMaterialNode.addEventListener("dispose", materialCacheEntry.release),
+        sourceMaterialNode.addEventListener('dispose', materialCacheEntry.release),
         materialCopyMap.set(sourceMaterialNode, materialCacheEntry),
-        (stats.materials = materialCopyMap.size));
+        (stats.materials = materialCopyMap.size)
     }
-    const reflectionMaterial = materialCacheEntry.copy;
+    const reflectionMaterial = materialCacheEntry.copy
     return (
       reflectionMaterial.color.copy(sourceMaterialNode.color),
       reflectionMaterial.emissive.copy(sourceMaterialNode.emissive),
@@ -242,109 +240,90 @@ export function createReflectionPasses({
       (reflectionMaterial.aoMap = sourceMaterialNode.aoMap),
       (reflectionMaterial.aoMapIntensity = sourceMaterialNode.aoMapIntensity),
       reflectionMaterial
-    );
+    )
   }
   function clearPreparedBatches() {
-    (cancelScheduledWork?.(),
-      (cancelScheduledWork = null),
-      (pendingBatches = []),
-      (stats.pending = 0));
-    for (const staleBatch of batchRecords) staleBatch.dispose();
-    ((batchRecords.length = 0),
+    cancelScheduledWork?.(), (cancelScheduledWork = null), (pendingBatches = []), (stats.pending = 0)
+    for (const staleBatch of batchRecords) staleBatch.dispose()
+    ;(batchRecords.length = 0),
       (smallEntries.length = 0),
       smallEntriesByFloorId.clear(),
-      (stats.batches = stats.bytes = 0));
+      (stats.batches = stats.bytes = 0)
   }
   function scheduleQueuedBatches() {
-    ((stats.pending = pendingBatches.length),
+    ;(stats.pending = pendingBatches.length),
       !(isDisposed || cancelScheduledWork || !pendingBatches.length) &&
         (cancelScheduledWork = scheduleWork(() => {
-          cancelScheduledWork = null;
-          const nextBatch = pendingBatches.shift();
-          stats.pending = pendingBatches.length;
+          cancelScheduledWork = null
+          const nextBatch = pendingBatches.shift()
+          stats.pending = pendingBatches.length
           try {
-            buildBatchProxy(nextBatch);
+            buildBatchProxy(nextBatch)
           } catch {
-            nextBatch.dispose();
+            nextBatch.dispose()
           } finally {
-            pendingBatches.length ? scheduleQueuedBatches() : requestFrame();
+            pendingBatches.length ? scheduleQueuedBatches() : requestFrame()
           }
-        })));
+        }))
   }
   function buildBatchProxy(buildingBatch: any) {
-    if (isDisposed || buildingBatch.dead || !buildingBatch.entries.every(isGeometryKeyCurrent))
-      return;
+    if (isDisposed || buildingBatch.dead || !buildingBatch.entries.every(isGeometryKeyCurrent)) return
     const batchBytes = buildingBatch.entries.reduce(
       (accumulatedBytes: any, sourceEntry: any) =>
         accumulatedBytes +
-        Object.values(
-          sourceEntry.geometry.attributes as Record<string, GeometryAttributeLike>,
-        ).reduce(
-          (attributeBytes, countedAttribute) =>
-            attributeBytes + countedAttribute.count * countedAttribute.itemSize * 4,
+        Object.values(sourceEntry.geometry.attributes as Record<string, GeometryAttributeLike>).reduce(
+          (attributeBytes, countedAttribute) => attributeBytes + countedAttribute.count * countedAttribute.itemSize * 4,
           0,
         ) +
         (sourceEntry.geometry.index?.count ?? sourceEntry.geometry.attributes.position.count) * 8,
       0,
-    );
-    if (stats.bytes + batchBytes > maxBytes) return;
-    const geometryParts: any[] = [];
+    )
+    if (stats.bytes + batchBytes > maxBytes) return
+    const geometryParts: any[] = []
     try {
       for (const buildEntry of buildingBatch.entries) {
-        const partGeometry = new three.BufferGeometry();
-        geometryParts.push(partGeometry);
+        const partGeometry = new three.BufferGeometry()
+        geometryParts.push(partGeometry)
         for (const [mergedAttributeName, mergedAttribute] of Object.entries(
           buildEntry.geometry.attributes as Record<string, GeometryAttributeLike>,
         )) {
-          const attributeFloatArray = new Float32Array(
-              mergedAttribute.count * mergedAttribute.itemSize,
-            ),
-            componentGetters = ["getX", "getY", "getZ", "getW"];
+          const attributeFloatArray = new Float32Array(mergedAttribute.count * mergedAttribute.itemSize),
+            componentGetters = ['getX', 'getY', 'getZ', 'getW']
           for (let vertexIndex = 0; vertexIndex < mergedAttribute.count; vertexIndex++)
-            for (
-              let componentIndex = 0;
-              componentIndex < mergedAttribute.itemSize;
-              componentIndex++
-            )
-              attributeFloatArray[vertexIndex * mergedAttribute.itemSize + componentIndex] =
-                (mergedAttribute as any)[componentGetters[componentIndex]](vertexIndex);
+            for (let componentIndex = 0; componentIndex < mergedAttribute.itemSize; componentIndex++)
+              attributeFloatArray[vertexIndex * mergedAttribute.itemSize + componentIndex] = (mergedAttribute as any)[
+                componentGetters[componentIndex]
+              ](vertexIndex)
           partGeometry.setAttribute(
             mergedAttributeName,
             new three.BufferAttribute(attributeFloatArray, mergedAttribute.itemSize),
-          );
+          )
         }
-        const vertexCount =
-            buildEntry.geometry.index?.count ?? buildEntry.geometry.attributes.position.count,
-          vertexIndexArray = new Uint32Array(vertexCount);
+        const vertexCount = buildEntry.geometry.index?.count ?? buildEntry.geometry.attributes.position.count,
+          vertexIndexArray = new Uint32Array(vertexCount)
         for (let sourceVertexIndex = 0; sourceVertexIndex < vertexCount; sourceVertexIndex++)
           vertexIndexArray[sourceVertexIndex] = buildEntry.geometry.index
             ? buildEntry.geometry.index.getX(sourceVertexIndex)
-            : sourceVertexIndex;
-        (partGeometry.setIndex(new three.BufferAttribute(vertexIndexArray, 1)),
-          partGeometry.applyMatrix4(buildEntry.matrix));
+            : sourceVertexIndex
+        partGeometry.setIndex(new three.BufferAttribute(vertexIndexArray, 1)),
+          partGeometry.applyMatrix4(buildEntry.matrix)
       }
-      const mergedGeometry = mergeGeometries(geometryParts);
-      if (!mergedGeometry) return;
-      ((buildingBatch.geometry = mergedGeometry),
-        (buildingBatch.partialGeometry = new three.BufferGeometry()));
-      for (const [partialAttributeName, partialAttribute] of Object.entries(
-        mergedGeometry.attributes,
-      ))
-        buildingBatch.partialGeometry.setAttribute(partialAttributeName, partialAttribute);
-      (buildingBatch.partialGeometry.setIndex(
-        new three.BufferAttribute(new Uint32Array(mergedGeometry.index.count), 1).setUsage(
-          three.DynamicDrawUsage,
-        ),
+      const mergedGeometry = mergeGeometries(geometryParts)
+      if (!mergedGeometry) return
+      ;(buildingBatch.geometry = mergedGeometry), (buildingBatch.partialGeometry = new three.BufferGeometry())
+      for (const [partialAttributeName, partialAttribute] of Object.entries(mergedGeometry.attributes))
+        buildingBatch.partialGeometry.setAttribute(partialAttributeName, partialAttribute)
+      buildingBatch.partialGeometry.setIndex(
+        new three.BufferAttribute(new Uint32Array(mergedGeometry.index.count), 1).setUsage(three.DynamicDrawUsage),
       ),
         (buildingBatch.selected = []),
-        (buildingBatch.selection = new Uint8Array(buildingBatch.entries.length)));
-      let vertexOffset = 0;
+        (buildingBatch.selection = new Uint8Array(buildingBatch.entries.length))
+      let vertexOffset = 0
       for (const builtEntry of buildingBatch.entries)
-        ((builtEntry.offset = vertexOffset),
-          (builtEntry.count =
-            builtEntry.geometry.index?.count ?? builtEntry.geometry.attributes.position.count),
-          (vertexOffset += builtEntry.count));
-      ((buildingBatch.proxy = new three.Mesh(mergedGeometry, buildingBatch.material)),
+        (builtEntry.offset = vertexOffset),
+          (builtEntry.count = builtEntry.geometry.index?.count ?? builtEntry.geometry.attributes.position.count),
+          (vertexOffset += builtEntry.count)
+      ;(buildingBatch.proxy = new three.Mesh(mergedGeometry, buildingBatch.material)),
         (buildingBatch.proxy.matrixAutoUpdate = false),
         (buildingBatch.proxy.frustumCulled = false),
         (buildingBatch.proxy.receiveShadow = buildingBatch.entries[0].object.receiveShadow),
@@ -354,27 +333,27 @@ export function createReflectionPasses({
         (buildingBatch.proxy.userData.reflectionBatch = true),
         (buildingBatch.bytes = batchBytes),
         (stats.bytes += buildingBatch.bytes),
-        stats.batches++);
+        stats.batches++
     } finally {
-      for (const disposableGeometry of geometryParts) disposableGeometry.dispose();
+      for (const disposableGeometry of geometryParts) disposableGeometry.dispose()
     }
   }
   function prepareBatches(rootObject: any) {
-    if (isDisposed) return;
-    (restoreSceneObjects(), clearPreparedBatches());
+    if (isDisposed) return
+    restoreSceneObjects(), clearPreparedBatches()
     const batchBySignature = new Map(),
       geometryKeyByGeometry = new Map(),
       resolveGeometryKey = (queryGeometry: any) => (
         geometryKeyByGeometry.has(queryGeometry) ||
           geometryKeyByGeometry.set(queryGeometry, createGeometryKey(queryGeometry)),
         geometryKeyByGeometry.get(queryGeometry)
-      );
+      )
     rootObject.traverse((traversedObject: any) => {
-      if (!isSimpleMesh(traversedObject) || !isPlainMaterial(traversedObject.material)) return;
+      if (!isSimpleMesh(traversedObject) || !isPlainMaterial(traversedObject.material)) return
       const meshGeometry = traversedObject.geometry,
-        floorOwner = findFloorOwner(traversedObject);
-      if (!floorOwner) return;
-      meshGeometry.boundingSphere || meshGeometry.computeBoundingSphere();
+        floorOwner = findFloorOwner(traversedObject)
+      if (!floorOwner) return
+      meshGeometry.boundingSphere || meshGeometry.computeBoundingSphere()
       const smallCandidate =
         !traversedObject.userData.reflectionRole && !traversedObject.material.emissive.getHex()
           ? {
@@ -384,7 +363,7 @@ export function createReflectionPasses({
               radius: meshGeometry.boundingSphere.radius,
               center: meshGeometry.boundingSphere.center.clone(),
             }
-          : null;
+          : null
       if (
         (smallCandidate &&
           (smallEntries.push(smallCandidate),
@@ -394,21 +373,16 @@ export function createReflectionPasses({
           traversedObject.userData.reflectionRole ||
           !isVisibleInHierarchy(traversedObject))
       )
-        return;
-      const attributeSignature = Object.entries(
-        meshGeometry.attributes as Record<string, GeometryAttributeLike>,
-      )
-        .map(([surfaceAttributeName, surfaceAttribute]) => [
-          surfaceAttributeName,
-          surfaceAttribute.itemSize,
-        ])
-        .sort();
+        return
+      const attributeSignature = Object.entries(meshGeometry.attributes as Record<string, GeometryAttributeLike>)
+        .map(([surfaceAttributeName, surfaceAttribute]) => [surfaceAttributeName, surfaceAttribute.itemSize])
+        .sort()
       if (
-        Object.values(
-          meshGeometry.attributes as Record<string, GeometryAttributeLike>,
-        ).some((checkedAttribute) => checkedAttribute.itemSize > 4)
+        Object.values(meshGeometry.attributes as Record<string, GeometryAttributeLike>).some(
+          (checkedAttribute) => checkedAttribute.itemSize > 4,
+        )
       )
-        return;
+        return
       const batchSignature = JSON.stringify([
         floorOwner.object.id,
         traversedObject.material.uuid,
@@ -416,8 +390,8 @@ export function createReflectionPasses({
         traversedObject.renderOrder,
         traversedObject.layers.mask,
         attributeSignature,
-      ]);
-      (batchBySignature.has(batchSignature) ||
+      ])
+      batchBySignature.has(batchSignature) ||
         batchBySignature.set(batchSignature, {
           owner: floorOwner,
           material: traversedObject.material,
@@ -432,69 +406,62 @@ export function createReflectionPasses({
             .copy(floorOwner.object.matrixWorld)
             .invert()
             .multiply(traversedObject.matrixWorld),
-        }));
-    });
+        })
+    })
     for (const batchRecord of batchBySignature.values())
       if (!(batchRecord.entries.length < 2)) {
         batchRecord.dispose = () => {
           if (!batchRecord.dead) {
-            batchRecord.dead = true;
+            batchRecord.dead = true
             for (const batchEntry of batchRecord.entries)
-              batchEntry.geometry.removeEventListener("dispose", batchRecord.dispose);
-            (batchRecord.material.removeEventListener("dispose", batchRecord.dispose),
+              batchEntry.geometry.removeEventListener('dispose', batchRecord.dispose)
+            batchRecord.material.removeEventListener('dispose', batchRecord.dispose),
               batchRecord.proxy &&
                 (batchRecord.proxy.removeFromParent(),
                 batchRecord.geometry.dispose(),
                 batchRecord.partialGeometry?.dispose(),
                 (stats.bytes -= batchRecord.bytes),
-                stats.batches--));
+                stats.batches--)
           }
-        };
+        }
         for (const disposeEntry of batchRecord.entries)
-          disposeEntry.geometry.addEventListener("dispose", batchRecord.dispose);
-        (batchRecord.material.addEventListener("dispose", batchRecord.dispose),
+          disposeEntry.geometry.addEventListener('dispose', batchRecord.dispose)
+        batchRecord.material.addEventListener('dispose', batchRecord.dispose),
           batchRecords.push(batchRecord),
-          pendingBatches.push(batchRecord));
+          pendingBatches.push(batchRecord)
       }
-    scheduleQueuedBatches();
+    scheduleQueuedBatches()
   }
   function measureWorldDiameter(measuredEntry: any) {
     return (
       worldScaleVector.setFromMatrixScale(measuredEntry.object.matrixWorld),
       measuredEntry.radius *
         2 *
-        Math.max(
-          Math.abs(worldScaleVector.x),
-          Math.abs(worldScaleVector.y),
-          Math.abs(worldScaleVector.z),
-        )
-    );
+        Math.max(Math.abs(worldScaleVector.x), Math.abs(worldScaleVector.y), Math.abs(worldScaleVector.z))
+    )
   }
   function shouldOmitDetail(detailCandidate: any, _cullingCamera: any, _viewportHeightPx: any) {
     const measuredObject = detailCandidate.object,
-      worldDiameter = measureWorldDiameter(detailCandidate);
+      worldDiameter = measureWorldDiameter(detailCandidate)
     if (
       worldDiameter > maxDetailDiameter ||
       !isGeometryKeyCurrent(detailCandidate) ||
       !isSimpleMesh(measuredObject) ||
       measuredObject.material.emissive?.getHex()
     )
-      return false;
+      return false
     projectedCenter
       .set(detailCandidate.center.x, detailCandidate.center.y, detailCandidate.center.z, 1)
       .applyMatrix4(measuredObject.matrixWorld)
-      .applyMatrix4(viewProjectionMatrix);
-    const projectedPixels = (worldDiameter * screenScaleFactor) / projectedCenter.w;
-    return projectedCenter.w > 0 && projectedPixels <= maxDetailPixels;
+      .applyMatrix4(viewProjectionMatrix)
+    const projectedPixels = (worldDiameter * screenScaleFactor) / projectedCenter.w
+    return projectedCenter.w > 0 && projectedPixels <= maxDetailPixels
   }
   function beginReflection(targetScene: any, renderCamera: any, renderHeight: any, floorFilter: any) {
     if (
       (restoreSceneObjects(),
       (geometryMatchMap = new Map()),
-      viewProjectionMatrix.multiplyMatrices(
-        renderCamera.projectionMatrix,
-        renderCamera.matrixWorldInverse,
-      ),
+      viewProjectionMatrix.multiplyMatrices(renderCamera.projectionMatrix, renderCamera.matrixWorldInverse),
       (screenScaleFactor =
         (Math.max(
           Math.abs(renderCamera.projectionMatrix.elements[0]),
@@ -511,11 +478,10 @@ export function createReflectionPasses({
           (floorFilter != null && activeBatch.owner.id !== floorFilter) ||
           !isVisibleInHierarchy(activeBatch.owner.object)
         )
-          continue;
-        (inverseOwnerMatrix.copy(activeBatch.owner.object.matrixWorld).invert(),
-          (activeBatch.selected.length = 0));
+          continue
+        inverseOwnerMatrix.copy(activeBatch.owner.object.matrixWorld).invert(), (activeBatch.selected.length = 0)
         let isBatchDirty = false,
-          visibleVertexCount = 0;
+          visibleVertexCount = 0
         for (let entryIndex = 0; entryIndex < activeBatch.entries.length; entryIndex++) {
           const frameEntry = activeBatch.entries[entryIndex],
             isEntryUsable =
@@ -536,28 +502,26 @@ export function createReflectionPasses({
               options.small &&
               frameEntry.small &&
               shouldOmitDetail(frameEntry.small, renderCamera, renderHeight),
-            selectionState = isEntryUsable ? (isEntryOmitted ? 2 : 1) : 0;
-          ((frameEntry.omitted = isEntryOmitted),
+            selectionState = isEntryUsable ? (isEntryOmitted ? 2 : 1) : 0
+          ;(frameEntry.omitted = isEntryOmitted),
             (isBatchDirty ||= activeBatch.selection[entryIndex] !== selectionState),
             (activeBatch.selection[entryIndex] = selectionState),
             selectionState &&
-              (activeBatch.selected.push(frameEntry),
-              isEntryOmitted || (visibleVertexCount += frameEntry.count)));
+              (activeBatch.selected.push(frameEntry), isEntryOmitted || (visibleVertexCount += frameEntry.count))
         }
         if (activeBatch.selected.length < 2) {
-          activeBatch.partialValid = false;
-          continue;
+          activeBatch.partialValid = false
+          continue
         }
         if (
           ((activeBatch.proxy.geometry =
             visibleVertexCount === activeBatch.geometry.index.count
               ? activeBatch.geometry
               : activeBatch.partialGeometry),
-          activeBatch.proxy.geometry === activeBatch.partialGeometry &&
-            (isBatchDirty || !activeBatch.partialValid))
+          activeBatch.proxy.geometry === activeBatch.partialGeometry && (isBatchDirty || !activeBatch.partialValid))
         ) {
-          const partialIndex = activeBatch.partialGeometry.index;
-          let writeOffset = 0;
+          const partialIndex = activeBatch.partialGeometry.index
+          let writeOffset = 0
           for (const selectedEntry of activeBatch.selected)
             selectedEntry.omitted ||
               (partialIndex.array.set(
@@ -567,43 +531,41 @@ export function createReflectionPasses({
                 ),
                 writeOffset,
               ),
-              (writeOffset += selectedEntry.count));
-          ((partialIndex.needsUpdate = true),
+              (writeOffset += selectedEntry.count))
+          ;(partialIndex.needsUpdate = true),
             activeBatch.partialGeometry.setDrawRange(0, visibleVertexCount),
-            (activeBatch.partialValid = true));
+            (activeBatch.partialValid = true)
         }
         for (const hiddenEntry of activeBatch.selected)
-          (hiddenObjects.push(hiddenEntry.object),
+          hiddenObjects.push(hiddenEntry.object),
             (hiddenEntry.object.visible = false),
-            hiddenEntry.omitted && stats.omitted++);
+            hiddenEntry.omitted && stats.omitted++
         visibleVertexCount !== 0 &&
           ((activeBatch.proxy.material = activeBatch.selected[0].object.material),
           activeBatch.proxy.matrix.copy(activeBatch.owner.object.matrixWorld),
           activeBatch.proxy.matrixWorld.copy(activeBatch.owner.object.matrixWorld),
           targetScene.add(activeBatch.proxy),
           proxyMeshes.push(activeBatch.proxy),
-          (stats.savedDraws += activeBatch.selected.length - 1));
+          (stats.savedDraws += activeBatch.selected.length - 1))
       }
     if (options.small)
       for (const candidateEntry of floorFilter == null
         ? smallEntries
         : smallEntriesByFloorId.get(String(floorFilter)) || []) {
-        const candidateObject = candidateEntry.object;
+        const candidateObject = candidateEntry.object
         candidateObject.geometry !== candidateEntry.geometry ||
           !isVisibleInHierarchy(candidateObject) ||
           candidateObject.material.emissive?.getHex() ||
           (shouldOmitDetail(candidateEntry, renderCamera, renderHeight) &&
-            (hiddenObjects.push(candidateObject),
-            (candidateObject.visible = false),
-            stats.omitted++));
+            (hiddenObjects.push(candidateObject), (candidateObject.visible = false), stats.omitted++))
       }
   }
   function restoreSceneObjects() {
-    geometryMatchMap = null;
-    for (const proxyMesh of proxyMeshes) proxyMesh.removeFromParent();
-    proxyMeshes.length = 0;
-    for (const hiddenObject of hiddenObjects) hiddenObject.visible = true;
-    hiddenObjects.length = 0;
+    geometryMatchMap = null
+    for (const proxyMesh of proxyMeshes) proxyMesh.removeFromParent()
+    proxyMeshes.length = 0
+    for (const hiddenObject of hiddenObjects) hiddenObject.visible = true
+    hiddenObjects.length = 0
   }
   return {
     options: options,
@@ -613,11 +575,11 @@ export function createReflectionPasses({
     begin: beginReflection,
     restore: restoreSceneObjects,
     aliasMaterial(aliasMaterial: any, materialToAlias: any) {
-      materialAliasMap.set(materialToAlias, aliasMaterial);
+      materialAliasMap.set(materialToAlias, aliasMaterial)
     },
     dispose() {
-      ((isDisposed = true), restoreSceneObjects(), clearPreparedBatches());
-      for (const cachedEntry of [...materialCopyMap.values()]) cachedEntry.release();
+      ;(isDisposed = true), restoreSceneObjects(), clearPreparedBatches()
+      for (const cachedEntry of [...materialCopyMap.values()]) cachedEntry.release()
     },
-  };
+  }
 }

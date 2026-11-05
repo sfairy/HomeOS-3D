@@ -99,16 +99,7 @@
 
 <script setup>
 /** MediaPlayerModalTransport - 媒体弹窗播控区组件 */
-import {
-  Pause,
-  Play,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  VolumeX,
-  Repeat,
-  Shuffle,
-} from '@lucide/vue'
+import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, Repeat, Shuffle } from '@lucide/vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 
 defineProps({

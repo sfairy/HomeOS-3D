@@ -13,11 +13,7 @@ export function fetchEntities(params?: Record<string, unknown>, config?: AxiosRe
 }
 
 /** 获取单个实体详情。 */
-export function fetchEntity(
-  id: string,
-  params?: { refresh?: string },
-  config?: AxiosRequestConfig,
-) {
+export function fetchEntity(id: string, params?: { refresh?: string }, config?: AxiosRequestConfig) {
   return apiGet(`/entities/${encodeURIComponent(id)}`, {
     ...config,
     params: { ...config?.params, ...params },
@@ -36,30 +32,16 @@ export function fetchEntitiesBatchGet(entityIds: string[], config?: AxiosRequest
 
 /** 查询引用该实体的功能配置（自动化/场景/绑定等）。 */
 export function fetchEntityReferences(id: string, config?: AxiosRequestConfig) {
-  return apiGet<EntityReferencesResponse>(
-    `/entities/${encodeURIComponent(id)}/references`,
-    config,
-  )
+  return apiGet<EntityReferencesResponse>(`/entities/${encodeURIComponent(id)}/references`, config)
 }
 
 /** 从指定功能配置中移除对该实体的引用。 */
-export function unlinkEntityReference(
-  id: string,
-  payload: EntityReferenceUnlinkRequest,
-  config?: AxiosRequestConfig,
-) {
-  return apiPost<EntityReferenceUnlinkResult>(
-    `/entities/${encodeURIComponent(id)}/references/unlink`,
-    payload,
-    config,
-  )
+export function unlinkEntityReference(id: string, payload: EntityReferenceUnlinkRequest, config?: AxiosRequestConfig) {
+  return apiPost<EntityReferenceUnlinkResult>(`/entities/${encodeURIComponent(id)}/references/unlink`, payload, config)
 }
 
 /** 获取变更实体列表。 */
-export function fetchEntitiesChanged(
-  params?: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function fetchEntitiesChanged(params?: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiGet('/entities/changed', { ...config, params: { ...config?.params, ...params } })
 }
 
@@ -88,10 +70,6 @@ export function clearEvents(config?: AxiosRequestConfig) {
   return apiDelete<{ deleted: number; complete: boolean }>('/events', config)
 }
 
-
-
-
-
 /** 调用 HA 服务。 */
 export function callService(
   payload: { domain: string; service: string; entity_id?: string; [key: string]: unknown },
@@ -106,10 +84,7 @@ export function fetchAreasList<T = unknown>(config?: AxiosRequestConfig) {
 }
 
 /** 批量分配实体所属区域。 */
-export function batchAssignEntityArea(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function batchAssignEntityArea(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/entities/batch/area', payload, config)
 }
 
@@ -127,11 +102,7 @@ export interface HaHistoryResult {
 }
 
 /** 获取单个实体的 HA 历史数据。 */
-export function fetchHaHistory(
-  entityId: string,
-  hours: number,
-  config?: AxiosRequestConfig,
-) {
+export function fetchHaHistory(entityId: string, hours: number, config?: AxiosRequestConfig) {
   return apiGet<HaHistoryResult>('/ha/history', {
     ...config,
     params: { ...config?.params, entityId, hours },
@@ -151,8 +122,5 @@ export function retryDroppedHaCommands(config?: AxiosRequestConfig) {
  * 由前端在降级状态持续若干秒后补一次，把横幅从「靠推送」改成「推送 + 主动核对」。
  */
 export function fetchHaHealth(config?: AxiosRequestConfig) {
-  return apiGet<{ configured: boolean; connected: boolean; lastError?: string | null }>(
-    '/ha/health',
-    config,
-  )
+  return apiGet<{ configured: boolean; connected: boolean; lastError?: string | null }>('/ha/health', config)
 }

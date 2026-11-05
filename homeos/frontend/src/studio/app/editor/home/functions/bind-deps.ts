@@ -24,9 +24,7 @@
 
 /** 把 M 里每个「deps 首参实现」映射成「去掉 deps 的同形函数」。 */
 type BoundDeps<M> = {
-  [K in keyof M]: M[K] extends (deps: never, ...args: infer A) => infer R
-    ? (...args: A) => R
-    : never
+  [K in keyof M]: M[K] extends (deps: never, ...args: infer A) => infer R ? (...args: A) => R : never
 }
 
 /** 运行期只关心「能接收 deps + 任意实参」，具体形状由 `BoundDeps` 在类型层给出。 */
@@ -39,9 +37,7 @@ type LooseImpl<D> = (deps: D, ...args: never[]) => unknown
  * @returns 接受实现表、返回同形绑定函数的函数
  */
 export function bindDeps<D>(getDeps: () => D) {
-  return <M extends Record<string, (deps: D, ...args: never[]) => unknown>>(
-    impls: M,
-  ): BoundDeps<M> => {
+  return <M extends Record<string, (deps: D, ...args: never[]) => unknown>>(impls: M): BoundDeps<M> => {
     const bound: Record<string, (...args: never[]) => unknown> = {}
     for (const key of Object.keys(impls) as (keyof M & string)[]) {
       const impl = impls[key] as unknown as LooseImpl<D>

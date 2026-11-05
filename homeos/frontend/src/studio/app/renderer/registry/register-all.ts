@@ -9,54 +9,54 @@
  *
  * 注意：加载失败的族必须抛出而不是静默跳过 —— 静默会让面板变成占位框且没有任何线索。
  */
-import { registerImageComponent } from "./components/image";
-import { registerFloorplanAutoDiagramComponent } from "./components/floorplan-auto-diagram";
-import { registerPanelFrameComponent } from "./components/panel-frame";
-import { renderEventLogWall } from "./event-log-wall";
-import { buttonComponentRenderers } from "./button-renderers";
-import { navigationComponentRenderer } from "./navigation-button";
-import { renderPercentageBarControl } from "./percentage-bar";
-import type { RenderPropertyBag, ComponentControllerHooks } from "./components/types";
+import { registerImageComponent } from './components/image'
+import { registerFloorplanAutoDiagramComponent } from './components/floorplan-auto-diagram'
+import { registerPanelFrameComponent } from './components/panel-frame'
+import { renderEventLogWall } from './event-log-wall'
+import { buttonComponentRenderers } from './button-renderers'
+import { navigationComponentRenderer } from './navigation-button'
+import { renderPercentageBarControl } from './percentage-bar'
+import type { RenderPropertyBag, ComponentControllerHooks } from './components/types'
 
-export type { RenderPropertyBag, ComponentControllerHooks };
+export type { RenderPropertyBag, ComponentControllerHooks }
 
 /** 一族的注册入口：拿到 `registerComponent` 后把该族所有类型注册进去。 */
-type ComponentFamilyRegister = (registerComponent: (type: any, def: any) => void) => void;
+type ComponentFamilyRegister = (registerComponent: (type: any, def: any) => void) => void
 
 /**
  * 组件族 → 动态加载器。键是「族」，值是 `import()`，模块默认导出一个注册函数。
  * 每个族一个 chunk：不用的族不会下载、不会执行。
  */
 const componentFamilyLoaders: Record<string, () => Promise<{ default: ComponentFamilyRegister }>> = {
-  "presence-sensor": () => import("./components/presence-sensor"),
-  climate: () => import("./components/climate"),
-  camera: () => import("./components/camera"),
-  "vacuum-map": () => import("./components/vacuum-map"),
-  clock: () => import("./components/clock"),
-  weather: () => import("./components/weather"),
-  "line-chart": () => import("./components/line-chart"),
-  "scene-mode": () => import("./components/scene-mode"),
-};
+  'presence-sensor': () => import('./components/presence-sensor'),
+  climate: () => import('./components/climate'),
+  camera: () => import('./components/camera'),
+  'vacuum-map': () => import('./components/vacuum-map'),
+  clock: () => import('./components/clock'),
+  weather: () => import('./components/weather'),
+  'line-chart': () => import('./components/line-chart'),
+  'scene-mode': () => import('./components/scene-mode'),
+}
 
 /** 体积极小、几乎每个场景都用的注册（留在同步路径上，避免为几行代码多一次往返）。 */
 export function installRegistryComponents(registerComponent: (type: any, def: any) => void) {
-  registerImageComponent(registerComponent);
-  registerFloorplanAutoDiagramComponent(registerComponent);
-  registerPanelFrameComponent(registerComponent);
-  registerComponent("event-log-wall", {
+  registerImageComponent(registerComponent)
+  registerFloorplanAutoDiagramComponent(registerComponent)
+  registerPanelFrameComponent(registerComponent)
+  registerComponent('event-log-wall', {
     render: renderEventLogWall,
-  });
-  registerComponent("icon-button", buttonComponentRenderers);
-  registerComponent("device-button", buttonComponentRenderers);
-  registerComponent("navigation-button", {
+  })
+  registerComponent('icon-button', buttonComponentRenderers)
+  registerComponent('device-button', buttonComponentRenderers)
+  registerComponent('navigation-button', {
     render: navigationComponentRenderer,
-  });
-  registerComponent("percentage-bar", {
+  })
+  registerComponent('percentage-bar', {
     render: renderPercentageBarControl,
-  });
+  })
 }
 
-const loadedFamilies = new Set<string>();
+const loadedFamilies = new Set<string>()
 
 /**
  * 并发加载组件族并注册。
@@ -72,30 +72,30 @@ export async function loadComponentFamilies(
   registerComponent: (type: any, def: any) => void,
   families?: Iterable<string>,
 ): Promise<string[]> {
-  const requested = families ? [...new Set(families)] : Object.keys(componentFamilyLoaders);
-  const loadedNow: string[] = [];
+  const requested = families ? [...new Set(families)] : Object.keys(componentFamilyLoaders)
+  const loadedNow: string[] = []
   await Promise.all(
     requested.map(async (family) => {
-      const loader = componentFamilyLoaders[family];
-      if (!loader || loadedFamilies.has(family)) return;
-      const registerFamily = (await loader()).default;
-      registerFamily(registerComponent);
-      loadedFamilies.add(family);
-      loadedNow.push(family);
+      const loader = componentFamilyLoaders[family]
+      if (!loader || loadedFamilies.has(family)) return
+      const registerFamily = (await loader()).default
+      registerFamily(registerComponent)
+      loadedFamilies.add(family)
+      loadedNow.push(family)
     }),
-  );
+  )
   // 诊断用：族是按需 chunk，光看 network 看不出「下载的是哪一族」（文件名是 shared-*），
   // 所以把实际加载的族打点到 performance 时间线，`bench_3d.mjs` 直接读 mark 断言。
-  for (const family of loadedNow) markComponentFamily(family);
-  return loadedNow;
+  for (const family of loadedNow) markComponentFamily(family)
+  return loadedNow
 }
 
 function markComponentFamily(family: string) {
-  typeof performance === "undefined" || performance.mark?.(`homeos:component-family:${family}`);
+  typeof performance === 'undefined' || performance.mark?.(`homeos:component-family:${family}`)
 }
 
 export {
   componentFamilyByType,
   componentFamiliesForDocument,
   componentFamiliesForTypes,
-} from "./component-families";
+} from './component-families'

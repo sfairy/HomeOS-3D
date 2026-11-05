@@ -28,7 +28,10 @@ function vforHeader(source, marker) {
 }
 
 test('悬浮面板：空流式气泡不渲染，交给「处理中」气泡占位', () => {
-  assert.match(palette, /function bubbleHasContent\(message: ChatMessage\): boolean \{[\s\S]{0,160}message\.text\.trim\(\) \|\| message\.tools/)
+  assert.match(
+    palette,
+    /function bubbleHasContent\(message: ChatMessage\): boolean \{[\s\S]{0,160}message\.text\.trim\(\) \|\| message\.tools/,
+  )
   const header = vforHeader(palette, '<template v-for="(m, i) in messages"')
   assert.match(header, /v-if="m\.role === 'user' \|\| !m\.streaming \|\| bubbleHasContent\(m\)"/)
 })
@@ -61,9 +64,5 @@ test('设置页调试面板：空流式气泡同样不渲染', () => {
   const typingStart = settingsPanel.indexOf('const showChatTyping = computed(')
   assert.ok(typingStart > 0, '找不到 showChatTyping')
   const typingBlock = settingsPanel.slice(typingStart, typingStart + 220)
-  assert.match(
-    typingBlock,
-    /m\.streaming && m\.text\.trim\(\)/,
-    '「思考中」要跟着「气泡是否有内容」走',
-  )
+  assert.match(typingBlock, /m\.streaming && m\.text\.trim\(\)/, '「思考中」要跟着「气泡是否有内容」走')
 })

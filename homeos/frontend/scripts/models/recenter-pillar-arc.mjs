@@ -120,7 +120,9 @@ function assertIdentityNodes(document, label) {
         node.getMatrix().some((value, index) => value !== [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1][index]),
     )
   if (transformed.length) {
-    throw new Error(`${label} 的节点 ${transformed.map((node) => node.getName()).join(',')} 带变换，脚本按局部坐标改写会错位`)
+    throw new Error(
+      `${label} 的节点 ${transformed.map((node) => node.getName()).join(',')} 带变换，脚本按局部坐标改写会错位`,
+    )
   }
 }
 
@@ -166,9 +168,7 @@ for (const model of MODELS) {
     )
   }
   if (body.circle.onRing < MIN_RING_VERTICES) {
-    throw new Error(
-      `${body.name || 'body'} 的截面找不到圆弧（同圆顶点 ${body.circle.onRing} 个），拒绝按圆心归位`,
-    )
+    throw new Error(`${body.name || 'body'} 的截面找不到圆弧（同圆顶点 ${body.circle.onRing} 个），拒绝按圆心归位`)
   }
   for (const section of sections) {
     const offset = Math.hypot(section.circle.x - center.x, section.circle.z - center.z)

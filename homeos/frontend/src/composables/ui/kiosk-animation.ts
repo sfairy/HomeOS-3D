@@ -14,9 +14,7 @@ import { resolveEffectivePerformanceMode } from '@/shared/utils/perf/runtime-per
  */
 function isChartAnimationEnabled(): boolean {
   try {
-    return (
-      resolveEffectivePerformanceMode(useLayoutStore().layoutConfig?.performanceMode) === 'high'
-    )
+    return resolveEffectivePerformanceMode(useLayoutStore().layoutConfig?.performanceMode) === 'high'
   } catch {
     return false
   }

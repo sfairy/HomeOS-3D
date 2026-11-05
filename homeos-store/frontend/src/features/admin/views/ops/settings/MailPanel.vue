@@ -44,7 +44,12 @@ function presetById(id: unknown): MailPreset | null {
 function presetEmailDomain(email: unknown): string {
   const address = asText(email).trim();
   const at = address.lastIndexOf("@");
-  return at > 0 ? address.slice(at + 1).trim().toLowerCase() : "";
+  return at > 0
+    ? address
+        .slice(at + 1)
+        .trim()
+        .toLowerCase()
+    : "";
 }
 
 function presetForEmail(email: unknown): MailPreset | null {

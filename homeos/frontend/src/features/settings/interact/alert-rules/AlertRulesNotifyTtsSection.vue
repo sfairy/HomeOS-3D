@@ -148,19 +148,14 @@ const notifyFlowSteps = [
   { label: 'TTS 播报', meta: '默认音箱', icon: Volume2, tone: 'out' },
 ]
 
-const {
-  voice,
-  customAlertSpeechModes,
-  composeCustomAlertTemplate,
-  addCustomAlert,
-  removeCustomAlert,
-} = useAlertRulesSection([
-  'voice',
-  'customAlertSpeechModes',
-  'composeCustomAlertTemplate',
-  'addCustomAlert',
-  'removeCustomAlert',
-])
+const { voice, customAlertSpeechModes, composeCustomAlertTemplate, addCustomAlert, removeCustomAlert } =
+  useAlertRulesSection([
+    'voice',
+    'customAlertSpeechModes',
+    'composeCustomAlertTemplate',
+    'addCustomAlert',
+    'removeCustomAlert',
+  ])
 
 const notifyFlowSummary = computed(() => {
   const data = unref(voice)

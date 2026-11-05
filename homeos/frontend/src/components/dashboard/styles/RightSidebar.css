@@ -54,7 +54,7 @@
 /** 触控（coarse）：折叠按钮热区扩至 44×44，视觉不变 —— 透明伪元素居中延展，避免墙屏误触 */
 @media (pointer: coarse), (hover: none) {
   .panel-collapse-btn::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -95,7 +95,7 @@
 
 /** 面板左侧渐变装饰线：蓝色→透明→紫色 */
 .info-panel::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -180,9 +180,7 @@
 
 /** 信息卡片：毛玻璃 + 圆角 + 悬停抬升 */
 .info-card {
-  background:
-    var(--page-card-tint-soft),
-    var(--hos-surface-1);
+  background: var(--page-card-tint-soft), var(--hos-surface-1);
   -webkit-backdrop-filter: blur(30px) saturate(200%);
   backdrop-filter: blur(30px) saturate(200%);
   border: var(--hos-hairline) solid var(--hos-border-subtle);
@@ -217,7 +215,7 @@
 
 /** 卡片顶部细线光泽：页面色渐变 */
 .info-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 12%;
@@ -236,7 +234,7 @@
 
 /** 卡片底部微光渐变 */
 .info-card::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;

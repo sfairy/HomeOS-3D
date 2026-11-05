@@ -230,8 +230,7 @@ function onSlideStart(e, trackEl) {
     slideProgress.value = Math.max(0, Math.min(100, startProgress + (deltaX / maxTravel) * 100))
   }
   const end = (ev) => {
-    if (activePointerId != null && ev && 'pointerId' in ev && ev.pointerId !== activePointerId)
-      return
+    if (activePointerId != null && ev && 'pointerId' in ev && ev.pointerId !== activePointerId) return
     slideDragging.value = false
     activePointerId = null
     detachSlideListeners()

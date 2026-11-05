@@ -5,4 +5,4 @@ export type {
   RuntimeLogEntry,
   RuntimeLogQuery,
   RuntimeLogQueryResult,
-} from './runtime-log';
+} from './runtime-log'

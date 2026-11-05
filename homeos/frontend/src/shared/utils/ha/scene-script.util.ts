@@ -25,17 +25,13 @@ function scriptEntityId(scriptId: string | null | undefined) {
 }
 
 /** 从已保存场景记录解析 entity_id */
-export function sceneEntityIdFromRecord(
-  s: { haConfigId?: string | null; name?: string | null } | null | undefined,
-) {
+export function sceneEntityIdFromRecord(s: { haConfigId?: string | null; name?: string | null } | null | undefined) {
   if (s?.haConfigId) return sceneEntityId(String(s.haConfigId).replace(/^homeos_/, ''))
   return s?.name ? sceneEntityId(s.name) : ''
 }
 
 /** 从已保存脚本记录解析 entity_id */
-export function scriptEntityIdFromRecord(
-  s: { haConfigId?: string | null; name?: string | null } | null | undefined,
-) {
+export function scriptEntityIdFromRecord(s: { haConfigId?: string | null; name?: string | null } | null | undefined) {
   if (s?.haConfigId) return scriptEntityId(String(s.haConfigId).replace(/^homeos_/, ''))
   return s?.name ? scriptEntityId(s.name) : ''
 }

@@ -1,5 +1,16 @@
 /** KPI 指标卡 + 点击下钻过滤。 */
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, type ToRefs, type Ref, type ComponentPublicInstance, unref } from 'vue'
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onUnmounted,
+  nextTick,
+  type ToRefs,
+  type Ref,
+  type ComponentPublicInstance,
+  unref,
+} from 'vue'
 import type { ECharts, ECElementEvent, EChartsCoreOption } from 'echarts'
 import { observeChartResize } from '@/shared/utils/ui/chart-resize.util'
 import {
@@ -237,14 +248,7 @@ export function useNotificationsViewAnalytics(
    * 在 onUnmounted 调用，避免内存泄漏。
    */
   function disposeCharts() {
-    for (const stop of [
-      stopSourceResize,
-      stopLevelResize,
-      stopRankResize,
-      stopTimeResize,
-      stopReadResize,
-    ])
-      stop?.()
+    for (const stop of [stopSourceResize, stopLevelResize, stopRankResize, stopTimeResize, stopReadResize]) stop?.()
     stopSourceResize = stopLevelResize = stopRankResize = stopTimeResize = stopReadResize = null
     for (const key of Object.keys(charts) as ChartKey[]) {
       charts[key]?.dispose()

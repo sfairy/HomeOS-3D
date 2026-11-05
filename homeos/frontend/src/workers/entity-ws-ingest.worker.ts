@@ -1,9 +1,6 @@
 /** 实体 WS 批次规范化 Worker（主线程以外执行 delta 合并 + old_state 拷贝）。 */
 import { expose } from 'comlink'
-import {
-  normalizeWsBatchChangesSync,
-  type WsDeltaChange,
-} from '@/shared/entity/utils/state-delta.util'
+import { normalizeWsBatchChangesSync, type WsDeltaChange } from '@/shared/entity/utils/state-delta.util'
 import type { EntitiesMap } from '@/shared/types/entity-store'
 
 /**

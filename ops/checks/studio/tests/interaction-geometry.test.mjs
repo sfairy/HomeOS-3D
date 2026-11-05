@@ -46,8 +46,16 @@ class FakeBox3 {
             m[1] * x + m[5] * y + m[9] * z + m[13],
             m[2] * x + m[6] * y + m[10] * z + m[14],
           ])
-    this.min = { x: Math.min(...corners.map((c) => c[0])), y: Math.min(...corners.map((c) => c[1])), z: Math.min(...corners.map((c) => c[2])) }
-    this.max = { x: Math.max(...corners.map((c) => c[0])), y: Math.max(...corners.map((c) => c[1])), z: Math.max(...corners.map((c) => c[2])) }
+    this.min = {
+      x: Math.min(...corners.map((c) => c[0])),
+      y: Math.min(...corners.map((c) => c[1])),
+      z: Math.min(...corners.map((c) => c[2])),
+    }
+    this.max = {
+      x: Math.max(...corners.map((c) => c[0])),
+      y: Math.max(...corners.map((c) => c[1])),
+      z: Math.max(...corners.map((c) => c[2])),
+    }
     return this
   }
   union(other) {
@@ -105,7 +113,14 @@ const translation = (x, y, z) => ({
   elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1],
 })
 
-function createSource({ positions, normals = null, tangents = null, indices = null, matrix = translation(0, 0, 0), box = null }) {
+function createSource({
+  positions,
+  normals = null,
+  tangents = null,
+  indices = null,
+  matrix = translation(0, 0, 0),
+  box = null,
+}) {
   const attributes = { position: { array: new Float32Array(positions), itemSize: 3, count: positions.length / 3 } }
   if (normals) attributes.normal = { array: new Float32Array(normals), itemSize: 3, count: normals.length / 3 }
   if (tangents) attributes.tangent = { array: new Float32Array(tangents), itemSize: 4, count: tangents.length / 4 }
@@ -177,18 +192,14 @@ test('顶点数超过 65535 时索引换 32 位', () => {
 })
 
 test('按 chunkSize 让出：每次 yield 之间最多处理 chunkSize 个顶点', () => {
-  const sources = [
-    createSource({ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0], indices: [0, 1, 2] }),
-  ]
+  const sources = [createSource({ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0], indices: [0, 1, 2] })]
   const { yields } = run(bakeIncrementally(THREE, sources, 2))
   // 1 次属性分配 + 1 次索引分配 + ceil(4/2)=2 次顶点 + 1 次索引搬运 = 5。
   assert.equal(yields, 5)
 })
 
 test('包围盒用变换后的源矩阵，未被变换的半成品会被 dispose', () => {
-  const sources = [
-    createSource({ positions: [0, 0, 0, 1, 1, 1], matrix: translation(3, 0, 0) }),
-  ]
+  const sources = [createSource({ positions: [0, 0, 0, 1, 1, 1], matrix: translation(3, 0, 0) })]
   const { geometry } = run(bakeIncrementally(THREE, sources))
   assert.deepEqual(geometry.boundingBox.min, { x: 3, y: 0, z: 0 })
   assert.deepEqual(geometry.boundingBox.max, { x: 4, y: 1, z: 1 })
@@ -200,7 +211,9 @@ test('包围盒用变换后的源矩阵，未被变换的半成品会被 dispose
 })
 
 test('mergedBytes 按 顶点属性 + 索引位宽 估算', () => {
-  const small = [createSource({ positions: [0, 0, 0, 1, 1, 1], normals: [0, 0, 1, 0, 0, 1], indices: [0, 1, 2, 0, 1, 2] })]
+  const small = [
+    createSource({ positions: [0, 0, 0, 1, 1, 1], normals: [0, 0, 1, 0, 0, 1], indices: [0, 1, 2, 0, 1, 2] }),
+  ]
   // 2 顶点：position 2*3*4=24，normal 2*3*4=24，索引 6*2=12。
   assert.equal(mergedBytes(small), 24 + 24 + 12)
 
@@ -209,8 +222,5 @@ test('mergedBytes 按 顶点属性 + 索引位宽 估算', () => {
   const indices = []
   for (let index = 0; index < bigCount; index += 3) indices.push(index, index + 1, index + 2)
   // 超 65535 顶点，索引按 4 字节计。
-  assert.equal(
-    mergedBytes([createSource({ positions, indices })]),
-    bigCount * 3 * 4 + indices.length * 4,
-  )
+  assert.equal(mergedBytes([createSource({ positions, indices })]), bigCount * 3 * 4 + indices.length * 4)
 })

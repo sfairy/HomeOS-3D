@@ -18,61 +18,61 @@
  *    却仍是实心的柱体，会在墙的灰膜旁边立成一根亮柱子 —— 两种都会被看成
  *    「选了配墙，柱子和墙不是一个色」。
  */
-import { materialStylePresetRoleColorFor } from "./studio-material-presets";
-import { defaultViewSettings } from "../authoring/scene/studio-view-settings";
-import { WALL_SURFACE_FINISH, wallEmissiveIntensity, wallFilmOpacity } from "./studio-wall-finish";
+import { materialStylePresetRoleColorFor } from './studio-material-presets'
+import { defaultViewSettings } from '../authoring/scene/studio-view-settings'
+import { WALL_SURFACE_FINISH, wallEmissiveIntensity, wallFilmOpacity } from './studio-wall-finish'
 
 interface PillarMaterialSpec {
   /** 最终基色（十六进制，sRGB）。 */
-  color: number;
-  roughness: number;
-  metalness: number;
-  clearcoat?: number;
-  clearcoatRoughness?: number;
-  emissive: number;
-  emissiveIntensity: number;
+  color: number
+  roughness: number
+  metalness: number
+  clearcoat?: number
+  clearcoatRoughness?: number
+  emissive: number
+  emissiveIntensity: number
   /** 是否半透明（配墙档跟墙的 `wallOpacity`；选了柜体档位则是实心漆面）。 */
-  transparent: boolean;
+  transparent: boolean
   /** 不透明度：配墙档取与墙等价的膜厚（见 `wallFilmOpacity`）。 */
-  opacity: number;
+  opacity: number
   /** 该槽位是否走「配墙（跟随墙体）」：真时后续统一发光逻辑必须豁免它。 */
-  wallFollow: boolean;
+  wallFollow: boolean
 }
 
 /** 柱体档位（木柜白门 / 浅橡木 / 胡桃木 / 深色烤漆）走柜体漆面参数。 */
-const PILLAR_STYLE_ROUGHNESS = 0.66;
-const PILLAR_STYLE_BASE_ROUGHNESS = 0.74;
-const PILLAR_STYLE_METALNESS = 0.02;
+const PILLAR_STYLE_ROUGHNESS = 0.66
+const PILLAR_STYLE_BASE_ROUGHNESS = 0.74
+const PILLAR_STYLE_METALNESS = 0.02
 
 export function resolvePillarMaterialSpec(
   itemType: string,
   role: string,
   palette: Record<string, unknown> | null | undefined,
 ): PillarMaterialSpec {
-  const styleColor = materialStylePresetRoleColorFor(itemType, role, palette);
-  if (typeof styleColor === "number") {
+  const styleColor = materialStylePresetRoleColorFor(itemType, role, palette)
+  if (typeof styleColor === 'number') {
     return {
       color: styleColor >>> 0,
-      roughness: role === "base" ? PILLAR_STYLE_BASE_ROUGHNESS : PILLAR_STYLE_ROUGHNESS,
+      roughness: role === 'base' ? PILLAR_STYLE_BASE_ROUGHNESS : PILLAR_STYLE_ROUGHNESS,
       metalness: PILLAR_STYLE_METALNESS,
       emissive: 0,
       emissiveIntensity: 0,
       transparent: false,
       opacity: 1,
       wallFollow: false,
-    };
+    }
   }
   /**
    * 配墙：三种槽位统一成墙色 + 墙的膜厚。仿的是同一面墙的延续 —— 柱础 / 柱帽不该有两种漆，
    * 也不该是一根实心柱。墙色缺省时退到家具色（千分之一的兜底路径，保证不出现纯白柱子）。
    */
-  const wallColor = Number(palette?.wall ?? palette?.furniture ?? 0xffffff) >>> 0;
-  const paletteWallOpacity = palette?.wallOpacity;
+  const wallColor = Number(palette?.wall ?? palette?.furniture ?? 0xffffff) >>> 0
+  const paletteWallOpacity = palette?.wallOpacity
   const wallOpacity =
-    typeof paletteWallOpacity === "number" && Number.isFinite(paletteWallOpacity)
+    typeof paletteWallOpacity === 'number' && Number.isFinite(paletteWallOpacity)
       ? paletteWallOpacity
-      : defaultViewSettings.wallOpacity;
-  const opacity = wallFilmOpacity(wallOpacity);
+      : defaultViewSettings.wallOpacity
+  const opacity = wallFilmOpacity(wallOpacity)
   return {
     color: wallColor,
     roughness: WALL_SURFACE_FINISH.roughness,
@@ -84,5 +84,5 @@ export function resolvePillarMaterialSpec(
     transparent: opacity < 0.999,
     opacity,
     wallFollow: true,
-  };
+  }
 }

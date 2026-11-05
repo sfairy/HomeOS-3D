@@ -32,9 +32,7 @@ const legs = legs4({
   size: 0.07,
 })
 const slats = merge(
-  Array.from({ length: 9 }, (_, index) =>
-    b(W - 0.12, 0.02, 0.06, 0, RAIL_TOP - 0.02, -0.75 + index * 0.19),
-  ),
+  Array.from({ length: 9 }, (_, index) => b(W - 0.12, 0.02, 0.06, 0, RAIL_TOP - 0.02, -0.75 + index * 0.19)),
 )
 
 const mattress = b(W - 0.1, 0.22, D - 0.16, 0, (MATTRESS_TOP + RAIL_TOP) / 2, 0.02)

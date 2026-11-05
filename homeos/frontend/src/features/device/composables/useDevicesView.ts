@@ -21,10 +21,7 @@ import { appNotify } from '@/shared/utils/bridge/store-bridge'
 import { hasEntityControlPopup } from '@/shared/entity/utils/popup-registry.util'
 import { filterMemoryDeviceItems } from '@/features/device/composables/devices-view-filter.internals'
 import { resolveDeviceToggleCommand } from '@/features/device/composables/devices-view-actions.internals'
-import {
-  buildDevicesDomainTabs,
-  mapDeviceEntityRow,
-} from '@/features/device/composables/devices-view-map.internals'
+import { buildDevicesDomainTabs, mapDeviceEntityRow } from '@/features/device/composables/devices-view-map.internals'
 
 const FILTER_STORAGE_KEY = 'homeos:devices-filter'
 
@@ -157,10 +154,7 @@ export function useDevicesView() {
     lastSortedIdsKey = key
     const rawEntities = toRaw(entitiesStore.entities)
     lastSortedIds = [...ids].sort((a, b) =>
-      getEntityDisplayName(a, rawEntities[a]).localeCompare(
-        getEntityDisplayName(b, rawEntities[b]),
-        'zh',
-      ),
+      getEntityDisplayName(a, rawEntities[a]).localeCompare(getEntityDisplayName(b, rawEntities[b]), 'zh'),
     )
     return lastSortedIds
   }
@@ -202,9 +196,7 @@ export function useDevicesView() {
   }
 
   const restItems = computed((): DeviceListItem[] =>
-    restEntities.value
-      .map((entity) => mapEntityRow(entity))
-      .filter((item): item is DeviceListItem => item !== null),
+    restEntities.value.map((entity) => mapEntityRow(entity)).filter((item): item is DeviceListItem => item !== null),
   )
   const allItems = computed(() => (useRestList.value ? restItems.value : memoryItems.value))
 
@@ -228,13 +220,9 @@ export function useDevicesView() {
   useRouteEntityProjection(() => filtered.value.map((i) => i.entity_id))
   useEnsureVisibleEntities(() => filtered.value.map((i) => i.entity_id))
 
-  const domainTabs = computed(() =>
-    buildDevicesDomainTabs(memoryItems.value, useRestList.value),
-  )
+  const domainTabs = computed(() => buildDevicesDomainTabs(memoryItems.value, useRestList.value))
 
-  const totalCount = computed(() =>
-    useRestList.value ? restTotal.value : memoryItems.value.length,
-  )
+  const totalCount = computed(() => (useRestList.value ? restTotal.value : memoryItems.value.length))
 
   const deviceStatCells = computed(() => {
     const cells = [
@@ -296,8 +284,7 @@ export function useDevicesView() {
 
   function toggleSelectAll() {
     const allSelected =
-      filtered.value.length > 0 &&
-      filtered.value.every((device) => selectedIds.value.includes(device.entity_id))
+      filtered.value.length > 0 && filtered.value.every((device) => selectedIds.value.includes(device.entity_id))
     if (allSelected) {
       selectedIds.value = []
     } else {
@@ -351,13 +338,7 @@ export function useDevicesView() {
         )
         if (!ok) return
       }
-      await entitiesStore.callService(
-        command.domain,
-        command.service,
-        device.entity_id,
-        null,
-        false,
-      )
+      await entitiesStore.callService(command.domain, command.service, device.entity_id, null, false)
       // 内存模式下乐观更新会即时驱动行状态；REST 分页模式列表来自服务端，
       // 乐观态不会驱动本列表渲染，成功后刷新当前页保证行状态与服务端一致
       if (useRestList.value) restRefresh()

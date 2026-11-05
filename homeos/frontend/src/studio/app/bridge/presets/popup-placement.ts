@@ -10,52 +10,50 @@ const clampOrDefault = <TFallback extends number | null>(
   min: number,
   max: number,
 ): number | TFallback =>
-  typeof value == "number" && Number.isFinite(value)
-    ? Math.max(min, Math.min(max, value))
-    : fallback;
+  typeof value == 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback
 
 export interface PopupPlacementSettings {
-  scale?: number;
-  x?: number;
-  y?: number;
+  scale?: number
+  x?: number
+  y?: number
   /** 面板最大高度占画面的百分比（30–95）。 */
-  maxHeight?: number;
-  custom?: boolean;
+  maxHeight?: number
+  custom?: boolean
 }
 
 export interface PopupPlacementOptions {
-  width: number;
-  height: number;
-  panelWidth: number;
-  panelHeight: number;
-  defaultScale?: number;
-  defaultTop?: number;
-  defaultRight?: number;
-  settings?: PopupPlacementSettings | null;
+  width: number
+  height: number
+  panelWidth: number
+  panelHeight: number
+  defaultScale?: number
+  defaultTop?: number
+  defaultRight?: number
+  settings?: PopupPlacementSettings | null
   /** 按内容高度收口（而非按 180px 的最小占位估算）。 */
-  fitContent?: boolean;
+  fitContent?: boolean
 }
 
 export interface PopupPlacement {
-  scale: number;
-  top: number;
-  right: number;
-  left: number;
-  width: number;
-  height: number;
+  scale: number
+  top: number
+  right: number
+  left: number
+  width: number
+  height: number
   /** 面板内可用的最大高度（px），超过就在面板内部滚动。 */
-  maxHeight: number;
-  margin: number;
-  custom: boolean;
+  maxHeight: number
+  margin: number
+  custom: boolean
 }
 
 export function popupCustomEnabled(settings: PopupPlacementSettings = {}): boolean {
-  return typeof settings.custom == "boolean"
+  return typeof settings.custom == 'boolean'
     ? settings.custom
     : clampOrDefault(settings.scale, 1, 0.5, 10) !== 1 ||
         Number.isFinite(settings.maxHeight) ||
         Number.isFinite(settings.x) ||
-        Number.isFinite(settings.y);
+        Number.isFinite(settings.y)
 }
 
 export function popupPlacement({
@@ -69,10 +67,10 @@ export function popupPlacement({
   settings: rawSettings = {},
   fitContent: fitContent = false,
 }: PopupPlacementOptions): PopupPlacement {
-  ((width = Math.max(1, width)),
+  ;(width = Math.max(1, width)),
     (height = Math.max(1, height)),
     (panelWidth = Math.max(1, panelWidth)),
-    (panelHeight = Math.max(1, panelHeight)));
+    (panelHeight = Math.max(1, panelHeight))
   const placementSettings: PopupPlacementSettings = rawSettings ?? {},
     custom = popupCustomEnabled(placementSettings),
     customScale = custom ? clampOrDefault(placementSettings.scale, 1, 0.5, 10) : 1,
@@ -101,7 +99,7 @@ export function popupPlacement({
     top =
       yPercent === null
         ? Math.max(margin, Math.min(height - margin - scaledHeight, defaultTop))
-        : margin + (Math.max(0, height - margin * 2 - scaledHeight) * yPercent) / 100;
+        : margin + (Math.max(0, height - margin * 2 - scaledHeight) * yPercent) / 100
   return {
     scale: scale,
     top: top,
@@ -112,5 +110,5 @@ export function popupPlacement({
     maxHeight: contentMaxHeight,
     margin: margin,
     custom: custom,
-  };
+  }
 }

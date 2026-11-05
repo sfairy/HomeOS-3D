@@ -14,10 +14,7 @@ import { logger } from '@/shared/utils/core/logger'
  * 将 Worker 重建快照全量写回主线程 derived 索引：
  * 覆盖在线 / 灯光 / 气候计数、电池与离线列表、传感器索引、域计数与域实体索引。
  */
-export function applyDerivedSnapshot(
-  snapshot: DerivedSnapshot,
-  targets: DerivedSnapshotTargets,
-): void {
+export function applyDerivedSnapshot(snapshot: DerivedSnapshot, targets: DerivedSnapshotTargets): void {
   if (!snapshot || !targets) return
 
   targets.onlineCount.value = snapshot.online ?? 0
@@ -47,10 +44,7 @@ export function applyDerivedSnapshot(
  * 将 Worker 增量 patch 应用到主线程 derived 索引（仅更新受影响域/实体，其余保持不变）。
  * 与 applyDerivedSnapshot 的全量重建相对，patch 路径避免 O(n) 的 clear + 全量 set。
  */
-export function applyDerivedSnapshotPatch(
-  patch: DerivedSnapshotPatch,
-  targets: DerivedSnapshotTargets,
-): void {
+export function applyDerivedSnapshotPatch(patch: DerivedSnapshotPatch, targets: DerivedSnapshotTargets): void {
   if (!patch || !targets) return
 
   targets.onlineCount.value = patch.counts.online
@@ -145,9 +139,7 @@ export async function rebuildDerivedSnapshotViaWorker(
   try {
     const res = await Promise.race([
       api.rebuildDerivedSnapshot(entities, opts),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Worker 超时')), timeoutMs),
-      ),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Worker 超时')), timeoutMs)),
     ])
     // 重建成功即建立新基线，主线程记录已应用版本
     appliedEpoch = res.epoch
@@ -175,9 +167,7 @@ export async function patchDerivedSnapshotViaWorker(
         deferSecondary: opts.deferSecondary ?? false,
         expectedEpoch: appliedEpoch,
       }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Worker 补丁超时')), timeoutMs),
-      ),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Worker 补丁超时')), timeoutMs)),
     ])
     // 仅同步成功的 patch 版本；失步（null）时保持旧版本，由调用方回退全量重建
     if (patch) appliedEpoch = patch.epoch

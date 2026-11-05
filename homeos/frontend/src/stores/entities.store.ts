@@ -24,11 +24,7 @@ import type {
 } from '@/shared/types/entity-store'
 import { buildEntityCacheKey } from '@/shared/entity/utils/idb-cache'
 import { createEntityOptimisticState } from '@/stores/entities/entity-store-optimistic.util'
-import {
-  clearColdFetchMissing,
-  fetchEntitiesByIds,
-  fetchEntityById,
-} from '@/shared/entity/utils/cold-fetch.util'
+import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'
 import { getPendingListenerCount, getStateListenerStats } from '@/shared/entity/utils/state-listener'
 import { applyEntityStateUpdate } from '@/composables/entity/ws/state-update'
 import type { WsDeltaChange } from '@/shared/entity/utils/state-delta.util'
@@ -40,11 +36,7 @@ import {
 import { createEntityCacheHelpers } from '@/stores/entities/entity-store-cache'
 import { createStoreDerivedState } from '@/stores/entities/entity-store-derived'
 import { createEntityActions } from '@/stores/entities/entity-store-actions'
-import {
-  setProjectionScope,
-  patchProjectionsFromChanges,
-  clearProjections,
-} from '@/stores/entities/entity-projection'
+import { setProjectionScope, patchProjectionsFromChanges, clearProjections } from '@/stores/entities/entity-projection'
 import {
   createEntityWsState,
   type EntityCachePersistBridge,
@@ -532,9 +524,7 @@ export const useEntitiesStore = defineStore('entities', () => {
    * @returns 本次成功 hydrate 的实体列表
    */
   async function ensureEntities(entityIds: string[]): Promise<HaEntityState[]> {
-    const ids = [...new Set((entityIds || []).filter(Boolean).map(String))].filter(
-      (id) => !entities[id],
-    )
+    const ids = [...new Set((entityIds || []).filter(Boolean).map(String))].filter((id) => !entities[id])
     if (!ids.length) return []
     const fetchedMap = await fetchEntitiesByIds(ids)
     const out: HaEntityState[] = []
@@ -613,12 +603,10 @@ export const useEntitiesStore = defineStore('entities', () => {
         accessFingerprintPending = fingerprint
         return
       }
-      void fetchEntitiesFallback('实体权限变更', { force: true, quiet: true }).then(
-        () => {
-          lastAccessFingerprint = fingerprint
-          if (accessFingerprintPending === fingerprint) accessFingerprintPending = ''
-        },
-      )
+      void fetchEntitiesFallback('实体权限变更', { force: true, quiet: true }).then(() => {
+        lastAccessFingerprint = fingerprint
+        if (accessFingerprintPending === fingerprint) accessFingerprintPending = ''
+      })
     },
   )
 
@@ -631,12 +619,10 @@ export const useEntitiesStore = defineStore('entities', () => {
       return
     }
     const fingerprint = accessFingerprintPending
-    void fetchEntitiesFallback('实体权限变更(重连补拉)', { force: true, quiet: true }).then(
-      () => {
-        lastAccessFingerprint = fingerprint
-        if (accessFingerprintPending === fingerprint) accessFingerprintPending = ''
-      },
-    )
+    void fetchEntitiesFallback('实体权限变更(重连补拉)', { force: true, quiet: true }).then(() => {
+      lastAccessFingerprint = fingerprint
+      if (accessFingerprintPending === fingerprint) accessFingerprintPending = ''
+    })
   })
 
   /** 手动从服务端重新拉取实体（设置页「刷新实体」） */

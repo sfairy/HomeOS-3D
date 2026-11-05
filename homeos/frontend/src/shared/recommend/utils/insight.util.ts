@@ -1,9 +1,5 @@
 /** 推荐结果组装工具。 */
-import type {
-  RecommendBanner,
-  RecommendGroup,
-  RecommendInsightResult,
-} from '@/shared/recommend/types/recommend.types'
+import type { RecommendBanner, RecommendGroup, RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 
 /** buildRecommendInsight 入参 */
 interface BuildRecommendInsightInput {
@@ -25,9 +21,7 @@ interface BuildRecommendInsightInput {
  * 组装 RecommendInsightResult。
  * 不参与领域判定，仅统一结果骨架。
  */
-export function buildRecommendInsight(
-  input: BuildRecommendInsightInput,
-): RecommendInsightResult {
+export function buildRecommendInsight(input: BuildRecommendInsightInput): RecommendInsightResult {
   const summary =
     typeof input.summary === 'string'
       ? input.summary

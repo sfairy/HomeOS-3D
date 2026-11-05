@@ -100,13 +100,9 @@ const props = defineProps({
   voiceRooms: { type: Array, default: () => [] },
 })
 
-const commandMetaLabel = computed(() =>
-  '{n} 条命令'.replace('{n}', String(props.voiceCommandsCount)),
-)
+const commandMetaLabel = computed(() => '{n} 条命令'.replace('{n}', String(props.voiceCommandsCount)))
 
-const voiceFlowSummary = computed(
-  () => `${props.entityStats.media} 音箱 · ${props.voiceCommandsCount} 命令`,
-)
+const voiceFlowSummary = computed(() => `${props.entityStats.media} 音箱 · ${props.voiceCommandsCount} 命令`)
 
 const voiceFlowSteps = computed(() => [
   { label: '语音输入', meta: props.sttModeLabel, icon: Mic, tone: 'in' },

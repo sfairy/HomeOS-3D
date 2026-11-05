@@ -20,8 +20,7 @@ const moduleUrl = fileURLToPath(
     import.meta.url,
   ),
 )
-const { createFloorLightBuffer, objectFloorId, floorLightShaderPars, floorLightShaderLoop } =
-  await import(moduleUrl)
+const { createFloorLightBuffer, objectFloorId, floorLightShaderPars, floorLightShaderLoop } = await import(moduleUrl)
 
 // ── 最小 four-by-four（列主序，与 three 一致）────────────────────────────────
 const identityElements = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -63,16 +62,8 @@ class FakeMatrix4 {
   invert() {
     const m = this.elements
     // 只支持仿射（最后一行为 0 0 0 1）：阴影管线里用到的都是仿射矩阵。
-    const [
-      a11, a21, a31, ,
-      a12, a22, a32, ,
-      a13, a23, a33, ,
-      a14, a24, a34, ,
-    ] = m
-    const determinant =
-      a11 * (a22 * a33 - a23 * a32) -
-      a12 * (a21 * a33 - a23 * a31) +
-      a13 * (a21 * a32 - a22 * a31)
+    const [a11, a21, a31, , a12, a22, a32, , a13, a23, a33, , a14, a24, a34, ,] = m
+    const determinant = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31)
     const inverseDeterminant = 1 / determinant
     const b11 = (a22 * a33 - a23 * a32) * inverseDeterminant
     const b12 = (a13 * a32 - a12 * a33) * inverseDeterminant
@@ -86,22 +77,12 @@ class FakeMatrix4 {
     const tx = -(b11 * a14 + b21 * a24 + b31 * a34)
     const ty = -(b12 * a14 + b22 * a24 + b32 * a34)
     const tz = -(b13 * a14 + b23 * a24 + b33 * a34)
-    this.elements = Float64Array.from([
-      b11, b12, b13, 0,
-      b21, b22, b23, 0,
-      b31, b32, b33, 0,
-      tx, ty, tz, 1,
-    ])
+    this.elements = Float64Array.from([b11, b12, b13, 0, b21, b22, b23, 0, b31, b32, b33, 0, tx, ty, tz, 1])
     return this
   }
   extractRotation(matrix) {
     const m = matrix.elements
-    this.elements = Float64Array.from([
-      m[0], m[1], m[2], 0,
-      m[4], m[5], m[6], 0,
-      m[8], m[9], m[10], 0,
-      0, 0, 0, 1,
-    ])
+    this.elements = Float64Array.from([m[0], m[1], m[2], 0, m[4], m[5], m[6], 0, m[8], m[9], m[10], 0, 0, 0, 0, 1])
     return this
   }
   premultiply(other) {
@@ -204,7 +185,11 @@ function createScene() {
   const root = new FakeNode(),
     firstFloor = new FakeNode({ isMesh: false }),
     secondFloor = new FakeNode({ isMesh: false }),
-    camera = new FakeNode({ layers: { mask: 1 }, matrixWorldInverse: new FakeMatrix4(), matrixWorld: new FakeMatrix4() })
+    camera = new FakeNode({
+      layers: { mask: 1 },
+      matrixWorldInverse: new FakeMatrix4(),
+      matrixWorld: new FakeMatrix4(),
+    })
   ;(firstFloor.userData.floorId = 'f1'), (secondFloor.userData.floorId = 'f2')
   root.add(firstFloor).add(secondFloor)
   const spotA = firstFloor.add(createLight({ floor: 'f1', id: 'a' })),
@@ -250,11 +235,7 @@ test('射灯排在面光前，头部写两个计数，灯位参数按 40 个 flo
     gl.uploads.some((upload) => upload.offset === 0),
     true,
   )
-  assert.equal(
-    gl.uploads.filter((upload) => upload.offset === sunBlockOffset).length,
-    3,
-    '每层都要写方向光块',
-  )
+  assert.equal(gl.uploads.filter((upload) => upload.offset === sunBlockOffset).length, 3, '每层都要写方向光块')
 
   // 从最后一次上传里拆出 f1 的头两个 float：射灯 1、面光 1。
   const f1Header = gl.uploads.find((upload) => upload.values[0] === 1 && upload.values[1] === 1)

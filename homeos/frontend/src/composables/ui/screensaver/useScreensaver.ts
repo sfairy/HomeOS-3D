@@ -8,10 +8,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { useEarthquakeStore } from '@/stores/earthquake.store'
 import { usePerfClock } from '@/composables/ui/usePerfClock'
 import { createScreensaverLayoutState } from './screensaver-layout.internals'
-import {
-  createScreensaverClockState,
-  createScreensaverWeatherState,
-} from './screensaver-clock-weather.internals'
+import { createScreensaverClockState, createScreensaverWeatherState } from './screensaver-clock-weather.internals'
 import {
   createScreensaverBurnIn,
   createScreensaverWakeLock,
@@ -67,7 +64,10 @@ export function useScreensaver() {
     entitiesStore,
     ssWakeEnabled: idle.ssWakeEnabled,
   })
-  idle.bindWakeControls(() => wake.ssWake.start(), () => wake.ssWake.stop())
+  idle.bindWakeControls(
+    () => wake.ssWake.start(),
+    () => wake.ssWake.stop(),
+  )
 
   bindScreensaverLifecycle({
     onViewportResize: layout.onViewportResize,

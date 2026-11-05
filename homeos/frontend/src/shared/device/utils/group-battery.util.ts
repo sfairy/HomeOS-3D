@@ -62,8 +62,7 @@ export function isBatterySensorEntity(
     | undefined,
 ) {
   if (!entity?.entity_id) return false
-  const looksLikeBattery =
-    entity.attributes?.device_class === 'battery' || entity.entity_id.includes('battery')
+  const looksLikeBattery = entity.attributes?.device_class === 'battery' || entity.entity_id.includes('battery')
   if (!looksLikeBattery || isMonitoredSystemEntity(entity.entity_id)) return false
   const parsedState = parseFloat(String(entity.state ?? ''))
   return !isNaN(parsedState)
@@ -79,14 +78,11 @@ export function resolveBatteryLevel(
     if (isBatterySensorEntity(entity)) return parseFloat(String(entity.state ?? ''))
     const rawLevel = entity.attributes?.battery_level ?? entity.attributes?.battery
     if (rawLevel !== undefined && rawLevel !== null) {
-      const batteryLevel =
-        typeof rawLevel === 'number' ? rawLevel : parseInt(String(rawLevel), 10)
+      const batteryLevel = typeof rawLevel === 'number' ? rawLevel : parseInt(String(rawLevel), 10)
       if (!isNaN(batteryLevel)) return batteryLevel
     }
   }
-  const derived = (entitiesStore.batteryDevices || []).find(
-    (deviceEntry) => deviceEntry.entity_id === entityId,
-  )
+  const derived = (entitiesStore.batteryDevices || []).find((deviceEntry) => deviceEntry.entity_id === entityId)
   return derived ? derived.level : NaN
 }
 
@@ -103,10 +99,7 @@ function collectBatterySensorIdsFromIndex(entitiesStore: DeviceGroupEntitiesStor
 }
 
 /** 弹窗展示用的电池实体 ID 列表（优先域索引，回退全表扫描） */
-export function listBatteryEntityIds(
-  entitiesStore: DeviceGroupEntitiesStoreLike,
-  uiStore: DeviceGroupUiStoreLike,
-) {
+export function listBatteryEntityIds(entitiesStore: DeviceGroupEntitiesStoreLike, uiStore: DeviceGroupUiStoreLike) {
   const favoriteIds = uiStore.layoutConfig.favoriteEntities?.battery || []
   const entityIds = new Set(favoriteIds)
   for (const entityId of collectBatterySensorIdsFromIndex(entitiesStore)) {

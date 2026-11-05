@@ -69,9 +69,7 @@ function focusField(field: 'account' | 'password'): void {
  * 轨道切到首次开通的三步，并把当前步标在「注册」上。
  */
 const steps = computed(() =>
-  needsSetup
-    ? renderAuthSteps(AUTH_FLOW_SETUP, 'register')
-    : renderAuthSteps(AUTH_FLOW_ACCESS, 'login'),
+  needsSetup ? renderAuthSteps(AUTH_FLOW_SETUP, 'register') : renderAuthSteps(AUTH_FLOW_ACCESS, 'login'),
 )
 const stepsLabel = computed(() => (needsSetup ? '首次开通进度' : '账号访问进度'))
 

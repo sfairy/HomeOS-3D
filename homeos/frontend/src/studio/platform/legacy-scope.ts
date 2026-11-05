@@ -45,7 +45,7 @@ export function createLegacyScope(scopeName: string): LegacyScope {
     for (const target of listenerTargets) {
       const originalAdd = target.addEventListener
       const originalRemove = target.removeEventListener
-      if (typeof originalAdd !== "function") continue
+      if (typeof originalAdd !== 'function') continue
       target.addEventListener = function patchedAdd(type: string, listener: any, options: any): void {
         originalAdd.call(this, type, listener, options)
         disposers.push(() => originalRemove.call(this, type, listener, options))
@@ -61,7 +61,7 @@ export function createLegacyScope(scopeName: string): LegacyScope {
     const originalClearInterval = globalObject.clearInterval
 
     const trackTimer = (timerId: any): any => {
-      if (typeof timerId === "number") timerIds.add(timerId)
+      if (typeof timerId === 'number') timerIds.add(timerId)
       return timerId
     }
     globalObject.setTimeout = function patchedSetTimeout(this: any, handler: any, delay?: any, ...rest: any[]) {
@@ -73,11 +73,11 @@ export function createLegacyScope(scopeName: string): LegacyScope {
     // 模块自己清掉的定时器要从登记表移除：定时器 id 会被平台复用，
     // 残留条目会让卸载时误清一个已经属于别人的同名 id。
     globalObject.clearTimeout = function patchedClearTimeout(this: any, timerId: any) {
-      if (typeof timerId === "number") timerIds.delete(timerId)
+      if (typeof timerId === 'number') timerIds.delete(timerId)
       return originalClearTimeout.call(this, timerId)
     }
     globalObject.clearInterval = function patchedClearInterval(this: any, timerId: any) {
-      if (typeof timerId === "number") timerIds.delete(timerId)
+      if (typeof timerId === 'number') timerIds.delete(timerId)
       return originalClearInterval.call(this, timerId)
     }
     restorers.push(() => {
@@ -91,12 +91,12 @@ export function createLegacyScope(scopeName: string): LegacyScope {
     // 引导期接管构造入口即可在卸载时统一 disconnect。
     // 用「普通函数返回原生实例」而非 class 继承：MutationObserver / IntersectionObserver
     // 在部分浏览器下直接继承会抛 Illegal constructor。
-    for (const observerName of ["ResizeObserver", "IntersectionObserver", "MutationObserver"] as const) {
+    for (const observerName of ['ResizeObserver', 'IntersectionObserver', 'MutationObserver'] as const) {
       const OriginalObserver = globalObject[observerName]
-      if (typeof OriginalObserver !== "function") continue
+      if (typeof OriginalObserver !== 'function') continue
       const patchedObserver = function patchedObserver(...args: any[]) {
         const instance = new OriginalObserver(...args)
-        if (instance && typeof instance.disconnect === "function") observers.push(instance)
+        if (instance && typeof instance.disconnect === 'function') observers.push(instance)
         return instance
       }
       patchedObserver.prototype = OriginalObserver.prototype

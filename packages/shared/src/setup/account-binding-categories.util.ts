@@ -2,10 +2,10 @@
 
 /** 底栏项最小接口（绑定缺口 / 账户类别推断） */
 export interface DashboardFooterItemLike {
-  enabled?: boolean;
-  kind?: string;
-  primaryField?: string;
-  source?: string;
+  enabled?: boolean
+  kind?: string
+  primaryField?: string
+  source?: string
 }
 
 /**
@@ -17,19 +17,19 @@ export const ACCOUNT_BINDING_SOURCE_LABELS: Record<string, string> = {
   water: '水务',
   ct: '电信',
   cu: '联通',
-};
+}
 
 /**
  * 通信运营商账户类别（ct=中国电信、cu=中国联通），与账单解析模块共用分类。
  */
-export const COMM_ACCOUNT_BINDING_CATEGORIES = ['ct', 'cu'] as const;
+export const COMM_ACCOUNT_BINDING_CATEGORIES = ['ct', 'cu'] as const
 
 /**
  * 能源与公用事业账户类别（grid=电网、gas=燃气、water=水务），供首装健康检查缺口统计使用。
  */
-export const ENERGY_ACCOUNT_BINDING_CATEGORIES = ['grid', 'gas', 'water'] as const;
+export const ENERGY_ACCOUNT_BINDING_CATEGORIES = ['grid', 'gas', 'water'] as const
 
-const COMM_ACCOUNT_BINDING_SET = new Set<string>(COMM_ACCOUNT_BINDING_CATEGORIES);
+const COMM_ACCOUNT_BINDING_SET = new Set<string>(COMM_ACCOUNT_BINDING_CATEGORIES)
 
 /**
  * 判断账户类别字符串是否属于通信运营商（ct / cu）。
@@ -38,34 +38,32 @@ const COMM_ACCOUNT_BINDING_SET = new Set<string>(COMM_ACCOUNT_BINDING_CATEGORIES
  * @returns cat ∈ COMM_ACCOUNT_BINDING_CATEGORIES 时 true；否则 false（大小写敏感）
  */
 export function isCommAccountBindingCategory(cat: string): boolean {
-  return COMM_ACCOUNT_BINDING_SET.has(cat);
+  return COMM_ACCOUNT_BINDING_SET.has(cat)
 }
 
 /** 账户绑定缺口 / 深链 → 生活账户 */
 export function resolveAccountBindingSettingsRoute(_cat: string): string {
-  return '/settings?tab=life-accounts';
+  return '/settings?tab=life-accounts'
 }
 
 /** 底栏中启用且使用账户绑定的 source 集合 */
-export function collectFooterAccountSources(
-  items: DashboardFooterItemLike[] | null | undefined,
-): string[] {
-  const set = new Set<string>();
+export function collectFooterAccountSources(items: DashboardFooterItemLike[] | null | undefined): string[] {
+  const set = new Set<string>()
   for (const it of items || []) {
     if (it.enabled && it.kind !== 'entity' && String(it.primaryField || '').trim() && it.source) {
-      set.add(String(it.source));
+      set.add(String(it.source))
     }
   }
-  return [...set];
+  return [...set]
 }
 
 /** 完整性检查：能源 Widget 默认电网 + 底栏引用的账户类别 */
 export function collectRequiredAccountBindingCategories(
   footerItems: DashboardFooterItemLike[] | null | undefined,
 ): string[] {
-  const set = new Set<string>(['grid']);
-  for (const src of collectFooterAccountSources(footerItems)) set.add(src);
-  return [...set];
+  const set = new Set<string>(['grid'])
+  for (const src of collectFooterAccountSources(footerItems)) set.add(src)
+  return [...set]
 }
 
 /**
@@ -75,5 +73,5 @@ export function collectRequiredAccountBindingCategories(
  * @returns 对应中文标签，如 "电网" / "燃气"；未知键直接返回原值
  */
 export function formatAccountBindingLabel(cat: string): string {
-  return ACCOUNT_BINDING_SOURCE_LABELS[cat] || cat;
+  return ACCOUNT_BINDING_SOURCE_LABELS[cat] || cat
 }

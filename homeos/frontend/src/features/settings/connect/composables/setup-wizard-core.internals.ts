@@ -5,7 +5,11 @@
 /** 首装向导核心状态机 */
 import { useSystemConfig } from '@/composables/config/system-config-core.internals'
 import { useEnvSensorMap } from '@/features/settings/shared/composables/env-sensor-map.internals'
-import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/composables/settings-kernel/pending.internals'
+import {
+  pauseGlobalPendingChanges,
+  resumeGlobalPendingChanges,
+  syncGlobalLayoutPendingSnapshot,
+} from '@/composables/settings-kernel/pending.internals'
 import { useReduceSecuritySensitivity } from '@/features/security'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/services/api/system'
 import { useEntitiesStore } from '@/stores/entities.store'
@@ -260,7 +264,16 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
    */
   function readEnergyBindingInput():
     | { error: string }
-    | { value: { meter: string; mainPower: string; monthMeter: string; dayMeter: string; circuits: string[]; ids: string[] } } {
+    | {
+        value: {
+          meter: string
+          mainPower: string
+          monthMeter: string
+          dayMeter: string
+          circuits: string[]
+          ids: string[]
+        }
+      } {
     const meter = meterEntityId.value.trim()
     const mainPower = mainPowerEntityId.value.trim()
     const monthMeter = monthMeterEntityId.value.trim()
@@ -280,9 +293,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     if (monthMeter === meter || dayMeter === meter) {
       return { error: '月/日累计不能与主电表填同一个实体，它们是同一块表的其它口径' }
     }
-    const ids = [
-      ...new Set([meter, mainPower, monthMeter, dayMeter, ...circuits].filter(Boolean)),
-    ]
+    const ids = [...new Set([meter, mainPower, monthMeter, dayMeter, ...circuits].filter(Boolean))]
     return { value: { meter, mainPower, monthMeter, dayMeter, circuits, ids } }
   }
 
@@ -345,10 +356,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
 
   async function saveEnvironmentStep() {
     if (!envStep.envStepReady.value) {
-      notify(
-        `请至少映射 ${ENV_ROOM_MIN} 个房间的环境传感器（当前 ${envStep.envConfiguredRoomCount.value}）`,
-        false,
-      )
+      notify(`请至少映射 ${ENV_ROOM_MIN} 个房间的环境传感器（当前 ${envStep.envConfiguredRoomCount.value}）`, false)
       return false
     }
     const ok = await envMap.save()
@@ -519,11 +527,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     inferEnvMap: () => {
       const { matchedCount } = envMap.applyInference(entitiesStore.entities)
       envMap.syncRoomEntries()
-      notify(
-        matchedCount
-          ? `已推断 ${matchedCount} 个传感器映射，请核对后保存`
-          : '未找到可匹配的传感器，请手动填写',
-      )
+      notify(matchedCount ? `已推断 ${matchedCount} 个传感器映射，请核对后保存` : '未找到可匹配的传感器，请手动填写')
     },
     presenceHome,
     presenceMembers,
@@ -540,4 +544,3 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     toggleAutoUpgrade,
   }
 }
-

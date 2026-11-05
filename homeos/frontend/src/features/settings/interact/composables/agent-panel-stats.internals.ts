@@ -61,9 +61,7 @@ export function useAgentModelStats(opts: {
       const source = PRICING_SOURCE_LABELS[pricing.source] || pricing.source
       // 官方价带上 provider 名：用户切到豆包后，这里必须能看出单价来自哪一家
       const scope = pricing.source === 'provider-default' && info.provider ? `${info.provider} ` : ''
-      parts.push(
-        `计价 ${scope}${source}（入 ¥${pricing.inputMissCNY}/百万 · 出 ¥${pricing.outputCNY}/百万）`,
-      )
+      parts.push(`计价 ${scope}${source}（入 ¥${pricing.inputMissCNY}/百万 · 出 ¥${pricing.outputCNY}/百万）`)
     }
     return parts.join(' · ')
   })

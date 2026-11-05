@@ -12,35 +12,35 @@
  */
 
 /** 精度合法区间；超出即视为脏数据（与 HA 前端的约束一致）。 */
-const MIN_DISPLAY_PRECISION = 0;
-const MAX_DISPLAY_PRECISION = 100;
+const MIN_DISPLAY_PRECISION = 0
+const MAX_DISPLAY_PRECISION = 100
 
 /** 只有这些域会走「按精度格式化」的路径。 */
-const NUMERIC_ENTITY_DOMAIN_PATTERN = /^(sensor|number|input_number)\./;
+const NUMERIC_ENTITY_DOMAIN_PATTERN = /^(sensor|number|input_number)\./
 
 /** 这些 ``device_class`` 的 ``state`` 不是可格式化数值（时间戳 / 日期 / 枚举）。 */
-const NON_NUMERIC_DEVICE_CLASSES = new Set(["timestamp", "date", "enum"]);
+const NON_NUMERIC_DEVICE_CLASSES = new Set(['timestamp', 'date', 'enum'])
 
 /** 可格式化数值的字符串形态：整数、小数、科学计数法，允许前后符号与前导小数点。 */
-const NUMERIC_STATE_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const NUMERIC_STATE_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i
 
 /** ``-0`` / ``-0.00`` 这类负零：``toFixed`` 之后要露出符号，得单独抹掉。 */
-const NEGATIVE_ZERO_PATTERN = /^-0(?:\.0+)?$/;
+const NEGATIVE_ZERO_PATTERN = /^-0(?:\.0+)?$/
 
 /** 一条实体记录的精度来源（API 的 camelCase 输出）。 */
 type PrecisionSource = {
-  displayPrecision?: unknown;
-  suggestedDisplayPrecision?: unknown;
-};
+  displayPrecision?: unknown
+  suggestedDisplayPrecision?: unknown
+}
 
 /** 精度是否可用：必须是整数且在 0–100 之间（``bool`` / 小数 / 字符串一律不认）。 */
 function isDisplayPrecision(value: unknown): value is number {
   return (
-    typeof value === "number" &&
+    typeof value === 'number' &&
     Number.isInteger(value) &&
     value >= MIN_DISPLAY_PRECISION &&
     value <= MAX_DISPLAY_PRECISION
-  );
+  )
 }
 
 /**
@@ -49,10 +49,10 @@ function isDisplayPrecision(value: unknown): value is number {
  * 回落这一步不能省：HA 里绝大多数传感器只带 suggested 值，用户没手动改过。
  */
 function numberDisplayPrecision(entity: PrecisionSource | null | undefined): number | null {
-  if (!entity) return null;
-  if (isDisplayPrecision(entity.displayPrecision)) return entity.displayPrecision;
-  if (isDisplayPrecision(entity.suggestedDisplayPrecision)) return entity.suggestedDisplayPrecision;
-  return null;
+  if (!entity) return null
+  if (isDisplayPrecision(entity.displayPrecision)) return entity.displayPrecision
+  if (isDisplayPrecision(entity.suggestedDisplayPrecision)) return entity.suggestedDisplayPrecision
+  return null
 }
 
 /**
@@ -65,17 +65,17 @@ export function entityNumberFormats(
   entityIds: readonly string[] = [],
   metadataSource: Map<string, any> | Record<string, any> | null | undefined,
 ): Record<string, number> {
-  const formats: Record<string, number> = {};
+  const formats: Record<string, number> = {}
   const lookup = (entityId: string) =>
-    typeof (metadataSource as any)?.get === "function"
+    typeof (metadataSource as any)?.get === 'function'
       ? (metadataSource as Map<string, any>).get(entityId)
-      : (metadataSource as Record<string, any> | null | undefined)?.[entityId];
+      : (metadataSource as Record<string, any> | null | undefined)?.[entityId]
   for (const entityId of [...new Set(entityIds)].sort()) {
-    if (!entityId) continue;
-    const precision = numberDisplayPrecision(lookup(entityId));
-    if (precision !== null) formats[entityId] = precision;
+    if (!entityId) continue
+    const precision = numberDisplayPrecision(lookup(entityId))
+    if (precision !== null) formats[entityId] = precision
   }
-  return formats;
+  return formats
 }
 
 /**
@@ -85,13 +85,13 @@ export function entityNumberFormats(
  * ``"22.5 °C"`` 这类带单位文本、或空串，格式化它们只会把界面弄脏。
  */
 export function formatHANumber(value: unknown, precision: number | null | undefined): string {
-  const rawText = String(value ?? "");
-  if (!isDisplayPrecision(precision)) return rawText;
-  if (typeof value !== "string" && typeof value !== "number") return rawText;
-  if (!NUMERIC_STATE_PATTERN.test(rawText.trim())) return rawText;
-  if (!Number.isFinite(Number(value))) return rawText;
-  const formatted = Number(value).toFixed(precision);
-  return NEGATIVE_ZERO_PATTERN.test(formatted) ? formatted.slice(1) : formatted;
+  const rawText = String(value ?? '')
+  if (!isDisplayPrecision(precision)) return rawText
+  if (typeof value !== 'string' && typeof value !== 'number') return rawText
+  if (!NUMERIC_STATE_PATTERN.test(rawText.trim())) return rawText
+  if (!Number.isFinite(Number(value))) return rawText
+  const formatted = Number(value).toFixed(precision)
+  return NEGATIVE_ZERO_PATTERN.test(formatted) ? formatted.slice(1) : formatted
 }
 
 /**
@@ -105,11 +105,11 @@ export function formatEntityNumber(
   stateObject: any,
   precision: number | null | undefined,
 ): string {
-  const resolvedState = stateObject?.newState || stateObject;
-  const stateText = resolvedState?.state;
-  if (!NUMERIC_ENTITY_DOMAIN_PATTERN.test(String(entityId || ""))) return String(stateText ?? "");
+  const resolvedState = stateObject?.newState || stateObject
+  const stateText = resolvedState?.state
+  if (!NUMERIC_ENTITY_DOMAIN_PATTERN.test(String(entityId || ''))) return String(stateText ?? '')
   if (NON_NUMERIC_DEVICE_CLASSES.has(resolvedState?.attributes?.device_class)) {
-    return String(stateText ?? "");
+    return String(stateText ?? '')
   }
-  return formatHANumber(stateText, precision);
+  return formatHANumber(stateText, precision)
 }

@@ -26,7 +26,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { collectModelVariants, listModelFiles, modelsDir, patchGlbJson, repoRoot, specsDir } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import {
+  collectModelVariants,
+  listModelFiles,
+  modelsDir,
+  patchGlbJson,
+  repoRoot,
+  specsDir,
+} from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 void hereDir
@@ -54,12 +61,9 @@ const METALNESS_TOLERANCE = 0.05
 const hexToFactor = (hex, opacity = 1) => {
   if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return null
   const value = Number.parseInt(hex.slice(1), 16)
-  return [
-    ((value >> 16) & 255) / 255,
-    ((value >> 8) & 255) / 255,
-    (value & 255) / 255,
-    opacity,
-  ].map((channel) => Number(channel.toFixed(4)))
+  return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255, opacity].map((channel) =>
+    Number(channel.toFixed(4)),
+  )
 }
 
 /**
@@ -72,7 +76,9 @@ const roleToken = (name) => {
     .toLowerCase()
     .split(/-(?:garden|candidate|furniture|detail|foliage|decor|aquatic|sanitary|tea)-/)
     .pop()
-  const segments = String(afterInfix || '').split(/[-_]/).filter(Boolean)
+  const segments = String(afterInfix || '')
+    .split(/[-_]/)
+    .filter(Boolean)
   while (segments.length > 1 && /^\d+$/.test(segments[segments.length - 1])) segments.pop()
   const token = segments[segments.length - 1] ?? ''
   return /^[a-z][a-z0-9]*$/.test(token) ? token : ''
@@ -157,8 +163,7 @@ function buildGeneratedTables(contracts) {
 }
 
 function renderAliasFile(tables) {
-  const sortKeys = (object) =>
-    Object.fromEntries(Object.entries(object).sort(([a], [b]) => a.localeCompare(b)))
+  const sortKeys = (object) => Object.fromEntries(Object.entries(object).sort(([a], [b]) => a.localeCompare(b)))
   const lines = []
   lines.push('/**')
   lines.push(' * 自动生成，勿手改。生成命令：')
@@ -169,15 +174,26 @@ function renderAliasFile(tables) {
   lines.push(' * 旧分支逻辑与视觉结果都不变；表为空时函数退化为小写归一，行为完全等价。')
   lines.push(' */')
   lines.push('')
-  lines.push('export const LEGACY_MATERIAL_ALIASES: Readonly<Record<string, string>> = Object.freeze(' +
-    JSON.stringify(sortKeys(tables.aliases), null, 2) + ');')
+  lines.push(
+    'export const LEGACY_MATERIAL_ALIASES: Readonly<Record<string, string>> = Object.freeze(' +
+      JSON.stringify(sortKeys(tables.aliases), null, 2) +
+      ');',
+  )
   lines.push('')
-  lines.push('export const LEGACY_MATERIAL_ALIASES_BY_ITEM: Readonly<Record<string, Readonly<Record<string, string>>>> = Object.freeze(')
-  lines.push(JSON.stringify(
-    Object.fromEntries(Object.entries(tables.aliasesByItem).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, sortKeys(value)])),
-    null,
-    2,
-  ))
+  lines.push(
+    'export const LEGACY_MATERIAL_ALIASES_BY_ITEM: Readonly<Record<string, Readonly<Record<string, string>>>> = Object.freeze(',
+  )
+  lines.push(
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(tables.aliasesByItem)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([key, value]) => [key, sortKeys(value)]),
+      ),
+      null,
+      2,
+    ),
+  )
   lines.push(');')
   lines.push('')
   return lines.join('\n')
@@ -237,7 +253,10 @@ function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } =
   // 角色基线也按文件 + 下标存）。死材质只是没有被 primitive 引用，占几百字节，
   // 留着比承担「下标错位」的风险划算 —— 审计里按 notice 记录（S4）。
   const pruneIndices = pruneDead
-    ? materials.map((_, index) => index).filter((index) => !referenced.has(index)).sort((a, b) => b - a)
+    ? materials
+        .map((_, index) => index)
+        .filter((index) => !referenced.has(index))
+        .sort((a, b) => b - a)
     : []
   if (pruneIndices.length) {
     const nameBefore = new Map(materials.map((material, index) => [index, material.name ?? `material-${index}`]))
@@ -258,7 +277,8 @@ function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } =
       }
     }
     for (const [before, after] of remap) {
-      if (nameBefore.get(before) !== (json.materials[after]?.name ?? '')) throw new Error('死材质清理后材质指向发生错位')
+      if (nameBefore.get(before) !== (json.materials[after]?.name ?? ''))
+        throw new Error('死材质清理后材质指向发生错位')
     }
     log.push(`prune ${pruneIndices.length}`)
   }
@@ -269,7 +289,8 @@ function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } =
   for (const slot of model.slots) {
     slotByName.set(slot.name, slot)
     slotByName.set(slot.targetName, slot)
-    if (slot.action === 'rename' && slot.targetName && slot.targetName !== slot.name) renameByName.set(slot.name, slot.targetName)
+    if (slot.action === 'rename' && slot.targetName && slot.targetName !== slot.name)
+      renameByName.set(slot.name, slot.targetName)
   }
   for (const material of json.materials ?? []) {
     const target = renameByName.get(material.name)
@@ -338,7 +359,8 @@ function main() {
 
   const renameCount = models.reduce(
     (sum, model) =>
-      sum + model.slots.filter((slot) => slot.action === 'rename' && slot.required && slot.targetName !== slot.name).length,
+      sum +
+      model.slots.filter((slot) => slot.action === 'rename' && slot.required && slot.targetName !== slot.name).length,
     0,
   )
   const pruneCount = pruneDead
@@ -382,14 +404,22 @@ function main() {
           },
           { dryRun: !write || emitOnly },
         )
-        files.push({ kind, file: relative, changed: outcome.changed, bytesBefore: outcome.bytesBefore, bytesAfter: outcome.bytesAfter, actions: log })
+        files.push({
+          kind,
+          file: relative,
+          changed: outcome.changed,
+          bytesBefore: outcome.bytesBefore,
+          bytesAfter: outcome.bytesAfter,
+          actions: log,
+        })
       } catch (error) {
         files.push({ kind, file: relative, error: error.message })
       }
     }
     results.push({
       id: model.id,
-      renames: model.slots.filter((slot) => slot.action === 'rename' && slot.required && slot.targetName !== slot.name).length,
+      renames: model.slots.filter((slot) => slot.action === 'rename' && slot.required && slot.targetName !== slot.name)
+        .length,
       prunes: pruneDead ? model.slots.filter((slot) => !slot.required).length : 0,
       files,
     })
@@ -420,13 +450,17 @@ function main() {
     fs.writeFileSync(aliasFile, renderAliasFile(tables))
     fs.writeFileSync(roleFile, renderRoleFile(tables))
     console.log(`写入 ${path.relative(repoRoot, aliasFile)}（${Object.keys(tables.aliases).length} 条别名）`)
-    console.log(`写入 ${path.relative(repoRoot, roleFile)}（${Object.keys(tables.slotRoles).length} 个模型的 token 表）`)
+    console.log(
+      `写入 ${path.relative(repoRoot, roleFile)}（${Object.keys(tables.slotRoles).length} 个模型的 token 表）`,
+    )
   }
 
   if (asJson) {
     process.stdout.write(JSON.stringify({ summary, results }, null, 2) + '\n')
   } else {
-    console.log(`\n${write ? '已落盘' : 'dry-run'}：${summary.models} 款 / 改名 ${renameCount} / 清死材质 ${pruneCount}`)
+    console.log(
+      `\n${write ? '已落盘' : 'dry-run'}：${summary.models} 款 / 改名 ${renameCount} / 清死材质 ${pruneCount}`,
+    )
     console.log(`变更文件 ${summary.changedFiles}，错误 ${summary.errors}`)
     const sample = results.filter((entry) => entry.files?.some((file) => file.changed)).slice(0, 8)
     for (const entry of sample) {
@@ -440,7 +474,11 @@ function main() {
     if (!write) console.log('\n（dry-run：加 --write 才落盘）')
   }
 
-  if (!write && !emitOnly) fs.writeFileSync(path.join(repoRoot, 'ops/checks/studio/material-slot-repair-plan.json'), JSON.stringify({ summary, results }, null, 2) + '\n')
+  if (!write && !emitOnly)
+    fs.writeFileSync(
+      path.join(repoRoot, 'ops/checks/studio/material-slot-repair-plan.json'),
+      JSON.stringify({ summary, results }, null, 2) + '\n',
+    )
 }
 
 main()

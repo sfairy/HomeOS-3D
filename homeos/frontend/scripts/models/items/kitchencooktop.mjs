@@ -16,11 +16,7 @@
  * 0 踢脚 / 1 柜体 / 2 台面 / 3 玻璃灶面 / 4 柜门 / 5 灶体与炉头底座 / 6 火盖与炉架 / 7 旋钮。
  */
 import { box, cylinder, merge, transform } from '../lib/primitive-kit.mjs'
-import {
-  baseCabinet,
-  counterWithOpening,
-  BODY_DEPTH,
-} from '../lib/kitchen-parts.mjs'
+import { baseCabinet, counterWithOpening, BODY_DEPTH } from '../lib/kitchen-parts.mjs'
 
 export const spec = { size: [1.224, 0.908, 0.648], mount: 'floor', topologyClass: 'solid' }
 

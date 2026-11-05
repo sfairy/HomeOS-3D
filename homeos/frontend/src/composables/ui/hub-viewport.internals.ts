@@ -37,14 +37,7 @@ interface AdaptiveViewportPaginationOptions {
 
 /** 根据容器高度与行高计算每页条数，支持上下页切换（无滚动条） */
 export function useAdaptiveViewportPagination(options: AdaptiveViewportPaginationOptions) {
-  const {
-    viewportRef,
-    rowMeasureRef,
-    itemCount,
-    gap = 8,
-    minPerPage = 1,
-    enabled = ref(true),
-  } = options
+  const { viewportRef, rowMeasureRef, itemCount, gap = 8, minPerPage = 1, enabled = ref(true) } = options
 
   const currentPage = ref(1)
   const itemsPerPage = ref(minPerPage)
@@ -52,9 +45,7 @@ export function useAdaptiveViewportPagination(options: AdaptiveViewportPaginatio
 
   let resizeObserver: ResizeObserver | null = null
 
-  const totalPages = computed(() =>
-    Math.max(1, Math.ceil(itemCount.value / Math.max(itemsPerPage.value, 1))),
-  )
+  const totalPages = computed(() => Math.max(1, Math.ceil(itemCount.value / Math.max(itemsPerPage.value, 1))))
 
   const canPrev = computed(() => currentPage.value > 1)
   const canNext = computed(() => currentPage.value < totalPages.value)
@@ -141,10 +132,11 @@ export function useAdaptiveViewportPagination(options: AdaptiveViewportPaginatio
   })
 
   watch(enabled, (active) => {
-    if (active) nextTick(() => {
-      bindObserver()
-      recalculate()
-    })
+    if (active)
+      nextTick(() => {
+        bindObserver()
+        recalculate()
+      })
   })
 
   onMounted(async () => {
@@ -187,9 +179,7 @@ export function useFixedPagePagination(options: FixedPagePaginationOptions) {
   const currentPage = ref(1)
   const itemsPerPage = computed(() => perPage)
 
-  const totalPages = computed(() =>
-    Math.max(1, Math.ceil(itemCount.value / Math.max(perPage, 1))),
-  )
+  const totalPages = computed(() => Math.max(1, Math.ceil(itemCount.value / Math.max(perPage, 1))))
 
   const canPrev = computed(() => currentPage.value > 1)
   const canNext = computed(() => currentPage.value < totalPages.value)

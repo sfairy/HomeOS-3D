@@ -56,11 +56,7 @@ const internalKey = ref(0)
 function resolveCapturedComponent(instance) {
   const type = instance?.$?.type || instance?.type
   if (!type) return { name: undefined, file: undefined }
-  const name =
-    type.name ||
-    type.__name ||
-    type.displayName ||
-    (typeof type === 'function' ? type.name : undefined)
+  const name = type.name || type.__name || type.displayName || (typeof type === 'function' ? type.name : undefined)
   const file = type.__file || type.__hmrId || undefined
   return { name, file }
 }

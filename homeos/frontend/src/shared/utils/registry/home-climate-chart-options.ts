@@ -31,14 +31,11 @@ export interface HomeClimateChartConfig {
  * @param raw - 用户原始配置；为空时使用默认空列表与综合视图。
  * @returns 含全部字段且类型完整的配置对象。
  */
-export function normalizeHomeClimateChartConfig(
-  raw?: Record<string, unknown>,
-): Required<HomeClimateChartConfig> {
+export function normalizeHomeClimateChartConfig(raw?: Record<string, unknown>): Required<HomeClimateChartConfig> {
   const temperatureEntities = normalizeEntityList(raw?.temperatureEntities)
   const humidityEntities = normalizeEntityList(raw?.humidityEntities)
   const view = String(raw?.defaultView || 'all')
-  const defaultView: HomeClimateChartView =
-    view === 'temperature' || view === 'humidity' ? view : 'all'
+  const defaultView: HomeClimateChartView = view === 'temperature' || view === 'humidity' ? view : 'all'
   return {
     temperatureEntities,
     humidityEntities,

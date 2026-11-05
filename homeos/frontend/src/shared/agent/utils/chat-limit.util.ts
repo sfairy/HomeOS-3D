@@ -10,5 +10,7 @@ export const AGENT_CHAT_MAX_LENGTH = 500
  * @returns 去除首尾空白后截断到 AGENT_CHAT_MAX_LENGTH 的字符串
  */
 export function clipAgentChatMessage(text: string): string {
-  return String(text || '').trim().slice(0, AGENT_CHAT_MAX_LENGTH)
+  return String(text || '')
+    .trim()
+    .slice(0, AGENT_CHAT_MAX_LENGTH)
 }

@@ -65,9 +65,7 @@ export function useDeviceAnalyticsCharts(options: {
   /** 健康趋势数据 */
   healthTrend: HealthTrend
   /** 热力图设备数据 */
-  heatmapDevices: ComputedRef<
-    Array<{ entityId: string; daily: Array<{ day: string; onCount: number }> }>
-  >
+  heatmapDevices: ComputedRef<Array<{ entityId: string; daily: Array<{ day: string; onCount: number }> }>>
   /** 事件域分布条目 */
   eventDomainEntries: ComputedRef<Array<[string, number]>>
   /** 实体存储 */
@@ -127,7 +125,7 @@ export function useDeviceAnalyticsCharts(options: {
 
   /**
    * 获取实体显示名称
-   * 
+   *
    * @param id 实体 ID
    * @returns 实体显示名称，若无则返回实体 ID
    */
@@ -137,7 +135,7 @@ export function useDeviceAnalyticsCharts(options: {
 
   /**
    * 调度图表渲染任务
-   * 
+   *
    * 使用 nextTick 延迟执行，避免重复调度
    */
   function scheduleRender() {
@@ -151,7 +149,7 @@ export function useDeviceAnalyticsCharts(options: {
 
   /**
    * 绑定域分布图表的点击事件
-   * 
+   *
    * 点击图表区域时触发域过滤回调
    */
   function bindDomainChartClick() {
@@ -165,7 +163,7 @@ export function useDeviceAnalyticsCharts(options: {
 
   /**
    * 绑定事件统计图表的点击事件
-   * 
+   *
    * 点击图表区域时触发域过滤回调
    */
   function bindEventsChartClick() {
@@ -179,7 +177,7 @@ export function useDeviceAnalyticsCharts(options: {
 
   /**
    * 绑定热力图的点击事件
-   * 
+   *
    * 点击热力图单元格时触发实体过滤回调
    */
   function bindHeatmapClick() {
@@ -477,9 +475,7 @@ export function useDeviceAnalyticsCharts(options: {
         String(Math.round(device.totalRuntimeMs / 60000)),
       ])
     })
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n')
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
@@ -503,7 +499,7 @@ export function useDeviceAnalyticsCharts(options: {
 
   /**
    * 挂载图表组件
-   * 
+   *
    * @param rootRef 根容器引用
    */
   function mountCharts(rootRef: Ref<HTMLElement | null>) {

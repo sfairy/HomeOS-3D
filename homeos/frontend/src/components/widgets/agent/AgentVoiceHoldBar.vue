@@ -39,9 +39,7 @@ const statusText = computed(() => {
   return '正在聆听…'
 })
 
-const hintText = computed(() =>
-  canceling.value ? '松开手指 · 取消' : '手指上滑 · 取消发送',
-)
+const hintText = computed(() => (canceling.value ? '松开手指 · 取消' : '手指上滑 · 取消发送'))
 
 const transcriptText = computed(() => props.transcript || '正在聆听…')
 </script>

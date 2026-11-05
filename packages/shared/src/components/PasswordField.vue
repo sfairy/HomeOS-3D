@@ -11,18 +11,18 @@ import { ref } from 'vue'
 
 withDefaults(
   defineProps<{
-    modelValue: string;
-    id?: string;
-    name?: string;
-    placeholder?: string;
-    autocomplete?: string;
-    minlength?: number;
-    required?: boolean;
-    disabled?: boolean;
+    modelValue: string
+    id?: string
+    name?: string
+    placeholder?: string
+    autocomplete?: string
+    minlength?: number
+    required?: boolean
+    disabled?: boolean
     /** 字段当前是否处于无效状态，映射到 `aria-invalid`。 */
-    invalid?: boolean;
+    invalid?: boolean
     /** 关联的错误提示元素 id（通常指向 `role="alert"` 的那条消息）。 */
-    describedby?: string;
+    describedby?: string
   }>(),
   {
     id: '',

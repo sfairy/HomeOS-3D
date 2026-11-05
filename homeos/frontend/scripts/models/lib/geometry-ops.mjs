@@ -28,11 +28,7 @@ export function positionKey(x, y, z, tolerance = DEFAULT_WELD_TOLERANCE) {
  * @returns {{primitive: object, removedVertices: number}}
  */
 export function weldPrimitive(primitive, options = {}) {
-  const {
-    positionOnly = false,
-    tolerance = DEFAULT_WELD_TOLERANCE,
-    uvTolerance = 1e-4,
-  } = options
+  const { positionOnly = false, tolerance = DEFAULT_WELD_TOLERANCE, uvTolerance = 1e-4 } = options
   const { positions, normals, uvs, indices } = primitive
   const vertexCount = positions.length / 3
   const lookup = new Map()
@@ -138,7 +134,12 @@ export function cleanTriangles(primitive, { mergeable = true, areaEpsilon = 1e-1
     if (!used[vertex]) continue
     remap[vertex] = nextPositions.length / 3
     nextPositions.push(positions[vertex * 3], positions[vertex * 3 + 1], positions[vertex * 3 + 2])
-    if (nextNormals) nextNormals.push(primitive.normals[vertex * 3], primitive.normals[vertex * 3 + 1], primitive.normals[vertex * 3 + 2])
+    if (nextNormals)
+      nextNormals.push(
+        primitive.normals[vertex * 3],
+        primitive.normals[vertex * 3 + 1],
+        primitive.normals[vertex * 3 + 2],
+      )
     if (nextUvs) nextUvs.push(primitive.uvs[vertex * 2], primitive.uvs[vertex * 2 + 1])
   }
   for (let index = 0; index < nextIndices.length; index += 1) nextIndices[index] = remap[nextIndices[index]]
@@ -737,7 +738,13 @@ export function solidifyShells(primitive, { thickness, tolerance = DEFAULT_WELD_
         }
         const capVerdict = analyzeTopology({ positions: subPositions2, indices: subIndices2 })
         if (capVerdict.boundaryEdges === 0 && capVerdict.nonManifoldEdges === 0) {
-          accepted = { positions: capPositions, normals: capNormals, uvs: capUvs, candidate: capIndices, anchors: capAnchors }
+          accepted = {
+            positions: capPositions,
+            normals: capNormals,
+            uvs: capUvs,
+            candidate: capIndices,
+            anchors: capAnchors,
+          }
           lastVerdict = capVerdict
         } else {
           lastVerdict = capVerdict
@@ -912,8 +919,7 @@ export function signedVolume(positions, indices) {
     const cx = positions[c]
     const cy = positions[c + 1]
     const cz = positions[c + 2]
-    volume +=
-      (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6
+    volume += (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6
   }
   return volume
 }
@@ -988,24 +994,19 @@ export function fillPlanarHoles(
       skippedLoops += 1
       continue
     }
-    const points = loop.map((vertex) => [
-      positions[vertex * 3],
-      positions[vertex * 3 + 1],
-      positions[vertex * 3 + 2],
-    ])
+    const points = loop.map((vertex) => [positions[vertex * 3], positions[vertex * 3 + 1], positions[vertex * 3 + 2]])
     const plane = fitPlane(points)
     if (!plane) {
       skippedLoops += 1
       continue
     }
     const deviation = Math.max(
-      ...points.map(
-        (point) =>
-          Math.abs(
-            (point[0] - plane.origin[0]) * plane.normal[0] +
-              (point[1] - plane.origin[1]) * plane.normal[1] +
-              (point[2] - plane.origin[2]) * plane.normal[2],
-          ),
+      ...points.map((point) =>
+        Math.abs(
+          (point[0] - plane.origin[0]) * plane.normal[0] +
+            (point[1] - plane.origin[1]) * plane.normal[1] +
+            (point[2] - plane.origin[2]) * plane.normal[2],
+        ),
       ),
     )
     if (deviation > planarityTolerance) {
@@ -1091,9 +1092,7 @@ export function directedBoundaryLoops(indices) {
       while (current !== start && guard > 0) {
         guard -= 1
         loop.push(current)
-        const nextTargets = (outgoing.get(current) ?? []).filter(
-          (target) => !consumed.has(`${current}>${target}`),
-        )
+        const nextTargets = (outgoing.get(current) ?? []).filter((target) => !consumed.has(`${current}>${target}`))
         if (!nextTargets.length) break
         const next = nextTargets[0]
         consumed.add(`${current}>${next}`)
@@ -1196,7 +1195,11 @@ export function cleanPrimitive(primitive, options = {}) {
   if (fillHoles) {
     const result = fillPlanarHoles(current, { tolerance, minLoopAreaRatio })
     current = result.primitive
-    filled = { filledLoops: result.filledLoops, skippedLoops: result.skippedLoops, addedTriangles: result.addedTriangles }
+    filled = {
+      filledLoops: result.filledLoops,
+      skippedLoops: result.skippedLoops,
+      addedTriangles: result.addedTriangles,
+    }
   }
   const after = analyzeTopology(current, { tolerance })
   return {

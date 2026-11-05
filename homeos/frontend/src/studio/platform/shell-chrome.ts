@@ -34,14 +34,16 @@ export function shellNotify(message: string, kind = ''): void {
  * 弹出确认框（对齐旧 ``confirmAction({ title, message, ... })``）。
  * @returns 用户是否点了确认
  */
-export async function shellConfirm(options: {
-  title?: string
-  message?: string
-  detail?: string
-  confirmLabel?: string
-  cancelLabel?: string
-  tone?: string
-} = {}): Promise<boolean> {
+export async function shellConfirm(
+  options: {
+    title?: string
+    message?: string
+    detail?: string
+    confirmLabel?: string
+    cancelLabel?: string
+    tone?: string
+  } = {},
+): Promise<boolean> {
   const title = String(options.title || '确认操作')
   const message = [options.message, options.detail].filter(Boolean).join('\n')
   const tone = options.tone === 'danger' || options.tone === 'warning' ? 'danger' : 'primary'

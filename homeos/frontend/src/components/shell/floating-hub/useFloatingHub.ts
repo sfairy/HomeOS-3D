@@ -35,18 +35,13 @@ import {
   sanitizeWidgetPct,
   isValidRootRect,
 } from '@/shared/floorplan/utils/floating-hub-layout.util'
-import {
-  buildAfhAccentStyle,
-  resolveAfhWidgetTheme,
-} from '@/shared/entity/utils/floating-entity-colors.util'
+import { buildAfhAccentStyle, resolveAfhWidgetTheme } from '@/shared/entity/utils/floating-entity-colors.util'
 import { resolveAqiSensorId, collectSensorEntityIds } from '@/shared/weather/utils/weather-metric.util'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(
   () => import('@/components/entities/popups/UtilityMeterInfoPopup.vue'),
 )
-const AsyncCommInfoPopup = defineAsyncComponent(
-  () => import('@/components/entities/popups/CommInfoPopup.vue'),
-)
+const AsyncCommInfoPopup = defineAsyncComponent(() => import('@/components/entities/popups/CommInfoPopup.vue'))
 
 const HUB_CLOCK_TIME_OPTS = {
   hour: '2-digit',
@@ -63,9 +58,7 @@ export function useFloatingHub(rootRef: Ref<HTMLElement | null>) {
   const nowTime = computed(() => formatLocaleTime(clockNow.value, HUB_CLOCK_TIME_OPTS))
 
   const enabledWidgets = computed(() => {
-    return (layoutStore.layoutConfig.floatingWidgets || []).filter(
-      (w) => w.enabled && w.visible !== false,
-    )
+    return (layoutStore.layoutConfig.floatingWidgets || []).filter((w) => w.enabled && w.visible !== false)
   })
 
   watch(
@@ -205,8 +198,7 @@ export function useFloatingHub(rootRef: Ref<HTMLElement | null>) {
     const xPct = Number.isFinite(widget.xPct) ? widget.xPct : 50
     const yPct = Number.isFinite(widget.yPct) ? widget.yPct : 50
     const isPanel = isFloatingPanelType(widget.type)
-    const width =
-      widget.config.width || (isPanel ? FLOATING_HUB_WIDTH_MAP[widget.type] : null) || 'auto'
+    const width = widget.config.width || (isPanel ? FLOATING_HUB_WIDTH_MAP[widget.type] : null) || 'auto'
     const transform =
       draggingId.value === widget.id && frozenTransform
         ? frozenTransform
@@ -311,20 +303,15 @@ export function useFloatingHub(rootRef: Ref<HTMLElement | null>) {
     if (!isValidRootRect(rootRect)) return
 
     if (!dragCommitted) {
-      if (Math.hypot(pos.clientX - startX, pos.clientY - startY) < FLOATING_DRAG_THRESHOLD_PX)
-        return
+      if (Math.hypot(pos.clientX - startX, pos.clientY - startY) < FLOATING_DRAG_THRESHOLD_PX) return
       layoutStore.pushEditHistory(true, true)
       dragCommitted = true
     }
 
-    const next = anchorPctFromPointer(
-      pos.clientX,
-      pos.clientY,
-      rootRect,
-      grabOffsetPxX,
-      grabOffsetPxY,
-      { xPct: widget.xPct, yPct: widget.yPct },
-    )
+    const next = anchorPctFromPointer(pos.clientX, pos.clientY, rootRect, grabOffsetPxX, grabOffsetPxY, {
+      xPct: widget.xPct,
+      yPct: widget.yPct,
+    })
     widget.xPct = next.xPct
     widget.yPct = next.yPct
 

@@ -91,10 +91,7 @@ type ListKey =
   | "releaseEvents"
   | "redemptions";
 
-const PURGE_SPECS: Record<
-  string,
-  { key: ListKey; path: string; message: string; impact: string }
-> = {
+const PURGE_SPECS: Record<string, { key: ListKey; path: string; message: string; impact: string }> = {
   sessions: {
     key: "sessions",
     path: "/sessions",
@@ -169,7 +166,10 @@ const tabs: AdminTabItem[] = [
   { key: "redeem", label: "优惠码核销" },
 ];
 
-const { active, pick } = useAdminTabs("diagnostics", computed(() => tabs));
+const { active, pick } = useAdminTabs(
+  "diagnostics",
+  computed(() => tabs),
+);
 
 /**
  * 访问过的分区：隐藏 tab 首次激活时才挂载。
@@ -197,9 +197,7 @@ const redemptionParams = computed<Record<string, string>>(() => {
 });
 
 async function reloadAll() {
-  await Promise.all(
-    Object.values(tables).map((table) => table.value?.search()),
-  );
+  await Promise.all(Object.values(tables).map((table) => table.value?.search()));
 }
 
 async function purge(key: string) {
@@ -299,11 +297,7 @@ async function voidRedemption(row: Record<string, unknown>) {
       `/coupon-redemptions/${row.id}`,
       { method: "DELETE" },
     );
-    toast.push(
-      result.alreadyVoided
-        ? "该记录此前已作废过"
-        : `已作废，该优惠码当前占用 ${result.redeemedCount} 个名额`,
-    );
+    toast.push(result.alreadyVoided ? "该记录此前已作废过" : `已作废，该优惠码当前占用 ${result.redeemedCount} 个名额`);
     await tables.redemptions.value?.search();
     refresh.bump("coupons");
   } catch (error) {

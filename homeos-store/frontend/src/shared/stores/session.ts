@@ -56,10 +56,8 @@ export const useSessionStore = defineStore("session", () => {
   function applyAccount(payload: AccountPayload, { appendOrders = false } = {}) {
     account.value = payload.account || account.value;
     if (payload.hasLicense !== undefined) hasLicense.value = Boolean(payload.hasLicense);
-    if (payload.hasTemporaryLicense !== undefined)
-      hasTemporaryLicense.value = Boolean(payload.hasTemporaryLicense);
-    if (payload.hasPermanentLicense !== undefined)
-      hasPermanentLicense.value = Boolean(payload.hasPermanentLicense);
+    if (payload.hasTemporaryLicense !== undefined) hasTemporaryLicense.value = Boolean(payload.hasTemporaryLicense);
+    if (payload.hasPermanentLicense !== undefined) hasPermanentLicense.value = Boolean(payload.hasPermanentLicense);
     if (payload.hasUsedTrial !== undefined) hasUsedTrial.value = Boolean(payload.hasUsedTrial);
     licenses.value = payload.licenses || [];
     entitlements.value = payload.entitlements || [];
@@ -322,26 +320,14 @@ export function sessionNotPersistedMessage(action: "登录" | "注册"): string 
 }
 
 /** `homeos_store_hint` cookie：给首屏之前的外壳读，刷新后仍记得登录态。 */
-export function setAuthHint(
-  authenticated: boolean,
-  hasPermanentLicense = false,
-  hasTemporaryLicense = false,
-) {
+export function setAuthHint(authenticated: boolean, hasPermanentLicense = false, hasTemporaryLicense = false) {
   document.documentElement.classList.toggle("hb-auth-hint", authenticated);
-  document.documentElement.classList.toggle(
-    "hb-license-hint",
-    authenticated && hasPermanentLicense,
-  );
-  document.documentElement.classList.toggle(
-    "hb-unlicensed-hint",
-    authenticated && !hasPermanentLicense,
-  );
+  document.documentElement.classList.toggle("hb-license-hint", authenticated && hasPermanentLicense);
+  document.documentElement.classList.toggle("hb-unlicensed-hint", authenticated && !hasPermanentLicense);
   document.cookie = authenticated
     ? `homeos_store_hint=${
         hasPermanentLicense ? "permanent" : hasTemporaryLicense ? "temporary" : "unlicensed"
-      }; Max-Age=${60 * 60 * 24 * 30}; Path=/; SameSite=Lax${
-        location.protocol === "https:" ? "; Secure" : ""
-      }`
+      }; Max-Age=${60 * 60 * 24 * 30}; Path=/; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`
     : "homeos_store_hint=; Max-Age=0; Path=/; SameSite=Lax";
   setServerAuthState(authenticated ? "user" : "guest");
 }

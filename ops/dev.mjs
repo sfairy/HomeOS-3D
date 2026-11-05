@@ -9,25 +9,25 @@
  *   故须现算指纹再注入（`python -m ops.license_keys dev-env`）。
  * - dist 被 git 忽略，换分支后会留「自洽但过时」的产物，故预检按 mtime 判断是否落后于源码。
  */
-import { spawn, spawnSync } from "node:child_process";
-import fs from "node:fs";
-import net from "node:net";
-import os from "node:os";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { BACKEND_PORT_LIST, DEBUG_PORT_LIST, FRONTEND_PORT_LIST, port as portOf, waitForPort } from "./ports.mjs";
+import { spawn, spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import net from 'node:net'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { BACKEND_PORT_LIST, DEBUG_PORT_LIST, FRONTEND_PORT_LIST, port as portOf, waitForPort } from './ports.mjs'
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..");
-const HOMEOS_APP = path.join(ROOT, "homeos");
-const HOMEOS_STORE = path.join(ROOT, "homeos-store");
-const APP_BACKEND = path.join(HOMEOS_APP, "backend");
-const STORE_BACKEND = path.join(HOMEOS_STORE, "backend");
-const DIST_ROOT = path.join(ROOT, "dist");
-const APP_FRONTEND = path.join(DIST_ROOT, "homeos", "frontend");
-const STORE_FRONTEND = path.join(DIST_ROOT, "homeos-store", "frontend");
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(HERE, '..')
+const HOMEOS_APP = path.join(ROOT, 'homeos')
+const HOMEOS_STORE = path.join(ROOT, 'homeos-store')
+const APP_BACKEND = path.join(HOMEOS_APP, 'backend')
+const STORE_BACKEND = path.join(HOMEOS_STORE, 'backend')
+const DIST_ROOT = path.join(ROOT, 'dist')
+const APP_FRONTEND = path.join(DIST_ROOT, 'homeos', 'frontend')
+const STORE_FRONTEND = path.join(DIST_ROOT, 'homeos-store', 'frontend')
 //: 入户场景静态资源真源（两个前端 public 下的副本由 `sync:scene` 生成、不入库）。
-const SCENE_STATIC_SRC = path.join(ROOT, "packages", "shared", "scene", "static");
+const SCENE_STATIC_SRC = path.join(ROOT, 'packages', 'shared', 'scene', 'static')
 
 /**
  * `sync:scene` 写进各自 `frontend/public` 的产物路径（相对该 public 根）。
@@ -40,148 +40,144 @@ const SCENE_STATIC_SRC = path.join(ROOT, "packages", "shared", "scene", "static"
  * `fonts` 这条前缀同时覆盖 `fonts/` 目录与 `fonts.css`（匹配按 startsWith）。
  */
 const APP_SCENE_GENERATED = [
-  "static/auth/scene/fonts",
-  "static/auth/scene/page.css",
-  "static/auth/scene/panel.css",
-  "static/auth/scene/scene.css",
-];
+  'static/auth/scene/fonts',
+  'static/auth/scene/page.css',
+  'static/auth/scene/panel.css',
+  'static/auth/scene/scene.css',
+]
 const STORE_SCENE_GENERATED = [
-  "static/scene/fonts",
-  "static/scene/page.css",
-  "static/scene/panel.css",
-  "static/scene/scene.css",
-];
+  'static/scene/fonts',
+  'static/scene/page.css',
+  'static/scene/panel.css',
+  'static/scene/scene.css',
+]
 
-const IS_WINDOWS = process.platform === "win32";
+const IS_WINDOWS = process.platform === 'win32'
 
 // 端口全部来自 `ops/ports.mjs`（唯一真源，须与
 // compose / 镜像启动器 / 两个 vite 配置的一致）；这里只留「启动器要用的那几个」的别名。
-const APP_PORT = String(portOf("appApi"));
-const STORE_PORT = String(portOf("storeApi"));
-const VITE_3D_PORT = String(portOf("viteApp"));
-const VITE_STORE_PORT = String(portOf("viteStore"));
-const DEBUG_APP_PORT = String(portOf("debugApp"));
-const DEBUG_STORE_PORT = String(portOf("debugStore"));
-const BACKEND_PORTS = BACKEND_PORT_LIST;
-const FRONTEND_PORTS = FRONTEND_PORT_LIST;
-const DEBUG_PORTS = DEBUG_PORT_LIST;
-const HOST = "127.0.0.1";
-const LAN_HOST = "0.0.0.0";
-const LOOPBACK_BIND_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+const APP_PORT = String(portOf('appApi'))
+const STORE_PORT = String(portOf('storeApi'))
+const VITE_3D_PORT = String(portOf('viteApp'))
+const VITE_STORE_PORT = String(portOf('viteStore'))
+const DEBUG_APP_PORT = String(portOf('debugApp'))
+const DEBUG_STORE_PORT = String(portOf('debugStore'))
+const BACKEND_PORTS = BACKEND_PORT_LIST
+const FRONTEND_PORTS = FRONTEND_PORT_LIST
+const DEBUG_PORTS = DEBUG_PORT_LIST
+const HOST = '127.0.0.1'
+const LAN_HOST = '0.0.0.0'
+const LOOPBACK_BIND_HOSTS = new Set(['127.0.0.1', '::1', 'localhost'])
 
-const LAN_FLAG = "--lan";
-const BACKEND_ONLY_FLAG = "--backend-only";
-const DEBUG_FLAG = "--debug";
-const PREPARE_FLAG = "--prepare";
-const NO_WATCH_FLAG = "--no-watch-build";
-const KNOWN_FLAGS = new Set([LAN_FLAG, BACKEND_ONLY_FLAG, DEBUG_FLAG, PREPARE_FLAG, NO_WATCH_FLAG]);
+const LAN_FLAG = '--lan'
+const BACKEND_ONLY_FLAG = '--backend-only'
+const DEBUG_FLAG = '--debug'
+const PREPARE_FLAG = '--prepare'
+const NO_WATCH_FLAG = '--no-watch-build'
+const KNOWN_FLAGS = new Set([LAN_FLAG, BACKEND_ONLY_FLAG, DEBUG_FLAG, PREPARE_FLAG, NO_WATCH_FLAG])
 
-const VENV_DIR = path.join(ROOT, ".venv-store");
-const VENV_PYTHON = IS_WINDOWS
-  ? path.join(VENV_DIR, "Scripts", "python.exe")
-  : path.join(VENV_DIR, "bin", "python");
+const VENV_DIR = path.join(ROOT, '.venv-store')
+const VENV_PYTHON = IS_WINDOWS ? path.join(VENV_DIR, 'Scripts', 'python.exe') : path.join(VENV_DIR, 'bin', 'python')
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** Bun 自身的可执行文件：用它跑 vite / bun install，避免再依赖 PATH 里的 bun。 */
-const BUN_BIN = process.execPath;
+const BUN_BIN = process.execPath
 
 // 本地开发要求的 Python 下限，须与 README / Dockerfile / CI 的 3.15 对齐。
 //
 // 只比主次版本号：补丁号随上游滚动，写死会让每次安全更新都白重建一次 venv。
 // 这条校验存在的理由：旧 venv 是「目录在 + 依赖能 import」就放行，于是解释器比镜像低
 // 一个次版本也能一直用下去 —— 本地全绿、镜像里炸，正是最难排查的那类版本差。
-const MIN_PYTHON = [3, 15];
-const MIN_PYTHON_TEXT = MIN_PYTHON.join(".") + "+";
+const MIN_PYTHON = [3, 15]
+const MIN_PYTHON_TEXT = MIN_PYTHON.join('.') + '+'
 
 /** 探测目标解释器的 (主版本, 次版本)；跑不起来或输出不合预期返回 null。 */
 function pythonVersionOf(executable) {
-  const probe = spawnSync(executable, ["-c", "import sys; print(*sys.version_info[:2])"], {
-    encoding: "utf8",
-  });
-  if (probe.error || probe.status !== 0) return null;
-  const [major, minor] = String(probe.stdout).trim().split(/\s+/).map(Number);
-  return Number.isInteger(major) && Number.isInteger(minor) ? [major, minor] : null;
+  const probe = spawnSync(executable, ['-c', 'import sys; print(*sys.version_info[:2])'], {
+    encoding: 'utf8',
+  })
+  if (probe.error || probe.status !== 0) return null
+  const [major, minor] = String(probe.stdout).trim().split(/\s+/).map(Number)
+  return Number.isInteger(major) && Number.isInteger(minor) ? [major, minor] : null
 }
 
 function meetsMinPython(version) {
-  if (!version) return false;
-  const [major, minor] = version;
-  return major > MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor >= MIN_PYTHON[1]);
+  if (!version) return false
+  const [major, minor] = version
+  return major > MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor >= MIN_PYTHON[1])
 }
 
 function resolveSystemPython() {
   const candidates = process.env.HOMEOS_DEV_PYTHON
     ? [process.env.HOMEOS_DEV_PYTHON]
     : IS_WINDOWS
-      ? ["python", "py"]
-      : ["python3", "python"];
-  const tooOld = [];
+      ? ['python', 'py']
+      : ['python3', 'python']
+  const tooOld = []
   for (const candidate of candidates) {
-    const version = pythonVersionOf(candidate);
-    if (meetsMinPython(version)) return candidate;
+    const version = pythonVersionOf(candidate)
+    if (meetsMinPython(version)) return candidate
     // 记下来只为报错时能直接看出「装是装了，但版本不够」，省掉一轮猜谜。
-    if (version) tooOld.push(`${candidate} ${version.join(".")}`);
+    if (version) tooOld.push(`${candidate} ${version.join('.')}`)
   }
-  const detail = tooOld.length ? `（已找到但版本过低：${tooOld.join("、")}）` : "";
-  throw new Error(
-    `未找到 Python ${MIN_PYTHON_TEXT}${detail}；请安装，或用 HOMEOS_DEV_PYTHON 指定解释器路径。`,
-  );
+  const detail = tooOld.length ? `（已找到但版本过低：${tooOld.join('、')}）` : ''
+  throw new Error(`未找到 Python ${MIN_PYTHON_TEXT}${detail}；请安装，或用 HOMEOS_DEV_PYTHON 指定解释器路径。`)
 }
 
 function runSync(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? ROOT,
     env: options.env ?? process.env,
-    stdio: options.stdio ?? "inherit",
-  });
-  if (result.error) throw result.error;
+    stdio: options.stdio ?? 'inherit',
+  })
+  if (result.error) throw result.error
   if (result.status !== 0) {
-    throw new Error(`命令失败（退出码 ${result.status}）：${command} ${args.join(" ")}`);
+    throw new Error(`命令失败（退出码 ${result.status}）：${command} ${args.join(' ')}`)
   }
-  return result;
+  return result
 }
 
 function installRequirements() {
   runSync(VENV_PYTHON, [
-    "-m",
-    "pip",
-    "install",
-    "-r",
-    path.join(APP_BACKEND, "requirements.txt"),
-    "-r",
-    path.join(STORE_BACKEND, "requirements.txt"),
-  ]);
+    '-m',
+    'pip',
+    'install',
+    '-r',
+    path.join(APP_BACKEND, 'requirements.txt'),
+    '-r',
+    path.join(STORE_BACKEND, 'requirements.txt'),
+  ])
 }
 
 /** venv 目录在、依赖却可能是空的：编辑器 / `python -m venv` 会建出裸环境。 */
 function venvDependenciesReady() {
-  const probe = spawnSync(VENV_PYTHON, ["-c", "import uvicorn, watchfiles"], {
-    stdio: "ignore",
-  });
-  return !probe.error && probe.status === 0;
+  const probe = spawnSync(VENV_PYTHON, ['-c', 'import uvicorn, watchfiles'], {
+    stdio: 'ignore',
+  })
+  return !probe.error && probe.status === 0
 }
 
 /** 返回用于启动两个服务的 Python 解释器。 */
 function ensureVenv() {
   if (fs.existsSync(VENV_PYTHON)) {
-    const venvVersion = pythonVersionOf(VENV_PYTHON);
+    const venvVersion = pythonVersionOf(VENV_PYTHON)
     if (meetsMinPython(venvVersion)) {
-      if (venvDependenciesReady()) return VENV_PYTHON;
-      console.log("共享 venv 缺少依赖，正在补装…");
-      installRequirements();
-      return VENV_PYTHON;
+      if (venvDependenciesReady()) return VENV_PYTHON
+      console.log('共享 venv 缺少依赖，正在补装…')
+      installRequirements()
+      return VENV_PYTHON
     }
     // 版本不够才重建。venv 本身是可再生缓存，但里面可能有手装包（基于 --debug 的 debugpy
     // 由 ensureDebugpy 会补），所以只在「解释器本身不合规」时删 —— 这是新旧版本混用
     // 唯一能被自动发现并纠正的时机：目录和依赖都齐全，只有版本不对。
-    const text = venvVersion ? venvVersion.join(".") : "版本未知";
-    console.log(`共享 venv 的 Python ${text} 低于要求的 ${MIN_PYTHON_TEXT}，正在重建…`);
-    fs.rmSync(VENV_DIR, { recursive: true, force: true });
+    const text = venvVersion ? venvVersion.join('.') : '版本未知'
+    console.log(`共享 venv 的 Python ${text} 低于要求的 ${MIN_PYTHON_TEXT}，正在重建…`)
+    fs.rmSync(VENV_DIR, { recursive: true, force: true })
   }
-  runSync(resolveSystemPython(), ["-m", "venv", VENV_DIR]);
-  installRequirements();
-  return VENV_PYTHON;
+  runSync(resolveSystemPython(), ['-m', 'venv', VENV_DIR])
+  installRequirements()
+  return VENV_PYTHON
 }
 
 /**
@@ -191,10 +187,10 @@ function ensureVenv() {
  * 代码里没有任何 `import debugpy`，塞进去只是白多一个包和一份 SBOM 升级面。
  */
 function ensureDebugpy(python) {
-  const probe = spawnSync(python, ["-c", "import debugpy"], { stdio: "ignore" });
-  if (!probe.error && probe.status === 0) return;
-  console.log("--debug 需要 debugpy，正在装入共享 venv…");
-  runSync(python, ["-m", "pip", "install", "debugpy"]);
+  const probe = spawnSync(python, ['-c', 'import debugpy'], { stdio: 'ignore' })
+  if (!probe.error && probe.status === 0) return
+  console.log('--debug 需要 debugpy，正在装入共享 venv…')
+  runSync(python, ['-m', 'pip', 'install', 'debugpy'])
 }
 
 /**
@@ -204,26 +200,26 @@ function ensureDebugpy(python) {
  * 不在这里重复一份逻辑。
  */
 function ensureLicenseKeys(python) {
-  const result = spawnSync(python, ["-m", "ops.license_keys", "dev-env"], {
+  const result = spawnSync(python, ['-m', 'ops.license_keys', 'dev-env'], {
     cwd: ROOT,
     env: process.env,
-    encoding: "utf8",
-  });
-  if (result.error) throw result.error;
+    encoding: 'utf8',
+  })
+  if (result.error) throw result.error
   if (result.status !== 0) {
-    throw new Error(`生成 / 同步授权公钥失败（退出码 ${result.status}）。`);
+    throw new Error(`生成 / 同步授权公钥失败（退出码 ${result.status}）。`)
   }
-  const line = (result.stdout ?? "")
-    .split("\n")
+  const line = (result.stdout ?? '')
+    .split('\n')
     .map((item) => item.trim())
     .filter(Boolean)
-    .pop();
-  if (!line) throw new Error("授权公钥同步没有返回 JSON。");
+    .pop()
+  if (!line) throw new Error('授权公钥同步没有返回 JSON。')
   try {
-    return JSON.parse(line);
+    return JSON.parse(line)
   } catch {
     // 只做「不是 JSON」的归因；原始解析错误对使用者没有信息量（下一行的正文才是）。
-    throw new Error(`授权公钥同步返回的不是 JSON：${line}`);
+    throw new Error(`授权公钥同步返回的不是 JSON：${line}`)
   }
 }
 
@@ -233,33 +229,33 @@ function ensureLicenseKeys(python) {
 
 /** `root` 下最新的文件修改时间（纳秒 BigInt）；目录不存在时回 0。 */
 function newestMtimeNs(root) {
-  let newest = 0n;
-  const stack = [root];
+  let newest = 0n
+  const stack = [root]
   while (stack.length > 0) {
-    const current = stack.pop();
-    let entries;
+    const current = stack.pop()
+    let entries
     try {
-      entries = fs.readdirSync(current, { withFileTypes: true });
+      entries = fs.readdirSync(current, { withFileTypes: true })
     } catch {
-      continue;
+      continue
     }
     for (const entry of entries) {
-      const full = path.join(current, entry.name);
-      let stat;
+      const full = path.join(current, entry.name)
+      let stat
       try {
-        stat = fs.statSync(full, { bigint: true });
+        stat = fs.statSync(full, { bigint: true })
       } catch {
-        continue;
+        continue
       }
       if (stat.isDirectory()) {
-        stack.push(full);
-        continue;
+        stack.push(full)
+        continue
       }
-      if (!stat.isFile()) continue;
-      if (stat.mtimeNs > newest) newest = stat.mtimeNs;
+      if (!stat.isFile()) continue
+      if (stat.mtimeNs > newest) newest = stat.mtimeNs
     }
   }
-  return newest;
+  return newest
 }
 
 /**
@@ -271,28 +267,28 @@ function newestMtimeNs(root) {
  * 读它就 500 / 401。`marker` 取该次构建最后写盘的那个产物，源码侧按 mtime 反查。
  */
 function buildCoversSources(marker, ...sources) {
-  let builtAt;
+  let builtAt
   try {
-    builtAt = fs.statSync(marker, { bigint: true }).mtimeNs;
+    builtAt = fs.statSync(marker, { bigint: true }).mtimeNs
   } catch {
-    return false;
+    return false
   }
-  return sources.every((root) => newestMtimeNs(root) <= builtAt);
+  return sources.every((root) => newestMtimeNs(root) <= builtAt)
 }
 
 function hasJsAssets(directory) {
   try {
-    return fs.readdirSync(directory).some((name) => name.endsWith(".js"));
+    return fs.readdirSync(directory).some((name) => name.endsWith('.js'))
   } catch {
-    return false;
+    return false
   }
 }
 
 function readJson(file) {
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -305,32 +301,29 @@ function readJson(file) {
  * webmanifest 就变成 401/403。这里按种子清单反查一遍。
  */
 function anonymousWhitelistComplete() {
-  const seed = readJson(path.join(HOMEOS_APP, "frontend", "public-static.seed.json"));
-  const manifest = readJson(path.join(APP_FRONTEND, "public-static.json"));
-  if (!seed || !manifest) return false;
+  const seed = readJson(path.join(HOMEOS_APP, 'frontend', 'public-static.seed.json'))
+  const manifest = readJson(path.join(APP_FRONTEND, 'public-static.json'))
+  if (!seed || !manifest) return false
 
-  const generated = new Set();
+  const generated = new Set()
   for (const entry of manifest.files ?? []) {
-    const candidate = typeof entry === "string" ? entry : entry?.path;
-    if (typeof candidate === "string") generated.add(candidate);
+    const candidate = typeof entry === 'string' ? entry : entry?.path
+    if (typeof candidate === 'string') generated.add(candidate)
   }
 
-  const publicRoot = path.join(HOMEOS_APP, "frontend", "public");
+  const publicRoot = path.join(HOMEOS_APP, 'frontend', 'public')
   for (const item of seed.files ?? []) {
-    const candidate = typeof item === "string" ? item : item?.path;
-    if (typeof candidate !== "string" || !candidate.startsWith("/static/")) continue;
-    if (!fs.existsSync(path.join(publicRoot, candidate.replace(/^\//, "")))) continue;
-    if (!generated.has(candidate)) return false;
+    const candidate = typeof item === 'string' ? item : item?.path
+    if (typeof candidate !== 'string' || !candidate.startsWith('/static/')) continue
+    if (!fs.existsSync(path.join(publicRoot, candidate.replace(/^\//, '')))) continue
+    if (!generated.has(candidate)) return false
   }
-  return true;
+  return true
 }
 
 /** 商店前端产物是否覆盖了 `frontend/src` 的最新改动。 */
 function storeFrontendBuildCurrent() {
-  return buildCoversSources(
-    path.join(STORE_FRONTEND, "index.html"),
-    path.join(HOMEOS_STORE, "frontend", "src"),
-  );
+  return buildCoversSources(path.join(STORE_FRONTEND, 'index.html'), path.join(HOMEOS_STORE, 'frontend', 'src'))
 }
 
 /**
@@ -342,11 +335,11 @@ function storeFrontendBuildCurrent() {
  */
 function appFrontendBuildCurrent() {
   return buildCoversSources(
-    path.join(APP_FRONTEND, "public-static.json"),
-    path.join(HOMEOS_APP, "frontend", "index.html"),
-    path.join(HOMEOS_APP, "frontend", "src"),
-    path.join(HOMEOS_APP, "frontend", "public"),
-  );
+    path.join(APP_FRONTEND, 'public-static.json'),
+    path.join(HOMEOS_APP, 'frontend', 'index.html'),
+    path.join(HOMEOS_APP, 'frontend', 'src'),
+    path.join(HOMEOS_APP, 'frontend', 'public'),
+  )
 }
 
 /**
@@ -360,7 +353,7 @@ function appFrontendBuildCurrent() {
  * 纯本地文件比对的毫秒级操作，所以每次启动都跑，不判断新鲜度。
  */
 function ensureSceneStatic() {
-  runSync(BUN_BIN, ["run", "--cwd", path.join(ROOT, "packages/shared"), "sync:scene"]);
+  runSync(BUN_BIN, ['run', '--cwd', path.join(ROOT, 'packages/shared'), 'sync:scene'])
 }
 
 /**
@@ -369,17 +362,17 @@ function ensureSceneStatic() {
  */
 function ensureFrontendBuild() {
   const ready =
-    hasJsAssets(path.join(APP_FRONTEND, "static", "assets")) &&
-    fs.existsSync(path.join(APP_FRONTEND, "modules", "runtime", "manifest.json")) &&
+    hasJsAssets(path.join(APP_FRONTEND, 'static', 'assets')) &&
+    fs.existsSync(path.join(APP_FRONTEND, 'modules', 'runtime', 'manifest.json')) &&
     anonymousWhitelistComplete() &&
-    hasJsAssets(path.join(STORE_FRONTEND, "static", "assets")) &&
+    hasJsAssets(path.join(STORE_FRONTEND, 'static', 'assets')) &&
     appFrontendBuildCurrent() &&
-    storeFrontendBuildCurrent();
-  if (ready) return;
+    storeFrontendBuildCurrent()
+  if (ready) return
 
-  console.log("前端构建产物缺失或落后于源码，正在执行 bun run build:vite …");
-  runSync(BUN_BIN, ["install"]);
-  runSync(BUN_BIN, ["run", "build:vite"]);
+  console.log('前端构建产物缺失或落后于源码，正在执行 bun run build:vite …')
+  runSync(BUN_BIN, ['install'])
+  runSync(BUN_BIN, ['run', 'build:vite'])
 }
 
 /**
@@ -395,13 +388,13 @@ function ensureFrontendBuild() {
 function startFrontendWatchBuild() {
   // 两个前端各自负责自己的 dist（8801 ← app，8802 ← store），互不牵连：
   // 改主应用不该顺带重建商店，否则每次保存都要多等一轮无关构建。
-  const studioRuntimeSrc = path.join(HOMEOS_APP, "frontend", "src", "studio", "runtime");
+  const studioRuntimeSrc = path.join(HOMEOS_APP, 'frontend', 'src', 'studio', 'runtime')
   const watchGroups = [
     {
-      label: "主应用",
+      label: '主应用',
       sources: [
-        path.join(HOMEOS_APP, "frontend", "src"),
-        path.join(HOMEOS_APP, "frontend", "public"),
+        path.join(HOMEOS_APP, 'frontend', 'src'),
+        path.join(HOMEOS_APP, 'frontend', 'public'),
         // 场景 CSS / 字体是生成物：真源在 packages/shared/scene/static，改真源时必须连带
         // 重建，否则「改了 CSS 没效果」——public 里的那份只是上一次 sync 的产物。
         SCENE_STATIC_SRC,
@@ -409,109 +402,104 @@ function startFrontendWatchBuild() {
       // studio/runtime 由下方独立组走原子替换的 build:runtime，避免 emptyOutDir 闪断。
       // 场景 CSS 是 sync 的产物：真源改动已由 SCENE_STATIC_SRC 触发，不再让它的写入
       // 回头触发第二轮重建（见 APP_SCENE_GENERATED 的说明）。
-      ignoreRelativePrefixes: [
-        "studio/runtime" + path.sep,
-        "studio/runtime/",
-        ...APP_SCENE_GENERATED,
-      ],
-      buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build:app"],
+      ignoreRelativePrefixes: ['studio/runtime' + path.sep, 'studio/runtime/', ...APP_SCENE_GENERATED],
+      buildArgs: ['run', '--cwd', path.join(HOMEOS_APP, 'frontend'), 'build:app'],
       refreshPort: APP_PORT,
     },
     {
-      label: "3D runtime",
+      label: '3D runtime',
       sources: [studioRuntimeSrc],
       // 非 watch 构建写旁路目录再 rename，不会清空线上 modules/runtime。
-      buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build:runtime"],
+      buildArgs: ['run', '--cwd', path.join(HOMEOS_APP, 'frontend'), 'build:runtime'],
       refreshPort: APP_PORT,
     },
     {
-      label: "授权商店",
+      label: '授权商店',
       sources: [
-        path.join(HOMEOS_STORE, "frontend", "src"),
+        path.join(HOMEOS_STORE, 'frontend', 'src'),
         // 商店的 /store-static/** 在 dev 下也由后端从 dist 下发，所以 public 里的场景 CSS
         // 改了同样必须重建 —— 漏掉这一条就表现为「改了 CSS 没效果」。
-        path.join(HOMEOS_STORE, "frontend", "public"),
+        path.join(HOMEOS_STORE, 'frontend', 'public'),
         SCENE_STATIC_SRC,
       ],
-      buildArgs: ["run", "--cwd", HOMEOS_STORE, "build"],
+      buildArgs: ['run', '--cwd', HOMEOS_STORE, 'build'],
       refreshPort: STORE_PORT,
       // 同主应用：`/store-static/scene/**` 由 sync 生成，真源改动不再回头触发第二轮。
       ignoreRelativePrefixes: [...STORE_SCENE_GENERATED],
     },
-  ];
+  ]
 
-  let watchedCount = 0;
+  let watchedCount = 0
   for (const group of watchGroups) {
-    let debounceTimer = null;
-    let building = false;
-    let pendingRebuild = false;
+    let debounceTimer = null
+    let building = false
+    let pendingRebuild = false
 
     const rebuild = () => {
       if (building) {
         // 构建期间又落盘：合并成一次补建，避免编辑器批量保存时排队串烧。
-        pendingRebuild = true;
-        return;
+        pendingRebuild = true
+        return
       }
-      building = true;
-      const startedAt = Date.now();
+      building = true
+      const startedAt = Date.now()
       const child = spawn(BUN_BIN, group.buildArgs, {
         cwd: ROOT,
         env: process.env,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      let output = "";
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      let output = ''
       const collectOutput = (chunk) => {
-        output = (output + chunk.toString()).slice(-4000);
-      };
-      child.stdout?.on("data", collectOutput);
-      child.stderr?.on("data", collectOutput);
-      child.on("exit", (code) => {
-        building = false;
-        const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+        output = (output + chunk.toString()).slice(-4000)
+      }
+      child.stdout?.on('data', collectOutput)
+      child.stderr?.on('data', collectOutput)
+      child.on('exit', (code) => {
+        building = false
+        const seconds = ((Date.now() - startedAt) / 1000).toFixed(1)
         if (code === 0) {
           console.log(
             `[watch-build] ${group.label} dist 已重建（${seconds}s）—— 刷新 ${group.refreshPort} 即可看到改动。`,
-          );
+          )
         } else {
-          console.log(
-            `[watch-build] ${group.label} 重建失败（退出码 ${code}），最后一次输出：\n${output.trim()}`,
-          );
+          console.log(`[watch-build] ${group.label} 重建失败（退出码 ${code}），最后一次输出：\n${output.trim()}`)
         }
         if (pendingRebuild) {
-          pendingRebuild = false;
-          rebuild();
+          pendingRebuild = false
+          rebuild()
         }
-      });
-    };
+      })
+    }
 
     const onSourceChange = (_eventType, filename) => {
-      const relative = String(filename || "").replace(/\\/g, "/");
+      const relative = String(filename || '').replace(/\\/g, '/')
       const ignored = group.ignoreRelativePrefixes?.some(
-        (prefix) => relative === prefix.replace(/\\/g, "/").replace(/\/$/, "") || relative.startsWith(prefix.replace(/\\/g, "/")),
-      );
-      if (ignored) return;
-      if (debounceTimer) clearTimeout(debounceTimer);
+        (prefix) =>
+          relative === prefix.replace(/\\/g, '/').replace(/\/$/, '') || relative.startsWith(prefix.replace(/\\/g, '/')),
+      )
+      if (ignored) return
+      if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
-        debounceTimer = null;
-        rebuild();
-      }, 400);
-    };
+        debounceTimer = null
+        rebuild()
+      }, 400)
+    }
 
     for (const target of group.sources) {
       try {
         // persistent: false —— 保活交给已拉起的服务子进程，监听器不额外吊住事件循环。
-        fs.watch(target, { recursive: true, persistent: false }, onSourceChange);
-        watchedCount += 1;
+        fs.watch(target, { recursive: true, persistent: false }, onSourceChange)
+        watchedCount += 1
       } catch (error) {
-        console.log(`[watch-build] 无法监听 ${target}：${error?.message ?? error}`);
+        console.log(`[watch-build] 无法监听 ${target}：${error?.message ?? error}`)
       }
     }
   }
 
   if (watchedCount > 0) {
     console.log(
-      "[watch-build] 已开启：改 frontend/{src,public} 与 studio/runtime 会自动重建 dist（加 --no-watch-build 可关闭）。",
-    );
+      '[watch-build] 已开启：改 frontend/{src,public} 与 studio/runtime 会自动重建 dist（加 --no-watch-build 可关闭）。',
+    )
   }
 }
 
@@ -522,38 +510,36 @@ function startFrontendWatchBuild() {
 /** 探测本机回环地址上 `port` 是否已有服务在监听。 */
 function isPortListening(port) {
   return new Promise((resolve) => {
-    let settled = false;
+    let settled = false
     const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      socket.destroy();
-      resolve(value);
-    };
-    const socket = net.connect({ host: "127.0.0.1", port: Number(port) });
-    socket.setTimeout(500);
-    socket.once("connect", () => finish(true));
-    socket.once("timeout", () => finish(false));
-    socket.once("error", () => finish(false));
-  });
+      if (settled) return
+      settled = true
+      socket.destroy()
+      resolve(value)
+    }
+    const socket = net.connect({ host: '127.0.0.1', port: Number(port) })
+    socket.setTimeout(500)
+    socket.once('connect', () => finish(true))
+    socket.once('timeout', () => finish(false))
+    socket.once('error', () => finish(false))
+  })
 }
 
 /** 启动前预检服务端口；已被占用时立刻中止，不拉起任何子进程。 */
 async function ensurePortsAvailable({ frontend, debug }) {
-  const ports = [...BACKEND_PORTS];
-  if (frontend) ports.push(...FRONTEND_PORTS);
-  if (debug) ports.push(...DEBUG_PORTS);
+  const ports = [...BACKEND_PORTS]
+  if (frontend) ports.push(...FRONTEND_PORTS)
+  if (debug) ports.push(...DEBUG_PORTS)
 
-  const results = await Promise.all(
-    ports.map(async ([port, name]) => [port, name, await isPortListening(port)]),
-  );
-  const occupied = results.filter(([, , listening]) => listening);
-  if (occupied.length === 0) return;
+  const results = await Promise.all(ports.map(async ([port, name]) => [port, name, await isPortListening(port)]))
+  const occupied = results.filter(([, , listening]) => listening)
+  if (occupied.length === 0) return
 
-  console.log("⚠ 检测到服务端口已被占用，本次启动已中止（未拉起任何进程）：");
-  for (const [port, name] of occupied) console.log(`  - ${port}（${name}）已有服务在监听`);
-  console.log("  最常见的原因是上一份 ops/dev.mjs 还没退出，或已在另一个终端里运行 Vite。");
-  console.log("  请先停掉已有实例再启动：关闭它所在的终端，或执行 `pkill -f ops/dev.mjs`。");
-  process.exit(1);
+  console.log('⚠ 检测到服务端口已被占用，本次启动已中止（未拉起任何进程）：')
+  for (const [port, name] of occupied) console.log(`  - ${port}（${name}）已有服务在监听`)
+  console.log('  最常见的原因是上一份 ops/dev.mjs 还没退出，或已在另一个终端里运行 Vite。')
+  console.log('  请先停掉已有实例再启动：关闭它所在的终端，或执行 `pkill -f ops/dev.mjs`。')
+  process.exit(1)
 }
 
 /**
@@ -564,54 +550,52 @@ async function ensurePortsAvailable({ frontend, debug }) {
  * 局域网地址就成了不可用的 `http://0.0.0.0:8801/`）。改为枚举网卡，优先常见内网段。
  */
 function primaryLanAddress() {
-  const candidates = [];
-  let interfaces;
+  const candidates = []
+  let interfaces
   try {
-    interfaces = os.networkInterfaces();
+    interfaces = os.networkInterfaces()
   } catch {
     // 某些沙箱 / 受限环境里 getifaddrs 会直接报错，退化为「没探到」即可，
     // 不能让一次地址探测把已经拉起服务给带崩。
-    return "";
+    return ''
   }
   for (const entries of Object.values(interfaces ?? {})) {
     for (const entry of entries ?? []) {
-      if (entry.family !== "IPv4" && entry.family !== 4) continue;
-      if (entry.internal) continue;
-      if (entry.address.startsWith("169.254.")) continue;
-      candidates.push(entry.address);
+      if (entry.family !== 'IPv4' && entry.family !== 4) continue
+      if (entry.internal) continue
+      if (entry.address.startsWith('169.254.')) continue
+      candidates.push(entry.address)
     }
   }
   const isPrivate = (address) =>
-    address.startsWith("192.168.") ||
-    address.startsWith("10.") ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(address);
-  return candidates.find(isPrivate) ?? candidates[0] ?? "";
+    address.startsWith('192.168.') || address.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(address)
+  return candidates.find(isPrivate) ?? candidates[0] ?? ''
 }
 
 /** 极简 `.env` 加载：真实环境变量优先，与商店 src/core/env.py 的口径一致。 */
 function loadDotenv() {
-  const file = path.join(ROOT, ".env");
-  let text;
+  const file = path.join(ROOT, '.env')
+  let text
   try {
-    text = fs.readFileSync(file, "utf8");
+    text = fs.readFileSync(file, 'utf8')
   } catch {
-    return;
+    return
   }
-  for (const rawLine of text.split("\n")) {
-    let line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    if (line.startsWith("export ")) line = line.slice("export ".length).trim();
-    const index = line.indexOf("=");
-    if (index < 0) continue;
-    const key = line.slice(0, index).trim();
-    if (!key || key in process.env) continue;
-    let value = line.slice(index + 1).trim();
+  for (const rawLine of text.split('\n')) {
+    let line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    if (line.startsWith('export ')) line = line.slice('export '.length).trim()
+    const index = line.indexOf('=')
+    if (index < 0) continue
+    const key = line.slice(0, index).trim()
+    if (!key || key in process.env) continue
+    let value = line.slice(index + 1).trim()
     if (value.length >= 2 && value[0] === value[value.length - 1] && (value[0] === '"' || value[0] === "'")) {
-      value = value.slice(1, -1);
+      value = value.slice(1, -1)
     } else {
-      value = value.split(" #", 1)[0].trim();
+      value = value.split(' #', 1)[0].trim()
     }
-    process.env[key] = value;
+    process.env[key] = value
   }
 }
 
@@ -620,9 +604,9 @@ function loadDotenv() {
  * ------------------------------------------------------------------ */
 
 function viteDevCommand(configRel, host) {
-  const command = [BUN_BIN, "vite", "--config", configRel];
-  if (!LOOPBACK_BIND_HOSTS.has(host)) command.push("--host", host);
-  return command;
+  const command = [BUN_BIN, 'vite', '--config', configRel]
+  if (!LOOPBACK_BIND_HOSTS.has(host)) command.push('--host', host)
+  return command
 }
 
 /**
@@ -642,51 +626,51 @@ function viteDevCommand(configRel, host) {
  * 当成脚本路径去 compile，直接报 `SyntaxError: source code string cannot contain null bytes`。
  */
 function debugpyPrefix(python, debugPort) {
-  return [python, "-Xfrozen_modules=off", "-m", "debugpy", "--listen", debugPort, "-m"];
+  return [python, '-Xfrozen_modules=off', '-m', 'debugpy', '--listen', debugPort, '-m']
 }
 
 function parseOptions(arguments_) {
-  const unknown = arguments_.filter((item) => !KNOWN_FLAGS.has(item));
+  const unknown = arguments_.filter((item) => !KNOWN_FLAGS.has(item))
   if (unknown.length > 0) {
-    console.log(`⚠ 忽略了无法识别的参数：${unknown.join(" ")}`);
-    console.log(`  本脚本只认 ${[...KNOWN_FLAGS].sort().join(" / ")}。`);
+    console.log(`⚠ 忽略了无法识别的参数：${unknown.join(' ')}`)
+    console.log(`  本脚本只认 ${[...KNOWN_FLAGS].sort().join(' / ')}。`)
   }
   return {
     host: arguments_.includes(LAN_FLAG) ? LAN_HOST : HOST,
     backendOnly: arguments_.includes(BACKEND_ONLY_FLAG),
     debug: arguments_.includes(DEBUG_FLAG),
-  };
+  }
 }
 
 function spawnChild(command, environment, cwd) {
   return spawn(command[0], command.slice(1), {
     cwd,
     env: environment,
-    stdio: "inherit",
-  });
+    stdio: 'inherit',
+  })
 }
 
 function childAlive(child) {
-  return child.exitCode === null && child.signalCode === null;
+  return child.exitCode === null && child.signalCode === null
 }
 
 function terminate(child) {
-  if (!childAlive(child)) return;
+  if (!childAlive(child)) return
   if (IS_WINDOWS) {
-    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
-    return;
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    return
   }
-  child.kill("SIGTERM");
+  child.kill('SIGTERM')
 }
 
 async function shutdown(children) {
-  for (const child of children) terminate(child);
-  const deadline = Date.now() + 5000;
+  for (const child of children) terminate(child)
+  const deadline = Date.now() + 5000
   for (const child of children) {
-    while (childAlive(child) && Date.now() < deadline) await sleep(100);
-    if (!childAlive(child)) continue;
+    while (childAlive(child) && Date.now() < deadline) await sleep(100)
+    if (!childAlive(child)) continue
     try {
-      child.kill("SIGKILL");
+      child.kill('SIGKILL')
     } catch {
       /* 进程已退出 */
     }
@@ -694,122 +678,122 @@ async function shutdown(children) {
 }
 
 async function main() {
-  const arguments_ = process.argv.slice(2);
+  const arguments_ = process.argv.slice(2)
 
   if (arguments_.includes(PREPARE_FLAG)) {
-    console.log(`Python 环境就绪：${ensureVenv()}`);
-    return 0;
+    console.log(`Python 环境就绪：${ensureVenv()}`)
+    return 0
   }
 
-  const options = parseOptions(arguments_);
-  await ensurePortsAvailable({ frontend: !options.backendOnly, debug: options.debug });
-  const python = ensureVenv();
-  if (options.debug) ensureDebugpy(python);
+  const options = parseOptions(arguments_)
+  await ensurePortsAvailable({ frontend: !options.backendOnly, debug: options.debug })
+  const python = ensureVenv()
+  if (options.debug) ensureDebugpy(python)
   // 场景 CSS / 字体是生成物（真源在 packages/shared/scene/static，不入库），
   // 必须先铺出来再判断前端产物是否落后 —— 否则 public 目录本身可能是空的。
-  ensureSceneStatic();
-  ensureFrontendBuild();
+  ensureSceneStatic()
+  ensureFrontendBuild()
   // 8801 发的是 dist 构建产物（8805 才是 HMR），所以启动后持续把源码改动重建进去。
-  if (!options.backendOnly && !arguments_.includes(NO_WATCH_FLAG)) startFrontendWatchBuild();
+  if (!options.backendOnly && !arguments_.includes(NO_WATCH_FLAG)) startFrontendWatchBuild()
 
-  const licenseOverrides = ensureLicenseKeys(python);
-  loadDotenv();
+  const licenseOverrides = ensureLicenseKeys(python)
+  loadDotenv()
 
   // 子进程环境：剔除 PYTHONHOME 与代理，避免宿主环境干扰后端 / HA 连接。
-  const baseEnvironment = { ...process.env };
-  delete baseEnvironment.PYTHONHOME;
+  const baseEnvironment = { ...process.env }
+  delete baseEnvironment.PYTHONHOME
   for (const key of [
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "ALL_PROXY",
-    "SOCKS_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "all_proxy",
-    "socks_proxy",
-    "NO_PROXY",
-    "no_proxy",
+    'HTTP_PROXY',
+    'HTTPS_PROXY',
+    'ALL_PROXY',
+    'SOCKS_PROXY',
+    'http_proxy',
+    'https_proxy',
+    'all_proxy',
+    'socks_proxy',
+    'NO_PROXY',
+    'no_proxy',
   ]) {
-    delete baseEnvironment[key];
+    delete baseEnvironment[key]
   }
 
   const appEnvironment = {
     ...baseEnvironment,
-    HOMEOS_DATA_DIR: path.join(HOMEOS_APP, "data"),
+    HOMEOS_DATA_DIR: path.join(HOMEOS_APP, 'data'),
     HOMEOS_FRONTEND_DIR: APP_FRONTEND,
     HOMEOS_PORT: APP_PORT,
     HOMEOS_HOST: options.host,
-    HOMEOS_RELOAD: "1",
+    HOMEOS_RELOAD: '1',
     PYTHONPATH: APP_BACKEND,
     ...licenseOverrides,
-  };
+  }
 
   const storeEnvironment = {
     ...baseEnvironment,
-    STORE_DATA_DIR: path.join(HOMEOS_STORE, "data"),
-    STORE_LICENSE_KEYS_DIR: path.join(HOMEOS_STORE, "keys", "local"),
+    STORE_DATA_DIR: path.join(HOMEOS_STORE, 'data'),
+    STORE_LICENSE_KEYS_DIR: path.join(HOMEOS_STORE, 'keys', 'local'),
     STORE_HOST: options.host,
     STORE_PORT,
     PYTHONPATH: STORE_BACKEND,
-    STORE_RELOAD: process.env.STORE_RELOAD ?? "1",
-    STORE_MAIL_MODE: process.env.STORE_MAIL_MODE ?? "log",
-  };
+    STORE_RELOAD: process.env.STORE_RELOAD ?? '1',
+    STORE_MAIL_MODE: process.env.STORE_MAIL_MODE ?? 'log',
+  }
 
-  const baseStoreCommand = [python, "-m", "src.run"];
+  const baseStoreCommand = [python, '-m', 'src.run']
   // 主应用：`python -m src.run` 自己读 PORT / HOMEOS_PORT（默认 8801）与 HOMEOS_RELOAD，
   // 与容器内 `start_app.py`（uvicorn 直起）共用同一份 run.py 语义。
-  const baseAppCommand = [python, "-m", "src.run"];
+  const baseAppCommand = [python, '-m', 'src.run']
   // 调试前缀顶替基础命令的 `python -m` 头（slice(2)），变成
   // `python -m debugpy --listen PORT -m <module> ...`，后面的模块参数原样保留。
   const withDebugger = (command, debugPort) =>
-    options.debug ? [...debugpyPrefix(python, debugPort), ...command.slice(2)] : command;
-  const storeCommand = withDebugger(baseStoreCommand, DEBUG_STORE_PORT);
-  const appCommand = withDebugger(baseAppCommand, DEBUG_APP_PORT);
+    options.debug ? [...debugpyPrefix(python, debugPort), ...command.slice(2)] : command
+  const storeCommand = withDebugger(baseStoreCommand, DEBUG_STORE_PORT)
+  const appCommand = withDebugger(baseAppCommand, DEBUG_APP_PORT)
 
-  console.log(`HomeOS 本地启动（${options.debug ? "debug" : options.backendOnly ? "backend-only" : "dev"}）`);
+  console.log(`HomeOS 本地启动（${options.debug ? 'debug' : options.backendOnly ? 'backend-only' : 'dev'}）`)
 
   const children = [
     spawnChild(storeCommand, storeEnvironment, HOMEOS_STORE),
     spawnChild(appCommand, appEnvironment, APP_BACKEND),
-  ];
+  ]
 
   if (!options.backendOnly) {
-    const frontendEnvironment = { ...baseEnvironment };
+    const frontendEnvironment = { ...baseEnvironment }
     children.push(
-      spawnChild(viteDevCommand("frontend/vite.config.ts", options.host), frontendEnvironment, HOMEOS_APP),
-      spawnChild(viteDevCommand("frontend/vite.config.ts", options.host), frontendEnvironment, HOMEOS_STORE),
-    );
+      spawnChild(viteDevCommand('frontend/vite.config.ts', options.host), frontendEnvironment, HOMEOS_APP),
+      spawnChild(viteDevCommand('frontend/vite.config.ts', options.host), frontendEnvironment, HOMEOS_STORE),
+    )
   }
 
-  let exitCode = 0;
+  let exitCode = 0
   try {
-    let interrupted = false;
+    let interrupted = false
     const onSignal = () => {
-      interrupted = true;
-    };
-    process.on("SIGINT", onSignal);
-    process.on("SIGTERM", onSignal);
+      interrupted = true
+    }
+    process.on('SIGINT', onSignal)
+    process.on('SIGTERM', onSignal)
 
     if (!options.backendOnly) {
-      console.log(`前端 HMR  主应用   http://${HOST}:${VITE_3D_PORT}/`);
-      console.log(`          授权商店 http://${HOST}:${VITE_STORE_PORT}/`);
+      console.log(`前端 HMR  主应用   http://${HOST}:${VITE_3D_PORT}/`)
+      console.log(`          授权商店 http://${HOST}:${VITE_STORE_PORT}/`)
     }
-    console.log(`后端 API  主应用   http://${HOST}:${APP_PORT}/login`);
-    console.log(`          授权商店 http://${HOST}:${STORE_PORT}/`);
+    console.log(`后端 API  主应用   http://${HOST}:${APP_PORT}/login`)
+    console.log(`          授权商店 http://${HOST}:${STORE_PORT}/`)
     if (options.debug) {
-      console.log(`调试器    主应用   ${DEBUG_APP_PORT}（IDE attach，热重载保留）`);
-      console.log(`          授权商店 ${DEBUG_STORE_PORT}（IDE attach，热重载保留）`);
+      console.log(`调试器    主应用   ${DEBUG_APP_PORT}（IDE attach，热重载保留）`)
+      console.log(`          授权商店 ${DEBUG_STORE_PORT}（IDE attach，热重载保留）`)
     }
     // 就绪确认：端口进入监听态即返回，而不是等一个固定时长 —— 依赖安装 / 建库 /
     // reload 守护启动各自耗时不同，固定 sleep 只能靠猜（猜短了后续步骤偶发失败，猜长了白等）。
     // 打印在 URL 之后：用户看到地址却连不上时，能直接分清「还没起来」与「起错了」。
     {
       const expected = [
-        [Number(APP_PORT), "主应用 API"],
-        [Number(STORE_PORT), "授权商店 API"],
-      ];
+        [Number(APP_PORT), '主应用 API'],
+        [Number(STORE_PORT), '授权商店 API'],
+      ]
       if (!options.backendOnly) {
-        expected.push([Number(VITE_3D_PORT), "主应用 Vite"], [Number(VITE_STORE_PORT), "授权商店 Vite"]);
+        expected.push([Number(VITE_3D_PORT), '主应用 Vite'], [Number(VITE_STORE_PORT), '授权商店 Vite'])
       }
       const ready = await Promise.all(
         expected.map(async ([portNumber, name]) => [
@@ -817,61 +801,61 @@ async function main() {
           name,
           await waitForPort(portNumber, { timeoutMs: 20_000, shouldStop: () => interrupted }),
         ]),
-      );
-      const pending = ready.filter(([, , ok]) => !ok);
+      )
+      const pending = ready.filter(([, , ok]) => !ok)
       if (interrupted) {
         // 用户按了 Ctrl-C：不追加噪声，直接走退出路径。
       } else if (pending.length) {
-        console.log(`⚠ 20 秒内未进入监听态：${pending.map(([p, name]) => `${p}（${name}）`).join("、")}`);
-        console.log("  子进程日志在上面；常见原因是依赖未装全或端口被上一次的残留进程占住。");
+        console.log(`⚠ 20 秒内未进入监听态：${pending.map(([p, name]) => `${p}（${name}）`).join('、')}`)
+        console.log('  子进程日志在上面；常见原因是依赖未装全或端口被上一次的残留进程占住。')
       } else {
-        console.log("✓ 服务已就绪。");
+        console.log('✓ 服务已就绪。')
       }
     }
     if (!options.backendOnly) {
-      console.log("改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos dev:runtime");
+      console.log('改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos dev:runtime')
     }
     if (!LOOPBACK_BIND_HOSTS.has(options.host)) {
-      const lanAddress = primaryLanAddress();
-      console.log("");
-      console.log(`已绑定 ${options.host}，同网段设备用下面的地址访问（Host 与 Origin 会随之校验，无需额外配置）：`);
+      const lanAddress = primaryLanAddress()
+      console.log('')
+      console.log(`已绑定 ${options.host}，同网段设备用下面的地址访问（Host 与 Origin 会随之校验，无需额外配置）：`)
       if (lanAddress) {
         if (!options.backendOnly) {
-          console.log(`局域网 HMR  主应用   http://${lanAddress}:${VITE_3D_PORT}/`);
-          console.log(`            授权商店 http://${lanAddress}:${VITE_STORE_PORT}/`);
+          console.log(`局域网 HMR  主应用   http://${lanAddress}:${VITE_3D_PORT}/`)
+          console.log(`            授权商店 http://${lanAddress}:${VITE_STORE_PORT}/`)
         }
-        console.log(`局域网 API  主应用   http://${lanAddress}:${APP_PORT}/`);
-        console.log(`            授权商店 http://${lanAddress}:${STORE_PORT}/`);
+        console.log(`局域网 API  主应用   http://${lanAddress}:${APP_PORT}/`)
+        console.log(`            授权商店 http://${lanAddress}:${STORE_PORT}/`)
       } else {
         const ports = options.backendOnly
           ? `${APP_PORT}/${STORE_PORT}`
-          : `${APP_PORT}/${STORE_PORT}/${VITE_3D_PORT}/${VITE_STORE_PORT}`;
-        console.log(`  （没探到局域网地址，请自行查看本机 IP；端口 ${ports}）`);
+          : `${APP_PORT}/${STORE_PORT}/${VITE_3D_PORT}/${VITE_STORE_PORT}`
+        console.log(`  （没探到局域网地址，请自行查看本机 IP；端口 ${ports}）`)
       }
-      console.log("  支付渠道需要真实凭据（支付宝沙箱见 homeos-store/backend/src/README.md）；未配置时下单会 503。");
+      console.log('  支付渠道需要真实凭据（支付宝沙箱见 homeos-store/backend/src/README.md）；未配置时下单会 503。')
     }
 
     for (const child of children) {
-      child.on("exit", (code, signal) => {
-        if (signal) return;
-        if (typeof code === "number" && code !== 0) exitCode = code;
-      });
+      child.on('exit', (code, signal) => {
+        if (signal) return
+        if (typeof code === 'number' && code !== 0) exitCode = code
+      })
     }
 
     while (!interrupted && children.every(childAlive)) {
-      await sleep(400);
+      await sleep(400)
     }
-    return exitCode;
+    return exitCode
   } finally {
     // 无论正常退出、Ctrl-C 还是中途抛错（例如探测网卡失败），都不能留下孤儿后端。
-    await shutdown(children);
+    await shutdown(children)
   }
 }
 
 main().then(
   (code) => process.exit(code ?? 0),
   (error) => {
-    console.error(`⚠ ${error instanceof Error ? error.message : error}`);
-    process.exit(1);
+    console.error(`⚠ ${error instanceof Error ? error.message : error}`)
+    process.exit(1)
   },
-);
+)

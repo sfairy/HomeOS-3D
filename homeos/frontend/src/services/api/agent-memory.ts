@@ -24,10 +24,7 @@ export async function listAgentMemories() {
 
 /** 新增 / 覆盖一条长期记忆；返回更新后的完整列表。 */
 export async function saveAgentMemory(payload: AgentMemoryPayload) {
-  const response = await apiPost<{ ok: boolean; items: AgentMemoryItem[] }>(
-    '/agent/memories',
-    payload,
-  )
+  const response = await apiPost<{ ok: boolean; items: AgentMemoryItem[] }>('/agent/memories', payload)
   return response.data?.items ?? []
 }
 

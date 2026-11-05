@@ -9,38 +9,38 @@ export async function withRequestTimeout(
   request: (signal: AbortSignal) => Promise<any>,
   externalSignal?: AbortSignal,
 ): Promise<any> {
-  const controller = new AbortController();
-  let abortReason;
+  const controller = new AbortController()
+  let abortReason
   const abortWith = (reason: any) => {
-      controller.signal.aborted || ((abortReason = reason), controller.abort(reason));
+      controller.signal.aborted || ((abortReason = reason), controller.abort(reason))
     },
     abortFromSignal = () =>
       abortWith(
         externalSignal!.reason ||
-          Object.assign(new Error("Request aborted"), {
-            name: "AbortError",
+          Object.assign(new Error('Request aborted'), {
+            name: 'AbortError',
           }),
-      );
-  if (externalSignal?.aborted) throw (abortFromSignal(), abortReason);
-  externalSignal?.addEventListener("abort", abortFromSignal, {
+      )
+  if (externalSignal?.aborted) throw (abortFromSignal(), abortReason)
+  externalSignal?.addEventListener('abort', abortFromSignal, {
     once: true,
-  });
+  })
   const timerId = setTimeout(
     () =>
       abortWith(
-        Object.assign(new Error("Request timed out"), {
-          name: "TimeoutError",
+        Object.assign(new Error('Request timed out'), {
+          name: 'TimeoutError',
         }),
       ),
     timeoutMs,
-  );
+  )
   try {
-    const result = await request(controller.signal);
-    if (controller.signal.aborted) throw abortReason;
-    return result;
+    const result = await request(controller.signal)
+    if (controller.signal.aborted) throw abortReason
+    return result
   } catch (requestError: any) {
-    throw controller.signal.aborted ? abortReason : requestError;
+    throw controller.signal.aborted ? abortReason : requestError
   } finally {
-    (clearTimeout(timerId), externalSignal?.removeEventListener("abort", abortFromSignal));
+    clearTimeout(timerId), externalSignal?.removeEventListener('abort', abortFromSignal)
   }
 }

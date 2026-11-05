@@ -278,9 +278,7 @@ const {
 } = useDevicesView()
 
 const allFilteredSelected = computed(
-  () =>
-    filtered.value.length > 0 &&
-    filtered.value.every((item) => selectedIds.value.includes(item.entity_id)),
+  () => filtered.value.length > 0 && filtered.value.every((item) => selectedIds.value.includes(item.entity_id)),
 )
 
 // 列表滚动容器：库分页切换后回到列表顶部，避免停留在空位。

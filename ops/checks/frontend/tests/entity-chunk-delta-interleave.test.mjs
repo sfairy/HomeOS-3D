@@ -17,12 +17,7 @@ import { fileURLToPath } from 'node:url'
 const MODULE = fileURLToPath(
   new URL('../../../../homeos/frontend/src/shared/entity/utils/state-delta.util.ts', import.meta.url),
 )
-const {
-  isOlderFrameTimestamp,
-  isStaleState,
-  mergeChunkIntoNewerEntity,
-  mergeWsStateChange,
-} = await import(MODULE)
+const { isOlderFrameTimestamp, isStaleState, mergeChunkIntoNewerEntity, mergeWsStateChange } = await import(MODULE)
 
 /** 本地先用一条 delta 合出来的「半实体」：只有 state 和一个变动属性。 */
 function halfEntity(entityId = 'light.kitchen') {
@@ -117,8 +112,5 @@ test('/ws/runtime 旧帧判定与 socket.io 侧共用同一份实现', () => {
   assert.equal(isOlderFrameTimestamp(undefined, current), false)
   assert.equal(isOlderFrameTimestamp('2026-11-01T10:00:05.000Z', undefined), false)
   // HA 时间戳带微秒：必须与 parseHaTimestamp 同口径解析（截到毫秒），不能被引擎差异判成 Invalid。
-  assert.equal(
-    isOlderFrameTimestamp('2026-11-01T10:00:05.123456+00:00', '2026-11-01T10:00:05.124999+00:00'),
-    true,
-  )
+  assert.equal(isOlderFrameTimestamp('2026-11-01T10:00:05.123456+00:00', '2026-11-01T10:00:05.124999+00:00'), true)
 })

@@ -44,8 +44,11 @@ export function useMainLayoutChrome() {
   })
 
   // 门铃子 composable
-  const { doorbellCameraId, doorbellTriggerEntityId, doorbellLockEntityId, doorbellLabel } =
-    useMainLayoutDoorbell({ layoutStore, chrome, entitiesStore })
+  const { doorbellCameraId, doorbellTriggerEntityId, doorbellLockEntityId, doorbellLabel } = useMainLayoutDoorbell({
+    layoutStore,
+    chrome,
+    entitiesStore,
+  })
 
   // 天气导航子 composable
   const { toggleFullscreen, navColors, navFrameStyle } = useMainLayoutWeatherNav({
@@ -89,19 +92,13 @@ export function useMainLayoutChrome() {
   /** 实体数据是否已过期 */
   const isEntitiesStale = computed(() => entitiesStore.entitiesStale)
   /** 是否已配置 HA（连接记录存在且保存过令牌） */
-  const hasHAConfigured = computed(
-    () => haConnectionStore.configured && haConnectionStore.hasToken,
-  )
+  const hasHAConfigured = computed(() => haConnectionStore.configured && haConnectionStore.hasToken)
   /** HA 断线 / 陈旧 / 重连中：禁止危险批量控制与模式切换入口 */
   const haControlBlocked = computed(
-    () =>
-      hasHAConfigured.value &&
-      (!isConnected.value || isEntitiesStale.value || isReconnecting.value),
+    () => hasHAConfigured.value && (!isConnected.value || isEntitiesStale.value || isReconnecting.value),
   )
   /** 是否展示全屋关闭按钮（已登录且功能启用；禁用态由 haControlBlocked 控制） */
-  const showWholeHomeOff = computed(
-    () => authStore.isAuthenticated && canUseWholeHomeOff(layoutStore.layoutConfig),
-  )
+  const showWholeHomeOff = computed(() => authStore.isAuthenticated && canUseWholeHomeOff(layoutStore.layoutConfig))
   /** 是否可执行全屋关闭（功能启用且 HA 就绪） */
   const canWholeHomeOff = computed(() => showWholeHomeOff.value && !haControlBlocked.value)
 
@@ -123,15 +120,10 @@ export function useMainLayoutChrome() {
       // 高危操作触感反馈：确认后已实际下发批量关闭
       hapticAlert()
       if (failed) {
-        chrome.notify(
-          '部分设备关闭失败（{failed}）'.replace('{failed}', String(failed)),
-          'warning',
-        )
+        chrome.notify('部分设备关闭失败（{failed}）'.replace('{failed}', String(failed)), 'warning')
       } else {
         chrome.notify(
-          '全屋关闭完成（{ok}/{total}）'
-            .replace('{ok}', String(okCount))
-            .replace('{total}', String(total)),
+          '全屋关闭完成（{ok}/{total}）'.replace('{ok}', String(okCount)).replace('{total}', String(total)),
           'success',
         )
       }
@@ -172,9 +164,7 @@ export function useMainLayoutChrome() {
     return base || drop
   })
   /** 是否显示 HA 告警横幅 */
-  const showHaBanner = computed(
-    () => showHaDataWarning.value || !!haQueueDropHint.value,
-  )
+  const showHaBanner = computed(() => showHaDataWarning.value || !!haQueueDropHint.value)
   /** 是否显示实体加载进度（entityLoadPhase 未就绪时） */
   const showEntityLoadProgress = computed(() => entitiesStore.entityLoadPhase !== 'ready')
 
@@ -235,13 +225,9 @@ export function useMainLayoutChrome() {
   })
 
   /** 设置是否锁定（配置启用锁且未解锁时为 true） */
-  const isSettingsLocked = computed(
-    () => layoutStore.layoutConfig.settingsLock?.enabled && !chrome.isSettingsUnlocked,
-  )
+  const isSettingsLocked = computed(() => layoutStore.layoutConfig.settingsLock?.enabled && !chrome.isSettingsUnlocked)
   /** 是否显示设置 Tab（导航菜单中无 settings 项时） */
-  const showSettingsTab = computed(
-    () => !menuItems.value.some((i) => i.id === 'settings'),
-  )
+  const showSettingsTab = computed(() => !menuItems.value.some((i) => i.id === 'settings'))
 
   /** 设置点击：锁定时阻止跳转并打开设置锁弹窗 */
   function onSettingsClick(e: Event) {

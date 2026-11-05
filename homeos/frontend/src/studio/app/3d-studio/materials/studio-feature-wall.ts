@@ -1,13 +1,11 @@
-
-
 import {
   createFeatureWallTexture,
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeFeatureWallStyle,
-} from "./studio-surface-textures";
-import { addMeshBoxToGroup } from "./mesh-box";
+} from './studio-surface-textures'
+import { addMeshBoxToGroup } from './mesh-box'
 
-const MAX_TEXTURE_ANISOTROPY = 8;
+const MAX_TEXTURE_ANISOTROPY = 8
 
 /** 构建背景墙模型。
  *
@@ -16,25 +14,42 @@ const MAX_TEXTURE_ANISOTROPY = 8;
  * @returns {object} THREE.Group
  */
 export function createFeaturewallModel(three: any, item: any) {
-  const itemWidth = Math.max(Number(item.width) || 3, 0.3);
-  const itemHeight = Math.max(Number(item.height) || 2.4, 0.3);
-  const itemDepth = Math.max(Number(item.depth) || 0.1, 0.02);
+  const itemWidth = Math.max(Number(item.width) || 3, 0.3)
+  const itemHeight = Math.max(Number(item.height) || 2.4, 0.3)
+  const itemDepth = Math.max(Number(item.depth) || 0.1, 0.02)
 
-  const group = new three.Group();
-  group.name = "featurewall";
+  const group = new three.Group()
+  group.name = 'featurewall'
 
-  const addMeshBox = (boxWidth: any, boxHeight: any, boxDepth: any, x: any, y: any, z: any, color: any, roughness: any, metalness: any) =>
-    addMeshBoxToGroup(three, group, boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness);
+  const addMeshBox = (
+    boxWidth: any,
+    boxHeight: any,
+    boxDepth: any,
+    x: any,
+    y: any,
+    z: any,
+    color: any,
+    roughness: any,
+    metalness: any,
+  ) => addMeshBoxToGroup(three, group, boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness)
 
-  const wallStyle = normalizeFeatureWallStyle(item.wallStyle);
-  const wallMaterial = (FEATURE_WALL_STYLE_MATERIAL as any)[wallStyle];
-  const panelDepth = Math.max(itemDepth, 0.04);
+  const wallStyle = normalizeFeatureWallStyle(item.wallStyle)
+  const wallMaterial = (FEATURE_WALL_STYLE_MATERIAL as any)[wallStyle]
+  const panelDepth = Math.max(itemDepth, 0.04)
 
+  addMeshBox(
+    itemWidth,
+    itemHeight,
+    panelDepth,
+    0,
+    itemHeight * 0.5,
+    -panelDepth * 0.5,
+    wallMaterial.color,
+    wallMaterial.roughness,
+    wallMaterial.metalness,
+  )
 
-  addMeshBox(itemWidth, itemHeight, panelDepth, 0, itemHeight * 0.5, -panelDepth * 0.5, wallMaterial.color, wallMaterial.roughness, wallMaterial.metalness);
-
-
-  const panelTexture = createFeatureWallTexture(three, wallStyle, MAX_TEXTURE_ANISOTROPY);
+  const panelTexture = createFeatureWallTexture(three, wallStyle, MAX_TEXTURE_ANISOTROPY)
   if (panelTexture) {
     const claddingMesh = new three.Mesh(
       new three.PlaneGeometry(itemWidth, itemHeight),
@@ -43,19 +58,18 @@ export function createFeaturewallModel(three: any, item: any) {
         roughness: wallMaterial.roughness,
         metalness: wallMaterial.metalness,
       }),
-    );
-    claddingMesh.position.set(0, itemHeight * 0.5, 0.0015);
-    claddingMesh.castShadow = false;
-    claddingMesh.receiveShadow = true;
-    group.add(claddingMesh);
+    )
+    claddingMesh.position.set(0, itemHeight * 0.5, 0.0015)
+    claddingMesh.castShadow = false
+    claddingMesh.receiveShadow = true
+    group.add(claddingMesh)
   }
 
-
-  if (wallStyle === "slat") {
-    const slatCount = Math.min(48, Math.max(4, Math.round(itemWidth / 0.1)));
-    const slatPitch = itemWidth / slatCount;
-    const slatWidth = slatPitch * 0.62;
-    const slatDepth = Math.min(Math.max(panelDepth * 0.62, 0.02), 0.05);
+  if (wallStyle === 'slat') {
+    const slatCount = Math.min(48, Math.max(4, Math.round(itemWidth / 0.1)))
+    const slatPitch = itemWidth / slatCount
+    const slatWidth = slatPitch * 0.62
+    const slatDepth = Math.min(Math.max(panelDepth * 0.62, 0.02), 0.05)
     for (let slat = 0; slat < slatCount; slat += 1) {
       addMeshBox(
         slatWidth,
@@ -67,9 +81,9 @@ export function createFeaturewallModel(three: any, item: any) {
         wallMaterial.color,
         0.7,
         0.03,
-      );
+      )
     }
   }
 
-  return group;
+  return group
 }

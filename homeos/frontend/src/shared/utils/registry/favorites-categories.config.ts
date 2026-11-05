@@ -1,16 +1,5 @@
 /** 常用设备分类元数据（设置页 / 推荐引擎 / 快捷组共用） */
-import {
-  Sun,
-  Thermometer,
-  ToggleLeft,
-  Sliders,
-  Search,
-  Blinds,
-  Music,
-  Fan,
-  Lock,
-  BatteryWarning,
-} from '@lucide/vue'
+import { Sun, Thermometer, ToggleLeft, Sliders, Search, Blinds, Music, Fan, Lock, BatteryWarning } from '@lucide/vue'
 import type { Component } from 'vue'
 
 type FavoriteCategoryGroup = 'control' | 'environment' | 'security' | 'monitor'
@@ -136,6 +125,7 @@ export const FAVORITE_CATEGORIES: FavoriteCategoryMeta[] = [
 ]
 
 /** FAVORITE_CATEGORY_MAP：常量，取值语义见定义处。 */
-export const FAVORITE_CATEGORY_MAP = Object.fromEntries(
-  FAVORITE_CATEGORIES.map((c) => [c.id, c]),
-) as Record<string, FavoriteCategoryMeta>
+export const FAVORITE_CATEGORY_MAP = Object.fromEntries(FAVORITE_CATEGORIES.map((c) => [c.id, c])) as Record<
+  string,
+  FavoriteCategoryMeta
+>

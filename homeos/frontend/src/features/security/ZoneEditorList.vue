@@ -262,16 +262,8 @@ const {
   refreshRooms,
 } = useSecurityZoneRooms()
 
-const {
-  isCompact,
-  expandedAll,
-  activeTabIndex,
-  selectItem,
-  expandAll,
-  collapseAll,
-  zoneNavItems,
-  renderedZones,
-} = useSecurityZoneEditorList(zones, roomOptions)
+const { isCompact, expandedAll, activeTabIndex, selectItem, expandAll, collapseAll, zoneNavItems, renderedZones } =
+  useSecurityZoneEditorList(zones, roomOptions)
 
 // 工具栏主按钮样式随 variant 切换：widget 用 ws-hint-action，dash 用 sec-dash-btn
 const toolbarPrimaryClass = computed(() =>
@@ -279,9 +271,7 @@ const toolbarPrimaryClass = computed(() =>
 )
 // 工具栏次按钮样式随 variant 切换
 const toolbarGhostClass = computed(() =>
-  props.variant === 'widget'
-    ? 'ws-btn-add !w-auto !inline-flex'
-    : 'sec-dash-btn sec-dash-btn--ghost',
+  props.variant === 'widget' ? 'ws-btn-add !w-auto !inline-flex' : 'sec-dash-btn sec-dash-btn--ghost',
 )
 
 // 追加一个空白区域到列表末尾

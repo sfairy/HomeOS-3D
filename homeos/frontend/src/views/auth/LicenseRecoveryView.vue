@@ -63,10 +63,7 @@ async function check(manual = false): Promise<void> {
     tone.value = latestState.status === 'INSTANCE_MISMATCH' ? 'alert' : 'lumen'
     retryVisible.value = Boolean(latestState.canRetry)
   } catch (checkError) {
-    errorMessage.value = licenseErrorMessage(
-      checkError,
-      '暂时连接不到 HomeOS 服务，请检查网络；网络恢复后会自动检查。',
-    )
+    errorMessage.value = licenseErrorMessage(checkError, '暂时连接不到 HomeOS 服务，请检查网络；网络恢复后会自动检查。')
     tone.value = 'alert'
     // 后端明确说「重试无意义」时才收起按钮。
     retryVisible.value = licenseErrorRetryable(checkError) !== false

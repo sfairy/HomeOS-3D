@@ -22,9 +22,7 @@ const cards = computed<Card[]>(() => {
     kind: "primary",
   }));
   if (session.hasPermanentLicense) {
-    catalog.availableAddonProducts.forEach((product) =>
-      list.push({ group: "addon", product, kind: "addon" }),
-    );
+    catalog.availableAddonProducts.forEach((product) => list.push({ group: "addon", product, kind: "addon" }));
   }
   return list;
 });
@@ -56,9 +54,7 @@ function upgradeId() {
 function productHref(product: StoreProduct) {
   const base = `/item/${encodeURIComponent(product.id)}`;
   const upgrade = upgradeId();
-  return upgrade && !catalog.isTrialProduct(product)
-    ? `${base}?upgrade=${encodeURIComponent(upgrade)}`
-    : base;
+  return upgrade && !catalog.isTrialProduct(product) ? `${base}?upgrade=${encodeURIComponent(upgrade)}` : base;
 }
 
 function primaryUnavailable(product: StoreProduct) {

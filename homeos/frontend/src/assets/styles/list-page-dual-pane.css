@@ -10,7 +10,11 @@
     radial-gradient(ellipse 85% 55% at 8% -8%, rgba(var(--page-accent-rgb), 0.09) 0%, transparent 58%),
     radial-gradient(ellipse 60% 45% at 96% 105%, rgba(var(--page-accent-rgb), 0.05) 0%, transparent 52%),
     radial-gradient(ellipse 90% 50% at 10% -10%, rgba(var(--page-accent-rgb), 0.05) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 40% at 95% 0%, rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.04) 0%, transparent 50%);
+    radial-gradient(
+      ellipse 70% 40% at 95% 0%,
+      rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.04) 0%,
+      transparent 50%
+    );
 }
 
 .events-view :focus-visible,
@@ -87,13 +91,15 @@
     radial-gradient(ellipse 100% 70% at 100% 0%, rgba(var(--page-accent-rgb), 0.07) 0%, transparent 55%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.32));
   backdrop-filter: blur(16px);
-  box-shadow: var(--premium-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow:
+    var(--premium-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
 
 .events-view__stream::before,
 .notifications-view__stream::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 16px;
@@ -147,7 +153,7 @@
 
 .events-view__stream-title::before,
 .notifications-view__stream-title::before {
-  content: '';
+  content: "";
   width: 3px;
   height: 14px;
   border-radius: 2px;

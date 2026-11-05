@@ -3,9 +3,7 @@
  * @module frontend/src/views
  */
 /** 绑定：单账户/多账户编辑区 */
-import {
-  createDefaultEnergySource,
-} from '@/shared/energy/constants/energy-fields'
+import { createDefaultEnergySource } from '@/shared/energy/constants/energy-fields'
 import {
   bootstrapAccountStructForMode,
   hasEntityAccountConfig,
@@ -30,10 +28,7 @@ interface BindingsAccountSectionProps {
   compositeEntityAttrs: Ref<string[]>
 }
 
-export function useBindingsAccountSection(
-  categoryTab: Ref<string>,
-  props: BindingsAccountSectionProps,
-) {
+export function useBindingsAccountSection(categoryTab: Ref<string>, props: BindingsAccountSectionProps) {
   const layoutStore = useLayoutStore()
   const entitiesStore = useEntitiesStore()
   const editingMultiAccountIndex = ref(0)
@@ -78,15 +73,9 @@ export function useBindingsAccountSection(
     if (!src || src.mode !== 'entity') return []
     return resolveAccountEntityEntries(src).map((row, index) => ({
       id: String(index),
-      label: (row.label?.trim() || getEntityLeaf(row.entityId) || `账户 ${index + 1}`).slice(
-        0,
-        12,
-      ),
+      label: (row.label?.trim() || getEntityLeaf(row.entityId) || `账户 ${index + 1}`).slice(0, 12),
       emoji: index === (src.primaryAccountIndex ?? 0) ? '★' : '○',
-      accent:
-        index === (src.primaryAccountIndex ?? 0)
-          ? 'var(--hos-color-accent-strong)'
-          : 'var(--hos-fg-2)',
+      accent: index === (src.primaryAccountIndex ?? 0) ? 'var(--hos-color-accent-strong)' : 'var(--hos-fg-2)',
     }))
   })
 
@@ -137,10 +126,7 @@ export function useBindingsAccountSection(
       id: String(index),
       label: multiAccountEntryLabel(row, index).slice(0, 12),
       emoji: index === (src.primaryAccountIndex ?? 0) ? '★' : '○',
-      accent:
-        index === (src.primaryAccountIndex ?? 0)
-          ? 'var(--hos-color-accent-strong)'
-          : 'var(--hos-fg-2)',
+      accent: index === (src.primaryAccountIndex ?? 0) ? 'var(--hos-color-accent-strong)' : 'var(--hos-fg-2)',
     }))
   })
 
@@ -208,4 +194,3 @@ export function useBindingsAccountSection(
     isConfigured,
   }
 }
-

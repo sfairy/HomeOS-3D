@@ -158,9 +158,7 @@ const engineHint = computed(() =>
     : '免费、免密钥的神经音色，中文建议选晓晓 / 云希',
 )
 
-const voiceOptions = computed(() =>
-  withCurrentVoice(voicesForEngine(engine.value), String(voice.value.ttsVoice || '')),
-)
+const voiceOptions = computed(() => withCurrentVoice(voicesForEngine(engine.value), String(voice.value.ttsVoice || '')))
 
 const voiceHint = computed(() =>
   engine.value === 'openai' ? '填模型支持的 voice 名称' : '对话回复带音频时直接播放这段声音',

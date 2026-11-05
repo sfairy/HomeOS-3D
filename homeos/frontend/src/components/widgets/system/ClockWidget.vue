@@ -91,9 +91,7 @@ onUnmounted(() => {
 
 const timeParts = computed(() => getZonedParts(now.value, { hour12: false }))
 /** 时间主显示：HH:mm（不依赖 locale 字符串拆分） */
-const timeMain = computed(
-  () => `${pad2(timeParts.value.hour)}:${pad2(timeParts.value.minute)}`,
-)
+const timeMain = computed(() => `${pad2(timeParts.value.hour)}:${pad2(timeParts.value.minute)}`)
 /** 秒显示：ss */
 const timeSecond = computed(() => pad2(timeParts.value.second))
 
@@ -111,8 +109,8 @@ const dateStr = computed(() =>
 
 /** 24 节气对应的编码偏移量（用于推算每个节气的公历日期） */
 const SOLAR_TERM_INFO = [
-  0, 21208, 42467, 63836, 85337, 107014, 128867, 150921, 173149, 195551, 218072, 240693, 263343,
-  285989, 308563, 331033, 353350, 375494, 397447, 419210, 440795, 462224, 483532, 504758,
+  0, 21208, 42467, 63836, 85337, 107014, 128867, 150921, 173149, 195551, 218072, 240693, 263343, 285989, 308563, 331033,
+  353350, 375494, 397447, 419210, 440795, 462224, 483532, 504758,
 ]
 
 /** 节气计算的基准年（1900） */

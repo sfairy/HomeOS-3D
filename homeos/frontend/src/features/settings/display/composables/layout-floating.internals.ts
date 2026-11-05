@@ -14,7 +14,11 @@ import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
 import { clampPct } from '@/shared/utils/core/misc.util'
 export { clampPct }
 import { FLOATING_HUB_DEFAULT_TAB } from '@/shared/utils/registry/floating-hub-tab-options'
-import { cloneHubTabsDraft, hasConfigurableTabs, serializeHubTabsConfig } from '@/shared/utils/registry/hub-tabs-options'
+import {
+  cloneHubTabsDraft,
+  hasConfigurableTabs,
+  serializeHubTabsConfig,
+} from '@/shared/utils/registry/hub-tabs-options'
 import { FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/shared/utils/registry/widget-catalog'
 import type { Ref } from 'vue'
 import { computed, reactive, ref, watch } from 'vue'
@@ -80,8 +84,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
   }
 
   function addFloatingWidgetByType(type: string) {
-    const extraConfig: Record<string, unknown> =
-      type === 'securityPanel' ? { zones: [], showZones: true } : {}
+    const extraConfig: Record<string, unknown> = type === 'securityPanel' ? { zones: [], showZones: true } : {}
     if (hasConfigurableTabs(type)) {
       Object.assign(extraConfig, serializeHubTabsConfig(cloneHubTabsDraft({}, type), type))
     } else if (FLOATING_HUB_DEFAULT_TAB[type]) {
@@ -190,9 +193,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     afhHubTabs.visibleTabs = Array.isArray(snap.visibleTabs) ? [...snap.visibleTabs] : []
     afhConfig.sensorIds = snap.sensorIds || ''
     afhConfig.playerEntities = snap.playerEntities || ''
-    afhConfig.quickSwitchEntities = Array.isArray(snap.quickSwitchEntities)
-      ? [...snap.quickSwitchEntities]
-      : []
+    afhConfig.quickSwitchEntities = Array.isArray(snap.quickSwitchEntities) ? [...snap.quickSwitchEntities] : []
     afhConfig.customColorsEnabled = snap.customColorsEnabled === true
     afhConfig.customColorAccent = snap.customColorAccent || ''
     afhConfig.customColorLabel = snap.customColorLabel || ''
@@ -248,9 +249,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
       }
       afhConfig.sensorIds = String(cfg.sensorIds || '')
       afhConfig.playerEntities = String(cfg.playerEntities || '')
-      afhConfig.quickSwitchEntities = Array.isArray(cfg.entities)
-        ? [...(cfg.entities as string[])]
-        : []
+      afhConfig.quickSwitchEntities = Array.isArray(cfg.entities) ? [...(cfg.entities as string[])] : []
       afhConfig.customColorsEnabled = cfg.customColorsEnabled === true
       afhConfig.customColorAccent = String(cfg.customColorAccent || '')
       afhConfig.customColorLabel = String(cfg.customColorLabel || '')
@@ -272,22 +271,15 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     closeEdit()
   }
 
-  const {
-    addSecurityZone,
-    saveAfhConfig,
-    removeFloatingWidgetById,
-    getAfhIcon,
-    isValidFloatingType,
-    goSecurityModes,
-  } = useFloatingAfhActions({
-    floatingWidgets,
-    afhEditId,
-    afhConfig,
-    afhHubTabs,
-    afhEditSnapshot,
-    closeEdit,
-  })
-
+  const { addSecurityZone, saveAfhConfig, removeFloatingWidgetById, getAfhIcon, isValidFloatingType, goSecurityModes } =
+    useFloatingAfhActions({
+      floatingWidgets,
+      afhEditId,
+      afhConfig,
+      afhHubTabs,
+      afhEditSnapshot,
+      closeEdit,
+    })
 
   watch(
     () => layoutStore.layoutDirty,
@@ -318,7 +310,6 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     goSecurityModes,
   }
 }
-
 
 export { AFH_THEMES } from '@/features/settings/display/composables/layout-floating-display.internals'
 export { isEntityFloatType } from '@/features/settings/display/composables/layout-floating-display.internals'

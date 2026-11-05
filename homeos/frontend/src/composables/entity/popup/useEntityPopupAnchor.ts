@@ -44,9 +44,7 @@ export function useEntityPopupAnchor(
   )
   // 根据锚点模式选择对应的样式 / class / 箭头
   const anchorStyle = computed(() => (useAnchor.value ? fr.fixedStyle.value : pr.popupStyle.value))
-  const popupClass = computed(() =>
-    useAnchor.value ? fr.popupClassArray.value : pr.popupClassArray.value,
-  )
+  const popupClass = computed(() => (useAnchor.value ? fr.popupClassArray.value : pr.popupClassArray.value))
   // 像素锚点才有箭头样式，百分比锚点模式下不展示
   const arrowStyle = computed(() => (useAnchor.value ? fr.arrowStyle.value : {}))
   return {

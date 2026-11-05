@@ -98,9 +98,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'select'])
 const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
-const teleportDisabled = computed(
-  () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
-)
+const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
 
 watch(keepAliveTeleportDisabled, (disabled) => {
   if (disabled && props.isOpen) emit('close')

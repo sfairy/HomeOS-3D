@@ -228,13 +228,7 @@ const MODEL_NAMES = Object.freeze({
 const ANIMATED = new Set(['ceiling-fan', 'exhaust-fan', 'turntable', 'garden-swing', 'garden-hammock'])
 
 export function nameOf(id, primaryType, collectionEntry, catalogEntry) {
-  return (
-    collectionEntry?.name ??
-    catalogEntry?.name ??
-    MODEL_NAMES[id] ??
-    MODEL_NAMES[primaryType] ??
-    id
-  )
+  return collectionEntry?.name ?? catalogEntry?.name ?? MODEL_NAMES[id] ?? MODEL_NAMES[primaryType] ?? id
 }
 
 export function mountOf({ id, primaryType, folder, collectionEntry }) {
@@ -856,8 +850,7 @@ export const specOverrides = {
     assumptions: [
       {
         claim: '面板 1.500 × 0.844 m（16:9），厚 0.0504 m，底面 y=0',
-        basis:
-          '16:9 换算：1.5 ÷ 16 × 9 = 0.844；三星 AU7700 65" 规格页的整机宽高 1449.4 × 906.6 mm 与本尺寸同档',
+        basis: '16:9 换算：1.5 ÷ 16 × 9 = 0.844；三星 AU7700 65" 规格页的整机宽高 1449.4 × 906.6 mm 与本尺寸同档',
         confidence: 0.9,
         risk: '形态风格差异',
       },

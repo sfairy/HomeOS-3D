@@ -30,7 +30,7 @@
 
 /* conic-gradient 要逐帧插值，角度必须先注册成 <angle>（与 AgentCompanion 同一做法） */
 @property --acp-chroma-angle {
-  syntax: '<angle>';
+  syntax: "<angle>";
   inherits: false;
   initial-value: 0deg;
 }
@@ -112,7 +112,7 @@
 /* 七彩外发光 + 同一条渐变描边；默认暂停，思考 / 录音时才跑（源码同口径，省电） */
 .acp-panel::before,
 .acp-panel::after {
-  content: '';
+  content: "";
   position: absolute;
   pointer-events: none;
   animation: acp-chroma-flow var(--acp-chroma-duration) linear infinite paused;
@@ -471,7 +471,7 @@
 
 /* 流式生成中的光标：放在文本尾部，提示仍在输出 */
 .acp-bubble__text--streaming::after {
-  content: '';
+  content: "";
   display: inline-block;
   width: 2px;
   height: 1em;

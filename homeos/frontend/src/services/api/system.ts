@@ -95,12 +95,7 @@ export function fetchRuntimeLogs(
 }
 
 /** 打开运行日志 SSE 推流连接（Cookie 鉴权；EventSource 无法带自定义头）。 */
-export function openRuntimeLogsStream(params?: {
-  level?: string
-  q?: string
-  context?: string
-  afterId?: number
-}) {
+export function openRuntimeLogsStream(params?: { level?: string; q?: string; context?: string; afterId?: number }) {
   const qs = new URLSearchParams()
   if (params?.level) qs.set('level', params.level)
   if (params?.q) qs.set('q', params.q)
@@ -116,15 +111,8 @@ export function clearRuntimeLogs(config?: AxiosRequestConfig) {
   return apiDelete<{ cleared: number }>('/system/runtime-logs', config)
 }
 
-
-
-
-
 /** 标记向导完成并设置学习期天数。 */
-export function completeSetupWizard(
-  payload: { learningPeriodDays?: number },
-  config?: AxiosRequestConfig,
-) {
+export function completeSetupWizard(payload: { learningPeriodDays?: number }, config?: AxiosRequestConfig) {
   return apiPost('/system/setup-wizard/complete', payload, config)
 }
 
@@ -195,22 +183,6 @@ export function restoreServerBackupFile(
   )
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /** 获取语音模块元信息（语言/引擎/能力）。 */
 export function fetchVoiceMeta(config?: AxiosRequestConfig) {
   return apiGet('/system/voice/meta', config)
@@ -257,28 +229,17 @@ export function reportClientPower(payload: Record<string, unknown>, config?: Axi
 }
 
 /** 忽略客户端电源待处理事项。 */
-export function dismissClientPowerPending(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function dismissClientPowerPending(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/system/client-power/pending/dismiss', payload, config)
 }
 
 /** 忽略客户端离线待处理事项。 */
-export function dismissClientPowerOffline(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function dismissClientPowerOffline(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/system/client-power/pending/dismiss-offline', payload, config)
 }
 
-
 /** 获取指定实体的 Advisor 用量明细。 */
-export function fetchAdvisorUsage(
-  entityId: string,
-  params?: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function fetchAdvisorUsage(entityId: string, params?: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiGet(`/system/advisor/usage/${encodeURIComponent(entityId)}`, {
     ...config,
     params: { ...config?.params, ...params },
@@ -298,20 +259,10 @@ export function fetchAdvisorForgotten(config?: AxiosRequestConfig) {
   return apiGet('/system/advisor/forgotten', config)
 }
 
-
-
-
-
-
-
 /** 获取实体绑定缺口（未绑定到布局/区域的实体）。 */
 export function fetchBindingsGaps(config?: AxiosRequestConfig) {
   return apiGet('/system/bindings/gaps', config)
 }
-
-
-
-
 
 /** 获取向导状态（是否已完成、当前阶段等）。 */
 export function fetchSetupWizardStatus<T = unknown>(config?: AxiosRequestConfig) {
@@ -322,7 +273,6 @@ export function fetchSetupWizardStatus<T = unknown>(config?: AxiosRequestConfig)
 export function validateSetupWizardEntities(entityIds: string[], config?: AxiosRequestConfig) {
   return apiPost('/system/setup-wizard/validate-entities', { entityIds }, config)
 }
-
 
 /** 同时为多个目标合成并播报 TTS。 */
 export function speakVoiceMultiple(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
@@ -404,10 +354,7 @@ export function fetchRetentionConfig(config?: AxiosRequestConfig) {
 }
 
 /** 更新各表保留天数（部分更新，未提供的表保持原值） */
-export function updateRetentionConfig(
-  body: { retention: Record<string, number> },
-  config?: AxiosRequestConfig,
-) {
+export function updateRetentionConfig(body: { retention: Record<string, number> }, config?: AxiosRequestConfig) {
   return apiPut<RetentionConfigResponse>('/system/config/retention', body, config)
 }
 

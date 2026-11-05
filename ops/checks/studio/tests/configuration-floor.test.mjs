@@ -88,9 +88,7 @@ test('超时：主动中断请求并给出超时文案', async () => {
       timeoutMs: 5,
       fetch: (_url, init) =>
         new Promise((_resolve, reject) => {
-          init.signal.addEventListener('abort', () =>
-            reject(new DOMException('aborted', 'AbortError')),
-          )
+          init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
         }),
     }),
     /读取最新楼层超时/,

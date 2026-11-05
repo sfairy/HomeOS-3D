@@ -24,7 +24,6 @@ export function normalizeByDomain(byDomain: unknown) {
   return []
 }
 
-
 /**
  * 小时窗口短标签（紧凑英文）：不足 24 小时为 `Nh`，24 小时为 `24h`，
  * 整天为 `Nd`，否则为 `Nh`。
@@ -51,7 +50,6 @@ export function formatHourOption(h: number) {
   if (h % 24 === 0) return `${h / 24} 天`
   return `${h} 小时`
 }
-
 
 /**
  * 格式化事件计数：百万级用 M，万级以上用 k，否则用本地化千分位。
@@ -86,8 +84,6 @@ export function entityObjectId(entityId: string) {
   const dot = entityId.indexOf('.')
   return dot >= 0 ? entityId.slice(dot + 1) : entityId
 }
-
-
 
 /**
  * 展示状态列：属性变更优先用中文描述。

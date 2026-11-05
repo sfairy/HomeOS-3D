@@ -1,9 +1,33 @@
 /** 系统配置核心组合式函数 */
 import { fetchSystemConfig, updateSystemConfig } from '@/services/api/system'
 import type { NotifyType } from '@/shared/types/notify'
-import type { SystemConfig, SystemConfigLoadOptions, SystemConfigPatch, SystemConfigSaveOptions } from '@/shared/types/system-config'
+import type {
+  SystemConfig,
+  SystemConfigLoadOptions,
+  SystemConfigPatch,
+  SystemConfigSaveOptions,
+} from '@/shared/types/system-config'
 import { invalidateSharedFetch, sharedFetch } from '@/shared/utils/core/poll-scheduler'
-import { Bell, Box, Brain, Cog, Database, DollarSign, Droplets, Home, Layout, Leaf, Monitor, Moon, Plug, Radio, Server, Shield, Sun, Zap } from '@lucide/vue'
+import {
+  Bell,
+  Box,
+  Brain,
+  Cog,
+  Database,
+  DollarSign,
+  Droplets,
+  Home,
+  Layout,
+  Leaf,
+  Monitor,
+  Moon,
+  Plug,
+  Radio,
+  Server,
+  Shield,
+  Sun,
+  Zap,
+} from '@lucide/vue'
 import type { Component } from 'vue'
 import { ref } from 'vue'
 
@@ -47,8 +71,7 @@ function mergeConfigPatch(base: SystemConfig | null, patch: SystemConfigPatch): 
       }
       for (const [nk, nv] of Object.entries(val as Record<string, unknown>)) {
         if (nested.has(nk)) {
-          section[nk] =
-            nv && typeof nv === 'object' && !Array.isArray(nv) ? structuredClone(nv) : nv
+          section[nk] = nv && typeof nv === 'object' && !Array.isArray(nv) ? structuredClone(nv) : nv
         } else if (
           nv &&
           typeof nv === 'object' &&
@@ -118,10 +141,7 @@ async function sendSystemConfigPatch(partial: SystemConfigPatch, opts: SystemCon
 }
 
 /** 局部更新运行参数并合并全局缓存（默认附带乐观锁 revision） */
-export async function patchSystemConfig(
-  partial: SystemConfigPatch,
-  opts: SystemConfigSaveOptions = {},
-) {
+export async function patchSystemConfig(partial: SystemConfigPatch, opts: SystemConfigSaveOptions = {}) {
   const run = async () => {
     try {
       return await sendSystemConfigPatch(partial, opts)

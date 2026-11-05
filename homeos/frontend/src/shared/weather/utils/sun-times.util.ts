@@ -33,11 +33,7 @@ export function resolveSunriseSunset(attrs: Record<string, unknown> | undefined)
   }
 }
 
-export function computeSunProgress(
-  sunrise: Date | null,
-  sunset: Date | null,
-  nowMs = Date.now(),
-): number {
+export function computeSunProgress(sunrise: Date | null, sunset: Date | null, nowMs = Date.now()): number {
   if (!sunrise || !sunset) return 50
   const rise = sunrise.getTime()
   const set = sunset.getTime()
@@ -71,7 +67,7 @@ export function formatSunCountdown(
   nowMs = Date.now(),
 ): string {
   const { sunrise, sunset } = resolveSunriseSunset(attrs)
-  const target = isDay ? sunset : parseSunIso(attrs?.next_rising) ?? sunrise
+  const target = isDay ? sunset : (parseSunIso(attrs?.next_rising) ?? sunrise)
   if (!target) return ''
   const diff = target.getTime() - nowMs
   if (diff <= 0) return isDay ? '已日落' : '已日出'

@@ -19,33 +19,33 @@
  */
 
 export interface ShadowCopyBox {
-  min: { x: number; y: number; z?: number };
-  max: { x: number; y: number; z?: number };
+  min: { x: number; y: number; z?: number }
+  max: { x: number; y: number; z?: number }
   /** `THREE.Box3` 上有这个标量字段；二维 box 没有。 */
-  isBox3?: boolean;
+  isBox3?: boolean
 }
 
 /** 只用到 three 纹理的数组层标记。 */
 export interface ShadowCopyTexture {
-  isDataArrayTexture?: boolean;
+  isDataArrayTexture?: boolean
 }
 
 /** 只用到 three 渲染器状态与纹理属性表的这一小部分。 */
 export interface ShadowCopyRenderer {
-  getContext?(): unknown;
+  getContext?(): unknown
   properties: {
-    get(texture: ShadowCopyTexture): { __webglTexture?: WebGLTexture };
-  };
+    get(texture: ShadowCopyTexture): { __webglTexture?: WebGLTexture }
+  }
   state: {
-    bindFramebuffer(target: number, framebuffer: WebGLFramebuffer | null): void;
-    setScissorTest(enabled: boolean): void;
-  };
+    bindFramebuffer(target: number, framebuffer: WebGLFramebuffer | null): void
+    setScissorTest(enabled: boolean): void
+  }
   copyTextureToTexture(
     source: ShadowCopyTexture,
     target: ShadowCopyTexture,
     sourceBox: ShadowCopyBox,
     targetOrigin: { x: number; y: number; z?: number },
-  ): void;
+  ): void
 }
 
 export interface ShadowTextureCopy {
@@ -55,8 +55,8 @@ export interface ShadowTextureCopy {
     target: ShadowCopyTexture,
     sourceBox: ShadowCopyBox,
     targetOrigin: { x: number; y: number; z?: number },
-  ): void;
-  release(): void;
+  ): void
+  release(): void
 }
 
 function createFallbackCopy(renderer: ShadowCopyRenderer): ShadowTextureCopy {
@@ -64,20 +64,20 @@ function createFallbackCopy(renderer: ShadowCopyRenderer): ShadowTextureCopy {
     copy: (source, target, sourceBox, targetOrigin) =>
       renderer.copyTextureToTexture(source, target, sourceBox, targetOrigin),
     release() {},
-  };
+  }
 }
 
 export function createShadowTextureCopy(renderer: ShadowCopyRenderer): ShadowTextureCopy {
-  const gl = renderer.getContext?.() as WebGL2RenderingContext | undefined;
+  const gl = renderer.getContext?.() as WebGL2RenderingContext | undefined
   // WebGL1（或上下文已销毁）没有 blit，直接给 three 的逐纹理路径。
-  if (!gl || typeof gl.blitFramebuffer !== "function") return createFallbackCopy(renderer);
+  if (!gl || typeof gl.blitFramebuffer !== 'function') return createFallbackCopy(renderer)
   let readFramebuffer: WebGLFramebuffer | null = null,
-    drawFramebuffer: WebGLFramebuffer | null = null;
+    drawFramebuffer: WebGLFramebuffer | null = null
 
   function release() {
-    (readFramebuffer && gl?.deleteFramebuffer(readFramebuffer),
+    readFramebuffer && gl?.deleteFramebuffer(readFramebuffer),
       drawFramebuffer && gl?.deleteFramebuffer(drawFramebuffer),
-      (readFramebuffer = drawFramebuffer = null));
+      (readFramebuffer = drawFramebuffer = null)
   }
 
   /**
@@ -88,38 +88,37 @@ export function createShadowTextureCopy(renderer: ShadowCopyRenderer): ShadowTex
    * 那个帧缓冲。上游也是这么用的，改成传对象会直接编译不过。
    */
   function attachLayer(target: number, texture: ShadowCopyTexture, layer: number) {
-    const webglTexture = renderer.properties.get(texture).__webglTexture;
-    if (!webglTexture) throw new Error("阴影复制纹理尚未分配");
-    if (texture.isDataArrayTexture)
-      gl!.framebufferTextureLayer(target, gl!.COLOR_ATTACHMENT0, webglTexture, 0, layer);
-    else gl!.framebufferTexture2D(target, gl!.COLOR_ATTACHMENT0, gl!.TEXTURE_2D, webglTexture, 0);
+    const webglTexture = renderer.properties.get(texture).__webglTexture
+    if (!webglTexture) throw new Error('阴影复制纹理尚未分配')
+    if (texture.isDataArrayTexture) gl!.framebufferTextureLayer(target, gl!.COLOR_ATTACHMENT0, webglTexture, 0, layer)
+    else gl!.framebufferTexture2D(target, gl!.COLOR_ATTACHMENT0, gl!.TEXTURE_2D, webglTexture, 0)
   }
 
   return {
     release,
     copy(source, target, sourceBox, targetOrigin) {
-      if (gl.isContextLost()) throw new Error("显卡上下文丢失，取消阴影复制");
+      if (gl.isContextLost()) throw new Error('显卡上下文丢失，取消阴影复制')
       const previousReadFramebuffer = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null,
         previousDrawFramebuffer = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null,
-        wasScissorTestEnabled = gl.isEnabled(gl.SCISSOR_TEST);
+        wasScissorTestEnabled = gl.isEnabled(gl.SCISSOR_TEST)
       try {
         if (
           ((readFramebuffer ||= gl.createFramebuffer()),
           (drawFramebuffer ||= gl.createFramebuffer()),
           !readFramebuffer || !drawFramebuffer)
         )
-          throw new Error("无法创建阴影复制缓冲");
+          throw new Error('无法创建阴影复制缓冲')
         // 用 three 的 state 而不是裸 gl 调用：它能保证 three 内部的缓存跟着一起失效。
-        renderer.state.bindFramebuffer(gl.READ_FRAMEBUFFER, readFramebuffer);
-        renderer.state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, drawFramebuffer);
-        renderer.state.setScissorTest(false);
+        renderer.state.bindFramebuffer(gl.READ_FRAMEBUFFER, readFramebuffer)
+        renderer.state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, drawFramebuffer)
+        renderer.state.setScissorTest(false)
         const copyWidth = sourceBox.max.x - sourceBox.min.x,
           copyHeight = sourceBox.max.y - sourceBox.min.y,
           // 与上游一致：`max.z - min.z` 就是层数（`[0,1]` 表示 1 层），不要再 +1。
-          copyLayers = sourceBox.isBox3 ? (sourceBox.max.z || 0) - (sourceBox.min.z || 0) : 1;
+          copyLayers = sourceBox.isBox3 ? (sourceBox.max.z || 0) - (sourceBox.min.z || 0) : 1
         for (let layerIndex = 0; layerIndex < copyLayers; layerIndex++) {
-          attachLayer(gl.READ_FRAMEBUFFER, source, (sourceBox.min.z || 0) + layerIndex);
-          attachLayer(gl.DRAW_FRAMEBUFFER, target, (targetOrigin.z || 0) + layerIndex);
+          attachLayer(gl.READ_FRAMEBUFFER, source, (sourceBox.min.z || 0) + layerIndex)
+          attachLayer(gl.DRAW_FRAMEBUFFER, target, (targetOrigin.z || 0) + layerIndex)
           gl.blitFramebuffer(
             sourceBox.min.x,
             sourceBox.min.y,
@@ -131,13 +130,13 @@ export function createShadowTextureCopy(renderer: ShadowCopyRenderer): ShadowTex
             targetOrigin.y + copyHeight,
             gl.COLOR_BUFFER_BIT,
             gl.NEAREST,
-          );
+          )
         }
       } finally {
-        renderer.state.bindFramebuffer(gl.READ_FRAMEBUFFER, previousReadFramebuffer);
-        renderer.state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, previousDrawFramebuffer);
-        renderer.state.setScissorTest(wasScissorTestEnabled);
+        renderer.state.bindFramebuffer(gl.READ_FRAMEBUFFER, previousReadFramebuffer)
+        renderer.state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, previousDrawFramebuffer)
+        renderer.state.setScissorTest(wasScissorTestEnabled)
       }
     },
-  };
+  }
 }

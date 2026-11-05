@@ -6,16 +6,25 @@
  * `externalModelRegistry`（转交 `normalizeScenePayload`）与 `studioProject`（只读 `defaultFloorHeight`）。
  */
 
-import { clamp as clamp2 } from "../../plan/geometry";
-import { createStudioDocument, normalizeScenePayload } from "./studio-scene-payload";
-import { finite as finite2, normalizeBaseLighting as normalizeBaseLighting2, normalizeCameraSettings as normalizeCameraSettings2, normalizeFixedCameraView as normalizeFixedCameraView2, normalizeLabelText as normalizeLabelText2 } from "../../loaders/studio-normalization";
-import { floorDisplayName, generateId } from "../ui/studio-app-helpers";
-import { normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2, normalizeExportPresetSlots as normalizeExportPresetSlots2 } from "../../export/export-presets";
+import { clamp as clamp2 } from '../../plan/geometry'
+import { createStudioDocument, normalizeScenePayload } from './studio-scene-payload'
+import {
+  finite as finite2,
+  normalizeBaseLighting as normalizeBaseLighting2,
+  normalizeCameraSettings as normalizeCameraSettings2,
+  normalizeFixedCameraView as normalizeFixedCameraView2,
+  normalizeLabelText as normalizeLabelText2,
+} from '../../loaders/studio-normalization'
+import { floorDisplayName, generateId } from '../ui/studio-app-helpers'
+import {
+  normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
+  normalizeExportPresetSlots as normalizeExportPresetSlots2,
+} from '../../export/export-presets'
 
 /** 文档净化需要的外部状态：外部模型注册表 + 当前项目（只读默认层高）。 */
 interface StudioDocumentDeps {
-  externalModelRegistry: any;
-  studioProject: any;
+  externalModelRegistry: any
+  studioProject: any
 }
 
 export function createFloorRecord(
@@ -24,9 +33,9 @@ export function createFloorRecord(
   documentSnapshot = createStudioDocument(),
 ) {
   const jd2 = normalizeScenePayload(documentSnapshot, deps.externalModelRegistry),
-    floorHeightStep = clamp2(finite2(deps.studioProject?.defaultFloorHeight, 3), 1.8, 8);
+    floorHeightStep = clamp2(finite2(deps.studioProject?.defaultFloorHeight, 3), 1.8, 8)
   return {
-    id: generateId("floor"),
+    id: generateId('floor'),
     name: floorDisplayName(floorElevationIndex),
     elevation: floorElevationIndex * floorHeightStep,
     offsetX: 0,
@@ -38,7 +47,7 @@ export function createFloorRecord(
     aligned: floorElevationIndex === 0,
     alignmentPending: floorElevationIndex > 0,
     scene: jd2,
-  };
+  }
 }
 
 export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDeps) {
@@ -47,17 +56,11 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
       ? floors2.map((rawFloor: any, rawFloorIndex: any) => {
           const jd3 = normalizeScenePayload(rawFloor?.scene, deps.externalModelRegistry),
             hasOriginInitialized = rawFloor?.originInitialized === true,
-            normalizedFloorName = normalizeLabelText2(
-              rawFloor?.name,
-              floorDisplayName(rawFloorIndex),
-              24,
-            ),
+            normalizedFloorName = normalizeLabelText2(rawFloor?.name, floorDisplayName(rawFloorIndex), 24),
             qd2 =
-              normalizedFloorName === rawFloorIndex + 1 + "层"
-                ? floorDisplayName(rawFloorIndex)
-                : normalizedFloorName;
+              normalizedFloorName === rawFloorIndex + 1 + '层' ? floorDisplayName(rawFloorIndex) : normalizedFloorName
           return {
-            id: String(rawFloor?.id || generateId("floor")),
+            id: String(rawFloor?.id || generateId('floor')),
             name: qd2,
             elevation: clamp2(finite2(rawFloor?.elevation, rawFloorIndex * 3), -30, 120),
             offsetX: clamp2(finite2(rawFloor?.offsetX, 0), -100, 100),
@@ -81,14 +84,13 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
               Math.abs(finite2(rawFloor?.offsetZ, 0)) > 0.000001,
             alignmentPending: rawFloor?.alignmentPending === true,
             scene: jd3,
-          };
+          }
         })
       : [createFloorRecord(deps, 0, rawDocument)],
-    requestedActiveFloorId = String(rawDocument?.activeFloorId || ""),
+    requestedActiveFloorId = String(rawDocument?.activeFloorId || ''),
     activeFloorRecord =
-      parsedFloors.find((matchedFloor: any) => matchedFloor.id === requestedActiveFloorId) ||
-      parsedFloors[0],
-    exportPresetSlots = normalizeExportPresetSlots2(rawDocument?.exportPresets);
+      parsedFloors.find((matchedFloor: any) => matchedFloor.id === requestedActiveFloorId) || parsedFloors[0],
+    exportPresetSlots = normalizeExportPresetSlots2(rawDocument?.exportPresets)
   return {
     schemaVersion: 8,
     activeFloorId: activeFloorRecord.id,
@@ -96,7 +98,7 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
     previewFloorGap: clamp2(finite2(rawDocument?.previewFloorGap, 3), 0, 20),
     uniformOverviewStack: rawDocument?.uniformOverviewStack === true,
     exportFloorGap: clamp2(finite2(rawDocument?.exportFloorGap, 3), 0, 20),
-    previewFloorMode: rawDocument?.previewFloorMode === "all" ? "all" : "active",
+    previewFloorMode: rawDocument?.previewFloorMode === 'all' ? 'all' : 'active',
     combinedCameraSettings: normalizeCameraSettings2(rawDocument?.combinedCameraSettings),
     combinedFixedCameraView: normalizeFixedCameraView2(rawDocument?.combinedFixedCameraView),
     baseLighting: normalizeBaseLighting2(rawDocument?.baseLighting),
@@ -106,5 +108,5 @@ export function normalizeStudioDocument(rawDocument: any, deps: StudioDocumentDe
       exportPresetSlots.length,
     ),
     floors: parsedFloors,
-  };
+  }
 }

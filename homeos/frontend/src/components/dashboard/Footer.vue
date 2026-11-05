@@ -86,9 +86,7 @@ const {
  * 缺少账户绑定的提示文案
  * @returns {string} 由 formatMissingAccountBindingHint 根据 missingAccountSources 生成
  */
-const missingAccountHint = computed(() =>
-  formatMissingAccountBindingHint(missingAccountSources.value),
-)
+const missingAccountHint = computed(() => formatMissingAccountBindingHint(missingAccountSources.value))
 
 /** 跳转到账户用量设置的路由对象 */
 const missingAccountRoute = computed(() => SETTINGS_ROUTES.lifeAccounts())

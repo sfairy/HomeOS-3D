@@ -9,32 +9,32 @@
  *   4. `tsconfig` 里的编译期 shim 与运行期外置必须配套，否则 Rollup 会把
  *      `/api/v1/modules/interaction3d/...` 当成待解析的本地模块而失败。
  */
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import type { Plugin } from "vite";
-import { bundleClassicIife } from "../../ops/vite/build-helpers.js";
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { Plugin } from 'vite'
+import { bundleClassicIife } from '../../ops/vite/build-helpers.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** 前端根目录（homeos/frontend）。 */
-export const frontendRoot = __dirname;
+export const frontendRoot = __dirname
 /** studio 源码根目录（homeos/frontend/src/studio）。 */
-export const studioRoot = path.join(__dirname, "src/studio");
+export const studioRoot = path.join(__dirname, 'src/studio')
 
 // three 的 npm 依赖版本与随包分发的运行时副本必须一致：副本由
 // `scripts/build-three-vendor.mjs` 从 node_modules/three 单向生成（`bun run sync:three`），
 // 这里的常量、tsconfig 的 paths 与 CI 的产物断言三处都会被它一起改写。
-export const THREE_VENDOR = "/static/vendor/three/0.187.0/three.module.min.js";
+export const THREE_VENDOR = '/static/vendor/three/0.187.0/three.module.min.js'
 
 /** 运行期外置判定：构建与 Worker 子构建都必须使用同一份，行为才一致。 */
 export function isRuntimeExternal(id: string): boolean {
   return (
-    id === "three" ||
+    id === 'three' ||
     id === THREE_VENDOR ||
-    id.startsWith("/api/") ||
-    id.startsWith("/static/vendor/") ||
-    id.includes("/api/v1/modules/interaction3d/")
-  );
+    id.startsWith('/api/') ||
+    id.startsWith('/static/vendor/') ||
+    id.includes('/api/v1/modules/interaction3d/')
+  )
 }
 
 /**
@@ -43,16 +43,13 @@ export function isRuntimeExternal(id: string): boolean {
  * URL 加载，因此必须输出到固定路径、且文件名可预测。
  */
 const classicEntries: Record<string, string> = {
-  "logging/client-log": path.join(studioRoot, "app/logging/client-log.ts"),
-  "display/display-boot": path.join(studioRoot, "app/display/display-boot.ts"),
-  "display/display-startup": path.join(studioRoot, "app/display/display-startup.ts"),
-  "auth/scene/scene-depth": path.join(studioRoot, "app/auth/scene/scene-depth.ts"),
+  'logging/client-log': path.join(studioRoot, 'app/logging/client-log.ts'),
+  'display/display-boot': path.join(studioRoot, 'app/display/display-boot.ts'),
+  'display/display-startup': path.join(studioRoot, 'app/display/display-startup.ts'),
+  'auth/scene/scene-depth': path.join(studioRoot, 'app/auth/scene/scene-depth.ts'),
   // studio-app 以字面量 URL 经 new Worker 加载。
-  "3d-studio/export/draco-decoder-worker": path.join(
-    studioRoot,
-    "app/3d-studio/export/draco-decoder-worker.ts",
-  ),
-};
+  '3d-studio/export/draco-decoder-worker': path.join(studioRoot, 'app/3d-studio/export/draco-decoder-worker.ts'),
+}
 
 /**
  * 把 `three` 解析为根绝对 URL 外置；`/static/vendor/**` 同样外置。
@@ -60,13 +57,13 @@ const classicEntries: Record<string, string> = {
  */
 export function vendorResolvePlugin(): Plugin {
   return {
-    name: "homeos-vendor-resolve",
+    name: 'homeos-vendor-resolve',
     resolveId(id) {
-      if (id === "three") return { id: THREE_VENDOR, external: true };
-      if (id.startsWith("/static/vendor/")) return { id, external: true };
-      return null;
+      if (id === 'three') return { id: THREE_VENDOR, external: true }
+      if (id.startsWith('/static/vendor/')) return { id, external: true }
+      return null
     },
-  };
+  }
 }
 
 /**
@@ -80,13 +77,13 @@ export function vendorResolvePlugin(): Plugin {
  */
 export function runtimeUrlExternalPlugin(): Plugin {
   return {
-    name: "homeos-runtime-url-external",
-    apply: "serve",
+    name: 'homeos-runtime-url-external',
+    apply: 'serve',
     resolveId(id) {
-      if (id.startsWith("/api/")) return { id, external: true };
-      return null;
+      if (id.startsWith('/api/')) return { id, external: true }
+      return null
     },
-  };
+  }
 }
 
 /**
@@ -100,12 +97,12 @@ export function runtimeUrlExternalPlugin(): Plugin {
  */
 export function runtimeVendorAssetPlugin(): Plugin {
   return {
-    name: "homeos-runtime-vendor-assets",
-    apply: "serve",
+    name: 'homeos-runtime-vendor-assets',
+    apply: 'serve',
     config() {
-      return { assetsInclude: [/^\/static\/vendor\//] };
+      return { assetsInclude: [/^\/static\/vendor\//] }
     },
-  };
+  }
 }
 
 /**
@@ -117,6 +114,6 @@ export function runtimeVendorAssetPlugin(): Plugin {
 export async function writeClassicIifeBundles(targetOutDir: string): Promise<void> {
   for (const [name, entry] of Object.entries(classicEntries)) {
     // esbuild 的参数集（format/target/minify…）在共用助手里，与商店同一份；入口缺失时跳过。
-    await bundleClassicIife({ entry, outfile: path.join(targetOutDir, "static", `${name}.js`) });
+    await bundleClassicIife({ entry, outfile: path.join(targetOutDir, 'static', `${name}.js`) })
   }
 }

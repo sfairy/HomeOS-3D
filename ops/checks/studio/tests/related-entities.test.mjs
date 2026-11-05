@@ -23,9 +23,7 @@ test('旧形状：properties.relatedEntities 为数组', () => {
 })
 
 test('旧形状：relatedEntityIds 字段', () => {
-  assert.deepEqual(legacyRelatedEntityIds({ properties: { relatedEntityIds: ['fan.c'] } }), [
-    'fan.c',
-  ])
+  assert.deepEqual(legacyRelatedEntityIds({ properties: { relatedEntityIds: ['fan.c'] } }), ['fan.c'])
 })
 
 test('新形状：selected / all 都走新逻辑，legacy 返回原样 id 列表', () => {
@@ -34,10 +32,7 @@ test('新形状：selected / all 都走新逻辑，legacy 返回原样 id 列表
   }
   assert.deepEqual(legacyRelatedEntityIds(selectedConfig), ['light.a'])
   assert.deepEqual(selectedRelatedEntityIds(selectedConfig), ['light.a'])
-  assert.equal(
-    selectedRelatedEntityIds({ properties: { relatedEntities: { mode: 'all' } } }),
-    null,
-  )
+  assert.equal(selectedRelatedEntityIds({ properties: { relatedEntities: { mode: 'all' } } }), null)
 })
 
 test('无相关配置时 legacy 为 null（区别于显式空选）', () => {

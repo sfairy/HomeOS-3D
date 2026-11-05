@@ -37,8 +37,7 @@ const chartTooltip = {
   borderColor: 'rgba(244, 114, 182, 0.32)',
   borderWidth: 1,
   padding: [8, 12] as [number, number],
-  extraCssText:
-    'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
+  extraCssText: 'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
   textStyle: { color: '#fbcfe8', fontSize: 12, fontWeight: 600 },
 }
 
@@ -142,9 +141,7 @@ export function buildNotificationsReadOption(summary: AnalyticsReadSummary): ECh
   }
 }
 
-export function buildNotificationsSourceOption(
-  sourceBuckets: AnalyticsSourceBucket[],
-): EChartsCoreOption {
+export function buildNotificationsSourceOption(sourceBuckets: AnalyticsSourceBucket[]): EChartsCoreOption {
   const buckets = sourceBuckets.filter((bucket) => bucket.count > 0)
   const data = buckets.length
     ? buckets.map((bucket) => ({
@@ -170,9 +167,7 @@ export function buildNotificationsSourceOption(
   }
 }
 
-export function buildNotificationsLevelOption(
-  levelBuckets: AnalyticsLevelBucket[],
-): EChartsCoreOption {
+export function buildNotificationsLevelOption(levelBuckets: AnalyticsLevelBucket[]): EChartsCoreOption {
   const labels = levelBuckets.length ? levelBuckets.map((bucket) => bucket.label) : ['暂无']
   const values = levelBuckets.length ? levelBuckets.map((bucket) => bucket.count) : [0]
   return {
@@ -212,9 +207,7 @@ export function buildNotificationsLevelOption(
   }
 }
 
-export function buildNotificationsRankOption(
-  sourceBuckets: AnalyticsSourceBucket[],
-): EChartsCoreOption {
+export function buildNotificationsRankOption(sourceBuckets: AnalyticsSourceBucket[]): EChartsCoreOption {
   const buckets = sourceBuckets.slice(0, 8)
   const labels = buckets.length ? buckets.map((bucket) => bucket.label.slice(0, 8)) : ['暂无']
   const values = buckets.length ? buckets.map((bucket) => bucket.count) : [0]

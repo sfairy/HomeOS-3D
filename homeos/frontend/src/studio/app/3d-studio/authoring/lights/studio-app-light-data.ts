@@ -4,8 +4,8 @@
  * 仅依赖自身参数与导入的几何工具。
  */
 
-import { clamp as clamp2 } from '../../plan/geometry';
-import { finite as finite2 } from '../../loaders/studio-normalization';
+import { clamp as clamp2 } from '../../plan/geometry'
+import { finite as finite2 } from '../../loaders/studio-normalization'
 
 /** 灯光预设目录（色温 / 亮度 / 范围 / 角度）。 */
 export const lightPresetCatalog = {
@@ -27,14 +27,14 @@ export const lightPresetCatalog = {
     range: 3.5,
     angle: 100,
   },
-};
+}
 
 /** 灯光强度系数（按类型冻结）。 */
 export const lightIntensityFactor = Object.freeze({
   downlight: 1.1,
   ceilinglight: 0.792,
   striplight: 1.3,
-});
+})
 
 /**
  * 灯具额定光通量（流明）。灯带按「每米」计。
@@ -49,13 +49,13 @@ export const lightFluxLumens: Readonly<Record<string, number>> = Object.freeze({
   downlight: 420,
   ceilinglight: 1800,
   striplight: 350,
-});
+})
 
 /** 圆锥光束的立体角（球面度，sr）。θ 是整个光束角，不是半角。 */
 function coneSolidAngle(beamAngleDeg: number) {
-  const halfAngle = (clamp2(finite2(beamAngleDeg, 90), 1, 179) * Math.PI) / 360;
+  const halfAngle = (clamp2(finite2(beamAngleDeg, 90), 1, 179) * Math.PI) / 360
   // 下限兜底：极窄光束（<2°）时立体角趋近 0，坎德拉会算到无穷大。
-  return Math.max(2 * Math.PI * (1 - Math.cos(halfAngle)), 2e-4);
+  return Math.max(2 * Math.PI * (1 - Math.cos(halfAngle)), 2e-4)
 }
 
 /**
@@ -65,7 +65,7 @@ function coneSolidAngle(beamAngleDeg: number) {
  * 这是灯具手册里「坎德拉 @ 光束角」的算法，也是 Three.js `SpotLight.intensity` 的单位。
  */
 export function candelaFromFlux(fluxLumens: number, beamAngleDeg: number) {
-  return Math.max(finite2(fluxLumens, 0), 0) / coneSolidAngle(beamAngleDeg);
+  return Math.max(finite2(fluxLumens, 0), 0) / coneSolidAngle(beamAngleDeg)
 }
 
 /**
@@ -75,13 +75,9 @@ export function candelaFromFlux(fluxLumens: number, beamAngleDeg: number) {
  * 灯带的光通量按长度给（`lightFluxLumens.striplight`），长度取发光面长边，
  * 于是「灯带越长 / 越宽」自然越亮，不再是一个和尺寸无关的常量 48。
  */
-export function rectAreaLuminanceFromFlux(
-  fluxPerMeter: number,
-  lengthMeters: number,
-  widthMeters: number,
-) {
-  const area = Math.max(finite2(lengthMeters, 0.1) * finite2(widthMeters, 0.1), 1e-3);
-  return (Math.max(finite2(fluxPerMeter, 0), 0) * Math.max(finite2(lengthMeters, 0.1), 0.1)) / (Math.PI * area);
+export function rectAreaLuminanceFromFlux(fluxPerMeter: number, lengthMeters: number, widthMeters: number) {
+  const area = Math.max(finite2(lengthMeters, 0.1) * finite2(widthMeters, 0.1), 1e-3)
+  return (Math.max(finite2(fluxPerMeter, 0), 0) * Math.max(finite2(lengthMeters, 0.1), 0.1)) / (Math.PI * area)
 }
 
 /**
@@ -107,7 +103,7 @@ const lightRenderCalibrationReference = Object.freeze({
   ceilinglight: { fluxLumens: 1800, beamAngleDeg: 110, renderValue: 680 },
   // 灯带取「出厂尺寸」2 m × 0.28 m（`addLightModel` 里还会各乘 0.94 的发光面系数）。
   striplight: { fluxPerMeter: 350, lengthMeters: 2 * 0.94, widthMeters: 0.28 * 0.94, renderValue: 48 },
-});
+})
 
 export const lightRenderGain: Readonly<Record<string, number>> = Object.freeze({
   downlight:
@@ -129,7 +125,7 @@ export const lightRenderGain: Readonly<Record<string, number>> = Object.freeze({
       lightRenderCalibrationReference.striplight.lengthMeters,
       lightRenderCalibrationReference.striplight.widthMeters,
     ),
-});
+})
 
 /**
  * 窄光束下的坎德拉上限（相对标定参考值的倍数）。
@@ -138,19 +134,16 @@ export const lightRenderGain: Readonly<Record<string, number>> = Object.freeze({
  * 刺眼的光斑，但渲染器没有相机的高光宽容度（白点 1.0 就截断），成片打满反而更假。
  * 收在 3 倍：既能体现「收窄光束会变亮」，又不会把整面墙打成纯白。
  */
-const LIGHT_CANDELA_MAX_RATIO = 3;
+const LIGHT_CANDELA_MAX_RATIO = 3
 
 /** 按灯型取「光通量 + 光束角 → 渲染坎德拉」，含标定与上限。 */
 export function renderCandelaFromFlux(lightTypeKey: string, fluxLumens: number, beamAngleDeg: number) {
-  const reference = lightRenderCalibrationReference[
-    lightTypeKey as keyof typeof lightRenderCalibrationReference
-  ] as { renderValue?: number } | undefined,
+  const reference = lightRenderCalibrationReference[lightTypeKey as keyof typeof lightRenderCalibrationReference] as
+      | { renderValue?: number }
+      | undefined,
     calibrated =
-      candelaFromFlux(fluxLumens, beamAngleDeg) *
-      (lightRenderGain[lightTypeKey] ?? lightRenderGain.downlight);
-  return reference?.renderValue
-    ? Math.min(calibrated, reference.renderValue * LIGHT_CANDELA_MAX_RATIO)
-    : calibrated;
+      candelaFromFlux(fluxLumens, beamAngleDeg) * (lightRenderGain[lightTypeKey] ?? lightRenderGain.downlight)
+  return reference?.renderValue ? Math.min(calibrated, reference.renderValue * LIGHT_CANDELA_MAX_RATIO) : calibrated
 }
 
 /** 按灯型取「光通量 + 发光面 → 渲染亮度」，含标定。 */
@@ -163,7 +156,7 @@ export function renderLuminanceFromFlux(
   return (
     rectAreaLuminanceFromFlux(fluxPerMeter, lengthMeters, widthMeters) *
     (lightRenderGain[lightTypeKey] ?? lightRenderGain.striplight)
-  );
+  )
 }
 
 /** 灯光角度上限（按类型）。 */
@@ -171,41 +164,41 @@ const lightAngleLimit = {
   downlight: 120,
   ceilinglight: 150,
   striplight: 120,
-};
+}
 
 /** 按灯光类型取角度上限（未知类型默认 120）。 */
 export function lightAngleLimitForType(lightTypeKey: any) {
-  return (lightAngleLimit as any)[lightTypeKey] || 120;
+  return (lightAngleLimit as any)[lightTypeKey] || 120
 }
 
 /** 灯光属性字段表（label / input 选择器 / 单位）。 */
 export const lightPropertyFields = {
   lightTemperature: {
-    label: "色温",
-    input: "#light-temperature",
-    unit: "K",
+    label: '色温',
+    input: '#light-temperature',
+    unit: 'K',
   },
   lightBrightness: {
-    label: "亮度",
-    input: "#light-brightness",
-    unit: "%",
+    label: '亮度',
+    input: '#light-brightness',
+    unit: '%',
   },
   lightRange: {
-    label: "照射范围",
-    input: "#light-range",
-    unit: "m",
+    label: '照射范围',
+    input: '#light-range',
+    unit: 'm',
   },
   lightAngle: {
-    label: "光束角",
-    input: "#light-angle",
-    unit: "°",
+    label: '光束角',
+    input: '#light-angle',
+    unit: '°',
   },
   elevation: {
-    label: "离地高度",
-    input: "#item-elevation",
-    unit: "m",
+    label: '离地高度',
+    input: '#item-elevation',
+    unit: 'm',
   },
-};
+}
 
 /**
  * 生活场景 → 色温分档。
@@ -221,14 +214,14 @@ const ROOM_KELVIN_RULES: ReadonlyArray<{ kelvin: number; pattern: RegExp }> = Ob
   { kelvin: 2700, pattern: /卧室|主卧|次卧|儿童房|老人房|床头|衣帽间|bed\s*room/i },
   { kelvin: 4000, pattern: /厨房|卫浴|卫生间|浴室|洗手间|书房|办公|工作区|kitchen|bath|study/i },
   { kelvin: 3000, pattern: /客厅|起居|餐厅|火锅|玄关|走廊|过道|楼梯|阳台|living|dining|hall/i },
-]);
+])
 
 /** 按灯组名取建议色温；没命中任何房间关键词时返回 null（保持原值）。 */
 export function roomLightKelvin(lightGroupName: unknown): number | null {
-  const groupName = typeof lightGroupName === "string" ? lightGroupName : "";
-  if (!groupName) return null;
-  for (const rule of ROOM_KELVIN_RULES) if (rule.pattern.test(groupName)) return rule.kelvin;
-  return null;
+  const groupName = typeof lightGroupName === 'string' ? lightGroupName : ''
+  if (!groupName) return null
+  for (const rule of ROOM_KELVIN_RULES) if (rule.pattern.test(groupName)) return rule.kelvin
+  return null
 }
 
 /**
@@ -238,10 +231,9 @@ export function roomLightKelvin(lightGroupName: unknown): number | null {
 /** 按灯型取预设；未知灯型按筒灯处理。 */
 function lightPresetFor(lightTypeKey: string) {
   return (
-    (lightPresetCatalog as unknown as Record<string, typeof lightPresetCatalog.downlight>)[
-      lightTypeKey
-    ] ?? lightPresetCatalog.downlight
-  );
+    (lightPresetCatalog as unknown as Record<string, typeof lightPresetCatalog.downlight>)[lightTypeKey] ??
+    lightPresetCatalog.downlight
+  )
 }
 
 export function autoLightKelvin(
@@ -251,43 +243,38 @@ export function autoLightKelvin(
 ) {
   const preset = lightPresetFor(lightTypeKey),
     resolvedKelvin = finite2(currentKelvin, preset.temperature),
-    suggestedKelvin = roomLightKelvin(lightGroupName);
+    suggestedKelvin = roomLightKelvin(lightGroupName)
   if (suggestedKelvin === null || Math.abs(resolvedKelvin - preset.temperature) > 1) {
-    if (typeof document !== "undefined")
-      document.documentElement.dataset.lightAutoKelvin = suggestedKelvin === null ? "" : "manual";
-    return resolvedKelvin;
+    if (typeof document !== 'undefined')
+      document.documentElement.dataset.lightAutoKelvin = suggestedKelvin === null ? '' : 'manual'
+    return resolvedKelvin
   }
-  if (typeof document !== "undefined")
-    document.documentElement.dataset.lightAutoKelvin =
-      String(lightGroupName) + "@" + suggestedKelvin + "K";
-  return suggestedKelvin;
+  if (typeof document !== 'undefined')
+    document.documentElement.dataset.lightAutoKelvin = String(lightGroupName) + '@' + suggestedKelvin + 'K'
+  return suggestedKelvin
 }
 
 /** 按字段名规范化灯光属性值（范围 / 精度 / 角度上限）。 */
 export function normalizeLightPropertyValue(lightPropertyName: any, propertyValue: any, maxAngleLimit: any) {
-  return lightPropertyName === "lightTemperature"
+  return lightPropertyName === 'lightTemperature'
     ? Math.round(clamp2(finite2(propertyValue, 3000), 2200, 6500))
-    : lightPropertyName === "lightBrightness"
+    : lightPropertyName === 'lightBrightness'
       ? Math.round(clamp2(finite2(propertyValue, 50), 0, 100))
-      : lightPropertyName === "lightRange"
+      : lightPropertyName === 'lightRange'
         ? Math.round(clamp2(finite2(propertyValue, 3.5), 0.5, 10) * 10) / 10
-        : lightPropertyName === "lightAngle"
-          ? Math.round(
-              clamp2(finite2(propertyValue, 90), 15, lightAngleLimitForType(maxAngleLimit)),
-            )
-          : lightPropertyName === "elevation"
+        : lightPropertyName === 'lightAngle'
+          ? Math.round(clamp2(finite2(propertyValue, 90), 15, lightAngleLimitForType(maxAngleLimit)))
+          : lightPropertyName === 'elevation'
             ? Math.round(clamp2(finite2(propertyValue, 2.7), 0, 6) * 100) / 100
-            : finite2(propertyValue);
+            : finite2(propertyValue)
 }
 
 /** 按字段名格式化灯光属性值（附加单位）。 */
 export function formatLightPropertyValue(fieldName: any, fieldValue: any) {
-  const fieldSpec = (lightPropertyFields as any)[fieldName];
-  if (!fieldSpec) return String(fieldValue);
-  const fixed = ["lightRange", "elevation"].includes(fieldName)
-    ? Number(fieldValue).toFixed(fieldName === "elevation" ? 2 : 1)
-    : Math.round(fieldValue);
-  return ["%", "°"].includes(fieldSpec.unit)
-    ? "" + fixed + fieldSpec.unit
-    : fixed + " " + fieldSpec.unit;
+  const fieldSpec = (lightPropertyFields as any)[fieldName]
+  if (!fieldSpec) return String(fieldValue)
+  const fixed = ['lightRange', 'elevation'].includes(fieldName)
+    ? Number(fieldValue).toFixed(fieldName === 'elevation' ? 2 : 1)
+    : Math.round(fieldValue)
+  return ['%', '°'].includes(fieldSpec.unit) ? '' + fixed + fieldSpec.unit : fixed + ' ' + fieldSpec.unit
 }

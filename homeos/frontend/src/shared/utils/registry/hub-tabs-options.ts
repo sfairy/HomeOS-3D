@@ -19,9 +19,7 @@ const HUB_TAB_REGISTRY: Record<string, HubTabOption[]> = {
     { id: 'scene', label: '场景' },
     { id: 'playlist', label: '列表' },
   ],
-  securityPanel: [
-    { id: 'arm', label: '布防' },
-  ],
+  securityPanel: [{ id: 'arm', label: '布防' }],
 }
 
 /** 把天气类 widgetType 收敛为统一 canonical key `weather`，便于复用天气 Tab 集 */
@@ -48,12 +46,7 @@ function getHubDefaultTab(widgetType: string): string {
   const canonical = normalizeHubWidgetType(widgetType)
   if (canonical === 'weather') return 'current'
   const tabs = getHubTabSet(widgetType)
-  return (
-    FLOATING_HUB_DEFAULT_TAB[canonical] ||
-    FLOATING_HUB_DEFAULT_TAB[widgetType] ||
-    tabs?.[0]?.id ||
-    'overview'
-  )
+  return FLOATING_HUB_DEFAULT_TAB[canonical] || FLOATING_HUB_DEFAULT_TAB[widgetType] || tabs?.[0]?.id || 'overview'
 }
 
 /**
@@ -63,10 +56,7 @@ function getHubDefaultTab(widgetType: string): string {
  * @param widgetType - 微件类型 key。
  * @returns 含 defaultTab 与 visibleTabs 的完整配置；无可配置 Tab 时 visibleTabs 为空。
  */
-export function normalizeHubTabConfig(
-  raw: Record<string, unknown> | undefined,
-  widgetType: string,
-): HubTabConfig {
+export function normalizeHubTabConfig(raw: Record<string, unknown> | undefined, widgetType: string): HubTabConfig {
   const tabSet = getHubTabSet(widgetType)
   if (!tabSet?.length) {
     return { defaultTab: getHubDefaultTab(widgetType), visibleTabs: [] }
@@ -136,10 +126,7 @@ export function resolveHubTab(
 }
 
 /** 克隆 Hub Tab 草稿（规范化后复制数组，避免与原对象共享引用） */
-export function cloneHubTabsDraft(
-  raw: Record<string, unknown> | undefined,
-  widgetType: string,
-): HubTabConfig {
+export function cloneHubTabsDraft(raw: Record<string, unknown> | undefined, widgetType: string): HubTabConfig {
   const normalized = normalizeHubTabConfig(raw, widgetType)
   return {
     defaultTab: normalized.defaultTab,
@@ -153,14 +140,10 @@ export function cloneHubTabsDraft(
  * 全部 Tab 可见时省略 visibleTabs 字段以减小配置体积；
  * 非全可见时显式写入 visibleTabs。
  */
-export function serializeHubTabsConfig(
-  draft: HubTabConfig,
-  widgetType: string,
-): Record<string, unknown> {
+export function serializeHubTabsConfig(draft: HubTabConfig, widgetType: string): Record<string, unknown> {
   const normalized = normalizeHubTabConfig(draft as unknown as Record<string, unknown>, widgetType)
   const allIds = getHubTabSet(widgetType)?.map((t) => t.id) ?? []
-  const isAllVisible =
-    allIds.length > 0 && allIds.every((id) => normalized.visibleTabs.includes(id))
+  const isAllVisible = allIds.length > 0 && allIds.every((id) => normalized.visibleTabs.includes(id))
   const out: Record<string, unknown> = { defaultTab: normalized.defaultTab }
   if (!isAllVisible) out.visibleTabs = normalized.visibleTabs
   return out

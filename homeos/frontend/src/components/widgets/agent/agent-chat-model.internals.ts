@@ -1,9 +1,5 @@
 /** 智能管家对话的数据模型与纯函数（从 AgentChatPalette.vue 拆出，控制单文件体积） */
-import type {
-  AgentChatAttachment,
-  AgentChatConfirmation,
-  AgentChatResult,
-} from '@/services/api/agent'
+import type { AgentChatAttachment, AgentChatConfirmation, AgentChatResult } from '@/services/api/agent'
 
 export type ChatRole = 'user' | 'assistant'
 

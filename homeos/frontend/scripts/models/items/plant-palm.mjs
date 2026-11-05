@@ -15,7 +15,13 @@ const POT_R = 0.22
 const CROWN = 1.02
 
 const pot = merge([
-  cylinder({ radiusTop: POT_R, radiusBottom: POT_R * 0.76, height: POT_H, segments: 32, center: [0, POT_H / 2 + 0.014, 0] }),
+  cylinder({
+    radiusTop: POT_R,
+    radiusBottom: POT_R * 0.76,
+    height: POT_H,
+    segments: 32,
+    center: [0, POT_H / 2 + 0.014, 0],
+  }),
   cylinder({ radiusTop: POT_R + 0.01, height: 0.03, segments: 32, center: [0, POT_H, 0] }),
 ])
 const saucer = cylinder({ radiusTop: POT_R + 0.025, height: 0.014, segments: 32, center: [0, 0.007, 0] })
@@ -54,28 +60,34 @@ function frond({ angle, tilt, length, height, light = false }) {
   })
 }
 
-const leaves = axisScale(merge(
-  Array.from({ length: 7 }, (_, index) => {
-    const angle = (index / 7) * Math.PI * 2 + 0.25
-    return frond({
-      angle,
-      tilt: 0.24 + (index % 3) * 0.08,
-      length: 0.66 - (index % 2) * 0.06,
-      height: H - 0.2 - (index % 3) * 0.05,
-    })
-  }),
-), [1, 1, 0.92])
-const youngLeaves = axisScale(merge(
-  Array.from({ length: 3 }, (_, index) =>
-    frond({
-      angle: index * 2.0 + 0.9,
-      tilt: 0.14,
-      length: 0.46,
-      height: H - 0.06,
-      light: true,
+const leaves = axisScale(
+  merge(
+    Array.from({ length: 7 }, (_, index) => {
+      const angle = (index / 7) * Math.PI * 2 + 0.25
+      return frond({
+        angle,
+        tilt: 0.24 + (index % 3) * 0.08,
+        length: 0.66 - (index % 2) * 0.06,
+        height: H - 0.2 - (index % 3) * 0.05,
+      })
     }),
   ),
-), [1, 1, 0.92])
+  [1, 1, 0.92],
+)
+const youngLeaves = axisScale(
+  merge(
+    Array.from({ length: 3 }, (_, index) =>
+      frond({
+        angle: index * 2.0 + 0.9,
+        tilt: 0.14,
+        length: 0.46,
+        height: H - 0.06,
+        light: true,
+      }),
+    ),
+  ),
+  [1, 1, 0.92],
+)
 
 export function build() {
   return {

@@ -14,16 +14,11 @@ const emit = defineEmits<{ pick: [string] }>();
 const uid = useId();
 const visibleTabs = computed(() => props.tabs.filter((item) => !item.hidden));
 const activeKey = computed(
-  () =>
-    visibleTabs.value.find((tab) => tab.key === props.active)?.key ??
-    visibleTabs.value[0]?.key ??
-    "",
+  () => visibleTabs.value.find((tab) => tab.key === props.active)?.key ?? visibleTabs.value[0]?.key ?? "",
 );
 
 function tabId(key: string) {
-  return props.panelIdPrefix
-    ? `${props.panelIdPrefix}-tab-${key}`
-    : `admin-tabs-${uid}-tab-${key}`;
+  return props.panelIdPrefix ? `${props.panelIdPrefix}-tab-${key}` : `admin-tabs-${uid}-tab-${key}`;
 }
 
 function panelId(key: string) {

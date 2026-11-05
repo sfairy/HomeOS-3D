@@ -136,9 +136,7 @@ export function resolveFooterAccountSelectOptions(
   const normalizedSource = normalizeEnergySource(statsSensors, source)
   const rows = resolveAccountDisplayRows(normalizedSource)
   const primaryIdx = resolvePrimaryAccountIndex(normalizedSource, resolveRawAccountRowCount(normalizedSource) || 1)
-  const options: FooterAccountSelectOption[] = [
-    { value: FOOTER_ACCOUNT_SELECT_PRIMARY, label: '跟随主账户 ★' },
-  ]
+  const options: FooterAccountSelectOption[] = [{ value: FOOTER_ACCOUNT_SELECT_PRIMARY, label: '跟随主账户 ★' }]
   for (const row of rows) {
     const star = row.rowIndex === primaryIdx ? ' ★' : ''
     options.push({
@@ -158,9 +156,7 @@ export function resolveFooterAccountSelectOptions(
 /**
  * 将配置中的 accountIndex 转为下拉 value。
  */
-export function footerAccountIndexToSelectValue(
-  accountIndex: number | undefined | null,
-): string {
+export function footerAccountIndexToSelectValue(accountIndex: number | undefined | null): string {
   if (accountIndex === FOOTER_ACCOUNT_INDEX_ALL) return String(FOOTER_ACCOUNT_INDEX_ALL)
   if (typeof accountIndex === 'number' && Number.isInteger(accountIndex) && accountIndex >= 0) {
     return String(accountIndex)
@@ -171,9 +167,7 @@ export function footerAccountIndexToSelectValue(
 /**
  * 将下拉 value 写回 accountIndex（primary → undefined）。
  */
-export function footerAccountSelectValueToIndex(
-  value: string,
-): number | undefined {
+export function footerAccountSelectValueToIndex(value: string): number | undefined {
   if (value === FOOTER_ACCOUNT_SELECT_PRIMARY || value === '') return undefined
   const n = Number(value)
   if (n === FOOTER_ACCOUNT_INDEX_ALL) return FOOTER_ACCOUNT_INDEX_ALL
@@ -341,10 +335,7 @@ export function normalizeDashboardFooter(
 ): DashboardFooterConfig {
   const base = createDefaultDashboardFooter()
   if (!raw || typeof raw !== 'object') return base
-  const items =
-    Array.isArray(raw.items) && raw.items.length
-      ? raw.items.map((it) => createFooterItem(it))
-      : base.items
+  const items = Array.isArray(raw.items) && raw.items.length ? raw.items.map((it) => createFooterItem(it)) : base.items
   return {
     enabled: raw.enabled !== false,
     items,

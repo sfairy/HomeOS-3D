@@ -5,13 +5,13 @@
  * 且材质签名一致；任一条件被打破即整组放弃（返回 null）。纯函数，无闭包捕获。
  */
 
-import { finite as finite2 } from "../../loaders/studio-normalization";
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { finite as finite2 } from '../../loaders/studio-normalization'
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 export function buildMaterialSignature(signatureMesh: any) {
-  const signatureMaterial = signatureMesh.material;
+  const signatureMaterial = signatureMesh.material
   return Array.isArray(signatureMaterial) || !signatureMaterial?.isMeshStandardMaterial
-    ? ""
+    ? ''
     : JSON.stringify([
         signatureMaterial.color?.getHex(),
         signatureMaterial.roughness,
@@ -28,26 +28,22 @@ export function buildMaterialSignature(signatureMesh: any) {
         signatureMaterial.polygonOffset,
         signatureMaterial.polygonOffsetFactor,
         signatureMaterial.polygonOffsetUnits,
-        signatureMaterial.map?.uuid || "",
+        signatureMaterial.map?.uuid || '',
         signatureMaterial.userData?.plan2SurfaceContact !== false,
         signatureMaterial.userData?.plan2SurfaceSlope === true,
-      ]);
+      ])
 }
 
 export function collectSharedMeshRecords(modelRootGroup: any) {
-  if (
-    (modelRootGroup.updateMatrixWorld(true),
-    modelRootGroup.updateMatrix(),
-    modelRootGroup.matrix.determinant() < 0)
-  )
-    return null;
+  if ((modelRootGroup.updateMatrixWorld(true), modelRootGroup.updateMatrix(), modelRootGroup.matrix.determinant() < 0))
+    return null
   const invert2 = modelRootGroup.matrixWorld.clone().invert(),
-    sharedMeshRecords: any = [];
-  let isBatchable = true;
+    sharedMeshRecords: any = []
+  let isBatchable = true
   return (
     modelRootGroup.traverseVisible((candidateMesh: any) => {
-      if (!isBatchable || !candidateMesh.isMesh) return;
-      const candidateMaterial = candidateMesh.material;
+      if (!isBatchable || !candidateMesh.isMesh) return
+      const candidateMaterial = candidateMesh.material
       if (
         !candidateMesh.userData.externalModelSharedGeometry ||
         Array.isArray(candidateMaterial) ||
@@ -57,17 +53,14 @@ export function collectSharedMeshRecords(modelRootGroup: any) {
         candidateMesh.isSkinnedMesh ||
         candidateMesh.morphTargetInfluences
       ) {
-        isBatchable = false;
-        return;
+        isBatchable = false
+        return
       }
-      const multiplyMatrices2 = new ns2.Matrix4().multiplyMatrices(
-          invert2,
-          candidateMesh.matrixWorld,
-        ),
-        tg3 = buildMaterialSignature(candidateMesh);
+      const multiplyMatrices2 = new ns2.Matrix4().multiplyMatrices(invert2, candidateMesh.matrixWorld),
+        tg3 = buildMaterialSignature(candidateMesh)
       if (!tg3) {
-        isBatchable = false;
-        return;
+        isBatchable = false
+        return
       }
       sharedMeshRecords.push({
         mesh: candidateMesh,
@@ -75,15 +68,13 @@ export function collectSharedMeshRecords(modelRootGroup: any) {
         signature: JSON.stringify([
           candidateMesh.geometry.uuid,
           tg3,
-          multiplyMatrices2.elements.map(
-            (roundedCoordinate: any) => Math.round(roundedCoordinate * 1000000) / 1000000,
-          ),
+          multiplyMatrices2.elements.map((roundedCoordinate: any) => Math.round(roundedCoordinate * 1000000) / 1000000),
           candidateMesh.castShadow,
           candidateMesh.receiveShadow,
           candidateMesh.renderOrder,
         ]),
-      });
+      })
     }),
     isBatchable && sharedMeshRecords.length ? sharedMeshRecords : null
-  );
+  )
 }

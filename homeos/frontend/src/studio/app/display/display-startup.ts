@@ -10,45 +10,43 @@
  *
  * 对外契约：`window.HomeOSDisplayStartup = { take(requestUrl) }`（`display.ts` 依赖）。
  */
-let disposeActiveStartup: (() => void) | null = null;
+let disposeActiveStartup: (() => void) | null = null
 
 /** 起一次展示页预取（重复调用会先回收上一次）。非展示路径下是空操作。 */
 export function bootDisplayStartup(): void {
-  teardownDisplayStartup();
+  teardownDisplayStartup()
 
-  const basePath = location.pathname;
-  if (!basePath.startsWith("/homeos/") && !basePath.startsWith("/display/")) return;
-  let projectName;
+  const basePath = location.pathname
+  if (!basePath.startsWith('/homeos/') && !basePath.startsWith('/display/')) return
+  let projectName
   try {
-    projectName = decodeURIComponent(basePath.slice(basePath.indexOf("/", 1) + 1)).trim();
+    projectName = decodeURIComponent(basePath.slice(basePath.indexOf('/', 1) + 1)).trim()
   } catch {
-    return;
+    return
   }
-  if (!projectName) return;
+  if (!projectName) return
   const requestsByKey = new Map<string, any>(),
-    activeControllerSet = new Set<AbortController>();
-  let isDisposed = false;
+    activeControllerSet = new Set<AbortController>()
+  let isDisposed = false
   const loadEndpoint = (endpoint: any) => {
-    if (isDisposed) return null;
-    if (requestsByKey.has(endpoint)) return requestsByKey.get(endpoint);
+    if (isDisposed) return null
+    if (requestsByKey.has(endpoint)) return requestsByKey.get(endpoint)
     const abortController = new AbortController(),
-      abortTimer = setTimeout(() => abortController.abort(), 20000);
-    activeControllerSet.add(abortController);
+      abortTimer = setTimeout(() => abortController.abort(), 20000)
+    activeControllerSet.add(abortController)
     // 草稿与素材清单是稳定文档：保留浏览器缓存并让 ETag/304 决定是否重下；
     // 其它启动请求仍带时间戳绕缓存，避免读到上个项目的状态。
     const conditionalRequest =
       /^\/projects\/[^/?#]+\/draft$/.test(endpoint) ||
-      ["/assets/version", "/assets/builtin", "/assets/user"].includes(endpoint);
+      ['/assets/version', '/assets/builtin', '/assets/user'].includes(endpoint)
     const pendingResult = (async () => {
       try {
         const fetchResponse = await fetch(
-            conditionalRequest
-              ? `/api/v1${endpoint}`
-              : `/api/v1${endpoint}?_=${Date.now()}`,
+            conditionalRequest ? `/api/v1${endpoint}` : `/api/v1${endpoint}?_=${Date.now()}`,
             {
-              cache: conditionalRequest ? "default" : "no-store",
+              cache: conditionalRequest ? 'default' : 'no-store',
               headers: {
-                "Cache-Control": "no-cache",
+                'Cache-Control': 'no-cache',
               },
               signal: abortController.signal,
             },
@@ -57,67 +55,66 @@ export function bootDisplayStartup(): void {
             fetchResponse.status === 204
               ? null
               : await fetchResponse.json().catch((parseError) => {
-                  if (abortController.signal.aborted) throw parseError;
-                  return {};
-                });
+                  if (abortController.signal.aborted) throw parseError
+                  return {}
+                })
         return {
           response: fetchResponse,
           payload: payload,
-        };
+        }
       } finally {
-        (clearTimeout(abortTimer), activeControllerSet.delete(abortController));
+        clearTimeout(abortTimer), activeControllerSet.delete(abortController)
       }
-    })();
-    pendingResult.catch(() => {});
+    })()
+    pendingResult.catch(() => {})
     const requestRecord = {
       controller: abortController,
       result: pendingResult,
-    };
-    return (requestsByKey.set(endpoint, requestRecord), requestRecord);
-  };
+    }
+    return (requestsByKey.set(endpoint, requestRecord), requestRecord)
+  }
   const handlePageHide = () => {
-    isDisposed = true;
-    for (const controller of activeControllerSet) controller.abort();
-    requestsByKey.clear();
-  };
-  ((window.HomeOSDisplayStartup = {
+    isDisposed = true
+    for (const controller of activeControllerSet) controller.abort()
+    requestsByKey.clear()
+  }
+  ;(window.HomeOSDisplayStartup = {
     take(requestUrl: string) {
-      const cacheKey = requestUrl.replace(/\?_=[0-9]+$/, ""),
-        cachedRecord = requestsByKey.get(cacheKey);
-      return (requestsByKey.delete(cacheKey), cachedRecord);
+      const cacheKey = requestUrl.replace(/\?_=[0-9]+$/, ''),
+        cachedRecord = requestsByKey.get(cacheKey)
+      return (requestsByKey.delete(cacheKey), cachedRecord)
     },
   }),
-    window.addEventListener("pagehide", handlePageHide, {
+    window.addEventListener('pagehide', handlePageHide, {
       once: true,
     }),
-    basePath.startsWith("/homeos/")
-      ? loadEndpoint("/projects")
+    basePath.startsWith('/homeos/')
+      ? loadEndpoint('/projects')
           .result.then(({ response: response, payload: draftPayload }: any) => {
-            if (!response.ok) return;
+            if (!response.ok) return
             const matchedProjects = (draftPayload?.items || []).filter(
               (projectEntry: any) => projectEntry.name === projectName,
-            );
+            )
             matchedProjects.length === 1 &&
               matchedProjects[0].id &&
-              loadEndpoint(`/projects/${encodeURIComponent(matchedProjects[0].id)}/draft`);
+              loadEndpoint(`/projects/${encodeURIComponent(matchedProjects[0].id)}/draft`)
           })
           .catch(() => {})
-      : loadEndpoint(`/projects/${encodeURIComponent(projectName)}/draft`));
-  for (const assetEndpoint of ["/assets/version", "/assets/builtin", "/assets/user"])
-    loadEndpoint(assetEndpoint);
+      : loadEndpoint(`/projects/${encodeURIComponent(projectName)}/draft`)
+  for (const assetEndpoint of ['/assets/version', '/assets/builtin', '/assets/user']) loadEndpoint(assetEndpoint)
 
   disposeActiveStartup = () => {
-    window.removeEventListener("pagehide", handlePageHide);
-    isDisposed = true;
-    for (const controller of activeControllerSet) controller.abort();
-    requestsByKey.clear();
-  };
+    window.removeEventListener('pagehide', handlePageHide)
+    isDisposed = true
+    for (const controller of activeControllerSet) controller.abort()
+    requestsByKey.clear()
+  }
 }
 
 /** 回收预取层：中断在途请求、清空缓存、撤下全局契约。 */
 export function teardownDisplayStartup(): void {
-  const dispose = disposeActiveStartup;
-  disposeActiveStartup = null;
-  dispose?.();
-  delete (window as any).HomeOSDisplayStartup;
+  const dispose = disposeActiveStartup
+  disposeActiveStartup = null
+  dispose?.()
+  delete (window as any).HomeOSDisplayStartup
 }

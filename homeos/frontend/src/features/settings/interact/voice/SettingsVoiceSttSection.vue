@@ -363,9 +363,7 @@ const sttFlowSteps = computed(() => [
   },
   {
     label: '唤醒词',
-    meta: voice.value.wakeWordEnabled
-      ? `${voice.value.wakeWords?.length || 0} 词`
-      : '未启用',
+    meta: voice.value.wakeWordEnabled ? `${voice.value.wakeWords?.length || 0} 词` : '未启用',
     icon: Ear,
     tone: 'sky',
   },

@@ -64,10 +64,9 @@ async function continuePayment() {
   if (!target) return;
   continued.value = true;
   try {
-    const refreshed = (await api<StoreOrder>(
-      `/orders/${encodeURIComponent(target.orderNo || "")}?reconcile=1`,
-      { headers: target.lookupToken ? { "X-Order-Token": target.lookupToken } : {} },
-    )) as StoreOrder;
+    const refreshed = (await api<StoreOrder>(`/orders/${encodeURIComponent(target.orderNo || "")}?reconcile=1`, {
+      headers: target.lookupToken ? { "X-Order-Token": target.lookupToken } : {},
+    })) as StoreOrder;
     const status = String(refreshed.status || "");
     // 先看状态，再看二维码：`payment.qrCode` 在 paid / cancelled / expired 之后仍留在
     // 载荷里（建单时写入的），只判「有没有二维码」会把已结清的订单重新弹出可扫的付款码。

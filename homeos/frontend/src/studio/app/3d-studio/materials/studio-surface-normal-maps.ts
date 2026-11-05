@@ -31,17 +31,17 @@
 
 /** 与审计 `NORMAL_SCALE_BY_SURFACE` 同一份表面族清单（`ops/checks/studio/audit_glb_materials.mjs`）。 */
 export type MaterialSurface =
-  | "fabric"
-  | "leather"
-  | "wood"
-  | "marble"
-  | "stone"
-  | "metal"
-  | "lacquer"
-  | "glass"
-  | "ceramic"
-  | "foliage"
-  | "paint";
+  | 'fabric'
+  | 'leather'
+  | 'wood'
+  | 'marble'
+  | 'stone'
+  | 'metal'
+  | 'lacquer'
+  | 'glass'
+  | 'ceramic'
+  | 'foliage'
+  | 'paint'
 
 /**
  * 表面细节的各向异性过滤上限。
@@ -51,7 +51,7 @@ export type MaterialSurface =
  * 2m 长的出风口、油烟机外壳最容易看出来。取 8 与 `createStoneSlabTexture` /
  * 图集贴图的口径一致；纹理内部还会按设备上限再夹一次。
  */
-export const SURFACE_DETAIL_ANISOTROPY = 8;
+export const SURFACE_DETAIL_ANISOTROPY = 8
 
 /**
  * 细节强度（逐表面族）；与审计报告的表格逐项一致。
@@ -71,7 +71,7 @@ export const SURFACE_DETAIL_SCALE: Readonly<Record<MaterialSurface, number>> = O
   ceramic: 0.25,
   foliage: 0.7,
   paint: 0.3,
-});
+})
 
 /**
  * `SURFACE_DETAIL_SCALE`（0..0.7）→ `material.bumpScale` 的换算单位。
@@ -80,7 +80,7 @@ export const SURFACE_DETAIL_SCALE: Readonly<Record<MaterialSurface, number>> = O
  * 所以必须有一个乘积系数。初值 0.12 由一次离线渲染探针的 before/after 标定：
  * 再大布艺会读成「搓衣板」，再小则细节在 1080p 下不可见。
  */
-export const SURFACE_DETAIL_BUMP_UNIT = 0.12;
+export const SURFACE_DETAIL_BUMP_UNIT = 0.12
 
 /**
  * 一个纹理单元覆盖的世界尺寸（米）。
@@ -101,11 +101,11 @@ export const SURFACE_TILE_METERS: Readonly<Record<MaterialSurface, number>> = Ob
   ceramic: 0.3,
   foliage: 0.4,
   paint: 0.6,
-});
+})
 
-const TEXTURE_SIZE = 256;
+const TEXTURE_SIZE = 256
 /** 纹理边长（导出给审计 M7：用它换算「一个细节周期占几个纹素」）。 */
-export const SURFACE_DETAIL_TEXTURE_SIZE = TEXTURE_SIZE;
+export const SURFACE_DETAIL_TEXTURE_SIZE = TEXTURE_SIZE
 /**
  * 一个纹理单元内允许的**最高细节周期数**。
  *
@@ -118,45 +118,36 @@ export const SURFACE_DETAIL_TEXTURE_SIZE = TEXTURE_SIZE;
  * 是「近看才有」的微表面，二是给 `bumpScale` 留出放大深度的余量。
  * 每个单元最多 10 个周期，配合 256px 纹理 = 25 个纹素一个周期。
  */
-const MAX_DETAIL_CYCLES = 10;
+const MAX_DETAIL_CYCLES = 10
 /** 一个纹理单元内的最高周期数（导出给审计 M7：`纹素/周期 = 纹理边长 / 本值`）。 */
-export const SURFACE_DETAIL_MAX_CYCLES = MAX_DETAIL_CYCLES;
+export const SURFACE_DETAIL_MAX_CYCLES = MAX_DETAIL_CYCLES
 /** 限频并保证整数（整数频率是「纹理可平铺」的前提）。 */
-const detailCycles = (frequency: number) =>
-  Math.max(1, Math.min(MAX_DETAIL_CYCLES, Math.round(frequency)));
+const detailCycles = (frequency: number) => Math.max(1, Math.min(MAX_DETAIL_CYCLES, Math.round(frequency)))
 
-const TAU = Math.PI * 2;
+const TAU = Math.PI * 2
 /** 整数频率的正弦：`u` / `v` 取 0..1 时天然平铺。 */
 const wave = (u: number, v: number, freqU: number, freqV: number, phase = 0) =>
-  Math.sin(TAU * (u * detailCycles(freqU) + v * detailCycles(freqV) + phase));
+  Math.sin(TAU * (u * detailCycles(freqU) + v * detailCycles(freqV) + phase))
 
 /** 折痕类图案：把正弦取绝对值再压平，得到「一条条」而不是「一片片」。 */
-const ridge = (value: number, sharpness = 0.55) => Math.pow(Math.abs(value), sharpness);
+const ridge = (value: number, sharpness = 0.55) => Math.pow(Math.abs(value), sharpness)
 
-type HeightPainter = (u: number, v: number) => number;
+type HeightPainter = (u: number, v: number) => number
 
 const SURFACE_HEIGHT_PAINTERS: Readonly<Record<MaterialSurface, HeightPainter>> = Object.freeze({
   /** 木纹：顺纹长条 + 轻微弯曲 + 细导管。 */
   wood: (u, v) => {
-    const warp = 0.05 * wave(u, v, 1, 0, 0.15) + 0.025 * wave(u, v, 2, 1, 0.4);
-    const grain = Math.sin(
-      TAU * (v * detailCycles(9) + warp * detailCycles(7) + 0.06 * wave(u, v, 3, 0)),
-    );
-    return 0.66 * grain + 0.2 * wave(u, v, 9, 2, 0.3) + 0.1 * wave(u, v, 5, 1, 0.7);
+    const warp = 0.05 * wave(u, v, 1, 0, 0.15) + 0.025 * wave(u, v, 2, 1, 0.4)
+    const grain = Math.sin(TAU * (v * detailCycles(9) + warp * detailCycles(7) + 0.06 * wave(u, v, 3, 0)))
+    return 0.66 * grain + 0.2 * wave(u, v, 9, 2, 0.3) + 0.1 * wave(u, v, 5, 1, 0.7)
   },
   /** 大理石：一条主脉络 + 两层细脉。 */
   marble: (u, v) => {
-    const veinA = Math.sin(
-      TAU * (u * detailCycles(2) + v * detailCycles(3) + 0.3 * wave(u, v, 2, 1, 0.25)),
-    );
-    const veinB = Math.sin(
-      TAU * (u * detailCycles(5) - v * detailCycles(2) + 0.2 * wave(u, v, 3, 2, 0.6)),
-    );
+    const veinA = Math.sin(TAU * (u * detailCycles(2) + v * detailCycles(3) + 0.3 * wave(u, v, 2, 1, 0.25)))
+    const veinB = Math.sin(TAU * (u * detailCycles(5) - v * detailCycles(2) + 0.2 * wave(u, v, 3, 2, 0.6)))
     return (
-      0.55 * Math.pow(1 - Math.abs(veinA), 6) +
-      0.22 * Math.pow(1 - Math.abs(veinB), 8) +
-      0.08 * wave(u, v, 7, 5, 0.1)
-    );
+      0.55 * Math.pow(1 - Math.abs(veinA), 6) + 0.22 * Math.pow(1 - Math.abs(veinB), 8) + 0.08 * wave(u, v, 7, 5, 0.1)
+    )
   },
   /** 石材：多频噪声 + 少量凹坑。 */
   stone: (u, v) =>
@@ -166,9 +157,7 @@ const SURFACE_HEIGHT_PAINTERS: Readonly<Record<MaterialSurface, HeightPainter>> 
     0.1 * wave(u, v, 5, 4, 0.2),
   /** 布艺：十字织纹（经纬各一组正弦），叠一点绒毛噪声。 */
   fabric: (u, v) =>
-    0.55 *
-      Math.sin(TAU * u * detailCycles(10)) *
-      Math.sin(TAU * v * detailCycles(10)) +
+    0.55 * Math.sin(TAU * u * detailCycles(10)) * Math.sin(TAU * v * detailCycles(10)) +
     0.22 * wave(u, v, 9, 10, 0.15) +
     0.1 * wave(u, v, 9, 7, 0.5),
   /** 皮革：粒面孔洞，交叉折痕把表面切成不规则小块。 */
@@ -177,8 +166,7 @@ const SURFACE_HEIGHT_PAINTERS: Readonly<Record<MaterialSurface, HeightPainter>> 
     0.2 * wave(u, v, 9, 7, 0.6) +
     0.12 * wave(u, v, 5, 3, 0.2),
   /** 金属：单向拉丝（沿 u 高频、沿 v 低频）。 */
-  metal: (u, v) =>
-    0.7 * wave(u, v, 10, 1, 0.05) + 0.2 * wave(u, v, 9, 2, 0.4) + 0.08 * wave(u, v, 3, 1, 0.7),
+  metal: (u, v) => 0.7 * wave(u, v, 10, 1, 0.05) + 0.2 * wave(u, v, 9, 2, 0.4) + 0.08 * wave(u, v, 3, 1, 0.7),
   /** 烤漆：极浅的橘皮纹，只有掠射角度能看见。 */
   lacquer: (u, v) => 0.2 * wave(u, v, 5, 3, 0.2) + 0.14 * wave(u, v, 9, 7, 0.55),
   /** 玻璃：近乎全平，只留极微的波纹。 */
@@ -187,29 +175,20 @@ const SURFACE_HEIGHT_PAINTERS: Readonly<Record<MaterialSurface, HeightPainter>> 
   ceramic: (u, v) => 0.45 * wave(u, v, 9, 8, 0.25) + 0.28 * wave(u, v, 10, 9, 0.6),
   /** 枝叶：主脉 + 侧脉 + 叶面起伏。 */
   foliage: (u, v) => {
-    const midrib = Math.abs(
-      Math.sin(TAU * (v * detailCycles(3) + 0.07 * wave(u, v, 1, 1))),
-    );
-    const sideVeins = Math.abs(
-      Math.sin(
-        TAU * (u * detailCycles(6) + v * detailCycles(4) + 0.1 * wave(u, v, 2, 3)),
-      ),
-    );
-    return (
-      0.5 * Math.pow(midrib, 4) + 0.35 * Math.pow(sideVeins, 6) + 0.12 * wave(u, v, 9, 7, 0.4)
-    );
+    const midrib = Math.abs(Math.sin(TAU * (v * detailCycles(3) + 0.07 * wave(u, v, 1, 1))))
+    const sideVeins = Math.abs(Math.sin(TAU * (u * detailCycles(6) + v * detailCycles(4) + 0.1 * wave(u, v, 2, 3))))
+    return 0.5 * Math.pow(midrib, 4) + 0.35 * Math.pow(sideVeins, 6) + 0.12 * wave(u, v, 9, 7, 0.4)
   },
   /** 乳胶漆 / 塑料：细小橘皮。 */
-  paint: (u, v) =>
-    0.32 * wave(u, v, 7, 5, 0.1) + 0.2 * wave(u, v, 10, 9, 0.3) + 0.12 * wave(u, v, 6, 4, 0.6),
-});
+  paint: (u, v) => 0.32 * wave(u, v, 7, 5, 0.1) + 0.2 * wave(u, v, 10, 9, 0.3) + 0.12 * wave(u, v, 6, 4, 0.6),
+})
 
 function isMaterialSurface(value: unknown): value is MaterialSurface {
-  return typeof value === "string" && value in SURFACE_HEIGHT_PAINTERS;
+  return typeof value === 'string' && value in SURFACE_HEIGHT_PAINTERS
 }
 
 /** 每个 three 实例一张缓存表：纹理带着 three 的类型，不能跨实例复用。 */
-const textureCacheByThree = new WeakMap<object, WeakMap<object, any>>();
+const textureCacheByThree = new WeakMap<object, WeakMap<object, any>>()
 
 /**
  * 高度场的编码幅度：painter 的返回值大致落在 ±1.1 内（wood 0.96 / stone 1.08 / metal 0.98）。
@@ -218,10 +197,10 @@ const textureCacheByThree = new WeakMap<object, WeakMap<object, any>>();
  * 这种本来就该几乎全平的面也拉满对比，玻璃反而变粗糙。固定幅度保留了表面族之间的
  * 相对强弱。
  */
-const HEIGHT_ENCODING_AMPLITUDE = 1.1;
+const HEIGHT_ENCODING_AMPLITUDE = 1.1
 /** 灰度高度图只用 8..248：留 8 级余量，避免 `Uint8ClampedArray` 在极值处截断出硬边。 */
-const HEIGHT_GRAY_CENTER = 128;
-const HEIGHT_GRAY_RANGE = 120;
+const HEIGHT_GRAY_CENTER = 128
+const HEIGHT_GRAY_RANGE = 120
 
 /**
  * 取某表面族的共享**高度图**（懒生成 + 缓存），供 `material.bumpMap` 使用。
@@ -233,66 +212,64 @@ export function createSurfaceDetailTexture(
   surface: MaterialSurface | null | undefined,
   maxAnisotropy = 1,
 ): any {
-  if (!surface || !isMaterialSurface(surface) || !threeApi?.CanvasTexture) return null;
-  let cache = textureCacheByThree.get(threeApi);
+  if (!surface || !isMaterialSurface(surface) || !threeApi?.CanvasTexture) return null
+  let cache = textureCacheByThree.get(threeApi)
   if (!cache) {
-    cache = new WeakMap();
-    textureCacheByThree.set(threeApi, cache);
+    cache = new WeakMap()
+    textureCacheByThree.set(threeApi, cache)
   }
-  const painter = SURFACE_HEIGHT_PAINTERS[surface];
-  const cached = cache.get(painter);
+  const painter = SURFACE_HEIGHT_PAINTERS[surface]
+  const cached = cache.get(painter)
   if (cached) {
     /**
      * 纹理全局共享，先创建者说了算。若后来的调用要更高的各向异性（启动顺序不同时
      * 会发生在 1 → 8 之间），就地升级一次，免得先到的那次把整场景钉死在 1。
      */
-    const requestedAnisotropy = Math.min(maxAnisotropy || 1, SURFACE_DETAIL_ANISOTROPY);
+    const requestedAnisotropy = Math.min(maxAnisotropy || 1, SURFACE_DETAIL_ANISOTROPY)
     if (requestedAnisotropy > (cached.anisotropy || 1)) {
-      cached.anisotropy = requestedAnisotropy;
-      cached.needsUpdate = true;
+      cached.anisotropy = requestedAnisotropy
+      cached.needsUpdate = true
     }
-    return cached;
+    return cached
   }
 
-  const canvasElement = document.createElement("canvas");
-  canvasElement.width = TEXTURE_SIZE;
-  canvasElement.height = TEXTURE_SIZE;
-  const canvasCtx = canvasElement.getContext("2d");
-  if (!canvasCtx) return null;
+  const canvasElement = document.createElement('canvas')
+  canvasElement.width = TEXTURE_SIZE
+  canvasElement.height = TEXTURE_SIZE
+  const canvasCtx = canvasElement.getContext('2d')
+  if (!canvasCtx) return null
 
-  const imageData = canvasCtx.createImageData(TEXTURE_SIZE, TEXTURE_SIZE);
+  const imageData = canvasCtx.createImageData(TEXTURE_SIZE, TEXTURE_SIZE)
   for (let row = 0; row < TEXTURE_SIZE; row += 1) {
-    const v = row / TEXTURE_SIZE;
+    const v = row / TEXTURE_SIZE
     for (let column = 0; column < TEXTURE_SIZE; column += 1) {
-      const height = painter(column / TEXTURE_SIZE, v);
-      const gray =
-        HEIGHT_GRAY_CENTER +
-        (height / HEIGHT_ENCODING_AMPLITUDE) * HEIGHT_GRAY_RANGE;
-      const level = Math.round(Math.max(8, Math.min(248, gray)));
-      const offset = (row * TEXTURE_SIZE + column) * 4;
+      const height = painter(column / TEXTURE_SIZE, v)
+      const gray = HEIGHT_GRAY_CENTER + (height / HEIGHT_ENCODING_AMPLITUDE) * HEIGHT_GRAY_RANGE
+      const level = Math.round(Math.max(8, Math.min(248, gray)))
+      const offset = (row * TEXTURE_SIZE + column) * 4
       // 三通道同值：`bumpMap` 只读红色通道，但灰度图对任何取法都一致。
-      imageData.data[offset] = level;
-      imageData.data[offset + 1] = level;
-      imageData.data[offset + 2] = level;
-      imageData.data[offset + 3] = 255;
+      imageData.data[offset] = level
+      imageData.data[offset + 1] = level
+      imageData.data[offset + 2] = level
+      imageData.data[offset + 3] = 255
     }
   }
-  canvasCtx.putImageData(imageData, 0, 0);
+  canvasCtx.putImageData(imageData, 0, 0)
 
-  const texture = new threeApi.CanvasTexture(canvasElement);
+  const texture = new threeApi.CanvasTexture(canvasElement)
   // 高度图是数据不是颜色：不能进 sRGB 解码（否则高度曲线被 gamma 掰弯）。
-  texture.colorSpace = threeApi.NoColorSpace ?? threeApi.LinearSRGBColorSpace;
-  texture.wrapS = threeApi.RepeatWrapping;
-  texture.wrapT = threeApi.RepeatWrapping;
-  texture.repeat.set(1 / SURFACE_TILE_METERS[surface], 1 / SURFACE_TILE_METERS[surface]);
-  texture.anisotropy = Math.min(maxAnisotropy || 1, SURFACE_DETAIL_ANISOTROPY);
-  texture.needsUpdate = true;
-  cache.set(painter, texture);
-  return texture;
+  texture.colorSpace = threeApi.NoColorSpace ?? threeApi.LinearSRGBColorSpace
+  texture.wrapS = threeApi.RepeatWrapping
+  texture.wrapT = threeApi.RepeatWrapping
+  texture.repeat.set(1 / SURFACE_TILE_METERS[surface], 1 / SURFACE_TILE_METERS[surface])
+  texture.anisotropy = Math.min(maxAnisotropy || 1, SURFACE_DETAIL_ANISOTROPY)
+  texture.needsUpdate = true
+  cache.set(painter, texture)
+  return texture
 }
 
 /**
  * 兼容旧名：一期别名，实际返回的是**高度图**（给 `bumpMap` 用）。
  * 审计 M3 会同时检查新旧两个名字是否导出，避免外部脚本在同一轮里断掉。
  */
-export const createSurfaceNormalTexture = createSurfaceDetailTexture;
+export const createSurfaceNormalTexture = createSurfaceDetailTexture

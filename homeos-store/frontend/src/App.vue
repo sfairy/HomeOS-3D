@@ -10,11 +10,7 @@ const route = useRoute();
 const storeToast = useStoreToast();
 
 const isAdmin = computed(() => route.path === "/admin" || route.path.startsWith("/admin/"));
-const isStore = computed(
-  () =>
-    !isAdmin.value &&
-    route.path !== "/setup",
-);
+const isStore = computed(() => !isAdmin.value && route.path !== "/setup");
 
 /**
  * 后台样式表的挂/摘。

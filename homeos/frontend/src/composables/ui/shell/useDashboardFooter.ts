@@ -9,11 +9,7 @@ import {
   type EnergyFieldDef,
 } from '@/shared/energy/constants/energy-fields'
 import { hasEnergyConfig, getEntityLeaf } from '@homeos/shared'
-import {
-  resolveFieldRaw,
-  resolveFieldRawAggregated,
-  formatNum,
-} from '@/shared/energy/utils/source.util'
+import { resolveFieldRaw, resolveFieldRawAggregated, formatNum } from '@/shared/energy/utils/source.util'
 import { readEntityAttr } from '@/shared/energy/utils/entity-read.util'
 import { collectFooterAccountSources } from '@/shared/constants/account-binding-meta'
 import {
@@ -65,10 +61,7 @@ export function resolveFooterItemValue(
     const unit = item.unit || (ent.attributes?.unit_of_measurement as string | undefined) || ''
     return {
       id: item.id,
-      label:
-        resolveFooterPrimaryLabel(item, fieldOpts) ||
-        getEntityDisplayName(eid, ent) ||
-        getEntityLeaf(eid),
+      label: resolveFooterPrimaryLabel(item, fieldOpts) || getEntityDisplayName(eid, ent) || getEntityLeaf(eid),
       value: formatRawValue(raw, 'string'),
       secondary: null,
       secondaryName: '',
@@ -101,19 +94,14 @@ export function resolveFooterItemValue(
     (primaryKey.includes('Date') || primaryKey.includes('Time') || primaryKey === 'refreshTime')
   const unit = item.unit?.trim() || def?.unit || ''
   const label = resolveFooterPrimaryLabel(item, fieldOpts, statsSensors)
-  const secondaryName = item.secondaryField?.trim()
-    ? resolveFooterSecondaryLabel(item, fieldOpts)
-    : ''
+  const secondaryName = item.secondaryField?.trim() ? resolveFooterSecondaryLabel(item, fieldOpts) : ''
   const valueNum = parseFloat(String(primaryRaw))
-  const showProgress =
-    item.showProgress !== undefined ? !!item.showProgress : primaryKey === 'balance'
+  const showProgress = item.showProgress !== undefined ? !!item.showProgress : primaryKey === 'balance'
   const progressMax = item.progressMax || 200
   return {
     id: item.id,
     label,
-    value: isDate
-      ? formatRawValue(primaryRaw, 'string')
-      : formatRawValue(primaryRaw, def?.type || 'number'),
+    value: isDate ? formatRawValue(primaryRaw, 'string') : formatRawValue(primaryRaw, def?.type || 'number'),
     secondary: secondaryRaw != null ? formatCost(secondaryRaw) : null,
     secondaryName,
     unit: isDate ? '' : unit,
@@ -121,17 +109,11 @@ export function resolveFooterItemValue(
     color: item.color || 'yellow',
     showProgress,
     progressValue:
-      showProgress && !Number.isNaN(valueNum)
-        ? Math.min(100, Math.max(0, (valueNum / progressMax) * 100))
-        : 0,
+      showProgress && !Number.isNaN(valueNum) ? Math.min(100, Math.max(0, (valueNum / progressMax) * 100)) : 0,
     progressMax,
     balanceNum: showProgress ? valueNum : null,
     isDate,
-    hasData:
-      primaryRaw != null &&
-      primaryRaw !== '' &&
-      primaryRaw !== 'unavailable' &&
-      primaryRaw !== 'unknown',
+    hasData: primaryRaw != null && primaryRaw !== '' && primaryRaw !== 'unavailable' && primaryRaw !== 'unknown',
   }
 }
 /** 仪表板底部信息栏：派生归一化配置与可见项列表（含标签与数值），供底部信息栏组件渲染 */

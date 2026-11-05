@@ -7,33 +7,30 @@
 
 /** 归一化 `labelMode`：三态取值之外回退到旧的 `labelHidden` 布尔。 */
 export function resolvedMarkerLabelMode(markerItem: any) {
-  const declaredLabelMode = markerItem?.labelMode;
-  return ["hidden", "open", "always"].includes(declaredLabelMode)
+  const declaredLabelMode = markerItem?.labelMode
+  return ['hidden', 'open', 'always'].includes(declaredLabelMode)
     ? declaredLabelMode
     : markerItem?.labelHidden === true
-      ? "hidden"
-      : "always";
+      ? 'hidden'
+      : 'always'
 }
 
 export function markerVisibilityHint(markerItem: any): string {
-  if (!markerItem) return "";
-  if (markerItem.visible === false || markerItem.buttonHidden === false) return "运行时隐藏";
-  if (markerItem.hiddenClickable === true) return "运行时隐藏（可点击）";
+  if (!markerItem) return ''
+  if (markerItem.visible === false || markerItem.buttonHidden === false) return '运行时隐藏'
+  if (markerItem.hiddenClickable === true) return '运行时隐藏（可点击）'
   const effectiveLabelMode =
     markerItem.labelMode !== undefined || markerItem.labelHidden !== undefined
       ? resolvedMarkerLabelMode(markerItem)
       : markerItem.securityAlarm
         ? markerItem.labelMode
-        : "";
-  if (effectiveLabelMode === "hidden") return "运行时隐藏";
-  if (effectiveLabelMode === "open")
-    return markerItem.deviceKind === "window" ? "仅开窗时显示" : "仅开门时显示";
-  if (effectiveLabelMode === "alarm") return "仅报警时显示";
-  if (markerItem.deviceKind === "vacuum-room") {
-    const hiddenParts = [markerItem.iconHidden && "图标", markerItem.labelHidden && "名称"].filter(
-      Boolean,
-    );
-    if (hiddenParts.length) return "运行时隐藏" + hiddenParts.join("和");
+        : ''
+  if (effectiveLabelMode === 'hidden') return '运行时隐藏'
+  if (effectiveLabelMode === 'open') return markerItem.deviceKind === 'window' ? '仅开窗时显示' : '仅开门时显示'
+  if (effectiveLabelMode === 'alarm') return '仅报警时显示'
+  if (markerItem.deviceKind === 'vacuum-room') {
+    const hiddenParts = [markerItem.iconHidden && '图标', markerItem.labelHidden && '名称'].filter(Boolean)
+    if (hiddenParts.length) return '运行时隐藏' + hiddenParts.join('和')
   }
-  return "";
+  return ''
 }

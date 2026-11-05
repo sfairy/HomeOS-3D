@@ -4,9 +4,9 @@
  * 无对外部状态读写。`addBoxMesh` 在单体里被 270+ 处调用，回引**保持同名**，所以调用点零改写。
  */
 
-import type { BoxMeshOptions } from "../types/studio-app-types";
-import { RoundedBoxGeometry } from "/static/vendor/three/0.187.0/RoundedBoxGeometry.js";
-import * as threeModuleMin from "/static/vendor/three/0.187.0/three.module.min.js";
+import type { BoxMeshOptions } from '../types/studio-app-types'
+import { RoundedBoxGeometry } from '/static/vendor/three/0.187.0/RoundedBoxGeometry.js'
+import * as threeModuleMin from '/static/vendor/three/0.187.0/three.module.min.js'
 
 export function addBoxMesh(
   boxParent: any,
@@ -32,22 +32,12 @@ export function addBoxMesh(
       emissiveIntensity: boxOptions.emissiveIntensity ?? 0,
     }),
     smallestBoxDimension = Math.max(Math.min(boxWidth, boxHeight, boxDepth), 0.001),
-    boxCornerRadius = Math.min(
-      boxOptions.radius ?? smallestBoxDimension * 0.14,
-      smallestBoxDimension * 0.45,
-      0.08,
-    ),
+    boxCornerRadius = Math.min(boxOptions.radius ?? smallestBoxDimension * 0.14, smallestBoxDimension * 0.45, 0.08),
     boxGeometry =
       boxOptions.rounded === false || boxParent.userData.squareEdges
         ? new threeModuleMin.BoxGeometry(boxWidth, boxHeight, boxDepth)
-        : new RoundedBoxGeometry(
-            boxWidth,
-            boxHeight,
-            boxDepth,
-            boxOptions.segments ?? 2,
-            boxCornerRadius,
-          ),
-    boxMesh = new threeModuleMin.Mesh(boxGeometry, boxMaterial);
+        : new RoundedBoxGeometry(boxWidth, boxHeight, boxDepth, boxOptions.segments ?? 2, boxCornerRadius),
+    boxMesh = new threeModuleMin.Mesh(boxGeometry, boxMaterial)
   return (
     boxMesh.position.set(boxX, boxY, boxZ),
     (boxMesh.castShadow = boxOptions.castShadow !== false),
@@ -55,7 +45,7 @@ export function addBoxMesh(
     (boxMesh.renderOrder = boxOptions.renderOrder ?? 0),
     boxParent.add(boxMesh),
     boxMesh
-  );
+  )
 }
 
 export function addFurnitureAssembly(
@@ -72,8 +62,8 @@ export function addFurnitureAssembly(
   const assemblyGroup = new threeModuleMin.Group(),
     assemblyOffsetFront = assemblyDepth * 0.49,
     assemblyOffsetTop = assemblyDepth * 0.12,
-    assemblyOffsetBack = -assemblyHeight * 0.39;
-  (addBoxMesh(
+    assemblyOffsetBack = -assemblyHeight * 0.39
+  addBoxMesh(
     assemblyGroup,
     assemblyWidth * 0.9,
     assemblyOffsetTop,
@@ -100,9 +90,9 @@ export function addFurnitureAssembly(
         radius: Math.min(assemblyWidth, assemblyHeight) * 0.045,
         roughness: 0.72,
       },
-    ));
+    )
   for (const assemblySideOffset of [-0.38, 0.38])
-    (addBoxMesh(
+    addBoxMesh(
       assemblyGroup,
       0.05,
       assemblyDepth * 0.47,
@@ -127,8 +117,8 @@ export function addFurnitureAssembly(
         {
           rounded: false,
         },
-      ));
-  (assemblyGroup.position.set(assemblyX, 0, assemblyZ),
+      )
+  assemblyGroup.position.set(assemblyX, 0, assemblyZ),
     (assemblyGroup.rotation.y = assemblyRotationY),
-    assemblyParent.add(assemblyGroup));
+    assemblyParent.add(assemblyGroup)
 }

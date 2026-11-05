@@ -69,9 +69,7 @@ function createEnvSensorMapState() {
       if (data?.registryDegraded && !rows.length) {
         logger.warn('HA 区域注册表不可用,环境传感器映射将缺少 HA 区域列表')
       }
-      sensorMap.value = ensureSensorMap(
-        filterEnvSensorMapToKnownAreas(sensorMap.value, haAreas.value),
-      )
+      sensorMap.value = ensureSensorMap(filterEnvSensorMapToKnownAreas(sensorMap.value, haAreas.value))
       syncRoomList()
       return haAreas.value.length
     } catch {

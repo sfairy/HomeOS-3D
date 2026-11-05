@@ -1,28 +1,28 @@
 /** 场景模板 ID（仅本文件内用于约束预设清单，无需对外导出） */
-type AlertRulePresetId = 'doorbell' | 'wind' | 'door_window' | 'leak' | 'battery';
+type AlertRulePresetId = 'doorbell' | 'wind' | 'door_window' | 'leak' | 'battery'
 
 /** 单条告警规则场景模板：与 AlertRule 字段一一对应，供编辑弹窗直接套用 */
 export interface AlertRulePreset {
   /** 模板唯一 ID */
-  id: AlertRulePresetId;
+  id: AlertRulePresetId
   /** 模板展示名称（弹窗 chip 文案） */
-  label: string;
+  label: string
   /** 模板用途说明 */
-  description: string;
+  description: string
   /** 规则名称 */
-  name: string;
+  name: string
   /** 示例触发实体 ID */
-  entityId: string;
+  entityId: string
   /** 触发条件表达式（后端 evaluateCondition 语法） */
-  condition: string;
+  condition: string
   /** 告警级别，统一沿用现有三档 */
-  level: 'info' | 'warn' | 'danger';
+  level: 'info' | 'warn' | 'danger'
   /** 防抖冷却（分钟）：分钟级用于高频传感器，小时级以 60 的倍数表达 */
-  cooldownMinutes: number;
+  cooldownMinutes: number
   /** 通知标题模板 */
-  title: string;
+  title: string
   /** 通知正文模板，支持 {{state}} / {{val}} / {{name}} / {{unit}} */
-  messageTemplate: string;
+  messageTemplate: string
 }
 
 /**

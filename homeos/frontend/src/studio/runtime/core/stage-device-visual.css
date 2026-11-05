@@ -1,12 +1,7 @@
 /* 栈 D 设备弹窗右上角交互动态图（对齐 .i3d-power 吊灯位） */
 
 .interaction3d-stage
-  :is(
-    .i3d-climate-heading,
-    .i3d-cover-heading,
-    .i3d-nas-heading,
-    .i3d-device-panel .i3d-climate-heading
-  ) {
+  :is(.i3d-climate-heading, .i3d-cover-heading, .i3d-nas-heading, .i3d-device-panel .i3d-climate-heading) {
   position: relative;
   z-index: 1;
   padding-right: 118px;
@@ -167,11 +162,7 @@
 }
 
 .interaction3d-stage .i3d-device-visual.is-on .i3d-device-climate-vent i {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--i3d-device-accent) 35%, #2a3238),
-    #151b20
-  );
+  background: linear-gradient(180deg, color-mix(in srgb, var(--i3d-device-accent) 35%, #2a3238), #151b20);
 }
 
 .interaction3d-stage .i3d-device-climate-airflow {
@@ -262,11 +253,7 @@
   position: absolute;
   inset: 18% 10%;
   border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--i3d-device-accent) 40%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(circle, color-mix(in srgb, var(--i3d-device-accent) 40%, transparent), transparent 70%);
   opacity: 0;
 }
 
@@ -317,11 +304,7 @@
   left: 12px;
   height: 28px;
   border-radius: 6px;
-  background: repeating-linear-gradient(
-    180deg,
-    #2a3238 0 3px,
-    #151b20 3px 6px
-  );
+  background: repeating-linear-gradient(180deg, #2a3238 0 3px, #151b20 3px 6px);
 }
 
 .interaction3d-stage .i3d-device-purifier-display {
@@ -455,13 +438,7 @@
   top: 12px;
   bottom: 8px;
   width: calc(45.9% - var(--i3d-cover-open, 0) * 33.1%);
-  background:
-    repeating-linear-gradient(
-      90deg,
-      #2c343a 0 3px,
-      #232a30 3px 6px,
-      #1a2025 6px 8px
-    );
+  background: repeating-linear-gradient(90deg, #2c343a 0 3px, #232a30 3px 6px, #1a2025 6px 8px);
   box-shadow: 0 4px 10px #0000004d;
   transition:
     width 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
@@ -644,11 +621,7 @@
   position: absolute;
   inset: -8px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--i3d-device-accent) 45%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(circle, color-mix(in srgb, var(--i3d-device-accent) 45%, transparent), transparent 70%);
   opacity: 0;
   transition: opacity 0.35s ease;
 }
@@ -737,11 +710,7 @@
   position: absolute;
   inset: 8px 6px 22px;
   border-radius: 8px;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--i3d-device-accent) 40%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(circle, color-mix(in srgb, var(--i3d-device-accent) 40%, transparent), transparent 70%);
   opacity: 0;
 }
 
@@ -770,11 +739,7 @@
 }
 
 .interaction3d-stage .i3d-device-visual.is-on .i3d-device-tv-screen {
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--i3d-device-accent) 35%, #243038),
-    #10161b
-  );
+  background: linear-gradient(145deg, color-mix(in srgb, var(--i3d-device-accent) 35%, #243038), #10161b);
 }
 
 .interaction3d-stage .i3d-device-visual.is-playing .i3d-device-tv-screen {
@@ -868,11 +833,7 @@
   position: absolute;
   inset: 28px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--i3d-device-accent) 55%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(circle, color-mix(in srgb, var(--i3d-device-accent) 55%, transparent), transparent 70%);
   opacity: 0.25;
 }
 
@@ -938,10 +899,7 @@
 /* 上锁 / 解锁途中：锁梁保持抬起并轻微呼吸，明确表达「正在动作」，
    而不是先摆一个静止的「已上锁」或「已解锁」骗用户。 */
 .interaction3d-stage
-  :is(
-    .i3d-device-visual[data-lock-state="locking"],
-    .i3d-device-visual[data-lock-state="unlocking"]
-  )
+  :is(.i3d-device-visual[data-lock-state="locking"], .i3d-device-visual[data-lock-state="unlocking"])
   .i3d-device-lock-shackle {
   transform: translate(-42%, -2px) rotate(-22deg);
   border-color: var(--i3d-device-accent);
@@ -1178,11 +1136,7 @@
 }
 
 .interaction3d-stage .i3d-device-visual.is-fridge-opening .i3d-device-fridge-cavity {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--i3d-device-accent) 26%, #eef8fc),
-    #aecbd8
-  );
+  background: linear-gradient(180deg, color-mix(in srgb, var(--i3d-device-accent) 26%, #eef8fc), #aecbd8);
   box-shadow:
     inset 0 2px 9px #00000059,
     inset 0 0 14px #ffffffb3;
@@ -1285,11 +1239,7 @@
   position: absolute;
   inset: 10px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--i3d-device-accent) 40%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(circle, color-mix(in srgb, var(--i3d-device-accent) 40%, transparent), transparent 70%);
   opacity: 0.35;
 }
 

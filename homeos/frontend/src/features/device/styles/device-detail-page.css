@@ -3,7 +3,6 @@
 
 .device-detail-view {
   /* 设备详情二级色调：cyan（与 sky 形成 sky + cyan 点缀） */
-
   /* 注：主色派生色 派生变量、--set-* 语义色、--set-transition-* 已移至
          app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
          --hos-color-accent / -rgb 后，全局派生变量由 :where 块自动跟随。 */

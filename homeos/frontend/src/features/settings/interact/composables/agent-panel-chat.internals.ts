@@ -68,13 +68,9 @@ export function useAgentPanelChat(opts: {
     })
   }
 
-  const chatUserRounds = computed(
-    () => chatLog.value.filter((m) => m.role === 'user').length,
-  )
+  const chatUserRounds = computed(() => chatLog.value.filter((m) => m.role === 'user').length)
 
-  const lastAssistantMessage = computed(() =>
-    [...chatLog.value].reverse().find((m) => m.role === 'assistant'),
-  )
+  const lastAssistantMessage = computed(() => [...chatLog.value].reverse().find((m) => m.role === 'assistant'))
 
   const chatStatReadyLabel = computed(() => {
     if (pending.value > 0) return '待保存'
@@ -94,9 +90,7 @@ export function useAgentPanelChat(opts: {
     return pingInfo.value.ready ? 'agent-stat-val--emerald' : 'agent-stat-val--amber'
   })
 
-  const chatStatRoundLabel = computed(() =>
-    chatUserRounds.value ? `${chatUserRounds.value} 轮` : '—',
-  )
+  const chatStatRoundLabel = computed(() => (chatUserRounds.value ? `${chatUserRounds.value} 轮` : '—'))
 
   const chatStatLastMsLabel = computed(() => {
     const ms = lastAssistantMessage.value?.totalMs
@@ -179,12 +173,7 @@ export function useAgentPanelChat(opts: {
     bubble.text = final.reply || bubble.text || fallbackReplyOf(final.outcome)
     bubble.attachments = final.attachments
     bubble.confirmation = final.confirmation
-    bubble.meta = [
-      final.provider,
-      final.outcome,
-      `${final.totalMs ?? '?'}ms`,
-      toolNames.join(' → '),
-    ]
+    bubble.meta = [final.provider, final.outcome, `${final.totalMs ?? '?'}ms`, toolNames.join(' → ')]
       .filter(Boolean)
       .join(' · ')
   }
@@ -299,9 +288,7 @@ export function useAgentPanelChat(opts: {
     const confirmation = entry.confirmation
     if (!confirmation || chatting.value || isMockProvider.value) return
     entry.confirmationAnswered = true
-    chatInput.value = clipAgentChatMessage(
-      accepted ? confirmation.confirmText : confirmation.cancelText,
-    )
+    chatInput.value = clipAgentChatMessage(accepted ? confirmation.confirmText : confirmation.cancelText)
     void sendChat()
   }
 

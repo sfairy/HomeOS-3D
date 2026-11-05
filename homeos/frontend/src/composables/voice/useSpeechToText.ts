@@ -2,11 +2,7 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { transcribeVoice } from '@/services/api/system'
 import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
-import {
-  isEmbeddedBrowser,
-  openAudioInputStream,
-  probeMicrophone,
-} from '@/composables/voice/useAudioDevices'
+import { isEmbeddedBrowser, openAudioInputStream, probeMicrophone } from '@/composables/voice/useAudioDevices'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 
@@ -88,12 +84,14 @@ function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null
 }
 
-export function useSpeechToText(options: {
-  onInterim?: (text: string) => void
-  onFinal?: (text: string) => void
-  /** 默认 true：先本地录音走 HA STT，浏览器在线识别仅作回退 */
-  preferHa?: boolean
-} = {}) {
+export function useSpeechToText(
+  options: {
+    onInterim?: (text: string) => void
+    onFinal?: (text: string) => void
+    /** 默认 true：先本地录音走 HA STT，浏览器在线识别仅作回退 */
+    preferHa?: boolean
+  } = {},
+) {
   const listening = ref(false)
   const transcribing = ref(false)
   const transcript = ref('')
@@ -111,9 +109,7 @@ export function useSpeechToText(options: {
   let browserToHaTried = false
 
   const usesHaStt = computed(
-    () =>
-      forceHa.value ||
-      ((sttMode.value === 'ha' || sttMode.value === 'auto') && !sttFallbackActive.value),
+    () => forceHa.value || ((sttMode.value === 'ha' || sttMode.value === 'auto') && !sttFallbackActive.value),
   )
 
   const status = computed(() => {
@@ -194,8 +190,7 @@ export function useSpeechToText(options: {
   async function fallbackBrowserToHa(code: string) {
     if (browserToHaTried) {
       setError(
-        mapBrowserError(code, micGranted) ||
-          '浏览器识别不可用。请在设置 → 语音中将识别引擎改为 HA，并配置 STT 实体',
+        mapBrowserError(code, micGranted) || '浏览器识别不可用。请在设置 → 语音中将识别引擎改为 HA，并配置 STT 实体',
       )
       return
     }

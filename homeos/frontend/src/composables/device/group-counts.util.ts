@@ -9,10 +9,7 @@ import {
 import { touchEntityStoreDisplayDeps } from '@/composables/entity/useEntityDisplayEpoch'
 import { domainIndexToArray } from '@/shared/entity/utils/derived.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
-import type {
-  DeviceGroupEntitiesStoreLike,
-  DeviceGroupUiStoreLike,
-} from '@/shared/device/utils/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/shared/device/utils/group-battery.util'
 
 type EntityStoreSlice = DeviceGroupEntitiesStoreLike & {
   friendlyNamesMap?: Record<string, string> | Record<string, { entity_id?: string } | undefined>
@@ -86,9 +83,7 @@ export function resolveDeviceGroupEntityIds(
     if (fromSensor) return fromSensor
   }
   return domainIndexToArray(
-    (entitiesStore as { domainEntityIndex?: Map<string, Set<string>> }).domainEntityIndex?.get(
-      domain,
-    ),
+    (entitiesStore as { domainEntityIndex?: Map<string, Set<string>> }).domainEntityIndex?.get(domain),
   )
 }
 

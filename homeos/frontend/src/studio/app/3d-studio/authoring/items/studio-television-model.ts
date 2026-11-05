@@ -7,38 +7,35 @@
  * `backgroundSettings`（warm-wood 主题下的玻璃材质替换）。
  */
 
-import { addBoxMesh } from "./studio-mesh-primitives";
-import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from "../../materials/studio-television-glass";
-import { drawTelevisionPoster as drawTelevisionPoster2 } from "../../materials/studio-television-poster";
-import { computeTelevisionProportions } from "./studio-television-proportions";
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { addBoxMesh } from './studio-mesh-primitives'
+import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from '../../materials/studio-television-glass'
+import { drawTelevisionPoster as drawTelevisionPoster2 } from '../../materials/studio-television-poster'
+import { computeTelevisionProportions } from './studio-television-proportions'
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 // 比例换算已切到 `studio-television-proportions.ts`（纯函数），这里只做转出以保持旧引用可用。
-export { computeTelevisionProportions };
+export { computeTelevisionProportions }
 
 /** 电视模型构件需要的外部状态（均为只读）。 */
 interface StudioTelevisionDeps {
-  isEmbeddedStage: boolean;
-  threeRenderer: any;
-  backgroundSettings: () => { warmWood?: boolean } & Record<string, any>;
+  isEmbeddedStage: boolean
+  threeRenderer: any
+  backgroundSettings: () => { warmWood?: boolean } & Record<string, any>
 }
 
 function createTelevisionPoster(deps: StudioTelevisionDeps) {
-  const posterCanvas = document.createElement("canvas");
-  ((posterCanvas.width = 960), (posterCanvas.height = 540));
-  const posterCanvasPainter = posterCanvas.getContext("2d");
-  if (!posterCanvasPainter) return null;
-  drawTelevisionPoster2(posterCanvas, posterCanvasPainter);
-  const posterTexture = new ns2.CanvasTexture(posterCanvas);
+  const posterCanvas = document.createElement('canvas')
+  ;(posterCanvas.width = 960), (posterCanvas.height = 540)
+  const posterCanvasPainter = posterCanvas.getContext('2d')
+  if (!posterCanvasPainter) return null
+  drawTelevisionPoster2(posterCanvas, posterCanvasPainter)
+  const posterTexture = new ns2.CanvasTexture(posterCanvas)
   return (
     (posterTexture.colorSpace = ns2.SRGBColorSpace),
-    (posterTexture.anisotropy = Math.min(
-      deps.threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1,
-      8,
-    )),
+    (posterTexture.anisotropy = Math.min(deps.threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1, 8)),
     (posterTexture.needsUpdate = true),
     posterTexture
-  );
+  )
 }
 
 /**
@@ -60,15 +57,11 @@ export function addTelevisionModel(
       centerY: ag3,
       screenWidth,
       screenHeight,
-    } = computeTelevisionProportions(
-      televisionScreenItem,
-      televisionWidth,
-      televisionModelHeight,
-    ),
+    } = computeTelevisionProportions(televisionScreenItem, televisionWidth, televisionModelHeight),
     screenThickness = 0.012,
     screenFrontDepth = Math.max(televisionDepth * 0.28, 0.05) * 0.5 + 0.006,
     screenBodyZ = screenFrontDepth - screenThickness * 0.5,
-    screenFaceZ = screenBodyZ + screenThickness * 0.5;
+    screenFaceZ = screenBodyZ + screenThickness * 0.5
   if (deps.isEmbeddedStage || televisionScreenItem.screenEnabled === false) {
     const screenBodyMesh = addBoxMesh(
       televisionParent,
@@ -82,10 +75,10 @@ export function addTelevisionModel(
       {
         roughness: 0.18,
       },
-    );
+    )
     if (deps.backgroundSettings().warmWood) {
       const screenBodyMaterial = screenBodyMesh.material,
-        screenGlassMaterial = createWarmTelevisionGlass2(ns2);
+        screenGlassMaterial = createWarmTelevisionGlass2(ns2)
       screenBodyMesh.material = [
         screenBodyMaterial,
         screenBodyMaterial,
@@ -93,12 +86,12 @@ export function addTelevisionModel(
         screenBodyMaterial,
         screenGlassMaterial,
         screenBodyMaterial,
-      ];
+      ]
     }
-    ((screenBodyMesh.userData.sceneStyle = deps.backgroundSettings().warmWood ? "warm-wood" : "default"),
+    ;(screenBodyMesh.userData.sceneStyle = deps.backgroundSettings().warmWood ? 'warm-wood' : 'default'),
       (screenBodyMesh.userData.televisionScreen = true),
-      deps.isEmbeddedStage && (screenBodyMesh.userData.environmentEffect = true));
-    return;
+      deps.isEmbeddedStage && (screenBodyMesh.userData.environmentEffect = true)
+    return
   }
   const screenGlowMesh = new ns2.Mesh(
     // 发光层贴在屏幕正前方（原先把 z 算成「屏幕面 − 0.014」，结果整块埋进机身里看不见，
@@ -114,14 +107,14 @@ export function addTelevisionModel(
       toneMapped: false,
       side: ns2.DoubleSide,
     }),
-  );
-  ((screenGlowMesh.userData.televisionGlow = true),
+  )
+  ;(screenGlowMesh.userData.televisionGlow = true),
     deps.isEmbeddedStage && (screenGlowMesh.userData.environmentEffect = true),
     screenGlowMesh.position.set(0, ag3, screenFaceZ + 0.004),
     (screenGlowMesh.renderOrder = 8),
     (screenGlowMesh.castShadow = false),
     (screenGlowMesh.receiveShadow = false),
-    televisionParent.add(screenGlowMesh));
+    televisionParent.add(screenGlowMesh)
   const uv2 = createTelevisionPoster(deps),
     screenEdgeMaterial = new ns2.MeshBasicMaterial({
       color: 527122,
@@ -135,23 +128,20 @@ export function addTelevisionModel(
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
     }),
-    screenInsetMesh = new ns2.Mesh(
-      new ns2.BoxGeometry(screenWidth, screenHeight, screenThickness),
-      [
-        screenEdgeMaterial,
-        screenEdgeMaterial,
-        screenEdgeMaterial,
-        screenEdgeMaterial,
-        screenBackMaterial,
-        screenEdgeMaterial,
-      ],
-    );
-  ((screenInsetMesh.userData.sceneStyle = deps.backgroundSettings().warmWood ? "warm-wood" : "default"),
+    screenInsetMesh = new ns2.Mesh(new ns2.BoxGeometry(screenWidth, screenHeight, screenThickness), [
+      screenEdgeMaterial,
+      screenEdgeMaterial,
+      screenEdgeMaterial,
+      screenEdgeMaterial,
+      screenBackMaterial,
+      screenEdgeMaterial,
+    ])
+  ;(screenInsetMesh.userData.sceneStyle = deps.backgroundSettings().warmWood ? 'warm-wood' : 'default'),
     (screenInsetMesh.userData.televisionScreen = true),
     deps.isEmbeddedStage && (screenInsetMesh.userData.environmentEffect = true),
     screenInsetMesh.position.set(0, ag3, screenBodyZ),
     (screenInsetMesh.renderOrder = 7),
     (screenInsetMesh.castShadow = false),
     (screenInsetMesh.receiveShadow = false),
-    televisionParent.add(screenInsetMesh));
+    televisionParent.add(screenInsetMesh)
 }

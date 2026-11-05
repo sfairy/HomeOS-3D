@@ -147,14 +147,24 @@
 import { weatherStateLabel, weatherVisualKey } from '@/shared/weather/constants/weather-labels'
 import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Cloud, Sun, Droplets, Wind, CloudRain, Eye, Gauge, Leaf, CloudFog, CloudLightning, CloudSnow, Moon } from '@lucide/vue'
+import {
+  Cloud,
+  Sun,
+  Droplets,
+  Wind,
+  CloudRain,
+  Eye,
+  Gauge,
+  Leaf,
+  CloudFog,
+  CloudLightning,
+  CloudSnow,
+  Moon,
+} from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import {
-  collectSensorEntityIds,
-  readAqiNumber,
-} from '@/shared/weather/utils/weather-metric.util'
+import { collectSensorEntityIds, readAqiNumber } from '@/shared/weather/utils/weather-metric.util'
 
 const props = defineProps({
   config: {},
@@ -164,12 +174,7 @@ const props = defineProps({
 
 const entitiesStore = useEntitiesStore()
 const weatherEntityOverride = computed(() => String(props.config?.weatherEntityId || '').trim())
-const {
-  resolvedEid: weatherEid,
-  entity: weatherEnt,
-  isFallback,
-  hasWeather,
-} = useWeatherEntity(weatherEntityOverride)
+const { resolvedEid: weatherEid, entity: weatherEnt, isFallback, hasWeather } = useWeatherEntity(weatherEntityOverride)
 
 // 冷实体补全：约定 AQI / 生活指数 / 预警实体可能尚未进入热状态缓存。
 // 走批量接口（POST /entities/batch/get）而不是四次 ensureEntity：单个补全在实体已被
@@ -306,9 +311,7 @@ const weatherData = computed(() => {
 
   // PM2.5 传感器：sensor.{城市名}_pm25（浓度，与 AQI 指数分离）
   const locMatch = eid.match(/^weather\.(.+)$/)
-  const pm25 = locMatch
-    ? (entitiesStore.getEntity(`sensor.${locMatch[1]}_pm25`)?.state ?? '--')
-    : '--'
+  const pm25 = locMatch ? (entitiesStore.getEntity(`sensor.${locMatch[1]}_pm25`)?.state ?? '--') : '--'
 
   // 温度颜色
   const tVal = parseFloat(temp)

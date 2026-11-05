@@ -12,25 +12,11 @@ import { useEntityProjection } from '@/composables/entity/useEntityProjection'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
-import {
-  buildEntityAttrEntries,
-  HVAC_ACTION_LABELS,
-  HVAC_MODE_LABELS,
-} from '@/shared/device/utils/attr-format.util'
-import {
-  displayClimateOperatingLabel,
-  displayEntityStateLabel,
-} from '@/shared/constants/entity-state-labels'
+import { buildEntityAttrEntries, HVAC_ACTION_LABELS, HVAC_MODE_LABELS } from '@/shared/device/utils/attr-format.util'
+import { displayClimateOperatingLabel, displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
 
 /** 合法的详情 Tab（来自 query.tab，非法值回落 overview）。 */
-const VALID_DETAIL_TABS = new Set([
-  'overview',
-  'history',
-  'refs',
-  'usage',
-  'analytics',
-  'attrs',
-])
+const VALID_DETAIL_TABS = new Set(['overview', 'history', 'refs', 'usage', 'analytics', 'attrs'])
 
 /** 属性面板不展示的噪声字段。 */
 const SKIP_ATTRS = new Set([
@@ -63,9 +49,7 @@ export function useDeviceDetailView() {
   const domain = computed(() => getEntityDomain(entityId.value) || '')
   const domainLabel = computed(() => getDomainLabel(domain.value))
   const entityName = computed(() => getEntityDisplayName(entityId.value, entity.value) || '设备详情')
-  const unavailable = computed(
-    () => entity.value?.state === 'unavailable' || entity.value?.state === 'unknown',
-  )
+  const unavailable = computed(() => entity.value?.state === 'unavailable' || entity.value?.state === 'unknown')
   const displayState = computed(() => {
     const state = entity.value?.state
     if (domain.value === 'climate' || domain.value === 'water_heater') {
@@ -79,9 +63,7 @@ export function useDeviceDetailView() {
     return displayEntityStateLabel(entityId.value, state)
   })
   const area = computed(() => resolveEntityArea(entity.value?.attributes)?.display ?? '')
-  const controllable = computed(
-    () => entityId.value && hasEntityControlPopup(entityId.value),
-  )
+  const controllable = computed(() => entityId.value && hasEntityControlPopup(entityId.value))
 
   const detailStatCells = computed(() => {
     const cells = [

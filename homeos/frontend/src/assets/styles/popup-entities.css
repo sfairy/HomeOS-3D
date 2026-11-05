@@ -70,11 +70,13 @@
   appearance: none;
   height: 6px;
   border-radius: var(--hos-radius-pill);
-  background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+  background: linear-gradient(
+    to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0a84ff))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #0a84ff))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 0%)),
-    var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
+    var(--track-bg, rgba(255, 255, 255, 0.06)) 100%
+  );
 }
 
 .temp-slider::-moz-range-track {
@@ -86,9 +88,11 @@
 .temp-slider::-moz-range-progress {
   height: 6px;
   border-radius: var(--hos-radius-pill);
-  background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+  background: linear-gradient(
+    to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0a84ff))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0a84ff)))
+  );
 }
 
 .temp-slider::-webkit-slider-thumb {
@@ -101,13 +105,17 @@
   width: 20px;
   height: 20px;
   margin-top: -7px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(var(--accent-rgb), 0.15);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(var(--accent-rgb), 0.15);
   transition: all 0.2s ease;
 }
 
 .temp-slider::-webkit-slider-thumb:hover {
   transform: scale(1.1);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.2);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 5px rgba(var(--accent-rgb), 0.2);
 }
 
 .temp-slider::-moz-range-thumb {
@@ -139,44 +147,53 @@
   margin: -10px 0;
 }
 
-
 .cover-slider::-webkit-slider-runnable-track {
   -webkit-appearance: none;
   appearance: none;
   border-radius: var(--hos-radius-pill);
-  background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+  background: linear-gradient(
+    to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0a84ff))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #0a84ff))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 0%)),
-    var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
+    var(--track-bg, rgba(255, 255, 255, 0.06)) 100%
+  );
 }
 
-.cover-slider::-webkit-slider-runnable-track { height: 6px; }
+.cover-slider::-webkit-slider-runnable-track {
+  height: 6px;
+}
 
 .cover-slider::-moz-range-track {
   border-radius: var(--hos-radius-pill);
   background: var(--track-bg, rgba(255, 255, 255, 0.06));
 }
 
-.cover-slider::-moz-range-track { height: 6px; }
+.cover-slider::-moz-range-track {
+  height: 6px;
+}
 
 .cover-slider::-moz-range-progress {
   border-radius: var(--hos-radius-pill);
-  background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+  background: linear-gradient(
+    to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0a84ff))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0a84ff)))
+  );
 }
 
-.cover-slider::-moz-range-progress { height: 6px; }
+.cover-slider::-moz-range-progress {
+  height: 6px;
+}
 
 .cover-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 50%;
-  background: var(--accent, #0A84FF);
+  background: var(--accent, #0a84ff);
   border: 2px solid #fff;
   cursor: pointer;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0a84ff) 50%, rgba(0, 0, 0, 0));
 }
 
 .cover-slider::-webkit-slider-thumb {
@@ -185,10 +202,9 @@
   margin-top: -7px;
 }
 
-
 .cover-slider::-moz-range-thumb {
   border-radius: 50%;
-  background: var(--accent, #0A84FF);
+  background: var(--accent, #0a84ff);
   border: 2px solid #fff;
   cursor: pointer;
 }
@@ -196,9 +212,8 @@
 .cover-slider::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0a84ff) 50%, rgba(0, 0, 0, 0));
 }
-
 
 /* ---- 模式/预设卡片 ---- */
 .mode-card {
@@ -222,7 +237,7 @@
   color: rgba(255, 255, 255, 0.8);
   transform: translateY(-2px);
   border-color: var(--premium-border-strong);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .mode-card:active {
@@ -233,7 +248,9 @@
   background: rgba(var(--accent-rgb), 0.14);
   color: var(--accent);
   border-color: rgba(var(--accent-rgb), 0.32);
-  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 0 16px rgba(var(--accent-rgb), 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transform: translateY(-1px);
 }
 

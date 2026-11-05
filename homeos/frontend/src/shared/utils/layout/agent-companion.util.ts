@@ -38,14 +38,11 @@ export function clampCompanionPercent(value: unknown, fallback: number): number 
  * 归一化悬浮伴侣配置：非法值回到默认，自由位置两轴都有效才启用。
  * 保存与读取共用同一口径，避免手改成 200% 后存进布局、下次打开又跳回默认。
  */
-export function normalizeAgentCompanion(
-  raw?: Partial<AgentCompanionConfig> | null,
-): AgentCompanionConfig {
+export function normalizeAgentCompanion(raw?: Partial<AgentCompanionConfig> | null): AgentCompanionConfig {
   const top = Number(raw?.topPercent)
   const x = Number(raw?.xPercent)
   const y = Number(raw?.yPercent)
-  const hasFreePosition =
-    raw?.xPercent != null && raw?.yPercent != null && Number.isFinite(x) && Number.isFinite(y)
+  const hasFreePosition = raw?.xPercent != null && raw?.yPercent != null && Number.isFinite(x) && Number.isFinite(y)
   return {
     enabled: raw?.enabled !== false,
     side: raw?.side === 'right' ? 'right' : 'left',
@@ -97,8 +94,7 @@ export function resolveAgentCompanionFallback(
   const panelPosition = deps.panelPosition === 'left' ? 'left' : 'right'
   const panelWidth = Number(deps.panelWidth) || 0
   // 与信息侧栏同侧时退到侧栏内侧，避免小管家压在右栏部件上
-  const inset =
-    panelPosition === config.side ? AGENT_COMPANION_EDGE_GAP + panelWidth : AGENT_COMPANION_EDGE_GAP
+  const inset = panelPosition === config.side ? AGENT_COMPANION_EDGE_GAP + panelWidth : AGENT_COMPANION_EDGE_GAP
   const half = AGENT_COMPANION_FACE_SIZE / 2
   const centerX = config.side === 'left' ? inset + half : width - inset - half
   return {

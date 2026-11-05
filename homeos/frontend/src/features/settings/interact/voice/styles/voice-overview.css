@@ -9,18 +9,6 @@
   margin: 12px 16px 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 .voice-status-body {
   padding: 10px var(--settings-inset-x, 2rem) var(--hos-space-2xl, 24px);
 }
@@ -51,20 +39,12 @@
 
 .voice-status-metric--mode {
   border-color: rgba(var(--page-accent-rgb), 0.18);
-  background: linear-gradient(
-    155deg,
-    rgba(var(--page-accent-rgb), 0.08) 0%,
-    rgba(0, 0, 0, 0.16) 100%
-  );
+  background: linear-gradient(155deg, rgba(var(--page-accent-rgb), 0.08) 0%, rgba(0, 0, 0, 0.16) 100%);
 }
 
 .voice-status-metric--greet {
   border-color: rgba(var(--page-accent-secondary-rgb), 0.16);
-  background: linear-gradient(
-    155deg,
-    rgba(var(--page-accent-secondary-rgb), 0.07) 0%,
-    rgba(0, 0, 0, 0.16) 100%
-  );
+  background: linear-gradient(155deg, rgba(var(--page-accent-secondary-rgb), 0.07) 0%, rgba(0, 0, 0, 0.16) 100%);
 }
 
 .voice-status-metric__k {
@@ -164,7 +144,6 @@
 }
 
 @media (max-width: 640px) {
-
   .voice-status-body {
     padding: 10px 16px 16px;
   }
@@ -172,7 +151,6 @@
   .voice-status-metrics {
     grid-template-columns: 1fr;
   }
-
 }
 
 /* —— voice-panel —— */
@@ -181,5 +159,9 @@
   --page-accent-secondary: var(--module-accent-voice-sub);
   --page-accent-secondary-rgb: var(--module-accent-voice-sub-rgb);
 }
-.voice-panel__save-tip--ok { color: var(--set-success); }
-.voice-panel__save-tip--err { color: var(--set-danger); }
+.voice-panel__save-tip--ok {
+  color: var(--set-success);
+}
+.voice-panel__save-tip--err {
+  color: var(--set-danger);
+}

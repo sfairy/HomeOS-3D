@@ -13,10 +13,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/shared/util/editor-floating-layout.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/shared/util/editor-floating-layout.ts', import.meta.url),
 )
 
 const {
@@ -147,11 +144,17 @@ test('floatingVisibilityProblem：祖先 hidden / dialog 关闭都判为不可�
     'ancestor-hidden',
   )
   assert.equal(
-    floatingVisibilityProblem(mockAnchor({ closest: (selector) => (selector === 'dialog' ? { open: false } : null) }), doc),
+    floatingVisibilityProblem(
+      mockAnchor({ closest: (selector) => (selector === 'dialog' ? { open: false } : null) }),
+      doc,
+    ),
     'dialog-closed',
   )
   assert.equal(
-    floatingVisibilityProblem(mockAnchor({ closest: (selector) => (selector === 'dialog' ? { open: true } : null) }), doc),
+    floatingVisibilityProblem(
+      mockAnchor({ closest: (selector) => (selector === 'dialog' ? { open: true } : null) }),
+      doc,
+    ),
     null,
   )
 })

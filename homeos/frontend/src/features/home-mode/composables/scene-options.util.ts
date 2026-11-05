@@ -55,9 +55,7 @@ export function buildSceneOptions(
  * 用它做 `watch` 的依赖，而不是 deep watch 整张实体表 —— 实体表里每次状态推送（亮度 /
  * 温度）都会变，场景列表却不变，deep watch 会让下拉框在每次状态推送时重建。
  */
-export function sceneEntitiesSignature(
-  entities: Record<string, unknown> | null | undefined,
-): string {
+export function sceneEntitiesSignature(entities: Record<string, unknown> | null | undefined): string {
   const map = entities ?? {}
   return Object.keys(map)
     .filter((id) => id.startsWith('scene.'))

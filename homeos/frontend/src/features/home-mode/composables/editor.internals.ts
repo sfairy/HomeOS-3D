@@ -58,7 +58,6 @@ export function useHomeModePanelBridge() {
 
 // ── useHomeModeActionsSection ──
 
-
 // ── useHomeModeEditor ──
 function tabIconFields(icon: string | null | undefined) {
   return { emoji: resolveHomeModeTabEmoji(icon) }
@@ -364,5 +363,3 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
     exclusiveGroupOptions,
   }
 }
-
-

@@ -70,22 +70,27 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
 }
 
 .settings-hub-subnav__btn::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 4px;
   left: 50%;
   width: 0;
   height: 2px;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--hub-accent, var(--hos-color-accent)), color-mix(in srgb, var(--hub-accent, var(--hos-color-accent)) 60%, var(--hos-color-accent-strong)));
+  background: linear-gradient(
+    90deg,
+    var(--hub-accent, var(--hos-color-accent)),
+    color-mix(in srgb, var(--hub-accent, var(--hos-color-accent)) 60%, var(--hos-color-accent-strong))
+  );
   transform: translateX(-50%);
   transition: width 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
   opacity: 0;
@@ -142,4 +147,3 @@
   flex: none;
   width: 100%;
 }
-

@@ -2,11 +2,7 @@
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 /** 体感温度：优先实体属性，缺失时按热指数与风寒效应估算 */
-export function computeFeelsLike(
-  tempC: number,
-  humidityPct: number,
-  windMs: number,
-): number {
+export function computeFeelsLike(tempC: number, humidityPct: number, windMs: number): number {
   if (!Number.isFinite(tempC)) return tempC
   const hum = Number.isFinite(humidityPct) ? humidityPct : 50
   const wind = Number.isFinite(windMs) ? windMs : 0
@@ -37,19 +33,14 @@ export function computeFeelsLike(
   return tempC
 }
 
-type WeatherEntityGetter = (
-  eid: string,
-) => { state?: unknown; attributes?: Record<string, unknown> } | undefined
+type WeatherEntityGetter = (eid: string) => { state?: unknown; attributes?: Record<string, unknown> } | undefined
 
 function isUsableEntityState(state: unknown): boolean {
   return state !== undefined && state !== null && state !== 'unavailable' && state !== 'unknown'
 }
 
 /** 是否为 PM2.5 浓度传感器（绝不能当作 AQI 指数） */
-function isPm25ConcentrationSensor(
-  eid: string,
-  entity?: { attributes?: Record<string, unknown> } | null,
-): boolean {
+function isPm25ConcentrationSensor(eid: string, entity?: { attributes?: Record<string, unknown> } | null): boolean {
   const id = eid.toLowerCase()
   if (id.includes('pm25') || id.includes('pm2_5') || id.includes('pm2.5') || id.includes('aqi_pm25')) {
     return true
@@ -63,10 +54,7 @@ function isPm25ConcentrationSensor(
 }
 
 /** 是否像室外 AQI 指数实体（约定 sensor.*_aqi） */
-function isAqiIndexSensor(
-  eid: string,
-  entity?: { attributes?: Record<string, unknown> } | null,
-): boolean {
+function isAqiIndexSensor(eid: string, entity?: { attributes?: Record<string, unknown> } | null): boolean {
   if (!eid.startsWith('sensor.')) return false
   if (isPm25ConcentrationSensor(eid, entity)) return false
   const id = eid.toLowerCase()

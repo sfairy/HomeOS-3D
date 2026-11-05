@@ -6,9 +6,7 @@
   box-sizing: border-box;
   overflow: hidden;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-hero-x, 20px) 0;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(10,132,255,0.05) 0%, transparent 60%),
-    rgba(0, 0, 0, 0.28);
+  background: radial-gradient(ellipse at 50% 0%, rgba(10, 132, 255, 0.05) 0%, transparent 60%), rgba(0, 0, 0, 0.28);
   border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
@@ -112,7 +110,7 @@
 }
 
 .ef-item-tabs .settings-orch-tab--active::after {
-  content: '';
+  content: "";
   flex-shrink: 0;
   width: 18px;
   height: 2px;
@@ -131,7 +129,11 @@
 
 .ef-item-tabs .settings-orch-tab--active {
   background:
-    radial-gradient(ellipse 90% 70% at 50% 0%, color-mix(in srgb, var(--tab-accent, #fbbf24) 22%, #0c0e14), rgba(0, 0, 0, 0) 72%),
+    radial-gradient(
+      ellipse 90% 70% at 50% 0%,
+      color-mix(in srgb, var(--tab-accent, #fbbf24) 22%, #0c0e14),
+      rgba(0, 0, 0, 0) 72%
+    ),
     rgba(255, 255, 255, 0.06);
   border-color: color-mix(in srgb, var(--tab-accent, #fbbf24) 40%, #1a1d28);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
@@ -171,7 +173,9 @@
   display: block;
   font-size: 22px;
   line-height: 1;
-  transition: transform 0.22s ease, filter 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    filter 0.22s ease;
   filter: saturate(0.88) brightness(0.95);
 }
 
@@ -247,8 +251,7 @@
   background:
     radial-gradient(ellipse 55% 80% at 0% 50%, rgba(34, 211, 238, 0.07), transparent 55%),
     radial-gradient(ellipse 55% 80% at 50% 50%, rgba(var(--page-accent-rgb, 126, 184, 255), 0.06), transparent 55%),
-    radial-gradient(ellipse 55% 80% at 100% 50%, rgba(251, 191, 36, 0.05), transparent 55%),
-    var(--set-bg-dark-hover);
+    radial-gradient(ellipse 55% 80% at 100% 50%, rgba(251, 191, 36, 0.05), transparent 55%), var(--set-bg-dark-hover);
   border: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
@@ -312,7 +315,11 @@
 
 .embed-item-tabs .settings-orch-tab--active {
   background:
-    radial-gradient(ellipse 90% 70% at 50% 0%, color-mix(in srgb, var(--tab-accent, #38bdf8) 28%, #0c0e14), rgba(0, 0, 0, 0) 72%),
+    radial-gradient(
+      ellipse 90% 70% at 50% 0%,
+      color-mix(in srgb, var(--tab-accent, #38bdf8) 28%, #0c0e14),
+      rgba(0, 0, 0, 0) 72%
+    ),
     color-mix(in srgb, var(--tab-accent, #38bdf8) 10%, #12141c);
   border-color: color-mix(in srgb, var(--tab-accent, #38bdf8) 55%, #1a1d28);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
@@ -320,7 +327,7 @@
 }
 
 .embed-item-tabs .settings-orch-tab--active::after {
-  content: '';
+  content: "";
   flex-shrink: 0;
   width: 18px;
   height: 2px;
@@ -443,7 +450,11 @@
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .settings-orch-sort-shift:hover:not(:disabled) {
@@ -483,7 +494,9 @@
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 
-.settings-orch-track::-webkit-scrollbar { display: none; }
+.settings-orch-track::-webkit-scrollbar {
+  display: none;
+}
 
 .settings-orch-tab {
   flex-shrink: 0;
@@ -513,7 +526,7 @@
 
 .settings-orch-tab--active {
   background: var(--set-glass-bg);
-  border-color: color-mix(in srgb, var(--tab-accent, #0A84FF) 36%, #1a1d28);
+  border-color: color-mix(in srgb, var(--tab-accent, #0a84ff) 36%, #1a1d28);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
 }
 
@@ -526,7 +539,7 @@
   align-items: center;
   justify-content: center;
   color: var(--set-text-tertiary);
-  background: color-mix(in srgb, var(--set-glass-bg, rgba(255,255,255,0.045)) 100%, #0c0e14);
+  background: color-mix(in srgb, var(--set-glass-bg, rgba(255, 255, 255, 0.045)) 100%, #0c0e14);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-backface-visibility: hidden;
@@ -549,8 +562,8 @@
 
 .settings-orch-tab--active .settings-orch-orb {
   color: var(--tab-accent, #60a5fa);
-  background: color-mix(in srgb, var(--tab-accent, #0A84FF) 16%, #0c0e14);
-  border-color: color-mix(in srgb, var(--tab-accent, #0A84FF) 40%, #1a1d28);
+  background: color-mix(in srgb, var(--tab-accent, #0a84ff) 16%, #0c0e14);
+  border-color: color-mix(in srgb, var(--tab-accent, #0a84ff) 40%, #1a1d28);
   transform: translateY(-1px) translateZ(0);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
 }
@@ -563,7 +576,9 @@
   transition: color 0.2s ease;
 }
 
-.settings-orch-tab--active .settings-orch-label { color: #fff; }
+.settings-orch-tab--active .settings-orch-label {
+  color: #fff;
+}
 
 .settings-orch-count {
   font-size: var(--set-fs-micro);
@@ -598,9 +613,9 @@
 }
 
 .settings-orch-tab--active .settings-orch-count:not(.settings-orch-count--alert) {
-  background: color-mix(in srgb, var(--tab-accent, #0A84FF) 18%, #0c0e14);
+  background: color-mix(in srgb, var(--tab-accent, #0a84ff) 18%, #0c0e14);
   color: var(--tab-accent, #60a5fa);
-  border-color: color-mix(in srgb, var(--tab-accent, #0A84FF) 40%, #1a1d28);
+  border-color: color-mix(in srgb, var(--tab-accent, #0a84ff) 40%, #1a1d28);
 }
 
 .settings-orch-indicator {
@@ -610,7 +625,7 @@
   z-index: 2;
   height: 2px;
   border-radius: var(--hos-radius-pill);
-  background: linear-gradient(90deg, var(--orch-accent, #0A84FF), #5E5CE6);
+  background: linear-gradient(90deg, var(--orch-accent, #0a84ff), #5e5ce6);
   pointer-events: none;
   transition:
     transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
@@ -650,4 +665,3 @@
     box-shadow: none;
   }
 }
-

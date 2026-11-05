@@ -6,23 +6,13 @@ import { ref, watch, onMounted, type Ref, type ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { logger } from '@/shared/utils/core/logger'
 import { Shield, ShieldCheck, AlertTriangle } from '@lucide/vue'
-import {
-  getMaxRemoteNotifications,
-  configEpoch,
-  getConfigSection,
-} from '@/shared/utils/config/frontend-config'
+import { getMaxRemoteNotifications, configEpoch, getConfigSection } from '@/shared/utils/config/frontend-config'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 import { fetchNotifications, markNotificationRead } from '@/services/api/notifications'
-import {
-  fetchPresenceSummary,
-  triggerSecurityEmergency,
-} from '@/services/api/security'
+import { fetchPresenceSummary, triggerSecurityEmergency } from '@/services/api/security'
 import { loadPresenceHome } from '@/shared/presence/composables/load-presence-home'
 import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
-import {
-  executeSecurityPanelArm,
-  interpretSecurityArmResult,
-} from '@/shared/security/utils/panel-arm.util'
+import { executeSecurityPanelArm, interpretSecurityArmResult } from '@/shared/security/utils/panel-arm.util'
 import type { SecurityMode } from '@/shared/types/layout'
 import type { SecurityOverviewSensor } from './security-overview-sensors.internals'
 import type { useLayoutStore } from '@/stores/layout.store'
@@ -51,12 +41,7 @@ export function createSecurityOverviewActions(opts: {
   patchModeFromSocket: PatchModeFromSocket
   reduceSensitivity: ReduceSensitivity
   acknowledgeAllAlerts: () => void
-  addSecEvent: (
-    icon: Component,
-    text: string,
-    css: string,
-    extra?: { zoneIds?: string[] },
-  ) => void
+  addSecEvent: (icon: Component, text: string, css: string, extra?: { zoneIds?: string[] }) => void
   fetchSecAuditEvents: () => Promise<void> | void
   refreshSecPanel: () => void
 }) {
@@ -127,10 +112,7 @@ export function createSecurityOverviewActions(opts: {
       const list = Array.isArray(res.data) ? res.data : []
       for (const notification of list) {
         const src = notification.source || ''
-        if (
-          !notification.read &&
-          (src.includes('security') || src.includes('anomaly') || src === 'sensor-alert')
-        ) {
+        if (!notification.read && (src.includes('security') || src.includes('anomaly') || src === 'sensor-alert')) {
           await markNotificationRead(notification.id)
         }
       }
@@ -234,9 +216,7 @@ export function createSecurityOverviewActions(opts: {
   let sensorStatesSeeded = false
 
   function zoneIdsForSensor(entityId: string) {
-    return (zones.value || [])
-      .filter((z) => Array.isArray(z.sensors) && z.sensors.includes(entityId))
-      .map((z) => z.id)
+    return (zones.value || []).filter((z) => Array.isArray(z.sensors) && z.sensors.includes(entityId)).map((z) => z.id)
   }
 
   function syncSensorStateEvents(sensors: SecurityOverviewSensor[]) {

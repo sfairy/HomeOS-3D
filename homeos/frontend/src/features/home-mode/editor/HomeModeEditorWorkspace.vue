@@ -47,9 +47,7 @@ const props = defineProps({
   embedded: { type: Boolean, default: false },
 })
 
-const activeTabIsLive = computed(() =>
-  (props.activeModeIds || []).map(String).includes(String(props.activeTab)),
-)
+const activeTabIsLive = computed(() => (props.activeModeIds || []).map(String).includes(String(props.activeTab)))
 
 const emit = defineEmits([
   'apply-template',

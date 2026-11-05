@@ -47,12 +47,7 @@ const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models')
 
 /** 模型分类映射（唯一真值）：英文 id → 中文目录，决定新板的落盘目录。 */
 const { modelAssetFolder, modelAssetFolderPath, modelAssetFileStem } = await import(
-  pathToFileURL(
-    path.join(
-      frontendDir,
-      'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
-    ),
-  ).href
+  pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts')).href
 )
 
 const GLB_MAGIC = 0x46546c67 // "glTF"
@@ -66,9 +61,7 @@ const CHUNK_BIN = 0x004e4942 // "BIN\0"
  * 与 `basin-candidate-light` 的 `baseColorFactor` 逐位相同：台面与台盆那张台面在「角色配方
  * 缺席」的兜底路径上也要长一样。真实运行路径由角色 `rim` + 档位组出图，用不到它。
  */
-const LIGHT_PLACEHOLDER_BASE_COLOR = [
-  0.5271151256969157, 0.5906188409113381, 0.6795424696265424, 1,
-]
+const LIGHT_PLACEHOLDER_BASE_COLOR = [0.5271151256969157, 0.5906188409113381, 0.6795424696265424, 1]
 
 /** 命令行参数：`--key value` / `--flag`。 */
 function parseArgs(argv) {
@@ -116,12 +109,66 @@ function writeGlb(glbPath, json, bin) {
  * 再按实际尺寸映射；绕序由脚本自己用叉积验一遍（对不上直接报错，不靠手写顺序的对错）。
  */
 const SLAB_FACES = [
-  { name: 'top', normal: [0, 1, 0], corners: [[-1, 1, -1], [-1, 1, 1], [1, 1, 1], [1, 1, -1]] },
-  { name: 'bottom', normal: [0, -1, 0], corners: [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1]] },
-  { name: 'front', normal: [0, 0, 1], corners: [[-1, 0, 1], [1, 0, 1], [1, 1, 1], [-1, 1, 1]] },
-  { name: 'back', normal: [0, 0, -1], corners: [[1, 0, -1], [-1, 0, -1], [-1, 1, -1], [1, 1, -1]] },
-  { name: 'right', normal: [1, 0, 0], corners: [[1, 0, 1], [1, 0, -1], [1, 1, -1], [1, 1, 1]] },
-  { name: 'left', normal: [-1, 0, 0], corners: [[-1, 0, -1], [-1, 0, 1], [-1, 1, 1], [-1, 1, -1]] },
+  {
+    name: 'top',
+    normal: [0, 1, 0],
+    corners: [
+      [-1, 1, -1],
+      [-1, 1, 1],
+      [1, 1, 1],
+      [1, 1, -1],
+    ],
+  },
+  {
+    name: 'bottom',
+    normal: [0, -1, 0],
+    corners: [
+      [-1, 0, -1],
+      [1, 0, -1],
+      [1, 0, 1],
+      [-1, 0, 1],
+    ],
+  },
+  {
+    name: 'front',
+    normal: [0, 0, 1],
+    corners: [
+      [-1, 0, 1],
+      [1, 0, 1],
+      [1, 1, 1],
+      [-1, 1, 1],
+    ],
+  },
+  {
+    name: 'back',
+    normal: [0, 0, -1],
+    corners: [
+      [1, 0, -1],
+      [-1, 0, -1],
+      [-1, 1, -1],
+      [1, 1, -1],
+    ],
+  },
+  {
+    name: 'right',
+    normal: [1, 0, 0],
+    corners: [
+      [1, 0, 1],
+      [1, 0, -1],
+      [1, 1, -1],
+      [1, 1, 1],
+    ],
+  },
+  {
+    name: 'left',
+    normal: [-1, 0, 0],
+    corners: [
+      [-1, 0, -1],
+      [-1, 0, 1],
+      [-1, 1, 1],
+      [-1, 1, -1],
+    ],
+  },
 ]
 
 const cross = (left, right) => [
@@ -147,12 +194,8 @@ function buildSlabGeometry({ width, depth, thickness }) {
   for (const face of SLAB_FACES) {
     const corners = face.corners.map(toWorld)
     // 绕序自检：前三个角点的叉积必须指向该面的外法线。
-    const computed = cross(
-      subtract(corners[1], corners[0]),
-      subtract(corners[2], corners[0]),
-    )
-    if (dot(computed, face.normal) <= 0)
-      problems.push(`${face.name} 面的绕序反了（法线 ${face.normal.join(',')}）`)
+    const computed = cross(subtract(corners[1], corners[0]), subtract(corners[2], corners[0]))
+    if (dot(computed, face.normal) <= 0) problems.push(`${face.name} 面的绕序反了（法线 ${face.normal.join(',')}）`)
     const base = positions.length
     for (const corner of corners) {
       positions.push(corner)
@@ -181,9 +224,7 @@ function checkClosedSurface({ positions, indices }) {
   const undirected = new Map()
   const directed = new Map()
   for (let offset = 0; offset < indices.length; offset += 3) {
-    const triangle = [indices[offset], indices[offset + 1], indices[offset + 2]].map(
-      (index) => keys[index],
-    )
+    const triangle = [indices[offset], indices[offset + 1], indices[offset + 2]].map((index) => keys[index])
     for (let corner = 0; corner < 3; corner += 1) {
       const from = triangle[corner]
       const to = triangle[(corner + 1) % 3]
@@ -194,11 +235,9 @@ function checkClosedSurface({ positions, indices }) {
   }
   const problems = []
   const halfUsed = [...undirected].filter(([, count]) => count !== 2)
-  if (halfUsed.length)
-    problems.push(`有 ${halfUsed.length} 条边不是恰好被 2 个面共用（表面没封闭）`)
+  if (halfUsed.length) problems.push(`有 ${halfUsed.length} 条边不是恰好被 2 个面共用（表面没封闭）`)
   const duplicateDirected = [...directed].filter(([, count]) => count !== 1)
-  if (duplicateDirected.length)
-    problems.push(`有 ${duplicateDirected.length} 条有向边重复（相邻面朝向不一致）`)
+  if (duplicateDirected.length) problems.push(`有 ${duplicateDirected.length} 条有向边重复（相邻面朝向不一致）`)
   return problems
 }
 
@@ -206,14 +245,9 @@ function checkClosedSurface({ positions, indices }) {
 function signedVolume({ positions, indices }) {
   let volume = 0
   for (let offset = 0; offset < indices.length; offset += 3) {
-    const [a, b, c] = [indices[offset], indices[offset + 1], indices[offset + 2]].map(
-      (index) => positions[index],
-    )
-    volume += (
-      a[0] * (b[1] * c[2] - b[2] * c[1]) -
-      a[1] * (b[0] * c[2] - b[2] * c[0]) +
-      a[2] * (b[0] * c[1] - b[1] * c[0])
-    ) / 6
+    const [a, b, c] = [indices[offset], indices[offset + 1], indices[offset + 2]].map((index) => positions[index])
+    volume +=
+      (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6
   }
   return volume
 }
@@ -235,8 +269,7 @@ function selfCheck(geometry, { width, depth, thickness }) {
   const expectedVolume = width * depth * thickness
   if (Math.abs(volume - expectedVolume) > 1e-9)
     problems.push(`有向体积 ${volume} ≠ 宽×深×厚 ${expectedVolume}（绕序或尺寸不对）`)
-  if (geometry.normals.length !== geometry.positions.length)
-    problems.push('法线数与顶点数不一致')
+  if (geometry.normals.length !== geometry.positions.length) problems.push('法线数与顶点数不一致')
   const badNormal = geometry.normals.find(
     (normal) =>
       Math.abs(normal[0]) + Math.abs(normal[1]) + Math.abs(normal[2]) !== 1 ||
@@ -276,9 +309,7 @@ function buildSlabGlb({ outId, slot, geometry, dimensionExtras }) {
   const useShortIndices = positions.length <= 65535
   const indexBytes = Buffer.alloc(indices.length * (useShortIndices ? 2 : 4))
   indices.forEach((value, index) =>
-    useShortIndices
-      ? indexBytes.writeUInt16LE(value, index * 2)
-      : indexBytes.writeUInt32LE(value, index * 4),
+    useShortIndices ? indexBytes.writeUInt16LE(value, index * 2) : indexBytes.writeUInt32LE(value, index * 4),
   )
 
   const bufferViews = []
@@ -390,14 +421,11 @@ function buildSlabGlb({ outId, slot, geometry, dimensionExtras }) {
 async function registryCheck(outId, actual) {
   const [{ COLLECTION_MODELS }, { COLLECTION_ITEM_CATALOG }] = await Promise.all([
     import(
-      pathToFileURL(
-        path.join(frontendDir, 'src/studio/app/3d-studio/loaders/external-models/collection-models.ts'),
-      ).href
+      pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/loaders/external-models/collection-models.ts'))
+        .href
     ),
     import(
-      pathToFileURL(
-        path.join(frontendDir, 'src/studio/app/3d-studio/authoring/items/collection-item-catalog.ts'),
-      ).href
+      pathToFileURL(path.join(frontendDir, 'src/studio/app/3d-studio/authoring/items/collection-item-catalog.ts')).href
     ),
   ])
   const registrySize = COLLECTION_MODELS[outId]?.size
@@ -473,25 +501,19 @@ const { json, bin } = buildSlabGlb({
 const check = selfCheck(geometry, dimensions)
 
 console.log(
-  `实心板：${width} × ${depth} × ${thickness}m（底面 y=0），槽位 ${slot}，` +
-    `材质 ${json.materials[0].name}`,
+  `实心板：${width} × ${depth} × ${thickness}m（底面 y=0），槽位 ${slot}，` + `材质 ${json.materials[0].name}`,
 )
 console.log(
   `几何：POSITION ${geometry.positions.length} 顶点，索引 ${geometry.indices.length}，` +
     `面 ${SLAB_FACES.length}，有向体积 ${check.volume.toFixed(6)} m³（期望 ${check.expectedVolume.toFixed(6)}）`,
 )
-console.log(
-  `原生包围盒：${check.bounds.map(([min, max]) => `${round4(min)}~${round4(max)}`).join(' × ')}`,
-)
+console.log(`原生包围盒：${check.bounds.map(([min, max]) => `${round4(min)}~${round4(max)}`).join(' × ')}`)
 console.log(
   check.problems.length
     ? `✗ 自检不通过：${check.problems.join('；')}`
     : '✓ 自检通过：六面封闭、法线朝外、体积等于宽×深×厚、板底落在 y=0',
 )
-const { errors: registrationErrors, warnings: registrationWarnings } = await registryCheck(
-  outId,
-  check.actual,
-)
+const { errors: registrationErrors, warnings: registrationWarnings } = await registryCheck(outId, check.actual)
 for (const warning of registrationWarnings) console.log(`⚑ ${warning}`)
 console.log(
   registrationErrors.length

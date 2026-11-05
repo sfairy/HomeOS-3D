@@ -14,9 +14,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
-const MODULE = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/shared/entity/utils/ws-sync.ts', import.meta.url),
-)
+const MODULE = fileURLToPath(new URL('../../../../homeos/frontend/src/shared/entity/utils/ws-sync.ts', import.meta.url))
 const {
   createEntitySocketSyncState,
   incrementalBatchIncomplete,

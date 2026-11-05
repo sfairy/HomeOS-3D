@@ -57,9 +57,7 @@ const hub = inject(FloatingHubContextKey, null)
 const entityId = computed(() => String(props.widget.config.entityId || ''))
 
 /** 部件显示名：优先配置标题，回退实体 friendly_name */
-const entityLabel = computed(() =>
-  props.widget.config.title || hub?.friendlyName(entityId.value) || '',
-)
+const entityLabel = computed(() => props.widget.config.title || hub?.friendlyName(entityId.value) || '')
 
 /** 仅公用事业实体（燃气/水/通讯/电）可点击弹出详情面板 */
 const clickable = computed(() => !!hub && hub.isUtilityEntity(entityId.value))

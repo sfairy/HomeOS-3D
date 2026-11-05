@@ -10,9 +10,7 @@ export interface LicensePatchInput {
   validityDays: string;
 }
 
-export type LicensePatchResult =
-  | { ok: true; payload: Record<string, unknown> }
-  | { ok: false; message: string };
+export type LicensePatchResult = { ok: true; payload: Record<string, unknown> } | { ok: false; message: string };
 
 export const MIXED_EXPIRY_MESSAGE = "「续期天数」「新的到期时间 / 永久有效」「有效天数」只能选一种。";
 export const EXTEND_DAYS_MESSAGE = "续期天数必须是不小于 1 的整数。";

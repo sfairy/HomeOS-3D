@@ -1,12 +1,8 @@
-import {
-  drawingPlanPoints,
-  isCourtyardGate,
-  syncCourtyardGates,
-} from "../../plan/courtyard-drawing";
-import { windowTopologyError } from "../../plan/window/window-scene-guard";
-import { exhaustFanInstallation } from "./studio-exhaust-fan";
+import { drawingPlanPoints, isCourtyardGate, syncCourtyardGates } from '../../plan/courtyard-drawing'
+import { windowTopologyError } from '../../plan/window/window-scene-guard'
+import { exhaustFanInstallation } from './studio-exhaust-fan'
 const overlapEpsilon = 0.001,
-  overlapLength = (startA: any, endA: any, startB: any, endB: any) => Math.min(endA, endB) - Math.max(startA, startB);
+  overlapLength = (startA: any, endA: any, startB: any, endB: any) => Math.min(endA, endB) - Math.max(startA, startB)
 function createOrientedBox(
   centerX: any,
   centerY: any,
@@ -17,7 +13,7 @@ function createOrientedBox(
   boxHeight: any,
 ) {
   const cosAngle = Math.cos(angleRad),
-    sinAngle = Math.sin(angleRad);
+    sinAngle = Math.sin(angleRad)
   return {
     x: centerX,
     y: centerY,
@@ -35,17 +31,13 @@ function createOrientedBox(
     ],
     bottom: bottomElevation,
     top: bottomElevation + boxHeight,
-  };
+  }
 }
 function boxOverlapArea(boxA: any, boxB: any, isFencePair = false) {
-  if (
-    isFencePair &&
-    Math.abs(boxA.axes[0].x * boxB.axes[0].y - boxA.axes[0].y * boxB.axes[0].x) > 0.001
-  )
-    return 0;
-  const verticalOverlap = overlapLength(boxA.bottom, boxA.top, boxB.bottom, boxB.top);
-  if (verticalOverlap <= overlapEpsilon) return 0;
-  let minLateralOverlap = Infinity;
+  if (isFencePair && Math.abs(boxA.axes[0].x * boxB.axes[0].y - boxA.axes[0].y * boxB.axes[0].x) > 0.001) return 0
+  const verticalOverlap = overlapLength(boxA.bottom, boxA.top, boxB.bottom, boxB.top)
+  if (verticalOverlap <= overlapEpsilon) return 0
+  let minLateralOverlap = Infinity
   for (const axis of [...boxA.axes, ...boxB.axes]) {
     const halfExtentOnAxis = (box: any) =>
         (Math.abs(axis.x * box.axes[0].x + axis.y * box.axes[0].y) * box.width) / 2 +
@@ -57,45 +49,43 @@ function boxOverlapArea(boxA: any, boxB: any, isFencePair = false) {
         projectionA + halfExtentOnAxis(boxA),
         projectionB - halfExtentOnAxis(boxB),
         projectionB + halfExtentOnAxis(boxB),
-      );
-    if (lateralOverlap <= overlapEpsilon) return 0;
-    minLateralOverlap = Math.min(minLateralOverlap, lateralOverlap);
+      )
+    if (lateralOverlap <= overlapEpsilon) return 0
+    minLateralOverlap = Math.min(minLateralOverlap, lateralOverlap)
   }
-  return minLateralOverlap * verticalOverlap;
+  return minLateralOverlap * verticalOverlap
 }
 /** 定位开洞时需要用到的最小墙体结构：两端坐标 + 厚度。 */
 type PlacementWall = {
-  id: string;
-  start: { x: number; y: number };
-  end: { x: number; y: number };
-  thickness?: number;
-};
+  id: string
+  start: { x: number; y: number }
+  end: { x: number; y: number }
+  thickness?: number
+}
 
 function buildPlacementGroups(scene: any, ppm: any) {
   const placementGroups: any[] = [],
-
     wallsById = new Map<string, PlacementWall>(
       (scene.walls || []).map((wall: any) => [wall.id, wall] as [string, PlacementWall]),
-    );
-  for (const openingKind of ["doors", "windows", "railings"])
+    )
+  for (const openingKind of ['doors', 'windows', 'railings'])
     for (const opening of scene[openingKind] || []) {
-      const openingWall = wallsById.get(opening.wallId);
-      if (!openingWall) continue;
+      const openingWall = wallsById.get(opening.wallId)
+      if (!openingWall) continue
       const wallDeltaX = openingWall.end.x - openingWall.start.x,
         wallDeltaY = openingWall.end.y - openingWall.start.y,
-        wallLength = Math.hypot(wallDeltaX, wallDeltaY) / ppm;
-      if (!wallLength) continue;
+        wallLength = Math.hypot(wallDeltaX, wallDeltaY) / ppm
+      if (!wallLength) continue
       const halfOpeningWidth = Math.min(opening.width / 2, wallLength / 2),
         openingRatio = Math.max(
           halfOpeningWidth / wallLength,
           Math.min(1 - halfOpeningWidth / wallLength, opening.t || 0),
         ),
         /** 栏杆可能没有显式高度，回退到场景墙高（否则盒顶变成 NaN）。 */
-        openingHeight =
-          opening.height ?? (openingKind === "railings" ? scene.settings?.wallHeight : opening.height);
+        openingHeight = opening.height ?? (openingKind === 'railings' ? scene.settings?.wallHeight : opening.height)
       placementGroups.push({
-        key: openingKind + ":" + opening.id,
-        group: "opening",
+        key: openingKind + ':' + opening.id,
+        group: 'opening',
         parts: [
           createOrientedBox(
             (openingWall.start.x + wallDeltaX * openingRatio) / ppm,
@@ -107,23 +97,18 @@ function buildPlacementGroups(scene: any, ppm: any) {
             openingHeight,
           ),
         ],
-      });
+      })
     }
   for (const item of scene.items || []) {
     /** 排气扇条目自带洞口：与门窗共用 `opening` 组（厚度 0.16，门窗仍 0.2）。 */
-    const exhaustInstallation = exhaustFanInstallation(
-      item,
-      scene.walls || [],
-      ppm,
-      scene.settings?.wallHeight,
-    );
+    const exhaustInstallation = exhaustFanInstallation(item, scene.walls || [], ppm, scene.settings?.wallHeight)
     if (exhaustInstallation) {
       const { wall: exhaustWall, opening: exhaustOpening } = exhaustInstallation,
         exhaustWallDeltaX = exhaustWall.end.x - exhaustWall.start.x,
-        exhaustWallDeltaY = exhaustWall.end.y - exhaustWall.start.y;
+        exhaustWallDeltaY = exhaustWall.end.y - exhaustWall.start.y
       placementGroups.push({
-        key: "items:" + item.id,
-        group: "opening",
+        key: 'items:' + item.id,
+        group: 'opening',
         parts: [
           createOrientedBox(
             item.x / ppm,
@@ -135,13 +120,13 @@ function buildPlacementGroups(scene: any, ppm: any) {
             exhaustOpening.height,
           ),
         ],
-      });
+      })
     }
     if (
       (isCourtyardGate(item) &&
         placementGroups.push({
-          key: "items:" + item.id,
-          group: "gate",
+          key: 'items:' + item.id,
+          group: 'gate',
           parts: [
             createOrientedBox(
               item.x / ppm,
@@ -154,106 +139,98 @@ function buildPlacementGroups(scene: any, ppm: any) {
             ),
           ],
         }),
-      item.type !== "courtyard-fence")
+      item.type !== 'courtyard-fence')
     )
-      continue;
-    const planPoints = drawingPlanPoints(item, ppm);
-    item.drawing.closed && planPoints.length && planPoints.push(planPoints[0]);
-    const segmentParts: any[] = [];
+      continue
+    const planPoints = drawingPlanPoints(item, ppm)
+    item.drawing.closed && planPoints.length && planPoints.push(planPoints[0])
+    const segmentParts: any[] = []
     for (let pointIndex = 1; pointIndex < planPoints.length; pointIndex++) {
       const segmentStart = planPoints[pointIndex - 1],
         segmentEnd = planPoints[pointIndex],
         segmentDeltaX = segmentEnd.x - segmentStart.x,
         segmentDeltaY = segmentEnd.y - segmentStart.y,
-        segmentLength = Math.hypot(segmentDeltaX, segmentDeltaY) / ppm;
+        segmentLength = Math.hypot(segmentDeltaX, segmentDeltaY) / ppm
       segmentLength <= overlapEpsilon ||
         segmentParts.push(
           createOrientedBox(
             (segmentStart.x + segmentEnd.x) / 2 / ppm,
             (segmentStart.y + segmentEnd.y) / 2 / ppm,
             segmentLength,
-            (item.drawing.thickness || 0.18) * (item.drawing.style === "hedge" ? 3 : 1),
+            (item.drawing.thickness || 0.18) * (item.drawing.style === 'hedge' ? 3 : 1),
             Math.atan2(segmentDeltaY, segmentDeltaX),
             item.elevation || 0,
             item.height || 1.2,
           ),
-        );
+        )
     }
     placementGroups.push({
-      key: "items:" + item.id,
-      group: "fence",
+      key: 'items:' + item.id,
+      group: 'fence',
       parts: segmentParts,
-    });
+    })
   }
-  return placementGroups;
+  return placementGroups
 }
 function collectSceneOverlaps(overlapScene: any, overlapPpm: any) {
   const groups = buildPlacementGroups(overlapScene, overlapPpm),
-    overlapsByPair = new Map();
+    overlapsByPair = new Map()
   for (let groupIndexA = 0; groupIndexA < groups.length; groupIndexA++)
     for (let groupIndexB = groupIndexA; groupIndexB < groups.length; groupIndexB++) {
       const groupA = groups[groupIndexA],
-        groupB = groups[groupIndexB];
-      if (
-        groupA.group !== groupB.group ||
-        (groupIndexA === groupIndexB && groupA.group !== "fence")
-      )
-        continue;
-      let overlapAmount = 0;
+        groupB = groups[groupIndexB]
+      if (groupA.group !== groupB.group || (groupIndexA === groupIndexB && groupA.group !== 'fence')) continue
+      let overlapAmount = 0
       for (let partIndexA = 0; partIndexA < groupA.parts.length; partIndexA++)
         for (
           let partIndexB = groupIndexA === groupIndexB ? partIndexA + 1 : 0;
           partIndexB < groupB.parts.length;
           partIndexB++
         )
-          overlapAmount += boxOverlapArea(
-            groupA.parts[partIndexA],
-            groupB.parts[partIndexB],
-            groupA.group === "fence",
-          );
+          overlapAmount += boxOverlapArea(groupA.parts[partIndexA], groupB.parts[partIndexB], groupA.group === 'fence')
       overlapAmount > 0 &&
         overlapsByPair.set(JSON.stringify([groupA.key, groupB.key].sort()), {
           amount: overlapAmount,
           group: groupA.group,
-        });
+        })
     }
-  return overlapsByPair;
+  return overlapsByPair
 }
 function placementConflict(baselineScene: any, candidateScene: any, conflictPpm = 100) {
-  const baselineOverlaps = collectSceneOverlaps(baselineScene, conflictPpm);
+  const baselineOverlaps = collectSceneOverlaps(baselineScene, conflictPpm)
   for (const [pairKey, overlapEntry] of collectSceneOverlaps(candidateScene, conflictPpm))
     if (!(overlapEntry.amount <= (baselineOverlaps.get(pairKey)?.amount || 0) + 1e-8))
-      return overlapEntry.group === "opening"
-        ? "该位置与已有门、窗户、栏杆或排气扇洞口重叠，请调整位置或尺寸。"
-        : overlapEntry.group === "gate"
-          ? "该位置与已有庭院门重叠，请调整位置或尺寸。"
-          : "围挡与已有围挡或自身线段重叠，请调整路线、位置或尺寸。";
-  return "";
+      return overlapEntry.group === 'opening'
+        ? '该位置与已有门、窗户、栏杆或排气扇洞口重叠，请调整位置或尺寸。'
+        : overlapEntry.group === 'gate'
+          ? '该位置与已有庭院门重叠，请调整位置或尺寸。'
+          : '围挡与已有围挡或自身线段重叠，请调整路线、位置或尺寸。'
+  return ''
 }
 export function restorePlacementScene(targetScene: any, sourceScene: any) {
-  for (const collectionKey of ["items", "walls", "doors", "windows", "railings"]) {
-    if (!sourceScene[collectionKey]) continue;
+  for (const collectionKey of ['items', 'walls', 'doors', 'windows', 'railings']) {
+    if (!sourceScene[collectionKey]) continue
     const existingById = new Map(
       (targetScene[collectionKey] || []).map((targetEntry: any) => [targetEntry.id, targetEntry]),
-    );
+    )
     targetScene[collectionKey] = sourceScene[collectionKey].map((sourceEntry: any) => {
-      const currentEntry = existingById.get(sourceEntry.id) || {};
-      for (const propertyKey of Object.keys(currentEntry)) delete (currentEntry as any)[propertyKey];
-      return Object.assign(currentEntry, structuredClone(sourceEntry));
-    });
+      const currentEntry = existingById.get(sourceEntry.id) || {}
+      for (const propertyKey of Object.keys(currentEntry)) delete (currentEntry as any)[propertyKey]
+      return Object.assign(currentEntry, structuredClone(sourceEntry))
+    })
   }
 }
 export function validatePlacementChange(savedScene: any, draftScene: any, changePpm = 100) {
-  syncCourtyardGates(draftScene.items || [], changePpm);
+  syncCourtyardGates(draftScene.items || [], changePpm)
   /**
    * 自定义窗型的窗格必须还落在墙体洞口里：改墙高 / 墙长 / 窗宽高时如果越界，
    * 画面上会漏出窗框穿墙，所以和「洞口重叠」一样按一次失败处理并整体回滚。
    */
-  const windowLayoutError = windowTopologyError(savedScene, draftScene, changePpm);
+  const windowLayoutError = windowTopologyError(savedScene, draftScene, changePpm)
   if (windowLayoutError) {
-    restorePlacementScene(draftScene, savedScene);
-    return windowLayoutError;
+    restorePlacementScene(draftScene, savedScene)
+    return windowLayoutError
   }
-  const conflictMessage = placementConflict(savedScene, draftScene, changePpm);
-  return (conflictMessage && restorePlacementScene(draftScene, savedScene), conflictMessage);
+  const conflictMessage = placementConflict(savedScene, draftScene, changePpm)
+  return (conflictMessage && restorePlacementScene(draftScene, savedScene), conflictMessage)
 }

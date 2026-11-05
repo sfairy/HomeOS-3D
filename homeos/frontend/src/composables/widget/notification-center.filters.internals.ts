@@ -70,11 +70,8 @@ export function mergeNotificationLists(
 ): NotificationCenterItem[] {
   const merged: NotificationCenterItem[] = [...remote, ...local]
   merged.sort((left, right) => {
-    const leftTime =
-      Date.parse(left.createdAt || left.time || '') || (typeof left.id === 'number' ? left.id : 0)
-    const rightTime =
-      Date.parse(right.createdAt || right.time || '') ||
-      (typeof right.id === 'number' ? right.id : 0)
+    const leftTime = Date.parse(left.createdAt || left.time || '') || (typeof left.id === 'number' ? left.id : 0)
+    const rightTime = Date.parse(right.createdAt || right.time || '') || (typeof right.id === 'number' ? right.id : 0)
     if (leftTime !== rightTime) return rightTime - leftTime
     const leftIndex = Number(left.id) > 1e15 ? 0 : 1
     const rightIndex = Number(right.id) > 1e15 ? 0 : 1
@@ -109,19 +106,13 @@ export function applyNotifyPrefs(
 }
 
 /** 按级别过滤（`all` 不过滤）。 */
-export function filterByLevel(
-  list: NotificationCenterItem[],
-  level: string,
-): NotificationCenterItem[] {
+export function filterByLevel(list: NotificationCenterItem[], level: string): NotificationCenterItem[] {
   if (level === 'all') return list
   return list.filter((notification) => (notification.level || 'info') === level)
 }
 
 /** 按来源过滤。 */
-export function filterBySource(
-  list: NotificationCenterItem[],
-  source: string,
-): NotificationCenterItem[] {
+export function filterBySource(list: NotificationCenterItem[], source: string): NotificationCenterItem[] {
   return list.filter((notification) => matchesNotificationSourceFilter(notification.source, source))
 }
 

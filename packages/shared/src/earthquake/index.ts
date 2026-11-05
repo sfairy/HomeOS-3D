@@ -7,7 +7,7 @@ export {
   refineAlertCountdown,
   isInSichuanBasin,
   type IntensityEstimateOpts,
-} from './geo.util';
+} from './geo.util'
 export {
   EEW_COUNTDOWN_LEAD_OPTIONS,
   type EewCountdownLeadSec,
@@ -15,7 +15,7 @@ export {
   shouldShowEewCountdown,
   isEewSimulationEventId,
   eewCountdownLeadLabel,
-} from './eew-countdown-lead.util';
+} from './eew-countdown-lead.util'
 export {
   type EarthquakeAlertPayload,
   type EarthquakeAlertKind,
@@ -25,4 +25,4 @@ export {
   type GlobalEarthquakeEvent,
   type GlobalEarthquakeFeedResult,
   type GlobalEarthquakeQuery,
-} from './types';
+} from './types'

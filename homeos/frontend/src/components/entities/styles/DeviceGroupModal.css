@@ -1,6 +1,5 @@
 /* 淡入淡出由 modal-theme.css 的 .fade-* 统一定义（opacity 0.3s ease），此处不要重复。 */
 
-
 .dgm-header-title {
   font-size: 22px;
   font-weight: 700;
@@ -8,55 +7,57 @@
   letter-spacing: -0.01em;
 }
 
-
-
-
-
 .dgm-floor-btn--active {
-  background: #0A84FF;
+  background: #0a84ff;
   color: #fff;
-  border-color: rgba(10,132,255,0.4);
-  box-shadow: 0 4px 16px rgba(10,132,255,0.25);
+  border-color: rgba(10, 132, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.25);
 }
 
 .entity-card-dense.is-active {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border-color: var(--premium-border);
 }
 
 .entity-card-large {
-  background: rgba(22,22,30,0.85);
+  background: rgba(22, 22, 30, 0.85);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   backdrop-filter: blur(40px) saturate(180%);
-  border: var(--hos-hairline) solid rgba(255,255,255,0.04);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
   border-radius: var(--hos-radius-panel);
   padding: 22px;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.15), inset 0 0 40px rgba(255,255,255,0.01);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    inset 0 0 40px rgba(255, 255, 255, 0.01);
 }
 
 .entity-card-large::before {
-  content: '';
+  content: "";
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 40px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
   pointer-events: none;
 }
 
 .entity-card-large:hover {
-  background: rgba(255,255,255,0.035);
+  background: rgba(255, 255, 255, 0.035);
   border-color: var(--premium-border-strong);
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 }
 
 .entity-card-large.is-active {
-  background: rgba(10,132,255,0.04);
-  border-color: rgba(10,132,255,0.15);
-  box-shadow: 0 8px 32px rgba(10,132,255,0.08), inset 0 0 40px rgba(10,132,255,0.02);
+  background: rgba(10, 132, 255, 0.04);
+  border-color: rgba(10, 132, 255, 0.15);
+  box-shadow:
+    0 8px 32px rgba(10, 132, 255, 0.08),
+    inset 0 0 40px rgba(10, 132, 255, 0.02);
 }
 
 .entity-card-climate {
@@ -65,16 +66,11 @@
   padding: 16px 12px;
 }
 
-
-
-
 .dgm-entity-icon--off {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
-  border: var(--hos-hairline) solid rgba(255,255,255,0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
-
-
 
 /* === 气候卡片内部 === */
 .dgm-climate-card {
@@ -128,12 +124,34 @@
   color: var(--hos-text-secondary);
 }
 
-.dgm-climate-state-tag--cool { color: #60a5fa; background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.22); }
-.dgm-climate-state-tag--heat { color: #fb923c; background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.22); }
-.dgm-climate-state-tag--dry { color: #facc15; background: rgba(250,204,21,0.1); border-color: rgba(250,204,21,0.22); }
-.dgm-climate-state-tag--fan_only { color: #22d3ee; background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.22); }
-.dgm-climate-state-tag--auto { color: #a855f7; background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.22); }
-.dgm-climate-state-tag--off { color: var(--hos-text-secondary); }
+.dgm-climate-state-tag--cool {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.22);
+}
+.dgm-climate-state-tag--heat {
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.22);
+}
+.dgm-climate-state-tag--dry {
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.22);
+}
+.dgm-climate-state-tag--fan_only {
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.22);
+}
+.dgm-climate-state-tag--auto {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.22);
+}
+.dgm-climate-state-tag--off {
+  color: var(--hos-text-secondary);
+}
 
 .dgm-climate-temp-zone {
   padding: 12px 10px 10px;
@@ -185,12 +203,24 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
-.dgm-climate-stat-val.is-muted { color: var(--hos-text-secondary); }
-.dgm-climate-stat-val.is-hot { color: #fb7185; }
-.dgm-climate-stat-val.is-warm { color: #fb923c; }
-.dgm-climate-stat-val.is-comfy { color: #fcd34d; }
-.dgm-climate-stat-val.is-cool { color: #6ee7b7; }
-.dgm-climate-stat-val.is-cold { color: #7dd3fc; }
+.dgm-climate-stat-val.is-muted {
+  color: var(--hos-text-secondary);
+}
+.dgm-climate-stat-val.is-hot {
+  color: #fb7185;
+}
+.dgm-climate-stat-val.is-warm {
+  color: #fb923c;
+}
+.dgm-climate-stat-val.is-comfy {
+  color: #fcd34d;
+}
+.dgm-climate-stat-val.is-cool {
+  color: #6ee7b7;
+}
+.dgm-climate-stat-val.is-cold {
+  color: #7dd3fc;
+}
 
 .dgm-climate-stat-lbl {
   font-size: var(--premium-fs-micro);
@@ -262,7 +292,9 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
-.dgm-climate-chip:active { transform: scale(0.96); }
+.dgm-climate-chip:active {
+  transform: scale(0.96);
+}
 
 .dgm-climate-chip-icon {
   width: 14px;
@@ -288,15 +320,35 @@
 }
 
 .dgm-climate-chip--mode.bg-purple-400\/15,
-.dgm-climate-chip.bg-purple-400\/15 { background: rgba(168,85,247,0.14); border-color: rgba(168,85,247,0.3); color: #c4b5fd; }
+.dgm-climate-chip.bg-purple-400\/15 {
+  background: rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c4b5fd;
+}
 .dgm-climate-chip--mode.bg-blue-400\/15,
-.dgm-climate-chip.bg-blue-400\/15 { background: rgba(96,165,250,0.14); border-color: rgba(96,165,250,0.3); color: #93c5fd; }
+.dgm-climate-chip.bg-blue-400\/15 {
+  background: rgba(96, 165, 250, 0.14);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #93c5fd;
+}
 .dgm-climate-chip--mode.bg-yellow-400\/15,
-.dgm-climate-chip.bg-yellow-400\/15 { background: rgba(250,204,21,0.14); border-color: rgba(250,204,21,0.3); color: #fde047; }
+.dgm-climate-chip.bg-yellow-400\/15 {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.3);
+  color: #fde047;
+}
 .dgm-climate-chip--mode.bg-cyan-400\/15,
-.dgm-climate-chip.bg-cyan-400\/15 { background: rgba(34,211,238,0.14); border-color: rgba(34,211,238,0.3); color: #67e8f9; }
+.dgm-climate-chip.bg-cyan-400\/15 {
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.3);
+  color: #67e8f9;
+}
 .dgm-climate-chip--mode.bg-orange-400\/15,
-.dgm-climate-chip.bg-orange-400\/15 { background: rgba(251,146,60,0.14); border-color: rgba(251,146,60,0.3); color: #fdba74; }
+.dgm-climate-chip.bg-orange-400\/15 {
+  background: rgba(251, 146, 60, 0.14);
+  border-color: rgba(251, 146, 60, 0.3);
+  color: #fdba74;
+}
 
 .dgm-climate-off-btn {
   width: var(--control-height-lg);
@@ -306,19 +358,21 @@
   justify-content: center;
   border-radius: 50%;
   border: var(--hos-hairline) solid var(--premium-border);
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.25s;
 }
 
 .dgm-climate-off-btn:hover {
-  color: #FF375F;
-  background: rgba(255,55,95,0.1);
-  border-color: rgba(255,55,95,0.2);
+  color: #ff375f;
+  background: rgba(255, 55, 95, 0.1);
+  border-color: rgba(255, 55, 95, 0.2);
 }
 
-.dgm-climate-off-btn:active { transform: scale(0.9); }
+.dgm-climate-off-btn:active {
+  transform: scale(0.9);
+}
 
 .dgm-climate-off-btn--sm {
   width: 38px;
@@ -340,39 +394,38 @@
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   border: var(--hos-hairline) solid var(--premium-border);
   color: var(--text-muted);
 }
 
 .dgm-climate-icon.bg-blue-400\/15 {
-  background: rgba(96,165,250,0.1);
-  border-color: rgba(96,165,250,0.2);
-  color: #60A5FA;
-  box-shadow: 0 4px 16px rgba(96,165,250,0.15);
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.15);
 }
 
 .dgm-climate-icon.bg-yellow-400\/15 {
-  background: rgba(250,204,21,0.1);
-  border-color: rgba(250,204,21,0.2);
-  color: #FACC15;
-  box-shadow: 0 4px 16px rgba(250,204,21,0.15);
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.2);
+  color: #facc15;
+  box-shadow: 0 4px 16px rgba(250, 204, 21, 0.15);
 }
 
 .dgm-climate-icon.bg-cyan-400\/15 {
-  background: rgba(34,211,238,0.1);
-  border-color: rgba(34,211,238,0.2);
-  color: #22D3EE;
-  box-shadow: 0 4px 16px rgba(34,211,238,0.15);
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.2);
+  color: #22d3ee;
+  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.15);
 }
 
 .dgm-climate-icon.bg-orange-400\/15 {
-  background: rgba(251,146,60,0.1);
-  border-color: rgba(251,146,60,0.2);
-  color: #FB923C;
-  box-shadow: 0 4px 16px rgba(251,146,60,0.15);
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+  box-shadow: 0 4px 16px rgba(251, 146, 60, 0.15);
 }
-
 
 /* 制冷模式 - 蓝色 */
 
@@ -396,22 +449,22 @@
   justify-content: center;
   color: var(--text-secondary);
   border-radius: var(--hos-radius-panel);
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   border: var(--hos-hairline) solid var(--premium-border);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dgm-temp-btn:hover {
-  background: rgba(10,132,255,0.12);
-  color: #0A84FF;
-  border-color: rgba(10,132,255,0.3);
-  box-shadow: 0 4px 16px rgba(10,132,255,0.15);
+  background: rgba(10, 132, 255, 0.12);
+  color: #0a84ff;
+  border-color: rgba(10, 132, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.15);
 }
 
 .dgm-temp-btn:active {
   transform: scale(0.92);
-  background: rgba(10,132,255,0.18);
+  background: rgba(10, 132, 255, 0.18);
 }
 
 .dgm-temp-btn--sm {
@@ -422,16 +475,7 @@
 
 /* === 气候模式按钮 === */
 
-
-
-
-
-
-
 /* === 风扇模式按钮 === */
-
-
-
 
 /* === 弹层顶栏强调色 === */
 .dgm-modal-head {
@@ -440,18 +484,54 @@
   padding: 20px 24px 16px;
 }
 
-.dgm-modal-head--light { --hos-accent: 251, 191, 36; --hos-accent-end: 251, 146, 60; }
-.dgm-modal-head--switch { --hos-accent: 96, 165, 250; --hos-accent-end: 56, 189, 248; }
-.dgm-modal-head--climate { --hos-accent: 56, 189, 248; --hos-accent-end: 34, 211, 238; }
-.dgm-modal-head--cover { --hos-accent: 167, 139, 250; --hos-accent-end: 192, 132, 252; }
-.dgm-modal-head--lock { --hos-accent: 251, 191, 36; --hos-accent-end: 251, 146, 60; }
-.dgm-modal-head--vacuum { --hos-accent: 192, 132, 252; --hos-accent-end: 167, 139, 250; }
-.dgm-modal-head--camera { --hos-accent: 251, 113, 133; --hos-accent-end: 248, 113, 113; }
-.dgm-modal-head--media_player { --hos-accent: 192, 132, 252; --hos-accent-end: 232, 121, 249; }
-.dgm-modal-head--fan { --hos-accent: 34, 211, 238; --hos-accent-end: 56, 189, 248; }
-.dgm-modal-head--sensor { --hos-accent: 52, 211, 153; --hos-accent-end: 45, 212, 191; }
-.dgm-modal-head--battery { --hos-accent: 251, 146, 60; --hos-accent-end: 239, 68, 68; }
-.dgm-modal-head--offline { --hos-accent: 248, 113, 113; --hos-accent-end: 225, 29, 72; }
+.dgm-modal-head--light {
+  --hos-accent: 251, 191, 36;
+  --hos-accent-end: 251, 146, 60;
+}
+.dgm-modal-head--switch {
+  --hos-accent: 96, 165, 250;
+  --hos-accent-end: 56, 189, 248;
+}
+.dgm-modal-head--climate {
+  --hos-accent: 56, 189, 248;
+  --hos-accent-end: 34, 211, 238;
+}
+.dgm-modal-head--cover {
+  --hos-accent: 167, 139, 250;
+  --hos-accent-end: 192, 132, 252;
+}
+.dgm-modal-head--lock {
+  --hos-accent: 251, 191, 36;
+  --hos-accent-end: 251, 146, 60;
+}
+.dgm-modal-head--vacuum {
+  --hos-accent: 192, 132, 252;
+  --hos-accent-end: 167, 139, 250;
+}
+.dgm-modal-head--camera {
+  --hos-accent: 251, 113, 133;
+  --hos-accent-end: 248, 113, 113;
+}
+.dgm-modal-head--media_player {
+  --hos-accent: 192, 132, 252;
+  --hos-accent-end: 232, 121, 249;
+}
+.dgm-modal-head--fan {
+  --hos-accent: 34, 211, 238;
+  --hos-accent-end: 56, 189, 248;
+}
+.dgm-modal-head--sensor {
+  --hos-accent: 52, 211, 153;
+  --hos-accent-end: 45, 212, 191;
+}
+.dgm-modal-head--battery {
+  --hos-accent: 251, 146, 60;
+  --hos-accent-end: 239, 68, 68;
+}
+.dgm-modal-head--offline {
+  --hos-accent: 248, 113, 113;
+  --hos-accent-end: 225, 29, 72;
+}
 
 /* 离线弹窗展开系统审计列表时限制整体高度，内容区滚动 */
 .hos-modal-panel--offline-audit-open {
@@ -496,7 +576,8 @@
 }
 
 .dgm-modal-head .hos-modal-close:focus-visible {
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
   box-shadow:
     0 0 0 3px rgba(255, 255, 255, 0.25),
     0 4px 18px rgba(0, 0, 0, 0.3);
@@ -543,11 +624,17 @@
   text-decoration: none;
 }
 
-.dgm-empty-link:hover { color: #93c5fd; }
+.dgm-empty-link:hover {
+  color: #93c5fd;
+}
 
 /* === 分区块 === */
-.dgm-section { margin-bottom: 1.5rem; }
-.dgm-section:last-child { margin-bottom: 0; }
+.dgm-section {
+  margin-bottom: 1.5rem;
+}
+.dgm-section:last-child {
+  margin-bottom: 0;
+}
 
 .dgm-section-head {
   display: flex;
@@ -590,8 +677,12 @@
   margin: 0;
 }
 
-.dgm-section-title--danger { color: #fb7185; }
-.dgm-section-title--ok { color: #6ee7b7; }
+.dgm-section-title--danger {
+  color: #fb7185;
+}
+.dgm-section-title--ok {
+  color: #6ee7b7;
+}
 
 .dgm-section-count,
 .dgm-section-sub {
@@ -816,9 +907,15 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-battery-pct.is-critical,
-.dgm-battery-pct.tone-low { color: #fb7185; }
-.dgm-battery-pct.tone-mid { color: #fb923c; }
-.dgm-battery-pct.tone-ok { color: #6ee7b7; }
+.dgm-battery-pct.tone-low {
+  color: #fb7185;
+}
+.dgm-battery-pct.tone-mid {
+  color: #fb923c;
+}
+.dgm-battery-pct.tone-ok {
+  color: #6ee7b7;
+}
 
 .battery-body {
   position: relative;
@@ -843,8 +940,12 @@ button.dgm-light-card:focus-visible {
   box-shadow: 0 0 10px rgba(251, 113, 133, 0.45);
 }
 
-.battery-body-fill.tone-mid { background: #fb923c; }
-.battery-body-fill.tone-ok { background: #6ee7b7; }
+.battery-body-fill.tone-mid {
+  background: #fb923c;
+}
+.battery-body-fill.tone-ok {
+  background: #6ee7b7;
+}
 
 .battery-body-tip {
   position: absolute;
@@ -962,8 +1063,13 @@ button.dgm-light-card:focus-visible {
 }
 
 @keyframes dgm-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .dgm-audit-list {
@@ -982,8 +1088,12 @@ button.dgm-light-card:focus-visible {
   transition: background 0.2s;
 }
 
-.dgm-audit-item:first-child { border-top: none; }
-.dgm-audit-item:hover { background: rgba(255, 255, 255, 0.025); }
+.dgm-audit-item:first-child {
+  border-top: none;
+}
+.dgm-audit-item:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
 
 .dgm-audit-icon {
   width: 32px;
@@ -1078,14 +1188,19 @@ button.dgm-light-card:focus-visible {
   border-color: rgba(255, 159, 10, 0.28);
 }
 
-.dgm-batch-btn--on:hover { background: rgba(255, 159, 10, 0.22); }
+.dgm-batch-btn--on:hover {
+  background: rgba(255, 159, 10, 0.22);
+}
 
 .dgm-batch-btn--off {
   background: rgba(255, 255, 255, 0.04);
   color: var(--hos-text-secondary);
 }
 
-.dgm-batch-btn--off:hover { background: var(--premium-glass-bg-hover); color: #fff; }
+.dgm-batch-btn--off:hover {
+  background: var(--premium-glass-bg-hover);
+  color: #fff;
+}
 
 .dgm-batch-stat {
   display: flex;
@@ -1158,9 +1273,15 @@ button.dgm-light-card:focus-visible {
   white-space: nowrap;
 }
 
-.dgm-batch-result--ok { color: #6ee7b7; }
-.dgm-batch-result--fail { color: #fb7185; }
-.dgm-batch-result--pending { color: var(--hos-text-secondary); }
+.dgm-batch-result--ok {
+  color: #6ee7b7;
+}
+.dgm-batch-result--fail {
+  color: #fb7185;
+}
+.dgm-batch-result--pending {
+  color: var(--hos-text-secondary);
+}
 
 .dgm-batch-result-service {
   margin-left: 6px;
@@ -1170,7 +1291,11 @@ button.dgm-light-card:focus-visible {
   font-family: ui-monospace, monospace;
 }
 
-.dgm-exec-failures { display: flex; flex-direction: column; gap: 4px; }
+.dgm-exec-failures {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
 .dgm-exec-fail-item {
   display: flex;
@@ -1201,4 +1326,3 @@ button.dgm-light-card:focus-visible {
   color: #fda4af;
   cursor: pointer;
 }
-

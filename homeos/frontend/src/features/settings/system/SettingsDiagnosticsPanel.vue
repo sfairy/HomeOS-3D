@@ -71,8 +71,7 @@ defineProps({
 const panel = useDiagnosticsPanel()
 provide(DIAGNOSTICS_KEY, panel)
 
-const { section, subnavSections, loadError, loading, diag, refreshCurrentSection, copyDiag } =
-  panel
+const { section, subnavSections, loadError, loading, diag, refreshCurrentSection, copyDiag } = panel
 </script>
 
 <style src="./diagnostics/styles/diagnostics-theme.css"></style>

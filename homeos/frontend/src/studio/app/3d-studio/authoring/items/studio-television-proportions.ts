@@ -11,7 +11,7 @@
  */
 /** 只读 `tvMountStyle` 一档：给结构类型而非宽类型，安装方式打错字时编译期就能发现。 */
 export interface TelevisionMountItem {
-  tvMountStyle?: string;
+  tvMountStyle?: string
 }
 
 export function computeTelevisionProportions(
@@ -20,22 +20,19 @@ export function computeTelevisionProportions(
   televisionHeight: number,
 ) {
   const mountStyle = televisionItem?.tvMountStyle,
-    mobileMount = mountStyle === "mobile",
-    tabletopMount = mountStyle === "tabletop",
+    mobileMount = mountStyle === 'mobile',
+    tabletopMount = mountStyle === 'tabletop',
     screenAspect = 9 / 16,
     // 机身最多占物件高的 98%，屏幕再按 0.94 收进机身内 —— 两条约束都落在等比轴上。
     maxScreenHeight = televisionHeight * 0.98 * 0.94,
-    fitScale = Math.min(
-      1,
-      maxScreenHeight / (televisionWidth * 0.965 * screenAspect),
-    ),
+    fitScale = Math.min(1, maxScreenHeight / (televisionWidth * 0.965 * screenAspect)),
     screenWidth = televisionWidth * 0.965 * fitScale,
-    screenHeight = screenWidth * screenAspect;
+    screenHeight = screenWidth * screenAspect
   return {
     screenWidth,
     screenHeight,
     // 屏幕四周留 3% 边框：机身 = 屏幕高 / 0.94。
     bodyHeight: screenHeight / 0.94,
     centerY: televisionHeight * (mobileMount ? 0.76 : tabletopMount ? 0.67 : 0.62),
-  };
+  }
 }

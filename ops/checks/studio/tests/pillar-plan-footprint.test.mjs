@@ -98,10 +98,7 @@ test('占位盒偏移：半圆柱只偏半个进深，四分之一圆柱两个�
   for (const centeredShape of ['square', 'round', 'quarterinner'])
     assert.deepEqual(itemPlanFootprintOffset(pillarItem(centeredShape)), { x: 0, y: 0 })
   // 躺姿立柱的平面占位是「宽 × 高」，锚点回到占位中心。
-  assert.deepEqual(
-    itemPlanFootprintOffset(pillarItem('semicircle', { pillarAxis: 'horizontal' })),
-    { x: 0, y: 0 },
-  )
+  assert.deepEqual(itemPlanFootprintOffset(pillarItem('semicircle', { pillarAxis: 'horizontal' })), { x: 0, y: 0 })
   // 非立柱完全没有这份偏移。
   assert.deepEqual(itemPlanFootprintOffset({ type: 'sofa', width: 2, depth: 1 }), { x: 0, y: 0 })
 })
@@ -118,7 +115,7 @@ test('平面符号的落笔范围 == 锚点 + 偏移 后的占位矩形（各造
       depthPx = footprint.depth * pixelsPerMeter,
       offset = itemPlanFootprintOffset(item),
       offsetPx = { x: offset.x * pixelsPerMeter, y: offset.y * pixelsPerMeter },
-      drawnExtents = planPathExtents(pillarShape, widthPx, depthPx);
+      drawnExtents = planPathExtents(pillarShape, widthPx, depthPx)
     assertExtentsClose(
       drawnExtents,
       {
@@ -146,7 +143,7 @@ test('占位盒中心跟着摆放角度转，缩放往返不漂移', () => {
     for (const rotation of [0, 90, 213]) {
       const item = pillarItem(pillarShape, { x: 300, y: -100, rotation }),
         footprintRectangle = itemWithPlanFootprint(item, pixelsPerMeter),
-        restored = itemFromPlanFootprintResize(item, footprintRectangle, pixelsPerMeter);
+        restored = itemFromPlanFootprintResize(item, footprintRectangle, pixelsPerMeter)
       assert.equal(restored.type, 'pillar')
       assert.ok(Math.abs(restored.x - item.x) < 1e-6, `${pillarShape} 锚点 x 漂移`)
       assert.ok(Math.abs(restored.y - item.y) < 1e-6, `${pillarShape} 锚点 y 漂移`)
@@ -154,10 +151,7 @@ test('占位盒中心跟着摆放角度转，缩放往返不漂移', () => {
       assert.ok(Math.abs(restored.depth - item.depth) < EPSILON, `${pillarShape} 深漂移`)
       // 占位矩形本身必须覆盖实际形状：半圆柱 / 四分之一圆柱的框中心不在锚点上。
       assert.equal(
-        Math.hypot(
-          footprintRectangle.x - item.x,
-          footprintRectangle.y - item.y,
-        ) > 0,
+        Math.hypot(footprintRectangle.x - item.x, footprintRectangle.y - item.y) > 0,
         ['semicircle', 'quarter'].includes(pillarShape),
         `${pillarShape} 占位矩形中心与锚点重合关系不对`,
       )

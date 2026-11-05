@@ -5,18 +5,18 @@
  * 不持有任何引导期状态 —— 于是可以从那个 4000 行的宿主函数里独立出来。
  */
 
-type DisposableLike = { dispose?: () => void };
-type RendererLike = DisposableLike & { forceContextLoss?: () => void };
+type DisposableLike = { dispose?: () => void }
+type RendererLike = DisposableLike & { forceContextLoss?: () => void }
 
 /** teardown 需要回收的 three.js 句柄（`appCtx` 的子集）。 */
 export type StudioRendererHandles = {
-  orbitControls?: DisposableLike | null;
-  contextResources?: DisposableLike | null;
-  threeRenderer?: RendererLike | null;
-  threeScene?: unknown;
-  threeCamera?: unknown;
-  sceneRootNode?: unknown;
-};
+  orbitControls?: DisposableLike | null
+  contextResources?: DisposableLike | null
+  threeRenderer?: RendererLike | null
+  threeScene?: unknown
+  threeCamera?: unknown
+  sceneRootNode?: unknown
+}
 
 /**
  * 按依赖顺序释放渲染器相关资源。
@@ -26,67 +26,67 @@ export type StudioRendererHandles = {
  */
 export function releaseStudioRenderer(appCtx: StudioRendererHandles): void {
   try {
-    appCtx.orbitControls?.dispose?.();
+    appCtx.orbitControls?.dispose?.()
   } catch {
     /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
   }
   try {
-    appCtx.contextResources?.dispose?.();
+    appCtx.contextResources?.dispose?.()
   } catch {
     /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
   }
-  appCtx.contextResources = null;
+  appCtx.contextResources = null
   try {
-    appCtx.threeRenderer?.dispose?.();
+    appCtx.threeRenderer?.dispose?.()
   } catch {
     /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
   }
   try {
-    appCtx.threeRenderer?.forceContextLoss?.();
+    appCtx.threeRenderer?.forceContextLoss?.()
   } catch {
     /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
   }
-  appCtx.threeRenderer = null;
-  appCtx.threeScene = null;
-  appCtx.threeCamera = null;
-  appCtx.orbitControls = null;
-  appCtx.sceneRootNode = null;
+  appCtx.threeRenderer = null
+  appCtx.threeScene = null
+  appCtx.threeCamera = null
+  appCtx.orbitControls = null
+  appCtx.sceneRootNode = null
 }
 
 /** 引导期写在 DOM 上的诊断标记：嵌入式 stage 的 body 类、dataset 键与 window 内部契约。 */
 export function clearStudioDocumentResidue(): void {
-  document.body.classList.remove("auto-diagram-embedded");
-  document.documentElement.classList.remove("list-drag-active");
-  const documentDataset = document.documentElement.dataset;
+  document.body.classList.remove('auto-diagram-embedded')
+  document.documentElement.classList.remove('list-drag-active')
+  const documentDataset = document.documentElement.dataset
   for (const datasetKey of [
-    "lightRenderCache",
-    "renderStatsTest",
-    "performanceDiagnostics",
-    "modelExportReady",
-    "modelExportError",
-    "materialTestStage",
-    "materialTestStats",
-    "materialTestReady",
-    "materialTestError",
-    "instanceTestStats",
-    "instanceTestReady",
-    "instanceTestError",
-    "effectCacheStats",
-    "interactionBatchStats",
-    "shadowReceiverTrial",
+    'lightRenderCache',
+    'renderStatsTest',
+    'performanceDiagnostics',
+    'modelExportReady',
+    'modelExportError',
+    'materialTestStage',
+    'materialTestStats',
+    'materialTestReady',
+    'materialTestError',
+    'instanceTestStats',
+    'instanceTestReady',
+    'instanceTestError',
+    'effectCacheStats',
+    'interactionBatchStats',
+    'shadowReceiverTrial',
     // 灯光路径的诊断标记：舞台/编辑器模式、「已退回原生逐灯」的结论、锥体参数就地同步计数。
-    "stageLightingMode",
-    "lightingFallback",
-    "lightShapeSync",
+    'stageLightingMode',
+    'lightingFallback',
+    'lightShapeSync',
   ]) {
-    delete documentDataset[datasetKey];
+    delete documentDataset[datasetKey]
   }
   // 挂在 window 上的内部契约（`__homeosStudioModuleVersion` 是模块求值期写入的版本标记，
   // 不随本次引导产生，因此这里不动它）。
-  const windowContract = window as unknown as Record<string, unknown>;
-  delete windowContract.__homeosWallRuntimeProfile;
-  delete windowContract.__homeosDeferExternalModel;
-  delete windowContract.__homeosReleasingDeferredModels;
-  delete windowContract.__homeosExportFurnitureJson;
-  delete windowContract.externalModelLoadsDeferred;
+  const windowContract = window as unknown as Record<string, unknown>
+  delete windowContract.__homeosWallRuntimeProfile
+  delete windowContract.__homeosDeferExternalModel
+  delete windowContract.__homeosReleasingDeferredModels
+  delete windowContract.__homeosExportFurnitureJson
+  delete windowContract.externalModelLoadsDeferred
 }

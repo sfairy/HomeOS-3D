@@ -13,10 +13,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const MODULE = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/runtime/core/state-update-plan.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/runtime/core/state-update-plan.ts', import.meta.url),
 )
 
 const { createLabelConfigPatch, applyLabelConfigPatch } = await import(MODULE)
@@ -162,9 +159,7 @@ test('补丁与文档不匹配时返回 null，而不是尽力而为', () => {
   assert.equal(applyLabelConfigPatch(previousDocument.properties, [{ ...patches[0], index: 9 }]), null)
   // 非法路径（原型链）
   assert.equal(
-    applyLabelConfigPatch(previousDocument, [
-      { ...patches[0], collection: ['devices', '__proto__', 'nas'] },
-    ]),
+    applyLabelConfigPatch(previousDocument, [{ ...patches[0], collection: ['devices', '__proto__', 'nas'] }]),
     null,
   )
   // 空补丁

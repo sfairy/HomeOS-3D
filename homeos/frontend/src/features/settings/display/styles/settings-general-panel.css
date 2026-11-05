@@ -42,8 +42,7 @@
 /* ── 站点品牌 · accent 顶光（单层，不叠底壳） ── */
 .general-brand-card {
   background:
-    var(--set-card-accent-glow),
-    linear-gradient(168deg, rgba(255, 255, 255, 0.04) 0%, rgba(8, 10, 18, 0.5) 100%);
+    var(--set-card-accent-glow), linear-gradient(168deg, rgba(255, 255, 255, 0.04) 0%, rgba(8, 10, 18, 0.5) 100%);
   border-color: var(--set-card-surface-border);
   box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
 }
@@ -54,7 +53,8 @@
 
 .general-brand-editor {
   margin-top: 20px;
-  padding: var(--hos-panel-padding-default, 20px) var(--hos-panel-padding-default, 20px) var(--hos-panel-padding-compact-x, 16px);
+  padding: var(--hos-panel-padding-default, 20px) var(--hos-panel-padding-default, 20px)
+    var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.16);
   background:
@@ -170,7 +170,11 @@
   height: 8px;
   border-radius: var(--hos-radius-pill);
   flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(var(--page-accent-rgb), 0.95), rgba(var(--page-accent-rgb, 126, 184, 255), 0.85));
+  background: linear-gradient(
+    135deg,
+    rgba(var(--page-accent-rgb), 0.95),
+    rgba(var(--page-accent-rgb, 126, 184, 255), 0.85)
+  );
   box-shadow: none;
 }
 
@@ -200,4 +204,3 @@
   --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
   --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
 }
-

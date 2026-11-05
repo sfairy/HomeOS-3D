@@ -48,11 +48,7 @@ export function build() {
   for (let index = 0; index < 8; index += 1) {
     const angle = rng() * Math.PI * 2
     const reach = 0.1 + rng() * 0.22
-    const top = [
-      Math.cos(angle) * reach,
-      0.58 + rng() * 0.2,
-      Math.sin(angle) * reach,
-    ]
+    const top = [Math.cos(angle) * reach, 0.58 + rng() * 0.2, Math.sin(angle) * reach]
     heads.push(
       seedHead({
         base: [Math.cos(angle) * 0.02, 0, Math.sin(angle) * 0.02],

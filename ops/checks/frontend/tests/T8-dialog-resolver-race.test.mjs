@@ -31,9 +31,7 @@ test('confirm：重复打开时旧的 Promise 按“取消”收敛，不悬挂'
 
 test('adminDialogs：askAdjust 重复打开时旧 Promise 结算为 null', async () => {
   setActivePinia(createPinia())
-  const { useAdminDialogsStore } = await load(
-    'homeos-store/frontend/src/features/admin/stores/adminDialogs.ts',
-  )
+  const { useAdminDialogsStore } = await load('homeos-store/frontend/src/features/admin/stores/adminDialogs.ts')
   const store = useAdminDialogsStore()
 
   const first = store.askAdjust({ accountId: 'a1', label: 'a@x.com' })
@@ -47,9 +45,7 @@ test('adminDialogs：askAdjust 重复打开时旧 Promise 结算为 null', async
 
 test('adminDialogs：askPurge 重复打开时旧 Promise 结算为 null', async () => {
   setActivePinia(createPinia())
-  const { useAdminDialogsStore } = await load(
-    'homeos-store/frontend/src/features/admin/stores/adminDialogs.ts',
-  )
+  const { useAdminDialogsStore } = await load('homeos-store/frontend/src/features/admin/stores/adminDialogs.ts')
   const store = useAdminDialogsStore()
 
   const first = store.askPurge({ title: '清理', message: 'm', impact: 'i' })

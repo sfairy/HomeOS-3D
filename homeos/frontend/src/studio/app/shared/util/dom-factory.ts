@@ -5,21 +5,21 @@ export function domElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className?: string | null,
   text?: string | number | null,
-): HTMLElementTagNameMap[K];
+): HTMLElementTagNameMap[K]
 export function domElement(
   doc: Document,
   tagName: string,
   className?: string | null,
   text?: string | number | null,
-): HTMLElement;
+): HTMLElement
 export function domElement(
   doc: Document,
   tagName: string,
   className?: string | null,
   text?: string | number | null,
 ): HTMLElement {
-  const element = doc.createElement(tagName);
-  element.className = className ?? "";
-  if (text != null) element.textContent = String(text);
-  return element;
+  const element = doc.createElement(tagName)
+  element.className = className ?? ''
+  if (text != null) element.textContent = String(text)
+  return element
 }

@@ -6,10 +6,7 @@
 
 import { computed, ref, watch, type Ref } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
-import {
-  fetchNotificationSettings,
-  updateNotificationSettings,
-} from '@/services/api/notifications'
+import { fetchNotificationSettings, updateNotificationSettings } from '@/services/api/notifications'
 import type { DndPreset, NotificationSettingsParsed } from '@/shared/types/alert-rules'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
@@ -40,18 +37,11 @@ export function useAlertRulesPanelDnd(options: { alertSection: Ref<string> }) {
     const now = new Date()
     return formatLocaleTime(now, { hour: '2-digit', minute: '2-digit', hour12: false })
   })
-  const dndPreviewActive = computed(() =>
-    isHourInDnd(currentHour.value, dndForm.value.dndStart, dndForm.value.dndEnd),
-  )
-  const dndDurationHoursComputed = computed(() =>
-    dndDurationHours(dndForm.value.dndStart, dndForm.value.dndEnd),
-  )
+  const dndPreviewActive = computed(() => isHourInDnd(currentHour.value, dndForm.value.dndStart, dndForm.value.dndEnd))
+  const dndDurationHoursComputed = computed(() => dndDurationHours(dndForm.value.dndStart, dndForm.value.dndEnd))
   const dndDirty = computed(() => {
     if (!dndSettings.value) return false
-    return (
-      dndForm.value.dndStart !== dndSettings.value.dndStart ||
-      dndForm.value.dndEnd !== dndSettings.value.dndEnd
-    )
+    return dndForm.value.dndStart !== dndSettings.value.dndStart || dndForm.value.dndEnd !== dndSettings.value.dndEnd
   })
 
   async function loadDndSettings(silent = false) {

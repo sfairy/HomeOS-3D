@@ -5,10 +5,7 @@
 /** 语音告警编辑器 */
 import { computed, reactive, ref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
-import {
-  getVoiceAlertCatalog,
-  getVoiceAlertGroups,
-} from '@/shared/constants/voice-alert-catalog'
+import { getVoiceAlertCatalog, getVoiceAlertGroups } from '@/shared/constants/voice-alert-catalog'
 import {
   builtinStyleTemplate,
   composeCustomAlertTemplate,
@@ -65,9 +62,7 @@ export function useVoiceAlertsEditor() {
   const voiceSaveTip = ref<string>('')
 
   const alertRuleGroups = computed(() => {
-    const catalog = voiceMeta.value.alertCatalog?.length
-      ? voiceMeta.value.alertCatalog
-      : getVoiceAlertCatalog()
+    const catalog = voiceMeta.value.alertCatalog?.length ? voiceMeta.value.alertCatalog : getVoiceAlertCatalog()
     const groupsMap = getVoiceAlertGroups()
     const groups: Record<string, AlertCatalogGroup> = {}
     for (const item of catalog) {
@@ -102,10 +97,7 @@ export function useVoiceAlertsEditor() {
     return previewVarsForEntity(entityId, entitiesStore)
   }
 
-  function insertEntityTtsVar(
-    rule: { speechText?: string; speechMode?: string },
-    varKey: string,
-  ) {
+  function insertEntityTtsVar(rule: { speechText?: string; speechMode?: string }, varKey: string) {
     const token = `{{${varKey}}}`
     const cur = rule.speechText || ''
     rule.speechText = cur ? `${cur} ${token}` : token

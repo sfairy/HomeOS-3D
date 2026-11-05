@@ -30,10 +30,7 @@ const WORKER_RETRY_INTERVAL_MS = 30_000
 
 let worker: Worker | null = null
 let workerApi: {
-  normalizeBatch: (
-    changes: WsDeltaChange[],
-    snapshots: Record<string, unknown>,
-  ) => Promise<NormalizedWsBatchItem[]>
+  normalizeBatch: (changes: WsDeltaChange[], snapshots: Record<string, unknown>) => Promise<NormalizedWsBatchItem[]>
 } | null = null
 let workerFailed = false
 let workerWarmed = false
@@ -102,9 +99,7 @@ async function ensureIngestWorker(): Promise<typeof workerApi> {
     // markWorkerUnusable 需要能 terminate 到这个实例
     worker = created
     created.addEventListener('error', (event) => {
-      workerFaultReason =
-        event.message ||
-        'Ingest Worker 脚本加载失败（多为 dist 重建后旧 hash 被删除，刷新页面即可）'
+      workerFaultReason = event.message || 'Ingest Worker 脚本加载失败（多为 dist 重建后旧 hash 被删除，刷新页面即可）'
       rejectWorkerFault?.(new Error(workerFaultReason))
       markWorkerUnusable()
     })
@@ -148,11 +143,7 @@ function resolveWorkerTimeoutMs(batchSize: number): number {
 }
 
 /** Promise 与超时计时器 / Worker 故障信号竞速：任一先结束即清理计时器。 */
-function raceWithTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  fault?: Promise<never> | null,
-): Promise<T> {
+function raceWithTimeout<T>(promise: Promise<T>, ms: number, fault?: Promise<never> | null): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const contenders: Promise<T>[] = [
     promise,
@@ -222,9 +213,7 @@ export async function normalizeWsBatchChanges(
   const pending = api.normalizeBatch(deltas, snapshots)
   try {
     const result = await raceWithTimeout(pending, timeoutMs, workerFaultSignal)
-    const merged = Array.isArray(result)
-      ? mergeNormalizedDeltas(changes, positions, result)
-      : null
+    const merged = Array.isArray(result) ? mergeNormalizedDeltas(changes, positions, result) : null
     if (merged) {
       workerWarmed = true
       failStreak = 0
@@ -241,9 +230,7 @@ export async function normalizeWsBatchChanges(
     // 只是回传消息排在超时定时器之后。宽限窗口内等到结果就照用，不算 Worker 故障、
     // 也不在已经卡住的主线程上再同步重算一遍。
     const late = await settleWithin(pending, WORKER_TIMEOUT_GRACE_MS)
-    const lateMerged = Array.isArray(late)
-      ? mergeNormalizedDeltas(changes, positions, late)
-      : null
+    const lateMerged = Array.isArray(late) ? mergeNormalizedDeltas(changes, positions, late) : null
     if (lateMerged) {
       workerWarmed = true
       failStreak = 0

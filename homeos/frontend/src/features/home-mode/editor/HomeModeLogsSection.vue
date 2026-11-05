@@ -153,15 +153,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import {
-  Clock,
-  History,
-  ChevronDown,
-  Check,
-  XCircle,
-  Check as Check2,
-  AlertCircle,
-} from '@lucide/vue'
+import { Clock, History, ChevronDown, Check, XCircle, Check as Check2, AlertCircle } from '@lucide/vue'
 import { formatShortDateTime } from '@/shared/utils/format/locale-format.util'
 import { homeModeLogSourceLabel } from '@homeos/shared'
 

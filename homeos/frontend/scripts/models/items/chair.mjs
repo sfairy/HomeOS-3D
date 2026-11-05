@@ -25,9 +25,7 @@ const legs = legs4({
 })
 const seatFrame = b(W, 0.04, D, 0, SEAT_TOP - 0.02, 0)
 const backPosts = merge(
-  [-1, 1].map((side) =>
-    b(POST, H - SEAT_TOP, POST, (side * (W - POST)) / 2, (H + SEAT_TOP) / 2, -D / 2 + POST / 2),
-  ),
+  [-1, 1].map((side) => b(POST, H - SEAT_TOP, POST, (side * (W - POST)) / 2, (H + SEAT_TOP) / 2, -D / 2 + POST / 2)),
 )
 const backRails = merge([
   b(W - POST * 2, 0.05, POST, 0, 0.62, -D / 2 + POST / 2),

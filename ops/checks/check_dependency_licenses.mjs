@@ -13,55 +13,55 @@
  *   node ops/checks/check_dependency_licenses.mjs
  *   node ops/checks/check_dependency_licenses.mjs --json
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process'
 
-const asJson = process.argv.includes('--json');
-const STRONG_COPYLEFT = /(^|[^L])GPL-|\bAGPL\b|\bSSPL\b/i;
+const asJson = process.argv.includes('--json')
+const STRONG_COPYLEFT = /(^|[^L])GPL-|\bAGPL\b|\bSSPL\b/i
 
 function licenseProblem(license) {
-  if (!license || typeof license !== 'string') return false;
+  if (!license || typeof license !== 'string') return false
   const options = license
     .split(/\s+OR\s+|\//i)
     .map((part) => part.trim())
-    .filter(Boolean);
-  if (options.length === 0) return false;
-  return options.every((option) => STRONG_COPYLEFT.test(option));
+    .filter(Boolean)
+  if (options.length === 0) return false
+  return options.every((option) => STRONG_COPYLEFT.test(option))
 }
 
-let raw;
+let raw
 try {
   raw = execFileSync('bun', ['pm', 'licenses', '--json'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  })
 } catch (error) {
-  console.error('许可证门禁：bun pm licenses 执行失败，请先 bun install。');
-  console.error(String(error.stderr || error.message).trim());
-  process.exit(2);
+  console.error('许可证门禁：bun pm licenses 执行失败，请先 bun install。')
+  console.error(String(error.stderr || error.message).trim())
+  process.exit(2)
 }
 
-const grouped = JSON.parse(raw);
-const problems = [];
-const counts = {};
+const grouped = JSON.parse(raw)
+const problems = []
+const counts = {}
 for (const [license, packages] of Object.entries(grouped)) {
-  counts[license] = (counts[license] || 0) + packages.length;
-  if (!licenseProblem(license)) continue;
+  counts[license] = (counts[license] || 0) + packages.length
+  if (!licenseProblem(license)) continue
   for (const pkg of packages) {
-    problems.push(`${pkg.name}@${(pkg.versions || []).join(',')} → ${license}`);
+    problems.push(`${pkg.name}@${(pkg.versions || []).join(',')} → ${license}`)
   }
 }
 
 if (asJson) {
-  console.log(JSON.stringify({ counts, problems }, null, 2));
+  console.log(JSON.stringify({ counts, problems }, null, 2))
 } else if (problems.length > 0) {
-  console.error(`许可证门禁失败：${problems.length} 个包使用强 copyleft 许可证`);
-  for (const line of problems) console.error(`  - ${line}`);
-  console.error('  处理：换依赖、确认可从产物中排除，或在评审中明确接受并更新本门禁。');
+  console.error(`许可证门禁失败：${problems.length} 个包使用强 copyleft 许可证`)
+  for (const line of problems) console.error(`  - ${line}`)
+  console.error('  处理：换依赖、确认可从产物中排除，或在评审中明确接受并更新本门禁。')
 } else {
   const summary = Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
     .map(([license, count]) => `${license}=${count}`)
-    .join(' ');
-  console.log(`许可证门禁通过：${summary}`);
+    .join(' ')
+  console.log(`许可证门禁通过：${summary}`)
 }
-process.exit(problems.length > 0 ? 1 : 0);
+process.exit(problems.length > 0 ? 1 : 0)

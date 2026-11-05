@@ -89,20 +89,10 @@ function parseModeActions(config: unknown): ModeActionDraft[] {
       entity_id: entityId,
       domain:
         String(actionRecord.domain || '') ||
-        (kind === 'notify'
-          ? 'notify'
-          : kind === 'security'
-            ? 'security'
-            : entityId
-              ? getEntityDomain(entityId)
-              : ''),
+        (kind === 'notify' ? 'notify' : kind === 'security' ? 'security' : entityId ? getEntityDomain(entityId) : ''),
       service:
         String(actionRecord.service || '') ||
-        (kind === 'scene' || kind === 'script'
-          ? 'turn_on'
-          : kind === 'notify'
-            ? 'send_message'
-            : 'turn_on'),
+        (kind === 'scene' || kind === 'script' ? 'turn_on' : kind === 'notify' ? 'send_message' : 'turn_on'),
       delay: actionRecord.delay ? Number(actionRecord.delay) : 0,
       service_data: actionRecord.service_data ? JSON.stringify(actionRecord.service_data, null, 2) : '',
     }
@@ -119,11 +109,7 @@ function serializeModeActions(actions: ModeActionDraft[] | null | undefined) {
         entity_id: action.entity_id.trim(),
         domain:
           action.domain?.trim() ||
-          (kind === 'notify'
-            ? 'notify'
-            : kind === 'security'
-              ? 'security'
-              : getEntityDomain(action.entity_id.trim())),
+          (kind === 'notify' ? 'notify' : kind === 'security' ? 'security' : getEntityDomain(action.entity_id.trim())),
         service:
           action.service?.trim() ||
           (kind === 'scene' || kind === 'script'

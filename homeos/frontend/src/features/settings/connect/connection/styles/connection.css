@@ -16,7 +16,9 @@
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   background: var(--set-glass-bg-subtle);
-  transition: border-color 0.25s ease, background 0.25s ease;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease;
 }
 
 .el-record-filter__toggle--on {
@@ -24,20 +26,12 @@
   background: rgba(56, 189, 248, 0.07);
 }
 
-
-
-
-
 .el-record-filter__recommend-title {
   margin: 0;
   font-size: var(--premium-fs-caption);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
 }
-
-
-
-
 
 .el-record-filter__toggle-main {
   display: flex;
@@ -151,7 +145,10 @@
   background: rgba(0, 0, 0, 0.22);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .el-record-filter__mode-seg:hover {
@@ -273,7 +270,10 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 
 .el-record-filter__tool-btn:hover:not(:disabled) {
@@ -317,7 +317,11 @@
   font-size: var(--premium-fs-caption);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.1s;
 }
 
 .el-record-filter__domain-chip:active {
@@ -437,9 +441,15 @@
   line-height: 1.45;
 }
 
-.el-record-filter__feedback--ok { color: #6ee7b7; }
-.el-record-filter__feedback--err { color: #fca5a5; }
-.el-record-filter__feedback--warn { color: #fde68a; }
+.el-record-filter__feedback--ok {
+  color: #6ee7b7;
+}
+.el-record-filter__feedback--err {
+  color: #fca5a5;
+}
+.el-record-filter__feedback--warn {
+  color: #fde68a;
+}
 
 @media (max-width: 640px) {
   .el-record-filter__mode-segments {
@@ -546,7 +556,10 @@
   border: var(--hos-hairline) solid var(--set-border);
   background: var(--set-glass-bg);
   color: var(--set-text-secondary);
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .settings-conn-advanced__icon--leader {
@@ -646,7 +659,10 @@
   font-weight: 600;
   color: var(--set-warn);
   text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .settings-conn-advanced__link:hover {

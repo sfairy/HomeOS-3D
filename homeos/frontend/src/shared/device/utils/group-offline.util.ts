@@ -1,10 +1,7 @@
 /** 设备分组：离线实体集合计算 */
 import { getEntityDomain } from '@homeos/shared'
 import { DOMAIN_LIST, MONITORED_ENTITY_IDS } from '@/shared/constants/device-group'
-import type {
-  DeviceGroupEntitiesStoreLike,
-  DeviceGroupUiStoreLike,
-} from '@/shared/device/utils/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike, DeviceGroupUiStoreLike } from '@/shared/device/utils/group-battery.util'
 
 function isMonitoredExcludedEntity(entityId: string) {
   return MONITORED_ENTITY_IDS.some((x) => entityId.toLowerCase().includes(x))
@@ -45,10 +42,7 @@ export function splitOfflineEntityIds(criticalSet: Set<string>, entityIds: strin
  * @param criticalSet 首页收藏与浮动组件构成的严重告警集合
  * @returns 离线实体 ID 列表（稳定顺序：先派生索引，再域索引补齐）
  */
-export function listOfflineOtherEntityIds(
-  entitiesStore: DeviceGroupEntitiesStoreLike,
-  criticalSet: Set<string>,
-) {
+export function listOfflineOtherEntityIds(entitiesStore: DeviceGroupEntitiesStoreLike, criticalSet: Set<string>) {
   const ids: string[] = []
   const seen = new Set<string>()
   const consider = (rawEid: string | null | undefined) => {
@@ -64,10 +58,7 @@ export function listOfflineOtherEntityIds(
   for (const e of entitiesStore.offlineDevices || []) consider(e.entity_id)
   // 域索引：补齐派生 patch 被跳过、派生索引里没有的离线实体（遍历 Set 不额外分配）
   for (const domain of DOMAIN_LIST) {
-    const bucket = entitiesStore.domainEntityIndex?.get(domain) as
-      | Set<string>
-      | string[]
-      | undefined
+    const bucket = entitiesStore.domainEntityIndex?.get(domain) as Set<string> | string[] | undefined
     if (!bucket) continue
     for (const eid of bucket) consider(eid)
   }

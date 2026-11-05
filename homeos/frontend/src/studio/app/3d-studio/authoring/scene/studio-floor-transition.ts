@@ -1,17 +1,17 @@
 /** 楼层切换动画的外部依赖。 */
 type FloorTransitionOptions = {
-  THREE: any;
+  THREE: any
   /** 承载所有楼层节点的根对象。 */
-  getRoot: () => any;
+  getRoot: () => any
   /** 记录彻底离场时回收它的节点； */
-  dispose: (node: any) => void;
+  dispose: (node: any) => void
   /** 返回 true 表示调用方自己接管离场节点，本模块不再 dispose。 */
-  release?: (record: any) => boolean;
+  release?: (record: any) => boolean
   /** 过渡期间暂停 / 恢复地面反射。 */
-  suspendReflections?: (shouldSuspend: boolean) => void;
+  suspendReflections?: (shouldSuspend: boolean) => void
   /** 请求重绘； */
-  invalidate?: (isImmediate: boolean) => void;
-};
+  invalidate?: (isImmediate: boolean) => void
+}
 
 export function createFloorTransition({
   THREE: three,
@@ -25,11 +25,11 @@ export function createFloorTransition({
     isTransitionActive = false,
     slideState: any = null,
     exitState: any = null,
-    assemblyState: any = null;
+    assemblyState: any = null
   const decomposeMatrix = (matrix: any) => {
       const positionVector = new three.Vector3(),
         quaternionValue = new three.Quaternion(),
-        scaleVector = new three.Vector3();
+        scaleVector = new three.Vector3()
       return (
         matrix.decompose(positionVector, quaternionValue, scaleVector),
         {
@@ -37,54 +37,50 @@ export function createFloorTransition({
           quaternion: quaternionValue,
           scale: scaleVector,
         }
-      );
+      )
     },
     resolveBoundingBox = (sourceMesh: any) => {
-      const boundsSource = sourceMesh.isInstancedMesh ? sourceMesh : sourceMesh.geometry;
-      return (
-        boundsSource.boundingBox || boundsSource.computeBoundingBox(),
-        boundsSource.boundingBox
-      );
-    };
+      const boundsSource = sourceMesh.isInstancedMesh ? sourceMesh : sourceMesh.geometry
+      return (boundsSource.boundingBox || boundsSource.computeBoundingBox(), boundsSource.boundingBox)
+    }
   function captureFloors(captureFloorIds: any, getBaseFrame: any, groupByFloorId: any) {
-    const rootObject = getRootObject();
+    const rootObject = getRootObject()
     return (
       rootObject.updateMatrixWorld(true),
       captureFloorIds.map((floorId: any) => {
-        const floorGroup = new three.Group();
-        ((floorGroup.name = "floor-transition-" + floorId),
-          (floorGroup.userData.floorId = floorGroup.userData.regionFloorId = floorId));
+        const floorGroup = new three.Group()
+        ;(floorGroup.name = 'floor-transition-' + floorId),
+          (floorGroup.userData.floorId = floorGroup.userData.regionFloorId = floorId)
         const sourceChildren = groupByFloorId
           ? rootObject.children.filter((matchedChild: any) => matchedChild.userData.floorId === floorId)
-          : [...rootObject.children];
+          : [...rootObject.children]
         // 先入根再刷新一次世界矩阵，随后用 add（保持局部变换）而不是 attach，
         // 让过渡组的初始帧与阴影/灯光快照落在同一个世界位置上。
-        (rootObject.add(floorGroup), floorGroup.updateWorldMatrix(true, false));
-        for (const childObject of sourceChildren) floorGroup.add(childObject);
+        rootObject.add(floorGroup), floorGroup.updateWorldMatrix(true, false)
+        for (const childObject of sourceChildren) floorGroup.add(childObject)
         const record = {
           id: floorId,
           node: floorGroup,
           baseFrame: getBaseFrame(floorId),
           ground: [] as any[],
           groundAlpha: 1,
-        };
+        }
         return (
           floorGroup.traverse((sceneNode: any) => {
             if (
               !sceneNode.material ||
-              !["background", "grid", "contact-shadow"].includes(sceneNode.userData?.exportRole)
+              !['background', 'grid', 'contact-shadow'].includes(sceneNode.userData?.exportRole)
             )
-              return;
+              return
             const originalMaterial = sceneNode.material,
               // 背景板与网格都属于「地面层」：它们必须在透射内容之前画，
               // 否则楼层滑动时会被玻璃/水面盖住半帧（0.8.1 一起处理这两类）。
-              isBackground = ["background", "grid"].includes(sceneNode.userData?.exportRole),
+              isBackground = ['background', 'grid'].includes(sceneNode.userData?.exportRole),
               cloneGroundMaterial = (material: any) => {
-                const clonedMaterial = material.clone();
+                const clonedMaterial = material.clone()
                 return (
                   (clonedMaterial.onBeforeCompile = material.onBeforeCompile),
-                  (clonedMaterial.customProgramCacheKey =
-                    material.customProgramCacheKey.bind(material)),
+                  (clonedMaterial.customProgramCacheKey = material.customProgramCacheKey.bind(material)),
                   // 背景板保持不透明：它铺满全屏，一旦进透明队列就会和地面抢排序，
                   // 楼层滑动时闪一下黑。背景的淡出改为在 CustomBlending 里算。
                   (clonedMaterial.transparent = !isBackground),
@@ -97,21 +93,19 @@ export function createFloorTransition({
                   // 背景若带 transmission，透明队列会跳过它，先记下原值再关掉过渡。
                   isBackground && (clonedMaterial.transmission = 0),
                   clonedMaterial
-                );
+                )
               },
-              originalMaterials = Array.isArray(originalMaterial)
-                ? originalMaterial
-                : [originalMaterial],
-              originalRenderOrder = sceneNode.renderOrder;
+              originalMaterials = Array.isArray(originalMaterial) ? originalMaterial : [originalMaterial],
+              originalRenderOrder = sceneNode.renderOrder
             // 地面层整体压到渲染队列最前：`-1e8` 是「比任何常规 renderOrder 都靠前」
             // 的哨兵值，退出时必须写回原值，否则下一次过渡会在早已压低的序上继续叠加。
-            isBackground && (sceneNode.renderOrder = -100000000 + originalRenderOrder);
-            ((sceneNode.material = Array.isArray(originalMaterial)
+            isBackground && (sceneNode.renderOrder = -100000000 + originalRenderOrder)
+            ;(sceneNode.material = Array.isArray(originalMaterial)
               ? originalMaterial.map(cloneGroundMaterial)
               : cloneGroundMaterial(originalMaterial)),
               record.ground.push({
                 node: sceneNode,
-                followsFloor: sceneNode.userData.exportRole === "contact-shadow",
+                followsFloor: sceneNode.userData.exportRole === 'contact-shadow',
                 original: originalMaterial,
                 renderOrder: originalRenderOrder,
                 // 过渡期把 background/grid 的 transmission 关掉，退出时按原值恢复：
@@ -119,77 +113,61 @@ export function createFloorTransition({
                 backgroundBeforeTransmission: isBackground
                   ? originalMaterials.map((sourceMaterial) => sourceMaterial.transmission)
                   : undefined,
-                materials: Array.isArray(sceneNode.material)
-                  ? sceneNode.material
-                  : [sceneNode.material],
+                materials: Array.isArray(sceneNode.material) ? sceneNode.material : [sceneNode.material],
                 opacity: originalMaterials.map((sourceMaterial) => sourceMaterial.opacity),
-              }));
+              })
           }),
           record
-        );
+        )
       })
-    );
+    )
   }
   function computeRecordFrame(capturedRecord: any) {
-    return (
-      capturedRecord.node.updateMatrix(),
-      capturedRecord.node.matrix.clone().multiply(capturedRecord.baseFrame)
-    );
+    return (capturedRecord.node.updateMatrix(), capturedRecord.node.matrix.clone().multiply(capturedRecord.baseFrame))
   }
   function restoreGroundMaterials(floorRecord: any) {
     for (const groundEntry of floorRecord.ground) {
-      (groundEntry.node.material = groundEntry.original),
-        (groundEntry.node.renderOrder = groundEntry.renderOrder);
-      const restoredMaterials = Array.isArray(groundEntry.original)
-        ? groundEntry.original
-        : [groundEntry.original];
-      groundEntry.backgroundBeforeTransmission?.forEach(
-        (transmission: unknown, materialIndex: number) => {
-          typeof transmission === "number" &&
-            (restoredMaterials[materialIndex].transmission = transmission);
-        },
-      );
-      for (const disposableMaterial of groundEntry.materials) disposableMaterial.dispose();
+      ;(groundEntry.node.material = groundEntry.original), (groundEntry.node.renderOrder = groundEntry.renderOrder)
+      const restoredMaterials = Array.isArray(groundEntry.original) ? groundEntry.original : [groundEntry.original]
+      groundEntry.backgroundBeforeTransmission?.forEach((transmission: unknown, materialIndex: number) => {
+        typeof transmission === 'number' && (restoredMaterials[materialIndex].transmission = transmission)
+      })
+      for (const disposableMaterial of groundEntry.materials) disposableMaterial.dispose()
     }
-    floorRecord.ground = [];
+    floorRecord.ground = []
   }
   function detachRecord(leavingRecord: any, shouldDispose = true) {
-    (restoreGroundMaterials(leavingRecord),
+    restoreGroundMaterials(leavingRecord),
       leavingRecord.node.removeFromParent(),
-      !leavingRecord.transferred &&
-        !(shouldDispose && onRelease(leavingRecord)) &&
-        onDispose(leavingRecord.node));
+      !leavingRecord.transferred && !(shouldDispose && onRelease(leavingRecord)) && onDispose(leavingRecord.node)
   }
   function reuseRecord(cachedRecord: any, targetFrame: any) {
-    restoreGroundMaterials(cachedRecord);
-    const cachedChildren = [...cachedRecord.node.children];
-    let reusedNode;
+    restoreGroundMaterials(cachedRecord)
+    const cachedChildren = [...cachedRecord.node.children]
+    let reusedNode
     if (cachedChildren.length === 1 && cachedChildren[0].userData.floorId === cachedRecord.id)
-      ((reusedNode = cachedChildren[0]), cachedRecord.node.remove(reusedNode));
+      (reusedNode = cachedChildren[0]), cachedRecord.node.remove(reusedNode)
     else {
-      ((reusedNode = new three.Group()),
-        (reusedNode.name = "floor-" + cachedRecord.id),
-        (reusedNode.userData.floorId = reusedNode.userData.regionFloorId = cachedRecord.id));
-      for (const cachedChild of cachedChildren)
-        (cachedRecord.node.remove(cachedChild), reusedNode.add(cachedChild));
+      ;(reusedNode = new three.Group()),
+        (reusedNode.name = 'floor-' + cachedRecord.id),
+        (reusedNode.userData.floorId = reusedNode.userData.regionFloorId = cachedRecord.id)
+      for (const cachedChild of cachedChildren) cachedRecord.node.remove(cachedChild), reusedNode.add(cachedChild)
     }
     return (
-      reusedNode.applyMatrix4(
-        targetFrame.clone().multiply(cachedRecord.baseFrame.clone().invert()),
-      ),
+      reusedNode.applyMatrix4(targetFrame.clone().multiply(cachedRecord.baseFrame.clone().invert())),
       getRootObject().add(reusedNode),
       reusedNode.updateMatrixWorld(true),
       (cachedRecord.transferred = true),
       reusedNode
-    );
+    )
   }
   function takeRecords(takeFloorIds: any, resolveBaseFrame: any, takeGroupByFloorId: any) {
-    onSuspendReflections(true);
+    onSuspendReflections(true)
     const takenRecords = isTransitionActive
       ? activeRecords
-      : captureFloors(takeFloorIds, resolveBaseFrame, takeGroupByFloorId);
+      : captureFloors(takeFloorIds, resolveBaseFrame, takeGroupByFloorId)
     for (const takenRecord of takenRecords)
-      ((takenRecord.frame = computeRecordFrame(takenRecord)), takenRecord.node.removeFromParent());
+      (takenRecord.frame = computeRecordFrame(takenRecord)), takenRecord.node.removeFromParent()
     return (
       (activeRecords = []),
       (isTransitionActive = false),
@@ -197,7 +175,7 @@ export function createFloorTransition({
       (exitState = null),
       (assemblyState = null),
       takenRecords
-    );
+    )
   }
   function beginTransition(
     previousRecords: any,
@@ -209,8 +187,6 @@ export function createFloorTransition({
     targetFloorId: any = null,
   ) {
     const sceneRoot = getRootObject(),
-
-
       previousById = new Map<string, any>(
         previousRecords.map((previousEntry: any) => [previousEntry.id, previousEntry]),
       ),
@@ -224,11 +200,10 @@ export function createFloorTransition({
       handoffMatrix =
         !isScrollTransition && nextRecords.length > 1
           ? anchorRecord.frame.clone().multiply(focusRecord.baseFrame.clone().invert())
-          : null;
-    ((assemblyState = handoffMatrix ? decomposeMatrix(handoffMatrix) : null),
-      assemblyState && (assemblyState.anchorId = focusRecord.id));
-    const keptPreviousRecord =
-        previousRecords.find((keptEntry: any) => keptEntry.keep) || previousRecords[0],
+          : null
+    ;(assemblyState = handoffMatrix ? decomposeMatrix(handoffMatrix) : null),
+      assemblyState && (assemblyState.anchorId = focusRecord.id)
+    const keptPreviousRecord = previousRecords.find((keptEntry: any) => keptEntry.keep) || previousRecords[0],
       orderIndexOf = (orderFloorId: any) => floorOrder.indexOf(orderFloorId),
       scrollAnchorRecord = previousRecords.find((scrollingEntry: any) =>
         Number.isFinite(scrollingEntry.scrollPosition),
@@ -236,41 +211,32 @@ export function createFloorTransition({
       offsetFrameBySteps = (frameMatrix: any, stepDelta: any) => {
         const offsetFrame = frameMatrix.clone(),
           offsetMeters = stepDelta * floorSpread,
-          axisVector = isScrollTransition && scrollAxis ? scrollAxis : new three.Vector3(0, 1, 0);
+          axisVector = isScrollTransition && scrollAxis ? scrollAxis : new three.Vector3(0, 1, 0)
         return (
           (offsetFrame.elements[12] += axisVector.x * offsetMeters),
           (offsetFrame.elements[13] += axisVector.y * offsetMeters),
           (offsetFrame.elements[14] += axisVector.z * offsetMeters),
           offsetFrame
-        );
-      };
-    activeRecords = [];
+        )
+      }
+    activeRecords = []
     for (const nextRecord of nextRecords) {
       const previousRecord = previousById.get(nextRecord.id),
         recordFrame =
           previousRecord?.frame ||
-          offsetFrameBySteps(
-            anchorRecord.frame,
-            orderIndexOf(nextRecord.id) - orderIndexOf(anchorRecord.id),
-          );
+          offsetFrameBySteps(anchorRecord.frame, orderIndexOf(nextRecord.id) - orderIndexOf(anchorRecord.id))
       nextRecord.assemblyOffset =
         !previousRecord && handoffMatrix
           ? (orderIndexOf(nextRecord.id) - orderIndexOf(focusRecord.id)) * floorSpread
-          : null;
+          : null
       const assemblyFrame =
         nextRecord.assemblyOffset !== null
-          ? handoffMatrix
-              .clone()
-              .multiply(new three.Matrix4().makeTranslation(0, nextRecord.assemblyOffset, 0))
-          : recordFrame.clone().multiply(nextRecord.baseFrame.clone().invert());
-      ((nextRecord.assemblyRelative = handoffMatrix
+          ? handoffMatrix.clone().multiply(new three.Matrix4().makeTranslation(0, nextRecord.assemblyOffset, 0))
+          : recordFrame.clone().multiply(nextRecord.baseFrame.clone().invert())
+      ;(nextRecord.assemblyRelative = handoffMatrix
         ? decomposeMatrix(handoffMatrix.clone().invert().multiply(assemblyFrame))
         : null),
-        assemblyFrame.decompose(
-          nextRecord.node.position,
-          nextRecord.node.quaternion,
-          nextRecord.node.scale,
-        ),
+        assemblyFrame.decompose(nextRecord.node.position, nextRecord.node.quaternion, nextRecord.node.scale),
         (nextRecord.scrollOffset = previousRecord?.scrollOffset),
         (nextRecord.wasVisible = !!previousRecord),
         (nextRecord.from = decomposeMatrix(assemblyFrame)),
@@ -280,25 +246,23 @@ export function createFloorTransition({
         (nextRecord.groundFrom = previousRecord?.groundAlpha ?? 0),
         (nextRecord.groundTo = nextRecord.keep ? 1 : 0),
         activeRecords.push(nextRecord),
-        previousRecord && detachRecord(previousRecord, false));
+        previousRecord && detachRecord(previousRecord, false)
     }
     for (const restoredRecord of previousRecords) {
-      if (nextById.has(restoredRecord.id)) continue;
-      sceneRoot.add(restoredRecord.node);
+      if (nextById.has(restoredRecord.id)) continue
+      sceneRoot.add(restoredRecord.node)
       const restoredFrame = offsetFrameBySteps(
         focusRecord.baseFrame,
         orderIndexOf(restoredRecord.id) - orderIndexOf(focusRecord.id),
-      );
-      ((restoredRecord.from = decomposeMatrix(restoredRecord.node.matrix)),
-        (restoredRecord.to = decomposeMatrix(
-          restoredFrame.multiply(restoredRecord.baseFrame.clone().invert()),
-        )),
+      )
+      ;(restoredRecord.from = decomposeMatrix(restoredRecord.node.matrix)),
+        (restoredRecord.to = decomposeMatrix(restoredFrame.multiply(restoredRecord.baseFrame.clone().invert()))),
         (restoredRecord.keep = false),
         (restoredRecord.node.userData.floorTransitionLeaving = true),
         (restoredRecord.wasVisible = true),
         (restoredRecord.groundFrom = restoredRecord.groundAlpha),
         (restoredRecord.groundTo = 0),
-        activeRecords.push(restoredRecord));
+        activeRecords.push(restoredRecord)
     }
     if (
       ((slideState = isScrollTransition
@@ -320,76 +284,66 @@ export function createFloorTransition({
       !slideState)
     ) {
       for (const staleRecord of activeRecords)
-        (delete staleRecord.scrollPosition,
+        delete staleRecord.scrollPosition,
           delete staleRecord.scrollSpacing,
           delete staleRecord.scrollScreenSpacing,
-          delete staleRecord.scrollOffset);
+          delete staleRecord.scrollOffset
     }
     for (const easeRecord of activeRecords)
-      easeRecord.departureEase =
-        !isScrollTransition && nextRecords.length === 1 && !easeRecord.keep;
-    ((isTransitionActive = true), onSuspendReflections(true), sampleTransition(0));
+      easeRecord.departureEase = !isScrollTransition && nextRecords.length === 1 && !easeRecord.keep
+    ;(isTransitionActive = true), onSuspendReflections(true), sampleTransition(0)
   }
   function finishTransition() {
-    if (!isTransitionActive && !activeRecords.length) return;
-    const finishRoot = getRootObject();
+    if (!isTransitionActive && !activeRecords.length) return
+    const finishRoot = getRootObject()
     for (const finishedRecord of activeRecords)
       if (finishedRecord.keep && finishedRecord.node.parent === finishRoot) {
-        (finishedRecord.node.position.set(0, 0, 0),
+        finishedRecord.node.position.set(0, 0, 0),
           finishedRecord.node.quaternion.identity(),
           finishedRecord.node.scale.set(1, 1, 1),
           finishedRecord.node.updateMatrixWorld(true),
-          restoreGroundMaterials(finishedRecord));
-        for (const releasedChild of [...finishedRecord.node.children])
-          finishRoot.attach(releasedChild);
-        finishedRecord.node.removeFromParent();
-      } else detachRecord(finishedRecord);
-    ((activeRecords = []),
+          restoreGroundMaterials(finishedRecord)
+        for (const releasedChild of [...finishedRecord.node.children]) finishRoot.attach(releasedChild)
+        finishedRecord.node.removeFromParent()
+      } else detachRecord(finishedRecord)
+    ;(activeRecords = []),
       (isTransitionActive = false),
       (slideState = null),
       (exitState = null),
       (assemblyState = null),
       onSuspendReflections(false),
-      onInvalidate(true));
+      onInvalidate(true)
   }
   const computeCameraFrame = (cameraDescriptor: any) => {
     const cameraPosition = new three.Vector3().fromArray(cameraDescriptor.position),
-      cameraTarget = new three.Vector3().fromArray(cameraDescriptor.target);
+      cameraTarget = new three.Vector3().fromArray(cameraDescriptor.target)
     return new three.Matrix4()
-      .lookAt(
-        cameraPosition,
-        cameraTarget,
-        new three.Vector3().fromArray(cameraDescriptor.up || [0, 1, 0]),
-      )
-      .setPosition(cameraPosition);
-  };
+      .lookAt(cameraPosition, cameraTarget, new three.Vector3().fromArray(cameraDescriptor.up || [0, 1, 0]))
+      .setPosition(cameraPosition)
+  }
   function prepareSlideCameras(fromCameraSpec: any, toCameraSpec: any, projections: any = null) {
     if (assemblyState && projections) {
       const fromViewMatrix = computeCameraFrame(fromCameraSpec).invert(),
         toViewMatrix = computeCameraFrame(toCameraSpec).invert(),
-        assemblyAnchorRecord = activeRecords.find(
-          (anchorEntry: any) => anchorEntry.id === assemblyState.anchorId,
-        ),
+        assemblyAnchorRecord = activeRecords.find((anchorEntry: any) => anchorEntry.id === assemblyState.anchorId),
         centersById = new Map<any, any>(
           activeRecords.map((centerRecord: any) => {
-            const worldBounds = new three.Box3();
-            centerRecord.node.updateWorldMatrix(true, true);
-            const inverseNodeWorld = centerRecord.node.matrixWorld.clone().invert();
+            const worldBounds = new three.Box3()
+            centerRecord.node.updateWorldMatrix(true, true)
+            const inverseNodeWorld = centerRecord.node.matrixWorld.clone().invert()
             return (
               centerRecord.node.traverseVisible((meshNode: any) => {
                 if (
                   !meshNode.isMesh ||
                   !meshNode.geometry ||
-                  ["background", "grid", "contact-shadow"].includes(meshNode.userData?.exportRole)
+                  ['background', 'grid', 'contact-shadow'].includes(meshNode.userData?.exportRole)
                 )
-                  return;
-                const meshBounds = resolveBoundingBox(meshNode);
+                  return
+                const meshBounds = resolveBoundingBox(meshNode)
                 meshBounds &&
                   worldBounds.union(
-                    meshBounds
-                      .clone()
-                      .applyMatrix4(inverseNodeWorld.clone().multiply(meshNode.matrixWorld)),
-                  );
+                    meshBounds.clone().applyMatrix4(inverseNodeWorld.clone().multiply(meshNode.matrixWorld)),
+                  )
               }),
               [
                 centerRecord.id,
@@ -397,7 +351,7 @@ export function createFloorTransition({
                   ? new three.Vector3().setFromMatrixPosition(centerRecord.baseFrame)
                   : worldBounds.getCenter(new three.Vector3()),
               ] as [any, any]
-            );
+            )
           }),
         ),
         anchorCenter = centersById
@@ -410,7 +364,7 @@ export function createFloorTransition({
               assemblyAnchorRecord.from.scale,
             ),
           )
-          .applyMatrix4(fromViewMatrix);
+          .applyMatrix4(fromViewMatrix)
       for (const assemblyRecord of activeRecords) {
         const recordCenter = centersById.get(assemblyRecord.id),
           recordWorldFrame = fromViewMatrix
@@ -424,48 +378,42 @@ export function createFloorTransition({
             ),
           toViewFrame = toViewMatrix.clone(),
           screenFrom = recordCenter.clone().applyMatrix4(recordWorldFrame),
-          screenTo = recordCenter.clone().applyMatrix4(toViewFrame);
+          screenTo = recordCenter.clone().applyMatrix4(toViewFrame)
         if (!assemblyRecord.wasVisible) {
           const anchorProjectionScale = projectedScaleAtDepth(projections.from, -anchorCenter.z),
             assemblySign =
-              (assemblyRecord.assemblyOffset /
-                Math.max(0.001, Math.abs(assemblyRecord.assemblyOffset))) *
-              1.8;
-          (screenFrom.copy(anchorCenter), (screenFrom.y += assemblySign * anchorProjectionScale));
+              (assemblyRecord.assemblyOffset / Math.max(0.001, Math.abs(assemblyRecord.assemblyOffset))) * 1.8
+          screenFrom.copy(anchorCenter), (screenFrom.y += assemblySign * anchorProjectionScale)
           const closerCount = activeRecords.filter(
             (otherRecord: any) =>
               !otherRecord.wasVisible &&
               Math.sign(otherRecord.assemblyOffset) === Math.sign(assemblyRecord.assemblyOffset) &&
               Math.abs(otherRecord.assemblyOffset) < Math.abs(assemblyRecord.assemblyOffset),
-          ).length;
-          screenFrom.y += assemblySign * anchorProjectionScale * closerCount;
+          ).length
+          screenFrom.y += assemblySign * anchorProjectionScale * closerCount
         }
         const projectToScreenSpace = (worldPoint: any, screenProjection: any) => {
-            const depthScale = projectedScaleAtDepth(screenProjection, -worldPoint.z);
-            return new three.Vector3(
-              worldPoint.x / depthScale,
-              worldPoint.y / depthScale,
-              -worldPoint.z,
-            );
+            const depthScale = projectedScaleAtDepth(screenProjection, -worldPoint.z)
+            return new three.Vector3(worldPoint.x / depthScale, worldPoint.y / depthScale, -worldPoint.z)
           },
           screenStart = projectToScreenSpace(screenFrom, projections.from),
-          screenEnd = projectToScreenSpace(screenTo, projections.to);
-        (assemblyRecord.wasVisible || (screenStart.x = screenEnd.x),
+          screenEnd = projectToScreenSpace(screenTo, projections.to)
+        assemblyRecord.wasVisible || (screenStart.x = screenEnd.x),
           (assemblyRecord.assemblyScreen = {
             pivot: recordCenter,
             from: decomposeMatrix(assemblyRecord.wasVisible ? recordWorldFrame : toViewFrame),
             to: decomposeMatrix(toViewFrame),
             start: screenStart,
             end: screenEnd,
-          }));
+          })
       }
-      return;
+      return
     }
     if (!slideState) {
-      if (!exitState || !projections) return;
-      const exitViewMatrix = computeCameraFrame(fromCameraSpec).invert();
+      if (!exitState || !projections) return
+      const exitViewMatrix = computeCameraFrame(fromCameraSpec).invert()
       for (const exitingRecord of activeRecords) {
-        if (exitingRecord.keep) continue;
+        if (exitingRecord.keep) continue
         const exitStartFrame = exitViewMatrix
             .clone()
             .multiply(
@@ -475,33 +423,24 @@ export function createFloorTransition({
                 exitingRecord.from.scale,
               ),
             ),
-          exitSign = Math.sign(
-            exitState.order.indexOf(exitingRecord.id) - exitState.order.indexOf(exitState.target),
-          );
-        let exitLift = 0;
-        exitingRecord.node.updateWorldMatrix(true, true);
-        const inverseExitWorld = exitingRecord.node.matrixWorld.clone().invert();
-        (exitingRecord.node.traverseVisible((exitMeshNode: any) => {
+          exitSign = Math.sign(exitState.order.indexOf(exitingRecord.id) - exitState.order.indexOf(exitState.target))
+        let exitLift = 0
+        exitingRecord.node.updateWorldMatrix(true, true)
+        const inverseExitWorld = exitingRecord.node.matrixWorld.clone().invert()
+        exitingRecord.node.traverseVisible((exitMeshNode: any) => {
           if (
             !exitMeshNode.isMesh ||
             !exitMeshNode.geometry ||
-            ["background", "grid", "contact-shadow"].includes(exitMeshNode.userData?.exportRole)
+            ['background', 'grid', 'contact-shadow'].includes(exitMeshNode.userData?.exportRole)
           )
-            return;
-          const exitMeshBounds = resolveBoundingBox(exitMeshNode);
-          if (!exitMeshBounds || exitMeshBounds.isEmpty()) return;
-          const boundsToWorld = exitStartFrame
-            .clone()
-            .multiply(inverseExitWorld)
-            .multiply(exitMeshNode.matrixWorld);
+            return
+          const exitMeshBounds = resolveBoundingBox(exitMeshNode)
+          if (!exitMeshBounds || exitMeshBounds.isEmpty()) return
+          const boundsToWorld = exitStartFrame.clone().multiply(inverseExitWorld).multiply(exitMeshNode.matrixWorld)
           for (const exitCornerX of [exitMeshBounds.min.x, exitMeshBounds.max.x])
             for (const exitCornerY of [exitMeshBounds.min.y, exitMeshBounds.max.y])
               for (const exitCornerZ of [exitMeshBounds.min.z, exitMeshBounds.max.z]) {
-                const cornerPoint = new three.Vector3(
-                  exitCornerX,
-                  exitCornerY,
-                  exitCornerZ,
-                ).applyMatrix4(boundsToWorld);
+                const cornerPoint = new three.Vector3(exitCornerX, exitCornerY, exitCornerZ).applyMatrix4(boundsToWorld)
                 for (const exitProjection of [projections.from, projections.to]) {
                   const projectedHeight =
                     (exitProjection.height *
@@ -509,21 +448,21 @@ export function createFloorTransition({
                         exitProjection.weight +
                         (exitProjection.weight * Math.max(0.001, -cornerPoint.z)) /
                           Math.max(0.001, exitProjection.distance))) /
-                    2;
-                  exitLift = Math.max(exitLift, projectedHeight * 1.12 - exitSign * cornerPoint.y);
+                    2
+                  exitLift = Math.max(exitLift, projectedHeight * 1.12 - exitSign * cornerPoint.y)
                 }
               }
         }),
           (exitingRecord.exitFrom = decomposeMatrix(exitStartFrame)),
           (exitStartFrame.elements[13] += exitSign * exitLift),
-          (exitingRecord.exitTo = decomposeMatrix(exitStartFrame)));
+          (exitingRecord.exitTo = decomposeMatrix(exitStartFrame))
       }
-      return;
+      return
     }
-    ((slideState.from = computeCameraFrame(fromCameraSpec).invert()),
+    ;(slideState.from = computeCameraFrame(fromCameraSpec).invert()),
       (slideState.to = computeCameraFrame(toCameraSpec).invert()),
       (slideState.projected = !!projections),
-      (slideState.projections = projections));
+      (slideState.projections = projections)
     const withVerticalOffset = (baseSlideFrame: any, offsetY: any) =>
         new three.Matrix4().makeTranslation(0, offsetY, 0).multiply(baseSlideFrame),
       projectedScaleAtZ = (slideProjection: any, worldZ: any) =>
@@ -532,62 +471,51 @@ export function createFloorTransition({
           (slideProjection.height *
             (1 -
               slideProjection.weight +
-              (slideProjection.weight * Math.max(0.001, -worldZ)) /
-                Math.max(0.001, slideProjection.distance))) /
+              (slideProjection.weight * Math.max(0.001, -worldZ)) / Math.max(0.001, slideProjection.distance))) /
             2,
         ),
       slideCandidates = activeRecords.map((slideRecord: any) => {
         const worldFrame = slideState.from
           .clone()
           .multiply(
-            new three.Matrix4().compose(
-              slideRecord.from.position,
-              slideRecord.from.quaternion,
-              slideRecord.from.scale,
-            ),
-          );
+            new three.Matrix4().compose(slideRecord.from.position, slideRecord.from.quaternion, slideRecord.from.scale),
+          )
         if (!projections)
           return {
             r: slideRecord,
             current: worldFrame,
-          };
-        slideRecord.node.updateWorldMatrix(true, true);
+          }
+        slideRecord.node.updateWorldMatrix(true, true)
         const inverseSlideWorld = slideRecord.node.matrixWorld.clone().invert(),
           recordBounds = new three.Box3(),
-          boundCorners: any = [];
-        (slideRecord.node.traverseVisible((boundsMeshNode: any) => {
+          boundCorners: any = []
+        slideRecord.node.traverseVisible((boundsMeshNode: any) => {
           if (
             !boundsMeshNode.isMesh ||
             !boundsMeshNode.geometry ||
-            ["background", "grid", "contact-shadow"].includes(boundsMeshNode.userData?.exportRole)
+            ['background', 'grid', 'contact-shadow'].includes(boundsMeshNode.userData?.exportRole)
           )
-            return;
-          const meshBoundingBox = resolveBoundingBox(boundsMeshNode);
+            return
+          const meshBoundingBox = resolveBoundingBox(boundsMeshNode)
           if (meshBoundingBox && !meshBoundingBox.isEmpty()) {
-            const meshToWorld = inverseSlideWorld.clone().multiply(boundsMeshNode.matrixWorld);
-            recordBounds.union(meshBoundingBox.clone().applyMatrix4(meshToWorld));
+            const meshToWorld = inverseSlideWorld.clone().multiply(boundsMeshNode.matrixWorld)
+            recordBounds.union(meshBoundingBox.clone().applyMatrix4(meshToWorld))
             for (const cornerX of [meshBoundingBox.min.x, meshBoundingBox.max.x])
               for (const cornerY of [meshBoundingBox.min.y, meshBoundingBox.max.y])
                 for (const cornerZ of [meshBoundingBox.min.z, meshBoundingBox.max.z])
-                  boundCorners.push(
-                    new three.Vector3(cornerX, cornerY, cornerZ).applyMatrix4(meshToWorld),
-                  );
+                  boundCorners.push(new three.Vector3(cornerX, cornerY, cornerZ).applyMatrix4(meshToWorld))
           }
         }),
           (slideRecord.scrollCenter = recordBounds.isEmpty()
             ? new three.Vector3()
             : recordBounds.getCenter(new three.Vector3())),
           (slideRecord.projectionFrom = slideRecord.wasVisible ? projections.from : projections.to),
-          (slideRecord.projectionTo =
-            slideRecord.keep || !slideRecord.wasVisible ? projections.to : projections.from));
-        let exitExtentValue = 0;
+          (slideRecord.projectionTo = slideRecord.keep || !slideRecord.wasVisible ? projections.to : projections.from)
+        let exitExtentValue = 0
         if (!recordBounds.isEmpty()) {
           for (const [pairMatrix, pairProjection] of [
             [slideRecord.wasVisible ? worldFrame : slideState.to, slideRecord.projectionFrom],
-            [
-              slideRecord.keep || !slideRecord.wasVisible ? slideState.to : worldFrame,
-              slideRecord.projectionTo,
-            ],
+            [slideRecord.keep || !slideRecord.wasVisible ? slideState.to : worldFrame, slideRecord.projectionTo],
           ])
             for (const cornerVector of boundCorners) {
               const transformedCorner = cornerVector.clone().applyMatrix4(pairMatrix),
@@ -597,11 +525,11 @@ export function createFloorTransition({
                     ? transformedCorner.y
                     : orderIndex === slideState.order.length - 1
                       ? -transformedCorner.y
-                      : Math.abs(transformedCorner.y);
+                      : Math.abs(transformedCorner.y)
               exitExtentValue = Math.max(
                 exitExtentValue,
                 directionalExtent / projectedScaleAtZ(pairProjection, transformedCorner.z),
-              );
+              )
             }
         }
         return (
@@ -612,45 +540,32 @@ export function createFloorTransition({
             extent: exitExtentValue,
             corners: boundCorners,
           }
-        );
-      });
+        )
+      })
     projections &&
       !Number.isFinite(slideState.screenSpacing) &&
       (slideState.screenSpacing = Math.min(
         1.8,
-        Math.max(
-          1.24,
-          ...slideCandidates.map((extentCandidate: any) => 1 + extentCandidate.extent + 0.24),
-        ),
-      ));
-    for (const {
-      r: candidateRecord,
-      current: candidateFrame,
-      corners: candidateCorners,
-    } of slideCandidates) {
-      const recordOrderIndex = slideState.order.indexOf(candidateRecord.id);
+        Math.max(1.24, ...slideCandidates.map((extentCandidate: any) => 1 + extentCandidate.extent + 0.24)),
+      ))
+    for (const { r: candidateRecord, current: candidateFrame, corners: candidateCorners } of slideCandidates) {
+      const recordOrderIndex = slideState.order.indexOf(candidateRecord.id)
       if (projections) {
         if (
           ((candidateRecord.independentDeparture =
             !candidateRecord.keep &&
             candidateRecord.wasVisible &&
-            (recordOrderIndex - slideState.scrollTo) *
-              (slideState.scrollTo - slideState.scrollFrom) >
-              0),
+            (recordOrderIndex - slideState.scrollTo) * (slideState.scrollTo - slideState.scrollFrom) > 0),
           candidateRecord.wasVisible)
         ) {
-          const scrollCenterPoint = candidateRecord.scrollCenter
-            .clone()
-            .applyMatrix4(candidateFrame);
+          const scrollCenterPoint = candidateRecord.scrollCenter.clone().applyMatrix4(candidateFrame)
           candidateFrame.elements[13] -=
             (recordOrderIndex - slideState.scrollFrom) *
             slideState.screenSpacing *
-            projectedScaleAtZ(projections.from, scrollCenterPoint.z);
+            projectedScaleAtZ(projections.from, scrollCenterPoint.z)
         }
         if (
-          ((candidateRecord.slideFrom = decomposeMatrix(
-            candidateRecord.wasVisible ? candidateFrame : slideState.to,
-          )),
+          ((candidateRecord.slideFrom = decomposeMatrix(candidateRecord.wasVisible ? candidateFrame : slideState.to)),
           (candidateRecord.slideTo = decomposeMatrix(
             candidateRecord.keep || !candidateRecord.wasVisible ? slideState.to : candidateFrame,
           )),
@@ -663,58 +578,41 @@ export function createFloorTransition({
             ),
             slideExitDepth = -candidateRecord.scrollCenter.clone().applyMatrix4(scaledSlideFrame).z,
             slideExitScale = projectedScaleAtZ(projections.to, -slideExitDepth),
-            scaleRatio =
-              slideExitScale / projectedScaleAtZ(candidateRecord.projectionTo, -slideExitDepth);
-          (scaledSlideFrame.premultiply(
-            new three.Matrix4().makeScale(scaleRatio, scaleRatio, scaleRatio),
-          ),
-            (scaledSlideFrame.elements[14] += slideExitDepth * (scaleRatio - 1)));
-          const exitAnchorIndex = candidateRecord.independentDeparture
-            ? slideState.scrollFrom
-            : slideState.scrollTo;
+            scaleRatio = slideExitScale / projectedScaleAtZ(candidateRecord.projectionTo, -slideExitDepth)
+          scaledSlideFrame.premultiply(new three.Matrix4().makeScale(scaleRatio, scaleRatio, scaleRatio)),
+            (scaledSlideFrame.elements[14] += slideExitDepth * (scaleRatio - 1))
+          const exitAnchorIndex = candidateRecord.independentDeparture ? slideState.scrollFrom : slideState.scrollTo
           scaledSlideFrame.elements[13] +=
-            (recordOrderIndex - exitAnchorIndex) * slideState.screenSpacing * slideExitScale;
+            (recordOrderIndex - exitAnchorIndex) * slideState.screenSpacing * slideExitScale
           const slideSign = Math.sign(recordOrderIndex - slideState.scrollTo),
             exitSpacingBuffer = candidateRecord.independentDeparture
               ? 0
-              : Math.abs(slideState.scrollTo - slideState.scrollFrom) *
-                slideState.screenSpacing *
-                0.1;
+              : Math.abs(slideState.scrollTo - slideState.scrollFrom) * slideState.screenSpacing * 0.1
           candidateRecord.scrollExitExtra = Math.max(
             0,
             ...candidateCorners.map((corner: any) => {
-              const cornerInFrame = corner.clone().applyMatrix4(scaledSlideFrame);
+              const cornerInFrame = corner.clone().applyMatrix4(scaledSlideFrame)
               return (
-                (1.14 * projectedScaleAtZ(projections.to, cornerInFrame.z) -
-                  slideSign * cornerInFrame.y) /
+                (1.14 * projectedScaleAtZ(projections.to, cornerInFrame.z) - slideSign * cornerInFrame.y) /
                   slideExitScale +
                 exitSpacingBuffer
-              );
+              )
             }),
-          );
+          )
         }
       } else
-        ((candidateRecord.slideFrom = decomposeMatrix(
+        (candidateRecord.slideFrom = decomposeMatrix(
           candidateRecord.wasVisible
             ? candidateFrame
-            : withVerticalOffset(
-                slideState.to,
-                (recordOrderIndex - slideState.scrollFrom) * slideState.spread,
-              ),
+            : withVerticalOffset(slideState.to, (recordOrderIndex - slideState.scrollFrom) * slideState.spread),
         )),
           (candidateRecord.slideTo = decomposeMatrix(
             candidateRecord.keep
               ? slideState.to
               : candidateRecord.wasVisible
-                ? withVerticalOffset(
-                    candidateFrame,
-                    (slideState.scrollFrom - slideState.scrollTo) * slideState.spread,
-                  )
-                : withVerticalOffset(
-                    slideState.to,
-                    (recordOrderIndex - slideState.scrollTo) * slideState.spread,
-                  ),
-          )));
+                ? withVerticalOffset(candidateFrame, (slideState.scrollFrom - slideState.scrollTo) * slideState.spread)
+                : withVerticalOffset(slideState.to, (recordOrderIndex - slideState.scrollTo) * slideState.spread),
+          ))
     }
   }
   function projectedScaleAtDepth(projectionSpec: any, depthValue: any) {
@@ -723,38 +621,32 @@ export function createFloorTransition({
       (projectionSpec.height *
         (1 -
           projectionSpec.weight +
-          (projectionSpec.weight * Math.max(0.001, depthValue)) /
-            Math.max(0.001, projectionSpec.distance))) /
+          (projectionSpec.weight * Math.max(0.001, depthValue)) / Math.max(0.001, projectionSpec.distance))) /
         2,
-    );
+    )
   }
   function sampleTransition(progressRatio: any, cameraSpec: any = null, projectionParams: any = null) {
-    if (!isTransitionActive) return;
-    if (
-      activeRecords.some(
-        (staleEntry: any) => staleEntry.keep && staleEntry.node.parent !== getRootObject(),
-      )
-    ) {
-      finishTransition();
-      return;
+    if (!isTransitionActive) return
+    if (activeRecords.some((staleEntry: any) => staleEntry.keep && staleEntry.node.parent !== getRootObject())) {
+      finishTransition()
+      return
     }
-    const clampedProgress = Math.max(0, Math.min(1, progressRatio));
+    const clampedProgress = Math.max(0, Math.min(1, progressRatio))
     if (!projectionParams && slideState?.projections) {
-      const { from: projectionFrom, to: projectionTo } = slideState.projections;
+      const { from: projectionFrom, to: projectionTo } = slideState.projections
       projectionParams = Object.fromEntries(
-        ["height", "weight", "distance"].map((projectionKey) => [
+        ['height', 'weight', 'distance'].map((projectionKey) => [
           projectionKey,
           projectionFrom[projectionKey] +
             (projectionTo[projectionKey] - projectionFrom[projectionKey]) * clampedProgress,
         ]),
-      );
+      )
     }
     for (const sampledRecord of activeRecords) {
       if (
         (slideState &&
           ((sampledRecord.scrollPosition =
-            slideState.scrollFrom +
-            (slideState.scrollTo - slideState.scrollFrom) * clampedProgress),
+            slideState.scrollFrom + (slideState.scrollTo - slideState.scrollFrom) * clampedProgress),
           (sampledRecord.scrollSpacing = slideState.spread),
           (sampledRecord.scrollScreenSpacing = slideState.screenSpacing)),
         assemblyState && sampledRecord.assemblyScreen && cameraSpec && projectionParams)
@@ -771,21 +663,13 @@ export function createFloorTransition({
             ),
             assemblyScreen.from.scale.clone().lerp(assemblyScreen.to.scale, clampedProgress),
           ),
-          pivotPoint = assemblyScreen.pivot.clone().applyMatrix4(screenFrame);
-        (screenFrame.setPosition(
-          new three.Vector3(
-            screenPoint.x * screenScale,
-            screenPoint.y * screenScale,
-            -screenPoint.z,
-          ).sub(pivotPoint),
+          pivotPoint = assemblyScreen.pivot.clone().applyMatrix4(screenFrame)
+        screenFrame.setPosition(
+          new three.Vector3(screenPoint.x * screenScale, screenPoint.y * screenScale, -screenPoint.z).sub(pivotPoint),
         ),
           computeCameraFrame(cameraSpec)
             .multiply(screenFrame)
-            .decompose(
-              sampledRecord.node.position,
-              sampledRecord.node.quaternion,
-              sampledRecord.node.scale,
-            ));
+            .decompose(sampledRecord.node.position, sampledRecord.node.quaternion, sampledRecord.node.scale)
       } else {
         if (assemblyState && sampledRecord.assemblyRelative) {
           const assemblyRelative = sampledRecord.assemblyRelative,
@@ -801,12 +685,8 @@ export function createFloorTransition({
                 new three.Quaternion(),
                 assemblyEase,
               ),
-              new three.Vector3().lerpVectors(
-                assemblyRelative.scale,
-                new three.Vector3(1, 1, 1),
-                assemblyEase,
-              ),
-            );
+              new three.Vector3().lerpVectors(assemblyRelative.scale, new three.Vector3(1, 1, 1), assemblyEase),
+            )
           new three.Matrix4()
             .compose(
               assemblyState.position.clone().multiplyScalar(1 - clampedProgress),
@@ -815,18 +695,10 @@ export function createFloorTransition({
                 new three.Quaternion(),
                 clampedProgress,
               ),
-              new three.Vector3().lerpVectors(
-                assemblyState.scale,
-                new three.Vector3(1, 1, 1),
-                clampedProgress,
-              ),
+              new three.Vector3().lerpVectors(assemblyState.scale, new three.Vector3(1, 1, 1), clampedProgress),
             )
             .multiply(relativeFrame)
-            .decompose(
-              sampledRecord.node.position,
-              sampledRecord.node.quaternion,
-              sampledRecord.node.scale,
-            );
+            .decompose(sampledRecord.node.position, sampledRecord.node.quaternion, sampledRecord.node.scale)
         } else {
           if (exitState && !sampledRecord.keep && sampledRecord.exitFrom && cameraSpec) {
             const exitEase = clampedProgress * clampedProgress,
@@ -838,14 +710,10 @@ export function createFloorTransition({
                 ),
                 sampledRecord.exitFrom.quaternion,
                 sampledRecord.exitFrom.scale,
-              );
+              )
             computeCameraFrame(cameraSpec)
               .multiply(exitFrame)
-              .decompose(
-                sampledRecord.node.position,
-                sampledRecord.node.quaternion,
-                sampledRecord.node.scale,
-              );
+              .decompose(sampledRecord.node.position, sampledRecord.node.quaternion, sampledRecord.node.scale)
           } else {
             if (slideState?.from && cameraSpec) {
               const slideFrame = new three.Matrix4().compose(
@@ -864,7 +732,7 @@ export function createFloorTransition({
                   sampledRecord.slideTo.scale,
                   clampedProgress,
                 ),
-              );
+              )
               if (slideState.projected && projectionParams) {
                 const slideDepth = -sampledRecord.scrollCenter.clone().applyMatrix4(slideFrame).z,
                   slideScale =
@@ -875,11 +743,10 @@ export function createFloorTransition({
                           Math.max(0.001, projectionParams.distance))) /
                     2,
                   projectionAtRecord = Object.fromEntries(
-                    ["height", "weight", "distance"].map((projectionField) => [
+                    ['height', 'weight', 'distance'].map((projectionField) => [
                       projectionField,
                       sampledRecord.projectionFrom[projectionField] +
-                        (sampledRecord.projectionTo[projectionField] -
-                          sampledRecord.projectionFrom[projectionField]) *
+                        (sampledRecord.projectionTo[projectionField] - sampledRecord.projectionFrom[projectionField]) *
                           clampedProgress,
                     ]),
                   ),
@@ -890,14 +757,14 @@ export function createFloorTransition({
                         (projectionAtRecord.weight * Math.max(0.001, slideDepth)) /
                           Math.max(0.001, projectionAtRecord.distance))) /
                     2,
-                  scaleCorrection = slideScale / Math.max(0.001, recordScale);
-                (slideFrame.premultiply(
+                  scaleCorrection = slideScale / Math.max(0.001, recordScale)
+                slideFrame.premultiply(
                   new three.Matrix4().makeScale(scaleCorrection, scaleCorrection, scaleCorrection),
                 ),
-                  (slideFrame.elements[14] += slideDepth * (scaleCorrection - 1)));
+                  (slideFrame.elements[14] += slideDepth * (scaleCorrection - 1))
                 const scrollPositionAnchor = sampledRecord.independentDeparture
                   ? slideState.scrollFrom
-                  : sampledRecord.scrollPosition;
+                  : sampledRecord.scrollPosition
                 if (
                   ((sampledRecord.scrollOffset =
                     (slideState.order.indexOf(sampledRecord.id) - scrollPositionAnchor) *
@@ -906,50 +773,33 @@ export function createFloorTransition({
                   (slideFrame.elements[13] += sampledRecord.scrollOffset),
                   !sampledRecord.keep)
                 ) {
-                  const exitDirection = Math.sign(
-                      slideState.order.indexOf(sampledRecord.id) - slideState.scrollTo,
-                    ),
+                  const exitDirection = Math.sign(slideState.order.indexOf(sampledRecord.id) - slideState.scrollTo),
                     exitExtra =
                       sampledRecord.scrollExitExtra ??
                       Math.max(
                         0,
                         1.14 +
                           (sampledRecord.scrollExitExtent || 0) -
-                          Math.abs(
-                            slideState.order.indexOf(sampledRecord.id) - slideState.scrollTo,
-                          ) *
+                          Math.abs(slideState.order.indexOf(sampledRecord.id) - slideState.scrollTo) *
                             slideState.screenSpacing,
                       ),
                     exitFade = Math.max(
                       0,
                       Math.min(
                         1,
-                        sampledRecord.independentDeparture
-                          ? clampedProgress / 0.88
-                          : (clampedProgress - 0.65) / 0.23,
+                        sampledRecord.independentDeparture ? clampedProgress / 0.88 : (clampedProgress - 0.65) / 0.23,
                       ),
-                    );
+                    )
                   slideFrame.elements[13] +=
-                    exitDirection *
-                    exitExtra *
-                    slideScale *
-                    exitFade *
-                    exitFade *
-                    (3 - 2 * exitFade);
+                    exitDirection * exitExtra * slideScale * exitFade * exitFade * (3 - 2 * exitFade)
                 }
               }
               computeCameraFrame(cameraSpec)
                 .multiply(slideFrame)
-                .decompose(
-                  sampledRecord.node.position,
-                  sampledRecord.node.quaternion,
-                  sampledRecord.node.scale,
-                );
+                .decompose(sampledRecord.node.position, sampledRecord.node.quaternion, sampledRecord.node.scale)
             } else {
-              const easedProgress = sampledRecord.departureEase
-                ? clampedProgress * clampedProgress
-                : clampedProgress;
-              (sampledRecord.node.position.lerpVectors(
+              const easedProgress = sampledRecord.departureEase ? clampedProgress * clampedProgress : clampedProgress
+              sampledRecord.node.position.lerpVectors(
                 sampledRecord.from.position,
                 sampledRecord.to.position,
                 easedProgress,
@@ -959,27 +809,21 @@ export function createFloorTransition({
                   sampledRecord.to.quaternion,
                   easedProgress,
                 ),
-                sampledRecord.node.scale.lerpVectors(
-                  sampledRecord.from.scale,
-                  sampledRecord.to.scale,
-                  easedProgress,
-                ));
+                sampledRecord.node.scale.lerpVectors(sampledRecord.from.scale, sampledRecord.to.scale, easedProgress)
             }
           }
         }
       }
-      (sampledRecord.node.updateMatrixWorld(true),
+      sampledRecord.node.updateMatrixWorld(true),
         (sampledRecord.groundAlpha =
-          sampledRecord.groundFrom +
-          (sampledRecord.groundTo - sampledRecord.groundFrom) * clampedProgress));
+          sampledRecord.groundFrom + (sampledRecord.groundTo - sampledRecord.groundFrom) * clampedProgress)
       for (const recordGroundEntry of sampledRecord.ground)
         recordGroundEntry.materials.forEach((groundMaterial: any, materialIndex: any) => {
           groundMaterial.opacity =
-            recordGroundEntry.opacity[materialIndex] *
-            (recordGroundEntry.followsFloor ? 1 : sampledRecord.groundAlpha);
-        });
+            recordGroundEntry.opacity[materialIndex] * (recordGroundEntry.followsFloor ? 1 : sampledRecord.groundAlpha)
+        })
     }
-    (onInvalidate(false), clampedProgress === 1 && finishTransition());
+    onInvalidate(false), clampedProgress === 1 && finishTransition()
   }
   return {
     capture: captureFloors,
@@ -990,10 +834,10 @@ export function createFloorTransition({
     setSlideCameras: prepareSlideCameras,
     finish: finishTransition,
     get active() {
-      return isTransitionActive;
+      return isTransitionActive
     },
     get records() {
-      return activeRecords;
+      return activeRecords
     },
-  };
+  }
 }

@@ -1,10 +1,10 @@
 /** - 维护模拟演练可选的倒计时阈值（60s / 30s / 0=横波已到达）； */
 
 /** 模拟演练全屏预警倒计时形态：60s / 30s 倒计时，或横波已到达（真实预警不受此限制） */
-export const EEW_COUNTDOWN_LEAD_OPTIONS = [60, 30, 0] as const;
+export const EEW_COUNTDOWN_LEAD_OPTIONS = [60, 30, 0] as const
 
 /** 模拟演练 lead 秒数（与 EEW_COUNTDOWN_LEAD_OPTIONS 对齐） */
-export type EewCountdownLeadSec = (typeof EEW_COUNTDOWN_LEAD_OPTIONS)[number];
+export type EewCountdownLeadSec = (typeof EEW_COUNTDOWN_LEAD_OPTIONS)[number]
 
 /**
  * 规范化演练 lead 秒数。
@@ -15,11 +15,11 @@ export type EewCountdownLeadSec = (typeof EEW_COUNTDOWN_LEAD_OPTIONS)[number];
 export function normalizeEewCountdownLead(raw: unknown): EewCountdownLeadSec {
   // Logic fix: null/undefined/false/空串不应被 Number() 归一为 0（0 表示"横波已到达"），
   // 缺失值统一回退为默认 60，避免误把"未配置"当成"横波已到达"。
-  if (raw == null || raw === false) return 60;
-  if (typeof raw === 'string' && raw.trim() === '') return 60;
-  const n = Number(raw);
-  if (n === 0 || n === 30 || n === 60) return n;
-  return 60;
+  if (raw == null || raw === false) return 60
+  if (typeof raw === 'string' && raw.trim() === '') return 60
+  const n = Number(raw)
+  if (n === 0 || n === 30 || n === 60) return n
+  return 60
 }
 
 /**
@@ -33,7 +33,7 @@ export function isEewSimulationEventId(eventId: string | null | undefined): bool
     String(eventId || '')
       .trim()
       .startsWith('test_'),
-  );
+  )
 }
 
 /**
@@ -48,8 +48,8 @@ export function isEewSimulationEventId(eventId: string | null | undefined): bool
  *  - 其余：countdown ≤ leadSec 时展示。
  */
 export function shouldShowEewCountdown(countdown: number, leadSec: EewCountdownLeadSec): boolean {
-  if (leadSec === 0) return countdown <= 0;
-  return countdown <= leadSec;
+  if (leadSec === 0) return countdown <= 0
+  return countdown <= leadSec
 }
 
 /**
@@ -59,6 +59,6 @@ export function shouldShowEewCountdown(countdown: number, leadSec: EewCountdownL
  * @returns 形如"60s倒计时"或"横波已到达"
  */
 export function eewCountdownLeadLabel(leadSec: EewCountdownLeadSec): string {
-  if (leadSec === 0) return '横波已到达';
-  return `${leadSec}s倒计时`;
+  if (leadSec === 0) return '横波已到达'
+  return `${leadSec}s倒计时`
 }

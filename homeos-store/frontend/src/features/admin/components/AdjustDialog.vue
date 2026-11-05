@@ -49,13 +49,10 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    const result = await adminApi<{ balance?: unknown }>(
-      `/referral-wallets/${target.accountId}/adjust`,
-      {
-        method: "POST",
-        body: JSON.stringify({ delta: deltaValue, frozenDelta: frozenValue, note: noteValue }),
-      },
-    );
+    const result = await adminApi<{ balance?: unknown }>(`/referral-wallets/${target.accountId}/adjust`, {
+      method: "POST",
+      body: JSON.stringify({ delta: deltaValue, frozenDelta: frozenValue, note: noteValue }),
+    });
     toast.push(`调账完成，当前余额 ${result.balance} 积分`);
     dialogs.settleAdjust(null);
     refresh.bump("accounts", "ledger", "overview");

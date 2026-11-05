@@ -5,7 +5,7 @@
  *  - early：横波到达前的全屏预警（抢占屏保，倒计时大字）；
  *  - confirmation：迟到确认通报（横波已到达或已过，不全屏，仅通知）。
  */
-export type EarthquakeAlertKind = 'early' | 'confirmation';
+export type EarthquakeAlertKind = 'early' | 'confirmation'
 
 /**
  * EEW / 本地预警数据源标识。
@@ -15,79 +15,79 @@ export type EarthquakeAlertKind = 'early' | 'confirmation';
  *  - usgs：USGS 兜底；
  *  - test：模拟演练事件（前缀 test_）。
  */
-export type EarthquakeEewSource = 'wolfx' | 'sc_eew' | 'cenc_eew' | 'cenc' | 'usgs' | 'test';
+export type EarthquakeEewSource = 'wolfx' | 'sc_eew' | 'cenc_eew' | 'cenc' | 'usgs' | 'test'
 
 /**
  * 单次地震预警推送 payload（WS event: earthquake_alert）。
  */
 export interface EarthquakeAlertPayload {
   /** 事件 ID（同一地震多源可能不同；test_ 前缀表示演练） */
-  eventId: string;
+  eventId: string
   /** 震中纬度 */
-  latitude: number;
+  latitude: number
   /** 震中经度 */
-  longitude: number;
+  longitude: number
   /** 发震时间（epoch 毫秒） */
-  originTime: number;
+  originTime: number
   /** 震级 */
-  magnitude: number;
+  magnitude: number
   /** 震源深度（km） */
-  depth: number;
+  depth: number
   /** 震中地名（中文） */
-  epicenter: string;
+  epicenter: string
   /** 距家庭坐标距离（km，已由后端计算） */
-  distance: number;
+  distance: number
   /** 横波到达倒计时（秒；可为负表示已到达） */
-  countdown: number;
+  countdown: number
   /** 估算本地烈度（已由后端计算） */
-  localIntensity: number;
+  localIntensity: number
   /** 最大烈度（如 "VII"），可选 */
-  maxIntensity?: string;
+  maxIntensity?: string
   /** 前端展示用；服务端推送时可选附带 */
-  timestamp?: string;
+  timestamp?: string
   /** early | confirmation；缺省按 early 处理 */
-  alertKind?: EarthquakeAlertKind;
+  alertKind?: EarthquakeAlertKind
   /** 来源：wolfx WS / SC·CENC 主动查询 / USGS 兜底 */
-  source?: EarthquakeEewSource | string;
+  source?: EarthquakeEewSource | string
 }
 
 /** 全球震情目录查询周期 */
-export type GlobalEarthquakePeriod = 'hour' | 'day' | 'week' | 'month';
+export type GlobalEarthquakePeriod = 'hour' | 'day' | 'week' | 'month'
 
 /** 全球震情目录数据源（CENC 中国地震台网 / USGS） */
-export type GlobalEarthquakeSource = 'cenc' | 'usgs';
+export type GlobalEarthquakeSource = 'cenc' | 'usgs'
 
 /**
  * 单条全球震情目录事件。
  */
 export interface GlobalEarthquakeEvent {
   /** 事件 ID（数据源 + originTime + 坐标生成） */
-  id: string;
+  id: string
   /** 震级 */
-  magnitude: number;
+  magnitude: number
   /** 震级类型（如 "ml" / "mw"） */
-  magType: string;
+  magType: string
   /** 中文地名（已本地化） */
-  place: string;
+  place: string
   /** USGS 原始英文地名（place 已本地化为中文时保留） */
-  placeEn?: string | null;
-  latitude: number;
-  longitude: number;
-  depth: number;
+  placeEn?: string | null
+  latitude: number
+  longitude: number
+  depth: number
   /** 发震时间（epoch 毫秒） */
-  originTime: number;
+  originTime: number
   /** 数据源最近更新时间（epoch 毫秒） */
-  updatedTime: number;
+  updatedTime: number
   /** 详情页 URL（数据源页面） */
-  url: string;
+  url: string
   /** 是否引发海啸预警 */
-  tsunami: boolean;
+  tsunami: boolean
   /** 数据源状态（如 "reviewed" / "automatic"） */
-  status: string;
+  status: string
   /** CENC 最大烈度，USGS 源为 null */
-  intensity: number | null;
+  intensity: number | null
   /** 距家庭坐标（km），未配置坐标时为 null */
-  distanceKm: number | null;
+  distanceKm: number | null
 }
 
 /**
@@ -95,21 +95,21 @@ export interface GlobalEarthquakeEvent {
  */
 export interface GlobalEarthquakeFeedResult {
   /** 数据源 */
-  source: GlobalEarthquakeSource;
+  source: GlobalEarthquakeSource
   /** 查询周期 */
-  period: GlobalEarthquakePeriod;
+  period: GlobalEarthquakePeriod
   /** 最低震级过滤阈值 */
-  minMagnitude: number;
+  minMagnitude: number
   /** 抓取时间（epoch 毫秒） */
-  fetchedAt: number;
+  fetchedAt: number
   /** 是否命中缓存 */
-  cached: boolean;
+  cached: boolean
   /** 外源失败时返回的过期缓存（仍可用浏览） */
-  stale?: boolean;
+  stale?: boolean
   /** 家庭坐标（用于计算 distanceKm；未配置为 null） */
-  homeCoordinates: { lat: number; lon: number } | null;
+  homeCoordinates: { lat: number; lon: number } | null
   /** 事件列表 */
-  items: GlobalEarthquakeEvent[];
+  items: GlobalEarthquakeEvent[]
 }
 
 /**
@@ -117,11 +117,11 @@ export interface GlobalEarthquakeFeedResult {
  */
 export interface GlobalEarthquakeQuery {
   /** 数据源（缺省由后端选默认） */
-  source?: GlobalEarthquakeSource;
+  source?: GlobalEarthquakeSource
   /** 查询周期 */
-  period?: GlobalEarthquakePeriod;
+  period?: GlobalEarthquakePeriod
   /** 最低震级过滤 */
-  minMagnitude?: number;
+  minMagnitude?: number
   /** 返回条数上限 */
-  limit?: number;
+  limit?: number
 }

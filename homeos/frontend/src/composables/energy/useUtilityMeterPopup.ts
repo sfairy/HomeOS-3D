@@ -7,10 +7,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/shared/energy'
 import type { UtilityMeterParsedItem } from '@/shared/energy'
 import type { EnergyCategory } from '@/shared/energy/constants/energy-fields'
-import {
-  createUtilityMeterAccountState,
-  createUtilityMeterLists,
-} from './utility-meter-popup.lists.internals'
+import { createUtilityMeterAccountState, createUtilityMeterLists } from './utility-meter-popup.lists.internals'
 import { createUtilityMeterCalendar } from './utility-meter-popup.calendar.internals'
 import { createUtilityMeterCharts } from './utility-meter-popup.charts.internals'
 
@@ -35,16 +32,8 @@ interface UtilityMeterPopupOpts {
  * 水 / 气 / 电用量弹窗共用的图表、日历与统计逻辑。
  */
 export function useUtilityMeterPopup(opts: UtilityMeterPopupOpts) {
-  const {
-    props,
-    sourceKey,
-    accentColor,
-    unitLabelKey,
-    calClassPrefix,
-    parseDayItem,
-    parseMonthItem,
-    parseYearItem,
-  } = opts
+  const { props, sourceKey, accentColor, unitLabelKey, calClassPrefix, parseDayItem, parseMonthItem, parseYearItem } =
+    opts
   const es = useEntitiesStore()
   const layout = useLayoutStore()
   const { color1, color2 } = accentColor

@@ -9,10 +9,9 @@ import { fetchEarthquakeStatus, type EarthquakeStatusPayload } from '@/services/
  * - 从 payload 中派生 connected（已连接）/ connecting（连接中）状态。
  */
 export function useEarthquakeStatusQuery(options: { immediate?: boolean } = {}) {
-  const query = useApiQuery<EarthquakeStatusPayload>(
-    async () => ({ data: await fetchEarthquakeStatus() }),
-    { immediate: options.immediate !== false },
-  )
+  const query = useApiQuery<EarthquakeStatusPayload>(async () => ({ data: await fetchEarthquakeStatus() }), {
+    immediate: options.immediate !== false,
+  })
 
   /** 是否已连接到预警数据源 */
   const connected = ref(false)

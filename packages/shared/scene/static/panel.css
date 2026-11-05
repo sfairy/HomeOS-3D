@@ -147,7 +147,7 @@
 }
 
 .hos-panel::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 12%;
@@ -215,7 +215,6 @@
   box-shadow: 0 0 8px rgba(var(--hb-eco-rgb), 0.7);
 }
 
-
 .hos-steps {
   display: flex;
   align-items: center;
@@ -256,7 +255,7 @@
 /* 连接线由每一项自己向右撑开，不额外插空元素 —— 空 <i> 只能靠 :nth-child 对齐，
    少写一个整条就会错位一格。 */
 .hos-steps__item::after {
-  content: '';
+  content: "";
   flex: 1 1 auto;
   height: 1px;
   margin-left: 6px;
@@ -315,11 +314,7 @@
 }
 
 .hos-steps__item.is-skipped::after {
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(var(--hos-tone-rgb), 0.16) 0 3px,
-    transparent 3px 7px
-  );
+  background: repeating-linear-gradient(90deg, rgba(var(--hos-tone-rgb), 0.16) 0 3px, transparent 3px 7px);
 }
 
 @keyframes hosStepBreathe {
@@ -396,18 +391,13 @@
 /* 与 .hos-hub 同一套语言：顶边一道 tone 光带 + 一道缓慢扫过的光。
    两处刻意同构 —— 它们都是「机器在读自己」，不该长得像两种组件。 */
 .hos-deck::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 6%;
   right: 6%;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(var(--hos-tone-rgb), 0.7),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(var(--hos-tone-rgb), 0.7), transparent);
   box-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.38);
 }
 
@@ -561,7 +551,7 @@
 }
 
 .hos-hub::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 6%;
@@ -579,12 +569,7 @@
   bottom: 0;
   left: -20%;
   width: 28%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(var(--hos-tone-rgb), 0.08),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(var(--hos-tone-rgb), 0.08), transparent);
   animation: hosHubScan 4.8s ease-in-out infinite;
   pointer-events: none;
 }
@@ -615,7 +600,7 @@
 }
 
 .hos-hub__item + .hos-hub__item::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 16%;
@@ -769,7 +754,7 @@
 }
 
 .hos-control::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 22%;
@@ -823,7 +808,7 @@
   background: transparent;
   color: var(--hos-ink);
   padding: 13px 15px;
-  font: 500 0.92rem/1.4 var(--hos-font-ui);
+  font: 500 0.92rem / 1.4 var(--hos-font-ui);
   letter-spacing: 0.02em;
   caret-color: var(--hos-tone);
 }
@@ -875,7 +860,7 @@
   border-radius: 8px;
   color: rgba(var(--hos-muted-rgb), 0.72);
   background: transparent;
-  font: 600 0.72rem/1 var(--hos-font-ui);
+  font: 600 0.72rem / 1 var(--hos-font-ui);
   letter-spacing: 0.08em;
   cursor: pointer;
   transform: translateY(-50%);
@@ -924,7 +909,7 @@
   padding: 11px 10px;
   background: transparent;
   color: rgba(var(--hos-muted-rgb), 0.72);
-  font: 600 0.86rem/1.2 var(--hos-font-ui);
+  font: 600 0.86rem / 1.2 var(--hos-font-ui);
   cursor: pointer;
   text-align: center;
   transition:
@@ -937,7 +922,7 @@
   color: rgba(var(--hos-ink-rgb), 0.85);
 }
 
-.hos-seg button[aria-pressed='true'] {
+.hos-seg button[aria-pressed="true"] {
   color: var(--hos-on-bright);
   background: var(--hos-grad-tone);
   box-shadow: 0 6px 16px rgba(var(--hos-tone-rgb), 0.22);
@@ -1084,7 +1069,7 @@
   border-radius: 10px;
   background: rgba(var(--hos-sky-deep-rgb), 0.55);
   color: rgba(var(--hos-muted-rgb), 0.72);
-  font: 600 1.15rem/1 var(--hos-font-mono);
+  font: 600 1.15rem / 1 var(--hos-font-mono);
   cursor: pointer;
   transition:
     color 0.18s ease,
@@ -1127,7 +1112,7 @@
   border-radius: 10px;
   background: transparent;
   color: rgba(var(--hos-ink-rgb), 0.88);
-  font: 500 0.78rem/1 var(--hos-font-mono);
+  font: 500 0.78rem / 1 var(--hos-font-mono);
   letter-spacing: 0.02em;
   cursor: pointer;
   transition:
@@ -1176,7 +1161,7 @@
   padding: 6px 12px;
   background: rgba(var(--hos-sky-deep-rgb), 0.45);
   color: rgba(var(--hos-muted-rgb), 0.72);
-  font: 600 0.68rem/1 var(--hos-font-mono);
+  font: 600 0.68rem / 1 var(--hos-font-mono);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
@@ -1254,7 +1239,7 @@
   flex: 1 1 auto;
   min-height: 48px;
   color: var(--hos-on-bright);
-  font: 700 0.95rem/1 var(--hos-font-ui);
+  font: 700 0.95rem / 1 var(--hos-font-ui);
   background: var(--hos-grad-tone);
   box-shadow:
     0 12px 28px rgba(var(--hos-tone-rgb), 0.28),
@@ -1262,7 +1247,7 @@
 }
 
 .hos-btn-primary::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
@@ -1291,7 +1276,7 @@
   min-height: 44px;
   padding: 0 14px;
   color: rgba(210, 232, 242, 0.9);
-  font: 600 0.86rem/1 var(--hos-font-ui);
+  font: 600 0.86rem / 1 var(--hos-font-ui);
   background: rgba(var(--hos-tone-rgb), 0.06);
   border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
 }
@@ -1454,7 +1439,7 @@
   border-radius: 8px;
   background: transparent;
   color: rgba(var(--hos-muted-rgb), 0.72);
-  font: 500 0.78rem/1.4 var(--hos-font-ui);
+  font: 500 0.78rem / 1.4 var(--hos-font-ui);
   letter-spacing: 0.06em;
   text-decoration: none;
   cursor: pointer;
@@ -1520,7 +1505,7 @@
 }
 
 .hos-modal__card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 12%;
@@ -1657,7 +1642,7 @@
 
 .hos-btn-primary.is-loading::after,
 .hos-btn-ghost.is-loading::after {
-  content: '';
+  content: "";
   position: static;
   inset: auto;
   display: inline-block;
@@ -1934,7 +1919,7 @@
    档位来源见 `scene.css` 的「动效档位」段：`<html data-hos-motion>` 由 JS 首帧前算定、
    会话内只降不升。以前这里有两份（媒体查询一份 + `html.hos-touch` 一份，因为 iPad 接了
    妙控键盘会让媒体查询改口），那份重复正是「同一块坞体在两套档位之间来回切」的来源之一。 */
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-page .hos-panel {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-page .hos-panel {
   background: linear-gradient(165deg, var(--hos-sky-mid) 0%, var(--hos-sky-low) 100%);
 }
 
@@ -1962,11 +1947,9 @@ html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-page .hos-
 /* ===== 触摸档（frozen / ambient）：坞体自己身上那几件持续动效 =====
    它们的关键帧里有 `box-shadow` / 遮罩扫掠，每帧都要重绘；静止帧的「正在处理 / 正在读取」
    已经由状态点与读数表达，不需要靠扫光再来一遍。`ambient` 也不放行这几件（白名单在 scene.css）。 */
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-btn-primary::after,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-hub__scan,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-deck__scan,
-html:is([data-hos-motion='frozen'], [data-hos-motion='ambient'])
-  .hos-steps__item.is-current
-  .hos-steps__dot {
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-btn-primary::after,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-hub__scan,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-deck__scan,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-steps__item.is-current .hos-steps__dot {
   animation: none;
 }

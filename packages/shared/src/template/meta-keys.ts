@@ -14,4 +14,4 @@ export const TEMPLATE_META_KEYS = new Set([
   'parallel',
   'delay',
   'wait_template',
-]);
+])

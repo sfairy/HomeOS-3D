@@ -8,13 +8,7 @@ import type { EnergyMeterGrain, EnergyMeterScope } from '@homeos/shared'
 export type { EnergyMeterGrain }
 
 /** 首装向导步骤 ID：connection=连接，security=安防，energy=能耗，environment=环境，dashboard=户型/收藏（可选），complete=完成 */
-export type SetupWizardStepId =
-  | 'connection'
-  | 'security'
-  | 'energy'
-  | 'environment'
-  | 'dashboard'
-  | 'complete'
+export type SetupWizardStepId = 'connection' | 'security' | 'energy' | 'environment' | 'dashboard' | 'complete'
 
 /** 单步状态 */
 interface SetupWizardStepStatus {

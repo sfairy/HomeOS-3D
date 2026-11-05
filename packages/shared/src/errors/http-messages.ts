@@ -31,7 +31,7 @@ export const HTTP_MESSAGE_TEXTS = {
   csrf: '安全校验失败，请刷新页面后重试',
   /** 会话/令牌失效 */
   tokenExpired: '登录已过期，请重新登录',
-} as const;
+} as const
 
 /**
  * HTTP 状态码 → 中文文案（仅两侧一致的条目）。
@@ -45,7 +45,7 @@ export const HTTP_STATUS_MESSAGES: Readonly<Record<number, string>> = {
   409: HTTP_MESSAGE_TEXTS.conflict,
   429: HTTP_MESSAGE_TEXTS.rateLimited,
   500: HTTP_MESSAGE_TEXTS.internalServerError,
-};
+}
 
 /** 共享关键词匹配正则（两侧 source 完全一致的条目） */
 export const HTTP_MESSAGE_PATTERNS = {
@@ -69,4 +69,4 @@ export const HTTP_MESSAGE_PATTERNS = {
   csrf: /csrf/i,
   /** JWT / Token 失效类 */
   tokenExpired: /jwt expired|token expired|invalid token|jwt malformed/i,
-} as const;
+} as const

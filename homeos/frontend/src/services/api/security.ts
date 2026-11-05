@@ -27,23 +27,13 @@ export function runHazardDrill(kind: string, config?: AxiosRequestConfig) {
   return apiPost('/security/hazard/drill', { kind }, config)
 }
 
-
-
-
-
-
 /** 获取安防面板状态。 */
 export function fetchSecurityPanelStatus(config?: AxiosRequestConfig) {
   return apiGet('/security-panel/status', config)
 }
 
 /** 布防安防面板。 */
-export function armSecurityPanel(
-  mode: string,
-  zoneIds?: string[],
-  force = false,
-  config?: AxiosRequestConfig,
-) {
+export function armSecurityPanel(mode: string, zoneIds?: string[], force = false, config?: AxiosRequestConfig) {
   return apiPost('/security-panel/arm', { mode, zoneIds, force }, config)
 }
 
@@ -58,22 +48,11 @@ export function triggerSecurityEmergency(config?: AxiosRequestConfig) {
 }
 
 /** 更新安防面板防区配置。confirmClear=true 才允许清空全部防区。 */
-export function updateSecurityPanelZones(
-  zones: unknown[],
-  confirmClear = false,
-  config?: AxiosRequestConfig,
-) {
+export function updateSecurityPanelZones(zones: unknown[], confirmClear = false, config?: AxiosRequestConfig) {
   return apiPost('/security-panel/zones', { zones, confirmClear }, config)
 }
 
 /** 获取安防面板事件。 */
-export function fetchSecurityPanelEvents(
-  params?: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function fetchSecurityPanelEvents(params?: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiGet('/security-panel/events', { ...config, params: { ...config?.params, ...params } })
 }
-
-
-
-

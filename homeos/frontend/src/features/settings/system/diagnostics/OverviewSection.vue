@@ -450,14 +450,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import {
-  Activity,
-  RefreshCw,
-  AlertCircle,
-  Database,
-  Cpu,
-  Copy,
-} from '@lucide/vue'
+import { Activity, RefreshCw, AlertCircle, Database, Cpu, Copy } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
@@ -620,8 +613,7 @@ const configHealthDesc = computed(() => {
   const parts = []
   if (!ch.haConnected) parts.push('HA 未连接')
   if (ch.bindingGapCount > 0) parts.push(`绑定缺口 ${ch.bindingGapCount} 项`)
-  if (ch.placeholderAutomationCount > 0)
-    parts.push(`占位自动化 ${ch.placeholderAutomationCount} 条`)
+  if (ch.placeholderAutomationCount > 0) parts.push(`占位自动化 ${ch.placeholderAutomationCount} 条`)
   if (ch.placeholderSceneCount > 0) parts.push(`占位场景 ${ch.placeholderSceneCount} 条`)
   if (ch.advisorActionsBound === 0) parts.push('顾问快捷动作未绑定')
   return parts.length ? parts.join('；') : '绑定与联动配置良好'

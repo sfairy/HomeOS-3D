@@ -82,10 +82,8 @@ export function useMediaPlayerModalDisplay(deps: MediaPlayerModalDisplayDeps) {
 
   const metaChips = computed(() => {
     const chips: Array<{ key: string; label: string; value: string }> = []
-    if (mediaArtist.value)
-      chips.push({ key: 'artist', label: mediaArtist.value, value: mediaArtist.value })
-    if (mediaAlbum.value)
-      chips.push({ key: 'album', label: mediaAlbum.value, value: mediaAlbum.value })
+    if (mediaArtist.value) chips.push({ key: 'artist', label: mediaArtist.value, value: mediaArtist.value })
+    if (mediaAlbum.value) chips.push({ key: 'album', label: mediaAlbum.value, value: mediaAlbum.value })
     if (appName.value) chips.push({ key: 'app', label: appName.value, value: appName.value })
     return chips
   })

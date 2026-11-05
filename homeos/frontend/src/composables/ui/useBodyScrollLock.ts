@@ -33,11 +33,7 @@ export function getBodyScrollLockState(): BodyScrollLockState {
     count: lockCount,
     holders: labels,
     // 匿名持有者共用占位标签，按标签判重会误报，故排除（与告警门槛保持一致）。
-    duplicates: [
-      ...new Set(
-        labels.filter((label, i) => label !== ANONYMOUS && labels.indexOf(label) !== i),
-      ),
-    ],
+    duplicates: [...new Set(labels.filter((label, i) => label !== ANONYMOUS && labels.indexOf(label) !== i))],
   }
 }
 
@@ -98,9 +94,7 @@ function acquireBodyScrollLock(label: string = ANONYMOUS): () => void {
  * @param currentId - 本次持锁的 id（从重复结果里排除自己）
  */
 function warnOnDuplicateHolder(label: string, currentId: number): void {
-  const sameLabel = [...holders.entries()].filter(
-    ([id, holder]) => holder === label && id !== currentId,
-  )
+  const sameLabel = [...holders.entries()].filter(([id, holder]) => holder === label && id !== currentId)
   if (sameLabel.length === 0) return
   console.warn(
     `[useBodyScrollLock] 同一来源重复加锁：${label}（当前 ${sameLabel.length + 1} 次）。` +
@@ -115,10 +109,7 @@ function warnOnDuplicateHolder(label: string, currentId: number): void {
  * @param label - 来源标签，只用于诊断（重复检测 + 状态快照）
  * @sideEffect 挂载时按当前可见状态加锁；此后监听 active 变化；卸载时兜底释放，避免锁泄漏。
  */
-export function useBodyScrollLock(
-  active: Ref<boolean> | { readonly value: boolean },
-  label: string = ANONYMOUS,
-) {
+export function useBodyScrollLock(active: Ref<boolean> | { readonly value: boolean }, label: string = ANONYMOUS) {
   let release: (() => void) | null = null
   /** 是否已挂载：挂载前不取锁，理由见文件头「看门狗 1」。 */
   let mounted = false

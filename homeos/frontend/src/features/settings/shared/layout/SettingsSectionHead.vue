@@ -41,7 +41,5 @@ const props = defineProps({
   orbClass: { type: String, default: 'bg-white/[0.04] border border-white/[0.06]' },
 })
 
-const resolvedIcon = computed(
-  () => props.icon || (props.iconKey ? SETTINGS_HEADER_ICONS[props.iconKey] : null) || null,
-)
+const resolvedIcon = computed(() => props.icon || (props.iconKey ? SETTINGS_HEADER_ICONS[props.iconKey] : null) || null)
 </script>

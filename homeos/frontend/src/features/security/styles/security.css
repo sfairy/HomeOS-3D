@@ -1,6 +1,6 @@
 /* 合并自：安防域样式 */
 /* token 仍通过下方 @import 共享 */
-@import '../../../features/settings/shared/styles/settings-tokens.css';
+@import "../../../features/settings/shared/styles/settings-tokens.css";
 
 /* ── security-layout.css ── */
 /* 安防中心 — 内容区布局（头标签对齐 list-page / 生活中心） */
@@ -17,8 +17,7 @@
   line-height: 1.25;
   color: var(--page-accent-text);
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(var(--page-accent-rgb), 0.14) 0%, transparent 70%),
-    var(--page-accent-bg);
+    radial-gradient(ellipse at 50% 0%, rgba(var(--page-accent-rgb), 0.14) 0%, transparent 70%), var(--page-accent-bg);
   border: var(--hos-hairline) solid var(--page-accent-border);
   cursor: pointer;
   white-space: nowrap;
@@ -76,26 +75,12 @@
     transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-
-
-
 .sec-alert-banner-title {
   font-size: var(--premium-fs-caption);
   font-weight: 800;
   color: var(--set-danger);
   line-height: 1.2;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 /* ── security-sov-panel.css ── */
 /* 安防总览 / 审计面板 — 共用 premium 玻璃面板 */
@@ -104,15 +89,8 @@
   flex: 1;
 }
 
-
-
-
-
-
 /* ── security-hub.css ── */
 /* ── 指挥中枢 ── */
-
-
 
 .sec-mode-segment {
   flex: 1;
@@ -126,8 +104,6 @@
   background: rgba(0, 0, 0, 0.28);
   border: var(--hos-hairline) solid var(--premium-border);
 }
-
-
 
 .sec-mode-btn--active {
   color: var(--hos-on-accent);
@@ -143,16 +119,8 @@
   line-height: 1.1;
 }
 
-
-
-
-
 /* ── security-audit-list.css ── */
 /* ── 审计日志 ── */
-
-
-
-
 
 .sec-event-refresh {
   display: flex;
@@ -172,9 +140,6 @@
 /* ── security-sensors.css ── */
 /* ── 传感器列表 ── */
 
-
-
-
 .sec-sensor-row {
   display: flex;
   align-items: center;
@@ -183,15 +148,13 @@
   border-radius: var(--hos-radius-card);
   margin-bottom: 3px;
   border: var(--hos-hairline) solid transparent;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
-
-
-
 
 /* ── security-zones.css ── */
 /* ── 安防区域 ── */
-
 
 .sec-zone-list {
   padding: 4px 0 16px;
@@ -199,8 +162,12 @@
   overflow-y: auto;
 }
 
-.sec-zone-state.is-armed { color: rgba(var(--set-danger-rgb), 0.85); }
-.sec-zone-state.is-ok { color: rgba(var(--set-success-rgb), 0.65); }
+.sec-zone-state.is-armed {
+  color: rgba(var(--set-danger-rgb), 0.85);
+}
+.sec-zone-state.is-ok {
+  color: rgba(var(--set-success-rgb), 0.65);
+}
 
 /* ── security-zones-editor.css ── */
 /** 安防区域编辑器 — 总览 / 浮动组件共用 */
@@ -217,7 +184,6 @@
   font-size: var(--premium-fs-micro);
 }
 
-
 .sz-editor__toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -228,7 +194,6 @@
 .sz-editor--widget .sz-editor__toolbar {
   padding: 0 0 10px;
 }
-
 
 /* 空状态 — 区域编辑器 */
 .sz-empty {
@@ -270,8 +235,15 @@
 }
 
 @keyframes sz-empty-ring {
-  0%, 100% { transform: scale(1); opacity: 0.85; }
-  50% { transform: scale(1.06); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
 }
 
 .sz-empty__title {
@@ -393,14 +365,17 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%),
-    rgba(0, 0, 0, 0.18);
-  transition: border-color 0.2s, box-shadow 0.2s;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(0, 0, 0, 0.18);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .sz-zone-card--focus {
   border-color: rgba(var(--page-accent-rgb), 0.45);
-  box-shadow: 0 0 0 1px rgba(var(--page-accent-rgb), 0.12), 0 8px 24px rgba(var(--page-accent-rgb), 0.1);
+  box-shadow:
+    0 0 0 1px rgba(var(--page-accent-rgb), 0.12),
+    0 8px 24px rgba(var(--page-accent-rgb), 0.1);
 }
 
 .sz-editor--widget .sz-zone-card {
@@ -427,7 +402,9 @@
   background: rgba(var(--set-danger-rgb), 0.08);
   color: var(--set-danger);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   flex-shrink: 0;
 }
 
@@ -476,7 +453,10 @@
   color: rgba(255, 255, 255, 0.88);
   font-size: var(--premium-fs-micro);
   line-height: 1.2;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
 }
 
 .sz-editor--widget .sz-zone-field__input,
@@ -494,10 +474,10 @@
 .sz-zone-field__select:focus {
   border-color: rgba(var(--page-accent-rgb), 0.38);
   background: rgba(0, 0, 0, 0.36);
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
   box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.08);
 }
-
 
 .sz-zone-card__sensors {
   display: flex;
@@ -545,7 +525,10 @@
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.62);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .sz-zone-sensor-chip:disabled {
@@ -595,8 +578,6 @@
   margin-bottom: 6px;
 }
 
-
-
 .sz-zone-add {
   width: 100%;
   height: 36px;
@@ -607,7 +588,9 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .sz-zone-add:hover {
@@ -713,7 +696,6 @@
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.28);
 }
 
-
 .sov-zones__view-tabs {
   display: inline-flex;
   gap: 4px;
@@ -737,7 +719,10 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  transition:
+    background 0.18s,
+    color 0.18s,
+    box-shadow 0.18s;
 }
 
 .sov-zones__view-tab:hover {
@@ -750,15 +735,11 @@
   box-shadow: 0 2px 12px rgba(var(--page-accent-rgb), 0.15);
 }
 
-
-
 .sov-zones__save {
   min-width: 108px;
   font-weight: 800 !important;
   box-shadow: 0 4px 20px rgba(var(--page-accent-rgb), 0.25);
 }
-
-
 
 /* ── 侧栏 Tab ── */
 .sov-sidebar {
@@ -770,11 +751,12 @@
   border-radius: var(--sec-dash-radius);
   border: var(--hos-hairline) solid var(--sec-dash-border);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%),
-    rgba(8, 10, 18, 0.62);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(8, 10, 18, 0.62);
   backdrop-filter: var(--premium-blur);
   -webkit-backdrop-filter: var(--premium-blur);
-  box-shadow: var(--premium-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow:
+    var(--premium-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .sov-sidebar__tabs {
@@ -798,7 +780,10 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   cursor: pointer;
-  transition: color 0.18s, background 0.18s, border-color 0.18s;
+  transition:
+    color 0.18s,
+    background 0.18s,
+    border-color 0.18s;
 }
 
 .sov-sidebar__tab:hover {
@@ -872,7 +857,9 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   background: rgba(0, 0, 0, 0.28);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .sov-sensor-search:focus-within {
@@ -918,7 +905,11 @@
   background: rgba(255, 255, 255, 0.03);
   color: var(--hos-text-secondary);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.12s;
 }
 
 .sov-pill:hover {
@@ -948,7 +939,6 @@
   scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
 }
 
-
 .sov-sensor-list {
   list-style: none;
   margin: 0;
@@ -966,7 +956,10 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border);
   background: rgba(255, 255, 255, 0.025);
-  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.12s;
 }
 
 .sov-sensor-card:hover {
@@ -1051,8 +1044,15 @@
 }
 
 @keyframes sov-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.65; transform: scale(0.88); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(0.88);
+  }
 }
 
 .sov-audit-embed {
@@ -1082,9 +1082,10 @@
   border-radius: var(--hos-radius-card);
   border-color: var(--premium-border-strong);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%),
-    rgba(0, 0, 0, 0.22);
-  transition: border-color 0.18s, box-shadow 0.18s;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(0, 0, 0, 0.22);
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
 }
 
 .sz-editor--embedded .sz-zone-card:hover {
@@ -1204,8 +1205,7 @@
 .sec-segment-btn--active {
   color: var(--hos-on-accent);
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 70%),
-    rgba(255, 255, 255, 0.1);
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 70%), rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
 }
@@ -1290,7 +1290,6 @@
   --sec-btn-ease: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-
 /* 总览主体区占满剩余高度，内部各栏自行滚动 */
 .sec-dash-workspace {
   flex: 1;
@@ -1353,8 +1352,6 @@
   color: var(--set-warn);
 }
 
-
-
 .sec-dash-notice-text {
   flex: 1;
   font-size: var(--premium-fs-caption);
@@ -1370,7 +1367,10 @@
   background: rgba(var(--set-warn-rgb), 0.1);
   border: var(--hos-hairline) solid rgba(var(--set-warn-rgb), 0.22);
   cursor: pointer;
-  transition: background var(--sec-btn-ease), color var(--sec-btn-ease), border-color var(--sec-btn-ease);
+  transition:
+    background var(--sec-btn-ease),
+    color var(--sec-btn-ease),
+    border-color var(--sec-btn-ease);
 }
 
 .sec-dash-notice-link:hover {
@@ -1378,8 +1378,6 @@
   background: rgba(var(--set-warn-rgb), 0.16);
   border-color: rgba(var(--set-warn-rgb), 0.35);
 }
-
-
 
 /* ── 危险传感器联动卡片 ── */
 .sec-dash-hazard {
@@ -1520,7 +1518,9 @@
   overflow: hidden;
   backdrop-filter: var(--premium-blur);
   -webkit-backdrop-filter: var(--premium-blur);
-  box-shadow: var(--premium-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow:
+    var(--premium-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   flex-shrink: 0;
 }
 
@@ -1680,7 +1680,8 @@
 }
 
 @keyframes sec-dash-ring-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring, var(--page-accent)) 0%, rgba(0, 0, 0, 0));
     border-color: color-mix(in srgb, var(--ring, var(--page-accent)) 35%, rgba(0, 0, 0, 0));
   }
@@ -1690,10 +1691,18 @@
   }
 }
 
-.sec-dash-status--disarmed { background: rgba(var(--set-success-rgb), 0.06); }
-.sec-dash-status--home { background: rgba(var(--set-warn-rgb), 0.06); }
-.sec-dash-status--away { background: rgba(var(--set-danger-rgb), 0.06); }
-.sec-dash-status--night { background: rgba(var(--module-accent-scenes-rgb), 0.06); }
+.sec-dash-status--disarmed {
+  background: rgba(var(--set-success-rgb), 0.06);
+}
+.sec-dash-status--home {
+  background: rgba(var(--set-warn-rgb), 0.06);
+}
+.sec-dash-status--away {
+  background: rgba(var(--set-danger-rgb), 0.06);
+}
+.sec-dash-status--night {
+  background: rgba(var(--module-accent-scenes-rgb), 0.06);
+}
 
 .sec-dash-status-icon {
   width: 18px;
@@ -1752,7 +1761,10 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: background var(--sec-btn-ease), color var(--sec-btn-ease), border-color var(--sec-btn-ease);
+  transition:
+    background var(--sec-btn-ease),
+    color var(--sec-btn-ease),
+    border-color var(--sec-btn-ease);
 }
 
 .sec-dash-inline-link:hover {
@@ -1821,7 +1833,11 @@
   color: var(--hos-on-accent);
   border-color: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 45%, rgba(0, 0, 0, 0));
   background:
-    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--mode-accent, var(--page-accent)) 22%, rgba(0, 0, 0, 0)) 0%, transparent 70%),
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in srgb, var(--mode-accent, var(--page-accent)) 22%, rgba(0, 0, 0, 0)) 0%,
+      transparent 70%
+    ),
     color-mix(in srgb, var(--mode-accent, var(--page-accent)) 12%, rgba(0, 0, 0, 0));
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--mode-accent, var(--page-accent)) 18%, rgba(0, 0, 0, 0)),
@@ -1911,36 +1927,20 @@
   transform: none;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .sec-dash-panel {
   border-radius: var(--hos-radius-panel, 20px);
   border: var(--hos-hairline) solid var(--hos-border-subtle, var(--sec-dash-border));
   background: var(--hos-surface-panel);
   backdrop-filter: var(--premium-blur);
   -webkit-backdrop-filter: var(--premium-blur);
-  box-shadow: var(--hos-shadow-card, var(--premium-shadow)), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+  box-shadow:
+    var(--hos-shadow-card, var(--premium-shadow)), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-
 
 .sec-dash-panel--audit {
   min-height: 200px;
@@ -1975,7 +1975,6 @@
   background: rgba(255, 255, 255, 0.06);
   color: var(--hos-text-secondary);
 }
-
 
 .sec-dash-tool {
   font-size: var(--premium-fs-micro);
@@ -2119,16 +2118,18 @@
   background: rgba(var(--set-success-rgb), 0.1);
 }
 
-
-
 .sec-dash-zone-list {
   padding: 8px 10px 12px;
   max-height: 200px;
   overflow-y: auto;
 }
 
-.sec-dash-zone-state.is-armed { color: var(--set-danger); }
-.sec-dash-zone-state.is-ok { color: var(--set-success); }
+.sec-dash-zone-state.is-armed {
+  color: var(--set-danger);
+}
+.sec-dash-zone-state.is-ok {
+  color: var(--set-success);
+}
 
 .sec-dash-audit-filters {
   display: flex;
@@ -2177,7 +2178,10 @@
   font-size: var(--premium-fs-caption);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.02);
-  transition: background var(--set-transition-fast), border-color var(--set-transition-fast), transform var(--set-transition-fast);
+  transition:
+    background var(--set-transition-fast),
+    border-color var(--set-transition-fast),
+    transform var(--set-transition-fast);
 }
 
 .sec-dash-audit-item:hover {
@@ -2226,7 +2230,6 @@
   flex-shrink: 0;
 }
 
-
 /* 玻璃高光（安防总览子组件共用） */
 .sec-dash .glass-shine {
   position: relative;
@@ -2234,7 +2237,7 @@
 }
 
 .sec-dash .glass-shine::after {
-  content: '';
+  content: "";
   z-index: 2;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
   height: 1px;
@@ -2282,7 +2285,10 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .sz-chip-btn:hover {
@@ -2417,7 +2423,7 @@
 }
 
 .sz-master-detail .hm-item-nav__row::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 8px;
@@ -2517,7 +2523,9 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.025);
-  transition: border-color 0.18s, background 0.18s;
+  transition:
+    border-color 0.18s,
+    background 0.18s;
 }
 
 .szm-stat__val {
@@ -2644,14 +2652,23 @@
   height: 148px;
   border-radius: var(--hos-radius-panel);
   border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(110deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background: linear-gradient(
+    110deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
   background-size: 200% 100%;
   animation: szm-shimmer 1.2s ease-in-out infinite;
 }
 
 @keyframes szm-shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 .szm-grid {
@@ -2674,10 +2691,11 @@
   padding: 14px;
   border-radius: var(--hos-radius-panel);
   border: var(--hos-hairline) solid var(--premium-border-strong);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%),
-    rgba(0, 0, 0, 0.2);
-  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s,
+    transform 0.15s;
 }
 
 .szm-card:hover {
@@ -2687,7 +2705,9 @@
 
 .szm-card--armed {
   border-color: rgba(var(--set-danger-rgb), 0.32);
-  box-shadow: 0 0 0 1px rgba(var(--set-danger-rgb), 0.08), 0 12px 28px rgba(var(--set-danger-rgb), 0.08);
+  box-shadow:
+    0 0 0 1px rgba(var(--set-danger-rgb), 0.08),
+    0 12px 28px rgba(var(--set-danger-rgb), 0.08);
 }
 
 .szm-card--alert {

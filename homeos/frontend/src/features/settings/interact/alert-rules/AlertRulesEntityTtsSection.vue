@@ -238,11 +238,7 @@ const entityTtsFlowSummary = computed(() => {
 
 const existingEntityIds = computed(() => {
   const data = unref(voice)
-  return new Set(
-    (data?.entityTtsAlerts || [])
-      .map((rule) => String(rule.entityId || '').trim())
-      .filter(Boolean),
-  )
+  return new Set((data?.entityTtsAlerts || []).map((rule) => String(rule.entityId || '').trim()).filter(Boolean))
 })
 
 const { statsLoading, recommendations, applyChip, applyAll, refresh } = useAlertRulesRecommend(

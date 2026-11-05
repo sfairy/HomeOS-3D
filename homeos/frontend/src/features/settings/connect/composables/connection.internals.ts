@@ -64,11 +64,15 @@ export function useConnectionPanel(activeTab: () => string) {
   } = entities
 
   // 第三参数：确认离开后从 store 重新读取 HA 配置，丢弃凭证草稿
-  useRegisterSettingsTabPending('connection', () => pendingChanges.value > 0, () => {
-    snapshotHaConfigFromStore()
-    testResult.value = null
-    saveFeedback.value = null
-  })
+  useRegisterSettingsTabPending(
+    'connection',
+    () => pendingChanges.value > 0,
+    () => {
+      snapshotHaConfigFromStore()
+      testResult.value = null
+      saveFeedback.value = null
+    },
+  )
 
   const connSections = computed(() => connTabs.value)
 
@@ -124,8 +128,3 @@ export function useConnectionPanel(activeTab: () => string) {
     cancelChanges,
   }
 }
-
-
-
-
-

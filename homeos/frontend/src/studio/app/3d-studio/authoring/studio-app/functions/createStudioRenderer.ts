@@ -1,99 +1,111 @@
+import { createEffectCache as createEffectCache2 } from '../../studio-effect-cache'
+import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from '../../studio-preview-resources'
+import { createContextResourceTracker } from '../../studio-context-resources'
 
-
-
-
-
-
-
-
-import { createEffectCache as createEffectCache2 } from "../../studio-effect-cache";
-import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from "../../studio-preview-resources";
-import { createContextResourceTracker } from "../../studio-context-resources";
-
-
-
-
-
-
-
-
-
-
-
-
-import { createMotionBuffer as createMotionBuffer2 } from "../../scene/studio-motion-buffer";
-import { createBackgroundCache as createBackgroundCache2 } from "../../scene/studio-background-cache";
-import { stageStartup as stageStartup2 } from "../../../stage-startup";
-import { interactionResourcePolicy } from "../../../studio-resource-policy";
+import { createMotionBuffer as createMotionBuffer2 } from '../../scene/studio-motion-buffer'
+import { createBackgroundCache as createBackgroundCache2 } from '../../scene/studio-background-cache'
+import { stageStartup as stageStartup2 } from '../../../stage-startup'
+import { interactionResourcePolicy } from '../../../studio-resource-policy'
 import {
   installLightingShaderFailsafe,
   restoreLightingShaderChecksIfReady,
   type LightingShaderFailsafe,
-} from "./lighting-shader-failsafe";
+} from './lighting-shader-failsafe'
 
+import { createOverviewStack as createOverviewStack2 } from '../../scene/studio-overview-stack'
 
+import { createDemandFrameLoop as createDemandFrameLoop2 } from '../../../../bridge/scene/frame-loop'
+import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
+import { createSpotShadowAtlasController as createSpotShadowAtlasController2 } from '../../scene/studio-shadow-atlas'
+import { createRegionLightController as createRegionLightController2 } from '../../../plan/studio-plan2-region-lights'
+import { createContactShadowController as createContactShadowController2 } from '../../../plan/studio-plan2-contact-shadows'
+import { finite as finite2 } from '../../../loaders/studio-normalization'
 
+import type { StudioAppContext } from '../studio-app-context'
+export interface CreateStudioRendererDeps {
+  appCtx: StudioAppContext
+  beginMotionMeasurement: any
+  bindFrameDriver: any
+  canBuildScene: any
+  computeRenderPixelRatio: any
+  createOrbitControls: any
+  disposeShadowAtlas: any
+  effectCache: any
+  endMotionMeasurement: any
+  ensureDiagnosticsHud: any
+  getPreviewFloorMode: any
+  hasPendingSceneWork: any
+  isEmbedStageMode: any
+  isEmbeddedStage: any
+  isPerformanceDiagnostics: any
+  isRenderStatsTest: any
+  lampsLayerIndex: any
+  needsMotionPresentation: any
+  planToWorldPoint: any
+  previewResources: any
+  publishModelLoadState: any
+  publishRenderStats: any
+  recordFrameTime: any
+  recordRenderTiming: any
+  refreshBaseLighting: any
+  renderStudioFrame: any
+  resizeStudioRenderer: any
+  scheduleLightPrecompile: any
+  scheduleStudioRender: any
+  selectElement: any
+  setShadowFreeze: any
+  setupSceneShadows: (root: unknown, options?: { rebuildAtlas?: boolean }) => number
+  syncCameraModeControls: any
+  syncCameraViewControls: any
+  updateCameraView: any
+  updateMotionStats: any
+  updateRenderStatsHud: any
+}
 
+export function createStudioRenderer(deps: CreateStudioRendererDeps) {
+  const {
+    appCtx,
+    beginMotionMeasurement,
+    bindFrameDriver,
+    canBuildScene,
+    computeRenderPixelRatio,
+    createOrbitControls,
+    disposeShadowAtlas,
+    endMotionMeasurement,
+    ensureDiagnosticsHud,
+    getPreviewFloorMode,
+    hasPendingSceneWork,
+    isEmbedStageMode,
+    isEmbeddedStage,
+    isPerformanceDiagnostics,
+    isRenderStatsTest,
+    lampsLayerIndex,
+    needsMotionPresentation,
+    planToWorldPoint,
+    publishModelLoadState,
+    publishRenderStats,
+    recordFrameTime,
+    recordRenderTiming,
+    refreshBaseLighting,
+    renderStudioFrame,
+    resizeStudioRenderer,
+    scheduleLightPrecompile,
+    scheduleStudioRender,
+    selectElement,
+    setShadowFreeze,
+    setupSceneShadows,
+    syncCameraModeControls,
+    syncCameraViewControls,
+    updateCameraView,
+    updateMotionStats,
+    updateRenderStatsHud,
+  } = deps
 
-import { createOverviewStack as createOverviewStack2 } from "../../scene/studio-overview-stack";
-
-
-
-
-
-
-import { createDemandFrameLoop as createDemandFrameLoop2 } from "../../../../bridge/scene/frame-loop";
-import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { createSpotShadowAtlasController as createSpotShadowAtlasController2 } from "../../scene/studio-shadow-atlas";
-import { createRegionLightController as createRegionLightController2 } from "../../../plan/studio-plan2-region-lights";
-import { createContactShadowController as createContactShadowController2 } from "../../../plan/studio-plan2-contact-shadows";
-import {
-  finite as finite2,
-} from "../../../loaders/studio-normalization";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import type { StudioAppContext } from "../studio-app-context";
-export interface CreateStudioRendererDeps { appCtx: StudioAppContext; beginMotionMeasurement: any; bindFrameDriver: any; canBuildScene: any; computeRenderPixelRatio: any; createOrbitControls: any; disposeShadowAtlas: any; effectCache: any; endMotionMeasurement: any; ensureDiagnosticsHud: any; getPreviewFloorMode: any; hasPendingSceneWork: any; isEmbedStageMode: any; isEmbeddedStage: any; isPerformanceDiagnostics: any; isRenderStatsTest: any; lampsLayerIndex: any; needsMotionPresentation: any; planToWorldPoint: any; previewResources: any; publishModelLoadState: any; publishRenderStats: any; recordFrameTime: any; recordRenderTiming: any; refreshBaseLighting: any; renderStudioFrame: any; resizeStudioRenderer: any; scheduleLightPrecompile: any; scheduleStudioRender: any; selectElement: any; setShadowFreeze: any; setupSceneShadows: (root: unknown, options?: { rebuildAtlas?: boolean }) => number; syncCameraModeControls: any; syncCameraViewControls: any; updateCameraView: any; updateMotionStats: any; updateRenderStatsHud: any; }
-
-export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
-  const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, setupSceneShadows, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
-
-  let disposeRendererEvents: (() => void) | null = null;
+  let disposeRendererEvents: (() => void) | null = null
   /** 灯光补丁编译兜底（见 `lighting-shader-failsafe.ts`）；渲染器建好之后才注册。 */
-  let lightingShaderFailsafe: LightingShaderFailsafe | null = null;
-  const previewViewportElement = selectElement("#preview-3d");
+  let lightingShaderFailsafe: LightingShaderFailsafe | null = null
+  const previewViewportElement = selectElement('#preview-3d')
   /**
    * 创建 WebGL 渲染器，失败时逐步降级。
    *
@@ -103,39 +115,38 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
    */
   function createRendererWithFallback() {
     const attempts = [
-      { antialias: true, alpha: true, powerPreference: "high-performance" },
-      { antialias: false, alpha: true, powerPreference: "default" },
+      { antialias: true, alpha: true, powerPreference: 'high-performance' },
+      { antialias: false, alpha: true, powerPreference: 'default' },
       { antialias: false, alpha: true },
-    ] as const;
-    let lastError: unknown = null;
+    ] as const
+    let lastError: unknown = null
     for (let index = 0; index < attempts.length; index += 1) {
       try {
-        const renderer = new ns2.WebGLRenderer(attempts[index] as any);
+        const renderer = new ns2.WebGLRenderer(attempts[index] as any)
         if (index > 0) {
-          window.HomeOSLog?.warn?.("3D 渲染器已降级创建", {
-            phase: "studio-webgl-fallback",
+          window.HomeOSLog?.warn?.('3D 渲染器已降级创建', {
+            phase: 'studio-webgl-fallback',
             attempt: index,
-          })!;
+          })!
         }
-        return renderer;
+        return renderer
       } catch (rendererError: unknown) {
-        lastError = rendererError;
+        lastError = rendererError
         window.HomeOSLog?.warn?.(rendererError, {
-          phase: "studio-webgl-attempt",
+          phase: 'studio-webgl-attempt',
           attempt: index,
-        })!;
+        })!
       }
     }
-    throw lastError || new Error("无法创建 WebGL 渲染器");
+    throw lastError || new Error('无法创建 WebGL 渲染器')
   }
   try {
-    ((appCtx.threeScene = new ns2.Scene()),
+    ;(appCtx.threeScene = new ns2.Scene()),
       (appCtx.threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.05, 200)),
       appCtx.threeCamera.layers.enable(lampsLayerIndex),
       (appCtx.threeRenderer = createRendererWithFallback()),
       // 0.8.1：非嵌入舞台（= 编辑态）才追踪上下文资源；嵌入舞台用的是宿主页面共享的渲染上下文。
-      isEmbedStageMode ||
-        (appCtx.contextResources = createContextResourceTracker(appCtx.threeRenderer)),
+      isEmbedStageMode || (appCtx.contextResources = createContextResourceTracker(appCtx.threeRenderer)),
       // 灯光补丁的编译兜底会临时打开 checkShaderErrors（见 installLightingShaderFailsafe），
       // 所以舞台上的 `checkShaderErrors = false` 也交给它统一管。
       (lightingShaderFailsafe = installLightingShaderFailsafe({
@@ -155,9 +166,9 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
           maxSamples: interactionResourcePolicy.motion.maxSamples,
         })),
         window.addEventListener(
-          "pagehide",
+          'pagehide',
           () => {
-            (disposeShadowAtlas(), appCtx.shadowAtlasCanvas.dispose());
+            disposeShadowAtlas(), appCtx.shadowAtlasCanvas.dispose()
           },
           {
             once: true,
@@ -170,8 +181,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
        * `castShadow = true`，此前只是被 `shadowMap.enabled = false` 一刀关掉。
        * 打开之后墙/地/家具才第一次互相投影 —— 这是「墙面发平」的主因。
        */
-      (appCtx.threeRenderer.shadowMap.enabled =
-        !isEmbedStageMode || interactionResourcePolicy.stageSunShadow.enabled),
+      (appCtx.threeRenderer.shadowMap.enabled = !isEmbedStageMode || interactionResourcePolicy.stageSunShadow.enabled),
       (appCtx.threeRenderer.shadowMap.type = ns2.VSMShadowMap),
       previewViewportElement.append(appCtx.threeRenderer.domElement),
       isEmbeddedStage &&
@@ -183,13 +193,11 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
           THREE: ns2,
           renderer: appCtx.threeRenderer,
         })),
-        (deps.previewResources = createPreviewResourceHandoff2((resource: any) =>
-          resource?.dispose?.(),
-        )),
+        (deps.previewResources = createPreviewResourceHandoff2((resource: any) => resource?.dispose?.())),
         window.addEventListener(
-          "pagehide",
+          'pagehide',
           () => {
-            (appCtx.compiledShaderCache?.dispose(), deps.effectCache?.dispose(), deps.previewResources?.release());
+            appCtx.compiledShaderCache?.dispose(), deps.effectCache?.dispose(), deps.previewResources?.release()
           },
           {
             once: true,
@@ -198,7 +206,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       ensureDiagnosticsHud(),
       (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
       publishModelLoadState(),
-      syncCameraModeControls("orthographic"),
+      syncCameraModeControls('orthographic'),
       syncCameraViewControls(),
       (appCtx.hemisphereLight = new ns2.HemisphereLight(12504556, 1515053, 1.12)),
       appCtx.hemisphereLight.layers.enable(lampsLayerIndex),
@@ -215,8 +223,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       ),
       isEmbedStageMode &&
         ((appCtx.mainDirectionalLight.shadow.bias = interactionResourcePolicy.stageSunShadow.bias),
-        (appCtx.mainDirectionalLight.shadow.normalBias =
-          interactionResourcePolicy.stageSunShadow.normalBias),
+        (appCtx.mainDirectionalLight.shadow.normalBias = interactionResourcePolicy.stageSunShadow.normalBias),
         // 静态：只在场景重建（`setupSceneShadows` 会打 needsUpdate）与交互期由
         // `setShadowsEnabled` 放开，日常帧不重渲阴影图。
         (appCtx.threeRenderer.shadowMap.autoUpdate = false)),
@@ -237,12 +244,12 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       appCtx.topDirectionalLight.layers.enable(lampsLayerIndex),
       appCtx.threeScene.add(appCtx.topDirectionalLight),
       (appCtx.sceneRootNode = new ns2.Group()),
-      appCtx.threeScene.add(appCtx.sceneRootNode));
+      appCtx.threeScene.add(appCtx.sceneRootNode)
     let previousOverviewSource: any,
       previousOverviewGap: any,
       overviewStackCenter = [0, 0, 0],
-      floorBoundsById = new Map();
-    ((appCtx.overviewStackController = createOverviewStack2({
+      floorBoundsById = new Map()
+    ;(appCtx.overviewStackController = createOverviewStack2({
       THREE: ns2,
       renderer: appCtx.threeRenderer,
       scene: appCtx.threeScene,
@@ -251,33 +258,28 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
         const overviewFloors = appCtx.studioProject?.floors || [],
           overviewFloorGap = appCtx.pendingRuntimeSettings
             ? finite2(appCtx.studioProject?.exportFloorGap, 3)
-            : finite2(appCtx.studioProject?.previewFloorGap, 3);
+            : finite2(appCtx.studioProject?.previewFloorGap, 3)
         if (
           appCtx.studioProject?.uniformOverviewStack &&
           (previousOverviewSource !== appCtx.studioProject || previousOverviewGap !== appCtx.sceneRevisionCount)
         ) {
-          const overviewBoundsBox = new ns2.Box3();
-          floorBoundsById = new Map();
+          const overviewBoundsBox = new ns2.Box3()
+          floorBoundsById = new Map()
           for (const overviewFloor of overviewFloors) {
-            const floorBoundsPoints: any[] = [];
+            const floorBoundsPoints: any[] = []
             for (const floorWall of overviewFloor.scene.walls)
               for (const wallEndpoint of [floorWall.start, floorWall.end]) {
-                const $a3 = planToWorldPoint(overviewFloor, wallEndpoint);
-                (overviewBoundsBox.expandByPoint(new ns2.Vector3($a3.x, 0, $a3.z)),
-                  floorBoundsPoints.push(
-                    [$a3.x, 0, $a3.z],
-                    [$a3.x, finite2(floorWall.height, 2.8), $a3.z],
-                  ));
+                const $a3 = planToWorldPoint(overviewFloor, wallEndpoint)
+                overviewBoundsBox.expandByPoint(new ns2.Vector3($a3.x, 0, $a3.z)),
+                  floorBoundsPoints.push([$a3.x, 0, $a3.z], [$a3.x, finite2(floorWall.height, 2.8), $a3.z])
               }
-            floorBoundsById.set(overviewFloor.id, floorBoundsPoints);
+            floorBoundsById.set(overviewFloor.id, floorBoundsPoints)
           }
-          ((overviewStackCenter = (
-            overviewBoundsBox.isEmpty()
-              ? new ns2.Vector3()
-              : overviewBoundsBox.getCenter(new ns2.Vector3())
+          ;(overviewStackCenter = (
+            overviewBoundsBox.isEmpty() ? new ns2.Vector3() : overviewBoundsBox.getCenter(new ns2.Vector3())
           ).toArray()),
             (previousOverviewSource = appCtx.studioProject),
-            (previousOverviewGap = appCtx.sceneRevisionCount));
+            (previousOverviewGap = appCtx.sceneRevisionCount)
         }
         return {
           enabled: appCtx.studioProject?.uniformOverviewStack === true,
@@ -289,11 +291,11 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
             ((overviewFloors.length - 1) * overviewFloorGap) / 2,
             overviewStackCenter[2],
           ],
-          amount: appCtx.animatedTransitionValue ?? (getPreviewFloorMode() === "all" ? 1 : 0),
-        };
+          amount: appCtx.animatedTransitionValue ?? (getPreviewFloorMode() === 'all' ? 1 : 0),
+        }
       },
     })),
-      window.addEventListener("pagehide", () => appCtx.overviewStackController?.dispose(), {
+      window.addEventListener('pagehide', () => appCtx.overviewStackController?.dispose(), {
         once: true,
       }),
       isEmbedStageMode
@@ -350,45 +352,38 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
       refreshBaseLighting(),
       (appCtx.resizeObserverInstance = new ResizeObserver(() => resizeStudioRenderer())),
       appCtx.resizeObserverInstance.observe(previewViewportElement),
-      updateCameraView());
+      updateCameraView()
     let lastStatsPublishMs = performance.now(),
-      lastMotionMs = -Infinity;
+      lastMotionMs = -Infinity
     const stepStudioFrame = (frameStepTimestamp = performance.now()) => {
-      if (!appCtx.threeRenderer) return;
-      restoreLightingShaderChecksIfReady(appCtx, lightingShaderFailsafe);
-      const frameStepDelta = Math.min(
-        Math.max((frameStepTimestamp - lastStatsPublishMs) / 1000, 0),
-        0.05,
-      );
+      if (!appCtx.threeRenderer) return
+      restoreLightingShaderChecksIfReady(appCtx, lightingShaderFailsafe)
+      const frameStepDelta = Math.min(Math.max((frameStepTimestamp - lastStatsPublishMs) / 1000, 0), 0.05)
       if (
         ((lastStatsPublishMs = frameStepTimestamp),
         document.hidden || (isEmbeddedStage && appCtx.isExternalModelPending))
       )
-        return Infinity;
-      const didControlsUpdate = appCtx.orbitControls.update(frameStepDelta);
-      didControlsUpdate && (lastMotionMs = frameStepTimestamp);
-      const renderWakeValue = frameStepTimestamp - lastMotionMs < 600 ? 0 : Infinity;
-      didControlsUpdate && (appCtx.isLightCacheReady = true);
-      const Kt3 = appCtx.isRenderSuppressed || didControlsUpdate || appCtx.isPrewarming;
+        return Infinity
+      const didControlsUpdate = appCtx.orbitControls.update(frameStepDelta)
+      didControlsUpdate && (lastMotionMs = frameStepTimestamp)
+      const renderWakeValue = frameStepTimestamp - lastMotionMs < 600 ? 0 : Infinity
+      didControlsUpdate && (appCtx.isLightCacheReady = true)
+      const Kt3 = appCtx.isRenderSuppressed || didControlsUpdate || appCtx.isPrewarming
       if (
         (updateMotionStats(frameStepTimestamp, Kt3),
         !appCtx.isLightCacheReady && !appCtx.isLightCacheDeferred && appCtx.isLightCachePending)
       )
-        return renderWakeValue;
-      const qr2 = appCtx.isLightCacheReady || !appCtx.isLightCachePending;
-      appCtx.isLightCacheReady = appCtx.isLightCacheDeferred = false;
+        return renderWakeValue
+      const qr2 = appCtx.isLightCacheReady || !appCtx.isLightCachePending
+      appCtx.isLightCacheReady = appCtx.isLightCacheDeferred = false
       const yy2 = beginMotionMeasurement(Kt3),
-        motionMeasureStartMs = isPerformanceDiagnostics ? performance.now() : 0;
-      setShadowFreeze(qr2);
-      const motionMeasureMs = isPerformanceDiagnostics
-        ? performance.now() - motionMeasureStartMs
-        : 0;
-      (endMotionMeasurement(yy2),
+        motionMeasureStartMs = isPerformanceDiagnostics ? performance.now() : 0
+      setShadowFreeze(qr2)
+      const motionMeasureMs = isPerformanceDiagnostics ? performance.now() - motionMeasureStartMs : 0
+      endMotionMeasurement(yy2),
         recordRenderTiming(frameStepTimestamp, motionMeasureMs, Kt3),
-        isPerformanceDiagnostics &&
-          renderWakeValue === Infinity &&
-          publishRenderStats(frameStepTimestamp, true));
-      const render = appCtx.threeRenderer.info.render;
+        isPerformanceDiagnostics && renderWakeValue === Infinity && publishRenderStats(frameStepTimestamp, true)
+      const render = appCtx.threeRenderer.info.render
       if (
         ((appCtx.threeRenderer.domElement.dataset.renderCalls = String(render.calls)),
         (appCtx.threeRenderer.domElement.dataset.renderTriangles = String(render.triangles)),
@@ -399,48 +394,46 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
           ...appCtx.threeRenderer.info.memory,
           programs: appCtx.threeRenderer.info.programs?.length,
           contact: appCtx.contactShadowController?.stats,
-        });
+        })
         appCtx.threeRenderer.domElement.dataset.renderResources !== stringify &&
-          (appCtx.threeRenderer.domElement.dataset.renderResources = stringify);
+          (appCtx.threeRenderer.domElement.dataset.renderResources = stringify)
       }
       return (
         updateRenderStatsHud(),
         recordFrameTime(),
         (appCtx.isLightCachePending = true),
-        isEmbeddedStage && appCtx.threeRenderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame")),
+        isEmbeddedStage && appCtx.threeRenderer.domElement.dispatchEvent(new Event('hb-i3d-camera-frame')),
         renderWakeValue
-      );
-    };
+      )
+    }
     {
       appCtx.lightingScheduler = createDemandFrameLoop2({
         // 0.8.4：按推进间隔对齐截止时间（舞台侧同款），避免 setTimeout 抖动顶帧。
         alignDeadlines: true,
         onWake() {
-          const publishNowMs = performance.now();
-          publishNowMs - lastStatsPublishMs > 50 && (lastStatsPublishMs = publishNowMs);
+          const publishNowMs = performance.now()
+          publishNowMs - lastStatsPublishMs > 50 && (lastStatsPublishMs = publishNowMs)
         },
         step(frameStepSeconds: any) {
           // 分类过渡期间顺带记录 GL 帧耗时（没有采样会话时为 null，`render()` 直接忽略）。
-          const categoryFrameStartedAt = appCtx.categoryDiagnostics?.startFrame?.() ?? null;
-          const frameStepResult = stepStudioFrame(frameStepSeconds);
+          const categoryFrameStartedAt = appCtx.categoryDiagnostics?.startFrame?.() ?? null
+          const frameStepResult = stepStudioFrame(frameStepSeconds)
           appCtx.categoryDiagnostics?.render?.(categoryFrameStartedAt, {
             calls: appCtx.threeRenderer?.info?.render?.calls ?? 0,
-          });
+          })
           return (
-            (appCtx.threeRenderer.domElement.dataset.renderFrameChecks = String(
-              appCtx.lightingScheduler.stats.frames,
-            )),
+            (appCtx.threeRenderer.domElement.dataset.renderFrameChecks = String(appCtx.lightingScheduler.stats.frames)),
             frameStepResult
-          );
+          )
         },
-      });
-      const rendererDomElement = appCtx.threeRenderer.domElement;
-      let rendererEventsDisposed = false;
+      })
+      const rendererDomElement = appCtx.threeRenderer.domElement
+      let rendererEventsDisposed = false
       const wakeStudio = () => appCtx.lightingScheduler.wake(),
         handlePageVisibility = () => {
-          lastStatsPublishMs = performance.now();
-          const tf4 = needsMotionPresentation();
-          (appCtx.lightingScheduler.setAvailable(tf4),
+          lastStatsPublishMs = performance.now()
+          const tf4 = needsMotionPresentation()
+          appCtx.lightingScheduler.setAvailable(tf4),
             tf4
               ? (appCtx.lightPrecompileController?.setContextLost(false),
                 renderStudioFrame(),
@@ -448,89 +441,87 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
               : (disposeShadowAtlas(),
                 appCtx.compiledShaderCache?.clear(),
                 window.clearTimeout(appCtx.renderCommitTimeoutId),
-                (appCtx.renderCommitTimeoutId = null)));
+                (appCtx.renderCommitTimeoutId = null))
         },
         handleParentVisibility = (visibilityEvent: any) => {
-          ((appCtx.isHighDetailQuality = visibilityEvent.detail === true),
+          ;(appCtx.isHighDetailQuality = visibilityEvent.detail === true),
             handlePageVisibility(),
-            appCtx.isHighDetailQuality && appCtx.isEnvironmentLoading && scheduleLightPrecompile());
+            appCtx.isHighDetailQuality && appCtx.isEnvironmentLoading && scheduleLightPrecompile()
         },
-        ev2 = bindFrameDriver(handlePageVisibility);
-      rendererDomElement.addEventListener("hb-i3d-parent-visibility", handleParentVisibility);
+        ev2 = bindFrameDriver(handlePageVisibility)
+      rendererDomElement.addEventListener('hb-i3d-parent-visibility', handleParentVisibility)
       for (const visibilityEventName of [
-        "pointerdown",
-        "pointermove",
-        "pointerup",
-        "pointercancel",
-        "wheel",
-        "keydown",
-        "keyup",
+        'pointerdown',
+        'pointermove',
+        'pointerup',
+        'pointercancel',
+        'wheel',
+        'keydown',
+        'keyup',
       ])
         rendererDomElement.addEventListener(visibilityEventName, wakeStudio, {
           passive: true,
-        });
-      document.addEventListener("visibilitychange", handlePageVisibility);
+        })
+      document.addEventListener('visibilitychange', handlePageVisibility)
       disposeRendererEvents = () => {
-        if (rendererEventsDisposed) return;
-        rendererEventsDisposed = true;
-        ev2();
-        document.removeEventListener("visibilitychange", handlePageVisibility);
-        rendererDomElement.removeEventListener("hb-i3d-parent-visibility", handleParentVisibility);
+        if (rendererEventsDisposed) return
+        rendererEventsDisposed = true
+        ev2()
+        document.removeEventListener('visibilitychange', handlePageVisibility)
+        rendererDomElement.removeEventListener('hb-i3d-parent-visibility', handleParentVisibility)
         for (const removeEventName of [
-          "pointerdown",
-          "pointermove",
-          "pointerup",
-          "pointercancel",
-          "wheel",
-          "keydown",
-          "keyup",
+          'pointerdown',
+          'pointermove',
+          'pointerup',
+          'pointercancel',
+          'wheel',
+          'keydown',
+          'keyup',
         ])
-          rendererDomElement.removeEventListener(removeEventName, wakeStudio);
+          rendererDomElement.removeEventListener(removeEventName, wakeStudio)
         try {
-          appCtx.lightingScheduler?.dispose?.();
-          appCtx.lightPrecompileController?.dispose?.();
-          appCtx.regionLightController?.dispose?.();
-          appCtx.contactShadowController?.dispose?.();
+          appCtx.lightingScheduler?.dispose?.()
+          appCtx.lightPrecompileController?.dispose?.()
+          appCtx.regionLightController?.dispose?.()
+          appCtx.contactShadowController?.dispose?.()
           // 兜底注册的 onShaderError 闭包住整个 appCtx；不注销会在下一次引导里留着旧 handler。
-          (lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null));
+          lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null)
         } catch {
           /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失 */
         }
-      };
+      }
       // 整页卸载（pagehide）与 SPA 内显式回收都会走到同一个清理函数，重复调用是幂等的。
-      window.addEventListener("pagehide", disposeRendererEvents, { once: true });
-      handlePageVisibility();
-      wakeStudio();
+      window.addEventListener('pagehide', disposeRendererEvents, { once: true })
+      handlePageVisibility()
+      wakeStudio()
     }
   } catch (frameDriverError: unknown) {
     const frameDriverMessage =
-      frameDriverError instanceof Error
-        ? frameDriverError.message
-        : String(frameDriverError ?? "");
+      frameDriverError instanceof Error ? frameDriverError.message : String(frameDriverError ?? '')
     // 3D 初始化失败（真机上最常见的是 WebView 只给到 WebGL1，或根本没拿到 WebGL 上下文）。
     // 必须同时做两件事，否则用户只会看到整块空白：
     // 1) 在本 iframe 内露出 #webgl-message；
     // 2) 通过 type:"error" 通知宿主走 failSceneLoad —— 舞台 iframe 在 presented 之前是
     //    opacity:0 的，只做 (1) 用户依然一片空白。
-    const webglMessageElement = selectElement("#webgl-message") as HTMLElement | null;
-    if (webglMessageElement) webglMessageElement.hidden = false;
+    const webglMessageElement = selectElement('#webgl-message') as HTMLElement | null
+    if (webglMessageElement) webglMessageElement.hidden = false
     if (window.parent !== window) {
       window.parent.postMessage(
         {
-          channel: "hb-i3d-v1",
-          type: "error",
-          message: `3D 画面初始化失败：${frameDriverMessage || "WebGL 上下文不可用"}`,
+          channel: 'hb-i3d-v1',
+          type: 'error',
+          message: `3D 画面初始化失败：${frameDriverMessage || 'WebGL 上下文不可用'}`,
         },
         window.location.origin,
-      );
+      )
     }
     window.HomeOSLog?.error?.(frameDriverError, {
-      phase: "studio-webgl-init",
-    });
-    console.error(frameDriverError);
+      phase: 'studio-webgl-init',
+    })
+    console.error(frameDriverError)
     // 引导中途中止时渲染器可能已经建好：兜底 handler 也一并撤掉，避免挂到废弃上下文上。
-    (lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null));
+    lightingShaderFailsafe?.dispose(), (lightingShaderFailsafe = null)
   }
 
-  return disposeRendererEvents;
+  return disposeRendererEvents
 }

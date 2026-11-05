@@ -50,22 +50,14 @@ export function useSecurityEventsCalendar(eventsPath: Ref<string> | ComputedRef<
 
   const currentYear = computed(() => selectedDate.value.getFullYear())
   const currentMonth = computed(() => selectedDate.value.getMonth())
-  const calendarDays = computed(() =>
-    buildSecurityCalendarDays(currentYear.value, currentMonth.value),
-  )
+  const calendarDays = computed(() => buildSecurityCalendarDays(currentYear.value, currentMonth.value))
   const isSameDay = isSameCalendarDay
 
   const selectedDateStr = computed(() =>
-    formatLocaleDate(
-      selectedDate.value,
-      { year: 'numeric', month: '2-digit', day: '2-digit' },
-      'en-CA',
-    ),
+    formatLocaleDate(selectedDate.value, { year: 'numeric', month: '2-digit', day: '2-digit' }, 'en-CA'),
   )
   const dayEvents = computed(() => events.value.filter((event) => event.date === selectedDateStr.value))
-  const currentEventVideo = computed(() =>
-    resolveSecurityEventVideo(dayEvents.value[selectedEventIdx.value]),
-  )
+  const currentEventVideo = computed(() => resolveSecurityEventVideo(dayEvents.value[selectedEventIdx.value]))
 
   function clampSelectedEventIdx() {
     const max = Math.max(0, dayEvents.value.length - 1)
@@ -104,10 +96,7 @@ export function useSecurityEventsCalendar(eventsPath: Ref<string> | ComputedRef<
       const target = imgs[selectedEventIdx.value] as HTMLElement | undefined
       if (target) {
         thumbnailsContainerRef.value.scrollTo({
-          left:
-            target.offsetLeft -
-            thumbnailsContainerRef.value.offsetWidth / 2 +
-            target.offsetWidth / 2,
+          left: target.offsetLeft - thumbnailsContainerRef.value.offsetWidth / 2 + target.offsetWidth / 2,
           behavior: 'smooth',
         })
       }

@@ -22,14 +22,8 @@ const chimney = merge([
   b(CHIMNEY_W, H - CANOPY_H, CHIMNEY_D, 0, (H + CANOPY_H) / 2, BACK + CHIMNEY_D / 2),
   b(CHIMNEY_W - 0.02, 0.03, CHIMNEY_D - 0.02, 0, H - 0.015, BACK + CHIMNEY_D / 2),
 ])
-const canopy = merge([
-  b(W, CANOPY_H, D, 0, CANOPY_H / 2, 0),
-  b(W - 0.04, 0.05, D - 0.04, 0, CANOPY_H + 0.025, -0.01),
-])
-const trim = merge([
-  b(W, 0.02, D, 0, 0.01, 0),
-  b(W, 0.04, 0.02, 0, CANOPY_H - 0.02, D / 2 - 0.01),
-])
+const canopy = merge([b(W, CANOPY_H, D, 0, CANOPY_H / 2, 0), b(W - 0.04, 0.05, D - 0.04, 0, CANOPY_H + 0.025, -0.01)])
+const trim = merge([b(W, 0.02, D, 0, 0.01, 0), b(W, 0.04, 0.02, 0, CANOPY_H - 0.02, D / 2 - 0.01)])
 const filters = merge([
   b(W / 2 - 0.04, 0.008, D - 0.1, -W / 4, 0.026, 0.02),
   b(W / 2 - 0.04, 0.008, D - 0.1, W / 4, 0.026, 0.02),

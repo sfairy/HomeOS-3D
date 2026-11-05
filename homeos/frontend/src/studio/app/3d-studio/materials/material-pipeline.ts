@@ -11,24 +11,24 @@
  * 又抹掉作者意图）。现在脚本与运行时共用这一份，判定不再漂移。
  */
 
-import { DECOR_MODELS } from "../authoring/items/decor-models";
-import { COURTYARD_MODELS } from "../plan/courtyard-models";
-import { COLLECTION_MODELS } from "../loaders/external-models/collection-models";
-import { hasSemanticSlotRoles } from "./model-slot-roles";
-import { isStructuralModelFamily, resolveModelFamily } from "./studio-model-material-roles";
+import { DECOR_MODELS } from '../authoring/items/decor-models'
+import { COURTYARD_MODELS } from '../plan/courtyard-models'
+import { COLLECTION_MODELS } from '../loaders/external-models/collection-models'
+import { hasSemanticSlotRoles } from './model-slot-roles'
+import { isStructuralModelFamily, resolveModelFamily } from './studio-model-material-roles'
 import {
   applianceItemTypes,
   gardenItemTypes,
   paletteOverrideItemTypes,
   roleTableItemTypes,
   warmWoodFurnitureItemTypes,
-} from "../loaders/external-models/_shared";
+} from '../loaders/external-models/_shared'
 
 /**
  * 车辆家族：材质收尾由 `applyCarFinish` / `applyVehicleFinish` 接管，不吃调色板重建。
  */
 function isVehicleMaterialFamily(itemType: any): boolean {
-  return resolveModelFamily(itemType) === "vehicle";
+  return resolveModelFamily(itemType) === 'vehicle'
 }
 
 /**
@@ -37,18 +37,14 @@ function isVehicleMaterialFamily(itemType: any): boolean {
  * @param warmWood 当前配色档位是否为暖木色；这是唯一与调色板有关的条件，
  *   判「值会不会被读」时应两种档位都试一遍（`true` 命中即视为会重建）。
  */
-export function usesDetailMaterialPipeline(
-  itemType: any,
-  materialName: any,
-  warmWood: boolean,
-): boolean {
-  const lowerName = String(materialName || "").toLowerCase();
+export function usesDetailMaterialPipeline(itemType: any, materialName: any, warmWood: boolean): boolean {
+  const lowerName = String(materialName || '').toLowerCase()
   return (
     paletteOverrideItemTypes.has(itemType) ||
-    (itemType === "aquarium" && lowerName.startsWith("aquarium-aquatic-")) ||
+    (itemType === 'aquarium' && lowerName.startsWith('aquarium-aquatic-')) ||
     Boolean((COURTYARD_MODELS as any)[itemType]) ||
     Boolean((DECOR_MODELS as any)[itemType]) ||
-    lowerName.includes("-furniture-") ||
+    lowerName.includes('-furniture-') ||
     gardenItemTypes.has(itemType) ||
     applianceItemTypes.has(itemType) ||
     // 车辆（`smallcar`/`suv`/`scooter`）虽然登记了语义角色，但车漆、车窗、车灯、轮毂
@@ -59,7 +55,7 @@ export function usesDetailMaterialPipeline(
     (!isStructuralModelFamily(resolveModelFamily(itemType)) &&
       (roleTableItemTypes.has(itemType) || Boolean((COLLECTION_MODELS as any)[itemType]))) ||
     (warmWood && warmWoodFurnitureItemTypes.has(itemType))
-  );
+  )
 }
 
 /**
@@ -70,5 +66,5 @@ export function materialPbrIsReplaced(itemType: any, materialName: any): boolean
   return (
     usesDetailMaterialPipeline(itemType, materialName, true) ||
     usesDetailMaterialPipeline(itemType, materialName, false)
-  );
+  )
 }

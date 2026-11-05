@@ -182,9 +182,7 @@ export function useSecuritySensors() {
   const layoutStore = useLayoutStore()
 
   // 危险传感器绑定映射：entity_id -> HazardSensorKind
-  const hazardBindingMap = computed(() =>
-    buildHazardBindingMap(layoutStore.layoutConfig.haConfig || {}),
-  )
+  const hazardBindingMap = computed(() => buildHazardBindingMap(layoutStore.layoutConfig.haConfig || {}))
 
   // 全量传感器列表：绑定优先，未绑定按关键字分类
   const allSensors = computed(() => {
@@ -289,8 +287,7 @@ export function useSecuritySensors() {
   // 告警数：排除已确认的告警
   const alertCount = computed(
     () =>
-      allSensors.value.filter((sensor) => sensor.alert && !acknowledgedSensorIds.value.has(sensor.entity_id))
-        .length,
+      allSensors.value.filter((sensor) => sensor.alert && !acknowledgedSensorIds.value.has(sensor.entity_id)).length,
   )
   // 告警 Chip：按类型聚合计数
   const activeAlertChips = computed(() => {
@@ -345,10 +342,7 @@ export function useSecuritySensors() {
   })
   // 传感器过滤器：每类传感器的数量与告警数
   const sensorFilters = computed(() => {
-    const counts: Record<
-      string,
-      { key: string; label: string; count: number; alertCount: number }
-    > = {}
+    const counts: Record<string, { key: string; label: string; count: number; alertCount: number }> = {}
     for (const sensor of allSensors.value) {
       if (!counts[sensor.type]) {
         counts[sensor.type] = { key: sensor.type, label: sensor.label, count: 0, alertCount: 0 }
@@ -390,10 +384,7 @@ export function useSecuritySensors() {
 
   // 告警恢复（非告警边沿）后清掉确认标记：否则同一传感器下一次真实告警会被永久静音。
   watch(
-    () =>
-      allSensors.value
-        .filter((sensor) => sensor.alert)
-        .map((sensor) => sensor.entity_id),
+    () => allSensors.value.filter((sensor) => sensor.alert).map((sensor) => sensor.entity_id),
     (alertIds) => {
       if (acknowledgedSensorIds.value.size === 0) return
       const stillAlerting = new Set(alertIds)

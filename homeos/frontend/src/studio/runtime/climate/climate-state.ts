@@ -1,48 +1,37 @@
-import {
-  haNumber,
-  attributesOf,
-  featureFlags,
-  stringOptions,
-  fanCapabilities,
-} from "../device/entity-capabilities";
-const climateRendererModule = await (import("@app/renderer/controls/climate")),
-  waterHeaterRendererModule = await (import("@app/renderer/controls/water-heater"));
-export const { createWaterHeaterFeedback, waterHeaterCapabilities } = waterHeaterRendererModule;
+import { haNumber, attributesOf, featureFlags, stringOptions, fanCapabilities } from '../device/entity-capabilities'
+const climateRendererModule = await import('@app/renderer/controls/climate'),
+  waterHeaterRendererModule = await import('@app/renderer/controls/water-heater')
+export const { createWaterHeaterFeedback, waterHeaterCapabilities } = waterHeaterRendererModule
 export function waterHeaterCapabilityStatusLabel(entityState: any) {
-  const capabilities = waterHeaterRendererModule.waterHeaterCapabilities(entityState);
+  const capabilities = waterHeaterRendererModule.waterHeaterCapabilities(entityState)
   if (!capabilities.available)
-    return entityState?.state === "unavailable" || entityState?.available === false
-      ? "设备不可用"
-      : "状态未知";
-  if (capabilities.away) return "离家模式";
-  if (entityState.state === "off") return "已关闭";
-  const presentationMode = climateRendererModule.climatePresentationMode(
-    entityState,
-    "water-heater",
-  );
-  return presentationMode === "on"
-    ? "已开启"
-    : "当前模式 · " +
-        (presentationMode === "high_demand"
-          ? "高需求"
-          : climateRendererModule.climateModeLabel(presentationMode, "water-heater"));
+    return entityState?.state === 'unavailable' || entityState?.available === false ? '设备不可用' : '状态未知'
+  if (capabilities.away) return '离家模式'
+  if (entityState.state === 'off') return '已关闭'
+  const presentationMode = climateRendererModule.climatePresentationMode(entityState, 'water-heater')
+  return presentationMode === 'on'
+    ? '已开启'
+    : '当前模式 · ' +
+        (presentationMode === 'high_demand'
+          ? '高需求'
+          : climateRendererModule.climateModeLabel(presentationMode, 'water-heater'))
 }
 const {
   climateIsPoweredOn: climateIsPoweredOn,
   climateIsRunning: climateIsRunning,
   climatePowerCommand: climatePowerCommand,
-} = climateRendererModule;
+} = climateRendererModule
 export const {
   climateModeLabel,
   climateModeIcon,
   climateSwingModeLabel,
   climateOptionPresentation,
   climateDialogTitle,
-} = climateRendererModule;
+} = climateRendererModule
 function purifierSpeedLevels(percentageStep: any) {
-  const step = haNumber(percentageStep);
-  if (step === null || step <= 0 || step > 100) return [];
-  const levelCount = Math.round(100 / step);
+  const step = haNumber(percentageStep)
+  if (step === null || step <= 0 || step > 100) return []
+  const levelCount = Math.round(100 / step)
   return levelCount < 1 || levelCount > 10 || Math.abs(step - 100 / levelCount) > 0.02
     ? []
     : Array.from(
@@ -50,18 +39,17 @@ function purifierSpeedLevels(percentageStep: any) {
           length: levelCount,
         },
         (_levelUnused, levelIndex) => ({
-          label: levelCount === 3 ? ["低档", "中档", "高档"][levelIndex] : levelIndex + 1 + " 档",
+          label: levelCount === 3 ? ['低档', '中档', '高档'][levelIndex] : levelIndex + 1 + ' 档',
           percentage: Math.floor((100 * (levelIndex + 1)) / levelCount),
         }),
-      );
+      )
 }
 export function climateState(entityId: any, receivedState: any) {
   const stateObject = receivedState?.newState || receivedState || {},
-    attributes = attributesOf(stateObject);
+    attributes = attributesOf(stateObject)
   if (/^water_heater\.[a-z0-9_]+$/.test(entityId)) {
     const heaterCapabilities = waterHeaterRendererModule.waterHeaterCapabilities(stateObject),
-      isWaterHeaterOn =
-        heaterCapabilities.available && climateIsPoweredOn(stateObject, "water-heater");
+      isWaterHeaterOn = heaterCapabilities.available && climateIsPoweredOn(stateObject, 'water-heater')
     return {
       entityId: entityId,
       raw: stateObject,
@@ -70,32 +58,31 @@ export function climateState(entityId: any, receivedState: any) {
       available: heaterCapabilities.available,
       on: isWaterHeaterOn,
       running: false,
-      name: attributes.friendly_name || "热水器",
-      mode: climateRendererModule.climatePresentationMode(stateObject, "water-heater"),
-      visualMode: isWaterHeaterOn ? "heat" : "off",
+      name: attributes.friendly_name || '热水器',
+      mode: climateRendererModule.climatePresentationMode(stateObject, 'water-heater'),
+      visualMode: isWaterHeaterOn ? 'heat' : 'off',
       temperatureUnit: heaterCapabilities.unit,
       rangeSupported: false,
       fanModes: [] as any[],
       swingModes: [] as any[],
       presetModes: [] as any[],
       turnOnSupported: heaterCapabilities.nativePower,
-    };
+    }
   }
   if (/^fan\.[a-z0-9_]+$/.test(entityId)) {
-    const isPurifierAvailable =
-        stateObject.available !== false && ["on", "off"].includes(stateObject.state),
+    const isPurifierAvailable = stateObject.available !== false && ['on', 'off'].includes(stateObject.state),
       percentage = haNumber(attributes.percentage),
-      purifierCapabilities = fanCapabilities(attributes);
+      purifierCapabilities = fanCapabilities(attributes)
     return {
       entityId: entityId,
       raw: stateObject,
       purifier: true,
       available: isPurifierAvailable,
-      on: isPurifierAvailable && stateObject.state === "on",
-      running: isPurifierAvailable && stateObject.state === "on",
-      name: attributes.friendly_name || "空气净化器",
+      on: isPurifierAvailable && stateObject.state === 'on',
+      running: isPurifierAvailable && stateObject.state === 'on',
+      name: attributes.friendly_name || '空气净化器',
       mode: stateObject.state,
-      visualMode: stateObject.state === "on" ? "other" : "off",
+      visualMode: stateObject.state === 'on' ? 'other' : 'off',
       temperature: null as any,
       currentTemperature: null as any,
       temperatureSupported: false,
@@ -103,82 +90,75 @@ export function climateState(entityId: any, receivedState: any) {
       percentage: percentage,
       ...purifierCapabilities,
       percentageStep: haNumber(attributes.percentage_step) || 1,
-      speedLevels: purifierCapabilities.percentageSupported
-        ? purifierSpeedLevels(attributes.percentage_step)
-        : [],
-      modes: ["off", "on"],
+      speedLevels: purifierCapabilities.percentageSupported ? purifierSpeedLevels(attributes.percentage_step) : [],
+      modes: ['off', 'on'],
       fanModes: [] as any[],
       swingModes: [] as any[],
-      presetMode: attributes.preset_mode || "",
+      presetMode: attributes.preset_mode || '',
       oscillating: attributes.oscillating === true,
-      direction: attributes.direction || "",
+      direction: attributes.direction || '',
       turnOnSupported: purifierCapabilities.canTurnOn,
       turnOffSupported: purifierCapabilities.canTurnOff,
-    };
+    }
   }
   const modeOptionsByName = Object.fromEntries(
       Object.entries({
-        hvacModes: "hvac_modes",
-        fanModes: "fan_modes",
-        swingModes: "swing_modes",
-        horizontalSwingModes: "swing_horizontal_modes",
-        presetModes: "preset_modes",
+        hvacModes: 'hvac_modes',
+        fanModes: 'fan_modes',
+        swingModes: 'swing_modes',
+        horizontalSwingModes: 'swing_horizontal_modes',
+        presetModes: 'preset_modes',
       }).map(([optionGroupName, optionAttributeName]) => [
         optionGroupName,
         stringOptions(attributes[optionAttributeName]),
       ]),
     ),
-    stateValue = typeof stateObject.state == "string" ? stateObject.state : "",
+    stateValue = typeof stateObject.state == 'string' ? stateObject.state : '',
     minimum = haNumber(attributes.min_temp),
     maximum = haNumber(attributes.max_temp),
     temperature = haNumber(attributes.temperature),
     supportedFeatures = featureFlags(attributes),
     targetLow = haNumber(attributes.target_temp_low),
     targetHigh = haNumber(attributes.target_temp_high),
-    hasSupportedFeaturesAttribute = Object.hasOwn(attributes, "supported_features"),
+    hasSupportedFeaturesAttribute = Object.hasOwn(attributes, 'supported_features'),
     resolveFeatureSupport = (featureBit: any, fallbackResult: any) =>
       hasSupportedFeaturesAttribute ? !!(supportedFeatures! & featureBit) : fallbackResult,
     hasTemperatureRange = minimum !== null && maximum !== null && maximum > minimum,
-    temperatureUnit = ["°C", "°F", "K"].includes(attributes.temperature_unit)
-      ? attributes.temperature_unit
-      : "°",
+    temperatureUnit = ['°C', '°F', 'K'].includes(attributes.temperature_unit) ? attributes.temperature_unit : '°',
     parsedTargetStep = haNumber(attributes.target_temp_step),
-    temperatureStep = parsedTargetStep! > 0 ? parsedTargetStep : temperatureUnit === "°F" ? 1 : 0.5,
+    temperatureStep = parsedTargetStep! > 0 ? parsedTargetStep : temperatureUnit === '°F' ? 1 : 0.5,
     hasValidTargetStep = attributes.target_temp_step == null || parsedTargetStep! > 0,
-    temperatureSupported =
-      hasTemperatureRange && hasValidTargetStep && resolveFeatureSupport(1, temperature !== null),
+    temperatureSupported = hasTemperatureRange && hasValidTargetStep && resolveFeatureSupport(1, temperature !== null),
     rangeSupported =
-      hasTemperatureRange &&
-      hasValidTargetStep &&
-      resolveFeatureSupport(2, targetLow !== null && targetHigh !== null),
+      hasTemperatureRange && hasValidTargetStep && resolveFeatureSupport(2, targetLow !== null && targetHigh !== null),
     available =
       /^(climate|water_heater)\.[a-z0-9_]+$/.test(entityId) &&
       stateObject.available !== false &&
       !!stateValue &&
-      !["unknown", "unavailable"].includes(stateValue);
+      !['unknown', 'unavailable'].includes(stateValue)
   return {
     entityId: entityId,
     raw: stateObject,
     available: available,
-    on: available && climateIsPoweredOn(stateObject, "air-conditioner"),
+    on: available && climateIsPoweredOn(stateObject, 'air-conditioner'),
     running:
       available &&
-      !["unknown", "unavailable"].includes(
-        String(attributes.hvac_action || "")
+      !['unknown', 'unavailable'].includes(
+        String(attributes.hvac_action || '')
           .trim()
           .toLowerCase(),
       ) &&
-      climateIsRunning(stateObject, "air-conditioner"),
-    name: String(attributes.friendly_name || entityId || "空调"),
+      climateIsRunning(stateObject, 'air-conditioner'),
+    name: String(attributes.friendly_name || entityId || '空调'),
     mode: stateValue,
     visualMode:
-      !available || !climateIsPoweredOn(stateObject, "air-conditioner")
-        ? "off"
-        : stateValue === "cool"
-          ? "cool"
-          : stateValue === "heat"
-            ? "heat"
-            : "other",
+      !available || !climateIsPoweredOn(stateObject, 'air-conditioner')
+        ? 'off'
+        : stateValue === 'cool'
+          ? 'cool'
+          : stateValue === 'heat'
+            ? 'heat'
+            : 'other',
     temperature: temperature,
     currentTemperature: haNumber(attributes.current_temperature),
     targetLow: targetLow,
@@ -189,25 +169,22 @@ export function climateState(entityId: any, receivedState: any) {
     temperatureUnit: temperatureUnit,
     temperatureSupported: temperatureSupported,
     rangeSupported: rangeSupported,
-    useTemperatureRange: rangeSupported && (stateValue === "heat_cool" || !temperatureSupported),
+    useTemperatureRange: rangeSupported && (stateValue === 'heat_cool' || !temperatureSupported),
     modes: modeOptionsByName.hvacModes,
     fanModes: resolveFeatureSupport(8, true) ? modeOptionsByName.fanModes : [],
     turnOnSupported: !!(supportedFeatures! & 256),
     turnOffSupported: !!(supportedFeatures! & 128),
     canTurnOn:
-      !!(supportedFeatures! & 256) ||
-      modeOptionsByName.hvacModes.some((hvacModeName) => hvacModeName !== "off"),
-    canTurnOff: !!(supportedFeatures! & 128) || modeOptionsByName.hvacModes.includes("off"),
+      !!(supportedFeatures! & 256) || modeOptionsByName.hvacModes.some((hvacModeName) => hvacModeName !== 'off'),
+    canTurnOff: !!(supportedFeatures! & 128) || modeOptionsByName.hvacModes.includes('off'),
     swingModes: resolveFeatureSupport(32, true) ? modeOptionsByName.swingModes : [],
-    horizontalSwingModes: resolveFeatureSupport(512, true)
-      ? modeOptionsByName.horizontalSwingModes
-      : [],
+    horizontalSwingModes: resolveFeatureSupport(512, true) ? modeOptionsByName.horizontalSwingModes : [],
     presetModes: resolveFeatureSupport(16, true) ? modeOptionsByName.presetModes : [],
-    fanMode: attributes.fan_mode || "",
-    swingMode: attributes.swing_mode || "",
-    horizontalSwingMode: attributes.swing_horizontal_mode || "",
-    presetMode: attributes.preset_mode || "",
-  };
+    fanMode: attributes.fan_mode || '',
+    swingMode: attributes.swing_mode || '',
+    horizontalSwingMode: attributes.swing_horizontal_mode || '',
+    presetMode: attributes.preset_mode || '',
+  }
 }
 /**
  * 排气扇**运行状态**：主实体可以是 `switch.*` 或 `fan.*`，只看开关，不带风速 / 方向。
@@ -216,28 +193,27 @@ export function climateState(entityId: any, receivedState: any) {
  * 不要新造一个 `'exhaust'` 视觉模式。
  */
 export function exhaustFanState(binding: any = {}, stateSource: any = {}) {
-  const entityRecord =
-      stateSource?.get?.(binding.entityId) || stateSource?.[binding.entityId],
+  const entityRecord = stateSource?.get?.(binding.entityId) || stateSource?.[binding.entityId],
     entityState = entityRecord?.newState || entityRecord || {},
     available = !!(
       binding.entityId &&
       entityState.available !== false &&
       entityRecord?.available !== false &&
-      ["on", "off"].includes(entityState.state)
-    );
+      ['on', 'off'].includes(entityState.state)
+    )
   return {
     available,
-    on: available && entityState.state === "on",
-    running: available && entityState.state === "on",
-    visualMode: available && entityState.state === "on" ? "fan" : "off",
+    on: available && entityState.state === 'on',
+    running: available && entityState.state === 'on',
+    visualMode: available && entityState.state === 'on' ? 'fan' : 'off',
     label: binding.entityId
       ? available
-        ? entityState.state === "on"
-          ? "运行中"
-          : "已关闭"
-        : "设备不可用"
-      : "未绑定运行实体",
-  };
+        ? entityState.state === 'on'
+          ? '运行中'
+          : '已关闭'
+        : '设备不可用'
+      : '未绑定运行实体',
+  }
 }
 
 /**
@@ -247,28 +223,28 @@ export function exhaustFanState(binding: any = {}, stateSource: any = {}) {
  */
 export function exhaustSwitchState(entityId: any, receivedState: any) {
   const stateObject = receivedState?.newState || receivedState || {},
-    available = stateObject.available !== false && ["on", "off"].includes(stateObject.state);
+    available = stateObject.available !== false && ['on', 'off'].includes(stateObject.state)
   return {
-    ...climateState("", null),
+    ...climateState('', null),
     entityId,
     raw: stateObject,
     available,
     purifier: true,
     exhaustSwitch: true,
-    name: attributesOf(stateObject).friendly_name || "排气扇",
+    name: attributesOf(stateObject).friendly_name || '排气扇',
     mode: stateObject.state,
-    modes: ["off", "on"] as string[],
-    on: available && stateObject.state === "on",
-    running: available && stateObject.state === "on",
+    modes: ['off', 'on'] as string[],
+    on: available && stateObject.state === 'on',
+    running: available && stateObject.state === 'on',
     canTurnOn: true,
     canTurnOff: true,
     turnOnSupported: true,
     turnOffSupported: true,
-  };
+  }
 }
 
-export function climatePowerControl(state: any, desiredOn = !state.on, lastMode = "") {
-  if (!state.available) throw new Error("设备当前不可用。");
+export function climatePowerControl(state: any, desiredOn = !state.on, lastMode = '') {
+  if (!state.available) throw new Error('设备当前不可用。')
   /**
    * 排气扇的 `switch.*` 主实体：走 `switch.turn_on/off`（不是 `fan.*`，也不是 `climate.*`）。
    * 必须放在 `purifier` 分支之前 —— 那个分支会把命令写成 `fan.turn_on`。
@@ -276,52 +252,50 @@ export function climatePowerControl(state: any, desiredOn = !state.on, lastMode 
   if (state.exhaustSwitch)
     return {
       entityId: state.entityId,
-      domain: "switch",
-      service: desiredOn ? "turn_on" : "turn_off",
+      domain: 'switch',
+      service: desiredOn ? 'turn_on' : 'turn_off',
       data: {} as Record<string, any>,
-    };
+    }
   if (state.waterHeater)
     return {
       entityId: state.entityId,
       ...waterHeaterRendererModule.waterHeaterPowerCommand(state.raw, desiredOn, lastMode),
-    };
+    }
   if (state.purifier) {
-    if (desiredOn ? !state.canTurnOn : !state.canTurnOff)
-      throw new Error("设备不支持此开关操作。");
+    if (desiredOn ? !state.canTurnOn : !state.canTurnOff) throw new Error('设备不支持此开关操作。')
     return {
       entityId: state.entityId,
-      domain: "fan",
-      service: desiredOn ? "turn_on" : "turn_off",
+      domain: 'fan',
+      service: desiredOn ? 'turn_on' : 'turn_off',
       data: {} as Record<string, any>,
-    };
+    }
   }
-  if (desiredOn ? !state.canTurnOn : !state.canTurnOff)
-    throw new Error("设备尚未提供可用的开关模式。");
+  if (desiredOn ? !state.canTurnOn : !state.canTurnOff) throw new Error('设备尚未提供可用的开关模式。')
   if (!desiredOn && state.turnOffSupported)
     return {
       entityId: state.entityId,
-      domain: "climate",
-      service: "turn_off",
+      domain: 'climate',
+      service: 'turn_off',
       data: {} as Record<string, any>,
-    };
+    }
   if (desiredOn) {
-    const restoreMode = lastMode || (state.on ? state.mode : "");
-    if (restoreMode && restoreMode !== "off" && state.modes.includes(restoreMode))
+    const restoreMode = lastMode || (state.on ? state.mode : '')
+    if (restoreMode && restoreMode !== 'off' && state.modes.includes(restoreMode))
       return {
         entityId: state.entityId,
-        domain: "climate",
-        service: "set_hvac_mode",
+        domain: 'climate',
+        service: 'set_hvac_mode',
         data: {
           hvac_mode: restoreMode,
         },
-      };
+      }
     if (state.turnOnSupported)
       return {
         entityId: state.entityId,
-        domain: "climate",
-        service: "turn_on",
+        domain: 'climate',
+        service: 'turn_on',
         data: {} as Record<string, any>,
-      };
+      }
   }
   const command = climatePowerCommand(
     state.entityId,
@@ -333,48 +307,50 @@ export function climatePowerControl(state: any, desiredOn = !state.on, lastMode 
       },
     },
     desiredOn,
-    "air-conditioner",
+    'air-conditioner',
     lastMode,
-  );
-  if (command.domain !== "climate" || command.service !== "set_hvac_mode")
-    throw new Error("设备尚未提供可用的开关模式。");
+  )
+  if (command.domain !== 'climate' || command.service !== 'set_hvac_mode')
+    throw new Error('设备尚未提供可用的开关模式。')
   return {
     entityId: state.entityId,
-    domain: "climate",
+    domain: 'climate',
     service: command.service,
     data: command.data,
-  };
+  }
 }
 export function createClimateModeHistory({
   storage: storage,
-  scope: scope = "",
-}: { storage?: Storage; scope?: string } = {}) {
-  const modesByEntityId = new Map();
-  let isStorageUsable = true;
+  scope: scope = '',
+}: {
+  storage?: Storage
+  scope?: string
+} = {}) {
+  const modesByEntityId = new Map()
+  let isStorageUsable = true
   const isUsableMode = (candidateMode: any) =>
-      typeof candidateMode == "string" &&
+      typeof candidateMode == 'string' &&
       !!candidateMode.trim() &&
       candidateMode.length <= 120 &&
       // biome-ignore lint/suspicious/noControlCharactersInRegex: 模式名清洗：控制字符与括号属于非法输入
       !/[{}\[\]\x00-\x1f]/.test(candidateMode) &&
-      !["off", "unknown", "unavailable"].includes(candidateMode),
+      !['off', 'unknown', 'unavailable'].includes(candidateMode),
     storageKeyFor = (historyEntityId: any) =>
       scope && /^(climate|water_heater)\.[a-z0-9_]+$/.test(historyEntityId)
-        ? "homeos:i3d-climate-mode:v1:" + scope + ":" + historyEntityId
-        : "";
+        ? 'homeos:i3d-climate-mode:v1:' + scope + ':' + historyEntityId
+        : ''
   function getStoredMode(lookupEntityId: any) {
-    const storageKey = storageKeyFor(lookupEntityId);
+    const storageKey = storageKeyFor(lookupEntityId)
     try {
-      const storedMode = isStorageUsable && storageKey && storage?.getItem(storageKey);
-      if (isUsableMode(storedMode))
-        return (modesByEntityId.set(lookupEntityId, storedMode), storedMode);
+      const storedMode = isStorageUsable && storageKey && storage?.getItem(storageKey)
+      if (isUsableMode(storedMode)) return (modesByEntityId.set(lookupEntityId, storedMode), storedMode)
     } catch {
-      isStorageUsable = false;
+      isStorageUsable = false
     }
-    return modesByEntityId.get(lookupEntityId) || "";
+    return modesByEntityId.get(lookupEntityId) || ''
   }
   function observeClimateState(observedEntityId: any, observedReceivedState: any) {
-    const observedState = climateState(observedEntityId, observedReceivedState);
+    const observedState = climateState(observedEntityId, observedReceivedState)
     if (
       !(
         !observedState.available ||
@@ -384,27 +360,25 @@ export function createClimateModeHistory({
       ) &&
       getStoredMode(observedEntityId) !== observedState.mode
     ) {
-      modesByEntityId.set(observedEntityId, observedState.mode);
+      modesByEntityId.set(observedEntityId, observedState.mode)
       try {
-        const observedStorageKey = storageKeyFor(observedEntityId);
-        isStorageUsable &&
-          observedStorageKey &&
-          storage?.setItem(observedStorageKey, observedState.mode);
+        const observedStorageKey = storageKeyFor(observedEntityId)
+        isStorageUsable && observedStorageKey && storage?.setItem(observedStorageKey, observedState.mode)
       } catch {
-        isStorageUsable = false;
+        isStorageUsable = false
       }
     }
   }
   return {
     get: getStoredMode,
     observe: observeClimateState,
-  };
+  }
 }
 export function climateControl(deviceState: any, service: any, value: any) {
   if (deviceState.purifier) {
-    if (!deviceState.available) throw new Error("设备当前不可用。");
+    if (!deviceState.available) throw new Error('设备当前不可用。')
     if (
-      service === "set_percentage" &&
+      service === 'set_percentage' &&
       deviceState.percentageSupported &&
       haNumber(value) !== null &&
       haNumber!(value)! >= 0 &&
@@ -412,90 +386,79 @@ export function climateControl(deviceState: any, service: any, value: any) {
     )
       return {
         entityId: deviceState.entityId,
-        domain: "fan",
+        domain: 'fan',
         service: service,
         data: {
           percentage: haNumber(value),
         },
-      };
-    if (service === "set_preset_mode" && deviceState.presetModes.includes(value))
+      }
+    if (service === 'set_preset_mode' && deviceState.presetModes.includes(value))
       return {
         entityId: deviceState.entityId,
-        domain: "fan",
+        domain: 'fan',
         service: service,
         data: {
           preset_mode: value,
         },
-      };
-    if (service === "oscillate" && deviceState.oscillatingSupported && typeof value == "boolean")
+      }
+    if (service === 'oscillate' && deviceState.oscillatingSupported && typeof value == 'boolean')
       return {
         entityId: deviceState.entityId,
-        domain: "fan",
+        domain: 'fan',
         service: service,
         data: {
           oscillating: value,
         },
-      };
-    if (
-      service === "set_direction" &&
-      deviceState.directionSupported &&
-      ["forward", "reverse"].includes(value)
-    )
+      }
+    if (service === 'set_direction' && deviceState.directionSupported && ['forward', 'reverse'].includes(value))
       return {
         entityId: deviceState.entityId,
-        domain: "fan",
+        domain: 'fan',
         service: service,
         data: {
           direction: value,
         },
-      };
-    throw new Error("空气净化器不支持此操作。");
+      }
+    throw new Error('空气净化器不支持此操作。')
   }
-  if (!deviceState.available) throw new Error("设备当前不可用。");
-  let serviceData;
-  if (deviceState.waterHeater && service === "set_away_mode") {
-    if (!deviceState.awaySupported || typeof value != "boolean")
-      throw new Error("设备不支持离家模式。");
+  if (!deviceState.available) throw new Error('设备当前不可用。')
+  let serviceData
+  if (deviceState.waterHeater && service === 'set_away_mode') {
+    if (!deviceState.awaySupported || typeof value != 'boolean') throw new Error('设备不支持离家模式。')
     return {
       entityId: deviceState.entityId,
-      domain: "water_heater",
+      domain: 'water_heater',
       service: service,
       data: {
         away_mode: value,
       },
-    };
+    }
   }
-  if (service === "set_temperature") {
-    const isRangeRequest = value !== null && typeof value == "object";
+  if (service === 'set_temperature') {
+    const isRangeRequest = value !== null && typeof value == 'object'
     if (
       isRangeRequest
-        ? !deviceState.rangeSupported ||
-          Object.keys(value).sort().join(",") !== "target_temp_high,target_temp_low"
+        ? !deviceState.rangeSupported || Object.keys(value).sort().join(',') !== 'target_temp_high,target_temp_low'
         : !deviceState.temperatureSupported
     )
-      throw new Error("设备尚未提供可用的温度控制。");
+      throw new Error('设备尚未提供可用的温度控制。')
     const fractionDigits = Math.min(
         8,
         Math.max(
-          String(deviceState.step).split(".")[1]?.length || 0,
-          String(deviceState.minimum).split(".")[1]?.length || 0,
+          String(deviceState.step).split('.')[1]?.length || 0,
+          String(deviceState.minimum).split('.')[1]?.length || 0,
         ),
       ),
       alignTemperature = (requestedTemperature: any) => {
-        const parsedTemperature = haNumber(requestedTemperature);
-        if (parsedTemperature === null) throw new Error("设备尚未提供可用的温度控制。");
-        const maxSteps = Math.floor(
-            (deviceState.maximum - deviceState.minimum) / deviceState.step + 1e-8,
-          ),
+        const parsedTemperature = haNumber(requestedTemperature)
+        if (parsedTemperature === null) throw new Error('设备尚未提供可用的温度控制。')
+        const maxSteps = Math.floor((deviceState.maximum - deviceState.minimum) / deviceState.step + 1e-8),
           stepIndex = Math.max(
             0,
-            Math.min(
-              maxSteps,
-              Math.round((parsedTemperature - deviceState.minimum) / deviceState.step),
-            ),
-          );
-        return Number((deviceState.minimum + stepIndex * deviceState.step).toFixed(fractionDigits));
-      };
+            Math.min(maxSteps, Math.round((parsedTemperature - deviceState.minimum) / deviceState.step)),
+          )
+        return Number((deviceState.minimum + stepIndex * deviceState.step).toFixed(fractionDigits))
+      }
     if (
       ((serviceData = isRangeRequest
         ? {
@@ -507,31 +470,30 @@ export function climateControl(deviceState: any, service: any, value: any) {
           }),
       isRangeRequest && serviceData.target_temp_low! > serviceData.target_temp_high!)
     )
-      throw new Error("温区下限不能高于上限。");
+      throw new Error('温区下限不能高于上限。')
   } else {
-    const serviceSpec = ((
-      deviceState.waterHeater
+    const serviceSpec = (
+      (deviceState.waterHeater
         ? {
-            set_operation_mode: ["modes", "operation_mode"],
+            set_operation_mode: ['modes', 'operation_mode'],
           }
         : {
-            set_hvac_mode: ["modes", "hvac_mode"],
-            set_fan_mode: ["fanModes", "fan_mode"],
-            set_swing_mode: ["swingModes", "swing_mode"],
-            set_swing_horizontal_mode: ["horizontalSwingModes", "swing_horizontal_mode"],
-            set_preset_mode: ["presetModes", "preset_mode"],
-          }
-    ) as Record<string, string[] | undefined>)[service];
-    if (!serviceSpec || !deviceState[serviceSpec[0]].includes(value))
-      throw new Error("设备不支持此控制选项。");
+            set_hvac_mode: ['modes', 'hvac_mode'],
+            set_fan_mode: ['fanModes', 'fan_mode'],
+            set_swing_mode: ['swingModes', 'swing_mode'],
+            set_swing_horizontal_mode: ['horizontalSwingModes', 'swing_horizontal_mode'],
+            set_preset_mode: ['presetModes', 'preset_mode'],
+          }) as Record<string, string[] | undefined>
+    )[service]
+    if (!serviceSpec || !deviceState[serviceSpec[0]].includes(value)) throw new Error('设备不支持此控制选项。')
     serviceData = {
       [serviceSpec[1]]: value,
-    };
+    }
   }
   return {
     entityId: deviceState.entityId,
-    domain: deviceState.waterHeater ? "water_heater" : "climate",
+    domain: deviceState.waterHeater ? 'water_heater' : 'climate',
     service: service,
     data: serviceData,
-  };
+  }
 }

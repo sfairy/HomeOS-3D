@@ -1,47 +1,34 @@
-
-
-
-
-import { mountInteraction3d as mountInteraction3d2 } from "../core/runtime";
-import { acquireEditorPreview } from "../core/editor-preview";
-import {
-  extraTypes as extraTypes2,
-} from "../climate/purifier-extras";
-import { applyNasLayout as applyNasLayout2 } from "../nas/nas-panel";
-import {
-  curtainGroupEntryId as curtainGroupEntryId2,
-} from "../cover/cover-groups";
+import { mountInteraction3d as mountInteraction3d2 } from '../core/runtime'
+import { acquireEditorPreview } from '../core/editor-preview'
+import { extraTypes as extraTypes2 } from '../climate/purifier-extras'
+import { applyNasLayout as applyNasLayout2 } from '../nas/nas-panel'
+import { curtainGroupEntryId as curtainGroupEntryId2 } from '../cover/cover-groups'
 import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
   subscribeInteraction3dAccess as subscribeInteraction3dAccess2,
-} from "@app/bridge/bridge";
-export { openInteraction3dAppearanceEditor } from "./config-editor/appearance-editor";
-import { attachEditorPanelRendering } from './config-editor/panel-rendering';
-import {
-  normalizeTemperatureHumidity as normalizeTemperatureHumidity2,
-} from "@app/bridge/temperature-humidity";
-
-
-
+} from '@app/bridge/bridge'
+export { openInteraction3dAppearanceEditor } from './config-editor/appearance-editor'
+import { attachEditorPanelRendering } from './config-editor/panel-rendering'
+import { normalizeTemperatureHumidity as normalizeTemperatureHumidity2 } from '@app/bridge/temperature-humidity'
 
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from "../device/generic-device-catalog";
-import { domElement } from "@app/shared/util/dom-factory";
-import { modelChoiceLabel } from "@app/shared/model-remarks";
+} from '../device/generic-device-catalog'
+import { domElement } from '@app/shared/util/dom-factory'
+import { modelChoiceLabel } from '@app/shared/model-remarks'
 /** 走通用设备目录的 kind（含 nas / 电视 / 音箱等没有 HA domain 的种类）。 */
 function isCatalogDeviceKind(kind: string): boolean {
   return (
-    kind === "airer" ||
-    kind === "water-heater" ||
-    kind === "devices" ||
-    kind === "nas" ||
-    kind === "television" ||
-    kind === "speaker" ||
+    kind === 'airer' ||
+    kind === 'water-heater' ||
+    kind === 'devices' ||
+    kind === 'nas' ||
+    kind === 'television' ||
+    kind === 'speaker' ||
     GENERIC_DEVICE_KINDS2.includes(kind)
-  );
+  )
 }
 
 export async function openInteraction3dEditor({
@@ -51,30 +38,30 @@ export async function openInteraction3dEditor({
   states: states,
   pickers: pickers,
   onSave: onSaveConfig,
-  deviceKind: deviceKind = "light",
+  deviceKind: deviceKind = 'light',
   startAdding: shouldStartAdding = false,
-  vacuumId: vacuumId = "",
-  editingFloorId: editingFloorId = "",
+  vacuumId: vacuumId = '',
+  editingFloorId: editingFloorId = '',
   editorView = null,
 }: any) {
   // 接住授权结果（旧实现丢弃返回值，靠订阅回调兜底）：默认值必须是「拒绝」，
   // 否则从打开弹窗到首帧 access 事件之间，面板控件是可操作的。
-  const initialAccessState = await requestInteraction3dAccess2();
-  const initialAccessAllowed = initialAccessState?.allowed === true;
-  pickers?.loadEntities && (entities = await pickers.loadEntities());
+  const initialAccessState = await requestInteraction3dAccess2()
+  const initialAccessAllowed = initialAccessState?.allowed === true
+  pickers?.loadEntities && (entities = await pickers.loadEntities())
   const includes = [
-    "environment",
-    "climate",
-    "fan",
-    "exhaust-fan",
-    "purifier",
-    "cover",
-    "window-opener",
-    "temperature-humidity",
-  ].includes(deviceKind);
-  deviceKind === "environment" && (deviceKind = "climate");
-  const isDeviceKind = isCatalogDeviceKind(deviceKind);
-  deviceKind === "devices" && (deviceKind = "nas");
+    'environment',
+    'climate',
+    'fan',
+    'exhaust-fan',
+    'purifier',
+    'cover',
+    'window-opener',
+    'temperature-humidity',
+  ].includes(deviceKind)
+  deviceKind === 'environment' && (deviceKind = 'climate')
+  const isDeviceKind = isCatalogDeviceKind(deviceKind)
+  deviceKind === 'devices' && (deviceKind = 'nas')
   let isVacuumShortcutMode: any,
     isVacuumMode: any,
     usesStatusPanel: any,
@@ -92,24 +79,22 @@ export async function openInteraction3dEditor({
     editorKindTitle: any,
     collectionKey: any,
     defaultIcon: any,
-    modelIdKey: any;
+    modelIdKey: any
   function applyKindFlags(nextKind: any) {
-    ((deviceKind = nextKind),
-      (isVacuumShortcutMode = deviceKind === "vacuum-shortcut"),
-      (isVacuumMode = deviceKind === "vacuum"),
+    ;(deviceKind = nextKind),
+      (isVacuumShortcutMode = deviceKind === 'vacuum-shortcut'),
+      (isVacuumMode = deviceKind === 'vacuum'),
       (usesStatusPanel =
-        (isDeviceKind && !["water-heater", "airer"].includes(deviceKind)) ||
-        isVacuumMode ||
-        isVacuumShortcutMode),
-      (isTelevisionMode = deviceKind === "television"),
-      (isSpeakerMode = deviceKind === "speaker"),
+        (isDeviceKind && !['water-heater', 'airer'].includes(deviceKind)) || isVacuumMode || isVacuumShortcutMode),
+      (isTelevisionMode = deviceKind === 'television'),
+      (isSpeakerMode = deviceKind === 'speaker'),
       (isGenericDeviceMode = isGenericDeviceKind2(deviceKind)),
-      (isAirerMode = deviceKind === "airer"),
-      (isWindowOpenerMode = deviceKind === "window-opener"),
-      (isClimateMode = ["climate", "fan", "exhaust-fan", "purifier", "water-heater"].includes(deviceKind)),
-      (isCoverMode = deviceKind === "cover"),
-      (isNasMode = deviceKind === "nas"),
-      (isTemperatureHumidityMode = deviceKind === "temperature-humidity"),
+      (isAirerMode = deviceKind === 'airer'),
+      (isWindowOpenerMode = deviceKind === 'window-opener'),
+      (isClimateMode = ['climate', 'fan', 'exhaust-fan', 'purifier', 'water-heater'].includes(deviceKind)),
+      (isCoverMode = deviceKind === 'cover'),
+      (isNasMode = deviceKind === 'nas'),
+      (isTemperatureHumidityMode = deviceKind === 'temperature-humidity'),
       (usesModelBinding =
         isAirerMode ||
         isClimateMode ||
@@ -122,134 +107,123 @@ export async function openInteraction3dEditor({
         isVacuumMode ||
         isVacuumShortcutMode),
       (kindLabel = isAirerMode
-        ? "晾衣架"
+        ? '晾衣架'
         : isWindowOpenerMode
-          ? "开窗器"
+          ? '开窗器'
           : isSpeakerMode
-          ? "智能音响"
-          : isTemperatureHumidityMode
-            ? "环境标签"
-            : isVacuumShortcutMode
-              ? "快捷指令"
-              : isVacuumMode
-                ? "扫地机"
-                : isGenericDeviceMode
-                  ? genericDeviceProfile2(deviceKind).label
-                  : isDeviceKind && deviceKind !== "water-heater"
-                    ? "设备"
-                    : isCoverMode
-                      ? "窗帘"
-                      : isClimateMode
-                        ? deviceKind === "water-heater"
-                          ? "热水器"
-                          : deviceKind === "fan"
-                            ? "风扇 / 吊扇"
-                            : deviceKind === "exhaust-fan"
-                              ? "排气扇"
-                              : deviceKind === "purifier"
-                                ? "空气净化器"
-                                : "空调/浴霸"
-                        : "灯光"),
-      (editorKindTitle = includes
-        ? "环境"
-        : isDeviceKind
-          ? "设备"
-          : isVacuumShortcutMode
-            ? "扫地机"
-            : kindLabel),
-      (collectionKey = isAirerMode
-        ? "airers"
-        : isWindowOpenerMode
-          ? "windowOpeners"
-          : isSpeakerMode
-          ? "speakers"
-          : isGenericDeviceMode
-            ? genericDeviceProfile2(deviceKind).collection
+            ? '智能音响'
             : isTemperatureHumidityMode
-              ? "temperatureHumidity"
-              : isVacuumMode || isVacuumShortcutMode
-                ? "vacuums"
-                : isTelevisionMode
-                  ? "televisions"
-                  : isNasMode
-                    ? "nas"
-                    : isCoverMode
-                      ? "curtains"
-                      : deviceKind === "water-heater"
-                        ? "waterHeaters"
-                        : deviceKind === "fan"
-                          ? "fans"
-                          : deviceKind === "exhaust-fan"
-                            ? "exhaustFans"
-                            : deviceKind === "purifier"
-                              ? "airPurifiers"
-                              : "airConditioners"),
-      (defaultIcon = isAirerMode
-        ? "mdi:hanger"
+              ? '环境标签'
+              : isVacuumShortcutMode
+                ? '快捷指令'
+                : isVacuumMode
+                  ? '扫地机'
+                  : isGenericDeviceMode
+                    ? genericDeviceProfile2(deviceKind).label
+                    : isDeviceKind && deviceKind !== 'water-heater'
+                      ? '设备'
+                      : isCoverMode
+                        ? '窗帘'
+                        : isClimateMode
+                          ? deviceKind === 'water-heater'
+                            ? '热水器'
+                            : deviceKind === 'fan'
+                              ? '风扇 / 吊扇'
+                              : deviceKind === 'exhaust-fan'
+                                ? '排气扇'
+                                : deviceKind === 'purifier'
+                                  ? '空气净化器'
+                                  : '空调/浴霸'
+                          : '灯光'),
+      (editorKindTitle = includes ? '环境' : isDeviceKind ? '设备' : isVacuumShortcutMode ? '扫地机' : kindLabel),
+      (collectionKey = isAirerMode
+        ? 'airers'
         : isWindowOpenerMode
-          ? "mdi:window-open-variant"
+          ? 'windowOpeners'
           : isSpeakerMode
-          ? "mdi:speaker"
-          : isGenericDeviceMode
-            ? genericDeviceProfile2(deviceKind).icon
-            : isVacuumShortcutMode
-              ? "mdi:broom"
-              : isVacuumMode
-                ? "mdi:robot-vacuum"
-                : isTelevisionMode
-                  ? "mdi:television"
-                  : isNasMode
-                    ? "mdi:nas"
-                    : isCoverMode
-                      ? "mdi:curtains"
-                      : isClimateMode
-                        ? deviceKind === "water-heater"
-                          ? "mdi:water-boiler"
-                          : deviceKind === "exhaust-fan"
-                            ? "mdi:fan"
-                            : deviceKind === "fan"
-                              ? "mdi:fan"
-                            : deviceKind === "purifier"
-                              ? "mdi:air-purifier"
-                              : "mdi:air-conditioner"
-                        : "mdi:lightbulb-outline"),
-      (modelIdKey = usesModelBinding ? "modelId" : "groupId"));
+            ? 'speakers'
+            : isGenericDeviceMode
+              ? genericDeviceProfile2(deviceKind).collection
+              : isTemperatureHumidityMode
+                ? 'temperatureHumidity'
+                : isVacuumMode || isVacuumShortcutMode
+                  ? 'vacuums'
+                  : isTelevisionMode
+                    ? 'televisions'
+                    : isNasMode
+                      ? 'nas'
+                      : isCoverMode
+                        ? 'curtains'
+                        : deviceKind === 'water-heater'
+                          ? 'waterHeaters'
+                          : deviceKind === 'fan'
+                            ? 'fans'
+                            : deviceKind === 'exhaust-fan'
+                              ? 'exhaustFans'
+                              : deviceKind === 'purifier'
+                                ? 'airPurifiers'
+                                : 'airConditioners'),
+      (defaultIcon = isAirerMode
+        ? 'mdi:hanger'
+        : isWindowOpenerMode
+          ? 'mdi:window-open-variant'
+          : isSpeakerMode
+            ? 'mdi:speaker'
+            : isGenericDeviceMode
+              ? genericDeviceProfile2(deviceKind).icon
+              : isVacuumShortcutMode
+                ? 'mdi:broom'
+                : isVacuumMode
+                  ? 'mdi:robot-vacuum'
+                  : isTelevisionMode
+                    ? 'mdi:television'
+                    : isNasMode
+                      ? 'mdi:nas'
+                      : isCoverMode
+                        ? 'mdi:curtains'
+                        : isClimateMode
+                          ? deviceKind === 'water-heater'
+                            ? 'mdi:water-boiler'
+                            : deviceKind === 'exhaust-fan'
+                              ? 'mdi:fan'
+                              : deviceKind === 'fan'
+                                ? 'mdi:fan'
+                                : deviceKind === 'purifier'
+                                  ? 'mdi:air-purifier'
+                                  : 'mdi:air-conditioner'
+                          : 'mdi:lightbulb-outline'),
+      (modelIdKey = usesModelBinding ? 'modelId' : 'groupId')
   }
-  applyKindFlags(deviceKind);
+  applyKindFlags(deviceKind)
   const describeItem = (describableItem: any) => modelChoiceLabel(describableItem, kindLabel),
     normalizeClickAction = (rawClickAction: any) =>
       isTelevisionMode
-        ? ["focus", "focus-panel", "panel", "turn-on-focus", "turn-on", "turn-on-panel"].includes(
-            rawClickAction,
-          )
+        ? ['focus', 'focus-panel', 'panel', 'turn-on-focus', 'turn-on', 'turn-on-panel'].includes(rawClickAction)
           ? rawClickAction
-          : "focus-panel"
+          : 'focus-panel'
         : usesStatusPanel
-          ? ["focus", "focus-panel", "panel"].includes(rawClickAction)
+          ? ['focus', 'focus-panel', 'panel'].includes(rawClickAction)
             ? rawClickAction
-            : "focus-panel"
+            : 'focus-panel'
           : isCoverMode || isAirerMode || isWindowOpenerMode
-            ? ["panel", "turn-on-focus", "turn-on", "turn-on-panel"].includes(rawClickAction)
+            ? ['panel', 'turn-on-focus', 'turn-on', 'turn-on-panel'].includes(rawClickAction)
               ? rawClickAction
-              : "focus"
-            : ["turn-on-focus", "turn-on", "turn-on-panel"].includes(rawClickAction)
+              : 'focus'
+            : ['turn-on-focus', 'turn-on', 'turn-on-panel'].includes(rawClickAction)
               ? rawClickAction
-              : "focus",
-    element = document.createElement("link");
-  ((element.rel = "stylesheet"),
-    (element.href =
-      "/api/v1/modules/interaction3d/core/runtime.css"),
-    document.head.append(element));
-  const createElement = (tagName: any, className = "", textContent = "") =>
+              : 'focus',
+    element = document.createElement('link')
+  ;(element.rel = 'stylesheet'),
+    (element.href = '/api/v1/modules/interaction3d/core/runtime.css'),
+    document.head.append(element)
+  const createElement = (tagName: any, className = '', textContent = '') =>
       domElement(document, tagName, className, textContent),
     createButton = (buttonLabel: any, handleButtonClick: any) => {
-      const buttonElement = createElement("button", "", buttonLabel);
+      const buttonElement = createElement('button', '', buttonLabel)
       return (
-        (buttonElement.type = "button"),
-        buttonElement.addEventListener("click", handleButtonClick),
-        buttonElement
-      );
-    };
+        (buttonElement.type = 'button'), buttonElement.addEventListener('click', handleButtonClick), buttonElement
+      )
+    }
   // 0.8.4 的「借用编辑器运行时」把配置弹窗改成了整屏画布 + 浮层面板，和长期使用的
   // 模态弹窗（左侧 3D 预览 + 右侧检查器）差得太远，四个入口（灯光 / 环境 / 设备 /
   // 扫地机）一律走自建弹窗，界面与 0.8.2 保持一致。真要重新启用，把这里改成 true
@@ -265,48 +239,47 @@ export async function openInteraction3dEditor({
     headerElement = previewHandle.header,
     bodyElement = previewHandle.body,
     viewElement = previewHandle.view,
-    panelElement = createElement("aside"),
+    panelElement = createElement('aside'),
     aspectBoxElement = previewHandle.aspect,
     stageHostElement = previewHandle.viewport,
-    statusElement = createElement("p", "i3d-editor-status");
+    statusElement = createElement('p', 'i3d-editor-status')
   // 弹窗骨架样式（表头 flex、右栏网格与内边距、输入框 / 按钮外观）全挂在 `.i3d-editor`
   // 上：自建弹窗创建时就带着这个类，借用编辑器宿主时（`dialog.hb-interaction3d-runtime`）
   // 却没人替它加，少了它表头会挤成一团、右栏也拿不到字体与间距。
-  editorDialogElement.classList.add("i3d-editor");
-  (editorDialogElement.setAttribute("aria-label", "3D " + editorKindTitle + "配置"),
-    editorDialogElement.setAttribute("data-i3d-preview-scope", ""),
-    editorDialogElement.classList.add("i3d-unified-settings"));
-  (statusElement.setAttribute("role", "status"),
+  editorDialogElement.classList.add('i3d-editor')
+  editorDialogElement.setAttribute('aria-label', '3D ' + editorKindTitle + '配置'),
+    editorDialogElement.setAttribute('data-i3d-preview-scope', ''),
+    editorDialogElement.classList.add('i3d-unified-settings')
+  statusElement.setAttribute('role', 'status'),
     aspectBoxElement.contains(stageHostElement) || aspectBoxElement.append(stageHostElement),
-    viewElement.append(aspectBoxElement, statusElement));
-  const errorMessageElement = createElement("p", "i3d-error");
-  errorMessageElement.setAttribute("role", "status");
+    viewElement.append(aspectBoxElement, statusElement)
+  const errorMessageElement = createElement('p', 'i3d-error')
+  errorMessageElement.setAttribute('role', 'status')
   let structuredClone2 = structuredClone(component.properties || {}),
-    text = "",
-    selectedCurtainGroupId = "",
+    text = '',
+    selectedCurtainGroupId = '',
     sceneMetadata: any = null,
     editorRuntime: any = null,
     isDisposed = false,
     // fail-closed：首个 access 事件（或上面那次请求）到达前一律按「无权限」渲染。
     isAccessAllowed = initialAccessAllowed,
     floorSelection =
-      editingFloorId ||
-      (structuredClone2.floorSelection !== "all" ? structuredClone2.floorSelection : "");
+      editingFloorId || (structuredClone2.floorSelection !== 'all' ? structuredClone2.floorSelection : '')
   structuredClone2.environment?.temperatureHumidity &&
     (structuredClone2.environment.temperatureHumidity =
-      structuredClone2.environment.temperatureHumidity.map(normalizeTemperatureHumidity2));
+      structuredClone2.environment.temperatureHumidity.map(normalizeTemperatureHumidity2))
   // 借用编辑器里的运行时：它早就 `ready` 过一次，配置会话换上来的新 `onReady` 不会再被
   // 调用一次（舞台只在首次加载 / 重载户型时发 `ready` / `model-metadata`），所以元数据
   // 不会自己送到这里。不补这一步，`sceneMetadata` 一直是 null：画面正常、右栏却是空的
   // （楼层下拉、条目列表、状态规则全都按 `sceneMetadata` 渲染），选楼层也拿不到基准。
   if (isBorrowedPreview && Array.isArray(editorView?.metadata?.floors)) {
-    sceneMetadata = editorView.metadata;
+    sceneMetadata = editorView.metadata
     sceneMetadata.floors.some((floor: { id?: string }) => floor.id === floorSelection) ||
-      (floorSelection = sceneMetadata.floors[0]?.id || "");
+      (floorSelection = sceneMetadata.floors[0]?.id || '')
   }
   let isRangeEditorOpen = false,
     subEditorHandle: any = null,
-    vacuumCameraMode = "focus",
+    vacuumCameraMode = 'focus',
     isCameraEditing = false,
     editingShowAllLabels = false,
     isCameraCommandPending = false,
@@ -324,12 +297,10 @@ export async function openInteraction3dEditor({
     redrawBathEffects = () => {},
     refreshAirflowStatus = () => {},
     refreshExtraControlStates = () => {},
-    renderAirflowSection = () => {};
+    renderAirflowSection = () => {}
   const map = new Map(),
     findVacuumModel = () =>
-      structuredClone2.devices?.vacuums?.find(
-        (vacuumModelProbe: any) => vacuumModelProbe.id === vacuumId,
-      ),
+      structuredClone2.devices?.vacuums?.find((vacuumModelProbe: any) => vacuumModelProbe.id === vacuumId),
     getItemList = () =>
       isVacuumShortcutMode
         ? findVacuumModel()?.shortcuts || []
@@ -345,24 +316,19 @@ export async function openInteraction3dEditor({
           ? (structuredClone2.devices[collectionKey] = nextItemList)
           : usesModelBinding || isTemperatureHumidityMode
             ? (structuredClone2.environment[collectionKey] = nextItemList)
-            : (structuredClone2.lights = nextItemList);
+            : (structuredClone2.lights = nextItemList)
     },
     getCurtainGroupList = () => structuredClone2.environment?.curtainGroups || [],
     findCurtainGroupOf = (curtainId: any) =>
-      getCurtainGroupList().find((curtainGroupEntry: any) =>
-        curtainGroupEntry.memberIds.includes(curtainId),
-      ),
+      getCurtainGroupList().find((curtainGroupEntry: any) => curtainGroupEntry.memberIds.includes(curtainId)),
     describeGroupFieldValue = () => {
-      const selectedCurtainGroup =
-        selectedCurtainGroupId && findCurtainGroupOf(selectedCurtainGroupId);
+      const selectedCurtainGroup = selectedCurtainGroupId && findCurtainGroupOf(selectedCurtainGroupId)
       return selectedCurtainGroup
         ? curtainGroupEntryId2(selectedCurtainGroup)
-        : ((selectedCurtainGroupId = ""),
-          isCoverMode && findCurtainGroupOf(text)
-            ? curtainGroupEntryId2(findCurtainGroupOf(text))
-            : text);
-    };
-  const __editorHost: any = {};
+        : ((selectedCurtainGroupId = ''),
+          isCoverMode && findCurtainGroupOf(text) ? curtainGroupEntryId2(findCurtainGroupOf(text)) : text)
+    }
+  const __editorHost: any = {}
   const __linkEditorHost = () => {
     Object.assign(__editorHost, {
       applyKindFlags,
@@ -400,67 +366,361 @@ export async function openInteraction3dEditor({
       editingFloorId,
       includes,
       isDeviceKind,
-    });
+    })
     const __gs = (k: string, getValue: () => any, setValue: (value: any) => void) =>
-      Object.defineProperty(__editorHost, k, { get: getValue, set: setValue, enumerable: true, configurable: true });
-    __gs('deviceKind', () => deviceKind, (value) => { deviceKind = value; });
-    __gs('isVacuumShortcutMode', () => isVacuumShortcutMode, (value) => { isVacuumShortcutMode = value; });
-    __gs('isVacuumMode', () => isVacuumMode, (value) => { isVacuumMode = value; });
+      Object.defineProperty(__editorHost, k, { get: getValue, set: setValue, enumerable: true, configurable: true })
+    __gs(
+      'deviceKind',
+      () => deviceKind,
+      (value) => {
+        deviceKind = value
+      },
+    )
+    __gs(
+      'isVacuumShortcutMode',
+      () => isVacuumShortcutMode,
+      (value) => {
+        isVacuumShortcutMode = value
+      },
+    )
+    __gs(
+      'isVacuumMode',
+      () => isVacuumMode,
+      (value) => {
+        isVacuumMode = value
+      },
+    )
     // 必须走 getter/setter：`findVacuumModel()` 闭包读的是这个变量，而各 panel 渲染器会写 `e.vacuumId`。
     // 若只 `Object.assign` 一份快照，写入落在宿主属性上、闭包里的 vacuumId 永远是初始值，
     // `findVacuumModel()` 返回 undefined → 「添加快捷指令」静默 return（点了没反应）。
-    __gs('vacuumId', () => vacuumId, (value) => { vacuumId = value; });
-    __gs('usesStatusPanel', () => usesStatusPanel, (value) => { usesStatusPanel = value; });
-    __gs('isTelevisionMode', () => isTelevisionMode, (value) => { isTelevisionMode = value; });
-    __gs('isSpeakerMode', () => isSpeakerMode, (value) => { isSpeakerMode = value; });
-    __gs('isGenericDeviceMode', () => isGenericDeviceMode, (value) => { isGenericDeviceMode = value; });
-    __gs('isClimateMode', () => isClimateMode, (value) => { isClimateMode = value; });
-    __gs('isCoverMode', () => isCoverMode, (value) => { isCoverMode = value; });
-    __gs('isAirerMode', () => isAirerMode, (value) => { isAirerMode = value; });
-    __gs('isWindowOpenerMode', () => isWindowOpenerMode, (value) => { isWindowOpenerMode = value; });
-    __gs('isNasMode', () => isNasMode, (value) => { isNasMode = value; });
-    __gs('isTemperatureHumidityMode', () => isTemperatureHumidityMode, (value) => { isTemperatureHumidityMode = value; });
-    __gs('usesModelBinding', () => usesModelBinding, (value) => { usesModelBinding = value; });
-    __gs('kindLabel', () => kindLabel, (value) => { kindLabel = value; });
-    __gs('editorKindTitle', () => editorKindTitle, (value) => { editorKindTitle = value; });
-    __gs('collectionKey', () => collectionKey, (value) => { collectionKey = value; });
-    __gs('defaultIcon', () => defaultIcon, (value) => { defaultIcon = value; });
-    __gs('modelIdKey', () => modelIdKey, (value) => { modelIdKey = value; });
-    __gs('structuredClone2', () => structuredClone2, (value) => { structuredClone2 = value; });
-    __gs('text', () => text, (value) => { text = value; });
-    __gs('selectedCurtainGroupId', () => selectedCurtainGroupId, (value) => { selectedCurtainGroupId = value; });
-    __gs('sceneMetadata', () => sceneMetadata, (value) => { sceneMetadata = value; });
-    __gs('editorRuntime', () => editorRuntime, (value) => { editorRuntime = value; });
-    __gs('isDisposed', () => isDisposed, (value) => { isDisposed = value; });
-    __gs('isAccessAllowed', () => isAccessAllowed, (value) => { isAccessAllowed = value; });
-    __gs('floorSelection', () => floorSelection, (value) => { floorSelection = value; });
-    __gs('isRangeEditorOpen', () => isRangeEditorOpen, (value) => { isRangeEditorOpen = value; });
-    __gs('subEditorHandle', () => subEditorHandle, (value) => { subEditorHandle = value; });
-    __gs('vacuumCameraMode', () => vacuumCameraMode, (value) => { vacuumCameraMode = value; });
-    __gs('isCameraEditing', () => isCameraEditing, (value) => { isCameraEditing = value; });
-    __gs('editingShowAllLabels', () => editingShowAllLabels, (value) => { editingShowAllLabels = value; });
-    __gs('isCameraCommandPending', () => isCameraCommandPending, (value) => { isCameraCommandPending = value; });
-    __gs('pendingCameraDraft', () => pendingCameraDraft, (value) => { pendingCameraDraft = value; });
-    __gs('num', () => num, (value) => { num = value; });
-    __gs('cameraCommandQueue', () => cameraCommandQueue, (value) => { cameraCommandQueue = value; });
-    __gs('addDialogState', () => addDialogState, (value) => { addDialogState = value; });
-    __gs('pickerHandle', () => pickerHandle, (value) => { pickerHandle = value; });
-    __gs('pickerGeneration', () => pickerGeneration, (value) => { pickerGeneration = value; });
-    __gs('isSaving', () => isSaving, (value) => { isSaving = value; });
-    __gs('isDirty', () => isDirty, (value) => { isDirty = value; });
-    __gs('latestStates', () => latestStates, (value) => { latestStates = value; });
-    __gs('refreshEffectSettings', () => refreshEffectSettings, (value) => { refreshEffectSettings = value; });
-    __gs('bathEffectEditorHandle', () => bathEffectEditorHandle, (value) => { bathEffectEditorHandle = value; });
-    __gs('redrawBathEffects', () => redrawBathEffects, (value) => { redrawBathEffects = value; });
-    __gs('refreshAirflowStatus', () => refreshAirflowStatus, (value) => { refreshAirflowStatus = value; });
-    __gs('refreshExtraControlStates', () => refreshExtraControlStates, (value) => { refreshExtraControlStates = value; });
-    __gs('renderAirflowSection', () => renderAirflowSection, (value) => { renderAirflowSection = value; });
-  };
-  __linkEditorHost();
-  attachEditorPanelRendering(__editorHost);
-  const saveButtonElement = __editorHost.saveButtonElement;
-  let accessUnsubscribe = () => {};
-  __editorHost.accessUnsubscribe = () => accessUnsubscribe();
+    __gs(
+      'vacuumId',
+      () => vacuumId,
+      (value) => {
+        vacuumId = value
+      },
+    )
+    __gs(
+      'usesStatusPanel',
+      () => usesStatusPanel,
+      (value) => {
+        usesStatusPanel = value
+      },
+    )
+    __gs(
+      'isTelevisionMode',
+      () => isTelevisionMode,
+      (value) => {
+        isTelevisionMode = value
+      },
+    )
+    __gs(
+      'isSpeakerMode',
+      () => isSpeakerMode,
+      (value) => {
+        isSpeakerMode = value
+      },
+    )
+    __gs(
+      'isGenericDeviceMode',
+      () => isGenericDeviceMode,
+      (value) => {
+        isGenericDeviceMode = value
+      },
+    )
+    __gs(
+      'isClimateMode',
+      () => isClimateMode,
+      (value) => {
+        isClimateMode = value
+      },
+    )
+    __gs(
+      'isCoverMode',
+      () => isCoverMode,
+      (value) => {
+        isCoverMode = value
+      },
+    )
+    __gs(
+      'isAirerMode',
+      () => isAirerMode,
+      (value) => {
+        isAirerMode = value
+      },
+    )
+    __gs(
+      'isWindowOpenerMode',
+      () => isWindowOpenerMode,
+      (value) => {
+        isWindowOpenerMode = value
+      },
+    )
+    __gs(
+      'isNasMode',
+      () => isNasMode,
+      (value) => {
+        isNasMode = value
+      },
+    )
+    __gs(
+      'isTemperatureHumidityMode',
+      () => isTemperatureHumidityMode,
+      (value) => {
+        isTemperatureHumidityMode = value
+      },
+    )
+    __gs(
+      'usesModelBinding',
+      () => usesModelBinding,
+      (value) => {
+        usesModelBinding = value
+      },
+    )
+    __gs(
+      'kindLabel',
+      () => kindLabel,
+      (value) => {
+        kindLabel = value
+      },
+    )
+    __gs(
+      'editorKindTitle',
+      () => editorKindTitle,
+      (value) => {
+        editorKindTitle = value
+      },
+    )
+    __gs(
+      'collectionKey',
+      () => collectionKey,
+      (value) => {
+        collectionKey = value
+      },
+    )
+    __gs(
+      'defaultIcon',
+      () => defaultIcon,
+      (value) => {
+        defaultIcon = value
+      },
+    )
+    __gs(
+      'modelIdKey',
+      () => modelIdKey,
+      (value) => {
+        modelIdKey = value
+      },
+    )
+    __gs(
+      'structuredClone2',
+      () => structuredClone2,
+      (value) => {
+        structuredClone2 = value
+      },
+    )
+    __gs(
+      'text',
+      () => text,
+      (value) => {
+        text = value
+      },
+    )
+    __gs(
+      'selectedCurtainGroupId',
+      () => selectedCurtainGroupId,
+      (value) => {
+        selectedCurtainGroupId = value
+      },
+    )
+    __gs(
+      'sceneMetadata',
+      () => sceneMetadata,
+      (value) => {
+        sceneMetadata = value
+      },
+    )
+    __gs(
+      'editorRuntime',
+      () => editorRuntime,
+      (value) => {
+        editorRuntime = value
+      },
+    )
+    __gs(
+      'isDisposed',
+      () => isDisposed,
+      (value) => {
+        isDisposed = value
+      },
+    )
+    __gs(
+      'isAccessAllowed',
+      () => isAccessAllowed,
+      (value) => {
+        isAccessAllowed = value
+      },
+    )
+    __gs(
+      'floorSelection',
+      () => floorSelection,
+      (value) => {
+        floorSelection = value
+      },
+    )
+    __gs(
+      'isRangeEditorOpen',
+      () => isRangeEditorOpen,
+      (value) => {
+        isRangeEditorOpen = value
+      },
+    )
+    __gs(
+      'subEditorHandle',
+      () => subEditorHandle,
+      (value) => {
+        subEditorHandle = value
+      },
+    )
+    __gs(
+      'vacuumCameraMode',
+      () => vacuumCameraMode,
+      (value) => {
+        vacuumCameraMode = value
+      },
+    )
+    __gs(
+      'isCameraEditing',
+      () => isCameraEditing,
+      (value) => {
+        isCameraEditing = value
+      },
+    )
+    __gs(
+      'editingShowAllLabels',
+      () => editingShowAllLabels,
+      (value) => {
+        editingShowAllLabels = value
+      },
+    )
+    __gs(
+      'isCameraCommandPending',
+      () => isCameraCommandPending,
+      (value) => {
+        isCameraCommandPending = value
+      },
+    )
+    __gs(
+      'pendingCameraDraft',
+      () => pendingCameraDraft,
+      (value) => {
+        pendingCameraDraft = value
+      },
+    )
+    __gs(
+      'num',
+      () => num,
+      (value) => {
+        num = value
+      },
+    )
+    __gs(
+      'cameraCommandQueue',
+      () => cameraCommandQueue,
+      (value) => {
+        cameraCommandQueue = value
+      },
+    )
+    __gs(
+      'addDialogState',
+      () => addDialogState,
+      (value) => {
+        addDialogState = value
+      },
+    )
+    __gs(
+      'pickerHandle',
+      () => pickerHandle,
+      (value) => {
+        pickerHandle = value
+      },
+    )
+    __gs(
+      'pickerGeneration',
+      () => pickerGeneration,
+      (value) => {
+        pickerGeneration = value
+      },
+    )
+    __gs(
+      'isSaving',
+      () => isSaving,
+      (value) => {
+        isSaving = value
+      },
+    )
+    __gs(
+      'isDirty',
+      () => isDirty,
+      (value) => {
+        isDirty = value
+      },
+    )
+    __gs(
+      'latestStates',
+      () => latestStates,
+      (value) => {
+        latestStates = value
+      },
+    )
+    __gs(
+      'refreshEffectSettings',
+      () => refreshEffectSettings,
+      (value) => {
+        refreshEffectSettings = value
+      },
+    )
+    __gs(
+      'bathEffectEditorHandle',
+      () => bathEffectEditorHandle,
+      (value) => {
+        bathEffectEditorHandle = value
+      },
+    )
+    __gs(
+      'redrawBathEffects',
+      () => redrawBathEffects,
+      (value) => {
+        redrawBathEffects = value
+      },
+    )
+    __gs(
+      'refreshAirflowStatus',
+      () => refreshAirflowStatus,
+      (value) => {
+        refreshAirflowStatus = value
+      },
+    )
+    __gs(
+      'refreshExtraControlStates',
+      () => refreshExtraControlStates,
+      (value) => {
+        refreshExtraControlStates = value
+      },
+    )
+    __gs(
+      'renderAirflowSection',
+      () => renderAirflowSection,
+      (value) => {
+        renderAirflowSection = value
+      },
+    )
+  }
+  __linkEditorHost()
+  attachEditorPanelRendering(__editorHost)
+  const saveButtonElement = __editorHost.saveButtonElement
+  let accessUnsubscribe = () => {}
+  __editorHost.accessUnsubscribe = () => accessUnsubscribe()
   const {
     closeAuxDialog,
     syncPreviewSize,
@@ -470,7 +730,7 @@ export async function openInteraction3dEditor({
     closeAddDialog,
     openAddDialog,
     renderPanel,
-  } = __editorHost;
+  } = __editorHost
   /**
    * 「显示本类全部标签」点击预览标记：把编辑对象切到被点的设备（0.7.8 `_0x59a404`）。
    *
@@ -486,22 +746,22 @@ export async function openInteraction3dEditor({
       isCameraEditing ||
       isCameraCommandPending ||
       isRangeEditorOpen ||
-      previewEditEvent.action !== "select" ||
+      previewEditEvent.action !== 'select' ||
       previewEditEvent.previewReference !== true ||
       (previewEditEvent.floorId && previewEditEvent.floorId !== floorSelection)
     )
-      return;
+      return
     const nextModule = previewEditEvent.module,
-      nextSelectedId = previewEditEvent.id;
-    if (!nextModule || !nextSelectedId) return;
+      nextSelectedId = previewEditEvent.id
+    if (!nextModule || !nextSelectedId) return
     if (nextModule !== deviceKind) {
       void switchEditorKind(nextModule, false, {
         id: nextSelectedId,
-        vacuumId: previewEditEvent.vacuumId || "",
-      });
-      return;
+        vacuumId: previewEditEvent.vacuumId || '',
+      })
+      return
     }
-    let resolvedSelectedId = nextSelectedId;
+    let resolvedSelectedId = nextSelectedId
     if (isVacuumShortcutMode) {
       const vacuumDeviceId = previewEditEvent.vacuumId || vacuumId,
         vacuumModel = structuredClone2.devices?.vacuums?.find(
@@ -511,10 +771,10 @@ export async function openInteraction3dEditor({
           (shortcutCandidate: any) =>
             // 同类点击传来的是标识 id；跨类切换（vacuum → vacuum-shortcut）传来的是裸 shortcutId。
             shortcutCandidate.id === nextSelectedId ||
-            "vacuum-room:" + vacuumModel.id + ":" + shortcutCandidate.id === nextSelectedId,
-        );
-      if (!matchedShortcut) return;
-      ((vacuumId = vacuumModel.id), (resolvedSelectedId = matchedShortcut.id));
+            'vacuum-room:' + vacuumModel.id + ':' + shortcutCandidate.id === nextSelectedId,
+        )
+      if (!matchedShortcut) return
+      ;(vacuumId = vacuumModel.id), (resolvedSelectedId = matchedShortcut.id)
     } else {
       const matchedItem = getItemList().find(
           (previewItemCandidate: any) =>
@@ -527,221 +787,203 @@ export async function openInteraction3dEditor({
             ? getCurtainGroupList().find(
                 (groupCandidate: any) => curtainGroupEntryId2(groupCandidate) === nextSelectedId,
               )
-            : null;
-      if (!matchedItem && !matchedCoverGroup) return;
-      matchedCoverGroup && (selectedCurtainGroupId = "");
+            : null
+      if (!matchedItem && !matchedCoverGroup) return
+      matchedCoverGroup && (selectedCurtainGroupId = '')
     }
-    (isVacuumMode && (vacuumId = resolvedSelectedId),
-      (text = resolvedSelectedId),
-      renderPanel(),
-      refreshEditorPreview());
+    isVacuumMode && (vacuumId = resolvedSelectedId), (text = resolvedSelectedId), renderPanel(), refreshEditorPreview()
   }
   function mountEditorRuntime() {
     const mountedRuntime = previewHandle.mount(
       {
-      component: {
-        ...component,
-        properties: buildRuntimeProperties(),
-      },
-      context: {
-        document: documentApi,
-        states: states,
-        entityMetadata: new Map(
-          entities.map((statesSnapshot: any) => [statesSnapshot.entityId, statesSnapshot]),
-        ),
-      },
-      editing: true,
-      editingVacuumId: isVacuumShortcutMode ? vacuumId : "",
-      editingShowAllLabels: editingShowAllLabels,
-      editingModule: usesStatusPanel
-        ? deviceKind
-        : isCoverMode
-          ? "cover"
-          : isAirerMode || isClimateMode || isTemperatureHumidityMode
-            ? deviceKind
-            : "light",
-      onStates(statusListItem: any) {
-        isDisposed ||
-          ((latestStates = statusListItem),
-          subEditorHandle?.syncMap?.(),
-          // 0.8.4 `refreshStates`：附加实体的状态行随实时状态刷新。
-          refreshExtraControlStates(),
-          refreshEffectSettings(),
-          bathEffectEditorHandle(),
-          refreshAirflowStatus());
-      },
-      onReady(sceneMetadataPayload: any = undefined) {
-        (num++,
-          (isCameraEditing = false),
-          (isCameraCommandPending = false),
-          (pendingCameraDraft = null),
-          (sceneMetadata = sceneMetadataPayload),
-          sceneMetadata.floors.some((sceneFloorLookup: any) => sceneFloorLookup.id === floorSelection) ||
-            (floorSelection = sceneMetadata.floors[0]?.id || ""),
-          renderPanel(),
-          refreshEditorPreview(),
-          shouldStartAdding && ((shouldStartAdding = false), queueMicrotask(openAddDialog)));
-      },
-      onEdit(editEvent: any) {
-        if (!(isDisposed || !isAccessAllowed || addDialogState || __editorHost.auxDialogElement)) {
-          if (editEvent.action === "select" && editEvent.previewReference === true) {
-            selectPreviewReferenceItem(editEvent);
-            return;
-          }
-          if (editEvent.action === "nas-layout" && isNasMode) {
-            // 0.8.1：NAS 预览里拖动排序 / 缩放后的布局回写到当前 NAS 配置。
-            const nasMatchedItem = getItemList().find(
-              (nasMatchedProbe: { id?: string }) => nasMatchedProbe.id === editEvent.id,
-            );
-            nasMatchedItem &&
-              nasMatchedItem.id === component.id &&
-              applyNasLayout2(nasMatchedItem.statusSource, editEvent.group, editEvent.layout) &&
-              refreshEditorPreview();
-            return;
-          }
-          if (
-            ["purifier-layout", "device-layout"].includes(editEvent.action) &&
-            (["climate", "airer", "fan", "purifier", "water-heater"].includes(deviceKind) ||
-              isGenericDeviceMode)
-          ) {
-            const matchedItem = getItemList().find(
-                (editMatchedItemProbe: any) => editMatchedItemProbe.id === editEvent.id,
-              ),
-              controlByEntityId = new Map(
-                (matchedItem?.extraControls || []).map((extraControlEntry: any) => [
-                  extraControlEntry.entityId,
-                  extraControlEntry,
-                ]),
-              );
-            if (
-              !matchedItem ||
-              !Array.isArray(editEvent.extraControls) ||
-              editEvent.extraControls.length !== controlByEntityId.size ||
-              new Set(editEvent.extraControls.map((controlIdProbe: any) => controlIdProbe.entityId))
-                .size !== controlByEntityId.size ||
-              editEvent.extraControls.some(
-                (incomingControlProbe: any) =>
-                  !controlByEntityId.has(incomingControlProbe.entityId) ||
-                  ![1, 2, 3, 4].includes(incomingControlProbe.columns) ||
-                  ![1, 2].includes(incomingControlProbe.rows),
+        component: {
+          ...component,
+          properties: buildRuntimeProperties(),
+        },
+        context: {
+          document: documentApi,
+          states: states,
+          entityMetadata: new Map(entities.map((statesSnapshot: any) => [statesSnapshot.entityId, statesSnapshot])),
+        },
+        editing: true,
+        editingVacuumId: isVacuumShortcutMode ? vacuumId : '',
+        editingShowAllLabels: editingShowAllLabels,
+        editingModule: usesStatusPanel
+          ? deviceKind
+          : isCoverMode
+            ? 'cover'
+            : isAirerMode || isClimateMode || isTemperatureHumidityMode
+              ? deviceKind
+              : 'light',
+        onStates(statusListItem: any) {
+          isDisposed ||
+            ((latestStates = statusListItem),
+            subEditorHandle?.syncMap?.(),
+            // 0.8.4 `refreshStates`：附加实体的状态行随实时状态刷新。
+            refreshExtraControlStates(),
+            refreshEffectSettings(),
+            bathEffectEditorHandle(),
+            refreshAirflowStatus())
+        },
+        onReady(sceneMetadataPayload: any = undefined) {
+          num++,
+            (isCameraEditing = false),
+            (isCameraCommandPending = false),
+            (pendingCameraDraft = null),
+            (sceneMetadata = sceneMetadataPayload),
+            sceneMetadata.floors.some((sceneFloorLookup: any) => sceneFloorLookup.id === floorSelection) ||
+              (floorSelection = sceneMetadata.floors[0]?.id || ''),
+            renderPanel(),
+            refreshEditorPreview(),
+            shouldStartAdding && ((shouldStartAdding = false), queueMicrotask(openAddDialog))
+        },
+        onEdit(editEvent: any) {
+          if (!(isDisposed || !isAccessAllowed || addDialogState || __editorHost.auxDialogElement)) {
+            if (editEvent.action === 'select' && editEvent.previewReference === true) {
+              selectPreviewReferenceItem(editEvent)
+              return
+            }
+            if (editEvent.action === 'nas-layout' && isNasMode) {
+              // 0.8.1：NAS 预览里拖动排序 / 缩放后的布局回写到当前 NAS 配置。
+              const nasMatchedItem = getItemList().find(
+                (nasMatchedProbe: { id?: string }) => nasMatchedProbe.id === editEvent.id,
               )
-            )
-              return;
-            ((matchedItem.extraControls = editEvent.extraControls.map((incomingExtraControl: any) => ({
-              entityId: incomingExtraControl.entityId,
-              type: extraTypes2(incomingExtraControl.entityId)[0],
-              columns: incomingExtraControl.columns,
-              rows: incomingExtraControl.rows,
-            }))),
-              refreshEditorPreview());
-            return;
-          }
-          if (
-            (editEvent.action === "light-region-overrides" &&
-              ((structuredClone2.lightRegionOverrides = structuredClone(editEvent.overrides || {})),
-              isDirty++,
-              __editorHost.configurationFeedback?.changed()),
-            isVacuumShortcutMode)
-          ) {
-            const roomShortcut = getItemList().find(
-              (roomShortcutProbe: any) =>
-                "vacuum-room:" + vacuumId + ":" + roomShortcutProbe.id === editEvent.id,
-            );
-            roomShortcut &&
-              ((text = roomShortcut.id),
-              editEvent.action === "position" &&
-                ((roomShortcut.x = editEvent.x),
-                (roomShortcut.y = editEvent.y),
-                refreshEditorPreview()),
-              renderPanel(),
-              editEvent.action === "select" && refreshEditorPreview());
-            return;
-          }
-          if (isVacuumMode && editEvent.id?.startsWith("vacuum-room:")) {
-            const shortcutOwner = getItemList().find((shortcutOwnerProbe: any) =>
-                (shortcutOwnerProbe.shortcuts || []).some(
-                  (ownerShortcutProbe: any) =>
-                    "vacuum-room:" + shortcutOwnerProbe.id + ":" + ownerShortcutProbe.id ===
-                    editEvent.id,
+              nasMatchedItem &&
+                nasMatchedItem.id === component.id &&
+                applyNasLayout2(nasMatchedItem.statusSource, editEvent.group, editEvent.layout) &&
+                refreshEditorPreview()
+              return
+            }
+            if (
+              ['purifier-layout', 'device-layout'].includes(editEvent.action) &&
+              (['climate', 'airer', 'fan', 'purifier', 'water-heater'].includes(deviceKind) || isGenericDeviceMode)
+            ) {
+              const matchedItem = getItemList().find(
+                  (editMatchedItemProbe: any) => editMatchedItemProbe.id === editEvent.id,
                 ),
-              ),
-              matchedShortcutItem = shortcutOwner?.shortcuts.find(
-                (matchedOwnerShortcutProbe: any) =>
-                  "vacuum-room:" + shortcutOwner.id + ":" + matchedOwnerShortcutProbe.id ===
-                  editEvent.id,
-              );
-            matchedShortcutItem &&
-              ((text = shortcutOwner.id),
-              editEvent.action === "position" &&
-                ((matchedShortcutItem.x = editEvent.x),
-                (matchedShortcutItem.y = editEvent.y),
-                refreshEditorPreview()),
-              editEvent.action === "select" && renderPanel());
-            return;
-          }
-          if (
-            (editEvent.action === "focus-exited" &&
-              ((isCameraEditing = false), (pendingCameraDraft = null), renderPanel()),
-            editEvent.action === "select")
-          ) {
-            if (
-              isTemperatureHumidityMode &&
-              !getItemList().some(
-                (floorItemProbe: any) =>
-                  floorItemProbe.id === editEvent.id && floorItemProbe.floorId === floorSelection,
+                controlByEntityId = new Map(
+                  (matchedItem?.extraControls || []).map((extraControlEntry: any) => [
+                    extraControlEntry.entityId,
+                    extraControlEntry,
+                  ]),
+                )
+              if (
+                !matchedItem ||
+                !Array.isArray(editEvent.extraControls) ||
+                editEvent.extraControls.length !== controlByEntityId.size ||
+                new Set(editEvent.extraControls.map((controlIdProbe: any) => controlIdProbe.entityId)).size !==
+                  controlByEntityId.size ||
+                editEvent.extraControls.some(
+                  (incomingControlProbe: any) =>
+                    !controlByEntityId.has(incomingControlProbe.entityId) ||
+                    ![1, 2, 3, 4].includes(incomingControlProbe.columns) ||
+                    ![1, 2].includes(incomingControlProbe.rows),
+                )
               )
-            )
-              return;
-            ((text = editEvent.id), renderPanel(), refreshEditorPreview());
+                return
+              ;(matchedItem.extraControls = editEvent.extraControls.map((incomingExtraControl: any) => ({
+                entityId: incomingExtraControl.entityId,
+                type: extraTypes2(incomingExtraControl.entityId)[0],
+                columns: incomingExtraControl.columns,
+                rows: incomingExtraControl.rows,
+              }))),
+                refreshEditorPreview()
+              return
+            }
+            if (
+              (editEvent.action === 'light-region-overrides' &&
+                ((structuredClone2.lightRegionOverrides = structuredClone(editEvent.overrides || {})),
+                isDirty++,
+                __editorHost.configurationFeedback?.changed()),
+              isVacuumShortcutMode)
+            ) {
+              const roomShortcut = getItemList().find(
+                (roomShortcutProbe: any) => 'vacuum-room:' + vacuumId + ':' + roomShortcutProbe.id === editEvent.id,
+              )
+              roomShortcut &&
+                ((text = roomShortcut.id),
+                editEvent.action === 'position' &&
+                  ((roomShortcut.x = editEvent.x), (roomShortcut.y = editEvent.y), refreshEditorPreview()),
+                renderPanel(),
+                editEvent.action === 'select' && refreshEditorPreview())
+              return
+            }
+            if (isVacuumMode && editEvent.id?.startsWith('vacuum-room:')) {
+              const shortcutOwner = getItemList().find((shortcutOwnerProbe: any) =>
+                  (shortcutOwnerProbe.shortcuts || []).some(
+                    (ownerShortcutProbe: any) =>
+                      'vacuum-room:' + shortcutOwnerProbe.id + ':' + ownerShortcutProbe.id === editEvent.id,
+                  ),
+                ),
+                matchedShortcutItem = shortcutOwner?.shortcuts.find(
+                  (matchedOwnerShortcutProbe: any) =>
+                    'vacuum-room:' + shortcutOwner.id + ':' + matchedOwnerShortcutProbe.id === editEvent.id,
+                )
+              matchedShortcutItem &&
+                ((text = shortcutOwner.id),
+                editEvent.action === 'position' &&
+                  ((matchedShortcutItem.x = editEvent.x),
+                  (matchedShortcutItem.y = editEvent.y),
+                  refreshEditorPreview()),
+                editEvent.action === 'select' && renderPanel())
+              return
+            }
+            if (
+              (editEvent.action === 'focus-exited' &&
+                ((isCameraEditing = false), (pendingCameraDraft = null), renderPanel()),
+              editEvent.action === 'select')
+            ) {
+              if (
+                isTemperatureHumidityMode &&
+                !getItemList().some(
+                  (floorItemProbe: any) =>
+                    floorItemProbe.id === editEvent.id && floorItemProbe.floorId === floorSelection,
+                )
+              )
+                return
+              ;(text = editEvent.id), renderPanel(), refreshEditorPreview()
+            }
+            if (editEvent.action === 'position') {
+              const positionedItem =
+                (isCoverMode &&
+                  getCurtainGroupList().find(
+                    (positionCandidateProbe: any) => curtainGroupEntryId2(positionCandidateProbe) === editEvent.id,
+                  )) ||
+                getItemList().find((layoutCandidateProbe: any) => layoutCandidateProbe.id === editEvent.id)
+              positionedItem &&
+                (!isTemperatureHumidityMode || positionedItem.floorId === floorSelection) &&
+                Number.isFinite(editEvent.x) &&
+                Number.isFinite(editEvent.y) &&
+                ((positionedItem.x = editEvent.x),
+                (positionedItem.y = editEvent.y),
+                isTemperatureHumidityMode && renderPanel(),
+                refreshEditorPreview())
+            }
+            editEvent.action === 'camera' &&
+              ((structuredClone2.floorCameras = {
+                ...structuredClone2.floorCameras,
+                [floorSelection]: editEvent.camera,
+              }),
+              floorSelection === structuredClone2.floorSelection && (structuredClone2.camera = editEvent.camera),
+              (errorMessageElement.textContent = '默认视角已记录，保存配置后生效。'))
           }
-          if (editEvent.action === "position") {
-            const positionedItem =
-              (isCoverMode &&
-                getCurtainGroupList().find(
-                  (positionCandidateProbe: any) =>
-                    curtainGroupEntryId2(positionCandidateProbe) === editEvent.id,
-                )) ||
-              getItemList().find(
-                (layoutCandidateProbe: any) => layoutCandidateProbe.id === editEvent.id,
-              );
-            positionedItem &&
-              (!isTemperatureHumidityMode || positionedItem.floorId === floorSelection) &&
-              Number.isFinite(editEvent.x) &&
-              Number.isFinite(editEvent.y) &&
-              ((positionedItem.x = editEvent.x),
-              (positionedItem.y = editEvent.y),
-              isTemperatureHumidityMode && renderPanel(),
-              refreshEditorPreview());
-          }
-          editEvent.action === "camera" &&
-            ((structuredClone2.floorCameras = {
-              ...structuredClone2.floorCameras,
-              [floorSelection]: editEvent.camera,
-            }),
-            floorSelection === structuredClone2.floorSelection &&
-              (structuredClone2.camera = editEvent.camera),
-            (errorMessageElement.textContent = "默认视角已记录，保存配置后生效。"));
-        }
+        },
       },
-      },
-      (viewportElement: any, runtimeOptions: any) =>
-        mountInteraction3d2(viewportElement, runtimeOptions),
-    );
+      (viewportElement: any, runtimeOptions: any) => mountInteraction3d2(viewportElement, runtimeOptions),
+    )
     // 借用会话里运行时属于编辑器页：句柄本身才是「运行时」，`previewHandle.mount` 只回清理函数。
-    editorRuntime = isBorrowedPreview ? editorView : mountedRuntime;
+    editorRuntime = isBorrowedPreview ? editorView : mountedRuntime
   }
   accessUnsubscribe = subscribeInteraction3dAccess2((accessState: any) => {
     isDisposed ||
       ((isAccessAllowed = accessState.allowed),
-      (saveButtonElement.disabled =
-        isSaving || !isAccessAllowed || isCameraEditing || isCameraCommandPending),
+      (saveButtonElement.disabled = isSaving || !isAccessAllowed || isCameraEditing || isCameraCommandPending),
       (panelElement.inert = !isAccessAllowed),
-      (statusElement.hidden =
-        isAccessAllowed || (!!editorRuntime && accessState.status !== "denied")),
+      (statusElement.hidden = isAccessAllowed || (!!editorRuntime && accessState.status !== 'denied')),
       (statusElement.textContent =
-        accessState.status === "denied" || accessState.status === "unavailable"
+        accessState.status === 'denied' || accessState.status === 'unavailable'
           ? accessState.message
-          : "正在准备户型…"),
+          : '正在准备户型…'),
       isAccessAllowed
         ? editorRuntime
           ? editorRuntime.setAuthorized(true)
@@ -757,15 +999,15 @@ export async function openInteraction3dEditor({
           (pendingCameraDraft = null),
           renderPanel(),
           editorRuntime?.setAuthorized(false),
-          accessState.status === "denied" &&
+          accessState.status === 'denied' &&
             (isBorrowedPreview
               ? previewHandle.discardRuntime()
-              : (editorRuntime?.(), (editorRuntime = null), renderPanel()))));
-  });
-  (renderPanel(),
+              : (editorRuntime?.(), (editorRuntime = null), renderPanel()))))
+  })
+  renderPanel(),
     previewHandle.show(),
-    document.dispatchEvent(new Event("hb-i3d-preview-scope")),
+    document.dispatchEvent(new Event('hb-i3d-preview-scope')),
     syncPreviewSize(),
     // 挂载运行时同样受授权门禁约束：此前无条件挂载，等于给未授权会话装了一个可操作运行时。
-    isAccessAllowed && !editorRuntime && mountEditorRuntime());
+    isAccessAllowed && !editorRuntime && mountEditorRuntime()
 }

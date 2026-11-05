@@ -45,10 +45,7 @@ export interface EntityStateUpdateDeps {
   bumpEntityStateRevision?: (entityId?: string) => void
   /** 批量递增版本号：一次性 bump 全局 + 按实体/按域去重，避免逐实体 3 次响应式写 */
   bumpEntityStateRevisionBatch?: (entityIds: string[]) => void
-  haStateChanged: (
-    oldState: HaEntityState | null | undefined,
-    newState: HaEntityState | null | undefined,
-  ) => boolean
+  haStateChanged: (oldState: HaEntityState | null | undefined, newState: HaEntityState | null | undefined) => boolean
   shouldNotifyStateChange: (args: EntityStateNotifyArgs) => boolean
   resolveListenerOldState: (args: ResolveListenerOldStateArgs) => HaEntityState | null
   logger?: EntityStateListenerLogger
@@ -166,9 +163,7 @@ function removalOutcome(
     entityId,
     mergedNew: null,
     notifyPayload,
-    derivedPatch: deps.patchDerivedChanges
-      ? { entity_id: entityId, oldEntity: cached, newEntity: null }
-      : null,
+    derivedPatch: deps.patchDerivedChanges ? { entity_id: entityId, oldEntity: cached, newEntity: null } : null,
     countDelta: cached ? -1 : 0,
   }
 }
@@ -211,11 +206,7 @@ function reconcileOptimistic(
 }
 
 /** 落库：有值写缓存；空值视为删除（HA 侧实体被删/禁用），并先撤掉乐观态避免回滚复活。 */
-function writeEntityState(
-  deps: EntityStateUpdateDeps,
-  entityId: string,
-  mergedNew: HaEntityState | null,
-): void {
+function writeEntityState(deps: EntityStateUpdateDeps, entityId: string, mergedNew: HaEntityState | null): void {
   if (mergedNew) {
     deps.entities[entityId] = mergedNew
     return
@@ -260,10 +251,7 @@ function entityCountDelta(cached: HaEntityState | null, mergedNew: HaEntityState
   return hadEntity && !hasEntity ? -1 : 0
 }
 
-function applyEntityChange(
-  deps: EntityStateUpdateDeps,
-  raw: WsDeltaChange,
-): EntityChangeOutcome | null {
+function applyEntityChange(deps: EntityStateUpdateDeps, raw: WsDeltaChange): EntityChangeOutcome | null {
   const data = raw?._delta ? normalizeWsBatchChange(raw, deps.entities) : raw
   if (!data?.entity_id || !deps.entityVisible(data.entity_id)) return null
 
@@ -279,11 +267,8 @@ function applyEntityChange(
   // 是对的 —— 本地已有一条**更新**的完整状态，它必然包含了这条旧推送的全部信息。
   if (isStaleState(data.changed_at ?? raw.changed_at, cached)) return null
   const cachedOld = cached?.state
-  const hadOptimistic =
-    deps.optimisticState.size > 0 && deps.optimisticState.has?.(data.entity_id)
-  let mergedNew = finalizeMergedEntity(
-    raw?._delta ? mergeWsStateChange(cached, raw) : data.new_state,
-  )
+  const hadOptimistic = deps.optimisticState.size > 0 && deps.optimisticState.has?.(data.entity_id)
+  let mergedNew = finalizeMergedEntity(raw?._delta ? mergeWsStateChange(cached, raw) : data.new_state)
   if (!raw?._delta && hadOptimistic && data?.changed_attributes && mergedNew) {
     mergedNew = overlayAttributesOnOptimistic(cached, data, mergedNew)
   }
@@ -291,14 +276,7 @@ function applyEntityChange(
   writeEntityState(deps, data.entity_id, mergedNew)
   deps.markEntityCacheDirty?.(data.entity_id)
 
-  const notifyPayload = buildNotifyPayload(
-    deps,
-    raw,
-    data,
-    cached,
-    cachedOld,
-    mergedNew,
-  )
+  const notifyPayload = buildNotifyPayload(deps, raw, data, cached, cachedOld, mergedNew)
   const derivedPatch: EntityPatch | null = deps.patchDerivedChanges
     ? { entity_id: data.entity_id, oldEntity: cached, newEntity: mergedNew || null }
     : null
@@ -319,11 +297,9 @@ export function applyEntityStateUpdate(deps: EntityStateUpdateDeps, data: WsDelt
   deps.patchProjectionsFromChanges?.([{ entity_id: outcome.entityId }])
 
   if (outcome.notifyPayload) {
-    notifyStateListener(
-      getListenerDeps(deps),
-      outcome.notifyPayload,
-      { immediate: isImmediateListenerEntity(outcome.entityId) },
-    )
+    notifyStateListener(getListenerDeps(deps), outcome.notifyPayload, {
+      immediate: isImmediateListenerEntity(outcome.entityId),
+    })
   }
 
   if (outcome.countDelta !== 0) {
@@ -340,10 +316,7 @@ export function applyEntityStateUpdate(deps: EntityStateUpdateDeps, data: WsDelt
   deps.bumpEntityStateRevision?.(outcome.entityId)
 }
 
-export function applyEntityStatesBatch(
-  deps: EntityStateUpdateDeps,
-  changes: WsDeltaChange[],
-): void {
+export function applyEntityStatesBatch(deps: EntityStateUpdateDeps, changes: WsDeltaChange[]): void {
   if (!changes?.length) return
   let countDelta = 0
   // 本批次实际写入的实体 ID 集合（用于逐实体递增版本号，粒度化失效）

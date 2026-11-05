@@ -53,10 +53,7 @@ export function hexToRgbOrBlack(hex: string | undefined | null): Rgb {
 /**
  * 把 HEX 转为 CSS `r, g, b` 通道串，供 `--accent-rgb` 使用。
  */
-export function hexToRgbChannels(
-  hex: string | null | undefined,
-  fallback = '148, 163, 184',
-): string {
+export function hexToRgbChannels(hex: string | null | undefined, fallback = '148, 163, 184'): string {
   const rgb = hexToRgb(normalizeHexColor(hex) || hex || '')
   if (!rgb) return fallback
   return `${rgb.r}, ${rgb.g}, ${rgb.b}`

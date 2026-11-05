@@ -81,18 +81,14 @@ function formatLunarDayName(lunar: Pick<LunarDate, 'day'>) {
 }
 
 /** 农历年份行（干支 + 生肖） */
-export function formatLunarYearLine(
-  lunar: Pick<LunarDate, 'zodiacKey' | 'zodiac' | 'yearName'>,
-) {
+export function formatLunarYearLine(lunar: Pick<LunarDate, 'zodiacKey' | 'zodiac' | 'yearName'>) {
   const zodiac = formatLunarZodiac(lunar)
   const zodiacLabel = lunar.zodiac || zodiac
   return `${lunar.yearName}年（${zodiacLabel}年）`
 }
 
 /** 农历月日行 */
-export function formatLunarMonthDayLine(
-  lunar: Pick<LunarDate, 'month' | 'day' | 'isLeap'>,
-) {
+export function formatLunarMonthDayLine(lunar: Pick<LunarDate, 'month' | 'day' | 'isLeap'>) {
   const monthName = formatLunarMonthName(lunar)
   const dayName = formatLunarDayName(lunar)
   const month = lunar.isLeap ? `闰${monthName}` : monthName

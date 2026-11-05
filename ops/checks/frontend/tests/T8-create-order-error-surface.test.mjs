@@ -32,16 +32,13 @@ test('createOrder：/account 预检必须在 try 内，失败也要走统一错�
   const precheckAt = body.indexOf('api<{ orders?: StoreOrder[] }>("/account")')
   assert.ok(tryAt > 0, 'createOrder 里必须有 try')
   assert.ok(precheckAt > 0, '找不到 /account 预检请求')
-  assert.ok(
-    tryAt < precheckAt,
-    '预检请求在 try 之外：失败时用户点击「支付」看不到任何提示（回归）',
-  )
+  assert.ok(tryAt < precheckAt, '预检请求在 try 之外：失败时用户点击「支付」看不到任何提示（回归）')
   // 409 复查分支仍在 catch 里，且 catch 一定会 toast 后 rethrow。
   const catchAt = body.lastIndexOf('} catch (error) {')
   assert.ok(catchAt > precheckAt, 'catch 必须在预检之后')
   const catchBody = body.slice(catchAt)
   assert.match(catchBody, /apiError\.status === 409/)
-  assert.match(catchBody, /api<\{ orders\?: StoreOrder\[\] \}>\("\/account"\)\.catch\(logAndIgnore\(/);
+  assert.match(catchBody, /api<\{ orders\?: StoreOrder\[\] \}>\("\/account"\)\.catch\(logAndIgnore\(/)
   assert.match(catchBody, /toast\.show\(errorMessage\(error\),\s*"err"\)/)
   assert.match(catchBody, /throw error/)
 })
@@ -63,17 +60,22 @@ test('resolveAdminGate：guest 访问 requiresAuth 页改道前台登录，后�
 
   // 1) 前台受保护页 + 服务端判定 guest → 改道登录（服务端未下发 console 会话）
   //    登录落点与前台 requiresAuth 的落点必须一致，改道到别处只能靠这条断言发现。
-  assert.deepEqual(
-    await resolveAdminGate({ meta: { requiresAuth: true, storePage: 'account' } }, deps()),
-    { path: '/user/authentication/login', replace: true },
-  )
+  assert.deepEqual(await resolveAdminGate({ meta: { requiresAuth: true, storePage: 'account' } }, deps()), {
+    path: '/user/authentication/login',
+    replace: true,
+  })
 
   // 2) 非 admin / 非受保护页 → 放行，且不触发后台 bootstrap
   let bootstrapped = false
   assert.equal(
     await resolveAdminGate(
       { meta: { storePage: 'home' } },
-      deps({ bootstrap: async () => { bootstrapped = true; return true } }),
+      deps({
+        bootstrap: async () => {
+          bootstrapped = true
+          return true
+        },
+      }),
     ),
     true,
   )

@@ -3,7 +3,6 @@
 
 .devices-view {
   /* 设备页二级色调：cyan（与 sky 形成 sky + cyan 点缀） */
-
   /* 注：主色派生色 派生变量、--set-* 语义色、--set-transition-* 已移至
          app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
          --hos-color-accent / -rgb 后，全局派生变量由 :where 块自动跟随。 */
@@ -19,8 +18,11 @@
 
 /* ── 搜索/筛选 chip 的 hover/active 反馈跟随主题色 ── */
 .devices-view .list-page__chip--btn {
-  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
-    color var(--hos-dur-fast) var(--hos-ease-standard), transform var(--hos-dur-fast) var(--hos-ease-standard);
+  transition:
+    background var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard),
+    transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .devices-view .list-page__chip--btn:active {
@@ -28,13 +30,17 @@
 }
 
 .devices-view .list-page__tab {
-  transition: background var(--hos-dur-base) var(--hos-ease-standard), box-shadow var(--hos-dur-base) var(--hos-ease-standard),
+  transition:
+    background var(--hos-dur-base) var(--hos-ease-standard),
+    box-shadow var(--hos-dur-base) var(--hos-ease-standard),
     color var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 /* ── 侧栏切换按钮的 hover 反馈 ── */
 .devices-view .devices-view__sidebar-toggle {
-  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
+  transition:
+    background var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard),
     color var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
@@ -47,8 +53,11 @@
 
 /* ── 全选按钮 active 反馈 ── */
 .devices-view .devices-view__select-all {
-  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
-    color var(--hos-dur-fast) var(--hos-ease-standard), transform var(--hos-dur-fast) var(--hos-ease-standard);
+  transition:
+    background var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard),
+    transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .devices-view .devices-view__select-all:active {
@@ -66,7 +75,9 @@
 /* ── 列表行 hover 已在 list-page-views.css 跟随 --hos-color-accent ──
    这里补充 active 态的轻微下压反馈。 */
 .devices-view .list-page__row {
-  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
+  transition:
+    background var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard),
     transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 

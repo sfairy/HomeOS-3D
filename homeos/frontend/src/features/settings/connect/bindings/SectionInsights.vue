@@ -86,9 +86,7 @@ function gapNavTo(gap) {
 }
 
 // 缺口区块标题：概览用「绑定完整性检查」，子分区用「本域完整性检查」
-const gapsTitle = computed(() =>
-  props.section === 'overview' ? '绑定完整性检查' : '本域完整性检查',
-)
+const gapsTitle = computed(() => (props.section === 'overview' ? '绑定完整性检查' : '本域完整性检查'))
 
 const gapsDescription = computed(() =>
   props.section === 'overview'

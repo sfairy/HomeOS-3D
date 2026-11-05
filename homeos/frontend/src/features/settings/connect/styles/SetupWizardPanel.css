@@ -1,4 +1,4 @@
-@import '../setup-wizard/styles/setup-wizard.css';
+@import "../setup-wizard/styles/setup-wizard.css";
 
 .sw-flow-band {
   margin-bottom: 8px;
@@ -64,12 +64,7 @@
 
 .sw-content--emerald {
   --sw-content-border: var(--sw-emerald-border);
-  --sw-content-bg: linear-gradient(
-    155deg,
-    var(--sw-emerald-bg) 0%,
-    var(--sw-violet-bg) 45%,
-    rgba(0, 0, 0, 0.12) 100%
-  );
+  --sw-content-bg: linear-gradient(155deg, var(--sw-emerald-bg) 0%, var(--sw-violet-bg) 45%, rgba(0, 0, 0, 0.12) 100%);
 }
 
 .sw-content__inner {
@@ -93,9 +88,6 @@
   transform: translateY(-6px);
 }
 
-
-
-
 .sw-toast-enter-active,
 .sw-toast-leave-active {
   transition:
@@ -107,4 +99,3 @@
   --flow-glow-a: rgba(251, 191, 36, var(--flow-glow-alpha-strong));
   --flow-glow-b: rgba(245, 158, 11, var(--flow-glow-alpha-b));
 }
-

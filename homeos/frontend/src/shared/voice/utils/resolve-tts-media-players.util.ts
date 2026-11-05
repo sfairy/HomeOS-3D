@@ -37,10 +37,7 @@ function getConfiguredTtsMediaPlayerIds(): string[] {
  * @param options.emergencyFallback 未配置时是否回退到第一个可用 media_player
  * @returns 播报目标 entity_id 数组（可能为空）
  */
-export function resolveTtsMediaPlayerIds(
-  entities?: EntityMap,
-  options?: { emergencyFallback?: boolean },
-): string[] {
+export function resolveTtsMediaPlayerIds(entities?: EntityMap, options?: { emergencyFallback?: boolean }): string[] {
   const configured = getConfiguredTtsMediaPlayerIds()
   if (configured.length) return configured
   if (!options?.emergencyFallback || !entities) return []

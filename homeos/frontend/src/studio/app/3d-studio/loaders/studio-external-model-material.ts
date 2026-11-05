@@ -1,6 +1,6 @@
 /** 模板材质名归一与材质签名值的纯函数（从 `studio-external-models` 拆出）。 */
 
-import { legacyExternalMaterialName } from "../materials/legacy-material-aliases";
+import { legacyExternalMaterialName } from '../materials/legacy-material-aliases'
 
 /**
  * 把模板里的材质名换回**旧名**（只在别名表命中时）。
@@ -13,24 +13,24 @@ import { legacyExternalMaterialName } from "../materials/legacy-material-aliases
  *
  * 注意：这里**只**处理有别名（真正改过名）的材质，未改名模型连大小写都不动。
  */
-type SlotMaterial = { name?: string };
-type SlotNode = { material?: SlotMaterial | SlotMaterial[] | null };
-type SlotScene = { traverse?: (visit: (node: SlotNode) => void) => void } | null;
+type SlotMaterial = { name?: string }
+type SlotNode = { material?: SlotMaterial | SlotMaterial[] | null }
+type SlotScene = { traverse?: (visit: (node: SlotNode) => void) => void } | null
 
 export function normalizeTemplateSlotNames(templateScene: SlotScene, itemType: string): void {
   templateScene?.traverse?.((node) => {
-    if (!node?.material) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    if (!node?.material) return
+    const materials = Array.isArray(node.material) ? node.material : [node.material]
     for (const material of materials) {
-      const legacy = legacyExternalMaterialName(material?.name, itemType);
-      if (legacy && legacy !== material.name) material.name = legacy;
+      const legacy = legacyExternalMaterialName(material?.name, itemType)
+      if (legacy && legacy !== material.name) material.name = legacy
     }
-  });
+  })
 }
 
 /** 普通字面量对象（调色板 / 覆盖表这类）：交给签名函数逐键展开。 */
 export function isPlainRecord(recordValue: unknown): boolean {
-  if (!recordValue || typeof recordValue != "object" || Array.isArray(recordValue)) return false;
-  const recordPrototype = Object.getPrototypeOf(recordValue);
-  return recordPrototype === Object.prototype || recordPrototype === null;
+  if (!recordValue || typeof recordValue != 'object' || Array.isArray(recordValue)) return false
+  const recordPrototype = Object.getPrototypeOf(recordValue)
+  return recordPrototype === Object.prototype || recordPrototype === null
 }

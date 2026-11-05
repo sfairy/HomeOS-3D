@@ -10,10 +10,7 @@ type StudioHistoryFacadePatch = {
   redoDepth: number
 }
 
-export function buildStudioHistoryPatch(
-  undoLen: number,
-  redoLen: number,
-): StudioHistoryFacadePatch {
+export function buildStudioHistoryPatch(undoLen: number, redoLen: number): StudioHistoryFacadePatch {
   return {
     canUndo: undoLen > 0,
     canRedo: redoLen > 0,

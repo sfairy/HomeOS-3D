@@ -39,10 +39,7 @@ import { hexToRgbOrBlack as hexToRgb } from '@/shared/utils/ui/color.util'
  * @param props 组件 props，需提供 entity.entity_id
  * @returns 灯光弹窗所需的全部响应式状态与控制方法
  */
-export function useLightControlPopup(props: {
-  entityId?: string
-  entity?: { entity_id?: string } | null
-}) {
+export function useLightControlPopup(props: { entityId?: string; entity?: { entity_id?: string } | null }) {
   const { callService } = useHaEntityService()
   // 能力属性（supported_color_modes/Kelvin 范围等），需通过 REST 刷新获取完整值
   const capabilityAttrs = ref<Record<string, unknown>>({})
@@ -50,8 +47,7 @@ export function useLightControlPopup(props: {
     () => props.entityId || props.entity?.entity_id,
     () => props.entity,
   )
-  const resolveEntityId = () =>
-    props.entityId || props.entity?.entity_id || liveEntity.value?.entity_id
+  const resolveEntityId = () => props.entityId || props.entity?.entity_id || liveEntity.value?.entity_id
 
   /**
    * 通过 REST 刷新灯光能力属性（WS 推送可能不含 min/max_color_temp_kelvin 等字段）。
@@ -90,9 +86,7 @@ export function useLightControlPopup(props: {
   const hasRgb = computed(() => lightSupportsRgb(lightAttrs.value?.supported_color_modes))
 
   // 是否支持色温（color_temp 模式）
-  const hasColorTemp = computed(() =>
-    lightSupportsColorTemp(lightAttrs.value?.supported_color_modes),
-  )
+  const hasColorTemp = computed(() => lightSupportsColorTemp(lightAttrs.value?.supported_color_modes))
 
   // 弹窗高度：RGB 模式最高（含色盘），色温模式中等，纯亮度最低
   const popupHeight = computed(() => (hasRgb.value ? 460 : hasColorTemp.value ? 320 : 260))
@@ -126,10 +120,8 @@ export function useLightControlPopup(props: {
   } = useSliderCommit(colorTempVal, {
     onCommit: (nextColorTemp: number) => setColorTemp(nextColorTemp),
     track: () => ({ min: minKelvin.value, max: maxKelvin.value, step: colorTempStep.value }),
-    buildTrackStyle: (
-      value: number,
-      { min, max, step }: { min: number; max: number; step: number },
-    ) => colorTempSliderTrackStyle(value, min, max, 'rgba(255,255,255,0.1)', step),
+    buildTrackStyle: (value: number, { min, max, step }: { min: number; max: number; step: number }) =>
+      colorTempSliderTrackStyle(value, min, max, 'rgba(255,255,255,0.1)', step),
   })
 
   // 亮度滑块：amber 变体，释放时调用 setBrightness
@@ -419,13 +411,7 @@ export function useLightControlPopup(props: {
   async function applyTransition() {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
-    await callService(
-      'light',
-      'turn_on',
-      entityId,
-      { transition: transitionTime.value },
-      '过渡设置失败',
-    )
+    await callService('light', 'turn_on', entityId, { transition: transitionTime.value }, '过渡设置失败')
   }
 
   return {

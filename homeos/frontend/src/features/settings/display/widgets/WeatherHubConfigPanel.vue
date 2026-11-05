@@ -193,11 +193,7 @@ defineEmits<{ save: [] }>()
 
 defineProps<{ embedded?: boolean }>()
 
-const {
-  members: presenceMembers,
-  autoMode: presenceAutoMode,
-  refresh: refreshPresence,
-} = usePresenceHome(0)
+const { members: presenceMembers, autoMode: presenceAutoMode, refresh: refreshPresence } = usePresenceHome(0)
 
 onMounted(() => {
   void refreshPresence()
@@ -205,17 +201,13 @@ onMounted(() => {
 
 const forecastDayOptions = [3, 4, 5, 6, 7]
 
-const visibleTabOptions = computed(() =>
-  WEATHER_HUB_TABS.filter((tab) => draft.value.visibleTabs.includes(tab.id)),
-)
+const visibleTabOptions = computed(() => WEATHER_HUB_TABS.filter((tab) => draft.value.visibleTabs.includes(tab.id)))
 
 const visibleTabCount = computed(() => draft.value.visibleTabs.length)
 
 const footHint = computed(() => visibleTabOptions.value.map((t) => t.label).join(' · '))
 
-const embeddedFootHint = computed(
-  () => `${footHint.value} · 保存后需点击页头「保存布局」持久化`,
-)
+const embeddedFootHint = computed(() => `${footHint.value} · 保存后需点击页头「保存布局」持久化`)
 
 const presencePickHint = computed(() => {
   const selected = draft.value.presencePersonIds?.length ?? 0
@@ -267,10 +259,7 @@ function toggleTab(id: string) {
     return
   }
   list.push(id)
-  list.sort(
-    (a, b) =>
-      WEATHER_HUB_TABS.findIndex((t) => t.id === a) - WEATHER_HUB_TABS.findIndex((t) => t.id === b),
-  )
+  list.sort((a, b) => WEATHER_HUB_TABS.findIndex((t) => t.id === a) - WEATHER_HUB_TABS.findIndex((t) => t.id === b))
 }
 </script>
 

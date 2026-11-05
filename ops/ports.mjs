@@ -30,30 +30,30 @@ export const PORTS = {
   /** 调试器端口（仅 `--debug`；与 uvicorn 端口错开，IDE attach 用）。 */
   debugApp: { port: 8811, project: 'homeos', role: 'debug', description: '主应用调试器' },
   debugStore: { port: 8812, project: 'homeos-store', role: 'debug', description: '授权商店调试器' },
-};
+}
 
 /** 取端口号（写 `PORTS.appApi.port` 太啰嗦时用）。 */
 export function port(name) {
-  const entry = PORTS[name];
-  if (!entry) throw new Error(`未登记的端口名：${name}`);
-  return entry.port;
+  const entry = PORTS[name]
+  if (!entry) throw new Error(`未登记的端口名：${name}`)
+  return entry.port
 }
 
 /** 按**键名**列出 `[端口, 说明]`（启动器要的三组清单，刻意显式而非按描述文本筛）。 */
 export function portListOf(names) {
   return names
     .map((name) => {
-      const entry = PORTS[name];
-      if (!entry) throw new Error(`未登记的端口名：${name}`);
-      return [String(entry.port), entry.description];
+      const entry = PORTS[name]
+      if (!entry) throw new Error(`未登记的端口名：${name}`)
+      return [String(entry.port), entry.description]
     })
-    .sort((a, b) => Number(a[0]) - Number(b[0]));
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
 }
 
 /** 启动器预检/打印用的三组清单（缺一个都要显式改这里，而不是靠描述文本匹配）。 */
-export const BACKEND_PORT_LIST = portListOf(['appApi', 'storeApi']);
-export const FRONTEND_PORT_LIST = portListOf(['viteApp', 'viteStore']);
-export const DEBUG_PORT_LIST = portListOf(['debugApp', 'debugStore']);
+export const BACKEND_PORT_LIST = portListOf(['appApi', 'storeApi'])
+export const FRONTEND_PORT_LIST = portListOf(['viteApp', 'viteStore'])
+export const DEBUG_PORT_LIST = portListOf(['debugApp', 'debugStore'])
 
 /**
  * 轮询等待某端口进入监听态。
@@ -68,26 +68,26 @@ export const DEBUG_PORT_LIST = portListOf(['debugApp', 'debugStore']);
  * @returns {Promise<boolean>} 超时前进入监听态返回 `true`
  */
 export async function waitForPort(portNumber, options = {}) {
-  const { timeoutMs = 15_000, intervalMs = 100, host = '127.0.0.1', shouldStop } = options;
-  const net = await import('node:net');
-  const deadline = Date.now() + timeoutMs;
+  const { timeoutMs = 15_000, intervalMs = 100, host = '127.0.0.1', shouldStop } = options
+  const net = await import('node:net')
+  const deadline = Date.now() + timeoutMs
   const probe = () =>
     new Promise((resolve) => {
-      const socket = net.connect({ host, port: Number(portNumber) });
+      const socket = net.connect({ host, port: Number(portNumber) })
       const finish = (value) => {
-        socket.destroy();
-        resolve(value);
-      };
-      socket.setTimeout(Math.max(intervalMs, 200));
-      socket.once('connect', () => finish(true));
-      socket.once('timeout', () => finish(false));
-      socket.once('error', () => finish(false));
-    });
+        socket.destroy()
+        resolve(value)
+      }
+      socket.setTimeout(Math.max(intervalMs, 200))
+      socket.once('connect', () => finish(true))
+      socket.once('timeout', () => finish(false))
+      socket.once('error', () => finish(false))
+    })
 
   for (;;) {
-    if (await probe()) return true;
-    if (shouldStop?.()) return false;
-    if (Date.now() >= deadline) return false;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    if (await probe()) return true
+    if (shouldStop?.()) return false
+    if (Date.now() >= deadline) return false
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
   }
 }

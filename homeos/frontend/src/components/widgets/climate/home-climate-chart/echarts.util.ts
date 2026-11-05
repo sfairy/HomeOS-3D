@@ -133,13 +133,7 @@ export function mapHistorySeries(
   })
 }
 
-function buildLineSeries(
-  seriesItem: ClimateSeries,
-  color: string,
-  yAxisIndex: number,
-  kind: string,
-  withFill = true,
-) {
+function buildLineSeries(seriesItem: ClimateSeries, color: string, yAxisIndex: number, kind: string, withFill = true) {
   const item: Record<string, unknown> = {
     id: seriesItem.entityId,
     name: chartSeriesName(seriesItem.entityId, kind),
@@ -236,8 +230,7 @@ interface BuildClimateChartOptionParams {
 
 /** 构建完整的 ECharts 配置选项 */
 export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
-  const { activeView, temperatureSeries, humiditySeries, legendItems, legendHidden, xMin, xMax } =
-    params
+  const { activeView, temperatureSeries, humiditySeries, legendItems, legendHidden, xMin, xMax } = params
 
   const isCombinedView = activeView === 'all'
   const showTemp = isCombinedView || activeView === 'temperature'
@@ -253,13 +246,7 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
   if (showHum) {
     humiditySeries.forEach((seriesItem, i) => {
       series.push(
-        buildLineSeries(
-          seriesItem,
-          HUM_COLORS[i % HUM_COLORS.length],
-          isCombinedView ? 1 : 0,
-          'hum',
-          lineFill,
-        ),
+        buildLineSeries(seriesItem, HUM_COLORS[i % HUM_COLORS.length], isCombinedView ? 1 : 0, 'hum', lineFill),
       )
     })
   }

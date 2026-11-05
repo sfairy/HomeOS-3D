@@ -21,7 +21,9 @@
 }
 
 .charge-control-card.settings-card--static {
-  transition: opacity 0.2s ease, border-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .charge-control-card--off.settings-card--static {
@@ -252,8 +254,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 36px rgba(var(--page-accent-secondary-rgb), 0.06);
-  background:
-    linear-gradient(160deg, rgba(var(--page-accent-secondary-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(160deg, rgba(var(--page-accent-secondary-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card--kind-phone.charge-device-card--pending {
@@ -261,8 +262,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 36px rgba(56, 189, 248, 0.06);
-  background:
-    linear-gradient(160deg, rgba(56, 189, 248, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(160deg, rgba(56, 189, 248, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card--kind-desktop.charge-device-card--pending {
@@ -270,8 +270,11 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 36px rgba(var(--module-accent-automation-sub-rgb), 0.06);
-  background:
-    linear-gradient(160deg, rgba(var(--module-accent-automation-sub-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--module-accent-automation-sub-rgb), 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
 }
 
 .charge-device-card__alerts--discovery {
@@ -327,7 +330,10 @@
   color: var(--set-danger);
   background: rgba(251, 113, 133, 0.08);
   border: var(--hos-hairline) solid var(--set-danger-border);
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .charge-pending-clear-btn:hover {
@@ -447,11 +453,12 @@
 .charge-device-card {
   padding: var(--hos-panel-padding-default, 20px);
   border-radius: var(--hos-radius-panel, 20px);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .charge-device-card--on {
@@ -459,8 +466,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 10px 36px rgba(var(--page-accent-rgb), 0.08);
-  background:
-    linear-gradient(160deg, rgba(var(--page-accent-rgb), 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(160deg, rgba(var(--page-accent-rgb), 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card--warn {
@@ -515,12 +521,19 @@
   color: var(--set-text-secondary);
   background: var(--set-glass-bg);
   border: var(--hos-hairline) solid var(--premium-border-strong);
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .charge-device-card__avatar--tablet {
   color: #fde68a;
-  background: linear-gradient(145deg, rgba(var(--page-accent-secondary-rgb), 0.18) 0%, rgba(var(--page-accent-secondary-rgb), 0.05) 100%);
+  background: linear-gradient(
+    145deg,
+    rgba(var(--page-accent-secondary-rgb), 0.18) 0%,
+    rgba(var(--page-accent-secondary-rgb), 0.05) 100%
+  );
   border-color: rgba(var(--page-accent-secondary-rgb), 0.28);
 }
 
@@ -532,7 +545,11 @@
 
 .charge-device-card__avatar--desktop {
   color: var(--page-accent, #7eb8ff);
-  background: linear-gradient(145deg, rgba(var(--module-accent-automation-sub-rgb), 0.16) 0%, rgba(var(--module-accent-automation-sub-rgb), 0.05) 100%);
+  background: linear-gradient(
+    145deg,
+    rgba(var(--module-accent-automation-sub-rgb), 0.16) 0%,
+    rgba(var(--module-accent-automation-sub-rgb), 0.05) 100%
+  );
   border-color: rgba(var(--module-accent-automation-sub-rgb), 0.26);
 }
 
@@ -585,14 +602,7 @@
   margin-left: 4px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  background: linear-gradient(
-    90deg,
-    #22d3ee 0%,
-    #34d399 35%,
-    #a3e635 55%,
-    #2dd4bf 75%,
-    #38bdf8 100%
-  );
+  background: linear-gradient(90deg, #22d3ee 0%, #34d399 35%, #a3e635 55%, #2dd4bf 75%, #38bdf8 100%);
   background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -602,8 +612,13 @@
 }
 
 @keyframes charge-status-flow {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .charge-online-dot {
@@ -644,7 +659,9 @@
 
 .charge-battery--charging .charge-battery__track {
   border-color: var(--set-info-border);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 20px rgba(56, 189, 248, 0.08);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.28),
+    0 0 20px rgba(56, 189, 248, 0.08);
 }
 
 .charge-battery__track {
@@ -662,11 +679,14 @@
   height: 100%;
   border-radius: var(--hos-radius-pill);
   overflow: hidden;
-  transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease, box-shadow 0.4s ease;
+  transition:
+    width 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.4s ease,
+    box-shadow 0.4s ease;
 }
 
 .charge-battery__fill::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -676,24 +696,27 @@
 }
 
 .charge-battery--charging .charge-battery__fill::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   z-index: 2;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.32) 45%,
-    transparent 90%
-  );
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.32) 45%, transparent 90%);
   animation: charge-battery-shimmer 2.4s ease-in-out infinite;
 }
 
 @keyframes charge-battery-shimmer {
-  0% { transform: translateX(-120%); opacity: 0; }
-  35% { opacity: 1; }
-  100% { transform: translateX(120%); opacity: 0; }
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
 }
 
 .charge-battery__fill--low {
@@ -701,8 +724,13 @@
 }
 
 @keyframes charge-battery-pulse-low {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.12); }
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
 }
 
 .charge-battery__fill--unknown {
@@ -743,7 +771,9 @@
   font-size: var(--set-fs-micro, 12px);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  transition: color 0.35s ease, text-shadow 0.35s ease;
+  transition:
+    color 0.35s ease,
+    text-shadow 0.35s ease;
 }
 
 .charge-device-card__fields {
@@ -847,7 +877,9 @@
   border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.07);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .charge-option--on {
@@ -924,7 +956,10 @@
   background: var(--set-glass-bg-subtle);
   border: var(--hos-hairline) solid var(--set-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .charge-add-btn:hover {
@@ -961,4 +996,3 @@
 .charge-hub {
   gap: 16px;
 }
-

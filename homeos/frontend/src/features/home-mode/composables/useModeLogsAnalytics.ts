@@ -10,10 +10,7 @@ import {
   hubAccentColor,
 } from '@/shared/utils/chart/hub-chart-theme'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
-import {
-  HOME_MODE_LOG_SOURCE_LABELS,
-  type HomeModeTriggerLogAnalytics,
-} from '@homeos/shared'
+import { HOME_MODE_LOG_SOURCE_LABELS, type HomeModeTriggerLogAnalytics } from '@homeos/shared'
 
 /** 与后端 / shared aggregateHomeModeTriggerLogs 返回结构对齐 */
 export type ModeLogAnalytics = HomeModeTriggerLogAnalytics
@@ -27,17 +24,8 @@ export const EMPTY_MODE_LOG_ANALYTICS: ModeLogAnalytics = {
   total: 0,
 }
 
-export function buildModeSourcePieOption(
-  buckets: Array<{ key: string; count: number }>,
-) {
-  const palette = [
-    hubAccentColor('home-mode'),
-    '#38bdf8',
-    '#34d399',
-    '#fb7185',
-    '#a78bfa',
-    '#94a3b8',
-  ]
+export function buildModeSourcePieOption(buckets: Array<{ key: string; count: number }>) {
+  const palette = [hubAccentColor('home-mode'), '#38bdf8', '#34d399', '#fb7185', '#a78bfa', '#94a3b8']
   const data = buckets.map((b, i) => ({
     name: (HOME_MODE_LOG_SOURCE_LABELS as Record<string, string>)[b.key] || b.key,
     value: b.count,
@@ -55,9 +43,7 @@ export function buildModeSourcePieOption(
         padAngle: 2,
         label: { color: 'rgba(255,255,255,0.68)', fontSize: 10, fontWeight: 600 },
         itemStyle: { borderRadius: 5, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
-        data: data.length
-          ? data
-          : [{ name: '暂无', value: 1, itemStyle: { color: '#64748b' } }],
+        data: data.length ? data : [{ name: '暂无', value: 1, itemStyle: { color: '#64748b' } }],
       },
     ],
   }

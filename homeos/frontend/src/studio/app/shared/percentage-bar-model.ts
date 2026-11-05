@@ -1,7 +1,7 @@
 export const PERCENTAGE_BAR_LIMIT = 8,
   percentageBarDefaults = Object.freeze({
-    variant: "gradient",
-    orientation: "vertical" as "vertical" | "horizontal",
+    variant: 'gradient',
+    orientation: 'vertical' as 'vertical' | 'horizontal',
     thickness: 48,
     length: 300,
     gap: 52,
@@ -18,8 +18,8 @@ export const PERCENTAGE_BAR_LIMIT = 8,
     precision: 0,
     valueVisible: true,
     labelVisible: true,
-    valueColor: "#dce1e5",
-    labelColor: "#94a5b3",
+    valueColor: '#dce1e5',
+    labelColor: '#94a5b3',
   }),
   percentageBarNumbers = Object.freeze({
     thickness: [8, 96],
@@ -36,31 +36,31 @@ export const PERCENTAGE_BAR_LIMIT = 8,
     valueOffsetY: [-600, 600],
     labelOffsetX: [-600, 600],
     labelOffsetY: [-600, 600],
-  });
+  })
 export function percentageBarSeries(component: any) {
-  const series = component.properties?.series ?? component.bindings?.series;
+  const series = component.properties?.series ?? component.bindings?.series
   return Array.isArray(series) && series.length
     ? series
     : [
         {
-          entityId: component.bindings?.entity?.entityId || "",
-          label: "",
-          color: "#f2a20d",
+          entityId: component.bindings?.entity?.entityId || '',
+          label: '',
+          color: '#f2a20d',
         },
-      ];
+      ]
 }
 export function percentageBarDimensions(overrides: Record<string, any> = {}, barCount = 1) {
   const options = {
     ...percentageBarDefaults,
     ...overrides,
-  };
+  }
   for (const [optionKey, [minValue, maxValue]] of Object.entries(percentageBarNumbers))
     (options as any)[optionKey] = Number.isFinite(Number((options as any)[optionKey]))
       ? Math.max(minValue, Math.min(maxValue, Number((options as any)[optionKey])))
-      : (percentageBarDefaults as any)[optionKey];
+      : (percentageBarDefaults as any)[optionKey]
   const num = options.valueVisible ? options.valueSize + options.valueGap : 0,
-    labelSpan = options.labelVisible ? options.labelGap + options.labelSize * 2.9 : 0;
-  return options.orientation === "horizontal"
+    labelSpan = options.labelVisible ? options.labelGap + options.labelSize * 2.9 : 0
+  return options.orientation === 'horizontal'
     ? {
         width:
           16 +
@@ -79,7 +79,7 @@ export function percentageBarDimensions(overrides: Record<string, any> = {}, bar
           (barCount - 1) * (options.thickness + options.gap) +
           16,
         height: options.length + num + labelSpan,
-      };
+      }
 }
 function refitPercentageBar(refitComponent: any, nextOptions: any, refitBarCount: any) {
   const percentageBarDimensions2 = percentageBarDimensions(nextOptions, refitBarCount),
@@ -90,17 +90,14 @@ function refitPercentageBar(refitComponent: any, nextOptions: any, refitBarCount
     currentPosition = refitComponent.position || {},
     width = Number(currentPosition.width) || percentageBarDimensions2.width,
     height = Number(currentPosition.height) || percentageBarDimensions2.height,
-    min = Math.min(
-      width / percentageBarDimensions2.width,
-      height / percentageBarDimensions2.height,
-    );
+    min = Math.min(width / percentageBarDimensions2.width, height / percentageBarDimensions2.height)
   refitComponent.position = {
     ...currentPosition,
     width: percentageBarDimensions3.width * min,
     height: percentageBarDimensions3.height * min,
     x: (Number(currentPosition.x) || 0) + (width - percentageBarDimensions3.width * min) / 2,
     y: (Number(currentPosition.y) || 0) + (height - percentageBarDimensions3.height * min) / 2,
-  };
+  }
 }
 export function applyPercentageBarChange(
   editedComponent: any,
@@ -114,8 +111,8 @@ export function applyPercentageBarChange(
     map = percentageBarSeries(editedComponent).map((entry) => ({
       ...entry,
     })),
-    seriesCount = map.length;
-  let shouldRefit = false;
+    seriesCount = map.length
+  let shouldRefit = false
   if (
     ((editedComponent.properties = {
       ...mergedOptions,
@@ -130,65 +127,61 @@ export function applyPercentageBarChange(
     (editedComponent.actions = {}),
     change.add && map.length < 8)
   )
-    (map.push({
-      entityId: "",
-      attribute: "",
-      label: "",
-      color: ["#f2a20d", "#68cc3e", "#94a5b3"][map.length % 3],
+    map.push({
+      entityId: '',
+      attribute: '',
+      label: '',
+      color: ['#f2a20d', '#68cc3e', '#94a5b3'][map.length % 3],
     }),
-      (shouldRefit = true));
+      (shouldRefit = true)
   else {
     if (Number.isInteger(change.seriesIndex) && map[change.seriesIndex]) {
-      const seriesIndex = change.seriesIndex;
+      const seriesIndex = change.seriesIndex
       change.remove && map.length > 1
         ? (map.splice(seriesIndex, 1), (shouldRefit = true))
         : change.move && map[seriesIndex + change.move]
-          ? ([map[seriesIndex], map[seriesIndex + change.move]] = [
-              map[seriesIndex + change.move],
-              map[seriesIndex],
-            ])
+          ? ([map[seriesIndex], map[seriesIndex + change.move]] = [map[seriesIndex + change.move], map[seriesIndex]])
           : change.patch &&
             (map[seriesIndex] = {
               ...map[seriesIndex],
               ...change.patch,
-            });
+            })
     } else {
       if (change.property) {
-        let nextValue = change.value;
-        const numericRange = (percentageBarNumbers as any)[change.property];
+        let nextValue = change.value
+        const numericRange = (percentageBarNumbers as any)[change.property]
         if (numericRange) {
-          if (!Number.isFinite(Number(nextValue))) return;
-          nextValue = Math.max(numericRange[0], Math.min(numericRange[1], Number(nextValue)));
+          if (!Number.isFinite(Number(nextValue))) return
+          nextValue = Math.max(numericRange[0], Math.min(numericRange[1], Number(nextValue)))
         }
-        ((editedComponent.properties[change.property] = nextValue),
+        ;(editedComponent.properties[change.property] = nextValue),
           (shouldRefit = [
-            "orientation",
-            "thickness",
-            "length",
-            "gap",
-            "valueGap",
-            "labelGap",
-            "valueSize",
-            "labelSize",
-            "valueVisible",
-            "labelVisible",
-          ].includes(change.property)));
+            'orientation',
+            'thickness',
+            'length',
+            'gap',
+            'valueGap',
+            'labelGap',
+            'valueSize',
+            'labelSize',
+            'valueVisible',
+            'labelVisible',
+          ].includes(change.property))
       } else {
         if (change.geometry) {
-          const numericValue = Number(change.value);
-          if (!Number.isFinite(numericValue)) return;
-          (change.geometry === "left" &&
+          const numericValue = Number(change.value)
+          if (!Number.isFinite(numericValue)) return
+          change.geometry === 'left' &&
             (editedComponent.position.x =
               ((viewport.width || 2778) * numericValue) / 100 - editedComponent.position.width / 2),
-            change.geometry === "top" &&
+            change.geometry === 'top' &&
               (editedComponent.position.y =
-                ((viewport.height || 1940) * numericValue) / 100 -
-                editedComponent.position.height / 2),
-            change.geometry === "scale" && (editedComponent.style.scale = numericValue / 100),
-            change.geometry === "rotation" && (editedComponent.position.rotation = numericValue));
+                ((viewport.height || 1940) * numericValue) / 100 - editedComponent.position.height / 2),
+            change.geometry === 'scale' && (editedComponent.style.scale = numericValue / 100),
+            change.geometry === 'rotation' && (editedComponent.position.rotation = numericValue)
         }
       }
     }
   }
-  shouldRefit && refitPercentageBar(editedComponent, mergedOptions, seriesCount);
+  shouldRefit && refitPercentageBar(editedComponent, mergedOptions, seriesCount)
 }

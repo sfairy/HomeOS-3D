@@ -265,11 +265,7 @@ function buildPolicyPayload(forceOverride: boolean): AgentPolicyPayload | null {
 }
 
 /** 保存 / 创建共用一份结果处理，避免 submit 里的分支越堆越多 */
-async function applyWriteResult(
-  result: AgentPolicyWriteResult,
-  payload: AgentPolicyPayload,
-  targetId: string,
-) {
+async function applyWriteResult(result: AgentPolicyWriteResult, payload: AgentPolicyPayload, targetId: string) {
   if (!result.ok) {
     conflicts.value = result.conflicts ?? []
     setMessage(result.message || (targetId ? '保存失败' : '创建失败'), false)
@@ -288,9 +284,7 @@ async function submit(forceOverride: boolean) {
   const targetId = editingId.value
   creating.value = true
   try {
-    const result = targetId
-      ? await updateAgentPolicy(targetId, payload)
-      : await createAgentPolicy(payload)
+    const result = targetId ? await updateAgentPolicy(targetId, payload) : await createAgentPolicy(payload)
     await applyWriteResult(result, payload, targetId)
   } catch (error) {
     setMessage(getApiErrorMessage(error, targetId ? '保存家规失败' : '创建家规失败'), false)

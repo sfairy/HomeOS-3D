@@ -205,8 +205,7 @@ export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLay
         id,
         path: `/embed/${embed.id}`,
         label: embed.name || embed.id,
-        icon:
-          embed.icon && mainLayoutIconMap[embed.icon] ? mainLayoutIconMap[embed.icon] : MonitorPlay,
+        icon: embed.icon && mainLayoutIconMap[embed.icon] ? mainLayoutIconMap[embed.icon] : MonitorPlay,
         accent: resolveEmbedNavAccent(embed, idx),
       })
     })

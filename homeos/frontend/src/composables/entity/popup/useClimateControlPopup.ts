@@ -2,10 +2,7 @@
 import { computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
-import {
-  useEntityPopupBase,
-  type EntityPopupBaseProps,
-} from '@/composables/entity/popup/useEntityPopupBase'
+import { useEntityPopupBase, type EntityPopupBaseProps } from '@/composables/entity/popup/useEntityPopupBase'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
 import { clampInRange } from '@/shared/utils/ui/progress-bar.util'
@@ -95,9 +92,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   }
 
   /** 实体显示名，用于弹窗标题。 */
-  const entityName = computed(() =>
-    getEntityDisplayName(liveEntity.value?.entity_id ?? '', liveEntity.value),
-  )
+  const entityName = computed(() => getEntityDisplayName(liveEntity.value?.entity_id ?? '', liveEntity.value))
 
   /** 状态色 class：制冷蓝、制热橙、关闭灰、其它默认。 */
   const stateColor = computed(() => {
@@ -134,18 +129,12 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   )
 
   /** 双温区下限，缺省取 minTemp。 */
-  const dualTempLow = computed(() =>
-    Number(liveEntity.value?.attributes?.target_temp_low ?? minTemp.value),
-  )
+  const dualTempLow = computed(() => Number(liveEntity.value?.attributes?.target_temp_low ?? minTemp.value))
   /** 双温区上限，缺省取 maxTemp。 */
-  const dualTempHigh = computed(() =>
-    Number(liveEntity.value?.attributes?.target_temp_high ?? maxTemp.value),
-  )
+  const dualTempHigh = computed(() => Number(liveEntity.value?.attributes?.target_temp_high ?? maxTemp.value))
 
   /** 是否存在任何目标温度字段（用于决定是否展示温度控制区）。 */
-  const hasTargetTemp = computed(() =>
-    climateHasTargetTemp(liveEntity.value?.attributes as Record<string, unknown>),
-  )
+  const hasTargetTemp = computed(() => climateHasTargetTemp(liveEntity.value?.attributes as Record<string, unknown>))
 
   /**
    * 提交目标温度到 HA。
@@ -168,13 +157,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
       data.temperature = val
     }
     try {
-      await entitiesStore.callService(
-        domain,
-        'set_temperature',
-        entityId(),
-        data,
-        false,
-      )
+      await entitiesStore.callService(domain, 'set_temperature', entityId(), data, false)
     } catch (error) {
       notifyError(error, '设置空调温度')
     }
@@ -240,13 +223,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   async function setSwingMode(mode: string) {
     try {
       const domain = getEntityDomain(entityId()) || 'climate'
-      await entitiesStore.callService(
-        domain,
-        'set_swing_mode',
-        entityId(),
-        { swing_mode: mode },
-        false,
-      )
+      await entitiesStore.callService(domain, 'set_swing_mode', entityId(), { swing_mode: mode }, false)
     } catch (error) {
       notifyError(error, '设置摆风模式')
     }
@@ -273,13 +250,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
     }
     try {
       const domain = getEntityDomain(entityId()) || 'climate'
-      await entitiesStore.callService(
-        domain,
-        'set_temperature',
-        entityId(),
-        data,
-        false,
-      )
+      await entitiesStore.callService(domain, 'set_temperature', entityId(), data, false)
     } catch (error) {
       notifyError(error, '设置双温区')
     }
@@ -292,13 +263,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   async function setHvacMode(mode: string) {
     try {
       const domain = getEntityDomain(entityId())
-      await entitiesStore.callService(
-        domain,
-        'set_hvac_mode',
-        entityId(),
-        { hvac_mode: mode },
-        false,
-      )
+      await entitiesStore.callService(domain, 'set_hvac_mode', entityId(), { hvac_mode: mode }, false)
     } catch (error) {
       notifyError(error, '设置空调模式')
     }
@@ -311,13 +276,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   async function setFanMode(mode: string) {
     try {
       const domain = getEntityDomain(entityId()) || 'climate'
-      await entitiesStore.callService(
-        domain,
-        'set_fan_mode',
-        entityId(),
-        { fan_mode: mode },
-        false,
-      )
+      await entitiesStore.callService(domain, 'set_fan_mode', entityId(), { fan_mode: mode }, false)
     } catch (error) {
       notifyError(error, '设置风扇模式')
     }
@@ -349,13 +308,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   async function setPreset(mode: string) {
     const domain = getEntityDomain(entityId()) || 'climate'
     try {
-      await entitiesStore.callService(
-        domain,
-        'set_preset_mode',
-        entityId(),
-        { preset_mode: mode },
-        false,
-      )
+      await entitiesStore.callService(domain, 'set_preset_mode', entityId(), { preset_mode: mode }, false)
     } catch (error) {
       notifyError(error, '设置预设')
     }

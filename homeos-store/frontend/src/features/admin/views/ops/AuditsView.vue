@@ -44,7 +44,10 @@ const tabs: AdminTabItem[] = [
   { key: "purge", label: "批量清理" },
 ];
 
-const { active, pick } = useAdminTabs("audits", computed(() => tabs));
+const { active, pick } = useAdminTabs(
+  "audits",
+  computed(() => tabs),
+);
 
 function reload() {
   return table.value?.search();
@@ -85,10 +88,9 @@ async function purge() {
   if (!ok) return;
   purging.value = true;
   try {
-    const result = await adminApi<{ deleted?: number }>(
-      `/audit-logs?older_than_days=${encodeURIComponent(days)}`,
-      { method: "DELETE" },
-    );
+    const result = await adminApi<{ deleted?: number }>(`/audit-logs?older_than_days=${encodeURIComponent(days)}`, {
+      method: "DELETE",
+    });
     toast.push(
       result.deleted ? `已清理 ${result.deleted} 条审计记录` : "没有需要清理的记录",
       result.deleted ? "success" : "warning",

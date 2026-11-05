@@ -12,9 +12,7 @@
 import type { getLicenseAvailability } from '@/services/api/license'
 
 /** 可用性响应的 `data` 形状（从 API 函数反推，避免在 services 层再导出一个类型）。 */
-export type LicenseAvailabilitySnapshot = Awaited<
-  ReturnType<typeof getLicenseAvailability>
->['data']
+export type LicenseAvailabilitySnapshot = Awaited<ReturnType<typeof getLicenseAvailability>>['data']
 
 let snapshot: LicenseAvailabilitySnapshot | null = null
 

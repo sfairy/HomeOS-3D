@@ -99,16 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  Search,
-  Upload,
-  FolderOpen,
-  FolderPlus,
-  Sparkles,
-  LayoutGrid,
-  List,
-  X,
-} from '@lucide/vue'
+import { Search, Upload, FolderOpen, FolderPlus, Sparkles, LayoutGrid, List, X } from '@lucide/vue'
 
 // 组件属性：由父组件通过 useAssetManager 注入
 defineProps<{

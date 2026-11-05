@@ -223,10 +223,7 @@ export function createEntityCacheHelpers(deps: EntityCacheDeps) {
       if (!snapshot?.entities?.length) return false
 
       const layoutConfig = deps.getLayoutConfig?.()
-      const { priority, deferred } = partitionEntitiesForCacheHydrate(
-        snapshot.entities,
-        layoutConfig,
-      )
+      const { priority, deferred } = partitionEntitiesForCacheHydrate(snapshot.entities, layoutConfig)
       const useLazy =
         deferred.length > 0 &&
         priority.length < snapshot.entities.length &&
@@ -235,9 +232,7 @@ export function createEntityCacheHelpers(deps: EntityCacheDeps) {
       if (useLazy) {
         deps.initStates(priority, { fromCache: true, force: true, deferredRemainder: deferred })
         deps.entitiesCacheSavedAt.value = snapshot.savedAt
-        deps.logger.info(
-          `IndexedDB 优先恢复 ${priority.length} 个实体,${deferred.length} 个 idle 补全`,
-        )
+        deps.logger.info(`IndexedDB 优先恢复 ${priority.length} 个实体,${deferred.length} 个 idle 补全`)
         return true
       }
 

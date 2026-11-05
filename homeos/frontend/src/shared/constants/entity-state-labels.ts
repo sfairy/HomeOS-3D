@@ -44,10 +44,7 @@ const POPUP_DOMAIN_STATE_LABELS = {
  * @param state - HA 实体 state 值。
  * @returns 事件日志展示用的中文文案。
  */
-function formatEventLogStateLabel(
-  entityId: string | null | undefined,
-  state: string | null | undefined,
-): string {
+function formatEventLogStateLabel(entityId: string | null | undefined, state: string | null | undefined): string {
   if (state === 'on' || state === 'open') {
     return entityId?.includes('sensor') ? '触发' : '开启'
   }
@@ -83,10 +80,7 @@ const POPUP_STATE_DOMAINS = new Set(['lock', 'cover', 'valve', 'vacuum'])
  * @param state - HA 实体 state 值（数值类保持原样）。
  * @returns 面向用户的中文展示文案。
  */
-export function displayEntityStateLabel(
-  entityId: string | null | undefined,
-  state: string | null | undefined,
-): string {
+export function displayEntityStateLabel(entityId: string | null | undefined, state: string | null | undefined): string {
   if (state == null || state === '') return '—'
   const domain = entityId ? getEntityDomain(entityId) : ''
   if (domain && POPUP_STATE_DOMAINS.has(domain)) {
@@ -106,7 +100,9 @@ export function displayClimateOperatingLabel(
   actionLabels?: Record<string, string>,
   modeLabels?: Record<string, string>,
 ): string {
-  const mode = String(state || '').trim().toLowerCase()
+  const mode = String(state || '')
+    .trim()
+    .toLowerCase()
   if (!mode) return '—'
   if (mode === 'unavailable') return '离线'
   if (mode === 'unknown') return '未知'

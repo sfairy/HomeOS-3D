@@ -20,10 +20,7 @@ import { randomUUID } from '@/shared/utils/core/random-uuid.util'
 import { predictOptimistic } from '@/stores/entities/entity-store-optimistic.util'
 import { optimisticExpectationSatisfied } from '@/stores/entities/optimistic-expectation.util'
 import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
-import {
-  blockDangerousHaServiceWhenOffline,
-  HA_OFFLINE_DANGEROUS_CONTROL_MSG,
-} from '@/shared/utils/ha/url'
+import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } from '@/shared/utils/ha/url'
 import { useChromeStore } from '@/stores/chrome.store'
 import { fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'
 import type { EntityActionsDeps, HaEntityState } from '@/shared/types/entity-store'
@@ -128,16 +125,12 @@ export function createEntityActions(deps: EntityActionsDeps) {
    * @param entityId 实体 ID
    * @param didOptimistic 本次调用是否触发了乐观更新
    */
-  async function refreshEntityAfterService(
-    entityId: string,
-    didOptimistic: boolean,
-  ): Promise<void> {
+  async function refreshEntityAfterService(entityId: string, didOptimistic: boolean): Promise<void> {
     if (typeof entityId !== 'string' || !entityId) return
     const coldOnDemand = getWsPushPublicConfig()?.coldEntityOnDemand
     if (didOptimistic && !coldOnDemand) return
     try {
-      const fetched = (await fetchEntityById(entityId, { refresh: true })) as
-        HaEntityState | null | undefined
+      const fetched = (await fetchEntityById(entityId, { refresh: true })) as HaEntityState | null | undefined
       if (!fetched?.entity_id || fetched.entity_id !== entityId) return
       // REST 拿到的就是服务端真值，它同样构成「确认」——不止 WS 推送算。
       confirmOptimisticFromRest(entityId, fetched)
@@ -218,13 +211,7 @@ export function createEntityActions(deps: EntityActionsDeps) {
 
     let didOptimistic = false
     if (typeof entityId === 'string' && entityId && !returnResponse) {
-      const predicted = predictOptimistic(
-        domain,
-        service,
-        entityId,
-        serviceData,
-        deps.entities[entityId],
-      )
+      const predicted = predictOptimistic(domain, service, entityId, serviceData, deps.entities[entityId])
       // 预测与现值相同 = 这一次调用**没有可等的东西**（典型：批量「全部关闭」里那些
       // 本来就关着的灯）。HA 不会为「状态没变」推 state_changed，若照样建立乐观态，
       // TTL 到期必然误报一次「未收到确认」。这里直接跳过乐观写入。

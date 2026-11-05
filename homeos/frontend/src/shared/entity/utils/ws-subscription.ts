@@ -52,12 +52,7 @@ function needsFullDomainSubscription(path: string): boolean {
 }
 
 /** /devices 列表常用域（对齐 useDevicesView PREFERRED + 可控域） */
-const DEVICES_PAGE_DOMAINS = [
-  ...DASHBOARD_CORE_DOMAINS,
-  'sensor',
-  'binary_sensor',
-  'device_tracker',
-]
+const DEVICES_PAGE_DOMAINS = [...DASHBOARD_CORE_DOMAINS, 'sensor', 'binary_sensor', 'device_tracker']
 
 const SECURITY_DOMAINS = [
   'binary_sensor',
@@ -125,12 +120,7 @@ export function resolveSubscribeDomains(
 
   const domains = new Set(BASE_DOMAINS)
 
-  if (
-    path === '/devices' ||
-    path.startsWith('/devices/') ||
-    path === '/device' ||
-    path.startsWith('/device/')
-  ) {
+  if (path === '/devices' || path.startsWith('/devices/') || path === '/device' || path.startsWith('/device/')) {
     for (const d of DEVICES_PAGE_DOMAINS) domains.add(d)
     return [...domains]
   }
@@ -246,9 +236,7 @@ function addPinnedId(ids: Set<string>, raw: unknown): void {
 /**
  * 收集布局上「可见」实体 ID（冷实体 WS pinned：浮窗/统计传感器/侧栏）
  */
-export function collectPinnedEntityIds(
-  layoutConfig: LayoutSubscriptionConfig | undefined,
-): string[] {
+export function collectPinnedEntityIds(layoutConfig: LayoutSubscriptionConfig | undefined): string[] {
   if (!layoutConfig) return []
   const ids = new Set<string>()
   forEachLayoutEntityRef(layoutConfig, (ref) => {
@@ -266,15 +254,9 @@ export function collectWsPinnedEntityIds(
   activePopupEntityId: string | null | undefined,
 ): string[] {
   const ids = collectPinnedEntityIds(layoutConfig)
-  const extra =
-    activePopupEntityId && String(activePopupEntityId).includes('.')
-      ? String(activePopupEntityId)
-      : null
+  const extra = activePopupEntityId && String(activePopupEntityId).includes('.') ? String(activePopupEntityId) : null
   if (extra && !ids.includes(extra)) ids.push(extra)
-  const wakeId = resolveChargerSwitchWakeEntityIdForDevice(
-    getConfigSection('clientPowerWake'),
-    getClientDeviceId(),
-  )
+  const wakeId = resolveChargerSwitchWakeEntityIdForDevice(getConfigSection('clientPowerWake'), getClientDeviceId())
   if (wakeId.includes('.') && !ids.includes(wakeId)) ids.push(wakeId)
   return ids
 }

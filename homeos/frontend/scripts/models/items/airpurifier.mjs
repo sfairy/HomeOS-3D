@@ -21,10 +21,7 @@ const body = merge([
 ])
 const panel = b(W - 0.09, 0.5, 0.008, 0, 0.36, D / 2 - 0.012)
 const recess = b(W - 0.13, 0.42, 0.006, 0, 0.36, D / 2 - 0.018)
-const trims = merge([
-  b(W, 0.016, D, 0, BODY_TOP - 0.008, 0),
-  b(W, 0.014, D, 0, 0.019, 0),
-])
+const trims = merge([b(W, 0.016, D, 0, BODY_TOP - 0.008, 0), b(W, 0.014, D, 0, 0.019, 0)])
 const control = merge([
   transform(cylinder({ radiusTop: 0.11, height: 0.02, segments: 32 }), {
     translate: [0, H - 0.01, 0],

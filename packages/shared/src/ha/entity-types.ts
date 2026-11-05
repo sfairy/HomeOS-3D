@@ -6,15 +6,15 @@
  */
 export interface HaEntity {
   /** 实体 ID，格式 "<domain>.<object_id>" */
-  entity_id: string;
+  entity_id: string
   /** 实体状态（HA 约定始终为字符串，如 "on" / "off" / "23.5"） */
-  state: string;
+  state: string
   /** 实体属性（HA attributes 对象，结构因 domain 而异） */
-  attributes?: Record<string, unknown>;
+  attributes?: Record<string, unknown>
   /** 状态最近一次变更时间（ISO 8601 字符串） */
-  last_changed?: string;
+  last_changed?: string
   /** 状态最近一次更新时间（ISO 8601 字符串，含属性变更） */
-  last_updated?: string;
+  last_updated?: string
 }
 
 /**
@@ -22,15 +22,15 @@ export interface HaEntity {
  */
 export interface HaStateChangeEvent {
   /** 发生状态变更的 entity_id */
-  entity_id: string;
+  entity_id: string
   /** 变更前状态（实体刚创建时为 null） */
-  old_state: HaEntity | null;
+  old_state: HaEntity | null
   /** 变更后状态（实体被删除时为 null） */
-  new_state: HaEntity | null;
+  new_state: HaEntity | null
   /** 变更发生时间（ISO 8601 字符串，由网关补充） */
-  changed_at: string;
+  changed_at: string
   /** HomeOS 入站时刻（epoch ms），用于管线 E2E 延迟；可选 */
-  pipeline_ts?: number;
+  pipeline_ts?: number
 }
 
 /**
@@ -38,5 +38,5 @@ export interface HaStateChangeEvent {
  */
 export interface HaStateChangeBatchEvent {
   /** 本批次包含的状态变更列表 */
-  changes: HaStateChangeEvent[];
+  changes: HaStateChangeEvent[]
 }

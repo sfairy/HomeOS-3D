@@ -320,14 +320,10 @@ const previewTabs = computed(() =>
 )
 
 // 顶栏直显 Tab（可见且未放入下拉）
-const previewBarTabs = computed(() =>
-  previewTabs.value.filter((tab) => tab.visible && !tab.inDropdown),
-)
+const previewBarTabs = computed(() => previewTabs.value.filter((tab) => tab.visible && !tab.inDropdown))
 
 // 「更多」下拉 Tab（可见但放入下拉）
-const previewDropdownTabs = computed(() =>
-  previewTabs.value.filter((tab) => tab.visible && tab.inDropdown),
-)
+const previewDropdownTabs = computed(() => previewTabs.value.filter((tab) => tab.visible && tab.inDropdown))
 
 // 预览高亮 id：优先取当前选中，否则取首个顶栏或下拉 Tab
 const previewHighlightId = computed(() => {
@@ -370,27 +366,18 @@ function highlightTab(tabId) {
 
 // 设置 Tab 放置位置（顶栏 / 更多）
 function setPlacement(id, placement) {
-  layoutStore.layoutConfig.navTabPlacement = setNavTabPlacement(
-    layoutStore.layoutConfig.navTabPlacement,
-    id,
-    placement,
-  )
+  layoutStore.layoutConfig.navTabPlacement = setNavTabPlacement(layoutStore.layoutConfig.navTabPlacement, id, placement)
   highlightedTabId.value = id
 }
 
 function toggleNavTab(id) {
-  layoutStore.layoutConfig.navTabVisibility = toggleNavTabVisibility(
-    layoutStore.layoutConfig.navTabVisibility,
-    id,
-  )
+  layoutStore.layoutConfig.navTabVisibility = toggleNavTabVisibility(layoutStore.layoutConfig.navTabVisibility, id)
   highlightedTabId.value = id
 }
 
 // 全部显示：将所有 Tab 设为可见
 function showAllTabs() {
-  layoutStore.layoutConfig.navTabVisibility = Object.fromEntries(
-    allNavTabs.value.map((t) => [t.id, true]),
-  )
+  layoutStore.layoutConfig.navTabVisibility = Object.fromEntries(allNavTabs.value.map((t) => [t.id, true]))
 }
 
 // 可选 Tab 收入「更多」下拉
@@ -406,10 +393,7 @@ function moveOptionalToDropdown() {
 
 // 恢复默认顺序：默认顺序 + 动态 Tab
 function resetTabOrder() {
-  layoutStore.layoutConfig.navTabOrder = [
-    ...NAV_TAB_ORDER_DEFAULT,
-    ...dynamicNavTabs.value.map((t) => t.id),
-  ]
+  layoutStore.layoutConfig.navTabOrder = [...NAV_TAB_ORDER_DEFAULT, ...dynamicNavTabs.value.map((t) => t.id)]
 }
 
 // 重新排序：从 fromIndex 移到 toIndex

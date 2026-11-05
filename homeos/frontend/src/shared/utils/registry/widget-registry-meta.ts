@@ -18,14 +18,7 @@ const WIDGET_CATALOG_GROUP_LABELS: Record<string, string> = {
   admin: '管理员',
 }
 
-const WIDGET_CATALOG_GROUP_ORDER = [
-  'info',
-  'comfort',
-  'control',
-  'automate',
-  'interact',
-  'admin',
-] as const
+const WIDGET_CATALOG_GROUP_ORDER = ['info', 'comfort', 'control', 'automate', 'interact', 'admin'] as const
 
 /** 微件选择器分级（常用 / 高级 / 管理员） */
 const WIDGET_CATALOG_TIERS: Record<string, 'core' | 'advanced' | 'admin'> = {
@@ -47,10 +40,9 @@ const WIDGET_CATALOG_GROUPS: Record<string, (typeof WIDGET_CATALOG_GROUP_ORDER)[
 }
 
 /** 浮动组件 内联微件的功能域（未在 WIDGET_CATALOG_GROUPS 中显式列出时） */
-const FLOATING_INLINE_CATALOG_GROUPS: Record<string, (typeof WIDGET_CATALOG_GROUP_ORDER)[number]> =
-  {
-    entity: 'control',
-  }
+const FLOATING_INLINE_CATALOG_GROUPS: Record<string, (typeof WIDGET_CATALOG_GROUP_ORDER)[number]> = {
+  entity: 'control',
+}
 
 function resolveCatalogGroup(type: string): (typeof WIDGET_CATALOG_GROUP_ORDER)[number] {
   return WIDGET_CATALOG_GROUPS[type] ?? FLOATING_INLINE_CATALOG_GROUPS[type] ?? 'control'
@@ -95,8 +87,7 @@ function catalogForSurface(surface: string) {
         catalogTier: resolveCatalogTier(type),
       }
       if (def.group) item.group = def.group
-      if (surface === 'floating' || (surface === 'floatingBasic' && def.group))
-        item.group = def.group || '智能面板'
+      if (surface === 'floating' || (surface === 'floatingBasic' && def.group)) item.group = def.group || '智能面板'
       return item
     })
 }
@@ -243,10 +234,7 @@ const SIDEBAR_WIDGET_DEFAULT_HEIGHT_FALLBACK = 120
 
 /** 获取侧栏微件类型的预设卡片高度（px） */
 export function getSidebarWidgetDefaultHeight(type: string): number {
-  return (
-    SIDEBAR_WIDGET_DEFAULT_HEIGHT[canonicalizeWidgetType(type)] ??
-    SIDEBAR_WIDGET_DEFAULT_HEIGHT_FALLBACK
-  )
+  return SIDEBAR_WIDGET_DEFAULT_HEIGHT[canonicalizeWidgetType(type)] ?? SIDEBAR_WIDGET_DEFAULT_HEIGHT_FALLBACK
 }
 
 export function isFloatingPanelType(type: string): boolean {

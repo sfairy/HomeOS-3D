@@ -22,29 +22,29 @@
  *   node ops/lib/py.mjs -m unittest discover -s ops/checks/... -v
  *   node ops/lib/py.mjs --which          # 只打印解析到的解释器
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
+import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
 
-const REPO_ROOT = path.resolve(import.meta.dirname, '../..');
+const REPO_ROOT = path.resolve(import.meta.dirname, '../..')
 
 /** 共享 venv 的解释器路径（Windows 的目录布局不同）。 */
 const VENV_PYTHON = path.join(
   REPO_ROOT,
   '.venv-store',
   process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
-);
+)
 
 /** 按优先级排列的候选；不存在的直接跳过。 */
 function candidates() {
-  const list = [];
-  const override = process.env.HOMEOS_PYTHON?.trim();
-  if (override) list.push(override);
-  if (existsSync(VENV_PYTHON)) list.push(VENV_PYTHON);
-  list.push(process.platform === 'win32' ? 'python' : 'python3');
-  if (process.platform === 'win32') list.push('python3');
-  return list;
+  const list = []
+  const override = process.env.HOMEOS_PYTHON?.trim()
+  if (override) list.push(override)
+  if (existsSync(VENV_PYTHON)) list.push(VENV_PYTHON)
+  list.push(process.platform === 'win32' ? 'python' : 'python3')
+  if (process.platform === 'win32') list.push('python3')
+  return list
 }
 
 /**
@@ -53,51 +53,51 @@ function candidates() {
  */
 function resolvePython() {
   for (const candidate of candidates()) {
-    if (candidate.includes(path.sep) && !existsSync(candidate)) continue;
-    const probe = spawnSync(candidate, ['-c', ''], { stdio: 'ignore' });
-    if (!probe.error && probe.status === 0) return candidate;
+    if (candidate.includes(path.sep) && !existsSync(candidate)) continue
+    const probe = spawnSync(candidate, ['-c', ''], { stdio: 'ignore' })
+    if (!probe.error && probe.status === 0) return candidate
   }
-  return null;
+  return null
 }
 
-const args = process.argv.slice(2);
+const args = process.argv.slice(2)
 if (args.includes('--which')) {
-  const python = resolvePython();
+  const python = resolvePython()
   if (!python) {
-    console.error('找不到 Python 解释器。');
-    process.exit(127);
+    console.error('找不到 Python 解释器。')
+    process.exit(127)
   }
-  console.log(python);
-  process.exit(0);
+  console.log(python)
+  process.exit(0)
 }
 
 if (args.length === 0) {
-  console.error('用法：node ops/lib/py.mjs <script.py| -m module> [args...]');
-  process.exit(2);
+  console.error('用法：node ops/lib/py.mjs <script.py| -m module> [args...]')
+  process.exit(2)
 }
 
-const python = resolvePython();
+const python = resolvePython()
 if (!python) {
-  console.error('[py] 找不到 Python 解释器。');
-  console.error(`[py] 试过：${candidates().join('、')}`);
-  console.error('[py] 修法：在仓库根跑 `bun run dev:prepare` 建共享 venv `.venv-store`，');
-  console.error('[py]       或用 HOMEOS_PYTHON=/path/to/python 指定解释器。');
-  process.exit(127);
+  console.error('[py] 找不到 Python 解释器。')
+  console.error(`[py] 试过：${candidates().join('、')}`)
+  console.error('[py] 修法：在仓库根跑 `bun run dev:prepare` 建共享 venv `.venv-store`，')
+  console.error('[py]       或用 HOMEOS_PYTHON=/path/to/python 指定解释器。')
+  process.exit(127)
 }
 
 const result = spawnSync(python, args, {
   cwd: REPO_ROOT,
   stdio: 'inherit',
   env: process.env,
-});
+})
 
 // `status === null` 只有「进程压根没起来」一种情况：和「脚本自己退出 1」必须区分开，
 // 否则工具链缺失会伪装成门禁失败，排查方向完全不同（见 homeos/scripts/run.mjs 的同款处理）。
 if (result.error || result.status === null) {
-  const why = result.error ? `${result.error.code ?? ''} ${result.error.message}`.trim() : '被信号中断';
-  console.error(`[py] 无法执行：${python} ${args.join(' ')}`);
-  console.error(`[py] 原因：${why}`);
-  process.exit(result.status ?? 1);
+  const why = result.error ? `${result.error.code ?? ''} ${result.error.message}`.trim() : '被信号中断'
+  console.error(`[py] 无法执行：${python} ${args.join(' ')}`)
+  console.error(`[py] 原因：${why}`)
+  process.exit(result.status ?? 1)
 }
 
-process.exit(result.status);
+process.exit(result.status)

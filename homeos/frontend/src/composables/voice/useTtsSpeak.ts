@@ -160,9 +160,7 @@ export function useTtsSpeak() {
   const ttsOutputMode = computed(() => resolveTtsOutputMode())
 
   const configuredPlayerId = computed(() =>
-    getConfigSection('voice')?.ttsMediaPlayerId
-      ? String(getConfigSection('voice')?.ttsMediaPlayerId).trim()
-      : '',
+    getConfigSection('voice')?.ttsMediaPlayerId ? String(getConfigSection('voice')?.ttsMediaPlayerId).trim() : '',
   )
   const configuredPlayerIds = computed(() => {
     const ids = getConfigSection('voice')?.ttsMediaPlayerIds
@@ -201,10 +199,7 @@ export function useTtsSpeak() {
   /**
    * 经 HA 音箱播报（多台走一条批量请求，由后端并发下发并汇总结果）。
    */
-  async function speakViaHa(
-    text: string,
-    opts: TtsSpeakOptions = {},
-  ): Promise<TtsSpeakResult> {
+  async function speakViaHa(text: string, opts: TtsSpeakOptions = {}): Promise<TtsSpeakResult> {
     const targetIds = resolveTargetIds(opts)
     if (targetIds.length === 0) {
       return {
@@ -225,22 +220,14 @@ export function useTtsSpeak() {
   }
 
   /** HA 优先：失败归还冷却名额，让下一次还有机会出声。 */
-  async function speakHaFirst(
-    text: string,
-    opts: TtsSpeakOptions,
-    dedupKey: string,
-  ): Promise<TtsSpeakResult> {
+  async function speakHaFirst(text: string, opts: TtsSpeakOptions, dedupKey: string): Promise<TtsSpeakResult> {
     const result = await speakViaHa(text, opts)
     if (!result.ok) releaseCooldown(dedupKey)
     return result
   }
 
   /** 本机优先：``local`` 模式下失败就到此为止，``auto`` 回退 HA。 */
-  async function speakLocalFirst(
-    text: string,
-    opts: TtsSpeakOptions,
-    dedupKey: string,
-  ): Promise<TtsSpeakResult> {
+  async function speakLocalFirst(text: string, opts: TtsSpeakOptions, dedupKey: string): Promise<TtsSpeakResult> {
     const local = await speakLocal(text)
     if (local.ok) return { ok: true, path: 'local', message: local.message }
     logger.debug('本机 TTS 失败,回退 HA', local.message)
@@ -254,10 +241,7 @@ export function useTtsSpeak() {
   /**
    * 播报文本（按 ttsOutputMode 路由本机 / HA）。
    */
-  async function speak(
-    message: string | null | undefined,
-    opts: TtsSpeakOptions = {},
-  ): Promise<TtsSpeakResult> {
+  async function speak(message: string | null | undefined, opts: TtsSpeakOptions = {}): Promise<TtsSpeakResult> {
     const text = String(message || '').trim()
     if (!text) return skipped('请输入播报内容')
 

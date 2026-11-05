@@ -1,7 +1,7 @@
 /* 按钮、表单、Builder 工具栏 */
 /* 状态提示样式（.settings-inline-hint--* / .settings-deploy-note--*）已抽离至
    components/common/styles/status-hint.css，此处通过 @import 复用。 */
-@import '@/components/common/styles/status-hint.css';
+@import "@/components/common/styles/status-hint.css";
 /* ── 按钮 ── */
 .settings-btn-primary {
   display: inline-flex;
@@ -143,7 +143,10 @@
   color: var(--premium-accent-red);
   background: rgba(255, 59, 48, 0.08);
   border-color: rgba(255, 59, 48, 0.22);
-  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-btn-ghost--danger:hover:not(:disabled) {
@@ -153,7 +156,8 @@
 }
 
 .settings-btn-ghost--danger:focus-visible {
-  outline: var(--hos-focus-outline); outline-offset: var(--hos-focus-offset);
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
   border-color: var(--premium-accent-red);
   box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.18);
 }
@@ -260,9 +264,7 @@
   max-width: 28rem;
   padding: var(--hos-space-2xl, 24px);
   border-radius: var(--hos-radius-panel, 20px);
-  background:
-    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 55%),
-    #161b22;
+  background: radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 55%), #161b22;
   border: var(--hos-hairline) solid var(--premium-border-strong);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
@@ -291,7 +293,9 @@
   transition: color 0.2s ease;
 }
 
-.settings-modal-btn-cancel:hover { color: rgba(255, 255, 255, 0.8); }
+.settings-modal-btn-cancel:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
 
 .settings-list-btn {
   /* 高度钉到 xs 档：6px 内边距 + 行高 + 发丝边框凑出 29px，比 xs(28) 高 1px。 */
@@ -431,10 +435,14 @@
   justify-content: space-between;
   gap: 12px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.settings-widget-row:hover { background: var(--set-glass-bg-subtle); }
+.settings-widget-row:hover {
+  background: var(--set-glass-bg-subtle);
+}
 
 .settings-widget-row--active {
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.06);
@@ -475,7 +483,9 @@
 }
 
 @media (max-width: 640px) {
-  .settings-widget-config__grid { grid-template-columns: 1fr; }
+  .settings-widget-config__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-profile-active {
@@ -485,9 +495,15 @@
 }
 
 @media (max-width: 768px) {
-  .settings-form-grid { grid-template-columns: 1fr; }
-  .settings-form-grid--2 { grid-template-columns: 1fr; }
-  .settings-form-grid__span-2 { grid-column: auto; }
+  .settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-form-grid--2 {
+    grid-template-columns: 1fr;
+  }
+  .settings-form-grid__span-2 {
+    grid-column: auto;
+  }
 }
 
 .settings-choice-grid {
@@ -530,24 +546,23 @@
 
 .settings-choice-btn--active {
   color: #fff;
-  border-color: color-mix(in srgb, var(--choice-accent, #0A84FF) 88%, transparent);
-  background:
-    linear-gradient(
-      165deg,
-      color-mix(in srgb, var(--choice-accent, #0A84FF) 42%, transparent) 0%,
-      color-mix(in srgb, var(--choice-accent, #0A84FF) 16%, rgba(255, 255, 255, 0.04)) 100%
-    );
+  border-color: color-mix(in srgb, var(--choice-accent, #0a84ff) 88%, transparent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--choice-accent, #0a84ff) 42%, transparent) 0%,
+    color-mix(in srgb, var(--choice-accent, #0a84ff) 16%, rgba(255, 255, 255, 0.04)) 100%
+  );
   /* 选中：实边 + 内高光，不加外扩彩光晕 */
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--choice-accent, #0A84FF) 40%, rgba(255, 255, 255, 0.25));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--choice-accent, #0a84ff) 40%, rgba(255, 255, 255, 0.25));
 }
 
 .settings-choice-btn--active svg {
-  color: var(--choice-accent, #0A84FF);
+  color: var(--choice-accent, #0a84ff);
 }
 
 .settings-choice-btn--active .sys-hint-micro,
 .settings-choice-btn--active .text-\[9px\] {
-  color: color-mix(in srgb, var(--choice-accent, #0A84FF) 55%, rgba(255, 255, 255, 0.92));
+  color: color-mix(in srgb, var(--choice-accent, #0a84ff) 55%, rgba(255, 255, 255, 0.92));
   opacity: 1;
 }
 
@@ -623,8 +638,6 @@
   background: rgba(52, 211, 153, 0.1) !important;
 }
 
-
-
 .orch-toolbar-btn {
   /* 高度锁到 sm 档：7px 内边距 + 行高 + 发丝边框凑出的 31px 不在尺度上。 */
   height: var(--control-height-sm);
@@ -664,6 +677,10 @@
 }
 
 @media (max-width: 900px) {
-  .orch-toolbar-btn-label { display: none; }
-  .orch-toolbar-btn { padding: 7px 8px; }
+  .orch-toolbar-btn-label {
+    display: none;
+  }
+  .orch-toolbar-btn {
+    padding: 7px 8px;
+  }
 }

@@ -104,7 +104,11 @@ const before = worldBounds(document)
 const identityNodes = document
   .getRoot()
   .listNodes()
-  .filter((node) => node.getMesh() && node.getMatrix().some((value, index) => value !== [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1][index]))
+  .filter(
+    (node) =>
+      node.getMesh() &&
+      node.getMatrix().some((value, index) => value !== [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1][index]),
+  )
 if (identityNodes.length) {
   throw new Error(`节点 ${identityNodes.map((node) => node.getName()).join(',')} 带变换，脚本按局部坐标改写会错位`)
 }

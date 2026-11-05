@@ -156,30 +156,21 @@ export function useNotificationCenter() {
     filterRefs.value[next]?.focus?.()
   }
   // 全部通知（唯一数据源 = 实体 store 的远程通知列表，按时间倒序）
-  const allNotifications = computed(() =>
-    mergeNotificationLists(remoteList.value as NotificationItem[]),
-  )
+  const allNotifications = computed(() => mergeNotificationLists(remoteList.value as NotificationItem[]))
 
   // 应用偏好后的通知列表（不含级别/来源过滤）
-  const prefFilteredNotifications = computed(() =>
-    applyNotifyPrefs(allNotifications.value, notifyPrefs.value),
-  )
+  const prefFilteredNotifications = computed(() => applyNotifyPrefs(allNotifications.value, notifyPrefs.value))
 
   // 来源筛选选项（由 @homeos/shared 工具基于通知来源动态构造，最多 9 个）
   const sourceFilters = computed(() => buildSourceFilters(prefFilteredNotifications.value, 9))
 
   // 最终展示的通知列表：先级别、再来源过滤后的结果
   const displayNotifications = computed(() =>
-    filterBySource(
-      filterByLevel(prefFilteredNotifications.value, activeLevel.value),
-      activeSource.value,
-    ),
+    filterBySource(filterByLevel(prefFilteredNotifications.value, activeLevel.value), activeSource.value),
   )
 
   // 各来源筛选 tab 的通知数量统计（用于徽标显示）
-  const filterCounts = computed(() =>
-    countBySource(prefFilteredNotifications.value, sourceFilters.value),
-  )
+  const filterCounts = computed(() => countBySource(prefFilteredNotifications.value, sourceFilters.value))
 
   // 来源筛选变化时：若当前激活来源消失，回退到 all
   watch(sourceFilters, (tabs) => {
@@ -217,8 +208,7 @@ export function useNotificationCenter() {
   function resolveNotificationLink(notification: NotificationItem) {
     const src = String(notification.source || '')
     if (src === 'emergency' || src.startsWith('security')) return '/security'
-    if (src === 'alert-rule' || src.startsWith('alert-rule'))
-      return SETTINGS_ROUTES.fromNotificationSource(src)
+    if (src === 'alert-rule' || src.startsWith('alert-rule')) return SETTINGS_ROUTES.fromNotificationSource(src)
     if (src.startsWith('energy') || src === 'energy-budget' || src === 'energy-anomaly') {
       return SETTINGS_ROUTES.params('energy')
     }
@@ -234,8 +224,7 @@ export function useNotificationCenter() {
     if (src === 'ha-connection') return SETTINGS_ROUTES.connection()
     if (src === 'home-mode' || src.startsWith('home-mode')) return SETTINGS_ROUTES.homeMode()
     if (src === 'automation') return SETTINGS_ROUTES.homeMode()
-    if (src.includes('linkage') || src.includes('linkage_'))
-      return SETTINGS_ROUTES.securityModes('linkage')
+    if (src.includes('linkage') || src.includes('linkage_')) return SETTINGS_ROUTES.securityModes('linkage')
     if (src.startsWith('voice')) return SETTINGS_ROUTES.voice()
     if (notification.entityId) return `/device?id=${encodeURIComponent(notification.entityId)}`
     return null
@@ -296,9 +285,7 @@ export function useNotificationCenter() {
    * 失败时按 id 回滚到调用前的已读状态。
    */
   async function markAllRead() {
-    const prevRead = new Map(
-      remoteList.value.map((notification) => [notification.id, Boolean(notification.read)]),
-    )
+    const prevRead = new Map(remoteList.value.map((notification) => [notification.id, Boolean(notification.read)]))
     const list = remoteList.value
     for (const notification of list) notification.read = true
     try {
@@ -320,11 +307,11 @@ export function useNotificationCenter() {
    */
   async function clearAll() {
     const chrome = useChromeStore()
-    const ok = await chrome.confirm(
-      '确定清空全部通知？此操作不可撤销。',
-      '清空通知',
-      { confirmText: '清空', cancelText: '取消', type: 'danger' },
-    )
+    const ok = await chrome.confirm('确定清空全部通知？此操作不可撤销。', '清空通知', {
+      confirmText: '清空',
+      cancelText: '取消',
+      type: 'danger',
+    })
     if (!ok) return
     const prevRemote = [...remoteList.value]
     entitiesStore.clearRemoteNotifications()

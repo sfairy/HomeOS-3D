@@ -1,79 +1,68 @@
-import { createGeometryPersistentCache } from "./cache/geometry-persistent-cache";
-import { createContactShadowPersistentCache } from "./plan/contact-shadow-persistent-cache";
-import { contactShadowPreparationKey } from "./plan/contact-shadow-cache-scope";
-import { createReflectionPersistentCache } from "./reflection/reflection-persistent-cache";
-import {
-  createScenePersistentCache,
-  scenePreparationKey,
-} from "./cache/scene-persistent-cache";
+import { createGeometryPersistentCache } from './cache/geometry-persistent-cache'
+import { createContactShadowPersistentCache } from './plan/contact-shadow-persistent-cache'
+import { contactShadowPreparationKey } from './plan/contact-shadow-cache-scope'
+import { createReflectionPersistentCache } from './reflection/reflection-persistent-cache'
+import { createScenePersistentCache, scenePreparationKey } from './cache/scene-persistent-cache'
 function beginStageStartup({
   env: env = globalThis,
-  loadModule: loadModule = () =>
-    import("/api/v1/modules/interaction3d/core/stage.js"),
+  loadModule: loadModule = () => import('/api/v1/modules/interaction3d/core/stage.js'),
   createCache: createCache = createScenePersistentCache,
 } = {}) {
-  const configuredStagePath = (env as { HABridgeEmbed?: { path?: unknown } }).HABridgeEmbed?.path;
+  const configuredStagePath = (env as { HABridgeEmbed?: { path?: unknown } }).HABridgeEmbed?.path
   if (
-    env.location?.pathname !== "/api/v1/modules/interaction3d/stage.html" &&
+    env.location?.pathname !== '/api/v1/modules/interaction3d/stage.html' &&
     // 嵌入方可用 HABridgeEmbed.path 指定舞台入口；两者都不匹配就不启动预热。
     (!configuredStagePath || env.location?.pathname !== configuredStagePath)
   )
-    return null;
+    return null
   const searchParams = new URLSearchParams(env.location.search),
-    sceneId = searchParams.get("sceneId") || "",
-    projectId = searchParams.get("projectId") || "",
+    sceneId = searchParams.get('sceneId') || '',
+    projectId = searchParams.get('projectId') || '',
     scenePath =
-      "/modules/interaction3d/scenes/" +
+      '/modules/interaction3d/scenes/' +
       encodeURIComponent(sceneId) +
-      "/current?projectId=" +
+      '/current?projectId=' +
       encodeURIComponent(projectId),
     cache = createCache({
       env: env,
     }),
     lightHistoryScope = env.document.body?.dataset.i3dLightHistoryScope,
     studioAppSource =
-      env.document.querySelector<HTMLScriptElement>('script[src*="/3d-studio/studio-app.js"]')
-        ?.src || "",
-    preparationKey = scenePreparationKey(lightHistoryScope, projectId, sceneId, studioAppSource);
-  cache.preload(preparationKey);
+      env.document.querySelector<HTMLScriptElement>('script[src*="/3d-studio/studio-app.js"]')?.src || '',
+    preparationKey = scenePreparationKey(lightHistoryScope, projectId, sceneId, studioAppSource)
+  cache.preload(preparationKey)
   const geometryCache = createGeometryPersistentCache({
     env: env,
     key: preparationKey,
-  });
-  geometryCache.preload();
+  })
+  geometryCache.preload()
   const furnitureCache = createGeometryPersistentCache({
     env: env,
-    key: preparationKey ? JSON.stringify(["furniture-batches-v1", preparationKey]) : "",
-  });
-  furnitureCache.preload();
-  const shadowCacheKey = contactShadowPreparationKey(
-      lightHistoryScope,
-      projectId,
-      sceneId,
-      studioAppSource,
-      {
-        legacy: searchParams.get("shadow-cache") === "legacy",
-      },
-    ),
+    key: preparationKey ? JSON.stringify(['furniture-batches-v1', preparationKey]) : '',
+  })
+  furnitureCache.preload()
+  const shadowCacheKey = contactShadowPreparationKey(lightHistoryScope, projectId, sceneId, studioAppSource, {
+      legacy: searchParams.get('shadow-cache') === 'legacy',
+    }),
     shadowCache = createContactShadowPersistentCache({
       env: env,
       key: shadowCacheKey,
-    });
-  shadowCache.preload();
+    })
+  shadowCache.preload()
   const reflectionCache =
-    searchParams.get("lighting") === "standard"
+    searchParams.get('lighting') === 'standard'
       ? null
       : createReflectionPersistentCache({
           env: env,
           key: preparationKey,
-        });
-  reflectionCache?.preload();
-  const preparationResponse = env.fetch("/api/v1" + scenePath, {
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-  preparationResponse.catch(() => {});
-  const stageModule = loadModule();
+        })
+  reflectionCache?.preload()
+  const preparationResponse = env.fetch('/api/v1' + scenePath, {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
+  preparationResponse.catch(() => {})
+  const stageModule = loadModule()
   return (
     stageModule.catch(() => {}),
     {
@@ -87,6 +76,6 @@ function beginStageStartup({
       shadowCache: shadowCache,
       reflectionCache: reflectionCache,
     }
-  );
+  )
 }
-export const stageStartup = beginStageStartup();
+export const stageStartup = beginStageStartup()

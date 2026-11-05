@@ -212,18 +212,7 @@
  * - 弹出式面板
  */
 import { ref, computed } from 'vue'
-import {
-  Music,
-  SkipBack,
-  SkipForward,
-  Pause,
-  Play,
-  Volume2,
-  VolumeX,
-  Repeat,
-  Shuffle,
-  Maximize2,
-} from '@lucide/vue'
+import { Music, SkipBack, SkipForward, Pause, Play, Volume2, VolumeX, Repeat, Shuffle, Maximize2 } from '@lucide/vue'
 import AnchoredPopupShell from '@/components/entities/popups/AnchoredPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
 import { defineEntityPopupProps, useEntityPopupBase } from '@/composables/entity/popup/useEntityPopupBase'

@@ -8,7 +8,7 @@
  * 任何报错。非有限值一律落到下界。
  */
 export function clamp(rawValue: unknown, minValue: number, maxValue: number): number {
-  const value = Number(rawValue);
-  if (!Number.isFinite(value)) return minValue;
-  return Math.min(maxValue, Math.max(minValue, value));
+  const value = Number(rawValue)
+  if (!Number.isFinite(value)) return minValue
+  return Math.min(maxValue, Math.max(minValue, value))
 }

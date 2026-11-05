@@ -34,21 +34,12 @@ const base = b(INNER_W, BASE_TOP - LEG_H, D - 0.16, 0, (BASE_TOP + LEG_H) / 2, 0
 /** 坐垫：两半分缝，前缘压 2mm 避免与底框共面。 */
 const seats = merge(
   [-1, 1].map((side) =>
-    b(
-      INNER_W / 2 - 0.012,
-      SEAT_TOP - BASE_TOP,
-      D - 0.3,
-      (side * INNER_W) / 4,
-      (SEAT_TOP + BASE_TOP) / 2,
-      0.03,
-    ),
+    b(INNER_W / 2 - 0.012, SEAT_TOP - BASE_TOP, D - 0.3, (side * INNER_W) / 4, (SEAT_TOP + BASE_TOP) / 2, 0.03),
   ),
 )
 
 const arms = merge(
-  [-1, 1].map((side) =>
-    b(ARM_W, ARM_TOP - LEG_H, D - 0.02, (side * (W - ARM_W)) / 2, (ARM_TOP + LEG_H) / 2, -0.01),
-  ),
+  [-1, 1].map((side) => b(ARM_W, ARM_TOP - LEG_H, D - 0.02, (side * (W - ARM_W)) / 2, (ARM_TOP + LEG_H) / 2, -0.01)),
 )
 
 const back = b(W - 0.02, H - BASE_TOP, 0.2, 0, (H + BASE_TOP) / 2, BACK_Z)

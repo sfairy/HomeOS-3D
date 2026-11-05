@@ -81,8 +81,7 @@ export function reorderPresencePersons(
   toIndex: number,
 ): PresencePerson[] {
   const next = [...(Array.isArray(list) ? list : [])] as PresencePerson[]
-  if (fromIndex < 0 || toIndex < 0 || fromIndex >= next.length || toIndex >= next.length)
-    return next
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= next.length || toIndex >= next.length) return next
   if (fromIndex === toIndex) return next
   const [item] = next.splice(fromIndex, 1)
   next.splice(toIndex, 0, item)
@@ -107,9 +106,7 @@ export function sanitizePresencePersonsForSave(persons: unknown): PresencePerson
       return {
         id: String(row.id ?? randomUUID()).trim(),
         name: String(row.name ?? '').trim(),
-        entityIds: (Array.isArray(row.entityIds) ? row.entityIds : [])
-          .map((id) => String(id).trim())
-          .filter(Boolean),
+        entityIds: (Array.isArray(row.entityIds) ? row.entityIds : []).map((id) => String(id).trim()).filter(Boolean),
         userId: String(row.userId ?? '').trim(),
       }
     })

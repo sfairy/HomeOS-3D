@@ -1148,14 +1148,10 @@ watch(section, (value) => {
   }
 })
 
-const chatFlowSummary = computed(
-  () => `${chatStatReadyLabel.value} · ${chatStatRoundLabel.value}`,
-)
+const chatFlowSummary = computed(() => `${chatStatReadyLabel.value} · ${chatStatRoundLabel.value}`)
 
 /** 等首 token 的阶段才显示「思考中」气泡；已开始逐字输出后由流式气泡本身承载 */
-const showChatTyping = computed(
-  () => chatting.value && !chatLog.value.some((m) => m.streaming && m.text.trim()),
-)
+const showChatTyping = computed(() => chatting.value && !chatLog.value.some((m) => m.streaming && m.text.trim()))
 
 function goConfigureApiKey() {
   section.value = 'model'

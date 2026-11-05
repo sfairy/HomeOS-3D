@@ -51,9 +51,7 @@ const props = defineProps({
 const emit = defineEmits(['refresh', 'apply', 'chip-click', 'banner-action'])
 
 /** 已在目标页时隐藏深链，避免「点了没反应」 */
-const navLinkTo = computed(() =>
-  props.linkTo && !isDeepLinkCurrent(props.linkTo, route) ? props.linkTo : '',
-)
+const navLinkTo = computed(() => (props.linkTo && !isDeepLinkCurrent(props.linkTo, route) ? props.linkTo : ''))
 
 /**
  * 解析芯片 meta 中的百分比数值

@@ -390,9 +390,7 @@ router.beforeEach(async (to, from) => {
   if (getSystemInitialized() === null || getSystemInitialized() === 'offline') {
     try {
       const initialized =
-        getSystemInitialized() === 'offline'
-          ? await auth.getSetupStatus()
-          : await fetchSetupStatusWithBootRetry(auth)
+        getSystemInitialized() === 'offline' ? await auth.getSetupStatus() : await fetchSetupStatusWithBootRetry(auth)
       setSystemInitialized(initialized ?? false)
       offlineNotified = false
       if (auth.isAuthenticated) {
@@ -437,12 +435,7 @@ router.beforeEach(async (to, from) => {
 
   // 后端不可达：放行入户页，其余阻断（不假装已授权）
   if (getSystemInitialized() === 'offline') {
-    if (
-      to.name === 'register' ||
-      to.name === 'login' ||
-      to.name === 'activation' ||
-      to.name === 'reset-password'
-    )
+    if (to.name === 'register' || to.name === 'login' || to.name === 'activation' || to.name === 'reset-password')
       return
     return false
   }
@@ -499,12 +492,7 @@ router.beforeEach(async (to, from) => {
   if (getLicenseActivated() === false) {
     // `reset-password` 与登录页同属「未激活也要能进的修复入口」：授权过期时用户仍可能
     // 忘记本机密码，把找回页挡掉等于把唯一的门也锁了。
-    if (
-      to.name === 'activation' ||
-      to.name === 'login' ||
-      to.name === 'reset-password'
-    )
-      return
+    if (to.name === 'activation' || to.name === 'login' || to.name === 'reset-password') return
     return auth.isAuthenticated ? '/activate' : '/login'
   }
 
@@ -536,11 +524,7 @@ router.beforeEach(async (to, from) => {
   // 访客模式拦截设置类页面
   if (target === '/') {
     // 激活页完成或设置锁回退都会到 '/'；仅设置锁场景弹访客提示易误导，保留原逻辑需区分
-    if (
-      to.path?.startsWith('/settings') &&
-      layout.layoutConfig.settingsLock?.enabled &&
-      !layout.isSettingsUnlocked
-    ) {
+    if (to.path?.startsWith('/settings') && layout.layoutConfig.settingsLock?.enabled && !layout.isSettingsUnlocked) {
       chrome.notify('系统已进入访客模式，访问设置需先进行身份验证', 'warning')
     }
     return '/'

@@ -248,9 +248,7 @@ const viewport = ref({
   width: typeof window === 'undefined' ? 0 : window.innerWidth,
   height: typeof window === 'undefined' ? 0 : window.innerHeight,
 })
-const stageSize = ref(
-  typeof window === 'undefined' ? { width: 0, height: 0 } : resolveAgentCompanionStageSize(),
-)
+const stageSize = ref(typeof window === 'undefined' ? { width: 0, height: 0 } : resolveAgentCompanionStageSize())
 
 const dragging = ref(false)
 /** 拖动中的中心点（px）；松手后清空，位置改读布局配置 */
@@ -291,9 +289,7 @@ const { listening, transcribing, startListen, stopListen } = useSpeechToText({
   onFinal: (text) => void handleVoiceResult(text),
 })
 
-const config = computed(() =>
-  normalizeAgentCompanion(layoutStore.layoutConfig?.agentConfig?.companion),
-)
+const config = computed(() => normalizeAgentCompanion(layoutStore.layoutConfig?.agentConfig?.companion))
 const chatOpen = computed(() => chrome.isAgentChatOpen)
 const currentTip = computed(() => TIPS[tipIndex.value % TIPS.length])
 const isSleeping = computed(() => state.value === 'idle' || state.value === 'dormant')

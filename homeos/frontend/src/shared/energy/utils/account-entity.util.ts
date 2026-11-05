@@ -75,10 +75,7 @@ export function hasEntityAccountConfig(
  * @returns 多账户行数组；无数组时返回空数组。
  */
 export function resolveMultiAccountEntries(
-  cfg:
-    | Pick<EnergyAccountSourceLike, 'mode' | 'entityId' | 'entityMap' | 'multiAccounts'>
-    | null
-    | undefined,
+  cfg: Pick<EnergyAccountSourceLike, 'mode' | 'entityId' | 'entityMap' | 'multiAccounts'> | null | undefined,
 ): EnergyMultiAccountEntry[] {
   const fromList = Array.isArray(cfg?.multiAccounts) ? cfg!.multiAccounts! : []
   return fromList.map((row) => ({
@@ -95,14 +92,9 @@ export function resolveMultiAccountEntries(
  * @returns 存在至少一个非空 entityId 或 entityMap 值时返回 true，否则返回 false。
  */
 export function hasMultiAccountConfig(
-  cfg:
-    | Pick<EnergyAccountSourceLike, 'mode' | 'entityId' | 'entityMap' | 'multiAccounts'>
-    | null
-    | undefined,
+  cfg: Pick<EnergyAccountSourceLike, 'mode' | 'entityId' | 'entityMap' | 'multiAccounts'> | null | undefined,
 ): boolean {
-  return resolveMultiAccountEntries(cfg).some(
-    (row) => row.entityId.trim() || hasEntityMapValues(row.entityMap),
-  )
+  return resolveMultiAccountEntries(cfg).some((row) => row.entityId.trim() || hasEntityMapValues(row.entityMap))
 }
 
 /**
@@ -176,9 +168,7 @@ export function ensureEntityAccountsOnSource(src: Record<string, unknown>): void
  * @param src 源数据对象，会被原地修改。
  */
 export function syncEntityAccounts(src: Record<string, unknown>): void {
-  const rows = Array.isArray(src.accountEntities)
-    ? (src.accountEntities as EnergyAccountEntityEntry[])
-    : []
+  const rows = Array.isArray(src.accountEntities) ? (src.accountEntities as EnergyAccountEntityEntry[]) : []
   const count = rows.length
   if (count > 0) {
     src.primaryAccountIndex = resolvePrimaryAccountRowIndex(src as EnergyAccountSourceLike, count)
@@ -219,9 +209,7 @@ export function ensureMultiAccountsOnSource(src: Record<string, unknown>): void 
  * @param src 源数据对象，会被原地修改。
  */
 export function syncMultiAccounts(src: Record<string, unknown>): void {
-  const rows = Array.isArray(src.multiAccounts)
-    ? (src.multiAccounts as EnergyMultiAccountEntry[])
-    : []
+  const rows = Array.isArray(src.multiAccounts) ? (src.multiAccounts as EnergyMultiAccountEntry[]) : []
   if (!rows.length) {
     src.multiAccounts = [{ label: '', entityId: '', entityMap: {} }]
   }

@@ -12,10 +12,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/runtime/environment/environment-halos.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/runtime/environment/environment-halos.ts', import.meta.url),
 )
 const { simplifyOutline, orderedContourPointIndices } = await import(moduleUrl)
 
@@ -92,7 +89,8 @@ test('有序轮廓只认几何 userData：帘布按上沿去、下沿回的顺�
   assert.deepEqual(bladeIndices[1], [4, 5, 7, 6])
 
   // 两种标记同时存在时帘布优先（一块帘布不会又是叶片）。
-  assert.deepEqual(orderedContourPointIndices({ curtainCloth: { segments: 1 }, dreamBlades: { count: 1 } })[0], [
-    0, 1, 3, 2,
-  ])
+  assert.deepEqual(
+    orderedContourPointIndices({ curtainCloth: { segments: 1 }, dreamBlades: { count: 1 } })[0],
+    [0, 1, 3, 2],
+  )
 })

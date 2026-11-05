@@ -46,12 +46,60 @@ export function box({ width, height, depth, center = [0, 0, 0], uvScale = 1 }) {
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
   }
 
-  face([0, 0, 1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]])
-  face([0, 0, -1], [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]])
-  face([1, 0, 0], [[1, -1, 1], [1, -1, -1], [1, 1, -1], [1, 1, 1]])
-  face([-1, 0, 0], [[-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1]])
-  face([0, 1, 0], [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1]])
-  face([0, -1, 0], [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1]])
+  face(
+    [0, 0, 1],
+    [
+      [-1, -1, 1],
+      [1, -1, 1],
+      [1, 1, 1],
+      [-1, 1, 1],
+    ],
+  )
+  face(
+    [0, 0, -1],
+    [
+      [1, -1, -1],
+      [-1, -1, -1],
+      [-1, 1, -1],
+      [1, 1, -1],
+    ],
+  )
+  face(
+    [1, 0, 0],
+    [
+      [1, -1, 1],
+      [1, -1, -1],
+      [1, 1, -1],
+      [1, 1, 1],
+    ],
+  )
+  face(
+    [-1, 0, 0],
+    [
+      [-1, -1, -1],
+      [-1, -1, 1],
+      [-1, 1, 1],
+      [-1, 1, -1],
+    ],
+  )
+  face(
+    [0, 1, 0],
+    [
+      [-1, 1, 1],
+      [1, 1, 1],
+      [1, 1, -1],
+      [-1, 1, -1],
+    ],
+  )
+  face(
+    [0, -1, 0],
+    [
+      [-1, -1, -1],
+      [1, -1, -1],
+      [1, -1, 1],
+      [-1, -1, 1],
+    ],
+  )
 
   return { positions, normals, uvs, indices }
 }
@@ -143,11 +191,7 @@ export function lathe({ profile, segments = 32, center = [0, 0, 0], closeBottom 
       const midpoint = (a0 + a1) / 2
       // 剖面切线 (dr,dy) 的法线把半径方向与高度方向组合，保证回转面朝向正确。
       const radial = normalize([dy, 0, -dr])
-      const normal = normalize([
-        Math.cos(midpoint) * radial[0],
-        radial[1],
-        Math.sin(midpoint) * radial[0],
-      ])
+      const normal = normalize([Math.cos(midpoint) * radial[0], radial[1], Math.sin(midpoint) * radial[0]])
       const base = positions.length / 3
       const u0 = segment / segments
       const u1 = (segment + 1) / segments
@@ -210,9 +254,27 @@ export function quad({ width, height, center = [0, 0, 0], axis = 'z' }) {
   const hy = height / 2
   const normal = axis === 'z' ? [0, 0, 1] : axis === 'y' ? [0, 1, 0] : [1, 0, 0]
   let corners
-  if (axis === 'z') corners = [[-hx, -hy, 0], [hx, -hy, 0], [hx, hy, 0], [-hx, hy, 0]]
-  else if (axis === 'y') corners = [[-hx, 0, -hy], [hx, 0, -hy], [hx, 0, hy], [-hx, 0, hy]]
-  else corners = [[0, -hy, -hx], [0, -hy, hx], [0, hy, hx], [0, hy, -hx]]
+  if (axis === 'z')
+    corners = [
+      [-hx, -hy, 0],
+      [hx, -hy, 0],
+      [hx, hy, 0],
+      [-hx, hy, 0],
+    ]
+  else if (axis === 'y')
+    corners = [
+      [-hx, 0, -hy],
+      [hx, 0, -hy],
+      [hx, 0, hy],
+      [-hx, 0, hy],
+    ]
+  else
+    corners = [
+      [0, -hy, -hx],
+      [0, -hy, hx],
+      [0, hy, hx],
+      [0, hy, -hx],
+    ]
   return {
     positions: corners.flatMap((corner) => [cx + corner[0], cy + corner[1], cz + corner[2]]),
     normals: [...normal, ...normal, ...normal, ...normal],

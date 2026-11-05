@@ -1,29 +1,14 @@
 /** 设备弹窗栈约定： */
 import type { Component } from 'vue'
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
-import {
-  resolveEntityPopupKind,
-  type EntityPopupKind,
-} from '@/shared/entity/utils/popup-registry.util'
+import { resolveEntityPopupKind, type EntityPopupKind } from '@/shared/entity/utils/popup-registry.util'
 
-const LightControlPopup = lazyComponent(
-  () => import('@/components/entities/popups/LightControlPopup.vue'),
-)
-const ClimateControlPopup = lazyComponent(
-  () => import('@/components/entities/popups/ClimateControlPopup.vue'),
-)
-const CoverControlPopup = lazyComponent(
-  () => import('@/components/entities/popups/CoverControlPopup.vue'),
-)
-const AsyncMediaPlayerPopup = lazyComponent(
-  () => import('@/components/entities/popups/MediaPlayerPopup.vue'),
-)
-const AsyncUtilityMeterInfoPopup = lazyComponent(
-  () => import('@/components/entities/popups/UtilityMeterInfoPopup.vue'),
-)
-const AsyncCommInfoPopup = lazyComponent(
-  () => import('@/components/entities/popups/CommInfoPopup.vue'),
-)
+const LightControlPopup = lazyComponent(() => import('@/components/entities/popups/LightControlPopup.vue'))
+const ClimateControlPopup = lazyComponent(() => import('@/components/entities/popups/ClimateControlPopup.vue'))
+const CoverControlPopup = lazyComponent(() => import('@/components/entities/popups/CoverControlPopup.vue'))
+const AsyncMediaPlayerPopup = lazyComponent(() => import('@/components/entities/popups/MediaPlayerPopup.vue'))
+const AsyncUtilityMeterInfoPopup = lazyComponent(() => import('@/components/entities/popups/UtilityMeterInfoPopup.vue'))
+const AsyncCommInfoPopup = lazyComponent(() => import('@/components/entities/popups/CommInfoPopup.vue'))
 
 const popupComponentMap: Record<EntityPopupKind, Component> = {
   climate: ClimateControlPopup,

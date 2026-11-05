@@ -2,76 +2,72 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage,
-} from "../../editor/picker/editor-picker-pagination";
-import { createEditorPickerQueries } from "../../editor/picker/editor-picker-queries";
-import { vacuumProfiles } from "../catalog/vacuum-catalog";
-import { nasProfiles } from "../catalog/nas-catalog";
-import {
-  matchesTemperatureHumidityEntity,
-  ENVIRONMENT_SENSORS,
-} from "../temperature-humidity";
-import type { HaEntityEntry } from "@app/shared/util/ha-entity";
-import { alarmDeviceProfiles } from "@/studio/platform/security-alarm-profile";
-const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline",
-  isValidIconId = (iconId: any) =>
-    typeof iconId == "string" && /^mdi:[a-z0-9][a-z0-9-]{0,119}$/.test(iconId),
+} from '../../editor/picker/editor-picker-pagination'
+import { createEditorPickerQueries } from '../../editor/picker/editor-picker-queries'
+import { vacuumProfiles } from '../catalog/vacuum-catalog'
+import { nasProfiles } from '../catalog/nas-catalog'
+import { matchesTemperatureHumidityEntity, ENVIRONMENT_SENSORS } from '../temperature-humidity'
+import type { HaEntityEntry } from '@app/shared/util/ha-entity'
+import { alarmDeviceProfiles } from '@/studio/platform/security-alarm-profile'
+const DEFAULT_LIGHT_ICON = 'mdi:lightbulb-outline',
+  isValidIconId = (iconId: any) => typeof iconId == 'string' && /^mdi:[a-z0-9][a-z0-9-]{0,119}$/.test(iconId),
   isAvailableRecord = (record: any) =>
     record &&
     record.disabledBy == null &&
     record.disabled_by == null &&
     record.enabled !== false &&
-    !["missing", "disabled"].includes(String(record.status || "").toLowerCase());
+    !['missing', 'disabled'].includes(String(record.status || '').toLowerCase())
 /** 交互 3D 编辑器实体选择器的依赖注入。 */
 type EditorPickersOptions = {
-  openPicker?: (...args: any[]) => any;
-  fetchIcons?: (...args: any[]) => any;
-  getEntities?: (...args: any[]) => any[];
+  openPicker?: (...args: any[]) => any
+  fetchIcons?: (...args: any[]) => any
+  getEntities?: (...args: any[]) => any[]
   /** 按实体 id 读状态（状态中枢包装后的对象）。 */
-  getState?: (entityId: string) => any;
-  ensureEntities?: (...args: any[]) => any;
-  entityPickerText?: any;
-  elements?: any;
+  getState?: (entityId: string) => any
+  ensureEntities?: (...args: any[]) => any
+  entityPickerText?: any
+  elements?: any
   /** 设备类型：light / cover / vacuum…，决定可选设备目录。 */
-  deviceKind?: string;
-  fetchAreas?: (...args: any[]) => any;
-  fetchDevices?: (...args: any[]) => any;
-  [dependencyName: string]: any;
-};
+  deviceKind?: string
+  fetchAreas?: (...args: any[]) => any
+  fetchDevices?: (...args: any[]) => any
+  [dependencyName: string]: any
+}
 
 function presenceDeviceProfiles(
   entities: HaEntityEntry[] = [],
   devices: any[] = [],
   lookupState: (entityId: string) => any = () => null,
 ) {
-  const devicesById = new Map();
+  const devicesById = new Map()
   for (const entityEntry of entities) {
     if (
       entityEntry.disabledBy != null ||
       entityEntry.disabled_by != null ||
       entityEntry.enabled === false ||
-      ["missing", "disabled"].includes(entityEntry.status!) ||
-      !/^(binary_sensor|event)\.[a-z0-9_]+$/.test(entityEntry.entityId || "")
+      ['missing', 'disabled'].includes(entityEntry.status!) ||
+      !/^(binary_sensor|event)\.[a-z0-9_]+$/.test(entityEntry.entityId || '')
     )
-      continue;
+      continue
     const deviceClass =
       entityEntry.deviceClass ||
       entityEntry.device_class ||
       entityEntry.attributes?.device_class ||
-      lookupState(entityEntry.entityId!)?.attributes?.device_class;
+      lookupState(entityEntry.entityId!)?.attributes?.device_class
     if (
-      (deviceClass && !["occupancy", "presence", "motion"].includes(deviceClass)) ||
+      (deviceClass && !['occupancy', 'presence', 'motion'].includes(deviceClass)) ||
       (!deviceClass &&
         !/occupancy|presence|motion|(?:^|_)pir(?:_|$)|有人|无人|移动检测|运动检测|人体检测/i.test(
-          entityEntry.entityId + " " + (entityEntry.name || ""),
+          entityEntry.entityId + ' ' + (entityEntry.name || ''),
         )) ||
-      ["diagnostic", "config"].includes(entityEntry.entityCategory || entityEntry.entity_category)
+      ['diagnostic', 'config'].includes(entityEntry.entityCategory || entityEntry.entity_category)
     )
-      continue;
-    const deviceId = entityEntry.deviceId || entityEntry.device_id;
-    if (!deviceId) continue;
+      continue
+    const deviceId = entityEntry.deviceId || entityEntry.device_id
+    if (!deviceId) continue
     const registryDevice = devices.find(
       (candidateDevice) => (candidateDevice.id || candidateDevice.deviceId) === deviceId,
-    );
+    )
     registryDevice?.disabledBy != null ||
       registryDevice?.disabled_by != null ||
       (devicesById.has(deviceId) ||
@@ -88,22 +84,16 @@ function presenceDeviceProfiles(
       devicesById.get(deviceId).entities.push({
         entityId: entityEntry.entityId,
         name: entityEntry.name || entityEntry.entityId,
-        rank:
-          deviceClass === "occupancy" || deviceClass === "presence"
-            ? 0
-            : deviceClass === "motion"
-              ? 1
-              : 2,
-      }));
+        rank: deviceClass === 'occupancy' || deviceClass === 'presence' ? 0 : deviceClass === 'motion' ? 1 : 2,
+      }))
   }
   return [...devicesById.values()].map((profile) => ({
     ...profile,
     entities: profile.entities.sort(
       (leftEntity: any, rightEntity: any) =>
-        leftEntity.rank - rightEntity.rank ||
-        leftEntity.entityId.localeCompare(rightEntity.entityId),
+        leftEntity.rank - rightEntity.rank || leftEntity.entityId.localeCompare(rightEntity.entityId),
     ),
-  }));
+  }))
 }
 /**
  * 实体选择器的「标题 + 空态」文案表（0.7.9 口径）。
@@ -113,76 +103,73 @@ function presenceDeviceProfiles(
  * 「设备种类 → 文案」查表，最外层只保留固定顺序：显式标题 → 环境传感器 →
  * 门/电量角色 → 设备种类 → 电源/影音/窗帘/空调角色 → 通用兜底。
  */
-const ENTITY_PICKER_DEVICE_WORDING: Readonly<
-  Record<string, { title: string; emptyText: string }>
-> = Object.freeze({
+const ENTITY_PICKER_DEVICE_WORDING: Readonly<Record<string, { title: string; emptyText: string }>> = Object.freeze({
   weather: {
-    title: "绑定天气实体",
-    emptyText:
-      "没有匹配的天气实体，请检查搜索条件，并确认 Home Assistant 已接入并启用 weather 实体",
+    title: '绑定天气实体',
+    emptyText: '没有匹配的天气实体，请检查搜索条件，并确认 Home Assistant 已接入并启用 weather 实体',
   },
-  "security-alarm": {
-    title: "选择报警传感器",
-    emptyText: "没有匹配的实体，请检查搜索条件或 Home Assistant 的实体列表",
+  'security-alarm': {
+    title: '选择报警传感器',
+    emptyText: '没有匹配的实体，请检查搜索条件或 Home Assistant 的实体列表',
   },
-  "bath-heater": {
-    title: "选择浴霸主实体（可不选）",
-    emptyText: "没有匹配的浴霸主实体（climate 或 fan），可返回直接绑定设备并选择附加功能",
+  'bath-heater': {
+    title: '选择浴霸主实体（可不选）',
+    emptyText: '没有匹配的浴霸主实体（climate 或 fan），可返回直接绑定设备并选择附加功能',
   },
-  "device-status": {
-    title: "选择状态实体",
-    emptyText: "没有符合条件的状态实体，请检查搜索条件及当前设备的实体列表",
+  'device-status': {
+    title: '选择状态实体',
+    emptyText: '没有符合条件的状态实体，请检查搜索条件及当前设备的实体列表',
   },
   airer: {
-    title: "选择晾衣架升降实体",
-    emptyText: "没有匹配的晾衣架升降实体，请检查 cover 实体及搜索条件",
+    title: '选择晾衣架升降实体',
+    emptyText: '没有匹配的晾衣架升降实体，请检查 cover 实体及搜索条件',
   },
-  "window-opener": {
-    title: "选择开窗器实体",
-    emptyText: "没有匹配的开窗器，请检查 cover 实体及搜索条件",
+  'window-opener': {
+    title: '选择开窗器实体',
+    emptyText: '没有匹配的开窗器，请检查 cover 实体及搜索条件',
   },
-  "water-heater": {
-    title: "选择热水器实体",
-    emptyText: "没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备",
+  'water-heater': {
+    title: '选择热水器实体',
+    emptyText: '没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备',
   },
   fan: {
-    title: "选择风扇主实体（可不选）",
+    title: '选择风扇主实体（可不选）',
     // 风扇 / 净化器都允许「不选主实体，直接绑设备 + 选附加功能」。
-    emptyText: "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。",
+    emptyText: '没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。',
   },
   purifier: {
-    title: "选择空气净化器实体",
-    emptyText: "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。",
+    title: '选择空气净化器实体',
+    emptyText: '没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。',
   },
-  "exhaust-fan": {
-    title: "选择排气扇主实体（switch 或 fan）",
-    emptyText: "没有匹配的 switch 或 fan 主实体，请确认该设备下已启用相关实体",
+  'exhaust-fan': {
+    title: '选择排气扇主实体（switch 或 fan）',
+    emptyText: '没有匹配的 switch 或 fan 主实体，请确认该设备下已启用相关实体',
   },
   camera: {
-    title: "选择摄像头实体",
-    emptyText: "没有匹配的摄像头实体，请先在 Home Assistant 接入设备",
+    title: '选择摄像头实体',
+    emptyText: '没有匹配的摄像头实体，请先在 Home Assistant 接入设备',
   },
   presence: {
-    title: "选择人在传感器",
-    emptyText: "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备",
+    title: '选择人在传感器',
+    emptyText: '没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备',
   },
   vacuum: {
-    title: "选择扫地机实体",
-    emptyText: "没有匹配的扫地机实体，请检查 vacuum 实体及搜索条件",
+    title: '选择扫地机实体',
+    emptyText: '没有匹配的扫地机实体，请检查 vacuum 实体及搜索条件',
   },
-  "vacuum-map": {
-    title: "选择扫地机地图",
-    emptyText: "没有匹配的扫地机地图实体，请检查 camera 或 image 实体及搜索条件",
+  'vacuum-map': {
+    title: '选择扫地机地图',
+    emptyText: '没有匹配的扫地机地图实体，请检查 camera 或 image 实体及搜索条件',
   },
-  "vacuum-room": {
-    title: "选择房间快捷指令",
-    emptyText: "没有匹配的快捷指令实体，请检查搜索条件或 Home Assistant 的实体列表",
+  'vacuum-room': {
+    title: '选择房间快捷指令',
+    emptyText: '没有匹配的快捷指令实体，请检查搜索条件或 Home Assistant 的实体列表',
   },
   nas: {
-    title: "选择 NAS 指示灯状态实体（旧版兼容）",
-    emptyText: "没有匹配的开关或二元传感器",
+    title: '选择 NAS 指示灯状态实体（旧版兼容）',
+    emptyText: '没有匹配的开关或二元传感器',
   },
-});
+})
 
 /**
  * 同一分区内按用途挑实体的「角色」文案；顺序即优先级（与 0.7.9 一致）。
@@ -191,92 +178,89 @@ const ENTITY_PICKER_DEVICE_WORDING: Readonly<
  * `deviceKind` 也是 `device-status`，排后面会让它拿到通用状态文案。
  */
 const ENTITY_PICKER_ROLE_WORDING: ReadonlyArray<{
-  flag: string;
-  title: string;
-  emptyText: string;
-  beforeDeviceKind?: boolean;
+  flag: string
+  title: string
+  emptyText: string
+  beforeDeviceKind?: boolean
 }> = Object.freeze([
   {
-    flag: "isLockDoorEntity",
-    title: "选择门状态传感器",
-    emptyText: "没有匹配的门状态传感器，请检查设备的门/开合实体",
+    flag: 'isLockDoorEntity',
+    title: '选择门状态传感器',
+    emptyText: '没有匹配的门状态传感器，请检查设备的门/开合实体',
     beforeDeviceKind: true,
   },
   {
-    flag: "isLockBatteryEntity",
-    title: "选择电量传感器",
-    emptyText: "没有匹配的电量传感器，请检查设备的 battery 实体",
+    flag: 'isLockBatteryEntity',
+    title: '选择电量传感器',
+    emptyText: '没有匹配的电量传感器，请检查设备的 battery 实体',
     beforeDeviceKind: true,
   },
   {
-    flag: "isComputerPowerEntity",
-    title: "选择电脑电源开关",
-    emptyText: "没有匹配的 switch 或 input_boolean 电源开关",
+    flag: 'isComputerPowerEntity',
+    title: '选择电脑电源开关',
+    emptyText: '没有匹配的 switch 或 input_boolean 电源开关',
   },
   {
-    flag: "isSpeakerEntity",
-    title: "选择智能音响媒体实体",
-    emptyText: "没有匹配的 media_player 实体，请先在 Home Assistant 接入音响",
+    flag: 'isSpeakerEntity',
+    title: '选择智能音响媒体实体',
+    emptyText: '没有匹配的 media_player 实体，请先在 Home Assistant 接入音响',
   },
   {
-    flag: "isTelevisionEntity",
-    title: "选择电视媒体实体（Apple TV）",
-    emptyText: "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV",
+    flag: 'isTelevisionEntity',
+    title: '选择电视媒体实体（Apple TV）',
+    emptyText: '没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV',
   },
   {
-    flag: "isTelevisionPowerEntity",
-    title: "选择电视电源状态",
-    emptyText: "没有匹配的电源状态实体",
+    flag: 'isTelevisionPowerEntity',
+    title: '选择电视电源状态',
+    emptyText: '没有匹配的电源状态实体',
   },
   {
-    flag: "isCoverEntity",
-    title: "选择窗帘实体",
-    emptyText: "没有匹配的窗帘",
+    flag: 'isCoverEntity',
+    title: '选择窗帘实体',
+    emptyText: '没有匹配的窗帘',
   },
   {
-    flag: "isClimateEntity",
-    title: "选择空调实体",
-    emptyText: "没有匹配的空调",
+    flag: 'isClimateEntity',
+    title: '选择空调实体',
+    emptyText: '没有匹配的空调',
   },
-]);
+])
 
 /**
  * 解析实体选择器文案。`flags` 里的键就是调用点上那几个 `isXxxEntity` 判定，
  * 值为 `true` 时命中对应角色分支。
  */
 function entityPickerWording(options: {
-  deviceKind?: string;
-  environmentSensorKey?: string | null;
-  flags?: Record<string, boolean>;
+  deviceKind?: string
+  environmentSensorKey?: string | null
+  flags?: Record<string, boolean>
 }): { title: string; emptyText: string } {
-  const environmentSensorKey = options.environmentSensorKey;
+  const environmentSensorKey = options.environmentSensorKey
   if (environmentSensorKey) {
     const environmentSensorLabel = ENVIRONMENT_SENSORS.find(
       (environmentSensor) => environmentSensor.key === environmentSensorKey,
-    )?.label;
+    )?.label
     if (environmentSensorLabel)
       return {
-        title: "选择" + environmentSensorLabel + "实体",
-        emptyText:
-          "没有匹配的" +
-          environmentSensorLabel +
-          "传感器，请检查 Home Assistant 的实体类型或名称",
-      };
+        title: '选择' + environmentSensorLabel + '实体',
+        emptyText: '没有匹配的' + environmentSensorLabel + '传感器，请检查 Home Assistant 的实体类型或名称',
+      }
   }
-  const flags = options.flags || {};
+  const flags = options.flags || {}
   for (const roleWording of ENTITY_PICKER_ROLE_WORDING)
     if (roleWording.beforeDeviceKind && flags[roleWording.flag])
-      return { title: roleWording.title, emptyText: roleWording.emptyText };
-  const deviceWording = ENTITY_PICKER_DEVICE_WORDING[options.deviceKind || ""];
-  if (deviceWording) return deviceWording;
+      return { title: roleWording.title, emptyText: roleWording.emptyText }
+  const deviceWording = ENTITY_PICKER_DEVICE_WORDING[options.deviceKind || '']
+  if (deviceWording) return deviceWording
   for (const roleWording of ENTITY_PICKER_ROLE_WORDING)
     if (!roleWording.beforeDeviceKind && flags[roleWording.flag])
-      return { title: roleWording.title, emptyText: roleWording.emptyText };
+      return { title: roleWording.title, emptyText: roleWording.emptyText }
   // 兜底：不再给「灯光或开关」这种只对单一分区成立的文案。
   return {
-    title: "选择灯光实体",
-    emptyText: "没有符合条件的状态实体，请检查搜索条件及当前设备的实体列表",
-  };
+    title: '选择灯光实体',
+    emptyText: '没有符合条件的状态实体，请检查搜索条件及当前设备的实体列表',
+  }
 }
 
 export function createInteraction3dEditorPickers({
@@ -287,122 +271,109 @@ export function createInteraction3dEditorPickers({
   ensureEntities: ensureEntities,
   entityPickerText: entityPickerText,
   elements: elements,
-  deviceKind: deviceKind = "light",
+  deviceKind: deviceKind = 'light',
   fetchAreas: fetchAreas = async () => {
-    const areasResponse = await fetch("/api/v1/ha/areas");
-    if (!areasResponse.ok) throw new Error("房间目录暂时不可用");
-    return (await areasResponse.json()).items || [];
+    const areasResponse = await fetch('/api/v1/ha/areas')
+    if (!areasResponse.ok) throw new Error('房间目录暂时不可用')
+    return (await areasResponse.json()).items || []
   },
   fetchDevices: fetchDevices = async () => {
-    const devicesResponse = await fetch("/api/v1/ha/devices");
-    if (!devicesResponse.ok) throw new Error("设备目录暂时不可用，请稍后重试。");
-    return (await devicesResponse.json()).items || [];
+    const devicesResponse = await fetch('/api/v1/ha/devices')
+    if (!devicesResponse.ok) throw new Error('设备目录暂时不可用，请稍后重试。')
+    return (await devicesResponse.json()).items || []
   },
 }: EditorPickersOptions) {
   const buildEntityCatalog = () =>
     getEntities!().map((entity) => {
       const entityState = getState(entity.entityId),
-        latestEntityState = entityState?.newState || entityState;
+        latestEntityState = entityState?.newState || entityState
       return {
         ...entity,
         attributes: {
           ...entity.attributes,
           ...latestEntityState?.attributes,
         },
-      };
-    });
+      }
+    })
   async function loadDeviceProfiles() {
-    const [deviceRecords, areaRecords] = await Promise.all([
-        fetchDevices(),
-        fetchAreas().catch(() => null),
-      ]),
+    const [deviceRecords, areaRecords] = await Promise.all([fetchDevices(), fetchAreas().catch(() => null)]),
       areaNamesById = new Map(
-        (areaRecords || []).map((areaRecord: any) => [
-          areaRecord.areaId || areaRecord.id,
-          areaRecord.name,
-        ]),
+        (areaRecords || []).map((areaRecord: any) => [areaRecord.areaId || areaRecord.id, areaRecord.name]),
       ),
-      platformsByDeviceId = new Map();
+      platformsByDeviceId = new Map()
     for (const entityRecord of getEntities!()) {
-      if (!isAvailableRecord(entityRecord)) continue;
-      const entityDeviceId = entityRecord.deviceId || entityRecord.device_id;
+      if (!isAvailableRecord(entityRecord)) continue
+      const entityDeviceId = entityRecord.deviceId || entityRecord.device_id
       entityDeviceId &&
         entityRecord.platform &&
-        (platformsByDeviceId.has(entityDeviceId) ||
-          platformsByDeviceId.set(entityDeviceId, new Set()),
-        platformsByDeviceId.get(entityDeviceId).add(entityRecord.platform));
+        (platformsByDeviceId.has(entityDeviceId) || platformsByDeviceId.set(entityDeviceId, new Set()),
+        platformsByDeviceId.get(entityDeviceId).add(entityRecord.platform))
     }
     return deviceRecords.filter(isAvailableRecord).map((deviceRecord: any) => ({
       ...deviceRecord,
       integrationName:
-        [...(platformsByDeviceId.get(deviceRecord.deviceId || deviceRecord.id) || [])]
-          .sort()
-          .join("、") || "未知集成",
+        [...(platformsByDeviceId.get(deviceRecord.deviceId || deviceRecord.id) || [])].sort().join('、') || '未知集成',
       roomName:
         areaNamesById.get(deviceRecord.areaId || deviceRecord.area_id) ||
-        (deviceRecord.areaId || deviceRecord.area_id ? "房间名称暂不可用" : "未分配房间"),
-    }));
+        (deviceRecord.areaId || deviceRecord.area_id ? '房间名称暂不可用' : '未分配房间'),
+    }))
   }
   function resolveRoomName(targetDevice: any, targetDeviceList: any) {
     return (
-      targetDeviceList.find(
-        (roomEntry: any) => (roomEntry.deviceId || roomEntry.id) === targetDevice.deviceId,
-      )?.roomName || "未分配房间"
-    );
+      targetDeviceList.find((roomEntry: any) => (roomEntry.deviceId || roomEntry.id) === targetDevice.deviceId)
+        ?.roomName || '未分配房间'
+    )
   }
   function resolveIntegrationName(integrationDevice: any, integrationDeviceList: any) {
     return (
       integrationDeviceList.find(
-        (integrationEntry: any) =>
-          (integrationEntry.deviceId || integrationEntry.id) === integrationDevice.deviceId,
-      )?.integrationName || "未知集成"
-    );
+        (integrationEntry: any) => (integrationEntry.deviceId || integrationEntry.id) === integrationDevice.deviceId,
+      )?.integrationName || '未知集成'
+    )
   }
   const formatDeviceDetail = (deviceProfile: any) =>
-    "房间：" + deviceProfile.roomName + " · 集成：" + deviceProfile.integrationName;
-  function createDeviceOption(optionProfile: any, currentValue: any, kindLabel = "设备") {
+    '房间：' + deviceProfile.roomName + ' · 集成：' + deviceProfile.integrationName
+  function createDeviceOption(optionProfile: any, currentValue: any, kindLabel = '设备') {
     const optionElement = elements.createEditorEntityPickerOption(optionProfile, currentValue),
-      kindElement = optionElement.querySelector?.(".inspector-entity-kind"),
-      idElement = optionElement.querySelector?.(".inspector-entity-id");
+      kindElement = optionElement.querySelector?.('.inspector-entity-kind'),
+      idElement = optionElement.querySelector?.('.inspector-entity-id')
     return (
-      kindElement && (kindElement.textContent = "[" + kindLabel + "] "),
+      kindElement && (kindElement.textContent = '[' + kindLabel + '] '),
       idElement && (idElement.textContent = formatDeviceDetail(optionProfile)),
       optionElement
-    );
+    )
   }
   function createCurrentDeviceOption(currentProfile: any) {
     const currentElement = elements.createEditorPickerCurrentEntity(currentProfile),
-      currentIdElement = currentElement.querySelector?.(".editor-paged-picker-current-entity-id");
+      currentIdElement = currentElement.querySelector?.('.editor-paged-picker-current-entity-id')
     return (
-      currentIdElement &&
-        currentProfile &&
-        (currentIdElement.textContent = formatDeviceDetail(currentProfile)),
+      currentIdElement && currentProfile && (currentIdElement.textContent = formatDeviceDetail(currentProfile)),
       currentElement
-    );
+    )
   }
   return {
     entityCatalog: buildEntityCatalog,
     async loadEntities() {
-      return (await ensureEntities!(), buildEntityCatalog());
+      return (await ensureEntities!(), buildEntityCatalog())
     },
     presenceEntities(presenceDeviceId: any) {
       return (
         presenceDeviceProfiles(getEntities!(), [], getState).find(
           (matchedPresenceProfile) => matchedPresenceProfile.deviceId === presenceDeviceId,
         )?.entities || []
-      );
+      )
     },
     async device({
       trigger: deviceTrigger,
-      current: currentDeviceId = "",
-      deviceIcon: deviceIconName = "mdi:devices",
+      current: currentDeviceId = '',
+      deviceIcon: deviceIconName = 'mdi:devices',
       onSelect: onDeviceSelect,
-      title: devicePickerTitle = "选择设备",
+      title: devicePickerTitle = '选择设备',
       deviceFilter: deviceFilterFn = (_deviceRecord: any, _deviceEntities: any[]) => true,
     }: any) {
-      await ensureEntities!();
-      const deviceProfiles = await loadDeviceProfiles();
-      if (!deviceTrigger.isConnected) return null;
+      await ensureEntities!()
+      const deviceProfiles = await loadDeviceProfiles()
+      if (!deviceTrigger.isConnected) return null
       const deviceOptions = deviceProfiles
           .filter((deviceFilterRecord: any) =>
             deviceFilterFn(
@@ -424,7 +395,7 @@ export function createInteraction3dEditorPickers({
               deviceProfileRecord.id,
             roomName: deviceProfileRecord.roomName,
             integrationName: deviceProfileRecord.integrationName,
-            domain: "device",
+            domain: 'device',
             icon: deviceIconName,
           })),
         currentDeviceOption =
@@ -432,44 +403,42 @@ export function createInteraction3dEditorPickers({
           (currentDeviceId
             ? {
                 entityId: currentDeviceId,
-                name: currentDeviceId + "（当前未找到）",
-                roomName: "—",
-                integrationName: "—",
-                domain: "device",
+                name: currentDeviceId + '（当前未找到）',
+                roomName: '—',
+                integrationName: '—',
+                domain: 'device',
                 icon: deviceIconName,
-                status: "missing",
+                status: 'missing',
               }
-            : null);
+            : null)
       return openPicker!({
-        kind: "entity",
+        kind: 'entity',
         title: devicePickerTitle,
-        subtitle: "按 HA 设备归属选择相关实体。",
-        searchPlaceholder: "搜索设备、房间或集成",
+        subtitle: '按 HA 设备归属选择相关实体。',
+        searchPlaceholder: '搜索设备、房间或集成',
         triggerButton: deviceTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
-        itemClass: "entity-list",
-        emptyText: "暂无设备，请先同步 Home Assistant 设备目录。",
+        itemClass: 'entity-list',
+        emptyText: '暂无设备，请先同步 Home Assistant 设备目录。',
         getPage: ({ query: deviceQuery, page: devicePage }: any) =>
           editorEntityPickerPage(
             deviceOptions.filter((deviceSearchOption: any) =>
               Object.values(deviceSearchOption)
-                .join(" ")
+                .join(' ')
                 .toLowerCase()
-                .includes(String(deviceQuery || "").toLowerCase()),
+                .includes(String(deviceQuery || '').toLowerCase()),
             ),
             devicePage,
             null,
           ),
         renderSelectedContent: () => [createCurrentDeviceOption(currentDeviceOption)],
-        renderSelectedActions: () => [
-          elements.editorPickerClearAction("不绑定设备", !currentDeviceId),
-        ],
+        renderSelectedActions: () => [elements.editorPickerClearAction('不绑定设备', !currentDeviceId)],
         renderItem: (deviceOptionItem: any) => createDeviceOption(deviceOptionItem, currentDeviceId),
         onSelect: (selectedDeviceId: any) => {
           const selectedDeviceOption = deviceOptions.find(
             (selectedDeviceMatch: any) => selectedDeviceMatch.entityId === selectedDeviceId,
-          );
-          (!selectedDeviceId || selectedDeviceOption) &&
+          )
+          ;(!selectedDeviceId || selectedDeviceOption) &&
             onDeviceSelect(
               selectedDeviceOption
                 ? {
@@ -478,349 +447,309 @@ export function createInteraction3dEditorPickers({
                     entities: getEntities!()
                       .filter(
                         (deviceEntityRecord) =>
-                          (deviceEntityRecord.deviceId || deviceEntityRecord.device_id) ===
-                          selectedDeviceId,
+                          (deviceEntityRecord.deviceId || deviceEntityRecord.device_id) === selectedDeviceId,
                       )
                       .map((deviceEntityEntry) => {
-                        const deviceEntityState = getState(
-                            deviceEntityEntry.entityId || deviceEntityEntry.entity_id,
-                          ),
-                          deviceEntityLatestState =
-                            deviceEntityState?.newState || deviceEntityState;
+                        const deviceEntityState = getState(deviceEntityEntry.entityId || deviceEntityEntry.entity_id),
+                          deviceEntityLatestState = deviceEntityState?.newState || deviceEntityState
                         return {
                           ...deviceEntityEntry,
                           attributes: {
                             ...deviceEntityEntry.attributes,
                             ...deviceEntityLatestState?.attributes,
                           },
-                        };
+                        }
                       }),
                   }
                 : null,
-            );
+            )
         },
-      });
+      })
     },
     async alarm({
       trigger: alarmTrigger,
-      current: currentAlarmEntityId = "",
-      kind: alarmKind = "smoke",
-      role: alarmRole = "primary",
+      current: currentAlarmEntityId = '',
+      kind: alarmKind = 'smoke',
+      role: alarmRole = 'primary',
       onSelect: onAlarmSelect,
     }: any) {
-      await ensureEntities!();
-      const alarmDevices = (await fetchDevices?.()) || [];
-      const allEntities = getEntities!() as HaEntityEntry[];
-      const alarmProfiles = alarmDeviceProfiles(alarmKind, allEntities, alarmDevices);
+      await ensureEntities!()
+      const alarmDevices = (await fetchDevices?.()) || []
+      const allEntities = getEntities!() as HaEntityEntry[]
+      const alarmProfiles = alarmDeviceProfiles(alarmKind, allEntities, alarmDevices)
       const recommendedIds = new Set(
         alarmProfiles.flatMap((alarmProfile: any) =>
           (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => alarmEntity.entityId),
         ),
-      );
-      const isWorkStateRole = alarmRole === "work-state";
+      )
+      const isWorkStateRole = alarmRole === 'work-state'
       // 工作状态仅 sensor / binary_sensor（与后端 workStateEntityId 校验一致，不含 event）
       const domainAllow = isWorkStateRole
         ? /^(binary_sensor|sensor)\./
-        : alarmKind === "smoke"
+        : alarmKind === 'smoke'
           ? /^(binary_sensor|sensor|event)\./
-          : alarmKind === "gas"
+          : alarmKind === 'gas'
             ? /^(binary_sensor|sensor)\./
-            : /^binary_sensor\./;
+            : /^binary_sensor\./
       const iconForKind =
-        alarmKind === "moisture"
-          ? "mdi:water-alert"
-          : alarmKind === "gas"
-            ? "mdi:fire-alert"
-            : "mdi:smoke-detector-alert";
+        alarmKind === 'moisture'
+          ? 'mdi:water-alert'
+          : alarmKind === 'gas'
+            ? 'mdi:fire-alert'
+            : 'mdi:smoke-detector-alert'
       const toOption = (alarmEntity: HaEntityEntry, recommended: boolean) => ({
         entityId: alarmEntity.entityId,
-        name:
-          (recommended ? "★ " : "") +
-          (alarmEntity.name || alarmEntity.entityId),
-        roomName: "",
-        integrationName: "",
+        name: (recommended ? '★ ' : '') + (alarmEntity.name || alarmEntity.entityId),
+        roomName: '',
+        integrationName: '',
         icon: iconForKind,
-        domain: alarmEntity.entityId?.split(".")[0] || "binary_sensor",
+        domain: alarmEntity.entityId?.split('.')[0] || 'binary_sensor',
         recommended,
         entity: alarmEntity,
-      });
+      })
       const recommendedOptions = alarmProfiles
         .flatMap((alarmProfile: any) =>
           (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => ({
             ...toOption(alarmEntity, true),
-            name: "★ " + (alarmEntity.name || alarmProfile.name),
+            name: '★ ' + (alarmEntity.name || alarmProfile.name),
             roomName: resolveRoomName(alarmProfile, alarmDevices),
             integrationName: resolveIntegrationName(alarmProfile, alarmDevices),
             profile: alarmProfile,
           })),
         )
-        .filter((option: any) => domainAllow.test(option.entityId || ""));
+        .filter((option: any) => domainAllow.test(option.entityId || ''))
       const catalogOptions = allEntities
         .filter(
           (entityEntry) =>
             isAvailableRecord(entityEntry) &&
-            domainAllow.test(entityEntry.entityId || "") &&
+            domainAllow.test(entityEntry.entityId || '') &&
             !recommendedIds.has(entityEntry.entityId),
         )
-        .map((entityEntry) => toOption(entityEntry, false));
-      const alarmOptions = [...recommendedOptions, ...catalogOptions];
-      const moistureTitle =
-        alarmRole === "spray" ? "选择淋水状态实体" : "选择浸没状态实体";
+        .map((entityEntry) => toOption(entityEntry, false))
+      const alarmOptions = [...recommendedOptions, ...catalogOptions]
+      const moistureTitle = alarmRole === 'spray' ? '选择淋水状态实体' : '选择浸没状态实体'
       const pickerTitle = isWorkStateRole
-        ? "选择工作状态实体"
-        : alarmKind === "moisture"
+        ? '选择工作状态实体'
+        : alarmKind === 'moisture'
           ? moistureTitle
-          : alarmKind === "gas"
-            ? "选择天然气传感器实体"
-            : "选择烟雾传感器实体";
+          : alarmKind === 'gas'
+            ? '选择天然气传感器实体'
+            : '选择烟雾传感器实体'
       return openPicker!({
-        kind: "entity",
+        kind: 'entity',
         title: pickerTitle,
-        searchPlaceholder: "搜索设备或实体（推荐项优先）",
+        searchPlaceholder: '搜索设备或实体（推荐项优先）',
         triggerButton: alarmTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
-        itemClass: "entity-list",
+        itemClass: 'entity-list',
         emptyText: isWorkStateRole
-          ? "没有可用的工作状态实体"
-          : alarmKind === "moisture"
-            ? "没有可用的水浸相关实体"
-            : alarmKind === "gas"
-              ? "没有可用的天然气相关实体"
-              : "没有可用的烟雾相关实体",
+          ? '没有可用的工作状态实体'
+          : alarmKind === 'moisture'
+            ? '没有可用的水浸相关实体'
+            : alarmKind === 'gas'
+              ? '没有可用的天然气相关实体'
+              : '没有可用的烟雾相关实体',
         getPage: ({ query: alarmQuery, page: alarmPage }: any) =>
           editorEntityPickerPage(
             alarmOptions.filter((alarmSearchOption: any) =>
-              (
-                alarmSearchOption.name +
-                " " +
-                (alarmSearchOption.roomName || "") +
-                " " +
-                alarmSearchOption.entityId
-              )
+              (alarmSearchOption.name + ' ' + (alarmSearchOption.roomName || '') + ' ' + alarmSearchOption.entityId)
                 .toLowerCase()
-                .includes(String(alarmQuery || "").toLowerCase()),
+                .includes(String(alarmQuery || '').toLowerCase()),
             ),
             alarmPage,
             null,
           ),
         renderSelectedContent: () => [
           elements.createEditorPickerCurrentEntity(
-            alarmOptions.find(
-              (selectedOption: any) => selectedOption.entityId === currentAlarmEntityId,
-            ) || {
+            alarmOptions.find((selectedOption: any) => selectedOption.entityId === currentAlarmEntityId) || {
               entityId: currentAlarmEntityId,
               name: currentAlarmEntityId,
             },
           ),
         ],
-        renderSelectedActions: () => [
-          elements.editorPickerClearAction("不绑定实体", !currentAlarmEntityId),
-        ],
+        renderSelectedActions: () => [elements.editorPickerClearAction('不绑定实体', !currentAlarmEntityId)],
         renderItem: (alarmOptionItem: any) =>
           elements.createEditorEntityPickerOption(alarmOptionItem, currentAlarmEntityId),
         onSelect: (selectedAlarmEntityId: any) => {
-          const selectedOption = alarmOptions.find(
-            (option: any) => option.entityId === selectedAlarmEntityId,
-          );
-          onAlarmSelect(selectedOption?.profile || null, selectedOption?.entity || null);
+          const selectedOption = alarmOptions.find((option: any) => option.entityId === selectedAlarmEntityId)
+          onAlarmSelect(selectedOption?.profile || null, selectedOption?.entity || null)
         },
-      });
+      })
     },
     async presence({
       trigger: presenceTrigger,
-      current: currentPresenceDeviceId = "",
+      current: currentPresenceDeviceId = '',
       onSelect: onPresenceSelect,
     }: any) {
-      await ensureEntities!();
-      const presenceDevices = await loadDeviceProfiles();
-      if (!presenceTrigger.isConnected) return null;
+      await ensureEntities!()
+      const presenceDevices = await loadDeviceProfiles()
+      if (!presenceTrigger.isConnected) return null
       const presenceProfiles = presenceDeviceProfiles(getEntities!(), presenceDevices, getState),
         presenceOptions = presenceProfiles.map((presenceProfile) => ({
           entityId: presenceProfile.deviceId,
           name: presenceProfile.name,
           roomName: resolveRoomName(presenceProfile, presenceDevices),
           integrationName: resolveIntegrationName(presenceProfile, presenceDevices),
-          icon: "mdi:motion-sensor",
-          domain: "binary_sensor",
-        }));
+          icon: 'mdi:motion-sensor',
+          domain: 'binary_sensor',
+        }))
       return openPicker!({
-        kind: "entity",
-        title: "选择人体传感器设备",
-        subtitle: "按设备匹配人在或移动检测实体；多实体可在设备内选择。",
-        searchPlaceholder: "搜索设备名称、房间或集成",
+        kind: 'entity',
+        title: '选择人体传感器设备',
+        subtitle: '按设备匹配人在或移动检测实体；多实体可在设备内选择。',
+        searchPlaceholder: '搜索设备名称、房间或集成',
         triggerButton: presenceTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
-        itemClass: "entity-list",
-        emptyText: "没有找到可用的人体传感器设备；无设备归属的模板实体可手动绑定。",
+        itemClass: 'entity-list',
+        emptyText: '没有找到可用的人体传感器设备；无设备归属的模板实体可手动绑定。',
         getPage: ({ query: presenceQuery, page: presencePage }: any) =>
           editorEntityPickerPage(
             presenceOptions.filter((presenceSearchOption) =>
               (
                 presenceSearchOption.name +
-                " " +
-                (presenceSearchOption.roomName || "") +
-                " " +
-                (presenceSearchOption.integrationName || "") +
-                " " +
+                ' ' +
+                (presenceSearchOption.roomName || '') +
+                ' ' +
+                (presenceSearchOption.integrationName || '') +
+                ' ' +
                 presenceSearchOption.entityId
               )
                 .toLowerCase()
-                .includes(String(presenceQuery || "").toLowerCase()),
+                .includes(String(presenceQuery || '').toLowerCase()),
             ),
             presencePage,
             null,
           ),
         renderSelectedContent: () => [
           createCurrentDeviceOption(
-            presenceOptions.find(
-              (selectedOption) => selectedOption.entityId === currentPresenceDeviceId,
-            ),
+            presenceOptions.find((selectedOption) => selectedOption.entityId === currentPresenceDeviceId),
           ),
         ],
-        renderSelectedActions: () => [
-          elements.editorPickerClearAction("不绑定设备", !currentPresenceDeviceId),
-        ],
-        renderItem: (presenceOptionItem: any) =>
-          createDeviceOption(presenceOptionItem, currentPresenceDeviceId),
+        renderSelectedActions: () => [elements.editorPickerClearAction('不绑定设备', !currentPresenceDeviceId)],
+        renderItem: (presenceOptionItem: any) => createDeviceOption(presenceOptionItem, currentPresenceDeviceId),
         onSelect: (selectedPresenceDeviceId: any) => {
           const selectedPresenceDevice = presenceProfiles.find(
             (matchedProfile) => matchedProfile.deviceId === selectedPresenceDeviceId,
-          );
-          (!selectedPresenceDeviceId || selectedPresenceDevice) &&
-            onPresenceSelect(
-              selectedPresenceDevice ? structuredClone(selectedPresenceDevice) : null,
-            );
+          )
+          ;(!selectedPresenceDeviceId || selectedPresenceDevice) &&
+            onPresenceSelect(selectedPresenceDevice ? structuredClone(selectedPresenceDevice) : null)
         },
-      });
+      })
     },
-    async vacuum({
-      trigger: vacuumTrigger,
-      current: currentVacuumDeviceId = "",
-      onSelect: onVacuumSelect,
-    }: any) {
-      await ensureEntities!();
-      const vacuumDevices = await loadDeviceProfiles();
-      if (!vacuumTrigger.isConnected) return null;
+    async vacuum({ trigger: vacuumTrigger, current: currentVacuumDeviceId = '', onSelect: onVacuumSelect }: any) {
+      await ensureEntities!()
+      const vacuumDevices = await loadDeviceProfiles()
+      if (!vacuumTrigger.isConnected) return null
       const vacuumDeviceProfiles = vacuumProfiles(getEntities!(), vacuumDevices),
         vacuumOptions = vacuumDeviceProfiles.map((vacuumProfile) => ({
           entityId: vacuumProfile.deviceId,
           name: vacuumProfile.name,
           roomName: resolveRoomName(vacuumProfile, vacuumDevices),
           integrationName: resolveIntegrationName(vacuumProfile, vacuumDevices),
-          domain: "vacuum",
-          icon: "mdi:robot-vacuum",
-        }));
+          domain: 'vacuum',
+          icon: 'mdi:robot-vacuum',
+        }))
       return openPicker!({
-        kind: "entity",
-        title: "选择扫地机设备",
-        subtitle: "自动识别主实体、地图和相关状态；支持多台设备独立配置。",
-        searchPlaceholder: "搜索设备名称、房间或集成",
+        kind: 'entity',
+        title: '选择扫地机设备',
+        subtitle: '自动识别主实体、地图和相关状态；支持多台设备独立配置。',
+        searchPlaceholder: '搜索设备名称、房间或集成',
         triggerButton: vacuumTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
-        itemClass: "entity-list",
-        emptyText: "没有找到扫地机，请先在 Home Assistant 中接入设备并启用 vacuum 实体。",
+        itemClass: 'entity-list',
+        emptyText: '没有找到扫地机，请先在 Home Assistant 中接入设备并启用 vacuum 实体。',
         getPage: ({ query: vacuumQuery, page: vacuumPage }: any) =>
           editorEntityPickerPage(
             vacuumOptions.filter((vacuumSearchOption) =>
               (
                 vacuumSearchOption.name +
-                " " +
-                (vacuumSearchOption.roomName || "") +
-                " " +
-                (vacuumSearchOption.integrationName || "") +
-                " " +
+                ' ' +
+                (vacuumSearchOption.roomName || '') +
+                ' ' +
+                (vacuumSearchOption.integrationName || '') +
+                ' ' +
                 vacuumSearchOption.entityId
               )
                 .toLowerCase()
-                .includes(String(vacuumQuery || "").toLowerCase()),
+                .includes(String(vacuumQuery || '').toLowerCase()),
             ),
             vacuumPage,
             null,
           ),
         renderSelectedContent: () => [
           createCurrentDeviceOption(
-            vacuumOptions.find(
-              (selectedVacuumOption) => selectedVacuumOption.entityId === currentVacuumDeviceId,
-            ),
+            vacuumOptions.find((selectedVacuumOption) => selectedVacuumOption.entityId === currentVacuumDeviceId),
           ),
         ],
-        renderSelectedActions: () => [
-          elements.editorPickerClearAction("不绑定设备", !currentVacuumDeviceId),
-        ],
-        renderItem: (vacuumOptionItem: any) =>
-          createDeviceOption(vacuumOptionItem, currentVacuumDeviceId),
+        renderSelectedActions: () => [elements.editorPickerClearAction('不绑定设备', !currentVacuumDeviceId)],
+        renderItem: (vacuumOptionItem: any) => createDeviceOption(vacuumOptionItem, currentVacuumDeviceId),
         onSelect: (selectedVacuumDeviceId: any) => {
           const selectedVacuumDevice = vacuumDeviceProfiles.find(
             (matchedVacuumProfile) => matchedVacuumProfile.deviceId === selectedVacuumDeviceId,
-          );
-          (!selectedVacuumDeviceId || selectedVacuumDevice) &&
-            onVacuumSelect(selectedVacuumDevice ? structuredClone(selectedVacuumDevice) : null);
+          )
+          ;(!selectedVacuumDeviceId || selectedVacuumDevice) &&
+            onVacuumSelect(selectedVacuumDevice ? structuredClone(selectedVacuumDevice) : null)
         },
-      });
+      })
     },
-    async nas({ trigger: nasTrigger, current: currentNasDeviceId = "", onSelect: onNasSelect }: any) {
-      await ensureEntities!();
-      const nasDevices = await loadDeviceProfiles();
-      if (!nasTrigger.isConnected) return null;
+    async nas({ trigger: nasTrigger, current: currentNasDeviceId = '', onSelect: onNasSelect }: any) {
+      await ensureEntities!()
+      const nasDevices = await loadDeviceProfiles()
+      if (!nasTrigger.isConnected) return null
       const nasDeviceProfiles = nasProfiles(getEntities!(), nasDevices),
         nasOptions = nasDeviceProfiles.map((nasProfile) => ({
           entityId: nasProfile.deviceId,
           name:
             nasProfile.name +
-            " · " +
-            (nasProfile.metrics.length ? nasProfile.metrics.length + " 项状态" : "暂无状态指标"),
+            ' · ' +
+            (nasProfile.metrics.length ? nasProfile.metrics.length + ' 项状态' : '暂无状态指标'),
           roomName: resolveRoomName(nasProfile, nasDevices),
           integrationName: resolveIntegrationName(nasProfile, nasDevices),
-          domain: "sensor",
-          icon: "mdi:nas",
-        }));
+          domain: 'sensor',
+          icon: 'mdi:nas',
+        }))
       return openPicker!({
-        kind: "entity",
-        title: "选择 NAS 数据来源",
-        subtitle: "选择整台 NAS，自动匹配它的状态实体。",
-        searchPlaceholder: "搜索 NAS 名称、房间或集成",
+        kind: 'entity',
+        title: '选择 NAS 数据来源',
+        subtitle: '选择整台 NAS，自动匹配它的状态实体。',
+        searchPlaceholder: '搜索 NAS 名称、房间或集成',
         triggerButton: nasTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
-        itemClass: "entity-list",
-        emptyText:
-          "未找到飞牛、群晖或绿联设备。请确认 Home Assistant 已接入对应集成，并在 HomeOS 同步设备目录。",
+        itemClass: 'entity-list',
+        emptyText: '未找到飞牛、群晖或绿联设备。请确认 Home Assistant 已接入对应集成，并在 HomeOS 同步设备目录。',
         getPage: ({ query: nasQuery, page: nasPage }: any) =>
           editorEntityPickerPage(
             nasOptions.filter((nasSearchOption) =>
               (
                 nasSearchOption.name +
-                " " +
-                (nasSearchOption.roomName || "") +
-                " " +
-                (nasSearchOption.integrationName || "") +
-                " " +
+                ' ' +
+                (nasSearchOption.roomName || '') +
+                ' ' +
+                (nasSearchOption.integrationName || '') +
+                ' ' +
                 nasSearchOption.entityId
               )
                 .toLowerCase()
-                .includes(String(nasQuery || "").toLowerCase()),
+                .includes(String(nasQuery || '').toLowerCase()),
             ),
             nasPage,
             null,
           ),
         renderSelectedContent: () => [
           createCurrentDeviceOption(
-            nasOptions.find(
-              (selectedNasOption) => selectedNasOption.entityId === currentNasDeviceId,
-            ),
+            nasOptions.find((selectedNasOption) => selectedNasOption.entityId === currentNasDeviceId),
           ),
         ],
-        renderSelectedActions: () => [
-          elements.editorPickerClearAction("不使用数据来源", !currentNasDeviceId),
-        ],
-        renderItem: (nasOptionItem: any) => createDeviceOption(nasOptionItem, currentNasDeviceId, "NAS"),
+        renderSelectedActions: () => [elements.editorPickerClearAction('不使用数据来源', !currentNasDeviceId)],
+        renderItem: (nasOptionItem: any) => createDeviceOption(nasOptionItem, currentNasDeviceId, 'NAS'),
         onSelect: (selectedNasDeviceId: any) => {
           const selectedNasDevice = nasDeviceProfiles.find(
             (matchedNasProfile) => matchedNasProfile.deviceId === selectedNasDeviceId,
-          );
-          (!selectedNasDeviceId || selectedNasDevice) &&
-            onNasSelect(selectedNasDevice ? structuredClone(selectedNasDevice) : null);
+          )
+          ;(!selectedNasDeviceId || selectedNasDevice) &&
+            onNasSelect(selectedNasDevice ? structuredClone(selectedNasDevice) : null)
         },
-      });
+      })
     },
     icon({
       trigger: iconTrigger,
@@ -830,116 +759,108 @@ export function createInteraction3dEditorPickers({
     }: any) {
       return (
         (currentIcon ||=
-          resolvedDeviceKind === "speaker"
-            ? "mdi:speaker"
-            : resolvedDeviceKind === "water-heater"
-              ? "mdi:water-boiler"
-              : resolvedDeviceKind === "exhaust-fan"
-                ? "mdi:fan"
-              : resolvedDeviceKind === "fan"
-                ? "mdi:fan"
-                : resolvedDeviceKind === "purifier"
-                  ? "mdi:air-purifier"
-                  : resolvedDeviceKind === "camera"
-                    ? "mdi:cctv"
-                    : resolvedDeviceKind === "lock"
-                      ? "mdi:door-closed"
-                      : resolvedDeviceKind === "vacuum"
-                        ? "mdi:robot-vacuum"
-                        : resolvedDeviceKind === "television"
-                          ? "mdi:television"
-                            : resolvedDeviceKind === "nas"
-                              ? "mdi:nas"
-                              : resolvedDeviceKind === "window-opener"
-                                ? "mdi:window-open"
-                              : resolvedDeviceKind === "cover"
-                              ? "mdi:curtains"
-                              : resolvedDeviceKind === "climate"
-                                ? "mdi:air-conditioner"
-                                : DEFAULT_LIGHT_ICON),
+          resolvedDeviceKind === 'speaker'
+            ? 'mdi:speaker'
+            : resolvedDeviceKind === 'water-heater'
+              ? 'mdi:water-boiler'
+              : resolvedDeviceKind === 'exhaust-fan'
+                ? 'mdi:fan'
+                : resolvedDeviceKind === 'fan'
+                  ? 'mdi:fan'
+                  : resolvedDeviceKind === 'purifier'
+                    ? 'mdi:air-purifier'
+                    : resolvedDeviceKind === 'camera'
+                      ? 'mdi:cctv'
+                      : resolvedDeviceKind === 'lock'
+                        ? 'mdi:door-closed'
+                        : resolvedDeviceKind === 'vacuum'
+                          ? 'mdi:robot-vacuum'
+                          : resolvedDeviceKind === 'television'
+                            ? 'mdi:television'
+                            : resolvedDeviceKind === 'nas'
+                              ? 'mdi:nas'
+                              : resolvedDeviceKind === 'window-opener'
+                                ? 'mdi:window-open'
+                                : resolvedDeviceKind === 'cover'
+                                  ? 'mdi:curtains'
+                                  : resolvedDeviceKind === 'climate'
+                                    ? 'mdi:air-conditioner'
+                                    : DEFAULT_LIGHT_ICON),
         openPicker!({
-          kind: "icon",
+          kind: 'icon',
           title:
-            resolvedDeviceKind === "speaker"
-              ? "选择智能音响按钮图标"
-              : resolvedDeviceKind === "water-heater"
-                ? "选择热水器按钮图标"
-                : resolvedDeviceKind === "exhaust-fan"
-                  ? "选择排气扇按钮图标"
-                : resolvedDeviceKind === "fan"
-                  ? "选择风扇按钮图标"
-                  : resolvedDeviceKind === "purifier"
-                    ? "选择空气净化器按钮图标"
-                    : resolvedDeviceKind === "camera"
-                      ? "选择摄像头按钮图标"
-                      : resolvedDeviceKind === "lock"
-                        ? "选择门按钮图标"
-                        : resolvedDeviceKind === "vacuum"
-                          ? "选择扫地机按钮图标"
-                          : resolvedDeviceKind === "television"
-                            ? "选择电视按钮图标"
-                            : resolvedDeviceKind === "nas"
-                              ? "选择NAS按钮图标"
-                              : resolvedDeviceKind === "window-opener"
-                                ? "选择开窗器按钮图标"
-                              : resolvedDeviceKind === "cover"
-                                ? "选择窗帘按钮图标"
-                                : resolvedDeviceKind === "climate"
-                                  ? "选择空调按钮图标"
-                                  : "选择灯光按钮图标",
-          searchPlaceholder: "搜索图标名称",
+            resolvedDeviceKind === 'speaker'
+              ? '选择智能音响按钮图标'
+              : resolvedDeviceKind === 'water-heater'
+                ? '选择热水器按钮图标'
+                : resolvedDeviceKind === 'exhaust-fan'
+                  ? '选择排气扇按钮图标'
+                  : resolvedDeviceKind === 'fan'
+                    ? '选择风扇按钮图标'
+                    : resolvedDeviceKind === 'purifier'
+                      ? '选择空气净化器按钮图标'
+                      : resolvedDeviceKind === 'camera'
+                        ? '选择摄像头按钮图标'
+                        : resolvedDeviceKind === 'lock'
+                          ? '选择门按钮图标'
+                          : resolvedDeviceKind === 'vacuum'
+                            ? '选择扫地机按钮图标'
+                            : resolvedDeviceKind === 'television'
+                              ? '选择电视按钮图标'
+                              : resolvedDeviceKind === 'nas'
+                                ? '选择NAS按钮图标'
+                                : resolvedDeviceKind === 'window-opener'
+                                  ? '选择开窗器按钮图标'
+                                  : resolvedDeviceKind === 'cover'
+                                    ? '选择窗帘按钮图标'
+                                    : resolvedDeviceKind === 'climate'
+                                      ? '选择空调按钮图标'
+                                      : '选择灯光按钮图标',
+          searchPlaceholder: '搜索图标名称',
           triggerButton: iconTrigger,
           pageSize: EDITOR_PICKER_PAGE_SIZES.icon,
-          emptyText: "没有匹配的图标",
-          itemClass: "icon-grid",
+          emptyText: '没有匹配的图标',
+          itemClass: 'icon-grid',
           async getPage({ query: iconQuery, page: iconPage, pageSize: iconPageSize }: any) {
-            const iconsResponse = await fetchIcons!(
-              iconQuery,
-              iconPageSize,
-              (iconPage - 1) * iconPageSize,
-            );
+            const iconsResponse = await fetchIcons!(iconQuery, iconPageSize, (iconPage - 1) * iconPageSize)
             return {
               items: iconsResponse.items || [],
               total: Number(iconsResponse.total) || 0,
-            };
+            }
           },
-          renderSelectedActions: () => [
-            elements.createEditorPickerCurrentIcon(currentIcon || DEFAULT_LIGHT_ICON),
-          ],
+          renderSelectedActions: () => [elements.createEditorPickerCurrentIcon(currentIcon || DEFAULT_LIGHT_ICON)],
           renderItem: (iconOption: any) =>
-            elements.createIconPickerOption(iconOption, currentIcon, "editorPickerValue"),
+            elements.createIconPickerOption(iconOption, currentIcon, 'editorPickerValue'),
           onSelect: (selectedIconId: any) => {
-            isValidIconId(selectedIconId) && onIconSelect(selectedIconId);
+            isValidIconId(selectedIconId) && onIconSelect(selectedIconId)
           },
         })
-      );
+      )
     },
     async entity({
       trigger: entityTrigger,
-      current: currentEntityId = "",
+      current: currentEntityId = '',
       onSelect: onEntitySelect,
       deviceKind: entityDeviceKind = deviceKind,
       domain: entityDomainName,
       entityFilter: entityCandidateFilter,
       title: entityPickerTitle,
     }: any) {
-      const isSpeakerEntity = entityDeviceKind === "speaker",
-        isDeviceStatusEntity = entityDeviceKind === "device-status",
-        isLockDoorEntity = entityDeviceKind === "lock-door",
-        isLockBatteryEntity = entityDeviceKind === "lock-battery",
-        isTelevisionEntity = entityDeviceKind === "television",
-        isTelevisionPowerEntity = entityDeviceKind === "television-power",
-        isComputerPowerEntity = entityDeviceKind === "computer-power",
+      const isSpeakerEntity = entityDeviceKind === 'speaker',
+        isDeviceStatusEntity = entityDeviceKind === 'device-status',
+        isLockDoorEntity = entityDeviceKind === 'lock-door',
+        isLockBatteryEntity = entityDeviceKind === 'lock-battery',
+        isTelevisionEntity = entityDeviceKind === 'television',
+        isTelevisionPowerEntity = entityDeviceKind === 'television-power',
+        isComputerPowerEntity = entityDeviceKind === 'computer-power',
         environmentSensorKey = ENVIRONMENT_SENSORS.some(
           (environmentSensor) => environmentSensor.key === entityDomainName,
         )
           ? entityDomainName
-          : "",
-        isCoverEntity =
-          ["cover", "airer"].includes(entityDeviceKind) || entityDomainName === "cover",
-        isClimateEntity =
-          !isCoverEntity && (entityDeviceKind === "climate" || entityDomainName === "climate"),
-        isLightEntity = entityDeviceKind === "light" && !isCoverEntity && !isClimateEntity,
+          : '',
+        isCoverEntity = ['cover', 'airer'].includes(entityDeviceKind) || entityDomainName === 'cover',
+        isClimateEntity = !isCoverEntity && (entityDeviceKind === 'climate' || entityDomainName === 'climate'),
+        isLightEntity = entityDeviceKind === 'light' && !isCoverEntity && !isClimateEntity,
         vacuumRoomDomainRank: { [domainName: string]: number } = {
           script: 2,
           button: 1,
@@ -948,116 +869,111 @@ export function createInteraction3dEditorPickers({
         // 都可能是触发来源，所以 dist 给的是「任意域」+ 调用方 `entityFilter` 收口。
         // 本仓暂无调用方（报警实体走 `pickers.alarm`），按 dist 补齐这条分支，避免日后接进来时
         // 静默落到链尾的 `^(light|switch)\.`（`weather` / `nas` 漏分支就是这么翻车的）。
-        entityIdPattern =
-          isComputerPowerEntity
-            ? /^(switch|input_boolean)\.[a-z0-9_]+$/
-            : entityDeviceKind === "weather"
+        entityIdPattern = isComputerPowerEntity
+          ? /^(switch|input_boolean)\.[a-z0-9_]+$/
+          : entityDeviceKind === 'weather'
             ? /^weather\.[a-z0-9_]+$/
-            : entityDeviceKind === "security-alarm"
+            : entityDeviceKind === 'security-alarm'
               ? /^[a-z_]+\.[a-z0-9_]+$/
-              : entityDeviceKind === "bath-heater"
-            ? /^(climate|fan)\.[a-z0-9_]+$/
-            : environmentSensorKey
-              ? /^sensor\.[a-z0-9_]+$/
-              : isLockDoorEntity
-                ? /^(binary_sensor|sensor)\.[a-z0-9_]+$/
-                : isLockBatteryEntity
+              : entityDeviceKind === 'bath-heater'
+                ? /^(climate|fan)\.[a-z0-9_]+$/
+                : environmentSensorKey
                   ? /^sensor\.[a-z0-9_]+$/
-                  : isDeviceStatusEntity || entityDeviceKind === "vacuum-room"
-                    ? /^[a-z_]+\.[a-z0-9_]+$/
-                    : entityDeviceKind === "water-heater"
-                      ? /^water_heater\.[a-z0-9_]+$/
-                      : entityDeviceKind === "exhaust-fan"
-                        ? /^(switch|fan)\.[a-z0-9_]+$/
-                        : ["fan", "purifier"].includes(entityDeviceKind)
-                          ? /^fan\.[a-z0-9_]+$/
-                        : isLightEntity ||
-                            isTelevisionPowerEntity ||
-                            entityDeviceKind === "presence"
-                          ? /^[a-z_]+\.[a-z0-9_]+$/
-                          : entityDeviceKind === "camera"
-                            ? /^camera\.[a-z0-9_]+$/
-                            : entityDeviceKind === "vacuum"
-                              ? /^vacuum\.[a-z0-9_]+$/
-                              : entityDeviceKind === "vacuum-map"
-                                ? /^(camera|image)\.[a-z0-9_]+$/
-                                : isTelevisionEntity || isSpeakerEntity
-                                  ? /^media_player\.[a-z0-9_]+$/
-                                  : entityDeviceKind === "nas"
-                                    ? /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/
-                                    : isCoverEntity
-                                    ? /^cover\.[a-z0-9_]+$/
-                                      : isClimateEntity
-                                        ? /^climate\.[a-z0-9_]+$/
-                                        : /^(light|switch)\.[a-z0-9_]+$/,
+                  : isLockDoorEntity
+                    ? /^(binary_sensor|sensor)\.[a-z0-9_]+$/
+                    : isLockBatteryEntity
+                      ? /^sensor\.[a-z0-9_]+$/
+                      : isDeviceStatusEntity || entityDeviceKind === 'vacuum-room'
+                        ? /^[a-z_]+\.[a-z0-9_]+$/
+                        : entityDeviceKind === 'water-heater'
+                          ? /^water_heater\.[a-z0-9_]+$/
+                          : entityDeviceKind === 'exhaust-fan'
+                            ? /^(switch|fan)\.[a-z0-9_]+$/
+                            : ['fan', 'purifier'].includes(entityDeviceKind)
+                              ? /^fan\.[a-z0-9_]+$/
+                              : isLightEntity || isTelevisionPowerEntity || entityDeviceKind === 'presence'
+                                ? /^[a-z_]+\.[a-z0-9_]+$/
+                                : entityDeviceKind === 'camera'
+                                  ? /^camera\.[a-z0-9_]+$/
+                                  : entityDeviceKind === 'vacuum'
+                                    ? /^vacuum\.[a-z0-9_]+$/
+                                    : entityDeviceKind === 'vacuum-map'
+                                      ? /^(camera|image)\.[a-z0-9_]+$/
+                                      : isTelevisionEntity || isSpeakerEntity
+                                        ? /^media_player\.[a-z0-9_]+$/
+                                        : entityDeviceKind === 'nas'
+                                          ? /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/
+                                          : isCoverEntity
+                                            ? /^cover\.[a-z0-9_]+$/
+                                            : isClimateEntity
+                                              ? /^climate\.[a-z0-9_]+$/
+                                              : /^(light|switch)\.[a-z0-9_]+$/,
         { editorEntityMatches: entityMatches } = createEditorPickerQueries({
           entityPickerConfig: () => ({
             recommended: (candidateEntity: any) => {
               // 天气实体一律置顶（`weather.*` 优先）。
-              if (entityDeviceKind === "weather")
-                return candidateEntity.entityId.startsWith("weather.");
-              if (entityDeviceKind === "vacuum-room")
-                return vacuumRoomDomainRank[candidateEntity.entityId.split(".")[0]] || 0;
+              if (entityDeviceKind === 'weather') return candidateEntity.entityId.startsWith('weather.')
+              if (entityDeviceKind === 'vacuum-room')
+                return vacuumRoomDomainRank[candidateEntity.entityId.split('.')[0]] || 0
               if (isLockBatteryEntity) {
                 const batteryDeviceClass =
                   candidateEntity.deviceClass ||
                   candidateEntity.device_class ||
                   candidateEntity.attributes?.device_class ||
-                  getState(candidateEntity.entityId)?.attributes?.device_class;
-                if (batteryDeviceClass === "battery") return 2;
-                const batteryEntityId = String(candidateEntity.entityId || "");
-                return /battery|电量/i.test(batteryEntityId) ||
-                  /battery|电量/i.test(String(candidateEntity.name || ""))
+                  getState(candidateEntity.entityId)?.attributes?.device_class
+                if (batteryDeviceClass === 'battery') return 2
+                const batteryEntityId = String(candidateEntity.entityId || '')
+                return /battery|电量/i.test(batteryEntityId) || /battery|电量/i.test(String(candidateEntity.name || ''))
                   ? 1
-                  : 0;
+                  : 0
               }
               return isSpeakerEntity
                 ? (candidateEntity.deviceClass ||
                     candidateEntity.device_class ||
                     candidateEntity.attributes?.device_class ||
-                    getState(candidateEntity.entityId)?.attributes?.device_class) === "speaker"
+                    getState(candidateEntity.entityId)?.attributes?.device_class) === 'speaker'
                   ? 2
                   : 1
                 : isLightEntity
-                  ? candidateEntity.entityId.startsWith("light.")
+                  ? candidateEntity.entityId.startsWith('light.')
                     ? 2
-                    : candidateEntity.entityId.startsWith("switch.")
+                    : candidateEntity.entityId.startsWith('switch.')
                       ? 1
                       : 0
                   : isTelevisionPowerEntity
-                    ? ["switch.", "media_player.", "binary_sensor.", "input_boolean."].some(
-                        (domainPrefix) => candidateEntity.entityId.startsWith(domainPrefix),
+                    ? ['switch.', 'media_player.', 'binary_sensor.', 'input_boolean.'].some((domainPrefix) =>
+                        candidateEntity.entityId.startsWith(domainPrefix),
                       )
                       ? 1
                       : 0
-                    : entityDeviceKind === "presence"
-                      ? ["occupancy", "motion", "presence"].includes(
+                    : entityDeviceKind === 'presence'
+                      ? ['occupancy', 'motion', 'presence'].includes(
                           candidateEntity.deviceClass ||
                             candidateEntity.device_class ||
                             candidateEntity.attributes?.device_class ||
                             getState(candidateEntity.entityId)?.attributes?.device_class,
                         )
-                      : entityDeviceKind === "exhaust-fan"
-                      ? candidateEntity.entityId.startsWith("switch.")
-                        ? 2
-                        : 1
-                      : candidateEntity.entityId.startsWith(
-                          entityDeviceKind === "water-heater"
-                            ? "water_heater."
-                            : ["fan", "purifier"].includes(entityDeviceKind)
-                              ? "fan."
+                      : entityDeviceKind === 'exhaust-fan'
+                        ? candidateEntity.entityId.startsWith('switch.')
+                          ? 2
+                          : 1
+                        : candidateEntity.entityId.startsWith(
+                            entityDeviceKind === 'water-heater'
+                              ? 'water_heater.'
+                              : ['fan', 'purifier'].includes(entityDeviceKind)
+                                ? 'fan.'
                                 : isTelevisionEntity || isTelevisionPowerEntity
-                                  ? "media_player."
-                                  : entityDeviceKind === "presence"
-                                    ? "binary_sensor."
+                                  ? 'media_player.'
+                                  : entityDeviceKind === 'presence'
+                                    ? 'binary_sensor.'
                                     : isCoverEntity
-                                      ? "cover."
+                                      ? 'cover.'
                                       : isClimateEntity
-                                        ? "climate."
-                                        : entityDeviceKind === "camera"
-                                          ? "camera."
-                                          : "light.",
-                        );
+                                        ? 'climate.'
+                                        : entityDeviceKind === 'camera'
+                                          ? 'camera.'
+                                          : 'light.',
+                          )
             },
           }),
           pickerEntitiesForComponentType: () =>
@@ -1073,39 +989,39 @@ export function createInteraction3dEditorPickers({
                 (!entityCandidateFilter || entityCandidateFilter(filteredEntity)),
             ),
           entityPickerText: entityPickerText,
-          entityDomain: (domainEntity: any) => domainEntity.entityId.split(".")[0],
-        });
-      if ((await ensureEntities!(), !entityTrigger.isConnected)) return null;
+          entityDomain: (domainEntity: any) => domainEntity.entityId.split('.')[0],
+        })
+      if ((await ensureEntities!(), !entityTrigger.isConnected)) return null
       const missingCurrentEntity =
           currentEntityId &&
           entityIdPattern.test(currentEntityId) &&
           !getEntities!().some((existingEntity) => existingEntity.entityId === currentEntityId)
             ? {
                 entityId: currentEntityId,
-                name: currentEntityId + "（当前未找到）",
+                name: currentEntityId + '（当前未找到）',
               }
             : null,
         filterEntities = (searchQuery: any) => {
-          const matches = entityMatches("interaction3d", searchQuery);
+          const matches = entityMatches('interaction3d', searchQuery)
           return (
             missingCurrentEntity &&
               (!searchQuery ||
                 entityPickerText(missingCurrentEntity)
-                  .toLocaleLowerCase("zh-CN")
-                  .includes(String(searchQuery).trim().toLocaleLowerCase("zh-CN"))) &&
+                  .toLocaleLowerCase('zh-CN')
+                  .includes(String(searchQuery).trim().toLocaleLowerCase('zh-CN'))) &&
               matches.push(missingCurrentEntity),
             matches
-          );
+          )
         },
-        allMatches = filterEntities(""),
+        allMatches = filterEntities(''),
         currentEntity =
           allMatches.find((matchedEntity: any) => matchedEntity.entityId === currentEntityId) ||
           (environmentSensorKey && currentEntityId
             ? {
                 entityId: currentEntityId,
-                name: currentEntityId + "（当前不可选，可清除后重新绑定）",
+                name: currentEntityId + '（当前不可选，可清除后重新绑定）',
               }
-            : null);
+            : null)
       // 标题与空态从同一份文案表取，避免两处各自维护导致错配。
       const pickerWording = entityPickerWording({
         deviceKind: entityDeviceKind,
@@ -1120,50 +1036,37 @@ export function createInteraction3dEditorPickers({
           isCoverEntity,
           isClimateEntity,
         },
-      });
+      })
       return openPicker!({
-        kind: "entity",
+        kind: 'entity',
         title: entityPickerTitle || pickerWording.title,
-        searchPlaceholder: "搜索实体名称或 ID",
+        searchPlaceholder: '搜索实体名称或 ID',
         triggerButton: entityTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
         initialPage: editorEntityPickerInitialPage(
-          allMatches.findIndex(
-            (initialPageEntity: any) => initialPageEntity.entityId === currentEntityId,
-          ),
+          allMatches.findIndex((initialPageEntity: any) => initialPageEntity.entityId === currentEntityId),
           null,
         ),
-        selectedText: currentEntityId || "不使用实体",
+        selectedText: currentEntityId || '不使用实体',
         emptyText: pickerWording.emptyText,
-        itemClass: "entity-list",
+        itemClass: 'entity-list',
         getPage: ({ query: entityQuery, page: entityPage }: any) =>
           editorEntityPickerPage(filterEntities(entityQuery), entityPage, null),
         renderSelectedContent: () => [elements.createEditorPickerCurrentEntity(currentEntity)],
-        renderSelectedActions: () => [
-          elements.editorPickerClearAction("不使用实体", !currentEntityId),
-        ],
-        renderItem: (renderedEntity: any) =>
-          elements.createEditorEntityPickerOption(renderedEntity, currentEntityId),
+        renderSelectedActions: () => [elements.editorPickerClearAction('不使用实体', !currentEntityId)],
+        renderItem: (renderedEntity: any) => elements.createEditorEntityPickerOption(renderedEntity, currentEntityId),
         onSelect: (selectedEntityId: any) => {
-          const knownEntity = buildEntityCatalog().find(
-            (catalogEntity) => catalogEntity.entityId === selectedEntityId,
-          );
-          (!selectedEntityId ||
-            (!environmentSensorKey &&
-              !entityCandidateFilter &&
-              selectedEntityId === missingCurrentEntity?.entityId) ||
+          const knownEntity = buildEntityCatalog().find((catalogEntity) => catalogEntity.entityId === selectedEntityId)
+          ;(!selectedEntityId ||
+            (!environmentSensorKey && !entityCandidateFilter && selectedEntityId === missingCurrentEntity?.entityId) ||
             (knownEntity &&
               entityIdPattern.test(selectedEntityId) &&
               (!environmentSensorKey ||
-                matchesTemperatureHumidityEntity(
-                  knownEntity,
-                  environmentSensorKey,
-                  getState(selectedEntityId),
-                )) &&
+                matchesTemperatureHumidityEntity(knownEntity, environmentSensorKey, getState(selectedEntityId))) &&
               (!entityCandidateFilter || entityCandidateFilter(knownEntity)))) &&
-            onEntitySelect(selectedEntityId, knownEntity);
+            onEntitySelect(selectedEntityId, knownEntity)
         },
-      });
+      })
     },
-  };
+  }
 }

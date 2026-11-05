@@ -37,9 +37,7 @@ const STORAGE_KEY = 'homeos:dismiss-cold-entity-hint'
 
 const entitiesStore = useEntitiesStore()
 const { totalCount } = storeToRefs(entitiesStore)
-const dismissed = ref(
-  typeof localStorage !== 'undefined' && readLocalStorage(STORAGE_KEY) === '1',
-)
+const dismissed = ref(typeof localStorage !== 'undefined' && readLocalStorage(STORAGE_KEY) === '1')
 
 const entityCount = computed(() => totalCount.value || 0)
 
@@ -60,7 +58,6 @@ function dismiss() {
     /* 忽略 */
   }
 }
-
 </script>
 
 <style scoped src="./styles/setup-banners.css"></style>

@@ -102,19 +102,12 @@ const emit = defineEmits<{
 
 const { hours } = toRefs(props)
 // 委托 composable 完成 5 张图表的挂载与 KPI 计算，并将图表点击事件桥接为 emit
-const {
-  bindSourceChart,
-  bindLevelChart,
-  bindRankChart,
-  bindTimeChart,
-  bindReadChart,
-  kpiCells,
-  summary,
-} = useNotificationsViewAnalytics(toRefs(props), (event, value) => {
-  // 根据 composable 回传的事件类型分发到对应的 emit
-  if (event === 'filter-by-source') emit('filter-by-source', value)
-  else emit('filter-by-level', value)
-})
+const { bindSourceChart, bindLevelChart, bindRankChart, bindTimeChart, bindReadChart, kpiCells, summary } =
+  useNotificationsViewAnalytics(toRefs(props), (event, value) => {
+    // 根据 composable 回传的事件类型分发到对应的 emit
+    if (event === 'filter-by-source') emit('filter-by-source', value)
+    else emit('filter-by-level', value)
+  })
 </script>
 
 <style src="@/assets/styles/list-page-analytics.css"></style>

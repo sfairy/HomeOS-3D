@@ -3,11 +3,11 @@
  * @module frontend/src/views
  */
 /** 高级参数：重载 / 导入导出 / 保存 / 恢复默认 */
-import { applyEditableSnapshotToSections, fromEditableSectionsPending } from '@/composables/config/system-config-edit.util'
 import {
-  fetchSystemConfigFresh,
-  handleSystemConfigPatchError,
-} from '@/composables/config/system-config-core.internals'
+  applyEditableSnapshotToSections,
+  fromEditableSectionsPending,
+} from '@/composables/config/system-config-edit.util'
+import { fetchSystemConfigFresh, handleSystemConfigPatchError } from '@/composables/config/system-config-core.internals'
 import type { useSystemConfig } from '@/composables/config/system-config-core.internals'
 import type { useChromeStore } from '@/stores/chrome.store'
 import { resetSystemConfig } from '@/services/api/system'
@@ -128,9 +128,7 @@ export function useSystemConfigPanelIo(opts: {
           const msg = String((e as { message?: string })?.message || '')
           const match = /^([\w]+)\.([\w]+)\s+JSON/.exec(msg)
           if (match) {
-            validationErrors.value = [
-              { section: match[1], key: match[2], message: 'JSON 格式无效' },
-            ]
+            validationErrors.value = [{ section: match[1], key: match[2], message: 'JSON 格式无效' }]
             savedTipOk.value = false
             savedTip.value = 'JSON 格式无效'
             return
@@ -168,9 +166,7 @@ export function useSystemConfigPanelIo(opts: {
               : getApiErrorMessage(e, '配置已被他人修改，请刷新后重试')
             if (handled) await load({ force: true })
           } else {
-            savedTip.value = err?.message?.includes('JSON')
-              ? err.message
-              : getApiErrorMessage(e, '保存失败')
+            savedTip.value = err?.message?.includes('JSON') ? err.message : getApiErrorMessage(e, '保存失败')
           }
         },
       },

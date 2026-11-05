@@ -1,4 +1,3 @@
-
 type FieldGroupDef = {
   id: string
   label: string
@@ -158,13 +157,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
     {
       id: 'behavior',
       label: '行为',
-      match: [
-        'defaultMode',
-        'enableWeatherMode',
-        'instant*',
-        'brightness',
-        'scale',
-      ],
+      match: ['defaultMode', 'enableWeatherMode', 'instant*', 'brightness', 'scale'],
     },
     {
       id: 'visibility',
@@ -266,8 +259,7 @@ export function buildGroupedFieldEntries<T extends { key: string }>(
     buckets.get(gid)!.push(field)
   }
 
-  const labelOf = (id: string) =>
-    id === '__other' ? '其它' : groups.find((g) => g.id === id)?.label || id
+  const labelOf = (id: string) => (id === '__other' ? '其它' : groups.find((g) => g.id === id)?.label || id)
 
   const out: FieldGroupEntry<T>[] = []
   for (const id of order) {

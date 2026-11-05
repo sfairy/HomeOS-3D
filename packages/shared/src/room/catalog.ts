@@ -5,21 +5,21 @@
  */
 export interface RoomCatalogEntry {
   /** 房间 ID（如 "living" / "master_bedroom"） */
-  id: string;
+  id: string
   /** 默认中文标签（如 "客厅"） */
-  defaultLabel: string;
+  defaultLabel: string
   /** 是否为固定房间（不可删除） */
-  fixed: boolean;
+  fixed: boolean
   /** emoji 图标 */
-  emoji: string;
+  emoji: string
   /** 语音控制关键词（含中英文） */
-  voiceKeywords: string[];
+  voiceKeywords: string[]
   /** entity_id 推断关键词 */
-  inferKeywords: string[];
+  inferKeywords: string[]
   /** HA area_registry 名称匹配模式 */
-  areaPatterns: string[];
+  areaPatterns: string[]
   /** 设备分组 key（用于按房间聚合设备列表） */
-  deviceGroupKey: string;
+  deviceGroupKey: string
 }
 
 /** 全屋默认房间目录 — 环境映射 / 语音 / Widget 推断的统一来源 */
@@ -105,39 +105,39 @@ export const DEFAULT_ROOM_CATALOG: readonly RoomCatalogEntry[] = [
     areaPatterns: ['guest bathroom', 'guest bath', '客卫'],
     deviceGroupKey: 'guestBath',
   },
-] as const;
+] as const
 
 /** 房间环境传感器映射条目：房间 → 各维度实体 ID 的绑定。 */
 export type EnvSensorMapEntry = {
   /** 房间自定义标签（覆盖 catalog.defaultLabel） */
-  label?: string;
+  label?: string
   /** 绑定的 HA area_registry area_id（键即 area_id 时可省略，用于从 HA 注册表反推房间归属） */
-  haAreaId?: string;
+  haAreaId?: string
   /** 温度传感器 entity_id（如 sensor.living_temperature） */
-  temperature?: string;
+  temperature?: string
   /** 湿度传感器 entity_id */
-  humidity?: string;
+  humidity?: string
   /** PM2.5 传感器 entity_id（µg/m³） */
-  pm25?: string;
+  pm25?: string
   /** CO₂ 传感器 entity_id（ppm） */
-  co2?: string;
+  co2?: string
   /** 总挥发性有机物（TVOC）传感器 entity_id（参与 IAQ 综合评分） */
-  tvoc?: string;
+  tvoc?: string
   /** 人体/移动传感器 entity_id（快捷规则：人来灯亮） */
-  motion?: string;
+  motion?: string
   /** 灯光实体 entity_id（快捷规则：人来灯亮） */
-  light?: string;
+  light?: string
   /** 空调/恒温器 entity_id（快捷规则：高温自动开空调） */
-  climate?: string;
+  climate?: string
   /** 仅绑定不展示在房间列表（工具间/走廊等后台环境监测点） */
-  _hidden?: boolean;
-};
+  _hidden?: boolean
+}
 
 /**
  * 房间环境传感器映射字典：键为房间 slug（或 HA area_id），值为对应的 EnvSensorMapEntry。
  * 缺失键 / 键值为 undefined 均表示该房间未配置任何环境传感器绑定。
  */
-export type EnvSensorMap = Record<string, EnvSensorMapEntry | undefined>;
+export type EnvSensorMap = Record<string, EnvSensorMapEntry | undefined>
 
 /**
  * 获取默认房间目录的可写深拷贝（防止调用方修改只读常量）。
@@ -150,7 +150,7 @@ export function getDefaultRoomCatalog(): RoomCatalogEntry[] {
     voiceKeywords: [...entry.voiceKeywords],
     inferKeywords: [...entry.inferKeywords],
     areaPatterns: [...entry.areaPatterns],
-  }));
+  }))
 }
 
 /**
@@ -159,7 +159,7 @@ export function getDefaultRoomCatalog(): RoomCatalogEntry[] {
  * @returns { id, defaultLabel, fixed } 元信息数组；与 DEFAULT_ROOM_CATALOG 顺序一致
  */
 export function getDefaultEnvRoomDefs() {
-  return DEFAULT_ROOM_CATALOG.map(({ id, defaultLabel, fixed }) => ({ id, defaultLabel, fixed }));
+  return DEFAULT_ROOM_CATALOG.map(({ id, defaultLabel, fixed }) => ({ id, defaultLabel, fixed }))
 }
 
 /**
@@ -168,11 +168,11 @@ export function getDefaultEnvRoomDefs() {
  * @returns EnvSensorMap 字典；键为 catalog 中的房间 id
  */
 export function buildDefaultEnvSensorMap(): EnvSensorMap {
-  const map: EnvSensorMap = {};
+  const map: EnvSensorMap = {}
   for (const room of DEFAULT_ROOM_CATALOG) {
-    map[room.id] = { label: room.defaultLabel };
+    map[room.id] = { label: room.defaultLabel }
   }
-  return map;
+  return map
 }
 
 /**
@@ -181,7 +181,7 @@ export function buildDefaultEnvSensorMap(): EnvSensorMap {
  * @returns 按目录顺序排列的中文标签数组
  */
 export function getDefaultVoiceRoomLabels(): string[] {
-  return DEFAULT_ROOM_CATALOG.map((room) => room.defaultLabel);
+  return DEFAULT_ROOM_CATALOG.map((room) => room.defaultLabel)
 }
 
 /**
@@ -193,7 +193,7 @@ export function getVoiceRoomsFromCatalog() {
   return DEFAULT_ROOM_CATALOG.map((room) => ({
     label: room.defaultLabel,
     keywords: [...room.voiceKeywords],
-  }));
+  }))
 }
 
 /**
@@ -209,10 +209,10 @@ export function resolveRoomLabel(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string {
-  const custom = sensorMap[roomId]?.label?.trim();
-  if (custom) return custom;
-  const preset = catalog.find((room) => room.id === roomId);
-  return preset?.defaultLabel || roomId;
+  const custom = sensorMap[roomId]?.label?.trim()
+  if (custom) return custom
+  const preset = catalog.find((room) => room.id === roomId)
+  return preset?.defaultLabel || roomId
 }
 
 /**
@@ -222,11 +222,8 @@ export function resolveRoomLabel(
  * @param catalog 房间目录
  * @returns emoji 单字符字符串；未知房间返回 '📍'
  */
-export function roomTabEmoji(
-  roomId: string,
-  catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
-): string {
-  return catalog.find((room) => room.id === roomId)?.emoji || '📍';
+export function roomTabEmoji(roomId: string, catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG): string {
+  return catalog.find((room) => room.id === roomId)?.emoji || '📍'
 }
 
 /**
@@ -238,11 +235,11 @@ export function roomTabEmoji(
 export function buildRoomInferKeywordsMap(
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): Record<string, string[]> {
-  const map: Record<string, string[]> = {};
+  const map: Record<string, string[]> = {}
   for (const room of catalog) {
-    map[room.id] = [...room.inferKeywords];
+    map[room.id] = [...room.inferKeywords]
   }
-  return map;
+  return map
 }
 
 /**
@@ -254,13 +251,13 @@ export function buildRoomInferKeywordsMap(
 export function buildAreaToRoomMap(
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): Record<string, string> {
-  const map: Record<string, string> = {};
+  const map: Record<string, string> = {}
   for (const room of catalog) {
     for (const pattern of room.areaPatterns) {
-      map[pattern.toLowerCase()] = room.id;
+      map[pattern.toLowerCase()] = room.id
     }
   }
-  return map;
+  return map
 }
 
 /**
@@ -269,14 +266,12 @@ export function buildAreaToRoomMap(
  * @param catalog 房间目录
  * @returns { key, names, roomId } 数组；names 是去重后的房间名 + inferKeywords 合并集合
  */
-export function getDeviceGroupRoomKeywords(
-  catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
-) {
+export function getDeviceGroupRoomKeywords(catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG) {
   return catalog.map((room) => ({
     key: room.deviceGroupKey,
     names: [...new Set([room.defaultLabel, ...room.inferKeywords])],
     roomId: room.id,
-  }));
+  }))
 }
 
 /**
@@ -294,14 +289,14 @@ export function inferDeviceGroupRoomFromCatalog(
   fallbackKey = 'other',
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string {
-  const lower = `${entityId || ''}${name || ''}`.toLowerCase();
+  const lower = `${entityId || ''}${name || ''}`.toLowerCase()
   for (const room of catalog) {
-    const names = [room.defaultLabel, ...room.inferKeywords];
+    const names = [room.defaultLabel, ...room.inferKeywords]
     if (names.some((token) => lower.includes(token.toLowerCase()))) {
-      return room.deviceGroupKey;
+      return room.deviceGroupKey
     }
   }
-  return fallbackKey;
+  return fallbackKey
 }
 
 /**
@@ -312,7 +307,7 @@ export function inferDeviceGroupRoomFromCatalog(
  * @returns true 表示该房间条目存在且 _hidden===true；其他情况（含缺条目）均返回 false
  */
 export function isRoomHiddenInMap(sensorMap: EnvSensorMap, roomId: string): boolean {
-  return sensorMap?.[roomId]?._hidden === true;
+  return sensorMap?.[roomId]?._hidden === true
 }
 
 /**
@@ -322,7 +317,7 @@ export function isRoomHiddenInMap(sensorMap: EnvSensorMap, roomId: string): bool
  * @returns 房间 id 数组（保持 Object.keys 原始顺序，sortEnvSensorMapRoomIds 可进一步排序）
  */
 export function listVisibleEnvSensorMapRoomIds(sensorMap: EnvSensorMap = {}): string[] {
-  return Object.keys(sensorMap).filter((id) => !isRoomHiddenInMap(sensorMap, id));
+  return Object.keys(sensorMap).filter((id) => !isRoomHiddenInMap(sensorMap, id))
 }
 
 /** 按目录顺序排列房间 slug（自定义房间排在预设之后） */
@@ -330,13 +325,13 @@ export function sortEnvSensorMapRoomIds(
   roomIds: string[],
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string[] {
-  const order = new Map(catalog.map((room, index) => [room.id, index]));
+  const order = new Map(catalog.map((room, index) => [room.id, index]))
   return [...roomIds].sort((a, b) => {
-    const oa = order.has(a) ? order.get(a)! : 999;
-    const ob = order.has(b) ? order.get(b)! : 999;
-    if (oa !== ob) return oa - ob;
-    return a.localeCompare(b, 'zh-CN');
-  });
+    const oa = order.has(a) ? order.get(a)! : 999
+    const ob = order.has(b) ? order.get(b)! : 999
+    if (oa !== ob) return oa - ob
+    return a.localeCompare(b, 'zh-CN')
+  })
 }
 
 /**
@@ -352,10 +347,10 @@ export function resolveDeviceGroupLabel(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string {
-  if (!deviceGroupKey || deviceGroupKey === 'other') return '其他';
-  const preset = catalog.find((room) => room.deviceGroupKey === deviceGroupKey);
-  if (preset) return resolveRoomLabel(preset.id, sensorMap, catalog);
-  return deviceGroupKey;
+  if (!deviceGroupKey || deviceGroupKey === 'other') return '其他'
+  const preset = catalog.find((room) => room.deviceGroupKey === deviceGroupKey)
+  if (preset) return resolveRoomLabel(preset.id, sensorMap, catalog)
+  return deviceGroupKey
 }
 
 /**
@@ -369,12 +364,12 @@ export function buildDeviceGroupLabelMap(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): Record<string, string> {
-  const map: Record<string, string> = { other: '其他' };
+  const map: Record<string, string> = { other: '其他' }
   for (const room of catalog) {
-    if (isRoomHiddenInMap(sensorMap, room.id)) continue;
-    map[room.deviceGroupKey] = resolveRoomLabel(room.id, sensorMap, catalog);
+    if (isRoomHiddenInMap(sensorMap, room.id)) continue
+    map[room.deviceGroupKey] = resolveRoomLabel(room.id, sensorMap, catalog)
   }
-  return map;
+  return map
 }
 
 /**
@@ -388,15 +383,12 @@ export function buildPublicRoomMeta(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): { roomLabels: Record<string, string>; deviceGroupLabels: Record<string, string> } {
-  const roomLabels: Record<string, string> = {};
-  const deviceGroupLabels = buildDeviceGroupLabelMap(sensorMap, catalog);
-  for (const roomId of sortEnvSensorMapRoomIds(
-    listVisibleEnvSensorMapRoomIds(sensorMap),
-    catalog,
-  )) {
-    roomLabels[roomId] = resolveRoomLabel(roomId, sensorMap, catalog);
+  const roomLabels: Record<string, string> = {}
+  const deviceGroupLabels = buildDeviceGroupLabelMap(sensorMap, catalog)
+  for (const roomId of sortEnvSensorMapRoomIds(listVisibleEnvSensorMapRoomIds(sensorMap), catalog)) {
+    roomLabels[roomId] = resolveRoomLabel(roomId, sensorMap, catalog)
   }
-  return { roomLabels, deviceGroupLabels };
+  return { roomLabels, deviceGroupLabels }
 }
 
 /**
@@ -412,18 +404,18 @@ export function buildRoomEntityMatchers(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string[] {
-  const tokens = new Set<string>();
-  const preset = catalog.find((room) => room.id === roomId);
+  const tokens = new Set<string>()
+  const preset = catalog.find((room) => room.id === roomId)
   if (preset) {
-    tokens.add(preset.id.toLowerCase());
-    tokens.add(preset.deviceGroupKey.toLowerCase());
-    for (const kw of preset.inferKeywords) tokens.add(kw.toLowerCase());
-    for (const kw of preset.voiceKeywords) tokens.add(kw.toLowerCase());
-    for (const pattern of preset.areaPatterns) tokens.add(pattern.toLowerCase());
+    tokens.add(preset.id.toLowerCase())
+    tokens.add(preset.deviceGroupKey.toLowerCase())
+    for (const kw of preset.inferKeywords) tokens.add(kw.toLowerCase())
+    for (const kw of preset.voiceKeywords) tokens.add(kw.toLowerCase())
+    for (const pattern of preset.areaPatterns) tokens.add(pattern.toLowerCase())
   }
-  const label = sensorMap[roomId]?.label?.trim();
-  if (label) tokens.add(label.toLowerCase());
-  return [...tokens].filter(Boolean);
+  const label = sensorMap[roomId]?.label?.trim()
+  if (label) tokens.add(label.toLowerCase())
+  return [...tokens].filter(Boolean)
 }
 
 /**
@@ -445,8 +437,8 @@ export function entityMatchesEnvRoom(
   sensorMap: EnvSensorMap = {},
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): boolean {
-  const hay = `${entityId} ${friendlyName || ''} ${areaId || ''}`.toLowerCase();
-  return buildRoomEntityMatchers(roomId, sensorMap, catalog).some((token) => hay.includes(token));
+  const hay = `${entityId} ${friendlyName || ''} ${areaId || ''}`.toLowerCase()
+  return buildRoomEntityMatchers(roomId, sensorMap, catalog).some((token) => hay.includes(token))
 }
 
 /**
@@ -460,15 +452,15 @@ export function inferRoomIdFromEntityId(
   entityId: string,
   catalog: readonly RoomCatalogEntry[] = DEFAULT_ROOM_CATALOG,
 ): string | null {
-  const id = entityId.toLowerCase();
+  const id = entityId.toLowerCase()
   for (const room of catalog) {
     for (const kw of room.inferKeywords) {
-      if (id.includes(kw.toLowerCase())) return room.id;
+      if (id.includes(kw.toLowerCase())) return room.id
     }
   }
   if (id.startsWith('sensor.')) {
-    const parts = id.replace('sensor.', '').split('_');
-    return parts.slice(0, 2).join('_');
+    const parts = id.replace('sensor.', '').split('_')
+    return parts.slice(0, 2).join('_')
   }
-  return null;
+  return null
 }

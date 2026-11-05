@@ -2,15 +2,7 @@
 import { logger } from '@/shared/utils/core/logger'
 
 /** 偏好的中文女声 voice 关键字（按优先级排序） */
-const PREFERRED_VOICE_KEYS = [
-  'xiaoxiao',
-  'yaoyao',
-  'hanhan',
-  'yating',
-  'tingting',
-  'ting-ting',
-  'mei-jia',
-]
+const PREFERRED_VOICE_KEYS = ['xiaoxiao', 'yaoyao', 'hanhan', 'yating', 'tingting', 'ting-ting', 'mei-jia']
 
 /** 本地 TTS 静默失败判定窗口（毫秒） */
 const SILENT_FAIL_MS = 800
@@ -58,10 +50,7 @@ function pickChineseVoice(): SpeechSynthesisVoice | null {
   const preferred = PREFERRED_VOICE_KEYS
   const zh = voices.filter((v) => v.lang.startsWith('zh'))
   return (
-    zh.find(
-      (v) =>
-        preferred.some((k) => v.name.toLowerCase().includes(k)) && /Natural|Online/i.test(v.name),
-    ) ||
+    zh.find((v) => preferred.some((k) => v.name.toLowerCase().includes(k)) && /Natural|Online/i.test(v.name)) ||
     zh.find((v) => preferred.some((k) => v.name.toLowerCase().includes(k)) && v.localService) ||
     zh.find((v) => preferred.some((k) => v.name.toLowerCase().includes(k))) ||
     zh.find((v) => v.localService && v.lang.startsWith('zh')) ||
@@ -152,10 +141,7 @@ type SpeakLocalOptions = {
  * 本机 SpeechSynthesis 播报。
  * 含 Chrome resume 规避与静默失败检测。
  */
-export async function speakLocal(
-  text: string,
-  opts: SpeakLocalOptions = {},
-): Promise<SpeakLocalResult> {
+export async function speakLocal(text: string, opts: SpeakLocalOptions = {}): Promise<SpeakLocalResult> {
   const trimmed = String(text || '').trim()
   if (!trimmed) return { ok: false, message: '请输入播报内容' }
 

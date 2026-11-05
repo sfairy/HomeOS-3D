@@ -1,43 +1,40 @@
-import {
-  packModelTemplate,
-  restoreModelTemplate,
-} from "./model-template-codec";
-import { createCacheLogger, executeTaskWithTimeout } from "./cache-shared";
-const MODEL_CACHE_DB_NAME = "homeos-templates",
-  TEMPLATE_STORE = "templates",
-  METADATA_STORE = "metadata",
+import { packModelTemplate, restoreModelTemplate } from './model-template-codec'
+import { createCacheLogger, executeTaskWithTimeout } from './cache-shared'
+const MODEL_CACHE_DB_NAME = 'homeos-templates',
+  TEMPLATE_STORE = 'templates',
+  METADATA_STORE = 'metadata',
   MAX_TEMPLATE_COUNT = 256,
   MAX_TOTAL_BYTES = 64 * 1024 * 1024,
-  MAX_TEMPLATE_BYTES = 8 * 1024 * 1024;
+  MAX_TEMPLATE_BYTES = 8 * 1024 * 1024
 export function createModelPersistentCache({
   THREE: THREE,
   env: env = globalThis,
   timeoutMs: timeoutMs = 1000,
 }: {
-  THREE?: typeof import("three");
-  env?: typeof globalThis;
-  timeoutMs?: number;
+  THREE?: typeof import('three')
+  env?: typeof globalThis
+  timeoutMs?: number
 } = {}) {
   let openPromise,
     cachedConnection: any,
     hasOpenAttempted = false,
     isDisabled = false,
-    idleQueue = Promise.resolve();
+    idleQueue = Promise.resolve()
   const stats = {
       hits: 0,
       misses: 0,
       writes: 0,
       fallbacks: 0,
     },
-    log = createCacheLogger(env, "[3D-model-cache]", stats);
+    log = createCacheLogger(env, '[3D-model-cache]', stats)
   function noteFallback() {
-    (stats.fallbacks++, log("fallback"));
+    stats.fallbacks++, log('fallback')
   }
   function isAvailable() {
     try {
-      return !isDisabled && !!env.indexedDB && !!THREE!.ObjectLoader;
+      return !isDisabled && !!env.indexedDB && !!THREE!.ObjectLoader
     } catch {
-      return false;
+      return false
     }
   }
   function runWithTimeout(
@@ -47,115 +44,107 @@ export function createModelPersistentCache({
     return executeTaskWithTimeout(env, task, {
       duration: durationMs,
       onTimeout: () => {
-        (disableOnTimeout && (isDisabled = true), noteFallback());
+        disableOnTimeout && (isDisabled = true), noteFallback()
       },
-    });
+    })
   }
   function openDatabase() {
     return isAvailable()
       ? ((openPromise ||= runWithTimeout(
           (resolveOpen: any) => {
-            const openRequest = env.indexedDB.open(MODEL_CACHE_DB_NAME, 2);
-            ((openRequest.onupgradeneeded = () => {
-              (openRequest.result.objectStoreNames.contains(TEMPLATE_STORE) ||
+            const openRequest = env.indexedDB.open(MODEL_CACHE_DB_NAME, 2)
+            ;(openRequest.onupgradeneeded = () => {
+              openRequest.result.objectStoreNames.contains(TEMPLATE_STORE) ||
                 openRequest.result.createObjectStore(TEMPLATE_STORE, {
-                  keyPath: "key",
+                  keyPath: 'key',
                 }),
                 openRequest.result.objectStoreNames.contains(METADATA_STORE) ||
                   openRequest.result.createObjectStore(METADATA_STORE, {
-                    keyPath: "key",
-                  }));
+                    keyPath: 'key',
+                  })
             }),
               (openRequest.onerror = openRequest.onblocked =
                 () => {
-                  ((isDisabled = true), noteFallback(), resolveOpen(null));
+                  ;(isDisabled = true), noteFallback(), resolveOpen(null)
                 }),
               (openRequest.onsuccess = () => {
-                const connection = openRequest.result;
+                const connection = openRequest.result
                 if (isDisabled) {
-                  (connection.close(), resolveOpen(null));
-                  return;
+                  connection.close(), resolveOpen(null)
+                  return
                 }
-                ((connection.onversionchange = () => {
-                  ((isDisabled = true), connection.close());
+                ;(connection.onversionchange = () => {
+                  ;(isDisabled = true), connection.close()
                 }),
                   (cachedConnection = connection),
-                  resolveOpen(connection));
-              }));
+                  resolveOpen(connection)
+              })
           },
           {
             duration: Math.max(timeoutMs, 1500),
           },
         )),
         openPromise)
-      : Promise.resolve(null);
+      : Promise.resolve(null)
   }
-  async function restore(
-    restoreKey: any,
-    { valid: valid = () => true }: { valid?: () => boolean } = {},
-  ) {
-    if (!isAvailable() || !valid() || (hasOpenAttempted && !cachedConnection)) return null;
+  async function restore(restoreKey: any, { valid: valid = () => true }: { valid?: () => boolean } = {}) {
+    if (!isAvailable() || !valid() || (hasOpenAttempted && !cachedConnection)) return null
     const restoreConnection =
       cachedConnection ||
       (await runWithTimeout(
         (settleConnection: any) => {
-          openDatabase().then(settleConnection);
+          openDatabase().then(settleConnection)
         },
         {
           disable: false,
           duration: Math.min(timeoutMs, 150),
         },
-      ));
-    if ((restoreConnection || (hasOpenAttempted = true), !restoreConnection || isDisabled || !valid()))
-      return null;
+      ))
+    if ((restoreConnection || (hasOpenAttempted = true), !restoreConnection || isDisabled || !valid())) return null
     const record = await runWithTimeout((settleRead: any) => {
-      const readTransaction = restoreConnection.transaction(TEMPLATE_STORE, "readonly"),
-        request = readTransaction.objectStore(TEMPLATE_STORE).get(restoreKey);
-      ((request.onsuccess = () => settleRead(request.result)),
-        (request.onerror = readTransaction.onabort = () => settleRead(null)));
-    });
-    if (isDisabled || !valid()) return null;
-    if (!record) return (stats.misses++, log("miss"), null);
+      const readTransaction = restoreConnection.transaction(TEMPLATE_STORE, 'readonly'),
+        request = readTransaction.objectStore(TEMPLATE_STORE).get(restoreKey)
+      ;(request.onsuccess = () => settleRead(request.result)),
+        (request.onerror = readTransaction.onabort = () => settleRead(null))
+    })
+    if (isDisabled || !valid()) return null
+    if (!record) return (stats.misses++, log('miss'), null)
     try {
       const restored = await restoreModelTemplate(THREE, record.template, {
         env: env,
         timeoutMs: timeoutMs,
         valid: () => !isDisabled && valid(),
-      });
-      return restored ? (stats.hits++, log("hit"), restored) : null;
+      })
+      return restored ? (stats.hits++, log('hit'), restored) : null
     } catch {
-      noteFallback();
+      noteFallback()
       try {
-        const cleanup = restoreConnection.transaction(
-          [TEMPLATE_STORE, METADATA_STORE],
-          "readwrite",
-        );
-        ((cleanup.onerror = () => {}),
+        const cleanup = restoreConnection.transaction([TEMPLATE_STORE, METADATA_STORE], 'readwrite')
+        ;(cleanup.onerror = () => {}),
           cleanup.objectStore(TEMPLATE_STORE).delete(restoreKey),
-          cleanup.objectStore(METADATA_STORE).delete(restoreKey));
-      } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-      return null;
+          cleanup.objectStore(METADATA_STORE).delete(restoreKey)
+      } catch {
+        /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
+      }
+      return null
     }
   }
   async function saveTemplate(saveKey: any, modelDefinition: any) {
-    const saveConnection = await openDatabase();
-    if (!saveConnection || isDisabled) return;
-    let template;
+    const saveConnection = await openDatabase()
+    if (!saveConnection || isDisabled) return
+    let template
     try {
-      template = packModelTemplate(THREE, modelDefinition);
+      template = packModelTemplate(THREE, modelDefinition)
     } catch {
-      noteFallback();
-      return;
+      noteFallback()
+      return
     }
-    if (template.bytes > MAX_TEMPLATE_BYTES) return;
-    (await runWithTimeout((settleWrite: any) => {
-      const writeTransaction = saveConnection.transaction(
-          [TEMPLATE_STORE, METADATA_STORE],
-          "readwrite",
-        ),
+    if (template.bytes > MAX_TEMPLATE_BYTES) return
+    ;(await runWithTimeout((settleWrite: any) => {
+      const writeTransaction = saveConnection.transaction([TEMPLATE_STORE, METADATA_STORE], 'readwrite'),
         templateStore = writeTransaction.objectStore(TEMPLATE_STORE),
-        metadataStore = writeTransaction.objectStore(METADATA_STORE);
-      ((writeTransaction.oncomplete = () => settleWrite(true)),
+        metadataStore = writeTransaction.objectStore(METADATA_STORE)
+      ;(writeTransaction.oncomplete = () => settleWrite(true)),
         (writeTransaction.onabort = writeTransaction.onerror = () => settleWrite(false)),
         templateStore.put({
           key: saveKey,
@@ -167,27 +156,27 @@ export function createModelPersistentCache({
           key: saveKey,
           bytes: template.bytes,
           created: Date.now(),
-        }));
-      const getAllRequest = metadataStore.getAll();
+        })
+      const getAllRequest = metadataStore.getAll()
       getAllRequest.onsuccess = () => {
-        const metadataRecords = getAllRequest.result;
-        metadataRecords.sort((left: any, right: any) => left.created - right.created);
+        const metadataRecords = getAllRequest.result
+        metadataRecords.sort((left: any, right: any) => left.created - right.created)
         let totalBytes = metadataRecords.reduce(
             (accumulatedBytes: any, metadataRecord: any) => accumulatedBytes + (metadataRecord.bytes || 0),
             0,
           ),
-          recordCount = metadataRecords.length;
+          recordCount = metadataRecords.length
         for (const metadataEntry of metadataRecords) {
-          if (recordCount <= MAX_TEMPLATE_COUNT && totalBytes <= MAX_TOTAL_BYTES) break;
-          (templateStore.delete(metadataEntry.key),
+          if (recordCount <= MAX_TEMPLATE_COUNT && totalBytes <= MAX_TOTAL_BYTES) break
+          templateStore.delete(metadataEntry.key),
             metadataStore.delete(metadataEntry.key),
             recordCount--,
-            (totalBytes -= metadataEntry.bytes || 0));
+            (totalBytes -= metadataEntry.bytes || 0)
         }
-      };
+      }
     }))
-      ? (stats.writes++, log("stored"))
-      : ((isDisabled = true), noteFallback());
+      ? (stats.writes++, log('stored'))
+      : ((isDisabled = true), noteFallback())
   }
   function schedule(scheduleKey: any, scheduledModel: any) {
     isAvailable() &&
@@ -195,29 +184,26 @@ export function createModelPersistentCache({
         () =>
           new Promise((resolveIdle) => {
             const saveScheduledTemplate = () => {
-              saveTemplate(scheduleKey, scheduledModel).catch(noteFallback).finally(resolveIdle);
-            };
+              saveTemplate(scheduleKey, scheduledModel).catch(noteFallback).finally(resolveIdle)
+            }
             env.requestIdleCallback
               ? env.requestIdleCallback(saveScheduledTemplate, {
                   timeout: 3000,
                 })
-              : env.setTimeout(saveScheduledTemplate, 250);
+              : env.setTimeout(saveScheduledTemplate, 250)
           }),
-      ));
+      ))
   }
   function disposeCache() {
-    ((isDisabled = true),
-      cachedConnection?.close(),
-      (cachedConnection = null),
-      (openPromise = null));
+    ;(isDisabled = true), cachedConnection?.close(), (cachedConnection = null), (openPromise = null)
   }
   return (
-    log(isAvailable() ? "enabled" : "unavailable"),
+    log(isAvailable() ? 'enabled' : 'unavailable'),
     isAvailable() && openDatabase(),
     env.addEventListener?.(
-      "pagehide",
+      'pagehide',
       () => {
-        ((isDisabled = true), cachedConnection?.close());
+        ;(isDisabled = true), cachedConnection?.close()
       },
       {
         once: true,
@@ -232,5 +218,5 @@ export function createModelPersistentCache({
       }),
       whenIdle: () => idleQueue,
     }
-  );
+  )
 }

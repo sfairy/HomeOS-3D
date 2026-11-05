@@ -96,11 +96,7 @@ const syncError = ref('')
 // 保存成功标记，用于显示成功提示
 const savedOk = ref(false)
 
-const {
-  refreshRooms,
-  roomsLoading,
-  handleGenerateFromRooms: generateFromRooms,
-} = useSecurityZoneRooms()
+const { refreshRooms, roomsLoading, handleGenerateFromRooms: generateFromRooms } = useSecurityZoneRooms()
 
 // 将任意原始区域对象归一化为带 id/name/zoneType/sensors/roomId 的标准结构
 function normalizeZone(raw) {

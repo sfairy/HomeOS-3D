@@ -13,14 +13,7 @@ export function bindEntitySocketLifecycle(
   ctx: EntitySocketHandlerContext,
   sync: EntitySocketSyncState,
 ): void {
-  const {
-    logger,
-    getInitialStatesWaitMs,
-    getPreloadPromise,
-    refs,
-    track,
-    actions,
-  } = ctx
+  const { logger, getInitialStatesWaitMs, getPreloadPromise, refs, track, actions } = ctx
 
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   /**
@@ -48,8 +41,7 @@ export function bindEntitySocketLifecycle(
    * 本页是否已有一份可信基线：已完成过一次 WS 全量同步（而不是只靠 IndexedDB 缓存 hydrate）。
    * 缓存可能是几小时前的（服务端 since 只回放最近 60s），因此不能凭缓存宣称「已同步」。
    */
-  const hasTrustedBaseline = () =>
-    refs.totalCount.value > 0 && !refs.entitiesCacheHydrated.value
+  const hasTrustedBaseline = () => refs.totalCount.value > 0 && !refs.entitiesCacheHydrated.value
 
   socket.on('connect', () => {
     logger.info('WebSocket 已连接到 HomeOS 后端')
@@ -83,9 +75,7 @@ export function bindEntitySocketLifecycle(
       // 后端 waitForHaEntitySync 最长约 90s；8s 内 REST 常拿到更小的未就绪快照，
       // 与 IndexedDB 缓存冲突并误报「拒绝缩小快照」。有可用缓存时继续等 WS。
       if (refs.totalCount.value > 0 && socket.connected && !refs.entitiesStale.value) {
-        logger.info(
-          `已有 ${refs.totalCount.value} 个实体缓存,继续等待 WebSocket initial_states(跳过过早 REST 回退)`,
-        )
+        logger.info(`已有 ${refs.totalCount.value} 个实体缓存,继续等待 WebSocket initial_states(跳过过早 REST 回退)`)
         return
       }
       const ok = await actions.fetchEntitiesFallback('未收到 initial_states', {

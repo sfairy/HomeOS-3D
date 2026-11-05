@@ -1,9 +1,9 @@
 /** 合并墙带时切分属性数据只需要这三样：原始数组、每顶点分量数、是否归一化。 */
 type SlicedAttribute = {
-  array: { slice: (start: number, end: number) => ArrayLike<number> };
-  itemSize: number;
-  normalized: boolean;
-};
+  array: { slice: (start: number, end: number) => ArrayLike<number> }
+  itemSize: number
+  normalized: boolean
+}
 
 /**
  * 墙面明暗层次的三个系数（冷色 / 暖木两档）。
@@ -13,9 +13,9 @@ type SlicedAttribute = {
  * - `cornerShade`：转角压暗强度，与 0.8.2 专用墙面着色器同一档。
  */
 const WALL_SHADER_TONES = Object.freeze({
-  cool: { rootShade: "0.70", rootAlpha: "0.65", cornerShade: "0.28", cacheKey: "hb-wall-height-gradient-v4" },
-  warm: { rootShade: "0.92", rootAlpha: "0.0", cornerShade: "0.08", cacheKey: "hb-wall-warm-clean-v2" },
-});
+  cool: { rootShade: '0.70', rootAlpha: '0.65', cornerShade: '0.28', cacheKey: 'hb-wall-height-gradient-v4' },
+  warm: { rootShade: '0.92', rootAlpha: '0.0', cornerShade: '0.08', cacheKey: 'hb-wall-warm-clean-v2' },
+})
 
 /**
  * 缺 attribute 时的兜底值。
@@ -28,71 +28,67 @@ function applyWallAttributeDefaults(
   material: { userData: Record<string, unknown>; defaultAttributeValues?: Record<string, number[]> },
   enhance: boolean,
 ) {
-  if (!enhance || material.userData.hbDedicatedWall) return;
+  if (!enhance || material.userData.hbDedicatedWall) return
   material.defaultAttributeValues = {
     ...(material.defaultAttributeValues || {}),
     hbWallHeight: [0],
     hbWallCornerDistance: [100, 100],
-  };
+  }
 }
 
 export function createWallSideMaterial(
   THREE: any,
   materialParams: any,
   enhance = true,
-  wallFeatures = "",
+  wallFeatures = '',
   isWarmWood = false,
 ) {
-  const featureSet = new Set(wallFeatures.split(",")),
+  const featureSet = new Set(wallFeatures.split(',')),
     tone = isWarmWood ? WALL_SHADER_TONES.warm : WALL_SHADER_TONES.cool,
     material =
-      enhance && featureSet.has("shader")
+      enhance && featureSet.has('shader')
         ? createDedicatedWallMaterial(THREE, materialParams, isWarmWood)
-        : new THREE.MeshPhysicalMaterial(materialParams);
-  applyWallAttributeDefaults(material, enhance);
+        : new THREE.MeshPhysicalMaterial(materialParams)
+  applyWallAttributeDefaults(material, enhance)
   return (
-    enhance && featureSet.has("single") && (material.forceSinglePass = true),
-    enhance && featureSet.has("depth") && (material.depthWrite = true),
+    enhance && featureSet.has('single') && (material.forceSinglePass = true),
+    enhance && featureSet.has('depth') && (material.depthWrite = true),
     material.userData.hbDedicatedWall ||
       !enhance ||
       ((material.onBeforeCompile = (shaderObject: any) => {
-        ((shaderObject.vertexShader =
-          "attribute float hbWallHeight; attribute vec2 hbWallCornerDistance;\n" +
-          "varying float vHbWallHeight; varying vec2 vHbWallCornerDistance;\n" +
+        ;(shaderObject.vertexShader =
+          'attribute float hbWallHeight; attribute vec2 hbWallCornerDistance;\n' +
+          'varying float vHbWallHeight; varying vec2 vHbWallCornerDistance;\n' +
           shaderObject.vertexShader),
           (shaderObject.vertexShader = shaderObject.vertexShader.replace(
-            "#include <begin_vertex>",
-            "#include <begin_vertex>\nvHbWallHeight = hbWallHeight;\nvHbWallCornerDistance = hbWallCornerDistance;",
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\nvHbWallHeight = hbWallHeight;\nvHbWallCornerDistance = hbWallCornerDistance;',
           )),
           (shaderObject.fragmentShader =
-            "varying float vHbWallHeight; varying vec2 vHbWallCornerDistance;\n" +
-            shaderObject.fragmentShader),
+            'varying float vHbWallHeight; varying vec2 vHbWallCornerDistance;\n' + shaderObject.fragmentShader),
           (shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
-            "#include <opaque_fragment>",
+            '#include <opaque_fragment>',
 
-
-            "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
+            '\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(' +
               tone.rootShade +
-              ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
+              ', 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * ' +
               tone.rootAlpha +
-              " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>",
+              ' * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>',
           )),
           // 转角压暗：与 0.8.2 专用墙面着色器同一档（冷色 0.28 / 暖木 0.08）。
           // 属性缺失时 `defaultAttributeValues` 给 [100,100] 兜底，等于不压暗。
           (shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
-            "#include <opaque_fragment>",
-            "\n      float wallCornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n" +
-              "      float wallCornerShade = 1.0 - smoothstep(0.0, 0.24, wallCornerDistance);\n" +
-              "      outgoingLight *= 1.0 - " +
+            '#include <opaque_fragment>',
+            '\n      float wallCornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n' +
+              '      float wallCornerShade = 1.0 - smoothstep(0.0, 0.24, wallCornerDistance);\n' +
+              '      outgoingLight *= 1.0 - ' +
               tone.cornerShade +
-              " * wallCornerShade;\n      #include <opaque_fragment>",
-          )));
+              ' * wallCornerShade;\n      #include <opaque_fragment>',
+          ))
       }),
-
-
       (material.customProgramCacheKey = () => tone.cacheKey)),
     material
-  );
+  )
 }
 function createDedicatedWallMaterial(three: any, wallParams: any, isWarmWoodTone = false) {
   const shaderMaterial = new three.ShaderMaterial({
@@ -105,66 +101,60 @@ function createDedicatedWallMaterial(three: any, wallParams: any, isWarmWoodTone
       },
     },
     vertexShader:
-      "\n      attribute float hbWallHeight;\n      attribute vec2 hbWallCornerDistance;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_vertex>\n      void main() {\n        vHbWallHeight = hbWallHeight;\n        vHbWallCornerDistance = hbWallCornerDistance;\n        vHbNormal = normalize(normalMatrix * normal);\n        #include <begin_vertex>\n        #include <project_vertex>\n        #include <clipping_planes_vertex>\n      }",
+      '\n      attribute float hbWallHeight;\n      attribute vec2 hbWallCornerDistance;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_vertex>\n      void main() {\n        vHbWallHeight = hbWallHeight;\n        vHbWallCornerDistance = hbWallCornerDistance;\n        vHbNormal = normalize(normalMatrix * normal);\n        #include <begin_vertex>\n        #include <project_vertex>\n        #include <clipping_planes_vertex>\n      }',
     fragmentShader:
-      "\n      uniform vec3 diffuse;\n      uniform float opacity;\n      uniform mat4 plan2ViewToWorld;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_fragment>\n      void main() {\n        #include <clipping_planes_fragment>\n        // These are closed wall volumes. Their opposite surface would show\n        // its displaced bottom edge through the nearer translucent surface.\n        // Keep the camera-facing surface from either side of the wall.\n        if (!gl_FrontFacing) discard;\n        vec3 normal = normalize(vHbNormal) * (gl_FrontFacing ? 1.0 : -1.0);\n        vec3 worldNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n        float up = worldNormal.y * 0.5 + 0.5;\n        float key = max(dot(worldNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        vec3 outgoingLight = diffuse * " +
+      '\n      uniform vec3 diffuse;\n      uniform float opacity;\n      uniform mat4 plan2ViewToWorld;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_fragment>\n      void main() {\n        #include <clipping_planes_fragment>\n        // These are closed wall volumes. Their opposite surface would show\n        // its displaced bottom edge through the nearer translucent surface.\n        // Keep the camera-facing surface from either side of the wall.\n        if (!gl_FrontFacing) discard;\n        vec3 normal = normalize(vHbNormal) * (gl_FrontFacing ? 1.0 : -1.0);\n        vec3 worldNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n        float up = worldNormal.y * 0.5 + 0.5;\n        float key = max(dot(worldNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        vec3 outgoingLight = diffuse * ' +
       (isWarmWoodTone
-        ? "mix(vec3(0.98, 0.98, 0.97), vec3(1.0), up) * (0.66 + 0.16 * up + 0.10 * key)"
-        : "mix(vec3(0.82, 0.85, 0.91), vec3(1.0), up) * (0.30 + 0.40 * up + 0.18 * key)") +
-      ";\n        outgoingLight += mix(diffuse, sqrt(max(diffuse, vec3(0.0))), 0.6) * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain;\n        // Height changes colour only. Changing coverage as well accentuates\n        // the draw-order boundaries between translucent door/window bands.\n        float wallRootShade = 1.0 - smoothstep(0.0, 0.55, vHbWallHeight);\n        // Retain the wall/light hue with a gentler neutral root tint.\n        outgoingLight *= 1.0 - " +
-      (isWarmWoodTone ? "0.14" : "0.54") +
-      " * wallRootShade;\n        float cornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n        float cornerShade = 1.0 - smoothstep(0.0, 0.24, cornerDistance);\n        outgoingLight *= 1.0 - " +
-      (isWarmWoodTone ? "0.08" : "0.28") +
-      " * cornerShade;\n        gl_FragColor = vec4(outgoingLight, opacity);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+        ? 'mix(vec3(0.98, 0.98, 0.97), vec3(1.0), up) * (0.66 + 0.16 * up + 0.10 * key)'
+        : 'mix(vec3(0.82, 0.85, 0.91), vec3(1.0), up) * (0.30 + 0.40 * up + 0.18 * key)') +
+      ';\n        outgoingLight += mix(diffuse, sqrt(max(diffuse, vec3(0.0))), 0.6) * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain;\n        // Height changes colour only. Changing coverage as well accentuates\n        // the draw-order boundaries between translucent door/window bands.\n        float wallRootShade = 1.0 - smoothstep(0.0, 0.55, vHbWallHeight);\n        // Retain the wall/light hue with a gentler neutral root tint.\n        outgoingLight *= 1.0 - ' +
+      (isWarmWoodTone ? '0.14' : '0.54') +
+      ' * wallRootShade;\n        float cornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n        float cornerShade = 1.0 - smoothstep(0.0, 0.24, cornerDistance);\n        outgoingLight *= 1.0 - ' +
+      (isWarmWoodTone ? '0.08' : '0.28') +
+      ' * cornerShade;\n        gl_FragColor = vec4(outgoingLight, opacity);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }',
     transparent: wallParams.transparent,
     depthWrite: wallParams.depthWrite ?? true,
     depthFunc: wallParams.depthFunc ?? three.LessEqualDepth,
     side: three.FrontSide,
     forceSinglePass: false,
-  });
+  })
   return (
     (shaderMaterial.color = new three.Color(wallParams.color)),
     (shaderMaterial.opacity = wallParams.opacity),
     (shaderMaterial.userData.hbDedicatedWall = true),
     (shaderMaterial.defaultAttributeValues.hbWallCornerDistance = [100, 100]),
     (shaderMaterial.customProgramCacheKey = () =>
-      isWarmWoodTone
-        ? "hb-dedicated-wall-warm-clean-v1"
-        : "hb-dedicated-wall-front-corner-balanced-v9"),
+      isWarmWoodTone ? 'hb-dedicated-wall-warm-clean-v1' : 'hb-dedicated-wall-front-corner-balanced-v9'),
     shaderMaterial
-  );
+  )
 }
 export function setWallCornerDistances(threeAttributeApi: any, geometry: any, loops: any) {
-  const edgeSegments: any[] = [];
+  const edgeSegments: any[] = []
   for (const loop of loops) {
     let vertices = loop.filter(
       (point: any, pointIndex: any) =>
-        !pointIndex ||
-        Math.hypot(point.x - loop[pointIndex - 1].x, point.y - loop[pointIndex - 1].y) > 1e-7,
-    );
-    (vertices.length > 1 &&
+        !pointIndex || Math.hypot(point.x - loop[pointIndex - 1].x, point.y - loop[pointIndex - 1].y) > 1e-7,
+    )
+    vertices.length > 1 &&
       Math.hypot(vertices[0].x - vertices.at(-1).x, vertices[0].y - vertices.at(-1).y) < 1e-7 &&
       (vertices = vertices.slice(0, -1)),
       (vertices = vertices.filter((currentVertex: any, vertexIndex: any, vertexList: any) => {
-        const previousVertex =
-            vertexList[(vertexIndex + vertexList.length - 1) % vertexList.length],
+        const previousVertex = vertexList[(vertexIndex + vertexList.length - 1) % vertexList.length],
           nextVertex = vertexList[(vertexIndex + 1) % vertexList.length],
           edgeToCurrentX = currentVertex.x - previousVertex.x,
           edgeToCurrentY = currentVertex.y - previousVertex.y,
           edgeToNextX = nextVertex.x - currentVertex.x,
-          edgeToNextY = nextVertex.y - currentVertex.y;
+          edgeToNextY = nextVertex.y - currentVertex.y
         return (
           edgeToCurrentX * edgeToNextX + edgeToCurrentY * edgeToNextY <= 0 ||
           Math.abs(edgeToCurrentX * edgeToNextY - edgeToCurrentY * edgeToNextX) >
-            0.000001 *
-              Math.hypot(edgeToCurrentX, edgeToCurrentY) *
-              Math.hypot(edgeToNextX, edgeToNextY)
-        );
-      })));
+            0.000001 * Math.hypot(edgeToCurrentX, edgeToCurrentY) * Math.hypot(edgeToNextX, edgeToNextY)
+        )
+      }))
     for (let loopIndex = 0; loopIndex < vertices.length; loopIndex++) {
       const vertex = vertices[loopIndex],
         followingVertex = vertices[(loopIndex + 1) % vertices.length],
-        edgeLength = Math.hypot(followingVertex.x - vertex.x, followingVertex.y - vertex.y);
+        edgeLength = Math.hypot(followingVertex.x - vertex.x, followingVertex.y - vertex.y)
       edgeLength > 1e-7 &&
         edgeSegments.push({
           x: vertex.x,
@@ -172,15 +162,15 @@ export function setWallCornerDistances(threeAttributeApi: any, geometry: any, lo
           tx: (followingVertex.x - vertex.x) / edgeLength,
           ty: (followingVertex.y - vertex.y) / edgeLength,
           length: edgeLength,
-        });
+        })
     }
   }
   const positionAttribute = geometry.attributes.position,
     normalAttribute = geometry.attributes.normal,
-    cornerDistanceBuffer = new Float32Array(positionAttribute.count * 2).fill(100);
+    cornerDistanceBuffer = new Float32Array(positionAttribute.count * 2).fill(100)
   for (let vertexCursor = 0; vertexCursor < positionAttribute.count; vertexCursor++) {
-    if (!normalAttribute || Math.abs(normalAttribute.getZ(vertexCursor)) > 0.5) continue;
-    let bestDistance = Infinity;
+    if (!normalAttribute || Math.abs(normalAttribute.getZ(vertexCursor)) > 0.5) continue
+    let bestDistance = Infinity
     for (const edge of edgeSegments) {
       const offsetX = positionAttribute.getX(vertexCursor) - edge.x,
         offsetY = positionAttribute.getY(vertexCursor) - edge.y,
@@ -188,26 +178,19 @@ export function setWallCornerDistances(threeAttributeApi: any, geometry: any, lo
         distanceScore =
           Math.abs(offsetX * edge.ty - offsetY * edge.tx) +
           Math.max(-alongEdge, 0, alongEdge - edge.length) +
-          Math.abs(
-            normalAttribute.getX(vertexCursor) * edge.tx +
-              normalAttribute.getY(vertexCursor) * edge.ty,
-          );
+          Math.abs(normalAttribute.getX(vertexCursor) * edge.tx + normalAttribute.getY(vertexCursor) * edge.ty)
       distanceScore < bestDistance &&
         ((bestDistance = distanceScore),
         (cornerDistanceBuffer[vertexCursor * 2] = Math.max(0, Math.min(edge.length, alongEdge))),
-        (cornerDistanceBuffer[vertexCursor * 2 + 1] =
-          edge.length - cornerDistanceBuffer[vertexCursor * 2]));
+        (cornerDistanceBuffer[vertexCursor * 2 + 1] = edge.length - cornerDistanceBuffer[vertexCursor * 2]))
     }
   }
-  geometry.setAttribute(
-    "hbWallCornerDistance",
-    new threeAttributeApi.BufferAttribute(cornerDistanceBuffer, 2),
-  );
+  geometry.setAttribute('hbWallCornerDistance', new threeAttributeApi.BufferAttribute(cornerDistanceBuffer, 2))
 }
 export function mergeWallBands(threeApi: any, wallBandNode: any, mergeGeometries: any) {
-  const meshesBySignature = new Map();
+  const meshesBySignature = new Map()
   for (const bandMesh of wallBandNode.children) {
-    if (!bandMesh.userData.hbMergeWallBand || !Array.isArray(bandMesh.material)) continue;
+    if (!bandMesh.userData.hbMergeWallBand || !Array.isArray(bandMesh.material)) continue
     const bandMaterial = bandMesh.material[1],
       materialSignature = JSON.stringify([
         bandMaterial.type,
@@ -222,26 +205,22 @@ export function mergeWallBands(threeApi: any, wallBandNode: any, mergeGeometries
         bandMesh.castShadow,
         bandMesh.receiveShadow,
         bandMesh.renderOrder,
-      ]);
-    (meshesBySignature.has(materialSignature) || meshesBySignature.set(materialSignature, []),
-      meshesBySignature.get(materialSignature).push(bandMesh));
+      ])
+    meshesBySignature.has(materialSignature) || meshesBySignature.set(materialSignature, []),
+      meshesBySignature.get(materialSignature).push(bandMesh)
   }
   for (const bandMeshGroup of meshesBySignature.values()) {
-    if (bandMeshGroup.length < 2) continue;
-    const geometryParts: any[] = [];
+    if (bandMeshGroup.length < 2) continue
+    const geometryParts: any[] = []
     for (const sourceMesh of bandMeshGroup) {
-      sourceMesh.updateMatrix();
-      const nonIndexedGeometry = sourceMesh.geometry.index
-        ? sourceMesh.geometry.toNonIndexed()
-        : sourceMesh.geometry;
+      sourceMesh.updateMatrix()
+      const nonIndexedGeometry = sourceMesh.geometry.index ? sourceMesh.geometry.toNonIndexed() : sourceMesh.geometry
       for (const geometryGroup of nonIndexedGeometry.groups.filter(
         (groupEntry: any) => groupEntry.materialIndex === 1,
       )) {
-        const sliceGeometry = new threeApi.BufferGeometry();
-        for (const [attributeName, attributeEntry] of Object.entries(
-          nonIndexedGeometry.attributes,
-        )) {
-          const attribute = attributeEntry as SlicedAttribute;
+        const sliceGeometry = new threeApi.BufferGeometry()
+        for (const [attributeName, attributeEntry] of Object.entries(nonIndexedGeometry.attributes)) {
+          const attribute = attributeEntry as SlicedAttribute
           sliceGeometry.setAttribute(
             attributeName,
             new threeApi.BufferAttribute(
@@ -252,135 +231,133 @@ export function mergeWallBands(threeApi: any, wallBandNode: any, mergeGeometries
               attribute.itemSize,
               attribute.normalized,
             ),
-          );
+          )
         }
-        (sliceGeometry.applyMatrix4(sourceMesh.matrix), geometryParts.push(sliceGeometry));
+        sliceGeometry.applyMatrix4(sourceMesh.matrix), geometryParts.push(sliceGeometry)
       }
-      nonIndexedGeometry !== sourceMesh.geometry && nonIndexedGeometry.dispose();
+      nonIndexedGeometry !== sourceMesh.geometry && nonIndexedGeometry.dispose()
     }
-    const mergedGeometry = geometryParts.length ? mergeGeometries(geometryParts, false) : null;
-    for (const partGeometry of geometryParts) partGeometry.dispose();
-    if (!mergedGeometry) continue;
-    (mergedGeometry.computeBoundingBox(), mergedGeometry.computeBoundingSphere());
+    const mergedGeometry = geometryParts.length ? mergeGeometries(geometryParts, false) : null
+    for (const partGeometry of geometryParts) partGeometry.dispose()
+    if (!mergedGeometry) continue
+    mergedGeometry.computeBoundingBox(), mergedGeometry.computeBoundingSphere()
     const representativeMesh = bandMeshGroup[0],
       sharedMaterial = representativeMesh.material[1],
-      mergedMesh = new threeApi.Mesh(mergedGeometry, sharedMaterial);
-    ((mergedMesh.userData = {
+      mergedMesh = new threeApi.Mesh(mergedGeometry, sharedMaterial)
+    ;(mergedMesh.userData = {
       ...representativeMesh.userData,
       hbMergedWallCount: bandMeshGroup.length,
-      regionReceiverKind: "wall",
+      regionReceiverKind: 'wall',
     }),
       (mergedMesh.layers.mask = representativeMesh.layers.mask),
       (mergedMesh.renderOrder = representativeMesh.renderOrder),
       (mergedMesh.castShadow = representativeMesh.castShadow),
-      (mergedMesh.receiveShadow = representativeMesh.receiveShadow));
-    const disposedMaterialSet = new Set();
+      (mergedMesh.receiveShadow = representativeMesh.receiveShadow)
+    const disposedMaterialSet = new Set()
     for (const oldBandMesh of bandMeshGroup) {
-      (wallBandNode.remove(oldBandMesh), oldBandMesh.geometry.dispose());
+      wallBandNode.remove(oldBandMesh), oldBandMesh.geometry.dispose()
       for (const meshMaterial of oldBandMesh.material)
         meshMaterial !== sharedMaterial &&
           !disposedMaterialSet.has(meshMaterial) &&
-          (disposedMaterialSet.add(meshMaterial), meshMaterial.dispose());
+          (disposedMaterialSet.add(meshMaterial), meshMaterial.dispose())
     }
-    wallBandNode.add(mergedMesh);
+    wallBandNode.add(mergedMesh)
   }
 }
-export function setWallGradientHeight(threeModule: any, meshGeometry: any, axis: any, offset: any, scale: any, heightSpan: any) {
+export function setWallGradientHeight(
+  threeModule: any,
+  meshGeometry: any,
+  axis: any,
+  offset: any,
+  scale: any,
+  heightSpan: any,
+) {
   const wallPositionAttribute = meshGeometry.attributes.position,
     heightBuffer = new Float32Array(wallPositionAttribute.count),
-    clampedHeightSpan = Math.max(0.01, heightSpan);
-  for (
-    let heightVertexIndex = 0;
-    heightVertexIndex < wallPositionAttribute.count;
-    heightVertexIndex++
-  ) {
+    clampedHeightSpan = Math.max(0.01, heightSpan)
+  for (let heightVertexIndex = 0; heightVertexIndex < wallPositionAttribute.count; heightVertexIndex++) {
     const axisValue =
-      axis === "z"
-        ? wallPositionAttribute.getZ(heightVertexIndex)
-        : wallPositionAttribute.getY(heightVertexIndex);
-    heightBuffer[heightVertexIndex] = Math.max(
-      0,
-      Math.min(1, (offset + scale * axisValue) / clampedHeightSpan),
-    );
+      axis === 'z' ? wallPositionAttribute.getZ(heightVertexIndex) : wallPositionAttribute.getY(heightVertexIndex)
+    heightBuffer[heightVertexIndex] = Math.max(0, Math.min(1, (offset + scale * axisValue) / clampedHeightSpan))
   }
-  meshGeometry.setAttribute("hbWallHeight", new threeModule.BufferAttribute(heightBuffer, 1));
+  meshGeometry.setAttribute('hbWallHeight', new threeModule.BufferAttribute(heightBuffer, 1))
 }
 
 /** 墙面侧序用到的 three 构造器/常量（只列用到的成员，避免把整包 three 类型引进材质层）。 */
 type WallSideThreeApi = {
-  Vector3: new () => WallSideVector;
-  Vector4: new (x?: number, y?: number, z?: number, w?: number) => WallSideVector;
-  Matrix4: new () => WallSideMatrix;
-  BufferAttribute: new (array: Float32Array | Uint16Array | Uint32Array, itemSize: number) => WallSideIndexAttribute;
-  DynamicDrawUsage: unknown;
-  DoubleSide: number;
-  BackSide: number;
-};
+  Vector3: new () => WallSideVector
+  Vector4: new (x?: number, y?: number, z?: number, w?: number) => WallSideVector
+  Matrix4: new () => WallSideMatrix
+  BufferAttribute: new (array: Float32Array | Uint16Array | Uint32Array, itemSize: number) => WallSideIndexAttribute
+  DynamicDrawUsage: unknown
+  DoubleSide: number
+  BackSide: number
+}
 type WallSideVector = {
-  x: number;
-  y: number;
-  z: number;
-  w: number;
-  fromBufferAttribute(attribute: WallSidePositionAttribute, index: number): WallSideVector;
-  sub(vector: WallSideVector): WallSideVector;
-  cross(vector: WallSideVector): WallSideVector;
-  dot(vector: WallSideVector): number;
-  copy(vector: WallSideVector): WallSideVector;
-  set(x: number, y: number, z: number, w: number): WallSideVector;
-  applyMatrix4(matrix: WallSideMatrix): WallSideVector;
-  multiplyScalar(scale: number): WallSideVector;
-  equals(vector: WallSideVector): boolean;
-};
+  x: number
+  y: number
+  z: number
+  w: number
+  fromBufferAttribute(attribute: WallSidePositionAttribute, index: number): WallSideVector
+  sub(vector: WallSideVector): WallSideVector
+  cross(vector: WallSideVector): WallSideVector
+  dot(vector: WallSideVector): number
+  copy(vector: WallSideVector): WallSideVector
+  set(x: number, y: number, z: number, w: number): WallSideVector
+  applyMatrix4(matrix: WallSideMatrix): WallSideVector
+  multiplyScalar(scale: number): WallSideVector
+  equals(vector: WallSideVector): boolean
+}
 type WallSideMatrix = {
-  elements: ArrayLike<number>;
-  equals(matrix: WallSideMatrix): boolean;
-  copy(matrix: WallSideMatrix): WallSideMatrix;
-  invert(): WallSideMatrix;
-};
+  elements: ArrayLike<number>
+  equals(matrix: WallSideMatrix): boolean
+  copy(matrix: WallSideMatrix): WallSideMatrix
+  invert(): WallSideMatrix
+}
 type WallSideIndexAttribute = {
-  array: Float32Array | Uint16Array | Uint32Array;
-  byteLength: number;
-  needsUpdate: boolean;
-  setUsage(usage: unknown): WallSideIndexAttribute;
-};
+  array: Float32Array | Uint16Array | Uint32Array
+  byteLength: number
+  needsUpdate: boolean
+  setUsage(usage: unknown): WallSideIndexAttribute
+}
 type WallSidePositionAttribute = {
-  count: number;
-  version: number;
-  isInterleavedBufferAttribute?: boolean;
-  getX(index: number): number;
-  getY(index: number): number;
-  getZ(index: number): number;
-};
+  count: number
+  version: number
+  isInterleavedBufferAttribute?: boolean
+  getX(index: number): number
+  getY(index: number): number
+  getZ(index: number): number
+}
 type WallSideCamera = {
-  matrixWorld: WallSideMatrix;
-  projectionMatrixInverse: WallSideMatrix;
-  isOrthographicCamera?: boolean;
-};
+  matrixWorld: WallSideMatrix
+  projectionMatrixInverse: WallSideMatrix
+  isOrthographicCamera?: boolean
+}
 type WallSideSideMaterial = {
-  isMeshPhysicalMaterial?: boolean;
-  transparent?: boolean;
-  normalMap?: unknown;
-  bumpMap?: unknown;
-  displacementMap?: unknown;
-  wireframe?: boolean;
-  side?: number;
-  forceSinglePass?: boolean;
-};
-type WallSideGroup = { materialIndex: number; start: number; count: number };
+  isMeshPhysicalMaterial?: boolean
+  transparent?: boolean
+  normalMap?: unknown
+  bumpMap?: unknown
+  displacementMap?: unknown
+  wireframe?: boolean
+  side?: number
+  forceSinglePass?: boolean
+}
+type WallSideGroup = { materialIndex: number; start: number; count: number }
 type WallSideOrderGeometry = {
-  index: unknown;
-  attributes: { position: WallSidePositionAttribute };
-  groups: WallSideGroup[];
-  drawRange: { start: number; count: number };
-  setIndex(index: unknown): void;
-  addEventListener(type: "dispose", listener: () => void): void;
-  removeEventListener(type: "dispose", listener: () => void): void;
-};
+  index: unknown
+  attributes: { position: WallSidePositionAttribute }
+  groups: WallSideGroup[]
+  drawRange: { start: number; count: number }
+  setIndex(index: unknown): void
+  addEventListener(type: 'dispose', listener: () => void): void
+  removeEventListener(type: 'dispose', listener: () => void): void
+}
 type WallSideOrderMesh = {
-  geometry: WallSideOrderGeometry;
-  material?: WallSideSideMaterial[];
-  userData: Record<string, unknown>;
-  matrixWorld: WallSideMatrix;
+  geometry: WallSideOrderGeometry
+  material?: WallSideSideMaterial[]
+  userData: Record<string, unknown>
+  matrixWorld: WallSideMatrix
   onBeforeRender?: (
     renderer: unknown,
     scene: unknown,
@@ -388,18 +365,18 @@ type WallSideOrderMesh = {
     geometry: WallSideOrderGeometry,
     material: WallSideSideMaterial,
     group?: WallSideGroup,
-  ) => void;
-};
-type WallSideOrderStats = { sorts: number; checks: number; bytes: number };
+  ) => void
+}
+type WallSideOrderStats = { sorts: number; checks: number; bytes: number }
 type WallSideCameraSpace = {
-  world: WallSideMatrix;
-  projection: WallSideMatrix;
-  point: WallSideVector;
-  ready: boolean;
-};
+  world: WallSideMatrix
+  projection: WallSideMatrix
+  point: WallSideVector
+  ready: boolean
+}
 
 /** 相机空间的缓存键：默认就是相机本身（上游 `M2` 的同义实现）。 */
-const wallSideCameraSpaces = new WeakMap<object, WallSideCameraSpace>();
+const wallSideCameraSpaces = new WeakMap<object, WallSideCameraSpace>()
 
 /**
  * 墙面侧序（0.8.1 `prepareWallSideOrder`）。
@@ -420,16 +397,13 @@ const wallSideCameraSpaces = new WeakMap<object, WallSideCameraSpace>();
 export function prepareWallSideOrder(
   threeApi: WallSideThreeApi,
   mesh: WallSideOrderMesh,
-  sorter: (
-    mesh: WallSideOrderMesh,
-    camera: WallSideCamera,
-    renderer: unknown,
-  ) => WallSideCamera = (_mesh, camera) => camera,
+  sorter: (mesh: WallSideOrderMesh, camera: WallSideCamera, renderer: unknown) => WallSideCamera = (_mesh, camera) =>
+    camera,
 ): WallSideOrderStats | null {
   const geometry = mesh.geometry,
     sideMaterial = mesh.material?.[1],
     positionAttribute = geometry?.attributes?.position,
-    sideGroup = geometry?.groups?.find((group) => group.materialIndex === 1);
+    sideGroup = geometry?.groups?.find((group) => group.materialIndex === 1)
   if (
     !mesh.userData.hbMergeWallBand ||
     !sideMaterial?.isMeshPhysicalMaterial ||
@@ -444,37 +418,35 @@ export function prepareWallSideOrder(
     sideGroup.count % 3 ||
     sideGroup.start + sideGroup.count > positionAttribute.count
   )
-    return null;
+    return null
   const positionVersion = positionAttribute.version,
     triangleCount = sideGroup.count / 3,
     groupStart = sideGroup.start,
-    groupEnd = groupStart + sideGroup.count;
+    groupEnd = groupStart + sideGroup.count
   let planeCoefficients = new Float64Array(triangleCount * 4),
-    frontFacing = new Uint8Array(triangleCount);
+    frontFacing = new Uint8Array(triangleCount)
   const firstCorner = new threeApi.Vector3(),
     edgeA = new threeApi.Vector3(),
-    edgeB = new threeApi.Vector3();
+    edgeB = new threeApi.Vector3()
   for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
     const vertexStart = groupStart + triangleIndex * 3,
-      coefficientStart = triangleIndex * 4;
-    (firstCorner.fromBufferAttribute(positionAttribute, vertexStart),
+      coefficientStart = triangleIndex * 4
+    firstCorner.fromBufferAttribute(positionAttribute, vertexStart),
       edgeA.fromBufferAttribute(positionAttribute, vertexStart + 1).sub(firstCorner),
       edgeB.fromBufferAttribute(positionAttribute, vertexStart + 2).sub(firstCorner),
       edgeA.cross(edgeB),
       (planeCoefficients[coefficientStart] = edgeA.x),
       (planeCoefficients[coefficientStart + 1] = edgeA.y),
       (planeCoefficients[coefficientStart + 2] = edgeA.z),
-      (planeCoefficients[coefficientStart + 3] = -edgeA.dot(firstCorner)));
+      (planeCoefficients[coefficientStart + 3] = -edgeA.dot(firstCorner))
   }
   const indexArray =
-      positionAttribute.count > 65535
-        ? new Uint32Array(positionAttribute.count)
-        : new Uint16Array(positionAttribute.count);
-  for (let index = 0; index < indexArray.length; index++) indexArray[index] = index;
-  const indexAttribute = new threeApi.BufferAttribute(indexArray, 1).setUsage(
-    threeApi.DynamicDrawUsage,
-  );
-  geometry.setIndex(indexAttribute);
+    positionAttribute.count > 65535
+      ? new Uint32Array(positionAttribute.count)
+      : new Uint16Array(positionAttribute.count)
+  for (let index = 0; index < indexArray.length; index++) indexArray[index] = index
+  const indexAttribute = new threeApi.BufferAttribute(indexArray, 1).setUsage(threeApi.DynamicDrawUsage)
+  geometry.setIndex(indexAttribute)
   const previousOnBeforeRender = mesh.onBeforeRender,
     worldToLocal = new threeApi.Matrix4(),
     cameraPoint = new threeApi.Vector4(1 / 0, 1 / 0, 1 / 0, 1 / 0),
@@ -483,17 +455,17 @@ export function prepareWallSideOrder(
       sorts: 0,
       checks: 0,
       bytes: indexArray.byteLength + planeCoefficients.byteLength + frontFacing.byteLength,
-    };
+    }
   let firstRun = true,
     reordered = false,
-    disposed = false;
+    disposed = false
 
   function restoreOrder(material: WallSideSideMaterial) {
     if (((material.forceSinglePass = false), reordered)) {
-      for (let index = groupStart; index < groupEnd; index++) indexArray[index] = index;
-      indexAttribute.needsUpdate = true;
+      for (let index = groupStart; index < groupEnd; index++) indexArray[index] = index
+      indexAttribute.needsUpdate = true
     }
-    ((reordered = false), (firstRun = true));
+    ;(reordered = false), (firstRun = true)
   }
 
   function handleBeforeRender(
@@ -505,8 +477,8 @@ export function prepareWallSideOrder(
     material: WallSideSideMaterial,
     group?: WallSideGroup,
   ) {
-    previousOnBeforeRender?.call(mesh, renderer, scene, camera, renderedGeometry, material, group);
-    if (disposed || group?.materialIndex !== 1) return;
+    previousOnBeforeRender?.call(mesh, renderer, scene, camera, renderedGeometry, material, group)
+    if (disposed || group?.materialIndex !== 1) return
     if (
       renderedGeometry !== geometry ||
       geometry.index !== indexAttribute ||
@@ -524,26 +496,26 @@ export function prepareWallSideOrder(
       material.wireframe ||
       (material.side !== threeApi.DoubleSide && material.side !== threeApi.BackSide)
     ) {
-      restoreOrder(material);
-      return;
+      restoreOrder(material)
+      return
     }
-    const cameraSpaceKey = sorter(mesh, camera, renderer);
-    let cameraSpace = wallSideCameraSpaces.get(cameraSpaceKey);
+    const cameraSpaceKey = sorter(mesh, camera, renderer)
+    let cameraSpace = wallSideCameraSpaces.get(cameraSpaceKey)
     if (!cameraSpace) {
-      ((cameraSpace = {
+      ;(cameraSpace = {
         world: new threeApi.Matrix4(),
         projection: new threeApi.Matrix4(),
         point: new threeApi.Vector4(),
         ready: false,
       }),
-        wallSideCameraSpaces.set(cameraSpaceKey, cameraSpace));
+        wallSideCameraSpaces.set(cameraSpaceKey, cameraSpace)
     }
     if (
       !cameraSpace.ready ||
       !cameraSpace.world.equals(cameraSpaceKey.matrixWorld) ||
       !cameraSpace.projection.equals(cameraSpaceKey.projectionMatrixInverse)
     ) {
-      (cameraSpace.world.copy(cameraSpaceKey.matrixWorld),
+      cameraSpace.world.copy(cameraSpaceKey.matrixWorld),
         cameraSpace.projection.copy(cameraSpaceKey.projectionMatrixInverse),
         (cameraSpace.ready = true),
         cameraSpace.point
@@ -552,25 +524,23 @@ export function prepareWallSideOrder(
           .applyMatrix4(cameraSpaceKey.matrixWorld),
         cameraSpaceKey.isOrthographicCamera
           ? cameraSpace.point.multiplyScalar(-1)
-          : cameraSpace.point.w && cameraSpace.point.multiplyScalar(1 / cameraSpace.point.w));
+          : cameraSpace.point.w && cameraSpace.point.multiplyScalar(1 / cameraSpace.point.w)
     }
-    cameraPoint
-      .copy(cameraSpace.point)
-      .applyMatrix4(worldToLocal.copy(mesh.matrixWorld).invert());
+    cameraPoint.copy(cameraSpace.point).applyMatrix4(worldToLocal.copy(mesh.matrixWorld).invert())
     if (
       !Number.isFinite(cameraPoint.x) ||
       !Number.isFinite(cameraPoint.y) ||
       !Number.isFinite(cameraPoint.z) ||
       !Number.isFinite(cameraPoint.w)
     ) {
-      restoreOrder(material);
-      return;
+      restoreOrder(material)
+      return
     }
     if (((material.forceSinglePass = true), (reordered = true), !firstRun && lastCameraPoint.equals(cameraPoint)))
-      return;
-    (lastCameraPoint.copy(cameraPoint), stats.checks++);
+      return
+    lastCameraPoint.copy(cameraPoint), stats.checks++
     let facingChanged = firstRun,
-      backFacingCount = 0;
+      backFacingCount = 0
     for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
       const coefficientStart = triangleIndex * 4,
         isFrontFacing =
@@ -580,36 +550,34 @@ export function prepareWallSideOrder(
             planeCoefficients[coefficientStart + 3] * cameraPoint.w >
           0
             ? 1
-            : 0;
-      (isFrontFacing !== frontFacing[triangleIndex] && (facingChanged = true),
+            : 0
+      isFrontFacing !== frontFacing[triangleIndex] && (facingChanged = true),
         (frontFacing[triangleIndex] = isFrontFacing),
-        isFrontFacing || backFacingCount++);
+        isFrontFacing || backFacingCount++
     }
-    if (((firstRun = false), !facingChanged)) return;
+    if (((firstRun = false), !facingChanged)) return
     let backWrite = groupStart,
-      frontWrite = groupStart + backFacingCount * 3;
+      frontWrite = groupStart + backFacingCount * 3
     for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++) {
-      let writeIndex = frontFacing[triangleIndex] ? frontWrite : backWrite;
-      const sourceIndex = groupStart + triangleIndex * 3;
-      ((indexArray[writeIndex++] = sourceIndex),
+      let writeIndex = frontFacing[triangleIndex] ? frontWrite : backWrite
+      const sourceIndex = groupStart + triangleIndex * 3
+      ;(indexArray[writeIndex++] = sourceIndex),
         (indexArray[writeIndex++] = sourceIndex + 1),
         (indexArray[writeIndex] = sourceIndex + 2),
-        frontFacing[triangleIndex] ? (frontWrite += 3) : (backWrite += 3));
+        frontFacing[triangleIndex] ? (frontWrite += 3) : (backWrite += 3)
     }
-    ((indexAttribute.needsUpdate = true), stats.sorts++);
+    ;(indexAttribute.needsUpdate = true), stats.sorts++
   }
 
   function handleDispose() {
-    ((disposed = true),
-      mesh.onBeforeRender === handleBeforeRender &&
-        (mesh.onBeforeRender = previousOnBeforeRender),
-      geometry.removeEventListener("dispose", handleDispose),
+    ;(disposed = true),
+      mesh.onBeforeRender === handleBeforeRender && (mesh.onBeforeRender = previousOnBeforeRender),
+      geometry.removeEventListener('dispose', handleDispose),
       sideMaterial && (sideMaterial.forceSinglePass = false),
       (planeCoefficients = new Float64Array(0)),
-      (frontFacing = new Uint8Array(0)));
+      (frontFacing = new Uint8Array(0))
   }
 
-  ((mesh.onBeforeRender = handleBeforeRender),
-    geometry.addEventListener("dispose", handleDispose));
-  return stats;
+  ;(mesh.onBeforeRender = handleBeforeRender), geometry.addEventListener('dispose', handleDispose)
+  return stats
 }

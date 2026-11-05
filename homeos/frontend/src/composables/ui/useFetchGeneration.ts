@@ -28,9 +28,7 @@ export function useFetchGeneration() {
    * @param fn - 原始异步（或同步）函数
    * @returns 包装后的函数，返回 { stale, result }；stale 为 true 表示结果已过期（result 为 undefined）
    */
-  function withGeneration<TArgs extends unknown[], TResult>(
-    fn: (...args: TArgs) => Promise<TResult> | TResult,
-  ) {
+  function withGeneration<TArgs extends unknown[], TResult>(fn: (...args: TArgs) => Promise<TResult> | TResult) {
     const token = bumpGeneration()
     return async (...args: TArgs) => {
       const result = await fn(...args)

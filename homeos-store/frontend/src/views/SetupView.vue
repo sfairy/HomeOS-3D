@@ -115,20 +115,22 @@ onMounted(() => {
   }
   // 兜底：守卫没跑或没拿到快照（老入口 / 直接调用）时补一次探测。正常情况下这里不再发请求。
   if (!snapshot) {
-    void probeSetupStatus(fragmentToken, { force: true }).then((next) => {
-      state.value = next.state;
-      requiresToken.value = next.requiresToken;
-      statusHint.value = next.hint;
-      statusError.value = next.error;
-      if (next.state === "initialized") {
-        showRedirect.value = true;
-        window.setTimeout(() => {
-          window.location.replace("/admin");
-        }, 800);
-      }
-    }).catch((error) => {
-      reportBestEffort("初始化状态 /setup/status", error);
-    });
+    void probeSetupStatus(fragmentToken, { force: true })
+      .then((next) => {
+        state.value = next.state;
+        requiresToken.value = next.requiresToken;
+        statusHint.value = next.hint;
+        statusError.value = next.error;
+        if (next.state === "initialized") {
+          showRedirect.value = true;
+          window.setTimeout(() => {
+            window.location.replace("/admin");
+          }, 800);
+        }
+      })
+      .catch((error) => {
+        reportBestEffort("初始化状态 /setup/status", error);
+      });
   }
 });
 

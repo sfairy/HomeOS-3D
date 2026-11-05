@@ -107,11 +107,7 @@ let observer = null
 
 // 仅在启用拉流、可见且占用前 N 个槽位之一时才真正挂载实时流
 const active = computed(
-  () =>
-    props.streamsEnabled &&
-    visible.value &&
-    props.activeSlot >= 0 &&
-    props.activeSlot < GRID_MAX_ACTIVE,
+  () => props.streamsEnabled && visible.value && props.activeSlot >= 0 && props.activeSlot < GRID_MAX_ACTIVE,
 )
 const entity = computed(() => {
   // 读取 camera 域 epoch 以建立依赖，实体更新时触发重新计算

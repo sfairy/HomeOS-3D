@@ -9,11 +9,7 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (!value) return false
 
   // 1) 安全上下文下优先使用原生 Clipboard API
-  if (
-    typeof navigator !== 'undefined' &&
-    navigator.clipboard?.writeText &&
-    window.isSecureContext
-  ) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(value)
       return true

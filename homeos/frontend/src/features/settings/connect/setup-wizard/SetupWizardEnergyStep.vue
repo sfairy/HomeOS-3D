@@ -16,11 +16,7 @@ import { Gauge, GitBranch, Zap, CalendarDays, CalendarRange, AlertTriangle, Info
 import EntityInput from '@/components/common/entity-input/EntityInput.vue'
 import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
-import {
-  ENERGY_GRAIN_LABELS,
-  ENERGY_SCOPE_OPTIONS,
-  resolveEnergyScopeOption,
-} from './energy-scope.options'
+import { ENERGY_GRAIN_LABELS, ENERGY_SCOPE_OPTIONS, resolveEnergyScopeOption } from './energy-scope.options'
 
 const meterEntityId = defineModel('meterEntityId', { type: String, default: '' })
 const mainPowerEntityId = defineModel('mainPowerEntityId', { type: String, default: '' })
@@ -36,11 +32,7 @@ const props = defineProps({
   /** 用户手动改过口径后，父级不再自动建议 */
   scopeTouched: { type: Boolean, default: false },
 })
-const emit = defineEmits([
-  'update:meterScope',
-  'touched-scope',
-  'suggest-scope',
-])
+const emit = defineEmits(['update:meterScope', 'touched-scope', 'suggest-scope'])
 
 const circuitEntityIdsList = computed({
   get: () => parseCommaEntityIds(circuitEntityIds.value),
@@ -102,7 +94,7 @@ const grainRows = computed(() => {
   const direct = new Set(scopeOption.value.directGrains)
   if (monthMeterEntityId.value.trim()) direct.add('month')
   if (dayMeterEntityId.value.trim()) direct.add('day')
-  return (['day', 'month', 'year']).map((grain) => ({
+  return ['day', 'month', 'year'].map((grain) => ({
     grain,
     label: ENERGY_GRAIN_LABELS[grain],
     state: direct.has(grain) ? 'direct' : 'derived',

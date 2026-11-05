@@ -22,10 +22,7 @@ export function notifyError(error: unknown, context?: string, options: NotifyOpt
   const message = extractErrorMessage(error)
   const traceId = extractTraceIdFromError(error as Parameters<typeof extractTraceIdFromError>[0])
   const traceSuffix = traceId ? `（Trace: ${traceId.slice(0, 8)}）` : ''
-  const display =
-    context === ''
-      ? `${message}${traceSuffix}`
-      : `${context || '操作'}失败：${message}${traceSuffix}`
+  const display = context === '' ? `${message}${traceSuffix}` : `${context || '操作'}失败：${message}${traceSuffix}`
 
   if (log) {
     logger.error(context || '操作', error)

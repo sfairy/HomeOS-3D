@@ -6,10 +6,7 @@
 
 import { computed, nextTick, reactive, ref, type Ref } from 'vue'
 import { sceneEntityIdFromRecord, scriptEntityIdFromRecord } from '@/shared/utils/ha/scene-script.util'
-import {
-  useHomeModeItemExpansion,
-  useHomeModeItemFocus,
-} from './editor-expansion.internals'
+import { useHomeModeItemExpansion, useHomeModeItemFocus } from './editor-expansion.internals'
 
 interface HomeModeActionDraft {
   kind?: string
@@ -33,26 +30,15 @@ interface HomeModeActionsSectionProps {
   actionFocusIndex: number | null
 }
 
-export function useHomeModeActionsSection(
-  activeDraft: Ref<HomeModeActionsDraft>,
-  props: HomeModeActionsSectionProps,
-) {
+export function useHomeModeActionsSection(activeDraft: Ref<HomeModeActionsDraft>, props: HomeModeActionsSectionProps) {
   const dragIndex = ref<number | null>(null)
   const dragOverIndex = ref<number | null>(null)
   const advancedMap = reactive<Record<number, boolean>>({})
   const skipDomainCascade = ref(false)
 
   const actionCount = computed(() => activeDraft.value?.actions?.length ?? 0)
-  const {
-    isCompact,
-    expandedAll,
-    activeTabIndex,
-    selectItem,
-    focusItem,
-    expandAll,
-    collapseAll,
-    syncIndexAfterMove,
-  } = useHomeModeItemExpansion(actionCount)
+  const { isCompact, expandedAll, activeTabIndex, selectItem, focusItem, expandAll, collapseAll, syncIndexAfterMove } =
+    useHomeModeItemExpansion(actionCount)
 
   const cardRefs = ref<Record<number, HTMLElement>>({})
 
@@ -190,11 +176,7 @@ export function useHomeModeActionsSection(
   }
 
   function onDragEnd() {
-    if (
-      dragIndex.value !== null &&
-      dragOverIndex.value !== null &&
-      dragIndex.value !== dragOverIndex.value
-    ) {
+    if (dragIndex.value !== null && dragOverIndex.value !== null && dragIndex.value !== dragOverIndex.value) {
       const from = dragIndex.value
       const actions = activeDraft.value.actions
       if (!actions) return

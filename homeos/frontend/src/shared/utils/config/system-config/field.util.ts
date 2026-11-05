@@ -76,11 +76,7 @@ export function inferSystemConfigFieldType(value: unknown, key = '') {
   return 'string'
 }
 
-export function systemConfigFieldMatchesQuery(
-  field: Pick<EditableConfigField, 'key'>,
-  q: string,
-  sectionKey: string,
-) {
+export function systemConfigFieldMatchesQuery(field: Pick<EditableConfigField, 'key'>, q: string, sectionKey: string) {
   const label = resolveSystemConfigFieldLabel(field.key, sectionKey)
   return (
     field.key.toLowerCase().includes(q) ||

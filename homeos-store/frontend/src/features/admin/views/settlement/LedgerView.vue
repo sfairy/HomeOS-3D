@@ -45,9 +45,7 @@ const table = ref<InstanceType<typeof DataTable> | null>(null);
 const accountId = ref(String(route.query.account_id || ""));
 const kind = ref("");
 const kinds = ref<LedgerKind[]>([]);
-const kindLabels = computed(() =>
-  Object.fromEntries(kinds.value.map((item) => [item.value, item.label])),
-);
+const kindLabels = computed(() => Object.fromEntries(kinds.value.map((item) => [item.value, item.label])));
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};

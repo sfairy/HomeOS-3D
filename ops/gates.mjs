@@ -39,25 +39,25 @@
  * HOMEOS_GATE_CONTEXT=ci bun run gate:infra   # CI 上下文：ciOnly 步骤参与、缺工具即失败
  * ```
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import process from 'node:process';
+import { spawnSync } from 'node:child_process'
+import { existsSync, rmSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import process from 'node:process'
 
-const REPO_ROOT = path.resolve(import.meta.dirname, '..');
-const CONTEXT = process.env.HOMEOS_GATE_CONTEXT === 'ci' ? 'ci' : 'local';
-const IS_CI = CONTEXT === 'ci';
+const REPO_ROOT = path.resolve(import.meta.dirname, '..')
+const CONTEXT = process.env.HOMEOS_GATE_CONTEXT === 'ci' ? 'ci' : 'local'
+const IS_CI = CONTEXT === 'ci'
 
 /**
  * 「可选：内置 Caddy 入口」段的临时产物。路径显式传给 op/ci/compose_public.py 的 --out，
  * 后面两个 docker 步骤读同一个文件 —— 三处各写一个字面量就会有一处漂移（Windows 上还没有
  * /tmp）。用 os.tmpdir() 与 Python 侧 tempfile.gettempdir() 同源。
  */
-const COMPOSE_PUBLIC_PATH = path.join(os.tmpdir(), 'compose-public.yml');
+const COMPOSE_PUBLIC_PATH = path.join(os.tmpdir(), 'compose-public.yml')
 
 /** `bun run <script>`：门禁命令一律走 package.json，避免编排器里长出第二份实现。 */
-const bun = (...args) => ({ cmd: 'bun', args });
+const bun = (...args) => ({ cmd: 'bun', args })
 
 /**
  * 门禁清单。
@@ -138,10 +138,10 @@ const GATE_GROUPS = {
       // 干净检出的状态必须能复现：本地残留的 dist/ 是「本地绿、CI 红」的经典来源
       // （2026-10-10 的构建锁 ENOENT 就是被它兜住的）。
       fn: () => {
-        const dist = path.join(REPO_ROOT, 'dist');
-        if (existsSync(dist)) rmSync(dist, { recursive: true, force: true });
-        console.log('  已清空 dist/');
-        return 0;
+        const dist = path.join(REPO_ROOT, 'dist')
+        if (existsSync(dist)) rmSync(dist, { recursive: true, force: true })
+        console.log('  已清空 dist/')
+        return 0
       },
     },
     {
@@ -210,26 +210,22 @@ const GATE_GROUPS = {
       // 光「能解析」不够：还要确认 caddy-public 真的落在 services 下（没被顶成顶层键）。
       name: 'compose public: services',
       fn: () => {
-        const result = spawnSync(
-          'docker',
-          ['compose', '-f', COMPOSE_PUBLIC_PATH, 'config', '--services'],
-          {
-            cwd: REPO_ROOT,
-            encoding: 'utf8',
-            env: { ...process.env, ACME_EMAIL: 'ops@example.com' },
-          },
-        );
+        const result = spawnSync('docker', ['compose', '-f', COMPOSE_PUBLIC_PATH, 'config', '--services'], {
+          cwd: REPO_ROOT,
+          encoding: 'utf8',
+          env: { ...process.env, ACME_EMAIL: 'ops@example.com' },
+        })
         if (result.status !== 0) {
-          console.error(result.stderr || 'docker compose config --services 失败');
-          return result.status ?? 1;
+          console.error(result.stderr || 'docker compose config --services 失败')
+          return result.status ?? 1
         }
-        const services = result.stdout.split('\n').map((line) => line.trim());
+        const services = result.stdout.split('\n').map((line) => line.trim())
         if (!services.includes('caddy-public')) {
-          console.error('caddy-public 不在 services 下 —— 取消注释时缩进掉了（被顶成顶层键）。');
-          return 1;
+          console.error('caddy-public 不在 services 下 —— 取消注释时缩进掉了（被顶成顶层键）。')
+          return 1
         }
-        console.log(`  services: ${services.join(', ')}`);
-        return 0;
+        console.log(`  services: ${services.join(', ')}`)
+        return 0
       },
       tools: ['docker'],
       hint: '装 Docker Desktop / colima；CI runner 自带',
@@ -248,41 +244,58 @@ const GATE_GROUPS = {
       ciOnly: true,
     },
   ],
-};
+}
 
-const DEFAULT_GROUPS = ['static', 'test', 'model'];
+const DEFAULT_GROUPS = ['static', 'test', 'model']
 
 /* ------------------------------------------------------------------ *
  * 参数
  * ------------------------------------------------------------------ */
 
 function parseArgs(argv) {
-  const options = { groups: [], all: false, list: false, failFast: false, help: false };
+  const options = { groups: [], all: false, list: false, failFast: false, help: false }
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--list') options.list = true;
-    else if (arg === '--all') options.all = true;
-    else if (arg === '--fail-fast') options.failFast = true;
-    else if (arg === '--help' || arg === '-h') options.help = true;
+    const arg = argv[i]
+    if (arg === '--list') options.list = true
+    else if (arg === '--all') options.all = true
+    else if (arg === '--fail-fast') options.failFast = true
+    else if (arg === '--help' || arg === '-h') options.help = true
     else if (arg === '--group' || arg === '-g' || arg === '--only' || arg === '-o') {
-      const value = argv[i + 1];
-      if (!value) fail(`${arg} 需要一个值`);
-      options.groups.push(...value.split(',').map((item) => item.trim()).filter(Boolean));
-      i += 1;
+      const value = argv[i + 1]
+      if (!value) fail(`${arg} 需要一个值`)
+      options.groups.push(
+        ...value
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+      )
+      i += 1
     } else if (arg.startsWith('--group=')) {
-      options.groups.push(...arg.slice('--group='.length).split(',').map((item) => item.trim()).filter(Boolean));
+      options.groups.push(
+        ...arg
+          .slice('--group='.length)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+      )
     } else if (arg.startsWith('--only=')) {
-      options.groups.push(...arg.slice('--only='.length).split(',').map((item) => item.trim()).filter(Boolean));
+      options.groups.push(
+        ...arg
+          .slice('--only='.length)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+      )
     } else {
-      fail(`未知参数：${arg}`);
+      fail(`未知参数：${arg}`)
     }
   }
-  return options;
+  return options
 }
 
 function fail(message) {
-  console.error(`gates: ${message}`);
-  process.exit(2);
+  console.error(`gates: ${message}`)
+  process.exit(2)
 }
 
 function printHelp() {
@@ -294,7 +307,7 @@ function printHelp() {
 组：${Object.keys(GATE_GROUPS).join(' / ')}
 默认组：${DEFAULT_GROUPS.join(' + ')}
 上下文：HOMEOS_GATE_CONTEXT=ci 时执行 ciOnly 步骤、缺工具即失败（当前：${CONTEXT}）
-`);
+`)
 }
 
 /* ------------------------------------------------------------------ *
@@ -303,134 +316,128 @@ function printHelp() {
 
 /** 工具是否存在：`<tool> --version` 能起来即算（比 which 跨平台更省事）。 */
 function commandExists(command) {
-  const probe = spawnSync(command, ['--version'], { stdio: 'ignore' });
-  return !probe.error;
+  const probe = spawnSync(command, ['--version'], { stdio: 'ignore' })
+  return !probe.error
 }
 
 function runStep(step) {
-  const startedAt = Date.now();
-  const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+  const startedAt = Date.now()
+  const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`
 
   // 1. 缺工具：本机 SKIP（给安装提示），CI FAIL。
   for (const tool of step.tools ?? []) {
-    if (commandExists(tool)) continue;
+    if (commandExists(tool)) continue
     if (IS_CI) {
-      console.error(`  FAIL 缺少工具 \`${tool}\`（CI 上不允许跳过）`);
-      if (step.hint) console.error(`        安装：${step.hint}`);
-      return { status: 'fail', elapsed: elapsed() };
+      console.error(`  FAIL 缺少工具 \`${tool}\`（CI 上不允许跳过）`)
+      if (step.hint) console.error(`        安装：${step.hint}`)
+      return { status: 'fail', elapsed: elapsed() }
     }
-    console.log(`  SKIP 本机没有 \`${tool}\``);
-    if (step.hint) console.log(`        安装后即可纳入本地门禁：${step.hint}`);
-    return { status: 'skip', elapsed: elapsed() };
+    console.log(`  SKIP 本机没有 \`${tool}\``)
+    if (step.hint) console.log(`        安装后即可纳入本地门禁：${step.hint}`)
+    return { status: 'skip', elapsed: elapsed() }
   }
 
   // 2. 只在 CI 执行的步骤（本机缺的是环境，不是能力）。
   if (step.ciOnly && !IS_CI) {
-    console.log('  SKIP 仅 CI 执行（本机缺少该步骤所需的环境）');
-    return { status: 'skip', elapsed: elapsed() };
+    console.log('  SKIP 仅 CI 执行（本机缺少该步骤所需的环境）')
+    return { status: 'skip', elapsed: elapsed() }
   }
 
   // 3. 进程内步骤（清目录、断言产物内容）。
   if (step.fn) {
-    const code = step.fn();
-    return { status: code === 0 ? 'pass' : 'fail', elapsed: elapsed() };
+    const code = step.fn()
+    return { status: code === 0 ? 'pass' : 'fail', elapsed: elapsed() }
   }
 
   const result = spawnSync(step.cmd, step.args, {
     cwd: REPO_ROOT,
     stdio: 'inherit',
     env: { ...process.env, ...(step.env ?? {}) },
-  });
+  })
 
   if (result.error || result.status === null) {
-    const why = result.error ? `${result.error.code ?? ''} ${result.error.message}`.trim() : '被信号中断';
-    console.error(`  无法执行 ${step.cmd}：${why}`);
-    return { status: 'fail', elapsed: elapsed() };
+    const why = result.error ? `${result.error.code ?? ''} ${result.error.message}`.trim() : '被信号中断'
+    console.error(`  无法执行 ${step.cmd}：${why}`)
+    return { status: 'fail', elapsed: elapsed() }
   }
 
   if ((step.skipExitCodes ?? []).includes(result.status)) {
-    console.log(`  SKIP 退出码 ${result.status}（环境不具备，已在脚本里打印原因）`);
-    return { status: 'skip', elapsed: elapsed() };
+    console.log(`  SKIP 退出码 ${result.status}（环境不具备，已在脚本里打印原因）`)
+    return { status: 'skip', elapsed: elapsed() }
   }
 
-  return { status: result.status === 0 ? 'pass' : 'fail', elapsed: elapsed() };
+  return { status: result.status === 0 ? 'pass' : 'fail', elapsed: elapsed() }
 }
 
 function runGroup(group) {
-  const steps = GATE_GROUPS[group];
-  console.log(`\n=== gate:${group}（${steps.length} 项）===`);
+  const steps = GATE_GROUPS[group]
+  console.log(`\n=== gate:${group}（${steps.length} 项）===`)
 
-  const tally = { pass: 0, fail: 0, skip: 0 };
-  const failures = [];
-  const startedAt = Date.now();
+  const tally = { pass: 0, fail: 0, skip: 0 }
+  const failures = []
+  const startedAt = Date.now()
 
   for (const [index, step] of steps.entries()) {
-    console.log(`[${index + 1}/${steps.length}] ${step.name}`);
-    const outcome = runStep(step);
-    tally[outcome.status] += 1;
-    if (outcome.status === 'fail') failures.push(step.name);
-    console.log(`  ${outcome.status.toUpperCase()} ${outcome.elapsed}`);
+    console.log(`[${index + 1}/${steps.length}] ${step.name}`)
+    const outcome = runStep(step)
+    tally[outcome.status] += 1
+    if (outcome.status === 'fail') failures.push(step.name)
+    console.log(`  ${outcome.status.toUpperCase()} ${outcome.elapsed}`)
 
     if (outcome.status === 'fail' && options.failFast) {
-      console.log('  （--fail-fast：本组剩余步骤跳过）');
-      break;
+      console.log('  （--fail-fast：本组剩余步骤跳过）')
+      break
     }
   }
 
-  const total = ((Date.now() - startedAt) / 1000).toFixed(1);
-  console.log(
-    `--- gate:${group}：${tally.pass} PASS / ${tally.fail} FAIL / ${tally.skip} SKIP（${total}）`,
-  );
-  if (failures.length) console.log(`    失败：${failures.join('、')}`);
-  return tally.fail === 0;
+  const total = ((Date.now() - startedAt) / 1000).toFixed(1)
+  console.log(`--- gate:${group}：${tally.pass} PASS / ${tally.fail} FAIL / ${tally.skip} SKIP（${total}）`)
+  if (failures.length) console.log(`    失败：${failures.join('、')}`)
+  return tally.fail === 0
 }
 
 /* ------------------------------------------------------------------ *
  * 入口
  * ------------------------------------------------------------------ */
 
-const options = parseArgs(process.argv.slice(2));
+const options = parseArgs(process.argv.slice(2))
 
 if (options.help) {
-  printHelp();
-  process.exit(0);
+  printHelp()
+  process.exit(0)
 }
 
-const groups = options.all
-  ? Object.keys(GATE_GROUPS)
-  : options.groups.length
-    ? options.groups
-    : DEFAULT_GROUPS;
+const groups = options.all ? Object.keys(GATE_GROUPS) : options.groups.length ? options.groups : DEFAULT_GROUPS
 
 for (const group of groups) {
   if (!GATE_GROUPS[group]) {
-    fail(`未知组：${group}（可选：${Object.keys(GATE_GROUPS).join(' / ')}）`);
+    fail(`未知组：${group}（可选：${Object.keys(GATE_GROUPS).join(' / ')}）`)
   }
 }
 
 if (options.list) {
-  console.log(`上下文：${CONTEXT}`);
+  console.log(`上下文：${CONTEXT}`)
   for (const [group, steps] of Object.entries(GATE_GROUPS)) {
-    console.log(`\n${group}（${steps.length}）`);
+    console.log(`\n${group}（${steps.length}）`)
     for (const step of steps) {
       const marks = [step.ciOnly ? 'CI-only' : '', step.tools?.length ? `需要 ${step.tools.join('/')}` : '']
         .filter(Boolean)
-        .join('，');
-      console.log(`  - ${step.name}${marks ? `  [${marks}]` : ''}`);
+        .join('，')
+      console.log(`  - ${step.name}${marks ? `  [${marks}]` : ''}`)
     }
   }
-  process.exit(0);
+  process.exit(0)
 }
 
-console.log(`gates：上下文=${CONTEXT}，组=${groups.join(' + ')}`);
-const results = groups.map((group) => ({ group, ok: runGroup(group) }));
+console.log(`gates：上下文=${CONTEXT}，组=${groups.join(' + ')}`)
+const results = groups.map((group) => ({ group, ok: runGroup(group) }))
 
-console.log('\n===== 汇总 =====');
-for (const { group, ok } of results) console.log(`  ${ok ? 'PASS' : 'FAIL'}  gate:${group}`);
+console.log('\n===== 汇总 =====')
+for (const { group, ok } of results) console.log(`  ${ok ? 'PASS' : 'FAIL'}  gate:${group}`)
 
-const failed = results.filter((item) => !item.ok);
+const failed = results.filter((item) => !item.ok)
 if (failed.length) {
-  console.error(`\n${failed.length} 个组未通过：${failed.map((item) => item.group).join('、')}`);
-  process.exit(1);
+  console.error(`\n${failed.length} 个组未通过：${failed.map((item) => item.group).join('、')}`)
+  process.exit(1)
 }
-console.log('\n全部门禁通过。');
+console.log('\n全部门禁通过。')

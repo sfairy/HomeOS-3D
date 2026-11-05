@@ -83,8 +83,7 @@ async function ensureAudioContextResumed(ctx: AudioContext): Promise<void> {
 function playArrivalBeep() {
   try {
     const Ctx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!Ctx) return
     const ctx = new Ctx()
     void ensureAudioContextResumed(ctx).then(() => {

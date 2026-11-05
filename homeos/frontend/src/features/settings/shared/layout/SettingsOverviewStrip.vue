@@ -52,9 +52,7 @@ const health = ref<ConfigHealth | null>(null)
 const { checklist } = useSetupChecklist()
 
 /** 最近访问设置面板（最近在前，最多 4 个） */
-const recentTabs = computed(() =>
-  getRecentSettingsTabs(4).filter((id) => TAB_DEEP_LINKS[id]),
-)
+const recentTabs = computed(() => getRecentSettingsTabs(4).filter((id) => TAB_DEEP_LINKS[id]))
 
 function recentTabLink(id: string) {
   return TAB_DEEP_LINKS[id]?.() ?? SETTINGS_ROUTES.general()
@@ -73,9 +71,7 @@ const scoreTone = computed(() => {
   return 'bad'
 })
 
-const pendingChecklist = computed(() =>
-  (checklist.value?.items || []).filter((i) => !i.done).slice(0, 2),
-)
+const pendingChecklist = computed(() => (checklist.value?.items || []).filter((i) => !i.done).slice(0, 2))
 
 const healthHint = computed(() => {
   const h = health.value

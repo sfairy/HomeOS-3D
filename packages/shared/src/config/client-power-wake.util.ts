@@ -1,23 +1,25 @@
 /** - 判定充电器开关由关变开（isSwitchOffToOn，仅认明确 off→on）； */
-import type { ClientPowerSettings } from './client-power';
+import type { ClientPowerSettings } from './client-power'
 
 /** 抽取人来亮屏公开配置时只需 id / 充电器实体 / 开关；其余字段可缺省 */
 export type ClientPowerWakeSourceClient = {
-  id?: string;
-  chargerSwitchEntityId?: string;
-  presenceWakeEnabled?: boolean;
-};
+  id?: string
+  chargerSwitchEntityId?: string
+  presenceWakeEnabled?: boolean
+}
 
 /** 完整 ClientPowerSettings.clients，或仅含唤醒字段的宽松结构 */
-export type ClientPowerWakeSource = Pick<ClientPowerSettings, 'clients'> | {
-  clients?: ClientPowerWakeSourceClient[] | null;
-};
+export type ClientPowerWakeSource =
+  | Pick<ClientPowerSettings, 'clients'>
+  | {
+      clients?: ClientPowerWakeSourceClient[] | null
+    }
 
 /** 公开配置中的人来亮屏绑定（无密钥） */
 export interface ClientPowerWakeClientPublic {
-  id: string;
-  chargerSwitchEntityId: string;
-  presenceWakeEnabled: boolean;
+  id: string
+  chargerSwitchEntityId: string
+  presenceWakeEnabled: boolean
 }
 
 /**
@@ -26,19 +28,18 @@ export interface ClientPowerWakeClientPublic {
  */
 export interface ClientPowerWakePublic {
   /** 客户端人来亮屏绑定列表（空数组表示未配置任何客户端） */
-  clients: ClientPowerWakeClientPublic[];
+  clients: ClientPowerWakeClientPublic[]
 }
 
 function normState(state: string | null | undefined): string {
-  return String(state || '').trim().toLowerCase();
+  return String(state || '')
+    .trim()
+    .toLowerCase()
 }
 
 /** 仅认明确的关 → 开；首次快照 / unavailable / 保持 on 都不算 */
-export function isSwitchOffToOn(
-  oldState: string | null | undefined,
-  newState: string | null | undefined,
-): boolean {
-  return normState(oldState) === 'off' && normState(newState) === 'on';
+export function isSwitchOffToOn(oldState: string | null | undefined, newState: string | null | undefined): boolean {
+  return normState(oldState) === 'off' && normState(newState) === 'on'
 }
 
 /**
@@ -46,12 +47,12 @@ export function isSwitchOffToOn(
  * 开关保持开启时返回 false，空闲超时仍按原逻辑进入屏保。
  */
 export function shouldDismissScreensaverOnChargerSwitch(opts: {
-  screensaverVisible: boolean;
-  oldState?: string | null;
-  newState?: string | null;
+  screensaverVisible: boolean
+  oldState?: string | null
+  newState?: string | null
 }): boolean {
-  if (!opts.screensaverVisible) return false;
-  return isSwitchOffToOn(opts.oldState, opts.newState);
+  if (!opts.screensaverVisible) return false
+  return isSwitchOffToOn(opts.oldState, opts.newState)
 }
 
 /**
@@ -65,19 +66,19 @@ export function shouldDismissScreensaverOnChargerSwitch(opts: {
 export function buildClientPowerWakePublic(
   clientPower: ClientPowerWakeSource | null | undefined,
 ): ClientPowerWakePublic {
-  const clients: ClientPowerWakeClientPublic[] = [];
+  const clients: ClientPowerWakeClientPublic[] = []
   for (const row of clientPower?.clients || []) {
-    const id = String(row?.id || '').trim();
-    const chargerSwitchEntityId = String(row?.chargerSwitchEntityId || '').trim();
-    if (!id || !chargerSwitchEntityId) continue;
-    if (row.presenceWakeEnabled === false) continue;
+    const id = String(row?.id || '').trim()
+    const chargerSwitchEntityId = String(row?.chargerSwitchEntityId || '').trim()
+    if (!id || !chargerSwitchEntityId) continue
+    if (row.presenceWakeEnabled === false) continue
     clients.push({
       id,
       chargerSwitchEntityId,
       presenceWakeEnabled: true,
-    });
+    })
   }
-  return { clients };
+  return { clients }
 }
 
 /**
@@ -88,33 +89,31 @@ export function resolveChargerSwitchWakeEntityId(
   wake: ClientPowerWakePublic | null | undefined,
   clientId: string,
 ): string {
-  const id = String(clientId || '').trim();
-  if (!id) return '';
-  const row = (wake?.clients || []).find((c) => c.id === id);
-  if (!row || row.presenceWakeEnabled === false) return '';
-  return String(row.chargerSwitchEntityId || '').trim();
+  const id = String(clientId || '').trim()
+  if (!id) return ''
+  const row = (wake?.clients || []).find((c) => c.id === id)
+  if (!row || row.presenceWakeEnabled === false) return ''
+  return String(row.chargerSwitchEntityId || '').trim()
 }
 
 /** 本机人来亮屏开关解析结果（精确匹配 / 单机回退 / 未匹配） */
-export type ChargerWakeResolveKind = 'exact' | 'single_client_fallback' | 'unmatched';
+export type ChargerWakeResolveKind = 'exact' | 'single_client_fallback' | 'unmatched'
 
 /** 本机人来亮屏绑定解析：entityId 为空时不应订阅 */
 export interface ChargerWakeResolveResult {
-  entityId: string;
-  kind: ChargerWakeResolveKind;
+  entityId: string
+  kind: ChargerWakeResolveKind
 }
 
-function wakeEnabledClients(
-  wake: ClientPowerWakePublic | null | undefined,
-): ClientPowerWakeClientPublic[] {
-  const out: ClientPowerWakeClientPublic[] = [];
+function wakeEnabledClients(wake: ClientPowerWakePublic | null | undefined): ClientPowerWakeClientPublic[] {
+  const out: ClientPowerWakeClientPublic[] = []
   for (const row of wake?.clients || []) {
-    if (row.presenceWakeEnabled === false) continue;
-    const chargerSwitchEntityId = String(row.chargerSwitchEntityId || '').trim();
-    if (!chargerSwitchEntityId) continue;
-    out.push({ ...row, chargerSwitchEntityId, presenceWakeEnabled: true });
+    if (row.presenceWakeEnabled === false) continue
+    const chargerSwitchEntityId = String(row.chargerSwitchEntityId || '').trim()
+    if (!chargerSwitchEntityId) continue
+    out.push({ ...row, chargerSwitchEntityId, presenceWakeEnabled: true })
   }
-  return out;
+  return out
 }
 
 /**
@@ -126,13 +125,13 @@ export function resolveChargerSwitchWakeForDevice(
   wake: ClientPowerWakePublic | null | undefined,
   clientId: string,
 ): ChargerWakeResolveResult {
-  const exact = resolveChargerSwitchWakeEntityId(wake, clientId);
-  if (exact) return { entityId: exact, kind: 'exact' };
-  const enabled = wakeEnabledClients(wake);
+  const exact = resolveChargerSwitchWakeEntityId(wake, clientId)
+  if (exact) return { entityId: exact, kind: 'exact' }
+  const enabled = wakeEnabledClients(wake)
   if (enabled.length === 1) {
-    return { entityId: enabled[0].chargerSwitchEntityId, kind: 'single_client_fallback' };
+    return { entityId: enabled[0].chargerSwitchEntityId, kind: 'single_client_fallback' }
   }
-  return { entityId: '', kind: 'unmatched' };
+  return { entityId: '', kind: 'unmatched' }
 }
 
 /**
@@ -143,5 +142,5 @@ export function resolveChargerSwitchWakeEntityIdForDevice(
   wake: ClientPowerWakePublic | null | undefined,
   clientId: string,
 ): string {
-  return resolveChargerSwitchWakeForDevice(wake, clientId).entityId;
+  return resolveChargerSwitchWakeForDevice(wake, clientId).entityId
 }

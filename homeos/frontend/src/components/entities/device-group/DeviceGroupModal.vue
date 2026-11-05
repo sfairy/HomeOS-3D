@@ -136,10 +136,7 @@ import {
 } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import {
-  getDomainMap,
-  getEntityFromStore,
-} from '@/composables/entity/device-group/useDeviceGroupMembers'
+import { getDomainMap, getEntityFromStore } from '@/composables/entity/device-group/useDeviceGroupMembers'
 import { useDeviceGroupBatch } from '@/composables/entity/device-group/useDeviceGroupBatch'
 import { useDeviceGroupEntityIds } from '@/composables/entity/device-group/useDeviceGroupEntityIds'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
@@ -161,9 +158,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const { teleportDisabled: keepAliveTeleportDisabled } = useKeepAliveGate()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
-const teleportDisabled = computed(
-  () => keepAliveTeleportDisabled.value || shellTeleportPending.value,
-)
+const teleportDisabled = computed(() => keepAliveTeleportDisabled.value || shellTeleportPending.value)
 
 watch(keepAliveTeleportDisabled, (disabled) => {
   if (disabled && props.isOpen) emit('close')
@@ -202,8 +197,7 @@ const domainMap = computed(() => {
 })
 
 const domainInfo = computed(
-  () =>
-    domainMap.value[props.domain] || { label: '常用设备', icon: Sun, color: 'dgm-domain-default' },
+  () => domainMap.value[props.domain] || { label: '常用设备', icon: Sun, color: 'dgm-domain-default' },
 )
 
 const { entityIds, showAudit, computeEntityIds } = useDeviceGroupEntityIds()
@@ -212,18 +206,13 @@ function getEntity(eid) {
   return getEntityFromStore(entitiesStore.entities, eid)
 }
 
-const {
-  offlineStats,
-  batteryStats,
-  offlineIcon,
-  offlineReason,
-  shortReason,
-  timeAgo,
-  batteryColor,
-} = useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, getEntity)
+const { offlineStats, batteryStats, offlineIcon, offlineReason, shortReason, timeAgo, batteryColor } =
+  useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, getEntity)
 
-const { batchExecuting, batchExecResult, lastBatchPayload, batchToggle, retryFailed } =
-  useDeviceGroupBatch(entityIds, entitiesStore)
+const { batchExecuting, batchExecResult, lastBatchPayload, batchToggle, retryFailed } = useDeviceGroupBatch(
+  entityIds,
+  entitiesStore,
+)
 
 function inferBatchDomain() {
   return props.domain

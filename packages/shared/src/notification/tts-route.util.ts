@@ -1,28 +1,28 @@
 /** - 根据可用资源（HA media_player / 浏览器 Web Speech）解析 TTS 路由： */
-import { compareVoiceAlertPriority } from './voice-alert-priority';
+import { compareVoiceAlertPriority } from './voice-alert-priority'
 
 /** TTS 播报输出路由：browser=浏览器 Web Speech；ha_media=HA 音箱；silent=静默（无可用输出时） */
-export type TtsRoute = 'browser' | 'ha_media' | 'silent';
+export type TtsRoute = 'browser' | 'ha_media' | 'silent'
 
 /** resolveTtsRoute 的输入参数（全部可选；空对象传入即返回默认路由） */
 export interface ResolveTtsRouteInput {
   /** 浏览器 Web Speech API 是否可用 */
-  browserAvailable?: boolean;
+  browserAvailable?: boolean
   /** HA media_player 实体 ID 列表 */
-  mediaPlayerIds?: string[];
+  mediaPlayerIds?: string[]
   /** 用户是否启用浏览器 TTS 兜底 */
-  preferBrowser?: boolean;
+  preferBrowser?: boolean
 }
 
 /** 解析 TTS 输出路径：HA 音箱优先，其次浏览器，最后静默 */
 export function resolveTtsRoute(input: ResolveTtsRouteInput = {}): TtsRoute {
-  const ids = (input.mediaPlayerIds || []).map((id) => String(id || '').trim()).filter(Boolean);
-  if (ids.length) return 'ha_media';
-  if (input.browserAvailable !== false && input.preferBrowser !== false) return 'browser';
-  return 'silent';
+  const ids = (input.mediaPlayerIds || []).map((id) => String(id || '').trim()).filter(Boolean)
+  if (ids.length) return 'ha_media'
+  if (input.browserAvailable !== false && input.preferBrowser !== false) return 'browser'
+  return 'silent'
 }
 
 /** 多条待播报告警按优先级排序（高优先先播） */
 export function sortAlertsByVoicePriority(keys: string[]): string[] {
-  return [...keys].sort(compareVoiceAlertPriority);
+  return [...keys].sort(compareVoiceAlertPriority)
 }

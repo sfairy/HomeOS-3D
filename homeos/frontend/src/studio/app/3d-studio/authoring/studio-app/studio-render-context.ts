@@ -13,86 +13,86 @@
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
 interface StudioRenderContext {
-  unusedRenderHandle: any;
-  lastRenderSignature: string;
-  cacheEpoch: number;
-  lastStateJson: string;
-  unusedRenderState: any;
-  unusedRenderCounter: number;
-  floorRetentionService: any;
-  sceneRetentionService: any;
-  releaseCurtains: any;
-  releaseTelevisionScreens: any;
-  releaseStartupDeviceSync: any;
-  shouldRefreshGeometry: boolean;
-  geometryRootRef: any;
-  geometryKeyRef: any;
-  shadowLights: any;
-  geometryBoxes: any;
-  backgroundBoundaries: any;
-  invalidationBounds: any;
-  isBackgroundVisible: any;
-  isOrbitEnabled: boolean;
-  cameraRootRef: any;
-  cameraFirstChildRef: any;
-  syncTargets: any;
-  cameraRestoreState: any;
-  savedCameraState: any;
-  orbitTargetVector: any;
-  orbitTargetAnchor: any;
-  hasBaseLightingApplied: boolean;
-  renderRootRef: any;
-  renderKeyRef: any;
-  renderViewRef: any;
-  viewportBaseCamera: any;
-  overviewStackOption: any;
-  transitionRange: any;
-  cameraViewMode: string;
-  shouldEnablePan: boolean;
-  shouldEnableZoom: boolean;
-  isPerspectiveCameraMode: boolean;
-  cameraForwardVector: any;
-  isSnapshotMode: boolean;
-  isRenderLoopOverviewMode: boolean;
-  isViewTransitioning: boolean;
-  stereoSampleIndex: number;
-  lastViewOffsetSignature: string;
-  cameraMotionSpec: any;
-  renderTickCounter: number;
-  reflectionPassCounter: number;
-  overviewTimeoutHandle: any;
-  isEntranceComplete: boolean;
-  hasControlsRestored: boolean;
-  isPresentationRunning: boolean;
-  presentationHandle: any;
-  pendingCameraState: any;
-  pendingTransitionSpec: any;
-  shouldResetCamera: boolean;
-  runStudioRenderLoopLightsByItemKey: any;
-  lightRecordsByItemKey: any;
-  reflectionModeIndex: any;
-  isReflectionEnabled: any;
-  previousReflectionEnabled: any;
-  isReflectionDisabled: any;
-  reflectionDetailMode: any;
-  isShadowReady: boolean;
-  hasEffectsPrepared: boolean;
-  isStartupPresentationDone: boolean;
-  shouldStartPresentation: any;
-  isReflectionsSuspended: boolean;
-  shouldSuspendReflections: boolean;
-  hasShadowBoost: boolean;
-  shadowBoostStart: any;
-  isShadowBoostActive: boolean;
-  previousSceneSnapshot: any;
+  unusedRenderHandle: any
+  lastRenderSignature: string
+  cacheEpoch: number
+  lastStateJson: string
+  unusedRenderState: any
+  unusedRenderCounter: number
+  floorRetentionService: any
+  sceneRetentionService: any
+  releaseCurtains: any
+  releaseTelevisionScreens: any
+  releaseStartupDeviceSync: any
+  shouldRefreshGeometry: boolean
+  geometryRootRef: any
+  geometryKeyRef: any
+  shadowLights: any
+  geometryBoxes: any
+  backgroundBoundaries: any
+  invalidationBounds: any
+  isBackgroundVisible: any
+  isOrbitEnabled: boolean
+  cameraRootRef: any
+  cameraFirstChildRef: any
+  syncTargets: any
+  cameraRestoreState: any
+  savedCameraState: any
+  orbitTargetVector: any
+  orbitTargetAnchor: any
+  hasBaseLightingApplied: boolean
+  renderRootRef: any
+  renderKeyRef: any
+  renderViewRef: any
+  viewportBaseCamera: any
+  overviewStackOption: any
+  transitionRange: any
+  cameraViewMode: string
+  shouldEnablePan: boolean
+  shouldEnableZoom: boolean
+  isPerspectiveCameraMode: boolean
+  cameraForwardVector: any
+  isSnapshotMode: boolean
+  isRenderLoopOverviewMode: boolean
+  isViewTransitioning: boolean
+  stereoSampleIndex: number
+  lastViewOffsetSignature: string
+  cameraMotionSpec: any
+  renderTickCounter: number
+  reflectionPassCounter: number
+  overviewTimeoutHandle: any
+  isEntranceComplete: boolean
+  hasControlsRestored: boolean
+  isPresentationRunning: boolean
+  presentationHandle: any
+  pendingCameraState: any
+  pendingTransitionSpec: any
+  shouldResetCamera: boolean
+  runStudioRenderLoopLightsByItemKey: any
+  lightRecordsByItemKey: any
+  reflectionModeIndex: any
+  isReflectionEnabled: any
+  previousReflectionEnabled: any
+  isReflectionDisabled: any
+  reflectionDetailMode: any
+  isShadowReady: boolean
+  hasEffectsPrepared: boolean
+  isStartupPresentationDone: boolean
+  shouldStartPresentation: any
+  isReflectionsSuspended: boolean
+  shouldSuspendReflections: boolean
+  hasShadowBoost: boolean
+  shadowBoostStart: any
+  isShadowBoostActive: boolean
+  previousSceneSnapshot: any
 }
 
 export function createStudioRenderContext(): StudioRenderContext {
   return {
     unusedRenderHandle: null,
-    lastRenderSignature: "",
+    lastRenderSignature: '',
     cacheEpoch: 0,
-    lastStateJson: "{}",
+    lastStateJson: '{}',
     unusedRenderState: null,
     unusedRenderCounter: 1,
     floorRetentionService: null,
@@ -123,7 +123,7 @@ export function createStudioRenderContext(): StudioRenderContext {
     viewportBaseCamera: null,
     overviewStackOption: undefined,
     transitionRange: null,
-    cameraViewMode: "free",
+    cameraViewMode: 'free',
     shouldEnablePan: true,
     shouldEnableZoom: true,
     isPerspectiveCameraMode: false,
@@ -132,7 +132,7 @@ export function createStudioRenderContext(): StudioRenderContext {
     isRenderLoopOverviewMode: false,
     isViewTransitioning: false,
     stereoSampleIndex: 0,
-    lastViewOffsetSignature: "",
+    lastViewOffsetSignature: '',
     cameraMotionSpec: null,
     renderTickCounter: 0,
     reflectionPassCounter: 0,
@@ -161,5 +161,5 @@ export function createStudioRenderContext(): StudioRenderContext {
     shadowBoostStart: null,
     isShadowBoostActive: true,
     previousSceneSnapshot: [],
-  };
+  }
 }

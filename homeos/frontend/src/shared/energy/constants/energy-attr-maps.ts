@@ -230,8 +230,7 @@ type CommCarrierFieldOverrides = {
 
 /** 以 CT 为基模板，按运营商覆盖 conventionSuffix / balanceAttrOnly，并插入额外字段 */
 function createCommCarrierFields(overrides: CommCarrierFieldOverrides = {}): CommCarrierField[] {
-  const { conventionSuffix = {}, balanceAttrOnly = {}, omitKeys = [], extraFields = [] } =
-    overrides
+  const { conventionSuffix = {}, balanceAttrOnly = {}, omitKeys = [], extraFields = [] } = overrides
   const omit = new Set(omitKeys)
   const result: CommCarrierField[] = []
   for (const base of COMM_CARRIER_BASE) {
@@ -400,23 +399,8 @@ export const ENERGY_BALANCE_ATTR_KEYS = {
 export const ENERGY_FIELD_ALIASES = {
   balance: ['balance', '账户余额', '当前余额'],
   arrear: ['arrear', '欠费', '总欠费', 'allbowe'],
-  dailyNum: [
-    'daily_ele_num',
-    'daily_usage',
-    'daily_water_num',
-    'daily_gas_num',
-    '日用气量',
-    '日用水量',
-    '日用电',
-  ],
-  dailyCost: [
-    'daily_ele_cost',
-    'daily_cost',
-    'daily_gas_cost',
-    'daily_water_cost',
-    '日账单',
-    '日费用',
-  ],
+  dailyNum: ['daily_ele_num', 'daily_usage', 'daily_water_num', 'daily_gas_num', '日用气量', '日用水量', '日用电'],
+  dailyCost: ['daily_ele_cost', 'daily_cost', 'daily_gas_cost', 'daily_water_cost', '日账单', '日费用'],
   monthNum: [
     'month_ele_num',
     'month_gas_num',
@@ -471,38 +455,15 @@ export const ENERGY_FIELD_ALIASES = {
   ],
   lastPayment: ['last_payment', '最近交费'],
   dailyDate: ['daily_lasted_date', 'latest_data', 'latest_data_time', 'data_date', '最新数据时间'],
-  refreshTime: [
-    'refresh_time',
-    'syn',
-    'update_time',
-    'lastrefreshtime',
-    'last_refresh_time',
-    '最近刷新时间',
-  ],
+  refreshTime: ['refresh_time', 'syn', 'update_time', 'lastrefreshtime', 'last_refresh_time', '最近刷新时间'],
   voltage: ['voltage', '电压'],
   power: ['power', '功率'],
   meterReading: ['current_reading', 'meter_reading', '当前抄表数', '抄表数'],
   currentTier: ['current_tier', '当前计价阶梯', 'tier'],
-  unitPrice: [
-    'unit_price',
-    'price',
-    'current_unit_price',
-    '当前用气单价',
-    '当前用水单价',
-    'avg_price',
-    'fixed_price',
-  ],
+  unitPrice: ['unit_price', 'price', 'current_unit_price', '当前用气单价', '当前用水单价', 'avg_price', 'fixed_price'],
   remainingDays: ['remaining_days', '剩余天数'],
   creditLimit: ['credit_limit', 'creditvalue', 'credit_value', '信用额度'],
-  monthlyFee: [
-    'month_cost',
-    'monthly_fee',
-    'plan_fee',
-    'currentmonthcost',
-    'realfeenew',
-    '月费',
-    '本月消费',
-  ],
+  monthlyFee: ['month_cost', 'monthly_fee', 'plan_fee', 'currentmonthcost', 'realfeenew', '月费', '本月消费'],
   smsTotal: ['sms_total', 'total_sms', 'smstotal', '短信总量'],
   smsUsed: ['sms_used', 'smsusage', '短信已用'],
   smsRemaining: ['sms_balance', 'smsbalance', 'smsavailable', '短信剩余'],
@@ -510,23 +471,10 @@ export const ENERGY_FIELD_ALIASES = {
   points: ['points', '积分'],
   dataOverlimit: ['data_overlimit', 'data_exceed', 'flowover', '流量超出'],
   dataRemaining: ['data_remaining', 'data_left', 'flowbalance', '流量剩余'],
-  dataUsageRate: [
-    'data_usage_rate',
-    'flowpercent',
-    'percentused',
-    'flowusageratio',
-    '流量使用率',
-  ],
+  dataUsageRate: ['data_usage_rate', 'flowpercent', 'percentused', 'flowusageratio', '流量使用率'],
   dataUsed: ['data_used', 'flowuse', 'month_data_num', '流量已用'],
   dataTotal: ['data_total', 'flowtotal', '流量总量'],
-  dataCarryover: [
-    'data_carryover',
-    'flowcarried',
-    'lastmonthflow',
-    'flowcarry',
-    'flow_carryover',
-    '上月转接流量',
-  ],
+  dataCarryover: ['data_carryover', 'flowcarried', 'lastmonthflow', 'flowcarry', 'flow_carryover', '上月转接流量'],
   dataCommonTotal: ['commontotal', '通用流量总量'],
   dataCommonUsed: ['commonuse', '通用流量已用'],
   dataCommonRemaining: ['commonbalance', '通用流量剩余'],
@@ -537,13 +485,7 @@ export const ENERGY_FIELD_ALIASES = {
   dataOtherTotal: ['othertotal', '其他流量总量'],
   dataOtherUsed: ['otheruse', '其他流量已用'],
   dataOtherRemaining: ['otherbalance', '其他流量剩余'],
-  talkRemaining: [
-    'talk_remaining',
-    'call_remaining',
-    'voicebalance',
-    'voiceavailable',
-    '通话剩余',
-  ],
+  talkRemaining: ['talk_remaining', 'call_remaining', 'voicebalance', 'voiceavailable', '通话剩余'],
   talkUsageRate: [
     'talk_usage_rate',
     'call_usage_rate',
@@ -861,16 +803,12 @@ export const ENERGY_FIELD_DEFS = {
   ],
   gas: GAS_WATER_SHARED,
   water: GAS_WATER_SHARED.map((f) => {
-    if (f.key === 'monthNum')
-      return { ...f, conventionSuffix: 'last_usage', defaultAttr: 'month_water_num' }
-    if (f.key === 'monthCost')
-      return { ...f, conventionSuffix: 'last_fee', defaultAttr: 'month_water_cost' }
+    if (f.key === 'monthNum') return { ...f, conventionSuffix: 'last_usage', defaultAttr: 'month_water_num' }
+    if (f.key === 'monthCost') return { ...f, conventionSuffix: 'last_fee', defaultAttr: 'month_water_cost' }
     if (f.key === 'lastMonthNum') return { ...f, defaultAttr: 'last_month_water_num' }
     if (f.key === 'lastMonthCost') return { ...f, defaultAttr: 'last_month_water_cost' }
-    if (f.key === 'yearNum')
-      return { ...f, conventionSuffix: 'year_water_num', defaultAttr: 'year_water_num' }
-    if (f.key === 'yearCost')
-      return { ...f, conventionSuffix: 'annual_fee', defaultAttr: 'year_water_cost' }
+    if (f.key === 'yearNum') return { ...f, conventionSuffix: 'year_water_num', defaultAttr: 'year_water_num' }
+    if (f.key === 'yearCost') return { ...f, conventionSuffix: 'annual_fee', defaultAttr: 'year_water_cost' }
     if (f.key === 'unitPrice') return { ...f, conventionSuffix: 'current_unit_price' }
     return f
   }),

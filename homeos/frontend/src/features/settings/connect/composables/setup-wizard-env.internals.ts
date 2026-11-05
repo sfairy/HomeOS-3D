@@ -84,15 +84,11 @@ export function useSetupWizardEnvStep(envMap: ReturnType<typeof useEnvSensorMap>
     return SENSOR_KEYS.filter((k) => String(entry[k] || '').trim()).length
   }
 
-  const envConfiguredRoomCount = computed(
-    () => envRoomList.value.filter((room) => envRoomBound(room.id)).length,
-  )
+  const envConfiguredRoomCount = computed(() => envRoomList.value.filter((room) => envRoomBound(room.id)).length)
 
   const envStepReady = computed(() => envConfiguredRoomCount.value >= ENV_ROOM_MIN)
 
-  const envProgressPct = computed(() =>
-    Math.min(100, Math.round((envConfiguredRoomCount.value / ENV_ROOM_MIN) * 100)),
-  )
+  const envProgressPct = computed(() => Math.min(100, Math.round((envConfiguredRoomCount.value / ENV_ROOM_MIN) * 100)))
 
   const envRoomTabs = computed(() =>
     envRoomList.value.map((room) => ({

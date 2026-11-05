@@ -231,8 +231,7 @@ export function composeCustomAlertTemplate(mode: string, fixedText: unknown) {
 }
 
 export function detectDailyPreset(period: string, text: unknown) {
-  const presets =
-    period === 'evening' ? getDailyAdvisorEveningPresets() : getDailyAdvisorDayPresets()
+  const presets = period === 'evening' ? getDailyAdvisorEveningPresets() : getDailyAdvisorDayPresets()
   const tpl = String(text || '').trim()
   if (!tpl) return 'default'
   const hit = presets.find((p) => p.template && p.template === tpl)
@@ -242,15 +241,13 @@ export function detectDailyPreset(period: string, text: unknown) {
 export function dailyPresetTemplate(presetId: string, period: string, customText: unknown) {
   if (presetId === 'custom') return String(customText || '').trim()
   if (presetId === 'default') return ''
-  const presets =
-    period === 'evening' ? getDailyAdvisorEveningPresets() : getDailyAdvisorDayPresets()
+  const presets = period === 'evening' ? getDailyAdvisorEveningPresets() : getDailyAdvisorDayPresets()
   const hit = presets.find((p) => p.id === presetId)
   return hit?.template || ''
 }
 
 export function previewDailyAdvisor(period: string, text: unknown) {
   const raw = String(text || '').trim()
-  const fallback =
-    period === 'evening' ? getDefaultDailyAdvisorTtsEvening() : getDefaultDailyAdvisorTtsDaytime()
+  const fallback = period === 'evening' ? getDefaultDailyAdvisorTtsEvening() : getDefaultDailyAdvisorTtsDaytime()
   return applyTemplatePreview(raw || fallback, { hour: new Date().getHours() })
 }

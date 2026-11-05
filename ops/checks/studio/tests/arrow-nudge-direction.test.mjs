@@ -11,8 +11,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const METRICS = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-edit-metrics.ts',
-    import.meta.url),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/authoring/studio-edit-metrics.ts', import.meta.url),
 )
 
 const { planDirectionForScreenArrow } = await import(METRICS)

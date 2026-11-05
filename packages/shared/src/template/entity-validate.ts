@@ -1,13 +1,13 @@
 /** - isPlaceholderEntityId：判定 entity_id 是否为占位符（空字符串、xxx/example、placeholder 关键字、orchestrator 占位标记）； */
-import { APPLIANCE_TYPE_IDS, getRequiredSlotGroups } from './appliance-catalog';
-import { hasOrchestratorPlaceholder } from './placeholder-marker.util';
+import { APPLIANCE_TYPE_IDS, getRequiredSlotGroups } from './appliance-catalog'
+import { hasOrchestratorPlaceholder } from './placeholder-marker.util'
 
-export { getRequiredSlotGroups };
+export { getRequiredSlotGroups }
 
 /** 家电模板类型（含槽位映射的类型） */
-export const APPLIANCE_TEMPLATE_TYPES = APPLIANCE_TYPE_IDS;
+export const APPLIANCE_TEMPLATE_TYPES = APPLIANCE_TYPE_IDS
 
-const PLACEHOLDER_ENTITY_RE = /\b[a-z][a-z0-9_]*\.(xxx|example)\b/i;
+const PLACEHOLDER_ENTITY_RE = /\b[a-z][a-z0-9_]*\.(xxx|example)\b/i
 
 /**
  * 判断一个 HA entity_id 是否为占位符（空字符串、orchestrator 占位标记、xxx/example 对象名、含 placeholder 关键字等）。
@@ -16,13 +16,13 @@ const PLACEHOLDER_ENTITY_RE = /\b[a-z][a-z0-9_]*\.(xxx|example)\b/i;
  * @returns 匹配任一占位符模式时 true；真实实体 ID 返回 false
  */
 export function isPlaceholderEntityId(entityId: string): boolean {
-  const id = String(entityId || '').trim();
-  if (!id) return true;
-  if (hasOrchestratorPlaceholder(id)) return true;
-  if (PLACEHOLDER_ENTITY_RE.test(id)) return true;
-  const objectId = id.includes('.') ? id.slice(id.indexOf('.') + 1) : id;
-  if (/placeholder/i.test(objectId)) return true;
-  return false;
+  const id = String(entityId || '').trim()
+  if (!id) return true
+  if (hasOrchestratorPlaceholder(id)) return true
+  if (PLACEHOLDER_ENTITY_RE.test(id)) return true
+  const objectId = id.includes('.') ? id.slice(id.indexOf('.') + 1) : id
+  if (/placeholder/i.test(objectId)) return true
+  return false
 }
 
 /**
@@ -33,20 +33,20 @@ export function isPlaceholderEntityId(entityId: string): boolean {
  */
 export function findPlaceholderEntityIdsInYaml(yamlStr: string): string[] {
   if (typeof yamlStr !== 'string' || !yamlStr) {
-    return [];
+    return []
   }
-  const found = new Set<string>();
+  const found = new Set<string>()
   const patterns = [
     /entity_id:\s*['"]?([a-z][a-z0-9_]*\.[a-z0-9_.]+)['"]?/gi,
     /(?:states|is_state|state_attr)\s*\(\s*['"]([^'"]+)['"]/gi,
-  ];
+  ]
   for (const re of patterns) {
     for (const m of yamlStr.matchAll(re)) {
-      const id = m[1];
-      if (isPlaceholderEntityId(id)) found.add(id);
+      const id = m[1]
+      if (isPlaceholderEntityId(id)) found.add(id)
     }
   }
-  return [...found];
+  return [...found]
 }
 
 /**
@@ -58,8 +58,8 @@ export function findPlaceholderEntityIdsInYaml(yamlStr: string): string[] {
  * @returns true 表示含有非标准模板属性，需要提示用户或走扩展渲染路径
  */
 export function yamlHasNonStandardTemplateAttributes(yamlStr: string): boolean {
-  if (!yamlStr?.trim()) return false;
-  if (/\battributes:\s*$/m.test(yamlStr) || /\n\s+attributes:\n/.test(yamlStr)) return true;
+  if (!yamlStr?.trim()) return false
+  if (/\battributes:\s*$/m.test(yamlStr) || /\n\s+attributes:\n/.test(yamlStr)) return true
   const stdKeys = new Set([
     'state_template',
     'percentage_template',
@@ -76,9 +76,9 @@ export function yamlHasNonStandardTemplateAttributes(yamlStr: string): boolean {
     'current_temperature',
     'target_temperature',
     'hvac_mode',
-  ]);
+  ])
   for (const m of yamlStr.matchAll(/^(\s*)([a-z_]+_template):/gm)) {
-    if (!stdKeys.has(m[2])) return true;
+    if (!stdKeys.has(m[2])) return true
   }
-  return false;
+  return false
 }

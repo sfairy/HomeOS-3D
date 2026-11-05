@@ -82,13 +82,7 @@ export function bindEntitySocketHaSync(
   ctx: EntitySocketHandlerContext,
   sync: EntitySocketSyncState,
 ): void {
-  const {
-    logger,
-    refs,
-    entities,
-    track,
-    actions,
-  } = ctx
+  const { logger, refs, entities, track, actions } = ctx
 
   const clearSyncTimers = () => clearEntitySocketSyncTimers(sync)
 
@@ -199,18 +193,14 @@ export function bindEntitySocketHaSync(
     (data: { total?: number; timestamp?: string; count?: number; reason?: string }) => {
       const total = Number(data?.total ?? 0)
       if (refs.haQueueDroppedTotal) refs.haQueueDroppedTotal.value = total
-      if (refs.lastQueueDropAt)
-        refs.lastQueueDropAt.value = data?.timestamp || new Date().toISOString()
+      if (refs.lastQueueDropAt) refs.lastQueueDropAt.value = data?.timestamp || new Date().toISOString()
       const dropped = data?.count ?? 1
       logger.warn(`HA 实时状态积压丢弃: ${dropped} 条 (${data?.reason || '未知'})`)
       // 语义：这条事件表示「状态推送积压，本端漏掉了一些**状态**更新」，
       // 不是「控制指令下发失败」。旧文案（「N 条控制指令未能下发，请重试」）会让用户
       // 在设备其实已经执行成功时重复操作；这里只需要把状态重新对齐。
       // 同理不做乐观态回滚：指令确实发出去了，回滚反而会把正确的结果抹掉。
-      void actions.appNotify?.(
-        `实时状态积压，已丢弃 ${dropped} 条更新，正在重新对齐实体状态`,
-        'warning',
-      )
+      void actions.appNotify?.(`实时状态积压，已丢弃 ${dropped} 条更新，正在重新对齐实体状态`, 'warning')
       refs.entitiesStale.value = true
       // 优先增量对齐（服务端有 since 游标，代价很小），失败再退回整表。
       void (async () => {
@@ -246,8 +236,7 @@ export function bindEntitySocketHaSync(
     sync.pendingChunkApplies = 0
     sync.incrementalEndScheduled = false
     resetChunkBaselineTracking(sync)
-    sync.incrementalToken =
-      actions.beginIncrementalInitialStates?.(sync.incrementalExpected) ?? null
+    sync.incrementalToken = actions.beginIncrementalInitialStates?.(sync.incrementalExpected) ?? null
     logger.info(`开始分块同步 initial_states(共 ${sync.incrementalExpected || '?'} 个实体)`)
   })
 
@@ -312,9 +301,7 @@ export function bindEntitySocketHaSync(
         const visible = refs.totalCount.value
         if (incrementalBatchIncomplete(expected, received)) {
           if (sync.pendingChunkApplies > 0) {
-            logger.warn(
-              `分块渐进同步 apply 超时(仍 pending ${sync.pendingChunkApplies}),改用 REST 回退`,
-            )
+            logger.warn(`分块渐进同步 apply 超时(仍 pending ${sync.pendingChunkApplies}),改用 REST 回退`)
           } else {
             logger.warn(`分块渐进同步不完整 ${received}/${expected},改用 REST 回退`)
           }
@@ -340,9 +327,7 @@ export function bindEntitySocketHaSync(
         actions.setConnected(true)
         refs.loading.value = false
         if (expected > 0 && visible > 0 && visible < expected * 0.9 && received >= expected * 0.9) {
-          logger.debug?.(
-            `分块同步已收齐 ${received}/${expected}，可见实体 ${visible}（权限/域过滤）`,
-          )
+          logger.debug?.(`分块同步已收齐 ${received}/${expected}，可见实体 ${visible}（权限/域过滤）`)
         }
       })
       return

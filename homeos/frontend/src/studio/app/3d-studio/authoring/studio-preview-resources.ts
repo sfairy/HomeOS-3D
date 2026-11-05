@@ -7,45 +7,43 @@
 
 type PreviewResourceHandoff = {
   /** 把资源排进回收队列；交接阶段已结束则返回 false。 */
-  retire: (resource: any) => boolean;
+  retire: (resource: any) => boolean
   /** 在交接区内执行任务；任务抛错时仍会清理队列。 */
-  run: <T>(task: () => T, flushAfter?: boolean) => T;
+  run: <T>(task: () => T, flushAfter?: boolean) => T
   /** 立即清空队列。 */
-  release: () => void;
-};
+  release: () => void
+}
 
-export function createPreviewResourceHandoff(
-  disposeResource: (resource: any) => void,
-): PreviewResourceHandoff {
-  let isHandingOff = false;
-  const pendingResources = new Set<any>();
+export function createPreviewResourceHandoff(disposeResource: (resource: any) => void): PreviewResourceHandoff {
+  let isHandingOff = false
+  const pendingResources = new Set<any>()
 
   function flushPending() {
-    const resources = [...pendingResources];
-    pendingResources.clear();
-    for (const resource of resources) disposeResource(resource);
+    const resources = [...pendingResources]
+    pendingResources.clear()
+    for (const resource of resources) disposeResource(resource)
   }
 
   return {
     retire(resource) {
-      if (isHandingOff) return false;
-      pendingResources.add(resource);
-      return true;
+      if (isHandingOff) return false
+      pendingResources.add(resource)
+      return true
     },
     run(task, flushAfter = true) {
       // 已在交接中，或明确要求「先回收再直接跑」，都不再包裹一层交接。
-      if (isHandingOff || (flushPending(), !flushAfter)) return task();
-      isHandingOff = true;
-      let didSucceed = false;
+      if (isHandingOff || (flushPending(), !flushAfter)) return task()
+      isHandingOff = true
+      let didSucceed = false
       try {
-        const result = task();
-        didSucceed = true;
-        return result;
+        const result = task()
+        didSucceed = true
+        return result
       } finally {
-        isHandingOff = false;
-        didSucceed || flushPending();
+        isHandingOff = false
+        didSucceed || flushPending()
       }
     },
     release: flushPending,
-  };
+  }
 }

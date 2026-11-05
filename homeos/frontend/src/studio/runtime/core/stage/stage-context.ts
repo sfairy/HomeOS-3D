@@ -12,115 +12,115 @@
  * **不要**把退化成 `any` 的 receiver 当小事 —— 宿主里 `ctx.x.items.map(cb)` 一旦 receiver 是 `any`，
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
-import type { resolvePageBehavior as resolvePageBehavior2 } from "../idle-rotation";
-import type { configuredModuleKinds } from "./_shared";
+import type { resolvePageBehavior as resolvePageBehavior2 } from '../idle-rotation'
+import type { configuredModuleKinds } from './_shared'
 
 export interface StageContext {
-  value: any;
-  options: Record<string, any>;
-  deviceStates: Record<string, any>;
-  isEditing: boolean;
-  isAwaitingFloorViewAdjust: boolean;
-  isControlReady: boolean;
-  text: string;
-  focusedItemId: string;
-  selectedFloorId: string;
-  isControlBusy: boolean;
-  isNavigationVisible: boolean;
-  navigationEditing: boolean;
-  num: number;
-  activePointerDrag: any;
-  activeCameraPose: any;
-  isStagePresented: boolean;
-  animationFrameRequestId: number;
-  pageBehavior: ReturnType<typeof resolvePageBehavior2>;
-  activeModule: string;
-  selectedSecurityKind: string;
-  editingVacuumId: string;
-  showAllLabels: boolean;
-  pendingFloorId: string;
-  pendingModule: string;
-  hasAutoSelectedFloors: boolean;
-  panelDisplayMode: string;
-  idleReturnCamera: any;
-  cameraMotionSnapshot: any;
-  focusInset: number;
-  hasPendingStageRefresh: boolean;
-  isStageVisible: boolean;
-  isIdleRotationRunning: boolean;
-  isCameraRotating: boolean;
-  idleRotationCameraPose: any;
-  sceneBackground: any;
-  hasPresentedOnce: boolean;
-  isPresentedVisible: boolean;
-  isRangeEditorOpen: boolean;
-  rangeEditorHandle: any;
-  canEditLightRange: boolean;
-  isRangeEditorSuppressingClose: boolean;
-  isRangeEditorOnly: boolean;
-  selectedLockEntry: any;
-  isUserActive: boolean;
-  isPointerHeld: boolean;
-  cachedDocumentSource: any;
-  cachedDocumentFloorId: any;
-  lastInteractionMs: any;
-  lightHistoryStorage: any;
-  lightEditPreview: any;
-  baseStageConfig: Record<string, any>;
-  isCameraMoving: boolean;
-  hasIdleIconActivity: boolean;
-  pendingEditorAction: any;
-  furthestFloorOrder: number;
-  startupProgress: any;
-  idleIconDelayUntilMs: number;
-  cameraQuaternionKey: string;
-  isIdleIconHidden: boolean;
-  lastIdleFrameMs: number;
-  lastIdleFloorId: number;
-  followVacuumId: string;
-  followReturnCamera: any;
-  followCameraPose: any;
-  lastQuaternionMs: any;
-  mediaViewportSize: any;
-  containerViewportSize: any;
-  mediaScale: number;
-  floorTabsSignature: string;
-  isModuleTabsHidden: any;
-  moduleTabsAnimation: any;
-  configuredModuleKinds2: ReturnType<typeof configuredModuleKinds>;
-  coverFeedbackStorage: any;
-  curtainSyncSnapshot: any;
-  list: any;
-  trackedCoverBindings: any;
-  nasSyncSnapshot: any;
-  cameraSyncSnapshot: any;
-  hasStartupProgressListener: boolean;
-  televisionSyncSnapshot: any;
-  environmentSyncSnapshot: any;
-  startupDeviceSyncSnapshot: any;
-  presenceSyncSignature: any;
-  isPresencePressed: boolean;
-  isPresenceEditing: boolean;
-  vacuumSyncSignature: any;
-  vacuumMapSignature: any;
-  outgoingGhostAnimation: any;
-  presentationUiSignatureCache: string;
-  pointerGesture: any;
-  focusExitPointer: any;
-  lastRenderSignature: string;
+  value: any
+  options: Record<string, any>
+  deviceStates: Record<string, any>
+  isEditing: boolean
+  isAwaitingFloorViewAdjust: boolean
+  isControlReady: boolean
+  text: string
+  focusedItemId: string
+  selectedFloorId: string
+  isControlBusy: boolean
+  isNavigationVisible: boolean
+  navigationEditing: boolean
+  num: number
+  activePointerDrag: any
+  activeCameraPose: any
+  isStagePresented: boolean
+  animationFrameRequestId: number
+  pageBehavior: ReturnType<typeof resolvePageBehavior2>
+  activeModule: string
+  selectedSecurityKind: string
+  editingVacuumId: string
+  showAllLabels: boolean
+  pendingFloorId: string
+  pendingModule: string
+  hasAutoSelectedFloors: boolean
+  panelDisplayMode: string
+  idleReturnCamera: any
+  cameraMotionSnapshot: any
+  focusInset: number
+  hasPendingStageRefresh: boolean
+  isStageVisible: boolean
+  isIdleRotationRunning: boolean
+  isCameraRotating: boolean
+  idleRotationCameraPose: any
+  sceneBackground: any
+  hasPresentedOnce: boolean
+  isPresentedVisible: boolean
+  isRangeEditorOpen: boolean
+  rangeEditorHandle: any
+  canEditLightRange: boolean
+  isRangeEditorSuppressingClose: boolean
+  isRangeEditorOnly: boolean
+  selectedLockEntry: any
+  isUserActive: boolean
+  isPointerHeld: boolean
+  cachedDocumentSource: any
+  cachedDocumentFloorId: any
+  lastInteractionMs: any
+  lightHistoryStorage: any
+  lightEditPreview: any
+  baseStageConfig: Record<string, any>
+  isCameraMoving: boolean
+  hasIdleIconActivity: boolean
+  pendingEditorAction: any
+  furthestFloorOrder: number
+  startupProgress: any
+  idleIconDelayUntilMs: number
+  cameraQuaternionKey: string
+  isIdleIconHidden: boolean
+  lastIdleFrameMs: number
+  lastIdleFloorId: number
+  followVacuumId: string
+  followReturnCamera: any
+  followCameraPose: any
+  lastQuaternionMs: any
+  mediaViewportSize: any
+  containerViewportSize: any
+  mediaScale: number
+  floorTabsSignature: string
+  isModuleTabsHidden: any
+  moduleTabsAnimation: any
+  configuredModuleKinds2: ReturnType<typeof configuredModuleKinds>
+  coverFeedbackStorage: any
+  curtainSyncSnapshot: any
+  list: any
+  trackedCoverBindings: any
+  nasSyncSnapshot: any
+  cameraSyncSnapshot: any
+  hasStartupProgressListener: boolean
+  televisionSyncSnapshot: any
+  environmentSyncSnapshot: any
+  startupDeviceSyncSnapshot: any
+  presenceSyncSignature: any
+  isPresencePressed: boolean
+  isPresenceEditing: boolean
+  vacuumSyncSignature: any
+  vacuumMapSignature: any
+  outgoingGhostAnimation: any
+  presentationUiSignatureCache: string
+  pointerGesture: any
+  focusExitPointer: any
+  lastRenderSignature: string
 }
 
 export function createStageContext(): StageContext {
   return {
     value: null,
-    options: { lights: [], },
+    options: { lights: [] },
     deviceStates: {},
     isEditing: false,
     isAwaitingFloorViewAdjust: false,
     isControlReady: false,
-    text: "",
-    focusedItemId: "",
-    selectedFloorId: "",
+    text: '',
+    focusedItemId: '',
+    selectedFloorId: '',
     isControlBusy: false,
     isNavigationVisible: false,
     navigationEditing: false,
@@ -130,14 +130,14 @@ export function createStageContext(): StageContext {
     isStagePresented: false,
     animationFrameRequestId: 0,
     pageBehavior: undefined as unknown as ReturnType<typeof resolvePageBehavior2>,
-    activeModule: "overview",
-    selectedSecurityKind: "",
-    editingVacuumId: "",
+    activeModule: 'overview',
+    selectedSecurityKind: '',
+    editingVacuumId: '',
     showAllLabels: false,
-    pendingFloorId: "",
-    pendingModule: "",
+    pendingFloorId: '',
+    pendingModule: '',
     hasAutoSelectedFloors: false,
-    panelDisplayMode: "",
+    panelDisplayMode: '',
     idleReturnCamera: null,
     cameraMotionSnapshot: null,
     focusInset: 0,
@@ -162,25 +162,25 @@ export function createStageContext(): StageContext {
     lastInteractionMs: null,
     lightHistoryStorage: undefined,
     lightEditPreview: null,
-    baseStageConfig: { lights: [], },
+    baseStageConfig: { lights: [] },
     isCameraMoving: false,
     hasIdleIconActivity: false,
     pendingEditorAction: null,
     furthestFloorOrder: -Infinity,
     startupProgress: undefined,
     idleIconDelayUntilMs: 0,
-    cameraQuaternionKey: "",
+    cameraQuaternionKey: '',
     isIdleIconHidden: false,
     lastIdleFrameMs: 0,
     lastIdleFloorId: -1,
-    followVacuumId: "",
+    followVacuumId: '',
     followReturnCamera: null,
     followCameraPose: null,
     lastQuaternionMs: null,
     mediaViewportSize: null,
     containerViewportSize: null,
     mediaScale: 1,
-    floorTabsSignature: "",
+    floorTabsSignature: '',
     isModuleTabsHidden: null,
     moduleTabsAnimation: null,
     configuredModuleKinds2: undefined as unknown as ReturnType<typeof configuredModuleKinds>,
@@ -200,9 +200,9 @@ export function createStageContext(): StageContext {
     vacuumSyncSignature: null,
     vacuumMapSignature: null,
     outgoingGhostAnimation: null,
-    presentationUiSignatureCache: "",
+    presentationUiSignatureCache: '',
     pointerGesture: undefined,
     focusExitPointer: null,
-    lastRenderSignature: "",
-  };
+    lastRenderSignature: '',
+  }
 }

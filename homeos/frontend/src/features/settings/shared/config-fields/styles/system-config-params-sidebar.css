@@ -160,7 +160,9 @@
   color: var(--set-text-secondary, rgba(255, 255, 255, 0.58));
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .params-sidebar__item:hover {

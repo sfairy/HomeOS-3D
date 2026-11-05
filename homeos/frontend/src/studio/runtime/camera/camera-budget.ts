@@ -11,99 +11,96 @@
  * 在拉快照，两边必须共用同一个池子，否则预算等于没做。
  */
 
-const REQUEST_BUDGET_SYMBOL = Symbol.for("ha-bridge.camera-http-request-budget");
+const REQUEST_BUDGET_SYMBOL = Symbol.for('ha-bridge.camera-http-request-budget')
 
 /** 并发上限：2 路足够跑满单个摄像头的吞吐，又给其他摄像头留出连接位。 */
-const DEFAULT_REQUEST_SLOTS = 2;
+const DEFAULT_REQUEST_SLOTS = 2
 
 interface QueuedRequest {
-  resolve: () => void;
-  reject: (reason: unknown) => void;
-  signal?: AbortSignal;
-  started: boolean;
-  cancel?: () => void;
+  resolve: () => void
+  reject: (reason: unknown) => void
+  signal?: AbortSignal
+  started: boolean
+  cancel?: () => void
 }
 
-export type CameraRequestBudget = <Result>(
-  run: () => Promise<Result>,
-  signal?: AbortSignal,
-) => Promise<Result>;
+export type CameraRequestBudget = <Result>(run: () => Promise<Result>, signal?: AbortSignal) => Promise<Result>
 
 /** 同源顶层窗口；跨域 iframe 退回自身，拿不到 `top` 也不抛。 */
 function sharedBudgetHost(): typeof globalThis & { [key: symbol]: unknown } {
   let budgetHost: typeof globalThis & { [key: symbol]: unknown } =
-    (globalThis.window as typeof globalThis) || globalThis;
+    (globalThis.window as typeof globalThis) || globalThis
   try {
-    const topWindow = budgetHost.top as typeof globalThis | null;
+    const topWindow = budgetHost.top as typeof globalThis | null
     topWindow?.location &&
       budgetHost.location &&
       topWindow.location.origin === budgetHost.location.origin &&
-      (budgetHost = topWindow as typeof globalThis & { [key: symbol]: unknown });
+      (budgetHost = topWindow as typeof globalThis & { [key: symbol]: unknown })
   } catch {
     // 跨域：保持自身，预算退化为「每个页面一套」，不影响正确性。
   }
-  return budgetHost;
+  return budgetHost
 }
 
 export function createCameraRequestBudget(maxConcurrent = DEFAULT_REQUEST_SLOTS): CameraRequestBudget {
-  let activeCount = 0;
-  const pendingQueue: QueuedRequest[] = [];
+  let activeCount = 0
+  const pendingQueue: QueuedRequest[] = []
   const pump = () => {
     while (activeCount < maxConcurrent && pendingQueue.length) {
-      const nextRequest = pendingQueue.shift()!;
-      (nextRequest.started = true),
+      const nextRequest = pendingQueue.shift()!
+      ;(nextRequest.started = true),
         activeCount++,
-        nextRequest.cancel && nextRequest.signal?.removeEventListener("abort", nextRequest.cancel),
-        nextRequest.resolve();
+        nextRequest.cancel && nextRequest.signal?.removeEventListener('abort', nextRequest.cancel),
+        nextRequest.resolve()
     }
-  };
+  }
   return async (run, signal) => {
-    if (signal?.aborted) throw signal.reason;
+    if (signal?.aborted) throw signal.reason
     await new Promise<void>((resolve, reject) => {
       const queuedRequest: QueuedRequest = {
         resolve,
         reject,
         signal,
         started: false,
-      };
+      }
       // 排队期间被 abort：必须从队列里摘掉，否则预算会被一个已经取消的请求占住。
-      ((queuedRequest.cancel = () => {
-        if (queuedRequest.started) return;
-        const queuedIndex = pendingQueue.indexOf(queuedRequest);
-        queuedIndex >= 0 && pendingQueue.splice(queuedIndex, 1), reject(signal?.reason);
+      ;(queuedRequest.cancel = () => {
+        if (queuedRequest.started) return
+        const queuedIndex = pendingQueue.indexOf(queuedRequest)
+        queuedIndex >= 0 && pendingQueue.splice(queuedIndex, 1), reject(signal?.reason)
       }),
-        signal?.addEventListener("abort", queuedRequest.cancel, { once: true }),
+        signal?.addEventListener('abort', queuedRequest.cancel, { once: true }),
         pendingQueue.push(queuedRequest),
-        pump());
-    });
+        pump()
+    })
     try {
-      if (signal?.aborted) throw signal.reason;
-      return await run();
+      if (signal?.aborted) throw signal.reason
+      return await run()
     } finally {
-      (activeCount--, pump());
+      activeCount--, pump()
     }
-  };
+  }
 }
 
 /** 取（或建）同源共享的摄像头请求预算。 */
 export function cameraRequestBudget(): CameraRequestBudget {
-  const budgetHost = sharedBudgetHost();
+  const budgetHost = sharedBudgetHost()
   return ((budgetHost[REQUEST_BUDGET_SYMBOL] as CameraRequestBudget | undefined) ||=
-    createCameraRequestBudget(DEFAULT_REQUEST_SLOTS));
+    createCameraRequestBudget(DEFAULT_REQUEST_SLOTS))
 }
 
-const STREAM_BUDGET_SYMBOL = Symbol.for("ha-bridge.camera-stream-budget");
+const STREAM_BUDGET_SYMBOL = Symbol.for('ha-bridge.camera-stream-budget')
 
-export type CameraStreamLease = { release: () => void };
+export type CameraStreamLease = { release: () => void }
 
 interface QueuedStream {
-  priority: number;
-  sequence: number;
-  resolve: (lease: CameraStreamLease) => void;
-  reject: (reason: unknown) => void;
-  signal?: AbortSignal;
-  started: boolean;
-  cancel?: () => void;
+  priority: number
+  sequence: number
+  resolve: (lease: CameraStreamLease) => void
+  reject: (reason: unknown) => void
+  signal?: AbortSignal
+  started: boolean
+  cancel?: () => void
 }
 
 /**
@@ -115,29 +112,29 @@ interface QueuedStream {
  */
 export function createCameraStreamBudget(maxConcurrent = DEFAULT_REQUEST_SLOTS) {
   let activeCount = 0,
-    sequence = 0;
-  const pendingQueue: QueuedStream[] = [];
+    sequence = 0
+  const pendingQueue: QueuedStream[] = []
   const pump = () => {
     pendingQueue.sort(
       (leftStream, rightStream) =>
         rightStream.priority - leftStream.priority || leftStream.sequence - rightStream.sequence,
-    );
+    )
     while (activeCount < maxConcurrent && pendingQueue.length) {
-      const nextStream = pendingQueue.shift()!;
-      (nextStream.started = true),
+      const nextStream = pendingQueue.shift()!
+      ;(nextStream.started = true),
         activeCount++,
-        nextStream.cancel && nextStream.signal?.removeEventListener("abort", nextStream.cancel);
-      let isReleased = false;
+        nextStream.cancel && nextStream.signal?.removeEventListener('abort', nextStream.cancel)
+      let isReleased = false
       nextStream.resolve({
         release() {
-          if (isReleased) return;
-          ((isReleased = true), activeCount--, pump());
+          if (isReleased) return
+          ;(isReleased = true), activeCount--, pump()
         },
-      });
+      })
     }
-  };
+  }
   return (priority = 0, signal?: AbortSignal): Promise<CameraStreamLease> => {
-    if (signal?.aborted) return Promise.reject(signal.reason);
+    if (signal?.aborted) return Promise.reject(signal.reason)
     return new Promise<CameraStreamLease>((resolve, reject) => {
       const queuedStream: QueuedStream = {
         priority: Number.isFinite(priority) ? priority : 0,
@@ -146,31 +143,27 @@ export function createCameraStreamBudget(maxConcurrent = DEFAULT_REQUEST_SLOTS) 
         reject,
         signal,
         started: false,
-      };
-      ((queuedStream.cancel = () => {
-        if (queuedStream.started) return;
-        const queuedIndex = pendingQueue.indexOf(queuedStream);
-        queuedIndex >= 0 && pendingQueue.splice(queuedIndex, 1), reject(signal?.reason);
+      }
+      ;(queuedStream.cancel = () => {
+        if (queuedStream.started) return
+        const queuedIndex = pendingQueue.indexOf(queuedStream)
+        queuedIndex >= 0 && pendingQueue.splice(queuedIndex, 1), reject(signal?.reason)
       }),
-        signal?.addEventListener("abort", queuedStream.cancel, { once: true }),
+        signal?.addEventListener('abort', queuedStream.cancel, { once: true }),
         pendingQueue.push(queuedStream),
-        pump());
-    });
-  };
+        pump()
+    })
+  }
 }
 
 /** 取（或建）同源共享的摄像头流预算。 */
 export function cameraStreamBudget() {
-  const budgetHost = sharedBudgetHost();
-  return ((budgetHost[STREAM_BUDGET_SYMBOL] as
-    | ReturnType<typeof createCameraStreamBudget>
-    | undefined) ||= createCameraStreamBudget(DEFAULT_REQUEST_SLOTS));
+  const budgetHost = sharedBudgetHost()
+  return ((budgetHost[STREAM_BUDGET_SYMBOL] as ReturnType<typeof createCameraStreamBudget> | undefined) ||=
+    createCameraStreamBudget(DEFAULT_REQUEST_SLOTS))
 }
 
 /** 用预算包住一次摄像头 HTTP 请求。 */
-export function withCameraHttpSlot<Result>(
-  run: () => Promise<Result>,
-  signal?: AbortSignal,
-): Promise<Result> {
-  return cameraRequestBudget()(run, signal);
+export function withCameraHttpSlot<Result>(run: () => Promise<Result>, signal?: AbortSignal): Promise<Result> {
+  return cameraRequestBudget()(run, signal)
 }

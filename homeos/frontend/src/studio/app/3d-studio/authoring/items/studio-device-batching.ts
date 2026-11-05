@@ -1,42 +1,41 @@
-import { mergeGeometries } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
+import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 const batchableDeviceTypeSet = new Set([
-  "camera",
-  "presence",
-  "speaker",
-  "fan",
-  "airer",
-  "plant",
-  "wallac",
-  "floorac",
-  "airpurifier",
-  "nas",
-  "storagewaterheater",
-  "gaswaterheater",
-  "fridge",
-  "freezer",
-  "dishwasher",
-  "washer",
-  "dryer",
-]);
+  'camera',
+  'presence',
+  'speaker',
+  'fan',
+  'airer',
+  'plant',
+  'wallac',
+  'floorac',
+  'airpurifier',
+  'nas',
+  'storagewaterheater',
+  'gaswaterheater',
+  'fridge',
+  'freezer',
+  'dishwasher',
+  'washer',
+  'dryer',
+])
 export function compactStaticDeviceParts(three: any, deviceRoot: any, deviceType: any, canBatchPart: any) {
   const batchStats = {
     before: 0,
     after: 0,
-  };
-  if (!batchableDeviceTypeSet.has(deviceType)) return batchStats;
+  }
+  if (!batchableDeviceTypeSet.has(deviceType)) return batchStats
   const candidateGroups: any = [],
-
     disposableGeometrySet = new Set<{ dispose: () => void }>(),
-    disposableMaterialSet = new Set<{ dispose: () => void }>();
+    disposableMaterialSet = new Set<{ dispose: () => void }>()
   deviceRoot.traverse((candidateNode: any) => {
     !candidateNode.isMesh &&
-      (deviceType !== "airer" || candidateNode.name === "moving-rack") &&
-      candidateGroups.push(candidateNode);
-  });
+      (deviceType !== 'airer' || candidateNode.name === 'moving-rack') &&
+      candidateGroups.push(candidateNode)
+  })
   for (const containerNode of candidateGroups) {
-    const meshesBySignature = new Map();
+    const meshesBySignature = new Map()
     for (const mesh of containerNode.children) {
-      const meshGeometry = mesh.geometry;
+      const meshGeometry = mesh.geometry
       if (
         !mesh.isMesh ||
         mesh.isInstancedMesh ||
@@ -54,26 +53,24 @@ export function compactStaticDeviceParts(three: any, deviceRoot: any, deviceType
         ) ||
         (mesh.updateMatrix(), mesh.matrix.determinant() <= 0)
       )
-        continue;
+        continue
       const hasNoVertexColors = !mesh.material?.vertexColors,
-        isBatchablePart = canBatchPart(mesh, true, hasNoVertexColors);
-      if (!isBatchablePart) continue;
+        isBatchablePart = canBatchPart(mesh, true, hasNoVertexColors)
+      if (!isBatchablePart) continue
       const attributeSignatures = Object.entries(meshGeometry.attributes)
-          .sort(([leftAttributeName], [rightAttributeName]) =>
-            leftAttributeName.localeCompare(rightAttributeName),
-          )
+          .sort(([leftAttributeName], [rightAttributeName]) => leftAttributeName.localeCompare(rightAttributeName))
           .map(([attributeName, attributeEntry]) => {
             const bufferAttribute = attributeEntry as {
-              itemSize: number;
-              normalized: boolean;
-              array?: { constructor: { name: string } };
-            };
+              itemSize: number
+              normalized: boolean
+              array?: { constructor: { name: string } }
+            }
             return [
               attributeName,
               bufferAttribute.itemSize,
               bufferAttribute.normalized,
               bufferAttribute.array?.constructor.name,
-            ];
+            ]
           }),
         batchSignature = JSON.stringify([
           isBatchablePart,
@@ -81,43 +78,32 @@ export function compactStaticDeviceParts(three: any, deviceRoot: any, deviceType
           attributeSignatures,
           mesh.frustumCulled,
           hasNoVertexColors,
-        ]);
-      (meshesBySignature.has(batchSignature) || meshesBySignature.set(batchSignature, []),
-        meshesBySignature.get(batchSignature).push(mesh));
+        ])
+      meshesBySignature.has(batchSignature) || meshesBySignature.set(batchSignature, []),
+        meshesBySignature.get(batchSignature).push(mesh)
     }
     for (const meshGroup of meshesBySignature.values()) {
-      if (meshGroup.length < 2) continue;
+      if (meshGroup.length < 2) continue
       const hasNoGroupVertexColors = !meshGroup[0].material.vertexColors,
         transformedGeometries = meshGroup.map((groupedMesh: any) => {
-          const transformedGeometry = groupedMesh.geometry.clone().applyMatrix4(groupedMesh.matrix);
+          const transformedGeometry = groupedMesh.geometry.clone().applyMatrix4(groupedMesh.matrix)
           if (hasNoGroupVertexColors) {
             const vertexCount = transformedGeometry.attributes.position.count,
               vertexColorArray = new Float32Array(vertexCount * 3),
-              materialColor = groupedMesh.material.color;
+              materialColor = groupedMesh.material.color
             for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
-              vertexColorArray.set(
-                [materialColor.r, materialColor.g, materialColor.b],
-                vertexIndex * 3,
-              );
-            transformedGeometry.setAttribute(
-              "color",
-              new three.BufferAttribute(vertexColorArray, 3),
-            );
+              vertexColorArray.set([materialColor.r, materialColor.g, materialColor.b], vertexIndex * 3)
+            transformedGeometry.setAttribute('color', new three.BufferAttribute(vertexColorArray, 3))
           }
-          return transformedGeometry;
+          return transformedGeometry
         }),
-        mergedGeometry = mergeGeometries(transformedGeometries);
-      if (
-        (transformedGeometries.forEach((clonedGeometry: any) => clonedGeometry.dispose()),
-        !mergedGeometry)
-      )
-        continue;
+        mergedGeometry = mergeGeometries(transformedGeometries)
+      if ((transformedGeometries.forEach((clonedGeometry: any) => clonedGeometry.dispose()), !mergedGeometry)) continue
       const sourceMesh = meshGroup[0],
-        mergedMaterial = hasNoGroupVertexColors ? sourceMesh.material.clone() : sourceMesh.material;
-      hasNoGroupVertexColors &&
-        (mergedMaterial.color.setRGB(1, 1, 1), (mergedMaterial.vertexColors = true));
-      const mergedMesh = new three.Mesh(mergedGeometry, mergedMaterial);
-      ((mergedMesh.name = "static-device-parts"),
+        mergedMaterial = hasNoGroupVertexColors ? sourceMesh.material.clone() : sourceMesh.material
+      hasNoGroupVertexColors && (mergedMaterial.color.setRGB(1, 1, 1), (mergedMaterial.vertexColors = true))
+      const mergedMesh = new three.Mesh(mergedGeometry, mergedMaterial)
+      ;(mergedMesh.name = 'static-device-parts'),
         (mergedMesh.userData.reflectionSimplifiable = true),
         (mergedMesh.userData.runtimeDetail = true),
         (mergedMesh.castShadow = sourceMesh.castShadow),
@@ -127,26 +113,23 @@ export function compactStaticDeviceParts(three: any, deviceRoot: any, deviceType
         (mergedMesh.frustumCulled = sourceMesh.frustumCulled),
         (mergedMesh.userData.externalModelSharedMaterial =
           !hasNoGroupVertexColors && sourceMesh.userData.externalModelSharedMaterial === true),
-        (mergedMesh.userData.externalModelSharedTextures =
-          sourceMesh.userData.externalModelSharedTextures === true));
+        (mergedMesh.userData.externalModelSharedTextures = sourceMesh.userData.externalModelSharedTextures === true)
       for (const removedMesh of meshGroup)
-        (containerNode.remove(removedMesh),
-          removedMesh.userData.externalModelSharedGeometry ||
-            disposableGeometrySet.add(removedMesh.geometry),
-          removedMesh.userData.externalModelSharedMaterial ||
-            disposableMaterialSet.add(removedMesh.material));
-      (containerNode.add(mergedMesh), (batchStats.before += meshGroup.length), batchStats.after++);
+        containerNode.remove(removedMesh),
+          removedMesh.userData.externalModelSharedGeometry || disposableGeometrySet.add(removedMesh.geometry),
+          removedMesh.userData.externalModelSharedMaterial || disposableMaterialSet.add(removedMesh.material)
+      containerNode.add(mergedMesh), (batchStats.before += meshGroup.length), batchStats.after++
     }
   }
   deviceRoot.traverse((retainedNode: any) => {
-    disposableGeometrySet.delete(retainedNode.geometry);
+    disposableGeometrySet.delete(retainedNode.geometry)
     for (const referencedMaterial of Array.isArray(retainedNode.material)
       ? retainedNode.material
       : [retainedNode.material])
-      disposableMaterialSet.delete(referencedMaterial);
-  });
-  for (const disposableGeometry of disposableGeometrySet) disposableGeometry.dispose();
-  for (const disposableMaterial of disposableMaterialSet) disposableMaterial.dispose();
+      disposableMaterialSet.delete(referencedMaterial)
+  })
+  for (const disposableGeometry of disposableGeometrySet) disposableGeometry.dispose()
+  for (const disposableMaterial of disposableMaterialSet) disposableMaterial.dispose()
   return (
     deviceRoot.traverse((cleanupNode: any) => {
       cleanupNode.isMesh &&
@@ -155,7 +138,7 @@ export function compactStaticDeviceParts(three: any, deviceRoot: any, deviceType
         Object.keys(cleanupNode.userData).every(
           (remainingPropertyKey) =>
             /^externalModelShared(Geometry|Material|Textures)$/.test(remainingPropertyKey) ||
-            remainingPropertyKey === "furnitureBatchCompiled",
+            remainingPropertyKey === 'furnitureBatchCompiled',
         ) &&
         !cleanupNode.customDepthMaterial &&
         !cleanupNode.customDistanceMaterial &&
@@ -163,9 +146,9 @@ export function compactStaticDeviceParts(three: any, deviceRoot: any, deviceType
         Object.assign(cleanupNode.userData, {
           reflectionSimplifiable: true,
           runtimeDetail: true,
-        });
+        })
     }),
     (deviceRoot.userData.staticDeviceBatchStats = batchStats),
     batchStats
-  );
+  )
 }

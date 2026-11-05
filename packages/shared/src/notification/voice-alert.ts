@@ -5,33 +5,33 @@
  */
 export interface VoiceAlertRules {
   /** 总开关（关闭后所有 TTS 告警静默） */
-  enabled: boolean;
+  enabled: boolean
   /** 安防区域告警（人体 / 门磁等） */
-  securityZone: boolean;
+  securityZone: boolean
   /** 异常行为检测（滞留 / 全屋无人） */
-  securityAnomaly: boolean;
+  securityAnomaly: boolean
   /** 烟雾告警 */
-  safetySmoke: boolean;
+  safetySmoke: boolean
   /** 燃气泄漏 */
-  safetyGas: boolean;
+  safetyGas: boolean
   /** 漏水告警 */
-  safetyWater: boolean;
+  safetyWater: boolean
   /** 紧急求救（SOS / 紧急按钮） */
-  securityEmergency: boolean;
+  securityEmergency: boolean
   /** 全员离家自动布防提示 */
-  presenceLeft: boolean;
+  presenceLeft: boolean
   /** 能耗异常（设备功耗高于基线） */
-  energyAnomaly: boolean;
+  energyAnomaly: boolean
   /** 能源预算超支 */
-  energyBudget: boolean;
+  energyBudget: boolean
   /** 用水异常 */
-  waterAnomaly: boolean;
+  waterAnomaly: boolean
   /** 霉菌风险 */
-  envMoldRisk: boolean;
+  envMoldRisk: boolean
   /** danger 级站内通知同步语音播报 */
-  notificationDanger: boolean;
+  notificationDanger: boolean
   /** warn 级站内通知（易频繁，默认关） */
-  notificationWarn: boolean;
+  notificationWarn: boolean
 }
 
 /**
@@ -54,7 +54,7 @@ export const DEFAULT_VOICE_ALERT_RULES: VoiceAlertRules = {
   envMoldRisk: false,
   notificationDanger: true,
   notificationWarn: false,
-};
+}
 
 /**
  * 语音告警类型目录（前端设置页按此渲染开关列表，含中文标签/描述/分组）。
@@ -62,10 +62,10 @@ export const DEFAULT_VOICE_ALERT_RULES: VoiceAlertRules = {
  * 与 DEFAULT_VOICE_ALERT_RULES 对齐，新增 key 时须同步修改此常量。
  */
 export const VOICE_ALERT_CATALOG: Array<{
-  key: Exclude<keyof VoiceAlertRules, 'enabled'>;
-  label: string;
-  description: string;
-  group: 'security' | 'life' | 'notify';
+  key: Exclude<keyof VoiceAlertRules, 'enabled'>
+  label: string
+  description: string
+  group: 'security' | 'life' | 'notify'
 }> = [
   {
     key: 'securityZone',
@@ -130,20 +130,19 @@ export const VOICE_ALERT_CATALOG: Array<{
     description: '站内 warn 级通知（易频繁，默认关）',
     group: 'notify',
   },
-];
+]
 
 /** 语音告警分组 → 中文标题（前端设置页 VOICE_ALERT_CATALOG 的 group 字段展示用）；三组值固定，不可扩展 */
 export const VOICE_ALERT_GROUP_LABELS = {
   security: '安防与安全',
   life: '能源与环境',
   notify: '通知同步',
-} as const;
+} as const
 
 /** 白天时段每日顾问播报默认话术（首次初始化使用；支持 {{变量}} 占位符，{{hour}} 会在播报时替换为当前小时） */
-export const DEFAULT_DAILY_ADVISOR_TTS_DAYTIME = '智能家居小贴士：空调设定26度最省电哦';
+export const DEFAULT_DAILY_ADVISOR_TTS_DAYTIME = '智能家居小贴士：空调设定26度最省电哦'
 /** 夜间时段每日顾问播报默认话术（首次初始化使用；{{hour}} 占位符在播报时替换为当前小时，其余文字原样播出） */
-export const DEFAULT_DAILY_ADVISOR_TTS_EVENING =
-  '晚上好，现在是{{hour}}点，请检查门窗是否关好，祝您晚安';
+export const DEFAULT_DAILY_ADVISOR_TTS_EVENING = '晚上好，现在是{{hour}}点，请检查门窗是否关好，祝您晚安'
 
 /**
  * 从 SharedVoiceConfig（或等价对象）中解析语音告警开关矩阵；
@@ -153,14 +152,12 @@ export const DEFAULT_DAILY_ADVISOR_TTS_EVENING =
  * @returns 完整的 VoiceAlertRules 对象（所有布尔字段均有确定值；非 null，直接使用无需判空）
  * @throws 不抛异常；ttsAlerts 字段类型错误时按未配置处理，返回默认矩阵
  */
-export function resolveVoiceAlertRules(voice?: {
-  ttsAlerts?: Partial<VoiceAlertRules>;
-}): VoiceAlertRules {
-  const raw = voice?.ttsAlerts;
+export function resolveVoiceAlertRules(voice?: { ttsAlerts?: Partial<VoiceAlertRules> }): VoiceAlertRules {
+  const raw = voice?.ttsAlerts
   if (!raw || typeof raw !== 'object') {
-    return { ...DEFAULT_VOICE_ALERT_RULES };
+    return { ...DEFAULT_VOICE_ALERT_RULES }
   }
-  return { ...DEFAULT_VOICE_ALERT_RULES, ...raw };
+  return { ...DEFAULT_VOICE_ALERT_RULES, ...raw }
 }
 
 /**
@@ -171,7 +168,7 @@ export function resolveVoiceAlertRules(voice?: {
  * @returns 合并后的完整 VoiceAlertRules（所有布尔字段确定值）
  */
 export function mergeVoiceAlertRules(raw?: Partial<VoiceAlertRules>): VoiceAlertRules {
-  return resolveVoiceAlertRules({ ttsAlerts: raw });
+  return resolveVoiceAlertRules({ ttsAlerts: raw })
 }
 
 /**
@@ -179,25 +176,25 @@ export function mergeVoiceAlertRules(raw?: Partial<VoiceAlertRules>): VoiceAlert
  * id 缺省时由 normalizeCustomTtsAlerts 按 custom_{idx}_{timestamp} 自动生成，避免碰撞。
  */
 export interface CustomTtsAlertRule {
-  id: string;
-  label: string;
-  enabled: boolean;
-  trigger: 'entity_state' | 'notification';
-  entityMatch?: string;
-  stateTo?: string;
-  notificationLevel?: 'danger' | 'warn' | 'info' | '';
-  messageContains?: string;
-  sourceContains?: string;
-  messageTemplate: string;
+  id: string
+  label: string
+  enabled: boolean
+  trigger: 'entity_state' | 'notification'
+  entityMatch?: string
+  stateTo?: string
+  notificationLevel?: 'danger' | 'warn' | 'info' | ''
+  messageContains?: string
+  sourceContains?: string
+  messageTemplate: string
 }
 
 /** 按实体精确匹配的 TTS 播报（每个实体独立话术） */
 export interface EntityTtsAlertRule {
-  id: string;
-  entityId: string;
-  enabled: boolean;
-  stateTo?: string;
-  messageTemplate: string;
+  id: string
+  entityId: string
+  enabled: boolean
+  stateTo?: string
+  messageTemplate: string
 }
 
 /**
@@ -208,9 +205,9 @@ export interface EntityTtsAlertRule {
  * @returns true 表示满足精确实体 ID 格式；空串/以点结尾/含非法字符时返回 false
  */
 export function isExactEntityId(value: string): boolean {
-  const m = String(value || '').trim();
-  if (!m || m.endsWith('.')) return false;
-  return /^[a-z_]+\.[a-z0-9_]+$/i.test(m);
+  const m = String(value || '').trim()
+  if (!m || m.endsWith('.')) return false
+  return /^[a-z_]+\.[a-z0-9_]+$/i.test(m)
 }
 
 /**
@@ -226,26 +223,26 @@ export function isExactEntityId(value: string): boolean {
  *  - stateTo 为空时不写入对象；enabled 默认 true。
  */
 export function normalizeEntityTtsAlerts(raw: unknown): EntityTtsAlertRule[] {
-  if (!Array.isArray(raw)) return [];
-  const seen = new Set<string>();
-  const out: EntityTtsAlertRule[] = [];
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const out: EntityTtsAlertRule[] = []
   for (const item of raw) {
-    const r = item as Partial<EntityTtsAlertRule>;
-    const entityId = String(r.entityId || '').trim();
-    const messageTemplate = String(r.messageTemplate || '').trim();
-    if (!entityId || !isExactEntityId(entityId) || !messageTemplate) continue;
-    if (seen.has(entityId)) continue;
-    seen.add(entityId);
-    const stateTo = String(r.stateTo || '').trim();
+    const r = item as Partial<EntityTtsAlertRule>
+    const entityId = String(r.entityId || '').trim()
+    const messageTemplate = String(r.messageTemplate || '').trim()
+    if (!entityId || !isExactEntityId(entityId) || !messageTemplate) continue
+    if (seen.has(entityId)) continue
+    seen.add(entityId)
+    const stateTo = String(r.stateTo || '').trim()
     out.push({
       id: String(r.id || `entity_tts_${entityId}`).trim(),
       entityId,
       enabled: r.enabled !== false,
       ...(stateTo ? { stateTo } : {}),
       messageTemplate,
-    });
+    })
   }
-  return out;
+  return out
 }
 
 /**
@@ -263,13 +260,13 @@ export function matchEntityTtsAlert(
   oldState: string | undefined,
   rule: EntityTtsAlertRule,
 ): boolean {
-  if (!rule.enabled) return false;
-  const id = rule.entityId?.trim();
-  if (!id || entityId !== id) return false;
-  const target = rule.stateTo?.trim();
-  if (target && newState !== target) return false;
-  if (oldState === newState) return false;
-  return true;
+  if (!rule.enabled) return false
+  const id = rule.entityId?.trim()
+  if (!id || entityId !== id) return false
+  const target = rule.stateTo?.trim()
+  if (target && newState !== target) return false
+  if (oldState === newState) return false
+  return true
 }
 
 /**
@@ -280,10 +277,10 @@ export function matchEntityTtsAlert(
  */
 export function normalizeWakeWords(voice?: { wakeWords?: string[] }): string[] {
   if (Array.isArray(voice?.wakeWords)) {
-    const list = [...new Set(voice.wakeWords.map((s) => String(s).trim()).filter(Boolean))];
-    if (list.length) return list;
+    const list = [...new Set(voice.wakeWords.map((s) => String(s).trim()).filter(Boolean))]
+    if (list.length) return list
   }
-  return ['小智'];
+  return ['小智']
 }
 
 /**
@@ -300,17 +297,17 @@ export function normalizeWakeWords(voice?: { wakeWords?: string[] }): string[] {
  *  - label 为空 → 回退为「自定义规则」；enabled 默认 true。
  */
 export function normalizeCustomTtsAlerts(raw: unknown): CustomTtsAlertRule[] {
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw)) return []
   return raw
     .map((item, idx): CustomTtsAlertRule | null => {
-      const r = item as Partial<CustomTtsAlertRule>;
-      const trigger = r.trigger === 'notification' ? 'notification' : 'entity_state';
-      const messageTemplate = String(r.messageTemplate || '').trim();
-      if (!messageTemplate) return null;
-      const entityMatch = String(r.entityMatch || '').trim();
-      const stateTo = String(r.stateTo || '').trim();
-      const messageContains = String(r.messageContains || '').trim();
-      const sourceContains = String(r.sourceContains || '').trim();
+      const r = item as Partial<CustomTtsAlertRule>
+      const trigger = r.trigger === 'notification' ? 'notification' : 'entity_state'
+      const messageTemplate = String(r.messageTemplate || '').trim()
+      if (!messageTemplate) return null
+      const entityMatch = String(r.entityMatch || '').trim()
+      const stateTo = String(r.stateTo || '').trim()
+      const messageContains = String(r.messageContains || '').trim()
+      const sourceContains = String(r.sourceContains || '').trim()
       return {
         id: String(r.id || `custom_${idx}_${Date.now()}`).trim(),
         label: String(r.label || '自定义规则').trim() || '自定义规则',
@@ -322,7 +319,7 @@ export function normalizeCustomTtsAlerts(raw: unknown): CustomTtsAlertRule[] {
         ...(messageContains ? { messageContains } : {}),
         ...(sourceContains ? { sourceContains } : {}),
         messageTemplate,
-      };
+      }
     })
-    .filter((x): x is CustomTtsAlertRule => x != null);
+    .filter((x): x is CustomTtsAlertRule => x != null)
 }

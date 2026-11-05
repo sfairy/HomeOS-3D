@@ -81,8 +81,7 @@ export function createEntityTransport(deps: EntityTransportDeps) {
     // - 重连：仅当内存为空或已标 stale 时再 hydrate，避免与 WS 增量抢写，
     //   同时覆盖「整页被回收后重进 / 长断线后内存已空」场景。
     let cacheHydrated = true
-    const needsCacheHydrate =
-      !hydratedOnce || deps.totalCount.value === 0 || deps.refs.entitiesStale?.value === true
+    const needsCacheHydrate = !hydratedOnce || deps.totalCount.value === 0 || deps.refs.entitiesStale?.value === true
     if (needsCacheHydrate) {
       cacheHydrated = await deps.hydrateFromEntityCache().catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : String(e)

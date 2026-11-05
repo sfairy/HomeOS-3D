@@ -27,9 +27,7 @@ interface EntitySyncRecommendInput {
  * @param input 实体同步状态输入
  * @returns 推荐结果对象
  */
-export function buildEntitySyncRecommendations(
-  input: EntitySyncRecommendInput,
-): RecommendInsightResult {
+export function buildEntitySyncRecommendations(input: EntitySyncRecommendInput): RecommendInsightResult {
   const { totalCount, syncOnlyEnabledEntities, cacheHydrated } = input
   const banners = []
   const groups = []
@@ -74,9 +72,7 @@ export function buildEntitySyncRecommendations(
     })
   }
 
-  const hasActionable = banners.some(
-    (b) => b.id === 'enable-sync-filter' || b.id === 'refresh-entities',
-  )
+  const hasActionable = banners.some((b) => b.id === 'enable-sync-filter' || b.id === 'refresh-entities')
   return {
     domain: 'entity-sync',
     title: '实体同步建议',

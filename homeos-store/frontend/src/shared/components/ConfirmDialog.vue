@@ -40,9 +40,7 @@ const confirmBtnClass = computed(() => {
     };
     return map[tone.value] || map.primary;
   }
-  return tone.value === "danger"
-    ? "hb-button hb-button--danger"
-    : "hb-button hb-button--primary";
+  return tone.value === "danger" ? "hb-button hb-button--danger" : "hb-button hb-button--primary";
 });
 
 watch(

@@ -1,11 +1,7 @@
 /**
  * 判断是否应向 onStateChanged 监听器派发事件（避免乐观更新 + WS 回显重复）
  */
-import type {
-  EntityStateNotifyArgs,
-  HaEntityState,
-  ResolveListenerOldStateArgs,
-} from '@/shared/types/entity-store'
+import type { EntityStateNotifyArgs, HaEntityState, ResolveListenerOldStateArgs } from '@/shared/types/entity-store'
 
 function attributesChanged(
   cached: HaEntityState | null | undefined,

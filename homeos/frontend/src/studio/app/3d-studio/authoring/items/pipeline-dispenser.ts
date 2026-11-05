@@ -9,12 +9,10 @@
  * 存档只存 `pipelineDispenserStyle`（`"original"` / `"rectangular"`），
  * 读到非法值时一律回落 `original`，模型与尺寸由此推导。
  */
-type PipelineDispenserStyle = "original" | "rectangular";
+type PipelineDispenserStyle = 'original' | 'rectangular'
 
 /** 原款 `pipelinewaterpurifier` 的包围盒（[宽, 高, 深]）。 */
-const ORIGINAL_PIPELINE_DISPENSER_SIZE: readonly [number, number, number] = Object.freeze([
-  0.48, 0.68, 0.24,
-]);
+const ORIGINAL_PIPELINE_DISPENSER_SIZE: readonly [number, number, number] = Object.freeze([0.48, 0.68, 0.24])
 
 /**
  * 变体 `rectangular-pipeline-dispenser` 的包围盒 —— 与
@@ -22,32 +20,27 @@ const ORIGINAL_PIPELINE_DISPENSER_SIZE: readonly [number, number, number] = Obje
  * 本模块被加载器反向依赖（`studio-external-models` 要调 `pipelineDispenserModelType`），
  * 走 import 会形成「加载器 ↔ 注册表 ↔ 本模块」的初始化环。
  */
-const RECTANGULAR_PIPELINE_DISPENSER_SIZE: readonly [number, number, number] = Object.freeze([
-  0.6, 0.44, 0.233,
-]);
+const RECTANGULAR_PIPELINE_DISPENSER_SIZE: readonly [number, number, number] = Object.freeze([0.6, 0.44, 0.233])
 
-const PIPELINE_DISPENSER_SIZES: Readonly<
-  Record<PipelineDispenserStyle, readonly [number, number, number]>
-> = Object.freeze({
-  original: ORIGINAL_PIPELINE_DISPENSER_SIZE,
-  rectangular: RECTANGULAR_PIPELINE_DISPENSER_SIZE,
-});
+const PIPELINE_DISPENSER_SIZES: Readonly<Record<PipelineDispenserStyle, readonly [number, number, number]>> =
+  Object.freeze({
+    original: ORIGINAL_PIPELINE_DISPENSER_SIZE,
+    rectangular: RECTANGULAR_PIPELINE_DISPENSER_SIZE,
+  })
 
 /** 归一化款式；只有显式写了 `rectangular` 才算变体。 */
 export function normalizePipelineDispenserStyle(style: unknown): PipelineDispenserStyle {
-  return style === "rectangular" ? "rectangular" : "original";
+  return style === 'rectangular' ? 'rectangular' : 'original'
 }
 
 /** 物品当前的款式（缺省 / 非法值 → `original`）。 */
 export function pipelineDispenserStyle(item: any): PipelineDispenserStyle {
-  return item?.pipelineDispenserStyle === "rectangular" ? "rectangular" : "original";
+  return item?.pipelineDispenserStyle === 'rectangular' ? 'rectangular' : 'original'
 }
 
 /** 该款式对应的模型类型键（`resolveModelTypeForItem` 用）。 */
 export function pipelineDispenserModelType(item: any): string {
-  return pipelineDispenserStyle(item) === "rectangular"
-    ? "rectangular-pipeline-dispenser"
-    : "pipelinewaterpurifier";
+  return pipelineDispenserStyle(item) === 'rectangular' ? 'rectangular-pipeline-dispenser' : 'pipelinewaterpurifier'
 }
 
 /**
@@ -57,19 +50,19 @@ export function pipelineDispenserModelType(item: any): string {
  * 切换款式仍然保留「用户偏大 / 偏小」的比例，只把长宽高关系换成新款式的。
  */
 export function setPipelineDispenserStyle(item: any, style: unknown): PipelineDispenserStyle {
-  const nextStyle = normalizePipelineDispenserStyle(style);
-  if (!item) return nextStyle;
-  const previousStyle = pipelineDispenserStyle(item);
+  const nextStyle = normalizePipelineDispenserStyle(style)
+  if (!item) return nextStyle
+  const previousStyle = pipelineDispenserStyle(item)
   if (nextStyle !== previousStyle) {
     const previousSize = PIPELINE_DISPENSER_SIZES[previousStyle],
       nextSize = PIPELINE_DISPENSER_SIZES[nextStyle],
-      currentSize = [item.width, item.height, item.depth];
+      currentSize = [item.width, item.height, item.depth]
     if (currentSize.every((dimension: any) => Number.isFinite(dimension) && dimension > 0)) {
-      [item.width, item.height, item.depth] = nextSize.map(
+      ;[item.width, item.height, item.depth] = nextSize.map(
         (targetSize, axis) => (targetSize * currentSize[axis]) / previousSize[axis],
-      );
+      )
     }
   }
-  item.pipelineDispenserStyle = nextStyle;
-  return nextStyle;
+  item.pipelineDispenserStyle = nextStyle
+  return nextStyle
 }

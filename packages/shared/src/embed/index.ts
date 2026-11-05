@@ -7,4 +7,4 @@ export {
   parseEmbedIdFromContextCookie,
   parseEmbedIdFromReferer,
   resolveEmbedProxyFallbackRedirect,
-} from './fallback-core.util';
+} from './fallback-core.util'

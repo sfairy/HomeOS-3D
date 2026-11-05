@@ -54,20 +54,12 @@ const setChartRef = (el) => {
   chartRef.value = el
 }
 
-const {
-  loading,
-  viewOptions,
-  activeView,
-  hasEntities,
-  hasSeries,
-  hasViewSeries,
-  viewEmptyTitle,
-  summaryRows,
-} = useHomeClimateChart({
-  config: computed(() => props.config),
-  panelVisible: computed(() => props.panelVisible),
-  chartRef,
-})
+const { loading, viewOptions, activeView, hasEntities, hasSeries, hasViewSeries, viewEmptyTitle, summaryRows } =
+  useHomeClimateChart({
+    config: computed(() => props.config),
+    panelVisible: computed(() => props.panelVisible),
+    chartRef,
+  })
 
 /**
  * 计算当前状态变体：

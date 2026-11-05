@@ -12,14 +12,7 @@
 
 <script setup lang="ts">
 /** 统计卡片色调类型 */
-export type FlowStatTone =
-  | 'accent'
-  | 'secondary'
-  | 'emerald'
-  | 'amber'
-  | 'sky'
-  | 'rose'
-  | 'violet'
+export type FlowStatTone = 'accent' | 'secondary' | 'emerald' | 'amber' | 'sky' | 'rose' | 'violet'
 
 defineProps<{
   label: string

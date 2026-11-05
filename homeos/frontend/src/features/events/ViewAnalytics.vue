@@ -55,12 +55,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import {
-  useEchartsHost,
-  axisLineStyle,
-  splitLineStyle,
-  yMax,
-} from '@/composables/ui/useEchartsHost'
+import { useEchartsHost, axisLineStyle, splitLineStyle, yMax } from '@/composables/ui/useEchartsHost'
 import {
   buildDomainBuckets,
   buildEntityBuckets,
@@ -98,9 +93,7 @@ const { schedule, get, getChartBase } = useEchartsHost({
 // 数据加工：把后端 stats 规整为图表桶与 KPI 汇总（见 analytics.util.ts）
 const domainBuckets = computed(() => buildDomainBuckets(props.stats?.byDomain))
 const timeBuckets = computed(() => buildTimeBuckets(props.stats?.byTime))
-const entityBuckets = computed(() =>
-  buildEntityBuckets(props.stats?.topEntities, props.entityDisplayName, 8),
-)
+const entityBuckets = computed(() => buildEntityBuckets(props.stats?.topEntities, props.entityDisplayName, 8))
 const summary = computed(() => computeEventAnalyticsSummary(props.stats, props.hours))
 
 // KPI 卡：基于 summary 拼装六格（总量/活跃域/峰值时段/均值/最热域/最热实体）
@@ -158,8 +151,7 @@ const chartTooltip = {
   borderColor: 'rgba(34, 211, 238, 0.32)',
   borderWidth: 1,
   padding: [8, 12],
-  extraCssText:
-    'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
+  extraCssText: 'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
   textStyle: { color: '#a5f3fc', fontSize: 12, fontWeight: 600 },
 }
 
@@ -290,9 +282,7 @@ function buildEntityOption() {
         data: values.map((value, i) => ({
           value,
           itemStyle: {
-            color: barGradient(
-              domainBuckets.value[i % domainBuckets.value.length]?.color || '#22d3ee',
-            ),
+            color: barGradient(domainBuckets.value[i % domainBuckets.value.length]?.color || '#22d3ee'),
             borderRadius: [0, 6, 6, 0],
           },
         })),

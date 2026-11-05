@@ -177,17 +177,7 @@
 </template>
 
 <script setup>
-import {
-  PlugZap,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Copy,
-  Globe,
-  KeyRound,
-  Pencil,
-  ShieldCheck,
-} from '@lucide/vue'
+import { PlugZap, Loader2, CheckCircle2, AlertCircle, Copy, Globe, KeyRound, Pencil, ShieldCheck } from '@lucide/vue'
 
 defineProps({
   /** 表单草稿（url / fallbackUrl / token），由 useConnectionCredentials 持有 */

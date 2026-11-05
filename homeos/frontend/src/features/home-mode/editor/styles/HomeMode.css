@@ -47,7 +47,10 @@
   outline: 2px solid var(--page-accent-text);
   outline-offset: 2px;
 }
-.home-mode-panel .hm-toolbar-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.home-mode-panel .hm-toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .home-mode-panel .hm-toolbar-btn--accent {
   background: linear-gradient(135deg, var(--page-accent-bg-strong), var(--page-accent-bg));
   border-color: var(--page-accent-border);
@@ -99,7 +102,9 @@
   border: none;
   min-width: 0;
 }
-.home-mode-panel .hm-context-pill--warn .hm-context-pill__val { color: var(--set-warn); }
+.home-mode-panel .hm-context-pill--warn .hm-context-pill__val {
+  color: var(--set-warn);
+}
 .home-mode-panel .hm-context-pill__icon {
   width: 28px;
   height: 28px;
@@ -112,7 +117,9 @@
   background: var(--page-accent-bg);
   border: var(--hos-hairline) solid var(--page-accent-border);
 }
-.home-mode-panel .hm-context-pill__body { min-width: 0; }
+.home-mode-panel .hm-context-pill__body {
+  min-width: 0;
+}
 .home-mode-panel .hm-context-pill__label {
   display: block;
   font-size: var(--premium-fs-micro);
@@ -135,7 +142,10 @@
 
 .home-mode-panel .hm-context-pill--clickable {
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
 }
 .home-mode-panel .hm-context-pill--clickable:hover {
   background: var(--page-accent-bg);
@@ -179,7 +189,9 @@
   min-width: 0;
 }
 
-.home-mode-panel .hm-workspace { min-height: 0; }
+.home-mode-panel .hm-workspace {
+  min-height: 0;
+}
 
 .home-mode-panel .hm-split {
   display: flex;
@@ -266,7 +278,10 @@
   width: 14px;
   height: 14px;
 }
-.home-mode-panel .hm-editor-head__identity { flex: 1; min-width: 0; }
+.home-mode-panel .hm-editor-head__identity {
+  flex: 1;
+  min-width: 0;
+}
 .home-mode-panel .hm-editor-head__title-row {
   display: flex;
   flex-wrap: wrap;
@@ -351,7 +366,9 @@
   overflow-x: auto;
   scrollbar-width: none;
 }
-.home-mode-panel .hm-segments::-webkit-scrollbar { display: none; }
+.home-mode-panel .hm-segments::-webkit-scrollbar {
+  display: none;
+}
 .home-mode-panel .hm-segment {
   /* 高度锁到 md 档：7px 内边距 + 行高 + 发丝边框凑出的 35px 不在尺度上。 */
   height: var(--control-height-md);
@@ -483,7 +500,9 @@
   font-size: var(--premium-fs-caption);
   color: #fff;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 .home-mode-panel .hm-field__input:focus {
   border-color: var(--page-accent-border);
@@ -545,12 +564,7 @@
   padding: 10px 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(var(--chip-rgb, 126, 184, 255), 0.16);
-  background:
-    linear-gradient(
-      145deg,
-      rgba(var(--chip-rgb, 126, 184, 255), 0.08) 0%,
-      rgba(0, 0, 0, 0.22) 100%
-    );
+  background: linear-gradient(145deg, rgba(var(--chip-rgb, 126, 184, 255), 0.08) 0%, rgba(0, 0, 0, 0.22) 100%);
   text-align: left;
   cursor: pointer;
   overflow: hidden;
@@ -564,12 +578,7 @@
 }
 .home-mode-panel .hm-template-card:hover {
   border-color: rgba(var(--chip-rgb, 126, 184, 255), 0.38);
-  background:
-    linear-gradient(
-      145deg,
-      rgba(var(--chip-rgb, 126, 184, 255), 0.14) 0%,
-      rgba(0, 0, 0, 0.28) 100%
-    );
+  background: linear-gradient(145deg, rgba(var(--chip-rgb, 126, 184, 255), 0.14) 0%, rgba(0, 0, 0, 0.28) 100%);
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(var(--chip-rgb, 126, 184, 255), 0.12);
 }
@@ -629,7 +638,6 @@
   transform: translateX(0);
 }
 
-
 .home-mode-panel .hm-section-head {
   flex-shrink: 0;
   display: flex;
@@ -672,11 +680,25 @@
   border: var(--hos-hairline) solid var(--premium-border-strong);
   transition: all 0.15s;
 }
-.home-mode-panel .hm-chip-btn:hover { background: var(--premium-glass-bg-hover); color: #fff; }
-.home-mode-panel .hm-chip-btn--blue { color: var(--module-accent-home-mode-sub, #fb7185); border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.2); background: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.08); }
-.home-mode-panel .hm-chip-btn--green { color: var(--set-success); border-color: rgba(var(--set-success-rgb), 0.2); background: rgba(var(--set-success-rgb), 0.08); }
-.home-mode-panel .hm-chip-btn--sky { color: var(--set-info); border-color: rgba(var(--set-info-rgb), 0.2); background: rgba(var(--set-info-rgb), 0.08); }
-
+.home-mode-panel .hm-chip-btn:hover {
+  background: var(--premium-glass-bg-hover);
+  color: #fff;
+}
+.home-mode-panel .hm-chip-btn--blue {
+  color: var(--module-accent-home-mode-sub, #fb7185);
+  border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.2);
+  background: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.08);
+}
+.home-mode-panel .hm-chip-btn--green {
+  color: var(--set-success);
+  border-color: rgba(var(--set-success-rgb), 0.2);
+  background: rgba(var(--set-success-rgb), 0.08);
+}
+.home-mode-panel .hm-chip-btn--sky {
+  color: var(--set-info);
+  border-color: rgba(var(--set-info-rgb), 0.2);
+  background: rgba(var(--set-info-rgb), 0.08);
+}
 
 .home-mode-panel .hm-link {
   font-size: var(--premium-fs-caption);
@@ -684,7 +706,10 @@
   color: var(--module-accent-home-mode-sub, #fb7185);
   white-space: nowrap;
 }
-.home-mode-panel .hm-link:hover { color: var(--set-info); text-decoration: underline; }
+.home-mode-panel .hm-link:hover {
+  color: var(--set-info);
+  text-decoration: underline;
+}
 
 .home-mode-panel .hm-log-block + .hm-log-block {
   margin-top: 20px;
@@ -700,7 +725,7 @@
   position: relative;
 }
 .home-mode-panel .hm-mode-footer::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -765,7 +790,7 @@
   border-left: none;
 }
 .home-mode-panel .hm-mode-footer__hint::before {
-  content: '!';
+  content: "!";
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -900,7 +925,9 @@
   min-height: 56px;
   resize: vertical;
 }
-.home-mode-panel .hm-field__label--flush { margin-bottom: 0; }
+.home-mode-panel .hm-field__label--flush {
+  margin-bottom: 0;
+}
 .home-mode-panel .hm-field__label--inline {
   margin-bottom: 0;
   flex-shrink: 0;
@@ -965,7 +992,9 @@
   border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.16);
   border: var(--hos-hairline) solid var(--set-border-subtle);
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .home-mode-panel .hm-trigger-card:hover {
   border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.28);
@@ -1059,7 +1088,10 @@
   overflow: hidden;
   opacity: 0;
   margin-bottom: 0;
-  transition: max-height 0.25s ease, opacity 0.2s, margin 0.2s;
+  transition:
+    max-height 0.25s ease,
+    opacity 0.2s,
+    margin 0.2s;
 }
 .home-mode-panel .hm-batch-panel--open {
   max-height: 420px;
@@ -1095,7 +1127,9 @@
   display: flex;
   gap: 10px;
 }
-.home-mode-panel .hm-link--muted { color: var(--hos-text-secondary); }
+.home-mode-panel .hm-link--muted {
+  color: var(--hos-text-secondary);
+}
 .home-mode-panel .hm-batch-panel__chips {
   display: flex;
   flex-wrap: wrap;
@@ -1158,7 +1192,11 @@
 }
 .home-mode-panel .hm-premium-empty--sky {
   border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.2);
-  background: linear-gradient(160deg, rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.05) 0%, rgba(0, 0, 0, 0.12) 100%);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.05) 0%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
 }
 .home-mode-panel .hm-premium-empty--indigo {
   border-color: var(--page-accent-border);
@@ -1208,7 +1246,10 @@
   color: var(--page-accent-text);
   background: var(--page-accent-bg);
   border: var(--hos-hairline) solid var(--page-accent-border);
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 .home-mode-panel .hm-premium-empty--sky .hm-premium-empty__btn {
   color: var(--module-accent-home-mode-sub, #fb7185);
@@ -1278,7 +1319,10 @@
   border: var(--hos-hairline) solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .home-mode-panel .hm-delete-mode-btn:hover {
   color: var(--set-danger);
@@ -1358,8 +1402,13 @@
   height: 34px;
   border-radius: var(--hos-radius-card);
 }
-.home-mode-panel--embedded .hm-editor-head__emoji { font-size: 17px; }
-.home-mode-panel--embedded .hm-editor-head__lucide { width: 17px; height: 17px; }
+.home-mode-panel--embedded .hm-editor-head__emoji {
+  font-size: 17px;
+}
+.home-mode-panel--embedded .hm-editor-head__lucide {
+  width: 17px;
+  height: 17px;
+}
 .home-mode-panel--embedded .hm-panel-scroll {
   padding: 12px 16px 14px;
 }
@@ -1491,7 +1540,7 @@
   transition: background 0.16s ease;
 }
 .home-mode-panel .hm-item-nav__row::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 4px;
   top: 10px;
@@ -1499,7 +1548,9 @@
   width: 2px;
   border-radius: 2px;
   background: transparent;
-  transition: background 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 .home-mode-panel .hm-item-nav__row:hover {
   background: rgba(255, 255, 255, 0.04);
@@ -1577,7 +1628,9 @@
     max-height: none;
     scrollbar-width: none;
   }
-  .home-mode-panel .hm-item-nav__list::-webkit-scrollbar { display: none; }
+  .home-mode-panel .hm-item-nav__list::-webkit-scrollbar {
+    display: none;
+  }
   .home-mode-panel .hm-item-nav__row {
     flex: 0 0 auto;
     max-width: 200px;
@@ -1592,7 +1645,6 @@
     height: 2px;
   }
 }
-
 
 /* 窄屏才纵向堆叠预设侧栏；勿用 pointer:coarse，触控宽屏会误把编辑区压扁 */
 @media (max-width: 900px) {
@@ -1612,13 +1664,27 @@
 }
 
 @media (max-width: 900px), (pointer: coarse), (hover: none) {
-  .home-mode-panel .hm-context-pills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .home-mode-panel .hm-form-grid { grid-template-columns: 1fr; }
-  .home-mode-panel .hm-template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .home-mode-panel .hm-editor-head__card { flex-direction: column; }
-  .home-mode-panel .hm-section-head { flex-direction: column; }
-  .home-mode-panel .hm-batch-panel__grid { grid-template-columns: 1fr; }
-  .home-mode-panel .hm-action-row { flex-wrap: wrap; }
+  .home-mode-panel .hm-context-pills {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-mode-panel .hm-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-mode-panel .hm-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-mode-panel .hm-editor-head__card {
+    flex-direction: column;
+  }
+  .home-mode-panel .hm-section-head {
+    flex-direction: column;
+  }
+  .home-mode-panel .hm-batch-panel__grid {
+    grid-template-columns: 1fr;
+  }
+  .home-mode-panel .hm-action-row {
+    flex-wrap: wrap;
+  }
   .home-mode-panel--embedded .hm-context-pills {
     display: flex;
     flex-wrap: wrap;
@@ -1640,10 +1706,14 @@
 }
 
 @media (max-width: 640px) {
-  .home-mode-panel .hm-template-grid { grid-template-columns: 1fr; }
+  .home-mode-panel .hm-template-grid {
+    grid-template-columns: 1fr;
+  }
   /* 上下文胶囊在 900px 档降到 2 列，但每列 min 148px：容器窄到 ~316px 以下（小屏 + 面板内边距）
      两列就撑破面板宽度。640px 以下直接单列，与 hm-template-grid 同一口径。 */
-  .home-mode-panel .hm-context-pills { grid-template-columns: 1fr; }
+  .home-mode-panel .hm-context-pills {
+    grid-template-columns: 1fr;
+  }
   .home-mode-panel .hm-template-section__head {
     flex-direction: column;
     gap: 8px;
@@ -1770,7 +1840,11 @@
   background: rgba(0, 0, 0, 0.18);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   overflow: hidden;
-  transition: border-color 0.15s, background 0.15s, opacity 0.15s, transform 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.15s;
 }
 
 .hm-action-card:hover {
@@ -2090,7 +2164,9 @@
   background: rgba(0, 0, 0, 0.16);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
   cursor: default;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .hm-log-card:hover {
@@ -2346,7 +2422,6 @@
   color: var(--hos-text-secondary);
 }
 
-
 @media (max-width: 1100px) {
   .home-mode-panel .hm-form-grid--basic {
     grid-template-columns: 1fr 1fr;
@@ -2363,11 +2438,9 @@
   }
 }
 
-
 /* 居家模式布局正常 */
 
 /* —— HomeModePanelSection —— */
 .hp-text-tertiary {
   color: var(--set-text-tertiary);
 }
-

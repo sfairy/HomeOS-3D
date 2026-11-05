@@ -33,10 +33,7 @@ export function deleteProject(id: string, config?: AxiosRequestConfig) {
 }
 
 /** 更新项目默认配置。 */
-export function updateProjectDefaults(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function updateProjectDefaults(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPut('/config/project/defaults', payload, config)
 }
 
@@ -51,10 +48,7 @@ export function resolveTerminalProfile(clientId: string, config?: AxiosRequestCo
 }
 
 /** 更新当前终端的自绑定配置。 */
-export function updateSelfTerminalBinding(
-  payload: Record<string, unknown>,
-  config?: AxiosRequestConfig,
-) {
+export function updateSelfTerminalBinding(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPut('/config/terminal/binding/self', payload, config)
 }
 
@@ -82,12 +76,7 @@ export function mkdirConfigAsset(base: string, path: string, config?: AxiosReque
 }
 
 /** 上传配置资产文件。 */
-export function uploadConfigAsset(
-  _base: string,
-  url: string,
-  formData: FormData,
-  config?: AxiosRequestConfig,
-) {
+export function uploadConfigAsset(_base: string, url: string, formData: FormData, config?: AxiosRequestConfig) {
   return apiPost(url, formData, config)
 }
 

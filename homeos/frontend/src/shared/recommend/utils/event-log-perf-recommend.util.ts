@@ -1,8 +1,5 @@
 /** EventLog 性能调优推荐模块。 */
-import type {
-  EventLogStatsSnapshot,
-  RecommendInsightResult,
-} from '@/shared/recommend/types/recommend.types'
+import type { EventLogStatsSnapshot, RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 import { buildRecommendInsight } from '@/shared/recommend/utils/insight.util'
 import { formatRecommendShare } from '@/shared/recommend/utils/event-log-record-recommend.util'
 import { formatLocaleNumber } from '@/shared/utils/format/locale-format.util'
@@ -57,8 +54,7 @@ export function buildEventLogPerfRecommendations(
 
   const total = stats.total
   // 传感器域 = sensor + binary_sensor，二者是写入噪声主要来源
-  const sensorCount =
-    Number(stats.byDomain?.sensor || 0) + Number(stats.byDomain?.binary_sensor || 0)
+  const sensorCount = Number(stats.byDomain?.sensor || 0) + Number(stats.byDomain?.binary_sensor || 0)
   const sensorShare = sensorCount / total
   const banners = []
   const groups = []
@@ -108,11 +104,7 @@ export function buildEventLogPerfRecommendations(
       count: Number(count) || 0,
       share: (Number(count) || 0) / total,
     }))
-    .filter(
-      (row) =>
-        row.share >= 0.1 &&
-        ['sensor', 'binary_sensor', 'device_tracker', 'update'].includes(row.domain),
-    )
+    .filter((row) => row.share >= 0.1 && ['sensor', 'binary_sensor', 'device_tracker', 'update'].includes(row.domain))
     .sort((a, b) => b.count - a.count)
     .slice(0, 4)
 

@@ -12,17 +12,17 @@
  *  - 通过后零填充为两位。
  */
 export function normalizeHomeModeTimeAt(raw: string | undefined | null): string | null {
-  const s = String(raw || '').trim();
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  const s = String(raw || '').trim()
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s)
   // 格式不匹配直接拒绝
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2]);
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
   // 边界校验：小时 0-23，分钟 0-59
   if (!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) {
-    return null;
+    return null
   }
-  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
 }
 
 /**
@@ -35,15 +35,15 @@ export function normalizeHomeModeTimeAt(raw: string | undefined | null): string 
  */
 export function homeModeMinuteKey(date: Date, timeZone?: string): string {
   if (!timeZone) {
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
   }
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(date);
-  const h = parts.find((p) => p.type === 'hour')?.value ?? '00';
-  const m = parts.find((p) => p.type === 'minute')?.value ?? '00';
-  return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+  }).formatToParts(date)
+  const h = parts.find((p) => p.type === 'hour')?.value ?? '00'
+  const m = parts.find((p) => p.type === 'minute')?.value ?? '00'
+  return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`
 }

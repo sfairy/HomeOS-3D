@@ -211,8 +211,10 @@ const activeOptionId = computed(() => (open.value ? optionId(activeIdx.value) : 
  * @property placement - 弹出方向（top/bottom）
  * @property updatePosition - 更新面板位置的方法
  */
-const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } =
-  useDropdownPosition(wrapRef, open, {
+const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } = useDropdownPosition(
+  wrapRef,
+  open,
+  {
     minWidth: props.minWidth || 120,
     maxHeight: props.maxHeight,
     // 可搜索时面板内含搜索栏，须计入 chrome，否则向上展开会裁切首行
@@ -220,7 +222,8 @@ const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePositi
     minListHeight: 80,
     minRowHeight: () => 40,
     dropdownRef,
-  })
+  },
+)
 
 /** 所有选项（合并 props.options 和 slot 选项，统一归一化格式） */
 const allOptions = computed(() => {
@@ -375,8 +378,7 @@ function parseSlotOptions() {
 
 /** 转换输出值的类型（如果配置了 number 模式则转为数字） */
 function coerceEmitValue(raw) {
-  const asNumber =
-    props.number || props.modelModifiers?.number || typeof resolvedValue.value === 'number'
+  const asNumber = props.number || props.modelModifiers?.number || typeof resolvedValue.value === 'number'
   if (asNumber) {
     const num = Number(raw)
     return Number.isNaN(num) ? raw : num
@@ -407,8 +409,7 @@ function close() {
   // 键盘用户在搜索框里按 Enter 选中后，搜索框会随面板一起卸载 ——
   // 焦点会掉到 <body>，下一次按 Tab 得从页面开头重来。这里把焦点还给触发按钮。
   const active = document.activeElement
-  const focusWasInPanel =
-    !!dropdownRef.value && active instanceof HTMLElement && dropdownRef.value.contains(active)
+  const focusWasInPanel = !!dropdownRef.value && active instanceof HTMLElement && dropdownRef.value.contains(active)
   open.value = false
   query.value = ''
   if (focusWasInPanel) triggerRef.value?.focus?.()

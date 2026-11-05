@@ -31,8 +31,6 @@
 
 /* 顶栏子导航 */
 
-
-
 .access-hub .settings-hub-section {
   gap: 18px;
   animation: setFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -45,26 +43,15 @@
   gap: 4px;
   padding: 16px 12px;
   border-radius: var(--hos-radius-card, 14px);
-  background:
-    linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.28) 100%);
+  background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.28) 100%);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   text-align: center;
 }
-
-
-
 
 .access-hub .access-role-tab {
   font-size: var(--premium-fs-caption);
   padding: 8px 16px;
 }
-
-
-
-
-
-
-
 
 /* ── 访客分享 ── */
 
@@ -95,18 +82,18 @@
   background: var(--set-info-bg);
 }
 
-
 .access-hub .access-guest-preset {
   font-size: var(--premium-fs-caption);
   padding: 8px 16px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .access-hub .access-guest-preset--active {
   box-shadow: 0 6px 20px var(--set-info-glow, rgba(34, 211, 238, 0.12));
   transform: translateY(-1px);
 }
-
 
 .access-hub .access-guest-result__code {
   font-size: var(--premium-fs-caption);
@@ -123,10 +110,12 @@
   gap: 14px;
   padding: var(--hos-panel-padding-default, 20px);
   border-radius: var(--hos-radius-card, 14px);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.26) 100%);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.26) 100%);
   border: var(--hos-hairline) solid var(--set-border-subtle);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .access-hub .access-audit-kpi__item:hover {
@@ -134,20 +123,6 @@
   border-color: var(--set-border-strong);
   box-shadow: 0 10px 28px var(--set-bg-dark-hover);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* 角色徽章统一缩小 */
 
@@ -167,7 +142,6 @@
   flex-direction: column;
   gap: 16px;
 }
-
 
 /* ══ Hero：KPI 四联（页标题由 SettingsPageHeader 承担） ══ */
 .fam-hero.settings-card--static {
@@ -216,7 +190,9 @@
   border-left-width: 3px;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.26) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .fam-hero-stat__icon {
@@ -251,23 +227,29 @@
   line-height: 1.2;
 }
 
-.fam-hero-stat--mode { border-left-color: var(--set-success); }
+.fam-hero-stat--mode {
+  border-left-color: var(--set-success);
+}
 .fam-hero-stat--mode .fam-hero-stat__icon,
-.fam-hero-stat--mode .fam-hero-stat__val { color: var(--set-success); }
+.fam-hero-stat--mode .fam-hero-stat__val {
+  color: var(--set-success);
+}
 .fam-hero-stat--mode.fam-hero-stat--active {
   border-color: rgba(var(--set-success-rgb), 0.28);
   box-shadow: 0 4px 18px rgba(var(--set-success-rgb), 0.08);
 }
 
-.fam-hero-stat--dnd { border-left-color: var(--set-warn); }
+.fam-hero-stat--dnd {
+  border-left-color: var(--set-warn);
+}
 .fam-hero-stat--dnd .fam-hero-stat__icon,
-.fam-hero-stat--dnd .fam-hero-stat__val { color: var(--set-warn); }
+.fam-hero-stat--dnd .fam-hero-stat__val {
+  color: var(--set-warn);
+}
 .fam-hero-stat--dnd.fam-hero-stat--active {
   border-color: rgba(var(--set-warn-rgb), 0.28);
   box-shadow: 0 4px 18px rgba(var(--set-warn-rgb), 0.08);
 }
-
-
 
 .fam-hero__hint {
   display: flex;
@@ -326,11 +308,7 @@
 }
 
 .family-status-card--mode {
-  background: linear-gradient(
-    160deg,
-    rgba(var(--set-success-rgb), 0.08) 0%,
-    rgba(0, 0, 0, 0.24) 100%
-  );
+  background: linear-gradient(160deg, rgba(var(--set-success-rgb), 0.08) 0%, rgba(0, 0, 0, 0.24) 100%);
   border-color: rgba(var(--set-success-rgb), 0.14);
 }
 
@@ -353,8 +331,6 @@
   background: linear-gradient(160deg, rgba(var(--set-info-rgb), 0.07) 0%, rgba(0, 0, 0, 0.24) 100%);
   border-color: rgba(var(--set-info-rgb), 0.14);
 }
-
-
 
 .family-status-card__head {
   display: flex;
@@ -392,7 +368,6 @@
   background: rgba(var(--set-info-rgb), 0.12);
   border-color: rgba(var(--set-info-rgb), 0.2);
 }
-
 
 .family-status-card__meta {
   display: flex;
@@ -494,16 +469,13 @@
   color: var(--hos-text-secondary);
 }
 
-
-
 @media (max-width: 640px) {
-
   .fam-hero__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .acc-section-head,
-.fam-status-workspace .fam-status-grid {
+  .fam-status-workspace .fam-status-grid {
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -534,8 +506,6 @@
 
 /* 评分不足时的改进提示 */
 
-
-
 /* ── 统一区块标题 ── */
 .acc-section-head {
   display: flex;
@@ -561,7 +531,6 @@
   border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
-
 .acc-section-head__title {
   margin: 0;
   font-size: var(--premium-fs-body);
@@ -577,20 +546,13 @@
   color: var(--set-text-tertiary);
 }
 
-
-
 .acc-prefs-status__badge--off {
   color: var(--set-text-faint);
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-
-
-
-
 /* ── 偏好表单 ── */
-
 
 .acc-prefs-line {
   display: flex;
@@ -603,10 +565,7 @@
 }
 
 @media (max-width: 768px) {
-
-
   .acc-prefs-line {
     flex-wrap: wrap;
   }
-
 }

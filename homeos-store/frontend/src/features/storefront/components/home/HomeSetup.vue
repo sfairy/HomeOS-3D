@@ -4,8 +4,7 @@ import { useHomeView } from "@store/features/storefront/composables/useHomeView"
 import { useStoreToast } from "@store/shared/stores/toast";
 import { copyText } from "@store/shared/utils/clipboard";
 
-const { setup, deployCommand, deployLabel, hasDeploy, supportEmail, authenticated, paymentBadges } =
-  useHomeView();
+const { setup, deployCommand, deployLabel, hasDeploy, supportEmail, authenticated, paymentBadges } = useHomeView();
 const toast = useStoreToast();
 const justCopied = ref(false);
 
@@ -19,9 +18,7 @@ const setupSteps = computed(() =>
 
 const mailto = computed(() => {
   const subject = encodeURIComponent("索取 HomeOS 部署文件");
-  return supportEmail.value
-    ? `mailto:${supportEmail.value}?subject=${subject}`
-    : null;
+  return supportEmail.value ? `mailto:${supportEmail.value}?subject=${subject}` : null;
 });
 
 async function copyDeploy() {

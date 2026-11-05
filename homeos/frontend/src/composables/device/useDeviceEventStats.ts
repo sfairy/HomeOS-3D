@@ -12,11 +12,7 @@ import { createFetchSequence } from '@/shared/utils/core/misc.util'
  * @param visible  可选的可见性开关；为 false 时跳过请求。
  * @returns loading / error / stats / hourlyBuckets / refresh（refresh 等价于 fetchStats）。
  */
-export function useDeviceEventStats(
-  entityId: Ref<string>,
-  hours: Ref<number> = ref(168),
-  visible?: Ref<boolean>,
-) {
+export function useDeviceEventStats(entityId: Ref<string>, hours: Ref<number> = ref(168), visible?: Ref<boolean>) {
   // 是否正在加载中
   const loading = ref(false)
   // 错误信息（空串表示无错误）

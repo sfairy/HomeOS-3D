@@ -253,10 +253,7 @@ import SettingsLayoutFooterSection from '@/features/settings/display/layout/Sett
 import { useDashboardFooterEditor } from '@/features/settings/display/composables/layout-dashboard.internals'
 import { useScaling } from '@/composables/ui/useScaling'
 import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
-import {
-  handleSystemConfigPatchError,
-  useSystemConfig,
-} from '@/composables/config/system-config-core.internals'
+import { handleSystemConfigPatchError, useSystemConfig } from '@/composables/config/system-config-core.internals'
 import { useChromeStore } from '@/stores/chrome.store'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
@@ -356,9 +353,7 @@ function applyWidthPreset(w) {
 const screenHint = computed(() => Math.min(3840, Math.max(1024, window.screen?.width || 1920)))
 
 // 屏幕高度提示（限制在 600–2160 之间）
-const screenHeightHint = computed(() =>
-  Math.min(2160, Math.max(600, window.screen?.height || 1024)),
-)
+const screenHeightHint = computed(() => Math.min(2160, Math.max(600, window.screen?.height || 1024)))
 
 // 自动匹配屏幕分辨率：写入宽度并保存高度到系统配置，失败时仅提示宽度已生效
 async function autoMatchResolution() {
@@ -369,17 +364,11 @@ async function autoMatchResolution() {
   try {
     await saveSystemConfig({ ui: { scaleBaseHeight: h } })
     await reloadFrontendConfig()
-    chrome.notify(
-      '已匹配屏幕 {w}×{h}px 并启用等比缩放'.replace('{w}', String(w)).replace('{h}', String(h)),
-      'success',
-    )
+    chrome.notify('已匹配屏幕 {w}×{h}px 并启用等比缩放'.replace('{w}', String(w)).replace('{h}', String(h)), 'success')
   } catch (e) {
     if (await handleSystemConfigPatchError(e, chrome)) return
     chrome.notify(
-      '已匹配宽度 {w}px；高度配置保存失败，请稍后在系统配置中设置 scaleBaseHeight'.replace(
-        '{w}',
-        String(w),
-      ),
+      '已匹配宽度 {w}px；高度配置保存失败，请稍后在系统配置中设置 scaleBaseHeight'.replace('{w}', String(w)),
       'warn',
     )
   }
@@ -393,9 +382,7 @@ const brandPreviewTitle = computed(() => {
 
 // 品牌流程折叠态摘要文案
 const brandFlowSummary = computed(() =>
-  pendingChanges.value
-    ? `${brandPreviewTitle.value} · 有未保存变更`
-    : `${brandPreviewTitle.value} · 布局已同步`,
+  pendingChanges.value ? `${brandPreviewTitle.value} · 有未保存变更` : `${brandPreviewTitle.value} · 布局已同步`,
 )
 
 // 品牌流程步骤：UI 方案 → 站点名称 → 顶栏预览 → 大屏
@@ -423,11 +410,7 @@ useSettingsHubRouteSection(generalSection, generalSubnavSections, {
 
 // 毛玻璃效果与生效性能档位变化时重新应用（自动降档也要跟着走）
 watch(
-  () => [
-    layoutConfig.value.glassEffect,
-    layoutConfig.value.performanceMode,
-    autoPerformanceModeRef.value,
-  ],
+  () => [layoutConfig.value.glassEffect, layoutConfig.value.performanceMode, autoPerformanceModeRef.value],
   () =>
     applyGlassEffectDocument(
       layoutConfig.value.glassEffect,
@@ -478,9 +461,7 @@ const activeFooterItemId = ref('')
 const footerItemTabs = computed(() => buildItemTabs(footerCfg.value.items ?? []))
 
 // 底部信息栏排序 key（用于触发重渲染）
-const footerItemsOrderKey = computed(() =>
-  (footerCfg.value.items ?? []).map((it) => it.id).join(','),
-)
+const footerItemsOrderKey = computed(() => (footerCfg.value.items ?? []).map((it) => it.id).join(','))
 
 // 项列表变化时自动选中首个或保持当前选中
 watch(

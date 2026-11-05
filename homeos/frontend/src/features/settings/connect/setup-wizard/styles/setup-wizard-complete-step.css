@@ -1,4 +1,4 @@
-@import 'setup-wizard.css';
+@import "setup-wizard.css";
 /* 从 SetupWizardCompleteStep.vue 抽出 */
 .sw-complete-celebrate {
   display: flex;
@@ -231,12 +231,7 @@
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid var(--sw-sky-border);
-  background: linear-gradient(
-    135deg,
-    var(--sw-sky-bg) 0%,
-    var(--sw-violet-bg) 50%,
-    var(--sw-emerald-bg) 100%
-  );
+  background: linear-gradient(135deg, var(--sw-sky-bg) 0%, var(--sw-violet-bg) 50%, var(--sw-emerald-bg) 100%);
   font-size: var(--set-fs-caption);
   color: rgba(255, 255, 255, 0.72);
 }

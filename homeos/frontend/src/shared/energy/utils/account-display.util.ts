@@ -1,9 +1,6 @@
 /** - 根据账户配置（实体模式 / 多账户模式 / 传统账户号模式）生成展示行。 */
 import { getEntityLeaf } from '@homeos/shared'
-import type {
-  AccountDisplayRow,
-  EnergyAccountSourceLike,
-} from '@/shared/energy/utils/account-types.util'
+import type { AccountDisplayRow, EnergyAccountSourceLike } from '@/shared/energy/utils/account-types.util'
 import { parseAccountString } from '@/shared/energy/utils/account-input.util'
 import {
   conventionBalanceEntityId,
@@ -30,14 +27,10 @@ import {
  * @param cfg 账户配置源数据，可能为 null / undefined。
  * @returns 展示行数组；cfg 为空时返回空数组。
  */
-export function resolveAccountDisplayRows(
-  cfg: EnergyAccountSourceLike | null | undefined,
-): AccountDisplayRow[] {
+export function resolveAccountDisplayRows(cfg: EnergyAccountSourceLike | null | undefined): AccountDisplayRow[] {
   if (!cfg) return []
   if (cfg.mode === 'entity') {
-    const rows = Array.isArray(cfg.accountEntities)
-      ? cfg.accountEntities
-      : resolveAccountEntityEntries(cfg)
+    const rows = Array.isArray(cfg.accountEntities) ? cfg.accountEntities : resolveAccountEntityEntries(cfg)
     return rows
       .map((entry, rowIndex) => ({ entry, rowIndex }))
       .filter(({ entry }) => String(entry?.entityId ?? '').trim())
@@ -48,9 +41,7 @@ export function resolveAccountDisplayRows(
       }))
   }
   if (cfg.mode === 'multi') {
-    const rows = Array.isArray(cfg.multiAccounts)
-      ? cfg.multiAccounts
-      : resolveMultiAccountEntries(cfg)
+    const rows = Array.isArray(cfg.multiAccounts) ? cfg.multiAccounts : resolveMultiAccountEntries(cfg)
     return rows
       .map((row, rowIndex) => ({ row, rowIndex }))
       .filter(({ row }) => row.entityId.trim() || hasEntityMapValues(row.entityMap))
@@ -60,9 +51,7 @@ export function resolveAccountDisplayRows(
         label: multiAccountEntryLabel(row, rowIndex),
       }))
   }
-  const rows = Array.isArray(cfg.accountEntries)
-    ? cfg.accountEntries
-    : parseAccountString(cfg.account)
+  const rows = Array.isArray(cfg.accountEntries) ? cfg.accountEntries : parseAccountString(cfg.account)
   return rows
     .map((entry, rowIndex) => ({ entry, rowIndex }))
     .filter(({ entry }) => String(entry?.number ?? '').trim())
@@ -166,9 +155,7 @@ export function resolveAccountLabelForEntityId(
   }
 
   const convEntries = resolveAccountEntries(cfg)
-  const convIdx = convEntries.findIndex(
-    (entry) => conventionBalanceEntityId(cat, entry.number) === eid,
-  )
+  const convIdx = convEntries.findIndex((entry) => conventionBalanceEntityId(cat, entry.number) === eid)
   if (convIdx >= 0) return accountEntryLabel(convEntries[convIdx], convIdx)
 
   const multiEntries = resolveMultiAccountEntries(cfg)
@@ -190,9 +177,7 @@ export function resolveAccountLabelForEntityId(
  * @param cfg 账户配置源数据。
  * @returns 已配置账户的索引数组；无任何配置时返回 `[0]`。
  */
-export function resolveConfiguredAccountIndices(
-  cfg: EnergyAccountSourceLike | null | undefined,
-): number[] {
+export function resolveConfiguredAccountIndices(cfg: EnergyAccountSourceLike | null | undefined): number[] {
   if (!cfg) return [0]
   if (cfg.mode === 'entity') {
     const indices = resolveAccountEntityEntries(cfg)

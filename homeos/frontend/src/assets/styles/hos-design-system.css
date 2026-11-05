@@ -101,21 +101,13 @@
   --hos-surface-3: rgba(255, 255, 255, 0.11);
   --hos-surface-well: rgba(0, 0, 0, 0.34);
   --hos-surface-well-border: rgba(255, 255, 255, 0.05);
-  --hos-surface-elevated: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.09) 0%,
-    rgba(255, 255, 255, 0.025) 100%
-  );
+  --hos-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 100%);
   --hos-surface-panel:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.018) 100%),
-    rgba(13, 24, 43, 0.84);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.018) 100%), rgba(13, 24, 43, 0.84);
   --hos-surface-panel-hover:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%),
-    rgba(17, 32, 57, 0.9);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%), rgba(17, 32, 57, 0.9);
   --hos-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  --hos-surface-well-inset:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 2px 8px rgba(0, 0, 0, 0.28);
+  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 2px 8px rgba(0, 0, 0, 0.28);
 
   /* ── 边框与阴影 ── */
   /**

@@ -55,14 +55,8 @@ import './assets/styles/multi-color.css'
 import './styles/legacy-token-bridge.css'
 // 触控 / 可访问性基线：最后加载，覆盖旧样式里的 outline:none 与触控几何
 import './styles/touch-a11y.css'
-import {
-  loadFrontendConfig,
-  setupFrontendConfigVisibilitySync,
-} from '@/shared/utils/config/frontend-config'
-import {
-  primeGlassEffectDocument,
-  setupGlassEffectSync,
-} from '@/shared/utils/ui/glass-effect.util'
+import { loadFrontendConfig, setupFrontendConfigVisibilitySync } from '@/shared/utils/config/frontend-config'
+import { primeGlassEffectDocument, setupGlassEffectSync } from '@/shared/utils/ui/glass-effect.util'
 import { applyHomeOsTheme } from '@/shared/utils/ui/theme.util'
 import { setupSmartPerformanceMode } from '@/shared/utils/perf/smart-performance.util'
 import {
@@ -206,11 +200,9 @@ registerAuthChangeHandler(() => {
     // 授权可用性快照同样按会话失效：它是路由守卫写进模块级单例的，激活页在 setup 顶层
     // 同步读它来画首帧。不清的话，下一个登录者（或本机换了授权）首帧会画出**上一个会话**
     // 的授权状态 —— 已激活/未激活、到期时间都可能是别人的。
-    void import('./shared/utils/auth/license-probe.util').then(
-      ({ forgetLicenseAvailability }) => {
-        forgetLicenseAvailability()
-      },
-    )
+    void import('./shared/utils/auth/license-probe.util').then(({ forgetLicenseAvailability }) => {
+      forgetLicenseAvailability()
+    })
   })
 })
 // 桥接通知消息到 Chrome store 的 notify

@@ -67,10 +67,7 @@ test('reportedMotion：同向连续上报会把时长收到「剩余距离 / 速
   assert.ok(motion)
   motion = reportedMotion(40, 60, 1200, motion.duration, motion, reports)
   assert.ok(motion)
-  assert.ok(
-    motion.duration >= 120 && motion.duration <= 5500,
-    `时长未被夹住：${motion.duration}`,
-  )
+  assert.ok(motion.duration >= 120 && motion.duration <= 5500, `时长未被夹住：${motion.duration}`)
   assert.ok(motion.duration < 500, `同向快速上报后时长应变短，实际 ${motion.duration}`)
 })
 

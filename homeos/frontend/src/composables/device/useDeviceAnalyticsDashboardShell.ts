@@ -1,13 +1,5 @@
 /** 设备分析仪表盘 Shell Composable */
-import {
-  ref,
-  computed,
-  watch,
-  onMounted,
-  onUnmounted,
-  type Ref,
-  type ComponentPublicInstance,
-} from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, type Ref, type ComponentPublicInstance } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
@@ -80,16 +72,9 @@ export function useDeviceAnalyticsDashboardShell(options: {
   ]
 
   // 拉取分析数据
-  const { loading, error, summary, eventsStats, refresh } = useDeviceAnalyticsDashboard(
-    days,
-    visibleRef,
-  )
+  const { loading, error, summary, eventsStats, refresh } = useDeviceAnalyticsDashboard(days, visibleRef)
   // 健康趋势
-  const {
-    trend: healthTrend,
-    current: healthCurrent,
-    refresh: refreshHealth,
-  } = useDeviceHealthTrend()
+  const { trend: healthTrend, current: healthCurrent, refresh: refreshHealth } = useDeviceHealthTrend()
   // 派生指标
   const {
     LOW_ACTIVITY_THRESHOLD,

@@ -12,211 +12,211 @@
  * **不要**把退化成 `any` 的 receiver 当小事 —— 宿主里 `ctx.x.items.map(cb)` 一旦 receiver 是 `any`，
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
-import type { normalizeBaseLighting as normalizeBaseLighting2 } from "../../loaders/studio-normalization";
-import type { createStudioDocument } from "../scene/studio-scene-payload";
-import type { ListDragRowSession } from "../types/studio-app-types";
+import type { normalizeBaseLighting as normalizeBaseLighting2 } from '../../loaders/studio-normalization'
+import type { createStudioDocument } from '../scene/studio-scene-payload'
+import type { ListDragRowSession } from '../types/studio-app-types'
 
 export interface StudioAppContext {
-  regionLightController: any;
-  contactShadowController: any;
-  overviewStackController: any;
-  animatedTransitionValue: any;
-  basePixelRatio: number;
-  adaptivePixelRatio: any;
-  reflectionSettingsJson: string;
-  isEnvironmentActive: boolean;
-  sceneRevisionCount: number;
-  isVacuumMoving: boolean;
-  vacuumMoveCount: number;
-  isLockMoving: boolean;
-  lockMoveCount: number;
-  sceneStyle: string;
-  wallOpacityValue: any;
-  isBackgroundMoving: boolean;
-  backgroundThemeName: string;
-  isCurtainMoving: boolean;
-  curtainStructureJson: string;
-  curtainFrameKey: string;
-  isHighDetailQuality: boolean;
-  previewShieldTimeoutId: any;
-  modelLoadTimeoutId: any;
-  isModelLoadPending: boolean;
-  replacementFrameCount: number;
-  isModelLoadActive: boolean;
-  isModelLoadDeferred: boolean;
-  isExternalModelPending: boolean;
-  isSceneStillLoading: boolean;
-  isExternalModelLoadDeferred: boolean;
-  deferredModelTypes: any;
-  modelLoadDebounceId: any;
-  materialSlotPanelSignature: string;
-  materialStyleOptionSignature: string;
-  isMaterialSlotPanelPending: boolean;
-  materialSlotGroupFilter: string;
-  expandedMaterialSurfaceSlots: any;
-  loadedDraft: any;
-  draftLoadRequestId: number;
-  backgroundLoadRequestId: number;
-  studioState: ReturnType<typeof createStudioDocument>;
-  studioProject: any;
-  activeFloorId: string;
-  overriddenFloorIds: any;
-  backgroundImageSource: any;
-  activeToolName: string;
-  activeLibraryCategory: string;
-  activeLightGroupId: string;
-  pendingLightGroupId: string;
-  renamingLightGroupId: string;
-  areaAssignGroupId: string;
-  expandedAreaIds: any;
-  movingFloorId: string;
-  pendingLightPropertyApply: any;
-  clipboardItems: any;
-  clipboardSourceFloor: any;
-  pasteOffsetFactor: number;
-  selectedItem: any;
-  selectedItems: any;
-  segmentStartPoint: any;
-  snapEndpointPoint: any;
-  wallSegmentCount: number;
-  previewEndPoint: any;
-  measureSpan: any;
-  alignmentState: any;
-  floorSelectionRequestId: number;
-  pendingFloorMenuId: string;
-  pendingFloorDeleteId: string;
-  hoverPoint: any;
-  activeSnapTarget: any;
-  snapHit: any;
-  windowPlacement: any;
-  doorPlacement: any;
-  railingPlacement: any;
-  marqueeBox: any;
-  isMiddleButtonPanning: boolean;
-  isForceSnapDisabled: boolean;
-  isSnapTemporarilyOff: boolean;
-  planViewWidth: number;
-  planViewHeight: number;
-  isAutoFitRequested: boolean;
-  planView: any;
-  undoRecords: any;
-  redoRecords: any;
-  localSaveRevision: number;
-  remoteSaveRevision: number;
-  autosaveTimeoutId: any;
-  isSaveInFlight: boolean;
-  pendingConflict: any;
-  toastTimeoutId: any;
-  isPrecompileBlocked: boolean;
-  isMaterialPrecompilePending: boolean;
-  isRuntimeWarmupDone: boolean;
-  hasAllFloorsSelected: boolean;
-  isLightCachePreserved: boolean;
-  isRendererLost: boolean;
-  lightAreaRecords: { areaId: string; name: string }[];
-  isSceneDirty: boolean;
-  dragStart: any;
-  activePointerId: any;
-  pointerReleaseTimeoutId: any;
-  pointerMoveCount: number;
-  activePointerState: any;
-  pointerFrameId: number;
-  pinchStartDistance: number;
-  pinchStartCenter: any;
-  renderLoopFrameId: number;
-  renderLoopTimeoutId: any;
-  pendingRuntimeSettings: any;
-  isInteractionLocked: boolean;
-  isExporting: boolean;
-  isExportPresetDirty: boolean;
-  exportPreviewTimeoutId: any;
-  overwriteResolver: any;
-  isGroundShadowEnabled: boolean;
-  savedShadowCamera: any;
-  exportAspectRatio: any;
-  threeScene: any;
-  threeCamera: any;
-  threeRenderer: any;
-  orbitControls: any;
-  sceneRootNode: any;
-  sceneModelOrigin: any;
-  resizeObserverInstance: any;
-  hemisphereLight: any;
-  ambientLight: any;
-  mainDirectionalLight: any;
-  fillDirectionalLight: any;
-  topDirectionalLight: any;
-  lightPrecompileController: any;
-  baseLightingSettings: ReturnType<typeof normalizeBaseLighting2>;
-  pointerDragState: any;
-  lightPreviewWorker: any;
-  isLightCacheReady: boolean;
-  isLightCacheDeferred: boolean;
-  compiledShaderCache: any;
+  regionLightController: any
+  contactShadowController: any
+  overviewStackController: any
+  animatedTransitionValue: any
+  basePixelRatio: number
+  adaptivePixelRatio: any
+  reflectionSettingsJson: string
+  isEnvironmentActive: boolean
+  sceneRevisionCount: number
+  isVacuumMoving: boolean
+  vacuumMoveCount: number
+  isLockMoving: boolean
+  lockMoveCount: number
+  sceneStyle: string
+  wallOpacityValue: any
+  isBackgroundMoving: boolean
+  backgroundThemeName: string
+  isCurtainMoving: boolean
+  curtainStructureJson: string
+  curtainFrameKey: string
+  isHighDetailQuality: boolean
+  previewShieldTimeoutId: any
+  modelLoadTimeoutId: any
+  isModelLoadPending: boolean
+  replacementFrameCount: number
+  isModelLoadActive: boolean
+  isModelLoadDeferred: boolean
+  isExternalModelPending: boolean
+  isSceneStillLoading: boolean
+  isExternalModelLoadDeferred: boolean
+  deferredModelTypes: any
+  modelLoadDebounceId: any
+  materialSlotPanelSignature: string
+  materialStyleOptionSignature: string
+  isMaterialSlotPanelPending: boolean
+  materialSlotGroupFilter: string
+  expandedMaterialSurfaceSlots: any
+  loadedDraft: any
+  draftLoadRequestId: number
+  backgroundLoadRequestId: number
+  studioState: ReturnType<typeof createStudioDocument>
+  studioProject: any
+  activeFloorId: string
+  overriddenFloorIds: any
+  backgroundImageSource: any
+  activeToolName: string
+  activeLibraryCategory: string
+  activeLightGroupId: string
+  pendingLightGroupId: string
+  renamingLightGroupId: string
+  areaAssignGroupId: string
+  expandedAreaIds: any
+  movingFloorId: string
+  pendingLightPropertyApply: any
+  clipboardItems: any
+  clipboardSourceFloor: any
+  pasteOffsetFactor: number
+  selectedItem: any
+  selectedItems: any
+  segmentStartPoint: any
+  snapEndpointPoint: any
+  wallSegmentCount: number
+  previewEndPoint: any
+  measureSpan: any
+  alignmentState: any
+  floorSelectionRequestId: number
+  pendingFloorMenuId: string
+  pendingFloorDeleteId: string
+  hoverPoint: any
+  activeSnapTarget: any
+  snapHit: any
+  windowPlacement: any
+  doorPlacement: any
+  railingPlacement: any
+  marqueeBox: any
+  isMiddleButtonPanning: boolean
+  isForceSnapDisabled: boolean
+  isSnapTemporarilyOff: boolean
+  planViewWidth: number
+  planViewHeight: number
+  isAutoFitRequested: boolean
+  planView: any
+  undoRecords: any
+  redoRecords: any
+  localSaveRevision: number
+  remoteSaveRevision: number
+  autosaveTimeoutId: any
+  isSaveInFlight: boolean
+  pendingConflict: any
+  toastTimeoutId: any
+  isPrecompileBlocked: boolean
+  isMaterialPrecompilePending: boolean
+  isRuntimeWarmupDone: boolean
+  hasAllFloorsSelected: boolean
+  isLightCachePreserved: boolean
+  isRendererLost: boolean
+  lightAreaRecords: { areaId: string; name: string }[]
+  isSceneDirty: boolean
+  dragStart: any
+  activePointerId: any
+  pointerReleaseTimeoutId: any
+  pointerMoveCount: number
+  activePointerState: any
+  pointerFrameId: number
+  pinchStartDistance: number
+  pinchStartCenter: any
+  renderLoopFrameId: number
+  renderLoopTimeoutId: any
+  pendingRuntimeSettings: any
+  isInteractionLocked: boolean
+  isExporting: boolean
+  isExportPresetDirty: boolean
+  exportPreviewTimeoutId: any
+  overwriteResolver: any
+  isGroundShadowEnabled: boolean
+  savedShadowCamera: any
+  exportAspectRatio: any
+  threeScene: any
+  threeCamera: any
+  threeRenderer: any
+  orbitControls: any
+  sceneRootNode: any
+  sceneModelOrigin: any
+  resizeObserverInstance: any
+  hemisphereLight: any
+  ambientLight: any
+  mainDirectionalLight: any
+  fillDirectionalLight: any
+  topDirectionalLight: any
+  lightPrecompileController: any
+  baseLightingSettings: ReturnType<typeof normalizeBaseLighting2>
+  pointerDragState: any
+  lightPreviewWorker: any
+  isLightCacheReady: boolean
+  isLightCacheDeferred: boolean
+  compiledShaderCache: any
   /** 0.8.1 上下文资源追踪（非嵌入舞台才有）。 */
-  contextResources: { releaseLostContext(): void; dispose(): void } | null;
-  backgroundController: any;
-  isLightCachePending: boolean;
-  lightingScheduler: any;
+  contextResources: { releaseLostContext(): void; dispose(): void } | null
+  backgroundController: any
+  isLightCachePending: boolean
+  lightingScheduler: any
   /** 分类过渡采样器（由舞台经 `setCategoryDiagnostics` 挂入）。 */
-  categoryDiagnostics: any;
-  isDisposed: boolean;
-  rendererLossHandler: any;
-  rendererRestoreTimeoutId: any;
-  renderCommitTimeoutId: any;
-  isCapturingLights: boolean;
-  isLightOverrideOn: boolean;
-  isResidentCacheMode: boolean;
-  modelRevisionCounter: number;
-  isCacheReady: boolean;
-  isFrameDirty: boolean;
-  lightGroupCacheByFloor: any;
-  lightGainByFloor: any;
-  lightCaptureFrameId: number;
-  cacheWarmFrameId: number;
-  prewarmState: any;
-  isPrewarming: boolean;
-  isPrecompilePending: boolean;
-  isRenderSuppressed: boolean;
-  isAdaptiveRenderPaused: boolean;
-  isWindowHidden: boolean;
-  deferredRenderTimeoutId: any;
-  isAdaptiveRenderActive: boolean;
-  hasAdaptiveRenderStarted: boolean;
-  adaptiveRenderCostBudget: number;
-  frameDurationSamples: any;
-  samplingWindowStartMs: number;
-  slowFrameStreak: number;
-  isRendererUnavailable: boolean;
-  isRecoveryRender: boolean;
-  externalPrecompilePassCount: number;
-  precompileTimeoutId: any;
-  isLightPrecompileRunning: boolean;
-  isEnvironmentLoading: boolean;
-  lightPrecompilePassCount: number;
-  precompileDebounceId: any;
-  isPageHidden: boolean;
-  currentPrecompileSignature: string;
-  activeListDragSession: (ListDragRowSession) | null;
-  listDragEndedAt: number;
-  blockedSaveRevision: number;
-  failedSaveRevision: number;
-  saveRetryDueAt: number;
-  saveFailureRetryCount: number;
-  firstLocalChangeAt: any;
-  lastLocalChangeAt: any;
-  isInteractionDeferredSave: boolean;
-  isExitSaveInFlight: boolean;
-  exitSaveRequestId: number;
-  isLeavingStudio: boolean;
-  isPageSuspended: boolean;
-  inspectorGroupCollapseState: any;
-  areCustomMaterialStylesLoaded: boolean;
-  activeLongTask: any;
-  shadowAtlasCanvas: any;
-  shadowPrepareTimeoutId: any;
-  isShadowPreparing: boolean;
-  isShadowFrozen: boolean;
+  categoryDiagnostics: any
+  isDisposed: boolean
+  rendererLossHandler: any
+  rendererRestoreTimeoutId: any
+  renderCommitTimeoutId: any
+  isCapturingLights: boolean
+  isLightOverrideOn: boolean
+  isResidentCacheMode: boolean
+  modelRevisionCounter: number
+  isCacheReady: boolean
+  isFrameDirty: boolean
+  lightGroupCacheByFloor: any
+  lightGainByFloor: any
+  lightCaptureFrameId: number
+  cacheWarmFrameId: number
+  prewarmState: any
+  isPrewarming: boolean
+  isPrecompilePending: boolean
+  isRenderSuppressed: boolean
+  isAdaptiveRenderPaused: boolean
+  isWindowHidden: boolean
+  deferredRenderTimeoutId: any
+  isAdaptiveRenderActive: boolean
+  hasAdaptiveRenderStarted: boolean
+  adaptiveRenderCostBudget: number
+  frameDurationSamples: any
+  samplingWindowStartMs: number
+  slowFrameStreak: number
+  isRendererUnavailable: boolean
+  isRecoveryRender: boolean
+  externalPrecompilePassCount: number
+  precompileTimeoutId: any
+  isLightPrecompileRunning: boolean
+  isEnvironmentLoading: boolean
+  lightPrecompilePassCount: number
+  precompileDebounceId: any
+  isPageHidden: boolean
+  currentPrecompileSignature: string
+  activeListDragSession: ListDragRowSession | null
+  listDragEndedAt: number
+  blockedSaveRevision: number
+  failedSaveRevision: number
+  saveRetryDueAt: number
+  saveFailureRetryCount: number
+  firstLocalChangeAt: any
+  lastLocalChangeAt: any
+  isInteractionDeferredSave: boolean
+  isExitSaveInFlight: boolean
+  exitSaveRequestId: number
+  isLeavingStudio: boolean
+  isPageSuspended: boolean
+  inspectorGroupCollapseState: any
+  areCustomMaterialStylesLoaded: boolean
+  activeLongTask: any
+  shadowAtlasCanvas: any
+  shadowPrepareTimeoutId: any
+  isShadowPreparing: boolean
+  isShadowFrozen: boolean
 }
 
 export function createStudioAppContext(): StudioAppContext {
@@ -227,20 +227,20 @@ export function createStudioAppContext(): StudioAppContext {
     animatedTransitionValue: null,
     basePixelRatio: 1,
     adaptivePixelRatio: null,
-    reflectionSettingsJson: "off",
+    reflectionSettingsJson: 'off',
     isEnvironmentActive: false,
     sceneRevisionCount: 0,
     isVacuumMoving: false,
     vacuumMoveCount: 0,
     isLockMoving: false,
     lockMoveCount: 0,
-    sceneStyle: "default",
+    sceneStyle: 'default',
     wallOpacityValue: null,
     isBackgroundMoving: false,
-    backgroundThemeName: "grid",
+    backgroundThemeName: 'grid',
     isCurtainMoving: false,
-    curtainStructureJson: "[]",
-    curtainFrameKey: "[]",
+    curtainStructureJson: '[]',
+    curtainFrameKey: '[]',
     isHighDetailQuality: true,
     previewShieldTimeoutId: null,
     modelLoadTimeoutId: null,
@@ -253,27 +253,27 @@ export function createStudioAppContext(): StudioAppContext {
     isExternalModelLoadDeferred: false,
     deferredModelTypes: [],
     modelLoadDebounceId: null,
-    materialSlotPanelSignature: "",
-    materialStyleOptionSignature: "",
+    materialSlotPanelSignature: '',
+    materialStyleOptionSignature: '',
     isMaterialSlotPanelPending: false,
-    materialSlotGroupFilter: "",
+    materialSlotGroupFilter: '',
     expandedMaterialSurfaceSlots: undefined,
     loadedDraft: null,
     draftLoadRequestId: 0,
     backgroundLoadRequestId: 0,
     studioState: undefined as unknown as ReturnType<typeof createStudioDocument>,
     studioProject: null,
-    activeFloorId: "",
+    activeFloorId: '',
     overriddenFloorIds: null,
     backgroundImageSource: null,
-    activeToolName: "select",
-    activeLibraryCategory: "home",
-    activeLightGroupId: "",
-    pendingLightGroupId: "",
-    renamingLightGroupId: "",
-    areaAssignGroupId: "",
+    activeToolName: 'select',
+    activeLibraryCategory: 'home',
+    activeLightGroupId: '',
+    pendingLightGroupId: '',
+    renamingLightGroupId: '',
+    areaAssignGroupId: '',
     expandedAreaIds: undefined,
-    movingFloorId: "",
+    movingFloorId: '',
     pendingLightPropertyApply: null,
     clipboardItems: [],
     clipboardSourceFloor: null,
@@ -287,8 +287,8 @@ export function createStudioAppContext(): StudioAppContext {
     measureSpan: null,
     alignmentState: null,
     floorSelectionRequestId: 0,
-    pendingFloorMenuId: "",
-    pendingFloorDeleteId: "",
+    pendingFloorMenuId: '',
+    pendingFloorDeleteId: '',
     hoverPoint: null,
     activeSnapTarget: null,
     snapHit: null,
@@ -302,7 +302,7 @@ export function createStudioAppContext(): StudioAppContext {
     planViewWidth: 1,
     planViewHeight: 1,
     isAutoFitRequested: false,
-    planView: { zoom: 1, offsetX: 0, offsetY: 0, rotation: 0, },
+    planView: { zoom: 1, offsetX: 0, offsetY: 0, rotation: 0 },
     undoRecords: [],
     redoRecords: [],
     localSaveRevision: 0,
@@ -398,7 +398,7 @@ export function createStudioAppContext(): StudioAppContext {
     lightPrecompilePassCount: 0,
     precompileDebounceId: null,
     isPageHidden: false,
-    currentPrecompileSignature: "",
+    currentPrecompileSignature: '',
     activeListDragSession: null,
     listDragEndedAt: 0,
     blockedSaveRevision: -1,
@@ -419,5 +419,5 @@ export function createStudioAppContext(): StudioAppContext {
     shadowPrepareTimeoutId: null,
     isShadowPreparing: false,
     isShadowFrozen: false,
-  };
+  }
 }

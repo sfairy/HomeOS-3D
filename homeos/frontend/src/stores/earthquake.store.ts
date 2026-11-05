@@ -25,20 +25,12 @@ type EewResponseFingerprint = {
   respondedAt: number
 }
 
-function matchesSameQuake(
-  payload: EarthquakeAlertPayload,
-  fp: EewResponseFingerprint,
-): boolean {
+function matchesSameQuake(payload: EarthquakeAlertPayload, fp: EewResponseFingerprint): boolean {
   if (fp.eventId && payload.eventId && fp.eventId === payload.eventId) return true
   const dtSec = Math.abs(Number(payload.originTime) - fp.originTime) / 1000
   if (dtSec > SAME_QUAKE_TIME_WINDOW_SEC) return false
   if (Math.abs(Number(payload.magnitude) - fp.magnitude) > SAME_QUAKE_MAG_DELTA) return false
-  const dist = haversineDistanceKm(
-    Number(payload.latitude),
-    Number(payload.longitude),
-    fp.latitude,
-    fp.longitude,
-  )
+  const dist = haversineDistanceKm(Number(payload.latitude), Number(payload.longitude), fp.latitude, fp.longitude)
   return dist <= SAME_QUAKE_DIST_KM
 }
 
@@ -101,17 +93,14 @@ export const useEarthquakeStore = defineStore('earthquake', () => {
       respondedAt: Date.now(),
     }
     const cutoff = Date.now() - CENC_SUPPRESS_AFTER_EEW_MS
-    eewResponseFingerprints.value = [
-      ...eewResponseFingerprints.value.filter((r) => r.respondedAt >= cutoff),
-      fp,
-    ].slice(-12)
+    eewResponseFingerprints.value = [...eewResponseFingerprints.value.filter((r) => r.respondedAt >= cutoff), fp].slice(
+      -12,
+    )
   }
 
   function shouldSuppressCencBulletin(payload: EarthquakeAlertPayload): boolean {
     const cutoff = Date.now() - CENC_SUPPRESS_AFTER_EEW_MS
-    return eewResponseFingerprints.value.some(
-      (fp) => fp.respondedAt >= cutoff && matchesSameQuake(payload, fp),
-    )
+    return eewResponseFingerprints.value.some((fp) => fp.respondedAt >= cutoff && matchesSameQuake(payload, fp))
   }
 
   function syncAlertVisibility() {
@@ -180,8 +169,7 @@ export const useEarthquakeStore = defineStore('earthquake', () => {
       return
     }
 
-    const sameEvent =
-      activeEvent.value?.eventId === eventId && (isAlerting.value || showOverlay.value)
+    const sameEvent = activeEvent.value?.eventId === eventId && (isAlerting.value || showOverlay.value)
 
     if (sameEvent) {
       activeEvent.value = { ...activeEvent.value, ...payload, eventId }

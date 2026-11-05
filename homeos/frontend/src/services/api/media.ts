@@ -2,10 +2,6 @@
 import type { AxiosRequestConfig } from 'axios'
 import { apiGet, apiPost } from './client'
 
-
-
-
-
 /** 获取播放器播放列表。 */
 export function fetchMediaPlaylist(player: string, config?: AxiosRequestConfig) {
   return apiGet('/system/media/playlist', { ...config, params: { ...config?.params, player } })

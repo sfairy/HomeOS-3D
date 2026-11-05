@@ -1,6 +1,5 @@
 /* 从 SettingsLayoutEditSection.vue 抽出 */
 
-
 .layout-edit-hero {
   position: relative;
   overflow: hidden;
@@ -8,12 +7,7 @@
   padding: var(--hos-panel-padding-default, 20px);
   border-radius: var(--hos-radius-panel, 20px);
   border: var(--hos-hairline) solid rgba(99, 102, 241, 0.22);
-  background: linear-gradient(
-    135deg,
-    rgba(67, 56, 202, 0.22) 0%,
-    rgba(15, 23, 42, 0.55) 42%,
-    rgba(0, 0, 0, 0.35) 100%
-  );
+  background: linear-gradient(135deg, rgba(67, 56, 202, 0.22) 0%, rgba(15, 23, 42, 0.55) 42%, rgba(0, 0, 0, 0.35) 100%);
   transition:
     border-color 0.3s ease,
     box-shadow 0.3s ease;
@@ -22,12 +16,7 @@
 /* 3D 户型图绘制入口：cyan 变体，与仪表盘编辑器（indigo）区分 */
 .layout-edit-hero--studio {
   border-color: rgba(34, 211, 238, 0.24);
-  background: linear-gradient(
-    135deg,
-    rgba(8, 145, 178, 0.22) 0%,
-    rgba(15, 23, 42, 0.55) 42%,
-    rgba(0, 0, 0, 0.35) 100%
-  );
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.22) 0%, rgba(15, 23, 42, 0.55) 42%, rgba(0, 0, 0, 0.35) 100%);
 }
 
 .layout-edit-hero--studio .layout-edit-hero__mesh {
@@ -208,21 +197,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 @media (max-width: 900px) {
-
 }
 
 @media (max-width: 640px) {
@@ -244,4 +219,3 @@
 /* —— SettingsLayoutEventlogSection —— */
 /* 死副本：本组件（SettingsLayoutEditSection.vue / EventlogSection）没有任何
    <Transition name="fade">，这两条 scoped 规则从未命中。全局唯一来源见 modal-theme.css。 */
-

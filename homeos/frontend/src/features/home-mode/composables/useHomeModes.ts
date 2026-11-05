@@ -68,9 +68,7 @@ let wsStop: (() => void) | null = null
 let subscriberCount = 0
 
 function syncModesActiveFlags(activeIds: string | string[] | null) {
-  const ids = new Set(
-    activeIds == null ? [] : Array.isArray(activeIds) ? activeIds.map(String) : [String(activeIds)],
-  )
+  const ids = new Set(activeIds == null ? [] : Array.isArray(activeIds) ? activeIds.map(String) : [String(activeIds)])
   modes.value = modes.value.map((mode) => ({ ...mode, isActive: ids.has(mode.id) }))
 }
 
@@ -98,10 +96,7 @@ function handleModeActivated(data: HomeModeWsPayload) {
   const success = data.successCount ?? 0
   const failedCount = total > 0 ? total - success : 0
   if (failedCount > 0) {
-    useChromeStore().notify(
-      `模式「${data.modeName}」已激活，${failedCount} 个设备执行失败`,
-      'warning',
-    )
+    useChromeStore().notify(`模式「${data.modeName}」已激活，${failedCount} 个设备执行失败`, 'warning')
     return
   }
   useChromeStore().notify(`模式已激活：${data.modeName}`, 'success')
@@ -128,10 +123,7 @@ function handleModeDeactivated(data: HomeModeWsPayload) {
 function handleRestoreIncomplete(data: HomeModeWsPayload) {
   const domains = Array.isArray(data.skippedDomains) ? data.skippedDomains : []
   if (domains.length === 0) return
-  useChromeStore().notify(
-    `模式已停用，${domains.length} 类设备不支持状态恢复（${domains.join('/')}）`,
-    'info',
-  )
+  useChromeStore().notify(`模式已停用，${domains.length} 类设备不支持状态恢复（${domains.join('/')}）`, 'info')
 }
 
 /** WS 事件入口：只做类型路由。 */
@@ -216,8 +208,7 @@ async function activate(modeId: string | number) {
       if (data?.active === true) {
         const failed = Number(data?.failedCount ?? 0)
         useChromeStore().notify(
-          data?.error ||
-            (failed > 0 ? `模式已激活，${failed} 个设备执行失败` : '模式已激活，但部分设备执行失败'),
+          data?.error || (failed > 0 ? `模式已激活，${failed} 个设备执行失败` : '模式已激活，但部分设备执行失败'),
           'warning',
         )
         return data
@@ -243,10 +234,7 @@ async function deactivate(modeId?: string | number) {
       // 恢复不完整：服务端仍把模式标为激活并保留快照，界面上不能假装已经退出，
       // 否则用户既看不到「还有设备没恢复」，也失去了重试入口。
       await fetchActive()
-      useChromeStore().notify(
-        data?.message || '停用未完成：部分设备恢复失败，已保留快照，可重试',
-        'warning',
-      )
+      useChromeStore().notify(data?.message || '停用未完成：部分设备恢复失败，已保留快照，可重试', 'warning')
       return data
     }
     // 多互斥组：只移除本条，其余组仍保持激活；最终以服务端列表为准。

@@ -170,10 +170,7 @@ const CSV_COLUMNS = [
   '_hidden',
 ] as const
 
-export function exportEnvSensorMapCsv(
-  roomList: RoomListItem[],
-  sensorMap: Record<string, RuntimeEnvSensorEntry>,
-) {
+export function exportEnvSensorMapCsv(roomList: RoomListItem[], sensorMap: Record<string, RuntimeEnvSensorEntry>) {
   const rows: string[][] = [[...CSV_COLUMNS]]
   for (const room of roomList) {
     const s = sensorMap[room.id]
@@ -214,9 +211,7 @@ export function importEnvSensorMapCsv(
   const next: Record<string, RuntimeEnvSensorEntry> = { ...currentMap }
   for (let i = 1; i < lines.length; i++) {
     const cols =
-      lines[i]
-        .match(/("([^"]|"")*"|[^,]+)/g)
-        ?.map((c) => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim()) || []
+      lines[i].match(/("([^"]|"")*"|[^,]+)/g)?.map((c) => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim()) || []
     const roomId = cols[idx('roomid')] || cols[0]
     if (!roomId) continue
     const hiddenRaw = cols[idx('_hidden')] || cols[idx('hidden')] || ''
@@ -260,10 +255,7 @@ interface RuntimeEnvSensorEntry {
 }
 
 /** 环境传感器字段定义：返回温度/湿度/PM2.5/CO2/TVOC 等字段的标签、占位符、提示与 device_class，供设置面板表单渲染 */
-export function normalizeEntry(
-  cur: EnvSensorMapEntry | undefined | null,
-  fallbackLabel = '',
-): RuntimeEnvSensorEntry {
+export function normalizeEntry(cur: EnvSensorMapEntry | undefined | null, fallbackLabel = ''): RuntimeEnvSensorEntry {
   return {
     label: (cur?.label ?? fallbackLabel ?? '').trim() || fallbackLabel || '',
     temperature: cur?.temperature ?? '',

@@ -11,12 +11,7 @@ export const SETTINGS_KEEP_ALIVE_MAX = 8
 /**
  * 高频切换的面板 ID；组件名 `SettingsTab_<id>` 列入 include，切换后实例常驻。
  */
-const SETTINGS_KEEP_ALIVE_PINNED = [
-  'connection',
-  'layout',
-  'general',
-  'home-mode',
-] as const
+const SETTINGS_KEEP_ALIVE_PINNED = ['connection', 'layout', 'general', 'home-mode'] as const
 
 type SettingsKeepAlivePinnedId = (typeof SETTINGS_KEEP_ALIVE_PINNED)[number]
 

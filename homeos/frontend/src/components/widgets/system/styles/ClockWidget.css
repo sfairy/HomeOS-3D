@@ -21,7 +21,7 @@
   align-items: baseline;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum';
+  font-feature-settings: "tnum";
 }
 
 .clock__time-main {

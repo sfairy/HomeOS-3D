@@ -12,10 +12,7 @@
  *
  * 别名表为空时（尚未改名）本模块退化为小写归一，行为与改动前完全等价。
  */
-import {
-  LEGACY_MATERIAL_ALIASES,
-  LEGACY_MATERIAL_ALIASES_BY_ITEM,
-} from "./legacy-material-aliases.generated";
+import { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM } from './legacy-material-aliases.generated'
 
 /**
  * 取色分支用的规范化材质名。
@@ -25,14 +22,11 @@ import {
  * - 再退回全局表（模型名前缀已经足够唯一）；
  * - 都没有就小写返回，和旧行为一致。
  */
-export function canonicalExternalMaterialName(
-  name: string | null | undefined,
-  itemType?: string | null,
-): string {
-  const lower = (name || "").toLowerCase();
-  if (!lower) return lower;
-  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined;
-  return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? lower;
+export function canonicalExternalMaterialName(name: string | null | undefined, itemType?: string | null): string {
+  const lower = (name || '').toLowerCase()
+  if (!lower) return lower
+  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined
+  return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? lower
 }
 
 /**
@@ -42,14 +36,11 @@ export function canonicalExternalMaterialName(
  * 用于「匹配」；这个函数用于**改写**材质名，所以没有别名时必须返回 `null`，
  * 否则整个模型库的材质名都会被悄悄小写。
  */
-export function legacyExternalMaterialName(
-  name: string | null | undefined,
-  itemType?: string | null,
-): string | null {
-  const lower = (name || "").toLowerCase();
-  if (!lower) return null;
-  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined;
-  return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? null;
+export function legacyExternalMaterialName(name: string | null | undefined, itemType?: string | null): string | null {
+  const lower = (name || '').toLowerCase()
+  if (!lower) return null
+  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined
+  return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? null
 }
 
-export { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM };
+export { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM }

@@ -91,9 +91,7 @@ const forecastDays = computed(() => {
   return Number.isFinite(configuredDays) ? Math.min(7, Math.max(3, Math.round(configuredDays))) : 7
 })
 /** 预报数据 */
-const forecastData = computed(() =>
-  (entitiesStore.forecasts[weatherEid.value] || []).slice(0, forecastDays.value),
-)
+const forecastData = computed(() => (entitiesStore.forecasts[weatherEid.value] || []).slice(0, forecastDays.value))
 
 /** 刷新天气预报数据 */
 function refresh() {

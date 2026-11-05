@@ -9,10 +9,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/studio-preview-transforms.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/studio-preview-transforms.ts', import.meta.url),
 )
 const { createPreviewTransformCache } = await import(moduleUrl)
 

@@ -25,9 +25,7 @@ const emit = defineEmits(['toggle-afh-lock', 'add-widget'])
 
 // 概述文案：组件总数为 0 时给出引导
 const floorSummary = computed(() =>
-  props.widgetCount > 0
-    ? `共 ${props.widgetCount} 个浮动组件 · 单层平面`
-    : '尚未配置浮动组件 · 点击「添加组件」开始',
+  props.widgetCount > 0 ? `共 ${props.widgetCount} 个浮动组件 · 单层平面` : '尚未配置浮动组件 · 点击「添加组件」开始',
 )
 
 // 浮动流程折叠态摘要文案：组件数 · 锁定状态

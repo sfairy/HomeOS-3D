@@ -46,32 +46,18 @@ export function useCoverControlPopup(props: EntityPopupBaseProps) {
     }),
   })
 
-  const hasPositionControl = computed(() =>
-    coverHasPositionControl(liveEntity.value?.attributes?.supported_features),
-  )
+  const hasPositionControl = computed(() => coverHasPositionControl(liveEntity.value?.attributes?.supported_features))
 
   async function setPosition(pos: number) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
-    await callService(
-      'cover',
-      'set_cover_position',
-      entityId,
-      { position: pos },
-      '设置窗帘位置失败',
-    )
+    await callService('cover', 'set_cover_position', entityId, { position: pos }, '设置窗帘位置失败')
   }
 
   async function handleAction(action: string) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
-    await callService(
-      'cover',
-      action,
-      entityId,
-      undefined,
-      coverActionErrorMessage(action),
-    )
+    await callService('cover', action, entityId, undefined, coverActionErrorMessage(action))
   }
 
   return {

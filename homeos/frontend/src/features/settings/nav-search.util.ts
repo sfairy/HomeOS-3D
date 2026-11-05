@@ -28,32 +28,23 @@ const TAB_SEARCH_SYNONYMS: Record<string, string> = {
   'security-modes': '安防区域 布防 撤防 紧急求助',
   diagnostics: '运维诊断 系统健康 HA 连接 运行日志 后端日志 商业授权 许可证 HWID',
   retention: '数据保留 清理 保留天数 数据库 历史数据 删除',
-  network: 'HomeOS 网络 HomeOS 远程 HomeOS 远程访问地址 HomeOS 内网 HomeOS 内网地址 HomeOS 自身 本机 远程访问 外网 公网 IP IPv6 DDNS 端口 端口映射 原生端',
+  network:
+    'HomeOS 网络 HomeOS 远程 HomeOS 远程访问地址 HomeOS 内网 HomeOS 内网地址 HomeOS 自身 本机 远程访问 外网 公网 IP IPv6 DDNS 端口 端口映射 原生端',
   connection: 'HA 连接 Home Assistant HA 服务地址 HA 局域网 HA 局域网地址 HA 外网 HA 外网地址 令牌 Token 实体同步',
   access: '设置锁 访问 PIN 设置 PIN 密码 访客模式 锁屏 PIN 码 大屏入口',
   orchestrator: '场景 脚本 自动化 简易自动化',
 }
 
 // 判断单个 tab 是否匹配搜索词：综合 id / 标签 / 分组 / 描述 / 别名进行大小写不敏感包含匹配
-function tabMatchesQuery(
-  tabId: string,
-  tabLabelText: string,
-  groupId: string,
-  query: string,
-): boolean {
+function tabMatchesQuery(tabId: string, tabLabelText: string, groupId: string, query: string): boolean {
   const synonyms = TAB_SEARCH_SYNONYMS[tabId] || ''
   const desc = pageDescription(tabId) || ''
-  const haystack = [tabId, tabLabelText, groupLabel(groupId), desc, tabLabel(tabId), synonyms]
-    .join(' ')
-    .toLowerCase()
+  const haystack = [tabId, tabLabelText, groupLabel(groupId), desc, tabLabel(tabId), synonyms].join(' ').toLowerCase()
   return haystack.includes(query)
 }
 
 /** 按标题、分组名、页面描述过滤侧栏导航 */
-export function filterNavGroupsBySearch(
-  groups: SettingsNavGroupItem[],
-  rawQuery: string,
-): SettingsNavGroupItem[] {
+export function filterNavGroupsBySearch(groups: SettingsNavGroupItem[], rawQuery: string): SettingsNavGroupItem[] {
   const query = rawQuery.trim().toLowerCase()
   // 空查询直接返回原分组，保留全部 Tab
   if (!query) return groups

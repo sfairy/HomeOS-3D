@@ -305,7 +305,8 @@
     color-mix(in srgb, var(--preset-accent, var(--page-accent, #7eb8ff)) 75%, #6366f1),
     color-mix(in srgb, var(--preset-accent, var(--page-accent, #7eb8ff)) 45%, #4338ca)
   );
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--preset-accent, var(--page-accent, #7eb8ff)) 40%, rgba(0, 0, 0, 0));
+  border: var(--hos-hairline) solid
+    color-mix(in srgb, var(--preset-accent, var(--page-accent, #7eb8ff)) 40%, rgba(0, 0, 0, 0));
   box-shadow: 0 6px 20px color-mix(in srgb, var(--preset-accent, var(--page-accent, #7eb8ff)) 22%, rgba(0, 0, 0, 0));
   transition:
     opacity 0.15s,

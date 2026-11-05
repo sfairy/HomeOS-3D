@@ -50,10 +50,7 @@ const checklistDismissed = ref(false)
 
 const summarySteps = computed(() => props.wizardSteps.slice(0, 5))
 const showChecklist = computed(
-  () =>
-    Boolean(checklist.value?.items?.length) &&
-    !checklistDismissed.value &&
-    !checklist.value?.dismissed,
+  () => Boolean(checklist.value?.items?.length) && !checklistDismissed.value && !checklist.value?.dismissed,
 )
 
 async function loadChecklist() {

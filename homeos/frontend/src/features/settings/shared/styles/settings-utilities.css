@@ -14,52 +14,106 @@
 /* 宽屏不再覆盖卡片 padding：基线已是 --hos-panel-padding-default，
    避免 ≥1200 与 flat/workspace 的 padding:0 互相打架 */
 @media (max-width: 720px) {
-  .settings-choice-grid { grid-template-columns: 1fr; }
-  .settings-stat-grid { grid-template-columns: 1fr; }
-  .settings-card-row { flex-wrap: wrap; }
+  .settings-choice-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-card-row {
+    flex-wrap: wrap;
+  }
 }
 
 /* ==========================================================================
    Tailwind 原子类 → 统一排版 token（仅设置后台）
    ========================================================================== */
-.settings-shell .text-xs { font-size: var(--set-fs-caption); }
-.settings-shell .text-sm { font-size: var(--set-fs-body-sm); }
-.settings-shell .text-base { font-size: var(--set-fs-body); }
-.settings-shell .text-lg { font-size: var(--set-fs-title-sm); }
-.settings-shell .text-xl { font-size: var(--set-fs-title); }
-.settings-shell .text-2xl { font-size: var(--set-fs-display-sm); }
-.settings-shell .text-\[9px\] { font-size: var(--set-fs-micro); }
-.settings-shell .text-\[10px\] { font-size: var(--set-fs-caption); }
-.settings-shell .text-\[11px\] { font-size: var(--set-fs-body-sm); }
-.settings-shell .text-\[12px\] { font-size: var(--set-fs-body-sm); }
-.settings-shell .text-\[13px\] { font-size: var(--set-fs-body); }
+.settings-shell .text-xs {
+  font-size: var(--set-fs-caption);
+}
+.settings-shell .text-sm {
+  font-size: var(--set-fs-body-sm);
+}
+.settings-shell .text-base {
+  font-size: var(--set-fs-body);
+}
+.settings-shell .text-lg {
+  font-size: var(--set-fs-title-sm);
+}
+.settings-shell .text-xl {
+  font-size: var(--set-fs-title);
+}
+.settings-shell .text-2xl {
+  font-size: var(--set-fs-display-sm);
+}
+.settings-shell .text-\[9px\] {
+  font-size: var(--set-fs-micro);
+}
+.settings-shell .text-\[10px\] {
+  font-size: var(--set-fs-caption);
+}
+.settings-shell .text-\[11px\] {
+  font-size: var(--set-fs-body-sm);
+}
+.settings-shell .text-\[12px\] {
+  font-size: var(--set-fs-body-sm);
+}
+.settings-shell .text-\[13px\] {
+  font-size: var(--set-fs-body);
+}
 
 .settings-modal-overlay .text-xs,
-.settings-modal-panel .text-xs { font-size: var(--set-fs-caption); }
+.settings-modal-panel .text-xs {
+  font-size: var(--set-fs-caption);
+}
 .settings-modal-overlay .text-sm,
-.settings-modal-panel .text-sm { font-size: var(--set-fs-body-sm); }
+.settings-modal-panel .text-sm {
+  font-size: var(--set-fs-body-sm);
+}
 .settings-modal-overlay .text-base,
-.settings-modal-panel .text-base { font-size: var(--set-fs-body); }
+.settings-modal-panel .text-base {
+  font-size: var(--set-fs-body);
+}
 .settings-modal-overlay .text-lg,
-.settings-modal-panel .text-lg { font-size: var(--set-fs-title-sm); }
+.settings-modal-panel .text-lg {
+  font-size: var(--set-fs-title-sm);
+}
 .settings-modal-overlay .text-xl,
-.settings-modal-panel .text-xl { font-size: var(--set-fs-title); }
+.settings-modal-panel .text-xl {
+  font-size: var(--set-fs-title);
+}
 .settings-modal-overlay .text-2xl,
-.settings-modal-panel .text-2xl { font-size: var(--set-fs-display-sm); }
+.settings-modal-panel .text-2xl {
+  font-size: var(--set-fs-display-sm);
+}
 .settings-modal-overlay .text-\[9px\],
-.settings-modal-panel .text-\[9px\] { font-size: var(--set-fs-micro); }
+.settings-modal-panel .text-\[9px\] {
+  font-size: var(--set-fs-micro);
+}
 .settings-modal-overlay .text-\[10px\],
-.settings-modal-panel .text-\[10px\] { font-size: var(--set-fs-caption); }
+.settings-modal-panel .text-\[10px\] {
+  font-size: var(--set-fs-caption);
+}
 .settings-modal-overlay .text-\[11px\],
-.settings-modal-panel .text-\[11px\] { font-size: var(--set-fs-body-sm); }
+.settings-modal-panel .text-\[11px\] {
+  font-size: var(--set-fs-body-sm);
+}
 .settings-modal-overlay .text-\[12px\],
-.settings-modal-panel .text-\[12px\] { font-size: var(--set-fs-body-sm); }
+.settings-modal-panel .text-\[12px\] {
+  font-size: var(--set-fs-body-sm);
+}
 .settings-modal-overlay .text-\[13px\],
-.settings-modal-panel .text-\[13px\] { font-size: var(--set-fs-body); }
+.settings-modal-panel .text-\[13px\] {
+  font-size: var(--set-fs-body);
+}
 
 /* 布局设置页 layout-edit-theme（仅 settings-shell 内生效） */
-.settings-shell .layout-edit-launch-title { font-size: var(--set-fs-title-sm); }
-.settings-shell .layout-edit-step-text { font-size: var(--set-fs-body-sm); }
+.settings-shell .layout-edit-launch-title {
+  font-size: var(--set-fs-title-sm);
+}
+.settings-shell .layout-edit-step-text {
+  font-size: var(--set-fs-body-sm);
+}
 
 /* ==========================================================================
    各面板局部样式对齐（三阶选择器压过 Vue scoped）
@@ -108,7 +162,6 @@
   font-size: 20px;
 }
 
-
 .settings-shell .settings-page .alert-stat__lbl,
 .settings-shell .settings-page .access-stat__lbl,
 .settings-shell .settings-page .hub-stat__lbl {
@@ -118,7 +171,6 @@
 .settings-shell .settings-page .voice-pipeline__label {
   font-size: var(--set-fs-body-sm);
 }
-
 
 .settings-shell .settings-page .hub-hero-bar__title {
   font-size: var(--set-fs-title-sm);
@@ -133,7 +185,6 @@
 .settings-shell .bind-cam-badge {
   font-size: var(--set-fs-caption);
 }
-
 
 /* 联动中心 Builder：密集 IDE 区略紧凑，但仍可读 */
 .settings-shell .settings-page__stage--workspace {
@@ -199,7 +250,7 @@
 }
 
 .nav-tab-editor__mock-bar::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 8%;
   right: 8%;
@@ -271,7 +322,11 @@
   font-size: var(--premium-fs-caption);
   font-weight: 500;
   color: var(--set-text-tertiary);
-  transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+  transition:
+    color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    opacity 0.25s ease;
 }
 
 .nav-tab-editor__tab-icon {
@@ -353,7 +408,10 @@
   color: var(--set-text-tertiary);
   background: var(--set-glass-bg);
   border: var(--hos-hairline) solid var(--premium-border-strong);
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .nav-tab-editor__dropdown-item--active {
@@ -432,7 +490,11 @@
   background: var(--set-glass-bg);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .nav-tab-editor__action:hover {
@@ -459,11 +521,16 @@
   background: var(--set-glass-bg-subtle);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   cursor: pointer;
-  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease, opacity 0.22s ease, background 0.22s ease;
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease,
+    opacity 0.22s ease,
+    background 0.22s ease;
 }
 
 .nav-tab-editor__row::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
@@ -476,7 +543,11 @@
 .nav-tab-editor__row--embed {
   border-color: color-mix(in srgb, var(--row-accent, #22d3ee) 22%, rgba(0, 0, 0, 0));
   background:
-    radial-gradient(ellipse 90% 80% at 0% 0%, color-mix(in srgb, var(--row-accent, #22d3ee) 8%, rgba(0, 0, 0, 0)), transparent 68%),
+    radial-gradient(
+      ellipse 90% 80% at 0% 0%,
+      color-mix(in srgb, var(--row-accent, #22d3ee) 8%, rgba(0, 0, 0, 0)),
+      transparent 68%
+    ),
     var(--set-glass-bg-subtle);
 }
 
@@ -536,7 +607,9 @@
   color: var(--set-text-faint);
   cursor: grab;
   flex-shrink: 0;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .nav-tab-editor__handle:active {
@@ -569,7 +642,9 @@
   color: color-mix(in srgb, var(--row-accent, #60a5fa) 78%, white);
   background: color-mix(in srgb, var(--row-accent, #60a5fa) 14%, rgba(255, 255, 255, 0.03));
   border: var(--hos-hairline) solid color-mix(in srgb, var(--row-accent, #60a5fa) 32%, rgba(0, 0, 0, 0));
-  transition: transform 0.22s ease, opacity 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
 }
 
 .nav-tab-editor__row--off .nav-tab-editor__orb {
@@ -626,7 +701,10 @@
   color: var(--set-text-label);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .nav-tab-editor__visibility:hover {
@@ -657,7 +735,9 @@
   color: var(--set-text-label);
   background: transparent;
   cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .nav-tab-editor__placement-btn:hover {
@@ -695,7 +775,9 @@
   background: var(--set-glass-bg);
   color: var(--set-text-label);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .nav-tab-editor__nudge:hover:not(:disabled) {
@@ -805,12 +887,24 @@
   color: var(--set-text-label);
 }
 
-.settings-premium-empty--violet .settings-premium-empty__icon { color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.45); }
-.settings-premium-empty--sky .settings-premium-empty__icon { color: rgba(56, 189, 248, 0.45); }
-.settings-premium-empty--emerald .settings-premium-empty__icon { color: rgba(52, 211, 153, 0.45); }
-.settings-premium-empty--amber .settings-premium-empty__icon { color: rgba(251, 191, 36, 0.45); }
-.settings-premium-empty--rose .settings-premium-empty__icon { color: rgba(248, 113, 113, 0.45); }
-.settings-premium-empty--indigo .settings-premium-empty__icon { color: rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.5); }
+.settings-premium-empty--violet .settings-premium-empty__icon {
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.45);
+}
+.settings-premium-empty--sky .settings-premium-empty__icon {
+  color: rgba(56, 189, 248, 0.45);
+}
+.settings-premium-empty--emerald .settings-premium-empty__icon {
+  color: rgba(52, 211, 153, 0.45);
+}
+.settings-premium-empty--amber .settings-premium-empty__icon {
+  color: rgba(251, 191, 36, 0.45);
+}
+.settings-premium-empty--rose .settings-premium-empty__icon {
+  color: rgba(248, 113, 113, 0.45);
+}
+.settings-premium-empty--indigo .settings-premium-empty__icon {
+  color: rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.5);
+}
 
 .settings-premium-empty__title {
   margin: 0;
@@ -848,7 +942,10 @@
   color: var(--set-text-secondary);
   background: var(--set-glass-bg);
   border: var(--hos-hairline) solid var(--premium-border-strong);
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .settings-premium-empty__btn:hover {
@@ -867,6 +964,3 @@
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
   border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.32);
 }
-
-
-

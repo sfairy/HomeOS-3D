@@ -7,14 +7,14 @@
  */
 
 /** 归一化屏幕坐标点（0~1，y 向下）。 */
-export type GroundPoint = readonly [number, number];
+export type GroundPoint = readonly [number, number]
 
 /**
  * 地面四边形，顺序固定为「近左 → 近右 → 远右 → 远左」。
  *
  * 双线性插值时 `u` 沿近边、`v` 从近到远：(0,0) 是近左、(1,1) 是远右。
  */
-export type WeatherGroundQuad = readonly [GroundPoint, GroundPoint, GroundPoint, GroundPoint];
+export type WeatherGroundQuad = readonly [GroundPoint, GroundPoint, GroundPoint, GroundPoint]
 
 /**
  * 允许轻微越界：地面被相机切到画面外时，投影点可能略微超出 0~1。
@@ -23,9 +23,9 @@ export type WeatherGroundQuad = readonly [GroundPoint, GroundPoint, GroundPoint,
  * 到 -3 或 4 这个量级。旧上限 0.4 会把这类帧整块丢掉，表现是「一靠近地面，
  * 水花就冻在上一个视角的位置」。越界本身由采样端跳过屏幕外的点来处理。
  */
-const QUAD_COORD_LIMIT = 8;
+const QUAD_COORD_LIMIT = 8
 /** 面积下限（归一化单位²）：再小就当成「地面几乎侧对镜头」，按无效处理。 */
-const MIN_QUAD_AREA = 0.012;
+const MIN_QUAD_AREA = 0.012
 
 /** 未收到舞台投影时的兜底地面：取画面下半部的一块梯形，够水花落地用。 */
 export function fallbackGroundQuad(): WeatherGroundQuad {
@@ -34,16 +34,16 @@ export function fallbackGroundQuad(): WeatherGroundQuad {
     [0.98, 0.96],
     [0.82, 0.5],
     [0.18, 0.5],
-  ];
+  ]
 }
 
 function readPoint(input: unknown): GroundPoint | null {
-  if (!Array.isArray(input) || input.length < 2) return null;
-  const u = Number(input[0]);
-  const v = Number(input[1]);
-  if (!Number.isFinite(u) || !Number.isFinite(v)) return null;
-  if (Math.abs(u - 0.5) > QUAD_COORD_LIMIT || Math.abs(v - 0.5) > QUAD_COORD_LIMIT) return null;
-  return [u, v];
+  if (!Array.isArray(input) || input.length < 2) return null
+  const u = Number(input[0])
+  const v = Number(input[1])
+  if (!Number.isFinite(u) || !Number.isFinite(v)) return null
+  if (Math.abs(u - 0.5) > QUAD_COORD_LIMIT || Math.abs(v - 0.5) > QUAD_COORD_LIMIT) return null
+  return [u, v]
 }
 
 /**
@@ -57,28 +57,28 @@ function readPoint(input: unknown): GroundPoint | null {
  * 让调用方沿用上一块有效地面，而不是让水花糊成一片。
  */
 export function normalizeGroundQuad(input: unknown): WeatherGroundQuad | null {
-  if (!Array.isArray(input) || input.length !== 4) return null;
-  const points = input.map(readPoint);
-  if (points.some((point) => point === null)) return null;
-  const quad = points as unknown as WeatherGroundQuad;
-  if (!isConvexQuad(quad)) return null;
-  return quadArea(quad) >= MIN_QUAD_AREA ? orientQuad(quad) : null;
+  if (!Array.isArray(input) || input.length !== 4) return null
+  const points = input.map(readPoint)
+  if (points.some((point) => point === null)) return null
+  const quad = points as unknown as WeatherGroundQuad
+  if (!isConvexQuad(quad)) return null
+  return quadArea(quad) >= MIN_QUAD_AREA ? orientQuad(quad) : null
 }
 
 /** 边的平均纵向位置；越大越靠近画面底部，也就是离相机越近。 */
 function edgeAverageY(quad: WeatherGroundQuad, index: number) {
-  return (quad[index][1] + quad[(index + 1) % 4][1]) / 2;
+  return (quad[index][1] + quad[(index + 1) % 4][1]) / 2
 }
 
 /** 边的屏幕长度（归一化坐标）。透视下同向的远边一定比近边短。 */
 function edgeLength(quad: WeatherGroundQuad, index: number) {
-  const [x1, y1] = quad[index];
-  const [x2, y2] = quad[(index + 1) % 4];
-  return Math.hypot(x2 - x1, y2 - y1);
+  const [x1, y1] = quad[index]
+  const [x2, y2] = quad[(index + 1) % 4]
+  return Math.hypot(x2 - x1, y2 - y1)
 }
 
 /** 两条边的平均纵向位置相差在这个范围内时，认为它们在纵向上「打平」。 */
-const NEAR_EDGE_TIE = 0.02;
+const NEAR_EDGE_TIE = 0.02
 
 /**
  * 近边下标。
@@ -89,14 +89,13 @@ const NEAR_EDGE_TIE = 0.02;
  * 它对面的远边长，所以长度更大的那条才是近边。
  */
 function pickNearEdgeIndex(quad: WeatherGroundQuad): number {
-  let best = 0;
+  let best = 0
   for (let index = 1; index < 4; index += 1) {
-    const deltaY = edgeAverageY(quad, index) - edgeAverageY(quad, best);
-    if (deltaY > NEAR_EDGE_TIE) best = index;
-    else if (Math.abs(deltaY) <= NEAR_EDGE_TIE && edgeLength(quad, index) > edgeLength(quad, best))
-      best = index;
+    const deltaY = edgeAverageY(quad, index) - edgeAverageY(quad, best)
+    if (deltaY > NEAR_EDGE_TIE) best = index
+    else if (Math.abs(deltaY) <= NEAR_EDGE_TIE && edgeLength(quad, index) > edgeLength(quad, best)) best = index
   }
-  return best;
+  return best
 }
 
 /**
@@ -106,53 +105,51 @@ function pickNearEdgeIndex(quad: WeatherGroundQuad): number {
  * 整个序列随之反向以保持四边形的绕向一致。
  */
 function orientQuad(quad: WeatherGroundQuad): WeatherGroundQuad {
-  const nearIndex = pickNearEdgeIndex(quad);
-  const nearA = quad[nearIndex];
-  const nearB = quad[(nearIndex + 1) % 4];
-  const farB = quad[(nearIndex + 2) % 4];
-  const farA = quad[(nearIndex + 3) % 4];
-  return nearA[0] <= nearB[0] ? [nearA, nearB, farB, farA] : [nearB, nearA, farA, farB];
+  const nearIndex = pickNearEdgeIndex(quad)
+  const nearA = quad[nearIndex]
+  const nearB = quad[(nearIndex + 1) % 4]
+  const farB = quad[(nearIndex + 2) % 4]
+  const farA = quad[(nearIndex + 3) % 4]
+  return nearA[0] <= nearB[0] ? [nearA, nearB, farB, farA] : [nearB, nearA, farA, farB]
 }
 
 function cross(from: GroundPoint, to: GroundPoint, next: GroundPoint) {
-  return (to[0] - from[0]) * (next[1] - to[1]) - (to[1] - from[1]) * (next[0] - to[0]);
+  return (to[0] - from[0]) * (next[1] - to[1]) - (to[1] - from[1]) * (next[0] - to[0])
 }
 
 /** 四条边的转向必须同号：同号才是不自交的凸四边形。 */
 function isConvexQuad(quad: WeatherGroundQuad) {
-  const signs = quad.map((point, index) =>
-    Math.sign(cross(point, quad[(index + 1) % 4], quad[(index + 2) % 4])),
-  );
-  return signs.every((sign) => sign !== 0 && sign === signs[0]);
+  const signs = quad.map((point, index) => Math.sign(cross(point, quad[(index + 1) % 4], quad[(index + 2) % 4])))
+  return signs.every((sign) => sign !== 0 && sign === signs[0])
 }
 
 /** 鞋带公式面积（归一化单位²）。 */
 export function quadArea(quad: WeatherGroundQuad): number {
-  let sum = 0;
+  let sum = 0
   for (let index = 0; index < 4; index++) {
-    const [x1, y1] = quad[index];
-    const [x2, y2] = quad[(index + 1) % 4];
-    sum += x1 * y2 - x2 * y1;
+    const [x1, y1] = quad[index]
+    const [x2, y2] = quad[(index + 1) % 4]
+    sum += x1 * y2 - x2 * y1
   }
-  return Math.abs(sum) / 2;
+  return Math.abs(sum) / 2
 }
 
 /** 双线性插值：`u` 沿近边、`v` 从近到远，返回归一化屏幕坐标。 */
 export function pointOnQuad(quad: WeatherGroundQuad, u: number, v: number): GroundPoint {
-  const [nearLeft, nearRight, farRight, farLeft] = quad;
-  const nearX = nearLeft[0] + (nearRight[0] - nearLeft[0]) * u;
-  const nearY = nearLeft[1] + (nearRight[1] - nearLeft[1]) * u;
-  const farX = farLeft[0] + (farRight[0] - farLeft[0]) * u;
-  const farY = farLeft[1] + (farRight[1] - farLeft[1]) * u;
-  return [nearX + (farX - nearX) * v, nearY + (farY - nearY) * v];
+  const [nearLeft, nearRight, farRight, farLeft] = quad
+  const nearX = nearLeft[0] + (nearRight[0] - nearLeft[0]) * u
+  const nearY = nearLeft[1] + (nearRight[1] - nearLeft[1]) * u
+  const farX = farLeft[0] + (farRight[0] - farLeft[0]) * u
+  const farY = farLeft[1] + (farRight[1] - farLeft[1]) * u
+  return [nearX + (farX - nearX) * v, nearY + (farY - nearY) * v]
 }
 
 /** 四边形的屏幕纵向范围 `[minY, maxY]`，用于把屏幕高度换算成「远近」。 */
 export function quadVerticalRange(quad: WeatherGroundQuad): readonly [number, number] {
-  const ys = quad.map((point) => point[1]);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  return maxY - minY < 0.02 ? [minY, minY + 0.02] : [minY, maxY];
+  const ys = quad.map((point) => point[1])
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  return maxY - minY < 0.02 ? [minY, minY + 0.02] : [minY, maxY]
 }
 
 /**
@@ -164,23 +161,23 @@ export function quadVerticalRange(quad: WeatherGroundQuad): readonly [number, nu
  * 水花会挤在画布中间，而不是画面下部（用户实际反馈）。
  * 按屏幕纵向位置取点，无论相机怎么转，水花与积雪都落在画面下部。
  */
-export const NEAR_GROUND_BAND_START = 0.5;
+export const NEAR_GROUND_BAND_START = 0.5
 
 /** 一个地面落点：`u/v` 是四边形参数（相机变动后据此重新投影），`x/y` 是归一化屏幕坐标。 */
 export type GroundSample = {
-  u: number;
-  v: number;
-  x: number;
-  y: number;
+  u: number
+  v: number
+  x: number
+  y: number
   /** 远近系数：0 = 画面最上（远），1 = 画面最下（近）。 */
-  depth: number;
-};
+  depth: number
+}
 
 /** 屏幕纵向位置 → 0~1 的远近系数：越靠画面底部越接近 1。 */
 export function quadDepthAt(quad: WeatherGroundQuad, y: number): number {
-  const [minY, maxY] = quadVerticalRange(quad);
-  const depth = (y - minY) / (maxY - minY);
-  return depth <= 0 ? 0 : depth >= 1 ? 1 : depth;
+  const [minY, maxY] = quadVerticalRange(quad)
+  const depth = (y - minY) / (maxY - minY)
+  return depth <= 0 ? 0 : depth >= 1 ? 1 : depth
 }
 
 /**
@@ -190,22 +187,16 @@ export function quadDepthAt(quad: WeatherGroundQuad, y: number): number {
  * 效果按纵向铺：上界之外完全不铺，上界处 alpha 为 0，画面里既看不到横向分界线，
  * 也不会像以前那样整块盖在地板中间。
  */
-export function quadSheenSpan(
-  quad: WeatherGroundQuad,
-  band = 0.68,
-): readonly [number, number] {
-  const [minY, maxY] = quadVerticalRange(quad);
-  const share = Math.min(1, Math.max(0.05, band));
-  return [maxY - (maxY - minY) * share, maxY];
+export function quadSheenSpan(quad: WeatherGroundQuad, band = 0.68): readonly [number, number] {
+  const [minY, maxY] = quadVerticalRange(quad)
+  const share = Math.min(1, Math.max(0.05, band))
+  return [maxY - (maxY - minY) * share, maxY]
 }
 
 /** 「近地面」的屏幕纵向分界线（归一化 y）：只有低于它的区域才允许出现落点。 */
-export function nearGroundCutY(
-  quad: WeatherGroundQuad,
-  bandStart = NEAR_GROUND_BAND_START,
-): number {
-  const [minY, maxY] = quadVerticalRange(quad);
-  return minY + (maxY - minY) * Math.min(0.98, Math.max(0, bandStart));
+export function nearGroundCutY(quad: WeatherGroundQuad, bandStart = NEAR_GROUND_BAND_START): number {
+  const [minY, maxY] = quadVerticalRange(quad)
+  return minY + (maxY - minY) * Math.min(0.98, Math.max(0, bandStart))
 }
 
 /**
@@ -216,13 +207,13 @@ export function nearGroundCutY(
  * 静态涟漪看起来像画出来的线，而不是随机溅在地上。
  */
 export function createSeededRandom(seed: number) {
-  let state = seed >>> 0;
+  let state = seed >>> 0
   return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = Math.imul(state ^ (state >>> 15), 1 | state);
-    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
+    state = (state + 0x6d2b79f5) >>> 0
+    let value = Math.imul(state ^ (state >>> 15), 1 | state)
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 /**
@@ -239,13 +230,13 @@ export function sampleNearGroundPoint(
   bandStart = NEAR_GROUND_BAND_START,
   attempts = 12,
 ): GroundSample | null {
-  const cutY = nearGroundCutY(quad, bandStart);
+  const cutY = nearGroundCutY(quad, bandStart)
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const u = random();
-    const v = random();
-    const [x, y] = pointOnQuad(quad, u, v);
-    if (y < cutY) continue;
-    return { u, v, x, y, depth: quadDepthAt(quad, y) };
+    const u = random()
+    const v = random()
+    const [x, y] = pointOnQuad(quad, u, v)
+    if (y < cutY) continue
+    return { u, v, x, y, depth: quadDepthAt(quad, y) }
   }
-  return null;
+  return null
 }

@@ -24,9 +24,7 @@ function applyUiConfig(ui: { accentColor?: string } | null | undefined) {
   const accent = resolveReadableAccent(configured)
   if (accent !== configured.toUpperCase() && !warnedAccents.has(configured)) {
     warnedAccents.add(configured)
-    console.warn(
-      `[theme] accentColor ${configured} 与深色画布或按钮文字对比度不足，已回落到 ${accent}。`,
-    )
+    console.warn(`[theme] accentColor ${configured} 与深色画布或按钮文字对比度不足，已回落到 ${accent}。`)
   }
   const rgb = hexToRgb(accent)
   root.style.setProperty('--accent-color', accent)

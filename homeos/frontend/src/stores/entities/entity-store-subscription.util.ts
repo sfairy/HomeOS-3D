@@ -9,11 +9,7 @@ import type {
   RemoteNotificationEntry,
   RemoteNotificationPayload,
 } from '@/shared/types/entity-store'
-import {
-  getFrontendConfig,
-  getMaxStateListeners,
-  reloadFrontendConfig,
-} from '@/shared/utils/config/frontend-config'
+import { getFrontendConfig, getMaxStateListeners, reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import {
   dispatchStateListener,
   getStateListenerCount,
@@ -53,15 +49,8 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
    * @param newState 新状态（删除时为 null）
    * @param oldState 旧状态（新增时为 null）
    */
-  function emitStateListeners(
-    entityId: string,
-    newState: HaEntityState | null,
-    oldState: HaEntityState | null,
-  ): void {
-    dispatchStateListener(
-      { entity_id: entityId, new_state: newState, old_state: oldState },
-      deps.logger,
-    )
+  function emitStateListeners(entityId: string, newState: HaEntityState | null, oldState: HaEntityState | null): void {
+    dispatchStateListener({ entity_id: entityId, new_state: newState, old_state: oldState }, deps.logger)
   }
 
   /**
@@ -120,9 +109,7 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
    * @param id 通知 ID
    * @returns 被摘掉的条目与原始下标；未命中返回 ``null``
    */
-  function removeRemoteNotification(
-    id: string | number,
-  ): { entry: RemoteNotificationEntry; index: number } | null {
+  function removeRemoteNotification(id: string | number): { entry: RemoteNotificationEntry; index: number } | null {
     const index = remoteNotifications.findIndex((notification) => notification.id === id)
     if (index < 0) return null
     const [entry] = remoteNotifications.splice(index, 1)
@@ -150,10 +137,7 @@ export function createEntitySubscriptionHelpers(deps: EntitySubscriptionDeps) {
    * @param options 注册选项（如按 entity_id 索引）
    * @returns 退订函数
    */
-  function onStateChanged(
-    fn: EntityStateListenerFn,
-    options: RegisterStateListenerOptions = {},
-  ): () => void {
+  function onStateChanged(fn: EntityStateListenerFn, options: RegisterStateListenerOptions = {}): () => void {
     if (typeof fn !== 'function') return () => {}
     const count = getStateListenerCount()
     let limit = maxListeners()

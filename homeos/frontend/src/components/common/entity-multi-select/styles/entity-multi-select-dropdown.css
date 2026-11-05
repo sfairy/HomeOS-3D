@@ -329,11 +329,15 @@
 }
 
 .ems-drop-enter-active {
-  transition: opacity 0.14s ease-out, transform 0.14s ease-out;
+  transition:
+    opacity 0.14s ease-out,
+    transform 0.14s ease-out;
 }
 
 .ems-drop-leave-active {
-  transition: opacity 0.1s ease-in, transform 0.1s ease-in;
+  transition:
+    opacity 0.1s ease-in,
+    transform 0.1s ease-in;
 }
 
 .ems-drop-enter-from,

@@ -43,16 +43,8 @@ import { useAgentSpeech } from '@/composables/voice/useAgentSpeech'
 import { playEarcon } from '@/composables/voice/useEarcon'
 import { isEmbeddedBrowser, probeMicrophone } from '@/composables/voice/useAudioDevices'
 import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
-import {
-  quickPromptAria,
-  quickPromptTitle,
-  readAgentQuickPrompts,
-} from '@/shared/agent/utils/quick-prompts.util'
-import {
-  agentDurationLabel,
-  agentFootTitle,
-  agentReplyText,
-} from '@/shared/agent/utils/reply-format.util'
+import { quickPromptAria, quickPromptTitle, readAgentQuickPrompts } from '@/shared/agent/utils/quick-prompts.util'
+import { agentDurationLabel, agentFootTitle, agentReplyText } from '@/shared/agent/utils/reply-format.util'
 import { agentModelLabel } from '@/shared/agent/utils/model-label.util'
 import {
   newAgentChatSessionId,
@@ -91,8 +83,7 @@ const router = useRouter()
 const chrome = useChromeStore()
 const storedSessions = readAgentChatSessions()
 /** 只恢复「上次正在聊的那一条」；指针缺失 / 指向已删除的会话时从空白开始 */
-const initialSession =
-  storedSessions.find((item) => item.id === readAgentChatCurrentId()) ?? null
+const initialSession = storedSessions.find((item) => item.id === readAgentChatCurrentId()) ?? null
 const sessionId = ref(initialSession?.id || newAgentChatSessionId())
 if (initialSession) writeAgentChatCurrentId(initialSession.id)
 const input = ref('')
@@ -134,8 +125,7 @@ function bubbleHasContent(message: ChatMessage): boolean {
 
 /** 等首 token 的阶段才显示「处理中」气泡；出字后由流式气泡本身承载（按「有内容」判，不按「存在流式气泡」） */
 const showTyping = computed(
-  () =>
-    busy.value && !messages.value.some((message) => message.streaming && bubbleHasContent(message)),
+  () => busy.value && !messages.value.some((message) => message.streaming && bubbleHasContent(message)),
 )
 
 /**
@@ -159,24 +149,30 @@ const headerTone = computed(() => {
   return 'emerald'
 })
 
-const { listening, transcribing, error: voiceError, status: voiceStatus, startListen, stopListen } =
-  useSpeechToText({
-    preferHa: true,
-    onInterim: (text) => {
-      input.value = clipAgentChatMessage(text)
-    },
-    onFinal: (text) => {
-      // 上滑取消后识别结果仍会回来（录音已上传），这里丢弃即可，不必让用户看见
-      if (discardVoice.value) {
-        discardVoice.value = false
-        input.value = ''
-        return
-      }
-      if (agentBlocked.value) return
-      input.value = clipAgentChatMessage(text)
-      void send(input.value)
-    },
-  })
+const {
+  listening,
+  transcribing,
+  error: voiceError,
+  status: voiceStatus,
+  startListen,
+  stopListen,
+} = useSpeechToText({
+  preferHa: true,
+  onInterim: (text) => {
+    input.value = clipAgentChatMessage(text)
+  },
+  onFinal: (text) => {
+    // 上滑取消后识别结果仍会回来（录音已上传），这里丢弃即可，不必让用户看见
+    if (discardVoice.value) {
+      discardVoice.value = false
+      input.value = ''
+      return
+    }
+    if (agentBlocked.value) return
+    input.value = clipAgentChatMessage(text)
+    void send(input.value)
+  },
+})
 
 /**
  * 空闲让位：必须声明在下面那个 `immediate: true` 的 watch **之前**。
@@ -265,10 +261,7 @@ async function refreshMicHint() {
   }
   try {
     const probe = await probeMicrophone()
-    micHint.value =
-      probe.inputCount === 0
-        ? '浏览器看不到麦克风，请到「设置 → 系统 → 声音」启用输入设备'
-        : ''
+    micHint.value = probe.inputCount === 0 ? '浏览器看不到麦克风，请到「设置 → 系统 → 声音」启用输入设备' : ''
   } catch {
     micHint.value = ''
   }
@@ -284,18 +277,17 @@ function stopGenerating() {
   }
 }
 
-const { persistCurrent, sessionTimeLabel, openSession, newConversation, deleteConversation } =
-  useAgentChatSessions({
-    sessionId,
-    messages,
-    sessions,
-    input,
-    historyOpen,
-    busy,
-    stopListen,
-    stopGenerating,
-    scrollToBottom: scrollLogToBottom,
-  })
+const { persistCurrent, sessionTimeLabel, openSession, newConversation, deleteConversation } = useAgentChatSessions({
+  sessionId,
+  messages,
+  sessions,
+  input,
+  historyOpen,
+  busy,
+  stopListen,
+  stopGenerating,
+  scrollToBottom: scrollLogToBottom,
+})
 
 function goAgentSettings() {
   close()

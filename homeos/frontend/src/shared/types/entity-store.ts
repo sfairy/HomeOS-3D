@@ -146,10 +146,7 @@ interface EntitySocketActions {
    */
   scheduleHaStatusProbe?: () => void
   setConnected: (connected: boolean) => void // 设置连接状态
-  fetchEntitiesFallback: (
-    reason: string,
-    opts?: { force?: boolean; quiet?: boolean },
-  ) => Promise<boolean> // REST 兜底拉取实体
+  fetchEntitiesFallback: (reason: string, opts?: { force?: boolean; quiet?: boolean }) => Promise<boolean> // REST 兜底拉取实体
   /** 背压建议时优先增量；成功返回 true 则跳过全量 REST */
   requestSoftResync?: (reason?: string) => Promise<boolean>
   /**
@@ -362,11 +359,7 @@ export interface EntityActionsDeps {
   applyOptimistic: (entityId: string, predicted: OptimisticPrediction) => void // 应用乐观更新
   rollbackOptimistic: (entityId: string) => void // 回滚乐观更新
   bumpEntityStateRevision: (entityId?: string) => void // 触发状态版本号变更（通知监听器）
-  emitStateListeners: (
-    entityId: string,
-    newState: HaEntityState | null,
-    oldState: HaEntityState | null,
-  ) => void // 派发状态监听事件
+  emitStateListeners: (entityId: string, newState: HaEntityState | null, oldState: HaEntityState | null) => void // 派发状态监听事件
   isEntityAllowed: (entityId: string) => boolean // 判断实体是否可见（单一管理员模型下可见即可控）
   isAuthenticated: () => boolean // 是否已认证
   isHaConnected: () => boolean // HA 是否已连接
@@ -389,11 +382,7 @@ export interface EntityOptimisticDeps {
   optimisticTtlMs: () => number // 乐观更新 TTL（毫秒）
   patchDerivedChanges: (changes: EntityPatch[]) => void // patch 派生索引
   patchProjectionsFromChanges: (changes: EntityProjectionChange[], entitiesMap: EntitiesMap) => void // patch 投影
-  emitStateListeners: (
-    entityId: string,
-    newState: HaEntityState | null,
-    oldState: HaEntityState | null,
-  ) => void // 派发状态监听事件
+  emitStateListeners: (entityId: string, newState: HaEntityState | null, oldState: HaEntityState | null) => void // 派发状态监听事件
   bumpEntityStateRevision: (entityId?: string) => void // 触发状态版本号变更
   /** 单实体 REST 校正（TTL 回滚后拉真值，避免长期停留在陈旧备份） */
   fetchEntityState?: (entityId: string) => Promise<HaEntityState | null>

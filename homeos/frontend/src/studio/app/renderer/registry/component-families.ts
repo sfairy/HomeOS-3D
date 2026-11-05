@@ -15,25 +15,25 @@
  * interaction3d / flow-line）不在此表，查不到即视为已就绪。
  */
 export const componentFamilyByType: Record<string, string> = {
-  "presence-sensor": "presence-sensor",
-  "air-conditioner": "climate",
-  camera: "camera",
-  "vacuum-map": "vacuum-map",
-  time: "clock",
-  date: "clock",
-  weather: "weather",
-  "line-chart": "line-chart",
-  "scene-mode": "scene-mode",
-};
+  'presence-sensor': 'presence-sensor',
+  'air-conditioner': 'climate',
+  camera: 'camera',
+  'vacuum-map': 'vacuum-map',
+  time: 'clock',
+  date: 'clock',
+  weather: 'weather',
+  'line-chart': 'line-chart',
+  'scene-mode': 'scene-mode',
+}
 
 /** 把一批组件类型折算成需要加载的族（未知/同步类型直接忽略，重复族只留一份）。 */
 export function componentFamiliesForTypes(types: Iterable<string | null | undefined>): string[] {
-  const families = new Set<string>();
+  const families = new Set<string>()
   for (const type of types) {
-    const family = type ? componentFamilyByType[type] : undefined;
-    if (family) families.add(family);
+    const family = type ? componentFamilyByType[type] : undefined
+    if (family) families.add(family)
   }
-  return [...families];
+  return [...families]
 }
 
 /**
@@ -43,15 +43,15 @@ export function componentFamiliesForTypes(types: Iterable<string | null | undefi
  * 渲染 chunk。编辑器仍然全量加载（用户随时能插入新类型）。
  */
 export function componentFamiliesForDocument(documentPayload: any): string[] {
-  const types: string[] = [];
+  const types: string[] = []
   const walk = (componentList: any[]) => {
     for (const component of componentList || []) {
-      if (!component || typeof component !== "object") continue;
-      if (typeof component.type === "string") types.push(component.type);
-      if (Array.isArray(component.children)) walk(component.children);
+      if (!component || typeof component !== 'object') continue
+      if (typeof component.type === 'string') types.push(component.type)
+      if (Array.isArray(component.children)) walk(component.children)
     }
-  };
-  walk(documentPayload?.sharedComponents);
-  for (const page of documentPayload?.pages || []) walk(page?.components);
-  return componentFamiliesForTypes(types);
+  }
+  walk(documentPayload?.sharedComponents)
+  for (const page of documentPayload?.pages || []) walk(page?.components)
+  return componentFamiliesForTypes(types)
 }

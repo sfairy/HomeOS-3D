@@ -47,10 +47,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ChevronDown } from '@lucide/vue'
-import {
-  DASHBOARD_FOOTER_COLORS,
-  DASHBOARD_FOOTER_COLOR_ACCENT,
-} from '@/shared/constants/dashboard-footer'
+import { DASHBOARD_FOOTER_COLORS, DASHBOARD_FOOTER_COLOR_ACCENT } from '@/shared/constants/dashboard-footer'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useDropdownPosition } from '@/composables/ui/popup/useDropdownPosition'
 
@@ -78,18 +75,14 @@ const rootRef = ref(null)
 const panelRef = ref(null)
 const colors = DASHBOARD_FOOTER_COLORS
 
-const { dropdownStyle, teleportTarget, teleportDisabled, placement } = useDropdownPosition(
-  rootRef,
-  open,
-  {
-    minWidth: 228,
-    maxHeight: 320,
-    chromeHeight: 0,
-    minListHeight: 120,
-    minRowHeight: 48,
-    dropdownRef: panelRef,
-  },
-)
+const { dropdownStyle, teleportTarget, teleportDisabled, placement } = useDropdownPosition(rootRef, open, {
+  minWidth: 228,
+  maxHeight: 320,
+  chromeHeight: 0,
+  minListHeight: 120,
+  minRowHeight: 48,
+  dropdownRef: panelRef,
+})
 
 // 取颜色对应的强调色（缺失回退为 yellow）
 function accent(key) {
@@ -115,9 +108,12 @@ function pick(c) {
   open.value = false
 }
 
-useClickOutside(() => [rootRef.value, panelRef.value].filter(Boolean), () => {
-  open.value = false
-})
+useClickOutside(
+  () => [rootRef.value, panelRef.value].filter(Boolean),
+  () => {
+    open.value = false
+  },
+)
 </script>
 
 <style scoped src="./styles/FooterColorPicker.css"></style>

@@ -4,13 +4,7 @@
 -->
 <script setup>
 import { computed } from 'vue'
-import {
-  Activity,
-  BatteryCharging,
-  Copy,
-  PlugZap,
-  RefreshCw,
-} from '@lucide/vue'
+import { Activity, BatteryCharging, Copy, PlugZap, RefreshCw } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'

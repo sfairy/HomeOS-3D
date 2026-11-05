@@ -98,15 +98,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  Loader2,
-  Radio,
-  Filter,
-  MapPin,
-  Monitor,
-  Volume2,
-  TriangleAlert,
-} from '@lucide/vue'
+import { Loader2, Radio, Filter, MapPin, Monitor, Volume2, TriangleAlert } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import type { SettingsFlowStep } from '@/features/settings/shared/layout/SettingsFlowBand.vue'

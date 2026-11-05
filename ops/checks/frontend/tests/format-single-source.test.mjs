@@ -104,10 +104,7 @@ test('秒级相对时间：首档细到秒，跨天交回绝对时刻', () => {
     `ABS:${new Date(twoDaysAgo).toISOString().slice(0, 10)}`,
   )
   // 未来时间（时钟漂移）不算「刚刚」，同样交回绝对时刻
-  assert.match(
-    formatRelativeSecondsFromNow(Date.now() + 60_000, { absolute }),
-    /^ABS:/,
-  )
+  assert.match(formatRelativeSecondsFromNow(Date.now() + 60_000, { absolute }), /^ABS:/)
 })
 
 // ---------------------------------------------------------------- 亮度 / 音量
@@ -194,22 +191,13 @@ test('studio 换算白名单只列真实存在的文件（防止清单腐烂成�
 })
 
 test('通知中心只有一个数据源：没有本地副本、不克隆条目、写入走 store', () => {
-  const composable = readFileSync(
-    join(root, 'homeos/frontend/src/composables/widget/useNotificationCenter.ts'),
-    'utf8',
-  )
+  const composable = readFileSync(join(root, 'homeos/frontend/src/composables/widget/useNotificationCenter.ts'), 'utf8')
   // 只认「声明本地副本列表」这种形态：文档注释里提到被删掉的旧实现不算违规
-  assert.ok(
-    !/(const|let|var)\s+localNotifications\b/.test(composable),
-    '通知中心不应再有本地副本列表',
-  )
+  assert.ok(!/(const|let|var)\s+localNotifications\b/.test(composable), '通知中心不应再有本地副本列表')
   assert.ok(!composable.includes('.splice('), '通知列表的增删应走 store action，而不是直接改数组')
 
   const internals = stripComments(
-    readFileSync(
-      join(root, 'homeos/frontend/src/composables/widget/notification-center.filters.internals.ts'),
-      'utf8',
-    ),
+    readFileSync(join(root, 'homeos/frontend/src/composables/widget/notification-center.filters.internals.ts'), 'utf8'),
   )
   assert.ok(
     !/\.\.\.\s*notification\b/.test(internals),

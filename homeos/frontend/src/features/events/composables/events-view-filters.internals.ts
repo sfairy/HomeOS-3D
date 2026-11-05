@@ -24,18 +24,14 @@ export function createEventsViewFilters(opts: {
   syncHoursToRetention: () => void
   hours: Ref<number>
 }) {
-  const { entityFilter, domainFilter, entitiesStore, stats, reload, syncHoursToRetention, hours } =
-    opts
+  const { entityFilter, domainFilter, entitiesStore, stats, reload, syncHoursToRetention, hours } = opts
 
   const entitySelectOptions = ref<EntityOption[]>([])
   const entityOptionsLoading = ref(false)
   let entityOptionsRequestSeq = 0
   let entitySearchTimer: ReturnType<typeof setTimeout> | null = null
 
-  function mapEntityOption(
-    entityId: string,
-    entity: HaEntityState | Record<string, unknown> | null | undefined,
-  ) {
+  function mapEntityOption(entityId: string, entity: HaEntityState | Record<string, unknown> | null | undefined) {
     return formatEntitySelectOption(entityId, entity)
   }
 
@@ -92,13 +88,9 @@ export function createEventsViewFilters(opts: {
     const rows = stats.value?.topEntities
     if (!Array.isArray(rows) || !rows.length) return
     const domain = domainFilter.value
-    const scoped = domain
-      ? rows.filter((row) => optionMatchesDomain(String(row?.entityId || ''), domain))
-      : rows
+    const scoped = domain ? rows.filter((row) => optionMatchesDomain(String(row?.entityId || ''), domain)) : rows
     if (!scoped.length) return
-    mergeEntityOptions(
-      scoped.map((row) => mapEntityOption(row.entityId, entitiesStore.entities[row.entityId])),
-    )
+    mergeEntityOptions(scoped.map((row) => mapEntityOption(row.entityId, entitiesStore.entities[row.entityId])))
   }
 
   async function fetchEntitySelectOptions(search = '') {
@@ -207,7 +199,12 @@ export function createEventsViewFilters(opts: {
 
   function applyHoursFromRoute(route: RouteLocationNormalizedLoaded) {
     const hoursQuery = route.query.hours
-    const raw = typeof hoursQuery === 'string' ? hoursQuery.trim() : Array.isArray(hoursQuery) ? String(hoursQuery[0] || '').trim() : ''
+    const raw =
+      typeof hoursQuery === 'string'
+        ? hoursQuery.trim()
+        : Array.isArray(hoursQuery)
+          ? String(hoursQuery[0] || '').trim()
+          : ''
     if (!raw) return
     const hoursValue = Number.parseInt(raw, 10)
     if (!Number.isFinite(hoursValue) || hoursValue <= 0) return

@@ -277,8 +277,8 @@ async function load() {
     const common = new Set(policies.value.map((policy) => policy.retentionDays))
     batchDays.value =
       common.size === 1
-        ? policies.value[0]?.retentionDays ?? 7
-        : policies.value.find((policy) => policy.key === 'eventLog')?.retentionDays ?? 7
+        ? (policies.value[0]?.retentionDays ?? 7)
+        : (policies.value.find((policy) => policy.key === 'eventLog')?.retentionDays ?? 7)
   } catch (err) {
     loadError.value = getApiErrorMessage(err, '加载数据保留信息失败')
   } finally {

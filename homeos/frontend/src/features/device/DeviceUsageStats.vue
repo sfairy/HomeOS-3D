@@ -138,16 +138,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import {
-  BarChart3,
-  RefreshCw,
-  AlertCircle,
-  Calendar,
-  Zap,
-  Clock,
-  TrendingUp,
-  List,
-} from '@lucide/vue'
+import { BarChart3, RefreshCw, AlertCircle, Calendar, Zap, Clock, TrendingUp, List } from '@lucide/vue'
 import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import { useDeviceUsageStats } from '@/composables/device/useDeviceUsageStats'
@@ -201,7 +192,7 @@ const visibleRef = computed(() => props.visible)
 
 /**
  * 使用设备使用统计组合式函数
- * 
+ *
  * 返回：
  * - loading: 加载状态
  * - error: 错误信息
@@ -226,7 +217,7 @@ const dailyRowsDesc = computed(() => [...usageData.value].reverse())
 
 /**
  * 使用统计汇总数据
- * 
+ *
  * 包含：
  * - toggleCount: 总切换次数
  * - totalOnTime: 累计开启时长（毫秒）
@@ -238,11 +229,9 @@ const usageStats = computed(() => {
   // 总切换次数：优先使用报告摘要，否则从每日数据累加
   const toggleCount = report.value?.summary.onCount ?? data.reduce((sum, d) => sum + d.onCount, 0)
   // 累计开启时长：优先使用报告摘要，否则从每日数据累加
-  const totalOnTime =
-    report.value?.summary.totalRuntimeMs ?? data.reduce((sum, d) => sum + d.totalRuntimeMs, 0)
+  const totalOnTime = report.value?.summary.totalRuntimeMs ?? data.reduce((sum, d) => sum + d.totalRuntimeMs, 0)
   // 日均使用次数：优先使用报告摘要，否则计算平均值
-  const averageDaily =
-    report.value?.summary.avgDaily ?? (data.length ? Math.round(toggleCount / data.length) : 0)
+  const averageDaily = report.value?.summary.avgDaily ?? (data.length ? Math.round(toggleCount / data.length) : 0)
 
   // 查找上次使用日期：从最后一天向前遍历，找到第一个有使用记录的日期
   let lastUsed: string | null = null
@@ -258,7 +247,7 @@ const usageStats = computed(() => {
 
 /**
  * 格式化上次使用时间标签
- * 
+ *
  * @param dateStr 日期字符串
  * @returns 格式化后的标签（今天/昨天/月/日）
  */
@@ -276,7 +265,7 @@ function formatLastUsedLabel(dateStr: string | null): string {
 
 /**
  * 格式化日期标签为 MM/DD 格式
- * 
+ *
  * @param day 日期字符串
  * @returns 格式化后的日期标签
  */
@@ -287,7 +276,7 @@ function formatDayLabel(day: string): string {
 
 /**
  * 检查图表容器是否已就绪（有实际尺寸）
- * 
+ *
  * @returns true 表示容器已就绪
  */
 function chartDomReady(): boolean {
@@ -332,10 +321,7 @@ async function renderChart() {
     legend: deviceChartLegend(),
     grid: deviceChartGrid({ top: 36 }),
     xAxis: deviceChartXAxis(labels),
-    yAxis: [
-      deviceChartYAxis('次数(次)'),
-      { ...deviceChartYAxis('时长(分)'), splitLine: { show: false } },
-    ],
+    yAxis: [deviceChartYAxis('次数(次)'), { ...deviceChartYAxis('时长(分)'), splitLine: { show: false } }],
     series: [
       {
         name: '切换次数',

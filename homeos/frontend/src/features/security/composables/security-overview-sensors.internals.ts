@@ -53,9 +53,7 @@ export function createSecurityOverviewSensorView(opts: {
 
   const filteredSensors = computed(() => {
     let list =
-      sensorFilter.value === 'all'
-        ? allSensors.value
-        : allSensors.value.filter((s) => s.type === sensorFilter.value)
+      sensorFilter.value === 'all' ? allSensors.value : allSensors.value.filter((s) => s.type === sensorFilter.value)
     if (boundOnly.value) list = list.filter((s) => s.bound)
     return list
   })
@@ -68,8 +66,7 @@ export function createSecurityOverviewSensorView(opts: {
   })
 
   const groupedListSensors = computed(() => {
-    const groups: Record<string, { type: string; label: string; items: SecurityOverviewSensor[] }> =
-      {}
+    const groups: Record<string, { type: string; label: string; items: SecurityOverviewSensor[] }> = {}
     for (const s of listSensors.value) {
       if (!groups[s.type]) groups[s.type] = { type: s.type, label: s.label, items: [] }
       groups[s.type].items.push(s)

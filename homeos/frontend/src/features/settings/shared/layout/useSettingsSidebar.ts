@@ -15,11 +15,7 @@ interface SettingsNavGroup {
   tabs: Array<{ id: string; label: string; icon: unknown; independentSave?: boolean }>
 }
 
-export function useSettingsSidebar(
-  groups: Ref<SettingsNavGroup[]>,
-  activeTab: Ref<string>,
-  searchQuery: Ref<string>,
-) {
+export function useSettingsSidebar(groups: Ref<SettingsNavGroup[]>, activeTab: Ref<string>, searchQuery: Ref<string>) {
   const showSearch = computed(() => countNavTabs(groups.value) > 4)
 
   const pendingTabIds = computed(() => getIndependentPendingTabIds())
@@ -38,13 +34,9 @@ export function useSettingsSidebar(
     return '系统组态配置'
   })
 
-  const displayGroups = computed(() =>
-    filterNavGroupsBySearch(groups.value, searchQuery.value),
-  )
+  const displayGroups = computed(() => filterNavGroupsBySearch(groups.value, searchQuery.value))
   const isSearchMode = computed(() => searchQuery.value.trim().length > 0)
-  const searchResults = computed(() =>
-    isSearchMode.value ? flattenNavSearchResults(displayGroups.value) : [],
-  )
+  const searchResults = computed(() => (isSearchMode.value ? flattenNavSearchResults(displayGroups.value) : []))
 
   /** 当前展开的一级分组 id，null 表示全部收起 */
   const expandedGroupId = ref<string | null>(null)
@@ -85,11 +77,7 @@ export function useSettingsSidebar(
     expandedGroupId.value = expandedGroupId.value === groupId ? null : groupId
   }
 
-  function onNavigate(
-    tabId: string,
-    groupId: string,
-    emit: (event: 'navigate', tabId: string) => void,
-  ) {
+  function onNavigate(tabId: string, groupId: string, emit: (event: 'navigate', tabId: string) => void) {
     expandedGroupId.value = groupId
     emit('navigate', tabId)
   }

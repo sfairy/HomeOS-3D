@@ -11,7 +11,9 @@ import { computed, type Ref } from 'vue'
 import {
   collectHazardBindingSummary,
   collectHazardWatchedEntityIds,
-  type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
+  type HazardSensorKind,
+  getEntityLeaf,
+} from '@homeos/shared'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
@@ -60,9 +62,7 @@ function isAlertState(state: string | undefined): boolean {
  * @param entity 实体对象
  * @returns status 与 statusLabel
  */
-function resolveStatus(
-  entity: { state?: string } | undefined,
-): Pick<HazardBindingStatusRow, 'status' | 'statusLabel'> {
+function resolveStatus(entity: { state?: string } | undefined): Pick<HazardBindingStatusRow, 'status' | 'statusLabel'> {
   // 离线优先判定
   if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') {
     return { status: 'offline', statusLabel: '离线' }
@@ -138,9 +138,7 @@ export function useHazardBindingStatus(
         kind,
         kindLabel,
         // 实体存在时取友好名，否则回退到 entity_id 末段
-        name: entity
-          ? getEntityDisplayName(entityId, entity)
-          : getEntityLeaf(entityId),
+        name: entity ? getEntityDisplayName(entityId, entity) : getEntityLeaf(entityId),
         status,
         statusLabel,
       })
@@ -154,8 +152,7 @@ export function useHazardBindingStatus(
     // 燃气阀门：配置缺省时回退到 valve.gas_main；仅当存在烟感或燃气时展示
     const gasValve = String(config.value.hazardGasValveEntityId ?? '').trim() || 'valve.gas_main'
     // 水阀：配置缺省时回退到 valve.water_main
-    const waterValve =
-      String(config.value.hazardWaterValveEntityId ?? '').trim() || 'valve.water_main'
+    const waterValve = String(config.value.hazardWaterValveEntityId ?? '').trim() || 'valve.water_main'
     if (summary.smoke.length || summary.gas.length) push(gasValve, 'gas_valve', '燃气关阀')
     if (summary.leak.length) push(waterValve, 'water_valve', '漏水关阀')
 
@@ -164,20 +161,14 @@ export function useHazardBindingStatus(
       .split(/[,;\s]+/)
       .map((s) => s.trim())
       .filter(Boolean)
-    const fanTargets = fans.length
-      ? fans
-      : summary.smoke.length || summary.gas.length
-        ? ['fan.exhaust']
-        : []
+    const fanTargets = fans.length ? fans : summary.smoke.length || summary.gas.length ? ['fan.exhaust'] : []
     for (const fan of fanTargets) push(fan, 'exhaust', '排风')
 
     return list
   })
 
   // 受监测的实体 ID 列表，供轮询订阅使用
-  const watchedIds = computed(() =>
-    collectHazardWatchedEntityIds(buildHaConfigFromModels(config.value)),
-  )
+  const watchedIds = computed(() => collectHazardWatchedEntityIds(buildHaConfigFromModels(config.value)))
   // 告警行数
   const alertCount = computed(() => rows.value.filter((r) => r.status === 'alert').length)
   // 离线行数

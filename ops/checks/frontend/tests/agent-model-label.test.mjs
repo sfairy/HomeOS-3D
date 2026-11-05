@@ -89,7 +89,10 @@ test('设置页厂商名与顶栏共用 model-label.util，不再各维护一份
  */
 test('面板以 open=true 挂载时也要探测一次，否则顶栏永远「未连接」', () => {
   const source = read(PALETTE)
-  const watcher = source.slice(source.indexOf('watch(\n  () => props.open'), source.indexOf('// 悬浮伴侣长按说话后留下的消息'))
+  const watcher = source.slice(
+    source.indexOf('watch(\n  () => props.open'),
+    source.indexOf('// 悬浮伴侣长按说话后留下的消息'),
+  )
   assert.match(watcher, /void refreshAgentStatus\(\)/)
   // 没有 immediate 时，首次挂载即打开的面板不会进入回调
   assert.match(watcher, /\{ immediate: true \}/)
