@@ -306,18 +306,6 @@ export function deviceStatus(
     }[overallStatus],
   }
 }
-export function deviceEntityIds(device: any) {
-  const healthRules = healthRulesOf(device?.statusRules)
-  return [
-    ...new Set(
-      [
-        ...(device?.extraControls || []).map((control: any) => control.entityId),
-        device?.statusRules?.power?.entityId,
-        ...healthRules.map((healthRule: any) => healthRule?.entityId),
-      ].filter(Boolean),
-    ),
-  ]
-}
 
 /** 状态指示可选项：优先按实体自身能力，其次按域内置状态表（门锁/扫地机/空调模式等）。 */
 export function deviceIndicatorChoices(entityDescriptor: EntityDescriptor = {}, stateUpdate: any) {

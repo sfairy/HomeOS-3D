@@ -348,19 +348,10 @@ export const DEVICE_PROFILE_TABLE: Readonly<Record<string, DeviceProfile>> = Obj
   ...OTHER_DEVICE_PROFILES,
 })
 
-/** 设备类型列表。 */
-export const DEVICE_KINDS = Object.freeze(Object.keys(DEVICE_PROFILE_TABLE))
-
 export function deviceProfile(deviceKind: any): DeviceProfile | null {
   return Object.hasOwn(DEVICE_PROFILE_TABLE, deviceKind) ? (DEVICE_PROFILE_TABLE as any)[deviceKind] : null
 }
 
 export function isDeviceKind(candidateKind: any) {
   return Object.hasOwn(DEVICE_PROFILE_TABLE, candidateKind)
-}
-
-/** 某个设备类型在场景里的全部模型类型（`modelTypes` 优先）。 */
-export function deviceModelTypes(deviceKind: any): readonly string[] {
-  const profile = deviceProfile(deviceKind)
-  return profile ? profile.modelTypes || [profile.modelType] : []
 }

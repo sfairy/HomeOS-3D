@@ -177,17 +177,6 @@ export function gameConsoleState(gameConfig: any, stateSource: any = {}) {
   }
 }
 
-/** 舞台图标用的指示灯视图。 */
-export function gameConsoleIndicator(gameConfig: any, stateSource: any) {
-  const consoleState = gameConsoleState(gameConfig, stateSource)
-  return {
-    ...consoleState,
-    visible: !!gameConfig.mainEntityId && consoleState.available,
-    status: consoleState.mode,
-    steady: true,
-  }
-}
-
 /**
  * 生成一条主机控制指令（`turn_on` / `turn_off` / `select_source`）。
  *
@@ -229,24 +218,4 @@ export function gameMainEntityAllowed(deviceKind: any, entityEntry: any): boolea
   return deviceKind === 'playstation'
     ? entityId.startsWith('media_player.')
     : deviceKind === 'switch-console' && entityId.startsWith('sensor.')
-}
-
-/**
- * 从实体目录里挑默认主实体：唯一候选才自动选中，多个候选时留空让用户自己选。
- */
-export function preferredGameMainEntity(deviceKind: any, entityEntries: any[] = []): string {
-  const candidates = entityEntries.filter((entityEntry: any) => gameMainEntityAllowed(deviceKind, entityEntry)),
-    preferred =
-      deviceKind === 'playstation'
-        ? candidates.filter((entityEntry: any) => entityEntry.platform === 'ps4')
-        : candidates.filter(
-            (entityEntry: any) =>
-              Object.hasOwn(entityEntry.attributes || {}, 'Status') ||
-              /^switch_profile_/.test(entityEntry.uniqueId || entityEntry.unique_id || ''),
-          )
-  return preferred.length === 1
-    ? preferred[0].entityId
-    : deviceKind === 'playstation' && candidates.length === 1
-      ? candidates[0].entityId
-      : ''
 }

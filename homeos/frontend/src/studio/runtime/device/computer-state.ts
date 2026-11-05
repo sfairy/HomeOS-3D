@@ -70,18 +70,3 @@ export function computerPower(
     },
   }
 }
-
-export function computerState(device: any, states: any = {}): ComputerState {
-  const power = computerPower(device, states)
-  return {
-    ...power,
-    name: device?.label || device?.deviceName || '电脑',
-    status: device?.powerEntityId
-      ? power.available
-        ? power.on
-          ? '已开启'
-          : '已关闭'
-        : '设备不可用'
-      : '尚未绑定电源实体',
-  }
-}

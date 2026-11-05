@@ -183,16 +183,6 @@ export function resolveFanBindingState(binding: any = {}, stateSource: any = {})
   }
 }
 
-export function fanStatusLabel(state: ReturnType<typeof resolveFanBindingState> | null) {
-  return state?.label || '状态未知'
-}
-
-export function isFanEntityCandidate(entity: any) {
-  if (!isAvailableRecord(entity)) return false
-  const entityId = String(entity.entityId || entity.entity_id || '')
-  return /^(fan|switch|input_boolean|input_number|input_select|select|binary_sensor|number)\.[a-z0-9_]+$/.test(entityId)
-}
-
 /** Options for reverseState select given a direction entity id + live state. */
 export function fanReverseStateOptions(directionEntityId: string, directionState: any) {
   const domain = String(directionEntityId || '').split('.')[0]

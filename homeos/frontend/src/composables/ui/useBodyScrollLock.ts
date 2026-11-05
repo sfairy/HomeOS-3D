@@ -38,19 +38,6 @@ export function getBodyScrollLockState(): BodyScrollLockState {
 }
 
 /**
- * 兜底解锁：清空全部持有者并还原 body 滚动。
- *
- * **只用于救援**（页面已卡死、界面上无处可点时的 devtools / 测试 / 诊断入口）。
- * 正常流程不要调用：它会把仍在显示的浮层脚下的滚动一并放开。
- */
-export function releaseAllBodyScrollLocks(): void {
-  holders.clear()
-  lockCount = 0
-  document.body.style.overflow = previousOverflow
-  previousOverflow = ''
-}
-
-/**
  * 手动加锁，返回幂等的解锁函数。
  *
  * 调用场景：非组件场景（事件回调、指令）需要临时锁滚动时使用；

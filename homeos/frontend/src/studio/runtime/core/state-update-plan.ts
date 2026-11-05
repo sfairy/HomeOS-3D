@@ -261,11 +261,6 @@ function boundEntityIds(candidate: any, collectedIdSet = new Set(), visitedObjec
   }
   return collectedIdSet
 }
-export function createStateUpdatePlan(component: any, update: any) {
-  return !update || typeof update != 'object' || Array.isArray(update)
-    ? null
-    : buildStateUpdatePlan(bindLightingAndEnvironmentSets(component), update)
-}
 export function createStateUpdatePlanner() {
   let cachedComponent: any, cachedBindings: any
   return {

@@ -7,8 +7,6 @@ import {
 
 const MDI_SVG = '/static/vendor/mdi/7.4.47/svg/'
 
-export const SECURITY_ALARM_KINDS = ['moisture', 'smoke', 'gas'] as const
-
 export const SECURITY_ALARM_TYPES: Record<string, { label: string; icon: string; alarm: string; normal: string }> = {
   moisture: {
     label: '水浸',
@@ -271,21 +269,6 @@ function securityAlarmWorkState(kind: any, entityState: any = null, entityId = '
   return { status: 'unknown', label: '未知', available: false }
 }
 
-export function securityAlarmEntities(alarms: any[] = []) {
-  return [
-    ...new Set(
-      alarms
-        .flatMap((alarm) => [
-          alarm?.entityId,
-          alarm?.secondaryEntityId,
-          alarm?.batteryEntityId,
-          alarm?.workStateEntityId,
-        ])
-        .filter(Boolean),
-    ),
-  ].map((entityId) => ({ entityId }))
-}
-
 export function securityAlarmReadings(alarms: any[] = [], stateSource: any = {}) {
   return alarms.map((alarm) => ({
     ...securityAlarmReading(alarm, stateSource),
@@ -293,10 +276,6 @@ export function securityAlarmReadings(alarms: any[] = [], stateSource: any = {})
     entityId: alarm.entityId,
     floorId: alarm.floorId,
   }))
-}
-
-export function activeSecurityAlarms(alarms: any[] = [], stateSource: any = {}) {
-  return securityAlarmReadings(alarms, stateSource).filter((reading) => reading.on)
 }
 
 /** 参与全屏/画布报警遮罩的卡片（隐藏卡片不弹遮罩；overlay:false 仅 HomOS 扩展）。 */
@@ -619,23 +598,5 @@ export function createSecurityAlarmOverlay(hostElement: HTMLElement, { onDismiss
         overlayRegistry.delete(hostElement)
       }
     },
-  }
-}
-
-export function mergeSecurityAlarmPresentations(presentations: any[] = []) {
-  const list = presentations.filter(Boolean)
-  if (!list.length) return null
-  if (list.length === 1) return list[0]
-  const alerting = list.filter((entry) => entry.alerting || entry.on)
-  const primary = alerting[0] || list[0]
-  return {
-    ...primary,
-    merged: true,
-    mergeCount: list.length,
-    statusLabel: alerting.length
-      ? alerting.map((entry) => entry.label + '：' + entry.detail).join(' · ')
-      : list.map((entry) => entry.detail).join(' · '),
-    alerting: alerting.length > 0,
-    on: alerting.length > 0,
   }
 }

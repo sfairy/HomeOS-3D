@@ -3,9 +3,8 @@
  *
  * 0.7.8 的附加面板按实体域拆成 10 个模块，但它们的宿主契约一致：
  * `createXxxExtraPanel({ element, feedbackSlot?, onControl?, ... })` 返回
- * `{ root, update(model), dispose() }`。这里只收拢重复的 DOM / 反馈 / 可见性逻辑。
+ * `{ root, update(model), dispose() }`。这里只收拢重复的反馈槽 / 可见性 / 状态词表逻辑。
  */
-import { attributesOf } from '../device/entity-capabilities'
 
 /** 面板视图模型：由 `purifier-extras` 注入，字段来自运行时状态袋。 */
 export type ExtraPanelViewModel = {
@@ -26,46 +25,9 @@ export type FeedbackSlot = {
   root?: any
 }
 
-export function createPanelElement(ownerDocument: Document, tagName: string, textContent = '') {
-  const element = ownerDocument.createElement(tagName)
-  element.textContent = textContent
-  return element
-}
-
-/** 反馈节点卸载函数的安全包装：反馈槽可缺省，卸载可重复调用。 */
 export function attachFeedback(feedbackSlot: FeedbackSlot | undefined, node: any, options: any): () => void {
   const release = feedbackSlot?.attach?.(node, options)
   return () => release?.()
-}
-
-/** 读取实体实时状态（兼容 `state.newState` 包装）。 */
-function liveStateOf(viewModel: ExtraPanelViewModel | null | undefined) {
-  return viewModel?.state?.newState || viewModel?.state
-}
-
-/** 实体属性（统一走 entity-capabilities，避免各处重复判空）。 */
-export function liveAttributesOf(viewModel: ExtraPanelViewModel | null | undefined) {
-  return attributesOf(liveStateOf(viewModel))
-}
-
-function modelEntityId(viewModel: ExtraPanelViewModel | null | undefined) {
-  return String(viewModel?.item?.entityId || '')
-}
-
-export function modelDomain(viewModel: ExtraPanelViewModel | null | undefined) {
-  return modelEntityId(viewModel).split('.')[0]
-}
-
-/** 面板是否处于"可交互"态：未编辑、模型可用、实体可用、未在提交。 */
-export function panelEntityUsable(
-  viewModel: ExtraPanelViewModel | null | undefined,
-  options: { allowStatelessUnknown?: boolean } = {},
-) {
-  if (!viewModel || viewModel.item?.modelAvailable === false) return false
-  const state = liveStateOf(viewModel)
-  if (!state || state.available === false) return false
-  if (state.state === 'unknown' && options.allowStatelessUnknown) return true
-  return !['unknown', 'unavailable', '', undefined].includes(state.state)
 }
 
 /**
@@ -122,11 +84,4 @@ export const EXTRA_STATE_LABELS: Record<string, string> = {
   listening: '正在聆听',
   processing: '正在处理',
   responding: '正在回复',
-}
-
-export function extraStateText(viewModel: ExtraPanelViewModel | null | undefined) {
-  const state = liveStateOf(viewModel)
-  if (!state) return '设备不可用'
-  if (state.state === 'unknown') return '状态未知'
-  return EXTRA_STATE_LABELS[state.state] || String(state.state || '')
 }

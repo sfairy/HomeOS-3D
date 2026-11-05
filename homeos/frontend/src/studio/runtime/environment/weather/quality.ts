@@ -70,5 +70,3 @@ export function createQualityGovernor() {
     },
   }
 }
-
-export type QualityGovernor = ReturnType<typeof createQualityGovernor>
