@@ -3,9 +3,9 @@
 
 为什么需要它
 ------------
-`route_inventory.py` 只保证「路由数量与路径不变」，`check_ws_auth.py` 只保证「WS 路由
-有鉴权调用」。**没有任何门禁在看响应契约**：一个 handler 把 `response_model` 或显式
-`status_code` 删掉，路由基线照样绿，但 OpenAPI 文档当场退化、前端按 schema 生成的类型
+`check:ws-auth` 只保证「WS 路由有鉴权调用」，`check:backend-deps` 只保证导入方向。
+**没有任何门禁在看响应契约**：一个 handler 把 `response_model` 或显式
+`status_code` 删掉，其它门禁照样绿，但 OpenAPI 文档当场退化、前端按 schema 生成的类型
 悄悄变成 `any`。这类退化在评审里极难看见 —— 代码 diff 只是一行关键字消失。
 
 口径
