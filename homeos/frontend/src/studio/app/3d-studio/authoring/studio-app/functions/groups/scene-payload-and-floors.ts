@@ -2,7 +2,7 @@ import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { MATERIAL_STYLE_AUTO, materialStylePaletteColors, normalizeMaterialStyle } from "../../../../materials/studio-material-presets";
 import { buildStaticMaterialKey } from "../../../../materials/studio-static-material-key";
 import { RENDER_CACHE_VERSION as RENDER_CACHE_VERSION2, cacheSceneDescriptor as cacheSceneDescriptor2, sha256 as sha2562, stableCacheJSON as stableCacheJSON2 } from "../../../../../bridge/scene/render-cache";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { clamp as clamp2, nearestWall as nearestWall2 } from "../../../../plan/geometry";
 import { reorderFloors as reorderFloors2 } from "../../../../plan/floor-order";
 import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from "../../../../loaders/studio-external-models";

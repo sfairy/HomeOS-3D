@@ -1,8 +1,8 @@
 import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { trimSharedGeometryCache as trimSharedGeometryCache2 } from "../../../studio-shared-geometry-cache";
 import { MAX_CAMERA_POLAR_ANGLE as MAX_CAMERA_POLAR_ANGLE2, constrainCameraPosition as constrainCameraPosition2 } from "../../../scene/studio-camera-constraints";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
-import { OrbitControls as OrbitControls2 } from "/static/vendor/three/0.186.1/OrbitControls.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { OrbitControls as OrbitControls2 } from "/static/vendor/three/0.187.0/OrbitControls.js";
 import { createStudioOrbitControls } from "../../../studio-orbit-controls";
 import { clamp as clamp2 } from "../../../../plan/geometry";
 import { MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2, exportPresetIsEmpty as exportPresetIsEmpty2, normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2, normalizeExportPreset as normalizeExportPreset2, normalizeExportPresetSlots as normalizeExportPresetSlots2 } from "../../../../export/export-presets";

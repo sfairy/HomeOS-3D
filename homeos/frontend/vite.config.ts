@@ -722,7 +722,7 @@ function updatePublicStaticManifest(): void {
   // （见 vite-studio.ts：three 的 addon 全部走 ``/static/vendor/three/<版本>/``），
   // 因此漏登记的症状和漏登记的哈希 chunk 一模一样 —— 只是更难认：
   //
-  //   GET /static/vendor/three/0.186.1/OrbitControls.js  401（或门禁变体回 404）
+  //   GET /static/vendor/three/0.187.0/OrbitControls.js  401（或门禁变体回 404）
   //   ☠ Failed to fetch dynamically imported module: shared-xxxx.js
   //
   // 浏览器只会指到那个 lazy chunk，而真正缺的是它的静态依赖；StudioView 直接进

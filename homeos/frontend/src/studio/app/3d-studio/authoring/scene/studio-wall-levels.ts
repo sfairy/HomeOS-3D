@@ -8,7 +8,7 @@
  * `buildBand` 由宿主注入而不是 `import { buildWallBandMesh }`：两个模块互相引用会形成
  * 运行时循环依赖，而这里只需要一个函数值。
  */
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { buildWallCapSurface, shadeTint } from "./studio-wall-shell";
 import type { WallCapContext, WallCapLoop } from "./studio-wall-shell";
 import type { StudioWallsDeps } from "./studio-walls";

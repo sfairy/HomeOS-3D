@@ -22,7 +22,7 @@
 
 
 
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import {
   lightEffectColorHex as lightEffectColorHex2,
 } from "../../../../bridge/light-motion";

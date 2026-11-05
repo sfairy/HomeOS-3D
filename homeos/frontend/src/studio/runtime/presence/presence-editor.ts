@@ -979,7 +979,7 @@ export async function openPresenceEditor({
     renderSensorPanel());
   try {
     const threeModule =
-      await import("/static/vendor/three/0.186.1/three.module.min.js");
+      await import("/static/vendor/three/0.187.0/three.module.min.js");
     if (isClosed) return;
     const webglRenderer = new threeModule.WebGLRenderer({
       alpha: true,

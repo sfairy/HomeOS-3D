@@ -1913,7 +1913,7 @@ export function createExternalModelManager({
       "ior",
       "iridescence",
       "iridescenceIOR",
-      "iridescenceThicknessRange",
+      "iridescenceThicknessMaximum", "iridescenceThicknessMinimum", // three 0.187 起取代 iridescenceThicknessRange
       "lightMapIntensity",
       "metalness",
       "normalMapType",

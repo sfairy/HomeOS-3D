@@ -11,7 +11,7 @@
  * `window-motion` 只读这份数据，不再关心窗格是怎么画的。
  */
 
-import * as THREE from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as THREE from "/static/vendor/three/0.187.0/three.module.min.js";
 
 import {
   defaultWindowOpening,

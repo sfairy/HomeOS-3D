@@ -1,7 +1,7 @@
 import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { courtyardBoundaryPoints as courtyardBoundaryPoints2, sceneContentBounds as sceneContentBounds2, sceneModelOrigin as sceneModelOrigin2 } from "../../../../plan/courtyard-drawing";
 import { decorateWarmFloor as decorateWarmFloor2 } from "../../../scene/studio-scene-style";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { clamp as clamp2, selectShadowCastingLightIds as selectShadowCastingLightIds2, spotShadowTextureUnitLimit as spotShadowTextureUnitLimit2 } from "../../../../plan/geometry";
 import { drawTrackedText as drawTrackedText2 } from "../../../../plan/studio-plan-drawing";
 import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2, kelvinToRgbHex as kelvinToRgbHex2, normalizeFullRotation as normalizeFullRotation2, normalizeLabelText as normalizeLabelText2 } from "../../../../loaders/studio-normalization";

@@ -44,7 +44,7 @@ import { createOverviewStack as createOverviewStack2 } from "../../scene/studio-
 
 
 import { createDemandFrameLoop as createDemandFrameLoop2 } from "../../../../bridge/scene/frame-loop";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 
 
 

@@ -16,7 +16,7 @@
  * - 只在 renderer 的渲染入口内记账，不把页面其它 three 用法的资源算进来；
  * - `releaseLostContext` 只在 `isContextLost()` 为真时动手，正常销毁一律走 `dispose()`。
  */
-import { EventDispatcher } from "/static/vendor/three/0.186.1/three.module.min.js";
+import { EventDispatcher } from "/static/vendor/three/0.187.0/three.module.min.js";
 
 /** 渲染期被登记的资源：`callbacks` 是挂在它身上的 dispose 监听集合。 */
 interface TrackedResourceRecord {

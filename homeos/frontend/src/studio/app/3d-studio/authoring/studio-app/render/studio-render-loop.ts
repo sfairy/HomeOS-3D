@@ -32,7 +32,7 @@ import { normalizeGroundReflection as normalizeGroundReflection2 } from "../../.
 import { sceneUpdatePlan as sceneUpdatePlan2 } from "../../../../bridge/scene/scene-update";
 import { createDemandFrameLoop as createDemandFrameLoop2 } from "../../../../bridge/scene/frame-loop";
 import { withRequestTimeout as withRequestTimeout2 } from "../../../../shared/util/request-timeout";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import {
   createLightTransition as createLightTransition2,
   sampleLightTransition as sampleLightTransition2,

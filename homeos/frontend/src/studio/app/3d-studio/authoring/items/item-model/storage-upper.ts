@@ -7,7 +7,7 @@
 
 import { addBoxMesh } from "../studio-mesh-primitives";
 import { buildPillarSolidGeometry as buildPillarSolidGeometry2, normalizePillarShape as normalizePillarShape2 } from "../studio-item-posture";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { setWallGradientHeight as setWallGradientHeight2 } from "../../../materials/studio-wall-materials";
 import type { ItemModelScope } from "./types";
 

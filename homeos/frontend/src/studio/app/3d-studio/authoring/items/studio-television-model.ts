@@ -11,7 +11,7 @@ import { addBoxMesh } from "./studio-mesh-primitives";
 import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from "../../materials/studio-television-glass";
 import { drawTelevisionPoster as drawTelevisionPoster2 } from "../../materials/studio-television-poster";
 import { computeTelevisionProportions } from "./studio-television-proportions";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 
 // 比例换算已切到 `studio-television-proportions.ts`（纯函数），这里只做转出以保持旧引用可用。
 export { computeTelevisionProportions };

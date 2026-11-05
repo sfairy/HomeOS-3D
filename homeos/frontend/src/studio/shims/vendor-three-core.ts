@@ -1,10 +1,10 @@
 /**
- * 编译期影子模块：对应浏览器直载的 `/static/vendor/three/0.186.1/three.module.min.js`。
+ * 编译期影子模块：对应浏览器直载的 `/static/vendor/three/0.187.0/three.module.min.js`。
  *
  * 该绝对路径不是 npm 包，`moduleResolution: "bundler"` 找不到它，由 tsconfig 的 `paths`
  * 把这条路径（以及 `three` 本身）指到这里。
  *
- * 出口清单由 `@types/three@0.186.0` 的 re-export 链自动枚举（442 个名字），
+ * 出口清单取自随包出货的运行时副本 `three.module.min.js` 的实际导出（443 个名字），
  * 一律声明为 `any`：本工程是把既有 JS 原样转成 TS，业务代码里的 three 用法不做类型收紧，
  * 这样既能通过 `import * as THREE` 命名空间用法，也不会因缺少 3D 类型而报错。
  *
@@ -34,6 +34,7 @@ export declare const ArrowHelper: any;
 export declare const AttachedBindMode: any;
 export declare const Audio: any;
 export declare const AudioAnalyser: any;
+export declare const AudioContext: any;
 export declare const AudioListener: any;
 export declare const AudioLoader: any;
 export declare const AxesHelper: any;
@@ -41,6 +42,7 @@ export declare const BackSide: any;
 export declare const BasicDepthPacking: any;
 export declare const BasicShadowMap: any;
 export declare const BatchedMesh: any;
+export declare const BezierInterpolant: any;
 export declare const Bone: any;
 export declare const BooleanKeyframeTrack: any;
 export declare const Box2: any;
@@ -65,8 +67,7 @@ export declare const Clock: any;
 export declare const Color: any;
 export declare const ColorKeyframeTrack: any;
 export declare const ColorManagement: any;
-export declare const ColorSpaceDefinition: any;
-export declare const Composite: any;
+export declare const Compatibility: any;
 export declare const CompressedArrayTexture: any;
 export declare const CompressedCubeTexture: any;
 export declare const CompressedTexture: any;
@@ -76,11 +77,11 @@ export declare const ConstantAlphaFactor: any;
 export declare const ConstantColorFactor: any;
 export declare const Controls: any;
 export declare const CubeCamera: any;
+export declare const CubeDepthTexture: any;
 export declare const CubeReflectionMapping: any;
 export declare const CubeRefractionMapping: any;
 export declare const CubeTexture: any;
 export declare const CubeTextureLoader: any;
-export declare const CubeUVReflectionMapping: any;
 export declare const CubicBezierCurve: any;
 export declare const CubicBezierCurve3: any;
 export declare const CubicInterpolant: any;
@@ -148,6 +149,7 @@ export declare const GreaterEqualStencilFunc: any;
 export declare const GreaterStencilFunc: any;
 export declare const GridHelper: any;
 export declare const Group: any;
+export declare const HTMLTexture: any;
 export declare const HalfFloatType: any;
 export declare const HemisphereLight: any;
 export declare const HemisphereLightHelper: any;
@@ -168,6 +170,7 @@ export declare const IntType: any;
 export declare const InterleavedBuffer: any;
 export declare const InterleavedBufferAttribute: any;
 export declare const Interpolant: any;
+export declare const InterpolateBezier: any;
 export declare const InterpolateDiscrete: any;
 export declare const InterpolateLinear: any;
 export declare const InterpolateSmooth: any;
@@ -187,6 +190,7 @@ export declare const LessEqualStencilFunc: any;
 export declare const LessStencilFunc: any;
 export declare const Light: any;
 export declare const LightProbe: any;
+export declare const LightShadow: any;
 export declare const Line: any;
 export declare const Line3: any;
 export declare const LineBasicMaterial: any;
@@ -212,6 +216,7 @@ export declare const LoopPingPong: any;
 export declare const LoopRepeat: any;
 export declare const MOUSE: any;
 export declare const Material: any;
+export declare const MaterialBlending: any;
 export declare const MaterialLoader: any;
 export declare const MathUtils: any;
 export declare const Matrix2: any;
@@ -338,6 +343,7 @@ export declare const RectAreaLight: any;
 export declare const RedFormat: any;
 export declare const RedIntegerFormat: any;
 export declare const ReinhardToneMapping: any;
+export declare const RenderObjectRefreshType: any;
 export declare const RenderTarget: any;
 export declare const RenderTarget3D: any;
 export declare const RepeatWrapping: any;
@@ -349,7 +355,6 @@ export declare const SIGNED_RED_GREEN_RGTC2_Format: any;
 export declare const SIGNED_RED_RGTC1_Format: any;
 export declare const SIGNED_RG11_EAC_Format: any;
 export declare const SRGBColorSpace: any;
-export declare const SRGBToLinear: any;
 export declare const SRGBTransfer: any;
 export declare const Scene: any;
 export declare const ShaderChunk: any;
@@ -364,8 +369,7 @@ export declare const ShortType: any;
 export declare const Skeleton: any;
 export declare const SkeletonHelper: any;
 export declare const SkinnedMesh: any;
-export declare const Source: any; // @deprecated 改用 TextureSource（构造时会输出重命名警告）
-export declare const SourceJSON: any;
+export declare const Source: any;
 export declare const Sphere: any;
 export declare const SphereGeometry: any;
 export declare const Spherical: any;
@@ -439,10 +443,6 @@ export declare const WebGPUCoordinateSystem: any;
 export declare const WebXRController: any;
 export declare const WireframeGeometry: any;
 export declare const WrapAroundEnding: any;
-export declare const XRGripSpace: any;
-export declare const XRHandSpace: any;
-export declare const XRJointSpace: any;
-export declare const XRTargetRaySpace: any;
 export declare const ZeroCurvatureEnding: any;
 export declare const ZeroFactor: any;
 export declare const ZeroSlopeEnding: any;

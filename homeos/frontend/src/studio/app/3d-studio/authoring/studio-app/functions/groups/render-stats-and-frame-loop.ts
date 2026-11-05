@@ -2,7 +2,7 @@ import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { sceneModelOrigin as sceneModelOrigin2 } from "../../../../plan/courtyard-drawing";
 import { inspectShadowReceiverTrial as inspectShadowReceiverTrial2 } from "../../../studio-shadow-receiver-trial";
 import { cacheObjectTransforms as cacheObjectTransforms2 } from "../../../../../bridge/scene/scene-matrices";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { clamp as clamp2 } from "../../../../plan/geometry";
 import { finite as finite2 } from "../../../../loaders/studio-normalization";
 import type { SceneRefreshOptions } from "../../../types/studio-app-types";

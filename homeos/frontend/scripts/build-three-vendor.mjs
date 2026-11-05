@@ -164,7 +164,7 @@ const VENDOR_URL_PATTERN = `${VENDOR_URL_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '
  * → 构建绿灯但其实副本没换」。
  *
  * 只替换 URL 前缀紧邻的那一段版本号，不动 `three` 的 npm 依赖版本（`package.json`
- * 的 `"three": "0.186.1"` 没有这个前缀，自然不受影响）。
+ * 的 `"three": "0.187.0"` 没有这个前缀，自然不受影响）。
  */
 function syncVersionLiterals(version) {
   const pattern = new RegExp(VENDOR_URL_PATTERN, 'g')

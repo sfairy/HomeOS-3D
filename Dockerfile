@@ -23,11 +23,11 @@
 #
 # 两个 ARG 整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）：镜像站是**另一个仓库**，
 # 摘要必然不同，所以走镜像站时会显式去掉 `@sha256:…` 并在构建期打印警告（见 ops/build.py）。
-ARG PYTHON_IMAGE=python:3.15-slim-bookworm@sha256:2a41267d9de9d358f77a1de356e0f16ecba8d39827855be0ce9ef4792edce402
-ARG CADDY_IMAGE=caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+ARG PYTHON_IMAGE=python:3.15-slim-bookworm@sha256:4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd
+ARG CADDY_IMAGE=caddy:2.11.8-alpine@sha256:3db3a09e418f86a8fce8de4bc0026fccd2b4cd925aef00cc7d843d9fdc75e442
 
 #: 版本号来自仓库根 package.json，构建期写成 <包>/_version.py 随源码编译。
-ARG CYTHON_VERSION=3.3.0
+ARG CYTHON_VERSION=3.3.1
 #: 构建期工具链版本。与基础镜像摘要同理：裸写包名（更别说 `pip install --upgrade pip`）
 #: 会让「同一份源码、不同时间构建」装上不同版本的 pip / setuptools，而这两者恰恰是
 #: 「昨天能编、今天编不过」的常客（setuptools 收紧过 `setuptools.command.*` 的兼容面，
@@ -35,7 +35,7 @@ ARG CYTHON_VERSION=3.3.0
 #: pip 大版本也会改依赖解析与元数据校验口径）。
 #: 升级方式：改这里的默认值 —— 四个值都在构建日志里可见，且被
 #: 构建期 pip 工具必须写成 `name==版本`，避免随时间装出不同产物。
-ARG PIP_VERSION=26.2.2
+ARG PIP_VERSION=26.3
 ARG SETUPTOOLS_VERSION=84.2.1
 
 # ─── 主应用内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────

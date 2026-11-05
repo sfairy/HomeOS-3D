@@ -22,8 +22,8 @@ import { createWallSideMaterial as createWallSideMaterial2, prepareWallSideOrder
 import { WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from "../../materials/studio-wall-finish";
 import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
 import { finite as finite2 } from "../../loaders/studio-normalization";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { validGeometryLoops as validGeometryLoops2 } from "../../cache/geometry-persistent-cache";
 import {
   openingFrameDepth,

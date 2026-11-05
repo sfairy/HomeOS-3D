@@ -6,8 +6,8 @@ import { applyShadowReceiverTrial as applyShadowReceiverTrial2 } from "../../../
 import { buildStaticMaterialKey } from "../../../../materials/studio-static-material-key";
 import { compactRuntimeFurniture as compactRuntimeFurniture2 } from "../../../items/studio-runtime-furniture";
 import { cacheObjectTransforms as cacheObjectTransforms2 } from "../../../../../bridge/scene/scene-matrices";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
 import { axisLockedPoint as axisLockedPoint2, clamp as clamp2, distance as distance2, polygonArea as polygonArea2, snapPoint as snapPoint2, subtractPolygonLoops as subtractPolygonLoops2 } from "../../../../plan/geometry";
 import { finite as finite2 } from "../../../../loaders/studio-normalization";
 import { lampItemTypeSet } from "../../../items/item-catalog";

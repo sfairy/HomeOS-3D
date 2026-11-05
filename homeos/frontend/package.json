@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",
-    "@lucide/vue": "^1.64.0",
+    "@lucide/vue": "^1.69.0",
     "@vueuse/core": "^15.0.0",
     "axios": "^1.21.0",
     "comlink": "^4.4.2",
@@ -32,26 +32,26 @@
     "pinia": "^4.1.0",
     "socket.io-client": "^4.8.4",
     "socket.io-msgpack-parser": "^3.0.2",
-    "three": "0.186.1",
+    "three": "0.187.0",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "@types/three": "0.186.0",
-    "@tailwindcss/vite": "^4.3.3",
+    "@types/three": "0.187.0",
+    "@tailwindcss/vite": "^4.3.4",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.72.1",
     "@vitejs/plugin-vue": "^6.0.10",
     "autoprefixer": "^10.6.2",
     "esbuild": "^0.28.2",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "globals": "^17.13.0",
+    "globals": "^17.14.0",
     "postcss": "^8.5.32",
-    "rollup-plugin-visualizer": "^7.1.1",
-    "tailwindcss": "^4.3.3",
+    "rollup-plugin-visualizer": "^7.1.2",
+    "tailwindcss": "^4.3.4",
     "typescript": "^6.0.3",
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vue-eslint-parser": "^10.4.1"
   }
 }

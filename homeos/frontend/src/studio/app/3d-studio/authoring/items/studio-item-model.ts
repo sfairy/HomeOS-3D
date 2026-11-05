@@ -22,8 +22,8 @@ import { createFeaturewallModel } from "../../materials/studio-feature-wall";
 import { createMuralModel } from "../../materials/studio-mural";
 import { createSpeakerModel as createSpeakerModel2 } from "./studio-speaker";
 import { isCourtyardDrawing as isCourtyardDrawing2 } from "../../loaders/studio-normalization";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import type { ItemModelScope, StudioItemModelDeps } from "./item-model/types";
 import { ITEM_MODEL_FAMILIES } from "./item-model";
 

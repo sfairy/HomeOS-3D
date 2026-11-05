@@ -16,8 +16,8 @@
  * `resolveShapes` / `createMaterial` 由 `studio-walls` 注入：并集缓存与「专用墙面
  * 着色器」分支都在那边，这里只管把形状变成一层平铺面片。
  */
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
-import { mergeGeometries } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { mergeGeometries } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
 
 import type { WallTopSurfaceOptions } from "../types/studio-app-types";
 import type { StudioWallsDeps } from "./studio-walls";

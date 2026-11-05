@@ -12,8 +12,8 @@
 // three 在本工程一律以根绝对 URL 外置加载（见 vite-studio.ts 的构建契约）：
 // 写成裸 `three` 会在产物里留下裸标识符，浏览器没有 import map，整条模块图会报
 // `Failed to resolve module specifier "three"`，舞台/编辑器一起白屏。
-import * as THREE from "/static/vendor/three/0.186.1/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.1/OrbitControls.js";
+import * as THREE from "/static/vendor/three/0.187.0/three.module.min.js";
+import { OrbitControls } from "/static/vendor/three/0.187.0/OrbitControls.js";
 
 import { addCustomWindow } from "./model";
 

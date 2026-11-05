@@ -1,7 +1,7 @@
 import type { StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { courtyardSurfaceRise as courtyardSurfaceRise2, sceneModelOrigin as sceneModelOrigin2 } from "../../../../plan/courtyard-drawing";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
-import { RoundedBoxGeometry as RoundedBoxGeometry2 } from "/static/vendor/three/0.186.1/RoundedBoxGeometry.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { RoundedBoxGeometry as RoundedBoxGeometry2 } from "/static/vendor/three/0.187.0/RoundedBoxGeometry.js";
 import { clamp as clamp2 } from "../../../../plan/geometry";
 import { buildLightDeltaPixels as buildLightDeltaPixels2, EXPORT_IMAGE_EXTENSION as EXPORT_IMAGE_EXTENSION2, EXPORT_IMAGE_MIME_TYPE as EXPORT_IMAGE_MIME_TYPE2, EXPORT_IMAGE_QUALITY as EXPORT_IMAGE_QUALITY2 } from "../../../../export/export-utils";
 import { MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2, normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2, normalizeExportPresetSlots as normalizeExportPresetSlots2 } from "../../../../export/export-presets";

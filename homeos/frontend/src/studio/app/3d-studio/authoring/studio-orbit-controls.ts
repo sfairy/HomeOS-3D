@@ -1,7 +1,7 @@
 /**
  * OrbitControls 本地包装（0.8.1 B6）。
  *
- * vendor 的 0.186.1 没有 `rotateSmoothing` / `rotateSmoothingThreshold` /
+ * vendor 的 0.187.0 没有 `rotateSmoothing` / `rotateSmoothingThreshold` /
  * `touchDragThreshold` 这三个字段，直接赋值等于写进对象但没人读：
  * 视觉上就是「没有平滑」，触屏还会被 1px 抖动带跑。这里在包装层实现：
  *

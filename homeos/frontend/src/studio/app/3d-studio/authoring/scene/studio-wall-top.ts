@@ -7,7 +7,7 @@
  * 选项解算按「一层一个」的函数拆开，而不是全部塞进一个构造函数里 ——
  * 每个 `??` / 三元都是一条分支，堆在一起就过不了前端复杂度棘轮。
  */
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 
 import type { WallSurfaceMaterialOptions } from "../types/studio-app-types";
 import type { StudioWallsDeps } from "./studio-walls";

@@ -10,7 +10,7 @@ import { prepareBackground as prepareBackground2, loadImportedImage as loadImpor
 import { WARM_WOOD_STYLE as WARM_WOOD_STYLE2 } from "../../../scene/studio-scene-style";
 import { applySunShadowTuning } from "../../../scene/studio-sun-shadow-tuning";
 import { withRequestTimeout as withRequestTimeout2 } from "../../../../../shared/util/request-timeout";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import { adaptiveDeviceLightBudget as adaptiveDeviceLightBudget2, adaptiveLightRenderCost as adaptiveLightRenderCost2, assessAdaptiveRenderFrames as assessAdaptiveRenderFrames2, clamp as clamp2 } from "../../../../plan/geometry";
 import { syncControlValue as syncControlValue2 } from "../../../ui/ui-controls";
 import { isCourtyardDrawing as isCourtyardDrawing2, DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2, finite as finite2, normalizeBaseLighting as normalizeBaseLighting2 } from "../../../../loaders/studio-normalization";

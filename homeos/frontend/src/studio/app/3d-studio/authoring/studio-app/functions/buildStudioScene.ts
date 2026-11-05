@@ -39,8 +39,8 @@ import {
 
 
 import { cacheObjectTransforms as cacheObjectTransforms2 } from "../../../../bridge/scene/scene-matrices";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.187.0/BufferGeometryUtils.js";
 
 
 import {

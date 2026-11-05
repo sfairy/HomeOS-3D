@@ -7,7 +7,7 @@
 
 import { addBoxMesh } from "../studio-mesh-primitives";
 import { clamp as clamp2 } from "../../../plan/geometry";
-import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.187.0/three.module.min.js";
 import type { ItemModelScope } from "./types";
 
 export function buildDecor(scope: ItemModelScope): boolean {
