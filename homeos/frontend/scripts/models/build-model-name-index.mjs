@@ -26,6 +26,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { formatGenerated } from '../../../../ops/lib/biome-format.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 /** `homeos/frontend`：脚本位于 `<frontend>/scripts/models/`。 */
@@ -303,8 +304,12 @@ function renderMarkdown() {
   return lines.join('\n') + '\n'
 }
 
+/**
+ * 生成结果必须先过仓库的 Biome 配置，否则 `--check` 会拿「生成器口味」去比「格式化后的
+ * 磁盘文件」，每次 `biome format` 都把这条门禁变红。口径说明见 `ops/lib/biome-format.mjs`。
+ */
 const markdown = renderMarkdown()
-const typeScript = renderTypeScript()
+const typeScript = formatGenerated(renderTypeScript(), generatedTsFile)
 const jsonText =
   JSON.stringify(
     {

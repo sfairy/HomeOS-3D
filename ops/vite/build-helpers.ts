@@ -29,8 +29,9 @@ import { createLogger, type Logger } from 'vite'
 
 // 依赖归属：本文件 import 的 `esbuild` / `vite` 声明在**仓库根** `package.json`（`ops/` 属根
 // workspace）—— 两个应用不必为了共用构建助手各自声明一遍，这与 P3e「vue-tsc 归属移到根」同理。
-// 本文件不参与任何应用的 ESLint（两边的 `lint` 只管自己的 `src/**`），类型由根
-// `tsconfig.node.json` 的 `typecheck:node` 把关（它从三个 vite 配置沿 import 追到这里）。
+// 本文件由仓根的 `biome.json` 统一 lint/format（`files.includes` 覆盖 `ops/**`），没有
+// 应用侧的独立配置；类型由根 `tsconfig.node.json` 的 `typecheck:node` 把关（它从三个
+// vite 配置沿 import 追到这里）。
 
 /** SPA 唯一入口名：两个应用的产物布局都以它为准（商店还要把它搬出静态挂载根）。 */
 export const SPA_ENTRY = 'index.html'

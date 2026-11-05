@@ -120,6 +120,11 @@ const SKIP_DIR_NAMES = new Set([
   // `docs/` 是本地迁移记录（`docs/` 本身在 .gitignore 里），引用的是**历史版本**，
   // 不参与出货；扫它只会让「本机生成过迁移文档」变成一条假的版本不一致。
   'docs',
+  // `backups/` 同理：它是 `.gitignore` 里的本地草稿区（`backups/.gitkeep` 之外都不入库），
+  // 而 `ops/checks/studio/verify_item_model.mjs` 的用法说明正是让人把拆分前的原文放进
+  // `backups/studio-split-<时间戳>/`。那份原文属于历史快照，必然引用旧版本，扫它就等于
+  // 「按文档做了一次拆分校验，构建门禁就红」。
+  'backups',
 ])
 /** 只扫这些后缀：版本字面量只可能出现在源码 / 配置 / 构建脚本里。 */
 const SCAN_SUFFIXES = new Set(['.ts', '.tsx', '.vue', '.js', '.mjs', '.json', '.sh', '.css', '.html'])

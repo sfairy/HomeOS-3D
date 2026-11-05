@@ -34,6 +34,7 @@ import {
   repoRoot,
   specsDir,
 } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import { formatGenerated } from '../../lib/biome-format.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 void hereDir
@@ -447,8 +448,10 @@ function main() {
 
   if (!only) {
     fs.mkdirSync(materialsDir, { recursive: true })
-    fs.writeFileSync(aliasFile, renderAliasFile(tables))
-    fs.writeFileSync(roleFile, renderRoleFile(tables))
+    // 生成器口味（JSON.stringify 的双引号 + 分号）与全仓格式化结果不同，落盘前统一过一遍
+    // Biome，保证「重新生成」对已格式化文件是逐字节幂等的。见 ops/lib/biome-format.mjs。
+    fs.writeFileSync(aliasFile, formatGenerated(renderAliasFile(tables), aliasFile))
+    fs.writeFileSync(roleFile, formatGenerated(renderRoleFile(tables), roleFile))
     console.log(`写入 ${path.relative(repoRoot, aliasFile)}（${Object.keys(tables.aliases).length} 条别名）`)
     console.log(
       `写入 ${path.relative(repoRoot, roleFile)}（${Object.keys(tables.slotRoles).length} 个模型的 token 表）`,

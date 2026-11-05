@@ -197,6 +197,11 @@ import Overview from '@/features/security/Overview.vue'
   覆盖主应用 / 商店 / shared / ops 四处。`.vue` 的规则由 `vue-tsc`（含 `noUnusedLocals`）
   与 `check:restricted-syntax` 承接 —— Biome 的 linter 不认识 SFC 模板作用域，强行开启会
   把「只在 template 里用到的变量」误报成未使用。
+- **四个 studio 文件刻意不参与格式化**：`studio-app/boot.ts` 与 `editor/home/lifecycle/boot.ts`
+  受 `check:studio-split` 的**硬性行数预算**约束（4200 / 5400 行），格式化会把它们从 4070/5355
+  顶到 5818/8418；`studio-item-model.ts` 与 `items/item-model/**` 受 `verify_item_model` 的
+  **逐分支文本哈希等价证明**约束，格式化会让哈希全部失配。因此它们只在 `biome.json` 里关掉
+  `formatter`，`linter` 照旧检查 —— 看到这几处还是双引号 + 分号，属于预期，不是漏改。
 
 `.vue` 只收**两侧逐字同构**的展示件；**数据 / 文案 / 版本号来源的差异一律留应用侧的薄适配层**
 （样板：本应用 `components/common/SceneStage.vue` 只做 `values` + `version` 注入，版本来自本包
