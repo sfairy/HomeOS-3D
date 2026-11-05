@@ -70,7 +70,14 @@
 
 .tab-bar {
   height: auto;
-  min-height: 52px;
+  /* 顶栏高度按「模式芯片已挂载」的那一档预留。
+     `HomeModeSwitcher` 受 license 授权门控（`v-if`），授权校验是异步的：首帧没有芯片，
+     授权到达后才 mount，芯片比导航按钮高一个内边距 + 描边（3px*2 + hairline*2），
+     把整条顶栏撑高、下方内容整体下推 —— 这是首页 CLS 0.1376 的主位移源
+     （docs/perf/2026-11-01 §2.2 第 1 行，attribution_probe 归因到 tab bar）。
+     这里用与芯片同一套 token 把那一档高度**始终**占住：有/无芯片顶栏等高，
+     位移从根上消失；不改变任何已有视觉值（没有芯片时只是顶栏底部多一条同色留白）。 */
+  min-height: calc(var(--control-height-lg) + 6px + 2 * var(--hos-hairline) + 10px);
   padding-top: max(env(safe-area-inset-top, 0px), 4px);
   padding-bottom: 6px;
   padding-left: 20px;
@@ -403,6 +410,12 @@
   .tab-bar__tab {
     min-height: 44px;
   }
+
+  /* 触屏档芯片按钮回到 44px（见 tab-bar-mode-switcher.css 末尾），窄屏下要按这一档预留，
+     否则「授权到达 → 芯片 mount」仍会把顶栏撑高（≤1024 的那条按 36px 算）。 */
+  .tab-bar {
+    min-height: calc(var(--control-height-lg) + 6px + 2 * var(--hos-hairline) + 8px);
+  }
 }
 
 .tab-bar__tab:hover {
@@ -637,7 +650,9 @@ a.icon-btn {
   .tab-bar {
     flex-wrap: nowrap;
     padding: max(env(safe-area-inset-top, 0px), 4px) 8px 4px 8px;
-    min-height: 44px;
+    /* 与桌面档同理：芯片在这一档是 36px 按钮，仍比导航 Tab 高一档内边距 + 描边。
+       预留同一档高度（36 + 6 + hairline*2 + 上下 padding 8），有无芯片都等高。 */
+    min-height: calc(36px + 6px + 2 * var(--hos-hairline) + 8px);
     gap: 6px;
   }
 

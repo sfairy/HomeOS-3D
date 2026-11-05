@@ -55,6 +55,10 @@ def _chunked(items: list[str], size: int = _SQL_IN_CHUNK) -> list[list[str]]:
 class HASyncMixin(HAConnectorHost):
     """关注实体集合维护、全量同步与快照/增量落库、目录计数。"""
 
+    #: 当前连接的 HA 版本号。由 ``HAConnectorService.__init__`` 初始化、本 mixin 的
+    # 同步流程刷新；类体声明只是为了满足 pyright 的实例变量检查（跨 mixin 共享字段）。
+    ha_version: str | None = None
+
     def _load_persistent_entity_ids(self) -> set[str]:
         result = set()
         with self.database.session_factory() as database:
@@ -220,6 +224,11 @@ class HASyncMixin(HAConnectorHost):
                 # 让 replace 知道哪些实体的内存值比这份快照新，从而不被旧值覆盖。
                 async with self.state_hub.track_fetch_changes() as invalidated:
                     snapshot = await (await self.client_for(connection)).fetch_snapshot()
+                    # 版本号只有 ``/api/config``（快照里的 ``config``）会带：诊断接口和
+                    # ``ha_status`` 广播读的都是这个内存镜像，不在这里刷新就一直是空串。
+                    version = str(snapshot.config.get("version") or "").strip()
+                    if version:
+                        self.ha_version = version
                     # 给 subscribe_entities 解码器留一份「刚同步过什么」的轻量基线：
                     # 重连后的首帧全量里，与它一致的实体不再重复派发，避免一次全屋广播。
                     self._live_seed = build_state_seed(snapshot.states)

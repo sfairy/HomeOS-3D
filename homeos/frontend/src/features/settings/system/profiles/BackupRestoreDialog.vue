@@ -119,6 +119,7 @@
             @input="invalidateTicket"
           />
         </label>
+        <small>备份包越大，上传、解密与整库校验越久（数百 MB 的包可能要几十秒）；期间请保持窗口打开。</small>
         <div class="hos-backup-dialog__actions">
           <button type="submit" :disabled="busy">检查备份文件</button>
         </div>
@@ -161,6 +162,11 @@
         aria-live="polite"
       >
         {{ message }}
+        <!-- 计时器放在 live region 之外：每秒变化不该被读屏反复播报，但用户在几十秒的
+             解密 / 校验 / 整库覆盖里必须看得到「还在动」，否则就是这个弹窗「点了没反应」。 -->
+        <span v-if="busy" class="hos-backup-dialog__elapsed" aria-hidden="true">
+          已用时 {{ elapsed }} 秒…
+        </span>
       </p>
     </div>
   </dialog>
@@ -205,6 +211,9 @@ const tab = ref('export')
 const busy = ref(false)
 const message = ref('')
 const messageTone = ref('')
+/** 当前长任务已用时（秒）：解密 / 校验 / 整库覆盖都是几十秒级的服务端工作。 */
+const elapsed = ref(0)
+let elapsedTimer = null
 const exportPassword = ref('')
 const exportPasswordConfirm = ref('')
 const restorePassword = ref('')
@@ -218,6 +227,28 @@ let generation = 0
 function setMessage(text, tone = '') {
   message.value = text
   messageTone.value = tone
+}
+
+function stopElapsed() {
+  if (elapsedTimer) clearInterval(elapsedTimer)
+  elapsedTimer = null
+}
+
+/** 标记进入长任务：busy + 从 0 开始计时（弹窗里同步显示「已用时 N 秒」）。 */
+function beginBusy(text, tone = '') {
+  busy.value = true
+  stopElapsed()
+  elapsed.value = 0
+  const startedAt = Date.now()
+  elapsedTimer = setInterval(() => {
+    elapsed.value = Math.max(0, Math.round((Date.now() - startedAt) / 1000))
+  }, 1000)
+  setMessage(text, tone)
+}
+
+function endBusy() {
+  busy.value = false
+  stopElapsed()
 }
 
 async function clearTicket() {
@@ -259,6 +290,8 @@ function onCancel(event) {
 
 async function onClose() {
   generation += 1
+  stopElapsed()
+  elapsed.value = 0
   await clearTicket()
   exportPassword.value = ''
   exportPasswordConfirm.value = ''
@@ -290,8 +323,7 @@ async function runExport() {
   if (exportPassword.value !== exportPasswordConfirm.value) {
     return setMessage('两次输入的备份密码不一致。', 'error')
   }
-  busy.value = true
-  setMessage('正在加密备份，请稍候…')
+  beginBusy('正在加密备份，请稍候…')
   try {
     const response = await exportEncryptedBusinessBackup(exportPassword.value)
     const blob = response.data instanceof Blob ? response.data : new Blob([response.data])
@@ -317,7 +349,7 @@ async function runExport() {
   } catch (error) {
     setMessage(getApiErrorMessage(error, '加密备份失败'), 'error')
   } finally {
-    busy.value = false
+    endBusy()
   }
 }
 
@@ -330,9 +362,9 @@ async function runInspect() {
   if (restorePassword.value.length < 8) {
     return setMessage('请输入创建此备份时设置的密码。', 'error')
   }
-  busy.value = true
   const requestGeneration = generation
-  setMessage('正在解密并检查备份，当前数据不会修改…')
+  // 带上文件体积：用户才知道「慢」是因为包大，而不是按钮没生效。
+  beginBusy(`正在上传并解密检查备份（${formatBackupBytes(file.value.size)}），当前数据不会修改…`)
   try {
     await clearTicket()
     const { data } = await inspectEncryptedBusinessBackup(file.value, restorePassword.value)
@@ -357,14 +389,13 @@ async function runInspect() {
   } catch (error) {
     setMessage(getApiErrorMessage(error, '检查备份失败'), 'error')
   } finally {
-    busy.value = false
+    endBusy()
   }
 }
 
 async function runRestore() {
   if (busy.value || !ticket.value || !confirmOverwrite.value) return
-  busy.value = true
-  setMessage('正在恢复业务数据，请保持窗口打开并等待完成…')
+  beginBusy('正在恢复业务数据，请保持窗口打开并等待完成…')
   try {
     await restoreEncryptedBusinessBackup({
       ticket: ticket.value,
@@ -376,10 +407,11 @@ async function runRestore() {
     // 授权门禁的 JSON 401，屏幕上是「一段代码」），直接送去登录 / 激活引导页。
     const destination = await resolvePostRestoreDestination()
     setMessage(destination.message, 'success')
+    endBusy()
     navigateAfterRestore(destination)
   } catch (error) {
     setMessage(getApiErrorMessage(error, '恢复失败'), 'error')
-    busy.value = false
+    endBusy()
   }
 }
 
@@ -574,6 +606,12 @@ defineExpose({ open, close })
   border-color: #54bd7859;
   color: #91d7a9;
   background: #54bd7812;
+}
+.hos-backup-dialog__elapsed {
+  display: block;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 .hos-backup-dialog__message.error {
   border-color: #e26b6761;

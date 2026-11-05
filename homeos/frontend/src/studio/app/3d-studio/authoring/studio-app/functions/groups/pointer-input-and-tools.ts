@@ -20,6 +20,7 @@ import { patchStudioFacadeState } from '../../../../../../engine'
 import type { StudioControlElement } from '../../../types/studio-app-types'
 import { normalizeLightPropertyValue, formatLightPropertyValue } from '../../../lights/studio-app-light-data'
 import { doorTypeCatalog } from '../../../scene/studio-scene-payload'
+import { deferLightCacheEnabled } from '../../../boot/stage-boot-flags'
 
 export function updateSnapIndicator(runtime: StudioAppRuntime, snapWallTarget = runtime.appCtx.isForceSnapDisabled) {
   if (!runtime.appCtx.activeSnapTarget) return
@@ -664,17 +665,53 @@ export function postBridgeFloors(runtime: StudioAppRuntime) {
     )
 }
 
-export async function waitForStageReady(runtime: StudioAppRuntime) {
-  if (!runtime.areLightsEnabled()) return
+/** 首帧等灯光烘焙贴图的上限：超时也照样出画面，只是那张贴图由后台帧补。 */
+const STAGE_READY_TIMEOUT_MS = 1800
+
+/** 烘焙贴图还未就位：缓存没算完、当前帧脏、或贴图画布仍是隐藏的。 */
+function isLightCachePending(runtime: StudioAppRuntime) {
+  return !runtime.appCtx.isCacheReady || runtime.appCtx.isFrameDirty || runtime.previewLightCacheCanvasElement.hidden
+}
+
+/**
+ * 延迟模式的后台补帧：贴图就绪前，只要渲染循环自己闲下来了就踢一脚。
+ *
+ * 不能每帧都无条件 `scheduleStudioRender(0)` —— 那会把「等贴图」变成「每帧强制重绘」，
+ * 在低端平板上比原来的阻塞更糟。判据同原自旋循环，只是不再挡住首帧。
+ */
+function pumpLightCacheUntilReady(runtime: StudioAppRuntime) {
+  const stageReadyDeadline = performance.now() + STAGE_READY_TIMEOUT_MS
+  const pump = () => {
+    if (!runtime.areLightsEnabled() || !isLightCachePending(runtime)) return
+    if (performance.now() >= stageReadyDeadline) return
+    // 循环本身还在跑时不要重复排帧：`isFrameDirty` 说明已经有帧在路上。
+    if (!runtime.appCtx.isFrameDirty) runtime.scheduleStudioRender(0)
+    requestAnimationFrame(pump)
+  }
+  requestAnimationFrame(pump)
+}
+
+/**
+ * 等首帧可呈现：灯光贴图就位 / 帧不脏 / 贴图画布可见，三点同时满足，最多
+ * `STAGE_READY_TIMEOUT_MS`。
+ *
+ * 返回值表示「首帧是不是带着烘焙贴图出的」：
+ * - `true`：贴图已就位（或这台设备根本没开灯，无需等待）；
+ * - `false`：`?light-cache=defer` 生效，先出画面，贴图稍后由后台帧补上。
+ * 调用方拿它决定计时标签（`light-cache-ready` / `light-cache-deferred`），
+ * 让 A/B 两组的启动梯子能按同一套规则比较。
+ */
+export async function waitForStageReady(runtime: StudioAppRuntime): Promise<boolean> {
+  if (!runtime.areLightsEnabled()) return true
   runtime.scheduleStudioRender(0)
-  const stageReadyDeadline = performance.now() + 1800
-  for (
-    ;
-    runtime.areLightsEnabled() &&
-    (!runtime.appCtx.isCacheReady || runtime.appCtx.isFrameDirty || runtime.previewLightCacheCanvasElement.hidden) &&
-    performance.now() < stageReadyDeadline;
-  )
+  if (deferLightCacheEnabled()) {
+    pumpLightCacheUntilReady(runtime)
+    return false
+  }
+  const stageReadyDeadline = performance.now() + STAGE_READY_TIMEOUT_MS
+  for (; runtime.areLightsEnabled() && isLightCachePending(runtime) && performance.now() < stageReadyDeadline; )
     await new Promise(requestAnimationFrame)
+  return true
 }
 
 export function jumpWorkflowStep(runtime: StudioAppRuntime, step: string) {

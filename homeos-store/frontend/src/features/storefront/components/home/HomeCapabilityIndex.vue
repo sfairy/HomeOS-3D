@@ -18,11 +18,11 @@ const active = computed(
         <div class="hm-head__main">
           <h2 id="home-capability-title">一个界面，接管全屋</h2>
           <p>
-            从户型图到每一盏灯、每一度温度、每一路摄像头，都在同一套界面里编排与操作。基础授权已经能跑通整条链路。
+            从户型图到每一盏灯、每一路摄像头、每一度电，都在同一套界面里编排与操作。基础授权已经能跑通整条链路。
           </p>
         </div>
         <span class="hm-head__aside">
-          六类能力 · 共 {{ capabilityCount }} 项<template v-if="!capabilityCount">，按功能目录更新</template>
+          {{ capabilityDomains.length }} 类能力 · 共 {{ capabilityCount }} 项<template v-if="!capabilityCount">，按功能目录更新</template>
         </span>
       </header>
 

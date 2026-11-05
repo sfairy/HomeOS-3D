@@ -169,6 +169,15 @@ export function collectCodepoints(rules) {
 }
 
 /**
+ * `@font-face` 里子集字体的 `url()` 片段。
+ *
+ * 路径是**相对** `font.min.css` 的：表挂在 `/store-static/font.min.css`，`../fonts`
+ * 退回根后由后端单独挂载的 `/fonts` 接住。index.html 的 preload 必须写这个解析结果，
+ * 否则预载的不是 CSS 真正要的那份（见 `preloadProblems`）。
+ */
+export const SUBSET_URL_IN_CSS = "url(../fonts/font-subset.woff2)";
+
+/**
  * 把 `@font-face` 的 `src` 改成「子集优先、完整 woff2 兜底、ttf 最后」。
  * 只改 src，family / weight / display 保持原样，字形渲染路径不变。
  */
@@ -179,7 +188,7 @@ export function rewriteFontFace(rules) {
       /src:[^;}]+/,
       (() => {
         const sources = [
-          'url(../fonts/font-subset.woff2) format("woff2")',
+          `${SUBSET_URL_IN_CSS} format("woff2")`,
           'url(../fonts/font.woff2) format("woff2")',
           'url(../fonts/font.ttf) format("truetype")',
         ];
@@ -286,6 +295,34 @@ export function verifyCoverage(codepoints) {
   }
 }
 
+/**
+ * 校验 `index.html` 里图标字体的 preload 与 CSS 实际请求的 URL 一致。
+ *
+ * 这个脚本生成的 `@font-face` 用的是**相对** `url(../fonts/font-subset.woff2)`：
+ * 表挂在 `/store-static/font.min.css`，`../fonts` 于是退到根，由后端单独挂载的
+ * `/fonts` 接住。preload 却写在 HTML 里、只能写绝对路径 —— 一旦写错前缀就是
+ * **两份不同的 URL**：预载那份没人取用（控制台报「preloaded but not used」），
+ * CSS 再照样请求一次，白白多一次往返。两边都在本脚本的维护半径内，所以在这里断言。
+ */
+function preloadProblems() {
+  const indexHtml = join(FRONTEND, "index.html");
+  if (!existsSync(indexHtml)) return ["缺少 homeos-store/frontend/index.html"];
+  const html = readFileSync(indexHtml, "utf8");
+  // 取 @font-face 里第一段 woff2（子集），按表被伺服的挂载根解析成绝对路径。
+  const match = SUBSET_URL_IN_CSS;
+  if (!match) return ["font.min.css 的 @font-face 里找不到子集 url()"];
+  const served = new URL(match.replace(/^url\(|\)$/g, ""), "http://host/store-static/font.min.css");
+  const expected = served.pathname;
+  const preloads = [...html.matchAll(/<link\b[^>]*\brel\s*=\s*["']preload["'][^>]*>/gi)]
+    .map((tag) => tag[0])
+    .filter((tag) => /as\s*=\s*["']font["']/i.test(tag));
+  if (!preloads.some((tag) => new RegExp(`href\\s*=\\s*["']${expected}["']`).test(tag))) {
+    const actual = preloads.map((tag) => (tag.match(/href\s*=\s*["']([^"']+)/i) || [])[1] || "?").join(" / ");
+    return [`index.html 的字体 preload（${actual}）与 CSS 实际请求的 ${expected} 不一致：预载会白下一次`];
+  }
+  return [];
+}
+
 function main() {
   const write = process.argv.includes("--write");
   const skipFont = process.argv.includes("--no-font");
@@ -350,6 +387,7 @@ function main() {
           .join(","),
     );
   }
+  problems.push(...preloadProblems());
   const cssBytes = existsSync(OUT_CSS) ? statSync(OUT_CSS).size : 0;
   console.log(
     `图标 ${used.size} 个 / codepoint ${built.codepoints.length} 个 / CSS ${cssBytes}B / 子集字体 ${report.subsetBytes || 0}B` +

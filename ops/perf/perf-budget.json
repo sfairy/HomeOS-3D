@@ -1,0 +1,45 @@
+{
+  "_note": "性能预算的**唯一**来源。与 ops/checks/bundle-budget.json 的分工：那份管构建产物字节（CI 每次构建都验），这份管运行期指标（LCP/CLS/3D 相位/端点尾延迟，需要真实跑一次 harness 才有数据）。本文件里的数字全部来自 docs/perf/2026-11-01-dual-project-performance.md 的 after-1101 实测值，四舍五入留 3%~8% 余量；没有实测支撑的项一律不写（宁可缺项，不要编一个让人误以为在保护的数字）。改预算必须在提交说明里写明原因。",
+  "frontend": {
+    "_note": "homeos 首页（/）。LCP 抖动 11.7%~19.8%，因此 budget 只用来拦**大幅回退**（>25%），不当成趋势指标。",
+    "lcpMs": 700,
+    "cls": 0.03,
+    "encodedBodyBytes": 1320000
+  },
+  "storeHome": {
+    "_note": "homeos-store 首页在 Slow4G + 4x CPU 下的口径（docs/perf §1.4）。",
+    "lcpMs": 2600,
+    "cls": 0.03
+  },
+  "stage3d": {
+    "_note": "与 perf-budget 的历史口径对齐（stageMounted/iframeReady 取 ops/checks/perf-budget.json 的上限，fps 下限 50）。",
+    "iframeReadyMs": 3200,
+    "stageMountedMs": 1200,
+    "averageFps": 50
+  },
+  "backend": {
+    "_note": "顺序 p95 的上限按 2026-11-01 实测值 ×1.5 设定：单机噪声在这台机器上是 ±20%，卡在 1.05 倍只会天天红。concurrent p95 **必须先看 caliber**：它随并发度近似线性变化（同一实例 /health/ready 实测：30 总请求/10 线程 → 5.9ms，200/32 → 19.3ms），跨口径的数字不可比。caliber 是本预算声明的采样口径，check_perf_budget 会在采样的 config 与它不符时直接判失败（拦口径漂移，不拦性能）。",
+    "endpoints": {
+      "/health/ready": {
+        "sequentialP95Ms": 2,
+        "concurrentP95Ms": 22
+      },
+      "/api/v1/public/config": {
+        "sequentialP95Ms": 3,
+        "concurrentP95Ms": 30
+      },
+      "/api/v1/projects": {
+        "sequentialP95Ms": 6,
+        "concurrentP95Ms": 130
+      },
+      "/api/v1/projects/{projectId}/draft": {
+        "sequentialP95Ms": 8,
+        "concurrentP95Ms": 180
+      }
+    },
+    "caliber": {
+      "concurrencyTotal": 200,
+      "concurrency": 32
+    }
+  }
+}

@@ -191,8 +191,8 @@ if (Array.isArray(manifest.deviations) && manifest.deviations.length) {
         `#${deviationEntry.branch} ${deviationEntry.group} ${deviationEntry.field} — ${deviationEntry.reason}`,
     )
     .join('; ')}`
-  // `--json` 的 stdout 必须是纯 JSON（`ops/checks/studio/tests/test_extraction.py`
-  // 直接 json.loads 整段 stdout）；说明性文字走 stderr，两种模式都不丢信息。
+  // `--json` 的 stdout 必须是纯 JSON（外部脚本可直接 json.loads 整段 stdout）；
+  // 说明性文字走 stderr，两种模式都不丢信息。
   if (asJson) console.error(deviationLine)
   else console.log(deviationLine)
 }

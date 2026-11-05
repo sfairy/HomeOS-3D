@@ -19,6 +19,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import httpx
 from fastapi import Request
@@ -88,6 +89,27 @@ def _target_from(url: str) -> EmbedTarget:
     return EmbedTarget(origin=url_origin(url), pathname=parts.path or "/", url=url)
 
 
+#: 前端写入的「本终端当前方案」Cookie 名。内嵌 iframe 无法带自定义请求头，
+#: 用 Cookie 让反代知道该按哪份布局解析内嵌目标（多设备各显示不同方案）。
+PROFILE_HINT_COOKIE = "homeos_profile"
+
+
+def profile_hint_from_cookie(raw: str | None) -> str:
+    """校验并解出 Cookie 里的方案提示值；不合法时返回空串（回落到后台默认方案）。"""
+    value = str(raw or "").strip()
+    if not value:
+        return ""
+    # `unquote` 对任何输入都是全函数（无效转义按 literal 保留），不需要 except 兜底。
+    value = unquote(value).strip()
+    if not value or len(value) > 64:
+        return ""
+    # 方案 id 来源是用户输入（可含中文），这里只排除控制字符与路径分隔符，
+    # 真正的存在性校验由 get_config 的命中结果完成。
+    if any(ch in value for ch in ("/", "\\", "\x00")) or any(ord(ch) < 0x20 for ch in value):
+        return ""
+    return value
+
+
 class EmbedProxyService:
     """内嵌页反向代理服务。"""
 
@@ -111,22 +133,38 @@ class EmbedProxyService:
         """离线提示页的样式表 URL（补构建期 revision，升级后不再复用旧 CSS）。"""
         return frontend_resource_url(self._frontend_dist_path, "/static/embed-offline.css")
 
-    def load_layout(self) -> dict[str, Any]:
-        """读取当前工程布局（解析失败返回空布局）。"""
-        try:
-            project_id = self._ui_config.resolve_active_project_id()
-            config = self._ui_config.get_config(project_id)
-        except Exception as exc:
-            logger.debug("读取布局失败: %s", exc)
+    def load_layout(self, profile_id: str | None = None) -> dict[str, Any]:
+        """读取布局（解析失败返回空布局）。
+
+        ``profile_id`` 允许按**请求方终端**的方案解析内嵌目标：多设备各显示不同方案时，
+        内嵌页定义可能只存在于其中一份方案里。传空 / 该方案没有布局时回落到全局
+        后台默认方案，保持旧行为不变。
+        """
+        config = self._load_profile_config(profile_id)
+        if not config:
             return {}
-        if not config or not config.get("layout"):
+        if not config.get("layout"):
             return {}
         layout, parse_error = self._ui_config.parse_layout_field(config.get("layout"))
         return {} if parse_error else layout
 
-    def resolve_embed_configured_url(self, embed_id: str) -> EmbedTarget:
+    def _load_profile_config(self, profile_id: str | None) -> dict[str, Any]:
+        """按「终端方案 → 后台默认方案」顺序取到第一份有内容的项目配置。"""
+        try:
+            hinted = str(profile_id or "").strip()
+            if hinted:
+                config = self._ui_config.get_config(hinted)
+                if isinstance(config, dict) and config.get("layout"):
+                    return config
+            project_id = self._ui_config.resolve_active_project_id()
+            return self._ui_config.get_config(project_id) or {}
+        except Exception as exc:
+            logger.debug("读取布局失败: %s", exc)
+            return {}
+
+    def resolve_embed_configured_url(self, embed_id: str, profile_id: str | None = None) -> EmbedTarget:
         """解析内嵌目标配置 URL（含路径），供反代取 origin 与 base 路径使用。"""
-        layout = self.load_layout()
+        layout = self.load_layout(profile_id)
         # 先绑定再判类型：重复 `layout.get(...)` 时收窄不会传递到第二次读取，推导结果里始终带
         # None（下面的列表推导因此被判成「可能遍历 None」）。
         embeds_source = layout.get("customEmbeds")
@@ -149,8 +187,8 @@ class EmbedProxyService:
             not_found(_message("EMBED_NOT_FOUND", embed_id))
         return _target_from(embed.url)
 
-    def resolve_embed_base_url(self, embed_id: str) -> str:
-        return self.resolve_embed_configured_url(embed_id).origin
+    def resolve_embed_base_url(self, embed_id: str, profile_id: str | None = None) -> str:
+        return self.resolve_embed_configured_url(embed_id, profile_id).origin
 
     # 本地 dist 资源
     def resolve_local_asset_path(self, sub_path: str) -> Path | None:
@@ -268,7 +306,10 @@ class EmbedProxyService:
 
     # 代理主流程
     async def proxy(self, embed_id: str, request: Request) -> Response:
-        target = self.resolve_embed_configured_url(embed_id)
+        # 按发起请求的终端方案解析内嵌目标（多设备各显示不同方案）
+        target = self.resolve_embed_configured_url(
+            embed_id, profile_hint_from_cookie(request.cookies.get(PROFILE_HINT_COOKIE))
+        )
         embed_base = target.origin
         # 配置 URL 的 base 路径（如 /p）；基路径型 SPA 的 basename 据此重定位到反代前缀下
         base_path = target.pathname if target.pathname and target.pathname != "/" else None

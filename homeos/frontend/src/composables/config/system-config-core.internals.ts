@@ -107,11 +107,32 @@ function mergeConfigPatch(base: SystemConfig | null, patch: SystemConfigPatch): 
   return out
 }
 
-/** 局部更新运行参数并合并全局缓存（默认附带乐观锁 revision） */
-export async function fetchSystemConfigFresh(): Promise<SystemConfig | null> {
-  invalidateSharedFetch('system:config')
+/** 空响应的统一提示：后端重启窗口内代理会回空体，此时不该把 null 当配置用 */
+const EMPTY_CONFIG_MESSAGE = '系统配置响应为空（后端可能正在重启），请稍后重试'
+
+/** 是否是可用作配置的普通对象（null / 数组 / 标量都不算） */
+function isConfigPayload(value: unknown): value is SystemConfig {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * 读取配置主体：空响应时短暂等待重试一次，仍为空则抛错。
+ * 抛错而非返回 null，是为了让 `sharedFetch` 不缓存空值、调用方拿到可读的失败原因。
+ */
+async function fetchConfigPayload(retriesLeft = 1): Promise<SystemConfig> {
   const { data } = await fetchSystemConfig()
-  cachedConfig = data ?? null
+  if (isConfigPayload(data)) return data
+  if (retriesLeft > 0) {
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    return fetchConfigPayload(retriesLeft - 1)
+  }
+  throw new Error(EMPTY_CONFIG_MESSAGE)
+}
+
+/** 局部更新运行参数并合并全局缓存（默认附带乐观锁 revision） */
+export async function fetchSystemConfigFresh(): Promise<SystemConfig> {
+  invalidateSharedFetch('system:config')
+  cachedConfig = await fetchConfigPayload()
   systemConfigRef.value = cachedConfig
   return cachedConfig
 }
@@ -171,8 +192,7 @@ export async function handleSystemConfigPatchError(
   if (!isSystemConfigConflictError(e)) return false
   loadEpoch++
   try {
-    const { data } = await fetchSystemConfig()
-    cachedConfig = data ?? null
+    cachedConfig = await fetchConfigPayload()
     systemConfigRef.value = cachedConfig
   } catch {
     cachedConfig = null
@@ -196,15 +216,11 @@ export function useSystemConfig() {
     loading.value = true
     const epoch = ++loadEpoch
     try {
-      const data = await sharedFetch(
-        'system:config',
-        async () => {
-          const { data: resp } = await fetchSystemConfig()
-          return resp ?? null
-        },
-        5000,
-      )
-      if (epoch !== loadEpoch) return cachedConfig
+      const data = await sharedFetch('system:config', () => fetchConfigPayload(), 5000)
+      // 期间被 invalidate 或更新的加载插队：有缓存就复用，否则用本次结果 ——
+      // 旧实现这里直接 `return cachedConfig`，缓存刚被清空时会把 null 抛给调用方，
+      // 面板随后在 Object.keys(null) 处崩成「加载系统参数失败」。
+      if (epoch !== loadEpoch) return cachedConfig ?? data
       cachedConfig = data
       systemConfigRef.value = cachedConfig
       return cachedConfig

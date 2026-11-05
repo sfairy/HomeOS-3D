@@ -104,16 +104,17 @@ class SystemService:
         }
 
     def get_db_size_label(self) -> str:
-        """SQLite 数据文件体积（含 WAL/SHM），失败返回 ``--``。"""
+        """SQLite 数据文件体积（主库 + 遥测库，均含 WAL/SHM），失败返回 ``--``。"""
         try:
-            database_path: Path = Path(self._settings.database_path)
             total = 0
             found = False
-            for suffix in ("", "-wal", "-shm"):
-                candidate = Path(f"{database_path}{suffix}")
-                if candidate.is_file():
-                    total += candidate.stat().st_size
-                    found = True
+            # 时序表拆到独立文件后，只统计主库会显示成「几十 MB」，把 99% 的占用藏起来。
+            for database_path in (Path(self._settings.database_path), Path(self._settings.telemetry_database_path)):
+                for suffix in ("", "-wal", "-shm"):
+                    candidate = Path(f"{database_path}{suffix}")
+                    if candidate.is_file():
+                        total += candidate.stat().st_size
+                        found = True
             if not found:
                 return "--"
             return _format_size(total)

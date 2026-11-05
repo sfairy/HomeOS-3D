@@ -358,7 +358,8 @@ class HALiveMixin(HAConnectorHost):
             # 不该因此每轮都重新打一遍完整说明。
             self._reset_failure_state()
             await self._log_event("success", "连接", "已连接 Home Assistant，实时状态同步正常")
-            await self._notify_connection("connected", ha_version=getattr(connection, "ha_version", None))
+            version = getattr(self, "ha_version", None) or getattr(connection, "ha_version", None)  # 快照可能为空
+            await self._notify_connection("connected", ha_version=version)
             events.start()
             for message in buffered_events:
                 await self._dispatch_message(events, connection_id, message, decoder, shadow)

@@ -109,6 +109,8 @@ const GATE_GROUPS = {
   ],
   test: [
     { name: 'test:frontend', ...bun('run', 'test:frontend') },
+    // 性能预算判定的语义本身也要有测试：缺数据算 PASS 曾经让 3D 相位预算整年没生效。
+    { name: 'test:perf', ...bun('run', 'test:perf') },
     // 同一个目录两套 runner：`bun test` 只认 `*.test.mjs`，Python 侧用例要 unittest 跑。
     // 合在一个脚本里（package.json 的 test:studio），避免「同一目录两条命令」被漏掉一条。
     { name: 'test:studio', ...bun('run', 'test:studio') },
@@ -149,9 +151,15 @@ const GATE_GROUPS = {
       args: ['ops/ci/build_frontend_verify.sh'],
     },
     { name: 'check:bundle-budget', ...bun('run', 'check:bundle-budget') },
+    // 体积预算只管「一共多少字节」，这一条管「字节里有没有懒路由的东西」：
+    // 备份/导出客户端曾因 services/api 的 export * 被拖进首屏 98KB，体积几乎没变。
+    { name: 'check:preload-audit', ...bun('run', 'perf:preload-audit') },
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
   ],
+  // 运行期性能预算：需要先跑一次 ops/perf/harness 才有采样，缺数据时退出 3 → SKIP。
+  // 不放进默认组：它要起一个真实后端 + 浏览器，比整个 static 组还慢。
+  perf: [{ name: 'check:perf-budget', ...bun('run', 'check:perf-budget'), skipExitCodes: [3] }],
   infra: [
     {
       name: 'shellcheck',
@@ -161,7 +169,6 @@ const GATE_GROUPS = {
         'ops/ci/build_frontend_verify.sh',
         'ops/ci/caddy_validate.sh',
         'ops/deploy/preflight.sh',
-        'ops/perf/harness/run_baseline.sh',
       ],
       tools: ['shellcheck'],
       hint: 'brew install shellcheck（CI 由 lint-infra job 安装）',

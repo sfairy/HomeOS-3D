@@ -778,30 +778,3 @@ class AgentTaskExecutionLog(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False, default="")
     result: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
 
-
-class AgentContextTimeline(Base):
-    """设备状态翻转时序：用于「这段时间为什么变了」的归因与时长统计。"""
-
-    __tablename__ = "agent_context_timeline"
-    __table_args__ = (
-        Index("agent_context_timeline_entity_idx", "entityId", "changedAt"),
-        Index("agent_context_timeline_area_idx", "areaId", "changedAt"),
-        Index("agent_context_timeline_changedAt_idx", "changedAt"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    entity_id: Mapped[str] = mapped_column("entityId", String(255), nullable=False)
-    domain: Mapped[str] = mapped_column(String(64), nullable=False)
-    area_id: Mapped[str] = mapped_column("areaId", String(128), nullable=False, default="")
-    area_name: Mapped[str] = mapped_column("areaName", String(128), nullable=False, default="")
-    old_state: Mapped[str | None] = mapped_column("oldState", Text, nullable=True)
-    new_state: Mapped[str | None] = mapped_column("newState", Text, nullable=True)
-    changed_at: Mapped[datetime] = mapped_column("changedAt", DateTime, nullable=False)
-    #: 下一次翻转时结算；为空表示该状态仍在持续
-    ended_at: Mapped[datetime | None] = mapped_column("endedAt", DateTime, nullable=True)
-    duration_seconds: Mapped[int | None] = mapped_column("durationSeconds", Integer, nullable=True)
-    #: MANUAL_APP / HA_AUTOMATION / EXTERNAL_DEVICE
-    trigger_source: Mapped[str] = mapped_column("triggerSource", String(32), nullable=False, default="")
-    actor: Mapped[str] = mapped_column(String(255), nullable=False, default="")
-    context: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
-    peer_snapshot: Mapped[str] = mapped_column("peerSnapshot", Text, nullable=False, default="{}")

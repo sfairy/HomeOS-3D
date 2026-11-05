@@ -33,7 +33,7 @@
     "socket.io-client": "^4.8.4",
     "socket.io-msgpack-parser": "^3.0.2",
     "three": "0.187.0",
-    "vue": "^3.5.44",
+    "vue": "^3.5.45",
     "vue-router": "^5.4.0"
   },
   "devDependencies": {

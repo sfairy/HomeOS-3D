@@ -162,10 +162,22 @@ class UiConfigService:
     async def get_config_for_api(self, project_id: str) -> dict[str, Any]:
         """API：获取项目配置（含已解析 layout；敏感字段脱敏）。
 
+        **方案不存在时报 404**（``default`` 例外，首次访问时懒建）。不能沿用
+        ``get_config`` 的「返回空 layout」宽容口径：终端绑定/本地缓存指向一个已被删除的
+        方案时，宽容口径会让那台设备渲染出空白仪表盘，而且用户一保存就把方案重新创建
+        出来 —— 看上去像「方案又自己回来了」。前端据此回退到 default。
+
         SQLite 读放到线程池：这个路由跑在事件循环上，同步查询会在慢查询 / WAL 检查点 /
         写事务等待时把整个进程的其它请求一起卡住。
         """
         try:
+            if project_id == "default":
+                await asyncio.to_thread(self._ensure_default_profile)
+            elif not await asyncio.to_thread(self._profile_exists, project_id):
+                raise BusinessException(
+                    ErrorCode.NOT_FOUND,
+                    api_error("UI_CONFIG_PROFILE_NOT_FOUND", project_id),
+                )
             data = await asyncio.to_thread(self.get_config, project_id)
             layout, parse_error = self.parse_layout_field(data.get("layout"))
             return {
@@ -307,7 +319,35 @@ class UiConfigService:
 
         caller = caller or {}
         # 单一管理员模型：绑定即写整表，无需再区分调用者角色。
-        return await self.upsert_terminal_binding(body, caller.get("userId"))
+        result = await self.upsert_terminal_binding(body, caller.get("userId"))
+        # 只有一台已登记终端时，那台就是「主机」：它的方案同步为后台默认方案，
+        # 让 AI / 通知 / 安防事件等后台消费者继续跟着用户正在看的布局走。
+        # 一旦登记了第二台终端，后台默认方案就不再被任何终端自动改写（避免互相抢），
+        # 改由设置页的「后台默认方案」显式指定。
+        adopted = self._adopt_server_default_if_sole_terminal(profile_id)
+        if adopted:
+            result = {**result, "serverDefaultProfileId": profile_id}
+        return result
+
+    def _adopt_server_default_if_sole_terminal(self, profile_id: str) -> bool:
+        """单终端部署下把后台默认方案跟随该终端；多终端时不动（返回 False）。
+
+        这是「单设备用户不用管后台默认方案」的兜底。绑定本身已经成功，这里失败
+        不能让整个请求报错，所以异常只记日志。
+        """
+        try:
+            with self._profiles_lock:
+                profiles = self._profiles()
+                if len(list(profiles.get("terminalBindings") or [])) != 1:
+                    return False
+                if str(profiles.get("activeProfileId") or "").strip() == profile_id:
+                    return False
+                self._app_config.update({"profiles": {"activeProfileId": profile_id}})
+        except Exception as exc:
+            logger.warning("单终端后台默认方案跟随失败: %s", exc)
+            return False
+        self._emit_config_updated()
+        return True
 
     async def remove_terminal_binding(self, client_id_raw: str | None) -> dict[str, Any]:
         client_id = str(client_id_raw or "").strip()
@@ -389,12 +429,15 @@ class UiConfigService:
         lo = naive.replace(microsecond=(naive.microsecond // 1000) * 1000)
         return lo, lo + timedelta(milliseconds=1)
 
-    def _load_layout_for_secret_backfill(self, project_id: str) -> Any:
+    def _load_layout_for_secret_backfill(
+        self, project_id: str, source_profile_id: str | None = None
+    ) -> Any:
         """取「保存时要用来回填密钥」的旧 layout（字符串或对象）。
 
         - 目标方案已存在 → 用它自己的旧 layout（同方案的占位符回填）；
-        - 目标方案不存在但正要新建 → 沿用**当前激活方案**的 layout，让「以当前布局另存为
-          新方案」（前端 ``createProfile``）复制出来的方案仍带着 Agent / 通道密钥。
+        - 目标方案不存在但正要新建 → 用 ``source_profile_id``（发起另存为的终端正在看的
+          方案）的 layout，让克隆出来的方案带上来源于自己的 Agent / 通道密钥；
+          未指定时回落到**后台默认方案**（``activeProfileId``）。
           注意这与 ``import_all_configs`` 的口径不同：那条路径导入的是外部备份里的
           **全新** profile，回落到激活方案会把密钥写进不属于它的配置，所以那里禁止回落。
         """
@@ -402,13 +445,15 @@ class UiConfigService:
             config = self._find(session, project_id)
             if config is not None:
                 return config.layout
-        active_profile_id = str(self._profiles().get("activeProfileId") or "").strip()
-        if not active_profile_id or active_profile_id == project_id:
+        source = str(source_profile_id or "").strip()
+        if not source:
+            source = str(self._profiles().get("activeProfileId") or "").strip()
+        if not source or source == project_id:
             return None
         with self._session_factory() as session:
-            active_row = self._find(session, active_profile_id)
-            if active_row is not None and active_row.layout:
-                return active_row.layout
+            source_row = self._find(session, source)
+            if source_row is not None and source_row.layout:
+                return source_row.layout
         return None
 
     def save_config_checked(
@@ -450,6 +495,10 @@ class UiConfigService:
                 )
             if not result.rowcount:
                 session.rollback()
+                # 带了版本号说明这是「更新已有方案」：行没了意味着别人刚删掉它，
+                # 这时绝不能顺手 INSERT 把方案复活（多终端下会表现为「删了又回来」）。
+                if expected_updated_at is not None:
+                    raise BusinessException(ErrorCode.CONFLICT, api_error("UI_CONFIG_CONFLICT"))
                 return self._create_if_absent(project_id, layout_json, now)
             session.commit()
             config = self._find(session, project_id)
@@ -500,7 +549,9 @@ class UiConfigService:
             bad_request(api_error("UI_CONFIG_DATA_INVALID"))
         expected = _parse_expected_updated_at(body.get("expectedUpdatedAt"))
 
-        existing_layout = self._load_layout_for_secret_backfill(project_id)
+        existing_layout = self._load_layout_for_secret_backfill(
+            project_id, body.get("backfillFromProfileId")
+        )
         merged_layout = merge_layout_secrets_on_save(layout_raw, existing_layout)
         result = self.save_config_checked(
             project_id, merged_layout, expected_updated_at=expected
@@ -526,6 +577,27 @@ class UiConfigService:
                 bad_request(api_error("UI_CONFIG_PROFILE_NOT_FOUND", project_id))
             session.delete(config)
             session.commit()
+        # 方案删掉后，指向它的终端绑定与全局激活态必须一起清理：绑定留着会让「已注册
+        # 终端」列表里出现一个无法选中的方案，也让那些终端在服务端解析时一直走兜底分支。
+        self._purge_profile_references(project_id)
+        self._emit_config_updated()
+
+    def _purge_profile_references(self, project_id: str) -> None:
+        """清理 ``profiles`` 段里对已删除方案的引用（终端绑定 / 全局激活方案）。"""
+        with self._profiles_lock:
+            profiles = self._profiles()
+            patch: dict[str, Any] = {}
+            raw_bindings = list(profiles.get("terminalBindings") or [])
+            bindings = [binding for binding in raw_bindings if binding.get("profileId") != project_id]
+            if len(bindings) != len(raw_bindings):
+                patch["terminalBindings"] = bindings
+            if str(profiles.get("activeProfileId") or "") == project_id:
+                patch["activeProfileId"] = "default"
+            if not patch:
+                return
+            self._app_config.update({"profiles": patch})
+        if patch.get("activeProfileId") == "default":
+            self._ensure_default_profile()
 
     def list_profiles(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:

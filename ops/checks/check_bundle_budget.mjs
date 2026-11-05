@@ -14,7 +14,9 @@
  * - entry：index.html 的第一个 <script type="module" src> 指向的 JS；
  * - styles：index.html 里所有 <link rel="stylesheet"> 指向的本地 CSS；
  * - runtime：dist/homeos/frontend/modules/runtime 下所有 .js 的 ESM chunk；
- * - hls：index.html 是否还有同步 <script src=...hls...>（Phase 1 已改为按需加载，应为 0）。
+ * - hls：index.html 是否还有同步 <script src=...hls...>（Phase 1 已改为按需加载，应为 0）；
+ * - charts / 随包 hls：路由级懒加载的两块大件（echarts chunk、vendor 里的 hls 构建），
+ *   按「只许降不许升」钉住，见 asset-slim。
  *
  * 阈值放在 ops/checks/bundle-budget.json，调整阈值必须在 PR 说明里写清原因。
  */
@@ -125,6 +127,65 @@ const runtime = runtimeFiles.reduce(
 )
 
 const hlsScripts = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']*hls[^"']*)["'][^>]*>/gi)].map((m) => m[1])
+
+/**
+ * 路由级依赖的两块「大件」单独计账（路线图 `asset-slim`）。
+ *
+ * - `charts`：`vite.config.ts` 的 manualChunks 把 `node_modules/echarts` 全部收进这一片。
+ *   它是懒加载的，不进首屏 preload，所以既不占 preload 预算也不影响 LCP —— 但它仍然是
+ *   最大的一张图（678KB raw / 226KB gzip），uPlot 迁移的收益就是拿它算的。这里按**只许降
+ *   不许升**钉住当前值：迁移落地前任何「顺手多引一个 echarts 图表类型」都会被抓到。
+ * - `hls`：`public/static/vendor/hls.js/<ver>/` 随镜像出货（不经 bundler），所以既不在
+ *   preload 也不在 runtime 里。620KB 的 full 构建换成 380KB 的 light 构建是这一项的主要
+ *   收益；如果谁把 loader 指回 `hls.min.js`，这里的字节数会立刻翻回去。
+ *
+ * 找不到对应文件时按 0 计（而不是报错）：uPlot 迁移完成后 `charts-*.js` 应当不再存在，
+ * 那时这条检查自然「无事可查」，而不是逼着改脚本。
+ */
+function sumAssets(predicate) {
+  const assetsDir = join(DIST, 'static/assets')
+  const files = statSync(assetsDir, { throwIfNoEntry: false })?.isDirectory()
+    ? readdirSync(assetsDir)
+        .filter(predicate)
+        .map((name) => join(assetsDir, name))
+    : []
+  return files.reduce(
+    (acc, file) => {
+      const one = statFile(file)
+      acc.bytes += one.bytes
+      acc.gzip += one.gzip
+      return acc
+    },
+    { bytes: 0, gzip: 0 },
+  )
+}
+
+const charts = sumAssets((name) => /^charts-.*\.js$/.test(name))
+
+function sumShippedHls() {
+  const vendorRoot = join(DIST, 'static/vendor/hls.js')
+  if (!statSync(vendorRoot, { throwIfNoEntry: false })?.isDirectory()) return { bytes: 0, gzip: 0 }
+  return readdirSync(vendorRoot)
+    .map((version) => join(vendorRoot, version))
+    .filter((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory())
+    .flatMap((dir) =>
+      readdirSync(dir)
+        .filter((name) => /^hls.*\.js$/.test(name))
+        .map((name) => join(dir, name)),
+    )
+    .reduce(
+      (acc, file) => {
+        const one = statFile(file)
+        acc.bytes += one.bytes
+        acc.gzip += one.gzip
+        return acc
+      },
+      { bytes: 0, gzip: 0 },
+    )
+}
+
+const hlsVendor = sumShippedHls()
+
 const metrics = {
   indexHtmlBytes: statSync(join(DIST, 'index.html')).size,
   preloadRawBytes: preload.bytes,
@@ -136,6 +197,10 @@ const metrics = {
   runtimeRawBytes: runtime.bytes,
   runtimeGzipBytes: runtime.gzip,
   hlsScriptCount: hlsScripts.length,
+  chartChunkBytes: charts.bytes,
+  chartChunkGzipBytes: charts.gzip,
+  hlsVendorBytes: hlsVendor.bytes,
+  hlsVendorGzipBytes: hlsVendor.gzip,
 }
 
 const budget = readBudget()
@@ -149,6 +214,10 @@ const rows = [
   ['runtime chunk 数', metrics.runtimeChunkCount, budget.runtimeChunkCount],
   ['runtime 总字节 (raw)', metrics.runtimeRawBytes, budget.runtimeRawBytes],
   ['index 内 HLS 同步脚本数', metrics.hlsScriptCount, budget.hlsScriptCount],
+  ['charts chunk (raw)', metrics.chartChunkBytes, budget.chartChunkBytes],
+  ['charts chunk (gzip)', metrics.chartChunkGzipBytes, budget.chartChunkGzipBytes],
+  ['随包 hls 脚本 (raw)', metrics.hlsVendorBytes, budget.hlsVendorBytes],
+  ['随包 hls 脚本 (gzip)', metrics.hlsVendorGzipBytes, budget.hlsVendorGzipBytes],
 ]
 
 if (process.argv.includes('--json')) {

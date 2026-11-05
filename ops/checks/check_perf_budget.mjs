@@ -1,166 +1,335 @@
 #!/usr/bin/env node
 /**
- * 3D / 首屏性能预算门禁。
+ * 运行期性能预算校验：读 `ops/perf/results/<label>/` 的采样，对照 `ops/perf/perf-budget.json`。
  *
- * 背景：`check:bundle-budget` 只管体积，而真正让用户觉得「慢」的是 stage 首帧链路
- * （`iframeReadyMs` / `stageMountedMs` / `presented` 相位的 draw calls）。这条链路此前只有
- * `perf:compare` 的人工对比，没有阈值 —— 改坏了只有肉眼能发现。
+ * 设计取舍
+ * --------
+ * - **没有采样就 SKIP（退出码 3）**，不是静默 PASS。性能预算需要真实跑一次 harness，
+ *   CI 的每次构建都跑既慢又噪声大；跑到哪一步就验到哪一步，缺数据必须显式说出来。
+ * - 只拦**大幅回退**。本机 LCP 自身漂移 11.7%~19.8%（docs/perf §1.3），把阈值卡在实测值
+ *   上会天天红，最后所有人都学会忽略这条门禁 —— 那等于没有门禁。
+ * - 字节类指标（encodedBodySize）是确定性的，按实测值卡；毫秒类按上限卡。
  *
- * 输入：一次 perf 审计的结果目录（`perf:baseline` / `run_baseline.sh` 的产物），默认取
- * `$TMPDIR/homeos-perf/results/<最新 label>`，可用 `--dir <path>` 指定。
- *
- * 口径：
- * - 预算刻意留出机器漂移带（10-20 → 10-21 实测 draw calls 完全一致，但阶段耗时漂移 ±7%），
- *   所以这些数字用来拦「数量级回退」，不是拦 ±5% 抖动；
- * - `presentedCalls` 是**首帧**口径（含阴影图与首次反射捕获），稳态见 `renderCalls`；
- * - 结果目录不完整（没跑 3D / 没跑契约）时按 SKIP 处理，不算失败。
- *
- * 用法：
- *   node ops/checks/check_perf_budget.mjs [--dir <results/label>]
+ * 用法
+ * ----
+ * ```bash
+ * node ops/checks/check_perf_budget.mjs                       # 读 results/latest
+ * node ops/checks/check_perf_budget.mjs --label before-1101
+ * node ops/checks/check_perf_budget.mjs --results-dir /tmp/x
+ * ```
+ * 退出码：0 通过，1 超预算，3 无数据（门禁里按 SKIP 处理）。
  */
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..')
+const BUDGET_PATH = path.join(REPO_ROOT, 'ops', 'perf', 'perf-budget.json')
 
-const HERE = dirname(fileURLToPath(import.meta.url))
-const BUDGET_PATH = join(HERE, 'perf-budget.json')
-
-const args = process.argv.slice(2)
-const argOf = (name, fallback) => {
-  const index = args.indexOf(name)
-  return index >= 0 && args[index + 1] ? args[index + 1] : fallback
+function parseArgs(argv) {
+  const options = { label: 'latest', resultsDir: '' }
+  for (let index = 2; index < argv.length; index += 1) {
+    const arg = argv[index]
+    if (arg === '--label') options.label = argv[++index]
+    else if (arg.startsWith('--label=')) options.label = arg.slice('--label='.length)
+    else if (arg === '--results-dir') options.resultsDir = argv[++index]
+    else if (arg.startsWith('--results-dir=')) options.resultsDir = arg.slice('--results-dir='.length)
+    else {
+      console.error(`未知参数：${arg}`)
+      process.exit(2)
+    }
+  }
+  return options
 }
 
-const TMP = process.env.TMPDIR ? process.env.TMPDIR.replace(/\/$/, '') : '/tmp'
-const ROOTS = process.env.HOMEOS_PERF_ROOT
-  ? [process.env.HOMEOS_PERF_ROOT]
-  : [join(TMP, 'homeos-perf'), '/tmp/homeos-perf']
-
-function resultsDirs() {
-  return ROOTS.flatMap((root) => {
-    const results = join(root, 'results')
-    if (!existsSync(results)) return []
-    return readdirSync(results)
-      .map((name) => ({ name, path: join(results, name), mtime: statSync(join(results, name)).mtimeMs }))
-      .filter((entry) => statSync(entry.path).isDirectory())
-      .sort((a, b) => b.mtime - a.mtime)
-  })
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    return null
+  }
 }
 
-function latestResultsDir() {
-  const entries = resultsDirs()
-  // 优先最近一次「真的跑了 3D」的结果，避免安静期只跑后端时误判为最新。
-  return (entries.find((entry) => existsSync(join(entry.path, '3d.json'))) || entries[0])?.path || null
+/**
+ * 预算声明了、但采样里没有这个数字时的行。
+ *
+ * 这是本门禁最容易骗过自己的一种情形：`typeof summary.x !== 'number'` 让 `rows` 少一行，
+ * 汇总里就只显示 "4 PASS / 0 FAIL"，看起来全绿，实际上有预算项从未参与判定
+ * （`3d.iframeReady` 就长期如此——采样里全是 `null`）。缺数据必须变成一条 FAIL 行。
+ */
+function missingRow(name, limit, unit, reason) {
+  return { name, actual: Number.NaN, limit, unit, note: reason }
 }
 
-const dir = argOf('--dir', latestResultsDir())
-if (!dir || !existsSync(dir)) {
-  console.log(
-    `perf-budget：跳过（找不到结果目录 ${dir || join(ROOTS[0], 'results', '<label>')}；先跑 bun run perf:baseline）`,
-  )
-  process.exit(0)
+/**
+ * LCP 是否是「真采到」。
+ *
+ * `lcp: 0` 不是「闪电般快」，而是「一条 LCP 候选都没有」——页面没挂载 / 只画了纯色底 /
+ * 观测器被导航冲掉，都会得到 0。把 0 当成绩计入，就会得到「0ms / 上限 2600ms PASS」
+ * 这种最危险的结论：看起来最好，其实什么都没测。
+ */
+function lcpMissed(summary) {
+  return typeof summary.lcp !== 'number' || summary.lcp <= 0
 }
 
-const budget = JSON.parse(readFileSync(BUDGET_PATH, 'utf8'))
-const readJson = (name) => {
-  const path = join(dir, name)
-  if (!existsSync(path)) return null
-  return JSON.parse(readFileSync(path, 'utf8'))
-}
-
-const three = readJson('3d.json')
-const contracts = readJson('contracts.json')
-
-if (!three) {
-  console.log(`perf-budget：跳过（${dir} 没有 3d.json，说明只跑了后端/契约）`)
-  process.exit(0)
-}
-
-const rawSummary = three.summary || {}
-const presented = three.presentedSnapshot?.parsed || null
-// 旧版 bench_3d 在交互采样中断时不会写 summary，但顶层 iframeReadyMs 与
-// presentedSnapshot 仍存在。这里做最小兜底，避免「有数据却整片 SKIP」。
-const summary = {
-  iframeReadyMs: three.iframeReadyMs ?? null,
-  presentedCalls: presented?.render?.calls ?? null,
-  renderCalls: presented?.render?.calls ?? null,
-  componentFamilyCount: three.componentFamilies?.count ?? null,
-  ...rawSummary,
-}
-const runError = typeof three.error === 'string' && three.error ? three.error : null
-const failures = []
+/** 采样目录缺失/整块跳过时的说明（打印出来，别让它变成"没这回事"）。 */
 const skipped = []
-const rows = []
 
-function check(metric, actual, limit, mode) {
-  // 旧版 harness 的结果目录里没有新指标（例如后加的 componentFamilyCount）：
-  // 按「数据不完整」显式 SKIP，而不是判 FAIL —— 否则重跑前的历史目录会全部变红。
-  // SKIP 会打出来，指标名写错也会暴露成一片 SKIP。
-  if (actual === undefined || actual === null) {
-    skipped.push({ metric, limit, mode })
-    rows.push({ metric, actual: null, limit, mode, ok: true, skipped: true })
-    return
+/** @returns {{name: string, actual: number, limit: number, unit: string}[]} */
+function checkFrontend(frontendDir, budget) {
+  const rows = []
+  const files = existsSync(frontendDir) ? ['bench_frontend.json'] : []
+  for (const name of files) {
+    const payload = readJson(path.join(frontendDir, name))
+    if (!payload?.summary) continue
+    const summary = payload.summary
+    if (payload.skip_reason) {
+      skipped.push(`frontend：${payload.skip_reason}`)
+      continue
+    }
+    if (budget.lcpMs) {
+      rows.push(
+        lcpMissed(summary)
+          ? missingRow('frontend.LCP', budget.lcpMs, 'ms', '未采到：LCP=0 表示页面没有产生 LCP 候选')
+          : { name: 'frontend.LCP', actual: summary.lcp, limit: budget.lcpMs, unit: 'ms' },
+      )
+    }
+    if (budget.cls) {
+      if (typeof summary.cls === 'number') {
+        rows.push({ name: 'frontend.CLS', actual: summary.cls, limit: budget.cls, unit: '' })
+      } else {
+        rows.push(missingRow('frontend.CLS', budget.cls, '', '未采到：采样里没有 CLS 数值'))
+      }
+    }
+    if (budget.encodedBodyBytes) {
+      if (typeof summary.encodedBodyTotal === 'number') {
+        rows.push({
+          name: 'frontend.encodedBody',
+          actual: summary.encodedBodyTotal,
+          limit: budget.encodedBodyBytes,
+          unit: 'B',
+        })
+      } else {
+        rows.push(
+          missingRow('frontend.encodedBody', budget.encodedBodyBytes, 'B', '未采到：采样里没有 encodedBodyTotal'),
+        )
+      }
+    }
   }
-  const ok =
-    typeof actual === 'number' && Number.isFinite(actual) && (mode === 'min' ? actual >= limit : actual <= limit)
-  rows.push({ metric, actual, limit, mode, ok })
-  if (!ok) failures.push({ metric, actual, limit, mode })
+  return rows
 }
 
-for (const [metric, limit] of Object.entries(budget.threeD.max || {})) {
-  check(metric, summary[metric], limit, 'max')
-}
-for (const [metric, limit] of Object.entries(budget.threeD.min || {})) {
-  check(metric, summary[metric], limit, 'min')
-}
-
-// 3D 采样没跑完（浏览器崩溃 / stage 未交互）时不能因为 summary 缺字段就整片 SKIP：
-// 那会把 iframeReady 26s 之类的真实回退藏成“预算通过”。
-if (runError) {
-  const actual = runError.replace(/\s+/g, ' ').slice(0, 160)
-  rows.push({ metric: '3d.runError', actual, limit: '无错误', mode: 'max', ok: false })
-  failures.push({ metric: '3d.runError', actual, limit: '无错误', mode: 'max' })
-}
-if (summary.interactive === false) {
-  rows.push({ metric: 'stageInteractive', actual: false, limit: true, mode: 'min', ok: false })
-  failures.push({ metric: 'stageInteractive', actual: false, limit: true, mode: 'min' })
-}
-
-if (contracts) {
-  const failed = Number(contracts.failed ?? 0)
-  const contractSkipped = Number(contracts.skipped ?? 0)
-  check('contracts.failed', failed, budget.contracts.maxFailed, 'max')
-  check('contracts.skipped', contractSkipped, budget.contracts.maxSkipped, 'max')
-}
-
-const label = three.label || dir
-console.log(`perf-budget：${label}（${dir}）`)
-for (const row of rows) {
-  const comparator = row.mode === 'min' ? '≥' : '≤'
-  const value = typeof row.actual === 'number' ? row.actual : '—'
-  const symbol = row.skipped ? 'SKIP' : row.ok ? 'PASS' : 'FAIL'
-  console.log(`  ${symbol}  ${row.metric}: ${value} ${comparator} 预算 ${row.limit}`)
-}
-if (skipped.length) {
-  console.log(
-    `  （${skipped.length} 项指标在该结果目录里缺失，按 SKIP 处理：` +
-      `${skipped.map((item) => item.metric).join(', ')}；重跑 perf:3d 可补齐）`,
-  )
-}
-
-if (failures.length) {
-  console.error('\n性能预算未通过：')
-  for (const item of failures) {
-    console.error(`  ${item.metric} = ${item.actual}（${item.mode === 'min' ? '下限' : '上限'} ${item.limit}）`)
+/**
+ * 商店首页（homeos-store）。
+ *
+ * 采样目录是 `<homeos 结果目录>-store`：`run_baseline.sh` 用 `--label <label>-store`
+ * 跑第二份采样，因此两者永远并列。这份预算以前只写在 JSON 里、没有任何代码读它——
+ * 属于"看起来有门禁，其实没跑"。
+ */
+function checkStoreHome(homeosDir, budget) {
+  const storeDir = `${homeosDir}-store`
+  if (!existsSync(path.join(storeDir, 'bench_frontend.json'))) {
+    skipped.push(`storeHome：没有 ${path.basename(storeDir)}/bench_frontend.json（跑 harness 时给 STORE_URL）`)
+    return []
   }
-  console.error(
-    '\n若确认是环境漂移，先用同一目录重跑 `npm run perf:3d -- --label <新 label>` 看方差；' +
-      '\n只有「结构变化」（新增阴影/反射 pass、组件族重新全量进 stage）才允许改 ops/checks/perf-budget.json，' +
-      '\n并在提交说明里写明为什么不是回退。',
-  )
-  process.exit(1)
+  const payload = readJson(path.join(storeDir, 'bench_frontend.json'))
+  if (!payload?.summary) return []
+  if (payload.skip_reason) {
+    skipped.push(`storeHome：${payload.skip_reason}`)
+    return []
+  }
+  const summary = payload.summary
+  const rows = []
+  if (budget.lcpMs) {
+    rows.push(
+      lcpMissed(summary)
+        ? missingRow(
+            'storeHome.LCP',
+            budget.lcpMs,
+            'ms',
+            '未采到：LCP=0 表示商店首页没有产生 LCP 候选（应用未挂载 / 只画了底色）',
+          )
+        : { name: 'storeHome.LCP', actual: summary.lcp, limit: budget.lcpMs, unit: 'ms' },
+    )
+  }
+  if (budget.cls) {
+    rows.push(
+      typeof summary.cls === 'number'
+        ? { name: 'storeHome.CLS', actual: summary.cls, limit: budget.cls, unit: '' }
+        : missingRow('storeHome.CLS', budget.cls, '', '未采到：商店首页采样里没有 CLS 数值'),
+    )
+  }
+  return rows
 }
 
-console.log('-------------------')
-console.log('性能预算通过。')
+function checkStage(stageDir, budget) {
+  const payload = readJson(path.join(stageDir, 'bench_3d.json'))
+  if (!payload?.summary) return []
+  // 采集器自己说明「这次没采到相位」（例如展示页被登录墙挡住）时按跳过处理：
+  // 这时数字不存在是环境问题，判 FAIL 只会训练大家忽略门禁。
+  if (payload.skip_reason) {
+    skipped.push(`3d：${payload.skip_reason}`)
+    return []
+  }
+  const summary = payload.summary
+  const rows = []
+  if (budget.iframeReadyMs) {
+    rows.push(
+      typeof summary.iframeReadyMs === 'number'
+        ? { name: '3d.iframeReady', actual: summary.iframeReadyMs, limit: budget.iframeReadyMs, unit: 'ms' }
+        : missingRow(
+            '3d.iframeReady',
+            budget.iframeReadyMs,
+            'ms',
+            '未采到：bench_3d 没拿到 first-screen-ready（预算此前从未真正生效）',
+          ),
+    )
+  }
+  if (budget.stageMountedMs) {
+    rows.push(
+      typeof summary.stageMountedMs === 'number'
+        ? { name: '3d.stageMounted', actual: summary.stageMountedMs, limit: budget.stageMountedMs, unit: 'ms' }
+        : missingRow('3d.stageMounted', budget.stageMountedMs, 'ms', '未采到：bench_3d 没拿到 stage-mounted'),
+    )
+  }
+  if (budget.averageFps) {
+    // FPS 是"越大越好"，用负数把方向折成统一的上限语义
+    rows.push(
+      typeof summary.averageFps === 'number'
+        ? { name: '3d.averageFps', actual: -summary.averageFps, limit: -budget.averageFps, unit: '' }
+        : missingRow('3d.averageFps', -budget.averageFps, '', '未采到：bench_3d 没拿到帧率样本'),
+    )
+  }
+  return rows
+}
+
+function checkBackend(backendDir, budget) {
+  const payload = readJson(path.join(backendDir, 'bench_backend.json'))
+  if (!payload?.endpoints) return []
+  const rows = []
+
+  /**
+   * 并发口径校验：`concurrent p95` **完全由并发度决定**，不是端点固有属性。
+   *
+   * 同一台机器、同一个 `/health/ready`，实测（2026-11-05）：
+   *   30 总请求 / 10 线程 → 5.9ms；200 总请求 / 32 线程 → 19.3ms。
+   * 预算里写 15ms 而采样跑的是 200/32 时，这条门禁永远红 —— 而且红得「有道理」：
+   * 它拦的不是回退，是**口径漂移**。历史上 smoke 采样用的是轻口径（30/10），
+   * 于是 3.17ms 的读数被误当成了「默认口径下的基线」。
+   *
+   * 所以预算必须同时声明口径，采样口径不符时按失败处理并说清差在哪 ——
+   * 否则调低/调高阈值都只是把噪声搬个地方。
+   */
+  const caliber = budget.caliber
+  const sampled = payload.config
+  if (caliber && sampled) {
+    const pairs = [
+      ['concurrencyTotal', sampled.concurrency_total],
+      ['concurrency', sampled.concurrency],
+    ]
+    const drift = pairs.filter(([key, actual]) => Number(caliber[key]) !== Number(actual))
+    if (drift.length) {
+      const detail = drift.map(([key, actual]) => `${key}=${actual}（预算 ${caliber[key]}）`).join(' / ')
+      rows.push({
+        name: 'backend 并发口径',
+        actual: Number.NaN,
+        limit: Number.NaN,
+        unit: '',
+        note: `采样口径与预算不一致：${detail}。并发 p95 随并发度线性变化，口径不同则数字不可比。`,
+      })
+    }
+  }
+
+  for (const endpoint of payload.endpoints) {
+    const limit = budget.endpoints?.[endpoint.path] ?? budget.endpoints?.[endpoint.name]
+    if (!limit) continue
+    // 鉴权被挡时测到的是「验证守卫」而不是「业务处理器」，把它算成 PASS/FAIL 都是误导。
+    // 这类端点必须带 COOKIE 才有意义，缺了就说清楚（否则 projects/draft 的预算形同虚设）。
+    const statuses = endpoint.non_2xx ?? {}
+    const denied = Number(statuses['401'] ?? 0) + Number(statuses['403'] ?? 0)
+    const total = Number(endpoint.sequential?.count ?? 0) + Number(endpoint.concurrent?.count ?? 0)
+    if (denied > 0 && total > 0 && denied >= total / 2) {
+      skipped.push(`backend ${endpoint.path}：采样多数返回 401/403，未测到业务路径（需要 COOKIE）`)
+      continue
+    }
+    if (typeof endpoint.sequential?.p95_ms === 'number' && limit.sequentialP95Ms) {
+      rows.push({
+        name: `backend ${endpoint.name} seq p95`,
+        actual: endpoint.sequential.p95_ms,
+        limit: limit.sequentialP95Ms,
+        unit: 'ms',
+        note: `n=${endpoint.sequential.count}`,
+      })
+    }
+    if (typeof endpoint.concurrent?.p95_ms === 'number' && limit.concurrentP95Ms) {
+      rows.push({
+        name: `backend ${endpoint.name} conc p95`,
+        actual: endpoint.concurrent.p95_ms,
+        limit: limit.concurrentP95Ms,
+        unit: 'ms',
+        note: `n=${endpoint.concurrent.count} @${sampled?.concurrency ?? '?'} 线程`,
+      })
+    }
+  }
+  // 预算里声明了、采样里却没有的端点：同样不能静默放过。
+  // （默认 ENDPOINTS 曾经只有 /health/ready，另外三条预算就此从未参与判定。）
+  const sampledPaths = new Set(payload.endpoints.map((endpoint) => endpoint.path))
+  const sampledNames = new Set(payload.endpoints.map((endpoint) => endpoint.name))
+  for (const [key, limit] of Object.entries(budget.endpoints ?? {})) {
+    if (sampledPaths.has(key) || sampledNames.has(key)) continue
+    const needsAuth = Boolean(limit.sequentialP95Ms || limit.concurrentP95Ms)
+    skipped.push(
+      `backend ${key}：本次采样没有这个端点，预算未判定${needsAuth ? '（含登录需求的端点请显式加 ENDPOINTS + COOKIE）' : ''}`,
+    )
+  }
+  return rows
+}
+
+function main() {
+  const options = parseArgs(process.argv)
+  const budget = readJson(BUDGET_PATH)
+  if (!budget) {
+    console.error(`预算文件不可读：${BUDGET_PATH}`)
+    return 2
+  }
+  const resultsDir = options.resultsDir
+    ? path.resolve(options.resultsDir)
+    : path.join(REPO_ROOT, 'ops', 'perf', 'results', options.label)
+
+  const rows = [
+    ...checkFrontend(resultsDir, budget.frontend ?? {}),
+    ...checkStoreHome(resultsDir, budget.storeHome ?? {}),
+    ...checkStage(resultsDir, budget.stage3d ?? {}),
+    ...checkBackend(resultsDir, budget.backend ?? {}),
+  ]
+
+  for (const note of skipped) console.log(`SKIP  ${note}`)
+
+  if (!rows.length) {
+    console.log(`没有可校验的采样：${path.relative(REPO_ROOT, resultsDir)}`)
+    console.log('先跑 `bun run perf:baseline -- <label>`（或 node ops/perf/harness/run_baseline.sh <label>）。')
+    return 3
+  }
+
+  let failed = 0
+  for (const row of rows) {
+    const unit = row.unit ? ` ${row.unit}` : ''
+    if (row.note && Number.isNaN(row.actual)) {
+      failed += 1
+      console.log(`FAIL  ${row.name.padEnd(28)} ${row.note}`)
+      continue
+    }
+    const actual = row.name === '3d.averageFps' ? -row.actual : row.actual
+    const limit = row.name === '3d.averageFps' ? -row.limit : row.limit
+    const over = row.name === '3d.averageFps' ? actual < limit : actual > limit
+    const suffix = row.note ? `  (${row.note})` : ''
+    console.log(
+      `${over ? 'FAIL' : 'PASS'}  ${row.name.padEnd(28)} ${String(actual).padStart(9)}${unit}  / 上限 ${limit}${unit}${suffix}`,
+    )
+    if (over) failed += 1
+  }
+  console.log(`--- 性能预算：${rows.length - failed} PASS / ${failed} FAIL（${resultsDir}）`)
+  return failed ? 1 : 0
+}
+
+process.exit(main())

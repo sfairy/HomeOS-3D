@@ -24,6 +24,20 @@
   color: var(--set-text-faint);
 }
 
+/* 终端 ID 旁的复制按钮：内联小图标，悬停时用强调色提示可点 */
+.pd-inline-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: middle;
+  color: var(--set-text-faint);
+  transition: color var(--hos-dur-fast) var(--hos-ease-out);
+}
+
+.pd-inline-link:hover {
+  color: var(--page-accent-text);
+}
+
 .profile-card__bind-row {
   margin-top: 6px;
   max-width: 220px;
@@ -46,7 +60,7 @@
 
 @media (min-width: 768px) {
   .pd-bind-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
 
   .pd-bind-row:has(> :only-child) {

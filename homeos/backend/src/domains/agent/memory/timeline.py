@@ -8,6 +8,9 @@
   ``EXTERNAL_DEVICE``；
 - 记录本次翻转的持续时长（下一条同实体记录到来时结算）；
 - 记录同房间其它设备的状态快照，供「开灯时窗帘是开的」这类因果复盘；
+- **只记可控设备**：纯数值的 ``sensor`` 域（路由器速率 / 累计流量 / ping / 温度）不写，
+  见 :data:`SKIPPED_DOMAINS` —— 它们按小数抖动翻转，实测占全部行的 98%，却无法
+  用于归因，只把库按 100 MB/天 撑大；
 - 60 天保留期，后台按批次清理。
 
 写库一律放进后台任务：状态变更 fan-out 是热路径，不能在这里 await SQLite。
@@ -26,8 +29,9 @@ from sqlalchemy import delete, select
 
 from ....platform.core.db.db_exec import run_db
 from ....platform.core.db.json_field import read_json_object
-from ....platform.core.db.models import AgentContextTimeline
+from ....platform.core.db.telemetry import AgentContextTimeline
 from ....platform.core.runtime.background import spawn_background
+from ....platform.core.runtime.observability import record_ha_flip
 
 logger = logging.getLogger("homeos.agent.timeline")
 
@@ -37,12 +41,30 @@ SOURCE_AUTOMATION = "HA_AUTOMATION"
 SOURCE_EXTERNAL = "EXTERNAL_DEVICE"
 #: 时序保留天数
 RETENTION_DAYS = 60
+#: 不写时序的实体域。
+#:
+#: ``sensor`` 是纯数值读数（路由器上下行速率 / 累计流量、ping、温度…）：状态每变一次
+#: 小数就记一行，实测 5 天 153 万行里 150 万行（98.6%）来自它，单行约 400 字节，
+#: 相当于整库 570 MB / 116 MB 每天；而这类实体自己不会改变别的设备，「这段时间
+#: 为什么变了」的归因用不到它 —— 留下的只是噪声与磁盘占用。
+#:
+#: ``binary_sensor``（门磁 / 人体感应）必须保留：那是真正会触发联动的前置事件。
+SKIPPED_DOMAINS = frozenset({"sensor"})
 #: 同房间快照最多记录多少台设备
 MAX_PEERS = 20
 #: 本地命令标记有效期（秒）：同实体在窗口内的翻转归因为本地下发
 LOCAL_MARK_TTL_SECONDS = 10.0
 #: 每写入多少条做一次保留期清理
 PRUNE_EVERY = 200
+#: 写入微批的合并窗口（秒）。
+#:
+#: 一次 HA fan-out 里同房间十几台设备可能同时翻转，逐条开事务会把 WAL 写放大到
+#: 「每次翻转 1 SELECT + 1 UPDATE + 1 INSERT + 1 commit」。合并到 200ms 后，一次翻转
+#: 风暴只对付 1 次 SELECT（按批次内的实体集合批量取打开行）、N 次 UPDATE/INSERT 和
+#: 1 次 commit；窗口越大人越感觉不到（时序只用于事后归因，不参与实时决策）。
+BATCH_WINDOW_SECONDS = 0.2
+#: 单批上限：防止一次 HA 全量重连（上千条）把内存和事务撑爆
+MAX_BATCH_ROWS = 500
 #: 单次查询上限
 MAX_QUERY_ROWS = 100
 
@@ -83,8 +105,12 @@ class AgentTimelineService:
         state_store: Any = None,
         enrichment: Any = None,
         event_bus: Any = None,
+        telemetry_session_factory: Any = None,
     ) -> None:
+        #: 业务库会话（保留：装配层与历史调用方都按这个签名构造）
         self._session_factory = session_factory
+        #: 遥测库会话（时序表所在库）。缺省回落主库 —— 单测与未拆库的部署仍可用。
+        self._telemetry_session_factory = telemetry_session_factory or session_factory
         self._state_store = state_store
         self._enrichment = enrichment
         self._event_bus = event_bus
@@ -92,6 +118,11 @@ class AgentTimelineService:
         self._local_marks: dict[str, tuple[float, str]] = {}
         self._written = 0
         self._prune_lock = asyncio.Lock()
+        #: 待落库的翻转（微批缓冲）。只存已经解析好的字段，事件原对象出了 fan-out 就会被
+        #: 复用/改写，不能把引用留到 200ms 之后。
+        self._pending: list[dict[str, Any]] = []
+        self._flush_handle: asyncio.TimerHandle | None = None
+        self._flush_task: asyncio.Task[Any] | None = None
 
     # 生命周期 / 事件绑定
     def bind_events(self) -> None:
@@ -114,17 +145,26 @@ class AgentTimelineService:
                 self._schedule(change)
 
     def _schedule(self, change: dict[str, Any]) -> None:
+        # 先按域过滤：sensor 的抖动占 fan-out 的绝大多数，早点返回既省一次后台任务，
+        # 也省掉区域解析 / 同房间快照那串同步查询。
+        entity_id = str(change.get("entity_id") or "")
+        if not entity_id or entity_id.split(".", 1)[0] in SKIPPED_DOMAINS:
+            return
         # 上游会在同一次 fan-out 里就地补全 old_state，必须立即拷出需要的字段
         new_state = change.get("new_state")
         new_state_obj = read_json_object(new_state, {}) if isinstance(new_state, dict) else {}
         snapshot = {
-            "entity_id": str(change.get("entity_id") or ""),
+            "entity_id": entity_id,
             "old_state": _state_of(change.get("old_state")),
             "new_state": _state_of(new_state),
             "changed_at": change.get("changed_at") or new_state_obj.get("last_changed"),
             "context": change.get("context") or new_state_obj.get("context"),
             "attributes": new_state_obj.get("attributes") if isinstance(new_state_obj.get("attributes"), dict) else {},
         }
+        # 翻转计数与「真正会进时序表的记录」同口径：放在域名过滤之后、调度之前。
+        # `ha_flip_total / db_write_tx_total` 就是每个翻转摊到的写事务数，微批是否生效
+        # 一眼可见（路线图 Phase 0 的目的就是让这个比值可观测，而不是靠读代码判断）。
+        record_ha_flip()
         try:
             asyncio.get_running_loop()
         except RuntimeError:
@@ -234,53 +274,115 @@ class AgentTimelineService:
         trigger_source, actor = self._resolve_source(entity_id, snapshot.get("context"))
         peers = self._peer_snapshot(area_id, entity_id)
         changed_at = _parse_time(snapshot.get("changed_at"))
-        try:
-            await run_db(
-                self._write_sync,
-                {
-                    "entity_id": entity_id,
-                    "domain": domain,
-                    "area_id": area_id,
-                    "area_name": area_name,
-                    "old_state": old_state,
-                    "new_state": new_state,
-                    "changed_at": changed_at,
-                    "trigger_source": trigger_source,
-                    "actor": actor,
-                    "context": snapshot.get("context") if isinstance(snapshot.get("context"), dict) else {},
-                    "peer_snapshot": peers,
-                },
-            )
-        except Exception as exc:
-            logger.debug("写入设备时序失败: %s (%s)", entity_id, exc)
-            return
-        self._written += 1
-        if self._written % PRUNE_EVERY == 0:
-            spawn_background(self.prune())
+        self._pending.append(
+            {
+                "entity_id": entity_id,
+                "domain": domain,
+                "area_id": area_id,
+                "area_name": area_name,
+                "old_state": old_state,
+                "new_state": new_state,
+                "changed_at": changed_at,
+                "trigger_source": trigger_source,
+                "actor": actor,
+                "context": snapshot.get("context") if isinstance(snapshot.get("context"), dict) else {},
+                "peer_snapshot": peers,
+            }
+        )
+        if len(self._pending) >= MAX_BATCH_ROWS:
+            # 满批立即刷：继续攒会把内存拖到下一次 200ms tick
+            await self.flush()
+        else:
+            self._schedule_flush()
 
-    def _write_sync(self, row: dict[str, Any]) -> None:
-        if self._session_factory is None:
+    def _schedule_flush(self) -> None:
+        """安排 200ms 后的合并写入（幂等：已有待触发的定时器就复用）。"""
+        if self._flush_handle is not None:
             return
-        changed_at: datetime = row["changed_at"]
-        with self._session_factory() as session:
-            # 结算上一条：同实体的上一条记录在这里结束
-            previous = (
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # 没有事件循环时（同步测试 / 解释器退出）直接尝试一次同步落库，
+            # 否则这批记录会永远留在内存里。
+            logger.debug("无运行中的事件循环，改为同步落库: %d 条", len(self._pending))
+            self._flush_now()
+            return
+        self._flush_handle = loop.call_later(BATCH_WINDOW_SECONDS, self._on_flush_timer)
+
+    def _on_flush_timer(self) -> None:
+        self._flush_handle = None
+        if not self._pending:
+            return
+        self._flush_task = spawn_background(self.flush())
+
+    async def flush(self) -> int:
+        """把缓冲里的翻转一次性落库，返回写入条数。"""
+        if self._flush_handle is not None:
+            self._flush_handle.cancel()
+            self._flush_handle = None
+        if not self._pending:
+            return 0
+        rows = self._pending
+        self._pending = []
+        try:
+            written = await run_db(self._write_batch_sync, rows)
+        except Exception as exc:
+            logger.debug("批量写入设备时序失败: %d 条（%s）", len(rows), exc)
+            return 0
+        self._written += written
+        if self._written % PRUNE_EVERY < written:
+            # 跨过 PRUNE_EVERY 的整数倍时才清理（批大小不整除时用区间判断，
+            # 不能用 `% PRUNE_EVERY == 0`，否则整批跨过阈值就永远不触发）
+            spawn_background(self.prune())
+        return written
+
+    def _flush_now(self) -> None:
+        """没有事件循环时的兜底：同步落库（不经过 run_db）。"""
+        if not self._pending:
+            return
+        rows = self._pending
+        self._pending = []
+        try:
+            self._written += self._write_batch_sync(rows)
+        except Exception as exc:
+            logger.debug("同步写入设备时序失败: %d 条（%s）", len(rows), exc)
+
+    def _write_batch_sync(self, rows: list[dict[str, Any]]) -> int:
+        """单事务写入一批翻转，并结算同实体的上一条。
+
+        与逐条写入的差别只在查询次数：这里一次 ``SELECT … WHERE entity_id IN (…)``
+        取出批次内所有实体的「打开行」，之后完全在内存里配对。原先每条翻转都要
+        一次 SELECT，1.5M 行/天的写入等于 150 万次不必要的索引查找。
+        """
+        if self._telemetry_session_factory is None or not rows:
+            return 0
+        entities = sorted({str(row["entity_id"]) for row in rows})
+        with self._telemetry_session_factory() as session:
+            open_rows = (
                 session.execute(
                     select(AgentContextTimeline)
                     .where(
-                        AgentContextTimeline.entity_id == row["entity_id"],
+                        AgentContextTimeline.entity_id.in_(entities),
                         AgentContextTimeline.ended_at.is_(None),
                     )
                     .order_by(AgentContextTimeline.changed_at.desc())
                 )
                 .scalars()
-                .first()
+                .all()
             )
-            if previous is not None:
-                previous.ended_at = changed_at
-                previous.duration_seconds = max(0, int((changed_at - previous.changed_at).total_seconds()))
-            session.add(
-                AgentContextTimeline(
+            # 同一实体可能有多条未结算行（历史上漏结算 / 乱序到达）：只认最近的一条，
+            # 其余保持原样 —— 强行补结算会改到已经归档的时间段。
+            latest_open: dict[str, AgentContextTimeline] = {}
+            for open_row in open_rows:
+                latest_open.setdefault(open_row.entity_id, open_row)
+
+            for row in rows:
+                changed_at: datetime = row["changed_at"]
+                previous = latest_open.get(row["entity_id"])
+                if previous is not None:
+                    previous.ended_at = changed_at
+                    previous.duration_seconds = max(0, int((changed_at - previous.changed_at).total_seconds()))
+                record = AgentContextTimeline(
                     entity_id=row["entity_id"],
                     domain=row["domain"],
                     area_id=row["area_id"],
@@ -293,8 +395,16 @@ class AgentTimelineService:
                     context=json.dumps(row["context"], ensure_ascii=False),
                     peer_snapshot=json.dumps(row["peer_snapshot"], ensure_ascii=False),
                 )
-            )
+                session.add(record)
+                # 同批内同一实体的后续行要结算到刚插入的这条，而不是批次开始时的旧行
+                latest_open[row["entity_id"]] = record
+            # flush 让 autoincrement 主键落到对象上；commit 只在这里发生一次
             session.commit()
+        return len(rows)
+
+    async def aclose(self) -> None:
+        """停机前把缓冲刷掉：最后 200ms 内的翻转不能丢（否则"我明明关过灯"查不到记录）。"""
+        await self.flush()
 
     # 查询
     async def query(
@@ -317,9 +427,9 @@ class AgentTimelineService:
         return rows
 
     def _query_sync(self, entity_id: str, area_id: str, since: datetime, limit: int) -> list[dict[str, Any]]:
-        if self._session_factory is None:
+        if self._telemetry_session_factory is None:
             return []
-        with self._session_factory() as session:
+        with self._telemetry_session_factory() as session:
             query = select(AgentContextTimeline).where(AgentContextTimeline.changed_at >= since)
             if entity_id:
                 query = query.where(AgentContextTimeline.entity_id == entity_id)
@@ -347,7 +457,7 @@ class AgentTimelineService:
     async def last_on_since(self, entity_ids: list[str]) -> dict[str, datetime]:
         """取每个实体最近一次「变为开启」的时间（看门狗判断空转时长用）。"""
         ids = [str(item) for item in entity_ids if item]
-        if not ids or self._session_factory is None:
+        if not ids or self._telemetry_session_factory is None:
             return {}
         try:
             return await run_db(self._last_on_sync, ids)
@@ -356,10 +466,10 @@ class AgentTimelineService:
             return {}
 
     def _last_on_sync(self, entity_ids: list[str]) -> dict[str, datetime]:
-        if self._session_factory is None:
+        if self._telemetry_session_factory is None:
             return {}
         on_states = ("on", "open", "playing", "heat", "cool", "auto", "heat_cool", "dry", "fan_only")
-        with self._session_factory() as session:
+        with self._telemetry_session_factory() as session:
             rows = list(
                 session.execute(
                     select(AgentContextTimeline)
@@ -379,7 +489,7 @@ class AgentTimelineService:
     # 保留期
     async def prune(self) -> int:
         """清理超过保留期的时序记录（返回删除条数）。"""
-        if self._session_factory is None:
+        if self._telemetry_session_factory is None:
             return 0
         async with self._prune_lock:
             cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=RETENTION_DAYS)
@@ -390,9 +500,9 @@ class AgentTimelineService:
                 return 0
 
     def _prune_sync(self, cutoff: datetime) -> int:
-        if self._session_factory is None:
+        if self._telemetry_session_factory is None:
             return 0
-        with self._session_factory() as session:
+        with self._telemetry_session_factory() as session:
             result = session.execute(delete(AgentContextTimeline).where(AgentContextTimeline.changed_at < cutoff))
             session.commit()
             return int(result.rowcount or 0)
@@ -400,6 +510,7 @@ class AgentTimelineService:
 
 __all__ = [
     "RETENTION_DAYS",
+    "SKIPPED_DOMAINS",
     "SOURCE_AUTOMATION",
     "SOURCE_EXTERNAL",
     "SOURCE_MANUAL",

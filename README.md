@@ -99,7 +99,6 @@ HomeOS/
 │   ├── release/                   # set-version.mjs（全仓版本槽位对齐）
 │   ├── dev/                       # clean-local.mjs（本地构建缓存清理）
 │   ├── deploy/                    # 部署手册、公网接入、穿透、preflight.sh、run-backend.sh
-│   ├── perf/                      # 性能口径 / harness / 阈值 / HA 基线采样
 │   └── ci/ docker/ caddy/ vite/   # 容器入口、Caddyfile、Vite 辅助、CI 脚本
 ├── assets/                        # 运行期可替换 UI 素材（compose bind mount 到 /app/assets）
 ├── backups/                       # 备份包落点（compose bind mount 到 /data/backups）
@@ -173,7 +172,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | 层 | 命令 | 谁跑 | 说明 |
 | --- | --- | --- | --- |
 | 阻断 | `gate` / `gate:static` / `gate:test` / `gate:model` / `gate:build` / `gate:infra` | 本地手动 + CI 五个 job | 清单唯一来源是 `ops/gates.mjs`；CI 每个 job 就是「装环境 + `bun run gate:<组>`」 |
-| 手动审计 | `audit:*`、`perf:*`、不带 `--check` 的同名脚本 | 人 | 只报告不阻断；`audit:quality` 是模型损伤台账，`audit:architecture` 盘点模块规模 |
+| 手动审计 | `audit:*`、不带 `--check` 的同名脚本 | 人 | 只报告不阻断；`audit:quality` 是模型损伤台账，`audit:architecture` 盘点模块规模 |
 | 生成 | `generate:*`、`organize:*`、`index:*`、`rebuild:*`、`build:slot-contracts` | 人 | 写盘命令，产物是提交进仓库的派生表或资产（见 [§4.2](#42-材质槽位契约全部是生成物)） |
 
 | 组 | 管什么 |
@@ -300,8 +299,6 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) | 商店公网接入（域名 + 真实证书 HTTPS、支付回调），配置片段用 `store.example.com` 占位 |
 | [ops/deploy/TUNNEL-ACCESS.md](ops/deploy/TUNNEL-ACCESS.md) | 没有公网 IP 时的内网穿透（frp / cloudflared / 节点小宝），用本项目实际域名 |
 | [ops/BUILD.md](ops/BUILD.md) | 镜像构建细节（Cython 产物、基础镜像钉版、镜像站） |
-| [ops/perf/README.md](ops/perf/README.md) | 性能口径与预算（体积 / 3D 首帧、harness、真机待补项）；不存日期战报 |
-| [ops/perf/manual-baseline.md](ops/perf/manual-baseline.md) | 手工回归清单（B1–B6）与行为基线填表 |
 | [ops/gates.mjs](ops/gates.mjs) | 门禁清单与分组（CI 五个 job 与本地 `bun run gate` 的唯一来源） |
 | [homeos/frontend/src/README.md](homeos/frontend/src/README.md) | 主应用前端分层 DAG、域边界、桶命名与 studio 的关系 |
 | [homeos/frontend/src/studio/README.md](homeos/frontend/src/studio/README.md) | Studio 子系统分层、启动入口、面板渲染器与设备运行时 |
@@ -315,7 +312,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | [meshoptimizer LICENSE](homeos/frontend/public/static/vendor/meshoptimizer/0.25/LICENSE.md) | 第三方许可证（**勿改**） |
 | [.env.example](.env.example) | 全部环境变量（分区注释；compose 文件已写死常用值） |
 
-> 文档纪律：性能报告按日期**不入库**（口径与阈值见 `ops/perf/`）；本表外的 `.md` 只有
+> 文档纪律：性能与审计报告按日期**不入库**；本表外的 `.md` 只有
 > 上面两个「生成 / 第三方」文件，其余新增文档请一并登记到本表。
 
 CI：两个工作流都**只能手动触发**（Actions 页面 Run workflow），推送不会自动构建：

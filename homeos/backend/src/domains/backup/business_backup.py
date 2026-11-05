@@ -99,9 +99,7 @@ BACKUP_ROOTS = (
 )
 
 #: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。
-#: 分三类——
-#:   历史事件与日志：实体状态变化、安防审计、通知记录、地震预警、环境与能耗时序；
-#:   运行时缓存：登录会话（还原后必须重新登录）、可随 HA 连接自动重建的实体/设备/区域目录。
+#: 分两类——历史事件与日志（含遥测库的设备状态翻转时序）、运行时缓存（登录会话与可重建目录）。
 EXCLUDED_DB_TABLES: tuple[str, ...] = (
     # 历史事件 / 日志 / 时序
     "event_logs",
@@ -112,6 +110,8 @@ EXCLUDED_DB_TABLES: tuple[str, ...] = (
     "energy_usage_daily",
     "energy_usage_monthly",
     "device_usage_stats",
+    # 遥测库的设备状态翻转时序：还原旧时序无业务意义（体积与保留期见 telemetry.py）。
+    "agent_context_timeline",
     # 运行时缓存（会话 / 可重建目录）
     "sessions",
     "ha_entities",

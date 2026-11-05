@@ -154,10 +154,22 @@
               <p class="text-sm text-white font-medium">{{ localTerminalLabel }}</p>
               <p class="text-[12px] pd-mono-faint font-mono mt-0.5">
                 {{ shortClientId(localClientId) }}
+                <button
+                  type="button"
+                  class="pd-inline-link"
+                  :title="'复制完整终端 ID（可用于 ?terminal= 固定身份）'"
+                  :aria-label="'复制完整终端 ID'"
+                  @click="copyLocalClientId"
+                >
+                  <Copy class="w-3 h-3" />
+                </button>
               </p>
               <p class="text-[12px] pd-info-text mt-1">
                 {{ '当前方案' }}:
                 <span class="pd-accent-mono font-mono">{{ localBinding.profileId }}</span>
+              </p>
+              <p v-if="!localBinding.registered" class="text-[12px] pd-desc mt-1">
+                {{ '本机尚未登记到云端：其他设备无法在「已注册终端」里为它换方案。' }}
               </p>
             </div>
             <button
@@ -182,7 +194,7 @@
               v-model="newTerminalDefault"
               :disabled="defaultsLoading || defaultsSaving"
             >
-              <option value="activeProfile">{{ '跟随当前激活方案' }}</option>
+              <option value="activeProfile">{{ '跟随后台默认方案' }}</option>
               <option value="default">{{ '使用 default 方案' }}</option>
             </HosSelect>
             <button
@@ -195,7 +207,38 @@
             </button>
           </div>
           <p class="text-[12px] pd-desc mt-2">
-            {{ '无 URL、无本地缓存、无绑定时，新设备使用上述策略。' }}
+            {{ '仅在「无 URL、无本地记录、无云端绑定」的全新终端上生效；已有记录或绑定的设备不受影响。' }}
+          </p>
+        </div>
+
+        <div class="settings-note-box">
+          <p class="pd-section-eyebrow-neutral font-bold mb-2 uppercase tracking-wider text-[12px]">
+            {{ '后台默认方案' }}
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <HosSelect
+              variant="settings"
+              trigger-class="text-xs max-w-xs"
+              v-model="serverDefaultProfile"
+              :disabled="defaultsLoading || defaultsSaving"
+            >
+              <option v-for="p in layoutStore.availableProfiles || []" :key="p.projectId" :value="p.projectId">
+                {{ profileLabel(p.projectId) }}
+              </option>
+            </HosSelect>
+            <button
+              type="button"
+              class="settings-btn-ghost text-xs"
+              :disabled="defaultsSaving || serverDefaultProfile === savedServerDefaultProfile"
+              @click="saveServerDefaultProfile"
+            >
+              {{ defaultsSaving ? '保存中…' : '设为后台默认' }}
+            </button>
+          </div>
+          <p class="text-[12px] pd-desc mt-2">
+            {{
+              '后端任务（AI、通知、安防事件、内嵌页代理）读取这份方案，不影响任何终端显示。多终端各显示不同方案时必须固定一个，否则后台配置会随设备来回切换。'
+            }}
           </p>
         </div>
       </div>
@@ -210,6 +253,11 @@
             `${terminalBindings.length} 台`
           }}</span>
         </header>
+        <p class="text-[12px] pd-desc mb-3">
+          {{
+            '在这里可以给任意终端指定方案：被改的设备回到前台或刷新后生效（编辑中/有未保存改动时会延后）。终端身份存在浏览器本地，换访问地址或清站点数据会变成新终端。'
+          }}
+        </p>
         <ApiQueryState
           :loading="bindingsLoading"
           :error="bindingsError"
@@ -266,7 +314,7 @@
             </article>
           </div>
           <p v-else class="text-[12px] pd-desc">
-            {{ '暂无终端绑定；在各设备上切换方案后将自动注册。' }}
+            {{ '暂无终端绑定；终端首次打开时会自动登记，也可在上面点「绑定到当前方案」。' }}
           </p>
         </ApiQueryState>
       </div>
@@ -303,15 +351,19 @@ const {
   localClientId,
   localTerminalLabel,
   shortClientId,
+  copyLocalClientId,
   localBinding,
   terminalBindings,
   bindingsLoading,
   bindingsError,
   bindingActionLoading,
   newTerminalDefault,
+  serverDefaultProfile,
+  savedServerDefaultProfile,
   defaultsLoading,
   defaultsSaving,
   saveNewTerminalDefault,
+  saveServerDefaultProfile,
   bindCurrentTerminal,
   removeTerminalBinding,
   updateTerminalBindingProfile,
@@ -327,15 +379,19 @@ const {
   'localClientId',
   'localTerminalLabel',
   'shortClientId',
+  'copyLocalClientId',
   'localBinding',
   'terminalBindings',
   'bindingsLoading',
   'bindingsError',
   'bindingActionLoading',
   'newTerminalDefault',
+  'serverDefaultProfile',
+  'savedServerDefaultProfile',
   'defaultsLoading',
   'defaultsSaving',
   'saveNewTerminalDefault',
+  'saveServerDefaultProfile',
   'bindCurrentTerminal',
   'removeTerminalBinding',
   'updateTerminalBindingProfile',

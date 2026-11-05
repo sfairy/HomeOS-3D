@@ -1,517 +1,312 @@
 #!/usr/bin/env python3
-"""启动隔离后端实例并测量 API 延迟、吞吐、DB 查询数与进程资源。
+"""后端端点基线采集：顺序 p50/p95/p99、并发 p95、RPS、响应字节、每条 SQL 数。
 
-用法：
-  python ops/perf/harness/bench_backend.py --label before --serve-only
-  python ops/perf/harness/bench_backend.py --label before
-  python ops/perf/harness/bench_backend.py --label before --stop
+为什么需要它
+------------
+`docs/perf/2026-11-01-dual-project-performance.md` 里的后端数字（draft 并发 p95 113.8ms、
+RPS 247、4.01 次 SQL/请求）全部来自本脚本的历史版本，而该脚本曾随 `ops/perf` 一起被删掉。
+没有它，后续任何后端改动都只能"看着像快了"——这正是本轮先把它恢复出来的原因。
+
+口径
+----
+- **顺序**：单连接依次发 N 次，得到 p50/p95/p99 与 RPS（上限由单请求延迟决定）；
+- **并发**：C 个线程各发 N/C 次，得到排队后的 p50/p95（这才是用户能感知的尾延迟）；
+- **SQL 数**：读一次 `/metrics` 的 `homeos_db_queries_total` 前后差值 ÷ 请求数。拿不到
+  /metrics（未开鉴权 / 路径被关）时写 `null`，不伪造 0。
+
+用法
+----
+```bash
+# 最常用：两个默认端点 + 一个需要登录的端点
+.venv-store/bin/python ops/perf/harness/bench_backend.py \
+    --base-url http://127.0.0.1:18801 --label before \
+    --endpoint /health/ready=health \
+    --endpoint /api/v1/public/config=public-config \
+    --endpoint /api/v1/projects=projects \
+    --cookie "auth_token=<jwt>"
+
+# 只看并发尾延迟
+... --concurrency 32 --sequential 0
+```
+结果写到 `ops/perf/results/<label>/bench_backend.json`（`--out` 可覆盖）。
 """
+
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
 import json
-import os
-import re
-import signal
-import socket
-import subprocess
+import math
+import statistics
+import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from perf_common import (
-    ROOT,
-    db_count,
-    db_total,
-    http_get,
-    load_env,
-    process_snapshot,
-    result_dir,
-    scrape_metrics,
-    summarize,
-    tail,
-    wait_url,
-    write_json,
-)
+try:
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover - 环境缺失时给出可操作提示
+    sys.exit("缺少 httpx：用仓库 venv 运行（node ops/lib/py.mjs ops/perf/harness/bench_backend.py …）")
 
-CONCURRENCY = 32
-SEQUENTIAL_REQUESTS = 100
-CONCURRENT_REQUESTS = 200
-WARMUP_REQUESTS = 20
-# A/B 时用 PERF_SOURCE_ROOT 指向基线源码树；默认就是当前工作区。
-SOURCE_ROOT = Path(os.environ.get("PERF_SOURCE_ROOT", str(ROOT))).resolve()
-
-#: 启动期 import 归因：只 import 应用模块（不跑 lifespan、不建库），用于把
-#: ``homeos_boot_import_ms`` 拆到具体模块。生产镜像是 Cython .so，此项只代表源码态口径。
-IMPORTTIME_TARGET = "import src.app"
-IMPORTTIME_TOP_N = 40
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
-def collect_import_attribution(label: str) -> dict[str, Any]:
-    """跑一次 ``python -X importtime``，产出可归因的模块导入耗时表。"""
-    env_data = load_env(label)
-    python = env_data["python"]
-    backend_dir = SOURCE_ROOT / "homeos" / "backend"
-    out_dir = result_dir(label)
-    log_path = out_dir / "importtime.txt"
-    env = os.environ.copy()
-    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
-                "http_proxy", "https_proxy", "all_proxy", "no_proxy",
-                "PYTHONDONTWRITEBYTECODE"):
-        env.pop(key, None)
-    env["PYTHONPATH"] = str(backend_dir)
-    started = time.perf_counter()
-    with log_path.open("wb") as handle:
-        subprocess.run(
-            [python, "-X", "importtime", "-c", IMPORTTIME_TARGET],
-            cwd=str(backend_dir), env=env, stdout=subprocess.DEVNULL, stderr=handle,
-            check=False,
-        )
-    wall_ms = round((time.perf_counter() - started) * 1000.0, 2)
-    rows: list[dict[str, Any]] = []
-    for line in log_path.read_text("utf-8", errors="replace").splitlines():
-        match = re.match(r"import time:\s+(\d+)\s+\|\s+(\d+)\s+\|\s+(.*)", line)
-        if not match:
+def percentile(values: list[float], ratio: float) -> float:
+    """线性插值分位（与历史报告同一实现，避免"换了算法导致数字不可比"）。
+
+    `statistics.quantiles` 在小样本上会抛 StatisticsError，而 5 次采样恰恰是最常见的
+    调试规模；这里自己算，样本数 1 时直接返回该值。
+    """
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return float(values[0])
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * ratio
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return float(ordered[lower])
+    weight = position - lower
+    return float(ordered[lower] * (1 - weight) + ordered[upper] * weight)
+
+
+def read_db_query_counts(client: httpx.Client, base_url: str) -> dict[str, float] | None:
+    """读一次 /metrics 里的 SQL 计数；不可用返回 None（不要当成 0）。"""
+    try:
+        response = client.get(f"{base_url}/metrics", timeout=5.0)
+    except httpx.HTTPError:
+        return None
+    if response.status_code != 200:
+        return None
+    counts: dict[str, float] = {}
+    for line in response.text.splitlines():
+        if not line.startswith("homeos_db_queries_total{"):
             continue
-        rows.append({
-            "self_us": int(match.group(1)),
-            "cumulative_us": int(match.group(2)),
-            "module": match.group(3).strip(),
-        })
-    total_self_us = sum(row["self_us"] for row in rows)
-    payload = {
-        "target": IMPORTTIME_TARGET,
-        "sourceRoot": str(SOURCE_ROOT),
-        "wallMs": wall_ms,
-        "moduleCount": len(rows),
-        "totalSelfMs": round(total_self_us / 1000.0, 2),
-        "note": "源码态口径；生产镜像为 Cython .so，不含 Python 源码导入。",
-        "topSelf": [
-            {
-                "module": row["module"],
-                "selfMs": round(row["self_us"] / 1000.0, 2),
-                "cumulativeMs": round(row["cumulative_us"] / 1000.0, 2),
-            }
-            for row in sorted(rows, key=lambda item: -item["self_us"])[:IMPORTTIME_TOP_N]
-        ],
-        "topCumulative": [
-            {
-                "module": row["module"],
-                "selfMs": round(row["self_us"] / 1000.0, 2),
-                "cumulativeMs": round(row["cumulative_us"] / 1000.0, 2),
-            }
-            for row in sorted(rows, key=lambda item: -item["cumulative_us"])[:IMPORTTIME_TOP_N]
-        ],
-    }
-    write_json(out_dir / "importtime.json", payload)
-    print(f"[{label}] import 归因：{out_dir / 'importtime.json'}（self 合计 {payload['totalSelfMs']} ms）")
-    return payload
-
-
-def _servers_path(label: str) -> Path:
-    return Path(load_env(label)["perfRoot"]) / "env" / label / "servers.json"
-
-
-def _port_open(host: str, port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(0.3)
-        return sock.connect_ex((host, port)) == 0
-
-
-def _pid_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
-
-
-def _stop_pid(pid: int, label: str) -> None:
-    if not _pid_alive(pid):
-        return
-    try:
-        os.killpg(pid, signal.SIGTERM)
-    except OSError:
+        kind = line.split('kind="', 1)[-1].split('"', 1)[0]
         try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            return
-    deadline = time.time() + 20
-    while time.time() < deadline and _pid_alive(pid):
-        time.sleep(0.1)
-    if _pid_alive(pid):
-        try:
-            os.killpg(pid, signal.SIGKILL)
-        except OSError:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except OSError:
-                pass
-    print(f"[{label}] 已停止 pid={pid}")
-
-
-def stop_servers(label: str) -> None:
-    path = _servers_path(label)
-    if not path.is_file():
-        print(f"[{label}] 没有记录中的服务进程")
-        return
-    try:
-        payload = json.loads(path.read_text("utf-8"))
-    except (OSError, ValueError):
-        return
-    for name in ("homeos", "store"):
-        record = payload.get(name) or {}
-        pid = int(record.get("pid") or 0)
-        if pid:
-            _stop_pid(pid, f"{label}/{name}")
-    path.unlink(missing_ok=True)
-
-
-def _start_process(label: str, name: str, command: list[str], cwd: Path,
-                   env: dict[str, str], health_url: str) -> dict[str, Any]:
-    log_dir = Path(load_env(label)["perfRoot"]) / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{label}-{name}.log"
-    log_file = log_path.open("wb")
-    started_at = time.time()
-    process = subprocess.Popen(
-        command, cwd=str(cwd), env=env, stdout=log_file, stderr=subprocess.STDOUT,
-        start_new_session=True,
-    )
-    try:
-        timeout = float(os.environ.get("PERF_STARTUP_TIMEOUT_SECONDS", "120"))
-        deadline = time.time() + timeout
-        ok = False
-        while time.time() < deadline:
-            if process.poll() is not None:
-                break
-            ok, _ = wait_url(health_url, timeout_seconds=min(2.0, max(0.2, deadline - time.time())))
-            if ok:
-                break
-        if not ok:
-            raise RuntimeError(f"{name} 在 {timeout:.0f}s 内未就绪")
-    except Exception as exc:
-        process.terminate()
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
-        log_file.close()
-        raise RuntimeError(f"{name} 启动失败，日志：{log_path}\n{tail(log_path)}") from exc
-    ready_at = time.time()
-    wall_ms = (ready_at - started_at) * 1000.0
-    print(f"[{label}/{name}] pid={process.pid} 启动 {wall_ms:.1f} ms，日志 {log_path}")
-    log_file.close()
-    return {
-        "pid": process.pid,
-        "startedAt": started_at,
-        "readyAt": ready_at,
-        "wallMs": round(wall_ms, 2),
-        "log": str(log_path),
-        "healthUrl": health_url,
-    }
-
-
-def start_servers(label: str) -> dict[str, Any]:
-    env_data = load_env(label)
-    homeos = env_data["homeos"]
-    store = env_data["store"]
-    for name, port in (("homeos", homeos["port"]), ("store", store["port"])):
-        if _port_open("127.0.0.1", int(port)):
-            raise SystemExit(f"{name} 端口 {port} 已被占用；先停止旧实例或换端口")
-    base_env = os.environ.copy()
-    # 本机 DSH 环境带 http(s)_proxy 且 NO_PROXY 含 "[::1]"，httpx 0.28.1 解析会抛
-    # InvalidURL: Invalid port ':1]'；隔离实例不需要出网代理，统一剥掉。
-    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
-                "http_proxy", "https_proxy", "all_proxy", "no_proxy"):
-        base_env.pop(key, None)
-    homeos_env = {
-        **base_env,
-        "HOMEOS_DATA_DIR": homeos["dataDir"],
-        "HOMEOS_FRONTEND_DIR": homeos["frontendDir"],
-        "HOMEOS_HOST": "127.0.0.1",
-        "PORT": str(homeos["port"]),
-        "LICENSE_REQUIRED": "0",
-        "HOMEOS_RELOAD": "0",
-        "HOMEOS_SHUTDOWN_TIMEOUT": "5",
-        "LOG_LEVEL": "WARNING",
-        "PYTHONPATH": str(SOURCE_ROOT / "homeos" / "backend"),
-    }
-    store_env = {
-        **base_env,
-        "STORE_DATA_DIR": store["dataDir"],
-        "STORE_SHELL_DIR": store["shellDir"],
-        "STORE_STATIC_DIR": store["staticDir"],
-        "STORE_HOST": "127.0.0.1",
-        "STORE_PORT": str(store["port"]),
-        "STORE_MAIL_MODE": "log",
-        "STORE_RELOAD": "0",
-        "PYTHONPATH": str(SOURCE_ROOT / "homeos-store" / "backend"),
-    }
-    python = env_data["python"]
-    homeos_record = _start_process(
-        label, "homeos", [python, "-m", "src.run"], SOURCE_ROOT / "homeos" / "backend",
-        homeos_env, f"http://127.0.0.1:{homeos['port']}/health/ready",
-    )
-    store_record = _start_process(
-        label, "store", [python, "-m", "src.run"], SOURCE_ROOT / "homeos-store" / "backend",
-        store_env, f"http://127.0.0.1:{store['port']}/healthz",
-    )
-    payload = {
-        "label": label,
-        "startedAt": time.time(),
-        "homeos": homeos_record,
-        "store": store_record,
-    }
-    write_json(_servers_path(label), payload)
-    return payload
-
-
-def _ensure_servers(label: str, *, serve_only: bool = False) -> dict[str, Any]:
-    path = _servers_path(label)
-    if path.is_file():
-        try:
-            payload = json.loads(path.read_text("utf-8"))
+            counts[kind] = float(line.rsplit(" ", 1)[-1])
         except ValueError:
-            payload = {}
-        healthy = True
-        for name, port in (("homeos", load_env(label)["homeos"]["port"]),
-                           ("store", load_env(label)["store"]["port"])):
-            record = payload.get(name) or {}
-            if not _port_open("127.0.0.1", int(port)):
-                healthy = False
-                break
-            if record.get("pid") and not _pid_alive(int(record["pid"])):
-                healthy = False
-                break
-        if healthy:
-            print(f"[{label}] 复用运行中的隔离实例")
-            return payload
-        stop_servers(label)
-    payload = start_servers(label)
-    if serve_only:
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return payload
+            continue
+    return counts or None
 
 
-def _measure_endpoint(url: str, cookie: str, *, warmup: int, sequential: int,
-                      concurrent_requests: int, with_db: bool, metrics_url: str) -> dict[str, Any]:
-    for _ in range(warmup):
-        http_get(url, cookie=cookie)
-
-    db_before = scrape_metrics(metrics_url) if with_db else {}
-    sequential_samples: list[float] = []
-    sequential_errors = 0
-    sequential_bytes = 0
-    sequential_statuses: dict[int, int] = {}
-    for _ in range(sequential):
-        result = http_get(url, cookie=cookie)
-        sequential_samples.append(result["elapsed_ms"])
-        sequential_bytes += result["bytes"]
-        sequential_statuses[result["status"]] = sequential_statuses.get(result["status"], 0) + 1
-        if not result["ok"]:
-            sequential_errors += 1
-    db_after = scrape_metrics(metrics_url) if with_db else {}
-    db_delta = None
-    if with_db and db_before.get("ok") and db_after.get("ok"):
-        probe_count = max(1, sequential)
-        db_delta = {
-            "select": round((db_count(db_after, "select") - db_count(db_before, "select")) / probe_count, 4),
-            "write": round((db_count(db_after, "write") - db_count(db_before, "write")) / probe_count, 4),
-            "other": round((db_count(db_after, "other") - db_count(db_before, "other")) / probe_count, 4),
-            "total": round((db_total(db_after) - db_total(db_before)) / probe_count, 4),
-        }
-
-    started = time.perf_counter()
-    concurrent_samples: list[float] = []
-    concurrent_errors = 0
-    concurrent_bytes = 0
-    concurrent_statuses: dict[int, int] = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as executor:
-        futures = [executor.submit(http_get, url, cookie=cookie) for _ in range(concurrent_requests)]
-        for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            concurrent_samples.append(result["elapsed_ms"])
-            concurrent_bytes += result["bytes"]
-            concurrent_statuses[result["status"]] = concurrent_statuses.get(result["status"], 0) + 1
-            if not result["ok"]:
-                concurrent_errors += 1
-    wall = time.perf_counter() - started
-    return {
-        "sequential": {
-            **summarize(sequential_samples, wall_seconds=sum(sequential_samples) / 1000.0,
-                        errors=sequential_errors, bytes_total=sequential_bytes),
-            "statuses": sequential_statuses,
-        },
-        "concurrent": {
-            **summarize(concurrent_samples, wall_seconds=wall,
-                        errors=concurrent_errors, bytes_total=concurrent_bytes),
-            "statuses": concurrent_statuses,
-            "workers": CONCURRENCY,
-        },
-        "db_per_request": db_delta,
-    }
+def total_statements(counts: dict[str, float] | None) -> float | None:
+    if counts is None:
+        return None
+    return sum(counts.values())
 
 
-def measure(label: str, servers: dict[str, Any], *, tag: str = "") -> dict[str, Any]:
-    env_data = load_env(label)
-    homeos = env_data["homeos"]
-    store = env_data["store"]
-    cookie = str(homeos["token"])
-    homeos_base = f"http://127.0.0.1:{homeos['port']}"
-    store_base = f"http://127.0.0.1:{store['port']}"
-    project_id = homeos["projectId"]
-    homeos_endpoints = [
-        ("health_ready", "/health/ready", False),
-        ("public_config", "/api/v1/public/config", False),
-        ("index", "/", False),
-        ("projects", "/api/v1/projects", True),
-        ("project_draft", f"/api/v1/projects/{project_id}/draft", True),
-        ("project_revision", f"/api/v1/projects/{project_id}/revision", True),
-        ("assets_version", "/api/v1/assets/version", True),
-        ("assets_builtin", "/api/v1/assets/builtin", True),
-        ("assets_user", "/api/v1/assets/user", True),
-        ("ha_entities", "/api/v1/ha/entities?limit=500", True),
-    ]
-    store_endpoints = [
-        ("healthz", "/healthz", False),
-        ("index", "/", False),
-        ("products", "/store/v1/products", False),
-        ("features", "/store/v1/features", False),
-    ]
-    metrics_url = f"{homeos_base}/metrics"
-    measure_started = time.time()
-    before_process = {
-        "homeos": process_snapshot(int(servers["homeos"]["pid"])),
-        "store": process_snapshot(int(servers["store"]["pid"])),
-    }
-    metrics_before = scrape_metrics(metrics_url)
+@dataclass
+class Sample:
+    """单次请求的可观测结果。"""
 
-    endpoints: dict[str, Any] = {"homeos": [], "store": []}
-    for name, path, auth in homeos_endpoints:
-        print(f"[{label}] homeos {name} ...", flush=True)
-        endpoints["homeos"].append({
-            "name": name,
-            "path": path,
-            "auth": auth,
-            **_measure_endpoint(
-                homeos_base + path, cookie if auth else "",
-                warmup=WARMUP_REQUESTS, sequential=SEQUENTIAL_REQUESTS,
-                concurrent_requests=CONCURRENT_REQUESTS, with_db=True, metrics_url=metrics_url,
-            ),
-        })
-    for name, path, auth in store_endpoints:
-        print(f"[{label}] store {name} ...", flush=True)
-        endpoints["store"].append({
-            "name": name,
-            "path": path,
-            "auth": auth,
-            **_measure_endpoint(
-                store_base + path, cookie if auth else "",
-                warmup=WARMUP_REQUESTS, sequential=SEQUENTIAL_REQUESTS,
-                concurrent_requests=CONCURRENT_REQUESTS, with_db=False, metrics_url="",
-            ),
-        })
+    elapsed_ms: float
+    status: int
+    body_bytes: int
 
-    after_process = {
-        "homeos": process_snapshot(int(servers["homeos"]["pid"])),
-        "store": process_snapshot(int(servers["store"]["pid"])),
-    }
-    metrics_after = scrape_metrics(metrics_url)
 
-    def resource_delta(name: str) -> dict[str, Any]:
-        before = before_process[name]
-        after = after_process[name]
-        elapsed = max(0.001, time.time() - measure_started)
-        cpu = max(0.0, float(after.get("cpu_seconds", 0)) - float(before.get("cpu_seconds", 0)))
+@dataclass
+class EndpointResult:
+    name: str
+    path: str
+    sequential: list[Sample] = field(default_factory=list)
+    concurrent: list[Sample] = field(default_factory=list)
+    db_statements_per_request: float | None = None
+    error_statuses: dict[str, int] = field(default_factory=dict)
+
+    def _summary(self, samples: list[Sample], wall_seconds: float) -> dict[str, Any]:
+        latencies = [sample.elapsed_ms for sample in samples]
+        if not latencies:
+            return {"count": 0}
+        body = [sample.body_bytes for sample in samples]
         return {
-            "before": before,
-            "after": after,
-            "cpu_seconds_delta": round(cpu, 3),
-            "rss_kb_delta": int(after.get("rss_kb", 0)) - int(before.get("rss_kb", 0)),
-            "cpu_utilization_pct": round(cpu / elapsed * 100.0, 2) if elapsed > 0 else 0.0,
+            "count": len(latencies),
+            "p50_ms": round(percentile(latencies, 0.50), 3),
+            "p95_ms": round(percentile(latencies, 0.95), 3),
+            "p99_ms": round(percentile(latencies, 0.99), 3),
+            "max_ms": round(max(latencies), 3),
+            "mean_ms": round(statistics.fmean(latencies), 3),
+            "rps": round(len(latencies) / wall_seconds, 1) if wall_seconds > 0 else 0.0,
+            "body_bytes_mean": round(statistics.fmean(body)) if body else 0,
         }
 
-    result = {
-        "label": label,
-        "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "environment": {
-            "homeos": {"port": homeos["port"], "dataDir": homeos["dataDir"],
-                        "frontendDir": homeos["frontendDir"], "projectId": project_id,
-                        "sceneId": homeos["sceneId"]},
-            "store": {"port": store["port"], "dataDir": store["dataDir"],
-                       "shellDir": store["shellDir"]},
-            "concurrency": CONCURRENCY,
-            "sequentialRequests": SEQUENTIAL_REQUESTS,
-            "concurrentRequests": CONCURRENT_REQUESTS,
-        },
-        "startup": {
-            "homeos_wall_ms": servers["homeos"]["wallMs"],
-            "store_wall_ms": servers["store"]["wallMs"],
-            "homeos_reported_ms": metrics_before.get("values", {}).get("homeos_startup_duration_ms"),
-            "boot_import_ms": metrics_before.get("values", {}).get("homeos_boot_import_ms"),
-            "phases_ms": {
-                key.split('phase="')[-1].rstrip('"}').rstrip('"'): value
-                for key, value in metrics_before.get("values", {}).items()
-                if key.startswith("homeos_startup_phase_duration_ms")
+    def payload(self, sequential_wall: float, concurrent_wall: float) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "path": self.path,
+            "sequential": self._summary(self.sequential, sequential_wall),
+            "concurrent": {
+                **self._summary(self.concurrent, concurrent_wall),
+                "db_statements_per_request": (
+                    round(self.db_statements_per_request, 2) if self.db_statements_per_request is not None else None
+                ),
             },
-        },
-        "endpoints": endpoints,
-        "resources": {
-            "homeos": resource_delta("homeos"),
-            "store": resource_delta("store"),
-            "elapsed_s": round(time.time() - float(servers["startedAt"]), 2),
-        },
-        "app_metrics": {
-            "before": {k: v for k, v in metrics_before.items() if k != "values"},
-            "after": {k: v for k, v in metrics_after.items() if k != "values"},
-            "loop_lag": {
-                "p50": metrics_after.get("values", {}).get('homeos_event_loop_lag_ms{quantile="p50"}'),
-                "p99": metrics_after.get("values", {}).get('homeos_event_loop_lag_ms{quantile="p99"}'),
-                "max": metrics_after.get("values", {}).get('homeos_event_loop_lag_ms{quantile="max"}'),
-                "samples": metrics_after.get("values", {}).get("homeos_event_loop_lag_samples"),
-            },
-            "db_before": {k: v for k, v in metrics_before.get("values", {}).items()
-                          if k.startswith("homeos_db_queries_total")},
-            "db_after": {k: v for k, v in metrics_after.get("values", {}).items()
-                         if k.startswith("homeos_db_queries_total")},
-            "http": {k: v for k, v in metrics_after.get("values", {}).items()
-                     if k.startswith("homeos_http_request_duration_seconds")},
-        },
-    }
-    output = result_dir(label) / ("backend.json" if not tag else f"backend-{tag}.json")
-    # import 归因放在所有延迟测量之后：它要额外 spawn 一个 Python 进程，不应污染 p50/p95。
-    try:
-        result["import_attribution"] = collect_import_attribution(label)
-    except Exception as error:  # 归因失败不应让整轮测量作废
-        result["import_attribution"] = {"error": str(error)[:500]}
-        print(f"[{label}] import 归因失败：{error}")
-    write_json(output, result)
-    print(f"[{label}] 后端结果：{output}")
-    return result
+            "non_2xx": self.error_statuses,
+        }
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--label", required=True)
-    parser.add_argument("--serve-only", action="store_true")
-    parser.add_argument("--stop", action="store_true")
-    parser.add_argument("--no-start", action="store_true")
-    parser.add_argument("--tag", default="", help="结果文件名后缀：backend-<tag>.json")
+def run_sequential(
+    client: httpx.Client, base_url: str, path: str, count: int, headers: dict[str, str]
+) -> tuple[list[Sample], float]:
+    samples: list[Sample] = []
+    for _ in range(count):
+        started = time.perf_counter()
+        try:
+            response = client.get(f"{base_url}{path}", headers=headers)
+            elapsed = (time.perf_counter() - started) * 1000
+            samples.append(Sample(elapsed, response.status_code, len(response.content)))
+        except httpx.HTTPError:
+            samples.append(Sample((time.perf_counter() - started) * 1000, 0, 0))
+    return samples, 0.0
+
+
+def run_concurrent(
+    base_url: str, path: str, total: int, concurrency: int, headers: dict[str, str], cookie: str
+) -> tuple[list[Sample], float]:
+    """多线程打同一个端点。每个线程一条连接，避免连接池上限把并发压成串行。"""
+    samples: list[Sample] = []
+    lock = threading.Lock()
+
+    def worker(rounds: int) -> None:
+        # httpx.Client 不是线程安全的共享对象：每线程一个，连接复用只发生在同一线程内。
+        local_headers = dict(headers)
+        if cookie:
+            local_headers["Cookie"] = cookie
+        with httpx.Client(timeout=30.0) as client:
+            for _ in range(rounds):
+                started = time.perf_counter()
+                try:
+                    response = client.get(f"{base_url}{path}", headers=local_headers)
+                    elapsed = (time.perf_counter() - started) * 1000
+                    item = Sample(elapsed, response.status_code, len(response.content))
+                except httpx.HTTPError:
+                    item = Sample((time.perf_counter() - started) * 1000, 0, 0)
+                with lock:
+                    samples.append(item)
+
+    per_thread = max(1, total // max(1, concurrency))
+    started = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        list(pool.map(worker, [per_thread] * concurrency))
+    return samples, time.perf_counter() - started
+
+
+def parse_endpoint(raw: str) -> tuple[str, str]:
+    """`/api/v1/projects=projects` → (path, name)；只给路径时用路径当名字。"""
+    if "=" in raw:
+        path, name = raw.split("=", 1)
+        return path.strip(), name.strip() or path.strip()
+    return raw.strip(), raw.strip()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="HomeOS 后端端点基线采集")
+    parser.add_argument("--base-url", default="http://127.0.0.1:18801")
+    parser.add_argument("--label", default="latest", help="结果子目录名（before / after-1101 …）")
+    parser.add_argument("--out", default="", help="结果文件路径；留空用 ops/perf/results/<label>/")
+    parser.add_argument(
+        "--endpoint",
+        action="append",
+        default=[],
+        metavar="PATH[=NAME]",
+        help="要测的端点，可重复",
+    )
+    parser.add_argument("--cookie", default="", help="登录 Cookie（形如 auth_token=…）")
+    parser.add_argument("--warmup", type=int, default=20)
+    parser.add_argument("--sequential", type=int, default=100)
+    parser.add_argument("--concurrency-total", type=int, default=200)
+    parser.add_argument("--concurrency", type=int, default=32)
     args = parser.parse_args()
-    if args.stop:
-        stop_servers(args.label)
-        return
-    servers = _ensure_servers(args.label, serve_only=args.serve_only)
-    if args.serve_only:
-        return
-    if args.no_start:
-        for name in ("homeos", "store"):
-            if not _port_open("127.0.0.1", int(load_env(args.label)[name]["port"])):
-                raise SystemExit(f"{name} 未运行")
-    measure(args.label, servers, tag=args.tag)
+
+    endpoints = [parse_endpoint(raw) for raw in args.endpoint] or [parse_endpoint("/health/ready=health")]
+    headers = {"Accept-Encoding": "gzip, zstd"}
+    if args.cookie:
+        headers["Cookie"] = args.cookie
+
+    # 预热也走真实请求：首个请求要付 import / 连接 / 页面缓存冷启动，留在正式采样里
+    # 会把 p99 拉成"冷启动耗时"，与稳态尾延迟混为一谈。
+    readiness = httpx.Client(timeout=30.0)
+    for path, _name in endpoints:
+        try:
+            readiness.get(f"{args.base_url}{path}", headers=headers)
+        except httpx.HTTPError as error:
+            print(f"警告：预热失败 {path}: {error}", file=sys.stderr)
+    readiness.close()
+
+    results: list[dict[str, Any]] = []
+    console = httpx.Client(timeout=30.0)
+    for path, name in endpoints:
+        result = EndpointResult(name=name, path=path)
+        for _ in range(max(0, args.warmup)):
+            try:
+                console.get(f"{args.base_url}{path}", headers=headers)
+            except httpx.HTTPError:
+                break
+
+        before = read_db_query_counts(console, args.base_url)
+        seq_wall_start = time.perf_counter()
+        result.sequential, _ = run_sequential(console, args.base_url, path, max(0, args.sequential), headers)
+        seq_wall = time.perf_counter() - seq_wall_start
+        after_seq = read_db_query_counts(console, args.base_url)
+
+        result.concurrent, conc_wall = run_concurrent(
+            args.base_url,
+            path,
+            max(0, args.concurrency_total),
+            max(1, args.concurrency),
+            headers,
+            args.cookie,
+        )
+        after_all = read_db_query_counts(console, args.base_url)
+
+        # SQL 数只在顺序段计算：并发段的计数被其它线程交错，除以请求数没有意义。
+        baseline, seq_end = total_statements(before), total_statements(after_seq)
+        if baseline is not None and seq_end is not None and result.sequential:
+            result.db_statements_per_request = (seq_end - baseline) / len(result.sequential)
+
+        for sample in result.sequential + result.concurrent:
+            if sample.status < 200 or sample.status >= 300:
+                key = str(sample.status)
+                result.error_statuses[key] = result.error_statuses.get(key, 0) + 1
+
+        results.append(result.payload(seq_wall, conc_wall))
+        print(
+            f"{name:<28} 顺序 p50/p95/p99 "
+            f"{result.sequential and round(percentile([s.elapsed_ms for s in result.sequential], 0.5), 2)}/"
+            f"{round(percentile([s.elapsed_ms for s in result.sequential], 0.95), 2) if result.sequential else 0}/"
+            f"{round(percentile([s.elapsed_ms for s in result.sequential], 0.99), 2) if result.sequential else 0}ms"
+            f"  并发 p95 "
+            f"{round(percentile([s.elapsed_ms for s in result.concurrent], 0.95), 2) if result.concurrent else 0}ms"
+            f"  SQL/req {result.db_statements_per_request if result.db_statements_per_request is None else round(result.db_statements_per_request, 2)}"
+            f"  non-2xx {result.error_statuses or '{}'}",
+            flush=True,
+        )
+        _ = after_all
+    console.close()
+
+    payload = {
+        "label": args.label,
+        "base_url": args.base_url,
+        "measured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "config": {
+            "warmup": args.warmup,
+            "sequential": args.sequential,
+            "concurrency_total": args.concurrency_total,
+            "concurrency": args.concurrency,
+        },
+        "endpoints": results,
+    }
+    out_path = (
+        Path(args.out) if args.out else REPO_ROOT / "ops" / "perf" / "results" / args.label / "bench_backend.json"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"已写入 {out_path.relative_to(REPO_ROOT) if out_path.is_relative_to(REPO_ROOT) else out_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

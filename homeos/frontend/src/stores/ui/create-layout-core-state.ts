@@ -2,7 +2,7 @@
 import { ref, reactive } from 'vue'
 import type { UILayoutConfig } from '@/shared/types/layout'
 import { getDefaultLayout } from '@/stores/defaults'
-import { readStoredProfileId } from '@/stores/ui/create-layout-state'
+import { readStoredProfileId, writeProfileHintCookie } from '@/stores/ui/create-layout-state'
 import { createLayoutDirtyTracking } from '@/stores/ui/create-layout-dirty-tracking'
 import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
@@ -21,6 +21,9 @@ export function createLayoutCoreState() {
 
   // 当前激活方案 ID（从 localStorage 读取，默认 'default'）
   const activeProfileId = ref(readStoredProfileId())
+  // 冷启动时补一次方案提示 Cookie：Cookie 可能因清理/过期丢失，而 localStorage 还在，
+  // 内嵌页反代要靠它知道本终端在显示哪份方案。
+  writeProfileHintCookie(activeProfileId.value)
   // 方案列表加载中标志
   const isProfilesLoading = ref(false)
   // 方案列表加载失败文案

@@ -229,6 +229,20 @@ class Settings:
         return f"sqlite:///{self.database_path}"
 
     @property
+    def telemetry_database_path(self) -> Path:
+        """遥测库路径（与主库同目录）。拆库理由见 ``platform.core.db.telemetry``。"""
+        override = os.getenv("HOMEOS_TELEMETRY_DATABASE_URL", "").strip()
+        if override.startswith("sqlite:///"):
+            raw = override[len("sqlite:///") :]
+            if raw and raw != ":memory:":
+                return Path(raw)
+        return self.database_path.with_name("homeos-telemetry.db")
+
+    @property
+    def telemetry_database_url(self) -> str:
+        return f"sqlite:///{self.telemetry_database_path}"
+
+    @property
     def secrets_dir(self) -> Path:
         return self.data_dir / "secrets"
 

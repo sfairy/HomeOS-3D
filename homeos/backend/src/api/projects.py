@@ -26,10 +26,13 @@ from ..domains.studio3d.cleanup import (
     require_current_binding_references,
 )
 from ..domains.ui_config.global_popups import (
+    GLOBAL_POPUP_STATE_ID,
+    apply_popups_to_document,
     clear_popup_references,
     global_popup_state,
     global_popups,
     hydrate_document_popups,
+    parse_popups_json,
     strip_document_popups,
 )
 from ..modules.interaction3d.access import (
@@ -284,37 +287,77 @@ def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request
     background_tasks.add_task(request.app.state.studio_ha.refresh_persistent_entity_ids, ensure_states=False)
 
 
+def select_draft_with_popups(project_id: str):
+    """构造「草稿行 + 全局弹窗状态行」的单条查询。
+
+    两行没有外键关系（弹窗状态是全局单行表），所以用显式 onclause 的 LEFT JOIN：
+    弹窗行不存在时后两列为 NULL，调用方按 `global_popup_state()` 的默认值
+    （revision=1 / `[]`）处理。抽出成模块级函数是为了让测试能对着同一条 SQL 断言
+    "一次查询、且不触发写事务"，而不是复制一份 join 条件去测一个不存在的实现。
+    """
+    return (
+        select(
+            ProjectDraft.schema_version,
+            ProjectDraft.revision,
+            ProjectDraft.document_json,
+            ProjectDraft.updated_at,
+            GlobalCustomPopupState.revision.label('popup_revision'),
+            GlobalCustomPopupState.popups_json,
+        )
+        .outerjoin(GlobalCustomPopupState, GlobalCustomPopupState.id == GLOBAL_POPUP_STATE_ID)
+        .where(ProjectDraft.project_id == project_id)
+    )
+
+
 @router.get('/{project_id}/draft', response_model=None)
 async def get_project_draft(project_id: str, request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict | Response:
     await request.app.state.license_service.confirm_binding()
     require_viewer_project(viewer, project_id)
-    def _load_draft_payload() -> tuple[ProjectDraft | None, dict | None, int, str]:
-        draft = database.get(ProjectDraft, project_id)
-        if draft is None:
-            return None, None, 0, ''
-        popup_revision = global_popup_state(database).revision
-        # 校验器只依赖修订号等稳定字段，命中时完全不解析 30~40KB 的 document_json。
-        etag = make_etag(
-            'project-draft', project_id, draft.schema_version, draft.revision,
-            popup_revision, draft.updated_at)
-        if request_etag_matches(request, etag):
-            return draft, None, popup_revision, etag
-        document = hydrate_document_popups(database, json.loads(draft.document_json))
-        return draft, document, popup_revision, etag
 
-    draft, document, popup_revision, draft_etag = await run_db(_load_draft_payload)
-    if draft is None:
+    def _load_draft_response() -> tuple[int, bytes, str]:
+        """读库 + 组装 + 序列化，一整段都在 `run_db` 的线程里跑。
+
+        三处与旧实现的差别（都只影响成本，不影响字节）：
+        1. **一条 SELECT**：草稿行与全局弹窗状态行用 LEFT JOIN 一次取回。旧实现是两次
+           `database.get`，第二次（`global_popup_state`）在行缺失时还会 **INSERT + flush**
+           —— 一个 GET 草稿的请求因此可能产生写事务。
+        2. **不深拷贝整篇文档**：`document_json` 是本次请求刚解析出来的临时对象，
+           直接原地挂上 `customPopups` 即可（`apply_popups_to_document` 只深拷贝弹窗本身）。
+        3. **序列化也在这里做**：`json.dumps(..., separators=(',', ':'))` 与 Starlette
+           `JSONResponse` 的渲染参数逐字一致，但省掉了 FastAPI `jsonable_encoder` 对
+           30~40KB 文档的递归类型巡检，而且不会把这段 CPU 留在事件循环线程上。
+        """
+        row = database.execute(select_draft_with_popups(project_id)).first()
+        if row is None:
+            return 404, b'', ''
+        # 弹窗状态行不存在时按 `global_popup_state()` 会创建出来的默认值处理，且不写库。
+        popup_revision = int(row.popup_revision or 1)
+        etag = make_etag(
+            'project-draft', project_id, row.schema_version, row.revision,
+            popup_revision, row.updated_at)
+        if request_etag_matches(request, etag):
+            return 304, b'', etag
+        try:
+            document = json.loads(row.document_json)
+        except (TypeError, ValueError) as error:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='仪表盘草稿已损坏，请从备份恢复。') from error
+        payload = {
+            'projectId': project_id,
+            'schemaVersion': row.schema_version,
+            'revision': row.revision,
+            'globalPopupRevision': popup_revision,
+            'document': apply_popups_to_document(document, parse_popups_json(row.popups_json)),
+            'updatedAt': row.updated_at.isoformat() if row.updated_at is not None else None}
+        body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+        return 200, body, etag
+
+    status_code, body, draft_etag = await run_db(_load_draft_response)
+    if status_code == 404:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-    if document is None:
+    if status_code == 304:
         return not_modified(draft_etag)
     set_private_revalidate(response, draft_etag)
-    return {
-        'projectId': project_id,
-        'schemaVersion': draft.schema_version,
-        'revision': draft.revision,
-        'globalPopupRevision': popup_revision,
-        'document': document,
-        'updatedAt': draft.updated_at}
+    return Response(content=body, media_type='application/json', headers=dict(response.headers))
 
 
 @router.get('/{project_id}/revision')

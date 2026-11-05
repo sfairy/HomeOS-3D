@@ -6,6 +6,11 @@
  * （`ensureHls`）；页面文档确实含 HLS 摄像头组件时，由 `prewarmCameraMedia` 触发空闲预取
  * （`prefetchHlsOnIdle`），因此无摄像头页面完全不请求该脚本，有摄像头的页面仍能在首帧前拿到播放器。
  *
+ * 用的是 **light 构建**（1.7.4，380KB → gzip 约 115KB；full 构建 609KB）：
+ * light 去掉的是字幕 / 备用音轨 / EME(DRM) / CMCD —— 本项目的摄像头流只用最基本的
+ * m3u8 + TS/fMP4 播放，四个特性一个都没用到。若将来要接带字幕的录像回放，
+ * 必须换回 full 构建（见 `docs/perf` 的字节预算），否则 `Hls.subtitleTracks` 会不存在。
+ *
  * 约定：
  * - 模块级单例 Promise：并发调用只注入一次 <script>，成功后直接返回 window.Hls。
  * - 失败不缓存（loadPromise 置空），网络恢复后下一次调用可重试。
@@ -16,9 +21,11 @@ import type HlsJs from 'hls.js'
 
 export type HlsCtor = typeof HlsJs
 
-const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.3/hls.min.js'
+/** 与 `package.json` 的 hls.js 版本、`public/static/vendor/hls.js/<version>/` 目录三者一致。 */
+const HLS_SCRIPT_VERSION = '1.7.4'
+const HLS_SCRIPT_SRC = `/static/vendor/hls.js/${HLS_SCRIPT_VERSION}/hls.light.min.js`
 /**
- * 0.8.4：Safari / iOS 原生就能播 m3u8。命中时**完全不要**下载 620KB 的 hls.js ——
+ * 0.8.4：Safari / iOS 原生就能播 m3u8。命中时**完全不要**下载 380KB 的 hls.js ——
  * 上游是 `window.Hls || video.canPlayType(mime)` 先行短路，这里把这一步单独导出，
  * 让 `camera-media` 直接把流地址交给 `<video src>`，失败文案才统一成播放器加载失败。
  */
@@ -33,8 +40,6 @@ export function canPlayNativeHls(videoElement?: HTMLVideoElement | null): boolea
     return false
   }
 }
-/** 与 public/static/vendor/hls.js/<version> 目录同步；升级时同时改版本号与脚本 URL。 */
-const HLS_SCRIPT_VERSION = '1.7.3'
 const HLS_SCRIPT_SELECTOR = `script[data-homeos-hls="${HLS_SCRIPT_VERSION}"]`
 /** requestIdleCallback 的兜底超时：空闲回调迟迟不来时也要发起预取。 */
 const HLS_PREFETCH_IDLE_TIMEOUT_MS = 3000

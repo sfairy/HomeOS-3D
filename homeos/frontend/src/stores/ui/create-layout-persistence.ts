@@ -12,7 +12,7 @@
  *  依赖 config API、auth store、defaults、tablet 性能模式、HA URL 校验等。
  */
 import { nextTick, type Ref } from 'vue'
-import { fetchProject, saveProject, setActiveProject } from '@/services/api/config'
+import { fetchProject, saveProject } from '@/services/api/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { getDefaultLayout } from '@/stores/defaults'
 import { NAV_TAB_ORDER_DEFAULT, normalizeEmbedNavTabLayoutFields } from '@/shared/utils/layout/nav-tabs.util'
@@ -24,11 +24,12 @@ import {
   getApiErrorMessage,
   isConflictError,
   isLicenseInactiveError,
+  isProfileMissingError,
   isUnauthorizedError,
 } from '@/shared/utils/core/error-message'
 import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
 import type { NotifyType } from '@/shared/types/notify'
-import { KNOWN_PANEL_WIDGET_TYPES } from './create-layout-state'
+import { KNOWN_PANEL_WIDGET_TYPES, writeStoredProfileId } from './create-layout-state'
 import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/shared/utils/registry/widget-registry-meta'
 import { ensureDoorbellList } from '@/shared/utils/layout/doorbell.util'
 import { normalizeSecurityCameras } from '@/shared/utils/layout/security-cameras.util'
@@ -397,11 +398,9 @@ export function createLayoutPersistence({
    * 箭头函数把成功路径埋在中间（也让长度 / 圈复杂度棘轮不必为它让步）。
    * 竞态保护留在调用点：requestId 与方案都未变化才算有效响应。
    * @param payload 接口返回的 data.data
-   * @param profile 发起请求时的方案 ID
    */
   function applyLoadedProjectPayload(
     payload: { layout?: unknown; layoutParseError?: boolean; updatedAt?: string } | undefined,
-    profile: string,
   ): void {
     // JSON 损坏容错：提示用户并回退空布局
     if (payload?.layoutParseError) {
@@ -416,25 +415,26 @@ export function createLayoutPersistence({
 
     isConfigLoaded.value = true
     applyTabletDefaultPerformanceMode(layoutConfig)
-    void setActiveProject(profile).catch((e: unknown) => {
-      const caughtMessage = e instanceof Error ? e.message : String(e)
-      logger.warn(`同步激活方案失败: ${caughtMessage}`)
-    })
+    // 这里**不能**顺手把 «本次加载的方案» 写成全局后台默认方案：多终端各自显示不同方案时，
+    // 每台设备每次打开都会把全局值改一遍，后台任务（AI / 通知 / 安防事件 / 内嵌代理）
+    // 就会在不同方案间来回跳。后台默认方案只在两处改动：单终端部署下自动跟随该终端
+    // （见后端 ``_adopt_server_default_if_sole_terminal``），或设置页显式指定。
     if (onAfterLoad) void onAfterLoad()
     // 布局加载完成后同步一次远程访问地址给原生端（外网漫游取回入口）
     void syncServerAccessToNative(String(layoutConfig.externalUrl ?? ''))
   }
 
   /**
-   * 加载失败的错误分级（401 / 未激活 / 其他）。
+   * 加载失败的错误分级（401 / 未激活 / 方案已被删除 / 其他）。
    *
    * 只有「其他」才把异常继续向上抛：App.vue 的 watch 是 fire-and-forget，抛出会变成
    * unhandledrejection 被 client-log 当成前端异常上报；401 已由 api-client 统一处理
    * （清登录态 + 跳登录页），这里只安静降级。
    * @param err 捕获到的异常
-   * @param requestId 本次请求的序号（过期请求的错误直接丢弃）
+   * @param requestId 本次请求的序号，过期请求的错误直接丢弃
+   * @param profileAtStart 发起请求时的方案 ID（判断回退是否已经到底）
    */
-  function handleLoadConfigError(err: unknown, requestId: number): void {
+  function handleLoadConfigError(err: unknown, requestId: number, profileAtStart: string): void {
     if (requestId !== loadConfigRequestId) return
     if (isLicenseInactiveError(err)) {
       logger.debug('商业授权未激活,跳过 UI 配置加载')
@@ -445,6 +445,19 @@ export function createLayoutPersistence({
       logger.debug('登录状态已失效，跳过 UI 配置加载（已交由认证流程处理）')
       isConfigLoaded.value = false
       applyTabletDefaultPerformanceMode(layoutConfig)
+      return
+    }
+    // 方案在别的终端被删掉了：本地缓存 / 云端绑定还指着一个不存在的 id。
+    // 若不在这里回退，页面会停在「加载失败」，且一保存就会把这个方案重新创建出来。
+    if (profileAtStart !== 'default' && isProfileMissingError(err)) {
+      logger.warn(`显示方案 "${profileAtStart}" 已不存在，回退 default`)
+      notify(`显示方案 "${profileAtStart}" 已被删除，已回退到默认方案`, 'warning', 6000)
+      activeProfileId.value = 'default'
+      writeStoredProfileId('default')
+      isConfigLoaded.value = false
+      void loadConfig().catch(() => {
+        /* 回退加载失败会由 loadConfig 自己提示 */
+      })
       return
     }
     logger.error('加载UI配置失败', err)
@@ -504,9 +517,9 @@ export function createLayoutPersistence({
             if (requestId !== loadConfigRequestId || activeProfileId.value !== profileAtStart) {
               return
             }
-            applyLoadedProjectPayload(res.data?.data, profileAtStart)
+            applyLoadedProjectPayload(res.data?.data)
           } catch (err) {
-            handleLoadConfigError(err, requestId)
+            handleLoadConfigError(err, requestId, profileAtStart)
           } finally {
             // 仅当当前请求仍为最新时才重置加载状态
             if (requestId === loadConfigRequestId) {

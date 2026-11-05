@@ -45,17 +45,29 @@ function isEditableFieldValue(fieldKey: string, value: unknown): boolean {
 }
 
 /**
+ * 把后端响应归一成「可按键遍历的对象」。
+ * 空响应（后端重启窗口内代理回空体）不是有键的对象：直接给空对象，
+ * 否则 `Object.keys(null)` 会抛 TypeError 顶掉整个加载流程。
+ */
+function asConfigRecord(data: unknown): Record<string, unknown> {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return {}
+  return data as Record<string, unknown>
+}
+
+/**
  * 把 SystemConfig 转换为可编辑分节视图
  *
  * 跳过 _ 前缀字段、非对象、数组、EXCLUDED_SECTIONS 与未在字段白名单内的字段；
  * 密码字段若为掩码则标记 isMasked。
  *
- * @param data - 后端返回的 SystemConfig。
- * @returns 可编辑分节数组；无可编辑字段时分节为空。
+ * @param data - 后端返回的 SystemConfig；可能为空（后端重启窗口内代理回空体）。
+ * @returns 可编辑分节数组；无可编辑字段或配置为空时分节为空。
  */
-export function toEditableSections(data: SystemConfig | Record<string, unknown>): EditableConfigSection[] {
+export function toEditableSections(
+  data: SystemConfig | Record<string, unknown> | null | undefined,
+): EditableConfigSection[] {
   const sections: EditableConfigSection[] = []
-  const record = data as Record<string, unknown>
+  const record = asConfigRecord(data)
   for (const key of Object.keys(record)) {
     if (key.startsWith('_')) continue
     const rawValue = record[key]

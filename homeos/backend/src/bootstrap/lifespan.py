@@ -13,15 +13,14 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 
-from homeos_shared.schema_core import mark_clean_shutdown
-
-from . import studio3d_plane
 from .agent_services import build_agent_shared_state
 from .energy_wiring import (
     make_energy_attrs_provider,
     make_energy_bindings_provider,
     make_energy_primary_provider,
 )
+from .shutdown import record_lifecycle_failure as _record_lifecycle_failure
+from .shutdown import shutdown_all
 from ..config import Settings
 
 if TYPE_CHECKING:
@@ -101,6 +100,31 @@ from ..realtime.gateway import RealtimeGateway
 from ..realtime.state_store import StateStore
 
 logger = logging.getLogger("homeos.app")
+
+#: 3D Studio 后端平面模块的惰性句柄（见 ``_studio3d_plane``）。
+_studio3d_plane_module: Any = None
+
+
+def _studio3d_plane() -> Any:
+    """按需导入 ``bootstrap.studio3d_plane``。
+
+    `studio3d_plane` 连带 `api.studio3d` 的路由与 3D 数据面装配，是本文件里最贵的
+    一个顶层依赖（暖 pyc 实测累计约 200ms，占 `import src.app` 的近一半）。它只在
+    lifespan 的装配/停机两个点被调用，所以改成调用点导入：
+
+    - `import src.app` / `import src.bootstrap.lifespan` 不再替它付导入成本 —— 测试、
+      CI 的 import diet 断言、静态工具都走这条路径；
+    - 线上 wall 不变：``install()`` 仍在启动期调用它（省的是模块导入，不是装配）。
+
+    与 `.agent_services` 的区别：那几个服务对象在 `_StartupContext` 里有类型引用，
+    只能靠 ``TYPE_CHECKING`` + 局部导入；本模块只在函数体里用，句柄可以整体延后。
+    """
+    global _studio3d_plane_module
+    if _studio3d_plane_module is None:
+        from . import studio3d_plane
+
+        _studio3d_plane_module = studio3d_plane
+    return _studio3d_plane_module
 
 
 def _parallel_startup_enabled() -> bool:
@@ -237,46 +261,6 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
 SHUTDOWN_TIMEOUT = 5.0
 
 
-async def _shutdown(
-    what: str,
-    stopper: Callable[[], Awaitable[Any]],
-    *,
-    event_log: Any = None,
-) -> None:
-    """停机一个组件：超时/异常只记日志，绝不打断停机流程。
-
-    旧写法是十几段复制粘贴的 `try: await asyncio.wait_for(x.stop(), timeout=5) except
-    Exception: pass`，两个问题：
-
-    1. `pass` 把失败彻底吞掉 —— 停机为什么慢、哪个组件卡住，日志里一点痕迹都没有；
-    2. 地震那组把四个组件塞进同一个 `try`，第一个失败会让后面三个**根本不执行**。
-    """
-    try:
-        await asyncio.wait_for(stopper(), SHUTDOWN_TIMEOUT)
-    except TimeoutError:
-        logger.warning("%s停机超时（%ss），已放弃等待", what, SHUTDOWN_TIMEOUT)
-        await _record_lifecycle_failure(event_log, what, f"{what}停机超时（{SHUTDOWN_TIMEOUT}s），已放弃等待")
-    except Exception as exc:
-        logger.warning("%s停机失败：%s", what, exc)
-        await _record_lifecycle_failure(event_log, what, f"{what}停机失败: {exc}")
-
-
-async def _record_lifecycle_failure(event_log: Any, what: str, message: str) -> None:
-    """生命周期故障留痕：进程日志 + 全局日志（用户能在「系统后台」里看到）。
-
-    走 ``append_async``：停机路径上写日志不能同步占住事件循环（此时其它组件正在等
-    超时，主循环被拖住会把 5s 的预算变成更长的假死）。写失败只降级成进程日志 ——
-    停机阶段的收尾日志永远不能反过来打断停机。
-    """
-    logger.warning("%s", message)
-    if event_log is None:
-        return
-    try:
-        await event_log.append_async("warning", "系统后台", "生命周期", message, context={"phase": what})
-    except Exception:
-        logger.debug("生命周期故障写入全局日志失败: %s", what, exc_info=True)
-
-
 def _pending() -> Any:
     """给「声明在类体、由启动阶段填入」的字段一个编译期占位值。
 
@@ -385,12 +369,22 @@ async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> No
     # 事件循环里跑：迁移条数多的版本会把整个 loop 卡住，此时连 /health 都读不到，
     # 前端看到的「后端未就绪」窗口被无谓拉长。下放线程池后 loop 仍可响应。
     await asyncio.to_thread(schema.prepare_schema, app_settings)
+    # 遥测库（时序表）紧随其后：建表 + 一次性把主库里的遗留表搬走（含 VACUUM）。
+    # 必须早于任何服务拿到 session_factory，否则第一批写入会落进主库。
+    from ..platform.core.db.telemetry import prepare_telemetry
+
+    await asyncio.to_thread(prepare_telemetry, app_settings)
 
 
 async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     """启动第一阶段：数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
     app_settings = startup.app_settings
     app.state.database = Database(app_settings.database_url)
+    # 遥测库（时序）单独一个 Engine：写锁不再与业务写入互斥。schema 已在前一阶段
+    # prepare_telemetry 建好，这里只负责打开连接。
+    from ..platform.core.db.telemetry import create_telemetry_database
+
+    app.state.telemetry_database = create_telemetry_database(app_settings)
     app.state.settings = app_settings
     app.state.version = startup.version
     app.state.started_at = time.monotonic()
@@ -425,7 +419,7 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
 
     # 3D Studio 后端平面：必须早于下方 HA 块，以把 ``app.state.ha_connector``
     # 指向 3D HA 连接器本身。
-    await studio3d_plane.install(app, app_settings, app.state.database)
+    await _studio3d_plane().install(app, app_settings, app.state.database)
 
     # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
     database_retention = DatabaseRetentionService(app.state.database.session_factory, app_config, jobs=app.state.jobs)
@@ -967,12 +961,18 @@ def _build_agent_automation(
     from ..domains.agent.runtime.web_search import AgentWebSearchService
 
     session_factory = app.state.database.session_factory
+    # 时序表在遥测库里（见 platform.core.db.telemetry）；缺省回落到主库，
+    # 保证单测 / 未装配遥测库的场景仍能工作。
+    telemetry_session_factory = getattr(
+        getattr(app.state, "telemetry_database", None), "session_factory", None
+    )
 
     agent_timeline = AgentTimelineService(
         session_factory,
         startup.state_store,
         enrichment=app.state.entity_area,
         event_bus=startup.security_bus,
+        telemetry_session_factory=telemetry_session_factory,
     )
     agent_timeline.bind_events()
     app.state.agent_timeline = agent_timeline
@@ -1298,88 +1298,9 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
 
 
-async def _shutdown_agent_automation(app: FastAPI, shutdown: Callable[..., Awaitable[Any]]) -> None:
-    """停止看门狗与计划任务（先停巡检，避免停机过程中再触发设备控制）。"""
-    for service, label in (
-        (getattr(app.state, "agent_watchdog", None), "看门狗"),
-        (getattr(app.state, "agent_scheduler", None), "计划任务"),
-    ):
-        if service is not None:
-            await shutdown(label, service.stop)
-
-
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
-    """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
-    loop_lag = getattr(app.state, "loop_lag", None)
-    event_log = getattr(app.state, "global_log", None)
-
-    async def shutdown(what: str, stopper: Callable[[], Awaitable[Any]]) -> None:
-        # 统一带上全局日志：停机失败既要进进程日志，也要让用户在「系统后台」看得到。
-        await _shutdown(what, stopper, event_log=event_log)
-
-    if loop_lag is not None:
-        await shutdown("事件循环延迟采样", loop_lag.stop)
-    await shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
-    await shutdown("授权服务", startup.license_service.stop)
-    await shutdown("数据库保留调度", startup.database_retention.stop_schedule)
-    await shutdown("外部 API", startup.external_api.stop)
-    for service, label in (
-        (startup.presence, "在场检测"),
-        (startup.mmwave, "毫米波"),
-        (startup.away_sim, "离家模拟"),
-    ):
-        await shutdown(label, service.stop)
-    await shutdown("家庭模式", startup.home_mode.stop)
-    proactive = getattr(app.state, "agent_proactive", None)
-    if proactive is not None:
-        await shutdown("主动管家", proactive.stop)
-    await _shutdown_agent_automation(app, shutdown)
-    await shutdown("通知", startup.notification.stop)
-    channels_service = getattr(app.state, "channels_service", None)
-    if channels_service is not None:
-        await shutdown("消息通道", channels_service.stop)
-    for service, label in (
-        (startup.catalog_notify, "目录通知"),
-        (startup.eew_poll, "地震预警轮询"),
-        (startup.earthquake, "地震服务"),
-        (startup.eew_leader, "地震预警主节点"),
-    ):
-        await shutdown(label, service.stop)
-    for service, label in (
-        (startup.weather_watch, "天气监视"),
-        (startup.advisor_usage, "顾问用量"),
-    ):
-        await shutdown(label, service.stop)
-    await shutdown("HA 连接器", startup.ha_connector.stop)
-    await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
-    # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
-    from ..api.ha.proxy import close_shared_media_clients
-
-    await shutdown("媒体代理连接池", close_shared_media_clients)
-    await shutdown("事件日志刷盘", startup.event_log_service.flush)
-    # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志
-    # 会滞留在内存队列里丢掉。
-    if event_log is not None:
-        await shutdown("全局日志刷盘", lambda: asyncio.to_thread(event_log.close, 5.0))
-    startup.auto_backup.stop()
-    # 调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
-    # 否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，
-    # 超时则不 dispose（进程即将退出，交给 OS 回收），避免制造 use-after-dispose。
-    dispose_database = True
-    coordinator = getattr(app.state, "business_backup", None)
-    if coordinator is not None:
-        try:
-            await asyncio.wait_for(coordinator.wait_idle(), 10.0)
-        except TimeoutError:
-            dispose_database = False
-            logger.warning("备份作业仍在执行，跳过数据库 dispose 以免中途释放连接")
-    database = getattr(app.state, "database", None)
-    if database is not None and dispose_database:
-        database.dispose()
-        # 收尾真跑完（含 WAL 归并）才落「干净关闭」标记：下次启动据此只做 quick_check。
-        # dispose 被跳过时（备份线程还在跑）不落标记 —— 那种收尾本来就不算干净，
-        # 下次启动必须逐页全查。
-        mark_clean_shutdown(startup.app_settings.database_path)
+    """停机全部组件（编排见 ``bootstrap.shutdown``）。"""
+    await shutdown_all(app, startup, studio3d_plane=_studio3d_plane_module)
 
 
 @asynccontextmanager

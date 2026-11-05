@@ -1,513 +1,247 @@
-#!/usr/bin/env node
+// @ts-check
 /**
- * 前端首屏 / 交互实验室测量。
+ * 前端冷加载采集：LCP / FCP / CLS / Long Task / 传输字节 / 资源清单。
  *
- * 用系统 Microsoft Edge（playwright-core，无需下载浏览器）在隔离实例上测：
- * - LCP / CLS / TBT 近似 / long task / Event Timing（INP 的实验室代理）
- * - CDP Network encoded bytes 与 PerformanceResourceTiming
- * - JS heap、DOM/iframe/canvas 数量
- * - 固定视口截图，供 compare_screenshots.py 做视觉回归
+ * 为什么用 PerformanceObserver 而不是 Lighthouse
+ * ----------------------------------------------
+ * - Lighthouse 需要联网装包，且它的分数是个加权产物，改一个字节也会抖动，无法用来判定
+ *   "这次改动到底省了多少字节"；
+ * - 这里只用浏览器原生 API：`encodedBodySize` / `transferSize` 是**确定性**的（同构建逐字节
+ *   相同），CLS 在多次采样同向时才采信，LCP 自带 11%~20% 的漂移（见 docs/perf 的噪声纪律）。
  *
- * 这不是真机数据；真机平板指标仍需在目标设备上补测。
+ * 用法
+ * ----
+ * ```bash
+ * node ops/perf/harness/bench_frontend.mjs --url http://127.0.0.1:18801/ --label before
+ * node ops/perf/harness/bench_frontend.mjs --url http://127.0.0.1:18802/store --label before \
+ *      --throttle slow4g --cpu 4 --runs 3
+ * ```
+ * 结果写到 `ops/perf/results/<label>/bench_frontend.json`。没有浏览器时退出 3（跳过）。
  */
-import { createRequire } from 'node:module'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import process from 'node:process'
+import { SKIP_EXIT_CODE, openBrowserPage } from './cdp.mjs'
 
-const require = createRequire(import.meta.url)
-const { chromium } = require('playwright-core')
-const PERF_ROOT = process.env.HOMEOS_PERF_ROOT || '/tmp/homeos-perf'
+const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..')
 
-const args = process.argv.slice(2)
-function argValue(name) {
-  const index = args.indexOf(name)
-  return index >= 0 ? args[index + 1] : ''
+/** @returns {Record<string, string | boolean>} */
+function parseArgs(argv) {
+  /** @type {Record<string, string | boolean>} */
+  const out = {}
+  for (let index = 2; index < argv.length; index += 1) {
+    const token = argv[index]
+    if (!token.startsWith('--')) continue
+    const key = token.slice(2)
+    const next = argv[index + 1]
+    if (next === undefined || next.startsWith('--')) out[key] = true
+    else {
+      out[key] = next
+      index += 1
+    }
+  }
+  return out
 }
-const label = argValue('--label') || 'before'
-const routeFilter = argValue('--routes')
-  .split(',')
-  .map((item) => item.trim())
-  .filter(Boolean)
-const envPath = join(PERF_ROOT, 'env', label, 'env.json')
-const env = JSON.parse(readFileSync(envPath, 'utf8'))
-const homeosBase = `http://127.0.0.1:${env.homeos.port}`
-const storeBase = `http://127.0.0.1:${env.store.port}`
-const outDir = join(PERF_ROOT, 'results', label)
-const shotDir = join(outDir, 'screenshots')
-mkdirSync(shotDir, { recursive: true })
 
-const initScript = `
-(() => {
-  const state = window.__homeosPerf = {
-    startedAt: performance.now(),
-    lcp: 0,
-    lcpElement: "",
-    lcpUrl: "",
-    cls: 0,
-    longtasks: [],
-    events: [],
-    interactions: [],
-    paint: {},
-    errors: [],
-    resourceCount: 0,
-  };
-  // 把 LCP 元素描述成可复用的选择器，便于把「首屏最大元素」与 3D/DOM 结构对上号。
-  const describeElement = (element) => {
-    if (!element || !element.tagName) return "";
-    const parts = [element.tagName.toLowerCase()];
-    if (element.id) parts.push("#" + element.id);
-    const classes = String(element.className || "").split(/\\s+/).filter(Boolean).slice(0, 3);
-    if (classes.length) parts.push("." + classes.join("."));
-    if (element.getAttribute) {
-      const role = element.getAttribute("role");
-      if (role) parts.push('[role="' + role + '"]');
-    }
-    return parts.join("");
-  };
-  const observe = (type, callback, extra) => {
-    try {
-      const observer = new PerformanceObserver((list) => callback(list.getEntries()));
-      observer.observe({ type, buffered: true, ...(extra || {}) });
-    } catch (error) {
-      state.errors.push(String(error));
-    }
-  };
-  observe("largest-contentful-paint", (entries) => {
-    for (const entry of entries) {
-      if (entry.startTime >= state.lcp) {
-        state.lcp = entry.startTime;
-        state.lcpElement = describeElement(entry.element);
-        state.lcpUrl = entry.url || "";
+/**
+ * 观测器：必须注入到**每个新文档**执行前。导航之后再注入会漏掉首屏的 LCP 候选与
+ * 早期 layout-shift —— 它们只在页面生命周期内累积，之后无法补读。
+ */
+const OBSERVER_SOURCE = `(() => {
+  if (window.__perfState) return;
+  const perf = { lcp: 0, lcpElement: '', fcp: 0, cls: 0, longTasks: [], shifts: [] };
+  window.__perfState = perf;
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        perf.lcp = entry.startTime;
+        const element = entry.element;
+        perf.lcpElement = element ? (element.tagName || '').toLowerCase() + (element.id ? '#' + element.id : '') : '';
       }
-    }
-  });
-  observe("layout-shift", (entries) => {
-    for (const entry of entries) if (!entry.hadRecentInput) state.cls += entry.value;
-  });
-  observe("longtask", (entries) => {
-    for (const entry of entries) state.longtasks.push({ start: entry.startTime, duration: entry.duration });
-  });
-  // Event Timing：保留 interactionId，才能按「真实交互」分组算 INP（同一交互的多个事件不重复计）。
-  observe("event", (entries) => {
-    for (const entry of entries) {
-      state.events.push({
-        name: entry.name,
-        start: entry.startTime,
-        duration: entry.duration,
-        interactionId: entry.interactionId || 0,
-      });
-    }
-  }, { durationThreshold: 16 });
-  observe("paint", (entries) => {
-    for (const entry of entries) state.paint[entry.name] = entry.startTime;
-  });
-  window.addEventListener("error", (event) => {
-    state.errors.push(String(event.message || event.error || "error"));
-  }, true);
-
-  // 合成交互延迟：输入事件派发 -> 连续 rAF 之间的时间差。
-  // 这是实验室代理，不等同真机 INP；真机 INP 仍需目标设备采集。
-  window.__homeosPerfBeginInteraction = () => {
-    const interaction = { start: performance.now(), frames: [], selector: "" };
-    state.interaction = interaction;
-    const tick = () => {
-      if (state.interaction !== interaction) return;
-      interaction.frames.push(performance.now());
-      if (interaction.frames.length < 8) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-    return interaction.start;
-  };
-  window.__homeosPerfEndInteraction = (selector) => {
-    const interaction = state.interaction;
-    if (!interaction) return null;
-    state.interaction = null;
-    if (selector) interaction.selector = selector;
-    // total 必须由采样窗口内的帧时间戳推出，不能用调用本函数的时间：
-    // 调用方为了等满 8 帧会先 sleep，那个 sleep 不是交互延迟。
-    const lastFrame = interaction.frames.length ? interaction.frames[interaction.frames.length - 1] : null;
-    state.interactions.push({
-      selector: interaction.selector,
-      start: interaction.start,
-      total: lastFrame === null ? null : Number((lastFrame - interaction.start).toFixed(2)),
-      firstFrame: interaction.frames.length ? Number((interaction.frames[0] - interaction.start).toFixed(2)) : null,
-      frameCount: interaction.frames.length,
-    });
-    return state.interactions[state.interactions.length - 1];
-  };
-})();
-`
-
-function routeDefinitions() {
-  return [
-    { name: 'home', url: homeosBase + '/', auth: true, settleMs: 7000, screenshot: true },
-    {
-      name: 'display',
-      url: homeosBase + '/display/' + encodeURIComponent(env.homeos.projectId),
-      auth: true,
-      settleMs: 9000,
-      screenshot: true,
-    },
-    { name: 'login', url: homeosBase + '/login', auth: false, settleMs: 1500, screenshot: true },
-    { name: 'store-home', url: storeBase + '/', auth: false, settleMs: 2000, screenshot: true },
-  ]
-}
-
-function makeNetworkTracker(cdp) {
-  const tracker = { encodedBytes: 0, byType: {}, responses: 0, statuses: {}, requests: 0, failed: 0 }
-  const requestTypes = new Map()
-  cdp.on('Network.requestWillBeSent', () => {
-    tracker.requests += 1
-  })
-  cdp.on('Network.responseReceived', (event) => {
-    tracker.responses += 1
-    const status = event.response?.status || 0
-    tracker.statuses[status] = (tracker.statuses[status] || 0) + 1
-    requestTypes.set(event.requestId, event.type || 'Other')
-  })
-  cdp.on('Network.loadingFinished', (event) => {
-    const bytes = event.encodedDataLength || 0
-    tracker.encodedBytes += bytes
-    const type = requestTypes.get(event.requestId) || 'Other'
-    tracker.byType[type] = (tracker.byType[type] || 0) + bytes
-  })
-  cdp.on('Network.loadingFailed', () => {
-    tracker.failed += 1
-  })
-  return tracker
-}
-
-function summarizeDurations(values) {
-  if (!values.length) return { count: 0, max: 0, p95: 0, total: 0 }
-  const ordered = [...values].sort((a, b) => a - b)
-  const pick = (pct) => ordered[Math.min(ordered.length - 1, Math.round((pct / 100) * (ordered.length - 1)))]
-  return {
-    count: values.length,
-    max: Number(ordered[ordered.length - 1].toFixed(2)),
-    p95: Number(pick(95).toFixed(2)),
-    total: Number(values.reduce((sum, value) => sum + value, 0).toFixed(2)),
-  }
-}
-
-async function readMetrics(page, cdp, net, consoleErrors, requestFailures) {
-  let cdpMetrics = {}
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+  } catch {}
   try {
-    const result = await cdp.send('Performance.getMetrics')
-    cdpMetrics = Object.fromEntries(result.metrics.map((metric) => [metric.name, metric.value]))
-  } catch {
-    // Performance domain 在极老的浏览器上可能不可用，保留 0 而不是伪造。
-  }
-  const payload = await page.evaluate(() => {
-    const state = window.__homeosPerf || {}
-    const navigation = performance.getEntriesByType('navigation')[0]
-    const resources = performance.getEntriesByType('resource')
-    const byInitiator = {}
-    let transferBytes = 0
-    let encodedBodyBytes = 0
-    for (const entry of resources) {
-      const type = entry.initiatorType || 'other'
-      byInitiator[type] = (byInitiator[type] || 0) + (entry.transferSize || 0)
-      transferBytes += entry.transferSize || 0
-      encodedBodyBytes += entry.encodedBodySize || 0
-    }
-    // 渲染阻塞资源：ResourceTiming 的 renderBlockingStatus（Chrome 107+）。
-    const firstPaint = state.paint && state.paint['first-contentful-paint'] ? state.paint['first-contentful-paint'] : 0
-    const blockingResources = resources
-      .filter((entry) => entry.renderBlockingStatus === 'blocking')
-      .map((entry) => ({
-        url: entry.name,
-        start: Number((entry.startTime || 0).toFixed(2)),
-        duration: Number((entry.duration || 0).toFixed(2)),
-        transferSize: entry.transferSize || 0,
-        beforeFcp: firstPaint ? entry.startTime < firstPaint : null,
-      }))
-      .sort((a, b) => b.duration - a.duration)
-    // 最慢请求：定位首屏关键路径上的长耗时资源（含 API）。
-    const slowestResources = [...resources]
-      .sort((a, b) => (b.duration || 0) - (a.duration || 0))
-      .slice(0, 10)
-      .map((entry) => ({
-        url: entry.name,
-        initiatorType: entry.initiatorType || 'other',
-        start: Number((entry.startTime || 0).toFixed(2)),
-        duration: Number((entry.duration || 0).toFixed(2)),
-        transferSize: entry.transferSize || 0,
-      }))
-    return {
-      url: location.href,
-      title: document.title,
-      lcp: Number(state.lcp || 0),
-      lcpElement: state.lcpElement || '',
-      lcpUrl: state.lcpUrl || '',
-      cls: Number(state.cls || 0),
-      longtasks: state.longtasks || [],
-      events: state.events || [],
-      interactions: state.interactions || [],
-      paint: state.paint || {},
-      errors: state.errors || [],
-      blockingResources,
-      slowestResources,
-      navigation: navigation
-        ? {
-            ttfb: Number(navigation.responseStart || 0),
-            domContentLoaded: Number(navigation.domContentLoadedEventEnd || 0),
-            load: Number(navigation.loadEventEnd || 0),
-            duration: Number(navigation.duration || 0),
-            transferSize: Number(navigation.transferSize || 0),
-            encodedBodySize: Number(navigation.encodedBodySize || 0),
-            type: navigation.type,
-          }
-        : null,
-      resources: {
-        count: resources.length,
-        transferBytes,
-        encodedBodyBytes,
-        byInitiator,
-      },
-      dom: {
-        nodes: document.getElementsByTagName('*').length,
-        iframes: document.querySelectorAll('iframe').length,
-        canvases: document.querySelectorAll('canvas').length,
-        images: document.images.length,
-        scripts: document.scripts.length,
-      },
-      heap: performance.memory
-        ? {
-            usedJSHeapSize: performance.memory.usedJSHeapSize,
-            totalJSHeapSize: performance.memory.totalJSHeapSize,
-          }
-        : null,
-    }
-  })
-  const longtasks = payload.longtasks.map((entry) => entry.duration)
-  const events = payload.events.map((entry) => entry.duration)
-  // INP：按 interactionId 取每次交互的最长事件，再取 p75 / p98（与 Web Vitals 口径一致的高分位）。
-  const perInteraction = new Map()
-  for (const entry of payload.events) {
-    const key = entry.interactionId || `e${entry.start}`
-    perInteraction.set(key, Math.max(perInteraction.get(key) || 0, entry.duration))
-  }
-  const interactionDurations = [...perInteraction.values()].sort((a, b) => a - b)
-  const percentile = (ordered, pct) =>
-    ordered.length
-      ? Number(ordered[Math.min(ordered.length - 1, Math.round((pct / 100) * (ordered.length - 1)))].toFixed(2))
-      : 0
-  const longTasksOver50 = longtasks.filter((duration) => duration > 50)
-  return {
-    ...payload,
-    lcp: Number(payload.lcp.toFixed(2)),
-    cls: Number(payload.cls.toFixed(4)),
-    longTasksOver50Count: longTasksOver50.length,
-    longTasksOver50TotalMs: Number(longTasksOver50.reduce((sum, duration) => sum + duration, 0).toFixed(1)),
-    longtasks: { ...summarizeDurations(longtasks), entries: payload.longtasks.slice(0, 50) },
-    events: { ...summarizeDurations(events), entries: payload.events.slice(0, 50) },
-    inp: {
-      interactionCount: interactionDurations.length,
-      p75: percentile(interactionDurations, 75),
-      p98: percentile(interactionDurations, 98),
-      max: interactionDurations.length ? Number(interactionDurations[interactionDurations.length - 1].toFixed(2)) : 0,
-    },
-    blockingResources: {
-      count: payload.blockingResources.length,
-      beforeFcp: payload.blockingResources.filter((entry) => entry.beforeFcp === true).length,
-      totalTransferBytes: payload.blockingResources.reduce((sum, entry) => sum + entry.transferSize, 0),
-      entries: payload.blockingResources.slice(0, 20),
-    },
-    slowestResources: payload.slowestResources,
-    syntheticInteraction: payload.interactions.length ? payload.interactions[payload.interactions.length - 1] : null,
-    network: {
-      cdpEncodedBytes: net.encodedBytes,
-      cdpByType: net.byType,
-      cdpResponses: net.responses,
-      cdpRequests: net.requests,
-      cdpFailed: net.failed,
-      cdpStatuses: net.statuses,
-      resourceTransferBytes: payload.resources.transferBytes,
-      resourceEncodedBodyBytes: payload.resources.encodedBodyBytes,
-      resourceCount: payload.resources.count,
-      resourceByInitiator: payload.resources.byInitiator,
-    },
-    consoleErrors,
-    requestFailures,
-    jsHeapUsedBytes: cdpMetrics.JSHeapUsedSize ?? payload.heap?.usedJSHeapSize ?? 0,
-    jsHeapTotalBytes: cdpMetrics.JSHeapTotalSize ?? payload.heap?.totalJSHeapSize ?? 0,
-  }
-}
-
-async function runRoute(browser, route) {
-  const context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1,
-    reducedMotion: 'reduce',
-    colorScheme: 'light',
-  })
-  if (route.auth) {
-    await context.addCookies([{ name: 'auth_token', value: env.homeos.token, url: homeosBase }])
-  }
-  const page = await context.newPage()
-  await page.addInitScript(initScript)
-  page.on('crash', () => {
-    console.error('[bench_frontend] page crashed:', route.name)
-  })
-  const consoleErrors = []
-  const requestFailures = []
-  page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500))
-  })
-  page.on('pageerror', (error) => consoleErrors.push(String(error).slice(0, 500)))
-  page.on('requestfailed', (request) => {
-    requestFailures.push({
-      url: request.url().slice(0, 500),
-      error: (request.failure()?.errorText || '').slice(0, 200),
-    })
-  })
-  const cdp = await context.newCDPSession(page)
-  await cdp.send('Network.enable')
-  await cdp.send('Performance.enable')
-  const net = makeNetworkTracker(cdp)
-
-  const result = { name: route.name, requestedUrl: route.url, cold: null, warm: null, screenshot: '' }
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) if (entry.name === 'first-contentful-paint') perf.fcp = entry.startTime;
+    }).observe({ type: 'paint', buffered: true });
+  } catch {}
   try {
-    await page.goto(route.url, { waitUntil: 'load', timeout: 60000 })
-  } catch (error) {
-    result.navigationError = String(error).slice(0, 1000)
-  }
-  try {
-    await page.waitForLoadState('networkidle', { timeout: 5000 })
-  } catch {
-    // 3D / 长轮询页面通常不会真正 networkidle；继续用固定 settle。
-  }
-  await page.waitForTimeout(route.settleMs)
-  result.cold = await readMetrics(page, cdp, net, consoleErrors.slice(-20), requestFailures.slice(-20))
-  if (route.screenshot) {
-    const shotPath = join(shotDir, `${route.name}.png`)
-    try {
-      await page.screenshot({ path: shotPath, fullPage: false })
-      result.screenshot = shotPath
-    } catch (error) {
-      result.screenshotError = String(error).slice(0, 500)
-    }
-  }
-
-  // 交互延迟：用 Playwright 的真实鼠标输入（CDP Input.dispatchMouseEvent，事件为 trusted），
-  // 才能同时拿到 Event Timing 的 interactionId（INP 口径）和 rAF 帧时间。
-  // 只在冷开页面（warm reload 之前）取一次，避免把弹窗/路由变化带进后续测量。
-  try {
-    const interacted = await page.evaluate(() => {
-      const x = Math.round(window.innerWidth / 2)
-      const y = Math.round(window.innerHeight / 2)
-      const target = document.elementFromPoint(x, y)
-      if (!target) return { skipped: 'no-element' }
-      const tag = target.tagName ? target.tagName.toLowerCase() : ''
-      // 锚点会导航，跳过；其余元素（卡片 / iframe / 空白容器）只触发本地处理器。
-      if (tag === 'a') return { skipped: 'anchor' }
-      const classes = String(target.className || '')
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 3)
-      const selector = [tag, target.id ? `#${target.id}` : '', classes.length ? `.${classes.join('.')}` : ''].join('')
-      window.__homeosPerfBeginInteraction()
-      return { selector, x, y }
-    })
-    if (interacted && !interacted.skipped) {
-      const urlBefore = page.url()
-      await page.mouse.move(interacted.x, interacted.y)
-      await page.mouse.down()
-      await page.mouse.up()
-      // 等满 8 帧的采样窗口（约 133 ms），再取记录值；不足时也不伪造。
-      await page.waitForTimeout(250)
-      result.syntheticInteraction = await page.evaluate(
-        (selector) => window.__homeosPerfEndInteraction(selector),
-        interacted.selector,
-      )
-      if (page.url() !== urlBefore) {
-        result.syntheticInteraction.navigatedTo = page.url()
-      }
-      // 交互发生在 cold 采样之后，因此 INP 必须重算一次才能包含这次真实输入。
-      const inpAfter = await page.evaluate(() => {
-        const events = window.__homeosPerf?.events || []
-        const perInteraction = new Map()
-        for (const entry of events) {
-          const key = entry.interactionId || `e${entry.duration}`
-          perInteraction.set(key, Math.max(perInteraction.get(key) || 0, entry.duration))
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        // 无用户输入的位移才算 CLS：有输入后的位移是交互反馈，不计入 Core Web Vitals
+        if (!entry.hadRecentInput) {
+          perf.cls += entry.value;
+          perf.shifts.push({
+            value: entry.value,
+            at: Math.round(entry.startTime),
+            sources: (entry.sources || []).map(
+              (source) => (source.node && source.node.tagName || '?').toLowerCase() + (source.node && source.node.id ? '#' + source.node.id : '')
+            )
+          });
         }
-        const ordered = [...perInteraction.values()].sort((a, b) => a - b)
-        const pick = (pct) =>
-          ordered.length
-            ? Number(ordered[Math.min(ordered.length - 1, Math.round((pct / 100) * (ordered.length - 1)))].toFixed(2))
-            : 0
-        return {
-          interactionCount: ordered.length,
-          p75: pick(75),
-          p98: pick(98),
-          max: ordered.length ? Number(ordered[ordered.length - 1].toFixed(2)) : 0,
-        }
-      })
-      if (result.cold) {
-        result.cold.inpBeforeInteraction = result.cold.inp
-        result.cold.inp = inpAfter
       }
-    } else {
-      result.syntheticInteraction = interacted || null
+    }).observe({ type: 'layout-shift', buffered: true });
+  } catch {}
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries())
+        perf.longTasks.push({ start: Math.round(entry.startTime), duration: Math.round(entry.duration) });
+    }).observe({ type: 'longtask', buffered: true });
+  } catch {}
+})();`
+
+const COLLECT_SOURCE = `(() => {
+  const perf = window.__perfState || {};
+  const navigation = performance.getEntriesByType('navigation')[0];
+  const resources = performance.getEntriesByType('resource').map((entry) => ({
+    // transferSize 为 0 的缓存命中也要留：否则「装了 SW 之后传输量看着像 0」会被误读成收益
+    name: new URL(entry.name, location.href).pathname,
+    initiatorType: entry.initiatorType,
+    encodedBodySize: entry.encodedBodySize,
+    transferSize: entry.transferSize,
+    duration: Math.round(entry.duration)
+  }));
+  const longTasks = perf.longTasks || [];
+  return {
+    lcp: Math.round(perf.lcp || 0),
+    lcpElement: perf.lcpElement || '',
+    fcp: Math.round(perf.fcp || 0),
+    cls: Number((perf.cls || 0).toFixed(4)),
+    longTaskTotal: longTasks.reduce((sum, task) => sum + task.duration, 0),
+    longTaskMax: longTasks.reduce((max, task) => Math.max(max, task.duration), 0),
+    longTaskCount: longTasks.length,
+    shifts: (perf.shifts || []).sort((a, b) => b.value - a.value).slice(0, 5),
+    encodedBodyTotal: resources.reduce((sum, item) => sum + item.encodedBodySize, 0),
+    transferTotal: resources.reduce((sum, item) => sum + item.transferSize, 0),
+    resourceCount: resources.length,
+    domNodes: document.querySelectorAll('*').length,
+    documentBytes: navigation ? navigation.transferSize : null,
+    resources: resources.sort((a, b) => b.transferSize - a.transferSize).slice(0, 40),
+    // 首屏 modulepreload 是外壳 HTML 里的静态声明，单独统计便于体积预算比对
+    modulepreload: Array.from(document.querySelectorAll('link[rel="modulepreload"]')).map((link) => link.href),
+    stylesheets: Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((link) => link.href),
+    // 开发服务器标记：Vite 未打包时每个模块都是一次请求，Slow4G 下 LCP 会比生产构建
+    // 高一个数量级（实测 store：开发 19.0s / 生产 2.2s）。拿它去比生产预算只会得到假红。
+    devServer: Boolean(
+      document.querySelector('script[src^="/@vite/client"]') ||
+        Array.from(document.querySelectorAll('script[type="module"][src]')).some((script) =>
+          /^\\/src\\/.+\\.(ts|tsx|vue)$/.test(new URL(script.src, location.href).pathname)
+        )
+    )
+  };
+})()`
+
+/** 缓存：同一进程内每轮都要重新注入，但 source 只算一次。 */
+let observerInstalledFor = ''
+
+async function main() {
+  const args = parseArgs(process.argv)
+  const url = String(args.url || 'http://127.0.0.1:18801/')
+  const label = String(args.label || 'latest')
+  const runs = Number(args.runs || 1)
+  const settleMs = Number(args.settle || 2500)
+  const throttle = String(args.throttle || 'none')
+  // 登录态：受保护路由（例如商店的账号页 / 主应用的 /display）没有它只会量到登录页。
+  const cookie = String(args.cookie || '')
+  const cpuRate = Number(args.cpu || 1)
+  const outPath = args.out
+    ? resolve(String(args.out))
+    : resolve(REPO_ROOT, 'ops', 'perf', 'results', label, 'bench_frontend.json')
+
+  const samples = []
+  /** @type {{browser: {close: () => void}, session: any} | null} */
+  let live = null
+  try {
+    for (let index = 0; index < runs; index += 1) {
+      // 每轮一个全新 profile 页面：上一轮的服务端/浏览器缓存会让第二轮"变快"，那不是冷启动
+      live?.session.close()
+      live?.browser.close()
+      live = await openBrowserPage({ viewport: { width: 1440, height: 900 }, cookie, url })
+      const { session } = live
+      await session.send('Page.addScriptToEvaluateOnNewDocument', { source: OBSERVER_SOURCE })
+      observerInstalledFor = url
+      if (throttle === 'slow4g') {
+        // 与 docs/perf 的历史口径一致：1.6 Mbps 下行 / 750 kbps 上行 / 150ms RTT
+        await session.send('Network.emulateNetworkConditions', {
+          offline: false,
+          latency: 150,
+          downloadThroughput: Math.round((1.6 * 1024 * 1024) / 8),
+          uploadThroughput: Math.round((750 * 1024) / 8),
+        })
+      }
+      if (cpuRate > 1) await session.send('Emulation.setCPUThrottlingRate', { rate: cpuRate })
+
+      const started = Date.now()
+      await session.navigate(url, 60_000)
+      // 等首屏稳定：LCP 只在出现更大元素时才更新，太早读取会拿到过小的候选
+      await new Promise((done) => setTimeout(done, settleMs))
+      const collected = await session.evaluate(COLLECT_SOURCE)
+      samples.push({ run: index + 1, wallMs: Date.now() - started, ...collected })
+      if (cpuRate > 1) await session.send('Emulation.setCPUThrottlingRate', { rate: 1 })
     }
-  } catch (error) {
-    result.syntheticInteractionError = String(error).slice(0, 500)
-  }
-
-  // 暖导航：同 context 再走一次，观察静态资源缓存与 API 条件请求的收益。
-  net.encodedBytes = 0
-  net.byType = {}
-  net.responses = 0
-  net.statuses = {}
-  net.requests = 0
-  net.failed = 0
-  try {
-    await page.reload({ waitUntil: 'load', timeout: 60000 })
-    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
-    await page.waitForTimeout(route.name === 'display' || route.name === 'home' ? 5000 : 1000)
-    result.warm = await readMetrics(page, cdp, net, consoleErrors.slice(-20), requestFailures.slice(-20))
-  } catch (error) {
-    result.warmError = String(error).slice(0, 1000)
-  }
-  await context.close()
-  return result
-}
-
-const routes = []
-let browserVersion = ''
-for (const route of routeDefinitions()) {
-  if (routeFilter.length && !routeFilter.includes(route.name)) continue
-  console.log(`[${label}] 前端 ${route.name} ...`)
-  // 每个路由独立浏览器：display 的 3D iframe 可能与上一个 context 的 WebGL 资源互相影响，
-  // 复用同一进程会导致 renderer 被回收后整轮测量中断；冷开计时从 goto 开始，不受启动开销影响。
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: ['--enable-precise-memory-info', '--disable-background-timer-throttling'],
-  })
-  if (!browserVersion) browserVersion = browser.version()
-  browser.on('disconnected', () => console.error('[bench_frontend] browser disconnected:', route.name))
-  try {
-    routes.push(await runRoute(browser, route))
-  } catch (error) {
-    routes.push({ name: route.name, requestedUrl: route.url, error: String(error).slice(0, 1000) })
   } finally {
-    await browser.close().catch(() => {})
+    live?.session.close()
+    live?.browser.close()
+  }
+  if (!samples.length) throw new Error(`采集失败（${observerInstalledFor || url}）`)
+
+  // 多轮采样取中位数：单轮 LCP 自身漂移可达 20%，中位数比"最后一轮"更能代表稳态
+  const median = (values) => {
+    const sorted = values.slice().sort((a, b) => a - b)
+    if (!sorted.length) return 0
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+  }
+  const summary = {
+    lcp: median(samples.map((item) => item.lcp)),
+    fcp: median(samples.map((item) => item.fcp)),
+    cls: Number(median(samples.map((item) => Math.round(item.cls * 10000))) / 10000),
+    longTaskTotal: median(samples.map((item) => item.longTaskTotal)),
+    longTaskMax: median(samples.map((item) => item.longTaskMax)),
+    encodedBodyTotal: median(samples.map((item) => item.encodedBodyTotal)),
+    transferTotal: median(samples.map((item) => item.transferTotal)),
+    resourceCount: median(samples.map((item) => item.resourceCount)),
+  }
+
+  // 「什么都没画」不等于「首屏极快」：没有任何 paint 条目时 LCP/FCP 都是 0，
+  // 直接写进结果就会得到「0ms / 上限 2600ms PASS」这种最危险的假绿。
+  // 记录器自己先说清楚，下游 check_perf_budget 才知道这是环境问题（跳过）而不是成绩。
+  const unpainted = samples.every((item) => !(item.fcp > 0) && !(item.lcp > 0))
+  // 开发服务器上来：Vite 未打包，模块请求数差两个数量级，毫秒指标与生产预算不可比。
+  const devServer = samples.every((item) => item.devServer === true)
+  const allowDev = args['allow-dev'] === true
+  let skipReason = null
+  if (unpainted) skipReason = '页面未渲染：没有任何 paint 条目（LCP/FCP=0），应用可能未挂载'
+  else if (devServer && !allowDev) {
+    skipReason = 'Vite 开发服务器（模块未打包）：毫秒指标不可与生产构建预算比较，改用后端端口的生产构建'
+  }
+
+  const payload = {
+    label,
+    url,
+    browser: live?.browser ? 'system' : 'unknown',
+    measured_at: new Date().toISOString(),
+    config: { runs, settleMs, throttle, cpuRate, devServer },
+    summary,
+    skip_reason: skipReason,
+    samples,
+  }
+  mkdirSync(dirname(outPath), { recursive: true })
+  writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`)
+  console.log(
+    `${label} ${new URL(url).pathname}  LCP ${summary.lcp}ms  FCP ${summary.fcp}ms  CLS ${summary.cls}  ` +
+      `LongTask ${summary.longTaskTotal}ms(max ${summary.longTaskMax})  ` +
+      `encoded ${summary.encodedBodyTotal}B  transfer ${summary.transferTotal}B`,
+  )
+  console.log(`已写入 ${outPath}`)
+  if (skipReason) {
+    console.error(`跳过：${skipReason}`)
+    process.exitCode = SKIP_EXIT_CODE
   }
 }
-const output = {
-  label,
-  generatedAt: new Date().toISOString(),
-  browser: {
-    name: 'chromium',
-    channel: 'msedge',
-    version: browserVersion,
-    viewport: '1440x900',
-    reducedMotion: 'reduce',
-  },
-  environment: { homeosBase, storeBase, projectId: env.homeos.projectId },
-  routes,
-}
-const outputPath = join(outDir, 'frontend.json')
-writeFileSync(outputPath, JSON.stringify(output, null, 2) + '\n')
-console.log(`[${label}] 前端结果：${outputPath}`)
+
+main().catch((error) => {
+  if (error?.message?.includes('找不到可用的浏览器')) process.exit(SKIP_EXIT_CODE)
+  console.error(error)
+  process.exit(1)
+})
