@@ -1,4 +1,4 @@
-"""T2 回归：企微回调必须拒绝过期报文并忽略重复 MsgId。
+"""企微回调必须拒绝过期报文并忽略重复 MsgId。
 
 背景（审计发现 T2-002）：`POST /api/v1/channels/wecom/callback` 验签通过后直接
 解密并派发，没有 timestamp 新鲜度校验，也没有 MsgId 去重。攻击者拿到一份历史

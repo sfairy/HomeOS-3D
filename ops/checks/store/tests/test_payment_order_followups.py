@@ -1,4 +1,4 @@
-"""T35 商店后续修复回归：DB 渠道 TTL 告警与未知发码用途。"""
+"""DB 渠道 TTL 告警与未知发码用途。"""
 
 from __future__ import annotations
 

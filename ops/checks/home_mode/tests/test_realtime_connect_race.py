@@ -1,4 +1,4 @@
-"""T2 回归：WS 握手期间断连（connect / disconnect 竞态）不得留下永久死 sid。
+"""WS 握手期间断连（connect / disconnect 竞态）不得留下永久死 sid。
 
 背景：socket.io 的 connect 与 disconnect 处理函数跑在**各自的 task** 里（engineio 对
 每个消息都走 start_background_task），所以已登录客户端「连上就断」（刷新页面、断网、

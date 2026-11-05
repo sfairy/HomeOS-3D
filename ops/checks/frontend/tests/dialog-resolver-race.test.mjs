@@ -1,5 +1,5 @@
 /**
- * T8：共享确认弹窗的 Promise 解析器竞态。
+ * 共享确认弹窗的 Promise 解析器竞态。
  *
  * confirm.ts / adminDialogs.ts 都用「模块级 resolver 变量 + Promise」把模态弹窗包装成
  * await。旧实现每次打开直接覆盖 resolver：上一次未结算的 Promise 被丢弃，调用方的
