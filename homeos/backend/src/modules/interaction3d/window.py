@@ -20,9 +20,6 @@ from urllib.parse import quote
 
 from fastapi import HTTPException, status
 
-#: 可开启的窗扇类型；``fixed`` 不在其中。
-MOVABLE_KINDS = frozenset({"sliding", "casement", "top-hung", "bottom-hung"})
-
 #: 窗扇模型身份的正则（与 :func:`window_model_id` 的产出保持一致）。
 WINDOW_MODEL_PATTERN = re.compile(r"window:[^:]+:[^:]+")
 

@@ -48,9 +48,6 @@ WRITE_DELAY_SECONDS = 2.0
 #: 文件版本。结构不兼容时整份丢弃（宁可从零开始，也不猜旧格式）。
 FILE_VERSION = 1
 
-#: 状态里允许出现的「运动中」方向。
-MOVING_STATES = frozenset({'opening', 'closing'})
-
 
 def number(value: Any) -> float | None:
     """读成 0–100 的有限浮点数；非数字 / 空串 / ``nan`` 一律 ``None``。"""

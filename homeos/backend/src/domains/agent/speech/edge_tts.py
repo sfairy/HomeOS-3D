@@ -91,8 +91,6 @@ RETRY_ATTEMPTS = 2
 RETRY_BACKOFF_SECONDS = 0.3
 #: 对冲延迟：首发这么久还没结果，就并发补发一次，谁先回来用谁
 HEDGE_DELAY_SECONDS = 2.5
-#: 单个候选最多并发几次（含首发）。只补一次：再差也还有外层重试
-HEDGE_ATTEMPTS = 2
 #: 取消慢任务时的等待上限。取消握手本身也可能卡住，死等会把对冲省下的时间赔回去
 CANCEL_GRACE_SECONDS = 0.5
 #: 单次合成的总预算（跨候选 / 对冲 / 重试），保证接口不会挂着等几十秒
