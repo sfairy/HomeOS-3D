@@ -141,17 +141,21 @@ _db_query_lock = threading.Lock()
 _db_query_counts: dict[str, int] = {"select": 0, "write": 0, "other": 0}
 
 
-def record_db_query(statement: str | None) -> None:
+def classify_statement(statement: str | None) -> str:
+    """语句分类：``select`` / ``write`` / ``other``（供计数与写事务指标共用）。"""
     keyword = ""
     if statement:
         stripped = statement.lstrip()
         keyword = stripped.split(None, 1)[0].upper() if stripped else ""
     if keyword in {"SELECT", "WITH", "EXPLAIN"}:
-        kind = "select"
-    elif keyword in {"INSERT", "UPDATE", "DELETE", "REPLACE"}:
-        kind = "write"
-    else:
-        kind = "other"
+        return "select"
+    if keyword in {"INSERT", "UPDATE", "DELETE", "REPLACE"}:
+        return "write"
+    return "other"
+
+
+def record_db_query(statement: str | None) -> None:
+    kind = classify_statement(statement)
     with _db_query_lock:
         _db_query_counts[kind] += 1
 
@@ -159,6 +163,66 @@ def record_db_query(statement: str | None) -> None:
 def get_db_query_counts() -> dict[str, int]:
     with _db_query_lock:
         return dict(_db_query_counts)
+
+
+# 写事务指标（Phase 0 观测：证明「每 flip 一次写事务」已变成「每批一次」）。
+#
+# 口径是**事务**而不是语句：SQLAlchemy 会话提交一次 = 一个写事务，里面可能有多条
+# INSERT（微批正是靠这个把 N 次事务压成 1 次）。`db_write_ms` 量的是「从会话最先
+# 出现脏对象到 commit 完成」的墙钟时间，含 flush 与 fsync —— 这才是调用方等待的部分。
+# 只统计**真正写过**的会话：纯读会话也会 commit，但它不是写路径。
+DB_WRITE_MS_BUCKETS: tuple[float, ...] = (1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 5000.0)
+
+_db_write_lock = threading.Lock()
+_db_write_tx_total = 0
+_db_write_ms_sum = 0.0
+#: 累积桶计数（Prometheus 语义：`le` 是「小于等于」，因此各桶单调不减、最后一桶=总数）。
+_db_write_bucket_counts: list[int] = [0] * len(DB_WRITE_MS_BUCKETS)
+
+
+def record_db_write_transaction(duration_ms: float) -> None:
+    """记录一个写事务的耗时（毫秒）。"""
+    value = max(0.0, float(duration_ms))
+    bucket_index = len(DB_WRITE_MS_BUCKETS) - 1
+    for index, boundary in enumerate(DB_WRITE_MS_BUCKETS):
+        if value <= boundary:
+            bucket_index = index
+            break
+    global _db_write_tx_total, _db_write_ms_sum
+    with _db_write_lock:
+        _db_write_tx_total += 1
+        _db_write_ms_sum += value
+        # 累积：这个样本要记进它落入的桶以及所有更大的桶
+        for index in range(bucket_index, len(DB_WRITE_MS_BUCKETS)):
+            _db_write_bucket_counts[index] += 1
+
+
+def get_db_write_snapshot() -> dict[str, object]:
+    """导出写事务快照（总数 / 累计耗时 / 各桶累积计数）。"""
+    with _db_write_lock:
+        return {
+            "total": _db_write_tx_total,
+            "sum_ms": _db_write_ms_sum,
+            "buckets": list(_db_write_bucket_counts),
+        }
+
+
+#: 状态翻转总数（每条进入时序表的状态变更算一次）。与时序写入同源：`record_ha_flip`
+#: 在 `_schedule` 里调用，因此「翻转数」与「实际会落库的记录数」口径一致，可用于
+#: 验算「每 flip 的写事务数」是否真的降到了 1/N。
+_ha_flip_lock = threading.Lock()
+_ha_flip_total = 0
+
+
+def record_ha_flip() -> None:
+    global _ha_flip_total
+    with _ha_flip_lock:
+        _ha_flip_total += 1
+
+
+def get_ha_flip_total() -> int:
+    with _ha_flip_lock:
+        return _ha_flip_total
 
 
 # HTTP 路由延迟直方图（Phase 4 观测）：按路由模板 / 方法 / 状态聚合，避免把路径参数
@@ -182,9 +246,7 @@ _http_lock = threading.Lock()
 _http_series: dict[tuple[str, str, str], list[float]] = {}
 
 
-def record_http_request(
-    route: str, method: str, status_code: int, seconds: float
-) -> None:
+def record_http_request(route: str, method: str, status_code: int, seconds: float) -> None:
     """记录一次 HTTP 请求耗时；route 已是路由模板而不是原始 path。"""
     if seconds < 0:
         return
@@ -210,7 +272,6 @@ def record_http_request(
 def get_http_metrics() -> dict[tuple[str, str, str], list[float]]:
     with _http_lock:
         return {key: list(value) for key, value in _http_series.items()}
-
 
 
 # 事件循环延迟采样（Phase 3 观测）：每 interval 秒测一次实际唤醒相对计划时间的偏差。
@@ -288,7 +349,7 @@ def record_ha_sync_fe_latency_samples(samples: Any) -> int:
             continue
         try:
             milliseconds = float(raw_ms)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             continue
         if stage not in FE_LATENCY_STAGES or not math.isfinite(milliseconds):
             continue
@@ -394,9 +455,11 @@ def _runtime_metric_lines(
     deferred_dropped: int,
     lag: LoopLagSnapshot,
     queries: dict[str, int],
+    db_write: dict[str, object] | None = None,
+    ha_flip_total: int | None = None,
 ) -> list[str]:
-    """运行期指标块：WS 过载丢弃 / 事件环延迟分位 / DB 语句计数。"""
-    return [
+    """运行期指标块：WS 过载丢弃 / 事件环延迟分位 / DB 语句与写事务 / 状态翻转。"""
+    lines = [
         "# HELP homeos_ha_ws_deferred_dropped_total HA WS deferred ingress events dropped under overload",
         "# TYPE homeos_ha_ws_deferred_dropped_total counter",
         f"homeos_ha_ws_deferred_dropped_total {deferred_dropped}",
@@ -414,6 +477,38 @@ def _runtime_metric_lines(
         f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
         f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
     ]
+
+    # 写事务指标：`db_write_tx_total` 与 `ha_flip_total` 一起用 —— 两者之比就是
+    # 「每个状态翻转花了几次写事务」，微批生效后这个比值应当从 ~1.0 降到 ~0.05。
+    writes = db_write if db_write is not None else get_db_write_snapshot()
+    buckets = list(writes.get("buckets") or [0] * len(DB_WRITE_MS_BUCKETS))
+    write_total = int(writes.get("total") or 0)
+    lines.extend(
+        [
+            "# HELP homeos_db_write_tx_total Committed write transactions (sessions that flushed rows)",
+            "# TYPE homeos_db_write_tx_total counter",
+            f"homeos_db_write_tx_total {write_total}",
+            "# HELP homeos_db_write_ms Write transaction wall time milliseconds (first dirty object → commit done)",
+            "# TYPE homeos_db_write_ms histogram",
+            *[
+                f'homeos_db_write_ms_bucket{{le="{boundary:g}"}} {int(buckets[index])}'
+                for index, boundary in enumerate(DB_WRITE_MS_BUCKETS)
+            ],
+            f'homeos_db_write_ms_bucket{{le="+Inf"}} {write_total}',
+            f"homeos_db_write_ms_sum {_metric_number(float(writes.get('sum_ms') or 0.0))}",
+            f"homeos_db_write_ms_count {write_total}",
+        ]
+    )
+
+    flips = get_ha_flip_total() if ha_flip_total is None else int(ha_flip_total)
+    lines.extend(
+        [
+            "# HELP homeos_ha_flip_total State changes recorded into the timeline (one per flip)",
+            "# TYPE homeos_ha_flip_total counter",
+            f"homeos_ha_flip_total {flips}",
+        ]
+    )
+    return lines
 
 
 def _base_metric_lines(
@@ -659,11 +754,7 @@ def decide_metrics_access(
         if not is_production:
             return "allow"
         return "allow" if is_loopback_remote_address(remote_address) else "not_found"
-    bearer = (
-        authorization_header[7:]
-        if authorization_header and authorization_header.startswith("Bearer ")
-        else ""
-    )
+    bearer = authorization_header[7:] if authorization_header and authorization_header.startswith("Bearer ") else ""
     provided = bearer or (query_token or "")
     # 常数时间比较：虽然 token 泄漏面很小，但这是认证判定，不能留下时序侧信道。
     return "allow" if hmac.compare_digest(provided, token) else "unauthorized"

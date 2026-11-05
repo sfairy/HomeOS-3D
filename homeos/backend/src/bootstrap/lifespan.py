@@ -15,7 +15,6 @@ from fastapi import FastAPI
 
 from homeos_shared.schema_core import mark_clean_shutdown
 
-from . import studio3d_plane
 from .agent_services import build_agent_shared_state
 from .energy_wiring import (
     make_energy_attrs_provider,
@@ -101,6 +100,31 @@ from ..realtime.gateway import RealtimeGateway
 from ..realtime.state_store import StateStore
 
 logger = logging.getLogger("homeos.app")
+
+#: 3D Studio 后端平面模块的惰性句柄（见 ``_studio3d_plane``）。
+_studio3d_plane_module: Any = None
+
+
+def _studio3d_plane() -> Any:
+    """按需导入 ``bootstrap.studio3d_plane``。
+
+    `studio3d_plane` 连带 `api.studio3d` 的路由与 3D 数据面装配，是本文件里最贵的
+    一个顶层依赖（暖 pyc 实测累计约 200ms，占 `import src.app` 的近一半）。它只在
+    lifespan 的装配/停机两个点被调用，所以改成调用点导入：
+
+    - `import src.app` / `import src.bootstrap.lifespan` 不再替它付导入成本 —— 测试、
+      CI 的 import diet 断言、静态工具都走这条路径；
+    - 线上 wall 不变：``install()`` 仍在启动期调用它（省的是模块导入，不是装配）。
+
+    与 `.agent_services` 的区别：那几个服务对象在 `_StartupContext` 里有类型引用，
+    只能靠 ``TYPE_CHECKING`` + 局部导入；本模块只在函数体里用，句柄可以整体延后。
+    """
+    global _studio3d_plane_module
+    if _studio3d_plane_module is None:
+        from . import studio3d_plane
+
+        _studio3d_plane_module = studio3d_plane
+    return _studio3d_plane_module
 
 
 def _parallel_startup_enabled() -> bool:
@@ -385,12 +409,22 @@ async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> No
     # 事件循环里跑：迁移条数多的版本会把整个 loop 卡住，此时连 /health 都读不到，
     # 前端看到的「后端未就绪」窗口被无谓拉长。下放线程池后 loop 仍可响应。
     await asyncio.to_thread(schema.prepare_schema, app_settings)
+    # 遥测库（时序表）紧随其后：建表 + 一次性把主库里的遗留表搬走（含 VACUUM）。
+    # 必须早于任何服务拿到 session_factory，否则第一批写入会落进主库。
+    from ..platform.core.db.telemetry import prepare_telemetry
+
+    await asyncio.to_thread(prepare_telemetry, app_settings)
 
 
 async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
     """启动第一阶段：数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
     app_settings = startup.app_settings
     app.state.database = Database(app_settings.database_url)
+    # 遥测库（时序）单独一个 Engine：写锁不再与业务写入互斥。schema 已在前一阶段
+    # prepare_telemetry 建好，这里只负责打开连接。
+    from ..platform.core.db.telemetry import create_telemetry_database
+
+    app.state.telemetry_database = create_telemetry_database(app_settings)
     app.state.settings = app_settings
     app.state.version = startup.version
     app.state.started_at = time.monotonic()
@@ -425,7 +459,7 @@ async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
 
     # 3D Studio 后端平面：必须早于下方 HA 块，以把 ``app.state.ha_connector``
     # 指向 3D HA 连接器本身。
-    await studio3d_plane.install(app, app_settings, app.state.database)
+    await _studio3d_plane().install(app, app_settings, app.state.database)
 
     # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
     database_retention = DatabaseRetentionService(app.state.database.session_factory, app_config, jobs=app.state.jobs)
@@ -967,12 +1001,18 @@ def _build_agent_automation(
     from ..domains.agent.runtime.web_search import AgentWebSearchService
 
     session_factory = app.state.database.session_factory
+    # 时序表在遥测库里（见 platform.core.db.telemetry）；缺省回落到主库，
+    # 保证单测 / 未装配遥测库的场景仍能工作。
+    telemetry_session_factory = getattr(
+        getattr(app.state, "telemetry_database", None), "session_factory", None
+    )
 
     agent_timeline = AgentTimelineService(
         session_factory,
         startup.state_store,
         enrichment=app.state.entity_area,
         event_bus=startup.security_bus,
+        telemetry_session_factory=telemetry_session_factory,
     )
     agent_timeline.bind_events()
     app.state.agent_timeline = agent_timeline
@@ -1319,7 +1359,10 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
 
     if loop_lag is not None:
         await shutdown("事件循环延迟采样", loop_lag.stop)
-    await shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
+    # 3D 平面模块是按需导入的：启动在 install 之前就失败时它从未被导入过，
+    # 此时不能为了停机去 import 一遍（会在失败路径上再跑一次装配期依赖）。
+    if _studio3d_plane_module is not None:
+        await shutdown("3D 平面", lambda: _studio3d_plane_module.shutdown(app))
     await shutdown("授权服务", startup.license_service.stop)
     await shutdown("数据库保留调度", startup.database_retention.stop_schedule)
     await shutdown("外部 API", startup.external_api.stop)
@@ -1351,6 +1394,10 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     ):
         await shutdown(label, service.stop)
     await shutdown("HA 连接器", startup.ha_connector.stop)
+    # 时序写入是 200ms 微批：连接器停了之后必须把缓冲刷掉，否则最后一批翻转会随进程消失。
+    agent_timeline = getattr(app.state, "agent_timeline", None)
+    if agent_timeline is not None:
+        await shutdown("设备时序刷盘", agent_timeline.aclose)
     await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
     # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
     from ..api.ha.proxy import close_shared_media_clients
@@ -1375,6 +1422,10 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
             logger.warning("备份作业仍在执行，跳过数据库 dispose 以免中途释放连接")
     database = getattr(app.state, "database", None)
     if database is not None and dispose_database:
+        # 遥测库先关：它的写队列已在「设备时序刷盘」清空，这里只是归还连接。
+        telemetry_database = getattr(app.state, "telemetry_database", None)
+        if telemetry_database is not None:
+            telemetry_database.dispose()
         database.dispose()
         # 收尾真跑完（含 WAL 归并）才落「干净关闭」标记：下次启动据此只做 quick_check。
         # dispose 被跳过时（备份线程还在跑）不落标记 —— 那种收尾本来就不算干净，

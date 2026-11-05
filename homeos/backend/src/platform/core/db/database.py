@@ -14,6 +14,7 @@ Socket.IO 多连接读）补齐连接级 PRAGMA：
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Callable, Iterator
 from typing import TypeVar
 
@@ -21,7 +22,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from ..runtime.observability import record_db_query
+from ..runtime.observability import classify_statement, record_db_query, record_db_write_transaction
 
 #: 写锁等待毫秒数（HA 状态批量写入与业务写入并发时的削峰阈值）。
 SQLITE_BUSY_TIMEOUT_MS = 5000
@@ -78,6 +79,33 @@ def _record_query(_connection, _cursor, statement, _parameters, _context, _execu
     record_db_query(statement)
 
 
+#: 连接 `info` 里记录「本次事务第一次写入」的单调时钟；提交时用它算事务耗时。
+_WRITE_STARTED = "homeos_write_started_at"
+
+
+def _mark_write_started(connection, _cursor, statement, _parameters, _context, _executemany) -> None:
+    """本次事务的第一条写语句落地时记下起点（幂等）。"""
+    if classify_statement(statement) != "write":
+        return
+    if _WRITE_STARTED not in connection.info:
+        connection.info[_WRITE_STARTED] = time.perf_counter()
+
+
+def _commit_write(_connection) -> None:
+    """连接级 commit 事件：记录一个写事务并清掉起点。"""
+    started = _connection.info.pop(_WRITE_STARTED, None)
+    if started is not None:
+        record_db_write_transaction((time.perf_counter() - started) * 1000)
+
+
+def _rollback_write(_connection) -> None:
+    """回滚结束本次事务但不计入写事务数（没有产出持久化写入）。
+
+    必须清掉起点：连接回池后会被下一次事务复用，残留的起点会摊出一条假的长耗时样本。
+    """
+    _connection.info.pop(_WRITE_STARTED, None)
+
+
 def _configure_sqlite(dbapi_connection, _connection_record) -> None:
     """为每条新连接设置 SQLite PRAGMA（连接级生效，需逐连接执行）。"""
     cursor = dbapi_connection.cursor()
@@ -115,12 +143,8 @@ class Database:
         pool_kwargs: dict[str, object] = {}
         if not (is_sqlite and parsed_url.database in (None, "", ":memory:")):
             pool_kwargs = {
-                "pool_size": _environment_int(
-                    "HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1
-                ),
-                "max_overflow": _environment_int(
-                    "HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW
-                ),
+                "pool_size": _environment_int("HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1),
+                "max_overflow": _environment_int("HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW),
                 "pool_timeout": _environment_float(
                     "HOMEOS_DB_POOL_TIMEOUT_SECONDS",
                     DEFAULT_POOL_TIMEOUT_SECONDS,
@@ -136,6 +160,13 @@ class Database:
         if database_url.startswith("sqlite"):
             event.listen(self.engine, "connect", _configure_sqlite)
         event.listen(self.engine, "before_cursor_execute", _record_query)
+        # 写事务指标（db_write_tx_total / db_write_ms）：用**连接级**事件而不是会话级。
+        # 会话级的 before_flush 只覆盖 ORM 单元工作，`session.execute(insert(...))`
+        # 这类 Core 写入会漏计；连接级的 cursor 事件两者都覆盖，且 commit 事件就是
+        # 真正的 DBAPI 事务边界（一次会话提交 = 一个写事务，微批的收益由此可测）。
+        event.listen(self.engine, "before_cursor_execute", _mark_write_started)
+        event.listen(self.engine, "commit", _commit_write)
+        event.listen(self.engine, "rollback", _rollback_write)
         self.session_factory = sessionmaker(
             bind=self.engine,
             autoflush=False,

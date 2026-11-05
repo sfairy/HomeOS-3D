@@ -24,6 +24,7 @@ from ...domains.proxy.ws_proxy import (
     resolve_ha_base_url,
     verify_embed_ws_auth,
 )
+from ...domains.system.embed_proxy import PROFILE_HINT_COOKIE, profile_hint_from_cookie
 from ...platform.core.http.embed_proxy_util import (
     build_embed_upstream_url,
     get_embed_upstream_origin,
@@ -41,6 +42,12 @@ CLOSE_BAD_REQUEST = 4400
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_NOT_FOUND = 4404
 CLOSE_UNAVAILABLE = 1013
+
+
+def _profile_hint(websocket: WebSocket) -> str:
+    """从 WS 升级请求的 Cookie 里解出本终端方案（内嵌 iframe 无法自定义请求头）。"""
+    cookies = websocket.cookies or {}
+    return profile_hint_from_cookie(cookies.get(PROFILE_HINT_COOKIE))
 
 
 async def _reject(websocket: WebSocket, code: int) -> None:
@@ -114,7 +121,7 @@ async def _embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) ->
         await _reject(websocket, CLOSE_NOT_FOUND)
         return
     try:
-        embed_base = embed_proxy.resolve_embed_base_url(embed_id)
+        embed_base = embed_proxy.resolve_embed_base_url(embed_id, _profile_hint(websocket))
     except BusinessException:
         await _reject(websocket, CLOSE_NOT_FOUND)
         return

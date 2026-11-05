@@ -112,6 +112,13 @@ EXCLUDED_DB_TABLES: tuple[str, ...] = (
     "energy_usage_daily",
     "energy_usage_monthly",
     "device_usage_stats",
+    # 设备状态翻转时序（智能管家「这段时间为什么变了」的归因底稿）。必须排除：
+    # 它按**每一次**HA 状态翻转写一行，且带 context / peerSnapshot 两段 JSON，
+    # 实测单行约 400 字节 —— 5 天就能写到 150 万行、占整库 85% 以上（约 570 MB），
+    # 而这个量级正好把「检查备份 → 恢复」拖到几十秒并逼近 512 MB 归档上限。
+    # 它属于上面「实体状态变化历史」这一类：还原一份旧时序没有业务意义，
+    # 保留期由 ``domains.agent.memory.timeline`` 自己管（60 天）。
+    "agent_context_timeline",
     # 运行时缓存（会话 / 可重建目录）
     "sessions",
     "ha_entities",
