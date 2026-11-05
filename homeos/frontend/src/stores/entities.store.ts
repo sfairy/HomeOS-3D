@@ -5,7 +5,7 @@
 import { getEntityDomain, isEntityAllowed } from '@homeos/shared'
 import { defineStore } from 'pinia'
 import { ref, toRaw, shallowReactive, reactive, watch } from 'vue'
-import { apiClient } from '@/services/api/index'
+import apiClient from '@/services/api/client'
 import { resyncEntities } from '@/services/api/entities'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'

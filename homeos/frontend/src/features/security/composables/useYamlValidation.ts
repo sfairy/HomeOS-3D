@@ -1,6 +1,6 @@
 /** 通用远程校验 composable */
 import { ref } from 'vue'
-import { apiGet, apiPost } from '@/services/api/index'
+import { apiGet, apiPost } from '@/services/api/client'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 
 /**

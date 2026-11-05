@@ -1,5 +1,5 @@
 /** 封装通过 Home Assistant WebRTC 信令拉取摄像头实时画面的能力， */
-import { apiGet, apiPost } from '@/services/api'
+import { apiGet, apiPost } from '@/services/api/client'
 import { sendWebRtcCandidate, closeWebRtcSession } from '@/services/api/ha'
 import { logger } from '@/shared/utils/core/logger'
 
