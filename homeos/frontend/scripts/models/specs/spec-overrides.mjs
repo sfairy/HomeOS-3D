@@ -245,7 +245,7 @@ export function mountOf({ id, primaryType, folder, collectionEntry }) {
  * 异形柱：原点在**圆弧圆心**而不是平面占位中心。
  *
  * 半圆柱的圆心在直径面（墙线）上、四分之一圆柱的圆心在两片平背面相交的转角上，
- * 资产已按这个口径归心（`scripts/models/recenter-pillar-arc.mjs`），运行期
+ * 资产入库时已按这个口径归心，运行期
  * `preserveOrigin: true` 直接拿原点当摆放锚点与旋转轴。
  */
 const ARC_CENTER_ORIGIN_IDS = new Set(['pillar-semicircle', 'pillar-quarter'])

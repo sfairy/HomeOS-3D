@@ -1,7 +1,7 @@
 /**
  * 立柱「锚点 ≠ 占位盒中心」的契约测试（`studio-item-posture`）。
  *
- * 半圆柱 / 四分之一圆柱的锚点是**圆弧圆心**（`scripts/models/recenter-pillar-arc.mjs`，
+ * 半圆柱 / 四分之一圆柱的锚点是**圆弧圆心**（资产入库时已归心，
  * 运行期 `preserveOrigin`），实体只朝 +x / +y 一侧长。平面图里形状仍按锚点落笔，所以
  * 选中框、角手柄、点选与缩放用的「占位矩形」必须整体偏出半个进深；偏了就是画面上
  * 「选中后半圆柱的框歪在一边 / 形状戳出框外」。
@@ -85,7 +85,7 @@ function pillarItem(pillarShape, overrides = {}) {
     y: 0,
     rotation: 0,
     width: 0.45,
-    // 半圆柱的真半圆截面：进深 = 半径 = 半宽（`reshape-pillar-semicircle.mjs`）。
+    // 半圆柱的真半圆截面：进深 = 半径 = 半宽（资产入库时已按此口径矫正）。
     depth: pillarShape === 'semicircle' ? 0.225 : 0.45,
     height: 2.8,
     ...overrides,

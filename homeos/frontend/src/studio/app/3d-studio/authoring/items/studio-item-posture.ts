@@ -100,7 +100,7 @@ function rotatePlanLocalOffset(item: PlanFootprintItem, localOffset: { x: number
 /**
  * 平面占位盒中心相对**摆放锚点**的局部偏移（米）。
  *
- * 半圆柱 / 四分之一圆柱的锚点是圆弧圆心（`scripts/models/recenter-pillar-arc.mjs`，
+ * 半圆柱 / 四分之一圆柱的锚点是圆弧圆心（资产入库时已把原点归心到圆心，
  * 运行期 `preserveOrigin`），实体只朝 +x / +y（世界 +z）一侧长：半圆柱的占位盒中心在
  * 直径面前半个进深处，四分之一圆柱在 +x / +y 方向各半个占位处。其余造型的锚点就是
  * 占位中心，偏移为零。
@@ -220,7 +220,7 @@ function appendPillarOutlineArc(
 /**
  * 立柱截面轮廓（three 的 Shape，单位米）。
  *
- * 原点口径与资产一致（见 `scripts/models/recenter-pillar-arc.mjs`）：
+ * 原点口径与资产一致：
  * - `semicircle` / `quarter` 以**圆弧圆心**为原点 —— 半圆柱的圆心在直径面（墙线）上，
  *   四分之一圆柱的圆心在两片平背面相交的转角上；
  * - `round` / `square` / `quarterinner` 仍以包围盒中心为原点。
@@ -313,7 +313,7 @@ export function applyItemPosture(group: any, item: any) {
 /** 平面画布版的 buildPillarOutline：平面 +y 对应世界 +z，因此平直面始终留在背面。 */
 /**
  * 平面符号的立柱轮廓：原点与 3D 资产同口径 —— 半圆柱 / 四分之一圆柱以**圆弧圆心**为
- * 落笔原点（`scripts/models/recenter-pillar-arc.mjs`），其余造型仍以包围盒中心为原点。
+ * 落笔原点，其余造型仍以包围盒中心为原点。
  *
  * 画布 y 与 3D 世界的 +z 同向（既有符号把平背面画在 -y、弧朝 +y 鼓）。
  */
