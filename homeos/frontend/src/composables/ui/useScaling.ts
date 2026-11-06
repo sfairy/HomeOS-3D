@@ -86,6 +86,17 @@ const MAX_UPSCALE = 1.5
  */
 const RESIZE_SETTLE_MS = 160
 
+/** `computeViewportLayout` 的结果：画布尺寸、shell 尺寸与缩放系数 */
+interface ViewportLayout {
+  scale: number
+  requiredScale: number
+  belowReadable: boolean
+  shellW: number
+  shellH: number
+  contentW: number
+  contentH: number
+}
+
 /**
  * viewport-fit contain：完整显示内容区，扩展 shell 使缩放后精确铺满视口（无外部留边）。
  *
@@ -94,17 +105,25 @@ const RESIZE_SETTLE_MS = 160
  * 只拦「过度放大」——大屏上适度放大消除黑边，再大改用更宽的布局列
  * （见 effectiveContentWidth），而不是继续放大字号。
  *
+ * 高度方向**不做等比锁定**：画布高度 = `max(设计高度, 视口高度 / 缩放比)`。
+ * 视口比设计稿更高（平板竖屏、窄高窗口）时，缩放比本来就由宽度决定，
+ * 此时若仍按设计高度渲染，画布会缩成中间一条、上下留大片空白 ——
+ * 也就是「高度没随设备自适应」。拉长到 vh / scale 后画布在两个方向都精确铺满，
+ * 面板用 flex 自然吃掉多出来的纵向空间，字号与缩放比不受影响。
+ *
  * @param vw 视口宽度
  * @param vh 视口高度
  * @param contentW 内容区（设计稿）宽度
  * @param contentH 内容区（设计稿）高度
- * @returns {{ scale, requiredScale, shellW, shellH, contentW, contentH, belowReadable }}
+ * @returns 画布尺寸、shell 尺寸与缩放系数
  */
-function computeViewportLayout(vw: number, vh: number, contentW: number, contentH: number) {
+function computeViewportLayout(vw: number, vh: number, contentW: number, contentH: number): ViewportLayout {
   // 取宽高比中较小的缩放系数，保证内容完整显示（contain）
   const requiredScale = Math.min(vw / contentW, vh / contentH)
   // 只封顶不抬底：contain 已保证不溢出视口，这里防止超大屏把字号放到脱离设计基准
   const scale = Math.min(requiredScale, MAX_UPSCALE)
+  // 只向上拉伸，不压缩：视口比设计稿更矮时仍保留设计高度（横向由 effectiveContentWidth 消化）
+  const canvasH = Math.max(contentH, vh / scale)
   return {
     scale,
     // 完整显示所需的原始比例（未封顶），供设置页展示换算过程
@@ -113,9 +132,25 @@ function computeViewportLayout(vw: number, vh: number, contentW: number, content
     belowReadable: scale < MIN_SCALE,
     // shell 尺寸 = 视口尺寸 / 缩放系数，使 scale(shell) 后恰好铺满视口
     shellW: vw / scale,
-    shellH: vh / scale,
+    shellH: canvasH,
     contentW,
-    contentH,
+    contentH: canvasH,
+  }
+}
+
+/**
+ * 画布单位 CSS 变量：`--hos-vw/vh` 是画布逻辑尺寸，`--hos-screen-w/h` 是「一屏可见区域」
+ * 换算到画布单位后的值（弹窗/侧栏的 max-height 用它，避免缩放比变化时二次换算）。
+ *
+ * @param layout 当前视口布局
+ * @returns 注入到 `.app-shell` 的内联 CSS 变量
+ */
+function buildCanvasVars(layout: ViewportLayout) {
+  return {
+    '--hos-vw': `${layout.contentW}px`,
+    '--hos-vh': `${layout.contentH}px`,
+    '--hos-screen-w': `${Math.min(layout.contentW, layout.shellW)}px`,
+    '--hos-screen-h': `${Math.min(layout.contentH, layout.shellH)}px`,
   }
 }
 
@@ -135,7 +170,8 @@ export function computeScreensaverLayout(vw: number, vh: number, designW: number
   if (scalingOn) {
     // 开启缩放：与主壳共用 computeViewportLayout，保证锁屏与主页缩放一致。
     // 「始终完整显示」策略下 shellW = vw / scale 恒 ≥ designW（scale 是 contain 比），
-    // 所以画布不会被 `.ss-shell { overflow:hidden }` 裁掉，无需再区分触底分支。
+    // 画布高度则会按视口拉长（竖屏平板），所以这里同样用 layout.contentH，
+    // 否则锁屏只在中间一条、上下留空。
     const layout = computeViewportLayout(vw, vh, designW, designH)
     return {
       layoutMode: 'scaled',
@@ -144,10 +180,10 @@ export function computeScreensaverLayout(vw: number, vh: number, designW: number
       shellScale: layout.scale,
       shellW: layout.shellW,
       shellH: layout.shellH,
-      canvasW: designW,
-      canvasH: designH,
-      renderedW: designW * layout.scale,
-      renderedH: designH * layout.scale,
+      canvasW: layout.contentW,
+      canvasH: layout.contentH,
+      renderedW: layout.contentW * layout.scale,
+      renderedH: layout.contentH * layout.scale,
       offsetX: 0,
       offsetY: 0,
     }
@@ -426,22 +462,8 @@ export function useScaling(
    * 只在开启缩放时注入，未开启时组件用 `var(--hos-vh, 100vh)` 自然回退到原行为。
    */
   const canvasVars = computed(() => {
-    if (!scalingOn.value) return {}
-    // 直接复用上面几个 computed：contentW 就是 effectiveContentWidth，
-    // contentH 就是 designHeight，scale 就是 layout.scale —— 不必再走一遍 `?.` + `??`
-    // 兜底（那三个 `??` 会把本函数顶到棘轮线以上）。
-    const canvasW = effectiveContentWidth.value
-    const canvasH = designHeight.value
-    const s = scale.value
-    return {
-      '--hos-vw': `${canvasW}px`,
-      '--hos-vh': `${canvasH}px`,
-      // 「一屏可见区域」换算到画布单位（= 视口尺寸 / 缩放比）。始终完整显示策略下
-      // 缩放比是 contain 比，所以它恒等于画布尺寸；保留 min() 是为了防浮点误差,
-      // 以及将来若重新引入「下限 + 滚动」时这组变量依然正确。
-      '--hos-screen-w': `${Math.min(canvasW, vw.value / s)}px`,
-      '--hos-screen-h': `${Math.min(canvasH, vh.value / s)}px`,
-    }
+    const layout = viewportLayout.value
+    return layout ? buildCanvasVars(layout) : {}
   })
   // 缩放开关变化时持久化到 localStorage
   watch(scalingEnabled, (enabled) => writeStoredScaling(enabled))
