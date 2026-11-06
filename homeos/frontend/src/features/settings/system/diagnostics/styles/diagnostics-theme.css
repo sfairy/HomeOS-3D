@@ -1638,7 +1638,7 @@
 .diag-export-preview__body {
   margin: 0;
   padding: var(--hos-panel-padding-default, 20px);
-  max-height: min(320px, 42vh);
+  max-height: min(320px, calc(var(--hos-screen-h, 100vh) * 0.42));
   overflow: auto;
   font-size: var(--diag-fs-caption);
   line-height: 1.65;

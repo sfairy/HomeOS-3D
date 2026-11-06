@@ -17,8 +17,10 @@ export const activeDesignWidth = ref(1366)
 /** activeDesignHeight：响应式常量（ref / computed），取值语义见定义。 */
 export const activeDesignHeight = ref(1024)
 /**
- * 当前缩放是否已触底（触底时内容超出视口、整页需要滚动）。
- * 布局侧据此决定「贴栏停靠」这类依赖侧栏可见性的形态是否可用。
+ * 当前缩放比是否低于可读性警戒线（`MIN_SCALE`）。
+ *
+ * 注意：这**不表示**内容超出视口 —— 「始终完整显示」策略下画布永远在视口内；
+ * 它只说明字号被压得比较小。布局侧若要判断侧栏是否可见，不能用这个标记。
  */
 export const currentScaleClamped = ref(false)
 // 是否开启等比缩放（初始化时从 localStorage 或视口判定读取）
@@ -55,44 +57,65 @@ function writeStoredScaling(value: boolean) {
 }
 
 /**
- * 缩放系数下限。
+ * 可读性警戒线（**不再是缩放下限**）。
  *
- * 为什么需要：`scale` 只保证「完整显示」，没有下限。1366×1024 的设计稿在 390px 宽的
- * 手机视口上算得 scale ≈ 0.285，正文 12px 被缩到 3.4px —— 整页变成一条无法阅读的细线。
- * 壁挂平板开启该开关时同样会掉到这个区间。
+ * 缩放策略是「始终完整显示」：画布永远按窗口实际比例缩放到刚好铺满，不出现滚动。
+ * 代价是窗口很窄时字号会很小 —— 低于这条线时正文 12px 会被压到 8.6px 以下，
+ * 属于「能看全但不好读」的区间，因此仅用于设置页提示，不参与缩放计算。
  *
- * 取值依据：0.72 时正文 12px → 8.6px，配合 system-ui 仍是「小但可辨」的下限；
- * 再低就不可读了。触底后内容会超出视口，由 `.viewport-frame--scrollable` 提供滚动。
+ * 早期版本把它当成下限（低于此值就改成可滚动），结果是 1000px 左右的笔记本窗口
+ * 一开启缩放就必须横向滚动，右侧按钮被推到屏幕外，也就是「缩放后显示不全」。
  */
-const MIN_SCALE = 0.72
+export const MIN_SCALE = 0.72
+
+/**
+ * 整页等比缩放的上限。
+ *
+ * 策略：允许适度放大，但不超过 1.5 倍。
+ * 为什么不再卡在 1：`requiredScale` 本身已经是 contain（不超出视口），卡 1 只会让
+ * 1920×1200 这类大屏留下 118px 的左右黑边，与「铺满视口」的目标矛盾；
+ * 而放任放大到 2～3 倍会让字号/间距脱离设计基准。1.5 是「填满大屏」与
+ * 「保持设计比例」之间的折中，超过这个倍数改用更宽的列（见 effectiveContentWidth）。
+ */
+const MAX_UPSCALE = 1.5
+
+/**
+ * resize 结束后继续冻结 transform 过渡的时间。
+ * 拖拽窗口期间画布每帧跟随（无过渡），松手后这段时间内仍不缓动，
+ * 避免「尺寸已经对了，画布再滑一下」的尾帧错位。
+ */
+const RESIZE_SETTLE_MS = 160
 
 /**
  * viewport-fit contain：完整显示内容区，扩展 shell 使缩放后精确铺满视口（无外部留边）。
- * 限制 scale 上限为 1：只缩小不放大，避免高分辨率屏幕上内容被放大导致布局失调。
+ *
+ * 缩放系数 = `min(requiredScale, MAX_UPSCALE)`，**没有下限**：
+ * 画布永远完整落在视口内（不滚动），窗口越小字越小。
+ * 只拦「过度放大」——大屏上适度放大消除黑边，再大改用更宽的布局列
+ * （见 effectiveContentWidth），而不是继续放大字号。
  *
  * @param vw 视口宽度
  * @param vh 视口高度
  * @param contentW 内容区（设计稿）宽度
  * @param contentH 内容区（设计稿）高度
- * @returns {{ scale, shellW, shellH, contentW, contentH, clamped }}
+ * @returns {{ scale, requiredScale, shellW, shellH, contentW, contentH, belowReadable }}
  */
 function computeViewportLayout(vw: number, vh: number, contentW: number, contentH: number) {
   // 取宽高比中较小的缩放系数，保证内容完整显示（contain）
-  let scale = Math.min(vw / contentW, vh / contentH)
-  // 限制 scale 上限为 1：只缩小不放大
-  // 原因：屏幕比设计稿大时，放大内容会导致字体/间距过大，布局失调
-  scale = Math.min(scale, 1)
-  // 下限：低于 MIN_SCALE 时宁可让内容溢出并允许滚动，也不把字缩到不可读
-  const clamped = scale < MIN_SCALE
-  if (clamped) scale = MIN_SCALE
+  const requiredScale = Math.min(vw / contentW, vh / contentH)
+  // 只封顶不抬底：contain 已保证不溢出视口，这里防止超大屏把字号放到脱离设计基准
+  const scale = Math.min(requiredScale, MAX_UPSCALE)
   return {
     scale,
+    // 完整显示所需的原始比例（未封顶），供设置页展示换算过程
+    requiredScale,
+    // 低于可读性警戒线（仅用于提示「字会偏小」，不影响布局）
+    belowReadable: scale < MIN_SCALE,
     // shell 尺寸 = 视口尺寸 / 缩放系数，使 scale(shell) 后恰好铺满视口
     shellW: vw / scale,
     shellH: vh / scale,
     contentW,
     contentH,
-    clamped,
   }
 }
 
@@ -110,7 +133,9 @@ function computeViewportLayout(vw: number, vh: number, contentW: number, content
 export function computeScreensaverLayout(vw: number, vh: number, designW: number, designH: number) {
   const scalingOn = scalingEnabled.value
   if (scalingOn) {
-    // 开启缩放：与主壳共用 computeViewportLayout，保证锁屏与主页缩放一致
+    // 开启缩放：与主壳共用 computeViewportLayout，保证锁屏与主页缩放一致。
+    // 「始终完整显示」策略下 shellW = vw / scale 恒 ≥ designW（scale 是 contain 比），
+    // 所以画布不会被 `.ss-shell { overflow:hidden }` 裁掉，无需再区分触底分支。
     const layout = computeViewportLayout(vw, vh, designW, designH)
     return {
       layoutMode: 'scaled',
@@ -121,8 +146,8 @@ export function computeScreensaverLayout(vw: number, vh: number, designW: number
       shellH: layout.shellH,
       canvasW: designW,
       canvasH: designH,
-      renderedW: vw,
-      renderedH: vh,
+      renderedW: designW * layout.scale,
+      renderedH: designH * layout.scale,
       offsetX: 0,
       offsetY: 0,
     }
@@ -148,16 +173,79 @@ export function computeScreensaverLayout(vw: number, vh: number, designW: number
   }
 }
 /**
+ * 等比缩放画布标记的持有计数。
+ *
+ * 开启整页等比缩放后，画布是一块固定宽（设计基准，通常 1366~1728）的虚拟桌面，
+ * 但 CSS 的 `@media` 断点读的是**真实窗口宽度**：1280px 的笔记本窗口会让 1728 宽的
+ * 画布套用「平板/手机」规则（顶栏文字消失、操作区被裁、导航塌成图标+更多），
+ * 看起来就是「缩放后显示不全」。
+ *
+ * 这里给 `<html>` 打一个 `hos-canvas-scaled` 标记，画布内的响应式规则用
+ * `html:not(.hos-canvas-scaled)` 门控，从而按画布宽度而非窗口宽度决策。
+ * 用引用计数是因为同一时刻可能有多个壳（主布局 / 独立全屏页）同时存在。
+ */
+let scaledCanvasHolders = 0
+
+/**
+ * 声明「当前有一个缩放画布在渲染」，返回释放函数。
+ * 首次持有给 `<html>` 加类，最后一个释放时移除。
+ *
+ * @returns 释放函数（可重复调用，只有第一次生效）
+ */
+export function holdScaledCanvasFlag(): () => void {
+  if (typeof document === 'undefined') return () => {}
+  scaledCanvasHolders++
+  document.documentElement.classList.add('hos-canvas-scaled')
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    scaledCanvasHolders = Math.max(0, scaledCanvasHolders - 1)
+    if (scaledCanvasHolders === 0) document.documentElement.classList.remove('hos-canvas-scaled')
+  }
+}
+
+/**
+ * 读取当前视口的「安全区内容盒」尺寸。
+ *
+ * 不用 visualViewport：它会把软键盘、双指缩放也当成尺寸变化，导致整页反复重排；
+ * 也不含 `env(safe-area-inset-*)`（安全区只写在 `.viewport-frame` 的 padding 上），
+ * 直接用它会让缩放后的画布超出异形屏可用区域并被裁掉。壳层 clientWidth/Height 是
+ * 布局视口尺寸，减去 padding 即安全区内的可用画布尺寸。
+ *
+ * 导出给屏保等「不在 .viewport-frame 里但需要同一视口基准」的模块复用，
+ * 避免各处分别读 innerWidth / visualViewport 导致安全区与滚动条算法不一致。
+ *
+ * @returns 可用内容盒尺寸；无 DOM / 量不到正尺寸时返回 null
+ */
+export function readViewportBox(): { width: number; height: number } | null {
+  if (typeof document === 'undefined') return null
+  const frame = document.querySelector<HTMLElement>('.viewport-frame')
+  if (!frame) return null
+  const style = getComputedStyle(frame)
+  const width =
+    frame.clientWidth - (Number.parseFloat(style.paddingLeft) || 0) - (Number.parseFloat(style.paddingRight) || 0)
+  const height =
+    frame.clientHeight - (Number.parseFloat(style.paddingTop) || 0) - (Number.parseFloat(style.paddingBottom) || 0)
+  if (!(width > 0) || !(height > 0)) return null
+  return { width, height }
+}
+
+/**
  * 视口整页等比缩放 composable。
  *
  * 以设计稿宽高为内容区，扩展 shell + transform: scale() 完整显示并铺满当前窗口。
  *
  * @param pageMaxWidth 页面最大宽度 ref（可空，缺省取配置 scaleBaseWidth）
+ * @param options.forceScaling 强制开启（独立全屏页用）
+ * @param options.publishGlobals 是否把布局结果发布到模块级全局量（currentScale /
+ *   activeDesignWidth / activeDesignHeight / currentScaleClamped）。**只应由渲染
+ *   `.viewport-frame` 的主壳传 true**，其余旁路实例只消费不发布，否则全局量会随挂载顺序被覆盖。
  * @returns scalingEnabled/scale/isResizing/vw/vh/shellStyle/contentStyle 等响应式状态
  */
 export function useScaling(
   pageMaxWidth: { value?: number } | null | undefined,
-  options?: { forceScaling?: { value: boolean } },
+  options?: { forceScaling?: { value: boolean }; publishGlobals?: boolean },
 ) {
   // 视口宽高（初始化取 window 尺寸，SSR 安全降级）
   const vw = ref(typeof window !== 'undefined' ? window.innerWidth : 1366)
@@ -172,27 +260,49 @@ export function useScaling(
     configEpoch.value
     return baseHeight()
   })
-  let resizeTimer: ReturnType<typeof setTimeout> | null = null
-  /** 同步视口尺寸：优先取 visualViewport（处理移动端地址栏伸缩），回退 window 尺寸 */
+  let resizeRaf: number | null = null
+  let resizeEndTimer: ReturnType<typeof setTimeout> | null = null
+  let frameObserver: ResizeObserver | null = null
+  /** 同步视口尺寸：优先取壳层可用内容盒，回退 visualViewport / window 尺寸 */
   function syncViewportSize() {
+    const frameBox = readViewportBox()
+    if (frameBox) {
+      vw.value = Math.round(frameBox.width)
+      vh.value = Math.round(frameBox.height)
+      return
+    }
     const vv = typeof window !== 'undefined' ? window.visualViewport : null
     vw.value = Math.round(vv?.width ?? window.innerWidth)
     vh.value = Math.round(vv?.height ?? window.innerHeight)
   }
-  /** resize 节流：120ms 防抖后同步尺寸，期间标记 isResizing 供 UI 过渡 */
+  /**
+   * resize 处理：rAF 立即跟随，不用防抖延迟。
+   *
+   * 旧实现是 120ms 防抖后才改尺寸，加上 `.app-shell` 常驻的 0.15s transform 过渡，
+   * 拖拽窗口时画布会「停住 → 松手 → 再缓动 150ms」，视觉上明显滞后。
+   * 现在每帧同步尺寸（量与计算都很轻），并把 `isResizing` 保持到最后一帧之后
+   * END 时间，期间由 CSS 关掉 transform 过渡，避免「尺寸已变、画布还在缓动」的错位；
+   * 弹窗定位走 DOM 实测 scale，不会读到缓动中的旧值。
+   */
   function onResize() {
-    if (resizeTimer) clearTimeout(resizeTimer)
     isResizing.value = true
-    resizeTimer = setTimeout(() => {
-      resizeTimer = null
+    if (resizeEndTimer) clearTimeout(resizeEndTimer)
+    resizeEndTimer = setTimeout(() => {
+      resizeEndTimer = null
       isResizing.value = false
+    }, RESIZE_SETTLE_MS)
+    if (resizeRaf !== null) return
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = null
       syncViewportSize()
-    }, 120)
+    })
   }
   /** 横屏切换/visualViewport 即时同步（不节流，避免横屏延迟） */
   function onViewportImmediate() {
-    if (resizeTimer) clearTimeout(resizeTimer)
-    resizeTimer = null
+    if (resizeRaf !== null) {
+      cancelAnimationFrame(resizeRaf)
+      resizeRaf = null
+    }
     syncViewportSize()
   }
   /** 监听 homeos-scaling-change 自定义事件，同步 scalingEnabled */
@@ -206,15 +316,16 @@ export function useScaling(
     activeDesignHeight.value = dh
   }
   const scalingOn = computed(() => scalingEnabled.value || !!options?.forceScaling?.value)
+  /** 是否发布模块级全局量：默认 false，只有主壳显式开启（单一 owner） */
+  const publishGlobals = options?.publishGlobals === true
   // 当前视口布局：未开启缩放时返回 null
-  // 超宽屏（≥1920px）最大放大倍数：超过后不再整体放大，而是把横向空间交给布局
+  // 超宽屏（≥1920px）基准宽：超过这个宽度后不再整体放大，而是把横向空间交给布局
   const ULTRAWIDE_MIN_WIDTH = 1920
-  const ULTRAWIDE_SCALE_CAP = 1.5
   /** 生效内容宽度：普通屏=设计稿宽；超宽屏=视口宽/放大上限（更宽的列，而非更大的字号） */
   const effectiveContentWidth = computed(() => {
     const baseW = designWidth.value
     if (vw.value < ULTRAWIDE_MIN_WIDTH) return baseW
-    return Math.max(baseW, Math.ceil(vw.value / ULTRAWIDE_SCALE_CAP))
+    return Math.max(baseW, Math.ceil(vw.value / MAX_UPSCALE))
   })
 
   const viewportLayout = computed(() => {
@@ -224,26 +335,36 @@ export function useScaling(
     }
     return computeViewportLayout(vw.value, vh.value, effectiveContentWidth.value, contentH)
   })
-  // 布局/设计尺寸/缩放开关变化时同步全局共享变量
-  watch(
-    [viewportLayout, effectiveContentWidth, designHeight, scalingOn],
-    () => {
-      const contentW = effectiveContentWidth.value
-      const contentH = designHeight.value
-      if (!scalingOn.value || !viewportLayout.value) {
-        syncScaleGlobals(1, contentW, contentH)
-        currentScaleClamped.value = false
-        return
-      }
-      syncScaleGlobals(viewportLayout.value.scale, contentW, contentH)
-      currentScaleClamped.value = viewportLayout.value.clamped
-    },
-    { immediate: true },
-  )
+  // 布局/设计尺寸/缩放开关变化时同步全局共享变量。
+  // 只有「真正渲染 .viewport-frame 的主壳」才发布：设置面板、右栏等旁路实例也会 new 一份
+  // useScaling 拿 vw/vh，如果它们也写全局量，就会按自己的挂载顺序覆盖主壳的基准，
+  // 弹窗定位（回退到 currentScale 时）与贴栏停靠判断会读到错的坐标系。
+  if (publishGlobals) {
+    watch(
+      [viewportLayout, effectiveContentWidth, designHeight, scalingOn],
+      () => {
+        const contentW = effectiveContentWidth.value
+        const contentH = designHeight.value
+        if (!scalingOn.value || !viewportLayout.value) {
+          syncScaleGlobals(1, contentW, contentH)
+          currentScaleClamped.value = false
+          return
+        }
+        syncScaleGlobals(viewportLayout.value.scale, contentW, contentH)
+        currentScaleClamped.value = viewportLayout.value.belowReadable
+      },
+      { immediate: true },
+    )
+  }
   // 当前缩放系数（未开启缩放时为 1）
   const scale = computed(() => viewportLayout.value?.scale ?? 1)
-  // 缩放是否已触底（触底后内容超出视口，需要外层可滚动）
-  const scaleClamped = computed(() => viewportLayout.value?.clamped ?? false)
+  /**
+   * 缩放系数是否低于可读性警戒线（**仅用于提示，不再触发滚动**）。
+   *
+   * 「始终完整显示」策略下画布总在视口内，窗口很窄时只是字变小；
+   * 这个标记供设置页提醒「当前需要 ×0.58 才能看全，正文会被压到 7px 左右」。
+   */
+  const scaleClamped = computed(() => viewportLayout.value?.belowReadable ?? false)
   // 是否正在 resize 节流中（供 UI 添加过渡动画）
   const isResizing = ref(false)
   // shell 容器样式：未开启缩放时 100% 占满；否则按 shellW/shellH + scale 变换
@@ -257,11 +378,12 @@ export function useScaling(
       width: `${layout.shellW}px`,
       height: `${layout.shellH}px`,
       transform: `scale(${layout.scale})`,
-      // 触底时 frame 改为可滚动 + 左上对齐，缩放原点必须同步到左上，否则内容整体偏出可视区
-      transformOrigin: layout.clamped ? 'top left' : 'center center',
+      transformOrigin: 'center center',
       flexShrink: '0',
     }
   })
+  /** 画布舞台：始终 display:contents（不再有「触底滚动」分支）。 */
+  const stageStyle = { display: 'contents' }
   // 内容区样式：固定为设计稿尺寸，由 shell 的 scale 缩放
   const contentStyle = computed(() => {
     if (!scalingOn.value) return {}
@@ -273,6 +395,33 @@ export function useScaling(
       flexShrink: '0',
     }
   })
+  /**
+   * 画布单位变量：`--hos-vw / --hos-vh` = 设计画布的宽/高（CSS px，未乘缩放比）。
+   *
+   * 为什么需要：画布内的 `100vh / 100vw` 取的是**真实视口**，不是画布。
+   * 缩放开启后两者会分叉（例如 390×844 窗口里画布是 1728×1117），
+   * 于是 `max-height: 88vh` 在画布单位里变成 743px 而不是 983px，
+   * 弹窗/面板会明显偏小，位置也会偏。画布单位始终等于设计稿尺寸，
+   * 弹窗按它算出的边距与画布边缘严格对应，再随整页一起等比缩放。
+   *
+   * 只在开启缩放时注入，未开启时组件用 `var(--hos-vh, 100vh)` 自然回退到原行为。
+   */
+  const canvasVars = computed(() => {
+    if (!scalingOn.value) return {}
+    const layout = viewportLayout.value
+    const canvasW = layout?.contentW ?? designWidth.value
+    const canvasH = layout?.contentH ?? designHeight.value
+    const s = layout?.scale ?? 1
+    return {
+      '--hos-vw': `${canvasW}px`,
+      '--hos-vh': `${canvasH}px`,
+      // 「一屏可见区域」换算到画布单位（= 视口尺寸 / 缩放比）。始终完整显示策略下
+      // 缩放比是 contain 比，所以它恒等于画布尺寸；保留 min() 是为了防浮点误差,
+      // 以及将来若重新引入「下限 + 滚动」时这组变量依然正确。
+      '--hos-screen-w': `${Math.min(canvasW, vw.value / s)}px`,
+      '--hos-screen-h': `${Math.min(canvasH, vh.value / s)}px`,
+    }
+  })
   // 缩放开关变化时持久化到 localStorage
   watch(scalingEnabled, (enabled) => writeStoredScaling(enabled))
   onMounted(() => {
@@ -282,14 +431,27 @@ export function useScaling(
     window.addEventListener('orientationchange', onViewportImmediate)
     window.visualViewport?.addEventListener('resize', onViewportImmediate)
     window.addEventListener('homeos-scaling-change', onScalingChange)
-    scale.value
+    // 壳层尺寸变化但窗口尺寸没变（安全区变化、分屏/画中画、全屏子元素、字体延迟加载等）
+    // 只靠 window.resize 会漏掉。ResizeObserver 直接盯壳层内容盒，命中即按同一个 resize 路径处理。
+    if (typeof ResizeObserver !== 'undefined') {
+      const frame = document.querySelector<HTMLElement>('.viewport-frame')
+      if (frame) {
+        frameObserver = new ResizeObserver(() => onResize())
+        frameObserver.observe(frame)
+      }
+    }
   })
   onUnmounted(() => {
     window.removeEventListener('resize', onResize)
     window.removeEventListener('orientationchange', onViewportImmediate)
     window.visualViewport?.removeEventListener('resize', onViewportImmediate)
     window.removeEventListener('homeos-scaling-change', onScalingChange)
-    if (resizeTimer) clearTimeout(resizeTimer)
+    frameObserver?.disconnect()
+    frameObserver = null
+    if (resizeRaf !== null) cancelAnimationFrame(resizeRaf)
+    resizeRaf = null
+    if (resizeEndTimer) clearTimeout(resizeEndTimer)
+    resizeEndTimer = null
   })
   return {
     scalingEnabled,
@@ -300,7 +462,9 @@ export function useScaling(
     vw,
     vh,
     shellStyle,
+    stageStyle,
     contentStyle,
+    canvasVars,
     toggleScaling: () => {
       scalingEnabled.value = !scalingEnabled.value
     },

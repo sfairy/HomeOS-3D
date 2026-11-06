@@ -12,7 +12,7 @@
 
 .eew-wizard-panel {
   width: min(560px, 100%);
-  max-height: 90vh;
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.9);
   overflow: auto;
   border-radius: var(--hos-radius-panel);
   border: 1px solid rgb(255 255 255 / 0.08);

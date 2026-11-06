@@ -30,7 +30,7 @@
 
 .picker-body {
   min-height: 360px;
-  max-height: min(68vh, 640px);
+  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.68), 640px);
   overflow: hidden;
   display: flex;
   flex-direction: column;

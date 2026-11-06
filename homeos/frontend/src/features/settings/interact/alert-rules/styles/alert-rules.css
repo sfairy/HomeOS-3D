@@ -159,9 +159,9 @@
   flex-direction: column;
   gap: 0;
   padding: 0 !important;
-  width: min(880px, calc(100vw - 32px));
+  width: min(880px, calc(var(--hos-screen-w, 100vw) - 32px));
   max-width: 880px;
-  max-height: 85vh;
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.85);
   overflow: hidden;
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.28) !important;
   box-shadow:
@@ -645,7 +645,7 @@
 
 @media (max-width: 720px) {
   .alert-edit-modal {
-    width: min(100%, calc(100vw - 24px));
+    width: min(100%, calc(var(--hos-screen-w, 100vw) - 24px));
     max-width: 520px;
   }
 

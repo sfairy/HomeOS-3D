@@ -659,16 +659,16 @@
   .earthquake-history-view__layout {
     grid-template-columns: 1fr;
     flex: none;
-    min-height: min(72vh, 920px);
+    min-height: min(calc(var(--hos-screen-h, 100vh) * 0.72), 920px);
   }
 
   .earthquake-history-view__analytics {
-    height: min(480px, 52vh);
+    height: min(480px, calc(var(--hos-screen-h, 100vh) * 0.52));
     min-height: 320px;
   }
 
   .earthquake-history-view__stream {
-    height: min(560px, 58vh);
+    height: min(560px, calc(var(--hos-screen-h, 100vh) * 0.58));
     min-height: 400px;
   }
 

@@ -108,19 +108,19 @@
 }
 .hos-modal-panel--md {
   max-width: 580px;
-  max-height: calc(85vh / var(--hos-scale, 1));
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.85);
 }
 /*
  * --lg 原本用硬 600px：平板横屏 / 高缩放（--hos-scale>1）下会高过可视区，
  * 弹窗底部按钮被推出屏幕且无法滚动。与 --md/--xl 统一走视口高度，并给宽度加视口上限。
  */
 .hos-modal-panel--lg {
-  max-width: min(720px, calc(90vw / var(--hos-scale, 1)));
-  max-height: min(600px, calc(85vh / var(--hos-scale, 1)));
+  max-width: min(720px, calc(var(--hos-screen-w, 100vw) * 0.9));
+  max-height: min(600px, calc(var(--hos-screen-h, 100vh) * 0.85));
 }
 .hos-modal-panel--xl {
-  max-width: min(1100px, calc(90vw / var(--hos-scale, 1)));
-  max-height: calc(85vh / var(--hos-scale, 1));
+  max-width: min(1100px, calc(var(--hos-screen-w, 100vw) * 0.9));
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.85);
   border-radius: 32px;
 }
 .hos-modal-panel--pin {

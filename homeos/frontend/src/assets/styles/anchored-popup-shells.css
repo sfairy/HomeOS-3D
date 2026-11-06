@@ -32,9 +32,9 @@
   z-index: var(--z-modal-root);
   cursor: default;
   overflow: visible;
-  width: min(400px, calc(100vw - 24px));
-  max-width: min(400px, calc(100vw - 24px));
-  max-height: 92vh;
+  width: min(400px, calc(var(--hos-screen-w, 100vw) - 24px));
+  max-width: min(400px, calc(var(--hos-screen-w, 100vw) - 24px));
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.92);
 }
 
 .gas-popup {
@@ -86,7 +86,7 @@
   position: relative;
   z-index: 1;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 12px;
-  max-height: 92vh;
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.92);
   overflow-y: auto;
   overflow-x: hidden;
   border-radius: var(--hos-radius-panel);
@@ -168,8 +168,8 @@
   --shell-shadow:
     0 32px 100px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 1px 0 var(--premium-border-strong);
   width: 340px;
-  max-width: min(340px, calc(100vw - 24px));
-  max-height: 95vh;
+  max-width: min(340px, calc(var(--hos-screen-w, 100vw) - 24px));
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.95);
 }
 
 .w-popup::before {
@@ -188,7 +188,7 @@
   position: relative;
   z-index: 1;
   padding: 12px;
-  max-height: 95vh;
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.95);
   overflow-y: auto;
   overflow-x: hidden;
   animation: anchored-popup-bounce 0.5s var(--ease-bounce);
@@ -256,7 +256,7 @@
     0 40px 100px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04),
     var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
   width: 290px;
-  max-width: min(290px, calc(100vw - 24px));
+  max-width: min(290px, calc(var(--hos-screen-w, 100vw) - 24px));
   padding: 20px;
   animation: media-popup-in 0.5s var(--ease-bounce);
 }

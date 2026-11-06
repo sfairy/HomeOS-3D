@@ -24,7 +24,6 @@ import { mainLayoutIconMap } from '@/shared/utils/ui/main-layout-nav.util'
 import { useMainLayoutNavMenu } from '@/composables/ui/shell/useMainLayoutNavMenu'
 import { useMainLayoutDoorbell } from '@/composables/ui/shell/useMainLayoutDoorbell'
 import { useMainLayoutWeatherNav } from '@/composables/ui/shell/useMainLayoutWeatherNav'
-import { currentScaleClamped } from '@/composables/ui/useScaling'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 
 /** 主布局壳层：导航、HA 状态、儿童模式、门铃。聚合各子 composable 的状态与操作。 */
@@ -169,13 +168,14 @@ export function useMainLayoutChrome() {
   const showEntityLoadProgress = computed(() => entitiesStore.entityLoadPhase !== 'ready')
 
   /**
-   * 智能管家面板是否「贴栏停靠」：只有仪表盘（信息栏在场）且整页缩放没触底时才停靠。
+   * 智能管家面板是否「贴栏停靠」：仪表盘（信息栏在场）时停靠。
    *
-   * 触底时内容比视口宽（`.viewport-frame--scrollable`），信息栏落在可视区右侧之外，
-   * 停靠会让面板需要横向滚动才能看到 —— 这种窄窗退化回原来的整屏浮层。
-   * 放在壳层状态里，是因为它和导航 / 侧栏可见性同属一处判断，不该散落在模板层。
+   * 曾经的例外是「整页缩放触底」—— 那时画布比视口宽、信息栏在可视区之外，停靠会导致
+   * 面板要横向滚动才可见，所以退化回整屏浮层。现在缩放策略是「始终完整显示」
+   * （画布恒在视口内，见 useScaling 的 computeViewportLayout），信息栏永远可见，
+   * 这个例外不再需要。
    */
-  const agentDocked = computed(() => route.name === 'dashboard' && !currentScaleClamped.value)
+  const agentDocked = computed(() => route.name === 'dashboard')
 
   /** localStorage 中记录上次见过的应用版本的 key */
   const LAST_SEEN_VERSION_KEY = 'homeos_last_seen_app_version'

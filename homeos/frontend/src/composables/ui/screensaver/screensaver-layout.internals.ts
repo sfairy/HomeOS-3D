@@ -4,7 +4,12 @@
  */
 import { ref, computed, type Ref } from 'vue'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
-import { activeDesignWidth, activeDesignHeight, computeScreensaverLayout } from '@/composables/ui/useScaling'
+import {
+  activeDesignWidth,
+  activeDesignHeight,
+  computeScreensaverLayout,
+  readViewportBox,
+} from '@/composables/ui/useScaling'
 import { screensaverBackgroundIdle } from '@/shared/utils/ui/screensaver-background-idle.util'
 import { SS_DEFAULTS } from './screensaver.defaults'
 import type { useLayoutStore } from '@/stores/layout.store'
@@ -15,8 +20,14 @@ type LayoutStore = ReturnType<typeof useLayoutStore>
 export function createScreensaverLayoutState(layoutStore: LayoutStore) {
   const cfgTick = ref(0)
   const scalingTick = ref(0)
-  const viewportW = ref(typeof window !== 'undefined' ? window.innerWidth : 1366)
-  const viewportH = ref(typeof window !== 'undefined' ? window.innerHeight : 1024)
+  /** 屏保与主壳共用同一视口基准（安全区内容盒），避免异形屏上锁屏比主界面多出一圈 */
+  const initialBox = readViewportBox()
+  const viewportW = ref(
+    initialBox ? Math.round(initialBox.width) : typeof window !== 'undefined' ? window.innerWidth : 1366,
+  )
+  const viewportH = ref(
+    initialBox ? Math.round(initialBox.height) : typeof window !== 'undefined' ? window.innerHeight : 1024,
+  )
   const burnInOffset = ref({ x: 0, y: 0 })
 
   const ssCfg = computed(() => {
@@ -43,8 +54,9 @@ export function createScreensaverLayoutState(layoutStore: LayoutStore) {
   function onViewportResize() {
     if (resizeRaf) return
     resizeRaf = requestAnimationFrame(() => {
-      viewportW.value = window.innerWidth
-      viewportH.value = window.innerHeight
+      const box = readViewportBox()
+      viewportW.value = Math.round(box?.width ?? window.innerWidth)
+      viewportH.value = Math.round(box?.height ?? window.innerHeight)
       resizeRaf = null
     })
   }

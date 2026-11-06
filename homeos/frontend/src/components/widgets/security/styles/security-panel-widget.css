@@ -7,7 +7,7 @@
   flex-direction: column;
   width: 100%;
   height: auto;
-  max-height: min(70vh, 480px);
+  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 480px);
   min-height: 0;
   overflow: hidden;
   font-size: var(--hos-fs-3);

@@ -5,46 +5,50 @@
       frameClass,
       {
         'viewport-frame--static-glow': pauseViewportGlow,
-        // 缩放到下限后内容必然超出视口，必须让 frame 可滚动，否则四周被裁掉
-        'viewport-frame--scrollable': scalingOn && scaleClamped,
       },
     ]"
     :style="mergedFrameStyle"
   >
     <slot name="backdrop" />
-    <!-- app-shell：实际被缩放/居中的主体，附加性能 class 与 resizing 过渡 class -->
-    <div
-      :class="[
-        'app-shell',
-        shellClass,
-        {
-          'app-shell--scaling': scalingOn,
-          'app-shell--resizing': scalingOn && isResizing,
-        },
-      ]"
-      :style="computedShellStyle"
-    >
-      <!-- 全局 teleport 挂载点：所有脱离文档流的浮层都会被 teleport 到这里 -->
-      <div id="teleport-target" class="teleport-target" />
+    <!--
+      viewport-stage：DOM 占位，始终 display:contents（不产生布局影响）。
+      保留它是为了给「画布」一个语义上的包裹层，方便将来切换缩放策略。
+    -->
+    <div class="viewport-stage" :style="stageStyle">
+      <!-- app-shell：实际被缩放/居中的主体，附加性能 class 与 resizing 过渡 class -->
       <div
-        class="app-shell__content"
-        :class="{ 'app-shell__content--fluid': !scalingOn }"
-        :style="wrapperContentStyle"
+        :class="[
+          'app-shell',
+          shellClass,
+          {
+            'app-shell--scaling': scalingOn,
+            'app-shell--resizing': scalingOn && isResizing,
+          },
+        ]"
+        :style="computedShellStyle"
       >
-        <slot />
+        <!-- 全局 teleport 挂载点：所有脱离文档流的浮层都会被 teleport 到这里 -->
+        <div id="teleport-target" class="teleport-target" />
+        <div
+          class="app-shell__content"
+          :class="{ 'app-shell__content--fluid': !scalingOn }"
+          :style="wrapperContentStyle"
+        >
+          <slot />
+        </div>
+        <!-- 全局通知组件（toast 等）；主壳传 below-topbar，避免遮挡顶栏导航与全局操作 -->
+        <VNotification :placement="notificationPlacement" />
       </div>
-      <!-- 全局通知组件（toast 等）；主壳传 below-topbar，避免遮挡顶栏导航与全局操作 -->
-      <VNotification :placement="notificationPlacement" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, toRef } from 'vue'
+import { computed, toRef, watch, onUnmounted } from 'vue'
 import VNotification from '@/components/common/base/VNotification.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useScaling } from '@/composables/ui/useScaling'
+import { useScaling, holdScaledCanvasFlag } from '@/composables/ui/useScaling'
 import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
 import { adaptiveTier } from '@/shared/utils/perf/adaptive-perf.util'
 
@@ -102,19 +106,26 @@ const {
   contentStyle,
   scalingOn,
   scale,
-  scaleClamped,
+  stageStyle,
+  canvasVars,
   isResizing,
-} = useScaling(resolvedMaxWidth, { forceScaling: toRef(props, 'forceScaling') })
+} = useScaling(resolvedMaxWidth, {
+  forceScaling: toRef(props, 'forceScaling'),
+  // 本组件是 .viewport-frame 的唯一渲染者，由它独占发布全局布局量
+  publishGlobals: true,
+})
 
 // 外层 frame 样式：直接合并传入的 frameStyle（保留外部对齐能力）
 const mergedFrameStyle = computed(() => ({ ...props.frameStyle }))
 
 // app-shell 的实际样式：缩放模式下注入 transform/缩放原点 + --hos-scale CSS 变量；
-// 非缩放模式下注入 100% 宽高 + 最大宽度，--hos-scale 供子组件按比例调整字号/间距等
+// 非缩放模式下注入 100% 宽高 + 最大宽度，--hos-scale 供子组件按比例调整字号/间距等。
+// --hos-vw/--hos-vh 只在缩放开启时注入（画布单位），未注入时子组件回退到 100vw/100vh。
 const computedShellStyle = computed(() => {
   if (scalingOn.value) {
     return {
       ...rawShellStyle.value,
+      ...canvasVars.value,
       '--hos-scale': String(scale.value),
     }
   }
@@ -129,4 +140,31 @@ const computedShellStyle = computed(() => {
 
 // 内容容器样式：缩放模式下注入内容尺寸/缩放原点；非缩放模式下不施加额外样式
 const wrapperContentStyle = computed(() => (scalingOn.value ? contentStyle.value : undefined))
+
+/**
+ * 缩放画布标记：让画布内的 `@media` 断点不再按真实窗口宽度决策。
+ *
+ * 画布是一块固定宽（1366~1728）的虚拟桌面，而 `@media (max-width: 1280px)` 读的是
+ * 浏览器窗口 —— 1280 及以下的笔记本窗口会把 1728 宽的画布判成平板/手机，
+ * 顶栏文字被隐藏、操作区被裁、导航塌成图标 + 「更多」，即「缩放后显示不全」。
+ * 打上 `hos-canvas-scaled` 后，main-layout.css / tab-bar-mode-switcher.css 里
+ * 这些断点用 `html:not(.hos-canvas-scaled)` 门控，只在未缩放时才生效。
+ */
+let releaseCanvasFlag = null
+watch(
+  scalingOn,
+  (on) => {
+    if (on && !releaseCanvasFlag) {
+      releaseCanvasFlag = holdScaledCanvasFlag()
+    } else if (!on && releaseCanvasFlag) {
+      releaseCanvasFlag()
+      releaseCanvasFlag = null
+    }
+  },
+  { immediate: true },
+)
+onUnmounted(() => {
+  releaseCanvasFlag?.()
+  releaseCanvasFlag = null
+})
 </script>

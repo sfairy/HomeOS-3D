@@ -10,14 +10,13 @@
         :icon-class="scalingEnabled ? 'ldp-ic-on' : 'ldp-ic-off'"
         :orb-class="scalingEnabled ? 'ldp-orb-on' : 'ldp-orb-off'"
         eyebrow="整页等比缩放"
-        :description="'以设计基准完整显示并自适应当前窗口（含锁屏、弹窗），无裁切。平板默认关闭（户型图改用局部缩放）。'"
+        :description="'以设计基准完整显示并自适应当前窗口（含锁屏、弹窗）。画布始终等比缩放到刚好铺满窗口，不会出现滚动条；窗口很窄时字号会同比变小。平板默认关闭（户型图改用局部缩放）。'"
       >
         <template #actions>
           <button
             type="button"
             :class="['settings-btn-accent shrink-0', scalingEnabled && 'settings-btn-ghost']"
-            :disabled="scalingTooNarrow"
-            :title="scalingTooNarrow ? '当前窗口过窄（<768px），整页等比缩放会把字缩到不可读' : ''"
+            :title="scalingTooNarrow ? `当前窗口 ${viewportW}×${viewportH} 完整显示需 ×${requiredScale.toFixed(3)}，低于建议的 ×${MIN_SCALE}，文字会明显变小` : ''"
             @click="$emit('toggle-scaling')"
           >
             {{ scalingEnabled ? '关闭缩放' : '开启缩放' }}
@@ -29,7 +28,10 @@
         class="mt-3 text-xs ldp-c-warn leading-relaxed"
         role="note"
       >
-        当前窗口宽 {{ viewportW }}px，低于 768px 不建议开启整页等比缩放：内容会被缩到最小比例并需要横竖滚动。
+        当前窗口 {{ viewportW }}×{{ viewportH }}px 完整显示设计基准需 ×{{ requiredScale.toFixed(3) }}，低于建议的可读比例 ×{{ MIN_SCALE }}；开启后会按 ×{{ requiredScale.toFixed(3) }} 渲染，内容仍能完整显示，但文字会明显变小。
+      </p>
+      <p v-else-if="clampHint" class="mt-3 text-xs ldp-c-warn leading-relaxed" role="note">
+        {{ clampHint }}
       </p>
       <div v-if="scalingEnabled" class="mt-4 flex flex-wrap items-center gap-3">
         <div
@@ -39,6 +41,9 @@
             '当前缩放比'
           }}</span>
           <span class="text-sm font-black ldp-c-indigo font-mono">× {{ scale.toFixed(3) }}</span>
+          <span v-if="scalingEnabled && scaleClamped" class="text-[11px] font-bold ldp-c-warn"
+            >字号偏小</span
+          >
         </div>
         <div
           class="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5"
@@ -167,6 +172,7 @@ import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.v
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
+import { MIN_SCALE } from '@/composables/ui/useScaling'
 import { computed } from 'vue'
 import { SETTINGS_RANGE_STEP } from '@/shared/utils/settings/range-steps.util'
 import { useLayoutStore } from '@/stores/layout.store'
@@ -177,6 +183,7 @@ const layoutConfig = layoutStore.layoutConfig
 const props = defineProps({
   scalingEnabled: { type: Boolean, default: false },
   scale: { type: Number, default: 1 },
+  scaleClamped: { type: Boolean, default: false },
   activeDesignWidth: { type: Number, required: true },
   designHeight: { type: Number, required: true },
   viewportW: { type: Number, required: true },
@@ -187,11 +194,44 @@ const props = defineProps({
 })
 
 /**
- * 过小屏幕不建议开启：1366 宽的设计稿在 768px 以下会被压到 MIN_SCALE 下限，
- * 横竖两个方向都必须滚动才能看全，体验比流式布局差。
- * 只拦「开启」——已经开启的用户在窄窗口里仍要能关掉。
+ * 当前窗口完整显示设计稿所需的原始缩放比（未封顶、未触底）。
+ * 判定「是否触底」必须用这个比值，而不是固定宽度：1920×500 这类宽而矮的窗口
+ * 宽度远超 768，纵向却严重触底；竖屏平板同理。反之很窄但很高的窗口也未必触底。
  */
-const scalingTooNarrow = computed(() => !props.scalingEnabled && props.viewportW < 768)
+const requiredScale = computed(() =>
+  Math.min(props.viewportW / props.activeDesignWidth, props.viewportH / props.designHeight),
+)
+
+/**
+ * 开启后缩放比会低于可读性警戒线（文字明显变小）。
+ *
+ * 只用于**提示**，不再禁用按钮：这条线只影响可读性，不影响「能否完整显示」，
+ * 更不是不可用。早期版本在这里 `:disabled`，结果在 1241×765 这类常见笔记本窗口上
+ * 按钮变灰 —— 用户一旦关掉缩放就再也开不回来。
+ */
+const scalingTooNarrow = computed(() => {
+  if (props.scalingEnabled) return false
+  const required = requiredScale.value
+  if (!Number.isFinite(required) || required <= 0) return false
+  return required < MIN_SCALE
+})
+
+/**
+ * 可读性提示：区分「尚未开启但开启后字会很小」与「已开启且字很小」。
+ *
+ * 「始终完整显示」策略下不存在触底/滚动，这里的提示只解释字号代价，
+ * 不再暗示内容会被裁切或被推到视口外。
+ */
+const clampHint = computed(() => {
+  const required = requiredScale.value
+  if (!Number.isFinite(required) || required <= 0) return ''
+  if (!props.scalingEnabled) {
+    if (required >= MIN_SCALE) return ''
+    return `当前窗口 ${props.viewportW}×${props.viewportH} 对设计基准 ${props.activeDesignWidth}×${props.designHeight} 需要 ×${required.toFixed(3)} 才能完整显示，低于建议的可读比例 ×${MIN_SCALE}；开启后按 ×${required.toFixed(3)} 渲染，内容仍完整可见，但文字会明显变小。`
+  }
+  if (!props.scaleClamped) return ''
+  return `当前缩放比 ×${required.toFixed(3)} 低于建议的可读比例 ×${MIN_SCALE}：画布仍完整显示在窗口内，但正文会被压到 8px 以下。`
+})
 
 defineEmits(['toggle-scaling', 'apply-width-preset', 'auto-match-resolution'])
 </script>

@@ -18,12 +18,12 @@
 }
 
 .media-modal {
-  width: min(96vw, 920px) !important;
-  max-width: min(96vw, 920px) !important;
+  width: min(calc(var(--hos-screen-w, 100vw) * 0.96), 920px) !important;
+  max-width: min(calc(var(--hos-screen-w, 100vw) * 0.96), 920px) !important;
   /* 视口高度不足时 min-height 不能再大过 max-height：CSS 中 min 优先于 max，
-     两者冲突会让弹窗高出视口且无法滚动。这里把下限也夹在 88vh 内。 */
-  min-height: min(440px, 88vh);
-  max-height: min(88vh, 520px) !important;
+     两者冲突会让弹窗高出视口且无法滚动。这里把下限也夹在 88%（画布高）内。 */
+  min-height: min(440px, calc(var(--hos-screen-h, 100vh) * 0.88));
+  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.88), 520px) !important;
   padding: 0 !important;
   border-radius: 32px;
 }
@@ -32,7 +32,7 @@
   position: relative;
   z-index: 1;
   display: flex;
-  min-height: min(440px, 88vh);
+  min-height: min(440px, calc(var(--hos-screen-h, 100vh) * 0.88));
   height: 100%;
 }
 
@@ -621,7 +621,7 @@
 @media (max-width: 640px) {
   .media-modal {
     min-height: 0;
-    max-height: min(94vh, 680px) !important;
+    max-height: min(calc(var(--hos-screen-h, 100vh) * 0.94), 680px) !important;
   }
 
   .media-modal__layout {
@@ -661,8 +661,8 @@
 
 @media (max-height: 600px) and (min-width: 640px) {
   .media-modal {
-    min-height: min(380px, 92vh);
-    max-height: 92vh !important;
+    min-height: min(380px, calc(var(--hos-screen-h, 100vh) * 0.92));
+    max-height: calc(var(--hos-screen-h, 100vh) * 0.92) !important;
   }
 
   .media-modal__art-frame {

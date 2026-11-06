@@ -56,7 +56,7 @@
 }
 .asset-manager-modal__body {
   min-height: 420px;
-  max-height: min(72vh, 720px);
+  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.72), 720px);
   overflow: hidden;
   display: flex;
   flex-direction: column;

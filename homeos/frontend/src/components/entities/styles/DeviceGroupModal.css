@@ -535,7 +535,7 @@
 
 /* 离线弹窗展开系统审计列表时限制整体高度，内容区滚动 */
 .hos-modal-panel--offline-audit-open {
-  max-height: 60vh;
+  max-height: calc(var(--hos-screen-h, 100vh) * 0.6);
 }
 
 /* === DeviceGroupModal 关闭按钮（专属玻璃圆形） === */

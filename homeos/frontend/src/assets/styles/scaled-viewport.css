@@ -26,15 +26,14 @@
 }
 
 /*
- * 缩放到下限（MIN_SCALE）后的兜底：此时 shell 比视口大，`overflow: hidden` 会把四周内容
- * 直接裁掉。改为可滚动 + 左上对齐，让用户能滚到被挤出去的部分。
- * 只在真的触底时挂上（ScaledViewport 计算 scaleClamped），正常缩放仍是铺满无滚动。
+ * .viewport-stage：画布的语义包裹层，始终 display:contents（不产生盒子）。
+ *
+ * 历史上这里承担过「缩放下限触底后由外层滚动」的舞台职责（尺寸 = 设计稿 × 缩放比，
+ * overflow:hidden 裁掉 transform 未缩小的布局盒）。现在策略改为「始终完整显示」：
+ * 缩放比恒为 contain 比，画布永远落在视口内，不再有滚动，舞台只保留占位语义。
  */
-.viewport-frame--scrollable {
-  overflow: auto;
-  justify-content: flex-start;
-  align-items: flex-start;
-  overscroll-behavior: contain;
+.viewport-stage {
+  display: contents;
 }
 
 .viewport-frame::before {
@@ -114,6 +113,9 @@
 
 .app-shell--scaling.app-shell--resizing {
   will-change: transform;
+  /* 拖拽窗口期间必须即时跟随：常驻的 transform 过渡会让画布比窗口慢半拍，
+     松手后再缓动 150ms，视觉上像「追帧」。resize 结束后 RESIZE_SETTLE_MS 才解冻。 */
+  transition: none;
 }
 
 .app-shell__content {

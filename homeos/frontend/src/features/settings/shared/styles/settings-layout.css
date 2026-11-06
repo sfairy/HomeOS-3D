@@ -1430,7 +1430,7 @@
   border: var(--hos-hairline) solid transparent;
 }
 .sm-batch-panel--open {
-  max-height: min(70vh, 1200px);
+  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 1200px);
   overflow-y: auto;
   opacity: 1;
   padding: 16px;

@@ -176,6 +176,7 @@
       <SettingsLayoutDisplaySection
         :scaling-enabled="scalingEnabled"
         :scale="scale"
+        :scale-clamped="scaleClamped"
         :active-design-width="activeDesignWidth"
         :design-height="DESIGN_HEIGHT"
         :viewport-w="viewportW"
@@ -327,6 +328,7 @@ const {
   scalingEnabled,
   toggleScaling,
   scale,
+  scaleClamped,
   activeDesignWidth,
   DESIGN_HEIGHT,
   vw: viewportW,
