@@ -49,6 +49,20 @@
 		on_demand
 	}
 
+	# ── 健康检查不进访问日志 ─────────────────────────────────────────────────────
+	# 容器 HEALTHCHECK（docker-compose*.yml 的 `interval: 30s`）会打
+	# `https://localhost:8803/health/ready`，每 30s 一条，一整天 2880 条 ≈ 4MB ——
+	# 而日志轮转预算是 10MB × 3，健康检查会稳定吃掉约 13% 的窗口，把真实报错更早挤出去。
+	#
+	# 滤掉不会丢信号，健康状态有三个独立来源：
+	#   · 容器 health 状态（`docker ps` 的 healthy/unhealthy）—— 这条探测本身的结果；
+	#   · Caddy 自己每 15s 的主动探测（下面 reverse_proxy 的 health_uri，不经站点处理器、
+	#     本来就不产生访问日志），它管的是 8801 上游是否活着；
+	#   · 应用 /metrics 的 `homeos_http_requests_total` / 路由直方图。
+	# `log_skip` 实测（caddy:2.11.8-alpine，仓库钉的版本）：只吞 /health/*，其余请求照常入日志。
+	@health path /health/ready /health/live
+	log_skip @health
+
 	# ── 访问日志（性能报告 B16）────────────────────────────────────────────────────
 	# 每个请求一条 JSON 到 stdout：容器里由 docker 的 json-file 驱动收集（max-size/max-file
 	# 轮转见 docker-compose*.yml），也便于宿主侧直接接采集器。与全局块里 Caddy 自身进程
