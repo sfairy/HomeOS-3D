@@ -253,11 +253,22 @@ export function syncLayoutMetricsCore(deps: StageLayersSyncDeps) {
         height: height,
       }
     : null
-  const moduleTabStride = deps.configuredModuleKinds2.length * 50 + 6,
-    navigationConfig = deps.options.navigation || {},
+  // 分类栏的 CSS 宽度（未乘缩放）：Tab 槽位 50px × 个数 + 容器左右内边距 6px
+  const categoryBarWidth = deps.configuredModuleKinds2.length * 50 + 6
+  /**
+   * 分类栏「装得下」的缩放上限。
+   *
+   * 舞台窄的时候（手机竖屏、分屏、浏览器设备仿真 / DevTools 响应式模式）固定 2× 会把
+   * 306px 的分类栏撑到 612px —— 比舞台本身还宽。表现是右侧分类被裁掉，
+   * 选中态胶囊滑到可见区域之外、看着像「挂在条外」。
+   * 这里按舞台宽度收敛缩放（两侧各留 12px，与 placeNavigationGroup 的边距一致），
+   * 下限 1×：再小字号就只有 8px，宁可轻微溢出也不能看不清。
+   */
+  const categoryFitScale = Math.max(1, (width3 - 24) / categoryBarWidth)
+  const navigationConfig = deps.options.navigation || {},
     normalizeNavigationScale = (navigationScaleConfig: any) =>
       Number.isFinite(navigationScaleConfig?.scale) ? Math.max(0.5, Math.min(10, navigationScaleConfig.scale)) : 1,
-    categoryScaleFactor = 2 * normalizeNavigationScale(navigationConfig.categories),
+    categoryScaleFactor = Math.min(2 * normalizeNavigationScale(navigationConfig.categories), categoryFitScale),
     floorScaleFactor = 2 * normalizeNavigationScale(navigationConfig.floors),
     navigationLayerHeight = deps.navigationLayerElement.offsetHeight || 36,
     floorTabsWidth = deps.floorTabsElement.offsetWidth || 80,
@@ -319,7 +330,7 @@ export function syncLayoutMetricsCore(deps: StageLayersSyncDeps) {
       navigationConfig.categories,
       [50, 94],
       categoryScaleFactor,
-      moduleTabStride,
+      categoryBarWidth,
       navigationLayerHeight,
     ),
     followOffsetClamp = Number.isFinite(navigationConfig.followOffset)

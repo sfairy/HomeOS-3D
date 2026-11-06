@@ -2010,13 +2010,26 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-floor-tabs[hidden] {
   display: none;
 }
+/* 整个舞台是按 `--i3d-navigation-scale`（默认 2×）缩放渲染的：一枚 CSS 里 28px 的 Tab，
+   屏幕上实际是 56px 的触控区。所以这里必须解掉 `touch-a11y.css` 在
+   `@media (pointer: coarse)` 下给所有 `button` 加的 `min-block-size: 44px`
+   —— 它压的是 min-* 属性，能盖过我们自己的 height，触屏/设备仿真下会把
+   每个 Tab 撑高到 44px，而条只有 36px：选中背景就从内嵌胶囊变成顶满整条高度的方块。
+   这些控件已经靠缩放拿到了足够的触控尺寸，不需要再叠一次 44px。 */
+.interaction3d-stage .i3d-module-tabs button,
+.interaction3d-stage .i3d-navigation .i3d-toolbar button,
+.interaction3d-stage .i3d-floor-tabs button {
+  min-width: 0;
+  min-height: 0;
+}
 .interaction3d-stage .i3d-navigation .i3d-module-tabs {
   position: static;
   transform: none;
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
-  gap: 6px;
+  /* gap 由下方槽位几何规则统一给出（--i3d-tab-gap），这里不要再写死，否则两处数值会打架。 */
+  gap: 0;
 }
 .interaction3d-stage .i3d-floor-tabs {
   position: absolute;
@@ -2151,48 +2164,75 @@ body.interaction3d-stage.is-background-hidden,
     transition: none;
   }
 }
+/* 槽位用 flex 排布，选中态是按钮自己的背景 —— 不再有「胶囊」这个独立盒子。
+ *
+ * 之前是 absolute 定宽槽位 + 条上一枚 ::before 胶囊，靠两套数字（3px + index*50px 与
+ * 同一组常量）对齐；文字居中则依赖 line-height 把行盒撑到槽位高。这套写法有两个坑：
+ *   1. 任何小数缩放（设备仿真 DPR2×1.94、编辑器画布里的 iframe 缩放）都会让两个独立
+ *      盒子的取整方向不一致；
+ *   2. 行盒高度一旦不等于槽位高（继承来的 line-height、字体度量差异），文字就整体偏向
+ *      一侧 —— 实测用户截图里胶囊水平中心与「3D」墨迹中心完全一致（86px），但文字比
+ *      胶囊垂直中心低了 15 设备像素，正是行盒比槽位高造成的。
+ * 改成 flex 居中 + line-height: 1 后：文字由 flex 居中（与行盒高度无关），选中背景就是
+ * 按钮自身的 border-box（与槽位是同一个盒子），两者物理上不可能错开。
+ */
 .interaction3d-stage .i3d-navigation .i3d-module-tabs {
+  --i3d-tab-w: 48px;
+  --i3d-tab-h: 28px;
+  --i3d-tab-gap: 2px;
+  --i3d-tab-inset: 3px;
+  --i3d-tab-stride: calc(var(--i3d-tab-w) + var(--i3d-tab-gap));
   position: relative;
   left: auto;
   top: auto;
-  display: block;
+  /* flex 居中：即使槽位实际数量与 --i3d-tab-count 不符，也是两侧对称裁切，不会偏移。 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--i3d-tab-gap);
   box-sizing: border-box;
-  width: calc(var(--i3d-tab-count, 6) * 50px + 6px);
-  height: 36px;
-  padding: 4px;
+  width: calc(var(--i3d-tab-count, 6) * var(--i3d-tab-stride) - var(--i3d-tab-gap) + (var(--i3d-tab-inset) + 1px) * 2);
+  height: calc(var(--i3d-tab-h) + (var(--i3d-tab-inset) + 1px) * 2);
+  padding: 0 var(--i3d-tab-inset);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  /* 半径必须大于「槽位半径 8 + 内缩 4」：等于 12 时两层圆角恰好相切，
+     抗锯齿后槽位四角会贴着条边，视觉上像从条里漏出来。留 2px 余量。 */
+  border-radius: 14px;
   background: #191d22ad;
   overflow: hidden;
   isolation: isolate;
   transition: width 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.interaction3d-stage .i3d-navigation .i3d-module-tabs:before {
-  content: "";
-  position: absolute;
-  left: 3px;
-  top: 3px;
-  width: 48px;
-  height: 28px;
-  border-radius: 8px;
-  background: #ffffff21;
-  pointer-events: none;
-  transform: translate(calc(var(--i3d-selected-tab, 0) * 50px));
-  transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
 .interaction3d-stage .i3d-navigation .i3d-module-tabs button {
-  position: absolute;
-  left: calc(3px + var(--i3d-tab-index, 0) * 50px);
-  top: 3px;
-  width: 48px;
-  height: 28px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--i3d-tab-w);
+  height: var(--i3d-tab-h);
+  /* 显式清掉全局的触控最小尺寸。`touch-a11y.css` 在 `@media (pointer: coarse)` 里给所有
+     `button` 加了 `min-block-size: 44px`，它压的是 min-* 属性，会盖掉这里的 height。
+     于是设备仿真 / 真机触屏下每个 Tab 被撑到 44px 高，而条本身只有 36px（overflow:hidden
+     裁掉上下溢出的部分）—— 选中背景就从 28px 的内嵌胶囊变成「顶满整条高度的方块」，
+     看起来就是「选中的没有胶囊样式」。这里不用 44px 是因为整条导航本身按 2× 缩放渲染，
+     28 × 2 = 56px 的实际触控高度已经够了。 */
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 8px;
   color: #ffffff8c;
   background: transparent;
-  font: 500 12px / 28px sans-serif;
-  transition: color 0.2s ease;
+  /* line-height: 1 —— 别让行盒参与居中：行盒高度受字体度量和继承值影响，
+     一旦大于槽位高，文字就会整体偏下（这正是之前「不对齐」的直接原因）。 */
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    color 0.2s ease,
+    background-color 0.22s ease;
   transform: none;
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs button[hidden] {
@@ -2200,7 +2240,8 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs button[aria-pressed="true"] {
   color: #fff;
-  background: transparent;
+  /* 选中态画在按钮自己身上：与槽位是同一个 border-box，不存在错位可能。 */
+  background: #ffffff21;
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs button:hover {
   color: #ffffffe6;
@@ -2211,7 +2252,6 @@ body.interaction3d-stage.is-background-hidden,
 }
 @media (prefers-reduced-motion: reduce) {
   .interaction3d-stage .i3d-navigation .i3d-module-tabs,
-  .interaction3d-stage .i3d-navigation .i3d-module-tabs:before,
   .interaction3d-stage .i3d-navigation .i3d-module-tabs button {
     transition: none;
     animation: none !important;
@@ -3209,7 +3249,7 @@ body.interaction3d-stage.is-background-hidden,
   color: #54432d;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:before,
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs:before {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button[aria-pressed="true"] {
   background: #ceb79280;
   box-shadow: inset 0 1px #ffffff80;
 }
