@@ -206,6 +206,19 @@ export function holdScaledCanvasFlag(): () => void {
 }
 
 /**
+ * 把计算样式里的长度读成数字，读不出（空值 / `auto`）时按 0 处理。
+ *
+ * 抽成函数是因为四个方向都要用：写在 `readViewportBox` 里会退化成四个 `|| 0`，
+ * 直接把那个函数的圈复杂度顶到棘轮线以上。
+ *
+ * @param value `getComputedStyle` 给出的 padding 字面量
+ * @returns 像素值，无法解析时为 0
+ */
+function paddingPx(value: string) {
+  return Number.parseFloat(value) || 0
+}
+
+/**
  * 读取当前视口的「安全区内容盒」尺寸。
  *
  * 不用 visualViewport：它会把软键盘、双指缩放也当成尺寸变化，导致整页反复重排；
@@ -219,16 +232,28 @@ export function holdScaledCanvasFlag(): () => void {
  * @returns 可用内容盒尺寸；无 DOM / 量不到正尺寸时返回 null
  */
 export function readViewportBox(): { width: number; height: number } | null {
-  if (typeof document === 'undefined') return null
-  const frame = document.querySelector<HTMLElement>('.viewport-frame')
+  const frame = typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.viewport-frame')
   if (!frame) return null
   const style = getComputedStyle(frame)
-  const width =
-    frame.clientWidth - (Number.parseFloat(style.paddingLeft) || 0) - (Number.parseFloat(style.paddingRight) || 0)
-  const height =
-    frame.clientHeight - (Number.parseFloat(style.paddingTop) || 0) - (Number.parseFloat(style.paddingBottom) || 0)
-  if (!(width > 0) || !(height > 0)) return null
+  const width = frame.clientWidth - paddingPx(style.paddingLeft) - paddingPx(style.paddingRight)
+  const height = frame.clientHeight - paddingPx(style.paddingTop) - paddingPx(style.paddingBottom)
+  // 隐藏 / 折叠时任一边会是 0 甚至负数；取 min 一次判掉，省掉一个 `||`。
+  if (Math.min(width, height) <= 0) return null
   return { width, height }
+}
+
+/**
+ * 壳层不可用时的视口尺寸兜底：优先 visualViewport（移动端横屏/软键盘更准），
+ * 否则退回 window 尺寸。
+ *
+ * @returns 视口宽高（已取整）
+ */
+function readWindowSize() {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null
+  return {
+    width: Math.round(vv?.width ?? window.innerWidth),
+    height: Math.round(vv?.height ?? window.innerHeight),
+  }
 }
 
 /**
@@ -265,15 +290,9 @@ export function useScaling(
   let frameObserver: ResizeObserver | null = null
   /** 同步视口尺寸：优先取壳层可用内容盒，回退 visualViewport / window 尺寸 */
   function syncViewportSize() {
-    const frameBox = readViewportBox()
-    if (frameBox) {
-      vw.value = Math.round(frameBox.width)
-      vh.value = Math.round(frameBox.height)
-      return
-    }
-    const vv = typeof window !== 'undefined' ? window.visualViewport : null
-    vw.value = Math.round(vv?.width ?? window.innerWidth)
-    vh.value = Math.round(vv?.height ?? window.innerHeight)
+    const box = readViewportBox() ?? readWindowSize()
+    vw.value = Math.round(box.width)
+    vh.value = Math.round(box.height)
   }
   /**
    * resize 处理：rAF 立即跟随，不用防抖延迟。
@@ -408,10 +427,12 @@ export function useScaling(
    */
   const canvasVars = computed(() => {
     if (!scalingOn.value) return {}
-    const layout = viewportLayout.value
-    const canvasW = layout?.contentW ?? designWidth.value
-    const canvasH = layout?.contentH ?? designHeight.value
-    const s = layout?.scale ?? 1
+    // 直接复用上面几个 computed：contentW 就是 effectiveContentWidth，
+    // contentH 就是 designHeight，scale 就是 layout.scale —— 不必再走一遍 `?.` + `??`
+    // 兜底（那三个 `??` 会把本函数顶到棘轮线以上）。
+    const canvasW = effectiveContentWidth.value
+    const canvasH = designHeight.value
+    const s = scale.value
     return {
       '--hos-vw': `${canvasW}px`,
       '--hos-vh': `${canvasH}px`,
