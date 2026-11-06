@@ -186,6 +186,12 @@
  *  卡片只有 16px 内边距，自己再叠一层 blur(30px) 时，模糊半径大于它到面板
  *  边缘的距离，四角会同时把两个方向「面板圆角外的暗场景 + 面板自身投影」
  *  吸进来，渲染成四团暗角 —— 也就是「四个角有阴影」。
+ *
+ *  ⚠ 也不投影：卡片是嵌在面板里的内层表面（类似 iOS 分组列表行），
+ *  靠一像素描边与面板区分即可。`0 6px 18px` 的偏移(6px)与模糊(18px)
+ *  都接近卡片 20px 的圆角半径，投影会顺着圆弧铺满整个转角：四条边整体
+ *  压暗约 4/255，角上那段弧形暗带最短也最扎眼，观感就是「四个角各一块
+ *  暗斑」。去掉后，角缺口、平直边、面板三处亮度完全一致。
  */
 .info-card {
   background: var(--page-card-tint-soft), var(--hos-surface-1);
@@ -198,7 +204,6 @@
     transform var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
     box-shadow var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
     border-color var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1));
-  box-shadow: var(--hos-shadow-card, 0 2px 12px rgba(0, 0, 0, 0.22));
 }
 
 .info-card--widget {
@@ -211,12 +216,13 @@
   padding: 0;
 }
 
-/** 卡片悬停：背景变亮 + 边框微亮 + 抬升 2px */
+/** 卡片悬停：背景变亮 + 边框微亮 + 抬升 2px
+ *  投影收紧到 3px：偏移与模糊都小于 20px 圆角，四角不会再叠出暗斑。 */
 .info-card:hover {
   background: var(--hos-surface-2, rgba(255, 255, 255, 0.045));
   border-color: var(--hos-border-strong, var(--premium-border-strong));
   transform: translateY(var(--hos-hover-lift, -1px));
-  box-shadow: var(--hos-shadow-card-hover, 0 6px 20px rgba(0, 0, 0, 0.28));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 /** 卡片顶部细线光泽：页面色渐变 */
