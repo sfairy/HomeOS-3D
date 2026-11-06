@@ -207,9 +207,19 @@
   backdrop-filter: blur(14px) saturate(150%);
 }
 
+/**
+ * 卡片不再叠第二层 backdrop-filter。
+ *
+ * 之前这里是 `blur(8px)`，叠在面板的 `blur(14px)` 之上（嵌套 backdrop-filter）。
+ * 卡片只有 16px 内边距，模糊半径大于它到面板边缘的距离，于是四角会同时把
+ * 两个方向「面板圆角外的暗背景 + 面板自身投影」吸进来，渲染成四团暗角
+ * —— 即「四个角有阴影」。Retina / 高分屏下尤其明显。
+ * 磨砂由 .info-panel 单层承担（与 widget-glass.css 同口径），
+ * 卡片本身保持透明即可，视觉几乎无差异但不再发暗。
+ */
 .app-shell--light-backdrop .shell-right-sidebar .info-card {
-  -webkit-backdrop-filter: blur(8px) saturate(150%);
-  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .app-shell--light-backdrop .shell-footer.power-panel {
@@ -222,7 +232,6 @@
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   .app-shell--light-backdrop .app-shell__content .tab-bar,
   .app-shell--light-backdrop .shell-right-sidebar .info-panel,
-  .app-shell--light-backdrop .shell-right-sidebar .info-card,
   .app-shell--light-backdrop .shell-footer.power-panel {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
