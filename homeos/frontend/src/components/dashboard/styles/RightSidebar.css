@@ -322,3 +322,17 @@
     background: rgba(var(--shell-scrim-dock-rgb), 0.92);
   }
 }
+
+/**
+ * 触控端还原折叠按钮的 22px 视觉宽度。
+ * packages/shared/src/styles/touch-a11y.css 在 `@media (pointer: coarse)` 下给所有
+ * `button` 加了 `min-inline-size: var(--hos-touch-min)`（44px），本按钮因此被撑成
+ * 44×48 的近正方形：右侧压进面板、左边多凸出 22px，移动端观感与桌面端不一致。
+ * 热区已由上面的 `.panel-collapse-btn::before`（44×44 透明伪元素）保证，
+ * 这里只把视觉尺寸还原，点击面积不受影响。
+ */
+@media (pointer: coarse) {
+  .panel-collapse-btn {
+    min-inline-size: 0;
+  }
+}
