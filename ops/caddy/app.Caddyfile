@@ -49,26 +49,47 @@
 		on_demand
 	}
 
-	# ── 健康检查不进访问日志 ─────────────────────────────────────────────────────
-	# 容器 HEALTHCHECK（docker-compose*.yml 的 `interval: 30s`）会打
-	# `https://localhost:8803/health/ready`，每 30s 一条，一整天 2880 条 ≈ 4MB ——
-	# 而日志轮转预算是 10MB × 3，健康检查会稳定吃掉约 13% 的窗口，把真实报错更早挤出去。
+	# ── 心跳轮询不进访问日志 ─────────────────────────────────────────────────────
+	# 家居控制台是**长驻轮询**的：每台客户端每隔几秒打一批「状态没变」的请求
+	# （场景 current、client-power、revision、ha/sync、security-panel、interaction3d/access），
+	# 实测一轮 8 条里 7 条是 200/204 心跳，只有 1 条是真正的业务请求。打开访问日志排障时，
+	# 埋掉人的正是这些。
 	#
-	# 滤掉不会丢信号，健康状态有三个独立来源：
-	#   · 容器 health 状态（`docker ps` 的 healthy/unhealthy）—— 这条探测本身的结果；
+	# 滤掉不丢信号：它们只证明「客户端还活着」，健康状态另有三个独立来源 ——
+	#   · 容器 health 状态（`docker ps` 的 healthy/unhealthy，HEALTHCHECK 每 30s 自查）；
 	#   · Caddy 自己每 15s 的主动探测（下面 reverse_proxy 的 health_uri，不经站点处理器、
 	#     本来就不产生访问日志），它管的是 8801 上游是否活着；
 	#   · 应用 /metrics 的 `homeos_http_requests_total` / 路由直方图。
-	# `log_skip` 实测（caddy:2.11.8-alpine，仓库钉的版本）：只吞 /health/*，其余请求照常入日志。
-	@health path /health/ready /health/live
-	log_skip @health
+	# 口径是「整个轮询端点都不记」而不是「成功的心跳不记」：log_skip 只认请求特征、看不到
+	# 状态码，本来也做不到后者；这些请求失败时客户端会重试，并在应用侧留下日志。
+	# 一整行是有意的：`\` 续行会被 caddy fmt 重排成「行首一个空格」，比长行更难读。
+	@heartbeat path /health/ready /health/live /api/v1/modules/interaction3d/access /api/v1/system/client-power/report /api/v1/security-panel/status /api/v1/ha/sync/status
+	# 路径中段带 id 的两条只能上正则：path 匹配的 `*` 只在首尾生效。
+	@heartbeat_scene path_regexp ^/api/v1/modules/interaction3d/scenes/[^/]+/current$
+	@heartbeat_revision path_regexp ^/api/v1/projects/[^/]+/revision$
+	# log_skip 一次只收一个匹配器，所以这里写三条（实测三条各自成 vars handler，
+	# 命中任一条都跳过）。
+	log_skip @heartbeat
+	log_skip @heartbeat_scene
+	log_skip @heartbeat_revision
 
-	# ── 访问日志（性能报告 B16）────────────────────────────────────────────────────
-	# 每个请求一条 JSON 到 stdout：容器里由 docker 的 json-file 驱动收集（max-size/max-file
-	# 轮转见 docker-compose*.yml），也便于宿主侧直接接采集器。与全局块里 Caddy 自身进程
-	# 日志（ERROR 级 console）是两条独立通道，互不影响。
+	# ── 访问日志：默认关闭，排查反代层时再开 ──────────────────────────────────────
+	# 生产 `docker compose logs` 只该看到启动过程、应用自身日志与错误。每请求一条 JSON 到
+	# stdout 时，即使上面滤掉了心跳，业务轮询与静态资源仍会把真实报错不断顶走。
+	# 口径与 uvicorn 一致：start_app.py 默认 `--no-access-log`，要 HOMEOS_UVICORN_ACCESS_LOG=1
+	# 才逐请求打印；这里同理，`HOMEOS_CADDY_ACCESS_LOG=stdout` 才输出。
+	#
+	# 什么时候需要它：反代**自己**产生的问题 —— 502（上游没起）、TLS 握手失败、跨域、
+	# 压缩没生效、WebSocket 没升级、长连接被谁先断。这些在应用日志里看不到（请求压根
+	# 没到应用），那时才值得开一轮。
+	#
+	# 取值只允许 stdout / stderr / discard：`{$VAR:默认值}` 只在变量**未设置**时用默认值，
+	# 设成空串会展开成裸 `output`，整份配置解析失败、内置反代根本起不来。ops/docker/proxy.py
+	# 的 resolve_access_log_writer 会在启动前摘掉空值与非法值（与 APP_HTTPS_DEFAULT_SNI
+	# 同一套兜底），所以这里不必自己防。与全局块里 Caddy 自身进程日志（ERROR 级 console）
+	# 是两条独立通道，互不影响。
 	log {
-		output stdout
+		output {$HOMEOS_CADDY_ACCESS_LOG:discard}
 		format json
 	}
 

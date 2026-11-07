@@ -23,7 +23,13 @@ from ops.docker.bootstrap_keys import (
     ensure_client_keys,
 )
 from ops.docker.http_security import forwarded_allow_ips_warning
-from ops.docker.proxy import resolve_default_sni, run_with_proxy
+from ops.docker.proxy import (
+    ACCESS_LOG_FALLBACK,
+    ACCESS_LOG_VARIABLE,
+    resolve_access_log_writer,
+    resolve_default_sni,
+    run_with_proxy,
+)
 from ops.license_keys import apply_client_key_env
 
 DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
@@ -138,6 +144,17 @@ def main() -> None:
     )
     if default_sni.warning:
         print(f'警告：{default_sni.warning}', file=sys.stderr, flush=True)
+
+    # 内置反代的访问日志默认关闭（Caddyfile 的 log 块是 `output {$…:discard}`）：家居控制台
+    # 是长驻轮询的，每请求一条 JSON 会把容器日志刷满。要排查反代层问题（502 / TLS / 跨域 /
+    # 压缩 / 长连接）时用 HOMEOS_CADDY_ACCESS_LOG=stdout 打开 —— 那些错在应用日志里看不到，
+    # 因为请求压根没到应用。空值与非法值在这里被摘掉并告警（空值会让整份 Caddyfile 解析失败）。
+    access_log_writer = resolve_access_log_writer(environment)
+    if access_log_writer != ACCESS_LOG_FALLBACK:
+        print(
+            f'内置反代访问日志  {access_log_writer}（{ACCESS_LOG_VARIABLE}，排查反代层问题时才需要）',
+            flush=True,
+        )
 
     print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/login", flush=True)
     if default_sni.configured:

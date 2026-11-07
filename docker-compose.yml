@@ -155,6 +155,10 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
       # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
+      # 内置反代的访问日志：默认 discard（不写），排查反代层问题（502 / TLS / 跨域 /
+      # 压缩 / 长连接）时才设 stdout。别留空值 —— 空串会让 Caddyfile 的 output 少一个
+      # 参数、反代起不来；启动器会把空值/非法值摘掉并告警，但仍然建议显式写 discard。
+      HOMEOS_CADDY_ACCESS_LOG: ${HOMEOS_CADDY_ACCESS_LOG:-discard}
       # 授权实例指纹：留空 = 由上面的 /host 挂载派生（Linux 默认）。
       # 没有 /host 的宿主（macOS）用 HOMEOS_FINGERPRINT_* 钉住；改名是为了不和
       # ops/dev.mjs 共用的 .env 键冲突（理由见 docker-compose.app.yml 的同一段注释）。

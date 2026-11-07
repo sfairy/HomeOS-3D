@@ -47,6 +47,12 @@ UPSTREAM_PROBE_INTERVAL_SECONDS = 0.25
 DEFAULT_SNI_VARIABLE = 'APP_HTTPS_DEFAULT_SNI'
 DEFAULT_SNI_FALLBACK = 'homeos.local'
 
+#: Caddyfile 里 ``log { output {$VAR:默认值} }`` 的变量名与合法取值。取值就是 Caddy 不带
+#: 参数的那三种 log writer —— 需要 ``file <path>`` 这类带参数的写法时得改 Caddyfile 本身。
+ACCESS_LOG_VARIABLE = 'HOMEOS_CADDY_ACCESS_LOG'
+ACCESS_LOG_WRITERS = ('stdout', 'stderr', 'discard')
+ACCESS_LOG_FALLBACK = 'discard'
+
 
 def _note(message: str) -> None:
     print(f'[proxy] {message}', flush=True)
@@ -134,6 +140,36 @@ def resolve_default_sni(
             ),
         )
     return DefaultSni(raw, configured=True, warning='')
+
+
+def resolve_access_log_writer(environment: MutableMapping[str, str]) -> str:
+    """读取并校验内置反代的访问日志输出方式；空值与非法值会被摘掉，回落到默认。
+
+    为什么必须校验：Caddyfile 写的是 ``output {$HOMEOS_CADDY_ACCESS_LOG:discard}``，而
+    ``{$VAR:默认值}`` **只在变量未设置时**用默认值 —— 设成空串会展开成裸 ``output``，
+    整份配置解析失败、内置反代根本起不来（重试 5 次后只剩一句「HTTPS 不可用」）。
+    一行日志偏好不该有这种杀伤力，所以这里与 :func:`resolve_default_sni` 用同一套兜底：
+    摘掉变量，让 Caddyfile 的默认值生效。
+
+    :param environment: 进程环境（会被就地修改：摘掉不合法的 ``HOMEOS_CADDY_ACCESS_LOG``）
+    :returns: 最终生效的输出方式（``stdout`` / ``stderr`` / ``discard``）
+    """
+    raw = str(environment.get(ACCESS_LOG_VARIABLE) or '').strip()
+    if not raw:
+        # 没设是正常的（默认关闭）；设成空串则必须摘掉，见上面那条。
+        environment.pop(ACCESS_LOG_VARIABLE, None)
+        return ACCESS_LOG_FALLBACK
+    if raw in ACCESS_LOG_WRITERS:
+        # 顺手把空白去掉：`output  stdout` 虽也能解析，但没必要让配置里带杂质。
+        environment[ACCESS_LOG_VARIABLE] = raw
+        return raw
+    environment.pop(ACCESS_LOG_VARIABLE, None)
+    _warn(
+        f'{ACCESS_LOG_VARIABLE}={raw!r} 不是 Caddy 认识的输出方式'
+        f'（可选 {" / ".join(ACCESS_LOG_WRITERS)}）；已忽略，访问日志按默认 '
+        f'{ACCESS_LOG_FALLBACK}（关闭）处理。'
+    )
+    return ACCESS_LOG_FALLBACK
 
 
 def _caddy_command() -> list[str]:
