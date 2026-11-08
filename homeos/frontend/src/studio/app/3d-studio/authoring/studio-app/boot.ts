@@ -2,7 +2,7 @@ import {
   moveStepMeters as moveStepMeters2,
   planDirectionForScreenArrow,
 } from "../studio-edit-metrics";
-import { isLegacyEmbedStageLighting } from "../scene/studio-stage-lighting-mode"
+import { resolveStageLightingPipeline } from "../scene/studio-stage-lighting-mode"
 import {
   courtyardPlanColor as courtyardPlanColor2,
 } from "../../plan/courtyard-plan";
@@ -1422,7 +1422,8 @@ export function bootStudio(): void {
     "/api/v1/modules/interaction3d/stage.html",
   geometryCacheHandle: any = isEmbeddedStage ? stageStartup2?.geometryCache : null,
   stageSearchParams = new URLSearchParams(window.location.search),
-  isEmbedStageMode = isEmbeddedStage && isLegacyEmbedStageLighting(stageSearchParams),
+  isEmbedStageMode =
+    isEmbeddedStage && resolveStageLightingPipeline(stageSearchParams),
   defaultWallRuntimeProfile = "baseline";
 window.__homeosWallRuntimeProfile = defaultWallRuntimeProfile || "baseline";
 const renderCacheWriter = isEmbeddedStage

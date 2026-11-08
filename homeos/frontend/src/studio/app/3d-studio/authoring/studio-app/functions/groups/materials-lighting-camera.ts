@@ -665,7 +665,10 @@ export function refreshBaseLighting(runtime: StudioAppRuntime) {
   // 亮度系数判据是 `isEmbedStageMode`（舞台 + `?lighting=region`），不是 `isEmbeddedStage`：
   // 标准舞台 URL 走 1.0，是曝光与墙面自发光一起调好的基线；换成 `isEmbeddedStage` 会把半球光/
   // 环境光/三盏方向光整体砍半，墙直接掉成暗褐色块，开灯也补不回来。
-  const isStageSurface = runtime.isEmbeddedStage === true
+  // 阴影档位的判据同样是 `isEmbedStageMode`（舞台 + legacy 光影），不是 `isEmbeddedStage`：
+  // 标准光影 v2 的舞台要与编辑器「同一档」阴影（预设浓度 ×1.5、柔化 3.25/12 采样），
+  // 否则组件明明切到了标准光影，舞台上却还是老档的 0.18 硬边影 —— 观感就是「部署后没立体感」。
+  const isStageSurface = runtime.isEmbedStageMode === true
   runtime.appCtx.hemisphereLight &&
     (runtime.appCtx.hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14606046),
     runtime.appCtx.hemisphereLight.groundColor.setHex(yt2.warmWood ? 10524035 : 2236962),

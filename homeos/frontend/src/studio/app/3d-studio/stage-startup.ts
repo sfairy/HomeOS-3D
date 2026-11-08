@@ -3,6 +3,7 @@ import { createContactShadowPersistentCache } from './plan/contact-shadow-persis
 import { contactShadowPreparationKey } from './plan/contact-shadow-cache-scope'
 import { createReflectionPersistentCache } from './reflection/reflection-persistent-cache'
 import { createScenePersistentCache, scenePreparationKey } from './cache/scene-persistent-cache'
+import { isLegacyEmbedStageLighting } from './authoring/scene/studio-stage-lighting-mode'
 function beginStageStartup({
   env: env = globalThis,
   loadModule: loadModule = () => import('/api/v1/modules/interaction3d/core/stage.js'),
@@ -49,14 +50,14 @@ function beginStageStartup({
       key: shadowCacheKey,
     })
   shadowCache.preload()
-  // 标准光影 v2 才跳过反射缓存预热：旧管线（含只写了 lightingMode 的老组件）继续用缓存。
-  const reflectionCache =
-    searchParams.get('lighting') === 'standard' && searchParams.get('lightingVersion') === '2'
-      ? null
-      : createReflectionPersistentCache({
-          env: env,
-          key: preparationKey,
-        })
+  // 标准光影才跳过反射缓存预热：旧管线（含只写了 lightingMode 的老组件）继续用缓存。
+  // 判据与舞台启动同源（`isLegacyEmbedStageLighting`），避免两处各判一遍后各走一条路。
+  const reflectionCache = isLegacyEmbedStageLighting(searchParams)
+    ? createReflectionPersistentCache({
+        env: env,
+        key: preparationKey,
+      })
+    : null
   reflectionCache?.preload()
   const preparationResponse = env.fetch('/api/v1' + scenePath, {
     cache: 'no-store',
