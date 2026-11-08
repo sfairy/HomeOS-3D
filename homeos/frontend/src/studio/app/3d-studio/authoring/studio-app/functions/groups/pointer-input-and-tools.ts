@@ -419,7 +419,7 @@ export function commitWallOpacity(runtime: StudioAppRuntime) {
      * 和 `commitWallThickness` 一样按「全局字段 = 全屋统一」处理：改全局就把单墙的覆盖
      * 清掉，让它们回到跟随全局。要单独调某面墙，之后在墙面属性里再设即可。
      */
-    runtime.appCtx.studioState.walls.forEach((opacityResetWall: any) => {
+    runtime.appCtx.studioState.walls.forEach((opacityResetWall: { opacity?: number | null }) => {
       opacityResetWall.opacity === null || opacityResetWall.opacity === undefined || (opacityResetWall.opacity = null)
     }),
     runtime.markDocumentDirty(),

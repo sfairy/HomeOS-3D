@@ -1,6 +1,6 @@
 {
   "totals": {
-    "functions": 26784,
+    "functions": 26790,
     "gt10": 1313,
     "gt15": 719,
     "gt80": 808
@@ -2128,7 +2128,7 @@
       "max": 16
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-walls.ts": {
-      "functions": 43,
+      "functions": 41,
       "gt10": 3,
       "gt15": 1,
       "gt80": 1,
@@ -2261,14 +2261,14 @@
       "max": 23
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/materials-lighting-camera.ts": {
-      "functions": 105,
+      "functions": 104,
       "gt10": 8,
       "gt15": 1,
       "gt80": 1,
       "max": 20
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/pointer-input-and-tools.ts": {
-      "functions": 46,
+      "functions": 47,
       "gt10": 4,
       "gt15": 2,
       "gt80": 2,
@@ -2744,17 +2744,31 @@
       "max": 116
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-contact-shadows.ts": {
-      "functions": 103,
-      "gt10": 12,
-      "gt15": 7,
+      "functions": 96,
+      "gt10": 11,
+      "gt15": 6,
       "gt80": 4,
       "max": 69
     },
+    "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-contact-surface-levels.ts": {
+      "functions": 8,
+      "gt10": 1,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 19
+    },
+    "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-region-light-data.ts": {
+      "functions": 21,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 29
+    },
     "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-region-lights.ts": {
-      "functions": 82,
-      "gt10": 9,
-      "gt15": 5,
-      "gt80": 8,
+      "functions": 64,
+      "gt10": 6,
+      "gt15": 3,
+      "gt80": 7,
       "max": 63
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/window/designer-canvas.ts": {

@@ -20,7 +20,6 @@ import {
   doorLeafRotation as doorLeafRotation2,
   pointInPolygon as pointInPolygon2,
   polygonArea as polygonArea2,
-  validatedUnionPolygonLoops as validatedUnionPolygonLoops2,
   wallLengthMeters as wallLengthMeters2,
   wallSolidPieces as wallSolidPieces2,
 } from '../../plan/geometry'
@@ -31,7 +30,7 @@ import { createWallCapContext } from './studio-wall-shell'
 import type { WallCapLoop } from './studio-wall-shell'
 import { buildWallLevelLayers } from './studio-wall-levels'
 import type { WallLevelContext, WallVolumeSlice } from './studio-wall-levels'
-import { recordWallUnionFallback } from '../../plan/studio-wall-union'
+import * as wallUnion from '../../plan/studio-wall-union'
 import { isWallPartVisible } from './studio-wall-debug'
 import {
   createWallSideMaterial as createWallSideMaterial2,
@@ -47,7 +46,6 @@ import { doorMaterialPartRoleFor } from '../../materials/studio-model-material-r
 import { finite as finite2 } from '../../loaders/studio-normalization'
 import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
-import { validGeometryLoops as validGeometryLoops2 } from '../../cache/geometry-persistent-cache'
 import { openingFrameDepth, windowGeometryParts as windowGeometryParts2 } from '../../plan/studio-window-geometry'
 import { addCustomWindow } from '../../plan/window/model'
 import { isCustomWindow } from '../../plan/window/layout'
@@ -175,20 +173,6 @@ function createHiddenBasicMaterial(_deps: StudioWallsDeps) {
   const hiddenBasicMaterial = new ns2.MeshBasicMaterial()
   return ((hiddenBasicMaterial.visible = false), hiddenBasicMaterial)
 }
-
-/** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
-function cachedWallUnionLoops(deps: StudioWallsDeps, wallLoopList: any) {
-  const computeUnionLoops = () => {
-    const unifiedLoops = validatedUnionPolygonLoops2(wallLoopList, 1e-7)
-    // 并集失败（输入有歧义/自交）时不再把重叠环原样丢给挤出：那会让重叠段各自
-    // 画一层双面半透明壳，叠出亮边。改成保守回退并计数（见 studio-wall-shell）。
-    return unifiedLoops.length ? unifiedLoops : recordWallUnionFallback(wallLoopList)
-  }
-  return deps.geometryCacheHandle
-    ? deps.geometryCacheHandle.value('wall-union', wallLoopList, computeUnionLoops, validGeometryLoops2)
-    : computeUnionLoops()
-}
-
 /**
  * 墙带的两个「按上下文补默认值」：竖向渐变的归一化基准 + 并集失败时的深度兜底。
  *
@@ -222,7 +206,7 @@ function buildWallBandMesh(
 ) {
   if (!wallBandLoopList.length || wallBandTopHeight - wallBandBaseHeight <= 0.000001 || !isWallPartVisible('side'))
     return
-  const validatedWallBandLoops = cachedWallUnionLoops(deps, wallBandLoopList),
+  const validatedWallBandLoops = wallUnion.cachedWallUnionLoops(deps, wallBandLoopList),
     hasValidWallBandLoops = validatedWallBandLoops.length > 0,
     ms2 = buildShapesWithHoles(deps, hasValidWallBandLoops ? validatedWallBandLoops : wallBandLoopList),
     { heightSpan: wallBandHeightSpan, options: resolvedWallBandOptions } = resolveWallBandRenderOptions(
@@ -293,7 +277,7 @@ function createWallCapBuilder(deps: StudioWallsDeps) {
   return createWallCapContext(
     deps,
     (capLoops: WallCapLoop[][]) => {
-      const validatedLoops = cachedWallUnionLoops(deps, capLoops),
+      const validatedLoops = wallUnion.cachedWallUnionLoops(deps, capLoops),
         usesUnionLoops = validatedLoops.length > 0
       return {
         shapes: buildShapesWithHoles(deps, usesUnionLoops ? validatedLoops : capLoops),

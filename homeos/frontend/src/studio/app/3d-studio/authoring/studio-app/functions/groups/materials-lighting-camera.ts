@@ -641,6 +641,8 @@ export async function importBackgroundFile(runtime: StudioAppRuntime, background
   }
 }
 
+export { positionLightFromAngles } from '../../../lights/studio-light-placement'
+
 export function backgroundSettings(runtime: StudioAppRuntime): BackgroundViewSettings {
   return runtime.appCtx.sceneStyle === 'warm-wood'
     ? {
@@ -648,24 +650,6 @@ export function backgroundSettings(runtime: StudioAppRuntime): BackgroundViewSet
         ...WARM_WOOD_STYLE2,
       }
     : defaultViewSettings
-}
-
-export function positionLightFromAngles(
-  _runtime: StudioAppRuntime,
-  lightObject: any,
-  azimuthDegrees: any,
-  elevationDegrees: any,
-  lightDistance: any,
-) {
-  if (!lightObject) return
-  const degToRad = ns2.MathUtils.degToRad(azimuthDegrees),
-    degToRad2 = ns2.MathUtils.degToRad(elevationDegrees),
-    horizontalDistance = Math.cos(degToRad2) * lightDistance
-  lightObject.position.set(
-    Math.cos(degToRad) * horizontalDistance,
-    Math.sin(degToRad2) * lightDistance,
-    Math.sin(degToRad) * horizontalDistance,
-  )
 }
 
 export function refreshBaseLighting(runtime: StudioAppRuntime) {

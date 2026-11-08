@@ -4,6 +4,12 @@ import {
   restoreContactShadowSnapshot,
 } from './contact-shadow-persistent-cache'
 import { createContactShadowPoseResolver } from './studio-contact-shadow-pose'
+import {
+  computeSurfaceLevels,
+  findUserFieldInAncestors,
+  isContactCasterMaterial,
+  isVisibleWithAncestors,
+} from './studio-plan2-contact-surface-levels'
 import { stableModelTextureKey } from '../cache/model-texture-cache'
 
 /** 持久缓存实例（由 stage-startup 注入）。 */
@@ -19,89 +25,6 @@ type SurfaceLevelsMemoEntry = {
   levels: SurfaceLevel[]
 }
 
-function findUserFieldInAncestors(startObject: any, userFieldKey: any) {
-  for (let ancestorObject = startObject; ancestorObject; ancestorObject = ancestorObject.parent)
-    if (ancestorObject.userData?.[userFieldKey] !== undefined) return ancestorObject.userData[userFieldKey]
-}
-function isVisibleWithAncestors(rootObject3d: any) {
-  for (let ancestorNode = rootObject3d; ancestorNode; ancestorNode = ancestorNode.parent)
-    if (!ancestorNode.visible) return false
-  return true
-}
-function isContactCasterMaterial(candidateMaterial: any) {
-  return !!(
-    candidateMaterial &&
-    candidateMaterial.visible !== false &&
-    candidateMaterial.opacity >= 0.98 &&
-    !(candidateMaterial.transmission > 0) &&
-    (!candidateMaterial.transparent || candidateMaterial.alphaTest > 0)
-  )
-}
-
-function computeSurfaceLevels(threeApi: any, meshList: any, floorY: any, levelLimit = 32) {
-  const map = new Map(),
-    vector = new threeApi.Vector3(),
-    vertexB = new threeApi.Vector3(),
-    vertexC = new threeApi.Vector3(),
-    edgeAB = new threeApi.Vector3(),
-    edgeAC = new threeApi.Vector3(),
-    faceNormal = new threeApi.Vector3(),
-    meshMatrix = new threeApi.Matrix4(),
-    instanceMatrix = new threeApi.Matrix4()
-  for (const mesh of meshList) {
-    const material = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-    if (
-      material.length &&
-      material.every((materialEntry: any) => materialEntry?.userData?.plan2SurfaceContact === false)
-    )
-      continue
-    const geometry = mesh.geometry,
-      positionAttribute = geometry?.attributes?.position
-    if (!positionAttribute) continue
-    const index = geometry.index,
-      count = index?.count ?? positionAttribute.count,
-      start = geometry.drawRange.start,
-      min = Math.min(count, start + geometry.drawRange.count)
-    for (let num = 0; num < (mesh.isInstancedMesh ? mesh.count : 1); num++) {
-      meshMatrix.copy(mesh.matrixWorld),
-        mesh.isInstancedMesh && (mesh.getMatrixAt(num, instanceMatrix), meshMatrix.multiply(instanceMatrix))
-      for (let vertexCursor = start; vertexCursor + 2 < min; vertexCursor += 3) {
-        vector
-          .fromBufferAttribute(positionAttribute, index ? index.getX(vertexCursor) : vertexCursor)
-          .applyMatrix4(meshMatrix),
-          vertexB
-            .fromBufferAttribute(positionAttribute, index ? index.getX(vertexCursor + 1) : vertexCursor + 1)
-            .applyMatrix4(meshMatrix),
-          vertexC
-            .fromBufferAttribute(positionAttribute, index ? index.getX(vertexCursor + 2) : vertexCursor + 2)
-            .applyMatrix4(meshMatrix),
-          faceNormal.crossVectors(edgeAB.subVectors(vertexB, vector), edgeAC.subVectors(vertexC, vector))
-        const triangleArea = faceNormal.length() * 0.5,
-          surfaceHeight = (vector.y + vertexB.y + vertexC.y) / 3 - floorY,
-          minSurfaceHeight = mesh.userData?.regionReceiverKind === 'floor' ? 0.015 : 0.12
-        if (triangleArea < 0.004 || faceNormal.y < triangleArea * 1.9998 || surfaceHeight <= minSurfaceHeight) continue
-        const round = Math.round(surfaceHeight * 100),
-          options = map.get(round) || {
-            height: 0,
-            area: 0,
-            top: -Infinity,
-          }
-        ;(options.height += surfaceHeight * triangleArea),
-          (options.area += triangleArea),
-          (options.top = Math.max(options.top, vector.y - floorY, vertexB.y - floorY, vertexC.y - floorY)),
-          map.set(round, options)
-      }
-    }
-  }
-  return [...map.values()]
-    .sort((levelA, levelB) => levelB.area - levelA.area)
-    .slice(0, levelLimit)
-    .map((levelEntry) => ({
-      height: levelEntry.height / levelEntry.area,
-      top: levelEntry.top,
-    }))
-    .sort((levelLeft, levelRight) => levelLeft.height - levelRight.height)
-}
 /** 缓存的 uniform 槽位。 */
 type CachedUniformLike = { value?: any }
 
@@ -476,8 +399,10 @@ export function createContactShadowController({
    * `renderTarget.addEventListener('dispose', …)` 直接抛
    * `d.addEventListener is not a function`，整个渲染循环就此中断。
    */
-  const isReusableRenderTarget = (existingTarget: any, sizePx: any) =>
-    existingTarget?.isRenderTarget === true && existingTarget.width === sizePx && existingTarget.height === sizePx
+  const isReusableRenderTarget = (
+    existingTarget: { isRenderTarget?: boolean; width?: number; height?: number } | null | undefined,
+    sizePx: number,
+  ) => existingTarget?.isRenderTarget === true && existingTarget.width === sizePx && existingTarget.height === sizePx
   function ensureRenderTargets(floorEntry: any, sizePx: any) {
     return (
       isReusableRenderTarget(floorEntry.target, sizePx) ||

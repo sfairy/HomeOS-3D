@@ -2,6 +2,7 @@ import {
   moveStepMeters as moveStepMeters2,
   planDirectionForScreenArrow,
 } from "../studio-edit-metrics";
+import { isLegacyEmbedStageLighting } from "../scene/studio-stage-lighting-mode"
 import {
   courtyardPlanColor as courtyardPlanColor2,
 } from "../../plan/courtyard-plan";
@@ -338,14 +339,6 @@ let activeStudioRenderLoop: { dispose?: () => void } | null = null;
  * 同一时刻只允许一个活动实例：上一实例的回收是异步的（需先落盘），无法在此同步等待，
  * 所以重复调用会被拒绝并打日志，调用方必须先 `await teardownStudio()`。
  */
-/**
- * legacy 嵌入光影 = 嵌入舞台且**不是**标准光影 v2。0.8.4 老组件只写 `lightingMode`，
- * 归一化后本来就是 `region`，所以判据必须带上版本位，否则会误判成新管线。
- */
-function isLegacyEmbedStageLighting(searchParams: URLSearchParams) {
-  return searchParams.get("lighting") !== "standard" || searchParams.get("lightingVersion") !== "2"
-}
-
 export function bootStudio(): void {
   // 守卫：上一实例的回收是异步的（要等落盘），无法在本同步函数里等待完成，因此直接
   // 拒绝二次引导。旧实现会覆盖 ``disposeActiveStudio``，导致前一个实例的 WebGL 上下文、
@@ -1428,8 +1421,6 @@ export function bootStudio(): void {
     window.location.pathname ===
     "/api/v1/modules/interaction3d/stage.html",
   geometryCacheHandle: any = isEmbeddedStage ? stageStartup2?.geometryCache : null,
-  // legacy 嵌入光影 = 嵌入舞台且**不是**标准光影 v2。只写 `lightingMode`（0.8.4 老组件）
-  // 归一化后本来就是 `region`，所以判据必须带上版本位，否则会误判成新管线。
   stageSearchParams = new URLSearchParams(window.location.search),
   isEmbedStageMode = isEmbeddedStage && isLegacyEmbedStageLighting(stageSearchParams),
   defaultWallRuntimeProfile = "baseline";

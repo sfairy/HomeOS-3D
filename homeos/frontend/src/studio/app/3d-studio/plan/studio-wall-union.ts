@@ -13,6 +13,15 @@
  * `renderer.domElement.dataset.wallUnionFallbacks`，验收脚本不用开控制台就能读到。
  */
 
+import { validGeometryLoops as validGeometryLoops2 } from '../cache/geometry-persistent-cache'
+import { validatedUnionPolygonLoops as validatedUnionPolygonLoops2 } from './geometry'
+/** 并集缓存只需要几何缓存句柄；用结构类型声明，避免与 studio-walls 形成类型环。 */
+type WallUnionCacheDeps = {
+  geometryCacheHandle?: {
+    value: <T>(cacheKey: string, input: unknown, compute: () => T, validate: unknown) => T
+  } | null
+}
+
 /** 平面环（与 `plan/geometry` 的环同构，只要求 x / y）。 */
 type WallPlanLoop = { x: number; y: number }[]
 
@@ -83,4 +92,17 @@ export function dropContainedWallLoops<T extends WallPlanLoop>(loopList: T[]): T
 export function recordWallUnionFallback<T extends WallPlanLoop>(loopList: T[]): T[] {
   wallUnionFallbackTotal += 1
   return dropContainedWallLoops(loopList)
+}
+
+/** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
+export function cachedWallUnionLoops(deps: WallUnionCacheDeps, wallLoopList: any) {
+  const computeUnionLoops = () => {
+    const unifiedLoops = validatedUnionPolygonLoops2(wallLoopList, 1e-7)
+    // 并集失败（输入有歧义/自交）时不再把重叠环原样丢给挤出：那会让重叠段各自
+    // 画一层双面半透明壳，叠出亮边。改成保守回退并计数（见 studio-wall-shell）。
+    return unifiedLoops.length ? unifiedLoops : recordWallUnionFallback(wallLoopList)
+  }
+  return deps.geometryCacheHandle
+    ? deps.geometryCacheHandle.value('wall-union', wallLoopList, computeUnionLoops, validGeometryLoops2)
+    : computeUnionLoops()
 }

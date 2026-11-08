@@ -24,6 +24,9 @@ const importModule = (relative) => import(pathToFileURL(join(frontendRoot, relat
 const wallShellSource = readModule('authoring/scene/studio-wall-shell.ts')
 const wallTopSource = readModule('authoring/scene/studio-wall-top.ts')
 const wallsSource = readModule('authoring/scene/studio-walls.ts')
+// 并集缓存的实现已搬到 plan/studio-wall-union（纯函数、与 walls 无闭包耦合），
+// 因此「失败分支走保守回退」的断言跟着实现走。
+const wallUnionSource = readModule('plan/studio-wall-union.ts')
 // 按高度层的墙带 / 顶盖 / soffit / 高亮层已切到 studio-wall-levels，断言跟着走。
 const wallLevelsSource = readModule('authoring/scene/studio-wall-levels.ts')
 
@@ -134,12 +137,18 @@ test('并集失败：只丢掉被包住的环，且计数', async () => {
 
 test('并集失败的回退在墙带/盖面/选中层三条路径上都生效', () => {
   assert.ok(
-    wallsSource.includes('recordWallUnionFallback(wallLoopList)'),
+    wallUnionSource.includes('recordWallUnionFallback(wallLoopList)'),
     'cachedWallUnionLoops 的失败分支必须走保守回退',
   )
   assert.ok(
-    wallsSource.includes('unifiedLoops.length ? unifiedLoops : recordWallUnionFallback'),
+    wallUnionSource.includes('unifiedLoops.length ? unifiedLoops : recordWallUnionFallback'),
     '只有并集为空时才回退',
+  )
+  // 三条路径都必须经由同一个并集入口，避免有人再抄一份不缓存的实现。
+  assert.equal(
+    wallsSource.match(/wallUnion\.cachedWallUnionLoops\(/g)?.length,
+    2,
+    '墙带与盖面都必须走 wallUnion.cachedWallUnionLoops',
   )
 })
 
