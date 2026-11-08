@@ -23,7 +23,7 @@ export const REGION_GRID_SIZE = 8
 export function fillRegionGrid(
   slots: any,
   lightCount: any,
-  _capacity: any,
+  capacity: any,
   gridData: Float32Array,
   gridBounds: any,
 ): boolean {
@@ -62,7 +62,11 @@ export function fillRegionGrid(
     return true
   }
 
-  const stride = REGION_GRID_SIZE + 1,
+  // 行宽必须等于网格纹理宽度 `capacity + 1`（见 `studio-plan2-region-lights.ts`
+  // 里 DataTexture 的构造）。这里曾误写成 `REGION_GRID_SIZE + 1`：只要本层有灯，
+  // `capacity = alignTo16(n)` 就 ≥ 16，于是每行都错位，shader 读到的候选数全是 0，
+  // 整层区域灯直接不发光的假象就是这么来的。
+  const stride = capacity + 1,
     scaleX = REGION_GRID_SIZE / Math.max(maxX - minX, 0.001),
     scaleZ = REGION_GRID_SIZE / Math.max(maxZ - minZ, 0.001)
   gridBounds.set(minX, minZ, scaleX, scaleZ)
