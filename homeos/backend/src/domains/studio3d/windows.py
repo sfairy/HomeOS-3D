@@ -139,7 +139,7 @@ def validate_window_design(design: Any, width: Any, height: Any) -> None:
             and type(node.get("count")) is int
             and node["count"] in (2, 3)
             and _number(angle)
-            and 10 <= angle <= (90 if _is_hung(kind) else 120)
+            and 10 <= angle <= (90 if _is_hung(kind) else 170)
             and isinstance(panels, list),
             "窗扇参数无效。",
         )

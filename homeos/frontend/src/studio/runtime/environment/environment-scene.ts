@@ -4,6 +4,8 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
 } from '../device/generic-device-catalog'
+import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { SPEAKER_MODEL_TYPES } from '../speaker/speaker-models'
 export function pageDimming(config: any, activeModule: any, isFocusMode = false) {
   const moduleKey =
     (
@@ -17,7 +19,7 @@ export function pageDimming(config: any, activeModule: any, isFocusMode = false)
         'temperature-humidity': 'environment',
         nas: 'devices',
         speaker: 'devices',
-        television: 'devices',
+        ...Object.fromEntries(MEDIA_DEVICE_KINDS.map((mediaKind) => [mediaKind, 'devices'])),
         'vacuum-shortcut': 'vacuum',
         ...Object.fromEntries(GENERIC_DEVICE_KINDS2.map((genericDeviceKind) => [genericDeviceKind, 'devices'])),
       } as any
@@ -59,8 +61,8 @@ const MODEL_TYPE_TO_PAGE = {
     airoutlet: 'environment',
     curtain: 'environment',
     nas: 'devices',
-    speaker: 'devices',
-    tv: 'devices',
+    ...Object.fromEntries(SPEAKER_MODEL_TYPES.map((speakerModelType) => [speakerModelType, 'devices'])),
+    ...Object.fromEntries(MEDIA_DEVICE_KINDS.map((mediaKind) => [mediaDeviceProfile(mediaKind)!.modelType, 'devices'])),
     robotvacuum: 'vacuum',
     camera: 'security',
     presence: 'security',
@@ -86,8 +88,8 @@ const MODEL_TYPE_TO_PAGE = {
     airoutlet: 'climate',
     curtain: 'cover',
     nas: 'nas',
-    speaker: 'speaker',
-    tv: 'television',
+    ...Object.fromEntries(SPEAKER_MODEL_TYPES.map((speakerModelType) => [speakerModelType, 'speaker'])),
+    ...Object.fromEntries(MEDIA_DEVICE_KINDS.map((mediaKind) => [mediaDeviceProfile(mediaKind)!.modelType, mediaKind])),
     robotvacuum: 'vacuum',
     camera: 'camera',
     presence: 'presence',
@@ -116,7 +118,7 @@ function isModelTypeBound(modelType: any, bindingCandidate: any) {
         ].some((entityFieldName) => bindingCandidate[entityFieldName])
       : deviceKind === 'nas'
         ? !!(bindingCandidate.entityId || bindingCandidate.statusSource?.deviceId)
-        : deviceKind === 'television'
+        : isMediaDeviceKind(deviceKind)
           ? !!(bindingCandidate.entityId || bindingCandidate.powerEntityId)
           : (['fan', 'ceiling-fan', 'airpurifier', 'storagewaterheater', 'gaswaterheater'].includes(modelType) ||
                 (['wallac', 'floorac', 'airoutlet'].includes(modelType) &&

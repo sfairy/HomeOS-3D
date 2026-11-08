@@ -1492,6 +1492,11 @@ onBeforeUnmount(() => {
                                     step="0.05"></label><label>门高（m）<input id="door-height" type="number" min="1.8"
                                     max="20" step="0.05"></label><label>墙上位置<input id="door-position"
                                     readonly></label></div>
+                        <div id="door-opening-field">
+                            <div class="field-grid"><label>默认开度（%）<input id="door-default-opening" type="number"
+                                        min="0" max="100" step="5" placeholder="沿用门型默认"></label></div>
+                            <p>0 为关闭，100 为完全打开；留空沿用门型默认。未绑定开关门检测时按此显示，绑定后跟随检测状态。</p>
+                        </div>
                         <div class="door-actions"><button id="door-hinge" type="button">左右换边</button><button
                                 id="door-swing" type="button">内外翻转</button></div>
                     </div>

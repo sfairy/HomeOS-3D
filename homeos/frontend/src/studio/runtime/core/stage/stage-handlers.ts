@@ -9,6 +9,7 @@ import { lockState as lockState2 } from '../../security/lock-state'
 import { vacuumQuip as vacuumQuip2, vacuumBirdCamera as vacuumBirdCamera2 } from '../../vacuum/vacuum-motion'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
 import { televisionState as televisionState2 } from '../../television/television-state'
+import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 import { deviceStatus as deviceStatus2 } from '../../device/device-status'
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
@@ -120,7 +121,8 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
       ? host.speakerPanel.hide()
       : (host.speakerPanel.root.hidden = false)
     const isNasDevice = panelItem?.deviceKind === 'nas',
-      isTelevisionDevice = panelItem?.deviceKind === 'television'
+      isTelevisionDevice = isMediaDeviceKind(panelItem?.deviceKind),
+      mediaLabel = mediaDeviceProfile(panelItem?.deviceKind)?.label || '电视'
     if (
       (!isTelevisionDevice || !host.lightPanelSection.classList.contains('is-open')
         ? host.televisionPanel.hide()
@@ -139,7 +141,7 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
             : isSpeakerDevice
               ? '智能音响控制'
               : isTelevisionDevice
-                ? '电视状态'
+                ? mediaLabel + '状态'
                 : 'NAS 状态',
         ),
         panelItem.clickAction === 'focus' &&
@@ -742,7 +744,7 @@ export function createSyncMarkers(host: StageHandlersHost) {
                   })()
                 : syncMarkerItem.deviceKind === 'speaker'
                   ? speakerState2(syncMarkerItem, host.deviceStates)
-                  : syncMarkerItem.deviceKind === 'television'
+                  : isMediaDeviceKind(syncMarkerItem.deviceKind)
                     ? televisionState2(syncMarkerItem, host.deviceStates)
                     : syncMarkerItem.deviceKind === 'smallcar'
                       ? carState2(syncMarkerItem, host.deviceStates)
@@ -1437,7 +1439,7 @@ export function createHandleHostMessage(host: StageHandlersHost) {
               'window-opener',
               'window',
               'nas',
-              'television',
+              ...MEDIA_DEVICE_KINDS,
               'speaker',
               'vacuum',
               'vacuum-shortcut',
@@ -1448,7 +1450,7 @@ export function createHandleHostMessage(host: StageHandlersHost) {
             : 'light'
           : ['overview', 'security', 'light', 'devices', 'vacuum'].includes(host.activeModule)
             ? host.activeModule
-            : ['nas', 'television', 'speaker', 'water-heater', 'airer', ...GENERIC_DEVICE_KINDS2].includes(
+            : ['nas', 'speaker', 'water-heater', 'airer', ...MEDIA_DEVICE_KINDS, ...GENERIC_DEVICE_KINDS2].includes(
                   host.activeModule,
                 )
               ? 'devices'
@@ -1907,7 +1909,12 @@ export function createRunFrame(host: StageHandlersHost) {
         host.carCharging.tick(frameTimestamp),
         host.fanMotion.tick(frameTimestamp),
         host.airerMotion.tick(frameTimestamp),
-        host.nasStatus.tick(frameTimestamp)
+        host.nasStatus.tick(frameTimestamp),
+        host.projectorStatus.tick(frameTimestamp)
+      for (const speakerTickerEntry of Object.values<{ tick: (nowMs: number) => unknown }>(
+        host.speakerStatusByModelType,
+      ))
+        speakerTickerEntry.tick(frameTimestamp)
       for (const stateTickerEntry of Object.values(host.waterHeaterStatusByModelType) as any[])
         stateTickerEntry.tick(frameTimestamp)
       for (const genericTickerEntry of Object.values(host.entries) as any[]) genericTickerEntry.tick(frameTimestamp)
@@ -2019,6 +2026,10 @@ export function createRunFrame(host: StageHandlersHost) {
         host.deviceMist?.nextDelay() ?? Infinity,
         host.rangehoodAirflow?.nextDelay() ?? Infinity,
         host.nasStatus.nextDelay(),
+        host.projectorStatus.nextDelay(),
+        ...Object.values<{ nextDelay: () => number }>(host.speakerStatusByModelType).map((speakerTickerForDelay) =>
+          speakerTickerForDelay.nextDelay(),
+        ),
         ...(Object.values(host.waterHeaterStatusByModelType) as any[]).map((stateTickerForDelay) =>
           stateTickerForDelay.nextDelay(),
         ),

@@ -1,3 +1,4 @@
+import { DEVICE_STATUS_NORMAL_COLOR } from '../device/device-status'
 import { televisionState } from '../television/television-state'
 const SPEAKER_FEATURES = Object.freeze({
   media_pause: 1,
@@ -44,6 +45,18 @@ export function speakerState(entity: any, sourceStates: Record<string, any> = {}
     album: String(attributes.media_album_name || ''),
     ring: isAvailable && tvState.playing ? 'playing' : isAvailable && tvState.state === 'paused' ? 'paused' : 'off',
     status: entity.modelAvailable === false ? '模型已失联' : tvState.status,
+  }
+}
+/** 长条 / 立式音响的状态灯。圆形音响仍用灯环，不走这里。 */
+export function speakerIndicator(entity: { visible?: boolean }, sourceStates: Parameters<typeof speakerState>[1] = {}) {
+  const { ring } = speakerState(entity, sourceStates)
+  const visible = entity.visible !== false && ring !== 'off'
+  return {
+    visible,
+    status: visible ? 'normal' : 'off',
+    steady: true,
+    color: DEVICE_STATUS_NORMAL_COLOR,
+    brightness: ring === 'paused' ? 0.25 : 1,
   }
 }
 export function speakerCommand(

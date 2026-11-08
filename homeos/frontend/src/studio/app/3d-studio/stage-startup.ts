@@ -49,8 +49,9 @@ function beginStageStartup({
       key: shadowCacheKey,
     })
   shadowCache.preload()
+  // 标准光影 v2 才跳过反射缓存预热：旧管线（含只写了 lightingMode 的老组件）继续用缓存。
   const reflectionCache =
-    searchParams.get('lighting') === 'standard'
+    searchParams.get('lighting') === 'standard' && searchParams.get('lightingVersion') === '2'
       ? null
       : createReflectionPersistentCache({
           env: env,

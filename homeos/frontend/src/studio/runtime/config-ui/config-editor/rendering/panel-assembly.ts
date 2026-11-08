@@ -9,6 +9,7 @@
  */
 
 import { DEFAULT_BUTTON_SIZE } from '@app/bridge/presets/button-icon-size'
+import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 import { genericDeviceProfile as genericDeviceProfile2 } from '../../../device/generic-device-catalog'
 import { resolveDeviceCategoryProfile } from './device-category-choices'
 import { ENVIRONMENT_CATEGORY_LABELS, bindPickerRow, openDeviceCategoryPicker } from './picker-row'
@@ -52,6 +53,7 @@ import {
 } from '../../../climate/purifier-extras'
 import { fanReverseStateOptions, fanSourceAllowed, resolveFanBindingState } from '../../../fan/fan-state'
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
+import { createStandardLightEffectsEditor } from '../../light-effects-editor'
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from '../../range-dialog'
 import { openVacuumMapEditor as openVacuumMapEditor2 } from '../../../vacuum/vacuum-map-editor'
 import { purifierState as purifierState2 } from '../../../purifier/purifier-state'
@@ -144,6 +146,43 @@ export interface PanelAssemblyDeps {
   renderStatusRuleSection: (statusSettingsSectionElement: any, statusItem: any, statusOptions?: any) => any
   /** 保存按钮元素（宿主 `const`，第 615 行建）。 */
   saveButtonElement: any
+}
+
+/** 元素所属文档：面板可能在 iframe 里渲染，不能直接用全局 document。 */
+function hostDocumentOf(element: HTMLElement): Document {
+  return element.ownerDocument || document
+}
+
+type EntityStateSource = { get?: (entityId: string) => unknown } & Record<string, unknown>
+
+/** 读绑定实体的状态：优先状态中枢的 get，退化为普通对象下标。 */
+function readBoundEntityState(store: unknown, entityId: string) {
+  const stateStore = store as EntityStateSource | null | undefined
+  const read = stateStore?.get
+  return typeof read === 'function' ? read.call(stateStore, entityId) : stateStore?.[entityId]
+}
+
+/** 实体目录里的对应条目；目录还没加载时给一个只有 entityId 的占位。 */
+function effectsCatalogEntry(entities: readonly { entityId?: string }[], entityId: string) {
+  return entities.find((entry) => entry.entityId === entityId) || { entityId }
+}
+
+/** 媒体设备的点击行为：电视与投影仪共用一套，比普通设备多三项「开机时…」。 */
+function mediaClickActionOptions(deviceKind: string) {
+  const label = mediaDeviceLabel(deviceKind, '电视')
+  return [
+    ['focus-panel', '聚焦并显示控制'],
+    ['panel', '仅显示控制'],
+    ['focus', '仅聚焦'],
+    ['turn-on-focus', '开关' + label + '（开机时聚焦）'],
+    ['turn-on', '仅开关' + label],
+    ['turn-on-panel', '开关' + label + '（开机时显示控制）'],
+  ]
+}
+
+/** 媒体设备在面板文案里的名字：电视 / 投影仪。 */
+function mediaDeviceLabel(deviceKind: string, fallback = '媒体设备') {
+  return mediaDeviceProfile(deviceKind)?.label || fallback
 }
 
 export function renderPanelImpl(deps: PanelAssemblyDeps) {
@@ -257,7 +296,10 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
     }
     if (
       !editorHost.usesModelBinding &&
-      normalizeInteraction3dLightingMode2(editorHost.structuredClone2.lightingMode) === 'region'
+      normalizeInteraction3dLightingMode2(
+        editorHost.structuredClone2.lightingMode,
+        editorHost.structuredClone2.lightingModeVersion,
+      ) === 'region'
     ) {
       const rangeSectionElement = createConfigSection('照射范围'),
         rangeEditorButton = editorHost.createButton('编辑照射范围', async () => {
@@ -705,7 +747,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 targetField === 'powerEntity'
                   ? editorHost.deviceKind === 'computer'
                     ? 'computer-power'
-                    : 'television-power'
+                    : editorHost.isMediaDeviceMode
+                      ? editorHost.deviceKind + '-power'
+                      : 'television-power'
                   : isBathHeaterMode
                     ? 'bath-heater'
                     : editorHost.deviceKind,
@@ -1363,9 +1407,52 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             ),
           )
       }
+      // 标准光影（0.8.5）：每盏灯可自定义 3D 亮度/色温范围与默认光效，参数折算交给
+      // `withInteractionLightEffects`，舞台与面板共用一份口径。轻量柔光不走这里。
+      const isStandardLightingMode =
+        normalizeInteraction3dLightingMode2(
+          editorHost.structuredClone2.lightingMode,
+          editorHost.structuredClone2.lightingModeVersion,
+        ) === 'standard'
+      const appendStandardLightEffectsEditor = () => {
+        if (
+          !isStandardLightingMode ||
+          editorHost.usesModelBinding ||
+          editorHost.isNasMode ||
+          editorHost.isVacuumMode ||
+          isFanMode ||
+          isWaterHeaterMode ||
+          isPurifierMode
+        )
+          return
+        const effectsHostElement = editorHost.createElement('div')
+        currentContainer.append(effectsHostElement)
+        const standardEffectsEditor = createStandardLightEffectsEditor({
+          document: hostDocumentOf(effectsHostElement),
+          host: effectsHostElement,
+          item: vector,
+          isActive: () => !editorHost.isDisposed && editorHost.isAccessAllowed,
+          onChange: () => refreshEditorPreview(),
+          onPreview: (previewKind: string) =>
+            editorHost.editorRuntime.focusCommand('preview-light-effect', vector.id, previewKind),
+          onRestore: () => editorHost.editorRuntime.focusCommand('cancel-light-camera', vector.id),
+        })
+        const boundEffectsEntityId = vector.entityId || '',
+          boundEffectsState = readBoundEntityState(editorHost.latestStates || editorHost.states, boundEffectsEntityId)
+        standardEffectsEditor.refresh(
+          lightState2(
+            boundEffectsEntityId,
+            boundEffectsState,
+            effectsCatalogEntry(editorHost.entities, boundEffectsEntityId),
+          ),
+        )
+      }
+      appendStandardLightEffectsEditor()
       // 光效色温兜底（0.7.9 F4）：只有灯具/开关需要。设备能调色温时跟随设备；
       // 不能调色温（或 switch 实体）时给「默认暖白 / 跟随户型」二选一，仅影响 3D 光效。
+      // 0.8.5 起标准光影用上面的逐灯编辑器取代这块兜底，只有轻量柔光还用它。
       if (
+        !isStandardLightingMode &&
         !editorHost.usesModelBinding &&
         !editorHost.isNasMode &&
         !editorHost.isVacuumMode &&
@@ -1443,7 +1530,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             editorHost.createElement(
               'p',
               'i3d-note',
-              '绑定 media_player 后，播放、音量、进度和媒体库等控制按实体能力自动显示。播放时顶部彩色呼吸，暂停时微亮，空闲或离线时熄灭。',
+              '绑定 media_player 后，播放、音量、进度和媒体库等控制按实体能力自动显示。智能音响使用彩色灯环，长条和立式音响使用状态灯；播放时亮起，暂停时微亮，空闲或离线时熄灭。',
             ),
           ),
         editorHost.isGenericDeviceMode)
@@ -2785,28 +2872,42 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         })
         currentContainer.append(alignMapButton)
       }
-      if (editorHost.isTelevisionMode) {
+      const appendMediaDeviceSettings = () => {
+        if (!editorHost.isMediaDeviceMode) return
+        const mediaProfile = mediaDeviceProfile(editorHost.deviceKind) || mediaDeviceProfile('television')!
         const powerEntityButton = editorHost.createButton(
           vector.powerEntityId || '不单独绑定',
           () => void openItemPicker('powerEntity', powerEntityButton),
         )
         ;(powerEntityButton.className = 'i3d-picker-button'),
-          createSettingRow(currentContainer, '电视电源实体（可选）', powerEntityButton),
+          createSettingRow(currentContainer, mediaProfile.label + '电源实体（可选）', powerEntityButton),
           currentContainer.append(
             editorHost.createElement(
               'p',
               'i3d-note',
-              '可绑定能提供开关状态的实体；不单独绑定电源时跟随媒体播放器状态。电视开启时优先显示可用节目封面，没有封面时显示自定义图片；未上传图片则显示当前播放状态，关闭时显示深色玻璃。',
+              '可绑定能提供开关状态的实体；不单独绑定电源时跟随媒体播放器状态。',
             ),
-          )
-        renderDeviceScreenImageSection(
-          '电视自定义图片',
-          '电视自定义图片',
-          '上传电视自定义图片',
-          '无封面时的图片',
-          '支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO。动图使用第一帧；图片保持原比例。删除后恢复默认显示，保存配置后生效。',
-        )
+          ),
+          mediaProfile.screen
+            ? (currentContainer.append(
+                editorHost.createElement(
+                  'p',
+                  'i3d-note',
+                  '电视开启时优先显示可用节目封面，没有封面时显示自定义图片；未上传图片则显示当前播放状态，关闭时显示深色玻璃。',
+                ),
+              ),
+              renderDeviceScreenImageSection(
+                '电视自定义图片',
+                '电视自定义图片',
+                '上传电视自定义图片',
+                '无封面时的图片',
+                '支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO。动图使用第一帧；图片保持原比例。删除后恢复默认显示，保存配置后生效。',
+              ))
+            : currentContainer.append(
+                editorHost.createElement('p', 'i3d-note', '开机显示指示灯，关机隐藏；媒体内容仅在弹窗中显示。'),
+              )
       }
+      appendMediaDeviceSettings()
       if (
         (editorHost.isNasMode &&
           currentContainer.append(
@@ -2845,15 +2946,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                         ['panel', '仅显示控制'],
                         ['focus', '仅聚焦'],
                       ]
-                    : editorHost.isTelevisionMode
-                      ? [
-                          ['focus-panel', '聚焦并显示控制'],
-                          ['panel', '仅显示控制'],
-                          ['focus', '仅聚焦'],
-                          ['turn-on-focus', '开关电视（开机时聚焦）'],
-                          ['turn-on', '仅开关电视'],
-                          ['turn-on-panel', '开关电视（开机时显示控制）'],
-                        ]
+                    : editorHost.isMediaDeviceMode
+                      ? mediaClickActionOptions(editorHost.deviceKind)
                       : editorHost.usesStatusPanel
                         ? [
                             ['focus-panel', editorHost.isGenericDeviceMode ? '聚焦并显示弹窗' : '聚焦并显示状态'],
@@ -2918,7 +3012,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     ),
                   )
                 : !editorHost.isAirerMode &&
-                  (!editorHost.usesStatusPanel || editorHost.isTelevisionMode) &&
+                  (!editorHost.usesStatusPanel || editorHost.isMediaDeviceMode) &&
                   currentContainer.append(
                     editorHost.createElement(
                       'p',
@@ -3357,12 +3451,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   '后更新户型。'
               : editorHost.isSpeakerMode
                 ? addItemButton.length
-                  ? '点击“添加设备”，选择智能音响模型并绑定媒体播放器实体。'
-                  : '当前楼层暂无智能音响模型，请先在 3D 户型图绘制中添加智能音响后更新户型。'
-                : editorHost.isTelevisionMode
+                  ? '点击“添加设备”，选择智能音响、长条音响或立式音响模型，并绑定媒体播放器实体。'
+                  : '当前楼层暂无音响模型，请先在 3D 户型图绘制中添加智能音响、长条音响或立式音响后更新户型。'
+                : editorHost.isMediaDeviceMode
                   ? addItemButton.length
-                    ? '点击“添加设备”，选择电视模型并绑定媒体播放器实体。'
-                    : '当前楼层暂无电视模型，请先在 3D 户型图绘制中添加电视后更新户型。'
+                    ? '点击“添加设备”，选择' + mediaDeviceLabel(editorHost.deviceKind) + '模型并绑定媒体播放器实体。'
+                    : '当前楼层暂无' +
+                      mediaDeviceLabel(editorHost.deviceKind) +
+                      '模型，请先在 3D 户型图绘制中添加后更新户型。'
                   : editorHost.isNasMode
                     ? addItemButton.length
                       ? '点击“添加设备”，选择设备类型和模型，再绑定开启实体。'

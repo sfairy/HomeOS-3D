@@ -410,7 +410,22 @@ export function commitWallOpacity(runtime: StudioAppRuntime) {
   Math.abs(committedWallOpacity - runtime.appCtx.studioState.settings.wallOpacity) < 1e-8 ||
     (runtime.applyWallHeightInput(runtime.globalWallOpacityInput),
     (runtime.appCtx.studioState.settings.wallOpacity = committedWallOpacity),
-    runtime.markDocumentDirty())
+    /**
+     * 全局值必须**写穿**到每面墙。
+     *
+     * 场景解算时 `wall.opacity ?? settings.wallOpacity` —— 单面墙一旦存过自定义值（`DIY`
+     * 沿用户型、或者早先拖过单墙滑条），它就会永久盖住全局值：用户在「通用墙体透明度」
+     * 拖到 100%，那几面墙仍然停在 0.25，看上去就是「调到 100% 也不显示墙体」。
+     * 和 `commitWallThickness` 一样按「全局字段 = 全屋统一」处理：改全局就把单墙的覆盖
+     * 清掉，让它们回到跟随全局。要单独调某面墙，之后在墙面属性里再设即可。
+     */
+    runtime.appCtx.studioState.walls.forEach((opacityResetWall: any) => {
+      opacityResetWall.opacity === null || opacityResetWall.opacity === undefined || (opacityResetWall.opacity = null)
+    }),
+    runtime.markDocumentDirty(),
+    // 滑条拖动时只有 `input` 事件，`change` 要等松手才来。这里按 80ms 合并一次重建，
+    // 墙才会跟着手指变浓变淡；否则整段拖动期间场景一直是旧透明度，看着像「调了没反应」。
+    runtime.scheduleWallApply(80))
 }
 
 /** 一个分组标题辖下的模型卡：从标题往后数，直到下一个分组标题为止。 */

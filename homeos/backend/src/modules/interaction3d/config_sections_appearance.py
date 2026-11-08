@@ -232,6 +232,14 @@ def _validate_navigation(ctx: ValidationContext, properties: dict) -> None:
 def _validate_reflection(ctx: ValidationContext, properties: dict) -> None:
     if properties.get('lightingMode', 'standard') not in ('standard', 'region'):
         ctx.fail()
+    # 版本位是标准光影 v2 的显式开关：只接受真正的 int 2（`True`/`2.0`/`3` 都不算），
+    # 且必须与 `lightingMode` 同时出现，否则前端会拿半新半旧的属性组合去渲染。
+    if 'lightingModeVersion' in properties and (
+        type(properties['lightingModeVersion']) is not int
+        or properties['lightingModeVersion'] != 2
+        or properties.get('lightingMode') not in ('standard', 'region')
+    ):
+        ctx.fail()
     reflection = properties.get('groundReflection', {})
     if not isinstance(reflection, dict) or set(reflection) - {'mode', 'strength', 'resolution'}:
         ctx.fail()

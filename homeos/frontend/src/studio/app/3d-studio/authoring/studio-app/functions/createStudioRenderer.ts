@@ -324,7 +324,17 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
             getRoot: () => appCtx.sceneRootNode,
             contactShadows: appCtx.contactShadowController,
             requestFrame: renderStudioFrame,
-          })))
+          })),
+          // 控制器建好就先把当前的太阳方向 / 阴影浓度灌进去：`refreshBaseLighting` 可能
+          // 在它之前就跑过一次（那时还没有 controller），不补这一下，首帧墙面会按
+          // uniform 的缺省方向算朝向，切层后也不会自己纠正。
+          appCtx.mainDirectionalLight &&
+            (appCtx.regionLightController.setSunDirection(
+              appCtx.mainDirectionalLight.position.x,
+              appCtx.mainDirectionalLight.position.y,
+              appCtx.mainDirectionalLight.position.z,
+            ),
+            appCtx.regionLightController.setSunShadowScale(appCtx.mainDirectionalLight.shadow?.intensity ?? 0.18)))
         : (appCtx.lightPrecompileController = createSpotShadowAtlasController2({
             THREE: ns2,
             renderer: appCtx.threeRenderer,

@@ -31,6 +31,7 @@ from fastapi import HTTPException, status
 from . import draft_repository
 from ...modules.interaction3d.access import module_components, scene_snapshot_file
 from ...modules.interaction3d.device import GENERIC_DEVICE_COLLECTIONS
+from ...modules.interaction3d.media_device import MEDIA_DEVICE_COLLECTIONS
 from ...modules.interaction3d.window import window_targets
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ COLLECTIONS = (
     ("environment", "windowOpeners"),
     ("environment", "temperatureHumidity"),
     ("devices", "nas"),
-    ("devices", "televisions"),
+    *(("devices", key) for key in MEDIA_DEVICE_COLLECTIONS),
     ("devices", "speakers"),
     ("devices", "vacuums"),
     *(("devices", key) for key in GENERIC_DEVICE_COLLECTIONS),

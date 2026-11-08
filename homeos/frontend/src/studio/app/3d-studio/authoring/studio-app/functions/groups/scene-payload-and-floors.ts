@@ -14,6 +14,8 @@ import {
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { clamp as clamp2, nearestWall as nearestWall2 } from '../../../../plan/geometry'
 import { reorderFloors as reorderFloors2 } from '../../../../plan/floor-order'
+import { createFloorCopy } from '../../../../plan/floor-copy'
+import { generateId } from '../../../ui/studio-app-helpers'
 import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from '../../../../loaders/studio-external-models'
 import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2 } from '../../../../loaders/studio-normalization'
 import { normalizePillarShape as normalizePillarShape2 } from '../../../items/studio-item-posture'
@@ -43,7 +45,8 @@ export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth:
             }
           : {}),
         version: RENDER_CACHE_VERSION2,
-        doorGeometry: 'v2-dual-slide-tight-double',
+        doorGeometry: 'v5-default-opening',
+        windowGeometry: 'v2-opening-clearance',
         regionFalloff: 'v2-broad',
         regionLightGain: 'v3-default80',
         wallUnion: 'v3-near-collinear',
@@ -487,7 +490,7 @@ export function showFloorActionMenu(runtime: StudioAppRuntime, floorRow: any, me
   ;(selector.disabled = runtime.appCtx.studioProject.floors.length <= 1),
     (runtime.floorActionMenuElement.hidden = false),
     (runtime.floorActionMenuElement.style.left = Math.min(menuOpenEvent.clientX, window.innerWidth - 116) + 'px'),
-    (runtime.floorActionMenuElement.style.top = Math.min(menuOpenEvent.clientY, window.innerHeight - 82) + 'px')
+    (runtime.floorActionMenuElement.style.top = Math.min(menuOpenEvent.clientY, window.innerHeight - 118) + 'px')
 }
 
 export function floorActionHandler(runtime: StudioAppRuntime, floorToDelete: any) {
@@ -549,7 +552,7 @@ export function syncGlobalControls(runtime: StudioAppRuntime) {
           floorRowRecord.name +
             '，' +
             (floorRowRecord.id === runtime.appCtx.activeFloorId ? '当前楼层，' : '') +
-            '长按拖动排序，右键可重命名或删除',
+            '长按拖动排序，右键可复制、重命名或删除',
         )
       let isFloorDropAfter = false,
         longPressTimeoutId: any = null
@@ -616,7 +619,7 @@ export function syncGlobalControls(runtime: StudioAppRuntime) {
         })
       const floorNameLabel = document.createElement('span')
       ;(floorNameLabel.textContent = floorRowRecord.name),
-        (floorNameLabel.title = '长按后拖动可调整楼层顺序，右键可重命名或删除楼层')
+        (floorNameLabel.title = '长按后拖动可调整楼层顺序，右键可复制、重命名或删除楼层')
       const floorStatusNote = document.createElement('small'),
         floorRowIndex = runtime.appCtx.studioProject.floors.findIndex(
           (floorIndexEntry: any) => floorIndexEntry.id === floorRowRecord.id,
@@ -741,6 +744,29 @@ export async function selectFloor(
         }
       }),
       didFloorChange && runtime.markDocumentDirty())
+}
+
+export async function copyFloor(runtime: StudioAppRuntime, sourceFloor: { id: string } | undefined) {
+  if (!sourceFloor || runtime.isEmbeddedStage) return
+  let copiedFloor: ReturnType<typeof createFloorCopy> | undefined
+  try {
+    copiedFloor = createFloorCopy(runtime.appCtx.studioProject.floors, sourceFloor.id, {
+      newId: generateId,
+      floorHeight: runtime.appCtx.studioProject.defaultFloorHeight,
+    })
+  } catch (copyError) {
+    runtime.showToast(copyError instanceof Error ? copyError.message : '楼层复制失败。', 'error')
+    return
+  }
+  if (!copiedFloor) return
+  runtime.appCtx.studioProject.floors.push(copiedFloor)
+  const floorSelection = runtime.selectFloor(copiedFloor.id, { persist: false })
+  runtime.markDocumentDirty()
+  runtime.updateFloorPreviewButtons()
+  await floorSelection
+  runtime.appCtx.activeFloorId === copiedFloor.id &&
+    runtime.showToast(`已复制为“${copiedFloor.name}”，绘图位置保持一致，设备关联需重新配置。`, 'success')
+  runtime.selectStudioTool('select')
 }
 
 export async function addNewFloor(runtime: StudioAppRuntime) {

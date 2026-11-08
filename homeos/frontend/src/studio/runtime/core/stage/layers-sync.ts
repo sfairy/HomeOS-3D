@@ -8,6 +8,7 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/generic-device-catalog'
+import { isMediaDeviceKind } from '@app/bridge/presets/media-device-profiles'
 import { postHostMessage } from './_shared'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
 
@@ -26,6 +27,8 @@ export interface StageLayersSyncDeps {
   options: any
   deviceStates: any
   nasStatus: any
+  projectorStatus: { sync: (next: Record<string, unknown>) => void }
+  speakerStatusByModelType: Record<string, { sync: (next: Record<string, unknown>) => void }>
   collectNasBindings: any
   waterHeaterStatusByModelType: any
   entries: any
@@ -83,6 +86,34 @@ export interface StageLayersSyncDeps {
   lastInteractionMs: any
 }
 
+/** 投影仪与音响的状态灯：与 NAS 浮层同一份快照，只是绑定集合不同。 */
+function syncMediaStatusOverlays(
+  deps: StageLayersSyncDeps,
+  overlay: { root: unknown; revision: number; enabled: boolean; sizeScale: number; brightness: number },
+) {
+  deps.projectorStatus.sync({
+    root: overlay.root,
+    revision: overlay.revision,
+    bindings: (deps.collectTelevisionBindings() || []).filter(
+      (mediaBinding: { deviceKind?: string }) => mediaBinding.deviceKind === 'projector',
+    ),
+    states: deps.deviceStates,
+    enabled: overlay.enabled,
+    sizeScale: overlay.sizeScale,
+    brightness: overlay.brightness,
+  })
+  for (const speakerStatus of Object.values(deps.speakerStatusByModelType))
+    speakerStatus.sync({
+      root: overlay.root,
+      revision: overlay.revision,
+      bindings: deps.collectSpeakerBindings(),
+      states: deps.deviceStates,
+      enabled: overlay.enabled,
+      sizeScale: overlay.sizeScale,
+      brightness: overlay.brightness,
+    })
+}
+
 export function syncNasOverlayCore(deps: StageLayersSyncDeps) {
   const isNasOverlayEnabled = deps.startupProgress > 0 && !deps.isAwaitingFloorViewAdjust && !deps.isRangeEditorOpen,
     modelRoot3 = deps.mountOptions.modelRoot,
@@ -90,7 +121,8 @@ export function syncNasOverlayCore(deps: StageLayersSyncDeps) {
     nasSizeScale = deps.selectedFloorId === 'all' ? 0.75 : 1,
     nasBrightnessScale =
       deps.selectedFloorId !== 'all' &&
-      (['devices', 'nas', 'television', 'speaker', 'water-heater'].includes(deps.activeModule) ||
+      (['devices', 'nas', 'speaker', 'water-heater'].includes(deps.activeModule) ||
+        isMediaDeviceKind(deps.activeModule) ||
         isGenericDeviceKind2(deps.activeModule))
         ? 1
         : 0.6
@@ -119,6 +151,13 @@ export function syncNasOverlayCore(deps: StageLayersSyncDeps) {
         revision: sceneRevision3,
         bindings: deps.collectNasBindings(),
         states: deps.deviceStates,
+        enabled: isNasOverlayEnabled,
+        sizeScale: nasSizeScale,
+        brightness: nasBrightnessScale,
+      }),
+      syncMediaStatusOverlays(deps, {
+        root: modelRoot3,
+        revision: sceneRevision3,
         enabled: isNasOverlayEnabled,
         sizeScale: nasSizeScale,
         brightness: nasBrightnessScale,

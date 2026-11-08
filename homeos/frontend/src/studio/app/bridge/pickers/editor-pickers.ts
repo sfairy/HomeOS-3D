@@ -6,6 +6,7 @@ import {
 import { createEditorPickerQueries } from '../../editor/picker/editor-picker-queries'
 import { vacuumProfiles } from '../catalog/vacuum-catalog'
 import { nasProfiles } from '../catalog/nas-catalog'
+import { isMediaDeviceKind } from '../presets/media-device-profiles'
 import { matchesTemperatureHumidityEntity, ENVIRONMENT_SENSORS } from '../temperature-humidity'
 import type { HaEntityEntry } from '@app/shared/util/ha-entity'
 import { alarmDeviceProfiles } from '@/studio/platform/security-alarm-profile'
@@ -17,6 +18,42 @@ const DEFAULT_LIGHT_ICON = 'mdi:lightbulb-outline',
     record.disabled_by == null &&
     record.enabled !== false &&
     !['missing', 'disabled'].includes(String(record.status || '').toLowerCase())
+
+/** 「选择图标」的默认图标：设备种类 → MDI 名。未列出的种类回落到灯具图标。 */
+const DEVICE_BUTTON_ICONS: Readonly<Record<string, string>> = Object.freeze({
+  speaker: 'mdi:speaker',
+  'water-heater': 'mdi:water-boiler',
+  'exhaust-fan': 'mdi:fan',
+  fan: 'mdi:fan',
+  purifier: 'mdi:air-purifier',
+  camera: 'mdi:cctv',
+  lock: 'mdi:door-closed',
+  vacuum: 'mdi:robot-vacuum',
+  projector: 'mdi:projector',
+  television: 'mdi:television',
+  nas: 'mdi:nas',
+  'window-opener': 'mdi:window-open',
+  cover: 'mdi:curtains',
+  climate: 'mdi:air-conditioner',
+})
+
+/** 图标选择器的标题：与上面的图标同键，文案按设备种类换词。 */
+const DEVICE_ICON_PICKER_TITLES: Readonly<Record<string, string>> = Object.freeze({
+  speaker: '选择智能音响按钮图标',
+  'water-heater': '选择热水器按钮图标',
+  'exhaust-fan': '选择排气扇按钮图标',
+  fan: '选择风扇按钮图标',
+  purifier: '选择空气净化器按钮图标',
+  camera: '选择摄像头按钮图标',
+  lock: '选择门按钮图标',
+  vacuum: '选择扫地机按钮图标',
+  projector: '选择投影仪按钮图标',
+  television: '选择电视按钮图标',
+  nas: '选择NAS按钮图标',
+  'window-opener': '选择开窗器按钮图标',
+  cover: '选择窗帘按钮图标',
+  climate: '选择空调按钮图标',
+})
 /** 交互 3D 编辑器实体选择器的依赖注入。 */
 type EditorPickersOptions = {
   openPicker?: (...args: any[]) => any
@@ -103,6 +140,11 @@ function presenceDeviceProfiles(
  * 「设备种类 → 文案」查表，最外层只保留固定顺序：显式标题 → 环境传感器 →
  * 门/电量角色 → 设备种类 → 电源/影音/窗帘/空调角色 → 通用兜底。
  */
+/** `television-power` / `projector-power`：去掉后缀仍是已知媒体设备种类。 */
+function isMediaPowerEntityKind(deviceKind: string) {
+  return deviceKind.endsWith('-power') && isMediaDeviceKind(deviceKind.slice(0, -'-power'.length))
+}
+
 const ENTITY_PICKER_DEVICE_WORDING: Readonly<Record<string, { title: string; emptyText: string }>> = Object.freeze({
   weather: {
     title: '绑定天气实体',
@@ -169,6 +211,24 @@ const ENTITY_PICKER_DEVICE_WORDING: Readonly<Record<string, { title: string; emp
     title: '选择 NAS 指示灯状态实体（旧版兼容）',
     emptyText: '没有匹配的开关或二元传感器',
   },
+  // 媒体设备（电视 / 投影仪）按种类各给一份文案：两者共用弹窗与绑定流程，
+  // 但一个看屏幕、一个只看指示灯，说成「电视」会让投影仪用户找不到入口。
+  television: {
+    title: '选择电视媒体实体（Apple TV）',
+    emptyText: '没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV',
+  },
+  projector: {
+    title: '选择投影仪媒体实体',
+    emptyText: '没有匹配的媒体播放器，请先在 Home Assistant 接入投影仪',
+  },
+  'television-power': {
+    title: '选择电视电源状态',
+    emptyText: '没有匹配的电源状态实体',
+  },
+  'projector-power': {
+    title: '选择投影仪电源状态',
+    emptyText: '没有匹配的电源状态实体',
+  },
 })
 
 /**
@@ -204,16 +264,6 @@ const ENTITY_PICKER_ROLE_WORDING: ReadonlyArray<{
     flag: 'isSpeakerEntity',
     title: '选择智能音响媒体实体',
     emptyText: '没有匹配的 media_player 实体，请先在 Home Assistant 接入音响',
-  },
-  {
-    flag: 'isTelevisionEntity',
-    title: '选择电视媒体实体（Apple TV）',
-    emptyText: '没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV',
-  },
-  {
-    flag: 'isTelevisionPowerEntity',
-    title: '选择电视电源状态',
-    emptyText: '没有匹配的电源状态实体',
   },
   {
     flag: 'isCoverEntity',
@@ -758,64 +808,10 @@ export function createInteraction3dEditorPickers({
       deviceKind: resolvedDeviceKind = deviceKind,
     }: any) {
       return (
-        (currentIcon ||=
-          resolvedDeviceKind === 'speaker'
-            ? 'mdi:speaker'
-            : resolvedDeviceKind === 'water-heater'
-              ? 'mdi:water-boiler'
-              : resolvedDeviceKind === 'exhaust-fan'
-                ? 'mdi:fan'
-                : resolvedDeviceKind === 'fan'
-                  ? 'mdi:fan'
-                  : resolvedDeviceKind === 'purifier'
-                    ? 'mdi:air-purifier'
-                    : resolvedDeviceKind === 'camera'
-                      ? 'mdi:cctv'
-                      : resolvedDeviceKind === 'lock'
-                        ? 'mdi:door-closed'
-                        : resolvedDeviceKind === 'vacuum'
-                          ? 'mdi:robot-vacuum'
-                          : resolvedDeviceKind === 'television'
-                            ? 'mdi:television'
-                            : resolvedDeviceKind === 'nas'
-                              ? 'mdi:nas'
-                              : resolvedDeviceKind === 'window-opener'
-                                ? 'mdi:window-open'
-                                : resolvedDeviceKind === 'cover'
-                                  ? 'mdi:curtains'
-                                  : resolvedDeviceKind === 'climate'
-                                    ? 'mdi:air-conditioner'
-                                    : DEFAULT_LIGHT_ICON),
+        (currentIcon ||= DEVICE_BUTTON_ICONS[resolvedDeviceKind] || DEFAULT_LIGHT_ICON),
         openPicker!({
           kind: 'icon',
-          title:
-            resolvedDeviceKind === 'speaker'
-              ? '选择智能音响按钮图标'
-              : resolvedDeviceKind === 'water-heater'
-                ? '选择热水器按钮图标'
-                : resolvedDeviceKind === 'exhaust-fan'
-                  ? '选择排气扇按钮图标'
-                  : resolvedDeviceKind === 'fan'
-                    ? '选择风扇按钮图标'
-                    : resolvedDeviceKind === 'purifier'
-                      ? '选择空气净化器按钮图标'
-                      : resolvedDeviceKind === 'camera'
-                        ? '选择摄像头按钮图标'
-                        : resolvedDeviceKind === 'lock'
-                          ? '选择门按钮图标'
-                          : resolvedDeviceKind === 'vacuum'
-                            ? '选择扫地机按钮图标'
-                            : resolvedDeviceKind === 'television'
-                              ? '选择电视按钮图标'
-                              : resolvedDeviceKind === 'nas'
-                                ? '选择NAS按钮图标'
-                                : resolvedDeviceKind === 'window-opener'
-                                  ? '选择开窗器按钮图标'
-                                  : resolvedDeviceKind === 'cover'
-                                    ? '选择窗帘按钮图标'
-                                    : resolvedDeviceKind === 'climate'
-                                      ? '选择空调按钮图标'
-                                      : '选择灯光按钮图标',
+          title: DEVICE_ICON_PICKER_TITLES[resolvedDeviceKind] || '选择灯光按钮图标',
           searchPlaceholder: '搜索图标名称',
           triggerButton: iconTrigger,
           pageSize: EDITOR_PICKER_PAGE_SIZES.icon,
@@ -850,8 +846,10 @@ export function createInteraction3dEditorPickers({
         isDeviceStatusEntity = entityDeviceKind === 'device-status',
         isLockDoorEntity = entityDeviceKind === 'lock-door',
         isLockBatteryEntity = entityDeviceKind === 'lock-battery',
-        isTelevisionEntity = entityDeviceKind === 'television',
-        isTelevisionPowerEntity = entityDeviceKind === 'television-power',
+        // 媒体设备的「媒体实体」与「电源实体」两种角色：按种类前缀判定，
+        // 新增一种媒体设备只需在 profiles 里加一行，这里不用再改。
+        isMediaDeviceEntity = isMediaDeviceKind(entityDeviceKind),
+        isMediaPowerEntity = isMediaPowerEntityKind(entityDeviceKind),
         isComputerPowerEntity = entityDeviceKind === 'computer-power',
         environmentSensorKey = ENVIRONMENT_SENSORS.some(
           (environmentSensor) => environmentSensor.key === entityDomainName,
@@ -891,7 +889,7 @@ export function createInteraction3dEditorPickers({
                             ? /^(switch|fan)\.[a-z0-9_]+$/
                             : ['fan', 'purifier'].includes(entityDeviceKind)
                               ? /^fan\.[a-z0-9_]+$/
-                              : isLightEntity || isTelevisionPowerEntity || entityDeviceKind === 'presence'
+                              : isLightEntity || isMediaPowerEntity || entityDeviceKind === 'presence'
                                 ? /^[a-z_]+\.[a-z0-9_]+$/
                                 : entityDeviceKind === 'camera'
                                   ? /^camera\.[a-z0-9_]+$/
@@ -899,7 +897,7 @@ export function createInteraction3dEditorPickers({
                                     ? /^vacuum\.[a-z0-9_]+$/
                                     : entityDeviceKind === 'vacuum-map'
                                       ? /^(camera|image)\.[a-z0-9_]+$/
-                                      : isTelevisionEntity || isSpeakerEntity
+                                      : isMediaDeviceEntity || isSpeakerEntity
                                         ? /^media_player\.[a-z0-9_]+$/
                                         : entityDeviceKind === 'nas'
                                           ? /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/
@@ -940,7 +938,7 @@ export function createInteraction3dEditorPickers({
                     : candidateEntity.entityId.startsWith('switch.')
                       ? 1
                       : 0
-                  : isTelevisionPowerEntity
+                  : isMediaPowerEntity
                     ? ['switch.', 'media_player.', 'binary_sensor.', 'input_boolean.'].some((domainPrefix) =>
                         candidateEntity.entityId.startsWith(domainPrefix),
                       )
@@ -962,7 +960,7 @@ export function createInteraction3dEditorPickers({
                               ? 'water_heater.'
                               : ['fan', 'purifier'].includes(entityDeviceKind)
                                 ? 'fan.'
-                                : isTelevisionEntity || isTelevisionPowerEntity
+                                : isMediaDeviceEntity || isMediaPowerEntity
                                   ? 'media_player.'
                                   : entityDeviceKind === 'presence'
                                     ? 'binary_sensor.'
@@ -1031,8 +1029,6 @@ export function createInteraction3dEditorPickers({
           isLockBatteryEntity,
           isComputerPowerEntity,
           isSpeakerEntity,
-          isTelevisionEntity,
-          isTelevisionPowerEntity,
           isCoverEntity,
           isClimateEntity,
         },

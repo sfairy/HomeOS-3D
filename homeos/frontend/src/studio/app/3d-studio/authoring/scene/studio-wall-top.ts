@@ -11,7 +11,7 @@ import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 
 import type { WallSurfaceMaterialOptions } from '../types/studio-app-types'
 import type { StudioWallsDeps } from './studio-walls'
-import { wallFilmOpacity } from '../../materials/studio-wall-finish'
+import { wallEmissiveIntensity, wallFilmOpacity } from '../../materials/studio-wall-finish'
 
 /**
  * 墙面运行时方案是否走 0.8.2 的专用墙面着色器（`?wall-trial=shader`）。
@@ -42,10 +42,16 @@ function resolveFilmOpacity(wallTopOpacity: number) {
   return wallFilmOpacity(wallTopOpacity)
 }
 
-/** 墙顶自发光：与墙面 `wallEmissiveIntensity`（0.15 / 暖木 0.17）同一档。 */
+/**
+ * 墙顶自发光：与墙面**同一份** `wallEmissiveIntensity`（冷色 0.11 / 暖木 0.13）。
+ *
+ * 原来这里写的是 0.15 / 0.19，比墙身高 36% —— 注释说「与墙面同一档」，数值却不是。
+ * 自发光是均匀铺满整面的底色，墙顶又几乎收不到灯（面朝上，区域灯体积的垂直衰减
+ * 把它挡在外面），于是俯视时整圈墙顶永远是画面里最亮的一条，把墙身压成灰边。
+ */
 function resolveEmissiveIntensity(wallTopOptions: WallSurfaceMaterialOptions, warmWood: boolean) {
   if (wallTopOptions.emissiveIntensity) return wallTopOptions.emissiveIntensity * 0.3
-  return warmWood ? 0.19 : 0.15
+  return wallEmissiveIntensity(warmWood)
 }
 
 /** 深度 / 多边形偏移：不透明时按标准深度写入，半透明时只写更近的片元并轻微偏移。 */

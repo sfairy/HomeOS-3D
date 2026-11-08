@@ -1,4 +1,5 @@
 import { DEVICE_PROFILE_TABLE } from '../device/device-profiles'
+import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets/media-device-profiles'
 
 /** 标签配置里允许单独打补丁的字段（上游 0.8.1 `state-update-plan.js` 的 `O` 集合）。 */
 const LABEL_PATCH_FIELDS = new Set([
@@ -51,7 +52,9 @@ const LABEL_COLLECTIONS = new Set([
   'lights',
   ...ENVIRONMENT_COLLECTIONS.map((collection) => 'environment.' + collection),
   ...SECURITY_COLLECTIONS.map((collection) => 'security.' + collection),
-  ...['nas', 'speakers', 'televisions', 'vacuums'].map((collection) => 'devices.' + collection),
+  ...['nas', 'speakers', 'vacuums', ...Object.values(MEDIA_DEVICE_PROFILES).map((profile) => profile.collection)].map(
+    (collection) => 'devices.' + collection,
+  ),
   ...Object.values(DEVICE_PROFILE_TABLE).map(
     (deviceProfile) => 'devices.' + (deviceProfile as { collection?: string }).collection,
   ),

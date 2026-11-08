@@ -9,6 +9,7 @@ import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/generic-device-catalog'
+import { isMediaDeviceKind } from '@app/bridge/presets/media-device-profiles'
 import { createStageElement, expandGroupMembers } from './_shared'
 import { syncHtmlRangeProgress } from '@app/shared/util/range-progress'
 
@@ -282,8 +283,13 @@ export function collectModuleBindingsCore(deps: StageControlsDeps) {
                   }))
               : deps.activeModule === 'speaker'
                 ? deps.collectSpeakerBindings()
-                : deps.activeModule === 'television'
-                  ? deps.collectTelevisionBindings()
+                : isMediaDeviceKind(deps.activeModule)
+                  ? deps
+                      .collectTelevisionBindings()
+                      .filter(
+                        (mediaModuleBinding: { deviceKind?: string }) =>
+                          mediaModuleBinding.deviceKind === deps.activeModule,
+                      )
                   : deps.activeModule === 'devices'
                     ? [
                         ...deps.collectCoverBindings().filter((airerModuleBinding: any) => airerModuleBinding.airer),

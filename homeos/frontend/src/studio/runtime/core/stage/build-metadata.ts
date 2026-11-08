@@ -1,6 +1,8 @@
 import { floorNavigationChoices } from '../floor-navigation'
 import { doorModels } from '../../security/lock-state'
 import { genericDeviceMetadata } from '../../device/generic-device-catalog'
+import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets/media-device-profiles'
+import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../../speaker/speaker-models'
 import { normalizeModelRemark } from '@app/shared/model-remarks'
 
 export function buildMetadata(
@@ -122,29 +124,43 @@ export function buildMetadata(
               height: (Number(vacuumMetadataItem.elevation) || 0) + (Number(vacuumMetadataItem.height) || 0.85) / 2,
             })),
           speakers: metadataFloorItem.scene.items
-            .filter((buildMetadataSpeakerSceneItem: any) => buildMetadataSpeakerSceneItem.type === 'speaker')
+            .filter((buildMetadataSpeakerSceneItem: any) =>
+              SPEAKER_MODEL_TYPES.includes(buildMetadataSpeakerSceneItem.type),
+            )
             .map((speakerMetadataItem: any, speakerMetadataIndex: any) => ({
               id: speakerMetadataItem.id,
               remark: normalizeModelRemark(speakerMetadataItem.remark),
-              name: speakerMetadataItem.name || '智能音响 ' + (speakerMetadataIndex + 1),
+              name:
+                speakerMetadataItem.name ||
+                `${speakerModelProfile(speakerMetadataItem.type)?.label || '智能音响'} ${speakerMetadataIndex + 1}`,
               type: speakerMetadataItem.type,
               x: speakerMetadataItem.x,
               y: speakerMetadataItem.y,
-              height: (Number(speakerMetadataItem.elevation) || 0) + (Number(speakerMetadataItem.height) || 0.2336) / 2,
-            })),
-          televisions: metadataFloorItem.scene.items
-            .filter((buildMetadataTelevisionSceneItem: any) => buildMetadataTelevisionSceneItem.type === 'tv')
-            .map((televisionMetadataItem: any, televisionMetadataIndex: any) => ({
-              id: televisionMetadataItem.id,
-              remark: normalizeModelRemark(televisionMetadataItem.remark),
-              name: televisionMetadataItem.name || '电视 ' + (televisionMetadataIndex + 1),
-              type: televisionMetadataItem.type,
-              x: televisionMetadataItem.x,
-              y: televisionMetadataItem.y,
               height:
-                (Number(televisionMetadataItem.elevation) || 0) +
-                (Number(televisionMetadataItem.height) || 0.92) * 0.62,
+                (Number(speakerMetadataItem.elevation) || 0) +
+                (Number(speakerMetadataItem.height) ||
+                  speakerModelProfile(speakerMetadataItem.type)?.height ||
+                  0.2336) /
+                  2,
             })),
+          ...Object.fromEntries(
+            Object.values(MEDIA_DEVICE_PROFILES).map((mediaProfile) => [
+              mediaProfile.collection,
+              metadataFloorItem.scene.items
+                .filter((mediaSceneItem: any) => mediaSceneItem.type === mediaProfile.modelType)
+                .map((mediaMetadataItem: any, mediaMetadataIndex: number) => ({
+                  id: mediaMetadataItem.id,
+                  remark: normalizeModelRemark(mediaMetadataItem.remark),
+                  name: mediaMetadataItem.name || mediaProfile.label + ' ' + (mediaMetadataIndex + 1),
+                  type: mediaMetadataItem.type,
+                  x: mediaMetadataItem.x,
+                  y: mediaMetadataItem.y,
+                  height:
+                    (Number(mediaMetadataItem.elevation) || 0) +
+                    (Number(mediaMetadataItem.height) || mediaProfile.height) * mediaProfile.markerHeight,
+                })),
+            ]),
+          ),
           ...genericDeviceMetadata(metadataFloorItem.scene.items),
           nas: metadataFloorItem.scene.items
             .filter((buildMetadataNasSceneItem: any) => buildMetadataNasSceneItem.type === 'nas')

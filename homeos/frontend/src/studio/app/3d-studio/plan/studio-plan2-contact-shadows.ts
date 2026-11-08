@@ -466,20 +466,34 @@ export function createContactShadowController({
       (targetState.uniforms.plan2SurfaceLookup.value = placeholderTexture),
       (targetState.uniforms.plan2SurfaceOpacity.value = 0)
   }
+  /**
+   * 现存的 `target` 能不能直接拿去烘焙。
+   *
+   * 不能只看尺寸：持久缓存还原出来的那块**不是** `WebGLRenderTarget`，而是
+   * `{ width, height, texture, restored, dispose }` 这样一个壳（见
+   * `contact-shadow-persistent-cache`）。尺寸刚好相等时旧的判断会跳过重建，
+   * 把壳交给 `renderer.setRenderTarget` —— three 在里头调
+   * `renderTarget.addEventListener('dispose', …)` 直接抛
+   * `d.addEventListener is not a function`，整个渲染循环就此中断。
+   */
+  const isReusableRenderTarget = (existingTarget: any, sizePx: any) =>
+    existingTarget?.isRenderTarget === true && existingTarget.width === sizePx && existingTarget.height === sizePx
   function ensureRenderTargets(floorEntry: any, sizePx: any) {
     return (
-      (floorEntry.target?.width !== sizePx || floorEntry.target?.height !== sizePx) &&
+      isReusableRenderTarget(floorEntry.target, sizePx) ||
         (disposeFloorState(floorEntry),
         (floorEntry.target = new THREE.WebGLRenderTarget(sizePx, sizePx, {
           format: THREE.RedFormat,
           generateMipmaps: false,
         }))),
-      floorEntry.ping ||
-        (floorEntry.ping = new THREE.WebGLRenderTarget(sizePx, sizePx, {
-          format: THREE.RedFormat,
-          depthBuffer: false,
-          generateMipmaps: false,
-        })),
+      floorEntry.ping?.isRenderTarget === true && floorEntry.ping.width === sizePx
+        ? null
+        : (floorEntry.ping?.dispose?.(),
+          (floorEntry.ping = new THREE.WebGLRenderTarget(sizePx, sizePx, {
+            format: THREE.RedFormat,
+            depthBuffer: false,
+            generateMipmaps: false,
+          }))),
       {
         target: floorEntry.target,
         ping: floorEntry.ping,
@@ -538,13 +552,16 @@ export function createContactShadowController({
     const ceil = Math.ceil(Math.sqrt(levelHeights.length)),
       tileSizePx = Math.min(settings.surfaceResolution, Math.floor(renderer.capabilities.maxTextureSize / ceil)),
       atlasSizePx = ceil * tileSizePx
-    surfaceEntry.surface?.width !== atlasSizePx &&
-      (surfaceEntry.surface?.dispose(),
-      (surfaceEntry.surface = new THREE.WebGLRenderTarget(atlasSizePx, atlasSizePx, {
+    // 同 `ensureRenderTargets`：持久缓存还原出来的 `surface` 也是壳对象（尺寸刚好
+    // 相等时会跳过重建，随后 `surface.viewport.set` 一样会炸），必须按 `isRenderTarget` 判断。
+    if (!(surfaceEntry.surface?.isRenderTarget === true && surfaceEntry.surface.width === atlasSizePx)) {
+      surfaceEntry.surface?.dispose?.()
+      surfaceEntry.surface = new THREE.WebGLRenderTarget(atlasSizePx, atlasSizePx, {
         format: THREE.RedFormat,
         depthBuffer: false,
         generateMipmaps: false,
-      })))
+      })
+    }
     const clone = casterBounds.clone()
     clone.expandByVector(new THREE.Vector3(0.5, 0, 0.5))
     const surfaceWidth = clone.max.x - clone.min.x,

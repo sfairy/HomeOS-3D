@@ -9,8 +9,9 @@
  */
 
 import {
-  SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2,
   canonicalPolygonKey as canonicalPolygonKey2,
+  defaultDoorOpening,
+  doorDisplayRotation,
   clamp as clamp2,
   clampWindowT as clampWindowT2,
   closedWallFloorPolygons,
@@ -263,6 +264,12 @@ function buildWallBandMesh(
     ;(wallBandMesh.userData.hbMergeWallBand =
       wallBandOptions.polygonOffset !== true && (wallBandOptions.renderOrder ?? 4) === 4),
       (wallBandMesh.userData.reflectionRole = 'wall'),
+      // 区域光照的受光体类型必须显式声明：墙带是「薄 + 高」的盒子（厚 0.15 < 0.18、
+      // 高 2.8 > 1.5），正好命中包围盒启发式里「地面」那条判据，于是整圈墙被当成
+      // 地面受光体 —— 吃 floorGain 而不是 wallGain，也拿不到墙面专用的朝向补偿，
+      // 轻量柔光下整面墙就是一个亮度、像贴图。合并墙带那条路径本来就写了 'wall'，
+      // 这里补齐成同一口径。
+      (wallBandMesh.userData.regionReceiverKind = 'wall'),
       (wallBandMesh.rotation.x = Math.PI / 2),
       (wallBandMesh.position.y = wallBandTopHeight)
     ;(wallBandMesh.castShadow = wallBandOptions.castShadow === true),
@@ -723,6 +730,8 @@ export function buildInteriorScene(
           (doorGroup.userData.environmentFloorId = oe4),
           (doorGroup.userData.environmentModelType = 'door'),
           (doorGroup.userData.doorAnimationType = resolveDoorMaterialType(currentDoor.doorType || 'solid')))
+      const doorOpenRatio = defaultDoorOpening(currentDoor, buildInteriorSceneIsEmbeddedStage) / 100
+      doorGroup.userData.defaultOpening = doorOpenRatio * 100
       const buildInteriorSceneDoorWidth = Math.min(
           currentDoor.width,
           wallLengthMeters2(openingWall, interiorPixelsPerMeter),
@@ -823,7 +832,7 @@ export function buildInteriorScene(
             slidingPanelOffset = slidingPanelSign * buildInteriorSceneDoorWidth * 0.23,
             slidingPanelRestOffset =
               slidingPanelSign === -doorHingeSign
-                ? doorHingeSign * buildInteriorSceneDoorWidth * 0.46 * SLIDING_DOOR_DISPLAY_OPEN_RATIO2
+                ? doorHingeSign * buildInteriorSceneDoorWidth * 0.46 * doorOpenRatio
                 : 0
           ;(slidingPanelGroup.position.x = slidingPanelRestOffset),
             buildInteriorSceneIsEmbeddedStage &&
@@ -885,11 +894,13 @@ export function buildInteriorScene(
           pocketDoorHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
           pocketSwingSign = currentDoor.swing === -1 ? -1 : 1,
           pocketDoorGroup = new ns2.Group()
-        buildInteriorSceneIsEmbeddedStage &&
-          ((pocketDoorGroup.userData.doorRollerPivot = true),
-          (pocketDoorGroup.userData.doorRestTranslation = 0),
-          (pocketDoorGroup.userData.doorRollerClosedTranslation = 0),
-          (pocketDoorGroup.userData.doorRollerOpenTranslation = pocketDoorHeight)),
+        ;(pocketDoorGroup.position.y = pocketDoorHeight * doorOpenRatio),
+          (pocketDoorGroup.scale.y = Math.max(0.001, 1 - doorOpenRatio)),
+          buildInteriorSceneIsEmbeddedStage &&
+            ((pocketDoorGroup.userData.doorRollerPivot = true),
+            (pocketDoorGroup.userData.doorRestTranslation = pocketDoorGroup.position.y),
+            (pocketDoorGroup.userData.doorRollerClosedTranslation = 0),
+            (pocketDoorGroup.userData.doorRollerOpenTranslation = pocketDoorHeight)),
           deps.addArchitectureMesh(
             pocketDoorGroup,
             [[pocketDoorWidth, pocketDoorHeight, 0.045, 0, pocketDoorHeight * 0.5, pocketSwingSign * 0.04]],
@@ -982,10 +993,14 @@ export function buildInteriorScene(
         for (const pocketPanel of [...doorGroup.children].slice(1))
           (pocketPanel.position.x -= pocketLeafGroup.position.x), pocketLeafGroup.add(pocketPanel)
         doorGroup.add(pocketLeafGroup),
+          (pocketLeafGroup.rotation.y = doorDisplayRotation(
+            doorLeafRotation2(currentDoor, Math.PI * 0.42),
+            doorOpenRatio,
+          )),
           buildInteriorSceneIsEmbeddedStage &&
             ((pocketLeafGroup.userData.entryDoorPivot = true),
             (pocketLeafGroup.userData.doorHingePivot = true),
-            (pocketLeafGroup.userData.doorRestRotation = 0),
+            (pocketLeafGroup.userData.doorRestRotation = pocketLeafGroup.rotation.y),
             (doorGroup.userData.entryDoorSign =
               (currentDoor.hinge === 'right' ? 1 : -1) * (currentDoor.swing === -1 ? -1 : 1)),
             (doorGroup.userData.entryDoorLeafWidth = pocketLeafWidth),
@@ -1141,12 +1156,16 @@ export function buildInteriorScene(
           }),
         )
         doorGroup.add(childMotherMotherGroup),
+          (childMotherMotherGroup.rotation.y = doorDisplayRotation(
+            doorLeafRotation2(currentDoor, Math.PI * 0.42),
+            doorOpenRatio,
+          )),
           buildInteriorSceneIsEmbeddedStage &&
             (Object.assign(childMotherMotherGroup.userData, {
               entryDoorPivot: true,
               doorHingePivot: true,
               doorFixedHinge: true,
-              doorRestRotation: 0,
+              doorRestRotation: childMotherMotherGroup.rotation.y,
               doorClosedRotation: 0,
             }),
             (doorGroup.userData.entryDoorSign = childMotherHingeSign * childMotherSwingSign),
@@ -1168,13 +1187,14 @@ export function buildInteriorScene(
         for (const splitPanelSign of [-1, 1]) {
           const splitPanelOffset = splitPanelSign * (buildInteriorSceneDoorWidth / 2 - doorLeafThickness * 0.5),
             splitPanelGroup = new ns2.Group()
+          const splitPanelOpenRotation = splitPanelSign < 0 ? splitPanelSwingAngle : -splitPanelSwingAngle
           ;(splitPanelGroup.position.x = splitPanelOffset),
-            (splitPanelGroup.rotation.y = splitPanelSign < 0 ? splitPanelSwingAngle : -splitPanelSwingAngle),
+            (splitPanelGroup.rotation.y = doorDisplayRotation(splitPanelOpenRotation, doorOpenRatio)),
             buildInteriorSceneIsEmbeddedStage &&
               ((splitPanelGroup.userData.doorHingePivot = true),
               (splitPanelGroup.userData.doorFixedHinge = true),
               (splitPanelGroup.userData.doorRestRotation = splitPanelGroup.rotation.y),
-              (splitPanelGroup.userData.doorOpenRotation = splitPanelGroup.rotation.y))
+              (splitPanelGroup.userData.doorOpenRotation = splitPanelOpenRotation))
           const splitPanelHandleOffset = splitPanelSign < 0 ? splitPanelWidth / 2 : -splitPanelWidth / 2
           deps.addArchitectureMesh(
             splitPanelGroup,
@@ -1217,7 +1237,7 @@ export function buildInteriorScene(
       ;(foldLeafGroup.position.x = isRightHingeLeaf
         ? buildInteriorSceneDoorWidth / 2 - doorLeafThickness * 0.5
         : -buildInteriorSceneDoorWidth / 2 + doorLeafThickness * 0.5),
-        (foldLeafGroup.rotation.y = doorLeafRotation2(currentDoor, Math.PI * 0.42)),
+        (foldLeafGroup.rotation.y = doorDisplayRotation(doorLeafRotation2(currentDoor, Math.PI * 0.42), doorOpenRatio)),
         buildInteriorSceneIsEmbeddedStage &&
           ((foldLeafGroup.userData.doorHingePivot = true),
           (foldLeafGroup.userData.doorRestRotation = foldLeafGroup.rotation.y)),
@@ -1265,7 +1285,7 @@ export function buildInteriorScene(
           ((doorGroup.userData.doorLeafWidth = foldLeafWidth),
           (doorGroup.userData.doorClosedRotation = 0),
           // 0.8.1 会给普通门扇写开门位：拿不到楼层多边形时（开放平面）靠它定开向。
-          (doorGroup.userData.doorOpenRotation = foldLeafGroup.rotation.y)),
+          (doorGroup.userData.doorOpenRotation = doorLeafRotation2(currentDoor, Math.PI * 0.42))),
         (doorGroup.userData.optimizationStats = {
           type: doorType === 'glass' ? 'door-glass' : 'door-solid',
           before: doorType === 'glass' ? 9 : 5,

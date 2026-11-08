@@ -20,5 +20,6 @@
             data-light-group-action="delete">删除</button></div>
 
     <div id="floor-context-menu" class="light-group-context-menu" hidden><button type="button"
+            data-floor-action="duplicate">复制楼层</button><button type="button"
             data-floor-action="rename">重命名</button><button type="button" data-floor-action="delete">删除楼层</button></div>
 </template>

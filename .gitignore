@@ -109,6 +109,9 @@ ops/checks/studio/material-slot-repair-plan.json
 # 临时探针脚本（一次性性能/行为验证，用完即删）
 .tmp-probe/
 
+# 0.8.5 移植时反混淆出来的对照产物（一次性草稿，用完即删）
+.tmp-port/
+
 # 厂商包的反混淆产物与比对脚本（v81 / v82 抽取出来的 .deob.js 与 diff 工具）。
 # 仅供本地对照，不入库：仓库是公开的，第三方反编译代码一旦推上去就会永久留在历史里。
 .deob/

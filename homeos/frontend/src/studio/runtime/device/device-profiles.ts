@@ -135,6 +135,13 @@ const HOUSEHOLD_DEVICE_PROFILES: Record<string, DeviceProfile> = {
     icon: 'mdi:washing-machine',
     height: 0.85,
   },
+  'floor-washer': {
+    collection: 'floorWashers',
+    modelType: 'floor-washer',
+    label: '洗地机',
+    icon: 'mdi:vacuum',
+    height: 1.209281,
+  },
   rangehood: {
     collection: 'rangehoods',
     modelType: 'rangehood',
@@ -288,6 +295,13 @@ const OTHER_DEVICE_PROFILES: Record<string, DeviceProfile> = {
     label: '自动喂食器',
     icon: 'mdi:food-drumstick',
     height: 0.33,
+  },
+  'smart-litter-box': {
+    collection: 'smartLitterBoxes',
+    modelType: 'smart-litter-box',
+    label: '智能猫砂盆',
+    icon: 'mdi:cat',
+    height: 0.55,
   },
   'pet-fountain': {
     collection: 'petFountains',

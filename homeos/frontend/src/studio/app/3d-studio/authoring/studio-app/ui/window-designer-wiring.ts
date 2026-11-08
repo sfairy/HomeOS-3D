@@ -9,7 +9,7 @@
  */
 
 import { clampWindowT as clampWindowT2, closedWallFloorPolygons, doorInteriorSide } from '../../../plan/geometry'
-import { isCustomWindow } from '../../../plan/window/layout'
+import { isCustomWindow, windowWallLimits } from '../../../plan/window/layout'
 import { windowSceneError } from '../../../plan/window/window-scene-guard'
 
 export function bindWindowDesignerWiring(deps: Record<string, any>): void {
@@ -126,6 +126,7 @@ export function bindWindowDesignerWiring(deps: Record<string, any>): void {
           record: latestWindow,
           style: deps.backgroundSettings?.(),
           interiorSide,
+          wallLimits: windowWallLimits(latestWindow, anchorWall, pixelsPerMeter()),
           onApply: (appliedDraft: any) => applyWindowDesign(appliedDraft, openedWindow),
           onClose: () => {
             designerHandle = null

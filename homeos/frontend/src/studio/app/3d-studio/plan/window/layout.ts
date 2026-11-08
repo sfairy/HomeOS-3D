@@ -49,7 +49,7 @@ export interface WindowLeaf {
   kind: WindowKind
   hinge: WindowHinge
   swing: WindowSwing
-  /** 开启角度（度）：平开 ≤120，上下悬 ≤90。 */
+  /** 开启角度（度）：平开 ≤170，上下悬 ≤90。 */
   angle: number
   /** 推拉组扇数（2 或 3）；其它窗型恒为 2（占位，校验只要求合法值）。 */
   count: number
@@ -170,14 +170,14 @@ export function leaf(kind: WindowKind = 'fixed'): WindowLeaf {
   }
 }
 
-/** 切换窗型：上下悬统一 30°，其它窗型的角度夹到 120° 以内。 */
+/** 切换窗型：上下悬统一 30°，其它窗型的角度夹到 170° 以内。 */
 export function changeKind(node: WindowLeaf, kind: WindowKind): void {
   if (!WINDOW_KINDS.includes(kind)) throw Error('不支持的窗型。')
   if (node.kind !== kind && isHung(kind)) {
     node.angle = 30
     node.swing = kind === 'top-hung' ? 'out' : 'in'
   }
-  if (node.kind !== kind && !isHung(kind)) node.angle = Math.min(node.angle, 120)
+  if (node.kind !== kind && !isHung(kind)) node.angle = Math.min(node.angle, 170)
   node.kind = kind
 }
 
@@ -551,7 +551,7 @@ export function validateWindowDesign(design: WindowDesign | undefined, width: nu
       ![2, 3].includes(node.count) ||
       !Number.isFinite(node.angle) ||
       node.angle < 10 ||
-      node.angle > (isHung(node.kind) ? 90 : 120) ||
+      node.angle > (isHung(node.kind) ? 90 : 170) ||
       !Array.isArray(node.panelIds) ||
       node.panelIds.length !== node.count
     )
@@ -587,6 +587,79 @@ export function validateWindowDesign(design: WindowDesign | undefined, width: nu
 }
 
 /** 校验一扇窗户（带 `windowDesign` 才校验）。 */
+export interface WindowWallLimits {
+  width: number
+  height: number
+}
+
+/** 墙段能容纳的窗洞上限（米）。没有墙时返回 null。 */
+export function windowWallLimits(
+  window: { sill?: number },
+  wall: { start: { x: number; y: number }; end: { x: number; y: number }; height: number } | null | undefined,
+  pixelsPerMeter: number,
+): WindowWallLimits | null {
+  if (!wall) return null
+  const scale = Math.max(Number(pixelsPerMeter) || 1, 1e-7)
+  return {
+    width: Math.min(20, Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) / scale),
+    height: Math.min(20, wall.height - (window.sill ?? 0)),
+  }
+}
+
+/** 自定义窗相对墙段的超限说明。空串表示落在墙内。 */
+export function windowWallError(
+  window: { width: number; height: number; sill?: number },
+  limits: WindowWallLimits | null,
+): string {
+  if (!limits) return '自定义窗户缺少所在墙体，请关闭绘制窗口后检查墙体。'
+  if ((window.sill ?? 0) < 0) return '自定义窗户超出墙体，请先调整窗台高度。'
+  const problems: string[] = []
+  if (window.width > limits.width + 0.000001)
+    problems.push(
+      `窗宽 ${Math.round(window.width * 1000)} mm，所在墙段最多 ${Math.floor(limits.width * 1000 + 0.000001)} mm`,
+    )
+  if (window.height > limits.height + 0.000001)
+    problems.push(
+      `窗高 ${Math.round(window.height * 1000)} mm，窗台上方最多 ${Math.max(0, Math.floor(limits.height * 1000 + 0.000001))} mm`,
+    )
+  return problems.length ? `自定义窗户超出墙体：${problems.join('；')}。` : ''
+}
+
+/**
+ * 把窗宽、窗高收到墙段里，只改这两个数，分格和开向不动。
+ * 墙太短、窗台上方不够、收完窗格过小、或收完仍超墙时抛错，调用方的草稿保持原样。
+ */
+export function fitWindowToWall(window: WindowRecord, limits: WindowWallLimits | null): void {
+  if (!limits) throw Error(windowWallError(window, limits))
+  if (limits.width + 1e-8 < 0.3) throw Error('所在墙段不足 300 mm，请先调整墙体。当前草稿已保留。')
+  if (limits.height + 1e-8 < 0.3) throw Error('当前窗台上方不足 300 mm，请先调整窗台高度或墙高。当前草稿已保留。')
+  const fitAxis = (size: number, limit: number) =>
+    size > limit + 0.000001 ? Math.floor(limit * 1000 + 0.000001) / 1000 : size
+  const fitted = {
+    ...window,
+    width: fitAxis(window.width, limits.width),
+    height: fitAxis(window.height, limits.height),
+  }
+  const tightCells = entries(fitted)
+    .filter((entry) => !entry.node.children)
+    .flatMap((entry, cellIndex) => {
+      const problems: string[] = []
+      const minimumWidth = minimum(entry.node, 'x')
+      if (entry.width + 1e-8 < minimumWidth) problems.push(`宽至少 ${Math.round(minimumWidth * 1000)} mm`)
+      if (entry.height + 1e-8 < MIN_CELL) problems.push(`高至少 ${MIN_CELL * 1000} mm`)
+      return problems.length ? [`窗格 ${cellIndex + 1}（${problems.join('、')}）`] : []
+    })
+  if (tightCells.length)
+    throw Error(
+      `适配后${tightCells.slice(0, 3).join('、')}${tightCells.length > 3 ? `等 ${tightCells.length} 个窗格` : ''}过小。请先调整分格，当前草稿已保留。`,
+    )
+  validateWindowRecord(fitted)
+  const stillOverWall = windowWallError(fitted, limits)
+  if (stillOverWall) throw Error(stillOverWall)
+  window.width = fitted.width
+  window.height = fitted.height
+}
+
 export function validateWindowRecord(window: WindowRecord): void {
   if (window.windowDesign !== undefined) validateWindowDesign(window.windowDesign, window.width, window.height)
 }

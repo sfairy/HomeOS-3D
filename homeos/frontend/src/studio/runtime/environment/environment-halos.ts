@@ -1,4 +1,5 @@
 import { DEVICE_PROFILE_TABLE } from '../device/device-profiles'
+import { SPEAKER_MODEL_TYPES } from '../speaker/speaker-models'
 
 /**
  * 参与描边的场景模型类型（0.7.8 `environment-halos.js`）。
@@ -20,8 +21,9 @@ const OUTLINE_MODEL_TYPES: ReadonlySet<string> = new Set([
   'airoutlet',
   'curtain',
   'nas',
-  'speaker',
+  ...SPEAKER_MODEL_TYPES,
   'tv',
+  'projector',
   'robotvacuum',
   'camera',
   'presence',

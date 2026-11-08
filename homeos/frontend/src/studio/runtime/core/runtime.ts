@@ -3,6 +3,7 @@ import { createLightStream } from '../light/light-stream'
 import { createCoverMemoryClient } from '../cover/cover-memory-client'
 import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../device/generic-device-catalog'
+import { MEDIA_DEVICE_KINDS, mediaDeviceBindings, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 import { createSecurityAlarmOverlay, overlayEligibleAlarms, securityAlarmReadings } from '../security/security-alarm'
 import { cameraSourceConfigured } from '../camera/camera-status'
 import { carTireEntities, carTireModelType } from '../vehicle/car-tires'
@@ -390,7 +391,8 @@ export function mountInteraction3d(
   const pendingEditsByRequestId = new Map(),
     pendingRangeRequestsByRequestId = new Map(),
     editSubscribersSet = new Set<(editState: unknown) => void>(),
-    normalizeLightingMode = (lightingMode: any) => (lightingMode === 'region' ? 'region' : 'standard')
+    normalizeLightingMode = (lightingMode: any, lightingModeVersion?: any) =>
+      lightingMode === 'standard' && lightingModeVersion === 2 ? 'standard' : 'region'
   /** 舞台 iframe 重试退避约 18s：watch-build 6–6.5s + watchfiles 数秒；早先 5s 预算曾不够。 */
   const STAGE_FRAME_RETRY_DELAYS_MS = [500, 1500, 3000, 5000, 8000]
   /**
@@ -1075,11 +1077,11 @@ export function mountInteraction3d(
       })),
       ...(componentProperties.devices?.nas || []),
       ...(componentProperties.devices?.speakers || []),
-      ...(componentProperties.devices?.televisions || []),
-      ...(componentProperties.devices?.televisions || [])
-        .filter((televisionEntry: any) => televisionEntry.powerEntityId)
-        .map((televisionWithPower: any) => ({
-          entityId: televisionWithPower.powerEntityId,
+      ...mediaDeviceBindings(componentProperties.devices),
+      ...mediaDeviceBindings(componentProperties.devices)
+        .filter((mediaEntry) => typeof mediaEntry.powerEntityId === 'string' && mediaEntry.powerEntityId)
+        .map((mediaWithPower) => ({
+          entityId: mediaWithPower.powerEntityId,
         })),
       ...(componentProperties.devices?.nas || []).flatMap((nasEntry: any) => {
         const nasStatusSource = nasEntry.statusSource
@@ -1136,7 +1138,10 @@ export function mountInteraction3d(
             ]),
             ['nas', componentProperties.devices?.nas],
             ['speaker', componentProperties.devices?.speakers],
-            ['television', componentProperties.devices?.televisions],
+            ...MEDIA_DEVICE_KINDS.map((mediaKind) => [
+              mediaKind,
+              componentProperties.devices?.[mediaDeviceProfile(mediaKind)!.collection],
+            ]),
             ['vacuum', componentProperties.devices?.vacuums],
           ].some(([deviceKey, deviceConfigList]) =>
             (deviceConfigList || []).some(
@@ -1407,8 +1412,8 @@ export function mountInteraction3d(
             ...(componentProperties.security?.presenceSensors || []).map(
               (presenceSensorEntity: any) => presenceSensorEntity.entityId,
             ),
-            ...(componentProperties.devices?.televisions || []).map(
-              (televisionPowerEntity: any) => televisionPowerEntity.powerEntityId,
+            ...mediaDeviceBindings(componentProperties.devices).map(
+              (mediaPowerEntity) => mediaPowerEntity.powerEntityId,
             ),
             ...collectVacuumEntries().flatMap((vacuumEntityEntry: any) => [
               ...(vacuumEntityEntry.relatedEntityIds || []),
@@ -1456,7 +1461,10 @@ export function mountInteraction3d(
             ...componentProperties.devices,
             vacuums: collectVacuumEntries(),
           },
-          lightingMode: normalizeLightingMode(componentProperties.lightingMode),
+          lightingMode: normalizeLightingMode(
+            componentProperties.lightingMode,
+            componentProperties.lightingModeVersion,
+          ),
         },
         editing: isEditing,
         editingModule: editingModuleKind,
@@ -1666,6 +1674,10 @@ export function mountInteraction3d(
         .split(',')
         .filter((wallTrialMode) => ['shader', 'single', 'depth', 'merge'].includes(wallTrialMode))
         .join(','),
+      stageLightingMode = normalizeLightingMode(
+        componentProperties.lightingMode,
+        componentProperties.lightingModeVersion,
+      ),
       nextStageFrameUrl =
         INTERACTION3D_API_BASE +
         '/stage.html?' +
@@ -1673,7 +1685,9 @@ export function mountInteraction3d(
           sceneId: componentProperties.sceneId,
           projectId: hostProjectId,
           componentId: componentDescriptor.id || '',
-          lighting: normalizeLightingMode(componentProperties.lightingMode),
+          lighting: stageLightingMode,
+          // 标准光影 v2 才追加版本位：舞台据此跳过 legacy 阴影缓存与旧光照分档。
+          ...(stageLightingMode === 'standard' ? { lightingVersion: '2' } : {}),
           ...(wallTrialModes
             ? {
                 'wall-trial': wallTrialModes,
@@ -1936,7 +1950,7 @@ export function mountInteraction3d(
       isAuthorized &&
       isScenePresented &&
       (isEditing || runtimeContext.editable) &&
-      normalizeLightingMode(componentProperties.lightingMode) === 'region'
+      normalizeLightingMode(componentProperties.lightingMode, componentProperties.lightingModeVersion) === 'region'
     if (stageMessage.type === 'range-editor-state' && isRangeEditorAvailable) {
       const pendingRangeRequestEntry = pendingRangeRequestsByRequestId.get(stageMessage.requestId)
       if (stageMessage.requestId && !pendingRangeRequestEntry) return
@@ -2015,9 +2029,11 @@ export function mountInteraction3d(
           ...(componentProperties.environment?.waterHeaters || []),
           ...(componentProperties.environment?.curtains || []),
           ...(componentProperties.devices?.speakers || []),
-          ...(componentProperties.devices?.televisions || []),
-          ...(componentProperties.devices?.televisions || []).map((televisionConfigEntry: any) => ({
-            entityId: televisionConfigEntry.powerEntityId || televisionConfigEntry.entityId,
+          ...mediaDeviceBindings(componentProperties.devices),
+          ...mediaDeviceBindings(componentProperties.devices).map((mediaConfigEntry) => ({
+            entityId:
+              (typeof mediaConfigEntry.powerEntityId === 'string' && mediaConfigEntry.powerEntityId) ||
+              mediaConfigEntry.entityId,
           })),
         ].some((controlDeviceEntry) => controlDeviceEntry.entityId === controlEntityId)
       ) {
@@ -2055,7 +2071,7 @@ export function mountInteraction3d(
                 'climate-extra',
                 'airer-extra',
                 'speaker',
-                'television',
+                ...MEDIA_DEVICE_KINDS,
                 'fan-extra',
                 'purifier-extra',
                 'water-heater-extra',
@@ -2306,7 +2322,7 @@ export function mountInteraction3d(
               'airer',
               'cover',
               'nas',
-              'television',
+              ...MEDIA_DEVICE_KINDS,
               'speaker',
               'vacuum',
               'vacuum-shortcut',
@@ -2321,7 +2337,10 @@ export function mountInteraction3d(
           disposeFocusDevicePopup()
       const previousSceneId = componentProperties.sceneId,
         previousCameraJson = JSON.stringify(componentProperties.camera),
-        previousLightingMode = normalizeLightingMode(componentProperties.lightingMode),
+        previousLightingMode = normalizeLightingMode(
+          componentProperties.lightingMode,
+          componentProperties.lightingModeVersion,
+        ),
         previousCameraPreviewJson = JSON.stringify(
           (componentProperties.security?.cameras || []).find(
             (previewCameraCandidate: any) => 'camera:' + previewCameraCandidate.id === openCameraPreviewId,
@@ -2359,7 +2378,8 @@ export function mountInteraction3d(
           dismissFocus(true),
         isViewEditing &&
           (previousSceneId !== componentProperties.sceneId ||
-            previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode) ||
+            previousLightingMode !==
+              normalizeLightingMode(componentProperties.lightingMode, componentProperties.lightingModeVersion) ||
             previousCameraJson !== JSON.stringify(componentProperties.camera)) &&
           ((isViewEditing = false),
           (activeCamera =
@@ -2370,7 +2390,8 @@ export function mountInteraction3d(
           (stageFrameElement.style.pointerEvents = 'none')),
         isNavigationEditing && previousSceneId !== componentProperties.sceneId && setNavigationEditingState(false),
         previousSceneId !== componentProperties.sceneId ||
-        previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode)
+        previousLightingMode !==
+          normalizeLightingMode(componentProperties.lightingMode, componentProperties.lightingModeVersion)
           ? reloadStageFrame(previousSceneId !== componentProperties.sceneId ? 'load-scene-change' : 'load-mode-change')
           : sendConfigUpdate(),
         // 天气绑定变了要立刻重建/更新特效层，不能等到下一次 HA 状态推送或可见性变化。
@@ -2613,7 +2634,7 @@ export function mountInteraction3d(
       if ((closePopupLayoutPreview(), isDisposed || !isAuthorized || !(isEditing || runtimeContext.editable)))
         return Promise.reject(new Error('请在已授权的控件编辑器中调整照射范围。'))
       if (!isScenePresented) return Promise.reject(new Error('户型还在加载，请稍候再调整照射范围。'))
-      if (normalizeLightingMode(componentProperties.lightingMode) !== 'region')
+      if (normalizeLightingMode(componentProperties.lightingMode, componentProperties.lightingModeVersion) !== 'region')
         return Promise.reject(new Error('请先选择轻量柔光模式。'))
       if (isRangeEditing) return Promise.resolve()
       const existingRangeRequest = pendingRangeRequestsByRequestId.values().next().value

@@ -21,6 +21,7 @@ from .access import access_grant, is_scene_id, module_components, require_access
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .game_console import fetch_switch_artwork, switch_artwork_url
+from .media_device import MEDIA_DEVICE_PROFILES
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
 from .studio_draft_scene import read_current_studio_draft
 from ...config import Settings
@@ -537,10 +538,14 @@ class _EnvironmentControlContext:
     states: list[dict]
 
 
-def _scene_has_model(scene: dict, bindings: list[dict], model_type: str) -> bool:
-    """绑定的 modelId 是否仍能在户型对应楼层里找到指定类型的模型。"""
+def _scene_has_model(scene: dict, bindings: list[dict], model_type: str | frozenset[str]) -> bool:
+    """绑定的 modelId 是否仍能在户型对应楼层里找到指定类型的模型。
+
+    ``model_type`` 可以是单个类型或类型集合（智能音响有音箱 / 长条 / 立式三种造型）。
+    """
+    allowed_types = frozenset({model_type}) if isinstance(model_type, str) else model_type
     return any(
-        model.get('id') == binding.get('modelId') and model.get('type') == model_type
+        model.get('id') == binding.get('modelId') and model.get('type') in allowed_types
         for binding in bindings
         for floor in scene.get('floors', [])
         if floor.get('id') == binding.get('floorId')
@@ -931,7 +936,7 @@ async def _control_speaker(
     viewer: LicensedViewer,
 ) -> dict:
     """智能音响分支：校验绑定、模型与命令参数后下发。"""
-    from .speaker import validate_speaker_command
+    from .speaker import SPEAKER_MODEL_TYPES, validate_speaker_command
 
     if command.domain != 'media_player' or not command.project_id or not command.component_id:
         raise HTTPException(422, detail='智能音响控制缺少仪表盘、控件或媒体实体信息。')
@@ -947,7 +952,7 @@ async def _control_speaker(
     scene_id = properties.get('sceneId', '')
     try:
         scene = await scene_snapshot_async(request, scene_id)
-        valid = _scene_has_model(scene, matches, 'speaker')
+        valid = _scene_has_model(scene, matches, SPEAKER_MODEL_TYPES)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
     if not valid:
@@ -957,18 +962,19 @@ async def _control_speaker(
     return await call_service(command, request, database, viewer)
 
 
-async def _control_television(
+def _require_media_binding_identity(command: Interaction3dControlRequest) -> None:
+    """投影仪没有屏幕，只能靠「这台模型」定位。三个绑定身份缺一就分不清是哪一台。"""
+    if command.device_kind == 'projector' and not (
+        command.binding_id and command.binding_floor_id and command.binding_model_id
+    ):
+        raise HTTPException(422, detail='投影仪控制缺少绑定身份。')
+
+
+def _match_media_bindings(
+    bindings: list[dict],
     command: Interaction3dControlRequest,
-    request: Request,
-    database: DatabaseSession,
-    viewer: LicensedViewer,
-) -> dict:
-    """电视分支：校验电源实体绑定、模型与 supported_features。"""
-    if not command.project_id or not command.component_id:
-        raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
-    require_viewer_project(viewer, command.project_id)
-    properties = await component_properties_async(request, command.project_id, command.component_id)
-    bindings = properties.get('devices', {}).get('televisions', [])
+) -> list[dict]:
+    """先按实体筛；命令带了绑定身份时再收窄到唯一那一条（投影仪必须走这条路）。"""
     power_command = command.service in {'turn_on', 'turn_off'}
     matches = [
         binding
@@ -980,16 +986,44 @@ async def _control_television(
         )
         == command.entity_id
     ]
+    if not (command.binding_id and command.binding_floor_id and command.binding_model_id):
+        return matches
+    return [
+        binding
+        for binding in matches
+        if binding.get('id') == command.binding_id
+        and binding.get('floorId') == command.binding_floor_id
+        and binding.get('modelId') == command.binding_model_id
+    ]
+
+
+async def _control_television(
+    command: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """媒体设备分支：电视与投影仪共用绑定、模型与 supported_features 校验。"""
+    profile = MEDIA_DEVICE_PROFILES.get(command.device_kind) or MEDIA_DEVICE_PROFILES['television']
+    label = profile['label']
+    _require_media_binding_identity(command)
+    if not command.project_id or not command.component_id:
+        raise HTTPException(422, detail=f'{label}控制缺少仪表盘或控件信息。')
+    require_viewer_project(viewer, command.project_id)
+    properties = await component_properties_async(request, command.project_id, command.component_id)
+    bindings = properties.get('devices', {}).get(profile['collection'], [])
+    power_command = command.service in {'turn_on', 'turn_off'}
+    matches = _match_media_bindings(bindings, command)
     if not matches:
-        raise HTTPException(403, detail='此电源实体未配置到当前电视。')
+        raise HTTPException(403, detail=f'此电源实体未配置到当前{label}。')
     scene_id = properties.get('sceneId', '')
     try:
         scene = await scene_snapshot_async(request, scene_id)
-        valid = _scene_has_model(scene, matches, 'tv')
+        valid = _scene_has_model(scene, matches, profile['model_type'])
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
     if not valid:
-        raise HTTPException(409, detail='电视模型已失联，请重新配置。')
+        raise HTTPException(409, detail=f'{label}模型已失联，请重新配置。')
     media_features = {
         'turn_on': 128,
         'turn_off': 256,
@@ -1004,17 +1038,17 @@ async def _control_television(
         or command.data
         or (command.domain == 'switch' and not power_command)
     ):
-        raise HTTPException(422, detail='电视不支持此控制操作或参数。')
+        raise HTTPException(422, detail=f'{label}不支持此控制操作或参数。')
     states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
     state = states[0] if states else {}
     if state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
-        raise HTTPException(409, detail='电视电源状态不可用，请稍后重试。')
+        raise HTTPException(409, detail=f'{label}电源状态不可用，请稍后重试。')
     if command.domain == 'media_player':
         features = state.get('attributes', {}).get('supported_features', 0)
         if not isinstance(features, int) or isinstance(features, bool) or not features & media_features[command.service]:
             raise HTTPException(422, detail='此媒体实体不支持该操作。')
         if not power_command and state.get('state') in {'off', 'standby'}:
-            raise HTTPException(409, detail='请先开启电视。')
+            raise HTTPException(409, detail=f'请先开启{label}。')
     return await call_service(command, request, database, viewer)
 
 
@@ -1304,7 +1338,20 @@ async def control_light(command: Interaction3dControlRequest, request: Request, 
         return await _control_game_console(command, request, database, viewer)
     if command.device_kind == 'speaker':
         return await _control_speaker(command, request, database, viewer)
-    if command.device_kind == 'television' or command.domain == 'media_player':
+    # 音响已经在上面返回。其余 media_player 里，附加功能（浴霸 / 风扇…）不算媒体设备。
+    if command.device_kind in MEDIA_DEVICE_PROFILES or (
+        command.domain == 'media_player'
+        and command.device_kind
+        not in {
+            'fan-extra',
+            'airer-extra',
+            'device-extra',
+            'climate-extra',
+            'purifier-extra',
+            'exhaust-fan-extra',
+            'water-heater-extra',
+        }
+    ):
         return await _control_television(command, request, database, viewer)
     if command.domain == 'lock' or command.device_kind == 'lock':
         return await _control_lock(command, request, database, viewer)

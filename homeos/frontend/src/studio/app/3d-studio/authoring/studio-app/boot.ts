@@ -41,7 +41,7 @@ import {
   getLocalSaveRevision as getLocalSaveRevisionImpl, uniqueFloorName as uniqueFloorNameImpl, hideFloorActionMenu as hideFloorActionMenuImpl, showFloorActionMenu as showFloorActionMenuImpl,
   floorActionHandler as floorActionHandlerImpl, closeFloorDeleteDialog as closeFloorDeleteDialogImpl, confirmFloorDelete as confirmFloorDeleteImpl, openFloorRenameDialog as openFloorRenameDialogImpl,
   syncGlobalControls as syncGlobalControlsImpl, clearDropIndicator as clearDropIndicatorImpl, moveFloorRow as moveFloorRowImpl, renderFloorList as renderFloorListImpl,
-  selectFloor as selectFloorImpl, addNewFloor as addNewFloorImpl, planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
+  selectFloor as selectFloorImpl, addNewFloor as addNewFloorImpl, copyFloor as copyFloorImpl, planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
   worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl, startFloorAlign as startFloorAlignImpl, cancelFloorAlign as cancelFloorAlignImpl,
   isSameAlignmentFloor as isSameAlignmentFloorImpl, updatePreviewFloorGap as updatePreviewFloorGapImpl, updateUniformOverviewStack as updateUniformOverviewStackImpl, updateExportFloorGap as updateExportFloorGapImpl,
   captureUndoSnapshot as captureUndoSnapshotImpl, resolveLightGroup as resolveLightGroupImpl, resolveFloorDefaultGroup as resolveFloorDefaultGroupImpl, isLampEnabled as isLampEnabledImpl,
@@ -338,6 +338,14 @@ let activeStudioRenderLoop: { dispose?: () => void } | null = null;
  * 同一时刻只允许一个活动实例：上一实例的回收是异步的（需先落盘），无法在此同步等待，
  * 所以重复调用会被拒绝并打日志，调用方必须先 `await teardownStudio()`。
  */
+/**
+ * legacy 嵌入光影 = 嵌入舞台且**不是**标准光影 v2。0.8.4 老组件只写 `lightingMode`，
+ * 归一化后本来就是 `region`，所以判据必须带上版本位，否则会误判成新管线。
+ */
+function isLegacyEmbedStageLighting(searchParams: URLSearchParams) {
+  return searchParams.get("lighting") !== "standard" || searchParams.get("lightingVersion") !== "2"
+}
+
 export function bootStudio(): void {
   // 守卫：上一实例的回收是异步的（要等落盘），无法在本同步函数里等待完成，因此直接
   // 拒绝二次引导。旧实现会覆盖 ``disposeActiveStudio``，导致前一个实例的 WebGL 上下文、
@@ -386,6 +394,7 @@ export function bootStudio(): void {
     get applyWallHeightInput() { return applyWallHeightInput; },
     get applyWallOpacityInput() { return applyWallOpacityInput; },
     get applyWallThicknessInput() { return applyWallThicknessInput; },
+    get scheduleWallApply() { return scheduleWallApply; },
     get areLightsEnabled() { return areLightsEnabled; },
     get assessRenderBudget() { return assessRenderBudget; },
     get assetCategoryButtons() { return assetCategoryButtons; },
@@ -950,6 +959,7 @@ export function bootStudio(): void {
   const renderFloorList = (...args: any[]): any => (renderFloorListImpl as any)(studioRuntime, ...args);
   const selectFloor = (...args: any[]): any => (selectFloorImpl as any)(studioRuntime, ...args);
   const addNewFloor = (...args: any[]): any => (addNewFloorImpl as any)(studioRuntime, ...args);
+  const copyFloor = (...args: any[]): any => (copyFloorImpl as any)(studioRuntime, ...args);
   const planToWorldPoint = (...args: any[]): any => (planToWorldPointImpl as any)(studioRuntime, ...args);
   const worldToPlanPoint = (...args: any[]): any => (worldToPlanPointImpl as any)(studioRuntime, ...args);
   const worldPointForFloor = (...args: any[]): any => (worldPointForFloorImpl as any)(studioRuntime, ...args);
@@ -1418,9 +1428,10 @@ export function bootStudio(): void {
     window.location.pathname ===
     "/api/v1/modules/interaction3d/stage.html",
   geometryCacheHandle: any = isEmbeddedStage ? stageStartup2?.geometryCache : null,
-  isEmbedStageMode =
-    isEmbeddedStage &&
-    new URLSearchParams(window.location.search).get("lighting") === "region",
+  // legacy 嵌入光影 = 嵌入舞台且**不是**标准光影 v2。只写 `lightingMode`（0.8.4 老组件）
+  // 归一化后本来就是 `region`，所以判据必须带上版本位，否则会误判成新管线。
+  stageSearchParams = new URLSearchParams(window.location.search),
+  isEmbedStageMode = isEmbeddedStage && isLegacyEmbedStageLighting(stageSearchParams),
   defaultWallRuntimeProfile = "baseline";
 window.__homeosWallRuntimeProfile = defaultWallRuntimeProfile || "baseline";
 const renderCacheWriter = isEmbeddedStage
@@ -2976,9 +2987,13 @@ for (const floorActionButton of floorActionMenuElement.querySelectorAll("[data-f
       floorAction = floorActionButton.dataset.floorAction;
     (hideFloorActionMenu(),
       floorActionButtonSelectedFloor &&
-        (floorAction === "rename"
-          ? openFloorRenameDialog(floorActionButtonSelectedFloor)
-          : floorAction === "delete" && floorActionHandler(floorActionButtonSelectedFloor)));
+        (
+          {
+            duplicate: () => copyFloor(floorActionButtonSelectedFloor),
+            rename: () => openFloorRenameDialog(floorActionButtonSelectedFloor),
+            delete: () => floorActionHandler(floorActionButtonSelectedFloor),
+          } as Record<string, () => unknown>
+        )[floorAction || ""]?.());
   });
 document.addEventListener("pointerdown", (documentPointerDownEvent) => {
   (!lightGroupActionMenuElement.hidden &&
@@ -3533,6 +3548,8 @@ for (const doorTypeOptionInput of [
   selectElement("#door-type"),
   selectElement("#door-width"),
   selectElement("#door-height"),
+  // 「默认开度」只由 applyToolSetting 读取，漏挂监听会让输入框完全无效。
+  selectElement("#door-default-opening"),
 ])
   doorTypeOptionInput.addEventListener("change", () => applyToolSetting("door"));
 // 备注同时服务「物件」和「门」：按当前选中项种类提交，不能固定成某一种。

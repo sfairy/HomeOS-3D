@@ -1,4 +1,5 @@
 import { mergeGeometries } from '/static/vendor/three/0.187.0/BufferGeometryUtils.js'
+import { PLAN2_GEOMETRY_SCOPE_DECLARATIONS as GEOMETRY_SCOPE_DECLARATIONS } from '../plan/studio-plan2-wall-shading'
 
 /** 做几何签名 / 合批时读到的最小 Attribute 结构。 */
 type GeometryAttributeLike = {
@@ -206,13 +207,14 @@ export function createReflectionPasses({
               (shader.fragmentShader = shader.fragmentShader
                 .replace(
                   '#include <lights_fragment_begin>',
-                  '\n            vec3 reflectionNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n            float reflectionUp = reflectionNormal.y * 0.5 + 0.5;\n            float reflectionKey = max(dot(reflectionNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n            vec3 reflectionTint = mix(vec3(0.82, 0.85, 0.91), vec3(1.0), reflectionUp);\n            reflectedLight.indirectDiffuse = diffuseColor.rgb * reflectionTint * (0.30 + 0.40 * reflectionUp + 0.18 * reflectionKey);\n          ',
+                  GEOMETRY_SCOPE_DECLARATIONS +
+                    '\n            vec3 reflectionNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n            float reflectionUp = reflectionNormal.y * 0.5 + 0.5;\n            float reflectionKey = max(dot(reflectionNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n            vec3 reflectionTint = mix(vec3(0.82, 0.85, 0.91), vec3(1.0), reflectionUp);\n            reflectedLight.indirectDiffuse = diffuseColor.rgb * reflectionTint * (0.30 + 0.40 * reflectionUp + 0.18 * reflectionKey);\n          ',
                 )
                 .replace('#include <lights_fragment_maps>', '')
                 .replace('#include <lights_fragment_end>', '')))
         }),
         (newReflectionMaterial.customProgramCacheKey = () =>
-          sourceMaterialNode.customProgramCacheKey() + '|reflection-light-v1'),
+          sourceMaterialNode.customProgramCacheKey() + '|reflection-light-v2-clearcoat-scope'),
         (materialCacheEntry = {
           copy: newReflectionMaterial,
           version: sourceMaterialNode.version,

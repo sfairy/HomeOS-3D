@@ -7,6 +7,7 @@
 import { resolveRuntimeFloor } from './floor-navigation'
 import { enteringFloorCategory } from '../../navigation/navigation-defaults'
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../device/generic-device-catalog'
+import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets/media-device-profiles'
 import { buildMetadata } from './build-metadata'
 import { expandGroupMembers, postHostMessage } from './_shared'
 import { mountRegionRangeEditor as mountRegionRangeEditor2 } from '../../config-ui/light-range-editor'
@@ -356,7 +357,7 @@ export function refreshStageUiCore(deps: StageRefreshDeps) {
                 'water-heater',
                 'devices',
                 'nas',
-                'television',
+                ...MEDIA_DEVICE_KINDS,
                 'speaker',
                 'vacuum',
                 ...GENERIC_DEVICE_KINDS2,

@@ -66,6 +66,7 @@ LIGHT_FIELDS = frozenset(
         'effectDefaults',
         'hiddenClickable',
         'temperatureFallback',
+        'standardLightEffects',
     }
 )
 #: 灯光卡片必须以文本出现的字段。
@@ -100,6 +101,10 @@ LIGHT_EFFECT_RANGE_BOUNDS: tuple[tuple[str, str, float, float], ...] = (
     ('brightnessMin', 'brightnessMax', 0, 150),
     ('temperatureMin', 'temperatureMax', 1000, 20000),
 )
+#: 逐灯自定义光效的键集：多一个少一个都 422（前端 `standardLightEffectsDraft` 总是写满四个）。
+STANDARD_LIGHT_EFFECT_FIELDS = frozenset({'enabled', 'effectRange', 'effectDefaults', 'temperatureFallback'})
+#: 自定义光效里的默认值键集：开启自定义后必须两项齐全。
+STANDARD_LIGHT_EFFECT_DEFAULT_FIELDS = frozenset({'brightness', 'kelvin'})
 
 
 class LightsSectionValidator:
@@ -149,7 +154,33 @@ class LightsSectionValidator:
             self._validate_effect_range(effect_range)
         if 'temperatureFallback' in light and light['temperatureFallback'] not in LIGHT_TEMPERATURE_FALLBACKS:
             ctx.fail()
+        if 'standardLightEffects' in light:
+            self._validate_standard_effects(light['standardLightEffects'])
         ctx.validate_camera(light.get('focusCamera'))
+
+    def _validate_standard_effects(self, effects: Any) -> None:
+        """逐灯自定义光效：键集精确、``enabled`` 是布尔、范围与默认值都要齐全。
+
+        与顶层 ``effectRange``/``effectDefaults`` 同口径：范围必须四个键齐全且下限不高于
+        上限；默认值必须恰好 ``brightness`` + ``kelvin`` 且落在同一组边界内。
+        """
+        ctx = self._ctx
+        if (
+            not isinstance(effects, dict)
+            or set(effects) != STANDARD_LIGHT_EFFECT_FIELDS
+            or not isinstance(effects['enabled'], bool)
+        ):
+            ctx.fail()
+        if effects['effectRange'] is None:
+            ctx.fail()
+        self._validate_effect_range(effects['effectRange'])
+        effect_defaults = effects['effectDefaults']
+        if not isinstance(effect_defaults, dict) or set(effect_defaults) != STANDARD_LIGHT_EFFECT_DEFAULT_FIELDS:
+            ctx.fail()
+        if not ctx.bounded_map(effect_defaults, LIGHT_EFFECT_BOUNDS):
+            ctx.fail()
+        if effects['temperatureFallback'] not in LIGHT_TEMPERATURE_FALLBACKS:
+            ctx.fail()
 
     def _validate_effect_range(self, effect_range: Any) -> None:
         ctx = self._ctx

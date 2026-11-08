@@ -17,6 +17,7 @@ import {
   isGenericDeviceKind as isGenericDeviceKind2,
 } from '../../device/generic-device-catalog'
 import { postHostMessage } from './_shared'
+import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 import { resolvePageBehavior as resolvePageBehavior2 } from '../idle-rotation'
 import { televisionPower as televisionPower2 } from '../../television/television-state'
 import { vacuumStatusPresentation as vacuumStatusPresentation2 } from '../../vacuum/vacuum-map'
@@ -463,7 +464,7 @@ export function activateMarkerCore(deps: StageCameraMotionDeps, activatedMarkerI
         deps.focusedItemId === activatedMarkerId &&
           ((deps.controlErrorElement.textContent = markerError.message), deps.updateDevicePanel())
     }
-  if (activatedMarkerItem.deviceKind === 'television' && isTurnOnAction) {
+  if (isMediaDeviceKind(activatedMarkerItem.deviceKind) && isTurnOnAction) {
     if (!deps.isControlReady) return
     const televisionPowerState = televisionPower2(activatedMarkerItem, deps.deviceStates)
     if (
@@ -697,15 +698,15 @@ export function endMarkerDragCore(deps: StageCameraMotionDeps, dragEndEvent: any
                       ? draggedMarkerItem
                       : (isGenericDeviceKind2(deps.activeModule)
                           ? deps.options.devices?.[genericDeviceProfile2(deps.activeModule).collection] || []
-                          : ['nas', 'television', 'speaker', 'vacuum'].includes(deps.activeModule)
+                          : ['nas', 'speaker', 'vacuum'].includes(deps.activeModule) ||
+                              isMediaDeviceKind(deps.activeModule)
                             ? deps.options.devices?.[
-                                deps.activeModule === 'vacuum'
-                                  ? 'vacuums'
-                                  : deps.activeModule === 'speaker'
-                                    ? 'speakers'
-                                    : deps.activeModule === 'television'
-                                      ? 'televisions'
-                                      : 'nas'
+                                mediaDeviceProfile(deps.activeModule)?.collection ||
+                                  (deps.activeModule === 'vacuum'
+                                    ? 'vacuums'
+                                    : deps.activeModule === 'speaker'
+                                      ? 'speakers'
+                                      : 'nas')
                               ] || []
                             : deps.options.environment?.[
                                 deps.activeModule === 'airer'

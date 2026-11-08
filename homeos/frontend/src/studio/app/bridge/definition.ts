@@ -4,7 +4,14 @@ export const INTERACTION3D_LIGHTING_MODES = [
     ['standard', '标准光影'],
     ['region', '轻量柔光'],
   ],
-  normalizeInteraction3dLightingMode = (lightingMode: any) => (lightingMode === 'region' ? 'region' : 'standard'),
+  /**
+   * 光影模式归一（0.8.5）：只有「标准光影 + 版本 2」才是新管线，其余一律回落轻量柔光。
+   *
+   * 版本位是升级开关而不是装饰：0.8.4 的组件都带 ``lightingMode: 'standard'`` 但没有
+   * ``lightingModeVersion``，直接当标准光影会命中半新半旧的渲染分支。
+   */
+  normalizeInteraction3dLightingMode = (lightingMode: any, lightingModeVersion?: unknown) =>
+    lightingMode === 'standard' && lightingModeVersion === 2 ? 'standard' : 'region',
   BACKGROUND_THEMES = [
     ['grid', '经典网格'],
     ['dots', '微光星尘'],
@@ -44,6 +51,7 @@ export const INTERACTION3D_LIGHTING_MODES = [
           backgroundMotion: true,
           renderScale: 1,
           lightingMode: 'standard',
+          lightingModeVersion: 2,
           groundReflection: {
             mode: 'off',
             resolution: 512,

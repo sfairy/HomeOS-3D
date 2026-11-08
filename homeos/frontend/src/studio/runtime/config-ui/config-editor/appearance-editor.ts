@@ -46,7 +46,13 @@ export async function openInteraction3dAppearanceEditor({
   component: appearanceComponent,
   onSave: onAppearanceSave,
 }: any) {
-  if (normalizeInteraction3dLightingMode2(appearanceComponent.properties?.lightingMode) === 'region') return
+  if (
+    normalizeInteraction3dLightingMode2(
+      appearanceComponent.properties?.lightingMode,
+      appearanceComponent.properties?.lightingModeVersion,
+    ) === 'region'
+  )
+    return
   await requestInteraction3dAccess2()
   const editorView = getInteraction3dEditorView2(appearanceComponent.id)
   if (!editorView?.metadata) throw new Error('户型还在加载，请稍候再打开进阶设置。')

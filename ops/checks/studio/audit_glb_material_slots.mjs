@@ -79,6 +79,29 @@ const hexOf = (factor) =>
         .toUpperCase()
     : null
 
+/**
+ * 第二个基色读数：把 `baseColorFactor` 当**线性**值解码回 sRGB hex。
+ *
+ * 柜类导出的 `baseColorFactor` 是同一套蓝灰色阶的全精度浮点，`hexOf` 读成
+ * `#161C2A` / `#343E51` / `#56647D` / `#8697AD`。线性列是对照读数（同一组浮点会
+ * 解成更亮的 sRGB），判定规则一条都没用到基色。
+ */
+const hexOfLinear = (factor) =>
+  Array.isArray(factor)
+    ? '#' +
+      factor
+        .slice(0, 3)
+        .map((channel) => {
+          const c = Math.max(0, Math.min(1, channel))
+          const srgb = c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055
+          return Math.round(srgb * 255)
+            .toString(16)
+            .padStart(2, '0')
+        })
+        .join('')
+        .toUpperCase()
+    : null
+
 function auditModel(contract, paths) {
   const findings = []
   const slots = []
@@ -175,6 +198,7 @@ function auditModel(contract, paths) {
         : null,
       embedded: {
         baseColor: hexOf(slot.baseColorFactor),
+        baseColorLinear: hexOfLinear(slot.baseColorFactor),
         roughness: round(slot.roughnessFactor),
         metalness: round(slot.metallicFactor),
         alphaMode: slot.alphaMode,

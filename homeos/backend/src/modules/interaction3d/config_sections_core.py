@@ -49,6 +49,7 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'floorNumbers',
         'instanceName',
         'lightingMode',
+        'lightingModeVersion',
         'popupOpacity',
         'behaviorScope',
         'idleExitFocus',

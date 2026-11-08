@@ -11,7 +11,7 @@ import {
   curtainFootprintDepth as curtainFootprintDepth2,
 } from '../../../loaders/studio-curtain-track'
 
-import { clamp as clamp2, clampWindowT as clampWindowT2 } from '../../../plan/geometry'
+import { clamp as clamp2, clampWindowT as clampWindowT2, defaultDoorOpening } from '../../../plan/geometry'
 
 import {
   finite as finite2,
@@ -43,6 +43,18 @@ import { lightPresetCatalog, lightAngleLimitForType } from '../../lights/studio-
 import { doorTypeCatalog, normalizePlanLabelColor } from '../../scene/studio-scene-payload'
 
 import type { StudioAppContext } from '../studio-app-context'
+
+/**
+ * 输入框的空值语义是「沿用门型默认」，必须删字段而不是写 0；
+ * 有值时按 0–100 收口，越界输入回落门型默认。
+ */
+function applyDoorOpeningInput(door: { defaultOpening?: number; doorType?: string }, input: HTMLInputElement) {
+  if (input.value === '') {
+    delete door.defaultOpening
+    return
+  }
+  door.defaultOpening = clamp2(finite2(input.value, defaultDoorOpening(door)), 0, 100)
+}
 export interface ApplyToolSettingDeps {
   appCtx: StudioAppContext
   applyPlacementChange: any
@@ -162,6 +174,7 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
             1.8,
             20,
           ))
+        applyDoorOpeningInput(toolPlacedElement, selectElement('#door-default-opening'))
         const toolWindowWallRecord = appCtx.studioState.walls.find(
           (toolWindowWall) => toolWindowWall.id === toolPlacedElement.wallId,
         )

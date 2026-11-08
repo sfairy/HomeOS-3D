@@ -1,3 +1,6 @@
+/** 指示灯「正常」色：设备状态、NAS、音响、电视共用同一处来源，避免各写一份字面量。 */
+export const DEVICE_STATUS_NORMAL_COLOR = '#43ce82'
+
 const deviceClassLabels = {
     door: ['打开', '关闭'],
     garage_door: ['打开', '关闭'],
@@ -299,7 +302,7 @@ export function deviceStatus(
     on: overallStatus === 'normal',
     status: overallStatus,
     color: {
-      normal: '#43ce82',
+      normal: DEVICE_STATUS_NORMAL_COLOR,
       warning: '#efa33d',
       unknown: '#89929b',
       off: '#89929b',

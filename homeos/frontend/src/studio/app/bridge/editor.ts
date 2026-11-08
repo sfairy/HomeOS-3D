@@ -1748,7 +1748,7 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
   }
   const displaySection = createSection('画面显示')
   displaySection.classList.add('i3d-picture-settings')
-  let lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode)
+  let lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode, properties.lightingModeVersion)
   const lightingModeSelect = createElement('select')
   ;(lightingModeSelect.name = 'i3d-lighting-mode'), lightingModeSelect.setAttribute('aria-label', '灯光模式')
   for (const [lightingModeValue, lightingModeLabel] of INTERACTION3D_LIGHTING_MODES) {
@@ -1759,7 +1759,7 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
     createLabeledField(lightEffectsSection, '灯光模式', lightingModeSelect),
     lightingModeSelect.addEventListener('change', async () => {
       if (programmaticControlSet.has(lightingModeSelect)) return
-      const nextLightingMode = normalizeInteraction3dLightingMode(lightingModeSelect.value)
+      const nextLightingMode = normalizeInteraction3dLightingMode(lightingModeSelect.value, 2)
       if (nextLightingMode !== lightingMode) {
         setControlValue(lightingModeSelect, lightingMode), (lightingModeSelect.disabled = true)
         try {
@@ -1773,6 +1773,7 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
           await editorOptions.onChange({
             properties: {
               lightingMode: nextLightingMode,
+              lightingModeVersion: 2,
             },
           }),
             (lightingMode = nextLightingMode),
@@ -2729,7 +2730,9 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
       }
     })
     interaction3dInspectorElement!.dataset.projectId = editorOptions.document?.projectId || ''
-    interaction3dInspectorElement!.append(repairBindingsButton, repairBindingsResultElement)
+    // 0.8.5 上游把入口放在「户型」段里：与「重新载入户型」同一行并排，结果提示另起整行。
+    // 挂到检查器根节点会落在所有分组之外，看起来像一条没归属的裸按钮。
+    houseSection.append(repairBindingsButton, repairBindingsResultElement)
   }
   appendInspectorGroup('layout', '户型与布局', [houseSection, layoutSection, displaySection]),
     appendInspectorGroup('devices', '设备配置', [
@@ -2739,6 +2742,9 @@ export function renderInteraction3dInspector(hostElement: any, targetComponent: 
       vacuumSection,
       securitySection,
     ]),
+    // 0.8.5 上游把「默认显示」作为独立折叠组夹在「设备配置」与「画面效果」之间。
+    // 漏挂这一步时整段只建了 DOM、从未进入检查器，多楼层仪表的默认楼层 / 分类无处可配。
+    appendInspectorGroup('defaults', '默认显示', [defaultDisplaySection]),
     appendInspectorGroup('appearance', '画面效果', [
       ...(INTERACTION3D_LIGHTING_MODES.length > 1 ? [lightEffectsSection] : []),
       renderScaleSection,

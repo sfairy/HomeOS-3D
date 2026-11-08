@@ -4922,3 +4922,6 @@ body.auto-diagram-embedded .export-preview-frame {
 .courtyard-tool-options .studio-select-trigger {
   min-width: 105px;
 }
+
+#door-opening-field{margin-top:10px}
+#door-opening-field p{margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.6}

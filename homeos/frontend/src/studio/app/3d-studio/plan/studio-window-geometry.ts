@@ -8,6 +8,12 @@
  * 玻璃不动（25mm），始终居中 —— 玻璃跟着加厚只会让窗更像一块实心板。
  */
 
+/** 框料向洞口内收一圈，避免和墙面共面闪烁。 */
+export function windowFrameBounds(width: number, height: number, sill = 0) {
+  const inset = Math.min(0.001, width / 100, height / 100)
+  return { width: width - 2 * inset, height: height - 2 * inset, sill: sill + inset }
+}
+
 /** 框料深度：按墙厚收口，`wallThickness` 缺省时沿用旧的 60mm。 */
 export function openingFrameDepth(wallThickness?: number) {
   const thickness = Number(wallThickness)
@@ -23,6 +29,10 @@ export function windowGeometryParts(
   wallThickness?: number,
 ) {
   if (![width, height, sillHeight].every(Number.isFinite) || width <= 0 || height <= 0) return null
+  const framed = windowFrameBounds(width, height, sillHeight)
+  width = framed.width
+  height = framed.height
+  sillHeight = framed.sill
   const frameThickness = Math.min(0.045, width / 4, height / 4),
     frameDepth = openingFrameDepth(wallThickness),
     centerY = sillHeight + height / 2,

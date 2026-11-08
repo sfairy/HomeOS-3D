@@ -38,6 +38,12 @@ const MODEL_STATUS_ANCHORS: Readonly<Record<string, Vec3>> = Object.freeze({
   tea_bar_machine: [0.2, 1.0975, -0.2717],
   toilet: [0.1177796, 0.5140572, -0.2808737],
   printer: [0.15, 0.233, 0.1358],
+  // 0.8.5：这五类模型的状态灯不在几何中心，锚点是模型局部坐标。
+  'smart-litter-box': [0.14, 0.12, 0.1545],
+  projector: [0.12, 0.065, 0.132],
+  'floor-washer': [0, 0.642, 0.0085],
+  soundbar: [0.374, 0.042, 0.063],
+  'tower-speaker': [0, 0.08, 0.159],
 })
 
 /** 喷雾出口（模型局部坐标）。 */

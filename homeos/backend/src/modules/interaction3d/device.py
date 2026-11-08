@@ -69,6 +69,11 @@ DEVICE_PROFILES: dict[str, dict[str, Any]] = {
         'model_type': 'pet-feeder',
         'label': '自动喂食器',
     },
+    'smart-litter-box': {
+        'collection': 'smartLitterBoxes',
+        'model_type': 'smart-litter-box',
+        'label': '智能猫砂盆',
+    },
     'pet-fountain': {
         'collection': 'petFountains',
         'model_type': 'pet-fountain',
@@ -89,6 +94,7 @@ DEVICE_PROFILES: dict[str, dict[str, Any]] = {
     },
     'dishwasher': {'collection': 'dishwashers', 'model_type': 'dishwasher', 'label': '洗碗机'},
     'washer': {'collection': 'washers', 'model_type': 'washer', 'label': '洗衣机'},
+    'floor-washer': {'collection': 'floorWashers', 'model_type': 'floor-washer', 'label': '洗地机'},
     'rangehood': {'collection': 'rangehoods', 'model_type': 'rangehood', 'label': '油烟机'},
     'dryer': {'collection': 'dryers', 'model_type': 'dryer', 'label': '烘干机'},
     'pressure-cooker': {

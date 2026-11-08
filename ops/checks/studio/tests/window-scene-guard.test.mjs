@@ -196,7 +196,11 @@ test('绘制器把 apply 的异常写进自己的 #wd-notice 并保持打开', (
   const body = functionBody(designerSource, "query('apply').onclick =", "dialog.addEventListener('keydown'")
   assert.match(body, /catch \(error\)/, 'apply 必须自己兜住异常')
   assert.match(body, /notify\(\(error as Error\)\.message\)/, '异常要落到 #wd-notice 提示条')
-  assert.match(body, /onApply\(applied\) !== false && close\(\)/, '返回 false 时保持打开，异常时也不关闭')
+  assert.match(
+    body,
+    /if \(onApply\(applied\) === false\) notify\('窗型未能应用，请检查尺寸或关闭绘制窗口后重试。'\)\s*else close\(\)/,
+    '返回 false 时保持打开并给出提示，异常时也不关闭',
+  )
 })
 
 test('绘制器给数字输入接线 ± 步进（否则 mm 靠键盘敲）', () => {

@@ -4,6 +4,9 @@ import re
 
 from fastapi import HTTPException
 
+#: 智能音响允许的模型类型：音箱本体 / 长条 / 立式。舞台按这个集合判定模型是否失联。
+SPEAKER_MODEL_TYPES = frozenset({'speaker', 'soundbar', 'tower-speaker'})
+
 FEATURES = {
     'media_pause': 1,
     'media_seek': 2,

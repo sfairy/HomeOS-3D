@@ -26,6 +26,7 @@ from .config_ctx import (
     validate_layout_widget,
 )
 from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
+from .media_device import MEDIA_DEVICE_COLLECTIONS, MEDIA_DEVICE_PROFILES
 
 #: 控件身份字段：必须存在且非空。
 IDENTITY_FIELDS = ('id', 'floorId', 'modelId')
@@ -249,7 +250,7 @@ def validate_devices_section(ctx: ValidationContext, properties: dict) -> None:
         ctx.fail('3D 设备配置的 devices 必须是对象。')
     known_collections = {
         'nas',
-        'televisions',
+        *MEDIA_DEVICE_COLLECTIONS,
         'speakers',
         'vacuums',
         *GENERIC_DEVICE_COLLECTIONS,
@@ -259,7 +260,7 @@ def validate_devices_section(ctx: ValidationContext, properties: dict) -> None:
         ctx.fail('3D 设备配置包含未知分类：' + '、'.join(sorted(unknown_collections)) + '。')
     for profile in DEVICE_PROFILES.values():
         validate_device_bindings(ctx, devices.get(profile['collection'], []), profile['model_type'])
-    _validate_televisions(ctx, devices)
+    _validate_media_devices(ctx, devices)
     _validate_speakers(ctx, devices)
     _validate_vacuums(ctx, devices)
     _validate_nas_devices(ctx, devices)
@@ -302,29 +303,42 @@ def _unique_layout_widgets(ctx: ValidationContext, spec: _CollectionSpec) -> Ite
         yield widget
 
 
-def _validate_televisions(ctx: ValidationContext, devices: dict) -> None:
-    spec = _CollectionSpec(devices, 'televisions', TELEVISION_FIELDS)
-    for television in _unique_layout_widgets(ctx, spec):
-        _validate_television(ctx, television)
+def _validate_media_devices(ctx: ValidationContext, devices: dict) -> None:
+    """电视 / 投影仪逐种类校验：**每个 collection 重置**去重集合。
+
+    每种媒体设备的 ``id`` / ``(floorId, modelId)`` 只在自身分类内唯一；跨种类复用同一组
+    去重集合会把「同层同型号的电视 + 投影仪」判成重复。降级为 ``ctx.fail`` 的形态与
+    上游一致：分类不是列表、出现白名单外字段都直接 422。
+    """
+    for profile in MEDIA_DEVICE_PROFILES.values():
+        spec = _CollectionSpec(devices, profile['collection'], TELEVISION_FIELDS)
+        for media_device in _unique_layout_widgets(ctx, spec):
+            _validate_media_device(ctx, media_device, profile)
 
 
-def _validate_television(ctx: ValidationContext, television: Any) -> None:
-    if not ctx.require_text(television, (*WIDGET_TEXT_FIELDS, 'entityId')):
+def _validate_media_device(ctx: ValidationContext, media_device: Any, profile: dict) -> None:
+    if not ctx.require_text(media_device, (*WIDGET_TEXT_FIELDS, 'entityId')):
         ctx.fail()
-    if not ctx.require_value(television, IDENTITY_FIELDS):
+    if not ctx.require_value(media_device, IDENTITY_FIELDS):
         ctx.fail()
-    if not ctx.pattern(television.get('entityId', ''), TELEVISION_ENTITY):
+    if not ctx.pattern(media_device.get('entityId', ''), TELEVISION_ENTITY):
         ctx.fail()
-    if not ctx.pattern(television.get('powerEntityId', ''), ENTITY_ID_PATTERN):
+    if not ctx.pattern(media_device.get('powerEntityId', ''), ENTITY_ID_PATTERN):
         ctx.fail()
-    screen_image = television.get('screenImage')
-    if screen_image is not None:
-        if not isinstance(screen_image, dict) or set(screen_image) - {'assetId'}:
-            ctx.fail()
-        asset_id = screen_image.get('assetId', '')
-        if not isinstance(asset_id, str) or SCREEN_IMAGE_ASSET.fullmatch(asset_id) is None:
-            ctx.fail()
-    validate_layout_widget(ctx, television, TELEVISION_RULES)
+    if 'screenImage' in media_device:
+        _validate_screen_image(ctx, media_device['screenImage'], profile)
+    validate_layout_widget(ctx, media_device, TELEVISION_RULES)
+
+
+def _validate_screen_image(ctx: ValidationContext, screen_image: Any, profile: dict) -> None:
+    """屏幕图片：只有带屏幕的种类能写；``screenImage`` 必须是 ``{assetId}`` 且资源合法。"""
+    if not profile['screen']:
+        ctx.fail()
+    if not isinstance(screen_image, dict) or set(screen_image) - {'assetId'}:
+        ctx.fail()
+    asset_id = screen_image.get('assetId', '')
+    if not isinstance(asset_id, str) or SCREEN_IMAGE_ASSET.fullmatch(asset_id) is None:
+        ctx.fail()
 
 
 def _validate_speakers(ctx: ValidationContext, devices: dict) -> None:

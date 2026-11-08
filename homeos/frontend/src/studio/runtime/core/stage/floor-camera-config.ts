@@ -1,4 +1,5 @@
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../../device/generic-device-catalog'
+import { MEDIA_DEVICE_PROFILES } from '@app/bridge/presets/media-device-profiles'
 
 export function buildFloorCameraConfig(
   rawFloorConfig: any,
@@ -60,7 +61,7 @@ export function buildFloorCameraConfig(
   for (const deviceGroupName of [
     'nas',
     'speakers',
-    'televisions',
+    ...Object.values(MEDIA_DEVICE_PROFILES).map((profile) => profile.collection),
     'vacuums',
     ...GENERIC_DEVICE_KINDS.map((profileDeviceKindName) => genericDeviceProfile(profileDeviceKindName).collection),
   ])

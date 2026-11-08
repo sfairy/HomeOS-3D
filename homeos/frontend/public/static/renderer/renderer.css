@@ -793,6 +793,11 @@
     Arial,
     sans-serif;
 }
+.hb-light-statistics-title,
+.hb-light-statistics-count > b,
+.hb-light-statistics-count em {
+  -webkit-text-zoom: reset;
+}
 .hb-icon-button {
   position: relative;
   display: block;

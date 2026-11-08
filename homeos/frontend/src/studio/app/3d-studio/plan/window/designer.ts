@@ -26,6 +26,7 @@ import {
   createWindowDraft,
   entries,
   find,
+  fitWindowToWall,
   isHung,
   leaf,
   mergeWindowSegment,
@@ -34,6 +35,7 @@ import {
   split,
   validateWindowRecord,
   windowOpeningRemark,
+  windowWallError,
   windowSplitSegment,
   type WindowLeaf,
   type WindowRecord,
@@ -69,6 +71,8 @@ interface WindowDesignerOptions {
   /** 应用窗型。返回 `false` 表示「先别关弹窗」（例如后端拒绝）。 */
   onApply: (draft: WindowRecord) => unknown
   onClose?: () => void
+  /** 所在墙段的可用宽高（米）。`null` 表示墙体缺失。 */
+  wallLimits?: { width: number; height: number } | null
 }
 
 interface WindowDesignerHandle {
@@ -84,6 +88,7 @@ export function openWindowDesigner({
   interiorSide = 1,
   onApply,
   onClose = () => {},
+  wallLimits,
 }: WindowDesignerOptions): WindowDesignerHandle {
   const draft = createWindowDraft(record, interiorSide)
   const host = document.createElement('div')
@@ -115,6 +120,29 @@ export function openWindowDesigner({
   const currentSplit = () => {
     const entry = find(value(), selectedSashId)
     return entry && entry.node.children ? (entry.node as WindowSplit) : null
+  }
+
+  function syncWallFit(): void {
+    if (wallLimits === undefined) {
+      query('wall-fit').hidden = true
+      return
+    }
+    const current = value()
+    const message = windowWallError(current, wallLimits)
+    query('wall-fit').hidden = !message
+    // 有墙可量时才给操作建议；墙本身缺失时提示「检查墙体」，再建议缩尺寸会自相矛盾。
+    query('wall-warning').textContent =
+      message + (message && wallLimits ? ' 可手动缩小尺寸，或适配当前墙体；分格比例和窗型保留。' : '')
+    ;(query('fit-wall') as HTMLButtonElement).disabled = !wallLimits
+    const millimeters = (meters: number) => Math.max(0, Math.floor(meters * 1000 + 0.000001))
+    query('wall-limits').textContent = wallLimits
+      ? `墙体可用：宽不超过 ${millimeters(wallLimits.width)} mm，高不超过 ${millimeters(wallLimits.height)} mm（已扣除窗台高度）。`
+      : '所在墙体缺失，请关闭绘制窗口后检查墙体。'
+    for (const axis of ['width', 'height'] as const)
+      query('draft-' + axis).setAttribute(
+        'aria-invalid',
+        String(!!wallLimits && current[axis] > wallLimits[axis] + 0.000001),
+      )
   }
 
   function notify(message: string): void {
@@ -209,6 +237,7 @@ export function openWindowDesigner({
     renderCellList()
     dialog.querySelectorAll('select').forEach((select) => syncStudioSelect(select))
     preview?.setRecord(value(), selectedSashId, refit)
+    syncWallFit()
     resetPreviewControls()
 
     const hasMovable =
@@ -276,7 +305,7 @@ export function openWindowDesigner({
     query('side-hinge-field').hidden = isHung(leafNode.kind)
     query('hung-hinge-field').hidden = !isHung(leafNode.kind)
     ;(query('hung-hinge') as HTMLInputElement).value = leafNode.kind === 'top-hung' ? '顶部' : '底部'
-    ;(query('angle') as HTMLInputElement).max = isHung(leafNode.kind) ? '90' : '120'
+    ;(query('angle') as HTMLInputElement).max = isHung(leafNode.kind) ? '90' : '170'
     ;(query('hinge') as HTMLSelectElement).value = leafNode.hinge
     ;(query('swing') as HTMLSelectElement).value = leafNode.swing
     ;(query('angle') as HTMLInputElement).value = String(leafNode.angle)
@@ -601,6 +630,7 @@ export function openWindowDesigner({
     event.preventDefault()
     requestClose()
   })
+  query('fit-wall').onclick = () => change((draft) => fitWindowToWall(draft, wallLimits ?? null), true)
   query('apply').onclick = () => {
     if (drag) {
       notify('请先结束当前拖动。')
@@ -617,7 +647,9 @@ export function openWindowDesigner({
           Object.entries(applied.windowDesign!.sashRemarks).filter(([key]) => knownIds.has(key)),
         )
       validateWindowRecord(applied)
-      onApply(applied) !== false && close()
+      // 宿主明确拒绝时不能静默：保持窗口打开并给出可操作的提示。
+      if (onApply(applied) === false) notify('窗型未能应用，请检查尺寸或关闭绘制窗口后重试。')
+      else close()
     } catch (error) {
       notify((error as Error).message)
     }

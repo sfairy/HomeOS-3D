@@ -697,7 +697,16 @@ export function refreshBaseLighting(runtime: StudioAppRuntime) {
         isStageSurface,
         isGroundShadowEnabled: runtime.appCtx.isGroundShadowEnabled,
         mainShadowIntensity: vn2.mainShadowIntensity,
-      })),
+      }),
+      // 区域光补丁里的「太阳方向」必须和这盏灯同一份：方向取「指向光源」的单位向量
+      // （`positionLightFromAngles` 把灯摆在原点之外 18.4m 处、target 仍是原点），
+      // 阴影参考值取刚调好的 `shadow.intensity`。墙面的朝向差、落影强度都从这里来。
+      runtime.appCtx.regionLightController?.setSunDirection?.(
+        Math.cos(ns2.MathUtils.degToRad(vn2.mainAzimuth)) * Math.cos(ns2.MathUtils.degToRad(vn2.mainElevation)),
+        Math.sin(ns2.MathUtils.degToRad(vn2.mainElevation)),
+        Math.sin(ns2.MathUtils.degToRad(vn2.mainAzimuth)) * Math.cos(ns2.MathUtils.degToRad(vn2.mainElevation)),
+      ),
+      runtime.appCtx.regionLightController?.setSunShadowScale?.(runtime.appCtx.mainDirectionalLight.shadow.intensity)),
     runtime.appCtx.fillDirectionalLight &&
       (runtime.appCtx.fillDirectionalLight.color.setHex(yt2.warmWood ? 14346221 : 10921638),
       (runtime.appCtx.fillDirectionalLight.intensity = vn2.fillIntensity * intensityScale),

@@ -23,7 +23,8 @@ import {
   indicatorConditionFields as indicatorConditionFields2,
   indicatorEntitySupport as indicatorEntitySupport2,
 } from './indicator-condition-editor'
-import { withFixedLightEffects as withFixedLightEffects2 } from '@app/bridge/presets/light-effect-policy'
+import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from '@app/bridge/definition'
+import { withInteractionLightEffects as withInteractionLightEffects2 } from '@app/bridge/presets/light-effect-policy'
 import {
   normalizeTemperatureHumidity as normalizeTemperatureHumidity2,
   DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2,
@@ -158,7 +159,13 @@ export function ensureItemCollections(deps: PanelSectionsDeps) {
           return {
             ...(editorHost.usesModelBinding || editorHost.isTemperatureHumidityMode
               ? normalizedItem
-              : withFixedLightEffects2(normalizedItem)),
+              : withInteractionLightEffects2(
+                  normalizedItem,
+                  normalizeInteraction3dLightingMode2(
+                    editorHost.structuredClone2.lightingMode,
+                    editorHost.structuredClone2.lightingModeVersion,
+                  ),
+                )),
             size: size,
             visible:
               editorHost.isVacuumShortcutMode || editorHost.isCoverMode ? normalizedItem.visible !== false : true,

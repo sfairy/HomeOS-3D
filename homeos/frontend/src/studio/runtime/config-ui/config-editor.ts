@@ -18,14 +18,15 @@ import {
 } from '../device/generic-device-catalog'
 import { domElement } from '@app/shared/util/dom-factory'
 import { modelChoiceLabel } from '@app/shared/model-remarks'
-/** 走通用设备目录的 kind（含 nas / 电视 / 音箱等没有 HA domain 的种类）。 */
+import { isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+/** 走通用设备目录的 kind（含 nas / 电视 / 投影仪 / 音箱等没有 HA domain 的种类）。 */
 function isCatalogDeviceKind(kind: string): boolean {
   return (
     kind === 'airer' ||
     kind === 'water-heater' ||
     kind === 'devices' ||
     kind === 'nas' ||
-    kind === 'television' ||
+    isMediaDeviceKind(kind) ||
     kind === 'speaker' ||
     GENERIC_DEVICE_KINDS2.includes(kind)
   )
@@ -65,7 +66,7 @@ export async function openInteraction3dEditor({
   let isVacuumShortcutMode: any,
     isVacuumMode: any,
     usesStatusPanel: any,
-    isTelevisionMode: any,
+    isMediaDeviceMode: any,
     isSpeakerMode: any,
     isGenericDeviceMode: any,
     isClimateMode: any,
@@ -86,7 +87,7 @@ export async function openInteraction3dEditor({
       (isVacuumMode = deviceKind === 'vacuum'),
       (usesStatusPanel =
         (isDeviceKind && !['water-heater', 'airer'].includes(deviceKind)) || isVacuumMode || isVacuumShortcutMode),
-      (isTelevisionMode = deviceKind === 'television'),
+      (isMediaDeviceMode = isMediaDeviceKind(deviceKind)),
       (isSpeakerMode = deviceKind === 'speaker'),
       (isGenericDeviceMode = isGenericDeviceKind2(deviceKind)),
       (isAirerMode = deviceKind === 'airer'),
@@ -101,7 +102,7 @@ export async function openInteraction3dEditor({
         isCoverMode ||
         isWindowOpenerMode ||
         isNasMode ||
-        isTelevisionMode ||
+        isMediaDeviceMode ||
         isSpeakerMode ||
         isGenericDeviceMode ||
         isVacuumMode ||
@@ -148,8 +149,8 @@ export async function openInteraction3dEditor({
                 ? 'temperatureHumidity'
                 : isVacuumMode || isVacuumShortcutMode
                   ? 'vacuums'
-                  : isTelevisionMode
-                    ? 'televisions'
+                  : isMediaDeviceMode
+                    ? mediaDeviceProfile(deviceKind)!.collection
                     : isNasMode
                       ? 'nas'
                       : isCoverMode
@@ -175,8 +176,8 @@ export async function openInteraction3dEditor({
                 ? 'mdi:broom'
                 : isVacuumMode
                   ? 'mdi:robot-vacuum'
-                  : isTelevisionMode
-                    ? 'mdi:television'
+                  : isMediaDeviceMode
+                    ? mediaDeviceProfile(deviceKind)!.icon
                     : isNasMode
                       ? 'mdi:nas'
                       : isCoverMode
@@ -197,7 +198,7 @@ export async function openInteraction3dEditor({
   applyKindFlags(deviceKind)
   const describeItem = (describableItem: any) => modelChoiceLabel(describableItem, kindLabel),
     normalizeClickAction = (rawClickAction: any) =>
-      isTelevisionMode
+      isMediaDeviceMode
         ? ['focus', 'focus-panel', 'panel', 'turn-on-focus', 'turn-on', 'turn-on-panel'].includes(rawClickAction)
           ? rawClickAction
           : 'focus-panel'
@@ -408,10 +409,10 @@ export async function openInteraction3dEditor({
       },
     )
     __gs(
-      'isTelevisionMode',
-      () => isTelevisionMode,
+      'isMediaDeviceMode',
+      () => isMediaDeviceMode,
       (value) => {
-        isTelevisionMode = value
+        isMediaDeviceMode = value
       },
     )
     __gs(

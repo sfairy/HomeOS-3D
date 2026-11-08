@@ -281,7 +281,9 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
             doorType: Object.hasOwn(doorTypeCatalog, rawDoor?.doorType) ? rawDoor.doorType : 'solid',
             hinge: rawDoor?.hinge === 'right' ? 'right' : 'left',
             swing: rawDoor?.swing === -1 ? -1 : 1,
-
+            ...(typeof rawDoor?.defaultOpening === 'number' && Number.isFinite(rawDoor.defaultOpening)
+              ? { defaultOpening: clamp2(rawDoor.defaultOpening, 0, 100) }
+              : {}),
             ...doorMaterialFields(rawDoor),
           }))
           .filter((doorCandidate: any) => wallIdSet.has(doorCandidate.wallId))

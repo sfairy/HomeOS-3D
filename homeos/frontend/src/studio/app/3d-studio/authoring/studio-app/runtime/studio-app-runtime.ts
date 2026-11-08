@@ -40,6 +40,7 @@ export interface StudioAppRuntime {
   readonly applyWallHeightInput: any
   readonly applyWallOpacityInput: any
   readonly applyWallThicknessInput: any
+  readonly scheduleWallApply: any
   readonly areLightsEnabled: any
   readonly assessRenderBudget: any
   readonly assetCategoryButtons: any

@@ -8,6 +8,7 @@
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from '../../../device/generic-device-catalog'
+import { MEDIA_DEVICE_KINDS } from '@app/bridge/presets/media-device-profiles'
 import { readNestedPath } from '../_shared'
 
 /**
@@ -136,7 +137,7 @@ export async function switchEditorKind(
       editorHost.includes
         ? ['climate', 'fan', 'exhaust-fan', 'purifier', 'cover', 'temperature-humidity']
         : editorHost.isDeviceKind
-          ? ['nas', 'television', 'speaker', 'water-heater', 'airer', ...GENERIC_DEVICE_KINDS2]
+          ? ['nas', ...MEDIA_DEVICE_KINDS, 'speaker', 'water-heater', 'airer', ...GENERIC_DEVICE_KINDS2]
           : ['vacuum', 'vacuum-shortcut']
     ).includes(nextDeviceKind)
   )

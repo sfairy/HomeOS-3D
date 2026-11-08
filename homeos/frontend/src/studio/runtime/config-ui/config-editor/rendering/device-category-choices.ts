@@ -4,6 +4,7 @@
  */
 
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from '../../../device/generic-device-catalog'
+import { MEDIA_DEVICE_KINDS, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 
 export interface DeviceCategoryProfile {
   label: string
@@ -12,7 +13,12 @@ export interface DeviceCategoryProfile {
 
 const FIXED_DEVICE_CATEGORIES: Readonly<Record<string, DeviceCategoryProfile>> = Object.freeze({
   nas: Object.freeze({ label: 'NAS', icon: 'mdi:nas' }),
-  television: Object.freeze({ label: '电视', icon: 'mdi:television' }),
+  ...Object.fromEntries(
+    MEDIA_DEVICE_KINDS.map((mediaKind) => [
+      mediaKind,
+      Object.freeze({ label: mediaDeviceProfile(mediaKind)!.label, icon: mediaDeviceProfile(mediaKind)!.icon }),
+    ]),
+  ),
   speaker: Object.freeze({ label: '智能音响', icon: 'mdi:speaker' }),
   'water-heater': Object.freeze({ label: '热水器', icon: 'mdi:water-boiler' }),
   airer: Object.freeze({ label: '晾衣架', icon: 'mdi:hanger' }),
@@ -22,7 +28,7 @@ const FIXED_DEVICE_CATEGORIES: Readonly<Record<string, DeviceCategoryProfile>> =
 const OTHER_DEVICE_GROUP_LABEL = '其他设备'
 
 const DEVICE_CATEGORY_GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = Object.freeze([
-  ['常用设备', ['nas', 'television', 'speaker', 'router', 'home-network-cabinet', 'smart-socket-86']],
+  ['常用设备', ['nas', ...MEDIA_DEVICE_KINDS, 'speaker', 'router', 'home-network-cabinet', 'smart-socket-86']],
   [
     '家用电器',
     [
@@ -31,6 +37,7 @@ const DEVICE_CATEGORY_GROUPS: ReadonlyArray<readonly [string, readonly string[]]
       'fridge',
       'dishwasher',
       'washer',
+      'floor-washer',
       'dryer',
       'rangehood',
       'water-purifier',
@@ -62,6 +69,7 @@ const DEVICE_CATEGORY_GROUPS: ReadonlyArray<readonly [string, readonly string[]]
       'printer',
       '3d-printer',
       'pet-feeder',
+      'smart-litter-box',
       'pet-fountain',
       'pet-dryer',
     ],
@@ -91,7 +99,7 @@ export function deviceCategoryGroups(): Array<[string, string[]]> {
           }),
         ] as [string, string[]],
     ).filter(([, groupKinds]) => groupKinds.length),
-    leftoverKinds = ['nas', 'television', 'speaker', 'water-heater', 'airer', ...GENERIC_DEVICE_KINDS].filter(
+    leftoverKinds = ['nas', ...MEDIA_DEVICE_KINDS, 'speaker', 'water-heater', 'airer', ...GENERIC_DEVICE_KINDS].filter(
       (deviceKind) => !groupedKinds.has(deviceKind),
     )
   if (leftoverKinds.length) {

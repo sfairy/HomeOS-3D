@@ -9,6 +9,7 @@
  */
 
 import { genericDeviceProfile } from '../../../device/generic-device-catalog'
+import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 import { configurationProgress, type ConfigurationProgress } from '../../configuration-progress'
 import { openConfigurationPicker } from '../../configuration-picker'
 import { deviceCategoryGroups, resolveDeviceCategoryProfile } from './device-category-choices'
@@ -103,7 +104,8 @@ export function deviceKindCollectionKey(deviceKind: string): string {
   if (genericProfile) return genericProfile.collection
   if (deviceKind === 'temperature-humidity') return 'temperatureHumidity'
   if (deviceKind === 'vacuum' || deviceKind === 'vacuum-shortcut') return 'vacuums'
-  if (deviceKind === 'television') return 'televisions'
+  const mediaProfile = mediaDeviceProfile(deviceKind)
+  if (mediaProfile) return mediaProfile.collection
   if (deviceKind === 'nas') return 'nas'
   if (deviceKind === 'cover') return 'curtains'
   if (deviceKind === 'water-heater') return 'waterHeaters'

@@ -11,7 +11,7 @@ import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
 const [
   { withPageAppearancePreset: applyPageAppearancePreset },
   { withRegionLightingPreset: applyRegionLightingPreset },
-  { withFixedLightEffects: applyFixedLightEffects },
+  { withInteractionLightEffects: applyInteractionLightEffects },
   { popupPlacement: computePopupPlacement },
   { buttonIconSize: resolveButtonIconSize, DEFAULT_BUTTON_SIZE: defaultButtonSize },
 ] = await Promise.all([
@@ -49,6 +49,10 @@ import {
 } from '../vacuum/vacuum-map'
 import { createTelevisionPanel as createTelevisionPanel2 } from '../television/television-panel'
 import { createTelevisionScreens as createTelevisionScreens2 } from '../television/television-screen'
+import { mediaDeviceIndicator } from '../television/television-state'
+import { speakerIndicator } from '../speaker/speaker-state'
+import { SPEAKER_MODEL_TYPES, speakerModelProfile } from '../speaker/speaker-models'
+import { MEDIA_DEVICE_KINDS, isMediaDeviceKind, mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
 import { createDevicePanel as createDevicePanel2 } from '../device/device-panel'
 import { createDeviceStatusReader } from '../device/device-status'
 import {
@@ -936,7 +940,7 @@ export function mountStage(mountOptions: any) {
           ctx.isEditing ||
           ctx.isControlBusy ||
           ctx.activeModule !== 'devices' ||
-          !['television', 'speaker'].includes(mediaTargetEntry?.deviceKind) ||
+          !(isMediaDeviceKind(mediaTargetEntry?.deviceKind) || mediaTargetEntry?.deviceKind === 'speaker') ||
           mediaCommand.deviceKind !== mediaTargetEntry.deviceKind ||
           !mediaTargetEntry.modelAvailable ||
           !matchesSelectedFloor(mediaTargetEntry) ||
@@ -960,7 +964,12 @@ export function mountStage(mountOptions: any) {
           postHostMessage({
             type: 'control',
             requestId: mediaRequestId,
-            command: mediaCommand,
+            command: {
+              ...mediaCommand,
+              bindingId: mediaTargetEntry.id,
+              bindingFloorId: mediaTargetEntry.floorId,
+              bindingModelId: mediaTargetEntry.modelId,
+            },
           })
       }),
     speakerPanel = createSpeakerPanel2({
@@ -1239,6 +1248,27 @@ export function mountStage(mountOptions: any) {
         }),
       ]),
     ),
+    projectorStatus = createNasStatus2({
+      THREE: three,
+      modelType: 'projector',
+      readState: mediaDeviceIndicator,
+      requestFrame: () => {
+        mountOptions.requestRender?.(), wakeBackgroundAnimation()
+      },
+    }),
+    speakerStatusByModelType = Object.fromEntries(
+      SPEAKER_MODEL_TYPES.filter((speakerModelType) => speakerModelType !== 'speaker').map((speakerModelType) => [
+        speakerModelType,
+        createNasStatus2({
+          THREE: three,
+          modelType: speakerModelType,
+          readState: speakerIndicator,
+          requestFrame: () => {
+            mountOptions.requestRender?.(), wakeBackgroundAnimation()
+          },
+        }),
+      ]),
+    ),
     waterHeaterStatusByModelType = Object.fromEntries(
       ['storagewaterheater', 'gaswaterheater'].map((waterHeaterModelType) => [
         waterHeaterModelType,
@@ -1331,6 +1361,12 @@ export function mountStage(mountOptions: any) {
       },
       get nasStatus() {
         return nasStatus
+      },
+      get projectorStatus() {
+        return projectorStatus
+      },
+      get speakerStatusByModelType() {
+        return speakerStatusByModelType
       },
       get collectNasBindings() {
         return collectNasBindings
@@ -2111,7 +2147,8 @@ export function mountStage(mountOptions: any) {
       mountOptions.applyCameraPose(followPose)
   }
   const isPanelDeviceKind = (panelDeviceEntry: any) =>
-      ['lock', 'nas', 'television', 'speaker', 'vacuum', 'presence', 'camera'].includes(panelDeviceEntry?.deviceKind) ||
+      ['lock', 'nas', 'speaker', 'vacuum', 'presence', 'camera'].includes(panelDeviceEntry?.deviceKind) ||
+      isMediaDeviceKind(panelDeviceEntry?.deviceKind) ||
       isGenericDeviceKind2(panelDeviceEntry?.deviceKind),
     vacuumMaps = createVacuumMaps2(mountOptions, () => {
       mountOptions.requestRender?.(), wakeBackgroundAnimation()
@@ -2328,38 +2365,56 @@ export function mountStage(mountOptions: any) {
         id: markerEntry.id,
       })
   }
+  /** 绑定条目的世界坐标：绑定里写了就用，否则按模型所在位置回填。 */
+  function modelBindingPosition(binding: { x?: unknown; y?: unknown }, model: { x?: number; y?: number } | undefined) {
+    return {
+      x: typeof binding.x === 'number' && Number.isFinite(binding.x) ? binding.x : (model?.x ?? 0),
+      y: typeof binding.y === 'number' && Number.isFinite(binding.y) ? binding.y : (model?.y ?? 0),
+    }
+  }
   function collectSpeakerBindings() {
     return (ctx.options.devices?.speakers || []).map((speakerSourceEntry: any) => {
-      const speakerModel = stageModelIndex.item(speakerSourceEntry.floorId, speakerSourceEntry.modelId, 'speaker')
+      const speakerModel = stageModelIndex.item(
+        speakerSourceEntry.floorId,
+        speakerSourceEntry.modelId,
+        SPEAKER_MODEL_TYPES,
+      )
       return {
         ...speakerSourceEntry,
         clickAction: speakerSourceEntry.clickAction || 'focus-panel',
         deviceKind: 'speaker',
-        x: Number.isFinite(speakerSourceEntry.x) ? speakerSourceEntry.x : (speakerModel?.x ?? 0),
-        y: Number.isFinite(speakerSourceEntry.y) ? speakerSourceEntry.y : (speakerModel?.y ?? 0),
+        ...modelBindingPosition(speakerSourceEntry, speakerModel),
         height: Number.isFinite(speakerSourceEntry.height)
           ? speakerSourceEntry.height
-          : (Number(speakerModel?.elevation) || 0) + (Number(speakerModel?.height) || 0.2336) / 2,
+          : (Number(speakerModel?.elevation) || 0) +
+            (Number(speakerModel?.height) || speakerModelProfile(speakerModel?.type)?.height || 0.2336) / 2,
         modelAvailable: !!speakerModel,
         icon: speakerSourceEntry.icon || 'mdi:speaker',
       }
     })
   }
   function collectTelevisionBindings() {
-    return (ctx.options.devices?.televisions || []).map((televisionSourceEntry: any) => {
-      const televisionModel = stageModelIndex.item(televisionSourceEntry.floorId, televisionSourceEntry.modelId, 'tv')
-      return {
-        ...televisionSourceEntry,
-        clickAction: televisionSourceEntry.clickAction || 'focus-panel',
-        deviceKind: 'television',
-        x: Number.isFinite(televisionSourceEntry.x) ? televisionSourceEntry.x : (televisionModel?.x ?? 0),
-        y: Number.isFinite(televisionSourceEntry.y) ? televisionSourceEntry.y : (televisionModel?.y ?? 0),
-        height: Number.isFinite(televisionSourceEntry.height)
-          ? televisionSourceEntry.height
-          : (Number(televisionModel?.elevation) || 0) + (Number(televisionModel?.height) || 0.92) * 0.62,
-        modelAvailable: !!televisionModel,
-        icon: televisionSourceEntry.icon || 'mdi:television',
-      }
+    return MEDIA_DEVICE_KINDS.flatMap((mediaKind) => {
+      const mediaProfile = mediaDeviceProfile(mediaKind)!
+      return (ctx.options.devices?.[mediaProfile.collection] || []).map((mediaSourceEntry: any) => {
+        const mediaModel = stageModelIndex.item(
+          mediaSourceEntry.floorId,
+          mediaSourceEntry.modelId,
+          mediaProfile.modelType,
+        )
+        return {
+          ...mediaSourceEntry,
+          clickAction: mediaSourceEntry.clickAction || 'focus-panel',
+          deviceKind: mediaKind,
+          ...modelBindingPosition(mediaSourceEntry, mediaModel),
+          height: Number.isFinite(mediaSourceEntry.height)
+            ? mediaSourceEntry.height
+            : (Number(mediaModel?.elevation) || 0) +
+              (Number(mediaModel?.height) || mediaProfile.height) * mediaProfile.markerHeight,
+          modelAvailable: !!mediaModel,
+          icon: mediaSourceEntry.icon || mediaProfile.icon,
+        }
+      })
     })
   }
   function collectPreviewCovers() {
@@ -2448,7 +2503,11 @@ export function mountStage(mountOptions: any) {
     if (ctx.activeModule === 'security') return collectSecurityBindings(true)
     if (ctx.activeModule === 'vacuum' || ctx.activeModule === 'vacuum-shortcut')
       return [...collectVacuumShortcuts(), ...collectVacuumBindings()]
-    if (['water-heater', 'airer', 'nas', 'television', 'speaker', ...GENERIC_DEVICE_KINDS2].includes(ctx.activeModule))
+    if (
+      ['water-heater', 'airer', 'nas', 'speaker', ...MEDIA_DEVICE_KINDS, ...GENERIC_DEVICE_KINDS2].includes(
+        ctx.activeModule,
+      )
+    )
       return [
         ...collectCoverBindings().filter((airerPreviewBinding: any) => airerPreviewBinding.airer),
         ...collectClimateBindings().filter((waterHeaterPreviewBinding: any) => waterHeaterPreviewBinding.waterHeater),
@@ -3349,9 +3408,12 @@ export function mountStage(mountOptions: any) {
         : lightBindingList
     mountOptions.setLightStates(
       targetLightBindings.map((targetLightBinding: any) => {
-        const targetLightStateView = previewEditedLight(targetLightBinding)
+        const targetLightStateView = previewEditedLight(targetLightBinding),
+          // 光影参数口径由 `withInteractionLightEffects` 统一：轻量柔光 / 未开启自定义
+          // 一律回落固定值，等价于 0.8.4 的 `withFixedLightEffects`。
+          lightingMode = ctx.baseStageConfig?.lightingMode === 'standard' ? 'standard' : 'region'
         return {
-          ...applyFixedLightEffects(targetLightBinding),
+          ...applyInteractionLightEffects(targetLightBinding, lightingMode),
           ...(ctx.isEditing && ctx.lightEditPreview?.id === targetLightBinding.id
             ? targetLightStateView
             : lightRenderState2(targetLightStateView)),
@@ -4675,6 +4737,8 @@ export function mountStage(mountOptions: any) {
     moveMarkerDrag,
     nasPanel,
     nasStatus,
+    projectorStatus,
+    speakerStatusByModelType,
     get navigationEditing() {
       return ctx.navigationEditing
     },
@@ -4934,9 +4998,14 @@ export function mountStage(mountOptions: any) {
         editorSelectionOutlines.dispose(),
         editorSelectionElement.remove(),
         nasPanel.dispose(),
-        nasStatus.dispose()
-      for (const disposedStateTicker of Object.values(waterHeaterStatusByModelType)) disposedStateTicker.dispose()
-      for (const disposedGenericTicker of Object.values(entries)) disposedGenericTicker.dispose()
+        nasStatus.dispose(),
+        projectorStatus.dispose()
+      for (const disposedTicker of [
+        ...Object.values(speakerStatusByModelType),
+        ...Object.values(waterHeaterStatusByModelType),
+        ...Object.values(entries),
+      ])
+        disposedTicker.dispose()
       devicePanel.dispose(),
         cameraStatus.dispose(),
         speakerPanel.dispose(),

@@ -1382,7 +1382,11 @@ export class PanelRenderer {
       interaction3dMatches = (expectedInteractionComponent: any, actualInteractionComponent: any) =>
         actualInteractionComponent?.type === 'interaction3d' &&
         expectedInteractionComponent.properties?.sceneId === actualInteractionComponent.properties?.sceneId &&
-        expectedInteractionComponent.properties?.lightingMode === actualInteractionComponent.properties?.lightingMode
+        expectedInteractionComponent.properties?.lightingMode === actualInteractionComponent.properties?.lightingMode &&
+        // 版本位必须一起比：只切 `lightingMode` 而版本位不同时，渲染宿主也要重挂载，
+        // 否则会继续用旧管线画同一个舞台。
+        expectedInteractionComponent.properties?.lightingModeVersion ===
+          actualInteractionComponent.properties?.lightingModeVersion
     let retainedInteraction3d2 = this.retainedInteraction3d
     if (
       (retainedInteraction3d2 &&

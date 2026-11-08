@@ -104,8 +104,14 @@ function attachCapMesh(
     (capMesh.position.y = height + (facing === 'up' ? 0.0005 : -0.0005)),
     (capMesh.userData.reflectionRole = 'wall'),
     (capMesh.userData.wallCapFacing = facing),
+    // 盖面属于墙：不显式声明的话，`classifyReceiverKind` 会沿祖先读到 `modelLayer =
+    // 'architecture'`，落到 `furniture` 受光体 —— 吃 `furnitureGain`（1.0）而不是墙的
+    // `wallGain`（0.9），于是同一段墙的顶面永远比立面亮一档，看起来像另贴了一条白边。
+    (capMesh.userData.regionReceiverKind = 'wall'),
     (capMesh.castShadow = false),
-    (capMesh.receiveShadow = false),
+    // 过梁底面（`facing === 'down'`）是朝下的，柜体/窗框的影子落上去才有「洞口进深」；
+    // 顶盖朝上，收不收阴影无所谓，但两边共用一份材质与程序，一起打开更省一次分支。
+    (capMesh.receiveShadow = true),
     (capMesh.renderOrder = renderOrder),
     context.deps.isEmbeddedStage && material.transparent && (material.forceSinglePass = true),
     context.deps.sceneRootNode.add(capMesh)

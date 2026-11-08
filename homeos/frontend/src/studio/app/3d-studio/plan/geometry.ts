@@ -862,6 +862,19 @@ export function clampWindowT(windowWall: any, windowOpening: any, openingUnitSca
 export function doorLeafRotation(doorLeaf: any, swingRadians = Math.PI / 2) {
   return -(doorLeaf?.swing === -1 ? -1 : 1) * swingRadians
 }
+
+/** 门的展示开度（0–100）。显式值优先；否则玻璃推拉门常开 200/3，入户/卷帘/仅门框常闭，其余全开。 */
+export function defaultDoorOpening(door: { defaultOpening?: number; doorType?: string }, closedWhenUnbound = false) {
+  if (Number.isFinite(door?.defaultOpening)) return clamp(door.defaultOpening as number, 0, 100)
+  if (door?.doorType === 'sliding-glass') return closedWhenUnbound ? 0 : 200 / 3
+  if (door?.doorType === 'entry' || door?.doorType === 'roller-shutter' || door?.doorType === 'frame-only') return 0
+  return 100
+}
+
+/** 门扇的展示角：按开度比例收放；比例为 0 时明确落到关闭位（`0 * 角` 的 `-0` 归零）。 */
+export function doorDisplayRotation(rotation: number, openRatio: number) {
+  return rotation * openRatio || 0
+}
 export function wallJoinExtensions(joinWalls: any, endpointEpsilon = 0.001, maxExtensionRatio = 4) {
   const endpointEpsilonValue = Math.max(Number(endpointEpsilon) || 0, 1e-7),
     extensionRatio = Math.max(Number(maxExtensionRatio) || 0, 1),

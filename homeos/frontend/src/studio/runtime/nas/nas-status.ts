@@ -51,6 +51,11 @@ export function nasDeviceState(nasItem: any, stateSources: Record<string, any> =
     name: nasItem.statusSource?.name || 'NAS',
   }
 }
+/** 自定义指示灯颜色：只有非 NAS 机型且设备回报了非默认绿时才换色。 */
+function customIndicatorColor(modelType: string, deviceColor: string | undefined) {
+  return modelType !== 'nas' && deviceColor !== '#43ce82' ? 1 : 0
+}
+
 export function createNasStatus({
   THREE: THREE,
   requestFrame: requestFrame = () => {},
@@ -230,7 +235,9 @@ export function createNasStatus({
                 modelBounds.min.y + modelSize.y * (modelType === 'gaswaterheater' ? 0.67 : 0.53),
                 modelBounds.max.z + 0.003,
               )
-          const anchorPosition = modelType === 'nas' ? findNasStatusAnchor(matchedModel) : null
+          // 0.8.5 起所有机型都吃模型锚点（投影仪 / 长条音响等不在几何中心）。
+          // 没有锚点时保留上面按包围盒估出来的位置。
+          const anchorPosition = findNasStatusAnchor(matchedModel)
           anchorPosition && ledMesh.position.copy(anchorPosition)
           const suppressedVisibilityByNode = new Map()
           matchedModel.traverse((child: any) => {
@@ -258,22 +265,25 @@ export function createNasStatus({
       const bindingEntry = meshesByBindingId.get(activeBinding.id)
       if (!bindingEntry) continue
       const uniforms = bindingEntry.mesh.material.uniforms
-      ;(shouldRender ||= uniforms.sizeScale.value !== sizeScale || uniforms.brightness.value !== brightness),
-        (uniforms.sizeScale.value = sizeScale),
-        (uniforms.brightness.value = brightness)
       const deviceState = readState(activeBinding, states)
+      const indicatorBrightness = brightness * (deviceState.brightness ?? 1)
+      ;(shouldRender ||= uniforms.sizeScale.value !== sizeScale || uniforms.brightness.value !== indicatorBrightness),
+        (uniforms.sizeScale.value = sizeScale),
+        (uniforms.brightness.value = indicatorBrightness)
       deviceState.color &&
         ((shouldRender ||= bindingEntry.color !== deviceState.color),
         (bindingEntry.color = deviceState.color),
         uniforms.indicatorColor.value.set(deviceState.color))
-      const customColor = modelType !== 'nas' && deviceState.color !== '#43ce82' ? 1 : 0
+      const customColor = customIndicatorColor(modelType, deviceState.color)
       ;(shouldRender ||= uniforms.customColor.value !== customColor), (uniforms.customColor.value = customColor)
       const shouldShow =
         enabled && (modelType === 'nas' ? deviceState.on : deviceState.visible && deviceState.status !== 'off')
       ;(shouldRender ||= bindingEntry.mesh.visible !== shouldShow),
         (bindingEntry.mesh.visible = shouldShow),
         (bindingEntry.breathing =
-          shouldShow && (modelType === 'nas' || deviceState.status === 'normal' || deviceState.status === 'warning')),
+          shouldShow &&
+          !deviceState.steady &&
+          (modelType === 'nas' || deviceState.status === 'normal' || deviceState.status === 'warning')),
         bindingEntry.breathing
           ? (hasVisibleIndicator = true)
           : ((shouldRender ||= uniforms.pulse.value !== 1), (uniforms.pulse.value = 1))

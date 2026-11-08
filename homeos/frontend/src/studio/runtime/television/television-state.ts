@@ -1,15 +1,23 @@
+import { mediaDeviceProfile } from '@app/bridge/presets/media-device-profiles'
+import { DEVICE_STATUS_NORMAL_COLOR } from '../device/device-status'
+
 const readEntityState = (stateSource: any, entityId: any) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId]
 
+/** 媒体设备种类缺省值：老配置不一定写 `deviceKind`，按电视处理。 */
+function mediaProfileOf(mediaConfig: { deviceKind?: string } | null | undefined) {
+  return mediaDeviceProfile(mediaConfig?.deviceKind) || mediaDeviceProfile('television')!
+}
+
 /** ``screenImage.assetId`` 形如 ``user:<32hex>``。 */
-function televisionScreenAssetId(televisionConfig: any = {}) {
+export function televisionScreenImage(televisionConfig: any = {}) {
   const assetId = televisionConfig?.screenImage?.assetId
   if (typeof assetId == 'string' && /^user:[0-9a-f]{32}$/i.test(assetId.trim())) return assetId.trim().toLowerCase()
   return ''
 }
 
 function televisionPosterAssetUrl(televisionConfig: any) {
-  const assetId = televisionScreenAssetId(televisionConfig)
+  const assetId = televisionScreenImage(televisionConfig)
   return assetId ? '/api/v1/assets/user/' + assetId.slice(5) : ''
 }
 export function televisionArtwork(
@@ -24,7 +32,8 @@ export function televisionArtwork(
   )
 }
 export function televisionState(televisionConfig: any, entityStateStore: Record<string, any> = {}, nowMs = Date.now()) {
-  const stateEntry = readEntityState(entityStateStore, televisionConfig.entityId),
+  const mediaProfile = mediaProfileOf(televisionConfig),
+    stateEntry = readEntityState(entityStateStore, televisionConfig.entityId),
     entityState = stateEntry?.newState || stateEntry || {},
     stateAttributes = entityState.attributes || {},
     normalizedState = String(entityState.state || 'unknown').toLowerCase(),
@@ -72,13 +81,13 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
     idle: isIdle,
     mediaAvailable: isMediaAvailable,
     playing: isOn && isMediaOn && normalizedState === 'playing',
-    name: televisionConfig.label || stateAttributes.friendly_name || '电视',
+    name: televisionConfig.label || stateAttributes.friendly_name || mediaProfile.label,
     status:
       !televisionConfig.entityId && !televisionConfig.powerEntityId
         ? '尚未绑定媒体实体'
         : isAvailable
           ? !isOn && televisionConfig.powerEntityId
-            ? '电视已关闭'
+            ? mediaProfile.label + '已关闭'
             : isOn && !isMediaOn
               ? '已开启'
               : {
@@ -114,6 +123,25 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
           )
         : null,
     updated: entityState.updatedAt || entityState.last_updated || '',
+  }
+}
+/**
+ * 媒体设备的状态灯规则（电视 / 投影仪共用）。
+ *
+ * 与灯组 / 扫地机的状态灯同一份契约：`visible` 决定挂不挂灯，`status` 决定颜色档位，
+ * `color` 是「正常」档的固定色。投影仪只有这一枚指示灯，屏幕不参与状态表达 ——
+ * 它的画面只在弹窗里出现。
+ */
+export function mediaDeviceIndicator(
+  mediaConfig: Parameters<typeof televisionState>[0],
+  entityStateStore: Parameters<typeof televisionState>[1] = {},
+) {
+  const mediaState = televisionState(mediaConfig, entityStateStore)
+  return {
+    ...mediaState,
+    visible: mediaState.available && mediaState.on,
+    status: mediaState.on ? 'normal' : 'off',
+    color: DEVICE_STATUS_NORMAL_COLOR,
   }
 }
 export function televisionTime(totalSeconds: any) {
@@ -155,23 +183,23 @@ export function televisionPower(
       domain: entityDomain,
       service: powerService,
       data: {} as Record<string, any>,
-      deviceKind: 'television',
+      deviceKind: powerConfig.deviceKind || 'television',
     },
   }
 }
+/** 播放控制动作 → Home Assistant 的 media_player 服务名。 */
+function mediaServiceFor(mediaAction: string, isPlaying: boolean) {
+  if (mediaAction === 'previous') return 'media_previous_track'
+  if (mediaAction === 'next') return 'media_next_track'
+  return isPlaying ? 'media_pause' : 'media_play'
+}
+
 export function televisionMediaControl(mediaConfig: any, mediaStateStore: any, mediaAction: any) {
   const mediaStateEntry = readEntityState(mediaStateStore, mediaConfig.entityId),
     mediaEntityState = mediaStateEntry?.newState || mediaStateEntry || {},
     televisionSnapshot = televisionState(mediaConfig, mediaStateStore),
     mediaSupportedFeatures = Number(mediaEntityState.attributes?.supported_features) || 0,
-    mediaService =
-      mediaAction === 'previous'
-        ? 'media_previous_track'
-        : mediaAction === 'next'
-          ? 'media_next_track'
-          : televisionSnapshot.playing
-            ? 'media_pause'
-            : 'media_play',
+    mediaService = mediaServiceFor(mediaAction, televisionSnapshot.playing),
     requiredFeatureMask = {
       media_previous_track: 16,
       media_next_track: 32,
@@ -189,7 +217,7 @@ export function televisionMediaControl(mediaConfig: any, mediaStateStore: any, m
       entityId: mediaConfig.entityId,
       service: mediaService,
       data: {} as Record<string, any>,
-      deviceKind: 'television',
+      deviceKind: mediaConfig.deviceKind || 'television',
     },
   }
 }

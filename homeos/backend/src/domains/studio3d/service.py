@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from . import cleanup as cleanup_service
 from . import draft_repository
+from .doors import validate_door_openings
 from .windows import validate_window_designs
 from ...panel.asset_refs import validate_assets
 from ...platform.core.db.models import Project, ProjectDraft
@@ -53,6 +54,7 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
     lock = catalog.mutation_lock if catalog is not None else nullcontext()
     with lock:
         validate_window_designs(payload.scene)
+        validate_door_openings(payload.scene)
         if catalog is not None:
             validate_assets(catalog, payload.scene)
         scene_json = draft_repository.encode_scene(payload.scene)

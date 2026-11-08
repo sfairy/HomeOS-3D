@@ -101,6 +101,11 @@ export interface RefreshStudioUiInnerDeps {
   windowFieldsElement: any
 }
 
+/** 默认开度输入框的显示值：没有显式数字时留空，占位符即「沿用门型默认」。 */
+function doorOpeningInputValue(door: { defaultOpening?: number }) {
+  return Number.isFinite(door.defaultOpening) ? String(door.defaultOpening) : ''
+}
+
 export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClearActiveElement = false) {
   const {
     appCtx,
@@ -270,7 +275,11 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
             setNumericControlValue(selectElement('#door-width'), at4.width),
             setNumericControlValue(selectElement('#door-height'), at4.height),
             setControlValue(selectElement('#door-position'), Math.round(at4.t * 100) + '%'),
+            // 走 setControlValue：正在输入的框不能被后台刷新（自动保存/设备状态）回写覆盖。
+            setControlValue(selectElement('#door-default-opening'), doorOpeningInputValue(at4)),
             (selectElement('.door-actions').hidden = at4.doorType === 'frame-only'),
+            // 仅门框没有门扇，默认开度对它没有意义：整块字段（含说明）一起隐藏。
+            (selectElement('#door-opening-field').hidden = at4.doorType === 'frame-only'),
             (selectElement('#door-hinge').hidden = ['double', 'roller-shutter', 'frame-only'].includes(at4.doorType)),
             (selectElement('#door-swing').hidden = ['sliding-glass', 'frame-only'].includes(at4.doorType)),
             (selectElement('#door-hinge').textContent = at4.doorType === 'sliding-glass' ? '左右推拉' : '左右换边'),
