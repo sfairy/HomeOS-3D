@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# 推送前拦「棘轮红灯」：本仓 2026-11-04 起 gate:static 随 push 在 CI 上跑，
+# 但本地只装了 pre-commit（场景生成物），于是「功能提交先把 file-size / any /
+# complexity / biome 的棘轮撞红，下一个提交再补」成了固定套路 —— 11-04 至 11-08
+# 的 9 次红灯里 8 次出在 static 组，其中一次还把 docker.yml 的 workflow_call 一起
+# 带红，发版矩阵被 skip。
+#
+# 这里只跑 static：它是纯静态、不构建、约 60 秒，能拦住上述 8 次里的全部；
+# gate:build 要跑 vite 全量构建（前端两个工程），放进来会让每次 push 多等一分半，
+# 留给 CI 更合适。
+#
+# 启用（每人一次）：bun run setup:hooks
+# 绕过（确有需要时）：git push --no-verify
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+if command -v bun >/dev/null 2>&1; then
+  runner=bun
+elif command -v node >/dev/null 2>&1; then
+  runner=node
+else
+  echo "[pre-push] 未找到 bun / node，跳过静态门禁（CI 的 static job 仍会拦）。" >&2
+  exit 0
+fi
+
+echo "[pre-push] 跑 gate:static（约 60s，失败会中止推送）…" >&2
+if ! "$runner" run gate:static >/tmp/homeos-prepush-static.log 2>&1; then
+  echo "" >&2
+  echo "[pre-push] gate:static 未通过，已中止推送。失败明细：" >&2
+  grep -E "^(---|.*FAIL|.*失败：|失败：)" /tmp/homeos-prepush-static.log | tail -n 20 >&2
+  echo "" >&2
+  echo "完整日志：/tmp/homeos-prepush-static.log" >&2
+  echo "确认要推：git push --no-verify" >&2
+  exit 1
+fi
+
+echo "[pre-push] gate:static 通过。" >&2
