@@ -104,8 +104,11 @@ class ClientLogLimiter:
             for queue in (bucket, self._all):
                 while queue and queue[0] <= now - 60:
                     queue.popleft()
-            # 日志上报沿用 30 条/分钟；Web Vitals 每 10s 一批（最多 8 项）单独给
-            # 120 条/分钟，否则正常 RUM 会被限流。全局 600 条/分钟兜底。
+            # 已登录日志上报 120 条/分钟：后端 / HA 重启一次就会同时冒出十几条
+            # 「网络连接失败」与「实时状态连接已断开（1006）」，30 条/分钟的旧预算
+            # 会被一波启动风暴直接打穿（表现为控制台 POST /api/v1/logs/events 429，
+            # 事件被迫退避几分钟才补传）。匿名上报仍沿用 30 条/分钟；
+            # Web Vitals 每 10s 一批（最多 8 项）同样 120 条/分钟。全局 600 条/分钟兜底。
             if len(bucket) >= per_client_limit or len(self._all) >= 600:
                 return False
             bucket.append(now)
@@ -207,7 +210,9 @@ def list_global_logs(request: Request, _user: CurrentUser, level: str | None = Q
 
 @router.post('/events', status_code=status.HTTP_204_NO_CONTENT)
 def create_client_log_event(payload: ClientLogEvent, request: Request, viewer: CurrentViewer) -> Response:
-    _limit_client_log(request, anonymous=False)
+    # 已登录页面独占一个客户端预算：一次启动风暴（后端/HA 重启）能在一个窗口里
+    # 产生 40+ 条上报，沿用匿名侧的 30 条/分钟必然 429，见 ClientLogLimiter.allow。
+    _limit_client_log(request, anonymous=False, per_client_limit=120)
     _append_client_event(payload, request, viewer)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
