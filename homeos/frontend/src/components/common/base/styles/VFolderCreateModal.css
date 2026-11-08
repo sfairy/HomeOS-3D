@@ -371,7 +371,7 @@
 }
 
 /* 移动端：弹窗贴近底部，按钮加大便于触控 */
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .vfc-panel {
     max-width: 100%;
     border-radius: 18px;

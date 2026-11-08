@@ -173,7 +173,7 @@
 }
 
 /* 平板（≤1100px）：增强 security-hub tab 激活/非激活对比度 */
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .security-hub .list-page__tab {
     color: rgba(255, 255, 255, 0.62);
   }
@@ -390,14 +390,14 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .security-events-aside {
     width: min(300px, 42vw);
     padding: 12px !important;
   }
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .security-events-aside {
     width: 100%;
     max-height: none;

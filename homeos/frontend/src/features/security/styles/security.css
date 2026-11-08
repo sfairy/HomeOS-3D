@@ -2926,7 +2926,35 @@
   padding: 4px 0;
 }
 
-@media (max-width: 900px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 900px) {
+  .sov-zones__glow,
+  .sec-hub-status-glow,
+  .sec-dash-hazard__glow {
+    display: none;
+  }
+  .sz-zone-card--focus,
+  .szm-card--armed,
+  .szm-card--alert,
+  .szm-card:hover {
+    box-shadow: none;
+  }
+  .szm-card--armed {
+    border-color: rgba(var(--page-accent-rgb), 0.45);
+  }
+
+  /* 模式按钮 / 状态环：去掉外圈光晕，仅保留描边 */
+  .sec-dash-mode-btn--active,
+  .sec-mode-btn--active {
+    box-shadow: none;
+    background: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 14%, rgba(0, 0, 0, 0));
+  }
+  .sec-dash-status-ring,
+  .sec-dash-status--armed .sec-dash-status-ring {
+    animation: none;
+    box-shadow: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .sov-zones__glow,
   .sec-hub-status-glow,
   .sec-dash-hazard__glow {
@@ -2960,13 +2988,13 @@
  * 侧栏下限会在 1024 以下把主区（区域布防）压到 200px 都不到。按档位收窄侧栏，
  * 两栏关系不变、主区仍有可用宽度（真正堆叠会破坏内部的整高滚动/画布布局）。
  */
-@media (max-width: 1280px) {
+@container hos-canvas (max-width: 1280px) {
   .sov-workspace {
     grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   }
 }
 
-@media (max-width: 1024px) {
+@container hos-canvas (max-width: 1024px) {
   .sov-workspace {
     grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
     gap: 12px;

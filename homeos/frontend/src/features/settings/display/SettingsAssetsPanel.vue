@@ -301,7 +301,7 @@ const assetsFlowSteps = [
   margin-top: 14px;
 }
 
-@media (min-width: 768px) {
+@container hos-canvas (min-width: 768px) {
   .assets-bg-settings {
     grid-template-columns: 1fr 1fr;
   }
@@ -362,7 +362,7 @@ const assetsFlowSteps = [
   gap: 10px;
 }
 
-@media (min-width: 720px) {
+@container hos-canvas (min-width: 720px) {
   .assets-lib-grid {
     grid-template-columns: 1fr 1fr;
   }

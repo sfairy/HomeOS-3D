@@ -632,16 +632,16 @@ a.icon-btn {
   align-items: center;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   /* 手机走 /m；此处覆盖近方形小窗 / DevTools，必须保留顶栏 Tab */
-  html:not(.hos-canvas-scaled) .tab-bar {
+  .tab-bar {
     flex-wrap: nowrap;
     padding: max(env(safe-area-inset-top, 0px), 4px) 8px 4px 8px;
     min-height: 44px;
     gap: 6px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__brand {
+  .tab-bar__brand {
     /* 0 1 auto：窄屏也允许品牌区收缩（长站点标题走省略号），否则导航 Tab 被挤出顶栏 */
     flex: 0 1 auto;
     min-width: 0;
@@ -658,20 +658,20 @@ a.icon-btn {
      直接 display:none 会让这个功能变成不可达，所以只压掉文字标签。
      用 .tab-bar 前缀把特异性提到 (0,3,0)：另一处定义在 tab-bar-mode-switcher.css 的
      `.tab-bar__mode-switcher.home-mode-switcher`(0,2,0)，单类选择器压不过它。 */
-  html:not(.hos-canvas-scaled) .tab-bar .tab-bar__mode-switcher.home-mode-switcher {
+  .tab-bar .tab-bar__mode-switcher.home-mode-switcher {
     padding-right: 0;
     margin-right: 0;
     border-right: none;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__title {
+  .tab-bar__title {
     font-size: var(--premium-fs-caption);
     font-weight: 700;
   }
 
   /* 给导航一个真实宽度地板：这是「更多」兜底 Tab 能被点到的前提。
      低于 180px 时「更多」自身也会落进被裁区域，双保险同时失效。 */
-  html:not(.hos-canvas-scaled) .tab-bar__nav-wrap {
+  .tab-bar__nav-wrap {
     display: flex;
     flex: 1 1 auto;
     /* 160px 是「更多」兜底 Tab 能被点到的下限：
@@ -679,11 +679,11 @@ a.icon-btn {
     min-width: 160px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__tab-label {
+  .tab-bar__tab-label {
     display: none;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__actions {
+  .tab-bar__actions {
     /* 允许收缩：原 flex-shrink:0 + 5×44px 是裁切的主因之一 */
     flex: 0 1 auto;
     min-width: 0;
@@ -694,41 +694,41 @@ a.icon-btn {
      避免操作区吃掉导航预算。用显式类而非 nth-child：后续插入新按钮不会错位。
      特异性提到 (0,3,0)：本文件 @media (max-width:1024px) 块排在 640 块之后，
      其中的 `.tab-bar__actions .icon-btn`(0,2,0) 会把这里的尺寸覆盖掉。 */
-  html:not(.hos-canvas-scaled) .tab-bar .tab-bar__actions .icon-btn {
+  .tab-bar .tab-bar__actions .icon-btn {
     width: 36px;
     height: 36px;
     min-width: 36px;
     min-height: 36px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar .tab-bar__actions .icon-btn:not(.icon-btn--keep) {
+  .tab-bar .tab-bar__actions .icon-btn:not(.icon-btn--keep) {
     display: none;
   }
 
   /* 模式切换器收成图标：标签隐藏后整块从 ~229px 降到 ~60px */
-  html:not(.hos-canvas-scaled) .tab-bar .tab-bar__mode-switcher .home-mode-switcher__label {
+  .tab-bar .tab-bar__mode-switcher .home-mode-switcher__label {
     display: none;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar .tab-bar__mode-switcher .home-mode-switcher__btn {
+  .tab-bar .tab-bar__mode-switcher .home-mode-switcher__btn {
     padding: 4px;
     gap: 0;
     min-height: 36px;
   }
 
-  html:not(.hos-canvas-scaled) .logo-wrapper {
+  .logo-wrapper {
     width: 26px;
     height: 26px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__mode-switcher .home-mode-switcher__btn {
+  .tab-bar__mode-switcher .home-mode-switcher__btn {
     padding: 4px 8px;
     font-size: var(--premium-fs-caption);
     gap: 4px;
     border-radius: 8px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__mode-switcher .home-mode-switcher__label {
+  .tab-bar__mode-switcher .home-mode-switcher__label {
     max-width: 56px;
   }
 
@@ -740,20 +740,20 @@ a.icon-btn {
 /* 极窄（<480px）：品牌 logo 让位给导航。
    这一档的预算是 内边距 24 + 模式切换器 54 + 操作区 108 + 间距 18 = 204px，
    390px 下只剩 186px 给导航；再留着 64px 的品牌区就装不下 2 个 Tab + 「更多」。 */
-@media (max-width: 480px) {
-  html:not(.hos-canvas-scaled) .tab-bar {
+@container hos-canvas (max-width: 480px) {
+  .tab-bar {
     gap: 4px;
     padding-left: 8px;
     padding-right: 8px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__brand {
+  .tab-bar__brand {
     display: none;
   }
 
   /* 这一档导航下限可以更低：分档只给 1~2 个 Tab（1 Tab +「更多」约 107px），
      保留 160 会在 340px 这类极窄窗口把操作区挤出去。 */
-  html:not(.hos-canvas-scaled) .tab-bar__nav-wrap {
+  .tab-bar__nav-wrap {
     min-width: 110px;
   }
 }
@@ -786,26 +786,26 @@ a.icon-btn {
    若不加门控，1280px 的笔记本窗口会让 1728 宽的画布套用手机档规则 ——
    顶栏文字消失、操作区被裁、导航塌成图标 +「更多」，表现为「缩放后显示不全」。
    缩放开启时按画布宽度（桌面档）渲染，再整体等比缩小。 */
-@media (max-width: 1280px) {
-  html:not(.hos-canvas-scaled) .tab-bar__tab-label {
+@container hos-canvas (max-width: 1280px) {
+  .tab-bar__tab-label {
     display: none;
   }
 }
 
 /* 平板紧凑 (640–1024px)：顶栏进一步压缩，保留完整 Tab + 侧栏 */
-@media (min-width: 640px) and (max-width: 1024px) {
+@container hos-canvas (min-width: 640px) and (max-width: 1024px) {
   /* 品牌区（logo + 站名）在平板档占 193px，与模式切换器一起把导航压到 52px。
      收成 logo 宽度后，导航能拿回 ~150px。 */
-  html:not(.hos-canvas-scaled) .tab-bar__brand {
+  .tab-bar__brand {
     max-width: 44px;
     flex: 0 0 auto;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__title {
+  .tab-bar__title {
     display: none;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__tab {
+  .tab-bar__tab {
     padding: 5px 8px;
     font-size: var(--premium-fs-micro);
     gap: 4px;
@@ -813,43 +813,43 @@ a.icon-btn {
 
   /* 平板档统一用图标导航：见下方 @media (max-width: 1280px) 的统一说明。 */
 
-  html:not(.hos-canvas-scaled) .tab-bar__mode-switcher .home-mode-switcher__btn {
+  .tab-bar__mode-switcher .home-mode-switcher__btn {
     padding: 5px 10px;
     font-size: var(--premium-fs-caption);
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar__mode-switcher .home-mode-switcher__label {
+  .tab-bar__mode-switcher .home-mode-switcher__label {
     max-width: 64px;
   }
 }
 
 /* 平板 (768px - 1024px)：紧凑导航栏 */
-@media (max-width: 1024px) {
-  html:not(.hos-canvas-scaled) .tab-bar {
+@container hos-canvas (max-width: 1024px) {
+  .tab-bar {
     padding-left: 12px;
     padding-right: 12px;
     min-height: 48px;
     gap: 6px;
   }
-  html:not(.hos-canvas-scaled) .tab-bar__brand {
+  .tab-bar__brand {
     gap: 8px;
   }
-  html:not(.hos-canvas-scaled) .logo-wrapper {
+  .logo-wrapper {
     width: 44px;
     height: 44px;
   }
-  html:not(.hos-canvas-scaled) .tab-bar__title {
+  .tab-bar__title {
     font-size: var(--premium-fs-caption);
   }
-  html:not(.hos-canvas-scaled) .tab-bar__tab {
+  .tab-bar__tab {
     padding: 5px 10px;
     font-size: var(--premium-fs-caption);
   }
-  html:not(.hos-canvas-scaled) .tab-bar__tab-svg {
+  .tab-bar__tab-svg {
     width: 12px;
     height: 12px;
   }
-  html:not(.hos-canvas-scaled) .tab-bar__actions .icon-btn {
+  .tab-bar__actions .icon-btn {
     width: 44px;
     height: 44px;
     min-width: 44px;
@@ -858,8 +858,8 @@ a.icon-btn {
 }
 
 /* 中等宽度：Tab 较多时优先压缩间距 */
-@media (max-width: 1280px) {
-  html:not(.hos-canvas-scaled) .tab-bar__tab {
+@container hos-canvas (max-width: 1280px) {
+  .tab-bar__tab {
     padding: 5px 10px;
     gap: 5px;
   }
@@ -868,24 +868,36 @@ a.icon-btn {
 /* 手机 (<640px)：顶栏保留 Tab（图标），主导航不再走已删除的底栏 */
 
 /* 横屏窄窗 */
-@media (max-width: 640px) and (orientation: landscape) {
-  html:not(.hos-canvas-scaled) .tab-bar {
-    flex-wrap: nowrap;
-    padding: 2px 8px;
-    min-height: 44px;
-  }
+@media (orientation: landscape) {
+  @container hos-canvas (max-width: 640px) {
+    .tab-bar {
+      flex-wrap: nowrap;
+      padding: 2px 8px;
+      min-height: 44px;
+    }
 
-  html:not(.hos-canvas-scaled) .tab-bar__brand {
-    width: auto;
-  }
+    .tab-bar__brand {
+      width: auto;
+    }
 
-  html:not(.hos-canvas-scaled) .tab-bar__tabs {
-    flex: 0 1 auto;
+    .tab-bar__tabs {
+      flex: 0 1 auto;
+    }
   }
 }
 
 /* 触控 / 窄屏：重毛玻璃退化，避免性能开销与圆角抗锯齿伪影 */
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .tab-bar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .tab-bar__more-menu {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .tab-bar {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

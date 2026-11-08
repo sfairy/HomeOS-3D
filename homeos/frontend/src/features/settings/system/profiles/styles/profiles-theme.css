@@ -214,7 +214,7 @@
   opacity: 0.75;
 }
 
-@media (min-width: 768px) {
+@container hos-canvas (min-width: 768px) {
 }
 
 /* —— ProfilesBackupSection —— */
@@ -231,7 +231,7 @@
   --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
   --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
 }
-@media (min-width: 640px) {
+@container hos-canvas (min-width: 640px) {
 }
 
 /* —— 定时自动备份 —— */

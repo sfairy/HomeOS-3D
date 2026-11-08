@@ -642,13 +642,13 @@ onMounted(load)
   background: rgba(255, 255, 255, 0.02);
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .retention-stats {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .retention-table__head,
   .retention-table__row {
     grid-template-columns: 1.3fr 0.6fr 0.7fr 0.8fr;

@@ -3,7 +3,7 @@
     "files": 369,
     "color": 4433,
     "duration": 1457,
-    "important": 362
+    "important": 382
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/PalettePanel.vue": {
@@ -19,7 +19,7 @@
     "homeos/frontend/src/assets/styles/anchored-popup-shells.css": {
       "color": 6,
       "duration": 6,
-      "important": 2
+      "important": 4
     },
     "homeos/frontend/src/assets/styles/app-premium-tokens.css": {
       "color": 44,
@@ -64,12 +64,12 @@
     "homeos/frontend/src/assets/styles/list-page.css": {
       "color": 28,
       "duration": 19,
-      "important": 3
+      "important": 6
     },
     "homeos/frontend/src/assets/styles/main.css": {
       "color": 55,
       "duration": 15,
-      "important": 21
+      "important": 30
     },
     "homeos/frontend/src/assets/styles/modal-theme.css": {
       "color": 19,
@@ -459,7 +459,7 @@
     "homeos/frontend/src/components/widgets/styles/QuickActionsCard.css": {
       "color": 3,
       "duration": 9,
-      "important": 2
+      "important": 4
     },
     "homeos/frontend/src/components/widgets/system/styles/ClockWidget.css": {
       "color": 0,
@@ -594,7 +594,7 @@
     "homeos/frontend/src/features/device/styles/devices-theme.css": {
       "color": 72,
       "duration": 31,
-      "important": 5
+      "important": 7
     },
     "homeos/frontend/src/features/device/styles/devices-view.css": {
       "color": 0,
@@ -729,7 +729,7 @@
     "homeos/frontend/src/features/home-mode/editor/styles/home-mode-preset-cards.css": {
       "color": 23,
       "duration": 10,
-      "important": 1
+      "important": 2
     },
     "homeos/frontend/src/features/notifications/NotificationsPage.vue": {
       "color": 2,
@@ -1179,7 +1179,7 @@
     "homeos/frontend/src/features/settings/system/diagnostics/styles/diagnostics-theme.css": {
       "color": 25,
       "duration": 32,
-      "important": 13
+      "important": 14
     },
     "homeos/frontend/src/features/settings/system/diagnostics/useDiagnosticsPerf.ts": {
       "color": 2,

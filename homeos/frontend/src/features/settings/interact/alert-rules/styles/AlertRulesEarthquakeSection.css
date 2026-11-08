@@ -178,7 +178,7 @@
   gap: 10px;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .alert-eew-conn-grid {
     grid-template-columns: 1fr;
   }
@@ -356,7 +356,7 @@
   background: rgba(0, 0, 0, 0.16);
 }
 
-@media (max-width: 600px) {
+@container hos-canvas (max-width: 600px) {
   .alert-eew-conn-filters__list li {
     grid-template-columns: 1fr;
     gap: 2px;

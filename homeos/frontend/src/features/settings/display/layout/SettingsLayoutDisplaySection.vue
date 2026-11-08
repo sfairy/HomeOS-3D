@@ -24,7 +24,14 @@
         </template>
       </SettingsCardIntro>
       <p
-        v-if="scalingTooNarrow"
+        v-if="phoneFluid"
+        class="mt-3 text-xs ldp-c-warn leading-relaxed"
+        role="note"
+      >
+        当前为手机视口（{{ viewportW }}×{{ viewportH }}px）：整页等比缩放会把 {{ activeDesignWidth }}px 设计稿压到 ×{{ requiredScale.toFixed(3) }}，正文只剩几像素，因此此处自动按流式布局渲染。偏好已保留，换回平板 / 桌面后自动恢复。
+      </p>
+      <p
+        v-else-if="scalingTooNarrow"
         class="mt-3 text-xs ldp-c-warn leading-relaxed"
         role="note"
       >
@@ -49,10 +56,20 @@
           class="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5"
         >
           <span class="text-xs ldp-c-muted font-bold uppercase tracking-widest">{{
-            '内容区'
+            '设计基准'
           }}</span>
           <span class="text-sm font-black ldp-c-text font-mono"
             >{{ activeDesignWidth }}×{{ designHeight }}</span
+          >
+        </div>
+        <div
+          class="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5"
+        >
+          <span class="text-xs ldp-c-muted font-bold uppercase tracking-widest">{{
+            '画布'
+          }}</span>
+          <span class="text-sm font-black ldp-c-text font-mono"
+            >{{ canvasW }}×{{ canvasH }}</span
           >
         </div>
         <div
@@ -184,8 +201,14 @@ const props = defineProps({
   scalingEnabled: { type: Boolean, default: false },
   scale: { type: Number, default: 1 },
   scaleClamped: { type: Boolean, default: false },
+  /** 手机视口：整页等比缩放会自动停用（字号会被压到不可读），偏好仍保留 */
+  phoneFluid: { type: Boolean, default: false },
   activeDesignWidth: { type: Number, required: true },
   designHeight: { type: Number, required: true },
+  /** 画布宽度（未乘缩放比）：桌面/大屏上会大于设计宽，用来吃满横向空间 */
+  canvasWidth: { type: Number, default: 0 },
+  /** 画布高度（未乘缩放比） */
+  canvasHeight: { type: Number, default: 0 },
   viewportW: { type: Number, required: true },
   viewportH: { type: Number, required: true },
   widthPresets: { type: Array, default: () => [] },
@@ -203,6 +226,16 @@ const requiredScale = computed(() =>
 )
 
 /**
+ * 画布实际尺寸（未乘缩放比）。
+ *
+ * 缩放关闭 / 手机视口退回流式时父组件不会给出画布值，此时画布就等于设计基准；
+ * 缩放开启时画布会被拉长（竖屏）或拉宽（高度受限的宽屏），这里如实展示，
+ * 用户才能看懂「为什么设计基准 1366×1024、屏幕是 1920×1080，但字变大了」。
+ */
+const canvasW = computed(() => Math.round(props.canvasWidth || props.activeDesignWidth))
+const canvasH = computed(() => Math.round(props.canvasHeight || props.designHeight))
+
+/**
  * 开启后缩放比会低于可读性警戒线（文字明显变小）。
  *
  * 只用于**提示**，不再禁用按钮：这条线只影响可读性，不影响「能否完整显示」，
@@ -211,6 +244,8 @@ const requiredScale = computed(() =>
  */
 const scalingTooNarrow = computed(() => {
   if (props.scalingEnabled) return false
+  // 手机视口有独立的更准确提示（自动退回流式），不再叠加「字会很小」的警告
+  if (props.phoneFluid) return false
   const required = requiredScale.value
   if (!Number.isFinite(required) || required <= 0) return false
   return required < MIN_SCALE

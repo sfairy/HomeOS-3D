@@ -39,7 +39,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .vox-synth,
   .vox-synth--pair {
     grid-template-columns: 1fr;

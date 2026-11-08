@@ -421,7 +421,7 @@
   border-color: rgba(56, 189, 248, 0.2);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .ppli-grid {
     grid-template-columns: 1fr;
     gap: 16px;

@@ -72,7 +72,7 @@
   box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
 }
 
-@media (min-width: 1440px) {
+@container hos-canvas (min-width: 1440px) {
   .settings-page-inset--tabs .sm-modes-tabs-head.settings-orch-dock--toolbar {
     border-radius: var(--hos-radius-panel, 20px);
   }
@@ -300,7 +300,7 @@
   color: var(--set-text-faint);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .sm-mode-head__meta {
     padding-left: 0;
     flex-wrap: wrap;
@@ -412,7 +412,7 @@
   flex: 1;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .sm-actions-head {
     flex-direction: column;
     align-items: stretch;
@@ -530,7 +530,7 @@
   align-items: center;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .sm-batch-row {
     grid-template-columns: 1fr;
   }
@@ -807,7 +807,7 @@
   margin-bottom: 18px;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .sm-emergency-presets {
     grid-template-columns: 1fr;
   }

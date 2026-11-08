@@ -564,13 +564,34 @@
   color: var(--set-text-secondary);
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .diag-config-health__gaps {
     grid-template-columns: 1fr;
   }
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .diag-hero-orb--ok,
+  .diag-hero-orb--warn,
+  .diag-hero-orb--bad,
+  .diag-config-health__eyebrow::before,
+  .diag-section-title::before,
+  .diag-config-health__link:hover {
+    box-shadow: none !important;
+  }
+  .diag-hero-orb__ring,
+  .diag-export-banner__orb-ring {
+    opacity: 0.35;
+  }
+  .diag-overview-shell {
+    background: linear-gradient(168deg, rgba(255, 255, 255, 0.035) 0%, var(--diag-surface) 100%);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+  .diag-config-health__link:hover {
+    transform: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .diag-hero-orb--ok,
   .diag-hero-orb--warn,
   .diag-hero-orb--bad,

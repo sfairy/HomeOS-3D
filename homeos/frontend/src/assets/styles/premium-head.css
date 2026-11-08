@@ -110,7 +110,21 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .premium-head--card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .premium-head__orb,
+  .premium-head--card:hover .premium-head__orb {
+    box-shadow: none;
+    transform: none;
+  }
+  .premium-head__glow {
+    display: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .premium-head--card {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -254,7 +268,7 @@
 
 /* ── 侧栏 / 面板条式页头 ── */
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .premium-head__title {
     font-size: var(--premium-fs-title);
   }

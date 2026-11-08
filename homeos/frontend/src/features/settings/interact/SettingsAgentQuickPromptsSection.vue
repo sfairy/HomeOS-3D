@@ -271,7 +271,7 @@ onScopeDispose(() => {
   color: var(--set-text-secondary);
 }
 
-@container (max-width: 640px) {
+@container settings-scroll (max-width: 640px) {
   .aqp-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:

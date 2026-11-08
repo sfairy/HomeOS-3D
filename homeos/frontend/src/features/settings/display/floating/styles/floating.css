@@ -659,7 +659,12 @@
   text-align: left;
 }
 
-@media (max-width: 640px), (pointer: coarse) {
+@container hos-canvas (max-width: 640px) {
+  .afh-size-stepper {
+    width: 100%;
+  }
+}
+@media (pointer: coarse) {
   .afh-size-stepper {
     width: 100%;
   }
@@ -1316,7 +1321,7 @@
   transform: translateX(-8px);
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .afh-card__head {
     flex-direction: column;
     align-items: stretch;
@@ -1492,7 +1497,7 @@
   background: rgba(52, 211, 153, 0.08) !important;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .fp-workspace-card__body {
     padding: 10px 12px 12px;
   }

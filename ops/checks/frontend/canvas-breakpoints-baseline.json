@@ -1,0 +1,7 @@
+{
+  "_comment": "画布断点守卫的例外清单。只允许「容器自身/其祖先」这类容器查询无法生效的文件；新增条目必须有说明。",
+  "allow": ["homeos/frontend/src/assets/styles/scaled-viewport.css"],
+  "allowReason": {
+    "homeos/frontend/src/assets/styles/scaled-viewport.css": "写的是 .viewport-frame（容器祖先）与 .app-shell--scaling 自身；容器查询对容器自身无效"
+  }
+}

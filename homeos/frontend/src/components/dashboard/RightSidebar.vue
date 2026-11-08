@@ -97,6 +97,7 @@ import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import WidgetPanelSlot from '@/components/dashboard/WidgetPanelSlot.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useScaling } from '@/composables/ui/useScaling'
+import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
 import { isTabletCompactViewport } from '@/shared/utils/config/viewport-breakpoints.util'
 import { filterWidgetsForProfile } from '@/shared/widget/utils/profile-filter.util'
 import type { PanelWidget } from '@/shared/types/layout'
@@ -128,14 +129,16 @@ function toggleCollapse() {
 }
 
 const { scalingEnabled } = useScaling(computed(() => layoutStore.layoutConfig.pageMaxWidth))
+const { canvasWidth } = useCanvasMetrics()
 
 const panelOuterStyle = computed(() => {
   if (collapsed.value) return { width: '0px' }
   let w = layoutStore.layoutConfig.rightPanelWidth || 260
-  // 平板未开缩放：侧栏上限为视口 30%，避免在窄视口挤压户型图。
-  if (!scalingEnabled.value && isTabletCompactViewport()) {
-    const viewportW = typeof window !== 'undefined' ? window.innerWidth : w
-    w = Math.min(w, Math.round(viewportW * 0.3))
+  // 平板未开缩放：侧栏上限为画布 30%，避免在窄画布挤压户型图。
+  // 基准用画布宽度而不是 window.innerWidth：流式模式下二者一致，缩放模式下窗口宽度会把
+  // 宽敞的画布误判成紧凑档，把侧栏压窄。
+  if (!scalingEnabled.value && isTabletCompactViewport(canvasWidth.value)) {
+    w = Math.min(w, Math.round(canvasWidth.value * 0.3))
   }
   return { width: `${w}px` }
 })

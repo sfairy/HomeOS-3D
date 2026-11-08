@@ -135,6 +135,7 @@
 
 <script setup>
 import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
+import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
 /**
  * 系统设置页面 — 薄壳入口
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css
@@ -211,10 +212,11 @@ const settingsSidebarRef = ref(null)
 const settingsMainRef = ref(null)
 const reopenButtonRef = ref(null)
 
-// 900px 以下侧栏改为覆盖式抽屉：固定 260px 侧栏会把主内容压到约 130px，
+// 画布宽 ≤ 900 时侧栏改为覆盖式抽屉：固定 260px 侧栏会把主内容压到约 130px，
 // 而手动折叠状态来自 localStorage，首次进入窄屏时不会自动收起。
-const compactMediaQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
-const isCompactSettings = ref(compactMediaQuery?.matches ?? false)
+// 基准必须是画布宽度：用 `matchMedia('(max-width: 900px)')` 读的是窗口宽度，
+// 缩放开启后（1280 窗口 → 1638 画布）会把宽敞的画布误判成紧凑档、无谓地弹抽屉。
+const { isCompact: isCompactSettings } = useCanvasMetrics()
 const compactNavOpen = ref(false)
 
 function openCompactNav() {
@@ -275,11 +277,9 @@ function onSettingsShellKeydown(event) {
   if (event.key === 'Tab') trapCompactNavFocus(event)
 }
 
-function onCompactMediaChange(event) {
-  const next = event.matches
-  if (next === isCompactSettings.value) return
+/** 画布跨过紧凑档时收起抽屉并把焦点交回可见侧栏/展开按钮。 */
+function onCompactChange(next) {
   const focusWasInSidebar = settingsSidebarRef.value?.$el?.contains(document.activeElement)
-  isCompactSettings.value = next
   compactNavOpen.value = false
   nextTick(() => {
     if (next) {
@@ -544,20 +544,16 @@ function onSettingsBeforeUnload(e) {
   e.returnValue = ''
 }
 
-function syncCompactSettings() {
-  if (!compactMediaQuery) return
-  isCompactSettings.value = compactMediaQuery.matches
-}
-
 onMounted(() => {
-  syncCompactSettings()
-  compactMediaQuery?.addEventListener('change', onCompactMediaChange)
   window.addEventListener('beforeunload', onSettingsBeforeUnload)
 })
 
 onBeforeUnmount(() => {
-  compactMediaQuery?.removeEventListener('change', onCompactMediaChange)
   window.removeEventListener('beforeunload', onSettingsBeforeUnload)
+})
+
+watch(isCompactSettings, (next) => {
+  onCompactChange(next)
 })
 
 // 无 ?tab= 时同步 URL 为默认落地页（首装向导）

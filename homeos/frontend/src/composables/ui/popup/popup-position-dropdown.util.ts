@@ -23,15 +23,27 @@ export function getTeleportLiveScale(tel: HTMLElement | null) {
 }
 
 /**
- * 自下而上检查祖先链是否含 transform / filter / perspective（这些会改变 fixed 的包含块）。
+ * 自下而上检查祖先链是否会形成「fixed 定位包含块」。
+ *
+ * 命中任一项都会让 `position: fixed` 从相对视口改为相对该祖先，弹窗/下拉的视口坐标
+ * 必须换算成画布坐标才不会偏移：
+ *   - transform / filter / perspective（整页缩放开启时命中 .app-shell 的 transform）
+ *   - contain: layout|paint|strict|content 与 container-type（容器查询的布局包含块）
+ *
+ * **不把 body / html 计入**：body 上的 `hos-canvas` 容器是给「没有主壳的路由」兜底的，
+ * 其内容盒恰好等于视口盒，包含块没有位移；把它算进来反而会让流式模式误走画布坐标换算，
+ * 在宽屏居中留边时把弹窗整体推偏。
+ *
  * @param el 起始元素
  * @returns 命中返回 true
  */
-function hasFixedContainingTransform(el: HTMLElement | null) {
+function hasFixedContainingBlock(el: HTMLElement | null) {
   let node = el
-  while (node) {
+  while (node && node !== document.body && node !== document.documentElement) {
     const style = getComputedStyle(node)
     if (style.transform !== 'none' || style.filter !== 'none' || style.perspective !== 'none') return true
+    if (/\b(layout|paint|strict|content)\b/.test(style.contain)) return true
+    if (style.containerType && style.containerType !== 'normal') return true
     node = node.parentElement
   }
   return false
@@ -39,12 +51,13 @@ function hasFixedContainingTransform(el: HTMLElement | null) {
 
 /**
  * Teleport 下拉是否使用画布坐标系。
- * 等比缩放开启时始终换算（含 scale=1：shell 仍有 transform，视口坐标会错位）。
+ * 等比缩放开启时始终换算（含 scale=1：shell 仍有 transform，视口坐标会错位）；
+ * 流式模式下若 shell 成了 fixed 包含块（容器查询的布局包含块，或大屏居中留边），同样换算。
  */
 export function shouldUseTeleportCanvasCoords(tel: HTMLElement | null) {
   if (!tel) return false
   if (scalingEnabled.value) return true
-  return hasFixedContainingTransform(tel.parentElement)
+  return hasFixedContainingBlock(tel.parentElement)
 }
 
 /** 锚点矩形（DOMRect 只读子集，供定位计算复用） */

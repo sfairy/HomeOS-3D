@@ -43,7 +43,13 @@
   box-shadow: var(--hos-shadow-panel), var(--hos-surface-inset);
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .hos-panel--glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .hos-panel--glass {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

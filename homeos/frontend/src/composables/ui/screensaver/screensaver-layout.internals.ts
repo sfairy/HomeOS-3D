@@ -4,12 +4,8 @@
  */
 import { ref, computed, type Ref } from 'vue'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
-import {
-  activeDesignWidth,
-  activeDesignHeight,
-  computeScreensaverLayout,
-  readViewportBox,
-} from '@/composables/ui/useScaling'
+import { computeScreensaverLayout, readViewportBox } from '@/composables/ui/useScaling'
+import { resolveDesignMetrics } from '@/shared/utils/layout/canvas-layout.util'
 import { screensaverBackgroundIdle } from '@/shared/utils/ui/screensaver-background-idle.util'
 import { SS_DEFAULTS } from './screensaver.defaults'
 import type { useLayoutStore } from '@/stores/layout.store'
@@ -38,10 +34,13 @@ export function createScreensaverLayoutState(layoutStore: LayoutStore) {
 
   const layoutMetrics = computed(() => {
     scalingTick.value
-    const ui = getConfigSection('ui')
-    const designW = activeDesignWidth.value || layoutStore.layoutConfig.pageMaxWidth || ui.scaleBaseWidth || 1366
-    const designH = activeDesignHeight.value || ui.scaleBaseHeight || 1024
-    return computeScreensaverLayout(viewportW.value, viewportH.value, designW, designH)
+    // 设计基准统一走 resolveDesignMetrics：与主壳 / 设置页预览同一条 fallback 链，
+    // 避免「锁屏按 1366 算、主壳按配置算」导致两套画布尺寸对不齐。
+    const metrics = resolveDesignMetrics({
+      pageMaxWidth: layoutStore.layoutConfig.pageMaxWidth,
+      ui: getConfigSection('ui'),
+    })
+    return computeScreensaverLayout(viewportW.value, viewportH.value, metrics.width, metrics.height)
   })
 
   const ssStyle = createSsStyle(ssCfg, layoutMetrics, viewportW, viewportH, burnInOffset)
@@ -132,9 +131,13 @@ function createOverlayShellStyles(
   const contentShellStyle = computed(() => {
     const L = layoutMetrics.value
     if (L.layoutMode === 'scaled') {
+      // 内容盒必须等于画布盒（canvasW × canvasH），而不是设计基准：
+      // 画布两个方向都按视口铺满后，竖屏/宽屏下的画布比设计稿更长或更宽，
+      // 若内容盒仍按 designW × designH，锁屏只会占据画布中间一条，
+      // 上下（或左右）留空 —— 就是「锁屏没随设备自适应」。
       return {
-        width: `${L.designW}px`,
-        height: `${L.designH}px`,
+        width: `${L.canvasW}px`,
+        height: `${L.canvasH}px`,
       }
     }
     return {

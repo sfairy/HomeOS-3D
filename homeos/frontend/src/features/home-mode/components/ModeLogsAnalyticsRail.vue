@@ -44,8 +44,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useHubChart } from '@/composables/life/useLifeChartHost'
+import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
 // 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
 import {
   buildModeResultBarOption,
@@ -74,36 +75,19 @@ useHubChart(resultRef, () => buildModeResultBarOption(analytics.value.ok, analyt
  *
  * 之所以用 JS 而不是纯 CSS：`<details>` 的展开/收起是 DOM 状态（`open` 属性），
  * CSS 只能控制 summary 的显隐，无法把已收起的 `<details>` 重新摊开 —— 从窄屏拉到宽屏时
- * 图表会「消失」，用户只能手动点开。这里跟随媒体查询自动同步，
- * 用户手动点过之后在同一个断点内保持自己的选择。
+ * 图表会「消失」，用户只能手动点开。这里跟随**画布宽度**（与下方 scoped 样式里的
+ * `@container hos-canvas` 同源）自动同步，用户手动点过之后在同一个断点内保持自己的选择。
  */
-const NARROW_QUERY = '(max-width: 1100px)'
+const { isNarrow } = useCanvasMetrics()
 const open = ref(true)
-let mediaQuery: MediaQueryList | null = null
 
-function syncWithViewport(matches: boolean): void {
-  open.value = !matches
-}
-
-function onMediaChange(event: MediaQueryListEvent): void {
-  syncWithViewport(event.matches)
-}
-
-/** 用户点 summary 时同步进 `open`，否则 `:open` 绑定会把用户的点击「改回去」。 */
+/** 用户手动点 summary 时同步进 `open`，否则 `:open` 绑定会把用户的点击「改回去」。 */
 function onToggle(event: Event): void {
   open.value = (event.target as HTMLDetailsElement).open
 }
 
-onMounted(() => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
-  mediaQuery = window.matchMedia(NARROW_QUERY)
-  syncWithViewport(mediaQuery.matches)
-  mediaQuery.addEventListener('change', onMediaChange)
-})
-
-onBeforeUnmount(() => {
-  mediaQuery?.removeEventListener('change', onMediaChange)
-  mediaQuery = null
+watch(isNarrow, (narrow) => {
+  open.value = !narrow
 })
 </script>
 
@@ -143,7 +127,7 @@ onBeforeUnmount(() => {
   min-height: 150px;
   width: 100%;
 }
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .mode-logs-analytics__grid {
     grid-template-columns: 1fr;
   }

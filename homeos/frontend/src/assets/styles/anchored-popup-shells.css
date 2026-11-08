@@ -287,7 +287,23 @@
 
 /* 触控 / 低性能：弹窗外壳禁用 backdrop-filter（与全局 coarse 退化一致，
    避免移动端 GPU 性能损耗与圆角抗锯齿白晕） */
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .gas-popup,
+  .ele-popup,
+  .comm-popup,
+  .w-popup,
+  .media-popup {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* 与 .popup-shell 触控回退一致 */
+  .media-popup {
+    background: rgba(18, 18, 26, 0.96);
+    --popup-pointer-bg: rgba(18, 18, 26, 0.96);
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .gas-popup,
   .ele-popup,
   .comm-popup,

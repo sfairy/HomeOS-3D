@@ -424,7 +424,7 @@
   margin-top: 12px;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .agent-channel-dock-row {
     flex-direction: column;
     align-items: stretch;
@@ -1115,7 +1115,7 @@
 }
 
 /* ── 响应式 ── */
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .agent-model-head,
   .agent-chat-head {
     padding: 16px 16px 0;
@@ -1371,7 +1371,7 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .agent-sched-row {
     flex-direction: column;
     align-items: stretch;
@@ -1573,7 +1573,7 @@
   color: var(--hos-text-secondary);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .agent-companion-position-actions {
     flex-direction: column;
     align-items: stretch;
@@ -1592,7 +1592,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .agent-dock-preview {
     display: none;
   }
@@ -2269,7 +2269,7 @@
 }
 
 /* 小屏：侧栏沉到底部时不吸顶 */
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .agent-workbench__rail {
     position: static;
   }

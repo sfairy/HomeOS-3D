@@ -1235,7 +1235,7 @@ button.dgm-light-card:focus-visible {
   color: var(--hos-text-secondary);
 }
 
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .dgm-light-grid {
     grid-template-columns: 1fr;
   }

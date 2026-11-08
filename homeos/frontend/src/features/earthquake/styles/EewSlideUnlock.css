@@ -264,7 +264,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .eew-slide-track {
     --track-h: 54px;
     --handle: 46px;

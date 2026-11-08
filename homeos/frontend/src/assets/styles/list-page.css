@@ -339,7 +339,7 @@
    问题：平板屏幕上原 0.48 透明度非激活文字 + 透明底与容器融合，
    激活态渐变混 15% 黑后也与底色拉不开。
    做法：大幅提高激活态背景不透明度与阴影深度，确保在任何屏幕上都足够醒目。 */
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .list-page__tab {
     color: rgba(255, 255, 255, 0.62);
   }
@@ -669,7 +669,7 @@
   min-height: 200px;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .list-page {
     padding: 12px;
   }
@@ -691,7 +691,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .list-page__search-wrap {
     max-width: none;
     width: 100%;
@@ -705,7 +705,39 @@
 }
 
 /* 触控 / 窄屏：独立列表页统一去掉易出白晕的毛玻璃、发光与 inset 高光 */
-@media (max-width: 900px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 900px) {
+  .list-page__chip,
+  .list-page__pager,
+  .list-page__panel,
+  .list-page__hero.premium-head--card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .list-page__chip--accent,
+  .list-page__chip--btn.list-page__chip--accent,
+  .list-page__tab--on,
+  .list-page__segment-btn--on,
+  .list-page__segment-btn--accent,
+  .list-page__link-btn:hover,
+  .list-page__row:hover,
+  .list-page__row:hover::before {
+    box-shadow: none !important;
+  }
+
+  .list-page__row:hover,
+  .list-page__link-btn:hover {
+    transform: none;
+  }
+
+  .list-page__tabs,
+  .list-page__filter-segment,
+  .list-page__search,
+  .list-page__row {
+    border-width: 1px;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .list-page__chip,
   .list-page__pager,
   .list-page__panel,

@@ -172,12 +172,12 @@
   width: 100%;
   min-height: 100px;
 }
-@media (min-width: 1100px) {
+@container hos-canvas (min-width: 1100px) {
   .eq-analytics__kpis {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
-@media (max-width: 1024px) {
+@container hos-canvas (max-width: 1024px) {
   .eq-analytics__charts {
     grid-template-columns: 1fr;
     grid-template-rows: auto;

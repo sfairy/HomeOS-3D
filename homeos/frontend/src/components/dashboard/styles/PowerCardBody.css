@@ -119,7 +119,24 @@
   margin-top: 1px;
 }
 
-@media (max-width: 640px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 640px) {
+  .power-card__icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .power-card__meta {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .power-card__bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .power-card__icon-wrap {
     width: 28px;
     height: 28px;

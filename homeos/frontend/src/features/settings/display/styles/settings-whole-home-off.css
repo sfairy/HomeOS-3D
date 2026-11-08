@@ -295,13 +295,13 @@
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.14);
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .wh-off-entities {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .wh-off-domains {
     grid-template-columns: 1fr;
   }

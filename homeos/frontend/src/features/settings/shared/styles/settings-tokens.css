@@ -100,7 +100,12 @@
   --hos-shadow-2: 0 14px 44px rgba(0, 0, 0, 0.28);
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .settings-page {
+    --set-card-surface-inset: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .settings-page {
     --set-card-surface-inset: none;
   }
@@ -144,7 +149,7 @@
  * 通过视口宽度渐进放大设置页字号 token 与面板内边距（在 .settings-shell 内覆盖，
  * 仅作用于设置页，不影响全站其它视图）。3840 无系统缩放时同时命中两档，3200 档在后生效。
  */
-@media (min-width: 1920px) {
+@container hos-canvas (min-width: 1920px) {
   .settings-shell {
     --settings-content-gap: 24px;
     --settings-inset-x: 2.5rem;
@@ -175,7 +180,7 @@
   }
 }
 
-@media (min-width: 3200px) {
+@container hos-canvas (min-width: 3200px) {
   .settings-shell {
     --settings-content-gap: 32px;
     --settings-inset-x: 3.5rem;

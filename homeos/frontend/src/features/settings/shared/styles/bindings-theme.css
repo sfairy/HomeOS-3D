@@ -103,13 +103,31 @@
   gap: 10px;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .bind-sec-overview__paths {
     grid-template-columns: 1fr;
   }
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .bind-sec-path,
+  .bind-sec-path:hover,
+  .bind-sec-path--homeos:hover,
+  .bind-sec-path--ha:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .bind-sec-path--homeos {
+    border-color: rgba(var(--module-accent-bindings-sub-rgb), 0.4);
+  }
+  .bind-sec-path--ha {
+    border-color: rgba(var(--module-accent-bindings-rgb), 0.32);
+  }
+  .bind-sec-action--primary {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .bind-sec-path,
   .bind-sec-path:hover,
   .bind-sec-path--homeos:hover,
@@ -268,7 +286,7 @@
   gap: 10px;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .bind-sec-overview__actions {
     grid-template-columns: 1fr;
   }
@@ -335,7 +353,17 @@
   transform: translateY(-1px);
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .bind-sec-path:hover,
+  .bind-sec-path--homeos:hover,
+  .bind-sec-path--ha:hover,
+  .bind-sec-action--primary,
+  .bind-sec-action--primary:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .bind-sec-path:hover,
   .bind-sec-path--homeos:hover,
   .bind-sec-path--ha:hover,
@@ -359,7 +387,7 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
 }
 
 .config-actions__pending {

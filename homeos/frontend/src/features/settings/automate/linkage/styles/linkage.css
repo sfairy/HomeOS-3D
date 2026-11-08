@@ -215,7 +215,7 @@
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.22);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .linkage-pane-toolbar {
     flex-direction: column;
     align-items: stretch;

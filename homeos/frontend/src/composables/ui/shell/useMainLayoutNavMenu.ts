@@ -1,11 +1,12 @@
 /** - 根据布局配置构建导航菜单项； */
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import { buildMainLayoutNavMenu, capBarItemsForViewport } from '@/shared/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import { useExclusiveDropdown } from '@/composables/ui/popup/useExclusiveDropdown'
+import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
 
 /**
  * 主布局导航菜单 composable。
@@ -25,18 +26,9 @@ export function useMainLayoutNavMenu(options: {
   // 功能码门禁明细（响应式 ref）：导航项按它显隐，拿到新授权后自动重建菜单
   const licenseFeatureAccess = useLicenseFeatureAccess()
 
-  const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1366)
-
-  function onViewportResize() {
-    viewportWidth.value = window.innerWidth
-  }
-
-  onMounted(() => {
-    window.addEventListener('resize', onViewportResize, { passive: true })
-  })
-  onUnmounted(() => {
-    window.removeEventListener('resize', onViewportResize)
-  })
+  // 顶栏 Tab 的收纳宽度基准 = 画布宽度（不是窗口宽度）：缩放开启后画布可能远宽于窗口，
+  // 用 window.innerWidth 会把本该平铺的 Tab 错收进「更多」。
+  const { canvasWidth: viewportWidth } = useCanvasMetrics()
 
   // 导航构建选项：功能码门禁只影响界面显隐（后端仍是权威执行点）。
   const navOptions = computed(() => ({

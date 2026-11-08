@@ -1,5 +1,5 @@
 /* 手机锁屏 fluid 模式 */
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .ss-overlay--fluid .ss-shell {
     width: 100% !important;
     height: 100% !important;
@@ -47,7 +47,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .ss-brand {
     padding-left: 16px;
     padding-right: 16px;
@@ -55,17 +55,19 @@
 }
 
 /* 平板横屏（如小米 Pad）：收紧时钟、保证日期跟在时钟下方 */
-@media (orientation: landscape) and (min-width: 768px) {
-  .ss-time {
-    font-size: min(calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.42));
-  }
+@media (orientation: landscape) {
+  @container hos-canvas (min-width: 768px) {
+    .ss-time {
+      font-size: min(calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)), calc(var(--ss-vh) * 0.42));
+    }
 
-  .ss-stage {
-    padding-bottom: 8px;
-  }
+    .ss-stage {
+      padding-bottom: 8px;
+    }
 
-  .ss-meta {
-    margin-top: clamp(10px, 2.5vh, 28px);
+    .ss-meta {
+      margin-top: clamp(10px, 2.5vh, 28px);
+    }
   }
 }
 
@@ -80,19 +82,21 @@
 
 /* 平板竖屏（如 768×1024）：fluid fit 受宽度主导（≈0.562）导致时钟偏小，
    以设计稿基准（除以 fit）放大时钟，与横屏主场景互不影响 */
-@media (orientation: portrait) and (min-width: 768px) {
-  .ss-time {
-    font-size: min(
-      calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale) / var(--ss-fit, 1)),
-      calc(var(--ss-vh) * 0.42)
-    );
-  }
+@media (orientation: portrait) {
+  @container hos-canvas (min-width: 768px) {
+    .ss-time {
+      font-size: min(
+        calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale) / var(--ss-fit, 1)),
+        calc(var(--ss-vh) * 0.42)
+      );
+    }
 
-  .ss-time-sep {
-    font-size: min(
-      calc(var(--ss-sep-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale) / var(--ss-fit, 1)),
-      calc(var(--ss-vh) * 0.3)
-    );
+    .ss-time-sep {
+      font-size: min(
+        calc(var(--ss-sep-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale) / var(--ss-fit, 1)),
+        calc(var(--ss-vh) * 0.3)
+      );
+    }
   }
 }
 

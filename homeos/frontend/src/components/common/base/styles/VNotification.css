@@ -20,7 +20,7 @@
   top: calc(76px + env(safe-area-inset-top, 0px));
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   /* 窄屏顶栏仍为 52px 高，保持同一安全距离；横向留白收紧，避免卡片贴边。 */
   .notification-container--below-topbar {
     top: calc(72px + env(safe-area-inset-top, 0px));

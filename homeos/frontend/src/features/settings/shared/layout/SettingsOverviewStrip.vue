@@ -336,7 +336,7 @@ onMounted(() => {
   color: #fff;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .settings-overview-strip {
     grid-template-columns: 1fr;
   }

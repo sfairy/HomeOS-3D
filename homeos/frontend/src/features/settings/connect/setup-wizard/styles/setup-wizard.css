@@ -278,7 +278,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .sw-stat-grid {
     grid-template-columns: 1fr;
   }
@@ -299,7 +299,7 @@
   overflow: hidden;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .sw-workspace {
     padding: 14px 14px 16px;
   }
@@ -660,7 +660,7 @@
   background: linear-gradient(90deg, var(--sw-teal), var(--sw-emerald));
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .sw-welcome__banner {
     flex-direction: column;
     align-items: flex-start;
@@ -685,7 +685,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .sw-timeline__node {
     flex: 0 0 calc(50% - 6px);
   }
@@ -886,7 +886,7 @@
   gap: 12px;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .sw-env-sensor-grid {
     grid-template-columns: 1fr;
   }
@@ -1623,7 +1623,7 @@
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .sw-presence__roster--split {
     grid-template-columns: 1fr;
   }
@@ -1750,7 +1750,7 @@
   gap: 12px;
 }
 
-@media (min-width: 640px) {
+@container hos-canvas (min-width: 640px) {
   .sw-doorbell-card__fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

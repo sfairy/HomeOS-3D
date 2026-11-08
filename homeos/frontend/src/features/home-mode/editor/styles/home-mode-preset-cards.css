@@ -322,7 +322,27 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 768px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 768px) {
+  .hm-preset-grid:not(.hm-preset-grid--stack) {
+    grid-template-columns: 1fr;
+  }
+  .hm-preset-card__glow {
+    opacity: 0 !important;
+  }
+  .hm-preset-card--open {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  }
+  .hm-preset-card--open:hover {
+    transform: none;
+  }
+  .hm-preset-card__install {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  }
+  .hm-preset-card__install:hover:not(:disabled) {
+    transform: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .hm-preset-grid:not(.hm-preset-grid--stack) {
     grid-template-columns: 1fr;
   }

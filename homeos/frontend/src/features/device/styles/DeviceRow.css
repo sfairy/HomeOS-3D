@@ -94,7 +94,7 @@
   min-width: 0;
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .device-row .device-row__entity-id {
     display: block;
     max-width: 140px;

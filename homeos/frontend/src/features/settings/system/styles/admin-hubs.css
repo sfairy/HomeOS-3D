@@ -286,7 +286,7 @@
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 720px) {
+@container hos-canvas (min-width: 720px) {
   .fam-status-workspace .fam-status-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -469,7 +469,7 @@
   color: var(--hos-text-secondary);
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .fam-hero__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -564,7 +564,7 @@
   border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .acc-prefs-line {
     flex-wrap: wrap;
   }

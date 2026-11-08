@@ -243,7 +243,7 @@
   margin-top: 16px;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .license-account__identity {
     grid-template-columns: 1fr;
   }
@@ -320,7 +320,7 @@
   word-break: break-all;
 }
 
-@media (max-width: 600px) {
+@container hos-canvas (max-width: 600px) {
   .license-account__row {
     grid-template-columns: 1fr;
     gap: 4px;

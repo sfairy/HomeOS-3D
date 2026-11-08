@@ -634,7 +634,38 @@
   box-shadow: none;
 }
 
-@media (max-width: 900px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 900px) {
+  .settings-orch-tab--active,
+  .ef-item-tabs .settings-orch-tab--active,
+  .embed-item-tabs .settings-orch-tab--active {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .settings-orch-tab:hover,
+  .ef-item-tabs .settings-orch-tab:hover,
+  .embed-item-tabs .settings-orch-tab:hover {
+    transform: none;
+  }
+
+  .settings-orch-tab--active .settings-orch-orb,
+  .embed-item-tabs .settings-orch-orb,
+  .embed-item-tabs .settings-orch-tab--active .settings-orch-orb {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .ef-item-tabs .settings-orch-tab--active .settings-orch-emoji,
+  .ef-item-tabs .settings-orch-tab:hover .settings-orch-emoji {
+    transform: none;
+    filter: none;
+  }
+
+  .settings-orch-indicator {
+    box-shadow: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .settings-orch-tab--active,
   .ef-item-tabs .settings-orch-tab--active,
   .embed-item-tabs .settings-orch-tab--active {

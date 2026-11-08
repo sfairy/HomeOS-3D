@@ -183,7 +183,7 @@
   border-color: var(--hos-color-danger-text);
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .mode-logs-view__col-source,
   .mode-logs-view__col-reason,
   .mode-logs-view__table thead th:nth-child(3),

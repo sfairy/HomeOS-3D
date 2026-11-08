@@ -175,7 +175,7 @@
   border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.28);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .charge-control-actions {
     width: 100%;
     justify-content: flex-end;
@@ -928,7 +928,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .charge-device-card__options {
     grid-template-columns: 1fr;
   }

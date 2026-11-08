@@ -2,7 +2,8 @@
   position: fixed;
   z-index: var(--z-max);
   min-width: 0;
-  max-width: min(280px, calc(100vw - 16px));
+  /* 画布单位：整页缩放开启时 100vw 是窗口宽度，菜单会溢出画布右缘 */
+  max-width: min(280px, calc(var(--hos-screen-w, 100vw) - 16px));
   width: max-content;
   overflow-y: auto;
   padding: 6px;

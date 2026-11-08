@@ -99,7 +99,7 @@
   gap: 8px;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .bind-env-workspace-card__body {
     padding: 16px;
   }

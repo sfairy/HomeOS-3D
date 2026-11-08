@@ -643,7 +643,7 @@
   filter: brightness(1.06);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .alert-edit-modal {
     width: min(100%, calc(var(--hos-screen-w, 100vw) - 24px));
     max-width: 520px;
@@ -1165,13 +1165,13 @@
   border-color: rgba(var(--page-accent-secondary-rgb), 0.22);
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .ard-impact-chips {
     padding-left: 0;
   }
 }
 
-@media (min-width: 720px) {
+@container hos-canvas (min-width: 720px) {
   .ard-impact-band {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -1196,13 +1196,13 @@
   }
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .alert-dnd-presets__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .ard-status-band,
   .ard-body {
     padding-left: 16px;
@@ -1224,7 +1224,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .alert-dnd-presets__grid {
     grid-template-columns: 1fr;
   }
@@ -1382,7 +1382,7 @@
   gap: 10px;
 }
 
-@media (min-width: 720px) {
+@container hos-canvas (min-width: 720px) {
   .alert-voice-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1472,7 +1472,7 @@
   margin-top: 0;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .arv-body {
     padding-left: 16px;
     padding-right: 16px;
@@ -1620,7 +1620,7 @@
   margin-top: 14px;
 }
 
-@media (max-width: 600px) {
+@container hos-canvas (max-width: 600px) {
   .alert-eew-coord-fields {
     grid-template-columns: 1fr;
   }
@@ -1754,7 +1754,7 @@
   border: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .alert-eew-threshold-flow {
     grid-template-columns: 1fr;
   }
@@ -1850,7 +1850,7 @@
   align-items: stretch;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .alert-eew-drill__body {
     grid-template-columns: 1fr;
   }
@@ -1874,7 +1874,7 @@
     background 0.25s;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .alert-eew-drill__preview {
     min-height: 132px;
     border-right: none;
@@ -2119,7 +2119,7 @@
   transform: none;
 }
 
-@media (max-width: 600px) {
+@container hos-canvas (max-width: 600px) {
   .alert-eew-drill__foot {
     flex-direction: column;
     align-items: stretch;

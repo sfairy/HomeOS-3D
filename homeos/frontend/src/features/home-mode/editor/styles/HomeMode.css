@@ -1610,7 +1610,7 @@
   font-style: italic;
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .home-mode-panel .hm-master-detail {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
@@ -1647,7 +1647,7 @@
 }
 
 /* 窄屏才纵向堆叠预设侧栏；勿用 pointer:coarse，触控宽屏会误把编辑区压扁 */
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .home-mode-panel .hm-split {
     flex-direction: column;
     min-height: 0;
@@ -1663,7 +1663,48 @@
   }
 }
 
-@media (max-width: 900px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 900px) {
+  .home-mode-panel .hm-context-pills {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-mode-panel .hm-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-mode-panel .hm-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-mode-panel .hm-editor-head__card {
+    flex-direction: column;
+  }
+  .home-mode-panel .hm-section-head {
+    flex-direction: column;
+  }
+  .home-mode-panel .hm-batch-panel__grid {
+    grid-template-columns: 1fr;
+  }
+  .home-mode-panel .hm-action-row {
+    flex-wrap: wrap;
+  }
+  .home-mode-panel--embedded .hm-context-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    grid-template-columns: unset;
+  }
+  .home-mode-panel .hm-editor-head__icon {
+    box-shadow: none;
+  }
+  .home-mode-panel .hm-mode-footer {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(8, 10, 16, 0.94);
+  }
+  .home-mode-panel .hm-template-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .home-mode-panel .hm-context-pills {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1705,7 +1746,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .home-mode-panel .hm-template-grid {
     grid-template-columns: 1fr;
   }
@@ -1721,7 +1762,7 @@
 }
 
 /* 手机窄屏：标题/页脚/动作网格/日志卡片与底部保存条 */
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .home-mode-panel .hm-editor-head--compact .hm-editor-head__title-row {
     flex-wrap: wrap;
     row-gap: 4px;
@@ -2037,7 +2078,7 @@
   transition: transform 0.2s;
 }
 
-@media (max-width: 900px) and (min-width: 640px) {
+@container hos-canvas (max-width: 900px) and (min-width: 640px) {
   .hm-action-card__fields-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -2422,7 +2463,7 @@
   color: var(--hos-text-secondary);
 }
 
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .home-mode-panel .hm-form-grid--basic {
     grid-template-columns: 1fr 1fr;
   }
@@ -2431,7 +2472,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .home-mode-panel .hm-form-grid,
   .home-mode-panel .hm-form-grid--basic {
     grid-template-columns: 1fr;

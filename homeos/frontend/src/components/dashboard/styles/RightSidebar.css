@@ -307,7 +307,22 @@
   flex: none;
 }
 
-@media (max-width: 640px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 640px) {
+  .info-panel,
+  .panel-collapse-btn {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .info-panel {
+    background: rgba(var(--shell-scrim-card-rgb), 0.96);
+  }
+
+  .panel-collapse-btn {
+    background: rgba(var(--shell-scrim-dock-rgb), 0.92);
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .info-panel,
   .panel-collapse-btn {
     -webkit-backdrop-filter: none;

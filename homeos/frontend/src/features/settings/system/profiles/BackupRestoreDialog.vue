@@ -391,9 +391,9 @@ defineExpose({ open, close })
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(620px, calc(100vw - 40px));
+  width: min(620px, calc(var(--hos-screen-w, 100vw) - 40px));
   height: fit-content;
-  max-height: calc(100dvh - 40px);
+  max-height: calc(var(--hos-screen-h, 100dvh) - 40px);
   padding: 0;
   border: 1px solid #3a444c;
   border-radius: var(--hos-r-1);
@@ -439,7 +439,7 @@ defineExpose({ open, close })
   background: #ffffff12;
 }
 .hos-backup-dialog__body {
-  max-height: calc(100dvh - 130px);
+  max-height: calc(var(--hos-screen-h, 100dvh) - 130px);
   overflow-y: auto;
   padding: 20px;
 }

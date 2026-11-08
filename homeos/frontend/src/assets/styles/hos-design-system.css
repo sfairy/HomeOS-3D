@@ -178,6 +178,35 @@
  * 同时去掉顶沿 inset 高光（与实线边框叠出会出现双边/光晕）。
  * 含 max-width：部分手机「桌面站点」会报 pointer:fine，仅靠 coarse 不够。
  */
+@media (pointer: coarse), (hover: none) {
+  :root {
+    --hos-hairline: 1px;
+    /* 描边加粗到 1px 后，开关滑块的水平/垂直基准偏移要同步重算（见文件顶部开关几何族），
+       否则滑块会比轨道中心低 0.5px、右侧留白比左侧多 1px。 */
+    --hos-switch-thumb-inset: calc(var(--hos-switch-inset) - var(--hos-hairline));
+    --hos-surface-inset: none;
+    --hos-surface-well-inset: inset 0 2px 8px rgba(0, 0, 0, 0.28);
+    --hos-border-subtle: rgba(255, 255, 255, 0.1);
+    --hos-border-strong: rgba(255, 255, 255, 0.16);
+    /* 设置页卡片表面 inset：去掉顶沿高光，避免与 1px 边叠成双边光晕 */
+    --set-card-surface-inset: none;
+    /* 削弱彩色外发光：移动端圆角抗锯齿会把 soft shadow 渲成白色/彩色晕 */
+    --page-accent-glow: transparent;
+    --premium-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+    --premium-shadow-open: 0 6px 18px rgba(0, 0, 0, 0.28);
+    --hos-shadow-card: 0 6px 18px rgba(0, 0, 0, 0.28);
+    --hos-shadow-card-hover: 0 8px 22px rgba(0, 0, 0, 0.34);
+    --hos-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.32);
+    --set-card-surface-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+    --acc-open-glow: transparent;
+  }
+}
+/*
+ * 文档级令牌（`:root`）不能放进容器查询：`:root` 不是任何容器的后代，
+ * `@container` 里的 `:root` 规则永远不会命中（整段令牌覆盖会静默失效）。
+ * 这些值的语义是「触控 / 小屏设备把描边、发光、控件高度切到粗粒度」，
+ * 与画布宽度无关，因此保留媒体查询。
+ */
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   :root {
     --hos-hairline: 1px;

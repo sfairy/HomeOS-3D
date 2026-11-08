@@ -143,8 +143,8 @@
   box-shadow: 0 0 10px color-mix(in srgb, var(--tab-accent, var(--accent)) 55%, transparent);
 }
 
-@media (max-width: 1024px) {
-  html:not(.hos-canvas-scaled) .tab-bar__mode-switcher.home-mode-switcher {
+@container hos-canvas (max-width: 1024px) {
+  .tab-bar__mode-switcher.home-mode-switcher {
     margin-right: 0;
     padding-right: 3px;
   }
@@ -152,36 +152,36 @@
   /* 平板/手机档把这个切换器收成图标：完整形态约 226px，是顶栏预算最大占用方。
      768px 下带上它和完整品牌后，导航只剩 52px（与本轮 P0 同形的裁切）。
      保留控件本身，只压掉文字标签。 */
-  html:not(.hos-canvas-scaled) .tab-bar .home-mode-switcher__label {
+  .tab-bar .home-mode-switcher__label {
     display: none;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar .home-mode-switcher__btn {
+  .tab-bar .home-mode-switcher__btn {
     padding: 4px;
     min-height: 36px;
   }
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   /* 存在感指示点（84px）只是「家人是否在家」的状态点缀，窄屏下让位给导航。
      它的信息在模式按钮的 tooltip 与总览页仍可读。 */
-  html:not(.hos-canvas-scaled) .tab-bar .home-mode-switcher__presence-wrap {
+  .tab-bar .home-mode-switcher__presence-wrap {
     display: none;
   }
 
   .tab-bar .home-mode-switcher__presence,
-  html:not(.hos-canvas-scaled) .tab-bar .home-mode-switcher__btn {
+  .tab-bar .home-mode-switcher__btn {
     min-height: 36px;
   }
 
-  html:not(.hos-canvas-scaled) .tab-bar .tab-bar__title {
+  .tab-bar .tab-bar__title {
     font-size: var(--premium-fs-body-sm);
     font-weight: 700;
   }
 }
 
-@media (max-width: 640px) {
-  html:not(.hos-canvas-scaled) .tab-bar .logo-wrapper {
+@container hos-canvas (max-width: 640px) {
+  .tab-bar .logo-wrapper {
     width: 26px;
     height: 26px;
   }

@@ -177,8 +177,11 @@
         :scaling-enabled="scalingEnabled"
         :scale="scale"
         :scale-clamped="scaleClamped"
+        :phone-fluid="phoneViewport"
         :active-design-width="activeDesignWidth"
         :design-height="DESIGN_HEIGHT"
+        :canvas-width="activeCanvasWidth"
+        :canvas-height="activeCanvasHeight"
         :viewport-w="viewportW"
         :viewport-h="viewportH"
         :width-presets="widthPresets"
@@ -329,7 +332,10 @@ const {
   toggleScaling,
   scale,
   scaleClamped,
+  phoneViewport,
   activeDesignWidth,
+  activeCanvasWidth,
+  activeCanvasHeight,
   DESIGN_HEIGHT,
   vw: viewportW,
   vh: viewportH,

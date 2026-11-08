@@ -101,6 +101,30 @@
   overflow: hidden;
 }
 
+/**
+ * 缩放态才把壳层提升为布局断点容器（`hos-canvas`）。
+ *
+ * 为什么必须用 `@container` 而不是 `@media`：`@media` 读的是**真实窗口宽度**，而画布
+ * 可能比窗口宽得多（1280px 窗口 + 1366 设计基准 → 画布 1638；1920px 窗口 → 画布 1820）。
+ * 用窗口宽度决策会让宽画布套用「平板/手机」规则 —— 顶栏文字被隐藏、操作区被裁。
+ * 容器宽度就是画布宽度，断点才对得上实际布局盒。
+ *
+ * 为什么只在 `.app-shell--scaling` 上声明，而不是整个 `.app-shell`：
+ * `container-type` 会引入布局包含块，把壳内 `position: fixed` 的后代从「相对视口」
+ * 改成「相对壳层」。缩放态本来就有 transform（同样是包含块），行为不变；
+ * 但流式态壳层可能在大屏居中留边，加了会让遮罩/弹窗只盖住中间那块。
+ * 流式态因此不声明容器 —— 查询自然上溯到 `body` 上的同名容器（宽 = 窗口宽），
+ * 与迁移前的 `@media` 完全等价。
+ *
+ * 为什么容器挂在壳层而不是 `__content`：大量响应式规则作用于 Teleport 到
+ * `#teleport-target` 的弹窗/抽屉，而它是 `__content` 的**兄弟**节点，只有共同祖先
+ * 才能覆盖到。
+ */
+.app-shell--scaling {
+  container-type: inline-size;
+  container-name: hos-canvas;
+}
+
 /** 互斥下拉打开时冻结 scale 过渡，避免 visualViewport 变化期间定位失步 */
 .app-shell--dropdown-open {
   transition: none !important;

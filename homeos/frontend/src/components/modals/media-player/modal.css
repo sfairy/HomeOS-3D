@@ -618,7 +618,7 @@
 }
 
 /* ---- 窄屏回退为竖向布局 ---- */
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .media-modal {
     min-height: 0;
     max-height: min(calc(var(--hos-screen-h, 100vh) * 0.94), 680px) !important;
@@ -659,24 +659,26 @@
   }
 }
 
-@media (max-height: 600px) and (min-width: 640px) {
-  .media-modal {
-    min-height: min(380px, calc(var(--hos-screen-h, 100vh) * 0.92));
-    max-height: calc(var(--hos-screen-h, 100vh) * 0.92) !important;
-  }
+@media (max-height: 600px) {
+  @container hos-canvas (min-width: 640px) {
+    .media-modal {
+      min-height: min(380px, calc(var(--hos-screen-h, 100vh) * 0.92));
+      max-height: calc(var(--hos-screen-h, 100vh) * 0.92) !important;
+    }
 
-  .media-modal__art-frame {
-    max-height: 300px;
-    height: 300px;
-  }
+    .media-modal__art-frame {
+      max-height: 300px;
+      height: 300px;
+    }
 
-  .media-modal__play {
-    width: 68px;
-    height: 68px;
+    .media-modal__play {
+      width: 68px;
+      height: 68px;
+    }
   }
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .media-modal__bg-art {
     filter: blur(24px) saturate(1.15);
     opacity: 0.28;

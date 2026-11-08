@@ -561,7 +561,7 @@
   color: #bae6fd;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .life-indices__spotlight {
     grid-template-columns: 1fr 1fr;
   }
@@ -570,7 +570,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .life-indices__spotlight {
     grid-template-columns: 1fr;
   }

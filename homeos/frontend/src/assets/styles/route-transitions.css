@@ -229,7 +229,15 @@
 }
 
 /* 触控 / 窄屏：沿用全局重毛玻璃退化策略，直接去掉模糊（背景图反而更清楚） */
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .app-shell--light-backdrop .app-shell__content .tab-bar,
+  .app-shell--light-backdrop .shell-right-sidebar .info-panel,
+  .app-shell--light-backdrop .shell-footer.power-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .app-shell--light-backdrop .app-shell__content .tab-bar,
   .app-shell--light-backdrop .shell-right-sidebar .info-panel,
   .app-shell--light-backdrop .shell-footer.power-panel {

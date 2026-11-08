@@ -240,7 +240,7 @@
    三档与 /earthquake-history 的既有断点保持一致。
    ══════════════════════════════════════════════════════════ */
 
-@media (max-width: 1280px) {
+@container hos-canvas (max-width: 1280px) {
   .events-view__layout,
   .notifications-view__layout {
     /* 中屏收一点右栏地板，先保住两栏并存 */
@@ -249,7 +249,7 @@
   }
 }
 
-@media (max-width: 1024px) {
+@container hos-canvas (max-width: 1024px) {
   /* 平板及以下：单栏堆叠，并让内容区自己滚动（父级是 overflow:hidden） */
   .events-view__content,
   .notifications-view__content {
@@ -272,7 +272,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .events-view__layout,
   .notifications-view__layout {
     gap: 10px;

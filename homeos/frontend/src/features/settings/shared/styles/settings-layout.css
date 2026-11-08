@@ -846,7 +846,7 @@
 }
 
 /* 平板（≤1100px）：增强侧栏 tab 激活态区分 */
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .sidebar-tab {
     color: rgba(255, 255, 255, 0.72);
   }
@@ -1221,7 +1221,7 @@
   display: flex;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .settings-main__copy {
     display: flex;
   }
@@ -1751,7 +1751,7 @@ input.settings-field {
   gap: 16px;
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .settings-breadcrumb {
     padding: 8px 1rem 0;
     font-size: var(--set-fs-micro, 12px);
@@ -1788,7 +1788,7 @@ input.settings-field {
  * 字号与面板内边距 token 见 settings-tokens.css 的 @media 放大块。
  * 3840 无系统缩放时同时命中两档，3200 档在后生效。
  */
-@media (min-width: 1920px) {
+@container hos-canvas (min-width: 1920px) {
   .settings-sidebar,
   .settings-sidebar--desktop {
     width: 300px;
@@ -1863,7 +1863,7 @@ input.settings-field {
   }
 }
 
-@media (min-width: 3200px) {
+@container hos-canvas (min-width: 3200px) {
   .settings-sidebar,
   .settings-sidebar--desktop {
     width: 340px;
@@ -1968,7 +1968,7 @@ input.settings-field {
  * 260px 固定侧栏在 390px 视口会把主内容压到约 130px；这里让侧栏脱离布局、
  * 默认移出视口，由「导航」按钮/遮罩/Esc 控制，主内容始终占满宽度。
  */
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .settings-shell--compact .settings-sidebar--desktop {
     position: absolute;
     inset: 0 auto 0 0;

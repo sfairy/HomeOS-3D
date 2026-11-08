@@ -86,6 +86,11 @@ const GATE_GROUPS = {
     { name: 'check:css-syntax-shared', ...bun('run', '--cwd', 'packages/shared', 'check:css') },
     // Biome 没有 no-restricted-syntax 的等价物，这两条规范约束用脚本承接。
     { name: 'check:restricted-syntax', ...bun('run', 'check:restricted-syntax') },
+    // 画布断点守卫：壳层宽度断点必须是 @container hos-canvas，不能再回落到读窗口宽度的 @media
+    // （缩放开启后二者不是一回事，回落即「缩放后顶栏文字消失 / 操作区被裁」）。
+    { name: 'check:canvas-breakpoints', ...bun('run', 'check:canvas-breakpoints') },
+    // 分辨率审计：5 档设计基准 × 15 档真实终端，验证画布两轴铺满、不变形、不错档。
+    { name: 'audit:scaling', ...bun('run', 'audit:scaling') },
     { name: 'lint:py', ...bun('run', 'lint:py') },
     { name: 'typecheck:node', ...bun('run', 'typecheck:node') },
     { name: 'check:scene', ...bun('run', 'check:scene') },

@@ -471,7 +471,7 @@
   width: 100%;
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .bind-account-mapping__actions {
     width: 100%;
   }

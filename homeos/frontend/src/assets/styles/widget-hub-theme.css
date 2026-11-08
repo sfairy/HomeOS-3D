@@ -125,7 +125,7 @@
 }
 
 /* ── 平板（≤1100px）：增强 widget-hub tab 激活/非激活对比度 ── */
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .widget-hub-subnav__btn {
     color: rgba(255, 255, 255, 0.58);
   }

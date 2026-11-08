@@ -39,8 +39,9 @@
     var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
 
   width: 320px;
-  /* 小屏兜底：任何宽度变体都不得超出视口（配合下方断点自适应） */
-  max-width: calc(100vw - 32px);
+  /* 小屏兜底：任何宽度变体都不得超出画布（配合下方断点自适应）。
+     用画布单位而不是 100vw：整页缩放开启时 100vw 是窗口宽度，弹窗会宽出画布。 */
+  max-width: calc(var(--hos-screen-w, 100vw) - 32px);
   padding: 24px;
   animation: popup-bounce-in 0.55s var(--ease-bounce);
   position: relative;
@@ -78,7 +79,7 @@
 
 /* ---- 中等视口（481-700px）：弹窗宽度自适应 90vw，避免横向溢出 ----
    注意：实体弹窗挂载于缩放画布，视口宽度为 CSS 像素而非画布坐标，此处按真实视口判断 */
-@media (max-width: 720px) and (min-width: 480px) {
+@container hos-canvas (max-width: 720px) and (min-width: 480px) {
   .popup-shell,
   .popup-shell--wide,
   .popup-shell--narrow {
@@ -93,7 +94,7 @@
 }
 
 /* 窄屏（≤480px）：统一收窄至 90vw，保证小屏不溢出 */
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .popup-shell,
   .popup-shell--wide,
   .popup-shell--narrow {

@@ -166,7 +166,56 @@
   --ef-accent: #2dd4bf;
 }
 
-@media (max-width: 640px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 640px) {
+  .power-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--glass-off-bg-heavy);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .power-panel__glow {
+    display: none;
+  }
+
+  .power-panel::before {
+    opacity: 0.4;
+  }
+
+  /* 触控/窄屏：保持单行固定高度（底栏高度参与 dashboard 布局，换行会把内容区顶上去），
+     卡片不足宽度时不压扁而是横向滚动 + scroll-snap，每张卡保证 132px 起。 */
+  .power-panel__body {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(132px, 1fr);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-inline: 10px;
+    gap: 4px;
+  }
+
+  .power-panel__body::-webkit-scrollbar {
+    display: none;
+  }
+
+  .power-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    scroll-snap-align: start;
+    padding: 6px 6px 6px 12px;
+    gap: 6px;
+  }
+
+  .power-card:hover {
+    transform: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .power-panel {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

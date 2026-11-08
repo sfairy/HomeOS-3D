@@ -121,7 +121,14 @@
   white-space: nowrap;
 }
 
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  .hcc-card__tab {
+    /* 分段 Tab 保持横向 pill，不用 44px 方触控框 */
+    min-height: unset;
+    padding: 6px 14px;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   .hcc-card__tab {
     /* 分段 Tab 保持横向 pill，不用 44px 方触控框 */
     min-height: unset;

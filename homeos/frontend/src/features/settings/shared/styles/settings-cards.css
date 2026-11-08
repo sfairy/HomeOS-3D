@@ -546,7 +546,40 @@
   pointer-events: none;
 }
 
-@media (max-width: 640px), (pointer: coarse) {
+@container hos-canvas (max-width: 640px) {
+  .settings-range-field__stepper {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    grid-template-rows: 44px;
+    width: 148px;
+    min-height: 44px;
+  }
+
+  .settings-range-field__input {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 8px 6px;
+  }
+
+  .settings-range-field__spin-btn--dec {
+    grid-column: 1;
+    grid-row: 1;
+    border-left: none;
+    border-right: var(--hos-hairline) solid var(--premium-border-strong);
+    border-top: none;
+  }
+
+  .settings-range-field__spin-btn--inc {
+    grid-column: 3;
+    grid-row: 1;
+    border-top: none;
+  }
+
+  .settings-range-field__spin-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+@media (pointer: coarse) {
   .settings-range-field__stepper {
     grid-template-columns: 40px minmax(0, 1fr) 40px;
     grid-template-rows: 44px;

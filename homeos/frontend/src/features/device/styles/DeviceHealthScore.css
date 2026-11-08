@@ -354,7 +354,7 @@
   margin-right: 2px;
 }
 
-@media (max-width: 600px) {
+@container hos-canvas (max-width: 600px) {
   .device-health__main {
     grid-template-columns: 1fr;
   }

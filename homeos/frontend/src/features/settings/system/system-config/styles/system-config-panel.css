@@ -346,7 +346,7 @@
   outline-offset: var(--hos-focus-offset);
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .params-shell {
     flex-direction: column;
   }
@@ -360,7 +360,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .params-inline-head {
     flex-direction: column;
     align-items: stretch;

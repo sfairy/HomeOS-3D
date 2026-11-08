@@ -50,6 +50,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useScaling, holdScaledCanvasFlag } from '@/composables/ui/useScaling'
 import { getConfigSection, configEpoch, getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
+import { resolveDesignMetrics } from '@/shared/utils/layout/canvas-layout.util'
 import { adaptiveTier } from '@/shared/utils/perf/adaptive-perf.util'
 
 const props = defineProps({
@@ -77,11 +78,14 @@ const pauseViewportGlow = computed(() => {
   return entitiesStore.totalCount >= getWorkerDerivedThreshold() || adaptiveTier.value !== 'high'
 })
 
-// 解析生效的最大宽度：props.pageMaxWidth > layoutConfig.pageMaxWidth > 配置 scaleBaseWidth > 1366
+// 解析生效的设计基准宽度：props.pageMaxWidth > layoutConfig.pageMaxWidth > 配置 scaleBaseWidth > 1366
+// 统一走 resolveDesignMetrics，保证设置页预览、屏保与真实壳层用同一套 fallback 顺序。
 const resolvedMaxWidth = computed(() => {
   configEpoch.value
-  if (props.pageMaxWidth != null && props.pageMaxWidth > 0) return props.pageMaxWidth
-  return layoutStore.layoutConfig.pageMaxWidth || getConfigSection('ui').scaleBaseWidth || 1366
+  return resolveDesignMetrics({
+    pageMaxWidth: props.pageMaxWidth ?? layoutStore.layoutConfig.pageMaxWidth,
+    ui: getConfigSection('ui'),
+  }).width
 })
 
 // 流式模式的宽度上限。
@@ -142,13 +146,13 @@ const computedShellStyle = computed(() => {
 const wrapperContentStyle = computed(() => (scalingOn.value ? contentStyle.value : undefined))
 
 /**
- * 缩放画布标记：让画布内的 `@media` 断点不再按真实窗口宽度决策。
+ * 缩放画布标记（`html.hos-canvas-scaled`）。
  *
- * 画布是一块固定宽（1366~1728）的虚拟桌面，而 `@media (max-width: 1280px)` 读的是
- * 浏览器窗口 —— 1280 及以下的笔记本窗口会把 1728 宽的画布判成平板/手机，
- * 顶栏文字被隐藏、操作区被裁、导航塌成图标 + 「更多」，即「缩放后显示不全」。
- * 打上 `hos-canvas-scaled` 后，main-layout.css / tab-bar-mode-switcher.css 里
- * 这些断点用 `html:not(.hos-canvas-scaled)` 门控，只在未缩放时才生效。
+ * 断点已统一迁到 `@container hos-canvas`（见 `.app-shell` 的 container-type），
+ * 不再需要用这个 class 去门控 `@media`。保留它的原因只剩两点：
+ *   1. 其它仍按窗口宽度决策的少量逻辑/样式需要知道「现在处于缩放态」；
+ *   2. 便于 DevTools 与审计脚本快速识别当前模式。
+ * 注意：新增样式**不要**再写 `html:not(.hos-canvas-scaled)` 门控，直接写容器查询。
  */
 let releaseCanvasFlag = null
 watch(

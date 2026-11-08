@@ -451,7 +451,7 @@
   color: #fde68a;
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .el-record-filter__mode-segments {
     grid-template-columns: 1fr;
   }
@@ -519,7 +519,7 @@
   padding: var(--hos-panel-padding-default, 20px) var(--settings-inset-x, 2rem) var(--hos-space-2xl, 24px);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .conn-workspace-card__tabs {
     padding: 10px 12px 0;
   }

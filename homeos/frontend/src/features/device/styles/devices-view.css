@@ -119,7 +119,7 @@
 }
 
 /* ── 响应式梯度：1440 / 1024 / 640，避免仅一个 900px 断点造成中间尺寸拥挤 ── */
-@media (min-width: 1440px) {
+@container hos-canvas (min-width: 1440px) {
   .devices-view__hero-toolbar {
     gap: 16px;
   }
@@ -129,20 +129,20 @@
   }
 }
 
-@media (max-width: 1024px) {
+@container hos-canvas (max-width: 1024px) {
   .devices-view__hero-toolbar {
     flex-wrap: wrap;
     row-gap: 10px;
   }
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .devices-view__hero-toolbar {
     gap: 8px;
   }
 }
 
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .devices-view__hero-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -161,7 +161,7 @@
 
 /* 窄屏：视图切换不再横向滚动。只有两枚按钮，换行铺满比「裁掉一半 + 无提示」
    更容易发现；域筛选仍保留左右箭头（数量不定，换行会把首屏推得过高）。 */
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .devices-view__mode-chips {
     flex-wrap: wrap;
     overflow: visible;

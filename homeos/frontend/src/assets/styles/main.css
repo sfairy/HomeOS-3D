@@ -27,8 +27,10 @@ dialog:modal {
   position: fixed;
   inset: 0;
   margin: auto;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100dvh - 32px);
+  /* 用画布单位而不是真实视口：整页缩放开启时 100vw/100dvh 是窗口尺寸，
+     会让模态框比画布还窄/矮，与其他走 --hos-screen-* 的弹窗尺寸不一致。 */
+  max-width: calc(var(--hos-screen-w, 100vw) - 32px);
+  max-height: calc(var(--hos-screen-h, 100dvh) - 32px);
 }
 
 /* ==========================================================================
@@ -66,6 +68,22 @@ body {
 /** 固定深色主题 */
 html {
   color-scheme: dark;
+}
+
+/**
+ * 布局断点的兜底容器（`hos-canvas`）。
+ *
+ * 全站宽度断点已从 `@media` 迁到 `@container hos-canvas`：主壳里由 `.app-shell`
+ * 提供更近的同名容器（宽度 = 画布宽度，未开缩放时等于窗口宽度）；而登录 / 激活 /
+ * 户型图绘制 / 整屏展示这些**没有主壳**的路由，以及 Teleport 到 body 的弹窗、抽屉，
+ * 需要 body 这一层兜底，才能拿到「窗口宽度」这条原本由 `@media` 表达的基准。
+ *
+ * 安全性：body 已是 `height:100% + overflow:hidden + margin:0`，其内容盒恒等于视口盒，
+ * 因此布局包含带来的「fixed 包含块」与「绝对定位基准」两个副作用都不改变坐标。
+ */
+body {
+  container-type: inline-size;
+  container-name: hos-canvas;
 }
 
 /** body 深色主题基准：纯黑视口背景 + 白色主文字。
@@ -1037,7 +1055,32 @@ input[type="range"].hos-range-ui:disabled {
  * - 禁用 ios-card 的 backdrop-filter（触摸屏 GPU 性能有限）
  * - 发丝边框宽度由 hos-design-system.css 的 --hos-hairline 统一切到 1px
  */
-@media (pointer: coarse), (hover: none) {
+@media (pointer: coarse) {
+  :root {
+    --touch-min: 44px;
+  }
+  .widget-wrapper {
+    will-change: auto !important;
+  }
+  .ios-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* 触控端取消易粘住的 hover 态（桌面仍靠 @media (hover:hover) 生效） */
+  .list-page__btn:hover,
+  .list-page__chip--btn:hover,
+  .list-page__tab:hover,
+  .list-page__segment-btn:hover,
+  .list-page__card--interactive:hover,
+  .icon-btn:hover,
+  .wr-btn-weak:hover,
+  .wr-btn-add:hover {
+    transform: none;
+    filter: none;
+  }
+}
+@media (hover: none) {
   :root {
     --touch-min: 44px;
   }
@@ -1106,7 +1149,7 @@ input[type="range"].hos-range-ui:disabled {
  */
 
 /* ────── 平板 (640–1024px) 未开缩放：限制画布拉伸 ────── */
-@media (min-width: 640px) and (max-width: 1024px) {
+@container hos-canvas (min-width: 640px) and (max-width: 1024px) {
   .app-shell:not(.app-shell--scaling) {
     max-width: 100vw;
     margin: 0 auto;
@@ -1118,7 +1161,164 @@ input[type="range"].hos-range-ui:disabled {
 }
 
 /* ────── 触屏通用优化 ────── */
-@media (pointer: coarse), (hover: none), (max-width: 900px) {
+@media (pointer: coarse), (hover: none) {
+  /* 增大点击目标；侧栏 widget 卡片排除，避免横滑面板被撑变形 */
+  .entity-item,
+  .tab-item,
+  .settings-sidebar .tab-item {
+    min-height: var(--touch-target-min, 44px);
+    min-width: var(--touch-target-min, 44px);
+  }
+
+  /* 设置页 / Widget 常用按钮：统一触控下限，覆盖 32–36px 硬编码。
+     开关轨道排除：min-height:44 会按规范抬高 max-height，胶囊 (40×20 / 44×26)
+     被撑成近正方形，再叠加 border-radius:999 就变成圆形。热区已由 ::before 外扩。 */
+  .settings-btn-primary,
+  .settings-btn-accent,
+  .settings-btn-ghost,
+  .list-page__link-btn,
+  .list-page__btn,
+  .wr-btn-add,
+  .wr-btn-weak,
+  .icon-btn,
+  .hos-degrade-banner__retry,
+  .widget-glass-card button:not(.widget-ignore-touch-min):not(.toggle-btn):not(.sg-toggle):not([role="switch"]),
+  .settings-card button:not([aria-hidden="true"]):not(.widget-ignore-touch-min):not(.toggle-btn):not([role="switch"]) {
+    min-height: var(--touch-target-min, 44px);
+  }
+
+  .icon-btn {
+    min-width: var(--touch-target-min, 44px);
+  }
+
+  .info-panel > .widget-wrapper {
+    min-height: unset;
+    min-width: unset;
+  }
+
+  /* 禁用耗性能 / 易渗色毛玻璃（卡片/面板/弹层/独立页统一）
+     清单字面量内联（`var()` 在选择器位置不生效）——详见 :root 里 7.10e 的说明 */
+  .widget-wrapper {
+    will-change: auto !important;
+  }
+  :is(
+    .ios-card,
+    .climate-card,
+    .glass-panel,
+    .tab-bar,
+    .power-panel,
+    .premium-glass-surface--elevated,
+    .premium-glass-surface--panel,
+    .premium-head--card,
+    .list-page__panel,
+    .list-page__pager,
+    .list-page__hero.premium-head--card,
+    .hos-panel--glass,
+    .premium-backdrop,
+    .popup-shell,
+    .info-panel,
+    .panel-collapse-btn,
+    .notification-drawer,
+    .device-group-modal,
+    .dgm-shell,
+    .linkage-builder-drawer-panel,
+    .linkage-builder-drawer-backdrop,
+    .orch-premium-shell,
+    .settings-popout-menu__scrim,
+    .sov-panel,
+    .sec-hub,
+    .sov-zones
+  ) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .glass-panel:not(.glass-panel--native),
+  .tab-bar {
+    background: var(--glass-off-bg-surface);
+  }
+  .power-panel {
+    background: var(--glass-off-bg-heavy);
+  }
+  .popup-shell {
+    background: var(--glass-off-bg-popup);
+  }
+
+  /* 去掉玻璃顶/装饰细线，避免圆角裁剪失败时的亮边光晕 */
+  .ios-card::after,
+  .climate-card::before,
+  .glass-shine::after {
+    content: none !important;
+  }
+
+  /* 图标芯片 / 诊断环 / 方案卡：去掉易在圆角处泛白的彩色外发光 */
+  .premium-head__orb,
+  .rec-insight__orb,
+  .hm-preset-card__icon,
+  .power-card__icon-wrap,
+  .ef-preview__icon-wrap,
+  .life-overview__cat-orb,
+  .hm-template-card__icon,
+  .hm-editor-head__icon,
+  .settings-orch-orb,
+  .hub-tabs-config__toggle,
+  .hub-tabs-config__segment,
+  .dev-metric__icon,
+  .linkage-overview__cat-orb,
+  .lp-metrics__item,
+  .diag-hero-orb,
+  .diag-hero-orb--ok,
+  .diag-hero-orb--warn,
+  .diag-hero-orb--bad,
+  .diag-metrics-ring,
+  .diag-metrics-banner__orb--ok,
+  .diag-metrics-banner__orb--warn,
+  .diag-metrics-banner__orb--bad,
+  .diag-config-health__eyebrow::before,
+  .diag-section-title::before,
+  .bind-sec-path,
+  .bind-sec-path:hover,
+  .bind-sec-path--homeos:hover,
+  .bind-sec-path--ha:hover,
+  .bind-sec-action--primary,
+  .bind-doorbell-card:hover,
+  .list-page__btn--primary,
+  .list-page__btn--primary:hover:not(:disabled),
+  .settings-switch-toggle--on,
+  .sz-zone-card--focus,
+  .settings-choice-btn--active svg,
+  .sec-dash-mode-btn--active,
+  .sec-mode-btn--active,
+  .sec-dash-status-ring {
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  .sov-zones__glow,
+  .linkage-overview__analytics-glow,
+  .linkage-overview__stream-glow,
+  .hm-preset-card__glow,
+  .premium-head__glow,
+  .sw-step-hero__glow,
+  .ef-preview__glow,
+  .edit-command-glow {
+    display: none !important;
+  }
+
+  /* 主按钮保留轻暗影，去掉彩色光晕 */
+  .list-page__btn--primary,
+  .bind-sec-action--primary {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  /* 增大滚动区域 */
+  .info-panel,
+  .entity-sidebar,
+  .settings-main {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+@container hos-canvas (max-width: 900px) {
   /* 增大点击目标；侧栏 widget 卡片排除，避免横滑面板被撑变形 */
   .entity-item,
   .tab-item,

@@ -248,7 +248,7 @@
   color: rgba(148, 163, 184, 0.55);
 }
 
-@media (max-width: 480px) {
+@container hos-canvas (max-width: 480px) {
   .weather-hub-config__tab-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

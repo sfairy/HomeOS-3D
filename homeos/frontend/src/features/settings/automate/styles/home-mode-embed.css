@@ -129,7 +129,7 @@
   border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
 
-@media (max-width: 640px) {
+@container hos-canvas (max-width: 640px) {
   .settings-home-mode-workspace__main {
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
   }
@@ -154,7 +154,7 @@
   }
 }
 
-@media (min-width: 1440px) {
+@container hos-canvas (min-width: 1440px) {
   .settings-home-mode-workspace .home-mode-panel--embedded {
     border-radius: var(--hos-r-4);
   }

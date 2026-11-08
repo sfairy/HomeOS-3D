@@ -296,7 +296,7 @@
   background: radial-gradient(ellipse 85% 120% at 0% 0%, var(--flow-glow-a) 0%, transparent 58%), rgba(0, 0, 0, 0.1);
 }
 
-@media (max-width: 720px) {
+@container hos-canvas (max-width: 720px) {
   .settings-flow-band {
     padding: 10px 12px 12px;
   }

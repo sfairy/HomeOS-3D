@@ -155,7 +155,7 @@
 }
 
 /* 平板（≤1100px）：增强各 -view 页面 tab 激活对比度（与基类保持一致） */
-@media (max-width: 1100px) {
+@container hos-canvas (max-width: 1100px) {
   .list-page[class*="-view"] .list-page__tab {
     color: rgba(255, 255, 255, 0.62);
   }
@@ -714,7 +714,7 @@
 }
 
 /* 中屏：侧栏变窄并保持左右布局，避免统计/筛选并排挤占主列表高度 */
-@media (max-width: 1200px) {
+@container hos-canvas (max-width: 1200px) {
   .devices-view__layout:not(.is-sidebar-collapsed) {
     grid-template-columns: minmax(240px, 260px) minmax(0, 1fr);
     gap: 12px;
@@ -726,7 +726,7 @@
 }
 
 /* 窄屏：侧栏叠到上方，高度受限，主列表优先 */
-@media (max-width: 900px) {
+@container hos-canvas (max-width: 900px) {
   .devices-view__layout:not(.is-sidebar-collapsed) {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
@@ -749,7 +749,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@container hos-canvas (max-width: 768px) {
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar {
     grid-template-columns: 1fr;
     max-height: none;
@@ -764,7 +764,26 @@
   }
 }
 
-@media (max-width: 900px), (pointer: coarse), (hover: none) {
+@container hos-canvas (max-width: 900px) {
+  .lp-metrics__item {
+    box-shadow: none;
+  }
+  .lp-metrics__item:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .list-page[class*="-view"] .list-page__tab--on,
+  .list-page[class*="-view"] .list-page__btn--primary,
+  .list-page[class*="-view"] .list-page__btn--primary:hover:not(:disabled),
+  .list-page[class*="-view"] .list-page__chip--accent {
+    box-shadow: none;
+  }
+  .devices-view .list-page__row:hover::before,
+  .device-detail-view .list-page__row:hover::before {
+    box-shadow: none;
+  }
+}
+@media (pointer: coarse), (hover: none) {
   .lp-metrics__item {
     box-shadow: none;
   }

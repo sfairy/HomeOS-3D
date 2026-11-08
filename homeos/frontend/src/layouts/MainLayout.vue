@@ -43,6 +43,7 @@ import { autoPerformanceModeRef, resolveEffectivePerformanceMode } from '@/share
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import { useViewportTier } from '@/shared/utils/layout/viewport-tier.util'
+import { useCanvasMetrics } from '@/composables/ui/useCanvasMetrics'
 import {
   buildDropdownFixedStyle,
   rectToDropdownPosition,
@@ -382,8 +383,10 @@ watch(
   (path) => setDerivedRoutePath(path),
   { immediate: true },
 )
-// 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费
-useViewportTier()
+// 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费。
+// 基准必须传画布宽度：档位语义是「这块画布有多宽」，窗口宽度在缩放态下会错档。
+const { canvasWidth: canvasTierWidth } = useCanvasMetrics()
+useViewportTier(canvasTierWidth)
 
 // 每日顾问问候：必须等 isConfigLoaded，否则读到的是前端默认值（dailyAdvisorSpeak=false 永不触发）。
 const { maybeGreet: maybeDailyGreet } = useDailyAdvisorGreeting()
