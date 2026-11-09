@@ -269,7 +269,11 @@ export function createLightStream({
       for (const cleanupChunkListeners of chunkListenerCleanups) cleanupChunkListeners()
       for (const chunk of slot.chunks)
         try {
-          chunk.socket.close()
+          // 握手期（CONNECTING）直接 close() 会被浏览器报
+          // “WebSocket is closed before the connection is established”：等握手完成再关。
+          chunk.socket.readyState === 0
+            ? chunk.socket.addEventListener('open', () => chunk.socket.close(), { once: true })
+            : chunk.socket.close()
         } catch {
           // 清理期关闭失败无需处理：socket 可能已经没有底层连接。
         }
