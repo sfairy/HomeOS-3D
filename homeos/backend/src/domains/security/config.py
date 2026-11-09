@@ -28,6 +28,10 @@ DEFAULT_SECURITY_CONFIG: dict[str, Any] = {
     "autoArmOnEveryoneLeft": False,
     "autoUpgradeToAwayOnEveryoneLeft": False,
     "calendarArmOnAway": False,
+    #: 日历外出时，若当前为居家/夜间则升级离家（与「全员离家升级」独立）。
+    "calendarUpgradeToAway": False,
+    #: 同一人员多 tracker：True=全部在家才算在家（AND，默认）；False=任一在家即在家（OR）。
+    "presenceRequireAllAway": True,
     "autoDisarmOnFirstHome": False,
     "linkAwaySimOnArmAway": False,
     "linkHomeModeOnSecurityChange": True,

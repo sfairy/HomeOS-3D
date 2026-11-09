@@ -57,6 +57,8 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
 }
 
 const loadedFamilies = new Set<string>()
+/** 在途加载 Promise：await 完成前占位，避免并发 boot/setDocument 双载同一族 */
+const loadingFamilies = new Map<string, Promise<void>>()
 
 /**
  * 并发加载组件族并注册。
@@ -78,10 +80,21 @@ export async function loadComponentFamilies(
     requested.map(async (family) => {
       const loader = componentFamilyLoaders[family]
       if (!loader || loadedFamilies.has(family)) return
-      const registerFamily = (await loader()).default
-      registerFamily(registerComponent)
-      loadedFamilies.add(family)
-      loadedNow.push(family)
+      let inflight = loadingFamilies.get(family)
+      if (!inflight) {
+        inflight = (async () => {
+          const registerFamily = (await loader()).default
+          registerFamily(registerComponent)
+          loadedFamilies.add(family)
+        })().finally(() => {
+          loadingFamilies.delete(family)
+        })
+        loadingFamilies.set(family, inflight)
+        await inflight
+        loadedNow.push(family)
+        return
+      }
+      await inflight
     }),
   )
   // 诊断用：族是按需 chunk，光看 network 看不出「下载的是哪一族」（文件名是 shared-*），

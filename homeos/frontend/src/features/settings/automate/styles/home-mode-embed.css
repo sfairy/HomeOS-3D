@@ -59,6 +59,9 @@
   border-radius: var(--hos-r-4);
   border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(5, 8, 13, 0.55);
+  /* 外壳只做 flex 笼，真正滚动交给 .hm-panel-scroll；页脚在笼内但不进滚动区（LAY-22） */
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -125,6 +128,9 @@
 }
 
 .settings-home-mode-workspace .home-mode-panel--embedded .hm-mode-footer {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   background: rgba(0, 0, 0, 0.28);
   border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }

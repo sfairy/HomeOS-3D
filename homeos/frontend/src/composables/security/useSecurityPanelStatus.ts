@@ -46,6 +46,8 @@ let subscriberCount = 0
 // 轮询任务取消函数（注册到全局调度器，页面隐藏时由调度器统一暂停）
 let pollCancel: (() => void) | null = null
 const POLL_MS = 10000
+/** 状态代际：布防/WS patch 后递增，丢弃在途 poll 写回的旧 mode */
+let statusGeneration = 0
 
 /** 有订阅者（浮动图层 / 安防页）且页面可见时轮询 */
 function shouldPoll() {
@@ -71,12 +73,15 @@ async function refresh(force = false) {
     // 布防/撤防后手动刷新仍显示旧模式。
     invalidateSharedFetch('security:panel-status')
   }
+  const generation = statusGeneration
   try {
     // sharedFetch 在 POLL_MS 窗口内合并重复请求
     await sharedFetch(
       'security:panel-status',
       async () => {
         const { data } = await fetchSecurityPanelStatus()
+        // 在途 poll 不得盖掉布防/WS 刚写入的更新 mode
+        if (generation !== statusGeneration) return data
         currentMode.value = data.mode || 'disarmed'
         zones.value = data.zones || []
         ready.value = true
@@ -109,6 +114,8 @@ async function refresh(force = false) {
  * @sideEffects 更新 currentMode/zones；zones 为空时触发 refresh
  */
 function applyModeFromSocket(data: SecurityModeSocketPayload) {
+  statusGeneration++
+  invalidateSharedFetch('security:panel-status')
   if (data?.mode) currentMode.value = data.mode
   const list = zones.value
   if (!list.length) {

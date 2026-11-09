@@ -337,6 +337,34 @@ class AwaySimulationService:
                 )
                 self._cover_pool = []
 
+        if not self._light_pool and not self._cover_pool:
+            # 双池皆空：要么 HA 拉取失败、要么家里没有可模拟目标。
+            # 仍标 enabled 会让 UI 显示「运行中」却永不动作，并持久化空池跨重启。
+            logger.warning("离家模拟启用失败：灯具池与窗帘池均为空")
+            schedule_security_event(
+                self._session_factory,
+                "away_sim_enable_failed",
+                "离家模拟启用失败：无可模拟的灯具/窗帘",
+            )
+            self._enabled = False
+            self._started_at = None
+            await self._bus.emit(
+                AWAY_SIM_SYNC_EVENT,
+                {
+                    "enabled": False,
+                    "timestamp": _iso_now(),
+                    "activeStartHour": self._active_start_hour,
+                    "activeEndHour": self._active_end_hour,
+                    "lightPool": [],
+                    "coverPool": [],
+                    "lastToggled": self._last_toggled,
+                    "lastCoverToggled": self._last_cover_toggled,
+                    "lastCoverAction": self._last_cover_action,
+                    "error": "empty_pools",
+                },
+            )
+            return self.get_status()
+
         self._enabled = True
         self._started_at = _iso_now()
         logger.info(

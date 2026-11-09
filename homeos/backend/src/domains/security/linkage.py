@@ -245,13 +245,13 @@ class SecurityLinkageService:
         current = self._panel.get_mode()
         away = bool(isinstance(data, dict) and data.get("away"))
         try:
-            if away and cfg.get("calendarArmOnAway"):
+            if away and (cfg.get("calendarArmOnAway") or cfg.get("calendarUpgradeToAway")):
                 if self._auto_action_blocked():
                     return
-                if current == "disarmed":
+                if current == "disarmed" and cfg.get("calendarArmOnAway"):
                     if await self._arm_checked("armed_away", {"source": "calendar"}, "日历外出自动布防"):
                         logger.info("日历显示外出：已自动切换为离家布防")
-                elif current in ("armed_home", "armed_night") and cfg.get("autoUpgradeToAwayOnEveryoneLeft"):
+                elif current in ("armed_home", "armed_night") and cfg.get("calendarUpgradeToAway"):
                     if await self._arm_checked(
                         "armed_away",
                         {"source": "calendar", "force": True},

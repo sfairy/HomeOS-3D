@@ -154,6 +154,11 @@ async def get_all_entities(
     paging = parse_crud_pagination(page, limit, max_size=2000)
     page_num = paging["pageNum"]
     page_size = paging["pageSize"]
+    # 未传 limit 时不再默认全量 dump（~705 实体风暴）；显式 limit=0 仍表示全量。
+    # REST 回退客户端已按 limit+cursor/page 翻页，不受影响。
+    if page_size <= 0 and limit is None and cursor is None and offset is None:
+        page_size = 200
+        page_num = max(1, page_num)
     use_cursor = page_size > 0 and (cursor is not None or page_num <= 0)
 
     async def page_of(items: list[dict[str, Any]]) -> list[dict[str, Any]]:

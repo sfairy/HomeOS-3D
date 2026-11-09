@@ -153,24 +153,20 @@
       }"
       role="button"
       tabindex="0"
-      :aria-label="ariaLabel"
-      :title="hint"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
-      @pointerleave="onPointerLeave"
-      @keydown.enter.prevent="openChat"
-      @keydown.space.prevent="openChat"
-      @contextmenu.prevent
+      :aria-label="a11yMenu?.menuAriaLabel" :aria-expanded="!!a11yMenu?.menuOpen" :aria-haspopup="true"
+      :aria-controls="a11yMenu?.menuOpen ? 'companion-a11y-menu' : undefined" :title="a11yMenu?.menuHint"
+      @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
+      @pointercancel="onPointerUp" @pointerleave="onPointerLeave"
+      @keydown="(e) => a11yMenu?.onTriggerKeydown(e)" @contextmenu.prevent
     >
       <span class="companion-halo" aria-hidden="true"></span>
-      <AgentMechaAvatar
-        class="companion-avatar"
-        :mode="isSleeping ? 'sleep' : 'active'"
-        :is-active="!isSleeping"
-      />
+      <AgentMechaAvatar class="companion-avatar" :mode="isSleeping ? 'sleep' : 'active'" :is-active="!isSleeping" />
     </div>
+
+    <CompanionA11yMenu
+      ref="a11yMenu" :can-open="state !== 'listening' && state !== 'thinking'" :chat-open="chatOpen"
+      :is-listening="state === 'listening'" @tips="enterTips" @voice="beginVoice" @chat="openChat"
+    />
   </div>
 </template>
 
@@ -186,6 +182,7 @@ import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { hapticHold, hapticTap } from '@/shared/utils/ui/haptics.util'
 import { logger } from '@/shared/utils/core/logger'
 import AgentMechaAvatar from './agent-companion/AgentMechaAvatar.vue'
+import CompanionA11yMenu from './agent-companion/CompanionA11yMenu.vue'
 import { askCompanionSpoken } from './agent-companion/useCompanionSpeech'
 import { useCompanionWake } from './agent-companion/useCompanionWake'
 import { GREETING, TIPS, WAVE_WEIGHTS } from './agent-companion/companion-copy'
@@ -294,11 +291,7 @@ const chatOpen = computed(() => chrome.isAgentChatOpen)
 const currentTip = computed(() => TIPS[tipIndex.value % TIPS.length])
 const isSleeping = computed(() => state.value === 'idle' || state.value === 'dormant')
 
-const ariaLabel = computed(() => {
-  if (state.value === 'listening') return '正在聆听，松开发送'
-  return 'HomeOS 智能管家（长按语音 · 单击灵感 · 双击展开）'
-})
-const hint = computed(() => 'HomeOS 智能管家 (长按语音 · 单击灵感 · 双击展开)')
+const a11yMenu = ref<InstanceType<typeof CompanionA11yMenu> | null>(null)
 
 const hudTitle = computed(() => {
   if (slideCancel.value) return '松开手指，取消发送'
@@ -593,6 +586,7 @@ function registerTap() {
 }
 
 function openChat() {
+  a11yMenu.value?.closeA11yMenu()
   collapseToIdle()
   hapticHold()
   chrome.openAgentChat()
@@ -772,6 +766,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', syncViewport)
   clearAllTimers()
+  a11yMenu.value?.closeA11yMenu()
   stopWave()
   stopListen()
 })

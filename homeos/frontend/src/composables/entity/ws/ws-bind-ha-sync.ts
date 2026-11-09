@@ -203,10 +203,13 @@ export function bindEntitySocketHaSync(
       void actions.appNotify?.(`实时状态积压，已丢弃 ${dropped} 条更新，正在重新对齐实体状态`, 'warning')
       refs.entitiesStale.value = true
       // 优先增量对齐（服务端有 since 游标，代价很小），失败再退回整表。
+      // F10：对齐完成后按缓存真值结清仍挂着的乐观态，避免丢包窗口留下「假恢复」展示。
       void (async () => {
         const soft = await actions.requestSoftResync?.('HA 状态队列积压')
-        if (soft) return
-        void actions.fetchEntitiesFallback?.('HA 状态队列积压', { force: true, quiet: true })
+        if (!soft) {
+          await actions.fetchEntitiesFallback?.('HA 状态队列积压', { force: true, quiet: true })
+        }
+        actions.confirmOptimisticAfterResync?.('HA 状态队列积压')
       })()
     },
   )

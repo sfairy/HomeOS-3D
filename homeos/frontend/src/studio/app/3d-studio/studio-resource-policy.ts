@@ -1,18 +1,32 @@
 /**
  * 交互式预览（3D 场景）的资源策略：按设备能力给接触阴影、反射、动效定预算。
  * 桌面端（G=true）才启用这些预算，移动端走更保守的默认值。
+ *
+ * WaveUI-C：运动路径保持锐利/省预算；闲时/近场可升 anisotropy、反射分辨率与接触影。
+ * 禁止默认 perf-low / 永久全局砍阴影。
  */
 export const interactionResourcePolicy = Object.freeze({
   contactShadows: Object.freeze({
+    /** 运动 / 冷启动预算（嵌入式舞台）。 */
     resolution: 512,
     surfaceResolution: 128,
     maxSurfaceLevels: 16,
+    /** 闲时升一档：脚下接触影更软，不改运动路径。 */
+    idleResolution: 1024,
+    idleSurfaceResolution: 256,
   }),
   reflections: Object.freeze({
+    /** 运动中上限（低端/拖拽时保帧）。 */
     maxResolution: 256,
+    /** 闲时 / 高端墙板：大墙面地板清晰到 512（外观设置仍可自行选 256/512/768）。 */
+    idleMaxResolution: 512,
     inactiveBudget: 8388608,
     maxInactiveRecords: 2,
     insideIdleMs: 10000,
+  }),
+  textures: Object.freeze({
+    motionAnisotropy: 4,
+    idleAnisotropy: 16,
   }),
   motion: Object.freeze({
     // 桌面清晰优先；低端墙板仍可通过 appearance.motionRenderScale / performanceMode 下调。
@@ -39,6 +53,48 @@ export const interactionResourcePolicy = Object.freeze({
     normalBias: 0.02,
   }),
 })
+
+/**
+ * 反射分辨率预算：运动压到 maxResolution；闲时恢复外观档（含 512/768，不压低用户更高档）。
+ * 低端设备全程卡在 maxResolution。`idleMaxResolution` 文档化为闲时目标上限参考。
+ */
+export function resolveReflectionResolution(isIdle: boolean, appearanceResolution: number): number {
+  const { maxResolution } = interactionResourcePolicy.reflections
+  if (isLowEndDevice() || !isIdle) return Math.min(appearanceResolution, maxResolution)
+  return appearanceResolution
+}
+
+/** @deprecated 使用 resolveReflectionResolution；保留给旧调用方。 */
+export function resolveReflectionResolutionCap(isIdle: boolean): number {
+  return isIdle
+    ? interactionResourcePolicy.reflections.idleMaxResolution
+    : interactionResourcePolicy.reflections.maxResolution
+}
+
+/** 接触阴影：闲时升分辨率；运动保持 resource-policy 运动预算。 */
+export function resolveContactShadowQuality(isIdle: boolean) {
+  const policy = interactionResourcePolicy.contactShadows
+  if (isIdle && !isLowEndDevice()) {
+    return {
+      resolution: policy.idleResolution,
+      surfaceResolution: policy.idleSurfaceResolution,
+      maxSurfaceLevels: policy.maxSurfaceLevels,
+    }
+  }
+  return {
+    resolution: policy.resolution,
+    surfaceResolution: policy.surfaceResolution,
+    maxSurfaceLevels: policy.maxSurfaceLevels,
+  }
+}
+
+/** 贴图各向异性：闲时升到设备上限夹紧后的 idle 档；运动维持较低预算。 */
+export function resolveTextureAnisotropy(isIdle: boolean, deviceMax = 1): number {
+  const budget = isIdle
+    ? interactionResourcePolicy.textures.idleAnisotropy
+    : interactionResourcePolicy.textures.motionAnisotropy
+  return Math.min(Math.max(1, deviceMax || 1), budget)
+}
 
 /**
  * 太阳光阴影贴图分辨率（B12）。

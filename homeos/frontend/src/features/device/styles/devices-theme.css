@@ -14,6 +14,8 @@
   --dev-accent-soft: color-mix(in srgb, var(--dev-accent) 14%, rgba(0, 0, 0, 0));
   --dev-accent-border: color-mix(in srgb, var(--dev-accent) 38%, rgba(0, 0, 0, 0));
   --dev-accent-text: color-mix(in srgb, var(--dev-accent) 55%, white);
+  /* 墙板臂长扫读：设备页 micro 抬到 caption，徽章仍可局部覆盖 */
+  --premium-fs-micro: var(--premium-fs-caption, var(--hos-fs-3, 13px));
 }
 
 /* ── 玻璃卡片（委托 premium 工具类，仅补圆角与内边距） ── */
@@ -1292,7 +1294,7 @@
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
-  transition: background 0.15s;
+  transition: background var(--hos-dur-fast, 120ms) var(--hos-ease-standard, ease);
 }
 
 .device-overview__link-btn:hover {
@@ -1502,6 +1504,12 @@
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.92fr);
   gap: 12px;
   align-items: stretch;
+}
+
+@container hos-canvas (max-width: 900px) {
+  .device-detail-tab__panel--split {
+    grid-template-columns: 1fr;
+  }
 }
 
 .device-detail-tab__chart-wrap,
@@ -1854,6 +1862,12 @@
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.95fr);
   gap: 12px;
   align-items: stretch;
+}
+
+@container hos-canvas (max-width: 900px) {
+  .device-history-panel__body {
+    grid-template-columns: 1fr;
+  }
 }
 
 .device-history-panel__chart,

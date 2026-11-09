@@ -327,7 +327,18 @@ export function useScaling(
    * 用户换回平板/桌面后自动恢复。
    */
   const phoneViewport = computed(() => isPhoneViewport(vw.value, vh.value))
-  const scalingOn = computed(() => !!options?.forceScaling?.value || (scalingEnabled.value && !phoneViewport.value))
+  /**
+   * 可读性硬门槛：requiredScale 低于 MIN_SCALE 时强制流体布局。
+   * 设置页仍可保留「想开缩放」的偏好，但不得以 8px 正文作为默认展示路径。
+   */
+  const belowReadableViewport = computed(() => {
+    const layout = computeViewportLayout(vw.value, vh.value, designWidth.value, designHeight.value)
+    return layout.belowReadable
+  })
+  const scalingOn = computed(
+    () =>
+      !!options?.forceScaling?.value || (scalingEnabled.value && !phoneViewport.value && !belowReadableViewport.value),
+  )
   /** 是否发布模块级全局量：默认 false，只有主壳显式开启（单一 owner） */
   const publishGlobals = options?.publishGlobals === true
   // 当前画布布局：未开启缩放时返回 null

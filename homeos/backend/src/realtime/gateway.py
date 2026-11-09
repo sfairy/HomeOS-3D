@@ -161,6 +161,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         }
 
     def _ws_config(self):
+        """同步读 WS 推送配置（仅供非事件循环线程 / 测试）。热路径请用 ``_ws_config_async``。"""
         now = time.monotonic()
         cached = getattr(self, "_ws_cfg_cache", None)
         cached_at = getattr(self, "_ws_cfg_at", 0.0)
@@ -173,19 +174,61 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         self._ws_cfg_at = now
         return cfg
 
+    async def _ws_config_async(self):
+        now = time.monotonic()
+        cached = getattr(self, "_ws_cfg_cache", None)
+        cached_at = getattr(self, "_ws_cfg_at", 0.0)
+        if cached is not None and now - cached_at < 5.0:
+            return cached
+        database = self.app.state.database
+
+        def _load():
+            with database.session_factory() as session:
+                return load_ws_push_config(session)
+
+        cfg = await asyncio.to_thread(_load)
+        self._ws_cfg_cache = cfg
+        self._ws_cfg_at = now
+        return cfg
+
     def _state_config(self):
         database = self.app.state.database
         with database.session_factory() as session:
             return load_state_store_config(session)
 
+    async def _state_config_async(self):
+        database = self.app.state.database
+
+        def _load():
+            with database.session_factory() as session:
+                return load_state_store_config(session)
+
+        return await asyncio.to_thread(_load)
+
     def _apply_state_config(self) -> None:
-        """把 ``stateStore`` 分区配置热更新到 L1 存储（5s TTL 缓存，避免每批都读库）。"""
+        """同步热更新（仅非 async 热路径）。async 调用方请用 ``_apply_state_config_async``。"""
         now = time.monotonic()
         if now - self._state_cfg_at < 5.0:
             return
         self._state_cfg_at = now
         try:
             cfg = self._state_config()
+        except Exception:
+            logger.warning("读取 stateStore 配置失败，本次沿用上次配置", exc_info=True)
+            return
+        self.state_store.apply_config(
+            max_recent_changes=cfg.max_recent_changes,
+            stale_threshold_ms=cfg.stale_threshold_ms,
+        )
+
+    async def _apply_state_config_async(self) -> None:
+        """把 ``stateStore`` 分区配置热更新到 L1 存储（5s TTL 缓存，避免每批都读库）。"""
+        now = time.monotonic()
+        if now - self._state_cfg_at < 5.0:
+            return
+        self._state_cfg_at = now
+        try:
+            cfg = await self._state_config_async()
         except Exception:
             # 读库失败就沿用上一次已生效的配置；但要留痕，否则「配置改了不生效」
             # 会表现成前端状态字段全是旧的，而日志里毫无线索。
@@ -238,8 +281,8 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         if event_log is not None:
             self._log_state_changes(event_log, changes)
         started = time.monotonic()
-        ws_cfg = self._ws_config()
-        self._apply_state_config()
+        ws_cfg = await self._ws_config_async()
+        await self._apply_state_config_async()
         payloads = [to_ws_state_change_payload(change) for change in changes]
         # 出站时刻（epoch ms）：前端据此对齐「后端广播 → UI apply」这一段。
         # 之前 payloads 只读 event.pipeline_ts，而没有任何地方写入它，于是前端
@@ -314,43 +357,44 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                     logger.warning("推送状态变更失败 sids=%s", bucket_sids, exc_info=result)
         record_ha_sync_latency("ws_emit", (time.monotonic() - started) * 1000)
 
-    async def _emit_state_changes(
+    async def _emit_pinned_under_backpressure(
         self,
-        sids: list[str],
+        sid: str,
         visible: list[dict[str, Any]],
         timestamp: str,
-        has_pinned: bool,
     ) -> None:
-        """向一批可见集相同的连接推送同一批变更；背压连接单独降级。
+        """背压时只强制推送该连接的钉选子集，避免整批灌爆慢墙板写队列。"""
+        session = self._session_for(sid)
+        pinned = as_set(session.get("pinnedEntityIds"), require_dot=True) or set()
+        pinned_changes = [change for change in visible if change.get("entity_id") in pinned]
+        if not pinned_changes:
+            return
+        await self.sio.emit(
+            "state_changed_batch",
+            {
+                "type": "state_changed_batch",
+                "changes": pinned_changes,
+                "count": len(pinned_changes),
+                "timestamp": timestamp,
+            },
+            to=sid,
+        )
 
-        同桶连接共享同一份 payload：通过临时房间 ``emit(to=room)`` 让 socket.io 只
-        序列化一次（逐连接 emit 会重复 ``json.dumps`` 同一份大 batch）。
-        """
-        batch = {
-            "type": "state_changed_batch",
-            "changes": visible,
-            "count": len(visible),
-            "timestamp": timestamp,
-        }
-        ready: list[str] = []
-        for sid in sids:
-            if not self._is_socket_backpressured(sid) or has_pinned:
-                self._resync_pending.discard(sid)
-                ready.append(sid)
-                continue
-            # 背压且无钉选实体：不推状态，改用「建议重同步」提示。但同一轮背压内只提示一次 ——
-            # 每个变更都发一条只会往已经堆积的写队列里继续灌水，越堵越糟。
-            dropped = self._note_backpressure_drop(sid)
-            if sid in self._resync_pending:
-                continue
-            self._resync_pending.add(sid)
-            logger.debug(
-                "WS 背压丢弃状态批次 sid=%s dropped=%s limit=%s",
-                sid,
-                dropped,
-                self._backpressure_frames,
-            )
-            await self.sio.emit("resync_suggested", resync_suggested_payload(), to=sid)
+    async def _suggest_resync_under_backpressure(self, sid: str, *, has_pinned: bool) -> None:
+        dropped = self._note_backpressure_drop(sid)
+        if sid in self._resync_pending:
+            return
+        self._resync_pending.add(sid)
+        logger.debug(
+            "WS 背压丢弃状态批次 sid=%s dropped=%s limit=%s pinned=%s",
+            sid,
+            dropped,
+            self._backpressure_frames,
+            has_pinned,
+        )
+        await self.sio.emit("resync_suggested", resync_suggested_payload(), to=sid)
+
+    async def _emit_batch_to_ready(self, ready: list[str], batch: dict[str, Any]) -> None:
         if not ready:
             return
         if len(ready) == 1:
@@ -374,6 +418,37 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                     await self.sio.leave_room(sid, room)
                 except (KeyError, ValueError):
                     continue
+
+    async def _emit_state_changes(
+        self,
+        sids: list[str],
+        visible: list[dict[str, Any]],
+        timestamp: str,
+        has_pinned: bool,
+    ) -> None:
+        """向一批可见集相同的连接推送同一批变更；背压连接单独降级。
+
+        同桶连接共享同一份 payload：通过临时房间 ``emit(to=room)`` 让 socket.io 只
+        序列化一次（逐连接 emit 会重复 ``json.dumps`` 同一份大 batch）。
+        """
+        batch = {
+            "type": "state_changed_batch",
+            "changes": visible,
+            "count": len(visible),
+            "timestamp": timestamp,
+        }
+        ready: list[str] = []
+        for sid in sids:
+            if not self._is_socket_backpressured(sid):
+                self._resync_pending.discard(sid)
+                ready.append(sid)
+                continue
+            # 背压时即使有钉选，也不得整批（含非钉选）绕过：只强制推送该连接的钉选子集，
+            # 其余走 resync_suggested，避免慢墙板写队列被传感器洪水灌爆。
+            if has_pinned:
+                await self._emit_pinned_under_backpressure(sid, visible, timestamp)
+            await self._suggest_resync_under_backpressure(sid, has_pinned=has_pinned)
+        await self._emit_batch_to_ready(ready, batch)
 
     def _note_backpressure_drop(self, sid: str) -> int:
         """记录某连接因背压被丢弃的一个状态批次，返回该连接累计丢弃数。"""

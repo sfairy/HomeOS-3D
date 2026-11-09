@@ -335,7 +335,7 @@
 }
 
 .afh-icon-btn--active {
-  color: #fff;
+  color: var(--hos-fg-1, #fff);
   border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.5);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.55), rgba(79, 70, 229, 0.42));
   box-shadow: 0 8px 20px rgba(79, 70, 229, 0.28);
@@ -346,7 +346,7 @@
 }
 
 .afh-icon-btn--danger:hover {
-  color: #fecaca;
+  color: var(--hos-color-danger-text, #fecaca);
   border-color: rgba(244, 63, 94, 0.35);
   background: rgba(244, 63, 94, 0.1);
 }
@@ -354,7 +354,7 @@
 /* ── 配置 Studio ── */
 
 .afh-nav__pill--active {
-  color: #fff;
+  color: var(--hos-fg-1, #fff);
   border-color: transparent;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
@@ -505,7 +505,7 @@
 .afh-input--mono {
   font-family: ui-monospace, monospace;
   font-size: var(--premium-fs-micro);
-  color: #bfdbfe;
+  color: var(--hos-color-info-text, #bfdbfe);
 }
 
 .afh-input--area {
@@ -559,7 +559,7 @@
 }
 
 .afh-toggle__opt--active {
-  color: #fff;
+  color: var(--hos-fg-1, #fff);
   border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.35);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.38), rgba(79, 70, 229, 0.24));
   box-shadow: 0 6px 16px rgba(79, 70, 229, 0.2);
@@ -659,7 +659,7 @@
   text-align: left;
 }
 
-@container hos-canvas (max-width: 640px) {
+@container settings-scroll (max-width: 640px) {
   .afh-size-stepper {
     width: 100%;
   }
@@ -1321,7 +1321,7 @@
   transform: translateX(-8px);
 }
 
-@container hos-canvas (max-width: 640px) {
+@container settings-scroll (max-width: 640px) {
   .afh-card__head {
     flex-direction: column;
     align-items: stretch;
@@ -1423,7 +1423,7 @@
 
 .fp-overview-actions__lock:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--hos-fg-1, #fff);
 }
 
 .fp-insight-row {
@@ -1474,7 +1474,7 @@
 }
 
 .fp-cross-links__item:hover {
-  color: #fff;
+  color: var(--hos-fg-1, #fff);
   border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.45);
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
 }
@@ -1497,7 +1497,7 @@
   background: rgba(52, 211, 153, 0.08) !important;
 }
 
-@container hos-canvas (max-width: 720px) {
+@container settings-scroll (max-width: 720px) {
   .fp-workspace-card__body {
     padding: 10px 12px 12px;
   }

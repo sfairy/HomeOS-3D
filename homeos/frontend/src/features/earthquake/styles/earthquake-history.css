@@ -645,31 +645,32 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* 窄屏：取消硬 min-height，按剩余高度 flex 均分，避免嵌套滚动（LAY-09） */
 @container hos-canvas (max-width: 1024px) {
   .earthquake-history-view {
-    overflow: auto;
+    overflow: hidden;
   }
 
   .earthquake-history-view__content {
-    flex: none;
-    min-height: auto;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   .earthquake-history-view__layout {
-    grid-template-columns: 1fr;
-    flex: none;
-    min-height: min(calc(var(--hos-screen-h, 100vh) * 0.72), 920px);
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
   }
 
-  .earthquake-history-view__analytics {
-    height: min(480px, calc(var(--hos-screen-h, 100vh) * 0.52));
-    min-height: 320px;
-  }
-
+  .earthquake-history-view__analytics,
   .earthquake-history-view__stream {
-    height: min(560px, calc(var(--hos-screen-h, 100vh) * 0.58));
-    min-height: 400px;
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
   }
 
   .earthquake-history-view__card:hover {

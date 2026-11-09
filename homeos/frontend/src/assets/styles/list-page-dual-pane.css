@@ -40,8 +40,8 @@
 
 .events-view__query-card,
 .notifications-view__query-card {
-  flex: 1;
-  min-width: min(100%, 520px);
+  flex: 1 1 280px;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border);

@@ -29,12 +29,13 @@ const TARGETS = [
   {
     project: 'homeos',
     base: process.env.UIUX_A11Y_BASE_HOMEOS || 'http://127.0.0.1:8801',
-    routes: ['/login', '/register', '/reset-password'],
+    // U11：在公开认证页之外扩一点激活页（无登录会话也可扫）
+    routes: ['/login', '/register', '/reset-password', '/activate'],
   },
   {
     project: 'homeos-store',
     base: process.env.UIUX_A11Y_BASE_STORE || 'http://127.0.0.1:8802',
-    routes: ['/', '/products', '/user/authentication/login'],
+    routes: ['/', '/products', '/user/authentication/login', '/user/authentication/register'],
   },
 ]
 

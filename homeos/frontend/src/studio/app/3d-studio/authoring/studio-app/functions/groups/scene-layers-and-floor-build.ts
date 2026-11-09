@@ -23,7 +23,7 @@ import {
 import { finite as finite2 } from '../../../../loaders/studio-normalization'
 import { lampItemTypeSet } from '../../../items/item-catalog'
 import type { UpdateCameraViewOptions } from '../../../types/studio-app-types'
-import { precompileShaderPrograms } from '../../../scene/studio-shader-precompile'
+import { completeSceneReadyWarmup } from './scene-ready-warmup'
 import { minPointDistance } from '../../../scene/studio-scene-payload'
 import { applyItemOrientation } from '../../scene/item-orientation'
 import { buildFloorEdgeOutline } from '../../scene/floor-edge'
@@ -298,14 +298,14 @@ export async function waitForSceneReady(runtime: StudioAppRuntime, sceneWaitTime
   ue3.updateMatrixWorld(true),
     runtime.appCtx.regionLightController.sync(cameraSnapshotRef),
     sceneWaitTimeout?.preparePresentationMaterials?.(sceneSnapshotRef, Gt2 + ':' + runtime.appCtx.curtainFrameKey)
-  try {
-    await precompileShaderPrograms(floorsSnapshotRef, ue3, cameraSnapshotRef, isSceneStable, {
-      visibleOnly: true,
-      pollInterval: 16,
-    })
-  } catch {
-    /* 着色器预编译是预热优化：失败时退回按需编译，不影响渲染正确性 */
-  }
+  await completeSceneReadyWarmup({
+    runtime,
+    floors: floorsSnapshotRef,
+    scene: ue3,
+    camera: cameraSnapshotRef,
+    sceneRoot: sceneSnapshotRef,
+    isSceneStable,
+  })
 }
 
 export function* buildFloorsAsync(

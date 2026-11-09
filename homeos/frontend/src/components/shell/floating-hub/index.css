@@ -7,6 +7,8 @@
      会提前顶死，表现为「明明下面还有空位却拖不下去」。楼层条用更高 z-index 叠在上面即可。 */
   inset: 0;
   overflow: visible;
+  /* 面板高度相对内容区（本层）封顶，不跟窗口 100vh（LAY-11） */
+  --afh-panel-max-h: min(70%, 480px);
 }
 
 .afh-widget {
@@ -22,7 +24,7 @@
   z-index: 2;
   overflow: hidden;
   height: auto;
-  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 480px);
+  max-height: var(--afh-panel-max-h);
 }
 
 .afh-widget--panel.afh-theme-glass,
@@ -35,7 +37,7 @@
 .afh-widget--panel.afh-theme-cyber-red,
 .afh-widget--panel.afh-theme-sunset {
   overflow: hidden;
-  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 480px);
+  max-height: var(--afh-panel-max-h);
 }
 
 .afh-widget:hover {
@@ -106,7 +108,7 @@
   height: auto;
   min-width: 0;
   max-width: min(360px, calc(var(--hos-screen-w, 100vw) * 0.92));
-  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 480px);
+  max-height: var(--afh-panel-max-h);
   min-height: 0;
   overflow: hidden;
   overscroll-behavior: contain;
@@ -114,7 +116,7 @@
 
 .afh-content--hub-panel {
   height: auto;
-  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 480px);
+  max-height: var(--afh-panel-max-h);
   overflow: hidden;
 }
 
@@ -123,7 +125,7 @@
   display: flex;
   flex-direction: column;
   height: auto;
-  max-height: min(calc(var(--hos-screen-h, 100vh) * 0.7), 480px);
+  max-height: var(--afh-panel-max-h);
   min-height: 0;
   overflow: hidden;
 }

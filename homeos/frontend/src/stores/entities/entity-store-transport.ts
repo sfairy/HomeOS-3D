@@ -67,6 +67,13 @@ export function createEntityTransport(deps: EntityTransportDeps) {
   /** 清理旧 socket 实例（重建连接前调用）。 */
   function clearExistingSocket(): void {
     if (!socket) return
+    try {
+      // Manager 与 Socket 是两层：只清 socket 会留下叠乘的 reconnect_* 监听。
+      socket.io.removeAllListeners('reconnect_attempt')
+      socket.io.removeAllListeners('reconnect')
+    } catch {
+      /* Manager 已销毁时忽略 */
+    }
     socket.removeAllListeners()
     socket.disconnect()
     socket = null

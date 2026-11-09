@@ -68,10 +68,11 @@
       {{ voiceSaveTip }}
     </p>
 
+    <!-- 告警编辑态跨区段仍挂在 overlay：inbox 用 v-show 保编辑草稿；其余闲置区段 v-if 减负 -->
     <AlertRulesInboxSection v-show="alertSection === 'inbox'" />
-    <AlertRulesVoiceSection v-show="alertSection === 'voice'" />
-    <AlertRulesEarthquakeSection v-show="alertSection === 'earthquake'" />
-    <AlertRulesDndSection v-show="alertSection === 'dnd'" />
+    <AlertRulesVoiceSection v-if="alertSection === 'voice'" />
+    <AlertRulesEarthquakeSection v-if="alertSection === 'earthquake'" />
+    <AlertRulesDndSection v-if="alertSection === 'dnd'" />
 
     <template #overlay>
       <div v-if="editing" ref="editOverlayRef" class="settings-modal-overlay" @click.self="closeEditing">

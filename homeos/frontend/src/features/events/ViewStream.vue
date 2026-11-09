@@ -1,12 +1,14 @@
 <!--
   事件历史页「事件流」子视图——卡片化展示实体状态变更事件，含降级横幅、
   空态、加载/错误态与上下页分页。
+  Q05：长列表走 VirtualList 窗口化，可视行观感不变。
 -->
 <script setup>
 import { computed } from 'vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import HaDegradeBanner from '@/components/common/HaDegradeBanner.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
+import VirtualList from '@/components/common/base/VirtualList.vue'
 import { formatDetailedDateTimeOrDash } from '@/shared/utils/format/locale-format.util'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 import { displayEventState, entityDomain, entityObjectId } from '@/shared/events/utils/events-display.util'
@@ -43,6 +45,10 @@ const degradeText = computed(() => {
   if (entitiesStore.entitiesStale) return '实体数据可能已过期，事件流可能不是最新状态'
   return '部分数据源不可用'
 })
+
+/** 卡片行高契约：padding + 两行内容 + gap，供 VirtualList 窗口化 */
+const EVENT_CARD_HEIGHT = 72
+const EVENT_CARD_GAP = 5
 </script>
 
 <template>
@@ -82,63 +88,71 @@ const degradeText = computed(() => {
         error-title="事件加载失败"
         @retry="emit('retry')"
       >
-        <div v-if="events.length" class="events-view__cards">
-          <article
-            v-for="evt in events"
-            :key="evt.id"
-            class="events-view__card"
-            :data-domain="entityDomain(evt.entityId)"
-          >
-            <div class="events-view__card-accent" aria-hidden="true" />
+        <VirtualList
+          v-if="events.length"
+          :items="events"
+          :item-height="EVENT_CARD_HEIGHT"
+          :item-gap="EVENT_CARD_GAP"
+          :virtual-threshold="40"
+          container-class="events-view__cards"
+          :item-key="(evt) => evt.id"
+        >
+          <template #default="{ item: evt }">
+            <article
+              class="events-view__card"
+              :data-domain="entityDomain(evt.entityId)"
+            >
+              <div class="events-view__card-accent" aria-hidden="true" />
 
-            <div class="events-view__card-main">
-              <div class="events-view__card-top">
-                <div class="events-view__card-identity">
-                  <span
-                    class="events-view__card-name"
-                    :class="!hasFriendlyName(evt.entityId) && 'events-view__card-name--fallback'"
-                    :title="entityDisplayName(evt.entityId)"
-                  >
-                    {{ entityDisplayName(evt.entityId) }}
-                  </span>
-                  <router-link
-                    :to="`/device?id=${encodeURIComponent(evt.entityId)}`"
-                    class="events-view__card-entity"
-                    :title="evt.entityId"
-                  >
-                    <span class="list-page__domain" :data-domain="entityDomain(evt.entityId)">
-                      {{ getDomainLabel(entityDomain(evt.entityId)) }}
+              <div class="events-view__card-main">
+                <div class="events-view__card-top">
+                  <div class="events-view__card-identity">
+                    <span
+                      class="events-view__card-name"
+                      :class="!hasFriendlyName(evt.entityId) && 'events-view__card-name--fallback'"
+                      :title="entityDisplayName(evt.entityId)"
+                    >
+                      {{ entityDisplayName(evt.entityId) }}
                     </span>
-                    <span class="events-view__card-entity-id">{{
-                      entityObjectId(evt.entityId)
-                    }}</span>
-                  </router-link>
+                    <router-link
+                      :to="`/device?id=${encodeURIComponent(evt.entityId)}`"
+                      class="events-view__card-entity"
+                      :title="evt.entityId"
+                    >
+                      <span class="list-page__domain" :data-domain="entityDomain(evt.entityId)">
+                        {{ getDomainLabel(entityDomain(evt.entityId)) }}
+                      </span>
+                      <span class="events-view__card-entity-id">{{
+                        entityObjectId(evt.entityId)
+                      }}</span>
+                    </router-link>
+                  </div>
+                  <time
+                    class="events-view__card-time"
+                    :title="formatDetailedDateTimeOrDash(evt.createdAt)"
+                  >
+                    {{ formatDetailedDateTimeOrDash(evt.createdAt) }}
+                  </time>
                 </div>
-                <time
-                  class="events-view__card-time"
-                  :title="formatDetailedDateTimeOrDash(evt.createdAt)"
-                >
-                  {{ formatDetailedDateTimeOrDash(evt.createdAt) }}
-                </time>
-              </div>
 
-              <div class="events-view__card-states">
-                <code
-                  v-if="evt.attrText || evt.state"
-                  class="events-view__state events-view__state--new"
-                >
-                  {{ displayEventState(evt) }}
-                </code>
-                <code v-if="evt.attrText" class="events-view__state events-view__state--old"
-                  >属性变更</code
-                >
-                <code v-else-if="evt.oldState" class="events-view__state events-view__state--old">
-                  {{ displayEntityStateLabel(evt.entityId, evt.oldState) }}
-                </code>
+                <div class="events-view__card-states">
+                  <code
+                    v-if="evt.attrText || evt.state"
+                    class="events-view__state events-view__state--new"
+                  >
+                    {{ displayEventState(evt) }}
+                  </code>
+                  <code v-if="evt.attrText" class="events-view__state events-view__state--old"
+                    >属性变更</code
+                  >
+                  <code v-else-if="evt.oldState" class="events-view__state events-view__state--old">
+                    {{ displayEntityStateLabel(evt.entityId, evt.oldState) }}
+                  </code>
+                </div>
               </div>
-            </div>
-          </article>
-        </div>
+            </article>
+          </template>
+        </VirtualList>
 
         <VEmptyState
           v-else

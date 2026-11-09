@@ -1,3 +1,12 @@
+/* U18: bridge --i3d visual tokens onto --hos so stage HUD follows design system */
+.interaction3d-stage {
+  --i3d-fs-micro: var(--hos-fs-1, 11px);
+  --i3d-fs-caption: var(--hos-fs-2, 12px);
+  --i3d-fs-body: var(--hos-fs-3, 13px);
+  --i3d-touch-min: var(--hos-touch-min, 44px);
+  --i3d-dur-fast: var(--hos-dur-fast);
+  --i3d-dur-base: var(--hos-dur-base);
+}
 @import "/static/modules/interaction3d/controls.css";
 @import "../nas/nas-panel.css";
 @import "../climate/climate-panel.css";
@@ -112,13 +121,13 @@
   border-radius: 8px;
   background: #ffffff04;
   color: #9eaba5;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   /* 芯片内是「名称 + 数值」，两者都保持单行不折行。 */
   white-space: nowrap;
 }
 .interaction3d-stage .i3d-lock-detail-name {
   color: #7f9187;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -165,7 +174,7 @@
   margin: 0;
 }
 .interaction3d-stage .i3d-lock-panel button {
-  min-height: 34px;
+  min-height: var(--hos-touch-min, 44px);
   border: 1px solid #866c46;
   border-radius: 8px;
   color: #f1dfbf;
@@ -187,7 +196,7 @@
 .interaction3d-stage .i3d-device-panel .i3d-nas-meta {
   margin-left: auto;
   color: #7f9187;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   white-space: nowrap;
 }
 .interaction3d-stage .i3d-device-panel .i3d-extra-grid {
@@ -835,7 +844,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-slider-legend small {
   color: #7e7b76;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
 }
 .interaction3d-stage .i3d-light-presets {
   display: grid;
@@ -871,7 +880,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-light-preset small {
   color: #7e898f;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   font-weight: 500;
   line-height: 1.2;
 }
@@ -1286,7 +1295,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .p2r-title small {
   display: block;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   color: #aebdce;
   font-weight: 400;
 }
@@ -1356,7 +1365,7 @@ body.interaction3d-stage.is-background-hidden,
   gap: 7px;
 }
 .plan2-range-editor output {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   font-variant-numeric: tabular-nums;
   color: #edbe7b;
   min-width: 30px;
@@ -1379,7 +1388,7 @@ body.interaction3d-stage.is-background-hidden,
   font-weight: 600;
 }
 .plan2-range-editor .p2r-status {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   color: #b0bdd0;
   min-height: 30px;
   margin: 9px 0 0;
@@ -1394,7 +1403,7 @@ body.interaction3d-stage.is-background-hidden,
   background: #101925d9;
   border-radius: 7px;
   padding: 5px 9px;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   width: max-content;
   max-width: calc(100% - 282px);
 }
@@ -1460,7 +1469,7 @@ body.interaction3d-stage.is-background-hidden,
   .plan2-range-editor .p2r-field {
     gap: 2px;
     margin-bottom: 5px;
-    font-size: 11px;
+    font-size: var(--hos-fs-1, 11px);
   }
   .plan2-range-editor .p2r-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1483,7 +1492,7 @@ body.interaction3d-stage.is-background-hidden,
     gap: 0 10px;
   }
   .plan2-range-editor .p2r-check {
-    font-size: 11px;
+    font-size: var(--hos-fs-1, 11px);
     min-height: 27px;
   }
   .plan2-range-editor .p2r-actions {
@@ -1492,7 +1501,7 @@ body.interaction3d-stage.is-background-hidden,
   .plan2-range-editor .p2r-status {
     margin-top: 4px;
     min-height: 16px;
-    font-size: 11px;
+    font-size: var(--hos-fs-1, 11px);
   }
   .plan2-range-editor .p2r-help {
     display: none;
@@ -1500,7 +1509,7 @@ body.interaction3d-stage.is-background-hidden,
   .plan2-range-editor .p2r-compact-caption {
     display: block;
     color: #b6c3d4;
-    font-size: 11px;
+    font-size: var(--hos-fs-1, 11px);
   }
 }
 .plan2-range-editor [hidden] {
@@ -1685,10 +1694,10 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .custom-select-button {
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
 }
 .plan2-range-editor .custom-select-option {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
 }
 .plan2-range-editor .inspector-number-control input[type="number"] {
   min-height: 34px;
@@ -1731,7 +1740,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .i3d-tv-status {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   color: #aab9c7;
   text-align: right;
   white-space: nowrap;
@@ -1757,7 +1766,7 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-tv-error {
   margin: 6px 0 0;
   color: #efb078;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
 }
 .i3d-tv-error:empty {
   display: none;
@@ -1812,7 +1821,7 @@ body.interaction3d-stage.is-background-hidden,
   white-space: nowrap;
 }
 .i3d-tv-details span {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   color: #9cabb9;
 }
 .i3d-tv-details progress {
@@ -3221,7 +3230,7 @@ body.interaction3d-stage.is-background-hidden,
 .plan2-range-editor .p2r-view-switch button {
   flex: 1;
   padding: 7px 3px;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
 }
 .plan2-range-editor .p2r-view-switch button[aria-pressed="true"] {
   background: #dba45a;
@@ -3614,7 +3623,7 @@ body.interaction3d-stage.is-background-hidden,
   flex: none;
   margin: 0 0 0 auto;
   color: var(--i3d-popup-muted) !important;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   line-height: 1.4;
   white-space: nowrap;
 }
@@ -3625,7 +3634,7 @@ body.interaction3d-stage.is-background-hidden,
   border-radius: 8px;
   background: #ede4d580;
   color: var(--i3d-popup-muted);
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
 }
 /* 暖木：状态行/芯片改用设计令牌里的状态色，保证浅底上的对比度。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status.is-locked {
@@ -4426,7 +4435,7 @@ body.interaction3d-stage.is-background-hidden,
     .i3d-popup-heading-text .i3d-tv-status
   ) {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   font-weight: 400;
   line-height: 14px;
 }
@@ -4463,7 +4472,7 @@ body.interaction3d-stage.is-background-hidden,
   border-radius: 9px;
 }
 .interaction3d-stage :is(.i3d-climate-error, .i3d-tv-error, .i3d-control-error, .i3d-cover-feedback) {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   line-height: 14px;
 }
 .interaction3d-stage :is(.i3d-climate-error, .i3d-tv-error, .i3d-control-error, .i3d-cover-feedback.is-error) {
@@ -4609,7 +4618,7 @@ body.interaction3d-stage.is-background-hidden,
   align-items: center;
   gap: 7px;
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   opacity: 0.85;
 }
 .i3d-game-avatar {
@@ -4620,12 +4629,12 @@ body.interaction3d-stage.is-background-hidden,
   flex: none;
 }
 .i3d-game-hours {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   opacity: 0.8;
   line-height: 1.4;
 }
 .i3d-game-art-message {
-  font-size: 11px;
+  font-size: var(--hos-fs-1, 11px);
   opacity: 0.8;
   line-height: 1.4;
 }

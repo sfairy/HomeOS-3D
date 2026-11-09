@@ -163,6 +163,8 @@ interface EntitySocketActions {
   onEntitiesStale?: () => void // 实体过期回调
   /** 回滚全部乐观更新（队列丢弃 / 背压时） */
   rollbackAllOptimistic?: () => number
+  /** F10：状态队列丢包并对齐后，按真值结清仍挂着的乐观态 */
+  confirmOptimisticAfterResync?: (reason?: string) => number
   updateStatesBatch: (changes: Record<string, unknown>[]) => void // 批量更新状态
   schedulePersistEntityCache: () => void // 调度持久化实体缓存（防抖）
   scheduleRebuildDerived: () => void // 调度重建派生索引（防抖）

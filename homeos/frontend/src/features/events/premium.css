@@ -15,10 +15,19 @@
   padding-right: 2px;
 }
 
+/* VirtualList 窗口化：覆盖 flex/gap，由 stride 承担行距 */
+.events-view__cards.virtual-list--virtual {
+  display: block;
+  gap: 0;
+}
+
 .events-view__card {
   position: relative;
   display: flex;
   gap: 0;
+  /* VirtualList 行高契约：72px（含 padding），与 ViewStream EVENT_CARD_HEIGHT 对齐 */
+  height: 72px;
+  box-sizing: border-box;
   padding: 7px 10px 7px 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);

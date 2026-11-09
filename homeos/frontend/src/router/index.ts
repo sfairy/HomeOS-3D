@@ -15,6 +15,7 @@ import {
   isLicenseFeatureGranted,
   setLicenseActivated,
   setLicenseFeatureAccess,
+  shouldRefreshLicenseFeatures,
   shouldRefreshLicenseStatus,
 } from './license-gate'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
@@ -475,15 +476,13 @@ router.beforeEach(async (to, from) => {
   }
 
   // 功能码门禁明细：公开的 `/availability` 不下发它（要求登录会话的 `/status` 才有），
-  // 因此登录后拉一次缓存下来，供导航栏与模块入口显隐。
-  // 未加载时 fail-closed（入口先收起）；拉取失败则记空明细并标记已加载，
-  // 未登记码按放行、真正拦截仍由后端 403 兜底。
-  if (auth.isAuthenticated && !hasLicenseFeatureAccess() && getLicenseActivated()) {
+  // 登录后按 TTL 刷新，供导航栏与模块入口显隐。拉取失败不标记 loaded，保持 fail-closed。
+  if (auth.isAuthenticated && getLicenseActivated() && shouldRefreshLicenseFeatures()) {
     try {
       setLicenseFeatureAccess((await getLicenseStatus()).data.featureAccess)
     } catch (featureAccessError) {
-      logger.warn('功能码门禁明细读取失败，界面按未登记码放行渲染', featureAccessError)
-      setLicenseFeatureAccess({})
+      logger.warn('功能码门禁明细读取失败，保持未加载（入口 fail-closed）', featureAccessError)
+      setLicenseFeatureAccess(null)
     }
   }
 

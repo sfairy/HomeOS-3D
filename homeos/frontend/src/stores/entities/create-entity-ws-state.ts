@@ -114,9 +114,10 @@ interface EntityWsStateDeps {
   largeEntityThreshold: () => number
   cachePersistBridge: EntityCachePersistBridge
   initLoadReadyBridge: EntityInitLoadReadyBridge
-  /** 乐观更新桥接：WS 事件需回滚时调用（创建后由 store 回填） */
+  /** 乐观更新桥接：WS 事件需回滚/确认时调用（创建后由 store 回填） */
   optimisticBridge?: {
     rollbackAllOptimistic: () => number
+    confirmOptimisticAfterResync?: (reason?: string) => number
   }
 }
 
@@ -406,9 +407,14 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
 
     let criticalRun: Promise<void> = Promise.resolve()
     if (critical.length) {
-      criticalRun = wsCriticalApplyTail.then(() => {
-        applyCriticalChunk()
-      })
+      // 关键域仍走短队列，但必须等当前全量/REST 批次尾完成后再写：
+      // 否则与 applyEntityListBatched 的 yield 窗口交错时，仍可能先于快照合并或被旧帧覆盖。
+      // 批次侧已做 isStaleState 软重建；这里再串上 batch 尾，关掉「清空窗口丢增量」双边竞态。
+      criticalRun = wsCriticalApplyTail
+        .then(() => wsBatchApplyTail)
+        .then(() => {
+          applyCriticalChunk()
+        })
       wsCriticalApplyTail = criticalRun.catch((err) => {
         deps.logger.warn('[实体 WS] 关键批量应用失败', err)
         return undefined
@@ -538,6 +544,8 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
       finishIncrementalInitialStates: (token, expected) => finishIncrementalInitialStates(token as number, expected),
       onEntitiesStale,
       rollbackAllOptimistic: () => deps.optimisticBridge?.rollbackAllOptimistic?.() ?? 0,
+      confirmOptimisticAfterResync: (reason?: string) =>
+        deps.optimisticBridge?.confirmOptimisticAfterResync?.(reason) ?? 0,
       updateStatesBatch: (changes) => {
         void updateStatesBatch(changes as unknown as WsDeltaChange[])
       },

@@ -142,26 +142,13 @@
   }
 }
 
-@container hos-canvas (max-width: 900px) {
+/* 中宽起即换行：横滑+藏滚动条会让域筛选像「缺了一截」（平板常见）。 */
+@container hos-canvas (max-width: 1024px) {
   .devices-view__hero-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .devices-view__mode-chips {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .devices-view__mode-chips::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* 窄屏：视图切换不再横向滚动。只有两枚按钮，换行铺满比「裁掉一半 + 无提示」
-   更容易发现；域筛选仍保留左右箭头（数量不定，换行会把首屏推得过高）。 */
-@container hos-canvas (max-width: 640px) {
   .devices-view__mode-chips {
     flex-wrap: wrap;
     overflow: visible;

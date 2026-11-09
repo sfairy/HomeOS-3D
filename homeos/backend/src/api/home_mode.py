@@ -73,8 +73,10 @@ async def list_modes(
     pagination = _parse_pagination(page, limit)
     service = _service(request)
     if not pagination["enabled"]:
-        return service.find_all()
-    return service.find_all_paginated(pagination["pageNum"], pagination["pageSize"])
+        return await run_db(service.find_all)
+    return await run_db(
+        lambda: service.find_all_paginated(pagination["pageNum"], pagination["pageSize"])
+    )
 
 @router.get("/active")
 async def get_active(request: Request, user: dict[str, Any] = Depends(require_user)):
@@ -83,7 +85,7 @@ async def get_active(request: Request, user: dict[str, Any] = Depends(require_us
 
 @router.get("/context")
 async def get_context(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return _service(request).get_mode_context()
+    return await run_db(_service(request).get_mode_context)
 
 @router.get("/trigger-logs")
 async def get_trigger_logs(
@@ -101,22 +103,24 @@ async def get_trigger_logs(
     }
     service = _service(request)
     if pagination["enabled"]:
-        return service.get_trigger_logs_paginated(
-            pagination["pageNum"], pagination["pageSize"], filters
+        return await run_db(
+            lambda: service.get_trigger_logs_paginated(
+                pagination["pageNum"], pagination["pageSize"], filters
+            )
         )
-    return service.get_trigger_logs(30)
+    return await run_db(lambda: service.get_trigger_logs(30))
 
 @router.get("/execution-history")
 async def get_execution_history(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return _service(request).get_execution_history(40)
+    return await run_db(lambda: _service(request).get_execution_history(40))
 
 @router.get("/templates")
 async def get_templates(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return _service(request).get_action_templates()
+    return await run_db(_service(request).get_action_templates)
 
 @router.get("/presets")
 async def get_presets(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return _service(request).get_presets()
+    return await run_db(_service(request).get_presets)
 
 @router.post("/presets/{preset_id}/install")
 async def install_preset(

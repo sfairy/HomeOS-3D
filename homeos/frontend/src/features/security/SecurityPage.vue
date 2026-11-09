@@ -225,9 +225,12 @@
                     : 'flex-1 flex flex-col min-h-0',
                 ]"
               >
-                <div v-if="dayEvents.length === 0" class="sec-events-empty sec-events-empty--log">
-                  <p class="sec-events-empty__label">{{ '暂无事件' }}</p>
-                </div>
+                <VEmptyState
+                  v-if="dayEvents.length === 0"
+                  class="sec-events-empty sec-events-empty--log"
+                  title="暂无事件"
+                  description="选定日期内还没有安防事件记录"
+                />
                 <button
                   v-for="(event, i) in dayEvents"
                   :key="event.id || i"
@@ -348,9 +351,11 @@
                 </button>
               </div>
               <div v-else class="flex-1 flex items-center justify-center p-6">
-                <div class="sec-events-empty sec-events-empty--preview">
-                  <p class="sec-events-empty__label">{{ '暂无事件画面' }}</p>
-                </div>
+                <VEmptyState
+                  class="sec-events-empty sec-events-empty--preview"
+                  title="暂无事件画面"
+                  description="选择左侧事件后可在此预览关联画面"
+                />
               </div>
             </div>
 

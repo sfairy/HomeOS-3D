@@ -120,16 +120,20 @@ class NotificationDispatchHelper:
                     action_prompt,
                 )
             except Exception as exc:
+                # 入库失败不得伪造可已读 ID：假 ID 会让前端点「已读」却永远对不上库行。
+                # 站内渠道对此 fail closed；若同时勾了外部通道，仍可无 id 投递。
                 logger.error("通知入库失败: %s", exc)
+                external_only = [channel for channel in channels if channel in _EXTERNAL_CHANNELS]
+                if not external_only:
+                    return None
                 notification = {
-                    "id": _fallback_id(),
                     "level": level,
                     "message": message,
                     "entityId": entity_id,
                     "source": source,
                     "read": False,
                     "createdAt": _iso_now(),
-                    "channels": channels,
+                    "channels": external_only,
                 }
         else:
             notification = {
@@ -147,7 +151,8 @@ class NotificationDispatchHelper:
 
         await self._event_bus.emit("notification.created", notification)
 
-        if "in_app" in channels:
+        # 只有真正入库成功的通知才跑条数清理；无 id 的 ephemeral / 外部-only 跳过。
+        if "in_app" in channels and notification.get("id") is not None:
             self._schedule_prune()
 
         self._send_external_notifications(channels, message, opts.get("title"), notification.get("id"))

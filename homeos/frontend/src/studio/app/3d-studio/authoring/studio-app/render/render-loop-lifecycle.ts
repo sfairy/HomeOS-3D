@@ -98,12 +98,58 @@ export function syncViewOffsetFor(
   syncSnapshotCamera()
 }
 
+type PageHideHandlerBinding = {
+  target?: EventTarget | null
+  handler: EventListenerOrEventListenerObject
+  options?: boolean | AddEventListenerOptions
+}
+
+/** F04：对称摘除 createRenderLoopTeardown 登记过的具名 pagehide。 */
+export function removeRenderLoopPageHideHandlers(bindings: PageHideHandlerBinding[] | undefined): void {
+  for (const binding of bindings || []) {
+    try {
+      ;(binding.target || globalThis.window)?.removeEventListener?.(
+        'pagehide',
+        binding.handler as EventListener,
+        binding.options as boolean | EventListenerOptions | undefined,
+      )
+    } catch {
+      /* 宿主已拆时 remove 可能抛，忽略 */
+    }
+  }
+}
+
+function cancelRenderLoopFrameHandles(state: RenderLoopTeardownState): void {
+  if (state.renderTickCounter) cancelAnimationFrame(state.renderTickCounter)
+  state.renderTickCounter = 0
+  if (state.reflectionPassCounter) cancelAnimationFrame(state.reflectionPassCounter)
+  state.reflectionPassCounter = 0
+  if (state.overviewTimeoutHandle != null) window.clearTimeout(state.overviewTimeoutHandle)
+  state.overviewTimeoutHandle = null
+  if (state.presentationHandle != null) window.clearTimeout(state.presentationHandle)
+  state.presentationHandle = null
+}
+
+function disposeRenderLoopSubsystems(subsystems: ({ dispose?: () => void } | null | undefined)[]): void {
+  for (const renderSubsystem of subsystems) {
+    try {
+      renderSubsystem?.dispose?.()
+    } catch (disposeError) {
+      // 显存/上下文可能已丢失，单个子系统回收失败不应阻断其余回收。
+      console.warn('[studio] 渲染子系统回收失败', disposeError)
+    }
+  }
+}
+
 /**
  * 本次渲染循环的显式回收入口（幂等）。
  *
  * SPA 内路由切换不会触发 `pagehide`，而四个渲染子系统原先只在 `pagehide` 上 dispose：
  * 旧实例的探针捕获循环与交互预热会与新实例并存，持续出帧、抓住已 release 的 scene，
  * 并把 GPU 时间翻倍。闭包里自管的 RAF / 定时器同理必须在这里取消。
+ *
+ * F04：具名 pagehide 必须在这里对称 removeEventListener；匿名 once 监听在 SPA 卸载路径
+ * 上摘不掉，会在真 pagehide 时打到已释放的子系统上。
  */
 export function createRenderLoopTeardown(params: {
   state: RenderLoopTeardownState
@@ -112,29 +158,18 @@ export function createRenderLoopTeardown(params: {
   progressListeners: { clear: () => void }
   subsystems: ({ dispose?: () => void } | null | undefined)[]
   releaseInteractionBatches: () => void
+  /** 具名 pagehide 句柄：teardown 时对称摘除（F04） */
+  pageHideHandlers?: PageHideHandlerBinding[]
 }): () => void {
   let isDisposed = false
   return () => {
     if (isDisposed) return
     isDisposed = true
     const { state } = params
-    if (state.renderTickCounter) cancelAnimationFrame(state.renderTickCounter)
-    state.renderTickCounter = 0
-    if (state.reflectionPassCounter) cancelAnimationFrame(state.reflectionPassCounter)
-    state.reflectionPassCounter = 0
-    if (state.overviewTimeoutHandle != null) window.clearTimeout(state.overviewTimeoutHandle)
-    state.overviewTimeoutHandle = null
-    if (state.presentationHandle != null) window.clearTimeout(state.presentationHandle)
-    state.presentationHandle = null
+    removeRenderLoopPageHideHandlers(params.pageHideHandlers)
+    cancelRenderLoopFrameHandles(state)
     params.progressListeners.clear()
-    for (const renderSubsystem of params.subsystems) {
-      try {
-        renderSubsystem?.dispose?.()
-      } catch (disposeError) {
-        // 显存/上下文可能已丢失，单个子系统回收失败不应阻断其余回收。
-        console.warn('[studio] 渲染子系统回收失败', disposeError)
-      }
-    }
+    disposeRenderLoopSubsystems(params.subsystems)
     if (params.appCtx.rendererLossHandler === params.groundReflections) params.appCtx.rendererLossHandler = null
     params.releaseInteractionBatches()
     state.isPresentationRunning = false

@@ -184,7 +184,7 @@ class BroadcastMixin:
         await self.sio.emit(event, message)
 
     async def broadcast_home_mode_activated(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
-        """家庭模式激活：广播模式 ID / 名称与执行统计。"""
+        """家庭模式激活：广播模式 ID / 名称与执行统计（含未确认设备数）。"""
         await self._emit_domain(
             "home_mode",
             ws_event(
@@ -193,6 +193,8 @@ class BroadcastMixin:
                 modeName=event.get("modeName"),
                 successCount=event.get("successCount"),
                 totalCount=event.get("totalCount"),
+                unverifiedCount=event.get("unverifiedCount") or 0,
+                failedCount=event.get("failedCount"),
                 timestamp=iso_now(),
             ),
         )

@@ -109,7 +109,8 @@ async def _build_status(request: Request) -> dict[str, Any]:
     coords = service.get_home_coordinates()
     runtime = service.get_runtime_config()
     leader = service.get_leader_status()
-    if runtime.enabled and leader.get("isLeader"):
+    coords_ok = coords.get("lat") is not None and coords.get("lon") is not None
+    if runtime.enabled and coords_ok and leader.get("isLeader"):
         poll = _poll_service(request)
         if poll is not None:
             try:
@@ -125,6 +126,11 @@ async def _build_status(request: Request) -> dict[str, Any]:
     hint: str | None = None
     if not runtime.enabled:
         hint = "地震预警未启用：打开开关后点「保存地震预警」，才会连接 Wolfx 并轮询 SC/CENC。"
+    elif not coords_ok:
+        hint = (
+            "地震预警已启用但未配置有效家庭坐标：当前为未就绪（misconfigured），"
+            "不会连接数据源；请在「警报规则 → 地震预警」中设置坐标。"
+        )
     elif not leader.get("isLeader"):
         hint = (
             "本实例不是 EEW Leader：Wolfx 连接与 SC/CENC 轮询由集群主节点执行；"
@@ -136,7 +142,7 @@ async def _build_status(request: Request) -> dict[str, Any]:
             "若仍为空，请检查本机访问 api.wolfx.jp 是否超时。"
         )
     return {
-        "connected": wolfx.get("clusterConnected"),
+        "connected": bool(coords_ok and wolfx.get("clusterConnected")),
         "wolfx": wolfx,
         "leader": leader,
         "activeEventId": service.get_active_event_id(),

@@ -71,7 +71,11 @@ class ConnectionLifecycleMixin:
 
         def _ws_config(self) -> Any: ...
 
+        async def _ws_config_async(self) -> Any: ...
+
         def _apply_state_config(self) -> None: ...
+
+        async def _apply_state_config_async(self) -> None: ...
 
         def _index_subscription(self, sid: str, domains_raw: Any, pinned_raw: Any) -> None: ...
 
@@ -353,8 +357,8 @@ class ConnectionLifecycleMixin:
             to=sid,
         )
 
-        ws_cfg = self._ws_config()
-        self._apply_state_config()
+        ws_cfg = await self._ws_config_async()
+        await self._apply_state_config_async()
         await self._wait_for_ha_entity_sync(ws_cfg.ha_sync_wait_ms)
 
         # 初态下发的是**全量**（仅按 ACL 过滤），增量则按「域订阅 + pinned +

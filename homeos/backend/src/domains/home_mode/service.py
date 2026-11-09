@@ -21,6 +21,7 @@ from .actions import (
     deactivate_home_mode,
 )
 from .linkage import HomeModeLinkageArbiter
+from .notify_dispatch import apply_security_mode_or_fail, dispatch_home_mode_notify
 from .runtime import (
     HomeModeRuntimeLogStore,
     clamp_int,
@@ -710,16 +711,9 @@ class HomeModeService:
             session.execute(update(HomeMode).where(HomeMode.id.in_(group_ids)).values(**values))
             session.commit()
 
-    async def _notify(self, level: str, message: str, source: str) -> None:
-        if self._notification is None:
-            logger.info("[notify:%s] %s (%s)", level, message, source)
-            return
-        try:
-            result = self._notification.notify(level, message, source)
-            if asyncio.iscoroutine(result):
-                await result
-        except Exception as exc:
-            logger.warning("家庭模式通知发送失败: %s", exc)
+    async def _notify(self, level: str, message: str, source: str) -> Any:
+        """发送通知；返回通知结果。DND/关闭/失败返回 ``None``，调用方不得当成功。"""
+        return await dispatch_home_mode_notify(self._notification, level, message, source)
 
     async def _call_service(self, domain: str, service: str, entity_id: str, data: dict[str, Any]) -> Any:
         return await self._ha_connector.call_service(domain, service, entity_id, data)
@@ -731,14 +725,7 @@ class HomeModeService:
         return {"state": entity.get("state"), "attributes": entity.get("attributes") or {}}
 
     async def _apply_security_mode(self, mode: str, source: str) -> bool:
-        if self._security_mode_setter is None:
-            return True
-        result = self._security_mode_setter(mode, source)
-        if asyncio.iscoroutine(result):
-            result = await result
-        if isinstance(result, dict):
-            return bool(result.get("success", True))
-        return bool(result)
+        return await apply_security_mode_or_fail(self._security_mode_setter, mode, source)
 
     async def _read_security_mode(self) -> str | None:
         """读取当前安防模式，用于家庭模式激活失败时回滚安防动作。"""
@@ -845,8 +832,8 @@ class _HomeModeDeps:
     async def get_ha_status(self) -> dict[str, Any]:
         return await self._service._ha_connector.get_status()
 
-    async def notify(self, level: str, message: str, source: str) -> None:
-        await self._service._notify(level, message, source)
+    async def notify(self, level: str, message: str, source: str) -> Any:
+        return await self._service._notify(level, message, source)
 
     async def set_security_mode(self, mode: str, source: str) -> bool:
         return await self._service._apply_security_mode(mode, source)

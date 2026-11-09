@@ -67,7 +67,7 @@
     </div>
 
     <SettingsBindingsOverviewSection
-      v-show="bindingsSection === 'overview'"
+      v-if="bindingsSection === 'overview'"
       :weather-bound="!!layoutStore.layoutConfig.haConfig.weatherEntityId?.trim()"
       :camera-count="securityCameras.length"
       :doorbell-count="doorbellList.length"
@@ -84,12 +84,12 @@
     />
 
     <SettingsBindingsWeatherSection
-      v-show="bindingsSection === 'weather'"
+      v-if="bindingsSection === 'weather'"
       v-model:weather-entity-id="layoutStore.layoutConfig.haConfig.weatherEntityId"
     />
 
     <SettingsBindingsCamerasSection
-      v-show="bindingsSection === 'cameras'"
+      v-if="bindingsSection === 'cameras'"
       v-model:security-cameras="securityCameras"
       :doorbell-cameras="doorbellCameraIds"
       :security-camera="layoutStore.layoutConfig.haConfig.securityCamera"
@@ -99,7 +99,7 @@
     />
 
     <SettingsBindingsSecuritySection
-      v-show="bindingsSection === 'security'"
+      v-if="bindingsSection === 'security'"
       v-model:bindings-security-tab="bindingsSecurityTab"
       v-model:events-path="layoutStore.layoutConfig.haConfig.eventsPath"
       v-model:doorbell-list="doorbellList"

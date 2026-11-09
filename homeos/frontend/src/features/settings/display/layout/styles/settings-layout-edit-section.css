@@ -197,10 +197,8 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
-@container hos-canvas (max-width: 900px) {
-}
-
-@container hos-canvas (max-width: 640px) {
+/* ≤720 settings-scroll：英雄区改纵排，CTA 拉满（LAY-16） */
+@container settings-scroll (max-width: 720px) {
   .layout-edit-hero__body {
     flex-direction: column;
     align-items: stretch;
@@ -208,6 +206,7 @@
 
   .layout-edit-hero__cta {
     justify-content: center;
+    width: 100%;
   }
 }
 

@@ -1,0 +1,44 @@
+/* U04：键盘可达 Tips / Voice / Chat 菜单（由 AgentCompanion 根节点挂载） */
+
+.companion-root {
+  /* 键盘菜单溢出根盒时不裁切 */
+  overflow: visible;
+}
+
+.companion-a11y-menu {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 148px;
+  padding: 6px;
+  border-radius: var(--hos-radius-card, 12px);
+  border: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.companion-a11y-menu__item {
+  min-height: var(--hos-touch-min, 44px);
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--hos-radius-control, 8px);
+  background: transparent;
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-3, 13px);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.companion-a11y-menu__item:hover,
+.companion-a11y-menu__item:focus-visible {
+  outline: none;
+  background: rgba(0, 240, 255, 0.14);
+  color: var(--hos-fg-1);
+}

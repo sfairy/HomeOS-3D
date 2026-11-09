@@ -5,6 +5,13 @@ import { createInteractionBatches as createInteractionBatches2 } from '../../stu
 
 import { stageStartup as stageStartup2 } from '../../../stage-startup'
 import { interactionResourcePolicy } from '../../../studio-resource-policy'
+import {
+  bindNamedPageHideOnce,
+  configureCappedGroundReflection,
+  createMotionIdleQualityApplier,
+  type PageHideBinding,
+} from './render-loop-idle-quality'
+import { attachReflectionProbeMesh } from './render-loop-reflection-probe'
 
 import { createStartupPresentation as createStartupPresentation2 } from '../../scene/studio-startup-presentation'
 import {
@@ -232,6 +239,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
   } = deps
 
   const ctx = createStudioRenderContext()
+  /** F04：本次渲染循环登记的具名 pagehide，dispose 时对称摘除 */
+  const pageHideBindings: PageHideBinding[] = []
   const zn4 = normalizeStudioDocument(
     appCtx.loadedDraft.referenceScene || appCtx.loadedDraft.scene,
     studioDocumentDeps(),
@@ -703,10 +712,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           ),
         )),
       ctx.isPresentationRunning ||
-        ((ctx.isPresentationRunning = true),
-        window.addEventListener('pagehide', hasActiveLightTransition, {
-          once: true,
-        }))
+        ((ctx.isPresentationRunning = true), bindNamedPageHideOnce(pageHideBindings, hasActiveLightTransition))
     const isImmediateTransition =
         lightEffectOptions.immediate === true ||
         !ctx.isEntranceComplete ||
@@ -1334,6 +1340,13 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     })),
     floorEffectsQuery = new URLSearchParams(globalThis.window?.location?.search || '').get('floorEffects')
   ctx.previousReflectionEnabled && groundReflections.setSuspended(true)
+  const applyMotionIdleQuality = createMotionIdleQualityApplier({
+    appCtx,
+    getAppearanceGroundReflection: () => ctx.appearanceGroundReflection,
+    normalizeGroundReflection: normalizeGroundReflection2,
+    groundReflections,
+    renderStudioFrame,
+  })
   const motionPresentation = createMotionPresentation2({
     reflections(reflectionsSuspended: any) {
       ;(ctx.shouldSuspendReflections = reflectionsSuspended),
@@ -1343,6 +1356,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             fade: !ctx.isReflectionsSuspended && !ctx.previousReflectionEnabled,
           },
         )
+      applyMotionIdleQuality(reflectionsSuspended)
     },
     shadows(shadowsEnabled: any) {
       appCtx.contactShadowController?.setVisibleFloor?.(getPreviewFloorMode() === 'all' ? null : appCtx.activeFloorId),
@@ -1372,6 +1386,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           (appCtx.threeRenderer.shadowMap.autoUpdate = shadowEnabledFlag || ctx.isShadowBoostActive),
           (appCtx.threeRenderer.shadowMap.needsUpdate = true),
           appCtx.regionLightController?.setMotion?.(shadowEnabledFlag, true)
+        applyMotionIdleQuality(shadowEnabledFlag)
         return
       }
       shadowEnabledFlag
@@ -1390,7 +1405,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
         : ((appCtx.threeRenderer.shadowMap.autoUpdate = ctx.isShadowBoostActive),
           (appCtx.threeRenderer.shadowMap.needsUpdate = true),
           (ctx.shadowBoostStart = performance.now())),
-        appCtx.regionLightController?.setMotion?.(shadowEnabledFlag)
+        appCtx.regionLightController?.setMotion?.(shadowEnabledFlag),
+        applyMotionIdleQuality(shadowEnabledFlag)
     }
   }
   function updateShadowBoost() {
@@ -1470,150 +1486,124 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             .premultiply(appCtx.sceneRootNode.matrixWorld))
         : null
     }),
-    globalThis.window?.addEventListener(
-      'pagehide',
-      () => {
-        floorTransition.finish(), trimRetainedFloors()
-      },
-      {
-        once: true,
-      },
-    ),
-    globalThis.window?.addEventListener('pagehide', () => groundReflections.dispose(), {
-      once: true,
-    })
-  const onBeforeRender = appCtx.threeScene.onBeforeRender,
-    reflectionProbeMesh = new ns2.Mesh(
-      new ns2.BufferGeometry().setAttribute('position', new ns2.Float32BufferAttribute([], 3)),
-      new ns2.MeshBasicMaterial({
-        colorWrite: false,
-        depthWrite: false,
-        depthTest: false,
-      }),
-    )
-  ;(reflectionProbeMesh.name = 'interaction3d-curtain-shadow-refresh'),
-    (reflectionProbeMesh.frustumCulled = false),
-    (reflectionProbeMesh.renderOrder = -1000000000),
-    reflectionProbeMesh.layers.enableAll(),
-    (reflectionProbeMesh.onBeforeRender = () => {
-      ctx.shouldRefreshGeometry &&
-        !ctx.hasShadowBoost &&
-        (ctx.shouldRefreshGeometry = appCtx.lightPrecompileController
-          ? !appCtx.lightPrecompileController.refreshGeometry(appCtx.sceneRootNode, ctx.geometryBoxes)
-          : false)
+    // F04：具名 pagehide；仍挂在逗号表达式链里，不能写成语句式 `;(`，否则 TS1109。
+    bindNamedPageHideOnce(pageHideBindings, () => {
+      floorTransition.finish(), trimRetainedFloors()
     }),
-    appCtx.threeScene.add(reflectionProbeMesh),
-    globalThis.window?.addEventListener(
-      'pagehide',
-      () => {
-        reflectionProbeMesh.removeFromParent(),
-          reflectionProbeMesh.geometry.dispose(),
-          reflectionProbeMesh.material.dispose()
-      },
-      {
-        once: true,
-      },
-    ),
-    (appCtx.threeScene.onBeforeRender = function (...renderArgs: any[]) {
-      if (groundReflections.stats.inCapture) {
-        isReflectionDiagnosticsMode && appCtx.regionLightController?.sync(renderArgs[2], true)
-        return
-      }
-      groundReflections.setInsideEnabled?.(getPreviewFloorMode() !== 'all')
-      if (
-        (updateShadowBoost(),
-        ctx.reflectionDetailMode === 0 && ctx.releaseStartupDeviceSync?.(),
-        ctx.hasShadowBoost || scheduleTask('curtains', () => ctx.releaseCurtains?.()),
-        scheduleTask('television-screens', () => ctx.releaseTelevisionScreens?.()),
-        ctx.shouldRefreshGeometry && !ctx.hasShadowBoost)
-      ) {
-        ;(ctx.geometryRootRef !== appCtx.sceneRootNode || ctx.geometryKeyRef !== appCtx.sceneRevisionCount) &&
-          ((ctx.geometryRootRef = appCtx.sceneRootNode),
-          (ctx.geometryKeyRef = appCtx.sceneRevisionCount),
-          (ctx.shadowLights = []),
-          (ctx.geometryBoxes = []),
-          appCtx.sceneRootNode?.updateWorldMatrix(true, true),
-          appCtx.sceneRootNode?.traverse((probeNode: any) => {
-            probeNode.userData?.environmentModelType === 'curtain' &&
-              ctx.geometryBoxes.push(new ns2.Box3().setFromObject(probeNode))
-          }),
-          appCtx.threeScene.traverse((sceneShadowNode: any) => {
-            sceneShadowNode.isLight &&
-              sceneShadowNode.castShadow &&
-              sceneShadowNode.shadow &&
-              ctx.shadowLights.push(sceneShadowNode)
-          }))
-        for (const shadowUpdateLight of ctx.shadowLights) shadowUpdateLight.shadow.needsUpdate = true
-        appCtx.contactShadowController?.invalidate(ctx.invalidationBounds, true)
-      }
-      if (
-        (scheduleTask('lighting-and-contact', () => onBeforeRender?.apply(this, renderArgs)),
-        ctx.hasShadowBoost ||
-          (ctx.floorRetentionService?.setRoot(
-            appCtx.sceneRootNode,
-            appCtx.sceneRevisionCount + ':' + appCtx.curtainFrameKey,
-          ),
-          ctx.sceneRetentionService?.setRoot(appCtx.sceneRootNode, appCtx.sceneRevisionCount)),
-        prepareReflectionTargets(),
-        syncViewOffset(),
-        ctx.previousReflectionEnabled &&
-          ctx.isReflectionDisabled &&
-          !appCtx.contactShadowController?.isPending?.() &&
-          !appCtx.contactShadowController?.hasPendingSurfaces?.() &&
-          ((ctx.previousReflectionEnabled = false),
-          groundReflections.setSuspended(ctx.isReflectionsSuspended || ctx.shouldSuspendReflections, {
-            fadeIn: true,
-          }),
-          groundReflections.changed(),
-          stageLoadTiming('surface-shadows-ready'),
-          startupPresentation.shadowsReady()),
-        !ctx.previousReflectionEnabled &&
-          (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
-          (scheduleTask('reflections', () => {
-            const renderGroundReflections = () =>
-              groundReflections.render(renderArgs[2], {
-                worldMatricesCurrent: true,
-              })
-            ctx.reflectionDetailMode < 1 && appCtx.regionLightController
-              ? appCtx.regionLightController.withPresentationGain(1, renderGroundReflections)
-              : renderGroundReflections()
-          }),
-          ctx.isReflectionDisabled &&
-            !ctx.isShadowReady &&
-            groundReflections.isPrepared() &&
-            ((ctx.isShadowReady = true), stageLoadTiming('reflections-ready'), startupPresentation.effectsReady()),
-          isRenderLoopPerformanceDiagnostics || isRenderStatsTest))
-      ) {
-        const reflectionStatsJson = JSON.stringify({
-          ...groundReflections.stats,
-          detail: reflectionDetail?.stats,
-        })
-        appCtx.threeRenderer.domElement.dataset.reflectionStats !== reflectionStatsJson &&
-          (appCtx.threeRenderer.domElement.dataset.reflectionStats = reflectionStatsJson)
-      }
-      renderArgs[2] === appCtx.threeCamera &&
+    bindNamedPageHideOnce(pageHideBindings, () => groundReflections.dispose())
+  const { previousOnBeforeRender: onBeforeRender } = attachReflectionProbeMesh({
+    THREE: ns2,
+    threeScene: appCtx.threeScene,
+    pageHideBindings,
+    shouldRefreshGeometry: () => ctx.shouldRefreshGeometry,
+    hasShadowBoost: () => ctx.hasShadowBoost,
+    setShouldRefreshGeometry: (value) => {
+      ctx.shouldRefreshGeometry = value
+    },
+    lightPrecompileController: appCtx.lightPrecompileController,
+    sceneRootNode: appCtx.sceneRootNode,
+    geometryBoxes: ctx.geometryBoxes,
+  })
+  appCtx.threeScene.onBeforeRender = function (...renderArgs: any[]) {
+    if (groundReflections.stats.inCapture) {
+      isReflectionDiagnosticsMode && appCtx.regionLightController?.sync(renderArgs[2], true)
+      return
+    }
+    groundReflections.setInsideEnabled?.(getPreviewFloorMode() !== 'all')
+    if (
+      (updateShadowBoost(),
+      ctx.reflectionDetailMode === 0 && ctx.releaseStartupDeviceSync?.(),
+      ctx.hasShadowBoost || scheduleTask('curtains', () => ctx.releaseCurtains?.()),
+      scheduleTask('television-screens', () => ctx.releaseTelevisionScreens?.()),
+      ctx.shouldRefreshGeometry && !ctx.hasShadowBoost)
+    ) {
+      ;(ctx.geometryRootRef !== appCtx.sceneRootNode || ctx.geometryKeyRef !== appCtx.sceneRevisionCount) &&
+        ((ctx.geometryRootRef = appCtx.sceneRootNode),
+        (ctx.geometryKeyRef = appCtx.sceneRevisionCount),
+        (ctx.shadowLights = []),
+        (ctx.geometryBoxes = []),
+        appCtx.sceneRootNode?.updateWorldMatrix(true, true),
+        appCtx.sceneRootNode?.traverse((probeNode: any) => {
+          probeNode.userData?.environmentModelType === 'curtain' &&
+            ctx.geometryBoxes.push(new ns2.Box3().setFromObject(probeNode))
+        }),
+        appCtx.threeScene.traverse((sceneShadowNode: any) => {
+          sceneShadowNode.isLight &&
+            sceneShadowNode.castShadow &&
+            sceneShadowNode.shadow &&
+            ctx.shadowLights.push(sceneShadowNode)
+        }))
+      for (const shadowUpdateLight of ctx.shadowLights) shadowUpdateLight.shadow.needsUpdate = true
+      appCtx.contactShadowController?.invalidate(ctx.invalidationBounds, true)
+    }
+    if (
+      (scheduleTask('lighting-and-contact', () => onBeforeRender?.apply(this, renderArgs)),
+      ctx.hasShadowBoost ||
+        (ctx.floorRetentionService?.setRoot(
+          appCtx.sceneRootNode,
+          appCtx.sceneRevisionCount + ':' + appCtx.curtainFrameKey,
+        ),
+        ctx.sceneRetentionService?.setRoot(appCtx.sceneRootNode, appCtx.sceneRevisionCount)),
+      prepareReflectionTargets(),
+      syncViewOffset(),
+      ctx.previousReflectionEnabled &&
+        ctx.isReflectionDisabled &&
+        !appCtx.contactShadowController?.isPending?.() &&
+        !appCtx.contactShadowController?.hasPendingSurfaces?.() &&
+        ((ctx.previousReflectionEnabled = false),
+        groundReflections.setSuspended(ctx.isReflectionsSuspended || ctx.shouldSuspendReflections, {
+          fadeIn: true,
+        }),
+        groundReflections.changed(),
+        stageLoadTiming('surface-shadows-ready'),
+        startupPresentation.shadowsReady()),
+      !ctx.previousReflectionEnabled &&
         (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
-        (overviewDetail.prepare(appCtx.sceneRootNode, appCtx.sceneRevisionCount),
-        overviewDetail.begin(renderArgs[2]),
-        isInteractionBatchesEnabled() &&
-          (deps.interactionBatches.prepare(
-            appCtx.sceneRootNode,
-            appCtx.sceneRevisionCount + ':' + appCtx.curtainFrameKey,
-          ),
-          // 预热必须在 `begin()` 之前：`begin()` 会隐藏原始网格并挂上代理，
-          // 而预热是靠遍历原始网格来收集候选的（隐藏了就会被判定为不可见）。
-          deps.interactionBatches.prewarm(
-            collectInteractionFloorRoots(),
-            appCtx.sceneRevisionCount + ':' + appCtx.curtainFrameKey,
-          ),
-          deps.interactionBatches.begin(renderArgs[2]),
-          (isRenderLoopPerformanceDiagnostics || isRenderStatsTest) &&
-            (appCtx.threeRenderer.domElement.dataset.interactionBatchStats = JSON.stringify(
-              deps.interactionBatches.stats,
-            ))),
-        isRenderLoopPerformanceDiagnostics &&
-          (appCtx.threeRenderer.domElement.dataset.overviewDetailStats = JSON.stringify(overviewDetail.stats)))
-    })
+        (scheduleTask('reflections', () => {
+          const renderGroundReflections = () =>
+            groundReflections.render(renderArgs[2], {
+              worldMatricesCurrent: true,
+            })
+          ctx.reflectionDetailMode < 1 && appCtx.regionLightController
+            ? appCtx.regionLightController.withPresentationGain(1, renderGroundReflections)
+            : renderGroundReflections()
+        }),
+        ctx.isReflectionDisabled &&
+          !ctx.isShadowReady &&
+          groundReflections.isPrepared() &&
+          ((ctx.isShadowReady = true), stageLoadTiming('reflections-ready'), startupPresentation.effectsReady()),
+        isRenderLoopPerformanceDiagnostics || isRenderStatsTest))
+    ) {
+      const reflectionStatsJson = JSON.stringify({
+        ...groundReflections.stats,
+        detail: reflectionDetail?.stats,
+      })
+      appCtx.threeRenderer.domElement.dataset.reflectionStats !== reflectionStatsJson &&
+        (appCtx.threeRenderer.domElement.dataset.reflectionStats = reflectionStatsJson)
+    }
+    renderArgs[2] === appCtx.threeCamera &&
+      (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
+      (overviewDetail.prepare(appCtx.sceneRootNode, appCtx.sceneRevisionCount),
+      overviewDetail.begin(renderArgs[2]),
+      isInteractionBatchesEnabled() &&
+        (deps.interactionBatches.prepare(
+          appCtx.sceneRootNode,
+          appCtx.sceneRevisionCount + ':' + appCtx.curtainFrameKey,
+        ),
+        // 预热必须在 `begin()` 之前：`begin()` 会隐藏原始网格并挂上代理，
+        // 而预热是靠遍历原始网格来收集候选的（隐藏了就会被判定为不可见）。
+        deps.interactionBatches.prewarm(
+          collectInteractionFloorRoots(),
+          appCtx.sceneRevisionCount + ':' + appCtx.curtainFrameKey,
+        ),
+        deps.interactionBatches.begin(renderArgs[2]),
+        (isRenderLoopPerformanceDiagnostics || isRenderStatsTest) &&
+          (appCtx.threeRenderer.domElement.dataset.interactionBatchStats = JSON.stringify(
+            deps.interactionBatches.stats,
+          ))),
+      isRenderLoopPerformanceDiagnostics &&
+        (appCtx.threeRenderer.domElement.dataset.overviewDetailStats = JSON.stringify(overviewDetail.stats)))
+  }
   const overviewDetail = createOverviewDetail2({
     THREE: ns2,
     renderer: appCtx.threeRenderer,
@@ -1638,9 +1628,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       appCtx.compiledShaderCache?.clear(), renderStudioFrame()
     },
   })
-  window.addEventListener('pagehide', () => overviewDetail.dispose(), {
-    once: true,
-  })
+  bindNamedPageHideOnce(pageHideBindings, () => overviewDetail.dispose())
   /** 交互批处理：仅嵌入式 stage、高细节、非诊断模式与 `?interaction-batches=baseline` 关闭时启用。 */
   function isInteractionBatchesEnabled() {
     return (
@@ -1680,9 +1668,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       !document.hidden && !appCtx.pendingRuntimeSettings && !appCtx.isPrewarming && !appCtx.isRenderSuppressed,
     requestFrame: () => requestStudioRender(),
   })
-  window.addEventListener('pagehide', () => deps.interactionBatches?.dispose(), {
-    once: true,
-  })
+  bindNamedPageHideOnce(pageHideBindings, () => deps.interactionBatches?.dispose())
   const onAfterRender = appCtx.threeScene.onAfterRender
   appCtx.threeScene.onAfterRender = function (...afterRenderArgs: any[]) {
     onAfterRender?.apply(this, afterRenderArgs),
@@ -1723,6 +1709,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     progressListeners: progressListenerSet,
     subsystems: [startupPresentation, groundReflections, overviewDetail, deps.interactionBatches],
     releaseInteractionBatches: () => ((deps.interactionBatches = null), undefined),
+    pageHideHandlers: pageHideBindings,
   })
   return {
     /** 显式回收本次渲染循环持有的资源（SPA 路由切换不触发 pagehide）。 */
@@ -2447,9 +2434,17 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       ])
       appearanceSignatureJson !== ctx.lastRenderSignature &&
         (trimRetainedFloors(), (ctx.lastRenderSignature = appearanceSignatureJson), groundReflections.changed())
-      const normalizedGroundReflection = normalizeGroundReflection2(appearanceSettings.groundReflection)
-      groundReflections.configure(normalizedGroundReflection) &&
-        ((appCtx.reflectionSettingsJson = JSON.stringify(groundReflections.settings)), refreshSceneRender())
+      configureCappedGroundReflection({
+        appearanceGroundReflection: appearanceSettings.groundReflection,
+        normalizeGroundReflection: normalizeGroundReflection2,
+        isIdle: !ctx.hasShadowBoost,
+        groundReflections,
+        appCtx,
+        assignAppearance: (normalized) => {
+          ctx.appearanceGroundReflection = normalized
+        },
+        onConfigured: refreshSceneRender,
+      })
       const lightRegionOverrides =
           appCtx.regionLightController?.setOverrides(appearanceSettings.lightRegionOverrides || {}) ??
           appearanceSettings.lightRegionOverrides ??

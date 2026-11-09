@@ -93,6 +93,9 @@ LICENSE_EXEMPT_LICENSE_PATHS = frozenset(
         # 自身的报错就一条都留不下来 —— 而那正是排查「激活页为什么打不开」最需要的东西。
         # 端点自身有同源校验、级别限制（只收 warning/error）与匿名限流，放宽是安全的。
         "/api/v1/logs/public-events",
+        # 与 public-events 同威胁模型：激活/恢复页 RUM（LCP/INP/ws_reconnect）需要匿名可达，
+        # 端点自身有同源、级别与限流约束。
+        "/api/v1/logs/public-metrics",
     }
 )
 

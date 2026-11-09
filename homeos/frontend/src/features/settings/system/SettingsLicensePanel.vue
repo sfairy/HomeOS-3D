@@ -43,7 +43,7 @@
     </div>
 
     <template v-else>
-      <SettingsCard v-show="section === 'overview'" full static extra-class="license-card">
+      <SettingsCard v-if="section === 'overview'" full static extra-class="license-card">
         <div class="license-hero">
           <div class="license-hero__main">
             <div class="license-hero__title">
@@ -80,7 +80,7 @@
         </dl>
       </SettingsCard>
 
-      <SettingsCard v-show="section === 'lease'" full static extra-class="license-card">
+      <SettingsCard v-if="section === 'lease'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '签名租约' }}</h3>
           <span class="license-card__hint">{{ '本机离线可用性由这份租约决定，到期前后台会自动续租' }}</span>
@@ -99,7 +99,7 @@
         </dl>
       </SettingsCard>
 
-      <SettingsCard v-show="section === 'features'" full static extra-class="license-card">
+      <SettingsCard v-if="section === 'features'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '功能码与权益' }}</h3>
           <span class="license-card__hint">{{ '功能码目录与授权商店同源（ops/contracts/feature_codes.json）' }}</span>
@@ -188,7 +188,7 @@
         </p>
       </SettingsCard>
 
-      <SettingsCard v-show="section === 'account'" full static extra-class="license-card">
+      <SettingsCard v-if="section === 'account'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '账号与操作' }}</h3>
           <span class="license-card__hint">{{ '本机账号用于登录这台中控；商店账号用于授权绑定与售后' }}</span>

@@ -231,7 +231,7 @@
   border-radius: 50%;
   border: 1px solid rgba(var(--page-accent-rgb), 0.22);
   background: radial-gradient(circle, rgba(var(--page-accent-rgb), 0.12) 0%, transparent 68%);
-  animation: sz-empty-ring 3s ease-in-out infinite;
+  animation: sz-empty-ring calc(var(--hos-dur-slower, 480ms) * 6) var(--hos-ease-standard, ease-in-out) infinite;
 }
 
 @keyframes sz-empty-ring {
@@ -2984,9 +2984,7 @@
 }
 
 /*
- * 窄屏（平板竖屏 / 桌面分屏窗口）：安防总览是「主区 + 300~360px 侧栏」的固定两栏，
- * 侧栏下限会在 1024 以下把主区（区域布防）压到 200px 都不到。按档位收窄侧栏，
- * 两栏关系不变、主区仍有可用宽度（真正堆叠会破坏内部的整高滚动/画布布局）。
+ * 窄屏：先收窄侧栏；≤900 时 LAY-02 改为单列堆叠，避免主区被压到不可用。
  */
 @container hos-canvas (max-width: 1280px) {
   .sov-workspace {
@@ -3000,8 +2998,26 @@
     gap: 12px;
   }
 
-  /* 布防「主从」两栏的主列（168~210px）同步收窄，留宽给右侧编辑区 */
   .sz-master-detail {
     grid-template-columns: minmax(140px, 176px) minmax(0, 1fr);
+  }
+}
+
+@container hos-canvas (max-width: 900px) {
+  .sov-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: auto;
+  }
+
+  .sov-workspace > aside,
+  .sov-workspace > .sov-side {
+    max-height: min(40vh, 320px);
+    overflow: auto;
+  }
+
+  .sz-master-detail {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 }

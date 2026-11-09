@@ -185,6 +185,9 @@ class EewPollService:
         await self._earthquake.ensure_runtime_config()
         if not self._earthquake.get_runtime_config().enabled:
             return
+        # 无家庭坐标时预警全 skip，继续轮询只会把诊断刷成「源活跃」的假象。
+        if not self._earthquake.has_home_coordinates():
+            return
         await asyncio.gather(self._poll_sc_eew(), self._poll_cenc_eew())
 
     async def _poll_sc_eew(self) -> None:
@@ -223,37 +226,41 @@ class EewPollService:
             self._earthquake.record_source_poll("cenc_eew", {"ok": False, "error": message})
             logger.warning("中国地震台网 EEW 数据拉取失败：%s（每 18 秒自动重试）", message)
 
-    async def poll_usgs_backup(self) -> None:
+    def _can_poll_usgs_backup(self) -> bool:
         if not self._leader.is_eew_leader():
-            return
-        await self._earthquake.ensure_runtime_config()
+            return False
         if not self._earthquake.get_runtime_config().enabled:
-            return
-        if not self._earthquake.should_use_usgs_backup(WOLFX_DOWN_FOR_USGS_MS):
-            return
+            return False
+        if not self._earthquake.has_home_coordinates():
+            return False
+        return self._earthquake.should_use_usgs_backup(WOLFX_DOWN_FOR_USGS_MS)
 
+    def _ingest_usgs_features(self, features: list[Any]) -> None:
+        seen = set(self._last_usgs_ids)
+        ingested = 0
+        for feature in features[:15]:
+            eew = parse_usgs_feature_as_eew(feature)
+            if eew is None or eew.event_id in seen:
+                continue
+            seen.add(eew.event_id)
+            self._last_usgs_ids.append(eew.event_id)
+            self._earthquake.ingest_eew(eew)
+            ingested += 1
+            if ingested >= USGS_MAX_INGEST_PER_ROUND:
+                break
+        if len(self._last_usgs_ids) > USGS_SEEN_MAX:
+            self._last_usgs_ids = self._last_usgs_ids[-40:]
+
+    async def poll_usgs_backup(self) -> None:
+        await self._earthquake.ensure_runtime_config()
+        if not self._can_poll_usgs_backup():
+            return
         try:
-            url = resolve_usgs_feed_url("hour")
-            body = await _fetch_json(url)
+            body = await _fetch_json(resolve_usgs_feed_url("hour"))
             self._earthquake.record_source_poll("usgs", {"ok": True})
             features = body.get("features") if isinstance(body, dict) else None
-            if not isinstance(features, list):
-                return
-
-            seen = set(self._last_usgs_ids)
-            ingested = 0
-            for feature in features[:15]:
-                eew = parse_usgs_feature_as_eew(feature)
-                if eew is None or eew.event_id in seen:
-                    continue
-                seen.add(eew.event_id)
-                self._last_usgs_ids.append(eew.event_id)
-                self._earthquake.ingest_eew(eew)
-                ingested += 1
-                if ingested >= USGS_MAX_INGEST_PER_ROUND:
-                    break
-            if len(self._last_usgs_ids) > USGS_SEEN_MAX:
-                self._last_usgs_ids = self._last_usgs_ids[-40:]
+            if isinstance(features, list):
+                self._ingest_usgs_features(features)
         except Exception as exc:
             message = poll_failure_text(exc)
             self._earthquake.record_source_poll("usgs", {"ok": False, "error": message})

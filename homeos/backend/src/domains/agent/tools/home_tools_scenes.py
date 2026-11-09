@@ -56,6 +56,63 @@ def _scene_result_payload(result: Any, hit: dict[str, Any], entity_id: str, doma
     return payload
 
 
+_HOME_MODE_RESULT_KEYS = (
+    "executed",
+    "total",
+    "retried",
+    "alreadyActive",
+    "verifiedCount",
+    "unverifiedCount",
+    "failedCount",
+    "failedItems",
+    "snapshotIncomplete",
+    "snapshotMissing",
+    "displacedRestoreIncomplete",
+)
+
+
+def _copy_present(result: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
+    return {key: result[key] for key in keys if key in result}
+
+
+def _home_mode_activate_failure_payload(mode: dict[str, str], result: dict[str, Any]) -> dict[str, Any]:
+    """激活返回 success=False 时的助手可见载荷（含未确认 / 快照残缺字段）。"""
+    executed = result.get("executed")
+    total = result.get("total")
+    progress = f"（{executed}/{total} 项成功）" if total else ""
+    payload: dict[str, Any] = {
+        "success": False,
+        "message": f"家庭模式「{mode['name']}」切换未完成{progress}"
+        + ("，请检查设备状态后重试。" if total else "。"),
+        "failedItems": result.get("failedItems") or [],
+    }
+    payload.update(_copy_present(result, _HOME_MODE_RESULT_KEYS))
+    return payload
+
+
+def _home_mode_activate_success_payload(mode: dict[str, str], result: Any) -> dict[str, Any]:
+    """激活成功路径：透传统计，未确认则降为失败，快照残缺则附带说明。"""
+    payload: dict[str, Any] = {
+        "success": True,
+        "mode": {"id": mode["id"], "name": mode["name"]},
+    }
+    if not isinstance(result, dict):
+        return payload
+    payload.update(_copy_present(result, _HOME_MODE_RESULT_KEYS))
+    unverified = int(result.get("unverifiedCount") or 0)
+    if unverified > 0:
+        payload["success"] = False
+        payload["message"] = (
+            f"家庭模式「{mode['name']}」已下发，但有 {unverified} 个设备状态未确认，请核对后再视为成功。"
+        )
+    elif result.get("displacedRestoreIncomplete"):
+        names = "、".join(str(item) for item in result["displacedRestoreIncomplete"])
+        payload["message"] = (
+            f"家庭模式「{mode['name']}」已激活，但原模式 {names} 的设备状态未能完整恢复。"
+        )
+    return payload
+
+
 class HomeToolsScenesMixin(HomeToolsHost):
     """场景与模式工具族：家庭模式激活 / 模式名解析 / 场景清单 / 场景激活 / 实体匹配。"""
 
@@ -95,25 +152,8 @@ class HomeToolsScenesMixin(HomeToolsHost):
             # 执行项失败 / 安防联动未生效都在这里体现。此前丢弃返回值后无条件回
             # ``success: True``，助手会把「没切」说成「已切换」，计划任务也会记成功。
             if isinstance(result, dict) and result.get("success") is False:
-                executed = result.get("executed")
-                total = result.get("total")
-                progress = f"（{executed}/{total} 项成功）" if total else ""
-                return {
-                    "success": False,
-                    "message": f"家庭模式「{mode['name']}」切换未完成{progress}"
-                    + ("，请检查设备状态后重试。" if total else "。"),
-                    "failedItems": result.get("failedItems") or [],
-                }
-            payload: dict[str, Any] = {
-                "success": True,
-                "mode": {"id": mode["id"], "name": mode["name"]},
-            }
-            if isinstance(result, dict):
-                # 部分实现（幂等命中 / 已激活）会带回这些字段，透传给上游便于解释。
-                for key in ("executed", "total", "retried", "alreadyActive"):
-                    if key in result:
-                        payload[key] = result[key]
-            return payload
+                return _home_mode_activate_failure_payload(mode, result)
+            return _home_mode_activate_success_payload(mode, result)
         except Exception as exc:
             return {"success": False, "message": _error_message(exc, "模式切换失败")}
 

@@ -143,6 +143,25 @@ class PresenceService:
     def _require_configured_persons(self) -> bool:
         return self._config().get("requireConfiguredPersons") is True
 
+    def _presence_require_all_away(self) -> bool:
+        """多人多 tracker 时是否用 AND 判定在家。
+
+        默认 True：同一人员须**全部**已知 tracker 报在家才算在家，避免手机忘在家
+        永久挡住「全员离家」。False 时保留旧 OR（任一 tracker 在家即在家）。
+        """
+        raw = self._config().get("presenceRequireAllAway")
+        return True if raw is None else bool(raw)
+
+    def _person_at_home_from_entities(self, entity_ids: list[str]) -> bool:
+        """按策略聚合一名人员的多个判定实体。"""
+        states = [self._entity_at_home(entity_id) for entity_id in entity_ids]
+        known = [state for state in states if state is not None]
+        if not known:
+            return False
+        if self._presence_require_all_away():
+            return all(known)
+        return any(known)
+
     def is_auto_track_mode(self) -> bool:
         if self.get_presence_persons():
             return False
@@ -202,7 +221,7 @@ class PresenceService:
     def _build_configured_person_members(self) -> list[dict[str, Any]]:
         members: list[dict[str, Any]] = []
         for person in self.get_presence_persons():
-            at_home = any(self._entity_at_home(i) is True for i in person["entityIds"])
+            at_home = self._person_at_home_from_entities(person["entityIds"])
             last_seen = ""
             for entity_id in person["entityIds"]:
                 seen = (self._entity_states.get(entity_id) or {}).get("lastSeen")
@@ -393,7 +412,7 @@ class PresenceService:
             return
         for person in self.get_presence_persons():
             member_id = f"person:{person['id']}"
-            at_home = any(self._entity_at_home(i) is True for i in person["entityIds"])
+            at_home = self._person_at_home_from_entities(person["entityIds"])
             self._apply_aggregate_change(member_id, person["name"], at_home, emit_events)
 
     def _apply_aggregate_change(

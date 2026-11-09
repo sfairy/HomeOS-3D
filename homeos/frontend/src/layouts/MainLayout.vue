@@ -648,8 +648,8 @@ watch(
       </div>
 
       <!-- HA 断连 / 重连 / 实体过期 / 丢弃指令统一走 HaStatusDegradeBanner。
-           改为内容区顶部悬浮消息提醒：零高度锚点 + 绝对定位，不占用页面布局空间；
-           连接恢复（connected 且非 stale）后组件内部 v-if 自动移除，即“连接成功后自动消失”。 -->
+           右上紧凑 toast；横幅可见时锚点预留高度，避免盖住内容（LAY-05）。
+           连接恢复（connected 且非 stale）后组件内部 v-if 自动移除。 -->
       <div class="main-layout__ha-anchor">
         <HaStatusDegradeBanner class="main-layout__ha-banner" title="实时状态" />
       </div>

@@ -15,6 +15,7 @@ from contextlib import AbstractContextManager
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict
 
+from .alert_watch_index import refresh_alert_rule_watch_index
 from .app_config_field_bindings import APP_CONFIG_FIELD_BINDINGS
 from ...platform.core.db.json_field import object_field
 
@@ -1028,6 +1029,7 @@ def _unlink_alert_rule(deps: EntityReferencesDeps, rule_id: str) -> UnlinkResult
         delete_result = delete_alert_rule(rule_id)
         if not (isinstance(delete_result, dict) and delete_result.get("success")):
             return _fail("删除告警规则失败")
+        refresh_alert_rule_watch_index(deps)
         return _ok("deleted_rule", "已删除告警规则")
 
     try:
@@ -1040,14 +1042,7 @@ def _unlink_alert_rule(deps: EntityReferencesDeps, rule_id: str) -> UnlinkResult
     except Exception:
         return _fail("告警规则不存在或删除失败")
 
-    watch_index = deps.get("alert_rule_watch_index")
-    if watch_index is not None:
-        # 实体关注索引是全量的：加 limit 会让超出的规则被静默漏掉，告警触发因此丢事件。
-        with deps["session_factory"]() as session:
-            remaining_rules = session.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
-        watch_index.update_from_rules(
-            [{"entityId": rule.entity_id, "enabled": rule.enabled} for rule in remaining_rules]
-        )
+    refresh_alert_rule_watch_index(deps)
     return _ok("deleted_rule", "已删除告警规则")
 
 

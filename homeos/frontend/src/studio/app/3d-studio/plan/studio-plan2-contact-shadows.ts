@@ -52,11 +52,17 @@ export function createContactShadowController({
   now: now = () => performance.now(),
   followMotion: followMotion = false,
   persistentCache: persistentCache = null as ContactShadowPersistentCache | null,
+  /** WaveUI-C：来自 `interactionResourcePolicy.contactShadows` 的运动预算。 */
+  resolution: policyResolution = 1024,
+  surfaceResolution: policySurfaceResolution = 256,
+  maxSurfaceLevels: policyMaxSurfaceLevels = 32,
+  idleResolution: policyIdleResolution = policyResolution,
+  idleSurfaceResolution: policyIdleSurfaceResolution = policySurfaceResolution,
 }: any) {
   const settings = {
       enabled: true,
       opacity: 0.78,
-      resolution: 1024,
+      resolution: policyResolution,
       maxHeight: 2.5,
       heightFalloff: 1.2,
       blurMeters: 0.055,
@@ -64,8 +70,16 @@ export function createContactShadowController({
       offsetZ: -0.22,
       surfaceEnabled: true,
       surfaceOpacity: 0.75,
-      surfaceResolution: 256,
-      maxSurfaceLevels: 32,
+      surfaceResolution: policySurfaceResolution,
+      maxSurfaceLevels: policyMaxSurfaceLevels,
+    },
+    motionQuality = {
+      resolution: policyResolution,
+      surfaceResolution: policySurfaceResolution,
+    },
+    idleQuality = {
+      resolution: policyIdleResolution,
+      surfaceResolution: policyIdleSurfaceResolution,
     },
     stats = {
       builds: 0,
@@ -260,9 +274,16 @@ export function createContactShadowController({
       ;(stats.floors = 0), invalidate()
     }
   }
+  function applyQualityBudget(isIdle: boolean) {
+    const next = isIdle ? idleQuality : motionQuality
+    if (settings.resolution === next.resolution && settings.surfaceResolution === next.surfaceResolution) return false
+    ;(settings.resolution = next.resolution), (settings.surfaceResolution = next.surfaceResolution)
+    return true
+  }
   function setMotion(motionEnabled: any) {
     if (isMotionSuspended !== (motionEnabled === true)) {
       if (((isMotionSuspended = motionEnabled === true), isMotionSuspended)) {
+        applyQualityBudget(false)
         for (const resumedFloor of floorStatesById.values())
           (resumedFloor.motionReady = false),
             (resumedFloor.fade = followMotion
@@ -276,6 +297,7 @@ export function createContactShadowController({
                 })
       }
       if (!isMotionSuspended) {
+        applyQualityBudget(true)
         for (const clearedFloor of floorStatesById.values()) clearedFloor.fade = null
         ;(isIncrementalUpdate = true), (shouldReuseLayout = true)
       }

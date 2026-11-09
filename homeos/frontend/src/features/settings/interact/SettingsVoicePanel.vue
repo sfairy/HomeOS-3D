@@ -45,7 +45,7 @@
       </p>
 
       <SettingsVoiceOverviewSection
-        v-show="voiceSection === 'overview'"
+        v-if="voiceSection === 'overview'"
         :stt-mode-label="sttModeLabel"
         :intent-label="intentLabel"
         :tts-speaker-label="ttsSpeakerLabel"
@@ -56,7 +56,7 @@
       />
 
       <SettingsVoiceTtsSection
-        v-show="voiceSection === 'output'"
+        v-if="voiceSection === 'output'"
         v-model:voice="voice"
         v-model:voice-output-tab="voiceOutputTab"
         v-model:tts-media-player-ids="ttsMediaPlayerIds"
@@ -95,7 +95,7 @@
       />
 
       <SettingsVoiceSttSection
-        v-show="voiceSection === 'input'"
+        v-if="voiceSection === 'input'"
         v-model:voice="voice"
         v-model:voice-input-tab="voiceInputTab"
         v-model:wake-words-text="wakeWordsText"
@@ -103,7 +103,7 @@
       />
 
       <SettingsVoiceCommandsSection
-        v-show="voiceSection === 'commands'"
+        v-if="voiceSection === 'commands'"
         v-model:voice-commands="voiceCommands"
         :domain-options-list="domainOptionsList"
         :phrases-text="phrasesText"

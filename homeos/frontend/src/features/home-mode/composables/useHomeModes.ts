@@ -43,6 +43,8 @@ interface HomeModeWsPayload {
   modeName?: string
   totalCount?: number
   successCount?: number
+  unverifiedCount?: number
+  failedCount?: number
   exclusiveGroup?: string
   restored?: number
   skippedDomains?: string[]
@@ -94,9 +96,15 @@ function handleModeActivated(data: HomeModeWsPayload) {
   if (!data.modeName) return
   const total = data.totalCount ?? 0
   const success = data.successCount ?? 0
-  const failedCount = total > 0 ? total - success : 0
+  const unverified = Number(data.unverifiedCount ?? 0)
+  const failedCount =
+    typeof data.failedCount === 'number' ? data.failedCount : total > 0 ? Math.max(0, total - success) : 0
   if (failedCount > 0) {
     useChromeStore().notify(`模式「${data.modeName}」已激活，${failedCount} 个设备执行失败`, 'warning')
+    return
+  }
+  if (unverified > 0) {
+    useChromeStore().notify(`模式「${data.modeName}」已激活，${unverified} 个设备状态未确认`, 'warning')
     return
   }
   useChromeStore().notify(`模式已激活：${data.modeName}`, 'success')

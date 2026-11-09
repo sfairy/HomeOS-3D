@@ -297,6 +297,8 @@ class CommandProxyService:
                 "skipped": False,
                 "verified": verification["verified"],
                 "verification": verification,
+                # success=HA 已受理；controlSuccess=设备侧是否真正到位（与 is_control_success 同口径）
+                "controlSuccess": verification["verified"] is not False,
                 "data": data,
             }
             if scope:

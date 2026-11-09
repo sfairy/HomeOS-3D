@@ -313,10 +313,12 @@ export const useEntitiesStore = defineStore('entities', () => {
     optimisticState: ReturnType<typeof createEntityOptimisticState>['optimisticState']
     clearOptimistic: ReturnType<typeof createEntityOptimisticState>['clearOptimistic']
     rollbackAllOptimistic: ReturnType<typeof createEntityOptimisticState>['rollbackAllOptimistic']
+    confirmOptimisticAfterResync: ReturnType<typeof createEntityOptimisticState>['confirmOptimisticAfterResync']
   } = {
     optimisticState: new Map(),
     clearOptimistic: () => {},
     rollbackAllOptimistic: () => 0,
+    confirmOptimisticAfterResync: () => 0,
   }
   /**
    * 构建状态更新依赖对象（供 updateState 和 updateStatesBatch 共用）
@@ -459,6 +461,7 @@ export const useEntitiesStore = defineStore('entities', () => {
     clearOptimistic,
     rollbackOptimistic,
     rollbackAllOptimistic,
+    confirmOptimisticAfterResync,
     discardAllOptimistic,
     touchOptimistic,
     optimisticState,
@@ -478,6 +481,7 @@ export const useEntitiesStore = defineStore('entities', () => {
   optimisticRef.optimisticState = optimisticState
   optimisticRef.clearOptimistic = clearOptimistic
   optimisticRef.rollbackAllOptimistic = rollbackAllOptimistic
+  optimisticRef.confirmOptimisticAfterResync = confirmOptimisticAfterResync
   // 整表清空时连带丢掉乐观态（含 TTL 定时器）与脏实体标记
   onClearAuxState = () => {
     discardAllOptimistic()

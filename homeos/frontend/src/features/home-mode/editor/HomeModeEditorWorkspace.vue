@@ -123,7 +123,7 @@ const emit = defineEmits([
         </div>
       </div>
 
-      <div class="hm-panel-scroll flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div class="hm-panel-scroll flex-1 min-h-0 flex flex-col overflow-x-hidden overflow-y-auto">
         <section :key="activeTab" class="hm-panel hm-panel--fill">
           <HomeModeBasicSection
             v-show="activeSection === 'basic'"

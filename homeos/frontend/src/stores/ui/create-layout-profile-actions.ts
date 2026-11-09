@@ -15,6 +15,7 @@ import { ref, type Ref } from 'vue'
 import { activateHomeMode } from '@/services/api/home-modes'
 import { fetchConfigProfiles, saveProject, deleteProject, setActiveProject } from '@/services/api/config'
 import { logger } from '@/shared/utils/core/logger'
+import { useChromeStore } from '@/stores/chrome.store'
 import { writeStoredProfileId } from './create-layout-state'
 import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
 import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
@@ -66,16 +67,39 @@ export function createLayoutProfileActions(deps: LayoutProfileActionsDeps) {
   /** 可用方案列表 */
   const availableProfiles = ref<LayoutProfileSummary[]>([])
 
+  /** success:false 时按 active/failedCount 选 toast 文案。 */
+  function homeModeActivateFailureMessage(data: { error?: string; active?: boolean; failedCount?: number }): string {
+    if (data?.error) return data.error
+    if (data?.active !== true) return '方案已切换，但绑定的家庭模式激活失败'
+    const failed = Number(data?.failedCount ?? 0)
+    if (failed > 0) return `方案已切换，模式已激活但 ${failed} 个设备执行失败`
+    return '方案已切换，模式已激活但部分设备执行失败'
+  }
+
+  function notifyHomeModeActivateFailure(data: { error?: string; active?: boolean; failedCount?: number }): void {
+    useChromeStore().notify(homeModeActivateFailureMessage(data), data?.active === true ? 'warning' : 'error')
+    logger.warn('方案切换后家庭模式激活未成功', data)
+  }
+
+  function profileHomeModeToActivate(): string | null {
+    const binding = layoutConfig.profileHomeMode
+    if (!binding?.autoActivate) return null
+    const mode = String(binding.onSwitch || '').trim()
+    return mode || null
+  }
+
   /**
    * 若当前方案绑定了自动激活家庭模式，则触发激活。
    * 仅在 autoActivate=true 且 onSwitch 非空时执行；失败仅警告不阻断流程。
    */
   async function maybeActivateProfileHomeMode() {
-    const binding = layoutConfig.profileHomeMode
-    if (!binding?.autoActivate || !String(binding.onSwitch || '').trim()) return
+    const modeId = profileHomeModeToActivate()
+    if (!modeId) return
     try {
-      await activateHomeMode(binding.onSwitch)
+      const { data } = await activateHomeMode(modeId)
+      if (data?.success === false) notifyHomeModeActivateFailure(data)
     } catch (err) {
+      useChromeStore().notify('方案已切换，但绑定的家庭模式激活失败', 'error')
       logger.warn('方案切换后家庭模式激活失败', err)
     }
   }

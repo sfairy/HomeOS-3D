@@ -36,6 +36,8 @@ export function useSecurityLinkage() {
     linkHomeModeOnSecurityChange: true,
     autoArmOnEveryoneLeft: false,
     autoUpgradeToAwayOnEveryoneLeft: false,
+    calendarArmOnAway: false,
+    calendarUpgradeToAway: false,
     autoDisarmOnFirstHome: false,
   })
 
@@ -54,6 +56,8 @@ export function useSecurityLinkage() {
       linkHomeModeOnSecurityChange: !!sec.linkHomeModeOnSecurityChange,
       autoArmOnEveryoneLeft: !!sec.autoArmOnEveryoneLeft,
       autoUpgradeToAwayOnEveryoneLeft: !!sec.autoUpgradeToAwayOnEveryoneLeft,
+      calendarArmOnAway: !!sec.calendarArmOnAway,
+      calendarUpgradeToAway: !!sec.calendarUpgradeToAway,
       autoDisarmOnFirstHome: !!sec.autoDisarmOnFirstHome,
     }
   }

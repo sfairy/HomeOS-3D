@@ -135,6 +135,12 @@ async def restore_server_backup_file(
             {"confirm": payload.confirm is True},
             dispose=(database.engine.dispose if database is not None else None),
         )
+        # 与 /backups/restore 对齐：refresh 必须在 maintenance 窗口内完成，
+        # 否则新库已切换而进程内配置/HA 仍是旧的，并发请求会脏读脏写。
+        await refresh_runtime_after_restore(request.app)
+        if gate is not None:
+            await gate.prune_rollbacks_async()
+        return {"success": True, "data": result}
     except BackupError as error:
         return JSONResponse(
             status_code=400,
@@ -151,8 +157,3 @@ async def restore_server_backup_file(
     finally:
         if gate is not None:
             gate.maintenance = False
-    # 数据库已整体替换：重建系统配置 / 素材目录 / HA 连接等进程内缓存
-    await refresh_runtime_after_restore(request.app)
-    if gate is not None:
-        await gate.prune_rollbacks_async()
-    return {"success": True, "data": result}

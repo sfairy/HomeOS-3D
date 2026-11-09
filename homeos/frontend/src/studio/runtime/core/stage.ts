@@ -160,6 +160,8 @@ import { createStageContext } from './stage/stage-context'
 import { createWeatherGroundEmitter, type WeatherGroundBounds } from './stage/weather-ground'
 import { onPermanentPageHide } from './page-disposal'
 import { installNativeSelectionGuard } from './native-selection'
+import { runStageDisposeSteps } from './stage/dispose-pagehide'
+import { createFocusExitListeners } from './stage/focus-exit-listeners'
 
 /**
  * 注入依赖袋的 `getComputedStyle` 必须**钉死接收者**：消费者写成 `deps.getComputedStyle(el)` 时
@@ -4288,29 +4290,15 @@ export function mountStage(mountOptions: any) {
         ctx.idleReturnCamera === releasedFocusExitPointer.returnCamera &&
         startCameraMotion(releasedFocusExitPointer.motion.to, false, false, releasedFocusExitPointer.motion.done))
   }
-  canvasElement.addEventListener('pointerup', releaseFocusExit, {
-    capture: true,
-  }),
-    canvasElement.addEventListener('pointercancel', releaseFocusExit, {
-      capture: true,
-    }),
-    window.addEventListener('blur', () => {
-      ctx.focusExitPointer &&
-        releaseFocusExit({
-          pointerId: ctx.focusExitPointer.pointerId,
-        })
-    }),
-    window.addEventListener('homeos:display-view-lock', () => {
-      syncCameraInteraction()
-    }),
-    window.addEventListener('homeos:display-reset-camera', () => {
-      try {
-        mountOptions.setCameraView?.('free')
-      } catch {
-        /* ignore */
-      }
-      syncCameraInteraction()
-    }),
+  const focusExitListeners = createFocusExitListeners({
+    releaseFocusExit,
+    getFocusExitPointer: () => ctx.focusExitPointer,
+    syncCameraInteraction,
+    setCameraView: mountOptions.setCameraView,
+  })
+  canvasElement.addEventListener('pointerup', releaseFocusExit, { capture: true }),
+    canvasElement.addEventListener('pointercancel', releaseFocusExit, { capture: true }),
+    focusExitListeners.install(),
     canvasElement.addEventListener('pointerdown', (gestureStartEvent: any) => {
       ctx.pointerGesture =
         (gestureStartEvent.button == null || gestureStartEvent.button === 0) && gestureStartEvent.isPrimary !== false
@@ -4989,40 +4977,48 @@ export function mountStage(mountOptions: any) {
         settleMediaRequest(pendingControlRequestId, '页面已关闭。')
       for (const pendingSceneRequestId of coverControlRequestsByRequestId.keys())
         failCoverRequest(pendingSceneRequestId, '页面已关闭。')
-      lightModeMenu.dispose(),
-        lightColorPicker.dispose(),
-        lightStateCache.flush(),
-        sceneSync(),
-        weatherGround.dispose(),
-        screenOutlines.dispose(),
-        editorSelectionOutlines.dispose(),
-        editorSelectionElement.remove(),
-        nasPanel.dispose(),
-        nasStatus.dispose(),
-        projectorStatus.dispose()
-      for (const disposedTicker of [
-        ...Object.values(speakerStatusByModelType),
-        ...Object.values(waterHeaterStatusByModelType),
-        ...Object.values(entries),
+      // P5：子系统 dispose 走可门禁小块（完整 mountStage 拆分另开，避免本轮 mega-split）
+      runStageDisposeSteps([
+        { label: 'lightModeMenu', run: () => lightModeMenu.dispose() },
+        { label: 'lightColorPicker', run: () => lightColorPicker.dispose() },
+        { label: 'lightStateCache', run: () => lightStateCache.flush() },
+        { label: 'sceneSync', run: () => sceneSync() },
+        { label: 'weatherGround', run: () => weatherGround.dispose() },
+        { label: 'screenOutlines', run: () => screenOutlines.dispose() },
+        { label: 'editorSelectionOutlines', run: () => editorSelectionOutlines.dispose() },
+        { label: 'editorSelectionElement', run: () => editorSelectionElement.remove() },
+        { label: 'nasPanel', run: () => nasPanel.dispose() },
+        { label: 'nasStatus', run: () => nasStatus.dispose() },
+        { label: 'projectorStatus', run: () => projectorStatus.dispose() },
+        {
+          label: 'statusTickers',
+          run: () => {
+            for (const disposedTicker of [
+              ...Object.values(speakerStatusByModelType),
+              ...Object.values(waterHeaterStatusByModelType),
+              ...Object.values(entries),
+            ])
+              disposedTicker.dispose()
+          },
+        },
+        { label: 'devicePanel', run: () => devicePanel.dispose() },
+        { label: 'cameraStatus', run: () => cameraStatus.dispose() },
+        { label: 'speakerPanel', run: () => speakerPanel.dispose() },
+        { label: 'speakerRings', run: () => speakerRings.dispose() },
+        { label: 'fanMotion', run: () => fanMotion.dispose() },
+        { label: 'airerMotion', run: () => airerMotion.dispose() },
+        { label: 'televisionPanel', run: () => televisionPanel.dispose() },
+        { label: 'televisionScreens', run: () => televisionScreens.dispose() },
+        { label: 'environmentAirflow', run: () => environmentAirflow.dispose() },
+        { label: 'deviceMist', run: () => deviceMist.dispose() },
+        { label: 'rangehoodAirflow', run: () => rangehoodAirflow.dispose() },
+        { label: 'computerScreens', run: () => computerScreens.dispose() },
+        { label: 'environmentScene', run: () => environmentScene.dispose() },
+        { label: 'startupEffects', run: () => startupEffectsUnsubscribe?.() },
+        { label: 'carCharging', run: () => carCharging.dispose() },
+        { label: 'carTires', run: () => carTires.dispose() },
+        { label: 'climatePanel', run: () => climatePanel.dispose() },
       ])
-        disposedTicker.dispose()
-      devicePanel.dispose(),
-        cameraStatus.dispose(),
-        speakerPanel.dispose(),
-        speakerRings.dispose(),
-        fanMotion.dispose(),
-        airerMotion.dispose(),
-        televisionPanel.dispose(),
-        televisionScreens.dispose(),
-        environmentAirflow.dispose(),
-        deviceMist.dispose(),
-        rangehoodAirflow.dispose(),
-        computerScreens.dispose(),
-        environmentScene.dispose(),
-        startupEffectsUnsubscribe?.(),
-        carCharging.dispose(),
-        carTires.dispose(),
-        climatePanel.dispose()
       for (const pendingSyncRequestId of pendingControlRequestsByRequestId.keys())
         settleClimateRequest(pendingSyncRequestId, '页面已关闭。')
       mountOptions.finishFloorTransition?.(),
@@ -5038,6 +5034,7 @@ export function mountStage(mountOptions: any) {
       for (const activityEventNameRef of activityEventNames)
         window.removeEventListener(activityEventNameRef, handleActivityInput, true)
       window.removeEventListener('blur', clearActivityState),
+        focusExitListeners.uninstall(),
         document.removeEventListener?.('visibilitychange', handleVisibilityChange),
         ctx.sceneBackground.dispose(),
         cameraChangeUnsubscribe?.(),

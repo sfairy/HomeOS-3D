@@ -32,6 +32,7 @@ from ..domains.backup.business_backup import (
     refresh_runtime_after_restore,
     restore_business,
 )
+from ..domains.backup.secrets_ack import require_secrets_acknowledgment
 from ..platform.security.auth_context import require_user
 from ..platform.security.request_origin import require_same_origin_write
 
@@ -48,6 +49,8 @@ class RestoreRequest(BaseModel):
     ticket: str = Field(pattern="^[a-f0-9]{32}$")
     adminPassword: str = Field(min_length=1, max_length=128)
     confirm: bool = False
+    #: 备份包不含 secrets/ 时必须显式勾选风险确认，否则禁止恢复（半恢复会导致 HA/授权密文无法解密）。
+    acknowledgeMissingSecrets: bool = False
 
 
 def _gate(request: Request):
@@ -93,6 +96,54 @@ async def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) ->
             await gate.cleanup_job_async(job.get("directory"))
 
 
+def _missing_secrets_response(
+    job: dict[str, Any], payload: RestoreRequest
+) -> JSONResponse | None:
+    """备份包缺 secrets/ 且未勾选风险确认时，返回 400；通过则返回 None。"""
+    preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+    try:
+        require_secrets_acknowledgment(
+            bool(preview.get("hasSecrets")),
+            acknowledged=bool(payload.acknowledgeMissingSecrets),
+        )
+    except BackupError as error:
+        return JSONResponse(status_code=400, content={"detail": str(error)})
+    return None
+
+
+async def _restore_precheck(
+    payload: RestoreRequest,
+    request: Request,
+    user: dict[str, Any],
+) -> tuple[Any, dict[str, Any]] | JSONResponse:
+    """恢复前校验：同会话 / 忙 / 回退中 / 确认 / 票据 / 缺 secrets。成功返回 ``(gate, job)``。"""
+    session_error = await _ensure_same_admin_session(request, user)
+    if session_error is not None:
+        return session_error
+    busy = _busy_response(request)
+    if busy is not None:
+        return busy
+    gate = _gate(request)
+    await gate.expire_jobs_async()
+    if gate.recovery_required:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "恢复回退尚未完成，请重启程序后再操作。"},
+        )
+    if not payload.confirm:
+        return JSONResponse(status_code=400, content={"detail": "请先确认覆盖当前业务数据。"})
+    job = await _job_for(request, user, payload.ticket)
+    if job is None:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "检查结果已失效，请重新选择并检查备份文件。"},
+        )
+    secrets_error = _missing_secrets_response(job, payload)
+    if secrets_error is not None:
+        return secrets_error
+    return gate, job
+
+
 def _check_same_admin_session(
     request: Request, user: dict[str, Any]
 ) -> JSONResponse | None:
@@ -100,6 +151,7 @@ def _check_same_admin_session(
     try:
         fresh = authenticated_short_lived_user(request, Response())
     except Exception:
+        logger.warning("恢复/检查前短会话校验失败", exc_info=True)
         return JSONResponse(
             status_code=401, content={"detail": "登录状态已变化，请重新登录。"}
         )
@@ -256,27 +308,10 @@ async def restore_backup(
     user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
-    session_error = await _ensure_same_admin_session(request, user)
-    if session_error is not None:
-        return session_error
-    busy = _busy_response(request)
-    if busy is not None:
-        return busy
-    gate = _gate(request)
-    await gate.expire_jobs_async()
-    if gate.recovery_required:
-        return JSONResponse(
-            status_code=503,
-            content={"detail": "恢复回退尚未完成，请重启程序后再操作。"},
-        )
-    if not payload.confirm:
-        return JSONResponse(status_code=400, content={"detail": "请先确认覆盖当前业务数据。"})
-    job = await _job_for(request, user, payload.ticket)
-    if job is None:
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "检查结果已失效，请重新选择并检查备份文件。"},
-        )
+    prepared = await _restore_precheck(payload, request, user)
+    if isinstance(prepared, JSONResponse):
+        return prepared
+    gate, job = prepared
     password_error = await verify_admin_password(request, user, payload.adminPassword)
     if password_error is not None:
         return password_error

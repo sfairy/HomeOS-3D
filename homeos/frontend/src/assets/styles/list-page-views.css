@@ -725,7 +725,7 @@
   }
 }
 
-/* 窄屏：侧栏叠到上方，高度受限，主列表优先 */
+/* 窄屏：侧栏叠到上方；提高上限避免筛选被 220 裁切（LAY-07） */
 @container hos-canvas (max-width: 900px) {
   .devices-view__layout:not(.is-sidebar-collapsed) {
     grid-template-columns: 1fr;
@@ -736,12 +736,12 @@
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     gap: 10px;
     height: auto;
-    max-height: 220px;
+    max-height: min(42vh, 360px);
   }
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar > .device-stats,
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar > .device-filter {
     min-height: 0;
-    max-height: 220px;
+    max-height: min(42vh, 360px);
     overflow: auto;
   }
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar .device-stats__charts {
@@ -752,10 +752,13 @@
 @container hos-canvas (max-width: 768px) {
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar {
     grid-template-columns: 1fr;
-    max-height: none;
+    max-height: min(48vh, 420px);
   }
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar > .device-stats {
-    max-height: 160px;
+    max-height: min(28vh, 220px);
+  }
+  .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar > .device-filter {
+    max-height: min(36vh, 280px);
   }
   .devices-view__panel-toolbar-row--actions .devices-view__list-count {
     margin-left: 0;

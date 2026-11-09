@@ -27,8 +27,9 @@ router = NestRouter(
     dependencies=[license_feature(feature_codes.FEATURE_MEDIA)],
 )
 
-#: 媒体场景预设白名单（对齐 DTO 的 ``MEDIA_SCENE_PRESETS``）。
-_MEDIA_SCENE_PRESETS = ("movie", "music", "gaming", "party", "sleep", "morning")
+#: 媒体场景预设白名单：须覆盖 ``MediaSceneService.list_presets()`` 全部 id
+#: （含 ``off``），否则列表能返回却 apply 报「preset 无效」。
+_MEDIA_SCENE_PRESETS = ("movie", "music", "gaming", "party", "sleep", "morning", "off")
 
 def _scene_service(request: Request):
     return request.app.state.media_scene

@@ -8,8 +8,9 @@
   flex-direction: column;
   padding: var(--space-page-y-top) var(--space-page-x) var(--space-page-y-bottom);
   gap: var(--space-page-gap);
-  overflow: auto;
-  scrollbar-gutter: stable;
+  /* 单滚动主：页面本身不滚，仅 panel-body 滚（LAY-13） */
+  overflow: hidden;
+  scrollbar-gutter: auto;
   background:
     radial-gradient(
       ellipse 95% 55% at 8% -12%,

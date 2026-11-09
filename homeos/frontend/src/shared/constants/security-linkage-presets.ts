@@ -102,6 +102,16 @@ export function getSecurityLinkageFlagRows(): SecurityLinkageFlagRow[] {
       desc: '全员离家时，若当前为居家或夜间则升级为离家布防',
     },
     {
+      key: 'calendarArmOnAway',
+      label: '日历外出自动布防',
+      desc: '日历标记外出且当前撤防时，自动切离家布防',
+    },
+    {
+      key: 'calendarUpgradeToAway',
+      label: '日历外出升级为离家',
+      desc: '日历标记外出时，若当前为居家或夜间则升级为离家布防（与全员离家升级独立）',
+    },
+    {
       key: 'autoDisarmOnFirstHome',
       label: '首人到家自动切居家',
       desc: '首人到家时切安防「居家」（不是全撤防），与回家模式一致',

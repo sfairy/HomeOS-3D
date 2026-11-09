@@ -631,8 +631,14 @@ function formatSubTime(iso: string): string {
 async function testPushDevice(endpoint?: string) {
   pushActionBusy.value = endpoint || '__all__'
   try {
-    await testWebPush(endpoint ? { endpoint } : {})
-    chrome.notify(endpoint ? '已向该设备发送测试推送' : '已向全部设备发送测试推送', 'success')
+    const { data } = await testWebPush<{ sent?: number; delivered?: number }>(endpoint ? { endpoint } : {})
+    // 后端 fail-closed 会抛错；这里再读 delivered，避免 2xx + 0 送达仍冒充成功。
+    const delivered = Number(data?.delivered ?? data?.sent ?? 0)
+    if (delivered > 0) {
+      chrome.notify(endpoint ? '已向该设备发送测试推送' : '已向全部设备发送测试推送', 'success')
+    } else {
+      chrome.notify('测试推送未送达（通道未启用、未配置或无可用订阅）', 'warning')
+    }
   } catch (e: unknown) {
     notifyError(e, '测试推送')
   } finally {

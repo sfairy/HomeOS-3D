@@ -15,6 +15,30 @@ import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import { lightBrightnessFromPct } from '@/shared/entity/utils/control/light-control-core'
 import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/shared/types/entity-store'
 
+/** turn_on 时把 brightness / color_temp / rgb 写入 attrs。 */
+function applyLightTurnOnAttrs(attrs: Record<string, unknown>, sd: Record<string, unknown>): void {
+  // 百分比 → 0–255 的唯一口径（含上下夹取）；旧实现这里硬编码 ``* 2.55``，
+  // 与 ``lightBrightnessFromPct`` 的 min=1 语义不一致，且 pct 越界会写出非法 brightness。
+  if (sd.brightness_pct != null) attrs.brightness = lightBrightnessFromPct(Number(sd.brightness_pct))
+  if (sd.brightness != null) attrs.brightness = sd.brightness
+  if (sd.color_temp_kelvin != null) attrs.color_temp_kelvin = sd.color_temp_kelvin
+  if (sd.color_temp != null) {
+    attrs.color_temp = sd.color_temp
+    attrs.color_temp_kelvin = Math.round(1000000 / Number(sd.color_temp))
+  }
+  if (sd.rgb_color) attrs.rgb_color = sd.rgb_color
+}
+
+/** light 域乐观预测，从 predictOptimistic 拆出压 max / gt10。 */
+function predictLightOptimistic(service: string, sd: Record<string, unknown>): OptimisticPrediction | null {
+  if (service === 'turn_off') return { state: 'off' }
+  if (service !== 'turn_on') return null
+  const attrs: Record<string, unknown> = {}
+  applyLightTurnOnAttrs(attrs, sd)
+  if (!Object.keys(attrs).length) return { state: 'on' }
+  return { state: 'on', attributes: attrs }
+}
+
 /**
  * 根据 domain / service 预测实体的目标状态（乐观更新）。
  *
@@ -54,23 +78,9 @@ export function predictOptimistic(
     return { state }
   }
 
+  if (domain === 'light') return predictLightOptimistic(service, sd)
+
   switch (domain) {
-    case 'light':
-      if (service === 'turn_off') state = 'off'
-      else if (service === 'turn_on') {
-        state = 'on'
-        // 百分比 → 0–255 的唯一口径（含上下夹取）；旧实现这里硬编码 ``* 2.55``，
-        // 与 ``lightBrightnessFromPct`` 的 min=1 语义不一致，且 pct 越界会写出非法 brightness。
-        if (sd.brightness_pct != null) attrs.brightness = lightBrightnessFromPct(Number(sd.brightness_pct))
-        if (sd.brightness != null) attrs.brightness = sd.brightness
-        if (sd.color_temp_kelvin != null) attrs.color_temp_kelvin = sd.color_temp_kelvin
-        if (sd.color_temp != null) {
-          attrs.color_temp = sd.color_temp
-          attrs.color_temp_kelvin = Math.round(1000000 / Number(sd.color_temp))
-        }
-        if (sd.rgb_color) attrs.rgb_color = sd.rgb_color
-      } else return null
-      break
     case 'scene':
       if (service === 'turn_on' || service === 'turn_off') state = service === 'turn_on' ? 'on' : 'off'
       else return null
@@ -116,14 +126,21 @@ export function predictOptimistic(
     case 'cover':
       if (service === 'close_cover') state = 'closed'
       else if (service === 'open_cover') state = 'open'
-      else if (service === 'set_cover_position' && sd.position != null) attrs.current_position = sd.position
-      else return null
+      else if (service === 'set_cover_position' && sd.position != null) {
+        const position = Number(sd.position)
+        attrs.current_position = position
+        // 同步推导 state，避免卡片只看 state 时仍显示 closed 而位置已是 50%
+        state = position <= 0 ? 'closed' : position >= 100 ? 'open' : 'open'
+      } else return null
       break
     case 'valve':
       if (service === 'close_valve') state = 'closed'
       else if (service === 'open_valve') state = 'open'
-      else if (service === 'set_position' && sd.position != null) attrs.current_position = sd.position
-      else return null
+      else if (service === 'set_position' && sd.position != null) {
+        const position = Number(sd.position)
+        attrs.current_position = position
+        state = position <= 0 ? 'closed' : position >= 100 ? 'open' : 'open'
+      } else return null
       break
     case 'lock':
       if (service === 'lock') state = 'locked'
@@ -374,6 +391,66 @@ export function createEntityOptimisticState({
     return ids.length
   }
 
+  /** 期望已达成：静默摘 `_optimistic` 标记。 */
+  function settleMatchedOptimistic(entityId: string, current: HaEntityState, entry: OptimisticEntry | undefined): void {
+    if (entry?.timer) clearTimeout(entry.timer)
+    const settledEntity: HaEntityState = { ...toRaw(current) }
+    delete settledEntity._optimistic
+    entities[entityId] = settledEntity
+    patchDerivedChanges([{ entity_id: entityId, oldEntity: current, newEntity: settledEntity }])
+    patchProjectionsFromChanges([{ entity_id: entityId }], entities)
+    bumpEntityStateRevision(entityId)
+    optimisticState.delete(entityId)
+  }
+
+  /** 期望未达成：REST 拉真值覆盖仍挂着的乐观假象。 */
+  function resyncOptimisticFromFetch(entityId: string): void {
+    if (!fetchEntityState) return
+    void fetchEntityState(entityId)
+      .then((fetched) => {
+        if (!fetched?.entity_id) return
+        const live = optimisticState.get(entityId)
+        if (!live) return
+        if (live.timer) clearTimeout(live.timer)
+        optimisticState.delete(entityId)
+        const prev = entities[entityId] ?? null
+        const clean: HaEntityState = { ...fetched }
+        delete clean._optimistic
+        entities[entityId] = clean
+        patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: clean }])
+        patchProjectionsFromChanges([{ entity_id: entityId }], entities)
+        emitStateListeners(entityId, clean, prev)
+        bumpEntityStateRevision(entityId)
+      })
+      .catch(() => undefined)
+  }
+
+  /**
+   * F10：状态推送积压丢包并对齐后，按缓存/REST 真值结清乐观态。
+   *
+   * - 期望已达成 → 静默摘 `_optimistic`（不误报超时）
+   * - 期望未达成 → REST 拉真值覆盖；仍挂着乐观假象时不会被 soft-resync 跳过
+   */
+  function confirmOptimisticAfterResync(_reason?: string): number {
+    const ids = [...optimisticState.keys()]
+    let settled = 0
+    for (const entityId of ids) {
+      const entry = optimisticState.get(entityId)
+      const current = entities[entityId]
+      if (!current) {
+        clearOptimistic(entityId)
+        continue
+      }
+      if (optimisticExpectationSatisfied(entry?.expected, current)) {
+        settleMatchedOptimistic(entityId, current, entry)
+        settled += 1
+        continue
+      }
+      resyncOptimisticFromFetch(entityId)
+    }
+    return settled
+  }
+
   /**
    * 静默丢弃全部乐观态（不写回备份、不派发通知）。
    *
@@ -396,6 +473,7 @@ export function createEntityOptimisticState({
     clearOptimistic,
     rollbackOptimistic,
     rollbackAllOptimistic,
+    confirmOptimisticAfterResync,
     discardAllOptimistic,
     touchOptimistic,
     optimisticState,

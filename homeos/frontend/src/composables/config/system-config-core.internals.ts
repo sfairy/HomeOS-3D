@@ -147,8 +147,17 @@ export async function patchSystemConfig(partial: SystemConfigPatch, opts: System
       return await sendSystemConfigPatch(partial, opts)
     } catch (e) {
       if (opts.skipRevisionCheck || !isSystemConfigConflictError(e)) throw e
+      // 409：拉新 revision 后仍带锁重试一次。禁止剥掉 expectedUpdatedAt——
+      // 否则会静默覆盖其他终端刚写入的字段。
       await fetchSystemConfigFresh()
-      return await sendSystemConfigPatch(partial, { ...opts, expectedUpdatedAt: undefined })
+      const freshRev = cachedConfig?._configUpdatedAt
+      if (!freshRev) throw e
+      try {
+        return await sendSystemConfigPatch(partial, { ...opts, expectedUpdatedAt: freshRev })
+      } catch (retryErr) {
+        // 仍冲突：交给调用方走 handleSystemConfigPatchError（提示重载，不再盲写）
+        throw retryErr
+      }
     }
   }
   const queued: Promise<SystemConfig | null> = patchQueue.then(run, run)

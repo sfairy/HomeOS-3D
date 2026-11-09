@@ -151,23 +151,27 @@ class McpGatewayService:
         取不到客户端 IP（代理没透传）时按同一口径处理：生产 fail-closed，非生产放行并告警。
         """
         allow = self._resolve_ip_allowlist()
+        # 只有显式 development/dev/test/local 才允许空白名单 fail-open。
+        # APP_ENVIRONMENT 空或未知时按生产 fail-closed，堵住「类生产未设 env」的历史脚枪。
+        explicit_env = self._env_get("APP_ENVIRONMENT").strip().lower()
+        known_non_prod = explicit_env in {"development", "dev", "test", "local"}
+        fail_closed = self._is_production or not known_non_prod
         if not allow:
-            if self._is_production:
+            if fail_closed:
                 raise _forbidden("生产环境必须配置 MCP_GATEWAY_ALLOW_IPS（逗号分隔的 IP 或网段前缀）")
             if not self._allowlist_warning_logged:
                 self._allowlist_warning_logged = True
                 logger.warning(
                     "MCP 网关未配置 MCP_GATEWAY_ALLOW_IPS：非生产环境放行全部来源。"
-                    "生产环境（APP_ENVIRONMENT=production）下这一项未配置会直接拒绝全部请求。"
+                    "生产环境（APP_ENVIRONMENT=production）或未设置环境下这一项未配置会直接拒绝全部请求。"
                 )
             return
         normalized = (ip or "").strip()
         normalized = normalized.removeprefix("::ffff:")
         if not normalized:
             # 白名单已配置但取不到客户端 IP：判据不明。
-            # 生产 fail-closed（不能拿「不知道」当「匹配」），非生产与「白名单为空」
-            # 分支保持同一口径（开发便利），否则同一个函数里会出现两套相反的默认值。
-            if self._is_production:
+            # 生产 / 未识别环境 fail-closed；仅已知非生产与「白名单为空」分支同口径。
+            if fail_closed:
                 raise _forbidden("无法解析 MCP 网关客户端 IP，拒绝访问")
             if not self._unknown_ip_warning_logged:
                 self._unknown_ip_warning_logged = True

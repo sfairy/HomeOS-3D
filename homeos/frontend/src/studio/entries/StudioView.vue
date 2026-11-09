@@ -19,9 +19,7 @@ function scheduleStudioTeardown(teardown: (() => Promise<void> | void) | null | 
 </script>
 
 <script setup lang="ts">
-/**
- * Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ 既有 DOM 契约供 bootStudio 操作。
- */
+/** Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ DOM 契约供 bootStudio 操作。 */
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
@@ -33,22 +31,13 @@ import {
 } from "@/studio/chrome";
 import "@/studio/chrome/studio-chrome.css";
 import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
-import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
-import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
-import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
+import { studioStartupFail, studioStartupPhase } from "@/shared/utils/ui/studio-startup";
 import {
-  studioStartupFail,
-  studioStartupPhase,
-} from "@/shared/utils/ui/studio-startup";
-
-const WORKFLOW_STEPS = [
-  { id: "background", label: "导入底图" },
-  { id: "scale", label: "标定比例" },
-  { id: "walls", label: "绘制空间" },
-  { id: "items", label: "摆放物件" },
-  { id: "lights", label: "放置灯光" },
-  { id: "export", label: "应用户型" },
-] as const;
+  StudioDialogs,
+  StudioOverlays,
+  StudioPlanPanel,
+  WORKFLOW_STEPS,
+} from "./studio-creator-async";
 
 const route = useRoute();
 const router = useRouter();
@@ -1287,7 +1276,7 @@ onBeforeUnmount(() => {
                 </div>
             </section>
         </aside>
-        <StudioPlanPanel />
+        <StudioPlanPanel v-if="showCreatorChrome" />
         <aside
           class="details-panel"
           :class="{ 'is-collapsed': floorplanStore.planFocus }"
@@ -1769,7 +1758,7 @@ onBeforeUnmount(() => {
             </section>
         </aside>
     </main>
-    <StudioDialogs />
-    <StudioOverlays />
+    <StudioDialogs v-if="showCreatorChrome" />
+    <StudioOverlays v-if="showCreatorChrome" />
   </div>
 </template>

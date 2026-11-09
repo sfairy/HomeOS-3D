@@ -102,8 +102,10 @@ class FrigateService:
             score = _parse_float(attrs.get("score"))
         if score is None:
             score = _parse_float(attrs.get("top_score"))
+        # 缺 confidence 时禁止默认 80——否则无分实体也会触发「人员入侵」假告警。
         if score is None:
-            score = 80.0
+            logger.debug("Frigate 检测缺少 confidence，跳过告警: %s", entity_id)
+            return
         import re
 
         camera = re.sub(

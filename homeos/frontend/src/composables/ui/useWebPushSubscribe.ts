@@ -20,6 +20,61 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return out
 }
 
+/** 根据测试推送返回的 delivered/sent 数提示成功或未送达。 */
+function notifyWebPushDelivery(
+  chrome: ReturnType<typeof useChromeStore>,
+  data: { sent?: number; delivered?: number } | null | undefined,
+): void {
+  const delivered = Number(data?.delivered ?? data?.sent ?? 0)
+  if (delivered > 0) {
+    chrome.notify('测试推送已发送', 'success')
+    return
+  }
+  chrome.notify('测试推送未送达（通道未启用、未配置或无可用订阅）', 'warning')
+}
+
+async function ensureSw(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
+  return navigator.serviceWorker.ready
+}
+
+async function createAndReportSubscription(
+  chrome: ReturnType<typeof useChromeStore>,
+  label?: string,
+): Promise<boolean> {
+  const reg = await ensureSw()
+  if (!reg) {
+    chrome.notify('当前浏览器不支持 Web Push', 'warning')
+    return false
+  }
+  const { data } = await fetchWebPushVapidPublicKey()
+  if (!data?.publicKey) {
+    chrome.notify('WebPush 未配置 VAPID 公钥', 'warning')
+    return false
+  }
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') {
+    chrome.notify('未授予通知权限', 'warning')
+    return false
+  }
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(data.publicKey) as BufferSource,
+  })
+  const json = sub.toJSON()
+  // 校验订阅信息完整：endpoint 与 p256dh/auth keys 必须齐备
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    throw new Error('订阅信息不完整')
+  }
+  await subscribeWebPush({
+    endpoint: json.endpoint,
+    keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+    label: label || '本机浏览器',
+  })
+  chrome.notify('已订阅 WebPush 通知', 'success')
+  return true
+}
+
 /**
  * WebPush 订阅 composable。
  *
@@ -31,14 +86,6 @@ export function useWebPushSubscribe() {
   const subscribed = ref(false)
 
   /**
-   * 确保 ServiceWorker 已就绪并返回 registration；浏览器不支持时返回 null。
-   */
-  async function ensureSw(): Promise<ServiceWorkerRegistration | null> {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
-    return navigator.serviceWorker.ready
-  }
-
-  /**
    * 申请权限并创建 WebPush 订阅，上报后端。
    *
    * @param label 订阅标签（默认"本机浏览器"）
@@ -47,38 +94,9 @@ export function useWebPushSubscribe() {
   async function subscribe(label?: string): Promise<boolean> {
     busy.value = true
     try {
-      const reg = await ensureSw()
-      if (!reg) {
-        chrome.notify('当前浏览器不支持 Web Push', 'warning')
-        return false
-      }
-      const { data } = await fetchWebPushVapidPublicKey()
-      if (!data?.publicKey) {
-        chrome.notify('WebPush 未配置 VAPID 公钥', 'warning')
-        return false
-      }
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        chrome.notify('未授予通知权限', 'warning')
-        return false
-      }
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(data.publicKey) as BufferSource,
-      })
-      const json = sub.toJSON()
-      // 校验订阅信息完整：endpoint 与 p256dh/auth keys 必须齐备
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        throw new Error('订阅信息不完整')
-      }
-      await subscribeWebPush({
-        endpoint: json.endpoint,
-        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-        label: label || '本机浏览器',
-      })
-      subscribed.value = true
-      chrome.notify('已订阅 WebPush 通知', 'success')
-      return true
+      const ok = await createAndReportSubscription(chrome, label)
+      if (ok) subscribed.value = true
+      return ok
     } catch (e: unknown) {
       notifyError(e, '订阅 WebPush')
       return false
@@ -93,8 +111,8 @@ export function useWebPushSubscribe() {
   async function sendTest(): Promise<void> {
     busy.value = true
     try {
-      await testWebPush()
-      chrome.notify('测试推送已发送', 'success')
+      const { data } = await testWebPush<{ sent?: number; delivered?: number }>()
+      notifyWebPushDelivery(chrome, data)
     } catch (e: unknown) {
       notifyError(e, '测试推送')
     } finally {

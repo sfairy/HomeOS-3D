@@ -115,7 +115,10 @@ def normalize_cron(payload: dict[str, Any]) -> str:
     if not raw:
         run_at = parse_iso(payload.get("runAt"))
         if run_at is not None:
-            local = run_at
+            # runAt 存的是 UTC naive；转 cron 墙钟时分必须用家庭时区，
+            # 否则 UTC+8 下「每天 22:00」会变成 cron `0 14 * * *`。
+            tz_name = str(payload.get("timezone") or payload.get("tz") or "").strip()
+            local = localize(run_at, tz_name) if tz_name else run_at
             return f"{local.minute} {local.hour} * * *"
         return ""
     if ":" in raw and " " not in raw:

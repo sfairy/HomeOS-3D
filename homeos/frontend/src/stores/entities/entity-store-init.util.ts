@@ -14,6 +14,25 @@ import { applyAdaptiveFrontendPerf } from '@/shared/utils/perf/adaptive-perf.uti
 import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'
 
+/** 写入一条实体：本地更新则只补属性，否则整条覆盖。 */
+function writeEntityPreferringNewer(deps: EntityInitDeps, id: string, entity: HaEntityState): void {
+  const previous = deps.entities[id]
+  if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
+    deps.entities[id] = entity
+  } else if (previous) {
+    deps.entities[id] = mergeChunkIntoNewerEntity(previous, entity)
+  }
+  const merged = deps.entities[id]!
+  const name = getEntityDisplayName(id, merged)
+  if (name) deps.friendlyNamesMap[id] = name
+}
+
+function pruneKeysNotIn(map: Record<string, unknown>, keep: Set<string>): void {
+  for (const key of Object.keys(map)) {
+    if (!keep.has(key)) delete map[key]
+  }
+}
+
 // ── entity-store-init.util ──
 /**
  * 实体 store 初始化与全量/分批 hydrate（从 entities.store 抽离）
@@ -90,10 +109,17 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
     for (let i = 0; i < len; i++) {
       const entity = entityList[i]
       if (!deps.entityVisible(entity.entity_id!)) continue
-      const had = Boolean(deps.entities[entity.entity_id!])
-      deps.entities[entity.entity_id!] = entity
+      const previous = deps.entities[entity.entity_id!]
+      const had = Boolean(previous)
+      // 与 mergeInitialStatesChunk 同口径：IDB deferred 可能晚于已应用的 WS 增量，
+      // 直接覆盖会把灯/锁闪回小时级旧缓存，且之后没有推送纠正。
+      if (!isStaleState(entity.last_updated ?? entity.last_changed, previous)) {
+        deps.entities[entity.entity_id!] = entity
+      } else if (previous) {
+        deps.entities[entity.entity_id!] = mergeChunkIntoNewerEntity(previous, entity)
+      }
       if (!had) added++
-      const name = getEntityDisplayName(entity.entity_id!, entity)
+      const name = getEntityDisplayName(entity.entity_id!, deps.entities[entity.entity_id!]!)
       if (name) deps.friendlyNamesMap[entity.entity_id!] = name
     }
     if (added) deps.totalCount.value += added
@@ -167,9 +193,6 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
    * @returns 是否成功完成（false 表示被并发批次抢占）
    */
   async function applyEntityListBatched(entityList: HaEntityState[], token: number): Promise<boolean> {
-    for (const key of Object.keys(deps.entities)) delete deps.entities[key]
-    for (const key of Object.keys(deps.friendlyNamesMap)) delete deps.friendlyNamesMap[key]
-
     const visible: HaEntityState[] = []
     for (let i = 0; i < entityList.length; i++) {
       const entity = entityList[i]
@@ -186,18 +209,24 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
         }
       })
 
+    // 软重建：不先清空。critical 队列与 batch 分队时，硬清空会在 yield 窗口丢掉
+    // 已写入的新态，随后又被旧快照盖回。写入侧用 isStaleState；结束后再删快照外实体。
+    const incomingIds = new Set<string>()
     for (let i = 0; i < total; i += batchSize) {
       if (token !== initStatesBatchToken) return false
       const end = Math.min(i + batchSize, total)
       for (let j = i; j < end; j++) {
         const entity = visible[j]
-        deps.entities[entity.entity_id!] = entity
-        const name = getEntityDisplayName(entity.entity_id!, entity)
-        if (name) deps.friendlyNamesMap[entity.entity_id!] = name
+        const id = entity.entity_id!
+        incomingIds.add(id)
+        writeEntityPreferringNewer(deps, id, entity)
       }
       deps.entityLoadProgress.value = Math.round((end / Math.max(total, 1)) * 70)
       await yieldFrame()
     }
+    if (token !== initStatesBatchToken) return false
+    pruneKeysNotIn(deps.entities as Record<string, unknown>, incomingIds)
+    pruneKeysNotIn(deps.friendlyNamesMap as Record<string, unknown>, incomingIds)
     deps.totalCount.value = total
     deps.entityLoadPhase.value = 'rebuilding'
     deps.entityLoadProgress.value = 70
@@ -332,22 +361,21 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
     }
   }
 
+  /** 空快照：权限版本变了才清空（权威 0）；版本未变多半是抖动，保留内存。 */
+  function initStatesEmptyList(): Promise<void> {
+    const changed = restrictionsChanged()
+    if (deps.totalCount.value === 0 || changed) deps.clearAllEntities()
+    if (changed) markRestrictionsAccepted()
+    markEntityLoadReady()
+    return Promise.resolve()
+  }
+
   function initStates(entityList: HaEntityState[], opts: EntityInitOptions = {}): Promise<void> {
     const { fromCache = false, force = false, reason = '', deferredRemainder = null } = opts
     if (force && !fromCache) {
       initStatesBatchToken++
     }
-    if (!entityList || !entityList.length) {
-      // 空快照也是**权威结论**：服务端说「你可见 0 个实体」（ACL 收紧到零 / 实体全被禁用）。
-      // 旧实现只在内存本来就空时才清空，于是权限被收回的账号会一直留着旧实体表 —— 设备名、
-      // 状态、属性都还能看到，派生索引与统计也继续算这些幽灵实体。
-      // 判据是「权限版本变了没有」：版本没变还返回空，多半是网络抖动/上游空包，不清空。
-      const changed = restrictionsChanged()
-      if (deps.totalCount.value === 0 || changed) deps.clearAllEntities()
-      if (changed) markRestrictionsAccepted()
-      markEntityLoadReady()
-      return Promise.resolve()
-    }
+    if (!entityList || !entityList.length) return initStatesEmptyList()
     const sortedList = fromCache ? entityList : sortEntitiesBySyncPriority(entityList)
     const incomingVisible = countVisibleEntities(sortedList)
     // 权限（ACL/restrictions）变化后的首个全量快照强制接受并记录版本，

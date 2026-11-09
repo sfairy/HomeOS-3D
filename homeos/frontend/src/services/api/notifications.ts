@@ -98,6 +98,9 @@ export function fetchWebPushSubscriptions<T = { items?: unknown[] }>(config?: Ax
 }
 
 /** 发送 WebPush 测试推送（可选指定 endpoint）。 */
-export function testWebPush(payload?: { endpoint?: string }, config?: AxiosRequestConfig) {
-  return apiPost('/channels/webpush/test', payload ?? {}, config)
+export function testWebPush<T = { sent?: number; delivered?: number; attempted?: number }>(
+  payload?: { endpoint?: string },
+  config?: AxiosRequestConfig,
+) {
+  return apiPost<T>('/channels/webpush/test', payload ?? {}, config)
 }

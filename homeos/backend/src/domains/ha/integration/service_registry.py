@@ -102,12 +102,11 @@ class HARegistryMixin(HAConnectorHost):
                 setattr(record, field, event_data.get(field))
         if 'has_entity_name' in event_data:
             record.has_entity_name = event_data.get('has_entity_name')
-        # 精度只写在 ``options.sensor`` 里：事件可能把它放在顶层，也可能只在
-        # ``changes`` 里给；两处都没有就保持库内现有值 —— 1.5s 后的防抖全量刷新
-        # 会带着完整 options 补齐，这里不必（也不能）置空。
-        precision_options = event_data['options'] if 'options' in event_data else changes.get('options')
-        if isinstance(precision_options, dict):
-            apply_sensor_display_precision(record, {'entity_id': entity_id, 'options': precision_options})
+        # 精度只写在 ``options.sensor`` 里。``changes`` 存的是**变更前**旧值，
+        # 绝不能回落到 changes.options，否则精度会短暂回退到旧显示，直到防抖全量刷新。
+        # 事件未带 options 时保持库内现有值，由 1.5s 后的全量刷新补齐。
+        if 'options' in event_data and isinstance(event_data.get('options'), dict):
+            apply_sensor_display_precision(record, {'entity_id': entity_id, 'options': event_data['options']})
         record.domain = entity_id.partition('.')[0]
         record.sync_status = self._status(record.disabled_by)
         record.last_seen_at = now

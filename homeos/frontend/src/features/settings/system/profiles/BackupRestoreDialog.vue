@@ -146,8 +146,19 @@
           <input v-model="confirmOverwrite" type="checkbox" required :disabled="busy" />
           <span>已了解：恢复会用备份中的数据库、账号与素材整体覆盖当前数据，且无法撤销。</span>
         </label>
+        <label v-if="missingSecrets" class="hos-backup-dialog__confirm hos-backup-dialog__confirm--risk">
+          <input v-model="acknowledgeMissingSecrets" type="checkbox" required :disabled="busy" />
+          <span>
+            已了解风险：此备份<strong>不含连接密钥</strong>。恢复后 HA 令牌与授权凭证将无法解密，
+            需要重新填写连接信息并可能重新激活授权；仍要继续半恢复。
+          </span>
+        </label>
         <div class="hos-backup-dialog__actions">
-          <button type="submit" class="primary" :disabled="busy || !confirmOverwrite">
+          <button
+            type="submit"
+            class="primary"
+            :disabled="busy || !confirmOverwrite || (missingSecrets && !acknowledgeMissingSecrets)"
+          >
             确认覆盖并恢复
           </button>
         </div>
@@ -210,6 +221,8 @@ const exportPasswordConfirm = ref('')
 const restorePassword = ref('')
 const adminPassword = ref('')
 const confirmOverwrite = ref(false)
+const acknowledgeMissingSecrets = ref(false)
+const missingSecrets = ref(false)
 const file = ref(null)
 const ticket = ref('')
 const preview = ref('')
@@ -220,11 +233,44 @@ function setMessage(text, tone = '') {
   messageTone.value = tone
 }
 
+/** 缺 secrets 时必须勾选风险确认；未勾选则写入错误提示并返回 false。 */
+function ensureSecretsAcknowledged() {
+  if (missingSecrets.value && !acknowledgeMissingSecrets.value) {
+    setMessage('此备份不含连接密钥，请先勾选风险确认后再恢复。', 'error')
+    return false
+  }
+  return true
+}
+
+function buildInspectPreview(data) {
+  const created = data.createdAt ? new Date(data.createdAt) : null
+  const sizeText = formatBackupBytes(Number(data.databaseSize) || 0)
+  return [
+    `HomeOS ${data.version || ''} · ${
+      created && !Number.isNaN(created.getTime()) ? created.toLocaleString() : data.createdAt || ''
+    }`,
+    `${data.projects || 0} 个仪表盘 · ${data.connections || 0} 个 HA 连接 · ${data.users || 0} 个账号`,
+    `数据库 ${sizeText} · ${data.files || 0} 个文件${data.hasSecrets ? ' · 含连接密钥' : ' · ⚠ 不含连接密钥'}`,
+    data.includesHistory === false ? '不含历史事件与操作日志' : '含历史事件数据',
+  ].join('\n')
+}
+
+function setInspectSuccessMessage(expiresMinutes) {
+  setMessage(
+    missingSecrets.value
+      ? `检查通过，但备份不含连接密钥。请在 ${expiresMinutes} 分钟内勾选风险确认后再恢复。`
+      : `检查通过。请在 ${expiresMinutes} 分钟内确认恢复；当前业务数据将被整体覆盖。`,
+    missingSecrets.value ? 'error' : 'success',
+  )
+}
+
 async function clearTicket() {
   const current = ticket.value
   ticket.value = ''
   preview.value = ''
   confirmOverwrite.value = false
+  acknowledgeMissingSecrets.value = false
+  missingSecrets.value = false
   adminPassword.value = ''
   if (current) {
     try {
@@ -341,19 +387,12 @@ async function runInspect() {
       return
     }
     ticket.value = data.ticket || ''
-    const created = data.createdAt ? new Date(data.createdAt) : null
+    missingSecrets.value = !data.hasSecrets
+    acknowledgeMissingSecrets.value = false
     const expiresMinutes = Math.max(1, Math.round(Number(data.expiresIn || 600) / 60))
-    const sizeText = formatBackupBytes(Number(data.databaseSize) || 0)
-    preview.value = [
-      `HomeOS ${data.version || ''} · ${
-        created && !Number.isNaN(created.getTime()) ? created.toLocaleString() : data.createdAt || ''
-      }`,
-      `${data.projects || 0} 个仪表盘 · ${data.connections || 0} 个 HA 连接 · ${data.users || 0} 个账号`,
-      `数据库 ${sizeText} · ${data.files || 0} 个文件${data.hasSecrets ? ' · 含连接密钥' : ''}`,
-      data.includesHistory === false ? '不含历史事件与操作日志' : '含历史事件数据',
-    ].join('\n')
+    preview.value = buildInspectPreview(data)
     restorePassword.value = ''
-    setMessage(`检查通过。请在 ${expiresMinutes} 分钟内确认恢复；当前业务数据将被整体覆盖。`, 'success')
+    setInspectSuccessMessage(expiresMinutes)
   } catch (error) {
     setMessage(getApiErrorMessage(error, '检查备份失败'), 'error')
   } finally {
@@ -363,6 +402,7 @@ async function runInspect() {
 
 async function runRestore() {
   if (busy.value || !ticket.value || !confirmOverwrite.value) return
+  if (!ensureSecretsAcknowledged()) return
   busy.value = true
   setMessage('正在恢复业务数据，请保持窗口打开并等待完成…')
   try {
@@ -370,6 +410,7 @@ async function runRestore() {
       ticket: ticket.value,
       adminPassword: adminPassword.value,
       confirm: true,
+      acknowledgeMissingSecrets: acknowledgeMissingSecrets.value,
     })
     ticket.value = ''
     // 恢复后登录会话已被清空、授权租约也已与本机解绑：不能原地 reload（深链接会撞上
@@ -523,6 +564,13 @@ defineExpose({ open, close })
 .hos-backup-dialog__confirm input {
   flex: none;
   margin: 3px 0 0;
+}
+.hos-backup-dialog__confirm--risk {
+  color: var(--hos-color-danger-text);
+}
+.hos-backup-dialog__confirm--risk strong {
+  color: var(--hos-color-danger-text);
+  font-weight: 700;
 }
 .hos-backup-dialog__preview {
   padding: 10px 12px;

@@ -118,7 +118,9 @@ export function createEntityActions(deps: EntityActionsDeps) {
 
   /**
    * 服务调用后从 REST 拉取最新实体状态。
-   * - 乐观更新已生效且 coldEntityOnDemand 关闭时跳过（依赖 WS 推送确认）
+   * - 乐观态仍挂着时必须确认（F10）：旧逻辑在「非 coldOnDemand」时整段跳过 REST，
+   *   一旦 `ha_queue_dropped` 丢掉 WS 回显，TTL 到期会把 UI「假恢复」成点控前状态。
+   * - 乐观态已结清（verified / WS）则不必再打；coldOnDemand 路径始终拉取。
    * - 按 state + last_changed/last_updated 判断是否真实变化以避免无意义覆盖
    * - 覆盖缓存时同步维护派生索引与投影（patchDerivedChanges / patchProjectionsFromChanges）
    * - 仅更新缓存，不派发监听器（避免与乐观更新 / WS 回显重复）
@@ -128,7 +130,9 @@ export function createEntityActions(deps: EntityActionsDeps) {
   async function refreshEntityAfterService(entityId: string, didOptimistic: boolean): Promise<void> {
     if (typeof entityId !== 'string' || !entityId) return
     const coldOnDemand = getWsPushPublicConfig()?.coldEntityOnDemand
-    if (didOptimistic && !coldOnDemand) return
+    const stillOptimistic = !!deps.optimisticState?.has(entityId)
+    // 已结清且非 cold-on-demand：WS/verified 已确认，跳过多余 GET。
+    if (didOptimistic && !coldOnDemand && !stillOptimistic) return
     try {
       const fetched = (await fetchEntityById(entityId, { refresh: true })) as HaEntityState | null | undefined
       if (!fetched?.entity_id || fetched.entity_id !== entityId) return

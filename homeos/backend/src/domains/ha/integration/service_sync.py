@@ -52,6 +52,24 @@ def _chunked(items: list[str], size: int = _SQL_IN_CHUNK) -> list[list[str]]:
     return [items[index : index + size] for index in range(0, len(items), size)]
 
 
+def _bump_sync_state_catalog(
+    state: HASyncState,
+    *,
+    flush_incremental: bool,
+    catalog_changed: bool,
+    added_count: int,
+) -> None:
+    """热更新 HASyncState：刷盘窗口抬时间戳；目录变更抬 revision，仅真实新增累加计数。"""
+    if flush_incremental:
+        state.last_incremental_at = utc_now()
+    if not catalog_changed:
+        return
+    state.catalog_revision = (state.catalog_revision or 0) + 1
+    # 仅真实新增实体时累加；metadata/revive 且 added_count=0 只抬 revision
+    if added_count > 0:
+        state.entity_count = (state.entity_count or 0) + added_count
+
+
 class HASyncMixin(HAConnectorHost):
     """关注实体集合维护、全量同步与快照/增量落库、目录计数。"""
 
@@ -720,11 +738,12 @@ class HASyncMixin(HAConnectorHost):
                 state = database.get(HASyncState, connection_id) or HASyncState(
                     connection_id=connection_id, status="connected"
                 )
-                if flush_incremental:
-                    state.last_incremental_at = utc_now()
-                if catalog_changed:
-                    state.catalog_revision = (state.catalog_revision or 0) + 1
-                    state.entity_count = (state.entity_count or 0) + max(added_count, 1)
+                _bump_sync_state_catalog(
+                    state,
+                    flush_incremental=flush_incremental,
+                    catalog_changed=catalog_changed,
+                    added_count=added_count,
+                )
                 database.add(state)
             if flush_incremental:
                 self._incremental_flushed_at[connection_id] = monotonic_now

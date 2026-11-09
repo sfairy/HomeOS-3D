@@ -30,8 +30,26 @@ ORM_METHODS = {
     "execute", "query", "get", "commit", "flush", "scalar", "scalars",
     "add", "delete", "merge", "refresh", "begin",
 }
-DB_NAMES = {"session", "db", "database", "sess", "conn", "dbsession", "db_session"}
+DB_NAMES = {
+    "session",
+    "db",
+    "database",
+    "sess",
+    "conn",
+    "dbsession",
+    "db_session",
+    # P11：间接命名也常是同步 Session（旧门禁只认字面量，假绿）
+    "_session",
+    "_db",
+    "_sess",
+    "orm_session",
+    "sa_session",
+    "sql_session",
+    "scoped_session",
+}
 ENGINE_METHODS = {"connect", "begin"}
+# 间接同步：async 里直接 new Session / sessionmaker() 再 ORM 调用同样会堵循环
+SESSION_CTORS = {"Session", "sessionmaker", "scoped_session", "async_sessionmaker"}
 
 
 def _receiver_name(node: ast.AST) -> str | None:
@@ -41,6 +59,17 @@ def _receiver_name(node: ast.AST) -> str | None:
     if isinstance(current, ast.Name):
         return current.id
     return None
+
+
+def _looks_like_db_name(name: str) -> bool:
+    lowered = name.lower()
+    if lowered in DB_NAMES:
+        return True
+    # WebRTC / 内存会话表（``_sessions``）不是 SQLAlchemy，排除复数 maps
+    if lowered.endswith("sessions"):
+        return False
+    # self.db_session / repo._session 这类间接命名
+    return lowered.endswith(("_session", "_db"))
 
 
 class AsyncDbVisitor(ast.NodeVisitor):
@@ -69,6 +98,18 @@ class AsyncDbVisitor(ast.NodeVisitor):
 
     def _check_call(self, call: ast.Call) -> None:
         func = call.func
+        # P11：async 内直接构造同步 Session / sessionmaker()
+        ctor_name: str | None = None
+        if isinstance(func, ast.Name):
+            ctor_name = func.id
+        elif isinstance(func, ast.Attribute):
+            ctor_name = func.attr
+        if ctor_name in SESSION_CTORS and ctor_name != "async_sessionmaker":
+            # async_sessionmaker 是异步入口，允许；同步 Session/sessionmaker 不行
+            if ctor_name in {"Session", "sessionmaker", "scoped_session"}:
+                self.violations.append((self.path, call.lineno, f"{ctor_name}()"))
+                return
+
         if not isinstance(func, ast.Attribute):
             return
         receiver = _receiver_name(func.value)
@@ -83,7 +124,9 @@ class AsyncDbVisitor(ast.NodeVisitor):
         ):
             # dict.get("key")，例如 socket.io 的 session 字典。
             return
-        if (func.attr in ORM_METHODS and lowered in DB_NAMES) or (func.attr in ENGINE_METHODS and ("engine" in lowered or "database" in lowered)):
+        if (func.attr in ORM_METHODS and _looks_like_db_name(receiver)) or (
+            func.attr in ENGINE_METHODS and ("engine" in lowered or "database" in lowered)
+        ):
             self.violations.append((self.path, call.lineno, f"{receiver}.{func.attr}()"))
 
 

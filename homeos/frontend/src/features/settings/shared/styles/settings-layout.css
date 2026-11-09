@@ -133,6 +133,11 @@
   font-weight: 600;
   color: var(--set-text-label);
   letter-spacing: 0.02em;
+  /* 顶栏工具槽：左=导航重开 / 中=路径 / 右=账号（LAY-20） */
+  --settings-utility-reopen-slot: 0px;
+  padding-left: calc(1.5rem + var(--settings-utility-reopen-slot));
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 .settings-breadcrumb__group {
@@ -446,7 +451,7 @@
 .settings-sidebar-reopen {
   position: absolute;
   left: 12px;
-  top: 14px;
+  top: 8px;
   z-index: 6;
   display: inline-flex;
   align-items: center;
@@ -476,12 +481,18 @@
   transform: translateX(2px);
 }
 
-.settings-shell--sidebar-collapsed .settings-independent-save-hint {
-  margin-left: 88px;
+/* 侧栏收起：面包屑让出左侧重开槽，取消旧的 save-hint 硬偏移（LAY-20） */
+.settings-shell--sidebar-collapsed .settings-breadcrumb {
+  --settings-utility-reopen-slot: 96px;
 }
 
+.settings-shell--sidebar-collapsed .settings-independent-save-hint,
 .settings-shell--no-sidebar .settings-independent-save-hint {
   margin-left: 0;
+}
+
+.settings-shell--no-sidebar .settings-breadcrumb {
+  --settings-utility-reopen-slot: 0px;
 }
 
 .settings-shell--no-sidebar .settings-main {
@@ -1754,6 +1765,7 @@ input.settings-field {
 @container hos-canvas (max-width: 768px) {
   .settings-breadcrumb {
     padding: 8px 1rem 0;
+    padding-left: calc(1rem + var(--settings-utility-reopen-slot, 0px));
     font-size: var(--set-fs-micro, 12px);
     gap: 4px;
   }
@@ -1806,6 +1818,7 @@ input.settings-field {
 
   .settings-breadcrumb {
     padding: 12px 2rem 0;
+    padding-left: calc(2rem + var(--settings-utility-reopen-slot, 0px));
     gap: 8px;
   }
 
@@ -1881,6 +1894,7 @@ input.settings-field {
 
   .settings-breadcrumb {
     padding: 16px 2.5rem 0;
+    padding-left: calc(2.5rem + var(--settings-utility-reopen-slot, 0px));
     gap: 10px;
   }
 

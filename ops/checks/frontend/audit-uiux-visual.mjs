@@ -32,6 +32,9 @@ const TARGETS = [
   { app: 'homeos', name: 'homeos-login', url: HOMEOS + '/login', width: 1440, height: 900 },
   { app: 'homeos', name: 'homeos-login-mobile', url: HOMEOS + '/login', width: 390, height: 844 },
   { app: 'homeos', name: 'homeos-reset-password', url: HOMEOS + '/reset-password', width: 1440, height: 900 },
+  // U11：扩公开激活页视觉基线（无登录）
+  { app: 'homeos', name: 'homeos-activate', url: HOMEOS + '/activate', width: 1440, height: 900 },
+  { app: 'homeos', name: 'homeos-activate-mobile', url: HOMEOS + '/activate', width: 390, height: 844 },
   { app: 'store', name: 'store-login', url: STORE + '/user/authentication/login', width: 1440, height: 900 },
   { app: 'store', name: 'store-login-mobile', url: STORE + '/user/authentication/login', width: 390, height: 844 },
   { app: 'store', name: 'store-register', url: STORE + '/user/authentication/register', width: 1440, height: 900 },

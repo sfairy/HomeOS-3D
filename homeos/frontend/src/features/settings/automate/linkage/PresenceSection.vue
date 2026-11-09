@@ -57,7 +57,7 @@ const { summaryText, modeHint, showHomeSummaryStyle } = usePresenceEntitiesDispl
     >
       <template #description>
         <span class="linkage-presence-desc">{{
-          '定义家庭成员并关联判定实体；任一实体在家则视为该人员在家，驱动在家人数统计与全员离家联动。'
+          '定义家庭成员并关联判定实体；默认需全部判定实体在家才算该人员在家（可配 presenceRequireAllAway），驱动在家人数统计与全员离家联动。'
         }}</span>
         <div v-if="!loading" class="linkage-presence-meta">
           <span

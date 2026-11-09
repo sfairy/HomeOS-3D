@@ -172,8 +172,21 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-/* 平板（≤1100px）：增强 security-hub tab 激活/非激活对比度 */
+/* 平板（≤1100px）：工具条换行 + tabs 横滚（LAY-14）；增强 tab 对比度 */
 @container hos-canvas (max-width: 1100px) {
+  .security-hub__panel-toolbar-row {
+    flex-wrap: wrap;
+  }
+
+  .security-hub__tabs.list-page__tabs {
+    flex: 1 1 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
   .security-hub .list-page__tab {
     color: rgba(255, 255, 255, 0.62);
   }
@@ -183,13 +196,11 @@
   }
   .security-hub .list-page__tab--on {
     color: #fff;
-    /* 高不透明度渐变 */
     background: linear-gradient(
       135deg,
       color-mix(in srgb, var(--security-hub-accent) 92%, rgba(0, 0, 0, 0.05)),
       color-mix(in srgb, var(--security-hub-accent-sub) 88%, rgba(0, 0, 0, 0.08))
     );
-    /* 增强外发光 */
     box-shadow:
       0 4px 22px color-mix(in srgb, var(--security-hub-accent) 55%, transparent),
       0 0 0 1px rgba(255, 255, 255, 0.15),
@@ -350,6 +361,23 @@
   text-align: center;
 }
 
+/* U08：共享 VEmptyState 落在事件空槽时对齐节奏（全局样式可命中子组件根内元素） */
+.sec-events-empty.v-empty {
+  flex-direction: column;
+  gap: 6px;
+  transition: opacity var(--hos-dur-base) var(--hos-ease-standard, ease);
+}
+.sec-events-empty.v-empty .v-empty__title {
+  font-size: var(--hos-fs-3);
+  font-weight: 600;
+  color: var(--hos-fg-2);
+  letter-spacing: 0.06em;
+}
+.sec-events-empty.v-empty .v-empty__desc {
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-3);
+}
+
 .sec-events-empty--log {
   flex: 1;
   width: 100%;
@@ -398,8 +426,20 @@
 }
 
 @container hos-canvas (max-width: 900px) {
+  /* LAY-01：父级仍是 flex-row 时 aside width:100% 会与主列横排挤压；改为纵向堆叠 */
+  .security-events-layout {
+    flex-direction: column;
+  }
+
   .security-events-aside {
     width: 100%;
-    max-height: none;
+    max-height: min(42vh, 360px);
+    overflow: auto;
+  }
+
+  .security-events-layout > main,
+  .security-events-layout > .flex-1 {
+    min-height: 0;
+    flex: 1 1 auto;
   }
 }

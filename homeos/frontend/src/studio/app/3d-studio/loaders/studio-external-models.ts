@@ -38,6 +38,8 @@ import { groupVehicleMaterialSlots } from '../materials/studio-material-slot-gro
 import { hasSemanticSlotRoles } from '../materials/model-slot-roles'
 import { canonicalExternalMaterialName } from '../materials/legacy-material-aliases'
 import { isPlainRecord, normalizeTemplateSlotNames } from './studio-external-model-material'
+import { createVariantUpgradeApi } from './external-models/model-variant-upgrade'
+import { loadModelLiteOrFull } from './external-models/model-lite-full-load'
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from '../materials/material-pipeline'
 import { createStoneSlabTexture } from '../materials/studio-surface-textures'
 import { ensureSceneBoxUvs } from '../materials/studio-box-uv'
@@ -139,6 +141,8 @@ export function createExternalModelManager({
   }),
 }: any) {
   const preparedTemplatesByItemType = new Map(),
+    /** Q03/U14：模板当前变体（冷启动 lite；近场/聚焦可升 full）。 */
+    preparedVariantByItemType = new Map<string, 'lite' | 'full'>(),
     inflightLoadsByItemType = new Map(),
     restorePromisesByItemType = new Map(),
     restoreEligibleByItemType = new Map(),
@@ -198,12 +202,18 @@ export function createExternalModelManager({
             pumpLoadQueue()
         })
   }
-  async function loadTemplateForItem(itemDefinition: any, itemTypeName: any, { skipPersistentRestore = false } = {}) {
+  async function loadTemplateForItem(
+    itemDefinition: any,
+    itemTypeName: any,
+    { skipPersistentRestore = false, preferFull = false } = {},
+  ) {
     const templateCacheKey = modelTemplateKey(threeNamespace, itemTypeName, itemDefinition),
-      restoredPreparedTemplate = skipPersistentRestore ? null : await persistentCache.restore(templateCacheKey)
+      restoredPreparedTemplate =
+        skipPersistentRestore || preferFull ? null : await persistentCache.restore(templateCacheKey)
     if (restoredPreparedTemplate)
       return {
         preparedTemplate: restoredPreparedTemplate,
+        loadedVariant: 'lite' as const,
       }
     if (!itemDefinition?.url) throw new Error('模型 ' + itemTypeName + ' 没有可用资源')
     /**
@@ -237,52 +247,25 @@ export function createExternalModelManager({
       sceneError.response = { status: 200 }
       throw sceneError
     }
-    try {
-      const loadedAsset = assertScene(await assetLoader.loadAsync(itemDefinition.url), itemDefinition.url)
-      return (
-        await prepareModelTextures(loadedAsset),
-        {
-          ...loadedAsset,
-          preparedCacheKey: templateCacheKey,
-        }
-      )
-    } catch (primaryLoadError: any) {
-      if (isDisposed || !itemDefinition.fallbackUrl) {
-        reportPreviewIssue({
-          stage: 'load',
-          itemType: itemTypeName,
-          url: itemDefinition.url,
-          status: statusOfPreviewError(primaryLoadError),
-          message: messageOfPreviewError(primaryLoadError),
-        })
-        throw primaryLoadError
-      }
-      try {
-        const fallbackAsset = await assetLoader.loadAsync(itemDefinition.fallbackUrl)
-        assertScene(fallbackAsset, itemDefinition.fallbackUrl)
-        // 回退成功也要留痕：lite 是运行期首选变体，它坏了说明压缩产物有问题，
-        // 悄悄用完整件顶上会让「lite 解析失败」永远没人修。
-        reportPreviewIssue({
-          stage: 'fallback',
-          itemType: itemTypeName,
-          url: itemDefinition.url,
-          status: statusOfPreviewError(primaryLoadError),
-          message: `lite 加载失败，已回退完整件：${messageOfPreviewError(primaryLoadError)}`,
-        })
-        return fallbackAsset
-      } catch (fallbackLoadError: any) {
-        reportPreviewIssue({
-          stage: 'load',
-          itemType: itemTypeName,
-          url: itemDefinition.fallbackUrl,
-          status: statusOfPreviewError(fallbackLoadError),
-          message: `主资源与备用资源都失败：${messageOfPreviewError(primaryLoadError)}；${messageOfPreviewError(fallbackLoadError)}`,
-        })
-        throw new AggregateError(
-          [primaryLoadError, fallbackLoadError],
-          '模型 ' + itemTypeName + ' 的主资源和备用资源均不可用',
-        )
-      }
+    const loaded = await loadModelLiteOrFull({
+      itemDefinition,
+      itemTypeName,
+      preferFull,
+      templateCacheKey,
+      helpers: {
+        assetLoader,
+        prepareModelTextures,
+        assertScene,
+        reportPreviewIssue,
+        statusOfPreviewError,
+        messageOfPreviewError,
+        isDisposed: () => isDisposed,
+      },
+    })
+    return {
+      ...loaded.asset,
+      preparedCacheKey: loaded.preparedCacheKey,
+      loadedVariant: loaded.loadedVariant,
     }
   }
   function scheduleTimeout(onTimeoutElapsed: any, timeoutDelayMs: any) {
@@ -362,7 +345,7 @@ export function createExternalModelManager({
       // 与按签名共享的调色板材质。只清「状态集合」不清它们 = 没释放任何东西，
       // 而且下次进入 studio 会拿到上一轮的模板（跨项目脏读）。
       for (const preparedTemplate of preparedTemplatesByItemType.values()) releaseModelAsset(preparedTemplate)
-      preparedTemplatesByItemType.clear()
+      preparedTemplatesByItemType.clear(), preparedVariantByItemType.clear()
       for (const cachedMaterial of materialCacheBySignature.values()) cachedMaterial?.dispose?.()
       materialCacheBySignature.clear()
     }
@@ -431,11 +414,13 @@ export function createExternalModelManager({
   function applyLoadedTemplate(loadedItemType: any, loadResult: any) {
     if (isDisposed) return (releaseModelAsset(loadResult), null)
     if (!loadResult) return null
+    const loadedVariant: 'lite' | 'full' = loadResult.loadedVariant === 'full' ? 'full' : 'lite'
     if (loadResult.preparedTemplate)
       return (
         compactFurnitureIndices(threeNamespace, loadResult.preparedTemplate.source, loadedItemType),
         retryStateByItemType.delete(loadedItemType),
         preparedTemplatesByItemType.set(loadedItemType, loadResult.preparedTemplate),
+        preparedVariantByItemType.set(loadedItemType, loadedVariant),
         isModelInUse(loadedItemType) &&
           requestRender({
             force: true,
@@ -503,6 +488,7 @@ export function createExternalModelManager({
     if (
       (retryStateByItemType.delete(loadedItemType),
       preparedTemplatesByItemType.set(loadedItemType, loadedModelEntry),
+      preparedVariantByItemType.set(loadedItemType, loadedVariant),
       loadResult.preparedCacheKey)
     )
       try {
@@ -518,6 +504,17 @@ export function createExternalModelManager({
       loadedModelEntry
     )
   }
+  const { upgradeExternalModelToFull, upgradeModelsNearCamera } = createVariantUpgradeApi({
+    threeNamespace,
+    allItemModels: ALL_ITEM_MODELS as any,
+    isDisposed: () => isDisposed,
+    preparedVariantByItemType,
+    preparedTemplatesByItemType,
+    inflightLoadsByItemType,
+    loadTemplateForItem,
+    applyLoadedTemplate,
+    releaseModelAsset,
+  })
   function loadExternalItemModel(modelItemType: any) {
     if (isDisposed) return Promise.resolve(null)
     if (typeof window < 'u' && window.externalModelLoadsDeferred && !window.__homeosReleasingDeferredModels)
@@ -2483,7 +2480,7 @@ export function createExternalModelManager({
         boundsCenter = boundsBox.getCenter(new threeNamespace.Vector3())
       modelClone.position.set(-boundsCenter.x, -boundsBox.min.y, -boundsCenter.z)
     }
-    applyModelAnchors(modelType, modelClone)
+    applyModelAnchors(modelType, modelClone), (modelClone.userData.externalModelType = modelType)
     return (parentGroup.add(modelClone), true)
   }
   /** 该物件是否挂外部 GLB 模型（`3d-studio` 检查面板据此决定要不要显示「材质属性」）。 */
@@ -2542,6 +2539,8 @@ export function createExternalModelManager({
   return {
     addExternalItemModel: addExternalItemModel,
     loadExternalItemModel: loadExternalItemModel,
+    upgradeExternalModelToFull: upgradeExternalModelToFull,
+    upgradeModelsNearCamera: upgradeModelsNearCamera,
     preloadPersistentModels: preloadPersistentModels,
     modelTypeForItem: resolveModelTypeForItem,
     modelLoadState: collectLoadState,
@@ -2555,6 +2554,7 @@ export function createExternalModelManager({
         type: typeName,
         definition: (ALL_ITEM_MODELS as any)[typeName],
         loaded: preparedTemplatesByItemType.has(typeName),
+        variant: preparedVariantByItemType.get(typeName) || null,
         rendererRevision: new URL(import.meta.url).search,
       }))
     },

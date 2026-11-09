@@ -28,6 +28,11 @@ from .geo import (
     is_eew_simulation_event_id,
     normalize_eew_countdown_lead,
 )
+from .service_status import (
+    EarthquakeStatusMixin,
+    build_cluster_connection_status,
+    build_diagnostics_source_flags,
+)
 from .state import (
     append_alert_history_prisma,
     delete_simulation_history_prisma,
@@ -69,7 +74,7 @@ def _now_ms() -> float:
     return time.time() * 1000
 
 
-class EarthquakeService:
+class EarthquakeService(EarthquakeStatusMixin):
     """地震预警核心服务：EEW 接入 / 去重 / 阈值评估 / 分发。"""
 
     def __init__(
@@ -128,20 +133,20 @@ class EarthquakeService:
                 on_leader=self.sync_wolfx_connection,
                 on_follower=lambda: self._spawn(self._wolfx.disconnect()),
             )
-        # 启动预算内完成运行时配置加载；layout 无坐标时的 HA 探测若超时，
-        # 转后台补充，避免局域网不可达时把启动关键路径拖满 HTTP 超时。
-        try:
-            await asyncio.wait_for(self.ensure_runtime_config(force=True), timeout=2.5)
-        except TimeoutError:
-            logger.info("HA 坐标探测超出启动预算，转为后台补充")
-            self._spawn(self.ensure_runtime_config(force=True))
-        if (
-            self._runtime.enabled
-            and self._leader is not None
-            and self._leader.is_eew_leader()
-            and not self._wolfx.is_connected()
-        ):
-            self.sync_wolfx_connection()
+        # N10：冷启动不再 await 配置探测（原先最多堵 2.5s）。
+        # layout / HA 坐标探测放到后台；加载完成后再按需拉起 Wolfx，避免阻塞 boot。
+        async def _background_runtime_boot() -> None:
+            await self.ensure_runtime_config(force=True)
+            if (
+                not self._destroyed
+                and self._runtime.enabled
+                and self._leader is not None
+                and self._leader.is_eew_leader()
+                and not self._wolfx.is_connected()
+            ):
+                self.sync_wolfx_connection()
+
+        self._spawn(_background_runtime_boot())
 
     async def stop(self) -> None:
         self._destroyed = True
@@ -155,9 +160,17 @@ class EarthquakeService:
         self._wolfx.mark_destroyed()
         await self._wolfx.disconnect()
 
+    def has_home_coordinates(self) -> bool:
+        return is_valid_home_coordinate(self._runtime.home_lat, self._runtime.home_lon)
+
     def _can_connect(self) -> bool:
+        # 无有效家庭坐标时绝不连 Wolfx：连上只会全量 skip，却把状态刷成「在线可预警」。
         return (
-            not self._destroyed and self._leader is not None and self._leader.is_eew_leader() and self._runtime.enabled
+            not self._destroyed
+            and self._leader is not None
+            and self._leader.is_eew_leader()
+            and self._runtime.enabled
+            and self.has_home_coordinates()
         )
 
     def _on_system_config_updated(self, _payload: Any = None) -> None:
@@ -207,6 +220,7 @@ class EarthquakeService:
     async def ensure_runtime_config(self, force: bool = False) -> EarthquakeRuntimeConfig:
         now = _now_ms()
         prev_enabled = self._runtime.enabled
+        prev_coords_ok = self.has_home_coordinates()
         if not force and now - self._config_loaded_at < CONFIG_CACHE_MS:
             return self._runtime
 
@@ -252,7 +266,8 @@ class EarthquakeService:
         except Exception as exc:
             logger.error("加载 EEW 配置失败: %s", exc)
 
-        if prev_enabled != self._runtime.enabled:
+        # 启用开关或坐标可用性变化都要重同步：无坐标时必须立刻断开，避免伪「在线」。
+        if prev_enabled != self._runtime.enabled or prev_coords_ok != self.has_home_coordinates():
             self.sync_wolfx_connection()
 
         return self._runtime
@@ -274,7 +289,7 @@ class EarthquakeService:
     def sync_wolfx_connection(self) -> None:
         if self._destroyed:
             return
-        if not self._runtime.enabled:
+        if not self._runtime.enabled or not self.has_home_coordinates():
             self._spawn(self._wolfx.disconnect())
             if not self._wolfx_disconnected_since:
                 self._wolfx_disconnected_since = _now_ms()
@@ -732,56 +747,10 @@ class EarthquakeService:
 
         return {"deleted": deleted}
 
-    # 状态 / 诊断
-    def should_use_usgs_backup(self, down_for_ms: int) -> bool:
-        if self._wolfx.is_connected():
-            self._wolfx_disconnected_since = 0
-            return False
-        if not self._wolfx_disconnected_since:
-            self._wolfx_disconnected_since = _now_ms()
-        return _now_ms() - self._wolfx_disconnected_since >= down_for_ms
 
-    def get_diagnostics_snapshot(self) -> dict[str, Any]:
-        wolfx_connected = self._wolfx.is_connected()
-        if not wolfx_connected and not self._wolfx_disconnected_since:
-            self._wolfx_disconnected_since = _now_ms()
-        if wolfx_connected:
-            self._wolfx_disconnected_since = 0
-        self._diagnostics.sync_wolfx_from_connection(self._wolfx.get_connection_status())
-        is_leader = bool(self._leader is not None and self._leader.is_eew_leader())
-        return self._diagnostics.snapshot(
-            {
-                "wolfxConnected": wolfx_connected,
-                "scActive": self._runtime.enabled and is_leader,
-                "cencActive": self._runtime.enabled and is_leader,
-                "usgsActive": self._runtime.enabled and is_leader and self.should_use_usgs_backup(60_000),
-            }
-        )
-
-    def get_active_event_id(self) -> str:
-        return self._active_event_id
-
-    def is_connected(self) -> bool:
-        return self._wolfx.is_connected()
-
-    def get_connection_status(self) -> dict[str, Any]:
-        return self._wolfx.get_connection_status()
-
-    def get_leader_status(self) -> dict[str, Any]:
-        if self._leader is None:
-            return {"isLeader": False, "mode": "standalone"}
-        return self._leader.get_status()
-
-    async def get_cluster_connection_status(self) -> dict[str, Any]:
-        local = self.get_connection_status()
-        leader = self.get_leader_status()
-        cluster_active = bool(local.get("connected"))
-        return {
-            **local,
-            "isLeader": bool(leader.get("isLeader")),
-            "mode": leader.get("mode"),
-            "clusterConnected": cluster_active,
-        }
-
-
-__all__ = ["EarthquakeService"]
+__all__ = [
+    "EarthquakeService",
+    "EarthquakeStatusMixin",
+    "build_cluster_connection_status",
+    "build_diagnostics_source_flags",
+]

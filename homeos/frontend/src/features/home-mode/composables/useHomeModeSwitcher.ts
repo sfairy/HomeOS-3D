@@ -176,7 +176,11 @@ export function useHomeModeSwitcher() {
       { type: 'danger', confirmText: '只保留它', cancelText: '取消' },
     )
     if (!ok) return
-    if (await exitOthers(others)) hapticAlert()
+    if (await exitOthers(others)) {
+      hapticAlert()
+    } else {
+      useChromeStore().notify('未能退出其它模式，「只保留它」未完成', 'error')
+    }
     loadModeContext()
   }
 

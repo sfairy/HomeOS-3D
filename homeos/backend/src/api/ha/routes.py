@@ -183,9 +183,9 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
             database.commit()
 
         await run_db(_delete_connection_row)
-        await connector.state_hub.replace([])
-        await connector.notify_catalog_changed('cleared', {'entities': 0, 'devices': 0, 'areas': 0})
+        from .connection_clear import clear_ha_catalog_after_disconnect as _clear
 
+        await _clear(request.app.state, connector)
     except Exception:
         database.rollback()
         raise

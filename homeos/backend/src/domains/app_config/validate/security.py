@@ -205,6 +205,8 @@ def _validate_security(
         "autoArmOnEveryoneLeft",
         "autoUpgradeToAwayOnEveryoneLeft",
         "calendarArmOnAway",
+        "calendarUpgradeToAway",
+        "presenceRequireAllAway",
         "autoDisarmOnFirstHome",
         "linkAwaySimOnArmAway",
         "linkHomeModeOnSecurityChange",

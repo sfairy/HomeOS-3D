@@ -137,13 +137,14 @@ export function bindEntitySocketLifecycle(
     }
   })
 
-  socket.io.on('reconnect_attempt', (attempt: number) => {
+  // Manager 级监听必须可卸载：同 URL 的 io() 会复用 Manager，只 socket.removeAllListeners
+  // 会让 reconnect_* 回调叠乘，放大鉴权刷新 / 横幅 / REST 回退风暴。
+  const onManagerReconnectAttempt = (attempt: number) => {
     logger.info(`WebSocket 重连尝试 (第 ${attempt} 次)...`)
     refs.reconnecting.value = true
     refreshEntitySocketAuth(socket, track.lastSocketEventAt, track.lastEventId)
-  })
-
-  socket.io.on('reconnect', () => {
+  }
+  const onManagerReconnect = () => {
     logger.info('WebSocket 已重新连接到 HomeOS 后端')
     // 有本地缓存时仅短暂展示重连态；避免 socket.io 抖动把横幅钉死
     if (refs.totalCount.value === 0) {
@@ -165,5 +166,7 @@ export function bindEntitySocketLifecycle(
     }
     actions.refreshNotificationsFromSocket?.()
     actions.refreshEventLogFromSocket?.()
-  })
+  }
+  socket.io.on('reconnect_attempt', onManagerReconnectAttempt)
+  socket.io.on('reconnect', onManagerReconnect)
 }

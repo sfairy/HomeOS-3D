@@ -137,7 +137,9 @@ class MediaSceneService:
 
         player_states = await self._snapshot_players(players)
         logger.info("影音场景[%s]已应用: %s", preset, ",".join(actions))
+        # ``ok`` 与 playlist API 同口径：有任一步 HA 失败即诚实标 false，不假装全成功。
         result: dict[str, Any] = {
+            "ok": not errors,
             "preset": preset,
             "players": players,
             "lights": lights,

@@ -85,6 +85,8 @@ interface StudioRenderContext {
   shadowBoostStart: any
   isShadowBoostActive: boolean
   previousSceneSnapshot: any
+  /** 外观面板未夹紧的地面反射设置（闲/动预算夹紧前的基准）。 */
+  appearanceGroundReflection: Record<string, unknown> | null
 }
 
 export function createStudioRenderContext(): StudioRenderContext {
@@ -161,5 +163,6 @@ export function createStudioRenderContext(): StudioRenderContext {
     shadowBoostStart: null,
     isShadowBoostActive: true,
     previousSceneSnapshot: [],
+    appearanceGroundReflection: null,
   }
 }

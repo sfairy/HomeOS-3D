@@ -215,6 +215,8 @@ export interface StudioAppContext {
   shadowPrepareTimeoutId: any
   isShadowPreparing: boolean
   isShadowFrozen: boolean
+  /** WaveUI：楼层切换后 idle 升级近景模型；由 scene-layers 写入，render-loop 调用。 */
+  scheduleNearbyModelUpgrades: (() => void) | null
 }
 
 export function createStudioAppContext(): StudioAppContext {
@@ -415,5 +417,6 @@ export function createStudioAppContext(): StudioAppContext {
     shadowPrepareTimeoutId: null,
     isShadowPreparing: false,
     isShadowFrozen: false,
+    scheduleNearbyModelUpgrades: null,
   }
 }

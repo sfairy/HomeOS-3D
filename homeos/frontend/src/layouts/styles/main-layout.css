@@ -57,7 +57,8 @@
 }
 .shell-right-sidebar {
   flex-shrink: 0;
-  z-index: 20;
+  /* 高于 .afh-root(40)，折叠柄伸出到舞台缝时不被浮动层抢点击（LAY-06） */
+  z-index: 45;
 }
 /* 底部能耗页脚（.power-panel）横跨内容区 + 右栏下方 */
 .shell-footer {
@@ -77,8 +78,10 @@
   padding-right: 20px;
   background:
     linear-gradient(180deg, var(--hos-surface-1) 0%, transparent 38%), rgba(var(--shell-scrim-topbar-rgb), 0.78);
-  -webkit-backdrop-filter: blur(72px) saturate(220%);
-  backdrop-filter: blur(72px) saturate(220%);
+  /* Q04：顶栏单层 token blur + contain，避免与侧栏叠多层大半径 */
+  -webkit-backdrop-filter: var(--hos-blur-3);
+  backdrop-filter: var(--hos-blur-3);
+  contain: paint;
   border-bottom: var(--hos-hairline) solid var(--glass-border);
   box-shadow:
     0 1px 0 var(--glass-bg-sm) inset,
@@ -201,32 +204,36 @@
   filter: drop-shadow(0 0 6px rgba(var(--premium-accent-cyan-rgb), 0.4));
 }
 
-/* ── HA 实时状态悬浮提示 ──────────────────────────────────────────────
-   原为参与文档流的整条横幅，会把下方内容整体下推。现改为「零高度锚点 + 绝对定位」：
-   - .main-layout__ha-anchor：flex-basis/height 均为 0，不占页面布局空间，
-     仅作为浮层的定位基准（紧随顶栏与引导横幅之后）；
-   - 锚点 pointer-events:none，浮层自身恢复 auto，未覆盖区域不拦截点击；
-   - 组件内部 v-if 在连接恢复后移除节点，故「连接成功后自动消失」，
-     配合入场上浮淡入动画，出现/消失都不引起布局跳动。 */
+/* ── HA 实时状态悬浮提示（LAY-05）────────────────────────────────────
+   紧凑 toast 贴右上；锚点在横幅可见时预留一条高度，避免盖住英雄区/面包屑。
+   锚点 pointer-events:none，浮层自身恢复 auto；连接恢复后 v-if 移除节点。 */
 .main-layout__ha-anchor {
   position: relative;
   flex: 0 0 0;
   height: 0;
   min-height: 0;
   pointer-events: none;
+  z-index: 120;
+}
+
+.main-layout__ha-anchor:has(> .main-layout__ha-banner) {
+  flex: 0 0 52px;
+  height: 52px;
 }
 
 .main-layout__ha-anchor > .main-layout__ha-banner {
   position: absolute;
-  top: 12px;
-  left: 50%;
+  top: 8px;
+  right: 16px;
+  left: auto;
   z-index: 120;
-  width: min(560px, calc(100% - 32px));
+  width: min(380px, calc(100% - 32px));
   margin: 0;
-  transform: translateX(-50%);
+  transform: none;
   pointer-events: auto;
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: var(--hos-blur-1);
+  backdrop-filter: var(--hos-blur-1);
+  contain: paint;
   box-shadow:
     0 12px 36px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 var(--glass-bg-sm);
@@ -236,11 +243,11 @@
 @keyframes ha-degrade-toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -8px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
@@ -501,8 +508,9 @@
   background: var(--glass-off-bg-popup);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: var(--hos-blur-2);
+  -webkit-backdrop-filter: var(--hos-blur-2);
+  contain: paint;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -690,15 +698,14 @@ a.icon-btn {
     gap: 2px;
   }
 
-  /* 操作区只保留「全屋关闭 / 通知 / 设置」这三个高频或应急项，其余下沉，
-     避免操作区吃掉导航预算。用显式类而非 nth-child：后续插入新按钮不会错位。
-     特异性提到 (0,3,0)：本文件 @media (max-width:1024px) 块排在 640 块之后，
-     其中的 `.tab-bar__actions .icon-btn`(0,2,0) 会把这里的尺寸覆盖掉。 */
+  /* U03：≤640 触控命中 ≥44px（旧 36 压过 --hos-touch-min，关机/通知易误触）。
+     操作区仍只保留「全屋关闭 / 通知 / 设置」；用显式类而非 nth-child。
+     特异性 (0,3,0) 压过后续 1024 块里的 `.tab-bar__actions .icon-btn`(0,2,0)。 */
   .tab-bar .tab-bar__actions .icon-btn {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    width: var(--hos-touch-min, 44px);
+    height: var(--hos-touch-min, 44px);
+    min-width: var(--hos-touch-min, 44px);
+    min-height: var(--hos-touch-min, 44px);
   }
 
   .tab-bar .tab-bar__actions .icon-btn:not(.icon-btn--keep) {
@@ -713,7 +720,7 @@ a.icon-btn {
   .tab-bar .tab-bar__mode-switcher .home-mode-switcher__btn {
     padding: 4px;
     gap: 0;
-    min-height: 36px;
+    min-height: var(--hos-touch-min, 44px);
   }
 
   .logo-wrapper {

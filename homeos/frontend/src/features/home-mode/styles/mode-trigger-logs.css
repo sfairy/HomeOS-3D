@@ -183,13 +183,19 @@
   border-color: var(--hos-color-danger-text);
 }
 
+/* 窄屏保留全部列，靠横向滚动查看（LAY-17） */
 @container hos-canvas (max-width: 768px) {
-  .mode-logs-view__col-source,
-  .mode-logs-view__col-reason,
-  .mode-logs-view__table thead th:nth-child(3),
-  .mode-logs-view__table thead th:nth-child(4),
-  .mode-logs-view__table tbody td:nth-child(3),
-  .mode-logs-view__table tbody td:nth-child(4) {
-    display: none;
+  .mode-logs-view__table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mode-logs-view__table {
+    min-width: 640px;
+  }
+
+  .mode-logs-view__reason {
+    max-width: none;
+    white-space: normal;
   }
 }

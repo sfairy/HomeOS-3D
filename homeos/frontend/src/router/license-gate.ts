@@ -47,6 +47,17 @@ export function setLicenseFeatureAccess(access?: Record<string, boolean> | null)
   }
   licenseFeatureAccess.value = { ...access }
   licenseFeaturesLoaded.value = true
+  touchLicenseCheckedAt()
+}
+
+/**
+ * 功能码明细是否应重新拉取（与 license status 共用 TTL）。
+ * 失败后保持 ``loaded=false`` 时也会返回 true，避免永久卡在 fail-closed。
+ */
+export function shouldRefreshLicenseFeatures(force = false): boolean {
+  if (force) return true
+  if (!licenseFeaturesLoaded.value) return true
+  return Date.now() - lastLicenseCheckAt >= LICENSE_CHECK_TTL_MS
 }
 
 /** 读取当前功能码明细（供 watch）。 */

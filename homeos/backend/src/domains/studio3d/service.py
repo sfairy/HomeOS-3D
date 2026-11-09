@@ -51,6 +51,8 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
     #
     # 校验与写入必须共用素材目录的 mutation lock：否则「校验通过」与「提交草稿」之间
     # 可以插进一次删除，草稿里就留下指向不存在图片的 assetId。
+    # 先拿素材 mutation lock，再清会话：绝不能在 lock 外用 commit()「冲掉」隐式事务，
+    # 那会把请求里无关的脏对象一并持久化（并发保存会丢别人的稿）。
     lock = catalog.mutation_lock if catalog is not None else nullcontext()
     with lock:
         validate_window_designs(payload.scene)
@@ -58,7 +60,8 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate, 
         if catalog is not None:
             validate_assets(catalog, payload.scene)
         scene_json = draft_repository.encode_scene(payload.scene)
-        database.commit()
+        # rollback 结束隐式事务且丢弃无关脏写；commit 会误落盘。
+        database.rollback()
         database.execute(text("BEGIN IMMEDIATE"))
         try:
             return _save_draft_locked(database, settings, user, payload, scene_json, catalog)

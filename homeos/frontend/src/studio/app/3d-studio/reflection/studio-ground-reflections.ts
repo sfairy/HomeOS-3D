@@ -11,6 +11,11 @@ import { buildReflectionPersistenceStamp, resolveReflectionIdleCaptureFps } from
 import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
 import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
 import { createRefractionMaterialResolver } from './refraction-materials'
+import {
+  beginReflectionCaptureState,
+  captureReflectionRendererDiff,
+  restoreReflectionRendererDiff,
+} from './reflection-renderer-diff'
 export function createGroundReflections({
   THREE: three,
   renderer: renderer,
@@ -107,7 +112,8 @@ export function createGroundReflections({
     scratchPlane = new three.Plane(),
     scratchPlaneVector = new three.Vector4(),
     scratchSignVector = new three.Vector4(),
-    scratchProjectionMatrix = new three.Matrix4()
+    scratchProjectionMatrix = new three.Matrix4(),
+    _reflectionClearColor = new three.Color()
   /** 取「捕获这一帧该用哪个材质」：先去掉折射，再按需要叠一层高度淡出。 */
   function resolveFadeMaterial(baseMaterial: any) {
     const refractionFreeMaterialNode = getRefractionFreeMaterial(baseMaterial)
@@ -1009,21 +1015,9 @@ export function createGroundReflections({
         ))
       return
     }
-    const rendererState = {
-        target: renderer.getRenderTarget(),
-        cubeFace: renderer.getActiveCubeFace(),
-        mipmap: renderer.getActiveMipmapLevel(),
-        xr: renderer.xr.enabled,
-        shadow: renderer.shadowMap.autoUpdate,
-        alpha: renderer.getClearAlpha(),
-        color: renderer.getClearColor(new three.Color()),
-        background: scene.background,
-        viewport: renderer.getViewport(new three.Vector4()),
-        scissor: renderer.getScissor(new three.Vector4()),
-        scissorTest: renderer.getScissorTest(),
-        autoClear: renderer.autoClear,
-        matrixWorldAutoUpdate: scene.matrixWorldAutoUpdate,
-      },
+    // Q06：差分记录本轮实际改动的 renderer/scene 字段，避免每帧全量 save/restore
+    // viewport/scissor（捕获路径并不改它们）与未触碰的布尔位。
+    const rendererDiff = captureReflectionRendererDiff(renderer, scene, _reflectionClearColor),
       visibilityRestores: any = [],
       materialRestores: any = [],
       geometryRestores: any = [],
@@ -1125,13 +1119,7 @@ export function createGroundReflections({
           }
         }
       let isScenePrepared = false
-      ;(scene.matrixWorldAutoUpdate = false),
-        (renderer.xr.enabled = false),
-        (renderer.shadowMap.autoUpdate = false),
-        (renderer.autoClear = true),
-        (scene.background = null),
-        renderer.setClearColor(0, 0),
-        renderer.setScissorTest(false)
+      beginReflectionCaptureState(renderer, scene, rendererDiff)
       for (const captureRecord of dirtyRecords) {
         captureRecord.hasCapture = false
         const capturedCamera = updateReflectionCamera(
@@ -1216,6 +1204,7 @@ export function createGroundReflections({
             (passes?.begin(scene, capturedCamera, currentResolution, requiredFloorId),
             syncLighting(capturedCamera),
             renderer.setRenderTarget(captureRecord.map),
+            (rendererDiff.changedTarget = true),
             !tryPrepareProgram(captureRecord, capturedCamera))
           ) {
             isCaptureDeferred = true
@@ -1242,6 +1231,7 @@ export function createGroundReflections({
                 (destinationScale * BLUR_TEXEL_RADIUS) / BLUR_REFERENCE_RESOLUTION,
               ),
               renderer.setRenderTarget(blurDestination),
+              (rendererDiff.changedTarget = true),
               renderer.clear(),
               renderer.render(blurScene, blurCamera)
         }
@@ -1284,8 +1274,7 @@ export function createGroundReflections({
         (lastCameraSignature = cameraSignature),
         (lastLightingSignature = lightingSignature)
     } finally {
-      ;(scene.matrixWorldAutoUpdate = rendererState.matrixWorldAutoUpdate),
-        passes?.restore(),
+      passes?.restore(),
         culling.restore(),
         (stats.culling = {
           ...culling.stats,
@@ -1297,15 +1286,7 @@ export function createGroundReflections({
       // 否则它们会在补捕之前整帧消失（一帧闪一下比稍微滞后的倒影明显得多）。
       for (const restoredRecord of activeRecords)
         restoredRecord.overlay.visible = restoredRecord.eligible && restoredRecord.hasCapture
-      ;(scene.background = rendererState.background),
-        renderer.setClearColor(rendererState.color, rendererState.alpha),
-        renderer.setViewport(rendererState.viewport),
-        renderer.setScissor(rendererState.scissor),
-        renderer.setScissorTest(rendererState.scissorTest),
-        renderer.setRenderTarget(rendererState.target, rendererState.cubeFace, rendererState.mipmap),
-        (renderer.xr.enabled = rendererState.xr),
-        (renderer.shadowMap.autoUpdate = rendererState.shadow),
-        (renderer.autoClear = rendererState.autoClear),
+      restoreReflectionRendererDiff(renderer, scene, rendererDiff),
         syncLighting(camera),
         (stats.inCapture = false),
         (stats.lastMs = performance.now() - captureStartMs),

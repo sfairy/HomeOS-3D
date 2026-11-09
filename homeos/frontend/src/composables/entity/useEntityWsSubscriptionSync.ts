@@ -112,24 +112,26 @@ export function useEntityWsSubscriptionSync() {
     return () => socket.off('connect', onConnect)
   }
 
-  // wsTransportEpoch 变化表示 socket 实例重建：重新绑定 connect 事件并立即强制同步
+  /** 强制同步防抖：避免 reconnect 时 epoch/connect/connected 三连打爆 update_subscription */
+  function scheduleForceSync() {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null
+      syncSubscription(true)
+    }, SYNC_DEBOUNCE_MS)
+  }
+
+  // wsTransportEpoch 变化表示 socket 实例重建：重新绑定 connect；同步由 connect 单源触发
   watch(
     () => entitiesStore.wsTransportEpoch,
     () => {
       detachConnect?.()
-      detachConnect = bindSocketSubscriptionSync(() => syncSubscription(true))
+      detachConnect = bindSocketSubscriptionSync(() => scheduleForceSync())
       const socket = entitiesStore.getSocket()
-      if (socket?.connected) syncSubscription(true)
+      // 已连接时补一次（新建 socket 可能已连上且不再触发 connect）
+      if (socket?.connected) scheduleForceSync()
     },
     { immediate: true },
-  )
-
-  // 连接恢复时强制同步一次（覆盖 connect 事件未触发的边界场景）
-  watch(
-    () => entitiesStore.connected,
-    (connected) => {
-      if (connected) syncSubscription(true)
-    },
   )
 
   onUnmounted(() => {

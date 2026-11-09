@@ -37,7 +37,12 @@ export function cancelEncryptedBackupJob(ticket: string, config?: AxiosRequestCo
 }
 
 export function restoreEncryptedBusinessBackup(
-  body: { ticket: string; adminPassword: string; confirm: boolean },
+  body: {
+    ticket: string
+    adminPassword: string
+    confirm: boolean
+    acknowledgeMissingSecrets?: boolean
+  },
   config?: AxiosRequestConfig,
 ) {
   return apiPost(
@@ -46,6 +51,7 @@ export function restoreEncryptedBusinessBackup(
       ticket: body.ticket,
       adminPassword: body.adminPassword,
       confirm: body.confirm === true,
+      acknowledgeMissingSecrets: body.acknowledgeMissingSecrets === true,
     },
     { timeout: BACKUP_TIMEOUT_MS, ...config },
   )

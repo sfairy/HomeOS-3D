@@ -19,6 +19,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, TypedDict
 
+from .notify_result import build_notify_action_result, build_security_action_result
 from .presets import collect_home_mode_target_actions, resolve_action_kind
 from ..home_exec.execute_action_sequence import execute_action_sequence
 from ..home_exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
@@ -163,17 +164,10 @@ async def _execute_home_mode_action(deps: Any, action: dict[str, Any]) -> dict[s
             message = str(
                 (action.get("service_data") or {}).get("message") or action.get("entity_id") or "家庭模式已切换"
             )
-            await deps.notify("info", message, "home-mode")
-            return {"entity_id": "notify:app", "service": "notify.send_message", "success": True}
+            return build_notify_action_result(await deps.notify("info", message, "home-mode"))
 
         if kind == "security":
-            ok = await deps.set_security_mode(ref, "home-mode")
-            return {
-                "entity_id": f"security:{ref}",
-                "service": "security.set_mode",
-                "success": bool(ok),
-                "error": None if ok else "安防模式切换失败（需安防模块授权）",
-            }
+            return build_security_action_result(ref, await deps.set_security_mode(ref, "home-mode"))
 
         domain = action.get("domain") or action.get("entity_id", "").split(".")[0]
         service = action.get("service") or "turn_on"
@@ -740,6 +734,7 @@ async def _finalize_home_mode_activation(
             "results": results,
             "successCount": final_success,
             "totalCount": len(results),
+            "failedCount": sum(1 for r in results if not r.get("success")),
             "verifiedCount": executed,
             "unverifiedCount": unverified,
             "snapshotIncomplete": bool(snapshot_missing),

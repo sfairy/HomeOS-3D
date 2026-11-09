@@ -174,7 +174,9 @@ def resolve_go2rtc_ws_user(
     app: Any, cookie_header: str | None, entity_id: str
 ) -> dict[str, Any] | None:
     """解析 go2rtc WS 握手用户并按 camera 访问限制判定；失败返回 ``None``。"""
-    token = extract_auth_token_from_cookie(cookie_header)
+    settings = getattr(getattr(app, "state", None), "settings", None)
+    cookie_name = getattr(settings, "cookie_name", None) or "auth_token"
+    token = extract_auth_token_from_cookie(cookie_header, cookie_name)
     if not token:
         return None
     try:
@@ -194,9 +196,12 @@ async def resolve_ha_base_url(app: Any) -> str:
     try:
         from ..ha.config.ha_config import load_active_ha_endpoints
 
-        with app.state.database.session_factory() as session:
-            endpoints = load_active_ha_endpoints(session, cipher=app.state.studio_ha.cipher)
-        return endpoints.ha_url_primary or ""
+        def _load() -> str:
+            with app.state.database.session_factory() as session:
+                endpoints = load_active_ha_endpoints(session, cipher=app.state.studio_ha.cipher)
+            return endpoints.ha_url_primary or ""
+
+        return await asyncio.to_thread(_load)
     except Exception:
         return ""
 

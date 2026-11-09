@@ -30,7 +30,12 @@ from sqlalchemy import delete, select
 
 from .types import MessageHandler
 from ...platform.core.db.models import WebPushSubscription
-from ...platform.core.http.errors import api_error, bad_request
+from ...platform.core.http.errors import (
+    BusinessException,
+    ErrorCode,
+    api_error,
+    bad_request,
+)
 from ...platform.core.runtime.config_events import subscribe as subscribe_config_updates
 
 logger = logging.getLogger("homeos.channels.webpush")
@@ -738,12 +743,36 @@ class WebPushService:
         return False
 
     async def send_test(self, endpoint: str | None = None) -> dict[str, int]:
-        """测试推送：向全部或指定 endpoint 发送。"""
+        """测试推送：向全部或指定 endpoint 发送。
+
+        未真正送达时抛业务异常（fail-closed）：禁用 / 未配置 / 无订阅 / 投递失败
+        都不能以 2xx + ``sent:0`` 冒充「已发送」。
+        """
         outcome = await self.send_text(endpoint or "", "这是一条 HomeOS 测试推送")
         # 用 send_text 的真实投递结果，而不是「订阅还在不在」推断：发送失败
         # （VAPID 未就绪 / 全部 410 / 退避中）时不能再给用户报“已发送”。
         delivered = int(outcome.get("delivered") or 0) if isinstance(outcome, dict) else 0
         attempted = int(outcome.get("attempted") or 0) if isinstance(outcome, dict) else 0
+        if delivered <= 0:
+            if not self._enabled:
+                raise BusinessException(
+                    ErrorCode.SERVICE_UNAVAILABLE,
+                    "WebPush 通道未启用，测试推送未发送",
+                )
+            if not self._vapid:
+                raise BusinessException(
+                    ErrorCode.CONFIG_ERROR,
+                    "WebPush VAPID 未就绪，测试推送未发送",
+                )
+            if attempted <= 0:
+                raise BusinessException(
+                    ErrorCode.SERVICE_UNAVAILABLE,
+                    "没有可投递的 WebPush 订阅，测试推送未发送",
+                )
+            raise BusinessException(
+                ErrorCode.EXTERNAL_ERROR,
+                "WebPush 测试推送未能送达",
+            )
         return {"sent": delivered, "delivered": delivered, "attempted": attempted}
 
     async def close(self) -> None:

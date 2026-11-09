@@ -96,8 +96,8 @@ def media_entity(request, connection: HAConnection, viewer: ViewerPrincipal) -> 
     """解析本次请求指向的媒体实体。
 
     代理路由自己带实体（``/api/camera_proxy/camera.<id>``）；HLS 片段没有，只能查
-    能力表。查不到时：登录会话直接放行（``None``），展示设备必须已经有有效凭证 ——
-    否则任何人拼一个 ``/api/hls/xxx`` 就能穿过实体校验。
+    能力表。查不到时一律 403 —— 登录会话也不能靠「拼一个 ``/api/hls/xxx``」绕过
+    实体校验（此前会话路径 fail-open 返回 ``None``，等于跳过 ACL）。
     """
     path = request.url.path
     domains = {
@@ -120,12 +120,10 @@ def media_entity(request, connection: HAConnection, viewer: ViewerPrincipal) -> 
         if grant is not None and monotonic() - grant[1] < GRANT_IDLE_SECONDS:
             _grants(request)[key] = (grant[0], monotonic())
             return grant[0]
-    if not viewer.is_session:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='摄像头流授权已失效，请重新打开摄像头。',
-        )
-    return None
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail='摄像头流授权已失效，请重新打开摄像头。',
+    )
 
 
 @dataclass

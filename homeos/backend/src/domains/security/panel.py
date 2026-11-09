@@ -31,12 +31,14 @@ from .zones import (
 )
 from ...platform.core.db.models import SecurityEvent
 from ...platform.core.http.errors import api_error, bad_request
-from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.security.panel")
 
 #: 区域传感器只接受这几类实体域；``foo.bar`` / ``foo..bar`` / 带空白的 ID 一律拒绝。
 _SENSOR_ENTITY_RE = re.compile(r"^(binary_sensor|sensor|lock|alarm_control_panel)\.[a-z0-9_]+\Z")
+
+#: 紧急求助同步等待上限：声光序列可能较长，超时仍按失败回给 UI，避免假成功挂起。
+_EMERGENCY_TIMEOUT_SEC = 90.0
 
 
 class SecurityConfigProvider:
@@ -218,35 +220,48 @@ class SecurityPanelService:
         async with self._transition_lock:
             self._configure_zones_locked(zones, confirm_clear=confirm_clear)
 
-    def _configure_zones_locked(self, zones: list[dict[str, Any]] | None, *, confirm_clear: bool) -> None:
-        if not isinstance(zones, list) or not zones:
-            if not confirm_clear:
-                bad_request(api_error("SECURITY_ZONES_CLEAR_REQUIRES_CONFIRM"))
-            # 布防中清空防区 = 布防面板从此「有布防状态、无任何传感器」：布防永远不再告警。
-            # _arm_inner 已明确拒绝零防区布防，这里必须守住同一不变量，否则可从配置接口绕过。
-            if self._mode != "disarmed":
-                # 错误码表（platform/core/errors.py）不在本次改动范围，用本地化文案拒绝；
-                # 语义与 _arm_inner 的 SECURITY_ZONE_REQUIRED 一致：不允许存在零防区布防。
-                bad_request("布防中不能清空全部防区，请先撤防")
-            self._zones = []
-            self.state_helper.persist_panel_state()
-            self._bus.emit_soon("security.zonesConfigured", {"count": 0, "zones": [], "timestamp": _iso_now()})
-            self._bus.emit_soon(
-                "security.modeChanged",
-                {
-                    "mode": self._mode,
-                    "zones": [],
-                    "zonesDetail": [],
-                    "armedAt": self._armed_at,
-                    "timestamp": _iso_now(),
-                    "source": "zones",
-                    "degraded": False,
-                    "failedItems": [],
-                },
-            )
-            logger.info("已清空安防区域配置")
-            return
+    def _emit_zones_configured(self, armed_zone_ids: list[str] | None = None) -> None:
+        zones_payload = [dict(z) for z in self._zones]
+        self._bus.emit_soon(
+            "security.zonesConfigured",
+            {
+                "count": len(self._zones),
+                "zones": zones_payload,
+                "timestamp": _iso_now(),
+            },
+        )
+        # 区域变化会改变「哪些传感器参与告警」，必须同步一次模式快照：
+        # 否则前端只能等下一次轮询，期间显示的区域布防状态与后端不一致。
+        self._bus.emit_soon(
+            "security.modeChanged",
+            {
+                "mode": self._mode,
+                "zones": armed_zone_ids if armed_zone_ids is not None else [],
+                "zonesDetail": zones_payload,
+                "armedAt": self._armed_at,
+                "timestamp": _iso_now(),
+                "source": "zones",
+                "degraded": False,
+                "failedItems": [],
+            },
+        )
 
+    def _clear_zones_locked(self, *, confirm_clear: bool) -> None:
+        if not confirm_clear:
+            bad_request(api_error("SECURITY_ZONES_CLEAR_REQUIRES_CONFIRM"))
+        # 布防中清空防区 = 布防面板从此「有布防状态、无任何传感器」：布防永远不再告警。
+        # _arm_inner 已明确拒绝零防区布防，这里必须守住同一不变量，否则可从配置接口绕过。
+        if self._mode != "disarmed":
+            # 错误码表（platform/core/errors.py）不在本次改动范围，用本地化文案拒绝；
+            # 语义与 _arm_inner 的 SECURITY_ZONE_REQUIRED 一致：不允许存在零防区布防。
+            bad_request("布防中不能清空全部防区，请先撤防")
+        self._zones = []
+        if not self.state_helper.persist_panel_state():
+            bad_request("安防区域配置写入失败，请重试")
+        self._emit_zones_configured([])
+        logger.info("已清空安防区域配置")
+
+    def _normalize_zone_configs(self, zones: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen: set[str] = set()
         normalized: list[dict[str, Any]] = []
         for zone in zones:
@@ -273,7 +288,14 @@ class SecurityPanelService:
                     "roomId": (str(zone.get("roomId")).strip() if zone.get("roomId") else None),
                 }
             )
+        return normalized
 
+    def _configure_zones_locked(self, zones: list[dict[str, Any]] | None, *, confirm_clear: bool) -> None:
+        if not isinstance(zones, list) or not zones:
+            self._clear_zones_locked(confirm_clear=confirm_clear)
+            return
+
+        normalized = self._normalize_zone_configs(zones)
         previous = {str(z.get("id")): z for z in self._zones}
         self._zones = [
             {
@@ -282,31 +304,12 @@ class SecurityPanelService:
             }
             for zone in normalized
         ]
-        self.state_helper.persist_panel_state()
+        if not self.state_helper.persist_panel_state():
+            # 内存已改但未落库：回滚内存并拒绝成功事件，避免重启后防区与 UI「已保存」分叉。
+            self._zones = list(previous.values()) if previous else []
+            bad_request("安防区域配置写入失败，请重试")
         armed_zone_ids = [str(z.get("id")) for z in self._zones if z.get("armed")]
-        self._bus.emit_soon(
-            "security.zonesConfigured",
-            {
-                "count": len(self._zones),
-                "zones": [dict(z) for z in self._zones],
-                "timestamp": _iso_now(),
-            },
-        )
-        # 区域变化会改变「哪些传感器参与告警」，必须同步一次模式快照：
-        # 否则前端只能等下一次轮询，期间显示的区域布防状态与后端不一致。
-        self._bus.emit_soon(
-            "security.modeChanged",
-            {
-                "mode": self._mode,
-                "zones": armed_zone_ids,
-                "zonesDetail": [dict(z) for z in self._zones],
-                "armedAt": self._armed_at,
-                "timestamp": _iso_now(),
-                "source": "zones",
-                "degraded": False,
-                "failedItems": [],
-            },
-        )
+        self._emit_zones_configured(armed_zone_ids)
         logger.info("已配置 %s 个安防区域", len(self._zones))
 
     # 布防 / 撤防
@@ -500,9 +503,11 @@ class SecurityPanelService:
             source=opts.get("source") or "manual",
             actor=opts.get("actor"),
         )
+        unverified_count = action_result.get("unverified") or 0
         return {
             "success": True,
-            "degraded": False,
+            # 已下发但未确认的联动不能当全绿成功；前端据此走 partial/warning。
+            "degraded": bool(unverified_count),
             # 模式已提交但没落库：重启会回退到上一次成功落库的模式，前端据此给出提醒。
             "persisted": persisted,
             "mode": mode,
@@ -512,7 +517,7 @@ class SecurityPanelService:
             "failedItems": action_result["failedItems"],
             "irreversibleItems": action_result.get("irreversibleItems") or [],
             "unverifiedItems": action_result.get("unverifiedItems") or [],
-            "unverifiedCount": action_result.get("unverified") or 0,
+            "unverifiedCount": unverified_count,
         }
 
     async def disarm(self, opts: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -608,20 +613,54 @@ class SecurityPanelService:
         self.state_helper.schedule_security_event("emergency", f"紧急求助: {action}", source=source, actor=actor)
         logger.warning("🆘 紧急求助触发: %s", action)
 
-        # 同步置位再排队：裸 create_task 既不持强引用（可能被 GC，连带把警笛/灯光序列
-        # 一起丢掉），又让「状态标志在协程里才置位」留下同一 tick 内两次调用都回
-        # ``queued: true`` 的窗口 —— 而冷却时间已经记上了，用户的重试会被挡掉。
+        # 同步置位再 await：避免「先报 success 再异步失败」的假成功；冷却/in_progress
+        # 守卫仍在上方同步生效，同一 tick 内的重入会被挡住。
         self._emergency_running = True
-        spawn_background(self._run_emergency())
-        return {"success": True, "action": action, "queued": True}
-
-    async def _run_emergency(self) -> None:
-        # ``_emergency_running`` 已经由 ``trigger_emergency`` 在调度前同步置位，
-        # 这里再判一次只会让任务立刻返回、一条动作都不执行；这里只负责收尾清标志。
         try:
-            await self.emergency_runner.run_emergency_actions()
+            result = await self._run_emergency()
         except Exception as exc:
             logger.warning("紧急求助联动失败: %s", exc)
+            await self._bus.emit(
+                "security.emergencyFailed",
+                {"action": action, "error": str(exc), "timestamp": _iso_now()},
+            )
+            return {
+                "success": False,
+                "action": action,
+                "queued": False,
+                "error": str(exc) or "紧急求助联动失败",
+            }
+        failed = int((result or {}).get("failed") or 0)
+        ok = failed == 0
+        if not ok:
+            await self._bus.emit(
+                "security.emergencyFailed",
+                {
+                    "action": action,
+                    "failed": failed,
+                    "results": result,
+                    "timestamp": _iso_now(),
+                },
+            )
+        return {
+            "success": ok,
+            "action": action,
+            "queued": False,
+            "results": result,
+            **({"error": f"紧急求助有 {failed} 项联动失败"} if not ok else {}),
+        }
+
+    async def _run_emergency(self) -> dict[str, Any]:
+        # ``_emergency_running`` 已经由 ``trigger_emergency`` 在调度前同步置位，
+        # 这里只负责执行与收尾清标志；超时按失败返回，避免 API 永久挂起。
+        try:
+            return await asyncio.wait_for(
+                self.emergency_runner.run_emergency_actions(),
+                timeout=_EMERGENCY_TIMEOUT_SEC,
+            )
+        except TimeoutError as exc:
+            logger.warning("紧急求助联动超时（%ss）", _EMERGENCY_TIMEOUT_SEC)
+            raise TimeoutError(f"紧急求助联动超时（{_EMERGENCY_TIMEOUT_SEC}s）") from exc
         finally:
             self._emergency_running = False
 

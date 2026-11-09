@@ -18,7 +18,7 @@
       <SettingsHubSubnav v-model="generalSection" :sections="generalSubnavSections" />
     </template>
 
-    <div v-show="generalSection === 'brand'" class="settings-hub-section">
+    <div v-if="generalSection === 'brand'" class="settings-hub-section">
       <SettingsCard full static extra-class="general-brand-card">
         <SettingsFlowBand
           :steps="generalBrandFlowSteps"
@@ -92,7 +92,7 @@
       </SettingsCard>
     </div>
 
-    <div v-show="generalSection === 'runtime'" class="settings-hub-section">
+    <div v-if="generalSection === 'runtime'" class="settings-hub-section">
       <SettingsCard static>
         <SettingsCardIntro
           :icon="Zap"
@@ -168,11 +168,11 @@
       </SettingsCard>
     </div>
 
-    <div v-show="generalSection === 'screensaver'" class="settings-hub-section">
+    <div v-if="generalSection === 'screensaver'" class="settings-hub-section">
       <SettingsScreensaverSection />
     </div>
 
-    <div v-show="generalSection === 'scaling'" class="settings-hub-section">
+    <div v-if="generalSection === 'scaling'" class="settings-hub-section">
       <SettingsLayoutDisplaySection
         :scaling-enabled="scalingEnabled"
         :scale="scale"
@@ -193,7 +193,7 @@
       />
     </div>
 
-    <div v-show="generalSection === 'nav'" class="settings-hub-section">
+    <div v-if="generalSection === 'nav'" class="settings-hub-section">
       <SettingsCard full static>
         <SettingsCardIntro
           :icon="Grip"
@@ -206,7 +206,7 @@
       </SettingsCard>
     </div>
 
-    <div v-show="generalSection === 'footer'" class="settings-hub-section">
+    <div v-if="generalSection === 'footer'" class="settings-hub-section">
       <SettingsLayoutFooterSection
         v-model:preset-to-add="presetToAdd"
         v-model:active-footer-item-id="activeFooterItemId"
@@ -224,7 +224,7 @@
       />
     </div>
 
-    <div v-show="generalSection === 'whole-home-off'" class="settings-hub-section">
+    <div v-if="generalSection === 'whole-home-off'" class="settings-hub-section">
       <SettingsWholeHomeOffSection />
     </div>
   </SettingsPageShell>

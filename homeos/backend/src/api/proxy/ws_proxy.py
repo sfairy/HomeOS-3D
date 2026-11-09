@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -60,7 +61,10 @@ async def ha_webrtc_ws(websocket: WebSocket) -> None:
         await _reject(websocket, CLOSE_BAD_REQUEST)
         return
 
-    if resolve_go2rtc_ws_user(app, websocket.headers.get("cookie"), entity_id) is None:
+    user = await asyncio.to_thread(
+        resolve_go2rtc_ws_user, app, websocket.headers.get("cookie"), entity_id
+    )
+    if user is None:
         await _reject(websocket, CLOSE_UNAUTHORIZED)
         return
 
@@ -96,9 +100,14 @@ async def embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) -> 
 async def _embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) -> None:
     """内嵌页 WebSocket 同源反代（对齐 Nest ``attachEmbedWsProxy``）。"""
     app = websocket.app
-    token = websocket.cookies.get("auth_token")
-    with app.state.database.session_factory() as session:
-        authorized = verify_embed_ws_auth(token, session)
+    cookie_name = getattr(getattr(app.state, "settings", None), "cookie_name", None) or "auth_token"
+    token = websocket.cookies.get(cookie_name)
+
+    def _authorize() -> bool:
+        with app.state.database.session_factory() as session:
+            return verify_embed_ws_auth(token, session)
+
+    authorized = await asyncio.to_thread(_authorize)
     if not authorized:
         await _reject(websocket, CLOSE_UNAUTHORIZED)
         return

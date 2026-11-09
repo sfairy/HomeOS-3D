@@ -120,6 +120,8 @@ def _default_safety_and_iaq_sections() -> dict[str, Any]:
             "autoArmOnEveryoneLeft": False,
             "autoUpgradeToAwayOnEveryoneLeft": False,
             "calendarArmOnAway": False,
+            "calendarUpgradeToAway": False,
+            "presenceRequireAllAway": True,
             "autoDisarmOnFirstHome": False,
             "linkAwaySimOnArmAway": False,
             "linkHomeModeOnSecurityChange": True,

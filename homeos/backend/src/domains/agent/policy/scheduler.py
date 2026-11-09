@@ -53,6 +53,9 @@ def _task_result_ok(result: dict[str, Any]) -> bool:
     """
     if result.get("verified") is False:
         return False
+    # activate_home_mode 等会带回 unverifiedCount：未确认不得记计划任务成功。
+    if int(result.get("unverifiedCount") or 0) > 0:
+        return False
     if bool(result.get("success")):
         return True
     return not result.get("error") and not result.get("blocked") and "success" not in result
@@ -251,7 +254,8 @@ class AgentSchedulerService:
         run_at: datetime | None = None
         if schedule_type == "RECURRING":
             try:
-                cron = normalize_cron(payload)
+                # 确保 runAt→cron 能读到家庭时区（normalize_cron 从 payload 取 timezone）
+                cron = normalize_cron({**payload, "timezone": timezone_name})
                 cron_trigger(cron, timezone_name)
             except Exception as exc:
                 logger.info("周期任务表达式不合法: %s", exc)
@@ -318,7 +322,7 @@ class AgentSchedulerService:
         if row.schedule_type == "RECURRING":
             if "cron" in payload or "time" in payload or "runAt" in payload:
                 try:
-                    row.cron = normalize_cron(payload)
+                    row.cron = normalize_cron({**payload, "timezone": timezone_name})
                     cron_trigger(row.cron, timezone_name)
                 except Exception as exc:
                     logger.info("更新周期任务表达式失败: %s", exc)
@@ -507,12 +511,13 @@ class AgentSchedulerService:
         return results
 
     def _claim_sync(self, task_id: str, now: datetime) -> dict[str, Any] | None:
-        """执行前复核：任务仍存在、仍启用、仍到期时返回**最新**参数快照，否则 ``None``。
+        """执行前复核并 CAS 推进 ``next_run_at``，返回最新参数快照，否则 ``None``。
 
         ``tick`` 是先快照 ``enabled=1`` 的任务再逐个 ``await`` 执行的。期间用户完全可能
-        把任务停用、改动作参数或改 cron，而旧实现会拿快照里的旧参数照跑一遍，事后
-        ``_finish_sync`` 也不复查 —— 「停用后还执行了一次」「改参后仍按旧参数执行」。
-        这里在真正调用工具前重读一次行，同时保证拿到的是修改后的参数。
+        把任务停用、改动作参数或改 cron，而旧实现会拿快照里的旧参数照跑一遍。
+        更关键的是：若 ``_finish_sync`` 写库失败，旧实现不推进 ``next_run_at``，任务会
+        约每 tick（~10s）被重新领取并重复执行同一控制。这里在领取时就推进下次时间
+        （周期→下一次 cron；一次性→停用），即使 finish 失败也不会无限重跑。
         """
         if self._session_factory is None:
             return None
@@ -524,7 +529,7 @@ class AgentSchedulerService:
             # 上一轮已经把 next_run_at 推到未来的任务不能再跑一次。
             if row.next_run_at is None or row.next_run_at > now:
                 return None
-            return {
+            snapshot = {
                 "id": row.id,
                 "name": row.name,
                 "scheduleType": row.schedule_type,
@@ -536,6 +541,23 @@ class AgentSchedulerService:
                 "precondition": read_json_object(row.precondition, {}),
                 "actor": read_json_object(row.actor, {}),
             }
+            # CAS：领取即推进，防止 finish 失败后同一到期任务被反复重领。
+            if row.schedule_type == "RECURRING":
+                next_run = next_cron_run(row.cron or "", row.timezone or "", now)
+                if next_run is None:
+                    # 算不出下次则禁用，避免卡在「永远到期」上狂跑。
+                    logger.warning("周期任务 %s claim 时无法计算下次执行，已禁用", task_id)
+                    row.enabled = False
+                    row.next_run_at = None
+                    row.last_error = "claim 时 cron 无法计算下次执行时间"
+                else:
+                    row.next_run_at = next_run
+            else:
+                row.enabled = False
+                row.next_run_at = None
+            row.updated_at = datetime.now(UTC)
+            session.commit()
+            return snapshot
 
     async def _claim_task(self, task_id: str) -> dict[str, Any] | None:
         try:
@@ -665,7 +687,11 @@ class AgentSchedulerService:
                 },
             )
         except Exception as exc:
-            logger.warning("记录任务执行结果失败: %s", exc)
+            # claim 已推进 next_run_at；此处仅丢日志。再告警一次，避免静默丢审计。
+            logger.warning("记录任务执行结果失败（租约已推进，不会重跑）: %s", exc)
+            await self._notify_failure(
+                task, f"执行结果落库失败（不会自动重跑）: {exc}"
+            )
         if status == "failed":
             await self._notify_failure(task, message)
         return {
@@ -703,17 +729,19 @@ class AgentSchedulerService:
             row.last_status = info["status"]
             row.last_error = info["message"] if info["status"] == "failed" else ""
             row.run_count = int(row.run_count or 0) + 1
+            # next_run_at / enabled 已在 _claim_sync 推进；此处仅在用户执行中途停用时清排程，
+            # 或对仍启用的周期任务用 finished_at 再校准一次下次时间（与 claim 一致则幂等）。
             if not bool(row.enabled):
-                # 执行期间被停用：日志照写（动作确实发生过），但不要再排下一次，
-                # 否则「停用」会被 _finish 悄悄排回一个未来的 next_run_at。
                 row.next_run_at = None
             elif row.schedule_type == "RECURRING":
                 next_run = next_cron_run(row.cron or "", row.timezone or "", info["finished_at"])
                 if next_run is None:
                     logger.warning("周期任务 %s 的 cron 无法计算下次执行时间: %r", task_id, row.cron)
-                row.next_run_at = next_run
+                    row.enabled = False
+                    row.next_run_at = None
+                else:
+                    row.next_run_at = next_run
             else:
-                # 一次性任务：执行完即停用，避免被反复重跑
                 row.enabled = False
                 row.next_run_at = None
             session.add(
