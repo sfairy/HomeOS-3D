@@ -345,27 +345,18 @@ export class StudioSaveStore {
     }, delay)
   }
 
-  /** 立即保存（自动保存、退出确认、手动保存共用入口，对在途 PUT 去重）。 */
-  async flushNow(): Promise<FlushResult> {
-    if (this.inFlight) return this.inFlight
-    if (this.deps.isEmbedded?.() || this.deps.isPageSuspended?.()) return { ok: false, reason: 'deferred' }
-    if (this.sceneForSave() == null || this.state.status === 'blocked-readonly') {
-      return { ok: false, reason: 'blocked' }
-    }
+  /** 冲突 / 待确认 / 致命失败时不发 PUT，直接给出对应结果。 */
+  private stateFlushResult(): FlushResult | null {
     if (this.state.status === 'conflict') {
       return { ok: false, reason: 'conflict', currentRevision: this.state.pendingConflict?.currentRevision ?? null }
     }
     // 428 待确认 / 用户刚取消确认：禁止再发无 token 的 PUT，否则会立刻再撞 428 并反复弹窗。
     // confirmInteraction() 会先把 status 改回 dirty 并写入 interactionToken，再走本入口。
     if (this.state.status === 'blocked') {
-      if (this.state.pendingConfirmation) {
-        return {
-          ok: false,
-          reason: 'confirmation-required',
-          token: this.state.pendingConfirmation.token,
-        }
-      }
-      return { ok: false, reason: 'blocked' }
+      const pending = this.state.pendingConfirmation
+      return pending
+        ? { ok: false, reason: 'confirmation-required', token: pending.token }
+        : { ok: false, reason: 'blocked' }
     }
     if (this.state.status === 'failed') {
       return {
@@ -375,6 +366,18 @@ export class StudioSaveStore {
         category: this.state.lastErrorCategory ?? 'invalid',
       }
     }
+    return null
+  }
+
+  /** 立即保存（自动保存、退出确认、手动保存共用入口，对在途 PUT 去重）。 */
+  async flushNow(): Promise<FlushResult> {
+    if (this.inFlight) return this.inFlight
+    if (this.deps.isEmbedded?.() || this.deps.isPageSuspended?.()) return { ok: false, reason: 'deferred' }
+    if (this.sceneForSave() == null || this.state.status === 'blocked-readonly') {
+      return { ok: false, reason: 'blocked' }
+    }
+    const stateResult = this.stateFlushResult()
+    if (stateResult) return stateResult
     if (!this.state.online) {
       this.patch({ status: 'offline' })
       return { ok: false, reason: 'offline' }

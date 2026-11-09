@@ -216,3 +216,12 @@ export function isSameCameraPose(cameraPoseA: any, cameraPoseB: any) {
     )
   )
 }
+
+/** 弹窗的缩放与顶边要按内容高度摆放（不能越过舞台底边）：面板类型或内容高度变了就重算一次布局。 */
+export function syncPanelFit(host: { [key: string]: unknown }) {
+  const section = host.lightPanelSection as HTMLElement
+  const signature = section.className + '|' + section.scrollHeight
+  if (section.dataset.panelFit === signature) return
+  section.dataset.panelFit = signature
+  ;(host.syncLayoutMetrics as (() => void) | undefined)?.()
+}

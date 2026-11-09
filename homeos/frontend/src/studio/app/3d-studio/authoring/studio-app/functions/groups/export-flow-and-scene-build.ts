@@ -14,7 +14,6 @@ import {
 } from '../../../../export/export-utils'
 import {
   MAX_EXPORT_PRESET_COUNT as MAX_EXPORT_PRESET_COUNT2,
-  normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2,
   normalizeExportPresetSlots as normalizeExportPresetSlots2,
 } from '../../../../export/export-presets'
 import { syncControlValue as syncControlValue2 } from '../../../ui/ui-controls'
@@ -85,73 +84,13 @@ export function saveAsNewPreset(runtime: StudioAppRuntime) {
     runtime.showToast('已新增“' + hf2 + '”，可以继续调整楼层和视角。', 'success')
 }
 
-export function closePresetRenameDialog(runtime: StudioAppRuntime) {
-  runtime.exportPresetRenameDialogElement.open && runtime.exportPresetRenameDialogElement.close()
-}
-
-export function openPresetRenameDialog(runtime: StudioAppRuntime) {
-  if (runtime.appCtx.isInteractionLocked) return
-  runtime.saveExportPreset()
-  const renamePresetSlots = normalizeExportPresetSlots2(runtime.appCtx.studioProject?.exportPresets),
-    renameActiveSlot = normalizeActiveExportPresetSlot2(
-      runtime.appCtx.studioProject?.activeExportPresetSlot,
-      renamePresetSlots.length,
-    )
-  renamePresetSlots[renameActiveSlot] &&
-    ((runtime.exportPresetRenameInputElement.value = runtime.formatPresetLabel(
-      renamePresetSlots[renameActiveSlot],
-      renameActiveSlot,
-    )),
-    runtime.exportPresetRenameDialogElement.showModal(),
-    requestAnimationFrame(() => runtime.exportPresetRenameInputElement.select()))
-}
-
-/** @deprecated 弹窗已迁 shellConfirm；保留空实现避免旧 wiring 崩。 */
-export function closePresetDeleteDialog(runtime: StudioAppRuntime) {
-  void runtime
-}
-
-export async function openPresetDeleteDialog(runtime: StudioAppRuntime) {
-  if (runtime.appCtx.isInteractionLocked) return
-  const deletePresetSlots = normalizeExportPresetSlots2(runtime.appCtx.studioProject?.exportPresets)
-  if (deletePresetSlots.length <= 1) return
-  const deleteActiveSlot = normalizeActiveExportPresetSlot2(
-    runtime.appCtx.studioProject?.activeExportPresetSlot,
-    deletePresetSlots.length,
-  )
-  const presetLabel = runtime.formatPresetLabel(deletePresetSlots[deleteActiveSlot], deleteActiveSlot)
-  const confirmed = await shellConfirm({
-    title: '删除这个导出存档？',
-    message: '确定删除“' + presetLabel + '”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。',
-    confirmLabel: '删除存档',
-    cancelLabel: '取消',
-    tone: 'danger',
-  })
-  if (confirmed) confirmDeletePreset(runtime)
-}
-
-export function confirmDeletePreset(runtime: StudioAppRuntime) {
-  const updatedPresetSlots = normalizeExportPresetSlots2(runtime.appCtx.studioProject?.exportPresets)
-  if (updatedPresetSlots.length <= 1) return
-  const deletedSlotIndex = normalizeActiveExportPresetSlot2(
-      runtime.appCtx.studioProject?.activeExportPresetSlot,
-      updatedPresetSlots.length,
-    ),
-    ja2 = runtime.formatPresetLabel(updatedPresetSlots[deletedSlotIndex], deletedSlotIndex)
-  window.clearTimeout(runtime.appCtx.exportPreviewTimeoutId),
-    (runtime.appCtx.exportPreviewTimeoutId = null),
-    (runtime.appCtx.isExportPresetDirty = false),
-    updatedPresetSlots.splice(deletedSlotIndex, 1),
-    (runtime.appCtx.studioProject.exportPresets = updatedPresetSlots),
-    (runtime.appCtx.studioProject.activeExportPresetSlot = Math.min(deletedSlotIndex, updatedPresetSlots.length - 1))
-  const du3 = runtime.applyExportPreset(runtime.appCtx.studioProject.activeExportPresetSlot, {
-    silent: true,
-  })
-  runtime.renderExportPresetSlots(),
-    runtime.markDocumentDirty(),
-    (runtime.exportStatusElement.textContent = du3 ? '已切换到相邻存档' : '当前存档尚未设置'),
-    runtime.showToast('已删除“' + ja2 + '”，楼层和户型未受影响。', 'success')
-}
+export {
+  closePresetDeleteDialog,
+  closePresetRenameDialog,
+  confirmDeletePreset,
+  openPresetDeleteDialog,
+  openPresetRenameDialog,
+} from './export-preset-dialogs'
 
 export function ensureSceneRendered(runtime: StudioAppRuntime, renderAttempt = 0) {
   !runtime.isAutoDiagramEmbed ||

@@ -116,6 +116,7 @@ import {
   coverGeometryOverrides,
   expandGroupMembers,
   isSameCameraPose,
+  syncPanelFit,
 } from './stage/_shared'
 export { createStageModelIndex } from './stage/_shared'
 import { buildMetadata } from './stage/build-metadata'
@@ -4863,7 +4864,8 @@ export function mountStage(mountOptions: any) {
     wakeSceneBackground,
     waterHeaterStatusByModelType,
   }
-  const updateDevicePanel = createUpdateDevicePanel(stageHandlersHost)
+  const renderDevicePanel = createUpdateDevicePanel(stageHandlersHost)
+  const updateDevicePanel = () => (renderDevicePanel(), syncPanelFit(stageHandlersHost))
   stageHandlersHost.updateDevicePanel = updateDevicePanel
   const renderMarkerPositionsCore = createRenderMarkerPositions(stageHandlersHost)
   /** 包一层：切楼层 / 场景刷新后地面范围会变，这里顺手把投影补发一次。 */

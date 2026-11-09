@@ -198,3 +198,13 @@ export function applyStageGpuHint(loadingElement: HTMLElement, eventCode: string
     loadingElement.hidden = true
   }
 }
+
+/**
+ * 45s 还没出图只显示提示，不能走 failSceneLoad：那会清掉 isReloadPending，
+ * 之后迟到的 presented 被丢弃，画面永远卡在提示上。
+ */
+export function scheduleSlowLoadHint(loadingElement: HTMLElement, isSettled: () => boolean) {
+  return setTimeout(() => {
+    if (!isSettled()) loadingElement.textContent = '3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。'
+  }, 45000)
+}

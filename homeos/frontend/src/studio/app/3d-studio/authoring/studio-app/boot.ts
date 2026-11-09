@@ -40,7 +40,7 @@ import {
   finishModelLoad as finishModelLoadImpl, publishModelLoadState as publishModelLoadStateImpl, emitRuntimeDiagnostic as emitRuntimeDiagnosticImpl, updateModelLoadIndicator as updateModelLoadIndicatorImpl,
   materialLoadOptionsForItem as materialLoadOptionsForItemImpl, applyItemOptimization as applyItemOptimizationImpl, getActiveFloor as getActiveFloorImpl, captureStudioSnapshot as captureStudioSnapshotImpl,
   getLocalSaveRevision as getLocalSaveRevisionImpl, uniqueFloorName as uniqueFloorNameImpl, hideFloorActionMenu as hideFloorActionMenuImpl, showFloorActionMenu as showFloorActionMenuImpl,
-  floorActionHandler as floorActionHandlerImpl, closeFloorDeleteDialog as closeFloorDeleteDialogImpl, openFloorRenameDialog as openFloorRenameDialogImpl,
+  floorActionHandler as floorActionHandlerImpl, openFloorRenameDialog as openFloorRenameDialogImpl,
   syncGlobalControls as syncGlobalControlsImpl, clearDropIndicator as clearDropIndicatorImpl, moveFloorRow as moveFloorRowImpl, renderFloorList as renderFloorListImpl,
   selectFloor as selectFloorImpl, addNewFloor as addNewFloorImpl, copyFloor as copyFloorImpl, planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
   worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl, startFloorAlign as startFloorAlignImpl, cancelFloorAlign as cancelFloorAlignImpl,
@@ -320,7 +320,12 @@ import { addCylinderMesh } from "./scene/cylinder-mesh";
 import { doorPartThemeColor } from "./materials/door-theme";
 import { refreshStepChecklist } from "./ui/step-checklist";
 import { clearStudioDocumentResidue, releaseStudioRenderer } from "./render/studio-render-release";
+import { prepareSaveConflictDialog } from "./ui/save-conflict-dialog";
 
+/** 嵌入舞台可能只挂隐藏 stub；缺节点时用离屏 canvas，避免 bootStudio 同步崩溃导致永不出图。 */
+function planCanvasContext(canvas: HTMLCanvasElement | null) {
+  return (canvas || document.createElement("canvas")).getContext("2d");
+}
 
 let disposeActiveStudio: (() => void) | null = null;
 /** teardown 前置落盘钩子（boot 闭包内注册；dispose 在闭包外执行，必须经此暴露）。 */
@@ -445,7 +450,6 @@ export function bootStudio(): void {
     get clearDropIndicator() { return clearDropIndicator; },
     get clearLightGroupDropIndicator() { return clearLightGroupDropIndicator; },
     get closeDrawingToolGroups() { return closeDrawingToolGroups; },
-    get closeFloorDeleteDialog() { return closeFloorDeleteDialog; },
     get closePresetDeleteDialog() { return closePresetDeleteDialog; },
     get closedWallLoops() { return closedWallLoops; },
     get collectActiveLightEntries() { return collectActiveLightEntries; },
@@ -937,7 +941,6 @@ export function bootStudio(): void {
   const hideFloorActionMenu = (...args: any[]): any => (hideFloorActionMenuImpl as any)(studioRuntime, ...args);
   const showFloorActionMenu = (...args: any[]): any => (showFloorActionMenuImpl as any)(studioRuntime, ...args);
   const floorActionHandler = (...args: any[]): any => (floorActionHandlerImpl as any)(studioRuntime, ...args);
-  const closeFloorDeleteDialog = (...args: any[]): any => (closeFloorDeleteDialogImpl as any)(studioRuntime, ...args);
   const openFloorRenameDialog = (...args: any[]): any => (openFloorRenameDialogImpl as any)(studioRuntime, ...args);
   const syncGlobalControls = (...args: any[]): any => (syncGlobalControlsImpl as any)(studioRuntime, ...args);
   const clearDropIndicator = (...args: any[]): any => (clearDropIndicatorImpl as any)(studioRuntime, ...args);
@@ -1843,8 +1846,7 @@ const toolHelpMessages = {
   isStudioEntry =
     isEmbeddedStage ||
     /^\/3d-studio\/?$/.test(window.location.pathname),
-  // 嵌入舞台可能只挂隐藏 stub；缺节点时用离屏 canvas，避免 bootStudio 同步崩溃导致永不出图。
-  planCanvasRenderer = (planCanvasElement || document.createElement("canvas")).getContext("2d"),
+  planCanvasRenderer = planCanvasContext(planCanvasElement),
   overlayCanvasElement = document.createElement("canvas"),
   overlayCanvasRenderer = overlayCanvasElement.getContext("2d"),
   {
@@ -2013,22 +2015,41 @@ const closeSaveConflictDialog = () => {
   if (dialog?.open) dialog.close();
 };
 // 首次挂载时补上导出按钮；之后 openSaveConflictDialog 会在重挂后再次补。
-if (saveConflictDialogElement instanceof HTMLDialogElement) {
-  const actions = saveConflictDialogElement.querySelector(".dialog-actions");
-  if (actions && !saveConflictDialogElement.querySelector("#save-conflict-export")) {
-    const saveConflictExportButton = document.createElement("button");
-    saveConflictExportButton.id = "save-conflict-export";
-    saveConflictExportButton.type = "button";
-    saveConflictExportButton.textContent = "导出本地副本";
-    actions.appendChild(saveConflictExportButton);
+prepareSaveConflictDialog(saveConflictDialogElement);
+const loadServerVersionFromConflict = async () => {
+  const pendingConflictSnapshot = appCtx.pendingConflict;
+  if (!pendingConflictSnapshot) return;
+  (window.clearTimeout(appCtx.autosaveTimeoutId),
+    (appCtx.autosaveTimeoutId = null),
+    (appCtx.pendingConflict = null),
+    (appCtx.blockedSaveRevision = -1),
+    (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
+    closeSaveConflictDialog());
+  // 出口一硬约束：先导出本地副本，再载入服务器版本（本地改动绝不静默丢失）。
+  downloadStudioLocalCopy(pendingConflictSnapshot.localScene);
+  try {
+    const latestConflictPayload =
+      pendingConflictSnapshot.latest || (await fetchStudioApi("/studio3d"));
+    await applyLoadedDraft(latestConflictPayload);
+    showSaveState("已加载服务器版本", "saved");
+    showToast("已加载另一页面保存的户型，本地副本已导出。", "success");
+  } catch (loadFailure: any) {
+    (showSaveState("载入失败", "error"),
+      showToast(loadFailure?.message || "服务器版本载入失败。", "error"));
   }
-  if (!saveConflictDialogElement.dataset.conflictCancelGuarded) {
-    saveConflictDialogElement.dataset.conflictCancelGuarded = "1";
-    saveConflictDialogElement.addEventListener("cancel", (dialogCancelEvent: any) =>
-      dialogCancelEvent.preventDefault(),
-    );
-  }
-}
+};
+const overwriteServerFromConflict = async () => {
+  if (!appCtx.pendingConflict) return;
+  (window.clearTimeout(appCtx.autosaveTimeoutId),
+    (appCtx.autosaveTimeoutId = null),
+    (appCtx.pendingConflict = null),
+    closeSaveConflictDialog(),
+    showSaveState("正在确认覆盖…", "saving"));
+  // 出口二：显式带 currentRevision 覆盖；local === remote 也必须发一次（markWholeDocumentDirty）。
+  studioDocumentStore.markWholeDocumentDirty();
+  appCtx.localSaveRevision += 1;
+  await flushStudioSaveOnce("overwrite");
+};
 const onSaveConflictDialogClick = async (conflictClickEvent: MouseEvent) => {
   const clickTarget =
     conflictClickEvent.target instanceof Element ? conflictClickEvent.target : null;
@@ -2036,45 +2057,9 @@ const onSaveConflictDialogClick = async (conflictClickEvent: MouseEvent) => {
     "#save-conflict-load, #save-conflict-overwrite, #save-conflict-export",
   ) as HTMLElement | null;
   if (!actionButton || !liveSaveConflictDialog()?.contains(actionButton)) return;
-  if (actionButton.id === "save-conflict-export") {
-    downloadStudioLocalCopy();
-    return;
-  }
-  if (actionButton.id === "save-conflict-load") {
-    const pendingConflictSnapshot = appCtx.pendingConflict;
-    if (!pendingConflictSnapshot) return;
-    (window.clearTimeout(appCtx.autosaveTimeoutId),
-      (appCtx.autosaveTimeoutId = null),
-      (appCtx.pendingConflict = null),
-      (appCtx.blockedSaveRevision = -1),
-      (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
-      closeSaveConflictDialog());
-    // 出口一硬约束：先导出本地副本，再载入服务器版本（本地改动绝不静默丢失）。
-    downloadStudioLocalCopy(pendingConflictSnapshot.localScene);
-    try {
-      const latestConflictPayload =
-        pendingConflictSnapshot.latest || (await fetchStudioApi("/studio3d"));
-      await applyLoadedDraft(latestConflictPayload);
-      showSaveState("已加载服务器版本", "saved");
-      showToast("已加载另一页面保存的户型，本地副本已导出。", "success");
-    } catch (loadFailure: any) {
-      (showSaveState("载入失败", "error"),
-        showToast(loadFailure?.message || "服务器版本载入失败。", "error"));
-    }
-    return;
-  }
-  if (actionButton.id === "save-conflict-overwrite") {
-    if (!appCtx.pendingConflict) return;
-    (window.clearTimeout(appCtx.autosaveTimeoutId),
-      (appCtx.autosaveTimeoutId = null),
-      (appCtx.pendingConflict = null),
-      closeSaveConflictDialog(),
-      showSaveState("正在确认覆盖…", "saving"));
-    // 出口二：显式带 currentRevision 覆盖；local === remote 也必须发一次（markWholeDocumentDirty）。
-    studioDocumentStore.markWholeDocumentDirty();
-    appCtx.localSaveRevision += 1;
-    await flushStudioSaveOnce("overwrite");
-  }
+  if (actionButton.id === "save-conflict-export") downloadStudioLocalCopy();
+  else if (actionButton.id === "save-conflict-load") await loadServerVersionFromConflict();
+  else await overwriteServerFromConflict();
 };
 document.addEventListener("click", onSaveConflictDialogClick);
 // 退出保护三态对话框：返回编辑器前的未保存拦截、等待保存完成后再退出、不保存直接退出。

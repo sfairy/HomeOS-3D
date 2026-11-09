@@ -89,7 +89,7 @@ export function popupPlacement({
       Math.min(
         defaultScale * (customScale ?? 1),
         (width - margin * 2) / panelWidth,
-        maxPanelHeight / Math.max(fitContent ? panelHeight : 180, minContentHeight || 0),
+        maxPanelHeight / Math.max(fitContent ? panelHeight : 180, minContentHeight),
       ),
     ),
     contentMaxHeight = maxPanelHeight / scale,

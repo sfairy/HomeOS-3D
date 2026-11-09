@@ -163,6 +163,52 @@ function setRecoverySaveAttempts(saveAttempts: any[]): void {
   recoverySaveAttempts = Array.isArray(saveAttempts) ? saveAttempts : [];
 }
 
+/** 删除页面后，把指向它的导航按钮与 navigate 动作改指回退页（没有回退页则移除）。 */
+function remapDeletedPageReferences(
+  scannedComponent: any,
+  pagePath: string,
+  deletedName: string | undefined,
+  fallbackPagePath: string | null,
+  fallbackName: string | undefined,
+): void {
+  for (const actionKind of scannedComponent || []) {
+    if (
+      ((actionKind.properties = {
+        ...(actionKind.properties || {}),
+      }),
+      actionKind.type === "navigation-button" && actionKind.properties.targetPage === pagePath)
+    ) {
+      (!actionKind.properties.mainText ||
+        actionKind.properties.mainText === "页面导航" ||
+        actionKind.properties.mainText === deletedName) &&
+        (actionKind.properties.mainText = fallbackName || "页面导航");
+      const upperCase = String(pagePath).replace(/[-_]+/g, " ").toUpperCase();
+      ((!actionKind.properties.secondaryText ||
+        actionKind.properties.secondaryText === "NAVIGATION" ||
+        actionKind.properties.secondaryText === upperCase) &&
+        (actionKind.properties.secondaryText = fallbackPagePath
+          ? String(fallbackPagePath).replace(/[-_]+/g, " ").toUpperCase()
+          : "NAVIGATION"),
+        fallbackPagePath
+          ? (actionKind.properties.targetPage = fallbackPagePath)
+          : delete actionKind.properties.targetPage);
+    }
+    actionKind.actions = {
+      ...(actionKind.actions || {}),
+    };
+    for (const scannedPage of ["tap", "doubleTap", "hold"])
+      actionKind.actions[scannedPage]?.type === "navigate" &&
+        actionKind.actions[scannedPage]?.target === pagePath &&
+        (actionKind.type === "navigation-button" && fallbackPagePath
+          ? (actionKind.actions[scannedPage] = {
+              type: "navigate",
+              target: fallbackPagePath,
+            })
+          : delete actionKind.actions[scannedPage]);
+    remapDeletedPageReferences(actionKind.children, pagePath, deletedName, fallbackPagePath, fallbackName);
+  }
+}
+
 /**
  * 引导仪表盘编辑器（重复调用会先回收上一次）。
  *
@@ -176,6 +222,49 @@ export function bootEditor(): void {
   const scope = createLegacyScope('editor-home');
   const innerCleanup = scope.executeInLegacyScope(() => {
   const editorCtx = createEditorContext();
+  async function deletePageWithConfirm(ct4: any) {
+    const pagePath = ct4.path;
+    const pageName = ct4.name;
+    const confirmed = await confirmAction({
+      title: "删除页面",
+      message:
+        "确认删除页面“" +
+        pageName +
+        "”？\n页面内的主页面控件会一并删除。删除最后一个页面后，可以从左侧重新新建页面。",
+      confirmLabel: "确认删除",
+      cancelLabel: "取消",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    const deletePageDocument = clone2(editorCtx.activeProject.document),
+      deletedPageIndex = deletePageDocument.pages.findIndex(
+        (deletedPageCandidate: any) => deletedPageCandidate.path === pagePath,
+      );
+    if (deletedPageIndex < 0) {
+      handleOperationError(new Error("页面已经不存在，请刷新后重试。"));
+      return;
+    }
+    const deletedPage = deletePageDocument.pages[deletedPageIndex];
+    deletePageDocument.pages.splice(deletedPageIndex, 1);
+    const fallbackPagePath =
+        deletePageDocument.pages[Math.max(0, deletedPageIndex - 1)]?.path ||
+        deletePageDocument.pages[0]?.path ||
+        null,
+      fallbackPage = deletePageDocument.pages.find(
+        (fallbackCandidate: any) => fallbackCandidate.path === fallbackPagePath,
+      );
+    deletePageDocument.defaultPagePath === pagePath &&
+      (deletePageDocument.defaultPagePath = fallbackPagePath);
+    const remap = (components: unknown) =>
+      remapDeletedPageReferences(components, pagePath, deletedPage?.name, fallbackPagePath, fallbackPage?.name);
+    remap(deletePageDocument.sharedComponents);
+    for (const deletePageError of deletePageDocument.pages) remap(deletePageError.components);
+    try {
+      await projectSummary(deletePageDocument, fallbackPagePath);
+    } catch (onComponentMenuClick: any) {
+      handleOperationError(onComponentMenuClick);
+    }
+  }
 
 // ── 依赖域绑定（原 355 条手写转发包装）：deps 容器构造一次，对外函数同形 ──
 const { refreshEditorViewportFit, refreshComponentDialogScale, refreshSoundToggle, syncIconButtonInspector, syncNavigationInspector, syncLineChartInspector, syncAirConditionerInspector, requestJson, formatLastSeen, setSettingsMessage, handleOperationError, errorPhase, value, hidePopupActionsMenu, closeCustomSelect, positionCustomSelectMenu, selectableEntities, openEntityPicker, closeAllDropdownMenus, closeDropdownMenu, openColorPickerForInput, setWorkspaceHasProject, hasActiveProject, destroyDashboardPreview, syncWorkspaceEmptyState } = bindDeps(shellControlsDeps)({ refreshEditorViewportFit: refreshEditorViewportFitImpl, refreshComponentDialogScale: refreshComponentDialogScaleImpl, refreshSoundToggle: refreshSoundToggleImpl, syncIconButtonInspector: syncIconButtonInspectorImpl, syncNavigationInspector: syncNavigationInspectorImpl, syncLineChartInspector: syncLineChartInspectorImpl, syncAirConditionerInspector: syncAirConditionerInspectorImpl, requestJson: requestJsonImpl, formatLastSeen: formatLastSeenImpl, setSettingsMessage: setSettingsMessageImpl, handleOperationError: handleOperationErrorImpl, errorPhase: errorPhaseImpl, value: valueImpl, hidePopupActionsMenu: hidePopupActionsMenuImpl, closeCustomSelect: closeCustomSelectImpl, positionCustomSelectMenu: positionCustomSelectMenuImpl, selectableEntities: selectableEntitiesImpl, openEntityPicker: openEntityPickerImpl, closeAllDropdownMenus: closeAllDropdownMenusImpl, closeDropdownMenu: closeDropdownMenuImpl, openColorPickerForInput: openColorPickerForInputImpl, setWorkspaceHasProject: setWorkspaceHasProjectImpl, hasActiveProject: hasActiveProjectImpl, destroyDashboardPreview: destroyDashboardPreviewImpl, syncWorkspaceEmptyState: syncWorkspaceEmptyStateImpl })
@@ -1620,86 +1709,7 @@ function lightingPanelDeps(): LightingPanelDeps {
       }
       return;
     }
-    if (pageAction === "delete") {
-      const pagePath = ct4.path;
-      const pageName = ct4.name;
-      const confirmed = await confirmAction({
-        title: "删除页面",
-        message:
-          "确认删除页面“" +
-          pageName +
-          "”？\n页面内的主页面控件会一并删除。删除最后一个页面后，可以从左侧重新新建页面。",
-        confirmLabel: "确认删除",
-        cancelLabel: "取消",
-        tone: "danger",
-      });
-      if (!confirmed) return;
-      const deletePageDocument = clone2(editorCtx.activeProject.document),
-        deletedPageIndex = deletePageDocument.pages.findIndex(
-          (deletedPageCandidate: any) => deletedPageCandidate.path === pagePath,
-        );
-      if (deletedPageIndex < 0) {
-        handleOperationError(new Error("页面已经不存在，请刷新后重试。"));
-        return;
-      }
-      const deletedPage = deletePageDocument.pages[deletedPageIndex];
-      deletePageDocument.pages.splice(deletedPageIndex, 1);
-      const fallbackPagePath =
-          deletePageDocument.pages[Math.max(0, deletedPageIndex - 1)]?.path ||
-          deletePageDocument.pages[0]?.path ||
-          null,
-        fallbackPage = deletePageDocument.pages.find(
-          (fallbackCandidate: any) => fallbackCandidate.path === fallbackPagePath,
-        );
-      deletePageDocument.defaultPagePath === pagePath &&
-        (deletePageDocument.defaultPagePath = fallbackPagePath);
-      const remapPageReferences = (scannedComponent: any) => {
-        for (const actionKind of scannedComponent || []) {
-          if (
-            ((actionKind.properties = {
-              ...(actionKind.properties || {}),
-            }),
-            actionKind.type === "navigation-button" && actionKind.properties.targetPage === pagePath)
-          ) {
-            (!actionKind.properties.mainText ||
-              actionKind.properties.mainText === "页面导航" ||
-              actionKind.properties.mainText === deletedPage?.name) &&
-              (actionKind.properties.mainText = fallbackPage?.name || "页面导航");
-            const upperCase = String(pagePath).replace(/[-_]+/g, " ").toUpperCase();
-            ((!actionKind.properties.secondaryText ||
-              actionKind.properties.secondaryText === "NAVIGATION" ||
-              actionKind.properties.secondaryText === upperCase) &&
-              (actionKind.properties.secondaryText = fallbackPagePath
-                ? String(fallbackPagePath).replace(/[-_]+/g, " ").toUpperCase()
-                : "NAVIGATION"),
-              fallbackPagePath
-                ? (actionKind.properties.targetPage = fallbackPagePath)
-                : delete actionKind.properties.targetPage);
-          }
-          actionKind.actions = {
-            ...(actionKind.actions || {}),
-          };
-          for (const scannedPage of ["tap", "doubleTap", "hold"])
-            actionKind.actions[scannedPage]?.type === "navigate" &&
-              actionKind.actions[scannedPage]?.target === pagePath &&
-              (actionKind.type === "navigation-button" && fallbackPagePath
-                ? (actionKind.actions[scannedPage] = {
-                    type: "navigate",
-                    target: fallbackPagePath,
-                  })
-                : delete actionKind.actions[scannedPage]);
-          remapPageReferences(actionKind.children);
-        }
-      };
-      remapPageReferences(deletePageDocument.sharedComponents);
-      for (const deletePageError of deletePageDocument.pages)
-        remapPageReferences(deletePageError.components);
-      try {
-        await projectSummary(deletePageDocument, fallbackPagePath);
-      } catch (onComponentMenuClick: any) {
-        handleOperationError(onComponentMenuClick);
-      }
-    }
+    if (pageAction === "delete") await deletePageWithConfirm(ct4);
   }),
   componentMenuElement.addEventListener("click", (menuClickEvent: any) => {
     const hp2 = editorCtx.menuComponentId,

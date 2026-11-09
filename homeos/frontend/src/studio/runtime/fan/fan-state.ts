@@ -210,3 +210,8 @@ export function fanReverseStateOptions(directionEntityId: string, directionState
   }
   return [] as [string, string][]
 }
+
+/** 风速档位的网格列数：8 档以内一行排开，更多时均分成两行（及以上）。 */
+export function fanSpeedColumns(levelCount: number): string {
+  return String(Math.ceil(levelCount / Math.ceil(levelCount / 8)))
+}

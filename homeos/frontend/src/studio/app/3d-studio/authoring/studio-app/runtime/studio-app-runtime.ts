@@ -98,7 +98,6 @@ export interface StudioAppRuntime {
   readonly clearDropIndicator: any
   readonly clearLightGroupDropIndicator: any
   readonly closeDrawingToolGroups: any
-  readonly closeFloorDeleteDialog: any
   readonly closePresetDeleteDialog: any
   readonly closedWallLoops: any
   readonly collectActiveLightEntries: any

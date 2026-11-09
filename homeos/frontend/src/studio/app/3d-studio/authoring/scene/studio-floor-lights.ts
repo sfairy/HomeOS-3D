@@ -196,6 +196,23 @@ export interface FloorAreaVisibility {
   dispose(): void
 }
 
+/** 任一祖先不可见 → 这盏灯不该被算进去（点掉某个区域的显隐开关时用）。 */
+function isNodeVisible(node: FloorLightNode): boolean {
+  for (let current: FloorLightNode | null | undefined = node; current; current = current.parent) {
+    if (current.visible === false) return false
+  }
+  return true
+}
+
+/** 会写进缓冲的灯：可见且亮着。关灯不占槽位。 */
+function isActiveLight(light: FloorLightNode) {
+  return isNodeVisible(light) && (light.intensity || 0) > 0
+}
+
+function incrementCount(counts: Map<string, number>, key: string) {
+  counts.set(key, (counts.get(key) || 0) + 1)
+}
+
 /** 墙体遮挡距离图：27 = 是否启用，31 = 图集行号。 */
 function writeAreaVisibility(
   data: Float32Array,
@@ -262,15 +279,6 @@ export function createFloorLightBuffer({
     }
     listenTargets = []
   }
-
-  /** 任一祖先不可见 → 这盏灯不该被算进去（点掉某个区域的显隐开关时用）。 */
-  function isNodeVisible(node: FloorLightNode): boolean {
-    for (let current: FloorLightNode | null | undefined = node; current; current = current.parent) {
-      if (current.visible === false) return false
-    }
-    return true
-  }
-
   function ensureBuffer(floorId: string): FloorBuffer {
     let floorBuffer = buffers.get(floorId)
     if (!floorBuffer) {
@@ -354,9 +362,7 @@ export function createFloorLightBuffer({
       managedLights.add(node)
       const floorId = objectFloorId(node)
       // 容量按「当前会进缓冲的灯」计：关灯不占槽，否则一屋子关着的灯带会把整层退回无遮挡的原生面光。
-      if (isNodeVisible(node) && (node.intensity || 0) > 0) {
-        lightCountByFloor.set(floorId, (lightCountByFloor.get(floorId) || 0) + 1)
-      }
+      if (isActiveLight(node)) incrementCount(lightCountByFloor, floorId)
       if (!savedLayerMasks.has(node)) savedLayerMasks.set(node, node.layers?.mask ?? 0)
     })
 
@@ -397,6 +403,16 @@ export function createFloorLightBuffer({
     }
   }
 
+  /** 按本帧实际会写入的灯重算容量：开关变化时也能进出分层路径（不能只靠 prepare 的结构快照）。 */
+  function refreshActiveCapacity() {
+    const activeByFloor = new Map<string, number>()
+    for (const light of floorLights) {
+      if (isActiveLight(light)) incrementCount(activeByFloor, objectFloorId(light))
+    }
+    allFloorsFit = [...activeByFloor.values()].every((count) => count <= capacity)
+    applyManagedLayerMasks(userEnabled && capacity > 0 && allFloorsFit)
+  }
+
   function update(
     sceneRoot: FloorLightNode | null,
     camera: FloorCamera,
@@ -411,15 +427,7 @@ export function createFloorLightBuffer({
     const cameraInverseElements = camera.matrixWorldInverse.elements
     ;(lastUpdatedScene = sceneRoot), (lastUpdatedCamera = camera), cameraInverse.copy(camera.matrixWorldInverse)
 
-    // 按本帧实际会写入的灯重算容量：关灯不占槽；开关变化时也能进出分层路径（不能只靠 prepare 的结构快照）。
-    const activeByFloor = new Map<string, number>()
-    for (const light of floorLights) {
-      if (!isNodeVisible(light) || !((light.intensity || 0) > 0)) continue
-      const floorId = objectFloorId(light)
-      activeByFloor.set(floorId, (activeByFloor.get(floorId) || 0) + 1)
-    }
-    allFloorsFit = [...activeByFloor.values()].every((count) => count <= capacity)
-    applyManagedLayerMasks(userEnabled && capacity > 0 && allFloorsFit)
+    refreshActiveCapacity()
     if (!enabled) return
 
     let lightCount = 0

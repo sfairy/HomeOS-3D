@@ -29,6 +29,7 @@ import type { SceneSyncOutcome } from '../../../store/scene-sync-controller'
 import { StudioSaveStore } from '../../../store/save-store'
 import type { FlushResult, SaveStoreState } from '../../../store/save-store'
 import { refreshStepChecklist } from '../../ui/step-checklist'
+export { recordSaveConflict } from '../../ui/save-conflict-dialog'
 import { historyChangePreviewScope, itemPreviewScope } from '../../../scene/studio-preview-scope'
 import type { PreviewScope } from '../../../scene/studio-preview-scope'
 import { previewScopeOptions } from './light-groups-and-list-drag'
@@ -682,64 +683,6 @@ export function markDocumentDirty(runtime: StudioAppRuntime) {
     runtime.showSaveState('有未保存修改', 'saving'),
     runtime.scheduleAutosave(),
     refreshStepChecklist(runtime.appCtx)
-}
-
-/**
- * Vue HMR / 壳层重挂会重建 StudioDialogs，boot 里缓存的 dialog 引用会变成
- * `isConnected === false`；对游离节点调 showModal 会抛 InvalidStateError，
- * 409 冲突框永远打不开，保存状态机也就卡死。
- */
-function resolveLiveSaveConflictDialog(runtime: StudioAppRuntime): HTMLDialogElement | null {
-  const cached = runtime.saveConflictDialogElement
-  if (cached instanceof HTMLDialogElement && cached.isConnected) return cached
-  const live = runtime.selectElement?.('#save-conflict-dialog')
-  return live instanceof HTMLDialogElement && live.isConnected ? live : null
-}
-
-/** 确保「导出本地副本」按钮在（可能被 Vue 重建的）冲突对话框上仍然存在。 */
-function ensureSaveConflictExportButton(dialog: HTMLDialogElement): void {
-  if (dialog.querySelector('#save-conflict-export')) return
-  const actions = dialog.querySelector('.dialog-actions')
-  if (!actions) return
-  const exportButton = document.createElement('button')
-  exportButton.id = 'save-conflict-export'
-  exportButton.type = 'button'
-  exportButton.textContent = '导出本地副本'
-  actions.append(exportButton)
-}
-
-/** 打开 409 冲突对话框；节点游离时改查直播 DOM，失败只 toast，绝不抛进 autosave。 */
-export function openSaveConflictDialog(runtime: StudioAppRuntime): void {
-  const dialog = resolveLiveSaveConflictDialog(runtime)
-  if (!dialog) {
-    runtime.showToast('保存冲突：找不到冲突对话框，请刷新页面后重试。', 'error')
-    return
-  }
-  ensureSaveConflictExportButton(dialog)
-  if (!dialog.dataset.conflictCancelGuarded) {
-    dialog.dataset.conflictCancelGuarded = '1'
-    dialog.addEventListener('cancel', (event) => event.preventDefault())
-  }
-  try {
-    if (!dialog.open) dialog.showModal()
-  } catch (error: any) {
-    runtime.showToast(error?.message || '无法打开保存冲突对话框，请刷新页面后重试。', 'error')
-  }
-}
-
-export function recordSaveConflict(
-  runtime: StudioAppRuntime,
-  conflictLatest: any,
-  conflictLocalScene: any,
-  conflictTargetVersion: any,
-) {
-  runtime.appCtx.pendingConflict = {
-    latest: conflictLatest,
-    localScene: conflictLocalScene,
-    targetVersion: conflictTargetVersion,
-  }
-  runtime.showSaveState('等待处理保存冲突', 'error')
-  openSaveConflictDialog(runtime)
 }
 
 /** 自动保存调度：宿主只保留闸门，防抖 / 首次 15s 兜底 / 退避重试全部交给 save-store。 */

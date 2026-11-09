@@ -19,7 +19,7 @@ import {
 } from '@/studio/platform/weather-settings'
 import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
 import { createLabelConfigPatch } from './state-update-plan'
-import { applyStageGpuHint, createStageFrameLazyMountGate } from './stage-frame-lazy-mount'
+import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint } from './stage-frame-lazy-mount'
 
 type HostLogger = HomeOSLog & {
   report?: (level: string, category?: string, message?: string, details?: unknown, detailsText?: string) => void
@@ -1718,12 +1718,7 @@ export function mountInteraction3d(
     ;(stageFrameUrl = nextStageFrameUrl), stageFrameMountGate?.begin(assignFrameSrc)
   }
   function scheduleLoadTimeout() {
-    // 超时只是提示，不能走 failSceneLoad：那会清掉 isReloadPending，之后迟到的 presented 被丢弃，画面永远卡在提示上。
-    const slowHint = '3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。'
-    loadingTimeoutId = setTimeout(
-      () => isDisposed || hasLoadFailed || isScenePresented || (loadingElement.textContent = slowHint),
-      45000,
-    )
+    loadingTimeoutId = scheduleSlowLoadHint(loadingElement, () => isDisposed || hasLoadFailed || isScenePresented)
   }
   const activeRequestsSet = new Set<AbortController>()
   async function handleStageMessage(messageEvent: any) {

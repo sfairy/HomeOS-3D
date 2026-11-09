@@ -11,6 +11,11 @@
 .settings-dialog.i3d-unsaved-dialog {
   --hos-accent: 10, 132, 255;
   --hos-accent-end: 88, 86, 214;
+  /* 按钮色单独成对：危险对话框会把 --hos-accent 改红，主按钮仍保持蓝紫。 */
+  --native-dialog-primary: 10, 132, 255;
+  --native-dialog-primary-end: 88, 86, 214;
+  --native-dialog-danger: 255, 69, 58;
+  --native-dialog-danger-end: 220, 38, 38;
   --shell-blur: 56px;
   --shell-sat: 220%;
   --shell-bg: radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%), rgba(12, 12, 18, 0.9);
@@ -32,12 +37,12 @@
   overscroll-behavior: contain;
   border: var(--shell-border);
   border-radius: var(--shell-radius);
-  color: #fff;
+  color: var(--hos-text-strong);
   background: var(--shell-bg);
   -webkit-backdrop-filter: blur(var(--shell-blur)) saturate(var(--shell-sat));
   backdrop-filter: blur(var(--shell-blur)) saturate(var(--shell-sat));
   box-shadow: var(--shell-shadow);
-  animation: hos-modal-in 0.45s var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)) backwards;
+  animation: hos-modal-in var(--hos-dur-slower) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)) backwards;
 }
 
 .scale-dialog.studio-exit-dialog,
@@ -148,12 +153,12 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.3s var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
+  transition: all var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
 }
 
 .scale-dialog .dialog-close:hover:not(:disabled),
 .settings-dialog .dialog-heading .icon-button:hover:not(:disabled) {
-  color: #fff;
+  color: var(--hos-text-strong);
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.06) rotate(90deg);
 }
@@ -186,7 +191,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
+  transition: all var(--hos-dur-slow) var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
 }
 
 .scale-dialog .dialog-actions button:hover:not(:disabled),
@@ -202,8 +207,8 @@
 .hos-modal-native-dialog .hos-modal-btn--primary,
 .settings-dialog.i3d-unsaved-dialog .dialog-actions .primary {
   border: none;
-  color: #fff;
-  background: linear-gradient(135deg, #0a84ff, #5856d6);
+  color: var(--hos-on-accent);
+  background: linear-gradient(135deg, rgb(var(--native-dialog-primary)), rgb(var(--native-dialog-primary-end)));
   box-shadow: 0 4px 20px rgba(10, 132, 255, 0.38);
 }
 
@@ -219,8 +224,8 @@
 .hos-modal-native-dialog .hos-modal-btn--danger,
 .settings-dialog.delete-dialog .dialog-actions .danger {
   border: none;
-  color: #fff;
-  background: linear-gradient(135deg, #ff453a, #dc2626);
+  color: var(--hos-on-accent);
+  background: linear-gradient(135deg, rgb(var(--native-dialog-danger)), rgb(var(--native-dialog-danger-end)));
   box-shadow: 0 4px 20px rgba(255, 69, 58, 0.38);
 }
 

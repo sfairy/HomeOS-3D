@@ -23,6 +23,7 @@
     "homeos/frontend/vite-plugin-dev-no-cache.ts",
     "homeos/frontend/vite-plugin-embed-fallback.ts",
     "homeos/frontend/vite-plugin-root-assets.ts",
+    "homeos/frontend/vite-file-lock.ts",
     "homeos-store/frontend/vite.config.ts"
   ]
 }

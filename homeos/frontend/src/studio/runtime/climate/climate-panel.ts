@@ -14,7 +14,7 @@ import {
 } from './climate-state'
 import { createPurifierExtras as createPurifierExtras2 } from './purifier-extras'
 import { purifierState as purifierState2 } from '../purifier/purifier-state'
-import { resolveFanBindingState } from '../fan/fan-state'
+import { fanSpeedColumns, resolveFanBindingState } from '../fan/fan-state'
 import { domElement } from '@app/shared/util/dom-factory'
 import { syncHtmlRangeProgress } from '@app/shared/util/range-progress'
 import { createRangeFeedback as createRangeFeedback2 } from '@app/shared/util/control-timeout'
@@ -840,10 +840,7 @@ export function createClimatePanel({
       lastSpeedSignature !== stringify &&
         ((lastSpeedSignature = stringify),
         replaceChildren(speedLevelsElement),
-        speedLevelsElement.style.setProperty(
-          '--i3d-speed-columns',
-          String(Math.ceil(speedLevels.length / Math.ceil(speedLevels.length / 8))),
-        ),
+        speedLevelsElement.style.setProperty('--i3d-speed-columns', fanSpeedColumns(speedLevels.length)),
         (list = speedLevels.map((speedLevel) => {
           const speedChoiceButton = createElement('button', 'i3d-climate-choice', speedLevel.label)
           return (

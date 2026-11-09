@@ -29,73 +29,8 @@ import {
 } from './studio-lighting-shader-chunks'
 import { createStripWallVisibility } from '../lights/strip-light/strip-wall-visibility'
 import { stripLightLtcTextures } from '../lights/strip-light/strip-light-ltc'
+import { nextPowerOfTwo, packSpotShadowAtlasTiles, toPositiveInt } from './studio-shadow-atlas-packing'
 
-const DEFAULT_TILE_GUTTER = 1
-function toPositiveInt(input: any, fallback = 0) {
-  const parsed = Math.floor(Number(input))
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
-}
-function nextPowerOfTwo(requestedValue: any) {
-  let result = 1
-  const powerOfTwo = Math.max(1, Math.ceil(Number(requestedValue) || 1))
-  for (; result < powerOfTwo; ) result *= 2
-  return result
-}
-function packTilesIntoAtlas(tiles: any, atlasSize: any, gutter: any) {
-  let cursorX = gutter,
-    cursorY = gutter,
-    rowHeight = 0
-  const placed: any[] = []
-  for (const tile of tiles) {
-    const tileSize = tile.size
-    if (
-      (cursorX + tileSize + gutter > atlasSize &&
-        ((cursorX = gutter), (cursorY += rowHeight + gutter * 2), (rowHeight = 0)),
-      cursorY + tileSize + gutter > atlasSize)
-    )
-      return null
-    placed.push({
-      ...tile,
-      x: cursorX,
-      y: cursorY,
-    }),
-      (cursorX += tileSize + gutter * 2),
-      (rowHeight = Math.max(rowHeight, tileSize))
-  }
-  return placed
-}
-function packSpotShadowAtlasTiles(tileSizes: any[] = [], maxAtlasSize = 4096, tileGutter = DEFAULT_TILE_GUTTER) {
-  const atlasLimit = toPositiveInt(maxAtlasSize, 4096),
-    gutterPx = Math.max(0, Math.floor(Number(tileGutter) || 0)),
-    entries = tileSizes
-      .map((size, index) => ({
-        index: index,
-        size: toPositiveInt(size),
-      }))
-      .filter((entry) => entry.size > 0 && entry.size + gutterPx * 2 <= atlasLimit)
-      .sort((entryA, entryB) => entryB.size - entryA.size || entryA.index - entryB.index)
-  if (entries.length !== tileSizes.length) return null
-  if (!entries.length)
-    return {
-      size: 1,
-      tiles: [] as any[],
-    }
-  const totalArea = entries.reduce((sum, tileEntry) => sum + (tileEntry.size + gutterPx * 2) ** 2, 0)
-  let atlasSizeCandidate = nextPowerOfTwo(Math.max(entries[0].size + gutterPx * 2, Math.sqrt(totalArea)))
-  for (; atlasSizeCandidate <= atlasLimit; ) {
-    const candidateLayout = packTilesIntoAtlas(entries, atlasSizeCandidate, gutterPx)
-    if (candidateLayout) {
-      const orderedTiles = Array(tileSizes.length)
-      for (const placedTile of candidateLayout) orderedTiles[placedTile.index] = placedTile
-      return {
-        size: atlasSizeCandidate,
-        tiles: orderedTiles,
-      }
-    }
-    atlasSizeCandidate *= 2
-  }
-  return null
-}
 function spotLightKey(lightObject: any) {
   const floorId = String(lightObject?.userData?.lightFloorId || ''),
     itemId = String(lightObject?.userData?.lightItemId || '')
@@ -279,7 +214,7 @@ export function createSpotShadowAtlasController({
     pendingRoot: any = null,
     // setEnabled / 预算翻转时 pendingRoot 可能还是 null，但仍要把 HB_FLOOR_* 从材质上摘掉，
     // 否则分层缓冲已关、着色器还在读空 UBO，灯带面光会整场消失。
-    lastPreparedRoot: any = null,
+    lastPreparedRoot: typeof pendingRoot = null,
     buildTimer: ReturnType<typeof setTimeout> | number = 0,
     revision = 0,
     isBuilding = false,

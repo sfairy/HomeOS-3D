@@ -61,7 +61,7 @@ export interface AssetManagementDeps {
   popupNameFormElement: any
   positionEffectAssetMenu: any
   positionImageAssetMenu: any
-  refreshAssetPickers: any
+  refreshAssetPickers: () => void
   reloadAssetCatalog: any
   removedComponent: any
   renderEffectAssetOptions: any
@@ -244,14 +244,14 @@ export async function requestDeleteUserAsset(deps: AssetManagementDeps, assetId:
     await deps.requestJson('/assets/user/' + replace5, { method: 'DELETE' })
     deps.editorCtx.pendingDeleteAssetId = null
     await deps.reloadAssetCatalog()
-  } catch (caughtErrorIndex: any) {
-    caughtErrorIndex?.code === 'ASSET_IN_USE'
+  } catch (caughtErrorIndex) {
+    ;(caughtErrorIndex as { code?: string } | null)?.code === 'ASSET_IN_USE'
       ? deps.handleOperationError(new Error('这张图片仍被户型图绘制或仪表盘使用，请先移除引用后再删除。'))
       : deps.handleOperationError(caughtErrorIndex)
   }
 }
 
-export async function requestDeleteAssetFolder(deps: AssetManagementDeps, assetKind: any, folderName: any) {
+export async function requestDeleteAssetFolder(deps: AssetManagementDeps, assetKind: string, folderName: string) {
   if (
     !deps.canDeleteAssetFolder(
       assetKind === 'image' ? deps.editorCtx.imageAssetFolder : deps.editorCtx.effectAssetFolder,
@@ -293,8 +293,8 @@ export async function requestDeleteAssetFolder(deps: AssetManagementDeps, assetK
     deps.editorCtx.pendingDeleteAssetFolder = null
     await deps.reloadAssetCatalog({ refreshInspector: false })
     deps.refreshAssetPickers()
-  } catch (caughtErrorTotal: any) {
-    caughtErrorTotal?.code === 'STUDIO3D_EXPORT_IN_USE'
+  } catch (caughtErrorTotal) {
+    ;(caughtErrorTotal as { code?: string } | null)?.code === 'STUDIO3D_EXPORT_IN_USE'
       ? deps.handleOperationError(
           new Error('这个文件夹中的图片仍被仪表盘、弹窗或户型图绘制使用，请先移除引用后再删除。'),
         )
