@@ -1648,6 +1648,14 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   lightGroupAreaSelectElement = selectElement("#light-group-area-select"),
   lightGroupAreaNameElement = selectElement("#light-group-area-name"),
   lampsLayerIndex = 2;
+// 首帧要等全部模型就绪：下载/解码并发直接决定这段等待。按设备核数放宽，低端机仍保底 2 路。
+// 每个并发槽位各有一个 DRACOLoader，Draco worker 总数 = 并发数 × 单 loader 上限，
+// 所以单 loader 保持 1 个 worker，避免成倍创建 worker 并各自编译一遍 wasm。
+function resolveStageModelConcurrency() {
+  const deviceCoreCount = Math.max(1, Math.floor(Number(navigator.hardwareConcurrency) || 2));
+  return Math.min(6, Math.max(2, deviceCoreCount));
+}
+const stageModelConcurrency = resolveStageModelConcurrency();
 const modelAssetLoader = createModelAssetLoader2({
   THREE: ns2,
   resolveGLTFLoader: () => import("/static/vendor/three/0.187.0/GLTFLoader.js").then((loaderModule: any) => loaderModule.GLTFLoader),
@@ -1697,7 +1705,7 @@ const externalModelRegistry = createExternalModelManager2({
     isModelInUse: checkModelInUse,
     requestRender: requestSceneRender,
     onLoadStateChange: publishModelLoadState,
-    maxConcurrentLoads: 2,
+    maxConcurrentLoads: stageModelConcurrency,
   }),
   {
     loadExternalItemModel: ensureExternalModelLoaded,

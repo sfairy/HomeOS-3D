@@ -1,7 +1,7 @@
 import { domElement } from '@app/shared/util/dom-factory'
 import type { PopupPlacement, PopupPlacementSettings } from '@app/bridge/presets/popup-placement'
-const { popupPlacement: popupPlacement } = await import('@app/bridge/presets/popup-placement'),
-  { cameraPopupLayout: cameraPopupLayout } = await import('@app/bridge/presets/camera-popup-layout')
+import { popupPlacement } from '@app/bridge/presets/popup-placement'
+import { cameraPopupLayout } from '@app/bridge/presets/camera-popup-layout'
 export interface PopupPreviewOptions {
   /** 是否按「画布最大高度」收口并在标题上标出百分比；默认 `true`。 */
   showHeightLimit?: boolean

@@ -41,13 +41,50 @@ _session_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _session_cache_lock = threading.Lock()
 
 
+#: 静态资源门禁（``signed_in``）的「会话有效」判定缓存：与上面同一把锁、同一 TTL，
+#: 并由 ``invalidate_session_cache`` 一并清空，吊销语义与用户解析缓存一致。
+_signed_in_cache: dict[str, float] = {}
+
+
 def invalidate_session_cache(token: str | None = None) -> None:
     """清空会话解析缓存；``token`` 为空时清空全部（改密 / 重置密码）。"""
     with _session_cache_lock:
         if token is None:
             _session_cache.clear()
+            _signed_in_cache.clear()
             return
-        _session_cache.pop(session_token_hash(token), None)
+        key = session_token_hash(token)
+        _session_cache.pop(key, None)
+        _signed_in_cache.pop(key, None)
+
+
+def cached_signed_in(token: str) -> bool:
+    """TTL 内是否已确认过该令牌对应有效会话（命中用户解析缓存也算）。"""
+    if _SESSION_CACHE_TTL_SECONDS <= 0 or not token:
+        return False
+    key = session_token_hash(token)
+    now = time.monotonic()
+    with _session_cache_lock:
+        user_entry = _session_cache.get(key)
+        if user_entry is not None and user_entry[0] > now:
+            return True
+        expires_at = _signed_in_cache.get(key)
+        if expires_at is None:
+            return False
+        if expires_at <= now:
+            _signed_in_cache.pop(key, None)
+            return False
+        return True
+
+
+def remember_signed_in(token: str) -> None:
+    if _SESSION_CACHE_TTL_SECONDS <= 0 or not token:
+        return
+    key = session_token_hash(token)
+    with _session_cache_lock:
+        if len(_signed_in_cache) >= _SESSION_CACHE_MAX_ENTRIES:
+            _signed_in_cache.clear()
+        _signed_in_cache[key] = time.monotonic() + _SESSION_CACHE_TTL_SECONDS
 
 
 def _cached_user(token: str) -> dict[str, Any] | None:

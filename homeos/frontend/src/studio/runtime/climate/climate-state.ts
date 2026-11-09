@@ -1,6 +1,6 @@
 import { haNumber, attributesOf, featureFlags, stringOptions, fanCapabilities } from '../device/entity-capabilities'
-const climateRendererModule = await import('@app/renderer/controls/climate'),
-  waterHeaterRendererModule = await import('@app/renderer/controls/water-heater')
+import * as climateRendererModule from '@app/renderer/controls/climate'
+import * as waterHeaterRendererModule from '@app/renderer/controls/water-heater'
 export const { createWaterHeaterFeedback, waterHeaterCapabilities } = waterHeaterRendererModule
 export function waterHeaterCapabilityStatusLabel(entityState: any) {
   const capabilities = waterHeaterRendererModule.waterHeaterCapabilities(entityState)

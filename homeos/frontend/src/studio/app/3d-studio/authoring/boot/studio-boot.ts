@@ -54,8 +54,10 @@ export async function startupStudio(deps: StudioBootDeps) {
     }
     // 组件族是动态 chunk：先等注册表就绪，否则面板会先画成「控件尚未实现」再被替换。
     // 与建渲染器并行等待，避免串行化这两段互不依赖的启动工作。
+    // 注册表与草稿往返、文档准备互不依赖：先发起，在应用草稿（首次可能画面板）之前再等它。
+    const registryReady = ensureRegistryComponents()
+    registryReady.catch(() => {})
     deps.createStudioRenderer(), deps.stageLoadTiming('renderer-created'), deps.resizePlanStage()
-    await ensureRegistryComponents()
     // 阶段②：渲染器就位，接下来是一次草稿往返 —— 这时说「读取户型」才是用户真正在等的事。
     studioStartupPhase('正在读取户型…')
     const draftRequest = deps.fetchStudioApi(stageStartup2?.path || '/studio3d', {}, stageStartup2?.response)
@@ -75,6 +77,7 @@ export async function startupStudio(deps: StudioBootDeps) {
     // 阶段③：整篇草稿落进文档模型后，真正的建场景在下一帧的 rAF 里跑（requestSceneRebuild）。
     // 文案在这里换成「构建」，用户才不会以为还卡在网络请求上。
     studioStartupPhase('正在构建户型…')
+    await registryReady
     if ((await deps.applyLoadedDraft(xa3, sceneDocument), deps.stageLoadTiming('draft-loaded'), deps.isEmbeddedStage)) {
       const module = await stageStartup2!.module
       await new Promise(requestAnimationFrame),

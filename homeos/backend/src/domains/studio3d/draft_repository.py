@@ -83,6 +83,23 @@ def _isoformat(value) -> str | None:
     return parsed.isoformat() if parsed is not None else None
 
 
+def read_fingerprint(database: Session) -> tuple[int, str, int] | None:
+    """只读 ``(revision, updated_at, scene_json 长度)``，不取也不解析整篇 scene。
+
+    供只读路径做「草稿是否变化」的廉价判定（响应缓存键）；无行返回 None。
+    """
+    row = database.execute(
+        text(
+            "SELECT revision, updated_at, length(scene_json) AS scene_length "
+            "FROM studio_drafts WHERE id = :row_id"
+        ),
+        {"row_id": STUDIO_DRAFT_ROW_ID},
+    ).mappings().first()
+    if row is None:
+        return None
+    return int(row["revision"]), str(row["updated_at"] or ""), int(row["scene_length"] or 0)
+
+
 def read_snapshot(database: Session) -> StudioDraftSnapshot | None:
     """读单行草稿；无行返回 None（不是 revision 0 —— 0 与「没有草稿」语义不同）。"""
     row = database.execute(

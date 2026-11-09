@@ -1,5 +1,5 @@
-const { drawTelevisionGlass: drawGlass } = await import('@app/3d-studio/materials/studio-television-glass')
-const { drawTelevisionPoster: drawPosterArt } = await import('@app/3d-studio/materials/studio-television-poster')
+import { drawTelevisionGlass as drawGlass } from '@app/3d-studio/materials/studio-television-glass'
+import { drawTelevisionPoster as drawPosterArt } from '@app/3d-studio/materials/studio-television-poster'
 import { televisionState } from './television-state'
 function drawPoster(posterCanvas: any, canvasPainter: any, posterState: any) {
   // 待机画面直接复用编辑态那张满幅宣传画（960×540 坐标系，512×288 画布同样等比），

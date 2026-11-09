@@ -63,6 +63,38 @@ function walkCss(dir: string): string[] {
   return out
 }
 
+const CSS_IMPORT_PATTERN = /^[ \t]*@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?\s*;[ \t]*\r?\n?/gm
+
+/**
+ * 把同一构建内的相对 `@import` 原地展开（递归），绝对路径的 `@import` 按出现顺序提到文件头。
+ *
+ * `stage.css` 是 stage.html 头部的阻塞样式表，每层 `@import` 都要再等一轮往返才能执行后续脚本。
+ * `@import` 的语义就是「在此处插入目标内容」，原地展开后层叠顺序不变；绝对路径（主应用
+ * `/static/**`）属于另一条构建，保持引用，避免两边产物版本错位。被展开的文件仍原样复制一份，
+ * 单独引用它们的地方不受影响。
+ */
+function flattenRuntimeCss(file: string, seen = new Set<string>()): { imports: string[]; body: string } {
+  if (seen.has(file)) return { imports: [], body: '' }
+  seen.add(file)
+  const imports: string[] = []
+  const body = fs.readFileSync(file, 'utf8').replace(CSS_IMPORT_PATTERN, (statement: string, target: string) => {
+    if (target.startsWith('/') || /^[a-z]+:/i.test(target)) {
+      imports.push(statement.trim())
+      return ''
+    }
+    const nested = flattenRuntimeCss(path.resolve(path.dirname(file), target), seen)
+    imports.push(...nested.imports)
+    return `${nested.body.trimEnd()}\n`
+  })
+  return { imports, body }
+}
+
+function bundleRuntimeCss(file: string): string {
+  const { imports, body } = flattenRuntimeCss(file)
+  const uniqueImports = [...new Set(imports)]
+  return uniqueImports.length ? `${uniqueImports.join('\n')}\n${body}` : body
+}
+
 /**
  * 共享 chunk 的输出名：按源文件相对 studio 根的路径命名，而非 basename。
  *
@@ -124,7 +156,7 @@ function manifestPlugin(): Plugin {
         const cssRel = path.relative(runtimeSrc, cssAbs).replace(/\\/g, '/')
         const to = path.join(outDir, cssRel)
         fs.mkdirSync(path.dirname(to), { recursive: true })
-        fs.copyFileSync(cssAbs, to)
+        fs.writeFileSync(to, bundleRuntimeCss(cssAbs), 'utf8')
         if (!files.includes(cssRel)) files.push(cssRel)
       }
       files.sort()

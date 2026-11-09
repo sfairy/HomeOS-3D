@@ -20,6 +20,9 @@ import {
 import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
 import { createLabelConfigPatch } from './state-update-plan'
 import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint } from './stage-frame-lazy-mount'
+import { hostLoadTiming } from '@app/bridge/scene/load-timing'
+import { vacuumStatusBinding } from '@app/renderer/controls/vacuum-runtime'
+import { entityNumberFormats, temperatureHumidityEntities } from '@app/bridge/temperature-humidity'
 
 type HostLogger = HomeOSLog & {
   report?: (level: string, category?: string, message?: string, details?: unknown, detailsText?: string) => void
@@ -36,10 +39,7 @@ type RuntimeContextBag = {
   openVacuumDetails?: (...args: any[]) => any
   runVacuumRoom?: (...args: any[]) => Promise<any>
 }
-const { vacuumStatusBinding: vacuumStatusBinding } = await import('@app/renderer/controls/vacuum-runtime'),
-  { temperatureHumidityEntities: temperatureHumidityEntities, entityNumberFormats: entityNumberFormatsOf } =
-    await import('@app/bridge/temperature-humidity'),
-  INTERACTION3D_API_BASE = '/api/v1/modules/interaction3d',
+const INTERACTION3D_API_BASE = '/api/v1/modules/interaction3d',
   // 配置里出现的实体 id（`entityId` / `*EntityId` / 数组元素）；用于生成 `number-formats` 映射。
   ENTITY_ID_VALUE_PATTERN = /^[a-z_]+\.[a-z0-9_]+$/,
   referencedEntityIds = (value: any, collected = new Set<string>()): Set<string> => {
@@ -1297,7 +1297,7 @@ export function mountInteraction3d(
    */
   const publishNumberFormats = () => {
     if (!isStageReady || isDisposed || isPreviewSuspended) return
-    const numberFormats = entityNumberFormatsOf(
+    const numberFormats = entityNumberFormats(
         [...referencedEntityIds(componentProperties)],
         runtimeContext.entityMetadata,
       ),
@@ -1688,20 +1688,12 @@ export function mountInteraction3d(
           lighting: stageLightingMode,
           // 标准光影 v2 才追加版本位：舞台据此跳过 legacy 阴影缓存与旧光照分档。
           ...(stageLightingMode === 'standard' ? { lightingVersion: '2' } : {}),
-          ...(wallTrialModes
-            ? {
-                'wall-trial': wallTrialModes,
-              }
-            : {}),
+          ...(wallTrialModes ? { 'wall-trial': wallTrialModes } : {}),
           ...(new URLSearchParams(window.location.search).get('furniture-runtime') === 'compact'
-            ? {
-                'furniture-runtime': 'compact',
-              }
+            ? { 'furniture-runtime': 'compact' }
             : {}),
           ...(new URLSearchParams(window.location.search).get('reflection-detail') === 'low'
-            ? {
-                'reflection-detail': 'low',
-              }
+            ? { 'reflection-detail': 'low' }
             : {}),
           ...(new URLSearchParams(window.location.search).get('performance-diagnostics') === '1'
             ? {
@@ -1714,7 +1706,11 @@ export function mountInteraction3d(
               }
             : {}),
         })
-    const assignFrameSrc = () => ((stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout())
+    const assignFrameSrc = () => (
+      hostLoadTiming('i3d-frame-src'),
+      (stageFrameElement.src = stageFrameUrl),
+      isPreviewSuspended || scheduleLoadTimeout()
+    )
     ;(stageFrameUrl = nextStageFrameUrl), stageFrameMountGate?.begin(assignFrameSrc)
   }
   function scheduleLoadTimeout() {
@@ -2233,7 +2229,12 @@ export function mountInteraction3d(
     ;(forceUpdate === true || layoutJson !== lastLayoutJson) &&
       ((lastLayoutJson = layoutJson), postToStageFrame(layoutPayload))
   }
-  const stageFrameMountGate = createStageFrameLazyMountGate({ hostElement, isHostVisible: isHostActuallyVisible })
+  // 预热宿主刻意是 inert / 透明的（不可交互、不可见），isHostActuallyVisible 必然为 false；
+  // 不放行的话预热永远不赋 src，用户切到该页时只能冷启动。
+  const stageFrameMountGate = createStageFrameLazyMountGate({
+    hostElement,
+    isHostVisible: () => isHostActuallyVisible() || (isAuthorized && canPrewarmStage() && !document.hidden),
+  })
   const hostResizeObserver = new ResizeObserver(updatePresentationLayout)
   hostResizeObserver.observe(hostElement),
     window.addEventListener('resize', updatePresentationLayout),

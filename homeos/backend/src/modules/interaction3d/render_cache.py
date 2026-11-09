@@ -20,6 +20,11 @@ MAX_PIXELS = 2097152
 MAX_CACHE_BYTES = 268435456
 MAX_ENTRIES = 2048
 MAX_AGE_SECONDS = 2592000
+#: 容量/过期清理需要 glob + stat 整个缓存目录（上千个文件）：写入时最多每这么多秒做一次，
+#: 而不是每次写都扫。两次清理之间超额的量以单条上限 × 期间写入数为界。
+PRUNE_INTERVAL_SECONDS = 60.0
+
+_last_prune_at: dict[str, float] = {}
 
 
 def cache_path(data_dir: Path, scene_id: str, project_id: str, key: str, *, principal: str = 'admin') -> Path:
@@ -30,10 +35,10 @@ def cache_path(data_dir: Path, scene_id: str, project_id: str, key: str, *, prin
 
 
 @contextmanager
-def cache_lock(root: Path):
+def cache_lock(root: Path, *, shared: bool = False):
     root.mkdir(parents=True, exist_ok=True)
     with (root / '.lock').open('a+b') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        fcntl.flock(lock, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         try:
             yield
         finally:
@@ -44,7 +49,9 @@ def read_cache(path: Path) -> bytes | None:
     root = path.parent.parent
     if not root.exists():
         return None
-    with cache_lock(root):
+    # 写入是「临时文件 + 原子 replace」，读永远看到完整文件：读之间用共享锁并行，
+    # 只和清理（独占锁）互斥。舞台首屏会并发请求多张灯光图层，独占锁会让它们排队。
+    with cache_lock(root, shared=True):
         try:
             stat = path.stat()
             if time.time() - stat.st_mtime > MAX_AGE_SECONDS or stat.st_size > MAX_ENTRY_BYTES:
@@ -56,6 +63,33 @@ def read_cache(path: Path) -> bytes | None:
             return content
         except FileNotFoundError:
             return None
+
+
+def _prune(root: Path, now: float) -> None:
+    for candidate in root.glob('*/*.tmp'):
+        if now - candidate.stat().st_mtime > 3600:
+            candidate.unlink(missing_ok=True)
+    entries = []
+    for candidate in root.glob('*/*.png'):
+        stat = candidate.stat()
+        if now - stat.st_mtime > MAX_AGE_SECONDS:
+            candidate.unlink(missing_ok=True)
+            continue
+        entries.append((stat.st_mtime, stat.st_size, candidate))
+    total, count = sum(item[1] for item in entries), len(entries)
+    for _, size, candidate in sorted(entries):
+        if total <= MAX_CACHE_BYTES and count <= MAX_ENTRIES:
+            break
+        candidate.unlink(missing_ok=True)
+        total -= size
+        count -= 1
+    for directory in root.iterdir():
+        if not directory.is_dir():
+            continue
+        try:
+            directory.rmdir()
+        except OSError:
+            continue
 
 
 def write_cache(path: Path, content: bytes) -> None:
@@ -77,27 +111,7 @@ def write_cache(path: Path, content: bytes) -> None:
         # 临时文件 + fsync + 0600 + 原子 replace，统一由 atomic_write 负责。
         atomic_write_bytes(path, content)
         now = time.time()
-        for candidate in root.glob('*/*.tmp'):
-            if now - candidate.stat().st_mtime > 3600:
-                candidate.unlink(missing_ok=True)
-        entries = []
-        for candidate in root.glob('*/*.png'):
-            stat = candidate.stat()
-            if now - stat.st_mtime > MAX_AGE_SECONDS:
-                candidate.unlink(missing_ok=True)
-                continue
-            entries.append((stat.st_mtime, stat.st_size, candidate))
-        total, count = sum(item[1] for item in entries), len(entries)
-        for _, size, candidate in sorted(entries):
-            if total <= MAX_CACHE_BYTES and count <= MAX_ENTRIES:
-                break
-            candidate.unlink(missing_ok=True)
-            total -= size
-            count -= 1
-        for directory in root.iterdir():
-            if not directory.is_dir():
-                continue
-            try:
-                directory.rmdir()
-            except OSError:
-                continue
+        root_key = str(root)
+        if now - _last_prune_at.get(root_key, 0.0) >= PRUNE_INTERVAL_SECONDS:
+            _last_prune_at[root_key] = now
+            _prune(root, now)

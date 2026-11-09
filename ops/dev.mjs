@@ -373,6 +373,28 @@ function ensureFrontendBuild() {
   console.log('前端构建产物缺失或落后于源码，正在执行 bun run build:vite …')
   runSync(BUN_BIN, ['install'])
   runSync(BUN_BIN, ['run', 'build:vite'])
+  precompressInBackground(APP_FRONTEND)
+  precompressInBackground(STORE_FRONTEND)
+}
+
+/**
+ * 给 dist 补 `.br` / `.gz` sidecar（增量：源文件没变就不重写）。
+ * 发布构建由 `build:frontend` 负责；dev 的 watch-build 之前从不补，后端只能对每个
+ * JS/CSS 请求现压 gzip（3D 舞台一次上百个模块）。后台执行、失败只提示，不影响服务。
+ */
+function precompressInBackground(dir) {
+  const child = spawn(process.execPath, [path.join(ROOT, 'ops', 'scripts', 'precompress-static.mjs'), '--dir', dir], {
+    cwd: ROOT,
+    env: process.env,
+    stdio: ['ignore', 'ignore', 'pipe'],
+  })
+  let errorOutput = ''
+  child.stderr?.on('data', (chunk) => {
+    errorOutput = (errorOutput + chunk.toString()).slice(-2000)
+  })
+  child.on('exit', (code) => {
+    if (code !== 0) console.log(`[precompress] ${dir} 预压缩失败（退出码 ${code}）：${errorOutput.trim()}`)
+  })
 }
 
 /**
@@ -405,6 +427,7 @@ function startFrontendWatchBuild() {
       ignoreRelativePrefixes: ['studio/runtime' + path.sep, 'studio/runtime/', ...APP_SCENE_GENERATED],
       buildArgs: ['run', '--cwd', path.join(HOMEOS_APP, 'frontend'), 'build:app'],
       refreshPort: APP_PORT,
+      precompressDir: APP_FRONTEND,
     },
     {
       label: '3D runtime',
@@ -412,6 +435,7 @@ function startFrontendWatchBuild() {
       // 非 watch 构建写旁路目录再 rename，不会清空线上 modules/runtime。
       buildArgs: ['run', '--cwd', path.join(HOMEOS_APP, 'frontend'), 'build:runtime'],
       refreshPort: APP_PORT,
+      precompressDir: path.join(APP_FRONTEND, 'modules', 'runtime'),
     },
     {
       label: '授权商店',
@@ -424,6 +448,7 @@ function startFrontendWatchBuild() {
       ],
       buildArgs: ['run', '--cwd', HOMEOS_STORE, 'build'],
       refreshPort: STORE_PORT,
+      precompressDir: STORE_FRONTEND,
       // 同主应用：`/store-static/scene/**` 由 sync 生成，真源改动不再回头触发第二轮。
       ignoreRelativePrefixes: [...STORE_SCENE_GENERATED],
     },
@@ -461,6 +486,7 @@ function startFrontendWatchBuild() {
           console.log(
             `[watch-build] ${group.label} dist 已重建（${seconds}s）—— 刷新 ${group.refreshPort} 即可看到改动。`,
           )
+          if (group.precompressDir) precompressInBackground(group.precompressDir)
         } else {
           console.log(`[watch-build] ${group.label} 重建失败（退出码 ${code}），最后一次输出：\n${output.trim()}`)
         }

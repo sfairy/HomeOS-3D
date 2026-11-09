@@ -51,6 +51,24 @@ async function fetchSetupStatusWithBootRetry(auth: ReturnType<typeof useAuthStor
   return withBackendBootRetry(() => auth.getSetupStatus())
 }
 
+/**
+ * 首次导航：公开的授权可用性与初始化 / 登录探测**并行发出**，省两轮串行往返。
+ * 只是提前发请求，判定顺序不变（仍在守卫第 3 步、登录判定之后消费）。
+ */
+function startEarlyLicenseAvailability(force: boolean) {
+  if (getSystemInitialized() !== null || !shouldRefreshLicenseStatus(force)) return null
+  return getLicenseAvailability().catch(() => null)
+}
+
+/** 提前那发失败（后端尚在启动等）时照旧带重试再取一次。 */
+async function fetchLicenseAvailability(early: ReturnType<typeof startEarlyLicenseAvailability>) {
+  const prefetched = early && (await early)
+  if (prefetched) return prefetched
+  return getLicenseActivated() === null
+    ? await withBackendBootRetry(() => getLicenseAvailability())
+    : await getLicenseAvailability()
+}
+
 const routes: RouteRecordRaw[] = [
   {
     // 登录页：认证子图整体按需加载（见上方 loadAuthEntry 说明）。
@@ -380,6 +398,9 @@ router.beforeEach(async (to, from) => {
     }
   }
 
+  const forceLicenseRefresh = to.name === 'activation'
+  const earlyLicenseAvailability = startEarlyLicenseAvailability(forceLicenseRefresh)
+
   // ── 1. 系统初始化 + 登录会话探测（首装流程的第一、二段）──
   //
   // 必须先于授权探测：全新部署时本机零用户、也没有授权，若先跑授权门禁会把用户直接
@@ -451,13 +472,9 @@ router.beforeEach(async (to, from) => {
   //
   // 走 `/license/availability` 而不是 `/license/status`：后者要求登录会话，而这里可能
   // 还没建立会话（公开展示页）；`/availability` 公开脱敏，同样返回 `required` / `allowed`。
-  const forceLicenseRefresh = to.name === 'activation'
   if (shouldRefreshLicenseStatus(forceLicenseRefresh)) {
     try {
-      const status =
-        getLicenseActivated() === null
-          ? await withBackendBootRetry(() => getLicenseAvailability())
-          : await getLicenseAvailability()
+      const status = await fetchLicenseAvailability(earlyLicenseAvailability)
       setLicenseActivated(!status.data.required || status.data.allowed)
       // 同一份可用性快照留给激活页：它首帧就用这份数据画状态句 / 表单可见性，
       // 不再「先骨架、再面板」。守卫本来就要拉这一次，不额外多发请求。

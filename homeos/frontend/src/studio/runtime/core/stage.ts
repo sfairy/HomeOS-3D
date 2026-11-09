@@ -8,19 +8,14 @@ import { createCarTires } from '../vehicle/car-tires'
 import { createSpeakerPanel as createSpeakerPanel2 } from '../speaker/speaker-panel'
 import { createSpeakerRings as createSpeakerRings2 } from '../speaker/speaker-ring'
 import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
-const [
-  { withPageAppearancePreset: applyPageAppearancePreset },
-  { withRegionLightingPreset: applyRegionLightingPreset },
-  { withInteractionLightEffects: applyInteractionLightEffects },
-  { popupPlacement: computePopupPlacement },
-  { buttonIconSize: resolveButtonIconSize, DEFAULT_BUTTON_SIZE: defaultButtonSize },
-] = await Promise.all([
-  import('@app/bridge/presets/page-appearance-presets'),
-  import('@app/bridge/presets/region-lighting-presets'),
-  import('@app/bridge/presets/light-effect-policy'),
-  import('@app/bridge/presets/popup-placement'),
-  import('@app/bridge/presets/button-icon-size'),
-])
+import { withPageAppearancePreset as applyPageAppearancePreset } from '@app/bridge/presets/page-appearance-presets'
+import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets/region-lighting-presets'
+import { withInteractionLightEffects as applyInteractionLightEffects } from '@app/bridge/presets/light-effect-policy'
+import { popupPlacement as computePopupPlacement } from '@app/bridge/presets/popup-placement'
+import {
+  buttonIconSize as resolveButtonIconSize,
+  DEFAULT_BUTTON_SIZE as defaultButtonSize,
+} from '@app/bridge/presets/button-icon-size'
 import {
   createPresenceScene as createPresenceScene2,
   createPresenceWaves as createPresenceWaves2,

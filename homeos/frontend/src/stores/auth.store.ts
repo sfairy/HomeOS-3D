@@ -224,15 +224,22 @@ export const useAuthStore = defineStore('auth', () => {
    * @returns 系统是否已初始化
    */
   async function getSetupStatus(): Promise<boolean | undefined> {
+    const authHint = readServerAuthHint()
+    // 外壳确认带着会话 Cookie（`user`）时系统必然已建号：探针与 /setup/status 并行发出，
+    // 省掉一轮串行往返。结论仍按原顺序落地 —— 未初始化时探针结果被下面的分支覆盖。
+    const earlyProbe = authHint === 'user' ? probeSession() : null
     const res = await apiGetSetupStatus()
     if (res.data.initialized) {
-      if (shouldProbeSession(readServerAuthHint())) {
+      if (earlyProbe) {
+        await earlyProbe
+      } else if (shouldProbeSession(authHint)) {
         await probeSession()
       } else {
         isAuthenticated.value = false
         setUser(null)
       }
     } else {
+      await earlyProbe
       isAuthenticated.value = false
       setUser(null)
     }

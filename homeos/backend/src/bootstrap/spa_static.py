@@ -34,6 +34,7 @@ from ..platform.core.http.frontend_static import (
     strip_auth_scene_assets,
 )
 from ..platform.core.http.precompressed_static import PrecompressedStaticFiles
+from ..platform.security.auth_context import cached_signed_in, remember_signed_in
 from ..platform.security.session_store import resolve_login_session
 
 #: 需要按「能力」判定授权状态的页面路径 → 能力名。
@@ -90,15 +91,21 @@ def signed_in(request: Request) -> bool:
     token = request.cookies.get(settings.cookie_name, "")
     if not token:
         return False
+    # 3D 舞台一次要拉几十个模型 / 贴图，逐个开库会排满连接池；TTL 与登出清空同 get_current_user。
+    if cached_signed_in(token):
+        return True
     try:
         with database.session_factory() as session:
             # 会话口径必须与 ``authenticate_session`` 一致（``session_max_age_seconds``）：
             # 这里传的是 **滑动续期** 的时长，不是令牌有效期。此前误传
             # ``jwt_expires_in_seconds``（1 天），每次加载静态资源都把服务端会话从 30 天
             # 截成「最后一次静态请求 + 1 天」，而 Cookie 仍是 30 天 —— 用户隔天被要求重新登录。
-            return resolve_login_session(session, token, max_age_seconds=settings.session_max_age_seconds) is not None
+            valid = resolve_login_session(session, token, max_age_seconds=settings.session_max_age_seconds) is not None
     except Exception:
         return False
+    if valid:
+        remember_signed_in(token)
+    return valid
 
 
 def page_license_feature(path: str) -> str | None:

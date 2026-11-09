@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from .platform.core.db.models import GlobalCustomPopupState, ProjectDraft, User
 from .platform.core.http.errors import unauthorized
-from .platform.security.auth_context import authenticate_session
+from .platform.security.auth_context import authenticate_session, get_current_user
 
 
 def get_database_session(request: Request):
@@ -104,6 +104,23 @@ def licensed_user(request: Request, user: CurrentUser) -> User:
 
 
 LicensedUser = Annotated[User, Depends(licensed_user)]
+
+
+def licensed_cached_session(
+    request: Request, user: Annotated[dict, Depends(get_current_user)]
+) -> dict:
+    """登录 + 授权门禁的轻量版：会话解析走 ``get_current_user`` 的短 TTL 缓存。
+
+    只给「静态代码资源」这类高并发、不需要 ORM 用户实体的只读路由用：一个 3D 舞台
+    冷启动会并发拉上百个运行时模块，逐个开库查 sessions 表会把连接池排满。
+    吊销语义与 ``get_current_user`` 相同（登出/改密立即清缓存，其余最多滞后 TTL）。
+    """
+    if not request.app.state.license_service.allows():
+        raise _license_restricted(request)
+    return user
+
+
+LicensedCachedSession = Annotated[dict, Depends(licensed_cached_session)]
 
 
 def require_license_feature(request: Request, feature: str) -> None:

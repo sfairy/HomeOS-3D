@@ -17,16 +17,18 @@ from pydantic import Field
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
+from . import stage_delivery as delivery
 from .access import access_grant, is_scene_id, module_components, require_access, scene_snapshot_file
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .game_console import fetch_switch_artwork, switch_artwork_url
 from .media_device import MEDIA_DEVICE_PROFILES
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
-from .studio_draft_scene import read_current_studio_draft
+from .studio_draft_scene import read_current_studio_draft, read_current_studio_draft_fingerprint
 from ...config import Settings
 from ...dependencies import (
     DatabaseSession,
+    LicensedCachedSession,
     LicensedUser,
     LicensedViewer,
     require_viewer_entity,
@@ -41,7 +43,6 @@ from ...domains.ha.integration.service_call import (
 )
 from ...platform.core.db.models import HAEntity, ProjectDraft
 from ...platform.core.http.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
-from ...platform.core.http.frontend_resources import frontend_resource_url
 from ...platform.core.http.frontend_static import strip_auth_scene_assets
 from ...platform.core.runtime.atomic_write import restrict_private_file
 from ...platform.security.request_origin import require_same_origin_write
@@ -405,45 +406,37 @@ def prune_scene_snapshots(request: Request, database: DatabaseSession) -> None:
 def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     require_scene_transfer(request, viewer, scene_id, projectId)
     command = load_scene_document(request, scene_id)
-    scene = command['scene']
-    from urllib.parse import urlencode
-    for floor in scene.get('floors', []):
-        background = floor.get('scene', {}).get('background') or {}
-        asset_id = str(background.get('assetId', '')).removeprefix('user:')
-        if not re.fullmatch('[0-9a-f]{32}', asset_id):
-            continue
-        background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
+    delivery.inject_background_urls(command['scene'], scene_id, projectId)
     command.pop(SCENE_SOURCE_KEY, None)
     return JSONResponse(command, headers={'Cache-Control': 'no-store'})
 
 
-@router.get('/scenes/{scene_id}/current')
-def get_current_scene(scene_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer, projectId: str = '', since: str = ''):
-    require_scene_transfer(request, viewer, scene_id, projectId)
-    reference = load_scene_document(request, scene_id)
+def _build_current_scene_entry(request: Request, database, scene_id: str, project_id: str, since: str) -> delivery.CurrentSceneEntry:
+    reference = _load_scene_document_cached(request, scene_id)
     try:
         command = current_scene_payload(request, database, scene_id, reference, since=since)
         if not isinstance(command.get('scene'), dict):
             raise ValueError('missing scene')
+        if command is reference:
+            raise ValueError('saved source unavailable')
     except (OSError, ValueError, AttributeError) as error:
         if since:
-            raise HTTPException(409, detail='户型保存尚未完成，稍后自动重试。') from error
-        command = reference
-    key = hashlib.sha256(json.dumps(command['scene'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    if key == since:
-        from fastapi.responses import Response
-        return Response(status_code=204, headers={'Cache-Control': 'no-store'})
-    command['syncKey'] = key
-    command['referenceScene'] = reference['scene']
-    from urllib.parse import urlencode
-    for floor in command['scene'].get('floors', []):
-        background = floor.get('scene', {}).get('background') or {}
-        asset_id = str(background.get('assetId', '')).removeprefix('user:')
-        if not re.fullmatch('[0-9a-f]{32}', asset_id):
-            continue
-        background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
-    command.pop(SCENE_SOURCE_KEY, None)
-    return JSONResponse(command, headers={'Cache-Control': 'no-store'})
+            raise HTTPException(409, detail=delivery.SAVE_PENDING_DETAIL) from error
+        command = None
+    return delivery.build_current_scene_entry(command, reference, scene_id, project_id, SCENE_SOURCE_KEY)
+
+
+@router.get('/scenes/{scene_id}/current')
+def get_current_scene(scene_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer, projectId: str = '', since: str = ''):
+    # 校验本身不读库：直接用请求级会话，不再为它单独开一个连接。
+    require_scene_viewer(request, database, viewer, scene_id, projectId)
+    return delivery.serve_current_scene(
+        scene_path(request, scene_id),
+        projectId,
+        read_current_studio_draft_fingerprint(database),
+        since,
+        lambda: _build_current_scene_entry(request, database, scene_id, projectId, since),
+    )
 
 
 @router.get('/scenes/{scene_id}/background/{asset_id}')
@@ -456,7 +449,9 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
             copy_path = folder / f'{scene_id}-{asset_id}{suffix}'
             if not copy_path.is_file():
                 continue
-            return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'no-store'})
+            # 快照底图副本在建快照时一次写成、此后不再改写（文件名含场景 id 与资源 id）：可缓存，
+            # 否则每次打开 3D 都要重新下载整张照片级底图。
+            return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'private, max-age=86400'})
     settings = request.app.state.settings
     try:
         # 快照里没有底图副本时回退到用户资源，但只允许「当前草稿仍在引用」的图。
@@ -1385,21 +1380,24 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     # 舞台样式与模块入口是 ``/api/v1/modules/interaction3d/core/`` 下的稳定 URL：
     # 走 ``frontend_resource_url`` 补上构建期 revision，升级后 URL 变化即可让浏览器
     # 直接取新产物，不必先命中旧缓存再协商（对应「升级后混用旧缓存资源」）。
-    stage_urls = (
-        '/api/v1/modules/interaction3d/core/stage.css',
-        '/api/v1/modules/interaction3d/core/stage.js',
+    # 版本取文件自身指纹：URL 随产物变化，命中时 get_resource 可发 immutable，免去每次打开的回源协商。
+    visible_stage_urls = (
+        delivery.versioned_runtime_url(settings, 'core/stage.css'),
+        delivery.versioned_runtime_url(settings, 'core/stage.js'),
     )
-    visible_stage_urls = tuple(
-        frontend_resource_url(settings.frontend_dir, url) for url in stage_urls
-    )
+    # stage.css 头部 ``@import`` 主应用的 controls.css（另一条构建，不能展开）：同 URL 预加载，
+    # 与 stage.css 并行下载，而不是等 stage.css 解析完再串行发起。
     html = html.replace(
         '</head>',
+        f'<link rel="preload" as="style" href="{delivery.STAGE_CONTROLS_CSS}">'
         f'<link rel="stylesheet" href="{visible_stage_urls[0]}">'
-        f'<link rel="modulepreload" href="{visible_stage_urls[1]}"></head>',
+        f'<link rel="modulepreload" href="{visible_stage_urls[1]}">'
+        '</head>',
     )
     html = html.replace(
         '<body>',
-        f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',
+        f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}"'
+        f' data-i3d-scene-cache-scope="{delivery.scene_cache_scope(scope, viewer, projectId)}">',
     )
     # 给外壳脚本（/static/boot-guard.js）一个稳定的「本页是 3D 舞台」标记：
     # 舞台的 interaction3d-stage 是页面档位、不是残留 body class，自愈逻辑必须跳过它，
@@ -1548,16 +1546,17 @@ async def game_console_image(
 
 
 @router.get('/{filename:path}')
-def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
+def get_resource(filename: str, request: Request, _session: LicensedCachedSession) -> FileResponse:
     require_access(request)
-    media_types = _runtime_resource_media_types(request.app.state.settings)
+    settings = request.app.state.settings
+    media_types = _runtime_resource_media_types(settings)
     if filename not in media_types:
         raise HTTPException(404, detail='3D 交互资源不存在。')
-    root = request.app.state.settings.runtime_dir.resolve()
+    root = settings.runtime_dir.resolve()
     path = (root / filename).resolve()
     if not path.is_relative_to(root) or not path.is_file():
         raise HTTPException(404, detail='3D 交互资源不存在。')
-    return FileResponse(path, media_type=media_types[filename], headers={'Cache-Control': 'private, no-cache'})
+    return delivery.runtime_file_response(request, settings, filename, path, media_types[filename])
 
 
 def _runtime_resource_media_types(settings: Settings) -> dict[str, str]:

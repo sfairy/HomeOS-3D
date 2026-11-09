@@ -4,7 +4,7 @@
  * 实时流由 `@app/renderer/registry/camera-media` 统一处理（go2rtc / HLS / 快照回退）；
  * 面板只负责决定"该不该播"：编辑态、实体关闭、滚动出视口都主动卸载。
  */
-const cameraMedia = await import('@app/renderer/registry/camera-media')
+import * as cameraMedia from '@app/renderer/registry/camera-media'
 import { attributesOf, extraContextChanged, featureFlags } from '../device/entity-capabilities'
 import { attachFeedback, createVisibilityGate } from './panel-utils'
 import type { ExtraPanelViewModel, FeedbackSlot } from './panel-utils'

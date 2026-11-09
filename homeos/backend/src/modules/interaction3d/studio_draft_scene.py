@@ -14,6 +14,15 @@ from ...domains.studio3d import draft_repository
 LOGGER = logging.getLogger(__name__)
 
 
+def read_current_studio_draft_fingerprint(database) -> tuple[int, str, int] | None:
+    """当前草稿的廉价指纹；读取失败与「没有草稿」同样返回 ``None``。"""
+    try:
+        return draft_repository.read_fingerprint(database)
+    except Exception:
+        LOGGER.warning("读取 studio_drafts 指纹失败，按没有草稿处理", exc_info=True)
+        return None
+
+
 def read_current_studio_draft(database) -> dict | None:
     """返回 ``{revision, scene, updatedAt}``；不存在/损坏时返回 ``None``（并留警告）。"""
     try:

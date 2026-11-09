@@ -98,8 +98,11 @@ onMounted(async () => {
     if (disposed) return;
     floorplanStore.bindFacade();
     facadeBound = true;
-    await import("@app/3d-studio/stage-startup");
-    const studio = await import("@app/3d-studio/authoring/lifecycle");
+    // stage-startup 必须先求值（它在模块顶层发起场景与舞台模块请求），但两个 chunk 的下载可以并行。
+    const [, studio] = await Promise.all([
+      import("@app/3d-studio/stage-startup"),
+      import("@app/3d-studio/authoring/lifecycle"),
+    ]);
     if (disposed) return;
     studio.bootStudio();
     teardownStudio = studio.teardownStudio;

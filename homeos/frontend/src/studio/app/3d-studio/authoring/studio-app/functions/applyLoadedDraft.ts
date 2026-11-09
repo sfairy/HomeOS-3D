@@ -142,7 +142,8 @@ export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload:
   // 整篇载入 = 新基线，旧历史补丁不再适用。
   syncStudioHistoryFacade()
 
-  await refreshLightAreasFromHa()
+  // HA 区域只喂灯光面板，与模型选型无关：先发请求、先起模型下载，再等区域落地。
+  const lightAreasRefresh = refreshLightAreasFromHa()
   const selectedFloorRecords = collectSelectedFloors()
   if (isEmbeddedStage) {
     appCtx.isExternalModelPending = true
@@ -155,6 +156,7 @@ export async function applyLoadedDraft(deps: ApplyLoadedDraftDeps, draftPayload:
       ),
       stageLoadTiming('initial-models-start')
   }
+  await lightAreasRefresh
   const Qe2 = isAutoDiagramEmbed
   Qe2 && (appCtx.isModelLoadDeferred = true)
   let preloadModelPromises: any[] = []

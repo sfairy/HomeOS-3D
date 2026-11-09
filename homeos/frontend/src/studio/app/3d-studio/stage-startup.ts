@@ -4,9 +4,41 @@ import { contactShadowPreparationKey } from './plan/contact-shadow-cache-scope'
 import { createReflectionPersistentCache } from './reflection/reflection-persistent-cache'
 import { createScenePersistentCache, scenePreparationKey } from './cache/scene-persistent-cache'
 import { isLegacyEmbedStageLighting } from './authoring/scene/studio-stage-lighting-mode'
+import { createLoadTiming } from '../bridge/scene/load-timing'
+
+const STAGE_MODULE_PATH = '/api/v1/modules/interaction3d/core/stage.js'
+
+/**
+ * 舞台模块 URL 必须与 stage.html 里 `<link rel="modulepreload">` 的 href 逐字一致（含 `?v=`）：
+ * 模块映射按完整 URL 去重，裸路径会让预加载白费、再下载一遍 stage.js。
+ */
+export function preloadedStageModuleUrl(env: typeof globalThis = globalThis) {
+  const preloadLink = env.document?.querySelector<HTMLLinkElement>(
+    `link[rel="modulepreload"][href^="${STAGE_MODULE_PATH}"]`,
+  )
+  return preloadLink?.getAttribute('href') || STAGE_MODULE_PATH
+}
+
+/** 首批模型下载时才会按需 import 的加载器链：提前 modulepreload，第一份 GLB 到达时无需再等一轮模块往返。 */
+const STAGE_LOADER_MODULES = [
+  '/static/vendor/three/0.187.0/GLTFLoader.js',
+  '/static/vendor/three/0.187.0/BufferGeometryUtils.js',
+  '/static/vendor/three/0.187.0/SkeletonUtils.js',
+]
+
+function preloadStageLoaderModules(env: typeof globalThis) {
+  const head = env.document?.head
+  if (!head) return
+  for (const href of STAGE_LOADER_MODULES) {
+    if (head.querySelector(`link[rel="modulepreload"][href="${href}"]`)) continue
+    const link = env.document.createElement('link')
+    ;(link.rel = 'modulepreload'), (link.href = href), head.append(link)
+  }
+}
+
 function beginStageStartup({
   env: env = globalThis,
-  loadModule: loadModule = () => import('/api/v1/modules/interaction3d/core/stage.js'),
+  loadModule: loadModule = () => import(/* @vite-ignore */ preloadedStageModuleUrl(env)),
   createCache: createCache = createScenePersistentCache,
 } = {}) {
   const configuredStagePath = (env as { HABridgeEmbed?: { path?: unknown } }).HABridgeEmbed?.path
@@ -16,6 +48,7 @@ function beginStageStartup({
     (!configuredStagePath || env.location?.pathname !== configuredStagePath)
   )
     return null
+  createLoadTiming('stage', env)('stage-startup-begin')
   const searchParams = new URLSearchParams(env.location.search),
     sceneId = searchParams.get('sceneId') || '',
     projectId = searchParams.get('projectId') || '',
@@ -27,9 +60,11 @@ function beginStageStartup({
     cache = createCache({
       env: env,
     }),
-    lightHistoryScope = env.document.body?.dataset.i3dLightHistoryScope,
-    studioAppSource =
-      env.document.querySelector<HTMLScriptElement>('script[src*="/3d-studio/studio-app.js"]')?.src || '',
+    // 场景准备缓存只认用户与项目；HA 离线时灯光历史作用域为空，后端另给一个稳定的缓存作用域。
+    lightHistoryScope =
+      env.document.body?.dataset.i3dSceneCacheScope || env.document.body?.dataset.i3dLightHistoryScope,
+    // 构建版本进缓存键：引擎升级后旧的场景/几何准备结果自动失效（带 `?v=` 的舞台模块 URL 随构建变化）。
+    studioAppSource = preloadedStageModuleUrl(env),
     preparationKey = scenePreparationKey(lightHistoryScope, projectId, sceneId, studioAppSource)
   cache.preload(preparationKey)
   const geometryCache = createGeometryPersistentCache({
@@ -65,6 +100,7 @@ function beginStageStartup({
   })
   preparationResponse.catch(() => {})
   const stageModule = loadModule()
+  preloadStageLoaderModules(env)
   return (
     stageModule.catch(() => {}),
     {

@@ -1,6 +1,7 @@
 import { createAccessMonitor } from './access/access-monitor'
 import { createInteraction3dCover } from './cover'
 import { createInteraction3dFocusLayout } from './presets/focus-layout'
+import { hostLoadTiming } from './scene/load-timing'
 /** 在 Error 上挂 HTTP 状态码：授权校验失败时调用方按它分支。 */
 type AccessError = Error & { status?: number }
 
@@ -190,6 +191,9 @@ export function renderInteraction3d(component: any, options: Interaction3dRender
     ;(isPageVisible = shouldShowPage !== false), interaction3dInstance?.setPageVisible?.(isPageVisible)
   }
   let styleLinkElement: any
+  hostLoadTiming('i3d-host-created')
+  // 授权校验与 runtime 模块下载互不依赖：先把模块请求发出去，授权通过时多半已在缓存里。
+  loadInteraction3dRuntime().catch(() => {})
   const focusLayout = createInteraction3dFocusLayout(hostElement, options)
   hostElement.setInteraction3dEditable = (nextEditable) => {
     const isEditableEnabled = nextEditable === true
@@ -261,8 +265,10 @@ export function renderInteraction3d(component: any, options: Interaction3dRender
     // 2D 编辑器会在双击/回车后再补一次挂载请求；用宿主标记挡住重复进入。
     hostElement.dataset.interaction3dEntryPending = 'true'
     const operationToken = ++operationCount
+    hostLoadTiming('i3d-access-granted')
     try {
       const runtimeModule = await loadInteraction3dRuntime()
+      hostLoadTiming('i3d-runtime-loaded')
       if (isDisposed || operationToken !== operationCount || document.hidden) return
       ;(styleLinkElement = document.createElement('link')),
         (styleLinkElement.rel = 'stylesheet'),

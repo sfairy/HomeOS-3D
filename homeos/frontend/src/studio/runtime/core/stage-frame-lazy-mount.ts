@@ -10,7 +10,9 @@
  * 「真正赋 src 之后」生效；未挂载前的 reload 只更新待加载 URL。
  */
 
-const LAZY_MOUNT_IDLE_TIMEOUT_MS = 900
+// idle 回调在主线程空闲时会立即触发，这里只是「一直不空闲」时的上限；舞台加载本身
+// 在 iframe 里另起事件循环，等太久只会把可见的 3D 白白推迟。
+const LAZY_MOUNT_IDLE_TIMEOUT_MS = 250
 const LAZY_MOUNT_QUERY_KEY = 'stage-frame-lazy'
 
 /** requestIdleCallback 在部分宿主（Safari 旧版 / 测试环境）不存在，按可选能力访问。 */

@@ -107,10 +107,41 @@ class PrecompressedStaticFiles(StaticFiles):
         return response
 
 
+#: 与 precompress-static.mjs 的 MTIME_TOLERANCE_MS 同口径：utimes 只保留毫秒。
+_SIDECAR_MTIME_TOLERANCE_SECONDS = 0.002
+
+
+def fresh_sidecar(original: Path, accept_encoding: str) -> tuple[str, Path] | None:
+    """给不经 ``StaticFiles`` 的路由（如 3D 运行时资源）挑选可直出的 sidecar。
+
+    比挂载点更严一步：sidecar 的 mtime 必须与源文件一致（构建脚本的幂等契约），
+    源文件已被重建而 sidecar 还没补时退回原文件，绝不发过期内容。
+    """
+    if not accept_encoding:
+        return None
+    try:
+        source_mtime = original.stat().st_mtime
+    except OSError:
+        logger.debug("预压缩源文件不可读：%s", original, exc_info=True)
+        return None
+    for encoding, suffix in _SIDECARS:
+        if not _accepts_encoding(accept_encoding, encoding):
+            continue
+        sidecar = original.with_name(original.name + suffix)
+        try:
+            sidecar_stat = sidecar.stat()
+        except OSError:
+            logger.debug("预压缩 sidecar 不存在：%s", sidecar)
+            continue
+        if sidecar_stat.st_size > 0 and abs(sidecar_stat.st_mtime - source_mtime) <= _SIDECAR_MTIME_TOLERANCE_SECONDS:
+            return encoding, sidecar
+    return None
+
+
 def sidecar_paths(path: Path) -> Iterable[tuple[str, Path]]:
     """测试/工具用：返回某个原文件可能存在的 sidecar 列表。"""
     for encoding, suffix in _SIDECARS:
         yield encoding, path.with_name(path.name + suffix)
 
 
-__all__ = ["PrecompressedStaticFiles", "sidecar_paths"]
+__all__ = ["PrecompressedStaticFiles", "fresh_sidecar", "sidecar_paths"]

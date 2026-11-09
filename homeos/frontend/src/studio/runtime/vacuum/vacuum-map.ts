@@ -1,10 +1,10 @@
-const { vacuumStatus: resolveVacuumStatus } = await import('@app/renderer/controls/vacuum-runtime'),
-  {
-    vacuumMapAvailable: N,
-    vacuumMapRequestable: R,
-    vacuumMapSource: resolveVacuumMapSource,
-    createVacuumMapImageLoader: $,
-  } = await import('@app/renderer/vacuum-map-state')
+import { vacuumStatus as resolveVacuumStatus } from '@app/renderer/controls/vacuum-runtime'
+import {
+  vacuumMapAvailable as N,
+  vacuumMapRequestable as R,
+  vacuumMapSource as resolveVacuumMapSource,
+  createVacuumMapImageLoader as $,
+} from '@app/renderer/vacuum-map-state'
 export { N as vacuumMapAvailable, R as vacuumMapRequestable, $ as createVacuumMapImageLoader }
 export function vacuumMapIdentity(mapEntityEntry: any, vacuumEntityEntry: any) {
   const mapIdentityAttributes = (mapEntityEntry?.newState || mapEntityEntry)?.attributes || {},

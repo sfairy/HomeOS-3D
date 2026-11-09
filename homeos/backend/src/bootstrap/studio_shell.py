@@ -22,6 +22,7 @@ homeos 侧沿用同一口径，本模块只负责：
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
@@ -31,6 +32,10 @@ from fastapi import FastAPI, Request, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from homeos_shared.http_cache import etag_matches
+
+from ..platform.core.http.frontend_resources import read_resource_revision
+
+logger = logging.getLogger(__name__)
 
 #: 应用对外暴露的页面路径（裸地址，无需登录即可拿到 SPA 外壳）。
 SPA_PAGE_PATHS = frozenset(
@@ -206,6 +211,24 @@ _RUNTIME_CHUNK_PREFIX = INTERACTION_MODULE_PREFIX + "chunks/"
 _VERSIONED_VENDOR_PATH = re.compile(r"^/static/vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
 
 
+#: ``resource-version.json`` 的 revision 按这些扩展名的**内容**哈希（见 ``vite.config.ts``
+#: ``computeResourceRevision``）；其它二进制只取尺寸，不能据 ``?v=`` 判定为内容寻址。
+_REVISION_HASHED_STATIC = re.compile(r"^/static/.+\.(?:js|css|json|html)$")
+
+
+def _is_revision_pinned(request: Request, revision: str | None) -> bool:
+    """``/static/<文本资源>?v=<当前构建 revision>``：revision 覆盖该文件内容，URL 即内容寻址。
+
+    外壳页面每次都是 ``no-store``，总是带着最新 revision；文件一变 revision 就变、URL 跟着变。
+    ``v`` 缺失或与当前 revision 不符（旧壳、手写 URL）仍回源校验。
+    """
+    return bool(
+        revision
+        and request.query_params.get("v") == revision
+        and _REVISION_HASHED_STATIC.match(request.url.path)
+    )
+
+
 def _is_immutable_asset(path: str) -> bool:
     """是否内容寻址（URL 变了内容才会变），可以发一年期 immutable 缓存。
 
@@ -282,7 +305,9 @@ def _apply_security_headers(request: Request, response: Response) -> None:
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
 
-def _apply_cache_headers(request: Request, response: Response) -> None:
+def _apply_cache_headers(
+    request: Request, response: Response, resource_revision: str | None = None
+) -> None:
     path = request.url.path
     interaction_module = is_interaction_module(path)
     # 静态资源按「URL 是否内容寻址」分成两档：
@@ -296,8 +321,13 @@ def _apply_cache_headers(request: Request, response: Response) -> None:
     if response.status_code in {200, 304} and (
         path.startswith(("/static/", "/modules/")) or interaction_module
     ):
+        # 交互模块路由已按「URL 上的 ?v 与文件当前指纹一致」判定为内容寻址时，保留它的 immutable。
+        if interaction_module and response.headers.get("cache-control") == IMMUTABLE_PRIVATE_CACHE:
+            return
         response.headers["Cache-Control"] = (
-            IMMUTABLE_PRIVATE_CACHE if _is_immutable_asset(path) else "private, no-cache"
+            IMMUTABLE_PRIVATE_CACHE
+            if _is_immutable_asset(path) or _is_revision_pinned(request, resource_revision)
+            else "private, no-cache"
         )
         return
     # 路由已显式给出 ETag + private, no-cache 的页面（SPA 外壳）不要被统一 no-store 覆盖。
@@ -326,10 +356,12 @@ class ProtectAssetsMiddleware:
         *,
         load_public_static_files: Callable[[], frozenset[str]],
         is_authorized: Callable[[Request], Awaitable[bool]],
+        load_resource_revision: Callable[[], str | None] = lambda: None,
     ) -> None:
         self.app = app
         self._load_public_static_files = load_public_static_files
         self._is_authorized = is_authorized
+        self._load_resource_revision = load_resource_revision
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -357,7 +389,12 @@ class ProtectAssetsMiddleware:
                 response.raw_headers = list(message.get("headers", []))
                 if is_app_surface(path):
                     _apply_security_headers(request, response)
-                _apply_cache_headers(request, response)
+                revision = (
+                    self._load_resource_revision()
+                    if "v" in request.query_params and path.startswith("/static/")
+                    else None
+                )
+                _apply_cache_headers(request, response, revision)
                 if _etag_matches(request, response) and response.headers.get(
                     "cache-control", ""
                 ).startswith("private, no-cache"):
@@ -407,10 +444,22 @@ def install(
     """
     # 白名单随构建产物变动（见 make_public_static_loader 的说明），不能只读一次。
     load_public_static_files_now = make_public_static_loader(settings)
+    frontend_dir = getattr(settings, "frontend_dir", None)
+
+    def load_resource_revision() -> str | None:
+        if frontend_dir is None:
+            return None
+        try:
+            return read_resource_revision(Path(frontend_dir))
+        except (OSError, ValueError, KeyError):
+            logger.debug("读取前端资源版本失败，静态资源按协商缓存处理", exc_info=True)
+            return None
+
     app.add_middleware(
         ProtectAssetsMiddleware,
         load_public_static_files=load_public_static_files_now,
         is_authorized=is_authorized,
+        load_resource_revision=load_resource_revision,
     )
     return load_public_static_files_now()
 

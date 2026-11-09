@@ -28,7 +28,8 @@ const extraQueries = args.reduce(
   [],
 )
 const env = JSON.parse(readFileSync(join(PERF_ROOT, 'env', label, 'env.json'), 'utf8'))
-const homeosBase = `http://127.0.0.1:${env.homeos.port}`
+// HOMEOS_PERF_BASE_URL：经本地 HTTPS/HTTP2 反代（模拟容器内 Caddy :8803）测量时覆盖入口地址。
+const homeosBase = process.env.HOMEOS_PERF_BASE_URL || `http://127.0.0.1:${env.homeos.port}`
 const outDir = join(PERF_ROOT, 'results', label)
 const shotDir = join(outDir, 'screenshots')
 mkdirSync(shotDir, { recursive: true })
@@ -95,21 +96,39 @@ const frameInitScript = `
 `
 
 function makeNetworkTracker(cdp) {
-  const tracker = { encodedBytes: 0, byType: {}, responses: 0, requests: 0, statuses: {}, failed: 0 }
+  const tracker = { encodedBytes: 0, byType: {}, responses: 0, requests: 0, statuses: {}, failed: 0, entries: [] }
   const requestTypes = new Map()
-  cdp.on('Network.requestWillBeSent', () => {
+  const requestEntries = new Map()
+  cdp.on('Network.requestWillBeSent', (event) => {
     tracker.requests += 1
+    const entry = {
+      url: event.request?.url || '',
+      frameId: event.frameId || '',
+      startMs: Math.round((event.timestamp || 0) * 1000),
+      endMs: 0,
+      status: 0,
+      bytes: 0,
+    }
+    requestEntries.set(event.requestId, entry)
+    tracker.entries.push(entry)
   })
   cdp.on('Network.responseReceived', (event) => {
     tracker.responses += 1
     tracker.statuses[event.response?.status || 0] = (tracker.statuses[event.response?.status || 0] || 0) + 1
     requestTypes.set(event.requestId, event.type || 'Other')
+    const entry = requestEntries.get(event.requestId)
+    if (entry) entry.status = event.response?.status || 0
   })
   cdp.on('Network.loadingFinished', (event) => {
     const bytes = event.encodedDataLength || 0
     tracker.encodedBytes += bytes
     const type = requestTypes.get(event.requestId) || 'Other'
     tracker.byType[type] = (tracker.byType[type] || 0) + bytes
+    const entry = requestEntries.get(event.requestId)
+    if (entry) {
+      entry.bytes = bytes
+      entry.endMs = Math.round((event.timestamp || 0) * 1000)
+    }
   })
   cdp.on('Network.loadingFailed', () => {
     tracker.failed += 1
@@ -168,6 +187,11 @@ async function findStageFrame(page) {
 /** 阶段耗时表：把 [3D-load]/[display-load] 日志拼成「绝对时刻 + 相对上一阶段」的表。 */
 const PHASE_ORDER = [
   'display:module-ready',
+  'display:i3d-host-created',
+  'display:i3d-access-granted',
+  'display:i3d-runtime-loaded',
+  'display:i3d-frame-src',
+  'stage:stage-startup-begin',
   'stage:module-ready',
   'stage:renderer-created',
   'stage:draft-fetched',
@@ -349,7 +373,15 @@ const browserDiagnostics = { pageCrash: false, browserDisconnected: false }
 const browser = await chromium.launch({
   channel: 'msedge',
   headless: true,
-  args: ['--enable-precise-memory-info', '--disable-background-timer-throttling'],
+  // HOMEOS_PERF_BROWSER_ARGS：追加浏览器参数（空格分隔），例如 `--use-angle=metal --enable-gpu`。
+  // 默认 headless 走软件 WebGL，GPU 侧耗时（着色器链接、首帧绘制）会被放大，与真实浏览器不可比。
+  args: [
+    '--enable-precise-memory-info',
+    '--disable-background-timer-throttling',
+    ...String(process.env.HOMEOS_PERF_BROWSER_ARGS || '')
+      .split(/\s+/)
+      .filter(Boolean),
+  ],
 })
 const browserVersion = browser.version()
 browser.on('disconnected', () => {
@@ -359,6 +391,7 @@ const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
   deviceScaleFactor: 1,
   reducedMotion: 'no-preference',
+  ignoreHTTPSErrors: homeosBase.startsWith('https:'),
 })
 await context.addCookies([{ name: 'auth_token', value: env.homeos.token, url: homeosBase }])
 await context.addInitScript(hostInitScript)
@@ -366,6 +399,7 @@ await context.addInitScript(frameInitScript)
 const page = await context.newPage()
 const consoleErrors = []
 const stagePhaseLogs = []
+const cacheLogs = []
 page.on('crash', () => {
   browserDiagnostics.pageCrash = true
 })
@@ -376,6 +410,8 @@ page.on('console', (message) => {
   const text = message.text()
   if (message.type() === 'error') consoleErrors.push(text.slice(0, 500))
   if (text.includes('[3D-load]') || text.includes('[display-load]')) stagePhaseLogs.push(text.slice(0, 500))
+  // 持久缓存（模型模板 / 几何 / 场景准备）的 hit/miss/fallback：热缓存回归要靠它归因。
+  if (/^\[3D-[\w-]*cache\]/.test(text)) cacheLogs.push(text.slice(0, 300))
 })
 page.on('pageerror', (error) => consoleErrors.push(String(error).slice(0, 500)))
 const requestFailures = []
@@ -384,6 +420,17 @@ page.on('requestfailed', (request) =>
 )
 const cdp = await context.newCDPSession(page)
 await cdp.send('Network.enable')
+// HOMEOS_PERF_LATENCY_MS：模拟局域网 / Wi-Fi 往返延迟（毫秒）。本机回环几乎零延迟，
+// 串行往返链的代价在这里看不出来；平板经 Wi-Fi 访问时每一跳都是几十毫秒。
+const emulatedLatencyMs = Number(process.env.HOMEOS_PERF_LATENCY_MS || 0)
+if (emulatedLatencyMs > 0) {
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: emulatedLatencyMs,
+    downloadThroughput: -1,
+    uploadThroughput: -1,
+  })
+}
 await cdp.send('Performance.enable')
 const net = makeNetworkTracker(cdp)
 
@@ -481,7 +528,26 @@ function buildActionSummary(result) {
   }
 }
 
+// HOMEOS_PERF_WARM=1：同一浏览器上下文先完整加载一次再计量第二次，模拟平板反复打开
+// 展示页的常态（带哈希的 chunk 已在 HTTP 缓存里）。默认冷缓存，量的是首次访问/刚部署。
+const warmRun = process.env.HOMEOS_PERF_WARM === '1'
+result.warm = warmRun
+
 try {
+  if (warmRun) {
+    await page.goto(displayUrl, { waitUntil: 'load', timeout: 90000 })
+    const warmFrame = await findStageFrame(page)
+    if (warmFrame) await waitForPresented(warmFrame, page)
+    // 模型模板 / 几何的持久缓存在空闲回调里写入；立刻离开会让热身轮的写入半途而废。
+    await page.waitForTimeout(Number(process.env.HOMEOS_PERF_WARM_SETTLE_MS || 8000))
+    await page.goto('about:blank')
+    stagePhaseLogs.length = 0
+    cacheLogs.length = 0
+    consoleErrors.length = 0
+    requestFailures.length = 0
+    Object.assign(net, { encodedBytes: 0, byType: {}, responses: 0, requests: 0, statuses: {}, failed: 0 })
+    net.entries.length = 0
+  }
   const response = await page.goto(displayUrl, { waitUntil: 'load', timeout: 90000 })
   result.httpStatus = response?.status() || 0
   // 先拿到 iframe、再等 presented，最后才看宿主上的 is-ready：
@@ -576,6 +642,7 @@ try {
   await browser.close()
 }
 result.browserDiagnostics = browserDiagnostics
+result.cacheLogs = cacheLogs
 result.phaseTimings = collectPhaseTimings(stagePhaseLogs)
 result.phaseTable = buildPhaseTable(result.phaseTimings)
 result.summary = buildActionSummary(result)
