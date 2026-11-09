@@ -102,7 +102,13 @@ class FakeGateway(ConnectionLifecycleMixin, SubscriptionIndexMixin):
     def _ws_config(self) -> WsPushConfig:
         return self._ws_config_value
 
+    async def _ws_config_async(self) -> WsPushConfig:
+        return self._ws_config_value
+
     def _apply_state_config(self) -> None:
+        return None
+
+    async def _apply_state_config_async(self) -> None:
         return None
 
 

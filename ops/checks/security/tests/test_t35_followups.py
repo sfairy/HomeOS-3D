@@ -175,16 +175,20 @@ class TimeoutAndChannelTest(unittest.TestCase):
         self.assertEqual(SubscriptionIndexMixin._candidate_sids_for_changes(_Gateway(), [], set()), set())
 
     def test_webpush_test_reports_real_delivery(self) -> None:
+        # delivered=0 必须 fail-closed（抛错），不能再以 sent:0 冒充已发送。
+        from src.platform.core.http.errors import BusinessException
+
         service = object.__new__(WebPushService)
         service._subscriptions = {"https://push.example/x": object()}
+        service._enabled = True
+        service._vapid = object()
 
         async def _fake_send(to: str, text: str, title: str | None = None) -> dict[str, int]:
             return {"attempted": 1, "delivered": 0}
 
         service.send_text = _fake_send  # type: ignore[method-assign]
-        result = asyncio.run(service.send_test("https://push.example/x"))
-        self.assertEqual(result["sent"], 0)
-        self.assertEqual(result["attempted"], 1)
+        with self.assertRaises(BusinessException):
+            asyncio.run(service.send_test("https://push.example/x"))
 
     def test_webpush_keys_are_shape_checked(self) -> None:
         valid_point = base64.urlsafe_b64encode(b"\x04" + b"x" * 64).decode().rstrip("=")
