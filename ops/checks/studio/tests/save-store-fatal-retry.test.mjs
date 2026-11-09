@@ -158,3 +158,78 @@ test('可重试失败（500）不受影响：仍走退避，不退回 dirty', as
   assert.equal(store.getState().status, 'retrying')
   assert.equal(store.getState().attempt, 1)
 })
+
+const CONFIRMATION_428 = {
+  status: 428,
+  detail: {
+    code: 'STUDIO3D_INTERACTION_CONFIRMATION',
+    token: 'confirm-token-1',
+    message: '删除将同步移除关联的 3D 交互配置。',
+    impacts: [{ projectId: 'p1' }],
+    projects: ['客厅'],
+  },
+  message: '删除将同步移除关联的 3D 交互配置。',
+}
+
+test('428 取消确认后保持 blocked：不自动再发无 token 的 PUT', async () => {
+  const docStore = fakeDocumentStore()
+  const timers = fakeTimers()
+  const { store, counts } = makeStore(docStore, timers, [CONFIRMATION_428])
+
+  const first = await store.flushNow()
+  assert.equal(first.ok, false)
+  assert.equal(first.reason, 'confirmation-required')
+  assert.equal(store.getState().status, 'blocked')
+  assert.equal(counts(), 1)
+
+  store.cancelConfirmation()
+  assert.equal(store.getState().status, 'blocked', '取消后仍 blocked，避免 autosave 立刻重撞 428')
+  assert.equal(store.getState().pendingConfirmation, null)
+
+  store.scheduleAutosave(0)
+  await timers.flushAll()
+  assert.equal(counts(), 1, 'blocked 期间不得再排自动保存')
+
+  const blockedFlush = await store.flushNow()
+  assert.equal(blockedFlush.ok, false)
+  assert.equal(blockedFlush.reason, 'blocked')
+  assert.equal(counts(), 1, '手动 flush 在取消后也不得无 token 重发')
+})
+
+test('428 确认后带 token 重试；用户再编辑可从 blocked 恢复', async () => {
+  const docStore = fakeDocumentStore()
+  const timers = fakeTimers()
+  let sawToken = false
+  const store = new StudioSaveStore({
+    documentStore: docStore,
+    timers,
+    transport: {
+      load: async () => ({ ok: true, payload: { revision: 1, scene: docStore.getDocument() } }),
+      put: async (request) => {
+        if (!request.interactionConfirmation) {
+          return { ok: false, error: CONFIRMATION_428 }
+        }
+        sawToken = request.interactionConfirmation === 'confirm-token-1'
+        return { ok: true, payload: { revision: request.revision + 1, scene: request.scene } }
+      },
+    },
+    now: () => 1_000,
+  })
+
+  const first = await store.flushNow()
+  assert.equal(first.reason, 'confirmation-required')
+
+  const confirmed = await store.confirmInteraction('confirm-token-1')
+  assert.equal(confirmed.ok, true)
+  assert.equal(sawToken, true)
+  assert.equal(store.getState().status, 'saved')
+
+  // 再次制造 428 → 取消 → 继续编辑必须能重新排期。
+  docStore.setDirty(true)
+  const again = await store.flushNow()
+  assert.equal(again.reason, 'confirmation-required')
+  store.cancelConfirmation()
+  store.markDirty()
+  assert.equal(store.getState().status, 'dirty')
+  assert.ok(timers.size > 0, '取消确认后再编辑应重新排自动保存')
+})

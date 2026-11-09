@@ -4,8 +4,8 @@
  * 仅依赖自身参数与导入的几何工具。
  */
 
-import { clamp as clamp2 } from '../../plan/geometry'
-import { finite as finite2 } from '../../loaders/studio-normalization'
+import { clamp as clamp2, spotLightBrightnessResponse } from '../../plan/geometry'
+import { finite as finite2 } from '../../loaders/studio-number'
 
 /** 灯光预设目录（色温 / 亮度 / 范围 / 角度）。 */
 export const lightPresetCatalog = {
@@ -93,39 +93,50 @@ function rectAreaLuminanceFromFlux(fluxPerMeter: number, lengthMeters: number, w
  * - **物理层**（`candelaFromFlux` / `rectAreaLuminanceFromFlux`）保留形状关系：
  *   收窄光束变亮、灯带越长越亮越宽越摊薄、光通量变大的响应曲线不变；
  * - **标定层**（本表）把绝对刻度拉回渲染器白点：出厂参数下等于改造前手调好的
- *   坎德拉（筒灯 520 / 吊灯 680 / 灯带 48），于是「默认亮度」还是原来那个观感，
+ *   坎德拉（筒灯 520 / 吊灯 680），于是「默认亮度」还是原来那个观感，
  *   只有几何/角度真的变了才会更亮或更暗。
+ *
+ * 灯带**没有**自己的标定值：面光亮度 L 与射灯坎德拉在 three 里是同一把尺
+ * （面光对远处的等效光强 = L·A），所以它直接沿用筒灯的白点。以前给灯带单独标定到
+ * 48 cd·m⁻²，同样的流明比筒灯暗了约 6 倍，再靠照射范围、离地高度两个系数往回补。
  *
  * 标定值由下面 `lightRenderCalibrationReference` 现算，避免出现第二个魔数。
  */
 const lightRenderCalibrationReference = Object.freeze({
   downlight: { fluxLumens: 420, beamAngleDeg: 48, renderValue: 520 },
   ceilinglight: { fluxLumens: 1800, beamAngleDeg: 110, renderValue: 680 },
-  // 灯带取「出厂尺寸」2 m × 0.28 m（`addLightModel` 里还会各乘 0.94 的发光面系数）。
-  striplight: { fluxPerMeter: 350, lengthMeters: 2 * 0.94, widthMeters: 0.28 * 0.94, renderValue: 48 },
 })
 
+const downlightRenderGain =
+  lightRenderCalibrationReference.downlight.renderValue /
+  candelaFromFlux(
+    lightRenderCalibrationReference.downlight.fluxLumens,
+    lightRenderCalibrationReference.downlight.beamAngleDeg,
+  )
+
 const lightRenderGain: Readonly<Record<string, number>> = Object.freeze({
-  downlight:
-    lightRenderCalibrationReference.downlight.renderValue /
-    candelaFromFlux(
-      lightRenderCalibrationReference.downlight.fluxLumens,
-      lightRenderCalibrationReference.downlight.beamAngleDeg,
-    ),
+  downlight: downlightRenderGain,
   ceilinglight:
     lightRenderCalibrationReference.ceilinglight.renderValue /
     candelaFromFlux(
       lightRenderCalibrationReference.ceilinglight.fluxLumens,
       lightRenderCalibrationReference.ceilinglight.beamAngleDeg,
     ),
-  striplight:
-    lightRenderCalibrationReference.striplight.renderValue /
-    rectAreaLuminanceFromFlux(
-      lightRenderCalibrationReference.striplight.fluxPerMeter,
-      lightRenderCalibrationReference.striplight.lengthMeters,
-      lightRenderCalibrationReference.striplight.widthMeters,
-    ),
+  striplight: downlightRenderGain,
 })
+
+/**
+ * 亮度百分比 → 强度倍率（所有灯型同一条曲线）。
+ *
+ * 编辑器里按平方走（`spotLightBrightnessResponse`，吊灯低档另有一点漫射补偿），
+ * 超过 100% 的部分线性放大；嵌入舞台按线性比例，由区域灯控制器自己做淡入淡出。
+ * 建灯（`addLightModel` / `addStripLightModel`）和渲染循环的过渡都只走这一个函数，
+ * 两边曲线不一致时开关灯会先跳一下再淡入。
+ */
+export function lightBrightnessResponse(lightTypeKey: string, brightnessRatio: number, isEmbedStage = false) {
+  const ratio = Math.max(finite2(brightnessRatio, 0), 0)
+  return isEmbedStage ? ratio : spotLightBrightnessResponse(lightTypeKey, ratio) * Math.max(1, ratio)
+}
 
 /**
  * 窄光束下的坎德拉上限（相对标定参考值的倍数）。

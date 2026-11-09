@@ -65,6 +65,7 @@ import {
 } from '../../../environment/device-mist'
 import { rangehoodState as rangehoodState2 } from '../../../environment/rangehood-state'
 import { vacuumMapIdentity as vacuumMapIdentity2 } from '../../../vacuum/vacuum-map'
+import { shellConfirm } from '@/studio/platform/shell-chrome'
 
 /**
  * 面板总装需要的外部句柄。24 个兄弟函数都是宿主 `attachEditorPanelRendering` 体内的函数声明
@@ -196,7 +197,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
     createConfigSection,
     createSelectRow,
     createSettingRow,
-    closeAddDialog,
+    closeAddDialog: _closeAddDialog,
     createConfigRow,
     createNumberRow,
     switchEditorKind,
@@ -696,39 +697,21 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
           return boundCatalogEntry?.deviceId || boundCatalogEntry?.device_id || ''
         },
         temperatureHumidityPickerKinds = () => vector.deviceId || deviceIdOfEntity(vector.entityId),
-        openDeviceChangeDialog = (onConfirm: any, bodyHint: any) => {
-          const deviceChangeDialogElement = editorHost.createElement(
-            'dialog',
-            'settings-dialog i3d-add-dialog i3d-device-change-dialog',
+        openDeviceChangeDialog = async (onConfirm: any, bodyHint: any) => {
+          const confirmed = await shellConfirm({
+            title: '更换设备',
+            message: String(bodyHint || ''),
+            confirmLabel: '确定更换',
+            cancelLabel: '取消',
+            tone: 'danger',
+          })
+          if (
+            confirmed &&
+            !editorHost.isDisposed &&
+            editorHost.isAccessAllowed &&
+            editorHost.getItemList().includes(vector)
           )
-          ;(editorHost.addDialogState = deviceChangeDialogElement),
-            deviceChangeDialogElement.setAttribute('aria-label', '更换设备')
-          const deviceChangeHeadingElement = editorHost.createElement('div', 'dialog-heading')
-          deviceChangeHeadingElement.append(editorHost.createElement('h2', '', '更换设备'))
-          const deviceChangeBodyElement = editorHost.createElement('div', 'i3d-add-dialog-body', bodyHint),
-            deviceChangeActionsElement = editorHost.createElement('div', 'dialog-actions'),
-            confirmDeviceChangeButton = editorHost.createButton('确定更换', () => {
-              closeAddDialog(),
-                !editorHost.isDisposed &&
-                  editorHost.isAccessAllowed &&
-                  editorHost.getItemList().includes(vector) &&
-                  onConfirm()
-            })
-          ;(confirmDeviceChangeButton.className = 'primary'),
-            deviceChangeActionsElement.append(
-              editorHost.createButton('取消', closeAddDialog),
-              confirmDeviceChangeButton,
-            ),
-            deviceChangeDialogElement.append(
-              deviceChangeHeadingElement,
-              deviceChangeBodyElement,
-              deviceChangeActionsElement,
-            ),
-            editorHost.editorDialogElement.append(deviceChangeDialogElement),
-            deviceChangeDialogElement.addEventListener('cancel', (deviceChangeCancelEvent: any) => {
-              deviceChangeCancelEvent.preventDefault(), closeAddDialog()
-            }),
-            deviceChangeDialogElement.showModal()
+            onConfirm()
         },
         openItemPicker = async (targetField: any, itemPickerTrigger: any) => {
           const isEntityField = ++editorHost.pickerGeneration
@@ -991,52 +974,19 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                                 (vector.extraControls?.length || vector.workingState || vector.statusRules) &&
                                 purifierDeviceChanged2(editorHost.entities, vector.entityId, pickedDevice)
                               ) {
-                                const purifierChangeDialogElement = editorHost.createElement(
-                                  'dialog',
-                                  'settings-dialog i3d-add-dialog i3d-device-change-dialog',
+                                openDeviceChangeDialog(
+                                  () => {
+                                    vector.entityId = pickedDevice
+                                    vector.extraControls = []
+                                    delete vector.workingState
+                                    delete vector.statusRules
+                                    refreshEditorPreview()
+                                    renderPanel()
+                                  },
+                                  '更换' +
+                                    editorHost.kindLabel +
+                                    '设备会清除当前附加功能和指示灯规则，避免使用旧设备状态。取消将保留原绑定；外层保存后才正式生效。',
                                 )
-                                ;(editorHost.addDialogState = purifierChangeDialogElement),
-                                  purifierChangeDialogElement.setAttribute(
-                                    'aria-label',
-                                    '更换' + editorHost.kindLabel + '设备',
-                                  )
-                                const purifierChangeHeadingElement = editorHost.createElement('div', 'dialog-heading')
-                                purifierChangeHeadingElement.append(
-                                  editorHost.createElement('h2', '', '更换' + editorHost.kindLabel + '设备'),
-                                )
-                                const purifierChangeTitleElement = editorHost.createElement(
-                                    'div',
-                                    'i3d-add-dialog-body',
-                                    '更换设备会清除当前附加功能和指示灯规则，避免使用旧设备状态。取消将保留原绑定；外层保存后才正式生效。',
-                                  ),
-                                  purifierChangeActionsElement = editorHost.createElement('div', 'dialog-actions'),
-                                  confirmPurifierChangeButton = editorHost.createButton('确定更换', () => {
-                                    ;(vector.entityId = pickedDevice),
-                                      (vector.extraControls = []),
-                                      delete vector.workingState,
-                                      delete vector.statusRules,
-                                      closeAddDialog(),
-                                      refreshEditorPreview(),
-                                      renderPanel()
-                                  })
-                                ;(confirmPurifierChangeButton.className = 'primary'),
-                                  purifierChangeActionsElement.append(
-                                    editorHost.createButton('取消', closeAddDialog),
-                                    confirmPurifierChangeButton,
-                                  ),
-                                  purifierChangeDialogElement.append(
-                                    purifierChangeHeadingElement,
-                                    purifierChangeTitleElement,
-                                    purifierChangeActionsElement,
-                                  ),
-                                  editorHost.editorDialogElement.append(purifierChangeDialogElement),
-                                  purifierChangeDialogElement.addEventListener(
-                                    'cancel',
-                                    (purifierDialogCancelEvent: any) => {
-                                      purifierDialogCancelEvent.preventDefault(), closeAddDialog()
-                                    },
-                                  ),
-                                  purifierChangeDialogElement.showModal()
                                 return
                               } else
                                 (vector.entityId = pickedDevice),

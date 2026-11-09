@@ -30,14 +30,14 @@ import {
   StudioTopBar,
 } from "@/studio/chrome";
 import "@/studio/chrome/studio-chrome.css";
+import "@/studio/chrome/studio-native-dialogs.css";
 import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
 import { studioStartupFail, studioStartupPhase } from "@/shared/utils/ui/studio-startup";
-import {
-  StudioDialogs,
-  StudioOverlays,
-  StudioPlanPanel,
-  WORKFLOW_STEPS,
-} from "./studio-creator-async";
+// bootStudio 在 onMounted 同步读 #plan-canvas / 对话框等节点：这些壳必须同步挂载，不能 defineAsyncComponent。
+import StudioPlanPanel from "@/studio/chrome/creator/StudioPlanPanel.vue";
+import StudioDialogs from "@/studio/chrome/creator/StudioDialogs.vue";
+import StudioOverlays from "@/studio/chrome/creator/StudioOverlays.vue";
+import { WORKFLOW_STEPS } from "./studio-creator-async";
 
 const route = useRoute();
 const router = useRouter();
@@ -1276,7 +1276,8 @@ onBeforeUnmount(() => {
                 </div>
             </section>
         </aside>
-        <StudioPlanPanel v-if="showCreatorChrome" />
+        <!-- 嵌入舞台也必须挂载：bootStudio 同步依赖 #plan-canvas / 冲突对话框等 DOM，不能用 v-if 裁掉。 -->
+        <StudioPlanPanel />
         <aside
           class="details-panel"
           :class="{ 'is-collapsed': floorplanStore.planFocus }"
@@ -1600,9 +1601,13 @@ onBeforeUnmount(() => {
                                 <option value="vertical">垂直（站立）</option>
                                 <option value="horizontal">水平（躺放）</option>
                             </select></label> <label id="strip-axis-field" class="door-type-field"
-                            hidden><span>布置方向</span><select id="strip-axis">
-                                <option value="vertical">垂直（站立）</option>
-                                <option value="horizontal">水平（躺放）</option>
+                            title="切换安装方式会按本层层高给出建议离地高度" hidden><span>安装方式</span><select id="strip-mount">
+                                <option value="ceiling-down">吸顶朝下</option>
+                                <option value="cove-up">灯槽朝上（反光）</option>
+                                <option value="wall-wash">洗墙（侧向）</option>
+                                <option value="under-cabinet">柜底朝下</option>
+                                <option value="vertical">竖装</option>
+                                <option value="custom">自定义角度</option>
                             </select></label>
                             </div>
                         </section>
@@ -1758,7 +1763,7 @@ onBeforeUnmount(() => {
             </section>
         </aside>
     </main>
-    <StudioDialogs v-if="showCreatorChrome" />
-    <StudioOverlays v-if="showCreatorChrome" />
+    <StudioDialogs />
+    <StudioOverlays />
   </div>
 </template>

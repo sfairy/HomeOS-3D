@@ -30,9 +30,9 @@ import {
 import {
   normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
-  normalizeStripAxis as normalizeStripAxis2,
   pillarIsLying as pillarIsLying2,
 } from '../../items/studio-item-posture'
+import { resolveStripMount } from '../../lights/strip-light/strip-light-spec'
 import {
   itemTypeCatalog,
   lampItemTypeSet,
@@ -104,6 +104,25 @@ export interface RefreshStudioUiInnerDeps {
 /** 默认开度输入框的显示值：没有显式数字时留空，占位符即「沿用门型默认」。 */
 function doorOpeningInputValue(door: { defaultOpening?: number }) {
   return Number.isFinite(door.defaultOpening) ? String(door.defaultOpening) : ''
+}
+
+/**
+ * 灯带专有的检查器显隐。灯带是面光：没有锥角，也没有距离截断（亮度随距离自然衰减），
+ * 光束角和照射范围对它都无效；倾斜 / 翻滚只在「自定义角度」安装时有意义。
+ */
+function syncStripInspectorFields(
+  item: { type?: string; stripMount?: unknown },
+  selectElement: (selector: string) => HTMLElement,
+  angleFields: HTMLElement[],
+) {
+  const isStripLight = item.type === 'striplight'
+  for (const selector of ['#light-angle', '#light-range']) {
+    const control = selectElement(selector).closest('.light-batch-control') as HTMLElement | null
+    if (control) control.hidden = isStripLight
+  }
+  if (!isStripLight) return
+  const showAngles = resolveStripMount(item) === 'custom'
+  for (const field of angleFields) field.hidden = !showAngles
 }
 
 export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClearActiveElement = false) {
@@ -396,6 +415,11 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               (selectElement('#item-vertical-rotation').max =
                 at4.type === 'striplight' ? '360' : includes ? '180' : '90')
             for (const lightControlElement of applyLightPropertyControls) lightControlElement.hidden = !isLightItem
+            syncStripInspectorFields(at4, selectElement, [
+              itemVerticalRotationFieldElement,
+              itemStripRollFieldElement,
+              itemStripOrientationHeadingElement,
+            ])
             if (
               ((itemWidthLabelElement.textContent =
                 at4.type === 'flooropening'
@@ -532,8 +556,8 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
                 (selectElement('#pillar-axis').value = normalizePillarAxis2(at4.pillarAxis)),
                 syncStudioSelect2(selectElement('#pillar-axis'))),
               at4.type === 'striplight' &&
-                ((selectElement('#strip-axis').value = normalizeStripAxis2(at4.stripAxis)),
-                syncStudioSelect2(selectElement('#strip-axis'))),
+                ((selectElement('#strip-mount').value = resolveStripMount(at4)),
+                syncStudioSelect2(selectElement('#strip-mount'))),
               setNumericControlValue(selectElement('#item-x'), at4.x / (getPixelsPerMeter() || 1)),
               setNumericControlValue(selectElement('#item-y'), at4.y / (getPixelsPerMeter() || 1))
             const dimensionPolicy = itemDimensionPolicy2(at4.type)

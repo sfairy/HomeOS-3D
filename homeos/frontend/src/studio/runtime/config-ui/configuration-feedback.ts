@@ -142,13 +142,15 @@ export function createConfigurationFeedback({
       const dialogElement = create('dialog', '', 'settings-dialog i3d-unsaved-dialog') as HTMLDialogElement
       unsavedDialogElement = dialogElement
       dialogElement.setAttribute('aria-label', '尚有未保存的修改')
-      const headingElement = create('h3', '尚有未保存的修改'),
-        noteElement = create('p', '退出会放弃本窗口尚未保存的修改。已应用的配置不会撤销。'),
-        actionsElement = create('div', '', 'dialog-actions'),
+      const headingElement = create('h3', '尚有未保存的修改')
+      headingElement.className = 'hos-modal-title'
+      const noteElement = create('p', '退出会放弃本窗口尚未保存的修改。已应用的配置不会撤销。'),
+        actionsElement = create('div', '', 'dialog-actions hos-modal-footer'),
         actionButtons: HTMLButtonElement[] = []
       const addAction = (label: string, handleClick: () => void) => {
         const actionButton = create('button', label) as HTMLButtonElement
         actionButton.type = 'button'
+        actionButton.className = 'hos-modal-btn hos-modal-btn--ghost'
         actionButton.addEventListener('click', handleClick)
         actionsElement.append(actionButton)
         actionButtons.push(actionButton)
@@ -174,7 +176,7 @@ export function createConfigurationFeedback({
           setMessage(errorMessageOf(saveError), 'error')
         }
       })
-      saveAndExitButton.className = 'primary'
+      saveAndExitButton.className = 'hos-modal-btn hos-modal-btn--primary primary'
       dialogElement.append(headingElement, noteElement, actionsElement)
       dialogElement.addEventListener('cancel', (cancelEvent: Event) => {
         // `cancel` 会继续冒泡到外层弹窗（配置/安防编辑器本身也是一个 dialog），

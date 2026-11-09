@@ -32,6 +32,8 @@ interface PopupPlacementOptions {
   settings?: PopupPlacementSettings | null
   /** 按内容高度收口（而非按 180px 的最小占位估算）。 */
   fitContent?: boolean
+  /** 必须完整显示的内容高度（本地 px）：缩放再压一档，保证它在「最大高度」内不被裁切。 */
+  minContentHeight?: number
 }
 
 export interface PopupPlacement {
@@ -66,6 +68,7 @@ export function popupPlacement({
   defaultRight: defaultRight = 16,
   settings: rawSettings = {},
   fitContent: fitContent = false,
+  minContentHeight: minContentHeight = 0,
 }: PopupPlacementOptions): PopupPlacement {
   ;(width = Math.max(1, width)),
     (height = Math.max(1, height)),
@@ -86,7 +89,7 @@ export function popupPlacement({
       Math.min(
         defaultScale * (customScale ?? 1),
         (width - margin * 2) / panelWidth,
-        maxPanelHeight / (fitContent ? panelHeight : 180),
+        maxPanelHeight / Math.max(fitContent ? panelHeight : 180, minContentHeight || 0),
       ),
     ),
     contentMaxHeight = maxPanelHeight / scale,

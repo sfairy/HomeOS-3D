@@ -1,25 +1,18 @@
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { lightEffectColorHex as lightEffectColorHex2 } from '../../../../bridge/light-motion'
-import {
-  clamp as clamp2,
-  localSpotShadowSettings as localSpotShadowSettings2,
-  spotLightBrightnessResponse as spotLightBrightnessResponse2,
-} from '../../../plan/geometry'
+import { clamp as clamp2, localSpotShadowSettings as localSpotShadowSettings2 } from '../../../plan/geometry'
 
-import {
-  finite as finite2,
-  kelvinToRgbHex as kelvinToRgbHex2,
-  normalizeFullRotation as normalizeFullRotation2,
-} from '../../../loaders/studio-normalization'
+import { finite as finite2 } from '../../../loaders/studio-normalization'
 
 import {
   lightPresetCatalog,
   lightIntensityFactor,
   lightAngleLimitForType,
+  lightBrightnessResponse,
   lightFluxLumens,
   renderCandelaFromFlux,
-  renderLuminanceFromFlux,
 } from '../../lights/studio-app-light-data'
+import { createStripRectAreaLight } from '../../lights/strip-light/strip-light-model'
 
 import type { StudioAppContext } from '../studio-app-context'
 export interface AddLightModelDeps {
@@ -50,9 +43,8 @@ export function addLightModel(
     resolveLightGroup,
   } = deps
 
-  const lightColorHex = isEmbeddedStage
-      ? lightEffectColorHex2(lightModelItem.lightTemperature, lightModelItem.lightColorRgb)
-      : kelvinToRgbHex2(lightModelItem.lightTemperature),
+  // 建灯与渲染循环的淡入淡出用同一个取色函数，否则开灯第一帧颜色会跳一下。
+  const lightColorHex = lightEffectColorHex2(lightModelItem.lightTemperature, lightModelItem.lightColorRgb),
     eu3 = isLampEnabled(lightModelItem) && finite2(lightModelItem.lightBrightness, 0) > 0,
     isLightPreviewEnabled =
       !appCtx.pendingRuntimeSettings && appCtx.overriddenFloorIds === null && (isEmbeddedStage || !areLightsEnabled()),
@@ -62,55 +54,21 @@ export function addLightModel(
     lightBrightnessRatio =
       clamp2(finite2(lightModelItem.lightBrightness, downlight4.brightness), 0, isEmbeddedStage ? 150 : 100) / 100,
     lightTypeIntensityFactor = (lightIntensityFactor as any)[lightModelItem.type] || 1.1,
-    isStripLight = lightModelItem.type === 'striplight',
     zl6 = resolveLightGroup(lightModelItem)
-  if (isStripLight) {
-    const lightRange = clamp2(finite2(lightModelItem.lightRange, downlight4.range), 0.5, 10),
-      lightRangeFactor = clamp2(lightRange / downlight4.range, 0.45, 1.65),
-      // 0.8.2：灯带宽度/进深各自的默认值是 2 / 0.28 米，且统一夹在 [0.1, 8]。
-      // 此前宽度默认写成了 1m（灯带只有一半宽）且没有上限，超宽灯带会打出一整片光。
-      stripWidth = clamp2(finite2(lightModelItem.width, 2), 0.1, 8) * 0.94,
-      stripDepth = clamp2(finite2(lightModelItem.depth, 0.28), 0.1, 8) * 0.94,
-      lightElevation = Math.max(finite2(lightModelItem.elevation, 2.7), 0.4),
-      lightElevationFactor = clamp2(Math.max(1, Math.pow(lightElevation / 2.7, 2)), 1, 4),
-      stripRollRotationDeg = normalizeFullRotation2(lightModelItem.stripRollRotation),
-      lightRotationGroup = new ns2.Group()
-    lightRotationGroup.rotation.z = ns2.MathUtils.degToRad(normalizeFullRotation2(lightModelItem.verticalRotation))
-    // 灯带亮度 = 光通量 / (π·发光面积)：越长越亮，宽度也会摊薄亮度 ——
-    // 原来是个和尺寸无关的常量 48，加长灯带亮度一点不变。
-    // `renderLuminanceFromFlux` 里含「渲染白点」标定，出厂尺寸下仍等于 48。
-    const lightOnIntensity =
-      renderLuminanceFromFlux('striplight', lightFluxLumens.striplight, stripWidth, stripDepth) *
-      (isEmbedStageMode ? lightBrightnessRatio : Math.pow(lightBrightnessRatio, 0.82)) *
-      lightRangeFactor *
-      lightElevationFactor *
-      lightTypeIntensityFactor
-
-    const lightRollGroup = new ns2.Group()
-    lightRollGroup.rotation.x = ns2.MathUtils.degToRad(stripRollRotationDeg)
-    const rectAreaLight = new ns2.RectAreaLight(lightColorHex, eu3 ? lightOnIntensity : 0, stripWidth, stripDepth)
-    ;(rectAreaLight.visible = eu3),
-      (rectAreaLight.position.y = -0.04),
-      (rectAreaLight.rotation.x = -Math.PI / 2),
-      (rectAreaLight.userData.lightItemId = lightModelItem.id),
-      (rectAreaLight.userData.lightGroupId = zl6?.id || ''),
-      (rectAreaLight.userData.lightFloorId = appCtx.activeFloorId),
-      (rectAreaLight.userData.lightSourceType = 'continuous-area-strip'),
-      (rectAreaLight.userData.lightOnIntensity = lightOnIntensity),
-      isEmbedStageMode &&
-        ((rectAreaLight.userData.regionFullIntensity =
-          renderLuminanceFromFlux('striplight', lightFluxLumens.striplight, stripWidth, stripDepth) *
-          lightRangeFactor *
-          lightElevationFactor *
-          lightTypeIntensityFactor),
-        appCtx.regionLightController?.register(rectAreaLight, lightModelItem)),
-      lightRollGroup.add(rectAreaLight),
-      lightRotationGroup.add(lightRollGroup)
-    lightModelParent.add(lightRotationGroup)
+  if (lightModelItem.type === 'striplight') {
+    // 位姿 / 尺寸 / 亮度都在 `strip-light-spec.ts`；发光本体在物件模型阶段另建（不进灯光缓存）。
+    const rectAreaLight = createStripRectAreaLight(lightModelItem, {
+      colorHex: lightColorHex,
+      isOn: eu3,
+      isEmbedStage: isEmbedStageMode,
+      floorId: appCtx.activeFloorId,
+      groupId: zl6?.id || '',
+    })
+    isEmbedStageMode && appCtx.regionLightController?.register(rectAreaLight, lightModelItem)
+    lightModelParent.add(rectAreaLight)
     return
   }
   const isInShadowSet = shadowLightIdSet?.has(lightModelItem.id) === true,
-    shouldCastShadow = isInShadowSet || Xr3 || isLightPreviewEnabled,
     spotLightRange = clamp2(finite2(lightModelItem.lightRange, downlight4.range), 0.5, 10),
     spotLightAngle = clamp2(
       finite2(lightModelItem.lightAngle, downlight4.angle),
@@ -128,9 +86,7 @@ export function addLightModel(
     ),
     spotLightIntensity =
       spotLightCandela *
-      (isEmbedStageMode
-        ? lightBrightnessRatio
-        : spotLightBrightnessResponse2(lightModelItem.type, lightBrightnessRatio) * Math.max(1, lightBrightnessRatio)) *
+      lightBrightnessResponse(lightModelItem.type, lightBrightnessRatio, isEmbedStageMode) *
       lightTypeIntensityFactor
   for (let spotLightIndex = 0; spotLightIndex < spotLightCount; spotLightIndex += 1) {
     const spotLightX =
@@ -145,28 +101,27 @@ export function addLightModel(
         0.86,
         2,
       )
-    if (
-      ((spotLight.visible = eu3),
+    ;(spotLight.visible = eu3),
       spotLight.position.set(spotLightX, -0.025, 0),
       (spotLight.castShadow = false),
-      spotLight.layers.enable(lampsLayerIndex),
-      shouldCastShadow)
-    ) {
-      const spotShadowSettings = localSpotShadowSettings2(lightModelItem.type, spotLightRange, spotLightAngle),
-        $y2 = clampShadowMapSize(spotShadowSettings.mapSize)
-      spotLight.shadow.mapSize.set($y2, $y2),
-        (spotLight.shadow.camera.near = clamp2(spotLightRange * 0.05, 0.12, 0.24)),
-        (spotLight.shadow.camera.far = spotLightRange),
-        spotLight.shadow.camera.layers.set(lampsLayerIndex),
-        (spotLight.shadow.bias = -0.00005),
-        (spotLight.shadow.normalBias = spotShadowSettings.normalBias),
-        (spotLight.shadow.radius = spotShadowSettings.radius),
-        (spotLight.shadow.blurSamples = appCtx.isGroundShadowEnabled
-          ? Math.max(8, spotShadowSettings.blurSamples)
-          : spotShadowSettings.blurSamples),
-        (spotLight.shadow.autoUpdate = false),
-        (spotLight.shadow.needsUpdate = isInShadowSet)
-    }
+      spotLight.layers.enable(lampsLayerIndex)
+    // 阴影相机必须对每盏灯都配好：图集会给所有候选射灯渲染阴影，不只是前 8 盏。
+    // 没配的灯 `shadow.camera.layers` 停在默认图层 0，而墙体遮挡体只挂在灯光图层上，
+    // 深度图里没有墙，整片光斑直接穿墙照进隔壁房间。
+    const spotShadowSettings = localSpotShadowSettings2(lightModelItem.type, spotLightRange, spotLightAngle),
+      $y2 = clampShadowMapSize(spotShadowSettings.mapSize)
+    spotLight.shadow.mapSize.set($y2, $y2),
+      (spotLight.shadow.camera.near = clamp2(spotLightRange * 0.05, 0.12, 0.24)),
+      (spotLight.shadow.camera.far = spotLightRange),
+      spotLight.shadow.camera.layers.set(lampsLayerIndex),
+      (spotLight.shadow.bias = -0.00005),
+      (spotLight.shadow.normalBias = spotShadowSettings.normalBias),
+      (spotLight.shadow.radius = spotShadowSettings.radius),
+      (spotLight.shadow.blurSamples = appCtx.isGroundShadowEnabled
+        ? Math.max(8, spotShadowSettings.blurSamples)
+        : spotShadowSettings.blurSamples),
+      (spotLight.shadow.autoUpdate = false),
+      (spotLight.shadow.needsUpdate = isInShadowSet)
     ;(spotLight.userData.lightItemId = lightModelItem.id),
       (spotLight.userData.lightGroupId = zl6?.id || ''),
       (spotLight.userData.lightFloorId = appCtx.activeFloorId),

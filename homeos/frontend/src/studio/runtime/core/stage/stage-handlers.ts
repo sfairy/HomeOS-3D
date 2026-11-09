@@ -65,7 +65,7 @@ export interface StageHandlersHost {
 }
 
 export function createUpdateDevicePanel(host: StageHandlersHost) {
-  return function updateDevicePanel() {
+  function renderDevicePanel() {
     host.lightPanelSection.classList.toggle('is-airer-panel', !!host.getFocusedEntry()?.airer)
     const panelItem = host.getFocusedEntry()
     if (!(panelItem?.deviceKind === 'lock')) host.lockPanel.hide()
@@ -394,6 +394,13 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
         lightPreset.button.setAttribute('aria-pressed', String(isPresetActive)),
         (lightPreset.detail.textContent = panelLightState.brightnessSupported ? lightPreset.brightness + '%' : '开启')
     }
+  }
+  // 弹窗的缩放与顶边要按内容高度摆放（不能越过舞台底边）：面板类型或内容高度变了就重算一次。
+  return function updateDevicePanel() {
+    renderDevicePanel()
+    const panelFitSignature = host.lightPanelSection.className + '|' + host.lightPanelSection.scrollHeight
+    if (host.lightPanelSection.dataset.panelFit !== panelFitSignature)
+      (host.lightPanelSection.dataset.panelFit = panelFitSignature), host.syncLayoutMetrics?.()
   }
 }
 

@@ -57,16 +57,6 @@
         </form>
     </dialog>
 
-    <dialog id="floor-delete-dialog" class="scale-dialog floor-delete-dialog">
-        <form id="floor-delete-form" method="dialog"> <button id="floor-delete-close" class="dialog-close" type="button"
-                aria-label="关闭删除楼层提示">×</button> <span class="dialog-index">DELETE FLOOR</span>
-            <h2>删除这个楼层？</h2>
-            <p>确定删除“<strong id="floor-delete-name"></strong>”吗？这一层的绘图数据不会保留，此操作无法撤销。</p>
-            <div class="dialog-actions"><button id="floor-delete-cancel" type="button">取消</button><button
-                    id="floor-delete-confirm" class="floor-delete-confirm" type="submit">删除楼层</button></div>
-        </form>
-    </dialog>
-
     <dialog id="export-preset-rename-dialog" class="scale-dialog light-group-rename-dialog">
         <form id="export-preset-rename-form" method="dialog"> <button id="export-preset-rename-close"
                 class="dialog-close" type="button" aria-label="关闭">×</button> <span class="dialog-index">EXPORT
@@ -79,47 +69,30 @@
         </form>
     </dialog>
 
-    <dialog id="export-preset-delete-dialog" class="scale-dialog floor-delete-dialog">
-        <form id="export-preset-delete-form" method="dialog"> <button id="export-preset-delete-close"
-                class="dialog-close" type="button" aria-label="关闭删除存档提示">×</button> <span class="dialog-index">DELETE
-                PRESET</span>
-            <h2>删除这个导出存档？</h2>
-            <p>确定删除“<strong id="export-preset-delete-name"></strong>”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。</p>
-            <div class="dialog-actions"><button id="export-preset-delete-cancel" type="button">取消</button><button
-                    id="export-preset-delete-confirm" class="floor-delete-confirm" type="submit">删除存档</button></div>
-        </form>
-    </dialog>
-
-    <dialog id="drawing-light-notice-dialog" class="scale-dialog export-notice-dialog"
-        aria-labelledby="drawing-light-notice-title" @keydown.stop>
-        <form method="dialog"> <button class="dialog-close" type="submit" aria-label="关闭灯光性能提示">×</button>
-            <span class="dialog-index">LIGHTING NOTICE</span>
-            <h2 id="drawing-light-notice-title">灯光开启较多</h2>
-            <p>同时开启较多灯光可能导致卡顿，建议配置完成后关闭，需要时再开启。</p>
-            <div class="export-notice-summary"><span>当前已开启</span><strong
-                    id="drawing-light-notice-count"></strong></div>
-            <div class="dialog-actions"><button class="primary-action" type="submit" autofocus>知道了</button></div>
-        </form>
-    </dialog>
-
     <dialog id="studio-exit-dialog" class="scale-dialog export-notice-dialog studio-exit-dialog"
         aria-labelledby="studio-exit-title">
-        <form method="dialog"> <span class="dialog-index">SAVE BEFORE LEAVING</span>
-            <h2 id="studio-exit-title">退出户型绘制？</h2>
+        <form method="dialog">
+            <span class="dialog-index">SAVE BEFORE LEAVING</span>
+            <h2 id="studio-exit-title" class="hos-modal-title">退出户型绘制？</h2>
             <p id="studio-exit-message" role="status"></p>
-            <div class="dialog-actions"><button id="studio-exit-discard" type="button">不保存并退出</button><button
-                    id="studio-exit-continue" type="button" autofocus>继续编辑</button><button id="studio-exit-save"
-                    class="primary-action" type="button">保存并退出</button></div>
+            <div class="dialog-actions hos-modal-footer">
+                <button id="studio-exit-discard" type="button">不保存并退出</button>
+                <button id="studio-exit-continue" type="button" autofocus>继续编辑</button>
+                <button id="studio-exit-save" class="primary-action" type="button">保存并退出</button>
+            </div>
         </form>
     </dialog>
 
     <dialog id="save-conflict-dialog" class="scale-dialog export-notice-dialog save-conflict-dialog">
-        <form method="dialog"> <span class="dialog-index">SAVE CONFLICT</span>
-            <h2>其他页面已经修改了户型</h2>
+        <form method="dialog">
+            <span class="dialog-index">SAVE CONFLICT</span>
+            <h2 class="hos-modal-title">其他页面已经修改了户型</h2>
             <p>为避免覆盖另一处修改，自动保存已暂停。请选择加载服务器版本，或明确使用当前页面覆盖。</p>
             <div class="export-notice-summary"><span>当前页面内容</span><strong>仍保留，尚未丢失</strong></div>
-            <div class="dialog-actions"><button id="save-conflict-load" type="button">加载服务器版本</button><button
-                    id="save-conflict-overwrite" class="primary-action" type="button">使用当前页面覆盖</button></div>
+            <div class="dialog-actions hos-modal-footer">
+                <button id="save-conflict-load" type="button">加载服务器版本</button>
+                <button id="save-conflict-overwrite" class="primary-action" type="button">使用当前页面覆盖</button>
+            </div>
         </form>
     </dialog>
 
@@ -165,25 +138,30 @@
     </dialog>
 
     <dialog id="export-overwrite-dialog" class="scale-dialog export-notice-dialog">
-        <form method="dialog"> <button id="export-overwrite-close" class="dialog-close" type="button"
-                aria-label="关闭同名导图提示">×</button> <span class="dialog-index">EXPORT EXISTS</span>
-            <h2>同名导图已经存在</h2>
+        <form method="dialog">
+            <button id="export-overwrite-close" class="dialog-close" type="button" aria-label="关闭同名导图提示">×</button>
+            <span class="dialog-index">EXPORT EXISTS</span>
+            <h2 class="hos-modal-title">同名导图已经存在</h2>
             <p>导图“<strong id="export-overwrite-name"></strong>”已经保存在 NAS 中。覆盖会整体替换原文件夹，原来存在但本次未勾选的文件也会删除。</p>
             <div class="export-notice-summary"><span>已有仪表盘引用</span><strong>同名图片将自动更新</strong></div>
-            <div class="dialog-actions"><button id="export-overwrite-cancel" type="button">取消</button><button
-                    id="export-overwrite-rename" type="button">修改名称</button><button id="export-overwrite-confirm"
-                    class="primary-action" type="button">覆盖更新</button></div>
+            <div class="dialog-actions hos-modal-footer">
+                <button id="export-overwrite-cancel" type="button">取消</button>
+                <button id="export-overwrite-rename" type="button">修改名称</button>
+                <button id="export-overwrite-confirm" class="primary-action" type="button">覆盖更新</button>
+            </div>
         </form>
     </dialog>
 
     <dialog id="export-complete-dialog" class="scale-dialog export-notice-dialog export-complete-dialog">
-        <form method="dialog"> <button id="export-complete-close" class="dialog-close" type="button"
-                aria-label="关闭导图完成提示">×</button> <span class="dialog-index">EXPORT COMPLETE</span>
-            <h2 id="export-complete-title">导图保存完成</h2>
+        <form method="dialog">
+            <button id="export-complete-close" class="dialog-close" type="button" aria-label="关闭导图完成提示">×</button>
+            <span class="dialog-index">EXPORT COMPLETE</span>
+            <h2 id="export-complete-title" class="hos-modal-title">导图保存完成</h2>
             <p id="export-complete-message">导出的图片和数据已经保存到 NAS。</p>
             <div class="export-notice-summary"><span>保存位置</span><strong id="export-complete-path"></strong></div>
-            <div class="dialog-actions"><button id="export-complete-confirm" class="primary-action"
-                    type="button">完成</button></div>
+            <div class="dialog-actions hos-modal-footer">
+                <button id="export-complete-confirm" class="primary-action" type="button">完成</button>
+            </div>
         </form>
     </dialog>
 

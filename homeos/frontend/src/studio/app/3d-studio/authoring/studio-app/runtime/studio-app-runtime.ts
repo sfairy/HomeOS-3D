@@ -154,8 +154,6 @@ export interface StudioAppRuntime {
   readonly drawGuideSegment: any
   readonly drawLabelText: any
   readonly drawPointMarker: any
-  readonly drawingLightNoticeCountElement: any
-  readonly drawingLightNoticeDialogElement: any
   readonly drawingToolSections: any
   readonly effectCache: any
   readonly emitRuntimeDiagnostic: any
@@ -185,8 +183,6 @@ export interface StudioAppRuntime {
   readonly exportPackageButton: any
   readonly exportPresetAddButton: any
   readonly exportPresetDeleteButton: any
-  readonly exportPresetDeleteDialogElement: any
-  readonly exportPresetDeleteNameElement: any
   readonly exportPresetEmptyStateElement: any
   readonly exportPresetEmptyTitleElement: any
   readonly exportPresetRenameButton: any
@@ -216,8 +212,6 @@ export interface StudioAppRuntime {
   readonly fixedOverviewViewButton: any
   readonly floorActionMenuElement: any
   readonly floorCameraActionsElement: any
-  readonly floorDeleteDialogElement: any
-  readonly floorDeleteNameElement: any
   readonly floorElevationFor: any
   readonly floorGroupCacheByKey: any
   readonly floorListElement: any

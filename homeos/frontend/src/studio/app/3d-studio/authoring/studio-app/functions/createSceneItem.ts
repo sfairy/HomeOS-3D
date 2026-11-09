@@ -5,6 +5,7 @@ import { anchorGate as anchorGate2, syncCourtyardGates as syncCourtyardGates2 } 
 import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '../../../loaders/studio-curtain-track'
 
 import { DEFAULT_STRIP_AXIS as DEFAULT_STRIP_AXIS2 } from '../../items/studio-item-posture'
+import { DEFAULT_STRIP_MOUNT, defaultStripElevation } from '../../lights/strip-light/strip-light-spec'
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet } from '../../items/item-catalog'
 import { snapExhaustFan } from '../../items/studio-exhaust-fan'
 
@@ -173,9 +174,11 @@ export function createSceneItem(
             verticalRotation: 0,
             ...(sceneItemType === 'striplight'
               ? {
+                  stripMount: DEFAULT_STRIP_MOUNT,
                   stripAxis: DEFAULT_STRIP_AXIS2,
                   stripRollRotation: 0,
                   lightSourceVisible: true,
+                  elevation: defaultStripElevation(appCtx.studioState.settings?.wallHeight),
                 }
               : {}),
             // 色温先按灯组名分档（卧室 2700 / 客厅餐厅 3000 / 厨卫书房 4000）：

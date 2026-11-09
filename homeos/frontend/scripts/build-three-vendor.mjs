@@ -26,6 +26,8 @@
  *     GLTFLoader.js              ← examples/jsm/loaders/GLTFLoader.js
  *     DRACOLoader.js             ← examples/jsm/loaders/DRACOLoader.js
  *     GLTFExporter.js            ← examples/jsm/exporters/GLTFExporter.js
+ *     RectAreaLightTexturesLib.js ← examples/jsm/lights/RectAreaLightTexturesLib.js
+ *     RectAreaLightUniformsLib.js ← examples/jsm/lights/RectAreaLightUniformsLib.js
  *     LICENSE                    ← node_modules/three/LICENSE
  *     draco/{LICENSE,draco_decoder.js,draco_decoder.wasm,draco_wasm_wrapper.js}
  *
@@ -84,6 +86,9 @@ const ADDONS = [
   ['GLTFLoader.js', 'loaders/GLTFLoader.js'],
   ['DRACOLoader.js', 'loaders/DRACOLoader.js'],
   ['GLTFExporter.js', 'exporters/GLTFExporter.js'],
+  // 面光（灯带）的 LTC 查找表；UniformsLib 依赖同目录的 TexturesLib。
+  ['RectAreaLightTexturesLib.js', 'lights/RectAreaLightTexturesLib.js'],
+  ['RectAreaLightUniformsLib.js', 'lights/RectAreaLightUniformsLib.js'],
 ]
 
 function fail(message) {

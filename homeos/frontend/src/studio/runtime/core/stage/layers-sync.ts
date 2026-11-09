@@ -314,7 +314,7 @@ export function syncLayoutMetricsCore(deps: StageLayersSyncDeps) {
     floorTabsHeight = deps.floorTabsElement.offsetHeight || 120,
     toolbarHeight = deps.toolbarElement.offsetHeight || 30,
     lightPanelWidth = deps.lightPanelSection.offsetWidth || 360,
-    lightPanelHeight = deps.lightPanelSection.offsetHeight || 400,
+    lightPanelHeight = deps.lightPanelSection.scrollHeight || 400,
     speakerPanelReservedHeight = deps.speakerPanel.root.hidden
       ? lightPanelHeight
       : lightPanelHeight +
@@ -404,6 +404,9 @@ export function syncLayoutMetricsCore(deps: StageLayersSyncDeps) {
     defaultTop: popupDefaultTop,
     defaultScale: 2,
     settings: deps.options.popupLayout?.general,
+    minContentHeight: deps.lightPanelSection.classList.contains('has-light-controls')
+      ? deps.lightPanelSection.scrollHeight
+      : 0,
   })
   deps.lightPanelSection.style.setProperty('--i3d-control-top', us2.top + 'px'),
     deps.lightPanelSection.style.setProperty('--i3d-control-scale', String(us2.scale)),

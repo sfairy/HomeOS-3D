@@ -1,4 +1,5 @@
 import { fillRegionGrid, REGION_GRID_SIZE } from './studio-region-grid'
+import { createRegionWallVisibility } from './studio-region-wall-visibility'
 import {
   PLAIN_BASE_LEVEL,
   REGION_KINDS,
@@ -43,6 +44,21 @@ type SurfaceMaterialLike = {
   transmission?: number
 }
 
+/**
+ * 区域的长轴（世界 xz 单位向量）与沿长轴的半长。灯光局部 +X 是长度方向；
+ * 竖装灯带的长度轴竖直，改沿出光方向（局部 -Z）摆，也不按长度拉成长条。
+ */
+function regionAxisFromMatrix(elements: ArrayLike<number>, halfWidth: number, halfDepth: number) {
+  const alongFloor = Math.hypot(elements[0], elements[2]) > 0.3,
+    axisX = alongFloor ? elements[0] : -elements[8],
+    axisZ = alongFloor ? elements[2] : -elements[10],
+    axisLength = Math.hypot(axisX, axisZ),
+    halfLength = alongFloor ? halfWidth : halfDepth
+  return axisLength > 0.00001
+    ? { x: axisX / axisLength, z: axisZ / axisLength, halfLength }
+    : { x: 1, z: 0, halfLength }
+}
+
 export function createRegionLightController({
   THREE: THREE,
   renderer: renderer,
@@ -62,7 +78,8 @@ export function createRegionLightController({
     lightWorldPosition = new THREE.Vector3(),
     floorRootPosition = new THREE.Vector3(),
     sampleWorldPoint = new THREE.Vector3(),
-    lightWorldMatrix = new THREE.Matrix4()
+    lightWorldMatrix = new THREE.Matrix4(),
+    wallVisibility = createRegionWallVisibility(THREE, renderer)
   let motionTransformProvider: any = null
   const viewToWorldUniform = {
       value: new THREE.Matrix4(),
@@ -165,21 +182,12 @@ export function createRegionLightController({
         slots: [] as any[],
         materials: new Set(),
         uniforms: {
-          plan2LightCount: {
-            value: lightCount,
-          },
-          plan2Grid: {
-            value: null as any,
-          },
-          plan2GridBounds: {
-            value: new THREE.Vector4(),
-          },
-          plan2GridEnabled: {
-            value: false,
-          },
-          plan2Gain: {
-            value: 1,
-          },
+          plan2LightCount: { value: lightCount },
+          plan2Grid: { value: null as any },
+          plan2GridBounds: { value: new THREE.Vector4() },
+          plan2GridEnabled: { value: false },
+          plan2Visibility: wallVisibility.uniform(groupFloorId),
+          plan2Gain: { value: 1 },
           plan2ShadowPresentation: shadowPresentationUniform,
           plan2AlbedoLift: albedoLiftUniform,
           plan2ContactContrast: contactContrastUniform,
@@ -218,6 +226,7 @@ export function createRegionLightController({
       lightGroup.capacity = capacity
       const maxFragmentUniforms = coercedFiniteNumberOr(renderer?.capabilities?.maxFragmentUniforms, 1024)
       ;(lightGroup.textureMode = capacity * 4 + 128 > maxFragmentUniforms),
+        (lightGroup.visibilitySupported = wallVisibility.resize(groupFloorId, capacity)),
         lightGroup.texture?.dispose(),
         (lightGroup.texture = null),
         lightGroup.grid?.dispose(),
@@ -461,6 +470,7 @@ export function createRegionLightController({
         Number(materialGroup.textureMode) +
         '|' +
         Number(materialGroup.gridSupported) +
+        Number(!!materialGroup.visibilitySupported) * 2 +
         '|' +
         !!contactShadows),
         (cloneMaterial.userData.plan2RegionMaterial = true),
@@ -472,7 +482,7 @@ export function createRegionLightController({
     return (resultMaterials.add(cloneMaterial), cloneMaterial)
   }
   function rebuildStructure() {
-    stats.structureScans += 1
+    ;(stats.structureScans += 1), wallVisibility.resetOccluders()
     const currentNodeSet = new Set<EventTargetNodeLike>(),
       meshNodes: any = [],
       registeredLightSet = new Set()
@@ -532,6 +542,7 @@ export function createRegionLightController({
         registrationsByFloorId.set(meshFloorId, [])
         for (const emptyKindName of REGION_KINDS) ensureLightGroup(meshFloorId, emptyKindName, 0)
       }
+      wallVisibility.addOccluder(mesh, meshFloorId)
       const receiverKind = classifyReceiverKind(mesh),
         material = mesh.material,
         shouldPreserveDetailed = findAncestorField(mesh, 'preserveDetailedSurface') === true,
@@ -758,9 +769,9 @@ export function createRegionLightController({
           halfWidth = Math.max(0.05, coercedFiniteNumberOr(lightItem.width, light.width || 2) / 2),
           halfDepth = Math.max(0.025, coercedFiniteNumberOr(lightItem.depth, light.height || 0.2) / 2),
           matrixElements = lightWorldMatrix.elements,
-          horizontalDistance = Math.hypot(matrixElements[0], matrixElements[2]),
-          directionX = horizontalDistance > 0.00001 ? matrixElements[0] / horizontalDistance : 1,
-          directionZ = horizontalDistance > 0.00001 ? matrixElements[2] / horizontalDistance : 0,
+          regionAxis = regionAxisFromMatrix(matrixElements, halfWidth, halfDepth),
+          directionX = regionAxis.x,
+          directionZ = regionAxis.z,
           lightOverride = overrides[floorEntry.key],
           rotationRad = ((lightOverride?.rotation || 0) * Math.PI) / 180,
           rotatedDirectionX = rotationRad
@@ -782,7 +793,7 @@ export function createRegionLightController({
             },
           }),
           regionDefaults = region.defaults
-        ;(regionDefaults.width = 2 * (isStripLight ? halfWidth + baseRadius : baseRadius)),
+        ;(regionDefaults.width = 2 * (isStripLight ? regionAxis.halfLength + baseRadius : baseRadius)),
           (regionDefaults.depth = 2 * baseRadius),
           (regionDefaults.shape = isStripLight ? 'strip' : 'ellipse'),
           (regionDefaults.axis[0] = directionX),
@@ -819,6 +830,14 @@ export function createRegionLightController({
           (region.heightMax =
             lightOverride?.heightMax ??
             (lightOverride?.heightAbove === undefined ? undefined : region.lampHeight + lightOverride.heightAbove))
+        const visibilityHalf = wallVisibility.update(
+          loopFloorId,
+          slotIndex,
+          region,
+          motionMatrix,
+          isStripLight,
+          regionAxis.halfLength,
+        )
         for (const loopLightGroup of loopGroups) {
           const loopSlot = loopLightGroup.slots[slotIndex],
             loopKind = loopLightGroup.kind
@@ -855,7 +874,7 @@ export function createRegionLightController({
           const slotHalfWidth = lightOverride
               ? lightOverride.width / 2
               : isStripLight
-                ? halfWidth
+                ? regionAxis.halfLength
                 : defaultRadius + edgeFade,
             slotHalfDepth = lightOverride
               ? lightOverride.depth / 2
@@ -873,7 +892,8 @@ export function createRegionLightController({
             setVector4IfChanged(loopSlot.extent, slotHalfWidth, (topY - bottomY) / 2, slotHalfDepth, edgeFade) ||
             slotChanged),
             (slotChanged =
-              setVector4IfChanged(loopSlot.color, light.color.r, light.color.g, light.color.b, 0) || slotChanged)
+              setVector4IfChanged(loopSlot.color, light.color.r, light.color.g, light.color.b, visibilityHalf) ||
+              slotChanged)
           const cornerFade = clamp((2 * Math.min(slotHalfWidth, slotHalfDepth) - 4) / 4, 0, 1),
             effectiveSoftness = (lightOverride?.softness ?? 1) * (1 - 0.3 * cornerFade)
           if (
@@ -1031,6 +1051,7 @@ export function createRegionLightController({
         clonesByMaterial.clear(),
         registrationsByLight.clear(),
         groupsByKey.clear(),
+        wallVisibility.dispose(),
         retainedRootSet.clear(),
         typeof window < 'u' && window.__plan2Region === controller && delete window.__plan2Region
     }

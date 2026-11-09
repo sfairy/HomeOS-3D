@@ -4,9 +4,7 @@ export function bindExportDialogWiring(deps: Record<string, any>): void {
   const {
     appCtx,
     closeExportCompleteDialog,
-    closePresetDeleteDialog,
     closePresetRenameDialog,
-    confirmDeletePreset,
     exportDialogElement,
     exportFloorSelectElement,
     exportHeightInput,
@@ -14,8 +12,6 @@ export function bindExportDialogWiring(deps: Record<string, any>): void {
     exportPackageButton,
     exportPresetAddButton,
     exportPresetDeleteButton,
-    exportPresetDeleteDialogElement,
-    exportPresetDeleteFormElement,
     exportPresetRenameButton,
     exportPresetRenameDialogElement,
     exportPresetRenameFormElement,
@@ -77,14 +73,7 @@ export function bindExportDialogWiring(deps: Record<string, any>): void {
         markDocumentDirty(),
         hf3 !== ja7 && showToast('已重命名为“' + hf3 + '”。', 'success')
     }),
-    selectElement('#export-preset-delete-close').addEventListener('click', closePresetDeleteDialog),
-    selectElement('#export-preset-delete-cancel').addEventListener('click', closePresetDeleteDialog),
-    exportPresetDeleteDialogElement.addEventListener('cancel', (presetDeleteDialogCancelEvent: any) => {
-      presetDeleteDialogCancelEvent.preventDefault(), closePresetDeleteDialog()
-    }),
-    exportPresetDeleteFormElement.addEventListener('submit', (exportDeleteSubmitEvent: any) => {
-      exportDeleteSubmitEvent.preventDefault(), confirmDeletePreset()
-    }),
+    /* 导出存档删除已迁 shellConfirm（openPresetDeleteDialog 内确认） */
     exportDialogElement.addEventListener('input', (exportDialogInputEvent: any) => {
       exportDialogInputEvent.target?.closest?.('#export-preset-slots') || syncExportControls()
     }),

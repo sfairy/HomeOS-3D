@@ -1,4 +1,6 @@
 import { normalizeGroundReflection as normalizeGroundReflection } from './reflection-settings'
+import { shellConfirm } from '@/studio/platform/shell-chrome'
+
 export function performanceWarnings(currentProperties: any, nextProperties: any) {
   const warningMessages: any[] = []
   if (
@@ -31,63 +33,20 @@ export function performanceWarnings(currentProperties: any, nextProperties: any)
   }
   return warningMessages
 }
-export function confirmPerformanceWarning(
+
+export async function confirmPerformanceWarning(
   warningLines: string[],
-  { document: contentDocument = document, signal: abortSignal }: { document?: Document; signal?: AbortSignal } = {},
+  { signal: abortSignal }: { document?: Document; signal?: AbortSignal } = {},
 ) {
-  return warningLines.length
-    ? abortSignal?.aborted
-      ? Promise.resolve(false)
-      : new Promise((resolve) => {
-          const dialogElement = contentDocument.createElement('dialog')
-          ;(dialogElement.className = 'settings-dialog i3d-performance-dialog'),
-            dialogElement.setAttribute('aria-labelledby', 'i3d-performance-title'),
-            dialogElement.setAttribute('aria-describedby', 'i3d-performance-description')
-          const titleElement = contentDocument.createElement('h2')
-          ;(titleElement.id = 'i3d-performance-title'), (titleElement.textContent = '画质与流畅度提示')
-          const descriptionElement = contentDocument.createElement('div')
-          descriptionElement.id = 'i3d-performance-description'
-          for (const warningText of warningLines) {
-            const paragraphElement = contentDocument.createElement('p')
-            ;(paragraphElement.textContent = warningText), descriptionElement.append(paragraphElement)
-          }
-          const noteElement = contentDocument.createElement('p')
-          ;(noteElement.className = 'i3d-performance-note'),
-            (noteElement.textContent =
-              '手机、iPad 或性能较低的设备可能出现掉帧、发热或耗电增加。如果不够流畅，可以降低画质或关闭反射。'),
-            descriptionElement.append(noteElement)
-          const actionsElement = contentDocument.createElement('div')
-          actionsElement.className = 'dialog-actions'
-          const cancelButton = contentDocument.createElement('button'),
-            confirmButton = contentDocument.createElement('button')
-          ;(cancelButton.type = confirmButton.type = 'button'),
-            (cancelButton.textContent = '取消'),
-            (confirmButton.textContent = '继续应用'),
-            (confirmButton.className = 'primary'),
-            actionsElement.append(cancelButton, confirmButton),
-            dialogElement.append(titleElement, descriptionElement, actionsElement)
-          let isSettled = false
-          const handleDecision = (shouldApply: any) => {
-              isSettled ||
-                ((isSettled = true),
-                abortSignal?.removeEventListener('abort', handleCancel),
-                dialogElement.close(),
-                dialogElement.remove(),
-                resolve(shouldApply))
-            },
-            handleCancel = () => handleDecision(false)
-          cancelButton.addEventListener('click', handleCancel),
-            confirmButton.addEventListener('click', () => handleDecision(true)),
-            dialogElement.addEventListener('cancel', (cancelEvent) => {
-              cancelEvent.preventDefault(), handleDecision(false)
-            }),
-            dialogElement.addEventListener('close', () => handleDecision(false)),
-            abortSignal?.addEventListener('abort', handleCancel, {
-              once: true,
-            }),
-            contentDocument.body.append(dialogElement),
-            dialogElement.showModal(),
-            cancelButton.focus()
-        })
-    : Promise.resolve(true)
+  if (!warningLines.length) return true
+  if (abortSignal?.aborted) return false
+  const confirmed = await shellConfirm({
+    title: '画质与流畅度提示',
+    message:
+      warningLines.join('\n') +
+      '\n\n手机、iPad 或性能较低的设备可能出现掉帧、发热或耗电增加。如果不够流畅，可以降低画质或关闭反射。',
+    confirmLabel: '继续应用',
+    cancelLabel: '取消',
+  })
+  return !abortSignal?.aborted && confirmed
 }

@@ -24,6 +24,7 @@ import { STORAGE_SECTION_TYPES, storageSectionModelType } from '../../../items/s
 import { composeKey, composeItemKey } from '../../../ui/studio-app-helpers'
 import { normalizeMaterialSurfaceOverrides } from '../../../scene/studio-scene-payload'
 import { createFloorRecord, normalizeStudioDocument } from '../../../scene/studio-document-payload'
+import { shellConfirm } from '@/studio/platform/shell-chrome'
 
 export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth: any, descriptorHeight: any) {
   const floors =
@@ -493,27 +494,39 @@ export function showFloorActionMenu(runtime: StudioAppRuntime, floorRow: any, me
     (runtime.floorActionMenuElement.style.top = Math.min(menuOpenEvent.clientY, window.innerHeight - 118) + 'px')
 }
 
-export function floorActionHandler(runtime: StudioAppRuntime, floorToDelete: any) {
-  !floorToDelete ||
-    runtime.appCtx.studioProject.floors.length <= 1 ||
-    ((runtime.appCtx.pendingFloorDeleteId = floorToDelete.id),
-    (runtime.floorDeleteNameElement.textContent = floorToDelete.name),
-    runtime.floorDeleteDialogElement.showModal())
+export async function floorActionHandler(runtime: StudioAppRuntime, floorToDelete: any) {
+  if (!floorToDelete || runtime.appCtx.studioProject.floors.length <= 1) return
+  const confirmed = await shellConfirm({
+    title: '删除这个楼层？',
+    message:
+      '确定删除“' +
+      floorToDelete.name +
+      '”吗？这一层的绘图数据不会保留，此操作无法撤销。',
+    confirmLabel: '删除楼层',
+    cancelLabel: '取消',
+    tone: 'danger',
+  })
+  if (!confirmed) return
+  await confirmFloorDelete(runtime, floorToDelete)
 }
 
+/** @deprecated 弹窗已迁 shellConfirm；保留空实现避免 boot 旧 wiring 崩。 */
 export function closeFloorDeleteDialog(runtime: StudioAppRuntime) {
-  ;(runtime.appCtx.pendingFloorDeleteId = ''),
-    runtime.floorDeleteDialogElement.open && runtime.floorDeleteDialogElement.close()
+  runtime.appCtx.pendingFloorDeleteId = ''
 }
 
-export async function confirmFloorDelete(runtime: StudioAppRuntime) {
-  const deletedFloor = runtime.appCtx.studioProject.floors.find(
-    (floorEntryMatch: any) => floorEntryMatch.id === runtime.appCtx.pendingFloorDeleteId,
-  )
-  if ((runtime.closeFloorDeleteDialog(), !deletedFloor || runtime.appCtx.studioProject.floors.length <= 1)) return
+export async function confirmFloorDelete(runtime: StudioAppRuntime, floorToDelete?: any) {
+  const deletedFloor =
+    floorToDelete ||
+    runtime.appCtx.studioProject.floors.find(
+      (floorEntryMatch: any) => floorEntryMatch.id === runtime.appCtx.pendingFloorDeleteId,
+    )
+  runtime.appCtx.pendingFloorDeleteId = ''
+  if (!deletedFloor || runtime.appCtx.studioProject.floors.length <= 1) return
   const deletedFloorIndex = runtime.appCtx.studioProject.floors.findIndex(
     (floorIndexMatch: any) => floorIndexMatch.id === deletedFloor.id,
   )
+  if (deletedFloorIndex < 0) return
   runtime.appCtx.studioProject.floors.splice(deletedFloorIndex, 1),
     runtime.appCtx.studioProject.floors.forEach((elevationFloor: any, floorOrderIndex: any) => {
       elevationFloor.elevation = floorOrderIndex * runtime.appCtx.studioProject.defaultFloorHeight

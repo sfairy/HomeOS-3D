@@ -57,6 +57,9 @@
         "./src/studio/shims/vendor-three-addons.ts"
       ],
       "/static/vendor/three/0.187.0/DRACOLoader.js": ["./src/studio/shims/draco-loader.ts"],
+      "/static/vendor/three/0.187.0/RectAreaLightUniformsLib.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
       "/static/vendor/qrcode-generator/qrcode.js": ["./src/studio/shims/qrcode.ts"],
       "/static/vendor/meshoptimizer/0.25/meshopt_simplifier.module.js": [
         "./src/studio/shims/meshopt.ts"

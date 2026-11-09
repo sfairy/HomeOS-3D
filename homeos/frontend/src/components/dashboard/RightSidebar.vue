@@ -18,8 +18,8 @@
       @click="toggleCollapse"
       :title="collapsed ? '展开面板' : '折叠面板'"
     >
-      <!-- 右停靠：展开时 ◁ 指向左=折叠方向 -->
-      <!-- 左停靠：展开时 ▷ 指向右=折叠方向 -->
+      <!-- 右停靠：展开时 ▷ 指向右=折叠方向 -->
+      <!-- 左停靠：展开时 ◁ 指向左=折叠方向 -->
       <ChevronLeft v-if="collapseIcon === 'left'" class="w-3.5 h-3.5" />
       <ChevronRight v-else class="w-3.5 h-3.5" />
     </button>
@@ -176,8 +176,8 @@ const isLeft = computed(() => props.panelPosition === 'left')
 
 /**
  * 折叠按钮图标方向：
- * 右停靠：展开 → ◁(left=折叠方向) | 折叠 → ▷(right=展开方向)
- * 左停靠：展开 → ▷(right=折叠方向) | 折叠 → ◁(left=展开方向)
+ * 右停靠：展开 → ▷(right=折叠方向) | 折叠 → ◁(left=展开方向)
+ * 左停靠：展开 → ◁(left=折叠方向) | 折叠 → ▷(right=展开方向)
  *
  * 规则：isLeft ^ collapsed → show left arrow
  */

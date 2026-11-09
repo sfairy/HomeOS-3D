@@ -8,6 +8,7 @@ import { finite as finite2 } from '../../../../loaders/studio-normalization'
 import type { SceneRefreshOptions } from '../../../types/studio-app-types'
 import { composeItemKey } from '../../../ui/studio-app-helpers'
 import { applyItemOrientation } from '../../scene/item-orientation'
+import { applyLightOnState } from '../../../lights/strip-light/strip-light-model'
 
 export function updateRenderStatsHud(runtime: StudioAppRuntime) {
   if (!runtime.isRenderStatsTest || !runtime.appCtx.threeRenderer) return
@@ -699,7 +700,7 @@ export function showLightCacheFor(runtime: StudioAppRuntime, cacheMapSource: any
     const isCacheEntryActive = cacheEntryKey === activeCacheKey
     for (const cacheTargetLight of cacheLightObjects)
       (cacheTargetLight.visible = isCacheEntryActive),
-        (cacheTargetLight.intensity = isCacheEntryActive ? finite2(cacheTargetLight.userData?.lightOnIntensity, 0) : 0),
+        applyLightOnState(cacheTargetLight, isCacheEntryActive),
         cacheTargetLight.isSpotLight &&
           ((cacheTargetLight.castShadow = isCacheEntryActive),
           isCacheEntryActive &&
@@ -730,9 +731,7 @@ export function showCachedLights(runtime: StudioAppRuntime, cacheMapForDisplay: 
     const isDisplayEntryActive = sv2.has(displayCacheKey)
     for (const displayLightObject of displayLightObjects)
       (displayLightObject.visible = isDisplayEntryActive),
-        (displayLightObject.intensity = isDisplayEntryActive
-          ? finite2(displayLightObject.userData?.lightOnIntensity, 0)
-          : 0),
+        applyLightOnState(displayLightObject, isDisplayEntryActive),
         displayLightObject.isSpotLight && (displayLightObject.castShadow = false)
   }
   runtime.isEmbeddedStage ||

@@ -15,14 +15,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     componentTemplateListElement,
     coverMotorButtonElement,
     createComponentFromTemplate2,
-    deleteAssetCancelButtonElement,
-    deleteAssetCloseButtonElement,
-    deleteAssetConfirmButtonElement,
-    deleteAssetDialogElement,
-    deleteAssetFolderCancelButtonElement,
-    deleteAssetFolderCloseButtonElement,
-    deleteAssetFolderConfirmButtonElement,
-    deleteAssetFolderDialogElement,
     discardRecoverySnapshot,
     documentSource,
     editorCtx,
@@ -64,7 +56,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     recoveryRestoreElement,
     setRecoverySaveAttempts,
     redoElement,
-    refreshAssetPickers,
     refreshComponentDialogScale,
     reloadAssetCatalog,
     renderComponentLists,
@@ -72,7 +63,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     renderEditorWorkspace,
     renderEffectAssetOptions,
     renderImageAssetOptions,
-    requestJson,
     saveDraft,
     scheduleAssetPreview,
     selectComponent,
@@ -94,68 +84,8 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     value,
     writeError,
   } = deps
-  deleteAssetCloseButtonElement.addEventListener('click', () => deleteAssetDialogElement.close()),
-    deleteAssetCancelButtonElement.addEventListener('click', () => deleteAssetDialogElement.close()),
-    deleteAssetDialogElement.addEventListener('click', (popupModuleDraftEntry: any) => {
-      popupModuleDraftEntry.target === deleteAssetDialogElement && deleteAssetDialogElement.close()
-    }),
-    deleteAssetConfirmButtonElement.addEventListener('click', async () => {
-      const replace5 = String(editorCtx.pendingDeleteAssetId || '').replace(/^user:/, '')
-      if (/^[0-9a-f]{32}$/.test(replace5)) {
-        deleteAssetConfirmButtonElement.disabled = true
-        try {
-          await requestJson('/assets/user/' + replace5, {
-            method: 'DELETE',
-          }),
-            (editorCtx.pendingDeleteAssetId = null),
-            deleteAssetDialogElement.close(),
-            await reloadAssetCatalog()
-        } catch (caughtErrorIndex: any) {
-          caughtErrorIndex?.code === 'ASSET_IN_USE'
-            ? handleOperationError(new Error('这张图片仍被户型图绘制或仪表盘使用，请先移除引用后再删除。'))
-            : handleOperationError(caughtErrorIndex)
-        } finally {
-          deleteAssetConfirmButtonElement.disabled = false
-        }
-      }
-    }),
-    deleteAssetFolderCloseButtonElement.addEventListener('click', () => deleteAssetFolderDialogElement.close()),
-    deleteAssetFolderCancelButtonElement.addEventListener('click', () => deleteAssetFolderDialogElement.close()),
-    deleteAssetFolderDialogElement.addEventListener('click', (nextPopupModules: any) => {
-      nextPopupModules.target === deleteAssetFolderDialogElement && deleteAssetFolderDialogElement.close()
-    }),
-    deleteAssetFolderDialogElement.addEventListener('close', () => {
-      deleteAssetFolderConfirmButtonElement.disabled || (editorCtx.pendingDeleteAssetFolder = null)
-    }),
-    deleteAssetFolderConfirmButtonElement.addEventListener('click', async () => {
-      const Uc2 = editorCtx.pendingDeleteAssetFolder
-      if (Uc2?.folderName) {
-        deleteAssetFolderConfirmButtonElement.disabled = true
-        try {
-          await requestJson('/studio3d/exports', {
-            method: 'DELETE',
-            headers: {
-              'X-Export-Folder': encodeURIComponent(Uc2.folderName),
-            },
-          }),
-            (editorCtx.pendingDeleteAssetFolder = null),
-            deleteAssetFolderDialogElement.close(),
-            await reloadAssetCatalog({
-              refreshInspector: false,
-            }),
-            refreshAssetPickers()
-        } catch (caughtErrorTotal: any) {
-          caughtErrorTotal?.code === 'STUDIO3D_EXPORT_IN_USE'
-            ? handleOperationError(
-                new Error('这个文件夹中的图片仍被仪表盘、弹窗或户型图绘制使用，请先移除引用后再删除。'),
-              )
-            : handleOperationError(caughtErrorTotal)
-        } finally {
-          deleteAssetFolderConfirmButtonElement.disabled = false
-        }
-      }
-    }),
-    imageAssetButtonElement.addEventListener('click', async () => {
+  /* 图片 / 导图文件夹删除已迁 confirmAction（requestDeleteUserAsset / requestDeleteAssetFolder） */
+  imageAssetButtonElement.addEventListener('click', async () => {
       const hidden13 = imageAssetMenuElement.hidden
       if (
         (closeOtherPickerMenus(hidden13 ? 'asset' : null),

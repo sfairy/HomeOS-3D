@@ -27,6 +27,8 @@ import {
   patchLightsPhysicalPars,
   patchLightsFragmentBegin,
 } from './studio-lighting-shader-chunks'
+import { createStripWallVisibility } from '../lights/strip-light/strip-wall-visibility'
+import { stripLightLtcTextures } from '../lights/strip-light/strip-light-ltc'
 
 const DEFAULT_TILE_GUTTER = 1
 function toPositiveInt(input: any, fallback = 0) {
@@ -204,9 +206,7 @@ export function createSpotShadowAtlasController({
       userSpotShadowAtlas: {
         value: null as any,
       },
-      userSpotShadowAtlasEnabled: {
-        value: 0,
-      },
+      userSpotShadowAtlasEnabled: { value: 0 },
       userSpotShadowMatrix: {
         value: [] as any[],
       },
@@ -216,9 +216,7 @@ export function createSpotShadowAtlasController({
       userSpotShadowParams: {
         value: [] as any[],
       },
-      userSpotShadowData: {
-        value: null as any,
-      },
+      userSpotShadowData: { value: null as any },
       // 分层方向光的阴影数组纹理；分层路径关闭时保持 null（着色器那一段被 `#ifdef` 裁掉）。
       userFloorDirectionalMap: {
         value: null as unknown,
@@ -242,9 +240,11 @@ export function createSpotShadowAtlasController({
   #define USER_SPOT_SHADOW_BUFFER_LIMIT ${shadowParameters.capacity}
 #endif
 `,
+    stripVisibility = createStripWallVisibility(three, renderer, stripLightLtcTextures(three, renderer)),
     floorLights: FloorLightBuffer = createFloorLightBuffer({
       THREE: three,
       gl: glContext,
+      areaVisibility: stripVisibility,
     }),
     patchedLightsFragment = patchLightsFragmentBegin(three, (message) => {
       shaderPatchFailure = message
@@ -277,6 +277,9 @@ export function createSpotShadowAtlasController({
     scratchTarget: any = null,
     preparedMaterialSet = new WeakSet(),
     pendingRoot: any = null,
+    // setEnabled / 预算翻转时 pendingRoot 可能还是 null，但仍要把 HB_FLOOR_* 从材质上摘掉，
+    // 否则分层缓冲已关、着色器还在读空 UBO，灯带面光会整场消失。
+    lastPreparedRoot: any = null,
     buildTimer: ReturnType<typeof setTimeout> | number = 0,
     revision = 0,
     isBuilding = false,
@@ -497,7 +500,7 @@ export function createSpotShadowAtlasController({
     ;(materialToPrepare.defines = buildMaterialDefines(materialToPrepare)),
       (materialToPrepare.onBeforeCompile = (shader: any, rendererInstance: any) => {
         previousOnBeforeCompile?.call(materialToPrepare, shader, rendererInstance),
-          Object.assign(shader.uniforms, uniforms),
+          Object.assign(shader.uniforms, uniforms, stripVisibility.uniforms),
           (shader.vertexShader =
             sharedDefinesChunk +
             shader.vertexShader
@@ -525,7 +528,7 @@ export function createSpotShadowAtlasController({
               .replace('#include <lights_fragment_begin>', patchedLightsFragment))
       }),
       (materialToPrepare.customProgramCacheKey = () =>
-        (previousCacheKey?.() || '') + '|user-spot-shadow-atlas-v14-source-program'),
+(previousCacheKey?.() || '') + '|user-spot-shadow-atlas-v17-strip-visibility'),
       (materialToPrepare.needsUpdate = true)
   }
   const materialCloneBySource = new WeakMap(),
@@ -556,24 +559,23 @@ export function createSpotShadowAtlasController({
    * `receiveShadow` 那个 uniform，不影响是否参与光照。
    */
   function prepareRoot(root: any) {
-    isDisposed ||
-      root?.traverse((child: any) => {
-        if (!child.isMesh) return
-        ;(child.userData.externalModelSharedMaterial ||
-          child.userData.sofaSharedMaterial ||
-          child.userData.rugSharedMaterial ||
-          child.userData.architectureSharedMaterial) &&
-          (child.material = Array.isArray(child.material)
-            ? child.material.map(cloneSharedMaterial)
-            : cloneSharedMaterial(child.material))
-        const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : []
-        for (const candidateMaterial of materials) prepareMaterial(candidateMaterial)
-      })
+    if (isDisposed || !root) return
+    lastPreparedRoot = root
+    root.traverse((child: any) => {
+      if (!child.isMesh) return
+      ;(child.userData.externalModelSharedMaterial ||
+        child.userData.sofaSharedMaterial ||
+        child.userData.rugSharedMaterial ||
+        child.userData.architectureSharedMaterial) &&
+        (child.material = Array.isArray(child.material)
+          ? child.material.map(cloneSharedMaterial)
+          : cloneSharedMaterial(child.material))
+      const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : []
+      for (const candidateMaterial of materials) prepareMaterial(candidateMaterial)
+    })
   }
   function collectActiveLights(activeRoot: any) {
-    return collectShadowLights(activeRoot, {
-      includeHidden: false,
-    })
+    return collectShadowLights(activeRoot, { includeHidden: false })
   }
   function syncUniforms(syncRoot = pendingRoot) {
     if (isDisposed) return 0
@@ -604,11 +606,19 @@ export function createSpotShadowAtlasController({
         directionalShadow.sync(floorLights.enabled),
           (uniforms.userFloorDirectionalMap.value = directionalShadow.texture)
         const activeUserLightCount = floorLights.update(renderedScene, renderedCamera, entryByLightKey, sunEntries)
-        ;(renderer.domElement.dataset.activeUserLights = String(activeUserLightCount ?? 0)),
-          (renderer.domElement.dataset.spotShadowTextureUnits = '1'),
-          (renderer.domElement.dataset.shadowParameterSource = 'floor-buffer'),
-          (renderer.domElement.dataset.floorDirectionalShadow = JSON.stringify(directionalShadow.stats))
-        return
+        // update/prepare 可能因单层超容量把 enabled 翻成 false：此时 UBO 已不可用，
+        // 必须立刻摘掉材质上的 HB_FLOOR_*，否则面光只读空缓冲、场景里灯带全黑。
+        if (!floorLights.enabled) {
+          prepareRoot(renderedScene),
+            (syncedLights = null),
+            console.warn('分层灯光缓冲超容量，恢复原生灯光。')
+        } else {
+          ;(renderer.domElement.dataset.activeUserLights = String(activeUserLightCount ?? 0)),
+            (renderer.domElement.dataset.spotShadowTextureUnits = '1'),
+            (renderer.domElement.dataset.shadowParameterSource = 'floor-buffer'),
+            (renderer.domElement.dataset.floorDirectionalShadow = JSON.stringify(directionalShadow.stats))
+          return
+        }
       } catch (floorError) {
         // 分层缓冲在驱动上不可用（UBO 分配失败 / 灯光超容量）：整体退回原生灯光路径，
         // 并让所有材质重新编译一次，把 `HB_FLOOR_*` 拿掉。
@@ -1080,7 +1090,7 @@ export function createSpotShadowAtlasController({
           ;(refreshLight.castShadow = update.cast), (refreshLight.visible = update.visible)
         }
       }
-      for (const { texture: texture, entry: updatedEntry, matrix: lightMatrix } of updates) {
+      for (const { texture: texture, entry: updatedEntry, matrix: lightMatrix, lightWorld } of updates) {
         const tileDefinition = updatedEntry.tile
         textureCopy.copy(
           texture,
@@ -1088,7 +1098,8 @@ export function createSpotShadowAtlasController({
           new three.Box2(new three.Vector2(0, 0), new three.Vector2(tileDefinition.size, tileDefinition.size)),
           new three.Vector2(tileDefinition.x, tileDefinition.y),
         ),
-          updatedEntry.matrix.copy(lightMatrix)
+          updatedEntry.matrix.copy(lightMatrix),
+          updatedEntry.lightWorld?.copy(lightWorld)
       }
       updateShadowParameters()
     } finally {
@@ -1124,7 +1135,7 @@ export function createSpotShadowAtlasController({
     ;(isEnabled = nextEnabled !== false),
       floorLights.setEnabled(isEnabled && isBudgetAvailable && !isFallback && !isPatchIncompatible),
       directionalShadow.sync(floorLights.enabled),
-      prepareRoot(pendingRoot),
+      prepareRoot(pendingRoot || lastPreparedRoot),
       setAtlasEnabled(true),
       requestFrame()
   }
@@ -1142,7 +1153,7 @@ export function createSpotShadowAtlasController({
       : ((isBudgetAvailable = nextBudgetAvailable),
         floorLights.setEnabled(isEnabled && isBudgetAvailable && !isFallback && !isPatchIncompatible),
         directionalShadow.sync(floorLights.enabled),
-        prepareRoot(pendingRoot),
+        prepareRoot(pendingRoot || lastPreparedRoot),
         nextBudgetAvailable || ((revision += 1), (isDirty = false), clearTimeout(buildTimer), (buildTimer = 0)),
         setAtlasEnabled(true),
         true)
@@ -1222,8 +1233,8 @@ export function createSpotShadowAtlasController({
     floorLightsEnabled: () => floorLights.enabled,
     floorLightsAvailable: () => isBudgetAvailable && !isFallback && !isPatchIncompatible && floorLights.available,
     isFallback: () => isFallback,
-    /** 分层面光占的纹理单元数（三线性 LTC 两张）。 */
-    areaTextureUnits: () => (floorLights.capacity ? 2 : 0),
+    /** 分层面光占的纹理单元数（LTC 两张 + 灯带墙体可见性图集一张）。 */
+    areaTextureUnits: () => (floorLights.capacity ? 3 : 0),
     /** 分层方向光阴影数组纹理占的纹理单元数。 */
     directionalTextureUnits: () => (floorLights.capacity ? 1 : 0),
     refreshGeometry: refreshGeometry,

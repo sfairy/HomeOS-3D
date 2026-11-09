@@ -5,18 +5,10 @@ export {
 // 收藏模型（98 款新增 + 12 款改写）要按自己的尺寸下限摆放，不能一律套用
 // 通用的 10cm / 5cm。`collection-models.ts` 只有一条 `import type`，不会形成运行期环。
 import { COLLECTION_MODELS } from './external-models/collection-models'
+import { finite, normalizeFullRotation } from './studio-number'
+export { finite, normalizeFullRotation }
 function clamp(rawValue: any, minValue: any, maxValue: any) {
   return Math.min(maxValue, Math.max(minValue, rawValue))
-}
-export function finite(candidateValue: any, fallbackValue = 0) {
-  const numericValue = Number(candidateValue)
-  return Number.isFinite(numericValue) ? numericValue : fallbackValue
-}
-export function normalizeFullRotation(angleDeg: any, fallbackAngleDeg = 0) {
-  const normalizedAngleDeg = finite(angleDeg, fallbackAngleDeg)
-  return normalizedAngleDeg >= 0 && normalizedAngleDeg <= 360
-    ? normalizedAngleDeg
-    : ((normalizedAngleDeg % 360) + 360) % 360
 }
 /**
  * 这些「小件 / 挂墙件」按 1cm 级别下限处理。

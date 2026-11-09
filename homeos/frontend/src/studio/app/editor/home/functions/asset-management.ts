@@ -10,6 +10,7 @@ import {
 } from '../../../shared/percentage-bar-model'
 import { clone as clone2 } from '../../editor-utils'
 import { createNavigationStyleApplyOption } from '../../navigation-style-apply/target-options'
+import { confirmAction } from '../../../shared/ui-confirm'
 
 export interface AssetManagementDeps {
   editorCtx: EditorContext
@@ -60,6 +61,7 @@ export interface AssetManagementDeps {
   popupNameFormElement: any
   positionEffectAssetMenu: any
   positionImageAssetMenu: any
+  refreshAssetPickers: any
   reloadAssetCatalog: any
   removedComponent: any
   renderEffectAssetOptions: any
@@ -213,7 +215,7 @@ export async function popupModuleTypeValue(
   uploadResult.errors.length && deps.handleOperationError(new Error(uploadResult.errors.join('\n')))
 }
 
-export function requestDeleteUserAsset(deps: AssetManagementDeps, assetId: any) {
+export async function requestDeleteUserAsset(deps: AssetManagementDeps, assetId: any) {
   const sn6 = deps.findAssetById(assetId)
   if (!sn6 || sn6.source !== 'user') return
   const popupModuleSubmitEntityIdHandler = (popupModuleSubmitEntityIdState: any) =>
@@ -227,13 +229,29 @@ export function requestDeleteUserAsset(deps: AssetManagementDeps, assetId: any) 
       deps.handleOperationError(new Error('这张图片正在被当前仪表盘或弹窗使用，请先替换或移除后再删除。'))
     return
   }
-  ;(deps.editorCtx.pendingDeleteAssetId = sn6.assetId),
-    (deps.deleteAssetNameElement.textContent = '“' + sn6.name + '”'),
-    deps.runShadow(),
-    deps.deleteAssetDialogElement.showModal()
+  deps.runShadow()
+  const confirmed = await confirmAction({
+    title: '删除上传图片',
+    message: '确认删除“' + sn6.name + '”？\n正在被仪表盘或弹窗使用的图片不能删除。',
+    confirmLabel: '确认删除',
+    cancelLabel: '取消',
+    tone: 'danger',
+  })
+  if (!confirmed) return
+  const replace5 = String(sn6.assetId || '').replace(/^user:/, '')
+  if (!/^[0-9a-f]{32}$/.test(replace5)) return
+  try {
+    await deps.requestJson('/assets/user/' + replace5, { method: 'DELETE' })
+    deps.editorCtx.pendingDeleteAssetId = null
+    await deps.reloadAssetCatalog()
+  } catch (caughtErrorIndex: any) {
+    caughtErrorIndex?.code === 'ASSET_IN_USE'
+      ? deps.handleOperationError(new Error('这张图片仍被户型图绘制或仪表盘使用，请先移除引用后再删除。'))
+      : deps.handleOperationError(caughtErrorIndex)
+  }
 }
 
-export function requestDeleteAssetFolder(deps: AssetManagementDeps, assetKind: any, folderName: any) {
+export async function requestDeleteAssetFolder(deps: AssetManagementDeps, assetKind: any, folderName: any) {
   if (
     !deps.canDeleteAssetFolder(
       assetKind === 'image' ? deps.editorCtx.imageAssetFolder : deps.editorCtx.effectAssetFolder,
@@ -254,13 +272,34 @@ export function requestDeleteAssetFolder(deps: AssetManagementDeps, assetKind: a
     deps.handleOperationError(new Error('这个文件夹中的图片正在被当前仪表盘或弹窗使用，请先替换或移除后再删除。'))
     return
   }
-  ;(deps.editorCtx.pendingDeleteAssetFolder = {
-    kind: assetKind,
-    folderName: folderName,
-  }),
-    (deps.deleteAssetFolderNameElement.textContent = '“' + folderName + '”'),
-    (deps.deleteAssetFolderCountElement.textContent = String(hL2.length)),
-    deps.deleteAssetFolderDialogElement.showModal()
+  const confirmed = await confirmAction({
+    title: '删除自动导图文件夹',
+    message:
+      '确认删除“' +
+      folderName +
+      '”？\n该文件夹中的 ' +
+      hL2.length +
+      ' 张导图会一起删除，且无法恢复。正在被仪表盘或弹窗使用时不会删除。',
+    confirmLabel: '确认删除',
+    cancelLabel: '取消',
+    tone: 'danger',
+  })
+  if (!confirmed) return
+  try {
+    await deps.requestJson('/studio3d/exports', {
+      method: 'DELETE',
+      headers: { 'X-Export-Folder': encodeURIComponent(folderName) },
+    })
+    deps.editorCtx.pendingDeleteAssetFolder = null
+    await deps.reloadAssetCatalog({ refreshInspector: false })
+    deps.refreshAssetPickers()
+  } catch (caughtErrorTotal: any) {
+    caughtErrorTotal?.code === 'STUDIO3D_EXPORT_IN_USE'
+      ? deps.handleOperationError(
+          new Error('这个文件夹中的图片仍被仪表盘、弹窗或户型图绘制使用，请先移除引用后再删除。'),
+        )
+      : deps.handleOperationError(caughtErrorTotal)
+  }
 }
 
 export function refreshAssetPickers(deps: AssetManagementDeps) {
@@ -289,7 +328,8 @@ export function scaleDraftDocument(deps: AssetManagementDeps, scaledPlacement: a
 }
 
 export function cancelDeletePopupDialog(deps: AssetManagementDeps) {
-  ;(deps.editorCtx.popupModuleDraft = null), deps.deletePopupDialogElement.close()
+  deps.editorCtx.popupModuleDraft = null
+  deps.deletePopupDialogElement?.close?.()
 }
 
 export async function onSessionsRevokeOthersConfirmButtonClick(

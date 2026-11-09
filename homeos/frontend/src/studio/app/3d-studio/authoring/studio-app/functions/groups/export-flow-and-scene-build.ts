@@ -20,6 +20,7 @@ import {
 import { syncControlValue as syncControlValue2 } from '../../../ui/ui-controls'
 import { syncStudioSelect as syncStudioSelect2 } from '../../../ui/studio-widgets'
 import { finite as finite2 } from '../../../../loaders/studio-normalization'
+import { stripExportFields } from '../../../lights/strip-light/strip-light-spec'
 import type {
   ArchitectureMeshOptions,
   ExportImageOptions,
@@ -27,6 +28,7 @@ import type {
   PlanEditPreviewFlags,
 } from '../../../types/studio-app-types'
 import { collectChildMeshes } from '../../../items/studio-furniture-batching'
+import { shellConfirm } from '@/studio/platform/shell-chrome'
 import { buildMaterialSignature } from '../../../items/studio-shared-mesh-records'
 import {
   addArchitectureMesh as addArchitectureMeshCore,
@@ -104,11 +106,12 @@ export function openPresetRenameDialog(runtime: StudioAppRuntime) {
     requestAnimationFrame(() => runtime.exportPresetRenameInputElement.select()))
 }
 
+/** @deprecated 弹窗已迁 shellConfirm；保留空实现避免旧 wiring 崩。 */
 export function closePresetDeleteDialog(runtime: StudioAppRuntime) {
-  runtime.exportPresetDeleteDialogElement.open && runtime.exportPresetDeleteDialogElement.close()
+  void runtime
 }
 
-export function openPresetDeleteDialog(runtime: StudioAppRuntime) {
+export async function openPresetDeleteDialog(runtime: StudioAppRuntime) {
   if (runtime.appCtx.isInteractionLocked) return
   const deletePresetSlots = normalizeExportPresetSlots2(runtime.appCtx.studioProject?.exportPresets)
   if (deletePresetSlots.length <= 1) return
@@ -116,11 +119,18 @@ export function openPresetDeleteDialog(runtime: StudioAppRuntime) {
     runtime.appCtx.studioProject?.activeExportPresetSlot,
     deletePresetSlots.length,
   )
-  ;(runtime.exportPresetDeleteNameElement.textContent = runtime.formatPresetLabel(
-    deletePresetSlots[deleteActiveSlot],
-    deleteActiveSlot,
-  )),
-    runtime.exportPresetDeleteDialogElement.showModal()
+  const presetLabel = runtime.formatPresetLabel(deletePresetSlots[deleteActiveSlot], deleteActiveSlot)
+  const confirmed = await shellConfirm({
+    title: '删除这个导出存档？',
+    message:
+      '确定删除“' +
+      presetLabel +
+      '”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。',
+    confirmLabel: '删除存档',
+    cancelLabel: '取消',
+    tone: 'danger',
+  })
+  if (confirmed) confirmDeletePreset(runtime)
 }
 
 export function confirmDeletePreset(runtime: StudioAppRuntime) {
@@ -136,8 +146,7 @@ export function confirmDeletePreset(runtime: StudioAppRuntime) {
     (runtime.appCtx.isExportPresetDirty = false),
     updatedPresetSlots.splice(deletedSlotIndex, 1),
     (runtime.appCtx.studioProject.exportPresets = updatedPresetSlots),
-    (runtime.appCtx.studioProject.activeExportPresetSlot = Math.min(deletedSlotIndex, updatedPresetSlots.length - 1)),
-    runtime.closePresetDeleteDialog()
+    (runtime.appCtx.studioProject.activeExportPresetSlot = Math.min(deletedSlotIndex, updatedPresetSlots.length - 1))
   const du3 = runtime.applyExportPreset(runtime.appCtx.studioProject.activeExportPresetSlot, {
     silent: true,
   })
@@ -537,10 +546,8 @@ export function buildLightExportEntry(
     rotation: exportLightItem.rotation || 0,
     verticalRotation: exportLightItem.verticalRotation || 0,
     stripRollRotation: (exportLightItem.type === 'striplight' && exportLightItem.stripRollRotation) || 0,
-    size: {
-      width: exportLightItem.width,
-      depth: exportLightItem.depth,
-    },
+    size: { width: exportLightItem.width, depth: exportLightItem.depth, height: exportLightItem.height },
+    ...(exportLightItem.type === 'striplight' ? stripExportFields(exportLightItem) : {}),
     temperature: exportLightItem.lightTemperature,
     ...(exportLightItem.lightColorRgb
       ? {
@@ -659,49 +666,68 @@ export function resolveOverwriteChoice(runtime: StudioAppRuntime, overwriteChoic
     bl3?.(overwriteChoice)
 }
 
-export function showConflictDialog(_runtime: StudioAppRuntime, dialogWindowHost: any, conflictFolderName: any) {
+export async function showConflictDialog(_runtime: StudioAppRuntime, dialogWindowHost: any, conflictFolderName: any) {
+  /* 同窗（含 iframe 自身）走外壳确认；跨到 parent 文档时仍用 hos-modal 结构，避免 Pinia 弹在子帧里。 */
+  if (!dialogWindowHost || dialogWindowHost === window || dialogWindowHost.document === document) {
+    const confirmed = await shellConfirm({
+      title: '同名导图已经存在',
+      message:
+        '文件夹“' +
+        conflictFolderName +
+        '”已经存在。覆盖会整体替换原文件夹，原来存在但本次未导出的文件也会删除，已有仪表盘引用的同名图片会更新。',
+      confirmLabel: '覆盖更新',
+      cancelLabel: '不覆盖',
+      tone: 'danger',
+    })
+    return confirmed ? 'overwrite' : 'cancel'
+  }
   const document2 = dialogWindowHost.document,
     conflictDialogElement = document2.createElement('dialog')
-  return (
-    (conflictDialogElement.className = 'settings-dialog floorplan-auto-diagram-dialog'),
-    conflictDialogElement.setAttribute('aria-label', '同名导图已经存在'),
-    (conflictDialogElement.innerHTML =
-      '<div class="dialog-heading"><div><span>EXPORT EXISTS</span><h2>同名导图已经存在</h2></div></div>\n    <div class="floorplan-auto-diagram-guide">\n      <p>文件夹“<strong data-export-folder></strong>”已经存在。覆盖会整体替换原文件夹，原来存在但本次未导出的文件也会删除，已有仪表盘引用的同名图片会更新。</p>\n      <div class="dialog-actions"><button type="button" data-export-choice="cancel">不覆盖</button><button type="button" class="primary" data-export-choice="overwrite">覆盖更新</button></div>\n    </div>'),
-    (conflictDialogElement.querySelector('[data-export-folder]').textContent = conflictFolderName),
-    new Promise((resolveConflict, rejectConflict) => {
-      let isConflictSettled = false
-      const settleConflictChoice = (chosenExportChoice: any) => {
-          isConflictSettled ||
-            ((isConflictSettled = true),
-            window.removeEventListener('pagehide', cancelConflictDialog),
-            dialogWindowHost.removeEventListener('pagehide', cancelConflictDialog),
-            conflictDialogElement.open && conflictDialogElement.close(),
-            conflictDialogElement.remove(),
-            resolveConflict(chosenExportChoice))
-        },
-        cancelConflictDialog = () => settleConflictChoice('cancel')
-      conflictDialogElement.addEventListener('cancel', (conflictFolderNameDialogCancelEvent: any) => {
-        conflictFolderNameDialogCancelEvent.preventDefault(), cancelConflictDialog()
-      }),
-        conflictDialogElement.addEventListener('close', cancelConflictDialog)
-      for (const conflictChoiceButton of conflictDialogElement.querySelectorAll('[data-export-choice]'))
-        conflictChoiceButton.addEventListener('click', () =>
-          settleConflictChoice(conflictChoiceButton.dataset.exportChoice),
-        )
-      window.addEventListener('pagehide', cancelConflictDialog),
-        dialogWindowHost.addEventListener('pagehide', cancelConflictDialog)
-      try {
-        document2.body.append(conflictDialogElement),
-          conflictDialogElement.showModal(),
-          conflictDialogElement.querySelector('[data-export-choice="cancel"]').focus()
-      } catch (conflictDialogError: any) {
-        window.removeEventListener('pagehide', cancelConflictDialog),
-          dialogWindowHost.removeEventListener('pagehide', cancelConflictDialog),
-          conflictDialogElement.remove(),
-          rejectConflict(conflictDialogError)
-      }
+  conflictDialogElement.className = 'hos-modal-native-dialog'
+  conflictDialogElement.setAttribute('aria-label', '同名导图已经存在')
+  conflictDialogElement.innerHTML =
+    '<form method="dialog" class="hos-modal-panel hos-modal-panel--sm hos-modal-panel--danger">' +
+    '<div class="hos-modal-head"><h3 class="hos-modal-title">同名导图已经存在</h3></div>' +
+    '<div class="hos-modal-body"><p>文件夹“<strong data-export-folder></strong>”已经存在。覆盖会整体替换原文件夹，原来存在但本次未导出的文件也会删除，已有仪表盘引用的同名图片会更新。</p></div>' +
+    '<div class="hos-modal-footer">' +
+    '<button type="button" class="hos-modal-btn hos-modal-btn--ghost" data-export-choice="cancel">不覆盖</button>' +
+    '<button type="button" class="hos-modal-btn hos-modal-btn--danger" data-export-choice="overwrite">覆盖更新</button>' +
+    '</div></form>'
+  conflictDialogElement.querySelector('[data-export-folder]')!.textContent = conflictFolderName
+  return new Promise((resolveConflict, rejectConflict) => {
+    let isConflictSettled = false
+    const settleConflictChoice = (chosenExportChoice: any) => {
+      if (isConflictSettled) return
+      isConflictSettled = true
+      window.removeEventListener('pagehide', cancelConflictDialog)
+      dialogWindowHost.removeEventListener('pagehide', cancelConflictDialog)
+      conflictDialogElement.open && conflictDialogElement.close()
+      conflictDialogElement.remove()
+      resolveConflict(chosenExportChoice)
+    }
+    const cancelConflictDialog = () => settleConflictChoice('cancel')
+    conflictDialogElement.addEventListener('cancel', (event: any) => {
+      event.preventDefault()
+      cancelConflictDialog()
     })
-  )
+    conflictDialogElement.addEventListener('close', cancelConflictDialog)
+    for (const conflictChoiceButton of conflictDialogElement.querySelectorAll('[data-export-choice]'))
+      conflictChoiceButton.addEventListener('click', () =>
+        settleConflictChoice((conflictChoiceButton as HTMLElement).dataset.exportChoice),
+      )
+    window.addEventListener('pagehide', cancelConflictDialog)
+    dialogWindowHost.addEventListener('pagehide', cancelConflictDialog)
+    try {
+      document2.body.append(conflictDialogElement)
+      conflictDialogElement.showModal()
+      ;(conflictDialogElement.querySelector('[data-export-choice="cancel"]') as HTMLElement | null)?.focus()
+    } catch (conflictDialogError: any) {
+      window.removeEventListener('pagehide', cancelConflictDialog)
+      dialogWindowHost.removeEventListener('pagehide', cancelConflictDialog)
+      conflictDialogElement.remove()
+      rejectConflict(conflictDialogError)
+    }
+  })
 }
 
 export function beginExportFlow(runtime: StudioAppRuntime, exportFolderName: any) {

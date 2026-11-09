@@ -1,0 +1,275 @@
+/**
+ * 原生 <dialog>（scale-dialog / settings-dialog）对齐外壳 hos-modal 视觉。
+ * 由 StudioView / EditorView 经 Vite 导入，级联晚于 main.css，避免受管 studio.css 被盖掉。
+ */
+
+.scale-dialog,
+.settings-dialog.delete-dialog,
+.settings-dialog.recovery-dialog,
+.settings-dialog.error-dialog,
+.hos-modal-native-dialog,
+.settings-dialog.i3d-unsaved-dialog {
+  --hos-accent: 10, 132, 255;
+  --hos-accent-end: 88, 86, 214;
+  --shell-blur: 56px;
+  --shell-sat: 220%;
+  --shell-bg: radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%),
+    rgba(12, 12, 18, 0.9);
+  --shell-border: var(--hos-hairline, 1px) solid var(--premium-border-strong, rgba(255, 255, 255, 0.12));
+  --shell-radius: var(--hos-radius-shell, 24px);
+  --shell-shadow: var(--premium-shadow, 0 32px 100px rgba(0, 0, 0, 0.62)),
+    0 0 0 var(--hos-hairline, 1px) rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(520px, calc(var(--hos-screen-w, 100vw) - 40px));
+  height: fit-content;
+  max-width: min(520px, calc(var(--hos-screen-w, 100vw) - 40px));
+  max-height: calc(var(--hos-screen-h, 100dvh) - 40px);
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: var(--shell-border);
+  border-radius: var(--shell-radius);
+  color: #fff;
+  background: var(--shell-bg);
+  -webkit-backdrop-filter: blur(var(--shell-blur)) saturate(var(--shell-sat));
+  backdrop-filter: blur(var(--shell-blur)) saturate(var(--shell-sat));
+  box-shadow: var(--shell-shadow);
+  animation: hos-modal-in 0.45s var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1)) backwards;
+}
+
+.scale-dialog.studio-exit-dialog,
+.scale-dialog.save-conflict-dialog,
+.hos-modal-native-dialog.hos-modal-panel--danger,
+.settings-dialog.delete-dialog,
+.settings-dialog.i3d-unsaved-dialog {
+  --hos-accent: 255, 69, 58;
+  --hos-accent-end: 239, 68, 68;
+}
+
+.scale-dialog::backdrop,
+.settings-dialog.delete-dialog::backdrop,
+.settings-dialog.recovery-dialog::backdrop,
+.settings-dialog.error-dialog::backdrop,
+.hos-modal-native-dialog::backdrop,
+.settings-dialog.i3d-unsaved-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  backdrop-filter: blur(8px) saturate(150%);
+}
+
+.scale-dialog::before,
+.settings-dialog.delete-dialog::before,
+.settings-dialog.recovery-dialog::before,
+.settings-dialog.error-dialog::before,
+.hos-modal-native-dialog::before,
+.settings-dialog.i3d-unsaved-dialog::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 4%,
+    rgba(var(--hos-accent), 0.55),
+    rgba(var(--hos-accent-end), 0.35),
+    transparent 96%
+  );
+  z-index: 2;
+  pointer-events: none;
+}
+
+.scale-dialog form,
+.settings-dialog.delete-dialog .settings-form,
+.settings-dialog.recovery-dialog .settings-form,
+.settings-dialog.error-dialog .settings-form,
+.hos-modal-native-dialog > form,
+.settings-dialog.i3d-unsaved-dialog {
+  position: relative;
+  z-index: 1;
+  padding: 22px 26px 20px;
+}
+
+.scale-dialog .dialog-index,
+.settings-dialog .dialog-heading span {
+  display: block;
+  margin: 0 0 6px;
+  padding-right: 48px;
+  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.48));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.scale-dialog h2,
+.settings-dialog .dialog-heading h2,
+.settings-dialog.i3d-unsaved-dialog > h3,
+.hos-modal-native-dialog .hos-modal-title {
+  margin: 0 0 10px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.scale-dialog p,
+.settings-dialog.delete-dialog p,
+.settings-dialog.recovery-dialog p,
+.settings-dialog.i3d-unsaved-dialog > p,
+.hos-modal-native-dialog .hos-modal-body p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.scale-dialog .dialog-close,
+.settings-dialog .dialog-heading .icon-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: var(--hos-hairline, 1px) solid var(--premium-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--hos-radius-card, 12px);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.55));
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
+}
+
+.scale-dialog .dialog-close:hover:not(:disabled),
+.settings-dialog .dialog-heading .icon-button:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.06) rotate(90deg);
+}
+
+.scale-dialog .dialog-actions,
+.settings-dialog .dialog-actions,
+.hos-modal-native-dialog .hos-modal-footer,
+.settings-dialog.i3d-unsaved-dialog .dialog-actions {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.04);
+}
+
+.scale-dialog .dialog-actions button,
+.settings-dialog .dialog-actions button,
+.hos-modal-native-dialog .hos-modal-btn,
+.settings-dialog.i3d-unsaved-dialog .dialog-actions button {
+  min-width: 112px;
+  height: 44px;
+  padding: 0 18px;
+  border: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--hos-radius-card, 12px);
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-bounce, cubic-bezier(0.22, 1.2, 0.36, 1));
+}
+
+.scale-dialog .dialog-actions button:hover:not(:disabled),
+.settings-dialog .dialog-actions button:hover:not(:disabled),
+.hos-modal-native-dialog .hos-modal-btn:hover:not(:disabled),
+.settings-dialog.i3d-unsaved-dialog .dialog-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.scale-dialog .dialog-actions .primary-action,
+.settings-dialog .dialog-actions .primary,
+.hos-modal-native-dialog .hos-modal-btn--primary,
+.settings-dialog.i3d-unsaved-dialog .dialog-actions .primary {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #0a84ff, #5856d6);
+  box-shadow: 0 4px 20px rgba(10, 132, 255, 0.38);
+}
+
+.scale-dialog .dialog-actions .primary-action:hover:not(:disabled),
+.settings-dialog .dialog-actions .primary:hover:not(:disabled),
+.hos-modal-native-dialog .hos-modal-btn--primary:hover:not(:disabled),
+.settings-dialog.i3d-unsaved-dialog .dialog-actions .primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(10, 132, 255, 0.48);
+}
+
+.hos-modal-native-dialog .hos-modal-btn--danger,
+.settings-dialog.delete-dialog .dialog-actions .danger {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #ff453a, #dc2626);
+  box-shadow: 0 4px 20px rgba(255, 69, 58, 0.38);
+}
+
+.hos-modal-native-dialog .hos-modal-btn--danger:hover:not(:disabled),
+.settings-dialog.delete-dialog .dialog-actions .danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(255, 69, 58, 0.48);
+}
+
+.scale-dialog .export-notice-summary {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--hos-radius-card, 12px);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.scale-dialog .export-notice-summary span {
+  flex: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.scale-dialog .export-notice-summary strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .scale-dialog .dialog-actions,
+  .settings-dialog .dialog-actions,
+  .hos-modal-native-dialog .hos-modal-footer,
+  .settings-dialog.i3d-unsaved-dialog .dialog-actions {
+    justify-content: stretch;
+  }
+  .scale-dialog .dialog-actions button,
+  .settings-dialog .dialog-actions button,
+  .hos-modal-native-dialog .hos-modal-btn,
+  .settings-dialog.i3d-unsaved-dialog .dialog-actions button {
+    flex: 1 1 100%;
+  }
+}

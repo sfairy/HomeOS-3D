@@ -277,6 +277,21 @@ test('某层灯数超过容量时整体退回（不接管 mask、不写缓冲）
   assert.equal(gl.uploads.length, 0)
 })
 
+test('关着的灯不占容量：一屋子灭灯带不应把分层路径挤退', () => {
+  const gl = createFakeGL(2)
+  const buffer = createFloorLightBuffer({ THREE, gl })
+  const { root, camera, firstFloor, spotA, areaB } = createScene()
+  firstFloor.add(createLight({ floor: 'f1', id: 'd', intensity: 0 }))
+  firstFloor.add(createLight({ floor: 'f1', id: 'e', rectArea: true, intensity: 0 }))
+  spotA.intensity = 1
+  areaB.intensity = 0
+  buffer.prepare(root)
+  assert.equal(buffer.available, true, '灭着的灯不计入 allFloorsFit')
+  assert.ok(buffer.update(root, camera, new Map()) > 0)
+  assert.equal(buffer.enabled, true)
+  assert.equal(spotA.layers.mask, 0, '仍接管亮着的灯')
+})
+
 test('结构没变时不重复上传（差分上传生效）', () => {
   const gl = createFakeGL(4)
   const buffer = createFloorLightBuffer({ THREE, gl })
@@ -313,6 +328,38 @@ test('withFloor 临时隐藏其它楼层，返回后恢复', () => {
   ])
   assert.deepEqual(visibleDuringFloorOne, [true, false])
   assert.deepEqual([meshOnFirstFloor.visible, meshOnSecondFloor.visible], [true, true])
+})
+
+test('灯带遮挡距离图的行号写进面光槽位第 6–7 列的 w，着色器按它衰减', () => {
+  const gl = createFakeGL(4)
+  const calls = { prepare: 0, lookups: [], disposed: 0 }
+  const areaVisibility = {
+    prepare: () => (calls.prepare += 1),
+    lookup: (light, floorId) => (calls.lookups.push([light.userData.lightItemId, floorId]), { tile: 2 }),
+    dispose: () => (calls.disposed += 1),
+  }
+  const buffer = createFloorLightBuffer({ THREE, gl, areaVisibility })
+  const { root, camera } = createScene()
+  buffer.prepare(root)
+  assert.equal(calls.prepare, 1, '结构准备时把遮挡网格交给可见性图')
+  assert.equal(buffer.update(root, camera, new Map()), 3)
+  assert.deepEqual(calls.lookups.at(-1), ['b', 'f1'], '只为面光查图块，带楼层')
+  const f1Header = gl.uploads.find((upload) => upload.values[0] === 1 && upload.values[1] === 1)
+  assert.ok(f1Header)
+  const slot = 4 + 40
+  assert.deepEqual(
+    [27, 31, 35, 39].map((offset) => f1Header.values[slot + offset]),
+    [1, 2, 0, 0],
+    '启用 / 行号',
+  )
+  const loop = floorLightShaderLoop()
+  assert.match(loop, /floorArea\.color \*= userFloorAreaVisibility\(floorAreaIndex/)
+  assert.doesNotMatch(loop, /receiveShadow \? getUserSpotAtlasShadow\(floorAreaIndex/, '可见性不再依赖阴影接收')
+  assert.match(floorLightShaderPars(4), /uniform highp sampler2D userStripVisibility;/)
+  assert.match(floorLightShaderPars(4), /texelFetch\(userStripVisibility/, '按方位角取碰墙距离，不做线性过滤')
+  assert.match(floorLightShaderPars(4), /max\(visible,max\(userStripRayVisibility/, '任一射线起点可见即保留光照')
+  buffer.dispose()
+  assert.equal(calls.disposed, 1)
 })
 
 test('着色器声明按容量开数组，循环用 header.x 切分射灯/面光', () => {

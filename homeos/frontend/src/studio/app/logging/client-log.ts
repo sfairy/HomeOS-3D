@@ -620,7 +620,11 @@
       },
       true,
     ),
-    bridgeWindow.addEventListener('unhandledrejection', (rejectionEvent) => reportError(rejectionEvent.reason)),
+    // 第三方 fetch 拦截器（扩展 / 内嵌浏览器抓包）会在自己挂的分支 promise 上把主动 abort 的
+    // reason 原样抛出，业务侧 try/catch 接不到；控制台把它记在调用 abort() 的那一行（render-cache）。
+    bridgeWindow.addEventListener('unhandledrejection', (rejectionEvent) => {
+      isAbortRejection(rejectionEvent.reason) ? rejectionEvent.preventDefault() : reportError(rejectionEvent.reason)
+    }),
     bridgeWindow.addEventListener('online', () => {
       ;(nextRetryAt = 0), flushQueue()
     }),

@@ -41,7 +41,9 @@ import {
   mapLightEffectState as mapLightEffectState2,
   lightEffectColorHex as lightEffectColorHex2,
 } from '../../../../bridge/light-motion'
-import { clamp as clamp2, spotLightBrightnessResponse as spotLightBrightnessResponse2 } from '../../../plan/geometry'
+import { clamp as clamp2 } from '../../../plan/geometry'
+import { lightBrightnessResponse } from '../../lights/studio-app-light-data'
+import { syncStripFixture } from '../../lights/strip-light/strip-light-model'
 
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
@@ -433,19 +435,17 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
   }
   function normalizeLightBrightness(runStudioRenderLoopLightObject: any, brightnessPercent: any) {
     const normalizeLightBrightnessLightBrightnessRatio = clamp2(finite2(brightnessPercent, 0), 0, 150) / 100
-    return isEmbedStageMode
-      ? normalizeLightBrightnessLightBrightnessRatio
-      : runStudioRenderLoopLightObject.type === 'striplight'
-        ? Math.pow(normalizeLightBrightnessLightBrightnessRatio, 0.82)
-        : spotLightBrightnessResponse2(
-            runStudioRenderLoopLightObject.type,
-            normalizeLightBrightnessLightBrightnessRatio,
-          ) * Math.max(1, normalizeLightBrightnessLightBrightnessRatio)
+    return lightBrightnessResponse(
+      runStudioRenderLoopLightObject.type,
+      normalizeLightBrightnessLightBrightnessRatio,
+      isEmbedStageMode,
+    )
   }
   function applySpotLightState(spotLightUpdater: any, spotLightState: any) {
     ;(spotLightUpdater.intensity = spotLightState.intensity),
       spotLightUpdater.color.fromArray(spotLightState.color),
-      (spotLightUpdater.visible = spotLightState.intensity > 0.000001 || !spotLightState.complete)
+      (spotLightUpdater.visible = spotLightState.intensity > 0.000001 || !spotLightState.complete),
+      syncStripFixture(spotLightUpdater)
   }
   function sampleLightTransitions(transitionTimestamp: any, immediateTransition = false) {
     if (appCtx.prewarmState === controlsRestoreOptions) {
@@ -470,7 +470,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
               (managedLight.visible = shouldLightBeOn),
               managedLight.color.setHex(
                 lightEffectColorHex2(lightRecord.item.lightTemperature, lightRecord.item.lightColorRgb),
-              )
+              ),
+              syncStripFixture(managedLight)
         }
       ctx.shouldResetCamera = false
     }

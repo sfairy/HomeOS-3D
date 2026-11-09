@@ -3,3 +3,4 @@ export declare const OrbitControls: any
 export declare const RoundedBoxGeometry: any
 export declare const mergeGeometries: any
 export declare const GLTFLoader: any
+export declare const RectAreaLightUniformsLib: { init(): void }

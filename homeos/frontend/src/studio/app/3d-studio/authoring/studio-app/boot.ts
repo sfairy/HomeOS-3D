@@ -40,7 +40,7 @@ import {
   finishModelLoad as finishModelLoadImpl, publishModelLoadState as publishModelLoadStateImpl, emitRuntimeDiagnostic as emitRuntimeDiagnosticImpl, updateModelLoadIndicator as updateModelLoadIndicatorImpl,
   materialLoadOptionsForItem as materialLoadOptionsForItemImpl, applyItemOptimization as applyItemOptimizationImpl, getActiveFloor as getActiveFloorImpl, captureStudioSnapshot as captureStudioSnapshotImpl,
   getLocalSaveRevision as getLocalSaveRevisionImpl, uniqueFloorName as uniqueFloorNameImpl, hideFloorActionMenu as hideFloorActionMenuImpl, showFloorActionMenu as showFloorActionMenuImpl,
-  floorActionHandler as floorActionHandlerImpl, closeFloorDeleteDialog as closeFloorDeleteDialogImpl, confirmFloorDelete as confirmFloorDeleteImpl, openFloorRenameDialog as openFloorRenameDialogImpl,
+  floorActionHandler as floorActionHandlerImpl, closeFloorDeleteDialog as closeFloorDeleteDialogImpl, openFloorRenameDialog as openFloorRenameDialogImpl,
   syncGlobalControls as syncGlobalControlsImpl, clearDropIndicator as clearDropIndicatorImpl, moveFloorRow as moveFloorRowImpl, renderFloorList as renderFloorListImpl,
   selectFloor as selectFloorImpl, addNewFloor as addNewFloorImpl, copyFloor as copyFloorImpl, planToWorldPoint as planToWorldPointImpl, worldToPlanPoint as worldToPlanPointImpl,
   worldPointForFloor as worldPointForFloorImpl, getActiveWalls as getActiveWallsImpl, startFloorAlign as startFloorAlignImpl, cancelFloorAlign as cancelFloorAlignImpl,
@@ -140,7 +140,7 @@ import {
 } from "./functions/groups/shadow-camera-export-presets";
 import {
   saveAsNewPreset as saveAsNewPresetImpl, closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl, closePresetDeleteDialog as closePresetDeleteDialogImpl,
-  openPresetDeleteDialog as openPresetDeleteDialogImpl, confirmDeletePreset as confirmDeletePresetImpl, ensureSceneRendered as ensureSceneRenderedImpl, prepareFreeCameraCapture as prepareFreeCameraCaptureImpl,
+  openPresetDeleteDialog as openPresetDeleteDialogImpl, ensureSceneRendered as ensureSceneRenderedImpl, prepareFreeCameraCapture as prepareFreeCameraCaptureImpl,
   selectPreviewFloor as selectPreviewFloorImpl, collectSelectedExportFiles as collectSelectedExportFilesImpl, restorePreviewAfterExport as restorePreviewAfterExportImpl, setExportBusy as setExportBusyImpl,
   prepareExportRender as prepareExportRenderImpl, canvasToBlob as canvasToBlobImpl, renderExportImage as renderExportImageImpl, renderLightDeltaLayer as renderLightDeltaLayerImpl,
   renderLightShadowLayer as renderLightShadowLayerImpl, renderBackgroundLayer as renderBackgroundLayerImpl, makeUniqueFileName as makeUniqueFileNameImpl, buildExportCamera as buildExportCameraImpl,
@@ -501,8 +501,6 @@ export function bootStudio(): void {
     get drawGuideSegment() { return drawGuideSegment; },
     get drawLabelText() { return drawLabelText; },
     get drawPointMarker() { return drawPointMarker; },
-    get drawingLightNoticeCountElement() { return drawingLightNoticeCountElement; },
-    get drawingLightNoticeDialogElement() { return drawingLightNoticeDialogElement; },
     get drawingToolSections() { return drawingToolSections; },
     get effectCache() { return effectCache; },
     get emitRuntimeDiagnostic() { return emitRuntimeDiagnostic; },
@@ -532,8 +530,6 @@ export function bootStudio(): void {
     get exportPackageButton() { return exportPackageButton; },
     get exportPresetAddButton() { return exportPresetAddButton; },
     get exportPresetDeleteButton() { return exportPresetDeleteButton; },
-    get exportPresetDeleteDialogElement() { return exportPresetDeleteDialogElement; },
-    get exportPresetDeleteNameElement() { return exportPresetDeleteNameElement; },
     get exportPresetEmptyStateElement() { return exportPresetEmptyStateElement; },
     get exportPresetEmptyTitleElement() { return exportPresetEmptyTitleElement; },
     get exportPresetRenameButton() { return exportPresetRenameButton; },
@@ -563,8 +559,6 @@ export function bootStudio(): void {
     get fixedOverviewViewButton() { return fixedOverviewViewButton; },
     get floorActionMenuElement() { return floorActionMenuElement; },
     get floorCameraActionsElement() { return floorCameraActionsElement; },
-    get floorDeleteDialogElement() { return floorDeleteDialogElement; },
-    get floorDeleteNameElement() { return floorDeleteNameElement; },
     get floorElevationFor() { return floorElevationFor; },
     get floorGroupCacheByKey() { return floorGroupCacheByKey; },
     get floorListElement() { return floorListElement; },
@@ -944,7 +938,6 @@ export function bootStudio(): void {
   const showFloorActionMenu = (...args: any[]): any => (showFloorActionMenuImpl as any)(studioRuntime, ...args);
   const floorActionHandler = (...args: any[]): any => (floorActionHandlerImpl as any)(studioRuntime, ...args);
   const closeFloorDeleteDialog = (...args: any[]): any => (closeFloorDeleteDialogImpl as any)(studioRuntime, ...args);
-  const confirmFloorDelete = (...args: any[]): any => (confirmFloorDeleteImpl as any)(studioRuntime, ...args);
   const openFloorRenameDialog = (...args: any[]): any => (openFloorRenameDialogImpl as any)(studioRuntime, ...args);
   const syncGlobalControls = (...args: any[]): any => (syncGlobalControlsImpl as any)(studioRuntime, ...args);
   const clearDropIndicator = (...args: any[]): any => (clearDropIndicatorImpl as any)(studioRuntime, ...args);
@@ -1282,7 +1275,6 @@ export function bootStudio(): void {
   const openPresetRenameDialog = (...args: any[]): any => (openPresetRenameDialogImpl as any)(studioRuntime, ...args);
   const closePresetDeleteDialog = (...args: any[]): any => (closePresetDeleteDialogImpl as any)(studioRuntime, ...args);
   const openPresetDeleteDialog = (...args: any[]): any => (openPresetDeleteDialogImpl as any)(studioRuntime, ...args);
-  const confirmDeletePreset = (...args: any[]): any => (confirmDeletePresetImpl as any)(studioRuntime, ...args);
   const ensureSceneRendered = (...args: any[]): any => (ensureSceneRenderedImpl as any)(studioRuntime, ...args);
   const prepareFreeCameraCapture = (...args: any[]): any => (prepareFreeCameraCaptureImpl as any)(studioRuntime, ...args);
   const selectPreviewFloor = (...args: any[]): any => (selectPreviewFloorImpl as any)(studioRuntime, ...args);
@@ -1468,12 +1460,7 @@ const planCanvasElement = selectElement("#plan-canvas"),
   floorRenameDialogElement = selectElement("#floor-rename-dialog"),
   floorRenameFormElement = selectElement("#floor-rename-form"),
   floorRenameInputElement = selectElement("#floor-rename-input"),
-  floorDeleteDialogElement = selectElement("#floor-delete-dialog"),
-  floorDeleteFormElement = selectElement("#floor-delete-form"),
-  floorDeleteNameElement = selectElement("#floor-delete-name"),
   saveConflictDialogElement = selectElement("#save-conflict-dialog"),
-  saveConflictLoadButton = selectElement("#save-conflict-load"),
-  saveConflictOverwriteButton = selectElement("#save-conflict-overwrite"),
   studioBackLinkElement = selectElement("#studio-back-link"),
   studioExitDialogElement = selectElement("#studio-exit-dialog"),
   studioExitMessageElement = selectElement("#studio-exit-message"),
@@ -1630,9 +1617,6 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   exportPresetRenameDialogElement = selectElement("#export-preset-rename-dialog"),
   exportPresetRenameFormElement = selectElement("#export-preset-rename-form"),
   exportPresetRenameInputElement = selectElement("#export-preset-rename-input"),
-  exportPresetDeleteDialogElement = selectElement("#export-preset-delete-dialog"),
-  exportPresetDeleteFormElement = selectElement("#export-preset-delete-form"),
-  exportPresetDeleteNameElement = selectElement("#export-preset-delete-name"),
   exportOverwriteDialogElement = selectElement("#export-overwrite-dialog"),
   exportOverwriteNameElement = selectElement("#export-overwrite-name"),
   exportCompleteDialogElement = selectElement("#export-complete-dialog"),
@@ -1655,8 +1639,6 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   lightGroupListElement = selectElement("#light-group-list"),
   addLightGroupButton = selectElement("#add-light-group"),
   lightGroupsOffButton = selectElement("#light-groups-off"),
-  drawingLightNoticeDialogElement = selectElement("#drawing-light-notice-dialog"),
-  drawingLightNoticeCountElement = selectElement("#drawing-light-notice-count"),
   lightGroupActionMenuElement = selectElement("#light-group-context-menu"),
   lightGroupAreaDialogElement = selectElement("#light-group-area-dialog"),
   lightGroupAreaFormElement = selectElement("#light-group-area-form"),
@@ -1861,7 +1843,8 @@ const toolHelpMessages = {
   isStudioEntry =
     isEmbeddedStage ||
     /^\/3d-studio\/?$/.test(window.location.pathname),
-  planCanvasRenderer = planCanvasElement.getContext("2d"),
+  // 嵌入舞台可能只挂隐藏 stub；缺节点时用离屏 canvas，避免 bootStudio 同步崩溃导致永不出图。
+  planCanvasRenderer = (planCanvasElement || document.createElement("canvas")).getContext("2d"),
   overlayCanvasElement = document.createElement("canvas"),
   overlayCanvasRenderer = overlayCanvasElement.getContext("2d"),
   {
@@ -2019,15 +2002,45 @@ function applyLoadedDraftDeps(): ApplyLoadedDraftDeps {
 const saveWaiterResolvers = new Set<() => void>(),
   exitWaiterResolvers = new Set<() => void>();
 // 409 三出口：加载服务器版本（先导出本地副本）/ 覆盖服务器（显式 currentRevision PUT）/ 导出本地副本。
-const saveConflictExportButton = document.createElement("button");
-saveConflictExportButton.id = "save-conflict-export";
-saveConflictExportButton.type = "button";
-saveConflictExportButton.textContent = "导出本地副本";
-saveConflictDialogElement.querySelector(".dialog-actions")?.appendChild(saveConflictExportButton);
-(saveConflictDialogElement.addEventListener("cancel", (dialogCancelEvent: any) =>
-  dialogCancelEvent.preventDefault(),
-),
-  saveConflictLoadButton.addEventListener("click", async () => {
+// 用 document 委托而不是绑死 boot 时的 dialog 节点：Vue HMR / StudioDialogs 重挂后
+// 旧 HTMLDialogElement 会游离，直接 addEventListener 的按钮会失效，showModal 还会抛 InvalidStateError。
+const liveSaveConflictDialog = () => {
+  const live = selectElement("#save-conflict-dialog");
+  return live instanceof HTMLDialogElement && live.isConnected ? live : null;
+};
+const closeSaveConflictDialog = () => {
+  const dialog = liveSaveConflictDialog();
+  if (dialog?.open) dialog.close();
+};
+// 首次挂载时补上导出按钮；之后 openSaveConflictDialog 会在重挂后再次补。
+if (saveConflictDialogElement instanceof HTMLDialogElement) {
+  const actions = saveConflictDialogElement.querySelector(".dialog-actions");
+  if (actions && !saveConflictDialogElement.querySelector("#save-conflict-export")) {
+    const saveConflictExportButton = document.createElement("button");
+    saveConflictExportButton.id = "save-conflict-export";
+    saveConflictExportButton.type = "button";
+    saveConflictExportButton.textContent = "导出本地副本";
+    actions.appendChild(saveConflictExportButton);
+  }
+  if (!saveConflictDialogElement.dataset.conflictCancelGuarded) {
+    saveConflictDialogElement.dataset.conflictCancelGuarded = "1";
+    saveConflictDialogElement.addEventListener("cancel", (dialogCancelEvent: any) =>
+      dialogCancelEvent.preventDefault(),
+    );
+  }
+}
+const onSaveConflictDialogClick = async (conflictClickEvent: MouseEvent) => {
+  const clickTarget =
+    conflictClickEvent.target instanceof Element ? conflictClickEvent.target : null;
+  const actionButton = clickTarget?.closest(
+    "#save-conflict-load, #save-conflict-overwrite, #save-conflict-export",
+  ) as HTMLElement | null;
+  if (!actionButton || !liveSaveConflictDialog()?.contains(actionButton)) return;
+  if (actionButton.id === "save-conflict-export") {
+    downloadStudioLocalCopy();
+    return;
+  }
+  if (actionButton.id === "save-conflict-load") {
     const pendingConflictSnapshot = appCtx.pendingConflict;
     if (!pendingConflictSnapshot) return;
     (window.clearTimeout(appCtx.autosaveTimeoutId),
@@ -2035,7 +2048,7 @@ saveConflictDialogElement.querySelector(".dialog-actions")?.appendChild(saveConf
       (appCtx.pendingConflict = null),
       (appCtx.blockedSaveRevision = -1),
       (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
-      saveConflictDialogElement.close());
+      closeSaveConflictDialog());
     // 出口一硬约束：先导出本地副本，再载入服务器版本（本地改动绝不静默丢失）。
     downloadStudioLocalCopy(pendingConflictSnapshot.localScene);
     try {
@@ -2048,22 +2061,22 @@ saveConflictDialogElement.querySelector(".dialog-actions")?.appendChild(saveConf
       (showSaveState("载入失败", "error"),
         showToast(loadFailure?.message || "服务器版本载入失败。", "error"));
     }
-  }),
-  saveConflictOverwriteButton.addEventListener("click", async () => {
+    return;
+  }
+  if (actionButton.id === "save-conflict-overwrite") {
     if (!appCtx.pendingConflict) return;
     (window.clearTimeout(appCtx.autosaveTimeoutId),
       (appCtx.autosaveTimeoutId = null),
       (appCtx.pendingConflict = null),
-      saveConflictDialogElement.close(),
+      closeSaveConflictDialog(),
       showSaveState("正在确认覆盖…", "saving"));
     // 出口二：显式带 currentRevision 覆盖；local === remote 也必须发一次（markWholeDocumentDirty）。
     studioDocumentStore.markWholeDocumentDirty();
     appCtx.localSaveRevision += 1;
     await flushStudioSaveOnce("overwrite");
-  }),
-  saveConflictExportButton.addEventListener("click", () => {
-    downloadStudioLocalCopy();
-  }));
+  }
+};
+document.addEventListener("click", onSaveConflictDialogClick);
 // 退出保护三态对话框：返回编辑器前的未保存拦截、等待保存完成后再退出、不保存直接退出。
 studioBackLinkElement.addEventListener("click", (studioBackLinkEvent: any) => {
   if (
@@ -3025,15 +3038,8 @@ document.addEventListener("pointerdown", (documentPointerDownEvent) => {
       markDocumentDirty(),
       showToast("已重命名为“" + floorRenamePayload + "”。", "success")),
       closeOpenPopovers());
-  }),
-  selectElement("#floor-delete-close").addEventListener("click", closeFloorDeleteDialog),
-  selectElement("#floor-delete-cancel").addEventListener("click", closeFloorDeleteDialog),
-  floorDeleteDialogElement.addEventListener("cancel", (floorRenameCancelEvent: any) => {
-    (floorRenameCancelEvent.preventDefault(), closeFloorDeleteDialog());
-  }),
-  floorDeleteFormElement.addEventListener("submit", (lightGroupRenameSubmitEvent: any) => {
-    (lightGroupRenameSubmitEvent.preventDefault(), confirmFloorDelete());
-  }));
+  })
+);
 (selectElement("#light-group-rename-close").addEventListener("click", applyLightGroupRename),
   selectElement("#light-group-rename-cancel").addEventListener("click", applyLightGroupRename),
   lightGroupRenameDialogElement.addEventListener("cancel", () => {
@@ -3207,10 +3213,9 @@ const closeExportCompleteDialog = () => {
   exportCompleteDialogElement.open && exportCompleteDialogElement.close();
 };
 bindExportDialogWiring({
-  appCtx, closeExportCompleteDialog, closePresetDeleteDialog, closePresetRenameDialog, confirmDeletePreset,
+  appCtx, closeExportCompleteDialog, closePresetRenameDialog,
   exportDialogElement, exportFloorSelectElement, exportHeightInput, exportLockRatioInput, exportPackageButton,
-  exportPresetAddButton, exportPresetDeleteButton, exportPresetDeleteDialogElement,
-  exportPresetDeleteFormElement, exportPresetRenameButton, exportPresetRenameDialogElement,
+  exportPresetAddButton, exportPresetDeleteButton, exportPresetRenameButton, exportPresetRenameDialogElement,
   exportPresetRenameFormElement, exportPresetRenameInputElement, exportPresetSlotsElement, exportWidthInput,
   formatPresetLabel, generateExportBundle, handleCanvasSizeInput, makeUniquePresetName, markDocumentDirty,
   normalizeActiveExportPresetSlot2, normalizeExportPresetSlots2, openExportDialog, openPresetDeleteDialog,
@@ -3965,6 +3970,7 @@ startupStudio(studioBootDeps());
     window.clearTimeout(appCtx.renderLoopTimeoutId)
     window.clearTimeout(appCtx.pointerReleaseTimeoutId)
     window.clearTimeout(appCtx.exportPreviewTimeoutId)
+    document.removeEventListener("click", onSaveConflictDialogClick)
     window.clearTimeout(appCtx.previewShieldTimeoutId)
     window.clearTimeout(appCtx.modelLoadTimeoutId)
     // 灯光淡入（lightCaptureFrameId）与灯光淡出/缓存预热（cacheWarmFrameId）的帧步进

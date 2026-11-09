@@ -181,8 +181,9 @@ export function itemFromPlanFootprintResize(item: any, resized: any, pixelsPerMe
   } else if (stripIsStanding(item)) {
     resizedItem = {
       ...resized,
-      // 立姿灯带的平面「宽」就是灯带长度（`item.height`），平面「深」才是 `item.depth`；
-      // 灯的自身厚度 `item.width` 不由平面框驱动。把 height 抄回旧值会让左右拖动完全失效。
+      // 立姿灯带绕 Z 立起后，竖向长度是 `item.width`（属性面板「发光长度」），平面框只是它的俯视截面：
+      // 平面「宽」= 厚度 `item.height`，平面「深」= 发光宽度 `item.depth`。所以长度不由平面框驱动；
+      // 左右拖动只改俯视厚度，把 height 抄回旧值会让拖动完全失效。
       width: toFiniteNumber(item?.width, 0),
       height: toFiniteNumber(resized?.width, toFiniteNumber(item?.height, 0)),
     }
@@ -277,36 +278,31 @@ export function buildPillarSolidGeometry(shape: any, width: number, depth: numbe
   return solidGeometry
 }
 
-/** 按布置轴摆正已建好的物件：躺倒的立柱绕 X 转 -90°、立起的灯带绕 Z 转 +90°，再把整组推回原处——躺姿让底面贴地并沿进深居中，立姿让发光面贴地并沿平面居中。 */
+/**
+ * 按布置轴摆正已建好的物件：躺倒的立柱绕 X 转 -90°，再把整组推回原处，让底面贴地并沿进深居中。
+ *
+ * 立装灯带不走这里：它的位姿（顶端为锚点、向下延伸）由 `strip-light-spec.ts` 直接给出，
+ * 面光、发光本体和灯光缓存里的面光都按同一份位姿摆放。
+ */
 export function applyItemPosture(group: any, item: any) {
-  const lyingPillar = pillarIsLying(item)
-  const standingStrip = stripIsStanding(item)
-  if ((!lyingPillar && !standingStrip) || !group.children.length) {
+  if (!pillarIsLying(item) || !group.children.length) {
     return
   }
   const posturePivot = new threeModuleMin.Group()
   for (const postureChild of [...group.children]) {
     posturePivot.add(postureChild)
   }
-  posturePivot.rotation[lyingPillar ? 'x' : 'z'] = lyingPillar ? -Math.PI / 2 : Math.PI / 2
+  posturePivot.rotation.x = -Math.PI / 2
   posturePivot.updateMatrixWorld(true)
   const pivotContent = new threeModuleMin.Box3().setFromObject(posturePivot)
   /** 需要的居中位移量； */
   const pivotCenterOf = (minValue: any, maxValue: any) =>
     Number.isFinite(minValue) && Number.isFinite(maxValue) ? -(minValue + maxValue) / 2 : 0
-  if (lyingPillar) {
-    posturePivot.position.set(
-      0,
-      Number.isFinite(pivotContent.min.y) ? -pivotContent.min.y : 0,
-      pivotCenterOf(pivotContent.min.z, pivotContent.max.z),
-    )
-  } else {
-    posturePivot.position.set(
-      pivotCenterOf(pivotContent.min.x, pivotContent.max.x),
-      Number.isFinite(pivotContent.max.y) ? -pivotContent.max.y : 0,
-      pivotCenterOf(pivotContent.min.z, pivotContent.max.z),
-    )
-  }
+  posturePivot.position.set(
+    0,
+    Number.isFinite(pivotContent.min.y) ? -pivotContent.min.y : 0,
+    pivotCenterOf(pivotContent.min.z, pivotContent.max.z),
+  )
   group.add(posturePivot)
 }
 

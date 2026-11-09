@@ -6,6 +6,7 @@ import { navigateInShell } from '@/studio/platform/shell-navigation'
 import { normalizeBaseLighting as normalizeBaseLighting2 } from '../../../3d-studio/loaders/studio-normalization'
 import { findComponent as findComponent2 } from '../../component-tree'
 import { clampNumber as clampNumber2 } from '../../editor-utils'
+import { confirmAction } from '../../../shared/ui-confirm'
 
 export interface LightingPanelDeps {
   editorCtx: EditorContext
@@ -294,32 +295,32 @@ export function openAssetPicker(deps: LightingPanelDeps, assetTriggerButton: any
   }
 }
 
-export function assetIdToDelete(
-  deps: LightingPanelDeps,
+export async function assetIdToDelete(
+  _deps: LightingPanelDeps,
   assetDocumentNode: any,
   requestDeleteAssetFolder: any,
   folderKind: any,
 ) {
-  return (
-    (deps.projectResizeWarningTextElement.textContent =
+  return confirmAction({
+    title: '控件可能超出画布',
+    message:
       '当前分辨率为 ' +
       requestDeleteAssetFolder +
       ' × ' +
       folderKind +
       '，预计有 ' +
       assetDocumentNode +
-      ' 个控件会部分或全部位于画布范围之外。'),
-    new Promise((folderName) => {
-      ;(deps.editorCtx.resizeWarningResolve = folderName), deps.projectResizeWarningDialogElement.showModal()
-    })
-  )
+      ' 个控件会部分或全部位于画布范围之外。\n\n继续后，锁定的控件不会自动缩放或移动。你可以在编辑器中手动把它们移回画布范围内。',
+    confirmLabel: '继续修改',
+    cancelLabel: '返回修改',
+  })
 }
 
 export function folderDocumentNode(deps: LightingPanelDeps, refreshAssetPickerViews: any) {
   const rp2 = deps.editorCtx.resizeWarningResolve
-  ;(deps.editorCtx.resizeWarningResolve = null),
-    deps.projectResizeWarningDialogElement.open && deps.projectResizeWarningDialogElement.close(),
-    rp2?.(refreshAssetPickerViews)
+  deps.editorCtx.resizeWarningResolve = null
+  deps.projectResizeWarningDialogElement?.open && deps.projectResizeWarningDialogElement.close()
+  rp2?.(refreshAssetPickerViews)
 }
 
 export function closeDeletePopupDialog(deps: LightingPanelDeps, popupDeleteUsageEntries = 'create') {

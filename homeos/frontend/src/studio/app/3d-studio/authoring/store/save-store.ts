@@ -355,6 +355,18 @@ export class StudioSaveStore {
     if (this.state.status === 'conflict') {
       return { ok: false, reason: 'conflict', currentRevision: this.state.pendingConflict?.currentRevision ?? null }
     }
+    // 428 待确认 / 用户刚取消确认：禁止再发无 token 的 PUT，否则会立刻再撞 428 并反复弹窗。
+    // confirmInteraction() 会先把 status 改回 dirty 并写入 interactionToken，再走本入口。
+    if (this.state.status === 'blocked') {
+      if (this.state.pendingConfirmation) {
+        return {
+          ok: false,
+          reason: 'confirmation-required',
+          token: this.state.pendingConfirmation.token,
+        }
+      }
+      return { ok: false, reason: 'blocked' }
+    }
     if (this.state.status === 'failed') {
       return {
         ok: false,
@@ -480,11 +492,17 @@ export class StudioSaveStore {
     return this.flushNow()
   }
 
-  /** 428 用户取消（保留本地改动，状态回到 dirty，不自动重试）。 */
+  /** 428 用户取消（保留本地改动；保持 blocked，不自动重试）。 */
   cancelConfirmation(): void {
-    // 先清掉待决确认再算状态，否则 computeDirtyStatus 仍会看到 blocked。
-    this.state.pendingConfirmation = null
-    this.patch({ status: this.computeDirtyStatus() })
+    // 清掉 token，但 status 留在 blocked：否则 flushAutosave 的 finally → scheduleAutosave
+    // 会立刻再发一次无 confirmation 的 PUT，控制台里就变成 428 连打。
+    // 用户再改一笔时 markDirty() 会经 computeDirtyStatus 回到 dirty 并重新排期。
+    this.patch({
+      pendingConfirmation: null,
+      interactionToken: null,
+      status: 'blocked',
+      nextRetryAt: null,
+    })
   }
 
   dispose(): void {

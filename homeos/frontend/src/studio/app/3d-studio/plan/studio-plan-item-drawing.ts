@@ -35,7 +35,6 @@ import {
   itemPlanFootprintOffset as itemPlanFootprintOffset2,
   normalizePillarShape as normalizePillarShape2,
   pillarIsLying as pillarIsLying2,
-  stripIsStanding as stripIsStanding2,
   tracePillarPlanPath as tracePillarPlanPath2,
 } from '../authoring/items/studio-item-posture'
 import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from '../authoring/items/item-catalog'
@@ -528,47 +527,12 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
         ),
         lampColorHex = '#' + kelvinToRgbHex2(planItem.lightTemperature).toString(16).padStart(6, '0'),
         eu2 = isLampEnabled(planItem)
-      if (
-        ((planCanvasRenderer.fillStyle = eu2 ? lampColorHex : '#68737d'),
-        (planCanvasRenderer.strokeStyle = eu2 ? 'rgba(255, 221, 163, .88)' : 'rgba(196, 207, 216, .48)'),
-        (planCanvasRenderer.lineWidth = 1.2),
-        planItem.type === 'striplight' && !stripIsStanding2(planItem))
-      ) {
-        planCanvasRenderer.beginPath()
-        const lampBodyRadius = Math.min(7, itemPixelDepth * 0.42)
-        planCanvasRenderer.roundRect(
-          -itemPixelWidth / 2,
-          -itemPixelDepth * 0.34,
-          itemPixelWidth,
-          itemPixelDepth * 0.68,
-          lampBodyRadius,
-        ),
-          planCanvasRenderer.fill(),
-          planCanvasRenderer.stroke(),
-          (planCanvasRenderer.strokeStyle = eu2 ? 'rgba(255, 238, 195, .95)' : 'rgba(196, 207, 216, .42)'),
-          (planCanvasRenderer.lineWidth = Math.max(2, itemPixelDepth * 0.12)),
-          planCanvasRenderer.beginPath(),
-          planCanvasRenderer.moveTo(-itemPixelWidth * 0.42, 0),
-          planCanvasRenderer.lineTo(itemPixelWidth * 0.42, 0),
-          planCanvasRenderer.stroke()
-      } else {
-        if (planItem.type === 'striplight') {
-          const standingStripInset = Math.min(itemPixelWidth, itemPixelDepth) * 0.3
-          planCanvasRenderer.beginPath(),
-            planCanvasRenderer.rect(-itemPixelWidth / 2, -itemPixelDepth / 2, itemPixelWidth, itemPixelDepth),
-            planCanvasRenderer.fill(),
-            planCanvasRenderer.stroke(),
-            (planCanvasRenderer.strokeStyle = eu2 ? 'rgba(255, 193, 116, .95)' : 'rgba(25, 34, 43, .5)'),
-            (planCanvasRenderer.lineWidth = 1),
-            planCanvasRenderer.beginPath(),
-            planCanvasRenderer.rect(
-              -itemPixelWidth / 2 + standingStripInset,
-              -itemPixelDepth / 2 + standingStripInset,
-              Math.max(itemPixelWidth - standingStripInset * 2, 0.6),
-              Math.max(itemPixelDepth - standingStripInset * 2, 0.6),
-            ),
-            planCanvasRenderer.stroke()
-        } else if (planItem.type === 'ceilinglight') {
+      // 户型图不画灯带符号：三维里已有面光和选中箭头，平面再画一条会干扰描摹。
+      if (planItem.type !== 'striplight') {
+        ;(planCanvasRenderer.fillStyle = eu2 ? lampColorHex : '#68737d'),
+          (planCanvasRenderer.strokeStyle = eu2 ? 'rgba(255, 221, 163, .88)' : 'rgba(196, 207, 216, .48)'),
+          (planCanvasRenderer.lineWidth = 1.2)
+        if (planItem.type === 'ceilinglight') {
           const lampSquareSize = Math.max(Math.min(itemPixelWidth, itemPixelDepth) * 0.82, 16)
           planCanvasRenderer.beginPath(),
             planCanvasRenderer.rect(-lampSquareSize / 2, -lampSquareSize / 2, lampSquareSize, lampSquareSize),

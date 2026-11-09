@@ -6,6 +6,8 @@
  * 「先列清单 → 用户确认 → 再检查一次（防止期间户型已改）→ 返回清理后的文档」。
  */
 
+import { shellConfirm } from '@/studio/platform/shell-chrome'
+
 export interface BindingRepairIssue {
   componentLabel?: string
   label?: string
@@ -19,68 +21,34 @@ export function hasInteractionBindings(bindingTree: any): boolean {
   return Object.values(bindingTree).some(hasInteractionBindings)
 }
 
-export function confirmBindingRepair(
+export async function confirmBindingRepair(
   issues: BindingRepairIssue[],
-  { mode, signal, document: repairDocument = document }: any,
+  { mode, signal }: any,
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (signal.aborted) {
-      resolve(false)
-      return
-    }
-    const repairDialog = repairDocument.createElement('dialog')
-    ;(repairDialog.className = 'settings-dialog binding-repair-dialog'),
-      repairDialog.setAttribute('aria-label', '检查失效配置')
-    const repairTitle = repairDocument.createElement('h2')
-    repairTitle.textContent = mode === 'copy' ? '待复制控件中有失效配置' : '检查失效配置'
-    const repairDescription = repairDocument.createElement('p')
-    repairDescription.textContent =
-      mode === 'copy'
-        ? '发现 ' +
-          issues.length +
-          ' 项失效配置。确认后从待复制的副本中移除，源控件保持原样。也可以取消后重新关联模型。'
-        : '发现 ' +
-          issues.length +
-          ' 项失效配置。确认后移除以下配置，保留其他设置和 HA 实体。完成后请点击顶部“保存”；也可以取消后重新关联模型。'
-    const repairList = repairDocument.createElement('ul')
-    repairList.className = 'binding-repair-list'
-    for (const repairIssue of issues) {
-      const repairListItem = repairDocument.createElement('li')
-      repairListItem.textContent = repairIssue.componentLabel + ' · ' + repairIssue.label + '：' + repairIssue.reason
-      repairList.append(repairListItem)
-    }
-    const repairActions = repairDocument.createElement('div')
-    repairActions.className = 'binding-repair-actions'
-    const cancelButton = repairDocument.createElement('button')
-    ;(cancelButton.type = 'button'), (cancelButton.textContent = '取消，保留配置')
-    const confirmButton = repairDocument.createElement('button')
-    ;(confirmButton.type = 'button'),
-      (confirmButton.className = 'primary'),
-      (confirmButton.textContent = mode === 'copy' ? '移除失效项并继续复制' : '移除列出的失效配置')
-    let isSettled = false
-    const settleRepair = (isConfirmed: boolean) => {
-      isSettled ||
-        ((isSettled = true),
-        signal.removeEventListener('abort', handleAbort),
-        repairDialog.close(),
-        repairDialog.remove(),
-        resolve(isConfirmed))
-    }
-    const handleAbort = () => settleRepair(false)
-    cancelButton.addEventListener('click', handleAbort),
-      confirmButton.addEventListener('click', () => settleRepair(true)),
-      repairDialog.addEventListener('cancel', (cancelEvent: Event) => {
-        cancelEvent.preventDefault(), settleRepair(false)
-      }),
-      repairDialog.addEventListener('close', () => settleRepair(false)),
-      repairDialog.addEventListener('keydown', (keydownEvent: KeyboardEvent) => keydownEvent.stopPropagation()),
-      signal.addEventListener('abort', handleAbort, { once: true }),
-      repairActions.append(cancelButton, confirmButton),
-      repairDialog.append(repairTitle, repairDescription, repairList, repairActions),
-      repairDocument.body.append(repairDialog),
-      repairDialog.showModal(),
-      cancelButton.focus()
+  if (signal?.aborted) return false
+  const issueLines = issues
+    .map(
+      (issue) =>
+        String(issue.componentLabel || '') + ' · ' + String(issue.label || '') + '：' + String(issue.reason || ''),
+    )
+    .join('\n')
+  const title = mode === 'copy' ? '待复制控件中有失效配置' : '检查失效配置'
+  const lead =
+    mode === 'copy'
+      ? '发现 ' +
+        issues.length +
+        ' 项失效配置。确认后从待复制的副本中移除，源控件保持原样。也可以取消后重新关联模型。'
+      : '发现 ' +
+        issues.length +
+        ' 项失效配置。确认后移除以下配置，保留其他设置和 HA 实体。完成后请点击顶部“保存”；也可以取消后重新关联模型。'
+  const confirmed = await shellConfirm({
+    title,
+    message: lead + (issueLines ? '\n\n' + issueLines : ''),
+    confirmLabel: mode === 'copy' ? '移除失效项并继续复制' : '移除列出的失效配置',
+    cancelLabel: '取消，保留配置',
+    tone: 'danger',
   })
+  return !signal?.aborted && confirmed
 }
 
 export function createBindingRepair({

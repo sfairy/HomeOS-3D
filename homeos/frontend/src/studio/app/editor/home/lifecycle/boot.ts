@@ -151,6 +151,7 @@ import { createBindingRepair } from "../../../../runtime/navigation/binding-repa
 import { weatherSceneStyle as weatherSceneStyle2 } from "../../../renderer/weather-forecast";
 import { bindScenePopupEditorBoot } from "./scene-popup-editor-boot";
 import { bindWeatherInspectorToggles } from "./weather-inspector-wiring";
+import { confirmAction } from "../../../shared/ui-confirm";
 let disposeActiveEditor: (() => void) | null = null;
 /**
  * 0.8.4：未保存副本恢复用的「保存尝试」记录（revision + 文档指纹）。
@@ -186,12 +187,12 @@ const { positionLightStatisticsIconMenu, positionLightStatisticsEntityMenu, reso
 const { createAssetOptionButton, renderImageAssetOptions, syncImageAssetSelection, positionEffectAssetMenu, renderEffectAssetOptions, syncEffectAssetSelection, assignActionControlIds, initActionPopupConfig, closePopupEntityMenus, syncPopupEntityButton, renderPopupEntityOptions, positionPopupEntityMenu, timeFitComponent, renderTimeInspector, weatherProperties, fitWeatherComponentToDimensions, entitiesByEntityId, devicesByDeviceId, buildCustomPopupEditorContext, renderCustomPopupEditor, syncCustomPopupStage, buildTimeInspectorContext, syncTimeInspector, buildWeatherInspectorContext, syncWeatherInspector } = bindDeps(popupInspectorsDeps)({ createAssetOptionButton: createAssetOptionButtonImpl, renderImageAssetOptions: renderImageAssetOptionsImpl, syncImageAssetSelection: syncImageAssetSelectionImpl, positionEffectAssetMenu: positionEffectAssetMenuImpl, renderEffectAssetOptions: renderEffectAssetOptionsImpl, syncEffectAssetSelection: syncEffectAssetSelectionImpl, assignActionControlIds: assignActionControlIdsImpl, initActionPopupConfig: initActionPopupConfigImpl, closePopupEntityMenus: closePopupEntityMenusImpl, syncPopupEntityButton: syncPopupEntityButtonImpl, renderPopupEntityOptions: renderPopupEntityOptionsImpl, positionPopupEntityMenu: positionPopupEntityMenuImpl, timeFitComponent: timeFitComponentImpl, renderTimeInspector: renderTimeInspectorImpl, weatherProperties: weatherPropertiesImpl, fitWeatherComponentToDimensions: fitWeatherComponentToDimensionsImpl, entitiesByEntityId: entitiesByEntityIdImpl, devicesByDeviceId: devicesByDeviceIdImpl, buildCustomPopupEditorContext: buildCustomPopupEditorContextImpl, renderCustomPopupEditor: renderCustomPopupEditorImpl, syncCustomPopupStage: syncCustomPopupStageImpl, buildTimeInspectorContext: buildTimeInspectorContextImpl, syncTimeInspector: syncTimeInspectorImpl, buildWeatherInspectorContext: buildWeatherInspectorContextImpl, syncWeatherInspector: syncWeatherInspectorImpl })
 const { buildTitleButtonInspectorContext, syncTitleButtonInspector, buildLightStatisticsInspectorContext, syncLightStatisticsInspector, buildCameraInspectorContext, syncCameraInspector, buildVacuumMapInspectorContext, syncVacuumMapInspector, buildCoverMotorInspectorContext, coverMotorButtonElement, computeCoverMotorStyleChanges, reloadAssetCatalog, pollAssetCatalogVersion, ensureEntitiesLoaded, renderCustomPopupSelector, syncPopupEntityInputs, syncPopupModuleClimateDeviceType, deviceNameValue, initialPopupId, renderPopupModuleEntityOptions, closePopupModuleEntityMenu, openPopupModuleDialog, renderPageSelect, retainExistingSelection, collectChangedComponents } = bindDeps(inspectorContextsDeps)({ buildTitleButtonInspectorContext: buildTitleButtonInspectorContextImpl, syncTitleButtonInspector: syncTitleButtonInspectorImpl, buildLightStatisticsInspectorContext: buildLightStatisticsInspectorContextImpl, syncLightStatisticsInspector: syncLightStatisticsInspectorImpl, buildCameraInspectorContext: buildCameraInspectorContextImpl, syncCameraInspector: syncCameraInspectorImpl, buildVacuumMapInspectorContext: buildVacuumMapInspectorContextImpl, syncVacuumMapInspector: syncVacuumMapInspectorImpl, buildCoverMotorInspectorContext: buildCoverMotorInspectorContextImpl, coverMotorButtonElement: coverMotorButtonElementImpl, computeCoverMotorStyleChanges: computeCoverMotorStyleChangesImpl, reloadAssetCatalog: reloadAssetCatalogImpl, pollAssetCatalogVersion: pollAssetCatalogVersionImpl, ensureEntitiesLoaded: ensureEntitiesLoadedImpl, renderCustomPopupSelector: renderCustomPopupSelectorImpl, syncPopupEntityInputs: syncPopupEntityInputsImpl, syncPopupModuleClimateDeviceType: syncPopupModuleClimateDeviceTypeImpl, deviceNameValue: deviceNameValueImpl, initialPopupId: initialPopupIdImpl, renderPopupModuleEntityOptions: renderPopupModuleEntityOptionsImpl, closePopupModuleEntityMenu: closePopupModuleEntityMenuImpl, openPopupModuleDialog: openPopupModuleDialogImpl, renderPageSelect: renderPageSelectImpl, retainExistingSelection: retainExistingSelectionImpl, collectChangedComponents: collectChangedComponentsImpl })
 const { collectPageComponentBounds, alignSelectedComponents, ensureEditorRenderer, renderEditorWorkspace, syncHistoryButtons, applyEditorCanvasZoom, selectAllPageComponents, discardRecoverySnapshot, readRecoverySnapshot, scheduleRecoverySnapshot, persistRecoverySnapshot, writeError, resetHistoryState, refreshDirtyState, historyEntries, historyEntry, initialPagePath, projectSummary, recoverDraftConflict, saveDraft, interaction3dEntryActive, loadHaConnection, entityLoadError, reuseTokenForNewUrl, syncAspectLockButton } = bindDeps(workspaceHistoryDeps)({ collectPageComponentBounds: collectPageComponentBoundsImpl, alignSelectedComponents: alignSelectedComponentsImpl, ensureEditorRenderer: ensureEditorRendererImpl, renderEditorWorkspace: renderEditorWorkspaceImpl, syncHistoryButtons: syncHistoryButtonsImpl, applyEditorCanvasZoom: applyEditorCanvasZoomImpl, selectAllPageComponents: selectAllPageComponentsImpl, discardRecoverySnapshot: discardRecoverySnapshotImpl, readRecoverySnapshot: readRecoverySnapshotImpl, scheduleRecoverySnapshot: scheduleRecoverySnapshotImpl, persistRecoverySnapshot: persistRecoverySnapshotImpl, writeError: writeErrorImpl, resetHistoryState: resetHistoryStateImpl, refreshDirtyState: refreshDirtyStateImpl, historyEntries: historyEntriesImpl, historyEntry: historyEntryImpl, initialPagePath: initialPagePathImpl, projectSummary: projectSummaryImpl, recoverDraftConflict: recoverDraftConflictImpl, saveDraft: saveDraftImpl, interaction3dEntryActive: interaction3dEntryActiveImpl, loadHaConnection: loadHaConnectionImpl, entityLoadError: entityLoadErrorImpl, reuseTokenForNewUrl: reuseTokenForNewUrlImpl, syncAspectLockButton: syncAspectLockButtonImpl })
-const { actionDraftDocument, targetPageCandidate, buttonVisibilityDraftDocument, titleButtonIconOptionClickEvent, titleButtonIconDraftDocument, lightStatisticsIconCopyError, lightStatisticsEntityListClickEvent, imageEntityDraftDocument, openAssetPicker, assetIdToDelete, folderDocumentNode, closeDeletePopupDialog, documentSource, popupId, triggerKey, findDiagramPreviewFrame, lightInputElement, cancelRemovesComponent, lightingPayload, lightFieldElement, openLightingPanel, lightInputNode, onFloorplanAutoLightingResetButtonClick, onFloorplanAutoLightingCloseButtonClick, applyLightingPanelDragMove } = bindDeps(lightingPanelDeps)({ actionDraftDocument: actionDraftDocumentImpl, targetPageCandidate: targetPageCandidateImpl, buttonVisibilityDraftDocument: buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent: titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument: titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError: lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent: lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument: imageEntityDraftDocumentImpl, openAssetPicker: openAssetPickerImpl, assetIdToDelete: assetIdToDeleteImpl, folderDocumentNode: folderDocumentNodeImpl, closeDeletePopupDialog: closeDeletePopupDialogImpl, documentSource: documentSourceImpl, popupId: popupIdImpl, triggerKey: triggerKeyImpl, findDiagramPreviewFrame: findDiagramPreviewFrameImpl, lightInputElement: lightInputElementImpl, cancelRemovesComponent: cancelRemovesComponentImpl, lightingPayload: lightingPayloadImpl, lightFieldElement: lightFieldElementImpl, openLightingPanel: openLightingPanelImpl, lightInputNode: lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick: onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick: onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove: applyLightingPanelDragMoveImpl })
+const { actionDraftDocument, targetPageCandidate, buttonVisibilityDraftDocument, titleButtonIconOptionClickEvent, titleButtonIconDraftDocument, lightStatisticsIconCopyError, lightStatisticsEntityListClickEvent, imageEntityDraftDocument, openAssetPicker, assetIdToDelete, closeDeletePopupDialog, documentSource, popupId, triggerKey, findDiagramPreviewFrame, lightInputElement, cancelRemovesComponent, lightingPayload, lightFieldElement, openLightingPanel, lightInputNode, onFloorplanAutoLightingResetButtonClick, onFloorplanAutoLightingCloseButtonClick, applyLightingPanelDragMove } = bindDeps(lightingPanelDeps)({ actionDraftDocument: actionDraftDocumentImpl, targetPageCandidate: targetPageCandidateImpl, buttonVisibilityDraftDocument: buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent: titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument: titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError: lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent: lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument: imageEntityDraftDocumentImpl, openAssetPicker: openAssetPickerImpl, assetIdToDelete: assetIdToDeleteImpl, folderDocumentNode: folderDocumentNodeImpl, closeDeletePopupDialog: closeDeletePopupDialogImpl, documentSource: documentSourceImpl, popupId: popupIdImpl, triggerKey: triggerKeyImpl, findDiagramPreviewFrame: findDiagramPreviewFrameImpl, lightInputElement: lightInputElementImpl, cancelRemovesComponent: cancelRemovesComponentImpl, lightingPayload: lightingPayloadImpl, lightFieldElement: lightFieldElementImpl, openLightingPanel: openLightingPanelImpl, lightInputNode: lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick: onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick: onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove: applyLightingPanelDragMoveImpl })
 const { closeAutoDiagramDialog, settleAutoDiagramDialog, cancelRemoveDraftDocument, bindMessageSection, onWindowMessage, exportSpliceError, collectPageImages, createImageAlignOption, openImageAlignDialog, applyAirConditionerPreviewState, airflowSectionEvent, previewSyncEventName, onCoverSettingsKindClick, coverKindDraftDocument, navigationSavedPropertyKey, previewDateResize, previewWeatherComponentResize, setNavigationPreviewState, applyNavigationPreviewState, syncNavigationPreviewFromElement, navigationPropertyNameFromElement, resolveComponentStyleValue, collectChangedLineChartStyleKeys, formatLineChartStyleValue, resolveNavigationStyleValue } = bindDeps(navigationPreviewDeps)({ closeAutoDiagramDialog: closeAutoDiagramDialogImpl, settleAutoDiagramDialog: settleAutoDiagramDialogImpl, cancelRemoveDraftDocument: cancelRemoveDraftDocumentImpl, bindMessageSection: bindMessageSectionImpl, onWindowMessage: onWindowMessageImpl, exportSpliceError: exportSpliceErrorImpl, collectPageImages: collectPageImagesImpl, createImageAlignOption: createImageAlignOptionImpl, openImageAlignDialog: openImageAlignDialogImpl, applyAirConditionerPreviewState: applyAirConditionerPreviewStateImpl, airflowSectionEvent: airflowSectionEventImpl, previewSyncEventName: previewSyncEventNameImpl, onCoverSettingsKindClick: onCoverSettingsKindClickImpl, coverKindDraftDocument: coverKindDraftDocumentImpl, navigationSavedPropertyKey: navigationSavedPropertyKeyImpl, previewDateResize: previewDateResizeImpl, previewWeatherComponentResize: previewWeatherComponentResizeImpl, setNavigationPreviewState: setNavigationPreviewStateImpl, applyNavigationPreviewState: applyNavigationPreviewStateImpl, syncNavigationPreviewFromElement: syncNavigationPreviewFromElementImpl, navigationPropertyNameFromElement: navigationPropertyNameFromElementImpl, resolveComponentStyleValue: resolveComponentStyleValueImpl, collectChangedLineChartStyleKeys: collectChangedLineChartStyleKeysImpl, formatLineChartStyleValue: formatLineChartStyleValueImpl, resolveNavigationStyleValue: resolveNavigationStyleValueImpl })
 const { collectChangedTitleButtonStyleKeys, onNavigationStyleApplyCancelButtonClick, onNavigationStyleApplyConfirmButtonClick, collectChangedAirConditionerStyleKeys, formatAirConditionerStyleValue, resolveAirConditionerStyleValue, collectChangedIconButtonEffectStyleKeys, formatIconButtonEffectStyleValue, normalizeSensorKind, formatSensorKindLabel, resolvePresenceSensorStyleKeys, styleTargetCheckbox, appliedStylePropertyKey, onNavigationIconCopyButtonClick, navigationIconCopyError, resolveCameraStyleValue, collectChangedCameraStyleKeys, formatCameraStyleValue, resolvePanelFrameStyleValue, collectChangedPanelFrameStyleKeys, formatPanelFrameStyleValue, entryStateRecord, areStyleValuesEqual, onImageAssetUploadButtonClick, onAssetOptionsClick } = bindDeps(styleApplyDeps)({ collectChangedTitleButtonStyleKeys: collectChangedTitleButtonStyleKeysImpl, onNavigationStyleApplyCancelButtonClick: onNavigationStyleApplyCancelButtonClickImpl, onNavigationStyleApplyConfirmButtonClick: onNavigationStyleApplyConfirmButtonClickImpl, collectChangedAirConditionerStyleKeys: collectChangedAirConditionerStyleKeysImpl, formatAirConditionerStyleValue: formatAirConditionerStyleValueImpl, resolveAirConditionerStyleValue: resolveAirConditionerStyleValueImpl, collectChangedIconButtonEffectStyleKeys: collectChangedIconButtonEffectStyleKeysImpl, formatIconButtonEffectStyleValue: formatIconButtonEffectStyleValueImpl, normalizeSensorKind: normalizeSensorKindImpl, formatSensorKindLabel: formatSensorKindLabelImpl, resolvePresenceSensorStyleKeys: resolvePresenceSensorStyleKeysImpl, styleTargetCheckbox: styleTargetCheckboxImpl, appliedStylePropertyKey: appliedStylePropertyKeyImpl, onNavigationIconCopyButtonClick: onNavigationIconCopyButtonClickImpl, navigationIconCopyError: navigationIconCopyErrorImpl, resolveCameraStyleValue: resolveCameraStyleValueImpl, collectChangedCameraStyleKeys: collectChangedCameraStyleKeysImpl, formatCameraStyleValue: formatCameraStyleValueImpl, resolvePanelFrameStyleValue: resolvePanelFrameStyleValueImpl, collectChangedPanelFrameStyleKeys: collectChangedPanelFrameStyleKeysImpl, formatPanelFrameStyleValue: formatPanelFrameStyleValueImpl, entryStateRecord: entryStateRecordImpl, areStyleValuesEqual: areStyleValuesEqualImpl, onImageAssetUploadButtonClick: onImageAssetUploadButtonClickImpl, onAssetOptionsClick: onAssetOptionsClickImpl })
 const { collectPendingNavigationStyleKeys, onDeleteAssetCancelButtonClick, applyNavigationStyleToTargets, openNavigationStyleApplyDialog, onImageAssetFolderSelectChange, imageAssetPointerOverEvent, imageAssetClickEvent, openCameraStyleApplyDialog, openTitleButtonStyleApplyDialog, openIconButtonEffectStyleApplyDialog, openAirConditionerStyleApplyDialog, openIconButtonStyleApplyDialog, imageAssetMeasureError, applyInspectorDimensionChange, onIconButtonEffectAssetFolderSelectChange, applyEffectAssetDimensionChange, applyCameraDimensionChange, applyLineChartDimensionChange, recoveredComponentId, onErrorDialogCloseButtonClick, onShowSharedComponentsButtonClick, onComponentTemplateDialogClick, closePopupRenameDialog, createCopyBackupDeps, renderCopyBackupDialog } = bindDeps(styleDialogsDeps)({ collectPendingNavigationStyleKeys: collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick: onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets: applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog: openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange: onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent: imageAssetPointerOverEventImpl, imageAssetClickEvent: imageAssetClickEventImpl, openCameraStyleApplyDialog: openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog: openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog: openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog: openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog: openIconButtonStyleApplyDialogImpl, imageAssetMeasureError: imageAssetMeasureErrorImpl, applyInspectorDimensionChange: applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange: onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange: applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange: applyCameraDimensionChangeImpl, applyLineChartDimensionChange: applyLineChartDimensionChangeImpl, recoveredComponentId: recoveredComponentIdImpl, onErrorDialogCloseButtonClick: onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick: onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick: onComponentTemplateDialogClickImpl, closePopupRenameDialog: closePopupRenameDialogImpl, createCopyBackupDeps: createCopyBackupDepsImpl, renderCopyBackupDialog: renderCopyBackupDialogImpl })
 const { titleButtonMenuDeps, loadNavigationIconOptions, positionTitleButtonIconMenu, stopHoverScroll, iconTooltipElementValue, inspectorSyncDeps, syncComponentActionControls, applyTransformToInspector, previewModeForIcon, sharedReferenceId, nudgeDeps, nudgeDeltaX, clickPopupListOption, onPopupListContextmenu, openEntityCopyBackupPicker, openLightStatisticsCopyBackupPicker, openPopupEntityCopyBackupPicker, onPopupModuleCancelButtonClick } = bindDeps(copyBackupPickersDeps)({ titleButtonMenuDeps: titleButtonMenuDepsImpl, loadNavigationIconOptions: loadNavigationIconOptionsImpl, positionTitleButtonIconMenu: positionTitleButtonIconMenuImpl, stopHoverScroll: stopHoverScrollImpl, iconTooltipElementValue: iconTooltipElementValueImpl, inspectorSyncDeps: inspectorSyncDepsImpl, syncComponentActionControls: syncComponentActionControlsImpl, applyTransformToInspector: applyTransformToInspectorImpl, previewModeForIcon: previewModeForIconImpl, sharedReferenceId: sharedReferenceIdImpl, nudgeDeps: nudgeDepsImpl, nudgeDeltaX: nudgeDeltaXImpl, clickPopupListOption: clickPopupListOptionImpl, onPopupListContextmenu: onPopupListContextmenuImpl, openEntityCopyBackupPicker: openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker: openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker: openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick: onPopupModuleCancelButtonClickImpl })
-const { onPopupModuleClimateDeviceTypeClick, selectAssetFolder, popupModuleTypeValue, requestDeleteUserAsset, requestDeleteAssetFolder, refreshAssetPickers, scaleDraftDocument, cancelDeletePopupDialog, onSessionsRevokeOthersConfirmButtonClick, onGlobalColorPickerHexTextInputInput, saturationPointerMoveEventState, mutationRecord } = bindDeps(assetManagementDeps)({ onPopupModuleClimateDeviceTypeClick: onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder: selectAssetFolderImpl, popupModuleTypeValue: popupModuleTypeValueImpl, requestDeleteUserAsset: requestDeleteUserAssetImpl, requestDeleteAssetFolder: requestDeleteAssetFolderImpl, refreshAssetPickers: refreshAssetPickersImpl, scaleDraftDocument: scaleDraftDocumentImpl, cancelDeletePopupDialog: cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick: onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput: onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState: saturationPointerMoveEventStateImpl, mutationRecord: mutationRecordImpl })
+const { onPopupModuleClimateDeviceTypeClick, selectAssetFolder, popupModuleTypeValue, requestDeleteUserAsset, requestDeleteAssetFolder, refreshAssetPickers, scaleDraftDocument, onSessionsRevokeOthersConfirmButtonClick, onGlobalColorPickerHexTextInputInput, saturationPointerMoveEventState, mutationRecord } = bindDeps(assetManagementDeps)({ onPopupModuleClimateDeviceTypeClick: onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder: selectAssetFolderImpl, popupModuleTypeValue: popupModuleTypeValueImpl, requestDeleteUserAsset: requestDeleteUserAssetImpl, requestDeleteAssetFolder: requestDeleteAssetFolderImpl, refreshAssetPickers: refreshAssetPickersImpl, scaleDraftDocument: scaleDraftDocumentImpl, cancelDeletePopupDialog: cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick: onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput: onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState: saturationPointerMoveEventStateImpl, mutationRecord: mutationRecordImpl })
 
 // 路由 fade 过渡期间户型页与编辑器会短暂共存；限定在本页根节点内查询，避免撞 id。
   const editorRootElement =
@@ -261,12 +262,11 @@ const {
   projectCloseElement, projectCancelElement, projectFormElement, projectSubmitElement, projectMessageElement, 
   projectTemplateOptionsElement, projectPreviewDialogElement, projectPreviewPreviousElement, projectPreviewNextElement, projectPreviewCloseElement,
   projectCanvasWidthElement, projectCanvasHeightElement, projectAspectLockElement, 
-  projectContentLockElement, projectResizeWarningDialogElement, projectResizeWarningCloseElement, projectResizeWarningCancelElement, projectResizeWarningConfirmElement, pageDialogElement, 
+  projectContentLockElement, pageDialogElement,
   pageCloseElement, pageCancelElement, pageFormElement, pageSubmitElement, pageMessageElement, componentGroupRenameDialogElement, componentGroupRenameCloseElement,
   componentGroupRenameCancelElement, componentGroupRenameFormElement, componentGroupRenameMessageElement, editorCanvasElement, displayDeviceCountElement, workspaceResolutionElement,
-  soundToggleButtonElement, deleteProjectDialogElement, deleteProjectCloseButtonElement, deleteProjectCancelButtonElement, deleteProjectFormElement, deleteProjectNameElement, deleteProjectMessageElement, deletePageDialogElement,
-  deletePageCloseButtonElement, deletePageCancelButtonElement, deletePageConfirmButtonElement, deletePageNameElement, deletePageMessageElement, deleteComponentDialogElement, deleteComponentCloseButtonElement, deleteComponentCancelButtonElement,
-  deleteComponentConfirmButtonElement, copyComponentPageDialogElement, copyComponentPageCloseButtonElement, copyComponentPageCancelButtonElement, copyComponentPageFormElement, copyComponentPageScopeSelectElement,
+  soundToggleButtonElement, deleteProjectDialogElement, deleteProjectCloseButtonElement, deleteProjectCancelButtonElement, deleteProjectFormElement, deleteProjectNameElement, deleteProjectMessageElement,
+  copyComponentPageDialogElement, copyComponentPageCloseButtonElement, copyComponentPageCancelButtonElement, copyComponentPageFormElement, copyComponentPageScopeSelectElement,
   copyComponentPageProjectSelectElement, copyComponentPageTargetElement, copyComponentScaleOptionsElement, copyComponentPageMessageElement, copyComponentPageSubmitElement,
   copyComponentSuccessDialogElement, copyComponentSuccessStayElement, copyComponentSuccessGoElement, errorDialogCloseButtonElement, errorDialogCloseElement, errorDialogConfirmElement, 
   recoveryDialogElement, recoveryMessageTitleElement, recoveryMessageDetailElement, recoveryDownloadElement, recoveryDiscardElement, recoveryRestoreElement, undoElement, redoElement, navigatorElement, imageInspectorElement,
@@ -359,8 +359,6 @@ const {
   navigationStyleApplyPropertiesElement, navigationStyleApplyTargetsElement, navigationStyleApplyMessageElement, navigationStyleApplyCancelElement,
   navigationStyleApplyConfirmElement, popupNameDialogElement, popupNameFormElement, popupNameCloseElement, popupNameCancelElement, popupModuleDialogElement, 
   popupModuleFormElement, popupModuleCloseElement, popupModuleCancelElement, popupModuleEntityButtonElement, popupModuleEntityMenuElement, popupModuleEntitySearchElement, popupModuleEntityOptionsElement, popupModuleClimateDeviceTypeElement,
-  deletePopupDialogElement, deletePopupCloseElement, deletePopupCancelElement, deletePopupConfirmElement, deletePopupNameElement, deleteAssetDialogElement, deleteAssetCloseButtonElement, deleteAssetCancelButtonElement,
-  deleteAssetConfirmButtonElement, deleteAssetFolderDialogElement, deleteAssetFolderCloseButtonElement, deleteAssetFolderCancelButtonElement, deleteAssetFolderConfirmButtonElement, 
 } = homeElements;
 ((soundToggleButtonElement.id = "dashboard-sound-toggle"),
   (soundToggleButtonElement.className = "workspace-sound-toggle"),
@@ -1282,12 +1280,7 @@ function lightingPanelDeps(): LightingPanelDeps {
       setSettingsMessage(projectMessageElement, ""),
       imageEntityDraftDocument(false));
   }),
-  projectResizeWarningCloseElement.addEventListener("click", () => folderDocumentNode(false)),
-  projectResizeWarningCancelElement.addEventListener("click", () => folderDocumentNode(false)),
-  projectResizeWarningConfirmElement.addEventListener("click", () => folderDocumentNode(true)),
-  projectResizeWarningDialogElement.addEventListener("cancel", (onProjectFormSubmit: any) => {
-    (onProjectFormSubmit.preventDefault(), folderDocumentNode(false));
-  }),
+  /* 分辨率警告已迁 confirmAction */
   projectFormElement.addEventListener("submit", async (projectSubmitEvent: any) => {
     projectSubmitEvent.preventDefault();
     const projectForm = new FormData(projectFormElement),
@@ -1627,89 +1620,85 @@ function lightingPanelDeps(): LightingPanelDeps {
       }
       return;
     }
-    pageAction === "delete" &&
-      ((deletePageDialogElement.dataset.pagePath = ct4.path),
-      (deletePageNameElement.textContent = "“" + ct4.name + "”"),
-      setSettingsMessage(deletePageMessageElement, ""),
-      deletePageDialogElement.showModal());
-  }),
-  deletePageCloseButtonElement.addEventListener("click", () => deletePageDialogElement.close()),
-  deletePageCancelButtonElement.addEventListener("click", () => deletePageDialogElement.close()),
-  deletePageDialogElement.addEventListener("click", (onDeletePageConfirmButtonClick: any) => {
-    onDeletePageConfirmButtonClick.target === deletePageDialogElement &&
-      deletePageDialogElement.close();
-  }),
-  deletePageConfirmButtonElement.addEventListener("click", async () => {
-    const pagePath = deletePageDialogElement.dataset.pagePath,
-      deletePageDocument = clone2(editorCtx.activeProject.document),
-      deletedPageIndex = deletePageDocument.pages.findIndex(
-        (deletedPageCandidate: any) => deletedPageCandidate.path === pagePath,
-      );
-    if (deletedPageIndex < 0) {
-      setSettingsMessage(deletePageMessageElement, "页面已经不存在，请刷新后重试。", "error");
-      return;
-    }
-    const deletedPage = deletePageDocument.pages[deletedPageIndex];
-    deletePageDocument.pages.splice(deletedPageIndex, 1);
-    const fallbackPagePath =
-        deletePageDocument.pages[Math.max(0, deletedPageIndex - 1)]?.path ||
-        deletePageDocument.pages[0]?.path ||
-        null,
-      fallbackPage = deletePageDocument.pages.find(
-        (fallbackCandidate: any) => fallbackCandidate.path === fallbackPagePath,
-      );
-    deletePageDocument.defaultPagePath === pagePath &&
-      (deletePageDocument.defaultPagePath = fallbackPagePath);
-    const remapPageReferences = (scannedComponent: any) => {
-      for (const actionKind of scannedComponent || []) {
-        if (
-          ((actionKind.properties = {
-            ...(actionKind.properties || {}),
-          }),
-          actionKind.type === "navigation-button" && actionKind.properties.targetPage === pagePath)
-        ) {
-          (!actionKind.properties.mainText ||
-            actionKind.properties.mainText === "页面导航" ||
-            actionKind.properties.mainText === deletedPage?.name) &&
-            (actionKind.properties.mainText = fallbackPage?.name || "页面导航");
-          const upperCase = String(pagePath).replace(/[-_]+/g, " ").toUpperCase();
-          ((!actionKind.properties.secondaryText ||
-            actionKind.properties.secondaryText === "NAVIGATION" ||
-            actionKind.properties.secondaryText === upperCase) &&
-            (actionKind.properties.secondaryText = fallbackPagePath
-              ? String(fallbackPagePath).replace(/[-_]+/g, " ").toUpperCase()
-              : "NAVIGATION"),
-            fallbackPagePath
-              ? (actionKind.properties.targetPage = fallbackPagePath)
-              : delete actionKind.properties.targetPage);
-        }
-        actionKind.actions = {
-          ...(actionKind.actions || {}),
-        };
-        for (const scannedPage of ["tap", "doubleTap", "hold"])
-          actionKind.actions[scannedPage]?.type === "navigate" &&
-            actionKind.actions[scannedPage]?.target === pagePath &&
-            (actionKind.type === "navigation-button" && fallbackPagePath
-              ? (actionKind.actions[scannedPage] = {
-                  type: "navigate",
-                  target: fallbackPagePath,
-                })
-              : delete actionKind.actions[scannedPage]);
-        remapPageReferences(actionKind.children);
+    if (pageAction === "delete") {
+      const pagePath = ct4.path;
+      const pageName = ct4.name;
+      const confirmed = await confirmAction({
+        title: "删除页面",
+        message:
+          "确认删除页面“" +
+          pageName +
+          "”？\n页面内的主页面控件会一并删除。删除最后一个页面后，可以从左侧重新新建页面。",
+        confirmLabel: "确认删除",
+        cancelLabel: "取消",
+        tone: "danger",
+      });
+      if (!confirmed) return;
+      const deletePageDocument = clone2(editorCtx.activeProject.document),
+        deletedPageIndex = deletePageDocument.pages.findIndex(
+          (deletedPageCandidate: any) => deletedPageCandidate.path === pagePath,
+        );
+      if (deletedPageIndex < 0) {
+        handleOperationError(new Error("页面已经不存在，请刷新后重试。"));
+        return;
       }
-    };
-    remapPageReferences(deletePageDocument.sharedComponents);
-    for (const deletePageError of deletePageDocument.pages)
-      remapPageReferences(deletePageError.components);
-    ((deletePageConfirmButtonElement.disabled = true),
-      setSettingsMessage(deletePageMessageElement, "正在删除页面…"));
-    try {
-      if (!(await projectSummary(deletePageDocument, fallbackPagePath))) return;
-      deletePageDialogElement.close();
-    } catch (onComponentMenuClick: any) {
-      setSettingsMessage(deletePageMessageElement, onComponentMenuClick.message, "error");
-    } finally {
-      deletePageConfirmButtonElement.disabled = false;
+      const deletedPage = deletePageDocument.pages[deletedPageIndex];
+      deletePageDocument.pages.splice(deletedPageIndex, 1);
+      const fallbackPagePath =
+          deletePageDocument.pages[Math.max(0, deletedPageIndex - 1)]?.path ||
+          deletePageDocument.pages[0]?.path ||
+          null,
+        fallbackPage = deletePageDocument.pages.find(
+          (fallbackCandidate: any) => fallbackCandidate.path === fallbackPagePath,
+        );
+      deletePageDocument.defaultPagePath === pagePath &&
+        (deletePageDocument.defaultPagePath = fallbackPagePath);
+      const remapPageReferences = (scannedComponent: any) => {
+        for (const actionKind of scannedComponent || []) {
+          if (
+            ((actionKind.properties = {
+              ...(actionKind.properties || {}),
+            }),
+            actionKind.type === "navigation-button" && actionKind.properties.targetPage === pagePath)
+          ) {
+            (!actionKind.properties.mainText ||
+              actionKind.properties.mainText === "页面导航" ||
+              actionKind.properties.mainText === deletedPage?.name) &&
+              (actionKind.properties.mainText = fallbackPage?.name || "页面导航");
+            const upperCase = String(pagePath).replace(/[-_]+/g, " ").toUpperCase();
+            ((!actionKind.properties.secondaryText ||
+              actionKind.properties.secondaryText === "NAVIGATION" ||
+              actionKind.properties.secondaryText === upperCase) &&
+              (actionKind.properties.secondaryText = fallbackPagePath
+                ? String(fallbackPagePath).replace(/[-_]+/g, " ").toUpperCase()
+                : "NAVIGATION"),
+              fallbackPagePath
+                ? (actionKind.properties.targetPage = fallbackPagePath)
+                : delete actionKind.properties.targetPage);
+          }
+          actionKind.actions = {
+            ...(actionKind.actions || {}),
+          };
+          for (const scannedPage of ["tap", "doubleTap", "hold"])
+            actionKind.actions[scannedPage]?.type === "navigate" &&
+              actionKind.actions[scannedPage]?.target === pagePath &&
+              (actionKind.type === "navigation-button" && fallbackPagePath
+                ? (actionKind.actions[scannedPage] = {
+                    type: "navigate",
+                    target: fallbackPagePath,
+                  })
+                : delete actionKind.actions[scannedPage]);
+          remapPageReferences(actionKind.children);
+        }
+      };
+      remapPageReferences(deletePageDocument.sharedComponents);
+      for (const deletePageError of deletePageDocument.pages)
+        remapPageReferences(deletePageError.components);
+      try {
+        await projectSummary(deletePageDocument, fallbackPagePath);
+      } catch (onComponentMenuClick: any) {
+        handleOperationError(onComponentMenuClick);
+      }
     }
   }),
   componentMenuElement.addEventListener("click", (menuClickEvent: any) => {
@@ -1770,16 +1759,7 @@ function lightingPanelDeps(): LightingPanelDeps {
     labelColorElement &&
       setComponentsLabelColor(actionComponentIds, labelColorElement.dataset.labelColor);
   }),
-  deleteComponentCloseButtonElement.addEventListener("click", () =>
-    deleteComponentDialogElement.close(),
-  ),
-  deleteComponentCancelButtonElement.addEventListener("click", () =>
-    deleteComponentDialogElement.close(),
-  ),
-  deleteComponentDialogElement.addEventListener("click", (onCopyComponentPageScopeSelectChange: any) => {
-    onCopyComponentPageScopeSelectChange.target === deleteComponentDialogElement &&
-      deleteComponentDialogElement.close();
-  }),
+  /* 控件删除已迁 confirmAction，不再绑定 #delete-component-dialog */
   copyComponentPageCloseButtonElement.addEventListener("click", () =>
     copyComponentPageDialogElement.close(),
   ),
@@ -2001,32 +1981,8 @@ function lightingPanelDeps(): LightingPanelDeps {
       }
     }
   }),
-  deleteComponentConfirmButtonElement.addEventListener("click", () => {
-    let pendingDeleteComponentIds: any[] = [];
-    try {
-      pendingDeleteComponentIds = JSON.parse(
-        deleteComponentDialogElement.dataset.componentIds || "[]",
-      );
-    } catch {
-      pendingDeleteComponentIds = [];
-    }
-    if (!pendingDeleteComponentIds.length) return;
-    deleteComponentDialogElement.close();
-    const deleteIdSet = new Set(pendingDeleteComponentIds);
-    ((editorCtx.selectedComponentIdsSet = new Set(
-      [...editorCtx.selectedComponentIdsSet].filter(
-        (deletedComponentId) => !deleteIdSet.has(deletedComponentId),
-      ),
-    )),
-      deleteIdSet.has(editorCtx.selectedComponentId) &&
-        (editorCtx.selectedComponentId = editorCtx.selectedComponentIdsSet.values().next().value || null),
-      deleteIdSet.has(editorCtx.selectionAnchorComponentId) &&
-        (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
-      mutateDocument((onImageInspectorFormSubmit: any) => {
-        for (const imageInspectorSubmitEvent of pendingDeleteComponentIds)
-          removeComponent(onImageInspectorFormSubmit, imageInspectorSubmitEvent);
-      }));
-  }),
+  /* 控件删除已迁 confirmAction（deleteComponentIds） */
+
   imageInspectorElement.addEventListener("submit", (onIconButtonEffectInspectorFormSubmit: any) =>
     onIconButtonEffectInspectorFormSubmit.preventDefault(),
   ),
@@ -4379,6 +4335,7 @@ function assetManagementDeps(): AssetManagementDeps {
     get mutationRecord() { return mutationRecord; },
     get positionEffectAssetMenu() { return positionEffectAssetMenu; },
     get positionImageAssetMenu() { return positionImageAssetMenu; },
+    get refreshAssetPickers() { return refreshAssetPickers; },
     get reloadAssetCatalog() { return reloadAssetCatalog; },
     get removedComponent() { return removedComponent; },
     get renderEffectAssetOptions() { return renderEffectAssetOptions; },
@@ -4438,10 +4395,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
 bindAssetDialogWiring({
   addComponentButtonElement, applyAssetNaturalSize, applyCollectionLayerOrder2, clone2, closeOtherPickerMenus,
   componentTemplateCloseElement, componentTemplateDialogElement, componentTemplateListElement,
-  coverMotorButtonElement, createComponentFromTemplate2, deleteAssetCancelButtonElement,
-  deleteAssetCloseButtonElement, deleteAssetConfirmButtonElement, deleteAssetDialogElement,
-  deleteAssetFolderCancelButtonElement, deleteAssetFolderCloseButtonElement,
-  deleteAssetFolderConfirmButtonElement, deleteAssetFolderDialogElement, discardRecoverySnapshot,
+  coverMotorButtonElement, createComponentFromTemplate2, discardRecoverySnapshot,
   documentSource, editorCtx, entityLoadError, errorDialogCloseButtonElement, errorDialogCloseElement,
   errorDialogConfirmElement, errorPhase, findAssetById, findComponent2, handleOperationError,
   hideAssetLargePreview, historyEntry, historyState, ibeAssetButtonElement, ibeAssetFolderElement,
@@ -4451,9 +4405,9 @@ bindAssetDialogWiring({
   nextTemplateInstanceName2, pageSelectElement, positionEffectAssetMenu, positionImageAssetMenu,
   projectSelectElement, projectSummary, recoveryDialogElement, recoveryDiscardElement, recoveryMessageTitleElement,
   recoveryMessageDetailElement, recoveryDownloadElement, recoveryRestoreElement, setRecoverySaveAttempts,
-  redoElement, refreshAssetPickers, refreshComponentDialogScale, reloadAssetCatalog, renderComponentLists,
+  redoElement, refreshComponentDialogScale, reloadAssetCatalog, renderComponentLists,
   renderComponentTemplates, renderEditorWorkspace, renderEffectAssetOptions, renderImageAssetOptions,
-  requestJson, saveDraft, scheduleAssetPreview, selectComponent, setComponentScope, setEditorMode,
+  saveDraft, scheduleAssetPreview, selectComponent, setComponentScope, setEditorMode,
   settleAutoDiagramDialog, showDashboardPreviewButtonElement, showEditorPreviewButtonElement,
   showPageComponentsElement, showPageEditorElement, showPopupEditorElement, showSharedComponentsElement,
   soundToggleButtonElement, syncAssetFolderOptions, syncDefaultPageAction, syncHistoryButtons,
@@ -4542,7 +4496,7 @@ bindAssetDialogWiring({
       (popupActionsMenuElement.hidden = !hidden15),
       popupActionsButtonElement.setAttribute("aria-expanded", String(hidden15)));
   }),
-  popupActionsMenuElement.addEventListener("click", (readEditorLayoutPx: any) => {
+  popupActionsMenuElement.addEventListener("click", async (readEditorLayoutPx: any) => {
     const requestedPopupAction =
         readEditorLayoutPx.target.closest("[data-popup-action]")?.dataset.popupAction,
       ce3 = editorCtx.moduleDialogPopupId || editorCtx.selectedPopupId;
@@ -4575,58 +4529,53 @@ bindAssetDialogWiring({
           (componentNodeState: any) => componentNodeState.id === ce3,
         );
         if (!numericValue) return;
-        ((editorCtx.popupModuleDraft = ce3),
-          (deletePopupNameElement.textContent = numericValue.name),
-          deletePopupDialogElement.showModal());
+        const confirmed = await confirmAction({
+          title: "删除组合弹窗",
+          message:
+            "确认删除“" +
+            numericValue.name +
+            "”？\n删除后，所有仪表盘中打开该弹窗的单击、双击和长按动作都会自动改为“无动作”。",
+          confirmLabel: "确认删除",
+          cancelLabel: "取消",
+          tone: "danger",
+        });
+        if (!confirmed) return;
+        const Va2 = ce3;
+        await mutateDocument((componentActionValueState: any) => {
+          componentActionValueState.customPopups = (
+            componentActionValueState.customPopups || []
+          ).filter((filteredItemsPath: any) => filteredItemsPath.id !== Va2);
+          const numericValueHandler = (onPopupModuleCloseButtonClickState: any) => {
+            for (const onPopupModuleCancelButtonClickValue of onPopupModuleCloseButtonClickState ||
+              []) {
+              for (const [
+                onPopupModuleEntityButtonClickValue,
+                onPopupModuleEntitySearchInputInputState,
+              ] of Object.entries<{
+                type?: string;
+                data?: { popupSource?: string; popupId?: string };
+              }>(onPopupModuleCancelButtonClickValue.actions || {}))
+                onPopupModuleEntitySearchInputInputState.type === "more-info" &&
+                  onPopupModuleEntitySearchInputInputState.data?.popupSource === "custom" &&
+                  onPopupModuleEntitySearchInputInputState.data?.popupId === Va2 &&
+                  (onPopupModuleCancelButtonClickValue.actions[onPopupModuleEntityButtonClickValue] =
+                    {
+                      type: "none",
+                      data: {} as Record<string, any>,
+                    });
+              numericValueHandler(onPopupModuleCancelButtonClickValue.children);
+            }
+          };
+          numericValueHandler(componentActionValueState.sharedComponents);
+          for (const onPopupModuleEntityOptionsClickState of componentActionValueState.pages || [])
+            numericValueHandler(onPopupModuleEntityOptionsClickState.components);
+          editorCtx.selectedPopupId = componentActionValueState.customPopups[0]?.id || null;
+          editorCtx.selectedPopupId || setEditorMode("edit");
+        });
       }
     }
   }));
-(deletePopupCloseElement.addEventListener("click", cancelDeletePopupDialog),
-  deletePopupCancelElement.addEventListener("click", cancelDeletePopupDialog),
-  deletePopupDialogElement.addEventListener("close", () => {
-    editorCtx.popupModuleDraft = null;
-  }),
-  deletePopupConfirmElement.addEventListener("click", () => {
-    const Va2 = editorCtx.popupModuleDraft;
-    Va2 &&
-      ((editorCtx.popupModuleDraft = null),
-      deletePopupDialogElement.close(),
-      (deletePopupConfirmElement.disabled = true),
-      mutateDocument((componentActionValueState: any) => {
-        componentActionValueState.customPopups = (
-          componentActionValueState.customPopups || []
-        ).filter((filteredItemsPath: any) => filteredItemsPath.id !== Va2);
-        const numericValueHandler = (onPopupModuleCloseButtonClickState: any) => {
-          for (const onPopupModuleCancelButtonClickValue of onPopupModuleCloseButtonClickState ||
-            []) {
-            for (const [
-              onPopupModuleEntityButtonClickValue,
-              onPopupModuleEntitySearchInputInputState,
-            ] of Object.entries<{
-              type?: string;
-              data?: { popupSource?: string; popupId?: string };
-            }>(onPopupModuleCancelButtonClickValue.actions || {}))
-              onPopupModuleEntitySearchInputInputState.type === "more-info" &&
-                onPopupModuleEntitySearchInputInputState.data?.popupSource === "custom" &&
-                onPopupModuleEntitySearchInputInputState.data?.popupId === Va2 &&
-                (onPopupModuleCancelButtonClickValue.actions[onPopupModuleEntityButtonClickValue] =
-                  {
-                    type: "none",
-                    data: {} as Record<string, any>,
-                  });
-            numericValueHandler(onPopupModuleCancelButtonClickValue.children);
-          }
-        };
-        numericValueHandler(componentActionValueState.sharedComponents);
-        for (const onPopupModuleEntityOptionsClickState of componentActionValueState.pages || [])
-          numericValueHandler(onPopupModuleEntityOptionsClickState.components);
-        ((editorCtx.selectedPopupId = componentActionValueState.customPopups[0]?.id || null),
-          editorCtx.selectedPopupId || setEditorMode("edit"));
-      }).finally(() => {
-        deletePopupConfirmElement.disabled = false;
-      }));
-  }),
-  popupModuleCloseElement.addEventListener("click", () => {
+(popupModuleCloseElement.addEventListener("click", () => {
     (closePopupModuleEntityMenu(), popupModuleDialogElement.close());
   }),
   popupModuleCancelElement.addEventListener("click", () => {
@@ -4766,12 +4715,8 @@ bindAssetDialogWiring({
       }));
   }),
   document.addEventListener("pointerdown", (panelId) => {
-    const deleteAssetFolderDialogElement = (panelId.target as Element).closest(
-      "#delete-asset-folder-dialog",
-    );
     (componentMenuElement.contains(panelId.target) || closeComponentMenu(),
-      !deleteAssetFolderDialogElement &&
-        editorCtx.openCustomSelect &&
+      editorCtx.openCustomSelect &&
         !editorCtx.openCustomSelect.button.contains(panelId.target) &&
         !editorCtx.openCustomSelect.menu.contains(panelId.target) &&
         closeCustomSelect(),
@@ -4813,13 +4758,11 @@ bindAssetDialogWiring({
       (panelId.target as Element).closest("#navigation-entity-picker") ||
         closePickerMenu(navigationEntityMenuElement, navigationEntityButtonElement));
     const panelElement = customSelectsBySelectElement.get(imageAssetFolderSelectElement)?.menu;
-    !deleteAssetFolderDialogElement &&
-      !(panelId.target as Element).closest("#image-asset-picker") &&
+    (!(panelId.target as Element).closest("#image-asset-picker") &&
       !panelElement?.contains(panelId.target) &&
-      closePickerMenu(imageAssetMenuElement, imageAssetButtonElement);
+      closePickerMenu(imageAssetMenuElement, imageAssetButtonElement));
     const panelWidth = customSelectsBySelectElement.get(ibeAssetFolderElement)?.menu;
-    (!deleteAssetFolderDialogElement &&
-      !(panelId.target as Element).closest("#ibe-asset-picker") &&
+    (!(panelId.target as Element).closest("#ibe-asset-picker") &&
       !panelWidth?.contains(panelId.target) &&
       closePickerMenu(ibeAssetMenuElement, ibeAssetButtonElement),
       !(panelId.target as Element).closest("#ibe-icon-picker") &&

@@ -44,8 +44,8 @@ import { normalizeModelRemark as normalizeModelRemark2 } from '../../../shared/m
 import {
   normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
-  normalizeStripAxis as normalizeStripAxis2,
 } from '../items/studio-item-posture'
+import { stripLoadRecord } from '../lights/strip-light/strip-light-spec'
 import { remapOpeningsToWalls } from '../../plan/studio-wall-openings'
 
 export const maxTextureUnitLimit = 8,
@@ -354,7 +354,7 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                 itemMinimumFootprint2(rawItemRecord?.type),
                 isCourtyardDrawing2(rawItemRecord) ? 200 : 8,
               ),
-              itemRotation = normalizeFullRotation2(finite2(rawItemRecord?.rotation)),
+              stripRecord = stripLoadRecord(rawItemRecord, itemWidth, itemDepth),
               itemHeight = clamp2(
                 finite2(rawItemRecord?.height, table.height),
                 itemMinimumHeight2(rawItemRecord?.type),
@@ -429,29 +429,27 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                     : 'table',
               x: finite2(rawItemRecord?.x),
               y: finite2(rawItemRecord?.y),
-              rotation: rawItemRecord?.type === 'striplight' ? itemRotation : finite2(rawItemRecord?.rotation),
-              width:
-                rawItemRecord?.type === 'striplight'
-                  ? Math.max(itemWidth, itemDepth)
-                  : isDesktopTable ||
-                      isPlantScale ||
-                      isFloorLampScale ||
-                      isToiletScale ||
-                      isDownlightSmall ||
-                      isPianoScale
-                    ? table.width
-                    : itemWidth,
-              depth:
-                rawItemRecord?.type === 'striplight'
-                  ? Math.min(itemWidth, itemDepth)
-                  : isDesktopTable ||
-                      isPlantScale ||
-                      isFloorLampScale ||
-                      isToiletScale ||
-                      isDownlightSmall ||
-                      isPianoScale
-                    ? table.depth
-                    : itemDepth,
+              rotation: stripRecord ? stripRecord.rotation : finite2(rawItemRecord?.rotation),
+              width: stripRecord
+                ? stripRecord.width
+                : isDesktopTable ||
+                    isPlantScale ||
+                    isFloorLampScale ||
+                    isToiletScale ||
+                    isDownlightSmall ||
+                    isPianoScale
+                  ? table.width
+                  : itemWidth,
+              depth: stripRecord
+                ? stripRecord.depth
+                : isDesktopTable ||
+                    isPlantScale ||
+                    isFloorLampScale ||
+                    isToiletScale ||
+                    isDownlightSmall ||
+                    isPianoScale
+                  ? table.depth
+                  : itemDepth,
               height:
                 (rawItemRecord?.type === 'sideboard' && itemHeight < 1.4) ||
                 isDesktopTable ||
@@ -586,9 +584,9 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                         : clamp2(finite2(rawItemRecord?.verticalRotation, 0), -90, 90),
                     ...(rawItemRecord?.type === 'striplight'
                       ? {
-                          stripRollRotation: normalizeFullRotation2(rawItemRecord?.stripRollRotation),
                           lightSourceVisible: rawItemRecord?.lightSourceVisible !== false,
-                          stripAxis: normalizeStripAxis2(rawItemRecord?.stripAxis),
+                          // 安装方式 + 位姿（旧档迁移；覆盖上面的 verticalRotation）。
+                          ...stripRecord,
                         }
                       : {}),
                     lightTemperature: clamp2(

@@ -248,16 +248,16 @@ function buildWallBandMesh(
     ;(wallBandMesh.userData.hbMergeWallBand =
       wallBandOptions.polygonOffset !== true && (wallBandOptions.renderOrder ?? 4) === 4),
       (wallBandMesh.userData.reflectionRole = 'wall'),
-      // 区域光照的受光体类型必须显式声明：墙带是「薄 + 高」的盒子（厚 0.15 < 0.18、
-      // 高 2.8 > 1.5），正好命中包围盒启发式里「地面」那条判据，于是整圈墙被当成
-      // 地面受光体 —— 吃 floorGain 而不是 wallGain，也拿不到墙面专用的朝向补偿，
-      // 轻量柔光下整面墙就是一个亮度、像贴图。合并墙带那条路径本来就写了 'wall'，
-      // 这里补齐成同一口径。
+      // 区域光照的受光体类型必须显式声明：墙带是「薄 + 高」的盒子（厚 0.15 < 0.18、高 2.8 > 1.5），
+      // 正好命中包围盒启发式里「地面」那条判据，整圈墙被当成地面受光体 —— 吃 floorGain 而不是
+      // wallGain，也拿不到墙面朝向补偿，轻量柔光下整面墙一个亮度。合并墙带路径本来就写了 'wall'。
       (wallBandMesh.userData.regionReceiverKind = 'wall'),
       (wallBandMesh.rotation.x = Math.PI / 2),
       (wallBandMesh.position.y = wallBandTopHeight)
     ;(wallBandMesh.castShadow = wallBandOptions.castShadow === true),
       wallBandOptions.lightOccluder && wallBandMesh.layers.set(deps.lampsLayerIndex),
+      // 区域灯（轻量柔光）没有阴影图，靠这个标记从墙带里取墙体线段做遮挡。
+      (wallBandMesh.userData.lightOccluder = wallBandOptions.lightOccluder === true),
       // 墙面必须吃阴影：现实里白天的窗光、家具影、人的影子都会落在墙上，夜晚吊灯的
       // 光被柜体挡住的那一块也靠这张阴影图。原先只在「墙不透明」时才开（默认 0.36
       // 永远不透明不了），于是墙是唯一不接收阴影的受体，整面墙平得像贴图。

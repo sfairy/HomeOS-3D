@@ -454,7 +454,7 @@ export function mountInteraction3d(
       stageFrameRetryTimeoutId = null
       if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return
       // 重试是「一次全新的装载」：45s 的加载超时要从这一发重新起算，否则前面耗掉的
-      // 退避时间会算进这一发的预算里，刚恢复的舞台又会被「加载较慢」判失败。
+      // 退避时间会算进这一发的预算里，刚恢复的舞台又会过早弹出「加载较慢」提示。
       clearTimeout(loadingTimeoutId)
       isPreviewSuspended || scheduleLoadTimeout()
       // 追加重试序号：既是这一发的区分键，也方便在 Network 面板里认出这几发重试。
@@ -1718,10 +1718,9 @@ export function mountInteraction3d(
     ;(stageFrameUrl = nextStageFrameUrl), stageFrameMountGate?.begin(assignFrameSrc)
   }
   function scheduleLoadTimeout() {
-    loadingTimeoutId = setTimeout(
-      () => failSceneLoad('3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。'),
-      45000,
-    )
+    // 超时只是提示，不能走 failSceneLoad：那会清掉 isReloadPending，之后迟到的 presented 被丢弃，画面永远卡在提示上。
+    const slowHint = '3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。'
+    loadingTimeoutId = setTimeout(() => isDisposed || hasLoadFailed || isScenePresented || (loadingElement.textContent = slowHint), 45000)
   }
   const activeRequestsSet = new Set<AbortController>()
   async function handleStageMessage(messageEvent: any) {
@@ -1939,6 +1938,7 @@ export function mountInteraction3d(
             componentProperties.camera ||
             defaultCamera),
           clearTimeout(loadingTimeoutId),
+          (loadingElement.textContent = ''),
           hostElement.classList.remove('is-loading', 'is-load-error'),
           hostElement.classList.add('is-ready'),
           hostElement.setAttribute('aria-busy', 'false'),

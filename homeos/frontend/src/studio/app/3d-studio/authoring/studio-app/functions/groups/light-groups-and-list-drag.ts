@@ -16,6 +16,7 @@ import { resolveListDragDrop } from '../../../ui/studio-list-drag-drop'
 import { classifyLightingScope } from '../../ui/lighting-scope'
 import { itemPreviewScope, selectionPreviewScope } from '../../../scene/studio-preview-scope'
 import type { PreviewScopeOptions } from '../../../scene/studio-preview-scope'
+import { shellConfirm } from '@/studio/platform/shell-chrome'
 
 export function getLightGroups(runtime: StudioAppRuntime) {
   const lightGroups = runtime.appCtx.studioState.lightGroups || (runtime.appCtx.studioState.lightGroups = [])
@@ -648,7 +649,7 @@ export function createAreaSection(runtime: StudioAppRuntime, listedArea: any, me
  * 判定与 0.7.8 一致：灯具条目亮度和 > 0，且所属灯组未被关闭；只统计当前预览范围，
  * 因此切到「全部楼层」时计数会包含所有楼层的灯。
  */
-export function maybeShowDrawingLightNotice(runtime: StudioAppRuntime) {
+export async function maybeShowDrawingLightNotice(runtime: StudioAppRuntime) {
   if (runtime.hasShownDrawingLightNotice) return
   const litLightCount = runtime
     .collectLampEntries()
@@ -657,8 +658,15 @@ export function maybeShowDrawingLightNotice(runtime: StudioAppRuntime) {
     ).length
   if (litLightCount < runtime.DRAWING_LIGHT_NOTICE_THRESHOLD) return
   runtime.hasShownDrawingLightNotice = true
-  runtime.drawingLightNoticeCountElement.textContent = litLightCount + ' 盏'
-  runtime.drawingLightNoticeDialogElement.showModal()
+  await shellConfirm({
+    title: '灯光开启较多',
+    message:
+      '同时开启较多灯光可能导致卡顿，建议配置完成后关闭，需要时再开启。\n\n当前已开启：' +
+      litLightCount +
+      ' 盏',
+    confirmLabel: '知道了',
+    cancelLabel: '关闭',
+  })
 }
 
 export function syncLightGroupList(runtime: StudioAppRuntime) {

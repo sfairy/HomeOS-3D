@@ -75,6 +75,7 @@ import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
 import { swipeClose } from './directives/swipe-close'
 import { scrollRegion } from './directives/scroll-region'
 import { studioStartupReady } from '@/shared/utils/ui/studio-startup'
+import { forgetLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
 
 // CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
 // `services/api/csrf.ts#installFetchCsrf()`，覆盖 studio 遗留的裸 fetch 写请求。
@@ -200,9 +201,7 @@ registerAuthChangeHandler(() => {
     // 授权可用性快照同样按会话失效：它是路由守卫写进模块级单例的，激活页在 setup 顶层
     // 同步读它来画首帧。不清的话，下一个登录者（或本机换了授权）首帧会画出**上一个会话**
     // 的授权状态 —— 已激活/未激活、到期时间都可能是别人的。
-    void import('./shared/utils/auth/license-probe.util').then(({ forgetLicenseAvailability }) => {
-      forgetLicenseAvailability()
-    })
+    forgetLicenseAvailability()
   })
 })
 // 桥接通知消息到 Chrome store 的 notify

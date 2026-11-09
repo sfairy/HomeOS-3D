@@ -92,6 +92,16 @@ function enclosingGuard(source, declaration) {
   return aboveLines[aboveLines.length - 1].trim()
 }
 
+test('LTC 查找表改名为 userLtc1 / userLtc2：three 每次刷新会把 ltc_1 覆盖成 null', () => {
+  const parsBegin = patchLightsParsBegin({ ShaderChunk: shaderChunks })
+  assert.match(parsBegin, /uniform sampler2D userLtc1;/)
+  assert.doesNotMatch(parsBegin, /ltc_1/)
+  const physical = patchLightsPhysicalPars({
+    ShaderChunk: { lights_physical_pars_fragment: 'texture2D( ltc_1, uv ); texture2D( ltc_2, uv );' },
+  })
+  assert.equal(physical, 'texture2D( userLtc1, uv ); texture2D( userLtc2, uv );')
+})
+
 test('物理材质的矩形光分支同样放宽到分层路径', () => {
   const patched = patchLightsPhysicalPars({ ShaderChunk: shaderChunks })
   assert.equal(

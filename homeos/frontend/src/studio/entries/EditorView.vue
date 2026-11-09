@@ -33,6 +33,7 @@ import {
 } from "@/studio/chrome";
 import EditorAlignBar from "@/studio/chrome/EditorAlignBar.vue";
 import "@/studio/chrome/studio-chrome.css";
+import "@/studio/chrome/studio-native-dialogs.css";
 import { Undo2, Redo2, Shapes } from "@lucide/vue";
 import { SETTINGS_ROUTES } from "@/shared/utils/registry/settings-route.util";
 import EditorMediaInspectors from "@/studio/chrome/editor/EditorMediaInspectors.vue";

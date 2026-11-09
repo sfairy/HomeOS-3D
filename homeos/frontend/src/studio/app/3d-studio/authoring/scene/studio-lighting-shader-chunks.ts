@@ -53,6 +53,7 @@ export function buildAtlasFragmentChunk() {
 
   float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {
     if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;
+    if ( shadowCoord.w <= 0.0 ) return 1.0;
     shadowCoord.xyz /= shadowCoord.w;
     shadowCoord.z += shadowParams.x;
     bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0
@@ -144,9 +145,11 @@ export function buildAtlasVertexChunk() {
  * 而声明被删掉 → `'spotLights' : undeclared identifier`，整支片元着色器编不过。
  * 正确做法是把数组重新套回它本来的闸门 `#if NUM_SPOT_LIGHTS > 0`：
  * 计数为 0 时不会出现 `spotLights[ 0 ]` 这种非法零长数组，计数 > 0 时声明照旧存在。
+ *
+ * LTC 查找表改名成 `userLtc1` / `userLtc2`（见 `renameLtcSamplers`）。
  */
 export function patchLightsParsBegin(THREE: ThreeShaderChunkOwner) {
-  return THREE.ShaderChunk.lights_pars_begin
+  return renameLtcSamplers(THREE.ShaderChunk.lights_pars_begin)
     .replace('#if NUM_SPOT_LIGHTS > 0', '#if NUM_SPOT_LIGHTS > 0 || defined(HB_FLOOR_LIGHTS)')
     .replace('#if NUM_RECT_AREA_LIGHTS > 0', '#if NUM_RECT_AREA_LIGHTS > 0 || defined(HB_FLOOR_AREA_LIGHTS)')
     .replace(
@@ -158,8 +161,19 @@ export function patchLightsParsBegin(THREE: ThreeShaderChunkOwner) {
       '#if NUM_SPOT_LIGHTS > 0\nuniform SpotLight spotLights[ NUM_SPOT_LIGHTS ];\n#endif',
     )
 }
+/**
+ * 面光的 LTC 查找表换成本模块自己的 uniform。
+ *
+ * three 每次刷新灯光 uniform 都会执行 `ltc_1.value = lights.state.rectAreaLTC1`，
+ * 而这个值只在**原生**面光数 > 0 时才被赋上纹理；分层路径把灯带的 `layers.mask` 清零后
+ * 原生面光数恒为 0，`ltc_1` 每帧被写回 null —— 镜面项为零、漫反射项读到空纹理。
+ * 改名后 three 写它自己的 `ltc_1`（着色器里已不存在），我们的 `userLtc1/2` 不受影响。
+ */
+function renameLtcSamplers(chunk: string) {
+  return chunk.replaceAll('ltc_1', 'userLtc1').replaceAll('ltc_2', 'userLtc2')
+}
 export function patchLightsPhysicalPars(THREE: ThreeShaderChunkOwner) {
-  return THREE.ShaderChunk.lights_physical_pars_fragment.replaceAll(
+  return renameLtcSamplers(THREE.ShaderChunk.lights_physical_pars_fragment).replaceAll(
     '#if NUM_RECT_AREA_LIGHTS > 0',
     '#if NUM_RECT_AREA_LIGHTS > 0 || defined(HB_FLOOR_AREA_LIGHTS)',
   )

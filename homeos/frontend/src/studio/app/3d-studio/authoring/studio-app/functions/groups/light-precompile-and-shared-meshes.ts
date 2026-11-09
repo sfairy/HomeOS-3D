@@ -15,14 +15,13 @@ import { drawTrackedText as drawTrackedText2 } from '../../../../plan/studio-pla
 import {
   isCourtyardDrawing as isCourtyardDrawing2,
   finite as finite2,
-  kelvinToRgbHex as kelvinToRgbHex2,
-  normalizeFullRotation as normalizeFullRotation2,
   normalizeLabelText as normalizeLabelText2,
 } from '../../../../loaders/studio-normalization'
 import { lampItemTypeSet } from '../../../items/item-catalog'
 import type { SceneRebuildOptions } from '../../../types/studio-app-types'
 import { lightPresetCatalog } from '../../../lights/studio-app-light-data'
-import { addBoxMesh } from '../../../items/studio-mesh-primitives'
+import { addStripFixture } from '../../../lights/strip-light/strip-light-model'
+import { lightEffectColorHex } from '../../../../../bridge/light-motion'
 import { precompileShaderPrograms } from '../../../scene/studio-shader-precompile'
 import { collectSharedMeshRecords } from '../../../items/studio-shared-mesh-records'
 import {
@@ -33,74 +32,22 @@ import {
   normalizePlanLabelColor,
 } from '../../../scene/studio-scene-payload'
 import { mergeStaticItemMeshesCore } from '../../../items/studio-static-item-meshes'
-import { addCylinderMesh } from '../../scene/cylinder-mesh'
 import { lightSignatureOf } from '../../ui/light-signature'
 
+/** 灯带的发光本体与朝向箭头：户型总览里不画；选中且「显示光源」开着才显示。 */
 export function addStripLightPreview(runtime: StudioAppRuntime, stripPreviewParent: any, stripLightItem: any) {
   if (stripLightItem.type !== 'striplight') return
-  const stripPreviewGroup = new ns2.Group()
-  ;(stripPreviewGroup.userData.exportRole = 'light-source-preview'),
-    (stripPreviewGroup.userData.lightSourcePreview = true),
-    (stripPreviewGroup.visible =
-      stripLightItem.lightSourceVisible !== false &&
-      !runtime.appCtx.pendingRuntimeSettings &&
-      runtime.createSelectionRef('item', stripLightItem.id))
-  const stripLightColorHex = kelvinToRgbHex2(stripLightItem.lightTemperature) || 16762219,
-    stripLightDepth = clamp2(finite2(stripLightItem.depth, 0.28), 0.1, 8),
-    stripLightWidth = clamp2(finite2(stripLightItem.width, 1), 0.1, 8),
-    stripLightOffset = clamp2(finite2(stripLightItem.lightRange, 3.5) * 0.16, 0.28, 0.72),
-    stripVerticalGroup = new ns2.Group()
-  stripVerticalGroup.rotation.z = ns2.MathUtils.degToRad(normalizeFullRotation2(stripLightItem.verticalRotation))
-  const stripRollGroup = new ns2.Group()
-  stripRollGroup.rotation.x = ns2.MathUtils.degToRad(normalizeFullRotation2(stripLightItem.stripRollRotation))
-  runtime.configureLightSourcePreview(
-    addBoxMesh(stripRollGroup, stripLightWidth, 0.014, stripLightDepth, 0, -stripLightOffset, 0, stripLightColorHex, {
-      rounded: false,
-      transparent: true,
-      opacity: 0.24,
-      depthWrite: false,
-      emissive: stripLightColorHex,
-      emissiveIntensity: 0.68,
-      castShadow: false,
-      receiveShadow: false,
-    }),
-  ),
-    runtime.configureLightSourcePreview(
-      addCylinderMesh(
-        stripRollGroup,
-        0.012,
-        0.012,
-        stripLightOffset,
-        0,
-        -stripLightOffset * 0.5,
-        0,
-        stripLightColorHex,
-        {
-          segments: 10,
-          transparent: true,
-          opacity: 0.78,
-          depthWrite: false,
-          roughness: 0.3,
-          emissive: stripLightColorHex,
-          emissiveIntensity: 0.8,
-        },
-      ),
-    )
-  const stripLightMesh = new ns2.Mesh(
-    new ns2.ConeGeometry(0.045, 0.12, 10),
-    new ns2.MeshBasicMaterial({
-      color: stripLightColorHex,
-      transparent: true,
-      opacity: 0.82,
-      depthWrite: false,
-    }),
-  )
-  ;(stripLightMesh.rotation.x = Math.PI),
-    stripLightMesh.position.set(0, -stripLightOffset, 0),
-    runtime.configureLightSourcePreview(stripLightMesh),
-    stripRollGroup.add(stripLightMesh),
-    stripVerticalGroup.add(stripRollGroup)
-  stripPreviewGroup.add(stripVerticalGroup), stripPreviewParent.add(stripPreviewGroup)
+  // 否则墙面上会挂一条黑灰细条。
+  const showSource =
+    stripLightItem.lightSourceVisible !== false &&
+    !runtime.appCtx.pendingRuntimeSettings &&
+    !!runtime.createSelectionRef('item', stripLightItem.id)
+  addStripFixture(stripPreviewParent, stripLightItem, {
+    colorHex: lightEffectColorHex(stripLightItem.lightTemperature, stripLightItem.lightColorRgb),
+    showFixture: showSource,
+    showArrow: showSource,
+    configurePreview: (mesh) => runtime.configureLightSourcePreview(mesh),
+  })
 }
 
 export function applyAccentEmissive(runtime: StudioAppRuntime, accentRoot: any, isAccentActive: any) {

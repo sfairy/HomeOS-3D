@@ -64,21 +64,6 @@
         </form>
     </dialog>
 
-    <dialog id="delete-popup-dialog" class="settings-dialog delete-dialog">
-        <div class="dialog-heading">
-            <div><span>DANGER ZONE</span>
-                <h2>删除组合弹窗</h2>
-            </div><button id="delete-popup-close" class="icon-button" type="button" aria-label="关闭删除弹窗">&times;</button>
-        </div>
-        <div class="settings-form">
-            <div class="delete-warning"><strong>确认删除 <b id="delete-popup-name"></b>？</strong>
-                <p>删除后，所有仪表盘中打开该弹窗的单击、双击和长按动作都会自动改为“无动作”。</p>
-            </div>
-            <div class="dialog-actions"><button id="delete-popup-cancel" type="button">取消</button><button
-                    id="delete-popup-confirm" class="danger" type="button">确认删除</button></div>
-        </div>
-    </dialog>
-
     <dialog id="component-template-dialog" class="settings-dialog component-template-dialog">
         <div class="dialog-heading">
             <div><span>COMPONENT LIBRARY</span>
@@ -190,21 +175,6 @@
         </form>
     </dialog>
 
-    <dialog id="project-resize-warning-dialog" class="settings-dialog project-resize-warning-dialog">
-        <div class="dialog-heading">
-            <div><span>CONTENT OUTSIDE CANVAS</span>
-                <h2>控件可能超出画布</h2>
-            </div><button id="project-resize-warning-close" class="icon-button" type="button"
-                aria-label="取消分辨率修改">×</button>
-        </div>
-        <div class="project-resize-warning-body">
-            <p id="project-resize-warning-text"></p>
-            <p>继续后，锁定的控件不会自动缩放或移动。你可以在编辑器中手动把它们移回画布范围内。</p>
-            <div class="dialog-actions"><button id="project-resize-warning-cancel" type="button">返回修改</button><button
-                    id="project-resize-warning-confirm" class="primary" type="button">继续修改</button></div>
-        </div>
-    </dialog>
-
     <dialog id="project-preview-dialog" class="settings-dialog project-preview-dialog">
         <div class="project-preview-heading">
             <div><span>QI GUANG PREVIEW</span>
@@ -265,37 +235,6 @@
         </form>
     </dialog>
 
-    <dialog id="delete-page-dialog" class="settings-dialog delete-dialog">
-        <div class="dialog-heading">
-            <div><span>DANGER ZONE</span>
-                <h2>删除页面</h2>
-            </div><button id="delete-page-close" class="icon-button" type="button" aria-label="关闭删除页面">×</button>
-        </div>
-        <div class="settings-form">
-            <div class="delete-warning"><strong>确认删除页面 <b id="delete-page-name"></b>？</strong>
-                <p>页面内的主页面控件会一并删除。删除最后一个页面后，可以从左侧重新新建页面。</p>
-            </div>
-            <div id="delete-page-message" class="settings-message" hidden></div>
-            <div class="dialog-actions"><button id="delete-page-cancel" type="button">取消</button><button
-                    id="delete-page-confirm" class="danger" type="button">确认删除</button></div>
-        </div>
-    </dialog>
-
-    <dialog id="delete-component-dialog" class="settings-dialog delete-dialog">
-        <div class="dialog-heading">
-            <div><span>DANGER ZONE</span>
-                <h2>删除控件</h2>
-            </div><button id="delete-component-close" class="icon-button" type="button" aria-label="关闭删除控件窗口">×</button>
-        </div>
-        <div class="settings-form">
-            <div class="delete-warning"><strong>确认删除控件 <b id="delete-component-name"></b>？</strong>
-                <p>删除后可在保存前通过顶部撤销按钮恢复。</p>
-            </div>
-            <div class="dialog-actions"><button id="delete-component-cancel" type="button">取消</button><button
-                    id="delete-component-confirm" class="danger" type="button">确认删除</button></div>
-        </div>
-    </dialog>
-
     <dialog id="copy-component-page-dialog" class="settings-dialog copy-component-page-dialog">
         <div class="dialog-heading">
             <div><span>COPY COMPONENT</span>
@@ -340,37 +279,6 @@
         </div>
     </dialog>
 
-    <dialog id="delete-asset-dialog" class="settings-dialog delete-dialog">
-        <div class="dialog-heading">
-            <div><span>DELETE IMAGE</span>
-                <h2>删除上传图片</h2>
-            </div><button id="delete-asset-close" class="icon-button" type="button" aria-label="关闭删除图片">×</button>
-        </div>
-        <div class="settings-form">
-            <div class="delete-warning"><strong>确认删除 <b id="delete-asset-name"></b>？</strong>
-                <p>正在被仪表盘或弹窗使用的图片不能删除。</p>
-            </div>
-            <div class="dialog-actions"><button id="delete-asset-cancel" type="button">取消</button><button
-                    id="delete-asset-confirm" class="danger" type="button">确认删除</button></div>
-        </div>
-    </dialog>
-
-    <dialog id="delete-asset-folder-dialog" class="settings-dialog delete-dialog">
-        <div class="dialog-heading">
-            <div><span>DELETE FOLDER</span>
-                <h2>删除自动导图文件夹</h2>
-            </div><button id="delete-asset-folder-close" class="icon-button" type="button"
-                aria-label="关闭删除文件夹">×</button>
-        </div>
-        <div class="settings-form">
-            <div class="delete-warning"><strong>确认删除 <b id="delete-asset-folder-name"></b>？</strong>
-                <p>该文件夹中的 <b id="delete-asset-folder-count"></b> 张导图会一起删除，且无法恢复。正在被仪表盘或弹窗使用时不会删除。</p>
-            </div>
-            <div class="dialog-actions"><button id="delete-asset-folder-cancel" type="button">取消</button><button
-                    id="delete-asset-folder-confirm" class="danger" type="button">确认删除</button></div>
-        </div>
-    </dialog>
-
     <dialog id="error-dialog" class="settings-dialog error-dialog">
         <div class="dialog-heading">
             <div><span>OPERATION FAILED</span>
@@ -387,16 +295,18 @@
     <dialog id="recovery-dialog" class="settings-dialog recovery-dialog">
         <div class="dialog-heading">
             <div><span>UNSAVED CHANGES</span>
-                <h2>恢复未保存修改</h2>
+                <h2 class="hos-modal-title">恢复未保存修改</h2>
             </div>
         </div>
         <div class="settings-form">
             <div class="recovery-message"><strong id="recovery-message-title">检测到刷新前的编辑内容</strong>
                 <p id="recovery-message-detail">这些修改尚未保存到仪表盘。可以继续编辑，或丢弃并使用上次已保存的内容。</p>
             </div>
-            <div class="dialog-actions"><button id="recovery-download" type="button" hidden>下载未保存副本</button><button
-                    id="recovery-discard" type="button">丢弃修改</button><button
-                    id="recovery-restore" class="primary" type="button">恢复修改</button></div>
+            <div class="dialog-actions hos-modal-footer">
+                <button id="recovery-download" type="button" hidden>下载未保存副本</button>
+                <button id="recovery-discard" type="button">丢弃修改</button>
+                <button id="recovery-restore" class="primary" type="button">恢复修改</button>
+            </div>
         </div>
     </dialog>
 </template>

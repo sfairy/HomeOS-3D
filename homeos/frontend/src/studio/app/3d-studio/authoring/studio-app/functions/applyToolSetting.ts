@@ -24,8 +24,8 @@ import { normalizeModelRemark as normalizeModelRemark2 } from '../../../../share
 import {
   normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
-  normalizeStripAxis as normalizeStripAxis2,
 } from '../../items/studio-item-posture'
+import { applyStripInspectorPose, applyStripMountSelection } from '../../lights/strip-light/strip-light-spec'
 import {
   itemTypeCatalog,
   lampItemTypeSet,
@@ -54,6 +54,12 @@ function applyDoorOpeningInput(door: { defaultOpening?: number; doorType?: strin
     return
   }
   door.defaultOpening = clamp2(finite2(input.value, defaultDoorOpening(door)), 0, 100)
+}
+/** 灯具提交时的高：灯带的高（截面厚度）由用户在尺寸里设，其余灯具回到目录默认值。 */
+function lampItemHeight(lamp: { type: string; height?: number }) {
+  return lamp.type === 'striplight'
+    ? lamp.height
+    : (itemTypeCatalog as Record<string, { height?: number }>)[lamp.type]?.height
 }
 export interface ApplyToolSettingDeps {
   appCtx: StudioAppContext
@@ -104,6 +110,8 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
     ft9 = captureUndoSnapshot()
   /** 立柱切到半圆时进深被咬合过，末尾要回刷检查器里的进深输入。 */
   let pillarDepthSnapped = false
+  /** 灯带换了安装方式：建议离地高度和倾斜 / 翻滚输入的显隐都变了，末尾同样要回刷检查器。 */
+  let stripMountChanged = false
   // 模型备注是编辑期元数据：与几何字段同源提交，但空串要**删键**而不是留空串，
   // 否则 `withoutModelRemarks` 之外的比较（保存载荷 / 场景同步）会把「从没写过备注」
   // 和「清空过备注」当成两种不同状态。
@@ -339,7 +347,11 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
             toolPlacedElement.type === 'pipelinewaterpurifier' &&
               setPipelineDispenserStyle(toolPlacedElement, selectElement('#pipeline-dispenser-style').value),
             toolPlacedElement.type === 'striplight' &&
-              (toolPlacedElement.stripAxis = normalizeStripAxis2(selectElement('#strip-axis').value)),
+              (stripMountChanged = applyStripMountSelection(
+                toolPlacedElement,
+                selectElement('#strip-mount').value,
+                appCtx.studioState.settings?.wallHeight,
+              )),
             toolPlacedElement.type === 'mural' &&
               (toolPlacedElement.muralStyle = normalizeMuralArtStyle(selectElement('#mural-style').value)),
             toolPlacedElement.type === 'featurewall' &&
@@ -383,11 +395,11 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
                     90,
                   )),
               toolPlacedElement.type === 'striplight' &&
-                ((toolPlacedElement.stripRollRotation = normalizeFullRotation2(
+                applyStripInspectorPose(
+                  toolPlacedElement,
                   itemStripRollInput.value,
-                  toolPlacedElement.stripRollRotation || 0,
-                )),
-                (toolPlacedElement.lightSourceVisible = itemLightSourceVisibleInput.checked)),
+                  itemLightSourceVisibleInput.checked,
+                ),
               (toolPlacedElement.lightGroupId = appCtx.studioState.lightGroups.some(
                 (matchingLightGroup) => matchingLightGroup.id === selectElement('#light-group').value,
               )
@@ -413,7 +425,7 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
                 15,
                 lightAngleLimitForType(toolPlacedElement.type),
               )),
-              (toolPlacedElement.height = (itemTypeCatalog as any)[toolPlacedElement.type].height)
+              (toolPlacedElement.height = lampItemHeight(toolPlacedElement))
           } else
             ['camera', 'presence'].includes(toolPlacedElement.type) &&
               (toolPlacedElement.verticalRotation = clamp2(
@@ -436,7 +448,7 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
     return
   }
   applyPlacementChange(ft9),
-    pillarDepthSnapped && refreshStudioUi(false),
+    (pillarDepthSnapped || stripMountChanged) && refreshStudioUi(false),
     // 照射范围/光束角只存在于灯对象上，重建被推迟（手动预览）时不会有任何画面变化；
     // 这里补一次就地同步 + 重绘，让这两个参数提交即生效（非灯具时内部直接返回 0）。
     syncLightShapeAndRepaint(appCtx, [toolPlacedElement]),

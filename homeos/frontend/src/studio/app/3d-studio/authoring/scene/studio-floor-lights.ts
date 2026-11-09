@@ -184,13 +184,38 @@ export function objectFloorId(object: FloorLightNode | null | undefined): string
   }
   return ''
 }
+/**
+ * 面光（灯带）的墙体可见性（`strip-wall-visibility.ts`）。
+ *
+ * `prepare` 在楼层缓冲重扫场景时拿到全部网格；`lookup` 返回这盏面光在遮挡距离图集里的行，
+ * 写进面光槽位里空着的分量（27 / 31 / 35 / 39）。
+ */
+export interface FloorAreaVisibility {
+  prepare(meshes: ReadonlyArray<{ object: FloorLightNode; floor: string }>): void
+  lookup(light: FloorLightNode, floorId: string): { tile: number } | null
+  dispose(): void
+}
+
+/** 墙体遮挡距离图：27 = 是否启用，31 = 图集行号。 */
+function writeAreaVisibility(
+  data: Float32Array,
+  base: number,
+  visibility: ReturnType<FloorAreaVisibility['lookup']> | undefined,
+) {
+  data[base + 27] = visibility ? 1 : 0
+  data[base + 31] = visibility?.tile ?? 0
+  data[base + 35] = 0
+  data[base + 39] = 0
+}
 
 export function createFloorLightBuffer({
   THREE,
   gl,
+  areaVisibility,
 }: {
   THREE: FloorLightsThree
   gl: FloorLightGL | null | undefined
+  areaVisibility?: FloorAreaVisibility
 }): FloorLightBuffer {
   // 头部 + 方向光块共 160 字节，每盏灯 160 字节；封顶 96 盏（再多就该靠阴影贴图而不是逐灯算了）。
   const capacity =
@@ -328,12 +353,19 @@ export function createFloorLightBuffer({
       floorLights.push(node)
       managedLights.add(node)
       const floorId = objectFloorId(node)
-      lightCountByFloor.set(floorId, (lightCountByFloor.get(floorId) || 0) + 1)
+      // 容量按「当前会进缓冲的灯」计：关灯不占槽，否则一屋子关着的灯带会把整层退回无遮挡的原生面光。
+      if (isNodeVisible(node) && (node.intensity || 0) > 0) {
+        lightCountByFloor.set(floorId, (lightCountByFloor.get(floorId) || 0) + 1)
+      }
       if (!savedLayerMasks.has(node)) savedLayerMasks.set(node, node.layers?.mask ?? 0)
     })
 
     // 已经消失的楼层（拆掉/换层）连同它的 GPU 缓冲一起回收，否则每改一次户型漏一份缓冲。
-    const liveFloorIds = new Set<string>(['', ...lightCountByFloor.keys(), ...floorMeshes.map((mesh) => mesh.floor)])
+    const liveFloorIds = new Set<string>([
+      '',
+      ...floorLights.map((light) => objectFloorId(light)),
+      ...floorMeshes.map((mesh) => mesh.floor),
+    ])
     for (const [floorId, floorBuffer] of buffers) {
       if (liveFloorIds.has(floorId)) continue
       if (floorBuffer.buffer) gl!.deleteBuffer(floorBuffer.buffer)
@@ -341,6 +373,7 @@ export function createFloorLightBuffer({
       lastBoundBuffer = null
     }
 
+    areaVisibility?.prepare(floorMeshes)
     allFloorsFit = [...lightCountByFloor.values()].every((count) => count <= capacity)
     enabled = userEnabled && capacity > 0 && allFloorsFit
 
@@ -356,19 +389,38 @@ export function createFloorLightBuffer({
     }
   }
 
+  function applyManagedLayerMasks(nextEnabled: boolean) {
+    if (enabled === nextEnabled) return
+    enabled = nextEnabled
+    for (const [light, originalMask] of savedLayerMasks) {
+      if (light.layers) light.layers.mask = enabled ? 0 : originalMask
+    }
+  }
+
   function update(
     sceneRoot: FloorLightNode | null,
     camera: FloorCamera,
     shadowEntries: ReadonlyMap<string, FloorShadowEntry>,
     sunEntries: ReadonlyMap<string, FloorSunEntry> = new Map(),
   ) {
-    if (!enabled || gl!.isContextLost?.()) return
+    if (gl!.isContextLost?.()) return
     for (const floorBuffer of buffers.values()) {
       ;(floorBuffer.count = 0), (floorBuffer.data[0] = floorBuffer.data[1] = 0), (floorBuffer.lights.length = 0)
     }
     prepare(sceneRoot)
     const cameraInverseElements = camera.matrixWorldInverse.elements
     ;(lastUpdatedScene = sceneRoot), (lastUpdatedCamera = camera), cameraInverse.copy(camera.matrixWorldInverse)
+
+    // 按本帧实际会写入的灯重算容量：关灯不占槽；开关变化时也能进出分层路径（不能只靠 prepare 的结构快照）。
+    const activeByFloor = new Map<string, number>()
+    for (const light of floorLights) {
+      if (!isNodeVisible(light) || !((light.intensity || 0) > 0)) continue
+      const floorId = objectFloorId(light)
+      activeByFloor.set(floorId, (activeByFloor.get(floorId) || 0) + 1)
+    }
+    allFloorsFit = [...activeByFloor.values()].every((count) => count <= capacity)
+    applyManagedLayerMasks(userEnabled && capacity > 0 && allFloorsFit)
+    if (!enabled) return
 
     let lightCount = 0
     for (const light of floorLights) {
@@ -470,7 +522,7 @@ export function createFloorLightBuffer({
             (data[base + 36] = rotationElements[4] * halfHeight),
             (data[base + 37] = rotationElements[5] * halfHeight),
             (data[base + 38] = rotationElements[6] * halfHeight),
-            (data[base + 27] = data[base + 31] = data[base + 35] = data[base + 39] = 0),
+            writeAreaVisibility(data, base, areaVisibility?.lookup(light, objectFloorId(light))),
             floorBuffer.data[1]++
         } else {
           floorBuffer.data[0]++
@@ -608,7 +660,7 @@ export function createFloorLightBuffer({
     },
     release,
     dispose() {
-      setEnabled(false), release()
+      setEnabled(false), release(), areaVisibility?.dispose()
       savedLayerMasks.clear(), detachListeners(), (preparedScene = null)
       ;(floorLights = []), (floorMeshes = []), (sunLightCandidates = []), interactionProxies.clear()
     },
@@ -635,6 +687,41 @@ SpotLight getUserFloorLight(int index) {
 RectAreaLight getUserFloorArea(int index) {
   RectAreaLight light;light.position=userFloorValue(index,6).xyz;light.halfWidth=userFloorValue(index,7).xyz;
   light.color=userFloorValue(index,8).xyz;light.halfHeight=userFloorValue(index,9).xyz;return light;
+}
+uniform highp sampler2D userStripVisibility;
+uniform vec2 userStripVisibilityLayout;
+// Polar wall-distance row of an area light (strip-wall-visibility.ts): texels 0-1 hold the ray
+// origins, origin count and influence radius; texel 2+bin holds, per origin, the distance to the
+// first wall along that azimuth. A point farther than the wall is behind it.
+float userStripBinVisibility(int bin,int row,int channel,float distanceToPoint) {
+  vec4 hits=texelFetch(userStripVisibility,ivec2(2+bin,row),0);
+  float hit=channel==0?hits.r:(channel==1?hits.g:hits.b);
+  return 1.0-smoothstep(hit+0.02,hit+0.12,distanceToPoint);
+}
+// Blends the two nearest azimuth bins so wall edges and grazing rays don't alias into speckles.
+float userStripRayVisibility(vec2 origin,vec2 point,int row,int channel) {
+  vec2 ray=point-origin;
+  float distanceToPoint=length(ray);
+  if(distanceToPoint<1e-3) return 1.0;
+  int bins=int(userStripVisibilityLayout.y+0.5);
+  float position=(atan(ray.y,ray.x)+PI)/(2.0*PI)*float(bins)-0.5,lower=floor(position);
+  int first=int(lower),second=first+1;
+  first=first<0?first+bins:first;second=second>=bins?second-bins:second;
+  return mix(userStripBinVisibility(first,row,channel,distanceToPoint),userStripBinVisibility(second,row,channel,distanceToPoint),position-lower);
+}
+// The sample point is pushed along the surface normal so a wall face picks the room it faces.
+float userFloorAreaVisibility(int index,vec3 worldPosition,vec3 worldNormal) {
+  if(userFloorValue(index,6).w<0.5||userStripVisibilityLayout.x<0.5) return 1.0;
+  int row=int(userFloorValue(index,7).w+0.5);
+  vec2 normalXZ=dot(worldNormal,worldNormal)>1e-8?normalize(worldNormal).xz:vec2(0.0);
+  vec2 point=worldPosition.xz+normalXZ*0.12;
+  vec4 head0=texelFetch(userStripVisibility,ivec2(0,row),0),head1=texelFetch(userStripVisibility,ivec2(1,row),0);
+  float fade=1.0-smoothstep(head1.w*0.9,head1.w,distance(point,head0.xy));
+  if(fade<=0.0) return 0.0;
+  // 任一射线起点能看到片元就保留光照：灯带端点常顶进墙里，三起点取平均会把整灯乘暗。
+  float visible=userStripRayVisibility(head0.xy,point,row,0);
+  if(head1.z>1.5) visible=max(visible,max(userStripRayVisibility(head0.zw,point,row,1),userStripRayVisibility(head1.xy,point,row,2)));
+  return visible*fade;
 }
 #endif
 #endif
@@ -669,6 +756,8 @@ export function floorLightShaderLoop(): string {
 #if defined(HB_FLOOR_AREA_LIGHTS) && defined(RE_Direct_RectArea)
   for(int floorAreaIndex=int(userFloorHeader.x);floorAreaIndex<int(userFloorHeader.x+userFloorHeader.y);floorAreaIndex++) {
     RectAreaLight floorArea=getUserFloorArea(floorAreaIndex);
+    floorArea.color *= userFloorAreaVisibility(floorAreaIndex,vUserShadowWorldPosition.xyz,vUserShadowWorldNormal);
+    if(dot(floorArea.color,floorArea.color)<=0.0) continue;
     RE_Direct_RectArea(floorArea,geometryPosition,geometryNormal,geometryViewDir,geometryClearcoatNormal,material,reflectedLight);
   }
 #endif

@@ -46,6 +46,7 @@ type LightItemLike = {
   type?: string
   lightRange?: number
   lightAngle?: number
+  lightSourceVisible?: boolean
 }
 
 /** 场景里的灯对象里本模块关心的字段（SpotLight / RectAreaLight 的公共子集）。 */
@@ -55,8 +56,15 @@ type SceneLightLike = {
   intensity?: number
   visible?: boolean
   isSpotLight?: boolean
+  isRectAreaLight?: boolean
   type?: string
-  userData?: { lightItemId?: string }
+  children?: SceneLightLike[]
+  userData?: {
+    lightItemId?: string
+    stripFixtureRoot?: boolean
+    stripFixtureItemId?: string
+    stripFixture?: { visible?: boolean }
+  }
   shadow?: { camera?: { near: number; far: number; updateProjectionMatrix: () => void }; needsUpdate?: boolean }
 }
 
@@ -135,13 +143,46 @@ function syncLightShapeFromItems(
 }
 
 /**
+ * 灯带「显示光源」就地开关：重建被推迟时，选中态下的发光本体 / 朝向箭头也要立刻显隐。
+ * 未选中时本来就不画本体，这里只处理当前提交的那几条灯带。
+ */
+function syncStripFixtureVisibilityFromItems(
+  appCtx: StudioAppContext,
+  lightItemList: LightItemLike[] = (appCtx.studioState?.items as LightItemLike[]) || [],
+) {
+  const sceneRoot = appCtx.sceneRootNode
+  if (!sceneRoot?.traverse || !lightItemList?.length) return 0
+  const visibilityByItemId = new Map<string, boolean>()
+  for (const lightItem of lightItemList) {
+    if (lightItem.type !== 'striplight' || !lightItem.id) continue
+    visibilityByItemId.set(lightItem.id, lightItem.lightSourceVisible !== false)
+  }
+  if (!visibilityByItemId.size) return 0
+  let updatedCount = 0
+  sceneRoot.traverse((node: SceneLightLike) => {
+    if (!node.userData?.stripFixtureRoot || !node.children?.length) return
+    const fixture = node.children.find((child) => child.userData?.stripFixtureItemId)
+    const itemId = fixture?.userData?.stripFixtureItemId
+    if (!itemId || !visibilityByItemId.has(itemId)) return
+    const show = visibilityByItemId.get(itemId) === true
+    for (const child of node.children) {
+      if (child.visible === show) continue
+      child.visible = show
+      updatedCount += 1
+    }
+  })
+  return updatedCount
+}
+
+/**
  * 就地同步 + 请一帧重绘。
  *
  * 重绘走的是 `isFrameDirty` + 帧循环 `wake()`：与 `requestStudioRender` 同一条通路，
  * 但只依赖 `appCtx`，因此属性提交（`applyToolSetting`）这种拿不到 runtime 的位置也能用。
  */
 export function syncLightShapeAndRepaint(appCtx: StudioAppContext, lightItemList?: LightItemLike[]) {
-  const updatedLightCount = syncLightShapeFromItems(appCtx, lightItemList)
+  const updatedLightCount =
+    syncLightShapeFromItems(appCtx, lightItemList) + syncStripFixtureVisibilityFromItems(appCtx, lightItemList)
   if (updatedLightCount > 0) (appCtx.isFrameDirty = true), appCtx.lightingScheduler?.wake?.()
   return updatedLightCount
 }
