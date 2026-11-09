@@ -1,3 +1,9 @@
+/* @import 必须位于所有普通规则之前，否则浏览器整条丢弃（设备面板样式会全部失效）。 */
+@import "/static/modules/interaction3d/controls.css";
+@import "../nas/nas-panel.css";
+@import "../climate/climate-panel.css";
+@import "../cover/cover-panel.css";
+@import "./stage-device-visual.css";
 /* U18: bridge --i3d visual tokens onto --hos so stage HUD follows design system */
 .interaction3d-stage {
   --i3d-fs-micro: var(--hos-fs-1, 11px);
@@ -7,11 +13,6 @@
   --i3d-dur-fast: var(--hos-dur-fast);
   --i3d-dur-base: var(--hos-dur-base);
 }
-@import "/static/modules/interaction3d/controls.css";
-@import "../nas/nas-panel.css";
-@import "../climate/climate-panel.css";
-@import "../cover/cover-panel.css";
-@import "./stage-device-visual.css";
 .interaction3d-stage.is-render-suspended *,
 .interaction3d-stage.is-render-suspended *:before,
 .interaction3d-stage.is-render-suspended *:after {
@@ -22,7 +23,6 @@
   flex-direction: column;
   gap: 10px;
   min-height: 0;
-  padding-top: 4px;
   color: #e8dfd2;
 }
 /* 门锁面板的读数是逐行排列的（状态 + 锂电池 + 干电池，最多三行），
@@ -32,7 +32,7 @@
 .interaction3d-stage .i3d-light-panel:has(> .i3d-lock-panel:not([hidden])) {
   height: auto;
   min-height: 160px;
-  max-height: calc((100% - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2));
+  max-height: var(--i3d-panel-max-height);
   overflow: auto;
 }
 .interaction3d-stage .i3d-lock-panel h3 {
@@ -173,7 +173,8 @@
 .interaction3d-stage .i3d-lock-panel .i3d-focus-actions {
   margin: 0;
 }
-.interaction3d-stage .i3d-lock-panel button {
+/* 右上角的锁图形（.i3d-device-visual）也是 button，别给它套上操作按钮的底色和边框。 */
+.interaction3d-stage .i3d-lock-panel button:not(.i3d-device-visual) {
   min-height: var(--hos-touch-min, 44px);
   border: 1px solid #866c46;
   border-radius: 8px;
@@ -360,7 +361,6 @@ body.interaction3d-stage.is-background-hidden,
   pointer-events: none;
   z-index: 8;
 }
-.interaction3d-stage .i3d-light-panel,
 .interaction3d-stage .i3d-toolbar {
   pointer-events: auto;
 }
@@ -429,7 +429,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-light-panel {
   position: absolute;
-  top: max(12px, min(calc(56% - 400px), calc(100% - 812px)));
+  top: var(--i3d-control-top, 24px);
   right: 16px;
   bottom: auto;
   display: flex;
@@ -437,10 +437,17 @@ body.interaction3d-stage.is-background-hidden,
   width: 360px;
   height: 160px;
   max-width: none;
-  max-height: none;
+  /* 弹窗高度封顶按画布最大高度（配置项 maxHeight，默认 75%），超出在面板内滚动。
+     --i3d-control-max-height 已是 popupPlacement 除过缩放的本地高度，不能再除一次；
+     另外不能越过舞台底边。各设备面板的 max-height 覆盖统一引用 --i3d-panel-max-height。 */
+  --i3d-panel-max-height: min(
+    var(--i3d-control-max-height, calc(75vh / var(--i3d-control-scale, 2))),
+    calc((100% - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2))
+  );
+  max-height: var(--i3d-panel-max-height);
   padding: 20px;
   z-index: 20;
-  overflow: hidden;
+  overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid rgba(160, 170, 178, calc(var(--i3d-panel-opacity, 0.74) * 0.325));
   border-radius: 24px;
@@ -455,28 +462,40 @@ body.interaction3d-stage.is-background-hidden,
   backdrop-filter: blur(calc(var(--i3d-panel-opacity, 0.74) * 24px));
   color: #e4dcd1;
   transform-origin: 100% 0;
-  transform: translate(calc(200% + 24px)) scale(2);
+  transform: translate(12px) scale(var(--i3d-control-scale, 2));
   visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
   transition:
     transform 0.36s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.24s ease,
     height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-    visibility 0.36s;
+    visibility 0s 0.36s;
   font:
     14px / 1.5 PingFang SC,
     sans-serif;
   box-sizing: border-box;
 }
+/* 按内容撑高：写死 400px 时色温 + 亮度 + 预设会超出约 40px 被裁掉；
+   上限仍由下方 max-height（--i3d-control-max-height）兜住，超出在面板内滚动。 */
 .interaction3d-stage .i3d-light-panel.has-light-controls {
-  height: 400px;
-  overflow: hidden;
+  height: auto;
+  overflow: auto;
 }
 .interaction3d-stage .i3d-light-panel.has-error:not(.has-light-controls) {
   height: 210px;
   overflow: hidden;
 }
 .interaction3d-stage .i3d-light-panel.is-open {
-  transform: translate(0) scale(2);
+  transform: translate(0) scale(var(--i3d-control-scale, 2));
   visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition:
+    transform 0.36s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.24s ease,
+    height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s;
 }
 .interaction3d-stage .i3d-light-panel header {
   position: relative;
@@ -513,18 +532,10 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-light-panel.is-open:has(.i3d-light-mode-trigger[aria-expanded="true"]) {
   overflow: visible;
 }
+/* 字号/截断由下方弹窗标题统一规则给出。 */
 .interaction3d-stage .i3d-light-panel header strong {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-width: 0;
+  display: block;
   color: #f4f5f6;
-  font-size: 24px;
-  font-weight: 680;
-  line-height: 1.3;
-  letter-spacing: 0.025em;
-  overflow-wrap: anywhere;
 }
 .interaction3d-stage .i3d-device-status {
   color: #7e898f;
@@ -1824,10 +1835,33 @@ body.interaction3d-stage.is-background-hidden,
   font-size: var(--hos-fs-1, 11px);
   color: #9cabb9;
 }
+/* 原生 progress 的配色随系统/color-scheme 漂移（暖木下会画成绿色），轨道与填充都自己画。 */
 .i3d-tv-details progress {
+  --i3d-tv-progress-track: #ffffff1f;
+  --i3d-tv-progress-value: #97bfdf;
   width: 100%;
   height: 4px;
-  accent-color: #97bfdf;
+  border: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--i3d-tv-progress-track);
+}
+.i3d-tv-details progress::-webkit-progress-bar {
+  background: var(--i3d-tv-progress-track);
+}
+.i3d-tv-details progress::-webkit-progress-value {
+  border-radius: 2px;
+  background: var(--i3d-tv-progress-value);
+}
+.i3d-tv-details progress::-moz-progress-bar {
+  border-radius: 2px;
+  background: var(--i3d-tv-progress-value);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-tv-details progress {
+  --i3d-tv-progress-track: #ddd2c0;
+  --i3d-tv-progress-value: #b88c4c;
 }
 .i3d-tv-time {
   font-variant-numeric: tabular-nums;
@@ -2109,31 +2143,6 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-vacuum-bubble:disabled {
   cursor: default;
-}
-.interaction3d-stage .i3d-light-panel {
-  top: var(--i3d-control-top, 24px);
-  transform: translate(12px) scale(var(--i3d-control-scale, 2));
-  /* 0.8.1：弹窗高度封顶按画布最大高度（配置项 maxHeight，默认 75%），超出在面板内滚动。 */
-  max-height: calc(var(--i3d-control-max-height, 75vh) / var(--i3d-control-scale, 2));
-  overflow: auto;
-  overscroll-behavior: contain;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    transform 0.36s cubic-bezier(0.22, 0.61, 0.36, 1),
-    opacity 0.24s ease,
-    height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-    visibility 0s 0.36s;
-}
-.interaction3d-stage .i3d-light-panel.is-open {
-  transform: translate(0) scale(var(--i3d-control-scale, 2));
-  opacity: 1;
-  pointer-events: auto;
-  transition:
-    transform 0.36s cubic-bezier(0.22, 0.61, 0.36, 1),
-    opacity 0.24s ease,
-    height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-    visibility 0s;
 }
 .interaction3d-stage .i3d-navigation,
 .interaction3d-stage .i3d-floor-tabs {
@@ -3436,18 +3445,20 @@ body.interaction3d-stage.is-background-hidden,
     #ded4c3 100%
   ) !important;
 }
+/* climate-panel.ts 会把深色主题的强调色（#73c8ff / #c9a26d）写进内联 style，浅色木纹底上对比度不足 2:1；
+   暖木的深色强调色必须 !important 才压得过内联值。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
-  --i3d-climate-accent: #655947;
+  --i3d-climate-accent: #655947 !important;
   --hb-climate-accent-soft: color-mix(in srgb, var(--i3d-climate-accent) 12%, #fff9ed);
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="cool"] {
-  --i3d-climate-accent: #28677f;
+  --i3d-climate-accent: #28677f !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="heat"] {
-  --i3d-climate-accent: #a4472a;
+  --i3d-climate-accent: #a4472a !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="off"] {
-  --i3d-climate-accent: #70685d;
+  --i3d-climate-accent: #70685d !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-climate-choice, .i3d-climate-power)[aria-pressed="true"] {
   color: var(--i3d-climate-accent);
@@ -3529,8 +3540,13 @@ body.interaction3d-stage.is-background-hidden,
   border-color: var(--i3d-climate-accent);
   background: var(--hb-climate-accent-soft);
 }
+/* 右上角设备图形是 button，装饰态/不可控时 disabled，不能被当成禁用控件刷底色。 */
 .interaction3d-stage[data-scene-style="warm-wood"]
-  :is(.i3d-climate-panel button:disabled, .i3d-climate-panel input:disabled, .i3d-climate-panel select:disabled) {
+  :is(
+    .i3d-climate-panel button:disabled:not(.i3d-device-visual),
+    .i3d-climate-panel input:disabled,
+    .i3d-climate-panel select:disabled
+  ) {
   color: #73695b;
   border-color: #d4c7b4;
   background: #eee8dc;
@@ -3603,21 +3619,12 @@ body.interaction3d-stage.is-background-hidden,
   gap: 10px;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-nas-heading, .i3d-device-panel .i3d-climate-heading) {
-  min-height: 0;
   margin: 0;
-  align-items: baseline;
   gap: 10px;
-}
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-climate-heading-text {
-  display: contents;
 }
 .interaction3d-stage[data-scene-style="warm-wood"]
   :is(.i3d-nas-heading h3, .i3d-device-panel .i3d-climate-heading h3, .i3d-lock-panel h3) {
   color: var(--i3d-popup-heading);
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: 0.025em;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-device-status {
   flex: none;
@@ -3681,7 +3688,7 @@ body.interaction3d-stage.is-background-hidden,
   background: #ede4d580;
   color: var(--i3d-popup-muted);
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel button {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel button:not(.i3d-device-visual) {
   border-color: var(--i3d-popup-border);
   border-radius: 9px;
   background: #f6f0e5;
@@ -3690,7 +3697,7 @@ body.interaction3d-stage.is-background-hidden,
     inset 0 1px #fffb,
     0 3px 9px #614c2810;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel button:hover:not(:disabled) {
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel button:hover:not(:disabled, .i3d-device-visual) {
   border-color: #a48351;
   background: #e6d5b8;
   color: #67471e;
@@ -4112,7 +4119,6 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-speaker-panel {
   height: auto;
   min-height: 0;
-  max-height: 250px;
   width: 100%;
   box-sizing: border-box;
   overflow-anchor: none;
@@ -4407,14 +4413,7 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .is-overview-quip .i3d-vacuum-status:after {
   display: none;
 }
-.interaction3d-stage
-  :is(
-    .i3d-light-panel header strong,
-    .i3d-cover-heading h3,
-    .i3d-climate-heading h3,
-    .i3d-nas-panel:not(.i3d-lock-panel) .i3d-nas-heading h3,
-    .i3d-television-panel .i3d-nas-heading h3
-  ) {
+.interaction3d-stage :is(.i3d-light-panel header strong, .i3d-light-panel .i3d-popup-heading h3) {
   font-size: 20px;
   font-weight: 600;
   line-height: 26px;
@@ -4424,14 +4423,10 @@ body.interaction3d-stage.is-background-hidden,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.interaction3d-stage .i3d-light-panel header strong {
-  display: block;
-}
 .interaction3d-stage
   :is(
     .i3d-light-heading-text .i3d-device-status,
-    .i3d-cover-heading p,
-    .i3d-climate-heading p,
+    .i3d-popup-heading-text > p,
     .i3d-popup-heading-text .i3d-tv-status
   ) {
   margin: 2px 0 0;
@@ -4439,13 +4434,11 @@ body.interaction3d-stage.is-background-hidden,
   font-weight: 400;
   line-height: 14px;
 }
-.interaction3d-stage .i3d-cover-heading {
-  height: auto;
-  min-height: 42px;
-}
+/* 标题行按 52px 垂直居中：没有状态行时文字块变矮、标题会下沉，按「标题 + 状态行」保留高度。 */
 .interaction3d-stage .i3d-popup-heading-text {
   flex: 1;
   min-width: 0;
+  min-height: 42px;
 }
 .interaction3d-stage .i3d-television-panel .i3d-nas-heading {
   flex: none;
@@ -4481,7 +4474,9 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-popup-body {
   display: flex;
   flex-direction: column;
-  gap: inherit;
+  /* 各面板根节点的 gap 不一致（气候 3px、窗帘 4px、电视/音响未设），正文间距在这里显式给出，
+     不再 inherit；电视/音响的块间距由各块自己的 margin 负责。 */
+  gap: 0;
   flex: 0 1 auto;
   min-height: 0;
   min-width: 0;
@@ -4522,6 +4517,9 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-climate-panel .i3d-popup-body {
   gap: 3px;
 }
+.interaction3d-stage .i3d-cover-panel .i3d-popup-body {
+  gap: 4px;
+}
 .interaction3d-stage .i3d-climate-panel .i3d-popup-body > .i3d-extra-grid {
   width: 100%;
   margin-right: 0;
@@ -4533,9 +4531,6 @@ body.interaction3d-stage.is-background-hidden,
   overflow: visible;
   padding-right: 0;
   scrollbar-gutter: auto;
-}
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-climate-heading-text {
-  display: block;
 }
 .interaction3d-stage :is(.i3d-popup-body, .i3d-nas-metrics, .i3d-speaker-media-list) {
   scrollbar-width: thin;

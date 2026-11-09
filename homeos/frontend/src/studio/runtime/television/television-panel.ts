@@ -9,7 +9,7 @@ export function createTelevisionPanel({
 } = {}) {
   const createElement = (tag: any, className: any) => domElement(document, tag, className),
     rootElement = createElement('div', 'i3d-television-panel'),
-    headingElement = createElement('div', 'i3d-nas-heading'),
+    headingElement = createElement('div', 'i3d-nas-heading i3d-popup-heading'),
     titleElement = createElement('h3', ''),
     statusElement = createElement('span', 'i3d-tv-status'),
     contentElement = createElement('div', 'i3d-tv-content'),

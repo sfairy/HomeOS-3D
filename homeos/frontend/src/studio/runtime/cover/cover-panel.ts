@@ -50,10 +50,10 @@ export function createCoverPanel({
     },
     rootElement = hostElement || createElement('section')
   rootElement.classList.add('i3d-cover-panel')
-  const headingElement = createElement('div', 'i3d-cover-heading'),
+  const headingElement = createElement('div', 'i3d-cover-heading i3d-popup-heading'),
     titleElement = createElement('h3', '', '窗帘'),
     statusElement = createElement('p', '', '尚未绑定设备'),
-    headingTextElement = createElement('div', 'i3d-cover-heading-text')
+    headingTextElement = createElement('div', 'i3d-cover-heading-text i3d-popup-heading-text')
   const deviceVisual = createStageDeviceVisual({
     kind: 'cover',
     document: ownerDocument,

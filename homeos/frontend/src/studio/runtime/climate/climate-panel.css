@@ -1,6 +1,6 @@
 .interaction3d-stage .i3d-light-panel.is-climate-panel {
   height: auto;
-  max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
+  max-height: var(--i3d-panel-max-height);
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -353,6 +353,19 @@
 }
 .i3d-extra-switch .i3d-extra-description p {
   display: none;
+}
+/* 原生卡（如只能开关的灯）没有可展开的控件时只剩标题与电源键：按普通开关卡横排。 */
+.i3d-extra-native:has(> .i3d-extra-native-root[hidden]) .i3d-extra-description {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* 电源键压到与拨动开关同量级：内容不超过一行（36px）时 measureRows 才会只给 1 行，否则卡片下半截空着。 */
+.i3d-extra-native:has(> .i3d-extra-native-root[hidden]) .i3d-extra-header-controls button {
+  min-height: 26px;
+  height: 26px;
+  padding: 0 10px;
 }
 .i3d-extra-card.is-layout-editing > .i3d-extra-drag {
   opacity: 0;
@@ -969,4 +982,15 @@
     height: 34px;
     min-height: 34px;
   }
+}
+/* 风速档位按档数等分列（≤8 档一行，更多档对半两行），避免 auto-fit 把最后一档孤零零挤到第二行；
+   需排在 .is-fan-panel / .is-air-conditioner-panel 的 choices 规则之后覆盖它们。 */
+.i3d-climate-panel .i3d-climate-choices.i3d-climate-speed-levels {
+  display: grid;
+  grid-template-columns: repeat(var(--i3d-speed-columns, 4), minmax(0, 1fr));
+  gap: 6px;
+}
+.i3d-climate-panel .i3d-climate-speed-levels > .i3d-climate-choice {
+  padding-inline: 4px;
+  white-space: nowrap;
 }

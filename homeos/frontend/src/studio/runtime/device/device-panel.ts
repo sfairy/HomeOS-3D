@@ -32,13 +32,13 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
   const extraErrorElement = document.createElement('p')
   ;(extraErrorElement.className = 'i3d-extra-error'), extraErrorElement.setAttribute('role', 'status')
   const headingElement = document.createElement('div')
-  headingElement.className = 'i3d-climate-heading i3d-nas-heading'
+  headingElement.className = 'i3d-climate-heading i3d-nas-heading i3d-popup-heading'
   const headingTextElement = document.createElement('div')
   const deviceVisual = createStageDeviceVisual({
     kind: 'generic',
     onActivate: undefined,
   })
-  ;(headingTextElement.className = 'i3d-climate-heading-text'),
+  ;(headingTextElement.className = 'i3d-climate-heading-text i3d-popup-heading-text'),
     (badgeElement.hidden = true),
     headingTextElement.append(titleElement, statusElement),
     headingElement.append(headingTextElement, badgeElement, powerButton, deviceVisual.root)

@@ -191,7 +191,7 @@ export function createNasPanel({
   const createStyledElement = (tagName: string, className: string, textContent = '') =>
       domElement(document, tagName, className, textContent),
     panelElement = createStyledElement('div', 'i3d-nas-panel i3d-climate-panel'),
-    headingElement = createStyledElement('div', 'i3d-nas-heading'),
+    headingElement = createStyledElement('div', 'i3d-nas-heading i3d-popup-heading'),
     titleElement = createStyledElement('h3', ''),
     statusElement = createStyledElement('p', 'i3d-nas-status'),
     metricsElement = createStyledElement('div', 'i3d-nas-metrics'),

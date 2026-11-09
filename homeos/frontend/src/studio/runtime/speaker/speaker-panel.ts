@@ -15,7 +15,7 @@ export function createSpeakerPanel({
       domElement(document, tagName, className, labelText),
     panelElement = createElement('div', 'i3d-television-panel i3d-speaker-panel')
   panelElement.hidden = true
-  const headingElement = createElement('div', 'i3d-nas-heading'),
+  const headingElement = createElement('div', 'i3d-nas-heading i3d-popup-heading'),
     titleElement = createElement('h3'),
     statusElement = createElement('span', 'i3d-tv-status'),
     headingTextElement = createElement('div', 'i3d-popup-heading-text')

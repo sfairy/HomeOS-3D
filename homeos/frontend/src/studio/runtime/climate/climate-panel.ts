@@ -110,12 +110,12 @@ export function createClimatePanel({
     rootElement = hostElement || createElement('section', '')
   rootElement.classList.add('i3d-climate-panel')
   const je2 = createPopupPickers(rootElement, createElement),
-    headingElement = createElement('div', 'i3d-climate-heading'),
+    headingElement = createElement('div', 'i3d-climate-heading i3d-popup-heading'),
     titleElement = createElement('h3', '', '空调'),
     statusElement = createElement('p', '', '尚未绑定设备'),
     powerButton = createElement('button', 'i3d-climate-power is-visual-replaced')
   powerButton.type = 'button'
-  const headingTextElement = createElement('div', 'i3d-climate-heading-text')
+  const headingTextElement = createElement('div', 'i3d-climate-heading-text i3d-popup-heading-text')
   const deviceVisual = createStageDeviceVisual({
     kind: 'climate',
     document,
@@ -841,6 +841,10 @@ export function createClimatePanel({
       lastSpeedSignature !== stringify &&
         ((lastSpeedSignature = stringify),
         replaceChildren(speedLevelsElement),
+        speedLevelsElement.style.setProperty(
+          '--i3d-speed-columns',
+          String(speedLevels.length <= 8 ? speedLevels.length : Math.ceil(speedLevels.length / 2)),
+        ),
         (list = speedLevels.map((speedLevel) => {
           const speedChoiceButton = createElement('button', 'i3d-climate-choice', speedLevel.label)
           return (

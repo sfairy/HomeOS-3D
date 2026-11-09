@@ -1,17 +1,17 @@
 /* 栈 D 设备弹窗右上角交互动态图（对齐 .i3d-power 吊灯位） */
 
-.interaction3d-stage
-  :is(.i3d-climate-heading, .i3d-cover-heading, .i3d-nas-heading, .i3d-device-panel .i3d-climate-heading) {
+/* 所有设备弹窗的标题行都带 .i3d-popup-heading（旧的 climate/cover/nas-heading 类名只留给各面板专属规则）。 */
+.interaction3d-stage .i3d-light-panel .i3d-popup-heading {
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: center;
   padding-right: 118px;
   min-height: 52px;
   overflow: visible;
 }
 
-.interaction3d-stage
-  :is(.i3d-climate-heading, .i3d-cover-heading, .i3d-nas-heading)
-  :is(.i3d-climate-heading-text, .i3d-cover-heading-text, .i3d-popup-heading-text) {
+.interaction3d-stage .i3d-popup-heading .i3d-popup-heading-text {
   position: relative;
   z-index: 2;
   flex: 1;

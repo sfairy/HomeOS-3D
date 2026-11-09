@@ -91,7 +91,7 @@ export function createLockPanel({ onControl: onControl, feedbackSlot: hostFeedba
   // 门磁芯片在双电量并排的网格里独占整行（见 stage.css 的 .i3d-lock-details）。
   doorChip.chipElement.classList.add('is-door')
   ;(panelElement.className = 'i3d-lock-panel i3d-nas-panel'),
-    (headingElement.className = 'i3d-nas-heading'),
+    (headingElement.className = 'i3d-nas-heading i3d-popup-heading'),
     (metaElement.className = 'i3d-nas-meta'),
     (statusElement.className = 'i3d-nas-status'),
     (detailsElement.className = 'i3d-lock-details'),

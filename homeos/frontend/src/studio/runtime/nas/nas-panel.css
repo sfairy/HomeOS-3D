@@ -1,5 +1,7 @@
 .interaction3d-stage .i3d-light-panel.is-nas-panel {
-  height: 400px;
+  height: auto;
+  max-height: var(--i3d-panel-max-height);
+  overflow: hidden;
 }
 .i3d-nas-panel {
   display: flex;
@@ -13,14 +15,11 @@
   display: none;
 }
 .i3d-nas-heading {
-  display: flex;
-  align-items: baseline;
   gap: 10px;
 }
 .i3d-nas-heading h3 {
   min-width: 0;
   margin: 0;
-  font-size: 21px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -93,6 +92,12 @@
   font-size: 11px;
   color: #9caea4;
   letter-spacing: 0.08em;
+}
+/* NAS 根节点也带 .i3d-climate-panel，会吃到扩展卡网格的「100% + 8px / margin-right:-8px」；
+   这里的滚动区自带右内边距和滚动条槽，再外扩 8px 右列卡片的右边框就被裁掉。 */
+.interaction3d-stage .i3d-nas-panel .i3d-nas-grid {
+  width: 100%;
+  margin-right: 0;
 }
 .i3d-nas-grid {
   display: grid;
