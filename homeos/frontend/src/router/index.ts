@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { logger } from '@/shared/utils/core/logger'
+import { isNavigationLockedAfterRestore } from '@/shared/utils/core/post-restore-lock'
 import { getBackendUnreachableHint, isBackendUnreachableError } from '@/shared/utils/core/error-message'
 import { withBackendBootRetry } from '@/shared/utils/core/api-boot-retry.util'
 import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/shared/utils/core/lazy-component'
@@ -368,6 +369,8 @@ function isEntryRouteName(name: string | undefined): boolean {
  * @returns 重定向目标或 undefined（放行）
  */
 router.beforeEach(async (to, from) => {
+  // 全量恢复后只认恢复流程的整页跳转（登录页）；401 / 授权失效触发的站内跳转一律中止。
+  if (isNavigationLockedAfterRestore()) return false
   const auth = useAuthStore()
   const layout = useLayoutStore()
   const chrome = useChromeStore()

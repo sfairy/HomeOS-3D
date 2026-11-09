@@ -13,6 +13,7 @@
  * 这里统一把用户送到登录 / 激活引导页，让授权页自己说明下一步。
  */
 import { getLicenseAvailability } from '@/services/api/license'
+import { lockNavigationAfterRestore } from './post-restore-lock'
 
 /** 未激活：登录成功后直接进激活页。 */
 const LOGIN_WITH_ACTIVATION = '/login?next=/activate'
@@ -39,13 +40,13 @@ function postRestoreDestination(licenseUsable: boolean | null): PostRestoreDesti
     return {
       path: LOGIN_WITH_ACTIVATION,
       needsActivation: true,
-      message: '全量数据已恢复。登录会话已清空，授权需要在本机重新激活：请先登录，随后进入激活页。',
+      message: '全量数据已恢复。登录会话已清空，授权需要在本机重新激活：请用备份中的账号密码登录，随后进入激活页。',
     }
   }
   return {
     path: LOGIN_ONLY,
     needsActivation: false,
-    message: '全量数据已恢复。登录会话已清空，请重新登录。',
+    message: '全量数据已恢复。登录会话已清空，请用备份中的账号密码重新登录。',
   }
 }
 
@@ -53,8 +54,11 @@ function postRestoreDestination(licenseUsable: boolean | null): PostRestoreDesti
  * 探测授权状态，得到恢复后的落点。
  *
  * 读取失败（后端刚换完库、仍在重建运行时）不阻塞恢复流程：回登录页，登录后由路由守卫再判。
+ *
+ * 必须在恢复接口成功返回后**立即**调用：第一步就锁住其它自动跳转，保证用户先到登录页。
  */
 export async function resolvePostRestoreDestination(): Promise<PostRestoreDestination> {
+  lockNavigationAfterRestore()
   try {
     const { data } = await getLicenseAvailability()
     return postRestoreDestination(!data?.required || Boolean(data?.allowed))

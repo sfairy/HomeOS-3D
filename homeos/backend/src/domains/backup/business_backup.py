@@ -52,6 +52,7 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from ...platform.core.db.schema import prepare_schema
 from ...platform.core.http.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
 from ...platform.core.runtime.async_work import durable_work as _durable_work
+from ...platform.security.auth_context import invalidate_session_cache
 from ...platform.security.login_limiter import LoginAttemptLimiter
 
 logger = logging.getLogger("homeos.backup.business")
@@ -873,11 +874,10 @@ def recover_interrupted_restore(settings: Any) -> bool:
 
 
 async def refresh_runtime_after_restore(app: Any) -> None:
-    """整库还原后重建内存态：系统配置、素材目录与 HA 连接。
+    """整库还原后重建内存态：会话缓存、系统配置、素材目录、HA 连接与授权缓存。
 
-    数据库被整体替换后，进程内缓存（``AppConfigService._config``、素材目录、HA 连接）
-    仍是旧值，必须重建；登录会话已在快照中清空，管理员需重新登录。
-    """
+    会话缓存最先清：sessions 已是空表，旧 Cookie 在 TTL 内命中缓存仍算已登录，会被弹回首页。"""
+    invalidate_session_cache(None)
     app_config = getattr(app.state, "app_config", None)
     reload_config = getattr(app_config, "reload_from_db", None)
     if callable(reload_config):

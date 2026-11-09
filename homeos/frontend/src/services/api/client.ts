@@ -20,6 +20,7 @@ import { getPageTraceId } from '@/shared/utils/telemetry/trace.util'
 import { getFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { logger } from '@/shared/utils/core/logger'
 import { isLicenseInactiveError } from '@/shared/utils/core/error-message'
+import { isNavigationLockedAfterRestore } from '@/shared/utils/core/post-restore-lock'
 import { installFetchCsrf } from './csrf'
 
 /**
@@ -263,6 +264,14 @@ function shouldTripUnauthorizedCircuit(): boolean {
 }
 
 /**
+ * 401 是否不走刷新 / 登出 / 跳转流程：调用方显式声明，或处于全量恢复后的跳转窗口
+ * （会话本就已清空，别弹「登录已过期」、别抢在恢复流程之前跳激活页）。
+ */
+function skipsAuthRedirect(config: RetryableAxiosRequestConfig): boolean {
+  return Boolean(config.skipAuthRedirect) || isNavigationLockedAfterRestore()
+}
+
+/**
  * 响应拦截器：处理 401 会话过期、403 CSRF 失效与 5xx/网络错误重试。
  * 错误处理顺序：
  * 1) 401：登录/刷新/激活/许可证接口直接拒绝；其余先会话刷新重试一次，再触发全局登出/跳转登录；
@@ -279,7 +288,7 @@ apiClient.interceptors.response.use(
     const config = error.config as RetryableAxiosRequestConfig | undefined
     if (!config) return Promise.reject(error)
 
-    if (error.response?.status === 401 && !config.skipAuthRedirect && !isHandling401) {
+    if (error.response?.status === 401 && !skipsAuthRedirect(config) && !isHandling401) {
       const url = String(config.url || '')
       // 登录/初始化本身的 401 只表示凭据错误，不能清会话
       if (

@@ -6,6 +6,8 @@
  * 嵌入式外壳、单页面调试页）退回整页跳转。
  */
 
+import { isNavigationLockedAfterRestore } from '@/shared/utils/core/post-restore-lock'
+
 type ShellNavigate = (path: string) => void | Promise<unknown>
 
 let shellNavigate: ShellNavigate | null = null
@@ -40,6 +42,7 @@ function toShellPath(target: string): string | null {
  * 返回是否走了外壳路由，便于调用方在需要时做后续处理（例如清理本视图状态）。
  */
 export function navigateInShell(target: string): boolean {
+  if (isNavigationLockedAfterRestore()) return false
   const path = toShellPath(target)
   if (shellNavigate && path !== null) {
     // 已经在该路径上：外壳路由会判定为重复导航，直接当作成功，避免无谓的整页刷新。
