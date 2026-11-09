@@ -21,10 +21,7 @@ export function hasInteractionBindings(bindingTree: any): boolean {
   return Object.values(bindingTree).some(hasInteractionBindings)
 }
 
-export async function confirmBindingRepair(
-  issues: BindingRepairIssue[],
-  { mode, signal }: any,
-): Promise<boolean> {
+export async function confirmBindingRepair(issues: BindingRepairIssue[], { mode, signal }: any): Promise<boolean> {
   if (signal?.aborted) return false
   const issueLines = issues
     .map(
@@ -35,9 +32,7 @@ export async function confirmBindingRepair(
   const title = mode === 'copy' ? '待复制控件中有失效配置' : '检查失效配置'
   const lead =
     mode === 'copy'
-      ? '发现 ' +
-        issues.length +
-        ' 项失效配置。确认后从待复制的副本中移除，源控件保持原样。也可以取消后重新关联模型。'
+      ? '发现 ' + issues.length + ' 项失效配置。确认后从待复制的副本中移除，源控件保持原样。也可以取消后重新关联模型。'
       : '发现 ' +
         issues.length +
         ' 项失效配置。确认后移除以下配置，保留其他设置和 HA 实体。完成后请点击顶部“保存”；也可以取消后重新关联模型。'

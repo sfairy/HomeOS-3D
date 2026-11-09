@@ -86,31 +86,31 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
   } = deps
   /* 图片 / 导图文件夹删除已迁 confirmAction（requestDeleteUserAsset / requestDeleteAssetFolder） */
   imageAssetButtonElement.addEventListener('click', async () => {
-      const hidden13 = imageAssetMenuElement.hidden
-      if (
-        (closeOtherPickerMenus(hidden13 ? 'asset' : null),
-        (imageAssetMenuElement.hidden = !hidden13),
-        imageAssetButtonElement.setAttribute('aria-expanded', String(hidden13)),
-        hidden13)
-      ) {
-        try {
-          await reloadAssetCatalog({
-            refreshInspector: false,
-          }),
-            leftFolderName('image')
-        } catch (existingPopupModule: any) {
-          handleOperationError(existingPopupModule)
-        }
-        renderImageAssetOptions(imageAssetSearchInputElement.value),
-          positionImageAssetMenu(),
-          window.requestAnimationFrame(() => {
-            positionImageAssetMenu(),
-              imageAssetSearchInputElement.focus({
-                preventScroll: true,
-              })
-          })
+    const hidden13 = imageAssetMenuElement.hidden
+    if (
+      (closeOtherPickerMenus(hidden13 ? 'asset' : null),
+      (imageAssetMenuElement.hidden = !hidden13),
+      imageAssetButtonElement.setAttribute('aria-expanded', String(hidden13)),
+      hidden13)
+    ) {
+      try {
+        await reloadAssetCatalog({
+          refreshInspector: false,
+        }),
+          leftFolderName('image')
+      } catch (existingPopupModule: any) {
+        handleOperationError(existingPopupModule)
       }
-    }),
+      renderImageAssetOptions(imageAssetSearchInputElement.value),
+        positionImageAssetMenu(),
+        window.requestAnimationFrame(() => {
+          positionImageAssetMenu(),
+            imageAssetSearchInputElement.focus({
+              preventScroll: true,
+            })
+        })
+    }
+  }),
     imageAssetFolderSelectElement.addEventListener('change', () => {
       ;(editorCtx.imageAssetFolderState = imageAssetFolderSelectElement.value),
         (imageAssetSearchInputElement.value = ''),

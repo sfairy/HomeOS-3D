@@ -13,12 +13,12 @@
   --hos-accent-end: 88, 86, 214;
   --shell-blur: 56px;
   --shell-sat: 220%;
-  --shell-bg: radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%),
-    rgba(12, 12, 18, 0.9);
+  --shell-bg: radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%), rgba(12, 12, 18, 0.9);
   --shell-border: var(--hos-hairline, 1px) solid var(--premium-border-strong, rgba(255, 255, 255, 0.12));
   --shell-radius: var(--hos-radius-shell, 24px);
-  --shell-shadow: var(--premium-shadow, 0 32px 100px rgba(0, 0, 0, 0.62)),
-    0 0 0 var(--hos-hairline, 1px) rgba(255, 255, 255, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shell-shadow:
+    var(--premium-shadow, 0 32px 100px rgba(0, 0, 0, 0.62)), 0 0 0 var(--hos-hairline, 1px) rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   position: fixed;
   inset: 0;

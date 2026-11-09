@@ -1837,8 +1837,8 @@ body.interaction3d-stage.is-background-hidden,
 }
 /* 原生 progress 的配色随系统/color-scheme 漂移（暖木下会画成绿色），轨道与填充都自己画。 */
 .i3d-tv-details progress {
-  --i3d-tv-progress-track: #ffffff1f;
-  --i3d-tv-progress-value: #97bfdf;
+  --i3d-tv-progress-track: color-mix(in srgb, currentColor 14%, transparent);
+  --i3d-tv-progress-value: color-mix(in srgb, currentColor 70%, transparent);
   width: 100%;
   height: 4px;
   border: 0;
@@ -1858,10 +1858,6 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-tv-details progress::-moz-progress-bar {
   border-radius: 2px;
   background: var(--i3d-tv-progress-value);
-}
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-tv-details progress {
-  --i3d-tv-progress-track: #ddd2c0;
-  --i3d-tv-progress-value: #b88c4c;
 }
 .i3d-tv-time {
   font-variant-numeric: tabular-nums;
@@ -3445,20 +3441,18 @@ body.interaction3d-stage.is-background-hidden,
     #ded4c3 100%
   ) !important;
 }
-/* climate-panel.ts 会把深色主题的强调色（#73c8ff / #c9a26d）写进内联 style，浅色木纹底上对比度不足 2:1；
-   暖木的深色强调色必须 !important 才压得过内联值。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
-  --i3d-climate-accent: #655947 !important;
+  --i3d-climate-accent: #655947;
   --hb-climate-accent-soft: color-mix(in srgb, var(--i3d-climate-accent) 12%, #fff9ed);
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="cool"] {
-  --i3d-climate-accent: #28677f !important;
+  --i3d-climate-accent: #28677f;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="heat"] {
-  --i3d-climate-accent: #a4472a !important;
+  --i3d-climate-accent: #a4472a;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="off"] {
-  --i3d-climate-accent: #70685d !important;
+  --i3d-climate-accent: #70685d;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-climate-choice, .i3d-climate-power)[aria-pressed="true"] {
   color: var(--i3d-climate-accent);
@@ -4424,11 +4418,7 @@ body.interaction3d-stage.is-background-hidden,
   white-space: nowrap;
 }
 .interaction3d-stage
-  :is(
-    .i3d-light-heading-text .i3d-device-status,
-    .i3d-popup-heading-text > p,
-    .i3d-popup-heading-text .i3d-tv-status
-  ) {
+  :is(.i3d-light-heading-text .i3d-device-status, .i3d-popup-heading-text > p, .i3d-popup-heading-text .i3d-tv-status) {
   margin: 2px 0 0;
   font-size: var(--hos-fs-1, 11px);
   font-weight: 400;

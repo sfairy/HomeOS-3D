@@ -17,9 +17,7 @@ export async function resolveInteractionCleanup(
   const affectedProjects: string[] = Array.isArray(interactionImpact?.projects)
     ? interactionImpact.projects.map((project: any) => String(project))
     : []
-  const affectedImpacts: number = Array.isArray(interactionImpact?.impacts)
-    ? interactionImpact.impacts.length
-    : 0
+  const affectedImpacts: number = Array.isArray(interactionImpact?.impacts) ? interactionImpact.impacts.length : 0
 
   const projectSummary = affectedProjects.length ? affectedProjects.join('、') : '未记录'
   const message = [

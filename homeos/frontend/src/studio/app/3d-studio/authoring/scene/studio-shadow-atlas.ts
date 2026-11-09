@@ -528,7 +528,7 @@ export function createSpotShadowAtlasController({
               .replace('#include <lights_fragment_begin>', patchedLightsFragment))
       }),
       (materialToPrepare.customProgramCacheKey = () =>
-(previousCacheKey?.() || '') + '|user-spot-shadow-atlas-v17-strip-visibility'),
+        (previousCacheKey?.() || '') + '|user-spot-shadow-atlas-v17-strip-visibility'),
       (materialToPrepare.needsUpdate = true)
   }
   const materialCloneBySource = new WeakMap(),
@@ -609,9 +609,7 @@ export function createSpotShadowAtlasController({
         // update/prepare 可能因单层超容量把 enabled 翻成 false：此时 UBO 已不可用，
         // 必须立刻摘掉材质上的 HB_FLOOR_*，否则面光只读空缓冲、场景里灯带全黑。
         if (!floorLights.enabled) {
-          prepareRoot(renderedScene),
-            (syncedLights = null),
-            console.warn('分层灯光缓冲超容量，恢复原生灯光。')
+          prepareRoot(renderedScene), (syncedLights = null), console.warn('分层灯光缓冲超容量，恢复原生灯光。')
         } else {
           ;(renderer.domElement.dataset.activeUserLights = String(activeUserLightCount ?? 0)),
             (renderer.domElement.dataset.spotShadowTextureUnits = '1'),

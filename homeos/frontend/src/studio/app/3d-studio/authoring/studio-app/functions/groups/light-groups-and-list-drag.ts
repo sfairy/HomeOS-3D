@@ -660,10 +660,7 @@ export async function maybeShowDrawingLightNotice(runtime: StudioAppRuntime) {
   runtime.hasShownDrawingLightNotice = true
   await shellConfirm({
     title: '灯光开启较多',
-    message:
-      '同时开启较多灯光可能导致卡顿，建议配置完成后关闭，需要时再开启。\n\n当前已开启：' +
-      litLightCount +
-      ' 盏',
+    message: '同时开启较多灯光可能导致卡顿，建议配置完成后关闭，需要时再开启。\n\n当前已开启：' + litLightCount + ' 盏',
     confirmLabel: '知道了',
     cancelLabel: '关闭',
   })

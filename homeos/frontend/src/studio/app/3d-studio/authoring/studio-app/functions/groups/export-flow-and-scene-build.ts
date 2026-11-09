@@ -122,10 +122,7 @@ export async function openPresetDeleteDialog(runtime: StudioAppRuntime) {
   const presetLabel = runtime.formatPresetLabel(deletePresetSlots[deleteActiveSlot], deleteActiveSlot)
   const confirmed = await shellConfirm({
     title: '删除这个导出存档？',
-    message:
-      '确定删除“' +
-      presetLabel +
-      '”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。',
+    message: '确定删除“' + presetLabel + '”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。',
     confirmLabel: '删除存档',
     cancelLabel: '取消',
     tone: 'danger',

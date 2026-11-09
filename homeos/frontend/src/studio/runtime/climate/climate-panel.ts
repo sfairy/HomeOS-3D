@@ -768,7 +768,6 @@ export function createClimatePanel({
         (displayState.running || draftPowerOn === true || draftMode !== null || draftPresetMode !== null)
       )
     ;(rootElement.dataset.climateMode = displayState.available ? effectiveVisualMode : 'off'),
-      rootElement.style.setProperty('--i3d-climate-accent', effectiveAccent),
       rootElement.classList.toggle('is-preview', !!viewModel.editing),
       rootElement.classList.toggle('is-on', effectiveOn),
       rootElement.classList.toggle('is-running', effectiveRunning),
@@ -843,7 +842,7 @@ export function createClimatePanel({
         replaceChildren(speedLevelsElement),
         speedLevelsElement.style.setProperty(
           '--i3d-speed-columns',
-          String(speedLevels.length <= 8 ? speedLevels.length : Math.ceil(speedLevels.length / 2)),
+          String(Math.ceil(speedLevels.length / Math.ceil(speedLevels.length / 8))),
         ),
         (list = speedLevels.map((speedLevel) => {
           const speedChoiceButton = createElement('button', 'i3d-climate-choice', speedLevel.label)

@@ -1720,7 +1720,10 @@ export function mountInteraction3d(
   function scheduleLoadTimeout() {
     // 超时只是提示，不能走 failSceneLoad：那会清掉 isReloadPending，之后迟到的 presented 被丢弃，画面永远卡在提示上。
     const slowHint = '3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。'
-    loadingTimeoutId = setTimeout(() => isDisposed || hasLoadFailed || isScenePresented || (loadingElement.textContent = slowHint), 45000)
+    loadingTimeoutId = setTimeout(
+      () => isDisposed || hasLoadFailed || isScenePresented || (loadingElement.textContent = slowHint),
+      45000,
+    )
   }
   const activeRequestsSet = new Set<AbortController>()
   async function handleStageMessage(messageEvent: any) {

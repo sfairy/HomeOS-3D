@@ -498,10 +498,7 @@ export async function floorActionHandler(runtime: StudioAppRuntime, floorToDelet
   if (!floorToDelete || runtime.appCtx.studioProject.floors.length <= 1) return
   const confirmed = await shellConfirm({
     title: '删除这个楼层？',
-    message:
-      '确定删除“' +
-      floorToDelete.name +
-      '”吗？这一层的绘图数据不会保留，此操作无法撤销。',
+    message: '确定删除“' + floorToDelete.name + '”吗？这一层的绘图数据不会保留，此操作无法撤销。',
     confirmLabel: '删除楼层',
     cancelLabel: '取消',
     tone: 'danger',
