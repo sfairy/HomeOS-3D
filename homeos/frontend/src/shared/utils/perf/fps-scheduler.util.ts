@@ -1,13 +1,21 @@
 /**
  * 统一 FPS rAF 调度器：adaptive tier 监控 + 可选诊断采样 + 动画 tick（单 rAF 循环）
+ *
+ * 自适应监控只在「有人在用」时测帧：启动后与每次用户输入后的 ACTIVE_WINDOW_MS 内出帧，
+ * 窗口过了就停。墙面平板 7×24 静置时这条空转的 rAF 会让整机每秒唤醒 60 次，而静置画面
+ * 掉帧本来也没人看得到。诊断采样是显式开关，开着时不受窗口限制。
  */
 
 type AdaptiveFpsTick = (deltaMs: number, ts: number) => void
 type DiagnosticsFpsTick = (ts: number) => void
 
+const ACTIVE_WINDOW_MS = 5000
+const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
+
 let schedulerStarted = false
 let schedulerPaused = false
 let lastFrameTs = 0
+let activeUntil = 0
 
 let adaptiveTick: AdaptiveFpsTick | null = null
 
@@ -15,9 +23,10 @@ let diagnosticsTick: DiagnosticsFpsTick | null = null
 let diagnosticsActive = false
 
 let visibilityBound = false
+let activityBound = false
 
 function tick(ts: number): void {
-  if (schedulerPaused) {
+  if (schedulerPaused || (!diagnosticsActive && performance.now() > activeUntil)) {
     schedulerStarted = false
     return
   }
@@ -33,15 +42,27 @@ function tick(ts: number): void {
 }
 
 function ensureSchedulerRunning() {
-  if (schedulerStarted || typeof requestAnimationFrame !== 'function') return
+  if (schedulerStarted || schedulerPaused || typeof requestAnimationFrame !== 'function') return
   schedulerStarted = true
   lastFrameTs = 0
   requestAnimationFrame(tick)
 }
 
+function markActive() {
+  activeUntil = performance.now() + ACTIVE_WINDOW_MS
+  ensureSchedulerRunning()
+}
+
+function bindActivityWake() {
+  if (activityBound || typeof window === 'undefined') return
+  activityBound = true
+  // activityBound 保证只注册一次；调度器是模块级单例，监听无归属对象可挂。
+  for (const type of ACTIVITY_EVENTS) window.addEventListener(type, markActive, { capture: true, passive: true })
+}
+
 export function registerAdaptiveFpsTick(fn: AdaptiveFpsTick): void {
   adaptiveTick = fn
-  ensureSchedulerRunning()
+  markActive()
 }
 
 export function registerDiagnosticsFpsTick(fn: DiagnosticsFpsTick): void {
@@ -58,7 +79,8 @@ export function stopDiagnosticsFpsSampling() {
 }
 
 export function startFpsScheduler() {
-  ensureSchedulerRunning()
+  bindActivityWake()
+  markActive()
 }
 
 export function isFpsSchedulerRunning() {
@@ -75,7 +97,7 @@ export function pauseFpsScheduler(): void {
 
 export function resumeFpsScheduler(): void {
   schedulerPaused = false
-  ensureSchedulerRunning()
+  markActive()
 }
 
 /**

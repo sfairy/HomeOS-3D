@@ -12,11 +12,12 @@
  * 只在单独 tag 的运行里打开，避免污染帧耗时口径。
  */
 
-export function stageProbeScript({ trackMemory = false, maxFrames = 20000 } = {}) {
+export function stageProbeScript({ trackMemory = false, traceRaf = false, maxFrames = 20000 } = {}) {
   return `
 (() => {
   if (window.__homeosStageProbe) return;
   const TRACK = ${trackMemory ? 'true' : 'false'};
+  const TRACE_RAF = ${traceRaf ? 'true' : 'false'};
   const MAX_FRAMES = ${Number(maxFrames) || 20000};
   const now = () => performance.now();
   const probe = window.__homeosStageProbe = {
@@ -28,6 +29,8 @@ export function stageProbeScript({ trackMemory = false, maxFrames = 20000 } = {}
     trackMemory: TRACK,
     drainFrames() { const out = this.frames; this.frames = []; return out; },
     drainUploads() { const out = this.uploads; this.uploads = []; return out; },
+    rafCallers: {},
+    drainRafCallers() { const out = this.rafCallers; this.rafCallers = {}; return out; },
   };
   const wrap = (proto, name, after) => {
     const original = proto && proto[name];
@@ -52,6 +55,10 @@ export function stageProbeScript({ trackMemory = false, maxFrames = 20000 } = {}
 
   const raf = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = function (callback) {
+    if (TRACE_RAF) {
+      const caller = (new Error().stack || "").split("\\n")[2] || "?";
+      probe.rafCallers[caller.trim()] = (probe.rafCallers[caller.trim()] || 0) + 1;
+    }
     return raf((timestamp) => {
       const start = now();
       try { return callback(timestamp); } finally {
@@ -314,6 +321,7 @@ export async function drainStageProbe(frame) {
     return {
       frames: probe.drainFrames(),
       uploads: probe.drainUploads(),
+      rafCallers: probe.drainRafCallers(),
       contexts: probe.contexts,
       gpuBytes: probe.trackMemory ? probe.gpuBytes : null,
       peakGpuBytes: probe.trackMemory ? probe.peakGpuBytes : null,

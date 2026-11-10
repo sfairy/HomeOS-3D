@@ -187,8 +187,17 @@ function isMaterialSurface(value: unknown): value is MaterialSurface {
   return typeof value === 'string' && value in SURFACE_HEIGHT_PAINTERS
 }
 
-/** 每个 three 实例一张缓存表：纹理带着 three 的类型，不能跨实例复用。 */
-const textureCacheByThree = new WeakMap<object, WeakMap<object, any>>()
+/**
+ * 每个 three 实例一张缓存表：纹理带着 three 的类型，不能跨实例复用。
+ * 渲染器上传纹理时会在它身上挂 dispose 监听并借此留住自己，所以必须能在回收时遍历释放。
+ */
+const textureCacheByThree = new Map<object, Map<object, any>>()
+
+/** 回收共享高度图：触发 dispose 让各渲染器摘掉挂在纹理上的监听，下次使用时重建。 */
+export function releaseSurfaceDetailTextures(): void {
+  for (const cache of textureCacheByThree.values()) for (const texture of cache.values()) texture?.dispose?.()
+  textureCacheByThree.clear()
+}
 
 /**
  * 高度场的编码幅度：painter 的返回值大致落在 ±1.1 内（wood 0.96 / stone 1.08 / metal 0.98）。
@@ -215,7 +224,7 @@ export function createSurfaceDetailTexture(
   if (!surface || !isMaterialSurface(surface) || !threeApi?.CanvasTexture) return null
   let cache = textureCacheByThree.get(threeApi)
   if (!cache) {
-    cache = new WeakMap()
+    cache = new Map()
     textureCacheByThree.set(threeApi, cache)
   }
   const painter = SURFACE_HEIGHT_PAINTERS[surface]

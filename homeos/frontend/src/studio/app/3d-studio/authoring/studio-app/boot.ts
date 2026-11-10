@@ -3790,10 +3790,9 @@ if (instanceTestType) {
     (disposeObjectTree(instanceTestGroup), instanceTestGeometry.dispose());
   }
 }
-(new ResizeObserver(resizePlanStage).observe(planStageElement),
-  initializeStudioSelects2(),
-  initializeNumberInputs2(),
-  syncBaseLightingControls());
+new ResizeObserver(resizePlanStage).observe(planStageElement);
+const disposeEnhancedSelects = initializeStudioSelects2();
+(initializeNumberInputs2(), syncBaseLightingControls());
 function runStudioRenderLoop(): any {
   const studioRenderLoop = runStudioRenderLoopImpl(renderLoopDeps());
   activeStudioRenderLoop = studioRenderLoop;
@@ -4032,6 +4031,7 @@ startupStudio(studioBootDeps());
       disposeStudioRendererEvents?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     disposeStudioRendererEvents = null
+    disposeEnhancedSelects() // 下拉框登记表是模块级的：不释放就会跨实例留住整套编辑器 DOM
     releaseStudioRenderer(appCtx)
     clearStudioDocumentResidue()
   };

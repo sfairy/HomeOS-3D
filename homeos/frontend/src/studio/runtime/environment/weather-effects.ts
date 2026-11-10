@@ -40,6 +40,12 @@ const DENSITY_BASE_AREA = 900_000
 const MAX_DENSITY = 1.25
 /** 单帧最大步进（秒）；标签页回前台时不会一次补上几秒的位移。 */
 const MAX_STEP_SECONDS = 0.05
+/**
+ * 天气层出帧上限：墙面平板 7×24 常亮，雨雪粒子 30fps 观感无差而整机唤醒减半。
+ * 帧回调返回「再等一个 vsync」，下一帧落在第二个 vsync 上，不在空帧里空转 rAF。
+ */
+const WEATHER_FRAME_MS = 1000 / 30
+const WEATHER_STEP_DELAY_MS = WEATHER_FRAME_MS - 1000 / 60
 /** 风速归一化基准（m/s）：超过这个值就按满速处理。 */
 const WIND_SPEED_BASE = 18
 /** 阵风包络：低频正弦叠一层更慢的正弦，形成「一阵一阵」的呼吸。 */
@@ -100,7 +106,7 @@ export function createWeatherEffects(host: any) {
   const stars = createStarRenderer()
   const ground = createGroundRenderer()
   const thunder = createThunderRenderer()
-  const quality = createQualityGovernor()
+  const quality = createQualityGovernor(WEATHER_FRAME_MS)
   const groundDebug = isGroundDebugEnabled(win)
 
   let reducedMotion = reducedMotionQuery?.matches === true
@@ -187,7 +193,7 @@ export function createWeatherEffects(host: any) {
     if (groundDebug) strokeGroundQuad(frame)
   }
 
-  /** 帧回调：返回 0 表示继续按 rAF 出帧。不满足条件时返回 Infinity 停帧。 */
+  /** 帧回调：返回下一帧前的等待毫秒数。不满足条件时返回 Infinity 停帧。 */
   function step(frameTimestamp: number) {
     if (disposed || !ready || !state || doc.hidden || reducedMotion) return Infinity
     const deltaSeconds =
@@ -196,7 +202,7 @@ export function createWeatherEffects(host: any) {
     elapsedSeconds += deltaSeconds
     quality.sample(deltaSeconds)
     render(deltaSeconds)
-    return 0
+    return WEATHER_STEP_DELAY_MS
   }
 
   const loop = createDemandFrameLoop({

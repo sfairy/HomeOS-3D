@@ -35,8 +35,12 @@ const deviceScaleFactor = Number(argValue('--dpr', '1')) || 1
 const dragDurationMs = Number(argValue('--soak-ms', '360')) || 360
 /** --idle-ms：presented 之后静置多久再拖拽，期间统计页面帧数（idleFramesPerSec）。 */
 const idleWindowMs = Number(argValue('--idle-ms', '1500')) || 0
+/** --idle-settle-ms：静置窗口开始前先等多久（跳过入场动画 / 启动期测帧窗口，量稳态静置）。 */
+const idleSettleMs = Number(argValue('--idle-settle-ms', '0')) || 0
 /** --gpu-memory：打开显存估算（包装 bind* 调用，有开销，只在单独 tag 的运行里用）。 */
 const trackGpuMemory = args.includes('--gpu-memory')
+/** --trace-raf：按调用点统计 requestAnimationFrame（静置窗口里谁还在请求帧）。 */
+const traceRafCallers = args.includes('--trace-raf')
 /** 运动起止前后统计纹理上传的窗口：开始前 200ms 到结束后 1.6s（覆盖 600ms 运动保持期）。 */
 const MOTION_UPLOAD_LEAD_MS = 200
 const MOTION_UPLOAD_TAIL_MS = 1600
@@ -373,6 +377,11 @@ function buildProbeSummary(result) {
     loadTexUploads: probe.load ? probe.load.uploads.length : null,
     idleFramesPerSec:
       probe.idle && idleWindowMs > 0 ? Number((probe.idle.frames.length / (idleWindowMs / 1000)).toFixed(2)) : null,
+    idleRafCallers: traceRafCallers
+      ? Object.entries(probe.idle?.rafCallers || {})
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 12)
+      : undefined,
     dragDurationMs: drag.applied ? Math.round(drag.endedAt - drag.startedAt) : null,
     dragFrameIntervalP50Ms: dragFrames?.intervalP50Ms ?? null,
     dragFrameIntervalP95Ms: dragFrames?.intervalP95Ms ?? null,
@@ -420,7 +429,7 @@ const context = await browser.newContext({
 await context.addCookies([{ name: 'auth_token', value: env.homeos.token, url: homeosBase }])
 await context.addInitScript(hostInitScript)
 await context.addInitScript(frameInitScript)
-await context.addInitScript(stageProbeScript({ trackMemory: trackGpuMemory }))
+await context.addInitScript(stageProbeScript({ trackMemory: trackGpuMemory, traceRaf: traceRafCallers }))
 const page = await context.newPage()
 const consoleErrors = []
 const stagePhaseLogs = []
@@ -474,7 +483,7 @@ const result = {
     deviceScaleFactor,
     reducedMotion: 'no-preference',
   },
-  probeOptions: { dragDurationMs, idleWindowMs, trackGpuMemory },
+  probeOptions: { dragDurationMs, idleWindowMs, idleSettleMs, trackGpuMemory },
   url: displayUrl,
   extraQueries,
   sceneId: env.homeos.sceneId,
@@ -618,6 +627,10 @@ try {
   // 探针分三段读：presented 之前（加载期上传）、静置窗口（静置帧率）、拖拽及其后 1.6s（运动口径）。
   result.probe = { load: await drainStageProbe(frame).catch(() => null) }
   if (idleWindowMs > 0) {
+    if (idleSettleMs > 0) {
+      await page.waitForTimeout(idleSettleMs)
+      await drainStageProbe(frame).catch(() => null)
+    }
     await page.waitForTimeout(idleWindowMs)
     result.probe.idle = await drainStageProbe(frame).catch(() => null)
   }

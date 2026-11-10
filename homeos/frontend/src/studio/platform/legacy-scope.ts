@@ -12,6 +12,11 @@
  * 会在卸载时被误删：外壳（MainLayout / Vue 运行时）在视图并存期间新挂的监听必须存活。
  *
  * 引导体可以把「需要访问体内作用域的显式回收」作为返回值传出来（见 `run` 的泛型返回）。
+ *
+ * 例外是挂到 `document.body` 的节点：引导模块会把面板 / 对话框 `body.append(...)` 出去，
+ * 这些节点的监听闭包持有整个引导作用域，留在 body 上就会让每次进出路由都泄漏一整套
+ * DOM 与 WebGL 画布。因此从引导开始到 dispose 为止，`body.append` / `body.appendChild`
+ * 挂上的节点都会被登记并在卸载时摘除。外壳（Vue Teleport）走 `insertBefore`，不受影响。
  */
 interface LegacyScope {
   /**
@@ -23,11 +28,48 @@ interface LegacyScope {
   dispose(): void
 }
 
+/** 存活中的作用域各自的 body 节点登记表；新挂的节点记到最近引导的那一个。 */
+const bodyNodeOwners: Array<Set<Node>> = []
+
+function recordBodyNodes(nodes: Array<Node | string>): void {
+  const owner = bodyNodeOwners[bodyNodeOwners.length - 1]
+  if (!owner) return
+  for (const node of nodes) if (typeof node !== 'string') owner.add(node)
+}
+
+function trackBodyNodes(owner: Set<Node>): () => void {
+  const body: HTMLElement | null = document.body
+  if (!bodyNodeOwners.length && body) {
+    const originalAppend = body.append
+    const originalAppendChild = body.appendChild
+    body.append = function trackedAppend(this: HTMLElement, ...nodes: Array<Node | string>) {
+      recordBodyNodes(nodes)
+      return originalAppend.apply(this, nodes)
+    }
+    body.appendChild = function trackedAppendChild<T extends Node>(this: HTMLElement, node: T): T {
+      recordBodyNodes([node])
+      return originalAppendChild.call(this, node) as T
+    }
+  }
+  bodyNodeOwners.push(owner)
+  return () => {
+    const ownerIndex = bodyNodeOwners.indexOf(owner)
+    if (ownerIndex >= 0) bodyNodeOwners.splice(ownerIndex, 1)
+    if (!bodyNodeOwners.length && body) {
+      Reflect.deleteProperty(body, 'append')
+      Reflect.deleteProperty(body, 'appendChild')
+    }
+    for (const node of owner) if (node.parentNode === body) body.removeChild(node)
+    owner.clear()
+  }
+}
+
 /** 创建某个引导模块的回收器。`scopeName` 仅用于诊断日志。 */
 export function createLegacyScope(scopeName: string): LegacyScope {
   const disposers: Array<() => void> = []
   const timerIds = new Set<number>()
   const observers: Array<{ disconnect(): void }> = []
+  let releaseBodyNodes: (() => void) | null = null
   let hasRun = false
 
   function executeInLegacyScope<T>(body: () => T): T {
@@ -37,6 +79,7 @@ export function createLegacyScope(scopeName: string): LegacyScope {
       return body()
     }
     hasRun = true
+    releaseBodyNodes = trackBodyNodes(new Set())
 
     const globalObject = globalThis as any
     const listenerTargets: any[] = [globalObject, document as any]
@@ -136,6 +179,9 @@ export function createLegacyScope(scopeName: string): LegacyScope {
       clearInterval(timerId)
     }
     timerIds.clear()
+    const release = releaseBodyNodes
+    releaseBodyNodes = null
+    release?.()
   }
 
   return { executeInLegacyScope, dispose }
