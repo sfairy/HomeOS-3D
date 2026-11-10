@@ -1,7 +1,7 @@
 import {
   climateIsPoweredOn as climateIsPoweredOn2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
-} from '../../renderer/controls/climate'
+} from '@app/shared/device/climate'
 
 const onOffDomainSet = new Set(['light', 'switch', 'input_boolean', 'fan', 'humidifier', 'siren']),
   runningStateDomainSet = new Set(['climate', 'water_heater'])

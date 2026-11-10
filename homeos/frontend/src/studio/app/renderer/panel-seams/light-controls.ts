@@ -21,7 +21,7 @@ import {
   lightSupportsColor as lightSupportsColor2,
   lightVisualValueForCapability as lightVisualValueForCapability2,
   relativeLightColorTemperature as relativeLightColorTemperature2,
-} from '../controls/light-runtime'
+} from '@app/shared/device/light-runtime'
 import type { PanelRenderer } from '../panel-renderer'
 
 export function createLightDetailsControls(

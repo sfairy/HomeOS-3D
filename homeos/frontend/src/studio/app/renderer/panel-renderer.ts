@@ -58,14 +58,14 @@ import {
   lightVisualValueForCapability as lightVisualValueForCapability2,
   relativeLightColorTemperature as relativeLightColorTemperature2,
   rgbToHsColor as rgbToHsColor2,
-} from './controls/light-runtime'
-import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from './entity-metadata'
+} from '@app/shared/device/light-runtime'
+import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/shared/device/entity-metadata'
 import {
   relatedVacuumBatteryEntity as relatedVacuumBatteryEntity2,
   vacuumActionService as vacuumActionService2,
   vacuumBatteryPercent as vacuumBatteryPercent2,
   vacuumSupportedActions as vacuumSupportedActions2,
-} from './controls/vacuum-runtime'
+} from '@app/shared/device/vacuum-runtime'
 import {
   airerDevicePosition as airerDevicePosition2,
   airerPositionCalibration as airerPositionCalibration2,

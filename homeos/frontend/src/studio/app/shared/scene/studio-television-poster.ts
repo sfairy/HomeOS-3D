@@ -6,7 +6,7 @@
  * 空带，看上去就是画面只占上半屏。现在按满幅排：顶部通栏细线、底部通栏状态条、左右两栏
  * 的卡片都排到画布边缘。
  */
-import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
+import { dashboardCanvasFont } from '@app/shared/dashboard-fonts'
 export function drawTelevisionPoster(canvasElement: any, painter: any) {
   painter.save(),
     painter.scale(canvasElement.width / 960, canvasElement.height / 540),

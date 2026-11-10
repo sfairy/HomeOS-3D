@@ -41,12 +41,12 @@ import {
   normalizeClimateCapabilities as normalizeClimateCapabilities2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
   waterHeaterStatusLabel as waterHeaterStatusLabel2,
-} from '../controls/climate'
+} from '@app/shared/device/climate'
 import {
   formatLineChartValue as formatLineChartValue2,
   renderLineChartDetails as renderLineChartDetails2,
 } from '../registry'
-import { lightColorRgb as lightColorRgb2, lightSupportsColor as lightSupportsColor2 } from '../controls/light-runtime'
+import { lightColorRgb, lightSupportsColor } from '@app/shared/device/light-runtime'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../shared/related-entities'
 
 export function showEntityDetails(
@@ -430,14 +430,14 @@ export function showEntityDetails(
         Number(entityAttributes.color_temp_kelvin) ||
         (Number.isFinite(Number(entityAttributes.color_temp)) ? 1000000 / Number(entityAttributes.color_temp) : NaN),
       colorTemperatureKelvin = Number.isFinite(NaN7) ? NaN7 : (warmColorStop + coolColorStop) / 2,
-      supportsColor = lightSupportsColor2(entityAttributes),
+      supportsColor = lightSupportsColor(entityAttributes),
       lightVisualOptions = {
         isOn: entityStateValue?.state === 'on',
         brightnessPercent: Number.isFinite(Number(entityAttributes.brightness))
           ? (Number(entityAttributes.brightness) / 255) * 100
           : 100,
         colorTemperatureKelvin: colorTemperatureKelvin,
-        colorRgb: supportsColor ? lightColorRgb2(entityAttributes) : null,
+        colorRgb: supportsColor ? lightColorRgb(entityAttributes) : null,
       },
       applyLightVisual = () => {
         const brightnessPercent = Math.max(1, Math.min(100, Number(lightVisualOptions.brightnessPercent) || 1)),
@@ -492,7 +492,7 @@ export function showEntityDetails(
           ? (lightVisualOptions.colorRgb = updateLightState.colorRgb)
           : updateLightState.attributes &&
             supportsColor &&
-            (lightVisualOptions.colorRgb = lightColorRgb2(lightAttributes)),
+            (lightVisualOptions.colorRgb = lightColorRgb(lightAttributes)),
         applyLightVisual()
     }),
       applyLightVisual()

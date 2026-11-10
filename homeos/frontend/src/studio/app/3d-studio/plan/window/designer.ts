@@ -40,7 +40,7 @@ import {
   type WindowLeaf,
   type WindowRecord,
   type WindowSplit,
-} from './layout'
+} from '@app/shared/scene/window/layout'
 import { WindowPreview, createPreviewMotion } from './preview'
 import { drawWindowCanvas } from './designer-canvas'
 import { openWindowTutorial } from './tutorial'

@@ -4,7 +4,7 @@ import { readLocalStorageFlag, removeLocalStorage } from '@/shared/utils/core/lo
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { fetchEarthquakeLatest } from '@/services/api/earthquake'
 import { useEarthquakeStore } from '@/stores/earthquake.store'
-import { isEarthquakeAlertEnabled } from '@/composables/earthquake/earthquake-layout.util'
+import { isEarthquakeAlertEnabled } from '@/stores/earthquake/earthquake-layout.util'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { logger } from '@/shared/utils/core/logger'

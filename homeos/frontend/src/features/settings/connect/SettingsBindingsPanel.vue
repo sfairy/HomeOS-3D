@@ -169,7 +169,7 @@ import {
   patchSystemConfig,
   useSystemConfig,
 } from '@/composables/config/system-config-core.internals'
-import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/composables/config/resolve-active-profile.util'
+import { applyWeatherEntityIdToLayout, resolveWeatherEntityId } from '@/stores/ui/resolve-active-profile.util'
 
 const { load: loadSystemConfig } = useSystemConfig()
 

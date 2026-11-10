@@ -5,7 +5,7 @@ const {
     lightColorServiceData: buildColorServicePayload,
     lightRealtimeCapabilities: lightRealtimeCapabilities,
     hsToRgbColor: j,
-  } = await import('@app/renderer/controls/light-runtime'),
+  } = await import('@app/shared/device/light-runtime'),
   isColorHsPair = (colorHsCandidate: any) =>
     Array.isArray(colorHsCandidate) &&
     colorHsCandidate.length === 2 &&

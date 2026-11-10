@@ -48,8 +48,8 @@ import { mergeGeometries as mergeGeometries2 } from '/static/vendor/three/0.187.
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 import { openingFrameDepth, windowGeometryParts as windowGeometryParts2 } from '../../plan/studio-window-geometry'
 import { addCustomWindow } from '../../plan/window/model'
-import { isCustomWindow } from '../../plan/window/layout'
-import { windowModelId } from '../../plan/window/window-models'
+import { isCustomWindow } from '@app/shared/scene/window/layout'
+import { windowModelId } from '@app/shared/scene/window/window-models'
 import { collectExhaustFanOpenings } from '../items/studio-exhaust-fan'
 export { createWallTopMaterial }
 

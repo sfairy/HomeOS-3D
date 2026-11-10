@@ -5,7 +5,7 @@ import { fanDimensions as fanDimensions2 } from '../../items/studio-fan'
 import {
   normalizeCurtainTrack as normalizeCurtainTrack2,
   curtainFootprintDepth as curtainFootprintDepth2,
-} from '../../../loaders/studio-curtain-track'
+} from '@app/shared/scene/studio-curtain-track'
 
 import {
   clampWindowT as clampWindowT2,

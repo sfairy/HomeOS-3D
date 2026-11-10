@@ -18,7 +18,7 @@ import {
   type WindowLeaf,
   type WindowRecord,
   type WindowSplit,
-} from './layout'
+} from '@app/shared/scene/window/layout'
 
 /** 画布留白：四周各留一圈给尺寸标注。 */
 const CANVAS_PADDING_X = 88

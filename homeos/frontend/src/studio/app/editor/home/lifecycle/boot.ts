@@ -48,7 +48,7 @@ import {
 import { createEditorPickerElements as createEditorPickerElements2 } from "../../picker/editor-picker-elements";
 
 
-import { createEditorPickerQueries as createEditorPickerQueries2 } from "../../picker/editor-picker-queries";
+import { createEditorPickerQueries as createEditorPickerQueries2 } from "@app/shared/picker/editor-picker-queries";
 import { createEditorAssetMatcher as createEditorAssetMatcher2 } from "../../picker/editor-asset-queries";
 import { createEditorPickerLifecycle as createEditorPickerLifecycle2 } from "../../picker/editor-picker-lifecycle";
 import { createInteraction3dEditorPickers as createInteraction3dEditorPickers2 } from "../../../bridge/pickers/editor-pickers";
@@ -81,7 +81,7 @@ import {
   createRecoveryWriter as createRecoveryWriter2,
   documentSignature as documentSignature2,
 } from "../../editor-history";
-import { hasInteractionBindings as hasInteractionBindings2 } from "../../../../runtime/navigation/binding-repair";
+import { hasInteractionBindings as hasInteractionBindings2 } from "@/studio/platform/navigation/binding-repair";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   normalizeBaseLighting as normalizeBaseLighting2,
@@ -148,7 +148,7 @@ import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKey
 import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "../functions/style-dialogs";
 import { titleButtonMenuDeps as titleButtonMenuDepsImpl, loadNavigationIconOptions as loadNavigationIconOptionsImpl, positionTitleButtonIconMenu as positionTitleButtonIconMenuImpl, stopHoverScroll as stopHoverScrollImpl, iconTooltipElementValue as iconTooltipElementValueImpl, inspectorSyncDeps as inspectorSyncDepsImpl, syncComponentActionControls as syncComponentActionControlsImpl, applyTransformToInspector as applyTransformToInspectorImpl, previewModeForIcon as previewModeForIconImpl, sharedReferenceId as sharedReferenceIdImpl, nudgeDeps as nudgeDepsImpl, nudgeDeltaX as nudgeDeltaXImpl, clickPopupListOption as clickPopupListOptionImpl, onPopupListContextmenu as onPopupListContextmenuImpl, openEntityCopyBackupPicker as openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker as openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker as openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick as onPopupModuleCancelButtonClickImpl, type CopyBackupPickersDeps } from "../functions/copy-backup-pickers";
 import { onPopupModuleClimateDeviceTypeClick as onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder as selectAssetFolderImpl, popupModuleTypeValue as popupModuleTypeValueImpl, requestDeleteUserAsset as requestDeleteUserAssetImpl, requestDeleteAssetFolder as requestDeleteAssetFolderImpl, refreshAssetPickers as refreshAssetPickersImpl, scaleDraftDocument as scaleDraftDocumentImpl, cancelDeletePopupDialog as cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick as onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput as onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState as saturationPointerMoveEventStateImpl, mutationRecord as mutationRecordImpl, type AssetManagementDeps } from "../functions/asset-management";
-import { createBindingRepair } from "../../../../runtime/navigation/binding-repair";
+import { createBindingRepair } from "@/studio/platform/navigation/binding-repair";
 import { weatherSceneStyle as weatherSceneStyle2 } from "../../../renderer/weather-forecast";
 import { bindScenePopupEditorBoot } from "./scene-popup-editor-boot";
 import { bindWeatherInspectorToggles } from "./weather-inspector-wiring";

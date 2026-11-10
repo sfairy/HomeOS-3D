@@ -1,7 +1,7 @@
 /* 资源管理（文件夹/删除、弹窗模块、会话、颜色选择器） */
 import type { EditorContext } from '../editor-context'
 import type { UserImageUploader } from '../../../shared/user-image-upload'
-import { EDITOR_PICKER_PAGE_SIZES as EDITOR_PICKER_PAGE_SIZES2 } from '../../picker/editor-picker-pagination'
+import { EDITOR_PICKER_PAGE_SIZES as EDITOR_PICKER_PAGE_SIZES2 } from '@app/shared/picker/editor-picker-pagination'
 import { findCustomPopup as findCustomPopup2 } from '../../editor-document-management'
 import { findComponent as findComponent2 } from '../../component-tree'
 import {

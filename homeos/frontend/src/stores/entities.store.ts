@@ -26,7 +26,7 @@ import { buildEntityCacheKey } from '@/shared/entity/utils/idb-cache'
 import { createEntityOptimisticState } from '@/stores/entities/entity-store-optimistic.util'
 import { clearColdFetchMissing, fetchEntitiesByIds, fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'
 import { getPendingListenerCount, getStateListenerStats } from '@/shared/entity/utils/state-listener'
-import { applyEntityStateUpdate } from '@/composables/entity/ws/state-update'
+import { applyEntityStateUpdate } from './entities/ws/state-update'
 import type { WsDeltaChange } from '@/shared/entity/utils/state-delta.util'
 import {
   shouldNotifyStateChange,

@@ -17,7 +17,7 @@ import {
   EDITOR_PICKER_PAGE_SIZES as EDITOR_PICKER_PAGE_SIZES2,
   editorEntityPickerInitialPage as editorEntityPickerInitialPage2,
   editorEntityPickerPage as editorEntityPickerPage2,
-} from '../../picker/editor-picker-pagination'
+} from '@app/shared/picker/editor-picker-pagination'
 import { lightStatisticsEntitySupport as lightStatisticsEntitySupport2 } from '../../../renderer/registry'
 import { popupModuleEntityRecommended as popupModuleEntityRecommended2 } from '../../editor-document-management'
 

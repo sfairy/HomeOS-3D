@@ -16,7 +16,7 @@ import {
   climateSwingModeLabel as climateSwingModeLabel2,
   normalizeClimateCapabilities as normalizeClimateCapabilities2,
   reconcileClimateTargetTemperature as reconcileClimateTargetTemperature2,
-} from '../controls/climate'
+} from '@app/shared/device/climate'
 import { randomUuid as randomUuid2 } from '../../shared/util/random-id'
 import { positionScaledPopupMenu } from '../../shared/util/editor-floating-layout'
 

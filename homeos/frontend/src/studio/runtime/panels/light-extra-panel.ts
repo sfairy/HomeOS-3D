@@ -7,7 +7,7 @@
  * - 灯效 / 闪烁 / 渐变分别受 supported_features 的 4 / 8 / 32 位控制；
  * - 亮度拖到 0 直接 `turn_off`，而不是 `turn_on(brightness=0)`。
  */
-import * as lightRuntime from '@app/renderer/controls/light-runtime'
+import * as lightRuntime from '@app/shared/device/light-runtime'
 import { enhancePopupSelects } from '@app/shared/util/select-picker'
 import { createRangeFeedback } from '@app/shared/util/control-timeout'
 import {

@@ -9,8 +9,8 @@ import { applyTextureQuality } from '../../render-kit/texture-quality'
  */
 
 import { addBoxMesh } from './studio-mesh-primitives'
-import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from '../../materials/studio-television-glass'
-import { drawTelevisionPoster as drawTelevisionPoster2 } from '../../materials/studio-television-poster'
+import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from '@app/shared/scene/studio-television-glass'
+import { drawTelevisionPoster as drawTelevisionPoster2 } from '@app/shared/scene/studio-television-poster'
 import { computeTelevisionProportions } from './studio-television-proportions'
 import * as ns2 from '/static/vendor/three/0.187.0/three.module.min.js'
 

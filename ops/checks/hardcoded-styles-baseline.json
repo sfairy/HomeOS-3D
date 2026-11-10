@@ -1406,12 +1406,12 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/materials/studio-television-glass.ts": {
+    "homeos/frontend/src/studio/app/shared/scene/studio-television-glass.ts": {
       "color": 8,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/3d-studio/materials/studio-television-poster.ts": {
+    "homeos/frontend/src/studio/app/shared/scene/studio-television-poster.ts": {
       "color": 32,
       "duration": 0,
       "important": 0

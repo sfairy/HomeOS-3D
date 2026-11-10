@@ -8,8 +8,8 @@ import {
 } from '@/shared/camera/composables/useGo2RtcMseTransport'
 import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle, canPlayNativeHls } from '@/shared/camera/hls-loader'
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from './_shared'
-import { cameraStreamBudget, withCameraHttpSlot } from '@runtime/camera/camera-budget'
-import { createCameraMjpegStream } from '@runtime/camera/camera-mjpeg'
+import { cameraStreamBudget, withCameraHttpSlot } from '@/studio/platform/camera/camera-budget'
+import { createCameraMjpegStream } from '@/studio/platform/camera/camera-mjpeg'
 
 /**
  * Studio 侧复用共享的 go2rtc MSE 实现（`shared/camera/composables/useGo2RtcMseTransport`），

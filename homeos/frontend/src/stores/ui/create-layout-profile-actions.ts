@@ -17,7 +17,7 @@ import { fetchConfigProfiles, saveProject, deleteProject, setActiveProject } fro
 import { logger } from '@/shared/utils/core/logger'
 import { useChromeStore } from '@/stores/chrome.store'
 import { writeStoredProfileId } from './create-layout-state'
-import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
+import { bindSelfTerminalProfile } from './resolve-active-profile.util'
 import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
 import type { UILayoutConfig } from '@/shared/types/layout'
 

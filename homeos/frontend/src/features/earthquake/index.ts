@@ -19,7 +19,7 @@ export { useEarthquakeStatusQuery } from './composables/useEarthquakeStatusQuery
 // `useEarthquake*` 其余成员消费者在域内，不外借。
 
 // 纯函数（域根只留真的被跨域取用的）
-export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/composables/earthquake/earthquake-layout.util'
+export { earthquakeMagnitudeTone, formatEarthquakeMagnitude } from '@/stores/earthquake/earthquake-layout.util'
 export { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
 export {
   buildFixedPageSlots,

@@ -188,7 +188,7 @@
       "gt80": 1,
       "max": 49
     },
-    "homeos/frontend/src/composables/config/resolve-active-profile.util.ts": {
+    "homeos/frontend/src/stores/ui/resolve-active-profile.util.ts": {
       "functions": 5,
       "gt10": 1,
       "gt15": 0,
@@ -377,28 +377,28 @@
       "gt80": 1,
       "max": 8
     },
-    "homeos/frontend/src/composables/entity/ws/state-update.ts": {
+    "homeos/frontend/src/stores/entities/ws/state-update.ts": {
       "functions": 16,
       "gt10": 3,
       "gt15": 2,
       "gt80": 0,
       "max": 20
     },
-    "homeos/frontend/src/composables/entity/ws/ws-bind-domain.ts": {
+    "homeos/frontend/src/stores/entities/ws/ws-bind-domain.ts": {
       "functions": 19,
       "gt10": 2,
       "gt15": 1,
       "gt80": 1,
       "max": 16
     },
-    "homeos/frontend/src/composables/entity/ws/ws-bind-ha-sync.ts": {
+    "homeos/frontend/src/stores/entities/ws/ws-bind-ha-sync.ts": {
       "functions": 27,
       "gt10": 2,
       "gt15": 0,
       "gt80": 1,
       "max": 14
     },
-    "homeos/frontend/src/composables/entity/ws/ws-bind-lifecycle.ts": {
+    "homeos/frontend/src/stores/entities/ws/ws-bind-lifecycle.ts": {
       "functions": 11,
       "gt10": 0,
       "gt15": 0,
@@ -2533,7 +2533,7 @@
       "gt80": 1,
       "max": 5
     },
-    "homeos/frontend/src/studio/app/3d-studio/loaders/studio-curtain-track.ts": {
+    "homeos/frontend/src/studio/app/shared/scene/studio-curtain-track.ts": {
       "functions": 21,
       "gt10": 1,
       "gt15": 0,
@@ -2652,7 +2652,7 @@
       "gt80": 0,
       "max": 11
     },
-    "homeos/frontend/src/studio/app/3d-studio/materials/studio-television-poster.ts": {
+    "homeos/frontend/src/studio/app/shared/scene/studio-television-poster.ts": {
       "functions": 2,
       "gt10": 0,
       "gt15": 0,
@@ -2785,7 +2785,7 @@
       "gt80": 2,
       "max": 17
     },
-    "homeos/frontend/src/studio/app/3d-studio/plan/window/layout.ts": {
+    "homeos/frontend/src/studio/app/shared/scene/window/layout.ts": {
       "functions": 78,
       "gt10": 3,
       "gt15": 3,
@@ -3506,7 +3506,7 @@
       "gt80": 1,
       "max": 29
     },
-    "homeos/frontend/src/studio/app/renderer/controls/climate.ts": {
+    "homeos/frontend/src/studio/app/shared/device/climate.ts": {
       "functions": 40,
       "gt10": 5,
       "gt15": 1,
@@ -3534,7 +3534,7 @@
       "gt80": 0,
       "max": 20
     },
-    "homeos/frontend/src/studio/app/renderer/controls/light-runtime.ts": {
+    "homeos/frontend/src/studio/app/shared/device/light-runtime.ts": {
       "functions": 40,
       "gt10": 2,
       "gt15": 2,
@@ -3555,14 +3555,14 @@
       "gt80": 1,
       "max": 31
     },
-    "homeos/frontend/src/studio/app/renderer/controls/vacuum-runtime.ts": {
+    "homeos/frontend/src/studio/app/shared/device/vacuum-runtime.ts": {
       "functions": 21,
       "gt10": 3,
       "gt15": 2,
       "gt80": 1,
       "max": 97
     },
-    "homeos/frontend/src/studio/app/renderer/controls/water-heater.ts": {
+    "homeos/frontend/src/studio/app/shared/device/water-heater.ts": {
       "functions": 19,
       "gt10": 3,
       "gt15": 1,
@@ -3933,7 +3933,7 @@
       "gt80": 2,
       "max": 16
     },
-    "homeos/frontend/src/studio/app/renderer/vacuum-map-state.ts": {
+    "homeos/frontend/src/studio/app/shared/device/vacuum-map-state.ts": {
       "functions": 16,
       "gt10": 1,
       "gt15": 0,
@@ -4073,7 +4073,7 @@
       "gt80": 0,
       "max": 24
     },
-    "homeos/frontend/src/studio/runtime/camera/camera-mjpeg.ts": {
+    "homeos/frontend/src/studio/platform/camera/camera-mjpeg.ts": {
       "functions": 16,
       "gt10": 2,
       "gt15": 2,
@@ -4619,7 +4619,7 @@
       "gt80": 2,
       "max": 32
     },
-    "homeos/frontend/src/studio/runtime/navigation/binding-repair.ts": {
+    "homeos/frontend/src/studio/platform/navigation/binding-repair.ts": {
       "functions": 16,
       "gt10": 1,
       "gt15": 0,

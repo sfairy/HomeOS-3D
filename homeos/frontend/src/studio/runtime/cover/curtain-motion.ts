@@ -7,7 +7,7 @@ const {
     createDreamBladeGeometry: createBladeGeometry,
     poseDreamBlades: poseBladeGeometry,
     createRollerCurtain: createRollerCurtain,
-  } = await import('@app/3d-studio/loaders/studio-curtain-track'),
+  } = await import('@app/shared/scene/studio-curtain-track'),
   coverDirectionSet = new Set(['left', 'right', 'split']),
   clothPartSet = new Set(['cloth', 'band']),
   trackPartSet = new Set(['rod', 'cap', ...clothPartSet]),
