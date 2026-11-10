@@ -53,11 +53,7 @@ export function applyStripPose(object: StripObject, item: StripLightLike) {
 }
 
 /** 发光本体颜色：灯色按亮度在「关灯本色」和「灯色」之间插值。 */
-export function stripFixtureColor(
-  lightColor: { r: number; g: number; b: number },
-  glow: number,
-  target = new THREE.Color(),
-) {
+function stripFixtureColor(lightColor: { r: number; g: number; b: number }, glow: number, target = new THREE.Color()) {
   const off = new THREE.Color(STRIP_FIXTURE_OFF_COLOR),
     amount = Math.min(Math.max(Number(glow) || 0, 0), 1)
   return target.setRGB(

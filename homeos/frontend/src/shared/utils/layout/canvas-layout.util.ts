@@ -22,10 +22,10 @@ export const MIN_SCALE = 0.72
 export const MAX_UPSCALE = 1.5
 
 /** 设计稿基准宽度缺省值（后端 ui.scaleBaseWidth 缺省同值）。 */
-export const DEFAULT_DESIGN_WIDTH = 1366
+const DEFAULT_DESIGN_WIDTH = 1366
 
 /** 设计稿基准高度缺省值（后端 ui.scaleBaseHeight 缺省同值）。 */
-export const DEFAULT_DESIGN_HEIGHT = 1024
+const DEFAULT_DESIGN_HEIGHT = 1024
 
 /** 手机视口判定的短边阈值：低于它不再整页缩放（正文会被压到不可读）。 */
 const PHONE_SHORT_SIDE_MAX = 600

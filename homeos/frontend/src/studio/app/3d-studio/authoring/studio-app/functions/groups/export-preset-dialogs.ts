@@ -27,11 +27,6 @@ export function openPresetRenameDialog(runtime: StudioAppRuntime) {
     requestAnimationFrame(() => runtime.exportPresetRenameInputElement.select()))
 }
 
-/** @deprecated 弹窗已迁 shellConfirm；保留空实现避免旧 wiring 崩。 */
-export function closePresetDeleteDialog(runtime: StudioAppRuntime) {
-  void runtime
-}
-
 export async function openPresetDeleteDialog(runtime: StudioAppRuntime) {
   if (runtime.appCtx.isInteractionLocked) return
   const deletePresetSlots = normalizeExportPresetSlots2(runtime.appCtx.studioProject?.exportPresets)

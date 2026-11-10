@@ -66,30 +66,6 @@ export function resolveReflectionResolution(isIdle: boolean, appearanceResolutio
   return appearanceResolution
 }
 
-/** @deprecated 使用 resolveReflectionResolution；保留给旧调用方。 */
-export function resolveReflectionResolutionCap(isIdle: boolean): number {
-  return isIdle
-    ? interactionResourcePolicy.reflections.idleMaxResolution
-    : interactionResourcePolicy.reflections.maxResolution
-}
-
-/** 接触阴影：闲时升分辨率；运动保持 resource-policy 运动预算。 */
-export function resolveContactShadowQuality(isIdle: boolean) {
-  const policy = interactionResourcePolicy.contactShadows
-  if (isIdle && !isLowEndDevice()) {
-    return {
-      resolution: policy.idleResolution,
-      surfaceResolution: policy.idleSurfaceResolution,
-      maxSurfaceLevels: policy.maxSurfaceLevels,
-    }
-  }
-  return {
-    resolution: policy.resolution,
-    surfaceResolution: policy.surfaceResolution,
-    maxSurfaceLevels: policy.maxSurfaceLevels,
-  }
-}
-
 /** 贴图各向异性：闲时升到设备上限夹紧后的 idle 档；运动维持较低预算。 */
 export function resolveTextureAnisotropy(isIdle: boolean, deviceMax = 1): number {
   const budget = isIdle

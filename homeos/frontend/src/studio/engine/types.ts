@@ -1,6 +1,6 @@
 /** Studio 引擎 facade 共享类型 */
 
-export type SaveStateKind = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
+type SaveStateKind = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
 export interface HistoryStateSnapshot {
   canUndo: boolean

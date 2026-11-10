@@ -29,7 +29,7 @@ function idleCapableGlobal(): IdleCapableGlobal {
 }
 
 /** URL 开关：?shader-warmup=0 关闭（排查首帧亮度/耗时问题时回退用）。 */
-export function isShaderWarmupEnabled(): boolean {
+function isShaderWarmupEnabled(): boolean {
   try {
     const flag = String(new URLSearchParams(window.location.search).get('shader-warmup') || '').toLowerCase()
     return flag !== '0' && flag !== 'false' && flag !== 'off'

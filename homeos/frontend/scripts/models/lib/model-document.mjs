@@ -15,7 +15,7 @@ import draco3d from 'draco3dgltf'
 import fs from 'node:fs'
 import path from 'node:path'
 import { AssetDamageError, glbFingerprint } from './asset-guard.mjs'
-import { analyzeTopology, cleanPrimitive, triangleArea } from './geometry-ops.mjs'
+import { analyzeTopology } from './geometry-ops.mjs'
 
 let ioPromise = null
 
@@ -175,68 +175,6 @@ function readPrimitive(primitive, matrix) {
   return { positions, normals, uvs, indices }
 }
 
-const materialNameOf = (material) => (material ? material.getName() || '' : '')
-
-/**
- * 逐材质聚合的几何指纹：面积占比、三角面占比、包围盒、薄厚比、竖向位置带、壳数。
- *
- * 这些数字是「这个槽位到底是什么构件」的唯一客观依据 —— 名字不可信（`material-3`、
- * `body` 都可能指任何构件），但面积占比 86% 且贴地、薄厚比 <0.05 的槽位几乎只能是台面。
- */
-export function materialFingerprints(doc) {
-  const root = doc.getRoot()
-  const byMaterial = new Map()
-  const record = (material) => {
-    const name = materialNameOf(material)
-    if (!byMaterial.has(name)) {
-      byMaterial.set(name, {
-        material,
-        name,
-        triangles: 0,
-        area: 0,
-        bounds: emptyBounds(),
-        shells: 0,
-        nonManifoldEdges: 0,
-        boundaryEdges: 0,
-        primitives: 0,
-        vertices: 0,
-      })
-    }
-    return byMaterial.get(name)
-  }
-  // 先登记所有材质，保证「死材质」也能出现在指纹表里（triangles = 0）。
-  for (const material of root.listMaterials()) record(material)
-  for (const node of root.listNodes()) {
-    const mesh = node.getMesh()
-    if (!mesh) continue
-    const matrix = node.getWorldMatrix()
-    for (const primitive of mesh.listPrimitives()) {
-      const entry = record(primitive.getMaterial())
-      const data = readPrimitive(primitive, matrix)
-      if (!data) continue
-      entry.primitives += 1
-      entry.vertices += data.positions.length / 3
-      entry.triangles += data.indices.length / 3
-      for (let offset = 0; offset < data.indices.length; offset += 3) {
-        entry.area += triangleArea(
-          data.positions,
-          data.indices[offset],
-          data.indices[offset + 1],
-          data.indices[offset + 2],
-        )
-      }
-      for (let index = 0; index < data.positions.length; index += 3) {
-        growBounds(entry.bounds, [data.positions[index], data.positions[index + 1], data.positions[index + 2]])
-      }
-      const topology = analyzeTopology(data)
-      entry.shells += topology.shells
-      entry.nonManifoldEdges += topology.nonManifoldEdges
-      entry.boundaryEdges += topology.boundaryEdges
-    }
-  }
-  return byMaterial
-}
-
 /** 整个模型的拓扑与规模（世界坐标、按材质无关）。 */
 export function modelStatistics(doc) {
   const totals = {
@@ -272,47 +210,3 @@ export function modelStatistics(doc) {
   }
   return totals
 }
-
-/** 该模型是否含动画 / 旋转部件（动画件不能烘焙世界变换、不能跨节点焊接）。 */
-export function hasAnimation(doc) {
-  const root = doc.getRoot()
-  if (root.listAnimations().length) return true
-  return root.listNodes().some((node) => {
-    const extras = node.getExtras() || {}
-    return Boolean(extras.fanPart || extras.rotationAxis || extras.contactShadowRestMatrix)
-  })
-}
-
-/**
- * 逐 primitive 清理（焊接 + 去退化/重叠 + 可选补洞），返回**新的**数组，不改 Document。
- *
- * 只处理没有动画的节点：动画件（排气扇转子 / 吊扇 / 接触阴影）保留原样，避免把
- * `fanPart` 的旋转轴心焊歪。
- */
-export function cleanDocumentGeometry(doc, { fillHoles = true, skipAnimated = true } = {}) {
-  const animated = hasAnimation(doc)
-  const reports = []
-  for (const node of doc.getRoot().listNodes()) {
-    const mesh = node.getMesh()
-    if (!mesh) continue
-    const matrix = node.getWorldMatrix()
-    for (const primitive of mesh.listPrimitives()) {
-      const data = readPrimitive(primitive, matrix)
-      if (!data) continue
-      const materialName = materialNameOf(primitive.getMaterial())
-      if (skipAnimated && animated) {
-        reports.push({ node: node.getName(), materialName, skipped: 'animated' })
-        continue
-      }
-      const result = cleanPrimitive(
-        { positions: data.positions, normals: data.normals, uvs: data.uvs, indices: data.indices },
-        { weld: true, fillHoles },
-      )
-      reports.push({ node: node.getName(), materialName, skipped: null, report: result.report })
-    }
-  }
-  return reports
-}
-
-/** 文件字节数（报告用）。 */
-export const fileBytes = (filePath) => fs.statSync(filePath).size

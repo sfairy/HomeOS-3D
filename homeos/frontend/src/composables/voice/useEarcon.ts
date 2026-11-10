@@ -107,11 +107,3 @@ export async function playEarcon(kind: EarconKind | null | undefined): Promise<v
     logger.debug('播放音效失败', error)
   }
 }
-
-/** 释放音频上下文（页面卸载 / 测试用） */
-export function disposeEarcon(): void {
-  const ctx = context
-  context = null
-  if (!ctx || ctx.state === 'closed') return
-  void ctx.close().catch((error) => logger.debug('关闭音频上下文失败', error))
-}

@@ -51,7 +51,7 @@ export const activeCanvasHeight = ref(1024)
  * 注意：这**不表示**内容超出视口 —— 画布永远铺满视口；它只说明字号被压得比较小。
  * 布局侧若要判断侧栏是否可见，不能用这个标记。
  */
-export const currentScaleClamped = ref(false)
+const currentScaleClamped = ref(false)
 
 // 是否开启等比缩放（初始化时从 localStorage 读取）
 /** 用户的缩放偏好（未经手机视口降级）。 */

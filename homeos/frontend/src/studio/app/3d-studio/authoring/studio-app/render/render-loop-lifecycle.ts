@@ -105,7 +105,7 @@ type PageHideHandlerBinding = {
 }
 
 /** F04：对称摘除 createRenderLoopTeardown 登记过的具名 pagehide。 */
-export function removeRenderLoopPageHideHandlers(bindings: PageHideHandlerBinding[] | undefined): void {
+function removeRenderLoopPageHideHandlers(bindings: PageHideHandlerBinding[] | undefined): void {
   for (const binding of bindings || []) {
     try {
       ;(binding.target || globalThis.window)?.removeEventListener?.(

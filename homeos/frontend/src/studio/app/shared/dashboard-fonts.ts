@@ -90,11 +90,11 @@ export function reportDashboardFontError(phase: string): (error: Error) => void 
     })
 }
 
-export function fontFamilyName(id: string, role: DashboardFontRole = 'chinese', all = false): string {
+function fontFamilyName(id: string, role: DashboardFontRole = 'chinese', all = false): string {
   return 'HB_' + id.replace(/[^a-zA-Z0-9]/g, '_') + '_' + role + (all ? '_all' : '')
 }
 
-export function dashboardFontFamily(doc: Document | undefined = globalThis.document, fallback = 'sans-serif'): string {
+function dashboardFontFamily(doc: Document | undefined = globalThis.document, fallback = 'sans-serif'): string {
   return doc?.documentElement?.style?.getPropertyValue('--hb-dashboard-font')?.trim() || fallback
 }
 

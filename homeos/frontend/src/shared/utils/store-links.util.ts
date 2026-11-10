@@ -129,9 +129,3 @@ export function prefetchStoreLinks(): Promise<StoreLinks> {
 export function peekStoreLinks(): StoreLinks | null {
   return resolved
 }
-
-/** 清掉模块级缓存（登出 / 换站点后调用；正常情况下不需要）。 */
-export function forgetStoreLinks(): void {
-  resolved = null
-  inflight = null
-}

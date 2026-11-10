@@ -28,7 +28,7 @@ export const STRIP_VISIBILITY_HEADER = 2
 export const STRIP_VISIBILITY_ANGLES = 2046
 const STRIP_VISIBILITY_WIDTH = STRIP_VISIBILITY_HEADER + STRIP_VISIBILITY_ANGLES
 /** 这个方向上没有墙。 */
-export const STRIP_NO_HIT = 1e4
+const STRIP_NO_HIT = 1e4
 /** 影响半径上限（米），与 `stripInfluenceRadius` 的上限一致。 */
 const STRIP_MAX_INFLUENCE = 12
 /** 射线起点沿水平出光方向前移的距离：洗墙灯带贴墙安装，起点不能落在墙里。 */
@@ -123,7 +123,7 @@ function contiguousTop(intervals: number[][], floorY: number) {
  * 编辑器的墙是一层层 0.2 m 高的墙带叠起来的（每层一个网格），单个三角形永远不够高；
  * 所以先把投影到同一条墙线上的三角形高度区间合并，再判断是否「从地面起连续够高」。
  */
-export function collectStackedSegments(meshes: OccluderMesh[], scratch: Scratch) {
+function collectStackedSegments(meshes: OccluderMesh[], scratch: Scratch) {
   const triangles: number[] = [],
     lines = new Map<string, { offset: number; intervals: number[][] }>(),
     segments: number[] = []
@@ -182,7 +182,7 @@ export function stripRayOrigins(elements: Elements, width: number) {
 }
 
 /** 从起点沿 `(dirX, dirZ)` 出发第一次碰到墙线的距离；碰不到返回 `STRIP_NO_HIT`。 */
-export function firstWallHit(segments: ArrayLike<number>, origin: number[], dirX: number, dirZ: number) {
+function firstWallHit(segments: ArrayLike<number>, origin: number[], dirX: number, dirZ: number) {
   let nearest = STRIP_NO_HIT
   for (let offset = 0; offset < segments.length; offset += 4) {
     const ax = segments[offset],
@@ -202,12 +202,12 @@ export function firstWallHit(segments: ArrayLike<number>, origin: number[], dirX
 }
 
 /** 第 `bin` 格的方位角（弧度，`atan2(z, x)` 的取值范围 [-π, π]，取格子中心）。 */
-export function stripBinAngle(bin: number) {
+function stripBinAngle(bin: number) {
   return ((bin + 0.5) / STRIP_VISIBILITY_ANGLES) * 2 * Math.PI - Math.PI
 }
 
 /** 画一行：表头写起点和影响半径，各分格的 r/g/b 写三个起点的碰墙距离。 */
-export function paintStripRow(
+function paintStripRow(
   data: Float32Array,
   row: number,
   origins: number[][],
@@ -380,5 +380,3 @@ export function createStripWallVisibility(
     },
   }
 }
-
-export type StripWallVisibility = ReturnType<typeof createStripWallVisibility>

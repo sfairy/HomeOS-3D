@@ -59,7 +59,7 @@ const reflectionBudgetIdle = (isIdle: boolean) => isIdle || !capReflectionDuring
  * 仅 `?texture-quality=legacy`：闲时抬 anisotropy、运动回到运动预算。
  * 默认路径下各向异性由 `render-kit/texture-quality` 在上传前一次定好，这里不再触发全场重传。
  */
-export function applyIdleTextureAnisotropy(
+function applyIdleTextureAnisotropy(
   appCtx: Pick<IdleQualityAppCtx, 'threeRenderer' | 'threeScene'>,
   isIdle: boolean,
 ): void {
@@ -81,7 +81,7 @@ export function applyIdleTextureAnisotropy(
 }
 
 /** 运动压反射分辨率；闲时恢复/保留外观档。 */
-export function applyIdleReflectionBudget(params: {
+function applyIdleReflectionBudget(params: {
   isIdle: boolean
   appearanceGroundReflection: AppearanceGroundReflection | null | undefined
   normalizeGroundReflection: (value: unknown) => AppearanceGroundReflection
@@ -100,7 +100,7 @@ export function applyIdleReflectionBudget(params: {
 }
 
 /** 按运动态同步 anisotropy + 反射预算，闲时顺带触发近场模型升级。 */
-export function syncIdleRenderQuality(params: {
+function syncIdleRenderQuality(params: {
   isIdle: boolean
   appCtx: IdleQualityAppCtx
   appearanceGroundReflection: AppearanceGroundReflection | null | undefined
@@ -121,7 +121,7 @@ export function syncIdleRenderQuality(params: {
 }
 
 /** 外观配置里的地面反射：按当前是否闲时压分辨率。 */
-export function capGroundReflectionForMotion(params: {
+function capGroundReflectionForMotion(params: {
   appearanceGroundReflection: unknown
   normalizeGroundReflection: (value: unknown) => AppearanceGroundReflection
   isIdle: boolean

@@ -2,7 +2,7 @@
 
 const MDI_ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
-export function uiIconUrl(name: string | null | undefined): string {
+function uiIconUrl(name: string | null | undefined): string {
   const bare = String(name || '').replace(/^mdi:/, '')
   return MDI_ICON_NAME.test(bare) ? '/static/vendor/mdi/7.4.47/svg/' + bare + '.svg' : ''
 }
