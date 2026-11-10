@@ -5,9 +5,12 @@ import {
   restoreCacheEntries,
   writeCacheRecord,
 } from '../cache/cache-shared'
+import { readTexturePixels, yieldToMain } from '../render-kit/fullscreen-copy'
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
 const REFLECTION_CACHE_VERSION = '20261110-v2'
+/** float → half 转换每处理 2^18 个分量让出一次主线程。 */
+const HALF_FLOAT_SLICE_MASK = (1 << 18) - 1
 const MAX_ENTRY_BYTES = 25165824,
   MAX_PERSISTED_BYTES = 67108864,
   MAX_ENTRY_COUNT = 8,
@@ -297,70 +300,30 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
     height = source.map.height
   if (!isSnapshotSide(width) || !isSnapshotSide(height)) return null
   const matrixArray = source.matrix.toArray(),
-    renderTarget = new three.WebGLRenderTarget(width, height, {
-      type: three.FloatType,
-      depthBuffer: false,
-    }),
-    captureScene = new three.Scene(),
-    captureCamera = new three.OrthographicCamera(-1, 1, 1, -1, 0, 1),
-    copyMaterial = new three.ShaderMaterial({
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      uniforms: {
-        source: {
-          value: source.map.texture,
-        },
-      },
-      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader: 'uniform sampler2D source;varying vec2 vUv;void main(){gl_FragColor=texture2D(source,vUv);}',
-    }),
-    copyMesh = new three.Mesh(new three.PlaneGeometry(2, 2), copyMaterial)
-  ;(copyMesh.frustumCulled = false), captureScene.add(copyMesh)
-  const floatPixels = new Float32Array(width * height * 4),
-    rendererState = {
-      target: renderer.getRenderTarget(),
-      face: renderer.getActiveCubeFace(),
-      mip: renderer.getActiveMipmapLevel(),
-      viewport: renderer.getViewport(new three.Vector4()),
-      scissor: renderer.getScissor(new three.Vector4()),
-      scissorTest: renderer.getScissorTest(),
-      autoClear: renderer.autoClear,
-      xr: renderer.xr.enabled,
-      shadow: renderer.shadowMap.enabled,
+    floatPixels = new Float32Array(width * height * 4)
+  await readTexturePixels(three, renderer, source.map.texture, {
+    width,
+    height,
+    channel: 'rgba',
+    type: three.FloatType,
+    pixels: floatPixels,
+  })
+  if (!canCapture()) return null
+  const halfFloatPixels = new Uint16Array(floatPixels.length)
+  for (let pixelIndex = 0; pixelIndex < floatPixels.length; pixelIndex++) {
+    if (!Number.isFinite(floatPixels[pixelIndex]) || Math.abs(floatPixels[pixelIndex]) > 65504) return null
+    halfFloatPixels[pixelIndex] = three.DataUtils.toHalfFloat(floatPixels[pixelIndex])
+    // 2048² 的快照有 1600 万个分量：分片让出主线程，避免一次几百毫秒的长任务。
+    if ((pixelIndex & HALF_FLOAT_SLICE_MASK) === HALF_FLOAT_SLICE_MASK) {
+      await yieldToMain()
+      if (!canCapture()) return null
     }
-  try {
-    let readPromise
-    try {
-      ;(renderer.xr.enabled = renderer.shadowMap.enabled = false),
-        (renderer.autoClear = false),
-        renderer.setScissorTest(false),
-        renderer.setRenderTarget(renderTarget),
-        renderer.render(captureScene, captureCamera),
-        (readPromise = renderer.readRenderTargetPixelsAsync(renderTarget, 0, 0, width, height, floatPixels))
-    } finally {
-      renderer.setViewport(rendererState.viewport),
-        renderer.setScissor(rendererState.scissor),
-        renderer.setScissorTest(rendererState.scissorTest),
-        renderer.setRenderTarget(rendererState.target, rendererState.face, rendererState.mip),
-        (renderer.autoClear = rendererState.autoClear),
-        (renderer.xr.enabled = rendererState.xr),
-        (renderer.shadowMap.enabled = rendererState.shadow)
-    }
-    if ((await readPromise, !canCapture())) return null
-    const halfFloatPixels = new Uint16Array(floatPixels.length)
-    for (let pixelIndex = 0; pixelIndex < floatPixels.length; pixelIndex++) {
-      if (!Number.isFinite(floatPixels[pixelIndex]) || Math.abs(floatPixels[pixelIndex]) > 65504) return null
-      halfFloatPixels[pixelIndex] = three.DataUtils.toHalfFloat(floatPixels[pixelIndex])
-    }
-    return {
-      width: width,
-      height: height,
-      pixels: halfFloatPixels,
-      matrix: matrixArray,
-    }
-  } finally {
-    renderTarget.dispose(), copyMesh.geometry.dispose(), copyMaterial.dispose()
+  }
+  return {
+    width: width,
+    height: height,
+    pixels: halfFloatPixels,
+    matrix: matrixArray,
   }
 }
 /** 用快照重建可贴回地面的半精度 DataTexture。 */
