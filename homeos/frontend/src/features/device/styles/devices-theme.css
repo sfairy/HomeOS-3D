@@ -79,16 +79,6 @@
   cursor: not-allowed;
 }
 
-.dev-metric__value--green {
-  color: var(--set-success, #6ee7b7);
-}
-.dev-metric__value--red {
-  color: var(--set-danger, #fca5a5);
-}
-.dev-metric__value--amber {
-  color: var(--set-warn, #fde68a);
-}
-
 /* ── 时间范围按钮（对齐 list-page chip） ── */
 .dev-range {
   display: flex;

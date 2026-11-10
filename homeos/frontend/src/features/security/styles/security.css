@@ -289,10 +289,6 @@
 }
 
 .sz-editor--embedded {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;

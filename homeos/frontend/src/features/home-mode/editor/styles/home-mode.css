@@ -24,23 +24,10 @@
 }
 
 .home-mode-panel .hm-toolbar-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   /* 高度钉到 md 档：6px 内边距 + 行高 + 发丝边框凑出 37px。 */
   height: var(--control-height-md);
-  padding: 0 12px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
-  font-weight: 600;
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  color: var(--set-text-secondary);
-  transition: all 0.18s ease;
 }
 .home-mode-panel .hm-toolbar-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: var(--page-accent-border);
   color: #fff;
 }
 .home-mode-panel .hm-toolbar-btn:focus-visible {
@@ -51,39 +38,15 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-.home-mode-panel .hm-toolbar-btn--accent {
-  background: linear-gradient(135deg, var(--page-accent-bg-strong), var(--page-accent-bg));
-  border-color: var(--page-accent-border);
-  color: var(--page-accent-text);
-  box-shadow: 0 4px 16px var(--page-accent-glow);
-}
 .home-mode-panel .hm-toolbar-btn--accent:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(var(--page-accent-rgb), 0.22), var(--page-accent-bg-strong));
-  box-shadow: 0 6px 24px var(--page-accent-glow);
   transform: translateY(-1px);
-}
-.home-mode-panel .hm-toolbar-btn--success {
-  background: var(--set-success-bg);
-  border-color: var(--set-success-border);
-  color: var(--set-success);
 }
 .home-mode-panel .hm-toolbar-btn--success:hover:not(:disabled) {
-  background: rgba(var(--set-success-rgb), 0.18);
-  border-color: rgba(var(--set-success-rgb), 0.32);
   color: var(--set-success);
-  box-shadow: 0 4px 16px rgba(var(--set-success-rgb), 0.2);
   transform: translateY(-1px);
 }
-.home-mode-panel .hm-toolbar-btn--danger {
-  background: var(--set-danger-bg);
-  border-color: var(--set-danger-border);
-  color: var(--set-danger);
-}
 .home-mode-panel .hm-toolbar-btn--danger:hover:not(:disabled) {
-  background: rgba(var(--set-danger-rgb), 0.18);
-  border-color: rgba(var(--set-danger-rgb), 0.32);
   color: var(--set-danger);
-  box-shadow: 0 4px 16px rgba(var(--set-danger-rgb), 0.2);
   transform: translateY(-1px);
 }
 
@@ -866,19 +829,8 @@
   box-shadow: 0 2px 8px rgba(251, 113, 133, 0.2);
 }
 .home-mode-panel .hm-delete-mode-btn {
-  color: rgba(251, 113, 133, 0.5);
-  background: transparent;
-  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.2);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-.home-mode-panel .hm-delete-mode-btn:hover {
-  color: rgba(251, 113, 133, 0.9);
-  background: rgba(251, 113, 133, 0.1);
-  border-color: rgba(251, 113, 133, 0.4);
 }
 
 .home-mode-panel .hm-action-row {
@@ -2082,7 +2034,6 @@
 }
 
 .rotate-180 {
-  transform: rotate(180deg);
   transition: transform 0.2s;
 }
 

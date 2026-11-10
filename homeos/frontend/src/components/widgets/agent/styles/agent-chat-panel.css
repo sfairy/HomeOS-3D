@@ -260,15 +260,6 @@
 }
 
 .acp-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
   transition:
     background-color var(--hos-dur-fast) var(--hos-ease-standard),
     color var(--hos-dur-fast) var(--hos-ease-standard);

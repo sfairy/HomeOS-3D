@@ -536,10 +536,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   letter-spacing: 0.08em;
 }
 
-.hm-plan.is-featured .hm-plan__hint {
-  color: var(--hb-accent);
-}
-
 .hm-plan h3 {
   color: var(--hb-ink);
   min-height: 2.6em;
@@ -1392,7 +1388,6 @@ a.hm-wall__tile:hover {
 }
 
 .hm-faq__item[open] summary::after { content: "–"; }
-.hm-faq__item[open] summary { color: var(--hb-ink); }
 
 .hm-faq__item summary:focus-visible {
   outline: 2px solid var(--hb-accent);

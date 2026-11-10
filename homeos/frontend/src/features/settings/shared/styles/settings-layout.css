@@ -596,8 +596,6 @@
 .sidebar-dirty-tray__item:hover,
 .sidebar-dirty-tray__item--active {
   color: #fff;
-  background: rgba(251, 191, 36, 0.14);
-  border-color: rgba(251, 191, 36, 0.32);
 }
 
 .sidebar-dirty-tray__item:hover .sidebar-dirty-tray__item-go,

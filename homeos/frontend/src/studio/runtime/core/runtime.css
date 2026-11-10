@@ -1265,9 +1265,6 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   max-height: 94dvh;
   padding: 0;
   border: 1px solid #485269;
-  border-radius: 16px;
-  background: #182131;
-  color: #edf1f8;
   overflow: hidden;
 }
 .i3d-vacuum-map-editor::backdrop {
@@ -1325,16 +1322,11 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 .i3d-vacuum-map-editor input,
 .i3d-vacuum-map-editor select {
   min-height: 32px;
-  background: #263348;
   color: inherit;
   border: 1px solid #526078;
-  border-radius: 7px;
   padding: 5px 9px;
   font: inherit;
   max-width: 100%;
-}
-.i3d-vacuum-map-editor .primary {
-  background: #3868c4;
 }
 .i3d-vacuum-map-editor .i3d-note {
   font-size: 12px;
@@ -1361,20 +1353,11 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   width: 100%;
 }
 @media (max-width: 640px) {
-  .i3d-vacuum-map-body {
-    grid-template-columns: minmax(0, 1fr) 210px;
-  }
-  .i3d-vacuum-map-body aside {
-    padding: 8px;
-  }
   .i3d-vacuum-map-editor > header span {
     display: none;
   }
   .i3d-vacuum-map-body aside > label {
     gap: 3px;
-  }
-  .i3d-vacuum-map-body input[type="number"] {
-    width: 70px;
   }
 }
 .i3d-vacuum-map-body aside > label {
@@ -1387,11 +1370,7 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   box-sizing: border-box;
 }
 .i3d-vacuum-map-editor input[type="checkbox"] {
-  height: 18px;
-  width: 18px;
-  min-height: 18px;
   flex: none;
-  padding: 0;
 }
 .i3d-vacuum-plan {
   position: relative;
@@ -1810,29 +1789,17 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
   box-sizing: border-box;
   transform-origin: top left;
   border: 1px solid #53667a;
-  border-radius: 14px;
-  background: #19222df0;
   color: #edf3fa;
-  box-shadow: 0 10px 36px #0005;
-  font:
-    13px / 1.5 system-ui,
-    sans-serif;
   overflow: hidden;
 }
 .i3d-popup-preview-heading {
   box-sizing: border-box;
-  height: 58px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 13px;
   border-bottom: 1px solid #ffffff14;
 }
 .i3d-popup-preview-heading strong {
   flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 600;
 }
 .i3d-popup-preview-heading button {
   pointer-events: auto;
@@ -1849,38 +1816,21 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 .i3d-popup-preview-body {
   box-sizing: border-box;
-  height: calc(100% - 58px);
-  padding: 12px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 18px;
-}
-.i3d-popup-preview-name {
-  margin: 0;
-  color: #d3deeb;
-  font-size: 14px;
 }
 .i3d-popup-preview-track {
-  height: 6px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #ffba42 50%, #ffffff26 50%);
   position: relative;
 }
 .i3d-popup-preview-track:after {
   content: "";
   position: absolute;
   left: 50%;
-  top: -4px;
-  width: 14px;
-  height: 14px;
   border-radius: 50%;
-  background: #ffba42;
 }
 .i3d-popup-preview-actions {
-  border: 1px solid #ffffff1a;
   border-radius: 8px;
-  padding: 10px 0;
   text-align: center;
   color: #abbacc;
 }
@@ -1972,12 +1922,6 @@ dialog.hb-interaction3d-runtime.is-borrowed-editor::backdrop {
 }
 .hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-heading {
   border-color: #bca98c66;
-}
-.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track {
-  background: linear-gradient(90deg, #ae8c59 50%, #ded4c3 50%);
-}
-.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track:after {
-  background: #ae8c59;
 }
 .i3d-popup-preview {
   padding: 20px;

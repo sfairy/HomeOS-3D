@@ -2630,7 +2630,6 @@ body {
   /* 顶部栏不占死高度，最高半屏，超出自己滚 */
   .admin-side {
     width: 100%;
-    max-height: 46vh;
     flex: 0 0 auto;
     overflow-y: auto;
     border-right: 0;

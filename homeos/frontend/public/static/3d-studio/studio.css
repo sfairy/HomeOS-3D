@@ -841,7 +841,6 @@ button:disabled {
 }
 .asset-category-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   margin-top: 7px;
   padding: 2px;
@@ -2031,9 +2030,6 @@ html.list-drag-active * {
 }
 .preview-card {
   container-type: inline-size;
-}
-.preview-3d {
-  position: relative;
 }
 .model-loading-status {
   position: absolute;

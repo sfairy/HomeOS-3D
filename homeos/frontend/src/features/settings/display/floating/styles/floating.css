@@ -677,7 +677,6 @@
 .afh-section--layout .afh-pos-card {
   padding: 10px;
   border: none;
-  background: rgba(0, 0, 0, 0.14);
   box-shadow: none;
 }
 
@@ -690,7 +689,6 @@
 }
 
 .afh-section--layout .afh-form__label {
-  color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.06em;
 }
 

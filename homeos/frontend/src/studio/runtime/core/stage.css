@@ -364,21 +364,6 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-toolbar {
   pointer-events: auto;
 }
-.interaction3d-stage .i3d-marker:before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: var(--i3d-marker-size, 60px);
-  height: var(--i3d-marker-size-y, var(--i3d-marker-size, 60px));
-  box-sizing: border-box;
-  border: min(1px, calc(var(--i3d-marker-size, 60px) / 2)) solid #aa967455;
-  border-radius: 50%;
-  background: #1b2029dc;
-  box-shadow: 0 4px 14px #0005;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
 .interaction3d-stage button.i3d-marker {
   user-select: none;
   -webkit-user-select: none;
@@ -394,23 +379,6 @@ body.interaction3d-stage.is-background-hidden,
     min-width: var(--i3d-touch-hit-width, 44px);
     min-height: var(--i3d-touch-hit-height, 44px);
   }
-}
-.interaction3d-stage .i3d-marker-icon {
-  display: block;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  width: var(--i3d-marker-icon-size, 36px);
-  height: var(--i3d-marker-icon-size-y, var(--i3d-marker-icon-size, 36px));
-  background: currentColor;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
 }
 .interaction3d-stage .i3d-toolbar {
   position: absolute;
@@ -966,11 +934,6 @@ body.interaction3d-stage.is-background-hidden,
     transition: none;
   }
 }
-.interaction3d-stage .i3d-marker {
-  transition:
-    opacity 0.24s ease,
-    visibility 0s;
-}
 .interaction3d-stage .i3d-marker.is-hidden-clickable,
 .interaction3d-stage .i3d-marker.is-hidden-clickable.is-offline {
   opacity: 0;
@@ -1218,10 +1181,8 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-module-empty {
   position: absolute;
-  top: 112px;
   left: 50%;
   width: max-content;
-  max-width: calc(50% - 24px);
   margin: 0;
   padding: 10px 14px;
   border: 1px solid #a28c6233;
@@ -1230,7 +1191,6 @@ body.interaction3d-stage.is-background-hidden,
   background: #1c222bcc;
   font: 12px / 1.6 sans-serif;
   text-align: center;
-  transform: translate(-50%) scale(2);
   transform-origin: 50% 0;
   pointer-events: none;
 }
@@ -1557,7 +1517,6 @@ body.interaction3d-stage.is-background-hidden,
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
   font-weight: 400;
   box-shadow: inset 0 1px 2px #00000038;
 }
@@ -1623,7 +1582,6 @@ body.interaction3d-stage.is-background-hidden,
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
 }
 .plan2-range-editor .custom-select-option.active {
   color: #f3f5f6;
@@ -2062,13 +2020,9 @@ body.interaction3d-stage.is-background-hidden,
   min-height: 0;
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs {
-  position: static;
   transform: none;
-  display: flex;
   flex-wrap: nowrap;
-  justify-content: center;
   /* gap 由下方槽位几何规则统一给出（--i3d-tab-gap），这里不要再写死，否则两处数值会打架。 */
-  gap: 0;
 }
 .interaction3d-stage .i3d-floor-tabs {
   position: absolute;
@@ -2688,7 +2642,6 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-security-label.is-lock-status {
   min-width: 118px;
-  padding: 9px 12px 9px 40px;
   gap: 3px;
 }
 .interaction3d-stage .i3d-security-label.is-lock-status > strong {
@@ -4116,11 +4069,8 @@ body.interaction3d-stage.is-background-hidden,
   width: 100%;
   box-sizing: border-box;
   overflow-anchor: none;
-  overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-gutter: stable;
-  padding-right: 6px;
 }
 .i3d-speaker-panel .i3d-nas-heading {
   min-width: 0;

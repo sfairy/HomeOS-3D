@@ -1224,86 +1224,20 @@
 }
 
 /* 悬浮伴侣：水平 / 垂直位置滑块 */
-.agent-range {
-  width: 100%;
-  accent-color: var(--hos-color-accent, #38bdf8);
-}
 
 /* 悬浮伴侣：拖动说明 + 恢复默认停靠 */
 .agent-companion-position-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   margin: 12px var(--agent-inset-x) 0;
-  padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.agent-companion-position-actions .agent-band-hint {
-  margin: 0;
 }
 
 /* 悬浮伴侣：画面位置预览（视口百分比 → 缩略图坐标） */
 .agent-dock-preview {
   margin: 14px var(--agent-inset-x) 0;
-  padding: 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.18) 100%);
-}
-
-.agent-dock-preview--off {
-  opacity: 0.55;
-}
-
-.agent-dock-preview__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.agent-dock-preview__title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--hos-text-secondary);
-}
-
-.agent-dock-preview__meta {
-  font-size: 0.7rem;
-  color: var(--hos-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.agent-dock-preview__screen {
-  position: relative;
-  height: 132px;
-  overflow: hidden;
-  border-radius: 10px;
-  border: var(--hos-hairline) solid rgba(148, 163, 184, 0.22);
-  background: radial-gradient(circle at 22% 18%, rgba(56, 189, 248, 0.16), transparent 58%), rgba(8, 13, 25, 0.72);
 }
 
 .agent-dock-preview__stage {
-  position: absolute;
-  inset: 0;
-  display: grid;
   place-items: center;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  color: rgba(148, 163, 184, 0.45);
   pointer-events: none;
-}
-
-.agent-dock-preview__hint {
-  margin: 8px 0 0;
-  font-size: 0.7rem;
-  line-height: 1.45;
-  color: var(--hos-text-muted);
 }
 
 /* ── 家规 / 计划任务 / 诊断日志 · 统一列表行 ── */
