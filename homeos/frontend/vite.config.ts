@@ -254,12 +254,17 @@ function computeResourceRevision(): string {
  * 只改**非哈希**引用：`/static/assets/**`（Vite chunk，名里自带内容哈希）与
  * `/static/vendor/**`（路径里带库版本）保持原样 —— 给它们再叠一层 `?v=` 只会让同一个
  * 文件出现两个 URL，正是上游 0.8.1 缓存混用的成因。
+ *
+ * 字体同样保持原样：它的真正消费者是 CSS 里 `url("./fonts/…")` 的相对引用（不带 `?v=`），
+ * 外壳里的 `<link rel="preload" as="font">` 必须与之逐字一致，否则预加载不会被复用，
+ * 浏览器报「preloaded but not used」并把字体再下载一遍。
  */
 function stampShellResourceUrls(html: string, revision: string): string {
   return html.replace(
     /(src|href)=(["'])(\/static\/[^"'?]+)(\?[^"']*)?(["'])/g,
     (match: string, attr: string, open: string, path: string, _query: string, close: string) => {
       if (path.startsWith('/static/assets/') || path.startsWith('/static/vendor/')) return match
+      if (/\.(?:woff2?|ttf|otf)$/i.test(path)) return match
       return `${attr}=${open}${path}?v=${revision}${close}`
     },
   )
