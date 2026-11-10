@@ -305,7 +305,7 @@ async function speakTts() {
 }
 </script>
 
-<style scoped src="./styles/MediaPlayerPopup.css"></style>
+<style scoped src="./styles/media-player-popup.css"></style>
 <!-- 关闭按钮由 AnchoredPopupShell 渲染，需非 scoped 公共样式 -->
 <style>
 @import '@/assets/styles/popup-base.css';

@@ -1,5 +1,5 @@
 /** - 展示账户余额、本月消费、欠费、信用额度、积分与刷新时间 */
-<script setup>
+<script setup lang="ts">
 defineProps({
   balance: { type: String, default: '--' },
   monthlyFee: { type: String, default: '--' },

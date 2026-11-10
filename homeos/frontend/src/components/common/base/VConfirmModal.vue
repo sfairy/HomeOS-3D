@@ -58,7 +58,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
@@ -91,7 +91,7 @@ watch(trapActive, (isActive) => {
  * 全局键盘事件处理：Enter 确认（Escape 走全局 Esc 层级栈，见下方 useEscLayer）。
  * @param e 键盘事件
  */
-function onKeyDown(e) {
+function onKeyDown(e: KeyboardEvent) {
   if (!chrome.activeConfirm) return
   if (e.key !== 'Enter') return
   // 危险档（删除 / 撤销授权等）必须点击确认：Enter 与「刚才那次回车」无法区分，

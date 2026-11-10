@@ -22,7 +22,7 @@
   </button>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   modelValue: { type: Boolean, default: false },
   size: { type: String, default: 'md' },

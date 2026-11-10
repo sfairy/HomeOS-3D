@@ -24,7 +24,7 @@ export const PANEL_VISIBILITY_WIDGET_TYPES = new Set([
  * @returns isVisible 是否可见；bind 绑定元素；disconnect 断开观察
  */
 export function useWidgetPanelVisibility(
-  _rootRef: Ref<HTMLElement | null>,
+  _rootRef: Ref<HTMLElement | null> | null,
   options: { enabled?: Ref<boolean> | boolean } = {},
 ) {
   // 是否可见（默认 true，由 IntersectionObserver 更新）

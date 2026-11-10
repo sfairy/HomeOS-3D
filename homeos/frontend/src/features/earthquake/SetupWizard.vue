@@ -190,7 +190,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {
   CheckCircle2,
   ChevronLeft,

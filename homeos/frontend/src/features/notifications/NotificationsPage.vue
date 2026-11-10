@@ -1,5 +1,5 @@
 /** * 通知中心视图：数据分析 + 消息流双栏布局。 */
-<script setup>
+<script setup lang="ts">
 import NotificationsViewAnalytics from './ViewAnalytics.vue'
 import NotificationsViewHero from './ViewHero.vue'
 import NotificationsViewStream from './ViewStream.vue'

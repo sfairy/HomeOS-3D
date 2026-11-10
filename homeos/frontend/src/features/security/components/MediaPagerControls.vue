@@ -30,7 +30,7 @@
   </button>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 
 const props = defineProps({
@@ -44,7 +44,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-function go(step) {
+function go(step: number) {
   const idx = props.modelValue
   emit('update:modelValue', step < 0 ? Math.max(0, idx - 1) : Math.min(props.total - 1, idx + 1))
 }

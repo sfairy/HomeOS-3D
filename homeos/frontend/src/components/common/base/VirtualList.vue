@@ -36,13 +36,13 @@
   </div>
 </template>
 
-<script setup>
-import { toRef, computed } from 'vue'
+<script setup lang="ts" generic="T">
+import { toRef, computed, type PropType } from 'vue'
 import { useVirtualList } from '@vueuse/core'
 
 const props = defineProps({
   /** 全部条目列表 */
-  items: { type: Array, default: () => [] },
+  items: { type: Array as PropType<T[]>, default: () => [] },
   /** 单行高度（像素） */
   itemHeight: { type: Number, default: 56 },
   /** 行间距（px），虚拟步长 = itemHeight + itemGap */
@@ -54,7 +54,7 @@ const props = defineProps({
   /** 条目数不超过该值时直接渲染全部，避免固定行高误差导致底部闪烁 */
   virtualThreshold: { type: Number, default: 80 },
   /** 自定义 key 生成函数；不传时优先使用 entity_id，否则用 index */
-  itemKey: { type: Function, default: null },
+  itemKey: { type: Function as PropType<((item: T, index: number) => PropertyKey) | null>, default: null },
 })
 
 const itemsRef = toRef(props, 'items')
@@ -83,9 +83,9 @@ const rootStyle = computed(() => {
  * @param index 条目索引
  * @returns key 值
  */
-function getKey(data, index) {
+function getKey(data: T, index: number): PropertyKey {
   if (props.itemKey) return props.itemKey(data, index)
-  return data && typeof data === 'object' && 'entity_id' in data ? data.entity_id : index
+  return data && typeof data === 'object' && 'entity_id' in data ? (data.entity_id as PropertyKey) : index
 }
 </script>
 

@@ -66,7 +66,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import { Shield, Activity, Settings2 } from '@lucide/vue'
 import SecurityZoneMonitor from '@/features/security/ZoneMonitor.vue'
@@ -90,13 +90,13 @@ const view = ref('monitor')
 // 配置态下需聚焦的区域 ID
 const configFocusZoneId = ref('')
 // 配置面板实例引用，用于调用 focusZone
-const configPanelRef = ref(null)
+const configPanelRef = ref<{ focusZone: (zoneId: string) => void } | null>(null)
 
 // 区域数量：优先 liveZones，回退 backendZones
 const liveZoneCount = computed(() => props.liveZones.length || props.backendZones.length)
 
 // 监控态点击「编辑此区域」：切到配置态并聚焦该区域
-function onEditZone(zoneId) {
+function onEditZone(zoneId: string) {
   configFocusZoneId.value = zoneId
   view.value = 'config'
   nextTick(() => {

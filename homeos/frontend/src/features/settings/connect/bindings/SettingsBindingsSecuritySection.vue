@@ -312,4 +312,4 @@ function forwardHazardDrill(kind: string) {
 }
 </script>
 
-<style scoped src="./styles/SettingsBindingsSecuritySection.css"></style>
+<style scoped src="./styles/settings-bindings-security-section.css"></style>

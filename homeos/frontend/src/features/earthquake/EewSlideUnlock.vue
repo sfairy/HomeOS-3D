@@ -50,7 +50,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { ChevronRight, ShieldCheck } from '@lucide/vue'
 
@@ -80,10 +80,10 @@ const trackEl = ref(null)
  * @param {PointerEvent} e - 原生指针事件
  * @returns {void} 鼠标非左键时提前返回，不触发 start
  */
-function onStart(e) {
+function onStart(e: PointerEvent) {
   if (e.pointerType === 'mouse' && e.button !== 0) return
   emit('start', e, trackEl.value)
 }
 </script>
 
-<style scoped src="./styles/EewSlideUnlock.css"></style>
+<style scoped src="./styles/eew-slide-unlock.css"></style>

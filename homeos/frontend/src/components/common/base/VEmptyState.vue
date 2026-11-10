@@ -20,7 +20,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -46,4 +46,4 @@ const resolvedTone = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/VEmptyState.css"></style>
+<style scoped src="./styles/v-empty-state.css"></style>

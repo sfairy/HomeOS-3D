@@ -227,4 +227,4 @@ const cmdFlowSteps = computed(() => [
 ])
 </script>
 
-<style scoped src="./styles/SettingsVoiceCommandsSection.css"></style>
+<style scoped src="./styles/settings-voice-commands-section.css"></style>

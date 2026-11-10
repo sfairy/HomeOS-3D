@@ -306,7 +306,7 @@
   box-shadow: 0 0 0 1px rgba(var(--hos-color-accent-rgb), 0.35);
 }
 /* 扫描线叠加层不再在本文件重复定义：唯一消费者是 features/security/MonitorPanel.vue，
-   规范定义保留在它自己的 features/security/styles/MonitorPanel.css 里。
+   规范定义保留在它自己的 features/security/styles/monitor-panel.css 里。
    此前三份逐字相同的副本（本文件 / security-view.css / MonitorPanel.css）只会让人以为改了哪份都生效。 */
 .animate-scale-in {
   animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);

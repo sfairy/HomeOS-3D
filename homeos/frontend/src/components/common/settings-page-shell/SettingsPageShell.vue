@@ -56,7 +56,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, useSlots } from 'vue'
 import SettingsPageHeader from '@/components/common/settings-page-shell/SettingsPageHeader.vue'
 import { pageTitle, pageDescription } from '@/shared/utils/registry/settings-nav.util'

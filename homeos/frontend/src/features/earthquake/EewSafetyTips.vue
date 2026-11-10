@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Ban, Heart, Shield, TriangleAlert } from '@lucide/vue'
 
 /**
@@ -63,4 +63,4 @@ const tips = [
 ]
 </script>
 
-<style scoped src="./styles/EewSafetyTips.css"></style>
+<style scoped src="./styles/eew-safety-tips.css"></style>

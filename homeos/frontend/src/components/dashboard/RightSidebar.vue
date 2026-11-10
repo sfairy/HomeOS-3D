@@ -208,4 +208,4 @@ function getWidgetStyle(widget: PanelWidget) {
 }
 </script>
 
-<style scoped src="./styles/RightSidebar.css"></style>
+<style scoped src="./styles/right-sidebar.css"></style>

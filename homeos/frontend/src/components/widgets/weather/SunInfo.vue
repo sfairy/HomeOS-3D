@@ -102,7 +102,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * 日出日落与在家成员部件
  * 展示当日日出/日落时间、白昼时长及太阳在日轨上的进度；
@@ -208,16 +208,16 @@ const embeddedPresenceEmptyText = computed(() => {
 })
 
 /** 成员头像首字 */
-function personInitial(name) {
+function personInitial(name: unknown) {
   const text = String(name || '').trim()
   return text ? text.slice(0, 1).toUpperCase() : '?'
 }
 
 /** 格式化日出/日落时间为 HH:mm */
-function formatSunTime(value) {
+function formatSunTime(value: Parameters<typeof formatLocaleTime>[0] | null | undefined) {
   if (!value) return '--:--'
   return formatLocaleTime(value, { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 </script>
 
-<style scoped src="./styles/SunInfo.css"></style>
+<style scoped src="./styles/sun-info.css"></style>

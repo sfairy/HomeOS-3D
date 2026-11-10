@@ -169,4 +169,4 @@ const pagedListStyle = computed(() => ({
 watch(secEventFilter, () => auditResetPage())
 </script>
 
-<style scoped src="./styles/AuditLogPanel.css"></style>
+<style scoped src="./styles/audit-log-panel.css"></style>

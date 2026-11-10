@@ -191,4 +191,4 @@ watch(
 )
 </script>
 
-<style scoped src="./styles/VFolderCreateModal.css"></style>
+<style scoped src="./styles/v-folder-create-modal.css"></style>

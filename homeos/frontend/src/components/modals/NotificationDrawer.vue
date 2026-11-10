@@ -42,7 +42,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** NotificationDrawer - 通知中心抽屉组件 */
 import { computed, inject, ref, toRef, watch } from 'vue'
 import { Bell, X } from '@lucide/vue'
@@ -69,7 +69,7 @@ watch(
 
 const emit = defineEmits(['close'])
 
-function onOverlayKeydown(ev) {
+function onOverlayKeydown(ev: KeyboardEvent) {
   // Esc 关闭抽屉，避免冒泡影响背后页面
   if (ev.key === 'Escape') {
     ev.preventDefault()

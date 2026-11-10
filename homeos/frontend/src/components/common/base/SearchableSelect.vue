@@ -334,4 +334,4 @@ function onClickOutside() {
 useClickOutside(() => [wrapRef.value, dropdownRef.value].filter(Boolean), onClickOutside)
 </script>
 
-<style scoped src="./styles/SearchableSelect.css"></style>
+<style scoped src="./styles/searchable-select.css"></style>

@@ -11,15 +11,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * HomeClimateChartBody - 家居气候图表主体组件
  * 仅渲染曲线绘制区与双轴标签，图表实例由父级通过 setChartRef 注入。
  */
+import type { ComponentPublicInstance, PropType } from 'vue'
 import './styles/home-climate-chart.css'
 
 defineProps({
   activeView: { type: String, required: true },
-  setChartRef: { type: Function, required: true },
+  setChartRef: {
+    type: Function as PropType<(el: Element | ComponentPublicInstance | null) => void>,
+    required: true,
+  },
 })
 </script>

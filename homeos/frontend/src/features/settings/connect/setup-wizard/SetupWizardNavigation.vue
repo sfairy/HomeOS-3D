@@ -6,7 +6,7 @@
   注意事项：最后一步（stepId === complete）右侧按钮图标切换为庆祝图标；导航按钮只做
   事件触发不直接切步，切步逻辑由父组件控制。
 -->
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { ChevronLeft, ChevronRight, PartyPopper } from '@lucide/vue'
 
@@ -30,7 +30,7 @@ const nextLabel = computed(() => {
     dashboard: '稍后完善，继续',
     complete: '完成向导，开始使用',
   }
-  return labels[props.stepId] || '下一步'
+  return labels[props.stepId as keyof typeof labels] || '下一步'
 })
 </script>
 
@@ -51,4 +51,4 @@ const nextLabel = computed(() => {
   </div>
 </template>
 
-<style scoped src="./styles/SetupWizardNavigation.css"></style>
+<style scoped src="./styles/setup-wizard-navigation.css"></style>

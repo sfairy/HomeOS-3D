@@ -65,7 +65,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { SettingsFlowStep } from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import { computed } from 'vue'
 import { Cloud, CloudSun, CloudOff, Database, LineChart, Sun, Wind } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
@@ -81,7 +82,7 @@ const weatherFlowSummary = computed(() =>
 )
 
 // 流程概览步骤：HA 气象插件 → weather.* → 预报引擎 → 7 日预报 → AQI/生活指数
-const weatherFlowSteps = computed(() => [
+const weatherFlowSteps = computed((): SettingsFlowStep[] => [
   { label: 'HA 气象插件', meta: 'tianqi / HeFeng', icon: Cloud, tone: 'in' },
   { label: 'weather.*', meta: weatherEntityId.value?.trim() || '待绑定', icon: Wind, tone: 'sky' },
   { label: '预报引擎', meta: 'HomeOS 渲染', icon: Database, tone: 'mid' },
@@ -90,4 +91,4 @@ const weatherFlowSteps = computed(() => [
 ])
 </script>
 
-<style scoped src="./styles/SettingsBindingsWeatherSection.css"></style>
+<style scoped src="./styles/settings-bindings-weather-section.css"></style>

@@ -62,7 +62,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 文件/文件夹统一展示； */
 import { computed } from 'vue'
 import { FolderOpen, FileImage, Copy, Trash2 } from '@lucide/vue'
@@ -99,4 +99,4 @@ const mainLabel = computed(() =>
 )
 </script>
 
-<style scoped src="./styles/AssetGridItem.css"></style>
+<style scoped src="./styles/asset-grid-item.css"></style>

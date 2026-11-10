@@ -82,7 +82,7 @@
   </SettingsPageShell>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import ClientPowerHeroSection from './client-power/ClientPowerHeroSection.vue'

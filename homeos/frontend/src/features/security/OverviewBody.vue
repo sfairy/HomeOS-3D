@@ -40,7 +40,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { getSecurityPanelZonesFromLayout } from '@/shared/security/utils/panel-layout.util'
@@ -73,7 +73,7 @@ const secEventFilter = defineModel('secEventFilter', { type: String, default: 'a
 const armSelection = defineModel('armSelection', { type: Array, default: () => [] })
 
 // ZoneHub 中点击某区域审计时，将筛选维度切到 zone:<id> 形式
-function onFilterAudit(zoneId) {
+function onFilterAudit(zoneId: string) {
   secEventFilter.value = `zone:${zoneId}`
 }
 

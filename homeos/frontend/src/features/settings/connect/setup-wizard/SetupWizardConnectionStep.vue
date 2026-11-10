@@ -5,7 +5,7 @@
   注意事项：本步骤不直接修改任何配置，只提供状态可视化与跳转入口；用户需到连接页配置
   后再返回本页，status 会自动刷新。
 -->
-<script setup>
+<script setup lang="ts">
 import { AlertTriangle, ExternalLink } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'

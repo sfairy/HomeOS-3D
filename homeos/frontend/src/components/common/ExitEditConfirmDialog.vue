@@ -51,7 +51,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** 避免误触退出导致修改丢失。 */
 import { computed, ref } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'

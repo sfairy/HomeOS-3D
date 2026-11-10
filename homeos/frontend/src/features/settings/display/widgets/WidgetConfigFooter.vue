@@ -3,7 +3,7 @@
   标记，右侧提供可选取消按钮与固定保存按钮；允许通过 slot 插入额外操作（如全屏编辑入口）。
   注意事项：默认不显示取消按钮（showCancel=false），需要时由父组件传参开启。
 -->
-<script setup>
+<script setup lang="ts">
 import { Save } from '@lucide/vue'
 
 defineProps({

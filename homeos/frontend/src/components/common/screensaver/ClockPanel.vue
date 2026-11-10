@@ -22,7 +22,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * ScreensaverClockPanel - 屏保时钟面板组件
  * 功能特性：

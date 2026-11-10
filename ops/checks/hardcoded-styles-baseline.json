@@ -186,32 +186,32 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/common/base/styles/SearchableSelect.css": {
+    "homeos/frontend/src/components/common/base/styles/searchable-select.css": {
       "color": 0,
       "duration": 6,
       "important": 0
     },
-    "homeos/frontend/src/components/common/base/styles/VEmptyState.css": {
+    "homeos/frontend/src/components/common/base/styles/v-empty-state.css": {
       "color": 4,
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/components/common/base/styles/VFolderCreateModal.css": {
+    "homeos/frontend/src/components/common/base/styles/v-folder-create-modal.css": {
       "color": 11,
       "duration": 14,
       "important": 1
     },
-    "homeos/frontend/src/components/common/base/styles/VNotification.css": {
+    "homeos/frontend/src/components/common/base/styles/v-notification.css": {
       "color": 0,
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/components/common/base/styles/VProgressBar.css": {
+    "homeos/frontend/src/components/common/base/styles/v-progress-bar.css": {
       "color": 0,
       "duration": 4,
       "important": 2
     },
-    "homeos/frontend/src/components/common/base/styles/VSkeleton.css": {
+    "homeos/frontend/src/components/common/base/styles/v-skeleton.css": {
       "color": 0,
       "duration": 1,
       "important": 0
@@ -266,22 +266,22 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/common/styles/AssetGridItem.css": {
+    "homeos/frontend/src/components/common/styles/asset-grid-item.css": {
       "color": 1,
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/components/common/styles/AssetPickerModal.css": {
+    "homeos/frontend/src/components/common/styles/asset-picker-modal.css": {
       "color": 3,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/components/common/styles/ErrorBoundary.css": {
+    "homeos/frontend/src/components/common/styles/error-boundary.css": {
       "color": 1,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/common/styles/FooterIconPicker.css": {
+    "homeos/frontend/src/components/common/styles/footer-icon-picker.css": {
       "color": 1,
       "duration": 9,
       "important": 0
@@ -301,17 +301,17 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/dashboard/styles/Footer.css": {
+    "homeos/frontend/src/components/dashboard/styles/footer.css": {
       "color": 10,
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/components/dashboard/styles/PowerCardBody.css": {
+    "homeos/frontend/src/components/dashboard/styles/power-card-body.css": {
       "color": 11,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/dashboard/styles/RightSidebar.css": {
+    "homeos/frontend/src/components/dashboard/styles/right-sidebar.css": {
       "color": 2,
       "duration": 5,
       "important": 5
@@ -346,37 +346,37 @@
       "duration": 6,
       "important": 1
     },
-    "homeos/frontend/src/components/entities/popups/styles/ClimateControlPopup.css": {
+    "homeos/frontend/src/components/entities/popups/styles/climate-control-popup.css": {
       "color": 27,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/components/entities/popups/styles/CoverControlPopup.css": {
+    "homeos/frontend/src/components/entities/popups/styles/cover-control-popup.css": {
       "color": 2,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/components/entities/popups/styles/LightControlPopup.css": {
+    "homeos/frontend/src/components/entities/popups/styles/light-control-popup.css": {
       "color": 11,
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/components/entities/popups/styles/MediaPlayerPopup.css": {
+    "homeos/frontend/src/components/entities/popups/styles/media-player-popup.css": {
       "color": 3,
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/components/entities/popups/styles/PopupAccents.css": {
+    "homeos/frontend/src/components/entities/popups/styles/popup-accents.css": {
       "color": 2,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/entities/popups/styles/UtilityMeterTierSection.css": {
+    "homeos/frontend/src/components/entities/popups/styles/utility-meter-tier-section.css": {
       "color": 1,
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/components/entities/styles/DeviceGroupModal.css": {
+    "homeos/frontend/src/components/entities/styles/device-group-modal.css": {
       "color": 52,
       "duration": 17,
       "important": 0
@@ -396,7 +396,7 @@
       "duration": 21,
       "important": 8
     },
-    "homeos/frontend/src/components/modals/styles/SettingsLockModal.css": {
+    "homeos/frontend/src/components/modals/styles/settings-lock-modal.css": {
       "color": 0,
       "duration": 1,
       "important": 0
@@ -441,27 +441,27 @@
       "duration": 5,
       "important": 2
     },
-    "homeos/frontend/src/components/widgets/media/styles/MiniWidget.css": {
+    "homeos/frontend/src/components/widgets/media/styles/mini-widget.css": {
       "color": 4,
       "duration": 5,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/media/styles/PlaylistWidget.css": {
+    "homeos/frontend/src/components/widgets/media/styles/playlist-widget.css": {
       "color": 2,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/security/styles/SecurityPanelWidget-scoped.css": {
+    "homeos/frontend/src/components/widgets/security/styles/security-panel-widget-scoped.css": {
       "color": 12,
       "duration": 5,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/styles/QuickActionsCard.css": {
+    "homeos/frontend/src/components/widgets/styles/quick-actions-card.css": {
       "color": 3,
       "duration": 9,
       "important": 4
     },
-    "homeos/frontend/src/components/widgets/system/styles/ClockWidget.css": {
+    "homeos/frontend/src/components/widgets/system/styles/clock-widget.css": {
       "color": 0,
       "duration": 2,
       "important": 0
@@ -471,22 +471,22 @@
       "duration": 12,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/weather/styles/Forecast.css": {
+    "homeos/frontend/src/components/widgets/weather/styles/forecast.css": {
       "color": 12,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/weather/styles/LifeIndices.css": {
+    "homeos/frontend/src/components/widgets/weather/styles/life-indices.css": {
       "color": 9,
       "duration": 6,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/weather/styles/SunInfo.css": {
+    "homeos/frontend/src/components/widgets/weather/styles/sun-info.css": {
       "color": 14,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/components/widgets/weather/styles/Widget.css": {
+    "homeos/frontend/src/components/widgets/weather/styles/widget.css": {
       "color": 20,
       "duration": 0,
       "important": 0
@@ -561,32 +561,32 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/styles/DeviceAnalyticsPanel.css": {
+    "homeos/frontend/src/features/device/styles/device-analytics-panel.css": {
       "color": 4,
       "duration": 0,
       "important": 1
     },
-    "homeos/frontend/src/features/device/styles/DeviceBatchActions.css": {
+    "homeos/frontend/src/features/device/styles/device-batch-actions.css": {
       "color": 2,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/styles/DeviceEntityReferencesPanel.css": {
+    "homeos/frontend/src/features/device/styles/device-entity-references-panel.css": {
       "color": 3,
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/features/device/styles/DeviceHealthScore.css": {
+    "homeos/frontend/src/features/device/styles/device-health-score.css": {
       "color": 0,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/features/device/styles/DevicePanels.css": {
+    "homeos/frontend/src/features/device/styles/device-panels.css": {
       "color": 13,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/device/styles/DeviceRow.css": {
+    "homeos/frontend/src/features/device/styles/device-row.css": {
       "color": 1,
       "duration": 3,
       "important": 0
@@ -606,27 +606,27 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/earthquake/styles/AlertOverlay.css": {
+    "homeos/frontend/src/features/earthquake/styles/alert-overlay.css": {
       "color": 2,
       "duration": 2,
       "important": 0
     },
-    "homeos/frontend/src/features/earthquake/styles/CencBulletinCard.css": {
+    "homeos/frontend/src/features/earthquake/styles/cenc-bulletin-card.css": {
       "color": 4,
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/features/earthquake/styles/EewSafetyTips.css": {
+    "homeos/frontend/src/features/earthquake/styles/eew-safety-tips.css": {
       "color": 3,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/features/earthquake/styles/EewSlideUnlock.css": {
+    "homeos/frontend/src/features/earthquake/styles/eew-slide-unlock.css": {
       "color": 4,
       "duration": 16,
       "important": 0
     },
-    "homeos/frontend/src/features/earthquake/styles/HistoryAnalytics.css": {
+    "homeos/frontend/src/features/earthquake/styles/history-analytics.css": {
       "color": 6,
       "duration": 6,
       "important": 0
@@ -656,7 +656,7 @@
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/features/events/styles/ViewAnalytics.css": {
+    "homeos/frontend/src/features/events/styles/view-analytics.css": {
       "color": 2,
       "duration": 5,
       "important": 0
@@ -711,17 +711,17 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/home-mode/editor/styles/HomeMode.css": {
+    "homeos/frontend/src/features/home-mode/editor/styles/home-mode.css": {
       "color": 12,
       "duration": 50,
       "important": 0
     },
-    "homeos/frontend/src/features/home-mode/editor/styles/HomeModePresetSidebar.css": {
+    "homeos/frontend/src/features/home-mode/editor/styles/home-mode-preset-sidebar.css": {
       "color": 1,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/home-mode/editor/styles/HomeModeTriggersSection.css": {
+    "homeos/frontend/src/features/home-mode/editor/styles/home-mode-triggers-section.css": {
       "color": 2,
       "duration": 2,
       "important": 0
@@ -766,12 +766,12 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/security/styles/AuditLogPanel.css": {
+    "homeos/frontend/src/features/security/styles/audit-log-panel.css": {
       "color": 0,
       "duration": 0,
       "important": 14
     },
-    "homeos/frontend/src/features/security/styles/OverviewSidebar.css": {
+    "homeos/frontend/src/features/security/styles/overview-sidebar.css": {
       "color": 0,
       "duration": 0,
       "important": 1
@@ -801,7 +801,7 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/automate/linkage/styles/HomeModeMatrixSection.css": {
+    "homeos/frontend/src/features/settings/automate/linkage/styles/home-mode-matrix-section.css": {
       "color": 0,
       "duration": 4,
       "important": 0
@@ -811,7 +811,7 @@
       "duration": 13,
       "important": 2
     },
-    "homeos/frontend/src/features/settings/automate/styles/SettingsPresenceEntitiesSection.css": {
+    "homeos/frontend/src/features/settings/automate/styles/settings-presence-entities-section.css": {
       "color": 2,
       "duration": 1,
       "important": 0
@@ -826,27 +826,27 @@
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/SectionInsights.css": {
+    "homeos/frontend/src/features/settings/connect/bindings/styles/section-insights.css": {
       "color": 0,
       "duration": 2,
       "important": 2
     },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/SettingsBindingsCamerasSection.css": {
+    "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-cameras-section.css": {
       "color": 0,
       "duration": 10,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/SettingsBindingsEnvironmentSection.css": {
+    "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-environment-section.css": {
       "color": 3,
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/SettingsBindingsSecuritySection.css": {
+    "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-security-section.css": {
       "color": 0,
       "duration": 5,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/SettingsBindingsWeatherSection.css": {
+    "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-weather-section.css": {
       "color": 0,
       "duration": 1,
       "important": 0
@@ -871,7 +871,7 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/connection/styles/EntitiesSection.css": {
+    "homeos/frontend/src/features/settings/connect/connection/styles/entities-section.css": {
       "color": 4,
       "duration": 0,
       "important": 0
@@ -891,12 +891,12 @@
       "duration": 2,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/SetupWizardNavigation.css": {
+    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/setup-wizard-navigation.css": {
       "color": 4,
       "duration": 2,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/SetupWizardStepHero.css": {
+    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/setup-wizard-step-hero.css": {
       "color": 1,
       "duration": 0,
       "important": 0
@@ -911,7 +911,7 @@
       "duration": 1,
       "important": 1
     },
-    "homeos/frontend/src/features/settings/connect/styles/SetupWizardPanel.css": {
+    "homeos/frontend/src/features/settings/connect/styles/setup-wizard-panel.css": {
       "color": 1,
       "duration": 7,
       "important": 0
@@ -946,12 +946,12 @@
       "duration": 39,
       "important": 6
     },
-    "homeos/frontend/src/features/settings/display/layout/styles/FooterColorPicker.css": {
+    "homeos/frontend/src/features/settings/display/layout/styles/footer-color-picker.css": {
       "color": 1,
       "duration": 11,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/display/layout/styles/SettingsLayoutDisplaySection.css": {
+    "homeos/frontend/src/features/settings/display/layout/styles/settings-layout-display-section.css": {
       "color": 4,
       "duration": 0,
       "important": 2
@@ -976,12 +976,12 @@
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/display/widgets/styles/HomeClimateChartConfigPanel.css": {
+    "homeos/frontend/src/features/settings/display/widgets/styles/home-climate-chart-config-panel.css": {
       "color": 0,
       "duration": 2,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/display/widgets/styles/HubTabsConfigField.css": {
+    "homeos/frontend/src/features/settings/display/widgets/styles/hub-tabs-config-field.css": {
       "color": 0,
       "duration": 7,
       "important": 0
@@ -1016,12 +1016,12 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/styles/AlertRulesEarthquakeSection.css": {
+    "homeos/frontend/src/features/settings/interact/alert-rules/styles/alert-rules-earthquake-section.css": {
       "color": 18,
       "duration": 2,
       "important": 2
     },
-    "homeos/frontend/src/features/settings/interact/alert-rules/styles/AlertRulesInboxSection.css": {
+    "homeos/frontend/src/features/settings/interact/alert-rules/styles/alert-rules-inbox-section.css": {
       "color": 1,
       "duration": 9,
       "important": 2
@@ -1031,22 +1031,22 @@
       "duration": 48,
       "important": 11
     },
-    "homeos/frontend/src/features/settings/interact/styles/SettingsAgentPanel.css": {
+    "homeos/frontend/src/features/settings/interact/styles/settings-agent-panel.css": {
       "color": 34,
       "duration": 34,
       "important": 6
     },
-    "homeos/frontend/src/features/settings/interact/voice/styles/SettingsVoiceCommandsSection.css": {
+    "homeos/frontend/src/features/settings/interact/voice/styles/settings-voice-commands-section.css": {
       "color": 0,
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/interact/voice/styles/SettingsVoiceSttSection.css": {
+    "homeos/frontend/src/features/settings/interact/voice/styles/settings-voice-stt-section.css": {
       "color": 2,
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/interact/voice/styles/SpeechComposer.css": {
+    "homeos/frontend/src/features/settings/interact/voice/styles/speech-composer.css": {
       "color": 0,
       "duration": 3,
       "important": 0
@@ -1061,27 +1061,27 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/MediaPlaylistSettingsModal.css": {
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/media-playlist-settings-modal.css": {
       "color": 4,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/SystemConfigActionsBar.css": {
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-actions-bar.css": {
       "color": 4,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/SystemConfigAuditCard.css": {
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-audit-card.css": {
       "color": 3,
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/SystemConfigNestedObjectEditor.css": {
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-nested-object-editor.css": {
       "color": 0,
       "duration": 1,
       "important": 1
     },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/SystemConfigSectionDock.css": {
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-section-dock.css": {
       "color": 0,
       "duration": 2,
       "important": 0
@@ -1106,7 +1106,7 @@
       "duration": 3,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/shared/layout/styles/SettingsPopoutMenu.css": {
+    "homeos/frontend/src/features/settings/shared/layout/styles/settings-popout-menu.css": {
       "color": 0,
       "duration": 3,
       "important": 0

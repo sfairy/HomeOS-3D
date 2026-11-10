@@ -382,4 +382,4 @@ const sttFlowSteps = computed(() => [
 ])
 </script>
 
-<style scoped src="./styles/SettingsVoiceSttSection.css"></style>
+<style scoped src="./styles/settings-voice-stt-section.css"></style>

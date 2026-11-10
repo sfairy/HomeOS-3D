@@ -392,4 +392,4 @@ defineEmits([
 ])
 </script>
 
-<style scoped src="./styles/SettingsBindingsEnvironmentSection.css"></style>
+<style scoped src="./styles/settings-bindings-environment-section.css"></style>

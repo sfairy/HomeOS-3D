@@ -272,4 +272,4 @@ const wizardFlowSteps = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/SetupWizardPanel.css"></style>
+<style scoped src="./styles/setup-wizard-panel.css"></style>

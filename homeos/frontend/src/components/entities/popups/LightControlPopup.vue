@@ -170,7 +170,7 @@ import PopupHead from '@/components/entities/popups/PopupHead.vue'
 import { defineEntityPopupProps } from '@/composables/entity/popup/useEntityPopupBase'
 import { useLightControlPopup } from '@/composables/entity/popup/useLightControlPopup'
 import '@/assets/styles/popup-base.css'
-import './styles/LightControlPopup.css'
+import './styles/light-control-popup.css'
 
 const props = defineProps(defineEntityPopupProps())
 
@@ -214,4 +214,4 @@ const {
 } = useLightControlPopup(props)
 </script>
 
-<style src="./styles/PopupAccents.css"></style>
+<style src="./styles/popup-accents.css"></style>

@@ -6,7 +6,7 @@
  *   点击后通过 toggle 事件通知父组件展开/收起下拉菜单。
  * @dependencies @lucide/vue（ChevronDown 下拉箭头，Loader2 加载旋转图标）
  */
-<script setup>
+<script setup lang="ts">
 /**
  * 导入依赖：
  * - ChevronDown：下拉箭头图标，提示用户可点击展开

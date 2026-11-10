@@ -28,7 +28,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 /**
  * ScreensaverWeatherPanel - 屏保天气面板组件
  * 功能特性：
@@ -47,7 +48,7 @@ defineProps({
   /** 天气描述文案 */
   weatherDesc: { type: String, required: true },
   /** 额外天气信息列表（每项含 icon/val） */
-  weatherExtra: { type: [Array, null], default: null },
+  weatherExtra: { type: [Array, null] as PropType<{ icon: string; val: string | number }[] | null>, default: null },
   /** 星期文案 */
   dateWeek: { type: String, required: true },
   /** 月-日文案 */

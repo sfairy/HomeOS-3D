@@ -40,7 +40,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   title: { type: String, required: true },
   tierLabel: { type: String, default: '' },
@@ -55,4 +55,4 @@ defineProps({
 })
 </script>
 
-<style scoped src="./styles/UtilityMeterTierSection.css"></style>
+<style scoped src="./styles/utility-meter-tier-section.css"></style>

@@ -110,4 +110,4 @@ const {
 } = useCoverControlPopup(props)
 </script>
 
-<style scoped src="./styles/CoverControlPopup.css"></style>
+<style scoped src="./styles/cover-control-popup.css"></style>

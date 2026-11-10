@@ -20,7 +20,7 @@
   </AnchoredPopupShell>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import AnchoredPopupShell from '@/components/entities/popups/AnchoredPopupShell.vue'

@@ -361,4 +361,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped src="./styles/DeviceHealthScore.css"></style>
+<style scoped src="./styles/device-health-score.css"></style>

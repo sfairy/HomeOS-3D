@@ -116,4 +116,4 @@ useClickOutside(
 )
 </script>
 
-<style scoped src="./styles/FooterColorPicker.css"></style>
+<style scoped src="./styles/footer-color-picker.css"></style>

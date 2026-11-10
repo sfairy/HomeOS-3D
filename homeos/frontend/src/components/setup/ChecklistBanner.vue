@@ -28,7 +28,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** ChecklistBanner - 首装任务条组件 */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'

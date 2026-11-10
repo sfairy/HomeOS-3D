@@ -35,7 +35,7 @@
   </header>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { SETTINGS_HEADER_ICONS, SETTINGS_TAB_HEADER_ICONS } from '@/shared/utils/registry/settings-header-icons'
 // 设置页页头样式（premium-head）：随设置壳懒加载，不计入首屏 CSS。
@@ -68,8 +68,8 @@ const props = defineProps({
 const resolvedIcon = computed(
   () =>
     props.icon ||
-    SETTINGS_HEADER_ICONS[props.iconKey] ||
-    (props.tab ? SETTINGS_TAB_HEADER_ICONS[props.tab] : null) ||
+    SETTINGS_HEADER_ICONS[props.iconKey as keyof typeof SETTINGS_HEADER_ICONS] ||
+    (props.tab ? SETTINGS_TAB_HEADER_ICONS[props.tab as keyof typeof SETTINGS_TAB_HEADER_ICONS] : null) ||
     null,
 )
 </script>

@@ -31,8 +31,8 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+import { ref, computed, type ComponentPublicInstance } from 'vue'
 import HomeClimateChartChrome from './home-climate-chart/HomeClimateChartChrome.vue'
 import HomeClimateChartBody from './home-climate-chart/HomeClimateChartBody.vue'
 import HomeClimateChartSummary from './home-climate-chart/HomeClimateChartSummary.vue'
@@ -45,13 +45,13 @@ const props = defineProps({
 })
 
 // 图表实例引用，供 composable 调用底层 ECharts API
-const chartRef = ref(null)
+const chartRef = ref<HTMLElement | null>(null)
 /**
  * 设置图表 DOM 引用回调，由子组件 HomeClimateChartBody 在挂载时调用。
  * @param {HTMLElement|null} el 图表容器元素
  */
-const setChartRef = (el) => {
-  chartRef.value = el
+const setChartRef = (el: Element | ComponentPublicInstance | null) => {
+  chartRef.value = el as HTMLElement | null
 }
 
 const { loading, viewOptions, activeView, hasEntities, hasSeries, hasViewSeries, viewEmptyTitle, summaryRows } =

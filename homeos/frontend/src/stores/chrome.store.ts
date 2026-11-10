@@ -3,4 +3,4 @@ import { defineStore } from 'pinia'
 import { createUIChromeState } from '@/stores/ui/create-chrome-state'
 
 /** useChromeStore：Pinia store 工厂，状态与动作见定义。 */
-export const useChromeStore = defineStore('uiChrome', () => createUIChromeState())
+export const useChromeStore = defineStore('chrome', () => createUIChromeState())

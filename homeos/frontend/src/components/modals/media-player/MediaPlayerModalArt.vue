@@ -25,14 +25,15 @@
   </aside>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** MediaPlayerModalArt - 媒体弹窗封面区组件 */
 import { Music, AlignLeft, Image } from '@lucide/vue'
+import type { PropType } from 'vue'
 
 const viewMode = defineModel('viewMode', { type: String, default: 'cover' })
 
 defineProps({
-  albumArt: { type: String, default: '' },
+  albumArt: { type: String as PropType<string | null>, default: '' },
   isPlaying: { type: Boolean, default: false },
   modalTitle: { type: String, default: '' },
   hasLyrics: { type: Boolean, default: false },

@@ -1,7 +1,7 @@
 <!--
   事件历史页顶部「英雄区」——标题、副标题、刷新与跳转按钮、汇总指标条。
 -->
-<script setup>
+<script setup lang="ts">
 import { History } from '@lucide/vue'
 import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
 import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'

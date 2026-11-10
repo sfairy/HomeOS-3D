@@ -418,4 +418,4 @@ function retryStream(cameraKey) {
 }
 </script>
 
-<style scoped src="./styles/MonitorPanel.css"></style>
+<style scoped src="./styles/monitor-panel.css"></style>

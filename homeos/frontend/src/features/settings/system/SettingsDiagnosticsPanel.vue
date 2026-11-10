@@ -52,7 +52,7 @@
   </SettingsPageShell>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { provide } from 'vue'
 import { RefreshCw, Copy, AlertCircle } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'

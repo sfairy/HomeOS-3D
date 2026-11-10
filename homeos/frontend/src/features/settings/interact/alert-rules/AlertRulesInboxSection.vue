@@ -182,4 +182,4 @@ const {
 const inboxFlowSummary = computed(() => `${rules.value.length} 规则 · ${enabledVoiceAlertCount.value} 语音项`)
 </script>
 
-<style src="./styles/AlertRulesInboxSection.css"></style>
+<style src="./styles/alert-rules-inbox-section.css"></style>

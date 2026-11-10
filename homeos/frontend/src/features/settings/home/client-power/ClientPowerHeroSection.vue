@@ -2,7 +2,8 @@
   智能充放电总览区段。展示流程概览（终端电量→滞回阈值→Switch 控制）、
   总开关、本机 ID（可复制）、电量读取提示（HTTPS/Battery API）与心跳间隔设置。
 -->
-<script setup>
+<script setup lang="ts">
+import type { SettingsFlowStep } from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import { computed } from 'vue'
 import { Activity, BatteryCharging, Copy, PlugZap, RefreshCw } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
@@ -28,7 +29,7 @@ const props = defineProps({
 const emit = defineEmits(['patch-config', 'refresh-status'])
 
 // 充电流程步骤：终端电量 → 滞回阈值 → Switch 控制（联动状态随总开关切换）
-const chargeFlowSteps = computed(() => [
+const chargeFlowSteps = computed((): SettingsFlowStep[] => [
   { label: '终端电量', meta: '实时监测', icon: Activity, tone: 'in' },
   { label: '滞回阈值', meta: '低开 · 高关', icon: BatteryCharging, tone: 'amber' },
   {
@@ -46,8 +47,8 @@ const chargeFlowSummary = computed(() => {
 })
 
 // 心跳间隔输入：数值合法时向上抛出 patch-config
-function onReportIntervalInput(e) {
-  const value = Number(e.target.value)
+function onReportIntervalInput(e: Event) {
+  const value = Number((e.target as HTMLInputElement).value)
   if (Number.isFinite(value)) emit('patch-config', { reportIntervalSec: value })
 }
 </script>

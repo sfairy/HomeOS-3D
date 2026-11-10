@@ -8,7 +8,7 @@
   </header>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   /** 站点名称（屏保标题文案） */
   siteTitle: { type: String, required: true },

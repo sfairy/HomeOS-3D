@@ -319,4 +319,4 @@ const {
 } = useClimateControlPopup(props)
 </script>
 
-<style scoped src="./styles/ClimateControlPopup.css"></style>
+<style scoped src="./styles/climate-control-popup.css"></style>

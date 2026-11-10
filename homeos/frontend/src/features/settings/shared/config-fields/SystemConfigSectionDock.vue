@@ -17,7 +17,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
@@ -26,7 +26,7 @@ const props = defineProps({
   sectionKey: { type: String, default: '' },
 })
 
-const GUIDE_BY_SECTION = {
+const GUIDE_BY_SECTION: Record<string, { text: string; links?: { to: string; label: string }[] }> = {
   notification: {
     text: '免打扰与通知总开关在告警规则页；此处仅推送容量与冷却。',
     links: [{ to: SETTINGS_ROUTES.alerts(), label: '告警规则' }],
@@ -70,4 +70,4 @@ const GUIDE_BY_SECTION = {
 const guide = computed(() => GUIDE_BY_SECTION[props.sectionKey] || null)
 </script>
 
-<style scoped src="./styles/SystemConfigSectionDock.css"></style>
+<style scoped src="./styles/system-config-section-dock.css"></style>

@@ -4,7 +4,7 @@
   flat 扁平化模式。
   注意事项：无自身 emits；所有交互由内部插槽组件触发上级事件。
 -->
-<script setup>
+<script setup lang="ts">
 defineProps({
   title: { type: String, default: '' },
   description: { type: String, default: '' },
@@ -12,7 +12,7 @@ defineProps({
   tone: {
     type: String,
     default: 'purple',
-    validator: (v) => ['purple', 'sky', 'amber', 'emerald', 'rose'].includes(v),
+    validator: (v: string) => ['purple', 'sky', 'amber', 'emerald', 'rose'].includes(v),
   },
   flat: { type: Boolean, default: false },
   icon: { type: [Object, Function], default: null },

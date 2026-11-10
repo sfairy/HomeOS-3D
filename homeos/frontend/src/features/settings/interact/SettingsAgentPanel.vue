@@ -1163,4 +1163,4 @@ function goConfigureApiKey() {
   })
 }
 </script>
-<style src="./styles/SettingsAgentPanel.css"></style>
+<style src="./styles/settings-agent-panel.css"></style>

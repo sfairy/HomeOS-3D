@@ -173,4 +173,4 @@ function setLink(arming: string, value: unknown) {
   </section>
 </template>
 
-<style scoped src="./styles/HomeModeMatrixSection.css"></style>
+<style scoped src="./styles/home-mode-matrix-section.css"></style>

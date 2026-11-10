@@ -98,4 +98,4 @@ function onDismiss() {
 }
 </script>
 
-<style src="./styles/CencBulletinCard.css"></style>
+<style src="./styles/cenc-bulletin-card.css"></style>

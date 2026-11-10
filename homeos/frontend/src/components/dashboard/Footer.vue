@@ -102,4 +102,4 @@ function formatUnit(unit) {
 }
 </script>
 
-<style scoped src="./styles/Footer.css"></style>
+<style scoped src="./styles/footer.css"></style>

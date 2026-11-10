@@ -24,7 +24,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 /** ColdEntityPerfBanner - 冷实体性能提示条组件 */
 import { computed, ref } from 'vue'

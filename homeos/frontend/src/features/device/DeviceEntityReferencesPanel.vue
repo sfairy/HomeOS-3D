@@ -229,4 +229,4 @@ const filteredItems = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/DeviceEntityReferencesPanel.css"></style>
+<style scoped src="./styles/device-entity-references-panel.css"></style>

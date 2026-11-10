@@ -89,4 +89,4 @@ const { magChartRef, distChartRef, timeChartRef, extraChartRef, kpiCells } = use
 )
 </script>
 
-<style scoped src="./styles/HistoryAnalytics.css"></style>
+<style scoped src="./styles/history-analytics.css"></style>

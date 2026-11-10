@@ -5,7 +5,7 @@
   注意事项：传入未知 stepId 时自动回退到「连接」步骤的 Hero 配置，避免空白；
   CSS 按 tone（sky/rose/amber/teal/emerald）提供差异化光晕配色。
 -->
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { Sparkles } from '@lucide/vue'
 
@@ -58,7 +58,7 @@ const STEP_HERO = {
   },
 }
 
-const hero = computed(() => STEP_HERO[props.stepId] || STEP_HERO.connection)
+const hero = computed(() => STEP_HERO[props.stepId as keyof typeof STEP_HERO] || STEP_HERO.connection)
 </script>
 
 <template>
@@ -76,4 +76,4 @@ const hero = computed(() => STEP_HERO[props.stepId] || STEP_HERO.connection)
   </div>
 </template>
 
-<style scoped src="./styles/SetupWizardStepHero.css"></style>
+<style scoped src="./styles/setup-wizard-step-hero.css"></style>
