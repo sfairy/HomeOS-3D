@@ -30,13 +30,9 @@ export type WallCapLoop = { x: number; y: number }
  * three 的 `Shape`。浏览器直载模块在编译期只有影子声明（`ShapeGeometry` 无类型），
  * 这里只标记「几何输入对象」，不引入 three 的类型。
  */
-type WallCapShape = object
+type WallCapShape = ns2.Shape
 
-/** 盖面材质用到的两个字段（半透明 / 单 pass 压缩）。 */
-interface WallCapMaterial {
-  transparent?: boolean
-  forceSinglePass?: boolean
-}
+type WallCapMaterial = ns2.Material
 
 /** 盖面朝向：`up` 顶盖，`down` 洞口过梁底面。 */
 type WallCapFacing = 'up' | 'down'
@@ -93,7 +89,7 @@ function mergeCapGeometries(shapes: WallCapShape[]) {
 /** 摆好面片：绕 X +90°（法线朝 -Y）、抬到 `height`，并按盖面用途打标记。 */
 function attachCapMesh(
   context: WallCapContext,
-  geometry: object,
+  geometry: ns2.BufferGeometry,
   material: WallCapMaterial,
   height: number,
   facing: WallCapFacing,

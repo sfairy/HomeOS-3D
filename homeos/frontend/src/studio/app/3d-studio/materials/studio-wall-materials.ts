@@ -395,12 +395,14 @@ const wallSideCameraSpaces = new WeakMap<object, WallSideCameraSpace>()
  * 不需要记录状态。
  */
 export function prepareWallSideOrder(
-  threeApi: WallSideThreeApi,
-  mesh: WallSideOrderMesh,
+  threeLib: object,
+  meshObject: object,
   sorter: (mesh: WallSideOrderMesh, camera: WallSideCamera, renderer: unknown) => WallSideCamera = (_mesh, camera) =>
     camera,
 ): WallSideOrderStats | null {
-  const geometry = mesh.geometry,
+  const threeApi = threeLib as WallSideThreeApi,
+    mesh = meshObject as WallSideOrderMesh,
+    geometry = mesh.geometry,
     sideMaterial = mesh.material?.[1],
     positionAttribute = geometry?.attributes?.position,
     sideGroup = geometry?.groups?.find((group) => group.materialIndex === 1)

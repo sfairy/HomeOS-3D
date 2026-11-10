@@ -316,7 +316,7 @@ export function createReflectionPasses({
       for (const [partialAttributeName, partialAttribute] of Object.entries(mergedGeometry.attributes))
         buildingBatch.partialGeometry.setAttribute(partialAttributeName, partialAttribute)
       buildingBatch.partialGeometry.setIndex(
-        new three.BufferAttribute(new Uint32Array(mergedGeometry.index.count), 1).setUsage(three.DynamicDrawUsage),
+        new three.BufferAttribute(new Uint32Array(mergedGeometry.index!.count), 1).setUsage(three.DynamicDrawUsage),
       ),
         (buildingBatch.selected = []),
         (buildingBatch.selection = new Uint8Array(buildingBatch.entries.length))

@@ -79,7 +79,7 @@ export function addTelevisionModel(
     if (deps.backgroundSettings().warmWood) {
       const screenBodyMaterial = screenBodyMesh.material,
         screenGlassMaterial = createWarmTelevisionGlass2(ns2)
-      screenBodyMesh.material = [
+      ;(screenBodyMesh as { material: unknown }).material = [
         screenBodyMaterial,
         screenBodyMaterial,
         screenBodyMaterial,

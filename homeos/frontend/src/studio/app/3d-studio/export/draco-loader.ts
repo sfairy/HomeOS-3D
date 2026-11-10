@@ -27,7 +27,24 @@ function directoryFromDecoderUrl(url: any) {
   const slash = value.lastIndexOf('/')
   return slash >= 0 ? value.slice(0, slash + 1) : ''
 }
-export class SameOriginDRACOLoader extends DRACOLoader {
+/** 基类的内部字段与钩子：@types/three 只声明公开 API，子类要覆写的这几项在这里补齐。 */
+interface DracoLoaderInternals {
+  decoderPaths?: { js?: string }
+  decoderConfig: object
+  decoderPending: Promise<void> | null
+  workerLimit: number
+  workerPool: DracoWorker[]
+  _initDecoder(): Promise<void>
+  _getWorker(jobId: number, jobCost: number): Promise<DracoWorker>
+}
+const DRACOLoaderWithInternals = DRACOLoader as unknown as new (
+  ...args: ConstructorParameters<typeof DRACOLoader>
+) => DRACOLoader & DracoLoaderInternals
+
+export class SameOriginDRACOLoader extends DRACOLoaderWithInternals {
+  declare sameOriginWorkerUrl: string | URL
+  declare decoderDirectory: string
+  declare disposed: boolean
   constructor(workerUrl: any, options: any) {
     super(options), (this.sameOriginWorkerUrl = workerUrl), (this.decoderDirectory = ''), (this.disposed = false)
   }

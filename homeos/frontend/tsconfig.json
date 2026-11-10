@@ -39,7 +39,6 @@
       "@/*": ["./src/*"],
       "@app/*": ["./src/studio/app/*"],
       "@runtime/*": ["./src/studio/runtime/*"],
-      "three": ["./src/studio/shims/vendor-three-core.ts"],
 
       "/static/vendor/three/0.187.0/three.module.min.js": [
         "./src/studio/shims/vendor-three-core.ts"

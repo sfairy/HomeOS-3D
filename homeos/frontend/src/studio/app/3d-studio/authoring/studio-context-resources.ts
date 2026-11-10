@@ -66,7 +66,7 @@ function acquireDispatcherPatch(): DispatcherPatch {
     dispatcherPatch.users += 1
     return dispatcherPatch
   }
-  const dispatcherPrototype = EventDispatcher.prototype as Record<string, unknown>,
+  const dispatcherPrototype = EventDispatcher.prototype as unknown as Record<string, unknown>,
     originalAddEventListener = dispatcherPrototype.addEventListener as (
       this: unknown,
       type: string,
@@ -96,7 +96,7 @@ function acquireDispatcherPatch(): DispatcherPatch {
 function releaseDispatcherPatch(activePatch: DispatcherPatch) {
   activePatch.users -= 1
   if (activePatch.users > 0) return
-  const dispatcherPrototype = EventDispatcher.prototype as Record<string, unknown>
+  const dispatcherPrototype = EventDispatcher.prototype as unknown as Record<string, unknown>
   if (dispatcherPrototype.addEventListener === activePatch.wrapper)
     dispatcherPrototype.addEventListener = activePatch.originalAddEventListener
   activePatch.owner = null

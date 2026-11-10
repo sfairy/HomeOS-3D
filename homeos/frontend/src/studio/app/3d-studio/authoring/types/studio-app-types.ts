@@ -2,9 +2,11 @@
  * studio-app.ts 的纯类型定义集合。
  *
  * 自包含类型声明（不引用闭包变量），
- * 仅依赖全局 DOM 类型（HTMLElement / DOMRect / RequestInit / ImageData / Blob）。
+ * 仅依赖全局 DOM 类型（HTMLElement / DOMRect / RequestInit / ImageData / Blob）与 three 的类型。
  * 类型在运行时被擦除。
  */
+
+import type { DepthModes, Side } from 'three'
 
 /** 网格材质通用选项：盒体 / 圆柱 / 建筑体块 / 墙侧墙顶都复用这一组。 */
 export type MeshMaterialOptions = {
@@ -13,10 +15,8 @@ export type MeshMaterialOptions = {
   transparent?: boolean
   opacity?: number
   depthWrite?: boolean
-  /** three 的 DepthFunc 常量。 */
-  depthFunc?: number
-  /** three 的 Side 常量。 */
-  side?: number
+  depthFunc?: DepthModes
+  side?: Side
   emissive?: number
   emissiveIntensity?: number
   polygonOffset?: boolean
