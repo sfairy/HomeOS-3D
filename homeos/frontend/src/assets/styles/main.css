@@ -640,9 +640,8 @@ input[type="range"].hos-range-ui:disabled {
      `var()` 只在**声明值**位置被替换，出现在**选择器**位置时整条规则解析失败、被静默丢弃。
      这条规则曾因此整段失效（低性能模式下约 30 个组件的 backdrop-filter 没被关掉）。
 
-     下面这份清单在 main.css 里出现**两次**（这里的 coarse 触屏组，以及文件末尾的
-     `html[data-glass-effect="static"]` 组），两处必须逐项一致；
-     新增 blur 使用点时两处都要登记。 */
+     清单只有一份：文件末尾的嵌套规则同时覆盖 coarse 触屏、窄画布容器与
+     `html[data-glass-effect="static"]` 三种条件；新增 blur 使用点只在那里登记。 */
 }
 
 /* ==========================================================================
@@ -974,8 +973,8 @@ input[type="range"].hos-range-ui:disabled {
     will-change: auto !important;
   }
   .ios-card {
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   /* 触控端取消易粘住的 hover 态（桌面仍靠 @media (hover:hover) 生效） */
@@ -992,8 +991,8 @@ input[type="range"].hos-range-ui:disabled {
     will-change: auto !important;
   }
   .ios-card {
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   /* 触控端取消易粘住的 hover 态（桌面仍靠 @media (hover:hover) 生效） */
@@ -1086,41 +1085,9 @@ input[type="range"].hos-range-ui:disabled {
     min-width: unset;
   }
 
-  /* 禁用耗性能 / 易渗色毛玻璃（卡片/面板/弹层/独立页统一）
-     清单字面量内联（`var()` 在选择器位置不生效）——详见 :root 里 7.10e 的说明 */
+  /* 禁用耗性能 / 易渗色毛玻璃：backdrop-filter 清单见文件末尾 7.10e 嵌套规则 */
   .widget-wrapper {
     will-change: auto !important;
-  }
-  :is(
-    .ios-card,
-    .climate-card,
-    .glass-panel,
-    .tab-bar,
-    .power-panel,
-    .premium-glass-surface--elevated,
-    .premium-glass-surface--panel,
-    .premium-head--card,
-    .list-page__panel,
-    .list-page__pager,
-    .list-page__hero.premium-head--card,
-    .hos-panel--glass,
-    .premium-backdrop,
-    .popup-shell,
-    .info-panel,
-    .panel-collapse-btn,
-    .notification-drawer,
-    .device-group-modal,
-    .dgm-shell,
-    .linkage-builder-drawer-panel,
-    .linkage-builder-drawer-backdrop,
-    .orch-premium-shell,
-    .settings-popout-menu__scrim,
-    .sov-panel,
-    .sec-hub,
-    .sov-zones
-  ) {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
   .tab-bar {
     background: var(--glass-off-bg-surface);
@@ -1224,41 +1191,9 @@ input[type="range"].hos-range-ui:disabled {
     min-width: unset;
   }
 
-  /* 禁用耗性能 / 易渗色毛玻璃（卡片/面板/弹层/独立页统一）
-     清单字面量内联（`var()` 在选择器位置不生效）——详见 :root 里 7.10e 的说明 */
+  /* 禁用耗性能 / 易渗色毛玻璃：backdrop-filter 清单见文件末尾 7.10e 嵌套规则 */
   .widget-wrapper {
     will-change: auto !important;
-  }
-  :is(
-    .ios-card,
-    .climate-card,
-    .glass-panel,
-    .tab-bar,
-    .power-panel,
-    .premium-glass-surface--elevated,
-    .premium-glass-surface--panel,
-    .premium-head--card,
-    .list-page__panel,
-    .list-page__pager,
-    .list-page__hero.premium-head--card,
-    .hos-panel--glass,
-    .premium-backdrop,
-    .popup-shell,
-    .info-panel,
-    .panel-collapse-btn,
-    .notification-drawer,
-    .device-group-modal,
-    .dgm-shell,
-    .linkage-builder-drawer-panel,
-    .linkage-builder-drawer-backdrop,
-    .orch-premium-shell,
-    .settings-popout-menu__scrim,
-    .sov-panel,
-    .sec-hub,
-    .sov-zones
-  ) {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
   .tab-bar {
     background: var(--glass-off-bg-surface);
@@ -1338,41 +1273,41 @@ input[type="range"].hos-range-ui:disabled {
   }
 }
 
-/* 专家配置 / 自适应：强制静态毛玻璃（无 backdrop-filter）
-   选择器清单与上面的 coarse 触屏禁用组**必须逐项一致**（两处都是字面量内联，
-   门禁会比对；新增 blur 使用点时两处都要登记），
-   确保低性能模式下弹窗 / 信息栏 / 抽屉同样无 backdrop-filter */
-html[data-glass-effect="static"]
-  :is(
-    .ios-card,
-    .climate-card,
-    .glass-panel,
-    .tab-bar,
-    .power-panel,
-    .premium-glass-surface--elevated,
-    .premium-glass-surface--panel,
-    .premium-head--card,
-    .list-page__panel,
-    .list-page__pager,
-    .list-page__hero.premium-head--card,
-    .hos-panel--glass,
-    .premium-backdrop,
-    .popup-shell,
-    .info-panel,
-    .panel-collapse-btn,
-    .notification-drawer,
-    .device-group-modal,
-    .dgm-shell,
-    .linkage-builder-drawer-panel,
-    .linkage-builder-drawer-backdrop,
-    .orch-premium-shell,
-    .settings-popout-menu__scrim,
-    .sov-panel,
-    .sec-hub,
-    .sov-zones
-  ) {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+/* 7.10e 毛玻璃禁用组（唯一清单）：coarse 触屏、窄画布容器、专家配置 / 自适应的
+   静态毛玻璃模式三种条件下关闭 backdrop-filter。原生嵌套由构建展开为三条扁平规则；
+   声明均为 !important 且没有其他非 none 的 !important 竞争，所在位置不影响层叠。 */
+:is(
+  .ios-card,
+  .climate-card,
+  .tab-bar,
+  .power-panel,
+  .premium-glass-surface--elevated,
+  .premium-glass-surface--panel,
+  .premium-head--card,
+  .list-page__panel,
+  .list-page__pager,
+  .list-page__hero.premium-head--card,
+  .hos-panel--glass,
+  .premium-backdrop,
+  .popup-shell,
+  .info-panel,
+  .panel-collapse-btn,
+  .notification-drawer,
+  .device-group-modal,
+  .sov-zones
+) {
+  @media (pointer: coarse), (hover: none) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  @container hos-canvas (max-width: 900px) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html[data-glass-effect="static"] & {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
 }
 html[data-glass-effect="static"] .tab-bar {
   background: var(--glass-off-bg-surface);
