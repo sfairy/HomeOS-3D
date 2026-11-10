@@ -64,6 +64,7 @@
     "audit:scaling:browser": "node ops/checks/frontend/audit-scaling-browser.mjs",
     "check:backend-deps": "node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --check",
     "check:ws-auth": "node ops/lib/py.mjs ops/checks/security/check_ws_auth.py --check",
+    "check:routes": "node ops/lib/py.mjs ops/checks/architecture/route_inventory.py --check",
     "check:store-routes": "node ops/lib/py.mjs ops/checks/architecture/store_route_inventory.py --check",
     "check:api-contract": "node ops/lib/py.mjs ops/checks/architecture/api_contract_coverage.py",
     "check:file-size": "node ops/lib/py.mjs ops/checks/check_file_size.py",
