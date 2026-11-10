@@ -92,7 +92,7 @@ def _evaluate_single(
     if op == "contains":
         return rhs.lower() in lhs_raw.lower()
     if both_numeric:
-        return _compare_numeric(lhs_num, op, rhs_num)  # type: ignore[arg-type]
+        return _compare_numeric(lhs_num, op, rhs_num)  # pyright: ignore[reportArgumentType]
 
     if op in ("==", "="):
         return lhs_raw.lower() == rhs.lower()

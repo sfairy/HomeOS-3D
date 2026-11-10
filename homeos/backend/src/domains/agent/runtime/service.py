@@ -1124,7 +1124,7 @@ class AgentService:
                 current = self._memory.expand(current, aliases)
         return [
             LlmMessage(role="system", content=await self._resolve_system_prompt(ctx)),
-            *[LlmMessage(role=p["role"], content=p["content"]) for p in prior],  # type: ignore[arg-type]
+            *[LlmMessage(role=p["role"], content=p["content"]) for p in prior],  # pyright: ignore[reportArgumentType]
             LlmMessage(role="user", content=current),
         ]
 

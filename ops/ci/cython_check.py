@@ -76,8 +76,8 @@ def _cythonize_one(path: str) -> str | None:
     # 构建期依赖：只在「装了 Dockerfile 里钉的那两个版本」的环境里可导入（CI 的 ruff job
     # 与镜像构建阶段），本地 .venv-store 刻意不带它们 —— 这是本文件存在的意义，不是缺失。
     # 与 ops/docker/compile_python.py 的开头两行同一处理方式。
-    from Cython.Build import cythonize  # type: ignore[import-not-found]
-    from setuptools import Extension  # type: ignore[import-not-found]
+    from Cython.Build import cythonize  # pyright: ignore[reportMissingImports]
+    from setuptools import Extension  # pyright: ignore[reportMissingImports]
 
     target = Path(path)
     module = f'_cython_check_{abs(hash(path))}'
@@ -101,7 +101,7 @@ def main() -> None:
     try:
         # 同上：构建期依赖，本地 venv 里没有是常态 —— daemon 里的版本检查就是给这种
         # 「忘了装 / 装错版本」用的，不能让静态分析先报一条噪音把真正的提示淹掉。
-        import Cython  # type: ignore[import-not-found]
+        import Cython  # pyright: ignore[reportMissingImports]
     except ModuleNotFoundError:
         raise SystemExit(f'未安装 Cython；先执行 pip install "cython=={pinned}"') from None
     if Cython.__version__ != pinned:

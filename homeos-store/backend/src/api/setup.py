@@ -170,7 +170,7 @@ def _insert_admin_account(
         .execution_options(synchronize_session=False)
     )
     executed = session.execute(statement)
-    if executed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    if executed.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="管理员账号已存在，无法重复初始化。",
@@ -199,7 +199,7 @@ def _create_admin_session(
         )
     )
     session.execute(
-        Account.__table__.update()  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy Table.update()（__table__ 运行期为 Table）
+        Account.__table__.update()  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy Table.update()（__table__ 运行期为 Table）
         .where(Account.id == account_id)
         .values(last_login_at=moment)
         .execution_options(synchronize_session=False)

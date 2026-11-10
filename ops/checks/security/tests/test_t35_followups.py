@@ -79,7 +79,7 @@ class ProxyBoundaryTest(unittest.TestCase):
         async def _run() -> dict[str, object]:
             connector = _Connector()
             proxy = CommandProxyService(lambda: None, connector)
-            proxy._config = lambda: {"idempotencyTtlMs": 3000}  # type: ignore[method-assign]
+            proxy._config = lambda: {"idempotencyTtlMs": 3000}
             dto = {"domain": "light", "service": "turn_on", "entity_id": "light.x", "idempotency_key": "k"}
             first = asyncio.create_task(proxy.call_service(dto))
             while connector.calls == 0:
@@ -157,7 +157,7 @@ class TimeoutAndChannelTest(unittest.TestCase):
             nonlocal calls
             calls += 1
 
-        service._verify_sync = _verify  # type: ignore[method-assign]
+        service._verify_sync = _verify
         asyncio.run(service.get_status())
         asyncio.run(service.get_status())
         self.assertEqual(calls, 1)
@@ -186,7 +186,7 @@ class TimeoutAndChannelTest(unittest.TestCase):
         async def _fake_send(to: str, text: str, title: str | None = None) -> dict[str, int]:
             return {"attempted": 1, "delivered": 0}
 
-        service.send_text = _fake_send  # type: ignore[method-assign]
+        service.send_text = _fake_send  # pyright: ignore[reportAttributeAccessIssue]
         with self.assertRaises(BusinessException):
             asyncio.run(service.send_test("https://push.example/x"))
 
@@ -227,7 +227,7 @@ class SmallFollowupTest(unittest.TestCase):
         async def _run() -> bool:
             service = EntityAreaEnrichmentService(None)
             task = asyncio.ensure_future(asyncio.sleep(0.1))
-            service._inflight = task  # type: ignore[assignment]
+            service._inflight = task  # pyright: ignore[reportAttributeAccessIssue]
             service.invalidate()
             same = service._inflight is task
             task.cancel()

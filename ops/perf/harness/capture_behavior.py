@@ -173,7 +173,7 @@ async def capture_ws(base_url: str, cookie: str, timeout: float, window: float =
     """
     try:
         import msgpack
-        from websockets.asyncio.client import connect  # type: ignore[import-not-found]
+        from websockets.asyncio.client import connect
     except ModuleNotFoundError as error:
         return {"ok": False, "error": f"缺少依赖（.venv-store 应有 websockets/msgpack）：{error}"}
 

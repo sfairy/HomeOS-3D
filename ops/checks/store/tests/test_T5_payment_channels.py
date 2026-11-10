@@ -81,7 +81,7 @@ class EnvFallbackChannelTests(unittest.TestCase):
         settings = _env_settings()
         self.assertEqual(enabled_channel_names(setting, settings), ())
         with self.assertRaises(PaymentError):
-            resolve_provider(settings, setting)  # type: ignore[arg-type]
+            resolve_provider(settings, setting)  # pyright: ignore[reportArgumentType]
 
     def test_unknown_site_provider_does_not_enable_anything(self) -> None:
         setting = _db_setting(channels="[]", provider="mock")

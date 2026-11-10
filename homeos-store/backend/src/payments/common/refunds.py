@@ -107,7 +107,7 @@ def claim_refund_amount(session: Session, order, *, seen_cents: int, add_cents: 
         .values(refund_amount_cents=seen_cents + add_cents)
         .execution_options(synchronize_session=False)
     )
-    return claimed.rowcount == 1  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    return claimed.rowcount == 1  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
 #: 「未定论」退款状态：钱可能已经在渠道侧退掉了，但本地还没拿到确定结果。
@@ -267,7 +267,7 @@ def write_refund_result(
         .values(**values)
         .execution_options(synchronize_session=False)
     )
-    return int(result.rowcount)  # type: ignore[reportAttributeAccessIssue]
+    return int(result.rowcount)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def persist_refund_result(

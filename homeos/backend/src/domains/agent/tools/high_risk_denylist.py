@@ -128,7 +128,7 @@ def is_high_risk(
     # 2) cover 域开门/开到位服务 + 实体名疑似车库门/大门
     #    set_cover_position 的 position≈100 等效开门，也须拦截
     try:
-        position = float((service_data or {}).get("position"))  # type: ignore[arg-type]
+        position = float((service_data or {}).get("position"))  # pyright: ignore[reportArgumentType]
     except (TypeError, ValueError):
         position = float("nan")
     cover_opens_fully = service in COVER_OPEN_SERVICES or (

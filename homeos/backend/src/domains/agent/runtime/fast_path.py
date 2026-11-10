@@ -805,7 +805,7 @@ class FastPathService:
             if temp_hit is _FAST_PATH_ABORT:
                 return None
             if temp_hit is not None:
-                return temp_hit  # type: ignore[return-value]
+                return temp_hit  # pyright: ignore[reportReturnType]
 
         # 2) 确定性属性控制：相对温度 / 亮度 / 色温 / 窗帘位置 / 媒体 / 风速 / 空调模式
         for parser in (

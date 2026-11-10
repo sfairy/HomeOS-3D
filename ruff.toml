@@ -48,9 +48,6 @@ ignore = [
   "S606",  # 容器入口不以 shell 启动进程，正是期望行为
 ]
 
-[lint.per-file-ignores]
-"*/migrations/versions/*" = ["E", "UP"]
-
 [lint.isort]
 relative-imports-order = "closest-to-furthest"
 # packages/shared-py 不在仓库根下，ruff 自动发现看不到，须显式点名才会落 first-party 段。

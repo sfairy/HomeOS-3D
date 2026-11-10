@@ -111,7 +111,7 @@ def collect() -> list[ComplexityFinding]:
     findings: list[ComplexityFinding] = []
     for item in _run_ruff():
         filename = Path(str(item["filename"])).resolve()
-        row = int(item["location"]["row"])  # type: ignore[index]
+        row = int(item["location"]["row"])  # pyright: ignore[reportIndexIssue]
         relative = filename.relative_to(REPO_ROOT).as_posix()
         findings.append(
             ComplexityFinding(

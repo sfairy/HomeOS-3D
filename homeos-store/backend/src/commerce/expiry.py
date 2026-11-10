@@ -74,6 +74,6 @@ def prune_expired_sessions(
         return 0
     deleted = session.execute(
         delete(AccountSession).where(AccountSession.id_hash.in_(ids))
-    ).rowcount  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    ).rowcount  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
     session.flush()
     return int(deleted or 0)

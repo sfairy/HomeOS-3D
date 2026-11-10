@@ -164,7 +164,7 @@ class B64UrlDecodeTest(unittest.TestCase):
 
     def test_non_string_raises_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            b64url_decode(b"YWJj")  # type: ignore[arg-type]
+            b64url_decode(b"YWJj")
 
 
 MIGRATIONS_TABLE_DDL = (
