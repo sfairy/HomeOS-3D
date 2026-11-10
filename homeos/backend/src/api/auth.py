@@ -38,7 +38,6 @@ from ..domains.store import (
 )
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import LoginSession, User
-from ..platform.core.http.deps import get_session
 from ..platform.core.http.errors import BusinessException
 from ..platform.security.auth_context import invalidate_session_cache
 from ..platform.security.client_address import (
@@ -478,12 +477,12 @@ async def register(
 
 
 @router.post("/auth/login", response_model=UserResponse, status_code=status.HTTP_200_OK)
-def login(
-    payload: LoginRequest,
-    request: Request,
-    response: Response,
-    session: Session = Depends(get_session),
-) -> UserResponse:
+def login(payload: LoginRequest, request: Request, response: Response) -> UserResponse:
+    with request.app.state.database.session_factory() as session:
+        return _login(session, payload, request, response)
+
+
+def _login(session: Session, payload: LoginRequest, request: Request, response: Response) -> UserResponse:
     require_same_origin_write(request)
     account = payload.username.strip()
     account_lower = account.lower()

@@ -17,14 +17,12 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Query, Request
 from pydantic import BeforeValidator, ConfigDict
-from sqlalchemy.orm import Session
 
 from .router import NestRouter
 from .schemas.base import StrictModel as _StrictModel
 from ..dependencies import license_feature
 from ..domains.alerts.channels import resolve_notification_fetch_limit
 from ..domains.license import features as feature_codes
-from ..platform.core.http.deps import get_session
 from ..platform.core.http.errors import api_error, forbidden
 from ..platform.core.runtime.app_config import load_raw_config
 from ..platform.security.auth_context import get_current_user, require_user
@@ -129,10 +127,14 @@ async def get_notifications(
     limit: str | None = Query(default=None),
     source: str | None = Query(default=None),
     user: dict[str, Any] = Depends(get_current_user),
-    session: Session = Depends(get_session),
 ):
     """获取通知列表（limit 受 frontend / notification 配置夹取）。"""
-    raw = await asyncio.to_thread(load_raw_config, session)
+
+    def _load_config() -> dict[str, Any]:
+        with request.app.state.database.session_factory() as session:
+            return load_raw_config(session)
+
+    raw = await asyncio.to_thread(_load_config)
     frontend = raw.get("frontend")
     notification = raw.get("notification")
     safe_limit = resolve_notification_fetch_limit(
