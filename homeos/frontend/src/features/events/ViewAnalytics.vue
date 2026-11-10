@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, type PropType } from 'vue'
 import { useEchartsHost, axisLineStyle, splitLineStyle, yMax } from '@/composables/ui/useEchartsHost'
+import { chartLinearGradient, createChartTooltip } from '@/shared/utils/chart/chart-primitives'
 import {
   buildDomainBuckets,
   buildEntityBuckets,
@@ -146,28 +147,20 @@ const kpiCells = computed(() => {
 })
 
 // 三图共用 tooltip 样式（深底 + 青色字 + 毛玻璃边框）
-const chartTooltip = {
-  backgroundColor: 'rgba(12, 12, 18, 0.94)',
+const chartTooltip = createChartTooltip('rgba(12, 12, 18, 0.94)', {
   borderColor: 'rgba(34, 211, 238, 0.32)',
   borderWidth: 1,
   padding: [8, 12],
   extraCssText: 'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
   textStyle: { color: '#a5f3fc', fontSize: 12, fontWeight: 600 },
-}
+})
 
 /** 实体条形图的纵向渐变填充：顶部实色 + 底部半透明，营造发光感。 */
 function barGradient(color: string) {
-  return {
-    type: 'linear',
-    x: 0,
-    y: 0,
-    x2: 0,
-    y2: 1,
-    colorStops: [
-      { offset: 0, color },
-      { offset: 1, color: `${color}66` },
-    ],
-  }
+  return chartLinearGradient([
+    [0, color],
+    [1, `${color}66`],
+  ])
 }
 
 /** 域分布饼图 option：空数据时给单条「暂无」占位避免空白。 */
@@ -230,17 +223,10 @@ function buildTimeOption() {
         lineStyle: { width: 2.5, color: '#22d3ee' },
         itemStyle: { color: '#22d3ee', borderColor: '#0ea5e9', borderWidth: 1 },
         areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(34, 211, 238, 0.35)' },
-              { offset: 1, color: 'rgba(34, 211, 238, 0.02)' },
-            ],
-          },
+          color: chartLinearGradient([
+            [0, 'rgba(34, 211, 238, 0.35)'],
+            [1, 'rgba(34, 211, 238, 0.02)'],
+          ]),
         },
       },
     ],
