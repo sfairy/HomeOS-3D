@@ -1,3 +1,5 @@
+import type { queryEditorElements } from '../home/elements/editor-elements'
+
 /**
  * 导航检查器的「表单输入 → 属性」元数据表 —— 从 home.ts 单体切出。
  *
@@ -6,47 +8,7 @@
  * 多声明语句已整条随切片搬出（`--whole-statement`），调用点零改写。
  */
 
-interface NavigationInputElementRefs {
-  navigationFrameActiveOpacityElement: any
-  navigationFrameAngleElement: any
-  navigationFrameColorElement: any
-  navigationFrameIdleOpacityElement: any
-  navigationFrameVisibleElement: any
-  navigationFrameWidthElement: any
-  navigationGlowActiveSizeElement: any
-  navigationGlowActiveStrengthElement: any
-  navigationGlowAngleElement: any
-  navigationGlowColorElement: any
-  navigationGlowIdleSizeElement: any
-  navigationGlowIdleStrengthElement: any
-  navigationGlowVisibleElement: any
-  navigationIconActiveOpacityElement: any
-  navigationIconColorElement: any
-  navigationIconIdleOpacityElement: any
-  navigationIconLeftElement: any
-  navigationIconSizeElement: any
-  navigationIconTopElement: any
-  navigationIconVisibleElement: any
-  navigationMainColorElement: any
-  navigationMainSizeElement: any
-  navigationMainSpacingElement: any
-  navigationMainTextElement: any
-  navigationMainTextLeftElement: any
-  navigationMainTextTopElement: any
-  navigationMainVisibleElement: any
-  navigationMainWeightElement: any
-  navigationRadiusElement: any
-  navigationSecondaryColorElement: any
-  navigationSecondarySizeElement: any
-  navigationSecondarySpacingElement: any
-  navigationSecondaryTextElement: any
-  navigationSecondaryTextLeftElement: any
-  navigationSecondaryTextTopElement: any
-  navigationSecondaryVisibleElement: any
-  navigationSecondaryWeightElement: any
-  navigationTextActiveOpacityElement: any
-  navigationTextIdleOpacityElement: any
-}
+type NavigationInputElementRefs = ReturnType<typeof queryEditorElements>
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。
