@@ -7,19 +7,22 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { registerHooks } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
-// 前端源码用无扩展名的相对导入（交给 Vite 解析），这里补上 `.ts`。
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier.startsWith('.') && !/\.[mc]?[jt]s$/.test(specifier)) {
-      const candidate = new URL(specifier + '.ts', context.parentURL)
-      if (existsSync(fileURLToPath(candidate))) return nextResolve(candidate.href, context)
-    }
-    return nextResolve(specifier, context)
-  },
-})
+// 前端源码用无扩展名的相对导入（交给 Vite 解析），Node 下补上 `.ts`；
+// bun（test:studio 的运行器）自己能解析，且没有 registerHooks，只能按需动态导入。
+if (!process.versions.bun) {
+  const { registerHooks } = await import('node:module')
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier.startsWith('.') && !/\.[mc]?[jt]s$/.test(specifier)) {
+        const candidate = new URL(specifier + '.ts', context.parentURL)
+        if (existsSync(fileURLToPath(candidate))) return nextResolve(candidate.href, context)
+      }
+      return nextResolve(specifier, context)
+    },
+  })
+}
 
 const frontendRoot = new URL('../../../../homeos/frontend/', import.meta.url)
 const THREE = await import(new URL('public/static/vendor/three/0.187.0/three.module.min.js', frontendRoot).href)
