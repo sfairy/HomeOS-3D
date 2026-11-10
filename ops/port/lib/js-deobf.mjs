@@ -19,7 +19,7 @@ import vm from 'node:vm'
 
 const ID = /^_0x[0-9a-fA-F]{3,8}$/
 const DECODER_CALL =
-  /(_0x[0-9a-fA-F]{3,8})\s*\(\s*(0x[0-9a-fA-F]+|\d+|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*(?:,\s*([^)]*?))?\)/g
+  /(_0x[0-9a-fA-F]{3,8})\s*\(\s*(0x[0-9a-fA-F]+|\d+|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*(?:,\s*([^()]*?))?\)/g
 
 /** 从 `{` 开始做括号配平，返回闭合大括号之后的位置。会跳过字符串 / 模板 / 注释。 */
 function matchBrace(source, openIndex) {
@@ -179,9 +179,17 @@ export function deobfuscate(source, options = {}) {
   }
 
   // 别名：`const _0xaaa=_0xdecoder;`
-  for (const m of body.matchAll(/(?:const|let|var)\s+(_0x[0-9a-fA-F]{3,8})\s*=\s*(_0x[0-9a-fA-F]{3,8})\b/g)) {
-    const fn = decoders.get(m[2])
-    if (fn && !decoders.has(m[1])) decoders.set(m[1], fn)
+  // 也会出现在逗号链中（`…,_0xaaa=_0xdecoder;`）或别名的别名，迭代到不动点
+  const aliasPattern = /(?:\b(?:const|let|var)\s+|,\s*)(_0x[0-9a-fA-F]{3,8})\s*=\s*(_0x[0-9a-fA-F]{3,8})\s*(?=[,;])/g
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const m of body.matchAll(aliasPattern)) {
+      const fn = decoders.get(m[2])
+      if (fn && !decoders.has(m[1])) {
+        decoders.set(m[1], fn)
+        grew = true
+      }
+    }
   }
 
   const cache = new Map()

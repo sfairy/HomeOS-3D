@@ -1,22 +1,30 @@
 /**
- * 把 0.8.4 / 0.8.5 里同名 JS 产物成对反混淆到 /tmp/085，便于人工对照移植。
+ * 把两个上游版本里同名 JS 产物成对反混淆到临时目录，便于人工对照移植。
  *
- *   node ops/port/deobf-pair.mjs frontend/modules/interaction3d/television-panel.js ...
+ *   node ops/port/deobf-pair.mjs [--old 0.8.5] [--new 0.8.6] [--out /tmp/086] frontend/modules/interaction3d/television-panel.js ...
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { deobfuscate } from './lib/js-deobf.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '../../源代码')
-const OUT = '/tmp/085'
 
-for (const relative of process.argv.slice(2)) {
-  for (const version of ['0.8.4', '0.8.5']) {
+const argv = process.argv.slice(2)
+const options = { '--old': '0.8.5', '--new': '0.8.6', '--out': '/tmp/086' }
+const files = []
+for (let i = 0; i < argv.length; i += 1) {
+  if (argv[i] in options) options[argv[i]] = argv[++i]
+  else files.push(argv[i])
+}
+
+for (const relative of files) {
+  for (const version of [options['--old'], options['--new']]) {
     const source = path.join(ROOT, version, relative)
     if (!fs.existsSync(source)) continue
-    const target = path.join(OUT, version, relative.replace(/\.js$/, '.pretty.js'))
+    const target = path.join(options['--out'], version, relative.replace(/\.js$/, '.pretty.js'))
     fs.mkdirSync(path.dirname(target), { recursive: true })
-    const code = deobfuscate(fs.readFileSync(source, 'utf8'))
+    const result = deobfuscate(fs.readFileSync(source, 'utf8'))
+    const code = typeof result === 'string' ? result : result.code
     fs.writeFileSync(target, code)
     console.log(version, relative, '→', target, code.length)
   }
