@@ -824,46 +824,11 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-
-.home-mode-panel .hm-action-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  transition: background 0.2s;
-}
 .home-mode-panel .hm-action-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.home-mode-panel .hm-action-block {
-  margin-bottom: 0;
-  border-radius: var(--hos-radius-card);
-  background: rgba(0, 0, 0, 0.18);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  overflow: hidden;
-}
-.home-mode-panel .hm-action-block:hover {
-  border-color: var(--page-accent-border);
-}
-.home-mode-panel .hm-action-row__index {
-  flex: 0 0 22px;
-  font-size: var(--premium-fs-micro);
-  font-weight: 800;
-  color: var(--page-accent-text);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.home-mode-panel .hm-action-row__kind,
-.home-mode-panel .hm-action-row__domain,
-.home-mode-panel .hm-action-row__service {
-  width: max-content;
-  min-width: 0;
-  max-width: 100%;
-}
-.home-mode-panel .hm-field__input--inline,
 .home-mode-panel .hm-field__input--time {
   flex: 1 1 0;
   min-width: 0;
@@ -916,7 +881,6 @@
   transition: all 0.15s;
 }
 .home-mode-panel .hm-action-del--visible,
-.home-mode-panel .hm-action-block:hover .hm-action-del,
 .home-mode-panel .hm-trigger-card:hover .hm-action-del {
   opacity: 1;
 }
@@ -1111,11 +1075,6 @@
   gap: 8px;
   margin-top: 8px;
 }
-.home-mode-panel .hm-service-data-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
 
 /* 共享空态 */
 .home-mode-panel .hm-premium-empty {
@@ -1245,16 +1204,6 @@
 .home-mode-panel .hos-select--home-mode .hos-select__trigger--open {
   border-color: var(--page-accent-border);
   background: rgba(0, 0, 0, 0.42);
-}
-
-.home-mode-panel .hm-exec-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-card);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .home-mode-panel .hm-delete-mode-btn {
@@ -1627,9 +1576,6 @@
   .home-mode-panel .hm-batch-panel__grid {
     grid-template-columns: 1fr;
   }
-  .home-mode-panel .hm-action-row {
-    flex-wrap: wrap;
-  }
   .home-mode-panel--embedded .hm-context-pills {
     display: flex;
     flex-wrap: wrap;
@@ -1665,9 +1611,6 @@
   }
   .home-mode-panel .hm-batch-panel__grid {
     grid-template-columns: 1fr;
-  }
-  .home-mode-panel .hm-action-row {
-    flex-wrap: wrap;
   }
   .home-mode-panel--embedded .hm-context-pills {
     display: flex;

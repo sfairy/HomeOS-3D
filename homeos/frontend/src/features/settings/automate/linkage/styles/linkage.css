@@ -120,15 +120,6 @@
   color: var(--hos-text-secondary);
 }
 
-.linkage-stat--active {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(var(--page-accent-rgb), 0.22);
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(var(--page-accent-rgb), 0.1), transparent 70%),
-    var(--hub-surface, linear-gradient(165deg, rgba(255, 255, 255, 0.038) 0%, rgba(0, 0, 0, 0.2) 100%));
-}
-
 .linkage-workspace-block__content {
   margin-top: 14px;
 }

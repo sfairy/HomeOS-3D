@@ -143,31 +143,6 @@
   border-color: rgba(56, 189, 248, 0.35);
 }
 
-.v-empty__action a.v-empty__link--inline {
-  padding: 0;
-  border: none;
-  background: none;
-  font-weight: 700;
-  color: #fbbf24;
-}
-
-.v-empty__action a.v-empty__link--inline:hover {
-  color: #fcd34d;
-  background: none;
-}
-
-.v-empty__action a.v-empty__link--success {
-  color: rgba(110, 231, 183, 0.95);
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.22);
-}
-
-.v-empty__action a.v-empty__link--success:hover {
-  color: #a7f3d0;
-  background: rgba(52, 211, 153, 0.16);
-  border-color: rgba(52, 211, 153, 0.35);
-}
-
 .v-empty__action .list-page__btn {
   font-size: var(--premium-fs-caption);
 }

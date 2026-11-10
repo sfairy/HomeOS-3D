@@ -56,25 +56,6 @@
 /* ── security-banners.css ── */
 /* ── 告警横幅 ── */
 
-.sec-degrade-retry {
-  padding: 7px 14px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-micro);
-  font-weight: 700;
-  font-family: inherit;
-  color: var(--set-warn);
-  background: rgba(var(--set-warn-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--set-warn-rgb), 0.28);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    background 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 .sec-alert-banner-title {
   font-size: var(--premium-fs-caption);
   font-weight: 800;
@@ -83,34 +64,9 @@
 }
 
 /* ── security-sov-panel.css ── */
-/* 安防总览 / 审计面板 — 共用 premium 玻璃面板 */
-
-.sov-panel--grow {
-  flex: 1;
-}
 
 /* ── security-hub.css ── */
 /* ── 指挥中枢 ── */
-
-.sec-mode-segment {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: var(--hos-radius-panel);
-  background: rgba(0, 0, 0, 0.28);
-  border: var(--hos-hairline) solid var(--premium-border);
-}
-
-.sec-mode-btn--active {
-  color: var(--hos-on-accent);
-  background: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 14%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 38%, rgba(0, 0, 0, 0));
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--mode-accent, var(--page-accent)) 12%, rgba(0, 0, 0, 0));
-}
 
 .sec-kpi-value {
   font-size: var(--premium-fs-stat);
@@ -120,38 +76,8 @@
 }
 
 /* ── security-audit-list.css ── */
-/* ── 审计日志 ── */
-
-.sec-event-refresh {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  color: var(--hos-text-secondary);
-  background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--premium-border);
-  transition: all 0.15s ease;
-  cursor: pointer;
-}
 
 /* ── security-sensors.css ── */
-/* ── 传感器列表 ── */
-
-.sec-sensor-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  margin-bottom: 3px;
-  border: var(--hos-hairline) solid transparent;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease;
-}
 
 /* ── security-zones.css ── */
 /* ── 安防区域 ── */
@@ -160,13 +86,6 @@
   padding: 4px 0 16px;
   max-height: 200px;
   overflow-y: auto;
-}
-
-.sec-zone-state.is-armed {
-  color: rgba(var(--set-danger-rgb), 0.85);
-}
-.sec-zone-state.is-ok {
-  color: rgba(var(--set-success-rgb), 0.65);
 }
 
 /* ── security-zones-editor.css ── */
@@ -1108,48 +1027,6 @@
 }
 
 /* ── security-audit-cards.css ── */
-/* ── 审计事件卡片 ── */
-.sec-event-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
-  min-width: 0;
-}
-
-.sec-event-item.sec-event-item--danger {
-  border-color: rgba(var(--set-danger-rgb), 0.18);
-  background: rgba(var(--set-danger-rgb), 0.04);
-}
-
-.sec-event-item.sec-event-item--danger .sec-event-item-label {
-  color: rgba(var(--set-danger-rgb), 0.9);
-}
-
-.sec-event-item.sec-event-item--mode {
-  border-color: rgba(var(--page-accent-rgb), 0.18);
-  background: rgba(var(--page-accent-rgb), 0.04);
-}
-
-.sec-event-item.sec-event-item--mode .sec-event-item-label {
-  color: rgba(var(--page-accent-rgb), 0.9);
-}
-
-.sec-event-item.sec-event-item--ok {
-  border-color: rgba(var(--set-success-rgb), 0.15);
-  background: rgba(var(--set-success-rgb), 0.03);
-}
-
-.sec-event-item.sec-event-item--ok .sec-event-item-label {
-  color: rgba(var(--set-success-rgb), 0.85);
-}
-
-.sec-event-item.sec-event-item--sensor {
-  border-color: var(--premium-border);
-}
 
 /* ── security-monitor.css ── */
 /* ── 监控工具栏 ── */
@@ -2095,27 +1972,10 @@
   padding: 4px 8px 12px;
 }
 
-.sec-dash-sensor-state.is-alert {
-  color: var(--set-danger);
-  background: rgba(var(--set-danger-rgb), 0.12);
-}
-
-.sec-dash-sensor-state.is-ok {
-  color: var(--set-success);
-  background: rgba(var(--set-success-rgb), 0.1);
-}
-
 .sec-dash-zone-list {
   padding: 8px 10px 12px;
   max-height: 200px;
   overflow-y: auto;
-}
-
-.sec-dash-zone-state.is-armed {
-  color: var(--set-danger);
-}
-.sec-dash-zone-state.is-ok {
-  color: var(--set-success);
 }
 
 .sec-dash-audit-filters {
@@ -2927,8 +2787,7 @@
   }
 
   /* 模式按钮 / 状态环：去掉外圈光晕，仅保留描边 */
-  .sec-dash-mode-btn--active,
-  .sec-mode-btn--active {
+  .sec-dash-mode-btn--active {
     box-shadow: none;
     background: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 14%, rgba(0, 0, 0, 0));
   }
@@ -2955,8 +2814,7 @@
   }
 
   /* 模式按钮 / 状态环：去掉外圈光晕，仅保留描边 */
-  .sec-dash-mode-btn--active,
-  .sec-mode-btn--active {
+  .sec-dash-mode-btn--active {
     box-shadow: none;
     background: color-mix(in srgb, var(--mode-accent, var(--page-accent)) 14%, rgba(0, 0, 0, 0));
   }
@@ -2994,8 +2852,7 @@
     overflow: auto;
   }
 
-  .sov-workspace > aside,
-  .sov-workspace > .sov-side {
+  .sov-workspace > aside {
     max-height: min(40vh, 320px);
     overflow: auto;
   }

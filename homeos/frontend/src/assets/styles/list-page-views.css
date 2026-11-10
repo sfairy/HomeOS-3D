@@ -212,14 +212,6 @@
 .device-detail-view .list-page__row-main--clickable:hover .list-page__row-name {
   color: color-mix(in srgb, var(--page-accent) 45%, white);
 }
-.rooms-view__chev--open {
-  transform: rotate(90deg);
-  opacity: 0.85;
-}
-.rooms-view__dot--on {
-  background: #34d399;
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.45);
-}
 .list-page__form-title {
   margin: 0 0 10px;
   font-size: var(--premium-fs-caption);
@@ -390,10 +382,6 @@
   min-width: 0;
   padding: 10px 14px;
   border-bottom: var(--hos-hairline) solid var(--premium-border);
-}
-
-.devices-view__panel-toolbar-row--actions .devices-view__list-count {
-  margin-left: auto;
 }
 
 .devices-view__domain-tabs-shell {
@@ -754,11 +742,6 @@
   }
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar > .device-filter {
     max-height: min(36vh, 280px);
-  }
-  .devices-view__panel-toolbar-row--actions .devices-view__list-count {
-    margin-left: 0;
-    width: 100%;
-    text-align: right;
   }
 }
 

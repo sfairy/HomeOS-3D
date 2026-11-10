@@ -224,12 +224,8 @@
 /* 离开动画中的遮罩不得拦截下层点击（生活/联动 Tab 常见误伤） */
 .teleport-target > .hos-modal-leave-active,
 .teleport-target > .hos-modal-leave-to,
-.teleport-target > .linkage-builder-drawer-leave-active,
-.teleport-target > .linkage-builder-drawer-leave-to,
 .teleport-target > .fade-leave-active,
-.teleport-target > .fade-leave-to,
-.teleport-target > .saw-fade-leave-active,
-.teleport-target > .saw-fade-leave-to {
+.teleport-target > .fade-leave-to {
   pointer-events: none !important;
 }
 

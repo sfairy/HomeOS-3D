@@ -31,16 +31,6 @@
   );
 }
 
-/* ── 预设多彩渐变文字（复用 main.css 既有 --gradient-* 预设） ── */
-
-.text-gradient-sunset {
-  background: var(--gradient-sunset, linear-gradient(135deg, #ff6b3d 0%, #ff3b8b 50%, #bf5af2 100%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
 /* ── 卡片 hover 外发光（随页面色） ── */
 .card-hover-glow:hover {
   box-shadow:

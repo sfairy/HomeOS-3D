@@ -117,7 +117,6 @@
 .settings-page.diagnostics-hub,
 .settings-page.access-hub,
 .settings-page.alert-hub,
-.settings-page.env-health-hub,
 .settings-page.life-accounts-hub,
 .settings-page.favorites-hub {
   --hos-color-accent-rgb: var(--hos-color-accent-strong-rgb);
@@ -133,7 +132,6 @@
 
 .settings-page.widgets-hub,
 .settings-page.assets-hub-page,
-.settings-page.orchestrator-hub,
 .settings-page.sm-panel {
   --hos-color-accent-strong: var(--hos-color-accent);
   --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);

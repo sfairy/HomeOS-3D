@@ -212,10 +212,6 @@
   width: 100%;
 }
 
-.hcc-card__legend-chip--off {
-  opacity: 0.38;
-}
-
 .hcc-card__legend-value {
   font-size: var(--premium-fs-micro);
   font-weight: 700;

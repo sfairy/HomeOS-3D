@@ -7,18 +7,6 @@
   letter-spacing: -0.01em;
 }
 
-.dgm-floor-btn--active {
-  background: #0a84ff;
-  color: #fff;
-  border-color: rgba(10, 132, 255, 0.4);
-  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.25);
-}
-
-.entity-card-dense.is-active {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--premium-border);
-}
-
 .entity-card-large {
   background: rgba(22, 22, 30, 0.85);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
@@ -64,12 +52,6 @@
   justify-content: flex-start;
   min-width: 0;
   padding: 16px 12px;
-}
-
-.dgm-entity-icon--off {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-muted);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
 
 /* === 气候卡片内部 === */

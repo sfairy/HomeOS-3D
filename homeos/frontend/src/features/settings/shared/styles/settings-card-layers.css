@@ -34,11 +34,9 @@
 
 /* ── 外层透明：内层已是卡片网格 / Hero 流程 ── */
 .settings-card--static:has(> .advisor-hub__layout),
-.settings-card--static.advisor-hub__card,
 .settings-card--static:has(.access-hero__bar),
 .settings-card--static:has(> .exec-history-panel),
-.settings-card--static:has(> .settings-orch-dock),
-.settings-card--static.settings-card--keep-flat {
+.settings-card--static:has(> .settings-orch-dock) {
   padding: 0;
   background: transparent;
   border-color: transparent;
@@ -53,8 +51,6 @@
 .settings-card--static.general-brand-card,
 .settings-card--static.rooms-catalog-card,
 .settings-card--static.rooms-scope-card,
-.settings-card--static.rooms-hero-card--compact,
-.settings-card--static.settings-hero-card,
 .settings-card--static.diag-hero-card,
 .settings-card--static.diag-section-card,
 .settings-card--static.bind-sec-overview-card,
@@ -66,22 +62,19 @@
 .settings-card--static.charge-control-card,
 .settings-card--static.fp-overview-card,
 .settings-card--static.fp-workspace-card,
-.settings-card--static.exec-history-card,
 .settings-card--static.profiles-shell {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
 /* ── 内层 mini-block：accent tint（非独立玻璃壳） ── */
-.settings-card--static:not(.settings-card--keep-nested) .hub-stat,
-.settings-card--static:not(.settings-card--keep-nested) .settings-stat-card {
+.settings-card--static:not(.settings-card--keep-nested) .hub-stat {
   background: var(--set-mini-surface-bg);
   border-color: var(--set-mini-surface-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.settings-card--static:not(.settings-card--keep-nested) .hub-stat:hover,
-.settings-card--static:not(.settings-card--keep-nested) .settings-stat-card:hover {
+.settings-card--static:not(.settings-card--keep-nested) .hub-stat:hover {
   background: var(--set-mini-surface-bg-hover);
   border-color: var(--set-mini-surface-border-hover);
   transform: none;
@@ -125,21 +118,18 @@
 .settings-card--static:not(.settings-card--keep-nested) .voice-status-rooms,
 .settings-card--static:not(.settings-card--keep-nested) .voice-toggle-card,
 .settings-card--static:not(.settings-card--keep-nested) .settings-note-box,
-.settings-card--static:not(.settings-card--keep-nested) .settings-slider-block,
 .settings-card--static:not(.settings-card--keep-nested) .settings-range-field--block {
   background: var(--set-mini-surface-bg);
   border-color: var(--set-mini-surface-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-.settings-card--static:not(.settings-card--keep-nested) .voice-pipeline__node,
 .settings-card--static:not(.settings-card--keep-nested) .settings-flow__node {
   background: var(--set-mini-surface-bg);
   border-color: var(--set-mini-surface-border);
 }
 
 /* 流程节点 hover：微亮 accent */
-.settings-card--static:not(.settings-card--keep-nested) .voice-pipeline__node:hover,
 .settings-card--static:not(.settings-card--keep-nested) .settings-flow__node:hover {
   background: var(--set-mini-surface-bg-hover);
   border-color: var(--set-mini-surface-border-hover);

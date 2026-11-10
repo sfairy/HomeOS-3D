@@ -82,9 +82,7 @@
 }
 
 .sw-step-enter-active,
-.sw-step-leave-active,
-.sw-toast-enter-active,
-.sw-toast-leave-active {
+.sw-step-leave-active {
   transition:
     opacity 0.22s ease,
     transform 0.22s ease;

@@ -1,7 +1,6 @@
 /* 响应式 + Tailwind 排版映射 + 导航编辑器 */
 @container hos-canvas (min-width: 1440px) {
-  .settings-page-inset,
-  .settings-shell .settings-page__workspace--inset {
+  .settings-page-inset {
     padding-left: 2.5rem;
     padding-right: 2.5rem;
   }
@@ -10,12 +9,8 @@
 /* 宽屏不再覆盖卡片 padding：基线已是 --hos-panel-padding-default，
    避免 ≥1200 与 flat/workspace 的 padding:0 互相打架 */
 @container hos-canvas (max-width: 720px) {
-  .settings-choice-grid,
-  .settings-stat-grid {
+  .settings-choice-grid {
     grid-template-columns: 1fr;
-  }
-  .settings-card-row {
-    flex-wrap: wrap;
   }
 }
 
@@ -101,65 +96,43 @@
 .settings-shell .layout-edit-launch-title {
   font-size: var(--set-fs-title-sm);
 }
-.settings-shell .layout-edit-step-text {
-  font-size: var(--set-fs-body-sm);
-}
 
 /* ==========================================================================
    各面板局部样式对齐（三阶选择器压过 Vue scoped）
    ========================================================================== */
-.settings-shell .settings-page .access-hero__eyebrow,
-.settings-shell .settings-page .voice-status-item__k,
 .settings-shell .settings-page .voice-status-metric__k,
 .settings-shell .settings-page .voice-status-rooms__k,
-.settings-shell .settings-page .voice-pipeline__meta,
-.settings-shell .settings-page .hm-context-label,
 .settings-shell .settings-page .sm-field__label,
-.settings-shell .settings-page .alert-voice-group__title,
 .settings-shell .settings-page .vsc-preset__desc,
 .settings-shell .settings-page .vsc-chips__label {
   font-size: var(--set-fs-caption);
 }
 
-.settings-shell .settings-page .access-hero__name,
 .settings-shell .settings-page .voice-mode-card__title,
 .settings-shell .settings-page .sm-empty__title,
 .settings-shell .settings-page .vsc-preset__label {
   font-size: var(--set-fs-title-sm);
 }
 
-.settings-shell .settings-page .access-hero__chip,
-.settings-shell .settings-page .access-stat__lbl,
 .settings-shell .settings-page .voice-toggle-card__title,
 .settings-shell .settings-page .voice-toggle-card__desc,
 .settings-shell .settings-page .voice-mode-card__desc,
-.settings-shell .settings-page .voice-status-item__v,
 .settings-shell .settings-page .voice-status-metric__v,
 .settings-shell .settings-page .alert-voice-card__label,
 .settings-shell .settings-page .alert-voice-card__desc,
 .settings-shell .settings-page .alert-switch,
 .settings-shell .settings-page .settings-check-row,
-.settings-shell .settings-page .alert-stat__lbl,
-.settings-shell .settings-page .alert-trigger-tab,
-.settings-shell .settings-page .hm-context-val,
 .settings-shell .settings-page .sm-empty__desc,
 .settings-shell .settings-page .vsc-preview__text {
   font-size: var(--set-fs-body-sm);
 }
 
-.settings-shell .settings-page .access-stat__val,
 .settings-shell .settings-page .hub-stat__val {
   font-size: 20px;
 }
 
-.settings-shell .settings-page .alert-stat__lbl,
-.settings-shell .settings-page .access-stat__lbl,
 .settings-shell .settings-page .hub-stat__lbl {
   font-size: var(--set-fs-caption);
-}
-
-.settings-shell .settings-page .voice-pipeline__label {
-  font-size: var(--set-fs-body-sm);
 }
 
 .settings-shell .settings-page .hub-hero-bar__title {
@@ -168,8 +141,7 @@
 
 .settings-shell .settings-page .hub-hero-bar__eyebrow,
 .settings-shell .settings-page .hub-hero-bar__desc,
-.settings-shell .bind-energy-hint,
-.settings-shell .bind-cam-badge {
+.settings-shell .bind-energy-hint {
   font-size: var(--set-fs-caption);
 }
 
@@ -190,9 +162,6 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.32);
   background: rgba(251, 191, 36, 0.08);
-}
-
-@container hos-canvas (max-width: 640px) {
 }
 
 /* ── 基础设置 · 顶栏导航标签编辑器 ── */

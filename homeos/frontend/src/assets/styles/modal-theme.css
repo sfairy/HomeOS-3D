@@ -379,11 +379,6 @@
   color: var(--hos-text-faint);
 }
 
-.hos-modal-dropzone--active {
-  box-shadow: 0 0 0 2px color-mix(in srgb, #bf5af2 40%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, #bf5af2 35%, rgba(0, 0, 0, 0));
-}
-
 .hos-modal-search-wrap {
   position: relative;
   margin-bottom: 14px;
@@ -587,9 +582,4 @@
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.scale-fade-enter-active,
-.scale-fade-leave-active {
-  transition: all 0.35s var(--ease-bounce);
 }

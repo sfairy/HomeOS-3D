@@ -350,14 +350,6 @@
   background: rgba(244, 63, 94, 0.1);
 }
 
-/* ── 配置 Studio ── */
-
-.afh-nav__pill--active {
-  color: var(--hos-fg-1, #fff);
-  border-color: transparent;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-}
-
 /* ── 分区内容 ── */
 .afh-section__lead {
   display: flex;
@@ -956,17 +948,6 @@
   color: #c7d2fe;
 }
 
-.afh-floor-tab--active {
-  color: var(--afh-accent-strong);
-  border-color: var(--afh-accent-border);
-  background: var(--afh-accent-bg);
-}
-
-.afh-floor-tab--active .afh-floor-tab__count {
-  background: rgba(99, 102, 241, 0.2);
-  color: var(--afh-accent-strong);
-}
-
 /* ── 多色调色板 ── */
 .afh-card--tone-mint {
   --card-tone: #2dd4bf;
@@ -1123,11 +1104,6 @@
   color: #99f6e4;
   background: rgba(45, 212, 191, 0.12);
   border-color: rgba(45, 212, 191, 0.28);
-}
-
-.afh-nav__pill--orange.afh-nav__pill--active {
-  background: linear-gradient(135deg, rgba(251, 146, 60, 0.48), rgba(249, 115, 22, 0.32));
-  box-shadow: 0 8px 22px rgba(249, 115, 22, 0.2);
 }
 
 .afh-section--data .afh-form__field:first-of-type .afh-input {
@@ -1294,12 +1270,6 @@
 }
 
 /* ── 动效 ── */
-.afh-expand-enter-active,
-.afh-expand-leave-active {
-  transition:
-    opacity 0.24s var(--afh-ease),
-    transform 0.24s var(--afh-ease);
-}
 
 .afh-section-enter-active,
 .afh-section-leave-active {

@@ -475,11 +475,6 @@
   --settings-utility-reopen-slot: 96px;
 }
 
-.settings-shell--sidebar-collapsed .settings-independent-save-hint,
-.settings-shell--no-sidebar .settings-independent-save-hint {
-  margin-left: 0;
-}
-
 .settings-shell--no-sidebar .settings-breadcrumb {
   --settings-utility-reopen-slot: 0px;
 }
@@ -1604,28 +1599,12 @@ input.settings-field {
   height: 100%;
 }
 
-.settings-page--flush .orch-header,
-.settings-page--flush .sm-header,
-.settings-page--flush .orch-sync-health,
 .settings-page--flush .settings-orch-dock {
   flex-shrink: 0;
 }
 
 .settings-shell .params-page__workspace {
   flex: 1;
-  min-height: 0;
-  min-width: 0;
-  max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-left: var(--settings-inset-x);
-  padding-right: var(--settings-inset-x);
-  box-sizing: border-box;
-}
-
-.settings-shell .settings-page__workspace--inset {
-  flex: 1 1 0;
   min-height: 0;
   min-width: 0;
   max-width: 100%;
