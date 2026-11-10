@@ -125,16 +125,6 @@ HTTP_MESSAGE_TEXTS: dict[str, str] = {
     "tokenExpired": "登录已过期，请重新登录",
 }
 
-HTTP_STATUS_MESSAGES: dict[int, str] = {
-    400: HTTP_MESSAGE_TEXTS["badRequest"],
-    403: HTTP_MESSAGE_TEXTS["forbidden"],
-    404: HTTP_MESSAGE_TEXTS["notFound"],
-    408: HTTP_MESSAGE_TEXTS["timeout"],
-    409: HTTP_MESSAGE_TEXTS["conflict"],
-    429: HTTP_MESSAGE_TEXTS["rateLimited"],
-    500: HTTP_MESSAGE_TEXTS["internalServerError"],
-}
-
 _HTTP_MESSAGE_PATTERNS = {
     "throttler": re.compile(r"throttler|too many requests", re.IGNORECASE),
     "badRequest": re.compile(r"^bad request$", re.IGNORECASE),
