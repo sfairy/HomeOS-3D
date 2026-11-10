@@ -1,3 +1,5 @@
+import { applyTextureQuality } from '../render-kit/texture-quality'
+
 /**
  * 画布纹理的「按样式懒生成 + 进程内缓存」。
  *
@@ -28,8 +30,7 @@ export function createCachedCanvasTexture(
   }
   paint(canvasCtx, canvasElement.width, canvasElement.height)
   const texture = new threeApi.CanvasTexture(canvasElement)
-  texture.colorSpace = threeApi.SRGBColorSpace
-  texture.anisotropy = Math.min(maxAnisotropy || 1, 8)
+  applyTextureQuality(texture, maxAnisotropy, threeApi.SRGBColorSpace)
   texture.needsUpdate = true
   textureByStyle.set(style, texture)
   return texture

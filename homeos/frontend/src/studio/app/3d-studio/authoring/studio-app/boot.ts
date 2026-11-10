@@ -1655,7 +1655,6 @@ function resolveStageModelConcurrency() {
   const deviceCoreCount = Math.max(1, Math.floor(Number(navigator.hardwareConcurrency) || 2));
   return Math.min(6, Math.max(2, deviceCoreCount));
 }
-const stageModelConcurrency = resolveStageModelConcurrency();
 const modelAssetLoader = createModelAssetLoader2({
   THREE: ns2,
   resolveGLTFLoader: () => import("/static/vendor/three/0.187.0/GLTFLoader.js").then((loaderModule: any) => loaderModule.GLTFLoader),
@@ -1673,6 +1672,7 @@ const modelAssetLoader = createModelAssetLoader2({
       dracoLoader
     );
   },
+  getRenderer: () => appCtx.threeRenderer,
 });
 const modelPresentationState = {
   presented: false,
@@ -1705,7 +1705,7 @@ const externalModelRegistry = createExternalModelManager2({
     isModelInUse: checkModelInUse,
     requestRender: requestSceneRender,
     onLoadStateChange: publishModelLoadState,
-    maxConcurrentLoads: stageModelConcurrency,
+    maxConcurrentLoads: resolveStageModelConcurrency(),
   }),
   {
     loadExternalItemModel: ensureExternalModelLoaded,

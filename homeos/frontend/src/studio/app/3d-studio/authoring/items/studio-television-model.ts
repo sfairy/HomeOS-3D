@@ -1,3 +1,4 @@
+import { applyTextureQuality } from '../../render-kit/texture-quality'
 /**
  * 电视模型构件：屏幕本体 / 发光层 / 贴图（`createTelevisionPoster`）与挂装比例的换算
  * （`computeTelevisionProportions`，桌面 / 移动 / 壁挂三档）。
@@ -31,8 +32,7 @@ function createTelevisionPoster(deps: StudioTelevisionDeps) {
   drawTelevisionPoster2(posterCanvas, posterCanvasPainter)
   const posterTexture = new ns2.CanvasTexture(posterCanvas)
   return (
-    (posterTexture.colorSpace = ns2.SRGBColorSpace),
-    (posterTexture.anisotropy = Math.min(deps.threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1, 8)),
+    applyTextureQuality(posterTexture, deps.threeRenderer, ns2.SRGBColorSpace),
     (posterTexture.needsUpdate = true),
     posterTexture
   )

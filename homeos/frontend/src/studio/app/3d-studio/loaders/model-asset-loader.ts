@@ -1,3 +1,5 @@
+import { applyTreeTextureAnisotropy, isLegacyTextureQuality, textureAnisotropyFor } from '../render-kit/texture-quality'
+
 type DisposableResource = { dispose?: () => void }
 
 type TextureLike = DisposableResource & { isTexture?: boolean }
@@ -27,6 +29,20 @@ export function releaseModelAsset(modelAsset: any) {
   for (const disposableResource of [...meshGeometrySet, ...meshMaterialSet, ...textureSet])
     disposableResource.dispose?.()
 }
+const legacyTextureQuality = isLegacyTextureQuality()
+
+/** 解析完成、首次上传之前补齐各向异性（GLTFLoader 默认 1）。 */
+function applyLoadedTextureQuality<T extends { scene?: unknown; scenes?: unknown[] }>(
+  parsedModel: T,
+  renderer: unknown,
+) {
+  if (legacyTextureQuality || !renderer) return parsedModel
+  const anisotropy = textureAnisotropyFor(renderer as Parameters<typeof textureAnisotropyFor>[0])
+  for (const scene of parsedModel?.scenes || [parsedModel?.scene])
+    applyTreeTextureAnisotropy(scene as Parameters<typeof applyTreeTextureAnisotropy>[0], anisotropy)
+  return parsedModel
+}
+
 export function createModelAssetLoader({
   THREE: three,
   GLTFLoader: gltfLoaderClass,
@@ -38,6 +54,7 @@ export function createModelAssetLoader({
   resolveURL: resolveAssetUrl = (assetUrl: any) => assetUrl,
   scheduleDeadline: scheduleDeadline = setTimeout,
   cancelDeadline: cancelDeadline = clearTimeout,
+  getRenderer: getRenderer = () => null,
 }: any) {
   const loaderPool: any = [],
     pendingAbortSet = new Set<(abortReason?: unknown) => void>(),
@@ -120,7 +137,9 @@ export function createModelAssetLoader({
           return await loaderBundle.loader.parseAsync(modelBuffer, basePath)
         })().then(
           (parsedModel) => {
-            abortController.signal.aborted ? releaseModelAsset(parsedModel) : resolveLoad(parsedModel)
+            abortController.signal.aborted
+              ? releaseModelAsset(parsedModel)
+              : resolveLoad(applyLoadedTextureQuality(parsedModel, getRenderer()))
           },
           (loadError) => {
             retireLoaderBundle(loaderBundle), rejectLoad(loadError)

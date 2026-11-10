@@ -1,3 +1,4 @@
+import { applyTextureQuality } from '../render-kit/texture-quality'
 import { createCachedCanvasTexture } from './texture-cache'
 
 const MURAL_ART_STYLES = Object.freeze(['bauhaus', 'colorfield', 'linework', 'blocks', 'ink', 'terrazzo'])
@@ -759,8 +760,7 @@ export function createStoneSlabTexture(threeApi: any, flavor: any, maxAnisotropy
   }
   paintMarbleSlab(canvasCtx, canvasElement.width, canvasElement.height, tone)
   const texture = new threeApi.CanvasTexture(canvasElement)
-  texture.colorSpace = threeApi.sRGBColorSpace ?? threeApi.SRGBColorSpace
-  texture.anisotropy = Math.min(maxAnisotropy || 1, 8)
+  applyTextureQuality(texture, maxAnisotropy, threeApi.SRGBColorSpace)
   texture.needsUpdate = true
   stoneSlabTextures.set(flavor, texture)
   return texture

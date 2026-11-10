@@ -129,7 +129,7 @@ export function createSpeakerModel(
         metalness: metalness,
       }),
     bodyMaterial = createMaterial(isWarmWood ? options.furnitureLight : options.appliance, 0.92)
-  ;(bodyMaterial.bumpMap = weaveTexture), (bodyMaterial.bumpScale = 0.00022), (weaveTexture.anisotropy = 4)
+  ;(bodyMaterial.bumpMap = weaveTexture), (bodyMaterial.bumpScale = 0.00022)
   const footRingMaterial = createMaterial(isWarmWood ? options.wood : options.applianceDark, 0.52, 0.08),
     topPlateMaterial = createMaterial(isWarmWood ? options.appliance : options.applianceDark, 0.53, 0.05),
     darkMaterial = createMaterial(options.applianceDark, 0.8),
@@ -194,7 +194,7 @@ export function createSpeakerModel(
     speakerGrilleCanvas = createGrilleCanvas(document, speakerGrilleBackgroundColor, speakerGrilleHoleColor),
     speakerGrilleEntry = sharedTextureEntry(document, speakerGrilleCacheKey, () => {
       const grilleTexture = new three.CanvasTexture(speakerGrilleCanvas)
-      return ((grilleTexture.colorSpace = three.SRGBColorSpace), (grilleTexture.anisotropy = 4), grilleTexture)
+      return ((grilleTexture.colorSpace = three.SRGBColorSpace), grilleTexture)
     }),
     grilleTexture = speakerGrilleEntry.texture
   const topPlateMesh = speakerGroup.children[speakerGroup.children.length - 1],

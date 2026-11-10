@@ -9,6 +9,8 @@ import {
   bindNamedPageHideOnce,
   configureCappedGroundReflection,
   createMotionIdleQualityApplier,
+  createSceneTextureAnisotropySync,
+  createShadowCasterMuter,
   type PageHideBinding,
 } from './render-loop-idle-quality'
 import { attachReflectionProbeMesh } from './render-loop-reflection-probe'
@@ -1380,6 +1382,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
   }
   const We3 = (isEmbedStageMode || floorEffectsQuery === 'follow') && floorEffectsQuery !== 'deferred'
   const shadowIntensitiesByLight = new Map()
+  const muteShadowCasters = createShadowCasterMuter(appCtx, shadowIntensitiesByLight)
   function setShadowsEnabled(shadowEnabledFlag: any) {
     if (ctx.hasShadowBoost !== shadowEnabledFlag) {
       if (((ctx.hasShadowBoost = shadowEnabledFlag), We3)) {
@@ -1395,14 +1398,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           (ctx.isShadowBoostActive = appCtx.threeRenderer.shadowMap.autoUpdate),
           (appCtx.threeRenderer.shadowMap.autoUpdate = false),
           (appCtx.threeRenderer.shadowMap.needsUpdate = false),
-          appCtx.threeScene.traverse((shadowNode: any) => {
-            !shadowNode.isLight ||
-              !shadowNode.castShadow ||
-              !shadowNode.shadow ||
-              (shadowIntensitiesByLight.has(shadowNode.shadow) ||
-                shadowIntensitiesByLight.set(shadowNode.shadow, shadowNode.shadow.intensity ?? 1),
-              (shadowNode.shadow.intensity = 0))
-          }))
+          muteShadowCasters())
         : ((appCtx.threeRenderer.shadowMap.autoUpdate = ctx.isShadowBoostActive),
           (appCtx.threeRenderer.shadowMap.needsUpdate = true),
           (ctx.shadowBoostStart = performance.now())),
@@ -1505,12 +1501,14 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     sceneRootNode: appCtx.sceneRootNode,
     geometryBoxes: ctx.geometryBoxes,
   })
+  const syncSceneTextureAnisotropy = createSceneTextureAnisotropySync(appCtx)
   appCtx.threeScene.onBeforeRender = function (...renderArgs: any[]) {
     if (groundReflections.stats.inCapture) {
       isReflectionDiagnosticsMode && appCtx.regionLightController?.sync(renderArgs[2], true)
       return
     }
     groundReflections.setInsideEnabled?.(getPreviewFloorMode() !== 'all')
+    syncSceneTextureAnisotropy()
     if (
       (updateShadowBoost(),
       ctx.reflectionDetailMode === 0 && ctx.releaseStartupDeviceSync?.(),

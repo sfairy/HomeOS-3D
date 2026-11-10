@@ -7,6 +7,7 @@
 - 舞台缓存作用域与底图 URL 注入；
 - ``/control`` 按 deviceKind / domain 分派到哪条控制分支。
 """
+
 from __future__ import annotations
 
 import asyncio
