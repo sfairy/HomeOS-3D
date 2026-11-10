@@ -21,6 +21,7 @@ import { ensureInteraction3dSelectControls } from '../config-ui/select-controls'
 import { createLabelConfigPatch } from './state-update-plan'
 import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint } from './stage-frame-lazy-mount'
 import { hostLoadTiming } from '@app/bridge/scene/load-timing'
+import { forwardedStageFlags } from '@app/bridge/scene/stage-flags'
 import { vacuumStatusBinding } from '@app/renderer/controls/vacuum-runtime'
 import { entityNumberFormats, temperatureHumidityEntities } from '@app/bridge/temperature-humidity'
 import { stageFontParams } from '@app/shared/dashboard-fonts'
@@ -1692,18 +1693,7 @@ export function mountInteraction3d(
           // 标准光影 v2 才追加版本位：舞台据此跳过 legacy 阴影缓存与旧光照分档。
           ...(stageLightingMode === 'standard' ? { lightingVersion: '2' } : {}),
           ...(wallTrialModes ? { 'wall-trial': wallTrialModes } : {}),
-          ...(pageQuery.get('furniture-runtime') === 'compact' ? { 'furniture-runtime': 'compact' } : {}),
-          ...(pageQuery.get('reflection-detail') === 'low' ? { 'reflection-detail': 'low' } : {}),
-          ...(pageQuery.get('performance-diagnostics') === '1'
-            ? {
-                'performance-diagnostics': '1',
-                ...(pageQuery.get('reflection-work') === 'baseline'
-                  ? {
-                      'reflection-work': 'baseline',
-                    }
-                  : {}),
-              }
-            : {}),
+          ...forwardedStageFlags(pageQuery),
         })
     const assignFrameSrc = () => (
       hostLoadTiming('i3d-frame-src'),

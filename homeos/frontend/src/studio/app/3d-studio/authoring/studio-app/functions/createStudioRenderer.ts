@@ -1,6 +1,7 @@
 import { createEffectCache as createEffectCache2 } from '../../studio-effect-cache'
 import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from '../../studio-preview-resources'
 import { createContextResourceTracker } from '../../studio-context-resources'
+import { createRenderInfoSnapshot, syncRenderInfoDataset } from '../../../render-kit/render-info'
 
 import { createMotionBuffer as createMotionBuffer2 } from '../../scene/studio-motion-buffer'
 import { createBackgroundCache as createBackgroundCache2 } from '../../scene/studio-background-cache'
@@ -368,6 +369,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       updateCameraView()
     let lastStatsPublishMs = performance.now(),
       lastMotionMs = -Infinity
+    const lastRenderInfo = createRenderInfoSnapshot()
     const stepStudioFrame = (frameStepTimestamp = performance.now()) => {
       if (!appCtx.threeRenderer) return
       restoreLightingShaderChecksIfReady(appCtx, lightingShaderFailsafe)
@@ -398,9 +400,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
         isPerformanceDiagnostics && renderWakeValue === Infinity && publishRenderStats(frameStepTimestamp, true)
       const render = appCtx.threeRenderer.info.render
       if (
-        ((appCtx.threeRenderer.domElement.dataset.renderCalls = String(render.calls)),
-        (appCtx.threeRenderer.domElement.dataset.renderTriangles = String(render.triangles)),
-        (appCtx.threeRenderer.domElement.dataset.renderLines = String(render.lines)),
+        (syncRenderInfoDataset(appCtx.threeRenderer.domElement.dataset, render, lastRenderInfo),
         isEmbeddedStage && (isPerformanceDiagnostics || isRenderStatsTest))
       ) {
         const stringify = JSON.stringify({

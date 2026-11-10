@@ -9,6 +9,7 @@ import { selectFrameCaptures } from './studio-reflection-capture-budget'
 import { createReflectionSignature } from './studio-reflection-signature'
 import { buildReflectionPersistenceStamp, resolveReflectionIdleCaptureFps } from './studio-reflection-runtime'
 import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
+import { createMatrixPoseTracker } from '../../shared/util/matrix-pose'
 import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
 import { createRefractionMaterialResolver } from './refraction-materials'
 import { createReflectionResolve } from './reflection-resolve'
@@ -220,12 +221,13 @@ export function createGroundReflections({
     const resolvedInput = hasMaterialChanged ? arrayRecord.next : materialInput
     return (materialCache.set(materialInput, resolvedInput), resolvedInput)
   }
+  const cameraPose = createMatrixPoseTracker()
   let activeRecords: any = [],
     currentRoot: any = null,
     rootFirstChild: any = null,
     shouldRefresh = true,
     lastRenderTimeMs = -Infinity,
-    lastCameraSignature = '',
+    lastCameraSignature = 0,
     lastLightingSignature = '',
     isDisposed = false,
     lastReceiverSignature = '',
@@ -920,7 +922,7 @@ export function createGroundReflections({
     }
     if (!activeRecords.length) return
     const frameStartMs = performance.now(),
-      cameraSignature = camera.matrixWorld.elements.join(',') + camera.projectionMatrix.elements.join(','),
+      cameraSignature = cameraPose.observe(camera.matrixWorld, camera.projectionMatrix),
       hasCameraChanged = cameraSignature !== lastCameraSignature,
       currentTargetSize = resolveTargetSize(settings.resolution)
     // 只标脏、不在这里 setSize：setSize 会释放 GL 纹理，受每帧预算推迟的记录会空白一拍；
@@ -1000,7 +1002,7 @@ export function createGroundReflections({
       for (const persistenceRecord of dirtyRecords)
         if (!persistenceRecord.persistenceCaptured) {
           const persistenceStamp = buildReflectionPersistenceStamp([
-            cameraSignature,
+            cameraPose.key(),
             lightingSignature,
             stateKeyByRecord.get(persistenceRecord),
             propagationCount,

@@ -8,6 +8,7 @@ import {
   isLegacyTextureQuality,
   textureAnisotropyFor,
 } from '../../../render-kit/texture-quality'
+import { urlFlag } from '../../../render-kit/url-flags'
 import { resolveReflectionResolution, resolveTextureAnisotropy } from '../../../studio-resource-policy'
 
 export { resolveReflectionResolution }
@@ -50,13 +51,7 @@ const legacyTextureQuality = isLegacyTextureQuality()
  * 起步与停下各卡一拍。`?reflection-motion-resolution=cap` 恢复旧的运动压分辨率（计划 0.9 移除）。
  * 低端设备在 `resolveReflectionResolution` 里全程封顶，不受影响。
  */
-const capReflectionDuringMotion = (() => {
-  try {
-    return new URLSearchParams(globalThis.location?.search || '').get('reflection-motion-resolution') === 'cap'
-  } catch {
-    return false
-  }
-})()
+const capReflectionDuringMotion = urlFlag('reflection-motion-resolution') === 'cap'
 
 const reflectionBudgetIdle = (isIdle: boolean) => isIdle || !capReflectionDuringMotion
 

@@ -1969,8 +1969,8 @@ export function createRunFrame(host: StageHandlersHost) {
       floor = Math.floor(frameTimestamp / 7000)
     some6 && floor !== host.lastIdleFloorId && ((host.lastIdleFloorId = floor), host.syncMarkers()),
       host.revealFollowCamera()
-    const frameTimestampCameraQuaternionKey = host.mountOptions.camera.quaternion?.toArray?.().join(',') || ''
-    if (frameTimestampCameraQuaternionKey !== host.cameraQuaternionKey) {
+    const cameraQuaternion = host.mountOptions.camera.quaternion
+    if (cameraQuaternion && (!host.cameraQuaternionKey || !host.scratchQuaternion.equals(cameraQuaternion))) {
       const frameDeltaSeconds =
           Math.min(100, Math.max(1, frameTimestamp - (host.lastQuaternionMs ?? frameTimestamp - 16.7))) / 1000,
         cameraAngularSpeed = host.scratchQuaternion.angleTo(host.mountOptions.camera.quaternion) / frameDeltaSeconds
@@ -1979,7 +1979,7 @@ export function createRunFrame(host: StageHandlersHost) {
         !host.followVacuumId &&
         (host.set.size || host.isPointerHeld || cameraAngularSpeed > 0.035) &&
         (host.idleIconDelayUntilMs = frameTimestamp + 60),
-        (host.cameraQuaternionKey = frameTimestampCameraQuaternionKey)
+        (host.cameraQuaternionKey = 'tracked')
     }
     host.scratchQuaternion.copy(host.mountOptions.camera.quaternion), (host.lastQuaternionMs = frameTimestamp)
     const isRotatingByPointer =

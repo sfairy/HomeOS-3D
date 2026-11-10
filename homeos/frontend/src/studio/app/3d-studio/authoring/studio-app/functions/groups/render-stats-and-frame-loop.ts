@@ -9,6 +9,7 @@ import type { SceneRefreshOptions } from '../../../types/studio-app-types'
 import { composeItemKey } from '../../../ui/studio-app-helpers'
 import { applyItemOrientation } from '../../scene/item-orientation'
 import { applyLightOnState } from '../../../lights/strip-light/strip-light-model'
+import { urlFlag } from '../../../../render-kit/url-flags'
 
 export function updateRenderStatsHud(runtime: StudioAppRuntime) {
   if (!runtime.isRenderStatsTest || !runtime.appCtx.threeRenderer) return
@@ -351,8 +352,7 @@ export function bindFrameDriver(runtime: StudioAppRuntime, frameCallback: any) {
         !runtime.appCtx.isDisposed &&
           ((runtime.appCtx.isDisposed = true),
           runtime.emitRuntimeDiagnostic('gpu-lost'),
-          // 0.8.1：先把渲染期登记过的 GPU 资源就地 dispose，再清各类缓存，
-          // 否则上下文丢失后这些对象会悬空占显存（大户型再进时整批重建）。
+          // 先就地 dispose 渲染期登记的 GPU 资源再清缓存，否则上下文丢失后它们悬空占显存。
           runtime.appCtx.contextResources?.releaseLostContext(),
           runtime.appCtx.lightingScheduler?.setAvailable(false),
           (runtime.appCtx.modelRevisionCounter += 1),
@@ -951,6 +951,6 @@ export function isEffectCacheReady(runtime: StudioAppRuntime) {
     !runtime.appCtx.pendingRuntimeSettings &&
     !runtime.appCtx.contactShadowController?.isPending?.() &&
     !runtime.appCtx.contactShadowController?.hasPendingSurfaces?.() &&
-    new URLSearchParams(window.location.search).get('effect-cache') !== 'baseline'
+    urlFlag('effect-cache') !== 'baseline'
   )
 }

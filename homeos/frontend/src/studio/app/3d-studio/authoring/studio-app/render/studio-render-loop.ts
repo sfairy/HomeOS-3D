@@ -5,6 +5,7 @@ import { createInteractionBatches as createInteractionBatches2 } from '../../stu
 
 import { stageStartup as stageStartup2 } from '../../../stage-startup'
 import { interactionResourcePolicy } from '../../../studio-resource-policy'
+import { isPerformanceDiagnostics as hasPerformanceDiagnosticsFlag, urlFlag } from '../../../render-kit/url-flags'
 import {
   bindNamedPageHideOnce,
   configureCappedGroundReflection,
@@ -1016,6 +1017,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       activeCamera = appCtx.threeCamera,
       bind2 = configureOrbitControlsOrbitControls.update.bind(configureOrbitControlsOrbitControls)
     ctx.orbitTargetAnchor = configureOrbitControlsOrbitControls
+    const [orbitFrom, orbitDelta] = [new ns2.Quaternion(), new ns2.Quaternion()],
+      [orbitOffset, orbitShift] = [new ns2.Vector3(), new ns2.Vector3()]
     let cachedOrbitShiftPivot: any = null,
       cachedOrbitShiftProject: any = null,
       cachedOrbitShiftScope: any = null,
@@ -1094,7 +1097,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           return false
         ctx.orbitTargetVector ||
           (ctx.orbitTargetVector = computeCameraTarget(configureOrbitControlsOrbitControls.target))
-        const clone7 = activeCamera.quaternion.clone()
+        const clone7 = orbitFrom.copy(activeCamera.quaternion)
         if (
           getCameraView() === 'top' &&
           (configureOrbitControlsOrbitControls._sphericalDelta.theta ||
@@ -1172,9 +1175,9 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
               (cachedOrbitShiftRuntimeSettings = appCtx.pendingRuntimeSettings),
               (cachedOrbitShiftOverview = isOverviewOrbitShift)
           }
-          const multiply = activeCamera.quaternion.clone().multiply(clone7.invert()),
-            sub3 = cachedOrbitShiftPivot.clone().sub(configureOrbitControlsOrbitControls.target),
-            sub4 = sub3.clone().sub(sub3.applyQuaternion(multiply))
+          const multiply = orbitDelta.copy(activeCamera.quaternion).multiply(clone7.invert()),
+            sub3 = orbitOffset.copy(cachedOrbitShiftPivot).sub(configureOrbitControlsOrbitControls.target),
+            sub4 = orbitShift.copy(sub3).sub(sub3.applyQuaternion(multiply))
           return (
             activeCamera.position.add(sub4),
             configureOrbitControlsOrbitControls.target.add(sub4),
@@ -1230,11 +1233,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
         !preparedReflectionTarget.userData.backgroundThemeHidden
     applyReflectionVisibility()
   }
-  const isRenderLoopPerformanceDiagnostics =
-      new URLSearchParams(globalThis.window?.location?.search || '').get('performance-diagnostics') === '1',
-    isBaselineGeometryMode =
-      isRenderLoopPerformanceDiagnostics &&
-      new URLSearchParams(window.location.search).get('geometry-detail') === 'baseline',
+  const isRenderLoopPerformanceDiagnostics = hasPerformanceDiagnosticsFlag(),
+    isBaselineGeometryMode = isRenderLoopPerformanceDiagnostics && urlFlag('geometry-detail') === 'baseline',
     reflectionDetail = createReflectionDetail2({
       THREE: ns2,
       includeRuntime: !isBaselineGeometryMode,
@@ -1252,9 +1252,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       },
     })
   reflectionPasses.options.small = false
-  const isReflectionDiagnosticsMode =
-    new URLSearchParams(globalThis.window?.location?.search || '').get('performance-diagnostics') === '1' &&
-    new URLSearchParams(window.location.search).get('reflection-work') === 'baseline'
+  const isReflectionDiagnosticsMode = hasPerformanceDiagnosticsFlag() && urlFlag('reflection-work') === 'baseline'
   ctx.previousReflectionEnabled = isEmbeddedStage
   ctx.isReflectionDisabled = !isEmbeddedStage
   ctx.reflectionDetailMode = isEmbeddedStage ? 0 : 1
@@ -1341,7 +1339,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           appCtx.threeRenderer.toneMappingExposure,
         ].join('|'),
     })),
-    floorEffectsQuery = new URLSearchParams(globalThis.window?.location?.search || '').get('floorEffects')
+    floorEffectsQuery = urlFlag('floorEffects')
   ctx.previousReflectionEnabled && groundReflections.setSuspended(true)
   const applyMotionIdleQuality = createMotionIdleQualityApplier({
     appCtx,
@@ -1634,7 +1632,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       !isBaselineGeometryMode &&
       ctx.reflectionDetailMode === 1 &&
       !appCtx.pendingRuntimeSettings &&
-      new URLSearchParams(window.location.search).get('interaction-batches') !== 'baseline'
+      urlFlag('interaction-batches') !== 'baseline'
     )
   }
   /** 预热的目标：每层一个根节点（总览模式下是 `sceneRootNode` 下带 `floorId` 的子节点）。 */
