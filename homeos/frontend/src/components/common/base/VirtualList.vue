@@ -37,8 +37,7 @@
 </template>
 
 <script setup lang="ts" generic="T">
-import { toRef, computed, type PropType } from 'vue'
-import { useVirtualList } from '@vueuse/core'
+import { computed, onBeforeUnmount, ref, shallowRef, watch, type PropType } from 'vue'
 
 const props = defineProps({
   /** 全部条目列表 */
@@ -57,18 +56,56 @@ const props = defineProps({
   itemKey: { type: Function as PropType<((item: T, index: number) => PropertyKey) | null>, default: null },
 })
 
-const itemsRef = toRef(props, 'items')
 // 虚拟步长：行高 + 行间距，作为每行占位高度
 const stride = computed(() => props.itemHeight + props.itemGap)
 // 是否启用虚拟滚动：条目数超过阈值时启用
 const isVirtual = computed(() => props.items.length > props.virtualThreshold)
 
-const { list, containerProps, wrapperProps } = useVirtualList(itemsRef, {
-  itemHeight: props.itemHeight + props.itemGap,
-  overscan: props.overscan,
+// 定高虚拟滚动：只渲染视口内的行（上下各多 overscan 行），外层用 marginTop + height 撑出滚动高度
+const containerRef = shallowRef<HTMLElement | null>(null)
+const range = ref({ start: 0, end: 0 })
+
+function calculateRange() {
+  const el = containerRef.value
+  if (!el) return
+  const offset = Math.floor(el.scrollTop / stride.value)
+  const capacity = Math.ceil(el.clientHeight / stride.value)
+  range.value = {
+    start: Math.max(0, offset - props.overscan),
+    end: Math.min(props.items.length, offset + capacity + props.overscan),
+  }
+}
+
+const list = computed(() =>
+  props.items.slice(range.value.start, range.value.end).map((data, i) => ({ data, index: range.value.start + i })),
+)
+
+const containerProps = { ref: containerRef, onScroll: calculateRange, style: { overflowY: 'auto' } }
+
+const wrapperProps = computed(() => {
+  const offsetTop = range.value.start * stride.value
+  return {
+    style: {
+      width: '100%',
+      height: `${props.items.length * stride.value - offsetTop}px`,
+      marginTop: `${offsetTop}px`,
+    },
+  }
 })
 
-// 静态模式下不附加额外 class，避免与 useVirtualList 的 containerProps 冲突
+let resizeObserver: ResizeObserver | null = null
+watch(containerRef, (el) => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  if (!el) return
+  resizeObserver = new ResizeObserver(calculateRange)
+  resizeObserver.observe(el)
+  calculateRange()
+})
+watch(() => [props.items, stride.value, props.overscan], calculateRange)
+onBeforeUnmount(() => resizeObserver?.disconnect())
+
+// 静态模式下不附加额外 class，避免与虚拟模式的 containerProps 冲突
 const staticContainerProps = { class: '' }
 
 // 根样式：虚拟模式 gap 为 0（间距已计入 stride），静态模式用 CSS gap 控制行间距
