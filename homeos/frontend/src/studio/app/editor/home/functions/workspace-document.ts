@@ -21,7 +21,6 @@ import { documentSignature as documentSignature2 } from '../../editor-history'
 export interface WorkspaceDocumentDeps {
   editorCtx: EditorContext
   airConditionerPreviewStateByComponentId: any
-  buttonSoundController: any
   clearComponentSelection: any
   collectComponentsByType: (...args: any[]) => any[]
   componentGroupRenameDialogElement: any
@@ -51,7 +50,6 @@ export interface WorkspaceDocumentDeps {
   pageNewButtonElement: any
   pageSelectElement: any
   projectSummary: any
-  refreshSoundToggle: any
   renderComponentLists: any
   renderCustomPopupEditor: any
   renderWorkspaceResolution: any
@@ -106,9 +104,6 @@ export function renderDashboardPreview(
       runtimeStateCache: deps.runtimeStateCacheById,
       virtualEntityStateCache: deps.virtualEntityStateCacheById,
       onError: deps.handleOperationError,
-      onRuntimeButtonPress() {
-        deps.buttonSoundController.play()
-      },
       onPageChange(confirmedUnbind: any) {
         ;(deps.pageSelectElement.value = confirmedUnbind.path), deps.loadNavigationIconOptions(deps.pageSelectElement)
       },
@@ -140,6 +135,7 @@ export function unbindDisplayDeviceError(deps: WorkspaceDocumentDeps) {
 }
 
 export function renderWorkspaceResolution(deps: WorkspaceDocumentDeps) {
+  deps.editorCtx.dashboardFontSettings?.sync()
   const documentCanvas = deps.editorCtx.activeProject?.document?.canvas,
     canvasWidthValue = Number(documentCanvas?.width),
     canvasHeightValue = Number(documentCanvas?.height),
@@ -174,8 +170,7 @@ export function setEditorMode(deps: WorkspaceDocumentDeps, editorModeValue: any)
     deps.displayDeviceCountElement.classList.toggle('empty', !deps.editorCtx.activeProject),
     (deps.workspaceTitleElement.textContent = isDashboardMode ? '仪表盘' : isPopupMode ? '组合弹窗' : '页面画布'),
     deps.renderWorkspaceResolution(),
-    deps.unbindDisplayDeviceError(),
-    deps.refreshSoundToggle()
+    deps.unbindDisplayDeviceError()
   for (const [modeToggleButton, modeToggleActive] of [
     [deps.showEditorPreviewButtonElement, isEditingPage],
     [deps.showDashboardPreviewButtonElement, isDashboardMode],

@@ -1,4 +1,5 @@
 /** Custom combined popup editor. */
+import { createUiIcon } from '../shared/ui-icons'
 import { clone as clone2, newId as newId2, roundField as roundField2 } from './editor-utils'
 import {
   findCustomPopup as findCustomPopup2,
@@ -576,13 +577,15 @@ export function renderCustomPopupEditor(ctx: CustomPopupEditorContext) {
     cardActionsElement.className = 'popup-module-card-actions'
     const editModuleButtonElement = document.createElement('button')
     ;(editModuleButtonElement.type = 'button'),
-      (editModuleButtonElement.textContent = '✎'),
+      editModuleButtonElement.append(createUiIcon(document, 'pencil-outline')),
       (editModuleButtonElement.title = '编辑模块'),
+      editModuleButtonElement.setAttribute('aria-label', '编辑模块'),
       editModuleButtonElement.addEventListener('click', () => ctx.openPopupModuleDialog(popupModuleEntry))
     const duplicateModuleButtonElement = document.createElement('button')
     ;(duplicateModuleButtonElement.type = 'button'),
-      (duplicateModuleButtonElement.textContent = '⎘'),
+      duplicateModuleButtonElement.append(createUiIcon(document, 'content-copy')),
       (duplicateModuleButtonElement.title = '复制模块'),
+      duplicateModuleButtonElement.setAttribute('aria-label', '复制模块'),
       duplicateModuleButtonElement.addEventListener('click', () => {
         const duplicatedModules = [
           ...(activePopup.modules || []),

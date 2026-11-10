@@ -53,6 +53,7 @@ from ..dependencies import (
     require_viewer_user_asset,
     viewer_user_asset_ids,
 )
+from ..domains.fonts import FontStore
 from ..domains.license import features as feature_codes
 from ..domains.ui_config.global_popups import global_popups
 from ..modules.interaction3d.studio_draft_scene import read_current_studio_draft
@@ -461,16 +462,16 @@ def _finalize_normalized_upload(path: Path, suffix: str) -> Path:
 class AssetCatalog:
     '进程本地的资源目录；客户部署只运行一个 app worker。'
 
-    def __init__(self, built_in_root: Path, user_root: Path, studio3d_exports_root: Path | None = None, effect_variants_root: Path | None = None) -> None:
+    def __init__(self, built_in_root: Path, user_root: Path, studio3d_exports_root: Path | None = None, effect_variants_root: Path | None = None, fonts_root: Path | None = None) -> None:
         self.built_in_root = built_in_root.resolve()
         self.user_root = user_root.resolve()
+        self.fonts = FontStore(fonts_root.resolve() if fonts_root else self.user_root.parent / 'fonts')
         self.studio3d_exports_root = studio3d_exports_root.resolve() if studio3d_exports_root else None
         self.effect_variants_root = effect_variants_root.resolve() if effect_variants_root else self.user_root.parent / 'cache' / 'effect-variants'
         self.mutation_lock = RLock()
-        self._builtin_loaded = False
+        self._builtin_loaded = self._user_loaded = False
         self._builtin_loaded_at = 0.0
         self._builtin_fingerprint: tuple[tuple[str, str], ...] | None = None
-        self._user_loaded = False
         self._builtin_items = { }
         self._builtin_paths = { }
         self._user_items = { }
@@ -650,13 +651,12 @@ class AssetCatalog:
             if separator > 0 and self.studio3d_exports_root is not None:
                 # 0.8.1：导出素材除了在目录里登记过，还必须能落到磁盘上的真实文件，
                 # 否则「登记的 id 已经删了、磁盘上还有同名文件」会互相掩护。
-                folder_name = asset_id[len('studio3d:') : separator]
-                filename = asset_id[separator + 1 :]
+                folder_name, filename = asset_id[len('studio3d:') : separator], asset_id[separator + 1 :]
                 if studio3d_export_file(self.studio3d_exports_root, folder_name, filename) is not None:
                     return True
             with self.mutation_lock:
                 return asset_id in self._user_items
-        return False
+        return asset_id.startswith('font:') and self.fonts.entry(asset_id) is not None
 
     def register_user(self, asset_id: str, path: Path, dimensions: tuple[int, int]) -> dict:
         self._load_user()

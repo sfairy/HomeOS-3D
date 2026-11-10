@@ -5,6 +5,7 @@ import { createReflectionPersistentCache } from './reflection/reflection-persist
 import { createScenePersistentCache, scenePreparationKey } from './cache/scene-persistent-cache'
 import { isLegacyEmbedStageLighting } from './authoring/scene/studio-stage-lighting-mode'
 import { createLoadTiming } from '../bridge/scene/load-timing'
+import { createDashboardFonts } from '../shared/dashboard-fonts'
 
 const STAGE_MODULE_PATH = '/api/v1/modules/interaction3d/core/stage.js'
 
@@ -36,6 +37,19 @@ function preloadStageLoaderModules(env: typeof globalThis) {
   }
 }
 
+/** 宿主仪表盘字体（0.8.6）：与草稿往返并行加载，建场景前等它，名牌 / 电视画面首帧即用新字体。 */
+function loadStageFonts(env: typeof globalThis, searchParams: URLSearchParams): Promise<unknown> {
+  const root = env.document?.documentElement
+  if (!searchParams.has('fontChinese') || !root) return Promise.resolve()
+  const fonts = createDashboardFonts(root, { env, onError: (error) => env.console?.warn?.(error.message) })
+  return Promise.resolve(
+    fonts.apply({
+      chinese: searchParams.get('fontChinese') || 'device',
+      latin: searchParams.get('fontLatin') || 'device',
+    }),
+  )
+}
+
 function beginStageStartup({
   env: env = globalThis,
   loadModule: loadModule = () => import(/* @vite-ignore */ preloadedStageModuleUrl(env)),
@@ -57,9 +71,7 @@ function beginStageStartup({
       encodeURIComponent(sceneId) +
       '/current?projectId=' +
       encodeURIComponent(projectId),
-    cache = createCache({
-      env: env,
-    }),
+    cache = createCache({ env }),
     // 场景准备缓存只认用户与项目；HA 离线时灯光历史作用域为空，后端另给一个稳定的缓存作用域。
     lightHistoryScope =
       env.document.body?.dataset.i3dSceneCacheScope || env.document.body?.dataset.i3dLightHistoryScope,
@@ -113,6 +125,7 @@ function beginStageStartup({
       furnitureCache: furnitureCache,
       shadowCache: shadowCache,
       reflectionCache: reflectionCache,
+      fontReady: loadStageFonts(env, searchParams),
     }
   )
 }

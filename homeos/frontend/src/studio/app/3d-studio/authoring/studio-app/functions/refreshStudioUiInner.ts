@@ -24,6 +24,8 @@ import {
   isCourtyardDrawing as isCourtyardDrawing2,
   finite as finite2,
   itemMinimumHeight as itemMinimumHeight2,
+  itemMinimumElevation,
+  itemElevationHint,
   itemMinimumFootprint as itemMinimumFootprint2,
   normalizeFullRotation as normalizeFullRotation2,
 } from '../../../loaders/studio-normalization'
@@ -356,7 +358,8 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
                 setControlValue(selectElement('#airer-preview'), String(airerDimensions.airerPreview))
             }
             if (
-              ((selectElement('#item-elevation').title = at4.type === 'airer' ? '顶部机身安装面距本层地面的高度' : ''),
+              ((selectElement('#item-elevation').min = String(itemMinimumElevation(at4.type))),
+              (selectElement('#item-elevation').title = itemElevationHint(at4.type)),
               (selectElement('#fan-model-fields').hidden = at4.type !== 'fan'),
               at4.type === 'fan')
             ) {

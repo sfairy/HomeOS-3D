@@ -1,10 +1,10 @@
 {
-  "id": "/pair",
+  "id": "/",
   "name": "HomeOS 仪表盘",
   "short_name": "HomeOS",
   "description": "HomeOS 智能家居仪表盘",
   "lang": "zh-CN",
-  "start_url": "/pair",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#050912",

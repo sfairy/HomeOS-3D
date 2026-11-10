@@ -16,6 +16,7 @@ import { clamp as clamp2, clampWindowT as clampWindowT2, defaultDoorOpening } fr
 import {
   finite as finite2,
   itemMinimumHeight as itemMinimumHeight2,
+  itemMinimumElevation,
   itemMinimumFootprint as itemMinimumFootprint2,
   normalizeFullRotation as normalizeFullRotation2,
   normalizeLabelText as normalizeLabelText2,
@@ -240,7 +241,7 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
             toolPlacedElement.type === 'fan' && Object.assign(toolPlacedElement, fanDimensions2(toolPlacedElement)),
             (toolPlacedElement.elevation = clamp2(
               finite2(selectElement('#item-elevation').value, toolPlacedElement.elevation || 0),
-              0,
+              itemMinimumElevation(toolPlacedElement.type),
               6,
             )),
             toolPlacedElement.type === 'airer' &&

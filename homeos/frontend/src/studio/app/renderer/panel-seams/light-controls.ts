@@ -1,4 +1,5 @@
 import type { ComponentControllerElement, ComponentPayload } from '../renderer-types'
+import { createUiIcon } from '../../shared/ui-icons'
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS as LIGHT_DETAIL_PRESET_DEFINITIONS2,
   LIGHT_PRESET_MAXIMUM_HOLD_MS as LIGHT_PRESET_MAXIMUM_HOLD_MS2,
@@ -114,7 +115,7 @@ export function createLightDetailsControls(
     const lightSliderIcon = document.createElement('i')
     ;(lightSliderIcon.className = 'hb-light-details-slider-icon'),
       lightSliderIcon.setAttribute('aria-hidden', 'true'),
-      (lightSliderIcon.textContent = sliderIcon)
+      lightSliderIcon.append(createUiIcon(document, sliderIcon))
     const lightSliderLabel = document.createElement('strong')
     lightSliderLabel.textContent = sliderLabel
     const lightSliderOutputElement = document.createElement('output'),
@@ -347,7 +348,7 @@ export function createLightDetailsControls(
       suffix: 'K',
       dataKey: 'color_temp_kelvin',
       className: 'hb-light-details-temperature',
-      icon: '♨',
+      icon: 'thermometer',
       minimumLabel: '暖色',
       maximumLabel: '冷色',
       supported: supportsColorTemperature,
@@ -364,7 +365,7 @@ export function createLightDetailsControls(
     suffix: '%',
     dataKey: 'brightness_pct',
     className: 'hb-light-details-brightness',
-    icon: '☀',
+    icon: 'white-balance-sunny',
     minimumLabel: '暗',
     maximumLabel: '亮',
     supported: supportsBrightness,

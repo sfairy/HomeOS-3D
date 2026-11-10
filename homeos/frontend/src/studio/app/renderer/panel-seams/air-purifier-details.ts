@@ -1,3 +1,4 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import type { PanelRenderer } from '../panel-renderer'
 import { componentDialogTitle } from '../renderer-helpers'
 import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '../entity-metadata'
@@ -444,5 +445,5 @@ export function showAirPurifierDetails(
         once: true,
       },
     ),
-    airPurifierDialog.show()
+    showRuntimeDialog(airPurifierDialog)
 }

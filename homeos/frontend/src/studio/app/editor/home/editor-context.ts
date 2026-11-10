@@ -13,6 +13,7 @@
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
 import type { normalizeBaseLighting as normalizeBaseLighting2 } from '../../3d-studio/loaders/studio-normalization'
+import type { DashboardFontSettings } from '../dashboard-font-settings'
 
 export interface EditorContext {
   baseLightingComponentId: string
@@ -121,6 +122,8 @@ export interface EditorContext {
   marqueeState: any
   iconTooltipElement: HTMLElement | null
   popupBeingRenamedValue: any
+  /** 0.8.6：左上「当前仪表盘全局字体」区块，随工作区刷新同步。 */
+  dashboardFontSettings: DashboardFontSettings | null
 }
 
 export function createEditorContext(): EditorContext {
@@ -229,5 +232,6 @@ export function createEditorContext(): EditorContext {
     marqueeState: null,
     iconTooltipElement: null,
     popupBeingRenamedValue: null,
+    dashboardFontSettings: null,
   }
 }

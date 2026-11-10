@@ -1,4 +1,5 @@
 import type { ComponentControllerElement } from '../renderer-types'
+import { createUiIcon, createUiIconSlot } from '../../shared/ui-icons'
 import type { PanelRenderer } from '../panel-renderer'
 import { clickFocusedElement, mixHexColor } from '../renderer-helpers'
 import {
@@ -655,7 +656,8 @@ export function createClimateDetailsControls(
           (detailsOptionButton.dataset.climateValue = detailsOptionValue)
         const detailsOptionIcon = document.createElement('i')
         detailsOptionIcon.setAttribute('aria-hidden', 'true'),
-          (detailsOptionIcon.textContent = optionIcons[detailsOptionValue] || '')
+          optionIcons[detailsOptionValue] &&
+            detailsOptionIcon.append(createUiIcon(document, optionIcons[detailsOptionValue]))
         const detailsOptionLabel = document.createElement('span')
         ;(detailsOptionLabel.textContent = optionLabels[detailsOptionValue] || detailsOptionValue),
           detailsOptionButton.append(detailsOptionIcon, detailsOptionLabel),
@@ -829,8 +831,7 @@ export function createClimateDetailsControls(
     fanSliderSection.className = 'hb-climate-fan-slider'
     const fanSliderHeading = document.createElement('span')
     fanSliderHeading.className = 'hb-climate-fan-slider-heading'
-    const fanSliderIcon = document.createElement('i')
-    fanSliderIcon.setAttribute('aria-hidden', 'true'), (fanSliderIcon.textContent = '✾')
+    const fanSliderIcon = createUiIconSlot(document, 'fan')
     const fanSliderLabel = document.createElement('strong')
     fanSliderLabel.textContent = '风速'
     const fanSpeedBadge = document.createElement('output'),
@@ -922,8 +923,7 @@ export function createClimateDetailsControls(
     fanPercentageSection.className = 'hb-climate-fan-slider'
     const fanPercentageHeading = document.createElement('span')
     fanPercentageHeading.className = 'hb-climate-fan-slider-heading'
-    const fanPercentageIcon = document.createElement('i')
-    fanPercentageIcon.setAttribute('aria-hidden', 'true'), (fanPercentageIcon.textContent = '✾')
+    const fanPercentageIcon = createUiIconSlot(document, 'fan')
     const fanPercentageLabel = document.createElement('strong')
     fanPercentageLabel.textContent = '风速'
     const fanPercentageBadge = document.createElement('output')
@@ -1000,10 +1000,10 @@ export function createClimateDetailsControls(
     dataKey: 'swing_mode',
     labels: swingModeLabels,
     icons: {
-      off: '—',
-      vertical: '↕',
-      horizontal: '↔',
-      both: '✣',
+      off: 'minus',
+      vertical: 'arrow-up-down',
+      horizontal: 'arrow-left-right',
+      both: 'arrow-expand-all',
     },
     className: 'compact-options',
     presentation: climateOptionPresentation2(climateNormalizedCapabilities.swingModes, swingModeLabels, {

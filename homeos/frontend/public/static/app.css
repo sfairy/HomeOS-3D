@@ -1,3 +1,6 @@
+@import "./dashboard-fonts.css";
+@import "./ui-icons.css";
+
 :root {
   color-scheme: dark;
   font-family:
@@ -1132,54 +1135,6 @@ h2 {
 }
 .workspace-resolution[hidden] {
   display: none;
-}
-.workspace-sound-toggle {
-  display: inline-flex;
-  width: auto;
-  height: 28px;
-  min-height: 28px;
-  flex: none;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  color: #8d989f;
-  background: transparent;
-}
-.workspace-sound-toggle[aria-pressed="true"] {
-  border-color: #f2a20d47;
-  color: #f2b23b;
-  background: #f2a20d12;
-}
-.workspace-sound-toggle:hover {
-  border-color: #505c65;
-  color: #f2a20d;
-  background: #ffffff0d;
-}
-.workspace-sound-toggle:disabled {
-  opacity: 0.38;
-  cursor: default;
-}
-.workspace-sound-toggle .sound-icon {
-  width: 17px;
-  height: 17px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.workspace-sound-toggle .sound-label {
-  font-size: 10px;
-  white-space: nowrap;
-}
-.workspace-sound-toggle .sound-icon-off,
-.workspace-sound-toggle.is-muted .sound-icon-on {
-  display: none;
-}
-.workspace-sound-toggle.is-muted .sound-icon-off {
-  display: block;
 }
 .dashboard-display-hint {
   display: flex;
@@ -5679,6 +5634,20 @@ h2 {
 .popup-module-card-actions,
 .popup-module-card-actions button {
   cursor: default;
+}
+.popup-module-card-actions button {
+  display: grid;
+  place-items: center;
+}
+.popup-module-card-actions button > .hb-ui-icon {
+  width: 21px;
+  height: 21px;
+}
+.license-store-actions .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/open-in-new.svg);
+}
+.ui-pack-summary[hidden] {
+  display: none;
 }
 .popup-module-placeholder {
   flex: 1;

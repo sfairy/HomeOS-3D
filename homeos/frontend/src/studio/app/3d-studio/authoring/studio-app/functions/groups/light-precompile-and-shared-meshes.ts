@@ -30,9 +30,11 @@ import {
   shadowTextureUnits,
   reservedTextureUnits,
   normalizePlanLabelColor,
+  planLabelThemeColors,
 } from '../../../scene/studio-scene-payload'
 import { mergeStaticItemMeshesCore } from '../../../items/studio-static-item-meshes'
 import { lightSignatureOf } from '../../ui/light-signature'
+import { dashboardCanvasFont } from '../../../../../shared/dashboard-fonts'
 
 /** 灯带的发光本体与朝向箭头：户型总览里不画；选中且「显示光源」开着才显示。 */
 export function addStripLightPreview(runtime: StudioAppRuntime, stripPreviewParent: any, stripLightItem: any) {
@@ -85,7 +87,8 @@ export function createPlanLabel(runtime: StudioAppRuntime, labelSpec: any) {
   const labelCanvas = document.createElement('canvas')
   ;(labelCanvas.width = 2048), (labelCanvas.height = 640)
   const labelCanvasPainter = labelCanvas.getContext('2d'),
-    labelPaintColor = normalizePlanLabelColor(labelSpec.labelColor)
+    labelColors = planLabelThemeColors(labelSpec.labelColor, runtime.backgroundSettings()),
+    labelPaintColor = labelColors.text
   labelCanvasPainter!.clearRect(0, 0, labelCanvas.width, labelCanvas.height),
     (labelCanvasPainter!.fillStyle = labelPaintColor),
     (labelCanvasPainter!.textAlign = 'left'),
@@ -94,7 +97,7 @@ export function createPlanLabel(runtime: StudioAppRuntime, labelSpec: any) {
     labelSubtitleText = normalizeLabelText2(labelSpec.subtitle, 'HOME PLAN', 36),
     labelTitleX = 115,
     labelTitleFontSize = 184
-  ;(labelCanvasPainter!.font = '700 ' + labelTitleFontSize + 'px sans-serif'),
+  ;(labelCanvasPainter!.font = dashboardCanvasFont('700 ' + labelTitleFontSize + 'px', 'sans-serif')),
     drawTrackedText2(
       labelCanvasPainter,
       labelTitleText,
@@ -129,7 +132,10 @@ export function createPlanLabel(runtime: StudioAppRuntime, labelSpec: any) {
     (labelCanvasPainter!.fillStyle = labelPaintColor),
     (labelCanvasPainter!.textAlign = 'left')
   const labelSubtitleFontSize = 310
-  ;(labelCanvasPainter!.font = '400 ' + labelSubtitleFontSize + 'px "Arial Narrow", Arial, sans-serif'),
+  ;(labelCanvasPainter!.font = dashboardCanvasFont(
+    '400 ' + labelSubtitleFontSize + 'px',
+    '"Arial Narrow", Arial, sans-serif',
+  )),
     drawTrackedText2(
       labelCanvasPainter,
       labelSubtitleText,
@@ -140,7 +146,7 @@ export function createPlanLabel(runtime: StudioAppRuntime, labelSpec: any) {
     )
   const labelLineStartX = 74,
     labelLineEndX = labelLineStartX + 1880 * clamp2(finite2(labelSpec.lineLength, 0.86), 0.3, 1)
-  ;(labelCanvasPainter!.strokeStyle = runtime.planLabelAccentColor(labelSpec.labelColor)),
+  ;(labelCanvasPainter!.strokeStyle = labelColors.line || runtime.planLabelAccentColor(labelPaintColor)),
     (labelCanvasPainter!.lineWidth = 16),
     labelCanvasPainter!.beginPath(),
     labelCanvasPainter!.moveTo(labelLineStartX, 590),

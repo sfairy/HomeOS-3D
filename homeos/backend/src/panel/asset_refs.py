@@ -6,7 +6,7 @@
 
 - :func:`document_asset_ids` —— 递归扫 ``*assetId`` 字段，识别 ``builtin:`` / ``user:`` /
   ``studio3d:`` 三种前缀。``studio3d:`` 是 0.8.1 新增的引用面（自动导图），漏掉它会让
-  正在使用的导图图片被当成孤儿删掉。
+  正在使用的导图图片被当成孤儿删掉；0.8.6 起 ``theme.fonts`` 里的 ``font:`` 也算引用。
 - :func:`validate_assets` —— 保存前校验引用仍然存在，并返回**可变**素材（``user:`` /
   ``studio3d:``）；``builtin:`` 由发行包提供，不参与回收。
 - :func:`saved_project_documents` —— 删除侧枚举所有已提交的引用方。读不出来的文档一律
@@ -28,8 +28,11 @@ from ..platform.core.db.models import ProjectDraft
 #: 文档里允许出现在 ``*assetId`` 字段上的前缀。
 ASSET_PREFIXES = ('builtin:', 'user:', 'studio3d:')
 
-#: 可被回收（删除 / 覆盖）的前缀：内置素材只随发行包变化。
-MUTABLE_ASSET_PREFIXES = ('user:', 'studio3d:')
+#: 用户上传字体：出现在 ``theme.fonts.{chinese,latin}`` 上（0.8.6 新增）。
+FONT_ASSET_PREFIX = 'font:'
+
+#: 可被回收（删除 / 覆盖）的前缀：内置素材 / 内置字体只随发行包变化。
+MUTABLE_ASSET_PREFIXES = ('user:', 'studio3d:', FONT_ASSET_PREFIX)
 
 
 def document_asset_ids(value: Any) -> set[str]:
@@ -37,6 +40,13 @@ def document_asset_ids(value: Any) -> set[str]:
     result: set[str] = set()
     if isinstance(value, dict):
         for key, item in value.items():
+            if key == 'fonts' and isinstance(item, dict):
+                result.update(
+                    font_id
+                    for font_id in item.values()
+                    if isinstance(font_id, str) and font_id.startswith(FONT_ASSET_PREFIX)
+                )
+                continue
             if (
                 isinstance(item, str)
                 and key.lower().endswith('assetid')
@@ -77,7 +87,7 @@ def validate_assets(catalog: Any, document: Any) -> set[str]:
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={
                     'code': 'ASSET_MISSING',
-                    'message': f'引用的图片已不存在：{asset_id}',
+                    'message': f'引用的素材已不存在：{asset_id}',
                 },
             )
         if not asset_id.startswith(MUTABLE_ASSET_PREFIXES):

@@ -210,6 +210,22 @@ watch(
             </div>
             <div id="navigator-content">
                 <div class="dashboard-control">
+                    <section id="dashboard-font-settings" class="dashboard-font-settings"
+                        aria-labelledby="dashboard-font-settings-title" hidden>
+                        <div class="dashboard-font-settings-heading"><strong
+                                id="dashboard-font-settings-title">当前仪表盘全局字体</strong><button type="button"
+                                data-manage-fonts>管理字体</button></div>
+                        <div class="dashboard-font-settings-fields">
+                            <label>中文<select id="dashboard-chinese-font" data-font-role="chinese"
+                                    aria-label="仪表盘中文字体">
+                                    <option value="device">跟随设备</option>
+                                </select></label>
+                            <label>英文 / 数字<select id="dashboard-latin-font" data-font-role="latin"
+                                    aria-label="仪表盘英文与数字字体">
+                                    <option value="device">跟随设备</option>
+                                </select></label>
+                        </div>
+                    </section>
                     <div class="dashboard-control-heading"><span>仪表盘</span><button id="project-new"
                             type="button">新建</button></div>
                     <div class="page-select-row dashboard-select-row"> <select id="project-select" aria-label="选择仪表盘"
@@ -243,7 +259,7 @@ watch(
                 </div>
                 <div class="popup-control" hidden>
                     <div class="dashboard-control-heading"><span>全局组合弹窗</span><button id="popup-new" type="button"
-                            disabled>新建</button></div> <select id="popup-select" data-native-select="true"
+                            disabled>新建</button></div> <select id="popup-select"
                         aria-label="选择组合弹窗" hidden disabled>
                         <option value="">暂无组合弹窗</option>
                     </select> <button id="popup-actions-button" type="button" hidden disabled

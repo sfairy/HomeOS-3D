@@ -52,6 +52,15 @@ export function itemMinimumHeight(heightItemType: any) {
         ? 0.004
         : 0.05
 }
+const NEGATIVE_ELEVATION_ITEM_TYPES: readonly unknown[] = ['wallcabinet', 'tv', 'shower']
+export function itemMinimumElevation(elevationItemType: unknown) {
+  return NEGATIVE_ELEVATION_ITEM_TYPES.includes(elevationItemType) ? -6 : 0
+}
+/** 属性面板「离地（m）」的悬停提示。 */
+export function itemElevationHint(elevationItemType: unknown) {
+  if (elevationItemType === 'airer') return '顶部机身安装面距本层地面的高度'
+  return itemMinimumElevation(elevationItemType) < 0 ? '支持负数，负值可将模型向下移动' : ''
+}
 export function normalizePoint(rawPoint: any) {
   return {
     x: finite(rawPoint?.x),

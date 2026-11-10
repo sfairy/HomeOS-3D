@@ -38,7 +38,8 @@ import {
   tracePillarPlanPath as tracePillarPlanPath2,
 } from '../authoring/items/studio-item-posture'
 import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from '../authoring/items/item-catalog'
-import { normalizePlanLabelColor } from '../authoring/scene/studio-scene-payload'
+import { planLabelThemeColors } from '../authoring/scene/studio-scene-payload'
+import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 
 /**
  * 管线机的两种模型类型共用同一套平面符号（机身轮廓 + 出水口）。
@@ -516,7 +517,7 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
       planCanvasRenderer.lineTo(-itemPixelWidth / 2, itemPixelDepth / 2),
       planCanvasRenderer.stroke(),
       (planCanvasRenderer.fillStyle = '#ffd39c'),
-      (planCanvasRenderer.font = '12px sans-serif'),
+      (planCanvasRenderer.font = dashboardCanvasFont('12px', 'sans-serif')),
       (planCanvasRenderer.textAlign = 'center'),
       planCanvasRenderer.fillText('楼板洞口', 0, 4)
   else {
@@ -566,9 +567,10 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
     } else {
       if (planItem.type === 'planlabel') {
         const labelMetrics = planLabelProjectionMetrics2(itemPixelWidth, itemPixelDepth, planItem.lineLength)
-        planCanvasRenderer.fillStyle = normalizePlanLabelColor(planItem.labelColor)
+        const labelColors = planLabelThemeColors(planItem.labelColor, deps.backgroundSettings())
+        planCanvasRenderer.fillStyle = labelColors.text
         const titleFontSize = labelMetrics.titleFontSize
-        ;(planCanvasRenderer.font = '700 ' + titleFontSize + 'px sans-serif'),
+        ;(planCanvasRenderer.font = dashboardCanvasFont('700 ' + titleFontSize + 'px', 'sans-serif')),
           drawTrackedText2(
             planCanvasRenderer,
             planItem.title || '家庭总览',
@@ -580,7 +582,7 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
         const iconX = labelMetrics.iconX,
           iconY = labelMetrics.iconY,
           iconSize = labelMetrics.iconSize
-        ;(planCanvasRenderer.fillStyle = normalizePlanLabelColor(planItem.labelColor)),
+        ;(planCanvasRenderer.fillStyle = labelColors.text),
           planCanvasRenderer.beginPath(),
           planCanvasRenderer.moveTo(iconX, iconY - iconSize * 0.58),
           planCanvasRenderer.lineTo(iconX + iconSize * 0.56, iconY - iconSize * 0.02),
@@ -592,10 +594,13 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
           planCanvasRenderer.lineTo(iconX, iconY - iconSize * 0.52),
           planCanvasRenderer.closePath(),
           planCanvasRenderer.fill(),
-          (planCanvasRenderer.fillStyle = normalizePlanLabelColor(planItem.labelColor)),
+          (planCanvasRenderer.fillStyle = labelColors.text),
           (planCanvasRenderer.textAlign = 'left')
         const subtitleFontSize = labelMetrics.subtitleFontSize
-        ;(planCanvasRenderer.font = '400 ' + subtitleFontSize + 'px "Arial Narrow", Arial, sans-serif'),
+        ;(planCanvasRenderer.font = dashboardCanvasFont(
+          '400 ' + subtitleFontSize + 'px',
+          '"Arial Narrow", Arial, sans-serif',
+        )),
           drawTrackedText2(
             planCanvasRenderer,
             planItem.subtitle || 'HOME PLAN',
@@ -604,7 +609,7 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
             subtitleFontSize * clamp2(finite2(planItem.subtitleSpacing, 0.08), 0, 0.6),
             labelMetrics.subtitleMaxWidth,
           ),
-          (planCanvasRenderer.strokeStyle = planLabelAccentColor(planItem.labelColor)),
+          (planCanvasRenderer.strokeStyle = labelColors.line || planLabelAccentColor(labelColors.text)),
           (planCanvasRenderer.lineWidth = labelMetrics.baselineLineWidth)
         const baselineY = labelMetrics.baselineY,
           baselineStartX = labelMetrics.baselineStartX,

@@ -345,7 +345,8 @@ export function createSpeakerPanel({
         isDisposed ||
         activeEntity.editing ||
         !speakerState(activeEntity.item, activeEntity.states).available ||
-        (mediaDialog.open || mediaDialog.showModal(), loadMediaLibrary(null, []))
+        (mediaDialog.open || (mediaDialog.showModal(), mediaDialog.focus({ preventScroll: true })),
+        loadMediaLibrary(null, []))
     }),
     backButton.addEventListener('click', () => {
       const parentBreadcrumbPath = breadcrumbPath.slice(0, -1)

@@ -82,7 +82,6 @@ export interface WorkspaceHistoryDeps {
   setRecoverySaveAttempts: (saveAttempts: any[]) => void
   redoElement: any
   refreshDirtyState: any
-  refreshSoundToggle: any
   removedComponent: any
   renderComponentLists: any
   renderCustomPopupEditor: any
@@ -362,8 +361,7 @@ export function ensureEditorRenderer(deps: WorkspaceHistoryDeps) {
 }
 
 export function renderEditorWorkspace(deps: WorkspaceHistoryDeps, activePagePath: any = null) {
-  deps.refreshSoundToggle(),
-    deps.renderWorkspaceResolution(),
+  deps.renderWorkspaceResolution(),
     deps.runExtraOuter(deps.editorCtx.activeProject.document, deps.editorCtx.selectedPopupId)
   const dL2 = deps.renderPageSelect(deps.editorCtx.activeProject.document, activePagePath)
   if ((deps.setPageControlsEnabled(dL2), deps.resizeWorkspaceCanvas(), !dL2)) {

@@ -20,6 +20,7 @@ import {
   hedgeSamples,
 } from './courtyard-drawing'
 import { courtyardPalette } from './courtyard-models'
+import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 /** 编辑器面板里的控件都是用 innerHTML 运行时拼出来的，选择器又是 data-* / 标签名动态查找，逐个写死具体元素类型不现实。 */
 type PanelControlElement = HTMLElement & {
   disabled?: boolean
@@ -1003,7 +1004,7 @@ export function createCourtyardDrawingEditor(host: any) {
     }
     const drawPlanLabel = (labelAnchorPlan: any, labelText: any, labelColor = '#43d2e6', labelOffsetY = -25) => {
       const labelAnchorScreen = host.screen(labelAnchorPlan)
-      previewPainter.font = '12px sans-serif'
+      previewPainter.font = dashboardCanvasFont('12px', 'sans-serif')
       const labelWidthPx = previewPainter.measureText(labelText).width,
         labelX = Math.max(4, Math.min(labelAnchorScreen.x + 10, canvasElement.clientWidth - labelWidthPx - 16)),
         labelY = Math.max(4, Math.min(labelAnchorScreen.y + labelOffsetY, canvasElement.clientHeight - 26))
@@ -1021,15 +1022,14 @@ export function createCourtyardDrawingEditor(host: any) {
     }
     if (previewPoints.length >= 2) {
       const lastSegmentStart = previewPoints.at(-2),
-        lastSegmentEnd = previewPoints.at(-1)
+        lastSegmentEnd = previewPoints.at(-1),
+        meters = Math.hypot(lastSegmentEnd.x - lastSegmentStart.x, lastSegmentEnd.y - lastSegmentStart.y) / host.ppm()
       drawPlanLabel(
         {
           x: (lastSegmentStart.x + lastSegmentEnd.x) / 2,
           y: (lastSegmentStart.y + lastSegmentEnd.y) / 2,
         },
-        (Math.hypot(lastSegmentEnd.x - lastSegmentStart.x, lastSegmentEnd.y - lastSegmentStart.y) / host.ppm()).toFixed(
-          2,
-        ) + ' m',
+        meters.toFixed(2) + ' m',
         '#ff9d2e',
         10,
       )

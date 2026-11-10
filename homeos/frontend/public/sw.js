@@ -16,6 +16,8 @@ const STATIC_PREFIXES = [
   '/backgrounds/',
   '/sounds/',
   '/logo/',
+  // 内置字体 URL 带 `?v=<sha256>`，换字体文件即换 URL，缓存不会陈旧。
+  '/fonts-static/',
 ]
 
 self.addEventListener('install', (event) => {

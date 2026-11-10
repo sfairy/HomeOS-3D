@@ -1,3 +1,4 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import {
   COVER_CLOSED_POSITION_EPSILON,
   createAirerVisual,
@@ -2152,11 +2153,9 @@ export function showCustomPopup(
             this.refreshHistorySeries()),
           customPopupOverlay.remove()
       },
-      {
-        once: true,
-      },
+      { once: true },
     ),
-    customPopupDialog.show(),
+    showRuntimeDialog(customPopupDialog),
     this.refreshHistorySeries()
   for (const popupSpeakerVisualElement of popupMediaSpeakerVisuals) {
     const mediaSpeakerAnimation = playMediaSpeakerEntrance2(popupSpeakerVisualElement)

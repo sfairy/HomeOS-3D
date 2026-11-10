@@ -1,3 +1,4 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import type { PanelRenderer } from '../panel-renderer'
 import { componentDialogTitle } from '../renderer-helpers'
 import {
@@ -401,5 +402,5 @@ export function showPresenceDetails(
         once: true,
       },
     ),
-    presenceDialog.show()
+    showRuntimeDialog(presenceDialog)
 }

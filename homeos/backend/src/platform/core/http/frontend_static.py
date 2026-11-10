@@ -37,6 +37,8 @@ ICONS_MOUNT_PREFIX = "/icons"
 BACKGROUNDS_MOUNT_PREFIX = "/backgrounds"
 SOUNDS_MOUNT_PREFIX = "/sounds"
 LOGO_MOUNT_PREFIX = "/logo"
+#: 内置仪表盘字体（只读，``assets-default/fonts``）；用户上传字体走 ``/api/v1/fonts/user``。
+FONTS_MOUNT_PREFIX = "/fonts-static"
 
 #: 全部静态挂载前缀（授权门禁据此整体豁免，见模块 docstring）。
 #: 注意 ``/assets`` 一项现在只覆盖内置素材路由，真正的产物挂载点只有 ``/static``
@@ -49,6 +51,7 @@ FRONTEND_STATIC_MOUNT_PREFIXES = (
     BACKGROUNDS_MOUNT_PREFIX,
     SOUNDS_MOUNT_PREFIX,
     LOGO_MOUNT_PREFIX,
+    FONTS_MOUNT_PREFIX,
 )
 
 #: 位于根路径、不属于任何挂载目录的前端产物。
@@ -194,6 +197,7 @@ __all__ = [
     "AUTH_SCENE_STYLESHEET_PATHS",
     "BACKGROUNDS_MOUNT_PREFIX",
     "FAVICON_PATH",
+    "FONTS_MOUNT_PREFIX",
     "FRONTEND_ASSET_SUFFIXES",
     "FRONTEND_STATIC_MOUNT_PREFIXES",
     "FRONTEND_STATIC_ROOT_FILES",

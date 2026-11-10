@@ -17,6 +17,7 @@ from ..api.client_power import router as client_power_router
 from ..api.earthquake import router as earthquake_router
 from ..api.entities import router as entities_router
 from ..api.events import router as events_router
+from ..api.fonts import router as fonts_router
 from ..api.global_logs import router as global_logs_router
 from ..api.ha.proxy import router as ha_proxy_router
 from ..api.ha.routes import router as ha_router
@@ -91,6 +92,7 @@ def register_homeos_routers(app: FastAPI) -> None:
 def register_studio3d_routers(app: FastAPI) -> None:
     """3D Studio 数据面路由（原 ``studio3d_plane.mount`` 顺序）。"""
     app.include_router(assets_router, prefix=API_PREFIX)
+    app.include_router(fonts_router, prefix=API_PREFIX)
     app.include_router(ha_router, prefix=API_PREFIX)
     app.include_router(runtime_router, prefix=API_PREFIX)
     app.include_router(projects_router, prefix=API_PREFIX)

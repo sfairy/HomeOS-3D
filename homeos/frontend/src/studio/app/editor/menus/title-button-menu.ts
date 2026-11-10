@@ -1,3 +1,5 @@
+import { createUiIcon } from '../../shared/ui-icons'
+
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名
  * 薄转发器，调用点零改写（函数声明保持提升语义）。族内互调留在模块内，不进依赖袋。
@@ -22,23 +24,43 @@ interface TitleButtonMenuDeps {
   createIconPickerClearOptionState: any
 }
 
+/** 字体下拉（0.8.6）：字体名可能很长，包一层可悬停滚动预览的省略号文本。 */
+function wrapFontChoiceName(host: HTMLElement) {
+  const name = document.createElement('span')
+  name.className = 'dashboard-font-choice-name'
+  name.textContent = host.textContent
+  name.dataset.overflowScrollPreview = 'true'
+  name.dataset.overflowScrollFocus = 'true'
+  host.dataset.overflowScrollPreviewRow = 'true'
+  host.replaceChildren(name)
+}
+
+const EMPTY_SELECT_LABELS: Record<string, string> = {
+  'project-select': '暂无仪表盘',
+  'popup-select': '暂无组合弹窗',
+  'image-asset-folder': '暂无图片文件夹',
+}
+
+function createDefaultMarker() {
+  const marker = document.createElement('span')
+  marker.className = 'custom-select-default-marker'
+  marker.setAttribute('aria-hidden', 'true')
+  marker.append(createUiIcon(document, 'star'))
+  return marker
+}
+
 export function loadNavigationIconOptionsCore(deps: TitleButtonMenuDeps, loadTitleButtonIconOptionsElement: any) {
   const pickLightStatisticsEntity = deps.customSelectsBySelectElement.get(loadTitleButtonIconOptionsElement)
   if (!pickLightStatisticsEntity) return
   const element = loadTitleButtonIconOptionsElement.selectedOptions[0],
     popupEntityDisplayName =
       loadTitleButtonIconOptionsElement.id === 'page-select' && element?.dataset.defaultPage === 'true'
-  ;(pickLightStatisticsEntity.button.textContent = popupEntityDisplayName
-    ? '★ ' + element.textContent
-    : element?.textContent ||
-      (loadTitleButtonIconOptionsElement.id === 'project-select'
-        ? '暂无仪表盘'
-        : loadTitleButtonIconOptionsElement.id === 'popup-select'
-          ? '暂无组合弹窗'
-          : loadTitleButtonIconOptionsElement.id === 'image-asset-folder'
-            ? '暂无图片文件夹'
-            : '暂无页面')),
+  ;(pickLightStatisticsEntity.button.textContent =
+    element?.textContent || EMPTY_SELECT_LABELS[loadTitleButtonIconOptionsElement.id] || '暂无页面'),
     (pickLightStatisticsEntity.button.disabled = loadTitleButtonIconOptionsElement.disabled)
+  const isFontSelect = !!loadTitleButtonIconOptionsElement.dataset.fontRole
+  if (isFontSelect) wrapFontChoiceName(pickLightStatisticsEntity.button)
+  if (popupEntityDisplayName) pickLightStatisticsEntity.button.prepend(createDefaultMarker())
   const positionEntityPickerMenu =
       loadTitleButtonIconOptionsElement === deps.imageAssetFolderSelectElement
         ? 'image'
@@ -61,14 +83,13 @@ export function loadNavigationIconOptionsCore(deps: TitleButtonMenuDeps, loadTit
         loadTitleButtonIconOptionsElement.id === 'page-select' &&
           positionIconButtonEffectIconMenu.dataset.defaultPage === 'true')
       ) {
-        const positionImagePickerMenu = document.createElement('span')
-        ;(positionImagePickerMenu.className = 'custom-select-default-marker'),
-          (positionImagePickerMenu.textContent = '★'),
-          positionImagePickerMenu.setAttribute('aria-hidden', 'true')
         const positionLightStatisticsEntityMenu = document.createElement('span')
         ;(positionLightStatisticsEntityMenu.textContent = positionIconButtonEffectIconMenu.textContent),
-          positionIconButtonIconMenu.append(positionImagePickerMenu, positionLightStatisticsEntityMenu)
-      } else positionIconButtonIconMenu.textContent = positionIconButtonEffectIconMenu.textContent
+          positionIconButtonIconMenu.append(createDefaultMarker(), positionLightStatisticsEntityMenu)
+      } else {
+        positionIconButtonIconMenu.textContent = positionIconButtonEffectIconMenu.textContent
+        if (isFontSelect) wrapFontChoiceName(positionIconButtonIconMenu)
+      }
       if (
         (positionIconButtonIconMenu.classList.toggle(
           'active',

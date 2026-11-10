@@ -22,6 +22,7 @@ import {
   isCourtyardDrawing as isCourtyardDrawing2,
   itemMinimumFootprint as itemMinimumFootprint2,
   itemMinimumHeight as itemMinimumHeight2,
+  itemMinimumElevation,
   normalizeCourtyardDrawing as normalizeCourtyardDrawing2,
   normalizeFixedCameraView as normalizeFixedCameraView2,
   normalizeFullRotation as normalizeFullRotation2,
@@ -460,7 +461,11 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                   ? table.height
                   : itemHeight,
               ...(rawItemRecord?.type === 'fan' ? fanDimensions2(rawItemRecord) : {}),
-              elevation: clamp2(finite2(rawItemRecord?.elevation, table.elevation || 0), 0, 6),
+              elevation: clamp2(
+                finite2(rawItemRecord?.elevation, table.elevation || 0),
+                itemMinimumElevation(rawItemRecord?.type),
+                6,
+              ),
               ...(rawItemRecord?.type === 'airer' ? airerDimensions2(rawItemRecord) : {}),
               ...(['camera', 'presence'].includes(rawItemRecord?.type)
                 ? {
@@ -658,4 +663,15 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
 /** 铭牌颜色的唯一收口：任何来源都要先过这里，避免写进非法色值。 */
 export function normalizePlanLabelColor(candidateColor: any) {
   return /^#[0-9a-f]{6}$/i.test(String(candidateColor || '')) ? candidateColor : planLabelDefaultColor
+}
+
+/** 暖阳原木下，仍是默认色的铭牌改用主题的字色 / 底线色；`line` 为 null 时底线由字色派生。 */
+export function planLabelThemeColors(
+  candidateColor: unknown,
+  themePalette: { warmWood?: boolean; planLabelText?: string; planLabelLine?: string } | null | undefined,
+): { text: string; line: string | null } {
+  const text = normalizePlanLabelColor(candidateColor)
+  return themePalette?.warmWood && themePalette.planLabelText && text.toLowerCase() === planLabelDefaultColor
+    ? { text: themePalette.planLabelText, line: themePalette.planLabelLine || null }
+    : { text, line: null }
 }

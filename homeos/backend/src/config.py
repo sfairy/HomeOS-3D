@@ -242,6 +242,11 @@ class Settings:
         return self.data_dir / "assets"
 
     @property
+    def fonts_dir(self) -> Path:
+        """用户上传的仪表盘字体（内置字体在 ``assets-default/fonts``，只读）。"""
+        return self.data_dir / "fonts"
+
+    @property
     def studio3d_dir(self) -> Path:
         return self.data_dir / "studio3d"
 

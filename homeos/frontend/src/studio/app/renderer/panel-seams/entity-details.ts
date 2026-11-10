@@ -1,3 +1,4 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import {
   COVER_CLOSED_POSITION_EPSILON,
   componentDialogTitle,
@@ -1498,8 +1499,5 @@ export function showEntityDetails(
         once: true,
       },
     ),
-    entityDetailsDialog.show(),
-    entityDetailsDialog.focus({
-      preventScroll: true,
-    })
+    showRuntimeDialog(entityDetailsDialog)
 }

@@ -506,7 +506,7 @@ export function projectItemAnchor(
   const anchorPixelsPerMeter = anchorFloor.scene?.calibration?.pixelsPerMeter || 1
   let anchorLocalX = 0,
     anchorElevationY =
-      Math.max(0, finite2(anchorItem.elevation, 0)) +
+      finite2(anchorItem.elevation, 0) +
       ((anchorItem.type === 'airer' ? -1 : 1) * Math.max(0.02, finite2(anchorItem.height, 0.1))) / 2
   anchorItem.type === 'courtyard-area' &&
     (anchorElevationY = Math.max(0, finite2(anchorItem.elevation, 0)) + courtyardSurfaceRise2(anchorItem) - 0.006)

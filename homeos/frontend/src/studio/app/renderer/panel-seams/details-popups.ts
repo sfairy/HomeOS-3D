@@ -1,4 +1,6 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import type { ComponentControllerElement, ComponentPayload } from '../renderer-types'
+import { createUiIconSlot } from '../../shared/ui-icons'
 import { componentDialogTitle } from '../renderer-helpers'
 import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '../entity-metadata'
 import { shellOpenMediaPlayer } from '@/studio/platform/shell-chrome'
@@ -300,7 +302,7 @@ export function showCapabilityDetails(
         once: true,
       },
     ),
-    capabilityDialog.show()
+    showRuntimeDialog(capabilityDialog)
 }
 export function showMediaPlayerDetails(
   self: PanelRenderer,
@@ -322,8 +324,7 @@ export function createBathHeaterLightControl(
   const bathHeaterLightSection: ComponentControllerElement = document.createElement('section')
   bathHeaterLightSection.className = 'hb-bath-heater-light-control'
   const bathLightHeading = document.createElement('span'),
-    bathLightIcon = document.createElement('i')
-  bathLightIcon.setAttribute('aria-hidden', 'true'), (bathLightIcon.textContent = '☀')
+    bathLightIcon = createUiIconSlot(document, 'lightbulb-outline')
   const bathLightLabel = document.createElement('strong')
   bathLightLabel.textContent = String(bathLightState?.attributes?.friendly_name || '浴霸灯')
   const bathLightBadge = document.createElement('output')
@@ -434,10 +435,7 @@ export function showElectricBedLoadingDetails(
         once: true,
       },
     ),
-    electricBedLoadingDialog.show(),
-    electricBedLoadingDialog.focus({
-      preventScroll: true,
-    })
+    showRuntimeDialog(electricBedLoadingDialog)
 }
 export function showElectricBedDetails(
   self: PanelRenderer,
@@ -767,7 +765,7 @@ export function showElectricBedDetails(
         once: true,
       },
     ),
-    electricBedDialog.show()
+    showRuntimeDialog(electricBedDialog)
 }
 export function openInteraction3dVacuumDetails(
   self: PanelRenderer,

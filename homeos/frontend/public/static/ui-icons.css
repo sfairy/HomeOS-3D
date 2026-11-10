@@ -1,0 +1,16 @@
+/* 统一操作图标（0.8.6）：MDI SVG 作遮罩，颜色跟随 currentColor。见 src/studio/app/shared/ui-icons.ts */
+.hb-ui-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  vertical-align: -0.125em;
+  background-color: currentColor;
+  -webkit-mask: var(--hb-ui-icon-source, none) center / contain no-repeat;
+  mask: var(--hb-ui-icon-source, none) center / contain no-repeat;
+  pointer-events: none;
+}
+
+.hb-ui-icon[hidden] {
+  display: none;
+}

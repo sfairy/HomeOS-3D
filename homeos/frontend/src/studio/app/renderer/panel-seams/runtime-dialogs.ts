@@ -10,6 +10,13 @@ import {
 } from '../panel-dialog-motion'
 import type { PanelRenderer } from '../panel-renderer'
 
+/** 运行时弹窗统一打开：焦点落在弹窗本身，首个按钮不会一打开就出现焦点框（0.8.6）。 */
+export function showRuntimeDialog(dialog: HTMLDialogElement) {
+  dialog.tabIndex = -1
+  dialog.show()
+  dialog.focus({ preventScroll: true })
+}
+
 export function registerRuntimeDialogScale(
   self: PanelRenderer,
   dialogLayerElement: any,

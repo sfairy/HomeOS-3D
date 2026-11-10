@@ -5,6 +5,8 @@
  * 不持有任何引导期状态 —— 于是可以从那个 4000 行的宿主函数里独立出来。
  */
 
+import { disposeStudioFonts } from '../../boot/studio-boot'
+
 type DisposableLike = { dispose?: () => void }
 type RendererLike = DisposableLike & { forceContextLoss?: () => void }
 
@@ -55,6 +57,7 @@ export function releaseStudioRenderer(appCtx: StudioRendererHandles): void {
 
 /** 引导期写在 DOM 上的诊断标记：嵌入式 stage 的 body 类、dataset 键与 window 内部契约。 */
 export function clearStudioDocumentResidue(): void {
+  disposeStudioFonts()
   document.body.classList.remove('auto-diagram-embedded')
   document.documentElement.classList.remove('list-drag-active')
   const documentDataset = document.documentElement.dataset

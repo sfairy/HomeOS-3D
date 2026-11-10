@@ -1,3 +1,5 @@
+@import "../ui-icons.css";
+
 :root {
   color-scheme: dark;
   --bg: #0a0f14;
@@ -1510,6 +1512,49 @@ html.list-drag-active * {
   color: #b4bec7;
   font-style: normal;
   font-size: 16px;
+}
+.tool-button > .hb-ui-icon {
+  width: 18px;
+  height: 18px;
+}
+.tool-button[data-tool="select"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/cursor-default-outline.svg);
+}
+.tool-button[data-tool="pan"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/pan.svg);
+}
+.tool-button[data-tool="scale"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/ruler.svg);
+}
+.tool-button[data-tool="label"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/format-text.svg);
+}
+.tool-button[data-tool="wall"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/wall.svg);
+}
+.tool-button[data-tool="window"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/window-closed-variant.svg);
+}
+.tool-button[data-tool="door"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/door.svg);
+}
+.tool-button[data-tool="railing"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/fence.svg);
+}
+.tool-button[data-tool="flooropening"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/vector-square.svg);
+}
+.tool-button[data-tool="courtyard-area"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/texture-box.svg);
+}
+.tool-button[data-tool="courtyard-path"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/dots-grid.svg);
+}
+.tool-button[data-tool="courtyard-fence"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/fence.svg);
+}
+.tool-button[data-tool="courtyard-gate"] > .hb-ui-icon {
+  --hb-ui-icon-source: url(/static/vendor/mdi/7.4.47/svg/gate.svg);
 }
 .tool-button.active {
   color: #fff;

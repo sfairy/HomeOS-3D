@@ -1,5 +1,7 @@
 @import "./percentage-bar.css";
 @import "./scene-popup.css";
+@import "../dashboard-fonts.css";
+@import "../ui-icons.css";
 .hb-renderer-viewport {
   position: relative;
   flex: none;
@@ -12685,9 +12687,8 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-.hb-scene-mode:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 4px;
+.hb-scene-mode:focus {
+  outline: none;
 }
 .hb-scene-mode.has-animation .hb-navigation-text,
 .hb-scene-mode.has-animation .hb-navigation-icon {
@@ -12895,7 +12896,24 @@
 /* 0.8.4 天气预报弹窗（从 renderer.css 按选择器合并） */
 .hb-entity-details-dialog.weather-details {--wf-ink:#f4f5f6;--wf-copy:#bdc6cc;--wf-muted:#85929b;--wf-low:#9eacb7;--wf-edge:rgba(160,170,178,.56);--wf-rule:rgba(146,164,174,.095);--wf-track:rgba(141,159,171,.095);--wf-range-low:#9fbb9c;--wf-range-high:#d5bd82;--wf-tab-track:rgba(2,7,11,.22);--wf-selected:#303b44;--wf-chart:#bdc69d;--wf-panel:linear-gradient(145deg,#1b2228 0%,#12181d 48%,#0d1216 100%);width:760px;border-color:var(--wf-edge);border-radius:22px;color:var(--wf-ink);background:var(--wf-panel);box-shadow:0 30px 90px #000b,inset 0 1px #e2eaef13;font-family:Helvetica Neue,PingFang SC,Microsoft YaHei,sans-serif;font-weight:400;color-scheme:dark}
 .hb-entity-details-dialog.weather-details[data-weather-theme=warm-wood] {--wf-ink:#3d3b35;--wf-copy:#65665d;--wf-muted:#777a70;--wf-low:#747e76;--wf-edge:rgba(132,120,100,.3);--wf-rule:rgba(118,107,86,.12);--wf-track:rgba(134,143,120,.15);--wf-range-low:#8e9f7a;--wf-range-high:#bd9e62;--wf-tab-track:rgba(133,120,93,.06);--wf-selected:#e6e2d7;--wf-chart:#8c9c70;--wf-panel:linear-gradient(145deg,#fdfbf6 0%,#f7f3eb 48%,#efe9df 100%);box-shadow:0 30px 90px #41351f36,inset 0 1px #fffd;color-scheme:light}
-.hb-renderer-runtime-dialog-layer[data-weather-theme=warm-wood] {background:#322b1f3b;animation:none}
+.hb-renderer-runtime-dialog-layer[data-runtime-dialog-theme=warm-wood] {background:#322b1f3b;animation:none}
+.hb-climate-details-options button i > .hb-ui-icon {
+  width: 100%;
+  height: 100%;
+}
+.hb-light-details-slider-icon > .hb-ui-icon,
+.hb-bath-heater-light-control i > .hb-ui-icon {
+  width: 1.15em;
+  height: 1.15em;
+}
+.hb-vacuum-details-actions button > i > .hb-ui-icon {
+  width: 18px;
+  height: 18px;
+}
+.hb-climate-fan-slider-heading > i > .hb-ui-icon {
+  width: 16px;
+  height: 16px;
+}
 .hb-weather-forecast-card {height:538px;min-height:538px;display:flex;flex-direction:column;padding:28px 50px 22px;box-sizing:border-box;overflow:hidden}
 .hb-weather-forecast-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:20px;min-height:82px;flex:none}
 .hb-weather-forecast-heading>div:first-child {display:grid;min-width:0;gap:8px}

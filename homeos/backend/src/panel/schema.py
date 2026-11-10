@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..domains.fonts import valid_font_selection
 from ..platform.core.entity.entity_ids import valid_entity_id, valid_ha_entity_id
 
 IDENTIFIER = re.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$")
@@ -55,8 +56,26 @@ class Canvas(ExtensibleModel):
     background: CanvasBackground = Field(default_factory=CanvasBackground)
 
 
+class DashboardFonts(BaseModel):
+    """仪表盘全局字体：中文与英文/数字分开选；``device`` 即系统字体栈。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    chinese: str = "device"
+    latin: str = "device"
+
+    @model_validator(mode="after")
+    def validate_choices(self) -> DashboardFonts:
+        if not valid_font_selection(self.chinese, latin=False) or not valid_font_selection(
+            self.latin, latin=True
+        ):
+            raise ValueError("字体选择无效。")
+        return self
+
+
 class Theme(ExtensibleModel):
 
+    fonts: DashboardFonts | None = None
     name: str = Field(default="dashboard-v1-dark", min_length=1, max_length=128)
     variables: dict[str, str | int | float] = Field(default_factory=dict)
 

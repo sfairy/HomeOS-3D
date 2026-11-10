@@ -293,11 +293,11 @@ def viewer_user_asset_ids(
 def viewer_asset_ids(
     database: DatabaseSession,
     viewer: ViewerPrincipal,
-    prefixes: tuple[str, ...] = ('user:', 'studio3d:'),
+    prefixes: tuple[str, ...] = ('user:', 'studio3d:', 'font:'),
 ) -> set[str] | None:
     """查看者可见的可变素材白名单；``None`` 表示不限制（0.8.1 新增）。
 
-    与 :func:`viewer_user_asset_ids` 同源，区别只在默认前缀包含 ``studio3d:``。
+    与 :func:`viewer_user_asset_ids` 同源，区别只在默认前缀包含 ``studio3d:`` / ``font:``。
     删除 / 覆盖侧用它判断「这张图是不是仪表盘自己的」。
     """
     return viewer_user_asset_ids(database, viewer, prefixes=prefixes)

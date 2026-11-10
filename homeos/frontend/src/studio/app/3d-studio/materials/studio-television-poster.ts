@@ -6,6 +6,7 @@
  * 空带，看上去就是画面只占上半屏。现在按满幅排：顶部通栏细线、底部通栏状态条、左右两栏
  * 的卡片都排到画布边缘。
  */
+import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 export function drawTelevisionPoster(canvasElement: any, painter: any) {
   painter.save(),
     painter.scale(canvasElement.width / 960, canvasElement.height / 540),
@@ -23,18 +24,18 @@ export function drawTelevisionPoster(canvasElement: any, painter: any) {
     (painter.fillStyle = '#ff9f36'),
     painter.fillRect(54, 44, 12, 52),
     (painter.fillStyle = '#f4f8fb'),
-    (painter.font = '700 40px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('700 40px', 'Arial, sans-serif')),
     painter.fillText('HOMEOS', 88, 82),
     (painter.fillStyle = '#7f93a6'),
-    (painter.font = '600 14px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('600 14px', 'Arial, sans-serif')),
     painter.fillText('SMART HOME, SIMPLY CONNECTED', 88, 106),
     // 左栏主标题。
     (painter.fillStyle = '#ffffff'),
-    (painter.font = '700 50px sans-serif'),
+    (painter.font = dashboardCanvasFont('700 50px', 'sans-serif')),
     painter.fillText('让全屋设备', 54, 228),
     painter.fillText('自然协作', 54, 290),
     (painter.fillStyle = '#9cafbf'),
-    (painter.font = '400 19px sans-serif'),
+    (painter.font = dashboardCanvasFont('400 19px', 'sans-serif')),
     painter.fillText('一张图，连接灯光、环境与家庭场景', 56, 334)
   ;[
     {
@@ -58,7 +59,7 @@ export function drawTelevisionPoster(canvasElement: any, painter: any) {
       (painter.fillStyle = legendItem.color),
       painter.fillRect(chipX + 14, 408, 8, 30),
       (painter.fillStyle = '#dbe5ed'),
-      (painter.font = '700 13px Arial, sans-serif'),
+      (painter.font = dashboardCanvasFont('700 13px', 'Arial, sans-serif')),
       painter.fillText(legendItem.label, chipX + 32, 428)
   })
   // 右栏：HOME STATUS 主卡。
@@ -67,22 +68,22 @@ export function drawTelevisionPoster(canvasElement: any, painter: any) {
     painter.roundRect(552, 40, 366, 168, 12),
     painter.fill(),
     (painter.fillStyle = '#8295a6'),
-    (painter.font = '600 14px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('600 14px', 'Arial, sans-serif')),
     painter.fillText('HOME STATUS', 578, 72),
     (painter.fillStyle = '#f5f8fb'),
-    (painter.font = '700 58px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('700 58px', 'Arial, sans-serif')),
     painter.fillText('24°', 578, 150),
     (painter.fillStyle = '#32c59b'),
     painter.beginPath(),
     painter.arc(856, 116, 31, 0, Math.PI * 2),
     painter.fill(),
     (painter.fillStyle = '#07111d'),
-    (painter.font = '700 17px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('700 17px', 'Arial, sans-serif')),
     (painter.textAlign = 'center'),
     painter.fillText('ON', 856, 122),
     (painter.textAlign = 'left'),
     (painter.fillStyle = '#91a4b5'),
-    (painter.font = '400 15px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('400 15px', 'Arial, sans-serif')),
     painter.fillText('COMFORT MODE · ALL SYSTEMS READY', 578, 184)
   const statCards = [
     {
@@ -122,10 +123,10 @@ export function drawTelevisionPoster(canvasElement: any, painter: any) {
       (painter.fillStyle = statCard.color),
       painter.fillRect(statCard.x + 18, statCard.y + 18, 30, 5),
       (painter.fillStyle = '#f4f8fb'),
-      (painter.font = '700 29px Arial, sans-serif'),
+      (painter.font = dashboardCanvasFont('700 29px', 'Arial, sans-serif')),
       painter.fillText(statCard.value, statCard.x + 18, statCard.y + 68),
       (painter.fillStyle = '#8295a6'),
-      (painter.font = '600 12px Arial, sans-serif'),
+      (painter.font = dashboardCanvasFont('600 12px', 'Arial, sans-serif')),
       painter.fillText(statCard.label, statCard.x + 18, statCard.y + 92)
     // 底部通栏状态条：画布最下缘永远是内容，不会露出黑边。
   ;(painter.fillStyle = '#0d2032'),
@@ -137,10 +138,10 @@ export function drawTelevisionPoster(canvasElement: any, painter: any) {
     painter.arc(58, 512, 6, 0, Math.PI * 2),
     painter.fill(),
     (painter.fillStyle = '#c7d5e1'),
-    (painter.font = '600 15px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('600 15px', 'Arial, sans-serif')),
     painter.fillText('SYSTEM ONLINE', 76, 518),
     (painter.fillStyle = '#6d8398'),
-    (painter.font = '400 14px Arial, sans-serif'),
+    (painter.font = dashboardCanvasFont('400 14px', 'Arial, sans-serif')),
     (painter.textAlign = 'right'),
     painter.fillText('24°C · 8 LIGHTS · 4 ROOMS · AIR 92%', 902, 518),
     (painter.textAlign = 'left'),

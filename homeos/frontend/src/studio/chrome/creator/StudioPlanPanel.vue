@@ -31,13 +31,13 @@ const floorplanStore = useStudioFloorplanStore()
                         </button>
                         <div class="drawing-tool-buttons" id="drawing-tools-common" hidden>
                             <button class="tool-button active" type="button" data-tool="select" aria-pressed="true"
-                                title="选择与移动"><i>⌁</i><span>选择</span><small>选择与移动</small></button>
+                                title="选择与移动"><i class="hb-ui-icon" aria-hidden="true"></i><span>选择</span><small>选择与移动</small></button>
                             <button class="tool-button" type="button" data-tool="pan" aria-pressed="false"
-                                title="按住左键拖动平移画布"><i>✥</i><span>平移</span><small>按住左键拖动</small></button>
+                                title="按住左键拖动平移画布"><i class="hb-ui-icon" aria-hidden="true"></i><span>平移</span><small>按住左键拖动</small></button>
                             <button class="tool-button" type="button" data-tool="scale" aria-pressed="false"
-                                title="绘制参考线"><i>↔</i><span>参考线</span><small>绘制参考线</small></button>
+                                title="绘制参考线"><i class="hb-ui-icon" aria-hidden="true"></i><span>参考线</span><small>绘制参考线</small></button>
                             <button class="tool-button" type="button" data-tool="label" aria-pressed="false"
-                                title="放置户型铭牌"><i>T</i><span>铭牌</span><small>放置户型铭牌</small></button>
+                                title="放置户型铭牌"><i class="hb-ui-icon" aria-hidden="true"></i><span>铭牌</span><small>放置户型铭牌</small></button>
                         </div>
                     </div>
                     <div class="drawing-tool-section drawing-tool-section--indoor">
@@ -49,15 +49,15 @@ const floorplanStore = useStudioFloorplanStore()
                         </button>
                         <div class="drawing-tool-buttons" id="drawing-tools-indoor" hidden>
                             <button class="tool-button" type="button" data-tool="wall" aria-pressed="false"
-                                title="连续画墙"><i>╱</i><span>墙体</span><small>连续画墙</small></button>
+                                title="连续画墙"><i class="hb-ui-icon" aria-hidden="true"></i><span>墙体</span><small>连续画墙</small></button>
                             <button class="tool-button" type="button" data-tool="window" aria-pressed="false"
-                                title="将窗户吸附到墙上"><i>▣</i><span>窗户</span><small>吸附到墙上</small></button>
+                                title="将窗户吸附到墙上"><i class="hb-ui-icon" aria-hidden="true"></i><span>窗户</span><small>吸附到墙上</small></button>
                             <button class="tool-button" type="button" data-tool="door" aria-pressed="false"
-                                title="将门吸附到墙上"><i>◧</i><span>门</span><small>吸附到墙上</small></button>
+                                title="将门吸附到墙上"><i class="hb-ui-icon" aria-hidden="true"></i><span>门</span><small>吸附到墙上</small></button>
                             <button class="tool-button" type="button" data-tool="railing" aria-pressed="false"
-                                title="将玻璃栏杆吸附到墙上"><i>▥</i><span>栏杆</span><small>玻璃栏杆吸附到墙上</small></button>
+                                title="将玻璃栏杆吸附到墙上"><i class="hb-ui-icon" aria-hidden="true"></i><span>栏杆</span><small>玻璃栏杆吸附到墙上</small></button>
                             <button class="tool-button" type="button" data-tool="flooropening" aria-pressed="false"
-                                title="拖出矩形，仅切除当前层楼板"><i>▣</i><span>楼板洞口</span><small>仅切除当前层楼板</small></button>
+                                title="拖出矩形，仅切除当前层楼板"><i class="hb-ui-icon" aria-hidden="true"></i><span>楼板洞口</span><small>仅切除当前层楼板</small></button>
                         </div>
                     </div>
                     <div class="drawing-tool-section drawing-tool-section--courtyard">
@@ -69,13 +69,13 @@ const floorplanStore = useStudioFloorplanStore()
                         </button>
                         <div class="drawing-tool-buttons" id="drawing-tools-courtyard" hidden>
                             <button class="tool-button" type="button" data-tool="courtyard-area" aria-pressed="false"
-                                title="绘制庭院地面"><i>▧</i><span>地面</span><small>绘制庭院地面</small></button>
+                                title="绘制庭院地面"><i class="hb-ui-icon" aria-hidden="true"></i><span>地面</span><small>绘制庭院地面</small></button>
                             <button class="tool-button" type="button" data-tool="courtyard-path" aria-pressed="false"
-                                title="沿路径铺设汀步"><i>◌</i><span>汀步</span><small>沿路径铺设汀步</small></button>
+                                title="沿路径铺设汀步"><i class="hb-ui-icon" aria-hidden="true"></i><span>汀步</span><small>沿路径铺设汀步</small></button>
                             <button class="tool-button" type="button" data-tool="courtyard-fence" aria-pressed="false"
-                                title="绘制庭院围挡"><i>▥</i><span>围挡</span><small>绘制庭院围挡</small></button>
+                                title="绘制庭院围挡"><i class="hb-ui-icon" aria-hidden="true"></i><span>围挡</span><small>绘制庭院围挡</small></button>
                             <button class="tool-button" type="button" data-tool="courtyard-gate" aria-pressed="false"
-                                title="沿围挡放置庭院门"><i>◧</i><span>庭院门</span><small>沿围挡放置庭院门</small></button>
+                                title="沿围挡放置庭院门"><i class="hb-ui-icon" aria-hidden="true"></i><span>庭院门</span><small>沿围挡放置庭院门</small></button>
                         </div>
                     </div>
                 </div>

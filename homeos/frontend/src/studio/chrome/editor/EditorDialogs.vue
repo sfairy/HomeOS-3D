@@ -309,4 +309,38 @@
             </div>
         </div>
     </dialog>
+
+    <dialog id="dashboard-font-dialog" class="settings-dialog dashboard-font-dialog"
+        aria-labelledby="dashboard-font-title">
+        <div class="dialog-heading">
+            <div><span>FONT LIBRARY</span>
+                <h2 id="dashboard-font-title">管理字体</h2>
+            </div><button class="icon-button" type="button" data-close aria-label="关闭字体管理">&times;</button>
+        </div>
+        <div class="dashboard-font-body">
+            <div class="dashboard-font-upload">
+                <div><strong>上传本地字体</strong>
+                    <p>TTF、OTF、WOFF、WOFF2 · 单个文件最大 32 MB</p>
+                </div><button class="primary" type="button" data-font-upload>上传字体</button><input type="file"
+                    accept=".ttf,.otf,.woff,.woff2" aria-label="选择字体文件" hidden>
+            </div>
+            <p class="dashboard-font-note">请确认你有权将此字体用于 HomeOS 页面展示。字体选择随当前仪表盘保存。</p>
+            <div class="settings-message dashboard-font-message" role="status" aria-live="polite" hidden></div>
+            <section class="dashboard-font-preview" aria-label="字体预览">
+                <div class="dashboard-font-section-heading"><strong>字体预览</strong><span data-preview-name>跟随设备</span>
+                </div>
+                <div class="dashboard-font-sample">客厅 · 回家模式<br>Living Room　08:36　23.5°C</div>
+            </section>
+            <section>
+                <div class="dashboard-font-section-heading"><strong>内置字体</strong><span>8 款 · SIL OFL 1.1</span></div>
+                <div class="dashboard-font-builtin-headings"><span>中文字体</span><span>英文与数字</span></div>
+                <div class="dashboard-font-list" data-font-source="builtin"></div>
+            </section>
+            <section>
+                <div class="dashboard-font-section-heading"><strong>已上传字体</strong><span data-upload-count>0 款</span>
+                </div>
+                <div class="dashboard-font-list" data-font-source="user"></div>
+            </section>
+        </div>
+    </dialog>
 </template>

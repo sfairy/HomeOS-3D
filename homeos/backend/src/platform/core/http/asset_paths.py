@@ -127,6 +127,11 @@ def get_sounds_dir() -> Path:
     return _asset_dir("SOUNDS_DIR", "sounds")
 
 
+def get_fonts_dir() -> Path:
+    """内置仪表盘字体目录（对外 URL ``/fonts-static/...``，含 ``catalog.json``）。"""
+    return _asset_dir("FONTS_DIR", "fonts")
+
+
 def get_ui_assets_dir() -> Path:
     """用户可写 UI 静态资源根（图标 / 背景图上传层）。
 
@@ -379,6 +384,7 @@ __all__ = [
     "UPLOAD_CONTENT_TYPES",
     "UPLOAD_IMAGE_SUFFIXES",
     "get_backgrounds_dir",
+    "get_fonts_dir",
     "get_icons_dir",
     "get_logo_dir",
     "get_sounds_dir",

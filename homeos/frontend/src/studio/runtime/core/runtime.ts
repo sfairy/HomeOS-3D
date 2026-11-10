@@ -23,6 +23,7 @@ import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint 
 import { hostLoadTiming } from '@app/bridge/scene/load-timing'
 import { vacuumStatusBinding } from '@app/renderer/controls/vacuum-runtime'
 import { entityNumberFormats, temperatureHumidityEntities } from '@app/bridge/temperature-humidity'
+import { stageFontParams } from '@app/shared/dashboard-fonts'
 
 type HostLogger = HomeOSLog & {
   report?: (level: string, category?: string, message?: string, details?: unknown, detailsText?: string) => void
@@ -1670,7 +1671,8 @@ export function mountInteraction3d(
       (loadingElement.hidden = false),
       (loadingElement.textContent = ''),
       loadingElement.setAttribute('aria-label', '正在准备 3D 户型')
-    const wallTrialModes = (new URLSearchParams(window.location.search).get('wall-trial') || '')
+    const pageQuery = new URLSearchParams(window.location.search),
+      wallTrialModes = (pageQuery.get('wall-trial') || '')
         .split(',')
         .filter((wallTrialMode) => ['shader', 'single', 'depth', 'merge'].includes(wallTrialMode))
         .join(','),
@@ -1685,20 +1687,17 @@ export function mountInteraction3d(
           sceneId: componentProperties.sceneId,
           projectId: hostProjectId,
           componentId: componentDescriptor.id || '',
+          ...stageFontParams(runtimeContext.document),
           lighting: stageLightingMode,
           // 标准光影 v2 才追加版本位：舞台据此跳过 legacy 阴影缓存与旧光照分档。
           ...(stageLightingMode === 'standard' ? { lightingVersion: '2' } : {}),
           ...(wallTrialModes ? { 'wall-trial': wallTrialModes } : {}),
-          ...(new URLSearchParams(window.location.search).get('furniture-runtime') === 'compact'
-            ? { 'furniture-runtime': 'compact' }
-            : {}),
-          ...(new URLSearchParams(window.location.search).get('reflection-detail') === 'low'
-            ? { 'reflection-detail': 'low' }
-            : {}),
-          ...(new URLSearchParams(window.location.search).get('performance-diagnostics') === '1'
+          ...(pageQuery.get('furniture-runtime') === 'compact' ? { 'furniture-runtime': 'compact' } : {}),
+          ...(pageQuery.get('reflection-detail') === 'low' ? { 'reflection-detail': 'low' } : {}),
+          ...(pageQuery.get('performance-diagnostics') === '1'
             ? {
                 'performance-diagnostics': '1',
-                ...(new URLSearchParams(window.location.search).get('reflection-work') === 'baseline'
+                ...(pageQuery.get('reflection-work') === 'baseline'
                   ? {
                       'reflection-work': 'baseline',
                     }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import mimetypes
 import re
 from html import escape as html_escape
 from pathlib import Path
@@ -15,12 +16,14 @@ from fastapi.staticfiles import StaticFiles
 
 from ..api.assets import read_builtin_asset
 from ..config import Settings
+from ..domains.fonts import FONT_TYPES
 from ..domains.license import features as feature_codes
 from ..platform.core.http.frontend_resources import frontend_resource_url
 from ..platform.core.http.frontend_static import (
     APPLE_TOUCH_ICON_PATHS,
     BACKGROUNDS_MOUNT_PREFIX,
     FAVICON_PATH,
+    FONTS_MOUNT_PREFIX,
     FRONTEND_ASSET_SUFFIXES,
     ICONS_MOUNT_PREFIX,
     LOGO_MOUNT_PREFIX,
@@ -279,7 +282,7 @@ def _register_pwa_asset_routes(app: FastAPI, frontend_dir: Path) -> None:
 
 
 def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
-    """可替换静态资源（图标 / 背景图 / 音效 / Logo）；缺失目录不挂载。
+    """可替换静态资源（图标 / 背景图 / 音效 / Logo / 内置字体）；缺失目录不挂载。
 
     图标与背景图是**分层**的：随包默认素材（``assets/icons`` / ``assets/backgrounds``）
     只读，用户上传落到 ``<data_dir>/ui-assets`` 并优先命中。这样上传覆盖默认图、删除默认
@@ -288,6 +291,7 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
     from ..platform.core.http.asset_paths import (
         UPLOAD_CONTENT_TYPES,
         get_backgrounds_dir,
+        get_fonts_dir,
         get_icons_dir,
         get_logo_dir,
         get_sounds_dir,
@@ -342,9 +346,12 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
             name=f"layered-bare{mount_path}",
         )(_bare_asset_dir)
 
+    for suffix, media_type in FONT_TYPES.items():
+        mimetypes.add_type(media_type, suffix)
     for mount_path, asset_dir in (
         (SOUNDS_MOUNT_PREFIX, get_sounds_dir()),
         (LOGO_MOUNT_PREFIX, get_logo_dir()),
+        (FONTS_MOUNT_PREFIX, get_fonts_dir()),
     ):
         if asset_dir.is_dir():
             app.mount(

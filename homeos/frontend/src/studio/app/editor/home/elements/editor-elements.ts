@@ -79,8 +79,7 @@ export function queryEditorElements(findElement: (selectorState: any) => any) {
     editorCanvasElement = findElement('#editor-canvas'),
     displayDeviceCountElement = findElement('.workspace'),
     workspaceTitleElement = findElement('#workspace-title'),
-    workspaceResolutionElement = findElement('#workspace-resolution'),
-    soundToggleButtonElement = document.createElement('button')
+    workspaceResolutionElement = findElement('#workspace-resolution')
   const deleteProjectDialogElement = findElement('#delete-project-dialog'),
     deleteProjectCloseButtonElement = findElement('#delete-project-close'),
     deleteProjectCancelButtonElement = findElement('#delete-project-cancel'),
@@ -945,7 +944,6 @@ export function queryEditorElements(findElement: (selectorState: any) => any) {
     displayDeviceCountElement,
     workspaceTitleElement,
     workspaceResolutionElement,
-    soundToggleButtonElement,
     deleteProjectDialogElement,
     deleteProjectCloseButtonElement,
     deleteProjectCancelButtonElement,

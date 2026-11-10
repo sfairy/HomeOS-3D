@@ -1,0 +1,329 @@
+/* 仪表盘全局字体（0.8.6）：渲染容器上的 data-hb-fonts / --hb-dashboard-font 由
+ * src/studio/app/shared/dashboard-fonts.ts 写入；其余是编辑器「全局字体」区块与字体管理弹窗。 */
+[data-hb-fonts],
+[data-hb-fonts] :where(*) {
+  font-family: var(--hb-dashboard-font) !important;
+}
+
+.dashboard-font-settings {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+}
+
+.dashboard-font-settings[hidden] {
+  display: none;
+}
+
+.dashboard-font-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dashboard-font-settings-heading strong {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dashboard-font-settings-heading > button {
+  flex: none;
+  min-height: 24px;
+  height: 24px;
+  padding: 2px 5px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dashboard-font-settings-fields {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-font-settings label {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dashboard-font-settings .custom-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-font-settings .custom-select-button {
+  min-height: 28px;
+  height: 28px;
+  padding: 3px 25px 3px 8px;
+  font-size: 11px;
+}
+
+.dashboard-font-choice-name {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.dashboard-font-choice-name.hover-scrolling,
+.dashboard-font-row > span.hover-scrolling,
+[data-preview-name].hover-scrolling {
+  text-overflow: clip;
+}
+
+dialog.dashboard-font-dialog {
+  width: min(640px, calc(var(--editor-dialog-viewport-width, 100vw) - 40px));
+  max-height: min(820px, calc(100vh - 48px));
+}
+
+.dashboard-font-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-font-dialog > .dialog-heading {
+  flex: none;
+  gap: 16px;
+}
+
+.dashboard-font-dialog .dialog-heading > button {
+  flex: none;
+}
+
+.dashboard-font-body {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  padding: 20px;
+  overflow: auto;
+}
+
+.dashboard-font-body p {
+  margin: 0;
+}
+
+.dashboard-font-body section {
+  min-width: 0;
+}
+
+.dashboard-font-upload {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-font-upload > div {
+  min-width: 0;
+}
+
+.dashboard-font-upload strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.dashboard-font-upload p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dashboard-font-upload > button {
+  min-width: 92px;
+  min-height: 34px;
+  flex: none;
+  font-size: 12px;
+}
+
+.dashboard-font-upload input[hidden] {
+  display: none;
+}
+
+.dashboard-font-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.dashboard-font-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.dashboard-font-section-heading strong {
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dashboard-font-section-heading span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.dashboard-font-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dashboard-font-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px 54px 42px;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+}
+
+.dashboard-font-row.is-previewing {
+  border-color: #f2a20d80;
+  background: #f2a20d0e;
+}
+
+.dashboard-font-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.dashboard-font-row small {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dashboard-font-row button {
+  min-height: 28px;
+  height: 28px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+.dashboard-font-license {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.dashboard-font-license:hover {
+  color: var(--accent);
+}
+
+.dashboard-font-sample {
+  min-height: 92px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--field);
+  font-size: 22px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-font-empty {
+  padding: 14px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dashboard-font-message[hidden] {
+  display: none;
+}
+
+.dashboard-font-builtin-headings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dashboard-font-list[data-font-source="builtin"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  gap: 8px 12px;
+}
+
+[data-font-source="builtin"] .dashboard-font-row {
+  grid-template-columns: minmax(0, 1fr) 44px 28px;
+  gap: 6px;
+  padding: 8px;
+}
+
+[data-font-source="builtin"] .dashboard-font-row > span {
+  font-size: 11px;
+}
+
+@media (max-width: 600px) {
+  dialog.dashboard-font-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .dashboard-font-body {
+    padding: 16px;
+  }
+
+  .dashboard-font-row {
+    grid-template-columns: minmax(0, 1fr) 48px 48px 38px;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .dashboard-font-upload {
+    align-items: flex-start;
+  }
+
+  .dashboard-font-builtin-headings {
+    display: none;
+  }
+
+  .dashboard-font-list[data-font-source="builtin"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+}

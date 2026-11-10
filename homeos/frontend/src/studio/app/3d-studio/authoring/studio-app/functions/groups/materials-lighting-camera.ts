@@ -172,19 +172,20 @@ export function closeDrawingToolGroups(runtime: StudioAppRuntime, drawingToolGro
 }
 
 export function syncDrawingToolGroupStates(runtime: StudioAppRuntime) {
-  for (const drawingToolSection of runtime.drawingToolSections) {
-    const activeDrawingToolBadge = drawingToolSection.querySelector(
-      '.drawing-tool-active',
-    ) as StudioControlElement | null
+  for (const drawingToolSection of runtime.drawingToolSections as HTMLElement[]) {
+    const activeDrawingToolBadge = drawingToolSection.querySelector<StudioControlElement>('.drawing-tool-active')
     if (!activeDrawingToolBadge) continue
-    const activeDrawingToolButton = drawingToolSection.querySelector(
-      '.tool-button.active',
-    ) as StudioControlElement | null
+    const activeDrawingToolButton = drawingToolSection.querySelector<StudioControlElement>('.tool-button.active')
     activeDrawingToolBadge.textContent = ''
     if (activeDrawingToolButton) {
       const activeDrawingToolIcon = activeDrawingToolButton.querySelector('i')
       const activeDrawingToolLabel = activeDrawingToolButton.querySelector('span')
-      if (activeDrawingToolIcon) activeDrawingToolBadge.append(activeDrawingToolIcon.cloneNode(true))
+      if (activeDrawingToolIcon) {
+        const badgeIcon = activeDrawingToolIcon.cloneNode(true) as HTMLElement
+        const iconSource = getComputedStyle(activeDrawingToolIcon).getPropertyValue('--hb-ui-icon-source')
+        if (iconSource) badgeIcon.style.setProperty('--hb-ui-icon-source', iconSource)
+        activeDrawingToolBadge.append(badgeIcon)
+      }
       if (activeDrawingToolLabel?.textContent) activeDrawingToolBadge.append(activeDrawingToolLabel.textContent)
     }
     ;(activeDrawingToolBadge.hidden = !activeDrawingToolButton),

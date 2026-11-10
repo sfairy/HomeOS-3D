@@ -6,7 +6,6 @@ export type PanelRendererOptions = {
   onError?: (error: any) => void
   /** `/ws/runtime` 推送的 HA 中枢连接状态（connected / disconnected / reconnecting）。 */
   onRuntimeHaStatus?: (status: string, payload: any) => void
-  onRuntimeButtonPress?: (element: Element) => void
   [key: string]: any
 }
 

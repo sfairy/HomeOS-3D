@@ -10,6 +10,7 @@ import {
   staticAssetImageSource as staticAssetImageSource2,
 } from './registry'
 import { onPageCacheResume, onPageCacheSuspend } from '../../../shared/utils/page-cache-lifecycle'
+import { createDashboardFonts, reportDashboardFontError } from '../shared/dashboard-fonts'
 import { randomUuid as randomUuid2 } from '../shared/util/random-id'
 
 import {
@@ -343,7 +344,6 @@ export class PanelRenderer {
   declare viewport: HTMLElement
   declare canvas: HTMLElement
   declare options: PanelRendererOptions
-  declare boundRuntimeButtonSound: (event: Event) => void
   declare renderNamespace: string
   /** 仪表盘文档（页面集合的业务对象），不是 window.document。 */
   declare document: any
@@ -387,6 +387,8 @@ export class PanelRenderer {
   declare componentSelectionLayers: Map<any, any>
   declare componentPreviewStates: Map<any, any>
   declare themeVariableNames: Set<string>
+  /** 0.8.6 仪表盘全局字体：首次 render 时创建，destroy 时释放。 */
+  declare dashboardFonts: ReturnType<typeof createDashboardFonts> | null
   declare detailsStateSync: RendererDetailsStateSync | null
   declare sceneActionRequests: any
   declare detailsDialog: any
@@ -438,15 +440,6 @@ export class PanelRenderer {
             rendererOptions.onError?.(errorObject)!
         },
       }),
-      (this.boundRuntimeButtonSound = (clickEvent) => {
-        if (this.options.editable) return
-        const closest =
-          typeof Element < 'u' && clickEvent.target instanceof Element
-            ? clickEvent.target.closest('button, [role="button"]')
-            : null
-        !closest || !this.container.contains(closest) || this.options.onRuntimeButtonPress?.(closest)
-      }),
-      this.container.addEventListener('click', this.boundRuntimeButtonSound, true),
       (this.renderNamespace = 'renderer-' + randomUuid2().replace(/[^a-z0-9]/gi, '')),
       (this.document = null),
       (this.page = null),
@@ -1300,6 +1293,12 @@ export class PanelRenderer {
     )
     shouldFullRender || (this.cleanupComponents(), this.container.replaceChildren()),
       (this.container.dataset.uiTheme = this.document?.theme?.name || '')
+    this.dashboardFonts ||= createDashboardFonts(this.container, {
+      // 字体换好后文字宽高会变：重新适配缩放与选中框。
+      onReady: () => this.destroyed || this.resize(),
+      onError: reportDashboardFontError('dashboard-fonts'),
+    })
+    this.dashboardFonts.apply(this.document?.theme?.fonts)
     for (const themeVariableName of this.themeVariableNames) this.container.style.removeProperty(themeVariableName)
     this.themeVariableNames.clear()
     for (const [variableName, variableValue] of Object.entries(this.document?.theme?.variables || {})) {
@@ -2085,6 +2084,7 @@ export class PanelRenderer {
   }
   ['destroy']() {
     this.destroyed = true
+    this.dashboardFonts?.dispose(), (this.dashboardFonts = null)
     for (const destroyHistoryAbortController of this.historyAbortControllers)
       destroyHistoryAbortController.abort('lifecycle')
     ;(this.activePopupId = null),
@@ -2115,7 +2115,6 @@ export class PanelRenderer {
       document.removeEventListener('visibilitychange', this.boundVisibilityChange),
       this.unbindPageCacheSuspend?.(),
       this.unbindPageCacheResume?.(),
-      this.container.removeEventListener('click', this.boundRuntimeButtonSound, true),
       this.container.replaceChildren()
   }
 }

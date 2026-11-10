@@ -68,6 +68,7 @@ async def install(
         settings.user_assets_dir,
         settings.studio3d_exports_dir,
         settings.effect_variants_dir,
+        settings.fonts_dir,
     )
     # 单用户注册下「是否已注册」直接查 ``users`` 表，无需外置文件。
     # 3D 登录限流器（配对码 / 授权激活等端点使用）。

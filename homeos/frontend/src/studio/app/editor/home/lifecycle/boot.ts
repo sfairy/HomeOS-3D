@@ -36,7 +36,8 @@ import {
   manualRelatedEntityConfig as manualRelatedEntityConfig2,
   relatedPopupContext as relatedPopupContext2,
 } from "../../../shared/related-entities";
-import { createButtonSound as createButtonSound2 } from "../../../shared/sound-effects";
+import { dashboardFontChoices } from "../../../shared/dashboard-fonts";
+import { createDashboardFontSettings } from "../../dashboard-font-settings";
 import { createUserImageUploader } from "../../../shared/user-image-upload";
 import type { UserImageUploadState } from "../../../shared/user-image-upload";
 import { ensureRegistryComponents as ensureRegistryComponents2 } from "../../../renderer/registry";
@@ -131,7 +132,7 @@ import { bindNavigationStyleWiring } from "./navigation-style-wiring";
 import { bindFloorplanAutoDiagramMessages } from "./floorplan-messages";
 
 import { queryEditorElements } from "../elements/editor-elements";
-import { refreshEditorViewportFit as refreshEditorViewportFitImpl, refreshComponentDialogScale as refreshComponentDialogScaleImpl, refreshSoundToggle as refreshSoundToggleImpl, syncIconButtonInspector as syncIconButtonInspectorImpl, syncNavigationInspector as syncNavigationInspectorImpl, syncLineChartInspector as syncLineChartInspectorImpl, syncAirConditionerInspector as syncAirConditionerInspectorImpl, requestJson as requestJsonImpl, formatLastSeen as formatLastSeenImpl, setSettingsMessage as setSettingsMessageImpl, handleOperationError as handleOperationErrorImpl, errorPhase as errorPhaseImpl, value as valueImpl, hidePopupActionsMenu as hidePopupActionsMenuImpl, closeCustomSelect as closeCustomSelectImpl, positionCustomSelectMenu as positionCustomSelectMenuImpl, selectableEntities as selectableEntitiesImpl, openEntityPicker as openEntityPickerImpl, closeAllDropdownMenus as closeAllDropdownMenusImpl, closeDropdownMenu as closeDropdownMenuImpl, openColorPickerForInput as openColorPickerForInputImpl, setWorkspaceHasProject as setWorkspaceHasProjectImpl, hasActiveProject as hasActiveProjectImpl, destroyDashboardPreview as destroyDashboardPreviewImpl, syncWorkspaceEmptyState as syncWorkspaceEmptyStateImpl, type ShellControlsDeps } from "../functions/shell-controls";
+import { refreshEditorViewportFit as refreshEditorViewportFitImpl, refreshComponentDialogScale as refreshComponentDialogScaleImpl, syncIconButtonInspector as syncIconButtonInspectorImpl, syncNavigationInspector as syncNavigationInspectorImpl, syncLineChartInspector as syncLineChartInspectorImpl, syncAirConditionerInspector as syncAirConditionerInspectorImpl, requestJson as requestJsonImpl, formatLastSeen as formatLastSeenImpl, setSettingsMessage as setSettingsMessageImpl, handleOperationError as handleOperationErrorImpl, errorPhase as errorPhaseImpl, value as valueImpl, hidePopupActionsMenu as hidePopupActionsMenuImpl, closeCustomSelect as closeCustomSelectImpl, positionCustomSelectMenu as positionCustomSelectMenuImpl, selectableEntities as selectableEntitiesImpl, openEntityPicker as openEntityPickerImpl, closeAllDropdownMenus as closeAllDropdownMenusImpl, closeDropdownMenu as closeDropdownMenuImpl, openColorPickerForInput as openColorPickerForInputImpl, setWorkspaceHasProject as setWorkspaceHasProjectImpl, hasActiveProject as hasActiveProjectImpl, destroyDashboardPreview as destroyDashboardPreviewImpl, syncWorkspaceEmptyState as syncWorkspaceEmptyStateImpl, type ShellControlsDeps } from "../functions/shell-controls";
 import { destroyDashboardPreviewRenderer as destroyDashboardPreviewRendererImpl, renderDashboardPreview as renderDashboardPreviewImpl, unbindDisplayDeviceError as unbindDisplayDeviceErrorImpl, renderWorkspaceResolution as renderWorkspaceResolutionImpl, setEditorMode as setEditorModeImpl, syncDefaultPageAction as syncDefaultPageActionImpl, setPageControlsEnabled as setPageControlsEnabledImpl, resizeWorkspaceCanvas as resizeWorkspaceCanvasImpl, ensureMarqueeOverlay as ensureMarqueeOverlayImpl, currentPage as currentPageImpl, groupSelectedComponents as groupSelectedComponentsImpl, ungroupComponent as ungroupComponentImpl, openGroupRenameDialog as openGroupRenameDialogImpl, normalizeHexColor as normalizeHexColorImpl, removedComponent as removedComponentImpl, removalPageEntry as removalPageEntryImpl, componentListForScope as componentListForScopeImpl, collectComponentsByType as collectComponentsByTypeImpl, findPageComponentsByType as findPageComponentsByTypeImpl, findReplaceableComponents as findReplaceableComponentsImpl, syncRendererSelection as syncRendererSelectionImpl, clearComponentSelection as clearComponentSelectionImpl, resetPreviewStates as resetPreviewStatesImpl, selectComponent as selectComponentImpl, mutateDocument as mutateDocumentImpl, type WorkspaceDocumentDeps } from "../functions/workspace-document";
 import { scaledSelectionPlacements as scaledSelectionPlacementsImpl, selectedComponentIdsFromDom as selectedComponentIdsFromDomImpl, setComponentsRotation as setComponentsRotationImpl, setComponentsVisibility as setComponentsVisibilityImpl, closeComponentMenu as closeComponentMenuImpl, openComponentMenu as openComponentMenuImpl, findCommonCopyTargets as findCommonCopyTargetsImpl, showCopySuccessDialog as showCopySuccessDialogImpl, handleCopySuccessConfirm as handleCopySuccessConfirmImpl, duplicateComponents as duplicateComponentsImpl, copyTargetsForDocument as copyTargetsForDocumentImpl, renderCopyTargetOptions as renderCopyTargetOptionsImpl, getDocumentCanvasSize as getDocumentCanvasSizeImpl, renderCopyScaleOptions as renderCopyScaleOptionsImpl, renderCopyComponentDialog as renderCopyComponentDialogImpl, openCopyComponentDialog as openCopyComponentDialogImpl, deleteComponentIds as deleteComponentIdsImpl, setComponentsLabelColor as setComponentsLabelColorImpl, renderComponentList as renderComponentListImpl, prependGroupBackButton as prependGroupBackButtonImpl, renderComponentLists as renderComponentListsImpl, setComponentScope as setComponentScopeImpl, syncAddComponentButton as syncAddComponentButtonImpl, renderComponentTemplates as renderComponentTemplatesImpl, renderNavigationIconPreview as renderNavigationIconPreviewImpl, type ComponentEditingDeps } from "../functions/component-editing";
 import { describeEntityDomain as describeEntityDomainImpl, normalizeWhitespace as normalizeWhitespaceImpl, navigationIconValue as navigationIconValueImpl, resolveEntityDisplayName as resolveEntityDisplayNameImpl, formatEntityLabel as formatEntityLabelImpl, formatEntitySummary as formatEntitySummaryImpl, collectEntityIds as collectEntityIdsImpl, describeEntityState as describeEntityStateImpl, showLightStatisticsMessage as showLightStatisticsMessageImpl, clearLightStatisticsSelection as clearLightStatisticsSelectionImpl, renderLightStatisticsEntityOptions as renderLightStatisticsEntityOptionsImpl, addLightStatisticsEntity as addLightStatisticsEntityImpl, effectIconName as effectIconNameImpl, removeLightStatisticsEntityAt as removeLightStatisticsEntityAtImpl, renderLightStatisticsEntityList as renderLightStatisticsEntityListImpl, flattenComponentTree as flattenComponentTreeImpl, collectPageComponents as collectPageComponentsImpl, findIconVisibilityVirtualEntity as findIconVisibilityVirtualEntityImpl, resolveEntityCatalog as resolveEntityCatalogImpl, registerOverflowScrollPreviewRow as registerOverflowScrollPreviewRowImpl, resolveOverflowScrollPreviewContainer as resolveOverflowScrollPreviewContainerImpl, findEnclosingScrollPreviewRow as findEnclosingScrollPreviewRowImpl, stopOverflowScrollAnimation as stopOverflowScrollAnimationImpl, ensureInspectorPickerValueSpan as ensureInspectorPickerValueSpanImpl, setPickerButtonLabel as setPickerButtonLabelImpl, type EntityLabelsDeps } from "../functions/entity-labels";
@@ -267,7 +268,7 @@ export function bootEditor(): void {
   }
 
 // ── 依赖域绑定（原 355 条手写转发包装）：deps 容器构造一次，对外函数同形 ──
-const { refreshEditorViewportFit, refreshComponentDialogScale, refreshSoundToggle, syncIconButtonInspector, syncNavigationInspector, syncLineChartInspector, syncAirConditionerInspector, requestJson, formatLastSeen, setSettingsMessage, handleOperationError, errorPhase, value, hidePopupActionsMenu, closeCustomSelect, positionCustomSelectMenu, selectableEntities, openEntityPicker, closeAllDropdownMenus, closeDropdownMenu, openColorPickerForInput, setWorkspaceHasProject, hasActiveProject, destroyDashboardPreview, syncWorkspaceEmptyState } = bindDeps(shellControlsDeps)({ refreshEditorViewportFit: refreshEditorViewportFitImpl, refreshComponentDialogScale: refreshComponentDialogScaleImpl, refreshSoundToggle: refreshSoundToggleImpl, syncIconButtonInspector: syncIconButtonInspectorImpl, syncNavigationInspector: syncNavigationInspectorImpl, syncLineChartInspector: syncLineChartInspectorImpl, syncAirConditionerInspector: syncAirConditionerInspectorImpl, requestJson: requestJsonImpl, formatLastSeen: formatLastSeenImpl, setSettingsMessage: setSettingsMessageImpl, handleOperationError: handleOperationErrorImpl, errorPhase: errorPhaseImpl, value: valueImpl, hidePopupActionsMenu: hidePopupActionsMenuImpl, closeCustomSelect: closeCustomSelectImpl, positionCustomSelectMenu: positionCustomSelectMenuImpl, selectableEntities: selectableEntitiesImpl, openEntityPicker: openEntityPickerImpl, closeAllDropdownMenus: closeAllDropdownMenusImpl, closeDropdownMenu: closeDropdownMenuImpl, openColorPickerForInput: openColorPickerForInputImpl, setWorkspaceHasProject: setWorkspaceHasProjectImpl, hasActiveProject: hasActiveProjectImpl, destroyDashboardPreview: destroyDashboardPreviewImpl, syncWorkspaceEmptyState: syncWorkspaceEmptyStateImpl })
+const { refreshEditorViewportFit, refreshComponentDialogScale, syncIconButtonInspector, syncNavigationInspector, syncLineChartInspector, syncAirConditionerInspector, requestJson, formatLastSeen, setSettingsMessage, handleOperationError, errorPhase, value, hidePopupActionsMenu, closeCustomSelect, positionCustomSelectMenu, selectableEntities, openEntityPicker, closeAllDropdownMenus, closeDropdownMenu, openColorPickerForInput, setWorkspaceHasProject, hasActiveProject, destroyDashboardPreview, syncWorkspaceEmptyState } = bindDeps(shellControlsDeps)({ refreshEditorViewportFit: refreshEditorViewportFitImpl, refreshComponentDialogScale: refreshComponentDialogScaleImpl, syncIconButtonInspector: syncIconButtonInspectorImpl, syncNavigationInspector: syncNavigationInspectorImpl, syncLineChartInspector: syncLineChartInspectorImpl, syncAirConditionerInspector: syncAirConditionerInspectorImpl, requestJson: requestJsonImpl, formatLastSeen: formatLastSeenImpl, setSettingsMessage: setSettingsMessageImpl, handleOperationError: handleOperationErrorImpl, errorPhase: errorPhaseImpl, value: valueImpl, hidePopupActionsMenu: hidePopupActionsMenuImpl, closeCustomSelect: closeCustomSelectImpl, positionCustomSelectMenu: positionCustomSelectMenuImpl, selectableEntities: selectableEntitiesImpl, openEntityPicker: openEntityPickerImpl, closeAllDropdownMenus: closeAllDropdownMenusImpl, closeDropdownMenu: closeDropdownMenuImpl, openColorPickerForInput: openColorPickerForInputImpl, setWorkspaceHasProject: setWorkspaceHasProjectImpl, hasActiveProject: hasActiveProjectImpl, destroyDashboardPreview: destroyDashboardPreviewImpl, syncWorkspaceEmptyState: syncWorkspaceEmptyStateImpl })
 const { destroyDashboardPreviewRenderer, renderDashboardPreview, unbindDisplayDeviceError, renderWorkspaceResolution, setEditorMode, syncDefaultPageAction, setPageControlsEnabled, resizeWorkspaceCanvas, ensureMarqueeOverlay, currentPage, groupSelectedComponents, ungroupComponent, openGroupRenameDialog, normalizeHexColor, removedComponent, removalPageEntry, componentListForScope, collectComponentsByType, findPageComponentsByType, findReplaceableComponents, syncRendererSelection, clearComponentSelection, resetPreviewStates, selectComponent, mutateDocument } = bindDeps(workspaceDocumentDeps)({ destroyDashboardPreviewRenderer: destroyDashboardPreviewRendererImpl, renderDashboardPreview: renderDashboardPreviewImpl, unbindDisplayDeviceError: unbindDisplayDeviceErrorImpl, renderWorkspaceResolution: renderWorkspaceResolutionImpl, setEditorMode: setEditorModeImpl, syncDefaultPageAction: syncDefaultPageActionImpl, setPageControlsEnabled: setPageControlsEnabledImpl, resizeWorkspaceCanvas: resizeWorkspaceCanvasImpl, ensureMarqueeOverlay: ensureMarqueeOverlayImpl, currentPage: currentPageImpl, groupSelectedComponents: groupSelectedComponentsImpl, ungroupComponent: ungroupComponentImpl, openGroupRenameDialog: openGroupRenameDialogImpl, normalizeHexColor: normalizeHexColorImpl, removedComponent: removedComponentImpl, removalPageEntry: removalPageEntryImpl, componentListForScope: componentListForScopeImpl, collectComponentsByType: collectComponentsByTypeImpl, findPageComponentsByType: findPageComponentsByTypeImpl, findReplaceableComponents: findReplaceableComponentsImpl, syncRendererSelection: syncRendererSelectionImpl, clearComponentSelection: clearComponentSelectionImpl, resetPreviewStates: resetPreviewStatesImpl, selectComponent: selectComponentImpl, mutateDocument: mutateDocumentImpl })
 const { scaledSelectionPlacements, selectedComponentIdsFromDom, setComponentsRotation, setComponentsVisibility, closeComponentMenu, openComponentMenu, findCommonCopyTargets, showCopySuccessDialog, handleCopySuccessConfirm, duplicateComponents, copyTargetsForDocument, renderCopyTargetOptions, getDocumentCanvasSize, renderCopyScaleOptions, renderCopyComponentDialog, openCopyComponentDialog, deleteComponentIds, setComponentsLabelColor, renderComponentList, prependGroupBackButton, renderComponentLists, setComponentScope, syncAddComponentButton, renderComponentTemplates, renderNavigationIconPreview } = bindDeps(componentEditingDeps)({ scaledSelectionPlacements: scaledSelectionPlacementsImpl, selectedComponentIdsFromDom: selectedComponentIdsFromDomImpl, setComponentsRotation: setComponentsRotationImpl, setComponentsVisibility: setComponentsVisibilityImpl, closeComponentMenu: closeComponentMenuImpl, openComponentMenu: openComponentMenuImpl, findCommonCopyTargets: findCommonCopyTargetsImpl, showCopySuccessDialog: showCopySuccessDialogImpl, handleCopySuccessConfirm: handleCopySuccessConfirmImpl, duplicateComponents: duplicateComponentsImpl, copyTargetsForDocument: copyTargetsForDocumentImpl, renderCopyTargetOptions: renderCopyTargetOptionsImpl, getDocumentCanvasSize: getDocumentCanvasSizeImpl, renderCopyScaleOptions: renderCopyScaleOptionsImpl, renderCopyComponentDialog: renderCopyComponentDialogImpl, openCopyComponentDialog: openCopyComponentDialogImpl, deleteComponentIds: deleteComponentIdsImpl, setComponentsLabelColor: setComponentsLabelColorImpl, renderComponentList: renderComponentListImpl, prependGroupBackButton: prependGroupBackButtonImpl, renderComponentLists: renderComponentListsImpl, setComponentScope: setComponentScopeImpl, syncAddComponentButton: syncAddComponentButtonImpl, renderComponentTemplates: renderComponentTemplatesImpl, renderNavigationIconPreview: renderNavigationIconPreviewImpl })
 const { describeEntityDomain, normalizeWhitespace, navigationIconValue, resolveEntityDisplayName, formatEntityLabel, formatEntitySummary, collectEntityIds, describeEntityState, showLightStatisticsMessage, clearLightStatisticsSelection, renderLightStatisticsEntityOptions, addLightStatisticsEntity, effectIconName, removeLightStatisticsEntityAt, renderLightStatisticsEntityList, flattenComponentTree, collectPageComponents, findIconVisibilityVirtualEntity, resolveEntityCatalog, registerOverflowScrollPreviewRow, resolveOverflowScrollPreviewContainer, findEnclosingScrollPreviewRow, stopOverflowScrollAnimation, ensureInspectorPickerValueSpan, setPickerButtonLabel } = bindDeps(entityLabelsDeps)({ describeEntityDomain: describeEntityDomainImpl, normalizeWhitespace: normalizeWhitespaceImpl, navigationIconValue: navigationIconValueImpl, resolveEntityDisplayName: resolveEntityDisplayNameImpl, formatEntityLabel: formatEntityLabelImpl, formatEntitySummary: formatEntitySummaryImpl, collectEntityIds: collectEntityIdsImpl, describeEntityState: describeEntityStateImpl, showLightStatisticsMessage: showLightStatisticsMessageImpl, clearLightStatisticsSelection: clearLightStatisticsSelectionImpl, renderLightStatisticsEntityOptions: renderLightStatisticsEntityOptionsImpl, addLightStatisticsEntity: addLightStatisticsEntityImpl, effectIconName: effectIconNameImpl, removeLightStatisticsEntityAt: removeLightStatisticsEntityAtImpl, renderLightStatisticsEntityList: renderLightStatisticsEntityListImpl, flattenComponentTree: flattenComponentTreeImpl, collectPageComponents: collectPageComponentsImpl, findIconVisibilityVirtualEntity: findIconVisibilityVirtualEntityImpl, resolveEntityCatalog: resolveEntityCatalogImpl, registerOverflowScrollPreviewRow: registerOverflowScrollPreviewRowImpl, resolveOverflowScrollPreviewContainer: resolveOverflowScrollPreviewContainerImpl, findEnclosingScrollPreviewRow: findEnclosingScrollPreviewRowImpl, stopOverflowScrollAnimation: stopOverflowScrollAnimationImpl, ensureInspectorPickerValueSpan: ensureInspectorPickerValueSpanImpl, setPickerButtonLabel: setPickerButtonLabelImpl })
@@ -314,7 +315,6 @@ function shellControlsDeps(): ShellControlsDeps {
     ...homeElements,
     get scenePopupEditor() { return scenePopupEditor; },
     get airConditionerInspectorContext() { return airConditionerInspectorContext; },
-    get buttonSoundController() { return buttonSoundController; },
     get closeDropdownMenu() { return closeDropdownMenu; },
     get colorPickerBoundInputById() { return colorPickerBoundInputById; },
     get COMPONENT_DIALOG_DESIGN_HEIGHT() { return COMPONENT_DIALOG_DESIGN_HEIGHT; },
@@ -332,7 +332,6 @@ function shellControlsDeps(): ShellControlsDeps {
     get numberStepperDeps() { return numberStepperDeps; },
     get openEntityPicker() { return openEntityPicker; },
     get positionTitleButtonIconMenu() { return positionTitleButtonIconMenu; },
-    get refreshSoundToggle() { return refreshSoundToggle; },
     get renderWorkspaceResolution() { return renderWorkspaceResolution; },
     get requestJsonDeps() { return requestJsonDeps; },
     get runEntry() { return openColorPickerForInput; },
@@ -353,8 +352,8 @@ const {
   projectCanvasWidthElement, projectCanvasHeightElement, projectAspectLockElement, 
   projectContentLockElement, pageDialogElement,
   pageCloseElement, pageCancelElement, pageFormElement, pageSubmitElement, pageMessageElement, componentGroupRenameDialogElement, componentGroupRenameCloseElement,
-  componentGroupRenameCancelElement, componentGroupRenameFormElement, componentGroupRenameMessageElement, editorCanvasElement, displayDeviceCountElement, workspaceResolutionElement,
-  soundToggleButtonElement, deleteProjectDialogElement, deleteProjectCloseButtonElement, deleteProjectCancelButtonElement, deleteProjectFormElement, deleteProjectNameElement, deleteProjectMessageElement,
+  componentGroupRenameCancelElement, componentGroupRenameFormElement, componentGroupRenameMessageElement, editorCanvasElement, displayDeviceCountElement,
+  deleteProjectDialogElement, deleteProjectCloseButtonElement, deleteProjectCancelButtonElement, deleteProjectFormElement, deleteProjectNameElement, deleteProjectMessageElement,
   copyComponentPageDialogElement, copyComponentPageCloseButtonElement, copyComponentPageCancelButtonElement, copyComponentPageFormElement, copyComponentPageScopeSelectElement,
   copyComponentPageProjectSelectElement, copyComponentPageTargetElement, copyComponentScaleOptionsElement, copyComponentPageMessageElement, copyComponentPageSubmitElement,
   copyComponentSuccessDialogElement, copyComponentSuccessStayElement, copyComponentSuccessGoElement, errorDialogCloseButtonElement, errorDialogCloseElement, errorDialogConfirmElement, 
@@ -449,22 +448,25 @@ const {
   navigationStyleApplyConfirmElement, popupNameDialogElement, popupNameFormElement, popupNameCloseElement, popupNameCancelElement, popupModuleDialogElement, 
   popupModuleFormElement, popupModuleCloseElement, popupModuleCancelElement, popupModuleEntityButtonElement, popupModuleEntityMenuElement, popupModuleEntitySearchElement, popupModuleEntityOptionsElement, popupModuleClimateDeviceTypeElement,
 } = homeElements;
-((soundToggleButtonElement.id = "dashboard-sound-toggle"),
-  (soundToggleButtonElement.className = "workspace-sound-toggle"),
-  (soundToggleButtonElement.type = "button"),
-  soundToggleButtonElement.setAttribute("aria-pressed", "true"),
-  soundToggleButtonElement.setAttribute("aria-label", "关闭仪表盘音效"),
-  (soundToggleButtonElement.title = "关闭仪表盘音效"),
-  (soundToggleButtonElement.innerHTML =
-    '<svg class="sound-icon sound-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M16 9.5a4 4 0 0 1 0 5"/><path d="M18.5 7a7.5 7.5 0 0 1 0 10"/></svg><svg class="sound-icon sound-icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 5 6M22 9l-5 6"/></svg><span class="sound-label">按键音效</span>'),
-  workspaceResolutionElement.after(soundToggleButtonElement));
+editorCtx.dashboardFontSettings = createDashboardFontSettings({
+  root: findElement("#dashboard-font-settings"),
+  getDocument: () => editorCtx.activeProject?.document,
+  isVisible: () => editorCtx.editorMode !== "popup",
+  change: (role, value) =>
+    mutateDocument((draft: any) => {
+      draft.theme ||= {};
+      draft.theme.fonts = { chinese: "device", latin: "device", ...draft.theme.fonts, [role]: value };
+    }),
+  api: (path, init) => requestJson(path, init),
+  onError: handleOperationError,
+  renderSelect: (select) => loadNavigationIconOptions(select),
+});
 const dashboardDisplayHintElement = findElement("#dashboard-display-hint"),
   dashboardDisplayLinkElement = findElement("#dashboard-display-link");
 const showEditorPreviewButtonElement = findElement("#show-editor-preview"),
   showDashboardPreviewButtonElement = findElement("#show-dashboard-preview"),
   dashboardPreviewElement = findElement("#dashboard-preview"),
-  customPopupEditorElement = findElement("#custom-popup-editor"),
-  buttonSoundController = createButtonSound2();
+  customPopupEditorElement = findElement("#custom-popup-editor");
 
 editorCtx.baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2);
 
@@ -661,7 +663,6 @@ function workspaceDocumentDeps(): WorkspaceDocumentDeps {
   return {
     ...homeElements,
     get airConditionerPreviewStateByComponentId() { return airConditionerPreviewStateByComponentId; },
-    get buttonSoundController() { return buttonSoundController; },
     get clearComponentSelection() { return clearComponentSelection; },
     get collectComponentsByType() { return collectComponentsByType; },
     get componentListForScope() { return componentListForScope; },
@@ -682,7 +683,6 @@ function workspaceDocumentDeps(): WorkspaceDocumentDeps {
     get mutateDocument() { return mutateDocument; },
     get navigationPreviewStateByComponentId() { return navigationPreviewStateByComponentId; },
     get projectSummary() { return projectSummary; },
-    get refreshSoundToggle() { return refreshSoundToggle; },
     get renderComponentLists() { return renderComponentLists; },
     get renderCustomPopupEditor() { return renderCustomPopupEditor; },
     get renderWorkspaceResolution() { return renderWorkspaceResolution; },
@@ -1225,7 +1225,6 @@ function workspaceHistoryDeps(): WorkspaceHistoryDeps {
     get recoverySaveAttempts() { return recoverySaveAttempts; },
     get setRecoverySaveAttempts() { return setRecoverySaveAttempts; },
     get refreshDirtyState() { return refreshDirtyState; },
-    get refreshSoundToggle() { return refreshSoundToggle; },
     get removedComponent() { return removedComponent; },
     get renderComponentLists() { return renderComponentLists; },
     get renderCustomPopupEditor() { return renderCustomPopupEditor; },
@@ -1459,7 +1458,14 @@ function lightingPanelDeps(): LightingPanelDeps {
       projectActionsButtonElement.setAttribute("aria-expanded", String(hidden2)));
   }),
   projectFloorplanOpenElement.addEventListener("click", () => {
-    documentSource() || navigateInShell("/3d-studio");
+    if (documentSource()) return;
+    const activeDocument = editorCtx.activeProject?.document;
+    const fonts = dashboardFontChoices(activeDocument);
+    // 户型图里的名牌 / 标注随当前仪表盘字体走（0.8.6）；未设置字体时不带参数。
+    const fontQuery = activeDocument?.theme?.fonts
+      ? "?" + new URLSearchParams({ fontChinese: fonts.chinese, fontLatin: fonts.latin })
+      : "";
+    navigateInShell("/3d-studio" + fontQuery);
   }),
   projectActionsMenuElement.addEventListener("click", async (projectActionsClickEvent: any) => {
     const projectAction =
@@ -4420,7 +4426,7 @@ bindAssetDialogWiring({
   saveDraft, scheduleAssetPreview, selectComponent, setComponentScope, setEditorMode,
   settleAutoDiagramDialog, showDashboardPreviewButtonElement, showEditorPreviewButtonElement,
   showPageComponentsElement, showPageEditorElement, showPopupEditorElement, showSharedComponentsElement,
-  soundToggleButtonElement, syncAssetFolderOptions, syncDefaultPageAction, syncHistoryButtons,
+  syncAssetFolderOptions, syncDefaultPageAction, syncHistoryButtons,
   syncSharedComponentReferenceOrder2, undoElement, value, writeError
 });
 (popupNewElement.addEventListener("click", () => scaleDraftDocument("create")),

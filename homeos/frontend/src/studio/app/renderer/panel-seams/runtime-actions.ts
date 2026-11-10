@@ -25,9 +25,6 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
     hasTapAction = !!(tap?.type && tap.type !== 'none'),
     hasDoubleTapAction = !!(doubleTap?.type && doubleTap.type !== 'none'),
     hasHoldAction = !!(hold?.type && hold.type !== 'none'),
-    cancelHoldTimer = () => {
-      self.options.onRuntimeButtonPress?.(actionHostElement)
-    },
     resetTapState = () => {
       if (optimisticRollbackHandler || tap?.type !== 'toggle') return
       const bindingEntityId = actionOptions.bindings?.entity?.entityId
@@ -56,16 +53,15 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
   const isKeyboardActionHost = () =>
       actionHostElement.getAttribute('role') === 'button' && actionHostElement.tabIndex >= 0,
     activateActionByKeyboard = () => {
-      ;(hasTapAction || hasDoubleTapAction) && cancelHoldTimer(),
-        hasDoubleTapAction
-          ? (resetTapState(),
-            window.clearTimeout(tapTimeoutId),
-            (tapTimeoutId = window.setTimeout(() => {
-              resetPointerState()
-            }, 180)))
-          : hasTapAction
-            ? self.runAction(actionOptions, tap)
-            : hasHoldAction && self.runAction(actionOptions, hold)
+      hasDoubleTapAction
+        ? (resetTapState(),
+          window.clearTimeout(tapTimeoutId),
+          (tapTimeoutId = window.setTimeout(() => {
+            resetPointerState()
+          }, 180)))
+        : hasTapAction
+          ? self.runAction(actionOptions, tap)
+          : hasHoldAction && self.runAction(actionOptions, hold)
     },
     handleKeyboardActivation = (keyboardEvent: any) => {
       keyboardEvent.repeat ||
@@ -95,7 +91,6 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
             ;(hasLongPressed = true),
               (lastTapRecord = null),
               window.clearTimeout(holdTimeoutId),
-              cancelHoldTimer(),
               self.runAction(actionOptions, hold)
           }, 400))
     })
@@ -116,9 +111,7 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
         !activePointerState || activePointerState.pointerType === 'mouse' || activePointerState.moved || hasLongPressed)
       )
         return
-      pointerUpEvent.preventDefault(),
-        (tapCooldownUntil = performance.now() + 700),
-        (hasTapAction || hasDoubleTapAction) && cancelHoldTimer()
+      pointerUpEvent.preventDefault(), (tapCooldownUntil = performance.now() + 700)
       const currentTimeMs = performance.now()
       if (
         hasDoubleTapAction &&
@@ -151,8 +144,7 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
     actionHostElement.addEventListener('click', () => {
       performance.now() < tapCooldownUntil ||
         hasLongPressed ||
-        ((hasTapAction || hasDoubleTapAction) && cancelHoldTimer(),
-        hasDoubleTapAction
+        (hasDoubleTapAction
           ? (resetTapState(),
             window.clearTimeout(tapTimeoutId),
             (tapTimeoutId = window.setTimeout(() => {

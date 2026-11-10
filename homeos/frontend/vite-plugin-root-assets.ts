@@ -63,18 +63,24 @@ const MIME: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
   '.ico': 'image/x-icon',
   '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8',
 }
 
-/** 与生产一致的可替换资源前缀：/logo/*、/sounds/* */
+const ROOT_ASSET_PREFIX_DIRS = {
+  '/logo/': 'logo',
+  '/sounds/': 'sounds',
+  '/fonts-static/': 'fonts',
+} as const
+
+/** 与生产一致的可替换资源前缀：/logo/*、/sounds/*、/fonts-static/*（内置字体） */
 function resolveRootAssetsFile(urlPath: string): string | null {
-  for (const prefix of ['/logo/', '/sounds/'] as const) {
+  for (const [prefix, dir] of Object.entries(ROOT_ASSET_PREFIX_DIRS)) {
     if (!urlPath.startsWith(prefix)) continue
     const rel = decodeURIComponent(urlPath.slice(prefix.length))
     if (!rel || rel.includes('..') || rel.includes('\0') || path.isAbsolute(rel)) return null
-    const dir = prefix === '/logo/' ? 'logo' : 'sounds'
     for (const base of ROOT_ASSET_DIRS) {
       const file = path.join(base, dir, rel)
       if (fs.existsSync(file)) return file

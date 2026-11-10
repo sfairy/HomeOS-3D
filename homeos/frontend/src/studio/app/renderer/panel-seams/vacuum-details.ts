@@ -1,4 +1,6 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import type { ComponentDialogElement } from '../renderer-types'
+import { createUiIcon } from '../../shared/ui-icons'
 import type { PanelRenderer } from '../panel-renderer'
 import { componentDialogTitle } from '../renderer-helpers'
 import { popupPlacement as popupPlacement2 } from '../../bridge/presets/popup-placement'
@@ -107,7 +109,7 @@ export function showVacuumDetails(
         vacuumStatValueLabel = document.createElement('span')
       vacuumStatValueLabel.className = 'hb-vacuum-details-stat-value'
       const vacuumStatIcon = document.createElement('i')
-      ;(vacuumStatIcon.textContent = statIcon), vacuumStatIcon.setAttribute('aria-hidden', 'true')
+      vacuumStatIcon.append(createUiIcon(document, statIcon)), vacuumStatIcon.setAttribute('aria-hidden', 'true')
       const vacuumStatNumberLabel = document.createElement('strong'),
         vacuumStatLabel = document.createElement('small')
       return (
@@ -118,8 +120,8 @@ export function showVacuumDetails(
         vacuumStatNumberLabel
       )
     },
-    vacuumAreaStatElement = createVacuumStat('本次面积', '◇'),
-    vacuumTimeStatElement = createVacuumStat('清扫时长', '◷')
+    vacuumAreaStatElement = createVacuumStat('本次面积', 'ruler-square'),
+    vacuumTimeStatElement = createVacuumStat('清扫时长', 'timer-outline')
   vacuumOverviewSection.append(vacuumStatsElement)
   const vacuumControlsSection = document.createElement('section')
   vacuumControlsSection.className = 'hb-vacuum-details-controls'
@@ -131,7 +133,8 @@ export function showVacuumDetails(
         (vacuumActionButton.dataset.service = actionServiceName),
         (vacuumActionButton.disabled = isVacuumPreview)
       const vacuumActionIcon = document.createElement('i')
-      ;(vacuumActionIcon.textContent = actionIconValue), vacuumActionIcon.setAttribute('aria-hidden', 'true')
+      vacuumActionIcon.append(createUiIcon(document, actionIconValue)),
+        vacuumActionIcon.setAttribute('aria-hidden', 'true')
       const vacuumActionContentWrapper = document.createElement('span'),
         vacuumActionNameLabel = document.createElement('strong')
       vacuumActionNameLabel.textContent = actionTitle
@@ -149,12 +152,12 @@ export function showVacuumDetails(
       )
     },
     vacuumActionDefs = [
-      ['start', '开始清扫', '启动全屋任务', '▶'],
-      ['pause', '暂停', '保留当前进度', 'Ⅱ'],
-      ['stop', '停止', '结束当前任务', '■'],
-      ['return_to_base', '回充', '返回充电座', '⌂'],
-      ['locate', '定位', '让设备发出声音', '◎'],
-      ['clean_spot', '局部清扫', '清扫当前位置', '⌖'],
+      ['start', '开始清扫', '启动全屋任务', 'play'],
+      ['pause', '暂停', '保留当前进度', 'pause'],
+      ['stop', '停止', '结束当前任务', 'stop'],
+      ['return_to_base', '回充', '返回充电座', 'home-import-outline'],
+      ['locate', '定位', '让设备发出声音', 'crosshairs-gps'],
+      ['clean_spot', '局部清扫', '清扫当前位置', 'target'],
     ],
     vacuumActionsByService = new Map(
       vacuumActionDefs.map(([actionKey, actionLabel, actionGlyph, actionDescription]) => [
@@ -688,6 +691,6 @@ export function showVacuumDetails(
         once: true,
       },
     ),
-    vacuumDialog.show(),
+    showRuntimeDialog(vacuumDialog),
     vacuumDialog.resizeInteraction3d?.()
 }

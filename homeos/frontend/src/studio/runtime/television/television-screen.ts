@@ -1,6 +1,7 @@
 import { drawTelevisionGlass as drawGlass } from '@app/3d-studio/materials/studio-television-glass'
 import { drawTelevisionPoster as drawPosterArt } from '@app/3d-studio/materials/studio-television-poster'
 import { televisionState } from './television-state'
+import { dashboardCanvasFont } from '@app/shared/dashboard-fonts'
 function drawPoster(posterCanvas: any, canvasPainter: any, posterState: any) {
   // 待机画面直接复用编辑态那张满幅宣传画（960×540 坐标系，512×288 画布同样等比），
   // 再在底部状态条右侧盖一枚播放状态胶囊——旧版只画一行居中文字，电视看上去就是一块黑屏。
@@ -29,7 +30,7 @@ function drawPoster(posterCanvas: any, canvasPainter: any, posterState: any) {
     canvasPainter.arc(624, 512, 5, 0, Math.PI * 2),
     canvasPainter.fill(),
     (canvasPainter.fillStyle = '#f4f8fb'),
-    (canvasPainter.font = '600 16px Arial, sans-serif'),
+    (canvasPainter.font = dashboardCanvasFont('600 16px', 'Arial, sans-serif')),
     (canvasPainter.textAlign = 'center'),
     canvasPainter.fillText(statusText, 760, 518),
     canvasPainter.restore()

@@ -4153,6 +4153,7 @@ body.interaction3d-stage.is-background-hidden,
   filter: brightness(1.1);
 }
 .interaction3d-stage .i3d-speaker-media-dialog {
+  outline: none;
   --i3d-media-visible-width: calc(var(--i3d-media-canvas-width, 100vw) * var(--i3d-media-scale-x, 1));
   --i3d-media-visible-height: calc(var(--i3d-media-canvas-height, 100vh) * var(--i3d-media-scale-y, 1));
   --i3d-media-dialog-width: min(

@@ -8,6 +8,11 @@
  */
 
 import { ensureRegistryComponents } from '../../../renderer/registry'
+import {
+  createDashboardFonts,
+  reportDashboardFontError,
+  type DashboardFontsController,
+} from '../../../shared/dashboard-fonts'
 import { prepareSceneDocument as prepareSceneDocument2 } from '../../cache/scene-persistent-cache'
 import { stageStartup as stageStartup2 } from '../../stage-startup'
 import {
@@ -35,6 +40,37 @@ interface StudioBootDeps {
   runStudioRenderLoop: () => any
   openExportPanel: () => void
   normalizeDocument: (rawDocument: any) => any
+}
+
+/** `/3d-studio?fontChinese=…` 打开时的仪表盘字体；SPA 内离开户型图时由 `disposeStudioFonts` 撤掉。 */
+let studioFonts: DashboardFontsController | null = null
+
+/**
+ * 编辑器「户型图绘制」带上当前仪表盘字体（0.8.6）：独立户型图只写 `--hb-dashboard-font`
+ * 供 canvas 名牌 / 标注使用，不改编辑界面字体；自动导图嵌入页整页跟随。
+ */
+async function applyStudioFontsFromQuery(applyToDom: boolean) {
+  const searchParams = new URLSearchParams(window.location.search)
+  if (!searchParams.has('fontChinese')) return
+  disposeStudioFonts()
+  studioFonts = createDashboardFonts(document.documentElement, {
+    applyToDom,
+    onError: reportDashboardFontError('studio-fonts'),
+  })
+  await studioFonts.apply({
+    chinese: searchParams.get('fontChinese') || 'device',
+    latin: searchParams.get('fontLatin') || 'device',
+  })
+}
+
+/** 走 stage 预热时字体已随草稿并行加载；否则（独立户型图 / 自动导图）在这里按查询串加载。 */
+function waitForStudioFonts(applyToDom: boolean) {
+  return stageStartup2 ? stageStartup2.fontReady : applyStudioFontsFromQuery(applyToDom)
+}
+
+export function disposeStudioFonts() {
+  studioFonts?.dispose()
+  studioFonts = null
 }
 
 export async function startupStudio(deps: StudioBootDeps) {
@@ -74,6 +110,7 @@ export async function startupStudio(deps: StudioBootDeps) {
         deps.stageLoadTiming(preparedDocument.reused ? 'scene-preparation-reused' : 'scene-preparation-built'),
         preparedDocument.reused || startupCache.schedule(startupKey, xa3, sceneDocument)
     }
+    await waitForStudioFonts(deps.isAutoDiagramEmbed)
     // 阶段③：整篇草稿落进文档模型后，真正的建场景在下一帧的 rAF 里跑（requestSceneRebuild）。
     // 文案在这里换成「构建」，用户才不会以为还卡在网络请求上。
     studioStartupPhase('正在构建户型…')

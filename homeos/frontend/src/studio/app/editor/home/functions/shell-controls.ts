@@ -24,7 +24,6 @@ export interface ShellControlsDeps {
   COMPONENT_DIALOG_SCALE_MULTIPLIER: any
   EDITOR_DESIGN_WIDTH: any
   airConditionerInspectorContext: any
-  buttonSoundController: any
   closeDropdownMenu: any
   colorPickerBoundInputById: any
   coverKindDraftDocument: any
@@ -57,12 +56,10 @@ export interface ShellControlsDeps {
   positionTitleButtonIconMenu: any
   projectActionsButtonElement: any
   projectActionsMenuElement: any
-  refreshSoundToggle: any
   renderWorkspaceResolution: any
   requestJsonDeps: any
   runEntry: any
   setWorkspaceHasProject: any
-  soundToggleButtonElement: any
   unbindDisplayDeviceError: any
   value: any
 }
@@ -91,23 +88,6 @@ export function refreshComponentDialogScale(deps: ShellControlsDeps) {
       (window.innerHeight * 0.9) / componentDialogElement.offsetHeight,
     )
   document.documentElement.style.setProperty('--component-template-dialog-scale', String(componentDialogScale))
-}
-
-export function refreshSoundToggle(deps: ShellControlsDeps) {
-  if (!deps.soundToggleButtonElement) return
-  const isEditMode = deps.editorCtx.editorMode === 'edit'
-  ;(deps.soundToggleButtonElement.hidden = !isEditMode),
-    (deps.soundToggleButtonElement.disabled = !deps.editorCtx.activeProject),
-    deps.editorCtx.activeProject &&
-      typeof deps.editorCtx.activeProject.document?.soundEnabled == 'boolean' &&
-      deps.buttonSoundController.isEnabled() !== deps.editorCtx.activeProject.document.soundEnabled &&
-      deps.buttonSoundController.setEnabled(deps.editorCtx.activeProject.document.soundEnabled),
-    deps.soundToggleButtonElement.setAttribute('aria-pressed', String(deps.buttonSoundController.isEnabled())),
-    (deps.soundToggleButtonElement.title = deps.buttonSoundController.isEnabled()
-      ? '关闭仪表盘音效'
-      : '开启仪表盘音效'),
-    deps.soundToggleButtonElement.setAttribute('aria-label', deps.soundToggleButtonElement.title),
-    deps.soundToggleButtonElement.classList.toggle('is-muted', !deps.buttonSoundController.isEnabled())
 }
 
 export function syncIconButtonInspector(deps: ShellControlsDeps, iconButtonComponent: any) {
@@ -348,6 +328,5 @@ export function syncWorkspaceEmptyState(deps: ShellControlsDeps, hasPages: any) 
       deps.errorPhase(),
       deps.value()),
     deps.renderWorkspaceResolution(),
-    deps.unbindDisplayDeviceError(),
-    deps.refreshSoundToggle()
+    deps.unbindDisplayDeviceError()
 }

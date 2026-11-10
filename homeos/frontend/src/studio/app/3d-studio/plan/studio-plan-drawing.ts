@@ -1,3 +1,4 @@
+import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 /** 平面图坐标（米）：planToScreen / screenToPlan 在同一套坐标系里来回换算。 */
 type PlanPoint = { x: number; y: number }
 
@@ -145,7 +146,7 @@ export function createPlanDrawingTools({
     if (!labelText) return
     const anchorScreen = planToScreen(anchorPlan)
     canvasPainter.save(),
-      (canvasPainter.font = '600 10px ui-monospace, monospace'),
+      (canvasPainter.font = dashboardCanvasFont('600 10px', 'ui-monospace, monospace')),
       (canvasPainter.textAlign = 'center'),
       (canvasPainter.textBaseline = 'middle')
     const labelWidth = canvasPainter.measureText(labelText).width + 12

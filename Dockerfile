@@ -253,7 +253,8 @@ RUN mkdir -p /app/assets \
     && test -f /app/assets-default/logo/logo.svg \
     && test -d /app/assets-default/icons \
     && test -d /app/assets-default/backgrounds \
-    && test -d /app/assets-default/sounds
+    && test -d /app/assets-default/sounds \
+    && test -f /app/assets-default/fonts/catalog.json
 
 # 内置素材目录：空目录可能不被 local 导出保留，这里补建。
 RUN mkdir -p /app/image && chown homeos:homeos /app/image

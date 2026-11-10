@@ -11,7 +11,6 @@
  */
 import { PanelRenderer } from '../renderer/panel-renderer'
 import { componentFamiliesForDocument, ensureRegistryComponents } from '../renderer/registry'
-import { createButtonSound } from '../shared/sound-effects'
 import type { DomControl } from '@app/shared/util/dom-control'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
 
@@ -31,6 +30,27 @@ function syncAppleDisplaySurface(boardConfig: any, env = window) {
         : '#070b0e'
   documentNode.documentElement.style.setProperty('--display-surface-background', surfaceColor),
     documentNode.querySelector('meta[name="theme-color"]')?.setAttribute('content', surfaceColor)
+}
+
+/**
+ * iPad 主屏 PWA：状态栏改为 `default`，独立运行时给 html 加 `ipad-pwa-display`，
+ * 让画布固定铺满并贴底（样式见 display.css）。HomeOS 原生壳与 iframe 内不处理。
+ * 返回撤销函数：展示页是 shell 内的路由，离开时要还原 meta 与 class。
+ */
+function syncIpadPwaDisplay(env = window): (() => void) | null {
+  const nav = env.navigator,
+    agent = nav.userAgent || '',
+    isIpad = /iPad/i.test(agent) || (/Macintosh/i.test(agent) && Number(nav.maxTouchPoints || 0) > 1)
+  if (!isIpad || env.self !== env.top || /\bHomeOS-Apple\//i.test(agent)) return null
+  const statusBarMeta = env.document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'),
+    previousStatusBarStyle = statusBarMeta?.getAttribute('content') ?? null,
+    isStandalone = nav.standalone === true || env.matchMedia?.('(display-mode: standalone)').matches === true
+  statusBarMeta?.setAttribute('content', 'default')
+  env.document.documentElement.classList.toggle('ipad-pwa-display', isStandalone)
+  return () => {
+    if (previousStatusBarStyle !== null) statusBarMeta?.setAttribute('content', previousStatusBarStyle)
+    env.document.documentElement.classList.remove('ipad-pwa-display')
+  }
 }
 
 let disposeActiveDisplay: (() => void) | null = null
@@ -62,6 +82,7 @@ export function bootDisplay(): void {
     window.location.pathname.startsWith('/display/') || window.location.pathname.startsWith('/homeos/')
   )
   document.documentElement.classList.toggle('display-embedded', isEmbeddedOverview)
+  const restoreIpadPwaDisplay = isEmbeddedOverview ? null : syncIpadPwaDisplay()
 
   /**
    * 展示端强制 3D 面板背景透明。
@@ -92,7 +113,6 @@ export function bootDisplay(): void {
     lastRevision: any = null,
     lastGlobalPopupRevision: any = null,
     panelRenderer: any = null
-  const buttonSound = createButtonSound()
   let embeddedResizeObserver: ResizeObserver | null = null,
     refreshPromise: any = null,
     loadedAssetsVersion: any = null,
@@ -415,9 +435,7 @@ export function bootDisplay(): void {
           const draftResponse = await apiRequest('/projects/' + encodeURIComponent(project.id) + '/draft')
           if (!draftResponse) return
           const displayDocument = normalizeDisplayDocument(draftResponse.document)
-          window.HomeOSDisplayBoot?.setDocument!(displayDocument),
-            syncAppleDisplaySurface(displayDocument),
-            buttonSound.setEnabled(displayDocument?.soundEnabled !== false)
+          window.HomeOSDisplayBoot?.setDocument!(displayDocument), syncAppleDisplaySurface(displayDocument)
           let targetAssetsVersion = assetsVersion,
             builtinAssets: any = null,
             userAssets: any = null
@@ -454,9 +472,6 @@ export function bootDisplay(): void {
             panelRenderer ||
               ((panelRenderer = new PanelRenderer(displayRootElement!, {
                 scaleMode: 'contain',
-                onRuntimeButtonPress() {
-                  buttonSound.play()
-                },
               })),
               pushCatalogToRenderer()),
             builtinAssets &&
@@ -619,7 +634,7 @@ export function bootDisplay(): void {
     window.removeEventListener('pageshow', handleViewportPageShow)
     // 渲染器：释放 3D 运行时、WebSocket 与画布
     panelRenderer?.destroy(), (panelRenderer = null)
-    buttonSound.dispose?.()
+    restoreIpadPwaDisplay?.()
     // 文档级残留：嵌入宿主判定类、苹果端定尺写下的内联尺寸、苹果端表面色变量
     document.documentElement.classList.remove('display-embedded', 'capture-preview')
     document.documentElement.style.removeProperty('width')

@@ -2,6 +2,7 @@ import { domElement } from '@app/shared/util/dom-factory'
 import type { PopupPlacement, PopupPlacementSettings } from '@app/bridge/presets/popup-placement'
 import { popupPlacement } from '@app/bridge/presets/popup-placement'
 import { cameraPopupLayout } from '@app/bridge/presets/camera-popup-layout'
+import { createDashboardFonts, type DashboardFontDocument } from '@app/shared/dashboard-fonts'
 export interface PopupPreviewOptions {
   /** 是否按「画布最大高度」收口并在标题上标出百分比；默认 `true`。 */
   showHeightLimit?: boolean
@@ -186,6 +187,22 @@ export function createPopupLayoutPreview(hostElement: any, getLayout: any, onClo
     },
   }
 }
+function mountFocusPopupPreview(popupHostElement: HTMLElement, panelDocument: DashboardFontDocument) {
+  const popupOwnerDocument = popupHostElement.ownerDocument || document,
+    previewRootElement = popupOwnerDocument.createElement('div')
+  ;(previewRootElement.className = 'i3d-focus-popup-preview'), (previewRootElement.inert = true)
+  // 预览渲染器不走 render()，仪表盘字体在外层容器上单独挂（0.8.6）。
+  const previewFonts = createDashboardFonts(previewRootElement)
+  previewFonts.apply(panelDocument?.theme?.fonts)
+  const stylesheetLink = popupOwnerDocument.createElement('link')
+  ;(stylesheetLink.rel = 'stylesheet'), (stylesheetLink.href = '/static/renderer/renderer.css')
+  const rendererHostElement = popupOwnerDocument.createElement('div')
+  ;(rendererHostElement.className = 'i3d-focus-popup-host'),
+    previewRootElement.append(stylesheetLink, rendererHostElement),
+    popupHostElement.append(previewRootElement)
+  return { previewRootElement, rendererHostElement, previewFonts }
+}
+
 export function createFocusDevicePopup(
   popupHostElement: any,
   {
@@ -197,15 +214,10 @@ export function createFocusDevicePopup(
     panelDocument: panelDocument,
   }: any,
 ) {
-  const popupOwnerDocument = popupHostElement.ownerDocument || document,
-    previewRootElement = popupOwnerDocument.createElement('div')
-  ;(previewRootElement.className = 'i3d-focus-popup-preview'), (previewRootElement.inert = true)
-  const stylesheetLink = popupOwnerDocument.createElement('link')
-  ;(stylesheetLink.rel = 'stylesheet'), (stylesheetLink.href = '/static/renderer/renderer.css')
-  const rendererHostElement = popupOwnerDocument.createElement('div')
-  ;(rendererHostElement.className = 'i3d-focus-popup-host'),
-    previewRootElement.append(stylesheetLink, rendererHostElement),
-    popupHostElement.append(previewRootElement)
+  const { previewRootElement, rendererHostElement, previewFonts } = mountFocusPopupPreview(
+    popupHostElement,
+    panelDocument,
+  )
   let isDisposed = false,
     renderer: any,
     panelHandle: any
@@ -259,7 +271,11 @@ export function createFocusDevicePopup(
     resize: resizePreview,
     updateStates: () => panelHandle?.updateStates?.(getStates()),
     dispose() {
-      ;(isDisposed = true), panelHandle?.close(), renderer?.destroy(), previewRootElement.remove()
+      ;(isDisposed = true),
+        panelHandle?.close(),
+        renderer?.destroy(),
+        previewFonts.dispose(),
+        previewRootElement.remove()
     },
   }
 }

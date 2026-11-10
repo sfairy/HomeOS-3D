@@ -1,4 +1,5 @@
 /** 天气预报弹窗接缝：把 `weather-forecast.ts` 的会话挂到面板渲染器的弹窗生命周期上。 */
+import { showRuntimeDialog } from './runtime-dialogs'
 import type { PanelRenderer } from '../panel-renderer'
 import { createWeatherForecast, requestWeatherForecast, weatherSceneStyle } from '../weather-forecast'
 
@@ -25,7 +26,7 @@ export function showWeatherForecast(
     { dialog: weatherDialog, card: weatherCard } = weatherForecast,
     weatherOverlay = document.createElement('div')
   ;(weatherOverlay.className = 'hb-renderer-runtime-dialog-layer hb-runtime-no-select'),
-    (weatherOverlay.dataset.weatherTheme = weatherSceneTheme),
+    (weatherOverlay.dataset.runtimeDialogTheme = weatherSceneTheme),
     (weatherOverlay.tabIndex = -1),
     weatherOverlay.append(weatherDialog),
     this.container.append(weatherOverlay),
@@ -60,7 +61,6 @@ export function showWeatherForecast(
       },
       { once: true },
     ),
-    weatherDialog.show(),
-    weatherDialog.focus({ preventScroll: true }),
+    showRuntimeDialog(weatherDialog),
     void weatherForecast.load()
 }

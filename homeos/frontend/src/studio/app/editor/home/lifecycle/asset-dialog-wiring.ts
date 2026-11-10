@@ -49,7 +49,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     positionEffectAssetMenu,
     positionImageAssetMenu,
     projectSelectElement,
-    projectSummary,
     recoveryDialogElement,
     recoveryDiscardElement,
     recoveryDownloadElement,
@@ -63,7 +62,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     renderEditorWorkspace,
     renderEffectAssetOptions,
     renderImageAssetOptions,
-    saveDraft,
     scheduleAssetPreview,
     selectComponent,
     setComponentScope,
@@ -75,7 +73,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     showPageEditorElement,
     showPopupEditorElement,
     showSharedComponentsElement,
-    soundToggleButtonElement,
     syncAssetFolderOptions,
     syncDefaultPageAction,
     syncHistoryButtons,
@@ -448,17 +445,6 @@ export function bindAssetDialogWiring(deps: Record<string, any>): void {
     }),
     showEditorPreviewButtonElement.addEventListener('click', () => setEditorMode('edit')),
     showDashboardPreviewButtonElement.addEventListener('click', () => setEditorMode('dashboard')),
-    soundToggleButtonElement.addEventListener('click', async () => {
-      if (!editorCtx.activeProject) return
-      const changeInputValue = clone2(editorCtx.activeProject.document)
-      changeInputValue.soundEnabled = editorCtx.activeProject.document.soundEnabled === false
-      try {
-        if (!(await projectSummary(changeInputValue))) return
-        await saveDraft()
-      } catch (selectedComponentIdSet: any) {
-        handleOperationError(selectedComponentIdSet)
-      }
-    }),
     showPageEditorElement.addEventListener('click', () => setEditorMode('edit')),
     showPopupEditorElement.addEventListener('click', () => setEditorMode('popup')),
     projectSelectElement.addEventListener('change', () => {

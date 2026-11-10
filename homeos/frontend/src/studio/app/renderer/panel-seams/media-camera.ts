@@ -1,3 +1,4 @@
+import { showRuntimeDialog } from './runtime-dialogs'
 import type { ComponentDialogElement } from '../renderer-types'
 import {
   cameraPopupLayout as cameraPopupLayout2,
@@ -605,6 +606,6 @@ export function showCameraPreview(
         once: true,
       },
     ),
-    cameraPreviewDialog.show(),
+    showRuntimeDialog(cameraPreviewDialog),
     cameraPreviewDialog.resizeInteraction3d?.()
 }

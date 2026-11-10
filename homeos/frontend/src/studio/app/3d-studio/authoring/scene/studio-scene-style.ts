@@ -1,5 +1,7 @@
 export const WARM_WOOD_STYLE = Object.freeze({
   warmWood: true,
+  planLabelText: 'rgb(118, 102, 84)',
+  planLabelLine: 'rgba(118, 102, 84, 0.72)',
   windowFrame: 10726055,
   doorFrame: 10725279,
   entryDoorFrame: 6843753,
