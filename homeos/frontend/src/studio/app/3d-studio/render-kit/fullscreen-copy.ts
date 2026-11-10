@@ -6,6 +6,8 @@
  * 程序只编译一次；渲染目标尺寸随源纹理变化，仍按次创建和释放。
  */
 
+import { captureRendererTargetState, restoreRendererTargetState } from './renderer-state'
+
 export type CopyChannel = 'rgba' | 'red'
 
 type CopyMaterial = { uniforms: { source: { value: unknown } } }
@@ -95,13 +97,8 @@ export async function readTexturePixels(
     generateMipmaps: false,
     ...(type === undefined ? {} : { type }),
   })
+  const targetState = captureRendererTargetState(renderer, three.Vector4)
   const saved = {
-    target: renderer.getRenderTarget(),
-    face: renderer.getActiveCubeFace(),
-    mip: renderer.getActiveMipmapLevel(),
-    viewport: renderer.getViewport(new three.Vector4()),
-    scissor: renderer.getScissor(new three.Vector4()),
-    scissorTest: renderer.getScissorTest(),
     autoClear: renderer.autoClear,
     xr: renderer.xr.enabled,
     shadow: renderer.shadowMap.enabled,
@@ -118,10 +115,7 @@ export async function readTexturePixels(
       readPromise = renderer.readRenderTargetPixelsAsync(renderTarget, 0, 0, width, height, pixels)
     } finally {
       pass.material.uniforms.source.value = null
-      renderer.setViewport(saved.viewport)
-      renderer.setScissor(saved.scissor)
-      renderer.setScissorTest(saved.scissorTest)
-      renderer.setRenderTarget(saved.target, saved.face, saved.mip)
+      restoreRendererTargetState(renderer, targetState)
       renderer.autoClear = saved.autoClear
       renderer.xr.enabled = saved.xr
       renderer.shadowMap.enabled = saved.shadow
