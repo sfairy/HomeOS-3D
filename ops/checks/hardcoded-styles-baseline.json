@@ -1,9 +1,9 @@
 {
   "totals": {
-    "files": 369,
-    "color": 4433,
-    "duration": 1457,
-    "important": 382
+    "files": 368,
+    "color": 4291,
+    "duration": 1421,
+    "important": 363
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/PalettePanel.vue": {
@@ -22,7 +22,7 @@
       "important": 4
     },
     "homeos/frontend/src/assets/styles/app-premium-tokens.css": {
-      "color": 44,
+      "color": 30,
       "duration": 2,
       "important": 0
     },
@@ -32,7 +32,7 @@
       "important": 0
     },
     "homeos/frontend/src/assets/styles/hos-design-system.css": {
-      "color": 2,
+      "color": 1,
       "duration": 1,
       "important": 0
     },
@@ -57,32 +57,32 @@
       "important": 0
     },
     "homeos/frontend/src/assets/styles/list-page-views.css": {
-      "color": 27,
+      "color": 26,
       "duration": 11,
       "important": 0
     },
     "homeos/frontend/src/assets/styles/list-page.css": {
       "color": 28,
-      "duration": 19,
+      "duration": 17,
       "important": 6
     },
     "homeos/frontend/src/assets/styles/main.css": {
-      "color": 55,
+      "color": 21,
       "duration": 15,
       "important": 30
     },
     "homeos/frontend/src/assets/styles/modal-theme.css": {
-      "color": 19,
-      "duration": 12,
+      "color": 17,
+      "duration": 11,
       "important": 0
     },
     "homeos/frontend/src/assets/styles/motion.css": {
       "color": 2,
-      "duration": 10,
+      "duration": 9,
       "important": 0
     },
     "homeos/frontend/src/assets/styles/multi-color.css": {
-      "color": 8,
+      "color": 3,
       "duration": 0,
       "important": 0
     },
@@ -100,11 +100,6 @@
       "color": 0,
       "duration": 0,
       "important": 3
-    },
-    "homeos/frontend/src/assets/styles/premium-accordion.css": {
-      "color": 4,
-      "duration": 5,
-      "important": 0
     },
     "homeos/frontend/src/assets/styles/premium-head.css": {
       "color": 11,
@@ -124,7 +119,7 @@
     "homeos/frontend/src/assets/styles/screensaver-idle.css": {
       "color": 0,
       "duration": 0,
-      "important": 2
+      "important": 1
     },
     "homeos/frontend/src/assets/styles/utility-meter-popup.css": {
       "color": 8,
@@ -186,13 +181,18 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/components/common/base/styles/hos-select.css": {
+      "color": 2,
+      "duration": 10,
+      "important": 1
+    },
     "homeos/frontend/src/components/common/base/styles/searchable-select.css": {
       "color": 0,
       "duration": 6,
       "important": 0
     },
     "homeos/frontend/src/components/common/base/styles/v-empty-state.css": {
-      "color": 4,
+      "color": 1,
       "duration": 3,
       "important": 0
     },
@@ -215,11 +215,6 @@
       "color": 0,
       "duration": 1,
       "important": 0
-    },
-    "homeos/frontend/src/components/common/base/styles/hos-select.css": {
-      "color": 2,
-      "duration": 10,
-      "important": 1
     },
     "homeos/frontend/src/components/common/entity-input/index.css": {
       "color": 1,
@@ -377,7 +372,7 @@
       "important": 0
     },
     "homeos/frontend/src/components/entities/styles/device-group-modal.css": {
-      "color": 52,
+      "color": 50,
       "duration": 17,
       "important": 0
     },
@@ -396,14 +391,14 @@
       "duration": 21,
       "important": 8
     },
-    "homeos/frontend/src/components/modals/styles/settings-lock-modal.css": {
-      "color": 0,
-      "duration": 1,
-      "important": 0
-    },
     "homeos/frontend/src/components/modals/styles/notification-drawer.css": {
       "color": 5,
       "duration": 5,
+      "important": 0
+    },
+    "homeos/frontend/src/components/modals/styles/settings-lock-modal.css": {
+      "color": 0,
+      "duration": 1,
       "important": 0
     },
     "homeos/frontend/src/components/setup/styles/setup-banners.css": {
@@ -487,7 +482,7 @@
       "important": 0
     },
     "homeos/frontend/src/components/widgets/weather/styles/widget.css": {
-      "color": 20,
+      "color": 19,
       "duration": 0,
       "important": 0
     },
@@ -582,7 +577,7 @@
       "important": 0
     },
     "homeos/frontend/src/features/device/styles/device-panels.css": {
-      "color": 13,
+      "color": 12,
       "duration": 0,
       "important": 0
     },
@@ -592,9 +587,9 @@
       "important": 0
     },
     "homeos/frontend/src/features/device/styles/devices-theme.css": {
-      "color": 72,
+      "color": 60,
       "duration": 31,
-      "important": 7
+      "important": 5
     },
     "homeos/frontend/src/features/device/styles/devices-view.css": {
       "color": 0,
@@ -616,6 +611,16 @@
       "duration": 3,
       "important": 0
     },
+    "homeos/frontend/src/features/earthquake/styles/earthquake-history.css": {
+      "color": 23,
+      "duration": 16,
+      "important": 0
+    },
+    "homeos/frontend/src/features/earthquake/styles/earthquake-setup-wizard.css": {
+      "color": 15,
+      "duration": 1,
+      "important": 0
+    },
     "homeos/frontend/src/features/earthquake/styles/eew-safety-tips.css": {
       "color": 3,
       "duration": 1,
@@ -629,16 +634,6 @@
     "homeos/frontend/src/features/earthquake/styles/history-analytics.css": {
       "color": 6,
       "duration": 6,
-      "important": 0
-    },
-    "homeos/frontend/src/features/earthquake/styles/earthquake-history.css": {
-      "color": 23,
-      "duration": 16,
-      "important": 0
-    },
-    "homeos/frontend/src/features/earthquake/styles/earthquake-setup-wizard.css": {
-      "color": 15,
-      "duration": 1,
       "important": 0
     },
     "homeos/frontend/src/features/embed/styles/embed-page.css": {
@@ -656,14 +651,14 @@
       "duration": 4,
       "important": 0
     },
-    "homeos/frontend/src/features/events/styles/view-analytics.css": {
-      "color": 2,
-      "duration": 5,
-      "important": 0
-    },
     "homeos/frontend/src/features/events/styles/events-toolbar.css": {
       "color": 1,
       "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/features/events/styles/view-analytics.css": {
+      "color": 2,
+      "duration": 5,
       "important": 0
     },
     "homeos/frontend/src/features/home-mode/components/menu.css": {
@@ -711,10 +706,10 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/home-mode/editor/styles/home-mode.css": {
-      "color": 12,
-      "duration": 50,
-      "important": 0
+    "homeos/frontend/src/features/home-mode/editor/styles/home-mode-preset-cards.css": {
+      "color": 23,
+      "duration": 10,
+      "important": 2
     },
     "homeos/frontend/src/features/home-mode/editor/styles/home-mode-preset-sidebar.css": {
       "color": 1,
@@ -726,10 +721,10 @@
       "duration": 2,
       "important": 0
     },
-    "homeos/frontend/src/features/home-mode/editor/styles/home-mode-preset-cards.css": {
-      "color": 23,
-      "duration": 10,
-      "important": 2
+    "homeos/frontend/src/features/home-mode/editor/styles/home-mode.css": {
+      "color": 12,
+      "duration": 47,
+      "important": 0
     },
     "homeos/frontend/src/features/notifications/NotificationsPage.vue": {
       "color": 2,
@@ -783,7 +778,7 @@
     },
     "homeos/frontend/src/features/security/styles/security.css": {
       "color": 0,
-      "duration": 69,
+      "duration": 61,
       "important": 11
     },
     "homeos/frontend/src/features/settings/automate/SettingsSecurityModesEmergencySection.vue": {
@@ -811,14 +806,14 @@
       "duration": 13,
       "important": 2
     },
-    "homeos/frontend/src/features/settings/automate/styles/settings-presence-entities-section.css": {
-      "color": 2,
-      "duration": 1,
-      "important": 0
-    },
     "homeos/frontend/src/features/settings/automate/styles/security-modes.css": {
       "color": 7,
       "duration": 14,
+      "important": 0
+    },
+    "homeos/frontend/src/features/settings/automate/styles/settings-presence-entities-section.css": {
+      "color": 2,
+      "duration": 1,
       "important": 0
     },
     "homeos/frontend/src/features/settings/connect/SettingsDeviceManagementPanel.vue": {
@@ -826,9 +821,24 @@
       "duration": 1,
       "important": 0
     },
+    "homeos/frontend/src/features/settings/connect/bindings/styles/account-list-editor.css": {
+      "color": 3,
+      "duration": 11,
+      "important": 5
+    },
+    "homeos/frontend/src/features/settings/connect/bindings/styles/hazard-bindings-section.css": {
+      "color": 0,
+      "duration": 4,
+      "important": 0
+    },
     "homeos/frontend/src/features/settings/connect/bindings/styles/section-insights.css": {
       "color": 0,
       "duration": 2,
+      "important": 2
+    },
+    "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-account-section.css": {
+      "color": 4,
+      "duration": 15,
       "important": 2
     },
     "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-cameras-section.css": {
@@ -851,28 +861,8 @@
       "duration": 1,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/account-list-editor.css": {
-      "color": 3,
-      "duration": 11,
-      "important": 5
-    },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/hazard-bindings-section.css": {
-      "color": 0,
-      "duration": 4,
-      "important": 0
-    },
-    "homeos/frontend/src/features/settings/connect/bindings/styles/settings-bindings-account-section.css": {
-      "color": 4,
-      "duration": 15,
-      "important": 2
-    },
     "homeos/frontend/src/features/settings/connect/composables/setup-wizard-env.internals.ts": {
       "color": 2,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/features/settings/connect/connection/styles/entities-section.css": {
-      "color": 4,
       "duration": 0,
       "important": 0
     },
@@ -886,9 +876,19 @@
       "duration": 22,
       "important": 0
     },
+    "homeos/frontend/src/features/settings/connect/connection/styles/entities-section.css": {
+      "color": 4,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/features/settings/connect/setup-wizard/SetupWizardDashboardStep.vue": {
       "color": 3,
       "duration": 2,
+      "important": 0
+    },
+    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/setup-wizard-complete-step.css": {
+      "color": 2,
+      "duration": 0,
       "important": 0
     },
     "homeos/frontend/src/features/settings/connect/setup-wizard/styles/setup-wizard-navigation.css": {
@@ -901,11 +901,6 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/features/settings/connect/setup-wizard/styles/setup-wizard-complete-step.css": {
-      "color": 2,
-      "duration": 0,
-      "important": 0
-    },
     "homeos/frontend/src/features/settings/connect/setup-wizard/styles/setup-wizard.css": {
       "color": 36,
       "duration": 1,
@@ -913,7 +908,7 @@
     },
     "homeos/frontend/src/features/settings/connect/styles/setup-wizard-panel.css": {
       "color": 1,
-      "duration": 7,
+      "duration": 5,
       "important": 0
     },
     "homeos/frontend/src/features/settings/display/ChangePasswordDialog.vue": {
@@ -942,8 +937,8 @@
       "important": 0
     },
     "homeos/frontend/src/features/settings/display/floating/styles/floating.css": {
-      "color": 110,
-      "duration": 39,
+      "color": 109,
+      "duration": 37,
       "important": 6
     },
     "homeos/frontend/src/features/settings/display/layout/styles/footer-color-picker.css": {
@@ -957,14 +952,14 @@
       "important": 2
     },
     "homeos/frontend/src/features/settings/display/layout/styles/settings-layout-edit-section.css": {
-      "color": 8,
-      "duration": 8,
+      "color": 7,
+      "duration": 7,
       "important": 0
     },
     "homeos/frontend/src/features/settings/display/styles/layout-panels.css": {
       "color": 66,
-      "duration": 39,
-      "important": 5
+      "duration": 38,
+      "important": 4
     },
     "homeos/frontend/src/features/settings/display/styles/settings-general-panel.css": {
       "color": 1,
@@ -1032,9 +1027,9 @@
       "important": 11
     },
     "homeos/frontend/src/features/settings/interact/styles/settings-agent-panel.css": {
-      "color": 34,
+      "color": 33,
       "duration": 34,
-      "important": 6
+      "important": 3
     },
     "homeos/frontend/src/features/settings/interact/voice/styles/settings-voice-commands-section.css": {
       "color": 0,
@@ -1076,25 +1071,25 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-field-cell.css": {
+      "color": 8,
+      "duration": 6,
+      "important": 0
+    },
     "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-nested-object-editor.css": {
       "color": 0,
       "duration": 1,
+      "important": 1
+    },
+    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-params-sidebar.css": {
+      "color": 10,
+      "duration": 3,
       "important": 1
     },
     "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-section-dock.css": {
       "color": 0,
       "duration": 2,
       "important": 0
-    },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-field-cell.css": {
-      "color": 8,
-      "duration": 6,
-      "important": 0
-    },
-    "homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-params-sidebar.css": {
-      "color": 10,
-      "duration": 3,
-      "important": 1
     },
     "homeos/frontend/src/features/settings/shared/layout/SettingsOverviewStrip.vue": {
       "color": 11,
@@ -1108,13 +1103,13 @@
     },
     "homeos/frontend/src/features/settings/shared/layout/styles/settings-popout-menu.css": {
       "color": 0,
-      "duration": 3,
+      "duration": 2,
       "important": 0
     },
     "homeos/frontend/src/features/settings/shared/styles/bindings-theme.css": {
       "color": 6,
       "duration": 17,
-      "important": 17
+      "important": 14
     },
     "homeos/frontend/src/features/settings/shared/styles/hero-card-shell.css": {
       "color": 0,
@@ -1137,9 +1132,9 @@
       "important": 21
     },
     "homeos/frontend/src/features/settings/shared/styles/settings-forms.css": {
-      "color": 20,
+      "color": 15,
       "duration": 12,
-      "important": 5
+      "important": 3
     },
     "homeos/frontend/src/features/settings/shared/styles/settings-hub-workspace.css": {
       "color": 3,
@@ -1203,8 +1198,8 @@
     },
     "homeos/frontend/src/features/settings/system/styles/admin-hubs.css": {
       "color": 0,
-      "duration": 8,
-      "important": 8
+      "duration": 3,
+      "important": 4
     },
     "homeos/frontend/src/features/settings/system/styles/license-panel.css": {
       "color": 47,
@@ -1406,16 +1401,6 @@
       "duration": 0,
       "important": 0
     },
-    "homeos/frontend/src/studio/app/shared/scene/studio-television-glass.ts": {
-      "color": 8,
-      "duration": 0,
-      "important": 0
-    },
-    "homeos/frontend/src/studio/app/shared/scene/studio-television-poster.ts": {
-      "color": 32,
-      "duration": 0,
-      "important": 0
-    },
     "homeos/frontend/src/studio/app/3d-studio/plan/courtyard-drawing-editor.ts": {
       "color": 16,
       "duration": 0,
@@ -1447,7 +1432,7 @@
       "important": 0
     },
     "homeos/frontend/src/studio/app/editor/component-templates.ts": {
-      "color": 128,
+      "color": 95,
       "duration": 0,
       "important": 0
     },
@@ -1686,6 +1671,16 @@
       "duration": 0,
       "important": 0
     },
+    "homeos/frontend/src/studio/app/shared/scene/studio-television-glass.ts": {
+      "color": 8,
+      "duration": 0,
+      "important": 0
+    },
+    "homeos/frontend/src/studio/app/shared/scene/studio-television-poster.ts": {
+      "color": 32,
+      "duration": 0,
+      "important": 0
+    },
     "homeos/frontend/src/studio/app/shared/util/editor-floating-layout.ts": {
       "color": 2,
       "duration": 0,
@@ -1737,9 +1732,9 @@
       "important": 0
     },
     "homeos/frontend/src/studio/runtime/core/runtime.css": {
-      "color": 279,
+      "color": 263,
       "duration": 13,
-      "important": 18
+      "important": 16
     },
     "homeos/frontend/src/studio/runtime/core/scene-background.ts": {
       "color": 9,
@@ -1757,9 +1752,9 @@
       "important": 0
     },
     "homeos/frontend/src/studio/runtime/core/stage.css": {
-      "color": 554,
-      "duration": 64,
-      "important": 35
+      "color": 549,
+      "duration": 60,
+      "important": 34
     },
     "homeos/frontend/src/studio/runtime/core/stage.ts": {
       "color": 1,
