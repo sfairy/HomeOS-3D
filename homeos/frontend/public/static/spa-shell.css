@@ -72,7 +72,6 @@ body.interaction3d-stage > #app {
 body.interaction3d-stage .studio-header,
 body.interaction3d-stage .sc-topbar,
 body.interaction3d-stage .sc-shortcuts-overlay,
-body.interaction3d-stage .sc-tool-strip,
 body.interaction3d-stage .studio-chrome-root > :not(.studio-shell):not(.i3d-climate-picker-menu),
 body.interaction3d-stage #app > .app-container > .homeos-theme-atmosphere,
 body.interaction3d-stage #app > .app-container > .app-chrome-toast-host {

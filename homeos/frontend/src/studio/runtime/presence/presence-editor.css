@@ -85,10 +85,6 @@
 .presence-designs button {
   padding: 7px 3px;
 }
-.i3d-editor .presence-pages button {
-  padding: 6px 3px;
-  min-width: 0;
-}
 .presence-colors {
   display: flex;
   gap: 8px;
