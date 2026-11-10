@@ -328,6 +328,12 @@ function renderMarkdown(inv) {
   return `${lines.join('\n')}\n`
 }
 
+/**
+ * 上游发行包自带的 three 版本，指上游文件路径，不随本项目 three 升级。
+ * 拆成常量拼路径：`sync:three:check` 会把仓库里 `/static/vendor/three/<版本>/` 字面量当作本项目引用去比对。
+ */
+const UPSTREAM_THREE_VERSION = '0.182.0'
+
 /** 人工判定表：上游文件 → 批次 / 判定。未列出的语义 JS 视为重混淆噪声（中文并集与本项目核对无差异）。 */
 const DISPOSITION = new Map([
   ['frontend/index.html', 'B2 字体区与对话框；B5 图标、`#ui-pack-open`、`#popup-select`'],
@@ -358,7 +364,7 @@ const DISPOSITION = new Map([
   ['frontend/static/3d-studio/studio.css', 'B5 工具按钮图标'],
   ['frontend/static/display.css', 'B6 `ipad-pwa-display`'],
   ['frontend/modules/interaction3d/stage.css', 'B5 `.i3d-speaker-media-dialog{outline:none}`'],
-  ['frontend/static/vendor/three/0.182.0/OrbitControls.js', 'B7 归一化核对'],
+  [`frontend/static/vendor/three/${UPSTREAM_THREE_VERSION}/OrbitControls.js`, 'B7 归一化核对'],
 ])
 
 function renderAppendix(inv) {
