@@ -26,13 +26,13 @@ from urllib.parse import urlsplit
 from fastapi import HTTPException, status
 from sqlalchemy import text
 
-from ....dependencies import (
+from ....platform.core.db.models import HAConnection
+from ....platform.security.viewer_scope import (
     ViewerPrincipal,
     require_viewer_entity,
     revalidate_viewer,
     viewer_scope_revision,
 )
-from ....platform.core.db.models import HAConnection
 
 #: 复检被拒只留一条可查的线索：不记 URL / 令牌，只记拒绝原因。
 LOGGER = logging.getLogger(__name__)

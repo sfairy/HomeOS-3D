@@ -31,7 +31,6 @@ from ...dependencies import (
     LicensedCachedSession,
     LicensedUser,
     LicensedViewer,
-    require_viewer_entity,
     require_viewer_project,
 )
 from ...domains.ha.integration.connection_query import active_connection
@@ -46,6 +45,7 @@ from ...platform.core.http.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_f
 from ...platform.core.http.frontend_static import strip_auth_scene_assets
 from ...platform.core.runtime.atomic_write import restrict_private_file
 from ...platform.security.request_origin import require_same_origin_write
+from ...platform.security.viewer_scope import require_viewer_entity
 from ...schemas import HAServiceCallRequest
 
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])

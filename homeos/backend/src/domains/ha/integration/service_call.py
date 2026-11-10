@@ -10,7 +10,7 @@ HA 服务调用。原先 3D 模块直接 ``from ...api.ha.routes import call_ser
 - 校验失败用 ``ServiceCallRejected``（携带 ``status_code`` + ``detail``）表达 ——
   域内不 import FastAPI，但保留原有的**状态码与文案**，由 api 侧一行转成 ``HTTPException``，
   响应体字节级不变（前端与冒烟脚本依赖这些文案，不能顺手换错误码体系）。
-- 实体级 ACL 是占位钩子（``dependencies.require_viewer_entity``，当前恒放行），
+- 实体级 ACL 是占位钩子（``platform.security.viewer_scope.require_viewer_entity``，当前恒放行），
   故以 ``access_check`` 回调注入，避免域内 import ``dependencies``。
 """
 

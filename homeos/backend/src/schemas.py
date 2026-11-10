@@ -153,11 +153,3 @@ class ProjectDeleteRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=128)
 
 
-class Studio3DDraftUpdate(BaseModel):
-
-    model_config = ConfigDict(extra='forbid')
-
-    revision: int = Field(ge=0)
-    scene: dict[str, Any]
-    interactionConfirmation: str = Field(default='', max_length=64)
-

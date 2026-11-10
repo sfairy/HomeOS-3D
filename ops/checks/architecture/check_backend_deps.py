@@ -19,6 +19,10 @@
                         但它会让「谁该依赖谁」变得说不清，所以白名单化、新增即失败。
     B5 file-cycle     : 文件级强连通分量必须为空。这才是真实的 import 环 ——
                         环内两个模块互相 import，任何一方都无法先完成初始化。
+    B2 lower→request  : 源码根的请求面模块（`dependencies` / `schemas`）只给路由用；
+                        domains / platform / realtime / panel 不得 import
+    B6 base→package   : 纯配置模块（`config` / `env` / `version`）不得 import 任何顶层包
+    B7 layer-direction: 声明了 `allowed_targets` 的项目，层间边必须落在允许表里
 
 多项目：`--project homeos|store|all`（默认 all）。`homeos-store` 的 README 尚未写依赖方向，
 因此它的 profile 不设 B1/B2（不臆造规则），只跑 B3 与 B4/B5 —— 结构不变量与具体约定无关。
@@ -44,7 +48,8 @@ import argparse
 import ast
 import json
 import sys
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -69,6 +74,24 @@ HOMEOS_PACKAGE_WHITELIST: frozenset[frozenset[str]] = frozenset(
 
 SKIP_DIRS = {"__pycache__", "node_modules", ".venv-store", "dist", "backups"}
 
+#: 纯配置层：只依赖标准库，位于 platform 之下。
+BASE_LAYER = "base"
+#: 请求面：FastAPI 依赖与请求模型，只给路由用（api、模块自带的路由、装配层）。
+REQUEST_LAYER = "request"
+REQUEST_CONSUMERS = frozenset({"api", "modules", "bootstrap", REQUEST_LAYER})
+
+#: homeos 源码根的单文件模块：`dependencies` / `schemas` 是请求面；`app` / `run` 是进程装配；
+#: `config` / `env` / `version` 是纯配置。
+HOMEOS_ROOT_MODULES: dict[str, str] = {
+    "dependencies": REQUEST_LAYER,
+    "schemas": REQUEST_LAYER,
+    "app": "bootstrap",
+    "run": "bootstrap",
+    "config": BASE_LAYER,
+    "env": BASE_LAYER,
+    "version": BASE_LAYER,
+}
+
 
 @dataclass(frozen=True)
 class Profile:
@@ -88,6 +111,11 @@ class Profile:
     #: B4 的包粒度：这些顶层包取 2 段（`domains.ha` / `platform.core`），其余取 1 段。
     #: 与 `inventory.py` 的 `backend_module_for` 同口径 —— 否则报告与门禁会对不上。
     two_level: frozenset[str] = frozenset({"domains", "modules", "platform", "api"})
+    #: 源码根下的单文件模块归到哪一层。`BASE_LAYER` 是比 platform 更低的纯配置层：
+    #: 谁都可以依赖它，它自己不得 import 任何顶层包（B6）。
+    root_modules: Mapping[str, str] = field(default_factory=dict)
+    #: 允许的层间方向（导入方 → 可依赖的层）；为空表示该项目尚未声明方向（B7 不生效）。
+    allowed_targets: Mapping[str, frozenset[str]] = field(default_factory=dict)
 
 
 HOMEOS = Profile(
@@ -97,6 +125,7 @@ HOMEOS = Profile(
     leaf_layers=frozenset({"platform"}),
     lower_layers=frozenset({"domains", "modules", "panel", "realtime"}),
     package_whitelist=HOMEOS_PACKAGE_WHITELIST,
+    root_modules=HOMEOS_ROOT_MODULES,
 )
 
 #: `homeos-store` 后端：顶层是 api / commerce / core / licensing / ops / payments / security，
@@ -191,9 +220,17 @@ def check_target(
     out: list[Violation],
 ) -> None:
     """按规则表判定一条 `importer_layer → target_layer` 边。"""
+    target_layer = profile.root_modules.get(target_layer, target_layer)
+    if target_layer == REQUEST_LAYER and importer_layer not in REQUEST_CONSUMERS:
+        out.append(Violation("B2 lower→request", rel, lineno, importer_layer, target_layer))
+        return
     if target_layer not in profile.top or target_layer == importer_layer:
         return
-    if importer_layer in profile.leaf_layers:
+    if importer_layer == BASE_LAYER:
+        out.append(Violation("B6 base→package", rel, lineno, importer_layer, target_layer))
+    elif profile.allowed_targets and target_layer not in profile.allowed_targets.get(importer_layer, frozenset()):
+        out.append(Violation("B7 layer-direction", rel, lineno, importer_layer, target_layer))
+    elif importer_layer in profile.leaf_layers:
         out.append(Violation("B1 platform→upper", rel, lineno, importer_layer, target_layer))
     elif importer_layer in profile.lower_layers and target_layer in profile.forbidden_targets:
         out.append(Violation("B2 lower→api", rel, lineno, importer_layer, target_layer))
@@ -203,7 +240,8 @@ def check_file(path: Path, profile: Profile) -> list[Violation]:
     """检查单个文件的方向类违规（B1/B2/B3）。"""
     rel = path.relative_to(profile.root).as_posix()
     parts = module_parts(rel)
-    if not parts or parts[0] not in profile.top:
+    importer_layer = profile.root_modules.get(parts[0], parts[0]) if len(parts) == 1 else (parts[0] if parts else "")
+    if importer_layer not in profile.top and importer_layer not in (BASE_LAYER, REQUEST_LAYER):
         return []
 
     try:
@@ -212,7 +250,6 @@ def check_file(path: Path, profile: Profile) -> list[Violation]:
         # 语法错误由 compileall / ruff 负责，这里不重复报。
         return []
 
-    importer_layer = parts[0]
     violations: list[Violation] = []
     is_package = rel.endswith("__init__.py")
 
