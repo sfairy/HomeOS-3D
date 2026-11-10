@@ -47,6 +47,18 @@ echo "==> 前端测量（Edge / Playwright）"
 echo "==> 3D 测量"
 (cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}")
 
+# 补充口径各自独立一个浏览器，不污染主测量：DPR 2 清晰度、10s 连续拖拽帧分布、显存估算。
+echo "==> 3D 补充口径（dpr2 / drag10s / gpumem）"
+(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" --tag dpr2 --dpr 2) || true
+(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" --tag drag10s --soak-ms 10000 --idle-ms 3000) || true
+(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" --tag gpumem --gpu-memory) || true
+
+# HOMEOS_PERF_SOAK_MINUTES=60：长时浸泡（默认不跑，单独一轮要一小时）。
+if [ -n "${HOMEOS_PERF_SOAK_MINUTES:-}" ]; then
+  echo "==> 3D 浸泡 ${HOMEOS_PERF_SOAK_MINUTES} 分钟"
+  (cd "${ROOT}" && node "${HARNESS}/soak_3d.mjs" --label "${LABEL}" --minutes "${HOMEOS_PERF_SOAK_MINUTES}") || true
+fi
+
 echo "==> 契约检查"
 py "${HARNESS}/check_contracts.py" --label "${LABEL}"
 
