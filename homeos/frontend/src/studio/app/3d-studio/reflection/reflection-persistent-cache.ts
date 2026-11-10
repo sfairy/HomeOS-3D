@@ -7,21 +7,24 @@ import {
 } from '../cache/cache-shared'
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
-const REFLECTION_CACHE_VERSION = '20260930-v1'
+const REFLECTION_CACHE_VERSION = '20261110-v2'
 const MAX_ENTRY_BYTES = 25165824,
   MAX_PERSISTED_BYTES = 67108864,
   MAX_ENTRY_COUNT = 8,
   MAX_PERSISTED_ENTRIES = 4,
-  MAX_PENDING_ENTRIES = 8
-/** 反射快照：分辨率 128..1024 的方形，像素为 size*size*4 的半精度 RGBA，矩阵 16 个有限数。 */
+  MAX_PENDING_ENTRIES = 8,
+  MIN_SNAPSHOT_SIDE = 128,
+  MAX_SNAPSHOT_SIDE = 2048
+const isSnapshotSide = (side: unknown) =>
+  Number.isInteger(side) && (side as number) >= MIN_SNAPSHOT_SIDE && (side as number) <= MAX_SNAPSHOT_SIDE
+/** 反射快照：宽高各 128..2048（贴图按画布宽高比分配），像素为 width*height*4 的半精度 RGBA，矩阵 16 个有限数。 */
 function validReflectionSnapshot(snapshot: any) {
   return (
     !!snapshot &&
-    Number.isInteger(snapshot.size) &&
-    snapshot.size >= 128 &&
-    snapshot.size <= 1024 &&
+    isSnapshotSide(snapshot.width) &&
+    isSnapshotSide(snapshot.height) &&
     snapshot.pixels instanceof Uint16Array &&
-    snapshot.pixels.length === snapshot.size * snapshot.size * 4 &&
+    snapshot.pixels.length === snapshot.width * snapshot.height * 4 &&
     Array.isArray(snapshot.matrix) &&
     snapshot.matrix.length === 16 &&
     snapshot.matrix.every(Number.isFinite)
@@ -282,7 +285,7 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
     }
   )
 }
-/** 抓取当前反射贴图为半精度快照（要求 EXT_color_buffer_float，尺寸为 2 的幂且 128..1024）。 */
+/** 抓取当前反射贴图为半精度快照（要求 EXT_color_buffer_float，宽高各 128..2048）。 */
 export async function captureReflectionSnapshot(three: any, renderer: any, source: any, canCapture: any) {
   if (
     !renderer.readRenderTargetPixelsAsync ||
@@ -290,10 +293,11 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
     (renderer.extensions?.has && !renderer.extensions.has('EXT_color_buffer_float'))
   )
     return null
-  const size = source.map.width
-  if (size < 128 || size > 1024 || source.map.height !== size) return null
+  const width = source.map.width,
+    height = source.map.height
+  if (!isSnapshotSide(width) || !isSnapshotSide(height)) return null
   const matrixArray = source.matrix.toArray(),
-    renderTarget = new three.WebGLRenderTarget(size, size, {
+    renderTarget = new three.WebGLRenderTarget(width, height, {
       type: three.FloatType,
       depthBuffer: false,
     }),
@@ -313,7 +317,7 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
     }),
     copyMesh = new three.Mesh(new three.PlaneGeometry(2, 2), copyMaterial)
   ;(copyMesh.frustumCulled = false), captureScene.add(copyMesh)
-  const floatPixels = new Float32Array(size * size * 4),
+  const floatPixels = new Float32Array(width * height * 4),
     rendererState = {
       target: renderer.getRenderTarget(),
       face: renderer.getActiveCubeFace(),
@@ -333,7 +337,7 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
         renderer.setScissorTest(false),
         renderer.setRenderTarget(renderTarget),
         renderer.render(captureScene, captureCamera),
-        (readPromise = renderer.readRenderTargetPixelsAsync(renderTarget, 0, 0, size, size, floatPixels))
+        (readPromise = renderer.readRenderTargetPixelsAsync(renderTarget, 0, 0, width, height, floatPixels))
     } finally {
       renderer.setViewport(rendererState.viewport),
         renderer.setScissor(rendererState.scissor),
@@ -350,7 +354,8 @@ export async function captureReflectionSnapshot(three: any, renderer: any, sourc
       halfFloatPixels[pixelIndex] = three.DataUtils.toHalfFloat(floatPixels[pixelIndex])
     }
     return {
-      size: size,
+      width: width,
+      height: height,
       pixels: halfFloatPixels,
       matrix: matrixArray,
     }
@@ -363,8 +368,8 @@ export function restoreReflectionSnapshot(three: any, snapshot: any) {
   if (!validReflectionSnapshot(snapshot)) return null
   const dataTexture = new three.DataTexture(
     snapshot.pixels.slice(),
-    snapshot.size,
-    snapshot.size,
+    snapshot.width,
+    snapshot.height,
     three.RGBAFormat,
     three.HalfFloatType,
   )

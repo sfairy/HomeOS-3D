@@ -11,6 +11,17 @@ import { buildReflectionPersistenceStamp, resolveReflectionIdleCaptureFps } from
 import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
 import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
 import { createRefractionMaterialResolver } from './refraction-materials'
+import { createReflectionResolve } from './reflection-resolve'
+import {
+  createReceiverViewTest,
+  adoptLiveCapture,
+  createReflectionOverlayMaterial,
+  ensureReflectionTargetSize,
+  hasStaleOnScreenTarget,
+  resolveReflectionTargetSize,
+  snapshotMatchesTarget,
+  syncRecordOverlaySampling,
+} from './reflection-overlay'
 import {
   beginReflectionCaptureState,
   captureReflectionRendererDiff,
@@ -113,6 +124,7 @@ export function createGroundReflections({
     scratchPlaneVector = new three.Vector4(),
     scratchSignVector = new three.Vector4(),
     scratchProjectionMatrix = new three.Matrix4(),
+    receiverViewTest = createReceiverViewTest(three),
     _reflectionClearColor = new three.Color()
   /** 取「捕获这一帧该用哪个材质」：先去掉折射，再按需要叠一层高度淡出。 */
   function resolveFadeMaterial(baseMaterial: any) {
@@ -241,7 +253,7 @@ export function createGroundReflections({
     captureRotation = 0
   const recordsBySource = new Map(),
     floorChangeCountByFloorId = new Map(),
-    persistenceByteBudget = 24 * 1024 * 1024
+    persistenceByteBudget = 64 * 1024 * 1024
   let insideExpiryTimer: any = null,
     isPersistenceSettled = false,
     propagationCount = 0,
@@ -461,53 +473,17 @@ export function createGroundReflections({
     }
     return false
   }
-  const blurScene = new three.Scene(),
-    /**
-     * 双向高斯模糊的采样步长基准。
-     *
-     * 步长写在 UV 空间，实际模糊半径 = step × 贴图宽度，因此「固定 /512」等价于
-     * 「视觉模糊半径与捕获分辨率无关」（256/512/768 档看到的是同一档模糊）。
-     * 这里把两个魔法数显式命名，避免下次改成 `2 / resolution` 后视觉半径随清晰度漂移。
-     */
-    BLUR_REFERENCE_RESOLUTION = 512,
-    BLUR_TEXEL_RADIUS = 2,
-    blurCamera = new three.OrthographicCamera(-1, 1, 1, -1, 0, 1),
-    blurMaterial = new three.ShaderMaterial({
-      depthTest: false,
-      depthWrite: false,
-      uniforms: {
-        source: {
-          value: null as any,
-        },
-        step: {
-          value: new three.Vector2(),
-        },
-      },
-      vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:
-        'uniform sampler2D source; uniform vec2 step; varying vec2 vUv;\n      void main(){ gl_FragColor=texture2D(source,vUv)*.227027;\n      gl_FragColor+=(texture2D(source,vUv+step*1.384615)+texture2D(source,vUv-step*1.384615))*.316216;\n      gl_FragColor+=(texture2D(source,vUv+step*3.230769)+texture2D(source,vUv-step*3.230769))*.070270; }',
-    }),
-    blurMesh = new three.Mesh(new three.PlaneGeometry(2, 2), blurMaterial)
-  blurScene.add(blurMesh)
-  const createReflectionTarget = (resolutionPx: any, forBlurPass = false) =>
-    new three.WebGLRenderTarget(resolutionPx, resolutionPx, {
+  const drawingBufferScratch = new three.Vector2(),
+    resolveTargetSize = (resolutionPx: number) =>
+      resolveReflectionTargetSize(renderer, resolutionPx, drawingBufferScratch)
+  // 记录贴图只存解析后的颜色；MSAA + 深度只在共享捕获目标上（见 reflection-resolve）。
+  const createReflectionTarget = (targetSize: { width: number; height: number }, { capture = false } = {}) =>
+    new three.WebGLRenderTarget(targetSize.width, targetSize.height, {
       type: three.HalfFloatType,
-      depthBuffer: !forBlurPass,
-      samples: forBlurPass ? 0 : Math.min(2, renderer.capabilities.maxSamples),
+      depthBuffer: capture,
+      samples: capture ? Math.min(4, renderer.capabilities.maxSamples || 0) : 0,
     })
-  /**
-   * 双向高斯模糊的中间目标：所有记录共用一张。
-   *
-   * 捕获是串行的（一次只渲染一条记录），模糊也是「map → scratch → map」的串行链，
-   * 所以每个记录各持一张 scratch 纯属浪费：256 档下 N 条记录就是 N × 256² × 8B
-   * 的常驻开销。共用一张后记录只在 blur 开着时才需要它。
-   */
-  let sharedBlurScratch: any = null
-  const getBlurScratch = (resolutionPx: any) => {
-    if (!sharedBlurScratch) sharedBlurScratch = createReflectionTarget(resolutionPx, true)
-    else if (sharedBlurScratch.width !== resolutionPx) sharedBlurScratch.setSize(resolutionPx, resolutionPx)
-    return sharedBlurScratch
-  }
+  const reflectionResolve = createReflectionResolve(three, renderer, createReflectionTarget)
   function disposeAllRecords() {
     cancelInsideExpiry(), (resumeRecordSet = null)
     for (const storedRecord of [...recordsBySource.values()]) disposeRecord(storedRecord)
@@ -616,29 +592,13 @@ export function createGroundReflections({
           stats.reuses++
         continue
       }
-      const reflectionTarget = createReflectionTarget(settings.resolution),
+      const reflectionTarget = createReflectionTarget(resolveTargetSize(settings.resolution)),
         reflectionMatrix = new three.Matrix4(),
-        reflectionMaterial = new three.ShaderMaterial({
-          transparent: true,
-          depthWrite: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -1,
-          polygonOffsetUnits: -2,
-          uniforms: {
-            reflection: {
-              value: reflectionTarget.texture,
-            },
-            reflectionMatrix: {
-              value: reflectionMatrix,
-            },
-            strength: {
-              value: settings.strength,
-            },
-          },
-          vertexShader:
-            'uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;vec4 mvPosition=modelViewMatrix*vec4(position,1.);\n          gl_Position=projectionMatrix*mvPosition;}',
-          fragmentShader:
-            'uniform sampler2D reflection; uniform float strength; varying vec4 reflected; varying float up;\n          void main(){if(up<.9||reflected.w<=0.)discard;vec2 uv=reflected.xy/reflected.w;\n          if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;\n          vec4 value=texture2D(reflection,uv);gl_FragColor=vec4(value.rgb/max(value.a,.001),clamp(value.a*strength,0.,.7));\n          #include <tonemapping_fragment>\n          #include <colorspace_fragment>\n          }',
+        reflectionMaterial = createReflectionOverlayMaterial(three, {
+          texture: reflectionTarget.texture,
+          matrix: reflectionMatrix,
+          strength: settings.strength,
+          size: reflectionTarget,
         }),
         overlayMesh = new three.Mesh(sourceMesh.geometry.clone(), reflectionMaterial)
       overlayMesh.position.copy(sourceMesh.position),
@@ -697,9 +657,11 @@ export function createGroundReflections({
       return false
     const hasResolutionChanged = settings.resolution !== normalizedSettings.resolution,
       hasModeChanged = settings.mode !== normalizedSettings.mode
+    // 分辨率变化不销毁记录：render() 里按目标尺寸原地 setSize，重捕完成前沿用旧纹理，
+    // 否则运动起止（256 ↔ 512）每次都会整批重建渲染目标并让倒影消失一拍。
     return (
       Object.assign(settings, normalizedSettings),
-      (hasResolutionChanged || normalizedSettings.mode === 'off' || normalizedSettings.strength === 0) &&
+      (normalizedSettings.mode === 'off' || normalizedSettings.strength === 0) &&
         (disposeAllRecords(), (rootFirstChild = null)),
       hasModeChanged && (rootFirstChild = null),
       (shouldRefresh ||= hasResolutionChanged || hasModeChanged),
@@ -916,6 +878,7 @@ export function createGroundReflections({
         ? 1
         : Math.min(1, (performance.now() - resumeStartedAtMs) / resumeFadeDurationMs)
     resumeProgress < 1 ? requestFrame() : (resumeStartedAtMs = null)
+    receiverViewTest.update(camera)
     for (const activeRecord of activeRecords) {
       if (!activeRecord.sourceFrame?.equals(activeRecord.source.matrixWorld)) {
         ;(activeRecord.sourceFrame = (activeRecord.sourceFrame || new three.Matrix4()).copy(
@@ -948,19 +911,21 @@ export function createGroundReflections({
         isVisibleWithin(activeRecord.kind === 'outside' ? activeRecord.source.parent : activeRecord.source) &&
         shouldShowRecord(activeRecord) &&
         activeRecord.plane.distanceToPoint(getFloorCamera(camera, activeRecord.source).position) > 0),
+        (activeRecord.onScreen = receiverViewTest.includes(activeRecord)),
         (activeRecord.overlay.visible = activeRecord.eligible && activeRecord.hasCapture),
         (activeRecord.presentationBaseStrength = settings.strength * resumeProgress),
         (activeRecord.overlay.material.uniforms.strength.value =
-          activeRecord.presentationBaseStrength * presentationGain)
+          activeRecord.presentationBaseStrength * presentationGain),
+        syncRecordOverlaySampling(activeRecord)
     }
     if (!activeRecords.length) return
     const frameStartMs = performance.now(),
       cameraSignature = camera.matrixWorld.elements.join(',') + camera.projectionMatrix.elements.join(','),
       hasCameraChanged = cameraSignature !== lastCameraSignature,
-      currentResolution = settings.resolution
-    for (const resizedRecord of activeRecords)
-      resizedRecord.map.width !== currentResolution &&
-        (resizedRecord.map.setSize(currentResolution, currentResolution), (shouldRefresh = true))
+      currentTargetSize = resolveTargetSize(settings.resolution)
+    // 只标脏、不在这里 setSize：setSize 会释放 GL 纹理，受每帧预算推迟的记录会空白一拍；
+    // 真正的 setSize 推迟到该记录被捕获的那一刻。
+    hasStaleOnScreenTarget(activeRecords, currentTargetSize) && (shouldRefresh = true)
     const lightingSignature =
         getStateKey() +
         '|' +
@@ -981,10 +946,16 @@ export function createGroundReflections({
         ]),
       ),
       stateKeyByRecord = new Map()
+    // 屏幕外的记录不进本轮捕获：capturedPose 保持旧值，回到视野时按位姿不一致补捕。
     let dirtyRecords = activeRecords.filter((eligibleRecord: any) => {
-      if (!eligibleRecord.eligible) return false
+      if (!eligibleRecord.eligible || !eligibleRecord.onScreen) return false
       const stateKey = recordLightingSignature(eligibleRecord, lightingSignatureByFloor)
-      return (stateKeyByRecord.set(eligibleRecord, stateKey), stateChanged || eligibleRecord.state !== stateKey)
+      return (
+        stateKeyByRecord.set(eligibleRecord, stateKey),
+        stateChanged ||
+          eligibleRecord.state !== stateKey ||
+          (eligibleRecord.hasCapture && eligibleRecord.capturedPose !== cameraSignature)
+      )
     })
     if (
       (resumeRecordSet &&
@@ -1137,6 +1108,8 @@ export function createGroundReflections({
           reflectionUniforms.groundReflectionViewToWorld.value.copy(capturedCamera.matrixWorld),
           cull && !culling.prepare(captureRecord, capturedCamera))
         ) {
+          // 本轮没有内容可画（overlay 不显示），顺手对齐尺寸，否则尺寸过期会让每帧都判定需要刷新。
+          ensureReflectionTargetSize(captureRecord.map, currentTargetSize)
           ;(captureRecord.state = stateKeyByRecord.get(captureRecord)),
             (captureRecord.preparedPose = cameraSignature),
             (captureRecord.preparedStateKey = lightingSignature),
@@ -1149,7 +1122,7 @@ export function createGroundReflections({
             const persistenceQueueKey = reflectionQueueKey(captureRecord),
               cachedSnapshot = persistentCache.peek(persistenceQueueKey, queuedPersistenceKey)
             if (
-              cachedSnapshot?.size === currentResolution &&
+              snapshotMatchesTarget(cachedSnapshot, currentTargetSize) &&
               cachedSnapshot.matrix.every(
                 (matrixEntry: any, matrixIndex: any) => matrixEntry === captureRecord.matrix.elements[matrixIndex],
               )
@@ -1166,7 +1139,8 @@ export function createGroundReflections({
                   (captureRecord.state = stateKeyByRecord.get(captureRecord)),
                   resumeRecordSet?.add(captureRecord),
                   (captureRecord.persistenceCaptured = true),
-                  (stats.persistentHits = (stats.persistentHits || 0) + 1)
+                  (stats.persistentHits = (stats.persistentHits || 0) + 1),
+                  ensureReflectionTargetSize(captureRecord.map, currentTargetSize)
                 continue
               }
             }
@@ -1174,7 +1148,7 @@ export function createGroundReflections({
           }
         }
         captureRecord.pendingSnapshot?.map === captureRecord.map &&
-          ((captureRecord.map = createReflectionTarget(currentResolution)),
+          ((captureRecord.map = createReflectionTarget(currentTargetSize)),
           (captureRecord.overlay.material.uniforms.reflection.value =
             captureRecord.restoredTexture || captureRecord.map.texture)),
           captureRecord.restoredTexture &&
@@ -1201,9 +1175,10 @@ export function createGroundReflections({
               wallNode.visible && (temporarilyHidden.push(wallNode), (wallNode.visible = false))
           }
           if (
-            (passes?.begin(scene, capturedCamera, currentResolution, requiredFloorId),
+            (ensureReflectionTargetSize(captureRecord.map, currentTargetSize),
+            passes?.begin(scene, capturedCamera, currentTargetSize.height, requiredFloorId),
             syncLighting(capturedCamera),
-            renderer.setRenderTarget(captureRecord.map),
+            renderer.setRenderTarget(reflectionResolve.captureTarget(currentTargetSize)),
             (rendererDiff.changedTarget = true),
             !tryPrepareProgram(captureRecord, capturedCamera))
           ) {
@@ -1219,22 +1194,8 @@ export function createGroundReflections({
           passes?.restore(), culling.restore()
           for (const restoredNode of temporarilyHidden) restoredNode.visible = true
         }
-        if (usesReflectionBlur()) {
-          const blurScratch = getBlurScratch(currentResolution)
-          for (const [blurSource, blurDestination, sourceScale, destinationScale] of [
-            [captureRecord.map, blurScratch, 1, 0],
-            [blurScratch, captureRecord.map, 0, 1],
-          ])
-            (blurMaterial.uniforms.source.value = blurSource.texture),
-              blurMaterial.uniforms.step.value.set(
-                (sourceScale * BLUR_TEXEL_RADIUS) / BLUR_REFERENCE_RESOLUTION,
-                (destinationScale * BLUR_TEXEL_RADIUS) / BLUR_REFERENCE_RESOLUTION,
-              ),
-              renderer.setRenderTarget(blurDestination),
-              (rendererDiff.changedTarget = true),
-              renderer.clear(),
-              renderer.render(blurScene, blurCamera)
-        }
+        reflectionResolve.resolve(captureRecord.map, currentTargetSize, usesReflectionBlur())
+        adoptLiveCapture(captureRecord)
         stats.captures++,
           (captureRecord.hasCapture = true),
           (hasCaptured = true),
@@ -1255,7 +1216,8 @@ export function createGroundReflections({
       const hasPendingCaptures =
         resumeRecordSet &&
         activeRecords.some(
-          (uncapturedRecord: any) => uncapturedRecord.eligible && !resumeRecordSet.has(uncapturedRecord),
+          (uncapturedRecord: any) =>
+            uncapturedRecord.eligible && uncapturedRecord.onScreen && !resumeRecordSet.has(uncapturedRecord),
         )
       ;(shouldRefresh =
         isCaptureDeferred ||
@@ -1264,6 +1226,7 @@ export function createGroundReflections({
         activeRecords.some(
           (changedPoseRecord: any) =>
             changedPoseRecord.eligible &&
+            changedPoseRecord.onScreen &&
             changedPoseRecord.hasCapture &&
             (changedPoseRecord.capturedPose !== cameraSignature ||
               changedPoseRecord.capturedStateKey !== lightingSignature),
@@ -1285,7 +1248,8 @@ export function createGroundReflections({
       // 只要求「曾经捕获过」：受每帧预算限制而本轮未重捕的记录继续显示上一帧纹理，
       // 否则它们会在补捕之前整帧消失（一帧闪一下比稍微滞后的倒影明显得多）。
       for (const restoredRecord of activeRecords)
-        restoredRecord.overlay.visible = restoredRecord.eligible && restoredRecord.hasCapture
+        (restoredRecord.overlay.visible = restoredRecord.eligible && restoredRecord.hasCapture),
+          syncRecordOverlaySampling(restoredRecord)
       restoreReflectionRendererDiff(renderer, scene, rendererDiff),
         syncLighting(camera),
         (stats.inCapture = false),
@@ -1362,6 +1326,7 @@ export function createGroundReflections({
         activeRecords.every(
           (checkedRecord: any) =>
             !checkedRecord.eligible ||
+            !checkedRecord.onScreen ||
             (checkedRecord.preparedPose === lastCameraSignature &&
               checkedRecord.preparedStateKey === lastLightingSignature),
         )),
@@ -1438,10 +1403,7 @@ export function createGroundReflections({
         detail?.dispose(),
         clearTimeout(throttleTimer),
         disposeAllRecords(),
-        blurMesh.geometry.dispose(),
-        blurMaterial.dispose(),
-        sharedBlurScratch?.dispose?.(),
-        (sharedBlurScratch = null)
+        reflectionResolve.dispose()
 
       disposeMaterialClones()
       floorChangeCountByFloorId.clear(), heightByFloorId.clear(), lightsByFloorId.clear()
