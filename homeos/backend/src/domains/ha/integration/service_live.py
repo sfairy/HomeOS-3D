@@ -330,7 +330,12 @@ class HALiveMixin(HAConnectorHost):
             # 不该因此每轮都重新打一遍完整说明。
             self._reset_failure_state()
             await self._log_event("success", "连接", "已连接 Home Assistant，实时状态同步正常")
-            await self._notify_connection("connected", ha_version=getattr(connection, "ha_version", None))
+            # ``connection`` 是本轮建连前读出的快照，首连时 ``ha_version`` 可能还是空的；
+            # 同步流程刚刷新过的内存镜像才是当前值（广播出去前端才有版本可显示）。
+            await self._notify_connection(
+                "connected",
+                ha_version=getattr(self, "ha_version", None) or getattr(connection, "ha_version", None),
+            )
             events.start()
             for message in buffered_events:
                 await self._dispatch_message(events, connection_id, message, decoder, shadow)
