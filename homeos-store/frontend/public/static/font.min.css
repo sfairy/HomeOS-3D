@@ -1,6 +1,6 @@
 /* 由 homeos-store/frontend/scripts/build-font-subset.mjs 生成 —— 不要手改。
    真源：homeos-store/frontend/font/font-awesome.css
-   保留图标：50 个，规则 125/3395，codepoint 50 个。
+   保留图标：50 个，规则 124/3393，codepoint 50 个。
    改动图标用法后重跑 --write；门禁跑 --check。 */
 :host,:root{--fa-style-family-duotone:"_mcy_font_d";--fa-font-duotone-regular:normal 400 1em/1 "_mcy_font_d"}@font-face{font-family:"_mcy_font_d";font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/font-subset.woff2) format("woff2"),url(../fonts/font.woff2) format("woff2"),url(../fonts/font.ttf) format("truetype")}.fa-duotone.fa-regular,.fadr{position:relative;font-weight:400;letter-spacing:normal;color: inherit;}.fa-duotone.fa-regular:before,.fadr:before{position:absolute;color:var(--fa-primary-color,inherit);opacity:var(--fa-primary-opacity,1)}.fa-duotone.fa-regular:after,.fadr:after{color:var(--fa-secondary-color,inherit);opacity:var(--fa-secondary-opacity,.4)}.fa-duotone.fa-regular.fa-swap-opacity:before,.fa-duotone.fa-swap-opacity:before,.fa-swap-opacity .fa-duotone.fa-regular:before,.fa-swap-opacity .fadr:before,.fadr.fa-swap-opacity:before{opacity:var(--fa-secondary-opacity,.4)}.fa-duotone.fa-regular.fa-swap-opacity:after,.fa-duotone.fa-swap-opacity:after,.fa-swap-opacity .fa-duotone.fa-regular:after,.fa-swap-opacity .fadr:after,.fadr.fa-swap-opacity:after{opacity:var(--fa-primary-opacity,1)}.fa-duotone.fa-regular.fa-stack-1x,.fa-duotone.fa-regular.fa-stack-2x,.fadr.fa-stack-1x,.fadr.fa-stack-2x{position:absolute}
 
