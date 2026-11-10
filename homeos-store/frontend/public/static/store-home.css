@@ -776,11 +776,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   color: var(--hb-tone, var(--hb-accent));
 }
 
-.hm-cap__tab:focus-visible {
-  outline: 2px solid var(--hb-accent);
-  outline-offset: 2px;
-}
-
 .hm-cap__panel {
   padding: 18px 18px 6px;
   border: 1px solid var(--hb-line);
@@ -1389,6 +1384,7 @@ a.hm-wall__tile:hover {
 
 .hm-faq__item[open] summary::after { content: "–"; }
 
+.hm-cap__tab:focus-visible,
 .hm-faq__item summary:focus-visible {
   outline: 2px solid var(--hb-accent);
   outline-offset: 2px;

@@ -153,14 +153,11 @@
   gap: 4px;
 }
 
-.agi-item:hover .agi-actions {
-  display: flex;
-}
-
 /*
  * 键盘用户 Tab 到主按钮或操作按钮时同样显形 —— 否则「复制/删除」只在
  * 悬停时出现，键盘用户根本看不到自己已经聚焦到的按钮。
  */
+.agi-item:hover .agi-actions,
 .agi-item:focus-within .agi-actions {
   display: flex;
 }

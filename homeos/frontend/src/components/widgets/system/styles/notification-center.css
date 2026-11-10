@@ -396,11 +396,7 @@
   background: color-mix(in srgb, var(--premium-accent-blue) 12%, rgba(0, 0, 0, 0));
 }
 
-.nc-item__icon {
-  width: 14px;
-  height: 14px;
-}
-
+.nc-item__icon,
 .nc-item--page .nc-item__icon {
   width: 14px;
   height: 14px;
@@ -443,10 +439,7 @@
   line-clamp: 1;
 }
 
-.nc-item--page .nc-item__chevron {
-  margin-top: 0;
-}
-
+.nc-item--page .nc-item__chevron,
 .nc-item--page .nc-dismiss {
   margin-top: 0;
 }

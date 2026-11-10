@@ -273,15 +273,8 @@
   color: var(--hos-color-accent);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-color-accent-rgb), 0.5);
 }
-.sec-cal-day--today {
-  color: var(--hos-color-accent);
-}
 .sec-cal-today-dot {
   background: var(--hos-color-success-text);
-}
-
-.sec-refresh-icon--loading {
-  color: var(--hos-color-accent);
 }
 
 .sec-event-item--selected {
@@ -294,6 +287,8 @@
     0 0 0 4px rgba(var(--hos-color-accent-rgb), 0.2),
     0 0 10px var(--hos-glow-accent-soft);
 }
+.sec-cal-day--today,
+.sec-refresh-icon--loading,
 .sec-event-time--selected {
   color: var(--hos-color-accent);
 }

@@ -311,9 +311,6 @@
   width: 100%;
   min-height: 0;
 }
-.i3d-cover-group-title {
-  display: none;
-}
 .i3d-cover-group-panel > .i3d-cover-panel {
   position: relative;
   height: auto;
@@ -372,6 +369,7 @@
   padding-top: 16px;
   border-top: 1px solid #8a969733;
 }
+.i3d-cover-group-title,
 .i3d-cover-group-panel.is-vertical > .i3d-cover-panel + .i3d-cover-panel:before {
   display: none;
 }

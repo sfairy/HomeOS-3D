@@ -386,10 +386,6 @@ body {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.admin-side a.nav-link:hover .nav-ico {
-  opacity: 1;
-}
-
 /* 选中态：淡色调底 + 高亮文字 + 行首一条色条。
    与工作区的面板头同一个色相，「现在在哪」这件事不需要再读一遍文字。 */
 .admin-side a.nav-link.active {
@@ -409,6 +405,7 @@ body {
   transform: translateY(-50%);
 }
 
+.admin-side a.nav-link:hover .nav-ico,
 .admin-side a.nav-link.active .nav-ico {
   opacity: 1;
 }
@@ -1310,7 +1307,7 @@ body {
 .admin-diagnostic.is-warn .admin-diagnostic__icon { color: var(--hb-warning-text); }
 
 .admin-diagnostic.is-fail { border-color: var(--hb-danger-line); }
-.admin-diagnostic.is-fail .admin-diagnostic__icon { color: var(--hb-danger-text); }
+.admin-diagnostic.is-fail .admin-diagnostic__icon,
 .admin-diagnostic.is-fail .admin-diagnostic__label { color: var(--hb-danger-text); }
 
 .admin-diagnostic.is-skip { border-color: var(--hb-line); }
@@ -1879,7 +1876,7 @@ body {
 
 /* 优惠码：码 / 说明* / 折扣 / 门槛 / 已用·上限 / 状态 / 操作 */
 #panel-coupons .hb-table th:nth-child(1) { width: 108px; }
-#panel-coupons .hb-table th:nth-child(3) { width: 80px; }
+#panel-coupons .hb-table th:nth-child(3),
 #panel-coupons .hb-table th:nth-child(4) { width: 80px; }
 #panel-coupons .hb-table th:nth-child(5) { width: 92px; }
 #panel-coupons .hb-table th:nth-child(6) { width: 96px; }
@@ -1897,7 +1894,7 @@ body {
 /* 账号：邮箱* / 角色 / 授权数 / 余额 / 邀请码 / 状态 / 操作 */
 #panel-accounts .hb-table th:nth-child(2) { width: 80px; }
 #panel-accounts .hb-table th:nth-child(3) { width: 78px; }
-#panel-accounts .hb-table th:nth-child(4) { width: 84px; }
+#panel-accounts .hb-table th:nth-child(4),
 #panel-accounts .hb-table th:nth-child(5) { width: 84px; }
 #panel-accounts .hb-table th:nth-child(6) { width: 96px; }
 #panel-accounts .hb-table th:nth-child(7) { width: 100px; }
@@ -2666,9 +2663,6 @@ body {
 
   /* 平铺后没有层级可言，竖向导轨和子项缩进都要撤掉；
      否则 ::before 会变成 flex 行里的一根游离竖线。 */
-  .nav-group__items-inner::before {
-    display: none;
-  }
 
   .nav-group + .nav-group {
     margin-top: 0;
@@ -2677,10 +2671,6 @@ body {
   .admin-side a.nav-link {
     margin: 0;
     padding: var(--hb-space-2) var(--hb-space-3);
-  }
-
-  .who {
-    display: none;
   }
 
   .admin-side__foot {
@@ -2711,7 +2701,9 @@ body {
     white-space: nowrap;
   }
 
-  .admin-topbar__tz {
+  .nav-group__items-inner::before,
+.who,
+.admin-topbar__tz {
     display: none;
   }
 

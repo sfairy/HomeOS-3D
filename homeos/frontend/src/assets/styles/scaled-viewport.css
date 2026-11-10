@@ -183,24 +183,20 @@
  *      挂载 / Vue Transition 抽象节点 / 自定义 wrapper 等场景下漏掉孙级元素
  *      （否则右上角按钮会表现为"视觉能 hover 但点击没反应"的典型症状）
  */
-.teleport-target > * {
-  pointer-events: auto;
-}
+.teleport-target > *,
 .teleport-target .hos-modal-root,
 .teleport-target .hos-modal-root * {
   pointer-events: auto;
 }
 
 /* 构建器抽屉(12000)内打开的二级弹层须压在抽屉之上 */
+/* 同上，放宽至后代匹配（防止异步组件/抽象节点中间插入 wrapper 导致 > 直子匹配失效） */
 .teleport-target > .saw-overlay,
 .teleport-target > .hos-modal-root,
 .teleport-target > .entity-control-backdrop,
 .teleport-target > .eew-wizard-backdrop,
 .teleport-target > .media-pl-modal,
-.teleport-target > .device-batch__modal-overlay {
-  z-index: var(--z-overlay);
-}
-/* 同上，放宽至后代匹配（防止异步组件/抽象节点中间插入 wrapper 导致 > 直子匹配失效） */
+.teleport-target > .device-batch__modal-overlay,
 .teleport-target .hos-modal-root {
   z-index: var(--z-overlay);
 }

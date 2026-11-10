@@ -122,9 +122,7 @@
   background-color: var(--set-info, #2563eb);
   box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2);
 }
-.mcp-mute-btn {
-  color: var(--set-text-tertiary);
-}
+.mcp-mute-btn,
 .mcp-source-label {
   color: var(--set-text-tertiary);
 }

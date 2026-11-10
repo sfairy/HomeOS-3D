@@ -649,10 +649,6 @@
     max-width: 520px;
   }
 
-  .alert-edit-modal__body {
-    grid-template-columns: 1fr;
-  }
-
   .alert-edit-section--basic {
     border-right: none;
   }
@@ -661,6 +657,7 @@
     background: transparent;
   }
 
+  .alert-edit-modal__body,
   .alert-edit-fields,
   .alert-edit-fields--notify,
   .alert-edit-visual {
@@ -1483,11 +1480,7 @@
     padding-right: 12px;
   }
 
-  .arv-master-bar {
-    margin-left: 12px;
-    margin-right: 12px;
-  }
-
+  .arv-master-bar,
   .arv-flow-band {
     margin-left: 12px;
     margin-right: 12px;

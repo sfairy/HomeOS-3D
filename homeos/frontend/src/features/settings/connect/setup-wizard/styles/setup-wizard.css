@@ -593,10 +593,8 @@
 .sw-timeline__node--orange.sw-timeline__node--active .sw-timeline__node-label {
   color: var(--sw-teal-text);
 }
-.sw-timeline__node--emerald.sw-timeline__node--active .sw-timeline__node-label {
-  color: var(--sw-emerald-text);
-}
 
+.sw-timeline__node--emerald.sw-timeline__node--active .sw-timeline__node-label,
 .sw-timeline__node--done .sw-timeline__node-label {
   color: var(--sw-emerald-text);
 }

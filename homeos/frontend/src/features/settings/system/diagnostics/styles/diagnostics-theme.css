@@ -977,10 +977,7 @@
   box-shadow: inset 0 1px 0 rgba(var(--page-accent-rgb), 0.08);
 }
 
-.diag-gauge-card--memory .diag-gauge-card__title {
-  color: var(--page-accent-text);
-}
-
+.diag-gauge-card--memory .diag-gauge-card__title,
 .diag-gauge-card--memory .diag-gauge-card__pct:not(.diag-gauge-card__pct--warn) {
   color: var(--page-accent-text);
 }

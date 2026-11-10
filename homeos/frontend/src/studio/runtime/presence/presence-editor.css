@@ -159,9 +159,6 @@
 .presence-view-tools button {
   min-width: 65px;
 }
-.presence-view-tools button:last-child {
-  margin-left: auto;
-}
 .presence-plan [hidden] {
   display: none;
 }
@@ -175,6 +172,7 @@
   flex: 0 0 auto;
   min-width: 70px;
 }
+.presence-view-tools button:last-child,
 .i3d-editor .presence-view-tools button:last-child {
   margin-left: auto;
 }

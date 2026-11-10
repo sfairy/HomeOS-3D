@@ -100,12 +100,7 @@
   padding-right: var(--settings-inset-x, 2rem);
 }
 
-.settings-main__stage .error-boundary-root--fill {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-}
-
+.settings-main__stage .error-boundary-root--fill,
 .settings-tab-panel-root > .error-boundary-root {
   flex: 1 1 auto;
   min-height: 0;
@@ -301,11 +296,6 @@
   -webkit-backdrop-filter: none;
 }
 
-.settings-card--flat::before,
-.settings-card--flat::after {
-  display: none;
-}
-
 /* static：表单/分区容器 — accent 单层渐变底，无 blur 叠层 */
 .settings-card--static {
   padding: var(--hos-panel-padding-default, 20px);
@@ -315,11 +305,6 @@
   box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-}
-
-.settings-card--static::before,
-.settings-card--static::after {
-  display: none;
 }
 
 /* 参数面板、浮层 popout 等仍保持透明无壳 */
@@ -341,6 +326,10 @@
   box-shadow: var(--hos-surface-well-inset, inset 0 1px 0 rgba(255, 255, 255, 0.03));
 }
 
+.settings-card--flat::before,
+.settings-card--flat::after,
+.settings-card--static::before,
+.settings-card--static::after,
 .settings-card--nested::before,
 .settings-card--nested::after {
   display: none;
@@ -1735,10 +1724,7 @@ input.settings-field {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .settings-page-stack:not(.settings-page-stack--single) > :not(.settings-card) {
-    grid-column: 1 / -1;
-  }
-
+  .settings-page-stack:not(.settings-page-stack--single) > :not(.settings-card),
   .settings-page-stack:not(.settings-page-stack--single) > .settings-card--full {
     grid-column: 1 / -1;
   }

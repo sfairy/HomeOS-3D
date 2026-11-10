@@ -24,11 +24,9 @@
 .dus-icon-violet {
   color: var(--premium-accent-violet, #a78bfa);
 }
-.dus-icon-info {
-  color: var(--set-info, #7dd3fc);
-}
 
 /* —— DeviceOverviewPanel —— */
+.dus-icon-info,
 .dov-icon-info {
   color: var(--set-info, #7dd3fc);
 }

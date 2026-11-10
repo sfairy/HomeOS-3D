@@ -237,10 +237,6 @@
     border-color 0.2s ease;
 }
 
-.life-indices__spot:hover {
-  transform: translateY(-1px);
-}
-
 .life-indices__spot--hero {
   min-height: 118px;
   border-color: rgba(56, 189, 248, 0.28);
@@ -471,6 +467,7 @@
     border-color 0.18s ease;
 }
 
+.life-indices__spot:hover,
 .life-indices__card:hover {
   transform: translateY(-1px);
 }

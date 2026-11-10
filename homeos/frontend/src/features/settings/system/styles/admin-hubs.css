@@ -129,10 +129,7 @@
 /* ── family-hub.css ── */
 /* 家庭状态页 · Hero 概览 + 双栏工作区 */
 
-.family-hub__body {
-  gap: 16px;
-}
-
+.family-hub__body,
 .fam-page {
   gap: 16px;
 }

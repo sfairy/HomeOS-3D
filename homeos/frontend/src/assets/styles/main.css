@@ -1566,18 +1566,9 @@ html[data-glass-effect="static"] .popup-shell {
 .widget-wrapper.widget-elastic--customHtml {
   contain-intrinsic-size: 0 480px;
 }
-.widget-wrapper.widget-compact {
-  contain-intrinsic-size: 0 120px;
-}
+.widget-wrapper.widget-compact,
 .security-camera-tile {
   contain-intrinsic-size: 0 120px;
-}
-.focus-ring:focus-visible {
-  outline: var(--hos-focus-outline);
-  outline-offset: var(--hos-focus-offset);
-  box-shadow:
-    0 0 0 3px rgba(var(--accent-rgb), 0.4),
-    0 0 0 5px rgba(var(--accent-rgb), 0.15);
 }
 
 /** 触控 icon 按钮：最小 44×44 点击区 + 焦点环 */
@@ -1607,6 +1598,7 @@ html[data-glass-effect="static"] .popup-shell {
   transform: scale(0.94);
 }
 
+.focus-ring:focus-visible,
 .icon-btn:focus-visible {
   outline: var(--hos-focus-outline);
   outline-offset: var(--hos-focus-offset);

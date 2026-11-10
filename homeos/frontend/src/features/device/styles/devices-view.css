@@ -18,10 +18,6 @@
     transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
-.devices-view .list-page__chip--btn:active {
-  transform: scale(0.97);
-}
-
 .devices-view .list-page__tab {
   transition:
     background var(--hos-dur-base) var(--hos-ease-standard),
@@ -53,6 +49,7 @@
     transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
+.devices-view .list-page__chip--btn:active,
 .devices-view .devices-view__select-all:active {
   transform: scale(0.97);
 }

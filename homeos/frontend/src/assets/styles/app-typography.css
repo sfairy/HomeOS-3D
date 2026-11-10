@@ -26,30 +26,23 @@
   font-size: var(--hos-fs-4);
 }
 
-.list-page__chip {
-  font-size: var(--hos-fs-3);
-}
-
+.list-page__chip,
 .list-page__link-btn {
   font-size: var(--hos-fs-3);
 }
 
 /* ── Dashboard 侧栏 widget 区域基准 ── */
+
+/* ── 实体弹窗基准 ── */
+
+/* ── 顶栏 Tab ── */
 .info-panel,
 .widget-wrapper,
 .widget-fixed,
 .widget-compact,
-.widget-elastic {
-  font-size: var(--hos-fs-4);
-}
-
-/* ── 实体弹窗基准 ── */
+.widget-elastic,
 .popup-base,
-.popup-card {
-  font-size: var(--hos-fs-4);
-}
-
-/* ── 顶栏 Tab ── */
+.popup-card,
 .tab-bar {
   font-size: var(--hos-fs-4);
 }

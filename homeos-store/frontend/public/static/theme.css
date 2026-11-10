@@ -1550,11 +1550,9 @@ b {
 }
 
 @media (max-width: 1020px) {
-  .hb-grid--4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .hb-grid--3 {
+  .hb-grid--4,
+.hb-grid--3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

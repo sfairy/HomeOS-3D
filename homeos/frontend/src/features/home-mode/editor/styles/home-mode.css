@@ -30,10 +30,6 @@
 .home-mode-panel .hm-toolbar-btn:hover:not(:disabled) {
   color: #fff;
 }
-.home-mode-panel .hm-toolbar-btn:focus-visible {
-  outline: 2px solid var(--page-accent-text);
-  outline-offset: 2px;
-}
 .home-mode-panel .hm-toolbar-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -114,6 +110,7 @@
   background: var(--page-accent-bg);
   border-color: var(--page-accent-border);
 }
+.home-mode-panel .hm-toolbar-btn:focus-visible,
 .home-mode-panel .hm-context-pill--clickable:focus-visible {
   outline: 2px solid var(--page-accent-text);
   outline-offset: 2px;
@@ -137,10 +134,6 @@
   border-radius: var(--hos-radius-control);
   background: var(--page-accent-bg);
   border: var(--hos-hairline) solid var(--page-accent-border);
-}
-.home-mode-panel .hm-icon-picker__emoji {
-  font-size: 20px;
-  line-height: 1;
 }
 .home-mode-panel .hm-icon-picker__lucide {
   width: 18px;
@@ -230,6 +223,7 @@
   border-radius: 8px;
   box-shadow: none;
 }
+.home-mode-panel .hm-icon-picker__emoji,
 .home-mode-panel .hm-editor-head__emoji {
   font-size: 20px;
   line-height: 1;
@@ -404,9 +398,7 @@
   flex: 1 1 0;
   min-height: 0;
 }
-.home-mode-panel .hm-batch-panel {
-  flex-shrink: 0;
-}
+.home-mode-panel .hm-batch-panel,
 .home-mode-panel .hm-logs-filter {
   flex-shrink: 0;
 }
@@ -906,9 +898,7 @@
   font-size: var(--premium-fs-caption);
   color: rgba(255, 255, 255, 0.9);
 }
-.home-mode-panel .hm-entity-input .ei-input-row input::placeholder {
-  color: var(--hos-text-secondary);
-}
+.home-mode-panel .hm-entity-input .ei-input-row input::placeholder,
 .home-mode-panel .hm-entity-input .ei-clear {
   color: var(--hos-text-secondary);
 }
@@ -1115,10 +1105,6 @@
 .home-mode-panel .hm-batch-chip:hover {
   border-color: var(--page-accent-border);
 }
-.home-mode-panel .hm-batch-chip:focus-visible {
-  outline: 2px solid var(--page-accent-text);
-  outline-offset: 2px;
-}
 .home-mode-panel .hm-service-data-list {
   display: flex;
   flex-direction: column;
@@ -1217,6 +1203,7 @@
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
+.home-mode-panel .hm-batch-chip:focus-visible,
 .home-mode-panel .hm-premium-empty__btn:focus-visible {
   outline: 2px solid var(--page-accent-text);
   outline-offset: 2px;
@@ -1633,9 +1620,7 @@
   .home-mode-panel .hm-template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .home-mode-panel .hm-editor-head__card {
-    flex-direction: column;
-  }
+  .home-mode-panel .hm-editor-head__card,
   .home-mode-panel .hm-section-head {
     flex-direction: column;
   }
@@ -1674,9 +1659,7 @@
   .home-mode-panel .hm-template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .home-mode-panel .hm-editor-head__card {
-    flex-direction: column;
-  }
+  .home-mode-panel .hm-editor-head__card,
   .home-mode-panel .hm-section-head {
     flex-direction: column;
   }
@@ -1707,11 +1690,9 @@
 }
 
 @container hos-canvas (max-width: 640px) {
-  .home-mode-panel .hm-template-grid {
-    grid-template-columns: 1fr;
-  }
   /* 上下文胶囊在 900px 档降到 2 列，但每列 min 148px：容器窄到 ~316px 以下（小屏 + 面板内边距）
      两列就撑破面板宽度。640px 以下直接单列，与 hm-template-grid 同一口径。 */
+  .home-mode-panel .hm-template-grid,
   .home-mode-panel .hm-context-pills {
     grid-template-columns: 1fr;
   }
@@ -1744,9 +1725,6 @@
     padding: 10px 12px 12px;
     min-height: 200px;
   }
-  .home-mode-panel .hm-segments {
-    width: 100%;
-  }
   .home-mode-panel .hm-segment {
     flex: 0 0 auto;
     padding: 7px 8px;
@@ -1769,6 +1747,7 @@
     align-items: stretch;
     gap: 8px;
   }
+  .home-mode-panel .hm-segments,
   .home-mode-panel .hm-mode-footer__primary,
   .home-mode-panel .hm-mode-footer__runtime {
     width: 100%;
@@ -1991,10 +1970,7 @@
   gap: 12px;
 }
 
-.hm-action-card__field {
-  min-width: 0;
-}
-
+.hm-action-card__field,
 .hm-action-card__field--entity {
   min-width: 0;
 }
@@ -2042,10 +2018,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .hm-action-card__field--entity {
-    grid-column: 1 / -1;
-  }
-
+  .hm-action-card__field--entity,
   .hm-action-card__field--delay {
     grid-column: 1 / -1;
   }

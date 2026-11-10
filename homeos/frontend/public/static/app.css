@@ -1330,15 +1330,13 @@ h2 {
 .workspace.empty {
   padding: 0;
 }
-.workspace > [hidden] {
-  display: none !important;
-}
 .workspace-mode-surface {
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
 }
+.workspace > [hidden],
 .workspace-mode-surface[hidden] {
   display: none !important;
 }
@@ -1359,12 +1357,7 @@ h2 {
   overflow: hidden;
   place-items: center;
 }
-.workspace-empty-state .canvas-message strong {
-  margin: 0;
-  color: #707b83;
-  font-size: 11px;
-  font-weight: 450;
-}
+.workspace-empty-state .canvas-message strong,
 .canvas-placeholder > .canvas-message strong {
   margin: 0;
   color: #707b83;
@@ -1434,10 +1427,8 @@ h2 {
   min-width: 0;
   margin: 0 -16px;
 }
-.inspector-form[hidden] {
-  display: none;
-}
 /* `.inspector-picker` 是 `display:grid`，UA 的 `[hidden]{display:none}` 会被它盖掉。 */
+.inspector-form[hidden],
 #camera-entity-picker[hidden] {
   display: none;
 }
@@ -2495,11 +2486,6 @@ h2 {
   padding: 0 10px;
   font-size: 13px;
 }
-.editor-paged-picker-dialog[data-editor-picker-kind="entity"]
-  .editor-paged-picker-current-entity
-  ~ .editor-paged-picker-selected-action {
-  margin-left: auto;
-}
 .editor-paged-picker-current-asset {
   display: inline-flex;
   min-width: 0;
@@ -2547,14 +2533,6 @@ h2 {
   padding: 0 10px;
   font-size: 13px;
 }
-.editor-paged-picker-dialog[data-editor-picker-kind="image-asset"]
-  .editor-paged-picker-current-asset
-  ~ .editor-paged-picker-selected-action,
-.editor-paged-picker-dialog[data-editor-picker-kind="ibe-asset"]
-  .editor-paged-picker-current-asset
-  ~ .editor-paged-picker-selected-action {
-  margin-left: auto;
-}
 .editor-paged-picker-current-icon {
   display: inline-flex;
   min-width: 0;
@@ -2584,6 +2562,15 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.editor-paged-picker-dialog[data-editor-picker-kind="entity"]
+  .editor-paged-picker-current-entity
+  ~ .editor-paged-picker-selected-action,
+.editor-paged-picker-dialog[data-editor-picker-kind="image-asset"]
+  .editor-paged-picker-current-asset
+  ~ .editor-paged-picker-selected-action,
+.editor-paged-picker-dialog[data-editor-picker-kind="ibe-asset"]
+  .editor-paged-picker-current-asset
+  ~ .editor-paged-picker-selected-action,
 .editor-paged-picker-current-icon ~ .editor-paged-picker-selected-action {
   margin-left: auto;
 }
@@ -4897,9 +4884,6 @@ h2 {
   align-items: center;
   gap: 9px !important;
 }
-.check-row input {
-  accent-color: var(--hos-color-accent);
-}
 .effect-realtime-options {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -5050,6 +5034,7 @@ h2 {
   border-color: #f2a20d9e;
   background: #f2a20d14;
 }
+.check-row input,
 .copy-component-scale-options input {
   accent-color: var(--hos-color-accent);
 }

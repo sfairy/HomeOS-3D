@@ -2,10 +2,7 @@
  * 页面级动效与交互反馈（配合 hos-design-system.css）
  */
 
-.page-enter {
-  animation: page-enter 0.45s var(--ease-spring, cubic-bezier(0.32, 0.72, 0, 1)) both;
-}
-
+.page-enter,
 .page-enter-stagger > * {
   animation: page-enter 0.45s var(--ease-spring, cubic-bezier(0.32, 0.72, 0, 1)) both;
 }
