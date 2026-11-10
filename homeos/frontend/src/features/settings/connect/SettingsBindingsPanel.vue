@@ -293,14 +293,8 @@ const insightsSection = computed(() => {
 const sectionGapItems = computed(() => bindingGapItemsFor(insightsSection.value))
 const sectionRecommendations = computed(() => recommendationsFor(insightsSection.value))
 
+// layoutConfig 原地修改、身份不变：嵌套读取经 store 的 reactive 自然响应，无需深 watch 回写。
 const layoutConfig = shallowRef(layoutStore.layoutConfig)
-watch(
-  () => layoutStore.layoutConfig.haConfig,
-  () => {
-    layoutConfig.value = layoutStore.layoutConfig
-  },
-  { deep: true },
-)
 
 const initialLayoutConfig = ref(null)
 
