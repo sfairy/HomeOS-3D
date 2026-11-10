@@ -1,18 +1,8 @@
-import {
-  createCacheLogger,
-  executeTaskWithTimeout,
-  preloadCacheEntries,
-  restoreCacheEntries,
-  writeCacheRecord,
-} from '../cache/cache-shared'
+import { createIdleSnapshotCache } from '../cache/idle-snapshot-cache'
 import { readTexturePixels } from '../render-kit/fullscreen-copy'
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
 const CONTACT_SHADOW_CACHE_VERSION = '20261022-v1'
-const MAX_ENTRY_BYTES = 25165824,
-  MAX_PERSISTED_BYTES = 100663296,
-  MAX_ENTRY_COUNT = 8,
-  MAX_PENDING_ENTRIES = 8
 
 /** 长度为 length 的有限数元组。 */
 const isFiniteTuple = (value: any, tupleLength: any) =>
@@ -56,235 +46,19 @@ const snapshotBytes = (snapshot: any) =>
   (snapshot.surface?.pixels.byteLength || 0) +
   (snapshot.lookup?.byteLength || 0) +
   256
-export function createContactShadowPersistentCache({ env: env = globalThis, key: key = '' } = {}) {
-  const snapshotByKey = new Map(),
-    pendingByKey = new Map(),
-    persistedKeySet = new Set(),
-    storageKey = key && JSON.stringify([CONTACT_SHADOW_CACHE_VERSION, key])
-  let cachedConnection: any,
-    openPromise,
-    preloadPromise,
-    isDisposed = false,
-    hasOpenFailed = false,
-    hasPresented = false,
-    idleHandle: any = null,
-    isIdleRunning = false,
-    idleChain = Promise.resolve(),
-    totalBytes = 0
-  const stats = {
-      hits: 0,
-      misses: 0,
-      restores: 0,
-      writes: 0,
-      fallbacks: 0,
-    },
-    log = createCacheLogger(env, '[3D-shadow-cache]', stats)
-  function isAvailable() {
-    try {
-      return !!storageKey && !isDisposed && !hasOpenFailed && !!env.indexedDB
-    } catch {
-      return false
-    }
-  }
-  function runWithTimeout(task: any): Promise<any> {
-    return executeTaskWithTimeout(env, task, {
-      duration: 1500,
-      onTimeout: () => stats.fallbacks++,
-    })
-  }
-  function openDatabase() {
-    return isAvailable()
-      ? ((openPromise ||= runWithTimeout((settleOpen: any) => {
-          const openRequest = env.indexedDB.open('homeos-contact-shadows', 1)
-          ;(openRequest.onupgradeneeded = () => {
-            openRequest.result.createObjectStore('scenes', {
-              keyPath: 'key',
-            }),
-              openRequest.result.createObjectStore('metadata', {
-                keyPath: 'key',
-              })
-          }),
-            (openRequest.onerror = openRequest.onblocked =
-              () => {
-                ;(hasOpenFailed = true), settleOpen(null)
-              }),
-            (openRequest.onsuccess = () => {
-              if (!isAvailable()) {
-                openRequest.result.close(), settleOpen(null)
-                return
-              }
-              ;(cachedConnection = openRequest.result),
-                (cachedConnection.onversionchange = disposeCache),
-                settleOpen(cachedConnection)
-            })
-        })),
-        openPromise)
-      : Promise.resolve(null)
-  }
-  function deleteEntry(cacheKey: any) {
-    ;(totalBytes -= snapshotByKey.get(cacheKey)?.bytes || 0), snapshotByKey.delete(cacheKey)
-  }
-  function storeSnapshot(cacheKey: any, entry: any) {
-    if (
-      typeof cacheKey != 'string' ||
-      typeof entry.signature != 'string' ||
-      entry.signature.length > 1024 * 1024 ||
-      !validContactShadowSnapshot(entry.data)
-    )
-      return false
-    const entryBytes = snapshotBytes(entry.data) + entry.signature.length * 2
-    if (entryBytes > MAX_ENTRY_BYTES) return false
-    for (
-      deleteEntry(cacheKey);
-      snapshotByKey.size && (snapshotByKey.size >= MAX_ENTRY_COUNT || totalBytes + entryBytes > MAX_ENTRY_BYTES);
-    )
-      deleteEntry(snapshotByKey.keys().next().value)
-    return (
-      snapshotByKey.set(cacheKey, {
-        ...entry,
-        bytes: entryBytes,
-      }),
-      (totalBytes += entryBytes),
-      true
-    )
-  }
-  function preload() {
-    return isAvailable()
-      ? ((preloadPromise ||= preloadCacheEntries({
-          openDatabase,
-          isAvailable,
-          storageKey,
-          version: CONTACT_SHADOW_CACHE_VERSION,
-          maxAgeMs: 7 * 86400000,
-          runWithTimeout,
-          restore: (storedEntries: any[]) => {
-            restoreCacheEntries(storedEntries, {
-              maxEntries: MAX_ENTRY_COUNT,
-              hasEntry: (entryKey: any) => snapshotByKey.has(entryKey) || persistedKeySet.has(entryKey),
-              store: storeSnapshot,
-              onFallback: () => stats.fallbacks++,
-            })
-            stats.restores++, log('restored')
-          },
-        }).catch(() => {
-          stats.fallbacks++
-        })),
-        preloadPromise)
-      : Promise.resolve()
-  }
-
-  async function persist() {
-    const openedDatabase = await openDatabase()
-    if (!openedDatabase || !isAvailable()) return
-    ;(await writeCacheRecord(
-      openedDatabase,
-      {
-        storageKey,
-        version: CONTACT_SHADOW_CACHE_VERSION,
-        bytes: totalBytes,
-        entries: [...snapshotByKey],
-        maxEntries: MAX_ENTRY_COUNT,
-        maxBytes: MAX_PERSISTED_BYTES,
-      },
-      runWithTimeout,
-    ))
-      ? stats.writes++
-      : (stats.fallbacks++, (hasOpenFailed = true)),
-      log('stored')
-  }
-  function scheduleIdleFlush() {
-    if (!isAvailable() || !hasPresented || isIdleRunning || idleHandle !== null || !pendingByKey.size) return
-    const flushPendingEntry = () => {
-      ;(idleHandle = null),
-        (isIdleRunning = true),
-        (idleChain = (async () => {
-          if (!isAvailable() || !pendingByKey.size) return
-          const [pendingKey, pendingEntry] = pendingByKey.entries().next().value!
-          if (
-            (pendingByKey.delete(pendingKey),
-            !isAvailable() || persistedKeySet.has(pendingKey) || !pendingEntry.valid())
-          )
-            return
-          const producedSnapshot = await pendingEntry.produce()
-          if (!(!isAvailable() || !pendingEntry.valid() || !producedSnapshot)) {
-            if (
-              !storeSnapshot(pendingKey, {
-                signature: pendingEntry.signature,
-                data: producedSnapshot,
-              })
-            ) {
-              stats.fallbacks++
-              return
-            }
-            persistedKeySet.add(pendingKey), await persist()
-          }
-        })()
-          .catch(() => {
-            stats.fallbacks++
-          })
-          .finally(() => {
-            ;(isIdleRunning = false), scheduleIdleFlush()
-          }))
-    }
-    idleHandle = env.requestIdleCallback
-      ? env.requestIdleCallback(flushPendingEntry, {
-          timeout: 3000,
-        })
-      : env.setTimeout(flushPendingEntry, 250)
-  }
-  function disposeCache() {
-    ;(isDisposed = true),
-      idleHandle !== null &&
-        (typeof env.requestIdleCallback === 'function'
-          ? env.cancelIdleCallback?.(idleHandle)
-          : env.clearTimeout(idleHandle),
-        (idleHandle = null)),
-      pendingByKey.clear(),
-      snapshotByKey.clear(),
-      persistedKeySet.clear(),
-      (totalBytes = 0),
-      cachedConnection?.close()
-  }
-  return (
-    env.addEventListener?.('pagehide', disposeCache, {
-      once: true,
-    }),
-    {
-      preload: preload,
-      dispose: disposeCache,
-      peek(cacheKey: any, signature: any) {
-        if (!isAvailable() || !signature) return null
-        const cachedEntry = snapshotByKey.get(cacheKey)
-        return cachedEntry?.signature === signature && validContactShadowSnapshot(cachedEntry.data)
-          ? (stats.hits++, persistedKeySet.add(cacheKey), log('restored'), cachedEntry.data)
-          : (stats.misses++, null)
-      },
-      enqueue(cacheKey: any, signature: any, produce: any, valid: any) {
-        !isAvailable() ||
-          !signature ||
-          signature.length > 1024 * 1024 ||
-          persistedKeySet.has(cacheKey) ||
-          (!pendingByKey.has(cacheKey) &&
-            pendingByKey.size >= MAX_PENDING_ENTRIES &&
-            pendingByKey.delete(pendingByKey.keys().next().value),
-          pendingByKey.set(cacheKey, {
-            signature: signature,
-            produce: produce,
-            valid: valid,
-          }),
-          scheduleIdleFlush())
-      },
-      presented() {
-        ;(hasPresented = true), scheduleIdleFlush()
-      },
-      stats: () => ({
-        ...stats,
-        bytes: totalBytes,
-        floors: snapshotByKey.size,
-      }),
-      whenIdle: () => idleChain,
-    }
-  )
+export function createContactShadowPersistentCache({ env = globalThis, key = '' } = {}) {
+  return createIdleSnapshotCache({
+    env,
+    key,
+    version: CONTACT_SHADOW_CACHE_VERSION,
+    databaseName: 'homeos-contact-shadows',
+    logPrefix: '[3D-shadow-cache]',
+    validate: validContactShadowSnapshot,
+    snapshotBytes,
+    maxPersistedBytes: 100663296,
+    maxPersistedEntries: 8,
+    sizeStatKey: 'floors',
+  })
 }
 /** 把当前接触阴影的贴图与 uniform 参数抓成可落盘的快照（读回像素用 red 通道）。 */
 export async function captureContactShadowSnapshot(three: any, renderer: any, source: any, canCapture: any) {
