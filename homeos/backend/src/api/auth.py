@@ -30,7 +30,7 @@ from .schemas.auth import (
     UserResponse,
     VerificationRequest,
 )
-from ..dependencies import CurrentUser
+from ..dependencies import CurrentUser, DatabaseSession, authenticated_user
 from ..domains.store import (
     StoreVerificationError,
     VerificationPurpose,
@@ -39,6 +39,7 @@ from ..domains.store import (
 from ..platform.core.db.db_exec import run_db
 from ..platform.core.db.models import LoginSession, User
 from ..platform.core.http.deps import get_session
+from ..platform.core.http.errors import BusinessException
 from ..platform.security.auth_context import invalidate_session_cache
 from ..platform.security.client_address import (
     client_ip_from_request,
@@ -655,5 +656,16 @@ async def logout(
 
 
 @router.get("/auth/me", response_model=UserResponse)
-def me(user: CurrentUser) -> UserResponse:
+def me(request: Request, response: Response, database: DatabaseSession) -> UserResponse:
+    try:
+        user = authenticated_user(request, response, database)
+    except BusinessException as error:
+        settings = request.app.state.settings
+        if request.cookies.get(settings.cookie_name):
+            # 失效 Cookie 不清掉的话，外壳每次都判 data-auth="user"，首屏每次都多一发必然 401 的探测。
+            # 只在首屏探测这一处清：其它接口可能与刚完成的登录并发，删 Cookie 会误删新会话。
+            cleared = Response()
+            clear_session_cookie(cleared, settings, request)
+            error.headers = {"set-cookie": cleared.headers["set-cookie"]}
+        raise
     return public_user(user)

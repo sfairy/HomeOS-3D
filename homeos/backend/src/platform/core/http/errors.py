@@ -48,10 +48,17 @@ ERROR_HTTP_MAP: dict[str, int] = {
 class BusinessException(Exception):
     """统一业务异常：携带 errorCode / message / HTTP 状态码三元组。"""
 
-    def __init__(self, error_code: ErrorCode, message: str, http_status: int | None = None) -> None:
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        message: str,
+        http_status: int | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         self.error_code = error_code
         self.message = message
         self.status_code = http_status or ERROR_HTTP_MAP.get(error_code, 500)
+        self.headers = headers
         super().__init__(message)
 
 

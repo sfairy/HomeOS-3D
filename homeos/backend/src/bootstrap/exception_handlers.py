@@ -137,6 +137,7 @@ def business_exception_json(
             request=request,
             trace_id=trace_id,
         ),
+        headers=_response_headers(exc),
     )
 
 
