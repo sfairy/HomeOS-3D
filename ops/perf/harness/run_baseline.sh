@@ -44,14 +44,29 @@ py "${HARNESS}/bench_backend.py" --label "${LABEL}" --no-start
 echo "==> 前端测量（Edge / Playwright）"
 (cd "${ROOT}" && node "${HARNESS}/bench_frontend.mjs" --label "${LABEL}")
 
+# Edge headless 偶发整进程断开（无 crash、无控制台错误，单独重跑即正常）：
+# 结果带 error 时最多重跑 2 次，避免一次环境抖动让整轮基线缺主测量。
+bench_3d() {
+  local tag="" attempt
+  for ((i = 1; i <= $#; i++)); do [ "${!i}" = "--tag" ] && { j=$((i + 1)); tag="${!j}"; }; done
+  local out="${RESULT_DIR}/3d${tag:+-${tag}}.json"
+  for attempt in 1 2 3; do
+    (cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" "$@") || true
+    node -e 'process.exit(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).error ? 1 : 0)' "${out}" \
+      && return 0
+    echo "[${LABEL}] 3D${tag:+ ${tag}} 第 ${attempt} 次测量失败，重试"
+  done
+  return 1
+}
+
 echo "==> 3D 测量"
-(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}")
+bench_3d || true
 
 # 补充口径各自独立一个浏览器，不污染主测量：DPR 2 清晰度、10s 连续拖拽帧分布、显存估算。
 echo "==> 3D 补充口径（dpr2 / drag10s / gpumem）"
-(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" --tag dpr2 --dpr 2) || true
-(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" --tag drag10s --soak-ms 10000 --idle-ms 3000) || true
-(cd "${ROOT}" && node "${HARNESS}/bench_3d.mjs" --label "${LABEL}" --tag gpumem --gpu-memory) || true
+bench_3d --tag dpr2 --dpr 2 || true
+bench_3d --tag drag10s --soak-ms 10000 --idle-ms 3000 || true
+bench_3d --tag gpumem --gpu-memory || true
 
 # HOMEOS_PERF_SOAK_MINUTES=60：长时浸泡（默认不跑，单独一轮要一小时）。
 if [ -n "${HOMEOS_PERF_SOAK_MINUTES:-}" ]; then
