@@ -142,6 +142,7 @@ class SetupWizardService:
             with self._session_factory() as session:
                 return bool(session.scalar(select(func.count()).select_from(Project)))
         except Exception:
+            logger.debug("_has_studio_project 忽略异常", exc_info=True)
             return False
 
     @staticmethod

@@ -133,6 +133,7 @@ class VoiceService:
         try:
             ha_areas = self._entity_area.get_cached_ha_areas()
         except Exception:
+            logger.debug("voice_rooms 忽略异常", exc_info=True)
             ha_areas = []
         return resolve_voice_rooms(self._app_config.get("envSensorMap"), ha_areas)
 

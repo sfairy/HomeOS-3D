@@ -99,6 +99,7 @@ class HomeOSFacadeMixin:
         try:
             base_url = self._host.active_base_url or ""
         except Exception:
+            logger.debug("_status_dict 忽略异常", exc_info=True)
             base_url = ""
         return {
             "connected": bool(self._host.connected),

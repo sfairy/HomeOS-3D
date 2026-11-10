@@ -221,7 +221,7 @@ class ChannelsService:
             try:
                 await self._agent.chat("清除记忆")
             except Exception:  # 会话已清空即达成语义，回声失败只影响回显
-                pass
+                logger.debug("handle_channel_message 忽略异常", exc_info=True)
             await provider.send_text(msg.chat_id, "已清除本对话记忆。")
             return
 

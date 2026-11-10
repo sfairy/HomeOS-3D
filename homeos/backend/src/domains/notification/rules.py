@@ -165,6 +165,7 @@ class NotificationRulesHelper:
             try:
                 matched = evaluate_condition(rule.get("condition") or "", state, attributes)
             except Exception:
+                logger.debug("evaluate_rules 忽略异常", exc_info=True)
                 matched = False
             rule_key = rule.get("id") or rule.get("name")
             edge_key = f"{rule_key}:{entity_id}"

@@ -205,6 +205,7 @@ class AgentProactiveService:
         try:
             return await self._agent_config.get_language()
         except Exception:
+            logger.debug("_get_language 忽略异常", exc_info=True)
             return "zh"
 
     def _in_cooldown(self, cfg: AgentProactiveConfig) -> bool:

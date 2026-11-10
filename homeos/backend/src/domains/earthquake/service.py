@@ -413,7 +413,7 @@ class EarthquakeService(EarthquakeStatusMixin):
                 try:
                     await prev
                 except Exception:  # 等待上一轮轮询任务收尾属尽力而为（其失败已在自身处记录）
-                    pass
+                    logger.debug("_run 忽略异常", exc_info=True)
             try:
                 await self.process_eew(eew, opts)
             except Exception as exc:

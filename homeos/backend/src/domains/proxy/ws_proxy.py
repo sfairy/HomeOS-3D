@@ -62,6 +62,7 @@ def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
     try:
         resolve_ws_user(token, session)
     except Exception:
+        logger.debug("verify_embed_ws_auth 忽略异常", exc_info=True)
         return False
     return True
 
@@ -166,7 +167,7 @@ async def bridge_websockets(
         try:
             await client.close()
         except Exception:  # finally 收尾：关闭上游失败不得掩盖原始异常
-            pass
+            logger.debug("bridge_websockets 忽略异常", exc_info=True)
 
 
 # 鉴权包装（供路由复用）
@@ -183,6 +184,7 @@ def resolve_go2rtc_ws_user(
         with app.state.database.session_factory() as session:
             user = resolve_ws_user(token, session)
     except Exception:
+        logger.debug("resolve_go2rtc_ws_user 忽略异常", exc_info=True)
         return None
     return user if assert_web_rtc_ws_token_allowed(user, entity_id) else None
 
@@ -203,6 +205,7 @@ async def resolve_ha_base_url(app: Any) -> str:
 
         return await asyncio.to_thread(_load)
     except Exception:
+        logger.debug("resolve_ha_base_url 忽略异常", exc_info=True)
         return ""
 
 

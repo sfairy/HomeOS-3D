@@ -53,6 +53,7 @@ def _decrypted_connection_token(session: Session, cipher: CredentialCipher) -> s
             .limit(1)
         ).first()
     except Exception:
+        logger.debug("_decrypted_connection_token 忽略异常", exc_info=True)
         return None
     if not encrypted:
         return None
@@ -77,6 +78,7 @@ def load_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = Non
             select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
         ).first()
     except Exception:
+        logger.debug("load_ha_endpoints 忽略异常", exc_info=True)
         connection = None
     if connection is not None:
         ha_url_primary = connection.base_url or ""
@@ -111,6 +113,7 @@ def load_active_ha_endpoints(session: Session, *, cipher: CredentialCipher | Non
             select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
         ).first()
     except Exception:
+        logger.debug("load_active_ha_endpoints 忽略异常", exc_info=True)
         return endpoints
     if connection is None:
         return endpoints
@@ -141,6 +144,7 @@ def ha_connection_configured(session: Session) -> bool:
             select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
         ).first()
     except Exception:
+        logger.debug("ha_connection_configured 忽略异常", exc_info=True)
         record = None
     if record is not None:
         has_url = bool(

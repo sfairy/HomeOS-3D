@@ -382,6 +382,7 @@ class AgentConfigService:
         try:
             agent = self._read_agent_config()
         except Exception:
+            logger.debug("get_web_search_enabled 忽略异常", exc_info=True)
             return True
         raw = agent.get("webSearchEnabled") if isinstance(agent, dict) else None
         return raw is not False
@@ -393,6 +394,7 @@ class AgentConfigService:
             profiles = self._app_config.get("profiles") or {}
             return str(profiles.get("activeProfileId") or "").strip() or "default"
         except Exception:
+            logger.debug("resolve_active_project_id 忽略异常", exc_info=True)
             return "default"
 
     def _read_layout(self) -> dict[str, Any]:

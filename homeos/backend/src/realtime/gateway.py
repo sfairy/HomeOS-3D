@@ -482,6 +482,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             if isinstance(sockets, dict):
                 eio_socket = sockets.get(sid)
         except Exception:
+            logger.debug("_is_socket_backpressured 忽略异常", exc_info=True)
             return False
         if eio_socket is None:
             return False
@@ -493,6 +494,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             try:
                 pending = size()
             except Exception:
+                logger.debug("_is_socket_backpressured 忽略异常", exc_info=True)
                 return False
             # ``getattr`` 拿到的是 ``object``，先收窄再与阈值比较，避免误把非数值当 0/大数。
             return isinstance(pending, int) and pending > self._backpressure_frames

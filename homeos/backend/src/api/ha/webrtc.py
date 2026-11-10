@@ -177,11 +177,11 @@ async def _close_session_ws(session: WebRtcSession) -> None:
                     )
                 )
             except Exception:  # 解订阅只是礼貌收尾，对端已断时无处可退，避免噪声
-                pass
+                logger.debug("_close_session_ws 忽略异常", exc_info=True)
             try:
                 await session.websocket.close()
             except Exception:  # 关闭会话 socket 的收尾动作，失败无处可退
-                pass
+                logger.debug("_close_session_ws 忽略异常", exc_info=True)
     except Exception:
         logger.debug('关闭 WebRTC 会话失败 session=%s', session.session_id, exc_info=True)
 
@@ -369,7 +369,7 @@ async def webrtc_negotiate(
             try:
                 await websocket.close()
             except Exception:  # finally 里关闭 socket 的收尾动作，失败无处可退
-                pass
+                logger.debug("webrtc_negotiate 忽略异常", exc_info=True)
 
 
 @router.post('/candidate')

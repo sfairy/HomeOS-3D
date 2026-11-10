@@ -63,6 +63,7 @@ class NotificationSettingsHelper:
                 value = prefs.get("notification")
                 return value if isinstance(value, dict) else {}
         except Exception:
+            logger.debug("_get_user_notification_prefs 忽略异常", exc_info=True)
             return {}
 
     def _merge_settings(
