@@ -78,7 +78,7 @@
     "homeos/frontend/src/studio/app/editor/home/elements/editor-elements.ts": 1727,
     "homeos/frontend/src/studio/app/editor/home/functions/component-editing.ts": 860,
     "homeos/frontend/src/studio/app/editor/home/functions/copy-backup-pickers.ts": 1046,
-    "homeos/frontend/src/studio/app/editor/home/functions/inspector-contexts.ts": 1123,
+    "homeos/frontend/src/studio/app/editor/home/functions/inspector-context-builders.ts": 1123,
     "homeos/frontend/src/studio/app/editor/home/functions/workspace-history.ts": 1053,
     "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts": 5314,
     "homeos/frontend/src/studio/app/editor/metadata/editor-navigation-style-metadata.ts": 1431,

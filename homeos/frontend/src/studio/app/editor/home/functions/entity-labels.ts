@@ -13,10 +13,10 @@ export interface EntityLabelsDeps {
   MAX_LIGHT_STATISTICS_ENTITIES: any
   currentPage: any
   effectIconLabelElementById: any
-  effectIconLabelElementByIdById: any
+  scrollPreviewLabelsByRow: any
   effectIconLabelSelector: any
   effectIconName: any
-  hELPER_ENTITY_DOMAINSSet: any
+  helperEntityDomainSet: any
   lightStatisticsEntityButtonElement: any
   lightStatisticsEntityCountElement: any
   lightStatisticsEntityListElement: any
@@ -49,7 +49,7 @@ export function describeEntityDomain(deps: EntityLabelsDeps, entity: any) {
   const be2 = deps.renderNavigationIconPreview(entity)
   return entity?.virtual
     ? '虚拟实体'
-    : deps.hELPER_ENTITY_DOMAINSSet.has(be2)
+    : deps.helperEntityDomainSet.has(be2)
       ? '辅助元素'
       : (deps.ENTITY_DOMAIN_LABELS as any)[be2] || be2 || '实体'
 }
@@ -446,14 +446,14 @@ export function registerOverflowScrollPreviewRow(
   effectIconLabelElementPanel &&
     iconButtonFollowsEntity.length &&
     ((effectIconLabelElementPanel.dataset.overflowScrollPreviewRow = 'true'),
-    deps.effectIconLabelElementByIdById.set(effectIconLabelElementPanel, iconButtonFollowsEntity))
+    deps.scrollPreviewLabelsByRow.set(effectIconLabelElementPanel, iconButtonFollowsEntity))
 }
 
 export function resolveOverflowScrollPreviewContainer(deps: EntityLabelsDeps, element: any) {
   const effectIconLabelElementConfig = element.closest?.(deps.effectIconLabelSelector)
   if (effectIconLabelElementConfig) return effectIconLabelElementConfig
   const effectIconLabelElementRef = element.closest?.('[data-overflow-scroll-preview-row]')
-  return deps.effectIconLabelElementByIdById.get(effectIconLabelElementRef)?.[0] || null
+  return deps.scrollPreviewLabelsByRow.get(effectIconLabelElementRef)?.[0] || null
 }
 
 export function findEnclosingScrollPreviewRow(_deps: EntityLabelsDeps, element: any) {

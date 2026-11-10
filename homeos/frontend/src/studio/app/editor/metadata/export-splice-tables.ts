@@ -231,7 +231,7 @@ export function createExportSpliceTables(ctx: ExportSpliceElementRefs) {
         },
       ],
     ]),
-    exportSpliceErrorByIdById = new Map([
+    iconEffectStateByInput = new Map([
       [ibeIconOffColorElement, 'off'],
       [ibeButtonOffColorElement, 'off'],
       [ibeGlowOffStrengthElement, 'off'],
@@ -250,7 +250,7 @@ export function createExportSpliceTables(ctx: ExportSpliceElementRefs) {
 
   return {
     exportSpliceErrorById,
-    exportSpliceErrorByIdById,
+    iconEffectStateByInput,
     exportSpliceErrorSet,
   }
 }
