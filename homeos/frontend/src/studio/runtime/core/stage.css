@@ -1052,7 +1052,7 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-marker {
   opacity: 1;
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(var(--i3d-mx, 0px), var(--i3d-my, 0px)) translate(-50%, -50%);
   display: grid;
   place-items: center;
   min-width: 0;
@@ -1088,7 +1088,7 @@ body.interaction3d-stage.is-background-hidden,
   background: transparent;
 }
 .interaction3d-stage .i3d-marker:active {
-  transform: translate(-50%, -50%);
+  transform: translate(var(--i3d-mx, 0px), var(--i3d-my, 0px)) translate(-50%, -50%);
 }
 .interaction3d-stage .i3d-marker svg {
   position: absolute;
@@ -2445,7 +2445,7 @@ body.interaction3d-stage.is-background-hidden,
   border-radius: 14px;
   pointer-events: none;
   cursor: default;
-  transform: translate(-50%, -100%);
+  transform: translate(var(--i3d-mx, 0px), var(--i3d-my, 0px)) translate(-50%, -100%);
   transform-origin: 50% 100%;
 }
 .interaction3d-stage .i3d-marker.is-alarm-card:before {
@@ -2887,11 +2887,11 @@ body.interaction3d-stage.is-background-hidden,
   border-radius: 14px;
   pointer-events: none;
   cursor: default;
-  transform: translate(-50%, -100%);
+  transform: translate(var(--i3d-mx, 0px), var(--i3d-my, 0px)) translate(-50%, -100%);
   transform-origin: 50% 100%;
 }
 .interaction3d-stage .i3d-marker.is-temperature-humidity:active {
-  transform: translate(-50%, -100%);
+  transform: translate(var(--i3d-mx, 0px), var(--i3d-my, 0px)) translate(-50%, -100%);
 }
 .interaction3d-stage .i3d-marker.is-temperature-humidity.is-offline:not(.is-idle-hidden):not(.is-hidden-clickable) {
   opacity: 1;

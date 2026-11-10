@@ -11,6 +11,7 @@ const FORWARDED_STAGE_FLAGS: ReadonlyArray<readonly [name: string, allowed: read
   // 回退开关：计划 0.9 移除。
   ['texture-quality', ['legacy']],
   ['reflection-motion-resolution', ['cap']],
+  ['marker-position', ['legacy']],
 ]
 
 const DIAGNOSTIC_STAGE_FLAGS: ReadonlyArray<readonly [name: string, allowed: readonly string[]]> = [

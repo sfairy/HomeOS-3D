@@ -635,6 +635,25 @@ try {
   result.afterInteraction = await readDataset(frame)
   result.frameState = await frame.evaluate(() => window.__homeos3dFrame || null)
   result.probe.motion = await drainStageProbe(frame).catch(() => null)
+  // 标记落点：可见标记的屏幕中心，A/B 落点实现（如 marker-position=legacy）时逐个比对。
+  // 图标静置会隐藏，先移动鼠标（不按键，不转相机）唤醒再读。
+  await page.mouse.move(700, 440).catch(() => {})
+  await page.mouse.move(720, 450, { steps: 4 }).catch(() => {})
+  await page.waitForTimeout(500)
+  result.markerCenters = await frame
+    .evaluate(() =>
+      [...document.querySelectorAll('.i3d-marker')]
+        .filter((node) => !node.hidden && node.getClientRects().length && getComputedStyle(node).display !== 'none')
+        .map((node) => {
+          const rect = node.getBoundingClientRect()
+          return [
+            node.dataset.id || node.getAttribute('aria-label') || '',
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2,
+          ]
+        }),
+    )
+    .catch(() => null)
   const shotPath = join(shotDir, tag ? `stage-${tag}.png` : 'stage.png')
   try {
     const iframeElement = page.locator('iframe.i3d-frame').first()
