@@ -20,7 +20,6 @@
     0 0 0 1px rgba(95, 212, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 
   --premium-accent-blue: #0a84ff;
-  --premium-accent-purple: #bf5af2;
   --premium-accent-green: #34c759;
   --premium-accent-amber: #ff9500;
   --premium-accent-red: #ff3b30;
@@ -32,17 +31,12 @@
   --acc-radius: var(--hos-radius-card);
   --acc-gap: 6px;
 
-  --premium-fs-display: 26px;
   --premium-fs-title: 18px;
   --premium-fs-body: 15px;
   --premium-fs-body-sm: 14px;
   --premium-fs-caption: 13px;
   --premium-fs-micro: 12px;
   --premium-fs-stat: 22px;
-  /** Widget / 侧栏面板：原 10–12px 硬编码统一抬升 */
-  --premium-fs-widget-title: 13px;
-  --premium-fs-widget-label: 12px;
-  --premium-fs-widget-meta: 12px;
 
   /* 表单控件统一尺寸（HosSelect / SearchableSelect / EntityInput 等）。
      高度是一**族尺度**而非单个值：实测同一屏曾出现 12+ 种控件高度、且成簇只差 1–2px
@@ -66,30 +60,9 @@
   --module-accent-security: #fb7185;
   --module-accent-security-rgb: 251, 113, 133;
   --module-accent-security-sub: #f59e0b;
-  --module-accent-security-sub-rgb: 245, 158, 11;
-  --module-accent-automation: #fbbf24;
-  --module-accent-automation-rgb: 251, 191, 36;
-  --module-accent-automation-sub: #f59e0b;
   --module-accent-automation-sub-rgb: 245, 158, 11;
-  --module-accent-scenes: #38bdf8;
   --module-accent-scenes-rgb: 56, 189, 248;
-  --module-accent-scenes-sub: #7dd3fc;
-  --module-accent-script: #34d399;
-  --module-accent-script-rgb: 52, 211, 153;
-  --module-accent-script-sub: #2dd4bf;
-  --module-accent-template: #a78bfa;
-  --module-accent-template-rgb: 167, 139, 250;
-  --module-accent-template-sub: #c4b5fd;
   --module-accent-events: #22d3ee;
-  --module-accent-events-rgb: 34, 211, 238;
-  --module-accent-events-sub: #94a3b8;
-  --module-accent-energy: #34d399;
-  --module-accent-energy-rgb: 52, 211, 153;
-  --module-accent-energy-sub: #fbbf24;
-  --module-accent-energy-sub-rgb: 251, 191, 36;
-  --module-accent-life: #2dd4bf;
-  --module-accent-connection: #34d399;
-  --module-accent-connection-rgb: 52, 211, 153;
   --module-accent-connection-sub: #38bdf8;
   --module-accent-connection-sub-rgb: 56, 189, 248;
   --module-accent-bindings: #38bdf8;
@@ -109,7 +82,6 @@
   --module-accent-home-mode-sub: #fb7185;
   --module-accent-home-mode-sub-rgb: 251, 113, 133;
   --module-accent-admin: #94a3b8;
-  --module-accent-admin-rgb: 148, 163, 184;
   --module-accent-admin-sub: #34d399;
   --module-accent-admin-sub-rgb: 52, 211, 153;
   --module-accent-voice: #a78bfa;

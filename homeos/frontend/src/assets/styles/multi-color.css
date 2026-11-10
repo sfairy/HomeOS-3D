@@ -15,12 +15,6 @@
     var(--page-accent, #34d399) 0%,
     var(--page-accent-secondary, color-mix(in srgb, var(--page-accent, #34d399) 62%, white)) 100%
   );
-  /* 提亮版（向白方向混合），用于需要更柔和对比的场景 */
-  --page-gradient-soft: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--page-accent, #34d399) 76%, white) 0%,
-    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, #38bdf8)) 68%, white) 100%
-  );
   /* 页面色外发光，用于 hover / 重点卡 */
   --page-glow: 0 8px 28px color-mix(in srgb, var(--page-accent, #34d399) 22%, transparent);
   /* 卡片左上氛围层（低透明度 radial），供各卡片 background 叠加 */

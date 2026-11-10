@@ -131,8 +131,3 @@
 .voice-cmd-card__grid {
   margin-top: 0;
 }
-
-.voice-cmd-flow-band__shell {
-  --hos-glow-flow-a: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-a));
-  --hos-glow-flow-b: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-b));
-}

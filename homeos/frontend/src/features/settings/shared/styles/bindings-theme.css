@@ -480,13 +480,6 @@
   --page-accent-rgb: var(--module-accent-bindings-rgb);
   --page-accent-secondary: var(--module-accent-bindings-sub);
   --page-accent-secondary-rgb: var(--module-accent-bindings-sub-rgb);
-  --hero-glow-a: rgba(var(--page-accent-rgb), 0.18);
-  --hero-glow-b: rgba(var(--page-accent-secondary-rgb), 0.15);
-  --hero-glow-c: rgba(var(--page-accent-rgb), 0.12);
-  --hero-glow-d: rgba(var(--page-accent-secondary-rgb), 0.1);
-  --hero-border: rgba(var(--page-accent-rgb), 0.24);
-  --hero-shadow-a: 0 16px 52px rgba(var(--page-accent-rgb), 0.1);
-  --hero-shadow-b: 0 10px 36px rgba(var(--page-accent-secondary-rgb), 0.06);
 }
 
 .rooms-hub__body {
