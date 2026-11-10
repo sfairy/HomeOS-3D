@@ -314,7 +314,7 @@ Python 侧现在只剩 `ruff`，`basedpyright` 是人工复核。）
 | `check_async_db` | 通过（已扫 domains/modules） |  |
 | `check_silent_except` | 等于 `silent_except_baseline.json` 的 `total` |  |
 | `check:bundle-budget` | 通过（阈值见 `bundle-budget.json`） |  |
-| `audit:perf-budget` | 通过（阈值见 `perf-budget.json`；手动工具，不进 CI） |  |
+| `check:perf-budget` | 通过（阈值见 `perf-budget.json`；`gate:perf` 组，不进常规 CI） |  |
 | `check:scene` | 通过 |  |
 | `check:frontend-deps` | 通过（两棵树各 0 violation） |  |
 | `test:frontend`（组件族裁剪纯函数） | 6 passed |  |

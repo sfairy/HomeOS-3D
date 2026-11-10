@@ -69,7 +69,7 @@ bun ops/checks/check_bundle_budget.mjs --json
 `$TMPDIR/homeos-perf/results/` 下最近一个带 `3d.json` 的目录，`--dir` 可指定。
 
 ```bash
-bun run audit:perf-budget                                  # 手动审计，不进 CI
+bun run check:perf-budget                                  # gate:perf 组，不进常规 CI
 node ops/checks/check_perf_budget.mjs --dir /tmp/homeos-perf/results/after
 ```
 
