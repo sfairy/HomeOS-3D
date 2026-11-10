@@ -1,4 +1,4 @@
-"""T5 回归：只配环境变量的部署也必须能启用支付渠道。
+"""只配环境变量的部署也必须能启用支付渠道。
 
 缺陷背景：enabled_channel_names 以前只读库里的 payment_channels_json，而全新部署
 store_settings 行的该列默认是 []（ensure_default_settings 只 INSERT 默认值）。

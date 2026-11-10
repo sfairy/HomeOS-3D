@@ -1,5 +1,5 @@
 /**
- * T7 回归：实体 WS 传输层 connect() 的并发/断开竞态。
+ * 实体 WS 传输层 connect() 的并发/断开竞态。
  *
  * 真实缺陷（HEAD e2c0c567 的 entity-store-transport.ts connect）：
  * - 入口去重只看 socket?.connected || socket?.active，而首次连接在

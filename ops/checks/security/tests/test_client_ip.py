@@ -1,4 +1,4 @@
-"""T1 回归：登录限流/会话审计的来源 IP 必须走可信代理判据。
+"""登录限流/会话审计的来源 IP 必须走可信代理判据。
 
 背景（审计发现 T1-001）：主应用已有一份共享判据 `homeos_shared.client_ip`
 （经 `platform.security.client_address` 包装），限流依赖与 MCP 网关都用它；
@@ -163,7 +163,7 @@ class _FakeLogStore:
 
 
 class AnonymousLogLimiterPeerTests(unittest.TestCase):
-    """T1-003：未登录页面上报的限流也要按可信代理判据分桶。"""
+    """未登录页面上报的限流也要按可信代理判据分桶。"""
 
     def _hit(self, store: _FakeLogStore, peer: str, *, forwarded_for: str | None = None) -> None:
         request = make_request(peer, forwarded_for=forwarded_for)

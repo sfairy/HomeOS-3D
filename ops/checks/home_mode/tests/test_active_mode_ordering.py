@@ -1,4 +1,4 @@
-"""T3 回归：家庭模式「当前激活模式」指针排序必须与 get_active_modes 一致。
+"""家庭模式「当前激活模式」指针排序必须与 get_active_modes 一致。
 
 多互斥组允许同时存在多条 isActive 记录。前端主模式按 priority 降序、sortOrder
 升序展示；重启恢复的内存指针（_load_active_mode_row）和无参停用的兜底目标

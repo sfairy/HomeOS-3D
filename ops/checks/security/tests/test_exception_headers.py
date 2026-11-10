@@ -1,4 +1,4 @@
-"""T1 回归：统一异常信封必须保留异常自带的响应头（Retry-After / WWW-Authenticate）。
+"""统一异常信封必须保留异常自带的响应头（Retry-After / WWW-Authenticate）。
 
 背景（审计发现 T1-002）：`bootstrap/exception_handlers.py` 的 `StarletteHTTPException`
 处理器手工拼 `JSONResponse`，没有透传 `exc.headers`。于是登录限流分支里已经写好的
