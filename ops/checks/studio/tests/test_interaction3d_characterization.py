@@ -274,5 +274,37 @@ class ControlDispatchTest(unittest.TestCase):
             self._dispatch("light", "", "toggle")
 
 
+class ReadonlyDraftCacheTest(unittest.TestCase):
+    def setUp(self):
+        api.drafts._readonly_draft_cache = None
+
+    def _patched(self, fingerprints, payloads):
+        return (
+            mock.patch.object(api.drafts, "read_current_studio_draft_fingerprint", side_effect=fingerprints),
+            mock.patch.object(api.drafts, "read_current_studio_draft", side_effect=payloads),
+        )
+
+    def test_same_fingerprint_reuses_payload(self):
+        fp, read = self._patched([(1, "a", 1), (1, "a", 1)], [{"scene": 1}])
+        with fp, read as reader:
+            first = api.drafts.read_current_studio_draft_readonly(None)
+            self.assertIs(api.drafts.read_current_studio_draft_readonly(None), first)
+            self.assertEqual(reader.call_count, 1)
+
+    def test_changed_fingerprint_rereads(self):
+        fp, read = self._patched([(1, "a", 1), (2, "a", 1)], [{"scene": 1}, {"scene": 2}])
+        with fp, read as reader:
+            api.drafts.read_current_studio_draft_readonly(None)
+            self.assertEqual(api.drafts.read_current_studio_draft_readonly(None), {"scene": 2})
+            self.assertEqual(reader.call_count, 2)
+
+    def test_missing_draft_is_not_cached(self):
+        fp, read = self._patched([None, None], [None, None])
+        with fp, read as reader:
+            self.assertIsNone(api.drafts.read_current_studio_draft_readonly(None))
+            self.assertIsNone(api.drafts.read_current_studio_draft_readonly(None))
+            self.assertEqual(reader.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

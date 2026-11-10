@@ -37,3 +37,22 @@ def read_current_studio_draft(database) -> dict | None:
         "scene": snapshot.scene,
         "updatedAt": snapshot.updated_at,
     }
+
+
+#: ``(指纹, 草稿)``：控制链路每条命令都要校验绑定模型是否还在，整篇草稿 JSON 可达数 MB。
+_readonly_draft_cache: tuple[tuple[int, str, int], dict] | None = None
+
+
+def read_current_studio_draft_readonly(database) -> dict | None:
+    """与 :func:`read_current_studio_draft` 同值，但按指纹缓存解析结果；返回值共享，调用方不得修改。
+
+    先读指纹再读草稿：两次读之间若有写入，缓存的是更新的草稿、挂在旧指纹下，下一次指纹不符即重读。
+    """
+    global _readonly_draft_cache
+    fingerprint = read_current_studio_draft_fingerprint(database)
+    cached = _readonly_draft_cache
+    if fingerprint is not None and cached is not None and cached[0] == fingerprint:
+        return cached[1]
+    payload = read_current_studio_draft(database)
+    _readonly_draft_cache = (fingerprint, payload) if fingerprint is not None and payload is not None else None
+    return payload
