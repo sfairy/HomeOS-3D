@@ -65,7 +65,31 @@ const VIEWPORTS = [
   { name: 'ipad-768x1024', w: 768, h: 1024 },
   { name: 'ipad-pro-1366x1024', w: 1366, h: 1024 },
   { name: 'iphone-390x844', w: 390, h: 844 },
+  // 极端宽高比：画布会沿长边大幅延伸，最容易暴露「布局列没吃掉多出空间」的问题
+  { name: 'ultrawide-3440x1440', w: 3440, h: 1440 },
+  { name: 'short-1600x600', w: 1600, h: 600 },
+  { name: 'tall-800x1280', w: 800, h: 1280 },
+  ...randomViewports(Number(process.env.HOMEOS_AUDIT_RANDOM ?? 6), Number(process.env.HOMEOS_AUDIT_SEED ?? Date.now())),
 ]
+
+/**
+ * 真实终端的分辨率是任意值（浏览器窗口、分屏、系统缩放都会产生非常规尺寸），
+ * 固定矩阵之外再抽样若干随机尺寸。种子会打印出来，失败时用 HOMEOS_AUDIT_SEED 复现。
+ *
+ * @param count 抽样数量
+ * @param seed 随机种子
+ * @returns 视口列表
+ */
+function randomViewports(count, seed) {
+  let state = Math.abs(Math.trunc(seed)) % 2147483647 || 1
+  const next = () => (state = (state * 16807) % 2147483647) / 2147483647
+  console.log(`随机分辨率种子：HOMEOS_AUDIT_SEED=${seed}`)
+  return Array.from({ length: Math.max(0, count) }, () => {
+    const w = Math.round(320 + next() * 3520)
+    const h = Math.round(480 + next() * 1680)
+    return { name: `random-${w}x${h}`, w, h }
+  })
+}
 
 /** 页面清单：首页 / 设置（验证侧栏形态）/ 设备（验证列表页溢出） */
 const PAGES = [

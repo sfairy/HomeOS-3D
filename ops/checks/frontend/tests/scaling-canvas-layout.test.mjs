@@ -56,6 +56,41 @@ test('缩放是单一系数：横纵比保持视口比例而非设计比例', ()
   }
 })
 
+/** 固定种子的 mulberry32：失败可复现，又不局限于矩阵里的几档分辨率。 */
+function seededRandom(seed) {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+test('任意分辨率与任意设计基准：铺满、等比、不压缩设计稿', () => {
+  const rand = seededRandom(20261110)
+  const between = (min, max) => min + rand() * (max - min)
+  for (let i = 0; i < 5000; i++) {
+    // 视口覆盖从窄条到 8K、从极扁到极高的任意宽高（含非整数，模拟 DPR 缩放后的 CSS 尺寸）
+    const vw = between(320, 7680)
+    const vh = between(240, 4320)
+    const dw = between(800, 2560)
+    const dh = between(600, 1600)
+    const layout = computeViewportLayout(vw, vh, dw, dh)
+    const label = `#${i} 视口 ${vw.toFixed(1)}×${vh.toFixed(1)} 设计 ${dw.toFixed(1)}×${dh.toFixed(1)}`
+
+    assert.ok(near(layout.canvasW * layout.scale, vw, 1e-6), `${label} 横向未铺满`)
+    assert.ok(near(layout.canvasH * layout.scale, vh, 1e-6), `${label} 纵向未铺满`)
+    assert.ok(near(layout.canvasW / layout.canvasH, vw / vh, 1e-9), `${label} 画布比例与视口比例不一致`)
+    assert.ok(layout.canvasW >= dw - 1e-6 && layout.canvasH >= dh - 1e-6, `${label} 设计稿被压缩`)
+    assert.ok(layout.scale > 0 && layout.scale <= MAX_UPSCALE + 1e-9, `${label} 缩放比越界 ${layout.scale}`)
+    // 设计稿至少有一条边恰好贴满画布（contain），否则说明多扩了画布、字号被无谓缩小
+    const tightAxis = near(layout.canvasW, dw, 1e-6) || near(layout.canvasH, dh, 1e-6)
+    assert.ok(tightAxis || layout.scale === MAX_UPSCALE, `${label} 两条边都没贴满设计稿`)
+  }
+})
+
 test('可读性警戒线只提示不参与缩放', () => {
   const laptop = computeViewportLayout(1440, 900, DESIGN_W, DESIGN_H)
   assert.equal(laptop.belowReadable, false)

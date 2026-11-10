@@ -328,17 +328,11 @@ export function useScaling(
    */
   const phoneViewport = computed(() => isPhoneViewport(vw.value, vh.value))
   /**
-   * 可读性硬门槛：requiredScale 低于 MIN_SCALE 时强制流体布局。
-   * 设置页仍可保留「想开缩放」的偏好，但不得以 8px 正文作为默认展示路径。
+   * 低于 MIN_SCALE 只提示、不降级：缩放默认关闭，开启是用户的显式选择，设置页已就字号偏小给出警告。
+   * 若在这里强制退回流式，1366×768 笔记本、1024×768 平板横屏等常见窗口会出现
+   * 「按钮显示已开启、页面却没缩放」，且阈值附近拖动窗口会在两套布局间来回跳。
    */
-  const belowReadableViewport = computed(() => {
-    const layout = computeViewportLayout(vw.value, vh.value, designWidth.value, designHeight.value)
-    return layout.belowReadable
-  })
-  const scalingOn = computed(
-    () =>
-      !!options?.forceScaling?.value || (scalingEnabled.value && !phoneViewport.value && !belowReadableViewport.value),
-  )
+  const scalingOn = computed(() => !!options?.forceScaling?.value || (scalingEnabled.value && !phoneViewport.value))
   /** 是否发布模块级全局量：默认 false，只有主壳显式开启（单一 owner） */
   const publishGlobals = options?.publishGlobals === true
   // 当前画布布局：未开启缩放时返回 null
