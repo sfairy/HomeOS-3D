@@ -2,6 +2,7 @@ import { createEffectCache as createEffectCache2 } from '../../studio-effect-cac
 import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from '../../studio-preview-resources'
 import { createContextResourceTracker } from '../../studio-context-resources'
 import { createRenderInfoSnapshot, syncRenderInfoDataset } from '../../../render-kit/render-info'
+import { urlFlag } from '../../../render-kit/url-flags'
 
 import { createMotionBuffer as createMotionBuffer2 } from '../../scene/studio-motion-buffer'
 import { createBackgroundCache as createBackgroundCache2 } from '../../scene/studio-background-cache'
@@ -423,6 +424,8 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
       appCtx.lightingScheduler = createDemandFrameLoop2({
         // 0.8.4：按推进间隔对齐截止时间（舞台侧同款），避免 setTimeout 抖动顶帧。
         alignDeadlines: true,
+        // 默认 60；`?max-fps=120` 在高刷屏上做真机 A/B（天气画质阈值按 60 帧间隔标定）。
+        maxFps: Number(urlFlag('max-fps')) || 60,
         onWake() {
           const publishNowMs = performance.now()
           publishNowMs - lastStatsPublishMs > 50 && (lastStatsPublishMs = publishNowMs)

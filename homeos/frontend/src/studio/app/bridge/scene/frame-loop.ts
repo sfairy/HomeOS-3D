@@ -11,6 +11,8 @@
 const EARLY_FRAME_TOLERANCE_MS = 1.5
 const DEADLINE_WINDOW_LIMIT_MS = 100
 const DEADLINE_FRAME_SLACK_MS = 1000 / 60
+/** 调用方显式传入的上限（高刷屏 A/B 用）；默认仍是 60。 */
+const MAX_FPS_LIMIT = 240
 
 export function createDemandFrameLoop({
   step: step,
@@ -34,7 +36,7 @@ export function createDemandFrameLoop({
     deadlineTargetMs = -Infinity,
     deadlineWindowMs = 0
   const frameIntervalMs =
-      maxFps === Infinity ? 0 : 1000 / (Number.isFinite(maxFps) && maxFps > 0 ? Math.min(maxFps, 60) : 60),
+      maxFps === Infinity ? 0 : 1000 / (Number.isFinite(maxFps) && maxFps > 0 ? Math.min(maxFps, MAX_FPS_LIMIT) : 60),
     frameStats = {
       frames: 0,
       deadlines: 0,

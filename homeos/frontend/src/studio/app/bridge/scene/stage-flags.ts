@@ -12,6 +12,8 @@ const FORWARDED_STAGE_FLAGS: ReadonlyArray<readonly [name: string, allowed: read
   ['texture-quality', ['legacy']],
   ['reflection-motion-resolution', ['cap']],
   ['marker-position', ['legacy']],
+  ['dpr-cap', ['legacy', '1.5', '1.6', '2']],
+  ['max-fps', ['90', '120']],
 ]
 
 const DIAGNOSTIC_STAGE_FLAGS: ReadonlyArray<readonly [name: string, allowed: readonly string[]]> = [

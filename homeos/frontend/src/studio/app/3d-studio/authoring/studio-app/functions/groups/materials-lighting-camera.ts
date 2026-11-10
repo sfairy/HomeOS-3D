@@ -14,7 +14,7 @@ import {
   materialStylePresetFor,
   normalizeMaterialStyle,
 } from '../../../../materials/studio-material-presets'
-import { interactionResourcePolicy } from '../../../../studio-resource-policy'
+import { idleRenderPixelRatio, interactionResourcePolicy } from '../../../../studio-resource-policy'
 import {
   prepareBackground as prepareBackground2,
   loadImportedImage as loadImportedImage2,
@@ -1045,8 +1045,7 @@ export function requestStudioRender(runtime: StudioAppRuntime) {
 
 export function computeRenderPixelRatio(runtime: StudioAppRuntime, isMotionQuality = false) {
   // 参数名历史遗留：true = 运动/交互中的质量档，false = 静置高清档。
-  const dprCap = Math.min(window.devicePixelRatio || 1, 1.6)
-  const idleRatio = dprCap * (runtime.isEmbeddedStage ? runtime.appCtx.basePixelRatio : 1)
+  const idleRatio = idleRenderPixelRatio(runtime.isEmbeddedStage ? runtime.appCtx.basePixelRatio : 1)
   if (
     runtime.isEmbeddedStage &&
     isMotionQuality &&
