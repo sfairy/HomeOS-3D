@@ -214,7 +214,6 @@
     "core/stage-frame-lazy-mount.ts": [
       "applyStageGpuHint",
       "createStageFrameLazyMountGate",
-      "isStageFrameLazyMountEnabled",
       "scheduleSlowLoadHint"
     ],
     "core/stage.ts": [

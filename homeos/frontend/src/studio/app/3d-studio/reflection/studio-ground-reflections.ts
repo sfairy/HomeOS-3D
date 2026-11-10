@@ -7,7 +7,7 @@ import {
 import { createReflectionCulling } from './studio-reflection-culling'
 import { selectFrameCaptures } from './studio-reflection-capture-budget'
 import { createReflectionSignature } from './studio-reflection-signature'
-import { buildReflectionPersistenceStamp, resolveReflectionIdleCaptureFps } from './studio-reflection-runtime'
+import { buildReflectionPersistenceStamp, REFLECTION_IDLE_CAPTURE_FPS } from './studio-reflection-runtime'
 import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
 import { createMatrixPoseTracker } from '../../shared/util/matrix-pose'
 import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
@@ -67,7 +67,7 @@ export function createGroundReflections({
 }: any) {
   const settings = {
       ...normalizeGroundReflection(),
-      fps: resolveReflectionIdleCaptureFps(),
+      fps: REFLECTION_IDLE_CAPTURE_FPS,
     },
     /** 每帧重新捕获的地面反射记录上限（见 `maxCapturesPerFrame` 选项）。 */
     resolveCaptureBudget = () =>
