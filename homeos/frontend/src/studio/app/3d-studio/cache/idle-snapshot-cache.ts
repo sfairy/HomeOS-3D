@@ -14,7 +14,6 @@ import {
  * 签名可以是字符串，也可以是延迟求值的函数；`done` 在条目结束（写入、作废、被挤出、dispose）时必定调用一次。
  */
 export type IdleSnapshotCacheOptions<TSnapshot> = {
-  // biome-ignore lint/suspicious/noExplicitAny: 与 cache-shared 一致，env 是可注入的 window 替身
   env?: any
   key?: string
   version: string
