@@ -107,7 +107,7 @@
   gap: 4px;
   padding: 10px 0;
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   transition:
     background 0.18s ease,
     border-color 0.18s ease,

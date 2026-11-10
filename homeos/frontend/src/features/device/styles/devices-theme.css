@@ -1032,7 +1032,7 @@
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.05);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .device-overview__domain-chip {

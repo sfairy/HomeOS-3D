@@ -203,7 +203,7 @@
   height: var(--control-height-md);
   border-radius: var(--hos-radius-control);
   border-color: var(--premium-border-strong);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hos-bg-tint-1);
   font-size: var(--premium-fs-body-sm);
   color: rgba(255, 255, 255, 0.88);
   padding: 0 6px 0 10px;

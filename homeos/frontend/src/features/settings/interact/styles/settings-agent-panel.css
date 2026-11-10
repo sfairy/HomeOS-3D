@@ -1250,7 +1250,7 @@
   padding: 10px 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.18) 100%);
+  background: linear-gradient(155deg, var(--hos-bg-tint-1) 0%, rgba(0, 0, 0, 0.18) 100%);
   transition:
     border-color 0.18s ease,
     background 0.18s ease;
@@ -1435,7 +1435,7 @@
   position: relative;
   height: 128px;
   border-radius: 12px;
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background:
     radial-gradient(ellipse 70% 60% at 50% 0%, rgba(var(--page-accent-rgb), 0.12) 0%, transparent 65%),
     rgba(0, 0, 0, 0.42);
@@ -1450,7 +1450,7 @@
   justify-content: center;
   padding-top: 6px;
   border-radius: 8px;
-  border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) dashed var(--hos-glass-border);
   font-size: 12px;
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.22);
@@ -1655,7 +1655,7 @@
   padding: 11px 12px 12px;
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
+  background: linear-gradient(158deg, var(--hos-bg-tint-1) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
@@ -2018,7 +2018,7 @@
 }
 
 .agent-hub .agent-scene-toggle:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hos-bg-tint-1);
 }
 
 .agent-hub .agent-scene-toggle--on {
@@ -2180,7 +2180,7 @@
 .agent-workbench__rail .agent-dock-preview {
   margin: 0;
   padding: 11px 12px 12px;
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
+  background: linear-gradient(158deg, var(--hos-bg-tint-1) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
 }
 
 .agent-workbench__rail .agent-dock-preview__screen {

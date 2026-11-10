@@ -36,7 +36,7 @@
 }
 
 .nc-root--popover .nc-item--clickable:hover {
-  background: rgba(255, 255, 255, 0.11);
+  background: var(--hos-bg-tint-3);
 }
 
 .nc-root--popover .nc-text {

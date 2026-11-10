@@ -710,7 +710,7 @@
 .home-mode-panel .hm-mode-footer__runtime {
   padding-left: 10px;
   margin-left: 2px;
-  border-left: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border-left: var(--hos-hairline) solid var(--hos-glass-border);
 }
 .home-mode-panel .hm-mode-footer__delete {
   margin-left: auto;

@@ -28,7 +28,7 @@
   gap: 14px;
   padding: 16px;
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--set-border-subtle, rgba(255, 255, 255, 0.08));
+  border: var(--hos-hairline) solid var(--set-border-subtle, var(--hos-glass-border));
   background:
     radial-gradient(ellipse 120% 82% at 0% 0%, rgba(var(--vox-accent-rgb), 0.075) 0%, transparent 58%),
     rgba(255, 255, 255, 0.018);

@@ -223,7 +223,7 @@
 /** 卡片悬停：背景变亮 + 边框微亮 + 抬升 2px
  *  投影收紧到 3px：偏移与模糊都小于 20px 圆角，四角不会再叠出暗斑。 */
 .info-card:hover {
-  background: var(--hos-surface-2, rgba(255, 255, 255, 0.045));
+  background: var(--hos-surface-2, var(--hos-bg-tint-1));
   border-color: var(--hos-border-strong, var(--premium-border-strong));
   transform: translateY(var(--hos-hover-lift, -1px));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);

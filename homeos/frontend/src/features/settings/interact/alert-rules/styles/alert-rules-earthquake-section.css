@@ -78,7 +78,7 @@
   font-weight: 650;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(0, 0, 0, 0.2);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .alert-eew-ready-chip__dot {
@@ -249,7 +249,7 @@
   letter-spacing: 0.02em;
   color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.06);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .alert-eew-conn-source__badge--on {

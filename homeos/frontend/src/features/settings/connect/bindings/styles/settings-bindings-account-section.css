@@ -107,7 +107,7 @@
   margin-bottom: 8px;
   border-radius: var(--hos-radius-pill);
   background: rgba(0, 0, 0, 0.22);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .bind-energy-mode {
@@ -265,7 +265,7 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 12px;
-  border-top: var(--hos-hairline) dashed rgba(255, 255, 255, 0.08);
+  border-top: var(--hos-hairline) dashed var(--hos-glass-border);
 }
 
 .bind-account-mapping__chart-label {

@@ -49,7 +49,7 @@
   min-height: 0;
   overflow: auto;
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border, rgba(255, 255, 255, 0.08));
+  border: var(--hos-hairline) solid var(--premium-border, var(--hos-glass-border));
   background: rgba(0, 0, 0, 0.18);
 }
 

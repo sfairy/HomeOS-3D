@@ -315,7 +315,7 @@
 
 .alert-edit-section .settings-field,
 .alert-edit-section .hos-select--settings .hos-select__trigger {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hos-bg-tint-1);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -430,7 +430,7 @@
   max-width: 100%;
   border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.28);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .alert-edit-mode {
@@ -494,7 +494,7 @@
   padding: 14px;
   border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.025);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .alert-edit-clause + .alert-edit-clause {
@@ -597,7 +597,7 @@
   font-weight: 700;
   color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.03);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   cursor: pointer;
   transition:
     color 0.15s ease,
@@ -1980,7 +1980,7 @@
   min-height: 48px;
   padding: 7px 6px;
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background: rgba(0, 0, 0, 0.22);
   color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
@@ -2042,7 +2042,7 @@
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .alert-eew-drill__foot {

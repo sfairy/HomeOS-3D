@@ -154,7 +154,7 @@
   min-height: 132px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.22) 100%);
   transition:
     border-color 0.22s ease,
@@ -209,7 +209,7 @@
   height: 36px;
   border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.06);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .bind-sec-path--homeos .bind-sec-path__icon-wrap {
@@ -245,7 +245,7 @@
   font-weight: 600;
   color: rgba(255, 255, 255, 0.72);
   background: rgba(255, 255, 255, 0.06);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .bind-sec-path__hint {

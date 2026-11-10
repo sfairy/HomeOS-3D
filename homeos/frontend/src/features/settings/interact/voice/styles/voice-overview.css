@@ -33,7 +33,7 @@
   min-width: 0;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background: rgba(0, 0, 0, 0.18);
 }
 

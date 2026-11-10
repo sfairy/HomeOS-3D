@@ -40,7 +40,7 @@
   overflow: hidden;
   border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--hos-glass-border);
 }
 
 /* 5 个短标签等分，完整显示「布防/传感器/异常/模拟/摄像」 */

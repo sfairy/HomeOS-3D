@@ -44,7 +44,7 @@
 }
 
 .vox-status--off {
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--hos-glass-border);
   background: rgba(255, 255, 255, 0.02);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
@@ -160,7 +160,7 @@
 .vox-pill--off {
   color: rgba(255, 255, 255, 0.48);
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--hos-glass-border);
 }
 
 /* 开关 */
