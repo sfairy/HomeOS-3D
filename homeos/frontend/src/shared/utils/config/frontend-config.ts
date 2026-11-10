@@ -1,6 +1,5 @@
 /** 前端公共配置（AppPublicConfig）状态管理 */
 import { ref } from 'vue'
-import { fetchPublicSystemConfig } from '@/services/api/system'
 import { logger } from '@/shared/utils/core/logger'
 import { AGENT_QUICK_PROMPTS } from '@/shared/agent/constants/agent-quick-prompts'
 import type { ClientPowerWakePublic } from '@homeos/shared'
@@ -303,6 +302,8 @@ function applyConfig(data: Partial<AppPublicConfig> | null | undefined): void {
 }
 
 async function fetchAndApplyPublicConfig(): Promise<FrontendSection> {
+  // API 客户端同步读本模块的重试配置：静态引用 system 会形成 client → config → system → client 的值循环。
+  const { fetchPublicSystemConfig } = await import('@/services/api/system')
   const { data } = await fetchPublicSystemConfig<Partial<AppPublicConfig>>()
   applyConfig(data)
   _loaded = true

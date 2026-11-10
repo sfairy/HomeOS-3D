@@ -13,7 +13,13 @@
  * 5. 叶子消费者（services、stores、shared/utils、shared/<域>/{utils,constants,types}）
  *    不得 import `@/shared/<域>` 裸 barrel；
  * 6. 根入口不得深引 `@/studio/**`；
- * 7. 禁止 `import Foo from '@/features/<域>'` 默认导入。
+ * 7. 禁止 `import Foo from '@/features/<域>'` 默认导入；
+ * 8. studio 分层（homeos/frontend/src/studio/README.md §9）：app ↛ runtime；runtime 只依赖
+ *    platform / app/bridge / app/shared；app/bridge 与 app/shared、platform 是叶子层；
+ *    纯类型引用编译后消失，不计入；
+ * 9. 值引用（非类型、非动态 import）不得成环；
+ * 10. services 是叶子层：不得值引用 stores / composables / components / views / features / layouts；
+ * 11. stores 不得值引用 composables（可复用逻辑放 shared/）。
  *
  * 用法：node ops/checks/frontend/check_frontend_deps.mjs [--root <src目录>] [--alias <前缀>=<替换>]...
  *
@@ -139,9 +145,10 @@ function stripComments(source) {
 const IMPORT_PATTERNS = [
   /(?:^|[;\n])\s*import\s+([^'"]*?)\s+from\s+['"]([^'"]+)['"]/g,
   /(?:^|[;\n])\s*import\s*['"]([^'"]+)['"]/g,
-  /(?:^|[;\n])\s*export\s+(?:type\s+)?(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s+from\s+['"]([^'"]+)['"]/g,
+  /(?:^|[;\n])\s*export\s+(type\s+)?(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s+from\s+['"]([^'"]+)['"]/g,
   /import\(\s*['"]([^'"]+)['"]\s*\)/g,
 ]
+const [, , REEXPORT_PATTERN, DYNAMIC_IMPORT_PATTERN] = IMPORT_PATTERNS
 
 function collectImports(text) {
   const masked = stripComments(text)
@@ -151,14 +158,48 @@ function collectImports(text) {
     let match
     while ((match = pattern.exec(masked)) !== null) {
       const isDefaultForm = match.length > 2 && match[2] !== undefined && pattern === IMPORT_PATTERNS[0]
+      const isReexport = pattern === REEXPORT_PATTERN
       const clause = isDefaultForm ? match[1] : ''
-      const specifier = isDefaultForm ? match[2] : match[1]
+      const specifier = isDefaultForm || isReexport ? match[2] : match[1]
       if (!specifier) continue
       const line = masked.slice(0, match.index).split('\n').length
-      found.push({ clause, specifier, line, index: match.index })
+      const typeOnly = isReexport ? Boolean(match[1]) : /^type\s/.test(clause.trim())
+      const dynamic = pattern === DYNAMIC_IMPORT_PATTERN
+      found.push({ clause, specifier, line, index: match.index, typeOnly, dynamic })
     }
   }
   return found
+}
+
+/** studio 内的层名：`studio/app/<子层>` 记为 `app/<子层>`，其余取 studio 下的顶层目录。 */
+function studioLayerOf(rel) {
+  const match = /^studio\/([^/]+)(?:\/([^/]+))?/.exec(rel)
+  if (!match) return null
+  return match[1] === 'app' ? `app/${match[2]}` : match[1]
+}
+
+const STUDIO_LEAF_LAYERS = new Set(['platform', 'app/bridge', 'app/shared'])
+
+/**
+ * runtime 按需加载面板渲染器的两处入口：弹窗预览要真实的 PanelRenderer，摄像头附加面板
+ * 复用渲染器的取流实现。二者都是 `import()`，渲染器留在自己的懒加载分片里。
+ */
+const STUDIO_LAZY_RENDERER_IMPORTS = new Set([
+  'studio/runtime/core/popup-preview.ts',
+  'studio/runtime/panels/camera-extra-panel.ts',
+])
+
+function studioLayerRule(rel, target, item) {
+  const from = studioLayerOf(rel)
+  const to = studioLayerOf(target)
+  if (!from || !to || from === to || item.typeOnly) return null
+  if (from.startsWith('app/') && to === 'runtime') return 'studio-app→runtime'
+  if (from === 'runtime' && to.startsWith('app/') && !STUDIO_LEAF_LAYERS.has(to)) {
+    return item.dynamic && STUDIO_LAZY_RENDERER_IMPORTS.has(rel) ? null : 'studio-runtime→app'
+  }
+  if (from === 'platform') return 'studio-platform-leaf'
+  if (STUDIO_LEAF_LAYERS.has(from) && !STUDIO_LEAF_LAYERS.has(to)) return 'studio-leaf→upper'
+  return null
 }
 
 function resolveSpecifier(importerRel, specifier) {
@@ -234,6 +275,7 @@ function checkFile(filePath) {
     rel.startsWith('shared/utils/') ||
     /^shared\/[^/]+\/(utils|constants|types)\//.test(rel)
   const importerRootEntry = rel === 'main.ts'
+  const valueEdges = []
 
   for (const item of collectImports(text)) {
     const resolved = resolveSpecifier(rel, item.specifier)
@@ -288,8 +330,80 @@ function checkFile(filePath) {
     if (isFeatureBarrel(target) && isDefaultImport(item.clause)) {
       errors.push({ line: item.line, rule: 'feature-barrel-default-import', specifier: item.specifier })
     }
+
+    if (
+      rel.startsWith('services/') &&
+      !item.typeOnly &&
+      UPPER_LAYERS.some((layer) => target === layer || target.startsWith(`${layer}/`))
+    ) {
+      errors.push({ line: item.line, rule: 'services→upper', specifier: item.specifier })
+    }
+
+    if (
+      rel.startsWith('stores/') &&
+      !item.typeOnly &&
+      (target === 'composables' || target.startsWith('composables/'))
+    ) {
+      errors.push({ line: item.line, rule: 'stores→composables', specifier: item.specifier })
+    }
+
+    const layerRule = studioLayerRule(rel, target, item)
+    if (layerRule) errors.push({ line: item.line, rule: layerRule, specifier: item.specifier })
+
+    if (!item.typeOnly && !item.dynamic) valueEdges.push(target)
   }
+  valueGraph.set(normalizeTarget(rel), valueEdges)
   return { rel, errors }
+}
+
+/** 值引用图里的强连通分量（Tarjan，迭代版避免深递归爆栈）。 */
+function valueCycles(graph) {
+  let nextIndex = 0
+  const index = new Map()
+  const low = new Map()
+  const onStack = new Set()
+  const stack = []
+  const cycles = []
+  for (const start of graph.keys()) {
+    if (index.has(start)) continue
+    const work = [[start, 0]]
+    index.set(start, nextIndex)
+    low.set(start, nextIndex++)
+    stack.push(start)
+    onStack.add(start)
+    while (work.length) {
+      const frame = work[work.length - 1]
+      const [node, edgeIndex] = frame
+      const edges = (graph.get(node) || []).filter((edge) => graph.has(edge))
+      if (edgeIndex < edges.length) {
+        frame[1] += 1
+        const next = edges[edgeIndex]
+        if (!index.has(next)) {
+          index.set(next, nextIndex)
+          low.set(next, nextIndex++)
+          stack.push(next)
+          onStack.add(next)
+          work.push([next, 0])
+        } else if (onStack.has(next)) low.set(node, Math.min(low.get(node), index.get(next)))
+        continue
+      }
+      work.pop()
+      if (work.length) {
+        const parent = work[work.length - 1][0]
+        low.set(parent, Math.min(low.get(parent), low.get(node)))
+      }
+      if (low.get(node) !== index.get(node)) continue
+      const component = []
+      let member
+      do {
+        member = stack.pop()
+        onStack.delete(member)
+        component.push(member)
+      } while (member !== node)
+      if (component.length > 1) cycles.push(component.sort())
+    }
+  }
+  return cycles
 }
 
 if (!fs.existsSync(ROOT)) {
@@ -298,9 +412,13 @@ if (!fs.existsSync(ROOT)) {
 }
 
 const violations = []
+const valueGraph = new Map()
 for (const file of walk(ROOT)) {
   const result = checkFile(file)
   for (const error of result.errors) violations.push({ file: result.rel, ...error })
+}
+for (const cycle of valueCycles(valueGraph)) {
+  violations.push({ file: cycle[0], line: 1, rule: 'value-cycle', specifier: cycle.join(' ↔ ') })
 }
 
 if (violations.length > 0) {

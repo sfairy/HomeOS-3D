@@ -1,3 +1,5 @@
 # 纯排版提交（只改空白/引号/分号/换行），git blame 直接跳过。
 # 启用：git config blame.ignoreRevsFile .git-blame-ignore-revs
 7a9bbf6bab97c29c75a606db55850182177a0500
+# 纯搬迁提交（git mv + import 路径改写），blame 跳过以追溯到原作者。
+5722f2f2fd9ff8389786e0d6bcfaed10ae683350

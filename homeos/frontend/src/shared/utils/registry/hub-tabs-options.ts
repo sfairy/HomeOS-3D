@@ -1,6 +1,10 @@
 /** 顶层 Hub 微件 Tab 选项与配置规范化 */
-import { FLOATING_HUB_DEFAULT_TAB } from '@/shared/utils/registry/floating-hub-tab-options'
 import { WEATHER_HUB_TABS, isWeatherHubWidgetType } from '@/shared/utils/registry/weather-hub-options'
+
+/** 各 Hub 类型添加时的 defaultTab 默认值 */
+export const FLOATING_HUB_DEFAULT_TAB: Record<string, string> = {
+  securityPanel: 'arm',
+}
 
 export interface HubTabOption {
   id: string
