@@ -16,7 +16,7 @@
  */
 
 /** 端口表：键为语义名，值为 `{ port, bind, project, role }`。 */
-export const PORTS = {
+const PORTS = {
   /** 主应用 API（uvicorn），源码态与容器内一致。 */
   appApi: { port: 8801, project: 'homeos', role: 'dev', description: '主应用 API' },
   /** 授权商店 API，源码态与容器内一致。 */
@@ -40,7 +40,7 @@ export function port(name) {
 }
 
 /** 按**键名**列出 `[端口, 说明]`（启动器要的三组清单，刻意显式而非按描述文本筛）。 */
-export function portListOf(names) {
+function portListOf(names) {
   return names
     .map((name) => {
       const entry = PORTS[name]

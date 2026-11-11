@@ -7,7 +7,7 @@
 import { readdirSync } from 'node:fs'
 import { extname, join } from 'node:path'
 
-export const DEFAULT_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git'])
+const DEFAULT_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git'])
 
 /**
  * 递归收集文件路径（深度优先、按目录项顺序）。
