@@ -28,7 +28,6 @@
       "!homeos/data/**",
       "!homeos-store/data/**",
       "!ops/cleanup-reports/**",
-      "!ops/port/tmp/**",
       "!**/*.md",
       "!**/*.json",
       "!homeos/frontend/src/features/settings/shared/config-fields/styles/system-config-field-cell.css"
