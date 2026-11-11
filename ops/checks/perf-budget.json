@@ -7,11 +7,24 @@
       "stageMountedMs": 900,
       "iframeReadyMs": 3200,
       "cpuRenderP95Ms": 18,
-      "componentFamilyCount": 0
+      "componentFamilyCount": 0,
+      "motionTexUploads": 0
     },
     "min": {
       "averageFps": 50,
       "steadyReflectionCaptures": 1
+    },
+    "_note_supplemental": "以下两组读 3d-idlesettled.json / 3d-drag10s.json（bench_3d --tag）。文件不存在时逐项 SKIP：默认 main 测量不含 settle 窗口，量出来的 idleFramesPerSec 是拖拽尾帧而不是静置。",
+    "settled": {
+      "max": {
+        "idleFramesPerSec": 0
+      }
+    },
+    "drag10s": {
+      "max": {
+        "dragFramesOver50Ms": 0,
+        "dragFrameIntervalP99Ms": 33
+      }
     }
   },
   "contracts": {

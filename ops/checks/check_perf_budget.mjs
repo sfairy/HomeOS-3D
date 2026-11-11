@@ -134,6 +134,23 @@ for (const [metric, limit] of Object.entries(budget.threeD.min || {})) {
   check(metric, summary[metric], limit, 'min')
 }
 
+// 补充口径各自一个结果文件：静置帧数必须带 settle 窗口才有意义（默认测量的
+// idleFramesPerSec 紧跟拖拽，量到的是惯性尾帧），拖拽帧分布来自 10 秒连续拖拽。
+for (const [file, section] of [
+  ['3d-idlesettled.json', 'settled'],
+  ['3d-drag10s.json', 'drag10s'],
+]) {
+  const spec = budget.threeD?.[section]
+  if (!spec) continue
+  const supplemental = readJson(file)?.summary || null
+  for (const [metric, limit] of Object.entries(spec.max || {})) {
+    check(metric, supplemental?.[metric], limit, 'max')
+  }
+  for (const [metric, limit] of Object.entries(spec.min || {})) {
+    check(metric, supplemental?.[metric], limit, 'min')
+  }
+}
+
 // 3D 采样没跑完（浏览器崩溃 / stage 未交互）时不能因为 summary 缺字段就整片 SKIP：
 // 那会把 iframeReady 26s 之类的真实回退藏成“预算通过”。
 if (runError) {
