@@ -3,6 +3,12 @@
  *
  * 从 `studio-render-loop.ts` 拆出，避免渲染循环宿主继续膨胀。
  */
+import {
+  applyTreeTextureAnisotropy,
+  isLegacyTextureQuality,
+  textureAnisotropyFor,
+} from '../../../render-kit/texture-quality'
+import { urlFlag } from '../../../render-kit/url-flags'
 import { resolveReflectionResolution, resolveTextureAnisotropy } from '../../../studio-resource-policy'
 
 export { resolveReflectionResolution }
@@ -38,11 +44,26 @@ type IdleQualityAppCtx = {
   scheduleNearbyModelUpgrades?: () => void
 }
 
-/** 闲时抬 anisotropy；运动回到运动预算（不改材质，只改过滤上限）。 */
+const legacyTextureQuality = isLegacyTextureQuality()
+
+/**
+ * 反射分辨率默认不随运动切换：256 ↔ 512 每次都要 setSize 重分配渲染目标并整批重捕，
+ * 起步与停下各卡一拍。`?reflection-motion-resolution=cap` 恢复旧的运动压分辨率（计划 0.9 移除）。
+ * 低端设备在 `resolveReflectionResolution` 里全程封顶，不受影响。
+ */
+const capReflectionDuringMotion = urlFlag('reflection-motion-resolution') === 'cap'
+
+const reflectionBudgetIdle = (isIdle: boolean) => isIdle || !capReflectionDuringMotion
+
+/**
+ * 仅 `?texture-quality=legacy`：闲时抬 anisotropy、运动回到运动预算。
+ * 默认路径下各向异性由 `render-kit/texture-quality` 在上传前一次定好，这里不再触发全场重传。
+ */
 export function applyIdleTextureAnisotropy(
   appCtx: Pick<IdleQualityAppCtx, 'threeRenderer' | 'threeScene'>,
   isIdle: boolean,
 ): void {
+  if (!legacyTextureQuality) return
   const deviceMax = appCtx.threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1
   const nextAnisotropy = resolveTextureAnisotropy(isIdle, deviceMax)
   appCtx.threeScene?.traverse?.((node) => {
@@ -71,7 +92,7 @@ export function applyIdleReflectionBudget(params: {
   const base = params.normalizeGroundReflection(params.appearanceGroundReflection)
   const next = {
     ...base,
-    resolution: resolveReflectionResolution(params.isIdle, base.resolution ?? 0),
+    resolution: resolveReflectionResolution(reflectionBudgetIdle(params.isIdle), base.resolution ?? 0),
   }
   params.groundReflections.configure(next) &&
     ((params.appCtx.reflectionSettingsJson = JSON.stringify(params.groundReflections.settings)),
@@ -111,7 +132,7 @@ export function capGroundReflectionForMotion(params: {
     normalized,
     capped: {
       ...normalized,
-      resolution: params.resolveReflectionResolution(params.isIdle, normalized.resolution ?? 0),
+      resolution: params.resolveReflectionResolution(reflectionBudgetIdle(params.isIdle), normalized.resolution ?? 0),
     },
   }
 }
@@ -152,6 +173,59 @@ export function createMotionIdleQualityApplier(params: {
       groundReflections: params.groundReflections,
       renderStudioFrame: params.renderStudioFrame,
     })
+}
+
+type RevisionedSceneCtx = {
+  sceneRevisionCount?: number
+  modelRevisionCounter?: number
+  threeRenderer?: Parameters<typeof textureAnisotropyFor>[0]
+  threeScene?: {
+    traverse?: (visit: (node: ShadowCasterNode & IdleSceneNode) => void) => void
+  }
+}
+
+type ShadowCasterNode = {
+  isLight?: boolean
+  castShadow?: boolean
+  shadow?: { intensity?: number } | null
+}
+
+const revisionKey = (appCtx: RevisionedSceneCtx) => `${appCtx.sceneRevisionCount}:${appCtx.modelRevisionCounter}`
+
+/** 场景/模型版本变化后的首帧之前补齐各向异性（只升不降、不触发重传）。 */
+export function createSceneTextureAnisotropySync(appCtx: RevisionedSceneCtx): () => void {
+  let appliedKey = ''
+  return () => {
+    const nextKey = revisionKey(appCtx)
+    if (legacyTextureQuality || nextKey === appliedKey) return
+    appliedKey = nextKey
+    applyTreeTextureAnisotropy(appCtx.threeScene, textureAnisotropyFor(appCtx.threeRenderer))
+  }
+}
+
+/** 运动起步要静音的投影灯：按场景/模型版本缓存，不在每次起步都遍历整棵场景树。 */
+export function createShadowCasterMuter(
+  appCtx: RevisionedSceneCtx,
+  baselineIntensities: Map<NonNullable<ShadowCasterNode['shadow']>, number>,
+): () => void {
+  let casterKey = ''
+  let casters: ShadowCasterNode[] = []
+  return () => {
+    const nextKey = revisionKey(appCtx)
+    if (nextKey !== casterKey) {
+      casterKey = nextKey
+      casters = []
+      appCtx.threeScene?.traverse?.((node) => {
+        node.isLight && node.castShadow && node.shadow && casters.push(node)
+      })
+    }
+    for (const caster of casters) {
+      const shadow = caster.castShadow ? caster.shadow : null
+      if (!shadow) continue
+      baselineIntensities.has(shadow) || baselineIntensities.set(shadow, shadow.intensity ?? 1)
+      shadow.intensity = 0
+    }
+  }
 }
 
 export type PageHideBinding = {

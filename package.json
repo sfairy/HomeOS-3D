@@ -7,7 +7,8 @@
   "scripts": {
     "build": "bun run build:frontend && bun run build:backend",
     "build:shared": "bun run --cwd packages/shared build",
-    "build:frontend": "bun run build:vite && bun run precompress:static",
+    "build:frontend": "bun run build:vite && bun run minify:static-css && bun run precompress:static",
+    "minify:static-css": "node ops/scripts/minify-static-css.mjs",
     "precompress:static": "node ops/scripts/precompress-static.mjs",
     "check:precompress": "node ops/scripts/precompress-static.mjs --check",
     "build:backend": "node ops/lib/py.mjs ops/build.py backend",

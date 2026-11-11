@@ -237,10 +237,13 @@ function mountApp(): void {
   // 挂载完成标记：与 data-homeos-ready（首个路由解析完成）区分开。
   // boot-guard.js 用它判断「#app 为空」是仍在正常启动（等配置加载）还是真的没渲染出来。
   document.documentElement.setAttribute('data-homeos-mounted', '1')
-  // 挂载后启动 FPS 自适应监控，低帧率时自动降级
-  import('@/shared/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
-    startFpsAdaptiveMonitor()
-  })
+  // 挂载后启动 FPS 自适应监控，低帧率时自动降级。3D 舞台 iframe 不起：舞台有自己的自适应
+  // DPR，这里的档位只影响 iframe 内用不到的外壳样式，却要在每次指针事件后多跑 5s rAF。
+  if (!document.body.classList.contains('interaction3d-stage')) {
+    import('@/shared/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
+      startFpsAdaptiveMonitor()
+    })
+  }
   // 空闲时段预加载大体积模态/高频控制弹窗，减少首次打开/首点设备的延迟
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(() => {

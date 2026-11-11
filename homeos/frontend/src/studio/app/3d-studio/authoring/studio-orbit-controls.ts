@@ -15,9 +15,21 @@ type StudioOrbitControlsOptions = {
   touchDragThreshold?: number
 }
 
+/**
+ * 松手后的惯性滑行剩余量低于这两个值就直接停：剩下的总位移约 1px，肉眼看不出「提前停」，
+ * 但 vendor 只在每帧位移 < 1e-3 世界单位时才报静止，按阻尼衰减要多渲染约 2s 的亚像素帧。
+ */
+const GLIDE_STOP_RADIANS = 0.002
+const GLIDE_STOP_PAN = 0.001
+/** vendor `_STATE.NONE`：没有按住的指针（拖拽中剩余增量里还有未消费的输入，不能截断）。 */
+const ORBIT_STATE_NONE = -1
+
 /** 包装层实际读写的 vendor 字段（其余字段由泛型 T 原样透传）。 */
 type RotatableOrbitControls = {
   dampingFactor?: number
+  state?: number
+  _sphericalDelta?: { theta: number; phi: number }
+  _panOffset?: { lengthSq(): number; set(x: number, y: number, z: number): unknown }
   _rotateLeft: (angle: number) => void
   _rotateUp: (angle: number) => void
   update: (deltaSeconds?: number | null) => unknown
@@ -25,6 +37,13 @@ type RotatableOrbitControls = {
 }
 
 type OrbitControlsConstructor = new (camera: object, domElement: HTMLElement) => RotatableOrbitControls
+
+function settleSphericalGlide(sphericalDelta: RotatableOrbitControls['_sphericalDelta']) {
+  sphericalDelta &&
+    Math.abs(sphericalDelta.theta) < GLIDE_STOP_RADIANS &&
+    Math.abs(sphericalDelta.phi) < GLIDE_STOP_RADIANS &&
+    (sphericalDelta.theta = sphericalDelta.phi = 0)
+}
 
 export function createStudioOrbitControls<C extends OrbitControlsConstructor>(
   OrbitControlsClass: C,
@@ -69,7 +88,15 @@ export function createStudioOrbitControls<C extends OrbitControlsConstructor>(
       return baseUpdate(deltaSeconds)
     } finally {
       controls.dampingFactor = baseDampingFactor
+      stopSubPixelGlide()
     }
+  }
+
+  function stopSubPixelGlide() {
+    if (controls.state !== ORBIT_STATE_NONE || pendingTheta || pendingPhi) return
+    settleSphericalGlide(controls._sphericalDelta)
+    const panOffset = controls._panOffset
+    panOffset && panOffset.lengthSq() < GLIDE_STOP_PAN * GLIDE_STOP_PAN && panOffset.set(0, 0, 0)
   }
 
   if (touchDragThreshold > 0) {

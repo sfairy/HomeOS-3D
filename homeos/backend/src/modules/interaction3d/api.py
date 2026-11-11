@@ -18,13 +18,13 @@ from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
 from . import stage_delivery as delivery
+from . import studio_draft_scene as drafts
 from .access import access_grant, is_scene_id, module_components, require_access, scene_snapshot_file
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .game_console import fetch_switch_artwork, switch_artwork_url
 from .media_device import MEDIA_DEVICE_PROFILES
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
-from .studio_draft_scene import read_current_studio_draft, read_current_studio_draft_fingerprint
 from ...config import Settings
 from ...dependencies import (
     DatabaseSession,
@@ -146,7 +146,7 @@ def _load_scene_document_cached(request: Request, scene_id: str) -> dict:
 
 def scene_snapshot(request: Request, database, scene_id: str) -> dict:
     snapshot = _load_scene_document_cached(request, scene_id)
-    return current_scene_payload(request, database, scene_id, snapshot)['scene']
+    return (drafts.read_current_studio_draft_readonly(database) or snapshot)['scene']
 
 
 def _read_component_properties(request: Request, project_id: str | None, component_id: str | None) -> dict:
@@ -277,7 +277,7 @@ def require_scene_transfer(request, viewer, scene_id, project_id):
 
 
 def current_scene_payload(request: Request, database, scene_id: str, reference: dict, *, since: str = '') -> dict:
-    payload = read_current_studio_draft(database)
+    payload = drafts.read_current_studio_draft(database)
     if payload is None:
         if since:
             raise ValueError('saved source unavailable')
@@ -289,7 +289,7 @@ def current_scene_payload(request: Request, database, scene_id: str, reference: 
 def snapshot_scene(request: Request, database: DatabaseSession, _user: LicensedUser):
     require_same_origin_write(request)
     require_access(request)
-    command = read_current_studio_draft(database)
+    command = drafts.read_current_studio_draft(database)
     if command is None:
         raise HTTPException(409, detail='请先在 3D 户型图绘制中绘制并保存户型。')
     if not isinstance(command.get('scene'), dict):
@@ -354,7 +354,7 @@ def referenced_scene_ids(request: Request, database: DatabaseSession) -> set[str
         except ValueError:
             continue
     # 数据库里的草稿才是当前户型：漏掉它会把仍在使用的快照当垃圾清掉。
-    _collect_scene_ids(read_current_studio_draft(database) or {}, referenced)
+    _collect_scene_ids(drafts.read_current_studio_draft(database) or {}, referenced)
     return referenced
 
 
@@ -433,7 +433,7 @@ def get_current_scene(scene_id: str, request: Request, database: DatabaseSession
     return delivery.serve_current_scene(
         scene_path(request, scene_id),
         projectId,
-        read_current_studio_draft_fingerprint(database),
+        drafts.read_current_studio_draft_fingerprint(database),
         since,
         lambda: _build_current_scene_entry(request, database, scene_id, projectId, since),
     )
@@ -456,7 +456,7 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
     try:
         # 快照里没有底图副本时回退到用户资源，但只允许「当前草稿仍在引用」的图。
         with request.app.state.database.session_factory() as database:
-            payload = read_current_studio_draft(database)
+            payload = drafts.read_current_studio_draft(database)
         scene = (payload or {}).get('scene') or {}
         referenced = any(
             str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:') == asset_id

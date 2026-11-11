@@ -106,26 +106,36 @@ export function enhanceStudioSelect(nativeSelectElement: any) {
     }),
     syncStudioSelect(nativeSelectElement)
 }
-export function disposeStudioSelects(rootElement: any) {
-  for (const enhancedSelect of rootElement.querySelectorAll('select')) {
-    const boundSelectRecord = selectRecordsBySelect.get(enhancedSelect)
-    boundSelectRecord &&
-      (openSelectRecord === boundSelectRecord && closeStudioSelect(boundSelectRecord),
-      boundSelectRecord.observer.disconnect(),
-      selectRecordsBySelect.delete(enhancedSelect))
-  }
+function disposeStudioSelect(enhancedSelect: Element) {
+  const boundSelectRecord = selectRecordsBySelect.get(enhancedSelect)
+  boundSelectRecord &&
+    (openSelectRecord === boundSelectRecord && closeStudioSelect(boundSelectRecord),
+    boundSelectRecord.observer.disconnect(),
+    selectRecordsBySelect.delete(enhancedSelect))
 }
-export function initializeStudioSelects(containerElement: any = document) {
-  for (const targetSelect of containerElement.querySelectorAll('select')) enhanceStudioSelect(targetSelect)
-  containerElement.addEventListener('pointerdown', (pointerDownEvent: PointerEvent) => {
+export function disposeStudioSelects(rootElement: any) {
+  for (const enhancedSelect of rootElement.querySelectorAll('select')) disposeStudioSelect(enhancedSelect)
+}
+/** 增强容器内的下拉框；返回的回收函数在容器已脱离文档后仍能释放登记表里的这批下拉框。 */
+export function initializeStudioSelects(containerElement: any = document): () => void {
+  const enhancedSelects: Element[] = [...containerElement.querySelectorAll('select')]
+  for (const targetSelect of enhancedSelects) enhanceStudioSelect(targetSelect)
+  const closeOnOutsidePointer = (pointerDownEvent: PointerEvent) => {
     openSelectRecord && !openSelectRecord.wrapper.contains(pointerDownEvent.target) && closeStudioSelect()
-  }),
-    containerElement.addEventListener('keydown', (keyDownEvent: KeyboardEvent) => {
-      if (keyDownEvent.key !== 'Escape' || !openSelectRecord) return
-      keyDownEvent.preventDefault(), keyDownEvent.stopPropagation()
-      const openTriggerButton = openSelectRecord.trigger
-      closeStudioSelect(), openTriggerButton.focus()
-    })
+  }
+  const closeOnEscape = (keyDownEvent: KeyboardEvent) => {
+    if (keyDownEvent.key !== 'Escape' || !openSelectRecord) return
+    keyDownEvent.preventDefault(), keyDownEvent.stopPropagation()
+    const openTriggerButton = openSelectRecord.trigger
+    closeStudioSelect(), openTriggerButton.focus()
+  }
+  containerElement.addEventListener('pointerdown', closeOnOutsidePointer)
+  containerElement.addEventListener('keydown', closeOnEscape)
+  return () => {
+    containerElement.removeEventListener('pointerdown', closeOnOutsidePointer)
+    containerElement.removeEventListener('keydown', closeOnEscape)
+    for (const enhancedSelect of enhancedSelects) disposeStudioSelect(enhancedSelect)
+  }
 }
 function syncStepperButtons(numberInputElement: any, stepperButtons: any) {
   const isInputDisabled = numberInputElement.disabled || numberInputElement.readOnly

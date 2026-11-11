@@ -461,6 +461,16 @@ test('持续慢帧降档，恢复流畅后必须能升回满档', () => {
   assert.equal(governor.factor, 1, '60fps 帧间隔必须能触发升档，否则降档是不可逆的')
 })
 
+test('30fps 出帧时阈值等比放宽：稳定 30fps 不降档，降档后也能升回满档', () => {
+  const governor = createQualityGovernor(1000 / 30)
+  for (let frame = 0; frame < 400; frame++) governor.sample(1 / 30)
+  assert.equal(governor.factor, 1)
+  for (let frame = 0; frame < 200; frame++) governor.sample(0.06)
+  assert.equal(governor.factor, 0.55)
+  for (let frame = 0; frame < 700; frame++) governor.sample(1 / 30)
+  assert.equal(governor.factor, 1)
+})
+
 test('定格重绘（deltaSeconds 为 0）不计入帧耗时', () => {
   const governor = createQualityGovernor()
   for (let frame = 0; frame < 500; frame++) governor.sample(0)

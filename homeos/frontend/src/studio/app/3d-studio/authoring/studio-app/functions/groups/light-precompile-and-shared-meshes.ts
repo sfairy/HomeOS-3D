@@ -1,3 +1,4 @@
+import { applyTextureQuality } from '../../../../render-kit/texture-quality'
 import type { StudioAppRuntime } from '../../runtime/studio-app-runtime'
 import {
   courtyardBoundaryPoints as courtyardBoundaryPoints2,
@@ -157,9 +158,8 @@ export function createPlanLabel(runtime: StudioAppRuntime, labelSpec: any) {
     labelCanvasPainter!.lineTo(labelLineEndX, 614),
     labelCanvasPainter!.stroke()
   const labelTexture = new ns2.CanvasTexture(labelCanvas)
-  ;(labelTexture.colorSpace = ns2.SRGBColorSpace),
-    (labelTexture.anisotropy = Math.min(runtime.appCtx.threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1, 8)),
-    (labelTexture.needsUpdate = true)
+  applyTextureQuality(labelTexture, runtime.appCtx.threeRenderer, ns2.SRGBColorSpace)
+  labelTexture.needsUpdate = true
   const labelPlaneMesh = new ns2.Mesh(
     new ns2.PlaneGeometry(labelSpec.width, labelSpec.depth),
     new ns2.MeshBasicMaterial({

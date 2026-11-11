@@ -1,6 +1,7 @@
 /** mountStage handler clusters — wired via explicit host from stage.ts */
 import { resolveRuntimeFloor } from './floor-navigation'
 import { markerVisibilityHint } from './marker-visibility'
+import { placeMarker } from './marker-placement'
 import { bathHeaterState as bathHeaterState2 } from '../../bath-heater/bath-heater'
 import { purifierState as purifierState2 } from '../../purifier/purifier-state'
 import { carState as carState2 } from '../../vehicle/car-state'
@@ -433,8 +434,7 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
         const project = presentationPoint.project(host.mountOptions.camera)
         ;(outgoingMarker.node.hidden =
           project.z < -1 || project.z > 1 || Math.abs(project.x) > 1.05 || Math.abs(project.y) > 1.05),
-          (outgoingMarker.node.style.left = ((project.x + 1) * width4) / 2 + 'px'),
-          (outgoingMarker.node.style.top = ((1 - project.y) * height3) / 2 + 'px')
+          placeMarker(outgoingMarker.node, ((project.x + 1) * width4) / 2, ((1 - project.y) * height3) / 2)
       }
     const isUniformOverviewStack =
         host.selectedFloorId === 'all' && host.mountOptions.document.uniformOverviewStack === true,
@@ -490,12 +490,13 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
         if (layoutMarkerSnapshot.securityAlarm === true && layoutMarkerSnapshot.positionMode === 'fixed') {
           layoutMarkerElement.hidden = !isMarkerVisible
           if (isMarkerVisible) {
-            const fixedPercentX = Number(layoutMarkerSnapshot.fixedX),
-              fixedPercentY = Number(layoutMarkerSnapshot.fixedY),
-              clampPercent = (percentValue: number) =>
-                Number.isFinite(percentValue) ? Math.max(0, Math.min(100, percentValue)) : 50
-            ;(layoutMarkerElement.style.left = (clampPercent(fixedPercentX) / 100) * width4 + 'px'),
-              (layoutMarkerElement.style.top = (clampPercent(fixedPercentY) / 100) * height3 + 'px')
+            const at = (percent: unknown, size: number) =>
+              ((Number.isFinite(Number(percent)) ? Math.max(0, Math.min(100, Number(percent))) : 50) / 100) * size
+            placeMarker(
+              layoutMarkerElement,
+              at(layoutMarkerSnapshot.fixedX, width4),
+              at(layoutMarkerSnapshot.fixedY, height3),
+            )
           }
           continue
         }
@@ -536,8 +537,7 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
         const project2 = host.scratchVector.copy(presentationPoint2).project(host.mountOptions.camera)
         ;(layoutMarkerElement.hidden =
           project2.z < -1 || project2.z > 1 || Math.abs(project2.x) > 1.05 || Math.abs(project2.y) > 1.05),
-          (layoutMarkerElement.style.left = ((project2.x + 1) * width4) / 2 + 'px'),
-          (layoutMarkerElement.style.top = ((1 - project2.y) * height3) / 2 + 'px')
+          placeMarker(layoutMarkerElement, ((project2.x + 1) * width4) / 2, ((1 - project2.y) * height3) / 2)
       }
     }
     // 胎压标签自己算投影（锚点来自车模包围盒），每帧都要走，不受上方签名缓存影响。
@@ -1969,8 +1969,8 @@ export function createRunFrame(host: StageHandlersHost) {
       floor = Math.floor(frameTimestamp / 7000)
     some6 && floor !== host.lastIdleFloorId && ((host.lastIdleFloorId = floor), host.syncMarkers()),
       host.revealFollowCamera()
-    const frameTimestampCameraQuaternionKey = host.mountOptions.camera.quaternion?.toArray?.().join(',') || ''
-    if (frameTimestampCameraQuaternionKey !== host.cameraQuaternionKey) {
+    const cameraQuaternion = host.mountOptions.camera.quaternion
+    if (cameraQuaternion && (!host.cameraQuaternionKey || !host.scratchQuaternion.equals(cameraQuaternion))) {
       const frameDeltaSeconds =
           Math.min(100, Math.max(1, frameTimestamp - (host.lastQuaternionMs ?? frameTimestamp - 16.7))) / 1000,
         cameraAngularSpeed = host.scratchQuaternion.angleTo(host.mountOptions.camera.quaternion) / frameDeltaSeconds
@@ -1979,7 +1979,7 @@ export function createRunFrame(host: StageHandlersHost) {
         !host.followVacuumId &&
         (host.set.size || host.isPointerHeld || cameraAngularSpeed > 0.035) &&
         (host.idleIconDelayUntilMs = frameTimestamp + 60),
-        (host.cameraQuaternionKey = frameTimestampCameraQuaternionKey)
+        (host.cameraQuaternionKey = 'tracked')
     }
     host.scratchQuaternion.copy(host.mountOptions.camera.quaternion), (host.lastQuaternionMs = frameTimestamp)
     const isRotatingByPointer =

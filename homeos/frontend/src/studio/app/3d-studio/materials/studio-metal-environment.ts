@@ -59,8 +59,17 @@ export const METAL_ENVIRONMENT_EXEMPT_ITEM_TYPES: ReadonlySet<string> = new Set(
   'curtain_split',
 ])
 
-/** 每个 THREE 实例一张缓存：纹理带着 three 的类型，不能跨实例复用。 */
-const environmentCacheByThree = new WeakMap<object, any>()
+/**
+ * 每个 THREE 实例一张缓存：纹理带着 three 的类型，不能跨实例复用。
+ * 渲染器上传纹理时会在它身上挂 dispose 监听并借此留住自己，所以必须能在回收时遍历释放。
+ */
+const environmentCacheByThree = new Map<object, any>()
+
+/** 回收共享环境贴图：触发 dispose 让各渲染器摘掉挂在纹理上的监听，下次使用时重建。 */
+export function releaseMetalEnvironmentTextures(): void {
+  for (const texture of environmentCacheByThree.values()) texture?.dispose?.()
+  environmentCacheByThree.clear()
+}
 
 const clampUnit = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value)
 const mix = (from: number, to: number, amount: number) => from + (to - from) * amount

@@ -77,6 +77,55 @@ test('damping 帧率无关：120Hz 两帧的衰减约等于 60Hz 一帧', () => 
   assert.equal(fast.dampingFactor, 0.22)
 })
 
+class FakeDampedOrbitControls extends FakeOrbitControls {
+  constructor(camera, domElement) {
+    super(camera, domElement)
+    // 生产里包装层构造时读到的是 three 默认 0.05（调用方之后写的 0.22 会被每帧还原）。
+    this.dampingFactor = 0.05
+    this.state = -1
+    this._sphericalDelta = { theta: 0, phi: 0 }
+    const pan = { x: 0, y: 0, z: 0 }
+    this._panOffset = Object.assign(pan, {
+      lengthSq: () => pan.x ** 2 + pan.y ** 2 + pan.z ** 2,
+      set: (x, y, z) => Object.assign(pan, { x, y, z }),
+    })
+    this._rotateLeft = (angle) => {
+      this._sphericalDelta.theta += angle
+    }
+    this.update = () => {
+      const moved = Math.abs(this._sphericalDelta.theta) > 1e-9
+      this.theta += this._sphericalDelta.theta * this.dampingFactor
+      this._sphericalDelta.theta *= 1 - this.dampingFactor
+      return moved
+    }
+  }
+}
+
+test('松手后的亚像素惯性直接停：剩余量低于阈值即清零，帧循环可以静置', () => {
+  const controls = createStudioOrbitControls(FakeDampedOrbitControls, {}, domElement, {
+    rotateSmoothing: 0,
+    rotateSmoothingThreshold: 0,
+    touchDragThreshold: 0,
+  })
+  controls._rotateLeft(0.5)
+  let frames = 0
+  while (controls.update(1 / 60) && frames < 1000) frames += 1
+  assert.ok(frames < 140, `惯性应在约 2s 内停下（实际 ${frames} 帧）`)
+  assert.ok(Math.abs(controls.theta - 0.5) < 0.003, '截掉的剩余旋转不超过阈值量级')
+})
+
+test('按住拖拽时不截断：剩余增量里还有未消费的输入', () => {
+  const controls = createStudioOrbitControls(FakeDampedOrbitControls, {}, domElement, {
+    rotateSmoothing: 0,
+    rotateSmoothingThreshold: 0,
+    touchDragThreshold: 0,
+  })
+  controls.state = 0
+  controls._rotateLeft(0.001)
+  controls.update(1 / 60)
+  assert.ok(controls._sphericalDelta.theta > 0)
+})
+
 test('旋转阈值：小于阈值的残留不会持续推动相机', () => {
   const controls = createStudioOrbitControls(FakeOrbitControls, {}, domElement, {
     rotateSmoothing: 8,

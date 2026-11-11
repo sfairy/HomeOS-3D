@@ -5,6 +5,8 @@
  * WaveUI-C：运动路径保持锐利/省预算；闲时/近场可升 anisotropy、反射分辨率与接触影。
  * 禁止默认 perf-low / 永久全局砍阴影。
  */
+import { urlFlag } from './render-kit/url-flags'
+
 export const interactionResourcePolicy = Object.freeze({
   contactShadows: Object.freeze({
     /** 运动 / 冷启动预算（嵌入式舞台）。 */
@@ -128,4 +130,18 @@ function isLowEndDevice(): boolean {
   const memoryGb = Number(navigator.deviceMemory)
   const logicalCores = Number(navigator.hardwareConcurrency)
   return (memoryGb > 0 && memoryGb <= 4) || (logicalCores > 0 && logicalCores <= 4)
+}
+
+/**
+ * 静置渲染像素比：min(DPR, 上限) × renderScale，再整体封顶到上限（默认 2）。
+ * 旧公式 min(DPR,1.6)×renderScale 在 DPR 2 + renderScale 1.5 时超采样到 2.4（原生的 1.44 倍像素），
+ * 而 renderScale 1 时又只有 1.6（低于原生）。`?dpr-cap=<数字>` 改上限，`?dpr-cap=legacy` 恢复旧公式。
+ */
+export function idleRenderPixelRatio(renderScale: number): number {
+  const devicePixelRatio = globalThis.devicePixelRatio || 1
+  const flag = urlFlag('dpr-cap')
+  if (flag === 'legacy') return Math.min(devicePixelRatio, 1.6) * renderScale
+  const cap = Number(flag)
+  const limit = flag !== null && Number.isFinite(cap) && cap >= 0.5 ? cap : 2
+  return Math.min(Math.min(devicePixelRatio, limit) * renderScale, limit)
 }

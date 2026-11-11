@@ -5,10 +5,13 @@ import { createInteractionBatches as createInteractionBatches2 } from '../../stu
 
 import { stageStartup as stageStartup2 } from '../../../stage-startup'
 import { interactionResourcePolicy } from '../../../studio-resource-policy'
+import { isPerformanceDiagnostics as hasPerformanceDiagnosticsFlag, urlFlag } from '../../../render-kit/url-flags'
 import {
   bindNamedPageHideOnce,
   configureCappedGroundReflection,
   createMotionIdleQualityApplier,
+  createSceneTextureAnisotropySync,
+  createShadowCasterMuter,
   type PageHideBinding,
 } from './render-loop-idle-quality'
 import { attachReflectionProbeMesh } from './render-loop-reflection-probe'
@@ -1014,6 +1017,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       activeCamera = appCtx.threeCamera,
       bind2 = configureOrbitControlsOrbitControls.update.bind(configureOrbitControlsOrbitControls)
     ctx.orbitTargetAnchor = configureOrbitControlsOrbitControls
+    const [orbitFrom, orbitDelta] = [new ns2.Quaternion(), new ns2.Quaternion()],
+      [orbitOffset, orbitShift] = [new ns2.Vector3(), new ns2.Vector3()]
     let cachedOrbitShiftPivot: any = null,
       cachedOrbitShiftProject: any = null,
       cachedOrbitShiftScope: any = null,
@@ -1092,7 +1097,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           return false
         ctx.orbitTargetVector ||
           (ctx.orbitTargetVector = computeCameraTarget(configureOrbitControlsOrbitControls.target))
-        const clone7 = activeCamera.quaternion.clone()
+        const clone7 = orbitFrom.copy(activeCamera.quaternion)
         if (
           getCameraView() === 'top' &&
           (configureOrbitControlsOrbitControls._sphericalDelta.theta ||
@@ -1170,9 +1175,9 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
               (cachedOrbitShiftRuntimeSettings = appCtx.pendingRuntimeSettings),
               (cachedOrbitShiftOverview = isOverviewOrbitShift)
           }
-          const multiply = activeCamera.quaternion.clone().multiply(clone7.invert()),
-            sub3 = cachedOrbitShiftPivot.clone().sub(configureOrbitControlsOrbitControls.target),
-            sub4 = sub3.clone().sub(sub3.applyQuaternion(multiply))
+          const multiply = orbitDelta.copy(activeCamera.quaternion).multiply(clone7.invert()),
+            sub3 = orbitOffset.copy(cachedOrbitShiftPivot).sub(configureOrbitControlsOrbitControls.target),
+            sub4 = orbitShift.copy(sub3).sub(sub3.applyQuaternion(multiply))
           return (
             activeCamera.position.add(sub4),
             configureOrbitControlsOrbitControls.target.add(sub4),
@@ -1228,11 +1233,8 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
         !preparedReflectionTarget.userData.backgroundThemeHidden
     applyReflectionVisibility()
   }
-  const isRenderLoopPerformanceDiagnostics =
-      new URLSearchParams(globalThis.window?.location?.search || '').get('performance-diagnostics') === '1',
-    isBaselineGeometryMode =
-      isRenderLoopPerformanceDiagnostics &&
-      new URLSearchParams(window.location.search).get('geometry-detail') === 'baseline',
+  const isRenderLoopPerformanceDiagnostics = hasPerformanceDiagnosticsFlag(),
+    isBaselineGeometryMode = isRenderLoopPerformanceDiagnostics && urlFlag('geometry-detail') === 'baseline',
     reflectionDetail = createReflectionDetail2({
       THREE: ns2,
       includeRuntime: !isBaselineGeometryMode,
@@ -1250,9 +1252,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       },
     })
   reflectionPasses.options.small = false
-  const isReflectionDiagnosticsMode =
-    new URLSearchParams(globalThis.window?.location?.search || '').get('performance-diagnostics') === '1' &&
-    new URLSearchParams(window.location.search).get('reflection-work') === 'baseline'
+  const isReflectionDiagnosticsMode = hasPerformanceDiagnosticsFlag() && urlFlag('reflection-work') === 'baseline'
   ctx.previousReflectionEnabled = isEmbeddedStage
   ctx.isReflectionDisabled = !isEmbeddedStage
   ctx.reflectionDetailMode = isEmbeddedStage ? 0 : 1
@@ -1339,7 +1339,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           appCtx.threeRenderer.toneMappingExposure,
         ].join('|'),
     })),
-    floorEffectsQuery = new URLSearchParams(globalThis.window?.location?.search || '').get('floorEffects')
+    floorEffectsQuery = urlFlag('floorEffects')
   ctx.previousReflectionEnabled && groundReflections.setSuspended(true)
   const applyMotionIdleQuality = createMotionIdleQualityApplier({
     appCtx,
@@ -1380,6 +1380,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
   }
   const We3 = (isEmbedStageMode || floorEffectsQuery === 'follow') && floorEffectsQuery !== 'deferred'
   const shadowIntensitiesByLight = new Map()
+  const muteShadowCasters = createShadowCasterMuter(appCtx, shadowIntensitiesByLight)
   function setShadowsEnabled(shadowEnabledFlag: any) {
     if (ctx.hasShadowBoost !== shadowEnabledFlag) {
       if (((ctx.hasShadowBoost = shadowEnabledFlag), We3)) {
@@ -1395,14 +1396,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
           (ctx.isShadowBoostActive = appCtx.threeRenderer.shadowMap.autoUpdate),
           (appCtx.threeRenderer.shadowMap.autoUpdate = false),
           (appCtx.threeRenderer.shadowMap.needsUpdate = false),
-          appCtx.threeScene.traverse((shadowNode: any) => {
-            !shadowNode.isLight ||
-              !shadowNode.castShadow ||
-              !shadowNode.shadow ||
-              (shadowIntensitiesByLight.has(shadowNode.shadow) ||
-                shadowIntensitiesByLight.set(shadowNode.shadow, shadowNode.shadow.intensity ?? 1),
-              (shadowNode.shadow.intensity = 0))
-          }))
+          muteShadowCasters())
         : ((appCtx.threeRenderer.shadowMap.autoUpdate = ctx.isShadowBoostActive),
           (appCtx.threeRenderer.shadowMap.needsUpdate = true),
           (ctx.shadowBoostStart = performance.now())),
@@ -1505,12 +1499,14 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     sceneRootNode: appCtx.sceneRootNode,
     geometryBoxes: ctx.geometryBoxes,
   })
+  const syncSceneTextureAnisotropy = createSceneTextureAnisotropySync(appCtx)
   appCtx.threeScene.onBeforeRender = function (...renderArgs: any[]) {
     if (groundReflections.stats.inCapture) {
       isReflectionDiagnosticsMode && appCtx.regionLightController?.sync(renderArgs[2], true)
       return
     }
     groundReflections.setInsideEnabled?.(getPreviewFloorMode() !== 'all')
+    syncSceneTextureAnisotropy()
     if (
       (updateShadowBoost(),
       ctx.reflectionDetailMode === 0 && ctx.releaseStartupDeviceSync?.(),
@@ -1636,7 +1632,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       !isBaselineGeometryMode &&
       ctx.reflectionDetailMode === 1 &&
       !appCtx.pendingRuntimeSettings &&
-      new URLSearchParams(window.location.search).get('interaction-batches') !== 'baseline'
+      urlFlag('interaction-batches') !== 'baseline'
     )
   }
   /** 预热的目标：每层一个根节点（总览模式下是 `sceneRootNode` 下带 `floorId` 的子节点）。 */

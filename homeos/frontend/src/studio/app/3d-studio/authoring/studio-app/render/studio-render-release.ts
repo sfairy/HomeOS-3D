@@ -6,6 +6,8 @@
  */
 
 import { disposeStudioFonts } from '../../boot/studio-boot'
+import { releaseMetalEnvironmentTextures } from '../../../materials/studio-metal-environment'
+import { releaseSurfaceDetailTextures } from '../../../materials/studio-surface-normal-maps'
 
 type DisposableLike = { dispose?: () => void }
 type RendererLike = DisposableLike & { forceContextLoss?: () => void }
@@ -38,6 +40,13 @@ export function releaseStudioRenderer(appCtx: StudioRendererHandles): void {
     /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
   }
   appCtx.contextResources = null
+  try {
+    // 模块级共享纹理跨实例存活，必须趁渲染器还在时释放，否则它们的 dispose 监听留住旧渲染器与画布。
+    releaseMetalEnvironmentTextures()
+    releaseSurfaceDetailTextures()
+  } catch {
+    /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */
+  }
   try {
     appCtx.threeRenderer?.dispose?.()
   } catch {

@@ -9,6 +9,7 @@ import { selectFrameCaptures } from './studio-reflection-capture-budget'
 import { createReflectionSignature } from './studio-reflection-signature'
 import { buildReflectionPersistenceStamp, resolveReflectionIdleCaptureFps } from './studio-reflection-runtime'
 import { captureReflectionSnapshot, restoreReflectionSnapshot } from './reflection-persistent-cache'
+import { createMatrixPoseTracker } from '../../shared/util/matrix-pose'
 import { isFloorTransitionLeaving, isVisibleWithin, readOwnFloorId, resolveFloorId } from './reflection-scene-queries'
 import { createRefractionMaterialResolver } from './refraction-materials'
 import { createReflectionResolve } from './reflection-resolve'
@@ -220,12 +221,15 @@ export function createGroundReflections({
     const resolvedInput = hasMaterialChanged ? arrayRecord.next : materialInput
     return (materialCache.set(materialInput, resolvedInput), resolvedInput)
   }
+  const cameraPose = createMatrixPoseTracker()
   let activeRecords: any = [],
     currentRoot: any = null,
     rootFirstChild: any = null,
     shouldRefresh = true,
+    /** 上一帧收尾时仍有记录待捕获（预算轮转 / 推迟）：只续帧，不当成「状态变了」整批重标脏。 */
+    hasFollowUp = false,
     lastRenderTimeMs = -Infinity,
-    lastCameraSignature = '',
+    lastCameraSignature = 0,
     lastLightingSignature = '',
     isDisposed = false,
     lastReceiverSignature = '',
@@ -864,7 +868,7 @@ export function createGroundReflections({
     )
       return
     if (!activeRecords.length) {
-      ;(shouldRefresh = false),
+      ;(shouldRefresh = hasFollowUp = false),
         (isResumePending = false),
         (resumeRecordSet = null),
         (resumeStartedAtMs = null),
@@ -920,7 +924,7 @@ export function createGroundReflections({
     }
     if (!activeRecords.length) return
     const frameStartMs = performance.now(),
-      cameraSignature = camera.matrixWorld.elements.join(',') + camera.projectionMatrix.elements.join(','),
+      cameraSignature = cameraPose.observe(camera.matrixWorld, camera.projectionMatrix),
       hasCameraChanged = cameraSignature !== lastCameraSignature,
       currentTargetSize = resolveTargetSize(settings.resolution)
     // 只标脏、不在这里 setSize：setSize 会释放 GL 纹理，受每帧预算推迟的记录会空白一拍；
@@ -947,13 +951,15 @@ export function createGroundReflections({
       ),
       stateKeyByRecord = new Map()
     // 屏幕外的记录不进本轮捕获：capturedPose 保持旧值，回到视野时按位姿不一致补捕。
+    // 整批失效时把 state 清空：被预算推迟的记录靠 state 不一致留在脏集里，捕获后才回写，
+    // 轮转一圈就收敛；否则只能把「还要续帧」当成「状态变了」，每帧整批重标脏、永不静置。
     let dirtyRecords = activeRecords.filter((eligibleRecord: any) => {
       if (!eligibleRecord.eligible || !eligibleRecord.onScreen) return false
       const stateKey = recordLightingSignature(eligibleRecord, lightingSignatureByFloor)
+      stateChanged && (eligibleRecord.state = null)
       return (
         stateKeyByRecord.set(eligibleRecord, stateKey),
-        stateChanged ||
-          eligibleRecord.state !== stateKey ||
+        eligibleRecord.state !== stateKey ||
           (eligibleRecord.hasCapture && eligibleRecord.capturedPose !== cameraSignature)
       )
     })
@@ -963,8 +969,10 @@ export function createGroundReflections({
           .filter((deferredRecord: any) => !resumeRecordSet.has(deferredRecord))
           .slice(0, Math.max(1, maxResumeCapturesPerFrame))),
       !dirtyRecords.length)
-    )
+    ) {
+      hasFollowUp = false
       return
+    }
     /** 本轮因每帧预算被推迟的记录数：>0 时必须在收尾处继续 requestFrame。 */
     let budgetDeferredCount = 0
     // 相机位姿变化时整批重捕：按预算轮转会让部分记录停在上一帧位姿，拖动时就是甩尾/拖影。
@@ -976,7 +984,7 @@ export function createGroundReflections({
     ;(budgetDeferredCount = captureSelection.deferred),
       (captureRotation = captureSelection.rotation),
       (dirtyRecords = captureSelection.records)
-    if (!shouldRefresh && !hasCameraChanged && frameStartMs - lastRenderTimeMs < 1000 / settings.fps) {
+    if (!shouldRefresh && !hasFollowUp && !hasCameraChanged && frameStartMs - lastRenderTimeMs < 1000 / settings.fps) {
       throttleTimer === null &&
         (throttleTimer = setTimeout(
           () => {
@@ -1000,7 +1008,7 @@ export function createGroundReflections({
       for (const persistenceRecord of dirtyRecords)
         if (!persistenceRecord.persistenceCaptured) {
           const persistenceStamp = buildReflectionPersistenceStamp([
-            cameraSignature,
+            cameraPose.key(),
             lightingSignature,
             stateKeyByRecord.get(persistenceRecord),
             propagationCount,
@@ -1182,7 +1190,7 @@ export function createGroundReflections({
             (rendererDiff.changedTarget = true),
             !tryPrepareProgram(captureRecord, capturedCamera))
           ) {
-            isCaptureDeferred = true
+            ;(isCaptureDeferred = true), (captureRecord.state = null)
             continue
           }
           renderer.clear(),
@@ -1219,20 +1227,21 @@ export function createGroundReflections({
           (uncapturedRecord: any) =>
             uncapturedRecord.eligible && uncapturedRecord.onScreen && !resumeRecordSet.has(uncapturedRecord),
         )
-      ;(shouldRefresh =
-        isCaptureDeferred ||
-        budgetDeferredCount > 0 ||
-        !!hasPendingCaptures ||
-        activeRecords.some(
-          (changedPoseRecord: any) =>
-            changedPoseRecord.eligible &&
-            changedPoseRecord.onScreen &&
-            changedPoseRecord.hasCapture &&
-            (changedPoseRecord.capturedPose !== cameraSignature ||
-              changedPoseRecord.capturedStateKey !== lightingSignature),
-        )),
+      ;(shouldRefresh = false),
+        (hasFollowUp =
+          isCaptureDeferred ||
+          budgetDeferredCount > 0 ||
+          !!hasPendingCaptures ||
+          activeRecords.some(
+            (changedPoseRecord: any) =>
+              changedPoseRecord.eligible &&
+              changedPoseRecord.onScreen &&
+              changedPoseRecord.hasCapture &&
+              (changedPoseRecord.capturedPose !== cameraSignature ||
+                changedPoseRecord.capturedStateKey !== lightingSignature),
+          )),
         hasPendingCaptures || (resumeRecordSet = null),
-        shouldRefresh && requestFrame(),
+        hasFollowUp && requestFrame(),
         (lastRenderTimeMs = frameStartMs),
         (lastCameraSignature = cameraSignature),
         (lastLightingSignature = lightingSignature)
@@ -1266,6 +1275,7 @@ export function createGroundReflections({
       isDisposed ||
         isPersistenceSettled ||
         shouldRefresh ||
+        hasFollowUp ||
         ((isPersistenceSettled = true), persistentCache?.presented())
     },
     setInsideEnabled(enabled: any) {
@@ -1323,6 +1333,7 @@ export function createGroundReflections({
       settings.mode === 'off' ||
       settings.strength === 0 ||
       (!shouldRefresh &&
+        !hasFollowUp &&
         activeRecords.every(
           (checkedRecord: any) =>
             !checkedRecord.eligible ||

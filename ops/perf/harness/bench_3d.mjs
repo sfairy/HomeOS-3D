@@ -10,15 +10,40 @@
 import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  countUploads,
+  dragStageCanvas,
+  drainStageProbe,
+  stageProbeScript,
+  summarizeFrames,
+  summarizeLongTasks,
+} from './stage-probes.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright-core')
 const PERF_ROOT = process.env.HOMEOS_PERF_ROOT || '/tmp/homeos-perf'
 const args = process.argv.slice(2)
-const labelIndex = args.indexOf('--label')
-const label = labelIndex >= 0 ? args[labelIndex + 1] : 'before'
-const tagIndex = args.indexOf('--tag')
-const tag = tagIndex >= 0 ? args[tagIndex + 1] : ''
+const argValue = (name, fallback) => {
+  const index = args.indexOf(name)
+  return index >= 0 && args[index + 1] ? args[index + 1] : fallback
+}
+const label = argValue('--label', 'before')
+const tag = argValue('--tag', '')
+/** --dpr：deviceScaleFactor（默认 1）；DPR 2 用来量清晰度（绘制缓冲比）与高分屏开销。 */
+const deviceScaleFactor = Number(argValue('--dpr', '1')) || 1
+/** --soak-ms：拖拽时长；默认 360ms 的短拖拽，>400 时为连续往返拖拽（帧时间分布口径）。 */
+const dragDurationMs = Number(argValue('--soak-ms', '360')) || 360
+/** --idle-ms：presented 之后静置多久再拖拽，期间统计页面帧数（idleFramesPerSec）。 */
+const idleWindowMs = Number(argValue('--idle-ms', '1500')) || 0
+/** --idle-settle-ms：静置窗口开始前先等多久（跳过入场动画 / 启动期测帧窗口，量稳态静置）。 */
+const idleSettleMs = Number(argValue('--idle-settle-ms', '0')) || 0
+/** --gpu-memory：打开显存估算（包装 bind* 调用，有开销，只在单独 tag 的运行里用）。 */
+const trackGpuMemory = args.includes('--gpu-memory')
+/** --trace-raf：按调用点统计 requestAnimationFrame（静置窗口里谁还在请求帧）。 */
+const traceRafCallers = args.includes('--trace-raf')
+/** 运动起止前后统计纹理上传的窗口：开始前 200ms 到结束后 1.6s（覆盖 600ms 运动保持期）。 */
+const MOTION_UPLOAD_LEAD_MS = 200
+const MOTION_UPLOAD_TAIL_MS = 1600
 /**
  * 追加到 display URL 的查询参数（可重复），用来对同一构建做行为 A/B，例如
  * `--query defer-reflections=1`。参数会被 runtime 按白名单透传到 stage iframe。
@@ -321,50 +346,58 @@ async function waitForPresented(frame, page) {
 }
 
 /**
- * 在舞台内部派发指针事件，而不是用 page.mouse 点 iframe：
- * 展示页的 iframe 在非编辑态 pointer-events:none，鼠标事件到不了 canvas；
- * 同时 canvas 的指针监听挂在舞台自己的 canvas 上，直接 dispatch 才能断言“真实拖拽”。
+ * 探针口径汇总：运动起止纹理上传、静置帧率、拖拽帧分布、长任务分段、显存估算、绘制缓冲比。
+ * 拖拽在舞台内部派发指针事件（展示页 iframe 非编辑态 pointer-events:none，page.mouse 到不了 canvas）。
  */
-async function dragCanvas(frame) {
-  return frame.evaluate(async () => {
-    const canvases = Array.from(document.querySelectorAll('canvas'))
-    // 舞台里同时存在 2D 灯光缓存画布与 WebGL 画布；必须选可见且有 WebGL 上下文的那个，
-    // 否则指针事件会打到 0x0 的 render-shield 或离屏缓存上，拖拽不产生运动帧样本。
-    const canvas =
-      canvases.find((item) => {
-        const box = item.getBoundingClientRect()
-        if (box.width <= 500 || box.height <= 100) return false
-        try {
-          return !!(item.getContext('webgl2') || item.getContext('webgl'))
-        } catch {
-          return false
-        }
-      }) || canvases[canvases.length - 1]
-    if (!canvas) return { applied: false, reason: 'no-canvas' }
-    const rect = canvas.getBoundingClientRect()
-    if (rect.width < 2 || rect.height < 2) return { applied: false, reason: 'zero-size-canvas' }
-    const x = rect.left + rect.width / 2
-    const y = rect.top + rect.height / 2
-    const make = (type, clientX, clientY) =>
-      new PointerEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        pointerId: 1,
-        pointerType: 'mouse',
-        isPrimary: true,
-        button: 0,
-        buttons: type === 'pointerup' ? 0 : 1,
-        clientX,
-        clientY,
-      })
-    canvas.dispatchEvent(make('pointerdown', x, y))
-    for (let step = 1; step <= 12; step += 1) {
-      canvas.dispatchEvent(make('pointermove', x + step * 8, y + step * 2))
-      await new Promise((resolve) => setTimeout(resolve, 30))
-    }
-    canvas.dispatchEvent(make('pointerup', x + 96, y + 24))
-    return { applied: true, canvas: { width: canvas.width, height: canvas.height, rect } }
+function buildProbeSummary(result) {
+  const probe = result.probe
+  if (!probe) return {}
+  const drag = result.dragApplied || {}
+  const motion = probe.motion
+  const uploads =
+    drag.applied && motion
+      ? countUploads(motion.uploads, drag.startedAt - MOTION_UPLOAD_LEAD_MS, drag.endedAt + MOTION_UPLOAD_TAIL_MS)
+      : null
+  const dragFrames =
+    drag.applied && motion ? summarizeFrames(motion.frames, { from: drag.startedAt, to: drag.endedAt }) : null
+  const presentedAt = result.phaseTimings?.['stage:presented'] ?? null
+  const longTasks = summarizeLongTasks(result.frameState?.longtasks || [], {
+    presentedAt,
+    interactionFrom: drag.applied ? drag.startedAt : null,
+    interactionTo: drag.applied ? drag.endedAt + MOTION_UPLOAD_TAIL_MS : null,
   })
+  const mainCanvas = (motion?.canvases || [])
+    .filter((canvas) => canvas.cssWidth > 0)
+    .sort((a, b) => b.cssWidth * b.cssHeight - a.cssWidth * a.cssHeight)[0]
+  return {
+    dpr: deviceScaleFactor,
+    drawingBufferRatio: mainCanvas ? Number((mainCanvas.width / mainCanvas.cssWidth).toFixed(3)) : null,
+    motionTexUploads: uploads?.total ?? null,
+    motionTexUploadsByCall: uploads?.byName ?? null,
+    loadTexUploads: probe.load ? probe.load.uploads.length : null,
+    idleFramesPerSec:
+      probe.idle && idleWindowMs > 0 ? Number((probe.idle.frames.length / (idleWindowMs / 1000)).toFixed(2)) : null,
+    idleRafCallers: traceRafCallers
+      ? Object.entries(probe.idle?.rafCallers || {})
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 12)
+      : undefined,
+    dragDurationMs: drag.applied ? Math.round(drag.endedAt - drag.startedAt) : null,
+    dragFrameIntervalP50Ms: dragFrames?.intervalP50Ms ?? null,
+    dragFrameIntervalP95Ms: dragFrames?.intervalP95Ms ?? null,
+    dragFrameIntervalP99Ms: dragFrames?.intervalP99Ms ?? null,
+    dragFrameIntervalStdMs: dragFrames?.intervalStdMs ?? null,
+    dragFramesOver50Ms: dragFrames?.framesOver50Ms ?? null,
+    dragFrameWorkP95Ms: dragFrames?.workP95Ms ?? null,
+    longTasksLoadCount: longTasks.load.count,
+    longTasksLoadMaxMs: longTasks.load.maxMs,
+    longTasksInteractionCount: longTasks.interaction.count,
+    longTasksInteractionMaxMs: longTasks.interaction.maxMs,
+    gpuBytesEstimate: motion?.gpuBytes ?? null,
+    gpuPeakBytesEstimate: motion?.peakGpuBytes ?? null,
+    webglContexts: motion?.contexts ?? null,
+    stylesheetBytes: result.network?.byType?.Stylesheet ?? null,
+  }
 }
 
 // 浏览器/renderer 崩溃时 Playwright 只会抛 "Target page ... closed"，真正原因（GPU 进程、
@@ -389,13 +422,14 @@ browser.on('disconnected', () => {
 })
 const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
-  deviceScaleFactor: 1,
+  deviceScaleFactor,
   reducedMotion: 'no-preference',
   ignoreHTTPSErrors: homeosBase.startsWith('https:'),
 })
 await context.addCookies([{ name: 'auth_token', value: env.homeos.token, url: homeosBase }])
 await context.addInitScript(hostInitScript)
 await context.addInitScript(frameInitScript)
+await context.addInitScript(stageProbeScript({ trackMemory: trackGpuMemory, traceRaf: traceRafCallers }))
 const page = await context.newPage()
 const consoleErrors = []
 const stagePhaseLogs = []
@@ -443,7 +477,13 @@ const displayUrl = `${homeosBase}/display/${encodeURIComponent(env.homeos.projec
 const result = {
   label,
   generatedAt: new Date().toISOString(),
-  browser: { version: browserVersion, viewport: '1440x900', reducedMotion: 'no-preference' },
+  browser: {
+    version: browserVersion,
+    viewport: '1440x900',
+    deviceScaleFactor,
+    reducedMotion: 'no-preference',
+  },
+  probeOptions: { dragDurationMs, idleWindowMs, idleSettleMs, trackGpuMemory },
   url: displayUrl,
   extraQueries,
   sceneId: env.homeos.sceneId,
@@ -524,6 +564,7 @@ function buildActionSummary(result) {
     reflectionsReadyMs: phaseTimings['stage:reflections-ready'] ?? null,
     displayFirstScreenMs: phaseTimings['display:first-screen-ready'] ?? null,
     interactive: result.stageInteractive === true,
+    ...buildProbeSummary(result),
     error: result.error ?? null,
   }
 }
@@ -583,8 +624,18 @@ try {
   if (!rendered.ok) {
     result.renderWaitWarning = '60s 内未看到 presented 相位（也未达到 calls>100 兜底判据）'
   }
+  // 探针分三段读：presented 之前（加载期上传）、静置窗口（静置帧率）、拖拽及其后 1.6s（运动口径）。
+  result.probe = { load: await drainStageProbe(frame).catch(() => null) }
+  if (idleWindowMs > 0) {
+    if (idleSettleMs > 0) {
+      await page.waitForTimeout(idleSettleMs)
+      await drainStageProbe(frame).catch(() => null)
+    }
+    await page.waitForTimeout(idleWindowMs)
+    result.probe.idle = await drainStageProbe(frame).catch(() => null)
+  }
   result.beforeInteraction = await readDataset(frame)
-  result.dragApplied = await dragCanvas(frame)
+  result.dragApplied = await dragStageCanvas(frame, dragDurationMs)
   // 3D 页在 headless Edge 上可能在 presented 后几秒内被浏览器关闭（实测约 28s 进程退出）。
   // 采样窗口必须短：先 600ms 让帧统计起步，再 4×250ms，总计约 1.6s，确保还在同一进程内。
   await page.waitForTimeout(600)
@@ -596,7 +647,27 @@ try {
   result.interactionSamples = samples
   result.afterInteraction = await readDataset(frame)
   result.frameState = await frame.evaluate(() => window.__homeos3dFrame || null)
-  const shotPath = join(shotDir, 'stage.png')
+  result.probe.motion = await drainStageProbe(frame).catch(() => null)
+  // 标记落点：可见标记的屏幕中心，A/B 落点实现（如 marker-position=legacy）时逐个比对。
+  // 图标静置会隐藏，先移动鼠标（不按键，不转相机）唤醒再读。
+  await page.mouse.move(700, 440).catch(() => {})
+  await page.mouse.move(720, 450, { steps: 4 }).catch(() => {})
+  await page.waitForTimeout(500)
+  result.markerCenters = await frame
+    .evaluate(() =>
+      [...document.querySelectorAll('.i3d-marker')]
+        .filter((node) => !node.hidden && node.getClientRects().length && getComputedStyle(node).display !== 'none')
+        .map((node) => {
+          const rect = node.getBoundingClientRect()
+          return [
+            node.dataset.id || node.getAttribute('aria-label') || '',
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2,
+          ]
+        }),
+    )
+    .catch(() => null)
+  const shotPath = join(shotDir, tag ? `stage-${tag}.png` : 'stage.png')
   try {
     const iframeElement = page.locator('iframe.i3d-frame').first()
     if (await iframeElement.count()) {
@@ -646,6 +717,14 @@ result.cacheLogs = cacheLogs
 result.phaseTimings = collectPhaseTimings(stagePhaseLogs)
 result.phaseTable = buildPhaseTable(result.phaseTimings)
 result.summary = buildActionSummary(result)
+// 原始帧 / 上传序列只用于汇总；落盘只留计数，避免 3d.json 膨胀到几 MB。
+for (const segment of Object.values(result.probe || {})) {
+  if (!segment) continue
+  segment.frameCount = segment.frames?.length ?? 0
+  segment.uploadCount = segment.uploads?.length ?? 0
+  delete segment.frames
+  delete segment.uploads
+}
 const outputPath = join(outDir, tag ? `3d-${tag}.json` : '3d.json')
 writeFileSync(outputPath, JSON.stringify(result, null, 2) + '\n')
 console.log(`[${label}] 3D 结果：${outputPath}`)

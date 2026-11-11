@@ -8,6 +8,7 @@ import { createCarTires } from '../vehicle/car-tires'
 import { createSpeakerPanel as createSpeakerPanel2 } from '../speaker/speaker-panel'
 import { createSpeakerRings as createSpeakerRings2 } from '../speaker/speaker-ring'
 import { interaction3dControlTimeout } from '@app/shared/util/control-timeout'
+import { createMatrixPoseTracker } from '@app/shared/util/matrix-pose'
 import { withPageAppearancePreset as applyPageAppearancePreset } from '@app/bridge/presets/page-appearance-presets'
 import { withRegionLightingPreset as applyRegionLightingPreset } from '@app/bridge/presets/region-lighting-presets'
 import { withInteractionLightEffects as applyInteractionLightEffects } from '@app/bridge/presets/light-effect-policy'
@@ -1827,6 +1828,7 @@ export function mountStage(mountOptions: any) {
     weatherGroundBoundsCache = { revision: mountOptions.sceneRevision, root: sceneRoot, bounds }
     return bounds
   }
+  const weatherCameraPose = createMatrixPoseTracker()
   const weatherGround = createWeatherGroundEmitter({
     getBounds: weatherGroundBounds,
     getProjector: () => {
@@ -1839,9 +1841,7 @@ export function mountStage(mountOptions: any) {
     },
     getCameraKey: () =>
       mountOptions.camera
-        ? mountOptions.camera.matrixWorld.elements.join(',') +
-          '|' +
-          mountOptions.camera.projectionMatrix.elements.join(',')
+        ? String(weatherCameraPose.observe(mountOptions.camera.matrixWorld, mountOptions.camera.projectionMatrix))
         : '',
     getViewportSize: () => ({ width: element.clientWidth, height: element.clientHeight }),
     postMessage: postHostMessage,

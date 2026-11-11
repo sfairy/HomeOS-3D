@@ -5,6 +5,7 @@ import {
   restoreCacheEntries,
   writeCacheRecord,
 } from '../cache/cache-shared'
+import { readTexturePixels } from '../render-kit/fullscreen-copy'
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
 const CONTACT_SHADOW_CACHE_VERSION = '20261022-v1'
@@ -289,97 +290,38 @@ export function createContactShadowPersistentCache({ env: env = globalThis, key:
 export async function captureContactShadowSnapshot(three: any, renderer: any, source: any, canCapture: any) {
   if (!renderer.readRenderTargetPixelsAsync || !canCapture()) return null
   const snapshot = {
-      frame: source.bakedFrame.toArray(),
-      bounds: source.uniforms.plan2ContactBounds.value.toArray(),
-      y: source.uniforms.plan2ContactY.value,
-      surfaceBounds: source.uniforms.plan2SurfaceBounds.value.toArray(),
-      layout: source.uniforms.plan2SurfaceLayout.value.toArray(),
-      lookup: source.lookup?.image.data.slice() || null,
-    },
-    captureScene = new three.Scene(),
-    captureCamera = new three.OrthographicCamera(-1, 1, 1, -1, 0, 1),
-    copyMaterial = new three.ShaderMaterial({
-      uniforms: {
-        source: {
-          value: null as any,
-        },
-      },
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:
-        'uniform sampler2D source;varying vec2 vUv;void main(){gl_FragColor=vec4(texture2D(source,vUv).r,0.,0.,1.);}',
-    }),
-    copyMesh = new three.Mesh(new three.PlaneGeometry(2, 2), copyMaterial)
-  ;(copyMesh.frustumCulled = false), captureScene.add(copyMesh)
-  try {
-    for (const channelName of ['target', 'surface']) {
-      const sourceTarget = source[channelName]
-      if (!sourceTarget) {
-        ;(snapshot as any)[channelName] = null
-        continue
-      }
-      if (!canCapture() || sourceTarget.width > 4096 || sourceTarget.height > 4096) return null
-      const renderTarget = new three.WebGLRenderTarget(sourceTarget.width, sourceTarget.height, {
-          depthBuffer: false,
-          generateMipmaps: false,
-        }),
-        pixelBuffer = new Uint8Array(sourceTarget.width * sourceTarget.height * 4),
-        rendererState = {
-          target: renderer.getRenderTarget(),
-          face: renderer.getActiveCubeFace(),
-          mip: renderer.getActiveMipmapLevel(),
-          viewport: renderer.getViewport(new three.Vector4()),
-          scissor: renderer.getScissor(new three.Vector4()),
-          scissorTest: renderer.getScissorTest(),
-          autoClear: renderer.autoClear,
-          xr: renderer.xr.enabled,
-          shadow: renderer.shadowMap.enabled,
-        }
-      try {
-        let readPromise
-        try {
-          ;(renderer.xr.enabled = renderer.shadowMap.enabled = false),
-            (renderer.autoClear = false),
-            renderer.setScissorTest(false),
-            renderer.setRenderTarget(renderTarget),
-            (copyMaterial.uniforms.source.value = sourceTarget.texture),
-            renderer.render(captureScene, captureCamera),
-            (readPromise = renderer.readRenderTargetPixelsAsync(
-              renderTarget,
-              0,
-              0,
-              sourceTarget.width,
-              sourceTarget.height,
-              pixelBuffer,
-            ))
-        } finally {
-          renderer.setViewport(rendererState.viewport),
-            renderer.setScissor(rendererState.scissor),
-            renderer.setScissorTest(rendererState.scissorTest),
-            renderer.setRenderTarget(rendererState.target, rendererState.face, rendererState.mip),
-            (renderer.autoClear = rendererState.autoClear),
-            (renderer.xr.enabled = rendererState.xr),
-            (renderer.shadowMap.enabled = rendererState.shadow)
-        }
-        if ((await readPromise, !canCapture())) return null
-        const redChannelPixels = new Uint8Array(sourceTarget.width * sourceTarget.height)
-        for (let pixelIndex = 0; pixelIndex < redChannelPixels.length; pixelIndex++)
-          redChannelPixels[pixelIndex] = pixelBuffer[pixelIndex * 4]
-        ;(snapshot as any)[channelName] = {
-          width: sourceTarget.width,
-          height: sourceTarget.height,
-          pixels: redChannelPixels,
-        }
-      } finally {
-        renderTarget.dispose()
-      }
-    }
-    return validContactShadowSnapshot(snapshot) ? snapshot : null
-  } finally {
-    copyMesh.geometry.dispose(), copyMaterial.dispose()
+    frame: source.bakedFrame.toArray(),
+    bounds: source.uniforms.plan2ContactBounds.value.toArray(),
+    y: source.uniforms.plan2ContactY.value,
+    surfaceBounds: source.uniforms.plan2SurfaceBounds.value.toArray(),
+    layout: source.uniforms.plan2SurfaceLayout.value.toArray(),
+    lookup: source.lookup?.image.data.slice() || null,
   }
+  for (const channelName of ['target', 'surface']) {
+    const sourceTarget = source[channelName]
+    if (!sourceTarget) {
+      ;(snapshot as any)[channelName] = null
+      continue
+    }
+    if (!canCapture() || sourceTarget.width > 4096 || sourceTarget.height > 4096) return null
+    const pixelBuffer = new Uint8Array(sourceTarget.width * sourceTarget.height * 4)
+    await readTexturePixels(three, renderer, sourceTarget.texture, {
+      width: sourceTarget.width,
+      height: sourceTarget.height,
+      channel: 'red',
+      pixels: pixelBuffer,
+    })
+    if (!canCapture()) return null
+    const redChannelPixels = new Uint8Array(sourceTarget.width * sourceTarget.height)
+    for (let pixelIndex = 0; pixelIndex < redChannelPixels.length; pixelIndex++)
+      redChannelPixels[pixelIndex] = pixelBuffer[pixelIndex * 4]
+    ;(snapshot as any)[channelName] = {
+      width: sourceTarget.width,
+      height: sourceTarget.height,
+      pixels: redChannelPixels,
+    }
+  }
+  return validContactShadowSnapshot(snapshot) ? snapshot : null
 }
 /** 把快照还原成可直接挂回 uniform 的贴图与参数（失败时释放已建纹理并返回 null）。 */
 export function restoreContactShadowSnapshot(three: any, snapshot: any) {
