@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
-useEscLayer(toRef(props, 'open'), 'studio-shortcuts', () => emit('close'))
+useEscLayer(toRef(props, 'open'), () => emit('close'))
 </script>
 
 <template>

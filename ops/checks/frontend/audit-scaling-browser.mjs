@@ -217,34 +217,46 @@ async function auditPage(page, viewport, target) {
   return { problems, metrics }
 }
 
-const browser = await chromium.launch({ executablePath: EDGE, headless: true })
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' })
-const page = await context.newPage()
-const rows = []
-
-try {
-  let token = TOKEN
+// 每个分辨率一个浏览器：本机 Edge headless 单实例运行约 30 秒后会被关闭，48 次页面加载跑不完。
+async function openSession(token) {
+  const browser = await chromium.launch({ executablePath: EDGE, headless: true })
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' })
+  const page = await context.newPage()
   if (!token) token = await loginForToken(page)
-  if (!token) throw new Error('登录失败：未拿到 auth_token')
-
+  if (!token) {
+    await browser.close()
+    throw new Error('登录失败：未拿到 auth_token')
+  }
   await context.addCookies([{ name: 'auth_token', value: token, url: BASE }])
   // 注入缩放偏好（真实读法：localStorage 里存字符串 'true'）
   await page.addInitScript(() => window.localStorage.setItem('homeos_viewport_scaling', 'true'))
+  return { browser, page, token }
+}
 
+const rows = []
+let fatal = ''
+let token = TOKEN
+
+try {
   for (const viewport of VIEWPORTS) {
-    for (const target of PAGES) {
-      const { problems, metrics } = await auditPage(page, viewport, target)
-      rows.push({ viewport: viewport.name, page: target.name, metrics, problems })
-      const flag = problems.length ? '✖' : '✔'
-      console.log(`${flag} ${viewport.name.padEnd(20)} ${target.name.padEnd(9)} 画布 ${metrics?.canvasW ?? '-'}`)
-      for (const problem of problems) console.log(`    ${problem}`)
+    const session = await openSession(token)
+    token = session.token
+    try {
+      for (const target of PAGES) {
+        const { problems, metrics } = await auditPage(session.page, viewport, target)
+        rows.push({ viewport: viewport.name, page: target.name, metrics, problems })
+        const flag = problems.length ? '✖' : '✔'
+        console.log(`${flag} ${viewport.name.padEnd(20)} ${target.name.padEnd(9)} 画布 ${metrics?.canvasW ?? '-'}`)
+        for (const problem of problems) console.log(`    ${problem}`)
+      }
+    } finally {
+      await session.browser.close()
     }
   }
 } catch (error) {
-  console.error(`审计执行失败：${error.message}`)
-  rows.push({ fatal: error.message })
-} finally {
-  await browser.close()
+  fatal = error.message
+  console.error(`审计执行失败：${fatal}`)
+  rows.push({ fatal })
 }
 
 const violations = rows.flatMap((row) =>
@@ -252,10 +264,14 @@ const violations = rows.flatMap((row) =>
 )
 writeFileSync(
   join(OUT_DIR, 'report.json'),
-  `${JSON.stringify({ generatedAt: new Date().toISOString(), base: BASE, ok: violations.length === 0, violations, rows }, null, 2)}\n`,
+  `${JSON.stringify({ generatedAt: new Date().toISOString(), base: BASE, ok: !fatal && violations.length === 0, violations, rows }, null, 2)}\n`,
 )
 
 console.log('')
+if (fatal) {
+  console.error(`真浏览器审计未完成：${rows.length - 1} / ${VIEWPORTS.length * PAGES.length} 次页面加载后中断`)
+  process.exit(1)
+}
 if (violations.length) {
   console.error(`真浏览器审计失败：${violations.length} 处`)
   for (const violation of violations) console.error(`  - ${violation}`)

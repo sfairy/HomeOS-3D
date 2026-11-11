@@ -1,9 +1,9 @@
 {
   "totals": {
-    "functions": 27137,
+    "functions": 27130,
     "gt10": 1308,
     "gt15": 717,
-    "gt80": 803
+    "gt80": 802
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/RowMenu.vue": {
@@ -1708,7 +1708,7 @@
       "max": 16
     },
     "homeos/frontend/src/stores/entities/ws/ws-bind-ha-sync.ts": {
-      "functions": 27,
+      "functions": 29,
       "gt10": 2,
       "gt15": 0,
       "gt80": 1,
@@ -2170,7 +2170,7 @@
       "max": 18
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts": {
-      "functions": 1249,
+      "functions": 1247,
       "gt10": 3,
       "gt15": 3,
       "gt80": 5,
@@ -3274,13 +3274,6 @@
       "gt15": 3,
       "gt80": 4,
       "max": 63
-    },
-    "homeos/frontend/src/studio/app/editor/home/lifecycle/inspector-context-wiring.ts": {
-      "functions": 11,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 1
     },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/navigation-style-wiring.ts": {
       "functions": 63,

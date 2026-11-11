@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from ...config import Settings
 from ...platform.core.http.frontend_resources import frontend_resource_url
 from ...platform.core.http.precompressed_static import fresh_sidecar
+from ...platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 
 LOGGER = logging.getLogger(__name__)
 
@@ -91,6 +92,21 @@ def build_current_scene_entry(
     inject_background_urls(command["scene"], scene_id, project_id)
     command.pop(source_key, None)
     return CurrentSceneEntry(sync_key=key, body=bytes(JSONResponse(command).body), fallback=fallback)
+
+
+def scene_document_response(request: Request, command: dict, scene_id: str, project_id: str) -> Response:
+    """``GET /scenes/{id}`` 的响应：带强 ETag，``If-None-Match`` 命中时回 304。
+
+    户型文档在同一 projectId 下稳定；此前是 ``no-store``，每次打开都全量重传并重新解析。
+    换成 ``private, no-cache`` + ETag 后，未变化时只回一个空 304。
+    """
+    body = JSONResponse(command).body
+    etag = make_etag("i3d-scene-v1", scene_id, project_id, hashlib.sha256(body).hexdigest())
+    if request_etag_matches(request, etag):
+        return not_modified(etag)
+    response = Response(body, media_type="application/json")
+    set_private_revalidate(response, etag)
+    return response
 
 
 def serve_current_scene(

@@ -161,10 +161,27 @@ export function createWeatherEffects(host: any) {
     if (ready && preset) render(0)
   }
 
+  /**
+   * 按 backing store 的**设备像素**整块清屏。
+   *
+   * 不能用 `clearRect(0, 0, cssWidth, cssHeight)`：`canvas.width` 是
+   * `ceil(cssWidth * dpr)`，而 ctx 的 transform 是 dpr，所以清屏区域的右下边界
+   * 会落在 582.22 这类小数上——最右（最下）那不到 1 像素的列**永远清不到**，
+   * 飘过的云会在那里一层层叠上去，留下一条永远不消失的竖线（用户实际反馈）。
+   * 改成先把 transform 归位、再按 `canvas.width/height` 清，边界就是整数。
+   */
+  function clearFrame() {
+    if (!ctx) return
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+  }
+
   /** 画一帧。`deltaSeconds` 为 0 时是「定格重绘」（尺寸变化 / 刚切到静态模式）。 */
   function render(deltaSeconds: number) {
     if (!ctx || !preset) return
-    ctx.clearRect(0, 0, cssWidth, cssHeight)
+    clearFrame()
     const frame: WeatherFrame = {
       ctx,
       width: cssWidth,
@@ -262,7 +279,7 @@ export function createWeatherEffects(host: any) {
       canvas.dataset.weather = state
       if (canvas.hidden) {
         suspend()
-        ctx?.clearRect(0, 0, cssWidth, cssHeight)
+        clearFrame()
         return
       }
       // 只在「换了天气」或「刚从隐藏/禁用回到可见」时定格重绘一帧；

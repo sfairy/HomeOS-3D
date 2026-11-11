@@ -267,7 +267,7 @@ function getBatteryIcon(level: number) {
 // Esc 关闭菜单：入全局 Esc 层级栈，只关栈顶那一层。
 // 原来直接挂 document keydown，会在 window 上的层级栈之前抢先触发 ——
 // 菜单叠在确认框/查看器之上时，一次 Esc 会连下层一起关掉。
-useEscLayer(menuVisible, '设备行菜单', () => closeMenu())
+useEscLayer(menuVisible, () => closeMenu())
 </script>
 
 <style scoped src="./styles/device-row.css"></style>

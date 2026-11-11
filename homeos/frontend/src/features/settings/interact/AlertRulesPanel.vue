@@ -607,8 +607,8 @@ const editActive = computed(() => !!editing.value)
 
 useFocusTrap(editPanelRef, editActive)
 // Esc 关掉规则编辑：它铺满设置页，取消入口只有底部那个按钮与点遮罩。
-useEscLayer(editActive, '告警规则编辑', () => closeEditing())
-useBackgroundInert(editOverlayRef, editActive, '告警规则编辑')
+useEscLayer(editActive, () => closeEditing())
+useBackgroundInert(editOverlayRef, editActive)
 useBodyScrollLock(editActive, '告警规则编辑')
 
 // 语音告警/免打扰/自定义播报的当前子 Tab

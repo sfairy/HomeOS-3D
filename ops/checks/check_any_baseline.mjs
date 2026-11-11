@@ -19,8 +19,10 @@
  *   node ops/checks/check_any_baseline.mjs --update   # 重写基线（只能变小才该跑）
  *   node ops/checks/check_any_baseline.mjs --json     # 机器可读输出
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
+
+import { walkFiles } from '../lib/walk.mjs'
 
 const args = process.argv.slice(2)
 const argOf = (name, fallback) => {
@@ -34,23 +36,10 @@ const asJson = args.includes('--json')
 const SCOPE = 'homeos/frontend/src/studio'
 const BASELINE = join(repoRoot, 'ops/checks/any-baseline.json')
 const EXTENSIONS = new Set(['.ts', '.tsx', '.vue', '.mjs', '.js'])
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git'])
 const ANY_TOKEN = /(?<![A-Za-z0-9_$])any(?![A-Za-z0-9_$])/g
 
 function walk(dir, out = []) {
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return out
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry.name)) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) walk(full, out)
-    else if (EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) out.push(full)
-  }
-  return out
+  return walkFiles(dir, { extensions: EXTENSIONS }, out)
 }
 
 function countAny(file) {

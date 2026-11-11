@@ -44,6 +44,7 @@ from ...platform.core.db.models import HAEntity, ProjectDraft
 from ...platform.core.http.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
 from ...platform.core.http.frontend_static import strip_auth_scene_assets
 from ...platform.core.runtime.atomic_write import restrict_private_file
+from ...platform.http_cache import request_etag_matches
 from ...platform.security.request_origin import require_same_origin_write
 from ...platform.security.viewer_scope import require_viewer_entity
 from ...schemas import HAServiceCallRequest
@@ -408,7 +409,7 @@ def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId
     command = load_scene_document(request, scene_id)
     delivery.inject_background_urls(command['scene'], scene_id, projectId)
     command.pop(SCENE_SOURCE_KEY, None)
-    return JSONResponse(command, headers={'Cache-Control': 'no-store'})
+    return delivery.scene_document_response(request, command, scene_id, projectId)
 
 
 def _build_current_scene_entry(request: Request, database, scene_id: str, project_id: str, since: str) -> delivery.CurrentSceneEntry:
@@ -1412,20 +1413,17 @@ def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: Li
     scene_path(request, scene_id)
     path = cache_path(request.app.state.settings.data_dir, scene_id, projectId, cache_key)
     content = read_cache(path)
-    from fastapi.responses import Response
     if content is None:
         return Response(status_code=204, headers={'Cache-Control': 'no-store'})
     # 缓存键是前端按「渲染描述符（版本 + 场景 + 相机 + 光照…）」算出的 sha256，
     # 同一 URL 的内容不会变；单张瓦片可达 1 MB，每次都回源会让 3D 首屏白付一次
     # 大图传输。按私有缓存留一天，渲染逻辑变更由前端的 RENDER_CACHE_VERSION 换 URL。
-    return Response(
-        content,
-        media_type='image/png',
-        headers={
-            'Cache-Control': 'private, max-age=86400',
-            'ETag': f'"{cache_key}"',
-        },
-    )
+    # 键即内容：If-None-Match 命中时回 304，max-age 过期后也不必重传 1 MB。
+    etag = f'"{cache_key}"'
+    headers = {'Cache-Control': 'private, max-age=86400', 'ETag': etag}
+    if request_etag_matches(request, etag):
+        return Response(status_code=304, headers=headers)
+    return Response(content, media_type='image/png', headers=headers)
 
 
 @router.put('/scenes/{scene_id}/render-cache/{cache_key}', status_code=204)

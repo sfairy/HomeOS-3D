@@ -83,6 +83,11 @@
     "perf:3d": "node ops/perf/harness/bench_3d.mjs --label after",
     "perf:contracts": "node ops/lib/py.mjs ops/perf/harness/check_contracts.py --label after",
     "perf:compare": "node ops/lib/py.mjs ops/perf/harness/compare_metrics.py --before before --after after",
+    "perf:loc": "node ops/perf/loc-report.mjs",
+    "perf:dup": "node ops/perf/dup-report.mjs",
+    "perf:route-cycle": "node ops/perf/harness/route_cycle.mjs --label after",
+    "css:redundancy": "node ops/perf/css-redundancy.mjs",
+    "port:inventory": "node ops/port/inventory.mjs",
     "check:studio-split": "node ops/checks/studio/check_split_budget.mjs --phase 3 && node ops/checks/studio/verify_item_model.mjs",
     "test:studio": "bun test ops/checks/studio/tests/ && node ops/lib/py.mjs -m unittest discover -s ops/checks/studio/tests -v",
     "test:home-mode": "node ops/lib/py.mjs -m unittest discover -s ops/checks/home_mode/tests -v",
@@ -138,6 +143,7 @@
     "vue-router": "5.4.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@biomejs/biome": "2.6.5",
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
@@ -145,7 +151,13 @@
     "@types/node": "^26.6.6",
     "draco3dgltf": "^1.5.9",
     "esbuild": "^0.28.2",
+    "lightningcss": "^1.33.0",
+    "meshoptimizer": "^1.1.1",
+    "pinia": "^4.1.0",
     "playwright-core": "1.64.1",
+    "pngjs": "^5.0.0",
+    "postcss": "^8.5.32",
+    "three": "0.187.0",
     "typescript": "^6.0.3",
     "vite": "^8.3.6",
     "vue-tsc": "^3.3.14"

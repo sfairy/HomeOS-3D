@@ -32,6 +32,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { walkFiles } from '../../lib/walk.mjs'
+
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..', 'homeos', 'frontend', 'src')
 const ROOT_INDEX = process.argv.indexOf('--root')
@@ -64,14 +66,11 @@ for (let i = 0; i < process.argv.length; i += 1) {
 /** 长前缀优先：`@app/` 必须排在 `@/` 之前，否则永远命中后者。 */
 const ALIAS_ENTRIES = [...ALIASES.entries()].sort((a, b) => b[0].length - a[0].length)
 
+/** 只看源码目录：不跳过 `build/`（该目录下没有源码，跳不跳结果相同，保持原集合以免行为变化）。 */
+const WALK_SKIP_DIRS = new Set(['node_modules', 'dist'])
+
 function walk(dir, out = []) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === 'dist') continue
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) walk(full, out)
-    else if (SOURCE_EXTS.has(path.extname(entry.name))) out.push(full)
-  }
-  return out
+  return walkFiles(dir, { extensions: SOURCE_EXTS, skipDirs: WALK_SKIP_DIRS }, out)
 }
 
 /** 把注释替换为空格，保留换行以维持行号；字符串原样保留。 */

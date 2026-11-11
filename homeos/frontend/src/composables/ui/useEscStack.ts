@@ -5,8 +5,6 @@ import { onUnmounted, watch, type Ref } from 'vue'
 interface EscLayer {
   /** 唯一 id，用于出栈时精确删除（不必是栈顶）。 */
   id: number
-  /** 来源标签，仅用于诊断。 */
-  label: string
   /** Esc 处理器；必须在 setup 内定义且保持稳定（栈里存的是引用）。 */
   handler: (event: KeyboardEvent) => void
 }
@@ -48,14 +46,13 @@ function syncListener() {
  * 手动压栈，返回幂等的出栈函数。
  *
  * 调用场景：非组件场景（指令、一次性浮层）需要参与 Esc 层级时使用；
- * 组件内优先用 `useEscLayer(active, label, handler)`，它会在不可见/卸载时自动出栈。
+ * 组件内优先用 `useEscLayer(active, handler)`，它会在不可见/卸载时自动出栈。
  *
- * @param label - 来源标签，仅用于诊断
  * @param handler - Esc 处理器
  * @returns 出栈函数，重复调用只有第一次生效
  */
-function pushEscLayer(label: string, handler: (event: KeyboardEvent) => void): () => void {
-  const layer: EscLayer = { id: ++nextId, label, handler }
+function pushEscLayer(handler: (event: KeyboardEvent) => void): () => void {
+  const layer: EscLayer = { id: ++nextId, handler }
   layers.push(layer)
   syncListener()
 
@@ -70,27 +67,17 @@ function pushEscLayer(label: string, handler: (event: KeyboardEvent) => void): (
 }
 
 /**
- * 当前层级栈快照（自底向顶），用于排查「谁吃掉了 Esc」。
- * @returns 各层来源标签，末尾为当前栈顶
- */
-export function getEscStackLabels(): string[] {
-  return layers.map((layer) => layer.label)
-}
-
-/**
  * 把浮层的「是否可见」接到 Esc 层级栈上。
  *
  * 可见即压栈、不可见即出栈；组件卸载兜底出栈。压栈顺序 = 打开顺序 = 视觉叠放顺序，
  * 因此栈顶就是用户眼中最上层的那一层，Esc 只会关掉它。
  *
  * @param active - 浮层是否可见（ref / computed 均可）
- * @param label - 来源标签，仅用于诊断
  * @param handler - Esc 处理器；请在 setup 内定义并保持稳定（栈内存的是引用）
  * @sideEffect 可见时向全局 Esc 栈压入一层
  */
 export function useEscLayer(
   active: Ref<boolean> | { readonly value: boolean },
-  label: string,
   handler: (event: KeyboardEvent) => void,
 ) {
   let pop: (() => void) | null = null
@@ -98,7 +85,7 @@ export function useEscLayer(
   /** 按当前可见状态同步栈：幂等，重复压/出栈不会打乱顺序。 */
   function sync(isActive: boolean) {
     if (isActive) {
-      if (!pop) pop = pushEscLayer(label, handler)
+      if (!pop) pop = pushEscLayer(handler)
       return
     }
     if (pop) {

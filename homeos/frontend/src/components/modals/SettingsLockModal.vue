@@ -142,8 +142,8 @@ const isActive = computed(() => !!props.isOpen)
 
 useFocusTrap(panelRef, isActive)
 // Esc 关掉设置锁：不接层级栈的话，访客被 PIN 弹窗挡住时连 Esc 都退不出去。
-useEscLayer(isActive, '设置锁验证', () => emit('close'))
-useBackgroundInert(rootRef, isActive, '设置锁验证')
+useEscLayer(isActive, () => emit('close'))
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '设置锁验证')
 const pin = ref('')
 const isError = ref(false)

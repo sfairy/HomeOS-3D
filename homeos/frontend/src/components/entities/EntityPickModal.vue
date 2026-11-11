@@ -168,8 +168,8 @@ const isActive = computed(() => !!props.isOpen)
 
 useFocusTrap(panelRef, isActive)
 // Esc 关掉选择器：它是上面「常用设备」设置项的编辑入口，没有 Esc 就只能靠点关闭按钮。
-useEscLayer(isActive, '实体选择器', () => emit('close'))
-useBackgroundInert(rootRef, isActive, '实体选择器')
+useEscLayer(isActive, () => emit('close'))
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '实体选择器')
 
 /**

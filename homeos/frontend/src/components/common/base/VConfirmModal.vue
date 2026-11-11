@@ -111,7 +111,7 @@ onUnmounted(() => {
 
 // Esc 取消：入全局 Esc 层级栈，只关栈顶那一层。
 // 确认框可以叠在查看器/抽屉/下拉之上，若各自都响应 window 上的 Esc，一次按键会关掉多层。
-useEscLayer(trapActive, '全局确认框', () => chrome.resolveConfirm(false))
+useEscLayer(trapActive, () => chrome.resolveConfirm(false))
 
 // 弹窗打开时锁定 body 滚动（引用计数，与同一时刻的其它浮层共享锁）
 useBodyScrollLock(trapActive, '全局确认框')

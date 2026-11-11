@@ -1,6 +1,7 @@
 {
   "//": "单一类型工程：主应用与并入的 3D Studio 源码（src/studio/**）共用同一严格档。",
   "//2": "studio 与主应用共用一个工程、同一严格档，避免两套严格度互相污染。",
+  "//3": "paths 里浏览器直载的 /static/vendor/** 指向 src/studio/shims；/api/v1/modules/interaction3d/<路径>.js 由 vite.runtime.config.ts 从 src/studio/runtime/<路径>.ts 逐个产出，故直接映射回源码。",
   "compilerOptions": {
     "target": "ES2022",
 
@@ -55,30 +56,17 @@
       "/static/vendor/three/0.187.0/GLTFLoader.js": [
         "./src/studio/shims/vendor-three-addons.ts"
       ],
-      "/static/vendor/three/0.187.0/DRACOLoader.js": ["./src/studio/shims/draco-loader.ts"],
+      "/static/vendor/three/0.187.0/DRACOLoader.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
       "/static/vendor/three/0.187.0/RectAreaLightUniformsLib.js": [
         "./src/studio/shims/vendor-three-addons.ts"
       ],
-      "/static/vendor/qrcode-generator/qrcode.js": ["./src/studio/shims/qrcode.ts"],
       "/static/vendor/meshoptimizer/0.25/meshopt_simplifier.module.js": [
         "./src/studio/shims/meshopt.ts"
       ],
 
-      "/api/v1/modules/interaction3d/core/runtime.js": [
-        "./src/studio/shims/interaction3d-runtime.ts"
-      ],
-      "/api/v1/modules/interaction3d/core/stage.js": [
-        "./src/studio/shims/interaction3d-stage.ts"
-      ],
-      "/api/v1/modules/interaction3d/config-ui/config-editor.js": [
-        "./src/studio/shims/interaction3d-config-editor.ts"
-      ],
-      "/api/v1/modules/interaction3d/security/security-editor.js": [
-        "./src/studio/shims/interaction3d-security-editor.ts"
-      ],
-      "/api/v1/modules/interaction3d/editor/configuration-floor.js": [
-        "./src/studio/shims/interaction3d-configuration-floor.ts"
-      ]
+      "/api/v1/modules/interaction3d/*": ["./src/studio/runtime/*"]
     },
 
     "types": ["vite/client"]
