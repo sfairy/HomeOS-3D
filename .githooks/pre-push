@@ -53,7 +53,9 @@ if [ "$saw_update" -eq 0 ]; then
 fi
 [ -n "$target_sha" ] || target_sha="$(git rev-parse HEAD)"
 
-if [ "$(git rev-parse HEAD)" = "$target_sha" ] && git diff-index --quiet HEAD --; then
+# 「干净」要连未跟踪文件一起算：any / styles 这类检查是遍历目录，未跟踪的新文件同样会把棘轮撞红，
+# 只看 `git diff-index`（只覆盖已跟踪文件）会让工作区脏时仍走就地路径、继续误拦。
+if [ "$(git rev-parse HEAD)" = "$target_sha" ] && [ -z "$(git status --porcelain)" ]; then
   echo "[pre-push] 工作区干净，就地跑 gate:static（约 60s，失败会中止推送）…" >&2
   if ! "$runner" run gate:static >/tmp/homeos-prepush-static.log 2>&1; then
     echo "" >&2
