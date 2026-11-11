@@ -171,7 +171,7 @@ function onEscLayer() {
   navMoreOpen.value = false
 }
 
-useEscLayer(mainLayoutEscLayerOpen, '主布局导航浮层', onEscLayer)
+useEscLayer(mainLayoutEscLayerOpen, onEscLayer)
 
 const navMoreAnchorRef = ref(null)
 const navMoreMenuRef = ref(null)

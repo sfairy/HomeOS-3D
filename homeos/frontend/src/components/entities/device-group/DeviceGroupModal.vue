@@ -174,8 +174,8 @@ const isActive = computed(() => !!props.isOpen)
 
 useFocusTrap(panelRef, isActive)
 // Esc 走全局层级栈：设备组会叠在抽屉之上，各自监听 window 会让一次 Esc 关掉多层。
-useEscLayer(isActive, '设备组弹窗', () => emit('close'))
-useBackgroundInert(rootRef, isActive, '设备组弹窗')
+useEscLayer(isActive, () => emit('close'))
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '设备组弹窗')
 
 const domainMap = computed(() => {

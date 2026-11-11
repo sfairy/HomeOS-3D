@@ -41,21 +41,6 @@ interface InertRecord {
 /** 全模块共用一份登记表：同一元素被多层浮层隔离时按引用计数还原。 */
 const records = new WeakMap<HTMLElement, InertRecord>()
 
-/** 活跃层的标签登记（只服务诊断，不参与隔离判定）。 */
-const activeLabels: string[] = []
-
-/**
- * 当前活跃的隔离层标签（自底向顶）。
- *
- * 与 `getEscStackLabels()` / `getBodyScrollLockState()` 同属一套诊断口子：出现
- * 「浮层关掉了但背景点不动」时，先看这里有没有该摘却没摘的层。
- *
- * @returns 各层标签，末尾为最近压入的那层
- */
-export function getBackgroundInertLabels(): string[] {
-  return [...activeLabels]
-}
-
 /**
  * 从浮层根节点逐级走到 `body`，收集每一级的兄弟元素。
  *
@@ -82,9 +67,8 @@ function backgroundInertTargets(root: HTMLElement): HTMLElement[] {
  * 隔离一组元素（引用计数 +1；首次隔离时记下原值）。
  *
  * @param targets - {@link backgroundInertTargets} 的返回值
- * @param label - 来源标签，仅用于 {@link getBackgroundInertLabels} 诊断
  */
-function markBackgroundInert(targets: HTMLElement[], label: string = '匿名浮层'): void {
+function markBackgroundInert(targets: HTMLElement[]): void {
   if (targets.length === 0) return
   for (const target of targets) {
     const existing = records.get(target)
@@ -100,16 +84,14 @@ function markBackgroundInert(targets: HTMLElement[], label: string = '匿名浮�
     target.inert = true
     target.setAttribute('aria-hidden', 'true')
   }
-  activeLabels.push(label)
 }
 
 /**
  * 还原一组元素（引用计数 -1；归零时按原值还原）。
  *
  * @param targets - 与 {@link markBackgroundInert} 传入的同一组元素
- * @param label - 与压入时相同的来源标签（用于摘掉诊断登记）
  */
-function unmarkBackgroundInert(targets: HTMLElement[], label: string = '匿名浮层'): void {
+function unmarkBackgroundInert(targets: HTMLElement[]): void {
   if (targets.length > 0) {
     for (const target of targets) {
       const record = records.get(target)
@@ -122,8 +104,6 @@ function unmarkBackgroundInert(targets: HTMLElement[], label: string = '匿名�
       else target.setAttribute('aria-hidden', record.ariaHidden)
     }
   }
-  const index = activeLabels.lastIndexOf(label)
-  if (index !== -1) activeLabels.splice(index, 1)
 }
 
 /**
@@ -131,13 +111,11 @@ function unmarkBackgroundInert(targets: HTMLElement[], label: string = '匿名�
  *
  * @param rootRef - 浮层最外层节点（被 `v-if` 控制的那个元素的 ref）
  * @param active - 浮层是否可见（ref / computed 均可）
- * @param label - 来源标签，仅用于诊断
  * @sideEffect 修改浮层之外那棵树的 `inert` 与 `aria-hidden`
  */
 export function useBackgroundInert(
   rootRef: Ref<HTMLElement | null>,
   active: Ref<boolean> | { readonly value: boolean },
-  label: string,
 ): void {
   /** 本层浮层当前隔离的元素；还原时要用同一份引用。 */
   let marked: HTMLElement[] = []
@@ -148,12 +126,12 @@ export function useBackgroundInert(
     // `v-if` 的元素要等渲染落地才拿得到；拿不到就什么都不做（宁可没隔离也别报错）。
     if (!root) return
     marked = backgroundInertTargets(root)
-    markBackgroundInert(marked, label)
+    markBackgroundInert(marked)
   }
 
   function release() {
     if (marked.length === 0) return
-    unmarkBackgroundInert(marked, label)
+    unmarkBackgroundInert(marked)
     marked = []
   }
 

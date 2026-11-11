@@ -126,7 +126,7 @@ useFocusTrap(
 const modalActive = computed(() => props.modelValue)
 // Esc 取消：入全局 Esc 层级栈（只关栈顶那一层）。原先自己挂 window keydown，
 // 与查看器/确认框同时在场上时一次 Esc 会关掉多层。
-useEscLayer(modalActive, '新建文件夹弹窗', () => cancel())
+useEscLayer(modalActive, () => cancel())
 useBodyScrollLock(modalActive, '新建文件夹弹窗')
 
 /** 关闭弹窗（不发请求） */

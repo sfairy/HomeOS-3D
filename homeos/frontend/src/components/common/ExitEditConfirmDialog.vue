@@ -72,7 +72,7 @@ const isActive = computed(() => !!layoutStore.showExitEditConfirm)
 useFocusTrap(panelRef, isActive)
 // Esc = 留在编辑模式（保守选择）：这个弹窗的存在意义就是「别把改动弄丢」，
 // 让 Esc 走「放弃修改」会与用户意图相反。
-useEscLayer(isActive, '退出编辑确认', () => layoutStore.cancelExitEditMode())
-useBackgroundInert(rootRef, isActive, '退出编辑确认')
+useEscLayer(isActive, () => layoutStore.cancelExitEditMode())
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '退出编辑确认')
 </script>

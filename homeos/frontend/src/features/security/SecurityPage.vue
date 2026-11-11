@@ -543,7 +543,7 @@ function closeFullscreen() {
  * 层级修好之后，全局确认框显示在查看器之上、两者可以同时在场上，一次 Esc 会把两层一起关掉。
  * 入栈后 Esc 只派发给栈顶：确认框开着时先关确认框，确认框关掉后才是查看器。
  */
-useEscLayer(fullscreenOpen, '安防全屏查看器', () => closeFullscreen())
+useEscLayer(fullscreenOpen, () => closeFullscreen())
 
 // 焦点陷阱 + 滚动锁（引用计数）：全屏期间 Tab 不会跑到背后的日历/事件列表上，
 // body 也不会被滚动；与同时打开的确认框共享同一把锁，不会提前放行。

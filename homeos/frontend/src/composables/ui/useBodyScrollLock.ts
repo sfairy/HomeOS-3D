@@ -13,30 +13,6 @@ let nextHolderId = 0
 /** 未命名来源的占位标签；匿名持有者不参与重复检测，避免互相误判。 */
 const ANONYMOUS = '匿名浮层'
 
-/** 滚动锁的当前状态快照（诊断用）。 */
-interface BodyScrollLockState {
-  /** 当前持锁数量；>0 但界面上没有任何浮层时即为泄漏。 */
-  count: number
-  /** 当前持锁来源标签，按持锁顺序排列。 */
-  holders: string[]
-  /** 同一来源同时持锁多次的标签 —— 重复注册的直接证据。 */
-  duplicates: string[]
-}
-
-/**
- * 读取滚动锁状态，用于排查「页面滚不动 / 明明没开弹窗却锁着」。
- * @returns 当前持锁数量、来源标签与重复来源
- */
-export function getBodyScrollLockState(): BodyScrollLockState {
-  const labels = [...holders.values()]
-  return {
-    count: lockCount,
-    holders: labels,
-    // 匿名持有者共用占位标签，按标签判重会误报，故排除（与告警门槛保持一致）。
-    duplicates: [...new Set(labels.filter((label, i) => label !== ANONYMOUS && labels.indexOf(label) !== i))],
-  }
-}
-
 /**
  * 手动加锁，返回幂等的解锁函数。
  *

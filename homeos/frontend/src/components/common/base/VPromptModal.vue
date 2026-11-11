@@ -81,7 +81,7 @@ const panelRef = ref(null)
 const trapActive = computed(() => !!chrome.activePrompt)
 useFocusTrap(panelRef, trapActive)
 // 背景隔离：弹窗打开时把其余内容从无障碍树与 Tab 序里摘出去（与 ExitEditConfirmDialog 一致）
-useBackgroundInert(rootRef, trapActive, '全局输入框')
+useBackgroundInert(rootRef, trapActive)
 // 滚动锁激活条件（与 trapActive 同源，语义上拆开便于日后单独调整）
 const promptActive = computed(() => !!chrome.activePrompt)
 const inputRef = ref(null)
@@ -126,7 +126,7 @@ function submit() {
  * 之前是 window 级监听：输入框可以叠在查看器/抽屉之上，各自都响应 window 上的 Esc，
  * 一次按键会把两层一起关掉。
  */
-useEscLayer(promptActive, '全局输入框', () => cancel())
+useEscLayer(promptActive, () => cancel())
 
 // 监听弹窗状态：打开时回填默认值并聚焦选中（滚动锁由 useBodyScrollLock 统一管理）
 watch(

@@ -111,8 +111,8 @@ const isActive = computed(() => !!props.isOpen)
 
 useFocusTrap(panelRef, isActive)
 // Esc 关掉拾取器：它是「选素材」的中途步骤，取消入口只有右上角那个关闭按钮。
-useEscLayer(isActive, '素材拾取器', () => emit('close'))
-useBackgroundInert(rootRef, isActive, '素材拾取器')
+useEscLayer(isActive, () => emit('close'))
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '素材拾取器')
 
 /** 已选项目数量（每次 AssetManager 触发 select 时累加） */

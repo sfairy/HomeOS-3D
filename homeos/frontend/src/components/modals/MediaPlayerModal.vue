@@ -148,9 +148,9 @@ const isActive = computed(() => props.isOpen && !!props.entityId)
 
 useFocusTrap(panelRef, isActive)
 // Esc 走全局层级栈：播放器会叠在抽屉 / 确认框之上，各自监听 window 会让一次 Esc 关掉多层。
-useEscLayer(isActive, '媒体播放器', () => closeAll())
+useEscLayer(isActive, () => closeAll())
 // 背景隔离 + 滚动锁：关掉之后焦点陷阱只剩「浮层内循环 Tab」，背景在无障碍树里仍然可用。
-useBackgroundInert(rootRef, isActive, '媒体播放器')
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '媒体播放器')
 
 const {

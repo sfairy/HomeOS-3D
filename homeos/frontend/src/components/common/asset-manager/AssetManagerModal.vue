@@ -81,8 +81,8 @@ const isActive = computed(() => !!props.isOpen)
 
 useFocusTrap(panelRef, isActive)
 // Esc 关掉素材管理器：它是一个独立的全屏工作区，没有 Esc 就只能点右上角关闭。
-useEscLayer(isActive, '素材管理器', () => emit('close'))
-useBackgroundInert(rootRef, isActive, '素材管理器')
+useEscLayer(isActive, () => emit('close'))
+useBackgroundInert(rootRef, isActive)
 useBodyScrollLock(isActive, '素材管理器')
 </script>
 

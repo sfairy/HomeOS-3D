@@ -102,7 +102,7 @@ useFocusTrap(
   panelRef,
   computed(() => !!props.isOpen),
 )
-useEscLayer(toRef(props, 'isOpen'), '门铃提醒', () => {
+useEscLayer(toRef(props, 'isOpen'), () => {
   void onDismiss()
 })
 
