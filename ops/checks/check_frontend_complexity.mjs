@@ -21,9 +21,11 @@
  *   node ops/checks/check_frontend_complexity.mjs --update   # 重写基线（只能变小才该跑）
  *   node ops/checks/check_frontend_complexity.mjs --json     # 机器可读输出
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, relative, resolve } from 'node:path'
+
+import { walkFiles } from '../lib/walk.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -38,7 +40,6 @@ const asJson = args.includes('--json')
 const BASELINE = join(repoRoot, 'ops/checks/frontend-complexity-baseline.json')
 const ROOTS = ['homeos/frontend/src', 'homeos-store/frontend/src']
 const EXTENSIONS = new Set(['.ts', '.vue'])
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git'])
 
 const DEC = new Set([
   ts.SyntaxKind.IfStatement,
@@ -58,19 +59,7 @@ const LOG = new Set([
 ])
 
 function walk(dir, out = []) {
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return out
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry.name)) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) walk(full, out)
-    else if (EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) out.push(full)
-  }
-  return out
+  return walkFiles(dir, { extensions: EXTENSIONS }, out)
 }
 
 function analyzeText(text, file, scriptKind) {

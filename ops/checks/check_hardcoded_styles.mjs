@@ -28,8 +28,10 @@
  *   node ops/checks/check_hardcoded_styles.mjs --update  # 重写基线（只该在数字变小时跑）
  *   node ops/checks/check_hardcoded_styles.mjs --json    # 机器可读输出
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
+
+import { walkFiles } from '../lib/walk.mjs'
 
 const args = process.argv.slice(2)
 const argOf = (name, fallback) => {
@@ -73,19 +75,7 @@ function stripNonCode(text) {
 }
 
 function walk(dir, out = []) {
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return out
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry.name)) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) walk(full, out)
-    else if (EXTENSIONS.has(entry.name.slice(entry.name.lastIndexOf('.')))) out.push(full)
-  }
-  return out
+  return walkFiles(dir, { extensions: EXTENSIONS, skipDirs: SKIP_DIRS }, out)
 }
 
 /** 统计单个文件的 color / duration / important。 */
