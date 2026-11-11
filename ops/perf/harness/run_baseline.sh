@@ -62,11 +62,14 @@ bench_3d() {
 echo "==> 3D 测量"
 bench_3d || true
 
-# 补充口径各自独立一个浏览器，不污染主测量：DPR 2 清晰度、10s 连续拖拽帧分布、显存估算。
-echo "==> 3D 补充口径（dpr2 / drag10s / gpumem）"
+# 补充口径各自独立一个浏览器，不污染主测量：DPR 2 清晰度、10s 连续拖拽帧分布、显存估算、
+# 稳态静置帧数。静置必须带 settle 窗口：主测量的 idleFramesPerSec 紧跟拖拽，量到的是惯性尾帧，
+# 拿它判「静置零渲染」会把松手 2 秒的滑行当成常驻渲染。
+echo "==> 3D 补充口径（dpr2 / drag10s / gpumem / idlesettled）"
 bench_3d --tag dpr2 --dpr 2 || true
 bench_3d --tag drag10s --soak-ms 10000 --idle-ms 3000 || true
 bench_3d --tag gpumem --gpu-memory || true
+bench_3d --tag idlesettled --idle-settle-ms 10000 --idle-ms 5000 || true
 
 # HOMEOS_PERF_SOAK_MINUTES=60：长时浸泡（默认不跑，单独一轮要一小时）。
 if [ -n "${HOMEOS_PERF_SOAK_MINUTES:-}" ]; then
