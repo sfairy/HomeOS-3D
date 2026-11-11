@@ -211,6 +211,22 @@ _RUNTIME_CHUNK_PREFIX = INTERACTION_MODULE_PREFIX + "chunks/"
 _VERSIONED_VENDOR_PATH = re.compile(r"^/static/vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
 
 
+#: 模型 GLB 目录：URL 上的 ``?v=`` 是**批次缓存键**（``MODEL_ASSET_CACHE_KEYS``），
+#: 约定是「字节变了就换键」。带键的 URL 因此等价于内容寻址。
+_VERSIONED_MODEL_PATH = re.compile(r"^/static/(?:3d-studio|homeos)/models/")
+
+
+def _is_model_batch_pinned(request: Request) -> bool:
+    """``/static/3d-studio/models/**?v=<批次键>``：前端改写模型后必定换键。
+
+    键是人工维护的（见 ``MODEL_ASSET_CACHE_KEYS`` 的注释与踩坑记录），不是文件内容哈希，
+    所以这里只认「带非空 v」这一条；没带键的模型仍逐条回源校验。
+    """
+    return bool(
+        request.query_params.get("v") and _VERSIONED_MODEL_PATH.match(request.url.path)
+    )
+
+
 #: ``resource-version.json`` 的 revision 按这些扩展名的**内容**哈希（见 ``vite.config.ts``
 #: ``computeResourceRevision``）；其它二进制只取尺寸，不能据 ``?v=`` 判定为内容寻址。
 _REVISION_HASHED_STATIC = re.compile(r"^/static/.+\.(?:js|css|json|html)$")
@@ -234,8 +250,8 @@ def _is_immutable_asset(path: str) -> bool:
 
     只覆盖真正带哈希 / 版本号的产物：``/static/assets/*-<hash8>.*``、
     交互运行时 ``chunks/**``、版本化 vendor 目录。稳定 URL（``core/stage.js``、
-    ``/static/3d-studio/models/*.glb``、图标等）仍然回源校验 —— 它们下一秒就可能被
-    重建覆盖，长缓存会拿到过期内容。
+    图标等）仍然回源校验 —— 它们下一秒就可能被重建覆盖，长缓存会拿到过期内容。
+    模型 GLB 单独走 ``_is_model_batch_pinned``（看 URL 上有没有 ``?v=<批次键>``）。
     """
     if path.startswith(_RUNTIME_CHUNK_PREFIX):
         return True
@@ -316,8 +332,8 @@ def _apply_cache_headers(
     #   vendor）：URL 变了内容才变，发一年期 ``immutable``。3D 交互图一次启动要拉
     #   100+ 个运行时 chunk，逐条 304 回源在局域网 / Wi-Fi 上会累积成秒级等待；
     #   外壳页面本身是 ``no-store``，所以不存在「旧外壳引用新 chunk」的窗口。
-    # - 稳定 URL（``core/stage.js``、模型 / 贴图、图标）：保持 ``private, no-cache``
-    #   + ETag 校验，重建后不会从缓存里拿到过期内容。
+    # - 稳定 URL（``core/stage.js``、无 ``?v=`` 的模型 / 贴图、图标）：保持
+    #   ``private, no-cache`` + ETag 校验，重建后不会从缓存里拿到过期内容。
     if response.status_code in {200, 304} and (
         path.startswith(("/static/", "/modules/")) or interaction_module
     ):
@@ -326,7 +342,9 @@ def _apply_cache_headers(
             return
         response.headers["Cache-Control"] = (
             IMMUTABLE_PRIVATE_CACHE
-            if _is_immutable_asset(path) or _is_revision_pinned(request, resource_revision)
+            if _is_immutable_asset(path)
+            or _is_revision_pinned(request, resource_revision)
+            or _is_model_batch_pinned(request)
             else "private, no-cache"
         )
         return
