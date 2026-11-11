@@ -239,7 +239,6 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
 }
 .i3d-extra-state .i3d-extra-description {
   font-size: 11px;

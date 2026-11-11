@@ -23,11 +23,9 @@
 .weather-ic-violet {
   color: var(--premium-accent-violet, #c084fc);
 }
-.weather-ic-success {
-  color: var(--set-success, #6ee7b7);
-}
 
 /* ── 数值颜色（语义映射） ── */
+.weather-ic-success,
 .weather-c-success {
   color: var(--set-success, #6ee7b7);
 }

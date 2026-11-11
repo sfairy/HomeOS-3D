@@ -175,9 +175,7 @@
   background: rgba(251, 191, 36, 0.12);
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.25);
 }
-.hm-preset-card__unresolved-full {
-  display: none;
-}
+.hm-preset-card__unresolved-full,
 .hm-preset-card--open .hm-preset-card__unresolved-num {
   display: none;
 }
@@ -332,12 +330,10 @@
   .hm-preset-card--open {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
   }
-  .hm-preset-card--open:hover {
-    transform: none;
-  }
   .hm-preset-card__install {
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   }
+  .hm-preset-card--open:hover,
   .hm-preset-card__install:hover:not(:disabled) {
     transform: none;
   }
@@ -352,12 +348,10 @@
   .hm-preset-card--open {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
   }
-  .hm-preset-card--open:hover {
-    transform: none;
-  }
   .hm-preset-card__install {
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   }
+  .hm-preset-card--open:hover,
   .hm-preset-card__install:hover:not(:disabled) {
     transform: none;
   }

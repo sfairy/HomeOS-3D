@@ -536,10 +536,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   letter-spacing: 0.08em;
 }
 
-.hm-plan.is-featured .hm-plan__hint {
-  color: var(--hb-accent);
-}
-
 .hm-plan h3 {
   color: var(--hb-ink);
   min-height: 2.6em;
@@ -778,11 +774,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 .hm-cap__tab.is-active em {
   color: var(--hb-tone, var(--hb-accent));
-}
-
-.hm-cap__tab:focus-visible {
-  outline: 2px solid var(--hb-accent);
-  outline-offset: 2px;
 }
 
 .hm-cap__panel {
@@ -1392,8 +1383,8 @@ a.hm-wall__tile:hover {
 }
 
 .hm-faq__item[open] summary::after { content: "–"; }
-.hm-faq__item[open] summary { color: var(--hb-ink); }
 
+.hm-cap__tab:focus-visible,
 .hm-faq__item summary:focus-visible {
   outline: 2px solid var(--hb-accent);
   outline-offset: 2px;

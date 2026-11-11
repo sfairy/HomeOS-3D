@@ -158,6 +158,7 @@ import { createWeatherGroundEmitter, type WeatherGroundBounds } from './stage/we
 import { onPermanentPageHide } from './page-disposal'
 import { installNativeSelectionGuard } from './native-selection'
 import { runStageDisposeSteps } from './stage/dispose-pagehide'
+import { settleControlRequest, trackControlRequest } from './stage/control-requests'
 import { createFocusExitListeners } from './stage/focus-exit-listeners'
 
 /**
@@ -586,16 +587,14 @@ export function mountStage(mountOptions: any) {
             climateReject(new Error('当前设备不可控制。'))
             return
           }
-          const climateRequestId = 'climate-' + ++ctx.num,
-            climateRequestTimeoutId = setTimeout(
-              () => settleClimateRequest(climateRequestId, '请求超时，请检查设备状态。'),
-              interaction3dControlTimeout(climateControl) + 2000,
-            )
-          pendingControlRequestsByRequestId.set(climateRequestId, {
-            resolve: climateResolve,
-            reject: climateReject,
-            timeout: climateRequestTimeoutId,
-          }),
+          const climateRequestId = 'climate-' + ++ctx.num
+          trackControlRequest(
+            pendingControlRequestsByRequestId,
+            climateRequestId,
+            { resolve: climateResolve, reject: climateReject },
+            interaction3dControlTimeout(climateControl) + 2000,
+            () => settleClimateRequest(climateRequestId, '请求超时，请检查设备状态。'),
+          ),
             postHostMessage({
               type: 'control',
               requestId: climateRequestId,
@@ -615,13 +614,7 @@ export function mountStage(mountOptions: any) {
         }),
     })
   function settleClimateRequest(climateSettledRequestId: any, climateSettleErrorMessage: any) {
-    const pendingClimateRequest = pendingControlRequestsByRequestId.get(climateSettledRequestId)
-    pendingClimateRequest &&
-      (clearTimeout(pendingClimateRequest.timeout),
-      pendingControlRequestsByRequestId.delete(climateSettledRequestId),
-      climateSettleErrorMessage
-        ? pendingClimateRequest.reject(new Error(climateSettleErrorMessage))
-        : pendingClimateRequest.resolve())
+    settleControlRequest(pendingControlRequestsByRequestId, climateSettledRequestId, climateSettleErrorMessage)
   }
   const tiltPreviewByCoverKey = new Map(),
     computeCoverKey = (coverKeyBinding: any) =>
@@ -752,16 +745,14 @@ export function mountStage(mountOptions: any) {
             return
           }
           if (coverActionBinding.airer) {
-            const airerRequestId = 'airer-' + ++ctx.num,
-              airerRequestTimeoutId = setTimeout(
-                () => settleMediaRequest(airerRequestId, '请求超时，请检查设备状态。'),
-                interaction3dControlTimeout(coverControlRequest) + 2000,
-              )
-            mediaControlRequestsByRequestId.set(airerRequestId, {
-              resolve: coverResolve,
-              reject: coverReject,
-              timeout: airerRequestTimeoutId,
-            }),
+            const airerRequestId = 'airer-' + ++ctx.num
+            trackControlRequest(
+              mediaControlRequestsByRequestId,
+              airerRequestId,
+              { resolve: coverResolve, reject: coverReject },
+              interaction3dControlTimeout(coverControlRequest) + 2000,
+              () => settleMediaRequest(airerRequestId, '请求超时，请检查设备状态。'),
+            ),
               postHostMessage({
                 type: 'control',
                 requestId: airerRequestId,
@@ -890,16 +881,14 @@ export function mountStage(mountOptions: any) {
             coverExtraReject(new Error('当前晾衣架不可控制。'))
             return
           }
-          const airerExtraRequestId = 'airer-extra-' + ++ctx.num,
-            airerExtraRequestTimeoutId = setTimeout(
-              () => settleMediaRequest(airerExtraRequestId, '请求超时，请检查设备状态。'),
-              interaction3dControlTimeout(coverExtraControl) + 2000,
-            )
-          mediaControlRequestsByRequestId.set(airerExtraRequestId, {
-            resolve: coverExtraResolve,
-            reject: coverExtraReject,
-            timeout: airerExtraRequestTimeoutId,
-          }),
+          const airerExtraRequestId = 'airer-extra-' + ++ctx.num
+          trackControlRequest(
+            mediaControlRequestsByRequestId,
+            airerExtraRequestId,
+            { resolve: coverExtraResolve, reject: coverExtraReject },
+            interaction3dControlTimeout(coverExtraControl) + 2000,
+            () => settleMediaRequest(airerExtraRequestId, '请求超时，请检查设备状态。'),
+          ),
             postHostMessage({
               type: 'control',
               requestId: airerExtraRequestId,
@@ -949,17 +938,14 @@ export function mountStage(mountOptions: any) {
           mediaReject(new Error('当前媒体设备不可控制。'))
           return
         }
-        const mediaRequestId = 'television-' + ++ctx.num,
-          mediaRequestTimeoutId = setTimeout(
-            () => settleMediaRequest(mediaRequestId, '请求超时，请检查设备状态。'),
-            interaction3dControlTimeout(mediaCommand) + 2000,
-          )
-        mediaControlRequestsByRequestId.set(mediaRequestId, {
-          resolve: mediaResolve,
-          reject: mediaReject,
-          timeout: mediaRequestTimeoutId,
-          entityId: mediaCommand.entityId,
-        }),
+        const mediaRequestId = 'television-' + ++ctx.num
+        trackControlRequest(
+          mediaControlRequestsByRequestId,
+          mediaRequestId,
+          { resolve: mediaResolve, reject: mediaReject, entityId: mediaCommand.entityId },
+          interaction3dControlTimeout(mediaCommand) + 2000,
+          () => settleMediaRequest(mediaRequestId, '请求超时，请检查设备状态。'),
+        ),
           postHostMessage({
             type: 'control',
             requestId: mediaRequestId,
@@ -1019,16 +1005,14 @@ export function mountStage(mountOptions: any) {
             genericDeviceReject(new Error('当前设备不可控制。'))
             return
           }
-          const deviceRequestId = 'device-' + ++ctx.num,
-            deviceRequestTimeoutId = setTimeout(
-              () => settleMediaRequest(deviceRequestId, '请求超时，请检查设备状态。'),
-              interaction3dControlTimeout(genericDeviceControl) + 2000,
-            )
-          mediaControlRequestsByRequestId.set(deviceRequestId, {
-            resolve: genericDeviceResolve,
-            reject: genericDeviceReject,
-            timeout: deviceRequestTimeoutId,
-          }),
+          const deviceRequestId = 'device-' + ++ctx.num
+          trackControlRequest(
+            mediaControlRequestsByRequestId,
+            deviceRequestId,
+            { resolve: genericDeviceResolve, reject: genericDeviceReject },
+            interaction3dControlTimeout(genericDeviceControl) + 2000,
+            () => settleMediaRequest(deviceRequestId, '请求超时，请检查设备状态。'),
+          ),
             postHostMessage({
               type: 'control',
               requestId: deviceRequestId,
@@ -1037,13 +1021,7 @@ export function mountStage(mountOptions: any) {
         }),
     })
   function settleMediaRequest(mediaSettledRequestId: any, mediaSettleErrorMessage: any) {
-    const mediaRequestEntry = mediaControlRequestsByRequestId.get(mediaSettledRequestId)
-    mediaRequestEntry &&
-      (clearTimeout(mediaRequestEntry.timeout),
-      mediaControlRequestsByRequestId.delete(mediaSettledRequestId),
-      mediaSettleErrorMessage
-        ? mediaRequestEntry.reject(new Error(mediaSettleErrorMessage))
-        : mediaRequestEntry.resolve())
+    settleControlRequest(mediaControlRequestsByRequestId, mediaSettledRequestId, mediaSettleErrorMessage)
   }
   const lockPanel = createLockPanel2({
     onControl: (lockControl: any) =>
@@ -1061,16 +1039,14 @@ export function mountStage(mountOptions: any) {
           lockReject(new Error('当前门锁不可控制。'))
           return
         }
-        const lockRequestId = 'lock-' + ++ctx.num,
-          lockRequestTimeoutId = setTimeout(
-            () => settleMediaRequest(lockRequestId, '请求超时，请检查门锁状态。'),
-            interaction3dControlTimeout(lockControl) + 2000,
-          )
-        mediaControlRequestsByRequestId.set(lockRequestId, {
-          resolve: lockResolve,
-          reject: lockReject,
-          timeout: lockRequestTimeoutId,
-        }),
+        const lockRequestId = 'lock-' + ++ctx.num
+        trackControlRequest(
+          mediaControlRequestsByRequestId,
+          lockRequestId,
+          { resolve: lockResolve, reject: lockReject },
+          interaction3dControlTimeout(lockControl) + 2000,
+          () => settleMediaRequest(lockRequestId, '请求超时，请检查门锁状态。'),
+        ),
           postHostMessage({
             type: 'control',
             requestId: lockRequestId,

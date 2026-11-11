@@ -1,9 +1,9 @@
 {
   "totals": {
-    "functions": 27157,
-    "gt10": 1309,
+    "functions": 27137,
+    "gt10": 1308,
     "gt15": 717,
-    "gt80": 804
+    "gt80": 803
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/RowMenu.vue": {
@@ -2484,6 +2484,13 @@
       "gt80": 1,
       "max": 10
     },
+    "homeos/frontend/src/studio/app/3d-studio/cache/idle-snapshot-cache.ts": {
+      "functions": 34,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 9
+    },
     "homeos/frontend/src/studio/app/3d-studio/cache/model-persistent-cache.ts": {
       "functions": 34,
       "gt10": 1,
@@ -2674,10 +2681,10 @@
       "max": 30
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/contact-shadow-persistent-cache.ts": {
-      "functions": 36,
+      "functions": 9,
       "gt10": 2,
       "gt15": 1,
-      "gt80": 1,
+      "gt80": 0,
       "max": 21
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/courtyard-drawing-editor.ts": {
@@ -2800,10 +2807,10 @@
       "max": 12
     },
     "homeos/frontend/src/studio/app/3d-studio/reflection/reflection-persistent-cache.ts": {
-      "functions": 37,
-      "gt10": 2,
+      "functions": 6,
+      "gt10": 1,
       "gt15": 0,
-      "gt80": 1,
+      "gt80": 0,
       "max": 13
     },
     "homeos/frontend/src/studio/app/3d-studio/reflection/studio-ground-reflections.ts": {

@@ -137,10 +137,6 @@
   gap: 12px;
   margin-top: 22px;
 }
-#display-splash-actions[hidden],
-#display-splash-actions button[hidden] {
-  display: none;
-}
 #display-splash-actions button {
   min-height: 44px;
   padding: 10px 20px;
@@ -177,6 +173,8 @@
   opacity: 1;
   animation: none;
 }
+#display-splash-actions[hidden],
+#display-splash-actions button[hidden],
 .capture-preview #display-splash {
   display: none;
 }

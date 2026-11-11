@@ -159,7 +159,7 @@
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--hos-glass-border);
   border-radius: 18.5px 18.5px 0 0;
   background: rgba(0, 0, 0, 0.2);
 }
@@ -260,15 +260,6 @@
 }
 
 .acp-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
   transition:
     background-color var(--hos-dur-fast) var(--hos-ease-standard),
     color var(--hos-dur-fast) var(--hos-ease-standard);
@@ -349,7 +340,7 @@
 /* 历史面板底部的「新对话」：与列表项同形，用分隔线区分「动作」和「记录」 */
 .acp-history__row--new {
   margin-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--hos-glass-border);
   border-radius: 0 0 8px 8px;
   color: var(--hos-color-accent);
 }
@@ -507,7 +498,7 @@
   max-width: 100%;
   overflow: hidden;
   padding: 2px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--hos-glass-border);
   border-radius: var(--hos-radius-pill);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.62);
@@ -603,7 +594,7 @@
   max-width: 100%;
   overflow: hidden;
   padding: 4px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--hos-glass-border);
   border-radius: var(--hos-radius-pill);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.7);
@@ -635,7 +626,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--hos-glass-border);
   border-radius: 0 0 18.5px 18.5px;
   background: rgba(0, 0, 0, 0.25);
 }

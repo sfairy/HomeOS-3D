@@ -6,6 +6,12 @@
 
 import type { EChartsCoreOption } from 'echarts'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
+import {
+  axisLineStyle,
+  chartLinearGradient,
+  createChartTooltip,
+  splitLineStyle,
+} from '@/shared/utils/chart/chart-primitives'
 
 type AnalyticsSourceBucket = {
   key: string
@@ -32,34 +38,23 @@ type AnalyticsReadSummary = {
   unread: number
 }
 
-const chartTooltip = {
-  backgroundColor: 'rgba(12, 12, 18, 0.94)',
+const chartTooltip = createChartTooltip('rgba(12, 12, 18, 0.94)', {
   borderColor: 'rgba(244, 114, 182, 0.32)',
   borderWidth: 1,
-  padding: [8, 12] as [number, number],
+  padding: [8, 12],
   extraCssText: 'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
   textStyle: { color: '#fbcfe8', fontSize: 12, fontWeight: 600 },
-}
-
-const axisLineStyle = { lineStyle: { color: 'rgba(255,255,255,0.07)' } }
-const splitLineStyle = { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' as const } }
+})
 
 function chartBase() {
   return { ...getKioskAnimationOptions(), backgroundColor: 'transparent' }
 }
 
 function barGradient(color: string) {
-  return {
-    type: 'linear' as const,
-    x: 0,
-    y: 0,
-    x2: 0,
-    y2: 1,
-    colorStops: [
-      { offset: 0, color },
-      { offset: 1, color: `${color}66` },
-    ],
-  }
+  return chartLinearGradient([
+    [0, color],
+    [1, `${color}66`],
+  ])
 }
 
 function yMax(values: number[]) {
@@ -102,17 +97,10 @@ export function buildNotificationsTimeOption(buckets: AnalyticsTimeBucket[]): EC
         lineStyle: { width: 2.5, color: '#f472b6' },
         itemStyle: { color: '#f472b6', borderColor: '#fb7185', borderWidth: 1 },
         areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(244, 114, 182, 0.35)' },
-              { offset: 1, color: 'rgba(244, 114, 182, 0.02)' },
-            ],
-          },
+          color: chartLinearGradient([
+            [0, 'rgba(244, 114, 182, 0.35)'],
+            [1, 'rgba(244, 114, 182, 0.02)'],
+          ]),
         },
       },
     ],

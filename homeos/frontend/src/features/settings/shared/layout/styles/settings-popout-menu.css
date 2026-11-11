@@ -56,10 +56,7 @@
 }
 
 .settings-popout-drop-enter-active,
-.settings-popout-drop-leave-active {
-  transition: all 0.12s ease-out;
-}
-
+.settings-popout-drop-leave-active,
 .settings-popout-drop-up-enter-active,
 .settings-popout-drop-up-leave-active {
   transition: all 0.12s ease-out;

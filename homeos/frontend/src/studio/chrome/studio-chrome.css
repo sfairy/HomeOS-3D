@@ -204,19 +204,14 @@ html.editor-viewport-fit body {
 /* 可折叠三栏 */
 
 /* 编辑器侧栏折叠：宽度归零（勿用 rail 窄轨，否则旧 navigator 正文会挤爆） */
-.sc-shell--left-collapsed {
-  --sc-left: 0px;
-}
 
-.sc-shell--right-collapsed {
-  --sc-right: 0px;
-}
-
+.sc-shell--right-collapsed,
 .sc-shell--plan-focus {
   --sc-right: 0px;
 }
 
 /* 户型库面板折叠：宽度归零（与编辑器侧栏同理，勿用 52px 窄轨挤内容） */
+.sc-shell--left-collapsed,
 .sc-shell--library-rail {
   --sc-left: 0px;
 }
@@ -582,10 +577,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   padding: 8px 10px;
 }
 
-.studio-chrome-root .preview-heading-copy .eyebrow {
-  display: none;
-}
-
+.studio-chrome-root .preview-heading-copy .eyebrow,
 .studio-chrome-root .preview-heading-tip {
   display: none;
 }
@@ -687,10 +679,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   }
 
   .studio-chrome-root:not(.sc-embed-stage):not(.sc-shell--library-rail) .studio-shell > .library-panel,
-  .studio-chrome-root:not(.sc-embed-stage) .studio-shell > .library-panel:not(.is-collapsed) {
-    transform: translateX(0);
-  }
-
+  .studio-chrome-root:not(.sc-embed-stage) .studio-shell > .library-panel:not(.is-collapsed),
   .studio-chrome-root:not(.sc-embed-stage):not(.sc-shell--plan-focus) .studio-shell > .details-panel,
   .studio-chrome-root:not(.sc-embed-stage) .studio-shell > .details-panel:not(.is-collapsed) {
     transform: translateX(0);

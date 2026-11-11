@@ -470,10 +470,7 @@ html.hos-shell body {
   -webkit-font-smoothing: antialiased;
 }
 
-html.hos-shell body {
-  overflow: hidden;
-}
-
+html.hos-shell body,
 html.hos-shell body.modal-open {
   overflow: hidden;
 }

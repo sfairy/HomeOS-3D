@@ -269,10 +269,7 @@
 /* ── 侧栏 / 面板条式页头 ── */
 
 @container hos-canvas (max-width: 720px) {
-  .premium-head__title {
-    font-size: var(--premium-fs-title);
-  }
-
+  .premium-head__title,
   .premium-head--compact .premium-head__title {
     font-size: var(--premium-fs-title);
   }

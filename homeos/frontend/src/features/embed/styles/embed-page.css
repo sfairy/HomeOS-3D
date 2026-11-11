@@ -235,11 +235,6 @@
   transform: translateY(0) scale(0.98);
 }
 
-.embed-btn:focus-visible {
-  outline: 2px solid var(--hos-color-accent);
-  outline-offset: 2px;
-}
-
 /* 主按钮：跟随页面主色 */
 .embed-btn--primary {
   color: var(--hos-color-accent);
@@ -253,6 +248,7 @@
   border-color: var(--hos-color-accent);
 }
 
+.embed-btn:focus-visible,
 .embed-btn--primary:focus-visible {
   outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;

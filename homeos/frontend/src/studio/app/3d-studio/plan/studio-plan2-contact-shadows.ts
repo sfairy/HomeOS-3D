@@ -1,3 +1,4 @@
+import { captureRendererTargetState, restoreRendererTargetState } from '../render-kit/renderer-state'
 import {
   captureContactShadowSnapshot,
   createContactShadowPersistentCache,
@@ -628,24 +629,16 @@ export function createContactShadowController({
   }
   function snapshotRenderState() {
     return {
-      target: renderer.getRenderTarget(),
-      face: renderer.getActiveCubeFace(),
-      mip: renderer.getActiveMipmapLevel(),
+      targetState: captureRendererTargetState(renderer, THREE.Vector4),
       clear: renderer.getClearColor(new THREE.Color()),
       alpha: renderer.getClearAlpha(),
       autoClear: renderer.autoClear,
       shadows: renderer.shadowMap.enabled,
       xr: renderer.xr.enabled,
-      viewport: renderer.getViewport(new THREE.Vector4()),
-      scissor: renderer.getScissor(new THREE.Vector4()),
-      scissorTest: renderer.getScissorTest(),
     }
   }
   function restoreRenderState(renderState: any) {
-    renderer.setViewport(renderState.viewport),
-      renderer.setScissor(renderState.scissor),
-      renderer.setScissorTest(renderState.scissorTest),
-      renderer.setRenderTarget(renderState.target, renderState.face, renderState.mip),
+    restoreRendererTargetState(renderer, renderState.targetState),
       renderer.setClearColor(renderState.clear, renderState.alpha),
       (renderer.autoClear = renderState.autoClear),
       (renderer.shadowMap.enabled = renderState.shadows),

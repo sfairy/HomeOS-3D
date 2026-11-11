@@ -120,10 +120,6 @@ dialog.dashboard-font-dialog {
   margin: 0;
 }
 
-.dashboard-font-body section {
-  min-width: 0;
-}
-
 .dashboard-font-upload {
   display: flex;
   align-items: center;
@@ -131,6 +127,7 @@ dialog.dashboard-font-dialog {
   gap: 16px;
 }
 
+.dashboard-font-body section,
 .dashboard-font-upload > div {
   min-width: 0;
 }

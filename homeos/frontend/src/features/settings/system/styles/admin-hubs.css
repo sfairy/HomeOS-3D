@@ -129,10 +129,7 @@
 /* ── family-hub.css ── */
 /* 家庭状态页 · Hero 概览 + 双栏工作区 */
 
-.family-hub__body {
-  gap: 16px;
-}
-
+.family-hub__body,
 .fam-page {
   gap: 16px;
 }
@@ -549,7 +546,7 @@
 .acc-prefs-status__badge--off {
   color: var(--set-text-faint);
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--hos-glass-border);
 }
 
 /* ── 偏好表单 ── */

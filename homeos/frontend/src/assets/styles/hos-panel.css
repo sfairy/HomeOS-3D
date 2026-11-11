@@ -134,10 +134,8 @@
 }
 
 /* padding 仅由 SettingsCard 的 hos-panel 变体或下方显式规则提供一层 */
-.settings-card--static:not(.settings-card--popout):not(.params-panel-card) {
-  padding: var(--hos-panel-padding-default);
-}
 
+.settings-card--static:not(.settings-card--popout):not(.params-panel-card),
 .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--nested) {
   padding: var(--hos-panel-padding-default);
 }

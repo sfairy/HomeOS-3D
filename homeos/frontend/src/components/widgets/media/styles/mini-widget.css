@@ -346,10 +346,7 @@
 }
 
 @media (pointer: coarse), (hover: none) {
-  .mm-btn {
-    min-width: 44px;
-    min-height: 44px;
-  }
+  .mm-btn,
   .mm-btn-play {
     min-width: 44px;
     min-height: 44px;

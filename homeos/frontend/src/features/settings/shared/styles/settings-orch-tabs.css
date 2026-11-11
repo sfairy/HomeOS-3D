@@ -539,7 +539,7 @@
   align-items: center;
   justify-content: center;
   color: var(--set-text-tertiary);
-  background: color-mix(in srgb, var(--set-glass-bg, rgba(255, 255, 255, 0.045)) 100%, #0c0e14);
+  background: color-mix(in srgb, var(--set-glass-bg, var(--hos-bg-tint-1)) 100%, #0c0e14);
   border: var(--hos-hairline) solid var(--set-border-subtle);
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-backface-visibility: hidden;

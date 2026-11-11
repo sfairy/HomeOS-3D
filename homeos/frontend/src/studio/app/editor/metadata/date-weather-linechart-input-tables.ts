@@ -1,3 +1,5 @@
+import type { queryEditorElements } from '../home/elements/editor-elements'
+
 /**
  * 时间 / 天气 / 折线检查器的「表单输入 → 属性」元数据表 —— 从 home.ts 单体切出。
  *
@@ -6,53 +8,7 @@
  * 多声明语句已整条随切片搬出（`--whole-statement`），调用点零改写。
  */
 
-interface DateTimeWeatherLineChartElementRefs {
-  dateLeftElement: any
-  dateLineGapElement: any
-  dateLunarColorElement: any
-  dateLunarSizeElement: any
-  dateLunarSpacingElement: any
-  dateLunarWeightElement: any
-  dateOpacityElement: any
-  datePrimaryColorElement: any
-  datePrimarySizeElement: any
-  datePrimarySpacingElement: any
-  datePrimaryWeightElement: any
-  dateRotationElement: any
-  dateScaleElement: any
-  dateTopElement: any
-  lineChartCurveRadiusInputElement: any
-  lineChartHeightInputElement: any
-  lineChartHoursInputElement: any
-  lineChartLeftInputElement: any
-  lineChartRotationInputElement: any
-  lineChartScaleInputElement: any
-  lineChartStatePrecisionSelectElement: any
-  lineChartThresholdModeSelectElement: any
-  lineChartTopInputElement: any
-  lineChartUpdateIntervalInputElement: any
-  lineChartValueColorInputElement: any
-  lineChartValueOffsetXInputElement: any
-  lineChartValueOffsetYInputElement: any
-  lineChartValueScaleInputElement: any
-  lineChartWidthInputElement: any
-  weatherIconGapElement: any
-  weatherIconSizeElement: any
-  weatherLeftElement: any
-  weatherLineGapElement: any
-  weatherOpacityElement: any
-  weatherRotationElement: any
-  weatherScaleElement: any
-  weatherSecondaryColorElement: any
-  weatherSecondarySizeElement: any
-  weatherSecondarySpacingElement: any
-  weatherSecondaryWeightElement: any
-  weatherTemperatureColorElement: any
-  weatherTemperatureSizeElement: any
-  weatherTemperatureSpacingElement: any
-  weatherTemperatureWeightElement: any
-  weatherTopElement: any
-}
+type DateTimeWeatherLineChartElementRefs = ReturnType<typeof queryEditorElements>
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。

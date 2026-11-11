@@ -697,9 +697,7 @@
     max-width: none;
     width: 100%;
   }
-  .list-page__row-sub {
-    display: none;
-  }
+  .list-page__row-sub,
   .list-page__row-area {
     display: none;
   }

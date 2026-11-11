@@ -726,11 +726,7 @@
 }
 
 .sm-action-row__select--domain,
-.sm-action-row__select--service {
-  min-width: 0;
-  width: 100%;
-}
-
+.sm-action-row__select--service,
 .sm-action-row__entity {
   min-width: 0;
   width: 100%;

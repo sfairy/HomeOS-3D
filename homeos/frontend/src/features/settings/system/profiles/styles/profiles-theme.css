@@ -366,9 +366,7 @@
 .ps-desc {
   color: var(--set-text-label);
 }
-.ps-label {
-  color: var(--set-text-secondary);
-}
+.ps-label,
 .ps-meta {
   color: var(--set-text-secondary);
 }

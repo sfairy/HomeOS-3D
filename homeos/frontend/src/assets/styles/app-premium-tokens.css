@@ -218,10 +218,6 @@
   }
 }
 /** 毛玻璃 backdrop 双行合一（避免各 CSS 重复写 -webkit- 前缀） */
-.premium-backdrop {
-  backdrop-filter: var(--premium-blur);
-  -webkit-backdrop-filter: var(--premium-blur);
-}
 
 /** 玻璃面板基础面（border + 默认背景 + 阴影；圆角/padding 由场景 modifier 覆盖） */
 .premium-glass-surface {
@@ -255,6 +251,7 @@
   box-shadow: var(--premium-shadow), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
 }
 
+.premium-backdrop,
 .premium-glass-surface--elevated,
 .premium-glass-surface--panel,
 .list-page__panel,

@@ -187,9 +187,7 @@
 .hazard-bind__field-box--cyan {
   border-color: rgba(var(--hos-color-info-rgb), 0.18);
 }
-.hazard-bind__field-box--sky {
-  border-color: var(--hos-color-accent-line);
-}
+.hazard-bind__field-box--sky,
 .hazard-bind__field-box--violet {
   border-color: var(--hos-color-accent-line);
 }
@@ -233,10 +231,7 @@
   color: var(--hos-color-info-text);
   background: var(--hos-color-info-soft);
 }
-.hazard-bind__field-icon--sky {
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft-strong);
-}
+.hazard-bind__field-icon--sky,
 .hazard-bind__field-icon--violet {
   color: var(--hos-color-accent);
   background: var(--hos-color-accent-soft-strong);
@@ -422,11 +417,6 @@
   border-color: rgba(var(--hos-color-info-rgb), 0.4);
 }
 
-.hazard-bind__drill-tile:focus-visible {
-  outline: 2px solid var(--hos-color-accent);
-  outline-offset: 2px;
-}
-
 .hazard-bind__drill-tile:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -539,6 +529,7 @@
   border-color: var(--hos-color-accent-line);
 }
 
+.hazard-bind__drill-tile:focus-visible,
 .hazard-bind__action-btn:focus-visible {
   outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;

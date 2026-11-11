@@ -71,13 +71,6 @@
   min-width: 0;
 }
 
-.sw-step-enter-active,
-.sw-step-leave-active {
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
-}
-
 .sw-step-enter-from {
   opacity: 0;
   transform: translateY(8px);
@@ -88,6 +81,8 @@
   transform: translateY(-6px);
 }
 
+.sw-step-enter-active,
+.sw-step-leave-active,
 .sw-toast-enter-active,
 .sw-toast-leave-active {
   transition:

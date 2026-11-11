@@ -754,9 +754,6 @@
   align-items: center;
   margin-bottom: 10px;
 }
-.i3d-page-dim-row > * {
-  min-width: 0;
-}
 /*
  * 范围行整宽：这一行只承载「范围」下拉，第二个格子是「页面」下拉、仅当选了「单页面」
  * 才出现。原先按两列平分时，默认的「全部页面」只占左半列、右半列留空，看起来像
@@ -768,6 +765,7 @@
   gap: 10px;
   margin-bottom: 12px;
 }
+.i3d-page-dim-row > *,
 #interaction3d-inspector .i3d-behavior-scope-row > * {
   min-width: 0;
 }
@@ -792,11 +790,9 @@
   padding: 12px 10px;
   border-top: 1px solid var(--line, #303840);
 }
-#interaction3d-inspector .i3d-inspector-group > .inspector-section:after {
-  display: none;
-}
 /* 段内嵌套的子段同样不画段尾分隔线（否则 `闲置退出聚焦` 这类子段会在段尾多一条线，
    与上面去掉的子段上边框凑成「一行一条线」的观感）。 */
+#interaction3d-inspector .i3d-inspector-group > .inspector-section:after,
 #interaction3d-inspector .inspector-section .inspector-section:after {
   display: none;
 }

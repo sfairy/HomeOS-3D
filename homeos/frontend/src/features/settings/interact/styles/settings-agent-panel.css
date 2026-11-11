@@ -545,11 +545,6 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-.agent-secret-secure__edit:focus-visible {
-  outline: 2px solid var(--premium-border-open);
-  outline-offset: 2px;
-}
-
 .agent-secret-field .settings-field {
   padding-right: 40px;
 }
@@ -581,6 +576,7 @@
   transform: translateY(-50%) scale(0.92);
 }
 
+.agent-secret-secure__edit:focus-visible,
 .agent-secret-field__toggle:focus-visible {
   outline: 2px solid var(--premium-border-open);
   outline-offset: 2px;
@@ -1144,11 +1140,7 @@
     flex-direction: column;
   }
 
-  .agent-chat-composer__mic {
-    width: 100%;
-    min-height: 42px;
-  }
-
+  .agent-chat-composer__mic,
   .agent-chat-composer__send {
     width: 100%;
     min-height: 42px;
@@ -1224,86 +1216,20 @@
 }
 
 /* 悬浮伴侣：水平 / 垂直位置滑块 */
-.agent-range {
-  width: 100%;
-  accent-color: var(--hos-color-accent, #38bdf8);
-}
 
 /* 悬浮伴侣：拖动说明 + 恢复默认停靠 */
 .agent-companion-position-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   margin: 12px var(--agent-inset-x) 0;
-  padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.agent-companion-position-actions .agent-band-hint {
-  margin: 0;
 }
 
 /* 悬浮伴侣：画面位置预览（视口百分比 → 缩略图坐标） */
 .agent-dock-preview {
   margin: 14px var(--agent-inset-x) 0;
-  padding: 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.18) 100%);
-}
-
-.agent-dock-preview--off {
-  opacity: 0.55;
-}
-
-.agent-dock-preview__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.agent-dock-preview__title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--hos-text-secondary);
-}
-
-.agent-dock-preview__meta {
-  font-size: 0.7rem;
-  color: var(--hos-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.agent-dock-preview__screen {
-  position: relative;
-  height: 132px;
-  overflow: hidden;
-  border-radius: 10px;
-  border: var(--hos-hairline) solid rgba(148, 163, 184, 0.22);
-  background: radial-gradient(circle at 22% 18%, rgba(56, 189, 248, 0.16), transparent 58%), rgba(8, 13, 25, 0.72);
 }
 
 .agent-dock-preview__stage {
-  position: absolute;
-  inset: 0;
-  display: grid;
   place-items: center;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  color: rgba(148, 163, 184, 0.45);
   pointer-events: none;
-}
-
-.agent-dock-preview__hint {
-  margin: 8px 0 0;
-  font-size: 0.7rem;
-  line-height: 1.45;
-  color: var(--hos-text-muted);
 }
 
 /* ── 家规 / 计划任务 / 诊断日志 · 统一列表行 ── */
@@ -1324,7 +1250,7 @@
   padding: 10px 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.18) 100%);
+  background: linear-gradient(155deg, var(--hos-bg-tint-1) 0%, rgba(0, 0, 0, 0.18) 100%);
   transition:
     border-color 0.18s ease,
     background 0.18s ease;
@@ -1416,10 +1342,7 @@
   padding: 10px 0 2px;
 }
 
-.agent-scene-voice-workspace .agent-band-hint {
-  margin-inline: 0;
-}
-
+.agent-scene-voice-workspace .agent-band-hint,
 .agent-scene-voice-workspace .agent-scene-toggle {
   margin-inline: 0;
 }
@@ -1512,7 +1435,7 @@
   position: relative;
   height: 128px;
   border-radius: 12px;
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background:
     radial-gradient(ellipse 70% 60% at 50% 0%, rgba(var(--page-accent-rgb), 0.12) 0%, transparent 65%),
     rgba(0, 0, 0, 0.42);
@@ -1527,7 +1450,7 @@
   justify-content: center;
   padding-top: 6px;
   border-radius: 8px;
-  border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) dashed var(--hos-glass-border);
   font-size: 12px;
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.22);
@@ -1606,11 +1529,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
-}
-
-.agent-split__main,
-.agent-split__side {
-  min-width: 0;
 }
 
 @container settings-scroll (min-width: 1200px) {
@@ -1705,6 +1623,8 @@
   align-items: start;
 }
 
+.agent-split__main,
+.agent-split__side,
 .agent-workbench__main,
 .agent-workbench__rail {
   min-width: 0;
@@ -1735,7 +1655,7 @@
   padding: 11px 12px 12px;
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) solid var(--premium-border);
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
+  background: linear-gradient(158deg, var(--hos-bg-tint-1) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
@@ -2098,7 +2018,7 @@
 }
 
 .agent-hub .agent-scene-toggle:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hos-bg-tint-1);
 }
 
 .agent-hub .agent-scene-toggle--on {
@@ -2260,7 +2180,7 @@
 .agent-workbench__rail .agent-dock-preview {
   margin: 0;
   padding: 11px 12px 12px;
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
+  background: linear-gradient(158deg, var(--hos-bg-tint-1) 0%, rgba(0, 0, 0, 0.22) 100%), rgba(10, 15, 26, 0.4);
 }
 
 .agent-workbench__rail .agent-dock-preview__screen {

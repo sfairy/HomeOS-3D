@@ -18,7 +18,7 @@
 /*
  * 机身外壳：墙屏常驻页面不滚动，滚动全部发生在各页自己的可滚动容器里。
  *
- * 这段原本是 SPA 入口 `index.html` 里的一段行内 <style>。外壳页下发的是
+ * 这段原本是 SPA 入口 `index.html` 里的一段行内 \3c style>。外壳页下发的是
  * `style-src 'self'`（见 backend/src/bootstrap/studio_shell.py 的 `_csp_header`），行内样式会被
  * 浏览器直接拦下（"Refused to apply inline style"），那段重置其实一次都没生效过。
  * 移到这里既保住严格 CSP，也让外壳默认值与其余外壳规则待在同一份文件里。
@@ -130,21 +130,15 @@ body.auto-diagram-embedded .app-chrome-toast-host {
 }
 
 /* 就绪后淡出，避免遮罩硬切后再叠一层 hos-rise 淡入。 */
-#homeos-boot-overlay.is-leaving {
-  opacity: 0;
-  pointer-events: none;
-}
 
 /* 延迟揭示前保持不可见（与 [hidden] 双保险）。 */
+#homeos-boot-overlay.is-leaving,
 #homeos-boot-overlay.is-deferred {
   opacity: 0;
   pointer-events: none;
 }
 
 /* 按 id 设了 display，会盖掉 UA 的 [hidden] 规则，必须显式让位。 */
-#homeos-boot-overlay[hidden] {
-  display: none;
-}
 
 .homeos-boot-overlay__panel {
   max-width: 440px;
@@ -167,10 +161,6 @@ body.auto-diagram-embedded .app-chrome-toast-host {
   border-top-color: #6f8fc9;
   border-radius: 50%;
   animation: homeos-boot-spin 0.9s linear infinite;
-}
-
-#homeos-boot-overlay[data-state='failed'] .homeos-boot-overlay__spinner {
-  display: none;
 }
 
 @keyframes homeos-boot-spin {
@@ -219,6 +209,8 @@ body.auto-diagram-embedded .app-chrome-toast-host {
   background: #1d2d4a;
 }
 
+#homeos-boot-overlay[hidden],
+#homeos-boot-overlay[data-state='failed'] .homeos-boot-overlay__spinner,
 .homeos-boot-overlay__action[hidden] {
   display: none;
 }

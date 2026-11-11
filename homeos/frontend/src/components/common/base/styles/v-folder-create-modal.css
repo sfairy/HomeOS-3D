@@ -313,7 +313,7 @@
 
 .vfc-btn--ghost {
   color: rgba(238, 242, 251, 0.72);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hos-bg-tint-1);
   border-color: rgba(255, 255, 255, 0.09);
 }
 

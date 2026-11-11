@@ -1291,18 +1291,9 @@
    `.hos-actions{display:flex}` 都是作者样式，会盖掉浏览器 UA 的 `[hidden]{display:none}`：
    /license 里用 formElement.hidden 藏激活表单的意图因此落空，表单和「重新激活」会同时出现。
    与下面按钮那条同一手法 —— 规则必须排在各自定义之后：同权重，后写的赢。 */
-.hos-form[hidden],
-.hos-actions[hidden] {
-  display: none;
-}
 
 /* [hidden] 必须赢过按钮类自己的 display。
    本来是次要动作，结果和主按钮并排抢注意力）。规则必须排在按钮类之后：同权重，后写的赢。 */
-.hos-btn-primary[hidden],
-.hos-btn-ghost[hidden],
-.hos-text-button[hidden] {
-  display: none;
-}
 
 /* 键盘焦点环。输入框不给：它外面那层 .hos-control 的 :focus-within 边框 + 光晕
    在这块玻璃坞上像贴了一张系统截图。 */
@@ -1326,6 +1317,11 @@
   color: rgba(var(--hos-muted-rgb), 0.72);
 }
 
+.hos-form[hidden],
+.hos-actions[hidden],
+.hos-btn-primary[hidden],
+.hos-btn-ghost[hidden],
+.hos-text-button[hidden],
 .hos-msg:empty {
   display: none;
 }
@@ -1924,14 +1920,11 @@ html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-page .hos-
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hos-btn-primary::after,
-  .hos-hub__scan,
-  .hos-deck__scan {
-    animation: none;
-  }
-
   /* 开通轨上「当前这一格」的呼吸光环同理：它表达的「正在处理」由实心点 + 更亮的前景色
      光斑正是这个偏好要避开的東西。 */
+  .hos-btn-primary::after,
+  .hos-hub__scan,
+  .hos-deck__scan,
   .hos-steps__item.is-current .hos-steps__dot {
     animation: none;
   }

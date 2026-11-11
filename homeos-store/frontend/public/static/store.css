@@ -56,11 +56,6 @@
   pointer-events: none;
 }
 
-.hb-page-head > *,
-.hb-account-heading > * {
-  position: relative;
-}
-
 /* eyebrow：状态点 + 分区名 + 等宽路径，做成一条「仪表读数」胶囊。
    等宽 + 字距让它在视觉上明确区别于正文，读者一眼就知道这是系统元信息。 */
 .hb-page-head__eyebrow,
@@ -208,6 +203,8 @@
   margin-bottom: 12px;
 }
 
+.hb-page-head > *,
+.hb-account-heading > *,
 .referral-share,
 .hb-maintenance-card {
   position: relative;
@@ -989,10 +986,7 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-.hb-payment-dialog.is-closed .hb-pay-timer__status {
-  color: var(--hb-muted);
-}
-
+.hb-payment-dialog.is-closed .hb-pay-timer__status,
 .hb-payment-dialog.is-closed .hb-pay-timer__clock {
   color: var(--hb-muted);
 }
@@ -1377,13 +1371,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   min-width: 0;
 }
 
-.hb-account-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
 .hb-account-ident p {
   margin-top: 5px;
   color: var(--hb-muted);
@@ -1396,6 +1383,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   padding: 15px 20px 17px;
 }
 
+.hb-account-title,
 .hb-account-license-code {
   display: flex;
   flex-wrap: wrap;

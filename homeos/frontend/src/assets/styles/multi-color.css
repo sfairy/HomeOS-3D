@@ -37,9 +37,6 @@
   );
 }
 
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-}
-
 /* ── 预设多彩渐变文字（复用 main.css 既有 --gradient-* 预设） ── */
 
 .text-gradient-sunset {

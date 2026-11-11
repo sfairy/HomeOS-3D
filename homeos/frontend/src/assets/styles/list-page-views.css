@@ -112,12 +112,7 @@
    必须同时给出：--page-accent-rgb 是派生色（--page-accent-bg / -border / -glow / -text）
    的唯一色源，缺了它，本页派生面色会停留在全局默认色。
    注：--page-accent / --page-accent-rgb 也可能由各 View 组件 :style 注入。 */
-.devices-view {
-  --page-accent: var(--module-accent-devices);
-  --page-accent-secondary: var(--module-accent-devices-sub);
-  --page-accent-rgb: var(--module-accent-devices-rgb);
-  --dev-accent-rgb: var(--module-accent-devices-rgb);
-}
+.devices-view,
 .device-detail-view {
   --page-accent: var(--module-accent-devices);
   --page-accent-secondary: var(--module-accent-devices-sub);
@@ -778,9 +773,7 @@
   .list-page[class*="-view"] .list-page__tab--on,
   .list-page[class*="-view"] .list-page__btn--primary,
   .list-page[class*="-view"] .list-page__btn--primary:hover:not(:disabled),
-  .list-page[class*="-view"] .list-page__chip--accent {
-    box-shadow: none;
-  }
+  .list-page[class*="-view"] .list-page__chip--accent,
   .devices-view .list-page__row:hover::before,
   .device-detail-view .list-page__row:hover::before {
     box-shadow: none;
@@ -797,9 +790,7 @@
   .list-page[class*="-view"] .list-page__tab--on,
   .list-page[class*="-view"] .list-page__btn--primary,
   .list-page[class*="-view"] .list-page__btn--primary:hover:not(:disabled),
-  .list-page[class*="-view"] .list-page__chip--accent {
-    box-shadow: none;
-  }
+  .list-page[class*="-view"] .list-page__chip--accent,
   .devices-view .list-page__row:hover::before,
   .device-detail-view .list-page__row:hover::before {
     box-shadow: none;

@@ -1,10 +1,6 @@
 /* 响应式 + Tailwind 排版映射 + 导航编辑器 */
 @container hos-canvas (min-width: 1440px) {
-  .settings-page-inset {
-    padding-left: 2.5rem;
-    padding-right: 2.5rem;
-  }
-
+  .settings-page-inset,
   .settings-shell .settings-page__workspace--inset {
     padding-left: 2.5rem;
     padding-right: 2.5rem;
@@ -14,9 +10,7 @@
 /* 宽屏不再覆盖卡片 padding：基线已是 --hos-panel-padding-default，
    避免 ≥1200 与 flat/workspace 的 padding:0 互相打架 */
 @container hos-canvas (max-width: 720px) {
-  .settings-choice-grid {
-    grid-template-columns: 1fr;
-  }
+  .settings-choice-grid,
   .settings-stat-grid {
     grid-template-columns: 1fr;
   }
@@ -52,9 +46,7 @@
 .settings-shell .text-\[10px\] {
   font-size: var(--set-fs-caption);
 }
-.settings-shell .text-\[11px\] {
-  font-size: var(--set-fs-body-sm);
-}
+.settings-shell .text-\[11px\],
 .settings-shell .text-\[12px\] {
   font-size: var(--set-fs-body-sm);
 }
@@ -95,9 +87,7 @@
   font-size: var(--set-fs-caption);
 }
 .settings-modal-overlay .text-\[11px\],
-.settings-modal-panel .text-\[11px\] {
-  font-size: var(--set-fs-body-sm);
-}
+.settings-modal-panel .text-\[11px\],
 .settings-modal-overlay .text-\[12px\],
 .settings-modal-panel .text-\[12px\] {
   font-size: var(--set-fs-body-sm);
@@ -177,10 +167,7 @@
 }
 
 .settings-shell .settings-page .hub-hero-bar__eyebrow,
-.settings-shell .settings-page .hub-hero-bar__desc {
-  font-size: var(--set-fs-caption);
-}
-
+.settings-shell .settings-page .hub-hero-bar__desc,
 .settings-shell .bind-energy-hint,
 .settings-shell .bind-cam-badge {
   font-size: var(--set-fs-caption);

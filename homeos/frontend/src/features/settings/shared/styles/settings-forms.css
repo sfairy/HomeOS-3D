@@ -495,9 +495,7 @@
 }
 
 @container hos-canvas (max-width: 768px) {
-  .settings-form-grid {
-    grid-template-columns: 1fr;
-  }
+  .settings-form-grid,
   .settings-form-grid--2 {
     grid-template-columns: 1fr;
   }

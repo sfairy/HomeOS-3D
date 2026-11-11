@@ -195,14 +195,8 @@
     transition: none;
   }
 }
-.hb-percentage-chart.hide-values .hb-percentage-value {
-  display: none;
-}
 .hb-percentage-chart.hide-labels {
   --label-height: 0px;
-}
-.hb-percentage-chart.hide-labels .hb-percentage-label {
-  display: none;
 }
 .is-horizontal.hide-labels .hb-percentage-column {
   grid-template-columns: var(--length, 300px) var(--value-gap, 11px) max(
@@ -227,6 +221,8 @@
   width: var(--bar-thickness, 48px);
   height: var(--length, 300px);
 }
+.hb-percentage-chart.hide-values .hb-percentage-value,
+.hb-percentage-chart.hide-labels .hb-percentage-label,
 .hb-percentage-fill[hidden] {
   display: none;
 }

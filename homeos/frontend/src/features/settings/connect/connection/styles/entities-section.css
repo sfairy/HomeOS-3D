@@ -22,7 +22,7 @@
   align-items: center;
   gap: 10px;
   padding-top: 12px;
-  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border-top: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .conn-entities-toggle__refresh {

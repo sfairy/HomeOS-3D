@@ -189,9 +189,6 @@
   cursor: default;
   touch-action: none;
 }
-.hb-component.editable.selected.hb-light-statistics-selection-host {
-  pointer-events: none;
-}
 .hb-component.editable.selected:not(.layout-fill) {
   cursor:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24'%3E%3Cpath d='M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4' fill='none' stroke='%23101519' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
@@ -201,9 +198,8 @@
 .hb-component.editable.layout-fill {
   cursor: default;
 }
-.hb-component-presence-sensor:not(.editable) {
-  pointer-events: none;
-}
+.hb-component.editable.selected.hb-light-statistics-selection-host,
+.hb-component-presence-sensor:not(.editable),
 .hb-component-group:not(.editable) > .hb-component-presence-sensor:not(.editable) {
   pointer-events: none;
 }
@@ -1676,12 +1672,6 @@
   visibility: hidden;
   opacity: 0;
 }
-.hb-camera-preview-stage.is-ready .hb-camera-preview-scan-line,
-.hb-camera-preview-stage.is-unavailable .hb-camera-preview-scan-line,
-.hb-custom-popup-camera-stage.is-ready .hb-camera-preview-scan-line,
-.hb-custom-popup-camera-stage.is-unavailable .hb-camera-preview-scan-line {
-  display: none;
-}
 /* —— 0.7.5：go2rtc 连接态与页面挂起态（增量补齐，不是从零新建）—— */
 @keyframes hb-camera-connecting-pulse {
   0%,
@@ -1693,9 +1683,7 @@
   }
 }
 .hb-camera-preview-status.is-connecting:before,
-.hb-custom-popup-module-status.is-connecting:before {
-  animation: hb-camera-connecting-pulse 1.4s ease-in-out infinite;
-}
+.hb-custom-popup-module-status.is-connecting:before,
 .hb-camera-device-visual:not(.is-live):not(.is-unavailable):not(.is-suspended)
   .hb-camera-device-led {
   animation: hb-camera-connecting-pulse 1.4s ease-in-out infinite;
@@ -1705,6 +1693,10 @@
   opacity: 0.42;
 }
 /* 页面被挂起（后台暂停）时不保留任何连接态动效，画面元素也一并藏掉。 */
+.hb-camera-preview-stage.is-ready .hb-camera-preview-scan-line,
+.hb-camera-preview-stage.is-unavailable .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-ready .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-unavailable .hb-camera-preview-scan-line,
 .hb-camera-preview-stage.is-suspended .hb-camera-preview-reveal-veil,
 .hb-camera-preview-stage.is-suspended .hb-camera-preview-scan-line,
 .hb-custom-popup-camera-stage.is-suspended .hb-camera-preview-reveal-veil,
@@ -1830,40 +1822,31 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hb-camera-preview-status.is-live:before,
-  .hb-camera-preview-status.is-connecting:before,
-  .hb-camera-preview-stage.is-connecting .hb-camera-preview-scan-line,
-  .hb-camera-preview-stage.is-revealing .hb-camera-preview-reveal-veil,
-  .hb-camera-preview-stage.is-revealing .hb-camera-preview-scan-line,
-  .hb-camera-device-visual,
-  .hb-camera-device-visual:not(.is-live):not(.is-unavailable):not(.is-suspended)
+.hb-camera-preview-status.is-connecting:before,
+.hb-camera-preview-stage.is-connecting .hb-camera-preview-scan-line,
+.hb-camera-preview-stage.is-revealing .hb-camera-preview-reveal-veil,
+.hb-camera-preview-stage.is-revealing .hb-camera-preview-scan-line,
+.hb-camera-device-visual,
+.hb-camera-device-visual:not(.is-live):not(.is-unavailable):not(.is-suspended)
     .hb-camera-device-led,
-  .hb-camera-device-body,
-  .hb-camera-device-visual.is-live .hb-camera-device-lens:after {
+.hb-camera-device-body,
+.hb-camera-device-visual.is-live .hb-camera-device-lens:after,
+.hb-custom-popup-camera-stage.is-connecting .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil,
+.hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line,
+.hb-custom-popup-module-status.is-connecting:before,
+.hb-custom-popup-module-status.is-running {
     animation: none;
   }
-  .hb-camera-preview-stage.is-revealing .hb-camera-preview-reveal-veil {
+  .hb-camera-preview-stage.is-revealing .hb-camera-preview-reveal-veil,
+.hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil {
     visibility: hidden;
     opacity: 0;
   }
   .hb-camera-preview-stage.is-connecting .hb-camera-preview-scan-line,
-  .hb-camera-preview-stage.is-revealing .hb-camera-preview-scan-line {
-    display: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hb-custom-popup-camera-stage.is-connecting .hb-camera-preview-scan-line,
-  .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil,
-  .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line,
-  .hb-custom-popup-module-status.is-connecting:before,
-  .hb-custom-popup-module-status.is-running {
-    animation: none;
-  }
-  .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil {
-    visibility: hidden;
-    opacity: 0;
-  }
-  .hb-custom-popup-camera-stage.is-connecting .hb-camera-preview-scan-line,
-  .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line {
+.hb-camera-preview-stage.is-revealing .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-connecting .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line {
     display: none;
   }
 }
@@ -2749,7 +2732,6 @@
 .hb-electric-bed-base {
   position: absolute;
   display: block;
-  border: 1px solid rgba(228, 231, 228, 0.52);
   box-sizing: border-box;
   transform-origin: 50% 100%;
   transition:
@@ -2758,70 +2740,33 @@
 }
 .hb-electric-bed-mattress {
   z-index: 2;
-  right: 20px;
-  bottom: 58px;
-  left: 20px;
-  height: 66px;
-  border-radius: 17px 17px 11px 11px;
-  background: linear-gradient(145deg, #f0efeb, #c5c9c7 48%, #7f8b8d);
   box-shadow:
     inset 0 5px 9px #ffffff59,
     inset 0 -7px 12px #2d35383d,
     0 12px 18px #00000059;
-  transform: perspective(520px) rotateX(58deg);
 }
 .hb-electric-bed-back {
   z-index: 1;
   top: 34px;
-  left: 20px;
-  width: 78px;
-  height: 73px;
-  border-radius: 13px 13px 7px 7px;
-  background: linear-gradient(145deg, #e9ebe8, #a9b2b2 55%, #657276);
   box-shadow:
     inset 0 4px 8px #ffffff4d,
     0 8px 13px #00000052;
-  transform: rotateX(calc(34deg - var(--hb-bed-backrest-angle)));
 }
 .hb-electric-bed-waist {
   z-index: 3;
-  right: 92px;
-  bottom: 53px;
-  width: 92px;
-  height: 54px;
-  border-radius: 10px;
-  background: linear-gradient(145deg, #dfe4e1, #9ba6a7 55%, #657174);
   box-shadow:
     inset 0 4px 8px #ffffff45,
     0 8px 12px #00000047;
-  transform: perspective(520px) rotateX(calc(58deg - var(--hb-bed-waist-angle)));
 }
 .hb-electric-bed-legs {
   z-index: 1;
-  right: 20px;
-  bottom: 30px;
-  width: 111px;
-  height: 55px;
-  border-radius: 8px 13px 12px 8px;
-  background: linear-gradient(145deg, #d9dedc, #a1aaab 48%, #687477);
   box-shadow:
     inset 0 4px 7px #ffffff3d,
     0 8px 12px #0000004d;
-  transform: rotateX(calc(63deg + var(--hb-bed-leg-angle)));
 }
 .hb-electric-bed-base {
   z-index: 0;
-  right: 43px;
-  bottom: 23px;
-  left: 43px;
-  height: 18px;
-  border-radius: 7px;
   border-color: #94a0a266;
-  background: linear-gradient(180deg, #566267, #202a2f);
-  box-shadow:
-    0 10px 12px #00000057,
-    inset 0 1px #ffffff1f;
-  transform: perspective(440px) rotateX(70deg);
 }
 .hb-electric-bed-angle-readout {
   position: absolute;
@@ -2835,12 +2780,10 @@
   pointer-events: none;
 }
 .hb-electric-bed-angle-readout strong {
-  font-size: 22px;
   font-weight: 520;
   line-height: 1;
 }
 .hb-electric-bed-angle-readout small {
-  color: #a1aaac;
   font-size: 10px;
   font-weight: 520;
 }
@@ -2849,8 +2792,6 @@
   width: 54px;
   height: 54px;
   border: 1px dashed rgba(214, 222, 222, 0.7);
-  border-right-color: transparent;
-  border-bottom-color: transparent;
   border-radius: 50%;
   content: "";
 }
@@ -2891,7 +2832,6 @@
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 10px;
 }
 .hb-electric-bed-control,
 .hb-electric-bed-memory {
@@ -2912,16 +2852,6 @@
 .hb-electric-bed-capability {
   min-width: 0;
 }
-.hb-electric-bed-capability .hb-capability-range-group {
-  gap: 7px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.hb-electric-bed-capability .hb-capability-range-heading strong {
-  display: none;
-}
 .hb-electric-bed-capability .hb-capability-range-heading output {
   color: var(--hb-bed-accent);
   font-size: 14px;
@@ -2931,6 +2861,7 @@
 .hb-electric-bed-capability .hb-capability-range-group input[type="range"] {
   width: 100%;
 }
+.hb-electric-bed-capability .hb-capability-range-group,
 .hb-electric-bed-capability .hb-capability-option-group {
   gap: 7px;
   padding: 0;
@@ -2938,6 +2869,7 @@
   background: transparent;
   box-shadow: none;
 }
+.hb-electric-bed-capability .hb-capability-range-heading strong,
 .hb-electric-bed-capability .hb-capability-option-group > strong {
   display: none;
 }
@@ -3162,9 +3094,6 @@
   color: #88959a;
   font-size: 13px;
 }
-.hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span:empty {
-  display: none;
-}
 .hb-electric-bed-model {
   width: min(330px, 96%);
   height: 126px;
@@ -3263,6 +3192,7 @@
 .hb-electric-bed-base:after {
   right: 20px;
 }
+.hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span:empty,
 .hb-electric-bed-visual > strong,
 .hb-electric-bed-visual > small {
   display: none;
@@ -4524,9 +4454,6 @@
 .hb-cover-visual.is-dream {
   background: transparent;
 }
-.hb-cover-visual.is-dream:after {
-  display: none;
-}
 .hb-cover-visual.is-dream .hb-cover-visual-window {
   background: linear-gradient(
     132deg,
@@ -4537,6 +4464,7 @@
     #b5dae566
   );
 }
+.hb-cover-visual.is-dream:after,
 .hb-cover-visual.is-dream .hb-cover-visual-panel {
   display: none;
 }
@@ -4573,9 +4501,7 @@
   animation: hb-cover-slat-shimmer 0.72s ease-in-out infinite alternate;
   animation-delay: calc(var(--hb-cover-slat-delay-index, var(--hb-cover-slat-index)) * 34ms);
 }
-.hb-airer-visual {
-  display: none;
-}
+.hb-airer-visual,
 .hb-cover-visual.is-airer:after,
 .hb-cover-visual.is-airer > .hb-cover-visual-window,
 .hb-cover-visual.is-airer > .hb-cover-visual-rail,
@@ -5080,9 +5006,6 @@
     0 12px 25px #00000057,
     0 0 24px color-mix(in srgb, var(--hb-climate-visual-accent) 28%, transparent);
 }
-.hb-climate-visual.is-on .hb-climate-visual-unit:after {
-  opacity: 0.72;
-}
 .hb-climate-visual.is-on .hb-climate-visual-display {
   color: color-mix(in srgb, var(--hb-climate-visual-accent) 68%, #354047);
   text-shadow: 0 0 8px color-mix(in srgb, var(--hb-climate-visual-accent) 48%, transparent);
@@ -5090,6 +5013,7 @@
 .hb-climate-visual.is-running .hb-climate-visual-vent {
   transform: perspective(90px) rotateX(-34deg) translateY(3px);
 }
+.hb-climate-visual.is-on .hb-climate-visual-unit:after,
 .hb-climate-visual.is-running .hb-climate-visual-airflow {
   opacity: 0.72;
 }
@@ -7328,17 +7252,15 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hb-climate-details-controls.is-running .hb-climate-temperature-dial,
-  .hb-climate-details-controls.is-running .hb-climate-temperature-dial:after,
-  .hb-climate-details-controls.is-running .hb-climate-fan-slider-heading i,
-  .hb-climate-details-controls.is-running .hb-climate-details-options button.active,
-  .hb-entity-details-dialog.climate-details .hb-climate-details-controls > *,
-  .hb-entity-details-dialog.climate-details .hb-climate-details-power.is-running span,
-  .hb-climate-visual.is-running .hb-climate-visual-airflow i,
-  .hb-entity-details-dialog.climate-details .hb-climate-visual,
-  .hb-climate-details-loading.is-loading i {
-    animation: none;
-  }
-  .hb-climate-temperature-content > strong.is-changing {
+.hb-climate-details-controls.is-running .hb-climate-temperature-dial:after,
+.hb-climate-details-controls.is-running .hb-climate-fan-slider-heading i,
+.hb-climate-details-controls.is-running .hb-climate-details-options button.active,
+.hb-entity-details-dialog.climate-details .hb-climate-details-controls > *,
+.hb-entity-details-dialog.climate-details .hb-climate-details-power.is-running span,
+.hb-climate-visual.is-running .hb-climate-visual-airflow i,
+.hb-entity-details-dialog.climate-details .hb-climate-visual,
+.hb-climate-details-loading.is-loading i,
+.hb-climate-temperature-content > strong.is-changing {
     animation: none;
   }
 }
@@ -7395,9 +7317,7 @@
   transform-origin: center;
   animation: hb-vacuum-arrive 0.72s cubic-bezier(0.18, 0.78, 0.24, 1) 0.08s 1 both;
 }
-.hb-entity-details-dialog.vacuum-details .hb-vacuum-details-stats {
-  animation: hb-climate-control-in 0.38s cubic-bezier(0.22, 0.61, 0.36, 1) 0.18s 1 both;
-}
+.hb-entity-details-dialog.vacuum-details .hb-vacuum-details-stats,
 .hb-entity-details-dialog.vacuum-details .hb-vacuum-details-controls > :nth-child(1) {
   animation: hb-climate-control-in 0.38s cubic-bezier(0.22, 0.61, 0.36, 1) 0.18s 1 both;
 }
@@ -8349,9 +8269,6 @@
 .hb-custom-popup-module--climate .hb-climate-fan-slider-legend small {
   font-size: 15px;
 }
-.hb-custom-popup-module--switch {
-  grid-template-rows: auto minmax(0, 1fr);
-}
 .hb-custom-popup-module--switch .hb-custom-popup-module-heading {
   position: relative;
   display: block;
@@ -8401,6 +8318,7 @@
   width: 190px;
   height: 190px;
 }
+.hb-custom-popup-module--switch,
 .hb-custom-popup-module--cover {
   grid-template-rows: auto minmax(0, 1fr);
 }
@@ -10657,9 +10575,6 @@
     0 9px 20px #00000026,
     inset 0 1px #ffffff06;
 }
-.hb-air-purifier-secondary-metric[hidden] {
-  display: none;
-}
 .hb-air-purifier-secondary-metric small {
   color: #7e898f;
   font-size: 10px;
@@ -10673,6 +10588,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.hb-air-purifier-secondary-metric[hidden],
 .air-purifier-details .hb-capability-power {
   display: none;
 }
@@ -10714,9 +10630,6 @@
   align-items: stretch;
   gap: 7px;
 }
-.air-purifier-details .hb-air-purifier-speed-options {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
 .air-purifier-details .hb-capability-options button {
   height: 100%;
   min-height: 46px;
@@ -10734,6 +10647,7 @@
     inset 0 1px #ffffff0d,
     0 0 12px #8ec5e42e;
 }
+.air-purifier-details .hb-air-purifier-speed-options,
 .hb-custom-popup-module--air-purifier .hb-air-purifier-speed-options {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -12749,10 +12663,7 @@
   pointer-events: none;
   transition: opacity 0.15s ease;
 }
-.hb-event-log-wall.is-visible {
-  opacity: 1;
-  pointer-events: auto;
-}
+.hb-event-log-wall.is-visible,
 .hb-event-log-wall.is-editing {
   opacity: 1;
   pointer-events: auto;
@@ -12969,9 +12880,6 @@
   .hb-weather-forecast-heading>div:first-child>strong {font-size:max(34px,calc(16px / var(--hb-runtime-dialog-scale,1)))}
 }
 @media (max-width:600px) {
-  .hb-weather-forecast-heading>div:first-child>span,.hb-weather-forecast-hint,.hb-weather-forecast-current .hb-weather-forecast-icon,.hb-weather-forecast-toolbar>span {display:none}
-}
-@media (max-width:600px) {
   .hb-weather-forecast-current {padding-top:0}
 }
 @media (max-width:600px) {
@@ -12985,9 +12893,6 @@
 }
 @media (max-width:600px) {
   .hb-weather-forecast-date strong,.hb-weather-forecast-temperatures {font-size:max(28px,calc(11px / var(--hb-runtime-dialog-scale,1)))}
-}
-@media (max-width:600px) {
-  .hb-weather-forecast-date small,.hb-weather-forecast-condition span,.hb-weather-forecast-rain,.hb-weather-forecast-range {display:none}
 }
 @media (max-width:600px) {
   .hb-weather-forecast-condition .hb-weather-forecast-icon {width:48px;height:48px}
@@ -13005,7 +12910,16 @@
   .hb-weather-forecast-footer button {width:42px;height:42px;font-size:34px}
 }
 @media (max-width:600px) {
-  .hb-weather-forecast-hour-heading,.hb-weather-forecast-hour-detail {display:none}
+  .hb-weather-forecast-heading>div:first-child>span,
+.hb-weather-forecast-hint,
+.hb-weather-forecast-current .hb-weather-forecast-icon,
+.hb-weather-forecast-toolbar>span,
+.hb-weather-forecast-date small,
+.hb-weather-forecast-condition span,
+.hb-weather-forecast-rain,
+.hb-weather-forecast-range,
+.hb-weather-forecast-hour-heading,
+.hb-weather-forecast-hour-detail {display:none}
 }
 @media (max-width:600px) {
   .hb-weather-forecast-hour-labels button {font-size:max(25px,calc(11px / var(--hb-runtime-dialog-scale,1)));gap:4px}

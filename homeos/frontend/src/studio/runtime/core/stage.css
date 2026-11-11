@@ -97,11 +97,9 @@
   gap: 6px;
   width: 100%;
 }
-.interaction3d-stage .i3d-lock-details .i3d-lock-detail.is-door {
-  grid-column: 1 / -1;
-}
 /* 只有一条读数时不该只占半格：单独一条，或门磁之后只跟一条（如只绑了一路电量），
    都让它占满整行，避免右半边空着。 */
+.interaction3d-stage .i3d-lock-details .i3d-lock-detail.is-door,
 .interaction3d-stage .i3d-lock-details > .i3d-lock-detail:only-child,
 .interaction3d-stage .i3d-lock-details > .i3d-lock-detail.is-door + .i3d-lock-detail:last-child {
   grid-column: 1 / -1;
@@ -364,21 +362,6 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-toolbar {
   pointer-events: auto;
 }
-.interaction3d-stage .i3d-marker:before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: var(--i3d-marker-size, 60px);
-  height: var(--i3d-marker-size-y, var(--i3d-marker-size, 60px));
-  box-sizing: border-box;
-  border: min(1px, calc(var(--i3d-marker-size, 60px) / 2)) solid #aa967455;
-  border-radius: 50%;
-  background: #1b2029dc;
-  box-shadow: 0 4px 14px #0005;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
 .interaction3d-stage button.i3d-marker {
   user-select: none;
   -webkit-user-select: none;
@@ -394,23 +377,6 @@ body.interaction3d-stage.is-background-hidden,
     min-width: var(--i3d-touch-hit-width, 44px);
     min-height: var(--i3d-touch-hit-height, 44px);
   }
-}
-.interaction3d-stage .i3d-marker-icon {
-  display: block;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  width: var(--i3d-marker-icon-size, 36px);
-  height: var(--i3d-marker-icon-size-y, var(--i3d-marker-icon-size, 36px));
-  background: currentColor;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
 }
 .interaction3d-stage .i3d-toolbar {
   position: absolute;
@@ -951,25 +917,12 @@ body.interaction3d-stage.is-background-hidden,
   .interaction3d-stage .i3d-light-panel.has-light-controls .i3d-light-controls,
   .interaction3d-stage .i3d-lamp-aura,
   .interaction3d-stage .i3d-lamp-drawing:after,
-  .interaction3d-stage .i3d-lamp-body i {
-    transition: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .interaction3d-stage .i3d-focus-vignette {
-    transition: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
+  .interaction3d-stage .i3d-lamp-body i,
+  .interaction3d-stage .i3d-focus-vignette,
   .interaction3d-stage .i3d-markers,
   .interaction3d-stage .i3d-markers.is-concealed {
     transition: none;
   }
-}
-.interaction3d-stage .i3d-marker {
-  transition:
-    opacity 0.24s ease,
-    visibility 0s;
 }
 .interaction3d-stage .i3d-marker.is-hidden-clickable,
 .interaction3d-stage .i3d-marker.is-hidden-clickable.is-offline {
@@ -1218,10 +1171,8 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-module-empty {
   position: absolute;
-  top: 112px;
   left: 50%;
   width: max-content;
-  max-width: calc(50% - 24px);
   margin: 0;
   padding: 10px 14px;
   border: 1px solid #a28c6233;
@@ -1230,7 +1181,6 @@ body.interaction3d-stage.is-background-hidden,
   background: #1c222bcc;
   font: 12px / 1.6 sans-serif;
   text-align: center;
-  transform: translate(-50%) scale(2);
   transform-origin: 50% 0;
   pointer-events: none;
 }
@@ -1439,10 +1389,7 @@ body.interaction3d-stage.is-background-hidden,
 .plan2-range-editor svg [data-range-handle="rotate"] {
   cursor: grab;
 }
-.plan2-range-editor svg [data-region-key]:focus .p2r-marker {
-  stroke: #fff;
-  stroke-width: 3;
-}
+.plan2-range-editor svg [data-region-key]:focus .p2r-marker,
 .plan2-range-editor svg [data-range-handle]:focus .p2r-handle {
   stroke: #fff;
   stroke-width: 3;
@@ -1459,9 +1406,6 @@ body.interaction3d-stage.is-background-hidden,
     font-size: 12px;
     padding: 5px 8px;
   }
-  .plan2-range-editor .p2r-title small {
-    display: none;
-  }
   .plan2-range-editor .p2r-panel {
     inset: auto 7px 7px;
     width: auto;
@@ -1469,6 +1413,7 @@ body.interaction3d-stage.is-background-hidden,
     padding: 9px 10px;
     border-radius: 10px;
   }
+  .plan2-range-editor .p2r-title small,
   .plan2-range-editor .p2r-panel h3 {
     display: none;
   }
@@ -1557,7 +1502,6 @@ body.interaction3d-stage.is-background-hidden,
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
   font-weight: 400;
   box-shadow: inset 0 1px 2px #00000038;
 }
@@ -1623,7 +1567,6 @@ body.interaction3d-stage.is-background-hidden,
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
 }
 .plan2-range-editor .custom-select-option.active {
   color: #f3f5f6;
@@ -1862,10 +1805,6 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-tv-time {
   font-variant-numeric: tabular-nums;
 }
-.i3d-tv-content [hidden],
-.i3d-tv-details [hidden] {
-  display: none;
-}
 .interaction3d-stage .i3d-marker.is-nas.is-on {
   color: #70ff9c;
 }
@@ -1906,12 +1845,12 @@ body.interaction3d-stage.is-background-hidden,
   padding: 3px 6px;
   pointer-events: none;
 }
-.interaction3d-stage .i3d-marker.is-vacuum-status {
-  border-radius: 10px;
-}
+.i3d-tv-content [hidden],
+.i3d-tv-details [hidden],
 .interaction3d-stage .i3d-marker.is-vacuum-status:before {
   display: none;
 }
+.interaction3d-stage .i3d-marker.is-vacuum-status,
 .interaction3d-stage .i3d-marker.is-vacuum-status:after {
   border-radius: 10px;
 }
@@ -2025,9 +1964,7 @@ body.interaction3d-stage.is-background-hidden,
   top: calc(50% + var(--i3d-marker-size, 60px) / 2 + 4px);
   pointer-events: auto;
 }
-.interaction3d-stage .i3d-vacuum-room .i3d-room-label[hidden] {
-  display: none;
-}
+.interaction3d-stage .i3d-vacuum-room .i3d-room-label[hidden],
 .interaction3d-stage .i3d-vacuum-room.is-icon-hidden:before,
 .interaction3d-stage .i3d-vacuum-room.is-icon-hidden .i3d-marker-icon {
   display: none;
@@ -2062,13 +1999,9 @@ body.interaction3d-stage.is-background-hidden,
   min-height: 0;
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs {
-  position: static;
   transform: none;
-  display: flex;
   flex-wrap: nowrap;
-  justify-content: center;
   /* gap 由下方槽位几何规则统一给出（--i3d-tab-gap），这里不要再写死，否则两处数值会打架。 */
-  gap: 0;
 }
 .interaction3d-stage .i3d-floor-tabs {
   position: absolute;
@@ -2168,11 +2101,7 @@ body.interaction3d-stage.is-background-hidden,
   .interaction3d-stage .i3d-floor-tabs,
   .interaction3d-stage .i3d-navigation.is-focus-hidden,
   .interaction3d-stage .i3d-floor-tabs.is-focus-hidden,
-  .interaction3d-stage .i3d-floor-tabs button:before {
-    transition: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
+  .interaction3d-stage .i3d-floor-tabs button:before,
   .interaction3d-stage .i3d-light-panel,
   .interaction3d-stage .i3d-light-panel.is-open {
     transition: none;
@@ -2248,9 +2177,6 @@ body.interaction3d-stage.is-background-hidden,
     color 0.2s ease,
     background-color 0.22s ease;
   transform: none;
-}
-.interaction3d-stage .i3d-navigation .i3d-module-tabs button[hidden] {
-  display: none;
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs button[aria-pressed="true"] {
   color: #fff;
@@ -2390,9 +2316,8 @@ body.interaction3d-stage.is-background-hidden,
   background: #67d8c920;
   pointer-events: none;
 }
-.interaction3d-stage .i3d-navigation .i3d-module-tabs[hidden] {
-  display: none;
-}
+.interaction3d-stage .i3d-navigation .i3d-module-tabs button[hidden],
+.interaction3d-stage .i3d-navigation .i3d-module-tabs[hidden],
 .interaction3d-stage .i3d-marker.is-security-label:before {
   display: none;
 }
@@ -2570,9 +2495,7 @@ body.interaction3d-stage.is-background-hidden,
   color: #8fd4a8;
 }
 /* 水浸双状态分行 */
-.interaction3d-stage .i3d-alarm-source {
-  display: block;
-}
+.interaction3d-stage .i3d-alarm-source,
 .interaction3d-stage .i3d-alarm-detail-line {
   display: block;
 }
@@ -2688,7 +2611,6 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-security-label.is-lock-status {
   min-width: 118px;
-  padding: 9px 12px 9px 40px;
   gap: 3px;
 }
 .interaction3d-stage .i3d-security-label.is-lock-status > strong {
@@ -2698,9 +2620,6 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-security-label.is-lock-status > span {
   font-size: 0.9em;
-}
-.interaction3d-stage .i3d-security-label.is-lock-status > span:before {
-  content: none;
 }
 .interaction3d-stage .i3d-security-label.is-lock-status {
   display: grid;
@@ -2728,9 +2647,6 @@ body.interaction3d-stage.is-background-hidden,
   height: max(28px, 1.5em);
   color: inherit;
 }
-.interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon:before {
-  content: none;
-}
 .interaction3d-stage .i3d-security-label.is-camera-status {
   display: grid;
   grid-template-columns: auto auto;
@@ -2754,6 +2670,8 @@ body.interaction3d-stage.is-background-hidden,
   align-self: center;
   transform: none;
 }
+.interaction3d-stage .i3d-security-label.is-lock-status > span:before,
+.interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon:before,
 .interaction3d-stage .i3d-security-label.is-camera-status > .i3d-marker-icon:before {
   content: none;
 }
@@ -2995,9 +2913,7 @@ body.interaction3d-stage.is-background-hidden,
     opacity 0.24s linear,
     visibility 0s;
 }
-.interaction3d-stage .i3d-car-tires .i3d-car-tire:after {
-  display: none;
-}
+.interaction3d-stage .i3d-car-tires .i3d-car-tire:after,
 .interaction3d-stage .i3d-car-tire[hidden] {
   display: none;
 }
@@ -3853,9 +3769,6 @@ body.interaction3d-stage.is-background-hidden,
   background:
     radial-gradient(ellipse at center, #fff, #fff0 72%), conic-gradient(red, #ff0, #0f0, #0ff, #00f, #f0f, red);
 }
-.i3d-color-picker[hidden] {
-  display: none;
-}
 .i3d-color-picker[aria-disabled="true"] {
   opacity: 0.45;
   cursor: default;
@@ -3891,6 +3804,7 @@ body.interaction3d-stage.is-background-hidden,
   color: var(--i3d-wood-ink, #e4dcd1);
   font-size: 12px;
 }
+.i3d-color-picker[hidden],
 .interaction3d-stage .i3d-light-mode [hidden],
 .interaction3d-stage .i3d-light-mode[hidden] {
   display: none;
@@ -4116,11 +4030,8 @@ body.interaction3d-stage.is-background-hidden,
   width: 100%;
   box-sizing: border-box;
   overflow-anchor: none;
-  overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-gutter: stable;
-  padding-right: 6px;
 }
 .i3d-speaker-panel .i3d-nas-heading {
   min-width: 0;
@@ -4566,9 +4477,7 @@ body.interaction3d-stage.is-background-hidden,
   min-width: 0;
   padding: 8px 0 12px;
 }
-.i3d-game-main[hidden] {
-  display: none !important;
-}
+.i3d-game-main[hidden],
 .i3d-game-main [hidden] {
   display: none !important;
 }
@@ -4614,11 +4523,7 @@ body.interaction3d-stage.is-background-hidden,
   border-radius: 50%;
   flex: none;
 }
-.i3d-game-hours {
-  font-size: var(--hos-fs-1, 11px);
-  opacity: 0.8;
-  line-height: 1.4;
-}
+.i3d-game-hours,
 .i3d-game-art-message {
   font-size: var(--hos-fs-1, 11px);
   opacity: 0.8;
@@ -4651,11 +4556,7 @@ body.interaction3d-stage.is-background-hidden,
   margin-top: 9px;
   font-size: 12px;
 }
-.i3d-game-source > select {
-  flex: 1;
-  min-width: 150px;
-  max-width: 100%;
-}
+.i3d-game-source > select,
 .i3d-game-source > .i3d-popup-select {
   flex: 1;
   min-width: 150px;
@@ -4683,9 +4584,7 @@ body.interaction3d-stage.is-background-hidden,
 
 /* ---- 0.8.4 选择器级补丁（媒体查询） ---- */
 @media (prefers-reduced-motion: reduce) {
-  .interaction3d-stage .i3d-security-label.is-contact-auto-label {
-    transition: none;
-  }
+  .interaction3d-stage .i3d-security-label.is-contact-auto-label,
   .interaction3d-stage .i3d-security-label.is-contact-auto-label.is-contact-closed {
     transition: none;
   }

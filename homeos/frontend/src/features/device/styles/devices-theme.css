@@ -79,16 +79,6 @@
   cursor: not-allowed;
 }
 
-.dev-metric__value--green {
-  color: var(--set-success, #6ee7b7);
-}
-.dev-metric__value--red {
-  color: var(--set-danger, #fca5a5);
-}
-.dev-metric__value--amber {
-  color: var(--set-warn, #fde68a);
-}
-
 /* ── 时间范围按钮（对齐 list-page chip） ── */
 .dev-range {
   display: flex;
@@ -656,12 +646,9 @@
 }
 
 /* 使用排行：首列为序号 */
-.device-analytics__rank-panel .device-analytics__rank-scroll .dev-rank-table th:first-child,
-.device-analytics__rank-panel .device-analytics__rank-scroll .dev-rank-table td:first-child {
-  width: 32px;
-  text-align: center;
-}
 
+.device-analytics__rank-panel .device-analytics__rank-scroll .dev-rank-table th:first-child,
+.device-analytics__rank-panel .device-analytics__rank-scroll .dev-rank-table td:first-child,
 .device-analytics__events-rank .device-analytics__rank-scroll .dev-rank-table th:first-child,
 .device-analytics__events-rank .device-analytics__rank-scroll .dev-rank-table td:first-child {
   width: 32px;
@@ -1045,7 +1032,7 @@
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.05);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
 }
 
 .device-overview__domain-chip {
@@ -1925,10 +1912,7 @@
 
 .device-detail-view__tab-stack .device-usage,
 .device-detail-view__tab-stack .device-analytics-panel,
-.device-detail-view__tab-stack .device-detail-tab {
-  min-height: 0;
-}
-
+.device-detail-view__tab-stack .device-detail-tab,
 .device-detail-view__tab-stack .device-analytics-panel .dev-analytics-grid {
   min-height: 0;
 }
@@ -2252,9 +2236,7 @@
 /* 手机 / 触控端：关闭毛玻璃与 inset 光晕以减轻性能负担 */
 @container hos-canvas (max-width: 900px) {
   .dev-metric__icon,
-  .dev-range__btn--active {
-    box-shadow: none !important;
-  }
+  .dev-range__btn--active,
   .devices-view .list-page__chip--accent,
   .devices-view .list-page__chip--online.list-page__chip--accent,
   .devices-view .list-page__chip--offline.list-page__chip--accent,
@@ -2264,9 +2246,7 @@
 }
 @media (pointer: coarse), (hover: none) {
   .dev-metric__icon,
-  .dev-range__btn--active {
-    box-shadow: none !important;
-  }
+  .dev-range__btn--active,
   .devices-view .list-page__chip--accent,
   .devices-view .list-page__chip--online.list-page__chip--accent,
   .devices-view .list-page__chip--offline.list-page__chip--accent,

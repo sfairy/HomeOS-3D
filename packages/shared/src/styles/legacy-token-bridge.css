@@ -44,15 +44,6 @@
   --premium-accent-red: var(--hos-color-danger);
 
   /* 页面主色 + 派生族（派生必须在同一作用域重算，否则会继承旧声明冻结值） */
-  --page-accent: var(--hos-color-accent);
-  --page-accent-rgb: var(--hos-color-accent-rgb);
-  --page-accent-secondary: var(--hos-color-accent-strong);
-  --page-accent-secondary-rgb: var(--hos-color-accent-strong-rgb);
-  --page-accent-bg: rgba(var(--hos-color-accent-rgb), 0.12);
-  --page-accent-bg-strong: rgba(var(--hos-color-accent-rgb), 0.18);
-  --page-accent-border: var(--hos-color-accent-line);
-  --page-accent-glow: rgba(var(--hos-color-accent-rgb), 0.16);
-  --page-accent-text: var(--hos-color-accent);
 
   /* modal-theme.css 的 --hos-accent / --hos-accent-end 是 **RGB 分量三元组**
      （用法 rgba(var(--hos-accent), x)），不是颜色 —— 保持三元组语义 */
@@ -60,70 +51,6 @@
   --hos-accent-end: var(--hos-color-accent-deep-rgb);
 
   /* 模块色 21 组 × 4：模块辨识改为「同色不同透明度/描边」，不再一屏四色 */
-  --module-accent-devices: var(--hos-color-accent);
-  --module-accent-devices-rgb: var(--hos-color-accent-rgb);
-  --module-accent-devices-sub: var(--hos-color-accent-strong);
-  --module-accent-devices-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-scenes: var(--hos-color-accent);
-  --module-accent-scenes-rgb: var(--hos-color-accent-rgb);
-  --module-accent-scenes-sub: var(--hos-color-accent-strong);
-  --module-accent-scenes-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-security: var(--hos-color-accent);
-  --module-accent-security-rgb: var(--hos-color-accent-rgb);
-  --module-accent-security-sub: var(--hos-color-accent-strong);
-  --module-accent-security-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-automation: var(--hos-color-accent);
-  --module-accent-automation-rgb: var(--hos-color-accent-rgb);
-  --module-accent-automation-sub: var(--hos-color-accent-strong);
-  --module-accent-automation-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-script: var(--hos-color-accent);
-  --module-accent-script-rgb: var(--hos-color-accent-rgb);
-  --module-accent-script-sub: var(--hos-color-accent-strong);
-  --module-accent-script-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-template: var(--hos-color-accent);
-  --module-accent-template-rgb: var(--hos-color-accent-rgb);
-  --module-accent-template-sub: var(--hos-color-accent-strong);
-  --module-accent-template-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-events: var(--hos-color-accent);
-  --module-accent-events-rgb: var(--hos-color-accent-rgb);
-  --module-accent-events-sub: var(--hos-color-accent-strong);
-  --module-accent-events-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-energy: var(--hos-color-accent);
-  --module-accent-energy-rgb: var(--hos-color-accent-rgb);
-  --module-accent-energy-sub: var(--hos-color-accent-strong);
-  --module-accent-energy-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-life: var(--hos-color-accent);
-  --module-accent-life-rgb: var(--hos-color-accent-rgb);
-  --module-accent-life-sub: var(--hos-color-accent-strong);
-  --module-accent-life-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-connection: var(--hos-color-accent);
-  --module-accent-connection-rgb: var(--hos-color-accent-rgb);
-  --module-accent-connection-sub: var(--hos-color-accent-strong);
-  --module-accent-connection-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-bindings: var(--hos-color-accent);
-  --module-accent-bindings-rgb: var(--hos-color-accent-rgb);
-  --module-accent-bindings-sub: var(--hos-color-accent-strong);
-  --module-accent-bindings-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-agent: var(--hos-color-accent);
-  --module-accent-agent-rgb: var(--hos-color-accent-rgb);
-  --module-accent-agent-sub: var(--hos-color-accent-strong);
-  --module-accent-agent-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-layout: var(--hos-color-accent);
-  --module-accent-layout-rgb: var(--hos-color-accent-rgb);
-  --module-accent-layout-sub: var(--hos-color-accent-strong);
-  --module-accent-layout-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-home-mode: var(--hos-color-accent);
-  --module-accent-home-mode-rgb: var(--hos-color-accent-rgb);
-  --module-accent-home-mode-sub: var(--hos-color-accent-strong);
-  --module-accent-home-mode-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-admin: var(--hos-color-accent);
-  --module-accent-admin-rgb: var(--hos-color-accent-rgb);
-  --module-accent-admin-sub: var(--hos-color-accent-strong);
-  --module-accent-admin-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-voice: var(--hos-color-accent);
-  --module-accent-voice-rgb: var(--hos-color-accent-rgb);
-  --module-accent-voice-sub: var(--hos-color-accent-strong);
-  --module-accent-voice-sub-rgb: var(--hos-color-accent-strong-rgb);
 
   /* ══ 3. 文字层级 ═══════════════════════════════════════════ */
   --hos-text-strong: var(--hos-fg-1);
@@ -168,14 +95,9 @@
   --dashboard-sidebar-border: var(--hos-line-2);
 
   /* ══ 5. 描边（旧蓝色描边 → 中性暖灰描边；铜色只留给强调） ══ */
-  --hos-border-subtle: var(--hos-line-2);
-  --hos-border-strong: var(--hos-line-3);
   --hos-border-hairline-soft: var(--hos-line-1);
   --hos-border-hairline: var(--hos-line-2);
   --hos-border-hairline-strong: var(--hos-line-3);
-
-  --premium-border: var(--hos-line-2);
-  --premium-border-strong: var(--hos-line-3);
   --premium-border-open: var(--hos-color-accent-line);
   --set-border: var(--hos-line-3);
   --set-border-subtle: var(--hos-line-2);

@@ -677,7 +677,6 @@
 .afh-section--layout .afh-pos-card {
   padding: 10px;
   border: none;
-  background: rgba(0, 0, 0, 0.14);
   box-shadow: none;
 }
 
@@ -690,7 +689,6 @@
 }
 
 .afh-section--layout .afh-form__label {
-  color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.06em;
 }
 
@@ -1445,7 +1443,7 @@
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background: rgba(255, 255, 255, 0.02);
 }
 

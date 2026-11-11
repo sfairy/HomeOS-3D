@@ -173,14 +173,9 @@
   }
 
   /* 压缩纵向间距，使内容尽量一屏展示，超出部分随滚动触达 */
-  .eew-hero {
-    margin-bottom: 1rem;
-  }
 
-  .eew-info-grid {
-    margin-bottom: 1rem;
-  }
-
+  .eew-hero,
+  .eew-info-grid,
   .eew-intensity-block {
     margin-bottom: 1rem;
   }

@@ -43,7 +43,7 @@
   padding: 1px 5px;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.05);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   white-space: nowrap;
 }
 

@@ -1823,19 +1823,15 @@
 
 /* 冻结帧读数。有些层的可见性完全来自动画，停掉动画就得把读数补回来 ——
    关键帧的中点：冻的是「动画里的一帧」，不是一个比动画更亮的新配色。 */
-html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__stage,
-html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__stage * {
-  animation: none !important;
-}
 
 /* `*` 不匹配伪元素：hex 的漂移已经搬到 ::before 上，这里必须单独点名，
    否则手持档下唯独这一层还在动（而它恰恰是白名单里唯一允许在平板继续漂的一层，
    见文件末尾 —— 这里冻的是 `frozen`，`ambient` 会在末尾解冻回来）。 */
-html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__hex::before {
-  animation: none !important;
-}
 
 /* stage 之外的装饰要逐个点名：它们与标题、徽标、档案表同处一层，吃不到上面那条兜底。 */
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__stage,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__stage *,
+html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__hex::before,
 html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__brand,
 html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__dossier,
 html:is([data-hos-motion="frozen"], [data-hos-motion="ambient"]) .hos-scene__dossier-dot,

@@ -153,12 +153,6 @@ button:hover:not(:disabled) {
 button:active:not(:disabled) {
   transform: translateY(1px);
 }
-button:focus-visible,
-input:focus-visible,
-canvas:focus-visible {
-  outline: 2px solid var(--hos-color-accent);
-  outline-offset: 2px;
-}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.38;
@@ -237,6 +231,9 @@ button:disabled {
   color: var(--text);
   background: #ffffff0f;
 }
+button:focus-visible,
+input:focus-visible,
+canvas:focus-visible,
 .studio-help-link:focus-visible {
   outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
@@ -495,11 +492,6 @@ button:disabled {
   font-size: 12px;
   white-space: nowrap;
 }
-.background-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 .start-card .start-card-row {
   flex-wrap: wrap;
 }
@@ -592,6 +584,7 @@ button:disabled {
   color: #f4b167;
   font-size: 10px;
 }
+.background-actions,
 .floor-heading-actions {
   display: flex;
   align-items: center;
@@ -621,9 +614,6 @@ button:disabled {
 .floor-row.drag-ready {
   cursor: grab;
   box-shadow: inset 0 0 0 1px #ffa73a33;
-}
-.floor-row.dragging {
-  opacity: 0.42;
 }
 .floor-row.drop-before:before,
 .floor-row.drop-after:after {
@@ -719,9 +709,6 @@ button:disabled {
   color: #8f9ba5;
   font-size: 10px;
 }
-.model-settings-row label > span {
-  white-space: nowrap;
-}
 .model-settings-row input {
   min-width: 0;
   width: 100%;
@@ -772,6 +759,7 @@ button:disabled {
   align-items: center;
   gap: 4px;
 }
+.model-settings-row label > span,
 .model-settings-option-row label span,
 .model-settings-option-row .floor-edge-label {
   white-space: nowrap;
@@ -841,7 +829,6 @@ button:disabled {
 }
 .asset-category-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   margin-top: 7px;
   padding: 2px;
@@ -969,9 +956,6 @@ button:disabled {
   cursor: grab;
   box-shadow: inset 0 0 0 1px #ffa73a33;
 }
-.light-group-row.dragging {
-  opacity: 0.42;
-}
 .light-group-row.drop-before:before,
 .light-group-row.drop-after:after {
   position: absolute;
@@ -1067,6 +1051,8 @@ button:disabled {
   cursor: grab;
   box-shadow: inset 0 0 0 1px #ffa73a33;
 }
+.floor-row.dragging,
+.light-group-row.dragging,
 .light-area-row.dragging {
   opacity: 0.42;
 }
@@ -1582,17 +1568,9 @@ html.list-drag-active * {
   font-size: 18px;
 }
 /* 撤销 / 重做：禁用态必须能看出「历史栈为空」，所以不用 opacity 而是压暗图标色。 */
-.plan-history-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding-right: 7px;
-  margin-right: 2px;
-  border-right: 1px solid var(--line);
-}
 /* 复制 / 粘贴：与撤销重做同款按钮，单独一段分组并在其后留同一条分隔线。 */
+.plan-history-actions,
 .plan-clipboard-actions,
-/* 删除 / 旋转画布：同样收成图标，跟在同一行图标序列里。 */
 .plan-edit-actions {
   display: flex;
   align-items: center;
@@ -2032,9 +2010,6 @@ html.list-drag-active * {
 .preview-card {
   container-type: inline-size;
 }
-.preview-3d {
-  position: relative;
-}
 .model-loading-status {
   position: absolute;
   left: 50%;
@@ -2394,11 +2369,7 @@ html.list-drag-active * {
 .preview-heading .refresh-preview:disabled {
   opacity: 0.72;
 }
-.preview-heading .refresh-preview.is-dirty {
-  color: #ffc071;
-  border-color: #ffa73a47;
-  background: #ffa73a1a;
-}
+.preview-heading .refresh-preview.is-dirty,
 .preview-heading #refresh-light-preview:not(:disabled) {
   color: #ffc071;
   border-color: #ffa73a47;
@@ -2630,15 +2601,13 @@ html.list-drag-active * {
   inset: 0;
   pointer-events: none;
 }
-.preview-3d .preview-light-cache[hidden] {
-  display: none;
-}
 .preview-3d .preview-render-shield {
   position: absolute;
   z-index: 3;
   inset: 0;
   pointer-events: none;
 }
+.preview-3d .preview-light-cache[hidden],
 .preview-3d .preview-render-shield[hidden] {
   display: none;
 }
@@ -2838,12 +2807,10 @@ html.list-drag-active * {
   font-size: 10px;
   font-weight: 500;
 }
-.inspector-group-count[hidden] {
-  display: none;
-}
 .inspector-group-body {
   padding-bottom: 8px;
 }
+.inspector-group-count[hidden],
 .inspector-group.is-collapsed > .inspector-group-body {
   display: none;
 }
@@ -2854,9 +2821,7 @@ html.list-drag-active * {
 .inspector-group-body > .label-text-fields {
   margin-top: 0;
 }
-.inspector-group-body > .field-section {
-  padding: 0;
-}
+.inspector-group-body > .field-section,
 .selection-inspector > #item-fields {
   padding: 0;
 }
@@ -2925,9 +2890,6 @@ html.list-drag-active * {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
-.light-fields[hidden] {
-  display: none;
-}
 .selection-heading > .light-preview-note {
   flex: 0 1 auto;
   min-width: 0;
@@ -2939,6 +2901,7 @@ html.list-drag-active * {
   line-height: 1.35;
   text-align: left;
 }
+.light-fields[hidden],
 .selection-heading > .light-preview-note[hidden] {
   display: none;
 }
@@ -3209,18 +3172,13 @@ select option:disabled {
   gap: 5px;
   margin-top: 9px;
 }
-.rotation-actions button {
-  height: 32px;
-  border-radius: 6px;
-  color: #a0abb4;
-  font-size: 10px;
-}
 .door-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 5px;
   margin-top: 9px;
 }
+.rotation-actions button,
 .door-actions button {
   height: 32px;
   border-radius: 6px;
@@ -3764,9 +3722,7 @@ select option:disabled {
   background: #8b9aa60f;
   box-shadow: none;
 }
-.export-preset-slots button.active:not(.has-value) > strong {
-  color: #aeb9c2;
-}
+.export-preset-slots button.active:not(.has-value) > strong,
 .export-preset-slots button.active:not(.has-value) > small {
   color: #aeb9c2;
 }
@@ -4136,9 +4092,7 @@ body.auto-diagram-embedded {
   background: #0b1116;
 }
 body.auto-diagram-embedded
-  > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast) {
-  display: none !important;
-}
+  > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast),
 body.auto-diagram-embedded #base-light-controls {
   display: none !important;
 }
@@ -4158,17 +4112,15 @@ body.auto-diagram-embedded #export-dialog::backdrop {
 body.auto-diagram-embedded .export-workspace {
   display: block;
 }
-body.auto-diagram-embedded .export-heading,
-body.auto-diagram-embedded .export-controls,
-body.auto-diagram-embedded .export-preview-meta,
-body.auto-diagram-embedded .export-safe-area {
-  display: none;
-}
 body.auto-diagram-embedded .export-preview {
   width: 100%;
   height: 100%;
   padding: 0;
 }
+body.auto-diagram-embedded .export-heading,
+body.auto-diagram-embedded .export-controls,
+body.auto-diagram-embedded .export-preview-meta,
+body.auto-diagram-embedded .export-safe-area,
 body.auto-diagram-embedded .export-open-base-lighting {
   display: none;
 }
@@ -4268,15 +4220,13 @@ body.auto-diagram-embedded .export-preview-frame {
   flex: none;
   margin: 0;
 }
-.fridge-style-fields[hidden] {
-  display: none;
-}
 .material-fields {
   margin: 0;
   padding: 10px 12px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
 }
+.fridge-style-fields[hidden],
 .material-fields[hidden] {
   display: none;
 }
@@ -4512,10 +4462,7 @@ body.auto-diagram-embedded .export-preview-frame {
   cursor: pointer;
 }
 .material-slot-surface-toggle:hover:not(:disabled),
-.material-slot-reset:hover:not(:disabled) {
-  border-color: var(--hos-color-accent);
-  color: var(--text);
-}
+.material-slot-reset:hover:not(:disabled),
 .material-slot-surface-toggle[aria-expanded="true"] {
   border-color: var(--hos-color-accent);
   color: var(--text);

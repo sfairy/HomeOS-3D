@@ -1,22 +1,11 @@
-import {
-  createCacheLogger,
-  executeTaskWithTimeout,
-  preloadCacheEntries,
-  restoreCacheEntries,
-  writeCacheRecord,
-} from '../cache/cache-shared'
+import { createIdleSnapshotCache } from '../cache/idle-snapshot-cache'
 import { readTexturePixels, yieldToMain } from '../render-kit/fullscreen-copy'
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
 const REFLECTION_CACHE_VERSION = '20261110-v2'
 /** float → half 转换每处理 2^18 个分量让出一次主线程。 */
 const HALF_FLOAT_SLICE_MASK = (1 << 18) - 1
-const MAX_ENTRY_BYTES = 25165824,
-  MAX_PERSISTED_BYTES = 67108864,
-  MAX_ENTRY_COUNT = 8,
-  MAX_PERSISTED_ENTRIES = 4,
-  MAX_PENDING_ENTRIES = 8,
-  MIN_SNAPSHOT_SIDE = 128,
+const MIN_SNAPSHOT_SIDE = 128,
   MAX_SNAPSHOT_SIDE = 2048
 const isSnapshotSide = (side: unknown) =>
   Number.isInteger(side) && (side as number) >= MIN_SNAPSHOT_SIDE && (side as number) <= MAX_SNAPSHOT_SIDE
@@ -34,259 +23,19 @@ function validReflectionSnapshot(snapshot: any) {
   )
 }
 const snapshotBytes = (snapshot: any) => snapshot.pixels.byteLength + 128
-export function createReflectionPersistentCache({ env: env = globalThis, key: key = '' } = {}) {
-  const snapshotByKey = new Map(),
-    pendingByKey = new Map(),
-    persistedKeySet = new Set(),
-    storageKey = key && JSON.stringify([REFLECTION_CACHE_VERSION, key])
-  let cachedConnection: any,
-    openPromise,
-    preloadPromise,
-    isDisposed = false,
-    hasOpenFailed = false,
-    hasPresented = false,
-    idleHandle: any = null,
-    isIdleRunning = false,
-    idleChain = Promise.resolve(),
-    totalBytes = 0
-  const stats = {
-      hits: 0,
-      misses: 0,
-      restores: 0,
-      writes: 0,
-      fallbacks: 0,
-    },
-    log = createCacheLogger(env, '[3D-reflection-cache]', stats)
-  function isAvailable() {
-    try {
-      return !!storageKey && !isDisposed && !hasOpenFailed && !!env.indexedDB
-    } catch {
-      return false
-    }
-  }
-  function runWithTimeout(task: any): Promise<any> {
-    return executeTaskWithTimeout(env, task, {
-      duration: 1500,
-      onTimeout: () => stats.fallbacks++,
-    })
-  }
-  function openDatabase() {
-    return isAvailable()
-      ? ((openPromise ||= runWithTimeout((settleOpen: any) => {
-          const openRequest = env.indexedDB.open('homeos-first-reflections', 1)
-          ;(openRequest.onupgradeneeded = () => {
-            openRequest.result.createObjectStore('scenes', {
-              keyPath: 'key',
-            }),
-              openRequest.result.createObjectStore('metadata', {
-                keyPath: 'key',
-              })
-          }),
-            (openRequest.onerror = openRequest.onblocked =
-              () => {
-                ;(hasOpenFailed = true), settleOpen(null)
-              }),
-            (openRequest.onsuccess = () => {
-              if (!isAvailable()) {
-                openRequest.result.close(), settleOpen(null)
-                return
-              }
-              ;(cachedConnection = openRequest.result),
-                (cachedConnection.onversionchange = disposeCache),
-                settleOpen(cachedConnection)
-            })
-        })),
-        openPromise)
-      : Promise.resolve(null)
-  }
-  function deleteEntry(cacheKey: any) {
-    ;(totalBytes -= snapshotByKey.get(cacheKey)?.bytes || 0), snapshotByKey.delete(cacheKey)
-  }
-  function storeSnapshot(cacheKey: any, entry: any) {
-    if (
-      typeof cacheKey != 'string' ||
-      typeof entry.signature != 'string' ||
-      entry.signature.length > 1024 * 1024 ||
-      !validReflectionSnapshot(entry.data)
-    )
-      return false
-    const entryBytes = snapshotBytes(entry.data) + entry.signature.length * 2
-    if (entryBytes > MAX_ENTRY_BYTES) return false
-    for (
-      deleteEntry(cacheKey);
-      snapshotByKey.size && (snapshotByKey.size >= MAX_ENTRY_COUNT || totalBytes + entryBytes > MAX_ENTRY_BYTES);
-    )
-      deleteEntry(snapshotByKey.keys().next().value)
-    return (
-      snapshotByKey.set(cacheKey, {
-        ...entry,
-        bytes: entryBytes,
-      }),
-      (totalBytes += entryBytes),
-      true
-    )
-  }
-  function preload() {
-    return isAvailable()
-      ? ((preloadPromise ||= preloadCacheEntries({
-          openDatabase,
-          isAvailable,
-          storageKey,
-          version: REFLECTION_CACHE_VERSION,
-          maxAgeMs: 7 * 86400000,
-          runWithTimeout,
-          restore: (storedEntries: any[]) => {
-            restoreCacheEntries(storedEntries, {
-              maxEntries: MAX_ENTRY_COUNT,
-              hasEntry: (entryKey: any) => snapshotByKey.has(entryKey) || persistedKeySet.has(entryKey),
-              store: storeSnapshot,
-              onFallback: () => stats.fallbacks++,
-            })
-            stats.restores++, log('restored')
-          },
-        }).catch(() => {
-          stats.fallbacks++
-        })),
-        preloadPromise)
-      : Promise.resolve()
-  }
-
-  async function persist() {
-    const openedDatabase = await openDatabase()
-    if (!openedDatabase || !isAvailable()) return
-    ;(await writeCacheRecord(
-      openedDatabase,
-      {
-        storageKey,
-        version: REFLECTION_CACHE_VERSION,
-        bytes: totalBytes,
-        entries: [...snapshotByKey],
-        maxEntries: MAX_PERSISTED_ENTRIES,
-        maxBytes: MAX_PERSISTED_BYTES,
-      },
-      runWithTimeout,
-    ))
-      ? stats.writes++
-      : (stats.fallbacks++, (hasOpenFailed = true)),
-      log('stored')
-  }
-  function cancelPendingEntries() {
-    for (const pendingEntry of pendingByKey.values()) pendingEntry.done()
-    pendingByKey.clear()
-  }
-  function scheduleIdleFlush() {
-    if (!isAvailable()) {
-      cancelPendingEntries()
-      return
-    }
-    if (!hasPresented || isIdleRunning || idleHandle !== null || !pendingByKey.size) return
-    const flushPendingEntry = () => {
-      ;(idleHandle = null),
-        (isIdleRunning = true),
-        (idleChain = (async () => {
-          if (!isAvailable() || !pendingByKey.size) return
-          const [pendingKey, pendingEntry] = pendingByKey.entries().next().value!
-          pendingByKey.delete(pendingKey)
-          try {
-            if (!isAvailable() || persistedKeySet.has(pendingKey) || !pendingEntry.valid()) return
-            const signature =
-              typeof pendingEntry.signature == 'function' ? pendingEntry.signature() : pendingEntry.signature
-            if (!signature || !pendingEntry.valid()) return
-            const producedSnapshot = await pendingEntry.produce(signature)
-            if (!isAvailable() || !pendingEntry.valid() || !producedSnapshot) return
-            if (
-              !storeSnapshot(pendingKey, {
-                signature: signature,
-                data: producedSnapshot,
-              })
-            ) {
-              stats.fallbacks++
-              return
-            }
-            persistedKeySet.add(pendingKey), await persist()
-          } finally {
-            pendingEntry.done()
-          }
-        })()
-          .catch(() => {
-            stats.fallbacks++
-          })
-          .finally(() => {
-            ;(isIdleRunning = false), scheduleIdleFlush()
-          }))
-    }
-    idleHandle = env.requestIdleCallback
-      ? env.requestIdleCallback(flushPendingEntry, {
-          timeout: 3000,
-        })
-      : env.setTimeout(flushPendingEntry, 250)
-  }
-  function disposeCache() {
-    ;(isDisposed = true),
-      idleHandle !== null &&
-        (typeof env.requestIdleCallback === 'function'
-          ? env.cancelIdleCallback?.(idleHandle)
-          : env.clearTimeout(idleHandle),
-        (idleHandle = null)),
-      cancelPendingEntries(),
-      snapshotByKey.clear(),
-      persistedKeySet.clear(),
-      (totalBytes = 0),
-      cachedConnection?.close()
-  }
-  return (
-    env.addEventListener?.('pagehide', disposeCache, {
-      once: true,
-    }),
-    {
-      preload: preload,
-      dispose: disposeCache,
-      available: isAvailable,
-      has: (cacheKey: any) => isAvailable() && snapshotByKey.has(cacheKey),
-      discard(cacheKey: any) {
-        deleteEntry(cacheKey), persistedKeySet.delete(cacheKey), stats.fallbacks++
-      },
-      peek(cacheKey: any, signature: any) {
-        if (!isAvailable() || !signature) return null
-        const cachedEntry = snapshotByKey.get(cacheKey)
-        return cachedEntry?.signature === signature && validReflectionSnapshot(cachedEntry.data)
-          ? (stats.hits++, persistedKeySet.add(cacheKey), log('restored'), cachedEntry.data)
-          : (stats.misses++, null)
-      },
-      enqueue(cacheKey: any, signature: any, produce: any, valid: any, done = () => {}) {
-        if (
-          !isAvailable() ||
-          !signature ||
-          (typeof signature != 'function' && signature.length > 1024 * 1024) ||
-          persistedKeySet.has(cacheKey)
-        ) {
-          done()
-          return
-        }
-        if (!pendingByKey.has(cacheKey) && pendingByKey.size >= MAX_PENDING_ENTRIES) {
-          const oldestPendingKey = pendingByKey.keys().next().value
-          pendingByKey.get(oldestPendingKey).done(), pendingByKey.delete(oldestPendingKey)
-        }
-        pendingByKey.get(cacheKey)?.done(),
-          pendingByKey.set(cacheKey, {
-            signature: signature,
-            produce: produce,
-            valid: valid,
-            done: done,
-          }),
-          scheduleIdleFlush()
-      },
-      presented() {
-        ;(hasPresented = true), scheduleIdleFlush()
-      },
-      stats: () => ({
-        ...stats,
-        bytes: totalBytes,
-        receivers: snapshotByKey.size,
-      }),
-      whenIdle: () => idleChain,
-    }
-  )
+export function createReflectionPersistentCache({ env = globalThis, key = '' } = {}) {
+  return createIdleSnapshotCache({
+    env,
+    key,
+    version: REFLECTION_CACHE_VERSION,
+    databaseName: 'homeos-first-reflections',
+    logPrefix: '[3D-reflection-cache]',
+    validate: validReflectionSnapshot,
+    snapshotBytes,
+    maxPersistedBytes: 67108864,
+    maxPersistedEntries: 4,
+    sizeStatKey: 'receivers',
+  })
 }
 /** 抓取当前反射贴图为半精度快照（要求 EXT_color_buffer_float，宽高各 128..2048）。 */
 export async function captureReflectionSnapshot(three: any, renderer: any, source: any, canCapture: any) {

@@ -39,14 +39,7 @@
 
 /* 开关控制 Hub：单行头时 Tab 自适应靠右（不再用 stacked 双行） */
 
-.widget-hub-head__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-}
-
+.widget-hub-head__row,
 .widget-hub-head__left {
   display: flex;
   align-items: center;

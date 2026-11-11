@@ -1,3 +1,5 @@
+import type { queryEditorElements } from '../home/elements/editor-elements'
+
 /**
  * 「检查器表单 → 提交事件」映射表 —— 从 home.ts 单体切出。
  *
@@ -5,34 +7,7 @@
  * 元素引用按 ctx 注入，调用点零改写。与 `*-input-tables` 同族。
  */
 
-interface InspectorSubmitElementRefs {
-  airConditionerLabelElement: any
-  airConditionerMainTextElement: any
-  airConditionerSecondaryTextElement: any
-  cameraLabelElement: any
-  dateLabelElement: any
-  ibeLabelElement: any
-  iconButtonLabelElement: any
-  iconButtonMainTextElement: any
-  iconButtonSecondaryTextElement: any
-  imageLabelElement: any
-  lightStatisticsLabelElement: any
-  lightStatisticsTitleElement: any
-  lineChartLabelElement: any
-  navigationLabelElement: any
-  navigationMainTextElement: any
-  navigationSecondaryTextElement: any
-  panelFrameLabelTextInputElement: any
-  panelFrameMainTextInputElement: any
-  panelFrameSecondaryTextInputElement: any
-  timeLabelElement: any
-  titleButtonLabelElement: any
-  titleButtonMainTextElement: any
-  titleButtonSecondaryLine1Element: any
-  titleButtonSecondaryLine2Element: any
-  vacuumMapLabelElement: any
-  weatherLabelElement: any
-}
+type InspectorSubmitElementRefs = ReturnType<typeof queryEditorElements>
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。

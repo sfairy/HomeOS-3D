@@ -5,7 +5,7 @@
 .settings-flow-band {
   padding: var(--hos-space-md, 12px) var(--hos-space-lg, 16px) var(--hos-space-md, 14px);
   border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  border: var(--hos-hairline) solid var(--hos-glass-border);
   background:
     radial-gradient(ellipse 85% 120% at 0% 0%, var(--flow-glow-a) 0%, transparent 58%),
     radial-gradient(ellipse 55% 45% at 100% 0%, var(--flow-glow-b) 0%, transparent 50%), rgba(0, 0, 0, 0.14);

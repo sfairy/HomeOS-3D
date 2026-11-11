@@ -151,12 +151,6 @@ body.hb-store-loading .hb-topbar::after {
   transition: var(--hb-transition);
 }
 
-.hb-topbar__support:hover {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
-
 .hb-topbar__actions {
   display: flex;
   flex: 0 0 auto;
@@ -164,6 +158,7 @@ body.hb-store-loading .hb-topbar::after {
   gap: 8px;
 }
 
+.hb-topbar__support:hover,
 .hb-topbar .hb-button.active {
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);

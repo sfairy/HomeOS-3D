@@ -1,3 +1,5 @@
+import type { queryEditorElements } from '../home/elements/editor-elements'
+
 /**
  * 「导出面板 → 属性 / 拼接错误」映射表 —— 从 home.ts 单体切出。
  *
@@ -5,35 +7,7 @@
  * 元素引用按 ctx 注入，调用点零改写。
  */
 
-interface ExportSpliceElementRefs {
-  ibeBrightnessRealtimeElement: any
-  ibeButtonOffColorElement: any
-  ibeButtonOnColorElement: any
-  ibeButtonOpacityElement: any
-  ibeColorTemperatureRealtimeElement: any
-  ibeEffectFadeDurationElement: any
-  ibeEffectLeftElement: any
-  ibeEffectOpacityElement: any
-  ibeEffectRotationElement: any
-  ibeEffectScaleElement: any
-  ibeEffectTopElement: any
-  ibeFrameColorElement: any
-  ibeFrameOpacityElement: any
-  ibeFrameWidthElement: any
-  ibeGlowColorElement: any
-  ibeGlowOffStrengthElement: any
-  ibeGlowOnStrengthElement: any
-  ibeHeightElement: any
-  ibeIconOffColorElement: any
-  ibeIconOnColorElement: any
-  ibeIconSizeElement: any
-  ibeLeftElement: any
-  ibeRadiusElement: any
-  ibeRotationElement: any
-  ibeScaleElement: any
-  ibeTopElement: any
-  ibeWidthElement: any
-}
+type ExportSpliceElementRefs = ReturnType<typeof queryEditorElements>
 
 /**
  * 建表一次（与 `setupEventLogWallInspector` 等同一形态：表单元素引用按 ctx 注入）。

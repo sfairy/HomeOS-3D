@@ -687,10 +687,6 @@ a.icon-btn {
     min-width: 160px;
   }
 
-  .tab-bar__tab-label {
-    display: none;
-  }
-
   .tab-bar__actions {
     /* 允许收缩：原 flex-shrink:0 + 5×44px 是裁切的主因之一 */
     flex: 0 1 auto;
@@ -708,11 +704,9 @@ a.icon-btn {
     min-height: var(--hos-touch-min, 44px);
   }
 
-  .tab-bar .tab-bar__actions .icon-btn:not(.icon-btn--keep) {
-    display: none;
-  }
-
   /* 模式切换器收成图标：标签隐藏后整块从 ~229px 降到 ~60px */
+  .tab-bar__tab-label,
+  .tab-bar .tab-bar__actions .icon-btn:not(.icon-btn--keep),
   .tab-bar .tab-bar__mode-switcher .home-mode-switcher__label {
     display: none;
   }
@@ -895,20 +889,14 @@ a.icon-btn {
 
 /* 触控 / 窄屏：重毛玻璃退化，避免性能开销与圆角抗锯齿伪影 */
 @media (pointer: coarse), (hover: none) {
-  .tab-bar {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+  .tab-bar,
   .tab-bar__more-menu {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
 }
 @container hos-canvas (max-width: 900px) {
-  .tab-bar {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+  .tab-bar,
   .tab-bar__more-menu {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

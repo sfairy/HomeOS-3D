@@ -30,6 +30,7 @@ import {
 import { createStripWallVisibility } from '../lights/strip-light/strip-wall-visibility'
 import { stripLightLtcTextures } from '../lights/strip-light/strip-light-ltc'
 import { nextPowerOfTwo, packSpotShadowAtlasTiles, toPositiveInt } from './studio-shadow-atlas-packing'
+import { captureRendererTargetState, restoreRendererTargetState } from '../../render-kit/renderer-state'
 
 function spotLightKey(lightObject: any) {
   const floorId = String(lightObject?.userData?.lightFloorId || ''),
@@ -986,12 +987,7 @@ export function createSpotShadowAtlasController({
     }
     if (!updates.length) return true
     const rendererState = {
-      target: renderer.getRenderTarget(),
-      face: renderer.getActiveCubeFace(),
-      mip: renderer.getActiveMipmapLevel(),
-      viewport: renderer.getViewport(new three.Vector4()),
-      scissor: renderer.getScissor(new three.Vector4()),
-      scissorTest: renderer.getScissorTest(),
+      targetState: captureRendererTargetState(renderer, three.Vector4),
       clear: renderer.getClearColor(new three.Color()),
       alpha: renderer.getClearAlpha(),
       enabled: renderer.shadowMap.enabled,
@@ -1050,10 +1046,7 @@ export function createSpotShadowAtlasController({
       ;(renderer.shadowMap.enabled = rendererState.enabled),
         (renderer.shadowMap.autoUpdate = rendererState.autoUpdate),
         (renderer.shadowMap.needsUpdate = rendererState.needsUpdate),
-        renderer.setViewport(rendererState.viewport),
-        renderer.setScissor(rendererState.scissor),
-        renderer.setScissorTest(rendererState.scissorTest),
-        renderer.setRenderTarget(rendererState.target, rendererState.face, rendererState.mip),
+        restoreRendererTargetState(renderer, rendererState.targetState),
         renderer.setClearColor(rendererState.clear, rendererState.alpha)
     }
     return (

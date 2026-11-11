@@ -223,7 +223,7 @@
 /** 卡片悬停：背景变亮 + 边框微亮 + 抬升 2px
  *  投影收紧到 3px：偏移与模糊都小于 20px 圆角，四角不会再叠出暗斑。 */
 .info-card:hover {
-  background: var(--hos-surface-2, rgba(255, 255, 255, 0.045));
+  background: var(--hos-surface-2, var(--hos-bg-tint-1));
   border-color: var(--hos-border-strong, var(--premium-border-strong));
   transform: translateY(var(--hos-hover-lift, -1px));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
@@ -265,12 +265,8 @@
  *  高度（含下限与上限）唯一来源为 registry 的 SIDEBAR_WIDGET_DEFAULT_HEIGHT /
  *  SIDEBAR_WIDGET_CONTENT_MIN_HEIGHT，由 RightSidebar.vue 经内联 style 下发；
  *  此处不再按类型重复声明 height/min-height，避免双份维护后逐渐漂移。 */
-.widget-fixed {
-  flex: none;
-}
-.widget-fixed--clock {
-  flex: none;
-}
+.widget-fixed,
+.widget-fixed--clock,
 .widget-fixed--weather {
   flex: none;
 }
@@ -278,35 +274,19 @@
   flex: none;
   overflow: visible;
 }
-.widget-fixed--mediaMini {
-  flex: none;
-}
 
 /** 类型预设高度（唯一来源：widget-registry-meta SIDEBAR_WIDGET_DEFAULT_HEIGHT，内联 style 下发）。
  *  恢复预设不再走「弹性区间」，避免与自定义同一数值却撑得更高。 */
-.widget-elastic {
-  flex: none;
-}
-.widget-elastic--heroSwiper {
-  flex: none;
-}
-.widget-elastic--homeClimateChart {
-  flex: none;
-}
-.widget-elastic--homeEnvironment {
-  flex: none;
-}
-.widget-elastic--switchGroup {
-  flex: none;
-}
-.widget-elastic--systemTimeline {
-  flex: none;
-}
-.widget-elastic--customHtml {
-  flex: none;
-}
 
 /** 紧凑型部件：无预设类型统一回退到 registry 的 fallback 高度（内联 style 下发） */
+.widget-fixed--mediaMini,
+.widget-elastic,
+.widget-elastic--heroSwiper,
+.widget-elastic--homeClimateChart,
+.widget-elastic--homeEnvironment,
+.widget-elastic--switchGroup,
+.widget-elastic--systemTimeline,
+.widget-elastic--customHtml,
 .widget-compact {
   flex: none;
 }
