@@ -270,4 +270,4 @@ function getBatteryIcon(level: number) {
 useEscLayer(menuVisible, '设备行菜单', () => closeMenu())
 </script>
 
-<style scoped src="./styles/DeviceRow.css"></style>
+<style scoped src="./styles/device-row.css"></style>

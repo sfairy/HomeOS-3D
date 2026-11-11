@@ -46,7 +46,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** PowerCardBody.vue */
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 
@@ -62,4 +62,4 @@ defineProps({
 })
 </script>
 
-<style scoped src="./styles/PowerCardBody.css"></style>
+<style scoped src="./styles/power-card-body.css"></style>

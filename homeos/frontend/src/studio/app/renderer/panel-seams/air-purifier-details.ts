@@ -1,7 +1,7 @@
 import { showRuntimeDialog } from './runtime-dialogs'
 import type { PanelRenderer } from '../panel-renderer'
 import { componentDialogTitle } from '../renderer-helpers'
-import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '../entity-metadata'
+import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/shared/device/entity-metadata'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../shared/related-entities'
 
 export function showAirPurifierDetails(

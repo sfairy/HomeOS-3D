@@ -168,4 +168,4 @@ function handleBanner(banner) {
 }
 </script>
 
-<style scoped src="./styles/EntitiesSection.css"></style>
+<style scoped src="./styles/entities-section.css"></style>

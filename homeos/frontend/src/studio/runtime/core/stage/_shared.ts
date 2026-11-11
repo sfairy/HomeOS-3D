@@ -1,4 +1,4 @@
-import { windowModels } from '@app/3d-studio/plan/window/window-models'
+import { windowModels } from '@app/shared/scene/window/window-models'
 
 export const postHostMessage = (hostMessage: any) =>
   window.parent.postMessage(
@@ -52,7 +52,7 @@ export function resolveMarkerIconSize(markerItem: any, markerSize: any, isVacuum
   return buttonIconSize(markerSize)
 }
 
-export { configuredModuleKinds } from '../../navigation/navigation-defaults'
+export { configuredModuleKinds } from '@/studio/platform/navigation/navigation-defaults'
 
 export function createStageModelIndex(mountOptions: any) {
   let indexedDocument: any,

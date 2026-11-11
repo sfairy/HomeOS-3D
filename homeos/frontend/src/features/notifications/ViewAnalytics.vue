@@ -111,4 +111,4 @@ const { bindSourceChart, bindLevelChart, bindRankChart, bindTimeChart, bindReadC
 </script>
 
 <style src="@/assets/styles/list-page-analytics.css"></style>
-<style scoped src="./styles/ViewAnalytics.css"></style>
+<style scoped src="./styles/view-analytics.css"></style>

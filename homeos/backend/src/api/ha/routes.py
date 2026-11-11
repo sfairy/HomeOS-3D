@@ -26,7 +26,6 @@ from ...dependencies import (
     LicensedUser,
     LicensedViewer,
     ViewerPrincipal,
-    require_viewer_entity,
     viewer_entity_ids,
 )
 from ...domains.ha.config.perf_windows import runtime_state_batch_window_ms
@@ -50,6 +49,7 @@ from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ...platform.core.runtime.observability import record_ha_counter
 from ...platform.security.session_store import session_token_hash
+from ...platform.security.viewer_scope import require_viewer_entity
 from ...schemas import (
     HABrowseMediaRequest,
     HAConnectionInput,

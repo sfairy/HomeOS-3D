@@ -39,7 +39,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { SettingsFlowStep } from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import { computed } from 'vue'
 import { LayoutDashboard, CloudSun, Video, Bell, ListChecks } from '@lucide/vue'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
@@ -61,7 +62,7 @@ const overviewFlowSummary = computed(() => {
 })
 
 // 流程概览步骤：概览 → 天气 → 监控 → 安防 → 完整性
-const overviewFlowSteps = computed(() => [
+const overviewFlowSteps = computed((): SettingsFlowStep[] => [
   { label: '概览', meta: '全局状态', icon: LayoutDashboard, tone: 'in' },
   {
     label: '天气',

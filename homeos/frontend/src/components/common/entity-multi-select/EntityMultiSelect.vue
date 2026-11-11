@@ -47,17 +47,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import EntityMultiSelectTrigger from '@/components/common/entity-multi-select/EntityMultiSelectTrigger.vue'
 import EntityMultiSelectDropdown from '@/components/common/entity-multi-select/EntityMultiSelectDropdown.vue'
-import { useEntityMultiSelect } from '@/components/common/entity-multi-select/useEntityMultiSelect'
+import {
+  type EntityMultiSelectStaticOption,
+  useEntityMultiSelect,
+} from '@/components/common/entity-multi-select/useEntityMultiSelect'
+import type { PropType } from 'vue'
 import './styles/entity-multi-select-dropdown.css'
 
 const props = defineProps({
   /** 绑定的 entity_id 数组（v-model） */
-  modelValue: { type: Array, default: () => [] },
+  modelValue: { type: Array as PropType<string[]>, default: () => [] },
   /** 允许的实体域白名单 */
-  allowedDomains: { type: Array, default: () => ['person', 'device_tracker'] },
+  allowedDomains: { type: Array as PropType<string[]>, default: () => ['person', 'device_tracker'] },
   /** placeholder 文案 */
   placeholder: { type: String, default: '' },
   /** 建议的 device_class，用于排序/高亮 */
@@ -73,7 +77,7 @@ const props = defineProps({
   /** 最大选择数，0 表示不限 */
   maxSelection: { type: Number, default: 0 },
   /** 静态选项（不依赖 HA 实体列表时使用） */
-  staticOptions: { type: Array, default: () => [] },
+  staticOptions: { type: Array as PropType<EntityMultiSelectStaticOption[]>, default: () => [] },
 })
 
 const emit = defineEmits(['update:modelValue'])

@@ -13,7 +13,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** 的真实排版。用于替代面板型 VPanelSkeleton 在列表场景下「只有一个大色块」的失真表现。 */
 import VSkeleton from './VSkeleton.vue'
 

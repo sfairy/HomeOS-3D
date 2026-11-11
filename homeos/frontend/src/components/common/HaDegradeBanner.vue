@@ -29,7 +29,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 图标三态：断连 WifiOff、重连中 Loader2、已连接但过期 AlertTriangle； */
 import { computed } from 'vue'
 import { WifiOff, Loader2, AlertTriangle } from '@lucide/vue'

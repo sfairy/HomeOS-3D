@@ -286,4 +286,4 @@ function toggleRawMode() {
 }
 </script>
 
-<style scoped src="./styles/SystemConfigNestedObjectEditor.css"></style>
+<style scoped src="./styles/system-config-nested-object-editor.css"></style>

@@ -61,7 +61,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { Radio, Gauge, Database, Server, ArrowRight } from '@lucide/vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'

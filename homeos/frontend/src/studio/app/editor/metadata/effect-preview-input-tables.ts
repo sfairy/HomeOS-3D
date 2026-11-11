@@ -571,7 +571,7 @@ export function createEffectPreviewInputTables(ctx: EffectPreviewInputElementRef
         },
       ],
     ]),
-    effectVisibleComponentByIdById = new Map([
+    titleButtonLayoutFieldByInput = new Map([
       [titleButtonLeftElement, 'left'],
       [titleButtonTopElement, 'top'],
       [titleButtonWidthElement, 'width'],
@@ -1450,7 +1450,7 @@ export function createEffectPreviewInputTables(ctx: EffectPreviewInputElementRef
       [airConditionerScaleElement, 'scale'],
       [airConditionerRotationElement, 'rotation'],
     ]),
-    previewComponentIdForIconByIdById = new Map([
+    cameraFrameStyleByInput = new Map([
       [
         cameraFrameColorElement,
         {
@@ -1503,7 +1503,7 @@ export function createEffectPreviewInputTables(ctx: EffectPreviewInputElementRef
         },
       ],
     ]),
-    previewModeForIconByIdById = new Map([
+    vacuumMapLayoutFieldByInput = new Map([
       [vacuumMapLeftElement, 'left'],
       [vacuumMapTopElement, 'top'],
       [vacuumMapScaleElement, 'scale'],
@@ -1520,16 +1520,16 @@ export function createEffectPreviewInputTables(ctx: EffectPreviewInputElementRef
 
   return {
     effectVisibleComponentById,
-    effectVisibleComponentByIdById,
+    titleButtonLayoutFieldByInput,
     previewStateByInputElementById,
     previewStateByInputElementByKey,
     previewStateByInputElement,
     effectVisibleComponentByIdByKey,
     previewStateByInputElementByName,
     previewComponentIdForIconById,
-    previewComponentIdForIconByIdById,
+    cameraFrameStyleByInput,
     previewModeForIconById,
-    previewModeForIconByIdById,
+    vacuumMapLayoutFieldByInput,
     previewModeForIconByIdByKey,
   }
 }

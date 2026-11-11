@@ -56,7 +56,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 
 import { useChromeStore } from '@/stores/chrome.store'
@@ -85,8 +85,8 @@ const ASSERTIVE_TYPES = new Set(['error', 'warning'])
  * @returns 两个固定档位：assertive（error / warning）与 polite（其余）
  */
 const notificationBands = computed(() => [
-  { live: 'assertive', items: chrome.notifications.filter((n) => ASSERTIVE_TYPES.has(n.type)) },
-  { live: 'polite', items: chrome.notifications.filter((n) => !ASSERTIVE_TYPES.has(n.type)) },
+  { live: 'assertive' as const, items: chrome.notifications.filter((n) => ASSERTIVE_TYPES.has(n.type)) },
+  { live: 'polite' as const, items: chrome.notifications.filter((n) => !ASSERTIVE_TYPES.has(n.type)) },
 ])
 
 /**
@@ -94,7 +94,7 @@ const notificationBands = computed(() => [
  * @param type 通知类型：success / error / warning / 其它(info)
  * @returns SVG 字符串
  */
-function getIcon(type) {
+function getIcon(type: string) {
   switch (type) {
     case 'success':
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
@@ -108,4 +108,4 @@ function getIcon(type) {
 }
 </script>
 
-<style scoped src="./styles/VNotification.css"></style>
+<style scoped src="./styles/v-notification.css"></style>

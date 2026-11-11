@@ -32,13 +32,13 @@ import {
   climateModeLabel as climateModeLabel2,
   climatePowerCommand as climatePowerCommand2,
   resolveClimateDeviceType as resolveClimateDeviceType2,
-} from '../controls/climate'
+} from '@app/shared/device/climate'
 import {
   formatLineChartValue as formatLineChartValue2,
   mountCameraMedia as mountCameraMedia2,
   renderLineChartDetails as renderLineChartDetails2,
 } from '../registry'
-import { lightColorRgb as lightColorRgb2, lightSupportsColor as lightSupportsColor2 } from '../controls/light-runtime'
+import { lightColorRgb, lightSupportsColor } from '@app/shared/device/light-runtime'
 import {
   playFixedDeviceDropEntrance as playFixedDeviceDropEntrance2,
   playMediaSpeakerEntrance as playMediaSpeakerEntrance2,
@@ -696,7 +696,7 @@ export function showCustomPopup(
                 popupLightVisualElement.append(lightVisualAuraElement, lightVisualLampElement),
                   popupModuleHeading.append(popupLightVisualElement)
                 const popupLightAttributes = popupEntityState?.attributes || {},
-                  supportsLightColor = lightSupportsColor2(popupLightAttributes),
+                  supportsLightColor = lightSupportsColor(popupLightAttributes),
                   minMiredColorKelvin =
                     Number(popupLightAttributes.min_color_temp_kelvin) ||
                     (Number.isFinite(Number(popupLightAttributes.max_mireds))
@@ -720,7 +720,7 @@ export function showCustomPopup(
                     colorTemperatureKelvin: Number.isFinite(NaN2)
                       ? NaN2
                       : (minMiredColorKelvin + maxMiredColorKelvin) / 2,
-                    colorRgb: supportsLightColor ? lightColorRgb2(popupLightAttributes) : null,
+                    colorRgb: supportsLightColor ? lightColorRgb(popupLightAttributes) : null,
                   },
                   syncLightVisual = (lightValueInput: ComponentPayload = {}) => {
                     const lightVisualAttributes = lightValueInput.attributes || {}
@@ -743,7 +743,7 @@ export function showCustomPopup(
                         ? (lightVisualValue.colorRgb = lightValueInput.colorRgb)
                         : lightValueInput.attributes &&
                           supportsLightColor &&
-                          (lightVisualValue.colorRgb = lightColorRgb2(lightVisualAttributes))
+                          (lightVisualValue.colorRgb = lightColorRgb(lightVisualAttributes))
                     const brightnessLevel = Math.max(1, Math.min(100, Number(lightVisualValue.brightnessPercent) || 1)),
                       colorBlendRatio =
                         (Math.max(2000, Math.min(6500, Number(lightVisualValue.colorTemperatureKelvin) || 4250)) -

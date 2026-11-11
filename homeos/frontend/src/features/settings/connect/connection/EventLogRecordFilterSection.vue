@@ -6,7 +6,7 @@
   注意事项：allow_domains 模式仅会保存勾选的域名（白名单），block_domains 模式为
   黑名单排除；调整后需点击底部保存按钮才会持久化到后端。
 -->
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { FileText, Loader2, CheckCircle2, AlertCircle, ShieldOff, Ban, ListFilter, Save } from '@lucide/vue'
 import EntityMultiSelect from '@/components/common/entity-multi-select/EntityMultiSelect.vue'

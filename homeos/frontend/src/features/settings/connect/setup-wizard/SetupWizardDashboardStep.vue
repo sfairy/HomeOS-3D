@@ -1,7 +1,7 @@
 <!--
   SetupWizardDashboardStep：3D 户型图绘制 / 仪表盘编辑 / 常用设备（可跳过）
 -->
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Boxes, LayoutTemplate, Star, ArrowRight, CheckCircle2, Circle } from '@lucide/vue'

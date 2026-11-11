@@ -18,7 +18,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   /** 头部图标组件或渲染函数 */
   icon: { type: [Object, Function], required: true },

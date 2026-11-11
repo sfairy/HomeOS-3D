@@ -9,7 +9,7 @@
  *  - usePresenceEntitiesDisplay：派生汇总文案与在家样式
  * 数据来源：父级透传的 presencePersons（双向）/ 状态 + composable 派生
 -->
-<script setup>
+<script setup lang="ts">
 /**
  * 所属模块：frontend/features/settings/automate/linkage
  * 职责：渲染全屋联动人员判定面板，整合子组件与业务数据。

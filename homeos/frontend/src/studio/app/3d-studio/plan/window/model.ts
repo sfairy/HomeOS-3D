@@ -21,7 +21,7 @@ import {
   type WindowLeaf,
   type WindowRecord,
   validateWindowDesign,
-} from './layout'
+} from '@app/shared/scene/window/layout'
 
 /** 可动件的行程：旋转（铰链）或平移（推拉）。 */
 interface WindowMotion {

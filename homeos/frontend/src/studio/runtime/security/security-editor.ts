@@ -4,7 +4,7 @@ import { PRESENCE_TRIGGER_MODES, presenceTriggerIsTimed } from '../presence/pres
 import { doorModels, identifyLockEntities, lockEntityRole } from '@app/bridge/lock-state-runtime'
 import { CARD_TEXT_SIZE_PX } from '@app/bridge/presets/card-text-size'
 import { modelChoiceLabel } from '@app/shared/model-remarks'
-import { windowModels } from '@app/3d-studio/plan/window/window-models'
+import { windowModels } from '@app/shared/scene/window/window-models'
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from '@app/bridge/presets/button-icon-size'
 import { temperatureHumidityFloorCenter } from '@app/bridge/temperature-humidity'
 import { validateGo2rtcUrl } from '../camera/go2rtc-url'

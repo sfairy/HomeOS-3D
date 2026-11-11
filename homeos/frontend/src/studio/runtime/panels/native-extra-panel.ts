@@ -14,9 +14,6 @@ import { createListExtraPanel } from './list-extra-panel'
 import { createServiceExtraPanel } from './service-extra-panel'
 import { createCompoundExtraPanel } from './compound-extra-panel'
 import { createLightExtraPanel } from './light-extra-panel'
-import { createExtendedExtraPanel } from './extended-extra-panel'
-import { createClimatePanel } from '../climate/climate-panel'
-import { createCoverPanel } from '../cover/cover-panel'
 import { createLockPanel } from '../security/lock-panel'
 import type { ExtraPanelViewModel, FeedbackSlot } from './panel-utils'
 
@@ -177,7 +174,9 @@ export function createNativeExtraPanel({
     return onControl({ ...command, deviceKind: 'purifier-extra' })
   }
 
-  function makePanel(): MountedPanel {
+  // 空调 / 窗帘面板自己的附加卡片又会经 purifier-extras 回到这里：这三类按需加载，
+  // 静态引用会形成 climate-panel → purifier-extras → native-extra-panel → climate-panel 的值循环。
+  async function makePanel(): Promise<MountedPanel> {
     const options = {
       element: hostElement,
       feedbackSlot,
@@ -185,8 +184,8 @@ export function createNativeExtraPanel({
     } as any
     if (kind === 'display') return createDisplayExtraPanel(options)
     if (kind === 'climate' || kind === 'media_player') {
-      const panel = createExtendedExtraPanel({ ...options, kind })
-      return panel
+      const { createExtendedExtraPanel } = await import('./extended-extra-panel')
+      return createExtendedExtraPanel({ ...options, kind })
     }
     if (kind === 'service') return createServiceExtraPanel(options)
     if (kind === 'list') return createListExtraPanel(options)
@@ -207,24 +206,31 @@ export function createNativeExtraPanel({
       }
     }
     if (kind === 'cover') {
-      const panel = createCoverPanel({
+      const { createCoverPanel } = await import('../cover/cover-panel')
+      return createCoverPanel({
         element: hostElement,
         feedbackSlot,
         onControl: sendControl,
         onExtraControl: sendControl,
       })
-      return panel
     }
     if (INPUT_DOMAINS.includes(kind)) return createInputExtraPanel(options)
-    if (kind === 'water_heater' || kind === 'fan')
+    if (kind === 'water_heater' || kind === 'fan') {
+      const { createClimatePanel } = await import('../climate/climate-panel')
       return createClimatePanel({ element: hostElement, feedbackSlot, onControl: sendControl })
+    }
     return createServiceExtraPanel(options)
   }
 
   const ready = Promise.resolve()
-    .then(() => {
+    .then(async () => {
       if (disposed) return
-      mountPanel = makePanel()
+      const panel = await makePanel()
+      if (disposed) {
+        panel.dispose?.()
+        return
+      }
+      mountPanel = panel
       hostElement.classList.add('i3d-extra-native-panel')
       resizeObserver?.observe(hostElement)
       refresh()

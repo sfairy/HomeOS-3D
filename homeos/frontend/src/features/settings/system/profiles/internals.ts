@@ -26,7 +26,7 @@ import {
 } from '@/services/api/config'
 import { getClientDeviceId } from '@/shared/client/utils/system.util'
 import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
-import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
+import { bindSelfTerminalProfile } from '@/stores/ui/resolve-active-profile.util'
 
 function profileLabel(projectId: string) {
   return projectId === 'default' ? '默认系统方案' : projectId

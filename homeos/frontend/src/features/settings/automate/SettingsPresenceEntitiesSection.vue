@@ -9,7 +9,7 @@
   - Loader2 / Home / MapPin / RefreshCw / Save / Sparkles 图标来自 @lucide/vue
 数据来源：父级透传的 presencePersons / autoMode / presencePreview + composable 派生
 -->
-<script setup>
+<script setup lang="ts">
 /**
  * 所属模块：frontend/features/settings/automate
  * 职责：渲染 SettingsPresenceEntitiesSection 设置页视图，整合子组件与业务数据。
@@ -140,4 +140,4 @@ function refresh() {
   </div>
 </template>
 
-<style scoped src="./styles/SettingsPresenceEntitiesSection.css"></style>
+<style scoped src="./styles/settings-presence-entities-section.css"></style>

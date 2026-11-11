@@ -17,10 +17,7 @@ const PROPORTIONS = fileURLToPath(
   ),
 )
 const POSTER = fileURLToPath(
-  new URL(
-    '../../../../homeos/frontend/src/studio/app/3d-studio/materials/studio-television-poster.ts',
-    import.meta.url,
-  ),
+  new URL('../../../../homeos/frontend/src/studio/app/shared/scene/studio-television-poster.ts', import.meta.url),
 )
 
 const { computeTelevisionProportions } = await import(PROPORTIONS)

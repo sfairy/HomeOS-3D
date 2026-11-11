@@ -46,7 +46,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue'
 import { X } from '@lucide/vue'
 import MediaPlaylistWidget from '@/components/widgets/media/PlaylistWidget.vue'
@@ -68,4 +68,4 @@ useFocusTrap(
 )
 </script>
 
-<style scoped src="./styles/MediaPlaylistSettingsModal.css"></style>
+<style scoped src="./styles/media-playlist-settings-modal.css"></style>

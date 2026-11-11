@@ -13,7 +13,7 @@ import { fanDimensions as fanDimensions2 } from '../../items/studio-fan'
 
 import { normalizeMuralArtStyle, normalizeFeatureWallStyle } from '../../../materials/studio-surface-textures'
 
-import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '../../../loaders/studio-curtain-track'
+import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '@app/shared/scene/studio-curtain-track'
 
 import { clamp as clamp2, wallLengthMeters as wallLengthMeters2 } from '../../../plan/geometry'
 
@@ -49,7 +49,7 @@ import { isTurntableRoundTable } from '../../ui/studio-app-helpers'
 import { lightPresetCatalog, lightAngleLimitForType } from '../../lights/studio-app-light-data'
 import { normalizePlanLabelColor } from '../../scene/studio-scene-payload'
 
-import { isCustomWindow as isCustomWindow2 } from '../../../plan/window/layout'
+import { isCustomWindow as isCustomWindow2 } from '@app/shared/scene/window/layout'
 
 import type { StudioAppContext } from '../studio-app-context'
 export interface RefreshStudioUiInnerDeps {

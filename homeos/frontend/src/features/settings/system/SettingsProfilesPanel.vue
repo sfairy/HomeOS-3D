@@ -32,7 +32,7 @@
   </SettingsPageShell>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { provide, toRef } from 'vue'
 import { Plus } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'

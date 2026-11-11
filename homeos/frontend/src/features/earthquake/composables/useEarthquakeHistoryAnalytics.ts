@@ -13,7 +13,7 @@ import {
   computeAnalyticsSummary,
   shortenPlace,
 } from '@/shared/earthquake/utils/history-analytics.util'
-import { formatEarthquakeMagnitude } from '@/composables/earthquake/earthquake-layout.util'
+import { formatEarthquakeMagnitude } from '@/stores/earthquake/earthquake-layout.util'
 
 /**
  * 地震预警历史分析 composable

@@ -12,7 +12,7 @@ import {
   vacuumBatteryPercent as vacuumBatteryPercent2,
   vacuumStatus as vacuumStatus2,
   vacuumSupportedActions as vacuumSupportedActions2,
-} from '../controls/vacuum-runtime'
+} from '@app/shared/device/vacuum-runtime'
 import { selectedRelatedEntityIds as selectedRelatedEntityIds2 } from '../../shared/related-entities'
 
 export function showVacuumDetails(

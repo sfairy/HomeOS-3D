@@ -28,10 +28,10 @@ from sqlalchemy.orm import Session
 from . import cleanup as cleanup_service
 from . import draft_repository
 from .doors import validate_door_openings
+from .schemas import Studio3DDraftUpdate
 from .windows import validate_window_designs
 from ...panel.asset_refs import validate_assets
 from ...platform.core.db.models import Project, ProjectDraft
-from ...schemas import Studio3DDraftUpdate
 
 
 def get_draft(database: Session) -> dict:

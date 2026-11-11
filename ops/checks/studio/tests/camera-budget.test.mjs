@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const MODULE = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/runtime/camera/camera-budget.ts', import.meta.url),
+  new URL('../../../../homeos/frontend/src/studio/platform/camera/camera-budget.ts', import.meta.url),
 )
 
 const { createCameraRequestBudget, createCameraStreamBudget } = await import(MODULE)

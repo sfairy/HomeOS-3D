@@ -41,7 +41,7 @@
   </template>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 按「严重告警」「系统审计」两个分组展示离线设备 */
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'

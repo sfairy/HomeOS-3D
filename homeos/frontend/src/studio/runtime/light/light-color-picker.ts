@@ -3,7 +3,7 @@ const {
   hsToRgbColor: hsToRgbColor,
   lightColorPickerHsFromPoint: hsFromPoint,
   lightColorPickerPointFromHs: pointFromHs,
-} = await import('@app/renderer/controls/light-runtime')
+} = await import('@app/shared/device/light-runtime')
 export function createLightColorPicker({ onPreview: onPreview, onCommit: onCommit, onCancel: onCancel }: any) {
   const pickerElement = document.createElement('div')
   ;(pickerElement.className = 'i3d-color-picker'),

@@ -1,5 +1,5 @@
-import { drawTelevisionGlass as drawGlass } from '@app/3d-studio/materials/studio-television-glass'
-import { drawTelevisionPoster as drawPosterArt } from '@app/3d-studio/materials/studio-television-poster'
+import { drawTelevisionGlass as drawGlass } from '@app/shared/scene/studio-television-glass'
+import { drawTelevisionPoster as drawPosterArt } from '@app/shared/scene/studio-television-poster'
 import { televisionState } from './television-state'
 import { dashboardCanvasFont } from '@app/shared/dashboard-fonts'
 function drawPoster(posterCanvas: any, canvasPainter: any, posterState: any) {

@@ -1,5 +1,5 @@
 /** * 事件日志视图：数据分析 + 事件流双栏布局，展示 HA 实体状态变化时间线。 */
-<script setup>
+<script setup lang="ts">
 import EventsViewAnalytics from './ViewAnalytics.vue'
 import EventsViewHero from './ViewHero.vue'
 import EventsViewStream from './ViewStream.vue'

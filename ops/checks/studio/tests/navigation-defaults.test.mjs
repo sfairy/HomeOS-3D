@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 const sourceUrl = (relativePath) => new URL(relativePath, import.meta.url)
 
 const defaultsPath = fileURLToPath(
-  sourceUrl('../../../../homeos/frontend/src/studio/runtime/navigation/navigation-defaults.ts'),
+  sourceUrl('../../../../homeos/frontend/src/studio/platform/navigation/navigation-defaults.ts'),
 )
 const handlersPath = fileURLToPath(
   sourceUrl('../../../../homeos/frontend/src/studio/runtime/core/stage/stage-handlers.ts'),

@@ -1,6 +1,6 @@
 /** * 通信账户信息弹窗 * 展示余额、月费、欠费及套餐配额（电信/联通） */
 
-<script setup>
+<script setup lang="ts">
 import AnchoredPopupShell from '@/components/entities/popups/AnchoredPopupShell.vue'
 
 import CommInfoHeader from '@/components/entities/popups/comm-info/CommInfoHeader.vue'

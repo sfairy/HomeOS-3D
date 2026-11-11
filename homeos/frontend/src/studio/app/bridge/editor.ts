@@ -15,7 +15,7 @@ import {
   configuredModuleKinds,
   defaultFloorCategory,
   defaultOpeningFloor,
-} from '@runtime/navigation/navigation-defaults'
+} from '@/studio/platform/navigation/navigation-defaults'
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,

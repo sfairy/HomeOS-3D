@@ -2,7 +2,7 @@ import { isCourtyardPlanItem as isCourtyardPlanItem2 } from '../../../plan/court
 
 import { anchorGate as anchorGate2, syncCourtyardGates as syncCourtyardGates2 } from '../../../plan/courtyard-drawing'
 
-import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '../../../loaders/studio-curtain-track'
+import { normalizeCurtainTrack as normalizeCurtainTrack2 } from '@app/shared/scene/studio-curtain-track'
 
 import { DEFAULT_STRIP_AXIS as DEFAULT_STRIP_AXIS2 } from '../../items/studio-item-posture'
 import { DEFAULT_STRIP_MOUNT, defaultStripElevation } from '../../lights/strip-light/strip-light-spec'

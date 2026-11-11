@@ -14,7 +14,7 @@
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -31,11 +31,11 @@ const props = defineProps({
 })
 
 const sizeStyle = computed(() => {
-  const s = {}
+  const s: { width?: string; height?: string } = {}
   if (props.width != null) s.width = typeof props.width === 'number' ? `${props.width}px` : props.width
   if (props.height != null) s.height = typeof props.height === 'number' ? `${props.height}px` : props.height
   return s
 })
 </script>
 
-<style scoped src="./styles/VSkeleton.css"></style>
+<style scoped src="./styles/v-skeleton.css"></style>

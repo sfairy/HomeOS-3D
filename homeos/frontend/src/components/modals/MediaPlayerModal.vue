@@ -99,7 +99,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * MediaPlayerModal - 媒体播放器模态框组件
  * 功能特性：
@@ -195,7 +195,7 @@ const {
   seekFromPct,
   startPlaybackLoop,
   stopPlaybackLoop,
-} = useMediaPlayerControls(() => props.entityId)
+} = useMediaPlayerControls(() => props.entityId as string)
 
 const {
   hasTts,

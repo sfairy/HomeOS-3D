@@ -27,7 +27,7 @@ import {
   lampIconSvgMarkup,
   postHostMessage,
 } from './_shared'
-import { defaultFloorCategory, defaultOpeningFloor } from '../../navigation/navigation-defaults'
+import { defaultFloorCategory, defaultOpeningFloor } from '@/studio/platform/navigation/navigation-defaults'
 import {
   temperatureHumidityReading as readTemperatureHumidity,
   temperatureHumidityEntities,

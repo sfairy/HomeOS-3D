@@ -30,7 +30,7 @@
   </SettingsPageShell>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, unref } from 'vue'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'

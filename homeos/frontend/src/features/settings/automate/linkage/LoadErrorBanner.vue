@@ -5,7 +5,7 @@
   关键依赖：无
   数据来源：父级透传的 error / loading
 -->
-<script setup>
+<script setup lang="ts">
 /**
  * 所属模块：frontend/features/settings/automate/linkage
  * 职责：渲染全屋联动加载失败横幅，整合子组件与业务数据。

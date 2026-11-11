@@ -1,9 +1,9 @@
 {
   "totals": {
-    "functions": 26790,
-    "gt10": 1313,
-    "gt15": 719,
-    "gt80": 808
+    "functions": 27157,
+    "gt10": 1309,
+    "gt15": 717,
+    "gt80": 804
   },
   "files": {
     "homeos-store/frontend/src/features/admin/components/RowMenu.vue": {
@@ -188,13 +188,6 @@
       "gt80": 1,
       "max": 49
     },
-    "homeos/frontend/src/composables/config/resolve-active-profile.util.ts": {
-      "functions": 5,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 11
-    },
     "homeos/frontend/src/composables/config/system-config-core.internals.ts": {
       "functions": 26,
       "gt10": 1,
@@ -377,34 +370,6 @@
       "gt80": 1,
       "max": 8
     },
-    "homeos/frontend/src/composables/entity/ws/state-update.ts": {
-      "functions": 16,
-      "gt10": 3,
-      "gt15": 2,
-      "gt80": 0,
-      "max": 20
-    },
-    "homeos/frontend/src/composables/entity/ws/ws-bind-domain.ts": {
-      "functions": 19,
-      "gt10": 2,
-      "gt15": 1,
-      "gt80": 1,
-      "max": 16
-    },
-    "homeos/frontend/src/composables/entity/ws/ws-bind-ha-sync.ts": {
-      "functions": 27,
-      "gt10": 2,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 14
-    },
-    "homeos/frontend/src/composables/entity/ws/ws-bind-lifecycle.ts": {
-      "functions": 11,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 8
-    },
     "homeos/frontend/src/composables/home/batch-actions.ts": {
       "functions": 13,
       "gt10": 1,
@@ -532,7 +497,7 @@
       "max": 5
     },
     "homeos/frontend/src/composables/ui/useScaling.ts": {
-      "functions": 37,
+      "functions": 36,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -1218,11 +1183,11 @@
       "max": 11
     },
     "homeos/frontend/src/features/settings/system/profiles/BackupRestoreDialog.vue": {
-      "functions": 13,
+      "functions": 16,
       "gt10": 2,
-      "gt15": 2,
+      "gt15": 1,
       "gt80": 0,
-      "max": 22
+      "max": 16
     },
     "homeos/frontend/src/features/settings/system/profiles/internals.ts": {
       "functions": 31,
@@ -1239,7 +1204,7 @@
       "max": 29
     },
     "homeos/frontend/src/router/index.ts": {
-      "functions": 33,
+      "functions": 36,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -1253,7 +1218,7 @@
       "max": 17
     },
     "homeos/frontend/src/services/api/client.ts": {
-      "functions": 29,
+      "functions": 30,
       "gt10": 2,
       "gt15": 1,
       "gt80": 1,
@@ -1512,11 +1477,11 @@
       "max": 11
     },
     "homeos/frontend/src/shared/security/utils/panel-arm-result.util.ts": {
-      "functions": 4,
-      "gt10": 2,
-      "gt15": 1,
+      "functions": 9,
+      "gt10": 1,
+      "gt15": 0,
       "gt80": 0,
-      "max": 18
+      "max": 13
     },
     "homeos/frontend/src/shared/utils/bridge/native-bridge.ts": {
       "functions": 2,
@@ -1659,14 +1624,14 @@
       "max": 9
     },
     "homeos/frontend/src/stores/entities.store.ts": {
-      "functions": 76,
+      "functions": 77,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
       "max": 12
     },
     "homeos/frontend/src/stores/entities/create-entity-ws-state.ts": {
-      "functions": 49,
+      "functions": 51,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
@@ -1694,18 +1659,18 @@
       "max": 4
     },
     "homeos/frontend/src/stores/entities/entity-store-init.util.ts": {
-      "functions": 27,
+      "functions": 30,
       "gt10": 2,
       "gt15": 0,
       "gt80": 1,
-      "max": 14
+      "max": 11
     },
     "homeos/frontend/src/stores/entities/entity-store-optimistic.util.ts": {
-      "functions": 15,
+      "functions": 22,
       "gt10": 2,
       "gt15": 1,
       "gt80": 2,
-      "max": 116
+      "max": 113
     },
     "homeos/frontend/src/stores/entities/entity-store-rest-fallback.util.ts": {
       "functions": 8,
@@ -1723,6 +1688,34 @@
     },
     "homeos/frontend/src/stores/entities/entity-store-transport.ts": {
       "functions": 19,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 8
+    },
+    "homeos/frontend/src/stores/entities/ws/state-update.ts": {
+      "functions": 16,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 0,
+      "max": 20
+    },
+    "homeos/frontend/src/stores/entities/ws/ws-bind-domain.ts": {
+      "functions": 19,
+      "gt10": 2,
+      "gt15": 1,
+      "gt80": 1,
+      "max": 16
+    },
+    "homeos/frontend/src/stores/entities/ws/ws-bind-ha-sync.ts": {
+      "functions": 27,
+      "gt10": 2,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 14
+    },
+    "homeos/frontend/src/stores/entities/ws/ws-bind-lifecycle.ts": {
+      "functions": 11,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -1785,14 +1778,21 @@
       "max": 24
     },
     "homeos/frontend/src/stores/ui/create-layout-profile-actions.ts": {
-      "functions": 6,
+      "functions": 9,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 5
     },
+    "homeos/frontend/src/stores/ui/resolve-active-profile.util.ts": {
+      "functions": 5,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 11
+    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/boot/studio-boot.ts": {
-      "functions": 2,
+      "functions": 6,
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,
@@ -2044,7 +2044,7 @@
       "max": 22
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-floor-lights.ts": {
-      "functions": 28,
+      "functions": 35,
       "gt10": 2,
       "gt15": 1,
       "gt80": 2,
@@ -2100,21 +2100,21 @@
       "max": 17
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-scene-payload.ts": {
-      "functions": 29,
+      "functions": 30,
       "gt10": 2,
       "gt15": 2,
       "gt80": 2,
       "max": 85
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-shader-precompile.ts": {
-      "functions": 11,
+      "functions": 14,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
       "max": 11
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/scene/studio-shadow-atlas.ts": {
-      "functions": 82,
+      "functions": 74,
       "gt10": 4,
       "gt15": 3,
       "gt80": 3,
@@ -2149,8 +2149,8 @@
       "max": 26
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/store/save-store.ts": {
-      "functions": 37,
-      "gt10": 3,
+      "functions": 38,
+      "gt10": 2,
       "gt15": 0,
       "gt80": 0,
       "max": 13
@@ -2170,7 +2170,7 @@
       "max": 18
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/boot.ts": {
-      "functions": 1257,
+      "functions": 1249,
       "gt10": 3,
       "gt15": 3,
       "gt80": 5,
@@ -2188,7 +2188,7 @@
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 29
+      "max": 22
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/applyLoadedDraft.ts": {
       "functions": 8,
@@ -2198,7 +2198,7 @@
       "max": 27
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/applyToolSetting.ts": {
-      "functions": 7,
+      "functions": 8,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
@@ -2240,7 +2240,7 @@
       "max": 59
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/export-flow-and-scene-build.ts": {
-      "functions": 72,
+      "functions": 66,
       "gt10": 4,
       "gt15": 2,
       "gt80": 0,
@@ -2254,7 +2254,7 @@
       "max": 21
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/light-precompile-and-shared-meshes.ts": {
-      "functions": 64,
+      "functions": 65,
       "gt10": 6,
       "gt15": 3,
       "gt80": 6,
@@ -2282,7 +2282,7 @@
       "max": 21
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/save-history-plan-coords.ts": {
-      "functions": 88,
+      "functions": 87,
       "gt10": 7,
       "gt15": 2,
       "gt80": 0,
@@ -2296,7 +2296,7 @@
       "max": 27
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/groups/scene-payload-and-floors.ts": {
-      "functions": 116,
+      "functions": 115,
       "gt10": 2,
       "gt15": 2,
       "gt80": 2,
@@ -2338,7 +2338,7 @@
       "max": 27
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/light-shape-sync.ts": {
-      "functions": 11,
+      "functions": 14,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
@@ -2359,11 +2359,11 @@
       "max": 28
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/refreshStudioUiInner.ts": {
-      "functions": 4,
+      "functions": 5,
       "gt10": 1,
       "gt15": 1,
       "gt80": 1,
-      "max": 109
+      "max": 108
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/functions/refreshStudioView.ts": {
       "functions": 1,
@@ -2380,8 +2380,8 @@
       "max": 13
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/render/studio-render-loop.ts": {
-      "functions": 249,
-      "gt10": 21,
+      "functions": 251,
+      "gt10": 20,
       "gt15": 9,
       "gt80": 7,
       "max": 62
@@ -2408,7 +2408,7 @@
       "max": 1
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/export-dialog-wiring.ts": {
-      "functions": 15,
+      "functions": 13,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -2457,7 +2457,7 @@
       "max": 32
     },
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-orbit-controls.ts": {
-      "functions": 8,
+      "functions": 10,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
@@ -2470,15 +2470,8 @@
       "gt80": 0,
       "max": 12
     },
-    "homeos/frontend/src/studio/app/3d-studio/authoring/ui/studio-interaction-cleanup.ts": {
-      "functions": 9,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 2,
-      "max": 6
-    },
     "homeos/frontend/src/studio/app/3d-studio/authoring/ui/studio-widgets.ts": {
-      "functions": 23,
+      "functions": 25,
       "gt10": 1,
       "gt15": 0,
       "gt80": 2,
@@ -2527,24 +2520,17 @@
       "max": 11
     },
     "homeos/frontend/src/studio/app/3d-studio/loaders/model-asset-loader.ts": {
-      "functions": 21,
+      "functions": 23,
       "gt10": 0,
       "gt15": 0,
       "gt80": 1,
       "max": 5
     },
-    "homeos/frontend/src/studio/app/3d-studio/loaders/studio-curtain-track.ts": {
-      "functions": 21,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 2,
-      "max": 11
-    },
     "homeos/frontend/src/studio/app/3d-studio/loaders/studio-external-models.ts": {
-      "functions": 111,
+      "functions": 113,
       "gt10": 15,
       "gt15": 11,
-      "gt80": 9,
+      "gt80": 8,
       "max": 199
     },
     "homeos/frontend/src/studio/app/3d-studio/loaders/studio-normalization.ts": {
@@ -2575,6 +2561,20 @@
       "gt80": 0,
       "max": 18
     },
+    "homeos/frontend/src/studio/app/3d-studio/materials/presets/preset-combos.ts": {
+      "functions": 19,
+      "gt10": 6,
+      "gt15": 3,
+      "gt80": 1,
+      "max": 22
+    },
+    "homeos/frontend/src/studio/app/3d-studio/materials/presets/preset-core.ts": {
+      "functions": 8,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 15
+    },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-box-uv.ts": {
       "functions": 5,
       "gt10": 1,
@@ -2597,11 +2597,11 @@
       "max": 14
     },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-material-presets.ts": {
-      "functions": 67,
-      "gt10": 10,
-      "gt15": 4,
-      "gt80": 1,
-      "max": 22
+      "functions": 30,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 21
     },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-material-slot-groups.ts": {
       "functions": 7,
@@ -2611,7 +2611,7 @@
       "max": 13
     },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-metal-environment.ts": {
-      "functions": 7,
+      "functions": 8,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
@@ -2639,7 +2639,7 @@
       "max": 35
     },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-surface-normal-maps.ts": {
-      "functions": 16,
+      "functions": 17,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
@@ -2651,13 +2651,6 @@
       "gt15": 0,
       "gt80": 0,
       "max": 11
-    },
-    "homeos/frontend/src/studio/app/3d-studio/materials/studio-television-poster.ts": {
-      "functions": 2,
-      "gt10": 0,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 2
     },
     "homeos/frontend/src/studio/app/3d-studio/materials/studio-wall-materials.ts": {
       "functions": 18,
@@ -2684,7 +2677,7 @@
       "functions": 36,
       "gt10": 2,
       "gt15": 1,
-      "gt80": 2,
+      "gt80": 1,
       "max": 21
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/courtyard-drawing-editor.ts": {
@@ -2741,10 +2734,10 @@
       "gt10": 2,
       "gt15": 2,
       "gt80": 2,
-      "max": 116
+      "max": 113
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-contact-shadows.ts": {
-      "functions": 96,
+      "functions": 97,
       "gt10": 11,
       "gt15": 6,
       "gt80": 4,
@@ -2765,11 +2758,11 @@
       "max": 29
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/studio-plan2-region-lights.ts": {
-      "functions": 64,
+      "functions": 65,
       "gt10": 6,
       "gt15": 3,
       "gt80": 7,
-      "max": 63
+      "max": 61
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/window/designer-canvas.ts": {
       "functions": 5,
@@ -2784,13 +2777,6 @@
       "gt15": 1,
       "gt80": 2,
       "max": 17
-    },
-    "homeos/frontend/src/studio/app/3d-studio/plan/window/layout.ts": {
-      "functions": 78,
-      "gt10": 3,
-      "gt15": 3,
-      "gt80": 1,
-      "max": 27
     },
     "homeos/frontend/src/studio/app/3d-studio/plan/window/model.ts": {
       "functions": 11,
@@ -2814,7 +2800,7 @@
       "max": 12
     },
     "homeos/frontend/src/studio/app/3d-studio/reflection/reflection-persistent-cache.ts": {
-      "functions": 36,
+      "functions": 37,
       "gt10": 2,
       "gt15": 0,
       "gt80": 1,
@@ -2825,7 +2811,7 @@
       "gt10": 9,
       "gt15": 4,
       "gt80": 3,
-      "max": 113
+      "max": 111
     },
     "homeos/frontend/src/studio/app/3d-studio/reflection/studio-reflection-culling.ts": {
       "functions": 11,
@@ -2870,7 +2856,7 @@
       "max": 18
     },
     "homeos/frontend/src/studio/app/bridge/bridge.ts": {
-      "functions": 31,
+      "functions": 32,
       "gt10": 1,
       "gt15": 1,
       "gt80": 2,
@@ -2933,7 +2919,7 @@
       "max": 16
     },
     "homeos/frontend/src/studio/app/bridge/scene/performance-warning.ts": {
-      "functions": 9,
+      "functions": 3,
       "gt10": 1,
       "gt15": 0,
       "gt80": 0,
@@ -2996,7 +2982,7 @@
       "max": 7
     },
     "homeos/frontend/src/studio/app/display/display.ts": {
-      "functions": 45,
+      "functions": 46,
       "gt10": 7,
       "gt15": 4,
       "gt80": 3,
@@ -3164,7 +3150,7 @@
       "max": 20
     },
     "homeos/frontend/src/studio/app/editor/home/functions/component-editing.ts": {
-      "functions": 83,
+      "functions": 82,
       "gt10": 3,
       "gt15": 1,
       "gt80": 2,
@@ -3198,7 +3184,7 @@
       "gt80": 0,
       "max": 21
     },
-    "homeos/frontend/src/studio/app/editor/home/functions/inspector-contexts.ts": {
+    "homeos/frontend/src/studio/app/editor/home/functions/inspector-context-builders.ts": {
       "functions": 56,
       "gt10": 3,
       "gt15": 2,
@@ -3206,7 +3192,7 @@
       "max": 21
     },
     "homeos/frontend/src/studio/app/editor/home/functions/lighting-panel.ts": {
-      "functions": 40,
+      "functions": 39,
       "gt10": 2,
       "gt15": 2,
       "gt80": 0,
@@ -3241,7 +3227,7 @@
       "max": 20
     },
     "homeos/frontend/src/studio/app/editor/home/functions/workspace-document.ts": {
-      "functions": 64,
+      "functions": 63,
       "gt10": 2,
       "gt15": 2,
       "gt80": 0,
@@ -3255,14 +3241,14 @@
       "max": 26
     },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/asset-dialog-wiring.ts": {
-      "functions": 53,
+      "functions": 43,
       "gt10": 2,
       "gt15": 1,
       "gt80": 3,
       "max": 38
     },
     "homeos/frontend/src/studio/app/editor/home/lifecycle/boot.ts": {
-      "functions": 969,
+      "functions": 956,
       "gt10": 21,
       "gt15": 17,
       "gt80": 7,
@@ -3282,7 +3268,7 @@
       "gt80": 4,
       "max": 63
     },
-    "homeos/frontend/src/studio/app/editor/home/lifecycle/inspector-contexts.ts": {
+    "homeos/frontend/src/studio/app/editor/home/lifecycle/inspector-context-wiring.ts": {
       "functions": 11,
       "gt10": 0,
       "gt15": 0,
@@ -3402,7 +3388,7 @@
       "max": 18
     },
     "homeos/frontend/src/studio/app/editor/menus/title-button-menu.ts": {
-      "functions": 16,
+      "functions": 18,
       "gt10": 3,
       "gt15": 1,
       "gt80": 1,
@@ -3506,13 +3492,6 @@
       "gt80": 1,
       "max": 29
     },
-    "homeos/frontend/src/studio/app/renderer/controls/climate.ts": {
-      "functions": 40,
-      "gt10": 5,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 18
-    },
     "homeos/frontend/src/studio/app/renderer/controls/cover-runtime.ts": {
       "functions": 55,
       "gt10": 7,
@@ -3534,13 +3513,6 @@
       "gt80": 0,
       "max": 20
     },
-    "homeos/frontend/src/studio/app/renderer/controls/light-runtime.ts": {
-      "functions": 40,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 1,
-      "max": 20
-    },
     "homeos/frontend/src/studio/app/renderer/controls/light-statistics-runtime.ts": {
       "functions": 11,
       "gt10": 1,
@@ -3554,20 +3526,6 @@
       "gt15": 1,
       "gt80": 1,
       "max": 31
-    },
-    "homeos/frontend/src/studio/app/renderer/controls/vacuum-runtime.ts": {
-      "functions": 21,
-      "gt10": 3,
-      "gt15": 2,
-      "gt80": 1,
-      "max": 97
-    },
-    "homeos/frontend/src/studio/app/renderer/controls/water-heater.ts": {
-      "functions": 19,
-      "gt10": 3,
-      "gt15": 1,
-      "gt80": 0,
-      "max": 18
     },
     "homeos/frontend/src/studio/app/renderer/flow-line/flow-line-editor.ts": {
       "functions": 51,
@@ -3696,7 +3654,7 @@
       "max": 92
     },
     "homeos/frontend/src/studio/app/renderer/panel-seams/runtime-actions.ts": {
-      "functions": 34,
+      "functions": 33,
       "gt10": 3,
       "gt15": 1,
       "gt80": 2,
@@ -3710,7 +3668,7 @@
       "max": 75
     },
     "homeos/frontend/src/studio/app/renderer/panel-seams/runtime-dialogs.ts": {
-      "functions": 9,
+      "functions": 10,
       "gt10": 1,
       "gt15": 1,
       "gt80": 0,
@@ -3933,13 +3891,6 @@
       "gt80": 2,
       "max": 16
     },
-    "homeos/frontend/src/studio/app/renderer/vacuum-map-state.ts": {
-      "functions": 16,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 1,
-      "max": 15
-    },
     "homeos/frontend/src/studio/app/renderer/weather-forecast.ts": {
       "functions": 44,
       "gt10": 3,
@@ -3953,6 +3904,41 @@
       "gt15": 0,
       "gt80": 0,
       "max": 15
+    },
+    "homeos/frontend/src/studio/app/shared/device/climate.ts": {
+      "functions": 40,
+      "gt10": 5,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 18
+    },
+    "homeos/frontend/src/studio/app/shared/device/light-runtime.ts": {
+      "functions": 40,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 20
+    },
+    "homeos/frontend/src/studio/app/shared/device/vacuum-map-state.ts": {
+      "functions": 16,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 15
+    },
+    "homeos/frontend/src/studio/app/shared/device/vacuum-runtime.ts": {
+      "functions": 21,
+      "gt10": 3,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 97
+    },
+    "homeos/frontend/src/studio/app/shared/device/water-heater.ts": {
+      "functions": 19,
+      "gt10": 3,
+      "gt15": 1,
+      "gt80": 0,
+      "max": 18
     },
     "homeos/frontend/src/studio/app/shared/flow-line-model.ts": {
       "functions": 26,
@@ -3989,6 +3975,27 @@
       "gt80": 0,
       "max": 36
     },
+    "homeos/frontend/src/studio/app/shared/scene/studio-curtain-track.ts": {
+      "functions": 21,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 2,
+      "max": 11
+    },
+    "homeos/frontend/src/studio/app/shared/scene/studio-television-poster.ts": {
+      "functions": 2,
+      "gt10": 0,
+      "gt15": 0,
+      "gt80": 1,
+      "max": 2
+    },
+    "homeos/frontend/src/studio/app/shared/scene/window/layout.ts": {
+      "functions": 78,
+      "gt10": 3,
+      "gt15": 3,
+      "gt80": 1,
+      "max": 27
+    },
     "homeos/frontend/src/studio/app/shared/user-image-upload.ts": {
       "functions": 18,
       "gt10": 2,
@@ -4017,6 +4024,13 @@
       "gt80": 3,
       "max": 16
     },
+    "homeos/frontend/src/studio/platform/camera/camera-mjpeg.ts": {
+      "functions": 16,
+      "gt10": 2,
+      "gt15": 2,
+      "gt80": 1,
+      "max": 19
+    },
     "homeos/frontend/src/studio/platform/entity-role-profiles.ts": {
       "functions": 31,
       "gt10": 3,
@@ -4032,11 +4046,18 @@
       "max": 22
     },
     "homeos/frontend/src/studio/platform/legacy-scope.ts": {
-      "functions": 14,
+      "functions": 19,
       "gt10": 0,
       "gt15": 0,
       "gt80": 2,
       "max": 7
+    },
+    "homeos/frontend/src/studio/platform/navigation/binding-repair.ts": {
+      "functions": 10,
+      "gt10": 1,
+      "gt15": 0,
+      "gt80": 0,
+      "max": 13
     },
     "homeos/frontend/src/studio/platform/security-alarm-profile.ts": {
       "functions": 7,
@@ -4072,13 +4093,6 @@
       "gt15": 1,
       "gt80": 0,
       "max": 24
-    },
-    "homeos/frontend/src/studio/runtime/camera/camera-mjpeg.ts": {
-      "functions": 16,
-      "gt10": 2,
-      "gt15": 2,
-      "gt80": 1,
-      "max": 19
     },
     "homeos/frontend/src/studio/runtime/camera/camera-motion.ts": {
       "functions": 23,
@@ -4151,7 +4165,7 @@
       "max": 26
     },
     "homeos/frontend/src/studio/runtime/config-ui/config-editor/rendering/panel-assembly.ts": {
-      "functions": 275,
+      "functions": 272,
       "gt10": 11,
       "gt15": 4,
       "gt80": 6,
@@ -4270,7 +4284,7 @@
       "max": 8
     },
     "homeos/frontend/src/studio/runtime/core/popup-preview.ts": {
-      "functions": 20,
+      "functions": 21,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
@@ -4284,8 +4298,8 @@
       "max": 13
     },
     "homeos/frontend/src/studio/runtime/core/runtime.ts": {
-      "functions": 251,
-      "gt10": 25,
+      "functions": 252,
+      "gt10": 24,
       "gt15": 12,
       "gt80": 6,
       "max": 158
@@ -4312,14 +4326,14 @@
       "max": 75
     },
     "homeos/frontend/src/studio/runtime/core/stage.ts": {
-      "functions": 766,
+      "functions": 794,
       "gt10": 25,
       "gt15": 11,
       "gt80": 9,
       "max": 36
     },
     "homeos/frontend/src/studio/runtime/core/stage/_shared.ts": {
-      "functions": 18,
+      "functions": 19,
       "gt10": 1,
       "gt15": 0,
       "gt80": 1,
@@ -4578,7 +4592,7 @@
       "max": 25
     },
     "homeos/frontend/src/studio/runtime/fan/fan-state.ts": {
-      "functions": 14,
+      "functions": 15,
       "gt10": 3,
       "gt15": 3,
       "gt80": 0,
@@ -4599,7 +4613,7 @@
       "max": 55
     },
     "homeos/frontend/src/studio/runtime/light/light-stream.ts": {
-      "functions": 51,
+      "functions": 52,
       "gt10": 2,
       "gt15": 1,
       "gt80": 3,
@@ -4618,13 +4632,6 @@
       "gt15": 1,
       "gt80": 2,
       "max": 32
-    },
-    "homeos/frontend/src/studio/runtime/navigation/binding-repair.ts": {
-      "functions": 16,
-      "gt10": 1,
-      "gt15": 0,
-      "gt80": 0,
-      "max": 13
     },
     "homeos/frontend/src/studio/runtime/navigation/category-transition-diagnostics.ts": {
       "functions": 14,

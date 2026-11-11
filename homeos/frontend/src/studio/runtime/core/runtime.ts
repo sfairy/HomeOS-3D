@@ -22,7 +22,7 @@ import { createLabelConfigPatch } from './state-update-plan'
 import { applyStageGpuHint, createStageFrameLazyMountGate, scheduleSlowLoadHint } from './stage-frame-lazy-mount'
 import { hostLoadTiming } from '@app/bridge/scene/load-timing'
 import { forwardedStageFlags } from '@app/bridge/scene/stage-flags'
-import { vacuumStatusBinding } from '@app/renderer/controls/vacuum-runtime'
+import { vacuumStatusBinding } from '@app/shared/device/vacuum-runtime'
 import { entityNumberFormats, temperatureHumidityEntities } from '@app/bridge/temperature-humidity'
 import { stageFontParams } from '@app/shared/dashboard-fonts'
 

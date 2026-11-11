@@ -118,4 +118,4 @@ useClickOutside(
 )
 </script>
 
-<style scoped src="./styles/FooterIconPicker.css"></style>
+<style scoped src="./styles/footer-icon-picker.css"></style>

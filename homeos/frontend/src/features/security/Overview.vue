@@ -119,7 +119,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { nextTick } from 'vue'
 import SecurityOverviewCommandBar from '@/features/security/OverviewCommandBar.vue'
 import SecurityOverviewBody from '@/features/security/OverviewBody.vue'

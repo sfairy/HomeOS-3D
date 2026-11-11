@@ -79,7 +79,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { RefreshCw, Loader2, Save, Check, AlertCircle, Download, Upload } from '@lucide/vue'
 
@@ -97,17 +97,17 @@ defineProps({
 
 const emit = defineEmits(['export', 'reload', 'save', 'import-file', 'cancel'])
 
-const fileInput = ref(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 function pickFile() {
   fileInput.value?.click()
 }
 
-function onFileChange(ev) {
-  const file = ev.target?.files?.[0]
-  ev.target.value = ''
+function onFileChange(ev: Event) {
+  const file = (ev.target as HTMLInputElement | null)?.files?.[0]
+  ;(ev.target as HTMLInputElement).value = ''
   if (file) emit('import-file', file)
 }
 </script>
 
-<style scoped src="./styles/SystemConfigActionsBar.css"></style>
+<style scoped src="./styles/system-config-actions-bar.css"></style>

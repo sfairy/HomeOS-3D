@@ -165,4 +165,4 @@ const themeStyle = computed(() => ({
 }))
 </script>
 
-<style src="./styles/PopupAccents.css"></style>
+<style src="./styles/popup-accents.css"></style>

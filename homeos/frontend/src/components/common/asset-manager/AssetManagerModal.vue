@@ -42,7 +42,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { defineAsyncComponent, computed, ref, watch } from 'vue'
 import { X, Images, Sparkles } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { Download, Upload, Plus, Sparkles } from '@lucide/vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 
@@ -10,7 +10,7 @@ defineProps({
 const emit = defineEmits(['update:activeTab', 'reorder', 'seed', 'export', 'import', 'create'])
 
 // Tab 切换时向上透传新激活 id
-function onTabChange(id) {
+function onTabChange(id: string) {
   emit('update:activeTab', id)
 }
 </script>

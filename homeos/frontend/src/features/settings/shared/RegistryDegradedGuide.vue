@@ -34,7 +34,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { AlertTriangle } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
@@ -47,4 +47,4 @@ defineProps({
 defineEmits(['retry'])
 </script>
 
-<style scoped src="./styles/RegistryDegradedGuide.css"></style>
+<style scoped src="./styles/registry-degraded-guide.css"></style>

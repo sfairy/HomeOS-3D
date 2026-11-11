@@ -6,9 +6,9 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType,
-} from '../controls/climate'
+} from '@app/shared/device/climate'
 import { entityPowerIsOn } from '../entity-power'
-import { lightRealtimeCapabilities } from '../controls/light-runtime'
+import { lightRealtimeCapabilities } from '@app/shared/device/light-runtime'
 import { resolveStatePayload, isActiveStateText } from './_shared'
 import { formatNumericValue } from '../controls/line-chart-runtime'
 

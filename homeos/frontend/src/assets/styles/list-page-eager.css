@@ -6,7 +6,7 @@
  * 但外壳里还有两处「首屏就需要」的消费者：
  *
  * - `components/widgets/system/NotificationCenter.vue`（顶栏通知抽屉）：`__btn`、`__muted`；
- * - `components/common/base/styles/VEmptyState.css`（全局注册的空态）：`__btn`。
+ * - `components/common/base/styles/v-empty-state.css`（全局注册的空态）：`__btn`。
  *
  * 一旦这两个类跟着懒加载走，首屏的空态按钮和通知抽屉按钮会先「裸奔」到路由 CSS 到达，
  * 所以把它们留在入口 CSS。新增首屏消费者时请只往这里加最小规则，不要把整份

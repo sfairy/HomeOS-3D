@@ -1,5 +1,5 @@
 /** * 通信账户套餐配额卡片 * 环形进度展示剩余流量/用量及超额信息 */
-<script setup>
+<script setup lang="ts">
 defineProps({
   pack: { type: Object, required: true },
 })

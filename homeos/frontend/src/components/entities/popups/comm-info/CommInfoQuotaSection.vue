@@ -1,9 +1,10 @@
 /** - 渲染套餐标题与 CommInfoQuotaPack 卡片列表 */
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 import CommInfoQuotaPack from './CommInfoQuotaPack.vue'
 
 defineProps({
-  quotaCards: { type: Array, default: () => [] },
+  quotaCards: { type: Array as PropType<Record<string, any>[]>, default: () => [] },
 })
 </script>
 

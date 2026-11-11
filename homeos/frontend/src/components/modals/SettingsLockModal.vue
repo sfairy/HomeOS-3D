@@ -209,4 +209,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped src="./styles/SettingsLockModal.css"></style>
+<style scoped src="./styles/settings-lock-modal.css"></style>

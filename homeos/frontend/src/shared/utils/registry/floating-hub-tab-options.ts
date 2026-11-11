@@ -1,6 +1,8 @@
 /** 浮动 Hub Tab 选项与默认值 */
 import { getHubTabSet } from '@/shared/utils/registry/hub-tabs-options'
 
+export { FLOATING_HUB_DEFAULT_TAB } from '@/shared/utils/registry/hub-tabs-options'
+
 /**
  * 获取指定 Hub 类型的可选 Tab 集合。
  *
@@ -9,9 +11,4 @@ import { getHubTabSet } from '@/shared/utils/registry/hub-tabs-options'
  */
 export function getFloatingHubTabOptions(type: string) {
   return getHubTabSet(type)
-}
-
-/** 各 Hub 类型添加时的 defaultTab 默认值 */
-export const FLOATING_HUB_DEFAULT_TAB: Record<string, string> = {
-  securityPanel: 'arm',
 }

@@ -1,5 +1,6 @@
 /** - 展示运营商品牌标签（电信/联通）、账户标签 */
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { Signal } from '@lucide/vue'
 
@@ -7,8 +8,8 @@ defineProps({
   commBrand: { type: String, default: 'ct' },
   commBrandLabel: { type: String, default: '电信' },
   commBrandBadge: { type: String, default: 'CT' },
-  accountOptions: { type: Array, default: () => [] },
-  accountLabel: { type: Function, required: true },
+  accountOptions: { type: Array as PropType<string[]>, default: () => [] },
+  accountLabel: { type: Function as PropType<(accountId: string) => string>, required: true },
 })
 
 const activeEntityId = defineModel('activeEntityId', { type: String, default: '' })

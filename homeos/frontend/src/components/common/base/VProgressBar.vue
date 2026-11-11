@@ -194,4 +194,4 @@ function onKeydown(e) {
 }
 </script>
 
-<style scoped src="./styles/VProgressBar.css"></style>
+<style scoped src="./styles/v-progress-bar.css"></style>

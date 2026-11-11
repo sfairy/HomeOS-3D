@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const LAYOUT = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/window/layout.ts', import.meta.url),
+  new URL('../../../../homeos/frontend/src/studio/app/shared/scene/window/layout.ts', import.meta.url),
 )
 const SCENE_GUARD = fileURLToPath(
   new URL('../../../../homeos/frontend/src/studio/app/3d-studio/plan/window/window-scene-guard.ts', import.meta.url),

@@ -1,5 +1,5 @@
-/** 编译期影子模块：对应后端下发的舞台运行时 `/api/v1/modules/interaction3d/core/stage.js`。 */
-export declare const mountStage: any
-export declare const createStage: any
-declare const stageModule: Record<string, any>
-export default stageModule
+/**
+ * 类型垫片：`/api/v1/modules/interaction3d/core/stage.js` 由运行时构建（vite.runtime.config.ts）从
+ * `src/studio/runtime/core/stage.ts` 产出；源码内动态 import 时用真实实现做类型来源。
+ */
+export { createStageModelIndex, mountStage } from '@runtime/core/stage'

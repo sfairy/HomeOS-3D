@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/renderer/vacuum-map-state.ts', import.meta.url),
+  new URL('../../../../homeos/frontend/src/studio/app/shared/device/vacuum-map-state.ts', import.meta.url),
 )
 const { vacuumMapAvailable, vacuumMapRequestable } = await import(moduleUrl)
 

@@ -75,14 +75,7 @@
 
   "linter": {
     "enabled": true,
-    "includes": [
-      "**",
-      "!**/*.vue",
-      "!**/*.json",
-      "!**/vite.config.ts",
-      "!**/vite-studio.ts",
-      "!**/vite.runtime.config.ts"
-    ],
+    "includes": ["**", "!**/*.json", "!**/vite.config.ts", "!**/vite-studio.ts", "!**/vite.runtime.config.ts"],
     "rules": {
       "preset": "none",
       "correctness": {
@@ -293,6 +286,24 @@
                 ]
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.vue"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedImports": "off",
+            "noUnusedVariables": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noConsole": "off"
+          },
+          "style": {
+            "useImportType": "off"
           }
         }
       }

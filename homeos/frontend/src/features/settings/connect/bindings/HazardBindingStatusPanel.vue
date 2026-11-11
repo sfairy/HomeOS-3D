@@ -64,4 +64,4 @@ const { rows, alertCount, offlineCount, watchedIds } = useHazardBindingStatus(co
 useEnsureVisibleEntities(watchedIds)
 </script>
 
-<style scoped src="./styles/HazardBindingStatusPanel.css"></style>
+<style scoped src="./styles/hazard-binding-status-panel.css"></style>

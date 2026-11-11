@@ -53,7 +53,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * 天气中心 Hub 面板
  * 聚合天气相关多个子面板，通过 useHubTabs 管理可见 Tab 与激活状态。

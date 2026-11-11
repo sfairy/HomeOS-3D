@@ -24,19 +24,21 @@ const GLIDE_STOP_PAN = 0.001
 /** vendor `_STATE.NONE`：没有按住的指针（拖拽中剩余增量里还有未消费的输入，不能截断）。 */
 const ORBIT_STATE_NONE = -1
 
-/** 包装层实际读写的 vendor 字段（其余字段由泛型 T 原样透传）。 */
+/** 包装层与调用方读写的 vendor 私有字段：@types/three 只声明公开 API（其余字段由泛型 C 原样透传）。 */
 type RotatableOrbitControls = {
   dampingFactor?: number
   state?: number
-  _sphericalDelta?: { theta: number; phi: number }
+  _sphericalDelta: { theta: number; phi: number }
   _panOffset?: { lengthSq(): number; set(x: number, y: number, z: number): unknown }
+  _quat: { identity(): unknown }
+  _quatInverse: { identity(): unknown }
   _rotateLeft: (angle: number) => void
   _rotateUp: (angle: number) => void
   update: (deltaSeconds?: number | null) => unknown
   dispose?: () => void
 }
 
-type OrbitControlsConstructor = new (camera: object, domElement: HTMLElement) => RotatableOrbitControls
+type OrbitControlsConstructor = new (camera: never, domElement: HTMLElement) => object
 
 function settleSphericalGlide(sphericalDelta: RotatableOrbitControls['_sphericalDelta']) {
   sphericalDelta &&
@@ -47,7 +49,7 @@ function settleSphericalGlide(sphericalDelta: RotatableOrbitControls['_spherical
 
 export function createStudioOrbitControls<C extends OrbitControlsConstructor>(
   OrbitControlsClass: C,
-  camera: object,
+  camera: ConstructorParameters<C>[0],
   domElement: HTMLElement,
   { rotateSmoothing = 8, rotateSmoothingThreshold = 0.000001, touchDragThreshold = 0 }: StudioOrbitControlsOptions = {},
 ) {
@@ -135,5 +137,7 @@ export function createStudioOrbitControls<C extends OrbitControlsConstructor>(
     rotateSmoothing,
     rotateSmoothingThreshold,
     touchDragThreshold,
-  }) as InstanceType<C> & Required<StudioOrbitControlsOptions>
+  }) as InstanceType<C> &
+    Pick<RotatableOrbitControls, '_quat' | '_quatInverse' | '_sphericalDelta'> &
+    Required<StudioOrbitControlsOptions>
 }

@@ -46,7 +46,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Power } from '@lucide/vue'
 
 /**

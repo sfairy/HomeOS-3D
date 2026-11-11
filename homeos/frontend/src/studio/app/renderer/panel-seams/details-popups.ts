@@ -2,7 +2,7 @@ import { showRuntimeDialog } from './runtime-dialogs'
 import type { ComponentControllerElement, ComponentPayload } from '../renderer-types'
 import { createUiIconSlot } from '../../shared/ui-icons'
 import { componentDialogTitle } from '../renderer-helpers'
-import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '../entity-metadata'
+import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/shared/device/entity-metadata'
 import { shellOpenMediaPlayer } from '@/studio/platform/shell-chrome'
 import type { PanelRenderer } from '../panel-renderer'
 

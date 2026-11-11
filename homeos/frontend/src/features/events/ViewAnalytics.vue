@@ -53,8 +53,8 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch, type PropType } from 'vue'
 import { useEchartsHost, axisLineStyle, splitLineStyle, yMax } from '@/composables/ui/useEchartsHost'
 import {
   buildDomainBuckets,
@@ -68,7 +68,7 @@ const props = defineProps({
   hours: { type: Number, default: 24 },
   entityFilter: { type: String, default: '' },
   domainFilter: { type: String, default: '' },
-  entityDisplayName: { type: Function, required: true },
+  entityDisplayName: { type: Function as PropType<(entityId: string) => string>, required: true },
   formatCount: { type: Function, required: true },
 })
 
@@ -156,7 +156,7 @@ const chartTooltip = {
 }
 
 /** 实体条形图的纵向渐变填充：顶部实色 + 底部半透明，营造发光感。 */
-function barGradient(color) {
+function barGradient(color: string) {
   return {
     type: 'linear',
     x: 0,
@@ -321,4 +321,4 @@ watch(
 </script>
 
 <style src="@/assets/styles/list-page-analytics.css"></style>
-<style scoped src="./styles/ViewAnalytics.css"></style>
+<style scoped src="./styles/view-analytics.css"></style>

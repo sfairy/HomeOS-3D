@@ -21,7 +21,7 @@ import {
 import {
   createCurtainTrack as createCurtainTrack2,
   curtainPanelRanges as curtainPanelRanges2,
-} from '../loaders/studio-curtain-track'
+} from '@app/shared/scene/studio-curtain-track'
 import { doorMaterialPartRolesForType, doorPlanMaterialRoleFor } from '../materials/studio-model-material-roles'
 import { drawTrackedText as drawTrackedText2 } from './studio-plan-drawing'
 import {

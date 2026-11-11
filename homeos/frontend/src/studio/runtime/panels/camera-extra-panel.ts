@@ -3,8 +3,8 @@
  *
  * 实时流由 `@app/renderer/registry/camera-media` 统一处理（go2rtc / HLS / 快照回退）；
  * 面板只负责决定"该不该播"：编辑态、实体关闭、滚动出视口都主动卸载。
+ * 媒体模块属于面板渲染器，按需加载（runtime 不静态依赖 renderer）。
  */
-import * as cameraMedia from '@app/renderer/registry/camera-media'
 import { attributesOf, extraContextChanged, featureFlags } from '../device/entity-capabilities'
 import { attachFeedback, createVisibilityGate } from './panel-utils'
 import type { ExtraPanelViewModel, FeedbackSlot } from './panel-utils'
@@ -33,7 +33,7 @@ export function createCameraExtraPanel(
     element: hostElement,
     feedbackSlot,
     onControl = async () => {},
-    loadMedia = async () => cameraMedia,
+    loadMedia = () => import('@app/renderer/registry/camera-media'),
   }: CameraExtraPanelOptions = {} as any,
 ) {
   const ownerDocument = hostElement.ownerDocument || globalThis.document

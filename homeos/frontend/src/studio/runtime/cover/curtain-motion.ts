@@ -7,7 +7,7 @@ const {
     createDreamBladeGeometry: createBladeGeometry,
     poseDreamBlades: poseBladeGeometry,
     createRollerCurtain: createRollerCurtain,
-  } = await import('@app/3d-studio/loaders/studio-curtain-track'),
+  } = await import('@app/shared/scene/studio-curtain-track'),
   coverDirectionSet = new Set(['left', 'right', 'split']),
   clothPartSet = new Set(['cloth', 'band']),
   trackPartSet = new Set(['rod', 'cap', ...clothPartSet]),
@@ -359,7 +359,7 @@ export function createCurtainMotion({
       basis = resolveRigBasis(located.anchor)
     ;(rigGroup.name = 'curtain-motion-' + binding.id),
       (rigGroup.userData.curtainMotionRig = true),
-      rigGroup.scale.set(...(trackModel ? [1, 1, 1] : [basis[0] / 1.8, basis[1] / 2.4, basis[2] / 0.18])),
+      trackModel ? rigGroup.scale.set(1, 1, 1) : rigGroup.scale.set(basis[0] / 1.8, basis[1] / 2.4, basis[2] / 0.18),
       located.anchor.add(rigGroup)
     const panels = ['left', 'right'].map((side) => {
       const panelMesh = new three!.Mesh(

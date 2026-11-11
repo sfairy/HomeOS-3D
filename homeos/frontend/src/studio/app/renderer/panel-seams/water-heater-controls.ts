@@ -1,7 +1,7 @@
 import type { ComponentControllerElement } from '../renderer-types'
 import type { PanelRenderer } from '../panel-renderer'
 import { clickFocusedElement } from '../renderer-helpers'
-import { climateModeLabel as climateModeLabel2 } from '../controls/climate'
+import { climateModeLabel as climateModeLabel2 } from '@app/shared/device/climate'
 import {
   relatedEntityLabel as relatedEntityLabel2,
   relatedEntityNeedsConfirmation as relatedEntityNeedsConfirmation2,

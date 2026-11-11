@@ -112,4 +112,4 @@ function toggleTab(id: string) {
 }
 </script>
 
-<style scoped src="./styles/HubTabsConfigField.css"></style>
+<style scoped src="./styles/hub-tabs-config-field.css"></style>

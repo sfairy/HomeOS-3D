@@ -3,7 +3,6 @@ import { logger } from '@/shared/utils/core/logger'
 import { extractErrorMessage } from '@/shared/utils/core/error-message'
 import { extractTraceIdFromError } from '@/shared/utils/telemetry/trace.util'
 import { appNotify } from '@/shared/utils/bridge/store-bridge'
-import { useChromeStore } from '@/stores/chrome.store'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
 import type { NotifyOptions, NotifyType } from '@/shared/types/notify'
 
@@ -57,15 +56,15 @@ export async function copyTextWithNotify(
   } = options
 
   if (!text) {
-    if (emptyMessage) useChromeStore().notify(emptyMessage, 'warning')
+    if (emptyMessage) appNotify(emptyMessage, 'warning')
     return false
   }
 
   const ok = await copyTextToClipboard(String(text))
   if (ok) {
-    useChromeStore().notify(successMessage, 'success')
+    appNotify(successMessage, 'success')
     return true
   }
-  useChromeStore().notify(errorMessage, 'error')
+  appNotify(errorMessage, 'error')
   return false
 }

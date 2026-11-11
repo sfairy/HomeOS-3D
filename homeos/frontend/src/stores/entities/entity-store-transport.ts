@@ -1,11 +1,7 @@
 /** Socket.IO 传输层（从 entities.store 抽离） */
 import type { Socket } from 'socket.io-client'
-import {
-  buildEntitySocketAuth,
-  buildEntitySocketOptions,
-  buildEntitySocketUrl,
-} from '@/composables/entity/ws/socket.util'
-import { bindEntitySocketHandlers } from '@/composables/entity/ws/ws-bind'
+import { buildEntitySocketAuth, buildEntitySocketOptions, buildEntitySocketUrl } from '@/stores/entities/ws/socket.util'
+import { bindEntitySocketHandlers } from '@/stores/entities/ws/ws-bind'
 import { createEntitySocketSyncState } from '@/shared/entity/utils/ws-sync'
 import { handleEntityFallbackFailure } from '@/shared/entity/utils/sync-failure.util'
 import type { EntitySocketSyncState, EntityTransportDeps } from '@/shared/types/entity-store'

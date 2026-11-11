@@ -48,7 +48,7 @@ import {
 import { createEditorPickerElements as createEditorPickerElements2 } from "../../picker/editor-picker-elements";
 
 
-import { createEditorPickerQueries as createEditorPickerQueries2 } from "../../picker/editor-picker-queries";
+import { createEditorPickerQueries as createEditorPickerQueries2 } from "@app/shared/picker/editor-picker-queries";
 import { createEditorAssetMatcher as createEditorAssetMatcher2 } from "../../picker/editor-asset-queries";
 import { createEditorPickerLifecycle as createEditorPickerLifecycle2 } from "../../picker/editor-picker-lifecycle";
 import { createInteraction3dEditorPickers as createInteraction3dEditorPickers2 } from "../../../bridge/pickers/editor-pickers";
@@ -81,7 +81,7 @@ import {
   createRecoveryWriter as createRecoveryWriter2,
   documentSignature as documentSignature2,
 } from "../../editor-history";
-import { hasInteractionBindings as hasInteractionBindings2 } from "../../../../runtime/navigation/binding-repair";
+import { hasInteractionBindings as hasInteractionBindings2 } from "@/studio/platform/navigation/binding-repair";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   normalizeBaseLighting as normalizeBaseLighting2,
@@ -126,7 +126,7 @@ import { attachPageshowDiagramPreviewRestore } from "../../bindings/pageshow-dia
 import { createEditorContext } from "../editor-context";
 import { bindDeps } from "../functions/bind-deps";
 import { bindCanvasMarquee } from "./canvas-marquee";
-import { createInspectorContexts } from "./inspector-contexts";
+import { createInspectorContexts } from "./inspector-context-wiring";
 import { bindAssetDialogWiring } from "./asset-dialog-wiring";
 import { bindNavigationStyleWiring } from "./navigation-style-wiring";
 import { bindFloorplanAutoDiagramMessages } from "./floorplan-messages";
@@ -139,7 +139,7 @@ import { describeEntityDomain as describeEntityDomainImpl, normalizeWhitespace a
 import { closePickerMenu as closePickerMenuImpl, closeOtherPickerMenus as closeOtherPickerMenusImpl, resolveMdiIconUrl as resolveMdiIconUrlImpl, renderNavigationIconButton as renderNavigationIconButtonImpl, renderTitleButtonIconPreview as renderTitleButtonIconPreviewImpl, renderEntityIconButtonPreview as renderEntityIconButtonPreviewImpl, renderLightStatisticsIconPreview as renderLightStatisticsIconPreviewImpl, renderLightStatisticsButtonIcon as renderLightStatisticsButtonIconImpl, copyTextToClipboard as copyTextToClipboardImpl, enhanceEntityCopyButton as enhanceEntityCopyButtonImpl, enhanceEntityCopyButtons as enhanceEntityCopyButtonsImpl, ensureIconListPaginationState as ensureIconListPaginationStateImpl, hideIconNameTooltip as hideIconNameTooltipImpl, showIconNameTooltip as showIconNameTooltipImpl, bindIconNameTooltipEvents as bindIconNameTooltipEventsImpl, bindIconListInfiniteScroll as bindIconListInfiniteScrollImpl, iconTooltipElementCount as iconTooltipElementCountImpl, iconTooltipElementFlag as iconTooltipElementFlagImpl, iconTooltipElementStep as iconTooltipElementStepImpl, iconTooltipElementStore as iconTooltipElementStoreImpl, iconTooltipElementBuffer as iconTooltipElementBufferImpl, positionNavigationIconMenu as positionNavigationIconMenuImpl, positionIbeIconMenu as positionIbeIconMenuImpl, positionIconButtonIconMenu as positionIconButtonIconMenuImpl, layoutTitleButtonIconMenu as layoutTitleButtonIconMenuImpl, type IconPickersDeps } from "../functions/icon-pickers";
 import { positionLightStatisticsIconMenu as positionLightStatisticsIconMenuImpl, positionLightStatisticsEntityMenu as positionLightStatisticsEntityMenuImpl, resolveEntityPickerConfig as resolveEntityPickerConfigImpl, renderRelatedPopupEntityOptions as renderRelatedPopupEntityOptionsImpl, syncPopupEntityPickerButton as syncPopupEntityPickerButtonImpl, resolveAssetPreviewUrl as resolveAssetPreviewUrlImpl, refreshImageAssetPickerPreview as refreshImageAssetPickerPreviewImpl, resolveAssetFileUrl as resolveAssetFileUrlImpl, resolveEffectAssetUrl as resolveEffectAssetUrlImpl, assetMatchesId as assetMatchesIdImpl, allAssets as allAssetsImpl, findAssetById as findAssetByIdImpl, assetDisplayName as assetDisplayNameImpl, exportedAssetsInFolder as exportedAssetsInFolderImpl, canDeleteAssetFolder as canDeleteAssetFolderImpl, syncAssetFolderOptions as syncAssetFolderOptionsImpl, leftFolderName as leftFolderNameImpl, measureAssetImageSize as measureAssetImageSizeImpl, applyAssetNaturalSize as applyAssetNaturalSizeImpl, readEffectNaturalSize as readEffectNaturalSizeImpl, probeAssetNaturalSize as probeAssetNaturalSizeImpl, positionImageAssetMenu as positionImageAssetMenuImpl, positionAssetLargePreview as positionAssetLargePreviewImpl, scheduleAssetPreview as scheduleAssetPreviewImpl, hideAssetLargePreview as hideAssetLargePreviewImpl, type AssetPickerDeps } from "../functions/asset-picker";
 import { createAssetOptionButton as createAssetOptionButtonImpl, renderImageAssetOptions as renderImageAssetOptionsImpl, syncImageAssetSelection as syncImageAssetSelectionImpl, positionEffectAssetMenu as positionEffectAssetMenuImpl, renderEffectAssetOptions as renderEffectAssetOptionsImpl, syncEffectAssetSelection as syncEffectAssetSelectionImpl, assignActionControlIds as assignActionControlIdsImpl, initActionPopupConfig as initActionPopupConfigImpl, closePopupEntityMenus as closePopupEntityMenusImpl, syncPopupEntityButton as syncPopupEntityButtonImpl, renderPopupEntityOptions as renderPopupEntityOptionsImpl, positionPopupEntityMenu as positionPopupEntityMenuImpl, timeFitComponent as timeFitComponentImpl, renderTimeInspector as renderTimeInspectorImpl, weatherProperties as weatherPropertiesImpl, fitWeatherComponentToDimensions as fitWeatherComponentToDimensionsImpl, entitiesByEntityId as entitiesByEntityIdImpl, devicesByDeviceId as devicesByDeviceIdImpl, buildCustomPopupEditorContext as buildCustomPopupEditorContextImpl, renderCustomPopupEditor as renderCustomPopupEditorImpl, syncCustomPopupStage as syncCustomPopupStageImpl, buildTimeInspectorContext as buildTimeInspectorContextImpl, syncTimeInspector as syncTimeInspectorImpl, buildWeatherInspectorContext as buildWeatherInspectorContextImpl, syncWeatherInspector as syncWeatherInspectorImpl, type PopupInspectorsDeps } from "../functions/popup-inspectors";
-import { buildTitleButtonInspectorContext as buildTitleButtonInspectorContextImpl, syncTitleButtonInspector as syncTitleButtonInspectorImpl, buildLightStatisticsInspectorContext as buildLightStatisticsInspectorContextImpl, syncLightStatisticsInspector as syncLightStatisticsInspectorImpl, buildCameraInspectorContext as buildCameraInspectorContextImpl, syncCameraInspector as syncCameraInspectorImpl, buildVacuumMapInspectorContext as buildVacuumMapInspectorContextImpl, syncVacuumMapInspector as syncVacuumMapInspectorImpl, buildCoverMotorInspectorContext as buildCoverMotorInspectorContextImpl, coverMotorButtonElement as coverMotorButtonElementImpl, computeCoverMotorStyleChanges as computeCoverMotorStyleChangesImpl, reloadAssetCatalog as reloadAssetCatalogImpl, pollAssetCatalogVersion as pollAssetCatalogVersionImpl, ensureEntitiesLoaded as ensureEntitiesLoadedImpl, renderCustomPopupSelector as renderCustomPopupSelectorImpl, syncPopupEntityInputs as syncPopupEntityInputsImpl, syncPopupModuleClimateDeviceType as syncPopupModuleClimateDeviceTypeImpl, deviceNameValue as deviceNameValueImpl, initialPopupId as initialPopupIdImpl, renderPopupModuleEntityOptions as renderPopupModuleEntityOptionsImpl, closePopupModuleEntityMenu as closePopupModuleEntityMenuImpl, openPopupModuleDialog as openPopupModuleDialogImpl, renderPageSelect as renderPageSelectImpl, retainExistingSelection as retainExistingSelectionImpl, collectChangedComponents as collectChangedComponentsImpl, type InspectorContextsDeps } from "../functions/inspector-contexts";
+import { buildTitleButtonInspectorContext as buildTitleButtonInspectorContextImpl, syncTitleButtonInspector as syncTitleButtonInspectorImpl, buildLightStatisticsInspectorContext as buildLightStatisticsInspectorContextImpl, syncLightStatisticsInspector as syncLightStatisticsInspectorImpl, buildCameraInspectorContext as buildCameraInspectorContextImpl, syncCameraInspector as syncCameraInspectorImpl, buildVacuumMapInspectorContext as buildVacuumMapInspectorContextImpl, syncVacuumMapInspector as syncVacuumMapInspectorImpl, buildCoverMotorInspectorContext as buildCoverMotorInspectorContextImpl, coverMotorButtonElement as coverMotorButtonElementImpl, computeCoverMotorStyleChanges as computeCoverMotorStyleChangesImpl, reloadAssetCatalog as reloadAssetCatalogImpl, pollAssetCatalogVersion as pollAssetCatalogVersionImpl, ensureEntitiesLoaded as ensureEntitiesLoadedImpl, renderCustomPopupSelector as renderCustomPopupSelectorImpl, syncPopupEntityInputs as syncPopupEntityInputsImpl, syncPopupModuleClimateDeviceType as syncPopupModuleClimateDeviceTypeImpl, deviceNameValue as deviceNameValueImpl, initialPopupId as initialPopupIdImpl, renderPopupModuleEntityOptions as renderPopupModuleEntityOptionsImpl, closePopupModuleEntityMenu as closePopupModuleEntityMenuImpl, openPopupModuleDialog as openPopupModuleDialogImpl, renderPageSelect as renderPageSelectImpl, retainExistingSelection as retainExistingSelectionImpl, collectChangedComponents as collectChangedComponentsImpl, type InspectorContextsDeps } from "../functions/inspector-context-builders";
 import { collectPageComponentBounds as collectPageComponentBoundsImpl, alignSelectedComponents as alignSelectedComponentsImpl, ensureEditorRenderer as ensureEditorRendererImpl, renderEditorWorkspace as renderEditorWorkspaceImpl, syncHistoryButtons as syncHistoryButtonsImpl, applyEditorCanvasZoom as applyEditorCanvasZoomImpl, selectAllPageComponents as selectAllPageComponentsImpl, discardRecoverySnapshot as discardRecoverySnapshotImpl, readRecoverySnapshot as readRecoverySnapshotImpl, scheduleRecoverySnapshot as scheduleRecoverySnapshotImpl, persistRecoverySnapshot as persistRecoverySnapshotImpl, writeError as writeErrorImpl, resetHistoryState as resetHistoryStateImpl, refreshDirtyState as refreshDirtyStateImpl, historyEntries as historyEntriesImpl, historyEntry as historyEntryImpl, initialPagePath as initialPagePathImpl, projectSummary as projectSummaryImpl, recoverDraftConflict as recoverDraftConflictImpl, saveDraft as saveDraftImpl, interaction3dEntryActive as interaction3dEntryActiveImpl, loadHaConnection as loadHaConnectionImpl, entityLoadError as entityLoadErrorImpl, reuseTokenForNewUrl as reuseTokenForNewUrlImpl, syncAspectLockButton as syncAspectLockButtonImpl, type WorkspaceHistoryDeps } from "../functions/workspace-history";
 import { actionDraftDocument as actionDraftDocumentImpl, targetPageCandidate as targetPageCandidateImpl, buttonVisibilityDraftDocument as buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent as titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument as titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError as lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent as lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument as imageEntityDraftDocumentImpl, openAssetPicker as openAssetPickerImpl, assetIdToDelete as assetIdToDeleteImpl, folderDocumentNode as folderDocumentNodeImpl, closeDeletePopupDialog as closeDeletePopupDialogImpl, documentSource as documentSourceImpl, popupId as popupIdImpl, triggerKey as triggerKeyImpl, findDiagramPreviewFrame as findDiagramPreviewFrameImpl, lightInputElement as lightInputElementImpl, cancelRemovesComponent as cancelRemovesComponentImpl, lightingPayload as lightingPayloadImpl, lightFieldElement as lightFieldElementImpl, openLightingPanel as openLightingPanelImpl, lightInputNode as lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick as onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick as onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove as applyLightingPanelDragMoveImpl, type LightingPanelDeps } from "../functions/lighting-panel";
 import { bindFloorplanAutoDiagramControls } from "../functions/floorplan-auto-diagram-wiring";
@@ -148,7 +148,7 @@ import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKey
 import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "../functions/style-dialogs";
 import { titleButtonMenuDeps as titleButtonMenuDepsImpl, loadNavigationIconOptions as loadNavigationIconOptionsImpl, positionTitleButtonIconMenu as positionTitleButtonIconMenuImpl, stopHoverScroll as stopHoverScrollImpl, iconTooltipElementValue as iconTooltipElementValueImpl, inspectorSyncDeps as inspectorSyncDepsImpl, syncComponentActionControls as syncComponentActionControlsImpl, applyTransformToInspector as applyTransformToInspectorImpl, previewModeForIcon as previewModeForIconImpl, sharedReferenceId as sharedReferenceIdImpl, nudgeDeps as nudgeDepsImpl, nudgeDeltaX as nudgeDeltaXImpl, clickPopupListOption as clickPopupListOptionImpl, onPopupListContextmenu as onPopupListContextmenuImpl, openEntityCopyBackupPicker as openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker as openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker as openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick as onPopupModuleCancelButtonClickImpl, type CopyBackupPickersDeps } from "../functions/copy-backup-pickers";
 import { onPopupModuleClimateDeviceTypeClick as onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder as selectAssetFolderImpl, popupModuleTypeValue as popupModuleTypeValueImpl, requestDeleteUserAsset as requestDeleteUserAssetImpl, requestDeleteAssetFolder as requestDeleteAssetFolderImpl, refreshAssetPickers as refreshAssetPickersImpl, scaleDraftDocument as scaleDraftDocumentImpl, cancelDeletePopupDialog as cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick as onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput as onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState as saturationPointerMoveEventStateImpl, mutationRecord as mutationRecordImpl, type AssetManagementDeps } from "../functions/asset-management";
-import { createBindingRepair } from "../../../../runtime/navigation/binding-repair";
+import { createBindingRepair } from "@/studio/platform/navigation/binding-repair";
 import { weatherSceneStyle as weatherSceneStyle2 } from "../../../renderer/weather-forecast";
 import { bindScenePopupEditorBoot } from "./scene-popup-editor-boot";
 import { bindWeatherInspectorToggles } from "./weather-inspector-wiring";
@@ -766,7 +766,7 @@ function componentEditingDeps(): ComponentEditingDeps {
     get syncRendererSelection() { return syncRendererSelection; },
   };
 }
-const hELPER_ENTITY_DOMAINSSet = new Set([
+const helperEntityDomainSet = new Set([
     "input_boolean",
     "input_button",
     "input_datetime",
@@ -814,11 +814,11 @@ function entityLabelsDeps(): EntityLabelsDeps {
     get currentPage() { return currentPage; },
     get editorCtx() { return editorCtx; },
     get effectIconLabelElementById() { return effectIconLabelElementById; },
-    get effectIconLabelElementByIdById() { return effectIconLabelElementByIdById; },
+    get scrollPreviewLabelsByRow() { return scrollPreviewLabelsByRow; },
     get effectIconLabelSelector() { return effectIconLabelSelector; },
     get effectIconName() { return effectIconName; },
     get ENTITY_DOMAIN_LABELS() { return ENTITY_DOMAIN_LABELS; },
-    get hELPER_ENTITY_DOMAINSSet() { return hELPER_ENTITY_DOMAINSSet; },
+    get helperEntityDomainSet() { return helperEntityDomainSet; },
     get MAX_LIGHT_STATISTICS_ENTITIES() { return MAX_LIGHT_STATISTICS_ENTITIES; },
     get mutateDocument() { return mutateDocument; },
     get navigationIconValue() { return navigationIconValue; },
@@ -844,7 +844,7 @@ function entityLabelsDeps(): EntityLabelsDeps {
 }
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
 const effectIconLabelElementById = new WeakMap(),
-  effectIconLabelElementByIdById = new WeakMap(),
+  scrollPreviewLabelsByRow = new WeakMap(),
   effectIconLabelSelector =
     "[data-overflow-scroll-preview], .inspector-picker-value, .inspector-entity-name-line";
 (document.addEventListener("pointerover", (iconButtonIconName) => {
@@ -2368,7 +2368,7 @@ function navigationPreviewDeps(): NavigationPreviewDeps {
     get createImageAlignOption() { return createImageAlignOption; },
     get currentPage() { return currentPage; },
     get editorCtx() { return editorCtx; },
-    get exportSpliceErrorByIdById() { return exportSpliceErrorByIdById; },
+    get iconEffectStateByInput() { return iconEffectStateByInput; },
     get findAssetById() { return findAssetById; },
     get iconButtonEffectPreviewStateByComponentId() { return iconButtonEffectPreviewStateByComponentId; },
     get iconButtonPreviewStateByComponentId() { return iconButtonPreviewStateByComponentId; },
@@ -2437,7 +2437,7 @@ bindFloorplanAutoDiagramMessages({
 });
 const {
     exportSpliceErrorById,
-    exportSpliceErrorByIdById,
+    iconEffectStateByInput,
     exportSpliceErrorSet,
   } = createExportSpliceTables({
     ibeBrightnessRealtimeElement,
@@ -2760,16 +2760,16 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
   }));
 const {
     effectVisibleComponentById,
-    effectVisibleComponentByIdById,
+    titleButtonLayoutFieldByInput,
     previewStateByInputElementById,
     previewStateByInputElementByKey,
     previewStateByInputElement,
     effectVisibleComponentByIdByKey,
     previewStateByInputElementByName,
     previewComponentIdForIconById,
-    previewComponentIdForIconByIdById,
+    cameraFrameStyleByInput,
     previewModeForIconById,
-    previewModeForIconByIdById,
+    vacuumMapLayoutFieldByInput,
     previewModeForIconByIdByKey,
   } = createEffectPreviewInputTables({
     airConditionerAirflowAngleElement,
@@ -2949,7 +2949,7 @@ const {
   titleButtonInspectorElement,
   "title-button",
   effectVisibleComponentById,
-  effectVisibleComponentByIdById,
+  titleButtonLayoutFieldByInput,
 ),
   previewModeForIcon(
     lightStatisticsInspectorElement,
@@ -2973,12 +2973,12 @@ const {
     vacuumMapInspectorElement,
     "vacuum-map",
     previewModeForIconById,
-    previewModeForIconByIdById,
+    vacuumMapLayoutFieldByInput,
   ),
   previewModeForIcon(
     cameraInspectorElement,
     "camera",
-    previewComponentIdForIconByIdById,
+    cameraFrameStyleByInput,
     previewModeForIconByIdByKey,
   ),
   deviceButtonStatePrecisionElement.addEventListener("change", () => {

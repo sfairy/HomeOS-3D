@@ -2,7 +2,7 @@
   通知中心页头（Hero）。展示标题、概要指标，以及「告警规则 / 免打扰 /
   全部已读 / 清空 / 刷新」等操作入口，未读数与可清空状态控制按钮可用性。
 -->
-<script setup>
+<script setup lang="ts">
 import { Bell } from '@lucide/vue'
 
 import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'

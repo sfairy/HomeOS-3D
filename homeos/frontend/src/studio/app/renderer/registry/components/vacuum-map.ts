@@ -1,6 +1,6 @@
 /** 扫地机实时地图渲染器（从 register-all 拆出）。 */
 import { clampNumberWithFallback, resolveStatePayload } from '../_shared'
-import { createVacuumMapImageLoader } from '../../vacuum-map-state'
+import { createVacuumMapImageLoader } from '@app/shared/device/vacuum-map-state'
 import type { ComponentControllerHooks } from './types'
 
 export function register(registerComponent: (type: any, def: any) => void) {

@@ -2,7 +2,7 @@
   通知中心「消息流」面板。展示通知列表标题、结果摘要以及「全部已读 / 清空」
   操作入口，列表主体由 NotificationCenter 组件负责渲染。
 -->
-<script setup>
+<script setup lang="ts">
 import NotificationCenter from '@/components/widgets/system/NotificationCenter.vue'
 
 defineProps({

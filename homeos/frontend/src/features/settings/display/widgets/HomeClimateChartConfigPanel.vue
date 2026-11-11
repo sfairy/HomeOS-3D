@@ -179,4 +179,4 @@ const summary = computed(() => {
 })
 </script>
 
-<style scoped src="./styles/HomeClimateChartConfigPanel.css"></style>
+<style scoped src="./styles/home-climate-chart-config-panel.css"></style>

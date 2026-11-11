@@ -31,7 +31,7 @@ export interface NavigationPreviewDeps {
   effectImageAlignDialogElement: any
   effectImageAlignMessageElement: any
   effectImageAlignOptionsElement: any
-  exportSpliceErrorByIdById: any
+  iconEffectStateByInput: any
   findAssetById: any
   floorplanAutoDiagramDialogElement: any
   floorplanAutoDiagramGuideElement: any
@@ -149,7 +149,7 @@ export function onWindowMessage(
 }
 
 export function exportSpliceError(deps: NavigationPreviewDeps, bindIconButtonEffectSection: any) {
-  const entryStateValue = deps.exportSpliceErrorByIdById.get(bindIconButtonEffectSection),
+  const entryStateValue = deps.iconEffectStateByInput.get(bindIconButtonEffectSection),
     entryStateConfig = deps.removedComponent()
   if (!(!entryStateValue || entryStateConfig?.type !== 'icon-button-effect')) {
     deps.iconButtonEffectPreviewStateByComponentId.set(entryStateConfig.id, entryStateValue),

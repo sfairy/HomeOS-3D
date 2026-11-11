@@ -785,26 +785,26 @@ export async function ensureEntitiesLoaded(
           )),
           (deps.editorCtx.entityResourcesByDeviceId = all4?.resources || {}),
           (deps.editorCtx.isAreEntitiesLoaded = true)
-        const mappedItemByIdById = new Map(
+        const nasProfileByDeviceId = new Map(
             nasProfiles2(deps.editorCtx.entities, deps.editorCtx.devices).map((mappedItemsQueue) => [
               mappedItemsQueue.deviceId,
               mappedItemsQueue,
             ]),
           ),
-          entitiesResponseConfig = reconcileNasDocument2(deps.editorCtx.activeProject?.document, mappedItemByIdById),
-          devicesResponseState = reconcileNasDocument2(deps.editorCtx.baselineDocument, mappedItemByIdById)
+          entitiesResponseConfig = reconcileNasDocument2(deps.editorCtx.activeProject?.document, nasProfileByDeviceId),
+          devicesResponseState = reconcileNasDocument2(deps.editorCtx.baselineDocument, nasProfileByDeviceId)
         deps.editorCtx.savedDocumentSignature = documentSignature2(deps.editorCtx.baselineDocument)
         for (const translationsResponse of [...deps.historyState.undo, ...deps.historyState.redo])
           for (const deviceState of ['document', 'beforeSavedDocument', 'afterSavedDocument'])
-            reconcileNasDocument2(translationsResponse[deviceState], mappedItemByIdById)
+            reconcileNasDocument2(translationsResponse[deviceState], nasProfileByDeviceId)
         if (deps.editorCtx.recoverySnapshot) {
-          reconcileNasDocument2(deps.editorCtx.recoverySnapshot.document, mappedItemByIdById)
+          reconcileNasDocument2(deps.editorCtx.recoverySnapshot.document, nasProfileByDeviceId)
           for (const deviceIdKey of [
             ...(deps.editorCtx.recoverySnapshot.undo || []),
             ...(deps.editorCtx.recoverySnapshot.redo || []),
           ])
             for (const deviceNameValueState of ['document', 'beforeSavedDocument', 'afterSavedDocument'])
-              reconcileNasDocument2(deviceIdKey[deviceNameValueState], mappedItemByIdById)
+              reconcileNasDocument2(deviceIdKey[deviceNameValueState], nasProfileByDeviceId)
           documentSignature2(deps.editorCtx.recoverySnapshot.document) === deps.editorCtx.savedDocumentSignature &&
             (deps.discardRecoverySnapshot(deps.editorCtx.activeProject.projectId),
             (deps.editorCtx.recoverySnapshot = null),

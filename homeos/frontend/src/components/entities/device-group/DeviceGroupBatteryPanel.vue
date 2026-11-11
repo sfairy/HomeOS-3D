@@ -46,7 +46,7 @@
   </template>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 按「低电量告警」「运行良好」两个分组展示电量传感器卡片 */
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 

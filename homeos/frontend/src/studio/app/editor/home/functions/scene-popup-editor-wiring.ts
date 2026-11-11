@@ -5,7 +5,7 @@
  * 依赖袋由 `boot.ts` 的 `copyBackupPickersDeps()` 提供（键名与
  * `copy-backup-pickers.ts` 的 `CopyBackupPickersDeps` 保持一致）。
  */
-import { EDITOR_PICKER_PAGE_SIZES, editorEntityPickerPage } from '../../picker/editor-picker-pagination'
+import { EDITOR_PICKER_PAGE_SIZES, editorEntityPickerPage } from '@app/shared/picker/editor-picker-pagination'
 
 const ENTITY_PICKER_HINT = '推荐去 HA 复制实体 ID，粘贴搜索。可精准选择。'
 

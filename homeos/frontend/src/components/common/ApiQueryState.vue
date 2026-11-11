@@ -27,9 +27,9 @@
   </template>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 加载中渲染骨架屏（VPanelSkeleton）； */
-import { computed, unref } from 'vue'
+import { computed, type PropType, type Ref, unref } from 'vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import VListSkeleton from '@/components/common/base/VListSkeleton.vue'
 import VPanelSkeleton from '@/components/common/base/VPanelSkeleton.vue'
@@ -40,7 +40,7 @@ const props = defineProps({
   /** 是否处于加载中，支持 Boolean 或 Ref<Boolean>（内部会 unref） */
   loading: { type: [Boolean, Object], default: false },
   /** 错误信息，可为字符串或 Ref；为 false/null/空串视为无错误 */
-  error: { type: [String, Object], default: '' },
+  error: { type: [String, Object] as PropType<string | false | null | Ref<string | false | null>>, default: '' },
   /** 是否处于降级态（数据可用但不完整） */
   degraded: { type: [Boolean, Object], default: false },
   /** 是否展示降级提示条 */

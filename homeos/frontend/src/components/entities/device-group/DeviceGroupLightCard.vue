@@ -42,7 +42,7 @@
   </button>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file DeviceGroupLightCard.vue
  * @description light/switch 域紧凑卡片（独立组件以便静态网格与虚拟滚动复用同一份模板）

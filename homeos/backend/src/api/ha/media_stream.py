@@ -27,10 +27,11 @@ from fastapi.responses import Response, StreamingResponse
 from starlette.requests import ClientDisconnect
 from starlette.types import Message, Send
 
-from ...dependencies import ViewerPrincipal, require_viewer_entity
+from ...dependencies import ViewerPrincipal
 from ...domains.ha.integration.connection_query import active_connection
 from ...domains.license import features as feature_codes
 from ...platform.core.db.database import Database
+from ...platform.security.viewer_scope import require_viewer_entity
 
 CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
 CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64

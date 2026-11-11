@@ -33,7 +33,7 @@
   </header>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 // 列表页壳层样式（list-page / views / premium-head）：随本组件所在的懒路由按需注入，
 // 不再计入首屏 CSS 预算。详见 assets/styles/lazy/list-page-shell.ts 顶部说明。
@@ -62,7 +62,7 @@ const TONE_ACCENTS = {
 }
 
 /** 当前强调色：按 tone 取值，未匹配回退 sky */
-const accentColor = computed(() => TONE_ACCENTS[props.tone] || TONE_ACCENTS.sky)
+const accentColor = computed(() => TONE_ACCENTS[props.tone as keyof typeof TONE_ACCENTS] || TONE_ACCENTS.sky)
 </script>
 
 <style scoped>

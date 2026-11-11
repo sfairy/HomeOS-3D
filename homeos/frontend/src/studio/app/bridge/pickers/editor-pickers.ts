@@ -2,8 +2,8 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage,
-} from '../../editor/picker/editor-picker-pagination'
-import { createEditorPickerQueries } from '../../editor/picker/editor-picker-queries'
+} from '@app/shared/picker/editor-picker-pagination'
+import { createEditorPickerQueries } from '@app/shared/picker/editor-picker-queries'
 import { vacuumProfiles } from '../catalog/vacuum-catalog'
 import { nasProfiles } from '../catalog/nas-catalog'
 import { isMediaDeviceKind } from '../presets/media-device-profiles'

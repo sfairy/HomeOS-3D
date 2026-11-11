@@ -73,7 +73,9 @@ export function precompileShaderPrograms(
     targetRenderer.extensions?.has('KHR_parallel_shader_compile') === false
   )
     return Promise.resolve(false)
-  const precompileRoot: PrecompileRoot = shouldCompileVisibleOnly ? new threeModuleMin.Group() : targetScene
+  const precompileRoot: PrecompileRoot = shouldCompileVisibleOnly
+    ? (new threeModuleMin.Group() as unknown as PrecompileRoot)
+    : targetScene
   shouldCompileVisibleOnly &&
     (precompileRoot.traverse = (visitNode) =>
       targetScene.traverseVisible((visibleNode) => {

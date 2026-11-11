@@ -71,7 +71,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import HaCameraStream from '@/components/HaCameraStream.vue'
@@ -103,7 +103,7 @@ const emit = defineEmits(['select', 'stream-error', 'retry', 'visibility'])
 const entitiesStore = useEntitiesStore()
 const rootRef = ref(null)
 const visible = ref(false)
-let observer = null
+let observer: IntersectionObserver | null = null
 
 // 仅在启用拉流、可见且占用前 N 个槽位之一时才真正挂载实时流
 const active = computed(

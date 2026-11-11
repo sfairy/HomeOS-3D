@@ -342,7 +342,7 @@ import {
   computeAnalyticsSummary,
   shortenPlace,
 } from '@/shared/earthquake/utils/history-analytics.util'
-import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/composables/earthquake/earthquake-layout.util'
+import { formatEarthquakeMagnitude, earthquakeMagnitudeTone } from '@/stores/earthquake/earthquake-layout.util'
 import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
 import {
   EEW_MAGNITUDE_OPTIONS,

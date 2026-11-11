@@ -14,7 +14,7 @@ import { clamp as clamp2, distance as distance2 } from '../../plan/geometry'
 import {
   curtainFootprintDepth as curtainFootprintDepth2,
   normalizeCurtainTrack as normalizeCurtainTrack2,
-} from '../../loaders/studio-curtain-track'
+} from '@app/shared/scene/studio-curtain-track'
 import { defaultViewSettings } from './studio-view-settings'
 import { fanDimensions as fanDimensions2 } from '../items/studio-fan'
 import {

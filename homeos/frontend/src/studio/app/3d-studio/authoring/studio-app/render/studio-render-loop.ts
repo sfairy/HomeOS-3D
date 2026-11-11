@@ -936,12 +936,12 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     const targetFloorPpm =
         appCtx.studioProject.floors.find((targetFloorEntry: any) => targetFloorEntry.id === lookupFloorId)?.scene
           .calibration?.pixelsPerMeter || 1,
-      floorTargetPoint = planToWorldForFloor(lookupFloorId, 0, 0, 0)
+      floorTargetPoint = planToWorldForFloor(lookupFloorId, 0, 0, 0)!
     return new ns2.Matrix4()
       .makeBasis(
-        planToWorldForFloor(lookupFloorId, targetFloorPpm, 0, 0).sub(floorTargetPoint),
+        planToWorldForFloor(lookupFloorId, targetFloorPpm, 0, 0)!.sub(floorTargetPoint),
         new ns2.Vector3(0, 1, 0),
-        planToWorldForFloor(lookupFloorId, 0, targetFloorPpm, 0).sub(floorTargetPoint),
+        planToWorldForFloor(lookupFloorId, 0, targetFloorPpm, 0)!.sub(floorTargetPoint),
       )
       .setPosition(floorTargetPoint)
   }
@@ -1487,7 +1487,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     }),
     bindNamedPageHideOnce(pageHideBindings, () => groundReflections.dispose())
   const { previousOnBeforeRender: onBeforeRender } = attachReflectionProbeMesh({
-    THREE: ns2,
+    THREE: ns2 as unknown as Parameters<typeof attachReflectionProbeMesh>[0]['THREE'],
     threeScene: appCtx.threeScene,
     pageHideBindings,
     shouldRefreshGeometry: () => ctx.shouldRefreshGeometry,
@@ -1645,7 +1645,7 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
     return floorRoots.length ? floorRoots : [sceneRoot]
   }
   deps.interactionBatches = createInteractionBatches2({
-    THREE: ns2,
+    THREE: ns2 as unknown as Parameters<typeof createInteractionBatches2>[0]['THREE'],
     renderer: appCtx.threeRenderer,
     scene: appCtx.threeScene,
     isDynamicObject: (sceneNode: any) => effectCache?.isDynamicObject(sceneNode) === true,
@@ -2023,9 +2023,10 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
             ? appCtx.overviewStackController.rayForFloor(raycastObject, sampleNdcPoint, pickRaycaster)
             : pickRaycaster.setFromCamera(sampleNdcPoint, appCtx.threeCamera)
           for (const rayIntersection of pickRaycaster.intersectObjects(raycastTargets, false)) {
-            const hitMaterial = Array.isArray(rayIntersection.object.material)
-              ? rayIntersection.object.material[rayIntersection.face?.materialIndex || 0]
-              : rayIntersection.object.material
+            const hitMaterialSource = (rayIntersection.object as ns2.Mesh).material,
+              hitMaterial = Array.isArray(hitMaterialSource)
+                ? hitMaterialSource[rayIntersection.face?.materialIndex || 0]
+                : hitMaterialSource
             hitMaterial?.visible !== false &&
               hitMaterial?.opacity !== 0 &&
               (!nearestHit || rayIntersection.distance < nearestHit.distance) &&

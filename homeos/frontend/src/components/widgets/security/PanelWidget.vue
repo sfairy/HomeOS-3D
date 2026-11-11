@@ -365,4 +365,4 @@ async function pushZonesToBackend() {
 
 <style src="./styles/security-panel-widget.css"></style>
 
-<style scoped src="./styles/SecurityPanelWidget-scoped.css"></style>
+<style scoped src="./styles/security-panel-widget-scoped.css"></style>

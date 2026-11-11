@@ -23,11 +23,18 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 通过 onErrorCaptured 捕获子树渲染异常； */
 import { ref, onErrorCaptured } from 'vue'
 import { AlertTriangle } from '@lucide/vue'
 import { logger } from '@/shared/utils/core/logger'
+
+type ComponentTypeFields = { name?: string; __name?: string; displayName?: string; __file?: string; __hmrId?: string }
+type ComponentTypeInfo = ComponentTypeFields | (((...args: never[]) => unknown) & ComponentTypeFields)
+type CapturedInstance =
+  | { $?: { type?: ComponentTypeInfo; parent?: CapturedInstance }; type?: ComponentTypeInfo; parent?: CapturedInstance }
+  | null
+  | undefined
 defineProps({
   /** 错误卡片标题，默认 '页面出现问题' */
   title: { type: String, default: '' },
@@ -53,10 +60,14 @@ const internalKey = ref(0)
  * @param {*} instance Vue 组件实例
  * @returns {{name?: string, file?: string}}
  */
-function resolveCapturedComponent(instance) {
+function resolveCapturedComponent(instance: CapturedInstance) {
   const type = instance?.$?.type || instance?.type
   if (!type) return { name: undefined, file: undefined }
-  const name = type.name || type.__name || type.displayName || (typeof type === 'function' ? type.name : undefined)
+  const name =
+    type.name ||
+    type.__name ||
+    type.displayName ||
+    (typeof type === 'function' ? (type as { name?: string }).name : undefined)
   const file = type.__file || type.__hmrId || undefined
   return { name, file }
 }
@@ -66,7 +77,7 @@ function resolveCapturedComponent(instance) {
  * @param {*} instance Vue 组件实例
  * @returns {{name?: string, file?: string}}
  */
-function resolveParentComponent(instance) {
+function resolveParentComponent(instance: CapturedInstance) {
   const parent = instance?.$?.parent || instance?.parent
   return resolveCapturedComponent(parent)
 }
@@ -118,4 +129,4 @@ function reset() {
 defineExpose({ reset, hasError })
 </script>
 
-<style scoped src="./styles/ErrorBoundary.css"></style>
+<style scoped src="./styles/error-boundary.css"></style>

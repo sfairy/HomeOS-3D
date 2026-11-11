@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/runtime/camera/camera-mjpeg.ts', import.meta.url),
+  new URL('../../../../homeos/frontend/src/studio/platform/camera/camera-mjpeg.ts', import.meta.url),
 )
 const { CAMERA_MJPEG_ERRORS, parseMultipartBoundary, readMjpegFrames } = await import(moduleUrl)
 

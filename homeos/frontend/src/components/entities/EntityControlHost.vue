@@ -15,7 +15,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 列表/详情页中以居中模态形式承载单个实体的弹窗组件 */
 import { computed, provide, watchEffect } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'

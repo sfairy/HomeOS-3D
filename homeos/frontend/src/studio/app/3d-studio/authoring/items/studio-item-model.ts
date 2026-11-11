@@ -9,7 +9,7 @@
  */
 
 import { addTelevisionModel } from "./studio-television-model";
-import { addTrackCurtain as addTrackCurtain2 } from "../../loaders/studio-curtain-track";
+import { addTrackCurtain as addTrackCurtain2 } from "@app/shared/scene/studio-curtain-track";
 import { squareEdgeItemTypeSet } from "./item-catalog";
 import { exhaustFanInstallation } from "./studio-exhaust-fan";
 import { applyItemPosture as applyItemPosture2 } from "./studio-item-posture";

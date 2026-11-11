@@ -9,7 +9,7 @@ import { normalizeMuralArtStyle, normalizeFeatureWallStyle } from '../../../mate
 import {
   normalizeCurtainTrack as normalizeCurtainTrack2,
   curtainFootprintDepth as curtainFootprintDepth2,
-} from '../../../loaders/studio-curtain-track'
+} from '@app/shared/scene/studio-curtain-track'
 
 import { clamp as clamp2, clampWindowT as clampWindowT2, defaultDoorOpening } from '../../../plan/geometry'
 

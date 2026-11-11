@@ -17,7 +17,7 @@
   </SettingsPageShell>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useLayoutConfigRef } from '@/composables/ui/useLayoutConfigRef'
 import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'

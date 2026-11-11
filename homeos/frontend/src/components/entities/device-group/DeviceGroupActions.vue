@@ -13,9 +13,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 展示批量服务调用失败明细，并提供「重试失败项」入口 */
-import { computed } from 'vue'
+import { computed, type PropType } from 'vue'
 
 /**
  * 组件 Props 定义
@@ -23,7 +23,10 @@ import { computed } from 'vue'
  * @property {boolean} executing - 是否正在执行批量调用，用于禁用重试按钮避免重复触发
  */
 const props = defineProps({
-  result: { type: Object, default: null },
+  result: {
+    type: Object as PropType<{ results?: { entity_id: string; success: boolean; error?: string }[] } | null>,
+    default: null,
+  },
   executing: { type: Boolean, default: false },
 })
 

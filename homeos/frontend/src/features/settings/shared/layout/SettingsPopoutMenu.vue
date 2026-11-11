@@ -170,4 +170,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style src="./styles/SettingsPopoutMenu.css"></style>
+<style src="./styles/settings-popout-menu.css"></style>

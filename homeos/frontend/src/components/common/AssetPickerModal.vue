@@ -54,7 +54,6 @@
           <div class="hos-modal-body hos-modal-body--flush hos-modal-body--no-scroll picker-body">
             <AssetManager
               v-if="isOpen"
-              ref="assetManagerRef"
               :is-picker="true"
               :type="type"
               @select="onSelect"
@@ -75,7 +74,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /** - 以模态形式承载 AssetManager（拾取器模式）； */
 import { ref, computed, defineAsyncComponent, watch } from 'vue'
 import { X, Images, Sparkles, MousePointer2 } from '@lucide/vue'
@@ -118,17 +117,15 @@ useBodyScrollLock(isActive, '素材拾取器')
 
 /** 已选项目数量（每次 AssetManager 触发 select 时累加） */
 const selectedCount = ref(0)
-/** AssetManager 组件实例引用 */
-const assetManagerRef = ref(null)
 
 /**
  * 拾取回调：累加已选计数并向上 emit select 事件
  * @param {*} value 选中的资源值（路径或对象）
  */
-function onSelect(value) {
+function onSelect(value: unknown) {
   selectedCount.value++
   emit('select', value)
 }
 </script>
 
-<style scoped src="./styles/AssetPickerModal.css"></style>
+<style scoped src="./styles/asset-picker-modal.css"></style>

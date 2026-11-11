@@ -5,7 +5,7 @@ import {
   collectEntityIds as collectEntityIds2,
   lineChartRuntimeStateNeedsHydration as lineChartRuntimeStateNeedsHydration2,
 } from '../panel-document'
-import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '../entity-metadata'
+import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from '@app/shared/device/entity-metadata'
 import { isVirtualEntityId as isVirtualEntityId2 } from '../../shared/virtual-entities'
 import { maxRuntimeEntitySubscriptions } from '../renderer-helpers'
 import { navigateInShell } from '@/studio/platform/shell-navigation'
@@ -25,7 +25,7 @@ import {
 import {
   relatedVacuumBatteryEntity as relatedVacuumBatteryEntity2,
   relatedVacuumStatusEntities as relatedVacuumStatusEntities2,
-} from '../controls/vacuum-runtime'
+} from '@app/shared/device/vacuum-runtime'
 
 export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = false } = {}) {
   if (!this.document || this.destroyed) {

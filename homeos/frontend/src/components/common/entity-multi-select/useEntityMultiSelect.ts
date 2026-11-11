@@ -14,7 +14,7 @@
  * @returns 多选状态和操作方法
  */
 import { getEntityDomain } from '@homeos/shared'
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useEntityPickerSession } from '@/composables/entity/useEntityPickerSession'
 import { useEntitiesStore } from '@/stores/entities.store'
@@ -22,7 +22,7 @@ import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { getLargeEntityThreshold } from '@/shared/utils/config/frontend-config'
 
 /** 静态选项配置（如 HomeOS 场景） */
-interface EntityMultiSelectStaticOption {
+export interface EntityMultiSelectStaticOption {
   id: string
   label: string
   hint?: string
@@ -376,8 +376,8 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     onClickOutside,
   )
 
-  const bindWrapRef = (element: HTMLElement | null) => {
-    wrapRef.value = element
+  const bindWrapRef = (element: Element | ComponentPublicInstance | null) => {
+    wrapRef.value = element as HTMLElement | null
   }
   const bindTriggerRef = (element: HTMLElement | null) => {
     triggerRef.value = element

@@ -559,4 +559,4 @@ async function runTest() {
 }
 </script>
 
-<style src="./styles/AlertRulesEarthquakeSection.css"></style>
+<style src="./styles/alert-rules-earthquake-section.css"></style>

@@ -2,7 +2,7 @@
   浮动组件列表行。展示组件预览（点位、图标、标题、类型徽章、坐标）、显隐/配置/删除按钮，
   并在编辑态展开 FloatingWidgetEditor。
 -->
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { Settings as SettingsIcon, Trash2, Eye, EyeOff } from '@lucide/vue'
 import {

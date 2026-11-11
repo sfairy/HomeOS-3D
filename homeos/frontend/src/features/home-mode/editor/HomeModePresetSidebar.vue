@@ -26,7 +26,7 @@
   </aside>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Package } from '@lucide/vue'
 import HomeModePresetCards from './HomeModePresetCards.vue'
 
@@ -38,4 +38,4 @@ defineProps({
 const emit = defineEmits(['install'])
 </script>
 
-<style scoped src="./styles/HomeModePresetSidebar.css"></style>
+<style scoped src="./styles/home-mode-preset-sidebar.css"></style>

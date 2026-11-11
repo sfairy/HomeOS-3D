@@ -2,7 +2,8 @@
   浮动组件面板头部。展示组件数概览、流程概览、拖拽锁定开关、添加组件菜单，
   并提供跳转到生活账户/环境健康/安防场景等业务配置的链接。
 -->
-<script setup>
+<script setup lang="ts">
+import type { SettingsFlowStep } from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import { computed } from 'vue'
 import { Grip, Layers, Layout, Lock, Monitor, Unlock, Plus } from '@lucide/vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
@@ -35,13 +36,13 @@ const floatingFlowSummary = computed(() => {
 })
 
 // 选中组件类型后向上抛出并关闭菜单
-function onSelectWidget(type) {
+function onSelectWidget(type: string) {
   emit('add-widget', type)
   showAddFloating.value = false
 }
 
 // 浮动流程步骤：组件配置 → 坐标布局 → 大屏渲染
-const floatingFlowSteps = computed(() => [
+const floatingFlowSteps = computed((): SettingsFlowStep[] => [
   { label: '组件配置', meta: `${props.widgetCount} 个组件`, icon: Layers, tone: 'in' },
   { label: '坐标布局', meta: props.isAfhLocked ? '已锁定' : '可拖拽', icon: Layout, tone: 'mid' },
   { label: '大屏渲染', meta: '浮动层', icon: Monitor, tone: 'out' },

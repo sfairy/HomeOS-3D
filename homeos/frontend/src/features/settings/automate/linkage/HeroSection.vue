@@ -6,7 +6,7 @@
  * 关键依赖：SettingsFlowStat
  * 数据来源：父级透传的各项计数值
 -->
-<script setup>
+<script setup lang="ts">
 /**
  * 所属模块：frontend/features/settings/automate/linkage
  * 职责：渲染全屋联动概览统计，整合子组件与业务数据。

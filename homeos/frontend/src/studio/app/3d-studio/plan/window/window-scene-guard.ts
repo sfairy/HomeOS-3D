@@ -5,7 +5,7 @@
  * `layout.ts` 负责**单扇**窗户的树结构与尺寸，这里负责**墙 → 窗**的跨对象约束，
  * 也就是「画面上会漏出窗框穿墙」的那一类错误。
  */
-import { isCustomWindow, validateWindowRecord } from './layout'
+import { isCustomWindow, validateWindowRecord } from '@app/shared/scene/window/layout'
 
 /** 场景里每一扇越界窗的「身份 → 带窗名的文案」。 */
 function windowSceneErrors(scene: any, pixelsPerMeter: number): { id: string; message: string }[] {

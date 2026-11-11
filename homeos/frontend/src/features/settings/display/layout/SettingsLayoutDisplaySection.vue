@@ -271,4 +271,4 @@ const clampHint = computed(() => {
 defineEmits(['toggle-scaling', 'apply-width-preset', 'auto-match-resolution'])
 </script>
 
-<style src="./styles/SettingsLayoutDisplaySection.css"></style>
+<style src="./styles/settings-layout-display-section.css"></style>

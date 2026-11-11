@@ -8,7 +8,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import VSkeleton from './VSkeleton.vue'
 defineProps({
   /** 主体卡片高度（数字按像素，字符串原样使用） */

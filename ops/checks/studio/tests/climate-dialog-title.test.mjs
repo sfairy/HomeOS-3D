@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const moduleUrl = fileURLToPath(
-  new URL('../../../../homeos/frontend/src/studio/app/renderer/controls/climate.ts', import.meta.url),
+  new URL('../../../../homeos/frontend/src/studio/app/shared/device/climate.ts', import.meta.url),
 )
 const { climateDialogTitle } = await import(moduleUrl)
 
