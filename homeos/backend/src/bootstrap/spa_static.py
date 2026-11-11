@@ -216,8 +216,8 @@ def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
 
 #: 静态挂载点内「带版本号的 vendor 目录」：vendor/<库名>/<数字版本>/...。
 #: 这类目录的内容由版本号固定（three/0.187.0、hls.js/1.7.4、meshoptimizer/0.25、
-#: mdi/7.4.47 等），可安全长缓存；未版本化路径（qrcode-generator/qrcode.js、
-#: meteocons/fill、根级 LICENSE）不加，避免升级产物后命中旧内容。
+#: mdi/7.4.47 等），可安全长缓存；未版本化路径（meteocons/fill、根级 LICENSE）
+#: 不加，避免升级产物后命中旧内容。
 _IMMUTABLE_VENDOR_PATH = re.compile(r"^vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
 
 #: 随包默认素材（图标 / 背景图）的客户端缓存时间：只在发版时变，且文件名稳定，
