@@ -8,6 +8,12 @@
 const BUILD_REVISION = '__HOMEOS_RESOURCE_REVISION__'
 const CACHE_SHELL = `homeos-shell-${BUILD_REVISION}`
 const CACHE_STATIC = `homeos-static-${BUILD_REVISION}`
+/** 3D 模型（GLB）单独一层：单件大、总量按字节设上限，超了从头淘汰。 */
+const CACHE_MODELS = `homeos-models-${BUILD_REVISION}`
+const MODEL_PREFIXES = ['/static/3d-studio/models/', '/static/homeos/models/']
+const MODEL_CACHE_MAX_BYTES = 300 * 1024 * 1024
+/** 拿不到 content-length 时的保守估值，只用于 LRU 计量，不影响返回内容。 */
+const MODEL_FALLBACK_BYTES = 2 * 1024 * 1024
 const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
 /** 由 SW 接管的静态资源前缀：只有稳定 URL 的可替换素材。
  *  `/static/assets/` 是内容哈希产物，由 HTTP 缓存（no-cache + ETag）负责，见 fetch 处理器。 */
@@ -57,7 +63,9 @@ self.addEventListener('activate', (event) => {
       try {
         const keys = await caches.keys()
         await Promise.all(
-          keys.filter((k) => k !== CACHE_SHELL && k !== CACHE_STATIC).map((k) => caches.delete(k)),
+          keys
+            .filter((k) => k !== CACHE_SHELL && k !== CACHE_STATIC && k !== CACHE_MODELS)
+            .map((k) => caches.delete(k)),
         )
       } catch {
         /* 缓存清理失败不应阻塞激活 */
@@ -108,6 +116,50 @@ function cacheThenNetwork(request, cacheName) {
   )
 }
 
+/**
+ * 模型 GLB 的缓存优先策略。
+ *
+ * 只接管带 `?v=<批次键>` 的 URL —— 后端对这类 URL 下发 `private, max-age=31536000, immutable`
+ * （见 `studio_shell._is_model_batch_pinned`），键变了内容才会变，因此缓存命中可以直接返回、
+ * 连条件请求都不发；没带键的模型继续走 HTTP 缓存回源校验。
+ *
+ * 为什么要 SW 这一层：HTTP 缓存会被浏览器按配额淘汰，而 3D 首屏一次要拉上百个 GB 级里的
+ * 十几 MB 模型，淘汰后就是整批重新下载。CacheStorage 独立于 HTTP 缓存，且总量可控。
+ */
+function modelCacheFirst(request) {
+  return caches.open(CACHE_MODELS).then(async (cache) => {
+    const cached = await cache.match(request)
+    if (cached) return cached
+    const res = await fetch(request)
+    if (res.status === 200) {
+      await cache.put(request, res.clone()).catch(() => undefined)
+      await trimModelCache(cache)
+    }
+    return res
+  })
+}
+
+/** 按字节上限淘汰：Cache API 没有插入时间，`keys()` 的顺序即写入顺序，从头删即可。 */
+async function trimModelCache(cache) {
+  const requests = await cache.keys()
+  const sizes = []
+  let total = 0
+  for (const request of requests) {
+    const hit = await cache.match(request)
+    const declared = Number(hit?.headers.get('content-length') || 0)
+    const size = declared > 0 ? declared : MODEL_FALLBACK_BYTES
+    sizes.push({ request, size })
+    total += size
+  }
+  if (total <= MODEL_CACHE_MAX_BYTES) return
+  // 多删到 80% 以下，避免每次新增都触发一轮淘汰。
+  for (const entry of sizes) {
+    if (total <= MODEL_CACHE_MAX_BYTES * 0.8) break
+    await cache.delete(entry.request).catch(() => undefined)
+    total -= entry.size
+  }
+}
+
 function staleWhileRevalidate(request, cacheName) {
   return caches.open(cacheName).then(async (cache) => {
     const cached = await cache.match(request)
@@ -147,6 +199,12 @@ self.addEventListener('fetch', (event) => {
    */
   if (STATIC_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
     event.respondWith(staleWhileRevalidate(request, CACHE_STATIC))
+    return
+  }
+
+  // 模型带批次键才接管：键变了 URL 就变，命中即返回，不再发条件请求。
+  if (url.searchParams.get('v') && MODEL_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
+    event.respondWith(modelCacheFirst(request).catch(() => fetch(request)))
     return
   }
 
