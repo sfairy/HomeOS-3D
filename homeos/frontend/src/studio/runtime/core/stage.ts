@@ -114,6 +114,15 @@ import {
   isSameCameraPose,
   syncPanelFit,
 } from './stage/_shared'
+import {
+  clampScreenPercent,
+  handleMarkerActivate as handleMarkerActivateImpl,
+  isFixedPositionAlarm,
+  modelBindingPosition,
+  previewReferenceKey,
+  previewSelectionOf,
+  screenPointToFixedPercent as screenPointToFixedPercentImpl,
+} from './stage/preview-markers'
 export { createStageModelIndex } from './stage/_shared'
 import { buildMetadata } from './stage/build-metadata'
 import {
@@ -173,6 +182,10 @@ export function mountStage(mountOptions: any) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions
   const ctx = createStageContext()
   ctx.pageBehavior = resolvePageBehavior2()
+  // 外移到 stage/preview-markers.ts 的两个函数在这里收口宿主值：调用点保持不变，签名收敛在入口。
+  const handleMarkerActivate = (markerEntry: any) => handleMarkerActivateImpl(markerEntry, ctx)
+  const screenPointToFixedPercent = (pointerEvent: { clientX: number; clientY: number }) =>
+    screenPointToFixedPercentImpl(pointerEvent, element)
   const hasStageRect = () => !!ctx.value,
     noopStageCallback = () => {}
 
@@ -2312,40 +2325,6 @@ export function mountStage(mountOptions: any) {
           })),
       )
   }
-  function handleMarkerActivate(markerEntry: any) {
-    if (
-      !ctx.isEditing &&
-      ctx.isControlReady &&
-      markerEntry.deviceKind === 'camera' &&
-      markerEntry.entityId &&
-      ctx.focusedItemId === markerEntry.id &&
-      ctx.panelDisplayMode !== 'edit'
-    ) {
-      postHostMessage({
-        type: 'camera-popup',
-        id: markerEntry.id,
-      })
-      return
-    }
-    !ctx.followVacuumId &&
-      !ctx.isEditing &&
-      ctx.isControlReady &&
-      markerEntry.deviceKind === 'vacuum' &&
-      markerEntry.entityId &&
-      (ctx.panelDisplayMode === 'panel' || markerEntry.clickAction !== 'focus') &&
-      ctx.focusedItemId === markerEntry.id &&
-      postHostMessage({
-        type: 'vacuum-popup',
-        id: markerEntry.id,
-      })
-  }
-  /** 绑定条目的世界坐标：绑定里写了就用，否则按模型所在位置回填。 */
-  function modelBindingPosition(binding: { x?: unknown; y?: unknown }, model: { x?: number; y?: number } | undefined) {
-    return {
-      x: typeof binding.x === 'number' && Number.isFinite(binding.x) ? binding.x : (model?.x ?? 0),
-      y: typeof binding.y === 'number' && Number.isFinite(binding.y) ? binding.y : (model?.y ?? 0),
-    }
-  }
   function collectSpeakerBindings() {
     return (ctx.options.devices?.speakers || []).map((speakerSourceEntry: any) => {
       const speakerModel = stageModelIndex.item(
@@ -2434,44 +2413,6 @@ export function mountStage(mountOptions: any) {
    * 键里先归一化大类（热水器/净化器/风扇/晾衣架是 climate、cover 的子类），
    * 否则同一条目会在 base 与「本类」两批里各出现一次。
    */
-  function previewReferenceKey(previewMarkerItem: any) {
-    return JSON.stringify([
-      previewMarkerItem.waterHeater
-        ? 'water-heater'
-        : previewMarkerItem.airPurifier
-          ? 'purifier'
-          : previewMarkerItem.pedestalFan
-            ? 'fan'
-            : previewMarkerItem.airer
-              ? 'airer'
-              : previewMarkerItem.deviceKind,
-      previewMarkerItem.id,
-    ])
-  }
-  /** 标记 → 切回配置编辑器所需的模块定位信息（0.7.8 `previewSelection`）。 */
-  function previewSelectionOf(previewMarkerItem: any) {
-    const isVacuumShortcutItem = previewMarkerItem.deviceKind === 'vacuum-room'
-    return {
-      // 扫地机快捷指令：编辑器要的是裸 shortcutId（vacuumId 单独带），不是 `vacuum-room:` 标记 id。
-      id:
-        isVacuumShortcutItem && previewMarkerItem.shortcutId
-          ? previewMarkerItem.shortcutId
-          : previewMarkerItem.entryId || previewMarkerItem.id,
-      floorId: previewMarkerItem.floorId,
-      module: previewMarkerItem.waterHeater
-        ? 'water-heater'
-        : previewMarkerItem.airPurifier
-          ? 'purifier'
-          : previewMarkerItem.pedestalFan
-            ? 'fan'
-            : previewMarkerItem.airer
-              ? 'airer'
-              : isVacuumShortcutItem
-                ? 'vacuum-shortcut'
-                : previewMarkerItem.deviceKind,
-      ...(previewMarkerItem.vacuumId ? { vacuumId: previewMarkerItem.vacuumId } : {}),
-    }
-  }
   /** 当前模块所属大类里的其它设备（0.7.8 的 `_0x519d14` 分支表）。 */
   function collectPreviewReferenceBindings(): any[] {
     if (ctx.activeModule === 'security') return collectSecurityBindings(true)
@@ -4092,23 +4033,6 @@ export function mountStage(mountOptions: any) {
       getFocusedEntry()?.entityId === settledEntry.entityId &&
         (controlErrorElement.textContent = available ? '' : errorMessage),
       syncMarkers()
-  }
-  /** 固定位置告警标签：`positionMode: "fixed"` 时不跟随户型，按画面百分比定位。 */
-  function isFixedPositionAlarm(markerItem: { securityAlarm?: boolean; positionMode?: string } | null | undefined) {
-    return markerItem?.securityAlarm === true && markerItem.positionMode === 'fixed'
-  }
-  function clampScreenPercent(value: unknown) {
-    const numericValue = Number(value)
-    return Number.isFinite(numericValue) ? Math.max(0, Math.min(100, numericValue)) : 50
-  }
-  function screenPointToFixedPercent(pointerEvent: { clientX: number; clientY: number }) {
-    const stageRect = element.getBoundingClientRect()
-    return stageRect.width > 0 && stageRect.height > 0
-      ? {
-          x: ((pointerEvent.clientX - stageRect.left) / stageRect.width) * 100,
-          y: ((pointerEvent.clientY - stageRect.top) / stageRect.height) * 100,
-        }
-      : null
   }
   function screenPointToFloor(floorPointerEvent: any, floorMarkerItem: any) {
     const worldPoint = mountOptions.worldPoint(floorMarkerItem.floorId, 0, 0, floorMarkerItem.height)
