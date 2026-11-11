@@ -797,7 +797,7 @@ export const COLLECTION_ITEM_CATALOG = Object.freeze({
     color: '#9aa5b7',
   },
   /**
-   * 台面：一块实心的石材台面板（`scripts/models/build-glb-slab.mjs` 程序化生成）。
+   * 台面：一块实心的石材台面板（几何按程序生成后入库）。
    * 外轮廓 0.90 × 0.50m 与台盆那张台面同尺寸，板厚 0.05m、板底在 y = 0；离地 0.80m
    * 因此台面高 0.85m（与厨房台面族 `kitchenbase` / `kitchensink` / `kitchencooktop` 的
    * 0.85m 同一高度）。尺寸与注册表 `[0.9, 0.05, 0.5]` 一致 = 加载器不缩放。

@@ -68,8 +68,8 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
    * （深 = 半径，0.45 → 0.225）。路径没变、字节变了 —— 不换 URL 键的话浏览器与模板缓存
    * 都会继续给旧的「压扁桶」，改了模型但画面不动。
    *
-   * v2 是同日的原点归心（原点由包围盒中心挪到圆弧圆心，见
-   * `scripts/models/recenter-pillar-arc.mjs`）：再换一次键，旧字节不会再被命中。
+   * v2 是同日的原点归心（原点由包围盒中心挪到圆弧圆心）：再换一次键，
+   * 旧字节不会再被命中。
    */
   pillarSemicircle: '20261028-pillar-semicircle-v2',
   /**
@@ -206,8 +206,8 @@ export const PILLAR_SEMICIRCLE_SCALE_BASIS = Object.freeze([0.45, 2.8, 0.225])
  * 异形柱的锚点：**圆弧圆心**，不是平面占位中心。
  *
  * `preserveOrigin` 让 GLB 的原点直接当摆放锚点、也是绕 Y 的旋转轴。半圆柱的圆心落在
- * 直径面（墙线）上、四分之一圆柱的圆心落在两片平背面相交的转角上（见
- * `scripts/models/recenter-pillar-arc.mjs`）：贴墙件绕墙线转、转角件绕墙角转，
+ * 直径面（墙线）上、四分之一圆柱的圆心落在两片平背面相交的转角上：贴墙件绕墙线转、
+ * 转角件绕墙角转，
  * 平背面才不会一转就扎进墙里。方柱 / 圆柱没有弧心，仍是占位中心。
  */
 export function createPillarAssetDescriptor(

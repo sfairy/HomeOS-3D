@@ -625,7 +625,7 @@ const COLLECTION_MODEL_TABLE: Readonly<Record<string, CollectionModelDefinition>
     glass: 'glass',
   }),
   /**
-   * 台面：一块**实心**台面板（`scripts/models/build-glb-slab.mjs` 程序化生成，不是从台盆抽的）。
+   * 台面：一块**实心**台面板（几何按程序生成后入库，不是从台盆抽的）。
    *
    * 台盆那张台面是块 4cm 的**环板**（中间按盆口挖空、板面在 y = 0.81–0.85m，孔 0.436 × 0.296m）
    * ——抽出来单摆就是「中间空一圈」的台面沿，补面也只是把它封成一张不像样品的薄片。台面这件素材因此
