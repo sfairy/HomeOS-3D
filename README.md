@@ -300,8 +300,6 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) | 商店公网接入（域名 + 真实证书 HTTPS、支付回调），配置片段用 `store.example.com` 占位 |
 | [ops/deploy/TUNNEL-ACCESS.md](ops/deploy/TUNNEL-ACCESS.md) | 没有公网 IP 时的内网穿透（frp / cloudflared / 节点小宝），用本项目实际域名 |
 | [ops/BUILD.md](ops/BUILD.md) | 镜像构建细节（Cython 产物、基础镜像钉版、镜像站） |
-| [ops/perf/README.md](ops/perf/README.md) | 性能口径与预算（体积 / 3D 首帧、harness、真机待补项）；不存日期战报 |
-| [ops/perf/manual-baseline.md](ops/perf/manual-baseline.md) | 手工回归清单（B1–B6）与行为基线填表 |
 | [ops/gates.mjs](ops/gates.mjs) | 门禁清单与分组（CI 五个 job 与本地 `bun run gate` 的唯一来源） |
 | [homeos/frontend/src/README.md](homeos/frontend/src/README.md) | 主应用前端分层 DAG、域边界、桶命名与 studio 的关系 |
 | [homeos/frontend/src/studio/README.md](homeos/frontend/src/studio/README.md) | Studio 子系统分层、启动入口、面板渲染器与设备运行时 |
@@ -315,7 +313,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | [meshoptimizer LICENSE](homeos/frontend/public/static/vendor/meshoptimizer/0.25/LICENSE.md) | 第三方许可证（**勿改**） |
 | [.env.example](.env.example) | 全部环境变量（分区注释；compose 文件已写死常用值） |
 
-> 文档纪律：性能报告按日期**不入库**（口径与阈值见 `ops/perf/`）；本表外的 `.md` 只有
+> 文档纪律：性能与审计报告按日期**不入库**；本表外的 `.md` 只有
 > 上面两个「生成 / 第三方」文件，其余新增文档请一并登记到本表。
 
 CI：两个工作流都**只能手动触发**（Actions 页面 Run workflow），推送不会自动构建：

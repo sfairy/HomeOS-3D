@@ -20,7 +20,6 @@
  * - `test`：单元测试与架构门禁用例（含依赖 DAG、路由基线）；
  * - `model`：3D 模型库的只读审计（几何 / 槽位 / 材质 / 资产 / 目录与命名索引）；
  * - `build`：需要前端产物的检查（构建 + 结构断言 + 体积预算 + chunk 初始化顺序）；
- * - `perf`：3D / 首屏性能预算（读 ops/perf 的结果目录；CI 默认不跑，见该组注释）；
  * - `infra`：shell / workflow / compose / Caddyfile / Cython 兼容性。
  *
  * 三类跳过都必须**显式打印**，不允许静默成功：
@@ -162,16 +161,6 @@ const GATE_GROUPS = {
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
   ],
-  perf: [
-    {
-      // 3D / 首屏性能预算：读 ops/perf 跑出的结果目录（默认 $TMPDIR/homeos-perf/results/<最新>）。
-      // 不并进 build 组：CI 的 build job 只构建前端、不跑浏览器 perf，并进去会让
-      // 「没有结果目录时本机 SKIP、CI FAIL」直接把每次 PR 的 build job 染红。
-      // 需要它的流水线（发版前性能 job / 手动）先产出结果，再显式跑 bun run gate:perf。
-      name: 'check:perf-budget',
-      ...bun('run', 'check:perf-budget'),
-    },
-  ],
   infra: [
     {
       name: 'shellcheck',
@@ -181,7 +170,6 @@ const GATE_GROUPS = {
         'ops/ci/build_frontend_verify.sh',
         'ops/ci/caddy_validate.sh',
         'ops/deploy/preflight.sh',
-        'ops/perf/harness/run_baseline.sh',
       ],
       tools: ['shellcheck'],
       hint: 'brew install shellcheck（CI 由 lint-infra job 安装）',
