@@ -10,6 +10,15 @@
 # gate:build 要跑 vite 全量构建（前端两个工程），放进来会让每次 push 多等一分半，
 # 留给 CI 更合适。
 #
+# 2026-11-11：改成对「即将推送的提交」跑，而不是工作区。
+#   原因：工作区常带未提交的 WIP（IDE 正在改、工具刚生成的文件），那些文件**不会**随本次
+#   推送发布，用它们判红会把推送拦死 —— 实际发生过：agent 提交并验证过的树是绿的，但工作区
+#   里另一个未提交文件把 any / file-size 撞红，推送被挡，只能 `--no-verify`（等于关掉护栏）。
+#   现在分两条路：
+#     · 工作区干净 → 原地跑（最快，和以前一样）；
+#     · 工作区脏   → 在临时 worktree 里检出要推送的那个提交再跑（含 .git 关联，所以
+#       `git diff HEAD^` 这类检查照常工作），node_modules / .venv-store 用软链注入。
+#
 # 启用（每人一次）：bun run setup:hooks
 # 绕过（确有需要时）：git push --no-verify
 set -eu
@@ -25,10 +34,69 @@ else
   exit 0
 fi
 
-echo "[pre-push] 跑 gate:static（约 60s，失败会中止推送）…" >&2
-if ! "$runner" run gate:static >/tmp/homeos-prepush-static.log 2>&1; then
+# pre-push 的 stdin：<local ref> <local sha> <remote ref> <remote sha>。
+# 取第一个非全零的 local sha 作为「本次推送要验证的树」；删除分支（全零）没有内容可验。
+target_sha=""
+saw_update=0
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  case "$local_sha" in
+    "" | 0000000000000000000000000000000000000000) continue ;;
+  esac
+  saw_update=1
+  target_sha="$local_sha"
+  break
+done
+# 纯删分支 / 纯删 tag：没有新内容可验，直接放行（否则会拿 HEAD 白跑一轮门禁）。
+if [ "$saw_update" -eq 0 ]; then
+  echo "[pre-push] 本次只删除引用，没有新提交需要验证。" >&2
+  exit 0
+fi
+[ -n "$target_sha" ] || target_sha="$(git rev-parse HEAD)"
+
+if [ "$(git rev-parse HEAD)" = "$target_sha" ] && git diff-index --quiet HEAD --; then
+  echo "[pre-push] 工作区干净，就地跑 gate:static（约 60s，失败会中止推送）…" >&2
+  if ! "$runner" run gate:static >/tmp/homeos-prepush-static.log 2>&1; then
+    echo "" >&2
+    echo "[pre-push] gate:static 未通过，已中止推送。失败明细：" >&2
+    grep -E "^(---|.*FAIL|.*失败：|失败：)" /tmp/homeos-prepush-static.log | tail -n 20 >&2
+    echo "" >&2
+    echo "完整日志：/tmp/homeos-prepush-static.log" >&2
+    echo "确认要推：git push --no-verify" >&2
+    exit 1
+  fi
+  echo "[pre-push] gate:static 通过。" >&2
+  exit 0
+fi
+
+# 工作区有未提交改动（或推送的不是 HEAD）：在临时 worktree 里验证要推送的那个提交。
+snapshot="$(mktemp -d "${TMPDIR:-/tmp}/homeos-prepush.XXXXXX")"
+cleanup() {
+  git worktree remove --force "$snapshot" >/dev/null 2>&1 || rm -rf "$snapshot"
+}
+trap cleanup EXIT INT TERM
+
+echo "[pre-push] 工作区有未提交改动，改为验证提交 ${target_sha%????????????????????????????????}（约 60s）…" >&2
+if ! git worktree add --quiet --detach "$snapshot" "$target_sha" 2>/dev/null; then
+  echo "[pre-push] 临时 worktree 创建失败；退回工作区验证（可能误报未提交的改动）。" >&2
+  if ! "$runner" run gate:static >/tmp/homeos-prepush-static.log 2>&1; then
+    grep -E "^(---|.*FAIL|.*失败：|失败：)" /tmp/homeos-prepush-static.log | tail -n 20 >&2
+    echo "完整日志：/tmp/homeos-prepush-static.log" >&2
+    echo "确认要推：git push --no-verify" >&2
+    exit 1
+  fi
+  exit 0
+fi
+
+# 依赖不在 worktree 里：软链接回主工作区，避免为此重装一遍。
+for link in node_modules .venv-store homeos/frontend/node_modules homeos-store/frontend/node_modules; do
+  if [ -e "$link" ] && [ ! -e "$snapshot/$link" ]; then
+    ln -s "$(pwd)/$link" "$snapshot/$link" 2>/dev/null || true
+  fi
+done
+
+if ! (cd "$snapshot" && "$runner" run gate:static) >/tmp/homeos-prepush-static.log 2>&1; then
   echo "" >&2
-  echo "[pre-push] gate:static 未通过，已中止推送。失败明细：" >&2
+  echo "[pre-push] 提交 ${target_sha%????????????????????????????????} 的 gate:static 未通过，已中止推送。失败明细：" >&2
   grep -E "^(---|.*FAIL|.*失败：|失败：)" /tmp/homeos-prepush-static.log | tail -n 20 >&2
   echo "" >&2
   echo "完整日志：/tmp/homeos-prepush-static.log" >&2
@@ -36,4 +104,4 @@ if ! "$runner" run gate:static >/tmp/homeos-prepush-static.log 2>&1; then
   exit 1
 fi
 
-echo "[pre-push] gate:static 通过。" >&2
+echo "[pre-push] 提交 ${target_sha%????????????????????????????????} 的 gate:static 通过（工作区的未提交改动未参与）。" >&2
