@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 
 from .ha_state_effects import (
     _apply_initial_snapshot,
-    _run_reconciled_change_effects,
     _run_state_change_effects,
+    apply_state_changed_batch,
 )
 from ..domains.app_config import AppConfigBackupService, AppConfigService
 from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
@@ -166,31 +166,9 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
     """构造 HA 事件总线处理器。"""
 
     async def _handle_state_changed_batch(payload: Any) -> None:
-        changes = payload.get("changes") if isinstance(payload, dict) else None
-        if not isinstance(changes, list):
-            return
-        sync_filter = getattr(app.state, "entity_sync_filter", None)
-        # ``applied=True``：这批差异来自全量对账，L1 已经由 ``store.set_all`` 写完
-        # （见 ``ha_state_effects._apply_initial_snapshot``）。再走一次 ``_apply_state_change``
-        # 不会改值，却会往环形缓冲里塞一条重复记录，把真正需要回放的增量挤出去。
-        already_applied = isinstance(payload, dict) and payload.get("applied") is True
-        applied: list[dict[str, Any]] = []
-        for change in changes:
-            if not isinstance(change, dict) or not change.get("entity_id"):
-                continue
-            if already_applied:
-                await _run_reconciled_change_effects(app, change)
-                result = change
-            else:
-                result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
-            if result is None:
-                continue
-            if sync_filter is not None and not sync_filter.is_entity_syncable(str(change.get("entity_id"))):
-                # 隐藏实体照样走安防/自动化副作用，只是不推给客户端。
-                continue
-            applied.append(result)
-        if applied:
-            await gateway.broadcast_state_changed_batch(applied)
+        # 逐条副作用与广播的编排整体下沉到 ``ha_state_effects``：这里只留事件名绑定，
+        # 避免 ``lifespan`` 继续膨胀（它的文件规模被棘轮锁住）。
+        await apply_state_changed_batch(app, gateway, store, payload)
 
     async def _handle_resync_suggested(payload: Any) -> None:
         """对账差异过大 / 回放不可用：让客户端整表重拉，而不是逐条补推。"""
@@ -566,7 +544,9 @@ def _build_security_services(app: FastAPI, startup: _StartupContext) -> None:
 
     security_config = SecurityConfigProvider(app.state.database.session_factory)
     startup.security_config = security_config
-    cooldown = NotificationCooldownService(security_bus)
+    # 冷却持久化到 ``runtime_kv``：不带 session_factory 时进程重启会清空冷却，
+    # 崩溃循环就会变成「每重启一次重发一轮告警」。
+    cooldown = NotificationCooldownService(security_bus, app.state.database.session_factory)
     startup.cooldown = cooldown
     startup.database_retention.cooldown = cooldown
     mmwave = MmWavePresenceService(security_bus)
@@ -816,6 +796,8 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
         emit_event=security_bus.emit,
         is_leader=lambda: True,
         jobs=app.state.jobs,
+        # 动作执行走命令通道（白名单 + 幂等 + 断连拦截 + 后置校验），不再直连连接器。
+        command_proxy=getattr(app.state, "command_proxy", None),
     )
     await home_mode.start()
     app.state.home_mode = home_mode
@@ -1135,15 +1117,30 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
         await _start_services(agent_watchdog.start())
 
     # 实体反向引用：布局 / 家庭模式 / 告警规则 / 系统配置 的「哪些功能引用了该实体」
-    alert_rule_watch_index = AlertRuleWatchIndex()
-    app.state.alert_rule_watch_index = alert_rule_watch_index
+    _build_entity_references(app, startup, app_config)
+
+
+def _build_entity_references(app: FastAPI, startup: _StartupContext, app_config: Any) -> None:
+    """装配实体反向引用服务。
+
+    watch 索引必须复用通知服务持有的那**一份**：规则求值读的是它，实体解绑删规则后
+    也必须刷它。历史上这里另 new 了一个，于是删除只刷新了没人读的索引 —— 规则
+    「删了还在报警」直到进程重启。
+    """
+    notification = getattr(app.state, "notification", None)
+    shared_watch_index = getattr(notification, "alert_rule_watch_index", None)
+    if shared_watch_index is None:
+        logger.warning("通知服务未就绪，告警规则 watch 索引退化为独立实例（删除后需重启才生效）")
+        shared_watch_index = AlertRuleWatchIndex()
+    app.state.alert_rule_watch_index = shared_watch_index
     app.state.entity_references = EntityReferencesService(
         app.state.database.session_factory,
         app_config,
         startup.ui_config,
-        alert_rule_watch_index,
+        shared_watch_index,
         update_home_mode=startup.home_mode.update_sync,
         reload_home_mode_triggers=startup.home_mode.reload_trigger_bindings,
+        refresh_alert_rules=getattr(notification, "refresh_alert_rules_sync", None),
     )
 
 
@@ -1354,6 +1351,7 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     await shutdown("状态汇聚", startup.state_ingress_coalesce.close)
     from ..api.ha.proxy import close_shared_media_clients
     from ..domains.agent.shared_http import close_shared_http_client
+
     await shutdown("媒体代理连接池", close_shared_media_clients)
     await shutdown("Agent 共享 HTTP 连接池", close_shared_http_client)
     await shutdown("事件日志刷盘", startup.event_log_service.flush)

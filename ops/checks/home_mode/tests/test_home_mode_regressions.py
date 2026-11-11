@@ -68,7 +68,7 @@ class SnapshotCollectTests(unittest.TestCase):
         deps = _FakeDeps(states={"light.a": {"state": "on", "attributes": {}}})
         configs = [{"entity_id": "light.a"}, {"entity_id": "light.offline"}]
 
-        snapshot, missing = _run(home_mode_actions._collect_device_snapshot(deps, configs))
+        snapshot, missing = _run(home_mode_actions.collect_device_snapshot(deps, configs))
 
         self.assertEqual(list(snapshot), ["light.a"])
         self.assertEqual(missing, ["light.offline"])

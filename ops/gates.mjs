@@ -120,6 +120,7 @@ const GATE_GROUPS = {
     { name: 'test:studio', ...bun('run', 'test:studio') },
     { name: 'check:studio-split', ...bun('run', 'check:studio-split') },
     { name: 'test:home-mode', ...bun('run', 'test:home-mode') },
+    { name: 'test:smarthome', ...bun('run', 'test:smarthome') },
     { name: 'test:security', ...bun('run', 'test:security') },
     { name: 'test:shared', ...bun('run', 'test:shared') },
     { name: 'test:store', ...bun('run', 'test:store') },

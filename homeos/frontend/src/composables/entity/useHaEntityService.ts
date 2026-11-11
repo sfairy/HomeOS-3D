@@ -47,7 +47,7 @@ function useHaControlGuard() {
  *
  * 调用场景：弹窗/卡片组件控制实体时统一使用 callService，避免每个调用点重复 try/catch 与日志。
  *
- * @returns {{ callService, entitiesStore, canControlEntity, guardServiceCall }}
+ * @returns {{ callService, entitiesStore, canControlEntity, guardServiceCall, isCallPending }}
  */
 export function useHaEntityService() {
   const es = useEntitiesStore()
@@ -76,5 +76,15 @@ export function useHaEntityService() {
       throw e
     }
   }
-  return { callService, entitiesStore: es, canControlEntity, guardServiceCall }
+  /**
+   * 该实体是否有指令在途（供按钮 loading 态）。
+   *
+   * 卡片/弹窗据此禁用重复点击并显示进度；没有它时用户只能看到乐观态翻转，
+   * 命令失败后才出现一次回滚 —— 中间过程完全不可见。
+   */
+  function isCallPending(entityId: string): boolean {
+    return !!entityId && es.isEntityCallPending(entityId)
+  }
+
+  return { callService, entitiesStore: es, canControlEntity, guardServiceCall, isCallPending }
 }

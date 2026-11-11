@@ -100,9 +100,7 @@ def enrich_entity_areas(entity: dict[str, Any], index: dict[str, dict[str, str]]
     return {**entity, "attributes": {**attrs, "area_id": area_id, "area_name": area_name}}
 
 
-def enrich_entities_areas(
-    entities: list[dict[str, Any]], index: dict[str, dict[str, str]]
-) -> list[dict[str, Any]]:
+def enrich_entities_areas(entities: list[dict[str, Any]], index: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     if not index:
         return entities
     changed = False
@@ -241,11 +239,39 @@ class EntityAreaEnrichmentService:
         ident = str(area_id or "").strip()
         if not ident or not self._index:
             return []
-        return [
-            entity_id
-            for entity_id, info in self._index.items()
-            if str(info.get("area_id") or "") == ident
-        ]
+        return [entity_id for entity_id, info in self._index.items() if str(info.get("area_id") or "") == ident]
+
+    def get_entity_ids_by_device_id(self, device_id: str) -> list[str]:
+        """返回某设备下的实体 ID（一个设备常挂多个实体，如开关 + 电量）。"""
+        ident = str(device_id or "").strip()
+        if not ident or not self._index:
+            return []
+        return [entity_id for entity_id, info in self._index.items() if str(info.get("device_id") or "") == ident]
+
+    def resolve_scope_entities(self, area_ids: Any, device_ids: Any) -> set[str] | None:
+        """把「区域 + 设备」解析成实体集合；两者都没有时返回 ``None``（不收窄）。
+
+        返回空集合是有意义的：调用方声明了订阅范围但范围内没有任何实体 —— 此时
+        应该「什么都不推」，而不是退回「全推」。这与 ``None``（未声明范围）必须区分开。
+        """
+        areas = (
+            [str(item).strip() for item in (area_ids or []) if str(item or "").strip()]
+            if isinstance(area_ids, list)
+            else []
+        )
+        devices = (
+            [str(item).strip() for item in (device_ids or []) if str(item or "").strip()]
+            if isinstance(device_ids, list)
+            else []
+        )
+        if not areas and not devices:
+            return None
+        scope: set[str] = set()
+        for area_id in areas:
+            scope.update(self.get_entity_ids_by_area_id(area_id))
+        for device_id in devices:
+            scope.update(self.get_entity_ids_by_device_id(device_id))
+        return scope
 
     async def _load_index(self) -> dict[str, dict[str, str]]:
         while True:
@@ -285,9 +311,7 @@ class EntityAreaEnrichmentService:
             from ...platform.core.db.models import HAArea
 
             with factory() as session:
-                rows = session.execute(
-                    select(HAArea.area_id, HAArea.name).where(HAArea.sync_status != "missing")
-                ).all()
+                rows = session.execute(select(HAArea.area_id, HAArea.name).where(HAArea.sync_status != "missing")).all()
         except Exception as exc:
             logger.debug("读取 ha_areas 汇总失败: %s", exc)
             return []
@@ -333,9 +357,7 @@ class EntityAreaEnrichmentService:
     async def enrich_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """异步补全（注册表慢时最多等 400ms，超时用已有索引，避免列表接口卡顿）。"""
         load = asyncio.create_task(self.ensure_loaded())
-        load.add_done_callback(
-            lambda t: t.exception() if not t.cancelled() else None
-        )
+        load.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
         done, _ = await asyncio.wait({load}, timeout=0.4)
         if done and (exc := load.exception()) is not None:
             # 索引构建失败只是补全降级（返回未补全的实体），不能让列表接口报错；留痕即可。
@@ -371,9 +393,7 @@ class EntityAreaEnrichmentService:
                 continue
             enriched = self.enrich_entity_sync(current)
             current_attrs = object_field(current, "attributes")
-            enriched_attrs = (
-                object_field(enriched, "attributes")
-            )
+            enriched_attrs = object_field(enriched, "attributes")
             before_id = str(current_attrs.get("area_id") or "").strip()
             before_name = str(current_attrs.get("area_name") or "").strip()
             after_id = str(enriched_attrs.get("area_id") or "").strip()

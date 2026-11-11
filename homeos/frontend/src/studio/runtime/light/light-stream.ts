@@ -214,7 +214,10 @@ export function createLightStream({
       const chunk = slot.chunks[chunkIndex]
       chunk.ids = nextChunkIds[chunkIndex]
       try {
-        chunk.socket.send(JSON.stringify({ type: 'update_subscription', entityIds: chunk.ids }))
+        // 增量订阅也要重申批量能力：服务端按连接记录该标志，漏传会退回逐条推送。
+        chunk.socket.send(
+          JSON.stringify({ type: 'update_subscription', entityIds: chunk.ids, supportsStateBatch: true }),
+        )
       } catch {
         // 连接已经不可写：按整槽失败处理（会失效并重连），绝不退回「再建一条连接」。
         slot.fail?.()
@@ -337,7 +340,9 @@ export function createLightStream({
         open() {
           if (!slotIsAlive()) return
           try {
-            chunkSocket.send(JSON.stringify({ type: 'subscribe', entityIds: chunk.ids }))
+            // 声明支持批量帧：服务端会把「一次场景切换产生的几十条状态」合成一帧发过来。
+            // 不声明时只能逐条收 —— 全屋开灯/关灯这类操作会被放大成同倍数的解析与重绘。
+            chunkSocket.send(JSON.stringify({ type: 'subscribe', entityIds: chunk.ids, supportsStateBatch: true }))
           } catch {
             slotFailed()
           }
@@ -357,12 +362,7 @@ export function createLightStream({
             return
           }
           if (messagePayload.type === 'snapshot' && Array.isArray(messagePayload.states)) {
-            // 按**当前**订阅集合过滤：`update_subscription` 之后该分片的 ids 已经换过，
-            // 用建连时冻结的那份会把新实体的快照全部丢掉。
-            for (const snapshotState of messagePayload.states)
-              chunk.ids.includes(snapshotState?.entityId) &&
-                typeof snapshotState.state == 'string' &&
-                slot.stateById.set(snapshotState.entityId, structuredClone(snapshotState))
+            applySnapshotStates(slot, chunk.ids, messagePayload.states)
             if (chunk.ready) {
               // 增量订阅后的补快照：整槽已经 ready，只需要把新值刷出去，不参与晋升计数。
               scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS)
@@ -380,17 +380,17 @@ export function createLightStream({
               scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS)
             return
           }
-          if (messagePayload.type === 'state_removed' && slot.ids.includes(messagePayload.entityId)) {
-            slot.stateById.delete(messagePayload.entityId),
-              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
-              emitPatch(messagePayload.entityId)
+          if (applySingleEvent(slot, messagePayload)) {
+            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS)
+            emitPatch(messagePayload.entityId)
             return
           }
-          if (messagePayload.type === 'state_changed' && slot.ids.includes(messagePayload.entityId)) {
-            if (typeof messagePayload.state != 'string') return
-            slot.stateById.set(messagePayload.entityId, structuredClone(messagePayload)),
-              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
-              emitPatch(messagePayload.entityId)
+          if (messagePayload.type === 'state_changed_batch' && Array.isArray(messagePayload.events)) {
+            // 批量帧：逐条落地后**一次**通知，避免 N 条事件触发 N 次重绘。
+            if (applyBatchEvents(slot, messagePayload.events)) {
+              scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS)
+              emitStates()
+            }
             return
           }
           messagePayload.type === 'ping' && scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS)
@@ -513,4 +513,60 @@ export function createLightStream({
         wantedEntityIdSet.clear())
     },
   }
+}
+
+/**
+ * 把快照写进分片槽。
+ *
+ * 按**当前**订阅集合过滤：``update_subscription`` 之后该分片的 ids 已经换过，
+ * 用建连时冻结的那份会把新实体的快照全部丢掉。
+ */
+function applySnapshotStates(slot: { stateById: Map<string, unknown> }, ids: string[], states: unknown[]): void {
+  for (const snapshotState of states) {
+    const row = snapshotState as { entityId?: unknown; state?: unknown } | null
+    if (!row || typeof row.entityId != 'string' || !ids.includes(row.entityId)) continue
+    if (typeof row.state != 'string') continue
+    slot.stateById.set(row.entityId, structuredClone(row))
+  }
+}
+
+/**
+ * 单实体增量（`state_changed` / `state_removed`）；返回是否为本槽订阅的实体。
+ *
+ * 两条事件的处理只差「写入 / 删除」，收敛到一个函数后 message 处理器的分支数
+ * 不会再随消息类型线性增长。
+ */
+function applySingleEvent(
+  slot: { ids: string[]; stateById: Map<string, unknown> },
+  message: { type?: unknown; entityId?: unknown; state?: unknown },
+): boolean {
+  if (typeof message.entityId != 'string' || !slot.ids.includes(message.entityId)) return false
+  if (message.type === 'state_removed') {
+    slot.stateById.delete(message.entityId)
+    return true
+  }
+  if (message.type === 'state_changed') {
+    if (typeof message.state != 'string') return false
+    slot.stateById.set(message.entityId, structuredClone(message))
+    return true
+  }
+  return false
+}
+
+/**
+ * 把一批状态事件写进分片槽；返回是否有任何实体真的被写入。
+ *
+ * 只写本槽订阅的实体（``slot.ids``），并过滤掉没有 ``state`` 的畸形帧 ——
+ * 批量帧来自服务端聚合，个别条目损坏不应该让整帧作废。
+ */
+function applyBatchEvents(slot: { ids: string[]; stateById: Map<string, unknown> }, events: unknown[]): boolean {
+  let touched = false
+  for (const event of events) {
+    const row = event as { entityId?: unknown; state?: unknown } | null
+    if (!row || typeof row.entityId != 'string' || !slot.ids.includes(row.entityId)) continue
+    if (typeof row.state != 'string') continue
+    slot.stateById.set(row.entityId, structuredClone(row))
+    touched = true
+  }
+  return touched
 }

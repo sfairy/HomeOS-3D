@@ -29,7 +29,7 @@ from .client import HAClientError
 from .connection_query import active_connection
 from .crypto import CredentialCipherError
 from ...license import features as feature_codes
-from ...proxy.command_proxy import build_service_call_dto, dispatch_service_call
+from ...proxy.command_proxy import build_control_result, build_service_call_dto, dispatch_service_call
 from ...proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 from ....platform.core.db.database import Database
 from ....platform.core.db.models import HAConnection, HAEntity
@@ -206,7 +206,7 @@ async def execute_service_call(
         # 于是 3D 面板走的本接口永远「看起来成功」，和 `/services/call` 的行为不一致。
         verification_fields = {
             key: envelope[key]
-            for key in ("verified", "verification", "skipped", "pending", "replayed")
+            for key in ("verified", "verification", "skipped", "pending", "replayed", "queued")
             if isinstance(envelope, dict) and key in envelope
         }
     except (BusinessException, HAClientError, CredentialCipherError) as error:
@@ -236,7 +236,16 @@ async def execute_service_call(
             **({"verified": False} if verification_fields.get("verified") is False else {}),
         },
     )
-    return {"ok": True, "result": result, **verification_fields}
+    # 响应形状与 ``/services/call`` 保持一致：``ok`` 由统一判据算出（不是恒 True），
+    # 并保留 ``result``（HA 原始响应）与三态字段。``ok=True`` 恒定的旧行为会把
+    # 「幂等键命中仍在 inflight」当成成功，前端因此不再重试。
+    normalized = build_control_result(envelope if isinstance(envelope, dict) else {})
+    forwarded = {
+        key: normalized[key]
+        for key in ("verified", "verification", "skipped", "pending", "replayed", "queued")
+        if key in normalized
+    }
+    return {"ok": bool(normalized.get("ok")), "result": result, **forwarded}
 
 
 __all__ = ["ServiceCallPayload", "ServiceCallRejected", "execute_service_call", "load_ha_entity_context"]

@@ -157,14 +157,19 @@ class SecurityPanelService:
         await self._replay_armed_linkage()
 
     async def _replay_armed_linkage(self) -> None:
-        """按持久化模式重放布防联动；失败保留待重放标记并在下次 HA 连接时再试。"""
+        """按持久化模式重放布防联动；失败保留待重放标记并在下次 HA 连接时再试。
+
+        只重放**可逆**动作（状态型服务）。不可逆动作（脚本 / 通知 / TTS / shell_command）
+        在每次 HA 重连时重放会产生真实副作用：用户会看到「断网一次，脚本又跑了一遍」。
+        它们的「只执行一次」语义由布防过程中的正常执行路径保证，重放阶段不再复现。
+        """
         if self._linkage_replay_done:
             return
         if self._mode == "disarmed":
             self._linkage_replay_done = True
             return
         try:
-            result = await self.linkage_helper.execute_security_mode_actions(self._mode)
+            result = await self.linkage_helper.execute_security_mode_actions(self._mode, reversible_only=True)
         except Exception as exc:
             logger.warning("重启后重放布防联动失败: %s", exc)
             self.state_helper.schedule_security_event(
@@ -725,7 +730,7 @@ def _event_to_dict(row: SecurityEvent) -> dict[str, Any]:
 
     try:
         zones = json.loads(row.zones) if row.zones else []
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         zones = []
     created = row.created_at
     ack_at = getattr(row, "ack_at", None)

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
@@ -13,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .presets import resolve_action_kind  # noqa: F401  (保持模块语义对齐，供调用方复用)  # pyright: ignore[reportUnusedImport]
+from ...platform.core.runtime.params import non_negative_seconds
 from ...platform.core.runtime.zoned_time import (
     date_from_zoned_wall_clock,
     home_mode_minute_key,
@@ -25,6 +27,7 @@ logger = logging.getLogger("homeos.home_mode")
 #: 时间触发器的补偿窗口：定时检查若被阻塞 / 服务重启跨过了 HH:MM，
 #: 在这个窗口内仍会补触发一次；超过窗口视为「已经错过」，不再回放几小时前的模式。
 TIME_TRIGGER_GRACE_MINUTES = 10
+
 
 _AWAY_NAME_RE = __import__("re").compile(r"离家|away|外出|vacation", __import__("re").IGNORECASE)
 
@@ -51,6 +54,11 @@ class HomeModeTriggersState:
     #: 日历外出**开始时**还处于激活态的模式 id 集合（可能跨多个互斥组）。
     #: 只记内存指针会漏掉「另一个互斥组同时激活」的模式，外出结束后它就永远留在激活态。
     pre_away_mode_ids: list[str] = field(default_factory=list)
+    #: 持续判定（``forSeconds``）的待触发定时器：key 是「模式:类型:实体」。
+    #: 回落时必须取消，否则「开一下就关」的门磁仍会在到点时触发。
+    hold_timers: dict[str, Any] = field(default_factory=dict)
+    #: 定时器到点后创建的异步任务（持有引用防止被 GC 提前回收）。
+    hold_tasks: set[Any] = field(default_factory=set)
 
 
 def _read_json_array(raw: Any, *, mode_id: str = "") -> list[Any]:
@@ -152,19 +160,25 @@ async def _fire_triggered_home_mode(
     binding: HomeModeTriggerBinding,
     reason: str,
     meta: dict[str, Any] | None = None,
-) -> None:
+) -> bool:
+    """尝试按触发绑定激活模式。
+
+    返回值语义：``True`` 表示「本次不需要再重试」（已激活 / 让位 / 冷却中 / 激活成功），
+    ``False`` 表示激活失败且应当允许在宽限期内重试。调用方据此决定是否消费冷却与
+    记录时间触发 occurrence —— 消费早了会让一次失败把整天的自动化吞掉。
+    """
     # 「本次模式是否已在激活态」必须读库：多互斥组下内存指针只指向其中一个，
     # 拿指针判断会把「另一个组里已经激活的同名模式」当成未激活，于是反复走一遍
     # 激活流程（幂等但空转、还会占掉冷却），日历 / 在场链路也会据此误判。
     active_modes = await deps.get_active_modes()
     if any(str(mode.get("id")) == binding.mode_id for mode in active_modes):
-        return
+        return True
     key = f"{binding.mode_id}:{binding.trigger.get('type')}:{reason}"
     if not can_fire_home_mode_trigger(state.trigger_cooldown, key, deps.get_trigger_cooldown_ms()):
-        return
+        return True
     incoming = await deps.find_mode(binding.mode_id)
     if not incoming:
-        return
+        return True
     incoming_group = incoming.get("exclusiveGroup") or "default"
     # 只在**同一个互斥组**里比优先级：全局主模式可能属于另一个组，拿它当对手会让
     # 「同组互斥 + 优先级让位」在多互斥组下完全失效（低优先级模式直接顶掉同组高优先级）。
@@ -184,17 +198,24 @@ async def _fire_triggered_home_mode(
         ):
             # 已评估但按优先级让位，同样消费冷却，避免每个状态变更都重复查库。
             mark_home_mode_trigger_fired(state.trigger_cooldown, key)
-            return
+            return True
     deps.log(f"触发器激活模式 [{binding.mode_name}]: {reason}")
-    await deps.request_activate(
+    result = await deps.request_activate(
         binding.mode_id,
         {
             "source": (meta or {}).get("source", "trigger"),
             "reason": (meta or {}).get("reason", reason),
         },
     )
+    # activate 的失败有两条路径：抛错，或返回 ``success=False``（HA 离线、执行失败率
+    # 达阈值回滚）。后者以前照样消费冷却，结果是「22:30 因 HA 断连失败 → 当天再也
+    # 不补触发」。这里按返回值判定，失败就不消费，让宽限期/下一次状态变更能重试。
+    if isinstance(result, dict) and result.get("success") is False:
+        deps.warn(f"触发器激活模式失败，保留冷却窗口等待重试: {binding.mode_name}")
+        return False
     # 冷却只在动作真正执行后消费：activate 抛错时可立即重试，不被冷却挡住。
     mark_home_mode_trigger_fired(state.trigger_cooldown, key)
+    return True
 
 
 async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any) -> None:
@@ -213,36 +234,78 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
         state.time_occurrence_day = day_key
 
     for binding in state.trigger_bindings:
-        trigger = binding.trigger
-        if trigger.get("type") != "time" or not trigger.get("at"):
-            continue
-        if not isinstance(trigger.get("at"), str):
-            continue
-        days = trigger.get("days")
-        if isinstance(days, list) and days and weekday not in days:
-            continue
-        at = normalize_home_mode_time_at(trigger["at"].strip())
-        if not at:
-            continue
-        occurrence_key = f"{binding.mode_id}@{at}@{day_key}"
-        if occurrence_key in state.fired_time_occurrences:
-            continue
-        hour, minute = (int(item) for item in at.split(":", 1))
-        # 用「现在是否已过 occurrence」而不是「分钟是否恰好相等」：后者在事件循环被阻塞
-        # 或服务重启跨过该分钟时会永久漏触发（当天再也不会补）。
-        due_at = date_from_zoned_wall_clock(timezone_name, parts["year"], parts["month"], parts["day"], hour, minute)
-        delay = now - due_at
-        if delay < timedelta(0) or delay > timedelta(minutes=TIME_TRIGGER_GRACE_MINUTES):
-            continue
-        await _fire_triggered_home_mode(state, deps, binding, f"time@{at}")
-        # 只有整轮动作成功（activate 未抛错）才记 occurrence，失败可在宽限期内重试。
-        state.fired_time_occurrences[occurrence_key] = 1
+        await _handle_time_binding(state, deps, binding, now, parts, weekday, day_key)
     # 只有整轮求值完成后才标记该分钟已处理：中途异常不会吞掉本分钟的触发机会。
     state.last_time_trigger_minute = minute_key
 
 
+def _time_binding_due(
+    binding: HomeModeTriggerBinding,
+    now: datetime,
+    parts: dict[str, Any],
+    weekday: str,
+    timezone_name: str | None,
+) -> tuple[str, str] | None:
+    """该时间绑定本次是否到期；到期返回 ``(at, occurrence)``，否则 ``None``。
+
+    判据是「现在是否已过 occurrence」而不是「分钟是否恰好相等」：后者在事件循环被
+    阻塞或服务重启跨过该分钟时会永久漏触发（当天再也不会补）。
+    """
+    trigger = binding.trigger
+    if trigger.get("type") != "time" or not isinstance(trigger.get("at"), str) or not trigger.get("at"):
+        return None
+    days = trigger.get("days")
+    if isinstance(days, list) and days and weekday not in days:
+        return None
+    at = normalize_home_mode_time_at(trigger["at"].strip())
+    if not at:
+        return None
+    hour, minute = (int(item) for item in at.split(":", 1))
+    due_at = date_from_zoned_wall_clock(timezone_name, parts["year"], parts["month"], parts["day"], hour, minute)
+    delay = now - due_at
+    if delay < timedelta(0) or delay > timedelta(minutes=TIME_TRIGGER_GRACE_MINUTES):
+        return None
+    return at, f"{binding.mode_id}@{at}@{parts['year']:04d}-{parts['month']:02d}-{parts['day']:02d}"
+
+
+async def _handle_time_binding(
+    state: HomeModeTriggersState,
+    deps: Any,
+    binding: HomeModeTriggerBinding,
+    now: datetime,
+    parts: dict[str, Any],
+    weekday: str,
+    day_key: str,
+) -> None:
+    """单个时间绑定的求值与执行（异常只影响自身）。"""
+    due = _time_binding_due(binding, now, parts, weekday, (deps.get_home_timezone() or "").strip() or None)
+    if due is None:
+        return
+    at, occurrence_key = due
+    if occurrence_key in state.fired_time_occurrences:
+        return
+    # 单个绑定的异常不能中断同分钟其余绑定：低优先级模式被仲裁拒绝会抛错，
+    # 以前会把后面所有模式的求值一起跳过，整分钟只剩它一个被评估。
+    try:
+        fired = await _fire_triggered_home_mode(state, deps, binding, f"time@{at}")
+    except Exception:  # 仲裁拒绝 / 模式暂不可用：记录后继续下一个绑定
+        logger.warning("时间触发器执行失败: mode=%s at=%s", binding.mode_id, at, exc_info=True)
+        return
+    if fired:
+        # 只有整轮动作成功（activate 未抛错且未返回 success=False）才记 occurrence，
+        # 失败可在宽限期内重试。
+        state.fired_time_occurrences[occurrence_key] = 1
+
+
 async def handle_home_mode_state_trigger(state: HomeModeTriggersState, deps: Any, event: dict[str, Any]) -> None:
     if not deps.is_leader():
+        return
+    # 重连/冷启动静置期：这一窗口内的状态变更来自快照补齐或首轮上报，没有可信的
+    # 「旧态 → 新态」语义。默认「回家模式」以 `lock_unlock` 为触发，若不抑制，
+    # 进程重启时门锁当前就是 unlocked 也会被判成一次「刚开锁」并直接布防。
+    settle_check = getattr(deps, "is_baseline_settling", None)
+    if callable(settle_check) and settle_check():
+        logger.debug("HA 连接静置期内跳过家庭模式状态触发器: entity=%s", event.get("entity_id"))
         return
     entity_id = event.get("entity_id")
     new_state = (event.get("new_state") or {}).get("state")
@@ -255,28 +318,112 @@ async def handle_home_mode_state_trigger(state: HomeModeTriggersState, deps: Any
         return
 
     for binding in state.trigger_bindings:
-        trigger = binding.trigger
-        trigger_type = trigger.get("type")
-        if trigger_type == "lock_unlock":
-            bound_lock = str(trigger.get("entityId") or "").strip()
-            if not bound_lock:
-                # 空 entityId 绝不能当通配符：历史配置（旧版解绑写空串）留着这种触发器时，
-                # 「删掉前门锁 → 任意一把锁解锁都激活回家模式」。这里跳过并留日志。
-                logger.warning(
-                    "跳过缺少 entityId 的 lock_unlock 触发器 mode=%s trigger=%s",
-                    binding.mode_id,
-                    trigger,
-                )
-                continue
-            if bound_lock == entity_id and str(entity_id or "").startswith("lock.") and new_state == "unlocked":
-                await _fire_triggered_home_mode(state, deps, binding, f"lock_unlock:{entity_id}")
-            continue
-        if trigger_type == "state" and trigger.get("entityId") == entity_id:
-            if trigger.get("to") and new_state != trigger["to"]:
-                continue
-            if trigger.get("from") and old_state != trigger["from"]:
-                continue
-            await _fire_triggered_home_mode(state, deps, binding, f"state:{entity_id}→{new_state}")
+        await _handle_state_binding(state, deps, binding, str(entity_id or ""), old_state, new_state)
+
+
+async def _handle_state_binding(
+    state: HomeModeTriggersState,
+    deps: Any,
+    binding: HomeModeTriggerBinding,
+    entity_id: str,
+    old_state: Any,
+    new_state: str,
+) -> None:
+    """单个状态绑定的匹配判定与（可选的）持续判定派发。
+
+    抽成函数是为了让 ``handle_home_mode_state_trigger`` 保持「前置抑制 + 遍历」两层结构：
+    锁边沿与 state 边沿的判据各自有 4–5 个分支，堆在遍历里会同时抬高圈复杂度与可读性成本。
+
+    ``forSeconds`` 的语义是「状态进入匹配后**持续**满足这么久才触发」：进入匹配时起一个
+    定时复核，回落时取消。它不是冷却 —— 冷却管「触发后多久内别再触发」，这里管
+    「触发条件本身要不要再等一等」。典型用途：`门磁开` 持续 5 分钟才判定「门没关」，
+    而不是一开就报警。
+    """
+    trigger = binding.trigger
+    if not _state_binding_matches(trigger, entity_id, old_state, new_state):
+        _cancel_hold(state, binding)
+        return
+    hold_seconds = non_negative_seconds(trigger.get("forSeconds"))
+    reason = f"{trigger.get('type')}:{entity_id}→{new_state}"
+    if hold_seconds <= 0:
+        await _fire_triggered_home_mode(state, deps, binding, reason)
+        return
+    _schedule_hold(state, deps, binding, entity_id, new_state, hold_seconds, reason)
+
+
+def _state_binding_matches(trigger: dict[str, Any], entity_id: str, old_state: Any, new_state: str) -> bool:
+    """该状态绑定是否在本次事件上进入匹配（只判定，不执行）。"""
+    trigger_type = trigger.get("type")
+    if trigger_type == "lock_unlock":
+        bound_lock = str(trigger.get("entityId") or "").strip()
+        if not bound_lock:
+            # 空 entityId 绝不能当通配符：历史配置（旧版解绑写空串）留着这种触发器时，
+            # 「删掉前门锁 → 任意一把锁解锁都激活回家模式」。这里跳过并留日志。
+            logger.warning("跳过缺少 entityId 的 lock_unlock 触发器 trigger=%s", trigger)
+            return False
+        # 必须是**锁本体**从 locked → unlocked 的真实边沿。缺旧态时（首次观测、
+        # 快照补齐、实体重建）一律不触发 —— 那不是「有人开了门」。
+        if old_state != "locked":
+            return False
+        return bound_lock == entity_id and entity_id.startswith("lock.") and new_state == "unlocked"
+    if trigger_type != "state" or trigger.get("entityId") != entity_id:
+        return False
+    if trigger.get("to") and new_state != trigger["to"]:
+        return False
+    if trigger.get("from") and old_state != trigger["from"]:
+        return False
+    # 只声明了 `to` 的触发器依赖「真的发生了这次变化」。没有旧态说明这是
+    # 首次观测（冷启动 / 重连补齐），不是边沿，跳过。
+    return not (trigger.get("to") and not trigger.get("from") and old_state is None)
+
+
+def _hold_key(binding: HomeModeTriggerBinding) -> str:
+    trigger = binding.trigger
+    return f"{binding.mode_id}:{trigger.get('type')}:{trigger.get('entityId')}"
+
+
+def _cancel_hold(state: HomeModeTriggersState, binding: HomeModeTriggerBinding) -> None:
+    """回落时取消待触发的持续判定（否则「开一下就关」的门磁仍会触发）。"""
+    handle = state.hold_timers.pop(_hold_key(binding), None)
+    if handle is not None:
+        handle.cancel()
+
+
+def _schedule_hold(
+    state: HomeModeTriggersState,
+    deps: Any,
+    binding: HomeModeTriggerBinding,
+    entity_id: str,
+    new_state: str,
+    hold_seconds: float,
+    reason: str,
+) -> None:
+    """起一个持续判定定时器；同一绑定已有定时器时不重复起。"""
+    key = _hold_key(binding)
+    existing = state.hold_timers.get(key)
+    if existing is not None and not existing.cancelled():
+        return
+    loop = asyncio.get_running_loop()
+
+    async def _fire_after_hold() -> None:
+        state.hold_timers.pop(key, None)
+        # 定时到点后再确认一次：这段时间里实体可能已经回落，或者 HA 已断开。
+        try:
+            current = await deps.fetch_entity_state(entity_id)
+        except Exception:
+            logger.debug("持续判定复核读取状态失败，跳过本次触发: %s", entity_id, exc_info=True)
+            current = None
+        if not current or str(current.get("state") or "") != new_state:
+            logger.debug("持续判定到点时状态已变化，跳过触发: %s", entity_id)
+            return
+        await _fire_triggered_home_mode(state, deps, binding, reason)
+
+    def _on_timeout() -> None:
+        task = loop.create_task(_fire_after_hold())
+        state.hold_tasks.add(task)
+        task.add_done_callback(state.hold_tasks.discard)
+
+    state.hold_timers[key] = loop.call_later(hold_seconds, _on_timeout)
 
 
 async def handle_home_mode_presence_arrive(state: HomeModeTriggersState, deps: Any, data: dict[str, Any]) -> None:
@@ -354,11 +501,12 @@ async def handle_home_mode_calendar_away(state: HomeModeTriggersState, deps: Any
 async def handle_home_mode_everyone_left(state: HomeModeTriggersState, deps: Any) -> None:
     if not deps.is_leader():
         return
-    try:
-        bindings = [b for b in state.trigger_bindings if b.trigger.get("type") == "all_leave"]
-        if not bindings:
-            return
-        for binding in bindings:
+    bindings = [b for b in state.trigger_bindings if b.trigger.get("type") == "all_leave"]
+    if not bindings:
+        return
+    # 逐条隔离：一个绑定被仲裁拒绝不该让其余「全员离家」绑定失去这次触发机会。
+    for binding in bindings:
+        try:
             await _fire_triggered_home_mode(state, deps, binding, "all_leave")
-    except Exception as exc:
-        deps.warn(f"自动离家模式触发失败: {exc}")
+        except Exception as exc:  # 单条失败只影响自身
+            deps.warn(f"自动离家模式触发失败（mode={binding.mode_id}）: {exc}")

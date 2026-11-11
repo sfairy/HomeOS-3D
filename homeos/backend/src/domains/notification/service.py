@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import Callable
@@ -43,6 +44,9 @@ from ...platform.core.db.models import Notification
 from ...platform.core.runtime.background import spawn_background
 
 logger = logging.getLogger("homeos.notification")
+
+#: 升级检查周期（秒）。一分钟足够细（升级阈值以分钟计），又不会成为 CPU 负担。
+ESCALATION_CHECK_INTERVAL_SECONDS = 60
 
 #: 设备离线告警的确认宽限期（秒）：窗口内自行恢复则不告警，避免 HA 重启 / 集成重载
 #: 造成的「所有实体同时离线」刷屏。
@@ -142,6 +146,66 @@ class NotificationService:
         with self._session_factory() as session:
             return loader(session)
 
+    @property
+    def alert_rule_watch_index(self) -> AlertRuleWatchIndex:
+        """求值实际使用的 watch 索引（**唯一实例**）。
+
+        外面（实体解绑 / 启动装配）必须注入这一个，而不是自己再 new 一个：
+        两实例并存时，删除路径刷新的是没人读的那份，``rules_cache`` 保持原样，
+        规则就「删了还在报警」。
+        """
+        return self._watch_index
+
+    def refresh_alert_rules_sync(self) -> None:
+        """同步刷新规则缓存与 watch 索引（供线程池里的删除/解绑路径调用）。"""
+        self._rules_helper.refresh_rules_cache_sync()
+
+    @property
+    def alert_rules_stale(self) -> bool:
+        """规则缓存是否处于「加载失败、沿用旧值」状态（对外暴露，便于排障）。"""
+        return bool(getattr(self._rules_helper, "rules_cache_stale", False))
+
+    def _prime_rule_latches(self) -> None:
+        """把当前实体状态喂给规则边沿锁存（静默，不推送）。"""
+        store = self._state_store
+        if store is None:
+            return
+        try:
+            entities = store.get_all()
+        except Exception:  # 诊断/预热失败不能阻断通知服务启动
+            logger.debug("启动时读取实体快照失败，跳过规则锁存预热", exc_info=True)
+            return
+        states: dict[str, tuple[str, dict[str, Any] | None]] = {}
+        for entity in entities:
+            entity_id = str(entity.get("entity_id") or "")
+            if not entity_id:
+                continue
+            states[entity_id] = (str(entity.get("state") or ""), entity.get("attributes"))
+        if not states:
+            return
+        try:
+            self._rules_helper.prime_latches(states)
+        except Exception:
+            logger.debug("规则锁存预热失败", exc_info=True)
+
+    async def _evaluate_entity_now(self, entity_id: str | None) -> None:
+        """规则刚被创建/编辑时立刻求值一次（用户动作，允许推送）。
+
+        新建规则时条件可能**此刻就成立**，等边沿等于要等到设备下一次变化才通知；
+        这里的求值走正常的边沿 + 冷却 + 免打扰闸门，不会绕过抑制。
+        """
+        store = self._state_store
+        if store is None or not entity_id:
+            return
+        entity = store.get(entity_id)
+        if not entity:
+            return
+        await self._rules_helper.evaluate_rules(
+            entity_id,
+            str(entity.get("state") or ""),
+            entity.get("attributes") or {},
+        )
+
     def _cfg(self) -> dict[str, Any]:
         return self._load(load_notification_config)
 
@@ -185,9 +249,36 @@ class NotificationService:
                 logger.debug("启动时读取 HA 连接状态失败", exc_info=True)
         await self._rules_helper.refresh_rules_cache()
         await self._rules_helper.load_condition_history()
+        # 启动静默锁存：把「已经成立的条件」记进边沿状态，但不补发通知。
+        # 不做这一步，规则要等到实体下一次「由不成立变成立」才会首次触发。
+        self._prime_rule_latches()
         self._prune_helper.schedule_prune_old_notifications()
+        self._escalation_task = asyncio.create_task(self._escalation_loop(), name="alert-escalation")
+
+    async def _escalation_loop(self) -> None:
+        """周期检查「未确认且超时」的告警并升级（每分钟一次）。
+
+        单独开任务而不是挂在状态变更上：升级最需要的场景恰恰是**没有新事件**的时候
+        （燃气一直在漏、没人碰任何设备），靠事件驱动就永远不会触发。
+        """
+        while True:
+            try:
+                await asyncio.sleep(ESCALATION_CHECK_INTERVAL_SECONDS)
+                escalated = await self._rules_helper.run_escalations()
+                if escalated:
+                    logger.info("告警升级推送 %s 条", escalated)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # 单轮失败不能停掉升级循环
+                logger.warning("告警升级检查失败", exc_info=True)
 
     async def stop(self) -> None:
+        task = getattr(self, "_escalation_task", None)
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+            self._escalation_task = None
         self._prune_helper.dispose()
 
     def bind_events(self) -> None:
@@ -559,7 +650,11 @@ class NotificationService:
                 time_rows=time_rows,
             )
 
-        return await asyncio.to_thread(_query)
+        stats = await asyncio.to_thread(_query)
+        # 规则缓存是否处于「加载失败、沿用旧值」状态。以前这个标记只写不读，
+        # 于是「一条规则都没有」和「规则读失败」在接口上完全一样。
+        stats["alertRulesStale"] = self.alert_rules_stale
+        return stats
 
     async def mark_as_read(self, notification_id: str) -> None:
         def _update() -> None:
@@ -640,16 +735,32 @@ class NotificationService:
         return await self._rules_helper.get_rules()
 
     async def add_rule(self, rule: dict[str, Any]) -> dict[str, Any]:
-        return await self._rules_helper.add_rule(rule)
+        created = await self._rules_helper.add_rule(rule)
+        # 新规则的条件可能此刻就成立：立刻求值一次，避免「创建后要等设备变化才生效」。
+        await self._evaluate_entity_now(created.get("entityId") if isinstance(created, dict) else None)
+        return created
 
     async def update_rule(self, rule_id: str, partial: dict[str, Any]) -> dict[str, Any] | None:
-        return await self._rules_helper.update_rule(rule_id, partial)
+        updated = await self._rules_helper.update_rule(rule_id, partial)
+        if updated is not None:
+            await self._evaluate_entity_now(updated.get("entityId"))
+        return updated
 
     def test_condition(self, condition: str, state: str, attributes: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._rules_helper.test_condition(condition, state, attributes)
 
     async def delete_rule(self, rule_id: str) -> dict[str, Any]:
         return await self._rules_helper.delete_rule(rule_id)
+
+    # 告警生命周期
+    def acknowledge_alert(self, rule_id: str, entity_id: str) -> bool:
+        return self._rules_helper.acknowledge(rule_id, entity_id)
+
+    def active_alerts(self) -> list[dict[str, Any]]:
+        return self._rules_helper.active_alerts()
+
+    async def run_alert_escalations(self) -> int:
+        return await self._rules_helper.run_escalations()
 
     # 通知设置
     async def get_settings(

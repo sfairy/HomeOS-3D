@@ -543,7 +543,7 @@ export const useEntitiesStore = defineStore('entities', () => {
   /** 服务调用去重窗口（毫秒）：同一 entityId + service + data 在窗口内复用同一 Promise */
   const callDedupWindow = () => getFrontendConfig().callDedupWindowMs
 
-  const { callService, fetchForecasts, isEntityCallPending } = createEntityActions({
+  const { callService, callServiceBatch, fetchForecasts, isEntityCallPending } = createEntityActions({
     apiClient,
     entities,
     forecasts,
@@ -687,6 +687,7 @@ export const useEntitiesStore = defineStore('entities', () => {
     ensureEntity,
     ensureEntities,
     callService,
+    callServiceBatch,
     isEntityCallPending,
     onStateChanged,
     fetchForecasts,

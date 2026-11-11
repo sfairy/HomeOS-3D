@@ -42,6 +42,7 @@
             :icon="domainInfo.icon"
             :name="getEntityDisplayName(eid, getEntity(eid))"
             :is-on="getEntity(eid)?.state === 'on'"
+            :pending="isPending(eid)"
             @toggle="toggleLightSwitch(eid)"
           />
         </div>
@@ -65,6 +66,7 @@
           :icon="domainInfo.icon"
           :name="getEntityDisplayName(eid, getEntity(eid))"
           :is-on="getEntity(eid)?.state === 'on'"
+          :pending="isPending(eid)"
           @toggle="toggleLightSwitch(eid)"
         />
       </template>
@@ -401,6 +403,17 @@ const virtualRows = computed(() => {
 function getEntity(eid) {
   void listEpoch.value
   return getEntityFromStore(entitiesStore.entities, eid)
+}
+
+/**
+ * 该实体是否有指令在途（卡片 loading 态 / 禁止重复点击）。
+ *
+ * 读 `listEpoch` 之外还要读 pending 集合的变化：调用开始/结束不会改动实体状态，
+ * 只靠实体版本号无法触发重算。
+ */
+function isPending(eid) {
+  void listEpoch.value
+  return entitiesStore.isEntityCallPending(eid)
 }
 
 /**

@@ -95,7 +95,20 @@ class CreateAlertRuleDto(StrictModel):
     enabled: bool
     messageTemplate: str | None = None
     title: str | None = None
+    #: 持续判定：条件需连续成立这么久才告警（秒，0 = 立即）。
+    forSeconds: int | float | None = None
+    #: 回落去抖：条件不成立需持续这么久才解除锁存（秒，0 = 立即解除）。
+    clearDelaySeconds: int | float | None = None
+    #: 升级：报出后多久仍未确认就再推一次（分钟，0 = 不升级）。
+    escalationMinutes: int | float | None = None
     previousCondition: str | None = None
+
+
+class AcknowledgeAlertDto(StrictModel):
+    """确认一条告警（规则 + 实体定位）。"""
+
+    ruleId: str
+    entityId: str
 
 
 class UpdateAlertRuleDto(StrictModel):
@@ -109,6 +122,9 @@ class UpdateAlertRuleDto(StrictModel):
     messageTemplate: str | None = None
     title: str | None = None
     previousCondition: str | None = None
+    forSeconds: int | float | None = None
+    clearDelaySeconds: int | float | None = None
+    escalationMinutes: int | float | None = None
 
 
 def parse_optional_int(value: str | None) -> int | None:
@@ -117,7 +133,7 @@ def parse_optional_int(value: str | None) -> int | None:
         return None
     try:
         return int(value, 10)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
 
 
@@ -257,6 +273,30 @@ async def delete_rule(
 ):
     """删除告警规则。"""
     return await _service(request).delete_rule(rule_id)
+
+
+@router.get("/alerts/active")
+async def get_active_alerts(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """当前「已报出但未恢复」的告警（含是否已确认 / 是否已升级）。
+
+    通知中心据此区分「还在发生」与「历史记录」：没有这个视图时，用户只能看到一堆
+    历史条目，无法判断哪条还在生效。
+    """
+    return {"alerts": _service(request).active_alerts()}
+
+
+@router.post("/alerts/acknowledge")
+async def acknowledge_alert(
+    payload: AcknowledgeAlertDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """确认一条告警：此后不再重复推送，恢复时也不补 ``resolved``。"""
+    ok = _service(request).acknowledge_alert(payload.ruleId, payload.entityId)
+    return {"success": ok}
 
 
 @router.post("/{notification_id}/read")

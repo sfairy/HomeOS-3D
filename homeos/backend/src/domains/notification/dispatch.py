@@ -90,15 +90,15 @@ class NotificationDispatchHelper:
         life_safety = is_life_safety_notification(level, source)
         if cfg.get("importantNotifyEnabled") is False and level != "info" and not life_safety:
             return None
-        if (
+        # 免打扰期间**不丢**：仍然入库并带 ``deferred`` 标记，只是不实时推送、不发外部渠道。
+        # 旧实现直接 ``return None``，于是静音时段内的告警彻底消失 —— 用户既看不到，
+        # 也没有任何「被抑制过」的痕迹。危险级与生命安全的通知照常穿透。
+        deferred = bool(
             level != "danger"
             and not opts.get("bypassDnd")
             and not life_safety
-            and is_dnd_active_now(
-                cfg, timezone_name=await asyncio.to_thread(self._get_timezone)
-            )
-        ):
-            return None
+            and is_dnd_active_now(cfg, timezone_name=await asyncio.to_thread(self._get_timezone))
+        )
 
         channels = resolve_lan_channels(opts.get("channels"))
         persisted_channels = [channel for channel in channels if channel != "tts"]
@@ -148,12 +148,20 @@ class NotificationDispatchHelper:
             }
         if action_prompt:
             notification["actionPrompt"] = action_prompt
+        if deferred:
+            notification["deferred"] = True
 
         await self._event_bus.emit("notification.created", notification)
 
         # 只有真正入库成功的通知才跑条数清理；无 id 的 ephemeral / 外部-only 跳过。
         if "in_app" in channels and notification.get("id") is not None:
             self._schedule_prune()
+
+        if deferred:
+            # 免打扰：站内已经入库（用户打开通知中心能看到），但外部渠道（WebPush / 邮件 /
+            # 企微）不在静音时段打扰。恢复后无需补发 —— 站内条目就是「没丢」的证据。
+            logger.debug("免打扰期间延后外部投递: source=%s level=%s", source, level)
+            return notification
 
         self._send_external_notifications(channels, message, opts.get("title"), notification.get("id"))
 
@@ -240,16 +248,10 @@ class NotificationDispatchHelper:
                     logger.debug("外部通道投递异常: %s", exc)
                     result = None
                 outcomes = result if isinstance(result, dict) else {}
-                delivered |= {
-                    channel for channel in pending if outcomes.get(channel) == "ok"
-                }
+                delivered |= {channel for channel in pending if outcomes.get(channel) == "ok"}
                 # 结果里没出现的通道（发送器抛异常或无返回）按失败处理，
                 # 避免「通道凭空消失」被当成成功。
-                failed = [
-                    channel
-                    for channel in pending
-                    if outcomes.get(channel) not in {"ok", "skipped"}
-                ]
+                failed = [channel for channel in pending if outcomes.get(channel) not in {"ok", "skipped"}]
                 if not failed:
                     break
                 # 只重试失败的通道：成功的通道再投一次会造成重复邮件 / 重复企微消息。

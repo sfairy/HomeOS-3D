@@ -6,7 +6,6 @@ import asyncio
 import base64
 import json
 import logging
-import math
 import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -21,6 +20,7 @@ from .control_pool import HAControlConfiguration, HAControlPool
 from .errors import endpoint_failure_reason
 from .http_pool import HAHttpClientPool, HAHttpConfiguration
 from .service_idempotency import _service_call_retry_safe
+from .service_timeouts import is_slow_service, remote_learning_timeout, slow_service_timeout
 from ....platform.core.ha import ha_errors
 
 
@@ -207,8 +207,6 @@ RESPONSE_SERVICES = frozenset(
         ("assist_satellite", "ask_question"),
     }
 )
-#: 慢服务统一超时（秒）：AI 生成、语音提问、固件安装都可能跑几十秒。
-SLOW_SERVICE_TIMEOUT = 115
 #: 生成图片允许回传的最大字节数（再大就不是"预览"了）。
 GENERATED_IMAGE_MAX_BYTES = 4194304
 #: 生成图片允许的 MIME。
@@ -217,19 +215,8 @@ GENERATED_IMAGE_TYPES = frozenset({"image/gif", "image/png", "image/jpeg", "imag
 GENERATED_IMAGE_PREFIXES = ("/ai_task/", "/media/", "/api/ai_task/")
 
 
-def _remote_learning_timeout(data: dict[str, Any]) -> float:
-    """学习红外/射频指令的超时：一条指令码通常要按下再等待，按条数放大。
-
-    与前端 ``control-timeout.ts`` 同一套算法（前端用来决定"按钮转圈多久"，
-    后端用来决定"HTTP 请求等多久"），差一个常数就出现"前端已超时、后端还在等"。
-    """
-    wait = data.get("timeout")
-    if not isinstance(wait, (int, float)) or isinstance(wait, bool) or not math.isfinite(wait) or wait <= 0:
-        wait = 60
-    commands = data.get("command")
-    count = max(1, min(64, len(commands))) if isinstance(commands, list) else 1
-    phases = 2 if data.get("command_type") == "rf" else 1
-    return min(60, wait) * count * phases + 15
+#: 慢服务超时与远程学习超时统一在 ``service_timeouts`` 里（含上限封顶）。
+_remote_learning_timeout = remote_learning_timeout
 
 
 class HAClient:
@@ -737,10 +724,13 @@ class HAClient:
         )
 
     @asynccontextmanager
-    async def _control_http_client(self):
-        """控制类请求的 httpx 客户端来源：有池走池，无池每次新建。"""
+    async def _control_http_client(self, *, slow: bool = False) -> AsyncGenerator[httpx.AsyncClient]:
+        """控制类请求的 httpx 客户端来源：有池走池，无池每次新建。
+
+        ``slow=True`` 让连接池额外占用慢服务配额（见 ``HAControlPool.lease``）。
+        """
         if self._control_pool is not None:
-            async with self._control_pool.lease(self.control_configuration) as client:
+            async with self._control_pool.lease(self.control_configuration, slow=slow) as client:
                 yield client
             return
         async with httpx.AsyncClient(
@@ -792,13 +782,7 @@ class HAClient:
         payload["agent_id" if domain == "conversation" else "entity_id"] = entity_id
         suffix = "?return_response" if return_response or (domain, service) in RESPONSE_SERVICES else ""
         url = f"{self.base_url}/api/services/{domain}/{service}{suffix}"
-        timeout: float = self.timeout
-        if (
-            domain == "ai_task"
-            or (domain == "assist_satellite" and service == "ask_question")
-            or (domain == "update" and service == "install")
-        ):
-            timeout = max(self.timeout, SLOW_SERVICE_TIMEOUT)
+        timeout: float = slow_service_timeout(domain, service, self.timeout)
         if (domain, service) == ("remote", "learn_command"):
             timeout = max(self.timeout, _remote_learning_timeout(data))
         # 重试循环里 ``result`` 只在成功分支赋值；用显式标记让「循环结束但没赋值」
@@ -812,7 +796,7 @@ class HAClient:
             # 幂等的服务重试（toggle / play_pause 这类动作型服务绝不重放）。
             for attempt in range(2):
                 try:
-                    async with self._control_http_client() as client:
+                    async with self._control_http_client(slow=is_slow_service(domain, service)) as client:
                         response = await client.post(url, json=payload, timeout=timeout)
                         response.raise_for_status()
                         result = response.json()

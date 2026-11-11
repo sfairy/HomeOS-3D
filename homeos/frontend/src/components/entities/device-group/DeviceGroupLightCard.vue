@@ -7,9 +7,11 @@
   <button
     type="button"
     class="group transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] tap-active dgm-light-card cursor-pointer"
-    :class="isOn ? 'is-active' : ''"
+    :class="[isOn ? 'is-active' : '', pending ? 'is-pending' : '']"
     :aria-label="name"
     :aria-pressed="isOn"
+    :aria-busy="pending"
+    :disabled="pending"
     @click="$emit('toggle')"
   >
     <div
@@ -59,6 +61,13 @@ defineProps({
   name: { type: String, required: true },
   /** 是否开启（决定 is-active 高亮） */
   isOn: { type: Boolean, default: false },
+  /**
+   * 是否有指令在途：为真时禁用按钮并标记 aria-busy。
+   *
+   * 不这么做时用户连点三次就会发三条命令，最终状态取决于返回顺序；乐观态虽然能
+   * 立刻翻转，但「到底按下去了没有」在失败回滚前完全不可见。
+   */
+  pending: { type: Boolean, default: false },
 })
 
 defineEmits(['toggle'])

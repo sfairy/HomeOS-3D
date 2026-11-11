@@ -33,6 +33,7 @@ from ...dependencies import (
     LicensedViewer,
     require_viewer_project,
 )
+from ...domains.agent.runtime.attribution import mark_local_control_for_request as mark_local
 from ...domains.ha.integration.connection_query import active_connection
 from ...domains.ha.integration.cover_memory import CoverMemory, memory_axis
 from ...domains.ha.integration.service_call import (
@@ -95,14 +96,15 @@ async def call_service(command: HAServiceCallRequest, request: Request, database
     """
     del database  # 连接/实体读取在域内按同一 request 作用域完成，避免两次开库。
     try:
-        return await execute_service_call(
+        result = await execute_service_call(
             request,
             command,
             access_check=lambda session, entity_id: require_viewer_entity(session, viewer, entity_id),
         )
     except ServiceCallRejected as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
-
+    mark_local(request, command.entity_id)  # 归因：三条控制入口都要打
+    return result
 
 def component_properties(database, project_id: str | None, component_id: str | None) -> dict:
     if not project_id or not component_id:

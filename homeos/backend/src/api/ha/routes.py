@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 import time
@@ -28,6 +27,7 @@ from ...dependencies import (
     ViewerPrincipal,
     viewer_entity_ids,
 )
+from ...domains.agent.runtime.attribution import mark_local_control_for_request
 from ...domains.ha.config.perf_windows import runtime_state_batch_window_ms
 from ...domains.ha.integration.client import HAClientError
 from ...domains.ha.integration.connection_query import active_connection, load_active_connection_snapshot
@@ -808,20 +808,8 @@ async def call_service(
 
 
 def _mark_agent_local_control(request: Request, entity_id: str) -> None:
-    """把 App / 网页下发的控制标记成「手动操作」。
-
-    智能管家时序服务据此把随后的状态翻转归因为 ``MANUAL_APP``，而不是外部设备；
-    时序服务未装配（关闭 / 精简部署）时静默跳过。
-    """
-    if not entity_id:
-        return
-    timeline = getattr(request.app.state, 'agent_timeline', None)
-    marker = getattr(timeline, 'mark_local_control', None)
-    if not callable(marker):
-        return
-    # 归因属旁路观测：失败不能影响控制结果
-    with contextlib.suppress(Exception):
-        marker(entity_id)
+    """把 App / 网页下发的控制标记成「手动操作」（实现见 agent.runtime.attribution）。"""
+    mark_local_control_for_request(request, entity_id)
 
 
 @router.post('/media/browse')

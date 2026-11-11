@@ -2,7 +2,11 @@
 import type { Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'
 import { useLayoutStore } from '@/stores/layout.store'
-import { getActiveSubscribeDomains, collectWsPinnedEntityIds } from '@/shared/entity/utils/ws-subscription'
+import {
+  getActiveSubscribeDomains,
+  collectWsPinnedEntityIds,
+  getActiveSubscriptionScope,
+} from '@/shared/entity/utils/ws-subscription'
 import { resolveActivePopupEntityId } from '@/stores/entities/active-popup-entity'
 
 /** 构建前端 Socket.IO 连接参数（从 entities.store 抽离） */
@@ -36,6 +40,12 @@ export function buildEntitySocketAuth(
   const domains = getActiveSubscribeDomains()
   if (domains?.length) {
     auth.subscribeDomains = domains
+  }
+  // 按区域 / 设备订阅：未声明时**不带**这两个键，服务端按「不收窄」处理。
+  const scope = getActiveSubscriptionScope()
+  if (scope) {
+    if (scope.areaIds.length) auth.areaIds = scope.areaIds
+    if (scope.deviceIds.length) auth.deviceIds = scope.deviceIds
   }
   try {
     const pinia = getActivePinia()

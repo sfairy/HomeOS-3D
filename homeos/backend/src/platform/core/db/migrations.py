@@ -431,6 +431,65 @@ def _add_notification_action_prompt(
     connection.execute('ALTER TABLE notifications ADD COLUMN "actionPrompt" TEXT')
 
 
+def _add_alert_rule_timing_columns(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """告警规则增加持续判定 / 回落去抖 / 升级三列（E2）。
+
+    三列都是「0 = 旧行为」，因此存量规则升级后行为不变；全新库由 create_all 建出。
+    """
+    if not _table_exists(connection, 'alert_rules'):
+        return
+    columns = _columns(connection, 'alert_rules')
+    for column, ddl in (
+        ('forSeconds', 'INTEGER NOT NULL DEFAULT 0'),
+        ('clearDelaySeconds', 'INTEGER NOT NULL DEFAULT 0'),
+        ('escalationMinutes', 'INTEGER NOT NULL DEFAULT 0'),
+    ):
+        if column not in columns:
+            connection.execute(f'ALTER TABLE alert_rules ADD COLUMN "{column}" {ddl}')
+
+
+def _ensure_alert_rule_escalation_column(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """确保 ``alert_rules.escalationMinutes`` 存在（升级阈值）。
+
+    这个版本号在开发期已经写进过数据库（迁移 17），而当时三列是拆成两条迁移登记的。
+    现在三列合并进迁移 15，这条保留为**幂等空操作**，只为对齐已记录的历史版本 ——
+    删掉它会让「DB 有 17、代码没有 17」的库拒绝启动（实测已发生）。
+
+    新库先跑 15（建三列）再跑这条，因此这里必然是 no-op；旧库如果只有 15 之前的版本，
+    这条也会把列补上，不会漏。
+    """
+    if not _table_exists(connection, 'alert_rules'):
+        return
+    if 'escalationMinutes' in _columns(connection, 'alert_rules'):
+        return
+    connection.execute(
+        'ALTER TABLE alert_rules ADD COLUMN "escalationMinutes" INTEGER NOT NULL DEFAULT 0'
+    )
+
+
+def _add_home_mode_conditions_and_execution(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """家庭模式增加 ``conditions`` 与 ``executionMode``（E1）。
+
+    两列都「缺省 = 旧行为」：``conditions`` 为 NULL 表示无条件（与现在一致），
+    ``executionMode`` 默认 ``queued``（等价现有的「排队等锁」）。
+    """
+    if not _table_exists(connection, 'home_modes'):
+        return
+    columns = _columns(connection, 'home_modes')
+    if 'conditions' not in columns:
+        connection.execute('ALTER TABLE home_modes ADD COLUMN "conditions" TEXT')
+    if 'executionMode' not in columns:
+        connection.execute(
+            'ALTER TABLE home_modes ADD COLUMN "executionMode" VARCHAR(16) NOT NULL DEFAULT \'queued\''
+        )
+
+
 MIGRATIONS = (
     Migration(1, "users-email-normalize-unique", "h0002-v1", _normalize_users_email),
     Migration(2, "sessions-user-expires-index", "h0003-v1", _index_sessions_user_expires),
@@ -446,4 +505,9 @@ MIGRATIONS = (
     Migration(12, "security-event-audit-fields", "h0012-v1", _add_security_event_audit_columns),
     Migration(13, "agent-automation-actor-columns", "h0013-v1", _add_agent_automation_actor_columns),
     Migration(14, "notification-action-prompt", "h0014-v1", _add_notification_action_prompt),
+    Migration(15, "alert-rule-timing-columns", "h0015-v1", _add_alert_rule_timing_columns),
+    Migration(16, "home-mode-conditions-execution", "h0016-v1", _add_home_mode_conditions_and_execution),
+    # 17 是开发期已写入数据库的历史版本（三列当时拆成两条迁移）。保留为幂等空操作，
+    # 删掉会让已有该记录的库拒绝启动。校验和必须与数据库记录逐字一致。
+    Migration(17, "alert-rule-escalation-column", "h0017-v1", _ensure_alert_rule_escalation_column),
 )

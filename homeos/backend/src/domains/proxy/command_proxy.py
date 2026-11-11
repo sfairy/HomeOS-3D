@@ -3,16 +3,18 @@
 作为 HA 连接器的上层封装，保留：
 - HA 未连接时拦截高风险操作（``is_dangerous_ha_control``）；
 - 幂等键去重（进程内 Map + TTL 剪枝，失败释放）；
-- 历史查询 / 连通性探测 / 媒体图像与流透传 / 断连队列查询与重试。
+- 统一的控制结果归一（``build_control_result``：``ok`` / ``pending`` / ``skipped`` / ``verified``）。
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
 import random
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -24,7 +26,7 @@ from ...platform.core.ha.service_payload_rules import (
     ServicePayloadRejected,
     validate_service_payload,
 )
-from ...platform.core.http.errors import BusinessException, ErrorCode, api_error, bad_request
+from ...platform.core.http.errors import BusinessException, ErrorCode, api_error
 from ...platform.core.runtime.app_config import load_raw_config
 
 logger = logging.getLogger("homeos.command_proxy")
@@ -41,6 +43,8 @@ _IDEMPOTENCY_RESULT_TTL_MS = 30_000
 #: 旧实现对 inflight 也套用 ``idempotencyTtlMs``（默认 3s），于是首次请求还在跑、条目已被
 #: 剪枝，同键重试会重新认领并**再下发一次** —— 幂等键在最需要它的慢路径上完全失效。
 _IDEMPOTENCY_INFLIGHT_TTL_MS = 180_000
+#: 按实体串行锁的数量上限（LRU 淘汰空闲锁，避免大户型把锁表撑大）。
+_ENTITY_LOCK_MAX_ENTRIES = 512
 
 
 @dataclass
@@ -131,6 +135,8 @@ class CommandProxyService:
         self._idempotency: dict[str, _IdempotencyEntry] = {}
         self._idempotency_pruned_at = 0.0
         self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
+        #: 按实体的串行锁（LRU 上限，见 ``_entity_lock``）。
+        self._entity_locks: OrderedDict[str, asyncio.Lock] = OrderedDict()
 
     def _config(self) -> dict[str, Any]:
         try:
@@ -145,13 +151,15 @@ class CommandProxyService:
         """按 TTL 惰性剪枝（替代 Nest 的 setInterval 定期清理）。"""
         if not self._idempotency:
             return
+        # 剪枝窗口判断放在读配置**之前**：``_config()`` 会开一次同步 DB 会话，
+        # 而前端每次控制都带幂等键，等于把「每个控制请求一次查库」变成常态。
+        if len(self._idempotency) < _IDEMPOTENCY_MAX_ENTRIES and (now - self._idempotency_pruned_at < 1000.0):
+            return
         request_ttl = float(max(int(self._config().get("idempotencyTtlMs") or 3000), 1))
         result_ttl = max(request_ttl, float(_IDEMPOTENCY_RESULT_TTL_MS))
         # inflight 条目不能按请求 TTL 剪枝：慢服务（AI 生成 / 固件安装）要跑上百秒，
         # 期间条目一旦被剪掉，同键重试会被当成首次请求再下发一次。
         inflight_ttl = max(request_ttl, float(_IDEMPOTENCY_INFLIGHT_TTL_MS))
-        if len(self._idempotency) < _IDEMPOTENCY_MAX_ENTRIES and (now - self._idempotency_pruned_at < 1000.0):
-            return
         self._idempotency = {
             key: entry
             for key, entry in self._idempotency.items()
@@ -184,6 +192,49 @@ class CommandProxyService:
         entry.state = "done"
         entry.result = result
         entry.created_at = time.time() * 1000
+
+    async def _call_connector_serialized(
+        self,
+        domain: str,
+        service: str,
+        entity_id: str,
+        service_data: dict[str, Any],
+        return_response: bool,
+        idempotency_key: str | None,
+    ) -> Any:
+        """按实体串行下发。
+
+        同一实体的两条命令并发下发时，最终状态取决于**网络返回顺序**，而多条命令可能
+        在 HA 侧交错执行（例如「开窗帘 30%」和「关窗帘」几乎同时到达）。按实体排队后，
+        用户连点两次的结果等于「后一次生效」，与界面上的乐观更新一致。
+
+        不同实体仍然并发：批量开灯不能被一个慢设备拖住。
+        """
+        if not entity_id:
+            return await self._connector.call_service(
+                domain, service, entity_id, service_data, return_response, idempotency_key
+            )
+        lock = self._entity_lock(entity_id)
+        async with lock:
+            return await self._connector.call_service(
+                domain, service, entity_id, service_data, return_response, idempotency_key
+            )
+
+    def _entity_lock(self, entity_id: str) -> asyncio.Lock:
+        """取（或建）该实体的串行锁；超出上限时淘汰最久未用的空闲锁。"""
+        lock = self._entity_locks.get(entity_id)
+        if lock is not None:
+            self._entity_locks.move_to_end(entity_id)
+            return lock
+        if len(self._entity_locks) >= _ENTITY_LOCK_MAX_ENTRIES:
+            for key in list(self._entity_locks):
+                candidate = self._entity_locks[key]
+                if not candidate.locked():
+                    del self._entity_locks[key]
+                    break
+        lock = asyncio.Lock()
+        self._entity_locks[entity_id] = lock
+        return lock
 
     @staticmethod
     def _assert_service_policy(dto: dict[str, Any], policy: str | None) -> None:
@@ -242,14 +293,17 @@ class CommandProxyService:
                 # 首次请求还在下发中：如实返回 pending，让调用方稍后再查，而不是伪造成功。
                 # success=False 是契约的一部分：这条命令没有执行完成，调用方不能按成功处理。
                 logger.debug("幂等键命中，首次命令仍在下发: %s", idempotency_key)
+                # 注意：``skipped`` 必须为 False。pending 的语义是「首次请求还在下发」，
+                # 这条命令并没有被跳过。早期这里填 True，前端（与批量执行器）据
+                # ``skipped`` 回滚乐观态，于是「连点两次」会先恢复再跳变。
                 return {
                     "success": False,
                     "pending": True,
                     "message_id": f"idem-{idempotency_key}",
                     "timestamp": _iso_now(),
                     "queued": False,
-                    "skipped": True,
-                    "data": {"skipped": True, "reason": "idempotency_inflight"},
+                    "skipped": False,
+                    "data": {"skipped": False, "reason": "idempotency_inflight"},
                 }
         service_data = object_field(dto, "service_data")
         return_response = bool(dto.get("return_response"))
@@ -266,7 +320,7 @@ class CommandProxyService:
                 # 误判成「排队中」。
                 logger.info("HA 未连接，尝试直接下发，可能失败：%s.%s → %s", domain, service, entity_id)
 
-            data = await self._connector.call_service(
+            data = await self._call_connector_serialized(
                 domain, service, entity_id, service_data, return_response, idempotency_key or None
             )
             queued = bool(data.get("queued")) if isinstance(data, dict) and not isinstance(data, list) else False
@@ -316,7 +370,10 @@ class CommandProxyService:
             if message in ("HA not connected", "HA 未连接", "WebSocket 未连接"):
                 raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED")) from exc
             logger.error("[命令错误] %s.%s → %s 失败: %s", domain, service, entity_id, message)
-            bad_request(api_error("PROXY_HA_SERVICE_FAILED", message))
+            # 上游（HA / 连接器）失败统一按「外部依赖错误」→ 502。以前这里抛
+            # VALIDATION_FAILED（400），同一个失败在 ``/ha/services/call`` 是 502：
+            # 客户端按 4xx 判定「参数写错了」，实际是设备侧/网关问题。
+            raise BusinessException(ErrorCode.EXTERNAL_ERROR, api_error("PROXY_HA_SERVICE_FAILED", message)) from exc
 
     async def test_ha_connection(self, url: str, token: str) -> dict[str, Any]:
         return await self._connector.test_ha_connection(url, token)
@@ -345,6 +402,33 @@ def build_service_call_dto(
 async def dispatch_service_call(proxy: Any, dto: dict[str, Any]) -> dict[str, Any]:
     """唯一 HA 下发出口：DTO → ``CommandProxyService.call_service``。"""
     return await proxy.call_service(dto)
+
+
+def build_control_result(envelope: Any) -> dict[str, Any]:
+    """把命令通道信封归一成**三条入口共用**的控制响应。
+
+    成功语义只有一个来源，避免「同一个 DTO 换个入口就换一种成功」：
+
+    - ``success``：HA 是否受理（历史字段，保持不变）；
+    - ``ok``：调用方**可以按成功展示**的严格判据 —— 已受理、非 pending、非 skipped、
+      且后置校验没有明确判定不一致（``verified is not False``）；
+    - ``pending`` / ``skipped`` / ``verified`` / ``queued`` 原样透传，供 UI 分别处理。
+
+    以前 ``ok`` 是各入口自己拍的（``/ha/services/call`` 恒为 ``True``），结果
+    「幂等键命中仍在下发」被当成成功，前端据此不再重试。
+    """
+    if not isinstance(envelope, dict):
+        return {"ok": False, "success": False, "data": envelope}
+    pending = bool(envelope.get("pending"))
+    skipped = bool(envelope.get("skipped"))
+    verified = envelope.get("verified")
+    accepted = bool(envelope.get("success"))
+    return {
+        **envelope,
+        "ok": accepted and not pending and not skipped and verified is not False,
+        "pending": pending,
+        "skipped": skipped,
+    }
 
 
 def _format_service_call_error(error: Exception) -> str:

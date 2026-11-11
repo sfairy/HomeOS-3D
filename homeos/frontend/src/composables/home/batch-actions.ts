@@ -111,42 +111,70 @@ function getAllSwitchesOn(options: WholeHomeOffOptions = {}) {
 
 /**
  * 全屋批量关闭：灯 / 窗帘 / 空调风扇 / 开关（读取 layout.wholeHomeOff，可传参覆盖）。
- * 各 service 调用以 quiet 模式执行，互不阻断；最后汇总成功/失败数。
+ *
+ * 走服务端批量接口（限并发 + 逐项结果），而不是 `Promise.allSettled` 无上限并发：
+ * 大户型一次关掉上百个设备会把 HA 与连接池同时打满，失败时也只得到一个「有几条失败」
+ * 的计数，无法定位是哪台设备。
+ *
+ * @param overrides 配置覆盖项
+ * @returns { total, ok, failed } 总数、成功数、失败数
+ */
+/** 批量条目（与 store.callServiceBatch 的入参一致）。 */
+interface BatchItem {
+  domain: string
+  service: string
+  entityId: string
+  serviceData?: Record<string, unknown>
+}
+
+/**
+ * 按配置收集「需要关闭」的条目。
+ *
+ * 抽成独立函数是为了把四段同构的 `if (开关) for (实体) push(...)` 收敛到一处：
+ * 堆在 turnOffWholeHome 里会让它轻易越过复杂度棘轮，而这段本身没有分支逻辑可言。
+ */
+function collectWholeHomeOffItems(overrides: WholeHomeOffOptions): BatchItem[] {
+  const items: BatchItem[] = []
+  if (overrides.lights) {
+    for (const id of getAllLightsOn(overrides)) {
+      items.push({ domain: 'light', service: 'turn_off', entityId: id })
+    }
+  }
+  if (overrides.covers) {
+    for (const id of getAllCoversOpen(overrides)) {
+      items.push({ domain: 'cover', service: 'close_cover', entityId: id })
+    }
+  }
+  if (overrides.climate) {
+    for (const id of getAllClimateOn(overrides)) {
+      const domain = getEntityDomain(id)
+      // climate 设为 off 模式；fan 直接关闭
+      const service = domain === 'climate' ? 'set_hvac_mode' : 'turn_off'
+      const serviceData = domain === 'climate' ? { hvac_mode: 'off' } : undefined
+      items.push({ domain, service, entityId: id, serviceData })
+    }
+  }
+  if (overrides.switches) {
+    for (const id of getAllSwitchesOn(overrides)) {
+      items.push({ domain: 'switch', service: 'turn_off', entityId: id })
+    }
+  }
+  return items
+}
+
+/**
+ * 全屋批量关闭：灯 / 窗帘 / 空调风扇 / 开关（读取 layout.wholeHomeOff，可传参覆盖）。
+ *
+ * 走服务端批量接口（限并发 + 逐项结果），而不是 `Promise.allSettled` 无上限并发：
+ * 大户型一次关掉上百个设备会把 HA 与连接池同时打满，失败时也只得到一个「有几条失败」
+ * 的计数，无法定位是哪台设备。
+ *
  * @param overrides 配置覆盖项
  * @returns { total, ok, failed } 总数、成功数、失败数
  */
 export async function turnOffWholeHome(overrides: WholeHomeOffOptions = {}) {
-  const store = useEntitiesStore()
-  const resolvedOverrides = resolveWholeHomeOffOptions(overrides)
-  const tasks: Promise<unknown>[] = []
-
-  if (resolvedOverrides.lights) {
-    for (const id of getAllLightsOn(resolvedOverrides)) {
-      tasks.push(store.callService('light', 'turn_off', id, undefined, false, { quiet: true }))
-    }
-  }
-  if (resolvedOverrides.covers) {
-    for (const id of getAllCoversOpen(resolvedOverrides)) {
-      tasks.push(store.callService('cover', 'close_cover', id, undefined, false, { quiet: true }))
-    }
-  }
-  if (resolvedOverrides.climate) {
-    for (const id of getAllClimateOn(resolvedOverrides)) {
-      const domain = getEntityDomain(id)
-      // climate 设为 off 模式；fan 直接关闭
-      const service = domain === 'climate' ? 'set_hvac_mode' : 'turn_off'
-      const data = domain === 'climate' ? { hvac_mode: 'off' } : undefined
-      tasks.push(store.callService(domain, service, id, data, false, { quiet: true }))
-    }
-  }
-  if (resolvedOverrides.switches) {
-    for (const id of getAllSwitchesOn(resolvedOverrides)) {
-      tasks.push(store.callService('switch', 'turn_off', id, undefined, false, { quiet: true }))
-    }
-  }
-
-  const results = await Promise.allSettled(tasks)
-  const failed = results.filter((r) => r.status === 'rejected').length
-  const ok = results.length - failed
-  return { total: results.length, ok, failed }
+  const items = collectWholeHomeOffItems(resolveWholeHomeOffOptions(overrides))
+  if (!items.length) return { total: 0, ok: 0, failed: 0 }
+  const summary = await useEntitiesStore().callServiceBatch(items, { quiet: true })
+  return { total: summary.total, ok: summary.ok, failed: summary.failed }
 }

@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 519,
+  "total": 516,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/payments/license.py": 3,
@@ -128,7 +128,7 @@
     "homeos/backend/src/domains/home_exec/execute_action_sequence.py": 1,
     "homeos/backend/src/domains/home_mode/actions.py": 3,
     "homeos/backend/src/domains/home_mode/runtime.py": 2,
-    "homeos/backend/src/domains/home_mode/service.py": 3,
+    "homeos/backend/src/domains/home_mode/service.py": 1,
     "homeos/backend/src/domains/license/features.py": 1,
     "homeos/backend/src/domains/license/hardware.py": 5,
     "homeos/backend/src/domains/license/service.py": 17,
@@ -155,7 +155,7 @@
     "homeos/backend/src/domains/security/panel_helpers.py": 2,
     "homeos/backend/src/domains/security/service.py": 4,
     "homeos/backend/src/domains/state_store/entity_area.py": 2,
-    "homeos/backend/src/domains/state_store/entity_references.py": 3,
+    "homeos/backend/src/domains/state_store/entity_references.py": 2,
     "homeos/backend/src/domains/store/discovery.py": 2,
     "homeos/backend/src/domains/store/verification.py": 3,
     "homeos/backend/src/domains/studio3d/cleanup.py": 1,

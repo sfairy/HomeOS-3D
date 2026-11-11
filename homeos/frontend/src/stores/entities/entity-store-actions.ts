@@ -24,6 +24,18 @@ import { blockDangerousHaServiceWhenOffline, HA_OFFLINE_DANGEROUS_CONTROL_MSG } 
 import { useChromeStore } from '@/stores/chrome.store'
 import { fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'
 import type { EntityActionsDeps, HaEntityState } from '@/shared/types/entity-store'
+import {
+  describeControlOutcome,
+  resolveControlNotice,
+  type ControlOutcome,
+  type ControlPayload,
+} from '@/stores/entities/control-outcome.util'
+
+/** 按控制结果给用户一条提示（没有可说的就不提示）。 */
+function notifyControlOutcome(payload: ControlPayload, outcome: ControlOutcome): void {
+  const notice = resolveControlNotice(payload, outcome)
+  if (notice) useChromeStore().notify(notice.message, notice.level)
+}
 
 /** 去重 pending 调用条目：同一 dedupKey 复用此 Promise */
 interface PendingCall {
@@ -241,38 +253,17 @@ export function createEntityActions(deps: EntityActionsDeps) {
           // 键在重试链路上复用（同一 promise / 同一次手势重发），服务端据此复用真实结果。
           idempotency_key: idempotencyKey,
         })
-        const payload = res.data as {
-          skipped?: boolean
-          pending?: boolean
-          replayed?: boolean
-          queued?: boolean
-          verified?: boolean | null
-          verification?: { reason?: string; observedState?: string | null }
-          data?: { skipped?: boolean }
-        } | null
-        const skipped = !!(payload?.skipped || payload?.data?.skipped)
-        if (skipped && didOptimistic) deps.rollbackOptimistic(entityId)
-        const verifyFailed = payload?.verified === false
-        if (verifyFailed && didOptimistic) deps.rollbackOptimistic(entityId)
+        const payload = res.data as ControlPayload | null
+        const outcome = describeControlOutcome(payload)
+        if (didOptimistic && outcome.shouldRollback) deps.rollbackOptimistic(entityId)
         // 响应已返回、且后端确认（verified !== false）：确认窗口从这一刻起算，
         // 而不是从点击时刻 —— 云端设备的往返本来就吃掉了预算。
-        if (didOptimistic && !skipped && !verifyFailed) deps.touchOptimistic?.(entityId)
+        if (didOptimistic && !outcome.shouldRollback) deps.touchOptimistic?.(entityId)
         // 后端后置校验已明确看到目标态（verified=true）时无需再等 WS 推送：
         // 再等一轮只会把「确认」拖成一次假的超时告警。
         if (didOptimistic && payload?.verified === true) settleOptimistic(entityId)
-        if (!quiet && payload) {
-          if (payload.pending) {
-            // 首次请求仍在下发中：结果未知，不能报「已生效」。
-            useChromeStore().notify('相同指令正在下发中，请稍后确认设备状态', 'info')
-          } else if (verifyFailed) {
-            // verified:false 只代表「响应明确显示状态不符」；null（未知）不提示，避免噪声。
-            useChromeStore().notify('指令已下发，但设备状态与预期不符', 'warning')
-          } else if (skipped) {
-            useChromeStore().notify('重复命令已跳过', 'info')
-          } else if (payload.queued) {
-            useChromeStore().notify('命令已通过重连队列送达', 'info')
-          }
-        }
+        if (!quiet && payload) notifyControlOutcome(payload, outcome)
+        const skipped = outcome.skipped
         if (typeof entityId === 'string' && entityId && !returnResponse && !skipped) {
           setTimeout(
             () => {
@@ -302,6 +293,190 @@ export function createEntityActions(deps: EntityActionsDeps) {
 
     pendingCalls.set(dedupKey, { promise: callPromise, time: Date.now() })
     return callPromise
+  }
+
+  /**
+   * 批量预检：把条目分成「可以下发」与「客户端已拦截」两组。
+   *
+   * 离线高风险拦截与权限校验仍在客户端先做一遍：整批提交后由服务端拒绝会更慢，
+   * 而且失败原因混在批量结果里不易定位。
+   */
+  function splitBatchByPreflight(items: BatchControlItem[]) {
+    const usable: Array<BatchControlItem & { index: number }> = []
+    const preflight: Array<{ index: number; entityId: string; error: string }> = []
+    items.forEach((item, index) => {
+      const blocked = preflightBlockReason(item)
+      if (blocked) {
+        preflight.push({ index, entityId: item.entityId, error: blocked })
+        return
+      }
+      usable.push({ ...item, index })
+    })
+    return { usable, preflight }
+  }
+
+  /** 该条目在客户端就被拦截的原因；可下发返回 ``null``。 */
+  function preflightBlockReason(item: BatchControlItem): string | null {
+    if (blockDangerousHaServiceWhenOffline(deps.isHaConnected(), item.domain, item.service, item.entityId)) {
+      return HA_OFFLINE_DANGEROUS_CONTROL_MSG
+    }
+    return deps.isEntityAllowed(item.entityId) ? null : '当前账户无权操作该设备'
+  }
+
+  /** 批量控制条目的入参（与单条 callService 的参数一一对应）。 */
+  interface BatchControlItem {
+    domain: string
+    service: string
+    entityId: string
+    serviceData?: Record<string, unknown> | null
+  }
+
+  interface BatchControlSummary {
+    total: number
+    ok: number
+    failed: number
+    results: Array<{ index: number; entityId?: string; ok: boolean; error?: string }>
+  }
+
+  /**
+   * 批量下发（POST /services/batch）。
+   *
+   * 与「逐个 callService + Promise.allSettled」的区别：
+   * - 服务端限并发（默认 4），不会一次打出门店数量的并发请求；
+   * - 逐项结果可枚举，部分失败不会让界面只看到一个笼统的「失败」；
+   * - 每个实体只发一条命令，避免连点在同一实体上堆叠。
+   *
+   * 乐观更新与回滚按条目独立处理：批量关灯时本来就有大量「已经是关」的设备，
+   * 它们不会建立乐观态，也不会因为「没收到确认」被回滚。
+   *
+   * @param items 条目列表
+   * @param options.quiet 是否静默（不弹汇总 toast）
+   * @param options.concurrency 服务端并发上限（1–16）
+   * @param options.cancelOnError 第一条失败后是否停止后续下发
+   * @returns 汇总（total / ok / failed / results）
+   */
+  async function callServiceBatch(
+    items: BatchControlItem[],
+    options: { quiet?: boolean; concurrency?: number; cancelOnError?: boolean } = {},
+  ): Promise<BatchControlSummary> {
+    const { quiet = false } = options
+    const { usable, preflight } = splitBatchByPreflight(items)
+
+    if (!usable.length) {
+      if (!quiet && preflight.length) useChromeStore().notify('批量操作全部被拦截', 'warning')
+      return {
+        total: items.length,
+        ok: 0,
+        failed: preflight.length,
+        results: preflight.map((item) => ({ ...item, ok: false })),
+      }
+    }
+
+    const optimistic = applyBatchOptimistic(usable)
+
+    try {
+      const res = await deps.apiClient.post('/services/batch', {
+        items: usable.map((item) => ({
+          domain: item.domain,
+          service: item.service,
+          entity_id: item.entityId,
+          data: item.serviceData || {},
+        })),
+        concurrency: options.concurrency,
+        cancelOnError: options.cancelOnError,
+      })
+      const payload = res.data as { results?: BatchControlSummary['results'] } | null
+      const results = mapBatchResults(payload?.results, usable)
+      settleBatchOptimistic(results, usable, optimistic)
+      return summarizeBatch(items.length, results, preflight, quiet)
+    } catch (e: unknown) {
+      rollbackBatchOptimistic(usable, optimistic)
+      if (!quiet) useChromeStore().notify('批量操作失败，已全部恢复', 'error')
+      deps.logger.error('批量服务调用失败', e)
+      throw e
+    } finally {
+      for (const item of usable) removePendingEntity(item.entityId)
+    }
+  }
+
+  /** 批量成功路径的汇总与提示（失败项数 = 服务端失败 + 客户端预检拦截）。 */
+  function summarizeBatch(
+    total: number,
+    results: BatchControlSummary['results'],
+    preflight: Array<{ index: number; entityId: string; error: string }>,
+    quiet: boolean,
+  ): BatchControlSummary {
+    const failed = results.filter((row) => !row.ok).length + preflight.length
+    const merged = [...results, ...preflight.map((item) => ({ ...item, ok: false }))].sort((a, b) => a.index - b.index)
+    if (!quiet && failed > 0) {
+      useChromeStore().notify(`批量操作完成：${total - failed} 成功 / ${failed} 失败`, 'warning')
+    }
+    return { total, ok: total - failed, failed, results: merged }
+  }
+
+  /** 整批失败时回滚所有「建立过乐观态」的条目。 */
+  function rollbackBatchOptimistic(
+    usable: Array<BatchControlItem & { index: number }>,
+    optimistic: Map<number, boolean>,
+  ): void {
+    for (const item of usable) {
+      if (optimistic.get(item.index) === true) deps.rollbackOptimistic(item.entityId)
+    }
+  }
+
+  /** 逐条建立乐观态（与单条 callService 同一套预测），返回「建立过乐观态」的下标集合。 */
+  function applyBatchOptimistic(usable: Array<BatchControlItem & { index: number }>) {
+    const optimistic = new Map<number, boolean>()
+    for (const item of usable) {
+      const predicted = predictOptimistic(
+        item.domain,
+        item.service,
+        item.entityId,
+        item.serviceData,
+        deps.entities[item.entityId],
+      )
+      if (predicted && !optimisticExpectationSatisfied(predicted, deps.entities[item.entityId])) {
+        deps.applyOptimistic(item.entityId, predicted)
+        optimistic.set(item.index, true)
+      }
+      addPendingEntity(item.entityId)
+    }
+    return optimistic
+  }
+
+  /**
+   * 服务端结果 → 调用方下标。
+   *
+   * 服务端返回的 ``index`` 是**本批提交**里的下标（预检拦截的条目不在其中），
+   * 必须映射回调用方的原始下标，否则前端的失败项会指错设备。
+   */
+  function mapBatchResults(
+    rows: BatchControlSummary['results'] | undefined,
+    usable: Array<BatchControlItem & { index: number }>,
+  ): BatchControlSummary['results'] {
+    return (rows || []).map((row) => ({
+      ...row,
+      index: usable[row.index]?.index ?? row.index,
+      entityId: row.entityId ?? usable[row.index]?.entityId,
+    }))
+  }
+
+  /** 按逐项结果结算乐观态：失败回滚、成功续期确认窗口。 */
+  function settleBatchOptimistic(
+    results: BatchControlSummary['results'],
+    usable: Array<BatchControlItem & { index: number }>,
+    optimistic: Map<number, boolean>,
+  ): void {
+    const byIndex = new Map(results.map((row) => [row.index, row]))
+    for (const item of usable) {
+      const row = byIndex.get(item.index)
+      const didOptimistic = optimistic.get(item.index) === true
+      if (!row || row.ok === false) {
+        if (didOptimistic) deps.rollbackOptimistic(item.entityId)
+        continue
+      }
+      if (didOptimistic) deps.touchOptimistic?.(item.entityId)
+    }
   }
 
   /**
@@ -381,6 +556,7 @@ export function createEntityActions(deps: EntityActionsDeps) {
 
   return {
     callService,
+    callServiceBatch,
     fetchForecasts,
     isEntityCallPending,
     pendingEntityIds,

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import ssl
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
@@ -22,6 +22,13 @@ import httpx
 CONTROL_MAX_CONNECTIONS = 16
 CONTROL_KEEPALIVE_CONNECTIONS = 8
 CONTROL_KEEPALIVE_EXPIRY_SECONDS = 30
+
+#: 慢服务（远程学习 / AI 生成 / 固件安装）专用的并发配额。
+#:
+#: 与普通控制**分开计数**是这一层存在的理由：一个「学习整套遥控器」的请求可以合法地
+#: 占用连接几分钟，如果和点灯共用 16 个槽位，几次学习就能让全屋控制排队到超时。
+#: 慢服务之间再互相无限制也不好，所以给一个较小的固定配额。
+SLOW_SERVICE_MAX_CONCURRENCY = 3
 
 
 @dataclass(frozen=True)
@@ -54,11 +61,12 @@ class HAControlPool:
         *,
         max_connections: int = CONTROL_MAX_CONNECTIONS,
         keepalive_expiry: float = CONTROL_KEEPALIVE_EXPIRY_SECONDS,
+        slow_max_concurrency: int = SLOW_SERVICE_MAX_CONCURRENCY,
     ) -> None:
         self._resolve_configuration = configuration
         self._configuration = None
         self._configuration_loaded = False
-        self._client = None
+        self._client: httpx.AsyncClient | None = None
         self._max_connections = max(1, max_connections)
         self._keepalive_expiry = keepalive_expiry
         self._active = 0
@@ -68,6 +76,8 @@ class HAControlPool:
         self._close_lock = asyncio.Lock()
         self._loop = None
         self.closed = False
+        #: 慢服务专用配额（与普通控制分开计数，见 ``SLOW_SERVICE_MAX_CONCURRENCY``）。
+        self._slow_slots = asyncio.Semaphore(max(1, slow_max_concurrency))
 
     def _check_configuration(self, configuration: HAControlConfiguration) -> bool:
         """校验这次租约要用的配置，返回是否需要重建底层连接。
@@ -81,10 +91,10 @@ class HAControlPool:
           控制请求永久拒掉。
         """
         if self.closed:
-            raise httpx.RequestError('Home Assistant 连接已停止或已切换，请重新操作。')
+            raise httpx.RequestError("Home Assistant 连接已停止或已切换，请重新操作。")
         loop = asyncio.get_running_loop()
         if self._loop is not None and self._loop is not loop:
-            raise httpx.RequestError('Home Assistant 控制连接不属于当前运行环境。')
+            raise httpx.RequestError("Home Assistant 控制连接不属于当前运行环境。")
         self._loop = loop
         if not self._configuration_loaded:
             self._configuration = self._resolve_configuration()
@@ -94,10 +104,10 @@ class HAControlPool:
         current = self._resolve_configuration()
         if configuration != current:
             # 调用方拿的是已经作废的配置：拒绝，让它重新解析当前活跃连接。
-            raise httpx.RequestError('Home Assistant 连接配置已变化，请重新操作。')
+            raise httpx.RequestError("Home Assistant 连接配置已变化，请重新操作。")
         if self._active > 0:
             # 还有在途请求在用旧传输，此时换掉会掐断它们；让这次租约重试。
-            raise httpx.RequestError('Home Assistant 连接正在切换，请重新操作。')
+            raise httpx.RequestError("Home Assistant 连接正在切换，请重新操作。")
         self._configuration = current
         return True
 
@@ -113,8 +123,29 @@ class HAControlPool:
             pass
 
     @asynccontextmanager
-    async def lease(self, configuration: HAControlConfiguration):
-        """借出一条控制连接；并发超上限时排队等待，超时抛 ``httpx.PoolTimeout``。"""
+    async def lease(
+        self,
+        configuration: HAControlConfiguration,
+        *,
+        slow: bool = False,
+    ) -> AsyncGenerator[httpx.AsyncClient]:
+        """借出一条控制连接；并发超上限时排队等待，超时抛 ``httpx.PoolTimeout``。
+
+        ``slow=True`` 时额外占用慢服务配额（见 :data:`SLOW_SERVICE_MAX_CONCURRENCY`）：
+        慢服务既不能占满普通控制的槽位，也不能彼此无限制地并发。``slow`` 只是一个
+        额外的准入层，传输仍然是同一条长连接（重建/切换逻辑不分叉）。
+        """
+        if slow:
+            await self._slow_slots.acquire()
+        try:
+            async with self._lease(configuration) as client:
+                yield client
+        finally:
+            if slow:
+                self._slow_slots.release()
+
+    @asynccontextmanager
+    async def _lease(self, configuration: HAControlConfiguration) -> AsyncGenerator[httpx.AsyncClient]:
         rebuild = False
         try:
             async with asyncio.timeout(configuration.timeout):
@@ -129,29 +160,29 @@ class HAControlPool:
                     self._capacity_changed.clear()
                     await self._capacity_changed.wait()
         except TimeoutError as error:
-            raise httpx.PoolTimeout('Home Assistant 控制请求等待连接超时。') from error
+            raise httpx.PoolTimeout("Home Assistant 控制请求等待连接超时。") from error
 
         try:
             if rebuild:
                 await self._discard_client()
-            if self._client is None:
-                self._client = httpx.AsyncClient(
+            client = self._client
+            if client is None:
+                client = httpx.AsyncClient(
                     verify=configuration.verify_tls,
                     timeout=configuration.timeout,
                     headers={
-                        'Authorization': f'Bearer {configuration.access_token}',
-                        'Content-Type': 'application/json',
+                        "Authorization": f"Bearer {configuration.access_token}",
+                        "Content-Type": "application/json",
                     },
                     trust_env=configuration.trust_env,
                     limits=httpx.Limits(
                         max_connections=self._max_connections,
-                        max_keepalive_connections=min(
-                            self._max_connections, CONTROL_KEEPALIVE_CONNECTIONS
-                        ),
+                        max_keepalive_connections=min(self._max_connections, CONTROL_KEEPALIVE_CONNECTIONS),
                         keepalive_expiry=self._keepalive_expiry,
                     ),
                 )
-            yield self._client
+                self._client = client
+            yield client
         finally:
             self._active -= 1
             self._capacity_changed.set()

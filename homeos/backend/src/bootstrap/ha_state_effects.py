@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 
 from fastapi import FastAPI
 
 from ..domains.logs.energy_backfill import EnergyBackfillService
+from ..platform.core.runtime.observability import record_ha_counter
 from ..realtime.ws_payloads import REPLAY_ONLY_MAX_CHANGES
 
 logger = logging.getLogger("homeos.app")
@@ -43,9 +45,7 @@ def _schedule_energy_backfill(app: FastAPI, entities: list[dict[str, Any]]) -> N
     try:
         service = getattr(app.state, "energy_backfill", None)
         if service is None:
-            service = EnergyBackfillService(
-                event_log=app.state.event_log, ha=app.state.ha_connector
-            )
+            service = EnergyBackfillService(event_log=app.state.event_log, ha=app.state.ha_connector)
             service.bind_loop(asyncio.get_running_loop())
             app.state.energy_backfill = service
         service.on_full_snapshot(entities)
@@ -53,22 +53,35 @@ def _schedule_energy_backfill(app: FastAPI, entities: list[dict[str, Any]]) -> N
         logger.debug("能耗回填调度失败", exc_info=True)
 
 
-
-def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
-    """把单条 HA 状态变更落到 L1（同步热路径）。
+def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> bool:
+    """把单条 HA 状态变更落到 L1（同步热路径）；返回是否真的写入。
 
     旧状态缺失时从本地 L1 补全，保证副作用消费者拿到完整变更。
+
+    写入走 ``apply_state_changed_hot``（带 ``last_updated`` 单调守卫）：实时事件完全可能
+    「晚到但更旧」（合并窗口、重连回放、HA 侧重发），无条件覆盖会让 L1 永久停在旧值上，
+    而且**没有任何后续机制**能纠正 —— HA 只在真变化时才推送。
+    被拒时返回 ``False``，调用方据此跳过副作用与广播（旧帧不该再次触发自动化）。
     """
     entity_id = change.get("entity_id")
     if not entity_id:
-        return
+        return False
     if change.get("old_state") is None:
         previous = store.get(str(entity_id))
         if previous is not None:
             # 就地补全：下游（安防边沿判定、通知规则、家庭模式触发）都在同一个 dict 上做
             # 「旧态 → 新态」比较，只改局部变量会让它们全部看到 old_state=None。
             change["old_state"] = previous
-    store.apply_change(str(entity_id), change.get("new_state"), change.get("changed_at"))
+    accepted = store.apply_state_changed_hot(
+        {
+            "entity_id": str(entity_id),
+            "new_state": change.get("new_state"),
+            "changed_at": change.get("changed_at"),
+        }
+    )
+    if not accepted:
+        record_ha_counter("state_stale_rejected")
+    return bool(accepted)
 
 
 def _apply_entity_removal(app: FastAPI, store: Any, change: dict[str, Any]) -> dict[str, Any] | None:
@@ -179,7 +192,9 @@ async def _run_state_change_effects(
         return None
     if change.get("removed"):
         return _apply_entity_removal(app, store, change)
-    _apply_state_change(app, gateway, store, change)
+    if not _apply_state_change(app, gateway, store, change):
+        # 更旧的帧：不写 L1、不跑副作用、不广播。放过去等于「用旧值再触发一次自动化」。
+        return None
     await _run_side_effects(app, entity_id, change)
     if broadcast:
         sync_filter = getattr(app.state, "entity_sync_filter", None)
@@ -187,6 +202,135 @@ async def _run_state_change_effects(
             await gateway.broadcast_state_changed_batch([change])
     return change
 
+
+def _broadcast_first_enabled() -> bool:
+    """状态批次是否「先广播、后跑副作用」（PF2）。``0`` 恢复旧顺序，仅用于回滚。"""
+    raw = os.getenv("HOMEOS_STATE_BROADCAST_FIRST")
+    return raw is None or raw.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _stage_batch_changes(
+    app: FastAPI,
+    store: Any,
+    changes: list[Any],
+    *,
+    already_applied: bool,
+    sync_filter: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """逐条落 L1 并分流成「要广播的」与「要跑副作用的」两批。
+
+    两者不是同一集合：隐藏实体要走副作用但不推给客户端；删除事件要走广播（让客户端
+    清掉幽灵实体）但不跑「旧态 → 新态」副作用。
+    """
+    applied: list[dict[str, Any]] = []
+    deferred: list[dict[str, Any]] = []
+    for change in changes:
+        if not isinstance(change, dict) or not change.get("entity_id"):
+            continue
+        if already_applied:
+            result: dict[str, Any] | None = change
+        elif change.get("removed"):
+            result = _apply_entity_removal(app, store, change)
+        else:
+            # 只写 L1，副作用延后（见 apply_state_changed_batch 的顺序说明）。
+            result = change if _apply_state_change(app, None, store, change) else None
+        if result is None:
+            continue
+        if not change.get("removed"):
+            deferred.append(change)
+        if sync_filter is not None and not sync_filter.is_entity_syncable(str(change.get("entity_id"))):
+            # 隐藏实体照样走安防/自动化副作用，只是不推给客户端。
+            continue
+        applied.append(result)
+    return applied, deferred
+
+
+async def apply_state_changed_batch(app: FastAPI, gateway: Any, store: Any, payload: Any) -> None:
+    """``ha.state_changed.batch`` 的编排：先落 L1 + 广播，再跑副作用（PF2）。
+
+    **顺序是刻意的**：以前是「逐条跑完副作用再广播」，于是任何一个慢消费者（家庭模式激活
+    要发几十条 HA 请求、安防联动要读设备、通知规则要求值）都会把整批状态帧推迟到它之后，
+    表现为「点灯后界面慢半拍」。现在先广播（客户端看到的是 HA 的权威状态），再串行跑副作用
+    —— 副作用产生的后续变化会以新的批次回来，语义不变。
+
+    回滚开关：``HOMEOS_STATE_BROADCAST_FIRST=0`` 恢复「副作用先行」的旧顺序。
+
+    两种来源必须分开处理：
+
+    - ``applied=True``：这批差异来自全量对账，L1 已由 ``store.set_all`` 写完。
+      再走一次写入不会改值，却会往环形缓冲塞重复记录，把真正需要回放的增量挤出去。
+    - ``baseline=False``：冷启动的首次填充。它不是「断连窗口里漏掉的变化」，只用来给
+      客户端建立基线，**不跑**任何「旧态 → 新态」副作用（否则重启就等于全屋刚变化）。
+    """
+    changes = payload.get("changes") if isinstance(payload, dict) else None
+    if not isinstance(changes, list):
+        return
+    sync_filter = getattr(app.state, "entity_sync_filter", None)
+    already_applied = isinstance(payload, dict) and payload.get("applied") is True
+    cold_start_fill = already_applied and isinstance(payload, dict) and payload.get("baseline") is False
+    broadcast_first = _broadcast_first_enabled()
+
+    applied, deferred = _stage_batch_changes(
+        app,
+        store,
+        changes,
+        already_applied=already_applied,
+        sync_filter=sync_filter,
+    )
+    if broadcast_first:
+        if applied:
+            await gateway.broadcast_state_changed_batch(applied)
+        if not cold_start_fill:
+            for change in deferred:
+                if already_applied:
+                    await _run_reconciled_change_effects(app, change)
+                else:
+                    await _run_side_effects(app, change.get("entity_id"), change)
+        return
+
+    # 旧顺序（回滚用）：副作用先行，最后一次性广播。见 ``_apply_batch_effects_first``。
+    await _apply_batch_effects_first(
+        app,
+        gateway,
+        store,
+        changes,
+        already_applied=already_applied,
+        cold_start_fill=cold_start_fill,
+        sync_filter=sync_filter,
+    )
+
+
+async def _apply_batch_effects_first(
+    app: FastAPI,
+    gateway: Any,
+    store: Any,
+    changes: list[Any],
+    *,
+    already_applied: bool,
+    cold_start_fill: bool,
+    sync_filter: Any,
+) -> None:
+    """旧顺序（``HOMEOS_STATE_BROADCAST_FIRST=0``）：副作用先行、最后广播。
+
+    只作为回滚开关存在。新顺序（默认）先广播再跑副作用，见 :func:`apply_state_changed_batch`。
+    """
+    applied: list[dict[str, Any]] = []
+    for change in changes:
+        if not isinstance(change, dict) or not change.get("entity_id"):
+            continue
+        if already_applied:
+            if not cold_start_fill:
+                await _run_reconciled_change_effects(app, change)
+            result: dict[str, Any] | None = change
+        else:
+            result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
+        if result is None:
+            continue
+        if sync_filter is not None and not sync_filter.is_entity_syncable(str(change.get("entity_id"))):
+            continue
+        applied.append(result)
+    if applied:
+        await gateway.broadcast_state_changed_batch(applied)
 
 
 async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: Any, sync_filter: Any) -> None:
@@ -228,7 +372,13 @@ async def _apply_initial_snapshot(app: FastAPI, store: Any, payload: Any, bus: A
         changes = [change for change in diff if sync_filter.is_entity_syncable(str(change["entity_id"]))]
     if changes and len(changes) <= RESYNC_BROADCAST_MAX_CHANGES:
         # ``applied=True``：L1 已由 set_all 写完，下游只补副作用与广播。
-        await bus.emit("ha.state_changed.batch", {"changes": changes, "applied": True, "reason": "resync"})
+        # ``baseline``：这份差异是否建立在**已有基线**之上。冷启动时 set_all 把「全量
+        # 填充」算成了「全量差异」，那些条目没有旧态，不是边沿，不能喂给家庭模式 /
+        # 告警规则这类「旧态 → 新态」消费者（否则重启就等于「每把锁刚被打开」）。
+        await bus.emit(
+            "ha.state_changed.batch",
+            {"changes": changes, "applied": True, "reason": "resync", "baseline": had_baseline},
+        )
     elif changes and had_baseline:
         # 只有「已有基线」的差异才是对账差异：冷启动的 diff 是首次填充，整表重拉没有意义。
         logger.warning(

@@ -6,7 +6,6 @@ import asyncio
 import contextlib
 import json
 import logging
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -20,12 +19,26 @@ from .actions import (
     activate_home_mode,
     deactivate_home_mode,
 )
+from .activation import normalize_execution_mode, run_with_execution_mode
 from .linkage import HomeModeLinkageArbiter
 from .notify_dispatch import apply_security_mode_or_fail, dispatch_home_mode_notify
+from .persistence import (
+    apply_mode_fields,
+    build_mode_row,
+    coerce_int_field,
+    mode_to_dict,
+    normalize_mode_fields,
+)
+from .policy import (
+    HOME_MODE_DEFAULT_CONFIG,
+    SECURITY_DEFAULT_CONFIG,
+    call_service_via_proxy,
+    compute_baseline_settling,
+    seconds_until_next_minute,
+)
 from .runtime import (
     HomeModeRuntimeLogStore,
     clamp_int,
-    normalize_home_mode_json_array,
 )
 from .triggers import (
     HomeModeTriggersState,
@@ -37,119 +50,13 @@ from .triggers import (
     parse_home_mode_trigger_bindings,
     prune_home_mode_trigger_cooldown,
 )
+from .validation import ModeActionRejected, validate_mode_actions  # noqa: F401  (re-export)
 from ...platform.core.db.db_exec import run_db
 from ...platform.core.db.models import HomeMode
 from ...platform.core.http.errors import api_error, bad_request, not_found
 from ...platform.core.runtime.app_config import load_raw_config
 
 logger = logging.getLogger("homeos.home_mode")
-
-def seconds_until_next_minute(now: datetime | None = None) -> float:
-    """到下一个整分钟的秒数（至少 0.5s，避免恰好卡在边界上与上一轮同分钟）。
-
-    时间触发器按「分钟边界」唤醒而不是固定 30s 轮询：``at=HH:MM`` 语义与分钟对齐，
-    落在边界上才能保证 60s 内必然求值一次，且不会一小时多跑 60 次。
-    """
-    current = now or datetime.now()
-    remaining = 60.0 - current.second - current.microsecond / 1_000_000
-    return max(0.5, remaining)
-
-
-HOME_MODE_DEFAULT_CONFIG: dict[str, Any] = {
-    "triggerCooldownMs": 60_000,
-    "applyMaxRetries": 2,
-    "maxTriggerLogs": 50,
-    "maxExecHistory": 100,
-    "showAwayButton": True,
-    "showHomeMode": True,
-    "manualLockTtlMin": 30,
-    "linkageClaimTtlMin": 15,
-}
-
-SECURITY_DEFAULT_CONFIG: dict[str, Any] = {
-    "autoArmOnEveryoneLeft": False,
-    "autoUpgradeToAwayOnEveryoneLeft": False,
-    "autoDisarmOnFirstHome": False,
-}
-
-
-def _iso(value) -> str | None:
-    if value is None:
-        return None
-    return value.strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond // 1000:03d}Z"
-
-
-def _parse_json(raw: Any, fallback: Any) -> Any:
-    if raw is None or raw == "":
-        return fallback
-    if isinstance(raw, (list, dict)):
-        return raw
-    try:
-        return json.loads(raw)
-    except (TypeError, ValueError):
-        return fallback
-
-
-def _parse_json_loud(raw: Any, fallback: Any, *, field: str, mode_id: str) -> Any:
-    """与 :func:`_parse_json` 同口径，但解析失败会**留下日志**，不再静默返回兜底值。
-
-    `config` 解析失败 = 这个模式的动作全丢了（激活后什么都不会发生）；`triggers` 解析失败 =
-    自动化静默失效。若悄悄变成 `[]`/`None`，界面上完全看不出异常，用户只会觉得「这个模式
-    坏了」却拿不到任何线索。
-
-    这里刻意**不抛异常**：列表接口会被一行脏数据整体打挂（连删掉它的机会都没有），
-    所以改成点名 id 与字段的错误日志 —— 真要在写前拦，走 `normalize_home_mode_json_array`。
-    """
-    if raw is None or raw == "":
-        return fallback
-    if isinstance(raw, (list, dict)):
-        return raw
-    try:
-        return json.loads(raw)
-    except (TypeError, ValueError) as error:
-        logger.error(
-            "家庭模式 %s 的 %s 字段不是合法 JSON（%s），已按空值处理：请修复或重建该模式",
-            mode_id,
-            field,
-            error,
-        )
-        return fallback
-
-
-def _coerce_int_field(fields: dict[str, Any], key: str, default: int) -> int:
-    """把请求体里的可选整数字段解析成 int；非法值给 **400** 而不是让 `int()` 炸成 500。
-
-    不能用裸 `int(fields.get("sortOrder") or 0)`：客户端传 `"abc"`（或对象、小数串）时
-    会在服务里抛 ValueError，被全局处理器当未知异常 —— 一个「参数不对」的错误看起来像
-    服务端崩了。
-    """
-    raw = fields.get(key)
-    if raw is None or raw == "":
-        return default
-    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
-        bad_request(f"{key} 须为整数")
-    try:
-        return int(str(raw).strip()) if isinstance(raw, str) else int(raw)
-    except (TypeError, ValueError):
-        bad_request(f"{key} 须为整数")
-    return default
-
-
-def mode_to_dict(mode: HomeMode) -> dict[str, Any]:
-    return {
-        "id": mode.id,
-        "name": mode.name,
-        "icon": mode.icon,
-        "config": _parse_json_loud(mode.config, [], field="config", mode_id=str(mode.id)),
-        "triggers": _parse_json_loud(mode.triggers, None, field="triggers", mode_id=str(mode.id)),
-        "isActive": bool(mode.is_active),
-        "deviceSnapshot": _parse_json(mode.device_snapshot, None),
-        "sortOrder": mode.sort_order,
-        "exclusiveGroup": mode.exclusive_group,
-        "priority": mode.priority,
-        "createdAt": _iso(mode.created_at),
-        "updatedAt": _iso(mode.updated_at),
-    }
 
 
 class HomeModeService:
@@ -173,6 +80,7 @@ class HomeModeService:
         emit_event=None,
         is_leader=None,
         jobs=None,
+        command_proxy=None,
     ) -> None:
         self._session_factory = session_factory
         self._ha_connector = ha_connector
@@ -184,11 +92,15 @@ class HomeModeService:
         self._emit_event = emit_event
         self._is_leader = is_leader or (lambda: True)
         self._jobs = jobs
+        #: 命令通道；缺省时退回直连连接器（单测 / 早期启动）。
+        self._command_proxy = command_proxy
 
         self.linkage_arbiter = HomeModeLinkageArbiter()
         self._active_mode_id: str | None = None
         self._timer: asyncio.Task | None = None
         self._transition_lock = asyncio.Lock()
+        #: 「当前正在执行的激活任务」槽（单元素列表，供 restart 模式取消旧的）。
+        self._activation_slot: list[asyncio.Task | None] = [None]
         self._runtime_logs = HomeModeRuntimeLogStore(session_factory, self._runtime_limits)
         self._trigger_state = HomeModeTriggersState()
         self._home_mode_cfg: dict[str, Any] = dict(HOME_MODE_DEFAULT_CONFIG)
@@ -383,27 +295,13 @@ class HomeModeService:
         return {**primary, "activeMode": primary, "activeModes": active_modes}
 
     async def create(self, data: dict[str, Any]) -> dict[str, Any]:
-        fields = dict(data)
-        if "config" in fields:
-            fields["config"] = normalize_home_mode_json_array(fields["config"], "config", True)
-        if "triggers" in fields:
-            fields["triggers"] = normalize_home_mode_json_array(fields["triggers"], "triggers", False)
+        fields = normalize_mode_fields(data)
         mode_snapshot = await run_db(self._insert_mode_row, fields)
         await self.reload_trigger_bindings()
         return mode_snapshot
 
     def _insert_mode_row(self, fields: dict[str, Any]) -> dict[str, Any]:
-        mode = HomeMode(
-            name=str(fields.get("name") or ""),
-            icon=fields.get("icon") or "home",
-            config=json.dumps(fields.get("config") or [], ensure_ascii=False),
-            triggers=(
-                json.dumps(fields["triggers"], ensure_ascii=False) if fields.get("triggers") is not None else None
-            ),
-            sort_order=_coerce_int_field(fields, "sortOrder", 0),
-            exclusive_group=fields.get("exclusiveGroup") or "default",
-            priority=_coerce_int_field(fields, "priority", 50),
-        )
+        mode = HomeMode(**build_mode_row(fields))
         with self._session_factory() as session:
             session.add(mode)
             session.commit()
@@ -421,31 +319,12 @@ class HomeModeService:
         实体解绑跑在线程池里，无法 ``await``；调用方负责随后的
         :meth:`reload_trigger_bindings`（那一步要用事件循环）。
         """
-        fields = dict(data)
-        if "config" in fields:
-            fields["config"] = normalize_home_mode_json_array(fields["config"], "config", True)
-        if "triggers" in fields:
-            fields["triggers"] = normalize_home_mode_json_array(fields["triggers"], "triggers", False)
+        fields = normalize_mode_fields(data)
         with self._session_factory() as session:
             mode = session.get(HomeMode, mode_id)
             if mode is None:
                 not_found(api_error("HOME_MODE_NOT_FOUND"))
-            if "name" in fields:
-                mode.name = str(fields["name"])
-            if "icon" in fields:
-                mode.icon = fields["icon"]
-            if "config" in fields:
-                mode.config = json.dumps(fields["config"] or [], ensure_ascii=False)
-            if "triggers" in fields:
-                mode.triggers = (
-                    json.dumps(fields["triggers"], ensure_ascii=False) if fields["triggers"] is not None else None
-                )
-            if "sortOrder" in fields:
-                mode.sort_order = _coerce_int_field(fields, "sortOrder", 0)
-            if "exclusiveGroup" in fields:
-                mode.exclusive_group = fields["exclusiveGroup"] or "default"
-            if "priority" in fields:
-                mode.priority = _coerce_int_field(fields, "priority", 50)
+            apply_mode_fields(mode, fields)
             session.commit()
             session.refresh(mode)
             return mode_to_dict(mode)
@@ -492,7 +371,7 @@ class HomeModeService:
 
     async def reorder(self, order_entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         order_by_id = {
-            str(entry.get("id")): _coerce_int_field(entry, "sortOrder", 0)
+            str(entry.get("id")): coerce_int_field(entry.get("sortOrder"), "sortOrder", 0)
             for entry in order_entries
             if isinstance(entry, dict) and entry.get("id")
         }
@@ -587,8 +466,33 @@ class HomeModeService:
 
     # 激活 / 停用
     async def activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> HomeModeActivateResult:
-        async with self._transition_lock:
-            return await activate_home_mode(self._activate_state, self._deps, mode_id, meta)
+        """按模式的 ``executionMode`` 编排这次激活（queued / single / restart）。
+
+        编排策略住在 ``activation.run_with_execution_mode``：这里只负责取模式配置、
+        提供锁与「当前任务槽」。
+        """
+        execution_mode = await self._execution_mode_of(mode_id)
+        result = await run_with_execution_mode(
+            mode_id,
+            execution_mode=execution_mode,
+            lock=self._transition_lock,
+            current_task_holder=self._activation_slot,
+            run=lambda: activate_home_mode(self._activate_state, self._deps, mode_id, meta),
+        )
+        return result
+
+    async def _execution_mode_of(self, mode_id: str) -> str:
+        """读取该模式的执行模式；读不到时按 ``queued``（旧行为）处理。"""
+        try:
+            mode = await self.find_one_async(mode_id)
+        except Exception:  # 诊断读取失败不能阻断激活
+            logger.debug("读取模式执行模式失败，按 queued 处理: %s", mode_id, exc_info=True)
+            mode = None
+        return normalize_execution_mode((mode or {}).get("executionMode"))
+
+    async def find_one_async(self, mode_id: str) -> dict[str, Any] | None:
+        """异步取单个模式（把同步 DB 读放进线程池）。"""
+        return await run_db(self.find_one, mode_id)
 
     async def deactivate(self, mode_id: str | None = None) -> HomeModeDeactivateResult:
         async with self._transition_lock:
@@ -609,6 +513,12 @@ class HomeModeService:
     def get_execution_history(self, limit: int = 30) -> list[dict[str, Any]]:
         return self._runtime_logs.get_execution_history(limit)
 
+    def get_execution_by_run_id(self, run_id: str) -> dict[str, Any] | None:
+        """按 runId 取单次激活（含逐动作 trace）；找不到返回 ``None``。"""
+        if not run_id:
+            return None
+        return self._runtime_logs.find_execution_by_run_id(run_id)
+
     def get_mode_context(self) -> dict[str, Any]:
         last = self._runtime_logs.find_execution_by_mode_id(self._active_mode_id) if self._active_mode_id else None
         return {
@@ -618,7 +528,22 @@ class HomeModeService:
             "triggerLogs": self.get_trigger_logs(8),
             "recentExecutions": self.get_execution_history(5),
             "lastActivation": last or self._runtime_logs.get_latest_execution(),
+            # 存量数据里可能还有写时校验上线之前存的非白名单动作：运行时会被拒下发，
+            # 但用户看不到「为什么这个模式不生效」。这里给出计数供界面提示，
+            # **不自动改用户数据**（改配置必须由人来确认）。
+            "invalidActions": self.count_invalid_actions(),
         }
+
+    def count_invalid_actions(self) -> int:
+        """统计已加载模式里不合法的动作条数（只读诊断，供 ``/modes/context``）。"""
+        from .validation import is_action_permitted
+
+        total = 0
+        for mode in self._trigger_state.cached_modes:
+            for action in mode.get("config") or []:
+                if isinstance(action, dict) and not is_action_permitted(action):
+                    total += 1
+        return total
 
     async def handle_state_trigger(self, event: dict[str, Any]) -> None:
         await handle_home_mode_state_trigger(self._trigger_state, self._deps, event)
@@ -716,7 +641,7 @@ class HomeModeService:
         return await dispatch_home_mode_notify(self._notification, level, message, source)
 
     async def _call_service(self, domain: str, service: str, entity_id: str, data: dict[str, Any]) -> Any:
-        return await self._ha_connector.call_service(domain, service, entity_id, data)
+        return await call_service_via_proxy(self._command_proxy, self._ha_connector, domain, service, entity_id, data)
 
     async def _fetch_entity_state(self, entity_id: str) -> dict[str, Any] | None:
         entity = self._state_store.get(entity_id)
@@ -747,6 +672,15 @@ class HomeModeService:
             # 但要留痕：抑制逻辑整体失效时不能毫无线索。
             logger.debug("离家模拟实体匹配失败: %s", entity_id, exc_info=True)
             return False
+
+    def is_baseline_settling(self) -> bool:
+        """HA 刚连上/刚启动的静置期内返回真（触发器应整体跳过）。
+
+        窗口长度取 ``HOMEOS_HOME_MODE_TRIGGER_SETTLE_MS``（默认 30s，设 0 关闭）。
+        语义与安防的「重连基线预热」一致：这段时间内收到的状态是快照补齐或首轮上报，
+        不能当成「旧态 → 新态」的边沿。状态存储没接（单测）时按「不在静置期」处理。
+        """
+        return compute_baseline_settling(self._state_store)
 
     async def _emit_home_mode_event(self, name: str, payload: dict[str, Any]) -> None:
         if self._emit_event is None:
@@ -843,6 +777,10 @@ class _HomeModeDeps:
 
     def is_away_simulated_entity(self, entity_id: str) -> bool:
         return self._service.is_away_simulated_entity(entity_id)
+
+    def is_baseline_settling(self) -> bool:
+        """HA 连接静置期内返回真；触发链据此整体跳过（见 HomeModeService 同名方法）。"""
+        return self._service.is_baseline_settling()
 
     async def emit_home_mode_event(self, name: str, payload: dict[str, Any]) -> None:
         await self._service._emit_home_mode_event(name, payload)

@@ -28,6 +28,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+from .model_mixins import AlertRuleTimingMixin, HomeModeExtraMixin
 
 
 def utc_now() -> datetime:
@@ -49,8 +50,7 @@ class User(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    #: 注册邮箱（唯一）；注册流程要求必填，备份导入的无凭据账号可缺省。
-    #: 唯一性由上面的 users_email_idx 承担，这里不能再写 unique=True（会变成匿名约束）。
+    #: 注册邮箱（唯一）；注册流程必填，备份导入的无凭据账号可缺省。勿写 unique=True。
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     #: 邮箱验证码校验通过的时间；未验证为 NULL。
     email_verified_at: Mapped[datetime | None] = mapped_column(
@@ -177,7 +177,7 @@ class EarthquakeAlertHistory(Base):
     saved_at: Mapped[datetime] = mapped_column("savedAt", DateTime, nullable=False, default=utc_now)
 
 
-class AlertRule(Base):
+class AlertRule(AlertRuleTimingMixin, Base):
     __tablename__ = "alert_rules"
     __table_args__ = (
         Index("alert_rules_enabled_idx", "enabled"),
@@ -201,7 +201,7 @@ class AlertRule(Base):
     )
 
 
-class HomeMode(Base):
+class HomeMode(HomeModeExtraMixin, Base):
     __tablename__ = "home_modes"
     __table_args__ = (
         Index("home_modes_isActive_idx", "isActive"),
@@ -800,7 +800,7 @@ class AgentContextTimeline(Base):
     #: 下一次翻转时结算；为空表示该状态仍在持续
     ended_at: Mapped[datetime | None] = mapped_column("endedAt", DateTime, nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column("durationSeconds", Integer, nullable=True)
-    #: MANUAL_APP / HA_AUTOMATION / EXTERNAL_DEVICE
+    #: 触发来源：MANUAL_APP / HA_AUTOMATION / EXTERNAL_DEVICE
     trigger_source: Mapped[str] = mapped_column("triggerSource", String(32), nullable=False, default="")
     actor: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     context: Mapped[str] = mapped_column(Text, nullable=False, default="{}")

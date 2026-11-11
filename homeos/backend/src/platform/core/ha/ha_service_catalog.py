@@ -47,6 +47,10 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         'brightness_pct',
         'transition',
         'color_temp_kelvin',
+        # ``kelvin`` 是 HA 对 ``color_temp_kelvin`` 的常用别名（内置模式预设就是用
+        # ``{"brightness_pct": 80, "kelvin": 3000}`` 写的）。漏掉它会让同一个字段
+        # 在不同入口得到不同结论：直连时代能下发，走白名单校验就被判非法。
+        'kelvin',
         'effect',
         'flash',
     },

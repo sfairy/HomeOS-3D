@@ -256,6 +256,38 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
         """当前在线 Socket.IO 客户端数（对齐 Nest ``WsPushGateway.getClientCount``）。"""
         return len(self.connected)
 
+    def _scope_entities_for(self, session: dict[str, Any]) -> set[str] | None:
+        """解析该连接的「区域 / 设备」订阅范围（带缓存，按会话内容失效）。
+
+        缓存而不是每次广播重算：区域索引是注册表级别的大表，按实体逐个线性扫描会落在
+        广播热路径上。缓存键用会话里声明的原值，客户端改变订阅即自然失效。
+        """
+        areas = session.get("areaIds")
+        devices = session.get("deviceIds")
+        if not areas and not devices:
+            return None
+        cache_key = (tuple(areas or ()), tuple(devices or ()))
+        cached = getattr(self, "_scope_cache", None)
+        if cached is None:
+            cached = self._scope_cache = {}
+        if cache_key in cached:
+            return cached[cache_key]
+        entity_area = getattr(self.app.state, "entity_area", None)
+        resolver = getattr(entity_area, "resolve_scope_entities", None)
+        if not callable(resolver):
+            # 注册表索引还没就绪：本轮不收窄（宁可多推，也不要漏推导致墙屏空白）。
+            return None
+        try:
+            scope = resolver(areas, devices)
+        except Exception:  # 解析失败按「不收窄」处理，但留痕
+            logger.warning("解析区域/设备订阅范围失败，本轮按不收窄处理", exc_info=True)
+            return None
+        # 缓存上限：连接数 × 区域组合不会太多，但也不能无界。
+        if len(cached) >= 256:
+            cached.clear()
+        cached[cache_key] = scope
+        return scope
+
     def _log_state_changes(self, event_log: Any, changes: list[dict[str, Any]]) -> None:
         """事件日志流水线：与 WS 广播共用同一批冷批变更（内存缓冲，不阻塞本协程）。
 
@@ -305,6 +337,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             user = session.get("user") or {}
             subscribed = as_set(session.get("subscribedDomains"))
             pinned = as_set(session.get("pinnedEntityIds"), require_dot=True)
+            scope_entities = self._scope_entities_for(session)
             visible_indices: list[int] = []
             has_pinned = False
             user_cache = visibility_cache_for(visibility_cache, user)
@@ -322,6 +355,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
                     pinned,
                     critical,
                     ws_cfg.cold_entity_on_demand,
+                    scope_entities,
                 ):
                     continue
                 visible_indices.append(index)
@@ -406,7 +440,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             for sid in ready:
                 try:
                     await self.sio.enter_room(sid, room)
-                except (KeyError, ValueError):
+                except (KeyError, ValueError):  # fmt: skip
                     # 期间断开的连接：跳过即可，不能让整桶推送失败。
                     continue
                 joined.append(sid)
@@ -416,7 +450,7 @@ class RealtimeGateway(BroadcastMixin, ConnectionLifecycleMixin, SubscriptionInde
             for sid in joined:
                 try:
                     await self.sio.leave_room(sid, room)
-                except (KeyError, ValueError):
+                except (KeyError, ValueError):  # fmt: skip
                     continue
 
     async def _emit_state_changes(

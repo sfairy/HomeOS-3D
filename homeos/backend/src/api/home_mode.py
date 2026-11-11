@@ -24,19 +24,24 @@ router = NestRouter(
     dependencies=[license_feature(feature_codes.FEATURE_HOME_MODE)],
 )
 
+
 def _service(request: Request):
     return request.app.state.home_mode
+
 
 class InstallPresetDto(StrictModel):
     entityOverrides: dict[str, str] | None = None
     merge: bool | None = None
 
+
 class ReorderModeItemDto(StrictModel):
     id: str
     sortOrder: float
 
+
 class ReorderModesDto(StrictModel):
     items: list[ReorderModeItemDto]
+
 
 class CreateHomeModeDto(StrictModel):
     name: str
@@ -46,6 +51,11 @@ class CreateHomeModeDto(StrictModel):
     sortOrder: float | None = None
     exclusiveGroup: str | None = None
     priority: float | None = None
+    #: 条件组（AND）；缺省 = 无条件（旧行为）。
+    conditions: list[Any] | None = None
+    #: 执行模式：queued（默认，旧行为）/ single / restart。
+    executionMode: str | None = None
+
 
 class UpdateHomeModeDto(StrictModel):
     name: str | None = None
@@ -55,13 +65,18 @@ class UpdateHomeModeDto(StrictModel):
     sortOrder: float | None = None
     exclusiveGroup: str | None = None
     priority: float | None = None
+    conditions: list[Any] | None = None
+    executionMode: str | None = None
+
 
 def _parse_pagination(page: str | None, limit: str | None) -> dict[str, Any]:
     """家庭模式列表分页：复用平台受控解析（缺省不分页，条数恒在 ``[5, 200]``）。"""
     return parse_crud_pagination(page, limit)
 
+
 def _drop_none(payload: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in payload.items() if value is not None}
+
 
 @router.get("")
 async def list_modes(
@@ -74,18 +89,19 @@ async def list_modes(
     service = _service(request)
     if not pagination["enabled"]:
         return await run_db(service.find_all)
-    return await run_db(
-        lambda: service.find_all_paginated(pagination["pageNum"], pagination["pageSize"])
-    )
+    return await run_db(lambda: service.find_all_paginated(pagination["pageNum"], pagination["pageSize"]))
+
 
 @router.get("/active")
 async def get_active(request: Request, user: dict[str, Any] = Depends(require_user)):
     service = _service(request)
     return await run_db(service.get_active_response)
 
+
 @router.get("/context")
 async def get_context(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await run_db(_service(request).get_mode_context)
+
 
 @router.get("/trigger-logs")
 async def get_trigger_logs(
@@ -104,23 +120,37 @@ async def get_trigger_logs(
     service = _service(request)
     if pagination["enabled"]:
         return await run_db(
-            lambda: service.get_trigger_logs_paginated(
-                pagination["pageNum"], pagination["pageSize"], filters
-            )
+            lambda: service.get_trigger_logs_paginated(pagination["pageNum"], pagination["pageSize"], filters)
         )
     return await run_db(lambda: service.get_trigger_logs(30))
 
+
 @router.get("/execution-history")
-async def get_execution_history(request: Request, user: dict[str, Any] = Depends(require_user)):
+async def get_execution_history(
+    request: Request,
+    runId: str | None = Query(default=None),
+    user: dict[str, Any] = Depends(require_user),
+):
+    """执行历史；带 ``runId`` 时返回单次激活的完整 trace。
+
+    排障时先看列表找到可疑那一次，再按 runId 取逐动作耗时与结论 ——
+    只有列表时无从判断「到底哪一步慢/失败」。
+    """
+    if runId:
+        result = await run_db(lambda: _service(request).get_execution_by_run_id(runId))
+        return {"execution": result}
     return await run_db(lambda: _service(request).get_execution_history(40))
+
 
 @router.get("/templates")
 async def get_templates(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await run_db(_service(request).get_action_templates)
 
+
 @router.get("/presets")
 async def get_presets(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await run_db(_service(request).get_presets)
+
 
 @router.post("/presets/{preset_id}/install")
 async def install_preset(
@@ -133,6 +163,7 @@ async def install_preset(
         preset_id, payload.entityOverrides or {}, payload.merge if payload.merge is not None else False
     )
 
+
 @router.post("/reorder")
 async def reorder_modes(
     payload: ReorderModesDto,
@@ -141,6 +172,7 @@ async def reorder_modes(
 ):
     items = [item.model_dump() for item in payload.items]
     return await _service(request).reorder(items)
+
 
 @router.post("/deactivate")
 async def deactivate(
@@ -151,15 +183,16 @@ async def deactivate(
     # 多互斥组可同时激活：不带 modeId 时停用「当前主模式」，带则只停用该组的那一个。
     return await _service(request).deactivate(modeId or None)
 
+
 @router.post("/seed")
 async def seed(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _service(request).seed_defaults()
 
+
 @router.get("/{mode_id}")
-async def find_one(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def find_one(mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)):
     return _service(request).find_one(mode_id)
+
 
 @router.post("")
 async def create_mode(
@@ -168,6 +201,7 @@ async def create_mode(
     user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).create(payload.model_dump())
+
 
 @router.put("/{mode_id}")
 async def update_mode(
@@ -178,22 +212,17 @@ async def update_mode(
 ):
     return await _service(request).update(mode_id, _drop_none(payload.model_dump()))
 
+
 @router.delete("/{mode_id}")
-async def remove_mode(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def remove_mode(mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _service(request).remove(mode_id)
 
+
 @router.post("/{mode_id}/duplicate")
-async def duplicate_mode(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
-):
+async def duplicate_mode(mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _service(request).duplicate(mode_id)
 
+
 @router.post("/{mode_id}/activate")
-async def activate_mode(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
-):
-    return await _service(request).activate(
-        mode_id, {"source": "manual", "reason": "手动切换", "actor": user}
-    )
+async def activate_mode(mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)):
+    return await _service(request).activate(mode_id, {"source": "manual", "reason": "手动切换", "actor": user})

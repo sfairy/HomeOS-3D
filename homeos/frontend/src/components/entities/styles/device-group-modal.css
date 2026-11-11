@@ -751,6 +751,20 @@ button.dgm-light-card:focus-visible {
   box-shadow: 0 4px 20px rgba(48, 209, 88, 0.1);
 }
 
+/*
+ * 指令在途：降低不透明度 + 禁用指针。
+ * 只用 opacity 而不改颜色，是因为卡片可能同时处于 is-active（开态高亮）——
+ * 换色会与开/关两套配色互相打架，透明度则对两者都成立。
+ */
+.dgm-light-card.is-pending {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.dgm-light-card.is-pending:hover {
+  transform: none;
+}
+
 .dgm-light-icon {
   width: 40px;
   height: 40px;

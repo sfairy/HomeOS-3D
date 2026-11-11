@@ -9,6 +9,7 @@ from collections.abc import Callable, Iterable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from ....platform.core.runtime.observability import record_ha_counter
@@ -17,8 +18,8 @@ LOGGER = logging.getLogger(__name__)
 
 #: 是否恢复「发布时深拷贝整份载荷」的旧行为（默认关闭 = 共享同一份只读快照）。
 #: 共享后订阅方必须只读：队列里的 dict 就是 hub 内存里的同一对象；要回滚就设该 env。
-STATE_HUB_COPY_PAYLOAD_ENV = 'HOMEOS_HA_STATE_HUB_COPY_PAYLOAD'
-_TRUTHY = frozenset({'1', 'true', 'yes', 'on'})
+STATE_HUB_COPY_PAYLOAD_ENV = "HOMEOS_HA_STATE_HUB_COPY_PAYLOAD"
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 
 def resolve_state_hub_copy_payload() -> bool:
@@ -32,12 +33,39 @@ def resolve_state_hub_copy_payload() -> bool:
 #: 这些集成（语音引擎、通知、AI 任务、红外/射频、对话代理）上报的 ``state``
 #: 只是占位，真正的能力在属性里。把它们当 ``unavailable`` 会让附加面板整块禁用。
 STATELESS_DOMAINS = frozenset(
-    {'stt', 'tts', 'cover', 'notify', 'ai_task', 'infrared', 'wake_word', 'conversation', 'radio_frequency'}
+    {"stt", "tts", "cover", "notify", "ai_task", "infrared", "wake_word", "conversation", "radio_frequency"}
 )
 
 #: 按 ``entityId`` 过滤订阅的事件类型：``cover_memory_changed`` 只带实体号，
 #: 墙屏按订阅的实体集合决定要不要重取姿态历史。
-ENTITY_SCOPED_EVENT_TYPES = frozenset({'state_changed', 'state_removed', 'cover_memory_changed'})
+ENTITY_SCOPED_EVENT_TYPES = frozenset({"state_changed", "state_removed", "cover_memory_changed"})
+
+
+def _is_older(incoming: dict[str, Any], previous: dict[str, Any] | None) -> bool:
+    """``incoming`` 的时间戳是否严格早于 ``previous``（都解析不出来时视为「不更旧」）。
+
+    解析失败按「不更旧」处理是刻意的保守选择：宁可让一次异常帧通过，也不要把正常
+    更新永久挡在外面（缺失时间戳的集成确实存在）。
+    """
+    if previous is None:
+        return False
+    incoming_ts = _parse_ts(incoming.get("updatedAt") or incoming.get("lastChanged"))
+    previous_ts = _parse_ts(previous.get("updatedAt") or previous.get("lastChanged"))
+    if incoming_ts is None or previous_ts is None:
+        return False
+    return incoming_ts < previous_ts
+
+
+def _parse_ts(raw: Any) -> float | None:
+    """ISO8601 → epoch 秒；无法解析返回 ``None``。"""
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text).timestamp()
+    except (TypeError, ValueError):  # fmt: skip
+        LOGGER.debug("状态时间戳无法解析，按「不更新」处理: %r", raw)
+        return None
 
 
 @dataclass
@@ -63,14 +91,13 @@ class StateFetchChanges:
 
 
 class StateHub:
-
     def __init__(self, *, observe: Callable[[Iterable[dict[str, Any]]], None] | None = None) -> None:
         #: 观察回调（同步）：每次状态写入后把规范化后的状态交给它（窗帘姿态历史用）。
         #: 刻意不是协程：它只做内存更新 + 节流写盘，不参与状态分发链路。
         self._observe = observe
         #: 当前状态来源的标识（连接作用域）。``CoverMemory.observe`` 用它丢弃
         #: 上一轮连接迟到的状态 —— 换了 HA 之后旧连接的事件不该写进新连接的历史。
-        self.source_key = ''
+        self.source_key = ""
         self._states = {}
         self._subscribers = set()
         self._subscriber_entities = {}
@@ -116,11 +143,7 @@ class StateHub:
         # 但同时要求原始 state 真的是字符串 "unknown" —— 字段整个缺失时也归一成
         # unknown，那种情况说明状态还没到齐，仍按不可用处理。
         available = state != "unavailable" and (
-            state != "unknown"
-            or (
-                domain in {"scene", "button", "input_button"}
-                and raw.get("state") == "unknown"
-            )
+            state != "unknown" or (domain in {"scene", "button", "input_button"} and raw.get("state") == "unknown")
         )
         normalized = {
             "type": "state_changed",
@@ -134,11 +157,7 @@ class StateHub:
         }
         # 服务型实体（tts / notify / conversation …）常态就是 unknown：available 仍为
         # False，但用 availabilityReason 标记「这是空闲，不是掉线」，前端据此仍可操作。
-        if (
-            domain in STATELESS_DOMAINS
-            and raw.get("state") == "unknown"
-            and raw.get("available") is not False
-        ):
+        if domain in STATELESS_DOMAINS and raw.get("state") == "unknown" and raw.get("available") is not False:
             normalized["availabilityReason"] = "unknown"
         attributes = normalized["attributes"]
         # event.* 无最新事件时 HA 也是 unknown；只有声明了 event_types 且当前没有
@@ -160,24 +179,12 @@ class StateHub:
         ``invalidated`` 给了就保住窗口内被实时事件改写过的实体，不让这份可能已过期的快照
         把它们覆盖掉。
         """
-        normalized = {
-            item["entityId"]: item
-            for item in (self.normalize(raw) for raw in states)
-            if item["entityId"]
-        }
+        normalized = {item["entityId"]: item for item in (self.normalize(raw) for raw in states) if item["entityId"]}
         async with self._lock:
             if invalidated is not None:
                 # 先剔除「窗口内被改写」的实体，再把内存里这些实体的最新值补回去。
-                normalized = {
-                    key: value
-                    for key, value in normalized.items()
-                    if not invalidated.preserves(key)
-                }
-                normalized.update({
-                    key: value
-                    for key, value in self._states.items()
-                    if invalidated.preserves(key)
-                })
+                normalized = {key: value for key, value in normalized.items() if not invalidated.preserves(key)}
+                normalized.update({key: value for key, value in self._states.items() if invalidated.preserves(key)})
             removed = sorted(set(self._states) - set(normalized))
             # 整表替换是权威数据：正在取数的窗口不必再纠结谁更新，全部按已变更处理。
             for changes in self._fetch_changes.values():
@@ -192,18 +199,10 @@ class StateHub:
 
         ``invalidated`` 里被改写过的实体会被跳过，只写回没被别人改过的值。
         """
-        normalized = {
-            item["entityId"]: item
-            for item in (self.normalize(raw) for raw in states)
-            if item["entityId"]
-        }
+        normalized = {item["entityId"]: item for item in (self.normalize(raw) for raw in states) if item["entityId"]}
         async with self._lock:
             if invalidated is not None:
-                normalized = {
-                    key: value
-                    for key, value in normalized.items()
-                    if not invalidated.preserves(key)
-                }
+                normalized = {key: value for key, value in normalized.items() if not invalidated.preserves(key)}
                 # 这批量取回来的值是 HA 直接给的，比任何窗口内已有的记录都权威，
                 # 登记给其它窗口，避免它们随后用更旧的值覆盖。
                 self._mark_fetch_changes(set(normalized))
@@ -215,6 +214,13 @@ class StateHub:
         if not normalized["entityId"]:
             return None
         async with self._lock:
+            previous = self._states.get(normalized["entityId"])
+            # 单调守卫：``updatedAt`` 更旧的帧不得覆盖更新的状态。HA 在回复放/合并窗口里
+            # 完全可能出现「晚到但更旧」的帧；以前这里无条件写入，于是 3D 画面与前端
+            # 会**永久**停在旧值上（L1 同样没有守卫，只有读刷新那条路径有）。
+            if _is_older(normalized, previous):
+                record_ha_counter("state_hub_stale_rejected")
+                return None
             # 登记这次写入，让进行中的取数窗口不要用更旧的返回值盖掉它。
             self._mark_fetch_changes({normalized["entityId"]})
             self._states[normalized["entityId"]] = normalized
@@ -230,11 +236,9 @@ class StateHub:
         try:
             observe(states)
         except Exception:
-            LOGGER.warning('状态观察回调失败（忽略，不影响状态分发）', exc_info=True)
+            LOGGER.warning("状态观察回调失败（忽略，不影响状态分发）", exc_info=True)
 
-    async def snapshot(
-        self, entity_ids: set[str] | None = None
-    ) -> list[dict[str, Any]]:
+    async def snapshot(self, entity_ids: set[str] | None = None) -> list[dict[str, Any]]:
         """返回内存状态的只读视图列表。
 
         默认与 hub 共享同一批 dict（不深拷贝）：调用方只允许读取/序列化，不得原地修改
@@ -244,9 +248,7 @@ class StateHub:
             if entity_ids is None:
                 values = self._states.values()
             else:
-                values = (
-                    self._states[key] for key in entity_ids if key in self._states
-                )
+                values = (self._states[key] for key in entity_ids if key in self._states)
             states = list(values)
         return deepcopy(states) if self._copy_payload else states
 
@@ -264,11 +266,7 @@ class StateHub:
                     continue
                 removed.update(changes.requested - entity_ids)
             self._mark_fetch_changes(removed)
-            self._states = {
-                key: value
-                for key, value in self._states.items()
-                if key in entity_ids
-            }
+            self._states = {key: value for key, value in self._states.items() if key in entity_ids}
 
     async def remove(self, entity_id: str) -> None:
         normalized = str(entity_id or "")
@@ -289,9 +287,7 @@ class StateHub:
         self._subscribers.discard(queue)
         self._subscriber_entities.pop(queue, None)
 
-    def set_subscription_entities(
-        self, queue: asyncio.Queue[dict[str, Any]], entity_ids: set[str]
-    ) -> None:
+    def set_subscription_entities(self, queue: asyncio.Queue[dict[str, Any]], entity_ids: set[str]) -> None:
         """限制投递给单个订阅者的增量状态事件。
 
         订阅校验完成之前排队的事件属于握手窗口期。随后的快照才是权威数据，
@@ -327,6 +323,7 @@ class StateHub:
                 # 队列满时不再「整队清空 + 只补一条 resync_required」：那会让前端断开
                 # 重连并重新拉全量快照，高频源（功率/电量/毫米波）叠加时足以形成抖动循环。
                 # 改为按实体合并（每个实体保留最后一条）后放回，容量实在不够才软重同步。
+                record_ha_counter("ws_runtime_compacted")
                 self._compact_queue(queue, payload)
                 continue
             queue.put_nowait(payload)
@@ -362,5 +359,5 @@ class StateHub:
                     except asyncio.QueueEmpty:
                         break
                 queue.put_nowait({"type": "resync_required"})
-                record_ha_counter('resync')
+                record_ha_counter("resync")
                 return

@@ -91,6 +91,7 @@
     "check:studio-split": "node ops/checks/studio/check_split_budget.mjs --phase 3 && node ops/checks/studio/verify_item_model.mjs",
     "test:studio": "bun test ops/checks/studio/tests/ && node ops/lib/py.mjs -m unittest discover -s ops/checks/studio/tests -v",
     "test:home-mode": "node ops/lib/py.mjs -m unittest discover -s ops/checks/home_mode/tests -v",
+    "test:smarthome": "node ops/lib/py.mjs -m unittest discover -s ops/checks/smarthome/tests -v",
     "test:frontend": "node --test \"ops/checks/frontend/tests/**/*.test.mjs\"",
     "audit:uiux:a11y": "node ops/checks/frontend/audit-uiux-axe.mjs",
     "audit:uiux:visual": "node ops/checks/frontend/audit-uiux-visual.mjs",

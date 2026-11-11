@@ -15,21 +15,14 @@ from contextlib import AbstractContextManager
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict
 
-from .alert_watch_index import refresh_alert_rule_watch_index
+from .alert_watch_index import AlertWatchIndexDeps, SessionFactory, unlink_alert_rule
 from .app_config_field_bindings import APP_CONFIG_FIELD_BINDINGS
 from ...platform.core.db.json_field import object_field
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from ..ha.config.ha_filters import AlertRuleWatchIndex
 
 logger = logging.getLogger("homeos.state_store.entity_references")
-
-#: 打开一次数据库会话的工厂（``Database.session_factory`` 的形状）。
-#: 用具体类型而不是 ``Any``：解绑/扫描全部走同步 Session，跨层传 ``Any`` 时
-#: 「把 async 工厂传进来」这种错误在运行期才炸，类型收窄后由 pyright 直接拦下。
-SessionFactory = Callable[[], AbstractContextManager['Session']]
 
 
 class AppConfigPort(Protocol):
@@ -68,24 +61,22 @@ class UnlinkResult(TypedDict, total=False):
     layoutTouched: bool
 
 
-class EntityReferencesDeps(TypedDict):
+class EntityReferencesDeps(AlertWatchIndexDeps):
     """解绑/扫描依赖注入（session / 配置仓库 / layout 读写）。
 
-    ``load_layout`` / ``save_layout`` / ``session_factory`` / ``app_config`` /
-    ``ui_config`` 是必备依赖（唯一构造点 ``_deps`` 总是提供）；其余为可选能力，
-    调用方通过 ``deps.get(...)`` 探测。
+    ``session_factory`` 及三个告警规则相关回调来自基类 ``AlertWatchIndexDeps``
+    （``alert_watch_index`` 里的删规则/刷新逻辑也要用同一份声明）。
+    ``load_layout`` / ``save_layout`` / ``app_config`` / ``ui_config`` 是必备依赖
+    （唯一构造点 ``_deps`` 总是提供）；其余为可选能力，调用方通过 ``deps.get(...)`` 探测。
     """
 
-    session_factory: SessionFactory
     app_config: AppConfigPort
     ui_config: UiConfigPort
-    alert_rule_watch_index: NotRequired[AlertRuleWatchIndex | None]
     #: 同步写库回调（``HomeModeService.update_sync``）。**故意不是 Awaitable**：
     #: 解绑跑在 executor 线程里，若这里传进来 async 版本，调用只会得到一条没人 await
     #: 的协程 —— 模式看着「更新成功」，库里其实一个字没写。构造点用
     #: ``inspect.iscoroutinefunction`` 显式拒绝协程函数，调用点再兜一次 awaitable。
     update_home_mode: NotRequired[Callable[[str, dict[str, Any]], object] | None]
-    delete_alert_rule: NotRequired[Callable[[str], dict[str, Any] | None] | None]
     load_layout: Callable[[], dict[str, Any]]
     save_layout: Callable[[dict[str, Any]], None]
 
@@ -96,8 +87,8 @@ JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
 #: 路径语义判定：出现 ``trigger`` 视为触发侧，出现 ``action`` / ``service`` / ``call`` 视为动作侧。
 #: 这两条在倒排扫描里对每条命中路径都要跑一次，预编译避免每次调用重新编译（``re`` 的隐式
 #: 缓存也要走一次查表 + 参数拼装）。
-_TRIGGER_PATH_PATTERN = re.compile(r'trigger', re.IGNORECASE)
-_ACTION_PATH_PATTERN = re.compile(r'action|service|call', re.IGNORECASE)
+_TRIGGER_PATH_PATTERN = re.compile(r"trigger", re.IGNORECASE)
+_ACTION_PATH_PATTERN = re.compile(r"action|service|call", re.IGNORECASE)
 
 #: 引用类型（kind）全集 —— 对齐 ``@homeos/shared`` ``EntityReferenceKind``。
 ENTITY_REFERENCE_KINDS = (
@@ -144,9 +135,7 @@ def _entity_id_boundary_pattern(entity_id: str) -> re.Pattern[str]:
     一次。正则由 ID 动态拼出，**无法**提到模块级，因此保留这里的 ``compile`` 并用
     **有界** LRU 缓存（256 个 ID 足够覆盖单次扫描，且不会无界增长）。
     """
-    return re.compile(
-        r"(?:^|[^A-Za-z0-9_])" + re.escape(entity_id) + r"(?:[^A-Za-z0-9_]|$)"
-    )
+    return re.compile(r"(?:^|[^A-Za-z0-9_])" + re.escape(entity_id) + r"(?:[^A-Za-z0-9_]|$)")
 
 
 def text_contains_entity_id(text: str, entity_id: str) -> bool:
@@ -167,7 +156,7 @@ def safe_parse_json(raw: Any) -> JsonValue:
     if isinstance(raw, str):
         try:
             return json.loads(raw)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError):  # fmt: skip
             return None
     return None
 
@@ -268,11 +257,7 @@ def remove_entity_from_json_value(node: JsonValue, entity_id: str) -> tuple[Json
         cleaned_object: dict[str, Any] = {}
         changed = False
         for field_key, child_node in node.items():
-            if (
-                field_key in _ENTITY_PRIMARY_KEY_FIELDS
-                and isinstance(child_node, str)
-                and child_node == entity_id
-            ):
+            if field_key in _ENTITY_PRIMARY_KEY_FIELDS and isinstance(child_node, str) and child_node == entity_id:
                 # 删 key 而不是写 ""：空串会被下游当成「任意实体」。
                 changed = True
                 continue
@@ -305,9 +290,7 @@ def _primary_entity_of(entry: dict[str, Any]) -> str:
     return ""
 
 
-def _prune_home_mode_entries(
-    entries: list[Any], entity_id: str, *, kind: str
-) -> tuple[list[Any], bool]:
+def _prune_home_mode_entries(entries: list[Any], entity_id: str, *, kind: str) -> tuple[list[Any], bool]:
     """从家庭模式 ``config`` / ``triggers`` 里摘掉实体：**整条删除**，而不是把 entityId 置空。
 
     - 条目以该实体为主键（``entity_id`` / ``entityId``）→ 整条删除：动作没有实体无从执行，
@@ -362,10 +345,7 @@ def _reference_key(reference: EntityReference) -> str:
     拼 key 的逻辑只有这一处：此前它在"插入"与"查重"里各写了一遍（`_push_reference`），
     两份一旦漂移（比如一处加字段、另一处没加）就会**静默插入重复项**。
     """
-    return (
-        f"{reference['kind']}:{reference['id']}:{reference['role']}"
-        f":{reference.get('detail') or ''}"
-    )
+    return f"{reference['kind']}:{reference['id']}:{reference['role']}:{reference.get('detail') or ''}"
 
 
 def _push_reference(
@@ -403,9 +383,7 @@ def _collect_referenced_ids(node: JsonValue, ids: set[str]) -> None:
             _collect_referenced_ids(child_node, ids)
 
 
-def _home_mode_reference_role(
-    config_obj: Any, trigger_obj: Any, referenced_entity_id: str
-) -> str:
+def _home_mode_reference_role(config_obj: Any, trigger_obj: Any, referenced_entity_id: str) -> str:
     """判定家庭模式里一条引用扮演的角色（trigger / action / config / reference）。"""
     config_paths = collect_entity_paths(config_obj, referenced_entity_id)
     trigger_paths = collect_entity_paths(trigger_obj, referenced_entity_id)
@@ -563,9 +541,7 @@ def _scan_layout_favorites(
     if not isinstance(favorites, dict):
         return
     for favorite_domain, favorite_ids in favorites.items():
-        if isinstance(favorite_ids, list) and any(
-            str(referenced_id) == entity_id for referenced_id in favorite_ids
-        ):
+        if isinstance(favorite_ids, list) and any(str(referenced_id) == entity_id for referenced_id in favorite_ids):
             _push(
                 items,
                 {
@@ -616,21 +592,17 @@ def _scan_layout_panel_widgets(
 # 页脚 / 全屋关闭与「紧急配置 / 离家模拟灯池 / 统计传感器 / 移动端房间统计」是同一件事，
 # 合并成一张表 + 一个循环，避免两处各写一遍相同的取路径/判空/组装引用骨架。
 _LAYOUT_FIELD_REFERENCES = (
-    ("securityEmergency", "security_mode", "securityEmergency", "紧急配置", "config",
-     "/settings?tab=security-modes"),
-    ("awaySimulationLightPool", "binding", "awaySimulationLightPool", "离家模拟灯池", "config",
-     "/settings?tab=params"),
+    ("securityEmergency", "security_mode", "securityEmergency", "紧急配置", "config", "/settings?tab=security-modes"),
+    ("awaySimulationLightPool", "binding", "awaySimulationLightPool", "离家模拟灯池", "config", "/settings?tab=params"),
     ("statsSensors", "binding", "statsSensors", "统计传感器", "config", "/settings?tab=bindings"),
-    ("mobileRoomStats", "binding", "mobileRoomStats", "移动端房间统计", "config",
-     "/settings?tab=rooms"),
-    ("dashboardFooter", "footer", "dashboard-footer", "仪表盘页脚", "display",
-     "/settings?tab=general&section=footer"),
-    ("wholeHomeOff", "whole_home_off", "whole-home-off", "全屋关闭", "config",
-     "/settings?tab=general"),
+    ("mobileRoomStats", "binding", "mobileRoomStats", "移动端房间统计", "config", "/settings?tab=rooms"),
+    ("dashboardFooter", "footer", "dashboard-footer", "仪表盘页脚", "display", "/settings?tab=general&section=footer"),
+    ("wholeHomeOff", "whole_home_off", "whole-home-off", "全屋关闭", "config", "/settings?tab=general"),
 )
 # kind=binding 的移除要区分"单字段引用"与其余 haConfig 兜底，两者共用同一份键集合。
 _LAYOUT_SIMPLE_BINDINGS_KEYS = frozenset(
-    field_key for field_key, _kind, _ref_id, _name, _role, _path in _LAYOUT_FIELD_REFERENCES
+    field_key
+    for field_key, _kind, _ref_id, _name, _role, _path in _LAYOUT_FIELD_REFERENCES
     if field_key != "securityEmergency"
 )
 
@@ -685,6 +657,7 @@ def _scan_layout_security_modes(
 # 布局里的"单字段引用"：紧急配置 / 离家模拟灯池 / 统计传感器 / 移动端房间统计
 # （页脚与全屋关闭同属这张表，见 _LAYOUT_FIELD_REFERENCES）
 
+
 def _scan_layout_security_zones(
     entity_id: str,
     layout: dict[str, Any],
@@ -722,9 +695,7 @@ def _scan_layout_security_zones(
             )
 
 
-def _scan_layout_object(
-    entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]
-) -> None:
+def _scan_layout_object(entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]) -> None:
     """扫描 projectConfig.layout 的各个引用落点（收藏 / 组件 / 页脚 / 安防 / 绑定 / 区域）。"""
     _scan_layout_favorites(entity_id, layout, items, seen)
     _scan_layout_panel_widgets(entity_id, layout, items, seen)
@@ -752,9 +723,7 @@ _HA_BINDING_LABELS: tuple[tuple[tuple[str, ...], str], ...] = (
 )
 
 
-def _scan_ha_bindings(
-    entity_id: str, ha_config: dict[str, Any], items: list[EntityReference], seen: set[str]
-) -> None:
+def _scan_ha_bindings(entity_id: str, ha_config: dict[str, Any], items: list[EntityReference], seen: set[str]) -> None:
     for field_keys, binding_label in _HA_BINDING_LABELS:
         for field_key in field_keys:
             bound_value = ha_config.get(field_key)
@@ -895,9 +864,7 @@ def _scan_app_config_bindings(
 
     circuit_section, circuit_field = _ENERGY_CIRCUIT_FIELD
     if entity_id in (_app_config_section(app_config_raw, circuit_section).get(circuit_field) or []):
-        _push_system_config(
-            items, seen, "energy-circuit", "能源 · 分路", "binding", "/settings?tab=bindings"
-        )
+        _push_system_config(items, seen, "energy-circuit", "能源 · 分路", "binding", "/settings?tab=bindings")
 
 
 def _scan_voice_and_client_power(
@@ -951,9 +918,7 @@ def _scan_media_and_log_block(
     ops_config = _app_config_section(app_config_raw, "ops")
     blocked_entity_ids = ops_config.get("eventLogRecordBlockEntityIds")
     if isinstance(blocked_entity_ids, list) and entity_id in blocked_entity_ids:
-        _push_system_config(
-            items, seen, "event-log-block", "事件日志屏蔽", "config", "/settings?tab=connection"
-        )
+        _push_system_config(items, seen, "event-log-block", "事件日志屏蔽", "config", "/settings?tab=connection")
 
 
 def _scan_system_config(
@@ -1006,7 +971,7 @@ def _unlink_home_mode(deps: EntityReferencesDeps, mode_id: str, entity_id: str) 
                 close = getattr(outcome, "close", None)
                 if callable(close):
                     close()
-                raise TypeError('update_home_mode 返回了 awaitable，解绑要求同步写库回调')
+                raise TypeError("update_home_mode 返回了 awaitable，解绑要求同步写库回调")
         except Exception as exc:
             logger.warning("家庭模式解绑写库失败 mode=%s entity=%s: %s", mode_id, entity_id, exc)
             return _fail("更新家庭模式失败")
@@ -1019,31 +984,6 @@ def _unlink_home_mode(deps: EntityReferencesDeps, mode_id: str, entity_id: str) 
             stored_mode.triggers = json.dumps(triggers_next, ensure_ascii=False)
             session.commit()
     return _ok("filtered", "已从家庭模式动作/触发中移除")
-
-
-def _unlink_alert_rule(deps: EntityReferencesDeps, rule_id: str) -> UnlinkResult:
-    from ...platform.core.db.models import AlertRule
-
-    delete_alert_rule = deps.get("delete_alert_rule")
-    if delete_alert_rule is not None:
-        delete_result = delete_alert_rule(rule_id)
-        if not (isinstance(delete_result, dict) and delete_result.get("success")):
-            return _fail("删除告警规则失败")
-        refresh_alert_rule_watch_index(deps)
-        return _ok("deleted_rule", "已删除告警规则")
-
-    try:
-        with deps["session_factory"]() as session:
-            stored_rule = session.get(AlertRule, rule_id)
-            if stored_rule is None:
-                return _fail("告警规则不存在或删除失败")
-            session.delete(stored_rule)
-            session.commit()
-    except Exception:
-        return _fail("告警规则不存在或删除失败")
-
-    refresh_alert_rule_watch_index(deps)
-    return _ok("deleted_rule", "已删除告警规则")
 
 
 def _unlink_favorite(deps: EntityReferencesDeps, item_id: str, entity_id: str) -> UnlinkResult:
@@ -1098,9 +1038,7 @@ def _strip_targeted_widgets(
             kept_widgets.append(widget)
             continue
         widget_key = str(widget.get("id") or f"widget:{current_index}")
-        targeted = widget_key == item_id or (
-            index_match is not None and current_index == int(index_match.group(1))
-        )
+        targeted = widget_key == item_id or (index_match is not None and current_index == int(index_match.group(1)))
         if not targeted:
             kept_widgets.append(widget)
             continue
@@ -1140,9 +1078,7 @@ def _unlink_layout_binding(layout: dict[str, Any], item_id: str, entity_id: str)
     if item_id.startswith("ha:"):
         ha_field_key = item_id[3:]
         if ha_field_key in ha_config:
-            cleaned_node, node_changed = remove_entity_from_json_value(
-                ha_config[ha_field_key], entity_id
-            )
+            cleaned_node, node_changed = remove_entity_from_json_value(ha_config[ha_field_key], entity_id)
             if node_changed:
                 ha_config[ha_field_key] = cleaned_node
                 changed = True
@@ -1152,9 +1088,7 @@ def _unlink_layout_binding(layout: dict[str, Any], item_id: str, entity_id: str)
         doorbells: list[Any] = list(doorbells_raw) if isinstance(doorbells_raw, list) else []
         if doorbell_index_raw.isdigit() and 0 <= int(doorbell_index_raw) < len(doorbells):
             doorbell_index = int(doorbell_index_raw)
-            cleaned_node, node_changed = remove_entity_from_json_value(
-                doorbells[doorbell_index], entity_id
-            )
+            cleaned_node, node_changed = remove_entity_from_json_value(doorbells[doorbell_index], entity_id)
             if node_changed:
                 doorbells[doorbell_index] = cleaned_node
                 ha_config["doorbells"] = doorbells
@@ -1260,9 +1194,7 @@ _LAYOUT_UNLINK_HANDLERS: dict[str, Callable[[dict[str, Any], str, str], bool]] =
 }
 
 
-def _unlink_layout_json_field(
-    deps: EntityReferencesDeps, kind: str, item_id: str, entity_id: str
-) -> UnlinkResult:
+def _unlink_layout_json_field(deps: EntityReferencesDeps, kind: str, item_id: str, entity_id: str) -> UnlinkResult:
     layout = dict(deps["load_layout"]())
     handler = _LAYOUT_UNLINK_HANDLERS.get(kind)
     # 调用方按 kind 分发，理论到不了这里。
@@ -1325,17 +1257,11 @@ def _patch_clear_list_field(
 ) -> dict[str, Any]:
     section_key, list_key = targets[item_id]
     section = dict(app_config_raw.get(section_key) or {})
-    section[list_key] = [
-        referenced_id
-        for referenced_id in (section.get(list_key) or [])
-        if referenced_id != entity_id
-    ]
+    section[list_key] = [referenced_id for referenced_id in (section.get(list_key) or []) if referenced_id != entity_id]
     return {section_key: section}
 
 
-def _patch_presence_person(
-    app_config_raw: dict[str, Any], item_id: str, entity_id: str
-) -> dict[str, Any]:
+def _patch_presence_person(app_config_raw: dict[str, Any], item_id: str, entity_id: str) -> dict[str, Any]:
     person_id = item_id[len("presence:") :]
     security = dict(app_config_raw.get("security") or {})
     persons = [
@@ -1343,9 +1269,7 @@ def _patch_presence_person(
             {
                 **person,
                 "entityIds": [
-                    referenced_id
-                    for referenced_id in (person.get("entityIds") or [])
-                    if referenced_id != entity_id
+                    referenced_id for referenced_id in (person.get("entityIds") or []) if referenced_id != entity_id
                 ],
             }
             if person.get("id") == person_id
@@ -1362,17 +1286,13 @@ def _patch_tts_alert(app_config_raw: dict[str, Any], entity_id: str) -> dict[str
         "voice": {
             **voice,
             "entityTtsAlerts": [
-                tts_rule
-                for tts_rule in (voice.get("entityTtsAlerts") or [])
-                if tts_rule.get("entityId") != entity_id
+                tts_rule for tts_rule in (voice.get("entityTtsAlerts") or []) if tts_rule.get("entityId") != entity_id
             ],
         }
     }
 
 
-def _patch_client_power(
-    app_config_raw: dict[str, Any], item_id: str, entity_id: str
-) -> dict[str, Any]:
+def _patch_client_power(app_config_raw: dict[str, Any], item_id: str, entity_id: str) -> dict[str, Any]:
     client_id = item_id[len("client-power:") :]
     client_power = dict(app_config_raw.get("clientPower") or {})
     return {
@@ -1387,9 +1307,7 @@ def _patch_client_power(
 
 
 # item_id 前缀 → 去除器（比"一长串 elif"更好扫读，也让每个分支能单独测）。
-_SYSTEM_CONFIG_PREFIX_HANDLERS: tuple[
-    tuple[str, Callable[[dict[str, Any], str, str], dict[str, Any]]], ...
-] = (
+_SYSTEM_CONFIG_PREFIX_HANDLERS: tuple[tuple[str, Callable[[dict[str, Any], str, str], dict[str, Any]]], ...] = (
     ("presence:", _patch_presence_person),
     ("tts-alert:", lambda config_raw, _item_id, entity_id: _patch_tts_alert(config_raw, entity_id)),
     ("client-power:", _patch_client_power),
@@ -1417,9 +1335,7 @@ def _build_system_config_patch(
     raise _UnsupportedReferenceError("暂不支持移除此系统配置项")
 
 
-def _unlink_system_config(
-    deps: EntityReferencesDeps, kind: str, item_id: str, entity_id: str
-) -> UnlinkResult:
+def _unlink_system_config(deps: EntityReferencesDeps, kind: str, item_id: str, entity_id: str) -> UnlinkResult:
     app_config_raw = deps["app_config"].get_all_raw() or {}
     try:
         patch = _build_system_config_patch(app_config_raw, kind, item_id, entity_id)
@@ -1429,9 +1345,7 @@ def _unlink_system_config(
     return _ok("cleared", "已从系统配置移除")
 
 
-def unlink_entity_reference(
-    deps: EntityReferencesDeps, entity_id: str, req: dict[str, Any]
-) -> UnlinkResult:
+def unlink_entity_reference(deps: EntityReferencesDeps, entity_id: str, req: dict[str, Any]) -> UnlinkResult:
     """执行单条引用移除，按 kind 分发。"""
     item_id = str(req.get("id") or "").strip()
     kind = req.get("kind")
@@ -1441,7 +1355,8 @@ def unlink_entity_reference(
     if kind == "home_mode":
         return _unlink_home_mode(deps, item_id, entity_id)
     if kind == "alert_rule":
-        return _unlink_alert_rule(deps, item_id)
+        ok, message = unlink_alert_rule(deps, item_id)
+        return _ok("deleted_rule", message) if ok else _fail(message)
     if kind == "favorite":
         return _unlink_favorite(deps, item_id, entity_id)
     if kind in ("widget", "binding", "footer", "whole_home_off", "security_mode", "security_zone"):
@@ -1470,12 +1385,13 @@ class EntityReferencesService:
         update_home_mode: Callable[[str, dict[str, Any]], object] | None = None,
         delete_alert_rule: Callable[[str], dict[str, Any] | None] | None = None,
         reload_home_mode_triggers: Callable[[], Awaitable[None]] | None = None,
+        refresh_alert_rules: Callable[[], None] | None = None,
     ) -> None:
         if update_home_mode is not None and inspect.iscoroutinefunction(update_home_mode):
             # 提前炸掉，而不是让每条解绑都静默丢掉一次写库（协程没人 await）。
             raise TypeError(
-                'update_home_mode 必须是同步回调（EntityReferencesService 在 executor 线程调用），'
-                '请注入 HomeModeService.update_sync'
+                "update_home_mode 必须是同步回调（EntityReferencesService 在 executor 线程调用），"
+                "请注入 HomeModeService.update_sync"
             )
         self._session_factory = session_factory
         self._app_config = app_config
@@ -1485,6 +1401,9 @@ class EntityReferencesService:
         self._delete_alert_rule = delete_alert_rule
         # 解绑在 executor 线程里写库，触发器绑定必须在事件循环里刷新。
         self._reload_home_mode_triggers = reload_home_mode_triggers
+        #: 删规则后同步刷新**求值侧**的缓存与索引。只刷新本地这个 watch_index 不够：
+        #: 真正决定「要不要处理这条实体」的是通知服务持有的那一份（见 P0-3）。
+        self._refresh_alert_rules = refresh_alert_rules
         self._ref_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._inverted_index: dict[str, list[EntityReference]] | None = None
         self._inverted_index_at = 0.0
@@ -1497,6 +1416,7 @@ class EntityReferencesService:
             "alert_rule_watch_index": self._watch_index,
             "update_home_mode": self._update_home_mode,
             "delete_alert_rule": self._delete_alert_rule,
+            "refresh_alert_rules": self._refresh_alert_rules,
             "load_layout": self._load_layout,
             "save_layout": self._save_layout,
         }
@@ -1506,9 +1426,7 @@ class EntityReferencesService:
 
         with self._session_factory() as session:
             project_config_row = (
-                session.query(ProjectConfig)
-                .filter(ProjectConfig.project_id == "default")
-                .one_or_none()
+                session.query(ProjectConfig).filter(ProjectConfig.project_id == "default").one_or_none()
             )
             layout_raw = project_config_row.layout if project_config_row is not None else None
         layout_parsed = safe_parse_json(layout_raw)
@@ -1518,9 +1436,7 @@ class EntityReferencesService:
         self._ui_config.save_config("default", layout)
 
     async def _ensure_inverted_index(self) -> None:
-        if self._inverted_index is not None and (
-            time.monotonic() * 1000 - self._inverted_index_at < self.INDEX_TTL_MS
-        ):
+        if self._inverted_index is not None and (time.monotonic() * 1000 - self._inverted_index_at < self.INDEX_TTL_MS):
             return
         loop = asyncio.get_running_loop()
         try:
@@ -1556,9 +1472,7 @@ class EntityReferencesService:
 
         await self._ensure_inverted_index()
         references = list((self._inverted_index or {}).get(ident, []))
-        await asyncio.get_running_loop().run_in_executor(
-            None, scan_layout_and_system, self._deps(), ident, references
-        )
+        await asyncio.get_running_loop().run_in_executor(None, scan_layout_and_system, self._deps(), ident, references)
 
         references_response = self._to_response(ident, references)
         self._ref_cache[ident] = {"at": time.monotonic() * 1000, "data": references_response}
@@ -1575,9 +1489,7 @@ class EntityReferencesService:
     async def remove_reference(self, entity_id: str, req: dict[str, Any]) -> dict[str, Any]:
         ident = str(entity_id or "").strip()
         loop = asyncio.get_running_loop()
-        outcome = await loop.run_in_executor(
-            None, unlink_entity_reference, self._deps(), ident, req
-        )
+        outcome = await loop.run_in_executor(None, unlink_entity_reference, self._deps(), ident, req)
         self._invalidate_reference_index()
         if outcome.get("action") == "filtered" and req.get("kind") == "home_mode":
             # 解绑只改了 config/triggers，触发器绑定缓存必须重建，否则旧绑定继续生效。

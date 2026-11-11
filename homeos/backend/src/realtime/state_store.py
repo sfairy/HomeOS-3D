@@ -46,6 +46,10 @@ class StateStore:
         self._ha_synced = False
         self._ha_connected = False
         self._ha_disconnected_at: float | None = None
+        #: 本次 HA 连接建立（或进程启动）的时刻（``time.monotonic``）。
+        #: 自动化触发器用它判断「是否还在重连静置期」—— 冷启动/重连后的第一波状态
+        #: 不是用户动作产生的边沿，不能拿它触发模式切换。
+        self._ha_connected_at: float | None = None
         self._last_synced_at: str | None = None
         self._last_state_change_at: float | None = None
         self._stale_threshold_ms = int(stale_threshold_ms)
@@ -266,6 +270,17 @@ class StateStore:
         """HA 连接成功：标记已连接并清除断连时间戳。"""
         self._ha_connected = True
         self._ha_disconnected_at = None
+        self._ha_connected_at = time.monotonic()
+
+    def get_ha_link_age_ms(self) -> int | None:
+        """本次 HA 连接已建立多久（毫秒）；从未连接过返回 ``None``。
+
+        供自动化触发器判断「重连静置期」：刚连上的一小段时间内状态快照/补齐事件
+        还没有稳定的前值，任何基于「旧态 → 新态」的判定都不成立。
+        """
+        if self._ha_connected_at is None:
+            return None
+        return max(0, int((time.monotonic() - self._ha_connected_at) * 1000))
 
     def handle_ha_disconnected(self) -> None:
         """HA 断连：标记未连接并记录断连时间戳（用于陈旧度判定）。"""
@@ -386,7 +401,7 @@ def _parse_iso_ms(value: str | None) -> float:
     try:
         text = value.replace("Z", "+00:00")
         return datetime.fromisoformat(text).timestamp() * 1000
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return 0.0
 
 
@@ -435,9 +450,9 @@ def _same_update(left: dict[str, Any], right: dict[str, Any]) -> bool:
     right_token = str(right.get("last_updated") or right.get("last_changed") or "")
     if left_token and right_token:
         return left_token == right_token and str(left.get("state")) == str(right.get("state"))
-    return str(left.get("state")) == str(right.get("state")) and object_field(
-        left, "attributes"
-    ) == object_field(right, "attributes")
+    return str(left.get("state")) == str(right.get("state")) and object_field(left, "attributes") == object_field(
+        right, "attributes"
+    )
 
 
 # 实体查询工具（对齐 Nest ``state-store/internals.ts``）

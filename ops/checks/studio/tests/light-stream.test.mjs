@@ -109,9 +109,11 @@ test('订阅变更时旧值继续供数，且复用同一条连接（不重复�
 
   assert.equal(harness.sockets.length, 1)
   harness.sockets[0].open()
+  // 声明支持批量帧（E3/PF6）：服务端会把一次场景变更合成一帧。
   assert.deepEqual(harness.sockets[0].sent.at(-1), {
     type: 'subscribe',
     entityIds: ['light.a'],
+    supportsStateBatch: true,
   })
   harness.sockets[0].deliver({
     type: 'snapshot',
@@ -132,6 +134,7 @@ test('订阅变更时旧值继续供数，且复用同一条连接（不重复�
   assert.deepEqual(harness.sockets[0].sent.at(-1), {
     type: 'update_subscription',
     entityIds: ['light.a', 'light.b'],
+    supportsStateBatch: true,
   })
 
   // 服务端补的新集合快照：直接合并，新实体立刻有值。

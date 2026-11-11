@@ -131,6 +131,13 @@ HA_COUNTER_NAMES: tuple[str, ...] = (
     "handshake_replay_stale",
     "handshake_coalesced",
     "handshake_overflow",
+    # 单调守卫拒绝的「晚到但更旧」帧：L1 热路径与 StateHub 各一个计数。
+    # 这两个数长期大于 0 说明存在乱序来源（合并窗口 / 重放），而不是正常抖动。
+    "state_stale_rejected",
+    "state_hub_stale_rejected",
+    # ``/ws/runtime`` 队列溢出时的「按实体合并」次数。这个数持续增长说明墙屏侧的
+    # 消费速度跟不上推送（订阅范围过大 / 前端卡顿），而中间态正在被吃掉。
+    "ws_runtime_compacted",
 )
 
 _ha_counter_lock = threading.Lock()
@@ -564,7 +571,7 @@ def _ha_sync_latency_metric_lines(snapshots: list[LatencySnapshot]) -> list[str]
 def _http_histogram_metric_lines(http: dict[tuple[str, str, str], list[float]]) -> list[str]:
     """HTTP 请求时长直方图 + 按状态类聚合的请求总数（错误率分子/分母）。"""
     status_classes = ("1xx", "2xx", "3xx", "4xx", "5xx")
-    totals = dict.fromkeys(status_classes, 0)
+    totals: dict[str, int] = dict.fromkeys(status_classes, 0)
     for (_route, _method, status), series in http.items():
         status_text = str(status)
         status_class = status_text[0] + "xx" if status_text[:1] in "12345" else "5xx"

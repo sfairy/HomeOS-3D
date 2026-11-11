@@ -769,9 +769,9 @@ export function mountInteraction3d(
               isStageReady && publishStates()
           },
           onPatch(statePatch) {
-            latestStatesByEntityId = {
-              ...latestStatesByEntityId,
-              ...statePatch,
+            // 定点写入而非整表展开：后者每条增量都复制全表（墙屏数百实体 = 每帧 O(N)）。
+            for (const entityId of Object.keys(statePatch)) {
+              latestStatesByEntityId[entityId] = statePatch[entityId]
             }
             coverMemoryClient.observe(statePatch, { patch: true })
             if (isPreviewSuspended) {

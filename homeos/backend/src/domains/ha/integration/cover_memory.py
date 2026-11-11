@@ -164,6 +164,9 @@ class CoverMemory:
         self._dirty = False
         self._tokens: dict[str, dict[str, Any]] = {}
         self._sequence = 0
+        #: 每实体最近一次**完成**的下发序号。并发下发时完成顺序可能与发起顺序相反，
+        #: 用它丢弃「晚到但更早发起」的那一次（见 ``complete``）。
+        self._last_completed_sequence: dict[str, int] = {}
 
     # ---- 生命周期 ---------------------------------------------------------
 
@@ -196,6 +199,7 @@ class CoverMemory:
         self.scope = scope
         self.entries = {}
         self._tokens = {}
+        self._last_completed_sequence = {}
         if not scope:
             return
         self._load()
@@ -409,9 +413,19 @@ class CoverMemory:
         用户看到的画面与设备真实状态相反。
         """
         record = self._tokens.pop(token, None)
-        if record is None or not ok:
+        if record is None:
             return
         entity_id = record['entityId']
+        completed_sequence = int(record.get('sequence') or 0)
+        # 同一实体两次下发并发时，完成顺序可能与发起顺序相反（后发的先返回）。
+        # 若按完成顺序追加，动画会朝「先发的那次目标」跑，而设备实际停在「后发的那次」上。
+        if completed_sequence < int(self._last_completed_sequence.get(entity_id) or 0):
+            return
+        self._last_completed_sequence[entity_id] = max(
+            completed_sequence, int(self._last_completed_sequence.get(entity_id) or 0)
+        )
+        if not ok:
+            return
         entry = self.entries.get(entity_id) or {}
         previous = entry.get('open')
         estimate = sample(

@@ -228,6 +228,30 @@ export function getActiveSubscribeDomains(): string[] | null {
   return activeSubscribeDomains
 }
 
+/**
+ * 主动声明「按区域 / 设备订阅」的范围（E3）。
+ *
+ * 墙屏常只负责某一个房间：声明范围后服务端只推这些实体，减少无关推送。
+ * 缺省为 null = **不声明**（旧客户端行为，服务端不收窄）—— 与「声明了但为空」
+ * 不同：后者表示「范围内没有实体，什么都别推」。这里刻意不做「空数组即清空」的
+ * 自动推断，避免误配置导致墙屏整片空白。
+ */
+let activeScope: { areaIds: string[]; deviceIds: string[] } | null = null
+
+export function setActiveSubscriptionScope(scope: { areaIds?: string[]; deviceIds?: string[] } | null): void {
+  if (!scope) {
+    activeScope = null
+    return
+  }
+  const areaIds = (scope.areaIds || []).map((item) => String(item).trim()).filter(Boolean)
+  const deviceIds = (scope.deviceIds || []).map((item) => String(item).trim()).filter(Boolean)
+  activeScope = areaIds.length || deviceIds.length ? { areaIds, deviceIds } : null
+}
+
+export function getActiveSubscriptionScope(): { areaIds: string[]; deviceIds: string[] } | null {
+  return activeScope
+}
+
 function addPinnedId(ids: Set<string>, raw: unknown): void {
   const id = raw == null ? '' : String(raw)
   if (id.includes('.')) ids.add(id)

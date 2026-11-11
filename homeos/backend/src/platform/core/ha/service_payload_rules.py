@@ -69,6 +69,8 @@ def _validate_light_color(data: dict[str, Any]) -> None:
         "rgbww_color",
         "xy_color",
         "color_temp_kelvin",
+        # 与 ``color_temp_kelvin`` 同义的别名，同样参与「只能指定一种颜色或色温」互斥。
+        "kelvin",
     } & set(data)
     if len(color_fields) > 1:
         _reject(UNPROCESSABLE, "一次灯光指令只能指定一种颜色或色温。")

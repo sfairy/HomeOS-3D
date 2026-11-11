@@ -16,11 +16,26 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, TypedDict
 
+from .execution_record import (
+    build_action_trace,
+    check_mode_conditions,
+    new_run_id,
+    skipped_result,
+)
+from .execution_record import (
+    execution_record as _execution_record_impl,
+)
 from .notify_result import build_notify_action_result, build_security_action_result
 from .presets import collect_home_mode_target_actions, resolve_action_kind
+from .snapshot import (
+    HA_ENTITY_FETCH_CONCURRENCY,
+    collect_device_snapshot,
+)
+from .validation import is_action_permitted
 from ..home_exec.execute_action_sequence import execute_action_sequence
 from ..home_exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
 from ..proxy.verification import describe_service_verification
@@ -29,8 +44,6 @@ from ...platform.core.entity.entity_domain import get_entity_domain
 from ...platform.core.http.errors import api_error, bad_request, not_found
 
 logger = logging.getLogger("homeos.home_mode")
-
-HA_ENTITY_FETCH_CONCURRENCY = 8
 
 #: 服务调用响应里没有目标实体时（HA 对离线 / 跳过同样返回 200）回读状态的等待时间。
 #: WS 状态回推通常 <100ms，留一点余量后仍读不到就按「未确认」处理，而不是伪造成功。
@@ -66,7 +79,7 @@ def _read_snapshot(raw: Any) -> dict[str, Any]:
         try:
             parsed = json.loads(raw)
             return parsed if isinstance(parsed, dict) else {}
-        except (TypeError, ValueError):
+        except (TypeError, ValueError):  # fmt: skip
             return {}
     return {}
 
@@ -154,6 +167,14 @@ def count_verified(results: list[dict[str, Any]], expected: bool | None) -> int:
 
 
 async def _execute_home_mode_action(deps: Any, action: dict[str, Any]) -> dict[str, Any]:
+    """执行一条模式动作，并记录耗时（``durationMs``，供 trace 定位慢步骤）。"""
+    started = time.monotonic()
+    result = await _execute_home_mode_action_inner(deps, action)
+    result["durationMs"] = round((time.monotonic() - started) * 1000)
+    return result
+
+
+async def _execute_home_mode_action_inner(deps: Any, action: dict[str, Any]) -> dict[str, Any]:
     kind = resolve_action_kind(action)
     ref = str(action.get("entity_id") or "").strip()
     if not ref:
@@ -172,6 +193,15 @@ async def _execute_home_mode_action(deps: Any, action: dict[str, Any]) -> dict[s
         domain = action.get("domain") or action.get("entity_id", "").split(".")[0]
         service = action.get("service") or "turn_on"
         service_data = action.get("service_data") or {}
+        # 运行时兜底：历史存量配置可能含非白名单服务（写时校验上线之前存的）。
+        # 这类动作一律不下发，并如实记为失败 —— 静默放过等于「定时执行任意服务」。
+        if not is_action_permitted(action):
+            return {
+                "entity_id": ref,
+                "service": f"{domain}.{service}",
+                "success": False,
+                "error": "service_not_allowed",
+            }
         response = await deps.call_service(domain, service, ref, service_data)
         verification = await _verify_action_outcome(deps, domain, service, ref, service_data, response)
         result: dict[str, Any] = {
@@ -307,14 +337,6 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
     return outcome
 
 
-async def _fetch_entity_state(deps: Any, entity_id: str) -> dict[str, Any] | None:
-    try:
-        return await deps.fetch_entity_state(entity_id)
-    except Exception:
-        logger.debug("读取实体状态失败: %s", entity_id, exc_info=True)
-        return None
-
-
 class HomeModeActivateState:
     def __init__(self, getter, setter) -> None:
         self._get = getter
@@ -327,26 +349,16 @@ class HomeModeActivateState:
         self._set(mode_id)
 
 
-_MISSING_FAILED_ITEMS: Any = object()
-
-
 @dataclass(frozen=True)
 class _ModeTriggerContext:
-    """触发上下文：模式 id / 名称 / 来源 / 原始 reason，供日志与执行历史复用。"""
+    """触发上下文：模式 id / 名称 / 来源 / 原始 reason / 追踪 id，供日志与执行历史复用。"""
 
     mode_id: str
     mode_name: str
     source: str
     raw_reason: Any
-
-
-@dataclass(frozen=True)
-class _ExecutionOutcome:
-    """执行历史里要记录的条数：总数、成功数与失败明细（缺省表示不写该键）。"""
-
-    total: int
-    executed: int
-    failed_items: Any = _MISSING_FAILED_ITEMS
+    #: 这一轮激活的追踪 id：触发日志 / 执行历史 / 逐动作 trace 三处共用同一个值。
+    run_id: str = ""
 
 
 @dataclass
@@ -394,24 +406,6 @@ def _trigger_log_payload(trigger: _ModeTriggerContext, event_reason: Any, succes
         "reason": event_reason,
         "success": success,
     }
-
-
-def _home_mode_execution_record(
-    trigger: _ModeTriggerContext, event_reason: Any, success: bool, outcome: _ExecutionOutcome
-) -> dict[str, Any]:
-    """构造 record_execution 的执行历史负载；未给 failed_items 时不写该键。"""
-    record: dict[str, Any] = {
-        "modeId": trigger.mode_id,
-        "modeName": trigger.mode_name,
-        "success": success,
-        "source": trigger.source,
-        "reason": event_reason,
-        "executed": outcome.executed,
-        "total": outcome.total,
-    }
-    if outcome.failed_items is not _MISSING_FAILED_ITEMS:
-        record["failedItems"] = outcome.failed_items
-    return record
 
 
 class HomeModeActivateResult(TypedDict, total=False):
@@ -497,39 +491,6 @@ def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> Home
     }
 
 
-async def _collect_device_snapshot(deps: Any, entity_configs: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
-    """并发采集动作目标实体的当前状态，作为回滚快照。
-
-    返回 ``(snapshot, missing)``：``missing`` 是没采集到状态的实体 —— 它们一旦被本次激活
-    改过就再也恢复不回去，必须如实上报，不能悄悄从快照里消失。
-    """
-    snapshot: dict[str, Any] = {}
-    missing: list[str] = []
-    try:
-        entity_ids = [
-            entity_id
-            for entity_id in (config_item.get("entity_id") for config_item in entity_configs)
-            if isinstance(entity_id, str) and entity_id
-        ]
-        semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
-        fetched: list[tuple[str, dict[str, Any]] | None] = []
-
-        async def _fetch(entity_id: str) -> None:
-            async with semaphore:
-                state_row = await _fetch_entity_state(deps, entity_id)
-                fetched.append((entity_id, state_row) if state_row else None)
-                if not state_row:
-                    missing.append(entity_id)
-
-        await asyncio.gather(*(_fetch(entity_id) for entity_id in entity_ids))
-        for row in fetched:
-            if row:
-                snapshot[row[0]] = row[1]
-    except Exception as exc:
-        deps.warn(f"采集设备快照失败: {exc}")
-    return snapshot, sorted(set(missing))
-
-
 async def _retry_failed_home_mode_actions(deps: Any, mode_name: str, run: _ActionRunState) -> list[dict[str, Any]]:
     """按配置次数串行重试失败动作（原地更新 run.results），返回重试成功的条目。"""
     retry_results: list[dict[str, Any]] = []
@@ -569,12 +530,7 @@ async def _reject_home_mode_without_ha(
     deps.warn("Home Assistant 未连接,拒绝激活家庭模式")
     deps.push_trigger_log(_trigger_log_payload(trigger, trigger.raw_reason or "手动切换", False))
     deps.record_execution(
-        _home_mode_execution_record(
-            trigger,
-            trigger.raw_reason or "HA 未连接",
-            False,
-            _ExecutionOutcome(total=total_actions, executed=0),
-        )
+        _execution_record_impl(trigger, trigger.raw_reason or "HA 未连接", False, total=total_actions, executed=0)
     )
     return {
         "success": False,
@@ -679,11 +635,14 @@ async def _abort_failed_activation(
     event_reason = trigger.raw_reason or "手动切换"
     deps.push_trigger_log(_trigger_log_payload(trigger, event_reason, False))
     deps.record_execution(
-        _home_mode_execution_record(
+        _execution_record_impl(
             trigger,
             event_reason,
             False,
-            _ExecutionOutcome(total=len(results), executed=applied_count, failed_items=failed_items),
+            total=len(results),
+            executed=applied_count,
+            failed_items=failed_items,
+            trace=build_action_trace(results),
         )
     )
     return {
@@ -771,11 +730,14 @@ async def _finalize_home_mode_activation(
     event_reason = trigger.raw_reason or "手动切换"
     deps.push_trigger_log(_trigger_log_payload(trigger, event_reason, all_ok))
     deps.record_execution(
-        _home_mode_execution_record(
+        _execution_record_impl(
             trigger,
             event_reason,
             all_ok,
-            _ExecutionOutcome(total=len(results), executed=final_success, failed_items=failed_items or None),
+            total=len(results),
+            executed=final_success,
+            failed_items=failed_items or None,
+            trace=build_action_trace(results),
         )
     )
 
@@ -828,6 +790,10 @@ async def activate_home_mode(
         deps.log(f"模式 {mode['name']} 已处于激活状态,跳过重复激活")
         return _already_active_home_mode_result(mode, mode_id)
 
+    # ①b 条件闸门：触发成立 ≠ 应该执行；不满足记为「跳过」（正常结果，不是失败）。
+    conditions_ok, unmet = await check_mode_conditions(deps, mode)
+    if not conditions_ok:
+        return skipped_result(deps, mode, mode_id, meta, unmet)
     entity_configs = _read_actions(mode.get("config"))
 
     assert_entity_targets_execute_authorized(
@@ -840,6 +806,7 @@ async def activate_home_mode(
         mode_name=mode["name"],
         source=(meta or {}).get("source") or "manual",
         raw_reason=(meta or {}).get("reason"),
+        run_id=new_run_id(),
     )
 
     hm_cfg = deps.get_home_mode_config()
@@ -945,7 +912,7 @@ async def _prepare_activation_snapshot(
     for active in conflicting_modes:
         activation.conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
 
-    snapshot, snapshot_missing = await _collect_device_snapshot(deps, entity_configs)
+    snapshot, snapshot_missing = await collect_device_snapshot(deps, entity_configs)
     if snapshot_missing:
         # 采集不到 = 这些设备一旦被本次激活改过就恢复不回去，必须留痕并带给前端。
         deps.warn(

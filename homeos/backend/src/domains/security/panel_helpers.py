@@ -25,6 +25,7 @@ from .layout import (
     schedule_security_event_silent,
     summarize_hazard_action_failures,
 )
+from .linkage_actions import build_inverse_action, is_replayable_action
 from .zones import (
     SECURITY_ARMING_MODES,
     normalize_zone_type,
@@ -39,52 +40,16 @@ logger = logging.getLogger("homeos.security.panel")
 
 PANEL_RUNTIME_KEY = "security-panel"
 
-#: 联动动作的幂等逆操作。只收「不需要知道原状态就能安全撤销」的成对服务：
-#: 布防时关了水阀就开回来、开了摄像头就关掉、锁了门就解锁。
-_INVERSE_SERVICES: dict[str, str] = {
-    "turn_on": "turn_off",
-    "turn_off": "turn_on",
-    "open_cover": "close_cover",
-    "close_cover": "open_cover",
-    "open_valve": "close_valve",
-    "close_valve": "open_valve",
-    "lock": "unlock",
-    "unlock": "lock",
-}
-
-#: 没有逆操作的域：scene/script/automation 的 turn_on 是「执行」而不是「打开状态」，
-#: button/notify/tts 更没有反方向。它们一旦执行就无法撤销，只能如实列进 irreversibleItems。
-_IRREVERSIBLE_DOMAINS = frozenset(
-    {"scene", "script", "automation", "button", "input_button", "notify", "tts", "shell_command"}
-)
-
-
-def build_inverse_action(
-    domain: str, service: str, entity_id: str
-) -> dict[str, Any] | None:
-    """构造一条联动动作的逆操作；不可逆时返回 ``None``。"""
-    if domain in _IRREVERSIBLE_DOMAINS:
-        return None
-    inverse = _INVERSE_SERVICES.get(service)
-    if inverse is None:
-        return None
-    return {"domain": domain, "service": inverse, "entity_id": entity_id, "data": {}}
-
-
 # ── 危险探测识别 ────────────────────────────────────────────────────────
 
 _APPLIANCE_RE = re.compile(
     r"热水器|water_heater|壁挂炉|boiler|燃气灶|灶具|stove|cooktop|range_hood|油烟机|烤箱|oven|"
     r"锅炉|furnace|洗碗|dishwasher|洗衣|washer|dryer|烘干"
 )
-_DETECTOR_INTENT_RE = re.compile(
-    r"detector|detect|alarm|sensor|leak|泄漏|报警|探测|检测|感应|感测"
-)
+_DETECTOR_INTENT_RE = re.compile(r"detector|detect|alarm|sensor|leak|泄漏|报警|探测|检测|感应|感测")
 
 
-def classify_hazard_sensor(
-    entity_id: str, attributes: dict[str, Any] | None, state: str
-) -> str | None:
+def classify_hazard_sensor(entity_id: str, attributes: dict[str, Any] | None, state: str) -> str | None:
     """识别危险探测器类型：smoke / gas / leak / None。"""
     if not entity_id.startswith("binary_sensor."):
         return None
@@ -117,9 +82,7 @@ def classify_hazard_sensor(
     return None
 
 
-def is_security_alarm_trigger(
-    entity_id: str, new_state: str, lock_unlock_in_grace: bool = False
-) -> bool:
+def is_security_alarm_trigger(entity_id: str, new_state: str, lock_unlock_in_grace: bool = False) -> bool:
     return (
         (entity_id.startswith("binary_sensor.") and new_state == "on")
         or (entity_id.startswith("sensor.") and new_state in ("on", "open"))
@@ -157,16 +120,14 @@ def normalize_security_emergency(raw: dict[str, Any] | None) -> dict[str, Any]:
     mode = str(cfg.get("mode") or "").strip()
     cfg["mode"] = mode if mode in _EMERGENCY_MODES else DEFAULT_SECURITY_EMERGENCY["mode"]
     append_mode = str(cfg.get("appendMode") or "").strip()
-    cfg["appendMode"] = (
-        append_mode if append_mode in _EMERGENCY_APPEND_MODES else cfg["mode"]
+    cfg["appendMode"] = append_mode if append_mode in _EMERGENCY_APPEND_MODES else cfg["mode"]
+    cfg["lightPool"] = (
+        [item for item in data.get("lightPool", []) if item] if isinstance(data.get("lightPool"), list) else []
     )
-    cfg["lightPool"] = [item for item in data.get("lightPool", []) if item] if isinstance(
-        data.get("lightPool"), list
-    ) else []
     cfg["actions"] = data.get("actions") if isinstance(data.get("actions"), list) else []
     try:
         brightness = int(float(data.get("lightBrightnessPct") or 100))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         brightness = 100
     cfg["lightBrightnessPct"] = min(100, max(1, brightness))
     return cfg
@@ -346,8 +307,7 @@ class SecurityLinkageHelper:
                 "executed": 0,
                 "failed": len(actions),
                 "failedItems": [
-                    {"entity_id": a.get("entity_id"), "message": "HA 未连接，联动动作未执行"}
-                    for a in actions
+                    {"entity_id": a.get("entity_id"), "message": "HA 未连接，联动动作未执行"} for a in actions
                 ],
                 "appliedItems": [],
                 "irreversibleItems": [],
@@ -372,18 +332,12 @@ class SecurityLinkageHelper:
             domain = act.get("domain") or get_entity_domain(entity_id)
             service_data = act.get("service_data") or {}
             try:
-                response = await self._ha.call_service(
-                    domain, service, entity_id, service_data
-                )
-                verification = await self._verify_action(
-                    str(domain), service, entity_id, service_data, response
-                )
+                response = await self._ha.call_service(domain, service, entity_id, service_data)
+                verification = await self._verify_action(str(domain), service, entity_id, service_data, response)
                 if verification.get("verified") is False:
                     # HA 对「实体离线 / 被跳过」也可能回 200；状态明确不一致时绝不能记成功。
                     failed += 1
-                    message = (
-                        f"设备状态未按预期变化（{verification.get('reason') or 'state_mismatch'}）"
-                    )
+                    message = f"设备状态未按预期变化（{verification.get('reason') or 'state_mismatch'}）"
                     failed_items.append({"entity_id": entity_id, "message": message})
                     logger.warning("%s 联动失败 [%s]: %s", label, entity_id, message)
                     schedule_security_event(
@@ -409,15 +363,12 @@ class SecurityLinkageHelper:
                     schedule_security_event(
                         self._session_factory,
                         "linkage_action_unverified",
-                        f"{label} 联动结果未能确认 [{entity_id}]: "
-                        f"{verification.get('reason') or 'unverified'}",
+                        f"{label} 联动结果未能确认 [{entity_id}]: {verification.get('reason') or 'unverified'}",
                         entity_id=entity_id,
                     )
                 inverse = build_inverse_action(str(domain), service, entity_id)
                 if inverse is None:
-                    irreversible_items.append(
-                        {"entity_id": entity_id, "domain": domain, "service": service}
-                    )
+                    irreversible_items.append({"entity_id": entity_id, "domain": domain, "service": service})
                 else:
                     applied_items.append(inverse)
             except Exception as exc:
@@ -453,9 +404,7 @@ class SecurityLinkageHelper:
         response: Any,
     ) -> dict[str, Any]:
         """按可推导目标校验服务调用是否真的落到设备上（三态）。"""
-        verification = describe_service_verification(
-            domain, service, entity_id, service_data, response
-        )
+        verification = describe_service_verification(domain, service, entity_id, service_data, response)
         if not verification.get("supported") or verification.get("verified") is not None:
             return verification
         # 响应里没有目标实体：等一个状态回推再读一次，仍读不到就如实标「未确认」。
@@ -481,9 +430,7 @@ class SecurityLinkageHelper:
             ],
         )
 
-    async def compensate_applied_actions(
-        self, applied_items: list[dict[str, Any]], label: str
-    ) -> dict[str, Any]:
+    async def compensate_applied_actions(self, applied_items: list[dict[str, Any]], label: str) -> dict[str, Any]:
         """逆序回滚已执行的联动动作（只回滚幂等可逆的那些）。
 
         补偿本身失败必须留痕（事件 + 日志）：一次「布防失败但水阀已经关了」如果连补偿
@@ -494,9 +441,7 @@ class SecurityLinkageHelper:
         failed_items: list[dict[str, Any]] = []
         for item in reversed(applied_items):
             try:
-                await self._ha.call_service(
-                    item["domain"], item["service"], item["entity_id"], item.get("data") or {}
-                )
+                await self._ha.call_service(item["domain"], item["service"], item["entity_id"], item.get("data") or {})
                 restored += 1
             except Exception as exc:
                 failed += 1
@@ -514,8 +459,18 @@ class SecurityLinkageHelper:
         return {"restored": restored, "failed": failed, "failedItems": failed_items}
 
     async def execute_security_mode_actions(
-        self, mode: str, skip_domains: set[str] | None = None
+        self,
+        mode: str,
+        skip_domains: set[str] | None = None,
+        *,
+        reversible_only: bool = False,
     ) -> dict[str, Any]:
+        """执行安防模式的联动动作。
+
+        ``reversible_only=True`` 用于「HA 重连后的重放」：只重放**可逆**动作（灯、窗帘、
+        阀门、门锁这类状态型）。``script`` / ``notify`` / ``tts`` / ``shell_command`` 这类
+        一次性或不可逆动作重放会变成「每次重连都再发一遍通知 / 再跑一遍脚本」。
+        """
         try:
             actions = await self.load_security_mode_actions(mode)
         except Exception as exc:
@@ -533,12 +488,13 @@ class SecurityLinkageHelper:
             actions = [
                 act
                 for act in actions
-                if str(
-                    act.get("domain") or get_entity_domain(str(act.get("entity_id") or ""))
-                ).strip().lower()
+                if str(act.get("domain") or get_entity_domain(str(act.get("entity_id") or ""))).strip().lower()
                 not in skip_domains
             ]
+        if reversible_only:
+            actions = [act for act in actions if is_replayable_action(act)]
         return await self.execute_ha_actions(actions, f"安防模式 {mode}", "linkage_action_failed")
+
     async def call_service_batch(
         self,
         items: list[dict[str, Any]],
@@ -768,9 +724,7 @@ class SecurityAlarmHelper:
         _, layout = await asyncio.to_thread(load_active_project_layout, self._session_factory)
         bindings = parse_hazard_layout_bindings(layout)
 
-        hazard = classify_hazard_sensor(
-            entity_id, new_state_obj.get("attributes") or {}, new_state
-        )
+        hazard = classify_hazard_sensor(entity_id, new_state_obj.get("attributes") or {}, new_state)
         numeric_threshold: float | None = None
         if not hazard:
             hazard = resolve_bound_hazard_kind(entity_id, bindings)
@@ -779,9 +733,7 @@ class SecurityAlarmHelper:
             # 表计任意 >0 的读数都不是泄漏，按「>0 即危险」会误关阀并触发紧急场景。
             numeric_threshold = resolve_numeric_hazard_threshold(entity_id, bindings)
             if numeric_threshold is None:
-                logger.debug(
-                    "危险判定跳过：%s 为数值型实体但未配置 hazardNumericThresholds", entity_id
-                )
+                logger.debug("危险判定跳过：%s 为数值型实体但未配置 hazardNumericThresholds", entity_id)
                 return
             if numeric_value is None or numeric_value < numeric_threshold:
                 return
@@ -812,8 +764,7 @@ class SecurityAlarmHelper:
         if bindings.hazard_drill_mode:
             # 旧布局里的持久「演习模式」不再有拦截权：真实危险告警必须照常关阀 / 排风。
             logger.warning(
-                "检测到已废弃的持久演习开关（hazardDrillMode），真实告警仍执行关阀/排风；"
-                "请改用一次性演习入口"
+                "检测到已废弃的持久演习开关（hazardDrillMode），真实告警仍执行关阀/排风；请改用一次性演习入口"
             )
 
         action_results = await run_hazard_auto_actions(
@@ -832,7 +783,8 @@ class SecurityAlarmHelper:
                 "friendlyName": friendly_name,
                 "type": "smoke" if is_smoke else ("gas_leak" if is_gas else "water_leak"),
                 "autoActions": True,
-                "drillMode": False, "baseline": baseline,  # 基线补发时已在危险态：告警照发，来源可区分
+                "drillMode": False,
+                "baseline": baseline,  # 基线补发时已在危险态：告警照发，来源可区分
                 "numericThreshold": numeric_threshold,
                 "triggerValue": numeric_value,
                 "actionResults": action_results,
@@ -855,9 +807,7 @@ class SecurityAlarmHelper:
 
         for scene_id in bindings.emergency_scene_ids:
             try:
-                await self._ha.call_service(
-                    get_entity_domain(scene_id) or "scene", "turn_on", scene_id, {}
-                )
+                await self._ha.call_service(get_entity_domain(scene_id) or "scene", "turn_on", scene_id, {})
             except Exception as exc:
                 logger.warning("紧急场景触发失败 [%s]: %s", scene_id, exc)
 
@@ -901,10 +851,7 @@ class SecurityEmergencyRunnerHelper:
         try:
             sirens = await self._ha.fetch_entities_by_domain("siren")
             siren_result = await self._linkage.call_service_batch(
-                [
-                    {"domain": "siren", "service": "turn_on", "entity_id": s["entity_id"], "data": {}}
-                    for s in sirens
-                ],
+                [{"domain": "siren", "service": "turn_on", "entity_id": s["entity_id"], "data": {}} for s in sirens],
                 "紧急求助 sirens",
                 "emergency_action_failed",
             )
@@ -935,8 +882,7 @@ class SecurityEmergencyRunnerHelper:
             light_ids = resolve_emergency_light_pool(cfg, away_light_pool)
             if not light_ids:
                 logger.warning(
-                    "重点区域模式未配置灯池,已跳过灯光联动"
-                    "(仍可配置 emergency.lightPool 或 awaySimulationLightPool)"
+                    "重点区域模式未配置灯池,已跳过灯光联动(仍可配置 emergency.lightPool 或 awaySimulationLightPool)"
                 )
 
         if light_ids:
@@ -969,9 +915,7 @@ class SecurityEmergencyRunnerHelper:
             results["failed"] += custom["failed"]
 
         if should_run_builtin_emergency(cfg):
-            builtin = await self.run_builtin_emergency(
-                resolve_builtin_profile(cfg), cfg, away_light_pool
-            )
+            builtin = await self.run_builtin_emergency(resolve_builtin_profile(cfg), cfg, away_light_pool)
             results["sirens"] = builtin["sirens"]
             results["lights"] = builtin["lights"]
             results["failed"] += builtin["failed"]
@@ -1021,7 +965,7 @@ def _parse_positive_float(value: Any) -> float | None:
 
     try:
         parsed = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # fmt: skip
         return None
     if not math.isfinite(parsed) or parsed <= 0:
         return None
