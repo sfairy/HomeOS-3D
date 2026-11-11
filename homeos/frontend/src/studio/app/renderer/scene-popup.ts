@@ -5,9 +5,10 @@
  */
 import { bindSceneMode, createSceneActionRequests } from './scene-mode'
 import { SCENE_POPUP_LAYOUT, scenePopupActionKey, scenePopupPage, scenePopupTitle } from './scene-popup-model'
+import { clampNumber as clampNumberCore, finiteNumberOrCoerced } from '../shared/util/number'
 
 const clampNumber = (value: any, fallback: number, min: number, max: number) =>
-    Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : fallback,
+    clampNumberCore(finiteNumberOrCoerced(value, fallback), min, max),
   normalizeColor = (value: any, fallback: string) =>
     /^(#[\da-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i.test(String(value || '')) ? value : fallback
 

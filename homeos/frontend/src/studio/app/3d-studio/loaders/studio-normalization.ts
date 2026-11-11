@@ -6,10 +6,8 @@ export {
 // 通用的 10cm / 5cm。`collection-models.ts` 只有一条 `import type`，不会形成运行期环。
 import { COLLECTION_MODELS } from './external-models/collection-models'
 import { finite, normalizeFullRotation } from './studio-number'
+import { clampNumber } from '../../shared/util/number'
 export { finite, normalizeFullRotation }
-function clamp(rawValue: any, minValue: any, maxValue: any) {
-  return Math.min(maxValue, Math.max(minValue, rawValue))
-}
 /**
  * 这些「小件 / 挂墙件」按 1cm 级别下限处理。
  */
@@ -76,7 +74,7 @@ export function normalizeLabelText(rawLabelText: any, fallbackLabelText: any, ma
   )
 }
 export function kelvinToRgbHex(kelvinValue: any) {
-  const normalizedKelvin = clamp(finite(kelvinValue, 3000), 2200, 6500) / 100,
+  const normalizedKelvin = clampNumber(finite(kelvinValue, 3000), 2200, 6500) / 100,
     redChannel = normalizedKelvin <= 66 ? 255 : 329.698727446 * (normalizedKelvin - 60) ** -0.1332047592,
     greenChannel =
       normalizedKelvin <= 66
@@ -88,20 +86,20 @@ export function kelvinToRgbHex(kelvinValue: any) {
         : normalizedKelvin <= 19
           ? 0
           : 138.5177312231 * Math.log(normalizedKelvin - 10) - 305.0447927307,
-    clampChannel = (channelValue: any) => Math.round(clamp(channelValue, 0, 255))
+    clampChannel = (channelValue: any) => Math.round(clampNumber(channelValue, 0, 255))
   return (clampChannel(redChannel) << 16) | (clampChannel(greenChannel) << 8) | clampChannel(blueChannel)
 }
 export function normalizeFixedCameraView(rawCameraView: any) {
   if (!rawCameraView || typeof rawCameraView != 'object') return null
   const positionVector = {
-      x: clamp(finite(rawCameraView.position?.x), -500, 500),
-      y: clamp(finite(rawCameraView.position?.y), -500, 500),
-      z: clamp(finite(rawCameraView.position?.z), -500, 500),
+      x: clampNumber(finite(rawCameraView.position?.x), -500, 500),
+      y: clampNumber(finite(rawCameraView.position?.y), -500, 500),
+      z: clampNumber(finite(rawCameraView.position?.z), -500, 500),
     },
     targetVector = {
-      x: clamp(finite(rawCameraView.target?.x), -500, 500),
-      y: clamp(finite(rawCameraView.target?.y), -500, 500),
-      z: clamp(finite(rawCameraView.target?.z), -500, 500),
+      x: clampNumber(finite(rawCameraView.target?.x), -500, 500),
+      y: clampNumber(finite(rawCameraView.target?.y), -500, 500),
+      z: clampNumber(finite(rawCameraView.target?.z), -500, 500),
     }
   if (
     Math.hypot(
@@ -127,19 +125,19 @@ export function normalizeFixedCameraView(rawCameraView: any) {
     topRotation: (((Math.round(finite(rawCameraView.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
     position: positionVector,
     target: targetVector,
-    visibleHeight: clamp(finite(rawCameraView.visibleHeight, 10), 1, 100),
-    fov: clamp(finite(rawCameraView.fov, 36), 20, 80),
+    visibleHeight: clampNumber(finite(rawCameraView.visibleHeight, 10), 1, 100),
+    fov: clampNumber(finite(rawCameraView.fov, 36), 20, 80),
     focalLength:
       rawCameraView.focalLength !== null &&
       rawCameraView.focalLength !== undefined &&
       Number.isFinite(Number(rawCameraView.focalLength))
-        ? clamp(finite(rawCameraView.focalLength, 50), 18, 120)
+        ? clampNumber(finite(rawCameraView.focalLength, 50), 18, 120)
         : null,
   }
   return (
     Number.isFinite(Number(rawCameraView.frameSize)) &&
       Number(rawCameraView.frameSize) > 0 &&
-      (fixedCameraView.frameSize = clamp(finite(rawCameraView.frameSize, 10), 1, 100)),
+      (fixedCameraView.frameSize = clampNumber(finite(rawCameraView.frameSize, 10), 1, 100)),
     fixedCameraView
   )
 }
@@ -148,7 +146,7 @@ export function normalizeCameraSettings(cameraSettings: any) {
     cameraView: cameraSettings?.cameraView === 'top' ? 'top' : 'free',
     cameraTopRotation: (((Math.round(finite(cameraSettings?.cameraTopRotation, 0) / 90) * 90) % 360) + 360) % 360,
     cameraMode: cameraSettings?.cameraMode === 'orthographic' ? 'orthographic' : 'perspective',
-    cameraFocalLength: clamp(finite(cameraSettings?.cameraFocalLength, 50), 18, 120),
+    cameraFocalLength: clampNumber(finite(cameraSettings?.cameraFocalLength, 50), 18, 120),
   }
 }
 export const DEFAULT_BASE_LIGHTING = Object.freeze({
@@ -169,31 +167,35 @@ export const DEFAULT_BASE_LIGHTING = Object.freeze({
 export function normalizeBaseLighting(baseLighting: any) {
   const lightingConfig = baseLighting && typeof baseLighting == 'object' ? baseLighting : {}
   return {
-    exposure: clamp(finite(lightingConfig.exposure, DEFAULT_BASE_LIGHTING.exposure), 0.5, 2),
+    exposure: clampNumber(finite(lightingConfig.exposure, DEFAULT_BASE_LIGHTING.exposure), 0.5, 2),
     ...(lightingConfig.floorBrightness !== undefined
       ? {
-          floorBrightness: clamp(finite(lightingConfig.floorBrightness, 100), 50, 150),
+          floorBrightness: clampNumber(finite(lightingConfig.floorBrightness, 100), 50, 150),
         }
       : {}),
-    hemisphereIntensity: clamp(
+    hemisphereIntensity: clampNumber(
       finite(lightingConfig.hemisphereIntensity, DEFAULT_BASE_LIGHTING.hemisphereIntensity),
       0,
       3,
     ),
-    ambientIntensity: clamp(finite(lightingConfig.ambientIntensity, DEFAULT_BASE_LIGHTING.ambientIntensity), 0, 2),
-    mainIntensity: clamp(finite(lightingConfig.mainIntensity, DEFAULT_BASE_LIGHTING.mainIntensity), 0, 5),
-    mainAzimuth: clamp(finite(lightingConfig.mainAzimuth, DEFAULT_BASE_LIGHTING.mainAzimuth), -180, 180),
-    mainElevation: clamp(finite(lightingConfig.mainElevation, DEFAULT_BASE_LIGHTING.mainElevation), 5, 89),
-    mainShadowIntensity: clamp(
+    ambientIntensity: clampNumber(
+      finite(lightingConfig.ambientIntensity, DEFAULT_BASE_LIGHTING.ambientIntensity),
+      0,
+      2,
+    ),
+    mainIntensity: clampNumber(finite(lightingConfig.mainIntensity, DEFAULT_BASE_LIGHTING.mainIntensity), 0, 5),
+    mainAzimuth: clampNumber(finite(lightingConfig.mainAzimuth, DEFAULT_BASE_LIGHTING.mainAzimuth), -180, 180),
+    mainElevation: clampNumber(finite(lightingConfig.mainElevation, DEFAULT_BASE_LIGHTING.mainElevation), 5, 89),
+    mainShadowIntensity: clampNumber(
       finite(lightingConfig.mainShadowIntensity, DEFAULT_BASE_LIGHTING.mainShadowIntensity),
       0,
       1,
     ),
-    fillIntensity: clamp(finite(lightingConfig.fillIntensity, DEFAULT_BASE_LIGHTING.fillIntensity), 0, 3),
-    fillAzimuth: clamp(finite(lightingConfig.fillAzimuth, DEFAULT_BASE_LIGHTING.fillAzimuth), -180, 180),
-    fillElevation: clamp(finite(lightingConfig.fillElevation, DEFAULT_BASE_LIGHTING.fillElevation), 0, 89),
-    topIntensity: clamp(finite(lightingConfig.topIntensity, DEFAULT_BASE_LIGHTING.topIntensity), 0, 3),
-    topAzimuth: clamp(finite(lightingConfig.topAzimuth, DEFAULT_BASE_LIGHTING.topAzimuth), -180, 180),
-    topElevation: clamp(finite(lightingConfig.topElevation, DEFAULT_BASE_LIGHTING.topElevation), 0, 89),
+    fillIntensity: clampNumber(finite(lightingConfig.fillIntensity, DEFAULT_BASE_LIGHTING.fillIntensity), 0, 3),
+    fillAzimuth: clampNumber(finite(lightingConfig.fillAzimuth, DEFAULT_BASE_LIGHTING.fillAzimuth), -180, 180),
+    fillElevation: clampNumber(finite(lightingConfig.fillElevation, DEFAULT_BASE_LIGHTING.fillElevation), 0, 89),
+    topIntensity: clampNumber(finite(lightingConfig.topIntensity, DEFAULT_BASE_LIGHTING.topIntensity), 0, 3),
+    topAzimuth: clampNumber(finite(lightingConfig.topAzimuth, DEFAULT_BASE_LIGHTING.topAzimuth), -180, 180),
+    topElevation: clampNumber(finite(lightingConfig.topElevation, DEFAULT_BASE_LIGHTING.topElevation), 0, 89),
   }
 }

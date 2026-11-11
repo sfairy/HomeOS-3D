@@ -1,4 +1,5 @@
 /** HA fan / 吊扇运行时状态助手。 */
+import { finiteNumberOrCoerced } from '../../app/shared/util/number'
 
 const isAvailableRecord = (record: any) =>
   record &&
@@ -14,8 +15,7 @@ function readEntityState(stateSource: any, entityId: any) {
 }
 
 function finiteNumber(raw: unknown, fallback: number | null = null) {
-  const value = Number(raw)
-  return Number.isFinite(value) ? value : fallback
+  return finiteNumberOrCoerced(raw, fallback)
 }
 
 function isBinaryOnOff(entityState: any) {
