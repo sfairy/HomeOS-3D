@@ -38,6 +38,7 @@ import {
   tracePillarPlanPath as tracePillarPlanPath2,
 } from '../authoring/items/studio-item-posture'
 import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from '../authoring/items/item-catalog'
+import { drawStripLightPlanGlyph as drawStripLightPlanGlyph2 } from './strip-light-glyph'
 import { planLabelThemeColors } from '../authoring/scene/studio-scene-payload'
 import { dashboardCanvasFont } from '../../shared/dashboard-fonts'
 
@@ -528,11 +529,10 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
         ),
         lampColorHex = '#' + kelvinToRgbHex2(planItem.lightTemperature).toString(16).padStart(6, '0'),
         eu2 = isLampEnabled(planItem)
-      // 户型图不画灯带符号：三维里已有面光和选中箭头，平面再画一条会干扰描摹。
-      if (planItem.type !== 'striplight') {
-        ;(planCanvasRenderer.fillStyle = eu2 ? lampColorHex : '#68737d'),
-          (planCanvasRenderer.strokeStyle = eu2 ? 'rgba(255, 221, 163, .88)' : 'rgba(196, 207, 216, .48)'),
-          (planCanvasRenderer.lineWidth = 1.2)
+      ;(planCanvasRenderer.fillStyle = eu2 ? lampColorHex : '#68737d'),
+        (planCanvasRenderer.strokeStyle = eu2 ? 'rgba(255, 221, 163, .88)' : 'rgba(196, 207, 216, .48)'),
+        (planCanvasRenderer.lineWidth = 1.2)
+      if (!drawStripLightPlanGlyph2(planCanvasRenderer, planItem, itemPixelWidth, itemPixelDepth, eu2)) {
         if (planItem.type === 'ceilinglight') {
           const lampSquareSize = Math.max(Math.min(itemPixelWidth, itemPixelDepth) * 0.82, 16)
           planCanvasRenderer.beginPath(),
