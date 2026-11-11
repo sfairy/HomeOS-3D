@@ -36,7 +36,7 @@ def _install_engineio_b64_encode_cache_fix() -> None:
 
     original_encode = Packet.encode
 
-    def encode(self, b64=False):  # type: ignore[no-untyped-def]
+    def encode(self, b64=False):
         cached = self.encode_cache
         if cached is not None:
             # polling（b64=True）需要 str；websocket 二进制（b64=False）需要 bytes。
@@ -44,7 +44,7 @@ def _install_engineio_b64_encode_cache_fix() -> None:
                 self.encode_cache = None
         return original_encode(self, b64=b64)
 
-    Packet.encode = encode  # type: ignore[method-assign]
+    Packet.encode = encode
     _ENCODE_CACHE_PATCHED = True
 
 

@@ -4,7 +4,7 @@
  * 宿主（编辑器 / 展示页）里 3D 舞台 iframe 一直是首屏同步挂载：runtime 初始化完就赋
  * src → stage.html、three、模型全压进首屏关键路径。这里把「第一次赋 src」推迟到宿主
  * 真正可见且浏览器空闲之后：看不见的控件不做任何加载，看得见的控件也让出首屏长任务。
- * iframe 元素本身仍留在 DOM（透明占位），`?stage-frame-lazy=0` 回退旧行为。
+ * iframe 元素本身仍留在 DOM（透明占位）。
  *
  * 语义保持：45s 加载超时、预览挂起（isPreviewSuspended）、失败重试退避都仍然只在
  * 「真正赋 src 之后」生效；未挂载前的 reload 只更新待加载 URL。
@@ -13,7 +13,6 @@
 // idle 回调在主线程空闲时会立即触发，这里只是「一直不空闲」时的上限；舞台加载本身
 // 在 iframe 里另起事件循环，等太久只会把可见的 3D 白白推迟。
 const LAZY_MOUNT_IDLE_TIMEOUT_MS = 250
-const LAZY_MOUNT_QUERY_KEY = 'stage-frame-lazy'
 
 /** requestIdleCallback 在部分宿主（Safari 旧版 / 测试环境）不存在，按可选能力访问。 */
 type IdleCapableGlobal = typeof globalThis & {
@@ -103,15 +102,6 @@ function createStageFrameVisibilityWatcher({
   return { start, stop }
 }
 
-export function isStageFrameLazyMountEnabled(): boolean {
-  try {
-    const flag = String(new URLSearchParams(window.location.search).get(LAZY_MOUNT_QUERY_KEY) || '').toLowerCase()
-    return flag !== '0' && flag !== 'false' && flag !== 'off'
-  } catch {
-    return true
-  }
-}
-
 export function createStageFrameLazyMountGate({
   hostElement,
   isHostVisible,
@@ -121,7 +111,6 @@ export function createStageFrameLazyMountGate({
   isHostVisible: () => boolean
   idleTimeoutMs?: number
 }): StageFrameLazyMountGate {
-  const enabled = isStageFrameLazyMountEnabled()
   let disposed = false
   let mounted = false
   let pendingAssignment: (() => void) | null = null
@@ -164,10 +153,6 @@ export function createStageFrameLazyMountGate({
     if (mounted) {
       pendingAssignment = null
       assign()
-      return
-    }
-    if (!enabled) {
-      mountNow()
       return
     }
     if (isHostVisible()) scheduleIdleMount()

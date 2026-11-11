@@ -98,9 +98,9 @@ def mail_presets_payload() -> list[dict]:
         {
             "id": str(preset["id"]),
             "label": str(preset["label"]),
-            "domains": [str(domain) for domain in preset["domains"]],  # type: ignore[union-attr]
+            "domains": [str(domain) for domain in preset["domains"]],  # pyright: ignore[reportGeneralTypeIssues]
             "smtpHost": str(preset["smtpHost"]),
-            "smtpPort": int(preset["smtpPort"]),  # type: ignore[call-overload]
+            "smtpPort": int(preset["smtpPort"]),  # pyright: ignore[reportArgumentType]
             "smtpSecurity": str(preset["smtpSecurity"]),
             "hint": str(preset["hint"]),
         }

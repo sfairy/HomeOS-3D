@@ -137,6 +137,7 @@ class CommandProxyService:
             with self._session_factory() as session:
                 self._command_proxy_cfg = _load_section(session, "commandProxy", DEFAULT_COMMAND_PROXY)
         except Exception:
+            logger.debug("_config 忽略异常", exc_info=True)
             self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
         return self._command_proxy_cfg
 

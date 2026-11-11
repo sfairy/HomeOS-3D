@@ -7,29 +7,11 @@
  * 主流程只调用函数；另外把相机静止时的重捕频率从 30fps 降到 12fps。
  */
 
-const IDLE_CAPTURE_FPS_DEFAULT = 12
-const IDLE_CAPTURE_FPS_MIN = 5
-const IDLE_CAPTURE_FPS_MAX = 30
-
 /**
  * 相机/场景静止时的反射捕获帧率：此时只有灯光渐变、状态收敛等「非相机」变化在推动
- * 重捕，不需要 30fps 全速重绘。默认 12fps；`?reflection-idle-fps=30` 恢复旧行为，
- * 0/off/false 也按 30 处理（回滚开关）。
+ * 重捕，不需要 30fps 全速重绘。
  */
-let cachedIdleCaptureFps: number | null = null
-export function resolveReflectionIdleCaptureFps(): number {
-  if (cachedIdleCaptureFps !== null) return cachedIdleCaptureFps
-  try {
-    const rawValue = String(new URLSearchParams(window.location.search).get('reflection-idle-fps') || '').toLowerCase()
-    if (rawValue === '0' || rawValue === 'off' || rawValue === 'false') return (cachedIdleCaptureFps = 30)
-    if (!rawValue) return (cachedIdleCaptureFps = IDLE_CAPTURE_FPS_DEFAULT)
-    const parsedFps = Number(rawValue)
-    if (!Number.isFinite(parsedFps)) return (cachedIdleCaptureFps = IDLE_CAPTURE_FPS_DEFAULT)
-    return (cachedIdleCaptureFps = Math.min(IDLE_CAPTURE_FPS_MAX, Math.max(IDLE_CAPTURE_FPS_MIN, parsedFps)))
-  } catch {
-    return (cachedIdleCaptureFps = IDLE_CAPTURE_FPS_DEFAULT)
-  }
-}
+export const REFLECTION_IDLE_CAPTURE_FPS = 12
 
 /**
  * 持久化缓存戳：替代每记录一次的 `JSON.stringify([...])`。对对象按 key 排序展开成

@@ -59,7 +59,6 @@
   --set-fs-body-sm: var(--hos-fs-4);
   --set-fs-caption: var(--hos-fs-3);
   --set-fs-micro: var(--hos-fs-2);
-  --set-fs-stat: var(--hos-fs-7);
   --set-fs-nav-brand: 20px;
   --set-fs-nav-brand-sub: 12px;
   --set-fs-nav-l1: 16px;
@@ -118,7 +117,6 @@
 .settings-page.diagnostics-hub,
 .settings-page.access-hub,
 .settings-page.alert-hub,
-.settings-page.env-health-hub,
 .settings-page.life-accounts-hub,
 .settings-page.favorites-hub {
   --hos-color-accent-rgb: var(--hos-color-accent-strong-rgb);
@@ -134,7 +132,6 @@
 
 .settings-page.widgets-hub,
 .settings-page.assets-hub-page,
-.settings-page.orchestrator-hub,
 .settings-page.sm-panel {
   --hos-color-accent-strong: var(--hos-color-accent);
   --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);
@@ -161,7 +158,6 @@
     --set-fs-body-sm: 16px;
     --set-fs-caption: 15px;
     --set-fs-micro: 14px;
-    --set-fs-stat: 26px;
     --set-fs-nav-brand: 22px;
     --set-fs-nav-brand-sub: 14px;
     --set-fs-nav-l1: 18px;
@@ -192,7 +188,6 @@
     --set-fs-body-sm: 19px;
     --set-fs-caption: 18px;
     --set-fs-micro: 16px;
-    --set-fs-stat: 31px;
     --set-fs-nav-brand: 24px;
     --set-fs-nav-brand-sub: 16px;
     --set-fs-nav-l1: 22px;

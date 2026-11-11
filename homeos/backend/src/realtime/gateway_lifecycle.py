@@ -19,6 +19,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from .payloads import parse_state_replay_params, should_replay_state, to_ws_state_change_payload
+from .state_store import REPLAY_TRUNCATION_CURSOR_STALE
 from .subscription import resolve_user_room_key
 from .ws_buffer import resolve_ws_max_buffer_bytes
 from .ws_payloads import (
@@ -90,7 +91,8 @@ class ConnectionLifecycleMixin:
         返回：
 
         - ``'replayed'``：增量已下发且足以补齐（调用方无需再推全量快照）；
-        - ``'resync'``：起点已淘汰 / 增量过大，建议客户端重同步（仍需全量兜底）；
+        - ``'resync'``：游标不可信（来自旧进程 / 已被缓冲淘汰）或增量过大，建议客户端重同步
+          （调用方仍需发全量兜底）；
         - ``'none'``：客户端没有基线或未声明 `since`，必须推全量。
         """
         # 只有明确声明「本地已有基线」的客户端才走增量：首次打开页面（无缓存）时
@@ -123,10 +125,25 @@ class ConnectionLifecycleMixin:
                     "resync_suggested", resync_suggested_payload("full_sync_after_since"), to=sid
                 )
                 return "resync"
-        if self.state_store.is_replay_truncated(since_ms, last_event_id):
-            # 环形缓冲已淘汰部分变更：此时下发增量会漏掉状态，
-            # 前端已有完整快照，直接建议重同步（会回滚乐观更新并软重拉）。
-            logger.info("state_replay 起点已淘汰,建议客户端重同步 sid=%s", sid)
+        truncation_reason = self.state_store.replay_truncation_reason(since_ms, last_event_id)
+        if truncation_reason is not None:
+            # 两种「游标不可信」的处置相同（整包重拉），但原因必须分开记：
+            # 后端每次重启后，所有页面的游标都必然「超前」新进程的 seq，缓冲一条都没淘汰；
+            # 若统一打成「起点已淘汰」，排障时会把重启噪声误读成缓冲容量不足。
+            if truncation_reason == REPLAY_TRUNCATION_CURSOR_STALE:
+                logger.info(
+                    "state_replay 游标来自旧进程(本进程seq=%d<lastEventId=%d),建议客户端重同步 sid=%s",
+                    self.state_store.get_latest_change_id(),
+                    last_event_id,
+                    sid,
+                )
+            else:
+                logger.info(
+                    "state_replay 起点已淘汰(since=%s lastEventId=%d 已滚出缓冲),建议客户端重同步 sid=%s",
+                    ms_to_iso(since_ms) if since_ms else "-",
+                    last_event_id,
+                    sid,
+                )
             await self.sio.emit("resync_suggested", resync_suggested_payload("replay_truncated"), to=sid)
             return "resync"
         replay = [

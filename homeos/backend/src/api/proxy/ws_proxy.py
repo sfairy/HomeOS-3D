@@ -48,7 +48,7 @@ async def _reject(websocket: WebSocket, code: int) -> None:
     try:
         await websocket.close(code=code)
     except Exception:  # 拒绝握手时关闭 socket 是收尾动作，失败无处可退
-        pass
+        logger.debug("_reject 忽略异常", exc_info=True)
 
 
 @router.websocket("/ha/webrtc-ws")

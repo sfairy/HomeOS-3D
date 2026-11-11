@@ -73,8 +73,7 @@
 }
 
 /* 全宽工具行（搜索条等）占满一行，避免与其它控件挤在同一 flex 行 */
-.list-page__toolbar-block > .list-page__search-row,
-.list-page__toolbar-block > .list-page__filter-toolbar {
+.list-page__toolbar-block > .list-page__search-row {
   flex: 1 1 100%;
   min-width: 0;
 }
@@ -202,46 +201,6 @@
   flex: 1;
   min-width: 200px;
   max-width: 320px;
-}
-
-.list-page__filter-toolbar-search .ss-wrap {
-  width: 100%;
-}
-
-.list-page__filter-toolbar-search .ss-input-row {
-  min-height: 44px;
-  border-radius: var(--hos-radius-card);
-  background: rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.list-page__filter-toolbar-search .ss-input--list-page {
-  /* 同一行里的 .ss-clear / .ss-toggle 被强制到 44px，输入框也必须跟随行高，
-     否则三者同排两档（34 vs 44）。 */
-  height: 100%;
-  padding: 0 10px;
-  font-size: var(--premium-fs-caption);
-}
-
-.list-page__filter-toolbar-search .ss-clear,
-.list-page__filter-toolbar-search .ss-toggle {
-  min-height: 44px;
-  height: 44px;
-  width: 28px;
-  min-width: 28px;
-}
-
-.list-page__filter-clear-fade-enter-active,
-.list-page__filter-clear-fade-leave-active {
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
-}
-
-.list-page__segment-btn--on {
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
 }
 
 .list-page__filter-chips {
@@ -415,12 +374,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.list-page__tag--off {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--premium-border-strong);
-  color: var(--hos-text-secondary);
 }
 
 /* `.list-page__btn*` 与 `.list-page__muted` 已上移到首屏子集 list-page-eager.css
@@ -716,8 +669,6 @@
   .list-page__chip--accent,
   .list-page__chip--btn.list-page__chip--accent,
   .list-page__tab--on,
-  .list-page__segment-btn--on,
-  .list-page__segment-btn--accent,
   .list-page__link-btn:hover,
   .list-page__row:hover,
   .list-page__row:hover::before {
@@ -730,7 +681,6 @@
   }
 
   .list-page__tabs,
-  .list-page__filter-segment,
   .list-page__search,
   .list-page__row {
     border-width: 1px;
@@ -748,8 +698,6 @@
   .list-page__chip--accent,
   .list-page__chip--btn.list-page__chip--accent,
   .list-page__tab--on,
-  .list-page__segment-btn--on,
-  .list-page__segment-btn--accent,
   .list-page__link-btn:hover,
   .list-page__row:hover,
   .list-page__row:hover::before {
@@ -762,7 +710,6 @@
   }
 
   .list-page__tabs,
-  .list-page__filter-segment,
   .list-page__search,
   .list-page__row {
     border-width: 1px;

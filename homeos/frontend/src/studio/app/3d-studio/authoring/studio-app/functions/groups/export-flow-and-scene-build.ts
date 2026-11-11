@@ -85,7 +85,6 @@ export function saveAsNewPreset(runtime: StudioAppRuntime) {
 }
 
 export {
-  closePresetDeleteDialog,
   closePresetRenameDialog,
   confirmDeletePreset,
   openPresetDeleteDialog,

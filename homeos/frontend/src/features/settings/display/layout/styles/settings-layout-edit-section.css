@@ -134,12 +134,6 @@
   box-shadow: none;
 }
 
-.layout-edit-hero__badge--live .layout-edit-hero__badge-dot {
-  background: #f87171;
-  box-shadow: none;
-  animation: layout-edit-dot-pulse 1.8s ease-in-out infinite;
-}
-
 @keyframes layout-edit-dot-pulse {
   0%,
   100% {

@@ -226,8 +226,3 @@ export function deobfuscate(source, options = {}) {
   const result = { code, stats: { replaced, failed, decoders: decoders.size, scaffolds: spans.map((s) => s.kind) } }
   return stats ? result : code
 }
-
-/** 剩余未还原的解码器调用（用于人工核对覆盖率）。 */
-export function residualDecoderCalls(source) {
-  return [...source.matchAll(DECODER_CALL)].map((m) => m[0])
-}

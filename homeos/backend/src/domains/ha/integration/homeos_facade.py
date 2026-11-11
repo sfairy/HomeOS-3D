@@ -48,6 +48,9 @@ class HomeOSFacadeMixin:
     _get_sync_only: Any = None
     _event_bus: Any = None
     _state_store: Any = None
+    #: 当前连接上的 HA 版本号（``HAConnectorService.__init__`` 初始化、同步流程刷新）。
+    # 类体声明只为满足 pyright 的实例变量检查。
+    ha_version: str | None = None
 
     @property
     def _host(self) -> Any:
@@ -99,6 +102,7 @@ class HomeOSFacadeMixin:
         try:
             base_url = self._host.active_base_url or ""
         except Exception:
+            logger.debug("_status_dict 忽略异常", exc_info=True)
             base_url = ""
         return {
             "connected": bool(self._host.connected),
@@ -114,8 +118,23 @@ class HomeOSFacadeMixin:
     def get_status_snapshot(self) -> dict[str, Any]:
         return self._status_dict()
 
+    def _stored_ha_version(self) -> str | None:
+        """只读 ``ha_version`` 一列：整条 ``HAConnection`` 出了会话就会 detached。"""
+        with self._host.database.session_factory() as database:
+            return database.scalar(
+                select(HAConnection.ha_version).where(HAConnection.is_active.is_(True))
+            )
+
     async def get_status(self) -> dict[str, Any]:
-        return self._status_dict()
+        status = self._status_dict()
+        if not status["ha_version"]:
+            # 进程起来后还没成功同步过一轮（HA 离线 / 正在重连）时，库里上次记下的版本
+            # 仍然有效：诊断页问的是「这是哪一版 HA」，不该等到连上才有答案。
+            stored = await asyncio.to_thread(self._stored_ha_version)
+            if stored:
+                self.ha_version = stored
+                status["ha_version"] = stored
+        return status
 
     # 连接 / 客户端解析
     def _active_connection(self) -> HAConnection | None:

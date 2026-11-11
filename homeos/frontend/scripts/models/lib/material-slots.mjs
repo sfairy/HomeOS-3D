@@ -84,7 +84,7 @@ export function localMatrix(node) {
 }
 
 /** 每个节点的世界矩阵，按 node 下标索引。 */
-export function nodeWorldMatrices(json) {
+function nodeWorldMatrices(json) {
   const matrices = new Array((json.nodes ?? []).length).fill(null)
   const nodes = json.nodes ?? []
   const walk = (index, parent) => {
@@ -113,7 +113,7 @@ const readComponent = (bin, arrayType, offset) => {
 }
 
 /** 读 accessor → 扁平 typed array（支持 byteStride 与 sparse）。 */
-export function readAccessor(json, bin, index) {
+function readAccessor(json, bin, index) {
   const accessor = (json.accessors ?? [])[index]
   if (!accessor) throw new Error(`accessor ${index} 不存在`)
   const component = COMPONENT[accessor.componentType]
@@ -150,7 +150,7 @@ export function readAccessor(json, bin, index) {
 }
 
 /** 是否 Draco 压缩（POSITION 不是可直读的 accessor）。 */
-export function isDracoCompressed(json) {
+function isDracoCompressed(json) {
   return (json.extensionsRequired ?? []).includes('KHR_draco_mesh_compression')
 }
 
@@ -183,7 +183,7 @@ function ensureSlot(map, materialIndex) {
  * - `shells`：按位置焊接后的连通壳数（区分「一体柜体」与「散件拼装」）；
  * - `offset`：槽位质心相对模型中心的偏移（判断门板/把手在正面还是背面）。
  */
-export function slotGeometry(json, bin, { weldTolerance = 1e-4 } = {}) {
+function slotGeometry(json, bin, { weldTolerance = 1e-4 } = {}) {
   const slots = new Map()
   const primitives = []
   const matrices = nodeWorldMatrices(json)
@@ -439,9 +439,4 @@ export function enumerateSlots(filePath, { fullPath = null } = {}) {
     modelSize: geometry?.modelSize ?? null,
     modelArea: geometry?.modelArea ?? null,
   }
-}
-
-/** 槽位集合指纹（改名/顺序比对用）。 */
-export function slotSignature(enumeration) {
-  return enumeration.slots.map((slot) => `${slot.index}:${slot.name}`).join('|')
 }

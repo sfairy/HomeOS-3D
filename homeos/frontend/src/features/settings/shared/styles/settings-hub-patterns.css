@@ -5,32 +5,12 @@
  */
 
 /* ── 静态卡片 workspace 壳（无 hover 动效） ── */
-.settings-hub-workspace.settings-card--static,
 .svc-workspace.settings-card--static {
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-/* ── Hub 子页内容区（与 settings-hub.css 对齐，供域级 CSS 扩展） ── */
-.settings-hub-workspace .settings-hub-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--settings-content-gap, 20px);
-  flex: none;
-  width: 100%;
-}
-
-/* ── Hero 顶栏标题排版（settings-utilities 扩展点） ── */
-.settings-hub-workspace .hub-hero-bar__title {
-  letter-spacing: -0.02em;
-}
-
-.settings-hub-workspace .hub-hero-bar__eyebrow,
-.settings-hub-workspace .hub-hero-bar__desc {
-  line-height: 1.45;
 }
 
 /* ── Hub 子页撑满视口 flex 栈（父级 overflow:hidden 时配合内层滚动） ── */

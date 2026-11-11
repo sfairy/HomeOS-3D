@@ -226,6 +226,7 @@ class ExternalApiService:
         try:
             timezone_value = getter()
         except Exception:
+            logger.debug("_home_timezone 忽略异常", exc_info=True)
             return None
         # 上游可能返回任意值（如 None/数字）：只有非空字符串才是合法时区名。
         return timezone_value if isinstance(timezone_value, str) and timezone_value else None

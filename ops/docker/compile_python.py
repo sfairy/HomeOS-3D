@@ -101,13 +101,13 @@ def _clean_caches(root: Path) -> None:
 
 
 def _compile(root: Path, sources: list[Path], jobs: int) -> None:
-    from Cython.Build import cythonize  # type: ignore[import-not-found]  # 构建期依赖，仅在 Docker 编译容器内可用
-    from setuptools import (  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
+    from Cython.Build import cythonize  # pyright: ignore[reportMissingImports]  # 构建期依赖，仅在 Docker 编译容器内可用
+    from setuptools import (  # pyright: ignore[reportMissingImports]  # 构建期依赖，仅在 Docker 编译容器内可用
         Distribution,
         Extension,
     )
     from setuptools.command.build_ext import (  # pyright: ignore[reportMissingModuleSource]  # 构建期依赖，仅在 Docker 编译容器内可用
-        build_ext,  # type: ignore[import-untyped]
+        build_ext,
     )
 
     extensions = [Extension(_module_name(path, root), [str(path)]) for path in sources]

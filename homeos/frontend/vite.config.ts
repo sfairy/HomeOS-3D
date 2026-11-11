@@ -983,7 +983,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
               },
               {
                 name: 'vendor-core',
-                test: /node_modules[\\/](axios|@vueuse|comlink)/,
+                test: /node_modules[\\/](axios|comlink)/,
                 priority: 35,
               },
               // B21：socket.io 建连才动态加载，自成一档避免被 vendor-misc 合并回静态 vendor chunk。

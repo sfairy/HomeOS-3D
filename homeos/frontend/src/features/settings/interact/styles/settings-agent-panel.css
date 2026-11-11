@@ -145,9 +145,6 @@
 }
 
 /* ── 模型 / 通道 / 对话 · 渐变 band ── */
-.agent-model-band {
-  margin: 12px var(--agent-inset-x) 0;
-}
 
 .agent-chat-band {
   margin: 12px var(--agent-inset-x) 0;
@@ -580,12 +577,6 @@
 .agent-secret-field__toggle:focus-visible {
   outline: 2px solid var(--premium-border-open);
   outline-offset: 2px;
-}
-
-.agent-field-row .settings-field,
-.agent-field-row .agent-secret-field {
-  flex: 1;
-  min-width: 0;
 }
 
 /* ── 管家对话 · workspace ── */
@@ -1120,7 +1111,6 @@
     padding: 16px 16px 0;
   }
 
-  .agent-model-band,
   .agent-chat-band {
     margin-left: 16px;
     margin-right: 16px;
@@ -1129,11 +1119,6 @@
   .agent-model-body,
   .agent-chat-body {
     padding: 10px 16px 16px;
-  }
-
-  .agent-chat-flow__node {
-    min-width: 78px;
-    padding: 10px 12px;
   }
 
   .agent-chat-composer {
@@ -1202,16 +1187,6 @@
   display: block;
   margin-top: 2px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
-}
-
-/* 悬浮伴侣：交互方式说明用中性色（不是警示），与 hint 的琥珀色区分开 */
-.agent-companion-usage {
-  margin: 10px var(--agent-inset-x) 0;
-  padding-left: 18px;
-  list-style: disc;
-  font-size: 0.75rem;
-  line-height: 1.6;
   color: var(--hos-text-secondary);
 }
 
@@ -1371,16 +1346,6 @@
 }
 
 /* ── 悬浮伴侣 · 表单 + 停靠预览 ── */
-.agent-companion-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.agent-companion-fields {
-  min-width: 0;
-}
 
 .agent-range {
   width: 100%;
@@ -1508,13 +1473,6 @@
   .agent-companion-position-actions .settings-btn-ghost {
     width: 100%;
     justify-content: center;
-  }
-}
-
-@container settings-scroll (min-width: 900px) {
-  .agent-companion-layout {
-    grid-template-columns: minmax(0, 1fr) 264px;
-    gap: 18px;
   }
 }
 

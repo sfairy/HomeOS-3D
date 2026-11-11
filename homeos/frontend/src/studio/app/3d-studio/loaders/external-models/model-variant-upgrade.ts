@@ -73,7 +73,7 @@ export async function upgradeExternalModelToFull(
 }
 
 /** 收集近场 / 聚焦候选类型（已是 full 的跳过）。 */
-export function collectNearCameraModelTypes(params: {
+function collectNearCameraModelTypes(params: {
   threeNamespace: ThreeVector3Ns
   camera?: WorldPositionTarget
   root?: TraversableRoot

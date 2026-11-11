@@ -16,12 +16,6 @@
 
 /* ── alert-rules-theme.css ── */
 /* 告警统计已统一为 hub-stat 风格 */
-.alert-stat-row {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 .alert-switch {
   display: flex;
   align-items: center;
@@ -131,11 +125,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-.alert-trigger-tab--active {
-  background: var(--page-accent-bg);
-  border-color: var(--page-accent-border);
-  color: var(--page-accent-text);
 }
 .settings-checkbox {
   width: 16px;
@@ -1508,12 +1497,6 @@
   padding: 14px 16px 16px;
 }
 
-.alert-eew-hero__badge--off {
-  color: var(--set-text-tertiary);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--set-border);
-}
-
 .alert-eew-toggle {
   position: relative;
   display: inline-flex;
@@ -2121,12 +2104,6 @@
   .alert-eew-drill-btn {
     width: 100%;
   }
-}
-
-.alert-eew-pipeline__node--active {
-  color: var(--page-accent-text);
-  background: var(--page-accent-bg);
-  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 .alert-eew-link-btn {

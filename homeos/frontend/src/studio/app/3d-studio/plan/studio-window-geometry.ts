@@ -9,7 +9,7 @@
  */
 
 /** 框料向洞口内收一圈，避免和墙面共面闪烁。 */
-export function windowFrameBounds(width: number, height: number, sill = 0) {
+function windowFrameBounds(width: number, height: number, sill = 0) {
   const inset = Math.min(0.001, width / 100, height / 100)
   return { width: width - 2 * inset, height: height - 2 * inset, sill: sill + inset }
 }

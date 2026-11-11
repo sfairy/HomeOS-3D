@@ -2214,43 +2214,18 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* chip 语义色（在线/离线/低电量） */
-.devices-view .list-page__chip--online.list-page__chip--accent {
-  border-color: color-mix(in srgb, var(--premium-accent-green, #34c759) 38%, rgba(0, 0, 0, 0));
-  background: color-mix(in srgb, var(--premium-accent-green, #34c759) 14%, rgba(0, 0, 0, 0));
-  color: var(--set-success, #6ee7b7);
-}
-
-.devices-view .list-page__chip--offline.list-page__chip--accent {
-  border-color: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 38%, rgba(0, 0, 0, 0));
-  background: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 14%, rgba(0, 0, 0, 0));
-  color: var(--set-danger, #fca5a5);
-}
-
-.devices-view .list-page__chip--low-battery.list-page__chip--accent {
-  border-color: color-mix(in srgb, var(--premium-accent-amber, #ff9500) 38%, rgba(0, 0, 0, 0));
-  background: color-mix(in srgb, var(--premium-accent-amber, #ff9500) 14%, rgba(0, 0, 0, 0));
-  color: var(--set-warn, #fde68a);
-}
-
 /* 手机 / 触控端：关闭毛玻璃与 inset 光晕以减轻性能负担 */
 @container hos-canvas (max-width: 900px) {
   .dev-metric__icon,
   .dev-range__btn--active,
-  .devices-view .list-page__chip--accent,
-  .devices-view .list-page__chip--online.list-page__chip--accent,
-  .devices-view .list-page__chip--offline.list-page__chip--accent,
-  .devices-view .list-page__chip--low-battery.list-page__chip--accent {
+  .devices-view .list-page__chip--accent {
     box-shadow: none !important;
   }
 }
 @media (pointer: coarse), (hover: none) {
   .dev-metric__icon,
   .dev-range__btn--active,
-  .devices-view .list-page__chip--accent,
-  .devices-view .list-page__chip--online.list-page__chip--accent,
-  .devices-view .list-page__chip--offline.list-page__chip--accent,
-  .devices-view .list-page__chip--low-battery.list-page__chip--accent {
+  .devices-view .list-page__chip--accent {
     box-shadow: none !important;
   }
 }

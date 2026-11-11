@@ -20,12 +20,6 @@ export const modelAuditDir = path.join(repoRoot, 'docs/model-audit')
 /** `audit_glb_materials.mjs` 输出；`build-slot-contracts.mjs` 的唯一外部输入。 */
 export const materialAuditFile = path.join(modelAuditDir, 'glb-material-audit.json')
 
-/** `audit_glb_geometry.mjs` 输出（只读报告，无下游消费）。 */
-export const geometryAuditFile = path.join(modelAuditDir, 'glb-geometry-audit.json')
-
-/** `audit_glb_material_slots.mjs` 输出（只读报告，无下游消费）。 */
-export const materialSlotsAuditFile = path.join(modelAuditDir, 'glb-material-slots.json')
-
 /** `compare_model_quality.mjs` 默认输出目录。 */
 export const qualityDir = path.join(modelAuditDir, 'quality')
 

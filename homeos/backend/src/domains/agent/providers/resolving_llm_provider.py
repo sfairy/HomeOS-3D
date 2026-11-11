@@ -76,7 +76,7 @@ class ResolvingLlmProvider:
         - 配置了 provider != mock 且 apiKey 非空 → 使用 DeepseekLlmProvider（复用已有实例 / 新建）
         - 否则 → 回退到 MockLlmProvider（开发 / AGENT_ALLOW_MOCK=true）或 UnavailableLlmProvider
         """
-        # 先清缓存，避免与 SYSTEM_CONFIG_UPDATED 监听顺序竞态读到旧 mock
+        # 先清缓存，避免与 app.config.updated 监听顺序竞态读到旧 mock
         self._agent_config.invalidate_cache()
         cfg = await self._agent_config.get_config()
         if cfg.provider != "mock" and cfg.api_key:

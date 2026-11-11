@@ -387,9 +387,6 @@
   transform: translateY(-1px);
 }
 
-@container hos-canvas (max-width: 720px) {
-}
-
 .config-actions__pending {
   font-size: var(--premium-fs-micro);
   font-weight: 700;
@@ -480,13 +477,6 @@
   --page-accent-rgb: var(--module-accent-bindings-rgb);
   --page-accent-secondary: var(--module-accent-bindings-sub);
   --page-accent-secondary-rgb: var(--module-accent-bindings-sub-rgb);
-  --hero-glow-a: rgba(var(--page-accent-rgb), 0.18);
-  --hero-glow-b: rgba(var(--page-accent-secondary-rgb), 0.15);
-  --hero-glow-c: rgba(var(--page-accent-rgb), 0.12);
-  --hero-glow-d: rgba(var(--page-accent-secondary-rgb), 0.1);
-  --hero-border: rgba(var(--page-accent-rgb), 0.24);
-  --hero-shadow-a: 0 16px 52px rgba(var(--page-accent-rgb), 0.1);
-  --hero-shadow-b: 0 10px 36px rgba(var(--page-accent-secondary-rgb), 0.06);
 }
 
 .rooms-hub__body {
@@ -575,20 +565,6 @@
 }
 
 /* Hero · 紧凑版 */
-.rooms-hero-card--compact.settings-card {
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) !important;
-}
-
-.rooms-hero-card--compact .settings-card-intro {
-  gap: 10px;
-}
-
-.rooms-hero-card--compact .settings-card-intro__desc {
-  margin-top: 2px;
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
-  overflow: visible;
-}
 
 .rooms-hero-compact__hints {
   margin: 0;
@@ -612,22 +588,6 @@
   opacity: 0.35;
 }
 
-.rooms-overview__stats--compact .hub-stat__val {
-  font-size: 20px;
-  line-height: 1.1;
-}
-
-.rooms-overview__stats--compact .hub-stat__lbl {
-  font-size: var(--premium-fs-caption);
-  line-height: 1.2;
-  color: var(--hos-text-secondary);
-}
-
-.rooms-overview__stats--compact .rooms-stat--active {
-  transform: none;
-  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.1) !important;
-}
-
 .rooms-hub-subnav {
   background: linear-gradient(
     165deg,
@@ -635,13 +595,6 @@
     rgba(var(--page-accent-secondary-rgb), 0.04) 100%
   ) !important;
   border-color: rgba(var(--page-accent-rgb), 0.14) !important;
-}
-
-.rooms-stat--active {
-  box-shadow:
-    inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.12),
-    0 8px 28px rgba(0, 0, 0, 0.28) !important;
-  transform: translateY(-2px);
 }
 
 /* 房间目录 · 主工作区卡片 */

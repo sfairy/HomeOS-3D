@@ -58,7 +58,6 @@ class ServiceCallPayload(Protocol):
 
 #: 域内表达 HTTP 结果用的状态码（与 FastAPI ``status`` 同值，但不 import 它）。
 _FORBIDDEN = 403
-_UNPROCESSABLE = 422
 _CONFLICT = 409
 _NOT_FOUND = 404
 _BAD_GATEWAY = 502

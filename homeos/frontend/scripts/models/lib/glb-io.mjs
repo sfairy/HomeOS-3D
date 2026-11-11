@@ -21,7 +21,7 @@ export const frontendDir = path.resolve(hereDir, '..', '..', '..')
 export const repoRoot = path.resolve(frontendDir, '..', '..')
 export const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models')
 /** `homeos/frontend/scripts/models`。 */
-export const scriptsDir = path.resolve(hereDir, '..')
+const scriptsDir = path.resolve(hereDir, '..')
 export const specsDir = path.join(scriptsDir, 'specs')
 
 /**
@@ -72,7 +72,7 @@ export function parseModelPath(relativePath) {
 }
 
 /** 模型静态资源的公共前缀。 */
-export const MODELS_URL_PREFIX = '/static/3d-studio/models/'
+const MODELS_URL_PREFIX = '/static/3d-studio/models/'
 
 /**
  * 模型 URL → 英文 id。
@@ -174,7 +174,7 @@ export function readGlbFile(filePath) {
 }
 
 /** 拼 GLB：JSON 用空格补齐到 4 字节，BIN 用 0 补齐（与规范一致）。 */
-export function buildGlbBuffer(json, bin) {
+function buildGlbBuffer(json, bin) {
   const jsonBytes = Buffer.from(JSON.stringify(json), 'utf8')
   const jsonPad = Buffer.alloc((4 - (jsonBytes.length % 4)) % 4, 0x20)
   const binBytes = bin ?? Buffer.alloc(0)
@@ -213,16 +213,6 @@ export function patchGlbJson(filePath, mutate, { dryRun = false } = {}) {
   }
   if (!dryRun) fs.writeFileSync(filePath, next)
   return { changed: true, bytesBefore: original.length, bytesAfter: next.length }
-}
-
-/** 写 GLB（几何重建用，BIN 由调用方给）。 */
-export function writeGlbFile(filePath, json, bin, { dryRun = false } = {}) {
-  const buffer = buildGlbBuffer(json, bin)
-  if (!dryRun) {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    fs.writeFileSync(filePath, buffer)
-  }
-  return buffer.length
 }
 
 /* ------------------------------------------------------------------ *
@@ -285,29 +275,7 @@ export function composeMatrix({ translation = [0, 0, 0], rotation = [0, 0, 0, 1]
   ]
 }
 
-/** 两个列主序 4×4 相乘（`a * b`）。 */
-export function multiplyMatrix(a, b) {
-  const out = new Array(16).fill(0)
-  for (let column = 0; column < 4; column += 1) {
-    for (let row = 0; row < 4; row += 1) {
-      let sum = 0
-      for (let index = 0; index < 4; index += 1) sum += a[index * 4 + row] * b[column * 4 + index]
-      out[column * 4 + row] = sum
-    }
-  }
-  return out
-}
-
 /** 平移矩阵（列主序）。 */
 export function translationMatrix(x, y, z) {
   return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]
 }
-
-/** 缩放矩阵（列主序）；`scale` 可以是标量或 `[x, y, z]`。 */
-export function scalingMatrix(scale) {
-  const [x, y, z] = Array.isArray(scale) ? scale : [scale, scale, scale]
-  return [x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1]
-}
-
-/** 原样读回模型文件字节长度（报告用）。 */
-export const fileSize = (relativePath) => fs.statSync(path.join(modelsDir, relativePath)).size

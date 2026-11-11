@@ -499,7 +499,7 @@ export async function floorActionHandler(runtime: StudioAppRuntime, floorToDelet
   if (await confirmFloorDeletion(floorToDelete.name)) await confirmFloorDelete(runtime, floorToDelete)
 }
 
-export async function confirmFloorDelete(runtime: StudioAppRuntime, floorToDelete?: any) {
+async function confirmFloorDelete(runtime: StudioAppRuntime, floorToDelete?: any) {
   const deletedFloor =
     floorToDelete ||
     runtime.appCtx.studioProject.floors.find(

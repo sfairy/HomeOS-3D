@@ -21,7 +21,6 @@
   align-items: start;
 }
 
-.access-hub__body > .settings-page-stack > .acc-page,
 .access-hub__body > .settings-page-stack > .settings-hub-section {
   height: fit-content !important;
   min-height: 0 !important;
@@ -34,94 +33,6 @@
 .access-hub .settings-hub-section {
   gap: 18px;
   animation: setFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.access-hub .access-members-summary__item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 16px 12px;
-  border-radius: var(--hos-radius-card, 14px);
-  background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.28) 100%);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  text-align: center;
-}
-
-.access-hub .access-role-tab {
-  font-size: var(--premium-fs-caption);
-  padding: 8px 16px;
-}
-
-/* ── 访客分享 ── */
-
-.access-hub .access-guest-flow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-  margin-bottom: 4px;
-}
-
-.access-hub .access-guest-flow__step {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-caption);
-  font-weight: 700;
-  color: var(--set-text-label);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-}
-
-.access-hub .access-guest-flow__step--active {
-  color: var(--set-info);
-  border-color: var(--set-info-border);
-  background: var(--set-info-bg);
-}
-
-.access-hub .access-guest-preset {
-  font-size: var(--premium-fs-caption);
-  padding: 8px 16px;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.access-hub .access-guest-preset--active {
-  box-shadow: 0 6px 20px var(--set-info-glow, rgba(34, 211, 238, 0.12));
-  transform: translateY(-1px);
-}
-
-.access-hub .access-guest-result__code {
-  font-size: var(--premium-fs-caption);
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--set-info-border);
-}
-
-/* ── 审计 ── */
-
-.access-hub .access-audit-kpi__item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: var(--hos-panel-padding-default, 20px);
-  border-radius: var(--hos-radius-card, 14px);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.26) 100%);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.access-hub .access-audit-kpi__item:hover {
-  transform: translateY(-2px);
-  border-color: var(--set-border-strong);
-  box-shadow: 0 10px 28px var(--set-bg-dark-hover);
 }
 
 /* 角色徽章统一缩小 */
@@ -483,23 +394,6 @@
 }
 
 /* ── settings-access-security-section.css ── */
-/* 终端安全页 · 概览 Hero + Tab 工作区 */
-
-.acc-page {
-  gap: 16px;
-  align-items: stretch;
-  height: fit-content;
-  min-height: 0;
-  flex: 0 0 auto;
-}
-
-.acc-page > .settings-card {
-  flex: 0 0 auto !important;
-  height: fit-content !important;
-  max-height: none !important;
-  min-height: 0 !important;
-  align-self: stretch;
-}
 
 /* 评分不足时的改进提示 */
 
@@ -541,12 +435,6 @@
   font-size: var(--premium-fs-micro);
   line-height: 1.45;
   color: var(--set-text-tertiary);
-}
-
-.acc-prefs-status__badge--off {
-  color: var(--set-text-faint);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--hos-glass-border);
 }
 
 /* ── 偏好表单 ── */

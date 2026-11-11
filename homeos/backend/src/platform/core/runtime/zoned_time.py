@@ -1,4 +1,4 @@
-"""时区感知时间工具（对齐 @homeos/shared/time/zoned-time.util + home/mode-time.util）。
+"""时区感知时间工具（口径同 @homeos/shared 的 home/mode-time.util）。
 
 - ``normalize_home_mode_time_at``：时间字符串规范化为 HH:mm；
 - ``home_mode_minute_key``：从 datetime 生成分钟键（可指定 IANA 时区）；
@@ -12,7 +12,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 _TIME_AT_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
-_WEEKDAY_MAP = {"Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6}
 
 
 def normalize_home_mode_time_at(raw: object) -> str | None:

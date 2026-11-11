@@ -158,7 +158,7 @@ async def lookup_place_zh_remote(
         if from_bdc and has_cjk_text(from_bdc):
             return from_bdc
     except Exception:  # 地名多源级联：本来源失败即换下一个来源
-        pass
+        logger.debug("lookup_place_zh_remote 忽略异常", exc_info=True)
 
     try:
         result = await deps.get(
@@ -182,6 +182,7 @@ async def lookup_place_zh_remote(
         if from_nom and has_cjk_text(from_nom):
             return from_nom
     except Exception:
+        logger.debug("lookup_place_zh_remote 忽略异常", exc_info=True)
         return None
 
     return None

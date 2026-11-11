@@ -127,6 +127,8 @@ const GATE_GROUPS = {
     { name: 'check:frontend-deps', ...bun('run', 'check:frontend-deps') },
     { name: 'check:backend-deps', ...bun('run', 'check:backend-deps') },
     { name: 'test:architecture', ...bun('run', 'test:architecture') },
+    // 导入真实路由注册表，依赖后端 requirements（CI 只有 test 组安装），故不放 static。
+    { name: 'check:routes', ...bun('run', 'check:routes') },
   ],
   model: [
     { name: 'check:geometry', ...bun('run', 'check:geometry') },

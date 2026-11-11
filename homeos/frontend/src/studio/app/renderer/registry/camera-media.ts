@@ -194,7 +194,7 @@ export async function prewarmCameraMedia(cameraEntityIds: any[] = []) {
         .filter(Boolean),
     ),
   ].slice(0, CAMERA_MAX_SOURCES)
-  // 只有确有待预热的摄像头时才预取 620KB 的 hls.min.js：panel-renderer 传入的列表已按
+  // 只有确有待预热的摄像头时才预取 hls.js（light 构建）：panel-renderer 传入的列表已按
   // cameraRecordNeedsHlsPrewarm 过滤，为空即本页没有任何 HLS 摄像头组件，不下发该脚本。
   if (!uniqueCameraEntityIds.length) return
   prefetchHlsOnIdle()

@@ -106,7 +106,7 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps) {
   } = deps
 
   let disposeRendererEvents: (() => void) | null = null
-  /** B12：presented 前的着色器空闲预热（compileAsync）；回退开关 ?shader-warmup=0。 */
+  /** B12：presented 前的着色器空闲预热（compileAsync）。 */
   let shaderWarmupCanceller: (() => void) | null = null
   /** 灯光补丁编译兜底（见 `lighting-shader-failsafe.ts`）；渲染器建好之后才注册。 */
   let lightingShaderFailsafe: LightingShaderFailsafe | null = null

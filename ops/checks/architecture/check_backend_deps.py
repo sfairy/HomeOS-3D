@@ -386,9 +386,9 @@ def strongly_connected(graph: dict[str, set[str]]) -> list[list[str]]:
         on_stack.add(root)
         frames: list[tuple[str, object]] = [(root, iter(sorted(graph.get(root, ()))))]
         while frames:
-            node, children = frames[-1]  # type: ignore[assignment]
+            node, children = frames[-1]
             descended = False
-            for nxt in children:  # type: ignore[union-attr]
+            for nxt in children:  # pyright: ignore[reportGeneralTypeIssues]
                 if nxt not in index:
                     index[nxt] = low[nxt] = counter
                     counter += 1

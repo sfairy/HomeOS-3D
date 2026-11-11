@@ -116,7 +116,7 @@ async def _build_status(request: Request) -> dict[str, Any]:
             try:
                 await poll.poll_now()
             except Exception:  # 手动立即轮询是即时操作，失败由定时轮询兜底，不必打断请求
-                pass
+                logger.debug("_build_status 忽略异常", exc_info=True)
     wolfx = await service.get_cluster_connection_status()
     diagnostics = service.get_diagnostics_snapshot()
     has_poll_stamp = any(

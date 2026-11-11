@@ -19,27 +19,18 @@ import {
   renderLuminanceFromFlux,
 } from '../studio-app-light-data'
 
-export const STRIP_MOUNTS = ['ceiling-down', 'cove-up', 'wall-wash', 'under-cabinet', 'vertical', 'custom'] as const
+const STRIP_MOUNTS = ['ceiling-down', 'cove-up', 'wall-wash', 'under-cabinet', 'vertical', 'custom'] as const
 export type StripMount = (typeof STRIP_MOUNTS)[number]
 export const DEFAULT_STRIP_MOUNT: StripMount = 'ceiling-down'
 
-export const STRIP_MOUNT_LABELS: Readonly<Record<StripMount, string>> = Object.freeze({
-  'ceiling-down': '吸顶朝下',
-  'cove-up': '灯槽朝上（反光）',
-  'wall-wash': '洗墙（侧向）',
-  'under-cabinet': '柜底朝下',
-  vertical: '竖装',
-  custom: '自定义角度',
-})
-
 const stripMountSet = new Set<string>(STRIP_MOUNTS)
 
-export function normalizeStripMount(rawMount: unknown): StripMount | null {
+function normalizeStripMount(rawMount: unknown): StripMount | null {
   return typeof rawMount === 'string' && stripMountSet.has(rawMount) ? (rawMount as StripMount) : null
 }
 
 /** 发光面相对物件尺寸的系数：两端的端子和边框不发光。 */
-export const STRIP_EMITTER_SCALE = 0.94
+const STRIP_EMITTER_SCALE = 0.94
 /** 灯带长度 / 发光宽度的上下限（米）。 */
 const STRIP_SIZE_MIN = 0.1
 const STRIP_SIZE_MAX = 8
@@ -118,7 +109,7 @@ export function migrateLegacyStripPose(item: StripLightLike) {
  * 安装方式对应的旧字段：读档时写回去，旧版本读到同一份存档仍然摆得一样。
  * 自定义不改旧字段（它们就是自定义的数据本身）。
  */
-export function stripLegacyFields(mount: StripMount) {
+function stripLegacyFields(mount: StripMount) {
   return mount === 'cove-up'
     ? { verticalRotation: 0, stripRollRotation: 180, stripAxis: 'horizontal' }
     : mount === 'wall-wash'
@@ -273,7 +264,7 @@ export function stripLuminance(item: StripLightLike) {
 }
 
 /** 亮度百分比（夹在 0–100，嵌入舞台 0–150）→ 比例。 */
-export function stripBrightnessRatio(item: StripLightLike, isEmbedStage = false) {
+function stripBrightnessRatio(item: StripLightLike, isEmbedStage = false) {
   return (
     clamp2(finite2(item.lightBrightness, lightPresetCatalog.striplight.brightness), 0, isEmbedStage ? 150 : 100) / 100
   )

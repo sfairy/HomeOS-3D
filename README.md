@@ -155,7 +155,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | 脚本 | 作用 |
 | --- | --- |
 | `bun run dev:backend` | 只起两个后端的热重载（不起前端） |
-| `bun run dev:app` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端） |
+| `bun run dev:frontend` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端） |
 | `bun run dev:prepare` | 只装 Python 环境（仓库根共享 venv `.venv-store`），不起服务 |
 | `bun run dev:runtime` | watch 3D runtime 模块 → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run build` | 完整构建：前端（Vite 压缩产物）+ 后端（Cython `.so`）→ 根 `dist/` |

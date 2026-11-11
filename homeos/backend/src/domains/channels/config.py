@@ -1,7 +1,7 @@
 """通道配置服务（对齐 ``channel-config.service.ts``）。
 
 读取并缓存 ``layout.channelConfig``（Email / WebPush / 企业微信），
-监听 ``SYSTEM_CONFIG_UPDATED`` 事件自动失效缓存。
+监听 ``app.config.updated`` 事件自动失效缓存。
 """
 
 from __future__ import annotations

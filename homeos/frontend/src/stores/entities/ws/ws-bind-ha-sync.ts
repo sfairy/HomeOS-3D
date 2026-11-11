@@ -84,7 +84,26 @@ export function bindEntitySocketHaSync(
 ): void {
   const { logger, refs, entities, track, actions } = ctx
 
-  const clearSyncTimers = () => clearEntitySocketSyncTimers(sync)
+  /**
+   * ``replay_truncated``（游标来自旧进程 / 缓冲已淘汰）后的 REST 兜底定时器。
+   *
+   * 服务端在 connect 流程里发出 ``resync_suggested`` 后**紧接着**会推全量
+   * ``initial_states``，所以以前「收到就立刻打整包 REST」等于把同一份 700+ 实体
+   * 拉两遍（后端每次重启，所有打开的页面都会各拉一次）。改为先等 WS 快照：
+   * 收到任一同步事件就取消；窗口内没来（帧被背压挤掉等）才回退整包。
+   */
+  let replayResyncFallbackTimer: ReturnType<typeof setTimeout> | null = null
+  const clearReplayResyncFallback = () => {
+    if (replayResyncFallbackTimer !== null) {
+      clearTimeout(replayResyncFallbackTimer)
+      replayResyncFallbackTimer = null
+    }
+  }
+
+  const clearSyncTimers = () => {
+    clearEntitySocketSyncTimers(sync)
+    clearReplayResyncFallback()
+  }
 
   /**
    * 合并分块批次中因「基线还没到」而暂存的 delta。
@@ -176,7 +195,17 @@ export function bindEntitySocketHaSync(
     // ``replay_truncated`` 的语义是「你的游标不可信」（环形缓冲已淘汰，或游标来自上一个
     // 进程）—— 增量必然有洞，只有整包快照能收敛。走软重同步会拿同一个坏游标再试一次。
     if (data?.reason === 'replay_truncated') {
-      void actions.fetchEntitiesFallback?.('增量游标失效，强制全量', { force: true })
+      // 服务端返回 ``resync`` 后会在同一轮 connect 里补发全量 ``initial_states``，
+      // 立即打整包 REST 只是把同一份实体再拉一遍。先给 WS 快照一个窗口，
+      // 收到 initial_states / begin / end / state_replay / sync_error 任一即取消
+      // （这些分支都会走 ``clearSyncTimers``）；窗口内没来才回退整包。
+      clearReplayResyncFallback()
+      replayResyncFallbackTimer = setTimeout(() => {
+        replayResyncFallbackTimer = null
+        if (!socket.connected) return
+        logger.warn('增量游标失效且未收到 WS 全量快照,回退 REST 整包')
+        void runFallbackAndMarkSynced('增量游标失效且 WS 快照未到')
+      }, ctx.getInitialStatesWaitMs())
       return
     }
     // 其余（背压 / 增量过大）：优先增量 / 服务端 resync；冷却内不全量连环 REST
@@ -372,6 +401,8 @@ export function bindEntitySocketHaSync(
 
   socket.on(WS_CLIENT_EVENTS.SYNC_ERROR, (data: { message?: string; code?: string }) => {
     logger.warn('WebSocket 全量同步失败,将使用 REST 回退', data?.message || data?.code)
+    // 服务端明确报错说明这一轮不会再推快照：取消等待，直接 REST 回退。
+    clearSyncTimers()
     runFallbackAndMarkSynced('WebSocket sync_error')
   })
 

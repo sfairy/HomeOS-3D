@@ -426,6 +426,7 @@ async def _guard_go2rtc_access(websocket: WebSocket, target: str) -> None:
                 else None
             )
         except Exception:
+            logger.debug("_guard_go2rtc_access 忽略异常", exc_info=True)
             current_target = None
         if not allowed or current_target != target:
             await _close(websocket, CLOSE_FORBIDDEN, "camera access revoked")

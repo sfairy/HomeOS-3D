@@ -487,12 +487,12 @@ async def _close_upstream(client: httpx.AsyncClient | None, response: httpx.Resp
         try:
             await response.aclose()
         except Exception:  # 短路/本地伺服路径的收尾：关闭响应失败不得掩盖原始异常
-            pass
+            logger.debug("_close_upstream 忽略异常", exc_info=True)
     if client is not None:
         try:
             await client.aclose()
         except Exception:  # 短路/本地伺服路径的收尾：关闭客户端失败不得掩盖原始异常
-            pass
+            logger.debug("_close_upstream 忽略异常", exc_info=True)
 
 
 __all__ = ["EmbedProxyService", "EmbedTarget"]

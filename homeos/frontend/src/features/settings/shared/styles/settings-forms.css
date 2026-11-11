@@ -326,22 +326,6 @@
   background: rgba(248, 113, 113, 0.1);
 }
 
-.settings-chip-toggle--active {
-  color: #0a0a0a;
-  border-color: transparent;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-}
-
-.settings-chip-toggle--yellow.settings-chip-toggle--active {
-  background: #eab308;
-  border-color: #facc15;
-}
-
-.settings-chip-toggle--emerald.settings-chip-toggle--active {
-  background: #10b981;
-  border-color: #34d399;
-}
-
 .settings-note-box {
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-radius-card);
@@ -412,20 +396,6 @@
   color: var(--set-text-secondary);
 }
 
-.settings-env-room-manager__list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.settings-env-room-manager__item--active {
-  border-color: rgba(52, 211, 153, 0.28);
-  background: rgba(16, 185, 129, 0.08);
-}
-
 /* .settings-inline-hint--* 已抽离至 components/common/styles/status-hint.css */
 
 .settings-widget-row {
@@ -486,12 +456,6 @@
   .settings-widget-config__grid {
     grid-template-columns: 1fr;
   }
-}
-
-.settings-profile-active {
-  border-color: rgba(129, 140, 248, 0.35) !important;
-  background: rgba(99, 102, 241, 0.08) !important;
-  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.15);
 }
 
 @container hos-canvas (max-width: 768px) {

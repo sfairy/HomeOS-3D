@@ -47,7 +47,7 @@ export function resolveReflectionTargetSize(
     : { width: shortSide, height: longSide(bufferHeight, 1 / aspect) }
 }
 
-export function isReflectionTargetStale(target: SizedTarget, size: ReflectionTargetSize): boolean {
+function isReflectionTargetStale(target: SizedTarget, size: ReflectionTargetSize): boolean {
   return target.width !== size.width || target.height !== size.height
 }
 
@@ -71,12 +71,12 @@ export function snapshotMatchesTarget(
   return snapshot?.width === size.width && snapshot.height === size.height
 }
 
-export function resolveSmoothTaps(shortSidePx: number): number {
+function resolveSmoothTaps(shortSidePx: number): number {
   return shortSidePx > SMOOTH_TAPS_MIN_SHORT_SIDE ? 1 : 0
 }
 
 /** 采样参数跟随当前实际绑定的贴图（可能是尚未重捕的旧尺寸，或持久缓存还原的快照）。 */
-export function syncReflectionOverlaySampling(uniforms: OverlayUniforms, fallback: ReflectionTargetSize): void {
+function syncReflectionOverlaySampling(uniforms: OverlayUniforms, fallback: ReflectionTargetSize): void {
   const boundImage = uniforms.reflection.value?.image,
     boundWidth = boundImage?.width || fallback.width,
     boundHeight = boundImage?.height || fallback.height

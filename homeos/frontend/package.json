@@ -26,7 +26,6 @@
   "dependencies": {
     "@homeos/shared": "workspace:*",
     "@lucide/vue": "^1.69.0",
-    "@vueuse/core": "^15.0.0",
     "axios": "^1.21.0",
     "comlink": "^4.4.2",
     "echarts": "^6.1.0",

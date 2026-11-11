@@ -1,7 +1,7 @@
 /**
  * hls.js 经典脚本按需加载器。
  *
- * 背景：展示页/编辑器原先在引导阶段无条件 `await` 620KB 的 hls.min.js，即使页面上没有任何
+ * 背景：展示页/编辑器原先在引导阶段无条件 `await` 整份 hls.js 脚本，即使页面上没有任何
  * 摄像头组件也要下载、解析并执行。现在把「脚本就位」推迟到第一次真正需要 HLS 时
  * （`ensureHls`）；页面文档确实含 HLS 摄像头组件时，由 `prewarmCameraMedia` 触发空闲预取
  * （`prefetchHlsOnIdle`），因此无摄像头页面完全不请求该脚本，有摄像头的页面仍能在首帧前拿到播放器。
@@ -16,9 +16,13 @@ import type HlsJs from 'hls.js'
 
 export type HlsCtor = typeof HlsJs
 
-const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.4/hls.min.js'
 /**
- * 0.8.4：Safari / iOS 原生就能播 m3u8。命中时**完全不要**下载 620KB 的 hls.js ——
+ * light 构建（约 390KB / 120KB gzip，full 为 620KB）：去掉字幕、备用音轨、EME(DRM)、CMCD，
+ * 摄像头流只用 m3u8 + TS/fMP4，四者都没用到；接入带字幕的录像回放时须换回 hls.min.js。
+ */
+const HLS_SCRIPT_SRC = '/static/vendor/hls.js/1.7.4/hls.light.min.js'
+/**
+ * 0.8.4：Safari / iOS 原生就能播 m3u8。命中时**完全不要**下载 hls.js ——
  * 上游是 `window.Hls || video.canPlayType(mime)` 先行短路，这里把这一步单独导出，
  * 让 `camera-media` 直接把流地址交给 `<video src>`，失败文案才统一成播放器加载失败。
  */

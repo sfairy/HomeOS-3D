@@ -35,10 +35,10 @@ from ...platform.core.http.errors import (
     api_error,
     bad_request,
 )
+from ...platform.core.runtime.config_events import CONFIG_UPDATED
 
 logger = logging.getLogger("homeos.ui_config")
 
-_SYSTEM_CONFIG_UPDATED_EVENT = "SYSTEM_CONFIG_UPDATED"
 _LAYOUT_CONFIG_UPDATED_EVENT = "layout.config.updated"
 
 
@@ -109,11 +109,11 @@ class UiConfigService:
     def _emit_config_updated(self) -> None:
         if self._event_bus is None:
             return
-        for name in (_SYSTEM_CONFIG_UPDATED_EVENT, _LAYOUT_CONFIG_UPDATED_EVENT):
+        for name, args in ((CONFIG_UPDATED, (["layout"],)), (_LAYOUT_CONFIG_UPDATED_EVENT, ())):
             emit_soon = getattr(self._event_bus, "emit_soon", None)
             if callable(emit_soon):
                 try:
-                    emit_soon(name)
+                    emit_soon(name, *args)
                 except Exception as exc:
                     logger.debug("广播 %s 失败: %s", name, exc)
 
@@ -348,11 +348,11 @@ class UiConfigService:
 
     # 保存 / 删除 / 导入 / 导出
     def save_config(self, project_id: str, layout: Any) -> dict[str, Any]:
-        """保存或更新项目配置（保存后广播 SYSTEM_CONFIG_UPDATED 供旁路消费者热更新）。
+        """保存或更新项目配置（保存后广播 app.config.updated 供旁路消费者热更新）。
 
         3.3 起 layout 不再承载 HA 连接配置，因此保存布局**不会**改变 HA 连接：地址与
         令牌的变更路径是 ``PUT /ha/connection``（由它自己重启连接器）。这里照旧广播
-        ``SYSTEM_CONFIG_UPDATED``，供其它读 layout 的消费者（安防事件路径、绑定等）刷新。
+        ``app.config.updated``，供其它读 layout 的消费者（安防事件路径、绑定等）刷新。
         """
         logger.debug("正在保存项目布局配置:%s", project_id)
         layout_json = to_input_json(layout, {})

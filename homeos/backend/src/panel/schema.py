@@ -18,10 +18,6 @@ POPUP_SOURCES = frozenset({"custom", "entity", "current"})
 #: 情景弹窗（``controlMode='scene'``）最多容纳的条目数。再多就不该用弹窗，该用整页控件。
 MAX_SCENE_POPUP_ITEMS = 80
 
-#: 情景弹窗条目的控件模式白名单：
-#: ``toggle`` 一键触发、``switch`` 开关、``number`` 数值、``select`` 枚举、``button`` 按下即触发。
-SCENE_POPUP_MODES = frozenset({"toggle", "switch", "number", "select", "button"})
-
 
 class ExtensibleModel(BaseModel):
 

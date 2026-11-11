@@ -41,14 +41,14 @@ export interface AgentPingResult {
 }
 
 /** 单次工具调用轨迹 */
-export interface AgentToolCallTrace {
+interface AgentToolCallTrace {
   name: string
   arguments: Record<string, unknown>
   resultPreview: string
 }
 
 /** 代理对话结局 */
-export type AgentOutcome = 'answer' | 'success' | 'failed' | 'blocked'
+type AgentOutcome = 'answer' | 'success' | 'failed' | 'blocked'
 
 /** 操作音效类型（后端 `earcon` 字段；confirm 表示「正在等用户确认」） */
 export type AgentEarcon = 'success' | 'error' | 'confirm' | null
@@ -613,7 +613,7 @@ export interface AgentScheduleWriteResult {
 }
 
 /** 巡检关停动作 */
-export interface AgentPatrolAction {
+interface AgentPatrolAction {
   entityId: string
   name: string
   areaId: string

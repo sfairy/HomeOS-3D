@@ -159,7 +159,7 @@ class DeepseekLlmProvider(LlmProvider):
         self.base_url: str = cfg.get("baseUrl") or cfg.get("base_url") or _DEFAULT_BASE_URL
 
     def update_config(self, cfg: dict[str, Any] | None = None) -> None:
-        """配置热更新（SYSTEM_CONFIG_UPDATED 后重建时使用）。"""
+        """配置热更新（app.config.updated 后重建时使用）。"""
         cfg = cfg or {}
         self._provider_name = str(cfg.get("provider") or self._provider_name or "deepseek")
         self.api_key = cfg.get("apiKey") or cfg.get("api_key") or ""

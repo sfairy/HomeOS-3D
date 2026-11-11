@@ -53,9 +53,6 @@
   border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
-@container settings-scroll (min-width: 900px) {
-}
-
 /* ── Hub 紧凑统计 / 顶栏（语音、告警、诊断等复用） ── */
 .hub-stat-row {
   display: flex;
@@ -316,12 +313,6 @@
   line-height: 1.5;
 }
 
-@container settings-scroll (min-width: 720px) {
-  .settings-stat-grid .col-span-2 {
-    grid-column: span 2;
-  }
-}
-
 .settings-stat-value {
   font-size: var(--set-fs-body);
   font-weight: 800;
@@ -345,19 +336,6 @@
   .settings-category-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-}
-
-.settings-bind-row .hos-select,
-.settings-embed-row .hos-select {
-  display: block;
-  width: 100%;
-  min-width: 0;
-}
-
-@container settings-scroll (max-width: 900px) {
-}
-
-@container settings-scroll (max-width: 900px) {
 }
 
 /* 布局页 · 尺寸滑块组 */

@@ -5,7 +5,7 @@
  * 为什么需要本脚本
  * ----------------
  * 主应用不把 hls.js 打进 bundle：camera 模块在首次需要 HLS 时才按根绝对 URL
- * /static/vendor/hls.js/<版本>/hls.min.js 注入 <script>（见 src/shared/camera/hls-loader.ts），
+ * /static/vendor/hls.js/<版本>/hls.light.min.js 注入 <script>（见 src/shared/camera/hls-loader.ts），
  * 而 npm 里的 hls.js 只用于类型位。于是「npm 装的 hls.js 版本」与「真正出货的运行时副本」
  * 是两条独立的线 —— 本次审计就是两条线漂了：vendor 停在 1.7.3，而 bun.lock 与
  * homeos/frontend/package.json 都是 1.7.4。这类漂移没有门禁时无人发现，也不会报错，
@@ -18,7 +18,7 @@
  * 产物结构（与 hls-loader.ts 的约定一一对应）：
  *
  *   public/static/vendor/hls.js/<版本>/
- *     hls.min.js   <- node_modules/hls.js/dist/hls.min.js
+ *     hls.light.min.js <- node_modules/hls.js/dist/hls.light.min.js
  *     LICENSE      <- node_modules/hls.js/LICENSE（Apache-2.0，分发时必须附带）
  *
  * 用法：
@@ -52,7 +52,7 @@ const help = args.includes('--help') || args.includes('-h')
 
 /** hls.js 包内要出货的两个文件（顺序无关）。 */
 const ARTIFACTS = [
-  { name: 'hls.min.js', from: path.join(hlsPkgDir, 'dist', 'hls.min.js'), to: 'hls.min.js' },
+  { name: 'hls.light.min.js', from: path.join(hlsPkgDir, 'dist', 'hls.light.min.js'), to: 'hls.light.min.js' },
   { name: 'LICENSE', from: path.join(hlsPkgDir, 'LICENSE'), to: 'LICENSE' },
 ]
 

@@ -34,8 +34,6 @@ def resolve_state_hub_copy_payload() -> bool:
 STATELESS_DOMAINS = frozenset(
     {'stt', 'tts', 'cover', 'notify', 'ai_task', 'infrared', 'wake_word', 'conversation', 'radio_frequency'}
 )
-#: 发布事件的类型白名单（新增 ``resync_required``：连接器要求前端整表重拉）。
-PUBLISHED_EVENT_TYPES = frozenset({'state_changed', 'state_removed', 'cover_memory_changed', 'resync_required'})
 
 #: 按 ``entityId`` 过滤订阅的事件类型：``cover_memory_changed`` 只带实体号，
 #: 墙屏按订阅的实体集合决定要不要重取姿态历史。

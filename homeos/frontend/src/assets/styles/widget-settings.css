@@ -1,10 +1,5 @@
 /* 轨道与滑块外观由全局滑块系统统一接管（main.css），
    此处仅控制布局；进度填充经 --progress-pct 变量驱动 */
-.ws-type-row .hos-select,
-.ws-slider-row input[type="range"] {
-  flex: 1;
-  min-width: 0;
-}
 
 .ws-hint-action {
   font-size: var(--premium-fs-micro);
@@ -23,11 +18,6 @@
   flex-direction: column;
   gap: 8px;
   margin-bottom: 10px;
-}
-
-.ws-state-path.empty {
-  color: var(--hos-text-secondary);
-  font-style: italic;
 }
 
 .ws-btn-add {

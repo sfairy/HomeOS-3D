@@ -13,7 +13,7 @@ const STAGE_MODULE_PATH = '/api/v1/modules/interaction3d/core/stage.js'
  * 舞台模块 URL 必须与 stage.html 里 `<link rel="modulepreload">` 的 href 逐字一致（含 `?v=`）：
  * 模块映射按完整 URL 去重，裸路径会让预加载白费、再下载一遍 stage.js。
  */
-export function preloadedStageModuleUrl(env: typeof globalThis = globalThis) {
+function preloadedStageModuleUrl(env: typeof globalThis = globalThis) {
   const preloadLink = env.document?.querySelector<HTMLLinkElement>(
     `link[rel="modulepreload"][href^="${STAGE_MODULE_PATH}"]`,
   )

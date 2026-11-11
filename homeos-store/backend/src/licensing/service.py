@@ -612,7 +612,7 @@ class LicenseAuthority:
             )
         table = License.__table__
         sequence = session.execute(
-            table.update()  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy Table.update()（__table__ 运行期为 Table）
+            table.update()  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy Table.update()（__table__ 运行期为 Table）
             .where(table.c.id == license.id)
             .values(
                 # 用 CASE 而不是 ``max(a, b)``：SQLite 把双参 ``max`` 当标量函数，

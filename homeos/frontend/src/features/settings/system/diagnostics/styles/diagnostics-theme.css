@@ -636,9 +636,6 @@
   text-decoration: none;
 }
 
-@container settings-scroll (max-width: 480px) {
-}
-
 /* ── 告警条 ── */
 .diag-alert-stack {
   display: flex;
@@ -1336,17 +1333,6 @@
 }
 
 /* ── 监控指标 Tab（Bento 仪表盘）── */
-
-.diag-metrics-banner__main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: min(100%, 280px);
-}
-
-@container settings-scroll (min-width: 900px) {
-}
 
 .diag-metrics-loading-card {
   min-height: 200px;

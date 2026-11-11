@@ -18,11 +18,9 @@
      control：按钮 / 下拉等控制件；card：卡片 / 列表项；
      panel：面板 / 弹窗 / 抽屉 / 侧栏。
      shell 为兼容别名，统一折叠到 panel，避免出现第三档容器圆角。
-     input：输入框专用的 12px 档 —— 它原先只以裸字面量 `--radius-sm: 12px` 存在于
-     main.css，成了契约之外的「幽灵尺度」；收进这里后全站圆角只有一个命名族（`--hos-radius-*`），
-     旧族（`--radius-*` / `--radius-ipad-*`）一律只能写成指向本族的别名。 */
+     全站圆角只有一个命名族（`--hos-radius-*`），旧族（`--radius-*` / `--radius-ipad-*`）
+     一律只能写成指向本族的别名。 */
   --hos-radius-control: 8px;
-  --hos-radius-input: 12px;
   --hos-radius-card: 14px;
   --hos-radius-panel: 20px;
   --hos-radius-shell: var(--hos-radius-panel);
@@ -95,13 +93,11 @@
    * 0 画布 → 1 基础抬升 → 2 次级卡 → 3 控件/chip
    * panel 主面板（渐变实体感） / well 内凹嵌套 / elevated 顶部高光
    */
-  --hos-surface-0: #080d18;
   --hos-surface-1: rgba(255, 255, 255, 0.045);
   --hos-surface-2: rgba(255, 255, 255, 0.075);
   --hos-surface-3: rgba(255, 255, 255, 0.11);
   --hos-surface-well: rgba(0, 0, 0, 0.34);
   --hos-surface-well-border: rgba(255, 255, 255, 0.05);
-  --hos-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 100%);
   --hos-surface-panel:
     linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.018) 100%), rgba(13, 24, 43, 0.84);
   --hos-surface-panel-hover:
@@ -118,13 +114,10 @@
   --hos-border-subtle: rgba(96, 165, 250, 0.18);
   --hos-border-strong: rgba(125, 211, 252, 0.3);
   /* 中性发丝边框：与上方蓝色语义边框区分，用于列表分隔 / 控件描边 */
-  --hos-border-hairline-soft: rgba(255, 255, 255, 0.06);
   --hos-border-hairline: rgba(255, 255, 255, 0.08);
   --hos-border-hairline-strong: rgba(255, 255, 255, 0.14);
   --page-accent: #60a5fa;
   --page-accent-rgb: 96, 165, 250;
-  --theme-glow-a: rgba(37, 99, 235, 0.16);
-  --theme-glow-b: rgba(14, 165, 233, 0.1);
   --hos-shadow-panel: 0 10px 36px rgba(0, 0, 0, 0.38);
   --hos-shadow-card: 0 4px 18px rgba(0, 0, 0, 0.28);
   --hos-shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.34);
@@ -163,7 +156,6 @@
 
   --card-bg-1: var(--hos-surface-1);
   --card-bg-2: var(--hos-surface-2);
-  --card-bg-3: var(--hos-surface-3);
   --card-border: var(--hos-border-subtle);
   --card-border-hover: var(--hos-border-strong);
 
@@ -198,7 +190,6 @@
     --hos-shadow-card-hover: 0 8px 22px rgba(0, 0, 0, 0.34);
     --hos-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.32);
     --set-card-surface-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
-    --acc-open-glow: transparent;
   }
 }
 /*
@@ -227,6 +218,5 @@
     --hos-shadow-card-hover: 0 8px 22px rgba(0, 0, 0, 0.34);
     --hos-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.32);
     --set-card-surface-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
-    --acc-open-glow: transparent;
   }
 }

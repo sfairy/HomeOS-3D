@@ -10,7 +10,7 @@
 export const TEXTURE_ANISOTROPY_CAP = 8
 
 /** 本模块管理的材质贴图槽位（含静止档以前漏掉的 emissiveMap / alphaMap）。 */
-export const MATERIAL_TEXTURE_SLOTS = Object.freeze([
+const MATERIAL_TEXTURE_SLOTS = Object.freeze([
   'map',
   'alphaMap',
   'aoMap',

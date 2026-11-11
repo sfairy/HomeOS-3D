@@ -41,7 +41,7 @@ dist/
 *.tsbuildinfo
 .ruff_cache/
 .pnpm-store/
-
+.scratch/
 # 入户场景静态资源（CSS + 字体）是**生成物**：真源在 packages/shared/scene/static/，
 # 由 `bun run --cwd packages/shared sync:scene` 按两个前端各自的部署路径生成。
 # 不入库的理由：同一批文件曾以四份副本存在（design/ + 两个 public/），漂移无人发现；

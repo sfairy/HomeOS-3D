@@ -12,7 +12,7 @@ from .config_service import AgentConfigService
 from .lang_template_service import LangTemplateService
 from ..tools.high_risk_denylist import SceneVoiceControlGate, is_scene_voice_allowed
 from ....platform.core.entity.entity_domain import get_entity_domain
-from ....platform.core.runtime.config_events import CONFIG_UPDATED, LEGACY_CONFIG_UPDATED
+from ....platform.core.runtime.config_events import CONFIG_UPDATED
 
 logger = logging.getLogger("homeos.agent.fast_path")
 
@@ -36,7 +36,6 @@ SCENE_CATEGORY_SUFFIX = re.compile(r"(场景|模式|脚本|scene|script|mode)\s*
 #: 配置 / 区域 / 实体注册表变更事件名（与 Nest HOMEOS_EVENTS / HA 事件对齐）
 _AREA_CACHE_INVALIDATION_EVENTS = (
     CONFIG_UPDATED,
-    LEGACY_CONFIG_UPDATED,
     "area.updated",
     "ha.entity_registry_updated",
     "ha.device_registry_updated",
@@ -806,7 +805,7 @@ class FastPathService:
             if temp_hit is _FAST_PATH_ABORT:
                 return None
             if temp_hit is not None:
-                return temp_hit  # type: ignore[return-value]
+                return temp_hit  # pyright: ignore[reportReturnType]
 
         # 2) 确定性属性控制：相对温度 / 亮度 / 色温 / 窗帘位置 / 媒体 / 风速 / 空调模式
         for parser in (

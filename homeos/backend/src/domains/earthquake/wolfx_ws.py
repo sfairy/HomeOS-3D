@@ -18,7 +18,7 @@ from typing import Any
 try:  # pragma: no cover - 依赖存在时导入
     import websockets
 except Exception:
-    websockets = None  # type: ignore[assignment]
+    websockets = None
 
 logger = logging.getLogger("homeos.earthquake.wolfx")
 

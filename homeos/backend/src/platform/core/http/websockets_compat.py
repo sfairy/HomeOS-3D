@@ -43,7 +43,7 @@ def _guard_connection_lost(connection_lost):
 
     setattr(connection_lost_guarded, _GUARD_MARK, True)
     connection_lost_guarded.__doc__ = connection_lost.__doc__
-    connection_lost_guarded.__wrapped__ = connection_lost  # type: ignore[attr-defined]
+    connection_lost_guarded.__wrapped__ = connection_lost
     return connection_lost_guarded
 
 

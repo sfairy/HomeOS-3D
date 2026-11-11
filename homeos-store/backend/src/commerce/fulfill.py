@@ -530,7 +530,7 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
         .values(reserved_stock=Product.reserved_stock - amount)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    if result.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         clamped = session.execute(
             update(Product)
             .where(Product.id == product.id)
@@ -538,7 +538,7 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
             .values(reserved_stock=0)
             .execution_options(synchronize_session=False)
         )
-        if clamped.rowcount:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+        if clamped.rowcount:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
             logger.warning("商品 %s 的预留已被归还过，已夹到 0（请核对订单状态）", product.id)
     session.expire(product, ["reserved_stock"])
     session.flush()
@@ -567,7 +567,7 @@ def reserve_stock(session: Session, product: Product, quantity: int = 1) -> bool
     result = session.execute(statement)
     session.expire(product, ["reserved_stock"])
     session.flush()
-    return result.rowcount > 0  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    return result.rowcount > 0  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
 def consume_stock(session: Session, product: Product | None, quantity: int = 1) -> None:
@@ -585,7 +585,7 @@ def consume_stock(session: Session, product: Product | None, quantity: int = 1) 
         .values(stock_quantity=Product.stock_quantity - amount)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    if result.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         session.execute(
             update(Product)
             .where(Product.id == product.id)
@@ -618,7 +618,7 @@ def release_order_reservation(
         .values(stock_reservation_released_at=utcnow())
         .execution_options(synchronize_session=False)
     )
-    if claim.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    if claim.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         return False
     release_reserved_stock(session, product, quantity)
     session.expire(order, ["stock_reservation_released_at"])
@@ -652,7 +652,7 @@ def close_pending_order(
         .values(status=status, cancelled_at=moment or utcnow())
         .execution_options(synchronize_session=False)
     )
-    if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    if claimed.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         return False
     release_order_effects(session, order=order, product=product)
     return True
@@ -724,7 +724,7 @@ def _claim_order_for_fulfillment(session: Session, order: Order, moment: datetim
         .values(fulfilled_at=moment)
         .execution_options(synchronize_session=False)
     )
-    if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    if claimed.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         session.refresh(order)
         if order.status == "refunded":
             raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")

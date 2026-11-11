@@ -66,30 +66,6 @@ export function resolveReflectionResolution(isIdle: boolean, appearanceResolutio
   return appearanceResolution
 }
 
-/** @deprecated 使用 resolveReflectionResolution；保留给旧调用方。 */
-export function resolveReflectionResolutionCap(isIdle: boolean): number {
-  return isIdle
-    ? interactionResourcePolicy.reflections.idleMaxResolution
-    : interactionResourcePolicy.reflections.maxResolution
-}
-
-/** 接触阴影：闲时升分辨率；运动保持 resource-policy 运动预算。 */
-export function resolveContactShadowQuality(isIdle: boolean) {
-  const policy = interactionResourcePolicy.contactShadows
-  if (isIdle && !isLowEndDevice()) {
-    return {
-      resolution: policy.idleResolution,
-      surfaceResolution: policy.idleSurfaceResolution,
-      maxSurfaceLevels: policy.maxSurfaceLevels,
-    }
-  }
-  return {
-    resolution: policy.resolution,
-    surfaceResolution: policy.surfaceResolution,
-    maxSurfaceLevels: policy.maxSurfaceLevels,
-  }
-}
-
 /** 贴图各向异性：闲时升到设备上限夹紧后的 idle 档；运动维持较低预算。 */
 export function resolveTextureAnisotropy(isIdle: boolean, deviceMax = 1): number {
   const budget = isIdle
@@ -102,25 +78,11 @@ export function resolveTextureAnisotropy(isIdle: boolean, deviceMax = 1): number
  * 太阳光阴影贴图分辨率（B12）。
  *
  * 舞台沿用 `stageSunShadow` 的静态预算；编辑器默认 2048，移动端/低端设备降到 1024
- * （阴影边缘略糊，但首帧阴影图渲染成本减半）。`?shadow-map=1024|2048` 可强制覆盖，
- * 用于回退旧视觉 / A-B 对比。
+ * （阴影边缘略糊，但首帧阴影图渲染成本减半）。
  */
 export function resolveSunShadowMapSize(isEmbedStageMode: boolean): number {
   if (isEmbedStageMode) return interactionResourcePolicy.stageSunShadow.mapSize
-  const forcedMapSize = readForcedShadowMapSize()
-  if (forcedMapSize) return forcedMapSize
   return isLowEndDevice() ? 1024 : 2048
-}
-
-/** `?shadow-map=1024|2048` 强制覆盖（回退旧视觉 / A-B 对比）；非法值返回 null。 */
-function readForcedShadowMapSize(): number | null {
-  try {
-    const forcedMapSize = Number(new URLSearchParams(window.location.search).get('shadow-map'))
-    return forcedMapSize === 1024 || forcedMapSize === 2048 ? forcedMapSize : null
-  } catch {
-    /* 非浏览器环境走设备分档 */
-    return null
-  }
 }
 
 /** 移动端 / 低端设备判定：粗指针、<=4GB 内存或 <=4 逻辑核都按低端处理。 */

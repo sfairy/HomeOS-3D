@@ -27,7 +27,7 @@ export function positionKey(x, y, z, tolerance = DEFAULT_WELD_TOLERANCE) {
  * @param {{positionOnly?: boolean, tolerance?: number, uvTolerance?: number}} options
  * @returns {{primitive: object, removedVertices: number}}
  */
-export function weldPrimitive(primitive, options = {}) {
+function weldPrimitive(primitive, options = {}) {
   const { positionOnly = false, tolerance = DEFAULT_WELD_TOLERANCE, uvTolerance = 1e-4 } = options
   const { positions, normals, uvs, indices } = primitive
   const vertexCount = positions.length / 3
@@ -217,7 +217,7 @@ export function analyzeTopology(primitive, { tolerance = DEFAULT_WELD_TOLERANCE 
  * 与 `analyzeTopology` 的焊接口径**完全一致**（同一个 `positionKey` + 同一个容差），
  * 否则「修复后审计仍报开口」这种自欺欺人的结果就会出现。
  */
-export function canonicalVertices(positions, tolerance = DEFAULT_WELD_TOLERANCE) {
+function canonicalVertices(positions, tolerance = DEFAULT_WELD_TOLERANCE) {
   const vertexCount = positions.length / 3
   const canonical = new Uint32Array(vertexCount)
   const lookup = new Map()
@@ -245,7 +245,7 @@ export function canonicalVertices(positions, tolerance = DEFAULT_WELD_TOLERANCE)
  *
  * 返回的 `patchOfFace` 与面下标一一对应，供 `solidifyShells` 直接用。
  */
-export function partitionManifoldPatches(canonical, indices) {
+function partitionManifoldPatches(canonical, indices) {
   const faceCount = indices.length / 3
   const edgeFaces = new Map()
   for (let face = 0; face < faceCount; face += 1) {
@@ -298,60 +298,6 @@ export function partitionManifoldPatches(canonical, indices) {
     patchOfFace[face] = patch
   }
   return { patchOfFace, patchCount: patchByRoot.size, nonManifoldEdges, edgeCount: edgeFaces.size }
-}
-
-/**
- * 拆分非流形接缝：先把面切成流形片，再给「同一顶点被多个片共用」的地方各复制一份顶点。
- *
- * 为什么必须复制顶点：一片加厚时会把顶点的位置沿法线挪动；若两个片共用同一个顶点，
- * 后处理的片会把前一片的几何一起拖走。拆开之后每片各有一份同位顶点，加厚互不干扰。
- *
- * @returns {{primitive: object, patchOfFace: Int32Array, patchCount: number, splitEdges: number, duplicatedVertices: number}}
- */
-export function splitNonManifoldEdges(primitive, { tolerance = DEFAULT_WELD_TOLERANCE } = {}) {
-  const { positions, normals, uvs } = primitive
-  const indices = primitive.indices
-  const vertexCount = positions.length / 3
-  const faceCount = indices.length / 3
-  const canonical = canonicalVertices(positions, tolerance)
-  const { patchOfFace, patchCount, nonManifoldEdges } = partitionManifoldPatches(canonical, indices)
-
-  const nextPositions = []
-  const nextNormals = normals ? [] : null
-  const nextUvs = uvs ? [] : null
-  const nextIndices = new Uint32Array(indices.length)
-  const assigned = new Map()
-  for (let face = 0; face < faceCount; face += 1) {
-    const patch = patchOfFace[face]
-    for (let corner = 0; corner < 3; corner += 1) {
-      const raw = indices[face * 3 + corner]
-      const key = patch * vertexCount + raw
-      let target = assigned.get(key)
-      if (target === undefined) {
-        target = nextPositions.length / 3
-        assigned.set(key, target)
-        nextPositions.push(positions[raw * 3], positions[raw * 3 + 1], positions[raw * 3 + 2])
-        if (nextNormals) {
-          nextNormals.push(normals[raw * 3], normals[raw * 3 + 1], normals[raw * 3 + 2])
-        }
-        if (nextUvs) nextUvs.push(uvs[raw * 2], uvs[raw * 2 + 1])
-      }
-      nextIndices[face * 3 + corner] = target
-    }
-  }
-  const duplicatedVertices = nextPositions.length / 3 - vertexCount
-  return {
-    primitive: {
-      positions: new Float32Array(nextPositions),
-      normals: nextNormals ? new Float32Array(nextNormals) : undefined,
-      uvs: nextUvs ? new Float32Array(nextUvs) : undefined,
-      indices: nextIndices,
-    },
-    patchOfFace,
-    patchCount: patchCount,
-    splitEdges: nonManifoldEdges,
-    duplicatedVertices,
-  }
 }
 
 /**
@@ -835,7 +781,7 @@ export function solidifyShells(primitive, { thickness, tolerance = DEFAULT_WELD_
 }
 
 /** 连通分量数（按三角面串起来的顶点并查集）。 */
-export function countShells(indices, vertexCount) {
+function countShells(indices, vertexCount) {
   const parent = new Int32Array(vertexCount)
   for (let index = 0; index < vertexCount; index += 1) parent[index] = index
   const find = (node) => {
@@ -861,7 +807,7 @@ export function countShells(indices, vertexCount) {
 }
 
 /** 边界环（只含 1 个面的边串成的闭合环），按顶点下标序列返回。 */
-export function boundaryLoops(indices) {
+function boundaryLoops(indices) {
   const edgeUse = new Map()
   const addEdge = (from, to) => {
     const key = from < to ? `${from}|${to}` : `${to}|${from}`
@@ -922,297 +868,4 @@ export function signedVolume(positions, indices) {
     volume += (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6
   }
   return volume
-}
-
-/** 投影多边形的有向面积（鞋带公式，取绝对值）。 */
-function polygonArea(points) {
-  let twice = 0
-  for (let index = 0; index < points.length; index += 1) {
-    const next = (index + 1) % points.length
-    twice += points[index][0] * points[next][1] - points[next][0] * points[index][1]
-  }
-  return Math.abs(twice) / 2
-}
-
-/**
- * 平面洞补齐（**凸平面环**用中心扇形，非平面 / 非凸环跳过并报出来）。
- *
- * 为什么不用耳切：这批模型的洞基本都是矩形柜口、圆形扇孔、管口这类**凸平面环**，
- * 中心扇形三角形必然落在环内，不需要处理凹多边形；而耳切在近共线的短边上极易退化。
- * 非凸 / 曲面洞直接跳过，交给 Blender 探针或人工判断，避免硬补出一块翘面。
- *
- * 绕序：沿边界环的**有向边**走完一圈后反转，补洞面与相邻面朝向一致（法线朝外）。
- *
- * @returns {{primitive: object, filledLoops: number, skippedLoops: number, addedTriangles: number}}
- */
-export function fillPlanarHoles(
-  primitive,
-  {
-    planarityTolerance = 0.0015,
-    maxLoopVertices = 64,
-    minLoopVertices = 4,
-    // 补洞的最小「洞面积占比」：孔洞小于整个 primitive 表面积的 0.4% 一律不补。
-    // 实测空气净化器的进风格栅有 360 个 1–4cm² 的穿孔，照补会把格栅封成一块平板
-    // （三角面 +41%）。真正的缺面（柜子丢一块板）面积远大于此。
-    minLoopAreaRatio = 0.004,
-    tolerance = DEFAULT_WELD_TOLERANCE,
-  } = {},
-) {
-  const { positions, indices } = primitive
-  const vertexCount = positions.length / 3
-  // 拓扑用「位置代表点」口径，但**不动原有顶点**：补出来的三角形直接引用代表点下标，
-  // 原始顶点、法线、UV 全部保留（否则补完洞整件会丢 UV / 硬边）。
-  const representative = new Uint32Array(vertexCount)
-  const lookup = new Map()
-  for (let vertex = 0; vertex < vertexCount; vertex += 1) {
-    const key = positionKey(positions[vertex * 3], positions[vertex * 3 + 1], positions[vertex * 3 + 2], tolerance)
-    const existing = lookup.get(key)
-    if (existing === undefined) {
-      lookup.set(key, vertex)
-      representative[vertex] = vertex
-    } else {
-      representative[vertex] = existing
-    }
-  }
-  const remapped = new Uint32Array(indices.length)
-  for (let index = 0; index < indices.length; index += 1) remapped[index] = representative[indices[index]]
-  const loops = directedBoundaryLoops(remapped)
-  let surfaceArea = 0
-  for (let offset = 0; offset < indices.length; offset += 3) {
-    surfaceArea += triangleArea(positions, indices[offset], indices[offset + 1], indices[offset + 2])
-  }
-  const minLoopArea = Math.max(surfaceArea * minLoopAreaRatio, tolerance * tolerance * 4)
-  const extraPositions = []
-  const extraNormals = []
-  const extraIndices = []
-  let filledLoops = 0
-  let skippedLoops = 0
-  for (const loop of loops) {
-    // 3 个顶点的「环」不是洞，是开放边角的副产品（SimLab 导入件里大量存在）：
-    // 补上去只会多出一片靠不住的面，所以最小环长默认 4。
-    if (loop.length < minLoopVertices || loop.length > maxLoopVertices) {
-      skippedLoops += 1
-      continue
-    }
-    const points = loop.map((vertex) => [positions[vertex * 3], positions[vertex * 3 + 1], positions[vertex * 3 + 2]])
-    const plane = fitPlane(points)
-    if (!plane) {
-      skippedLoops += 1
-      continue
-    }
-    const deviation = Math.max(
-      ...points.map((point) =>
-        Math.abs(
-          (point[0] - plane.origin[0]) * plane.normal[0] +
-            (point[1] - plane.origin[1]) * plane.normal[1] +
-            (point[2] - plane.origin[2]) * plane.normal[2],
-        ),
-      ),
-    )
-    if (deviation > planarityTolerance) {
-      skippedLoops += 1
-      continue
-    }
-    const basis = planeBasis(plane)
-    const projected = points.map((point) => projectPoint(point, plane, basis))
-    if (!isConvex(projected)) {
-      skippedLoops += 1
-      continue
-    }
-    // 面积闸门在凸性判定之后：投影多边形面积必须够大，否则就是穿孔/接缝，不补。
-    if (polygonArea(projected) < minLoopArea) {
-      skippedLoops += 1
-      continue
-    }
-    const centroid = plane.origin
-    const centroidIndex = vertexCount + extraPositions.length / 3
-    extraPositions.push(...centroid)
-    extraNormals.push(...plane.normal)
-    // 反转边界走向：边界有向边来自相邻面，补洞面要反向绕才法线一致。
-    for (let index = loop.length - 1; index >= 0; index -= 1) {
-      const current = loop[index]
-      const next = loop[(index - 1 + loop.length) % loop.length]
-      if (current === next) continue
-      extraIndices.push(centroidIndex, current, next)
-    }
-    filledLoops += 1
-  }
-  if (!extraIndices.length) return { primitive, filledLoops, skippedLoops, addedTriangles: 0 }
-  const nextPositions = new Float32Array(positions.length + extraPositions.length)
-  nextPositions.set(positions, 0)
-  nextPositions.set(extraPositions, positions.length)
-  const nextNormals = new Float32Array(positions.length + extraPositions.length)
-  if (primitive.normals) nextNormals.set(primitive.normals, 0)
-  nextNormals.set(extraNormals, positions.length)
-  const nextUvs = primitive.uvs ? new Float32Array((vertexCount + extraPositions.length / 3) * 2) : undefined
-  if (nextUvs && primitive.uvs) nextUvs.set(primitive.uvs, 0)
-  return {
-    primitive: {
-      positions: nextPositions,
-      normals: nextNormals,
-      uvs: nextUvs,
-      indices: new Uint32Array([...indices, ...extraIndices]),
-    },
-    filledLoops,
-    skippedLoops,
-    addedTriangles: extraIndices.length / 3,
-  }
-}
-
-/** 有向边界环：每条边只被 1 个面用，按面里的走向 `from→to` 串成环。 */
-export function directedBoundaryLoops(indices) {
-  const edgeUse = new Map()
-  for (let offset = 0; offset < indices.length; offset += 3) {
-    const corners = [indices[offset], indices[offset + 1], indices[offset + 2]]
-    for (let corner = 0; corner < 3; corner += 1) {
-      const from = corners[corner]
-      const to = corners[(corner + 1) % 3]
-      const key = from < to ? `${from}|${to}` : `${to}|${from}`
-      const record = edgeUse.get(key) ?? { count: 0, from, to }
-      record.count += 1
-      edgeUse.set(key, record)
-    }
-  }
-  const outgoing = new Map()
-  for (const record of edgeUse.values()) {
-    if (record.count !== 1) continue
-    if (!outgoing.has(record.from)) outgoing.set(record.from, [])
-    outgoing.get(record.from).push(record.to)
-  }
-  const loops = []
-  const consumed = new Set()
-  for (const [start, targets] of outgoing) {
-    for (const firstTarget of targets) {
-      const edgeKey = `${start}>${firstTarget}`
-      if (consumed.has(edgeKey)) continue
-      const loop = [start]
-      consumed.add(edgeKey)
-      let current = firstTarget
-      let guard = indices.length
-      while (current !== start && guard > 0) {
-        guard -= 1
-        loop.push(current)
-        const nextTargets = (outgoing.get(current) ?? []).filter((target) => !consumed.has(`${current}>${target}`))
-        if (!nextTargets.length) break
-        const next = nextTargets[0]
-        consumed.add(`${current}>${next}`)
-        current = next
-      }
-      if (current === start && loop.length >= 3) loops.push(loop)
-    }
-  }
-  return loops
-}
-
-/** Newell 法线拟合平面：对平面环稳定，对近似平面环也够用。 */
-function fitPlane(points) {
-  let nx = 0
-  let ny = 0
-  let nz = 0
-  for (let index = 0; index < points.length; index += 1) {
-    const current = points[index]
-    const next = points[(index + 1) % points.length]
-    nx += (current[1] - next[1]) * (current[2] + next[2])
-    ny += (current[2] - next[2]) * (current[0] + next[0])
-    nz += (current[0] - next[0]) * (current[1] + next[1])
-  }
-  const length = Math.hypot(nx, ny, nz)
-  if (length < 1e-9) return null
-  const origin = points
-    .reduce((sum, point) => [sum[0] + point[0], sum[1] + point[1], sum[2] + point[2]], [0, 0, 0])
-    .map((component) => component / points.length)
-  const normal = [nx / length, ny / length, nz / length]
-  return { normal, origin }
-}
-
-/** 平面正交基：`u` 任意但与法线正交，`v = n × u`。 */
-function planeBasis(plane) {
-  const reference = Math.abs(plane.normal[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]
-  const u = normalize(cross(reference, plane.normal))
-  return { u, v: cross(plane.normal, u) }
-}
-
-function projectPoint(point, plane, basis) {
-  const delta = [point[0] - plane.origin[0], point[1] - plane.origin[1], point[2] - plane.origin[2]]
-  return [dot(delta, basis.u), dot(delta, basis.v)]
-}
-
-/** 二维凸性：所有相邻边的叉积同号。 */
-function isConvex(projected) {
-  let positive = 0
-  let negative = 0
-  for (let index = 0; index < projected.length; index += 1) {
-    const a = projected[index]
-    const b = projected[(index + 1) % projected.length]
-    const c = projected[(index + 2) % projected.length]
-    const area = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])
-    if (area > 1e-12) positive += 1
-    else if (area < -1e-12) negative += 1
-  }
-  return positive === 0 || negative === 0
-}
-
-function dot(left, right) {
-  return left[0] * right[0] + left[1] * right[1] + left[2] * right[2]
-}
-
-function cross(left, right) {
-  return [
-    left[1] * right[2] - left[2] * right[1],
-    left[2] * right[0] - left[0] * right[2],
-    left[0] * right[1] - left[1] * right[0],
-  ]
-}
-
-function normalize(vector) {
-  const length = Math.hypot(...vector) || 1
-  return vector.map((component) => component / length)
-}
-
-/**
- * 单次「清理一条 primitive」：焊接 → 去退化/重叠 → （可选）补平面洞。
- * 返回的 `report` 是审计报告里的「修正操作」字段。
- */
-export function cleanPrimitive(primitive, options = {}) {
-  const {
-    weld = true,
-    fillHoles = false,
-    positionOnlyWeld = false,
-    tolerance = DEFAULT_WELD_TOLERANCE,
-    minLoopAreaRatio = 0.004,
-  } = options
-  const before = analyzeTopology(primitive, { tolerance })
-  let current = primitive
-  let removedVertices = 0
-  if (weld) {
-    const welded = weldPrimitive(primitive, { positionOnly: positionOnlyWeld, tolerance })
-    removedVertices = welded.removedVertices
-    current = welded.primitive
-  }
-  const cleaned = cleanTriangles(current)
-  current = cleaned.primitive
-  let filled = { filledLoops: 0, skippedLoops: 0, addedTriangles: 0 }
-  if (fillHoles) {
-    const result = fillPlanarHoles(current, { tolerance, minLoopAreaRatio })
-    current = result.primitive
-    filled = {
-      filledLoops: result.filledLoops,
-      skippedLoops: result.skippedLoops,
-      addedTriangles: result.addedTriangles,
-    }
-  }
-  const after = analyzeTopology(current, { tolerance })
-  return {
-    primitive: current,
-    report: {
-      weld: { removedVertices, positionOnlyWeld },
-      degenerateFaces: cleaned.degenerate,
-      duplicatedFaces: cleaned.duplicated,
-      holesFilled: filled.filledLoops,
-      holesSkipped: filled.skippedLoops,
-      addedTriangles: filled.addedTriangles,
-      before,
-      after,
-    },
-  }
 }

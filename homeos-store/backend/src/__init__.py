@@ -47,7 +47,7 @@ def _read_baked_version() -> str:
     源码运行时这个模块不存在，返回空串让调用方回落到 ``package.json``。
     """
     try:
-        from ._version import __version__ as baked  # type: ignore[import-not-found]
+        from ._version import __version__ as baked  # pyright: ignore[reportMissingModuleSource]
     except ImportError:
         return ""
     return str(baked).strip()

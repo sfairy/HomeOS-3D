@@ -107,7 +107,7 @@ const DEFAULTS = Object.freeze({
  * @param {ReturnType<typeof glbFingerprint>} after
  * @param {object} [options]
  */
-export function fingerprintDrift(before, after, options = {}) {
+function fingerprintDrift(before, after, options = {}) {
   const settings = { ...DEFAULTS, ...options }
   const drift = []
 

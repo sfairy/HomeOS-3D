@@ -388,6 +388,7 @@ class DeviceManagementService:
                 attributes = state.get("attributes") if isinstance(state, dict) else None
                 name = str((attributes or {}).get("friendly_name") or "")
             except Exception:
+                logger.debug("load_zombie_friendly_name_map 忽略异常", exc_info=True)
                 name = ""
             put(entity_id, name)
         return name_map

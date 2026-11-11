@@ -25,14 +25,6 @@
     color var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
-/* ── 侧栏切换按钮的 hover 反馈 ── */
-.devices-view .devices-view__sidebar-toggle {
-  transition:
-    background var(--hos-dur-fast) var(--hos-ease-standard),
-    border-color var(--hos-dur-fast) var(--hos-ease-standard),
-    color var(--hos-dur-fast) var(--hos-ease-standard);
-}
-
 /* ── 域 tab 切换 hover 反馈（未选中态轻微高亮） ── */
 .devices-view .list-page__tab:not(.list-page__tab--on):hover {
   background: var(--hos-color-accent-soft);

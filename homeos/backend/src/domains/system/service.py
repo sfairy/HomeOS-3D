@@ -216,6 +216,7 @@ class SystemService:
                     return candidate
             return candidates[0] or "127.0.0.1"
         except Exception:
+            logger.debug("get_local_ip 忽略异常", exc_info=True)
             return "127.0.0.1"
 
     def resolve_backend_port(self) -> int:
@@ -298,7 +299,7 @@ def _collect_addresses(family: int) -> list[str]:
         if addresses:
             return addresses
     except Exception:  # 网卡枚举失败即回退默认/上一次的地址列表
-        pass
+        logger.debug("_collect_addresses 忽略异常", exc_info=True)
 
     hostname = socket.gethostname()
     try:

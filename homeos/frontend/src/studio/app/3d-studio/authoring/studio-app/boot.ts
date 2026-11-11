@@ -139,7 +139,7 @@ import {
   syncExportControls as syncExportControlsImpl, formatPresetLabel as formatPresetLabelImpl, makeUniquePresetName as makeUniquePresetNameImpl,
 } from "./functions/groups/shadow-camera-export-presets";
 import {
-  saveAsNewPreset as saveAsNewPresetImpl, closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl, closePresetDeleteDialog as closePresetDeleteDialogImpl,
+  saveAsNewPreset as saveAsNewPresetImpl, closePresetRenameDialog as closePresetRenameDialogImpl, openPresetRenameDialog as openPresetRenameDialogImpl,
   openPresetDeleteDialog as openPresetDeleteDialogImpl, ensureSceneRendered as ensureSceneRenderedImpl, prepareFreeCameraCapture as prepareFreeCameraCaptureImpl,
   selectPreviewFloor as selectPreviewFloorImpl, collectSelectedExportFiles as collectSelectedExportFilesImpl, restorePreviewAfterExport as restorePreviewAfterExportImpl, setExportBusy as setExportBusyImpl,
   prepareExportRender as prepareExportRenderImpl, canvasToBlob as canvasToBlobImpl, renderExportImage as renderExportImageImpl, renderLightDeltaLayer as renderLightDeltaLayerImpl,
@@ -450,7 +450,6 @@ export function bootStudio(): void {
     get clearDropIndicator() { return clearDropIndicator; },
     get clearLightGroupDropIndicator() { return clearLightGroupDropIndicator; },
     get closeDrawingToolGroups() { return closeDrawingToolGroups; },
-    get closePresetDeleteDialog() { return closePresetDeleteDialog; },
     get closedWallLoops() { return closedWallLoops; },
     get collectActiveLightEntries() { return collectActiveLightEntries; },
     get collectActiveLightGroupKeys() { return collectActiveLightGroupKeys; },
@@ -1276,7 +1275,6 @@ export function bootStudio(): void {
   const saveAsNewPreset = (...args: any[]): any => (saveAsNewPresetImpl as any)(studioRuntime, ...args);
   const closePresetRenameDialog = (...args: any[]): any => (closePresetRenameDialogImpl as any)(studioRuntime, ...args);
   const openPresetRenameDialog = (...args: any[]): any => (openPresetRenameDialogImpl as any)(studioRuntime, ...args);
-  const closePresetDeleteDialog = (...args: any[]): any => (closePresetDeleteDialogImpl as any)(studioRuntime, ...args);
   const openPresetDeleteDialog = (...args: any[]): any => (openPresetDeleteDialogImpl as any)(studioRuntime, ...args);
   const ensureSceneRendered = (...args: any[]): any => (ensureSceneRenderedImpl as any)(studioRuntime, ...args);
   const prepareFreeCameraCapture = (...args: any[]): any => (prepareFreeCameraCaptureImpl as any)(studioRuntime, ...args);
