@@ -11,9 +11,8 @@ const warnedAccents = new Set<string>()
  * 将 ui 配置中的强调色应用到 document 根元素。
  * 设置 --accent-color / --accent，并在 RGB 解析成功时派生 glow / nav 系列变量。
  *
- * 597637a3 把默认强调色改成暖铜，恢复彩色模块主题后由后端一次性落库迁移
- * （app_config/service.py `_migrate_legacy_accent_color`）；可读的颜色一律原样应用，
- * 只有对比度不达标的配置才回落到系统蓝，避免把用户显式选择的暖铜静默覆盖。
+ * 可读的颜色一律原样应用，
+ * 只有对比度不达标的配置才回落到系统蓝，避免把用户显式选择的颜色静默覆盖。
  *
  * @param ui - ui 配置段，包含可选的 accentColor
  * @sideEffect 修改 document.documentElement 的 inline style（CSS 变量）
