@@ -156,8 +156,8 @@ const GATE_GROUPS = {
       cmd: 'bash',
       args: ['ops/ci/build_frontend_verify.sh'],
     },
-    // 体积预算棘轮已停用：入口 chunk / runtime 数随功能迭代自然漂移，
-    // 不再用 check:bundle-budget 卡 gate:build。脚本仍可手动 bun run check:bundle-budget。
+    // 体积预算棘轮已移除：入口 chunk / runtime 数随功能迭代自然漂移，
+    // 构建组只守下面两条（chunk 初始化顺序与字体子集）。
     { name: 'check:chunk-init', ...bun('run', 'check:chunk-init') },
     { name: 'check:font-subset', ...bun('run', 'check:font-subset') },
   ],
