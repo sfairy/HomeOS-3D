@@ -94,7 +94,6 @@ const overrideName = (name) => String(name || '').toLowerCase()
 /** 改名计划 → token 角色表（同一 token 在同一模型里必须只有一个角色）。 */
 function buildGeneratedTables(contracts) {
   const aliases = {}
-  const aliasesByItem = {}
   const slotRoles = {}
   const nameOverrides = {}
   const conflicts = []
@@ -147,8 +146,6 @@ function buildGeneratedTables(contracts) {
       }
       roleByToken.set(token, slot.role)
       aliases[canonicalName] = legacyName
-      aliasesByItem[model.itemType] = aliasesByItem[model.itemType] ?? {}
-      aliasesByItem[model.itemType][canonicalName] = legacyName
       // 完整名覆盖优先于 token 推断：`shower-body` 的 token `body` 在 ceramic 家族里
       // 会被解释成「陶瓷本体」，而契约要求它保持 `body`（金属淋浴房本体）。
       nameOverrides[model.itemType] = nameOverrides[model.itemType] ?? {}
@@ -160,7 +157,7 @@ function buildGeneratedTables(contracts) {
     const [itemType, token] = entry.split(':')
     if (slotRoles[itemType]) delete slotRoles[itemType][token]
   }
-  return { aliases, aliasesByItem, slotRoles, nameOverrides, conflicts, conflictedTokens }
+  return { aliases, slotRoles, nameOverrides, conflicts, conflictedTokens }
 }
 
 function renderAliasFile(tables) {
@@ -173,6 +170,9 @@ function renderAliasFile(tables) {
   lines.push(' * 作用：GLB 槽位改名后，`studio-external-models.ts` 里按 `material-<n>` / 原始名取色的')
   lines.push(' * 分支仍然要看到**旧名**。加载器在拿 `materialName` 的第一时间过一遍这张表，')
   lines.push(' * 旧分支逻辑与视觉结果都不变；表为空时函数退化为小写归一，行为完全等价。')
+  lines.push(' *')
+  lines.push(' * 只落全局表：按 itemType 的切片在 `legacy-material-aliases.ts` 里按 `new 名` 前缀')
+  lines.push(' * 派生（两者是同一份改名的两个视图，重复落一份只会漂移）。')
   lines.push(' */')
   lines.push('')
   lines.push(
@@ -180,22 +180,6 @@ function renderAliasFile(tables) {
       JSON.stringify(sortKeys(tables.aliases), null, 2) +
       ');',
   )
-  lines.push('')
-  lines.push(
-    'export const LEGACY_MATERIAL_ALIASES_BY_ITEM: Readonly<Record<string, Readonly<Record<string, string>>>> = Object.freeze(',
-  )
-  lines.push(
-    JSON.stringify(
-      Object.fromEntries(
-        Object.entries(tables.aliasesByItem)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([key, value]) => [key, sortKeys(value)]),
-      ),
-      null,
-      2,
-    ),
-  )
-  lines.push(');')
   lines.push('')
   return lines.join('\n')
 }

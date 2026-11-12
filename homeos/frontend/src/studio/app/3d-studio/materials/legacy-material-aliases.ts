@@ -12,7 +12,7 @@
  *
  * 别名表为空时（尚未改名）本模块退化为小写归一，行为与改动前完全等价。
  */
-import { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM } from './legacy-material-aliases.generated'
+import { LEGACY_MATERIAL_ALIASES } from './legacy-material-aliases.generated'
 
 /**
  * 取色分支用的规范化材质名。
@@ -21,11 +21,33 @@ import { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM } from './lega
  *   `material-<n>` 含义可能不同，必须分开）；
  * - 再退回全局表（模型名前缀已经足够唯一）；
  * - 都没有就小写返回，和旧行为一致。
+ *
+ * 按 itemType 的切片不再单独入库：生成器保证「某个 itemType 的别名」恰好是全局表中
+ * `new 名以 `<itemType>-` 开头」的那些条目（两份表本来就是同一份改名的两个视图），
+ * 这里按前缀派生并缓存，少维护 226 行重复数据。
  */
+const aliasesByItemCache = new Map<string, Readonly<Record<string, string>>>()
+const EMPTY_ALIASES: Readonly<Record<string, string>> = Object.freeze({})
+
+function aliasesForItem(itemType: string): Readonly<Record<string, string>> {
+  const cached = aliasesByItemCache.get(itemType)
+  if (cached) return cached
+  const prefix = `${itemType}-`
+  let scoped: Record<string, string> | undefined
+  for (const [canonical, legacy] of Object.entries(LEGACY_MATERIAL_ALIASES)) {
+    if (!canonical.startsWith(prefix)) continue
+    scoped ??= {}
+    scoped[canonical] = legacy
+  }
+  const resolved = scoped ? Object.freeze(scoped) : EMPTY_ALIASES
+  aliasesByItemCache.set(itemType, resolved)
+  return resolved
+}
+
 export function canonicalExternalMaterialName(name: string | null | undefined, itemType?: string | null): string {
   const lower = (name || '').toLowerCase()
   if (!lower) return lower
-  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined
+  const scoped = itemType ? aliasesForItem(itemType)[lower] : undefined
   return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? lower
 }
 
@@ -39,8 +61,8 @@ export function canonicalExternalMaterialName(name: string | null | undefined, i
 export function legacyExternalMaterialName(name: string | null | undefined, itemType?: string | null): string | null {
   const lower = (name || '').toLowerCase()
   if (!lower) return null
-  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined
+  const scoped = itemType ? aliasesForItem(itemType)[lower] : undefined
   return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? null
 }
 
-export { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM }
+export { LEGACY_MATERIAL_ALIASES }
