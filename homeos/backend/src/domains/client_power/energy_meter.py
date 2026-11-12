@@ -26,9 +26,6 @@ from ...platform.core.energy.roles import (
 #: 家庭业务时区（与 ops.homeTimezone 默认一致），用于日切/月切。
 BUSINESS_TIME_ZONE = "Asia/Shanghai"
 
-#: 兼容旧调用点：模块内原本的私有名现在指向平台实现
-_normalize_unit = normalize_unit
-
 
 def describe_energy_entity(attrs: dict[str, Any] | None) -> dict[str, Any]:
     """返回前端展示所需的最小实体类型描述（不泄漏整份 attributes）。"""
@@ -111,7 +108,7 @@ def describe_meter_scope(scope: Any) -> dict[str, Any]:
 
 
 def reading_to_kwh(value: float, attrs: dict[str, Any] | None) -> float:
-    unit = _normalize_unit((attrs or {}).get("unit_of_measurement"))
+    unit = normalize_unit((attrs or {}).get("unit_of_measurement"))
     if unit == "wh":
         return value / 1000
     if unit == "mwh":

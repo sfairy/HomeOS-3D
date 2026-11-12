@@ -263,7 +263,7 @@ class HomeModeService:
             return int(session.execute(select(func.max(HomeMode.sort_order))).scalar() or 0)
 
     def get_active(self) -> dict[str, Any] | None:
-        """兼容旧契约：返回 priority 最高的 active 模式。"""
+        """返回 priority 最高的 active 模式（多互斥组同时激活时只取第一个）。"""
         active = self.get_active_modes()
         return active[0] if active else None
 
